@@ -123,9 +123,9 @@ public class DvidLabels64VolatileArrayLoader implements CacheArrayLoader< Volati
 		final int[] data = new int[ dimensions[ 0 ] * dimensions[ 1 ] * dimensions[ 2 ] ];
 
 		try
-		{	
+		{
 			final String urlString = makeUrl( min, dimensions );
-			System.out.println( urlString + " " + data.length );
+//			System.out.println( urlString + " " + data.length );
 			readBlock( urlString, data );
 		}
 		catch (final IOException e)
