@@ -33,7 +33,7 @@ public class DvidGrayscale8VolatileArrayLoader implements CacheArrayLoader< Vola
 	{
 		return 1;
 	}
-	
+
 	static private void readBlock(
 			final String urlString,
 			final byte[] data ) throws IOException
@@ -48,32 +48,13 @@ public class DvidGrayscale8VolatileArrayLoader implements CacheArrayLoader< Vola
 					off += l, l = in.read( data, off, data.length - off ) );
 			in.close();
 	}
-	
+
 	private String makeUrl(
 			final long[] min,
 			final int[] dimensions )
 	{
 		final StringBuffer buf = new StringBuffer( apiUrl );
-		
-		// <api URL>/node/3f8c/mymultiscale2d/tile/xy/0/10_10_20
-		
-//		buf.append( "/node/" );
-//		buf.append( nodeId );
-//		buf.append( "/" );
-//		buf.append( dataInstanceId );
-//		buf.append( "/raw/0_1_2/" );
-//		buf.append( dimensions[ 0 ] );
-//		buf.append( "_" );
-//		buf.append( dimensions[ 1 ] );
-//		buf.append( "_" );
-//		buf.append( dimensions[ 2 ] );
-//		buf.append( "/" );
-//		buf.append( min[ 0 ] );
-//		buf.append( "_" );
-//		buf.append( min[ 1 ] );
-//		buf.append( "_" );
-//		buf.append( min[ 2 ] );
-		
+
 		buf.append( "/node/" );
 		buf.append( nodeId );
 		buf.append( "/" );
@@ -85,10 +66,10 @@ public class DvidGrayscale8VolatileArrayLoader implements CacheArrayLoader< Vola
 		buf.append( "_" );
 		buf.append( min[ 2 ] / dimensions[ 2 ] );
 		buf.append( "/1" );
-		
+
 		return buf.toString();
 	}
-	
+
 
 	@Override
 	public VolatileByteArray loadArray(
@@ -101,10 +82,10 @@ public class DvidGrayscale8VolatileArrayLoader implements CacheArrayLoader< Vola
 		final byte[] data = new byte[ dimensions[ 0 ] * dimensions[ 1 ] * dimensions[ 2 ] ];
 
 		try
-		{	
+		{
 			final String urlString = makeUrl( min, dimensions );
 			readBlock( urlString, data );
-			System.out.println( urlString + " " + data.length );
+//			System.out.println( urlString + " " + data.length );
 		}
 		catch (final IOException e)
 		{

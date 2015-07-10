@@ -19,8 +19,8 @@ import bdv.ViewerSetupImgLoader;
 import bdv.export.ProgressWriterConsole;
 import bdv.img.cache.Cache;
 import bdv.img.cache.VolatileGlobalCellCache;
+import bdv.img.dvid.DvidGrayscale8ImageLoader;
 import bdv.img.dvid.DvidLabels64SetupImageLoader;
-import bdv.img.dvid.DvidMultiscale2dSetupImageLoader;
 import bdv.spimdata.SequenceDescriptionMinimal;
 import bdv.spimdata.SpimDataMinimal;
 import bdv.tools.brightness.ConverterSetup;
@@ -73,19 +73,25 @@ public class BigCat
 		{
 			System.setProperty( "apple.laf.useScreenMenuBar", "true" );
 
-			final DvidMultiscale2dSetupImageLoader dvidMultiscale2dImageLoader = new DvidMultiscale2dSetupImageLoader(
+//			final DvidMultiscale2dSetupImageLoader dvidMultiscale2dImageLoader = new DvidMultiscale2dSetupImageLoader(
+//					"http://emrecon100.janelia.priv/api",
+//					"2a3fd320aef011e4b0ce18037320227c",
+//					"graytiles",
+//					0 );
+			final DvidGrayscale8ImageLoader dvidGrayscale8ImageLoader = new DvidGrayscale8ImageLoader(
 					"http://emrecon100.janelia.priv/api",
 					"2a3fd320aef011e4b0ce18037320227c",
-					"graytiles",
-					0 );
+					"grayscale" );
 			final DvidLabels64SetupImageLoader dvidLabels64ImageLoader = new DvidLabels64SetupImageLoader(
 					"http://emrecon100.janelia.priv/api",
 					"2a3fd320aef011e4b0ce18037320227c",
 					"bodies",
 					1 );
 
-			final CombinedImgLoader imgLoader = new CombinedImgLoader( dvidMultiscale2dImageLoader, dvidLabels64ImageLoader );
-			dvidMultiscale2dImageLoader.setCache( imgLoader.cache );
+//			final CombinedImgLoader imgLoader = new CombinedImgLoader( dvidMultiscale2dImageLoader, dvidLabels64ImageLoader );
+			final CombinedImgLoader imgLoader = new CombinedImgLoader( dvidGrayscale8ImageLoader, dvidLabels64ImageLoader );
+//			dvidMultiscale2dImageLoader.setCache( imgLoader.cache );
+			dvidGrayscale8ImageLoader.setCache( imgLoader.cache );
 			dvidLabels64ImageLoader.setCache( imgLoader.cache );
 
 			final TimePoints timepoints = new TimePoints( Arrays.asList( new TimePoint( 0 ) ) );

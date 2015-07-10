@@ -144,4 +144,9 @@ public class DvidGrayscale8ImageLoader
 	{
 		return this;
 	}
+
+	public void setCache( final VolatileGlobalCellCache cache )
+	{
+		this.cache = cache;
+	}
 }
