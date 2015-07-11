@@ -16,6 +16,7 @@ import net.imglib2.realtransform.AffineTransform3D;
 import bdv.BigDataViewer;
 import bdv.ViewerImgLoader;
 import bdv.ViewerSetupImgLoader;
+import bdv.bigcat.composite.AccumulateProjectorCompositeARGB;
 import bdv.export.ProgressWriterConsole;
 import bdv.img.cache.Cache;
 import bdv.img.cache.VolatileGlobalCellCache;
@@ -114,7 +115,8 @@ public class BigCat
 
 			final Cache cache = imgLoader.getCache();
 			final String windowTitle = "bigcat";
-			final BigDataViewer bdv = new BigDataViewer( converterSetups, sources, null, timepoints.size(), cache, windowTitle, null, ViewerOptions.options() );
+			final BigDataViewer bdv = new BigDataViewer( converterSetups, sources, null, timepoints.size(), cache, windowTitle, null,
+					ViewerOptions.options().accumulateProjectorFactory( AccumulateProjectorCompositeARGB.factory ) );
 
 			final AffineTransform3D transform = new AffineTransform3D();
 			transform.set(
