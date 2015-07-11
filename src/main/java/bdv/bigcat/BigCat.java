@@ -26,6 +26,7 @@ import bdv.spimdata.SpimDataMinimal;
 import bdv.tools.brightness.ConverterSetup;
 import bdv.viewer.DisplayMode;
 import bdv.viewer.SourceAndConverter;
+import bdv.viewer.ViewerOptions;
 
 import com.google.gson.JsonIOException;
 import com.google.gson.JsonSyntaxException;
@@ -112,12 +113,8 @@ public class BigCat
 			BigDataViewer.initSetups( spimData, converterSetups, sources );
 
 			final Cache cache = imgLoader.getCache();
-			final int width = 800;
-			final int height = 600;
 			final String windowTitle = "bigcat";
-			final BigDataViewer bdv = new BigDataViewer( converterSetups, sources, null, timepoints.size(), cache, windowTitle, width, height, null );
-
-
+			final BigDataViewer bdv = new BigDataViewer( converterSetups, sources, null, timepoints.size(), cache, windowTitle, null, ViewerOptions.options() );
 
 			final AffineTransform3D transform = new AffineTransform3D();
 			transform.set(
@@ -144,7 +141,7 @@ public class BigCat
 		try
 		{
 			System.setProperty( "apple.laf.useScreenMenuBar", "true" );
-			final BigDataViewer bdv = BigDataViewer.open( fn, new File( fn ).getName(), new ProgressWriterConsole() );
+			final BigDataViewer bdv = BigDataViewer.open( fn, new File( fn ).getName(), new ProgressWriterConsole(), ViewerOptions.options() );
 			final AffineTransform3D transform = new AffineTransform3D();
 			transform.set(
 					4.3135842398185575, -1.0275561336713027E-16, 1.1102230246251565E-16, -14207.918453952327,
