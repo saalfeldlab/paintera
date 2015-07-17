@@ -1,14 +1,15 @@
 package bdv.bigcat.composite;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.ExecutorService;
 
 import net.imglib2.Cursor;
 import net.imglib2.RandomAccessible;
 import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.type.Type;
+import bdv.viewer.Source;
 import bdv.viewer.render.AccumulateProjector;
 import bdv.viewer.render.AccumulateProjectorFactory;
 import bdv.viewer.render.VolatileProjector;
@@ -21,7 +22,7 @@ public class CompositeProjector< A extends Type< A > > extends AccumulateProject
 {
 	public static class CompositeProjectorFactory< A extends Type< A > > implements AccumulateProjectorFactory< A >
 	{
-		final private ArrayList< Composite< A, A > > composites = new ArrayList< Composite< A, A > >();
+		final private Map< Source< ? >, Composite< A, A > > composites;
 
 		/**
 		 * Constructor with a list (to preserve the order) of
@@ -29,38 +30,32 @@ public class CompositeProjector< A extends Type< A > > extends AccumulateProject
 		 *
 		 * @param composites
 		 */
-		public CompositeProjectorFactory( final List< Composite< A, A > > composites )
+		public CompositeProjectorFactory( final Map< Source< ? >, Composite< A, A > > composites )
 		{
-			this.composites.addAll( composites );
-		}
-
-		/**
-		 * Constructor with a list (to preserve the order) of
-		 * {@link Composite Composites}.
-		 *
-		 * @param composites
-		 */
-		public CompositeProjectorFactory( final Composite< A, A >... composites )
-		{
-			this.composites.addAll( Arrays.asList( composites ) );
+			this.composites = composites;
 		}
 
 		@Override
 		public VolatileProjector createAccumulateProjector(
 				final ArrayList< VolatileProjector > sourceProjectors,
-				final ArrayList< ? extends RandomAccessible< A > > sources,
-				final RandomAccessibleInterval< A > target,
+				final ArrayList< Source< ? > > sources,
+				final ArrayList< ? extends RandomAccessible< A > > sourceScreenImages,
+				final RandomAccessibleInterval< A > targetScreenImages,
 				final int numThreads,
 				final ExecutorService executorService )
 		{
 			final CompositeProjector< A > projector = new CompositeProjector< A >(
 					sourceProjectors,
-					sources,
-					target,
+					sourceScreenImages,
+					targetScreenImages,
 					numThreads,
 					executorService );
 
-			projector.setComposites( composites );
+			final ArrayList< Composite< A, A > > activeComposites = new ArrayList< Composite< A, A > >();
+			for ( final Source< ? > activeSource : sources )
+				activeComposites.add( composites.get( activeSource ) );
+
+			projector.setComposites( activeComposites );
 
 			return projector;
 		}

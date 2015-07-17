@@ -30,6 +30,7 @@ import bdv.spimdata.SequenceDescriptionMinimal;
 import bdv.spimdata.SpimDataMinimal;
 import bdv.tools.brightness.ConverterSetup;
 import bdv.viewer.DisplayMode;
+import bdv.viewer.Source;
 import bdv.viewer.SourceAndConverter;
 import bdv.viewer.ViewerOptions;
 import bdv.viewer.render.AccumulateProjectorFactory;
@@ -121,7 +122,10 @@ public class BigCat
 			/* composites */
 			final Composite< ARGBType, ARGBType > grayCopy = new CompositeCopy< ARGBType >();
 			final Composite< ARGBType, ARGBType > yCbCrComposite = new ARGBCompositeAlphaYCbCr();
-			final AccumulateProjectorFactory< ARGBType > projectorFactory = new CompositeProjector.CompositeProjectorFactory< ARGBType >( grayCopy, yCbCrComposite );
+			final HashMap< Source< ? >, Composite< ARGBType, ARGBType > > composites = new HashMap< Source< ? >, Composite< ARGBType, ARGBType > >();
+			composites.put( sources.get( 0 ).getSpimSource(), grayCopy );
+			composites.put( sources.get( 1 ).getSpimSource(), yCbCrComposite );
+			final AccumulateProjectorFactory< ARGBType > projectorFactory = new CompositeProjector.CompositeProjectorFactory< ARGBType >( composites );
 
 			final Cache cache = imgLoader.getCache();
 			final String windowTitle = "bigcat";
