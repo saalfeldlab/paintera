@@ -48,11 +48,16 @@ public interface MappedAccessData< T extends MappedAccess< T > >
 	 *            the type of {@link MappedAccessData} created by this
 	 *            factory.
 	 */
-	public static interface Factory< A >
+	public static interface Factory< A extends MappedAccessData< T >, T extends MappedAccess< T > >
 	{
 		/**
 		 * Create container for {@code size} bytes.
 		 */
 		public A createStorage( final long size );
+
+		/**
+		 * Create access (referring to nothing initially).
+		 */
+		public T createAccess();
 	}
 }

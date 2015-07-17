@@ -89,12 +89,19 @@ public class LongMappedAccessData implements MappedAccessData< LongMappedAccess 
 	/**
 	 * A factory for {@link LongMappedAccessData}s.
 	 */
-	public static final MappedAccessData.Factory< LongMappedAccessData > factory = new MappedAccessData.Factory< LongMappedAccessData >()
-	{
-		@Override
-		public LongMappedAccessData createStorage( final long size )
-		{
-			return new LongMappedAccessData( size );
-		}
-	};
+	public static final MappedAccessData.Factory< LongMappedAccessData, LongMappedAccess > factory =
+			new MappedAccessData.Factory< LongMappedAccessData, LongMappedAccess >()
+			{
+				@Override
+				public LongMappedAccessData createStorage( final long size )
+				{
+					return new LongMappedAccessData( size );
+				}
+
+				@Override
+				public LongMappedAccess createAccess()
+				{
+					return new LongMappedAccess( null, 0 );
+				}
+			};
 }
