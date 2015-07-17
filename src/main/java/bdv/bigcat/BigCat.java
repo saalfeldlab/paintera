@@ -13,10 +13,14 @@ import mpicbg.spim.data.registration.ViewRegistrations;
 import mpicbg.spim.data.sequence.TimePoint;
 import mpicbg.spim.data.sequence.TimePoints;
 import net.imglib2.realtransform.AffineTransform3D;
+import net.imglib2.type.numeric.ARGBType;
 import bdv.BigDataViewer;
 import bdv.ViewerImgLoader;
 import bdv.ViewerSetupImgLoader;
-import bdv.bigcat.composite.AccumulateProjectorCompositeARGB;
+import bdv.bigcat.composite.ARGBCompositeAlphaYCbCr;
+import bdv.bigcat.composite.Composite;
+import bdv.bigcat.composite.CompositeCopy;
+import bdv.bigcat.composite.CompositeProjector;
 import bdv.export.ProgressWriterConsole;
 import bdv.img.cache.Cache;
 import bdv.img.cache.VolatileGlobalCellCache;
@@ -28,6 +32,7 @@ import bdv.tools.brightness.ConverterSetup;
 import bdv.viewer.DisplayMode;
 import bdv.viewer.SourceAndConverter;
 import bdv.viewer.ViewerOptions;
+import bdv.viewer.render.AccumulateProjectorFactory;
 
 import com.google.gson.JsonIOException;
 import com.google.gson.JsonSyntaxException;
@@ -113,10 +118,22 @@ public class BigCat
 			final ArrayList< SourceAndConverter< ? > > sources = new ArrayList< SourceAndConverter< ? > >();
 			BigDataViewer.initSetups( spimData, converterSetups, sources );
 
+			/* composites */
+			final Composite< ARGBType, ARGBType > grayCopy = new CompositeCopy< ARGBType >();
+			final Composite< ARGBType, ARGBType > yCbCrComposite = new ARGBCompositeAlphaYCbCr();
+			final AccumulateProjectorFactory< ARGBType > projectorFactory = new CompositeProjector.CompositeProjectorFactory< ARGBType >( grayCopy, yCbCrComposite );
+
 			final Cache cache = imgLoader.getCache();
 			final String windowTitle = "bigcat";
-			final BigDataViewer bdv = new BigDataViewer( converterSetups, sources, null, timepoints.size(), cache, windowTitle, null,
-					ViewerOptions.options().accumulateProjectorFactory( AccumulateProjectorCompositeARGB.factory ) );
+			final BigDataViewer bdv = new BigDataViewer(
+					converterSetups,
+					sources,
+					null,
+					timepoints.size(),
+					cache,
+					windowTitle,
+					null,
+					ViewerOptions.options().accumulateProjectorFactory( projectorFactory ) );
 
 			final AffineTransform3D transform = new AffineTransform3D();
 			transform.set(
