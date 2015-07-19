@@ -19,7 +19,7 @@ import bdv.util.JsonHelper;
 import com.google.gson.JsonIOException;
 import com.google.gson.JsonSyntaxException;
 
-public class DvidSuperVoxelMultisetSetupImageLoader
+public class DvidLabels64MultisetSetupImageLoader
 	extends AbstractViewerSetupImgLoader< SuperVoxelMultisetType, VolatileSuperVoxelMultisetType >
 {
 	private final double[] resolutions;
@@ -46,7 +46,7 @@ public class DvidSuperVoxelMultisetSetupImageLoader
 	 * @throws JsonIOException
 	 * @throws JsonSyntaxException
 	 */
-	public DvidSuperVoxelMultisetSetupImageLoader(
+	public DvidLabels64MultisetSetupImageLoader(
 			final String apiUrl,
 			final String nodeId,
 			final String dataInstanceId,
@@ -130,5 +130,15 @@ public class DvidSuperVoxelMultisetSetupImageLoader
 	public void setCache( final VolatileGlobalCellCache cache )
 	{
 		this.cache = cache;
+	}
+
+	public long[] getDimensions()
+	{
+		return dimensions;
+	}
+
+	public int[] getBlockDimensions()
+	{
+		return blockDimensions;
 	}
 }
