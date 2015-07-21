@@ -41,11 +41,14 @@ public class DvidGrayscale8VolatileArrayLoader implements CacheArrayLoader< Vola
 			final URL url = new URL( urlString );
 			final InputStream in = url.openStream();
 			in.skip( 4 );
-			int off = 0;
-			for (
-					int l = in.read( data, off, data.length );
-					l > 0 && off + l < data.length;
-					off += l, l = in.read( data, off, data.length - off ) );
+			int off = 0, l = 0;
+			do
+			{
+				l = in.read( data, off, data.length - off );
+				off += l;
+			}
+			while ( l > 0 && off < data.length );
+
 			in.close();
 	}
 
