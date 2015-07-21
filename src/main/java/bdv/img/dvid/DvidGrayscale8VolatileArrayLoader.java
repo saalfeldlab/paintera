@@ -44,7 +44,7 @@ public class DvidGrayscale8VolatileArrayLoader implements CacheArrayLoader< Vola
 			int off = 0;
 			for (
 					int l = in.read( data, off, data.length );
-					l > 0 || off + l < data.length;
+					l > 0 && off + l < data.length;
 					off += l, l = in.read( data, off, data.length - off ) );
 			in.close();
 	}
