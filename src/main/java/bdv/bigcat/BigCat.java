@@ -94,7 +94,8 @@ public class BigCat
 					"http://emrecon100.janelia.priv/api",
 					"2a3fd320aef011e4b0ce18037320227c",
 					"bodies",
-					1 );
+					1,
+					0x3fffffff );
 
 //			final CombinedImgLoader imgLoader = new CombinedImgLoader( dvidMultiscale2dImageLoader, dvidLabels64ImageLoader );
 			final CombinedImgLoader imgLoader = new CombinedImgLoader( dvidGrayscale8ImageLoader, dvidLabels64ImageLoader );
@@ -115,17 +116,19 @@ public class BigCat
 
 
 
+
 			final ArrayList< ConverterSetup > converterSetups = new ArrayList< ConverterSetup >();
 			final ArrayList< SourceAndConverter< ? > > sources = new ArrayList< SourceAndConverter< ? > >();
 			BigDataViewer.initSetups( spimData, converterSetups, sources );
 
 			/* composites */
-			final Composite< ARGBType, ARGBType > grayCopy = new CompositeCopy< ARGBType >();
-			final Composite< ARGBType, ARGBType > yCbCrComposite = new ARGBCompositeAlphaYCbCr();
-			final HashMap< Source< ? >, Composite< ARGBType, ARGBType > > composites = new HashMap< Source< ? >, Composite< ARGBType, ARGBType > >();
-			composites.put( sources.get( 0 ).getSpimSource(), grayCopy );
-			composites.put( sources.get( 1 ).getSpimSource(), yCbCrComposite );
-			final AccumulateProjectorFactory< ARGBType > projectorFactory = new CompositeProjector.CompositeProjectorFactory< ARGBType >( composites );
+			final ArrayList< Composite< ARGBType, ARGBType > > composites = new ArrayList< Composite<ARGBType,ARGBType> >();
+			composites.add( new CompositeCopy< ARGBType >() );
+			composites.add( new ARGBCompositeAlphaYCbCr() );
+			final HashMap< Source< ? >, Composite< ARGBType, ARGBType > > sourceCompositesMap = new HashMap< Source< ? >, Composite< ARGBType, ARGBType > >();
+			sourceCompositesMap.put( sources.get( 0 ).getSpimSource(), composites.get( 0 ) );
+			sourceCompositesMap.put( sources.get( 1 ).getSpimSource(), composites.get( 1 ) );
+			final AccumulateProjectorFactory< ARGBType > projectorFactory = new CompositeProjector.CompositeProjectorFactory< ARGBType >( sourceCompositesMap );
 
 			final Cache cache = imgLoader.getCache();
 			final String windowTitle = "bigcat";
