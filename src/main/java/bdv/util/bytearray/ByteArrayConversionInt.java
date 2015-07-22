@@ -5,6 +5,10 @@ package bdv.util.bytearray;
 
 import net.imglib2.type.numeric.integer.IntType;
 
+/**
+ * @author Philipp Hanslovsky <hanslovskyp@janelia.hhmi.org>
+ * 
+ */
 public class ByteArrayConversionInt extends ByteArrayConversion< IntType >
 {
 

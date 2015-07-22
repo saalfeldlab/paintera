@@ -20,9 +20,10 @@ public abstract class ByteArrayConversion< T extends RealType< T > >
 
 	/**
 	 * @param capacity
-	 *            Capacity of new {@link ByteBuffer}. Create
-	 *            {@link ByteArrayConversion} using new {@link ByteBuffer} with
-	 *            capacity.
+	 *            Capacity of new {@link ByteBuffer}.
+	 * 
+	 *            Create {@link ByteArrayConversion} using new
+	 *            {@link ByteBuffer} with capacity.
 	 */
 	protected ByteArrayConversion( int capacity )
 	{
@@ -31,8 +32,10 @@ public abstract class ByteArrayConversion< T extends RealType< T > >
 
 	/**
 	 * @param bb
-	 *            Existing {@link ByteBuffer} to be used. Create
-	 *            {@link ByteArrayConversion} using existing {@link ByteBuffer}.
+	 *            Existing {@link ByteBuffer} to be used.
+	 * 
+	 *            Create {@link ByteArrayConversion} using existing
+	 *            {@link ByteBuffer}.
 	 */
 	protected ByteArrayConversion( ByteBuffer bb )
 	{
@@ -41,8 +44,9 @@ public abstract class ByteArrayConversion< T extends RealType< T > >
 
 	/**
 	 * @param array
-	 *            Array to be wrapped. Create {@link ByteArrayConversion} by
-	 *            wrapping a byte array.
+	 *            Array to be wrapped.
+	 * 
+	 *            Create {@link ByteArrayConversion} by wrapping a byte array.
 	 */
 	protected ByteArrayConversion( byte[] array )
 	{
@@ -78,8 +82,9 @@ public abstract class ByteArrayConversion< T extends RealType< T > >
 
 	/**
 	 * @param type
-	 *            {@link RealType} to be stored as 8Byte representation Store
-	 *            type as 8Byte representation and make sure position of
+	 *            {@link RealType} to be stored as 8Byte representation
+	 * 
+	 *            Store type as 8Byte representation and make sure position of
 	 *            {@link ByteArrayConversion#bb} is forwarded by exactly 8 after
 	 *            this operation.
 	 */
@@ -88,6 +93,8 @@ public abstract class ByteArrayConversion< T extends RealType< T > >
 	/**
 	 * @param type
 	 *            {@link RealType} to be written into from 8Byte representation
+	 * 
+	 * 
 	 *            Write into type from 8Byte representation and make sure
 	 *            position of {@link ByteArrayConversion#bb} is forwarded by
 	 *            exactly 8 after this operation.

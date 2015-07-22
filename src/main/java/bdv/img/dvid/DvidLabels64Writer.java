@@ -49,7 +49,9 @@ public class DvidLabels64Writer
 	 *            Uuid of repository within the dvid server specified by apiUrl
 	 * @param dataSet
 	 *            Name of the data set within the repository specified by uuid.
-	 *            This data set must be of type labelblk This calls
+	 *            This data set must be of type labelblk.
+	 * 
+	 *            This calls
 	 *            {@link DvidLabels64Writer#DvidLabels64ByteWriter(String, String, String, int)}
 	 *            with a default block size of 32.
 	 **/
@@ -87,8 +89,9 @@ public class DvidLabels64Writer
 	 * @param steps
 	 *            Step sizes along each axis.
 	 * @param offset
-	 *            Offset target position by offset. Write image into data set.
-	 *            Calls
+	 *            Offset target position by offset.
+	 * 
+	 *            Write image into data set. Calls
 	 *            {@link DvidLabels64Writer#writeImage(RandomAccessibleInterval, int, int[], int[])}
 	 *            with iterationAxis set to 2.
 	 */
@@ -108,8 +111,9 @@ public class DvidLabels64Writer
 	 * @param steps
 	 *            Step sizes along each axis.
 	 * @param offset
-	 *            Offset target position by offset. Write image into data set.
-	 *            Calls
+	 *            Offset target position by offset.
+	 * 
+	 *            Write image into data set. Calls
 	 *            {@link DvidLabels64Writer#writeImage(RandomAccessibleInterval, int, int[], int[], RealType)}
 	 *            with borderExtension set to 0.
 	 */
@@ -134,10 +138,11 @@ public class DvidLabels64Writer
 	 * @param offset
 	 *            Offset target position by offset.
 	 * @param borderExtension
-	 *            Extend border with this value. Write image into data set. The
-	 *            image will be divided into blocks as defined by steps. The
-	 *            target coordinates will be the image coordinates shifted by
-	 *            offset.
+	 *            Extend border with this value.
+	 * 
+	 *            Write image into data set. The image will be divided into
+	 *            blocks as defined by steps. The target coordinates will be the
+	 *            image coordinates shifted by offset.
 	 */
 	public < T extends RealType< T > > void writeImage(
 			RandomAccessibleInterval< T > image,
@@ -209,6 +214,7 @@ public class DvidLabels64Writer
 	 *            Position of the "upper left" corner of the block within the
 	 *            dvid coordinate system.
 	 * @throws IOException
+	 * 
 	 *             Write block into dvid data set at position specified by
 	 *             offset using http POST request.
 	 */
@@ -271,10 +277,11 @@ public class DvidLabels64Writer
 	 *            Integer array corresponding to be adapted (will be modified).
 	 * @param blockSize
 	 *            Block size.
-	 * @return Modified input. When sending POST request to dvid, all block
-	 *         sizes and offsets need to be integral multiples of blockSize.
-	 *         This is a convenience function to modify integer arrays
-	 *         accordingly.
+	 * @return Modified input.
+	 * 
+	 *         When sending POST request to dvid, all block sizes and offsets
+	 *         need to be integral multiples of blockSize. This is a convenience
+	 *         function to modify integer arrays accordingly.
 	 */
 	public static int[] adaptToBlockSize( int[] input, final int blockSize )
 	{
@@ -294,9 +301,11 @@ public class DvidLabels64Writer
 	 *            Long array corresponding to be adapted (will be modified).
 	 * @param blockSize
 	 *            Block size.
-	 * @return Modified input. When sending POST request to dvid, all block
-	 *         sizes and offsets need to be integral multiples of blockSize.
-	 *         This is a convenience function to modify long arrays accordingly.
+	 * @return Modified input.
+	 * 
+	 *         When sending POST request to dvid, all block sizes and offsets
+	 *         need to be integral multiples of blockSize. This is a convenience
+	 *         function to modify long arrays accordingly.
 	 */
 	public static long[] adaptToBlockSize( long[] input, final int blockSize )
 	{

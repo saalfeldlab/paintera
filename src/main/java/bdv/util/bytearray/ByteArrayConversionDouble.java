@@ -5,6 +5,10 @@ package bdv.util.bytearray;
 
 import net.imglib2.type.numeric.real.DoubleType;
 
+/**
+ * @author Philipp Hanslovsky <hanslovskyp@janelia.hhmi.org>
+ * 
+ */
 public class ByteArrayConversionDouble extends ByteArrayConversion< DoubleType >
 {
 
