@@ -1,4 +1,5 @@
 package bdv.bigcat;
+import static bdv.bigcat.CombinedImgLoader.SetupIdAndLoader.setupIdAndLoader;
 
 import java.io.File;
 import java.io.IOException;
@@ -14,12 +15,9 @@ import mpicbg.spim.data.sequence.TimePoint;
 import mpicbg.spim.data.sequence.TimePoints;
 import net.imglib2.realtransform.AffineTransform3D;
 import bdv.BigDataViewer;
-import bdv.ViewerImgLoader;
-import bdv.ViewerSetupImgLoader;
 import bdv.bigcat.composite.AccumulateProjectorCompositeARGB;
 import bdv.export.ProgressWriterConsole;
 import bdv.img.cache.Cache;
-import bdv.img.cache.VolatileGlobalCellCache;
 import bdv.img.dvid.DvidGrayscale8ImageLoader;
 import bdv.img.dvid.DvidLabels64SetupImageLoader;
 import bdv.spimdata.SequenceDescriptionMinimal;
@@ -34,41 +32,6 @@ import com.google.gson.JsonSyntaxException;
 
 public class BigCat
 {
-	static class CombinedImgLoader implements ViewerImgLoader
-	{
-		private final HashMap< Integer, ViewerSetupImgLoader< ?, ? > > setupImgLoaders;
-
-		private final VolatileGlobalCellCache cache;
-
-		public CombinedImgLoader( final ViewerSetupImgLoader< ?, ? >... loaders )
-		{
-			setupImgLoaders = new HashMap< Integer, ViewerSetupImgLoader< ?, ? > >();
-			int maxNumLevels = 1;
-			int setupIds = 0;
-			for ( final ViewerSetupImgLoader< ?, ? > loader : loaders )
-			{
-				maxNumLevels = Math.max( maxNumLevels, loader.numMipmapLevels() );
-				final int setupId = setupIds++; // TODO: = loader.getSetupId();
-				setupImgLoaders.put( setupId, loader );
-			}
-
-			cache = new VolatileGlobalCellCache( 1, loaders.length, maxNumLevels, 10 );
-		}
-
-		@Override
-		public Cache getCache()
-		{
-			return cache;
-		}
-
-		@Override
-		public ViewerSetupImgLoader< ?, ? > getSetupImgLoader( final int setupId )
-		{
-			return setupImgLoaders.get( setupId );
-		}
-	};
-
-
 	public static void main( final String[] args ) throws JsonSyntaxException, JsonIOException, IOException
 	{
 		try
@@ -88,10 +51,12 @@ public class BigCat
 					"http://emrecon100.janelia.priv/api",
 					"2a3fd320aef011e4b0ce18037320227c",
 					"bodies",
-					1 );
+					1);
 
 //			final CombinedImgLoader imgLoader = new CombinedImgLoader( dvidMultiscale2dImageLoader, dvidLabels64ImageLoader );
-			final CombinedImgLoader imgLoader = new CombinedImgLoader( dvidGrayscale8ImageLoader, dvidLabels64ImageLoader );
+			final CombinedImgLoader imgLoader = new CombinedImgLoader(
+					setupIdAndLoader( 0, dvidGrayscale8ImageLoader ),
+					setupIdAndLoader( 1, dvidLabels64ImageLoader ) );
 //			dvidMultiscale2dImageLoader.setCache( imgLoader.cache );
 			dvidGrayscale8ImageLoader.setCache( imgLoader.cache );
 			dvidLabels64ImageLoader.setCache( imgLoader.cache );
