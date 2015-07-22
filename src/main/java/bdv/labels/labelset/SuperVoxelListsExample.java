@@ -17,7 +17,7 @@ public class SuperVoxelListsExample
 
 		final LongMappedAccessData data = LongMappedAccessData.factory.createStorage( 1024 );
 
-		final List< SuperVoxelMultisetEntry > list = new MappedObjectArrayList<>( SuperVoxelMultisetEntry.type, data, 0 );
+		final RefList< SuperVoxelMultisetEntry > list = new MappedObjectArrayList<>( SuperVoxelMultisetEntry.type, data, 0 );
 		list.add( new SuperVoxelMultisetEntry( 2, 10 ) );
 		list.add( svo );
 		svo.setId( 3L );
@@ -25,7 +25,9 @@ public class SuperVoxelListsExample
 		list.add( svo );
 		System.out.println( list );
 		System.out.println( svo );
-		System.out.println( list.get( 1 ) );
+		final SuperVoxelMultisetEntry ref = list.createRef();
+		System.out.println( list.get( 1, ref ) );
+		list.releaseRef( ref );
 		System.out.println();
 
 		for ( int i = 0; i < 20; ++i )
