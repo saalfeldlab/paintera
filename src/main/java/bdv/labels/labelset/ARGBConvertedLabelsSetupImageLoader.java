@@ -16,6 +16,7 @@ import bdv.img.cache.LoadingStrategy;
 import bdv.img.cache.VolatileGlobalCellCache;
 import bdv.img.cache.VolatileGlobalCellCache.VolatileCellCache;
 import bdv.img.cache.VolatileImgCells;
+import bdv.labels.labelset.DvidLabels64MultisetSetupImageLoader.MultisetSource;
 
 import com.google.gson.JsonIOException;
 import com.google.gson.JsonSyntaxException;
@@ -42,8 +43,8 @@ public class ARGBConvertedLabelsSetupImageLoader
 	 * @throws JsonSyntaxException
 	 */
 	public ARGBConvertedLabelsSetupImageLoader(
-			final DvidLabels64MultisetSetupImageLoader multisetImageLoader,
-			final int setupId )
+			final int setupId,
+			final DvidLabels64MultisetSetupImageLoader multisetImageLoader )
 	{
 		super( new ARGBType(), new VolatileARGBType() );
 		this.setupId = setupId;
@@ -69,12 +70,12 @@ public class ARGBConvertedLabelsSetupImageLoader
 		return img;
 	}
 
-	protected < T extends NativeType< T > > CachedCellImg< T, VolatileIntArray > prepareCachedImage( final int timepointId,  final int setupId, final int level, final LoadingStrategy loadingStrategy )
+	protected < T extends NativeType< T > > CachedCellImg< T, VolatileIntArray > prepareCachedImage( final int timepointId, final int setupId, final int level, final LoadingStrategy loadingStrategy )
 	{
-		final int priority = 0;
+		final int priority = numMipmapLevels() - level - 1;
 		final CacheHints cacheHints = new CacheHints( loadingStrategy, priority, false );
-		final long[] dimensions = multisetImageLoader.getDimensions();
-		final int[] blockDimensions = multisetImageLoader.getBlockDimensions();
+		final long[] dimensions = multisetImageLoader.getDimensions(); // TODO
+		final int[] blockDimensions = multisetImageLoader.getBlockDimensions(); // TODO
 		final VolatileCellCache< VolatileIntArray > c = cache.new VolatileCellCache< VolatileIntArray >( timepointId, setupId, level, cacheHints, loader );
 		final VolatileImgCells< VolatileIntArray > cells = new VolatileImgCells< VolatileIntArray >( c, new Fraction(), dimensions, blockDimensions );
 		final CachedCellImg< T, VolatileIntArray > img = new CachedCellImg< T, VolatileIntArray >( cells );
@@ -104,35 +105,8 @@ public class ARGBConvertedLabelsSetupImageLoader
 		this.cache = cache;
 	}
 
-	static class MultisetSource
+	public int getSetupId()
 	{
-		private final RandomAccessibleInterval< SuperVoxelMultisetType >[] currentSources;
-
-		private final DvidLabels64MultisetSetupImageLoader multisetImageLoader;
-
-		private int currentTimePointIndex;
-
-		@SuppressWarnings( "unchecked" )
-		public MultisetSource( final DvidLabels64MultisetSetupImageLoader multisetImageLoader )
-		{
-			this.multisetImageLoader = multisetImageLoader;
-			final int numMipmapLevels = multisetImageLoader.numMipmapLevels();
-			currentSources = new RandomAccessibleInterval[ numMipmapLevels ];
-			currentTimePointIndex = -1;
-		}
-
-		private synchronized void loadTimepoint( final int timepointIndex )
-		{
-			currentTimePointIndex = timepointIndex;
-			for ( int level = 0; level < currentSources.length; level++ )
-				currentSources[ level ] = multisetImageLoader.getImage( timepointIndex, level );
-		}
-
-		public RandomAccessibleInterval< SuperVoxelMultisetType > getSource( final int t, final int level )
-		{
-			if ( t != currentTimePointIndex )
-				loadTimepoint( t );
-			return currentSources[ level ];
-		}
-	};
+		return setupId;
+	}
 }

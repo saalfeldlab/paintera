@@ -9,9 +9,12 @@ import net.imglib2.img.NativeImg;
 import net.imglib2.img.NativeImgFactory;
 import net.imglib2.type.AbstractNativeType;
 import net.imglib2.util.Fraction;
+import bdv.labels.labelset.RefList.RefIterator;
 
 public class SuperVoxelMultisetType extends AbstractNativeType< SuperVoxelMultisetType > implements Multiset< SuperVoxel >
 {
+	public static final SuperVoxelMultisetType type = new SuperVoxelMultisetType();
+
 	private final NativeImg< ?, VolatileSuperVoxelMultisetArray > img;
 
 	private VolatileSuperVoxelMultisetArray access;
@@ -20,28 +23,76 @@ public class SuperVoxelMultisetType extends AbstractNativeType< SuperVoxelMultis
 
 	private final int totalSize;
 
+	private final Set< Entry< SuperVoxel > > entrySet;
+
 	// this is the constructor if you want it to read from an array
 	public SuperVoxelMultisetType( final NativeImg< ?, VolatileSuperVoxelMultisetArray > img )
 	{
-		this.entries = new SuperVoxelMultisetEntryList();
-		this.totalSize = 1;
-		this.img = img;
-		this.access = null;
+		this( img, null );
 	}
 
 	// this is the constructor if you want to specify the dataAccess
 	public SuperVoxelMultisetType( final VolatileSuperVoxelMultisetArray access )
 	{
-		this.entries = new SuperVoxelMultisetEntryList();
-		this.totalSize = 1;
-		this.img = null;
-		this.access = access;
+		this( null, access );
 	}
 
 	// this is the constructor if you want it to be a variable
 	public SuperVoxelMultisetType()
 	{
-		this( new VolatileSuperVoxelMultisetArray( 1, true ) );
+		this( null, new VolatileSuperVoxelMultisetArray( 1, true ) );
+	}
+
+	private SuperVoxelMultisetType( final NativeImg< ?, VolatileSuperVoxelMultisetArray > img, final VolatileSuperVoxelMultisetArray access )
+	{
+		this.entries = new SuperVoxelMultisetEntryList();
+		this.totalSize = 1;
+		this.img = img;
+		this.access = access;
+		this.entrySet = new AbstractSet< Entry< SuperVoxel > >()
+		{
+			private final RefIterator< Entry< SuperVoxel > > iterator = new RefIterator< Entry< SuperVoxel > >()
+			{
+				private final RefIterator< SuperVoxelMultisetEntry > it = entries.iterator();
+
+				@Override
+				public boolean hasNext()
+				{
+					return it.hasNext();
+				}
+
+				@Override
+				public SuperVoxelMultisetEntry next()
+				{
+					return it.next();
+				}
+
+				@Override
+				public void release()
+				{
+					it.release();
+				}
+
+				@Override
+				public void reset()
+				{
+					it.reset();
+				}
+			};
+
+			@Override
+			public RefIterator< Entry< SuperVoxel > > iterator()
+			{
+				iterator.reset();
+				return iterator;
+			}
+
+			@Override
+			public int size()
+			{
+				return entries.size();
+			}
+		};
 	}
 
 	@Override
@@ -87,36 +138,6 @@ public class SuperVoxelMultisetType extends AbstractNativeType< SuperVoxelMultis
 	}
 
 	// ==== Multiset< SuperVoxel > =====
-
-	private final Set< Entry< SuperVoxel > > entrySet = new AbstractSet< Entry< SuperVoxel > >()
-	{
-		@Override
-		public Iterator< Entry< SuperVoxel > > iterator()
-		{
-			return new Iterator< Entry< SuperVoxel > >()
-			{
-				private int i = 0;
-
-				@Override
-				public boolean hasNext()
-				{
-					return i < size();
-				}
-
-				@Override
-				public SuperVoxelMultisetEntry next()
-				{
-					return entries.get( i++ );
-				}
-			};
-		}
-
-		@Override
-		public int size()
-		{
-			return entries.size();
-		}
-	};
 
 	@Override
 	public int size()

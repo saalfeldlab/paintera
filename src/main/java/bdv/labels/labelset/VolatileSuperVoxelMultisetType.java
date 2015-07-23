@@ -10,6 +10,8 @@ public class VolatileSuperVoxelMultisetType
 	extends Volatile< SuperVoxelMultisetType >
 	implements NativeType< VolatileSuperVoxelMultisetType >
 {
+	public static final VolatileSuperVoxelMultisetType type = new VolatileSuperVoxelMultisetType();
+
 	// this is the constructor if you want it to read from an array
 	public VolatileSuperVoxelMultisetType( final NativeImg< ?, VolatileSuperVoxelMultisetArray > img )
 	{

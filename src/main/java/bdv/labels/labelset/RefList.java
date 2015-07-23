@@ -8,6 +8,8 @@ public interface RefList< O > extends List< O >
 	public static interface RefIterator< O > extends Iterator< O >
 	{
 		public void release();
+
+		public void reset();
 	}
 
 	public O createRef();

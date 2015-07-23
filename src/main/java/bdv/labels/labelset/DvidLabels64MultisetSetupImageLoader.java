@@ -15,6 +15,7 @@ import bdv.img.cache.VolatileGlobalCellCache.VolatileCellCache;
 import bdv.img.cache.VolatileImgCells;
 import bdv.img.dvid.Labels64DataInstance;
 import bdv.util.JsonHelper;
+import bdv.util.MipmapTransforms;
 
 import com.google.gson.JsonIOException;
 import com.google.gson.JsonSyntaxException;
@@ -22,19 +23,23 @@ import com.google.gson.JsonSyntaxException;
 public class DvidLabels64MultisetSetupImageLoader
 	extends AbstractViewerSetupImgLoader< SuperVoxelMultisetType, VolatileSuperVoxelMultisetType >
 {
-	private final double[] resolutions;
+	private final double[][] resolutions;
 
 	private final long[] dimensions;
 
 	private final int[] blockDimensions;
 
-	private final AffineTransform3D mipmapTransform;
+	private final AffineTransform3D[] mipmapTransforms;
 
 	private VolatileGlobalCellCache cache;
 
 	private final VolatileSuperVoxelMultisetArrayLoader loader;
 
+	private final DownscalingVolatileSuperVoxelMultisetArrayLoader downscaleLoader;
+
 	private final int setupId;
+
+	private final int numMipmapLevels;
 
 	/**
 	 * http://hackathon.janelia.org/api/help/grayscale8
@@ -47,12 +52,12 @@ public class DvidLabels64MultisetSetupImageLoader
 	 * @throws JsonSyntaxException
 	 */
 	public DvidLabels64MultisetSetupImageLoader(
+			final int setupId,
 			final String apiUrl,
 			final String nodeId,
-			final String dataInstanceId,
-			final int setupId ) throws JsonSyntaxException, JsonIOException, IOException
+			final String dataInstanceId ) throws JsonSyntaxException, JsonIOException, IOException
 	{
-		super( new SuperVoxelMultisetType(), new VolatileSuperVoxelMultisetType() );
+		super( SuperVoxelMultisetType.type, VolatileSuperVoxelMultisetType.type );
 		this.setupId = setupId;
 
 		final Labels64DataInstance dataInstance =
@@ -65,20 +70,21 @@ public class DvidLabels64MultisetSetupImageLoader
 				dataInstance.Extended.MaxPoint[ 1 ] - dataInstance.Extended.MinPoint[ 1 ],
 				dataInstance.Extended.MaxPoint[ 2 ] - dataInstance.Extended.MinPoint[ 2 ] };
 
-		resolutions = new double[]{
-				dataInstance.Extended.VoxelSize[ 0 ],
-				dataInstance.Extended.VoxelSize[ 1 ],
-				dataInstance.Extended.VoxelSize[ 2 ] };
-
-		mipmapTransform = new AffineTransform3D();
-
-		mipmapTransform.set( 1, 0, 0 );
-		mipmapTransform.set( 1, 1, 1 );
-		mipmapTransform.set( 1, 2, 2 );
+		resolutions = new double[][]{
+				{ 1, 1, 1 },
+				{ 2, 2, 2 },
+				{ 4, 4, 4 },
+				{ 8, 8, 8 }
+			};
+		mipmapTransforms = new AffineTransform3D[ resolutions.length ];
+		for ( int level = 0; level < resolutions.length; level++ )
+			mipmapTransforms[ level ] = MipmapTransforms.getMipmapTransformDefault( resolutions[ level ] );
+		numMipmapLevels = resolutions.length;
 
 		blockDimensions = dataInstance.Extended.BlockSize;
 
 		loader = new VolatileSuperVoxelMultisetArrayLoader( apiUrl, nodeId, dataInstanceId, blockDimensions );
+		downscaleLoader = new DownscalingVolatileSuperVoxelMultisetArrayLoader( new MultisetSource( this ) );
 	}
 
 	@Override
@@ -93,7 +99,7 @@ public class DvidLabels64MultisetSetupImageLoader
 	@Override
 	public RandomAccessibleInterval< VolatileSuperVoxelMultisetType > getVolatileImage( final int timepointId, final int level )
 	{
-		final CachedCellImg< VolatileSuperVoxelMultisetType, VolatileSuperVoxelMultisetArray > img = prepareCachedImage( timepointId, setupId, level, LoadingStrategy.VOLATILE );
+		final CachedCellImg< VolatileSuperVoxelMultisetType, VolatileSuperVoxelMultisetArray > img = prepareCachedImage( timepointId, setupId, level, LoadingStrategy.BLOCKING );
 		final VolatileSuperVoxelMultisetType linkedType = new VolatileSuperVoxelMultisetType( img );
 		img.setLinkedType( linkedType );
 		return img;
@@ -102,20 +108,25 @@ public class DvidLabels64MultisetSetupImageLoader
 	@Override
 	public double[][] getMipmapResolutions()
 	{
-		return new double[][]{ resolutions };
+		return resolutions;
 	}
 
 	@Override
 	public int numMipmapLevels()
 	{
-		return 1;
+		return numMipmapLevels;
 	}
 
-	protected < T extends NativeType< T > > CachedCellImg< T, VolatileSuperVoxelMultisetArray > prepareCachedImage( final int timepointId,  final int setupId, final int level, final LoadingStrategy loadingStrategy )
+	protected < T extends NativeType< T > > CachedCellImg< T, VolatileSuperVoxelMultisetArray > prepareCachedImage(
+			final int timepointId,
+			final int setupId,
+			final int level,
+			final LoadingStrategy loadingStrategy )
 	{
-		final int priority = 0;
+		final int priority = numMipmapLevels - level - 1;
 		final CacheHints cacheHints = new CacheHints( loadingStrategy, priority, false );
-		final VolatileCellCache< VolatileSuperVoxelMultisetArray > c = cache.new VolatileCellCache< VolatileSuperVoxelMultisetArray >( timepointId, setupId, level, cacheHints, loader );
+		final VolatileCellCache< VolatileSuperVoxelMultisetArray > c = cache.new VolatileCellCache< VolatileSuperVoxelMultisetArray >(
+				timepointId, setupId, level, cacheHints, level == 0 ? loader : downscaleLoader );
 		final VolatileImgCells< VolatileSuperVoxelMultisetArray > cells = new VolatileImgCells< VolatileSuperVoxelMultisetArray >( c, new Fraction(), dimensions, blockDimensions );
 		final CachedCellImg< T, VolatileSuperVoxelMultisetArray > img = new CachedCellImg< T, VolatileSuperVoxelMultisetArray >( cells );
 		return img;
@@ -124,7 +135,7 @@ public class DvidLabels64MultisetSetupImageLoader
 	@Override
 	public AffineTransform3D[] getMipmapTransforms()
 	{
-		return new AffineTransform3D[]{ mipmapTransform };
+		return mipmapTransforms;
 	}
 
 	public void setCache( final VolatileGlobalCellCache cache )
@@ -141,4 +152,41 @@ public class DvidLabels64MultisetSetupImageLoader
 	{
 		return blockDimensions;
 	}
+
+	static class MultisetSource
+	{
+		private final RandomAccessibleInterval< SuperVoxelMultisetType >[] currentSources;
+
+		private final DvidLabels64MultisetSetupImageLoader multisetImageLoader;
+
+		private int currentTimePointIndex;
+
+		@SuppressWarnings( "unchecked" )
+		public MultisetSource( final DvidLabels64MultisetSetupImageLoader multisetImageLoader )
+		{
+			this.multisetImageLoader = multisetImageLoader;
+			final int numMipmapLevels = multisetImageLoader.numMipmapLevels();
+			currentSources = new RandomAccessibleInterval[ numMipmapLevels ];
+			currentTimePointIndex = -1;
+		}
+
+		private void loadTimepoint( final int timepointIndex )
+		{
+			currentTimePointIndex = timepointIndex;
+			for ( int level = 0; level < currentSources.length; level++ )
+				currentSources[ level ] = multisetImageLoader.getImage( timepointIndex, level );
+		}
+
+		public synchronized RandomAccessibleInterval< SuperVoxelMultisetType > getSource( final int t, final int level )
+		{
+			if ( t != currentTimePointIndex )
+				loadTimepoint( t );
+			return currentSources[ level ];
+		}
+	}
+
+	public int getSetupId()
+	{
+		return setupId;
+	};
 }

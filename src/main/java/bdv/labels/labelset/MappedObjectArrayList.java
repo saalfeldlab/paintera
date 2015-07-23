@@ -34,6 +34,7 @@ public class MappedObjectArrayList< O extends MappedObject< O, T >, T extends Ma
 		this( type, type.storageFactory.createStorage( INT_SIZE + capacity * type.getSizeInBytes() ), 0 );
 	}
 
+	// doesn't create underlying data array
 	protected MappedObjectArrayList( final O type, final MappedAccessData< T > data, final long baseOffset )
 	{
 		this( type );
@@ -59,17 +60,46 @@ public class MappedObjectArrayList< O extends MappedObject< O, T >, T extends Ma
 		data.updateAccess( access, baseOffset );
 	}
 
+	protected void createListAt( final MappedAccessData< T > data, final long baseOffset )
+	{
+		referToDataAt( data, baseOffset );
+		clear();
+	}
+
+	/**
+	 * Ensure capacity for size field and set size to 0.
+	 */
+	@Override
+	public void clear()
+	{
+		ensureCapacity( 0 );
+		setSize( 0 );
+	}
+
 	private void setSize( final int size )
 	{
 		access.putInt( size, 0 );
 	}
 
+	static Object lock = new Object();
+
 	@Override
 	public O createRef()
 	{
-		System.out.println( "createRef (" + (++numRefs) + ")" );
-//		for ( final StackTraceElement e : Thread.currentThread().getStackTrace() )
-//			System.out.println( e );
+		++numRefs;
+//		System.out.println( "createRef (" + numRefs + ")" );
+		synchronized( lock )
+		{
+			if ( numRefs > 10 )
+			{
+				System.out.println( "createRef (" + numRefs + ")" );
+				for ( final StackTraceElement e : Thread.currentThread().getStackTrace() )
+					System.out.println( e );
+				System.out.println();
+			}
+		}
+
+
 		final O obj = tmpObjRefs.poll();
 		return obj == null ? type.createRef() : obj;
 	}
@@ -84,7 +114,9 @@ public class MappedObjectArrayList< O extends MappedObject< O, T >, T extends Ma
 	@Override
 	public void releaseRef( final O ref )
 	{
-		System.out.println( "releaseRef (" + (--numRefs) + ")" );
+		--numRefs;
+//		System.out.println( "releaseRef (" + numRefs + ")" );
+
 		tmpObjRefs.add( ref );
 	}
 
@@ -97,7 +129,7 @@ public class MappedObjectArrayList< O extends MappedObject< O, T >, T extends Ma
 	{
 		final int required = ( size + 1 ) * elementSizeInBytes();
 		if ( data.size() < elementBaseOffset + required )
-			data.resize( elementBaseOffset + 2 * required );
+			data.resize( 2 * ( elementBaseOffset + required ) );
 	}
 
 	public long getBaseOffset()
@@ -193,6 +225,14 @@ public class MappedObjectArrayList< O extends MappedObject< O, T >, T extends Ma
 					releaseRef( ref );
 					ref = null;
 				}
+			}
+
+			@Override
+			public void reset()
+			{
+				if ( ref == null )
+					ref = createRef();
+				i = 0;
 			}
 		};
 	}

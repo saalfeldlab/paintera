@@ -6,7 +6,7 @@ import net.imglib2.type.numeric.ARGBType;
 import net.imglib2.util.Intervals;
 import net.imglib2.view.Views;
 import bdv.img.cache.CacheArrayLoader;
-import bdv.labels.labelset.ARGBConvertedLabelsSetupImageLoader.MultisetSource;
+import bdv.labels.labelset.DvidLabels64MultisetSetupImageLoader.MultisetSource;
 import bdv.labels.labelset.Multiset.Entry;
 import bdv.util.ColorStream;
 
@@ -36,6 +36,14 @@ public class ARGBConvertedLabelsArrayLoader implements CacheArrayLoader< Volatil
 			final int[] dimensions,
 			final long[] min ) throws InterruptedException
 	{
+//		System.out.println( "ARGBConvertedLabelsArrayLoader.loadArray(\n"
+//				+ "   timepoint = " + timepoint + "\n"
+//				+ "   setup = " + setup + "\n"
+//				+ "   level = " + level + "\n"
+//				+ "   dimensions = " + Util.printCoordinates( dimensions ) + "\n"
+//				+ "   min = " + Util.printCoordinates( min ) + "\n"
+//				+ ")"
+//				);
 		final int[] data = new int[ dimensions[ 0 ] * dimensions[ 1 ] * dimensions[ 2 ] ];
 
 		final IterableInterval< SuperVoxelMultisetType > source =
@@ -70,6 +78,14 @@ public class ARGBConvertedLabelsArrayLoader implements CacheArrayLoader< Volatil
 			data[ i++ ] = ARGBType.rgba( r, g, b, 255 );
 		}
 
+//		System.out.println( "done: ARGBConvertedLabelsArrayLoader.loadArray(\n"
+//				+ "      timepoint = " + timepoint + "\n"
+//				+ "      setup = " + setup + "\n"
+//				+ "      level = " + level + "\n"
+//				+ "      dimensions = " + Util.printCoordinates( dimensions ) + "\n"
+//				+ "      min = " + Util.printCoordinates( min ) + "\n"
+//				+ "   )"
+//				);
 		return new VolatileIntArray( data, true );
 	}
 

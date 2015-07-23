@@ -6,7 +6,7 @@ public class SuperVoxelMultisetEntryList
 {
 	/**
 	 * creates underlying data array
-s	 */
+	 */
 	public SuperVoxelMultisetEntryList( final int capacity )
 	{
 		super( SuperVoxelMultisetEntry.type, capacity );
@@ -20,7 +20,12 @@ s	 */
 		super( SuperVoxelMultisetEntry.type );
 	}
 
-    /**
+	protected SuperVoxelMultisetEntryList( final LongMappedAccessData data, final long baseOffset )
+	{
+		super( SuperVoxelMultisetEntry.type, data, baseOffset );
+	}
+
+	/**
 	 * Performs a binary search for entry with
 	 * {@link SuperVoxelMultisetEntry#getId()} <tt>id</tt> in the entire list.
 	 * Note that you <b>must</b> @{link #sort sort} the list before doing a

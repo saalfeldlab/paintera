@@ -19,8 +19,18 @@ public class LongMappedAccess implements MappedAccess< LongMappedAccess >
 	 */
 	private LongMappedAccessData dataArray;
 
+	static Object lock = new Object();
+
 	LongMappedAccess( final LongMappedAccessData dataArray, final long baseOffset )
 	{
+//		synchronized( lock )
+//		{
+//		System.out.println( "LongMappedAccess" );
+//		for ( final StackTraceElement e : Thread.currentThread().getStackTrace() )
+//			System.out.println( "  -  " + e );
+//		System.out.println();
+//		}
+
 		this.dataArray = dataArray;
 		this.baseOffset = baseOffset;
 	}
