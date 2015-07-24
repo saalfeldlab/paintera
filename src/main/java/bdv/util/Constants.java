@@ -12,6 +12,8 @@ public final class Constants
 	public static final String POST = "POST";
 
 	public static final String GET = "GET";
+	
+	public static final String CHARSET_UTF8 = "UTF-8";
 
 	public static final int SizeOfInt = 4;
 
@@ -20,5 +22,5 @@ public final class Constants
 	public static final int SizeOfFloat = 4;
 
 	public static final int SizeOfDouble = 8;
-
+	
 }
