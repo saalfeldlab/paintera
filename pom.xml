@@ -13,6 +13,7 @@
 
 	<name>BIGCAT</name>
 	<description>Collaborative volume annotation and segmentation with BigDataViewer</description>
+	<properties><scijava.jvm.version>1.8</scijava.jvm.version></properties>
 
 	<dependencies>
 		<dependency>
