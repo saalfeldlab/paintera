@@ -95,7 +95,7 @@ public class BigCat
 					"2a3fd320aef011e4b0ce18037320227c",
 					"bodies",
 					1,
-					0x3fffffff );
+					0x7fffffff );
 
 //			final CombinedImgLoader imgLoader = new CombinedImgLoader( dvidMultiscale2dImageLoader, dvidLabels64ImageLoader );
 			final CombinedImgLoader imgLoader = new CombinedImgLoader( dvidGrayscale8ImageLoader, dvidLabels64ImageLoader );
@@ -125,6 +125,9 @@ public class BigCat
 			final ArrayList< Composite< ARGBType, ARGBType > > composites = new ArrayList< Composite<ARGBType,ARGBType> >();
 			composites.add( new CompositeCopy< ARGBType >() );
 			composites.add( new ARGBCompositeAlphaYCbCr() );
+//			composites.add( new ARGBCompositeAlphaMultiply() );
+//			composites.add( new ARGBCompositeAlphaAdd() );
+//			composites.add( new ARGBCompositeAlpha() );
 			final HashMap< Source< ? >, Composite< ARGBType, ARGBType > > sourceCompositesMap = new HashMap< Source< ? >, Composite< ARGBType, ARGBType > >();
 			sourceCompositesMap.put( sources.get( 0 ).getSpimSource(), composites.get( 0 ) );
 			sourceCompositesMap.put( sources.get( 1 ).getSpimSource(), composites.get( 1 ) );
