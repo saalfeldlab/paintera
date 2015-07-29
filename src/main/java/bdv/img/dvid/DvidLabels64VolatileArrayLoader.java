@@ -81,7 +81,7 @@ public class DvidLabels64VolatileArrayLoader implements CacheArrayLoader< Volati
 					( ( 0xffl & bytes[ ++j ] ) << 40 ) |
 					( ( 0xffl & bytes[ ++j ] ) << 48 ) |
 					( ( 0xffl & bytes[ ++j ] ) << 56 );
-			data[ i ] = ColorStream.get( index );
+			data[ i ] = ColorStream.get( index ) & argbMask;
 		}
 	}
 
