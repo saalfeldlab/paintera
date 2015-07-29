@@ -13,10 +13,10 @@ public class DvidLabels64VolatileArrayLoader implements CacheArrayLoader< Volati
 {
 	private VolatileIntArray theEmptyArray;
 
-	final private String apiUrl;
-	final private String nodeId;
-	final private String dataInstanceId;
-	final private int argbMask;
+	private final String apiUrl;
+	private final String nodeId;
+	private final String dataInstanceId;
+	private final int argbMask;
 
 	public DvidLabels64VolatileArrayLoader(
 			final String apiUrl,
@@ -31,14 +31,14 @@ public class DvidLabels64VolatileArrayLoader implements CacheArrayLoader< Volati
 		this.dataInstanceId = dataInstanceId;
 		this.argbMask = argbMask;
 	}
-
+	
 	public DvidLabels64VolatileArrayLoader(
 			final String apiUrl,
 			final String nodeId,
 			final String dataInstanceId,
 			final int[] blockDimensions )
 	{
-		this( apiUrl, nodeId, dataInstanceId, blockDimensions, 0xffffffff );
+		this( apiUrl, nodeId, dataInstanceId, blockDimensions, 0xffffffff );;
 	}
 
 	@Override
@@ -73,14 +73,14 @@ public class DvidLabels64VolatileArrayLoader implements CacheArrayLoader< Volati
 		for ( int i = 0, j = -1; i < data.length; ++i )
 		{
 			final long index =
-					( long )bytes[ ++j ] |
-					( ( long )bytes[ ++j ] << 8 ) |
-					( ( long )bytes[ ++j ] << 16 ) |
-					( ( long )bytes[ ++j ] << 24 ) |
-					( ( long )bytes[ ++j ] << 32 ) |
-					( ( long )bytes[ ++j ] << 40 ) |
-					( ( long )bytes[ ++j ] << 48 ) |
-					( ( long )bytes[ ++j ] << 56 );
+					( 0xffl & bytes[ ++j ] ) |
+					( ( 0xffl & bytes[ ++j ] ) << 8 ) |
+					( ( 0xffl & bytes[ ++j ] ) << 16 ) |
+					( ( 0xffl & bytes[ ++j ] ) << 24 ) |
+					( ( 0xffl & bytes[ ++j ] ) << 32 ) |
+					( ( 0xffl & bytes[ ++j ] ) << 40 ) |
+					( ( 0xffl & bytes[ ++j ] ) << 48 ) |
+					( ( 0xffl & bytes[ ++j ] ) << 56 );
 			data[ i ] = ColorStream.get( index ) & argbMask;
 		}
 	}

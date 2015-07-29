@@ -6,20 +6,21 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
+import java.nio.ByteBuffer;
 import java.util.Random;
 
 import bdv.util.BlockedInterval;
 import bdv.util.Constants;
 import bdv.util.DvidLabelBlkURL;
-import bdv.util.bytearray.ByteArrayConversion;
-import bdv.util.bytearray.ByteArrayConversionFloat;
-import bdv.util.bytearray.ByteArrayConversions;
 import net.imglib2.Cursor;
 import net.imglib2.RandomAccessibleInterval;
+import net.imglib2.converter.Converter;
+import net.imglib2.converter.read.ConvertedRandomAccessibleInterval;
 import net.imglib2.img.array.ArrayImg;
 import net.imglib2.img.array.ArrayImgs;
 import net.imglib2.img.basictypeaccess.array.FloatArray;
 import net.imglib2.type.numeric.RealType;
+import net.imglib2.type.numeric.integer.UnsignedLongType;
 import net.imglib2.type.numeric.real.FloatType;
 import net.imglib2.view.IntervalView;
 import net.imglib2.view.Views;
@@ -95,8 +96,8 @@ public class DvidLabels64Writer
 	 *            {@link DvidLabels64Writer#writeImage(RandomAccessibleInterval, int, int[], int[])}
 	 *            with iterationAxis set to 2.
 	 */
-	public < T extends RealType< T > > void writeImage(
-			RandomAccessibleInterval< T > image,
+	public void writeImage(
+			RandomAccessibleInterval< UnsignedLongType > image,
 			final int[] steps,
 			final int[] offset )
 	{
@@ -117,15 +118,13 @@ public class DvidLabels64Writer
 	 *            {@link DvidLabels64Writer#writeImage(RandomAccessibleInterval, int, int[], int[], RealType)}
 	 *            with borderExtension set to 0.
 	 */
-	public < T extends RealType< T > > void writeImage(
-			RandomAccessibleInterval< T > image,
+	public void writeImage(
+			RandomAccessibleInterval< UnsignedLongType > image,
 			final int iterationAxis,
 			final int[] steps,
 			final int[] offset )
 	{
-		T dummy = image.randomAccess().get().copy();
-		dummy.setZero();
-		this.writeImage( image, iterationAxis, steps, offset, dummy );
+		this.writeImage( image, iterationAxis, steps, offset, new UnsignedLongType( 0l ) );
 	}
 
 	/**
@@ -144,12 +143,12 @@ public class DvidLabels64Writer
 	 *            blocks as defined by steps. The target coordinates will be the
 	 *            image coordinates shifted by offset.
 	 */
-	public < T extends RealType< T > > void writeImage(
-			RandomAccessibleInterval< T > image,
+	public void writeImage(
+			RandomAccessibleInterval< UnsignedLongType > image,
 			final int iterationAxis,
 			final int[] steps,
 			final int[] offset,
-			T borderExtension )
+			UnsignedLongType borderExtension )
 	{
 		// realX ensures that realX[i] is integer multiple of blockSize
 		long[] realDim = new long[ image.numDimensions() ];
@@ -173,14 +172,15 @@ public class DvidLabels64Writer
 		// hyperslicing.
 		// Go along iterationAxis and hyperslice, then iterate over each
 		// hyperslice.
-		BlockedInterval< T > blockedImage = BlockedInterval.createZeroExtended( image, stepSize );
+		BlockedInterval< UnsignedLongType > blockedImage = BlockedInterval.createZeroExtended( image, stepSize );
 		for ( int a = 0, aUnitIncrement = 0; a < image.dimension( iterationAxis ); ++aUnitIncrement, a += realSteps[ iterationAxis ] )
 		{
-			IntervalView< RandomAccessibleInterval< T >> hs = Views.hyperSlice( blockedImage, iterationAxis, aUnitIncrement );
-			Cursor< RandomAccessibleInterval< T >> cursor = Views.flatIterable( hs ).cursor();
+			IntervalView< RandomAccessibleInterval< UnsignedLongType >> hs = 
+					Views.hyperSlice( blockedImage, iterationAxis, aUnitIncrement );
+			Cursor< RandomAccessibleInterval< UnsignedLongType >> cursor = Views.flatIterable( hs ).cursor();
 			while ( cursor.hasNext() )
 			{
-				RandomAccessibleInterval< T > block = cursor.next();
+				RandomAccessibleInterval< UnsignedLongType > block = cursor.next();
 				int[] localOffset = realOffset.clone();
 				localOffset[ iterationAxis ] = a;
 				for ( int i = 0, k = 0; i < localOffset.length; i++ )
@@ -218,8 +218,8 @@ public class DvidLabels64Writer
 	 *             Write block into dvid data set at position specified by
 	 *             offset using http POST request.
 	 */
-	public < T extends RealType< T > > void writeBlock(
-			RandomAccessibleInterval< T > input,
+	public void writeBlock(
+			RandomAccessibleInterval< UnsignedLongType > input,
 			final int[] dims,
 			final int[] offset ) throws IOException
 	{
@@ -238,14 +238,10 @@ public class DvidLabels64Writer
 		int[] size = new int[ input.numDimensions() ];
 
 		for ( int d = 0; d < size.length; ++d )
-			size[ d ] = ( int ) input.dimension( d );
-
-		// Convert input to byte[] data. One voxel of input covers 8bytes,
-		// i.e. 8 entries in data.
-		ByteArrayConversion< T > toByteArray = ByteArrayConversions.toByteBuffer( input );
-		toByteArray.rewind(); // unnecessary because toArray() returns
-								// underlying array?
-		byte[] data = toByteArray.toArray();
+		{
+			int dim = ( int ) input.dimension( d );
+			size[ d ] = dim;
+		}
 
 		// Create URL and open connection.
 		String urlString = DvidLabelBlkURL.makeRawString( this.apiUrl, this.uuid, dataSet, dims, size, offset );
@@ -260,7 +256,9 @@ public class DvidLabels64Writer
 		// Write data.
 		OutputStream stream = connection.getOutputStream();
 		DataOutputStream writer = new DataOutputStream( stream );
-		writer.write( data );
+		for ( UnsignedLongType p : Views.flatIterable( input ) )
+			writer.writeLong( p.get() );
+
 		writer.flush();
 		writer.close();
 
@@ -357,7 +355,18 @@ public class DvidLabels64Writer
 		DvidLabels64Writer writer = new DvidLabels64Writer( apiUrl, uuid, dataSet, 32 );
 		int[] steps = new int[] { 200, 200, 32 };
 		int[] offset = new int[] { 0, 0, 0 };
-		writer.writeImage( ref, steps, offset );
+		Converter< FloatType, UnsignedLongType > converter = new Converter< FloatType, UnsignedLongType >()
+		{
+
+			@Override
+			public void convert( FloatType input, UnsignedLongType output )
+			{
+				output.set( Float.floatToIntBits( input.get() ) | 0l );
+			}};
+			
+		ConvertedRandomAccessibleInterval< FloatType, UnsignedLongType > refLong = 
+				new ConvertedRandomAccessibleInterval<FloatType,UnsignedLongType>( ref, converter, new UnsignedLongType() );
+		writer.writeImage( refLong, steps, offset );
 
 		// read image from dvid server
 		String urlString = DvidLabelBlkURL.makeRawString( apiUrl, uuid, dataSet, new int[] { 0, 1, 2 }, dim, new int[ 3 ] );
@@ -365,19 +374,16 @@ public class DvidLabels64Writer
 		HttpURLConnection connection = ( HttpURLConnection ) url.openConnection();
 		InputStream in = connection.getInputStream();
 
-		byte[] bytes = new byte[ numPixels * Constants.SizeOfLong ];
+		byte[] bytes = new byte[ numPixels * Long.BYTES ];
 
 		int off = 0;
 		for ( int l = in.read( bytes, off, bytes.length ); l > 0 && off + l < bytes.length; off += l, l = in.read( bytes, off, bytes.length - off ) );
 		in.close();
-
-		ByteArrayConversionFloat fc = new ByteArrayConversionFloat( bytes );
-		FloatType dummy = new FloatType();
-		for ( FloatType r : ref )
+		ByteBuffer bb = ByteBuffer.wrap( bytes );
+		for ( UnsignedLongType r : Views.flatIterable( refLong ) )
 		{
-			fc.getNext( dummy );
-			float test = dummy.get();
-			float comp = r.get();
+			long comp = r.get();
+			long test = bb.getLong();
 			if ( test != comp )
 				System.out.println( test + " " + comp );
 		}
