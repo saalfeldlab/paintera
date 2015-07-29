@@ -16,17 +16,29 @@ public class DvidLabels64VolatileArrayLoader implements CacheArrayLoader< Volati
 	private final String apiUrl;
 	private final String nodeId;
 	private final String dataInstanceId;
+	private final int argbMask;
 
+	public DvidLabels64VolatileArrayLoader(
+			final String apiUrl,
+			final String nodeId,
+			final String dataInstanceId,
+			final int[] blockDimensions,
+			final int argbMask )
+	{
+		theEmptyArray = new VolatileIntArray( 1, false );
+		this.apiUrl = apiUrl;
+		this.nodeId = nodeId;
+		this.dataInstanceId = dataInstanceId;
+		this.argbMask = argbMask;
+	}
+	
 	public DvidLabels64VolatileArrayLoader(
 			final String apiUrl,
 			final String nodeId,
 			final String dataInstanceId,
 			final int[] blockDimensions )
 	{
-		theEmptyArray = new VolatileIntArray( 1, false );
-		this.apiUrl = apiUrl;
-		this.nodeId = nodeId;
-		this.dataInstanceId = dataInstanceId;
+		this( apiUrl, nodeId, dataInstanceId, blockDimensions, 0xffffffff );;
 	}
 
 	@Override
@@ -35,7 +47,7 @@ public class DvidLabels64VolatileArrayLoader implements CacheArrayLoader< Volati
 		return 1;
 	}
 
-	static private void readBlock(
+	private void readBlock(
 			final String urlString,
 			final int[] data ) throws IOException
 	{
@@ -69,7 +81,7 @@ public class DvidLabels64VolatileArrayLoader implements CacheArrayLoader< Volati
 					( ( 0xffl & bytes[ ++j ] ) << 40 ) |
 					( ( 0xffl & bytes[ ++j ] ) << 48 ) |
 					( ( 0xffl & bytes[ ++j ] ) << 56 );
-			data[ i ] = ColorStream.get( index );
+			data[ i ] = ColorStream.get( index ) & argbMask;
 		}
 	}
 
