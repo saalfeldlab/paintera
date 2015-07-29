@@ -1,25 +1,23 @@
 package bdv.img.dvid;
 
-import java.io.DataOutputStream;
 import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
-import java.net.HttpURLConnection;
-import java.net.URL;
-import java.nio.ByteBuffer;
 import java.util.Random;
 
 import bdv.util.BlockedInterval;
-import bdv.util.Constants;
-import bdv.util.DvidLabelBlkURL;
+import bdv.util.dvid.DatasetBlkLabel;
+import bdv.util.dvid.Node;
+import bdv.util.dvid.Repository;
 import net.imglib2.Cursor;
 import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.converter.Converter;
 import net.imglib2.converter.read.ConvertedRandomAccessibleInterval;
+import net.imglib2.img.array.ArrayCursor;
 import net.imglib2.img.array.ArrayImg;
 import net.imglib2.img.array.ArrayImgs;
 import net.imglib2.img.basictypeaccess.array.FloatArray;
+import net.imglib2.img.basictypeaccess.array.IntArray;
 import net.imglib2.type.numeric.RealType;
+import net.imglib2.type.numeric.integer.UnsignedIntType;
 import net.imglib2.type.numeric.integer.UnsignedLongType;
 import net.imglib2.type.numeric.real.FloatType;
 import net.imglib2.view.IntervalView;
@@ -35,17 +33,13 @@ import net.imglib2.view.Views;
 public class DvidLabels64Writer
 {
 
-	private final String apiUrl;
-
-	private final String uuid;
-
-	private final String dataSet;
+	private final DatasetBlkLabel< UnsignedLongType > dataset;
 
 	private final int blockSize;
 
 	/**
-	 * @param apiUrl
-	 *            Url to dvid api in the form of http://hostname:port/api
+	 * @param url
+	 *            Url to dvid server in the form of http://hostname:port
 	 * @param uuid
 	 *            Uuid of repository within the dvid server specified by apiUrl
 	 * @param dataSet
@@ -56,14 +50,14 @@ public class DvidLabels64Writer
 	 *            {@link DvidLabels64Writer#DvidLabels64ByteWriter(String, String, String, int)}
 	 *            with a default block size of 32.
 	 **/
-	public DvidLabels64Writer( String apiUrl, String uuid, String dataSet )
+	public DvidLabels64Writer( String url, String uuid, String dataSet )
 	{
-		this( apiUrl, uuid, dataSet, 32 );
+		this( url, uuid, dataSet, 32 );
 	}
 
 	/**
-	 * @param apiUrl
-	 *            Url to dvid api in the form of http://hostname:port/api
+	 * @param url
+	 *            Url to dvid server in the form of http://hostname:port
 	 * @param uuid
 	 *            Uuid of repository within the dvid server specified by apiUrl
 	 * @param dataSet
@@ -73,12 +67,14 @@ public class DvidLabels64Writer
 	 *            Block size of the data set. Must suit block size stored in
 	 *            dvid server.
 	 */
-	public DvidLabels64Writer( String apiUrl, String uuid, final String dataSet, final int blockSize )
+	public DvidLabels64Writer( String url, String uuid, final String dataSetName, final int blockSize )
 	{
-		super();
-		this.apiUrl = apiUrl;
-		this.uuid = uuid;
-		this.dataSet = dataSet;
+		this( new DatasetBlkLabel< UnsignedLongType > ( new Repository( url, uuid ).getRootNode(), dataSetName ), blockSize );
+	}
+	
+	public DvidLabels64Writer( DatasetBlkLabel< UnsignedLongType >  dataset, int blockSize )
+	{
+		this.dataset = dataset;
 		this.blockSize = blockSize;
 	}
 
@@ -195,7 +191,7 @@ public class DvidLabels64Writer
 				}
 				catch ( IOException e )
 				{
-					System.err.println( "Failed to write block: " + DvidLabelBlkURL.makeRawString( apiUrl, uuid, dataSet, dims, realSteps, localOffset ) );
+					System.err.println( "Failed to write block: " + dataset.getRequestString( DatasetBlkLabel.getBlockRequestString( image, realSteps ) ) );
 					e.printStackTrace();
 				}
 			}
@@ -234,39 +230,7 @@ public class DvidLabels64Writer
 		for ( int d = 0; d < input.numDimensions(); ++d )
 			assert input.dimension( d ) % this.blockSize == 0;
 
-		// Size of the block to be written to dvid.
-		int[] size = new int[ input.numDimensions() ];
-
-		for ( int d = 0; d < size.length; ++d )
-		{
-			int dim = ( int ) input.dimension( d );
-			size[ d ] = dim;
-		}
-
-		// Create URL and open connection.
-		String urlString = DvidLabelBlkURL.makeRawString( this.apiUrl, this.uuid, dataSet, dims, size, offset );
-		URL url = new URL( urlString );
-
-		HttpURLConnection connection = ( HttpURLConnection ) url.openConnection();
-		connection.setDoOutput( true );
-		connection.setRequestMethod( Constants.POST );
-
-		connection.setRequestProperty( "Content-Type", "application/octet-stream" );
-
-		// Write data.
-		OutputStream stream = connection.getOutputStream();
-		DataOutputStream writer = new DataOutputStream( stream );
-		for ( UnsignedLongType p : Views.flatIterable( input ) )
-			writer.writeLong( p.get() );
-
-		writer.flush();
-		writer.close();
-
-		connection.disconnect();
-		int response = connection.getResponseCode();
-
-		if ( response != 200 )
-			throw new IOException( "POST request failed with response = " + response + " != 200 for " + urlString );
+		dataset.put( input, offset );
 
 	}
 
@@ -334,9 +298,11 @@ public class DvidLabels64Writer
 		// be printed to stdout
 		// otherwise no output
 
-		String apiUrl = "http://vm570.int.janelia.org:8080/api";
+		String url = "http://vm570.int.janelia.org:8080";
 		String uuid = "9c7cc44aa0544d33905ce82d153e2544";
 		String dataSet = "bigcat-test2";
+		
+		Repository repo = new Repository( url, uuid );
 
 		Random rng = new Random();
 
@@ -348,11 +314,7 @@ public class DvidLabels64Writer
 		for ( FloatType r : ref )
 			r.set( rng.nextFloat() );
 
-		int numPixels = 1;
-		for ( int d = 0; d < dim.length; ++d )
-			numPixels *= dim[ d ];
-
-		DvidLabels64Writer writer = new DvidLabels64Writer( apiUrl, uuid, dataSet, 32 );
+		DvidLabels64Writer writer = new DvidLabels64Writer( url, uuid, dataSet, 32 );
 		int[] steps = new int[] { 200, 200, 32 };
 		int[] offset = new int[] { 0, 0, 0 };
 		Converter< FloatType, UnsignedLongType > converter = new Converter< FloatType, UnsignedLongType >()
@@ -369,21 +331,16 @@ public class DvidLabels64Writer
 		writer.writeImage( refLong, steps, offset );
 
 		// read image from dvid server
-		String urlString = DvidLabelBlkURL.makeRawString( apiUrl, uuid, dataSet, new int[] { 0, 1, 2 }, dim, new int[ 3 ] );
-		final URL url = new URL( urlString );
-		HttpURLConnection connection = ( HttpURLConnection ) url.openConnection();
-		InputStream in = connection.getInputStream();
-
-		byte[] bytes = new byte[ numPixels * Long.BYTES ];
-
-		int off = 0;
-		for ( int l = in.read( bytes, off, bytes.length ); l > 0 && off + l < bytes.length; off += l, l = in.read( bytes, off, bytes.length - off ) );
-		in.close();
-		ByteBuffer bb = ByteBuffer.wrap( bytes );
+		Node node = repo.getRootNode();
+		DatasetBlkLabel< UnsignedIntType >  ds = new DatasetBlkLabel< UnsignedIntType > ( node, "bigcat-test2" );
+		ArrayImg< UnsignedIntType, IntArray > target = ArrayImgs.unsignedInts( longDim );
+		ds.get( target, offset );
+		
+		ArrayCursor< UnsignedIntType > t = target.cursor();
 		for ( UnsignedLongType r : Views.flatIterable( refLong ) )
 		{
 			long comp = r.get();
-			long test = bb.getLong();
+			long test = t.next().getIntegerLong();
 			if ( test != comp )
 				System.out.println( test + " " + comp );
 		}

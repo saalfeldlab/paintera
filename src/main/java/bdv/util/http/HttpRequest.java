@@ -11,9 +11,10 @@ import java.net.URL;
 
 import javax.xml.ws.http.HTTPException;
 
-import bdv.util.Constants;
-
 import com.google.gson.JsonElement;
+
+import bdv.util.Constants;
+import net.imglib2.type.numeric.IntegerType;
 
 public class HttpRequest
 {
@@ -83,6 +84,44 @@ public class HttpRequest
 		OutputStream stream = connection.getOutputStream();
 		DataOutputStream writer = new DataOutputStream( stream );
 		writer.write( postData );
+		writer.flush();
+		writer.close();
+		
+		int response = connection.getResponseCode();
+		if ( response != 200 )
+			throw new HTTPException( response );
+		
+		String contentLength = connection.getHeaderField( "content-length" );
+		if ( contentLength == null )
+			return null;
+		
+		return connection;
+	}
+	
+	public static < T extends IntegerType< T > > void postRequest( 
+			String url,
+			Iterable< T > iterable,
+			String contentType ) throws MalformedURLException, IOException
+	{
+		HttpURLConnection connection = postRequestWithResponse( url, iterable, contentType );
+		connection.disconnect();
+	}
+	
+	public static < T extends IntegerType< T > > HttpURLConnection postRequestWithResponse( 
+			String url,
+			Iterable< T > iterable,
+			String contentType ) throws MalformedURLException, IOException
+	{
+		HttpURLConnection connection = ( HttpURLConnection ) new URL( url ).openConnection();
+		connection.setDoOutput( true );
+		connection.setRequestMethod( Constants.POST );
+		connection.setRequestProperty( "Content-Type", contentType );
+
+		// Write data.
+		OutputStream stream = connection.getOutputStream();
+		DataOutputStream writer = new DataOutputStream( stream );
+		for ( T i : iterable )
+			writer.writeLong( i.getIntegerLong() );
 		writer.flush();
 		writer.close();
 		

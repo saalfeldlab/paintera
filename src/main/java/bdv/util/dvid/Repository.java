@@ -1,156 +1,97 @@
 package bdv.util.dvid;
 
 import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
-import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
-import java.net.URL;
+import java.util.Map.Entry;
 
-import javax.xml.ws.http.HTTPException;
+import bdv.util.JsonHelper;
 
-import bdv.util.Constants;
-
+import com.google.gson.JsonElement;
+import com.google.gson.JsonIOException;
 import com.google.gson.JsonObject;
-import com.google.gson.JsonParser;
+import com.google.gson.JsonSyntaxException;
 
 public class Repository
 {
 	
-	private final String apiUrl;
+	public static class RepositoryInfo
+	{
+		public static String ALIAS_KEY="Alias";
+		public static String ROOT_KEY="Root";
+		public static String LOG_KEY="Log";
+		public static String PROPERTIES_KEY="Properties";
+		public static String DATA_INSTANCES_KEY="DataInstances";
+		public static String DAG_KEY="DAG";
+		
+	}
+	
+	
+	
 	private final String uuid;
+	private final Server server;
 	
 	
-	public Repository( String apiUrl ) throws MalformedURLException, IOException
+	public Repository( String url, String uuid )
 	{
-		this( apiUrl, initialize( apiUrl, new JsonObject() ).get( "root" ).getAsString() );
+		this( new Server(url), uuid );
 	}
 	
-	
-	public Repository( String apiUrl, String alias, String description ) throws MalformedURLException, IOException
+	public Repository( Server server, String uuid )
 	{
-		this( apiUrl, initialize( apiUrl, alias, description ) );
-	}
-	
-	
-	public Repository( String apiUrl, String uuid )
-	{
-		this.apiUrl = apiUrl;
+		this.server = server;
 		this.uuid = uuid;
 	}
-	
-	
-	public String getApiUrl()
+
+	public Server getServer()
 	{
-		return apiUrl;
+		return this.server;
 	}
-
-
+	
 	public String getUuid()
 	{
 		return uuid;
 	}
-
-
-	public Dataset create( String name, String type, String... sync ) throws MalformedURLException, IOException
-	{
-		String postUrl = new StringBuilder( apiUrl )
-			.append( "/repo/" )
-			.append( this.uuid )
-			.append( "/instance" )
-			.toString()
-			;
-		
-		JsonObject json = new JsonObject();
-		json.addProperty( Dataset.POPERTY_DATANAME, name );
-		json.addProperty( Dataset.PROPERTY_TYPENAME, type );
-		if ( sync.length > 0 )
-		{
-			StringBuilder syncString = new StringBuilder( sync[ 0 ] );
-			for ( int i = 1; i < sync.length; ++i )
-			{
-				syncString
-					.append( "," )
-					.append( sync[ i ] )
-					;
-			}
-			json.addProperty( Dataset.PROPERTY_SYNC, syncString.toString() );
-			
-		}
-		
-		
-		HttpURLConnection connection = (HttpURLConnection ) new URL( postUrl ).openConnection();
-		connection.setRequestMethod( Constants.POST );
-		connection.setDoOutput( true );
-		connection.setRequestProperty( "Content-Type", "application/json; charset=UTF-8");
-		
-		OutputStream out = connection.getOutputStream();
-		out.write( json.toString().getBytes( Constants.CHARSET_UTF8 ) );
-		
-		int response = connection.getResponseCode();
-		
-		if ( response != 200 )
-		{
-			throw new HTTPException( response );
-		}
-		
-		return new Dataset( this.uuid, name, type, sync );
-		
-	}
-
 	
-	public static String initialize( 
-			String apiUrl, 
-			String alias, 
-			String description ) throws MalformedURLException, IOException
+	public String getUrl()
 	{
-		JsonObject json = generateFromAliasAndDescription( alias, description );
-		String uuid = initialize( apiUrl, json ).get( "root" ).getAsString();
-		return uuid;
+		return server.getApiUrl() + "/repo/" + this.uuid;
 	}
 	
-	
-	public static JsonObject initialize( String apiUrl, JsonObject json ) throws MalformedURLException, IOException
+	public String getNodeUrl()
 	{
-		String postUrl = new StringBuilder( apiUrl )
-			.append( "/repos" )
-			.toString()
-			;
-		
-		HttpURLConnection connection = (HttpURLConnection) new URL( postUrl ).openConnection();
-		connection.setRequestMethod( Constants.POST );
-		connection.setDoInput( true );
-		connection.setDoOutput( true );
-		connection.setRequestProperty( "Content-Type", "application/json; charset=UTF-8");
-		
-		OutputStream out = connection.getOutputStream();
-		InputStream in = connection.getInputStream();
-		
-		out.write( json.toString().getBytes( Constants.CHARSET_UTF8 ) );
-		out.flush();
-		out.close();
-		
-		int response = connection.getResponseCode();
-		
-		if ( response != 200 )
-		{
-			throw new HTTPException( response );
-		}
-		
-		int len = connection.getContentLength();
-		byte[] byteRepresentation = new byte[ len ];
-		
-		int off = 0;
-		do off = in.read( byteRepresentation, off, len - off );
-		while ( off > 0 );
-		
-		JsonObject rootInfo = 
-				new JsonParser().parse( new String( byteRepresentation, Constants.CHARSET_UTF8 ) ).getAsJsonObject();
-		
-		return rootInfo;
-		
+		return server.getApiUrl() +"/node/" + this.uuid;
 	}
 	
+	public Node getRootNode()
+	{
+		return new Node( this.uuid, null, this );
+	}
+	
+	public Node checkout( String uuid ) throws JsonSyntaxException, JsonIOException, IOException
+	{
+		JsonObject dag = getDAG().get( "Nodes" ).getAsJsonObject();
+		for ( Entry< String, JsonElement > node : dag.entrySet() )
+			if ( Node.uuidEquivalenceCheck( node.getKey(), uuid ) )
+				return new Node( uuid, null, this );
+		return null;
+	}
+	
+	public JsonObject getInfo() throws JsonSyntaxException, JsonIOException, IOException
+	{
+		JsonObject infoObject = JsonHelper.fetch( this.server.getApiUrl() + "/repo/" + this.uuid + "/info", JsonObject.class );
+		return infoObject;
+	}
+	
+	public JsonObject getDAG() throws JsonSyntaxException, JsonIOException, IOException
+	{
+		return getInfo().get( "DAG" ).getAsJsonObject();
+	}
+	
+	public Dataset createDataset( String name, String type, String... sync ) throws MalformedURLException, IOException
+	{
+		return this.getRootNode().createDataset( name, type, sync );
+		
+	}
 	
 	public static JsonObject generateFromAliasAndDescription( String alias, String description )
 	{
@@ -163,23 +104,40 @@ public class Repository
 	public static void main( String[] args ) throws MalformedURLException, IOException
 	{
 		
-		String apiUrl = "http://vm570.int.janelia.org:8080/api";
+		String url = "http://vm570.int.janelia.org:8080";
 		String uuid = "2fa87e8e61684bef9d2a92756a65d228";
-		Repository repo = new Repository( apiUrl, uuid );
+		Repository repo = new Repository( url, uuid );
 		
 		// To create new repo, do: 
 		// Repository repo = new Repository( apiUrl, uuid );
 		
-		System.out.println( repo.getApiUrl() );
+		System.out.println( repo.getServer().getApiUrl() );
 		System.out.println( repo.getUuid() );
 		
-		Dataset ds = repo.create( "testing", "labelblk" );
+//		Dataset ds = repo.create( "testing123456", "labelblk" );
+		Dataset ds = new Dataset( repo.getRootNode(), "testing123456" );
 		
 		System.out.println( ds.getName() );
-		System.out.println( ds.getType() );
-		System.out.println( ds.getUuid() );
-		System.out.println( ds.getSync() );
+		System.out.println( ds.getNode().getUuid() );
+		System.out.println( ds.getInfo().toString() );
 		
+		System.out.println();
+		Repository r2 = new Repository( repo.getServer(), "6efb517b5ca64b67b8d53be310a9bca4" );
+		Node n2 = new Node( "6efb517b5ca64b67b8d53be310a9bca4", repo.getRootNode(), repo );
+		Dataset d2 = new Dataset( n2, "some-data-set" );
+		System.out.println( repo.getInfo() );
+//		System.out.println( repo.getDAG().toString() );
+		
+//		repo.getRootNode().commit( "bla", new String[0] );
+//		Node newNode = repo.getRootNode().branch( "bleb" );
+//		Dataset newDs = newNode.createDataset( "some-data-set", "labelblk" );
+//		System.out.println( newDs.getInfo().toString() );
+//		System.out.println( repo.getInfo() );
+		
+//		Node root = repo.getRootNode();
+//		root.commit( "Testing purposes", new String[0] );
+//		JsonObject branchInfo = root.branch( "Testing" );
+//		System.out.println( branchInfo.toString() );
 	}
 	
 	
