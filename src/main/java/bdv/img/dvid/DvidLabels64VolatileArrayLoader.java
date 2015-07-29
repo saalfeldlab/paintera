@@ -13,10 +13,10 @@ public class DvidLabels64VolatileArrayLoader implements CacheArrayLoader< Volati
 {
 	private VolatileIntArray theEmptyArray;
 
-	final private String apiUrl;
-	final private String nodeId;
-	final private String dataInstanceId;
-	final private int argbMask;
+	private final String apiUrl;
+	private final String nodeId;
+	private final String dataInstanceId;
+	private final int argbMask;
 
 	public DvidLabels64VolatileArrayLoader(
 			final String apiUrl,
@@ -31,14 +31,14 @@ public class DvidLabels64VolatileArrayLoader implements CacheArrayLoader< Volati
 		this.dataInstanceId = dataInstanceId;
 		this.argbMask = argbMask;
 	}
-
+	
 	public DvidLabels64VolatileArrayLoader(
 			final String apiUrl,
 			final String nodeId,
 			final String dataInstanceId,
 			final int[] blockDimensions )
 	{
-		this( apiUrl, nodeId, dataInstanceId, blockDimensions, 0xffffffff );
+		this( apiUrl, nodeId, dataInstanceId, blockDimensions, 0xffffffff );;
 	}
 
 	@Override
