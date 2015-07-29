@@ -13,9 +13,24 @@ public class DvidLabels64VolatileArrayLoader implements CacheArrayLoader< Volati
 {
 	private VolatileIntArray theEmptyArray;
 
-	private final String apiUrl;
-	private final String nodeId;
-	private final String dataInstanceId;
+	final private String apiUrl;
+	final private String nodeId;
+	final private String dataInstanceId;
+	final private int argbMask;
+
+	public DvidLabels64VolatileArrayLoader(
+			final String apiUrl,
+			final String nodeId,
+			final String dataInstanceId,
+			final int[] blockDimensions,
+			final int argbMask )
+	{
+		theEmptyArray = new VolatileIntArray( 1, false );
+		this.apiUrl = apiUrl;
+		this.nodeId = nodeId;
+		this.dataInstanceId = dataInstanceId;
+		this.argbMask = argbMask;
+	}
 
 	public DvidLabels64VolatileArrayLoader(
 			final String apiUrl,
@@ -23,10 +38,7 @@ public class DvidLabels64VolatileArrayLoader implements CacheArrayLoader< Volati
 			final String dataInstanceId,
 			final int[] blockDimensions )
 	{
-		theEmptyArray = new VolatileIntArray( 1, false );
-		this.apiUrl = apiUrl;
-		this.nodeId = nodeId;
-		this.dataInstanceId = dataInstanceId;
+		this( apiUrl, nodeId, dataInstanceId, blockDimensions, 0xffffffff );
 	}
 
 	@Override
@@ -35,7 +47,7 @@ public class DvidLabels64VolatileArrayLoader implements CacheArrayLoader< Volati
 		return 1;
 	}
 
-	static private void readBlock(
+	private void readBlock(
 			final String urlString,
 			final int[] data ) throws IOException
 	{
@@ -48,11 +60,14 @@ public class DvidLabels64VolatileArrayLoader implements CacheArrayLoader< Volati
 			return;
 
 		in.skip( 3 );
-		int off = 0;
-		for (
-				int l = in.read( bytes, off, bytes.length );
-				l > 0 || off + l < bytes.length;
-				off += l, l = in.read( bytes, off, bytes.length - off ) );
+		int off = 0, l = 0;
+		do
+		{
+			l = in.read( bytes, off, bytes.length - off );
+			off += l;
+		}
+		while ( l > 0 && off < bytes.length );
+
 		in.close();
 
 		for ( int i = 0, j = -1; i < data.length; ++i )
@@ -66,7 +81,7 @@ public class DvidLabels64VolatileArrayLoader implements CacheArrayLoader< Volati
 					( ( 0xffl & bytes[ ++j ] ) << 40 ) |
 					( ( 0xffl & bytes[ ++j ] ) << 48 ) |
 					( ( 0xffl & bytes[ ++j ] ) << 56 );
-			data[ i ] = ColorStream.get( index );
+			data[ i ] = ColorStream.get( index ) & argbMask;
 		}
 	}
 

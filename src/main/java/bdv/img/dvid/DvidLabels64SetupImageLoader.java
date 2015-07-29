@@ -44,6 +44,8 @@ public class DvidLabels64SetupImageLoader
 	 * @param apiUrl e.g. "http://hackathon.janelia.org/api"
 	 * @param nodeId e.g. "2a3fd320aef011e4b0ce18037320227c"
 	 * @param dataInstanceId e.g. "bodies"
+	 * @param argbMask e.g. 0xffffffff for full opacity or 0x7fffffff for half opacity
+	 *
 	 * @throws IOException
 	 * @throws JsonIOException
 	 * @throws JsonSyntaxException
@@ -52,7 +54,8 @@ public class DvidLabels64SetupImageLoader
 			final String apiUrl,
 			final String nodeId,
 			final String dataInstanceId,
-			final int setupId ) throws JsonSyntaxException, JsonIOException, IOException
+			final int setupId,
+			final int argbMask ) throws JsonSyntaxException, JsonIOException, IOException
 	{
 		super( new ARGBType(), new VolatileARGBType() );
 		this.setupId = setupId;
@@ -80,7 +83,27 @@ public class DvidLabels64SetupImageLoader
 
 		blockDimensions = dataInstance.Extended.BlockSize;
 
-		loader = new DvidLabels64VolatileArrayLoader( apiUrl, nodeId, dataInstanceId, blockDimensions );
+		loader = new DvidLabels64VolatileArrayLoader( apiUrl, nodeId, dataInstanceId, blockDimensions, argbMask );
+	}
+
+	/**
+	 * http://hackathon.janelia.org/api/help/grayscale8
+	 *
+	 * @param apiUrl e.g. "http://hackathon.janelia.org/api"
+	 * @param nodeId e.g. "2a3fd320aef011e4b0ce18037320227c"
+	 * @param dataInstanceId e.g. "bodies"
+	 *
+	 * @throws IOException
+	 * @throws JsonIOException
+	 * @throws JsonSyntaxException
+	 */
+	public DvidLabels64SetupImageLoader(
+			final String apiUrl,
+			final String nodeId,
+			final String dataInstanceId,
+			final int setupId ) throws JsonSyntaxException, JsonIOException, IOException
+	{
+		this( apiUrl, nodeId, dataInstanceId, setupId, 0xffffffff );
 	}
 
 	@Override

@@ -7,23 +7,27 @@ import net.imglib2.Cursor;
 import net.imglib2.RandomAccessible;
 import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.type.numeric.ARGBType;
+import bdv.viewer.Source;
 import bdv.viewer.render.AccumulateProjector;
+import bdv.viewer.render.AccumulateProjectorARGB;
 import bdv.viewer.render.AccumulateProjectorFactory;
 import bdv.viewer.render.VolatileProjector;
 
 public class AccumulateProjectorCompositeARGB extends AccumulateProjector< ARGBType, ARGBType >
 {
-	public static AccumulateProjectorFactory factory = new AccumulateProjectorFactory()
+
+	public static AccumulateProjectorFactory< ARGBType > factory = new AccumulateProjectorFactory< ARGBType >()
 	{
 		@Override
-		public AccumulateProjectorCompositeARGB createAccumulateProjector(
+		public AccumulateProjectorARGB createAccumulateProjector(
 				final ArrayList< VolatileProjector > sourceProjectors,
-				final ArrayList< ? extends RandomAccessible< ARGBType > > sources,
-				final RandomAccessibleInterval< ARGBType > target,
+				final ArrayList< Source< ? > > sour,
+				final ArrayList< ? extends RandomAccessible< ARGBType > > sourceScreenImages,
+				final RandomAccessibleInterval< ARGBType > targetScreenImages,
 				final int numThreads,
 				final ExecutorService executorService )
 		{
-			return new AccumulateProjectorCompositeARGB( sourceProjectors, sources, target, numThreads, executorService );
+			return new AccumulateProjectorARGB( sourceProjectors, sourceScreenImages, targetScreenImages, numThreads, executorService );
 		}
 	};
 
