@@ -48,11 +48,14 @@ public class DvidLabels64VolatileArrayLoader implements CacheArrayLoader< Volati
 			return;
 
 		in.skip( 3 );
-		int off = 0;
-		for (
-				int l = in.read( bytes, off, bytes.length );
-				l > 0 || off + l < bytes.length;
-				off += l, l = in.read( bytes, off, bytes.length - off ) );
+		int off = 0, l = 0;
+		do
+		{
+			l = in.read( bytes, off, bytes.length - off );
+			off += l;
+		}
+		while ( l > 0 && off < bytes.length );
+
 		in.close();
 
 		for ( int i = 0, j = -1; i < data.length; ++i )
