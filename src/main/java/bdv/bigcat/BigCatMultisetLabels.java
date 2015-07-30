@@ -40,7 +40,7 @@ public class BigCatMultisetLabels
 		{
 			System.setProperty( "apple.laf.useScreenMenuBar", "true" );
 
-			final DvidGrayscale8SetupImageLoader dvidGrayscale8ImageLoader = new DvidGrayscale8SetupImageLoader(
+			final DvidGrayscale8ImageLoader dvidGrayscale8ImageLoader = new DvidGrayscale8ImageLoader(
 					"http://emrecon100.janelia.priv/api",
 					"2a3fd320aef011e4b0ce18037320227c",
 					"grayscale" );
@@ -101,6 +101,8 @@ public class BigCatMultisetLabels
 			bdv.getViewer().setDisplayMode( DisplayMode.FUSED );
 
 			bdv.getViewerFrame().setVisible( true );
+
+			bdv.getViewer().getDisplay().addHandler( new MergeModeMouseListener( bdv.getViewer() ) );
 		}
 		catch ( final Exception e )
 		{
