@@ -64,7 +64,7 @@ public class Repository
 	
 	public Node getRootNode()
 	{
-		return new Node( this.uuid, null, this );
+		return new Node( this.uuid, this );
 	}
 	
 	public Node checkout( String uuid ) throws JsonSyntaxException, JsonIOException, IOException
@@ -72,7 +72,7 @@ public class Repository
 		JsonObject dag = getDAG().get( "Nodes" ).getAsJsonObject();
 		for ( Entry< String, JsonElement > node : dag.entrySet() )
 			if ( Node.uuidEquivalenceCheck( node.getKey(), uuid ) )
-				return new Node( uuid, null, this );
+				return new Node( uuid, this );
 		return null;
 	}
 	
@@ -123,7 +123,7 @@ public class Repository
 		
 		System.out.println();
 		Repository r2 = new Repository( repo.getServer(), "6efb517b5ca64b67b8d53be310a9bca4" );
-		Node n2 = new Node( "6efb517b5ca64b67b8d53be310a9bca4", repo.getRootNode(), repo );
+		Node n2 = new Node( "6efb517b5ca64b67b8d53be310a9bca4", repo );
 		Dataset d2 = new Dataset( n2, "some-data-set" );
 		System.out.println( repo.getInfo() );
 //		System.out.println( repo.getDAG().toString() );

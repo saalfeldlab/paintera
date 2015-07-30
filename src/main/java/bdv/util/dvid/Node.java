@@ -17,7 +17,6 @@ public class Node
 {
 	
 	private final String uuid;
-	private final Node parent;
 	private final Repository repository;
 	
 	public String getUuid()
@@ -27,7 +26,7 @@ public class Node
 	
 	public Node getParent()
 	{
-		return parent;
+		return null; // null for now
 	}
 	
 	public Repository getRepository()
@@ -62,14 +61,13 @@ public class Node
 		HttpURLConnection connection = HttpRequest.postRequestJSON( url, json );
 		JsonObject response = new Gson().fromJson( new InputStreamReader( connection.getInputStream() ), JsonObject.class );
 		connection.disconnect();
-		return new Node( response.get( "child" ).getAsString(), this, this.repository );
+		return new Node( response.get( "child" ).getAsString(), this.repository );
 	}
 	
-	public Node( String uuid, Node parent, Repository repository )
+	public Node( String uuid, Repository repository )
 	{
 		super();
 		this.uuid = uuid;
-		this.parent = parent;
 		this.repository = repository;
 	}
 	

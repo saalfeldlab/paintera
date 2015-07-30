@@ -3,7 +3,11 @@ package bdv.img.dvid;
 import java.io.IOException;
 import java.util.Random;
 
+import com.google.gson.JsonIOException;
+import com.google.gson.JsonSyntaxException;
+
 import bdv.util.BlockedInterval;
+import bdv.util.dvid.DatasetBlk;
 import bdv.util.dvid.DatasetBlkLabel;
 import bdv.util.dvid.Node;
 import bdv.util.dvid.Repository;
@@ -35,13 +39,14 @@ public class DvidLabels64Writer
 
 	private final DatasetBlkLabel< UnsignedLongType > dataset;
 
-	private final int blockSize;
+	private final int[] blockSize;
 
 	/**
 	 * @param url
 	 *            Url to dvid server in the form of http://hostname:port
 	 * @param uuid
-	 *            Uuid of repository within the dvid server specified by apiUrl
+	 *            Uuid of repository within the dvid server specified by apiUrl.
+	 *            The root node of the repository will be used for writing.
 	 * @param dataSet
 	 *            Name of the data set within the repository specified by uuid.
 	 *            This data set must be of type labelblk.
@@ -49,33 +54,45 @@ public class DvidLabels64Writer
 	 *            This calls
 	 *            {@link DvidLabels64Writer#DvidLabels64ByteWriter(String, String, String, int)}
 	 *            with a default block size of 32.
+	 * @throws IOException 
+	 * @throws JsonIOException 
+	 * @throws JsonSyntaxException 
 	 **/
 	public DvidLabels64Writer( String url, String uuid, String dataSet )
 	{
-		this( url, uuid, dataSet, 32 );
+		this( url, uuid, dataSet, DatasetBlk.defaultBlockSize() );
 	}
 
 	/**
 	 * @param url
 	 *            Url to dvid server in the form of http://hostname:port
 	 * @param uuid
-	 *            Uuid of repository within the dvid server specified by apiUrl
+	 *            Uuid of repository within the dvid server specified by apiUrl.
+	 *            The root node of the repository will be used for writing.
 	 * @param dataSet
 	 *            Name of the data set within the repository specified by uuid.
 	 *            This data set must be of type labelblk
 	 * @param blockSize
 	 *            Block size of the data set. Must suit block size stored in
 	 *            dvid server.
+	 * @throws IOException 
+	 * @throws JsonIOException 
+	 * @throws JsonSyntaxException 
 	 */
-	public DvidLabels64Writer( String url, String uuid, final String dataSetName, final int blockSize )
+	public DvidLabels64Writer( String url, String uuid, final String dataSetName, final int[] blockSize )
 	{
 		this( new DatasetBlkLabel< UnsignedLongType > ( new Repository( url, uuid ).getRootNode(), dataSetName ), blockSize );
 	}
 	
-	public DvidLabels64Writer( DatasetBlkLabel< UnsignedLongType >  dataset, int blockSize )
+	public DvidLabels64Writer( DatasetBlkLabel< UnsignedLongType >  dataset, int[] blockSize )
 	{
 		this.dataset = dataset;
 		this.blockSize = blockSize;
+	}
+	
+	public DvidLabels64Writer( DatasetBlkLabel< UnsignedLongType >  dataset ) throws JsonSyntaxException, JsonIOException, IOException
+	{
+		this( dataset, dataset.getBlockSize() );
 	}
 
 	/**
@@ -224,11 +241,12 @@ public class DvidLabels64Writer
 		// For now add the asserts, maybe make this method private/protected and
 		// have
 		// enclosing method take care of it.
-		for ( int o : offset )
-			assert o % this.blockSize == 0;
 
 		for ( int d = 0; d < input.numDimensions(); ++d )
-			assert input.dimension( d ) % this.blockSize == 0;
+		{
+			assert offset[ d ] % this.blockSize[ d ] == 0;
+			assert input.dimension( d ) % this.blockSize[ d ] == 0;
+		}
 
 		dataset.put( input, offset );
 
@@ -245,14 +263,15 @@ public class DvidLabels64Writer
 	 *         need to be integral multiples of blockSize. This is a convenience
 	 *         function to modify integer arrays accordingly.
 	 */
-	public static int[] adaptToBlockSize( int[] input, final int blockSize )
+	public static int[] adaptToBlockSize( int[] input, final int[]blockSize )
 	{
 		for ( int d = 0; d < input.length; ++d )
 		{
 			int val = input[ d ];
-			int mod = val % blockSize;
+			int bs = blockSize[ d ];
+			int mod = val % bs;
 			if ( mod > 0 )
-				val += blockSize - mod;
+				val += bs - mod;
 			input[ d ] = val;
 		}
 		return input;
@@ -269,14 +288,15 @@ public class DvidLabels64Writer
 	 *         need to be integral multiples of blockSize. This is a convenience
 	 *         function to modify long arrays accordingly.
 	 */
-	public static long[] adaptToBlockSize( long[] input, final int blockSize )
+	public static long[] adaptToBlockSize( long[] input, final int[] blockSize )
 	{
 		for ( int d = 0; d < input.length; ++d )
 		{
 			long val = input[ d ];
-			long mod = val % blockSize;
+			int bs = blockSize[d];
+			long mod = val % bs;
 			if ( mod > 0 )
-				val += blockSize - mod;
+				val += bs - mod;
 			input[ d ] = val;
 		}
 		return input;
@@ -314,7 +334,7 @@ public class DvidLabels64Writer
 		for ( FloatType r : ref )
 			r.set( rng.nextFloat() );
 
-		DvidLabels64Writer writer = new DvidLabels64Writer( url, uuid, dataSet, 32 );
+		DvidLabels64Writer writer = new DvidLabels64Writer( url, uuid, dataSet );
 		int[] steps = new int[] { 200, 200, 32 };
 		int[] offset = new int[] { 0, 0, 0 };
 		Converter< FloatType, UnsignedLongType > converter = new Converter< FloatType, UnsignedLongType >()
