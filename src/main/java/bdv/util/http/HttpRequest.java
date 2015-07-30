@@ -53,9 +53,25 @@ public class HttpRequest
 		
 	}
 	
+	public static byte[] getRequest( String url ) throws MalformedURLException, IOException
+	{
+		HttpURLConnection connection = ( HttpURLConnection ) new URL( url ).openConnection();
+		int response = connection.getResponseCode();
+		if ( response != 200 )
+			throw new HTTPException( response );
+		String contentLength = connection.getHeaderField( "content-length" );
+		byte[] bytes = new byte[ Integer.parseInt( contentLength ) ];
+		getRequest( connection, new ByteArrayResponseHandler( bytes ) );
+		connection.disconnect();
+		return bytes;
+	}
+	
 	public static byte[] getRequest( String url, byte[] bytes ) throws MalformedURLException, IOException
 	{
 		HttpURLConnection connection = ( HttpURLConnection ) new URL( url ).openConnection();
+		int response = connection.getResponseCode();
+		if ( response != 200 )
+			throw new HTTPException( response );
 		getRequest( connection, new ByteArrayResponseHandler( bytes ) );
 		connection.disconnect();
 		return bytes;
@@ -66,10 +82,6 @@ public class HttpRequest
 		InputStream in = connection.getInputStream();
 		handler.handle( in );
 		in.close();
-		
-		int response = connection.getResponseCode();
-		if ( response != 200 )
-			throw new HTTPException( response );
 	}
 	
 	public static void postRequest( String url, byte[] postData, String contentType ) throws MalformedURLException, IOException
@@ -84,7 +96,7 @@ public class HttpRequest
 		connection.setDoOutput( true );
 		connection.setRequestMethod( POST );
 		connection.setRequestProperty( "Content-Type", contentType );
-
+		
 		// Write data.
 		OutputStream stream = connection.getOutputStream();
 		DataOutputStream writer = new DataOutputStream( stream );
@@ -129,7 +141,7 @@ public class HttpRequest
 			writer.writeLong( i.getIntegerLong() );
 		writer.flush();
 		writer.close();
-		
+
 		int response = connection.getResponseCode();
 		if ( response != 200 )
 			throw new HTTPException( response );

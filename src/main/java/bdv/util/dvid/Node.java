@@ -5,6 +5,9 @@ import java.io.InputStreamReader;
 import java.io.UnsupportedEncodingException;
 import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
+import java.util.AbstractMap.SimpleImmutableEntry;
+import java.util.ArrayList;
+import java.util.List;
 
 import bdv.util.http.HttpRequest;
 
@@ -57,7 +60,7 @@ public class Node
 	{
 		JsonObject json = new JsonObject();
 		json.addProperty( "note", note );
-		String url = getUrl() + "/branch";
+		String url = DvidUrlOptions.getRequestString( getUrl() + "/branch" );
 		HttpURLConnection connection = HttpRequest.postRequestJSON( url, json );
 		JsonObject response = new Gson().fromJson( new InputStreamReader( connection.getInputStream() ), JsonObject.class );
 		connection.disconnect();
@@ -96,9 +99,38 @@ public class Node
 			json.addProperty( Dataset.PROPERTY_SYNC, syncString.toString() );
 		}
 		
-		HttpRequest.postRequestJSON( postUrl, json ).disconnect();
+		HttpRequest.postRequestJSON( DvidUrlOptions.getRequestString( postUrl ), json ).disconnect();
 		
-		return new Dataset( this, name );
+		if ( type.compareToIgnoreCase( DatasetKeyValue.TYPE) == 0 )
+			return new DatasetKeyValue( this, name );
+		
+		else if ( type.compareToIgnoreCase( DatasetBlkLabel.TYPE ) == 0 )
+			return new DatasetBlkLabel( this, name );
+		
+		else
+			return new Dataset( this, name );
+	}
+	
+	public Dataset[] createMutuallySynchedDatasets( List< SimpleImmutableEntry< String, String > > namesAndTypes ) throws MalformedURLException, IOException
+	{
+		int length = namesAndTypes.size();
+		Dataset[] datasets = new Dataset[ length ];
+		for ( int i = 0; i < length; ++i )
+		{
+			String[] sync = new String[ length - 1 ];
+			SimpleImmutableEntry< String, String > pair = namesAndTypes.get( i );
+			ArrayList< String > tmp = new ArrayList< String >();
+			for ( int k = 0; k < length; ++k )
+				if ( k != i )
+					tmp.add( namesAndTypes.get( k ).getKey() );
+				else
+					continue;
+			
+			tmp.toArray( sync );
+			datasets[ i ] = createDataset( pair.getKey(), pair.getValue(), sync );
+			
+		}
+		return datasets;
 	}
 	
 	public static int compareUuids( String uuid1, String uuid2 )
@@ -110,6 +142,27 @@ public class Node
 	public static boolean uuidEquivalenceCheck( String uuid1, String uuid2 )
 	{
 		return compareUuids( uuid1, uuid2 ) == 0;
+	}
+	
+	public static < T, U > SimpleImmutableEntry< T, U > toPair( T t, U u )
+	{
+		return new SimpleImmutableEntry< T, U >( t, u );
+	}
+	
+	public static void main( String[] args ) throws MalformedURLException, IOException
+	{
+		String url = "http://vm570.int.janelia.org:8080";
+		String uuid = "6efb517b5ca64b67b8d53be310a9bca4";
+		Repository repo = new Repository( url, uuid );
+		System.out.println( repo.getInfo() );
+		Node n2 = new Node( "6efb517b5ca64b67b8d53be310a9bca4", repo );
+		Node child = n2.branch( "new branch" );
+		ArrayList< SimpleImmutableEntry< String, String > > al = 
+				new ArrayList< SimpleImmutableEntry< String, String > >();
+		al.add( toPair( "set1", "labelblk" ) );
+		al.add( toPair( "set2", "keyvalue" ) );
+		al.add( toPair( "set3", "labelblk" ) );
+		child.createMutuallySynchedDatasets( al );
 	}
 	
 }

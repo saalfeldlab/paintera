@@ -6,10 +6,10 @@ import java.nio.ByteBuffer;
 
 import bdv.util.http.HttpRequest;
 import net.imglib2.RandomAccessibleInterval;
-import net.imglib2.type.numeric.IntegerType;
+import net.imglib2.type.numeric.integer.UnsignedLongType;
 import net.imglib2.view.Views;
 
-public class DatasetBlkLabel< T extends IntegerType< T > > extends DatasetBlk< T >
+public class DatasetBlkLabel extends DatasetBlk< UnsignedLongType >
 {
 	public static String TYPE = "labelblk";
 
@@ -20,7 +20,7 @@ public class DatasetBlkLabel< T extends IntegerType< T > > extends DatasetBlk< T
 
 	@Override
 	public void put( 
-			RandomAccessibleInterval< T > source,
+			RandomAccessibleInterval< UnsignedLongType > source,
 			int[] offset
 			) throws MalformedURLException, IOException
 	{
@@ -30,7 +30,7 @@ public class DatasetBlkLabel< T extends IntegerType< T > > extends DatasetBlk< T
 	}
 
 	@Override
-	public void get( RandomAccessibleInterval< T > target, int[] offset ) throws MalformedURLException, IOException
+	public void get( RandomAccessibleInterval< UnsignedLongType > target, int[] offset ) throws MalformedURLException, IOException
 	{
 		int size = Long.BYTES;
 		for ( int d = 0; d < target.numDimensions(); ++d )
@@ -40,7 +40,7 @@ public class DatasetBlkLabel< T extends IntegerType< T > > extends DatasetBlk< T
 		
 		getByteArray( target, data, offset );
 		ByteBuffer bb = ByteBuffer.wrap( data );
-		for( T t : Views.flatIterable( target ) )
+		for( UnsignedLongType t : Views.flatIterable( target ) )
 			t.setInteger( bb.getLong() );
 		
 	}

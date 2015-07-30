@@ -51,7 +51,7 @@ public class Server
 	public JsonObject getReposInfo() throws JsonSyntaxException, JsonIOException, IOException
 	{
 		String infoUrl = this.apiUrl + "/repos/info";
-		JsonObject json = JsonHelper.fetch( infoUrl, JsonObject.class );
+		JsonObject json = JsonHelper.fetch( DvidUrlOptions.getRequestString( infoUrl ), JsonObject.class );
 		return json;
 	}
 	
@@ -93,7 +93,7 @@ public class Server
 	public Repository createRepo( JsonObject info ) throws MalformedURLException, IOException
 	{
 		String postUrl = getApiUrl() + "/repos";
-		HttpURLConnection connection = HttpRequest.postRequestJSON( postUrl, info );
+		HttpURLConnection connection = HttpRequest.postRequestJSON( DvidUrlOptions.getRequestString( postUrl ), info );
 		JsonObject response = new Gson().fromJson( new InputStreamReader( connection.getInputStream() ), JsonObject.class );
 		connection.disconnect();
 		String uuid = response.get( "root" ).getAsString();
@@ -123,12 +123,12 @@ public class Server
 		System.out.println( s.getReposInfo().toString() );
 		System.out.println( s.getRepoInfo( "snemi-superpixels" ) );
 		System.out.println( s.getRepo( "snemi-superpixels" ).getInfo() );
-		Repository r = s.createRepo( "abc" );
-		Node root = r.getRootNode();
-		root.commit( "testing", new String[] {} );
-		Node child = root.branch( "some branch" );
-		child.commit( "some more testing", new String[] {}  );
-		System.out.println( s.getReposInfo().toString() );
+//		Repository r = s.createRepo( "abc" );
+//		Node root = r.getRootNode();
+//		root.commit( "testing", new String[] {} );
+//		Node child = root.branch( "some branch" );
+//		child.commit( "some more testing", new String[] {}  );
+//		System.out.println( s.getReposInfo().toString() );
 	}
 	
 }

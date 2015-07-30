@@ -2,9 +2,7 @@ package bdv.util.dvid;
 
 import java.io.IOException;
 import java.net.MalformedURLException;
-import java.util.Iterator;
 import java.util.Map;
-import java.util.Map.Entry;
 
 import com.google.gson.JsonIOException;
 import com.google.gson.JsonObject;
@@ -45,55 +43,28 @@ public class Dataset
 		return node.getUrl() + "/" + name;
 	}
 	
+	public String mergeUrlAndRequest( String request )
+	{
+		return new StringBuilder( getUrl() )
+				.append( "/" )
+				.append( request )
+				.toString()
+				;
+	}
+	
 	public String getRequestString( String request )
 	{
-		return getRequestString( request, null, null );
+		return DvidUrlOptions.getRequestString( mergeUrlAndRequest( request ) );
+	}
+	
+	public String getRequestString( String request, String format )
+	{
+		return DvidUrlOptions.getRequestString( mergeUrlAndRequest( request ), format );
 	}
 	
 	public String getRequestString( String request, String format, Map< String, String > options )
 	{
-		StringBuilder url = new StringBuilder( getUrl() )
-			.append( "/" )
-			.append( request )
-			;
-		if ( format != null && format.length() > 0 )
-			url.append( "/" ).append( format )
-				;
-		
-		if ( options != null && options.size() > 0 )
-		{
-			Iterator< Entry< String, String >> it = options.entrySet().iterator();
-			Entry< String, String > firstEntry = it.next();
-			appendKeyValue( url, firstEntry.getKey(), firstEntry.getValue() );
-			while( it.hasNext() )
-			{	
-				Entry< String, String > entry = it.next();
-				appendKeyValue( url, entry.getKey(), entry.getValue() );
-			}
-		}
-		
-		return url.toString();
-	}
-	
-	public static void appendKeyValue( StringBuilder buf, String key, String value )
-	{
-		appendKeyValue( buf, key, value, "," );
-	}
-
-	public static void appendKeyValue( StringBuilder buf, String key, String value, String separator )
-	{
-		appendKeyValue( buf, key, value, separator, "=" );
-	}
-
-	public static void appendKeyValue( StringBuilder buf, String key, String value, String separator, String equal )
-	{
-		buf.append( separator );
-		buf.append( key );
-		if ( value != null && !value.isEmpty() )
-		{
-			buf.append( equal );
-			buf.append( value );
-		}
+		return DvidUrlOptions.getRequestString( mergeUrlAndRequest( request ), format, options );
 	}
 	
 	public JsonObject getInfo() throws JsonSyntaxException, JsonIOException, IOException
@@ -102,9 +73,24 @@ public class Dataset
 		return JsonHelper.fetch( url, JsonObject.class );
 	}
 	
+	public byte[] get( String request ) throws MalformedURLException, IOException
+	{
+		return HttpRequest.getRequest( getRequestString( request ) );
+	}
+	
 	public void get( String request, byte[] result ) throws MalformedURLException, IOException
 	{
 		HttpRequest.getRequest( getRequestString( request ), result );
+	}
+	
+	public void post( String request, byte[] data ) throws MalformedURLException, IOException
+	{
+		post( request, data, "application/octet-stream" );
+	}
+	
+	public void post( String request, byte[] data, String contentType ) throws MalformedURLException, IOException
+	{
+		HttpRequest.postRequest( getRequestString( request ), data, contentType );
 	}
 
 }

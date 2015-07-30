@@ -78,7 +78,8 @@ public class Repository
 	
 	public JsonObject getInfo() throws JsonSyntaxException, JsonIOException, IOException
 	{
-		JsonObject infoObject = JsonHelper.fetch( this.server.getApiUrl() + "/repo/" + this.uuid + "/info", JsonObject.class );
+		String url = DvidUrlOptions.getRequestString( this.server.getApiUrl() + "/repo/" + this.uuid + "/info" );
+		JsonObject infoObject = JsonHelper.fetch( url, JsonObject.class );
 		return infoObject;
 	}
 	

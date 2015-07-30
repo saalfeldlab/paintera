@@ -17,6 +17,7 @@ import net.imglib2.converter.Converter;
 import net.imglib2.converter.read.ConvertedRandomAccessibleInterval;
 import net.imglib2.img.array.ArrayCursor;
 import net.imglib2.img.array.ArrayImg;
+import net.imglib2.img.array.ArrayImgFactory;
 import net.imglib2.img.array.ArrayImgs;
 import net.imglib2.img.basictypeaccess.array.FloatArray;
 import net.imglib2.img.basictypeaccess.array.IntArray;
@@ -37,7 +38,7 @@ import net.imglib2.view.Views;
 public class DvidLabels64Writer
 {
 
-	private final DatasetBlkLabel< UnsignedLongType > dataset;
+	private final DatasetBlkLabel dataset;
 
 	private final int[] blockSize;
 
@@ -81,16 +82,16 @@ public class DvidLabels64Writer
 	 */
 	public DvidLabels64Writer( String url, String uuid, final String dataSetName, final int[] blockSize )
 	{
-		this( new DatasetBlkLabel< UnsignedLongType > ( new Repository( url, uuid ).getRootNode(), dataSetName ), blockSize );
+		this( new DatasetBlkLabel( new Repository( url, uuid ).getRootNode(), dataSetName ), blockSize );
 	}
 	
-	public DvidLabels64Writer( DatasetBlkLabel< UnsignedLongType >  dataset, int[] blockSize )
+	public DvidLabels64Writer( DatasetBlkLabel dataset, int[] blockSize )
 	{
 		this.dataset = dataset;
 		this.blockSize = blockSize;
 	}
 	
-	public DvidLabels64Writer( DatasetBlkLabel< UnsignedLongType >  dataset ) throws JsonSyntaxException, JsonIOException, IOException
+	public DvidLabels64Writer( DatasetBlkLabel dataset ) throws JsonSyntaxException, JsonIOException, IOException
 	{
 		this( dataset, dataset.getBlockSize() );
 	}
@@ -352,11 +353,12 @@ public class DvidLabels64Writer
 
 		// read image from dvid server
 		Node node = repo.getRootNode();
-		DatasetBlkLabel< UnsignedIntType >  ds = new DatasetBlkLabel< UnsignedIntType > ( node, "bigcat-test2" );
-		ArrayImg< UnsignedIntType, IntArray > target = ArrayImgs.unsignedInts( longDim );
+		DatasetBlkLabel  ds = new DatasetBlkLabel ( node, "bigcat-test2" );
+//		ArrayImg< UnsignedIntType, IntArray > target = ArrayImgs.unsignedInts( longDim );
+		ArrayImg< UnsignedLongType, ? > target = new ArrayImgFactory<UnsignedLongType>().create( longDim, new UnsignedLongType() );
 		ds.get( target, offset );
 		
-		ArrayCursor< UnsignedIntType > t = target.cursor();
+		ArrayCursor< UnsignedLongType > t = target.cursor();
 		for ( UnsignedLongType r : Views.flatIterable( refLong ) )
 		{
 			long comp = r.get();
