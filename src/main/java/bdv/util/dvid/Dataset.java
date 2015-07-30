@@ -106,6 +106,5 @@ public class Dataset
 	{
 		HttpRequest.getRequest( getRequestString( request ), result );
 	}
-	
 
 }

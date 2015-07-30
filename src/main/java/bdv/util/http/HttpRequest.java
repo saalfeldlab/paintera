@@ -13,11 +13,16 @@ import javax.xml.ws.http.HTTPException;
 
 import com.google.gson.JsonElement;
 
-import bdv.util.Constants;
 import net.imglib2.type.numeric.IntegerType;
 
 public class HttpRequest
 {
+	
+	public static final String POST = "POST";
+
+	public static final String GET = "GET";
+	
+	public static final String CHARSET_UTF8 = "UTF-8";
 	
 	public static interface ResponseHandler
 	{
@@ -77,7 +82,7 @@ public class HttpRequest
 	{
 		HttpURLConnection connection = ( HttpURLConnection ) new URL( url ).openConnection();
 		connection.setDoOutput( true );
-		connection.setRequestMethod( Constants.POST );
+		connection.setRequestMethod( POST );
 		connection.setRequestProperty( "Content-Type", contentType );
 
 		// Write data.
@@ -114,7 +119,7 @@ public class HttpRequest
 	{
 		HttpURLConnection connection = ( HttpURLConnection ) new URL( url ).openConnection();
 		connection.setDoOutput( true );
-		connection.setRequestMethod( Constants.POST );
+		connection.setRequestMethod( POST );
 		connection.setRequestProperty( "Content-Type", contentType );
 
 		// Write data.
@@ -139,7 +144,7 @@ public class HttpRequest
 	
 	public static HttpURLConnection postRequestJSON( String url, JsonElement json ) throws MalformedURLException, UnsupportedEncodingException, IOException
 	{
-		return postRequestWithResponse( url, json.toString().getBytes( Constants.CHARSET_UTF8 ), "application/json; charset=UTF-8" );
+		return postRequestWithResponse( url, json.toString().getBytes( CHARSET_UTF8 ), "application/json; charset=UTF-8" );
 	}
 	
 }
