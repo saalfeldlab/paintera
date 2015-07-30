@@ -10,6 +10,12 @@ import javax.imageio.ImageIO;
 import net.imglib2.img.basictypeaccess.volatiles.array.VolatileByteArray;
 import bdv.img.cache.CacheArrayLoader;
 
+/**
+ * {@link CacheArrayLoader} for
+ * <a href= "http://emdata.janelia.org/api/help/multiscale2d">DVID's multiscale2d type</a>.
+ *
+ * @author Stephan Saalfeld <saalfelds@janelia.hhmi.org>
+ */
 public class DvidMultiscale2dVolatileArrayLoader implements CacheArrayLoader< VolatileByteArray >
 {
 	private VolatileByteArray theEmptyArray;
@@ -40,7 +46,7 @@ public class DvidMultiscale2dVolatileArrayLoader implements CacheArrayLoader< Vo
 	{
 		return 1;
 	}
-	
+
 	static private void readImage(
 			final String urlString,
 			final int w,
@@ -60,7 +66,7 @@ public class DvidMultiscale2dVolatileArrayLoader implements CacheArrayLoader< Vo
 			final PixelGrabber pg = new PixelGrabber( image, 0, 0, w, h, data, 0, w );
 			pg.grabPixels();
 	}
-	
+
 	private String makeUrl(
 			final int level,
 			final long col,
@@ -68,9 +74,9 @@ public class DvidMultiscale2dVolatileArrayLoader implements CacheArrayLoader< Vo
 			final long z )
 	{
 		final StringBuffer buf = new StringBuffer( apiUrl );
-		
+
 		// <api URL>/node/3f8c/mymultiscale2d/tile/xy/0/10_10_20
-		
+
 		buf.append( "/node/" );
 		buf.append( nodeId );
 		buf.append( "/" );
@@ -83,10 +89,10 @@ public class DvidMultiscale2dVolatileArrayLoader implements CacheArrayLoader< Vo
 		buf.append( row );
 		buf.append( "_" );
 		buf.append( z );
-		
+
 		return buf.toString();
 	}
-	
+
 
 	@Override
 	public VolatileByteArray loadArray(
@@ -114,7 +120,7 @@ public class DvidMultiscale2dVolatileArrayLoader implements CacheArrayLoader< Vo
 				{
 					final String urlString = makeUrl( level, c, r, z );
 					readImage( urlString, w, h, data );
-					
+
 					/* use blue channel from gray scale image */
 					for ( int i = 0; i < data.length; ++i )
 						values[ i ] += data[ i ] & 0xff;
@@ -126,7 +132,7 @@ public class DvidMultiscale2dVolatileArrayLoader implements CacheArrayLoader< Vo
 			{
 				final String urlString = makeUrl( level, c, r, min[ 2 ] );
 				readImage( urlString, w, h, data );
-				
+
 				/* use blue channel from gray scale image */
 				for ( int i = 0; i < data.length; ++i )
 					bytes[ i ] += ( byte )( data[ i ] & 0xff );

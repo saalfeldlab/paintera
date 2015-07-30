@@ -1,6 +1,7 @@
 package bdv.img.dvid;
 
 import java.io.File;
+
 import mpicbg.spim.data.generic.sequence.AbstractSequenceDescription;
 import mpicbg.spim.data.generic.sequence.ImgLoaderIo;
 import mpicbg.spim.data.generic.sequence.XmlIoBasicImgLoader;
@@ -27,7 +28,7 @@ public class XmlIoDvidGrayscale8ImageLoader
 		{
 			return new DvidGrayscale8ImageLoader( apiUrl, nodeId, dataInstanceId );
 		}
-		catch ( Exception e )
+		catch ( final Exception e )
 		{
 			e.printStackTrace();
 			return null;

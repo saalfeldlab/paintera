@@ -20,11 +20,19 @@ import bdv.img.cache.VolatileGlobalCellCache;
 import bdv.img.cache.VolatileGlobalCellCache.VolatileCellCache;
 import bdv.img.cache.VolatileImgCells;
 import bdv.img.dvid.Multiscale2dDataInstance.Extended.Level;
+import bdv.util.ColorStream;
 import bdv.util.JsonHelper;
 
 import com.google.gson.JsonIOException;
 import com.google.gson.JsonSyntaxException;
 
+/**
+ * {@link ViewerImgSetupLoader} for
+ * <a href= "http://emdata.janelia.org/api/help/multiscale2d">DVID's multiscale2d type</a>
+ * that maps uint64 into saturated ARGB colors using {@link ColorStream}.
+ *
+ * @author Stephan Saalfeld <saalfelds@janelia.hhmi.org>
+ */
 public class DvidMultiscale2dSetupImageLoader
 	extends AbstractViewerSetupImgLoader< UnsignedByteType, VolatileUnsignedByteType >
 {
@@ -38,14 +46,14 @@ public class DvidMultiscale2dSetupImageLoader
 
 	private final AffineTransform3D[] mipmapTransforms;
 
-	private VolatileGlobalCellCache cache;
+	protected VolatileGlobalCellCache cache;
 
 	private final DvidMultiscale2dVolatileArrayLoader loader;
 
 	private final int setupId;
 
 	/**
-	 * http://hackathon.janelia.org/api/help/grayscale8
+	 * http://hackathon.janelia.org/api/help/multiscale2d
 	 *
 	 * @param apiUrl e.g. "http://hackathon.janelia.org/api"
 	 * @param nodeId e.g. "2a3fd320aef011e4b0ce18037320227c"

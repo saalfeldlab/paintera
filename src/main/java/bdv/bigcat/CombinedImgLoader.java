@@ -7,6 +7,13 @@ import bdv.ViewerSetupImgLoader;
 import bdv.img.cache.Cache;
 import bdv.img.cache.VolatileGlobalCellCache;
 
+/**
+ * {@link ViewerImgLoader} for multiple
+ * {@link ViewerSetupImgLoader ViewerSetupImgLoaders} that share a single
+ * {@link Cache}.
+ *
+ * @author Tobias Pietzsch <tobias.pietzsch@gmail.com>
+ */
 public class CombinedImgLoader implements ViewerImgLoader
 {
 	static class SetupIdAndLoader

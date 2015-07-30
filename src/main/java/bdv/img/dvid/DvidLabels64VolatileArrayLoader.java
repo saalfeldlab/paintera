@@ -9,6 +9,12 @@ import net.imglib2.img.basictypeaccess.volatiles.array.VolatileIntArray;
 import bdv.img.cache.CacheArrayLoader;
 import bdv.util.ColorStream;
 
+/**
+ * {@link CacheArrayLoader} for
+ * <a href= "http://emdata.janelia.org/api/help/labels64">DVID's labels64 type</a>.
+ *
+ * @author Stephan Saalfeld <saalfelds@janelia.hhmi.org>
+ */
 public class DvidLabels64VolatileArrayLoader implements CacheArrayLoader< VolatileIntArray >
 {
 	private VolatileIntArray theEmptyArray;
@@ -31,7 +37,7 @@ public class DvidLabels64VolatileArrayLoader implements CacheArrayLoader< Volati
 		this.dataInstanceId = dataInstanceId;
 		this.argbMask = argbMask;
 	}
-	
+
 	public DvidLabels64VolatileArrayLoader(
 			final String apiUrl,
 			final String nodeId,

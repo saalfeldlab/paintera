@@ -22,7 +22,7 @@ import bdv.bigcat.composite.CompositeCopy;
 import bdv.bigcat.composite.CompositeProjector;
 import bdv.export.ProgressWriterConsole;
 import bdv.img.cache.Cache;
-import bdv.img.dvid.DvidGrayscale8ImageLoader;
+import bdv.img.dvid.DvidGrayscale8SetupImageLoader;
 import bdv.img.dvid.DvidLabels64SetupImageLoader;
 import bdv.spimdata.SequenceDescriptionMinimal;
 import bdv.spimdata.SpimDataMinimal;
@@ -49,7 +49,7 @@ public class BigCat
 //					"2a3fd320aef011e4b0ce18037320227c",
 //					"graytiles",
 //					0 );
-			final DvidGrayscale8ImageLoader dvidGrayscale8ImageLoader = new DvidGrayscale8ImageLoader(
+			final DvidGrayscale8SetupImageLoader dvidGrayscale8ImageLoader = new DvidGrayscale8SetupImageLoader(
 					"http://emrecon100.janelia.priv/api",
 					"2a3fd320aef011e4b0ce18037320227c",
 					"grayscale" );
