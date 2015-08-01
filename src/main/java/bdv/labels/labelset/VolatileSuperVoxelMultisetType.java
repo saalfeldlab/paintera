@@ -86,7 +86,7 @@ public class VolatileSuperVoxelMultisetType
 	@Override
 	public VolatileSuperVoxelMultisetType copy()
 	{
-		throw new UnsupportedOperationException();
+		return new VolatileSuperVoxelMultisetType( t.copy() );
 	}
 
 	@Override

@@ -14,25 +14,37 @@ import mpicbg.spim.data.registration.ViewRegistration;
 import mpicbg.spim.data.registration.ViewRegistrations;
 import mpicbg.spim.data.sequence.TimePoint;
 import mpicbg.spim.data.sequence.TimePoints;
+import net.imglib2.display.ScaledARGBConverter;
+import net.imglib2.interpolation.randomaccess.NearestNeighborInterpolatorFactory;
 import net.imglib2.realtransform.AffineTransform3D;
+import net.imglib2.type.numeric.ARGBType;
+import net.imglib2.type.volatiles.VolatileARGBType;
+import net.imglib2.view.Views;
 import bdv.BigDataViewer;
-import bdv.bigcat.composite.AccumulateProjectorCompositeARGB;
+import bdv.bigcat.composite.ARGBCompositeAlphaYCbCr;
+import bdv.bigcat.composite.Composite;
+import bdv.bigcat.composite.CompositeCopy;
+import bdv.bigcat.composite.CompositeProjector;
 import bdv.export.ProgressWriterConsole;
 import bdv.img.cache.Cache;
 import bdv.img.dvid.DvidGrayscale8ImageLoader;
-import bdv.labels.labelset.ARGBConvertedLabelsSetupImageLoader;
+import bdv.labels.labelset.ARGBConvertedLabelsSource;
 import bdv.labels.labelset.DvidLabels64MultisetSetupImageLoader;
+import bdv.labels.labelset.VolatileSuperVoxelMultisetType;
 import bdv.spimdata.SequenceDescriptionMinimal;
 import bdv.spimdata.SpimDataMinimal;
 import bdv.tools.brightness.ConverterSetup;
+import bdv.tools.brightness.RealARGBColorConverterSetup;
 import bdv.viewer.DisplayMode;
+import bdv.viewer.Source;
 import bdv.viewer.SourceAndConverter;
 import bdv.viewer.ViewerOptions;
+import bdv.viewer.render.AccumulateProjectorFactory;
 
 import com.google.gson.JsonIOException;
 import com.google.gson.JsonSyntaxException;
 
-public class BigCatMultisetLabels
+public class BigCatMultisetLabels2
 {
 	public static void main( final String[] args ) throws JsonSyntaxException, JsonIOException, IOException
 	{
@@ -49,40 +61,63 @@ public class BigCatMultisetLabels
 					"http://emrecon100.janelia.priv/api",
 					"2a3fd320aef011e4b0ce18037320227c",
 					"bodies" );
-			final ARGBConvertedLabelsSetupImageLoader dvidLabelsARGBImageLoader = new ARGBConvertedLabelsSetupImageLoader(
-					2,
-					dvidLabelsMultisetImageLoader );
+//			final ARGBConvertedLabelsSetupImageLoader dvidLabelsARGBImageLoader = new ARGBConvertedLabelsSetupImageLoader(
+//					2,
+//					dvidLabelsMultisetImageLoader );
+
+			final ARGBConvertedLabelsSource convertedLabels = new ARGBConvertedLabelsSource( 2, dvidLabelsMultisetImageLoader );
 
 			final CombinedImgLoader imgLoader = new CombinedImgLoader(
-					setupIdAndLoader( 0, dvidGrayscale8ImageLoader ),
-					setupIdAndLoader( 2, dvidLabelsARGBImageLoader ) );
+//					setupIdAndLoader( 0, dvidGrayscale8ImageLoader ),
+//					setupIdAndLoader( 2, dvidLabelsARGBImageLoader ) );
+					setupIdAndLoader( 0, dvidGrayscale8ImageLoader ) );
 			dvidGrayscale8ImageLoader.setCache( imgLoader.cache );
 			dvidLabelsMultisetImageLoader.setCache( imgLoader.cache );
-			dvidLabelsARGBImageLoader.setCache( imgLoader.cache );
+//			dvidLabelsARGBImageLoader.setCache( imgLoader.cache );
 
 			final TimePoints timepoints = new TimePoints( Arrays.asList( new TimePoint( 0 ) ) );
 			final Map< Integer, BasicViewSetup > setups = new HashMap< Integer, BasicViewSetup >();
 			setups.put( 0, new BasicViewSetup( 0, null, null, null ) );
-			setups.put( 2, new BasicViewSetup( 2, null, null, null ) );
+//			setups.put( 2, new BasicViewSetup( 2, null, null, null ) );
 			final ViewRegistrations reg = new ViewRegistrations( Arrays.asList(
-					new ViewRegistration( 0, 0 ),
-					new ViewRegistration( 0, 2 ) ) );
+//					new ViewRegistration( 0, 0 ),
+//					new ViewRegistration( 0, 2 ) ) );
+					new ViewRegistration( 0, 0 ) ) );
 
 			final SequenceDescriptionMinimal seq = new SequenceDescriptionMinimal( timepoints, setups, imgLoader, null );
 			final SpimDataMinimal spimData = new SpimDataMinimal( null, seq, reg );
 
-
-
 			final ArrayList< ConverterSetup > converterSetups = new ArrayList< ConverterSetup >();
 			final ArrayList< SourceAndConverter< ? > > sources = new ArrayList< SourceAndConverter< ? > >();
+
 			BigDataViewer.initSetups( spimData, converterSetups, sources );
+
+			final ScaledARGBConverter.ARGB converter = new ScaledARGBConverter.ARGB( 0, 255 );
+			final ScaledARGBConverter.VolatileARGB vconverter = new ScaledARGBConverter.VolatileARGB( 0, 255 );
+
+			final SourceAndConverter< VolatileARGBType > vsoc = new SourceAndConverter< VolatileARGBType >( convertedLabels, vconverter );
+			final SourceAndConverter< ARGBType > soc = new SourceAndConverter< ARGBType >( convertedLabels.nonVolatile(), converter, vsoc );
+			sources.add( soc );
+			converterSetups.add( new RealARGBColorConverterSetup( 2, converter, vconverter ) );
+
+
+
+
+
+			/* composites */
+			final ArrayList< Composite< ARGBType, ARGBType > > composites = new ArrayList< Composite<ARGBType,ARGBType> >();
+			composites.add( new CompositeCopy< ARGBType >() );
+			composites.add( new ARGBCompositeAlphaYCbCr() );
+			final HashMap< Source< ? >, Composite< ARGBType, ARGBType > > sourceCompositesMap = new HashMap< Source< ? >, Composite< ARGBType, ARGBType > >();
+			sourceCompositesMap.put( sources.get( 0 ).getSpimSource(), composites.get( 0 ) );
+			sourceCompositesMap.put( sources.get( 1 ).getSpimSource(), composites.get( 1 ) );
+			final AccumulateProjectorFactory< ARGBType > projectorFactory = new CompositeProjector.CompositeProjectorFactory< ARGBType >( sourceCompositesMap );
 
 			final Cache cache = imgLoader.getCache();
 			final String windowTitle = "bigcat";
 			final BigDataViewer bdv = new BigDataViewer( converterSetups, sources, null, timepoints.size(), cache, windowTitle, null,
 					ViewerOptions.options()
-						.accumulateProjectorFactory( AccumulateProjectorCompositeARGB.factory )
-						.numRenderingThreads( 1 ) );
+						.accumulateProjectorFactory( projectorFactory ) );
 
 			final AffineTransform3D transform = new AffineTransform3D();
 //			transform.set(
@@ -102,6 +137,15 @@ public class BigCatMultisetLabels
 
 			bdv.getViewerFrame().setVisible( true );
 
+			bdv.getViewer().getDisplay().addHandler(
+					new MergeModeMouseListener(
+							bdv.getViewer(),
+							Views.interpolate(
+									Views.extendValue(
+											dvidLabelsMultisetImageLoader.getVolatileImage( 0, 0 ),
+											new VolatileSuperVoxelMultisetType() ),
+									new NearestNeighborInterpolatorFactory< VolatileSuperVoxelMultisetType >() )
+							 ) );
 		}
 		catch ( final Exception e )
 		{
