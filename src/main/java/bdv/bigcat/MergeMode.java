@@ -16,6 +16,8 @@
  */
 package bdv.bigcat;
 
+import java.awt.event.KeyEvent;
+import java.awt.event.KeyListener;
 import java.awt.event.MouseEvent;
 import java.awt.event.MouseListener;
 
@@ -23,6 +25,7 @@ import net.imglib2.RealRandomAccess;
 import net.imglib2.RealRandomAccessible;
 import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.ui.InteractiveDisplayCanvasComponent;
+import bdv.labels.labelset.GoldenAngleSaturatedARGBStream;
 import bdv.labels.labelset.Multiset.Entry;
 import bdv.labels.labelset.SuperVoxel;
 import bdv.labels.labelset.VolatileSuperVoxelMultisetType;
@@ -33,16 +36,21 @@ import bdv.viewer.ViewerPanel;
  *
  * @author Stephan Saalfeld <saalfelds@janelia.hhmi.org>
  */
-public class MergeModeMouseListener implements MouseListener
+public class MergeMode implements MouseListener, KeyListener
 {
 	final protected ViewerPanel viewer;
 	final protected RealRandomAccessible< VolatileSuperVoxelMultisetType > labels;
 	final protected RealRandomAccess< VolatileSuperVoxelMultisetType > labelAccess;
+	final protected GoldenAngleSaturatedARGBStream colorStream;
 
-	public MergeModeMouseListener( final ViewerPanel viewer, final RealRandomAccessible< VolatileSuperVoxelMultisetType > labels )
+	public MergeMode(
+			final ViewerPanel viewer,
+			final RealRandomAccessible< VolatileSuperVoxelMultisetType > labels,
+			final GoldenAngleSaturatedARGBStream colorStream )
 	{
 		this.viewer = viewer;
 		this.labels = labels;
+		this.colorStream = colorStream;
 		labelAccess = labels.realRandomAccess();
 	}
 
@@ -56,19 +64,30 @@ public class MergeModeMouseListener implements MouseListener
 
 		viewer.displayToGlobalCoordinates( labelAccess );
 
-		System.out.println( "Mouse clicked at " + e.getX() + ", " + e.getY() );
-
 		final VolatileSuperVoxelMultisetType labelValues = labelAccess.get();
 
 		String labelSetString;
 		if ( labelValues.isValid() )
 		{
 			labelSetString = "";
-			for ( final Entry< SuperVoxel > label : labelValues.get().entrySet() )
-				labelSetString += label.getElement().id() + ", ";
+			Long activeId = null;
+			long maxCount = 0;
+			for ( final Entry< SuperVoxel > entry : labelValues.get().entrySet() )
+			{
+				final SuperVoxel label = entry.getElement();
+				final long count = entry.getCount();
 
+				if ( count > maxCount )
+				{
+					maxCount = count;
+					activeId = label.id();
+				}
+				labelSetString += entry.getElement().id() + ", ";
+			}
 			labelSetString = labelSetString.substring( 0, labelSetString.length() - 2 );
 
+			colorStream.setActive( activeId );
+			viewer.requestRepaint();
 		}
 		else
 			labelSetString = "invalid";
@@ -112,4 +131,28 @@ public class MergeModeMouseListener implements MouseListener
 
 	}
 
+	@Override
+	public void keyTyped( final KeyEvent e )
+	{
+		// TODO Auto-generated method stub
+
+	}
+
+	@Override
+	public void keyPressed( final KeyEvent e )
+	{
+		// TODO Auto-generated method stub
+
+	}
+
+	@Override
+	public void keyReleased( final KeyEvent e )
+	{
+		if ( e.getKeyChar() == 'c' )
+		{
+			System.out.println( "Changing color" );
+			colorStream.incSeed();
+			viewer.requestRepaint();
+		}
+	}
 }

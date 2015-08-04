@@ -16,9 +16,6 @@
  */
 package bdv.labels.labelset;
 
-import java.util.Iterator;
-import java.util.Set;
-
 import net.imglib2.converter.Converter;
 import net.imglib2.type.numeric.ARGBType;
 import net.imglib2.type.volatiles.VolatileARGBType;
@@ -32,29 +29,37 @@ import bdv.labels.labelset.Multiset.Entry;
  */
 public class VolatileSuperVoxelMultisetARGBConverter implements Converter< VolatileSuperVoxelMultisetType, VolatileARGBType >
 {
+	final protected ARGBSource argbSource;
+
+	public VolatileSuperVoxelMultisetARGBConverter( final ARGBSource argbSource )
+	{
+		this.argbSource = argbSource;
+	}
+
 	@Override
 	public void convert( final VolatileSuperVoxelMultisetType input, final VolatileARGBType output )
 	{
-		final double r = 0;
-		final double g = 0;
-		final double b = 0;
-		final int size = 0;
+		double a = 0;
+		double r = 0;
+		double g = 0;
+		double b = 0;
+		int size = 0;
 		if ( input.isValid() )
 		{
-			final Set< Entry< SuperVoxel > > entrySet = input.get().entrySet();
-			final Iterator< Entry< SuperVoxel > > iter = entrySet.iterator();
-			iter.hasNext();
-			final Entry< SuperVoxel > entry = iter.next();
-			if ( entry.getElement().id() == 7131l )
-			{
-				output.setValid( true );
-				output.set( ARGBType.rgba( 0, 250, 0, 255 ) );
-			}
-			else
-			{
-				output.setValid( true );
-				output.set( ARGBType.rgba( 0, 0, 0, 255 ) );
-			}
+//			final Set< Entry< SuperVoxel > > entrySet = input.get().entrySet();
+//			final Iterator< Entry< SuperVoxel > > iter = entrySet.iterator();
+//			iter.hasNext();
+//			final Entry< SuperVoxel > entry = iter.next();
+//			if ( entry.getElement().id() == 7131l )
+//			{
+//				output.setValid( true );
+//				output.set( ARGBType.rgba( 0, 250, 0, 255 ) );
+//			}
+//			else
+//			{
+//				output.setValid( true );
+//				output.set( ARGBType.rgba( 0, 0, 0, 255 ) );
+//			}
 
 
 //			boolean yes = false;
@@ -76,21 +81,23 @@ public class VolatileSuperVoxelMultisetARGBConverter implements Converter< Volat
 //			}
 
 
-//			for ( final Entry< SuperVoxel > entry : input.get().entrySet() )
-//			{
-//				final long superVoxelId = entry.getElement().id();
-//				final int count = entry.getCount();
-//				final int argb = ColorStream.get( superVoxelId );
-//				r += count * ARGBType.red( argb );
-//				g += count * ARGBType.green( argb );
-//				b += count * ARGBType.blue( argb );
-//				size += count;
-//			}
-//			r = Math.min( 255, r / size );
-//			g = Math.min( 255, g / size );
-//			b = Math.min( 255, b / size );
-//			output.setValid( true );
-//			output.set( ARGBType.rgba( r, g, b, 255 ) );
+			for ( final Entry< SuperVoxel > entry : input.get().entrySet() )
+			{
+				final long count = entry.getCount();
+				final int argb = argbSource.argb( entry.getElement().id() );
+				a += count * ARGBType.alpha( argb );
+				r += count * ARGBType.red( argb );
+				g += count * ARGBType.green( argb );
+				b += count * ARGBType.blue( argb );
+				size += count;
+			}
+			final int aInt = Math.min( 255, ( int )( a / size ) );
+			final int rInt = Math.min( 255, ( int )( r / size ) );
+			final int gInt = Math.min( 255, ( int )( g / size ) );
+			final int bInt = Math.min( 255, ( int )( b / size ) );
+			output.setValid( true );
+			output.set( ( ( ( ( ( aInt << 8 ) | rInt ) << 8 ) | gInt ) << 8 ) | bInt );
+//			output.set( ARGBType.rgba( rInt, gInt, bInt, aInt ) );
 		}
 		else {
 			output.setValid( false );

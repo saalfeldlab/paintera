@@ -20,6 +20,7 @@ public class ARGBConvertedLabelsSource
 	implements Source< VolatileARGBType >
 {
 	final private DvidLabels64MultisetSetupImageLoader multisetImageLoader;
+	final private ARGBSource argbSource;
 
 	final protected InterpolatorFactory< VolatileARGBType, RandomAccessible< VolatileARGBType > >[] interpolatorFactories;
 	{
@@ -31,9 +32,11 @@ public class ARGBConvertedLabelsSource
 
 	public ARGBConvertedLabelsSource(
 			final int setupId,
-			final DvidLabels64MultisetSetupImageLoader multisetImageLoader )
+			final DvidLabels64MultisetSetupImageLoader multisetImageLoader,
+			final ARGBSource argbSource )
 	{
 		this.multisetImageLoader = multisetImageLoader;
+		this.argbSource = argbSource;
 	}
 
 	@Override
@@ -45,7 +48,10 @@ public class ARGBConvertedLabelsSource
 	@Override
 	public RandomAccessibleInterval< VolatileARGBType > getSource( final int t, final int level )
 	{
-		return Converters.convert( multisetImageLoader.getVolatileImage( t, level ), new VolatileSuperVoxelMultisetARGBConverter(), new VolatileARGBType() );
+		return Converters.convert(
+				multisetImageLoader.getVolatileImage( t, level ),
+				new VolatileSuperVoxelMultisetARGBConverter( argbSource ),
+				new VolatileARGBType() );
 	}
 
 	@Override

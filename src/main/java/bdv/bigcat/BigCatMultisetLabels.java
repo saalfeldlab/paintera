@@ -48,7 +48,13 @@ public class BigCatMultisetLabels
 					1,
 					"http://emrecon100.janelia.priv/api",
 					"2a3fd320aef011e4b0ce18037320227c",
-					"bodies" );
+					"bodies",
+					new double[][]{
+							{ 1, 1, 1 },
+							{ 2, 2, 2 },
+							{ 4, 4, 4 },
+							{ 8, 8, 8 }
+					} );
 			final ARGBConvertedLabelsSetupImageLoader dvidLabelsARGBImageLoader = new ARGBConvertedLabelsSetupImageLoader(
 					2,
 					dvidLabelsMultisetImageLoader );

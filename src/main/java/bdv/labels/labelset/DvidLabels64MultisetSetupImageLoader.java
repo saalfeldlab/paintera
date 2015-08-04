@@ -1,6 +1,7 @@
 package bdv.labels.labelset;
 
 import java.io.IOException;
+import java.util.Arrays;
 
 import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.realtransform.AffineTransform3D;
@@ -42,11 +43,13 @@ public class DvidLabels64MultisetSetupImageLoader
 	private final int numMipmapLevels;
 
 	/**
-	 * http://hackathon.janelia.org/api/help/grayscale8
+	 * http://emrecon100.janelia.priv/api/help/labels64
 	 *
-	 * @param apiUrl e.g. "http://hackathon.janelia.org/api"
+	 * @param apiUrl e.g. "http://emrecon100.janelia.priv/api"
 	 * @param nodeId e.g. "2a3fd320aef011e4b0ce18037320227c"
 	 * @param dataInstanceId e.g. "bodies"
+	 * @param resolutions
+	 *
 	 * @throws IOException
 	 * @throws JsonIOException
 	 * @throws JsonSyntaxException
@@ -55,7 +58,8 @@ public class DvidLabels64MultisetSetupImageLoader
 			final int setupId,
 			final String apiUrl,
 			final String nodeId,
-			final String dataInstanceId ) throws JsonSyntaxException, JsonIOException, IOException
+			final String dataInstanceId,
+			final double[][] resolutions ) throws JsonSyntaxException, JsonIOException, IOException
 	{
 		super( SuperVoxelMultisetType.type, VolatileSuperVoxelMultisetType.type );
 		this.setupId = setupId;
@@ -70,12 +74,11 @@ public class DvidLabels64MultisetSetupImageLoader
 				dataInstance.Extended.MaxPoint[ 1 ] - dataInstance.Extended.MinPoint[ 1 ],
 				dataInstance.Extended.MaxPoint[ 2 ] - dataInstance.Extended.MinPoint[ 2 ] };
 
-		resolutions = new double[][]{
-				{ 1, 1, 1 },
-				{ 2, 2, 2 },
-				{ 4, 4, 4 },
-				{ 8, 8, 8 }
-			};
+
+		this.resolutions = new double[ resolutions.length ][];
+		for ( int i =0; i < resolutions.length; ++i )
+			this.resolutions[ i ] = Arrays.copyOf( resolutions[ i ], resolutions[ i ].length );
+
 		mipmapTransforms = new AffineTransform3D[ resolutions.length ];
 		for ( int level = 0; level < resolutions.length; level++ )
 			mipmapTransforms[ level ] = MipmapTransforms.getMipmapTransformDefault( resolutions[ level ] );
@@ -125,8 +128,13 @@ public class DvidLabels64MultisetSetupImageLoader
 	{
 		final int priority = numMipmapLevels - level - 1;
 		final CacheHints cacheHints = new CacheHints( loadingStrategy, priority, false );
-		final VolatileCellCache< VolatileSuperVoxelMultisetArray > c = cache.new VolatileCellCache< VolatileSuperVoxelMultisetArray >(
-				timepointId, setupId, level, cacheHints, level == 0 ? loader : downscaleLoader );
+		final VolatileCellCache< VolatileSuperVoxelMultisetArray > c =
+				cache.new VolatileCellCache< VolatileSuperVoxelMultisetArray >(
+						timepointId,
+						setupId,
+						level,
+						cacheHints,
+						level == 0 ? loader : downscaleLoader );
 		final VolatileImgCells< VolatileSuperVoxelMultisetArray > cells = new VolatileImgCells< VolatileSuperVoxelMultisetArray >( c, new Fraction(), dimensions, blockDimensions );
 		final CachedCellImg< T, VolatileSuperVoxelMultisetArray > img = new CachedCellImg< T, VolatileSuperVoxelMultisetArray >( cells );
 		return img;
@@ -153,7 +161,7 @@ public class DvidLabels64MultisetSetupImageLoader
 		return blockDimensions;
 	}
 
-	static class MultisetSource
+	static public class MultisetSource
 	{
 		private final RandomAccessibleInterval< SuperVoxelMultisetType >[] currentSources;
 
