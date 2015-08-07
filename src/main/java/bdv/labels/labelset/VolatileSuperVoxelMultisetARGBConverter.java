@@ -19,6 +19,7 @@ package bdv.labels.labelset;
 import net.imglib2.converter.Converter;
 import net.imglib2.type.numeric.ARGBType;
 import net.imglib2.type.volatiles.VolatileARGBType;
+import bdv.labels.display.ARGBSource;
 import bdv.labels.labelset.Multiset.Entry;
 
 /**
@@ -31,21 +32,50 @@ public class VolatileSuperVoxelMultisetARGBConverter implements Converter< Volat
 {
 	final protected ARGBSource argbSource;
 
+	final static private double iFF = 1.0 / 255.0;
+
 	public VolatileSuperVoxelMultisetARGBConverter( final ARGBSource argbSource )
 	{
 		this.argbSource = argbSource;
 	}
 
-	@Override
-	public void convert( final VolatileSuperVoxelMultisetType input, final VolatileARGBType output )
+	protected void convertValid( final VolatileSuperVoxelMultisetType input, final VolatileARGBType output )
 	{
 		double a = 0;
 		double r = 0;
 		double g = 0;
 		double b = 0;
-		int size = 0;
+		double alphaCountSize = 0;
+
+		for ( final Entry< SuperVoxel > entry : input.get().entrySet() )
+		{
+			final int argb = argbSource.argb( entry.getElement().id() );
+			final double alpha = ARGBType.alpha( argb );
+			final double alphaCount = alpha * iFF * entry.getCount();
+			a += alphaCount * alpha;
+			r += alphaCount * ARGBType.red( argb );
+			g += alphaCount * ARGBType.green( argb );
+			b += alphaCount * ARGBType.blue( argb );
+			alphaCountSize += alphaCount;
+		}
+		final double iAlphaCountSize = 1.0 / alphaCountSize;
+		final int aInt = Math.min( 255, ( int )( a * iAlphaCountSize ) );
+		final int rInt = Math.min( 255, ( int )( r * iAlphaCountSize ) );
+		final int gInt = Math.min( 255, ( int )( g * iAlphaCountSize ) );
+		final int bInt = Math.min( 255, ( int )( b * iAlphaCountSize ) );
+		output.setValid( true );
+		output.set( ( ( ( ( ( aInt << 8 ) | rInt ) << 8 ) | gInt ) << 8 ) | bInt );
+//		output.set( ARGBType.rgba( rInt, gInt, bInt, aInt ) );
+
+	}
+
+	@Override
+	public void convert( final VolatileSuperVoxelMultisetType input, final VolatileARGBType output )
+	{
 		if ( input.isValid() )
 		{
+			convertValid( input, output );
+
 //			final Set< Entry< SuperVoxel > > entrySet = input.get().entrySet();
 //			final Iterator< Entry< SuperVoxel > > iter = entrySet.iterator();
 //			iter.hasNext();
@@ -79,25 +109,6 @@ public class VolatileSuperVoxelMultisetARGBConverter implements Converter< Volat
 //				output.setValid( true );
 //				output.set( ARGBType.rgba( 0, 0, 0, 255 ) );
 //			}
-
-
-			for ( final Entry< SuperVoxel > entry : input.get().entrySet() )
-			{
-				final long count = entry.getCount();
-				final int argb = argbSource.argb( entry.getElement().id() );
-				a += count * ARGBType.alpha( argb );
-				r += count * ARGBType.red( argb );
-				g += count * ARGBType.green( argb );
-				b += count * ARGBType.blue( argb );
-				size += count;
-			}
-			final int aInt = Math.min( 255, ( int )( a / size ) );
-			final int rInt = Math.min( 255, ( int )( r / size ) );
-			final int gInt = Math.min( 255, ( int )( g / size ) );
-			final int bInt = Math.min( 255, ( int )( b / size ) );
-			output.setValid( true );
-			output.set( ( ( ( ( ( aInt << 8 ) | rInt ) << 8 ) | gInt ) << 8 ) | bInt );
-//			output.set( ARGBType.rgba( rInt, gInt, bInt, aInt ) );
 		}
 		else {
 			output.setValid( false );

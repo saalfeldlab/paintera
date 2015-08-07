@@ -14,21 +14,20 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
  */
-package bdv.labels.labelset;
+package bdv.labels.display;
+
+import gnu.trove.map.hash.TLongIntHashMap;
 
 
 /**
  * Generates a stream of saturated colors.  Colors are picked from a radial
  * projection of the RGB colors {red, yellow, green, cyan, blue, magenta}.
- * Adjacent colors along the discrete id axis are separated by the golden
- * angle, making them reasonably distinct.  Changing the seed of the stream
- * makes a new sequence.
+ * Changing the seed of the stream makes a new sequence.
  *
  * @author Stephan Saalfeld <saalfelds@janelia.hhmi.org>
  */
-public class GoldenAngleSaturatedARGBStream implements ARGBSource
+abstract public class AbstractSaturatedARGBStream implements ARGBSource
 {
-	final static protected double goldenRatio = 1.0 / ( 0.5 * Math.sqrt( 5 ) + 0.5 );
 	final static protected double[] rs = new double[]{ 1, 1, 0, 0, 0, 1, 1 };
 	final static protected double[] gs = new double[]{ 0, 1, 1, 1, 0, 0, 0 };
 	final static protected double[] bs = new double[]{ 0, 0, 0, 1, 1, 1, 0 };
@@ -36,7 +35,10 @@ public class GoldenAngleSaturatedARGBStream implements ARGBSource
 	protected long seed = 0;
 	protected int alpha = 0x3000000;
 	protected int activeAlpha = 0xff000000;
-	protected Long active = null;
+	protected long active = 0L;
+
+	//protected Long2IntOpenHashMap argbCache = new Long2IntOpenHashMap();
+	protected TLongIntHashMap argbCache = new TLongIntHashMap();
 
 	final static protected int interpolate( final double[] xs, final int k, final int l, final double u, final double v )
 	{
@@ -67,6 +69,14 @@ public class GoldenAngleSaturatedARGBStream implements ARGBSource
 	}
 
 	/**
+	 * Decrement seed.
+	 */
+	public void decSeed()
+	{
+		--seed;
+	}
+
+	/**
 	 *
 	 */
 	public void setActive( final Long id )
@@ -84,24 +94,9 @@ public class GoldenAngleSaturatedARGBStream implements ARGBSource
 		this.alpha = alpha << 24;
 	}
 
-	@Override
-	public int argb( final long id )
+
+	public void clearCache()
 	{
-		double x = ( id + seed ) * goldenRatio;
-		x -= ( long )Math.floor( x );
-		x *= 6.0;
-		final int k = ( int )x;
-		final int l = k + 1;
-		final double u = x - k;
-		final double v = 1.0 - u;
-
-		final int r = interpolate( rs, k, l, u, v );
-		final int g = interpolate( gs, k, l, u, v );
-		final int b = interpolate( bs, k, l, u, v );
-
-		if ( active != null && active.longValue() == id )
-			return argb( r, g, b, activeAlpha );
-		else
-			return argb( r, g, b, alpha );
+		argbCache.clear();
 	}
 }

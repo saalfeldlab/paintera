@@ -25,7 +25,7 @@ import net.imglib2.RealRandomAccess;
 import net.imglib2.RealRandomAccessible;
 import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.ui.InteractiveDisplayCanvasComponent;
-import bdv.labels.labelset.GoldenAngleSaturatedARGBStream;
+import bdv.labels.display.AbstractSaturatedARGBStream;
 import bdv.labels.labelset.Multiset.Entry;
 import bdv.labels.labelset.SuperVoxel;
 import bdv.labels.labelset.VolatileSuperVoxelMultisetType;
@@ -36,17 +36,17 @@ import bdv.viewer.ViewerPanel;
  *
  * @author Stephan Saalfeld <saalfelds@janelia.hhmi.org>
  */
-public class MergeMode implements MouseListener, KeyListener
+public class MergeModeController implements MouseListener, KeyListener
 {
 	final protected ViewerPanel viewer;
 	final protected RealRandomAccessible< VolatileSuperVoxelMultisetType > labels;
 	final protected RealRandomAccess< VolatileSuperVoxelMultisetType > labelAccess;
-	final protected GoldenAngleSaturatedARGBStream colorStream;
+	final protected AbstractSaturatedARGBStream colorStream;
 
-	public MergeMode(
+	public MergeModeController(
 			final ViewerPanel viewer,
 			final RealRandomAccessible< VolatileSuperVoxelMultisetType > labels,
-			final GoldenAngleSaturatedARGBStream colorStream )
+			final AbstractSaturatedARGBStream colorStream )
 	{
 		this.viewer = viewer;
 		this.labels = labels;
@@ -87,6 +87,8 @@ public class MergeMode implements MouseListener, KeyListener
 			labelSetString = labelSetString.substring( 0, labelSetString.length() - 2 );
 
 			colorStream.setActive( activeId );
+			colorStream.clearCache();
+
 			viewer.requestRepaint();
 		}
 		else
@@ -132,7 +134,7 @@ public class MergeMode implements MouseListener, KeyListener
 	}
 
 	@Override
-	public void keyTyped( final KeyEvent e )
+	public void keyReleased( final KeyEvent e )
 	{
 		// TODO Auto-generated method stub
 
@@ -146,12 +148,18 @@ public class MergeMode implements MouseListener, KeyListener
 	}
 
 	@Override
-	public void keyReleased( final KeyEvent e )
+	public void keyTyped( final KeyEvent e )
 	{
 		if ( e.getKeyChar() == 'c' )
 		{
-			System.out.println( "Changing color" );
 			colorStream.incSeed();
+			colorStream.clearCache();
+			viewer.requestRepaint();
+		}
+		else if ( e.getKeyChar() == 'C' )
+		{
+			colorStream.decSeed();
+			colorStream.clearCache();
 			viewer.requestRepaint();
 		}
 	}
