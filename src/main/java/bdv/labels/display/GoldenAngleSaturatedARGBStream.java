@@ -16,6 +16,8 @@
  */
 package bdv.labels.display;
 
+import bdv.bigcat.SegmentBodyAssignment;
+
 
 
 /**
@@ -29,6 +31,11 @@ package bdv.labels.display;
  */
 public class GoldenAngleSaturatedARGBStream extends AbstractSaturatedARGBStream
 {
+	public GoldenAngleSaturatedARGBStream( final SegmentBodyAssignment assignment )
+	{
+		super( assignment );
+	}
+
 	final static protected double goldenRatio = 1.0 / ( 0.5 * Math.sqrt( 5 ) + 0.5 );
 
 	@Override
@@ -49,8 +56,8 @@ public class GoldenAngleSaturatedARGBStream extends AbstractSaturatedARGBStream
 			final int g = interpolate( gs, k, l, u, v );
 			final int b = interpolate( bs, k, l, u, v );
 
-			if ( active == id )
-				argb = argb( r, g, b, activeAlpha );
+			if ( activeSegment == id )
+				argb = argb( r, g, b, activeSegmentAlpha );
 			else
 				argb = argb( r, g, b, alpha );
 

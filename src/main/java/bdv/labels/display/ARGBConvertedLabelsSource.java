@@ -1,4 +1,4 @@
-package bdv.labels.labelset;
+package bdv.labels.display;
 
 import mpicbg.spim.data.sequence.VoxelDimensions;
 import net.imglib2.RandomAccessible;
@@ -12,7 +12,8 @@ import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.type.volatiles.VolatileARGBType;
 import net.imglib2.view.ExtendedRandomAccessibleInterval;
 import net.imglib2.view.Views;
-import bdv.labels.display.ARGBSource;
+import bdv.labels.labelset.DvidLabels64MultisetSetupImageLoader;
+import bdv.labels.labelset.VolatileSuperVoxelMultisetARGBConverter;
 import bdv.viewer.Interpolation;
 import bdv.viewer.Source;
 

@@ -26,8 +26,8 @@ import bdv.bigcat.composite.CompositeCopy;
 import bdv.bigcat.composite.CompositeProjector;
 import bdv.img.cache.Cache;
 import bdv.img.dvid.DvidGrayscale8ImageLoader;
+import bdv.labels.display.ARGBConvertedLabelsSource;
 import bdv.labels.display.RandomSaturatedARGBStream;
-import bdv.labels.labelset.ARGBConvertedLabelsSource;
 import bdv.labels.labelset.DvidLabels64MultisetSetupImageLoader;
 import bdv.labels.labelset.VolatileSuperVoxelMultisetType;
 import bdv.spimdata.SequenceDescriptionMinimal;
@@ -68,8 +68,11 @@ public class BigCat
 //			final ARGBConvertedLabelsSetupImageLoader dvidLabelsARGBImageLoader = new ARGBConvertedLabelsSetupImageLoader(
 //					2,
 //					dvidLabelsMultisetImageLoader );
+
+			final SegmentBodyAssignment assignment = new SegmentBodyAssignment();
+
 //			final GoldenAngleSaturatedARGBStream colorStream = new GoldenAngleSaturatedARGBStream();
-			final RandomSaturatedARGBStream colorStream = new RandomSaturatedARGBStream();
+			final RandomSaturatedARGBStream colorStream = new RandomSaturatedARGBStream( assignment );
 			colorStream.setAlpha( 0x30 );
 			final ARGBConvertedLabelsSource convertedLabels =
 					new ARGBConvertedLabelsSource(
@@ -139,7 +142,8 @@ public class BigCat
 											dvidLabelsMultisetImageLoader.getVolatileImage( 0, 0 ),
 											new VolatileSuperVoxelMultisetType() ),
 									new NearestNeighborInterpolatorFactory< VolatileSuperVoxelMultisetType >() ),
-							colorStream ) );
+							colorStream,
+							assignment ) );
 		}
 		catch ( final Exception e )
 		{

@@ -23,8 +23,6 @@ import java.awt.event.MouseListener;
 
 import net.imglib2.RealRandomAccess;
 import net.imglib2.RealRandomAccessible;
-import net.imglib2.realtransform.AffineTransform3D;
-import net.imglib2.ui.InteractiveDisplayCanvasComponent;
 import bdv.labels.display.AbstractSaturatedARGBStream;
 import bdv.labels.labelset.Multiset.Entry;
 import bdv.labels.labelset.SuperVoxel;
@@ -42,22 +40,25 @@ public class MergeModeController implements MouseListener, KeyListener
 	final protected RealRandomAccessible< VolatileSuperVoxelMultisetType > labels;
 	final protected RealRandomAccess< VolatileSuperVoxelMultisetType > labelAccess;
 	final protected AbstractSaturatedARGBStream colorStream;
+	final protected SegmentBodyAssignment assignment;
+	protected long activeSegmentId = 0;
 
 	public MergeModeController(
 			final ViewerPanel viewer,
 			final RealRandomAccessible< VolatileSuperVoxelMultisetType > labels,
-			final AbstractSaturatedARGBStream colorStream )
+			final AbstractSaturatedARGBStream colorStream,
+			final SegmentBodyAssignment assignment )
 	{
 		this.viewer = viewer;
 		this.labels = labels;
 		this.colorStream = colorStream;
+		this.assignment = assignment;
 		labelAccess = labels.realRandomAccess();
 	}
 
 	@Override
 	public void mouseClicked( final MouseEvent e )
 	{
-		final InteractiveDisplayCanvasComponent< AffineTransform3D > display = viewer.getDisplay();
 		labelAccess.setPosition( e.getX(), 0 );
 		labelAccess.setPosition( e.getY(), 1 );
 		labelAccess.setPosition( 0, 2 );
@@ -70,7 +71,7 @@ public class MergeModeController implements MouseListener, KeyListener
 		if ( labelValues.isValid() )
 		{
 			labelSetString = "";
-			Long activeId = null;
+			final long oldActiveSegmentId = activeSegmentId;
 			long maxCount = 0;
 			for ( final Entry< SuperVoxel > entry : labelValues.get().entrySet() )
 			{
@@ -80,13 +81,30 @@ public class MergeModeController implements MouseListener, KeyListener
 				if ( count > maxCount )
 				{
 					maxCount = count;
-					activeId = label.id();
+					activeSegmentId = label.id();
 				}
 				labelSetString += entry.getElement().id() + ", ";
 			}
 			labelSetString = labelSetString.substring( 0, labelSetString.length() - 2 );
 
-			colorStream.setActive( activeId );
+			if ( ( e.getModifiersEx() & KeyEvent.SHIFT_DOWN_MASK ) != 0 )
+			{
+				System.out.println( "Merging" );
+
+				assignment.mergeSegmentBodies( oldActiveSegmentId, activeSegmentId );
+			}
+			else
+			{
+				if ( ( e.getModifiersEx() & KeyEvent.CTRL_DOWN_MASK ) != 0 )
+				{
+					System.out.println( "Detaching" );
+
+					assignment.detachSegment( activeSegmentId );
+				}
+
+				colorStream.setActive( activeSegmentId );
+			}
+
 			colorStream.clearCache();
 
 			viewer.requestRepaint();

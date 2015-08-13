@@ -17,6 +17,7 @@
 package bdv.labels.display;
 
 import gnu.trove.map.hash.TLongIntHashMap;
+import bdv.bigcat.SegmentBodyAssignment;
 
 
 /**
@@ -33,9 +34,17 @@ abstract public class AbstractSaturatedARGBStream implements ARGBSource
 	final static protected double[] bs = new double[]{ 0, 0, 0, 1, 1, 1, 0 };
 
 	protected long seed = 0;
-	protected int alpha = 0x3000000;
-	protected int activeAlpha = 0xff000000;
-	protected long active = 0L;
+	protected int alpha = 0x2000000;
+	protected int activeSegmentAlpha = 0xff000000;
+	protected int activeBodyAlpha = 0x80000000;
+	protected long activeSegment = 0L;
+	protected long activeBody = 0l;
+	final protected SegmentBodyAssignment assignment;
+
+	public AbstractSaturatedARGBStream( final SegmentBodyAssignment assignment )
+	{
+		this.assignment = assignment;
+	}
 
 	//protected Long2IntOpenHashMap argbCache = new Long2IntOpenHashMap();
 	protected TLongIntHashMap argbCache = new TLongIntHashMap();
@@ -79,9 +88,10 @@ abstract public class AbstractSaturatedARGBStream implements ARGBSource
 	/**
 	 *
 	 */
-	public void setActive( final Long id )
+	public void setActive( final long segmentId )
 	{
-		active = id;
+		activeSegment = segmentId;
+		activeBody = assignment.getBody( segmentId );
 	}
 
 	/**

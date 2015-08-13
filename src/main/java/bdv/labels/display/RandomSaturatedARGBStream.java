@@ -18,6 +18,8 @@ package bdv.labels.display;
 
 import java.util.Random;
 
+import bdv.bigcat.SegmentBodyAssignment;
+
 
 
 /**
@@ -33,6 +35,11 @@ public class RandomSaturatedARGBStream extends AbstractSaturatedARGBStream
 {
 	final Random rnd = new Random();
 	final static private double DOUBLE_UNIT = 0x1.0p-53; // 1.0 / (1L << 53)
+
+	public RandomSaturatedARGBStream( final SegmentBodyAssignment assignment )
+	{
+		super( assignment );
+	}
 
 	/**
 	 * Xorshift random number generator
@@ -78,12 +85,13 @@ public class RandomSaturatedARGBStream extends AbstractSaturatedARGBStream
 	}
 
 	@Override
-	public int argb( final long id )
+	public int argb( final long segmentId )
 	{
-		int argb = argbCache.get( id );
+		final long bodyId = assignment.getBody( segmentId );
+		int argb = argbCache.get( bodyId );
 		if ( argb == 0x00000000 )
 		{
-			double x = getDouble( seed + id );
+			double x = getDouble( seed + bodyId );
 			x *= 6.0;
 			final int k = ( int )x;
 			final int l = k + 1;
@@ -94,13 +102,15 @@ public class RandomSaturatedARGBStream extends AbstractSaturatedARGBStream
 			final int g = interpolate( gs, k, l, u, v );
 			final int b = interpolate( bs, k, l, u, v );
 
-			if ( active == id )
-				argb = argb( r, g, b, activeAlpha );
-			else
-				argb = argb( r, g, b, alpha );
+			argb = argb( r, g, b, alpha );
 
-			argbCache.put( id, argb );
+			argbCache.put( bodyId, argb );
 		}
+		if ( activeSegment == segmentId )
+			argb = argb & 0x00ffffff | activeSegmentAlpha;
+		else if ( activeBody == bodyId )
+			argb = argb & 0x00ffffff | activeBodyAlpha;
+
 
 		return argb;
 	}
