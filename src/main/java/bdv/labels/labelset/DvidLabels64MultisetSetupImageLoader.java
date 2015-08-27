@@ -68,9 +68,9 @@ public class DvidLabels64MultisetSetupImageLoader
 						Labels64DataInstance.class );
 
 		dimensions = new long[]{
-				dataInstance.Extended.MaxPoint[ 0 ] - dataInstance.Extended.MinPoint[ 0 ],
-				dataInstance.Extended.MaxPoint[ 1 ] - dataInstance.Extended.MinPoint[ 1 ],
-				dataInstance.Extended.MaxPoint[ 2 ] - dataInstance.Extended.MinPoint[ 2 ] };
+				dataInstance.Extended.MaxPoint[ 0 ] + 1 - dataInstance.Extended.MinPoint[ 0 ],
+				dataInstance.Extended.MaxPoint[ 1 ] + 1 - dataInstance.Extended.MinPoint[ 1 ],
+				dataInstance.Extended.MaxPoint[ 2 ] + 1 - dataInstance.Extended.MinPoint[ 2 ] };
 
 		resolutions = new double[][]{
 				{ 1, 1, 1 },
