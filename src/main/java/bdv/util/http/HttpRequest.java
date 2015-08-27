@@ -20,6 +20,12 @@ import net.imglib2.type.numeric.integer.LongType;
 import net.imglib2.type.numeric.integer.UnsignedByteType;
 import net.imglib2.type.numeric.integer.UnsignedLongType;
 
+/**
+ * @author Philipp Hanslovsky <hanslovskyp@janelia.hhmi.org>
+ * 
+ * Convenience methods for requests and responses.
+ *
+ */
 public class HttpRequest
 {
 	
@@ -33,11 +39,33 @@ public class HttpRequest
 	
 	public static final String CHARSET_UTF8 = "UTF-8";
 	
+	/**
+	 * @author Philipp Hanslovsky <hanslovskyp@janelia.hhmi.org>
+	 *
+	 * Interface for delegating management of the input stream to the caller.
+	 *
+	 */
 	public static interface ResponseHandler
 	{
+		/**
+		 * 
+		 * Any class implementing this can handle the {@link InputStream} according
+		 * to its needs.
+		 * 
+		 * @param in 
+		 * @throws IOException
+		 */
 		public void handle( InputStream in ) throws IOException;
 	}
 	
+	/**
+	 * @author Philipp Hanslovsky <hanslovskyp@janelia.hhmi.org>
+	 *
+	 * Interface for delegating writing to a {@link DataOutputStream} to
+	 * the caller. This allows for writing of data of arbitrary type T as
+	 * long as the caller provides an implementation of {@link Writer<T>}.
+	 * 
+	 */
 	public static interface Writer< T >
 	{
 		public void write( DataOutputStream out, T data ) throws IOException;
@@ -130,6 +158,19 @@ public class HttpRequest
 		
 	}
 	
+	/**
+	 * 
+	 * HTTP Get request:
+	 * GET url
+	 * 
+	 * If the HTTP status code is not 200, this method throws
+	 * {@link HTTPException}.
+	 * 
+	 * @param url Url for GET request. 
+	 * @return Data sent by the server in response as byte[].
+	 * @throws MalformedURLException
+	 * @throws IOException
+	 */
 	public static byte[] getRequest( String url ) throws MalformedURLException, IOException
 	{
 		HttpURLConnection connection = ( HttpURLConnection ) new URL( url ).openConnection();
@@ -154,6 +195,24 @@ public class HttpRequest
 		return bytes;
 	}
 	
+	/**
+	 * 
+	 * HTTP Get request:
+	 * GET url
+	 * 
+	 * Only use this, if you know the data size beforehand and
+	 * you are sure that the header field "Transfer-Encoding" does
+	 * not exist or is not "chunked".
+	 * 
+	 * If the HTTP status code is not 200, this method throws
+	 * {@link HTTPException}.
+	 * 
+	 * @param url Url for GET request.
+	 * @param bytes Array (byte[]) for storing result. 
+	 * @return Data sent by the server in response as byte[].
+	 * @throws MalformedURLException
+	 * @throws IOException
+	 */
 	public static byte[] getRequest( String url, byte[] bytes ) throws MalformedURLException, IOException
 	{
 		HttpURLConnection connection = ( HttpURLConnection ) new URL( url ).openConnection();
@@ -165,6 +224,13 @@ public class HttpRequest
 		return bytes;
 	}
 	
+	/**
+	 * Handle GET request as specified by handler.
+	 * 
+	 * @param connection Open connection. Closing this connection is the responsibility of the caller.
+	 * @param handler Caller specifies how to handle the data.
+	 * @throws IOException
+	 */
 	public static void getRequest( HttpURLConnection connection, ResponseHandler handler ) throws IOException
 	{
 		InputStream in = connection.getInputStream();
@@ -172,28 +238,92 @@ public class HttpRequest
 		in.close();
 	}
 	
+	/**
+	 * 
+	 * HTTP POST request:
+	 * POST url
+	 * 
+	 * @param url Url for request. 
+	 * @param postData Data to be posted
+	 * @param contentType Value of the header field "Content-Type"
+	 * @throws MalformedURLException
+	 * @throws IOException
+	 */
 	public static void postRequest( String url, byte[] postData, String contentType ) throws MalformedURLException, IOException
 	{
 		HttpURLConnection connection = postRequestWithResponse( url, postData, contentType );
 		connection.disconnect();
 	}
 	
+	/**
+	 * 
+	 * HTTP POST request:
+	 * POST url
+	 * 
+	 * @param url Url for request. 
+	 * @param postData Data to be posted
+	 * @param contentType Value of the header field "Content-Type"
+	 * @throws MalformedURLException
+	 * @throws IOException
+	 */
 	public static void postRequest( String url, long[] postData, String contentType ) throws MalformedURLException, IOException
 	{
 		HttpURLConnection connection = postRequestWithResponse( url, postData, contentType );
 		connection.disconnect();
 	}
 	
+	/**
+	 * 
+	 * HTTP POST request:
+	 * POST url
+	 * 
+	 * The connection is returned to allow the caller to handle a potential response.
+	 * The caller is responsible for closing the connection.
+	 * 
+	 * @param url Url for request. 
+	 * @param postData Data to be posted
+	 * @param contentType Value of the header field "Content-Type"
+	 * @return HTTP Connection for response handling
+	 * @throws MalformedURLException
+	 * @throws IOException
+	 */
 	public static HttpURLConnection postRequestWithResponse( String url, byte[] postData, String contentType ) throws MalformedURLException, IOException
 	{
 		return postRequestWithResponse( url, postData, contentType, new ByteArrayWriter() );
 	}
 	
+	/**
+	 * 
+	 * HTTP POST request:
+	 * POST url
+	 * 
+	 * The connection is returned to allow the caller to handle a potential response.
+	 * The caller is responsible for closing the connection.
+	 * 
+	 * @param url Url for request. 
+	 * @param postData Data to be posted
+	 * @param contentType Value of the header field "Content-Type"
+	 * @return HTTP Connection for response handling
+	 * @throws MalformedURLException
+	 * @throws IOException
+	 */
 	public static HttpURLConnection postRequestWithResponse( String url, long[] postData, String contentType ) throws MalformedURLException, IOException
 	{
 		return postRequestWithResponse( url, postData, contentType, new LongArrayWriter() );
 	}
 	
+	/**
+	 * 
+	 * HTTP POST request:
+	 * POST url
+	 * 
+	 * @param url Url for request. 
+	 * @param postData Data to be posted
+	 * @param contentType Value of the header field "Content-Type"
+	 * @param dataWriter Caller specified 
+	 * @throws MalformedURLException
+	 * @throws IOException
+	 */
 	public static < T > void postRequest(
 			String url,
 			T postData,
@@ -204,6 +334,22 @@ public class HttpRequest
 		connection.disconnect();
 	}
 	
+	/**
+	 * 
+	 * HTTP POST request:
+	 * POST url
+	 * 
+	 * The connection is returned to allow the caller to handle a potential response.
+	 * The caller is responsible for closing the connection.
+	 * 
+	 * @param url Url for request. 
+	 * @param postData Data to be posted
+	 * @param contentType Value of the header field "Content-Type"
+	 * @param dataWriter Caller needs to specify how to write data.
+	 * @return HTTP Connection for response handling
+	 * @throws MalformedURLException
+	 * @throws IOException
+	 */
 	public static < T > HttpURLConnection postRequestWithResponse( 
 			String url, 
 			T postData, 
@@ -233,6 +379,18 @@ public class HttpRequest
 		return connection;
 	}
 	
+	
+	/**
+	 * 
+	 * HTTP POST request for {@link Iterable} on {@link IntegerType}:
+	 * POST url
+	 * 
+	 * @param url Url for request. 
+	 * @param iterable Data to be posted
+	 * @param contentType Value of the header field "Content-Type"
+	 * @throws MalformedURLException
+	 * @throws IOException
+	 */
 	public static < T extends IntegerType< T > > void postRequest( 
 			String url,
 			Iterable< T > iterable,
@@ -242,6 +400,22 @@ public class HttpRequest
 		connection.disconnect();
 	}
 	
+	
+	/**
+	 * 
+	 * HTTP POST request for {@link Iterable} on {@link IntegerType}:
+	 * POST url
+	 * 
+	 * The connection is returned to allow the caller to handle a potential response.
+	 * The caller is responsible for closing the connection.
+	 * 
+	 * @param url Url for request. 
+	 * @param iterable Data to be posted
+	 * @param contentType Value of the header field "Content-Type"
+	 * @return HTTP Connection for response handling
+	 * @throws MalformedURLException
+	 * @throws IOException
+	 */
 	public static < T extends IntegerType< T > > HttpURLConnection postRequestWithResponse( 
 			String url,
 			Iterable< T > iterable,
@@ -286,11 +460,32 @@ public class HttpRequest
 		return connection;
 	}
 	
+	/**
+	 * 
+	 * HTTP POST request for {@link JsonElement}:
+	 * POST url
+	 * 
+	 * @param url Url for request.
+	 * @param json Data to be posted.
+	 * @return HTTP Connection for response handling
+	 * @throws MalformedURLException
+	 * @throws UnsupportedEncodingException
+	 * @throws IOException
+	 */
 	public static HttpURLConnection postRequestJSON( String url, JsonElement json ) throws MalformedURLException, UnsupportedEncodingException, IOException
 	{
 		return postRequestWithResponse( url, json.toString().getBytes( CHARSET_UTF8 ), "application/json; charset=UTF-8" );
 	}
 	
+	/**
+	 * 
+	 * HTTP DELETE request:
+	 * DELETE url
+	 * 
+	 * @param url Url for request.
+	 * @return HTTP status code of the DELETE request.
+	 * @throws IOException
+	 */
 	public static int delete ( String url ) throws IOException
 	{
 		HttpURLConnection connection = ( HttpURLConnection ) new URL( url ).openConnection();
