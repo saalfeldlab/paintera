@@ -2,7 +2,6 @@ package bdv.util.dvid;
 
 import java.io.IOException;
 import java.net.MalformedURLException;
-import java.util.Arrays;
 import java.util.Random;
 
 import javax.xml.ws.http.HTTPException;
@@ -81,8 +80,7 @@ public class DatasetKeyValue extends Dataset
 			{
 				if ( res[i] != b[i] )
 				{
-					System.out.println( "MIZZGE LÄUFT SCHIEF! " + i + ": " + res[i] + " " + b[i] );
-					System.exit( 9002 );
+					System.exit( 9001 );
 				}
 			}
 //			System.out.println( Arrays.toString( res ) );

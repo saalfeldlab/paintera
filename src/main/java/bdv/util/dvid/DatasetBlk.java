@@ -2,7 +2,6 @@ package bdv.util.dvid;
 
 import java.io.IOException;
 import java.net.MalformedURLException;
-import java.net.URL;
 
 import com.google.gson.JsonArray;
 import com.google.gson.JsonIOException;

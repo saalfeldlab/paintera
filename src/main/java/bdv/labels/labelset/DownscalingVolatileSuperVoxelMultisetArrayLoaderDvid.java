@@ -165,11 +165,8 @@ public class DownscalingVolatileSuperVoxelMultisetArrayLoaderDvid implements Cac
 		final TIntArrayList listHashesAndOffsets = new TIntArrayList();
 		final SuperVoxelMultisetEntry entry = new SuperVoxelMultisetEntry( 0, 1 );
 		int nextListOffset = 0;
-//		if ( dimensions[0] != 32 || dimensions[1] != 32 || dimensions[2] != 32 )
-//			System.out.println( Arrays.toString( factors ) + " " + Arrays.toString( dimensions ) + " " + Arrays.toString( min ) + " " + numContribs );
 		for ( int o = 0; o < numEntities; ++o )
 		{
-//			System.out.println( o + " ITERATING YO!!!" + " " + numContribs + " " + store.getName() );
 			IntervalIndexer.indexToPosition( o, dimensions, outputPos );
 			for ( int d = 0; d < n; ++d )
 				inputOffset[ d ] = ( outputPos[ d ] + ( int ) min[ d ] ) * factors[ d ];
