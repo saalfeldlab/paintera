@@ -10,6 +10,8 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 
+import javax.xml.ws.http.HTTPException;
+
 import bdv.util.Pairs;
 import bdv.util.Pairs.Pair;
 import bdv.util.http.HttpRequest;
@@ -120,7 +122,7 @@ public class Node
 			return new DatasetBlkRGBA( this, name );
 		
 		else
-			return new Dataset( this, name );
+			return new Dataset( this, name, type );
 	}
 	
 	public Dataset[] createMutuallySynchedDatasets( List< Pair< String, String > > namesAndTypes ) throws MalformedURLException, IOException
@@ -180,17 +182,22 @@ public class Node
 	public static void main( String[] args ) throws MalformedURLException, IOException
 	{
 		String url = "http://vm570.int.janelia.org:8080";
-		String uuid = "6efb517b5ca64b67b8d53be310a9bca4";
-		Repository repo = new Repository( url, uuid );
-		System.out.println( repo.getInfo() );
-		Node n2 = new Node( "6efb517b5ca64b67b8d53be310a9bca4", repo );
-		Node child = n2.branch( "new branch" );
-		ArrayList< Pair< String, String > > al = 
-				new ArrayList< Pair< String, String > >();
-		al.add( Pairs.from( "set1", "labelblk" ) );
-		al.add( Pairs.from( "set2", "keyvalue" ) );
-		al.add( Pairs.from( "set3", "labelblk" ) );
-		child.createMutuallySynchedDatasets( al );
+		Server server = new Server( url );
+		Repository repo = server.createRepo( "test-repo-node", "testing node and dataset creation" );
+		Node root = repo.getRootNode();
+		root.createDataset( DatasetBlkLabel.TYPE, DatasetBlkLabel.TYPE  );
+		root.createDataset( DatasetBlkRGBA.TYPE, DatasetBlkRGBA.TYPE );
+		root.createDataset( DatasetBlkUint8.TYPE, DatasetBlkUint8.TYPE );
+		root.createDataset( DatasetKeyValue.TYPE, DatasetKeyValue.TYPE );
+		root.createDataset( DatasetLabelVol.TYPE, DatasetLabelVol.TYPE );
+		try
+		{
+			root.createDataset( "there is no", "such data type" );
+		}
+		catch ( IOException e )
+		{
+			e.printStackTrace();
+		}
 	}
 	
 }

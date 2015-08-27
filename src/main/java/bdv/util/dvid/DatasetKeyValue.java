@@ -18,7 +18,7 @@ public class DatasetKeyValue extends Dataset
 
 	public DatasetKeyValue( Node node, String name )
 	{
-		super( node, name );
+		super( node, name, TYPE );
 	}
 	
 	public static String getKeyRequestString( String key )

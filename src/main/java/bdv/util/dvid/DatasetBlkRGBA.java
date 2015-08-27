@@ -16,7 +16,7 @@ public class DatasetBlkRGBA extends DatasetBlk< UnsignedIntType >
 	
 	public DatasetBlkRGBA( Node node, String name )
 	{
-		super( node, name );
+		super( node, name, TYPE );
 	}
 
 	@Override
@@ -45,6 +45,5 @@ public class DatasetBlkRGBA extends DatasetBlk< UnsignedIntType >
 			t.setInteger( bb.getInt() );
 		
 	}
-	
 
 }

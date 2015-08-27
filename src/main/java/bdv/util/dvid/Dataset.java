@@ -21,6 +21,7 @@ public class Dataset
 
 	protected final Node node;
 	protected final String name;
+	protected final String type;
 
 	public Node getNode()
 	{
@@ -32,11 +33,12 @@ public class Dataset
 		return name;
 	}
 
-	public Dataset( Node node, String name )
+	public Dataset( Node node, String name, String type )
 	{
 		super();
 		this.node = node;
 		this.name = name;
+		this.type = type;
 	}
 	
 	public String getUrl()
@@ -118,6 +120,11 @@ public class Dataset
 	public int deleteSelf() throws IOException
 	{
 		return this.getNode().deleteDatset( this );
+	}
+	
+	public String getType()
+	{
+		return type;
 	}
 
 }

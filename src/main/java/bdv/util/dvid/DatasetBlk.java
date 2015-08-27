@@ -14,9 +14,9 @@ import net.imglib2.RandomAccessibleInterval;
 public abstract class DatasetBlk< T > extends Dataset
 {
 
-	public DatasetBlk( Node node, String name )
+	public DatasetBlk( Node node, String name, String type )
 	{
-		super( node, name );
+		super( node, name, type );
 	}
 	
 	public abstract void get( 

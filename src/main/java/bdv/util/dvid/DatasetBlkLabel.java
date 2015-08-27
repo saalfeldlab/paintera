@@ -15,7 +15,7 @@ public class DatasetBlkLabel extends DatasetBlk< UnsignedLongType >
 
 	public DatasetBlkLabel( Node node, String name )
 	{
-		super( node, name );
+		super( node, name, TYPE );
 	}
 
 	@Override
@@ -44,6 +44,6 @@ public class DatasetBlkLabel extends DatasetBlk< UnsignedLongType >
 			t.setInteger( bb.getLong() );
 		
 	}
-	
+
 
 }

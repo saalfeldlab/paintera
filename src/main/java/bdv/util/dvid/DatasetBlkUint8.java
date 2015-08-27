@@ -16,7 +16,7 @@ public class DatasetBlkUint8 extends DatasetBlk< UnsignedByteType >
 	
 	public DatasetBlkUint8( Node node, String name )
 	{
-		super( node, name );
+		super( node, name, TYPE );
 	}
 
 	@Override
@@ -45,6 +45,5 @@ public class DatasetBlkUint8 extends DatasetBlk< UnsignedByteType >
 			t.setInteger( bb.get() );
 		
 	}
-	
 
 }

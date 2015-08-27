@@ -19,7 +19,7 @@ public class DatasetLabelVol extends Dataset
 
 	public DatasetLabelVol( Node node, String name )
 	{
-		super( node, name );
+		super( node, name, TYPE );
 	}
 	
 //	public String getUrl()
@@ -97,5 +97,5 @@ public class DatasetLabelVol extends Dataset
 			}
 		}
 	}
-	
+
 }
