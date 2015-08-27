@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
+import java.util.HashMap;
 import java.util.Map.Entry;
 
 import bdv.util.JsonHelper;
@@ -114,6 +115,25 @@ public class Server
 		if ( repoInfo == null )
 			throw new RuntimeException( "Repo " + alias + " not found in server " + this.url );
 		return new Repository( this, repoInfo.get( Repository.RepositoryInfo.ROOT_KEY ).getAsString() );
+	}
+	
+	public int deleteRepo( String uuid ) throws IOException
+	{
+		// /api/repo/{uuid}?imsure=true
+		HashMap< String, String > deleteOptions = new HashMap< String, String >();
+		deleteOptions.put( "imsure", "true" );
+		String url = DvidUrlOptions.getRequestString( this.getApiUrl() + "/repo/" + uuid, "", deleteOptions	);
+		return HttpRequest.delete( url );
+	}
+	
+	public int deleteRepo( Repository repo ) throws IOException
+	{
+		return deleteRepo( repo.getUuid() );
+	}
+	
+	public int deleteRepo( Node node ) throws IOException
+	{
+		return deleteRepo( node.getUuid() );
 	}
 	
 	public static void main( String[] args ) throws JsonSyntaxException, JsonIOException, IOException

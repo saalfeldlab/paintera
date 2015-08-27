@@ -10,6 +10,7 @@ import com.google.gson.JsonSyntaxException;
 
 import bdv.util.JsonHelper;
 import bdv.util.http.HttpRequest;
+import bdv.util.http.HttpRequest.Writer;
 
 public class Dataset
 {
@@ -18,8 +19,8 @@ public class Dataset
 	public static final String POPERTY_DATANAME = "dataname";
 	public static final String PROPERTY_SYNC = "sync";
 
-	private final Node node;
-	private final String name;
+	protected final Node node;
+	protected final String name;
 
 	public Node getNode()
 	{
@@ -75,6 +76,7 @@ public class Dataset
 	
 	public byte[] get( String request ) throws MalformedURLException, IOException
 	{
+//		System.out.println( getRequestString( request ) );
 		return HttpRequest.getRequest( getRequestString( request ) );
 	}
 	
@@ -91,6 +93,31 @@ public class Dataset
 	public void post( String request, byte[] data, String contentType ) throws MalformedURLException, IOException
 	{
 		HttpRequest.postRequest( getRequestString( request ), data, contentType );
+	}
+	
+	public void post( String request, long[] data ) throws MalformedURLException, IOException
+	{
+		post( request, data, "application/octet-stream" );
+	}
+	
+	public void post( String request, long[] data, String contentType ) throws MalformedURLException, IOException
+	{
+		HttpRequest.postRequest( getRequestString( request ), data, contentType );
+	}
+	
+	public <T> void post( String request, T data, Writer< T > writer ) throws MalformedURLException, IOException
+	{
+		post( request, data, "application/octet-stream", writer );
+	}
+	
+	public <T> void post( String request, T data, String contentType, Writer< T > writer ) throws MalformedURLException, IOException
+	{
+		HttpRequest.postRequest( getRequestString( request ), data, contentType, writer );
+	}
+	
+	public int deleteSelf() throws IOException
+	{
+		return this.getNode().deleteDatset( this );
 	}
 
 }

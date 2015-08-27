@@ -1,46 +1,32 @@
 package bdv.img.dvid;
 
 import java.io.IOException;
-import java.util.Random;
 
 import com.google.gson.JsonIOException;
 import com.google.gson.JsonSyntaxException;
 
 import bdv.util.BlockedInterval;
 import bdv.util.dvid.DatasetBlk;
-import bdv.util.dvid.DatasetBlkLabel;
-import bdv.util.dvid.Node;
+import bdv.util.dvid.DatasetBlkUint8;
 import bdv.util.dvid.Repository;
 import net.imglib2.Cursor;
 import net.imglib2.RandomAccessibleInterval;
-import net.imglib2.converter.Converter;
-import net.imglib2.converter.read.ConvertedRandomAccessibleInterval;
-import net.imglib2.img.array.ArrayCursor;
-import net.imglib2.img.array.ArrayImg;
-import net.imglib2.img.array.ArrayImgFactory;
-import net.imglib2.img.array.ArrayImgs;
-import net.imglib2.img.basictypeaccess.array.FloatArray;
 import net.imglib2.type.numeric.RealType;
-import net.imglib2.type.numeric.integer.UnsignedLongType;
-import net.imglib2.type.numeric.real.FloatType;
+import net.imglib2.type.numeric.integer.UnsignedByteType;
 import net.imglib2.view.IntervalView;
 import net.imglib2.view.Views;
 
 /**
- * 
- * labels64 is currently not avalaible in dvid. Once it is available again,
- * rewrite this to use DatasetLabels64 (not present at the moment).
- * 
  * @author Philipp Hanslovsky <hanslovskyp@janelia.hhmi.org>
  * 
  *         Write any {@link RandomAccessibleInterval} of type {@link RealType}
  *         into an existing dvid repository/dataset.
- *         
+ *
  */
-public class DvidLabels64Writer
+public class DvidImage8Writer
 {
 
-	private final DatasetBlkLabel dataset;
+	private final DatasetBlkUint8 dataset;
 
 	private final int[] blockSize;
 
@@ -52,16 +38,16 @@ public class DvidLabels64Writer
 	 *            The root node of the repository will be used for writing.
 	 * @param dataSet
 	 *            Name of the data set within the repository specified by uuid.
-	 *            This data set must be of type labelblk.
+	 *            This data set must be of type imageblk.
 	 * 
 	 *            This calls
-	 *            {@link DvidLabels64Writer#DvidLabels64ByteWriter(String, String, String, int)}
+	 *            {@link DvidImage8Writer#DvidLabels64ByteWriter(String, String, String, int)}
 	 *            with a default block size of 32.
 	 * @throws IOException 
 	 * @throws JsonIOException 
 	 * @throws JsonSyntaxException 
 	 **/
-	public DvidLabels64Writer( String url, String uuid, String dataSet )
+	public DvidImage8Writer( String url, String uuid, String dataSet )
 	{
 		this( url, uuid, dataSet, DatasetBlk.defaultBlockSize() );
 	}
@@ -74,7 +60,7 @@ public class DvidLabels64Writer
 	 *            The root node of the repository will be used for writing.
 	 * @param dataSet
 	 *            Name of the data set within the repository specified by uuid.
-	 *            This data set must be of type labelblk
+	 *            This data set must be of type imageblk
 	 * @param blockSize
 	 *            Block size of the data set. Must suit block size stored in
 	 *            dvid server.
@@ -82,18 +68,18 @@ public class DvidLabels64Writer
 	 * @throws JsonIOException 
 	 * @throws JsonSyntaxException 
 	 */
-	public DvidLabels64Writer( String url, String uuid, final String dataSetName, final int[] blockSize )
+	public DvidImage8Writer( String url, String uuid, final String dataSetName, final int[] blockSize )
 	{
-		this( new DatasetBlkLabel( new Repository( url, uuid ).getRootNode(), dataSetName ), blockSize );
+		this( new DatasetBlkUint8( new Repository( url, uuid ).getRootNode(), dataSetName ), blockSize );
 	}
 	
-	public DvidLabels64Writer( DatasetBlkLabel dataset, int[] blockSize )
+	public DvidImage8Writer( DatasetBlkUint8 dataset, int[] blockSize )
 	{
 		this.dataset = dataset;
 		this.blockSize = blockSize;
 	}
 	
-	public DvidLabels64Writer( DatasetBlkLabel dataset ) throws JsonSyntaxException, JsonIOException, IOException
+	public DvidImage8Writer( DatasetBlkUint8 dataset ) throws JsonSyntaxException, JsonIOException, IOException
 	{
 		this( dataset, dataset.getBlockSize() );
 	}
@@ -109,11 +95,11 @@ public class DvidLabels64Writer
 	 *            Offset target position by offset.
 	 * 
 	 *            Write image into data set. Calls
-	 *            {@link DvidLabels64Writer#writeImage(RandomAccessibleInterval, int, int[], int[])}
+	 *            {@link DvidImage8Writer#writeImage(RandomAccessibleInterval, int, int[], int[])}
 	 *            with iterationAxis set to 2.
 	 */
 	public void writeImage(
-			RandomAccessibleInterval< UnsignedLongType > image,
+			RandomAccessibleInterval< UnsignedByteType > image,
 			final int[] steps,
 			final int[] offset )
 	{
@@ -131,16 +117,16 @@ public class DvidLabels64Writer
 	 *            Offset target position by offset.
 	 * 
 	 *            Write image into data set. Calls
-	 *            {@link DvidLabels64Writer#writeImage(RandomAccessibleInterval, int, int[], int[], RealType)}
+	 *            {@link DvidImage8Writer#writeImage(RandomAccessibleInterval, int, int[], int[], RealType)}
 	 *            with borderExtension set to 0.
 	 */
 	public void writeImage(
-			RandomAccessibleInterval< UnsignedLongType > image,
+			RandomAccessibleInterval< UnsignedByteType > image,
 			final int iterationAxis,
 			final int[] steps,
 			final int[] offset )
 	{
-		this.writeImage( image, iterationAxis, steps, offset, new UnsignedLongType( 0l ) );
+		this.writeImage( image, iterationAxis, steps, offset, new UnsignedByteType( 0 ) );
 	}
 
 	/**
@@ -160,11 +146,11 @@ public class DvidLabels64Writer
 	 *            image coordinates shifted by offset.
 	 */
 	public void writeImage(
-			RandomAccessibleInterval< UnsignedLongType > image,
+			RandomAccessibleInterval< UnsignedByteType > image,
 			final int iterationAxis,
 			final int[] steps,
 			final int[] offset,
-			UnsignedLongType borderExtension )
+			UnsignedByteType borderExtension )
 	{
 		// realX ensures that realX[i] is integer multiple of blockSize
 		long[] realDim = new long[ image.numDimensions() ];
@@ -188,15 +174,16 @@ public class DvidLabels64Writer
 		// hyperslicing.
 		// Go along iterationAxis and hyperslice, then iterate over each
 		// hyperslice.
-		BlockedInterval< UnsignedLongType > blockedImage = BlockedInterval.createZeroExtended( image, stepSize );
+		BlockedInterval< UnsignedByteType > blockedImage = BlockedInterval.createZeroExtended( image, stepSize );
 		for ( int a = 0, aUnitIncrement = 0; a < image.dimension( iterationAxis ); ++aUnitIncrement, a += realSteps[ iterationAxis ] )
 		{
-			IntervalView< RandomAccessibleInterval< UnsignedLongType >> hs = 
+			IntervalView< RandomAccessibleInterval< UnsignedByteType >> hs = 
 					Views.hyperSlice( blockedImage, iterationAxis, aUnitIncrement );
-			Cursor< RandomAccessibleInterval< UnsignedLongType >> cursor = Views.flatIterable( hs ).cursor();
+			Cursor< RandomAccessibleInterval< UnsignedByteType >> cursor = Views.flatIterable( hs ).cursor();
 			while ( cursor.hasNext() )
 			{
-				RandomAccessibleInterval< UnsignedLongType > block = cursor.next();
+				RandomAccessibleInterval< UnsignedByteType > block = cursor.next();
+				System.out.println( cursor.getLongPosition( 0 ) + " " + cursor.getLongPosition( 1 ) + " " + a );
 				int[] localOffset = realOffset.clone();
 				localOffset[ iterationAxis ] = a;
 				for ( int i = 0, k = 0; i < localOffset.length; i++ )
@@ -211,7 +198,7 @@ public class DvidLabels64Writer
 				}
 				catch ( IOException e )
 				{
-					System.err.println( "Failed to write block: " + dataset.getRequestString( DatasetBlkLabel.getIntervalRequestString( image, realSteps ) ) );
+					System.err.println( "Failed to write block: " + dataset.getRequestString( DatasetBlkUint8.getIntervalRequestString( image, realSteps ) ) );
 					e.printStackTrace();
 				}
 			}
@@ -235,7 +222,7 @@ public class DvidLabels64Writer
 	 *             offset using http POST request.
 	 */
 	public void writeBlock(
-			RandomAccessibleInterval< UnsignedLongType > input,
+			RandomAccessibleInterval< UnsignedByteType > input,
 			final int[] dims,
 			final int[] offset ) throws IOException
 	{
@@ -315,60 +302,60 @@ public class DvidLabels64Writer
 	public static void main( String[] args ) throws IOException
 	{
 
-		// this is for testing purposes, modify apiUrl, uuid and dataSet
-		// according to your needs
-		// if values received from server differ from input, these values will
-		// be printed to stdout
-		// otherwise no output
-
-		String url = "http://vm570.int.janelia.org:8080";
-		String uuid = "9c7cc44aa0544d33905ce82d153e2544";
-		String dataSet = "bigcat-test2";
-		
-		Repository repo = new Repository( url, uuid );
-
-		Random rng = new Random();
-
-		int[] dim = new int[] { 200, 200, 96 };
-		long[] longDim = new long[ dim.length ];
-		for ( int i = 0; i < longDim.length; i++ )
-			longDim[ i ] = dim[ i ];
-		ArrayImg< FloatType, FloatArray > ref = ArrayImgs.floats( longDim );
-		for ( FloatType r : ref )
-			r.set( rng.nextFloat() );
-
-		DvidLabels64Writer writer = new DvidLabels64Writer( url, uuid, dataSet );
-		int[] steps = new int[] { 200, 200, 32 };
-		int[] offset = new int[] { 0, 0, 0 };
-		Converter< FloatType, UnsignedLongType > converter = new Converter< FloatType, UnsignedLongType >()
-		{
-
-			@Override
-			public void convert( FloatType input, UnsignedLongType output )
-			{
-				output.set( Float.floatToIntBits( input.get() ) | 0l );
-			}};
-			
-		ConvertedRandomAccessibleInterval< FloatType, UnsignedLongType > refLong = 
-				new ConvertedRandomAccessibleInterval<FloatType,UnsignedLongType>( ref, converter, new UnsignedLongType() );
-		writer.writeImage( refLong, steps, offset );
-
-		// read image from dvid server
-		Node node = repo.getRootNode();
-		DatasetBlkLabel  ds = new DatasetBlkLabel ( node, "bigcat-test2" );
-//		ArrayImg< UnsignedIntType, IntArray > target = ArrayImgs.unsignedInts( longDim );
-		ArrayImg< UnsignedLongType, ? > target = new ArrayImgFactory<UnsignedLongType>().create( longDim, new UnsignedLongType() );
-		ds.get( target, offset );
-		
-		ArrayCursor< UnsignedLongType > t = target.cursor();
-		for ( UnsignedLongType r : Views.flatIterable( refLong ) )
-		{
-			long comp = r.get();
-			long test = t.next().getIntegerLong();
-			if ( test != comp )
-				System.out.println( test + " " + comp );
-		}
-		System.out.println( "Done." );
+//		// this is for testing purposes, modify apiUrl, uuid and dataSet
+//		// according to your needs
+//		// if values received from server differ from input, these values will
+//		// be printed to stdout
+//		// otherwise no output
+//
+//		String url = "http://vm570.int.janelia.org:8080";
+//		String uuid = "9c7cc44aa0544d33905ce82d153e2544";
+//		String dataSet = "bigcat-test2";
+//		
+//		Repository repo = new Repository( url, uuid );
+//
+//		Random rng = new Random();
+//
+//		int[] dim = new int[] { 200, 200, 96 };
+//		long[] longDim = new long[ dim.length ];
+//		for ( int i = 0; i < longDim.length; i++ )
+//			longDim[ i ] = dim[ i ];
+//		ArrayImg< FloatType, FloatArray > ref = ArrayImgs.floats( longDim );
+//		for ( FloatType r : ref )
+//			r.set( rng.nextFloat() );
+//
+//		DvidImage32Writer writer = new DvidImage32Writer( url, uuid, dataSet );
+//		int[] steps = new int[] { 200, 200, 32 };
+//		int[] offset = new int[] { 0, 0, 0 };
+//		Converter< FloatType, UnsignedLongType > converter = new Converter< FloatType, UnsignedLongType >()
+//		{
+//
+//			@Override
+//			public void convert( FloatType input, UnsignedLongType output )
+//			{
+//				output.set( Float.floatToIntBits( input.get() ) | 0l );
+//			}};
+//			
+//		ConvertedRandomAccessibleInterval< FloatType, UnsignedLongType > refLong = 
+//				new ConvertedRandomAccessibleInterval<FloatType,UnsignedLongType>( ref, converter, new UnsignedLongType() );
+//		writer.writeImage( refLong, steps, offset );
+//
+//		// read image from dvid server
+//		Node node = repo.getRootNode();
+//		DatasetBlkImage  ds = new DatasetBlkImage ( node, "bigcat-test2" );
+////		ArrayImg< UnsignedIntType, IntArray > target = ArrayImgs.unsignedInts( longDim );
+//		ArrayImg< UnsignedLongType, ? > target = new ArrayImgFactory<UnsignedLongType>().create( longDim, new UnsignedLongType() );
+//		ds.get( target, offset );
+//		
+//		ArrayCursor< UnsignedLongType > t = target.cursor();
+//		for ( UnsignedLongType r : Views.flatIterable( refLong ) )
+//		{
+//			long comp = r.get();
+//			long test = t.next().getIntegerLong();
+//			if ( test != comp )
+//				System.out.println( test + " " + comp );
+//		}
+//		System.out.println( "Done." );
 	}
 
 }

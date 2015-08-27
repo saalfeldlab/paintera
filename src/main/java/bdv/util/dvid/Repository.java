@@ -2,6 +2,7 @@ package bdv.util.dvid;
 
 import java.io.IOException;
 import java.net.MalformedURLException;
+import java.util.HashMap;
 import java.util.Map.Entry;
 
 import bdv.util.JsonHelper;
@@ -91,7 +92,21 @@ public class Repository
 	public Dataset createDataset( String name, String type, String... sync ) throws MalformedURLException, IOException
 	{
 		return this.getRootNode().createDataset( name, type, sync );
-		
+	}
+	
+	public int deleteDataset( String name ) throws IOException
+	{
+		return this.getRootNode().deleteDataset( name );
+	}
+	
+	public int deleteDatset( Dataset dataset ) throws IOException
+	{
+		return deleteDataset( dataset.getName() );
+	}
+	
+	public int deleteSelf() throws IOException
+	{
+		return getServer().deleteRepo( this );
 	}
 	
 	public static JsonObject generateFromAliasAndDescription( String alias, String description )
@@ -112,21 +127,32 @@ public class Repository
 		// To create new repo, do: 
 		// Repository repo = new Repository( apiUrl, uuid );
 		
-		System.out.println( repo.getServer().getApiUrl() );
-		System.out.println( repo.getUuid() );
+//		System.out.println( repo.getServer().getApiUrl() );
+//		System.out.println( repo.getUuid() );
 		
 //		Dataset ds = repo.create( "testing123456", "labelblk" );
 		Dataset ds = new Dataset( repo.getRootNode(), "testing123456" );
 		
-		System.out.println( ds.getName() );
-		System.out.println( ds.getNode().getUuid() );
-		System.out.println( ds.getInfo().toString() );
-		
+//		System.out.println( ds.getName() );
+//		System.out.println( ds.getNode().getUuid() );
+//		System.out.println( ds.getInfo().toString() );
+//		
 		System.out.println();
 		Repository r2 = new Repository( repo.getServer(), "6efb517b5ca64b67b8d53be310a9bca4" );
-		Node n2 = new Node( "6efb517b5ca64b67b8d53be310a9bca4", repo );
+		Node n2 = r2.getRootNode();
 		Dataset d2 = new Dataset( n2, "some-data-set" );
-		System.out.println( repo.getInfo() );
+//		System.out.println( repo.getInfo() );
+//		Dataset d3 = n3.createDataset( "delete-test", DatasetBlkLabel.TYPE );
+		Repository r3 = repo.getServer().createRepo( "delete-test" );
+		System.out.println( r3.getInfo() );
+		Node n3 = r3.getRootNode();
+		DatasetBlkLabel d3 = ( DatasetBlkLabel ) r3.createDataset( "delete-test", DatasetBlkLabel.TYPE );// new DatasetBlkLabel( n3, "delete-test" );
+		System.out.println( d3.getInfo() );
+		int status = d3.deleteSelf();
+		System.out.println( status );
+		System.out.println( d3.getInfo() );
+		r3.deleteSelf();
+		System.out.println( r3.getInfo() );
 //		System.out.println( repo.getDAG().toString() );
 		
 //		repo.getRootNode().commit( "bla", new String[0] );

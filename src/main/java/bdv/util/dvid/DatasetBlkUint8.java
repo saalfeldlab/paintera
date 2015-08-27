@@ -6,21 +6,22 @@ import java.nio.ByteBuffer;
 
 import bdv.util.http.HttpRequest;
 import net.imglib2.RandomAccessibleInterval;
-import net.imglib2.type.numeric.integer.UnsignedLongType;
+import net.imglib2.type.numeric.integer.UnsignedByteType;
 import net.imglib2.view.Views;
 
-public class DatasetBlkLabel extends DatasetBlk< UnsignedLongType >
+public class DatasetBlkUint8 extends DatasetBlk< UnsignedByteType >
 {
-	public static String TYPE = "labelblk";
-
-	public DatasetBlkLabel( Node node, String name )
+	
+	public static final String TYPE = "uint8blk";
+	
+	public DatasetBlkUint8( Node node, String name )
 	{
 		super( node, name );
 	}
 
 	@Override
 	public void put( 
-			RandomAccessibleInterval< UnsignedLongType > source,
+			RandomAccessibleInterval< UnsignedByteType > source,
 			int[] offset
 			) throws MalformedURLException, IOException
 	{
@@ -30,9 +31,9 @@ public class DatasetBlkLabel extends DatasetBlk< UnsignedLongType >
 	}
 
 	@Override
-	public void get( RandomAccessibleInterval< UnsignedLongType > target, int[] offset ) throws MalformedURLException, IOException
+	public void get( RandomAccessibleInterval< UnsignedByteType > target, int[] offset ) throws MalformedURLException, IOException
 	{
-		int size = Long.BYTES;
+		int size = Byte.BYTES;
 		for ( int d = 0; d < target.numDimensions(); ++d )
 			size *= target.dimension( d );
 		
@@ -40,8 +41,8 @@ public class DatasetBlkLabel extends DatasetBlk< UnsignedLongType >
 		
 		getByteArray( target, data, offset );
 		ByteBuffer bb = ByteBuffer.wrap( data );
-		for( UnsignedLongType t : Views.flatIterable( target ) )
-			t.setInteger( bb.getLong() );
+		for( UnsignedByteType t : Views.flatIterable( target ) )
+			t.setInteger( bb.get() );
 		
 	}
 	

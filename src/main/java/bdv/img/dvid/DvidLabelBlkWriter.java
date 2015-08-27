@@ -27,17 +27,13 @@ import net.imglib2.view.IntervalView;
 import net.imglib2.view.Views;
 
 /**
- * 
- * labels64 is currently not avalaible in dvid. Once it is available again,
- * rewrite this to use DatasetLabels64 (not present at the moment).
- * 
  * @author Philipp Hanslovsky <hanslovskyp@janelia.hhmi.org>
  * 
  *         Write any {@link RandomAccessibleInterval} of type {@link RealType}
  *         into an existing dvid repository/dataset.
- *         
+ *
  */
-public class DvidLabels64Writer
+public class DvidLabelBlkWriter
 {
 
 	private final DatasetBlkLabel dataset;
@@ -55,13 +51,13 @@ public class DvidLabels64Writer
 	 *            This data set must be of type labelblk.
 	 * 
 	 *            This calls
-	 *            {@link DvidLabels64Writer#DvidLabels64ByteWriter(String, String, String, int)}
+	 *            {@link DvidLabelBlkWriter#DvidLabels64ByteWriter(String, String, String, int)}
 	 *            with a default block size of 32.
 	 * @throws IOException 
 	 * @throws JsonIOException 
 	 * @throws JsonSyntaxException 
 	 **/
-	public DvidLabels64Writer( String url, String uuid, String dataSet )
+	public DvidLabelBlkWriter( String url, String uuid, String dataSet )
 	{
 		this( url, uuid, dataSet, DatasetBlk.defaultBlockSize() );
 	}
@@ -82,18 +78,18 @@ public class DvidLabels64Writer
 	 * @throws JsonIOException 
 	 * @throws JsonSyntaxException 
 	 */
-	public DvidLabels64Writer( String url, String uuid, final String dataSetName, final int[] blockSize )
+	public DvidLabelBlkWriter( String url, String uuid, final String dataSetName, final int[] blockSize )
 	{
 		this( new DatasetBlkLabel( new Repository( url, uuid ).getRootNode(), dataSetName ), blockSize );
 	}
 	
-	public DvidLabels64Writer( DatasetBlkLabel dataset, int[] blockSize )
+	public DvidLabelBlkWriter( DatasetBlkLabel dataset, int[] blockSize )
 	{
 		this.dataset = dataset;
 		this.blockSize = blockSize;
 	}
 	
-	public DvidLabels64Writer( DatasetBlkLabel dataset ) throws JsonSyntaxException, JsonIOException, IOException
+	public DvidLabelBlkWriter( DatasetBlkLabel dataset ) throws JsonSyntaxException, JsonIOException, IOException
 	{
 		this( dataset, dataset.getBlockSize() );
 	}
@@ -109,7 +105,7 @@ public class DvidLabels64Writer
 	 *            Offset target position by offset.
 	 * 
 	 *            Write image into data set. Calls
-	 *            {@link DvidLabels64Writer#writeImage(RandomAccessibleInterval, int, int[], int[])}
+	 *            {@link DvidLabelBlkWriter#writeImage(RandomAccessibleInterval, int, int[], int[])}
 	 *            with iterationAxis set to 2.
 	 */
 	public void writeImage(
@@ -131,7 +127,7 @@ public class DvidLabels64Writer
 	 *            Offset target position by offset.
 	 * 
 	 *            Write image into data set. Calls
-	 *            {@link DvidLabels64Writer#writeImage(RandomAccessibleInterval, int, int[], int[], RealType)}
+	 *            {@link DvidLabelBlkWriter#writeImage(RandomAccessibleInterval, int, int[], int[], RealType)}
 	 *            with borderExtension set to 0.
 	 */
 	public void writeImage(
@@ -337,7 +333,7 @@ public class DvidLabels64Writer
 		for ( FloatType r : ref )
 			r.set( rng.nextFloat() );
 
-		DvidLabels64Writer writer = new DvidLabels64Writer( url, uuid, dataSet );
+		DvidLabelBlkWriter writer = new DvidLabelBlkWriter( url, uuid, dataSet );
 		int[] steps = new int[] { 200, 200, 32 };
 		int[] offset = new int[] { 0, 0, 0 };
 		Converter< FloatType, UnsignedLongType > converter = new Converter< FloatType, UnsignedLongType >()
