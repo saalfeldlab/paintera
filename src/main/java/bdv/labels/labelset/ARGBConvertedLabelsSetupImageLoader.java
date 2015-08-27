@@ -1,7 +1,5 @@
 package bdv.labels.labelset;
 
-import java.io.IOException;
-
 import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.img.basictypeaccess.volatiles.array.VolatileIntArray;
 import net.imglib2.realtransform.AffineTransform3D;
@@ -18,9 +16,6 @@ import bdv.img.cache.VolatileGlobalCellCache.VolatileCellCache;
 import bdv.img.cache.VolatileImgCells;
 import bdv.labels.labelset.DvidLabels64MultisetSetupImageLoader.MultisetSource;
 
-import com.google.gson.JsonIOException;
-import com.google.gson.JsonSyntaxException;
-
 public class ARGBConvertedLabelsSetupImageLoader
 	extends AbstractViewerSetupImgLoader< ARGBType, VolatileARGBType >
 {
@@ -32,16 +27,6 @@ public class ARGBConvertedLabelsSetupImageLoader
 
 	private final DvidLabels64MultisetSetupImageLoader multisetImageLoader;
 
-	/**
-	 * http://hackathon.janelia.org/api/help/grayscale8
-	 *
-	 * @param apiUrl e.g. "http://hackathon.janelia.org/api"
-	 * @param nodeId e.g. "2a3fd320aef011e4b0ce18037320227c"
-	 * @param dataInstanceId e.g. "bodies"
-	 * @throws IOException
-	 * @throws JsonIOException
-	 * @throws JsonSyntaxException
-	 */
 	public ARGBConvertedLabelsSetupImageLoader(
 			final int setupId,
 			final DvidLabels64MultisetSetupImageLoader multisetImageLoader )

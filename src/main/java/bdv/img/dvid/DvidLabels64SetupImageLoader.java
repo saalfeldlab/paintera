@@ -10,17 +10,27 @@ import net.imglib2.type.numeric.ARGBType;
 import net.imglib2.type.volatiles.VolatileARGBType;
 import net.imglib2.util.Fraction;
 import bdv.AbstractViewerSetupImgLoader;
+import bdv.ViewerSetupImgLoader;
 import bdv.img.cache.CacheHints;
 import bdv.img.cache.CachedCellImg;
 import bdv.img.cache.LoadingStrategy;
 import bdv.img.cache.VolatileGlobalCellCache;
 import bdv.img.cache.VolatileGlobalCellCache.VolatileCellCache;
 import bdv.img.cache.VolatileImgCells;
+import bdv.util.ColorStream;
 import bdv.util.JsonHelper;
 
 import com.google.gson.JsonIOException;
 import com.google.gson.JsonSyntaxException;
 
+
+/**
+ * {@link ViewerSetupImgLoader} for
+ * <a href= "http://emdata.janelia.org/api/help/labels64">DVID's labels64 type</a>
+ * that maps uint64 into saturated ARGB colors using {@link ColorStream}.
+ *
+ * @author Stephan Saalfeld <saalfelds@janelia.hhmi.org>
+ */
 public class DvidLabels64SetupImageLoader
 	extends AbstractViewerSetupImgLoader< ARGBType, VolatileARGBType >
 {
@@ -32,14 +42,14 @@ public class DvidLabels64SetupImageLoader
 
 	private final AffineTransform3D mipmapTransform;
 
-	private VolatileGlobalCellCache cache;
+	protected VolatileGlobalCellCache cache;
 
 	private final DvidLabels64VolatileArrayLoader loader;
 
 	private final int setupId;
 
 	/**
-	 * http://hackathon.janelia.org/api/help/grayscale8
+	 * http://hackathon.janelia.org/api/help/labels64
 	 *
 	 * @param apiUrl e.g. "http://hackathon.janelia.org/api"
 	 * @param nodeId e.g. "2a3fd320aef011e4b0ce18037320227c"
@@ -87,7 +97,7 @@ public class DvidLabels64SetupImageLoader
 	}
 
 	/**
-	 * http://hackathon.janelia.org/api/help/grayscale8
+	 * http://hackathon.janelia.org/api/help/labels64
 	 *
 	 * @param apiUrl e.g. "http://hackathon.janelia.org/api"
 	 * @param nodeId e.g. "2a3fd320aef011e4b0ce18037320227c"

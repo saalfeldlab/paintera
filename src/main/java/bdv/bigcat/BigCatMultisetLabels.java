@@ -83,7 +83,15 @@ public class BigCatMultisetLabels
 					apiUrl2,
 					uuid2,
 					labels2,
-					stores );
+					new double[][]{
+						{ 1, 1, 1 },
+						{ 2, 2, 2 },
+						{ 4, 4, 4 },
+						{ 8, 8, 8 },
+					},
+					stores
+					);
+
 			final ARGBConvertedLabelsSetupImageLoader dvidLabelsARGBImageLoader = new ARGBConvertedLabelsSetupImageLoader(
 					2,
 					dvidLabelsMultisetImageLoader );
@@ -146,6 +154,7 @@ public class BigCatMultisetLabels
 			bdv.getViewer().setDisplayMode( DisplayMode.FUSED );
 
 			bdv.getViewerFrame().setVisible( true );
+
 		}
 		catch ( final Exception e )
 		{

@@ -116,7 +116,7 @@ public class SuperVoxelMultisetType extends AbstractNativeType< SuperVoxelMultis
 	@Override
 	public SuperVoxelMultisetType copy()
 	{
-		throw new UnsupportedOperationException();
+		return new SuperVoxelMultisetType( img, access );
 	}
 
 	@Override
@@ -156,7 +156,9 @@ public class SuperVoxelMultisetType extends AbstractNativeType< SuperVoxelMultis
 	public boolean contains( final Object o )
 	{
 		access.getValue( i, entries );
-		return ( o instanceof SuperVoxel ) && entries.binarySearch( ( ( SuperVoxel ) o ).id() ) >= 0;
+		return
+				( ( o instanceof SuperVoxel ) && entries.binarySearch( ( ( SuperVoxel ) o ).id() ) >= 0 ) ||
+				( ( o instanceof Long ) && entries.binarySearch( ( ( Long )o ).longValue() ) >= 0 );
 	}
 
 	@Override

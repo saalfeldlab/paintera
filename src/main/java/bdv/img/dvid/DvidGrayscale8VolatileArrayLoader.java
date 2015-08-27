@@ -8,6 +8,12 @@ import java.util.Arrays;
 import net.imglib2.img.basictypeaccess.volatiles.array.VolatileByteArray;
 import bdv.img.cache.CacheArrayLoader;
 
+/**
+ * {@link CacheArrayLoader} for
+ * <a href= "http://emdata.janelia.org/api/help/grayscale8">DVID's grayscale8 type</a>.
+ *
+ * @author Stephan Saalfeld <saalfelds@janelia.hhmi.org>
+ */
 public class DvidGrayscale8VolatileArrayLoader implements CacheArrayLoader< VolatileByteArray >
 {
 	private VolatileByteArray theEmptyArray;
@@ -101,6 +107,9 @@ public class DvidGrayscale8VolatileArrayLoader implements CacheArrayLoader< Vola
 		return new VolatileByteArray( data, true );
 	}
 
+	/**
+	 * Reuses the existing empty array if it already has the desired size.
+	 */
 	@Override
 	public VolatileByteArray emptyArray( final int[] dimensions )
 	{
