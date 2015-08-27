@@ -39,16 +39,29 @@ public class Server
 		this( hostname, Integer.toString( port ) );
 	}
 	
+	/**
+	 * @return Url to this server, including port: <hostname>:<port>
+	 */
 	public String getUrl()
 	{
 		return url;
 	}
 	
+	/**
+	 * @return Url to api of this sever: <url>/api
+	 */
 	public String getApiUrl()
 	{
 		return apiUrl;
 	}
 	
+	/**
+	 * Get info about repositories on this sever.
+	 * @return {@link JsonObject} holding information about repositories.
+	 * @throws JsonSyntaxException
+	 * @throws JsonIOException
+	 * @throws IOException
+	 */
 	public JsonObject getReposInfo() throws JsonSyntaxException, JsonIOException, IOException
 	{
 		String infoUrl = this.apiUrl + "/repos/info";
@@ -56,6 +69,17 @@ public class Server
 		return json;
 	}
 	
+	/**
+	 * 
+	 * Get info about a repository by uuid identifier.
+	 * 
+	 * @param uuid Repository identifier.
+	 * @return {@link JsonObject} holding information about repository identified by uuid,
+	 * if uuid is found, null otherwise.
+	 * @throws JsonSyntaxException
+	 * @throws JsonIOException
+	 * @throws IOException
+	 */
 	public JsonObject getRepoInfoFromUuid( String uuid ) throws JsonSyntaxException, JsonIOException, IOException
 	{
 		JsonObject json = this.getReposInfo();
@@ -65,6 +89,18 @@ public class Server
 		return null;
 	}
 	
+	/**
+	 * 
+	 * Get info about a repository by alias. The alias need not be unique. The first
+	 * match is returned (or null if no match).
+	 * 
+	 * @param alias Repository alias.
+	 * @return {@link JsonObject} holding information about repository identified by alias,
+	 * if uuid is found, null otherwise.
+	 * @throws JsonSyntaxException
+	 * @throws JsonIOException
+	 * @throws IOException
+	 */
 	public JsonObject getRepoInfo( String alias ) throws JsonSyntaxException, JsonIOException, IOException
 	{
 		JsonObject json = this.getReposInfo();
@@ -78,11 +114,28 @@ public class Server
 		return null;
 	}
 	
+	/**
+	 * Create repository with alias.
+	 * 
+	 * @param alias Alias of repository.
+	 * @return {@link Repository} representing the new repository.
+	 * @throws MalformedURLException
+	 * @throws IOException
+	 */
 	public Repository createRepo( String alias ) throws MalformedURLException, IOException
 	{
 		return createRepo( alias, "" );
 	}
 	
+	/**
+	 * Create repository with alias and description.
+	 * 
+	 * @param alias Alias of repository.
+	 * @param description Description of the repository.
+	 * @return {@link Repository} representing the new repository.
+	 * @throws MalformedURLException
+	 * @throws IOException
+	 */
 	public Repository createRepo( String alias, String description ) throws MalformedURLException, IOException
 	{
 		JsonObject info = new JsonObject();
@@ -91,6 +144,14 @@ public class Server
 		return createRepo( info );
 	}
 	
+	/**
+	 * Create repository with alias and description.
+	 * 
+	 * @param info {@link JsonObject} holding alias and description.
+	 * @return {@link Repository} representing the new repository.
+	 * @throws MalformedURLException
+	 * @throws IOException
+	 */
 	public Repository createRepo( JsonObject info ) throws MalformedURLException, IOException
 	{
 		String postUrl = getApiUrl() + "/repos";
@@ -101,22 +162,52 @@ public class Server
 		return new Repository( this, uuid );
 	}
 	
+	
+	/**
+	 * Create {@link Repository} instance for existing repository. 
+	 * 
+	 * @param uuid Identifier of repository.
+	 * @return {@link Repository} representation of repository with uuid if uuid found,
+	 * null otherwise.
+	 * @throws JsonSyntaxException
+	 * @throws JsonIOException
+	 * @throws IOException
+	 */
 	public Repository getRepoFromUuid( String uuid ) throws JsonSyntaxException, JsonIOException, IOException
 	{
 		JsonObject info = getRepoInfoFromUuid( uuid );
 		if ( info == null )
-			throw new RuntimeException( "Repo " + uuid + " not found in server " + this.url );
+			return null;
 		return new Repository( this, uuid );
 	}
 	
+	/**
+	 * Create {@link Repository} instance for existing repository. 
+	 * 
+	 * @param alias Alias of repository. The alias need not be unique. The first
+	 * match is returned (or null if no match).
+	 * @return {@link Repository} representation of repository with uuid if uuid found,
+	 * null otherwise.
+	 * @throws JsonSyntaxException
+	 * @throws JsonIOException
+	 * @throws IOException
+	 */
 	public Repository getRepo( String alias ) throws JsonSyntaxException, JsonIOException, IOException
 	{
 		JsonObject repoInfo = getRepoInfo( alias );
 		if ( repoInfo == null )
-			throw new RuntimeException( "Repo " + alias + " not found in server " + this.url );
+			return null;
 		return new Repository( this, repoInfo.get( Repository.RepositoryInfo.ROOT_KEY ).getAsString() );
 	}
 	
+	/**
+	 * 
+	 * Remove repository from dvid server represented by this.
+	 * 
+	 * @param uuid Identifier of repository.
+	 * @return HTTP Status code of DELETE request.
+	 * @throws IOException
+	 */
 	public int deleteRepo( String uuid ) throws IOException
 	{
 		// /api/repo/{uuid}?imsure=true
@@ -126,11 +217,28 @@ public class Server
 		return HttpRequest.delete( url );
 	}
 	
+	/**
+	 * 
+	 * Remove repository from dvid server represented by this.
+	 * 
+	 * @param repo {@link Repository} representation of dvid repository.
+	 * @return HTTP Status code of DELETE request.
+	 * @throws IOException
+	 */
 	public int deleteRepo( Repository repo ) throws IOException
 	{
 		return deleteRepo( repo.getUuid() );
 	}
 	
+	/**
+	 * 
+	 * Remove repository from dvid server represented by this.
+	 * 
+	 * @param node {@link Node} representing that is part of dvid repository
+	 * to be deleted. 
+	 * @return HTTP Status code of DELETE request.
+	 * @throws IOException
+	 */
 	public int deleteRepo( Node node ) throws IOException
 	{
 		return deleteRepo( node.getUuid() );

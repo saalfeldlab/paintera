@@ -10,9 +10,6 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 
-import javax.xml.ws.http.HTTPException;
-
-import bdv.util.Pairs;
 import bdv.util.Pairs.Pair;
 import bdv.util.http.HttpRequest;
 
@@ -21,32 +18,62 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonPrimitive;
 
+/**
+ * @author Philipp Hanslovsky <hanslovskyp@janelia.hhmi.org>
+ * 
+ * Node class represents dvid node/checkout. (A checkout is
+ * a node in the version history graph).
+ *
+ */
 public class Node
 {
 	
 	private final String uuid;
 	private final Repository repository;
 	
+	/**
+	 * @return uuid of node/commit
+	 */
 	public String getUuid()
 	{
 		return uuid;
 	}
 	
+	/**
+	 * TODO Not implemented yet
+	 * @return Parent commit.
+	 */
 	public Node getParent()
 	{
 		return null; // null for now
 	}
 	
+	/**
+	 * @return {@link Repository} to which {@link Node} instance belongs.
+	 */
 	public Repository getRepository()
 	{
 		return repository;
 	}
 	
+	/**
+	 * @return Base url of this node/commit.
+	 */
 	public String getUrl()
 	{
 		return repository.getServer().getApiUrl() +"/node/" + this.uuid;
 	}
 	
+	/**
+	 * 
+	 * Commit and fix a note. No changes can be applied to this note after
+	 * a commit (need to {@link Node#branch}). 
+	 * 
+	 * @param note Commit note.
+	 * @param log Commit log (see dvid documentation).
+	 * @throws MalformedURLException
+	 * @throws IOException
+	 */
 	public void commit( String note, String[] log ) throws MalformedURLException, IOException
 	{
 		JsonArray arr = new JsonArray();
@@ -61,6 +88,16 @@ public class Node
 		HttpRequest.postRequestJSON( url, json );
 	}
 	
+	/**
+	 * 
+	 * Create new branch based on the {@link Node} instance. 
+	 * 
+	 * @param note Branch note.
+	 * @return {@link Node} associated with the new branch.
+	 * @throws MalformedURLException
+	 * @throws UnsupportedEncodingException
+	 * @throws IOException
+	 */
 	public Node branch( String note ) throws MalformedURLException, UnsupportedEncodingException, IOException
 	{
 		JsonObject json = new JsonObject();
@@ -79,6 +116,21 @@ public class Node
 		this.repository = repository;
 	}
 	
+	/**
+	 * 
+	 * Create data set based on name and type. Cast return value to appropriate type, e.g.:
+	 * {@link Node} node = // initialize
+	 * {@link DatasetBlkLabel} ds = (DatasetBlkLabel)node.createDataset( "name", DatasetBlkLabel.TYPE );  
+	 * 
+	 * @param name Name of the data set.
+	 * @param type Type of the data set. If type is known, an appropriate class will be chosen for data
+	 * set creation. Otherwise, use {@link DataSet}.
+	 * @param sync List of data set names that the new data set will be synched with.
+	 * @return {@link Dataset} instance referring to a dvid dataset with name name and type type at
+	 * commit represented by the {@link Node} instance.
+	 * @throws MalformedURLException
+	 * @throws IOException
+	 */
 	public Dataset createDataset( String name, String type, String... sync ) throws MalformedURLException, IOException
 	{
 		String postUrl = new StringBuilder( repository.getServer().getApiUrl() )
@@ -125,6 +177,15 @@ public class Node
 			return new Dataset( this, name, type );
 	}
 	
+	/**
+	 * 
+	 * Create a set of data sets that are all mutually synched.
+	 * 
+	 * @param namesAndTypes List holding names and types of data sets to be created.
+	 * @return List ({@link Dataset[]}) of the newly created data sets.
+	 * @throws MalformedURLException
+	 * @throws IOException
+	 */
 	public Dataset[] createMutuallySynchedDatasets( List< Pair< String, String > > namesAndTypes ) throws MalformedURLException, IOException
 	{
 		int length = namesAndTypes.size();
@@ -147,22 +208,45 @@ public class Node
 		return datasets;
 	}
 	
+	/**
+	 * 
+	 * Compare uuids of two nodes. Compare only the first n characters, where 
+	 * n is the minimum of the lengths of the uuids.
+	 * 
+	 * @param uuid1 first uuid
+	 * @param uuid2 second uuid
+	 * @return  the value {@code 0} if both uuids are equivalent; 
+	 * a value less than {@code 0} if uuid1 is lexicographically less than uuid2;
+	 * and a value greater than {@code 0} if uuid1 is lexicographically greater
+	 * than uuid2.
+	 */
 	public static int compareUuids( String uuid1, String uuid2 )
 	{
 		int length = Math.min( uuid1.length(), uuid2.length() );
 		return uuid1.substring( 0, length ).compareTo( uuid2.substring( 0, length ) );
 	}
 	
+	/**
+	 * 
+	 * Check if two uuids are equivalent.
+	 * 
+	 * @param uuid1 first uuid
+	 * @param uuid2 second uuid
+	 * @return true if equiovalent, false otherwise
+	 */
 	public static boolean uuidEquivalenceCheck( String uuid1, String uuid2 )
 	{
 		return compareUuids( uuid1, uuid2 ) == 0;
 	}
 	
-	public static < T, U > SimpleImmutableEntry< T, U > toPair( T t, U u )
-	{
-		return new SimpleImmutableEntry< T, U >( t, u );
-	}
-	
+	/**
+	 * 
+	 * Delete data set by name.
+	 * 
+	 * @param name Name of the data set to be deleted.
+	 * @return Http status code of the DELETE request.
+	 * @throws IOException
+	 */
 	public int deleteDataset( String name ) throws IOException
 	{
 		// /api/repo/{uuid}/{dataname}?imsure=true
@@ -174,6 +258,14 @@ public class Node
 		return HttpRequest.delete( url );
 	}
 	
+	/**
+	 * 
+	 * Delete data set by {@link Dataset}.
+	 * 
+	 * @param dataset Data set to be deleted.
+	 * @return Http status code of the DELETE request.
+	 * @throws IOException
+	 */
 	public int deleteDatset( Dataset dataset ) throws IOException
 	{
 		return deleteDataset( dataset.name );

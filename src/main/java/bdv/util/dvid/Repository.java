@@ -11,6 +11,13 @@ import com.google.gson.JsonIOException;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonSyntaxException;
 
+/**
+ * 
+ * Class representing dvid repository.
+ * 
+ * @author Philipp Hanslovsky <hanslovskyp@janelia.hhmi.org>
+ *
+ */
 public class Repository
 {
 	
@@ -42,31 +49,57 @@ public class Repository
 		this.uuid = uuid;
 	}
 
+	/**
+	 * @return {@link Server} on which this resides.
+	 */
 	public Server getServer()
 	{
 		return this.server;
 	}
 	
+	/**
+	 * @return Uuid of this.
+	 */
 	public String getUuid()
 	{
 		return uuid;
 	}
 	
+	/**
+	 * @return Base url of this.
+	 */
 	public String getUrl()
 	{
 		return server.getApiUrl() + "/repo/" + this.uuid;
 	}
 	
+	/**
+	 * @return Base url of root node of this.
+	 */
 	public String getNodeUrl()
 	{
 		return server.getApiUrl() +"/node/" + this.uuid;
 	}
 	
+	/**
+	 * @return Root node of this repository.
+	 */
 	public Node getRootNode()
 	{
 		return new Node( this.uuid, this );
 	}
 	
+	/**
+	 * 
+	 * Check out commit.
+	 * 
+	 * @param uuid Identifier for commit.
+	 * @return {@link Node} representing commit specified by uuid, if uuid is
+	 * present; null otherwise.
+	 * @throws JsonSyntaxException
+	 * @throws JsonIOException
+	 * @throws IOException
+	 */
 	public Node checkout( String uuid ) throws JsonSyntaxException, JsonIOException, IOException
 	{
 		JsonObject dag = getDAG().get( "Nodes" ).getAsJsonObject();
@@ -76,6 +109,16 @@ public class Repository
 		return null;
 	}
 	
+	/**
+	 * Retrieve information using GET request:
+	 * 
+	 * GET /api/repo/<uuid>/info
+	 * 
+	 * @return Information on this repository
+	 * @throws JsonSyntaxException
+	 * @throws JsonIOException
+	 * @throws IOException
+	 */
 	public JsonObject getInfo() throws JsonSyntaxException, JsonIOException, IOException
 	{
 		String url = DvidUrlOptions.getRequestString( this.server.getApiUrl() + "/repo/" + this.uuid + "/info" );
@@ -83,31 +126,80 @@ public class Repository
 		return infoObject;
 	}
 	
+	/**
+	 * Retrieve DAG of commits.
+	 * 
+	 * @return DAG of commits.
+	 * @throws JsonSyntaxException
+	 * @throws JsonIOException
+	 * @throws IOException
+	 */
 	public JsonObject getDAG() throws JsonSyntaxException, JsonIOException, IOException
 	{
 		return getInfo().get( "DAG" ).getAsJsonObject();
 	}
 	
+	/**
+	 * 
+	 * Create data set at root node (initial commit).
+	 * 
+	 * @param name Name of data set.
+	 * @param type Type of data set.
+	 * @param sync List of data set names to be synched with.
+	 * @return Newly created {@link Dataset}.
+	 * @throws MalformedURLException
+	 * @throws IOException
+	 */
 	public Dataset createDataset( String name, String type, String... sync ) throws MalformedURLException, IOException
 	{
 		return this.getRootNode().createDataset( name, type, sync );
 	}
 	
+	/**
+	 * Remove a data set from this repository.
+	 * 
+	 * @param name Name of data set to be deleted.
+	 * @return HTTP status code of DELETE request.
+	 * @throws IOException
+	 */
 	public int deleteDataset( String name ) throws IOException
 	{
 		return this.getRootNode().deleteDataset( name );
 	}
 	
+	/**
+	 * Remove a data set from this repository.
+	 * 
+	 * @param dataset Data set to be deleted.
+	 * @return HTTP status code of DELETE request.
+	 * @throws IOException
+	 */
 	public int deleteDatset( Dataset dataset ) throws IOException
 	{
 		return deleteDataset( dataset.getName() );
 	}
 	
+	/**
+	 * 
+	 * Remove this from server.
+	 * 
+	 * @return HTTP status code of DELETE request.
+	 * @throws IOException
+	 */
 	public int deleteSelf() throws IOException
 	{
 		return getServer().deleteRepo( this );
 	}
 	
+	/**
+	 * 
+	 * Helper function to create JsonObject holding alias and description.
+	 * 
+	 * @param alias
+	 * @param description
+	 * @return {@link JsonObject}
+	 * 
+	 */
 	public static JsonObject generateFromAliasAndDescription( String alias, String description )
 	{
 		JsonObject json = new JsonObject();
