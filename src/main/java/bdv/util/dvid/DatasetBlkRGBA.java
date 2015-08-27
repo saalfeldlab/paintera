@@ -9,6 +9,12 @@ import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.type.numeric.integer.UnsignedIntType;
 import net.imglib2.view.Views;
 
+/**
+ * @author Philipp Hanslovsky <hanslovskyp@janelia.hhmi.org>
+ * 
+ * Dataset class corresponding to dvid dataype rgba8blk.
+ *
+ */
 public class DatasetBlkRGBA extends DatasetBlk< UnsignedIntType >
 {
 	

@@ -11,6 +11,12 @@ import com.google.gson.JsonSyntaxException;
 
 import bdv.util.http.HttpRequest;
 
+/**
+ * @author Philipp Hanslovsky <hanslovskyp@janelia.hhmi.org>
+ * 
+ * Dataset class corresponding to dvid dataype keyvalue.
+ *
+ */
 public class DatasetKeyValue extends Dataset
 {
 	
@@ -21,26 +27,56 @@ public class DatasetKeyValue extends Dataset
 		super( node, name, TYPE );
 	}
 	
+	/**
+	 * @param key
+	 * @return Request string to get value for given key.
+	 */
 	public static String getKeyRequestString( String key )
 	{
 		return "key/" + key;
 	}
 	
+	/**
+	 * @param key
+	 * @return Request URL to get value for given key.
+	 */
 	public String getKeyRequestUrl( String key )
 	{
 		return getRequestString( getKeyRequestString( key ) );
 	}
 	
+	/**
+	 * @param key
+	 * @return Value as byte[] for given key.
+	 */
 	public byte[] getKey( String key ) throws MalformedURLException, IOException
 	{
 		return get( getKeyRequestString( key ) );
 	}
 	
+	/**
+	 * @param key
+	 * @param data
+	 * @throws MalformedURLException
+	 * @throws IOException
+	 * 
+	 * Store data at given key.
+	 * 
+	 */
 	public void postKey( String key, byte[] data ) throws MalformedURLException, IOException
 	{
 		post( getKeyRequestString( key ), data );
 	}
 	
+	/**
+	 * @param key
+	 * @param data
+	 * @throws MalformedURLException
+	 * @throws IOException
+	 * 
+	 * Store data at given key.
+	 * 
+	 */
 	public void postKey( String key, long[] data ) throws MalformedURLException, IOException
 	{
 		post( getKeyRequestString( key ), data );

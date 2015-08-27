@@ -9,6 +9,12 @@ import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.type.numeric.integer.UnsignedLongType;
 import net.imglib2.view.Views;
 
+/**
+ * @author Philipp Hanslovsky <hanslovskyp@janelia.hhmi.org>
+ *
+ * Dataset class corresponding to dvid dataype labelblk.
+ *
+ */
 public class DatasetBlkLabel extends DatasetBlk< UnsignedLongType >
 {
 	public static String TYPE = "labelblk";

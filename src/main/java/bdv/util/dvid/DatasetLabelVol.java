@@ -12,6 +12,15 @@ import net.imglib2.RandomAccess;
 import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.type.numeric.integer.UnsignedLongType;
 
+/**
+ * @author Philipp Hanslovsky <hanslovskyp@janelia.hhmi.org>
+ * 
+ * Dataset class corresponding to dvid dataype labelvol.
+ * 
+ * This is typically used in sync with {@link DatasetBlkLabel}, so 
+ * for now put/post functionality has not been implemented.
+ *
+ */
 public class DatasetLabelVol extends Dataset
 {
 	
@@ -21,17 +30,21 @@ public class DatasetLabelVol extends Dataset
 	{
 		super( node, name, TYPE );
 	}
-	
-//	public String getUrl()
-//	{
-//		return getNode().getUrl() + "/" + name;
-//	}
-	
+
+	/**
+	 * @param label
+	 * @return Request URL to get all pixels for label.
+	 */
 	public static String getSparsevolRequestString( UnsignedLongType label )
 	{
 		return "sparsevol/" + label.getIntegerLong();
 	}
 	
+	/**
+	 * @param label
+	 * @param options
+	 * @return All pixels for given label as run length encoded byte[].
+	 */
 	public byte[] getSparseVol( UnsignedLongType label, Map< String, String > options ) throws MalformedURLException, IOException
 	{
 		String url = getRequestString( getSparsevolRequestString( label ), null, options );
@@ -39,6 +52,15 @@ public class DatasetLabelVol extends Dataset
 		return data;
 	}
 	
+	/**
+	 * @param target Write labels into this {@link RandomAccessibleInterval}.
+	 * @param rleData Run length encoded byte[] as returned by {@link DatasetLabelVol#getSparseVol}
+	 * @param label Label to be drawn at positions specified by rleData.
+	 * @param offset Specifies the top left corner of target with respect to the dvid dataset.
+	 * 
+	 * Write run length encoded pixel labels into a {@link RandomAccessibleInterval}.
+	 * 
+	 */
 	public static void drawInto( 
 			RandomAccessibleInterval< UnsignedLongType > target,
 			byte[] rleData,
