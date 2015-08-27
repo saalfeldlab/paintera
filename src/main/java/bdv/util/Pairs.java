@@ -1,5 +1,11 @@
 package bdv.util;
 
+/**
+ * @author Philipp Hanslovsky <hanslovskyp@janelia.hhmi.org>
+ * 
+ * Simple Pair<A, B> utility class
+ *
+ */
 public class Pairs
 {
 	public interface PairInterface<A, B>
@@ -34,6 +40,12 @@ public class Pairs
 		
 	}
 	
+	/**
+	 * @author Philipp Hanslovsky <hanslovskyp@janelia.hhmi.org>
+	 * 
+	 * Invert the order of elements within a Pair
+	 *
+	 */
 	public static class InvertedGetView<T, U> implements PairInterface<T, U>
 	{
 		
