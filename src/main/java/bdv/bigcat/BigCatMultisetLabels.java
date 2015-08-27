@@ -9,12 +9,11 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 
-import mpicbg.spim.data.generic.sequence.BasicViewSetup;
-import mpicbg.spim.data.registration.ViewRegistration;
-import mpicbg.spim.data.registration.ViewRegistrations;
-import mpicbg.spim.data.sequence.TimePoint;
-import mpicbg.spim.data.sequence.TimePoints;
-import net.imglib2.realtransform.AffineTransform3D;
+import javax.xml.ws.http.HTTPException;
+
+import com.google.gson.JsonIOException;
+import com.google.gson.JsonSyntaxException;
+
 import bdv.BigDataViewer;
 import bdv.bigcat.composite.AccumulateProjectorCompositeARGB;
 import bdv.export.ProgressWriterConsole;
@@ -25,30 +24,66 @@ import bdv.labels.labelset.DvidLabels64MultisetSetupImageLoader;
 import bdv.spimdata.SequenceDescriptionMinimal;
 import bdv.spimdata.SpimDataMinimal;
 import bdv.tools.brightness.ConverterSetup;
+import bdv.util.dvid.DatasetKeyValue;
+import bdv.util.dvid.Repository;
 import bdv.viewer.DisplayMode;
 import bdv.viewer.SourceAndConverter;
 import bdv.viewer.ViewerOptions;
-
-import com.google.gson.JsonIOException;
-import com.google.gson.JsonSyntaxException;
+import mpicbg.spim.data.generic.sequence.BasicViewSetup;
+import mpicbg.spim.data.registration.ViewRegistration;
+import mpicbg.spim.data.registration.ViewRegistrations;
+import mpicbg.spim.data.sequence.TimePoint;
+import mpicbg.spim.data.sequence.TimePoints;
+import net.imglib2.realtransform.AffineTransform3D;
 
 public class BigCatMultisetLabels
 {
 	public static void main( final String[] args ) throws JsonSyntaxException, JsonIOException, IOException
 	{
+		
+		
+		String url = "http://vm570.int.janelia.org:8080";
+		String apiUrl = url + "/api";
+		String uuid = "c223287b023544aa9968be56a81fab34";
+		String raw = "multisets-raw5";
+		String labels = "multisets-labels5";
+		
+		String url2 = "http://emrecon100.janelia.priv";
+		String apiUrl2 = url2 + "/api";
+		String uuid2 = "2a3fd320aef011e4b0ce18037320227c";
+		String raw2 = "grayscale";
+		String labels2 = "bodies";
+		
+		Repository repo = new Repository( url, uuid );
+		
+		DatasetKeyValue[] stores = new DatasetKeyValue[3];
+		for ( int i = 0, l = 2; i < stores.length; ++i, l *= 2 )
+		{
+			String name = labels + "-" + l;
+				try
+				{
+					stores[ i ] = ( DatasetKeyValue ) repo.createDataset( name, DatasetKeyValue.TYPE );
+				}
+				catch ( HTTPException e )
+				{
+					stores[ i ] = new DatasetKeyValue( repo.getRootNode(), name );
+				}
+		}
+		
 		try
 		{
 			System.setProperty( "apple.laf.useScreenMenuBar", "true" );
 
 			final DvidGrayscale8ImageLoader dvidGrayscale8ImageLoader = new DvidGrayscale8ImageLoader(
-					"http://emrecon100.janelia.priv/api",
-					"2a3fd320aef011e4b0ce18037320227c",
-					"grayscale" );
-			final DvidLabels64MultisetSetupImageLoader dvidLabelsMultisetImageLoader = new DvidLabels64MultisetSetupImageLoader(
+					apiUrl2,
+					uuid2,
+					raw2 );
+			DvidLabels64MultisetSetupImageLoader dvidLabelsMultisetImageLoader = new DvidLabels64MultisetSetupImageLoader( 
 					1,
-					"http://emrecon100.janelia.priv/api",
-					"2a3fd320aef011e4b0ce18037320227c",
-					"bodies" );
+					apiUrl2,
+					uuid2,
+					labels2,
+					stores );
 			final ARGBConvertedLabelsSetupImageLoader dvidLabelsARGBImageLoader = new ARGBConvertedLabelsSetupImageLoader(
 					2,
 					dvidLabelsMultisetImageLoader );
@@ -93,10 +128,20 @@ public class BigCatMultisetLabels
 //		    		3.2188629744417074, -7.667782078539283E-17, 8.284655146757744E-17, -11182.72490198403,
 //		    		-8.519757865043506E-18, 3.2188629744417074, 7.667782078539283E-17, -12970.526605903613,
 //		    		8.284655146757744E-17, -8.519757865043506E-18, 3.2188629744417074, -12915.433001086165 );
+//			transform.set(
+//					30.367584357121462, -7.233983582120427E-16, 7.815957561302E-16, -103163.46077512865,
+//					-8.037759535689243E-17, 30.367584357121462, 7.233983582120427E-16, -68518.45769918368,
+//					7.815957561302E-16, -8.037759535689243E-17, 30.36758435712147, -120957.47720498207 );
+//			transform.set(
+//					3.0, 0.0, 0.0, 0.0,
+//					0.0, 3.0, 0.0, 0.0,
+//					0.0, 0.0, 3.0, 0.0,
+//					0.0, 0.0, 0.0, 0.0
+//					);
 			transform.set(
-					30.367584357121462, -7.233983582120427E-16, 7.815957561302E-16, -103163.46077512865,
-					-8.037759535689243E-17, 30.367584357121462, 7.233983582120427E-16, -68518.45769918368,
-					7.815957561302E-16, -8.037759535689243E-17, 30.36758435712147, -120957.47720498207 );
+					4.3135842398185575, -1.0275561336713027E-16, 1.1102230246251565E-16, -14207.918453952327,
+					-1.141729037412541E-17, 4.313584239818558, 1.0275561336713028E-16, -9482.518144778587,
+					1.1102230246251565E-16, -1.141729037412541E-17, 4.313584239818559, -17181.48737890195 );
 			bdv.getViewer().setCurrentViewerTransform( transform );
 			bdv.getViewer().setDisplayMode( DisplayMode.FUSED );
 

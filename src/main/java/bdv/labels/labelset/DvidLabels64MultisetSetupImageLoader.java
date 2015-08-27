@@ -16,6 +16,7 @@ import bdv.img.cache.VolatileImgCells;
 import bdv.img.dvid.Labels64DataInstance;
 import bdv.util.JsonHelper;
 import bdv.util.MipmapTransforms;
+import bdv.util.dvid.DatasetKeyValue;
 
 import com.google.gson.JsonIOException;
 import com.google.gson.JsonSyntaxException;
@@ -35,7 +36,7 @@ public class DvidLabels64MultisetSetupImageLoader
 
 	private final VolatileSuperVoxelMultisetArrayLoader loader;
 
-	private final DownscalingVolatileSuperVoxelMultisetArrayLoader downscaleLoader;
+	private final DownscalingVolatileSuperVoxelMultisetArrayLoaderDvid downscaleLoader;
 
 	private final int setupId;
 
@@ -55,7 +56,8 @@ public class DvidLabels64MultisetSetupImageLoader
 			final int setupId,
 			final String apiUrl,
 			final String nodeId,
-			final String dataInstanceId ) throws JsonSyntaxException, JsonIOException, IOException
+			final String dataInstanceId,
+			DatasetKeyValue[] dvidStores ) throws JsonSyntaxException, JsonIOException, IOException
 	{
 		super( SuperVoxelMultisetType.type, VolatileSuperVoxelMultisetType.type );
 		this.setupId = setupId;
@@ -84,7 +86,7 @@ public class DvidLabels64MultisetSetupImageLoader
 		blockDimensions = dataInstance.Extended.BlockSize;
 
 		loader = new VolatileSuperVoxelMultisetArrayLoader( apiUrl, nodeId, dataInstanceId, blockDimensions );
-		downscaleLoader = new DownscalingVolatileSuperVoxelMultisetArrayLoader( new MultisetSource( this ) );
+		downscaleLoader = new DownscalingVolatileSuperVoxelMultisetArrayLoaderDvid( new MultisetSource( this ), dvidStores );
 	}
 
 	@Override
@@ -124,9 +126,12 @@ public class DvidLabels64MultisetSetupImageLoader
 			final LoadingStrategy loadingStrategy )
 	{
 		final int priority = numMipmapLevels - level - 1;
+		// manage cell requests as described by cacheHints
 		final CacheHints cacheHints = new CacheHints( loadingStrategy, priority, false );
+		// what exactly does c do?
 		final VolatileCellCache< VolatileSuperVoxelMultisetArray > c = cache.new VolatileCellCache< VolatileSuperVoxelMultisetArray >(
 				timepointId, setupId, level, cacheHints, level == 0 ? loader : downscaleLoader );
+		// cells: TODO?
 		final VolatileImgCells< VolatileSuperVoxelMultisetArray > cells = new VolatileImgCells< VolatileSuperVoxelMultisetArray >( c, new Fraction(), dimensions, blockDimensions );
 		final CachedCellImg< T, VolatileSuperVoxelMultisetArray > img = new CachedCellImg< T, VolatileSuperVoxelMultisetArray >( cells );
 		return img;
