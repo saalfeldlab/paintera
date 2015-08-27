@@ -3,7 +3,6 @@ package bdv.labels.labelset;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.Iterator;
-import java.util.Set;
 
 import bdv.img.cache.CacheArrayLoader;
 import bdv.labels.labelset.DvidLabels64MultisetSetupImageLoader.MultisetSource;
@@ -21,6 +20,8 @@ public class DownscalingVolatileSuperVoxelMultisetArrayLoaderDvid implements Cac
 
 	private final MultisetSource multisetSource;
 	
+	// store the data sets for reading/writing cached SuperVoxelMultisetArray
+	// from dvid store for levels > 0
 	private final DatasetKeyValue[] dvidStores;
 
 	public DownscalingVolatileSuperVoxelMultisetArrayLoaderDvid( final MultisetSource multisetSource, DatasetKeyValue[] dvidStores )
@@ -42,6 +43,7 @@ public class DownscalingVolatileSuperVoxelMultisetArrayLoaderDvid implements Cac
 //				+ ")"
 //				);
 //		final String filename = getFilename( timepoint, setup, level, min );
+		// level 0 does not have an associated data set, thus need to subtract 1
 		DatasetKeyValue store = dvidStores[ level - 1 ]; // -1? TODO
 		String key = getKey( timepoint, setup, min ); 
 		final VolatileSuperVoxelMultisetArray cached = tryLoadCached( dimensions, store, key );
@@ -72,10 +74,13 @@ public class DownscalingVolatileSuperVoxelMultisetArrayLoaderDvid implements Cac
 		byte[] bytes;
 		try
 		{
+			// download from data store
+			// if key not present, return null
 			bytes = store.getKey( key );
 		}
 		catch ( final Exception e )
 		{
+			// TODO print stack trace?
 //			e.printStackTrace();
 			return null;
 		}
@@ -253,10 +258,13 @@ public class DownscalingVolatileSuperVoxelMultisetArrayLoaderDvid implements Cac
 			bytes[ ++j ] = ByteUtils.getByte( listData.data, i );
 		try
 		{
+			// write VolatileSuperVoxelMultisetArray to dvid store so it
+			// can be loaded in future requests
 			store.postKey( key, bytes );
 		}
 		catch ( final IOException e )
 		{
+			// if writing goes wrong, continue but print the trace
 			e.printStackTrace();
 		}
 

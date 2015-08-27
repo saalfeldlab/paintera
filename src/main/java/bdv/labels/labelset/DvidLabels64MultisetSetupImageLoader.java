@@ -48,6 +48,8 @@ public class DvidLabels64MultisetSetupImageLoader
 	 * @param apiUrl e.g. "http://hackathon.janelia.org/api"
 	 * @param nodeId e.g. "2a3fd320aef011e4b0ce18037320227c"
 	 * @param dataInstanceId e.g. "bodies"
+	 * @param dvidStores Array of {@link DatasetKeyValue} to manage
+	 * load/write of {@link VolatileSuperVoxelMultisetArray} from dvid store.
 	 * @throws IOException
 	 * @throws JsonIOException
 	 * @throws JsonSyntaxException
