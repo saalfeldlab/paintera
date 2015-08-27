@@ -63,7 +63,7 @@ public class MergeModeController implements MouseListener, KeyListener
 		labelAccess.setPosition( e.getY(), 1 );
 		labelAccess.setPosition( 0, 2 );
 
-		viewer.displayToGlobalCoordinates( labelAccess );
+//		viewer.displayToGlobalCoordinates( labelAccess ); TODO commented this because of issue #6
 
 		final VolatileSuperVoxelMultisetType labelValues = labelAccess.get();
 
