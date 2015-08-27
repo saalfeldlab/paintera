@@ -132,9 +132,12 @@ public class BlockedInterval< T > implements RandomAccessibleInterval< RandomAcc
 				long s = stepSize[ d ];
 				long val = ( lower[ d ] - m ) * s + m;
 				lower[ d ] = val;
-				upper[ d ] = val + s - 1;
+				upper[ d ] = val + s - 1; // -1 if not offsetInterval
+				// if offsetInterval, use stepSize instead of upper
 			}
-			return Views.interval( extendedSource, lower, upper );
+			// use offsetInterval?
+			return Views.offsetInterval( extendedSource, lower, stepSize );
+//			return Views.interval( extendedSource, lower, upper );
 		}
 
 		@Override
