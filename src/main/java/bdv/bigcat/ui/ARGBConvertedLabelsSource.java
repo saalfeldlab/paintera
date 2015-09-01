@@ -1,4 +1,4 @@
-package bdv.labels.display;
+package bdv.bigcat.ui;
 
 import mpicbg.spim.data.sequence.VoxelDimensions;
 import net.imglib2.RandomAccessible;
