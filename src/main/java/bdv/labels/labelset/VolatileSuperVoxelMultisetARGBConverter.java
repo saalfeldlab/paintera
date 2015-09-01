@@ -19,7 +19,7 @@ package bdv.labels.labelset;
 import net.imglib2.converter.Converter;
 import net.imglib2.type.numeric.ARGBType;
 import net.imglib2.type.volatiles.VolatileARGBType;
-import bdv.labels.display.ARGBSource;
+import bdv.bigcat.ui.ARGBSource;
 import bdv.labels.labelset.Multiset.Entry;
 
 /**

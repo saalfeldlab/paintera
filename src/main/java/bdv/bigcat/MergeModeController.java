@@ -23,11 +23,14 @@ import java.awt.event.MouseListener;
 
 import net.imglib2.RealRandomAccess;
 import net.imglib2.RealRandomAccessible;
-import bdv.labels.display.AbstractSaturatedARGBStream;
+import bdv.bigcat.ui.AbstractSaturatedARGBStream;
 import bdv.labels.labelset.Multiset.Entry;
 import bdv.labels.labelset.SuperVoxel;
 import bdv.labels.labelset.VolatileSuperVoxelMultisetType;
 import bdv.viewer.ViewerPanel;
+
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
 
 /**
  *
@@ -42,6 +45,14 @@ public class MergeModeController implements MouseListener, KeyListener
 	final protected AbstractSaturatedARGBStream colorStream;
 	final protected SegmentBodyAssignment assignment;
 	protected long activeSegmentId = 0;
+
+	final GsonBuilder gsonBuilder = new GsonBuilder();
+	{
+		gsonBuilder.registerTypeAdapter( SegmentBodyAssignment.class, new SegmentBodyAssignment.SegmentBodySerializer() );
+		//gsonBuilder.setPrettyPrinting();
+	}
+	final Gson gson = gsonBuilder.create();
+
 
 	public MergeModeController(
 			final ViewerPanel viewer,
@@ -116,54 +127,22 @@ public class MergeModeController implements MouseListener, KeyListener
 	}
 
 	@Override
-	public void mouseEntered( final MouseEvent e )
-	{
-		System.out.println( "Mouse entered at " + e.getX() + ", " + e.getY() );
-	}
-
-	/* (non-Javadoc)
-	 * @see java.awt.event.MouseListener#mouseExited(java.awt.event.MouseEvent)
-	 */
-	@Override
-	public void mouseExited( final MouseEvent arg0 )
-	{
-		// TODO Auto-generated method stub
-
-	}
-
-	/* (non-Javadoc)
-	 * @see java.awt.event.MouseListener#mousePressed(java.awt.event.MouseEvent)
-	 */
-	@Override
-	public void mousePressed( final MouseEvent arg0 )
-	{
-		// TODO Auto-generated method stub
-
-	}
-
-	/* (non-Javadoc)
-	 * @see java.awt.event.MouseListener#mouseReleased(java.awt.event.MouseEvent)
-	 */
-	@Override
-	public void mouseReleased( final MouseEvent arg0 )
-	{
-		// TODO Auto-generated method stub
-
-	}
+	public void mouseEntered( final MouseEvent e ) {}
 
 	@Override
-	public void keyReleased( final KeyEvent e )
-	{
-		// TODO Auto-generated method stub
-
-	}
+	public void mouseExited( final MouseEvent arg0 ) {}
 
 	@Override
-	public void keyPressed( final KeyEvent e )
-	{
-		// TODO Auto-generated method stub
+	public void mousePressed( final MouseEvent arg0 ) {}
 
-	}
+	@Override
+	public void mouseReleased( final MouseEvent arg0 ) {}
+
+	@Override
+	public void keyReleased( final KeyEvent e )	{}
+
+	@Override
+	public void keyPressed( final KeyEvent e ) {}
 
 	@Override
 	public void keyTyped( final KeyEvent e )
@@ -179,6 +158,10 @@ public class MergeModeController implements MouseListener, KeyListener
 			colorStream.decSeed();
 			colorStream.clearCache();
 			viewer.requestRepaint();
+		}
+		else if ( e.getKeyChar() == 'e' )
+		{
+			System.out.println( gson.toJson( assignment ) );
 		}
 	}
 }
