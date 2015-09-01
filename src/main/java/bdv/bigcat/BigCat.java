@@ -54,26 +54,33 @@ public class BigCat
 	{
 		final String url = "http://vm570.int.janelia.org:8080";
 		final String labelsBase = "multisets-labels5";
-		String uuid = "c223287b023544aa9968be56a81fab34";
-		
-		Server server = new Server( url );
-		Repository repo = new Repository( server, uuid );
-		
-		DatasetKeyValue[] stores = new DatasetKeyValue[ 1 ];
-		stores[ 0 ] = new DatasetKeyValue( repo.getRootNode(), labelsBase + "-2" );
-		
-		try {
-			repo.getRootNode().createDataset( stores[0].getName(), DatasetKeyValue.TYPE );
-		}
-		catch ( HTTPException e )
+		final String uuid = "c223287b023544aa9968be56a81fab34";
+
+		final Server server = new Server( url );
+		final Repository repo = new Repository( server, uuid );
+
+		final DatasetKeyValue[] stores = new DatasetKeyValue[ 3 ];
+
+		for ( int i = 0; i < stores.length; ++i )
 		{
-			
+			stores[ i ] = new DatasetKeyValue( repo.getRootNode(), labelsBase + "-" + ( 1 << ( i + 1 ) ) );
+
+			try
+			{
+				repo.getRootNode().createDataset( stores[ i ].getName(), DatasetKeyValue.TYPE );
+			}
+			catch ( final HTTPException e )
+			{
+				e.printStackTrace( System.err );
+			}
 		}
-		
-		double[][] resolutions = new double[][]{
-			{ 1, 1, 1 },
-			{ 2, 2, 2 } };
-		
+
+		final double[][] resolutions = new double[][]{
+				{ 1, 1, 1 },
+				{ 2, 2, 2 },
+				{ 4, 4, 4 },
+				{ 8, 8, 8 } };
+
 		try
 		{
 			System.setProperty( "apple.laf.useScreenMenuBar", "true" );
