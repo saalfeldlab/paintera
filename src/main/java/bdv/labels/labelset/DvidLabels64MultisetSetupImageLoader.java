@@ -37,7 +37,7 @@ public class DvidLabels64MultisetSetupImageLoader
 
 	private final VolatileSuperVoxelMultisetArrayLoader loader;
 
-	private final DownscalingVolatileSuperVoxelMultisetArrayLoaderDvid downscaleLoader;
+	public final DownscalingVolatileSuperVoxelMultisetArrayLoaderDvid downscaleLoader;
 
 	private final int setupId;
 
