@@ -4,7 +4,6 @@ import java.io.IOException;
 import java.net.MalformedURLException;
 import java.util.Arrays;
 
-import javax.naming.spi.DirectoryManager;
 import javax.xml.ws.http.HTTPException;
 
 import bdv.img.cache.VolatileGlobalCellCache;
@@ -87,8 +86,8 @@ public class Downscale
 				
 				long[] currDim = new long[] {
 						( long ) ( dimensions[ 0 ] / currRes[ 0 ] ),
-						( long ) ( dimensions[ 0 ] / currRes[ 0 ] ),
-						( long ) ( dimensions[ 0 ] / currRes[ 0 ] )
+						( long ) ( dimensions[ 1 ] / currRes[ 1 ] ),
+						( long ) ( dimensions[ 2 ] / currRes[ 2 ] )
 				};
 				
 				long[] currPos = new long[ 3 ];
