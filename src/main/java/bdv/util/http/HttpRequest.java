@@ -224,6 +224,16 @@ public class HttpRequest
 		return bytes;
 	}
 	
+	public static void getRequest( String url, ResponseHandler handler ) throws MalformedURLException, IOException
+	{
+		HttpURLConnection connection = ( HttpURLConnection ) new URL( url ).openConnection();
+		int response = connection.getResponseCode();
+		if ( response != 200 )
+			throw new HTTPException( response );
+		getRequest( connection, handler );
+		connection.disconnect();
+	}
+
 	/**
 	 * Handle GET request as specified by handler.
 	 * 
