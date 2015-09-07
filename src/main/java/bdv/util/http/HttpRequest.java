@@ -255,6 +255,21 @@ public class HttpRequest
 	 * 
 	 * @param url Url for request. 
 	 * @param postData Data to be posted
+	 * @throws MalformedURLException
+	 * @throws IOException
+	 */
+	public static void postRequest( String url, byte[] postData ) throws MalformedURLException, IOException
+	{
+		postRequest( url, postData, "application/octet-stream" );
+	}
+	
+	/**
+	 * 
+	 * HTTP POST request:
+	 * POST url
+	 * 
+	 * @param url Url for request. 
+	 * @param postData Data to be posted
 	 * @param contentType Value of the header field "Content-Type"
 	 * @throws MalformedURLException
 	 * @throws IOException
@@ -280,6 +295,25 @@ public class HttpRequest
 	{
 		HttpURLConnection connection = postRequestWithResponse( url, postData, contentType );
 		connection.disconnect();
+	}
+	
+	/**
+	 * 
+	 * HTTP POST request:
+	 * POST url
+	 * 
+	 * The connection is returned to allow the caller to handle a potential response.
+	 * The caller is responsible for closing the connection.
+	 * 
+	 * @param url Url for request. 
+	 * @param postData Data to be posted
+	 * @return HTTP Connection for response handling
+	 * @throws MalformedURLException
+	 * @throws IOException
+	 */
+	public static HttpURLConnection postRequestWithResponse( String url, byte[] postData ) throws MalformedURLException, IOException
+	{
+		return postRequestWithResponse( url, postData, "application/octet-stream" );
 	}
 	
 	/**

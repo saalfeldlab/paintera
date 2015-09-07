@@ -3,6 +3,7 @@ package bdv.img.dvid;
 import java.io.IOException;
 
 import com.google.gson.JsonIOException;
+import com.google.gson.JsonObject;
 import com.google.gson.JsonSyntaxException;
 
 import bdv.util.BlockedInterval;
@@ -90,8 +91,6 @@ public class DvidNBytesWriter
 	 *            Image to be stored in dvid server.
 	 * @param iterationAxis
 	 *            Along which axis to iterate.
-	 * @param steps
-	 *            Step sizes along each axis.
 	 * @param offset
 	 *            Offset target position by offset.
 	 * 
@@ -101,11 +100,10 @@ public class DvidNBytesWriter
 	 */
 	public < T extends RealType< T > > void writeImage(
 			RandomAccessibleInterval< T > image,
-			final int[] steps,
 			final int[] offset,
 			final HttpRequest.Writer< T > writer )
 	{
-		this.writeImage( image, 2, steps, offset, writer );
+		this.writeImage( image, 2, offset, writer );
 	}
 
 	/**
@@ -113,8 +111,6 @@ public class DvidNBytesWriter
 	 *            Image to be stored in dvid server.
 	 * @param iterationAxis
 	 *            Along which axis to iterate.
-	 * @param steps
-	 *            Step sizes along each axis.
 	 * @param offset
 	 *            Offset target position by offset.
 	 * 
@@ -125,13 +121,12 @@ public class DvidNBytesWriter
 	public < T extends RealType< T > > void writeImage(
 			RandomAccessibleInterval< T > image,
 			final int iterationAxis,
-			final int[] steps,
 			final int[] offset,
 			final HttpRequest.Writer< T > writer )
 	{
 		T zeroExtension = image.randomAccess().get().createVariable();
 		zeroExtension.setZero();
-		this.writeImage( image, iterationAxis, steps, offset, writer, zeroExtension );
+		this.writeImage( image, iterationAxis, offset, writer, zeroExtension );
 	}
 
 	/**
@@ -139,8 +134,6 @@ public class DvidNBytesWriter
 	 *            Image to be stored in dvid server.
 	 * @param iterationAxis
 	 *            Along which axis to iterate.
-	 * @param steps
-	 *            Step sizes along each axis.
 	 * @param offset
 	 *            Offset target position by offset.
 	 * @param borderExtension
@@ -153,7 +146,6 @@ public class DvidNBytesWriter
 	public < T extends RealType< T > > void writeImage(
 			RandomAccessibleInterval< T > image,
 			final int iterationAxis,
-			final int[] steps,
 			final int[] offset,
 			final HttpRequest.Writer< T > writer,
 			T borderExtension )
@@ -162,7 +154,6 @@ public class DvidNBytesWriter
 		long[] realDim = new long[ image.numDimensions() ];
 		image.dimensions( realDim );
 		adaptToBlockSize( realDim, this.blockSize );
-		int[] realSteps = adaptToBlockSize( steps.clone(), this.blockSize );
 		int[] realOffset = adaptToBlockSize( offset.clone(), this.blockSize );
 
 		// For now, assume always that data is in [0,1,2] == "xyz" format.
@@ -174,14 +165,14 @@ public class DvidNBytesWriter
 		// stepSize as long[], needed for BlockedInterval
 		long[] stepSize = new long[ image.numDimensions() ];
 		for ( int i = 0; i < stepSize.length; i++ )
-			stepSize[ i ] = realSteps[ i ];
+			stepSize[ i ] = blockSize[ i ];
 
 		// Create BlockedInterval that allows for flat iteration and intuitive
 		// hyperslicing.
 		// Go along iterationAxis and hyperslice, then iterate over each
 		// hyperslice.
 		BlockedInterval< T > blockedImage = BlockedInterval.createZeroExtended( image, stepSize );
-		for ( int a = 0, aUnitIncrement = 0; a < image.dimension( iterationAxis ); ++aUnitIncrement, a += realSteps[ iterationAxis ] )
+		for ( int a = 0, aUnitIncrement = 0; a < image.dimension( iterationAxis ); ++aUnitIncrement, a += stepSize[ iterationAxis ] )
 		{
 			IntervalView< RandomAccessibleInterval< T >> hs = 
 					Views.hyperSlice( blockedImage, iterationAxis, aUnitIncrement );
@@ -204,7 +195,7 @@ public class DvidNBytesWriter
 				}
 				catch ( IOException e )
 				{
-					System.err.println( "Failed to write block: " + dataset.getRequestString( DatasetBlkUint8.getIntervalRequestString( image, realSteps ) ) );
+					System.err.println( "Failed to write block: " + dataset.getRequestString( DatasetBlkUint8.getIntervalRequestString( image, blockSize ) ) );
 					e.printStackTrace();
 				}
 			}
@@ -250,7 +241,7 @@ public class DvidNBytesWriter
 			assert ( input.dimension( d ) * d == 0 ? sizeInBytes : 1 ) % this.blockSize[ d ] == 0;
 		}
 
-		dataset.putNByteDataType( input, realOffset, sizeInBytes, writer );
+//		dataset.putNByteDataType( input, realOffset, sizeInBytes, writer );
 
 	}
 
