@@ -2,7 +2,12 @@ package bdv.bigcat;
 
 import java.io.IOException;
 import java.net.MalformedURLException;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.List;
+import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 import javax.xml.ws.http.HTTPException;
 
@@ -67,19 +72,6 @@ public class Downscale
 		
 		try
 		{
-			final DvidLabels64MultisetSetupImageLoader dvidLabelsMultisetImageLoader = 
-					new DvidLabels64MultisetSetupImageLoader(
-					1,
-					baseApiUrl,
-					baseUuid,
-					baseName,
-					resolutions,
-					stores );
-			
-			VolatileGlobalCellCache cache = new VolatileGlobalCellCache( 1, 1, nLevels, 10 );
-			
-			dvidLabelsMultisetImageLoader.setCache( cache );
-			
 			for ( int level = 1; level < nLevels; ++ level )
 			{
 				double[] currRes = resolutions[ level ];
@@ -94,6 +86,8 @@ public class Downscale
 				
 				System.out.println( Arrays.toString(  currDim  ) + " " + Arrays.toString(  dimensions  ) );
 				
+				final ArrayList< long[] > positions = new ArrayList< long[] >();
+
 				for ( int x = 0; x < currDim[ 0 ]; x += blockSizes[ 0 ] )
 				{
 					currPos[ 0 ] = x;
@@ -103,17 +97,51 @@ public class Downscale
 						for ( int z = 0; z < currDim[ 2 ]; z += blockSizes[ 2 ] )
 						{
 							currPos[ 2 ] = z;
-							dvidLabelsMultisetImageLoader.downscaleLoader.loadArray( 
-									0, 
-									1, 
-									level, 
-									blockSizes, 
-									currPos
-									);
+							positions.add( currPos.clone() );
 						}
 					}
 				}
-				
+				ExecutorService tp = Executors.newFixedThreadPool( Runtime.getRuntime().availableProcessors() );
+				int elementsPerBatch = positions.size() / Runtime.getRuntime().availableProcessors();
+				ArrayList< Callable< Void > > callables = new ArrayList< Callable< Void > >();
+				final int finalLevel = level;
+				for ( int b = 0; b < positions.size(); b += elementsPerBatch )
+				{
+					final List< long[] > subList = 
+							positions.subList( b, Math.min( b + elementsPerBatch, positions.size() ) );
+					callables.add( new Callable< Void >()
+					{
+
+						@Override
+						public Void call() throws Exception
+						{
+							final DvidLabels64MultisetSetupImageLoader dvidLabelsMultisetImageLoader = 
+									new DvidLabels64MultisetSetupImageLoader(
+									1,
+									baseApiUrl,
+									baseUuid,
+									baseName,
+									resolutions,
+									stores );
+
+							VolatileGlobalCellCache cache = new VolatileGlobalCellCache( 1, 1, nLevels, 10 );
+
+							dvidLabelsMultisetImageLoader.setCache( cache );
+							for ( long[] pos : subList )
+							{
+								dvidLabelsMultisetImageLoader.loadArray( 
+								0,
+								1,
+								finalLevel,
+								blockSizes,
+								pos
+								);
+							}
+							return null;
+						}} )
+					;
+				}
+				tp.invokeAll( callables );
 			}
 			
 		}
