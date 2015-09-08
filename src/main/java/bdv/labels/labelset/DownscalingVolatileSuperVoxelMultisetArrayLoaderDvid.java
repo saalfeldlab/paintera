@@ -152,6 +152,8 @@ public class DownscalingVolatileSuperVoxelMultisetArrayLoaderDvid implements Cac
 		for ( int i = 0; i < n; ++i )
 			numContribs *= factors[ i ];
 
+		final int finalNumContribs = numContribs;
+
 		@SuppressWarnings( "unchecked" )
 		final RandomAccess< SuperVoxelMultisetType >[] inputs = new RandomAccess[ numContribs ];
 		for ( int i = 0; i < numContribs; ++i )
@@ -179,8 +181,63 @@ public class DownscalingVolatileSuperVoxelMultisetArrayLoaderDvid implements Cac
 			for ( int i = 0; i < numContribs; ++i )
 			{
 				IntervalIndexer.indexToPositionWithOffset( i, factors, inputOffset, inputPos );
-				inputs[ i ].setPosition( inputPos );
-				iters[ i ].init( inputs[ i ].get().entrySet().iterator() );
+				// TODO Why does this fail, when inputPos[ d ] > input.dimension( d )?
+				// Add super voxel with label zero and count numContribs if out of bounds value
+				// is requested. This is a workaround to achieve zero-extension of the input.
+				if (
+						inputPos[ 0 ] > input.max( 0 ) || inputPos[ 1 ] > input.max( 1 ) || inputPos[ 2 ] > input.max( 2 ) ||
+						inputPos[ 0 ] < input.min( 0 ) || inputPos[ 1 ] < input.min( 1 ) || inputPos[ 2 ] < input.min( 2 )
+						)
+				{
+					iters[ i ].init(
+							new Iterator< Multiset.Entry<SuperVoxel> >()
+							{
+
+								private boolean hasNext = true;
+
+								@Override
+								public boolean hasNext()
+								{
+									return hasNext;
+								}
+
+								@Override
+								public Entry< SuperVoxel > next()
+								{
+									hasNext = false;
+									return new Entry< SuperVoxel >()
+									{
+
+										@Override
+										public SuperVoxel getElement()
+										{
+											return new SuperVoxel()
+											{
+
+												@Override
+												public long id()
+												{
+													// return background
+													return 0;
+												}
+											};
+										}
+
+										@Override
+										public int getCount()
+										{
+											return finalNumContribs;
+										}
+									};
+								}
+							}
+					);
+				}
+				else
+				{
+					inputs[ i ].setPosition( inputPos );
+					iters[ i ].init( inputs[ i ].get().entrySet().iterator() );
+				}
 			}
 
 			list.createListAt( listData, nextListOffset );
