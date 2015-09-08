@@ -27,7 +27,7 @@ public class Downscale
 	{
 		
 		final String url = "http://vm570.int.janelia.org:8080";
-		final String labelsBase = "multisets-labels-downscaled";
+		final String labelsBase = "multisets-labels-downscaled-zero-extended";
 		String uuid = "4668221206e047648f622dc4690ff7dc";
 		
 		Server server = new Server( url );
