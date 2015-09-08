@@ -53,8 +53,8 @@ public class BigCat
 	public static void main( final String[] args ) throws JsonSyntaxException, JsonIOException, IOException
 	{
 		final String url = "http://vm570.int.janelia.org:8080";
-		final String labelsBase = "multisets-labels5";
-		final String uuid = "c223287b023544aa9968be56a81fab34";
+		final String labelsBase = "multisets-labels-downscaled";
+		final String uuid = "4668221206e047648f622dc4690ff7dc";
 
 		final Server server = new Server( url );
 		final Repository repo = new Repository( server, uuid );
