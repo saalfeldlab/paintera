@@ -46,6 +46,7 @@ public class DvidImage8Writer extends AbstractDvidImageWriter< UnsignedByteType 
 	 * @throws JsonSyntaxException 
 	 **/
 	public DvidImage8Writer( String url, String uuid, String dataSet )
+			throws JsonSyntaxException, JsonIOException, IOException
 	{
 		this( url, uuid, dataSet, DatasetBlk.defaultBlockSize() );
 	}
@@ -67,6 +68,7 @@ public class DvidImage8Writer extends AbstractDvidImageWriter< UnsignedByteType 
 	 * @throws JsonSyntaxException 
 	 */
 	public DvidImage8Writer( String url, String uuid, final String dataSetName, final int[] blockSize )
+			throws JsonSyntaxException, JsonIOException, IOException
 	{
 		this( new DatasetBlkUint8( new Repository( url, uuid ).getRootNode(), dataSetName ), blockSize );
 	}

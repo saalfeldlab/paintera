@@ -38,6 +38,25 @@ public class AbstractDvidImageWriter< T extends NumericType< T > >
 	 *            Image to be stored in dvid server.
 	 * @param iterationAxis
 	 *            Along which axis to iterate.
+	 * @param offset
+	 *            Offset target position by offset.
+	 *
+	 *            Write image into data set. Calls
+	 *            {@link DvidImage8Writer#writeImage(RandomAccessibleInterval, int, int[])}
+	 *            with iterationAxis set to 2.
+	 */
+	public void writeImage(
+			RandomAccessibleInterval< T > image,
+			final int[] offset )
+	{
+		this.writeImage( image, 2, offset );
+	}
+
+	/**
+	 * @param image
+	 *            Image to be stored in dvid server.
+	 * @param iterationAxis
+	 *            Along which axis to iterate.
 	 * @param steps
 	 *            Step sizes along each axis.
 	 * @param offset
@@ -60,11 +79,33 @@ public class AbstractDvidImageWriter< T extends NumericType< T > >
 	 *            Image to be stored in dvid server.
 	 * @param iterationAxis
 	 *            Along which axis to iterate.
+	 * @param offset
+	 *            Offset target position by offset.
+	 *
+	 *            Write image into data set. Calls
+	 *            {@link DvidImage8Writer#writeImage(RandomAccessibleInterval, int, int[], RealType)}
+	 *            with borderExtension set to 0.
+	 */
+	public void writeImage(
+			RandomAccessibleInterval< T > image,
+			final int iterationAxis,
+			final int[] offset )
+	{
+		T borderExtension = image.randomAccess().get().createVariable();
+		borderExtension.setZero();
+		this.writeImage( image, iterationAxis, offset, borderExtension );
+	}
+
+	/**
+	 * @param image
+	 *            Image to be stored in dvid server.
+	 * @param iterationAxis
+	 *            Along which axis to iterate.
 	 * @param steps
 	 *            Step sizes along each axis.
 	 * @param offset
 	 *            Offset target position by offset.
-	 * 
+	 *
 	 *            Write image into data set. Calls
 	 *            {@link DvidImage8Writer#writeImage(RandomAccessibleInterval, int, int[], int[], RealType)}
 	 *            with borderExtension set to 0.
@@ -85,13 +126,36 @@ public class AbstractDvidImageWriter< T extends NumericType< T > >
 	 *            Image to be stored in dvid server.
 	 * @param iterationAxis
 	 *            Along which axis to iterate.
+	 * @param offset
+	 *            Offset target position by offset.
+	 * @param borderExtension
+	 *            Extend border with this value.
+	 *
+	 *            Write image into data set. The image will be divided into
+	 *            blocks as defined by steps. The target coordinates will be the
+	 *            image coordinates shifted by offset.
+	 */
+	public void writeImage(
+			RandomAccessibleInterval< T > image,
+			final int iterationAxis,
+			final int[] offset,
+			T borderExtension )
+	{
+		this.writeImage( image, iterationAxis, this.blockSize, offset, borderExtension );
+	}
+
+	/**
+	 * @param image
+	 *            Image to be stored in dvid server.
+	 * @param iterationAxis
+	 *            Along which axis to iterate.
 	 * @param steps
 	 *            Step sizes along each axis.
 	 * @param offset
 	 *            Offset target position by offset.
 	 * @param borderExtension
 	 *            Extend border with this value.
-	 * 
+	 *
 	 *            Write image into data set. The image will be divided into
 	 *            blocks as defined by steps. The target coordinates will be the
 	 *            image coordinates shifted by offset.
@@ -193,14 +257,30 @@ public class AbstractDvidImageWriter< T extends NumericType< T > >
 		// For now add the asserts, maybe make this method private/protected and
 		// have
 		// enclosing method take care of it.
+		
+		boolean isSingleBlock = true;
 
 		for ( int d = 0; d < input.numDimensions(); ++d )
 		{
 			assert offset[ d ] % this.blockSize[ d ] == 0;
 			assert input.dimension( d ) % this.blockSize[ d ] == 0;
+			if ( input.dimension( d ) != this.blockSize[ d ] )
+				isSingleBlock = false;
 		}
 		
-		dataset.put( input, offset );
+		if ( isSingleBlock )
+		{
+			int[] position = new int[ offset.length ];
+			for ( int d = 0; d < offset.length; ++d )
+			{
+				position[ d ] = offset[ d ] / blockSize[ d ];
+			}
+			dataset.writeBlock( input, position );
+		}
+		else
+		{
+			dataset.put( input, offset );
+		}
 
 	}
 

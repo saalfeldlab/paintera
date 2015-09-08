@@ -20,10 +20,13 @@ import net.imglib2.RandomAccessibleInterval;
  */
 public abstract class DatasetBlk< T > extends Dataset
 {
+	
+	protected final int[] blockSize;
 
-	public DatasetBlk( Node node, String name, String type )
+	public DatasetBlk( Node node, String name, String type ) throws JsonSyntaxException, JsonIOException, IOException
 	{
 		super( node, name, type );
+		this.blockSize = getBlockSize();
 	}
 
 	/**
@@ -53,6 +56,10 @@ public abstract class DatasetBlk< T > extends Dataset
 			RandomAccessibleInterval< T > source,
 			int[] offset
 			) throws MalformedURLException, IOException;
+	
+	public abstract void writeBlock( 
+			RandomAccessibleInterval< T > source, 
+			int[] position ) throws MalformedURLException, IOException;
 	
 	/**
 	 * @param image Defines image dimensions.

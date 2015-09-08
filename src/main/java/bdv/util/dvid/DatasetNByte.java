@@ -26,7 +26,7 @@ import net.imglib2.view.Views;
 public class DatasetNByte< T > extends DatasetBlk< T >
 {
 	
-	public static interface NByteToBuffer< U >
+	public static interface NByteIO< U >
 	{
 		public void write( U data, ByteBuffer bb );
 		
@@ -37,21 +37,21 @@ public class DatasetNByte< T > extends DatasetBlk< T >
 	
 	private final int nBytes;
 	
-	private final int[] blockSize;
-	
 	private final int numByteBlocks;
 	
 	private final byte[] buffer;
 	
-	public DatasetNByte( Node node, String name, int nBytes ) throws JsonSyntaxException, JsonIOException, IOException
+	private final NByteIO< T > io;
+	
+	public DatasetNByte( Node node, String name, int nBytes, NByteIO< T > io ) throws JsonSyntaxException, JsonIOException, IOException
 	{
 		super( node, name, TYPE );
 		this.nBytes = nBytes;
-		this.blockSize = getBlockSize();
 		assert nBytes <= this.blockSize[ 0 ] : "Currently, size limit is data of size 32 bytes";
 		assert this.blockSize[ 0 ] % nBytes == 0;
 		this.numByteBlocks = this.nBytes; // this.blockSize[ 0 ] / this.nBytes; 
 		this.buffer = new byte[ product( this.blockSize ) ];
+		this.io = io;
 	}
 
 	@Override
@@ -66,10 +66,10 @@ public class DatasetNByte< T > extends DatasetBlk< T >
 		throw new UnsupportedOperationException( "Can only read blocks with arbitrary size" );
 	}
 	
+	@Override
 	public void writeBlock( 
 			RandomAccessibleInterval< T > source, 
-			int[] position,
-			NByteToBuffer< T > writer ) throws MalformedURLException, IOException
+			int[] position ) throws MalformedURLException, IOException
 	{
 		for ( int d = 0; d < blockSize.length; ++d )
 			assert source.dimension( d ) == blockSize[ d ];
@@ -81,7 +81,7 @@ public class DatasetNByte< T > extends DatasetBlk< T >
 			ByteBuffer bb = ByteBuffer.wrap( this.buffer );
 			for( int k = 0; k < this.buffer.length; k += this.nBytes )
 			{
-				writer.write( cursor.next(), bb );
+				io.write( cursor.next(), bb );
 			}
 			String url = getBlockRequestUrl( correctedPosition, 1 );
 			HttpRequest.postRequest( url, this.buffer );
@@ -92,7 +92,7 @@ public class DatasetNByte< T > extends DatasetBlk< T >
 	public void getBlock( 
 			RandomAccessibleInterval< T > target,
 			int[] position,
-			NByteToBuffer< T > reader ) throws MalformedURLException, IOException
+			NByteIO< T > reader ) throws MalformedURLException, IOException
 	{
 		for ( int d = 0; d < blockSize.length; ++d )
 			assert target.dimension( d ) == blockSize[ d ];
@@ -163,16 +163,10 @@ public class DatasetNByte< T > extends DatasetBlk< T >
 		}
 		catch ( Exception e )
 		{
-			// TODO Auto-generated catch block
 			e.printStackTrace( System.err );
 		}
 		
-		DatasetNByte< LongType > ds = new DatasetNByte< LongType >( 
-				repo.getRootNode(), 
-				dataSet, 
-				( new LongType().getBitsPerPixel() / new ByteType().getBitsPerPixel() ) );
-		
-		NByteToBuffer< LongType > io = new NByteToBuffer< LongType >()
+		NByteIO< LongType > io = new NByteIO< LongType >()
 		{
 
 			@Override
@@ -187,6 +181,12 @@ public class DatasetNByte< T > extends DatasetBlk< T >
 				data.set( bb.getLong() );
 			}
 		};
+		
+		DatasetNByte< LongType > ds = new DatasetNByte< LongType >( 
+				repo.getRootNode(), 
+				dataSet, 
+				( new LongType().getBitsPerPixel() / new ByteType().getBitsPerPixel() ),
+				io );
 		
 		long[] dim = new long[] { 35, 80, 65 };
 		long[] targetDim = new long[ dim.length ];
@@ -222,7 +222,7 @@ public class DatasetNByte< T > extends DatasetBlk< T >
 				position[ d ] *= blockSize[ d ];
 			}
 			IntervalView< LongType > interval = Views.offsetInterval( extended, position, blockSizeLong );
-			ds.writeBlock( interval, positionInt, io );
+			ds.writeBlock( interval, positionInt );
 		}
 		
 		// read

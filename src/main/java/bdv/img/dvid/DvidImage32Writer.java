@@ -46,6 +46,7 @@ public class DvidImage32Writer extends AbstractDvidImageWriter< UnsignedIntType 
 	 * @throws JsonSyntaxException 
 	 **/
 	public DvidImage32Writer( String url, String uuid, String dataSet )
+			throws JsonSyntaxException, JsonIOException, IOException
 	{
 		this( url, uuid, dataSet, DatasetBlk.defaultBlockSize() );
 	}
@@ -67,6 +68,7 @@ public class DvidImage32Writer extends AbstractDvidImageWriter< UnsignedIntType 
 	 * @throws JsonSyntaxException 
 	 */
 	public DvidImage32Writer( String url, String uuid, final String dataSetName, final int[] blockSize )
+			throws JsonSyntaxException, JsonIOException, IOException
 	{
 		this( new DatasetBlkRGBA( new Repository( url, uuid ).getRootNode(), dataSetName ), blockSize );
 	}

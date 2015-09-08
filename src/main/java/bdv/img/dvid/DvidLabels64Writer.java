@@ -48,6 +48,7 @@ public class DvidLabels64Writer extends AbstractDvidImageWriter< UnsignedLongTyp
 	 * @throws JsonSyntaxException 
 	 **/
 	public DvidLabels64Writer( final String url, final String uuid, final String dataSet )
+			throws JsonSyntaxException, JsonIOException, IOException
 	{
 		this( url, uuid, dataSet, DatasetBlk.defaultBlockSize() );
 	}
@@ -69,6 +70,7 @@ public class DvidLabels64Writer extends AbstractDvidImageWriter< UnsignedLongTyp
 	 * @throws JsonSyntaxException 
 	 */
 	public DvidLabels64Writer( final String url, final String uuid, final String dataSet, final int[] blockSize )
+			throws JsonSyntaxException, JsonIOException, IOException
 	{
 		this( new DatasetBlkLabel( new Repository( url, uuid ).getRootNode(), dataSet ), blockSize );
 	}
