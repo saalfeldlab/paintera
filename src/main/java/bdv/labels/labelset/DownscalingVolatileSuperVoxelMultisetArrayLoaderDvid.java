@@ -51,8 +51,10 @@ public class DownscalingVolatileSuperVoxelMultisetArrayLoaderDvid implements Cac
 			return cached;
 
 		final RandomAccessibleInterval< SuperVoxelMultisetType > input = multisetSource.getSource( timepoint, level - 1 );
-		final int[] factors = new int[] { 2, 2, 2 };
-		return downscale( input, factors, dimensions, min, store, key );
+		final int[] factors = new int[] { 2, 2, 2 }; // for now 2,2,2
+		int strideByDimension = 1 << ( level - 1 ); // need to get the stride of previous (aka input) level
+		int nElementsPerInputPixel = strideByDimension * strideByDimension * strideByDimension;
+		return downscale( input, factors, dimensions, min, store, key, nElementsPerInputPixel );
 	}
 
 	@Override
@@ -138,7 +140,8 @@ public class DownscalingVolatileSuperVoxelMultisetArrayLoaderDvid implements Cac
 			final int[] dimensions,
 			final long[] min,
 			final DatasetKeyValue store,
-			final String key ) throws InterruptedException
+			final String key,
+			final int nElementsPerInputPixel ) throws InterruptedException
 	{
 		final int n = 3;
 		final int[] data = new int[ dimensions[ 0 ] * dimensions[ 1 ] * dimensions[ 2 ] ];
@@ -151,8 +154,6 @@ public class DownscalingVolatileSuperVoxelMultisetArrayLoaderDvid implements Cac
 		int numContribs = 1;
 		for ( int i = 0; i < n; ++i )
 			numContribs *= factors[ i ];
-
-		final int finalNumContribs = numContribs;
 
 		@SuppressWarnings( "unchecked" )
 		final RandomAccess< SuperVoxelMultisetType >[] inputs = new RandomAccess[ numContribs ];
@@ -226,7 +227,7 @@ public class DownscalingVolatileSuperVoxelMultisetArrayLoaderDvid implements Cac
 										@Override
 										public int getCount()
 										{
-											return finalNumContribs;
+											return nElementsPerInputPixel;
 										}
 									};
 								}
