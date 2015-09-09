@@ -47,7 +47,7 @@ public class Downscale
 				info.MaxPoint[ 1 ] + 1 - info.MinPoint[ 1 ],
 				info.MaxPoint[ 2 ] + 1 - info.MinPoint[ 2 ]
 		};
-		
+
 		DatasetKeyValue[] stores = new DatasetKeyValue[ 4 ];
 		double[][] resolutions = new double[stores.length + 1][];
 		
@@ -88,13 +88,13 @@ public class Downscale
 				
 				final ArrayList< long[] > positions = new ArrayList< long[] >();
 
-				for ( int x = 0; x < currDim[ 0 ]; x += blockSizes[ 0 ] )
+				for ( int x = 0; x * currRes[ 0 ] < dimensions[ 0 ]; x += blockSizes[ 0 ] )
 				{
 					currPos[ 0 ] = x;
-					for ( int y = 0; y < currDim[ 1 ]; y += blockSizes[ 1 ] )
+					for ( int y = 0; y * currRes[ 1 ]< dimensions[ 1 ]; y += blockSizes[ 1 ] )
 					{
 						currPos[ 1 ] = y;
-						for ( int z = 0; z < currDim[ 2 ]; z += blockSizes[ 2 ] )
+						for ( int z = 0; z * currRes[ 2 ] < dimensions[ 2 ]; z += blockSizes[ 2 ] )
 						{
 							currPos[ 2 ] = z;
 							positions.add( currPos.clone() );
