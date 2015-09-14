@@ -44,16 +44,31 @@ public class DownscalingVolatileSuperVoxelMultisetArrayLoaderDvid implements Cac
 //				);
 //		final String filename = getFilename( timepoint, setup, level, min );
 		// level 0 does not have an associated data set, thus need to subtract 1
+		RandomAccessibleInterval< SuperVoxelMultisetType > source = multisetSource.getSource( timepoint, level );
+
+		int strideByDimensionSource = 1 << level;
+		int nElementsPerSource = strideByDimensionSource * strideByDimensionSource * strideByDimensionSource;
+
+		if (
+				// TODO Adapt if source dimensions are corrected (right now, it's the dimension of the
+				// highest resolution source).
+				min[ 0 ] * strideByDimensionSource > source.max( 0 ) || min[ 1 ] * strideByDimensionSource > source.max( 1 ) || min[ 2 ] * strideByDimensionSource > source.max( 2 ) ||
+				min[ 0 ] < 0 /* source.min( 0 ) */ || min[ 1 ] < 0 /* source.min( 1 ) */ || min[ 2 ] < 0 /* source.min( 2 ) */
+			)
+		{
+			return createOutOfBoundsOnlyZeros( dimensions, nElementsPerSource );
+		}
+
 		DatasetKeyValue store = dvidStores[ level - 1 ]; // -1? TODO
-		String key = getKey( timepoint, setup, min ); 
+		String key = getKey( timepoint, setup, min );
 		final VolatileSuperVoxelMultisetArray cached = tryLoadCached( dimensions, store, key );
 		if ( cached != null )
 			return cached;
 
+		int strideByDimensionInput = 1 << ( level - 1 ); // need to get the stride of previous (aka input) level
+		int nElementsPerInputPixel = strideByDimensionInput * strideByDimensionInput * strideByDimensionInput;
 		final RandomAccessibleInterval< SuperVoxelMultisetType > input = multisetSource.getSource( timepoint, level - 1 );
 		final int[] factors = new int[] { 2, 2, 2 }; // for now 2,2,2
-		int strideByDimension = 1 << ( level - 1 ); // need to get the stride of previous (aka input) level
-		int nElementsPerInputPixel = strideByDimension * strideByDimension * strideByDimension;
 		return downscale( input, factors, dimensions, min, store, key, nElementsPerInputPixel );
 	}
 
@@ -185,6 +200,7 @@ public class DownscalingVolatileSuperVoxelMultisetArrayLoaderDvid implements Cac
 				// TODO Why does this fail, when inputPos[ d ] > input.dimension( d )?
 				// Add super voxel with label zero and count numContribs if out of bounds value
 				// is requested. This is a workaround to achieve zero-extension of the input.
+				// Need to consider that input min and max are actually min and max of original resolution
 				if (
 						inputPos[ 0 ] > input.max( 0 ) || inputPos[ 1 ] > input.max( 1 ) || inputPos[ 2 ] > input.max( 2 ) ||
 						inputPos[ 0 ] < input.min( 0 ) || inputPos[ 1 ] < input.min( 1 ) || inputPos[ 2 ] < input.min( 2 )
@@ -338,5 +354,21 @@ public class DownscalingVolatileSuperVoxelMultisetArrayLoaderDvid implements Cac
 		if ( theEmptyArray.getCurrentStorageArray().length < numEntities )
 			theEmptyArray = new VolatileSuperVoxelMultisetArray( numEntities, false );
 		return theEmptyArray;
+	}
+
+	private VolatileSuperVoxelMultisetArray createOutOfBoundsOnlyZeros( int[] dimensions, int nElementsPerSource )
+	{
+		final int nElements = dimensions[ 0 ] * dimensions[ 1 ] * dimensions[ 2 ];
+		final int[] data = new int[ nElements ];
+		final int listDataSize = 16 * nElements;
+		final LongMappedAccessData listData = LongMappedAccessData.factory.createStorage( listDataSize );
+		for ( int i = 0, dataIndex = 0; dataIndex < nElements; i += 16, ++dataIndex )
+		{
+			ByteUtils.putInt( 1, listData.data, i );
+			ByteUtils.putLong( 0l, listData.data, i + 4 );
+			ByteUtils.putInt( nElementsPerSource, listData.data, i + 12 );
+			data[ dataIndex ] = i;
+		}
+		return new VolatileSuperVoxelMultisetArray( data, listData, true );
 	}
 }
