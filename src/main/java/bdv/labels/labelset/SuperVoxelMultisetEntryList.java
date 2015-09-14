@@ -66,10 +66,10 @@ public class SuperVoxelMultisetEntryList
         int low = fromIndex;
         int high = toIndex - 1;
 
+        final SuperVoxelMultisetEntry ref = createRef();
         while ( low <= high ) {
             final int mid = ( low + high ) >>> 1;
-            final long midVal = get( mid ).getId();
-
+            final long midVal = get( mid, ref ).getId();
             if ( midVal < id ) {
                 low = mid + 1;
             }
@@ -77,9 +77,11 @@ public class SuperVoxelMultisetEntryList
                 high = mid - 1;
             }
             else {
+                releaseRef( ref );
                 return mid; // value found
             }
         }
+        releaseRef( ref );
         return -( low + 1 );  // value not found.
     }
 }
