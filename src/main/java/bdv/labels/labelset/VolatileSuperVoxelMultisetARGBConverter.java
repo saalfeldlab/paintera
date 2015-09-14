@@ -16,13 +16,9 @@
  */
 package bdv.labels.labelset;
 
-import java.util.Iterator;
-import java.util.Set;
-
 import net.imglib2.converter.Converter;
 import net.imglib2.type.numeric.ARGBType;
 import net.imglib2.type.volatiles.VolatileARGBType;
-import bdv.labels.labelset.Multiset.Entry;
 
 /**
  * TODO make the converter reference and use a lookuptable instead of ColorStream.
@@ -35,46 +31,18 @@ public class VolatileSuperVoxelMultisetARGBConverter implements Converter< Volat
 	@Override
 	public void convert( final VolatileSuperVoxelMultisetType input, final VolatileARGBType output )
 	{
-		final double r = 0;
-		final double g = 0;
-		final double b = 0;
-		final int size = 0;
+//		final double r = 0;
+//		final double g = 0;
+//		final double b = 0;
+//		final int size = 0;
+
 		if ( input.isValid() )
 		{
-			final Set< Entry< SuperVoxel > > entrySet = input.get().entrySet();
-			final Iterator< Entry< SuperVoxel > > iter = entrySet.iterator();
-			iter.hasNext();
-			final Entry< SuperVoxel > entry = iter.next();
-			if ( entry.getElement().id() == 7131l )
-			{
-				output.setValid( true );
+			output.setValid( true );
+			if ( input.get().contains( 7131l ) )
 				output.set( ARGBType.rgba( 0, 250, 0, 255 ) );
-			}
 			else
-			{
-				output.setValid( true );
 				output.set( ARGBType.rgba( 0, 0, 0, 255 ) );
-			}
-
-
-//			boolean yes = false;
-//			final int i = 0;
-//			for ( final Entry< SuperVoxel > entry : input.get().entrySet() )
-//			{
-//				if ( entry.getElement().id() == 7131l )
-//				{
-//					output.setValid( true );
-//					output.set( ARGBType.rgba( 0, 250, 0, 255 ) );
-//					yes = true;
-//					System.out.println( i );
-//				}
-//			}
-//			if ( !yes )
-//			{
-//				output.setValid( true );
-//				output.set( ARGBType.rgba( 0, 0, 0, 255 ) );
-//			}
-
 
 //			for ( final Entry< SuperVoxel > entry : input.get().entrySet() )
 //			{
