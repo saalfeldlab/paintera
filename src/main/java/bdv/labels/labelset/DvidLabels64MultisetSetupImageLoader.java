@@ -200,4 +200,9 @@ public class DvidLabels64MultisetSetupImageLoader
 	{
 		return setupId;
 	};
+
+	public VolatileSuperVoxelMultisetArray loadArray( final int timepoint, final int setup, final int level, final int[] dimensions, final long[] min ) throws InterruptedException
+	{
+		return this.downscaleLoader.loadArray( timepoint, setup, level, dimensions, min );
+	}
 }

@@ -224,6 +224,16 @@ public class HttpRequest
 		return bytes;
 	}
 	
+	public static void getRequest( String url, ResponseHandler handler ) throws MalformedURLException, IOException
+	{
+		HttpURLConnection connection = ( HttpURLConnection ) new URL( url ).openConnection();
+		int response = connection.getResponseCode();
+		if ( response != 200 )
+			throw new HTTPException( response );
+		getRequest( connection, handler );
+		connection.disconnect();
+	}
+
 	/**
 	 * Handle GET request as specified by handler.
 	 * 
@@ -236,6 +246,21 @@ public class HttpRequest
 		InputStream in = connection.getInputStream();
 		handler.handle( in );
 		in.close();
+	}
+	
+	/**
+	 * 
+	 * HTTP POST request:
+	 * POST url
+	 * 
+	 * @param url Url for request. 
+	 * @param postData Data to be posted
+	 * @throws MalformedURLException
+	 * @throws IOException
+	 */
+	public static void postRequest( String url, byte[] postData ) throws MalformedURLException, IOException
+	{
+		postRequest( url, postData, "application/octet-stream" );
 	}
 	
 	/**
@@ -270,6 +295,25 @@ public class HttpRequest
 	{
 		HttpURLConnection connection = postRequestWithResponse( url, postData, contentType );
 		connection.disconnect();
+	}
+	
+	/**
+	 * 
+	 * HTTP POST request:
+	 * POST url
+	 * 
+	 * The connection is returned to allow the caller to handle a potential response.
+	 * The caller is responsible for closing the connection.
+	 * 
+	 * @param url Url for request. 
+	 * @param postData Data to be posted
+	 * @return HTTP Connection for response handling
+	 * @throws MalformedURLException
+	 * @throws IOException
+	 */
+	public static HttpURLConnection postRequestWithResponse( String url, byte[] postData ) throws MalformedURLException, IOException
+	{
+		return postRequestWithResponse( url, postData, "application/octet-stream" );
 	}
 	
 	/**

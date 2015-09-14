@@ -4,6 +4,9 @@ import java.io.IOException;
 import java.net.MalformedURLException;
 import java.nio.ByteBuffer;
 
+import com.google.gson.JsonIOException;
+import com.google.gson.JsonSyntaxException;
+
 import bdv.util.http.HttpRequest;
 import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.type.numeric.integer.UnsignedLongType;
@@ -19,7 +22,7 @@ public class DatasetBlkLabel extends DatasetBlk< UnsignedLongType >
 {
 	public static String TYPE = "labelblk";
 
-	public DatasetBlkLabel( Node node, String name )
+	public DatasetBlkLabel( Node node, String name ) throws JsonSyntaxException, JsonIOException, IOException
 	{
 		super( node, name, TYPE );
 	}
@@ -51,5 +54,10 @@ public class DatasetBlkLabel extends DatasetBlk< UnsignedLongType >
 		
 	}
 
+	@Override
+	public void writeBlock( RandomAccessibleInterval< UnsignedLongType > source, int[] position ) throws MalformedURLException, IOException
+	{
+		throw new UnsupportedOperationException( "Datatype labelblk currently does not support /blocks/ api." );
+	}
 
 }

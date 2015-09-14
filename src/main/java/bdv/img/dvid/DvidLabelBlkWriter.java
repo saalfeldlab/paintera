@@ -58,6 +58,7 @@ public class DvidLabelBlkWriter
 	 * @throws JsonSyntaxException 
 	 **/
 	public DvidLabelBlkWriter( String url, String uuid, String dataSet )
+			throws JsonSyntaxException, JsonIOException, IOException
 	{
 		this( url, uuid, dataSet, DatasetBlk.defaultBlockSize() );
 	}
@@ -79,6 +80,7 @@ public class DvidLabelBlkWriter
 	 * @throws JsonSyntaxException 
 	 */
 	public DvidLabelBlkWriter( String url, String uuid, final String dataSetName, final int[] blockSize )
+			throws JsonSyntaxException, JsonIOException, IOException
 	{
 		this( new DatasetBlkLabel( new Repository( url, uuid ).getRootNode(), dataSetName ), blockSize );
 	}

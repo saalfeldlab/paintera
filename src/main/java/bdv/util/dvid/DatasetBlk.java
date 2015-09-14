@@ -20,12 +20,15 @@ import net.imglib2.RandomAccessibleInterval;
  */
 public abstract class DatasetBlk< T > extends Dataset
 {
+	
+	protected final int[] blockSize;
 
-	public DatasetBlk( Node node, String name, String type )
+	public DatasetBlk( Node node, String name, String type ) throws JsonSyntaxException, JsonIOException, IOException
 	{
 		super( node, name, type );
+		this.blockSize = getBlockSize();
 	}
-	
+
 	/**
 	 * @param target {@link RandomAccessibleInterval} to be written into.
 	 * @param offset Specifies top left position of target within the dataset.
@@ -39,7 +42,7 @@ public abstract class DatasetBlk< T > extends Dataset
 			RandomAccessibleInterval< T > target,
 			int[] offset
 			) throws MalformedURLException, IOException;
-	
+
 	/**
 	 * @param source {@link RandomAccessibleInterval} to be read from.
 	 * @param offset Specifies top left position of source within the dataset.
@@ -54,6 +57,10 @@ public abstract class DatasetBlk< T > extends Dataset
 			int[] offset
 			) throws MalformedURLException, IOException;
 	
+	public abstract void writeBlock( 
+			RandomAccessibleInterval< T > source, 
+			int[] position ) throws MalformedURLException, IOException;
+	
 	/**
 	 * @param image Defines image dimensions.
 	 * @param offset Defines image position.
@@ -64,49 +71,94 @@ public abstract class DatasetBlk< T > extends Dataset
 	{
 		return getRequestString( getIntervalRequestString( image, offset ) );
 	}
-	
-	
+
 	/**
 	 * @param min Pixel contained in block to be retrieved.
-	 * @param blockSize Size of blocks in data set. 
+	 * @param blockSize Size of blocks in data set.
+	 * @param nBlocks Number of blocks along X coordinate.
 	 * @return Appropriate url to retrieve block that contains pixel
 	 * defined by min.
 	 */
-	public String getBlockRequestUrl( int[] min, int[] blockSize )
+	public String getBlockRequestUrl( int[] min, int[] blockSize, int nBlocks )
 	{
-		return getRequestString( getBlockRequestString( min, blockSize ) );
+		return getRequestString( getBlockRequestString( min, blockSize, nBlocks ) );
 	}
-	
+
+	/**
+	 * @param position Coordinates of block (e.g. for block size [32, 32, 32],
+	 * the top left corner of the block identified by position [1, 2, 3] is at
+	 * [32, 64, 96] in real world coordinates).
+	 * @param nBlocks Number of blocks along X coordinate.
+	 * @return Appropriate url to retrieve block defined by position.
+	 */
+	public String getBlockRequestUrl( int[] position, int nBlocks )
+	{
+		return getRequestString( getBlockRequestString( position, nBlocks ) );
+	}
+
 	/**
 	 * @param min Pixel contained in block to be retrieved.
 	 * @param blockSize Size of blocks in data set.  
+	 * @param nBlocks Number of blocks along X coordinate.
 	 * @return Request String to retrieve block that contains pixel
 	 * defined by min.
 	 */
-	public static String getBlockRequestString( int[] min, int[] blockSize )
+	public static String getBlockRequestString( int[] min, int[] blockSize, int nBlocks )
 	{
-		StringBuffer buf = new StringBuffer( "/blocks/" )
-			.append( min[ 0 ] / blockSize[ 0 ] )
+		int[] position = new int[] {
+				min[ 0 ] / blockSize[ 0 ],
+				min[ 1 ] / blockSize[ 1 ],
+				min[ 2 ] / blockSize[ 2 ]
+		};
+		return getBlockRequestString( position, nBlocks );
+	}
+
+	/**
+	 * @param position Coordinates of block (e.g. for block size [32, 32, 32],
+	 * the top left corner of the block identified by position [1, 2, 3] is at
+	 * [32, 64, 96] in real world coordinates). 
+	 * @param nBlocks Number of blocks along X coordinate.
+	 * @return Request String to retrieve block Appropriate url to retrieve block defined by position.
+	 */
+	public static String getBlockRequestString( int[] position, int nBlocks )
+	{
+		StringBuffer buf = new StringBuffer( "blocks/" )
+			.append( position[0] )
 			.append( "_" )
-			.append( min[ 1 ] / blockSize[ 1 ] )
+			.append( position[1] )
 			.append( "_" )
-			.append( min[ 2 ] / blockSize[ 2 ] )
-			.append( "/1" )
+			.append( position[2] )
+			.append( "/" )
+			.append( nBlocks )
 			;
 		return buf.toString();
 	}
-	
+
 	/**
 	 * @param min Pixel contained in block to be retrieved.
-	 * @param blockSize Size of blocks in data set.  
+	 * @param blockSize Size of blocks in data set.
+	 * @param nBlocks Number of blocks along X coordinate.
 	 * @return Block as byte[] that contains pixel defined by min.
 	 */
-	public byte[] getBlock( int[] min, int[] blockSize ) throws MalformedURLException, IOException
+	public byte[] getBlock( int[] min, int[] blockSize, int nBlocks ) throws MalformedURLException, IOException
 	{
-		String requestUrl = getBlockRequestUrl( min, blockSize );
+		String requestUrl = getBlockRequestUrl( min, blockSize, nBlocks );
 		return HttpRequest.getRequest( requestUrl );
 	}
-	
+
+	/**
+	 * @param position Coordinates of block (e.g. for block size [32, 32, 32],
+	 * the top left corner of the block identified by position [1, 2, 3] is at
+	 * [32, 64, 96] in real world coordinates).
+	 * @param nBlocks Number of blocks along X coordinate.
+	 * @return Block as byte[] defined by position.
+	 */
+	public byte[] getBlock( int[] position, int nBlocks ) throws MalformedURLException, IOException
+	{
+		String requestUrl = getBlockRequestUrl( position, nBlocks );
+		return HttpRequest.getRequest( requestUrl );
+	}
+
 	/**
 	 * @param image Defines image dimensions.
 	 * @param offset Defines image position.
@@ -125,7 +177,7 @@ public abstract class DatasetBlk< T > extends Dataset
 				;
 		return requestString.toString();
 	}
-	
+
 	/**
 	 * @param image Defines image dimensions.
 	 * @param result Store result within this array.
@@ -141,7 +193,7 @@ public abstract class DatasetBlk< T > extends Dataset
 		String requestUrl = getRequestString( getIntervalRequestString( interval, offset ) );
 		HttpRequest.getRequest( requestUrl, result );
 	}
-	
+
 	/**
 	 * @return Block size of this data set.
 	 * @throws JsonSyntaxException
@@ -154,7 +206,7 @@ public abstract class DatasetBlk< T > extends Dataset
 		getBlockSize( blockSize );
 		return blockSize;
 	}
-	
+
 	/**
 	 * @param blockSize Write block size of this data set into this array.
 	 * @throws JsonSyntaxException
@@ -167,7 +219,7 @@ public abstract class DatasetBlk< T > extends Dataset
 		for ( int d = 0; d < bs.size(); ++d )
 			blockSize[ d ] = bs.get( d  ).getAsInt();
 	}
-	
+
 	/**
 	 * @return Default block size for blocked data sets.
 	 */
@@ -175,5 +227,5 @@ public abstract class DatasetBlk< T > extends Dataset
 	{
 		return new int[] { 32, 32, 32 };
 	}
-			
+
 }

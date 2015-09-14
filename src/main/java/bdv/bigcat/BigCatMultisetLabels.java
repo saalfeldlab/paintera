@@ -44,9 +44,9 @@ public class BigCatMultisetLabels
 		
 		String url = "http://vm570.int.janelia.org:8080";
 		String apiUrl = url + "/api";
-		String uuid = "c223287b023544aa9968be56a81fab34";
+		String uuid = "4668221206e047648f622dc4690ff7dc";
 		String raw = "multisets-raw5";
-		String labels = "multisets-labels5";
+		String labels = "multisets-labels-downscaled";
 		
 		String url2 = "http://emrecon100.janelia.priv";
 		String apiUrl2 = url2 + "/api";
