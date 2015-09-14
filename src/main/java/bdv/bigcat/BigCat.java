@@ -53,13 +53,13 @@ public class BigCat
 	public static void main( final String[] args ) throws JsonSyntaxException, JsonIOException, IOException
 	{
 		final String url = "http://vm570.int.janelia.org:8080";
-		final String labelsBase = "multisets-labels-downscaled";
+		final String labelsBase = "multisets-labels-downscaled-zero-extended-2"; //"multisets-labels-downscaled";
 		final String uuid = "4668221206e047648f622dc4690ff7dc";
 
 		final Server server = new Server( url );
 		final Repository repo = new Repository( server, uuid );
 
-		final DatasetKeyValue[] stores = new DatasetKeyValue[ 3 ];
+		final DatasetKeyValue[] stores = new DatasetKeyValue[ 4 ];
 
 		for ( int i = 0; i < stores.length; ++i )
 		{
@@ -79,7 +79,8 @@ public class BigCat
 				{ 1, 1, 1 },
 				{ 2, 2, 2 },
 				{ 4, 4, 4 },
-				{ 8, 8, 8 } };
+				{ 8, 8, 8 },
+				{16, 16, 16 } };
 
 		try
 		{

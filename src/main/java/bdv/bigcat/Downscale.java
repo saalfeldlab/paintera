@@ -23,11 +23,11 @@ import bdv.util.dvid.Server;
 public class Downscale
 {
 	
-	public static void main( String[] args ) throws MalformedURLException, IOException
+	public static void main( String[] args ) throws MalformedURLException, IOException, InterruptedException
 	{
 		
 		final String url = "http://vm570.int.janelia.org:8080";
-		final String labelsBase = "multisets-labels-downscaled-zero-extended";
+		final String labelsBase = "multisets-labels-downscaled-zero-extended-2";
 		String uuid = "4668221206e047648f622dc4690ff7dc";
 		
 		Server server = new Server( url );
@@ -102,7 +102,7 @@ public class Downscale
 					}
 				}
 				ExecutorService tp = Executors.newFixedThreadPool( Runtime.getRuntime().availableProcessors() );
-				int elementsPerBatch = positions.size() / Runtime.getRuntime().availableProcessors();
+				int elementsPerBatch = Math.max( positions.size() / Runtime.getRuntime().availableProcessors(), 1 );
 				ArrayList< Callable< Void > > callables = new ArrayList< Callable< Void > >();
 				final int finalLevel = level;
 				for ( int b = 0; b < positions.size(); b += elementsPerBatch )
@@ -149,5 +149,6 @@ public class Downscale
 		{
 			ex.printStackTrace( System.err );
 		}
+		System.out.println( "Done." );
 	}
 }
