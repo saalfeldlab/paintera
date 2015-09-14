@@ -76,39 +76,11 @@ public class VolatileSuperVoxelMultisetARGBConverter implements Converter< Volat
 		{
 			convertValid( input, output );
 
-//			final Set< Entry< SuperVoxel > > entrySet = input.get().entrySet();
-//			final Iterator< Entry< SuperVoxel > > iter = entrySet.iterator();
-//			iter.hasNext();
-//			final Entry< SuperVoxel > entry = iter.next();
-//			if ( entry.getElement().id() == 7131l )
-//			{
-//				output.setValid( true );
+//			output.setValid( true );
+//			if ( input.get().contains( 7131l ) )
 //				output.set( ARGBType.rgba( 0, 250, 0, 255 ) );
-//			}
 //			else
-//			{
-//				output.setValid( true );
 //				output.set( ARGBType.rgba( 0, 0, 0, 255 ) );
-//			}
-
-
-//			boolean yes = false;
-//			final int i = 0;
-//			for ( final Entry< SuperVoxel > entry : input.get().entrySet() )
-//			{
-//				if ( entry.getElement().id() == 7131l )
-//				{
-//					output.setValid( true );
-//					output.set( ARGBType.rgba( 0, 250, 0, 255 ) );
-//					yes = true;
-//					System.out.println( i );
-//				}
-//			}
-//			if ( !yes )
-//			{
-//				output.setValid( true );
-//				output.set( ARGBType.rgba( 0, 0, 0, 255 ) );
-//			}
 		}
 		else {
 			output.setValid( false );

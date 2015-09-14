@@ -21,8 +21,6 @@ public class SuperVoxelMultisetType extends AbstractNativeType< SuperVoxelMultis
 
 	private final SuperVoxelMultisetEntryList entries;
 
-	private final int totalSize;
-
 	private final Set< Entry< SuperVoxel > > entrySet;
 
 	// this is the constructor if you want it to read from an array
@@ -46,7 +44,6 @@ public class SuperVoxelMultisetType extends AbstractNativeType< SuperVoxelMultis
 	private SuperVoxelMultisetType( final NativeImg< ?, VolatileSuperVoxelMultisetArray > img, final VolatileSuperVoxelMultisetArray access )
 	{
 		this.entries = new SuperVoxelMultisetEntryList();
-		this.totalSize = 1;
 		this.img = img;
 		this.access = access;
 		this.entrySet = new AbstractSet< Entry< SuperVoxel > >()
@@ -142,7 +139,8 @@ public class SuperVoxelMultisetType extends AbstractNativeType< SuperVoxelMultis
 	@Override
 	public int size()
 	{
-		return totalSize;
+		access.getValue( i, entries );
+		return entries.multisetSize();
 	}
 
 	@Override
@@ -156,9 +154,22 @@ public class SuperVoxelMultisetType extends AbstractNativeType< SuperVoxelMultis
 	public boolean contains( final Object o )
 	{
 		access.getValue( i, entries );
-		return
-				( ( o instanceof SuperVoxel ) && entries.binarySearch( ( ( SuperVoxel ) o ).id() ) >= 0 ) ||
-				( ( o instanceof Long ) && entries.binarySearch( ( ( Long )o ).longValue() ) >= 0 );
+		return ( ( o instanceof SuperVoxel ) && entries.binarySearch( ( ( SuperVoxel ) o ).id() ) >= 0 );
+	}
+
+	public boolean contains( final long id )
+	{
+		access.getValue( i, entries );
+		return entries.binarySearch( id ) >= 0;
+	}
+
+	public boolean containsAll( final long[] ids )
+	{
+		access.getValue( i, entries );
+		for ( final long id : ids )
+			if ( entries.binarySearch( id ) < 0 )
+				return false;
+		return true;
 	}
 
 	@Override
