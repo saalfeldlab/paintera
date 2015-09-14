@@ -25,6 +25,14 @@ public class SuperVoxelMultisetEntryList
 		super( SuperVoxelMultisetEntry.type, data, baseOffset );
 	}
 
+	protected int multisetSize()
+	{
+		int size = 0;
+		for ( final SuperVoxelMultisetEntry e : this )
+			size += e.getCount();
+		return size;
+	}
+
 	/**
 	 * Performs a binary search for entry with
 	 * {@link SuperVoxelMultisetEntry#getId()} <tt>id</tt> in the entire list.

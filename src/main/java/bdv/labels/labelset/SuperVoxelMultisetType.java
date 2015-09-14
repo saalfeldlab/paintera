@@ -21,8 +21,6 @@ public class SuperVoxelMultisetType extends AbstractNativeType< SuperVoxelMultis
 
 	private final SuperVoxelMultisetEntryList entries;
 
-	private final int totalSize;
-
 	private final Set< Entry< SuperVoxel > > entrySet;
 
 	// this is the constructor if you want it to read from an array
@@ -46,7 +44,6 @@ public class SuperVoxelMultisetType extends AbstractNativeType< SuperVoxelMultis
 	private SuperVoxelMultisetType( final NativeImg< ?, VolatileSuperVoxelMultisetArray > img, final VolatileSuperVoxelMultisetArray access )
 	{
 		this.entries = new SuperVoxelMultisetEntryList();
-		this.totalSize = 1;
 		this.img = img;
 		this.access = access;
 		this.entrySet = new AbstractSet< Entry< SuperVoxel > >()
@@ -142,7 +139,8 @@ public class SuperVoxelMultisetType extends AbstractNativeType< SuperVoxelMultis
 	@Override
 	public int size()
 	{
-		return totalSize;
+		access.getValue( i, entries );
+		return entries.multisetSize();
 	}
 
 	@Override
