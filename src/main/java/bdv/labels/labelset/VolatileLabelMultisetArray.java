@@ -3,13 +3,14 @@ package bdv.labels.labelset;
 import net.imglib2.img.basictypeaccess.volatiles.VolatileAccess;
 import net.imglib2.img.basictypeaccess.volatiles.array.AbstractVolatileArray;
 
-public class VolatileSuperVoxelMultisetArray extends AbstractVolatileArray< VolatileSuperVoxelMultisetArray > implements VolatileAccess
+
+public class VolatileLabelMultisetArray extends AbstractVolatileArray< VolatileLabelMultisetArray > implements VolatileAccess
 {
 	protected int[] data;
 
-	protected final LongMappedAccessData listData;
+	final protected LongMappedAccessData listData;
 
-	public VolatileSuperVoxelMultisetArray( final int numEntities, final boolean isValid )
+	public VolatileLabelMultisetArray( final int numEntities, final boolean isValid )
 	{
 		super( isValid );
 		this.data = new int[ numEntities ];
@@ -17,7 +18,7 @@ public class VolatileSuperVoxelMultisetArray extends AbstractVolatileArray< Vola
 		new MappedObjectArrayList<>( SuperVoxelMultisetEntry.type, listData, 0 ).add( new SuperVoxelMultisetEntry() );
 	}
 
-	public VolatileSuperVoxelMultisetArray( final int[] data, final LongMappedAccessData listData, final boolean isValid )
+	public VolatileLabelMultisetArray( final int[] data, final LongMappedAccessData listData, final boolean isValid )
 	{
 		super( isValid );
 		this.data = data;
@@ -30,9 +31,9 @@ public class VolatileSuperVoxelMultisetArray extends AbstractVolatileArray< Vola
 	}
 
 	@Override
-	public VolatileSuperVoxelMultisetArray createArray( final int numEntities )
+	public VolatileLabelMultisetArray createArray( final int numEntities )
 	{
-		return new VolatileSuperVoxelMultisetArray( numEntities, true );
+		return new VolatileLabelMultisetArray( numEntities, true );
 	}
 
 	@Override

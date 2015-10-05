@@ -14,9 +14,9 @@ import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.util.IntervalIndexer;
 
 
-public class DownscalingVolatileSuperVoxelMultisetArrayLoaderDvid implements CacheArrayLoader< VolatileSuperVoxelMultisetArray >
+public class DownscalingVolatileSuperVoxelMultisetArrayLoaderDvid implements CacheArrayLoader< VolatileLabelMultisetArray >
 {
-	private VolatileSuperVoxelMultisetArray theEmptyArray;
+	private VolatileLabelMultisetArray theEmptyArray;
 
 	private final MultisetSource multisetSource;
 	
@@ -26,13 +26,13 @@ public class DownscalingVolatileSuperVoxelMultisetArrayLoaderDvid implements Cac
 
 	public DownscalingVolatileSuperVoxelMultisetArrayLoaderDvid( final MultisetSource multisetSource, DatasetKeyValue[] dvidStores )
 	{
-		theEmptyArray = new VolatileSuperVoxelMultisetArray( 1, false );
+		theEmptyArray = new VolatileLabelMultisetArray( 1, false );
 		this.multisetSource = multisetSource;
 		this.dvidStores = dvidStores;
 	}
 
 	@Override
-	public VolatileSuperVoxelMultisetArray loadArray( final int timepoint, final int setup, final int level, final int[] dimensions, final long[] min ) throws InterruptedException
+	public VolatileLabelMultisetArray loadArray( final int timepoint, final int setup, final int level, final int[] dimensions, final long[] min ) throws InterruptedException
 	{
 //		System.out.println( "DownscalingVolatileSuperVoxelMultisetArrayLoader.loadArray(\n"
 //				+ "   timepoint = " + timepoint + "\n"
@@ -61,7 +61,7 @@ public class DownscalingVolatileSuperVoxelMultisetArrayLoaderDvid implements Cac
 
 		DatasetKeyValue store = dvidStores[ level - 1 ]; // -1? TODO
 		String key = getKey( timepoint, setup, min );
-		final VolatileSuperVoxelMultisetArray cached = tryLoadCached( dimensions, store, key );
+		final VolatileLabelMultisetArray cached = tryLoadCached( dimensions, store, key );
 		if ( cached != null )
 			return cached;
 
@@ -83,7 +83,7 @@ public class DownscalingVolatileSuperVoxelMultisetArrayLoaderDvid implements Cac
 		return String.format( "%d_%d_%d_%d_%d", timepoint, setup, min[0], min[1], min[2] );
 	}
 
-	private VolatileSuperVoxelMultisetArray tryLoadCached(
+	private VolatileLabelMultisetArray tryLoadCached(
 			final int[] dimensions,
 			final DatasetKeyValue store,
 			final String key )
@@ -115,7 +115,7 @@ public class DownscalingVolatileSuperVoxelMultisetArrayLoaderDvid implements Cac
 		}
 		for ( int i = 0; i < listDataSize; ++i )
 			ByteUtils.putByte( bytes[ ++j ], listData.data, i );
-		return new VolatileSuperVoxelMultisetArray( data, listData, true );
+		return new VolatileLabelMultisetArray( data, listData, true );
 	}
 
 	private static class SortedPeekIterator implements Comparable< SortedPeekIterator >
@@ -149,7 +149,7 @@ public class DownscalingVolatileSuperVoxelMultisetArrayLoaderDvid implements Cac
 		}
 	}
 
-	private VolatileSuperVoxelMultisetArray downscale(
+	private VolatileLabelMultisetArray downscale(
 			final RandomAccessibleInterval< SuperVoxelMultisetType > input,
 			final int[] factors, // (relative to to input)
 			final int[] dimensions,
@@ -342,21 +342,21 @@ public class DownscalingVolatileSuperVoxelMultisetArrayLoaderDvid implements Cac
 			e.printStackTrace();
 		}
 
-		return new VolatileSuperVoxelMultisetArray( data, listData, true );
+		return new VolatileLabelMultisetArray( data, listData, true );
 	}
 
 	@Override
-	public VolatileSuperVoxelMultisetArray emptyArray( final int[] dimensions )
+	public VolatileLabelMultisetArray emptyArray( final int[] dimensions )
 	{
 		int numEntities = 1;
 		for ( int i = 0; i < dimensions.length; ++i )
 			numEntities *= dimensions[ i ];
 		if ( theEmptyArray.getCurrentStorageArray().length < numEntities )
-			theEmptyArray = new VolatileSuperVoxelMultisetArray( numEntities, false );
+			theEmptyArray = new VolatileLabelMultisetArray( numEntities, false );
 		return theEmptyArray;
 	}
 
-	private VolatileSuperVoxelMultisetArray createOutOfBoundsOnlyZeros( int[] dimensions, int nElementsPerSource )
+	private VolatileLabelMultisetArray createOutOfBoundsOnlyZeros( int[] dimensions, int nElementsPerSource )
 	{
 		final int nElements = dimensions[ 0 ] * dimensions[ 1 ] * dimensions[ 2 ];
 		final int[] data = new int[ nElements ];
@@ -369,6 +369,6 @@ public class DownscalingVolatileSuperVoxelMultisetArrayLoaderDvid implements Cac
 			ByteUtils.putInt( nElementsPerSource, listData.data, i + 12 );
 			data[ dataIndex ] = i;
 		}
-		return new VolatileSuperVoxelMultisetArray( data, listData, true );
+		return new VolatileLabelMultisetArray( data, listData, true );
 	}
 }

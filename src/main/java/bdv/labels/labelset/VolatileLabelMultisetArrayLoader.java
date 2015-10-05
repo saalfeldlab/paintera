@@ -9,10 +9,14 @@ import java.util.Arrays;
 
 import bdv.img.cache.CacheArrayLoader;
 
-// load full resolution arrays and create list representation
-public class VolatileSuperVoxelMultisetArrayLoader implements CacheArrayLoader< VolatileSuperVoxelMultisetArray >
+/**
+ * Loads a full resolution label block from a DVID labels64 source where each
+ * voxel is assigned to a single label, and converts them into a LabelMultiset
+ * with one element per voxel.
+ */
+public class VolatileLabelMultisetArrayLoader implements CacheArrayLoader< VolatileLabelMultisetArray >
 {
-	private VolatileSuperVoxelMultisetArray theEmptyArray;
+	private VolatileLabelMultisetArray theEmptyArray;
 
 	private final String apiUrl;
 
@@ -20,13 +24,13 @@ public class VolatileSuperVoxelMultisetArrayLoader implements CacheArrayLoader< 
 
 	private final String dataInstanceId;
 
-	public VolatileSuperVoxelMultisetArrayLoader(
+	public VolatileLabelMultisetArrayLoader(
 			final String apiUrl,
 			final String nodeId,
 			final String dataInstanceId,
 			final int[] blockDimensions )
 	{
-		theEmptyArray = new VolatileSuperVoxelMultisetArray( 1, false );
+		theEmptyArray = new VolatileLabelMultisetArray( 1, false );
 		this.apiUrl = apiUrl;
 		this.nodeId = nodeId;
 		this.dataInstanceId = dataInstanceId;
@@ -121,7 +125,7 @@ A:		for ( int i = 0, j = -1; i < data.length; ++i )
 	}
 
 	@Override
-	public VolatileSuperVoxelMultisetArray loadArray(
+	public VolatileLabelMultisetArray loadArray(
 			final int timepoint,
 			final int setup,
 			final int level,
@@ -154,17 +158,17 @@ A:		for ( int i = 0, j = -1; i < data.length; ++i )
 			return emptyArray( dimensions );
 		}
 
-		return new VolatileSuperVoxelMultisetArray( data, listData, true );
+		return new VolatileLabelMultisetArray( data, listData, true );
 	}
 
 	@Override
-	public VolatileSuperVoxelMultisetArray emptyArray( final int[] dimensions )
+	public VolatileLabelMultisetArray emptyArray( final int[] dimensions )
 	{
 		int numEntities = 1;
 		for ( int i = 0; i < dimensions.length; ++i )
 			numEntities *= dimensions[ i ];
 		if ( theEmptyArray.getCurrentStorageArray().length < numEntities )
-			theEmptyArray = new VolatileSuperVoxelMultisetArray( numEntities, false );
+			theEmptyArray = new VolatileLabelMultisetArray( numEntities, false );
 		return theEmptyArray;
 	}
 }

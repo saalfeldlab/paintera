@@ -19,20 +19,20 @@ import bdv.labels.labelset.DvidLabels64MultisetSetupImageLoader.MultisetSource;
 import bdv.labels.labelset.Multiset.Entry;
 
 
-public class DownscalingVolatileSuperVoxelMultisetArrayLoader implements CacheArrayLoader< VolatileSuperVoxelMultisetArray >
+public class DownscalingVolatileSuperVoxelMultisetArrayLoader implements CacheArrayLoader< VolatileLabelMultisetArray >
 {
-	private VolatileSuperVoxelMultisetArray theEmptyArray;
+	private VolatileLabelMultisetArray theEmptyArray;
 
 	private final MultisetSource multisetSource;
 
 	public DownscalingVolatileSuperVoxelMultisetArrayLoader( final MultisetSource multisetSource )
 	{
-		theEmptyArray = new VolatileSuperVoxelMultisetArray( 1, false );
+		theEmptyArray = new VolatileLabelMultisetArray( 1, false );
 		this.multisetSource = multisetSource;
 	}
 
 	@Override
-	public VolatileSuperVoxelMultisetArray loadArray( final int timepoint, final int setup, final int level, final int[] dimensions, final long[] min ) throws InterruptedException
+	public VolatileLabelMultisetArray loadArray( final int timepoint, final int setup, final int level, final int[] dimensions, final long[] min ) throws InterruptedException
 	{
 //		System.out.println( "DownscalingVolatileSuperVoxelMultisetArrayLoader.loadArray(\n"
 //				+ "   timepoint = " + timepoint + "\n"
@@ -43,7 +43,7 @@ public class DownscalingVolatileSuperVoxelMultisetArrayLoader implements CacheAr
 //				+ ")"
 //				);
 		final String filename = getFilename( timepoint, setup, level, min );
-		final VolatileSuperVoxelMultisetArray cached = tryLoadCached( dimensions, filename );
+		final VolatileLabelMultisetArray cached = tryLoadCached( dimensions, filename );
 		if ( cached != null )
 			return cached;
 
@@ -63,7 +63,7 @@ public class DownscalingVolatileSuperVoxelMultisetArrayLoader implements CacheAr
 		return String.format( "/tmp/labelcache/%d_%d_%d/%d_%d_%d", timepoint, setup, level, min[ 0 ], min[ 1 ], min[ 2 ] );
 	}
 
-	private VolatileSuperVoxelMultisetArray tryLoadCached(
+	private VolatileLabelMultisetArray tryLoadCached(
 			final int[] dimensions,
 			final String filename )
 	{
@@ -94,7 +94,7 @@ public class DownscalingVolatileSuperVoxelMultisetArrayLoader implements CacheAr
 		}
 		for ( int i = 0; i < listDataSize; ++i )
 			ByteUtils.putByte( bytes[ ++j ], listData.data, i );
-		return new VolatileSuperVoxelMultisetArray( data, listData, true );
+		return new VolatileLabelMultisetArray( data, listData, true );
 	}
 
 	private static class SortedPeekIterator implements Comparable< SortedPeekIterator >
@@ -128,7 +128,7 @@ public class DownscalingVolatileSuperVoxelMultisetArrayLoader implements CacheAr
 		}
 	}
 
-	private VolatileSuperVoxelMultisetArray downscale(
+	private VolatileLabelMultisetArray downscale(
 			final RandomAccessibleInterval< SuperVoxelMultisetType > input,
 			final int[] factors, // (relative to to input)
 			final int[] dimensions,
@@ -261,17 +261,17 @@ public class DownscalingVolatileSuperVoxelMultisetArrayLoader implements CacheAr
 			e.printStackTrace();
 		}
 
-		return new VolatileSuperVoxelMultisetArray( data, listData, true );
+		return new VolatileLabelMultisetArray( data, listData, true );
 	}
 
 	@Override
-	public VolatileSuperVoxelMultisetArray emptyArray( final int[] dimensions )
+	public VolatileLabelMultisetArray emptyArray( final int[] dimensions )
 	{
 		int numEntities = 1;
 		for ( int i = 0; i < dimensions.length; ++i )
 			numEntities *= dimensions[ i ];
 		if ( theEmptyArray.getCurrentStorageArray().length < numEntities )
-			theEmptyArray = new VolatileSuperVoxelMultisetArray( numEntities, false );
+			theEmptyArray = new VolatileLabelMultisetArray( numEntities, false );
 		return theEmptyArray;
 	}
 }

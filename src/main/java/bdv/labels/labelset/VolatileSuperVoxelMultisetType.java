@@ -13,13 +13,13 @@ public class VolatileSuperVoxelMultisetType
 	public static final VolatileSuperVoxelMultisetType type = new VolatileSuperVoxelMultisetType();
 
 	// this is the constructor if you want it to read from an array
-	public VolatileSuperVoxelMultisetType( final NativeImg< ?, VolatileSuperVoxelMultisetArray > img )
+	public VolatileSuperVoxelMultisetType( final NativeImg< ?, VolatileLabelMultisetArray > img )
 	{
 		super( new SuperVoxelMultisetType( img ) );
 	}
 
 	// this is the constructor if you want to specify the dataAccess
-	public VolatileSuperVoxelMultisetType( final VolatileSuperVoxelMultisetArray access, final boolean isValid )
+	public VolatileSuperVoxelMultisetType( final VolatileLabelMultisetArray access, final boolean isValid )
 	{
 		super( new SuperVoxelMultisetType( access ), isValid );
 	}

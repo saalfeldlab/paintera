@@ -8,6 +8,7 @@ import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.type.NativeType;
 import net.imglib2.util.Fraction;
 import bdv.AbstractViewerSetupImgLoader;
+import bdv.img.cache.CacheArrayLoader;
 import bdv.img.cache.CacheHints;
 import bdv.img.cache.CachedCellImg;
 import bdv.img.cache.LoadingStrategy;
@@ -25,23 +26,19 @@ import com.google.gson.JsonSyntaxException;
 public class DvidLabels64MultisetSetupImageLoader
 	extends AbstractViewerSetupImgLoader< SuperVoxelMultisetType, VolatileSuperVoxelMultisetType >
 {
-	private final double[][] resolutions;
+	final protected double[][] resolutions;
 
-	private final long[] dimensions;
+	final protected long[][] dimensions;
 
-	private final int[] blockDimensions;
+	final protected int[][] blockDimensions;
 
-	private final AffineTransform3D[] mipmapTransforms;
+	final protected AffineTransform3D[] mipmapTransforms;
 
-	private VolatileGlobalCellCache cache;
+	protected VolatileGlobalCellCache cache;
 
-	private final VolatileSuperVoxelMultisetArrayLoader loader;
-
-	private final DownscalingVolatileSuperVoxelMultisetArrayLoaderDvid downscaleLoader;
+	private final CacheArrayLoader< VolatileLabelMultisetArray >[] loaders;
 
 	private final int setupId;
-
-	private final int numMipmapLevels;
 
 	/**
 	 * http://emrecon100.janelia.priv/api/help/labels64
@@ -51,11 +48,12 @@ public class DvidLabels64MultisetSetupImageLoader
 	 * @param dataInstanceId e.g. "bodies"
 	 * @param resolutions
 	 * @param dvidStores Array of {@link DatasetKeyValue} to manage
-	 * load/write of {@link VolatileSuperVoxelMultisetArray} from dvid store.
+	 * load/write of {@link VolatileLabelMultisetArray} from dvid store.
 	 * @throws IOException
 	 * @throws JsonIOException
 	 * @throws JsonSyntaxException
 	 */
+	@SuppressWarnings( "unchecked" )
 	public DvidLabels64MultisetSetupImageLoader(
 			final int setupId,
 			final String apiUrl,
@@ -72,31 +70,43 @@ public class DvidLabels64MultisetSetupImageLoader
 						apiUrl + "/node/" + nodeId + "/" + dataInstanceId + "/info",
 						Labels64DataInstance.class );
 
-		dimensions = new long[]{
-				dataInstance.Extended.MaxPoint[ 0 ] + 1 - dataInstance.Extended.MinPoint[ 0 ],
-				dataInstance.Extended.MaxPoint[ 1 ] + 1 - dataInstance.Extended.MinPoint[ 1 ],
-				dataInstance.Extended.MaxPoint[ 2 ] + 1 - dataInstance.Extended.MinPoint[ 2 ] };
-
-
+		this.dimensions = new long[ resolutions.length ][];
 		this.resolutions = new double[ resolutions.length ][];
 		for ( int i =0; i < resolutions.length; ++i )
+		{
 			this.resolutions[ i ] = Arrays.copyOf( resolutions[ i ], resolutions[ i ].length );
+			this.dimensions[ i ] = new long[]{
+					( long )Math.ceil( ( dataInstance.Extended.MaxPoint[ 0 ] + 1 - dataInstance.Extended.MinPoint[ 0 ] ) * resolutions[ i ][ 0 ] ),
+					( long )Math.ceil( ( dataInstance.Extended.MaxPoint[ 1 ] + 1 - dataInstance.Extended.MinPoint[ 1 ] ) * resolutions[ i ][ 1 ] ),
+					( long )Math.ceil( ( dataInstance.Extended.MaxPoint[ 2 ] + 1 - dataInstance.Extended.MinPoint[ 2 ] ) * resolutions[ i ][ 2 ] ) };
+		}
+
 
 		mipmapTransforms = new AffineTransform3D[ resolutions.length ];
 		for ( int level = 0; level < resolutions.length; level++ )
 			mipmapTransforms[ level ] = MipmapTransforms.getMipmapTransformDefault( resolutions[ level ] );
-		numMipmapLevels = resolutions.length;
 
-		blockDimensions = dataInstance.Extended.BlockSize;
+		final int numMipmapLevels = resolutions.length;
 
-		loader = new VolatileSuperVoxelMultisetArrayLoader( apiUrl, nodeId, dataInstanceId, blockDimensions );
-		downscaleLoader = new DownscalingVolatileSuperVoxelMultisetArrayLoaderDvid( new MultisetSource( this ), dvidStores );
+		blockDimensions = new int[ numMipmapLevels ][];
+		loaders = ( CacheArrayLoader< VolatileLabelMultisetArray >[] )new CacheArrayLoader[ numMipmapLevels ];
+
+		/* first loader is a labels64 source */
+		blockDimensions[ 0 ] = dataInstance.Extended.BlockSize;
+		loaders[ 0 ] = new VolatileLabelMultisetArrayLoader( apiUrl, nodeId, dataInstanceId, blockDimensions[ 0 ] );
+
+		/* subsequent loaders are key value stores */
+		for ( int i = 0; i < dvidStores.length; ++i ) {
+			loaders[ i + 1 ] =
+				new DvidLabelMultisetArrayLoader( dvidStores[ i ] );
+			blockDimensions[ i + 1 ] = blockDimensions[ 0 ];
+		}
 	}
 
 	@Override
 	public RandomAccessibleInterval< SuperVoxelMultisetType > getImage( final int timepointId, final int level )
 	{
-		final CachedCellImg< SuperVoxelMultisetType, VolatileSuperVoxelMultisetArray > img = prepareCachedImage( timepointId, setupId, level, LoadingStrategy.BLOCKING );
+		final CachedCellImg< SuperVoxelMultisetType, VolatileLabelMultisetArray > img = prepareCachedImage( timepointId, level, LoadingStrategy.BLOCKING );
 		final SuperVoxelMultisetType linkedType = new SuperVoxelMultisetType( img );
 		img.setLinkedType( linkedType );
 		return img;
@@ -105,7 +115,7 @@ public class DvidLabels64MultisetSetupImageLoader
 	@Override
 	public RandomAccessibleInterval< VolatileSuperVoxelMultisetType > getVolatileImage( final int timepointId, final int level )
 	{
-		final CachedCellImg< VolatileSuperVoxelMultisetType, VolatileSuperVoxelMultisetArray > img = prepareCachedImage( timepointId, setupId, level, LoadingStrategy.BLOCKING );
+		final CachedCellImg< VolatileSuperVoxelMultisetType, VolatileLabelMultisetArray > img = prepareCachedImage( timepointId, level, LoadingStrategy.VOLATILE );
 		final VolatileSuperVoxelMultisetType linkedType = new VolatileSuperVoxelMultisetType( img );
 		img.setLinkedType( linkedType );
 		return img;
@@ -120,26 +130,25 @@ public class DvidLabels64MultisetSetupImageLoader
 	@Override
 	public int numMipmapLevels()
 	{
-		return numMipmapLevels;
+		return resolutions.length;
 	}
 
-	protected < T extends NativeType< T > > CachedCellImg< T, VolatileSuperVoxelMultisetArray > prepareCachedImage(
+	protected < T extends NativeType< T > > CachedCellImg< T, VolatileLabelMultisetArray > prepareCachedImage(
 			final int timepointId,
-			final int setupId,
 			final int level,
 			final LoadingStrategy loadingStrategy )
 	{
-		final int priority = numMipmapLevels - level - 1;
+		final int priority = resolutions.length - level - 1;
 		final CacheHints cacheHints = new CacheHints( loadingStrategy, priority, false );
-		final VolatileCellCache< VolatileSuperVoxelMultisetArray > c =
-				cache.new VolatileCellCache< VolatileSuperVoxelMultisetArray >(
+		final VolatileCellCache< VolatileLabelMultisetArray > c =
+				cache.new VolatileCellCache< VolatileLabelMultisetArray >(
 						timepointId,
 						setupId,
 						level,
 						cacheHints,
-						level == 0 ? loader : downscaleLoader );
-		final VolatileImgCells< VolatileSuperVoxelMultisetArray > cells = new VolatileImgCells< VolatileSuperVoxelMultisetArray >( c, new Fraction(), dimensions, blockDimensions );
-		final CachedCellImg< T, VolatileSuperVoxelMultisetArray > img = new CachedCellImg< T, VolatileSuperVoxelMultisetArray >( cells );
+						loaders[ level ] );
+		final VolatileImgCells< VolatileLabelMultisetArray > cells = new VolatileImgCells< VolatileLabelMultisetArray >( c, new Fraction(), dimensions[ level ], blockDimensions[ level ] );
+		final CachedCellImg< T, VolatileLabelMultisetArray > img = new CachedCellImg< T, VolatileLabelMultisetArray >( cells );
 		return img;
 	}
 
@@ -152,16 +161,6 @@ public class DvidLabels64MultisetSetupImageLoader
 	public void setCache( final VolatileGlobalCellCache cache )
 	{
 		this.cache = cache;
-	}
-
-	public long[] getDimensions()
-	{
-		return dimensions;
-	}
-
-	public int[] getBlockDimensions()
-	{
-		return blockDimensions;
 	}
 
 	static public class MultisetSource
@@ -200,9 +199,4 @@ public class DvidLabels64MultisetSetupImageLoader
 	{
 		return setupId;
 	};
-
-	public VolatileSuperVoxelMultisetArray loadArray( final int timepoint, final int setup, final int level, final int[] dimensions, final long[] min ) throws InterruptedException
-	{
-		return this.downscaleLoader.loadArray( timepoint, setup, level, dimensions, min );
-	}
 }

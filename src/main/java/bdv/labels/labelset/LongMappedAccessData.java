@@ -13,7 +13,7 @@ public class LongMappedAccessData implements MappedAccessData< LongMappedAccess 
 	 * The current data storage. This is changed when the array is
 	 * {@link #resize(int) resized}.
 	 */
-	long[] data;
+	protected long[] data;
 
 	private long size;
 

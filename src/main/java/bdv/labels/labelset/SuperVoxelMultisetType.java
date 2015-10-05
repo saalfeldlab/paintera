@@ -15,22 +15,22 @@ public class SuperVoxelMultisetType extends AbstractNativeType< SuperVoxelMultis
 {
 	public static final SuperVoxelMultisetType type = new SuperVoxelMultisetType();
 
-	private final NativeImg< ?, VolatileSuperVoxelMultisetArray > img;
+	private final NativeImg< ?, VolatileLabelMultisetArray > img;
 
-	private VolatileSuperVoxelMultisetArray access;
+	private VolatileLabelMultisetArray access;
 
 	private final SuperVoxelMultisetEntryList entries;
 
 	private final Set< Entry< SuperVoxel > > entrySet;
 
 	// this is the constructor if you want it to read from an array
-	public SuperVoxelMultisetType( final NativeImg< ?, VolatileSuperVoxelMultisetArray > img )
+	public SuperVoxelMultisetType( final NativeImg< ?, VolatileLabelMultisetArray > img )
 	{
 		this( img, null );
 	}
 
 	// this is the constructor if you want to specify the dataAccess
-	public SuperVoxelMultisetType( final VolatileSuperVoxelMultisetArray access )
+	public SuperVoxelMultisetType( final VolatileLabelMultisetArray access )
 	{
 		this( null, access );
 	}
@@ -38,10 +38,10 @@ public class SuperVoxelMultisetType extends AbstractNativeType< SuperVoxelMultis
 	// this is the constructor if you want it to be a variable
 	public SuperVoxelMultisetType()
 	{
-		this( null, new VolatileSuperVoxelMultisetArray( 1, true ) );
+		this( null, new VolatileLabelMultisetArray( 1, true ) );
 	}
 
-	private SuperVoxelMultisetType( final NativeImg< ?, VolatileSuperVoxelMultisetArray > img, final VolatileSuperVoxelMultisetArray access )
+	private SuperVoxelMultisetType( final NativeImg< ?, VolatileLabelMultisetArray > img, final VolatileLabelMultisetArray access )
 	{
 		this.entries = new SuperVoxelMultisetEntryList();
 		this.img = img;
