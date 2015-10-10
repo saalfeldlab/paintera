@@ -11,46 +11,46 @@ import net.imglib2.type.AbstractNativeType;
 import net.imglib2.util.Fraction;
 import bdv.labels.labelset.RefList.RefIterator;
 
-public class SuperVoxelMultisetType extends AbstractNativeType< SuperVoxelMultisetType > implements Multiset< SuperVoxel >
+public class LabelMultisetType extends AbstractNativeType< LabelMultisetType > implements Multiset< SuperVoxel >
 {
-	public static final SuperVoxelMultisetType type = new SuperVoxelMultisetType();
+	public static final LabelMultisetType type = new LabelMultisetType();
 
 	private final NativeImg< ?, VolatileLabelMultisetArray > img;
 
 	private VolatileLabelMultisetArray access;
 
-	private final SuperVoxelMultisetEntryList entries;
+	private final LabelMultisetEntryList entries;
 
 	private final Set< Entry< SuperVoxel > > entrySet;
 
 	// this is the constructor if you want it to read from an array
-	public SuperVoxelMultisetType( final NativeImg< ?, VolatileLabelMultisetArray > img )
+	public LabelMultisetType( final NativeImg< ?, VolatileLabelMultisetArray > img )
 	{
 		this( img, null );
 	}
 
 	// this is the constructor if you want to specify the dataAccess
-	public SuperVoxelMultisetType( final VolatileLabelMultisetArray access )
+	public LabelMultisetType( final VolatileLabelMultisetArray access )
 	{
 		this( null, access );
 	}
 
 	// this is the constructor if you want it to be a variable
-	public SuperVoxelMultisetType()
+	public LabelMultisetType()
 	{
 		this( null, new VolatileLabelMultisetArray( 1, true ) );
 	}
 
-	private SuperVoxelMultisetType( final NativeImg< ?, VolatileLabelMultisetArray > img, final VolatileLabelMultisetArray access )
+	private LabelMultisetType( final NativeImg< ?, VolatileLabelMultisetArray > img, final VolatileLabelMultisetArray access )
 	{
-		this.entries = new SuperVoxelMultisetEntryList();
+		this.entries = new LabelMultisetEntryList();
 		this.img = img;
 		this.access = access;
 		this.entrySet = new AbstractSet< Entry< SuperVoxel > >()
 		{
 			private final RefIterator< Entry< SuperVoxel > > iterator = new RefIterator< Entry< SuperVoxel > >()
 			{
-				private final RefIterator< SuperVoxelMultisetEntry > it = entries.iterator();
+				private final RefIterator< LabelMultisetEntry > it = entries.iterator();
 
 				@Override
 				public boolean hasNext()
@@ -59,7 +59,7 @@ public class SuperVoxelMultisetType extends AbstractNativeType< SuperVoxelMultis
 				}
 
 				@Override
-				public SuperVoxelMultisetEntry next()
+				public LabelMultisetEntry next()
 				{
 					return it.next();
 				}
@@ -105,33 +105,33 @@ public class SuperVoxelMultisetType extends AbstractNativeType< SuperVoxelMultis
 	}
 
 	@Override
-	public SuperVoxelMultisetType createVariable()
+	public LabelMultisetType createVariable()
 	{
-		return new SuperVoxelMultisetType();
+		return new LabelMultisetType();
 	}
 
 	@Override
-	public SuperVoxelMultisetType copy()
+	public LabelMultisetType copy()
 	{
-		return new SuperVoxelMultisetType( img, access );
+		return new LabelMultisetType( img, access );
 	}
 
 	@Override
-	public void set( final SuperVoxelMultisetType c )
+	public void set( final LabelMultisetType c )
 	{
 		throw new UnsupportedOperationException();
 	}
 
 	@Override
-	public NativeImg< SuperVoxelMultisetType, ? > createSuitableNativeImg( final NativeImgFactory< SuperVoxelMultisetType > storageFactory, final long[] dim )
+	public NativeImg< LabelMultisetType, ? > createSuitableNativeImg( final NativeImgFactory< LabelMultisetType > storageFactory, final long[] dim )
 	{
 		throw new UnsupportedOperationException();
 	}
 
 	@Override
-	public SuperVoxelMultisetType duplicateTypeOnSameNativeImg()
+	public LabelMultisetType duplicateTypeOnSameNativeImg()
 	{
-		return new SuperVoxelMultisetType( img );
+		return new LabelMultisetType( img );
 	}
 
 	// ==== Multiset< SuperVoxel > =====

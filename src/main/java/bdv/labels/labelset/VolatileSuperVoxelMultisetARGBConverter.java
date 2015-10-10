@@ -28,7 +28,7 @@ import bdv.labels.labelset.Multiset.Entry;
  *
  * @author Stephan Saalfeld <saalfelds@janelia.hhmi.org>
  */
-public class VolatileSuperVoxelMultisetARGBConverter implements Converter< VolatileSuperVoxelMultisetType, VolatileARGBType >
+public class VolatileSuperVoxelMultisetARGBConverter implements Converter< VolatileLabelMultisetType, VolatileARGBType >
 {
 	final protected ARGBSource argbSource;
 
@@ -39,7 +39,7 @@ public class VolatileSuperVoxelMultisetARGBConverter implements Converter< Volat
 		this.argbSource = argbSource;
 	}
 
-	protected void convertValid( final VolatileSuperVoxelMultisetType input, final VolatileARGBType output )
+	protected void convertValid( final VolatileLabelMultisetType input, final VolatileARGBType output )
 	{
 		double a = 0;
 		double r = 0;
@@ -70,7 +70,7 @@ public class VolatileSuperVoxelMultisetARGBConverter implements Converter< Volat
 	}
 
 	@Override
-	public void convert( final VolatileSuperVoxelMultisetType input, final VolatileARGBType output )
+	public void convert( final VolatileLabelMultisetType input, final VolatileARGBType output )
 	{
 		if ( input.isValid() )
 		{

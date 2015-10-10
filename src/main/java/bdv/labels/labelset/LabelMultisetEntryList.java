@@ -1,41 +1,41 @@
 package bdv.labels.labelset;
 
 
-public class SuperVoxelMultisetEntryList
-	extends MappedObjectArrayList< SuperVoxelMultisetEntry, LongMappedAccess >
+public class LabelMultisetEntryList
+	extends MappedObjectArrayList< LabelMultisetEntry, LongMappedAccess >
 {
 	/**
 	 * creates underlying data array
 	 */
-	public SuperVoxelMultisetEntryList( final int capacity )
+	public LabelMultisetEntryList( final int capacity )
 	{
-		super( SuperVoxelMultisetEntry.type, capacity );
+		super( LabelMultisetEntry.type, capacity );
 	}
 
 	/**
 	 * doesn't create underlying data array
 	 */
-	protected SuperVoxelMultisetEntryList()
+	protected LabelMultisetEntryList()
 	{
-		super( SuperVoxelMultisetEntry.type );
+		super( LabelMultisetEntry.type );
 	}
 
-	protected SuperVoxelMultisetEntryList( final LongMappedAccessData data, final long baseOffset )
+	protected LabelMultisetEntryList( final LongMappedAccessData data, final long baseOffset )
 	{
-		super( SuperVoxelMultisetEntry.type, data, baseOffset );
+		super( LabelMultisetEntry.type, data, baseOffset );
 	}
 
 	protected int multisetSize()
 	{
 		int size = 0;
-		for ( final SuperVoxelMultisetEntry e : this )
+		for ( final LabelMultisetEntry e : this )
 			size += e.getCount();
 		return size;
 	}
 
 	/**
 	 * Performs a binary search for entry with
-	 * {@link SuperVoxelMultisetEntry#getId()} <tt>id</tt> in the entire list.
+	 * {@link LabelMultisetEntry#getId()} <tt>id</tt> in the entire list.
 	 * Note that you <b>must</b> @{link #sort sort} the list before doing a
 	 * search.
 	 *
@@ -50,7 +50,7 @@ public class SuperVoxelMultisetEntryList
 
     /**
 	 * Performs a binary search for entry with
-	 * {@link SuperVoxelMultisetEntry#getId()} <tt>id</tt> in the specified
+	 * {@link LabelMultisetEntry#getId()} <tt>id</tt> in the specified
 	 * range. Note that you <b>must</b> @{link #sort sort} the list or the range
 	 * before doing a search.
 	 *
@@ -74,7 +74,7 @@ public class SuperVoxelMultisetEntryList
         int low = fromIndex;
         int high = toIndex - 1;
 
-        final SuperVoxelMultisetEntry ref = createRef();
+        final LabelMultisetEntry ref = createRef();
         while ( low <= high ) {
             final int mid = ( low + high ) >>> 1;
             final long midVal = get( mid, ref ).getId();

@@ -7,7 +7,7 @@ import java.util.Set;
 
 public class SuperVoxelMultiset implements Multiset< SuperVoxel >
 {
-	private final SuperVoxelMultisetEntryList entries;
+	private final LabelMultisetEntryList entries;
 
 	private final int totalSize;
 
@@ -27,7 +27,7 @@ public class SuperVoxelMultiset implements Multiset< SuperVoxel >
 				}
 
 				@Override
-				public SuperVoxelMultisetEntry next()
+				public LabelMultisetEntry next()
 				{
 					return entries.get( i++ );
 				}
@@ -41,16 +41,16 @@ public class SuperVoxelMultiset implements Multiset< SuperVoxel >
 		}
 	};
 
-	public SuperVoxelMultiset( final SuperVoxelMultisetEntryList entries )
+	public SuperVoxelMultiset( final LabelMultisetEntryList entries )
 	{
 		this.entries = entries;
 		int s = 0;
-		for ( final SuperVoxelMultisetEntry entry : entries )
+		for ( final LabelMultisetEntry entry : entries )
 			s += entry.getCount();
 		this.totalSize = s;
 	}
 
-	public SuperVoxelMultiset( final SuperVoxelMultisetEntryList entries, final int size )
+	public SuperVoxelMultiset( final LabelMultisetEntryList entries, final int size )
 	{
 		this.entries = entries;
 		this.totalSize = size;
@@ -58,7 +58,7 @@ public class SuperVoxelMultiset implements Multiset< SuperVoxel >
 
 	protected SuperVoxelMultiset( final int size )
 	{
-		this.entries = new SuperVoxelMultisetEntryList();
+		this.entries = new LabelMultisetEntryList();
 		this.totalSize = size;
 	}
 

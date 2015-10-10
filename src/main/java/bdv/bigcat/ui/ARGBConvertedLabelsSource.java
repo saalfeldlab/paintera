@@ -1,5 +1,11 @@
 package bdv.bigcat.ui;
 
+import bdv.AbstractViewerSetupImgLoader;
+import bdv.labels.labelset.LabelMultisetType;
+import bdv.labels.labelset.VolatileLabelMultisetType;
+import bdv.labels.labelset.VolatileSuperVoxelMultisetARGBConverter;
+import bdv.viewer.Interpolation;
+import bdv.viewer.Source;
 import mpicbg.spim.data.sequence.VoxelDimensions;
 import net.imglib2.RandomAccessible;
 import net.imglib2.RandomAccessibleInterval;
@@ -12,17 +18,14 @@ import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.type.volatiles.VolatileARGBType;
 import net.imglib2.view.ExtendedRandomAccessibleInterval;
 import net.imglib2.view.Views;
-import bdv.labels.labelset.DvidLabels64MultisetSetupImageLoader;
-import bdv.labels.labelset.VolatileSuperVoxelMultisetARGBConverter;
-import bdv.viewer.Interpolation;
-import bdv.viewer.Source;
 
 @SuppressWarnings( "unchecked" )
 public class ARGBConvertedLabelsSource
 	implements Source< VolatileARGBType >
 {
-	final private DvidLabels64MultisetSetupImageLoader multisetImageLoader;
+	final private AbstractViewerSetupImgLoader< LabelMultisetType, VolatileLabelMultisetType > multisetImageLoader;
 	final private ARGBSource argbSource;
+	final private long setupId;
 
 	final protected InterpolatorFactory< VolatileARGBType, RandomAccessible< VolatileARGBType > >[] interpolatorFactories;
 	{
@@ -34,9 +37,10 @@ public class ARGBConvertedLabelsSource
 
 	public ARGBConvertedLabelsSource(
 			final int setupId,
-			final DvidLabels64MultisetSetupImageLoader multisetImageLoader,
+			final AbstractViewerSetupImgLoader< LabelMultisetType, VolatileLabelMultisetType > multisetImageLoader,
 			final ARGBSource argbSource )
 	{
+		this.setupId = setupId;
 		this.multisetImageLoader = multisetImageLoader;
 		this.argbSource = argbSource;
 	}
@@ -94,7 +98,7 @@ public class ARGBConvertedLabelsSource
 	@Override
 	public String getName()
 	{
-		return multisetImageLoader.getSetupId() + "";
+		return setupId + "";
 	}
 
 	/**

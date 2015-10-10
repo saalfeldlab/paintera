@@ -46,7 +46,7 @@ public class ARGBConvertedLabelsArrayLoader implements CacheArrayLoader< Volatil
 //				);
 		final int[] data = new int[ dimensions[ 0 ] * dimensions[ 1 ] * dimensions[ 2 ] ];
 
-		final IterableInterval< SuperVoxelMultisetType > source =
+		final IterableInterval< LabelMultisetType > source =
 		Views.flatIterable(
 				Views.interval(
 						multisetSource.getSource( timepoint, level ),
@@ -56,7 +56,7 @@ public class ARGBConvertedLabelsArrayLoader implements CacheArrayLoader< Volatil
 						)
 				);
 		int i = 0;
-		for ( final SuperVoxelMultisetType t : source )
+		for ( final LabelMultisetType t : source )
 		{
 			double r = 0;
 			double g = 0;

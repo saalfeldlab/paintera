@@ -20,31 +20,70 @@ import java.awt.event.KeyEvent;
 import java.awt.event.KeyListener;
 import java.awt.event.MouseEvent;
 import java.awt.event.MouseListener;
+import java.nio.charset.Charset;
+import java.util.Arrays;
 
-import net.imglib2.RealRandomAccess;
-import net.imglib2.RealRandomAccessible;
+import org.zeromq.ZContext;
+import org.zeromq.ZMQ;
+import org.zeromq.ZMQ.Socket;
+
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+
 import bdv.bigcat.ui.AbstractSaturatedARGBStream;
 import bdv.labels.labelset.Multiset.Entry;
 import bdv.labels.labelset.SuperVoxel;
 import bdv.labels.labelset.VolatileLabelMultisetType;
 import bdv.viewer.ViewerPanel;
-
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
+import gnu.trove.map.hash.TLongLongHashMap;
+import net.imglib2.RealRandomAccess;
+import net.imglib2.RealRandomAccessible;
 
 /**
- *
+ * User input for label/ body merge and split events that sends
  *
  * @author Stephan Saalfeld <saalfelds@janelia.hhmi.org>
  */
-public class MergeModeController implements MouseListener, KeyListener
+public class LabelMergeSplitClientController implements MouseListener, KeyListener
 {
+	protected class SocketListener extends Thread
+	{
+		final void updateAssignment( String msg )
+		{
+//			System.out.println( "Received : " + msg );
+			System.out.println( "Message received.");
+			if ( msg.equals( "NEED MORE" ) )
+				return;
+			msg = msg.substring( 1, msg.length() - 2 );
+			final TLongLongHashMap lut = new TLongLongHashMap();
+			final String[] msgSplit = msg.split( " " );
+			for ( int i = 0; i < msgSplit.length; ++i )
+				lut.put( i, Long.parseLong( msgSplit[ i ] ) );
+			
+			assignment.initLut( lut );
+			colorStream.clearCache();
+			viewer.requestRepaint();
+		}
+		
+		@Override
+		final public void run()
+		{
+			while ( !isInterrupted() )
+			{
+				final String msg = socket.recvStr( Charset.defaultCharset() );
+				updateAssignment( msg );
+			}
+		}
+	}
+	
 	final protected ViewerPanel viewer;
 	final protected RealRandomAccessible< VolatileLabelMultisetType > labels;
 	final protected RealRandomAccess< VolatileLabelMultisetType > labelAccess;
 	final protected AbstractSaturatedARGBStream colorStream;
 	final protected SegmentBodyAssignment assignment;
 	protected long activeSegmentId = 0;
+	final protected Socket socket;
+	final protected SocketListener socketListener;
 
 	final GsonBuilder gsonBuilder = new GsonBuilder();
 	{
@@ -54,17 +93,34 @@ public class MergeModeController implements MouseListener, KeyListener
 	final Gson gson = gsonBuilder.create();
 
 
-	public MergeModeController(
+	public LabelMergeSplitClientController(
 			final ViewerPanel viewer,
 			final RealRandomAccessible< VolatileLabelMultisetType > labels,
 			final AbstractSaturatedARGBStream colorStream,
-			final SegmentBodyAssignment assignment )
+			final SegmentBodyAssignment assignment,
+			final Socket socket )
 	{
 		this.viewer = viewer;
 		this.labels = labels;
 		this.colorStream = colorStream;
 		this.assignment = assignment;
+		this.socket = socket;
 		labelAccess = labels.realRandomAccess();
+		
+		socketListener = new SocketListener();
+		socketListener.start();
+	}
+	
+	public LabelMergeSplitClientController(
+			final ViewerPanel viewer,
+			final RealRandomAccessible< VolatileLabelMultisetType > labels,
+			final AbstractSaturatedARGBStream colorStream,
+			final SegmentBodyAssignment assignment,
+			final ZContext ctx,
+			final String socketUrl )
+	{
+		this( viewer, labels, colorStream, assignment, ctx.createSocket( ZMQ.PAIR ) );
+		socket.connect( socketUrl );
 	}
 
 	@Override
@@ -102,6 +158,23 @@ public class MergeModeController implements MouseListener, KeyListener
 			{
 				System.out.println( "Merging" );
 
+				final long oldActiveBodyId = assignment.getBody( oldActiveSegmentId );
+				final long activeBodyId = assignment.getBody( activeSegmentId );
+				if ( oldActiveBodyId != activeBodyId )
+				{
+					final long[] oldActiveSegments = assignment.getSegments( oldActiveBodyId );
+					final long[] activeSegments = assignment.getSegments( activeBodyId );
+//					final String msg =
+//							"merge("
+//							+ Arrays.toString( ArrayUtils.addAll( oldActiveSegments, activeSegments ) )
+//							+ ")";
+					final String msg =
+							"merge("
+							+ Arrays.toString( new long[]{ oldActiveSegmentId, activeSegmentId } )
+							+ ")";
+					System.out.println( "Sending : " + msg );
+					socket.send( msg );
+				}
 				assignment.mergeSegmentBodies( oldActiveSegmentId, activeSegmentId );
 			}
 			else
@@ -109,8 +182,20 @@ public class MergeModeController implements MouseListener, KeyListener
 				if ( ( e.getModifiersEx() & KeyEvent.CTRL_DOWN_MASK ) != 0 )
 				{
 					System.out.println( "Detaching" );
-
+					
+					final long activeBodyId = assignment.getBody( activeSegmentId );
+					final long[] segments = assignment.getSegments( activeBodyId );
+					
+					final String msg =
+							"detach(["
+							+ "[" + activeSegmentId + "], "
+							+ Arrays.toString( segments )
+							+ "])";
+					System.out.println( "Sending : " + msg );
+					socket.send( msg );
+					
 					assignment.detachSegment( activeSegmentId );
+					
 				}
 
 				colorStream.setActive( activeSegmentId );

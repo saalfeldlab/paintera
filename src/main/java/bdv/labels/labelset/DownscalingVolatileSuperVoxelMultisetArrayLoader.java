@@ -47,7 +47,7 @@ public class DownscalingVolatileSuperVoxelMultisetArrayLoader implements CacheAr
 		if ( cached != null )
 			return cached;
 
-		final RandomAccessibleInterval< SuperVoxelMultisetType > input = multisetSource.getSource( timepoint, level - 1 );
+		final RandomAccessibleInterval< LabelMultisetType > input = multisetSource.getSource( timepoint, level - 1 );
 		final int[] factors = new int[] { 2, 2, 2 };
 		return downscale( input, factors, dimensions, min, filename );
 	}
@@ -129,7 +129,7 @@ public class DownscalingVolatileSuperVoxelMultisetArrayLoader implements CacheAr
 	}
 
 	private VolatileLabelMultisetArray downscale(
-			final RandomAccessibleInterval< SuperVoxelMultisetType > input,
+			final RandomAccessibleInterval< LabelMultisetType > input,
 			final int[] factors, // (relative to to input)
 			final int[] dimensions,
 			final long[] min,
@@ -148,7 +148,7 @@ public class DownscalingVolatileSuperVoxelMultisetArrayLoader implements CacheAr
 			numContribs *= factors[ i ];
 
 		@SuppressWarnings( "unchecked" )
-		final RandomAccess< SuperVoxelMultisetType >[] inputs = new RandomAccess[ numContribs ];
+		final RandomAccess< LabelMultisetType >[] inputs = new RandomAccess[ numContribs ];
 		for ( int i = 0; i < numContribs; ++i )
 			inputs[ i ] = input.randomAccess();
 
@@ -160,10 +160,10 @@ public class DownscalingVolatileSuperVoxelMultisetArrayLoader implements CacheAr
 		final int[] inputOffset = new int[ n ];
 		final int[] inputPos = new int[ n ];
 
-		final SuperVoxelMultisetEntryList list = new SuperVoxelMultisetEntryList( listData, 0 );
-		final SuperVoxelMultisetEntryList list2 = new SuperVoxelMultisetEntryList();
+		final LabelMultisetEntryList list = new LabelMultisetEntryList( listData, 0 );
+		final LabelMultisetEntryList list2 = new LabelMultisetEntryList();
 		final TIntArrayList listHashesAndOffsets = new TIntArrayList();
-		final SuperVoxelMultisetEntry entry = new SuperVoxelMultisetEntry( 0, 1 );
+		final LabelMultisetEntry entry = new LabelMultisetEntry( 0, 1 );
 		int nextListOffset = 0;
 		for ( int o = 0; o < numEntities; ++o )
 		{
