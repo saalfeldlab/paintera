@@ -2,16 +2,9 @@ package bdv.img.dvid;
 
 import java.io.IOException;
 
-import net.imglib2.RandomAccessibleInterval;
-import net.imglib2.img.NativeImg;
-import net.imglib2.img.basictypeaccess.volatiles.array.VolatileByteArray;
-import net.imglib2.realtransform.AffineTransform3D;
-import net.imglib2.type.NativeType;
-import net.imglib2.type.numeric.ARGBType;
-import net.imglib2.type.numeric.integer.UnsignedByteType;
-import net.imglib2.type.volatiles.VolatileARGBType;
-import net.imglib2.type.volatiles.VolatileUnsignedByteType;
-import net.imglib2.util.Fraction;
+import com.google.gson.JsonIOException;
+import com.google.gson.JsonSyntaxException;
+
 import bdv.AbstractViewerSetupImgLoader;
 import bdv.img.cache.CacheHints;
 import bdv.img.cache.CachedCellImg;
@@ -22,9 +15,17 @@ import bdv.img.cache.VolatileImgCells;
 import bdv.img.dvid.Multiscale2dDataInstance.Extended.Level;
 import bdv.util.ColorStream;
 import bdv.util.JsonHelper;
-
-import com.google.gson.JsonIOException;
-import com.google.gson.JsonSyntaxException;
+import mpicbg.spim.data.generic.sequence.ImgLoaderHint;
+import net.imglib2.RandomAccessibleInterval;
+import net.imglib2.img.NativeImg;
+import net.imglib2.img.basictypeaccess.volatiles.array.VolatileByteArray;
+import net.imglib2.realtransform.AffineTransform3D;
+import net.imglib2.type.NativeType;
+import net.imglib2.type.numeric.ARGBType;
+import net.imglib2.type.numeric.integer.UnsignedByteType;
+import net.imglib2.type.volatiles.VolatileARGBType;
+import net.imglib2.type.volatiles.VolatileUnsignedByteType;
+import net.imglib2.util.Fraction;
 
 /**
  * {@link ViewerImgSetupLoader} for
@@ -141,7 +142,7 @@ public class DvidMultiscale2dSetupImageLoader
 	}
 
 	@Override
-	public RandomAccessibleInterval< UnsignedByteType > getImage( final int timepointId, final int level )
+	public RandomAccessibleInterval< UnsignedByteType > getImage( final int timepointId, final int level, final ImgLoaderHint... hints )
 	{
 		final CachedCellImg< UnsignedByteType, VolatileByteArray > img = prepareCachedImage( timepointId, setupId, level, LoadingStrategy.BLOCKING );
 		final UnsignedByteType linkedType = new UnsignedByteType( img );
@@ -150,7 +151,7 @@ public class DvidMultiscale2dSetupImageLoader
 	}
 
 	@Override
-	public RandomAccessibleInterval< VolatileUnsignedByteType > getVolatileImage( final int timepointId, final int level )
+	public RandomAccessibleInterval< VolatileUnsignedByteType > getVolatileImage( final int timepointId, final int level, final ImgLoaderHint... hints )
 	{
 		final CachedCellImg< VolatileUnsignedByteType, VolatileByteArray > img = prepareCachedImage( timepointId, setupId, level, LoadingStrategy.VOLATILE );
 		final VolatileUnsignedByteType linkedType = new VolatileUnsignedByteType( img );

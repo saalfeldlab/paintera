@@ -2,13 +2,9 @@ package bdv.img.dvid;
 
 import java.io.IOException;
 
-import net.imglib2.RandomAccessibleInterval;
-import net.imglib2.img.basictypeaccess.volatiles.array.VolatileIntArray;
-import net.imglib2.realtransform.AffineTransform3D;
-import net.imglib2.type.NativeType;
-import net.imglib2.type.numeric.ARGBType;
-import net.imglib2.type.volatiles.VolatileARGBType;
-import net.imglib2.util.Fraction;
+import com.google.gson.JsonIOException;
+import com.google.gson.JsonSyntaxException;
+
 import bdv.AbstractViewerSetupImgLoader;
 import bdv.ViewerSetupImgLoader;
 import bdv.img.cache.CacheHints;
@@ -19,9 +15,14 @@ import bdv.img.cache.VolatileGlobalCellCache.VolatileCellCache;
 import bdv.img.cache.VolatileImgCells;
 import bdv.util.ColorStream;
 import bdv.util.JsonHelper;
-
-import com.google.gson.JsonIOException;
-import com.google.gson.JsonSyntaxException;
+import mpicbg.spim.data.generic.sequence.ImgLoaderHint;
+import net.imglib2.RandomAccessibleInterval;
+import net.imglib2.img.basictypeaccess.volatiles.array.VolatileIntArray;
+import net.imglib2.realtransform.AffineTransform3D;
+import net.imglib2.type.NativeType;
+import net.imglib2.type.numeric.ARGBType;
+import net.imglib2.type.volatiles.VolatileARGBType;
+import net.imglib2.util.Fraction;
 
 
 /**
@@ -117,7 +118,7 @@ public class DvidLabels64SetupImageLoader
 	}
 
 	@Override
-	public RandomAccessibleInterval< ARGBType > getImage( final int timepointId, final int level )
+	public RandomAccessibleInterval< ARGBType > getImage( final int timepointId, final int level, final ImgLoaderHint... hints )
 	{
 		final CachedCellImg< ARGBType, VolatileIntArray > img = prepareCachedImage( timepointId, setupId, level, LoadingStrategy.BLOCKING );
 		final ARGBType linkedType = new ARGBType( img );
@@ -126,7 +127,7 @@ public class DvidLabels64SetupImageLoader
 	}
 
 	@Override
-	public RandomAccessibleInterval< VolatileARGBType > getVolatileImage( final int timepointId, final int level )
+	public RandomAccessibleInterval< VolatileARGBType > getVolatileImage( final int timepointId, final int level, final ImgLoaderHint... hints )
 	{
 		final CachedCellImg< VolatileARGBType, VolatileIntArray > img = prepareCachedImage( timepointId, setupId, level, LoadingStrategy.VOLATILE );
 		final VolatileARGBType linkedType = new VolatileARGBType( img );

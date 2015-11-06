@@ -1,12 +1,5 @@
 package bdv.labels.labelset;
 
-import net.imglib2.RandomAccessibleInterval;
-import net.imglib2.img.basictypeaccess.volatiles.array.VolatileIntArray;
-import net.imglib2.realtransform.AffineTransform3D;
-import net.imglib2.type.NativeType;
-import net.imglib2.type.numeric.ARGBType;
-import net.imglib2.type.volatiles.VolatileARGBType;
-import net.imglib2.util.Fraction;
 import bdv.AbstractViewerSetupImgLoader;
 import bdv.img.cache.CacheHints;
 import bdv.img.cache.CachedCellImg;
@@ -15,6 +8,14 @@ import bdv.img.cache.VolatileGlobalCellCache;
 import bdv.img.cache.VolatileGlobalCellCache.VolatileCellCache;
 import bdv.img.cache.VolatileImgCells;
 import bdv.labels.labelset.DvidLabels64MultisetSetupImageLoader.MultisetSource;
+import mpicbg.spim.data.generic.sequence.ImgLoaderHint;
+import net.imglib2.RandomAccessibleInterval;
+import net.imglib2.img.basictypeaccess.volatiles.array.VolatileIntArray;
+import net.imglib2.realtransform.AffineTransform3D;
+import net.imglib2.type.NativeType;
+import net.imglib2.type.numeric.ARGBType;
+import net.imglib2.type.volatiles.VolatileARGBType;
+import net.imglib2.util.Fraction;
 
 public class ARGBConvertedLabelsSetupImageLoader
 	extends AbstractViewerSetupImgLoader< ARGBType, VolatileARGBType >
@@ -38,7 +39,7 @@ public class ARGBConvertedLabelsSetupImageLoader
 	}
 
 	@Override
-	public RandomAccessibleInterval< ARGBType > getImage( final int timepointId, final int level )
+	public RandomAccessibleInterval< ARGBType > getImage( final int timepointId, final int level, final ImgLoaderHint... hints )
 	{
 		final CachedCellImg< ARGBType, VolatileIntArray > img = prepareCachedImage( timepointId, setupId, level, LoadingStrategy.BLOCKING );
 		final ARGBType linkedType = new ARGBType( img );
@@ -47,7 +48,7 @@ public class ARGBConvertedLabelsSetupImageLoader
 	}
 
 	@Override
-	public RandomAccessibleInterval< VolatileARGBType > getVolatileImage( final int timepointId, final int level )
+	public RandomAccessibleInterval< VolatileARGBType > getVolatileImage( final int timepointId, final int level, final ImgLoaderHint... hints )
 	{
 		final CachedCellImg< VolatileARGBType, VolatileIntArray > img = prepareCachedImage( timepointId, setupId, level, LoadingStrategy.VOLATILE );
 		final VolatileARGBType linkedType = new VolatileARGBType( img );
@@ -59,8 +60,8 @@ public class ARGBConvertedLabelsSetupImageLoader
 	{
 		final int priority = numMipmapLevels() - level - 1;
 		final CacheHints cacheHints = new CacheHints( loadingStrategy, priority, false );
-		final long[] dimensions = multisetImageLoader.getDimensions(); // TODO
-		final int[] blockDimensions = multisetImageLoader.getBlockDimensions(); // TODO
+		final long[] dimensions = multisetImageLoader.getDimensions( level ); // TODO
+		final int[] blockDimensions = multisetImageLoader.getBlockDimensions( level ); // TODO
 		final VolatileCellCache< VolatileIntArray > c = cache.new VolatileCellCache< VolatileIntArray >( timepointId, setupId, level, cacheHints, loader );
 		final VolatileImgCells< VolatileIntArray > cells = new VolatileImgCells< VolatileIntArray >( c, new Fraction(), dimensions, blockDimensions );
 		final CachedCellImg< T, VolatileIntArray > img = new CachedCellImg< T, VolatileIntArray >( cells );

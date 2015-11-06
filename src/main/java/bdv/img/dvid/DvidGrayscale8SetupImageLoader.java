@@ -2,13 +2,9 @@ package bdv.img.dvid;
 
 import java.io.IOException;
 
-import net.imglib2.RandomAccessibleInterval;
-import net.imglib2.img.basictypeaccess.volatiles.array.VolatileByteArray;
-import net.imglib2.realtransform.AffineTransform3D;
-import net.imglib2.type.NativeType;
-import net.imglib2.type.numeric.integer.UnsignedByteType;
-import net.imglib2.type.volatiles.VolatileUnsignedByteType;
-import net.imglib2.util.Fraction;
+import com.google.gson.JsonIOException;
+import com.google.gson.JsonSyntaxException;
+
 import bdv.AbstractViewerSetupImgLoader;
 import bdv.ViewerSetupImgLoader;
 import bdv.img.cache.CacheHints;
@@ -18,9 +14,14 @@ import bdv.img.cache.VolatileGlobalCellCache;
 import bdv.img.cache.VolatileImgCells;
 import bdv.img.cache.VolatileImgCells.CellCache;
 import bdv.util.JsonHelper;
-
-import com.google.gson.JsonIOException;
-import com.google.gson.JsonSyntaxException;
+import mpicbg.spim.data.generic.sequence.ImgLoaderHint;
+import net.imglib2.RandomAccessibleInterval;
+import net.imglib2.img.basictypeaccess.volatiles.array.VolatileByteArray;
+import net.imglib2.realtransform.AffineTransform3D;
+import net.imglib2.type.NativeType;
+import net.imglib2.type.numeric.integer.UnsignedByteType;
+import net.imglib2.type.volatiles.VolatileUnsignedByteType;
+import net.imglib2.util.Fraction;
 
 /**
  * {@link ViewerSetupImgLoader} for
@@ -92,7 +93,7 @@ public class DvidGrayscale8SetupImageLoader
 	}
 
 	@Override
-	public RandomAccessibleInterval< UnsignedByteType > getImage( final int timepointId, final int level )
+	public RandomAccessibleInterval< UnsignedByteType > getImage( final int timepointId, final int level, final ImgLoaderHint... hints )
 	{
 		final CachedCellImg< UnsignedByteType, VolatileByteArray > img = prepareCachedImage( timepointId, setupId, level, LoadingStrategy.BLOCKING );
 		final UnsignedByteType linkedType = new UnsignedByteType( img );
@@ -101,7 +102,7 @@ public class DvidGrayscale8SetupImageLoader
 	}
 
 	@Override
-	public RandomAccessibleInterval< VolatileUnsignedByteType > getVolatileImage( final int timepointId, final int level )
+	public RandomAccessibleInterval< VolatileUnsignedByteType > getVolatileImage( final int timepointId, final int level, final ImgLoaderHint... hints )
 	{
 		final CachedCellImg< VolatileUnsignedByteType, VolatileByteArray > img = prepareCachedImage( timepointId, setupId, level, LoadingStrategy.VOLATILE );
 		final VolatileUnsignedByteType linkedType = new VolatileUnsignedByteType( img );
