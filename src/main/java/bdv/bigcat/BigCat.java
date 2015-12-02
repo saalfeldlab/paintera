@@ -59,7 +59,8 @@ public class BigCat
 		final Server server = new Server( url );
 		final Repository repo = new Repository( server, uuid );
 
-		final DatasetKeyValue[] stores = new DatasetKeyValue[ 4 ];
+//		final DatasetKeyValue[] stores = new DatasetKeyValue[ 4 ];
+		final DatasetKeyValue[] stores = new DatasetKeyValue[ 0 ];
 
 		for ( int i = 0; i < stores.length; ++i )
 		{
@@ -75,12 +76,15 @@ public class BigCat
 			}
 		}
 
+//		final double[][] resolutions = new double[][]{
+//				{ 1, 1, 1 },
+//				{ 2, 2, 2 },
+//				{ 4, 4, 4 },
+//				{ 8, 8, 8 },
+//				{16, 16, 16 } };
+
 		final double[][] resolutions = new double[][]{
-				{ 1, 1, 1 },
-				{ 2, 2, 2 },
-				{ 4, 4, 4 },
-				{ 8, 8, 8 },
-				{16, 16, 16 } };
+				{ 1, 1, 1 } };
 
 		try
 		{
@@ -164,6 +168,8 @@ public class BigCat
 					7.815957561302E-16, -8.037759535689243E-17, 30.36758435712147, -120957.47720498207 );
 			bdv.getViewer().setCurrentViewerTransform( transform );
 			bdv.getViewer().setDisplayMode( DisplayMode.FUSED );
+
+			bdv.getViewerFrame().setSize( 1280 - 32, 720 - 28 - 32 );
 
 			bdv.getViewerFrame().setVisible( true );
 
