@@ -20,7 +20,7 @@ public class LabelMultisetEntryList
 		super( LabelMultisetEntry.type );
 	}
 
-	protected LabelMultisetEntryList( final LongMappedAccessData data, final long baseOffset )
+	public LabelMultisetEntryList( final LongMappedAccessData data, final long baseOffset )
 	{
 		super( LabelMultisetEntry.type, data, baseOffset );
 	}

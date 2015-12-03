@@ -92,7 +92,7 @@ public class LabelMultisetEntry
 		return new LabelMultisetEntry( new LongMappedAccess( null, 0 ) );
 	}
 
-	void setId( final long id )
+	public void setId( final long id )
 	{
 		access.putLong( id, SUPERVOXEL_ID_OFFSET );
 	}

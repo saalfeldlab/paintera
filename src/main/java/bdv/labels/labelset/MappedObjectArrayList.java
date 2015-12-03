@@ -61,7 +61,7 @@ public class MappedObjectArrayList< O extends MappedObject< O, T >, T extends Ma
 		data.updateAccess( access, baseOffset );
 	}
 
-	protected void createListAt( final MappedAccessData< T > data, final long baseOffset )
+	public void createListAt( final MappedAccessData< T > data, final long baseOffset )
 	{
 		referToDataAt( data, baseOffset );
 		clear();
