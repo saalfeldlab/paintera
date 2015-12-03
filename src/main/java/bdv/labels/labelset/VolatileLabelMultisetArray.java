@@ -15,7 +15,7 @@ public class VolatileLabelMultisetArray extends AbstractVolatileArray< VolatileL
 		super( isValid );
 		this.data = new int[ numEntities ];
 		listData = LongMappedAccessData.factory.createStorage( 16 );
-		new MappedObjectArrayList<>( SuperVoxelMultisetEntry.type, listData, 0 ).add( new SuperVoxelMultisetEntry() );
+		new MappedObjectArrayList<>( LabelMultisetEntry.type, listData, 0 ).add( new LabelMultisetEntry() );
 	}
 
 	public VolatileLabelMultisetArray( final int[] data, final LongMappedAccessData listData, final boolean isValid )
@@ -25,7 +25,7 @@ public class VolatileLabelMultisetArray extends AbstractVolatileArray< VolatileL
 		this.listData = listData;
 	}
 
-	public void getValue( final int index, final SuperVoxelMultisetEntryList ref )
+	public void getValue( final int index, final LabelMultisetEntryList ref )
 	{
 		ref.referToDataAt( listData, data[ index ] );
 	}

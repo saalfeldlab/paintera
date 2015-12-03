@@ -7,13 +7,9 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 
-import mpicbg.spim.data.generic.sequence.BasicViewSetup;
-import mpicbg.spim.data.registration.ViewRegistration;
-import mpicbg.spim.data.registration.ViewRegistrations;
-import mpicbg.spim.data.sequence.TimePoint;
-import mpicbg.spim.data.sequence.TimePoints;
-import net.imglib2.realtransform.AffineTransform3D;
-import net.imglib2.type.numeric.ARGBType;
+import com.google.gson.JsonIOException;
+import com.google.gson.JsonSyntaxException;
+
 import bdv.BigDataViewer;
 import bdv.ViewerImgLoader;
 import bdv.ViewerSetupImgLoader;
@@ -32,9 +28,13 @@ import bdv.viewer.Source;
 import bdv.viewer.SourceAndConverter;
 import bdv.viewer.ViewerOptions;
 import bdv.viewer.render.AccumulateProjectorFactory;
-
-import com.google.gson.JsonIOException;
-import com.google.gson.JsonSyntaxException;
+import mpicbg.spim.data.generic.sequence.BasicViewSetup;
+import mpicbg.spim.data.registration.ViewRegistration;
+import mpicbg.spim.data.registration.ViewRegistrations;
+import mpicbg.spim.data.sequence.TimePoint;
+import mpicbg.spim.data.sequence.TimePoints;
+import net.imglib2.realtransform.AffineTransform3D;
+import net.imglib2.type.numeric.ARGBType;
 
 public class BigMovie
 {
@@ -80,10 +80,24 @@ public class BigMovie
 			System.setProperty( "apple.laf.useScreenMenuBar", "true" );
 
 			final CatmaidImageLoader imgLoader = new CatmaidImageLoader(
-					3072,
-					3072,
+//					272056,
+//					132596,
+//					5849,
+//					10,
+//					
+//					"http://bock-s6.janelia.priv/view/flytiles_tier2/rendered_boxes/FAFB00/v9_align_tps/2048x2048/%1$d/%5$d/%8$d/%9$d.jpg",
+//					2048,
+//					2048,
+					
+					3000,
+					3000,
 					4385,
 					10,
+					
+					"https://neuropil.janelia.org/public/150625_segmentation_samples/sample_A/cutout_3k/%1$d/%5$d/%8$d/%9$d.jpg",
+					2048,
+					2048,
+					
 //					"http://bock-s6.janelia.priv/view/flytiles_tier2/rendered_boxes/FAFB00/v7_align_tps/2048x2048/%1$d/%5$d/%8$d/%9$d.png",
 //					2048,
 //					2048,
@@ -91,12 +105,6 @@ public class BigMovie
 //					"https://bocklab.hhmi.org/data/fafb/v7/disk0/v7_align_tps/%1$d/%5$d/%8$d/%9$d.jpg",
 //					1024,
 //					1024,
-
-					"https://neuropil.janelia.org/public/150625_segmentation_samples/sample_A/cutout_3k/crop.%5$08d.png",
-					3072,
-					3072,
-
-
 
 //					new int[][]{
 //							{ 256, 256, 26 },
@@ -108,17 +116,16 @@ public class BigMovie
 //							{ 64, 64, 68 },
 //							{ 64, 64, 63 },
 //							{ 64, 64, 63 } } );
-//					new int[][]{
-//							{ 256, 256, 8 },
-//							{ 256, 256, 8 },
-//							{ 256, 256, 8 },
-//							{ 256, 256, 8 },
-//							{ 256, 256, 8 },
-//							{ 256, 256, 8 },
-//							{ 256, 256, 8 },
-//							{ 256, 256, 8 },
-//							{ 256, 256, 8 } },
-					new int[][]{ { 512, 512, 1 } },
+					new int[][]{
+							{ 256, 256, 8 },
+							{ 256, 256, 8 },
+							{ 256, 256, 8 },
+							{ 256, 256, 8 },
+							{ 256, 256, 8 },
+							{ 256, 256, 8 },
+							{ 256, 256, 8 },
+							{ 256, 256, 8 },
+							{ 256, 256, 8 } },
 					true );
 
 			final TimePoints timepoints = new TimePoints( Arrays.asList( new TimePoint( 0 ) ) );
@@ -160,9 +167,9 @@ public class BigMovie
 
 			final AffineTransform3D transform = new AffineTransform3D();
 			transform.set(
-					1, 0, 0, -1500,
-					0, 1, 0, -1500,
-					0, 0, 1, -4200 * 10 );
+					1, 0, 0, -136027.5,
+					0, 1, 0, -66297.5,
+					0, 0, 1, -2875 * 10 );
 			bdv.getViewer().setCurrentViewerTransform( transform );
 			bdv.getViewer().setDisplayMode( DisplayMode.FUSED );
 

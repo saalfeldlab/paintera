@@ -60,8 +60,8 @@ public class ARGBConvertedLabelsSetupImageLoader
 	{
 		final int priority = numMipmapLevels() - level - 1;
 		final CacheHints cacheHints = new CacheHints( loadingStrategy, priority, false );
-		final long[] dimensions = multisetImageLoader.getDimensions( level ); // TODO
-		final int[] blockDimensions = multisetImageLoader.getBlockDimensions( level ); // TODO
+		final long[] dimensions = multisetImageLoader.getDimensions( level );
+		final int[] blockDimensions = multisetImageLoader.getBlockDimensions( level );
 		final VolatileCellCache< VolatileIntArray > c = cache.new VolatileCellCache< VolatileIntArray >( timepointId, setupId, level, cacheHints, loader );
 		final VolatileImgCells< VolatileIntArray > cells = new VolatileImgCells< VolatileIntArray >( c, new Fraction(), dimensions, blockDimensions );
 		final CachedCellImg< T, VolatileIntArray > img = new CachedCellImg< T, VolatileIntArray >( cells );

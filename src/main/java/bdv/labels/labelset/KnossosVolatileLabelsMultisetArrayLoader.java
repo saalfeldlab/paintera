@@ -1,39 +1,41 @@
 package bdv.labels.labelset;
 
-import gnu.trove.list.array.TLongArrayList;
-
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URL;
 import java.util.Arrays;
 
 import bdv.img.cache.CacheArrayLoader;
+import gnu.trove.list.array.TLongArrayList;
 
 /**
- * Loads a full resolution label block from a DVID labels64 source where each
+ * <p>
+ * Loads a full resolution label block from a KNOSSOS uint64 source where each
  * voxel is assigned to a single label, and converts them into a LabelMultiset
  * with one element per voxel.
+ * </p>
+ * <p>
+ * URL format encode the magnification and position of the block.  A typical URL
+ * would be
+ * </p>
+ * <pre>
+ * /mag%1$d/x%2$04d/y%3$04d/z%4$04d/%5$s_x%2$04d_y%3$04d_z%4$04d.raw
+ * </pre>
  */
-public class VolatileLabelMultisetArrayLoader implements CacheArrayLoader< VolatileLabelMultisetArray >
+public class KnossosVolatileLabelsMultisetArrayLoader implements CacheArrayLoader< VolatileLabelMultisetArray >
 {
 	private VolatileLabelMultisetArray theEmptyArray;
 
-	private final String apiUrl;
+	final private String urlFormat;
 
-	private final String nodeId;
-
-	private final String dataInstanceId;
-
-	public VolatileLabelMultisetArrayLoader(
-			final String apiUrl,
-			final String nodeId,
-			final String dataInstanceId,
-			final int[] blockDimensions )
+	public KnossosVolatileLabelsMultisetArrayLoader(
+			final String baseUrl,
+			final String urlFormat,
+			final String experiment,
+			final String format )
 	{
 		theEmptyArray = new VolatileLabelMultisetArray( 1, false );
-		this.apiUrl = apiUrl;
-		this.nodeId = nodeId;
-		this.dataInstanceId = dataInstanceId;
+		this.urlFormat = baseUrl + urlFormat.replace( "%5$s", experiment );
 	}
 
 	// TODO: unused -- remove.
@@ -51,12 +53,6 @@ public class VolatileLabelMultisetArrayLoader implements CacheArrayLoader< Volat
 		final byte[] bytes = new byte[ data.length * 8 ];
 		final URL url = new URL( urlString );
 		final InputStream in = url.openStream();
-		final byte[] header = new byte[ 1 ];
-		in.read( header, 0, 1 );
-		if ( header[ 0 ] == 0 )
-			return;
-
-		in.skip( 3 );
 		int off = 0, l = 0;
 		do
 		{
@@ -67,8 +63,8 @@ public class VolatileLabelMultisetArrayLoader implements CacheArrayLoader< Volat
 		in.close();
 
 		final TLongArrayList idAndOffsetList = new TLongArrayList();
-		final SuperVoxelMultisetEntryList list = new SuperVoxelMultisetEntryList( listData, 0 );
-		final SuperVoxelMultisetEntry entry = new SuperVoxelMultisetEntry( 0, 1 );
+		final LabelMultisetEntryList list = new LabelMultisetEntryList( listData, 0 );
+		final LabelMultisetEntry entry = new LabelMultisetEntry( 0, 1 );
 		long nextListOffset = 0;
 A:		for ( int i = 0, j = -1; i < data.length; ++i )
 		{
@@ -83,15 +79,16 @@ A:		for ( int i = 0, j = -1; i < data.length; ++i )
 					( ( 0xffl & bytes[ ++j ] ) << 56 );
 
 			// does the list [id x 1] already exist?
-			for ( int k = 0; k < idAndOffsetList.size(); k += 2 )
-			{
-				if ( idAndOffsetList.getQuick( k ) == id )
-				{
-					final long offset = idAndOffsetList.getQuick( k + 1 );
-					data[ i ] = ( int ) offset;
-					continue A;
-				}
-			}
+//			for ( int k = 0; k < idAndOffsetList.size(); k += 2 )
+//			{
+//				if ( idAndOffsetList.getQuick( k ) == id )
+//				{
+//					final long offset = idAndOffsetList.getQuick( k + 1 );
+//					data[ i ] = ( int ) offset;
+//					System.out.println( "Continuing A " + i + " " + data.length );
+//					continue A;
+//				}
+//			}
 
 			list.createListAt( listData, nextListOffset );
 			entry.setId( id );
@@ -107,21 +104,12 @@ A:		for ( int i = 0, j = -1; i < data.length; ++i )
 			final long[] min,
 			final int[] dimensions )
 	{
-		final StringBuffer buf = new StringBuffer( apiUrl );
-
-		buf.append( "/node/" );
-		buf.append( nodeId );
-		buf.append( "/" );
-		buf.append( dataInstanceId );
-		buf.append( "/blocks/" );
-		buf.append( min[ 0 ] / dimensions[ 0 ] );
-		buf.append( "_" );
-		buf.append( min[ 1 ] / dimensions[ 1 ] );
-		buf.append( "_" );
-		buf.append( min[ 2 ] / dimensions[ 2 ] );
-		buf.append( "/1" );
-
-		return buf.toString();
+		return String.format(
+				urlFormat,
+				1,
+				min[ 0 ] / 128,
+				min[ 1 ] / 128,
+				min[ 2 ] / 128 );
 	}
 
 	@Override
@@ -132,20 +120,14 @@ A:		for ( int i = 0, j = -1; i < data.length; ++i )
 			final int[] dimensions,
 			final long[] min ) throws InterruptedException
 	{
-//		System.out.println( "VolatileSuperVoxelMultisetArray.loadArray(\n"
-//				+ "   timepoint = " + timepoint + "\n"
-//				+ "   setup = " + setup + "\n"
-//				+ "   level = " + level + "\n"
-//				+ "   dimensions = " + Util.printCoordinates( dimensions ) + "\n"
-//				+ "   min = " + Util.printCoordinates( min ) + "\n"
-//				+ ")"
-//				);
-		final int[] data = new int[ dimensions[ 0 ] * dimensions[ 1 ] * dimensions[ 2 ] ];
+//		final int[] data = new int[ dimensions[ 0 ] * dimensions[ 1 ] * dimensions[ 2 ] ];
+		final int[] data = new int[ 128 * 128 * 128 ];
 		final LongMappedAccessData listData = LongMappedAccessData.factory.createStorage( 32 );
 
 		try
 		{
 			final String urlString = makeUrl( min, dimensions );
+			System.out.println( urlString );
 			readBlock( urlString, data, listData );
 		}
 		catch ( final IOException e )

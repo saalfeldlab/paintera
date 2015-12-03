@@ -8,7 +8,9 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 
-import javax.xml.ws.http.HTTPException;
+import org.zeromq.ZContext;
+import org.zeromq.ZMQ;
+import org.zeromq.ZMQ.Socket;
 
 import com.google.gson.JsonIOException;
 import com.google.gson.JsonSyntaxException;
@@ -21,16 +23,13 @@ import bdv.bigcat.composite.CompositeProjector;
 import bdv.bigcat.ui.ARGBConvertedLabelsSource;
 import bdv.bigcat.ui.RandomSaturatedARGBStream;
 import bdv.img.cache.Cache;
-import bdv.img.dvid.DvidGrayscale8ImageLoader;
-import bdv.labels.labelset.DvidLabels64MultisetSetupImageLoader;
+import bdv.img.catmaid.CatmaidImageLoader;
+import bdv.labels.labelset.KnossosLabelMultisetSetupImageLoader;
 import bdv.labels.labelset.VolatileLabelMultisetType;
 import bdv.spimdata.SequenceDescriptionMinimal;
 import bdv.spimdata.SpimDataMinimal;
 import bdv.tools.brightness.ConverterSetup;
 import bdv.tools.brightness.RealARGBColorConverterSetup;
-import bdv.util.dvid.DatasetKeyValue;
-import bdv.util.dvid.Repository;
-import bdv.util.dvid.Server;
 import bdv.viewer.DisplayMode;
 import bdv.viewer.Source;
 import bdv.viewer.SourceAndConverter;
@@ -48,63 +47,42 @@ import net.imglib2.type.numeric.ARGBType;
 import net.imglib2.type.volatiles.VolatileARGBType;
 import net.imglib2.view.Views;
 
-public class BigCat
+public class BigCatSolverClient
 {
 	public static void main( final String[] args ) throws JsonSyntaxException, JsonIOException, IOException
 	{
-		final String url = "http://vm570.int.janelia.org:8080";
-		final String labelsBase = "multisets-labels-downscaled-zero-extended-2"; //"multisets-labels-downscaled";
-		final String uuid = "4668221206e047648f622dc4690ff7dc";
-
-		final Server server = new Server( url );
-		final Repository repo = new Repository( server, uuid );
-
-//		final DatasetKeyValue[] stores = new DatasetKeyValue[ 4 ];
-		final DatasetKeyValue[] stores = new DatasetKeyValue[ 0 ];
-
-		for ( int i = 0; i < stores.length; ++i )
-		{
-			stores[ i ] = new DatasetKeyValue( repo.getRootNode(), labelsBase + "-" + ( 1 << ( i + 1 ) ) );
-
-			try
-			{
-				repo.getRootNode().createDataset( stores[ i ].getName(), DatasetKeyValue.TYPE );
-			}
-			catch ( final HTTPException e )
-			{
-				e.printStackTrace( System.err );
-			}
-		}
-
-//		final double[][] resolutions = new double[][]{
-//				{ 1, 1, 1 },
-//				{ 2, 2, 2 },
-//				{ 4, 4, 4 },
-//				{ 8, 8, 8 },
-//				{16, 16, 16 } };
-
-		final double[][] resolutions = new double[][]{
-				{ 1, 1, 1 } };
-
 		try
 		{
 			System.setProperty( "apple.laf.useScreenMenuBar", "true" );
 
 			/* data sources */
-			final DvidGrayscale8ImageLoader dvidGrayscale8ImageLoader = new DvidGrayscale8ImageLoader(
-					"http://emrecon100.janelia.priv/api",
-					"2a3fd320aef011e4b0ce18037320227c",
-					"grayscale" );
-			final DvidLabels64MultisetSetupImageLoader dvidLabelsMultisetImageLoader = new DvidLabels64MultisetSetupImageLoader(
+			final CatmaidImageLoader grayscale8ImageLoader = new CatmaidImageLoader(
+					500,
+					500,
+					500,
 					1,
-					"http://emrecon100.janelia.priv/api",
-					"2a3fd320aef011e4b0ce18037320227c",
-					"bodies",
-					resolutions,
-					stores );
-//			final ARGBConvertedLabelsSetupImageLoader dvidLabelsARGBImageLoader = new ARGBConvertedLabelsSetupImageLoader(
+					1,
+					"file:/home/saalfeld/tmp/thorstens_stuff/raw/slice_z%5$d.png",
+					500,
+					500,
+					500,
+					500 );
+			
+			final KnossosLabelMultisetSetupImageLoader labelsMultisetImageLoader = new KnossosLabelMultisetSetupImageLoader(
+					1,
+					"file:/home/saalfeld/tmp/thorstens_stuff/mag1/knossos.conf",
+					"/mag%1$d/x%2$d/y%3$d/z%4$d/%5$s_x%2$d_y%3$d_z%4$d.raw" );
+			
+//			final DvidLabels64MultisetSetupImageLoader dvidLabelsMultisetImageLoader = new DvidLabels64MultisetSetupImageLoader(
+//					1,
+//					"http://emrecon100.janelia.priv/api",
+//					"2a3fd320aef011e4b0ce18037320227c",
+//					"bodies",
+//					resolutions,
+//					stores );
+//			final ARGBConvertedLabelsSetupImageLoader labelsARGBImageLoader = new ARGBConvertedLabelsSetupImageLoader(
 //					2,
-//					dvidLabelsMultisetImageLoader );
+//					labelsMultisetImageLoader );
 
 			final SegmentBodyAssignment assignment = new SegmentBodyAssignment();
 
@@ -114,13 +92,13 @@ public class BigCat
 			final ARGBConvertedLabelsSource convertedLabels =
 					new ARGBConvertedLabelsSource(
 							2,
-							dvidLabelsMultisetImageLoader,
+							labelsMultisetImageLoader,
 							colorStream );
 
 			final CombinedImgLoader imgLoader = new CombinedImgLoader(
-					setupIdAndLoader( 0, dvidGrayscale8ImageLoader ) );
-			dvidGrayscale8ImageLoader.setCache( imgLoader.cache );
-			dvidLabelsMultisetImageLoader.setCache( imgLoader.cache );
+					setupIdAndLoader( 0, grayscale8ImageLoader ) );
+			grayscale8ImageLoader.setCache( imgLoader.cache );
+			labelsMultisetImageLoader.setCache( imgLoader.cache );
 
 			final TimePoints timepoints = new TimePoints( Arrays.asList( new TimePoint( 0 ) ) );
 			final Map< Integer, BasicViewSetup > setups = new HashMap< Integer, BasicViewSetup >();
@@ -162,27 +140,30 @@ public class BigCat
 						.numRenderingThreads( 16 ) );
 
 			final AffineTransform3D transform = new AffineTransform3D();
-			transform.set(
-					30.367584357121462, -7.233983582120427E-16, 7.815957561302E-16, -103163.46077512865,
-					-8.037759535689243E-17, 30.367584357121462, 7.233983582120427E-16, -68518.45769918368,
-					7.815957561302E-16, -8.037759535689243E-17, 30.36758435712147, -120957.47720498207 );
+//			transform.set(
+//					30.367584357121462, -7.233983582120427E-16, 7.815957561302E-16, -103163.46077512865,
+//					-8.037759535689243E-17, 30.367584357121462, 7.233983582120427E-16, -68518.45769918368,
+//					7.815957561302E-16, -8.037759535689243E-17, 30.36758435712147, -120957.47720498207 );
 			bdv.getViewer().setCurrentViewerTransform( transform );
 			bdv.getViewer().setDisplayMode( DisplayMode.FUSED );
 
-			bdv.getViewerFrame().setSize( 1280 - 32, 720 - 28 - 32 );
-
 			bdv.getViewerFrame().setVisible( true );
 
+			final ZContext ctx = new ZContext();
+			final Socket socket = ctx.createSocket( ZMQ.PAIR );
+			socket.connect( "tcp://10.101.30.79:5556" );
+			
 			bdv.getViewer().getDisplay().addHandler(
-					new MergeModeController(
+					new LabelMergeSplitClientController(
 							bdv.getViewer(),
 							Views.interpolate(
 									Views.extendValue(
-											dvidLabelsMultisetImageLoader.getVolatileImage( 0, 0 ),
+											labelsMultisetImageLoader.getVolatileImage( 0, 0 ),
 											new VolatileLabelMultisetType() ),
 									new NearestNeighborInterpolatorFactory< VolatileLabelMultisetType >() ),
 							colorStream,
-							assignment ) );
+							assignment,
+							socket ) );
 		}
 		catch ( final Exception e )
 		{

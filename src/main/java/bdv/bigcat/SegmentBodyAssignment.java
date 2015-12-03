@@ -16,12 +16,6 @@
  */
 package bdv.bigcat;
 
-import gnu.trove.iterator.TLongLongIterator;
-import gnu.trove.iterator.TLongObjectIterator;
-import gnu.trove.list.array.TLongArrayList;
-import gnu.trove.map.hash.TLongLongHashMap;
-import gnu.trove.map.hash.TLongObjectHashMap;
-
 import java.lang.reflect.Type;
 import java.util.Map.Entry;
 import java.util.Set;
@@ -38,6 +32,12 @@ import com.google.gson.JsonParseException;
 import com.google.gson.JsonPrimitive;
 import com.google.gson.JsonSerializationContext;
 import com.google.gson.JsonSerializer;
+
+import gnu.trove.iterator.TLongLongIterator;
+import gnu.trove.iterator.TLongObjectIterator;
+import gnu.trove.list.array.TLongArrayList;
+import gnu.trove.map.hash.TLongLongHashMap;
+import gnu.trove.map.hash.TLongObjectHashMap;
 
 /**
  *
@@ -292,6 +292,16 @@ A:					for ( final Entry< String, JsonElement > entry : ilutJsonEntrySet )
 			lut.put( segments[ i ], bodies[ i ] );
 
 		syncILut();
+	}
+	
+	public void initLut( final TLongLongHashMap lut )
+	{
+		this.lut.clear();
+		this.ilut.clear();
+		this.lut.putAll( lut );
+		syncILut();
+		
+		System.out.println( "Done" );
 	}
 
 	/**

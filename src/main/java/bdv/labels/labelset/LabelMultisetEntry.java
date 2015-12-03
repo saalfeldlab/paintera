@@ -3,11 +3,11 @@ package bdv.labels.labelset;
 import static bdv.labels.labelset.ByteUtils.INT_SIZE;
 import static bdv.labels.labelset.ByteUtils.LONG_SIZE;
 
-public class SuperVoxelMultisetEntry
-		extends MappedObject< SuperVoxelMultisetEntry, LongMappedAccess >
+public class LabelMultisetEntry
+		extends MappedObject< LabelMultisetEntry, LongMappedAccess >
 		implements Multiset.Entry< SuperVoxel >
 {
-	public static final SuperVoxelMultisetEntry type = new SuperVoxelMultisetEntry();
+	public static final LabelMultisetEntry type = new LabelMultisetEntry();
 
 	protected static final int SUPERVOXEL_ID_OFFSET = 0;
 	protected static final int COUNT_OFFSET = SUPERVOXEL_ID_OFFSET + LONG_SIZE;
@@ -22,21 +22,21 @@ public class SuperVoxelMultisetEntry
 		}
 	};
 
-	public SuperVoxelMultisetEntry()
+	public LabelMultisetEntry()
 	{
 		super(
 			LongMappedAccessData.factory.createStorage( SIZE_IN_BYTES ).createAccess(),
 			LongMappedAccessData.factory );
 	}
 
-	public SuperVoxelMultisetEntry( final long superVoxelId, final int numOccurrences )
+	public LabelMultisetEntry( final long superVoxelId, final int numOccurrences )
 	{
 		this();
 		setId( superVoxelId );
 		setCount( numOccurrences );
 	}
 
-	protected SuperVoxelMultisetEntry( final LongMappedAccess access )
+	protected LabelMultisetEntry( final LongMappedAccess access )
 	{
 		super( access, LongMappedAccessData.factory );
 	}
@@ -67,10 +67,10 @@ public class SuperVoxelMultisetEntry
 	@Override
 	public boolean equals( final Object obj )
 	{
-		if ( ! ( obj instanceof SuperVoxelMultisetEntry ) )
+		if ( ! ( obj instanceof LabelMultisetEntry ) )
 			return false;
 
-		final SuperVoxelMultisetEntry svo = ( SuperVoxelMultisetEntry ) obj;
+		final LabelMultisetEntry svo = ( LabelMultisetEntry ) obj;
 		return svo.getId() == getId() && svo.getCount() == getCount();
 	}
 
@@ -87,9 +87,9 @@ public class SuperVoxelMultisetEntry
 	}
 
 	@Override
-	protected SuperVoxelMultisetEntry createRef()
+	protected LabelMultisetEntry createRef()
 	{
-		return new SuperVoxelMultisetEntry( new LongMappedAccess( null, 0 ) );
+		return new LabelMultisetEntry( new LongMappedAccess( null, 0 ) );
 	}
 
 	void setId( final long id )
