@@ -17,7 +17,7 @@ import bdv.bigcat.composite.Composite;
 import bdv.bigcat.composite.CompositeCopy;
 import bdv.bigcat.composite.CompositeProjector;
 import bdv.bigcat.ui.ARGBConvertedLabelsSource;
-import bdv.bigcat.ui.RandomSaturatedARGBStream;
+import bdv.bigcat.ui.GoldenAngleSaturatedARGBStream;
 import bdv.export.ProgressWriterConsole;
 import bdv.img.cache.Cache;
 import bdv.img.janh5.JanH5FloatSetupImageLoader;
@@ -92,9 +92,9 @@ public class BigCatJanH5
 
 			fragments.setCache( imgLoader.cache );
 
-			final SegmentBodyAssignment assignment = new SegmentBodyAssignment();
-//			final GoldenAngleSaturatedARGBStream colorStream = new GoldenAngleSaturatedARGBStream( assignment );
-			final RandomSaturatedARGBStream colorStream = new RandomSaturatedARGBStream( assignment );
+			final FragmentSegmentAssignment assignment = new FragmentSegmentAssignment();
+			final GoldenAngleSaturatedARGBStream colorStream = new GoldenAngleSaturatedARGBStream( assignment );
+//			final RandomSaturatedARGBStream colorStream = new RandomSaturatedARGBStream( assignment );
 			colorStream.setAlpha( 0x30 );
 			final ARGBConvertedLabelsSource convertedFragments =
 					new ARGBConvertedLabelsSource(
@@ -154,7 +154,6 @@ public class BigCatJanH5
 
 			converterSetups.get( 0 ).setDisplayRange( 0, 1 );
 			fragmentsConverterSetup.setDisplayRange( 0, 255 );
-
 
 
 			bdv.getViewerFrame().setVisible( true );

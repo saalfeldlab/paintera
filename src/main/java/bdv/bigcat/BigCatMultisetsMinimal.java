@@ -102,7 +102,7 @@ public class BigCatMultisetsMinimal
 			dvidLabelsMultisetImageLoader.setCache( imgLoader.cache );
 			
 			// convert labels into ARGB
-			final SegmentBodyAssignment assignment = new SegmentBodyAssignment();
+			final FragmentSegmentAssignment assignment = new FragmentSegmentAssignment();
 			final RandomSaturatedARGBStream colorStream = new RandomSaturatedARGBStream( assignment );
 			colorStream.setAlpha( 0x30 );
 			final ARGBConvertedLabelsSource convertedLabels =

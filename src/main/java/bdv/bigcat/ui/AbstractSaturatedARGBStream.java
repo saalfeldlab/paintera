@@ -16,7 +16,7 @@
  */
 package bdv.bigcat.ui;
 
-import bdv.bigcat.SegmentBodyAssignment;
+import bdv.bigcat.FragmentSegmentAssignment;
 import gnu.trove.impl.Constants;
 import gnu.trove.map.hash.TLongIntHashMap;
 
@@ -36,13 +36,13 @@ abstract public class AbstractSaturatedARGBStream implements ARGBSource
 
 	protected long seed = 0;
 	protected int alpha = 0x2000000;
-	protected int activeSegmentAlpha = 0xff000000;
-	protected int activeBodyAlpha = 0x80000000;
-	protected long activeSegment = 0L;
-	protected long activeBody = 0l;
-	final protected SegmentBodyAssignment assignment;
+	protected int activeFragmentAlpha = 0xff000000;
+	protected int activeSegmentAlpha = 0x80000000;
+	protected long activeFragment = 0L;
+	protected long activeSegment = 0l;
+	final protected FragmentSegmentAssignment assignment;
 
-	public AbstractSaturatedARGBStream( final SegmentBodyAssignment assignment )
+	public AbstractSaturatedARGBStream( final FragmentSegmentAssignment assignment )
 	{
 		this.assignment = assignment;
 	}
@@ -62,6 +62,38 @@ abstract public class AbstractSaturatedARGBStream implements ARGBSource
 	final static protected int argb( final int r, final int g, final int b, final int alpha )
 	{
 		return ( ( ( r << 8 ) | g ) << 8 ) | b | alpha;
+	}
+
+	abstract protected double getDouble( final long id );
+
+	@Override
+	final public int argb( final long fragmentId )
+	{
+		final long segmentId = assignment.getSegment( fragmentId );
+		int argb = argbCache.get( segmentId );
+		if ( argb == 0x00000000 )
+		{
+			double x = getDouble( seed + segmentId );
+			x *= 6.0;
+			final int k = ( int )x;
+			final int l = k + 1;
+			final double u = x - k;
+			final double v = 1.0 - u;
+
+			final int r = interpolate( rs, k, l, u, v );
+			final int g = interpolate( gs, k, l, u, v );
+			final int b = interpolate( bs, k, l, u, v );
+
+			argb = argb( r, g, b, alpha );
+
+			argbCache.put( segmentId, argb );
+		}
+		if ( activeFragment == fragmentId )
+			argb = argb & 0x00ffffff | activeFragmentAlpha;
+		else if ( activeSegment == segmentId )
+			argb = argb & 0x00ffffff | activeSegmentAlpha;
+
+		return argb;
 	}
 
 	/**
@@ -95,8 +127,8 @@ abstract public class AbstractSaturatedARGBStream implements ARGBSource
 	 */
 	public void setActive( final long segmentId )
 	{
-		activeSegment = segmentId;
-		activeBody = assignment.getBody( segmentId );
+		activeFragment = segmentId;
+		activeSegment = assignment.getSegment( segmentId );
 	}
 
 	/**

@@ -16,7 +16,7 @@
  */
 package bdv.bigcat.ui;
 
-import bdv.bigcat.SegmentBodyAssignment;
+import bdv.bigcat.FragmentSegmentAssignment;
 
 
 /**
@@ -30,7 +30,7 @@ import bdv.bigcat.SegmentBodyAssignment;
  */
 public class GoldenAngleSaturatedARGBStream extends AbstractSaturatedARGBStream
 {
-	public GoldenAngleSaturatedARGBStream( final SegmentBodyAssignment assignment )
+	public GoldenAngleSaturatedARGBStream( final FragmentSegmentAssignment assignment )
 	{
 		super( assignment );
 	}
@@ -38,31 +38,9 @@ public class GoldenAngleSaturatedARGBStream extends AbstractSaturatedARGBStream
 	final static protected double goldenRatio = 1.0 / ( 0.5 * Math.sqrt( 5 ) + 0.5 );
 
 	@Override
-	public int argb( final long id )
+	final protected double getDouble( final long id )
 	{
-		int argb = argbCache.get( id );
-		if ( argb == 0L )
-		{
-			double x = ( id + seed ) * goldenRatio;
-			x -= ( long )Math.floor( x );
-			x *= 6.0;
-			final int k = ( int )x;
-			final int l = k + 1;
-			final double u = x - k;
-			final double v = 1.0 - u;
-
-			final int r = interpolate( rs, k, l, u, v );
-			final int g = interpolate( gs, k, l, u, v );
-			final int b = interpolate( bs, k, l, u, v );
-
-			if ( activeSegment == id )
-				argb = argb( r, g, b, activeSegmentAlpha );
-			else
-				argb = argb( r, g, b, alpha );
-
-			argbCache.put( id, argb );
-		}
-
-		return argb;
+		final double x = ( id + seed ) * goldenRatio;
+		return x - ( long )Math.floor( x );
 	}
 }

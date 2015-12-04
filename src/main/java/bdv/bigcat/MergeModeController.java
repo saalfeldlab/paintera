@@ -43,12 +43,12 @@ public class MergeModeController implements MouseListener, KeyListener
 	final protected RealRandomAccessible< VolatileLabelMultisetType > labels;
 	final protected RealRandomAccess< VolatileLabelMultisetType > labelAccess;
 	final protected AbstractSaturatedARGBStream colorStream;
-	final protected SegmentBodyAssignment assignment;
-	protected long activeSegmentId = 0;
+	final protected FragmentSegmentAssignment assignment;
+	protected long activeFragmentId = 0;
 
 	final GsonBuilder gsonBuilder = new GsonBuilder();
 	{
-		gsonBuilder.registerTypeAdapter( SegmentBodyAssignment.class, new SegmentBodyAssignment.SegmentBodySerializer() );
+		gsonBuilder.registerTypeAdapter( FragmentSegmentAssignment.class, new FragmentSegmentAssignment.FragmentSegmentSerializer() );
 		//gsonBuilder.setPrettyPrinting();
 	}
 	final Gson gson = gsonBuilder.create();
@@ -58,7 +58,7 @@ public class MergeModeController implements MouseListener, KeyListener
 			final ViewerPanel viewer,
 			final RealRandomAccessible< VolatileLabelMultisetType > labels,
 			final AbstractSaturatedARGBStream colorStream,
-			final SegmentBodyAssignment assignment )
+			final FragmentSegmentAssignment assignment )
 	{
 		this.viewer = viewer;
 		this.labels = labels;
@@ -82,7 +82,7 @@ public class MergeModeController implements MouseListener, KeyListener
 		if ( labelValues.isValid() )
 		{
 			labelSetString = "";
-			final long oldActiveSegmentId = activeSegmentId;
+			final long oldActiveFragmentId = activeFragmentId;
 			long maxCount = 0;
 			for ( final Entry< SuperVoxel > entry : labelValues.get().entrySet() )
 			{
@@ -92,7 +92,7 @@ public class MergeModeController implements MouseListener, KeyListener
 				if ( count > maxCount )
 				{
 					maxCount = count;
-					activeSegmentId = label.id();
+					activeFragmentId = label.id();
 				}
 				labelSetString += entry.getElement().id() + ", ";
 			}
@@ -102,7 +102,7 @@ public class MergeModeController implements MouseListener, KeyListener
 			{
 				System.out.println( "Merging" );
 
-				assignment.mergeSegmentBodies( oldActiveSegmentId, activeSegmentId );
+				assignment.mergeFragmentSegments( oldActiveFragmentId, activeFragmentId );
 			}
 			else
 			{
@@ -110,10 +110,10 @@ public class MergeModeController implements MouseListener, KeyListener
 				{
 					System.out.println( "Detaching" );
 
-					assignment.detachSegment( activeSegmentId );
+					assignment.detachFragment( activeFragmentId );
 				}
 
-				colorStream.setActive( activeSegmentId );
+				colorStream.setActive( activeFragmentId );
 			}
 
 			colorStream.clearCache();

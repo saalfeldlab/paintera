@@ -44,24 +44,24 @@ import gnu.trove.map.hash.TLongObjectHashMap;
  *
  * @author Stephan Saalfeld <saalfelds@janelia.hhmi.org>
  */
-public class SegmentBodyAssignment
+public class FragmentSegmentAssignment
 {
 	/**
-	 * Serializes {@link SegmentBodyAssignment} into JSON of the form
+	 * Serializes {@link FragmentSegmentAssignment} into JSON of the form
 	 * <pre>
 	 * {
 	 *   "lut" : {
-	 *     "<segment_id1>" : <object_id1>,
-	 *     "<segment_id2>" : <object_id2>,
+	 *     "<fragment_id1>" : <segment_id1>,
+	 *     "<fragment_id2>" : <segment_id2>,
 	 *     ...
 	 *   }
 	 * }
 	 * </pre>
 	 */
-	static public class SegmentBodySerializer implements JsonSerializer< SegmentBodyAssignment >
+	static public class FragmentSegmentSerializer implements JsonSerializer< FragmentSegmentAssignment >
 	{
 		@Override
-		public JsonElement serialize( final SegmentBodyAssignment src, final Type typeOfSrc, final JsonSerializationContext context )
+		public JsonElement serialize( final FragmentSegmentAssignment src, final Type typeOfSrc, final JsonSerializationContext context )
 		{
 			final JsonObject jsonLut = new JsonObject();
 			final TLongLongIterator lutIterator = src.lut.iterator();
@@ -79,11 +79,11 @@ public class SegmentBodyAssignment
 	}
 
 	/**
-	 * Serializes {@link SegmentBodyAssignment} into JSON of the form
+	 * Serializes {@link FragmentSegmentAssignment} into JSON of the form
 	 * <pre>
 	 * {
-	 *   "segments" : [<segment_id1>, <segment_id2>, ...],
-	 *   "objects" : [<object_id1>, <object_id2>, ...]
+	 *   "fragments" : [<segment_id1>, <segment_id2>, ...],
+	 *   "segments" : [<object_id1>, <object_id2>, ...]
 	 *   }
 	 * }
 	 * </pre>
@@ -92,45 +92,45 @@ public class SegmentBodyAssignment
 	 * 2<sup>31</sup> and most likely significantly less due to memory
 	 * consumption on {@link JsonPrimitive} creation per each number.
 	 */
-	static public class SegmentBodyListSerializer implements JsonSerializer< SegmentBodyAssignment >
+	static public class SegmentBodyListSerializer implements JsonSerializer< FragmentSegmentAssignment >
 	{
 		@Override
-		public JsonElement serialize( final SegmentBodyAssignment src, final Type typeOfSrc, final JsonSerializationContext context )
+		public JsonElement serialize( final FragmentSegmentAssignment src, final Type typeOfSrc, final JsonSerializationContext context )
 		{
+			final JsonArray fragments = new JsonArray();
 			final JsonArray segments = new JsonArray();
-			final JsonArray bodies = new JsonArray();
 			final TLongLongIterator lutIterator = src.lut.iterator();
 			while ( lutIterator.hasNext() )
 			{
 				lutIterator.advance();
-				segments.add( new JsonPrimitive( lutIterator.key() ) );
-				bodies.add( new JsonPrimitive( lutIterator.value() ) );
+				fragments.add( new JsonPrimitive( lutIterator.key() ) );
+				segments.add( new JsonPrimitive( lutIterator.value() ) );
 			}
 
 			final JsonObject jsonObject = new JsonObject();
+			jsonObject.add( "fragments", fragments );
 			jsonObject.add( "segments", segments );
-			jsonObject.add( "bodies", bodies );
 
 			return jsonObject;
 		}
 	}
 
 	/**
-	 * Serializes {@link SegmentBodyAssignment} into JSON of the form
+	 * Serializes {@link FragmentSegmentAssignment} into JSON of the form
 	 * <pre>
 	 * {
 	 *   "ilut" : {
-	 *     "<object_id1>" : [<segment_id1>, <segment_id2>, ...],
-	 *     "<object_id2>" : [<segment_id3>, <segment_id4>, ...],
+	 *     "<segment_id1>" : [<fragment_id1>, <fragment_id2>, ...],
+	 *     "<segment_id2>" : [<fragment_id3>, <fragment_id4>, ...],
 	 *     ...
 	 *   }
 	 * }
 	 * </pre>
 	 */
-	static public class BodySegmentsSerializer implements JsonSerializer< SegmentBodyAssignment >
+	static public class BodySegmentsSerializer implements JsonSerializer< FragmentSegmentAssignment >
 	{
 		@Override
-		public JsonElement serialize( final SegmentBodyAssignment src, final Type typeOfSrc, final JsonSerializationContext context )
+		public JsonElement serialize( final FragmentSegmentAssignment src, final Type typeOfSrc, final JsonSerializationContext context )
 		{
 			final Gson gson = new Gson();
 
@@ -152,27 +152,27 @@ public class SegmentBodyAssignment
 	}
 
 	/**
-	 * Deserializes the various serializations of SegmentBodyAssignment.
+	 * Deserializes the various serializations of FragmentSegmentAssignment.
 	 *
-	 * TODO number of elements and bodies is limited by implementation to
+	 * TODO number of fragments and segmentsis limited by implementation to
 	 * 2<sup>31</sup> due to collecting them in a long[].
 	 *
 	 */
-	static public class GSONDeserializer implements JsonDeserializer< SegmentBodyAssignment >
+	static public class GSONDeserializer implements JsonDeserializer< FragmentSegmentAssignment >
 	{
 		@Override
-		public SegmentBodyAssignment deserialize( final JsonElement json, final Type typeOfT, final JsonDeserializationContext context ) throws JsonParseException
+		public FragmentSegmentAssignment deserialize( final JsonElement json, final Type typeOfT, final JsonDeserializationContext context ) throws JsonParseException
 		{
 			final JsonObject jsonObject = json.getAsJsonObject();
 
 			boolean notYetDone = true;
+			long[] fragments = null;
 			long[] segments = null;
-			long[] bodies = null;
 			String message = "Could not find either lut, ilut, or segments + bodies properties.";
 			if ( jsonObject.has( "lut" ) )
 			{
+				final TLongArrayList fragmentsList = new TLongArrayList();
 				final TLongArrayList segmentsList = new TLongArrayList();
-				final TLongArrayList bodiesList = new TLongArrayList();
 
 				final JsonElement lutJsonElement = jsonObject.get( "lut" );
 				if ( lutJsonElement.isJsonObject() )
@@ -183,13 +183,13 @@ public class SegmentBodyAssignment
 					{
 						try
 						{
-							final long segmentId = Long.parseLong( entry.getKey() );
+							final long fragmentId = Long.parseLong( entry.getKey() );
 							final JsonElement value = entry.getValue();
 							if ( value.isJsonPrimitive() )
 							{
-								final long bodyId = value.getAsLong();
+								final long segmentId = value.getAsLong();
+								fragmentsList.add( fragmentId );
 								segmentsList.add( segmentId );
-								bodiesList.add( bodyId );
 							}
 							else
 							{
@@ -205,15 +205,15 @@ public class SegmentBodyAssignment
 					}
 					if ( !notYetDone )
 					{
+						fragments = fragmentsList.toArray();
 						segments = segmentsList.toArray();
-						bodies = bodiesList.toArray();
 					}
 				}
 			}
 			if ( notYetDone && jsonObject.has( "ilut" ) )
 			{
+				final TLongArrayList fragmentsList = new TLongArrayList();
 				final TLongArrayList segmentsList = new TLongArrayList();
-				final TLongArrayList bodiesList = new TLongArrayList();
 
 				final JsonElement ilutJsonElement = jsonObject.get( "lut" );
 				if ( ilutJsonElement.isJsonObject() )
@@ -224,17 +224,17 @@ A:					for ( final Entry< String, JsonElement > entry : ilutJsonEntrySet )
 					{
 						try
 						{
-							final long bodyId = Long.parseLong( entry.getKey() );
+							final long segmentId = Long.parseLong( entry.getKey() );
 							final JsonElement value = entry.getValue();
 							if ( value.isJsonArray() )
 							{
-								for ( final JsonElement segment : value.getAsJsonArray() )
+								for ( final JsonElement fragment : value.getAsJsonArray() )
 								{
-									if ( segment.isJsonPrimitive() )
+									if ( fragment.isJsonPrimitive() )
 									{
-										final long segmentId = segment.getAsLong();
+										final long fragmentId = fragment.getAsLong();
+										fragmentsList.add( fragmentId );
 										segmentsList.add( segmentId );
-										bodiesList.add( bodyId );
 									}
 									else
 									{
@@ -257,14 +257,14 @@ A:					for ( final Entry< String, JsonElement > entry : ilutJsonEntrySet )
 					}
 				}
 			}
-			if ( notYetDone && jsonObject.has( "segments" ) && jsonObject.has( "bodies" ) )
+			if ( notYetDone && jsonObject.has( "fragments" ) && jsonObject.has( "segments" ) )
 			{
 				final Gson gson = new Gson();
 				notYetDone = false;
 				try
 				{
+					fragments = gson.fromJson( jsonObject.get( "fragments" ), long[].class );
 					segments = gson.fromJson( jsonObject.get( "segments" ), long[].class );
-					bodies = gson.fromJson( jsonObject.get( "bodies" ), long[].class );
 				}
 				catch ( final Exception e )
 				{
@@ -275,38 +275,38 @@ A:					for ( final Entry< String, JsonElement > entry : ilutJsonEntrySet )
 			if ( notYetDone )
 				throw new JsonParseException( message );
 			else
-				return new SegmentBodyAssignment( segments, bodies );
+				return new FragmentSegmentAssignment( fragments, segments );
 		}
 	}
 
 	final protected TLongLongHashMap lut = new TLongLongHashMap();
 	final protected TLongObjectHashMap< long[] > ilut = new TLongObjectHashMap< long[] >();
 
-	public SegmentBodyAssignment() {}
+	public FragmentSegmentAssignment() {}
 
-	public SegmentBodyAssignment( final long[] segments, final long[] bodies )
+	public FragmentSegmentAssignment( final long[] fragments, final long[] segments )
 	{
-		assert segments.length == bodies.length : "segments and bodies must be of same length";
+		assert fragments.length == segments.length : "segments and bodies must be of same length";
 
-		for ( int i = 0; i < segments.length; ++i )
-			lut.put( segments[ i ], bodies[ i ] );
+		for ( int i = 0; i < fragments.length; ++i )
+			lut.put( fragments[ i ], segments[ i ] );
 
 		syncILut();
 	}
-	
+
 	public void initLut( final TLongLongHashMap lut )
 	{
 		this.lut.clear();
 		this.ilut.clear();
 		this.lut.putAll( lut );
 		syncILut();
-		
+
 		System.out.println( "Done" );
 	}
 
 	/**
-	 * Synchronize the inverse Lookup (body > [segments]) with the current
-	 * forward lookup (segment > body)).  The current state of the inverse
+	 * Synchronize the inverse Lookup (segment > [fragments]) with the current
+	 * forward lookup (fragment > segment)).  The current state of the inverse
 	 * lookup will be cleared.
 	 */
 	protected void syncILut()
@@ -316,35 +316,35 @@ A:					for ( final Entry< String, JsonElement > entry : ilutJsonEntrySet )
 		while ( lutIterator.hasNext() )
 		{
 			lutIterator.advance();
-			final long segmentId = lutIterator.key();
-			final long bodyId = lutIterator.value();
-			long[] segments = ilut.get( bodyId );
-			if ( segments == null )
-				segments = new long[]{ segmentId };
+			final long fragmentId = lutIterator.key();
+			final long segmentId = lutIterator.value();
+			long[] fragments = ilut.get( segmentId );
+			if ( fragments == null )
+				fragments = new long[]{ fragmentId };
 			else
-				segments= ArrayUtils.add( segments, segmentId );
-			ilut.put( bodyId, segments);
+				fragments = ArrayUtils.add( fragments, fragmentId );
+			ilut.put( segmentId, fragments);
 		}
 	}
 
 	/**
-	 * Get the body that is assigned to a segment id.
+	 * Get the body that is assigned to a fragment id.
 	 *
 	 * @param id
 	 */
-	public long getBody( final long segmentId )
+	public long getSegment( final long fragmentId )
 	{
 		final long id;
 		synchronized ( lut )
 		{
-			final long bodyId = lut.get( segmentId );
-			if ( bodyId == lut.getNoEntryValue() ) {
-				lut.put( segmentId, segmentId );
-				ilut.put( segmentId, new long[]{ segmentId } );
-				id = segmentId;
+			final long segmentId = lut.get( fragmentId );
+			if ( segmentId == lut.getNoEntryValue() ) {
+				lut.put( fragmentId, fragmentId );
+				ilut.put( fragmentId, new long[]{ fragmentId } );
+				id = fragmentId;
 			}
 			else
-				id = bodyId;
+				id = segmentId;
 		}
 		return id;
 	}
@@ -354,70 +354,70 @@ A:					for ( final Entry< String, JsonElement > entry : ilutJsonEntrySet )
 	 *
 	 * @param id
 	 */
-	public long[] getSegments( final long bodyId )
+	public long[] getFragments( final long segmentId )
 	{
-		return ilut.get( bodyId );
+		return ilut.get( segmentId );
 	}
 
 	/**
-	 * Merge two bodies.
-	 *
-	 * @param bodyId1
-	 * @param bodyId2
-	 */
-	public void mergeBodies( final long bodyId1, final long bodyId2 )
-	{
-		if ( bodyId1 == bodyId2 )
-			return;
-
-		synchronized ( ilut )
-		{
-			final long[] segments1 = getSegments( bodyId1 );
-			final long[] segments2 = getSegments( bodyId2 );
-			final long[] segments = ArrayUtils.addAll( segments1, segments2 );
-			for ( final long segmentId : segments )
-				lut.put( segmentId, bodyId1 );
-			ilut.put( bodyId1, segments );
-			ilut.remove( bodyId2 );
-		}
-	}
-
-	/**
-	 * Merge two bodies assigned to two segment ids.
+	 * Merge two segments.
 	 *
 	 * @param segmentId1
 	 * @param segmentId2
 	 */
-	public void mergeSegmentBodies( final long segmentId1, final long segmentId2 )
+	public void mergeBodies( final long segmentId1, final long segmentId2 )
 	{
-		final long bodyId1, bodyId2;
+		if ( segmentId1 == segmentId2 )
+			return;
+
 		synchronized ( ilut )
 		{
-			bodyId1 = getBody( segmentId1 );
-			bodyId2 = getBody( segmentId2 );
+			final long[] fragments1 = getFragments( segmentId1 );
+			final long[] fragments2 = getFragments( segmentId2 );
+			final long[] fragments = ArrayUtils.addAll( fragments1, fragments2 );
+			for ( final long fragmentId : fragments )
+				lut.put( fragmentId, segmentId1 );
+			ilut.put( segmentId1, fragments );
+			ilut.remove( segmentId2 );
 		}
-		mergeBodies( bodyId1, bodyId2 );
+	}
+
+	/**
+	 * Merge two segments assigned to two fragment ids.
+	 *
+	 * @param fragmentId1
+	 * @param fragmentId2
+	 */
+	public void mergeFragmentSegments( final long fragmentId1, final long fragmentId2 )
+	{
+		final long segmentId1, segmentId2;
+		synchronized ( ilut )
+		{
+			segmentId1 = getSegment( fragmentId1 );
+			segmentId2 = getSegment( fragmentId2 );
+		}
+		mergeBodies( segmentId1, segmentId2 );
 	}
 
 	/**
 	 * Detach a segment from the body that it has been associated with
 	 *
-	 * @param segmentId
+	 * @param fragmentId
 	 */
-	public void detachSegment( final long segmentId )
+	public void detachFragment( final long fragmentId )
 	{
 		synchronized ( ilut )
 		{
-			final long bodyId = lut.get( segmentId );
-			final long[] segments = ilut.get( bodyId );
-			if ( segments.length > 1 )
+			final long segmentId = lut.get( fragmentId );
+			final long[] fragments = ilut.get( segmentId );
+			if ( fragments.length > 1 )
 			{
-				final long[] newSegments = ArrayUtils.removeElement( segments, segmentId );
-				ilut.put( bodyId, newSegments );
+				final long[] newFragments = ArrayUtils.removeElement( fragments, fragmentId );
+				ilut.put( segmentId, newFragments );
 
-				final long newBodyId = bodyId == segmentId ? newSegments[ 0 ] : segmentId;
-				lut.put( segmentId, newBodyId );
-				ilut.put( newBodyId, new long[]{ segmentId } );
+				final long newSegmentId = segmentId == fragmentId ? newFragments[ 0 ] : fragmentId;
+				lut.put( fragmentId, newSegmentId );
+				ilut.put( newSegmentId, new long[]{ fragmentId } );
 			}
 		}
 	}

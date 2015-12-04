@@ -84,7 +84,7 @@ public class BigCatSolverClient
 //					2,
 //					labelsMultisetImageLoader );
 
-			final SegmentBodyAssignment assignment = new SegmentBodyAssignment();
+			final FragmentSegmentAssignment assignment = new FragmentSegmentAssignment();
 
 //			final GoldenAngleSaturatedARGBStream colorStream = new GoldenAngleSaturatedARGBStream();
 			final RandomSaturatedARGBStream colorStream = new RandomSaturatedARGBStream( assignment );

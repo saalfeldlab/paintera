@@ -18,7 +18,7 @@ package bdv.bigcat.ui;
 
 import java.util.Random;
 
-import bdv.bigcat.SegmentBodyAssignment;
+import bdv.bigcat.FragmentSegmentAssignment;
 
 
 
@@ -36,7 +36,7 @@ public class RandomSaturatedARGBStream extends AbstractSaturatedARGBStream
 	final Random rnd = new Random();
 	final static private double DOUBLE_UNIT = 0x1.0p-53; // 1.0 / (1L << 53)
 
-	public RandomSaturatedARGBStream( final SegmentBodyAssignment assignment )
+	public RandomSaturatedARGBStream( final FragmentSegmentAssignment assignment )
 	{
 		super( assignment );
 	}
@@ -63,7 +63,7 @@ public class RandomSaturatedARGBStream extends AbstractSaturatedARGBStream
 	 * @author Wilfried Elmenreich https://mobile.aau.at/~welmenre/
 	 * @source http://demesos.blogspot.com.au/2011/09/replacing-java-random-generator.html
 	 */
-	static protected int maskSeed( final long seed, final int nbits )
+	final static protected int maskSeed( final long seed, final int nbits )
 	{
 		return ( int )( seed & ( ( 1L << nbits ) - 1 ) );
 	}
@@ -74,7 +74,8 @@ public class RandomSaturatedARGBStream extends AbstractSaturatedARGBStream
 	 * @author Wilfried Elmenreich https://mobile.aau.at/~welmenre/
 	 * @source http://demesos.blogspot.com.au/2011/09/replacing-java-random-generator.html
 	 */
-	static protected double getDouble( final long id )
+	@Override
+	final protected double getDouble( final long id )
 	{
 		final long seed1 = nextSeed( id );
 		final long seed2 = nextSeed( seed1 );
@@ -82,36 +83,5 @@ public class RandomSaturatedARGBStream extends AbstractSaturatedARGBStream
 		final int y = maskSeed( seed2, 27 );
 
 		return ( ( ( long )x << 27 ) + y ) * DOUBLE_UNIT;
-	}
-
-	@Override
-	public int argb( final long segmentId )
-	{
-		final long bodyId = assignment.getBody( segmentId );
-		int argb = argbCache.get( bodyId );
-		if ( argb == 0x00000000 )
-		{
-			double x = getDouble( seed + bodyId );
-			x *= 6.0;
-			final int k = ( int )x;
-			final int l = k + 1;
-			final double u = x - k;
-			final double v = 1.0 - u;
-
-			final int r = interpolate( rs, k, l, u, v );
-			final int g = interpolate( gs, k, l, u, v );
-			final int b = interpolate( bs, k, l, u, v );
-
-			argb = argb( r, g, b, alpha );
-
-			argbCache.put( bodyId, argb );
-		}
-		if ( activeSegment == segmentId )
-			argb = argb & 0x00ffffff | activeSegmentAlpha;
-		else if ( activeBody == bodyId )
-			argb = argb & 0x00ffffff | activeBodyAlpha;
-
-
-		return argb;
 	}
 }

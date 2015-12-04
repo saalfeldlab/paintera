@@ -40,7 +40,7 @@ import net.imglib2.RealRandomAccess;
 import net.imglib2.RealRandomAccessible;
 
 /**
- * User input for label/ body merge and split events that sends
+ * User input for fragment/ segment merge and split events that sends
  *
  * @author Stephan Saalfeld <saalfelds@janelia.hhmi.org>
  */
@@ -59,12 +59,12 @@ public class LabelMergeSplitClientController implements MouseListener, KeyListen
 			final String[] msgSplit = msg.split( " " );
 			for ( int i = 0; i < msgSplit.length; ++i )
 				lut.put( i, Long.parseLong( msgSplit[ i ] ) );
-			
+
 			assignment.initLut( lut );
 			colorStream.clearCache();
 			viewer.requestRepaint();
 		}
-		
+
 		@Override
 		final public void run()
 		{
@@ -75,19 +75,19 @@ public class LabelMergeSplitClientController implements MouseListener, KeyListen
 			}
 		}
 	}
-	
+
 	final protected ViewerPanel viewer;
 	final protected RealRandomAccessible< VolatileLabelMultisetType > labels;
 	final protected RealRandomAccess< VolatileLabelMultisetType > labelAccess;
 	final protected AbstractSaturatedARGBStream colorStream;
-	final protected SegmentBodyAssignment assignment;
-	protected long activeSegmentId = 0;
+	final protected FragmentSegmentAssignment assignment;
+	protected long activeFragmentId = 0;
 	final protected Socket socket;
 	final protected SocketListener socketListener;
 
 	final GsonBuilder gsonBuilder = new GsonBuilder();
 	{
-		gsonBuilder.registerTypeAdapter( SegmentBodyAssignment.class, new SegmentBodyAssignment.SegmentBodySerializer() );
+		gsonBuilder.registerTypeAdapter( FragmentSegmentAssignment.class, new FragmentSegmentAssignment.FragmentSegmentSerializer() );
 		//gsonBuilder.setPrettyPrinting();
 	}
 	final Gson gson = gsonBuilder.create();
@@ -97,7 +97,7 @@ public class LabelMergeSplitClientController implements MouseListener, KeyListen
 			final ViewerPanel viewer,
 			final RealRandomAccessible< VolatileLabelMultisetType > labels,
 			final AbstractSaturatedARGBStream colorStream,
-			final SegmentBodyAssignment assignment,
+			final FragmentSegmentAssignment assignment,
 			final Socket socket )
 	{
 		this.viewer = viewer;
@@ -106,16 +106,16 @@ public class LabelMergeSplitClientController implements MouseListener, KeyListen
 		this.assignment = assignment;
 		this.socket = socket;
 		labelAccess = labels.realRandomAccess();
-		
+
 		socketListener = new SocketListener();
 		socketListener.start();
 	}
-	
+
 	public LabelMergeSplitClientController(
 			final ViewerPanel viewer,
 			final RealRandomAccessible< VolatileLabelMultisetType > labels,
 			final AbstractSaturatedARGBStream colorStream,
-			final SegmentBodyAssignment assignment,
+			final FragmentSegmentAssignment assignment,
 			final ZContext ctx,
 			final String socketUrl )
 	{
@@ -138,7 +138,7 @@ public class LabelMergeSplitClientController implements MouseListener, KeyListen
 		if ( labelValues.isValid() )
 		{
 			labelSetString = "";
-			final long oldActiveSegmentId = activeSegmentId;
+			final long oldActiveFragmentId = activeFragmentId;
 			long maxCount = 0;
 			for ( final Entry< SuperVoxel > entry : labelValues.get().entrySet() )
 			{
@@ -148,7 +148,7 @@ public class LabelMergeSplitClientController implements MouseListener, KeyListen
 				if ( count > maxCount )
 				{
 					maxCount = count;
-					activeSegmentId = label.id();
+					activeFragmentId = label.id();
 				}
 				labelSetString += entry.getElement().id() + ", ";
 			}
@@ -158,47 +158,47 @@ public class LabelMergeSplitClientController implements MouseListener, KeyListen
 			{
 				System.out.println( "Merging" );
 
-				final long oldActiveBodyId = assignment.getBody( oldActiveSegmentId );
-				final long activeBodyId = assignment.getBody( activeSegmentId );
-				if ( oldActiveBodyId != activeBodyId )
+				final long oldActiveSegmentId = assignment.getSegment( oldActiveFragmentId );
+				final long activeSegmentId = assignment.getSegment( activeFragmentId );
+				if ( oldActiveSegmentId != activeSegmentId )
 				{
-					final long[] oldActiveSegments = assignment.getSegments( oldActiveBodyId );
-					final long[] activeSegments = assignment.getSegments( activeBodyId );
+					final long[] oldActiveFragments = assignment.getFragments( oldActiveSegmentId );
+					final long[] activeFragments = assignment.getFragments( activeSegmentId );
 //					final String msg =
 //							"merge("
 //							+ Arrays.toString( ArrayUtils.addAll( oldActiveSegments, activeSegments ) )
 //							+ ")";
 					final String msg =
 							"merge("
-							+ Arrays.toString( new long[]{ oldActiveSegmentId, activeSegmentId } )
+							+ Arrays.toString( new long[]{ oldActiveFragmentId, activeFragmentId } )
 							+ ")";
 					System.out.println( "Sending : " + msg );
 					socket.send( msg );
 				}
-				assignment.mergeSegmentBodies( oldActiveSegmentId, activeSegmentId );
+				assignment.mergeFragmentSegments( oldActiveFragmentId, activeFragmentId );
 			}
 			else
 			{
 				if ( ( e.getModifiersEx() & KeyEvent.CTRL_DOWN_MASK ) != 0 )
 				{
 					System.out.println( "Detaching" );
-					
-					final long activeBodyId = assignment.getBody( activeSegmentId );
-					final long[] segments = assignment.getSegments( activeBodyId );
-					
+
+					final long activeSegmentId = assignment.getSegment( activeFragmentId );
+					final long[] fragments = assignment.getFragments( activeSegmentId );
+
 					final String msg =
 							"detach(["
-							+ "[" + activeSegmentId + "], "
-							+ Arrays.toString( segments )
+							+ "[" + activeFragmentId + "], "
+							+ Arrays.toString( fragments )
 							+ "])";
 					System.out.println( "Sending : " + msg );
 					socket.send( msg );
-					
-					assignment.detachSegment( activeSegmentId );
-					
+
+					assignment.detachFragment( activeFragmentId );
+
 				}
 
-				colorStream.setActive( activeSegmentId );
+				colorStream.setActive( activeFragmentId );
 			}
 
 			colorStream.clearCache();
