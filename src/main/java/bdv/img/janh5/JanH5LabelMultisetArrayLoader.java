@@ -7,8 +7,8 @@ import bdv.labels.labelset.LabelMultisetEntry;
 import bdv.labels.labelset.LabelMultisetEntryList;
 import bdv.labels.labelset.LongMappedAccessData;
 import bdv.labels.labelset.VolatileLabelMultisetArray;
-import ch.systemsx.cisd.base.mdarray.MDIntArray;
-import ch.systemsx.cisd.hdf5.IHDF5IntReader;
+import ch.systemsx.cisd.base.mdarray.MDLongArray;
+import ch.systemsx.cisd.hdf5.IHDF5LongReader;
 import ch.systemsx.cisd.hdf5.IHDF5Reader;
 import gnu.trove.list.array.TLongArrayList;
 
@@ -18,19 +18,20 @@ import gnu.trove.list.array.TLongArrayList;
  *
  * @author Stephan Saalfeld <saalfelds@janelia.hhmi.org>
  */
-public class JanH5Int32LabelMultisetArrayLoader implements CacheArrayLoader< VolatileLabelMultisetArray >
+public class JanH5LabelMultisetArrayLoader implements CacheArrayLoader< VolatileLabelMultisetArray >
 {
 	private VolatileLabelMultisetArray theEmptyArray;
 
-	private IHDF5IntReader reader;
-	private String dataset;
+	final private IHDF5LongReader reader;
 
-	public JanH5Int32LabelMultisetArrayLoader(
+	final private String dataset;
+
+	public JanH5LabelMultisetArrayLoader(
 			final IHDF5Reader reader,
 			final String dataset )
 	{
 		theEmptyArray = new VolatileLabelMultisetArray( 1, false );
-		this.reader = reader.uint32();
+		this.reader = reader.uint64();
 		this.dataset = dataset;
 	}
 
@@ -48,25 +49,27 @@ public class JanH5Int32LabelMultisetArrayLoader implements CacheArrayLoader< Vol
 			final int[] dimensions,
 			final long[] min ) throws InterruptedException
 	{
-		int[] data = null;
-		final MDIntArray slice = reader.readMDArrayBlockWithOffset(
-				"/raw",
+		long[] data = null;
+
+		final MDLongArray block = reader.readMDArrayBlockWithOffset(
+				dataset,
 				new int[]{ dimensions[ 2 ], dimensions[ 1 ], dimensions[ 0 ] },
 				new long[]{ min[ 2 ], min[ 1 ], min[ 0 ] } );
 
-		data = slice.getAsFlatArray();
+		data = block.getAsFlatArray();
 
 		if ( data == null )
 		{
 			System.out.println(
-					"JanH5 int32 label multiset array loader failed loading min = " +
+					"JanH5 label multiset array loader failed loading min = " +
 					Arrays.toString( min ) +
 					", dimensions = " +
 					Arrays.toString( dimensions ) );
 
-			data = new int[ dimensions[ 0 ] * dimensions[ 1 ] * dimensions[ 2 ] ];
+			data = new long[ dimensions[ 0 ] * dimensions[ 1 ] * dimensions[ 2 ] ];
 		}
 
+		final int[] offsets = new int[ dimensions[ 2 ] * dimensions[ 1 ] * dimensions[ 0 ] ];
 		final LongMappedAccessData listData = LongMappedAccessData.factory.createStorage( 32 );
 		final TLongArrayList idAndOffsetList = new TLongArrayList();
 		final LabelMultisetEntryList list = new LabelMultisetEntryList( listData, 0 );
@@ -74,9 +77,9 @@ public class JanH5Int32LabelMultisetArrayLoader implements CacheArrayLoader< Vol
 		long nextListOffset = 0;
 A:		for ( int i = 0; i < data.length; ++i )
 		{
-			final long id = data[ i ] & 0xffL;
+			final long id = data[ i ];
 
-			// does the list [id x 1] already exist?
+//			does the list [id x 1] already exist?
 //			for ( int k = 0; k < idAndOffsetList.size(); k += 2 )
 //			{
 //				if ( idAndOffsetList.getQuick( k ) == id )
@@ -93,11 +96,11 @@ A:		for ( int i = 0; i < data.length; ++i )
 			list.add( entry );
 			idAndOffsetList.add( id );
 			idAndOffsetList.add( nextListOffset );
-			data[ i ] = ( int ) nextListOffset;
+			offsets[ i ] = ( int ) nextListOffset;
 			nextListOffset += list.getSizeInBytes();
 		}
 
-		return new VolatileLabelMultisetArray( data, listData, true );
+		return new VolatileLabelMultisetArray( offsets, listData, true );
 	}
 
 	/**

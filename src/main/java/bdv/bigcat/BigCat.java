@@ -37,6 +37,7 @@ import bdv.viewer.SourceAndConverter;
 import bdv.viewer.ViewerOptions;
 import bdv.viewer.render.AccumulateProjectorFactory;
 import mpicbg.spim.data.generic.sequence.BasicViewSetup;
+import mpicbg.spim.data.generic.sequence.ImgLoaderHints;
 import mpicbg.spim.data.registration.ViewRegistration;
 import mpicbg.spim.data.registration.ViewRegistrations;
 import mpicbg.spim.data.sequence.TimePoint;
@@ -178,7 +179,7 @@ public class BigCat
 							bdv.getViewer(),
 							Views.interpolate(
 									Views.extendValue(
-											dvidLabelsMultisetImageLoader.getVolatileImage( 0, 0 ),
+											dvidLabelsMultisetImageLoader.getVolatileImage( 0, 0, ImgLoaderHints.LOAD_COMPLETELY ),
 											new VolatileLabelMultisetType() ),
 									new NearestNeighborInterpolatorFactory< VolatileLabelMultisetType >() ),
 							colorStream,

@@ -67,12 +67,12 @@ public class BigCatSolverClient
 					500,
 					500,
 					500 );
-			
+
 			final KnossosLabelMultisetSetupImageLoader labelsMultisetImageLoader = new KnossosLabelMultisetSetupImageLoader(
 					1,
 					"file:/home/saalfeld/tmp/thorstens_stuff/mag1/knossos.conf",
 					"/mag%1$d/x%2$d/y%3$d/z%4$d/%5$s_x%2$d_y%3$d_z%4$d.raw" );
-			
+
 //			final DvidLabels64MultisetSetupImageLoader dvidLabelsMultisetImageLoader = new DvidLabels64MultisetSetupImageLoader(
 //					1,
 //					"http://emrecon100.janelia.priv/api",
@@ -152,7 +152,7 @@ public class BigCatSolverClient
 			final ZContext ctx = new ZContext();
 			final Socket socket = ctx.createSocket( ZMQ.PAIR );
 			socket.connect( "tcp://10.101.30.79:5556" );
-			
+
 			bdv.getViewer().getDisplay().addHandler(
 					new LabelMergeSplitClientController(
 							bdv.getViewer(),

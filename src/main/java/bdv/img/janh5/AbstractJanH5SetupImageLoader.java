@@ -24,8 +24,17 @@ import net.imglib2.util.Fraction;
  *
  * @author Stephan Saalfeld <saalfelds@janelia.hhmi.org>
  */
-abstract public class AbstractJanH5SetupImageLoader< T, V extends Volatile< T >, A extends VolatileAccess > extends AbstractViewerSetupImgLoader< T, V >
+abstract public class AbstractJanH5SetupImageLoader< T extends NativeType< T > , V extends Volatile< T >, A extends VolatileAccess > extends AbstractViewerSetupImgLoader< T, V >
 {
+	/**
+	 * It seems unnecessary to hold a reference to the {@link IHDF5Reader} if
+	 * consumers use only its subclasses, e.g. {@link IHDF5Reader#float32()},
+	 * however, the subclasses do not have a reference to their generator and
+	 * {@link IHDF5Reader} closes the file when it gets garbage collected by
+	 * which the subclasses loose their source. Really quirky!
+	 */
+	final protected IHDF5Reader reader;
+
 	final protected double[] resolution;
 
 	final protected long[] dimension;
@@ -50,6 +59,7 @@ abstract public class AbstractJanH5SetupImageLoader< T, V extends Volatile< T >,
 			final CacheArrayLoader< A > loader ) throws IOException
 	{
 		super( type, vType );
+		this.reader = reader;
 		this.setupId = setupId;
 		this.loader = loader;
 
@@ -90,9 +100,9 @@ abstract public class AbstractJanH5SetupImageLoader< T, V extends Volatile< T >,
 		return 1;
 	}
 
-	protected < T extends NativeType< T > > CachedCellImg< T, A > prepareCachedImage(
+	protected < S extends NativeType< S > > CachedCellImg< S, A > prepareCachedImage(
 			final int timepointId,
-			final int setupId,
+			@SuppressWarnings( "hiding" ) final int setupId,
 			final int level,
 			final LoadingStrategy loadingStrategy )
 	{
@@ -100,7 +110,7 @@ abstract public class AbstractJanH5SetupImageLoader< T, V extends Volatile< T >,
 		final CacheHints cacheHints = new CacheHints( loadingStrategy, priority, false );
 		final CellCache< A > c = cache.new VolatileCellCache< A >( timepointId, setupId, level, cacheHints, loader );
 		final VolatileImgCells< A > cells = new VolatileImgCells< A >( c, new Fraction(), dimension, blockDimension );
-		final CachedCellImg< T, A > img = new CachedCellImg< T, A >( cells );
+		final CachedCellImg< S, A > img = new CachedCellImg< S, A >( cells );
 		return img;
 	}
 

@@ -18,8 +18,9 @@ public class JanH5FloatArrayLoader implements CacheArrayLoader< VolatileFloatArr
 {
 	private VolatileFloatArray theEmptyArray;
 
-	private IHDF5FloatReader reader;
-	private String dataset;
+	final private IHDF5FloatReader reader;
+
+	final private String dataset;
 
 	public JanH5FloatArrayLoader(
 			final IHDF5Reader reader,
@@ -47,7 +48,7 @@ public class JanH5FloatArrayLoader implements CacheArrayLoader< VolatileFloatArr
 	{
 		float[] data = null;
 		final MDFloatArray slice = reader.readMDArrayBlockWithOffset(
-				"/raw",
+				dataset,
 				new int[]{ dimensions[ 2 ], dimensions[ 1 ], dimensions[ 0 ] },
 				new long[]{ min[ 2 ], min[ 1 ], min[ 0 ] } );
 

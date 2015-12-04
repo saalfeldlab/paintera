@@ -21,16 +21,16 @@ import java.awt.event.KeyListener;
 import java.awt.event.MouseEvent;
 import java.awt.event.MouseListener;
 
-import net.imglib2.RealRandomAccess;
-import net.imglib2.RealRandomAccessible;
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+
 import bdv.bigcat.ui.AbstractSaturatedARGBStream;
 import bdv.labels.labelset.Multiset.Entry;
 import bdv.labels.labelset.SuperVoxel;
 import bdv.labels.labelset.VolatileLabelMultisetType;
 import bdv.viewer.ViewerPanel;
-
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
+import net.imglib2.RealRandomAccess;
+import net.imglib2.RealRandomAccessible;
 
 /**
  *

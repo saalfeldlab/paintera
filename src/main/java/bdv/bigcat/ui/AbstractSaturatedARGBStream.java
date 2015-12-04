@@ -16,8 +16,9 @@
  */
 package bdv.bigcat.ui;
 
-import gnu.trove.map.hash.TLongIntHashMap;
 import bdv.bigcat.SegmentBodyAssignment;
+import gnu.trove.impl.Constants;
+import gnu.trove.map.hash.TLongIntHashMap;
 
 
 /**
@@ -47,7 +48,11 @@ abstract public class AbstractSaturatedARGBStream implements ARGBSource
 	}
 
 	//protected Long2IntOpenHashMap argbCache = new Long2IntOpenHashMap();
-	protected TLongIntHashMap argbCache = new TLongIntHashMap();
+	protected TLongIntHashMap argbCache = new TLongIntHashMap(
+			Constants.DEFAULT_CAPACITY ,
+			Constants.DEFAULT_LOAD_FACTOR,
+			0,
+			0 );
 
 	final static protected int interpolate( final double[] xs, final int k, final int l, final double u, final double v )
 	{
