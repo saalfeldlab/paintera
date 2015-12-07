@@ -10,7 +10,8 @@ import bdv.labels.labelset.VolatileLabelMultisetArray;
 import ch.systemsx.cisd.base.mdarray.MDLongArray;
 import ch.systemsx.cisd.hdf5.IHDF5LongReader;
 import ch.systemsx.cisd.hdf5.IHDF5Reader;
-import gnu.trove.list.array.TLongArrayList;
+import gnu.trove.impl.Constants;
+import gnu.trove.map.hash.TLongIntHashMap;
 
 /**
  * {@link CacheArrayLoader} for
@@ -71,34 +72,36 @@ public class JanH5LabelMultisetArrayLoader implements CacheArrayLoader< Volatile
 
 		final int[] offsets = new int[ dimensions[ 2 ] * dimensions[ 1 ] * dimensions[ 0 ] ];
 		final LongMappedAccessData listData = LongMappedAccessData.factory.createStorage( 32 );
-		final TLongArrayList idAndOffsetList = new TLongArrayList();
 		final LabelMultisetEntryList list = new LabelMultisetEntryList( listData, 0 );
 		final LabelMultisetEntry entry = new LabelMultisetEntry( 0, 1 );
-		long nextListOffset = 0;
+		int nextListOffset = 0;
+		final TLongIntHashMap idOffsetHash = new TLongIntHashMap(
+				Constants.DEFAULT_CAPACITY,
+				Constants.DEFAULT_LOAD_FACTOR,
+				-1,
+				-1);
 A:		for ( int i = 0; i < data.length; ++i )
 		{
 			final long id = data[ i ];
 
 //			does the list [id x 1] already exist?
-//			for ( int k = 0; k < idAndOffsetList.size(); k += 2 )
-//			{
-//				if ( idAndOffsetList.getQuick( k ) == id )
-//				{
-//					final long offset = idAndOffsetList.getQuick( k + 1 );
-//					data[ i ] = ( int ) offset;
-//					System.out.println( "Continuing A " + i + " " + data.length );
-//					continue A;
-//				}
-//			}
-
-			list.createListAt( listData, nextListOffset );
-			entry.setId( id );
-			list.add( entry );
-			idAndOffsetList.add( id );
-			idAndOffsetList.add( nextListOffset );
-			offsets[ i ] = ( int ) nextListOffset;
-			nextListOffset += list.getSizeInBytes();
+			final int offset = idOffsetHash.get( id );
+			if ( offset == idOffsetHash.getNoEntryValue() )
+			{
+				list.createListAt( listData, nextListOffset );
+				entry.setId( id );
+				list.add( entry );
+				offsets[ i ] = nextListOffset;
+				idOffsetHash.put( id, nextListOffset );
+				nextListOffset += list.getSizeInBytes();
+			}
+			else
+			{
+				offsets[ i ] = offset;
+				continue A;
+			}
 		}
+		System.out.println( listData.size() );
 
 		return new VolatileLabelMultisetArray( offsets, listData, true );
 	}
