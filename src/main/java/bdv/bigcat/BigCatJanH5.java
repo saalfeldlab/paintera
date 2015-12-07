@@ -1,12 +1,15 @@
 package bdv.bigcat;
 import static bdv.bigcat.CombinedImgLoader.SetupIdAndLoader.setupIdAndLoader;
 
-import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
+
+import org.zeromq.ZContext;
+import org.zeromq.ZMQ;
+import org.zeromq.ZMQ.Socket;
 
 import com.google.gson.JsonIOException;
 import com.google.gson.JsonSyntaxException;
@@ -16,9 +19,10 @@ import bdv.bigcat.composite.ARGBCompositeAlphaYCbCr;
 import bdv.bigcat.composite.Composite;
 import bdv.bigcat.composite.CompositeCopy;
 import bdv.bigcat.composite.CompositeProjector;
+import bdv.bigcat.control.ClientController;
+import bdv.bigcat.control.Message;
 import bdv.bigcat.ui.ARGBConvertedLabelsSource;
 import bdv.bigcat.ui.GoldenAngleSaturatedARGBStream;
-import bdv.export.ProgressWriterConsole;
 import bdv.img.cache.Cache;
 import bdv.img.janh5.JanH5FloatSetupImageLoader;
 import bdv.img.janh5.JanH5LabelMultisetSetupImageLoader;
@@ -43,7 +47,6 @@ import mpicbg.spim.data.sequence.TimePoints;
 import net.imglib2.display.ScaledARGBConverter;
 import net.imglib2.interpolation.randomaccess.NearestNeighborInterpolatorFactory;
 import net.imglib2.realtransform.AffineTransform3D;
-import net.imglib2.realtransform.RealViews;
 import net.imglib2.type.numeric.ARGBType;
 import net.imglib2.type.volatiles.VolatileARGBType;
 import net.imglib2.view.Views;
@@ -158,42 +161,38 @@ public class BigCatJanH5
 
 			bdv.getViewerFrame().setVisible( true );
 
-			bdv.getViewer().getDisplay().addHandler(
-					new MergeModeController(
-							bdv.getViewer(),
-							RealViews.affineReal(
-								Views.interpolate(
-										Views.extendValue(
-												fragments.getVolatileImage( 0, 0, ImgLoaderHints.LOAD_COMPLETELY ),
-												new VolatileLabelMultisetType() ),
-										new NearestNeighborInterpolatorFactory< VolatileLabelMultisetType >() ),
-								fragments.getMipmapTransforms()[ 0 ] ),
-							colorStream,
-							assignment ) );
+//			bdv.getViewer().getDisplay().addHandler(
+//					new MergeModeController(
+//							bdv.getViewer(),
+//							RealViews.affineReal(
+//								Views.interpolate(
+//										Views.extendValue(
+//												fragments.getVolatileImage( 0, 0, ImgLoaderHints.LOAD_COMPLETELY ),
+//												new VolatileLabelMultisetType() ),
+//										new NearestNeighborInterpolatorFactory< VolatileLabelMultisetType >() ),
+//								fragments.getMipmapTransforms()[ 0 ] ),
+//							colorStream,
+//							assignment ) );
 
-		}
-		catch ( final Exception e )
-		{
-			e.printStackTrace();
-		}
-	}
+			final ZContext ctx = new ZContext();
+			final Socket socket = ctx.createSocket( ZMQ.REQ );
+			socket.connect( "tcp://10.103.40.190:8128" );
 
-	public static void main_OLD( final String[] args )
-	{
-		final String fn = "src/main/resources/dvid-flyem-graytiles.xml";
-//		final String fn = "src/main/resources/dvid-flyem-grayscale.xml";
-//		final String fn = "src/main/resources/dvid-flyem-bodies.xml";
-//		final String fn = "src/main/resources/dvid-flyem-superpixels.xml";
-		try
-		{
-			System.setProperty( "apple.laf.useScreenMenuBar", "true" );
-			final BigDataViewer bdv = BigDataViewer.open( fn, new File( fn ).getName(), new ProgressWriterConsole(), ViewerOptions.options() );
-			final AffineTransform3D transform = new AffineTransform3D();
-			transform.set(
-					4.3135842398185575, -1.0275561336713027E-16, 1.1102230246251565E-16, -14207.918453952327,
-					-1.141729037412541E-17, 4.313584239818558, 1.0275561336713028E-16, -9482.518144778587,
-					1.1102230246251565E-16, -1.141729037412541E-17, 4.313584239818559, -17181.48737890195 );
-			bdv.getViewer().setCurrentViewerTransform( transform );
+			final ClientController controller = new ClientController(
+					bdv.getViewer(),
+					Views.interpolate(
+							Views.extendValue(
+									fragments.getVolatileImage( 0, 0, ImgLoaderHints.LOAD_COMPLETELY ),
+									new VolatileLabelMultisetType() ),
+							new NearestNeighborInterpolatorFactory< VolatileLabelMultisetType >() ),
+					colorStream,
+					assignment,
+					socket );
+
+			bdv.getViewer().getDisplay().addHandler( controller );
+
+			controller.sendMessage( new Message() );
+
 		}
 		catch ( final Exception e )
 		{
