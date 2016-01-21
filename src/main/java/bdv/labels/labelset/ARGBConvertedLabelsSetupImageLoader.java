@@ -7,7 +7,7 @@ import bdv.img.cache.LoadingStrategy;
 import bdv.img.cache.VolatileGlobalCellCache;
 import bdv.img.cache.VolatileGlobalCellCache.VolatileCellCache;
 import bdv.img.cache.VolatileImgCells;
-import bdv.labels.labelset.DvidLabels64MultisetSetupImageLoader.MultisetSource;
+import bdv.labels.labelset.DvidLabelBlkMultisetSetupImageLoader.MultisetSource;
 import mpicbg.spim.data.generic.sequence.ImgLoaderHint;
 import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.img.basictypeaccess.volatiles.array.VolatileIntArray;
@@ -26,11 +26,11 @@ public class ARGBConvertedLabelsSetupImageLoader
 
 	private final int setupId;
 
-	private final DvidLabels64MultisetSetupImageLoader multisetImageLoader;
+	private final DvidLabelBlkMultisetSetupImageLoader multisetImageLoader;
 
 	public ARGBConvertedLabelsSetupImageLoader(
 			final int setupId,
-			final DvidLabels64MultisetSetupImageLoader multisetImageLoader )
+			final DvidLabelBlkMultisetSetupImageLoader multisetImageLoader )
 	{
 		super( new ARGBType(), new VolatileARGBType() );
 		this.setupId = setupId;

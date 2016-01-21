@@ -21,8 +21,8 @@ import bdv.bigcat.composite.CompositeProjector;
 import bdv.bigcat.ui.ARGBConvertedLabelsSource;
 import bdv.bigcat.ui.RandomSaturatedARGBStream;
 import bdv.img.cache.Cache;
-import bdv.img.dvid.DvidGrayscale8ImageLoader;
-import bdv.labels.labelset.DvidLabels64MultisetSetupImageLoader;
+import bdv.img.dvid.Uint8blkImageLoader;
+import bdv.labels.labelset.DvidLabelBlkMultisetSetupImageLoader;
 import bdv.spimdata.SequenceDescriptionMinimal;
 import bdv.spimdata.SpimDataMinimal;
 import bdv.tools.brightness.ConverterSetup;
@@ -83,11 +83,11 @@ public class BigCatMultisetsMinimal
 			System.setProperty( "apple.laf.useScreenMenuBar", "true" );
 
 			/* data sources */
-			final DvidGrayscale8ImageLoader dvidGrayscale8ImageLoader = new DvidGrayscale8ImageLoader(
+			final Uint8blkImageLoader dvidGrayscale8ImageLoader = new Uint8blkImageLoader(
 					"http://emrecon100.janelia.priv/api",
 					"2a3fd320aef011e4b0ce18037320227c",
 					"grayscale" );
-			final DvidLabels64MultisetSetupImageLoader dvidLabelsMultisetImageLoader = new DvidLabels64MultisetSetupImageLoader(
+			final DvidLabelBlkMultisetSetupImageLoader dvidLabelsMultisetImageLoader = new DvidLabelBlkMultisetSetupImageLoader(
 					1,
 					"http://emrecon100.janelia.priv/api",
 					"2a3fd320aef011e4b0ce18037320227c",

@@ -15,7 +15,7 @@ import com.google.gson.JsonSyntaxException;
  *
  * @author Stephan Saalfeld <saalfelds@janelia.hhmi.org>
  */
-public class DvidGrayscale8ImageLoader extends DvidGrayscale8SetupImageLoader
+public class Uint8blkImageLoader extends Uint8blkSetupImageLoader
 		implements ViewerImgLoader
 {
 	/**
@@ -28,7 +28,7 @@ public class DvidGrayscale8ImageLoader extends DvidGrayscale8SetupImageLoader
 	 * @throws JsonIOException
 	 * @throws JsonSyntaxException
 	 */
-	public DvidGrayscale8ImageLoader(
+	public Uint8blkImageLoader(
 			final String apiUrl,
 			final String nodeId,
 			final String dataInstanceId) throws JsonSyntaxException, JsonIOException, IOException

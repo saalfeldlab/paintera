@@ -5,9 +5,9 @@ import java.io.InputStream;
 import java.net.URL;
 import java.util.Arrays;
 
-import net.imglib2.img.basictypeaccess.volatiles.array.VolatileIntArray;
 import bdv.img.cache.CacheArrayLoader;
 import bdv.util.ColorStream;
+import net.imglib2.img.basictypeaccess.volatiles.array.VolatileIntArray;
 
 /**
  * {@link CacheArrayLoader} for
@@ -15,7 +15,7 @@ import bdv.util.ColorStream;
  *
  * @author Stephan Saalfeld <saalfelds@janelia.hhmi.org>
  */
-public class DvidLabels64VolatileArrayLoader implements CacheArrayLoader< VolatileIntArray >
+public class LabelblkVolatileArrayLoader implements CacheArrayLoader< VolatileIntArray >
 {
 	private VolatileIntArray theEmptyArray;
 
@@ -24,7 +24,7 @@ public class DvidLabels64VolatileArrayLoader implements CacheArrayLoader< Volati
 	private final String dataInstanceId;
 	private final int argbMask;
 
-	public DvidLabels64VolatileArrayLoader(
+	public LabelblkVolatileArrayLoader(
 			final String apiUrl,
 			final String nodeId,
 			final String dataInstanceId,
@@ -38,7 +38,7 @@ public class DvidLabels64VolatileArrayLoader implements CacheArrayLoader< Volati
 		this.argbMask = argbMask;
 	}
 
-	public DvidLabels64VolatileArrayLoader(
+	public LabelblkVolatileArrayLoader(
 			final String apiUrl,
 			final String nodeId,
 			final String dataInstanceId,
@@ -60,12 +60,7 @@ public class DvidLabels64VolatileArrayLoader implements CacheArrayLoader< Volati
 		final byte[] bytes = new byte[ data.length * 8 ];
 		final URL url = new URL( urlString );
 		final InputStream in = url.openStream();
-		final byte[] header = new byte[1];
-		in.read( header, 0, 1 );
-		if ( header[ 0 ] == 0 )
-			return;
 
-		in.skip( 3 );
 		int off = 0, l = 0;
 		do
 		{
@@ -99,34 +94,31 @@ public class DvidLabels64VolatileArrayLoader implements CacheArrayLoader< Volati
 
 		// <api URL>/node/3f8c/mymultiscale2d/tile/xy/0/10_10_20
 
-//		buf.append( "/node/" );
-//		buf.append( nodeId );
-//		buf.append( "/" );
-//		buf.append( dataInstanceId );
-//		buf.append( "/raw/0_1_2/" );
-//		buf.append( dimensions[ 0 ] );
-//		buf.append( "_" );
-//		buf.append( dimensions[ 1 ] );
-//		buf.append( "_" );
-//		buf.append( dimensions[ 2 ] );
-//		buf.append( "/" );
-//		buf.append( min[ 0 ] );
-//		buf.append( "_" );
-//		buf.append( min[ 1 ] );
-//		buf.append( "_" );
-//		buf.append( min[ 2 ] );
-
 		buf.append( "/node/" );
 		buf.append( nodeId );
 		buf.append( "/" );
 		buf.append( dataInstanceId );
-		buf.append( "/blocks/" );
-		buf.append( min[ 0 ] / dimensions[ 0 ] );
+
+//		buf.append( "/blocks/" );
+//		buf.append( min[ 0 ] / dimensions[ 0 ] );
+//		buf.append( "_" );
+//		buf.append( min[ 1 ] / dimensions[ 1 ] );
+//		buf.append( "_" );
+//		buf.append( min[ 2 ] / dimensions[ 2 ] );
+//		buf.append( "/1" );
+
+		buf.append( "/raw/0_1_2/" );
+		buf.append( dimensions[ 0 ] );
 		buf.append( "_" );
-		buf.append( min[ 1 ] / dimensions[ 1 ] );
+		buf.append( dimensions[ 1 ] );
 		buf.append( "_" );
-		buf.append( min[ 2 ] / dimensions[ 2 ] );
-		buf.append( "/1" );
+		buf.append( dimensions[ 2 ] );
+		buf.append( "/" );
+		buf.append( min[ 0 ] );
+		buf.append( "_" );
+		buf.append( min[ 1 ] );
+		buf.append( "_" );
+		buf.append( min[ 2 ] );
 
 		return buf.toString();
 	}
@@ -141,6 +133,7 @@ public class DvidLabels64VolatileArrayLoader implements CacheArrayLoader< Volati
 			final long[] min ) throws InterruptedException
 	{
 		final int[] data = new int[ dimensions[ 0 ] * dimensions[ 1 ] * dimensions[ 2 ] ];
+
 
 		try
 		{

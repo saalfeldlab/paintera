@@ -14,7 +14,7 @@ import bdv.img.cache.LoadingStrategy;
 import bdv.img.cache.VolatileGlobalCellCache;
 import bdv.img.cache.VolatileGlobalCellCache.VolatileCellCache;
 import bdv.img.cache.VolatileImgCells;
-import bdv.img.dvid.Labels64DataInstance;
+import bdv.img.dvid.LabelblkDataInstance;
 import bdv.util.JsonHelper;
 import bdv.util.MipmapTransforms;
 import bdv.util.dvid.DatasetKeyValue;
@@ -24,7 +24,7 @@ import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.type.NativeType;
 import net.imglib2.util.Fraction;
 
-public class DvidLabels64MultisetSetupImageLoader
+public class DvidLabelBlkMultisetSetupImageLoader
 	extends AbstractViewerSetupImgLoader< LabelMultisetType, VolatileLabelMultisetType >
 {
 	final protected double[][] resolutions;
@@ -55,7 +55,7 @@ public class DvidLabels64MultisetSetupImageLoader
 	 * @throws JsonSyntaxException
 	 */
 	@SuppressWarnings( "unchecked" )
-	public DvidLabels64MultisetSetupImageLoader(
+	public DvidLabelBlkMultisetSetupImageLoader(
 			final int setupId,
 			final String apiUrl,
 			final String nodeId,
@@ -66,10 +66,10 @@ public class DvidLabels64MultisetSetupImageLoader
 		super( LabelMultisetType.type, VolatileLabelMultisetType.type );
 		this.setupId = setupId;
 
-		final Labels64DataInstance dataInstance =
+		final LabelblkDataInstance dataInstance =
 				JsonHelper.fetch(
 						apiUrl + "/node/" + nodeId + "/" + dataInstanceId + "/info",
-						Labels64DataInstance.class );
+						LabelblkDataInstance.class );
 
 		this.dimensions = new long[ resolutions.length ][];
 		this.resolutions = new double[ resolutions.length ][];
@@ -94,7 +94,7 @@ public class DvidLabels64MultisetSetupImageLoader
 
 		/* first loader is a labels64 source */
 		blockDimensions[ 0 ] = dataInstance.Extended.BlockSize;
-		loaders[ 0 ] = new DvidVolatileLabels64MultisetArrayLoader( apiUrl, nodeId, dataInstanceId, blockDimensions[ 0 ] );
+		loaders[ 0 ] = new DvidLabelBlkVolatileMultisetArrayLoader( apiUrl, nodeId, dataInstanceId, blockDimensions[ 0 ] );
 
 		/* subsequent loaders are key value stores */
 		for ( int i = 0; i < dvidStores.length; ++i ) {
@@ -168,12 +168,12 @@ public class DvidLabels64MultisetSetupImageLoader
 	{
 		private final RandomAccessibleInterval< LabelMultisetType >[] currentSources;
 
-		private final DvidLabels64MultisetSetupImageLoader multisetImageLoader;
+		private final DvidLabelBlkMultisetSetupImageLoader multisetImageLoader;
 
 		private int currentTimePointIndex;
 
 		@SuppressWarnings( "unchecked" )
-		public MultisetSource( final DvidLabels64MultisetSetupImageLoader multisetImageLoader )
+		public MultisetSource( final DvidLabelBlkMultisetSetupImageLoader multisetImageLoader )
 		{
 			this.multisetImageLoader = multisetImageLoader;
 			final int numMipmapLevels = multisetImageLoader.numMipmapLevels();

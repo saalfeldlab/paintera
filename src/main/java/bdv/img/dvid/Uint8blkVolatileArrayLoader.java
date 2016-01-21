@@ -14,7 +14,7 @@ import bdv.img.cache.CacheArrayLoader;
  *
  * @author Stephan Saalfeld <saalfelds@janelia.hhmi.org>
  */
-public class DvidGrayscale8VolatileArrayLoader implements CacheArrayLoader< VolatileByteArray >
+public class Uint8blkVolatileArrayLoader implements CacheArrayLoader< VolatileByteArray >
 {
 	private VolatileByteArray theEmptyArray;
 
@@ -22,7 +22,7 @@ public class DvidGrayscale8VolatileArrayLoader implements CacheArrayLoader< Vola
 	private final String nodeId;
 	private final String dataInstanceId;
 
-	public DvidGrayscale8VolatileArrayLoader(
+	public Uint8blkVolatileArrayLoader(
 			final String apiUrl,
 			final String nodeId,
 			final String dataInstanceId,
@@ -46,7 +46,6 @@ public class DvidGrayscale8VolatileArrayLoader implements CacheArrayLoader< Vola
 	{
 			final URL url = new URL( urlString );
 			final InputStream in = url.openStream();
-			in.skip( 4 );
 			int off = 0, l = 0;
 			do
 			{

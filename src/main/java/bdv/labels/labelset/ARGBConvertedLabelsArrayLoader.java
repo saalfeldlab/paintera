@@ -6,7 +6,7 @@ import net.imglib2.type.numeric.ARGBType;
 import net.imglib2.util.Intervals;
 import net.imglib2.view.Views;
 import bdv.img.cache.CacheArrayLoader;
-import bdv.labels.labelset.DvidLabels64MultisetSetupImageLoader.MultisetSource;
+import bdv.labels.labelset.DvidLabelBlkMultisetSetupImageLoader.MultisetSource;
 import bdv.labels.labelset.Multiset.Entry;
 import bdv.util.ColorStream;
 

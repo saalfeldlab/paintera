@@ -21,8 +21,8 @@ import bdv.bigcat.composite.CompositeProjector;
 import bdv.bigcat.ui.ARGBConvertedLabelsSource;
 import bdv.bigcat.ui.RandomSaturatedARGBStream;
 import bdv.img.cache.Cache;
-import bdv.img.dvid.DvidGrayscale8ImageLoader;
-import bdv.labels.labelset.DvidLabels64MultisetSetupImageLoader;
+import bdv.img.dvid.Uint8blkImageLoader;
+import bdv.labels.labelset.DvidLabelBlkMultisetSetupImageLoader;
 import bdv.labels.labelset.VolatileLabelMultisetType;
 import bdv.spimdata.SequenceDescriptionMinimal;
 import bdv.spimdata.SpimDataMinimal;
@@ -92,15 +92,28 @@ public class BigCat
 			System.setProperty( "apple.laf.useScreenMenuBar", "true" );
 
 			/* data sources */
-			final DvidGrayscale8ImageLoader dvidGrayscale8ImageLoader = new DvidGrayscale8ImageLoader(
-					"http://emrecon100.janelia.priv/api",
-					"2a3fd320aef011e4b0ce18037320227c",
+//			final DvidGrayscale8ImageLoader dvidGrayscale8ImageLoader = new DvidGrayscale8ImageLoader(
+//					"http://emrecon100.janelia.priv/api",
+//					"2a3fd320aef011e4b0ce18037320227c",
+//					"grayscale" );
+//			final DvidLabels64MultisetSetupImageLoader dvidLabelsMultisetImageLoader = new DvidLabels64MultisetSetupImageLoader(
+//					1,
+//					"http://emrecon100.janelia.priv/api",
+//					"2a3fd320aef011e4b0ce18037320227c",
+//					"bodies",
+//					resolutions,
+//					stores );
+
+			/* data sources */
+			final Uint8blkImageLoader dvidGrayscale8ImageLoader = new Uint8blkImageLoader(
+					"http://emdata2.int.janelia.org:7000/api",
+					"e402c09ddd0f45e980d9be6e9fcb9bd0",
 					"grayscale" );
-			final DvidLabels64MultisetSetupImageLoader dvidLabelsMultisetImageLoader = new DvidLabels64MultisetSetupImageLoader(
+			final DvidLabelBlkMultisetSetupImageLoader dvidLabelsMultisetImageLoader = new DvidLabelBlkMultisetSetupImageLoader(
 					1,
-					"http://emrecon100.janelia.priv/api",
-					"2a3fd320aef011e4b0ce18037320227c",
-					"bodies",
+					"http://emdata2.int.janelia.org:7000/api",
+					"e402c09ddd0f45e980d9be6e9fcb9bd0",
+					"labels1104",
 					resolutions,
 					stores );
 //			final ARGBConvertedLabelsSetupImageLoader dvidLabelsARGBImageLoader = new ARGBConvertedLabelsSetupImageLoader(

@@ -17,8 +17,8 @@ import com.google.gson.JsonSyntaxException;
  *
  * @author Stephan Saalfeld <saalfelds@janelia.hhmi.org>
  */
-public class DvidLabels64ImageLoader
-	extends DvidLabels64SetupImageLoader
+public class LabelblkImageLoader
+	extends LabelblkSetupImageLoader
 	implements ViewerImgLoader
 {
 	/**
@@ -33,7 +33,7 @@ public class DvidLabels64ImageLoader
 	 * @throws JsonIOException
 	 * @throws JsonSyntaxException
 	 */
-	public DvidLabels64ImageLoader(
+	public LabelblkImageLoader(
 			final String apiUrl,
 			final String nodeId,
 			final String dataInstanceId,
@@ -53,7 +53,7 @@ public class DvidLabels64ImageLoader
 	 * @throws JsonIOException
 	 * @throws JsonSyntaxException
 	 */
-	public DvidLabels64ImageLoader(
+	public LabelblkImageLoader(
 			final String apiUrl,
 			final String nodeId,
 			final String dataInstanceId ) throws JsonSyntaxException, JsonIOException, IOException

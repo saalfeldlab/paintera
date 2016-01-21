@@ -8,7 +8,7 @@ package bdv.img.dvid;
  * 
  * TODO incomplete
  */
-public class Labels64DataInstance extends DataInstance
+public class LabelblkDataInstance extends DataInstance
 {
 	static public class Extended
 	{

@@ -8,25 +8,25 @@ import mpicbg.spim.data.generic.sequence.XmlIoBasicImgLoader;
 
 import org.jdom2.Element;
 
-@ImgLoaderIo( format = "dvid-grayscale8", type = DvidGrayscale8ImageLoader.class )
+@ImgLoaderIo( format = "dvid-grayscale8", type = Uint8blkImageLoader.class )
 public class XmlIoDvidGrayscale8ImageLoader
-		implements XmlIoBasicImgLoader< DvidGrayscale8ImageLoader >
+		implements XmlIoBasicImgLoader< Uint8blkImageLoader >
 {
 	@Override
-	public Element toXml( final DvidGrayscale8ImageLoader imgLoader, final File basePath )
+	public Element toXml( final Uint8blkImageLoader imgLoader, final File basePath )
 	{
 		throw new UnsupportedOperationException( "not implemented" );
 	}
 
 	@Override
-	public DvidGrayscale8ImageLoader fromXml( final Element elem, final File basePath, final AbstractSequenceDescription< ?, ?, ? > sequenceDescription )
+	public Uint8blkImageLoader fromXml( final Element elem, final File basePath, final AbstractSequenceDescription< ?, ?, ? > sequenceDescription )
 	{
 		final String apiUrl = elem.getChildText( "apiUrl" );
 		final String nodeId = elem.getChildText( "nodeId" );
 		final String dataInstanceId = elem.getChildText( "dataInstanceId" );
 		try
 		{
-			return new DvidGrayscale8ImageLoader( apiUrl, nodeId, dataInstanceId );
+			return new Uint8blkImageLoader( apiUrl, nodeId, dataInstanceId );
 		}
 		catch ( final Exception e )
 		{

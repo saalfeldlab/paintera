@@ -18,9 +18,9 @@ import bdv.BigDataViewer;
 import bdv.bigcat.composite.AccumulateProjectorCompositeARGB;
 import bdv.export.ProgressWriterConsole;
 import bdv.img.cache.Cache;
-import bdv.img.dvid.DvidGrayscale8ImageLoader;
+import bdv.img.dvid.Uint8blkImageLoader;
 import bdv.labels.labelset.ARGBConvertedLabelsSetupImageLoader;
-import bdv.labels.labelset.DvidLabels64MultisetSetupImageLoader;
+import bdv.labels.labelset.DvidLabelBlkMultisetSetupImageLoader;
 import bdv.spimdata.SequenceDescriptionMinimal;
 import bdv.spimdata.SpimDataMinimal;
 import bdv.tools.brightness.ConverterSetup;
@@ -74,11 +74,11 @@ public class BigCatMultisetLabels
 		{
 			System.setProperty( "apple.laf.useScreenMenuBar", "true" );
 
-			final DvidGrayscale8ImageLoader dvidGrayscale8ImageLoader = new DvidGrayscale8ImageLoader(
+			final Uint8blkImageLoader dvidGrayscale8ImageLoader = new Uint8blkImageLoader(
 					apiUrl2,
 					uuid2,
 					raw2 );
-			DvidLabels64MultisetSetupImageLoader dvidLabelsMultisetImageLoader = new DvidLabels64MultisetSetupImageLoader( 
+			DvidLabelBlkMultisetSetupImageLoader dvidLabelsMultisetImageLoader = new DvidLabelBlkMultisetSetupImageLoader( 
 					1,
 					apiUrl2,
 					uuid2,

@@ -1,20 +1,19 @@
 package bdv.labels.labelset;
 
-import gnu.trove.list.array.TLongArrayList;
-
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URL;
 import java.util.Arrays;
 
 import bdv.img.cache.CacheArrayLoader;
+import gnu.trove.list.array.TLongArrayList;
 
 /**
  * Loads a full resolution label block from a DVID labels64 source where each
  * voxel is assigned to a single label, and converts them into a LabelMultiset
  * with one element per voxel.
  */
-public class DvidVolatileLabels64MultisetArrayLoader implements CacheArrayLoader< VolatileLabelMultisetArray >
+public class DvidLabelBlkVolatileMultisetArrayLoader implements CacheArrayLoader< VolatileLabelMultisetArray >
 {
 	private VolatileLabelMultisetArray theEmptyArray;
 
@@ -24,7 +23,7 @@ public class DvidVolatileLabels64MultisetArrayLoader implements CacheArrayLoader
 
 	private final String dataInstanceId;
 
-	public DvidVolatileLabels64MultisetArrayLoader(
+	public DvidLabelBlkVolatileMultisetArrayLoader(
 			final String apiUrl,
 			final String nodeId,
 			final String dataInstanceId,
@@ -51,12 +50,7 @@ public class DvidVolatileLabels64MultisetArrayLoader implements CacheArrayLoader
 		final byte[] bytes = new byte[ data.length * 8 ];
 		final URL url = new URL( urlString );
 		final InputStream in = url.openStream();
-		final byte[] header = new byte[ 1 ];
-		in.read( header, 0, 1 );
-		if ( header[ 0 ] == 0 )
-			return;
 
-		in.skip( 3 );
 		int off = 0, l = 0;
 		do
 		{
@@ -113,13 +107,27 @@ A:		for ( int i = 0, j = -1; i < data.length; ++i )
 		buf.append( nodeId );
 		buf.append( "/" );
 		buf.append( dataInstanceId );
-		buf.append( "/blocks/" );
-		buf.append( min[ 0 ] / dimensions[ 0 ] );
+
+//		buf.append( "/blocks/" );
+//		buf.append( min[ 0 ] / dimensions[ 0 ] );
+//		buf.append( "_" );
+//		buf.append( min[ 1 ] / dimensions[ 1 ] );
+//		buf.append( "_" );
+//		buf.append( min[ 2 ] / dimensions[ 2 ] );
+//		buf.append( "/1" );
+
+		buf.append( "/raw/0_1_2/" );
+		buf.append( dimensions[ 0 ] );
 		buf.append( "_" );
-		buf.append( min[ 1 ] / dimensions[ 1 ] );
+		buf.append( dimensions[ 1 ] );
 		buf.append( "_" );
-		buf.append( min[ 2 ] / dimensions[ 2 ] );
-		buf.append( "/1" );
+		buf.append( dimensions[ 2 ] );
+		buf.append( "/" );
+		buf.append( min[ 0 ] );
+		buf.append( "_" );
+		buf.append( min[ 1 ] );
+		buf.append( "_" );
+		buf.append( min[ 2 ] );
 
 		return buf.toString();
 	}

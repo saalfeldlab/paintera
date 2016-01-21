@@ -32,7 +32,7 @@ import net.imglib2.util.Fraction;
  *
  * @author Stephan Saalfeld <saalfelds@janelia.hhmi.org>
  */
-public class DvidLabels64SetupImageLoader
+public class LabelblkSetupImageLoader
 	extends AbstractViewerSetupImgLoader< ARGBType, VolatileARGBType >
 {
 	private final double[] resolutions;
@@ -45,7 +45,7 @@ public class DvidLabels64SetupImageLoader
 
 	protected VolatileGlobalCellCache cache;
 
-	private final DvidLabels64VolatileArrayLoader loader;
+	private final LabelblkVolatileArrayLoader loader;
 
 	private final int setupId;
 
@@ -61,7 +61,7 @@ public class DvidLabels64SetupImageLoader
 	 * @throws JsonIOException
 	 * @throws JsonSyntaxException
 	 */
-	public DvidLabels64SetupImageLoader(
+	public LabelblkSetupImageLoader(
 			final String apiUrl,
 			final String nodeId,
 			final String dataInstanceId,
@@ -71,10 +71,10 @@ public class DvidLabels64SetupImageLoader
 		super( new ARGBType(), new VolatileARGBType() );
 		this.setupId = setupId;
 
-		final Labels64DataInstance dataInstance =
+		final LabelblkDataInstance dataInstance =
 				JsonHelper.fetch(
 						apiUrl + "/node/" + nodeId + "/" + dataInstanceId + "/info",
-						Labels64DataInstance.class );
+						LabelblkDataInstance.class );
 
 		dimensions = new long[]{
 				dataInstance.Extended.MaxPoint[ 0 ] - dataInstance.Extended.MinPoint[ 0 ],
@@ -94,7 +94,7 @@ public class DvidLabels64SetupImageLoader
 
 		blockDimensions = dataInstance.Extended.BlockSize;
 
-		loader = new DvidLabels64VolatileArrayLoader( apiUrl, nodeId, dataInstanceId, blockDimensions, argbMask );
+		loader = new LabelblkVolatileArrayLoader( apiUrl, nodeId, dataInstanceId, blockDimensions, argbMask );
 	}
 
 	/**
@@ -108,7 +108,7 @@ public class DvidLabels64SetupImageLoader
 	 * @throws JsonIOException
 	 * @throws JsonSyntaxException
 	 */
-	public DvidLabels64SetupImageLoader(
+	public LabelblkSetupImageLoader(
 			final String apiUrl,
 			final String nodeId,
 			final String dataInstanceId,

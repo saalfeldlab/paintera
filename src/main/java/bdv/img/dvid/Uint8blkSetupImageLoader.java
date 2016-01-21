@@ -29,7 +29,7 @@ import net.imglib2.util.Fraction;
  *
  * @author Stephan Saalfeld <saalfelds@janelia.hhmi.org>
  */
-public class DvidGrayscale8SetupImageLoader
+public class Uint8blkSetupImageLoader
 	extends AbstractViewerSetupImgLoader< UnsignedByteType, VolatileUnsignedByteType >
 {
 	protected final double[] resolutions;
@@ -42,7 +42,7 @@ public class DvidGrayscale8SetupImageLoader
 
 	protected VolatileGlobalCellCache cache;
 
-	private final DvidGrayscale8VolatileArrayLoader loader;
+	private final Uint8blkVolatileArrayLoader loader;
 
 	private final int setupId;
 
@@ -56,7 +56,7 @@ public class DvidGrayscale8SetupImageLoader
 	 * @throws JsonIOException
 	 * @throws JsonSyntaxException
 	 */
-	public DvidGrayscale8SetupImageLoader(
+	public Uint8blkSetupImageLoader(
 			final String apiUrl,
 			final String nodeId,
 			final String dataInstanceId,
@@ -88,7 +88,7 @@ public class DvidGrayscale8SetupImageLoader
 
 		blockDimensions = dataInstance.Extended.BlockSize;
 
-		loader = new DvidGrayscale8VolatileArrayLoader( apiUrl, nodeId, dataInstanceId, blockDimensions );
+		loader = new Uint8blkVolatileArrayLoader( apiUrl, nodeId, dataInstanceId, blockDimensions );
 		cache = new VolatileGlobalCellCache( 1, 1, 1, 10 );
 	}
 

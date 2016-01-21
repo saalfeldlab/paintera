@@ -7,25 +7,25 @@ import mpicbg.spim.data.generic.sequence.XmlIoBasicImgLoader;
 
 import org.jdom2.Element;
 
-@ImgLoaderIo( format = "dvid-labels64", type = DvidLabels64ImageLoader.class )
+@ImgLoaderIo( format = "dvid-labels64", type = LabelblkImageLoader.class )
 public class XmlIoDvidLabels64ImageLoader
-		implements XmlIoBasicImgLoader< DvidLabels64ImageLoader >
+		implements XmlIoBasicImgLoader< LabelblkImageLoader >
 {
 	@Override
-	public Element toXml( final DvidLabels64ImageLoader imgLoader, final File basePath )
+	public Element toXml( final LabelblkImageLoader imgLoader, final File basePath )
 	{
 		throw new UnsupportedOperationException( "not implemented" );
 	}
 
 	@Override
-	public DvidLabels64ImageLoader fromXml( final Element elem, final File basePath, final AbstractSequenceDescription< ?, ?, ? > sequenceDescription )
+	public LabelblkImageLoader fromXml( final Element elem, final File basePath, final AbstractSequenceDescription< ?, ?, ? > sequenceDescription )
 	{
 		final String apiUrl = elem.getChildText( "apiUrl" );
 		final String nodeId = elem.getChildText( "nodeId" );
 		final String dataInstanceId = elem.getChildText( "dataInstanceId" );
 		try
 		{
-			return new DvidLabels64ImageLoader( apiUrl, nodeId, dataInstanceId );
+			return new LabelblkImageLoader( apiUrl, nodeId, dataInstanceId );
 		}
 		catch ( Exception e )
 		{
