@@ -1,6 +1,9 @@
-package bdv.labels.labelset;
+package bdv.img.dvid;
 
 import bdv.img.cache.CacheArrayLoader;
+import bdv.labels.labelset.ByteUtils;
+import bdv.labels.labelset.LongMappedAccessData;
+import bdv.labels.labelset.VolatileLabelMultisetArray;
 import bdv.util.dvid.DatasetKeyValue;
 
 
@@ -73,8 +76,9 @@ public class DvidLabelMultisetArrayLoader implements CacheArrayLoader< VolatileL
 					( ( 0xff & bytes[ ++j ] ) << 16 ) |
 					( ( 0xff & bytes[ ++j ] ) << 24 );
 		}
+		final long[] listDataStorage = listData.getData();
 		for ( int i = 0; i < listDataSize; ++i )
-			ByteUtils.putByte( bytes[ ++j ], listData.data, i );
+			ByteUtils.putByte( bytes[ ++j ], listDataStorage, i );
 		return new VolatileLabelMultisetArray( data, listData, true );
 	}
 

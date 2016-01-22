@@ -18,9 +18,9 @@ import bdv.BigDataViewer;
 import bdv.bigcat.composite.AccumulateProjectorCompositeARGB;
 import bdv.export.ProgressWriterConsole;
 import bdv.img.cache.Cache;
+import bdv.img.dvid.LabelblkMultisetSetupImageLoader;
 import bdv.img.dvid.Uint8blkImageLoader;
 import bdv.labels.labelset.ARGBConvertedLabelsSetupImageLoader;
-import bdv.labels.labelset.DvidLabelBlkMultisetSetupImageLoader;
 import bdv.spimdata.SequenceDescriptionMinimal;
 import bdv.spimdata.SpimDataMinimal;
 import bdv.tools.brightness.ConverterSetup;
@@ -78,7 +78,7 @@ public class BigCatMultisetLabels
 					apiUrl2,
 					uuid2,
 					raw2 );
-			DvidLabelBlkMultisetSetupImageLoader dvidLabelsMultisetImageLoader = new DvidLabelBlkMultisetSetupImageLoader( 
+			LabelblkMultisetSetupImageLoader dvidLabelsMultisetImageLoader = new LabelblkMultisetSetupImageLoader( 
 					1,
 					apiUrl2,
 					uuid2,

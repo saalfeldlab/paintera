@@ -5,7 +5,7 @@ import java.util.Arrays;
 import java.util.Iterator;
 
 import bdv.img.cache.CacheArrayLoader;
-import bdv.labels.labelset.DvidLabelBlkMultisetSetupImageLoader.MultisetSource;
+import bdv.img.dvid.LabelblkMultisetSetupImageLoader.MultisetSource;
 import bdv.labels.labelset.Multiset.Entry;
 import bdv.util.dvid.DatasetKeyValue;
 import gnu.trove.list.array.TIntArrayList;

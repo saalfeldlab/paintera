@@ -17,6 +17,11 @@ public class LongMappedAccessData implements MappedAccessData< LongMappedAccess 
 
 	private long size;
 
+	public long[] getData()
+	{
+		return data;
+	}
+
 	@Override
 	public LongMappedAccess createAccess()
 	{

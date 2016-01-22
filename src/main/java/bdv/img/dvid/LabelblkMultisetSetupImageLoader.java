@@ -1,4 +1,4 @@
-package bdv.labels.labelset;
+package bdv.img.dvid;
 
 import java.io.IOException;
 import java.util.Arrays;
@@ -14,7 +14,9 @@ import bdv.img.cache.LoadingStrategy;
 import bdv.img.cache.VolatileGlobalCellCache;
 import bdv.img.cache.VolatileGlobalCellCache.VolatileCellCache;
 import bdv.img.cache.VolatileImgCells;
-import bdv.img.dvid.LabelblkDataInstance;
+import bdv.labels.labelset.LabelMultisetType;
+import bdv.labels.labelset.VolatileLabelMultisetArray;
+import bdv.labels.labelset.VolatileLabelMultisetType;
 import bdv.util.JsonHelper;
 import bdv.util.MipmapTransforms;
 import bdv.util.dvid.DatasetKeyValue;
@@ -24,7 +26,7 @@ import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.type.NativeType;
 import net.imglib2.util.Fraction;
 
-public class DvidLabelBlkMultisetSetupImageLoader
+public class LabelblkMultisetSetupImageLoader
 	extends AbstractViewerSetupImgLoader< LabelMultisetType, VolatileLabelMultisetType >
 {
 	final protected double[][] resolutions;
@@ -55,7 +57,7 @@ public class DvidLabelBlkMultisetSetupImageLoader
 	 * @throws JsonSyntaxException
 	 */
 	@SuppressWarnings( "unchecked" )
-	public DvidLabelBlkMultisetSetupImageLoader(
+	public LabelblkMultisetSetupImageLoader(
 			final int setupId,
 			final String apiUrl,
 			final String nodeId,
@@ -94,7 +96,7 @@ public class DvidLabelBlkMultisetSetupImageLoader
 
 		/* first loader is a labels64 source */
 		blockDimensions[ 0 ] = dataInstance.Extended.BlockSize;
-		loaders[ 0 ] = new DvidLabelBlkVolatileMultisetArrayLoader( apiUrl, nodeId, dataInstanceId, blockDimensions[ 0 ] );
+		loaders[ 0 ] = new LabelblkMultisetVolatileArrayLoader( apiUrl, nodeId, dataInstanceId, blockDimensions[ 0 ] );
 
 		/* subsequent loaders are key value stores */
 		for ( int i = 0; i < dvidStores.length; ++i ) {
@@ -116,7 +118,7 @@ public class DvidLabelBlkMultisetSetupImageLoader
 	@Override
 	public RandomAccessibleInterval< VolatileLabelMultisetType > getVolatileImage( final int timepointId, final int level, final ImgLoaderHint... hints )
 	{
-		final CachedCellImg< VolatileLabelMultisetType, VolatileLabelMultisetArray > img = prepareCachedImage( timepointId, level, LoadingStrategy.BLOCKING );
+		final CachedCellImg< VolatileLabelMultisetType, VolatileLabelMultisetArray > img = prepareCachedImage( timepointId, level, LoadingStrategy.VOLATILE );
 		final VolatileLabelMultisetType linkedType = new VolatileLabelMultisetType( img );
 		img.setLinkedType( linkedType );
 		return img;
@@ -168,12 +170,12 @@ public class DvidLabelBlkMultisetSetupImageLoader
 	{
 		private final RandomAccessibleInterval< LabelMultisetType >[] currentSources;
 
-		private final DvidLabelBlkMultisetSetupImageLoader multisetImageLoader;
+		private final LabelblkMultisetSetupImageLoader multisetImageLoader;
 
 		private int currentTimePointIndex;
 
 		@SuppressWarnings( "unchecked" )
-		public MultisetSource( final DvidLabelBlkMultisetSetupImageLoader multisetImageLoader )
+		public MultisetSource( final LabelblkMultisetSetupImageLoader multisetImageLoader )
 		{
 			this.multisetImageLoader = multisetImageLoader;
 			final int numMipmapLevels = multisetImageLoader.numMipmapLevels();

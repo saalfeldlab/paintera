@@ -1,4 +1,4 @@
-package bdv.labels.labelset;
+package bdv.img.dvid;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -6,6 +6,10 @@ import java.net.URL;
 import java.util.Arrays;
 
 import bdv.img.cache.CacheArrayLoader;
+import bdv.labels.labelset.LabelMultisetEntry;
+import bdv.labels.labelset.LabelMultisetEntryList;
+import bdv.labels.labelset.LongMappedAccessData;
+import bdv.labels.labelset.VolatileLabelMultisetArray;
 import gnu.trove.list.array.TLongArrayList;
 
 /**
@@ -13,7 +17,7 @@ import gnu.trove.list.array.TLongArrayList;
  * voxel is assigned to a single label, and converts them into a LabelMultiset
  * with one element per voxel.
  */
-public class DvidLabelBlkVolatileMultisetArrayLoader implements CacheArrayLoader< VolatileLabelMultisetArray >
+public class LabelblkMultisetVolatileArrayLoader implements CacheArrayLoader< VolatileLabelMultisetArray >
 {
 	private VolatileLabelMultisetArray theEmptyArray;
 
@@ -23,7 +27,7 @@ public class DvidLabelBlkVolatileMultisetArrayLoader implements CacheArrayLoader
 
 	private final String dataInstanceId;
 
-	public DvidLabelBlkVolatileMultisetArrayLoader(
+	public LabelblkMultisetVolatileArrayLoader(
 			final String apiUrl,
 			final String nodeId,
 			final String dataInstanceId,

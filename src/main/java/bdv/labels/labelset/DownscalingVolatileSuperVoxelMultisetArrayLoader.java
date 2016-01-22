@@ -15,7 +15,7 @@ import net.imglib2.RandomAccess;
 import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.util.IntervalIndexer;
 import bdv.img.cache.CacheArrayLoader;
-import bdv.labels.labelset.DvidLabelBlkMultisetSetupImageLoader.MultisetSource;
+import bdv.img.dvid.LabelblkMultisetSetupImageLoader.MultisetSource;
 import bdv.labels.labelset.Multiset.Entry;
 
 

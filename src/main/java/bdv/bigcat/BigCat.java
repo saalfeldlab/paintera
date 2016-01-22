@@ -21,8 +21,8 @@ import bdv.bigcat.composite.CompositeProjector;
 import bdv.bigcat.ui.ARGBConvertedLabelsSource;
 import bdv.bigcat.ui.RandomSaturatedARGBStream;
 import bdv.img.cache.Cache;
+import bdv.img.dvid.LabelblkMultisetSetupImageLoader;
 import bdv.img.dvid.Uint8blkImageLoader;
-import bdv.labels.labelset.DvidLabelBlkMultisetSetupImageLoader;
 import bdv.labels.labelset.VolatileLabelMultisetType;
 import bdv.spimdata.SequenceDescriptionMinimal;
 import bdv.spimdata.SpimDataMinimal;
@@ -109,7 +109,7 @@ public class BigCat
 					"http://emdata2.int.janelia.org:7000/api",
 					"e402c09ddd0f45e980d9be6e9fcb9bd0",
 					"grayscale" );
-			final DvidLabelBlkMultisetSetupImageLoader dvidLabelsMultisetImageLoader = new DvidLabelBlkMultisetSetupImageLoader(
+			final LabelblkMultisetSetupImageLoader dvidLabelsMultisetImageLoader = new LabelblkMultisetSetupImageLoader(
 					1,
 					"http://emdata2.int.janelia.org:7000/api",
 					"e402c09ddd0f45e980d9be6e9fcb9bd0",
