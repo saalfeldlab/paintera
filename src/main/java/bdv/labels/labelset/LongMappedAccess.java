@@ -19,7 +19,7 @@ public class LongMappedAccess implements MappedAccess< LongMappedAccess >
 	 */
 	private LongMappedAccessData dataArray;
 
-	static Object lock = new Object();
+//	static Object lock = new Object();
 
 	LongMappedAccess( final LongMappedAccessData dataArray, final long baseOffset )
 	{

@@ -12,9 +12,6 @@ public class MappedObjectArrayList< O extends MappedObject< O, T >, T extends Ma
 		extends AbstractList< O >
 		implements RefList< O >
 {
-// TODO: REMOVE. This is just here for debugging, to uncover places where too many Refs are created.
-	int numRefs = 0;
-
 	private final O type;
 
 	private MappedAccessData< T > data;
@@ -82,26 +79,25 @@ public class MappedObjectArrayList< O extends MappedObject< O, T >, T extends Ma
 		access.putInt( size, 0 );
 	}
 
-	static Object lock = new Object();
+// TODO: REMOVE. This is just here for debugging, to uncover places where too many Refs are created.
+//	int numRefs = 0;
+//	static Object lock = new Object();
 
 	@Override
 	public O createRef()
 	{
-
-
 // TODO: REMOVE. This is just here for debugging, to uncover places where too many Refs are created.
-		++numRefs;
-		synchronized( lock )
-		{
-			if ( numRefs > 10 )
-			{
-				System.out.println( "createRef (" + numRefs + ")" );
-				for ( final StackTraceElement e : Thread.currentThread().getStackTrace() )
-					System.out.println( e );
-				System.out.println();
-			}
-		}
-
+//		++numRefs;
+//		synchronized( lock )
+//		{
+//			if ( numRefs > 10 )
+//			{
+//				System.out.println( "createRef (" + numRefs + ")" );
+//				for ( final StackTraceElement e : Thread.currentThread().getStackTrace() )
+//					System.out.println( e );
+//				System.out.println();
+//			}
+//		}
 
 		final O obj = tmpObjRefs.poll();
 		return obj == null ? type.createRef() : obj;
@@ -118,7 +114,7 @@ public class MappedObjectArrayList< O extends MappedObject< O, T >, T extends Ma
 	public void releaseRef( final O ref )
 	{
 // TODO: REMOVE. This is just here for debugging, to uncover places where too many Refs are created.
-		--numRefs;
+//		--numRefs;
 
 		tmpObjRefs.add( ref );
 	}
