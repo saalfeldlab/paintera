@@ -149,4 +149,46 @@ public class LabelMultisetEntryList
 
 		setSize( newSize );
 	}
+
+	/**
+	 * Merge with other list. Both lists must be sorted.
+	 *
+	 * @param list
+	 */
+	public void mergeWith( final LabelMultisetEntryList list )
+	{
+		final LabelMultisetEntry e1 = createRef();
+		final LabelMultisetEntry e2 = createRef();
+
+		int i = 0;
+		int j = 0;
+
+		while ( i < size() && j < list.size() )
+		{
+			this.get( i, e1 );
+			list.get( j, e2 );
+			final long id1 = e1.getId();
+			final long id2 = e2.getId();
+			if ( id1 == id2 )
+			{
+				e1.setCount( e1.getCount() + e2.getCount() );
+				++j;
+			}
+			else if ( id2 < id1 )
+			{
+				this.add( i, e2 ); // insert e2 at i
+				++i; // e1 ends up at same element which is now shifted
+				++j;
+			}
+			else
+			{
+				++i;
+			}
+		}
+		for( ; j < list.size(); ++j )
+			this.add( list.get( j, e2 ) );
+
+		releaseRef( e2 );
+		releaseRef( e1 );
+	}
 }
