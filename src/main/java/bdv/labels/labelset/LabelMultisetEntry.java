@@ -15,6 +15,8 @@ public class LabelMultisetEntry
 
 	public SuperVoxel id = new SuperVoxel()
 	{
+		// TODO: add equals(), hashcode(), etc?
+
 		@Override
 		public long id()
 		{
@@ -92,6 +94,7 @@ public class LabelMultisetEntry
 		return new LabelMultisetEntry( new LongMappedAccess( null, 0 ) );
 	}
 
+	// TODO: should not be public
 	public void setId( final long id )
 	{
 		access.putLong( id, SUPERVOXEL_ID_OFFSET );
