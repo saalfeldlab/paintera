@@ -125,7 +125,7 @@ public class MappedObjectArrayList< O extends MappedObject< O, T >, T extends Ma
 		return type.getSizeInBytes();
 	}
 
-	private void ensureCapacity( final int size )
+	protected void ensureCapacity( final int size )
 	{
 		final int required = ( size + 1 ) * elementSizeInBytes();
 		if ( data.size() < elementBaseOffset + required )
