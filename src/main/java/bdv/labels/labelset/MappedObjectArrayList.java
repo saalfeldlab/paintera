@@ -191,6 +191,23 @@ public class MappedObjectArrayList< O extends MappedObject< O, T >, T extends Ma
 	}
 
 	@Override
+	public void add( final int index, final O obj )
+	{
+		final int size = size();
+		ensureCapacity( size + 1 );
+		setSize( size + 1 );
+		final O ref = createRefAt( index );
+		if ( index < size )
+		{
+			final O shift = createRefAt( index + 1 );
+			shift.access.copyFrom( ref.access, elementSizeInBytes() * ( size - index ) );
+			releaseRef( shift );
+		}
+		ref.set( obj );
+		releaseRef( ref );
+	}
+
+	@Override
 	public RefIterator< O > iterator()
 	{
 		return new RefIterator< O >()
