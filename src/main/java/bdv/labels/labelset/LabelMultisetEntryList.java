@@ -1,6 +1,10 @@
 package bdv.labels.labelset;
 
 import java.util.Comparator;
+import java.util.Iterator;
+import java.util.Set;
+
+import bdv.labels.labelset.Multiset.Entry;
 
 public class LabelMultisetEntryList
 	extends MappedObjectArrayList< LabelMultisetEntry, LongMappedAccess >
@@ -157,38 +161,126 @@ public class LabelMultisetEntryList
 	 */
 	public void mergeWith( final LabelMultisetEntryList list )
 	{
+		if ( list.isEmpty() )
+			return;
+
+		if ( isEmpty() )
+		{
+			for ( final LabelMultisetEntry e : list )
+				this.add( e );
+			return;
+		}
+
 		final LabelMultisetEntry e1 = createRef();
 		final LabelMultisetEntry e2 = createRef();
-
 		int i = 0;
 		int j = 0;
-
-		while ( i < size() && j < list.size() )
+		long id1 = this.get( i, e1 ).getId();
+		long id2 = list.get( j, e2 ).getId();
+		A: while ( true )
 		{
-			this.get( i, e1 );
-			list.get( j, e2 );
-			final long id1 = e1.getId();
-			final long id2 = e2.getId();
 			if ( id1 == id2 )
 			{
 				e1.setCount( e1.getCount() + e2.getCount() );
-				++j;
+				if ( ++j >= list.size() )
+					break;
+				id2 = list.get( j, e2 ).getId();
 			}
 			else if ( id2 < id1 )
 			{
 				this.add( i, e2 ); // insert e2 at i
-				++i; // e1 ends up at same element which is now shifted
-				++j;
+				get( ++i, e1 ).getId(); // e1 ends up at same element which is now shifted
+				if ( ++j >= list.size() )
+					break;
+				id2 = list.get( j, e2 ).getId();
 			}
-			else
+			else // ( id2 > id1 )
 			{
-				++i;
+				while ( ++i < size() )
+				{
+					id1 = get( i, e1 ).getId();
+					if ( id2 <= id1 )
+						continue A;
+				}
+				for ( ; j < list.size(); ++j )
+					this.add( list.get( j, e2 ) );
+				break;
 			}
 		}
-		for( ; j < list.size(); ++j )
-			this.add( list.get( j, e2 ) );
-
 		releaseRef( e2 );
+		releaseRef( e1 );
+	}
+
+	public void mergeWith( final Set< Entry< SuperVoxel > > entrySet )
+	{
+		if ( entrySet.isEmpty() )
+			return;
+
+		if ( isEmpty() )
+		{
+			final LabelMultisetEntry e1 = createRef();
+			this.ensureCapacity( entrySet.size() );
+			this.setSize( entrySet.size() );
+			int i = 0;
+			for ( final Entry< SuperVoxel > e : entrySet )
+			{
+				get( i++, e1 );
+				e1.setId( e.getElement().id() );
+				e1.setCount( e.getCount() );
+			}
+			releaseRef( e1 );
+			return;
+		}
+
+		final LabelMultisetEntry e1 = createRef();
+		final Iterator< Entry< SuperVoxel > > iter = entrySet.iterator();
+		Entry< SuperVoxel > e2 = iter.next();
+		int i = 0;
+		long id1 = get( i, e1 ).getId();
+		long id2 = e2.getElement().id();
+		A: while ( true )
+		{
+			if ( id1 == id2 )
+			{
+				e1.setCount( e1.getCount() + e2.getCount() );
+				if ( !iter.hasNext() )
+					break;
+				e2 = iter.next();
+				id2 = e2.getElement().id();
+			}
+			else if ( id2 < id1 )
+			{
+				this.add( i, e1 ); // insert e2 at i
+				e1.setId( id2 );
+				e1.setCount( e2.getCount() );
+				get( ++i, e1 ).getId(); // e1 ends up at same element which is now shifted
+				if ( !iter.hasNext() )
+					break;
+				e2 = iter.next();
+				id2 = e2.getElement().id();
+			}
+			else // ( id2 > id1 )
+			{
+				while ( ++i < size() )
+				{
+					id1 = get( i, e1 ).getId();
+					if ( id2 <= id1 )
+						continue A;
+				}
+				while ( true )
+				{
+					this.add( e1 );
+					get( i++, e1 );
+					e1.setId( id2 );
+					e1.setCount( e2.getCount() );
+					if ( !iter.hasNext() )
+						break;
+					e2 = iter.next();
+					id2 = e2.getElement().id();
+				}
+				break;
+			}
+		}
 		releaseRef( e1 );
 	}
 }
