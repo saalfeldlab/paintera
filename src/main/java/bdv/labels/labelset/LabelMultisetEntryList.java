@@ -36,7 +36,7 @@ public class LabelMultisetEntryList
 	/**
 	 * Performs a binary search for entry with
 	 * {@link LabelMultisetEntry#getId()} <tt>id</tt> in the entire list.
-	 * Note that you <b>must</b> @{link #sort sort} the list before doing a
+	 * Note that you <b>must</b> {@link #sortById sort} the list before doing a
 	 * search.
 	 *
 	 * @param id
@@ -51,7 +51,7 @@ public class LabelMultisetEntryList
     /**
 	 * Performs a binary search for entry with
 	 * {@link LabelMultisetEntry#getId()} <tt>id</tt> in the specified
-	 * range. Note that you <b>must</b> @{link #sort sort} the list or the range
+	 * range. Note that you <b>must</b> {@link #sortById sort} the list or the range
 	 * before doing a search.
 	 *
 	 * @param id
