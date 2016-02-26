@@ -8,7 +8,7 @@ public class VolatileLabelMultisetArray extends AbstractVolatileArray< VolatileL
 {
 	protected int[] data;
 
-	final protected LongMappedAccessData listData;
+	final protected MappedAccessData< LongMappedAccess > listData;
 
 	public VolatileLabelMultisetArray( final int numEntities, final boolean isValid )
 	{
@@ -18,7 +18,7 @@ public class VolatileLabelMultisetArray extends AbstractVolatileArray< VolatileL
 		new MappedObjectArrayList<>( LabelMultisetEntry.type, listData, 0 ).add( new LabelMultisetEntry() );
 	}
 
-	public VolatileLabelMultisetArray( final int[] data, final LongMappedAccessData listData, final boolean isValid )
+	public VolatileLabelMultisetArray( final int[] data, final MappedAccessData< LongMappedAccess > listData, final boolean isValid )
 	{
 		super( isValid );
 		this.data = data;
