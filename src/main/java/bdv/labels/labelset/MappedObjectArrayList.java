@@ -3,6 +3,7 @@ package bdv.labels.labelset;
 import static bdv.labels.labelset.ByteUtils.INT_SIZE;
 
 import java.util.AbstractList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.ListIterator;
 import java.util.concurrent.ConcurrentLinkedQueue;
@@ -272,5 +273,58 @@ public class MappedObjectArrayList< O extends MappedObject< O, T >, T extends Ma
 				return false;
 		}
 		return !( e1.hasNext() || e2.hasNext() );
+	}
+
+	@Override
+	public void sort( final Comparator< ? super O > comparator )
+	{
+		if ( size() < 2 )
+			return;
+		final O r1 = createRef();
+		final O r2 = createRef();
+		final O r3 = createRef();
+		quicksort( 0, size() - 1, comparator, r1, r2, r3 );
+		releaseRef( r3 );
+		releaseRef( r2 );
+		releaseRef( r1 );
+	}
+
+	private void quicksort( final int low, final int high, final Comparator< ? super O > comparator, final O tmpRef1, final O tmpRef2, final O tmpRef3 )
+	{
+		int pivotpos = ( low + high ) / 2;
+		final O pivot = get( pivotpos, tmpRef1 );
+
+		int i = low;
+		int j = high;
+
+		do
+		{
+			while ( comparator.compare( get( i, tmpRef2 ), pivot ) < 0 )
+				i++;
+			while ( comparator.compare( pivot, get( j, tmpRef3 ) ) < 0 )
+				j--;
+			if ( i <= j )
+			{
+				get( i, tmpRef2 ).access.swapWith( get( j, tmpRef3 ).access, elementSizeInBytes() );
+				if ( pivotpos == i )
+				{
+					pivotpos = j;
+					get( pivotpos, pivot );
+				}
+				else if ( pivotpos == j )
+				{
+					pivotpos = i;
+					get( pivotpos, pivot );
+				}
+				i++;
+				j--;
+			}
+		}
+		while ( i <= j );
+
+		if ( low < j )
+			quicksort( low, j, comparator, tmpRef1, tmpRef2, tmpRef3 );
+		if ( i < high )
+			quicksort( i, high, comparator, tmpRef1, tmpRef2, tmpRef3 );
 	}
 }
