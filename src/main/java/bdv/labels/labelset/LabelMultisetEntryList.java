@@ -1,5 +1,6 @@
 package bdv.labels.labelset;
 
+import java.util.Comparator;
 
 public class LabelMultisetEntryList
 	extends MappedObjectArrayList< LabelMultisetEntry, LongMappedAccess >
@@ -92,4 +93,60 @@ public class LabelMultisetEntryList
         releaseRef( ref );
         return -( low + 1 );  // value not found.
     }
+
+	/**
+	 * Sort the list by {@link LabelMultisetEntry#getId()}.
+	 */
+    // TODO: should this be protected / package private?
+	public void sortById()
+	{
+		sort( new Comparator< LabelMultisetEntry >()
+		{
+			@Override
+			public int compare( final LabelMultisetEntry o1, final LabelMultisetEntry o2 )
+			{
+				final long i1 = o1.getId();
+				final long i2 = o2.getId();
+				return ( i1 < i2 )
+						? -1
+						: ( i2 < i1 )
+								? 1
+								: 0;
+			}
+		} );
+	}
+
+	/**
+	 * Merge consecutive {@link LabelMultisetEntry entries} with the same
+	 * {@link LabelMultisetEntry#getId() id}.
+	 */
+	public void mergeConsecutiveEntries()
+	{
+		final int oldSize = size();
+		if ( oldSize < 2 )
+			return;
+
+		int newSize = oldSize;
+		final LabelMultisetEntry oldTail = createRef();
+		final LabelMultisetEntry newTail = createRef();
+		int newPos = 0;
+		get( newPos, newTail );
+		for ( int oldPos = 1; oldPos < oldSize; ++oldPos )
+		{
+			get( oldPos, oldTail );
+			if ( oldTail.getId() == newTail.getId() )
+			{
+				newTail.setCount( newTail.getCount() + oldTail.getCount() );
+				--newSize;
+			}
+			else
+			{
+				get( ++newPos, newTail );
+				if ( newPos != oldPos )
+					newTail.set( oldTail );
+			}
+		}
+
+		setSize( newSize );
+	}
 }

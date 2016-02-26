@@ -75,7 +75,7 @@ public class MappedObjectArrayList< O extends MappedObject< O, T >, T extends Ma
 		setSize( 0 );
 	}
 
-	private void setSize( final int size )
+	protected void setSize( final int size )
 	{
 		access.putInt( size, 0 );
 	}
