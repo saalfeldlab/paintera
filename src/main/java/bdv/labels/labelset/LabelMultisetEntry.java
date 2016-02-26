@@ -77,7 +77,7 @@ public class LabelMultisetEntry
 	@Override
 	public int hashCode()
 	{
-		return Long.hashCode( getId() ) + Integer.hashCode( getCount() );
+		return 31 * Long.hashCode( getId() ) + Integer.hashCode( getCount() );
 	}
 
 	@Override
