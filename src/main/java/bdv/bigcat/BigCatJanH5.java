@@ -59,7 +59,10 @@ public class BigCatJanH5
 		{
 			System.setProperty( "apple.laf.useScreenMenuBar", "true" );
 
-			final IHDF5Reader reader = HDF5Factory.openForReading( "/groups/saalfeld/saalfeldlab/pedunculus/davi_v7_4k_refix_export.h5" );
+			final String fn = "/Users/pietzsch/workspace/data/bigcat/davi_v7_4k_refix_export.h5";
+			final String fnscaled = "/Users/pietzsch/Desktop/downscale-test.h5";
+			final IHDF5Reader reader = HDF5Factory.openForReading( fn );
+			final IHDF5Reader scaleReader = HDF5Factory.openForReading( fnscaled );
 
 			/* raw pixels */
 			final JanH5FloatSetupImageLoader raw = new JanH5FloatSetupImageLoader(
@@ -89,6 +92,7 @@ public class BigCatJanH5
 			/* fragments */
 			final JanH5LabelMultisetSetupImageLoader fragments = new JanH5LabelMultisetSetupImageLoader(
 					reader,
+					scaleReader,
 					"/bodies",
 					1,
 					new int[]{64, 64, 8} );

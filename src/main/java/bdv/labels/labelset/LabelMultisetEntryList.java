@@ -211,6 +211,11 @@ public class LabelMultisetEntryList
 		releaseRef( e1 );
 	}
 
+	public void mergeWith( final Multiset< SuperVoxel > multiset )
+	{
+		mergeWith( multiset.entrySet() );
+	}
+
 	public void mergeWith( final Set< Entry< SuperVoxel > > entrySet )
 	{
 		if ( entrySet.isEmpty() )

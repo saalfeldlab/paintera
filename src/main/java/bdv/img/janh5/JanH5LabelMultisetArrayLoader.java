@@ -5,17 +5,18 @@ import java.util.Arrays;
 import bdv.img.cache.CacheArrayLoader;
 import bdv.labels.labelset.LabelMultisetEntry;
 import bdv.labels.labelset.LabelMultisetEntryList;
+import bdv.labels.labelset.LongMappedAccess;
 import bdv.labels.labelset.LongMappedAccessData;
 import bdv.labels.labelset.VolatileLabelMultisetArray;
 import ch.systemsx.cisd.base.mdarray.MDLongArray;
+import ch.systemsx.cisd.hdf5.IHDF5IntReader;
 import ch.systemsx.cisd.hdf5.IHDF5LongReader;
 import ch.systemsx.cisd.hdf5.IHDF5Reader;
 import gnu.trove.impl.Constants;
 import gnu.trove.map.hash.TLongIntHashMap;
 
 /**
- * {@link CacheArrayLoader} for
- * Jan Funke's h5 files
+ * {@link CacheArrayLoader} for Jan Funke's h5 files
  *
  * @author Stephan Saalfeld <saalfelds@janelia.hhmi.org>
  */
@@ -23,16 +24,20 @@ public class JanH5LabelMultisetArrayLoader implements CacheArrayLoader< Volatile
 {
 	private VolatileLabelMultisetArray theEmptyArray;
 
-	final private IHDF5LongReader reader;
+	private final IHDF5LongReader reader;
+
+	private final IHDF5IntReader scaleReader;
 
 	final private String dataset;
 
 	public JanH5LabelMultisetArrayLoader(
 			final IHDF5Reader reader,
+			final IHDF5Reader scaleReader,
 			final String dataset )
 	{
 		theEmptyArray = new VolatileLabelMultisetArray( 1, false );
 		this.reader = reader.uint64();
+		this.scaleReader = ( scaleReader == null ) ? null : scaleReader.uint32();
 		this.dataset = dataset;
 	}
 
@@ -50,12 +55,31 @@ public class JanH5LabelMultisetArrayLoader implements CacheArrayLoader< Volatile
 			final int[] dimensions,
 			final long[] min ) throws InterruptedException
 	{
+		if ( level == 0 )
+			return loadArrayLevel0( dimensions, min );
+
+		final String listsPath = String.format( "l%02d/z%05d/y%05d/x%05d/lists", level, min[ 2 ], min[ 1 ], min[ 0 ] );
+		final String dataPath = String.format( "l%02d/z%05d/y%05d/x%05d/data", level, min[ 2 ], min[ 1 ], min[ 0 ] );
+
+		final int[] offsets = scaleReader.readMDArray( dataPath ).getAsFlatArray();
+		final int[] lists = scaleReader.readArray( listsPath );
+		final LongMappedAccessData listData = LongMappedAccessData.factory.createStorage( lists.length * 4 );
+		final LongMappedAccess access = listData.createAccess();
+		for ( int i = 0; i < lists.length; ++i )
+			access.putInt( lists[ i ], i * 4 );
+		return new VolatileLabelMultisetArray( offsets, listData, 0, true );
+	}
+
+	public VolatileLabelMultisetArray loadArrayLevel0(
+			final int[] dimensions,
+			final long[] min ) throws InterruptedException
+	{
 		long[] data = null;
 
 		final MDLongArray block = reader.readMDArrayBlockWithOffset(
 				dataset,
-				new int[]{ dimensions[ 2 ], dimensions[ 1 ], dimensions[ 0 ] },
-				new long[]{ min[ 2 ], min[ 1 ], min[ 0 ] } );
+				new int[] { dimensions[ 2 ], dimensions[ 1 ], dimensions[ 0 ] },
+				new long[] { min[ 2 ], min[ 1 ], min[ 0 ] } );
 
 		data = block.getAsFlatArray();
 
@@ -63,9 +87,9 @@ public class JanH5LabelMultisetArrayLoader implements CacheArrayLoader< Volatile
 		{
 			System.out.println(
 					"JanH5 label multiset array loader failed loading min = " +
-					Arrays.toString( min ) +
-					", dimensions = " +
-					Arrays.toString( dimensions ) );
+							Arrays.toString( min ) +
+							", dimensions = " +
+							Arrays.toString( dimensions ) );
 
 			data = new long[ dimensions[ 0 ] * dimensions[ 1 ] * dimensions[ 2 ] ];
 		}
@@ -79,8 +103,8 @@ public class JanH5LabelMultisetArrayLoader implements CacheArrayLoader< Volatile
 				Constants.DEFAULT_CAPACITY,
 				Constants.DEFAULT_LOAD_FACTOR,
 				-1,
-				-1);
-A:		for ( int i = 0; i < data.length; ++i )
+				-1 );
+		A: for ( int i = 0; i < data.length; ++i )
 		{
 			final long id = data[ i ];
 
@@ -101,9 +125,9 @@ A:		for ( int i = 0; i < data.length; ++i )
 				continue A;
 			}
 		}
-		System.out.println( listData.size() );
+//		System.out.println( listData.size() );
 
-		return new VolatileLabelMultisetArray( offsets, listData, true );
+		return new VolatileLabelMultisetArray( offsets, listData, nextListOffset, true );
 	}
 
 	/**
