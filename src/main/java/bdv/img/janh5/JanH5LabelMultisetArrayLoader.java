@@ -101,7 +101,7 @@ A:		for ( int i = 0; i < data.length; ++i )
 				continue A;
 			}
 		}
-		System.out.println( listData.size() );
+//		System.out.println( listData.size() );
 
 		return new VolatileLabelMultisetArray( offsets, listData, true );
 	}
