@@ -7,10 +7,6 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 
-import org.zeromq.ZContext;
-import org.zeromq.ZMQ;
-import org.zeromq.ZMQ.Socket;
-
 import com.google.gson.JsonIOException;
 import com.google.gson.JsonSyntaxException;
 
@@ -19,8 +15,6 @@ import bdv.bigcat.composite.ARGBCompositeAlphaYCbCr;
 import bdv.bigcat.composite.Composite;
 import bdv.bigcat.composite.CompositeCopy;
 import bdv.bigcat.composite.CompositeProjector;
-import bdv.bigcat.control.ClientController;
-import bdv.bigcat.control.Message;
 import bdv.bigcat.ui.ARGBConvertedLabelsSource;
 import bdv.bigcat.ui.GoldenAngleSaturatedARGBStream;
 import bdv.img.cache.Cache;
@@ -47,6 +41,7 @@ import mpicbg.spim.data.sequence.TimePoints;
 import net.imglib2.display.ScaledARGBConverter;
 import net.imglib2.interpolation.randomaccess.NearestNeighborInterpolatorFactory;
 import net.imglib2.realtransform.AffineTransform3D;
+import net.imglib2.realtransform.RealViews;
 import net.imglib2.type.numeric.ARGBType;
 import net.imglib2.type.volatiles.VolatileARGBType;
 import net.imglib2.view.Views;
@@ -59,7 +54,8 @@ public class BigCatJanH5
 		{
 			System.setProperty( "apple.laf.useScreenMenuBar", "true" );
 
-			final IHDF5Reader reader = HDF5Factory.openForReading( "/groups/saalfeld/saalfeldlab/pedunculus/davi_v7_4k_refix_export.h5" );
+			//final IHDF5Reader reader = HDF5Factory.openForReading( "/groups/saalfeld/saalfeldlab/pedunculus/davi_v7_4k_refix_export.h5" );
+			final IHDF5Reader reader = HDF5Factory.openForReading( "/home/saalfeld/tmp/pedunculus/davi_v7_4k_refix_export.h5" );
 
 			/* raw pixels */
 			final JanH5FloatSetupImageLoader raw = new JanH5FloatSetupImageLoader(
@@ -161,37 +157,37 @@ public class BigCatJanH5
 
 			bdv.getViewerFrame().setVisible( true );
 
-//			bdv.getViewer().getDisplay().addHandler(
-//					new MergeModeController(
-//							bdv.getViewer(),
-//							RealViews.affineReal(
-//								Views.interpolate(
-//										Views.extendValue(
-//												fragments.getVolatileImage( 0, 0, ImgLoaderHints.LOAD_COMPLETELY ),
-//												new VolatileLabelMultisetType() ),
-//										new NearestNeighborInterpolatorFactory< VolatileLabelMultisetType >() ),
-//								fragments.getMipmapTransforms()[ 0 ] ),
-//							colorStream,
-//							assignment ) );
+			bdv.getViewer().getDisplay().addHandler(
+					new MergeModeController(
+							bdv.getViewer(),
+							RealViews.affineReal(
+								Views.interpolate(
+										Views.extendValue(
+												fragments.getVolatileImage( 0, 0, ImgLoaderHints.LOAD_COMPLETELY ),
+												new VolatileLabelMultisetType() ),
+										new NearestNeighborInterpolatorFactory< VolatileLabelMultisetType >() ),
+								fragments.getMipmapTransforms()[ 0 ] ),
+							colorStream,
+							assignment ) );
 
-			final ZContext ctx = new ZContext();
-			final Socket socket = ctx.createSocket( ZMQ.REQ );
-			socket.connect( "tcp://10.103.40.190:8128" );
-
-			final ClientController controller = new ClientController(
-					bdv.getViewer(),
-					Views.interpolate(
-							Views.extendValue(
-									fragments.getVolatileImage( 0, 0, ImgLoaderHints.LOAD_COMPLETELY ),
-									new VolatileLabelMultisetType() ),
-							new NearestNeighborInterpolatorFactory< VolatileLabelMultisetType >() ),
-					colorStream,
-					assignment,
-					socket );
-
-			bdv.getViewer().getDisplay().addHandler( controller );
-
-			controller.sendMessage( new Message() );
+//			final ZContext ctx = new ZContext();
+//			final Socket socket = ctx.createSocket( ZMQ.REQ );
+//			socket.connect( "tcp://10.103.40.190:8128" );
+//
+//			final ClientController controller = new ClientController(
+//					bdv.getViewer(),
+//					Views.interpolate(
+//							Views.extendValue(
+//									fragments.getVolatileImage( 0, 0, ImgLoaderHints.LOAD_COMPLETELY ),
+//									new VolatileLabelMultisetType() ),
+//							new NearestNeighborInterpolatorFactory< VolatileLabelMultisetType >() ),
+//					colorStream,
+//					assignment,
+//					socket );
+//
+//			bdv.getViewer().getDisplay().addHandler( controller );
+//
+//			controller.sendMessage( new Message() );
 
 		}
 		catch ( final Exception e )
