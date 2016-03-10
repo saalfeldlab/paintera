@@ -1,8 +1,10 @@
-package bdv.img.janh5;
+package bdv.img.h5;
 
 import java.io.IOException;
 
+import bdv.ViewerImgLoader;
 import bdv.ViewerSetupImgLoader;
+import bdv.img.cache.Cache;
 import bdv.img.cache.CachedCellImg;
 import bdv.img.cache.LoadingStrategy;
 import ch.systemsx.cisd.hdf5.IHDF5Reader;
@@ -14,14 +16,15 @@ import net.imglib2.type.volatiles.VolatileFloatType;
 
 /**
  * {@link ViewerSetupImgLoader} for
- * Jan Funke's h5 files
+ * Jan Funke's and other's h5 files
  *
  * @author Stephan Saalfeld <saalfelds@janelia.hhmi.org>
  */
-public class JanH5FloatSetupImageLoader
-	extends AbstractJanH5SetupImageLoader< FloatType, VolatileFloatType, VolatileFloatArray >
+public class H5FloatSetupImageLoader
+	extends AbstractH5SetupImageLoader< FloatType, VolatileFloatType, VolatileFloatArray >
+	implements ViewerImgLoader
 {
-	public JanH5FloatSetupImageLoader(
+	public H5FloatSetupImageLoader(
 			final IHDF5Reader reader,
 			final String dataset,
 			final int setupId,
@@ -34,7 +37,7 @@ public class JanH5FloatSetupImageLoader
 				blockDimension,
 				new FloatType(),
 				new VolatileFloatType(),
-				new JanH5FloatArrayLoader( reader, dataset ) );
+				new H5FloatArrayLoader( reader, dataset ) );
 	}
 
 	@Override
@@ -53,5 +56,17 @@ public class JanH5FloatSetupImageLoader
 		final VolatileFloatType linkedType = new VolatileFloatType( img );
 		img.setLinkedType( linkedType );
 		return img;
+	}
+
+	@Override
+	public ViewerSetupImgLoader< ?, ? > getSetupImgLoader( final int setupId )
+	{
+		return this;
+	}
+
+	@Override
+	public Cache getCache()
+	{
+		return cache;
 	}
 }

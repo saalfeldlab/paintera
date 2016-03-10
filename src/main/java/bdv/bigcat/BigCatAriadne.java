@@ -7,10 +7,6 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 
-import org.zeromq.ZContext;
-import org.zeromq.ZMQ;
-import org.zeromq.ZMQ.Socket;
-
 import com.google.gson.JsonIOException;
 import com.google.gson.JsonSyntaxException;
 
@@ -19,13 +15,11 @@ import bdv.bigcat.composite.ARGBCompositeAlphaYCbCr;
 import bdv.bigcat.composite.Composite;
 import bdv.bigcat.composite.CompositeCopy;
 import bdv.bigcat.composite.CompositeProjector;
-import bdv.bigcat.control.ClientController;
-import bdv.bigcat.control.Message;
 import bdv.bigcat.ui.ARGBConvertedLabelsSource;
 import bdv.bigcat.ui.GoldenAngleSaturatedARGBStream;
 import bdv.img.cache.Cache;
-import bdv.img.h5.H5FloatSetupImageLoader;
 import bdv.img.h5.H5LabelMultisetSetupImageLoader;
+import bdv.img.h5.H5UnsignedByteSetupImageLoader;
 import bdv.labels.labelset.VolatileLabelMultisetType;
 import bdv.spimdata.SequenceDescriptionMinimal;
 import bdv.spimdata.SpimDataMinimal;
@@ -47,11 +41,12 @@ import mpicbg.spim.data.sequence.TimePoints;
 import net.imglib2.display.ScaledARGBConverter;
 import net.imglib2.interpolation.randomaccess.NearestNeighborInterpolatorFactory;
 import net.imglib2.realtransform.AffineTransform3D;
+import net.imglib2.realtransform.RealViews;
 import net.imglib2.type.numeric.ARGBType;
 import net.imglib2.type.volatiles.VolatileARGBType;
 import net.imglib2.view.Views;
 
-public class BigCatJanH5
+public class BigCatAriadne
 {
 	public static void main( final String[] args ) throws JsonSyntaxException, JsonIOException, IOException
 	{
@@ -59,13 +54,17 @@ public class BigCatJanH5
 		{
 			System.setProperty( "apple.laf.useScreenMenuBar", "true" );
 
-			final IHDF5Reader reader1 = HDF5Factory.openForReading( "/groups/saalfeld/saalfeldlab/pedunculus/davi_v7_4k_refix_export.h5" );
-			final IHDF5Reader reader2 = HDF5Factory.openForReading( "/groups/saalfeld/saalfeldlab/concha/sample_A/crop/ground-truth.h5" );
+			final IHDF5Reader reader = HDF5Factory.openForReading( "/groups/saalfeld/saalfeldlab/concha/ariadne/E046_DBock201602-ProRead_exercise02.000075.h5" );
+//			final IHDF5Reader reader = HDF5Factory.openForReading( "/groups/saalfeld/saalfeldlab/concha/ariadne/E047_DBock201602-ProRead_exercise02.000139.h5" );
+//			final IHDF5Reader reader = HDF5Factory.openForReading( "/groups/saalfeld/saalfeldlab/concha/ariadne/E048_DBock201602-ProRead_exercise02.000085.h5" );
+//			final IHDF5Reader reader = HDF5Factory.openForReading( "/groups/saalfeld/saalfeldlab/concha/ariadne/E049_DBock201602-ProRead_exercise02.000099.h5" );
+//			final IHDF5Reader reader = HDF5Factory.openForReading( "/groups/saalfeld/saalfeldlab/concha/ariadne/E050_DBock201602-ProRead_exercise02.000086.h5" );
+
 
 			/* raw pixels */
-			final H5FloatSetupImageLoader raw = new H5FloatSetupImageLoader(
-					reader1,
-					"/raw",
+			final H5UnsignedByteSetupImageLoader raw = new H5UnsignedByteSetupImageLoader(
+					reader,
+					"/em_raw",
 					0,
 					new int[]{64, 64, 8} );
 
@@ -89,9 +88,9 @@ public class BigCatJanH5
 
 			/* fragments */
 			final H5LabelMultisetSetupImageLoader fragments = new H5LabelMultisetSetupImageLoader(
-					reader2,
-					"/bodies",
-					H5LabelMultisetSetupImageLoader.Type.LONG,
+					reader,
+					"/labels",
+					H5LabelMultisetSetupImageLoader.Type.SHORT,
 					1,
 					new int[]{64, 64, 8} );
 
@@ -149,6 +148,10 @@ public class BigCatJanH5
 //					4.3135842398185575, -1.0275561336713027E-16, 1.1102230246251565E-16, -14207.918453952327,
 //					-1.141729037412541E-17, 4.313584239818558, 1.0275561336713028E-16, -9482.518144778587,
 //					1.1102230246251565E-16, -1.141729037412541E-17, 4.313584239818559, -17181.48737890195 );
+			transform.set(
+					 0, 0, 1, 0,
+					 0, 1, 0, 0,
+					-1, 0, 0, 0);
 			bdv.getViewer().setCurrentViewerTransform( transform );
 			bdv.getViewer().setDisplayMode( DisplayMode.FUSED );
 
@@ -157,43 +160,43 @@ public class BigCatJanH5
 					fragmentsConverterSetup,
 					bdv.getSetupAssignments().getMinMaxGroups().get( 0 ) );
 
-			converterSetups.get( 0 ).setDisplayRange( 0, 1 );
+			converterSetups.get( 0 ).setDisplayRange( 0, 255 );
 			fragmentsConverterSetup.setDisplayRange( 0, 255 );
 
 
 			bdv.getViewerFrame().setVisible( true );
 
-//			bdv.getViewer().getDisplay().addHandler(
-//					new MergeModeController(
-//							bdv.getViewer(),
-//							RealViews.affineReal(
-//								Views.interpolate(
-//										Views.extendValue(
-//												fragments.getVolatileImage( 0, 0, ImgLoaderHints.LOAD_COMPLETELY ),
-//												new VolatileLabelMultisetType() ),
-//										new NearestNeighborInterpolatorFactory< VolatileLabelMultisetType >() ),
-//								fragments.getMipmapTransforms()[ 0 ] ),
-//							colorStream,
-//							assignment ) );
+			bdv.getViewer().getDisplay().addHandler(
+					new MergeModeController(
+							bdv.getViewer(),
+							RealViews.affineReal(
+								Views.interpolate(
+										Views.extendValue(
+												fragments.getVolatileImage( 0, 0, ImgLoaderHints.LOAD_COMPLETELY ),
+												new VolatileLabelMultisetType() ),
+										new NearestNeighborInterpolatorFactory< VolatileLabelMultisetType >() ),
+								fragments.getMipmapTransforms()[ 0 ] ),
+							colorStream,
+							assignment ) );
 
-			final ZContext ctx = new ZContext();
-			final Socket socket = ctx.createSocket( ZMQ.REQ );
-			socket.connect( "tcp://10.103.40.190:8128" );
+//			final ZContext ctx = new ZContext();
+//			final Socket socket = ctx.createSocket( ZMQ.REQ );
+//			socket.connect( "tcp://10.103.40.190:8128" );
+//
+//			final ClientController controller = new ClientController(
+//					bdv.getViewer(),
+//					Views.interpolate(
+//							Views.extendValue(
+//									fragments.getVolatileImage( 0, 0, ImgLoaderHints.LOAD_COMPLETELY ),
+//									new VolatileLabelMultisetType() ),
+//							new NearestNeighborInterpolatorFactory< VolatileLabelMultisetType >() ),
+//					colorStream,
+//					assignment,
+//					socket );
 
-			final ClientController controller = new ClientController(
-					bdv.getViewer(),
-					Views.interpolate(
-							Views.extendValue(
-									fragments.getVolatileImage( 0, 0, ImgLoaderHints.LOAD_COMPLETELY ),
-									new VolatileLabelMultisetType() ),
-							new NearestNeighborInterpolatorFactory< VolatileLabelMultisetType >() ),
-					colorStream,
-					assignment,
-					socket );
+//			bdv.getViewer().getDisplay().addHandler( controller );
 
-			bdv.getViewer().getDisplay().addHandler( controller );
-
-			controller.sendMessage( new Message() );
+//			controller.sendMessage( new Message() );
 
 		}
 		catch ( final Exception e )
