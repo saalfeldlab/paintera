@@ -45,6 +45,11 @@ public class ARGBConvertedLabelsSource
 		this.argbSource = argbSource;
 	}
 
+	final public AbstractViewerSetupImgLoader< LabelMultisetType, VolatileLabelMultisetType > getLoader()
+	{
+		return multisetImageLoader;
+	}
+
 	@Override
 	public boolean isPresent( final int t )
 	{

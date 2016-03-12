@@ -5,6 +5,7 @@ import java.io.IOException;
 import bdv.AbstractViewerSetupImgLoader;
 import bdv.ViewerImgLoader;
 import bdv.ViewerSetupImgLoader;
+import bdv.img.SetCache;
 import bdv.img.cache.Cache;
 import bdv.img.cache.CacheArrayLoader;
 import bdv.img.cache.CacheHints;
@@ -28,7 +29,7 @@ import net.imglib2.util.Fraction;
  */
 abstract public class AbstractH5SetupImageLoader< T extends NativeType< T > , V extends Volatile< T >, A extends VolatileAccess >
 	extends AbstractViewerSetupImgLoader< T, V >
-	implements ViewerImgLoader
+	implements ViewerImgLoader, SetCache
 {
 	/**
 	 * It seems unnecessary to hold a reference to the {@link IHDF5Reader} if
@@ -129,6 +130,7 @@ abstract public class AbstractH5SetupImageLoader< T extends NativeType< T > , V 
 		return new AffineTransform3D[]{ mipmapTransform };
 	}
 
+	@Override
 	public void setCache( final VolatileGlobalCellCache cache )
 	{
 		this.cache = cache;
