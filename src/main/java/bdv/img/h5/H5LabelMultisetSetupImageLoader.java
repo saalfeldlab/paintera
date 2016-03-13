@@ -1,4 +1,4 @@
-package bdv.img.janh5;
+package bdv.img.h5;
 
 import java.io.IOException;
 
@@ -19,16 +19,29 @@ import net.imglib2.RandomAccessibleInterval;
  *
  * @author Stephan Saalfeld <saalfelds@janelia.hhmi.org>
  */
-public class JanH5LabelMultisetSetupImageLoader
-	extends AbstractJanH5SetupImageLoader< LabelMultisetType, VolatileLabelMultisetType, VolatileLabelMultisetArray >
+public class H5LabelMultisetSetupImageLoader
+	extends AbstractH5SetupImageLoader< LabelMultisetType, VolatileLabelMultisetType, VolatileLabelMultisetArray >
 {
-	public JanH5LabelMultisetSetupImageLoader(
+	static public enum Type {
+		SHORT,
+		LONG
+	}
+
+	public H5LabelMultisetSetupImageLoader(
 			final IHDF5Reader reader,
 			final String dataset,
+			final Type type,
 			final int setupId,
 			final int[] blockDimension ) throws IOException
 	{
-		super( reader, dataset, setupId, blockDimension, new LabelMultisetType(), new VolatileLabelMultisetType(), new JanH5LabelMultisetArrayLoader( reader, dataset ) );
+		super(
+				reader,
+				dataset,
+				setupId,
+				blockDimension,
+				new LabelMultisetType(),
+				new VolatileLabelMultisetType(),
+				type == Type.SHORT ? new H5ShortLabelMultisetArrayLoader( reader, dataset ) : new H5LongLabelMultisetArrayLoader( reader, dataset ) );
 	}
 
 	@Override

@@ -1,9 +1,12 @@
-package bdv.img.janh5;
+package bdv.img.h5;
 
 import java.io.IOException;
 
 import bdv.AbstractViewerSetupImgLoader;
+import bdv.ViewerImgLoader;
 import bdv.ViewerSetupImgLoader;
+import bdv.img.SetCache;
+import bdv.img.cache.Cache;
 import bdv.img.cache.CacheArrayLoader;
 import bdv.img.cache.CacheHints;
 import bdv.img.cache.CachedCellImg;
@@ -20,11 +23,13 @@ import net.imglib2.util.Fraction;
 
 /**
  * {@link ViewerSetupImgLoader} for
- * Jan Funke's h5 files
+ * Jan Funke's and other's h5 files
  *
  * @author Stephan Saalfeld <saalfelds@janelia.hhmi.org>
  */
-abstract public class AbstractJanH5SetupImageLoader< T extends NativeType< T > , V extends Volatile< T >, A extends VolatileAccess > extends AbstractViewerSetupImgLoader< T, V >
+abstract public class AbstractH5SetupImageLoader< T extends NativeType< T > , V extends Volatile< T >, A extends VolatileAccess >
+	extends AbstractViewerSetupImgLoader< T, V >
+	implements ViewerImgLoader, SetCache
 {
 	/**
 	 * It seems unnecessary to hold a reference to the {@link IHDF5Reader} if
@@ -49,7 +54,7 @@ abstract public class AbstractJanH5SetupImageLoader< T extends NativeType< T > ,
 
 	final protected int setupId;
 
-	public AbstractJanH5SetupImageLoader(
+	public AbstractH5SetupImageLoader(
 			final IHDF5Reader reader,
 			final String dataset,
 			final int setupId,
@@ -70,12 +75,17 @@ abstract public class AbstractJanH5SetupImageLoader< T extends NativeType< T > ,
 				h5dim[ 1 ],
 				h5dim[ 0 ], };
 
-		final double[] h5res = reader.float64().getArrayAttr( dataset, "resolution" );
+		if ( reader.hasAttribute( dataset, "resolution" ) )
+		{
+			final double[] h5res = reader.float64().getArrayAttr( dataset, "resolution" );
+			resolution = new double[]{
+					h5res[ 2 ],
+					h5res[ 1 ],
+					h5res[ 0 ], };
+		}
+		else
+			resolution = new double[]{10, 1, 1};
 
-		resolution = new double[]{
-				h5res[ 2 ],
-				h5res[ 1 ],
-				h5res[ 0 ], };
 
 		mipmapTransform = new AffineTransform3D();
 
@@ -120,8 +130,21 @@ abstract public class AbstractJanH5SetupImageLoader< T extends NativeType< T > ,
 		return new AffineTransform3D[]{ mipmapTransform };
 	}
 
+	@Override
 	public void setCache( final VolatileGlobalCellCache cache )
 	{
 		this.cache = cache;
+	}
+
+	@Override
+	public ViewerSetupImgLoader< ?, ? > getSetupImgLoader( final int setupId )
+	{
+		return this;
+	}
+
+	@Override
+	public Cache getCache()
+	{
+		return cache;
 	}
 }

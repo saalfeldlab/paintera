@@ -1,4 +1,4 @@
-package bdv.img.janh5;
+package bdv.img.h5;
 
 import java.util.Arrays;
 
@@ -7,33 +7,28 @@ import bdv.labels.labelset.LabelMultisetEntry;
 import bdv.labels.labelset.LabelMultisetEntryList;
 import bdv.labels.labelset.LongMappedAccessData;
 import bdv.labels.labelset.VolatileLabelMultisetArray;
-import ch.systemsx.cisd.base.mdarray.MDLongArray;
-import ch.systemsx.cisd.hdf5.IHDF5LongReader;
+import ch.systemsx.cisd.base.mdarray.MDShortArray;
 import ch.systemsx.cisd.hdf5.IHDF5Reader;
+import ch.systemsx.cisd.hdf5.IHDF5ShortReader;
 import gnu.trove.impl.Constants;
 import gnu.trove.map.hash.TLongIntHashMap;
 
 /**
  * {@link CacheArrayLoader} for
- * Jan Funke's h5 files
+ * Jan Funke's and other's h5 files
  *
  * @author Stephan Saalfeld <saalfelds@janelia.hhmi.org>
  */
-public class JanH5LabelMultisetArrayLoader implements CacheArrayLoader< VolatileLabelMultisetArray >
+public class H5ShortLabelMultisetArrayLoader extends AbstractH5LabelMultisetArrayLoader
 {
-	private VolatileLabelMultisetArray theEmptyArray;
+	final private IHDF5ShortReader reader;
 
-	final private IHDF5LongReader reader;
-
-	final private String dataset;
-
-	public JanH5LabelMultisetArrayLoader(
+	public H5ShortLabelMultisetArrayLoader(
 			final IHDF5Reader reader,
 			final String dataset )
 	{
-		theEmptyArray = new VolatileLabelMultisetArray( 1, false );
-		this.reader = reader.uint64();
-		this.dataset = dataset;
+		super( dataset );
+		this.reader = reader.int16();
 	}
 
 	@Override
@@ -50,9 +45,9 @@ public class JanH5LabelMultisetArrayLoader implements CacheArrayLoader< Volatile
 			final int[] dimensions,
 			final long[] min ) throws InterruptedException
 	{
-		long[] data = null;
+		short[] data = null;
 
-		final MDLongArray block = reader.readMDArrayBlockWithOffset(
+		final MDShortArray block = reader.readMDArrayBlockWithOffset(
 				dataset,
 				new int[]{ dimensions[ 2 ], dimensions[ 1 ], dimensions[ 0 ] },
 				new long[]{ min[ 2 ], min[ 1 ], min[ 0 ] } );
@@ -62,12 +57,12 @@ public class JanH5LabelMultisetArrayLoader implements CacheArrayLoader< Volatile
 		if ( data == null )
 		{
 			System.out.println(
-					"JanH5 label multiset array loader failed loading min = " +
+					"H5 short label multiset array loader failed loading min = " +
 					Arrays.toString( min ) +
 					", dimensions = " +
 					Arrays.toString( dimensions ) );
 
-			data = new long[ dimensions[ 0 ] * dimensions[ 1 ] * dimensions[ 2 ] ];
+			data = new short[ dimensions[ 0 ] * dimensions[ 1 ] * dimensions[ 2 ] ];
 		}
 
 		final int[] offsets = new int[ dimensions[ 2 ] * dimensions[ 1 ] * dimensions[ 0 ] ];
@@ -82,7 +77,7 @@ public class JanH5LabelMultisetArrayLoader implements CacheArrayLoader< Volatile
 				-1);
 A:		for ( int i = 0; i < data.length; ++i )
 		{
-			final long id = data[ i ];
+			final long id = data[ i ] & 0xffff;
 
 //			does the list [id x 1] already exist?
 			final int offset = idOffsetHash.get( id );
@@ -101,22 +96,8 @@ A:		for ( int i = 0; i < data.length; ++i )
 				continue A;
 			}
 		}
-//		System.out.println( listData.size() );
+		System.out.println( listData.size() );
 
 		return new VolatileLabelMultisetArray( offsets, listData, true );
-	}
-
-	/**
-	 * Reuses the existing empty array if it already has the desired size.
-	 */
-	@Override
-	public VolatileLabelMultisetArray emptyArray( final int[] dimensions )
-	{
-		int numEntities = 1;
-		for ( int i = 0; i < dimensions.length; ++i )
-			numEntities *= dimensions[ i ];
-		if ( theEmptyArray.getCurrentStorageArray().length < numEntities )
-			theEmptyArray = new VolatileLabelMultisetArray( numEntities, false );
-		return theEmptyArray;
 	}
 }
