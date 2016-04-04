@@ -91,7 +91,6 @@ public class BigCatJanH5
 			final H5LabelMultisetSetupImageLoader fragments = new H5LabelMultisetSetupImageLoader(
 					reader2,
 					"/bodies",
-					H5LabelMultisetSetupImageLoader.Type.LONG,
 					1,
 					new int[]{64, 64, 8} );
 

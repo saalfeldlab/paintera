@@ -38,7 +38,7 @@ public class BigCATJuan
 		final H5UnsignedByteSetupImageLoader raw = new H5UnsignedByteSetupImageLoader( reader, "/raw", 0, new int[] { 64, 64, 8 } );
 
 		/* fragments */
-		final H5LabelMultisetSetupImageLoader fragments = new H5LabelMultisetSetupImageLoader( reader, "/labels", H5LabelMultisetSetupImageLoader.Type.LONG, 1, new int[] { 64, 64, 8 } );
+		final H5LabelMultisetSetupImageLoader fragments = new H5LabelMultisetSetupImageLoader( reader, "/labels", 1, new int[] { 64, 64, 8 } );
 
 		/* converters and controls */
 		final FragmentSegmentAssignment assignment = new FragmentSegmentAssignment();

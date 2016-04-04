@@ -3,11 +3,13 @@ package bdv.img.h5;
 import java.io.IOException;
 
 import bdv.ViewerSetupImgLoader;
+import bdv.img.cache.CacheArrayLoader;
 import bdv.img.cache.CachedCellImg;
 import bdv.img.cache.LoadingStrategy;
 import bdv.labels.labelset.LabelMultisetType;
 import bdv.labels.labelset.VolatileLabelMultisetArray;
 import bdv.labels.labelset.VolatileLabelMultisetType;
+import ch.systemsx.cisd.hdf5.HDF5ObjectType;
 import ch.systemsx.cisd.hdf5.IHDF5Reader;
 import mpicbg.spim.data.generic.sequence.ImgLoaderHint;
 import mpicbg.spim.data.generic.sequence.ImgLoaderHints;
@@ -22,15 +24,18 @@ import net.imglib2.RandomAccessibleInterval;
 public class H5LabelMultisetSetupImageLoader
 	extends AbstractH5SetupImageLoader< LabelMultisetType, VolatileLabelMultisetType, VolatileLabelMultisetArray >
 {
-	static public enum Type {
-		SHORT,
-		LONG
+	static private CacheArrayLoader<VolatileLabelMultisetArray> typedLoader(
+			final IHDF5Reader reader,
+			final String dataset )
+	{
+		final HDF5ObjectType type = reader.object().getObjectType( dataset );
+		System.out.println( type.toString() );
+		return new H5IntLabelMultisetArrayLoader( reader, dataset );
 	}
 
 	public H5LabelMultisetSetupImageLoader(
 			final IHDF5Reader reader,
 			final String dataset,
-			final Type type,
 			final int setupId,
 			final int[] blockDimension ) throws IOException
 	{
@@ -41,7 +46,7 @@ public class H5LabelMultisetSetupImageLoader
 				blockDimension,
 				new LabelMultisetType(),
 				new VolatileLabelMultisetType(),
-				type == Type.SHORT ? new H5ShortLabelMultisetArrayLoader( reader, dataset ) : new H5LongLabelMultisetArrayLoader( reader, dataset ) );
+				typedLoader( reader, dataset ) );
 	}
 
 	@Override

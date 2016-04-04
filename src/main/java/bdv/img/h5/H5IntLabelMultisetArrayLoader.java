@@ -7,9 +7,9 @@ import bdv.labels.labelset.LabelMultisetEntry;
 import bdv.labels.labelset.LabelMultisetEntryList;
 import bdv.labels.labelset.LongMappedAccessData;
 import bdv.labels.labelset.VolatileLabelMultisetArray;
-import ch.systemsx.cisd.base.mdarray.MDShortArray;
+import ch.systemsx.cisd.base.mdarray.MDIntArray;
+import ch.systemsx.cisd.hdf5.IHDF5IntReader;
 import ch.systemsx.cisd.hdf5.IHDF5Reader;
-import ch.systemsx.cisd.hdf5.IHDF5ShortReader;
 import gnu.trove.impl.Constants;
 import gnu.trove.map.hash.TLongIntHashMap;
 
@@ -19,22 +19,22 @@ import gnu.trove.map.hash.TLongIntHashMap;
  *
  * @author Stephan Saalfeld <saalfelds@janelia.hhmi.org>
  */
-public class H5ShortLabelMultisetArrayLoader extends AbstractH5LabelMultisetArrayLoader
+public class H5IntLabelMultisetArrayLoader extends AbstractH5LabelMultisetArrayLoader
 {
-	final private IHDF5ShortReader reader;
+	final private IHDF5IntReader reader;
 
-	public H5ShortLabelMultisetArrayLoader(
+	public H5IntLabelMultisetArrayLoader(
 			final IHDF5Reader reader,
 			final String dataset )
 	{
 		super( dataset );
-		this.reader = reader.int16();
+		this.reader = reader.int32();
 	}
 
 	@Override
 	public int getBytesPerElement()
 	{
-		return 2;
+		return 4;
 	}
 
 	@Override
@@ -45,9 +45,9 @@ public class H5ShortLabelMultisetArrayLoader extends AbstractH5LabelMultisetArra
 			final int[] dimensions,
 			final long[] min ) throws InterruptedException
 	{
-		short[] data = null;
+		int[] data = null;
 
-		final MDShortArray block = reader.readMDArrayBlockWithOffset(
+		final MDIntArray block = reader.readMDArrayBlockWithOffset(
 				dataset,
 				new int[]{ dimensions[ 2 ], dimensions[ 1 ], dimensions[ 0 ] },
 				new long[]{ min[ 2 ], min[ 1 ], min[ 0 ] } );
@@ -62,7 +62,7 @@ public class H5ShortLabelMultisetArrayLoader extends AbstractH5LabelMultisetArra
 					", dimensions = " +
 					Arrays.toString( dimensions ) );
 
-			data = new short[ dimensions[ 0 ] * dimensions[ 1 ] * dimensions[ 2 ] ];
+			data = new int[ dimensions[ 0 ] * dimensions[ 1 ] * dimensions[ 2 ] ];
 		}
 
 		final int[] offsets = new int[ dimensions[ 2 ] * dimensions[ 1 ] * dimensions[ 0 ] ];

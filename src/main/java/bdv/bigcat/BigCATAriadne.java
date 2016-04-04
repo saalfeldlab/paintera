@@ -39,7 +39,7 @@ public class BigCATAriadne
 		final H5UnsignedByteSetupImageLoader raw = new H5UnsignedByteSetupImageLoader( reader, "/em_raw", 0, new int[] { 64, 64, 8 } );
 
 		/* fragments */
-		final H5LabelMultisetSetupImageLoader fragments = new H5LabelMultisetSetupImageLoader( reader, "/labels", H5LabelMultisetSetupImageLoader.Type.SHORT, 1, new int[] { 64, 64, 8 } );
+		final H5LabelMultisetSetupImageLoader fragments = new H5LabelMultisetSetupImageLoader( reader, "/labels", 1, new int[] { 64, 64, 8 } );
 
 		/* converters and controls */
 		final FragmentSegmentAssignment assignment = new FragmentSegmentAssignment();

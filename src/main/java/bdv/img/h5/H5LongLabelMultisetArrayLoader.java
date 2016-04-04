@@ -34,7 +34,7 @@ public class H5LongLabelMultisetArrayLoader extends AbstractH5LabelMultisetArray
 	@Override
 	public int getBytesPerElement()
 	{
-		return 4;
+		return 8;
 	}
 
 	@Override
