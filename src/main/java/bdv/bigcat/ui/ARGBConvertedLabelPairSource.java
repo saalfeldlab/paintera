@@ -1,12 +1,12 @@
 package bdv.bigcat.ui;
 
-import bdv.AbstractViewerSetupImgLoader;
-import bdv.labels.labelset.LabelMultisetType;
+import bdv.img.labelpair.RandomAccessiblePair;
+import bdv.labels.labelset.PairVolatileLabelMultisetLongARGBConverter;
 import bdv.labels.labelset.VolatileLabelMultisetType;
-import bdv.labels.labelset.VolatileLabelMultisetARGBConverter;
 import bdv.viewer.Interpolation;
 import bdv.viewer.Source;
 import mpicbg.spim.data.sequence.VoxelDimensions;
+import net.imglib2.Interval;
 import net.imglib2.RandomAccessible;
 import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.RealRandomAccessible;
@@ -15,17 +15,20 @@ import net.imglib2.interpolation.InterpolatorFactory;
 import net.imglib2.interpolation.randomaccess.ClampingNLinearInterpolatorFactory;
 import net.imglib2.interpolation.randomaccess.NearestNeighborInterpolatorFactory;
 import net.imglib2.realtransform.AffineTransform3D;
+import net.imglib2.type.numeric.integer.LongType;
 import net.imglib2.type.volatiles.VolatileARGBType;
 import net.imglib2.view.ExtendedRandomAccessibleInterval;
 import net.imglib2.view.Views;
 
 @SuppressWarnings( "unchecked" )
-public class ARGBConvertedLabelsSource
+public class ARGBConvertedLabelPairSource
 	implements Source< VolatileARGBType >
 {
-	final private AbstractViewerSetupImgLoader< LabelMultisetType, VolatileLabelMultisetType > multisetImageLoader;
+	final private RandomAccessiblePair< VolatileLabelMultisetType, LongType > source;
+	final private Interval interval;
 	final private ARGBStream argbSource;
 	final private long setupId;
+	final private AffineTransform3D[] sourceTransforms;
 
 	final protected InterpolatorFactory< VolatileARGBType, RandomAccessible< VolatileARGBType > >[] interpolatorFactories;
 	{
@@ -35,19 +38,18 @@ public class ARGBConvertedLabelsSource
 		};
 	}
 
-	public ARGBConvertedLabelsSource(
+	public ARGBConvertedLabelPairSource(
 			final int setupId,
-			final AbstractViewerSetupImgLoader< LabelMultisetType, VolatileLabelMultisetType > multisetImageLoader,
-			final ARGBStream argbSource )
+			final RandomAccessiblePair< VolatileLabelMultisetType, LongType > source,
+			final Interval interval,
+			final AffineTransform3D[] sourceTransforms,
+			final ARGBStream argbStream )
 	{
 		this.setupId = setupId;
-		this.multisetImageLoader = multisetImageLoader;
-		this.argbSource = argbSource;
-	}
-
-	final public AbstractViewerSetupImgLoader< LabelMultisetType, VolatileLabelMultisetType > getLoader()
-	{
-		return multisetImageLoader;
+		this.source = source;
+		this.interval = interval;
+		this.sourceTransforms = sourceTransforms;
+		this.argbSource = argbStream;
 	}
 
 	@Override
@@ -60,8 +62,8 @@ public class ARGBConvertedLabelsSource
 	public RandomAccessibleInterval< VolatileARGBType > getSource( final int t, final int level )
 	{
 		return Converters.convert(
-				multisetImageLoader.getVolatileImage( t, level ),
-				new VolatileLabelMultisetARGBConverter( argbSource ),
+				Views.interval( source, interval ),
+				new PairVolatileLabelMultisetLongARGBConverter( argbSource ),
 				new VolatileARGBType() );
 	}
 
@@ -82,13 +84,13 @@ public class ARGBConvertedLabelsSource
 	@Override
 	public void getSourceTransform( final int t, final int level, final AffineTransform3D transform )
 	{
-		transform.set( multisetImageLoader.getMipmapTransforms()[ level ] );
+		transform.set( sourceTransforms[ level ] );
 	}
 
 	@Override
 	public AffineTransform3D getSourceTransform( final int t, final int level )
 	{
-		return multisetImageLoader.getMipmapTransforms()[ level ];
+		return sourceTransforms[ level ];
 	}
 
 	@Override
@@ -121,7 +123,7 @@ public class ARGBConvertedLabelsSource
 	@Override
 	public int getNumMipmapLevels()
 	{
-		return multisetImageLoader.getMipmapResolutions().length;
+		return sourceTransforms.length;
 	}
 
 	// TODO: make ARGBType version of this source

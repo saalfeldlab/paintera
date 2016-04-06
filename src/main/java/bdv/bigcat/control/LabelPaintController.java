@@ -9,12 +9,15 @@ import org.scijava.ui.behaviour.io.InputTriggerConfig;
 
 import bdv.bigcat.FragmentSegmentAssignment;
 import bdv.bigcat.ui.AbstractSaturatedARGBStream;
-import bdv.labels.labelset.VolatileLabelMultisetType;
 import bdv.viewer.ViewerPanel;
+import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.RealRandomAccess;
-import net.imglib2.RealRandomAccessible;
+import net.imglib2.interpolation.randomaccess.NearestNeighborInterpolatorFactory;
 import net.imglib2.realtransform.AffineTransform3D;
+import net.imglib2.realtransform.RealViews;
+import net.imglib2.type.numeric.integer.LongType;
 import net.imglib2.ui.TransformEventHandler;
+import net.imglib2.view.Views;
 
 /**
  * A {@link TransformEventHandler} that changes an {@link AffineTransform3D}
@@ -26,8 +29,9 @@ import net.imglib2.ui.TransformEventHandler;
 public class LabelPaintController
 {
 	final protected ViewerPanel viewer;
-	final protected RealRandomAccessible< VolatileLabelMultisetType > labels;
-	final protected RealRandomAccess< VolatileLabelMultisetType > labelAccess;
+	final protected RandomAccessibleInterval< LongType > labels;
+	final protected RealRandomAccess< LongType > labelAccess;
+	final protected AffineTransform3D labelTransform;
 	final protected AbstractSaturatedARGBStream colorStream;
 	final protected FragmentSegmentAssignment assignment;
 	protected long activeId = 0;
@@ -54,14 +58,22 @@ public class LabelPaintController
 
 	public LabelPaintController(
 			final ViewerPanel viewer,
-			final RealRandomAccessible< VolatileLabelMultisetType > labels,
+			final RandomAccessibleInterval< LongType > labels,
+			final AffineTransform3D labelTransform,
 			final AbstractSaturatedARGBStream colorStream,
 			final FragmentSegmentAssignment assignment,
 			final InputTriggerConfig config )
 	{
 		this.viewer = viewer;
 		this.labels = labels;
-		labelAccess = labels.realRandomAccess();
+		this.labelTransform = labelTransform;
+		labelAccess = RealViews.affineReal(
+				Views.interpolate(
+						Views.extendValue(
+								labels,
+								new LongType() ),
+						new NearestNeighborInterpolatorFactory< LongType >() ),
+				labelTransform ).realRandomAccess();
 		this.colorStream = colorStream;
 		this.assignment = assignment;
 		inputAdder = config.inputTriggerAdder( inputMap, "bigcat" );
