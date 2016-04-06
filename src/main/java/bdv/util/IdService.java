@@ -4,12 +4,12 @@ import java.util.Stack;
 
 public class IdService {
 
-	private static Stack<Long> reusableIds;
+	private static Stack<Long> reusableIds = new Stack<Long>();
 
 	// don't spend more than 8K on remembering free'd ids
 	private static int maxNumReusableIds = 1024;
 
-	private static Long nextFree;
+	private static Long nextFree = new Long(0);
 	
 	/**
 	 * Initialize the id service to not provide ids smaller than next.
