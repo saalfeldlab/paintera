@@ -184,8 +184,19 @@ public class BigCat
 //					stores );
 
 			/* data sources */
-			final Uint8blkImageLoader dvidGrayscale8ImageLoader = new Uint8blkImageLoader( "http://emdata2.int.janelia.org:7000/api", "e402c09ddd0f45e980d9be6e9fcb9bd0", "grayscale" );
-			final LabelblkMultisetSetupImageLoader dvidLabelsMultisetImageLoader = new LabelblkMultisetSetupImageLoader( 1, "http://emdata2.int.janelia.org:7000/api", "e402c09ddd0f45e980d9be6e9fcb9bd0", "labels1104", resolutions, stores );
+//			final Uint8blkImageLoader dvidGrayscale8ImageLoader = new Uint8blkImageLoader( "http://emdata2.int.janelia.org:7000/api", "e402c09ddd0f45e980d9be6e9fcb9bd0", "grayscale" );
+//			final LabelblkMultisetSetupImageLoader dvidLabelsMultisetImageLoader = new LabelblkMultisetSetupImageLoader( 1, "http://emdata2.int.janelia.org:7000/api", "e402c09ddd0f45e980d9be6e9fcb9bd0", "labels1104", resolutions, stores );
+			final Uint8blkImageLoader dvidGrayscale8ImageLoader = new Uint8blkImageLoader(
+					"http://104.197.250.147:8000/api",
+					"de02b03701e84eb3830e944919fbec5a",
+					"grayscale" );
+			final LabelblkMultisetSetupImageLoader dvidLabelsMultisetImageLoader = new LabelblkMultisetSetupImageLoader(
+					1,
+					"http://104.197.250.147:8000/api",
+					"de02b03701e84eb3830e944919fbec5a",
+					"7colseg1",
+					resolutions,
+					stores );
 //			final ARGBConvertedLabelsSetupImageLoader dvidLabelsARGBImageLoader = new ARGBConvertedLabelsSetupImageLoader(
 //					2,
 //					dvidLabelsMultisetImageLoader );
