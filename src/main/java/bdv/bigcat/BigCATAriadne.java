@@ -24,10 +24,16 @@ import bdv.viewer.TriggerBehaviourBindings;
 import ch.systemsx.cisd.hdf5.HDF5Factory;
 import ch.systemsx.cisd.hdf5.IHDF5Reader;
 import mpicbg.spim.data.generic.sequence.ImgLoaderHints;
+import net.imglib2.RandomAccessibleInterval;
+import net.imglib2.img.array.ArrayImg;
+import net.imglib2.img.array.ArrayImgs;
+import net.imglib2.img.basictypeaccess.array.LongArray;
 import net.imglib2.interpolation.randomaccess.NearestNeighborInterpolatorFactory;
 import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.realtransform.RealViews;
 import net.imglib2.type.numeric.ARGBType;
+import net.imglib2.type.numeric.integer.LongType;
+import net.imglib2.util.Intervals;
 import net.imglib2.view.Views;
 
 public class BigCATAriadne
@@ -44,11 +50,16 @@ public class BigCATAriadne
 
 		/* fragments */
 		final H5LabelMultisetSetupImageLoader fragments = new H5LabelMultisetSetupImageLoader( reader, "/labels", 1, new int[] { 64, 64, 8 } );
-
+		final RandomAccessibleInterval< VolatileLabelMultisetType > fragmentsPixels = fragments.getVolatileImage( 0, 0 );
+		final long[] fragmentsDimensions = Intervals.dimensionsAsLongArray( fragmentsPixels );
+		
+		/* painted labels */
+		final ArrayImg< LongType, LongArray > paintedLabels = ArrayImgs.longs( fragmentsDimensions );
+		
 		/* converters and controls */
 		final FragmentSegmentAssignment assignment = new FragmentSegmentAssignment();
 		final GoldenAngleSaturatedARGBStream colorStream = new GoldenAngleSaturatedARGBStream( assignment );
-//			final RandomSaturatedARGBStream colorStream = new RandomSaturatedARGBStream( assignment );
+//		final RandomSaturatedARGBStream colorStream = new RandomSaturatedARGBStream( assignment );
 		colorStream.setAlpha( 0x30 );
 		final ARGBConvertedLabelsSource convertedFragments = new ARGBConvertedLabelsSource( 2, fragments, colorStream );
 
@@ -77,13 +88,8 @@ public class BigCATAriadne
 		
 		final LabelPaintController paintController = new LabelPaintController(
 				bdv.getViewer(),
-				RealViews.affineReal(
-						Views.interpolate(
-								Views.extendValue(
-										fragments.getVolatileImage( 0, 0, ImgLoaderHints.LOAD_COMPLETELY ),
-										new VolatileLabelMultisetType() ),
-								new NearestNeighborInterpolatorFactory< VolatileLabelMultisetType >() ),
-						fragments.getMipmapTransforms()[ 0 ] ),
+				paintedLabels,
+				fragments.getMipmapTransforms()[ 0 ],
 				colorStream,
 				assignment,
 				new InputTriggerConfig() );

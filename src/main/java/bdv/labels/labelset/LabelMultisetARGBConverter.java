@@ -27,7 +27,7 @@ import bdv.util.ColorStream;
  *
  * @author Stephan Saalfeld <saalfelds@janelia.hhmi.org>
  */
-public class SuperVoxelMultisetARGBConverter implements Converter< LabelMultisetType, ARGBType >
+public class LabelMultisetARGBConverter implements Converter< LabelMultisetType, ARGBType >
 {
 	@Override
 	public void convert( final LabelMultisetType input, final ARGBType output )
