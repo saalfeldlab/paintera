@@ -11,6 +11,8 @@ import java.util.Map;
 
 import javax.xml.ws.http.HTTPException;
 
+import org.scijava.ui.behaviour.io.InputTriggerConfig;
+
 import com.google.gson.JsonIOException;
 import com.google.gson.JsonSyntaxException;
 
@@ -37,6 +39,7 @@ import bdv.util.dvid.Server;
 import bdv.viewer.DisplayMode;
 import bdv.viewer.Source;
 import bdv.viewer.SourceAndConverter;
+import bdv.viewer.TriggerBehaviourBindings;
 import bdv.viewer.ViewerOptions;
 import bdv.viewer.render.AccumulateProjectorFactory;
 import mpicbg.spim.data.generic.sequence.BasicViewSetup;
@@ -48,6 +51,7 @@ import mpicbg.spim.data.sequence.TimePoints;
 import net.imglib2.display.ScaledARGBConverter;
 import net.imglib2.interpolation.randomaccess.NearestNeighborInterpolatorFactory;
 import net.imglib2.realtransform.AffineTransform3D;
+import net.imglib2.realtransform.RealViews;
 import net.imglib2.type.numeric.ARGBType;
 import net.imglib2.type.numeric.NumericType;
 import net.imglib2.type.volatiles.VolatileARGBType;
@@ -256,7 +260,22 @@ public class BigCat
 
 			bdv.getViewerFrame().setVisible( true );
 
-			bdv.getViewer().getDisplay().addHandler( new MergeModeController( bdv.getViewer(), Views.interpolate( Views.extendValue( dvidLabelsMultisetImageLoader.getVolatileImage( 0, 0, ImgLoaderHints.LOAD_COMPLETELY ), new VolatileLabelMultisetType() ), new NearestNeighborInterpolatorFactory< VolatileLabelMultisetType >() ), colorStream, assignment ) );
+			final MergeController mergeController = new MergeController(
+					bdv.getViewer(),
+					RealViews.affineReal(
+							Views.interpolate(
+									Views.extendValue(
+											dvidLabelsMultisetImageLoader.getVolatileImage( 0, 0, ImgLoaderHints.LOAD_COMPLETELY ),
+											new VolatileLabelMultisetType() ),
+									new NearestNeighborInterpolatorFactory< VolatileLabelMultisetType >() ),
+							dvidGrayscale8ImageLoader.getMipmapTransforms()[ 0 ] ),
+					colorStream,
+					assignment ,
+					new InputTriggerConfig() );
+
+			final TriggerBehaviourBindings bindings = bdv.getViewerFrame().getTriggerbindings();
+			bindings.addBehaviourMap( "bigcat", mergeController.getBehaviourMap() );
+			bindings.addInputTriggerMap( "bigcat", mergeController.getInputTriggerMap() );
 		}
 		catch ( final Exception e )
 		{

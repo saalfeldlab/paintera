@@ -21,6 +21,7 @@ import bdv.img.h5.H5LabelMultisetSetupImageLoader;
 import bdv.img.h5.H5UnsignedByteSetupImageLoader;
 import bdv.labels.labelset.VolatileLabelMultisetType;
 import bdv.viewer.TriggerBehaviourBindings;
+import bdv.viewer.ViewerFrame;
 import ch.systemsx.cisd.hdf5.HDF5Factory;
 import ch.systemsx.cisd.hdf5.IHDF5Reader;
 import mpicbg.spim.data.generic.sequence.ImgLoaderHints;
@@ -82,8 +83,6 @@ public class BigCATAriadne
 
 		bdv.getViewerFrame().setVisible( true );
 
-		bdv.getViewer().getDisplay().addHandler( new MergeModeController( bdv.getViewer(), RealViews.affineReal( Views.interpolate( Views.extendValue( fragments.getVolatileImage( 0, 0, ImgLoaderHints.LOAD_COMPLETELY ), new VolatileLabelMultisetType() ), new NearestNeighborInterpolatorFactory< VolatileLabelMultisetType >() ), fragments.getMipmapTransforms()[ 0 ] ), colorStream, assignment ) );
-
 		final TriggerBehaviourBindings bindings = bdv.getViewerFrame().getTriggerbindings();
 		
 		final LabelPaintController paintController = new LabelPaintController(
@@ -96,6 +95,24 @@ public class BigCATAriadne
 		
 		bindings.addBehaviourMap( "bigcat", paintController.getBehaviourMap() );
 		bindings.addInputTriggerMap( "bigcat", paintController.getInputTriggerMap() );
+		
+		final MergeController mergeController = new MergeController(
+				bdv.getViewer(),
+				RealViews.affineReal(
+						Views.interpolate(
+								Views.extendValue(
+										fragments.getVolatileImage( 0, 0, ImgLoaderHints.LOAD_COMPLETELY ),
+										new VolatileLabelMultisetType() ),
+								new NearestNeighborInterpolatorFactory< VolatileLabelMultisetType >() ),
+						fragments.getMipmapTransforms()[ 0 ] ),
+				colorStream,
+				assignment ,
+				new InputTriggerConfig(),
+				bdv.getViewerFrame().getKeybindings(),
+				new InputTriggerConfig() );
+		
+		bindings.addBehaviourMap( "bigcat", mergeController.getBehaviourMap() );
+		bindings.addInputTriggerMap( "bigcat", mergeController.getInputTriggerMap() );
 		
 //			final ZContext ctx = new ZContext();
 //			final Socket socket = ctx.createSocket( ZMQ.REQ );

@@ -3,6 +3,8 @@ package bdv.bigcat;
 import java.io.IOException;
 import java.util.ArrayList;
 
+import org.scijava.ui.behaviour.io.InputTriggerConfig;
+
 import com.google.gson.JsonIOException;
 import com.google.gson.JsonSyntaxException;
 
@@ -17,6 +19,7 @@ import bdv.img.h5.AbstractH5SetupImageLoader;
 import bdv.img.h5.H5LabelMultisetSetupImageLoader;
 import bdv.img.h5.H5UnsignedByteSetupImageLoader;
 import bdv.labels.labelset.VolatileLabelMultisetType;
+import bdv.viewer.TriggerBehaviourBindings;
 import ch.systemsx.cisd.hdf5.HDF5Factory;
 import ch.systemsx.cisd.hdf5.IHDF5Reader;
 import mpicbg.spim.data.generic.sequence.ImgLoaderHints;
@@ -62,8 +65,23 @@ public class BigCATJuan
 
 		bdv.getViewerFrame().setVisible( true );
 
-		bdv.getViewer().getDisplay().addHandler( new MergeModeController( bdv.getViewer(), RealViews.affineReal( Views.interpolate( Views.extendValue( fragments.getVolatileImage( 0, 0, ImgLoaderHints.LOAD_COMPLETELY ), new VolatileLabelMultisetType() ), new NearestNeighborInterpolatorFactory< VolatileLabelMultisetType >() ), fragments.getMipmapTransforms()[ 0 ] ), colorStream, assignment ) );
+		final MergeController mergeController = new MergeController(
+				bdv.getViewer(),
+				RealViews.affineReal(
+						Views.interpolate(
+								Views.extendValue(
+										fragments.getVolatileImage( 0, 0, ImgLoaderHints.LOAD_COMPLETELY ),
+										new VolatileLabelMultisetType() ),
+								new NearestNeighborInterpolatorFactory< VolatileLabelMultisetType >() ),
+						fragments.getMipmapTransforms()[ 0 ] ),
+				colorStream,
+				assignment ,
+				new InputTriggerConfig() );
 
+		final TriggerBehaviourBindings bindings = bdv.getViewerFrame().getTriggerbindings();
+		bindings.addBehaviourMap( "bigcat", mergeController.getBehaviourMap() );
+		bindings.addInputTriggerMap( "bigcat", mergeController.getInputTriggerMap() );
+		
 //			final ZContext ctx = new ZContext();
 //			final Socket socket = ctx.createSocket( ZMQ.REQ );
 //			socket.connect( "tcp://10.103.40.190:8128" );

@@ -33,6 +33,7 @@ import com.google.gson.JsonPrimitive;
 import com.google.gson.JsonSerializationContext;
 import com.google.gson.JsonSerializer;
 
+import bdv.util.IdService;
 import gnu.trove.iterator.TLongLongIterator;
 import gnu.trove.iterator.TLongObjectIterator;
 import gnu.trove.list.array.TLongArrayList;
@@ -415,7 +416,7 @@ A:					for ( final Entry< String, JsonElement > entry : ilutJsonEntrySet )
 				final long[] newFragments = ArrayUtils.removeElement( fragments, fragmentId );
 				ilut.put( segmentId, newFragments );
 
-				final long newSegmentId = segmentId == fragmentId ? newFragments[ 0 ] : fragmentId;
+				final long newSegmentId = IdService.allocate();
 				lut.put( fragmentId, newSegmentId );
 				ilut.put( newSegmentId, new long[]{ fragmentId } );
 			}
