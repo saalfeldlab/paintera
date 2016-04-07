@@ -1,16 +1,18 @@
 package bdv.bigcat.control;
 
+import static bdv.labels.labelset.PairVolatileLabelMultisetLongARGBConverter.TRANSPARENT_LABEL;
+
 import org.scijava.ui.behaviour.Behaviour;
 import org.scijava.ui.behaviour.BehaviourMap;
 import org.scijava.ui.behaviour.DragBehaviour;
 import org.scijava.ui.behaviour.InputTriggerAdder;
 import org.scijava.ui.behaviour.InputTriggerMap;
+import org.scijava.ui.behaviour.ScrollBehaviour;
 import org.scijava.ui.behaviour.io.InputTriggerConfig;
 
 import bdv.bigcat.FragmentSegmentAssignment;
 import bdv.bigcat.MergeController;
 import bdv.bigcat.ui.AbstractSaturatedARGBStream;
-import bdv.labels.labelset.PairVolatileLabelMultisetLongARGBConverter;
 import bdv.viewer.ViewerPanel;
 import net.imglib2.Point;
 import net.imglib2.RandomAccessible;
@@ -32,12 +34,15 @@ import net.imglib2.view.Views;
 public class LabelPaintController
 {
 	final protected ViewerPanel viewer;
-	final protected RandomAccessible< LongType > labels;
+	final protected RandomAccessibleInterval< LongType > labels;
+	final protected RandomAccessible< LongType > extendedLabels;
 	final protected AffineTransform3D labelTransform;
 	final protected AbstractSaturatedARGBStream colorStream;
 	final protected FragmentSegmentAssignment assignment;
 	final protected MergeController mergeController;
 	final protected RealPoint labelLocation;
+	
+	protected int brushRadius = 5;
 	
 	private final BehaviourMap behaviourMap = new BehaviourMap();
 	private final InputTriggerMap inputMap = new InputTriggerMap();
@@ -70,6 +75,7 @@ public class LabelPaintController
 	{
 		this.viewer = viewer;
 		this.labels = labels;
+		extendedLabels = Views.extendValue( this.labels, new LongType( TRANSPARENT_LABEL ) );
 		this.labelTransform = labelTransform;
 		this.colorStream = colorStream;
 		this.assignment = assignment;
@@ -80,6 +86,7 @@ public class LabelPaintController
 		
 		new Paint( "paint", "SPACE button1" ).register();
 		new Erase( "erase", "SPACE button2", "SPACE button3" ).register();
+		new ChangeBrushRadius( "change brush radius", "SPACE scroll", "SPACE scroll" ).register();
 	}
 	
 	private void setCoordinates( final int x, final int y )
@@ -131,7 +138,7 @@ public class LabelPaintController
 					new HyperSphere<>(
 							Views.hyperSlice( labels, 0, Math.round( labelLocation.getDoublePosition( 0 ) ) ),
 							new Point( Math.round( labelLocation.getDoublePosition( 1 ) ), Math.round( labelLocation.getDoublePosition( 2 ) ) ),
-							5 );
+							brushRadius );
 			for ( final LongType t : sphere )
 				t.set( value );
 		}
@@ -139,13 +146,10 @@ public class LabelPaintController
 		@Override
 		public void init( final int x, final int y )
 		{
-			synchronized ( viewer )
-			{
-				oX = x;
-				oY = y;
-			}
+			oX = x;
+			oY = y;
 			
-			System.out.println( getName() + " drag start (" + oX + ", " + oY + ")" );
+//			System.out.println( getName() + " drag start (" + oX + ", " + oY + ")" );
 		}
 
 		@Override
@@ -153,13 +157,10 @@ public class LabelPaintController
 		{
 			final double dX;
 			final double dY;
-			synchronized ( viewer )
-			{
-				dX = oX - x;
-				dY = oY - y;
-			}
-
-			System.out.println( getName() + " drag by (" + dX + ", " + dY + ")" );
+			dX = oX - x;
+			dY = oY - y;
+			
+//			System.out.println( getName() + " drag by (" + dX + ", " + dY + ")" );
 		}
 
 		@Override
@@ -212,7 +213,7 @@ public class LabelPaintController
 			synchronized ( labelLocation )
 			{
 				super.init( x, y );
-				paint( x, y, PairVolatileLabelMultisetLongARGBConverter.TRANSPARENT_LABEL );
+				paint( x, y, TRANSPARENT_LABEL );
 			}
 			
 			viewer.requestRepaint();
@@ -224,10 +225,32 @@ public class LabelPaintController
 			synchronized ( labelLocation )
 			{
 				super.drag( x, y );
-				paint( x, y, PairVolatileLabelMultisetLongARGBConverter.TRANSPARENT_LABEL );
+				paint( x, y, TRANSPARENT_LABEL );
 			}
 			
 			viewer.requestRepaint();
+		}
+	}
+	
+	private class ChangeBrushRadius extends SelfRegisteringBehaviour implements ScrollBehaviour
+	{
+		public ChangeBrushRadius( final String name, final String ... defaultTriggers )
+		{
+			super( name, defaultTriggers );
+		}
+		
+		@Override
+		public void scroll( double wheelRotation, boolean isHorizontal, int x, int y )
+		{
+			if ( !isHorizontal )
+			{
+				if ( wheelRotation < 0 )
+					brushRadius += 1;
+				else if ( wheelRotation > 0 )
+					brushRadius = Math.max( 0, brushRadius - 1 );
+				
+				System.out.println( "changed brush radius to " + brushRadius );
+			}
 		}
 	}
 }
