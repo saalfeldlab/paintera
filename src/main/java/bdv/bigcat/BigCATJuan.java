@@ -15,6 +15,7 @@ import bdv.bigcat.composite.CompositeCopy;
 import bdv.bigcat.ui.ARGBConvertedLabelsSource;
 import bdv.bigcat.ui.GoldenAngleSaturatedARGBStream;
 import bdv.bigcat.ui.Util;
+import bdv.img.SetCache;
 import bdv.img.h5.AbstractH5SetupImageLoader;
 import bdv.img.h5.H5LabelMultisetSetupImageLoader;
 import bdv.img.h5.H5UnsignedByteSetupImageLoader;
@@ -61,6 +62,7 @@ public class BigCATJuan
 				windowTitle,
 				new AbstractH5SetupImageLoader[]{ raw },
 				new ARGBConvertedLabelsSource[]{ convertedFragments },
+				new SetCache[]{ fragments },
 				composites );
 
 		bdv.getViewerFrame().setVisible( true );
@@ -75,7 +77,9 @@ public class BigCATJuan
 								new NearestNeighborInterpolatorFactory< VolatileLabelMultisetType >() ),
 						fragments.getMipmapTransforms()[ 0 ] ),
 				colorStream,
-				assignment ,
+				assignment,
+				new InputTriggerConfig(),
+				bdv.getViewerFrame().getKeybindings(),
 				new InputTriggerConfig() );
 
 		final TriggerBehaviourBindings bindings = bdv.getViewerFrame().getTriggerbindings();

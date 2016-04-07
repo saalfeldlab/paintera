@@ -2,6 +2,7 @@ package bdv.bigcat;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Arrays;
 
 import org.scijava.ui.behaviour.io.InputTriggerConfig;
 
@@ -13,15 +14,16 @@ import bdv.bigcat.composite.ARGBCompositeAlphaYCbCr;
 import bdv.bigcat.composite.Composite;
 import bdv.bigcat.composite.CompositeCopy;
 import bdv.bigcat.control.LabelPaintController;
-import bdv.bigcat.ui.ARGBConvertedLabelsSource;
+import bdv.bigcat.ui.ARGBConvertedLabelPairSource;
 import bdv.bigcat.ui.GoldenAngleSaturatedARGBStream;
 import bdv.bigcat.ui.Util;
+import bdv.img.SetCache;
 import bdv.img.h5.AbstractH5SetupImageLoader;
 import bdv.img.h5.H5LabelMultisetSetupImageLoader;
 import bdv.img.h5.H5UnsignedByteSetupImageLoader;
+import bdv.img.labelpair.RandomAccessiblePair;
 import bdv.labels.labelset.VolatileLabelMultisetType;
 import bdv.viewer.TriggerBehaviourBindings;
-import bdv.viewer.ViewerFrame;
 import ch.systemsx.cisd.hdf5.HDF5Factory;
 import ch.systemsx.cisd.hdf5.IHDF5Reader;
 import mpicbg.spim.data.generic.sequence.ImgLoaderHints;
@@ -55,14 +57,29 @@ public class BigCATAriadne
 		final long[] fragmentsDimensions = Intervals.dimensionsAsLongArray( fragmentsPixels );
 		
 		/* painted labels */
-		final ArrayImg< LongType, LongArray > paintedLabels = ArrayImgs.longs( fragmentsDimensions );
+		final long[] paintedLabelsArray = new long[ ( int )Intervals.numElements( fragmentsPixels ) ];
+		Arrays.fill( paintedLabelsArray, Long.MIN_VALUE );
+		final ArrayImg< LongType, LongArray > paintedLabels = ArrayImgs.longs( paintedLabelsArray, fragmentsDimensions );
+		
+		/* pair labels */
+		final RandomAccessiblePair< VolatileLabelMultisetType, LongType > labelPair =
+				new RandomAccessiblePair<>(
+						fragments.getVolatileImage( 0, 0 ),
+						paintedLabels );
 		
 		/* converters and controls */
 		final FragmentSegmentAssignment assignment = new FragmentSegmentAssignment();
 		final GoldenAngleSaturatedARGBStream colorStream = new GoldenAngleSaturatedARGBStream( assignment );
 //		final RandomSaturatedARGBStream colorStream = new RandomSaturatedARGBStream( assignment );
 		colorStream.setAlpha( 0x30 );
-		final ARGBConvertedLabelsSource convertedFragments = new ARGBConvertedLabelsSource( 2, fragments, colorStream );
+		//final ARGBConvertedLabelsSource convertedFragments = new ARGBConvertedLabelsSource( 2, fragments, colorStream );
+		final ARGBConvertedLabelPairSource convertedLabelPair =
+				new ARGBConvertedLabelPairSource(
+						3,
+						labelPair,
+						paintedLabels, // as Interval, used just for the size
+						fragments.getMipmapTransforms(),
+						colorStream );
 
 		/* composites */
 		final ArrayList< Composite< ARGBType, ARGBType > > composites = new ArrayList< Composite< ARGBType, ARGBType > >();
@@ -74,7 +91,9 @@ public class BigCATAriadne
 		final BigDataViewer bdv = BigCat.createViewer(
 				windowTitle,
 				new AbstractH5SetupImageLoader[]{ raw },
-				new ARGBConvertedLabelsSource[]{ convertedFragments },
+//				new ARGBConvertedLabelsSource[]{ convertedFragments },
+				new ARGBConvertedLabelPairSource[]{ convertedLabelPair },
+				new SetCache[]{ fragments },
 				composites );
 
 		final AffineTransform3D transform = new AffineTransform3D();
@@ -106,7 +125,7 @@ public class BigCATAriadne
 								new NearestNeighborInterpolatorFactory< VolatileLabelMultisetType >() ),
 						fragments.getMipmapTransforms()[ 0 ] ),
 				colorStream,
-				assignment ,
+				assignment,
 				new InputTriggerConfig(),
 				bdv.getViewerFrame().getKeybindings(),
 				new InputTriggerConfig() );

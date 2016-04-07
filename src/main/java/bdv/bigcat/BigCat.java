@@ -23,6 +23,7 @@ import bdv.bigcat.composite.Composite;
 import bdv.bigcat.composite.CompositeCopy;
 import bdv.bigcat.composite.CompositeProjector;
 import bdv.bigcat.ui.ARGBConvertedLabelsSource;
+import bdv.bigcat.ui.AbstractARGBConvertedLabelsSource;
 import bdv.bigcat.ui.RandomSaturatedARGBStream;
 import bdv.img.SetCache;
 import bdv.img.cache.Cache;
@@ -59,7 +60,12 @@ import net.imglib2.view.Views;
 
 public class BigCat
 {
-	public static < A extends ViewerSetupImgLoader< ? extends NumericType< ? >, ? > & SetCache > BigDataViewer createViewer( final String windowTitle, final A[] rawDataLoaders, final ARGBConvertedLabelsSource[] labelSources, final List< Composite< ARGBType, ARGBType > > composites )
+	public static < A extends ViewerSetupImgLoader< ? extends NumericType< ? >, ? > & SetCache > BigDataViewer createViewer(
+			final String windowTitle,
+			final A[] rawDataLoaders,
+			final AbstractARGBConvertedLabelsSource[] labelSources,
+			final SetCache[] labelLoaders,
+			final List< Composite< ARGBType, ARGBType > > composites )
 	{
 		/* raw pixels */
 		final CombinedImgLoader.SetupIdAndLoader[] loaders = new CombinedImgLoader.SetupIdAndLoader[ rawDataLoaders.length ];
@@ -92,10 +98,11 @@ public class BigCat
 		BigDataViewer.initSetups( spimData, converterSetups, sources );
 
 		/* labels */
-		for ( final ARGBConvertedLabelsSource source : labelSources )
+		for ( final SetCache setCache : labelLoaders )
+			setCache.setCache( imgLoader.cache );
+	
+		for ( final AbstractARGBConvertedLabelsSource source : labelSources )
 		{
-			( ( SetCache ) source.getLoader() ).setCache( imgLoader.cache );
-
 			final ScaledARGBConverter.ARGB converter = new ScaledARGBConverter.ARGB( 0, 255 );
 			final ScaledARGBConverter.VolatileARGB vconverter = new ScaledARGBConverter.VolatileARGB( 0, 255 );
 
@@ -270,7 +277,9 @@ public class BigCat
 									new NearestNeighborInterpolatorFactory< VolatileLabelMultisetType >() ),
 							dvidGrayscale8ImageLoader.getMipmapTransforms()[ 0 ] ),
 					colorStream,
-					assignment ,
+					assignment,
+					new InputTriggerConfig(),
+					bdv.getViewerFrame().getKeybindings(),
 					new InputTriggerConfig() );
 
 			final TriggerBehaviourBindings bindings = bdv.getViewerFrame().getTriggerbindings();
