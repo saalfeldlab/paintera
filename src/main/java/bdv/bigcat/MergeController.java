@@ -44,8 +44,8 @@ import net.imglib2.RealRandomAccess;
 import net.imglib2.RealRandomAccessible;
 
 /**
- * @author Stephan Saalfeld <saalfelds@janelia.hhmi.org>
- * @author Jan Funke <jfunke@iri.upc.edu>
+ * @author Stephan Saalfeld &lt;saalfelds@janelia.hhmi.org&gt;
+ * @author Jan Funke &lt;jfunke@iri.upc.edu&gt;
  */
 public class MergeController
 {
@@ -109,6 +109,11 @@ public class MergeController
 		
 		inputActionBindings.addActionMap( "bdv", ksActionMap );
 		inputActionBindings.addInputMap( "bdv", ksInputMap );
+	}
+	
+	public long getActiveFragmentId()
+	{
+		return activeFragmentId;
 	}
 
 	/**

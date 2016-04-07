@@ -104,17 +104,6 @@ public class BigCATAriadne
 
 		final TriggerBehaviourBindings bindings = bdv.getViewerFrame().getTriggerbindings();
 		
-		final LabelPaintController paintController = new LabelPaintController(
-				bdv.getViewer(),
-				paintedLabels,
-				fragments.getMipmapTransforms()[ 0 ],
-				colorStream,
-				assignment,
-				new InputTriggerConfig() );
-		
-		bindings.addBehaviourMap( "bigcat", paintController.getBehaviourMap() );
-		bindings.addInputTriggerMap( "bigcat", paintController.getInputTriggerMap() );
-		
 		final MergeController mergeController = new MergeController(
 				bdv.getViewer(),
 				RealViews.affineReal(
@@ -130,8 +119,21 @@ public class BigCATAriadne
 				bdv.getViewerFrame().getKeybindings(),
 				new InputTriggerConfig() );
 		
-		bindings.addBehaviourMap( "bigcat", mergeController.getBehaviourMap() );
-		bindings.addInputTriggerMap( "bigcat", mergeController.getInputTriggerMap() );
+		final LabelPaintController paintController = new LabelPaintController(
+				bdv.getViewer(),
+				paintedLabels,
+				fragments.getMipmapTransforms()[ 0 ],
+				colorStream,
+				assignment,
+				mergeController,
+				new InputTriggerConfig() );
+		
+		bindings.addBehaviourMap( "paint", paintController.getBehaviourMap() );
+		bindings.addInputTriggerMap( "paint", paintController.getInputTriggerMap() );
+		
+		bindings.addBehaviourMap( "merge", mergeController.getBehaviourMap() );
+		bindings.addInputTriggerMap( "merge", mergeController.getInputTriggerMap() );
+		
 		
 //			final ZContext ctx = new ZContext();
 //			final Socket socket = ctx.createSocket( ZMQ.REQ );

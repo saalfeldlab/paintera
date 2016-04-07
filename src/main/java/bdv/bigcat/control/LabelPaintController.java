@@ -8,13 +8,16 @@ import org.scijava.ui.behaviour.InputTriggerMap;
 import org.scijava.ui.behaviour.io.InputTriggerConfig;
 
 import bdv.bigcat.FragmentSegmentAssignment;
+import bdv.bigcat.MergeController;
 import bdv.bigcat.ui.AbstractSaturatedARGBStream;
+import bdv.labels.labelset.PairVolatileLabelMultisetLongARGBConverter;
 import bdv.viewer.ViewerPanel;
+import net.imglib2.Point;
+import net.imglib2.RandomAccessible;
 import net.imglib2.RandomAccessibleInterval;
-import net.imglib2.RealRandomAccess;
-import net.imglib2.interpolation.randomaccess.NearestNeighborInterpolatorFactory;
+import net.imglib2.RealPoint;
+import net.imglib2.algorithm.region.hypersphere.HyperSphere;
 import net.imglib2.realtransform.AffineTransform3D;
-import net.imglib2.realtransform.RealViews;
 import net.imglib2.type.numeric.integer.LongType;
 import net.imglib2.ui.TransformEventHandler;
 import net.imglib2.view.Views;
@@ -29,13 +32,13 @@ import net.imglib2.view.Views;
 public class LabelPaintController
 {
 	final protected ViewerPanel viewer;
-	final protected RandomAccessibleInterval< LongType > labels;
-	final protected RealRandomAccess< LongType > labelAccess;
+	final protected RandomAccessible< LongType > labels;
 	final protected AffineTransform3D labelTransform;
 	final protected AbstractSaturatedARGBStream colorStream;
 	final protected FragmentSegmentAssignment assignment;
-	protected long activeId = 0;
-
+	final protected MergeController mergeController;
+	final protected RealPoint labelLocation;
+	
 	private final BehaviourMap behaviourMap = new BehaviourMap();
 	private final InputTriggerMap inputMap = new InputTriggerMap();
 
@@ -62,26 +65,34 @@ public class LabelPaintController
 			final AffineTransform3D labelTransform,
 			final AbstractSaturatedARGBStream colorStream,
 			final FragmentSegmentAssignment assignment,
+			final MergeController mergeController,
 			final InputTriggerConfig config )
 	{
 		this.viewer = viewer;
 		this.labels = labels;
 		this.labelTransform = labelTransform;
-		labelAccess = RealViews.affineReal(
-				Views.interpolate(
-						Views.extendValue(
-								labels,
-								new LongType() ),
-						new NearestNeighborInterpolatorFactory< LongType >() ),
-				labelTransform ).realRandomAccess();
 		this.colorStream = colorStream;
 		this.assignment = assignment;
+		this.mergeController = mergeController;
 		inputAdder = config.inputTriggerAdder( inputMap, "bigcat" );
 
+		labelLocation = new RealPoint( 3 );
+		
 		new Paint( "paint", "SPACE button1" ).register();
 		new Erase( "erase", "SPACE button2", "SPACE button3" ).register();
 	}
+	
+	private void setCoordinates( final int x, final int y )
+	{
+		labelLocation.setPosition( x, 0 );
+		labelLocation.setPosition( y, 1 );
+		labelLocation.setPosition( 0, 2 );
 
+		viewer.displayToGlobalCoordinates( labelLocation );
+		
+		labelTransform.applyInverse( labelLocation, labelLocation );
+	}
+	
 	private abstract class SelfRegisteringBehaviour implements Behaviour
 	{
 		private final String name;
@@ -113,6 +124,18 @@ public class LabelPaintController
 			super( name, defaultTriggers );
 		}
 		
+		protected void paint( final int x, final int y, final long value )
+		{
+			setCoordinates( x, y );
+			final HyperSphere< LongType > sphere =
+					new HyperSphere<>(
+							Views.hyperSlice( labels, 0, Math.round( labelLocation.getDoublePosition( 0 ) ) ),
+							new Point( Math.round( labelLocation.getDoublePosition( 1 ) ), Math.round( labelLocation.getDoublePosition( 2 ) ) ),
+							5 );
+			for ( final LongType t : sphere )
+				t.set( value );
+		}
+		
 		@Override
 		public void init( final int x, final int y )
 		{
@@ -141,7 +164,7 @@ public class LabelPaintController
 
 		@Override
 		public void end( final int x, final int y )
-		{}		
+		{}	
 	}
 
 	private class Paint extends AbstractPaintBehavior
@@ -150,6 +173,30 @@ public class LabelPaintController
 		{
 			super( name, defaultTriggers );
 		}
+		
+		@Override
+		public void init( final int x, final int y )
+		{
+			synchronized ( labelLocation )
+			{
+				super.init( x, y );
+				paint( x, y, mergeController.getActiveFragmentId() );
+			}
+			
+			viewer.requestRepaint();
+		}
+		
+		@Override
+		public void drag( final int x, final int y )
+		{
+			synchronized ( labelLocation )
+			{
+				super.drag( x, y );
+				paint( x, y, mergeController.getActiveFragmentId() );
+			}
+			
+			viewer.requestRepaint();
+		}
 	}
 
 	private class Erase extends AbstractPaintBehavior
@@ -157,6 +204,30 @@ public class LabelPaintController
 		public Erase( final String name, final String ... defaultTriggers )
 		{
 			super( name, defaultTriggers );
+		}
+		
+		@Override
+		public void init( final int x, final int y )
+		{
+			synchronized ( labelLocation )
+			{
+				super.init( x, y );
+				paint( x, y, PairVolatileLabelMultisetLongARGBConverter.TRANSPARENT_LABEL );
+			}
+			
+			viewer.requestRepaint();
+		}
+		
+		@Override
+		public void drag( final int x, final int y )
+		{
+			synchronized ( labelLocation )
+			{
+				super.drag( x, y );
+				paint( x, y, PairVolatileLabelMultisetLongARGBConverter.TRANSPARENT_LABEL );
+			}
+			
+			viewer.requestRepaint();
 		}
 	}
 }
