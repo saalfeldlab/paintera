@@ -10,6 +10,9 @@ import com.google.gson.JsonIOException;
 import com.google.gson.JsonSyntaxException;
 
 import bdv.BigDataViewer;
+import bdv.bigcat.annotation.AnnotationController;
+import bdv.bigcat.annotation.Annotations;
+import bdv.bigcat.annotation.Synapse;
 import bdv.bigcat.composite.ARGBCompositeAlphaYCbCr;
 import bdv.bigcat.composite.Composite;
 import bdv.bigcat.composite.CompositeCopy;
@@ -32,6 +35,7 @@ import ch.systemsx.cisd.hdf5.HDF5Factory;
 import ch.systemsx.cisd.hdf5.IHDF5Reader;
 import mpicbg.spim.data.generic.sequence.ImgLoaderHints;
 import net.imglib2.RandomAccessibleInterval;
+import net.imglib2.RealPoint;
 import net.imglib2.img.array.ArrayImg;
 import net.imglib2.img.array.ArrayImgs;
 import net.imglib2.img.basictypeaccess.array.LongArray;
@@ -141,12 +145,28 @@ public class BigCATAriadne
 				mergeController,
 				new InputTriggerConfig() );
 		
+		Annotations annotations = new Annotations();
+		for (int i = 0; i < 100; i++) {
+			RealPoint pos = new RealPoint(new double[]{Math.random()*500, Math.random()*500, Math.random()*500});
+			annotations.add(new Synapse(IdService.allocate(), pos, "synapse " + i));
+		}
+		final AnnotationController annotationController = new AnnotationController(
+				bdv.getViewer(),
+				annotations,
+				new InputTriggerConfig(),
+				bdv.getViewerFrame().getKeybindings(),
+				new InputTriggerConfig() );
+		
+		bindings.addBehaviourMap( "annotation", annotationController.getBehaviourMap() );
+		bindings.addInputTriggerMap( "annotation", annotationController.getInputTriggerMap() );
+		
 		bindings.addBehaviourMap( "paint", paintController.getBehaviourMap() );
 		bindings.addInputTriggerMap( "paint", paintController.getInputTriggerMap() );
 		
 		bindings.addBehaviourMap( "merge", mergeController.getBehaviourMap() );
 		bindings.addInputTriggerMap( "merge", mergeController.getInputTriggerMap() );
 		
+		bdv.getViewer().getDisplay().addOverlayRenderer( annotationController.getAnnotationOverlay() );
 		bdv.getViewer().getDisplay().addOverlayRenderer( paintController.getBrushOverlay() );
 		
 		
