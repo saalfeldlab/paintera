@@ -106,6 +106,8 @@ public class MergeController
 		new MergeFragment("merge fragment", "shift button1").register();
 		new DetachFragment("detach fragment", "control button1").register();
 		new ExportAssignments("export assignments", "E").register();
+		new IncColorSeed("increase color seed", "C").register();
+		new DecColorSeed("increase color seed", "shift C").register();
 		
 		inputActionBindings.addActionMap( "bdv", ksActionMap );
 		inputActionBindings.addInputMap( "bdv", ksInputMap );
@@ -265,6 +267,38 @@ public class MergeController
 		public void actionPerformed( final ActionEvent e )
 		{
 			System.out.println( gson.toJson( assignment ) );
+		}
+	}
+	
+	private class IncColorSeed extends SelfRegisteringAction
+	{
+		public IncColorSeed( final String name, final String ... defaultTriggers )
+		{
+			super( name, defaultTriggers );
+		}
+		
+		@Override
+		public void actionPerformed( final ActionEvent e )
+		{
+			colorStream.incSeed();
+			colorStream.clearCache();
+			viewer.requestRepaint();
+		}
+	}
+	
+	private class DecColorSeed extends SelfRegisteringAction
+	{
+		public DecColorSeed( final String name, final String ... defaultTriggers )
+		{
+			super( name, defaultTriggers );
+		}
+		
+		@Override
+		public void actionPerformed( final ActionEvent e )
+		{
+			colorStream.decSeed();
+			colorStream.clearCache();
+			viewer.requestRepaint();
 		}
 	}
 }
