@@ -134,6 +134,8 @@ public class BigCATAriadne
 		bindings.addBehaviourMap( "merge", mergeController.getBehaviourMap() );
 		bindings.addInputTriggerMap( "merge", mergeController.getInputTriggerMap() );
 		
+		bdv.getViewer().getDisplay().addOverlayRenderer( paintController.getBrushOverlay() );
+		
 		
 //			final ZContext ctx = new ZContext();
 //			final Socket socket = ctx.createSocket( ZMQ.REQ );

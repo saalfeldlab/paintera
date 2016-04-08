@@ -2,6 +2,8 @@ package bdv.bigcat.control;
 
 import static bdv.labels.labelset.PairVolatileLabelMultisetLongARGBConverter.TRANSPARENT_LABEL;
 
+import java.awt.Cursor;
+
 import org.scijava.ui.behaviour.Behaviour;
 import org.scijava.ui.behaviour.BehaviourMap;
 import org.scijava.ui.behaviour.DragBehaviour;
@@ -13,6 +15,7 @@ import org.scijava.ui.behaviour.io.InputTriggerConfig;
 import bdv.bigcat.FragmentSegmentAssignment;
 import bdv.bigcat.MergeController;
 import bdv.bigcat.ui.AbstractSaturatedARGBStream;
+import bdv.bigcat.ui.BrushOverlay;
 import bdv.viewer.ViewerPanel;
 import net.imglib2.Point;
 import net.imglib2.RandomAccessible;
@@ -34,44 +37,52 @@ import net.imglib2.view.Views;
 public class LabelPaintController
 {
 	final protected ViewerPanel viewer;
+
 	final protected RandomAccessibleInterval< LongType > labels;
+
 	final protected RandomAccessible< LongType > extendedLabels;
+
 	final protected AffineTransform3D labelTransform;
+
 	final protected AbstractSaturatedARGBStream colorStream;
+
 	final protected FragmentSegmentAssignment assignment;
+
 	final protected MergeController mergeController;
+
 	final protected RealPoint labelLocation;
-	
+
+	final protected BrushOverlay brushOverlay;
+
 	protected int brushRadius = 5;
-	
+
 	private final BehaviourMap behaviourMap = new BehaviourMap();
+
 	private final InputTriggerMap inputMap = new InputTriggerMap();
+
+	private final InputTriggerAdder inputAdder;
 
 	public BehaviourMap getBehaviourMap()
 	{
 		return behaviourMap;
 	}
-	
+
 	public InputTriggerMap getInputTriggerMap()
 	{
 		return inputMap;
 	}
 	
-	private final InputTriggerAdder inputAdder;
+	public BrushOverlay getBrushOverlay()
+	{
+		return brushOverlay;
+	}
 
 	/**
 	 * Coordinates where mouse dragging started.
 	 */
 	private double oX, oY;
 
-	public LabelPaintController(
-			final ViewerPanel viewer,
-			final RandomAccessibleInterval< LongType > labels,
-			final AffineTransform3D labelTransform,
-			final AbstractSaturatedARGBStream colorStream,
-			final FragmentSegmentAssignment assignment,
-			final MergeController mergeController,
-			final InputTriggerConfig config )
+	public LabelPaintController( final ViewerPanel viewer, final RandomAccessibleInterval< LongType > labels, final AffineTransform3D labelTransform, final AbstractSaturatedARGBStream colorStream, final FragmentSegmentAssignment assignment, final MergeController mergeController, final InputTriggerConfig config )
 	{
 		this.viewer = viewer;
 		this.labels = labels;
@@ -80,15 +91,17 @@ public class LabelPaintController
 		this.colorStream = colorStream;
 		this.assignment = assignment;
 		this.mergeController = mergeController;
+		brushOverlay = new BrushOverlay( viewer );
 		inputAdder = config.inputTriggerAdder( inputMap, "bigcat" );
 
 		labelLocation = new RealPoint( 3 );
-		
+
 		new Paint( "paint", "SPACE button1" ).register();
 		new Erase( "erase", "SPACE button2", "SPACE button3" ).register();
 		new ChangeBrushRadius( "change brush radius", "SPACE scroll", "SPACE scroll" ).register();
+		new MoveBrush( "move brush", "SPACE" ).register();
 	}
-	
+
 	private void setCoordinates( final int x, final int y )
 	{
 		labelLocation.setPosition( x, 0 );
@@ -96,10 +109,10 @@ public class LabelPaintController
 		labelLocation.setPosition( 0, 2 );
 
 		viewer.displayToGlobalCoordinates( labelLocation );
-		
+
 		labelTransform.applyInverse( labelLocation, labelLocation );
 	}
-	
+
 	private abstract class SelfRegisteringBehaviour implements Behaviour
 	{
 		private final String name;
@@ -110,8 +123,8 @@ public class LabelPaintController
 		{
 			return name;
 		}
-		
-		public SelfRegisteringBehaviour( final String name, final String ... defaultTriggers )
+
+		public SelfRegisteringBehaviour( final String name, final String... defaultTriggers )
 		{
 			this.name = name;
 			this.defaultTriggers = defaultTriggers;
@@ -123,33 +136,35 @@ public class LabelPaintController
 			inputAdder.put( name, defaultTriggers );
 		}
 	}
-	
+
 	private abstract class AbstractPaintBehavior extends SelfRegisteringBehaviour implements DragBehaviour
 	{
-		public AbstractPaintBehavior( final String name, final String ... defaultTriggers )
+		public AbstractPaintBehavior( final String name, final String... defaultTriggers )
 		{
 			super( name, defaultTriggers );
 		}
-		
+
 		protected void paint( final int x, final int y, final long value )
 		{
 			setCoordinates( x, y );
 			final HyperSphere< LongType > sphere =
 					new HyperSphere<>(
 							Views.hyperSlice( labels, 0, Math.round( labelLocation.getDoublePosition( 0 ) ) ),
-							new Point( Math.round( labelLocation.getDoublePosition( 1 ) ), Math.round( labelLocation.getDoublePosition( 2 ) ) ),
+							new Point(
+									Math.round( labelLocation.getDoublePosition( 1 ) ),
+									Math.round( labelLocation.getDoublePosition( 2 ) ) ),
 							brushRadius );
 			for ( final LongType t : sphere )
 				t.set( value );
 		}
-		
+
 		@Override
 		public void init( final int x, final int y )
 		{
 			oX = x;
 			oY = y;
-			
-//			System.out.println( getName() + " drag start (" + oX + ", " + oY + ")" );
+
+			// System.out.println( getName() + " drag start (" + oX + ", " + oY + ")" );
 		}
 
 		@Override
@@ -157,24 +172,27 @@ public class LabelPaintController
 		{
 			final double dX;
 			final double dY;
+			
 			dX = oX - x;
 			dY = oY - y;
 			
-//			System.out.println( getName() + " drag by (" + dX + ", " + dY + ")" );
+			brushOverlay.setPosition( x, y );
+
+			// System.out.println( getName() + " drag by (" + dX + ", " + dY + ")" );
 		}
 
 		@Override
 		public void end( final int x, final int y )
-		{}	
+		{}
 	}
 
 	private class Paint extends AbstractPaintBehavior
 	{
-		public Paint( final String name, final String ... defaultTriggers )
+		public Paint( final String name, final String... defaultTriggers )
 		{
 			super( name, defaultTriggers );
 		}
-		
+
 		@Override
 		public void init( final int x, final int y )
 		{
@@ -183,10 +201,10 @@ public class LabelPaintController
 				super.init( x, y );
 				paint( x, y, mergeController.getActiveFragmentId() );
 			}
-			
+
 			viewer.requestRepaint();
 		}
-		
+
 		@Override
 		public void drag( final int x, final int y )
 		{
@@ -195,18 +213,18 @@ public class LabelPaintController
 				super.drag( x, y );
 				paint( x, y, mergeController.getActiveFragmentId() );
 			}
-			
+
 			viewer.requestRepaint();
 		}
 	}
 
 	private class Erase extends AbstractPaintBehavior
 	{
-		public Erase( final String name, final String ... defaultTriggers )
+		public Erase( final String name, final String... defaultTriggers )
 		{
 			super( name, defaultTriggers );
 		}
-		
+
 		@Override
 		public void init( final int x, final int y )
 		{
@@ -215,10 +233,10 @@ public class LabelPaintController
 				super.init( x, y );
 				paint( x, y, TRANSPARENT_LABEL );
 			}
-			
+
 			viewer.requestRepaint();
 		}
-		
+
 		@Override
 		public void drag( final int x, final int y )
 		{
@@ -227,18 +245,18 @@ public class LabelPaintController
 				super.drag( x, y );
 				paint( x, y, TRANSPARENT_LABEL );
 			}
-			
+
 			viewer.requestRepaint();
 		}
 	}
-	
+
 	private class ChangeBrushRadius extends SelfRegisteringBehaviour implements ScrollBehaviour
 	{
-		public ChangeBrushRadius( final String name, final String ... defaultTriggers )
+		public ChangeBrushRadius( final String name, final String... defaultTriggers )
 		{
 			super( name, defaultTriggers );
 		}
-		
+
 		@Override
 		public void scroll( double wheelRotation, boolean isHorizontal, int x, int y )
 		{
@@ -248,9 +266,45 @@ public class LabelPaintController
 					brushRadius += 1;
 				else if ( wheelRotation > 0 )
 					brushRadius = Math.max( 0, brushRadius - 1 );
-				
-				System.out.println( "changed brush radius to " + brushRadius );
+
+				brushOverlay.setRadius( brushRadius );
+				// TODO request only overlays to repaint
+				viewer.requestRepaint();
 			}
+		}
+	}
+
+	private class MoveBrush extends SelfRegisteringBehaviour implements DragBehaviour
+	{
+		public MoveBrush( final String name, final String... defaultTriggers )
+		{
+			super( name, defaultTriggers );
+		}
+
+		@Override
+		public void init( int x, int y )
+		{
+			brushOverlay.setPosition( x, y );
+			brushOverlay.setVisible( true );
+			// TODO request only overlays to repaint
+			viewer.setCursor( Cursor.getPredefinedCursor( Cursor.CROSSHAIR_CURSOR ) );
+			viewer.requestRepaint();
+		}
+
+		@Override
+		public void drag( int x, int y )
+		{
+			brushOverlay.setPosition( x, y );
+		}
+
+		@Override
+		public void end( int x, int y )
+		{
+			brushOverlay.setVisible( false );
+			// TODO request only overlays to repaint
+			viewer.setCursor( Cursor.getPredefinedCursor( Cursor.DEFAULT_CURSOR ) );
+			viewer.requestRepaint();
+
 		}
 	}
 }
