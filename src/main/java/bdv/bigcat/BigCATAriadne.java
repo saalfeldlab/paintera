@@ -22,6 +22,9 @@ import bdv.img.h5.AbstractH5SetupImageLoader;
 import bdv.img.h5.H5LabelMultisetSetupImageLoader;
 import bdv.img.h5.H5UnsignedByteSetupImageLoader;
 import bdv.img.labelpair.RandomAccessiblePair;
+import bdv.labels.labelset.LabelMultisetType;
+import bdv.labels.labelset.Multiset;
+import bdv.labels.labelset.SuperVoxel;
 import bdv.labels.labelset.VolatileLabelMultisetType;
 import bdv.util.IdService;
 import bdv.viewer.TriggerBehaviourBindings;
@@ -56,7 +59,15 @@ public class BigCATAriadne
 		final H5LabelMultisetSetupImageLoader fragments = new H5LabelMultisetSetupImageLoader( reader, "/labels", 1, new int[] { 64, 64, 8 } );
 		final RandomAccessibleInterval< VolatileLabelMultisetType > fragmentsPixels = fragments.getVolatileImage( 0, 0 );
 		final long[] fragmentsDimensions = Intervals.dimensionsAsLongArray( fragmentsPixels );
-		IdService.invalidate(reader.int64(), "/labels");
+		long maxId = 0;
+		for (final LabelMultisetType t : Views.iterable(fragments.getImage(0))) {
+			for (final Multiset.Entry<SuperVoxel> v : t.entrySet()) {
+				long id = v.getElement().id();
+				if (id != Long.MAX_VALUE) // transparency
+					maxId = Math.max(maxId, id);
+			}
+		}
+		IdService.invalidate(0, maxId);
 		
 		/* painted labels */
 		final long[] paintedLabelsArray = new long[ ( int )Intervals.numElements( fragmentsPixels ) ];
