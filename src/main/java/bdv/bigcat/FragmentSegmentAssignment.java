@@ -340,9 +340,9 @@ A:					for ( final Entry< String, JsonElement > entry : ilutJsonEntrySet )
 		{
 			final long segmentId = lut.get( fragmentId );
 			if ( segmentId == lut.getNoEntryValue() ) {
-				lut.put( fragmentId, fragmentId );
-				ilut.put( fragmentId, new long[]{ fragmentId } );
-				id = fragmentId;
+				id = IdService.allocate();
+				lut.put( fragmentId, id);
+				ilut.put( id, new long[]{ fragmentId } );
 			}
 			else
 				id = segmentId;
@@ -371,14 +371,16 @@ A:					for ( final Entry< String, JsonElement > entry : ilutJsonEntrySet )
 		if ( segmentId1 == segmentId2 )
 			return;
 
+		long mergedSegmentId = IdService.allocate();
 		synchronized ( ilut )
 		{
 			final long[] fragments1 = getFragments( segmentId1 );
 			final long[] fragments2 = getFragments( segmentId2 );
 			final long[] fragments = ArrayUtils.addAll( fragments1, fragments2 );
 			for ( final long fragmentId : fragments )
-				lut.put( fragmentId, segmentId1 );
-			ilut.put( segmentId1, fragments );
+				lut.put( fragmentId, mergedSegmentId );
+			ilut.put( mergedSegmentId, fragments );
+			ilut.remove( segmentId1 );
 			ilut.remove( segmentId2 );
 		}
 	}

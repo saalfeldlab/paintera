@@ -1,6 +1,12 @@
 package bdv.util;
 
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.Stack;
+
+import org.apache.commons.lang.ArrayUtils;
+
+import ch.systemsx.cisd.hdf5.IHDF5LongReader;
 
 public class IdService {
 
@@ -12,13 +18,26 @@ public class IdService {
 	private static Long nextFree = new Long(0);
 	
 	/**
-	 * Initialize the id service to not provide ids smaller than next.
+	 * Mark all ids in range [first, last] (inclusive) as used.
 	 * 
 	 * @param next
 	 */
-	public static synchronized void init(long next) {
+	public static synchronized void invalidate(long first, long last) {
 		
-		nextFree = next;
+		if (last >= nextFree)
+			nextFree = last + 1;
+	}
+
+	/**
+	 * Invalidate all ids contained in an HDF5 dataset.
+	 * 
+	 * @param reader
+	 * @param dataset
+	 */
+	public static void invalidate(IHDF5LongReader reader, String dataset) {
+
+		long[] ids = reader.readArray(dataset);
+		invalidate(0, Collections.max(Arrays.asList(ArrayUtils.toObject(ids))));
 	}
 
 	/**
