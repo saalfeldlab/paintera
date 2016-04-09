@@ -1,8 +1,8 @@
 package bdv.bigcat;
 
+import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Arrays;
 
 import org.scijava.ui.behaviour.io.InputTriggerConfig;
 
@@ -21,17 +21,17 @@ import bdv.img.SetCache;
 import bdv.img.h5.AbstractH5SetupImageLoader;
 import bdv.img.h5.H5LabelMultisetSetupImageLoader;
 import bdv.img.h5.H5UnsignedByteSetupImageLoader;
+import bdv.img.h5.H5Utils;
 import bdv.img.labelpair.RandomAccessiblePair;
+import bdv.labels.labelset.PairVolatileLabelMultisetLongARGBConverter;
 import bdv.labels.labelset.VolatileLabelMultisetType;
-import bdv.util.IdService;
 import bdv.viewer.TriggerBehaviourBindings;
 import ch.systemsx.cisd.hdf5.HDF5Factory;
 import ch.systemsx.cisd.hdf5.IHDF5Reader;
 import mpicbg.spim.data.generic.sequence.ImgLoaderHints;
 import net.imglib2.RandomAccessibleInterval;
-import net.imglib2.img.array.ArrayImg;
-import net.imglib2.img.array.ArrayImgs;
-import net.imglib2.img.basictypeaccess.array.LongArray;
+import net.imglib2.img.cell.CellImg;
+import net.imglib2.img.cell.CellImgFactory;
 import net.imglib2.interpolation.randomaccess.NearestNeighborInterpolatorFactory;
 import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.realtransform.RealViews;
@@ -42,6 +42,8 @@ import net.imglib2.view.Views;
 
 public class BigCATAriadne
 {
+	final static private int[] cellDimensions = new int[]{ 8, 64, 64 };
+	
 	public static void main( final String[] args ) throws JsonSyntaxException, JsonIOException, IOException
 	{
 		Util.initUI();
@@ -50,19 +52,33 @@ public class BigCATAriadne
 		final IHDF5Reader reader = HDF5Factory.openForReading( args[ 0 ] );
 
 		/* raw pixels */
-		final H5UnsignedByteSetupImageLoader raw = new H5UnsignedByteSetupImageLoader( reader, "/em_raw", 0, new int[] { 64, 64, 8 } );
-
+		final H5UnsignedByteSetupImageLoader raw = new H5UnsignedByteSetupImageLoader( reader, "/em_raw", 0, cellDimensions );
+		
 		/* fragments */
-		final H5LabelMultisetSetupImageLoader fragments = new H5LabelMultisetSetupImageLoader( reader, "/labels", 1, new int[] { 64, 64, 8 } );
+		final H5LabelMultisetSetupImageLoader fragments = new H5LabelMultisetSetupImageLoader( reader, "/labels", 1, cellDimensions );
 		final RandomAccessibleInterval< VolatileLabelMultisetType > fragmentsPixels = fragments.getVolatileImage( 0, 0 );
 		final long[] fragmentsDimensions = Intervals.dimensionsAsLongArray( fragmentsPixels );
-		IdService.invalidate(reader.int64(), "/labels");
+		
+		//IdService.invalidate(reader.int64(), "/labels");
 		
 		/* painted labels */
-		final long[] paintedLabelsArray = new long[ ( int )Intervals.numElements( fragmentsPixels ) ];
-		Arrays.fill( paintedLabelsArray, Long.MIN_VALUE );
-		final ArrayImg< LongType, LongArray > paintedLabels = ArrayImgs.longs( paintedLabelsArray, fragmentsDimensions );
+//		final long[] paintedLabelsArray = new long[ ( int )Intervals.numElements( fragmentsPixels ) ];
+//		Arrays.fill( paintedLabelsArray, PairVolatileLabelMultisetLongARGBConverter.TRANSPARENT_LABEL );
+//		final ArrayImg< LongType, LongArray > paintedLabels = ArrayImgs.longs( paintedLabelsArray, fragmentsDimensions );
 		
+		final CellImg< LongType, ?, ? > paintedLabels;
+		final File paintedLabelsFile = new File( args[ 0 ] + ".labels.h5" );
+		if ( paintedLabelsFile.exists() )
+			paintedLabels = H5Utils.loadUnsignedLong( new File( args[ 0 ] + ".labels.h5" ), "paintedLabels", cellDimensions );
+		else
+		{
+			paintedLabels = new CellImgFactory< LongType >( cellDimensions ).create( fragmentsDimensions, new LongType() );
+			for ( final LongType t : paintedLabels )
+				t.set( PairVolatileLabelMultisetLongARGBConverter.TRANSPARENT_LABEL );
+		}
+
+//		H5Utils.saveUnsignedLong( paintedLabels, new File( args[ 0 ] + ".labels.h5" ), "paintedLabels", cellDimensions );
+
 		/* pair labels */
 		final RandomAccessiblePair< VolatileLabelMultisetType, LongType > labelPair =
 				new RandomAccessiblePair<>(
