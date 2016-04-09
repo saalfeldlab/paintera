@@ -30,7 +30,7 @@ import net.imglib2.util.Pair;
 public class PairVolatileLabelMultisetLongARGBConverter
 		implements Converter< Pair< VolatileLabelMultisetType, LongType >, VolatileARGBType >
 {
-	static public long TRANSPARENT_LABEL = Long.MIN_VALUE;
+	static public long TRANSPARENT_LABEL = 0xffffffffffffffffL; // -1L or uint64.MAX_VALUE
 	final static private double iFF = 1.0 / 255.0;
 
 	final protected ARGBStream argbStream;
