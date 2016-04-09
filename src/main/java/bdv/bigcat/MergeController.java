@@ -107,7 +107,7 @@ public class MergeController
 		new DetachFragment("detach fragment", "control button1").register();
 		new ExportAssignments("export assignments", "E").register();
 		new IncColorSeed("increase color seed", "C").register();
-		new DecColorSeed("increase color seed", "shift C").register();
+		new DecColorSeed("decrease color seed", "shift C").register();
 		
 		inputActionBindings.addActionMap( "bdv", ksActionMap );
 		inputActionBindings.addInputMap( "bdv", ksInputMap );

@@ -3,6 +3,7 @@
  */
 package bdv.bigcat.ui;
 
+import java.awt.Color;
 import java.awt.Graphics;
 
 import bdv.util.Affine3DHelpers;
@@ -62,6 +63,7 @@ public class BrushOverlay implements OverlayRenderer
 					y - scaledRadius < height )
 			{
 				final int roundScaledRadius = ( int )Math.round( scaledRadius );
+				g.setColor( Color.WHITE );
 				g.drawOval( x - roundScaledRadius, y - roundScaledRadius, 2 * roundScaledRadius + 1, 2 * roundScaledRadius + 1 );
 			}
 		}

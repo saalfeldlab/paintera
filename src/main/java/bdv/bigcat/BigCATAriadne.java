@@ -10,6 +10,9 @@ import com.google.gson.JsonIOException;
 import com.google.gson.JsonSyntaxException;
 
 import bdv.BigDataViewer;
+import bdv.bigcat.annotation.AnnotationController;
+import bdv.bigcat.annotation.Annotations;
+import bdv.bigcat.annotation.Synapse;
 import bdv.bigcat.composite.ARGBCompositeAlphaYCbCr;
 import bdv.bigcat.composite.Composite;
 import bdv.bigcat.composite.CompositeCopy;
@@ -25,11 +28,13 @@ import bdv.img.h5.H5Utils;
 import bdv.img.labelpair.RandomAccessiblePair;
 import bdv.labels.labelset.PairVolatileLabelMultisetLongARGBConverter;
 import bdv.labels.labelset.VolatileLabelMultisetType;
+import bdv.util.IdService;
 import bdv.viewer.TriggerBehaviourBindings;
 import ch.systemsx.cisd.hdf5.HDF5Factory;
 import ch.systemsx.cisd.hdf5.IHDF5Reader;
 import mpicbg.spim.data.generic.sequence.ImgLoaderHints;
 import net.imglib2.RandomAccessibleInterval;
+import net.imglib2.RealPoint;
 import net.imglib2.img.cell.CellImg;
 import net.imglib2.img.cell.CellImgFactory;
 import net.imglib2.interpolation.randomaccess.NearestNeighborInterpolatorFactory;
@@ -59,7 +64,18 @@ public class BigCATAriadne
 		final RandomAccessibleInterval< VolatileLabelMultisetType > fragmentsPixels = fragments.getVolatileImage( 0, 0 );
 		final long[] fragmentsDimensions = Intervals.dimensionsAsLongArray( fragmentsPixels );
 		
-		//IdService.invalidate(reader.int64(), "/labels");
+//		// TODO does not work for uint64
+//		long maxId = 0;
+//		for (final LabelMultisetType t : Views.iterable(fragments.getImage(0))) {
+//			for (final Multiset.Entry<SuperVoxel> v : t.entrySet()) {
+//				long id = v.getElement().id();
+//				if (id != PairVolatileLabelMultisetLongARGBConverter.TRANSPARENT_LABEL)
+//					// TODO does not work for uint64
+//					maxId = Math.max(maxId, id);
+//			}
+//		}
+//		// TODO does not work for uint64
+//		IdService.invalidate(0, maxId);
 		
 		/* painted labels */
 //		final long[] paintedLabelsArray = new long[ ( int )Intervals.numElements( fragmentsPixels ) ];
@@ -67,9 +83,11 @@ public class BigCATAriadne
 //		final ArrayImg< LongType, LongArray > paintedLabels = ArrayImgs.longs( paintedLabelsArray, fragmentsDimensions );
 		
 		final CellImg< LongType, ?, ? > paintedLabels;
-		final File paintedLabelsFile = new File( args[ 0 ] + ".labels.h5" );
+		final String paintedLabelsFilePath = args[ 0 ] + ".labels.h5";
+		final String paintedLabelsDataset = "paintedLabels";
+		final File paintedLabelsFile = new File( paintedLabelsFilePath );
 		if ( paintedLabelsFile.exists() )
-			paintedLabels = H5Utils.loadUnsignedLong( new File( args[ 0 ] + ".labels.h5" ), "paintedLabels", cellDimensions );
+			paintedLabels = H5Utils.loadUnsignedLong( new File( paintedLabelsFilePath ), paintedLabelsDataset, cellDimensions );
 		else
 		{
 			paintedLabels = new CellImgFactory< LongType >( cellDimensions ).create( fragmentsDimensions, new LongType() );
@@ -144,7 +162,26 @@ public class BigCATAriadne
 				colorStream,
 				assignment,
 				mergeController,
+				paintedLabelsFilePath,
+				paintedLabelsDataset,
+				cellDimensions,
+				new InputTriggerConfig(),
+				bdv.getViewerFrame().getKeybindings() );
+		
+		Annotations annotations = new Annotations();
+		for (int i = 0; i < 100; i++) {
+			RealPoint pos = new RealPoint(new double[]{Math.random()*500, Math.random()*500, Math.random()*500});
+			annotations.add(new Synapse(IdService.allocate(), pos, "synapse " + i));
+		}
+		final AnnotationController annotationController = new AnnotationController(
+				bdv.getViewer(),
+				annotations,
+				new InputTriggerConfig(),
+				bdv.getViewerFrame().getKeybindings(),
 				new InputTriggerConfig() );
+		
+		bindings.addBehaviourMap( "annotation", annotationController.getBehaviourMap() );
+		bindings.addInputTriggerMap( "annotation", annotationController.getInputTriggerMap() );
 		
 		bindings.addBehaviourMap( "paint", paintController.getBehaviourMap() );
 		bindings.addInputTriggerMap( "paint", paintController.getInputTriggerMap() );
@@ -152,6 +189,7 @@ public class BigCATAriadne
 		bindings.addBehaviourMap( "merge", mergeController.getBehaviourMap() );
 		bindings.addInputTriggerMap( "merge", mergeController.getInputTriggerMap() );
 		
+		bdv.getViewer().getDisplay().addOverlayRenderer( annotationController.getAnnotationOverlay() );
 		bdv.getViewer().getDisplay().addOverlayRenderer( paintController.getBrushOverlay() );
 		
 		
