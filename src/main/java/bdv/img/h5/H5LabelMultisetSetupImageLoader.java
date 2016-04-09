@@ -16,10 +16,9 @@ import mpicbg.spim.data.generic.sequence.ImgLoaderHints;
 import net.imglib2.RandomAccessibleInterval;
 
 /**
- * {@link ViewerSetupImgLoader} for
- * Jan Funke's h5 files
+ * {@link ViewerSetupImgLoader} for labels stored in simple HDF5 files
  *
- * @author Stephan Saalfeld <saalfelds@janelia.hhmi.org>
+ * @author Stephan Saalfeld &lt;saalfelds@janelia.hhmi.org&gt;
  */
 public class H5LabelMultisetSetupImageLoader
 	extends AbstractH5SetupImageLoader< LabelMultisetType, VolatileLabelMultisetType, VolatileLabelMultisetArray >

@@ -48,6 +48,7 @@
 		<dependency>
 			<groupId>cisd</groupId>
 			<artifactId>jhdf5</artifactId>
+			<version>14.12.5</version>
 		</dependency>
 		<dependency>
 			<groupId>it.unimi.dsi</groupId>
