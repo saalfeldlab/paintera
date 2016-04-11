@@ -30,11 +30,13 @@ import bdv.viewer.ViewerPanel;
 import net.imglib2.Point;
 import net.imglib2.RandomAccessible;
 import net.imglib2.RandomAccessibleInterval;
+import net.imglib2.RealLocalizable;
 import net.imglib2.RealPoint;
 import net.imglib2.algorithm.region.hypersphere.HyperSphere;
 import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.type.numeric.integer.LongType;
 import net.imglib2.ui.TransformEventHandler;
+import net.imglib2.util.LinAlgHelpers;
 import net.imglib2.view.Views;
 
 /**
@@ -91,7 +93,7 @@ public class LabelPaintController
 	/**
 	 * Coordinates where mouse dragging started.
 	 */
-	private double oX, oY;
+	private int oX, oY;
 
 	public LabelPaintController(
 			final ViewerPanel viewer,
@@ -126,10 +128,10 @@ public class LabelPaintController
 		new Erase( "erase", "SPACE button2", "SPACE button3" ).register();
 		new ChangeBrushRadius( "change brush radius", "SPACE scroll", "SPACE scroll" ).register();
 		new MoveBrush( "move brush", "SPACE" ).register();
-		new SavePaintedLabels("save painted labels", "S").register();
+		new SavePaintedLabels( "save painted labels", "S" ).register();
 		
-		inputActionBindings.addActionMap( "paint", ksActionMap );
-		inputActionBindings.addInputMap( "paint", ksInputMap );
+		inputActionBindings.addActionMap( "brush", ksActionMap );
+		inputActionBindings.addInputMap( "brush", ksInputMap );
 	}
 
 	private void setCoordinates( final int x, final int y )
@@ -191,39 +193,81 @@ public class LabelPaintController
 			super( name, defaultTriggers );
 		}
 
-		protected void paint( final int x, final int y, final long value )
+		protected void paint( final RealLocalizable coords)
 		{
-			setCoordinates( x, y );
 			final HyperSphere< LongType > sphere =
 					new HyperSphere<>(
-							Views.hyperSlice( labels, 0, Math.round( labelLocation.getDoublePosition( 0 ) ) ),
+							Views.hyperSlice( labels, 0, Math.round( coords.getDoublePosition( 0 ) ) ),
 							new Point(
-									Math.round( labelLocation.getDoublePosition( 1 ) ),
-									Math.round( labelLocation.getDoublePosition( 2 ) ) ),
+									Math.round( coords.getDoublePosition( 1 ) ),
+									Math.round( coords.getDoublePosition( 2 ) ) ),
 							brushRadius );
 			for ( final LongType t : sphere )
-				t.set( value );
+				t.set( getValue() );
 		}
-
+		
+		protected void paint( final int x, final int y )
+		{
+			setCoordinates( x, y );
+			paint( labelLocation );
+		}
+		
+		protected void paint( final int x1, final int y1, final int x2, final int y2 )
+		{
+			setCoordinates( x1, y1 );
+			final double[] p1 = new double[ 3 ];
+			final RealPoint rp1 = RealPoint.wrap( p1 );
+			labelLocation.localize( p1 );
+			
+			setCoordinates( x2, y2 );
+			final double[] d = new double[ 3 ];
+			labelLocation.localize( d );
+			
+			LinAlgHelpers.subtract( d, p1, d );
+			
+			final double l = LinAlgHelpers.length( d );
+			LinAlgHelpers.normalize( d );
+			
+			for ( int i = 1; i < l; ++i )
+			{
+				LinAlgHelpers.add( p1, d, p1 );
+				paint( rp1 );
+			}
+			paint( labelLocation );
+		}
+		
+		abstract protected long getValue();
+		
 		@Override
 		public void init( final int x, final int y )
 		{
-			oX = x;
-			oY = y;
-
+			synchronized ( this )
+			{
+				oX = x;
+				oY = y;
+			}
+			
+			paint( x, y );
+			
+			viewer.requestRepaint();
+			
 			// System.out.println( getName() + " drag start (" + oX + ", " + oY + ")" );
 		}
 
 		@Override
 		public void drag( final int x, final int y )
 		{
-			final double dX;
-			final double dY;
-			
-			dX = oX - x;
-			dY = oY - y;
-			
 			brushOverlay.setPosition( x, y );
+			
+			paint( oX, oY, x, y );
+			
+			synchronized ( this )
+			{
+				oX = x;
+				oY = y;
+			}
+			
+			viewer.requestRepaint();
 
 			// System.out.println( getName() + " drag by (" + dX + ", " + dY + ")" );
 		}
@@ -239,29 +283,11 @@ public class LabelPaintController
 		{
 			super( name, defaultTriggers );
 		}
-
+		
 		@Override
-		public void init( final int x, final int y )
+		protected long getValue()
 		{
-			synchronized ( labelLocation )
-			{
-				super.init( x, y );
-				paint( x, y, mergeController.getActiveFragmentId() );
-			}
-
-			viewer.requestRepaint();
-		}
-
-		@Override
-		public void drag( final int x, final int y )
-		{
-			synchronized ( labelLocation )
-			{
-				super.drag( x, y );
-				paint( x, y, mergeController.getActiveFragmentId() );
-			}
-
-			viewer.requestRepaint();
+			return mergeController.getActiveFragmentId();
 		}
 	}
 
@@ -273,27 +299,9 @@ public class LabelPaintController
 		}
 
 		@Override
-		public void init( final int x, final int y )
+		protected long getValue()
 		{
-			synchronized ( labelLocation )
-			{
-				super.init( x, y );
-				paint( x, y, TRANSPARENT_LABEL );
-			}
-
-			viewer.requestRepaint();
-		}
-
-		@Override
-		public void drag( final int x, final int y )
-		{
-			synchronized ( labelLocation )
-			{
-				super.drag( x, y );
-				paint( x, y, TRANSPARENT_LABEL );
-			}
-
-			viewer.requestRepaint();
+			return TRANSPARENT_LABEL;
 		}
 	}
 

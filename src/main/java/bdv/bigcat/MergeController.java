@@ -98,9 +98,9 @@ public class MergeController
 		this.colorStream = colorStream;
 		this.assignment = assignment;
 		labelAccess = labels.realRandomAccess();
-		inputAdder = config.inputTriggerAdder( inputTriggerMap, "bigcat" );
+		inputAdder = config.inputTriggerAdder( inputTriggerMap, "merge" );
 
-		ksKeyStrokeAdder = keyProperties.keyStrokeAdder( ksInputMap, "bdv" );
+		ksKeyStrokeAdder = keyProperties.keyStrokeAdder( ksInputMap, "merge" );
 		
 		new SelectFragment("select fragment", "button1").register();
 		new MergeFragment("merge fragment", "shift button1").register();
@@ -109,8 +109,8 @@ public class MergeController
 		new IncColorSeed("increase color seed", "C").register();
 		new DecColorSeed("decrease color seed", "shift C").register();
 		
-		inputActionBindings.addActionMap( "bdv", ksActionMap );
-		inputActionBindings.addInputMap( "bdv", ksInputMap );
+		inputActionBindings.addActionMap( "merge", ksActionMap );
+		inputActionBindings.addInputMap( "merge", ksInputMap );
 	}
 	
 	public long getActiveFragmentId()
