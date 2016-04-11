@@ -10,11 +10,23 @@ import net.imglib2.type.numeric.integer.LongType;
 import java.util.*;
 
 /**
- * Created by phil on 4/6/16.
+ *
+ * Flood fill utility that flood fills canvas with label also comparing with {@link LabelMultisetType} at the same position
+ *
+ * @author Philipp Hanslovsky <hanslovskyp@janelia.hhmi.org>
  */
 public class LabelMultisetFill {
 
 
+    /**
+     * Starting at seed, flood fill with label newLabel all pixels within a canvas that contain (in the sense of LabelMultisetType)
+     * the label of labels at seed.
+     * @param labels {@link RandomAccessibleInterval} containing {@link LabelMultisetType} for each pixel
+     * @param canvas {@link RandomAccessibleInterval} canvas containing region to be filled
+     * @param seed {@link Localizable} initial seed for fill
+     * @param newLabel new label that will be written into canvas within filled region
+     * @param shape {@link Shape} neighborhood for flood fill (e.g. 2D 4-neighborhood, 8-neighborhood or higher-dimensional equivalents)
+     */
     public static void fill(
             RandomAccessibleInterval< LabelMultisetType > labels,
             RandomAccessibleInterval< LongType > canvas,
@@ -50,6 +62,16 @@ public class LabelMultisetFill {
     }
 
 
+    /**
+     * Starting at seed, flood fill with label newLabel all pixels within a canvas that contain (in the sense of LabelMultisetType)
+     * the label of labels at seed.
+     * @param labels {@link RandomAccessibleInterval} containing {@link LabelMultisetType} for each pixel
+     * @param canvas {@link RandomAccessibleInterval} canvas containing region to be filled
+     * @param seed {@link Localizable} initial seed for fill
+     * @param seedLabel label at seed point (will be compared to {@link LabelMultisetType} at neighboring pixels
+     * @param newLabel new label that will be written into canvas within filled region
+     * @param shape {@link Shape} neighborhood for flood fill (e.g. 2D 4-neighborhood, 8-neighborhood or higher-dimensional equivalents)
+     */
     public static void fill(
             RandomAccessibleInterval< LabelMultisetType > labels,
             RandomAccessibleInterval< LongType > canvas,
@@ -68,6 +90,18 @@ public class LabelMultisetFill {
     }
 
 
+    /**
+     * Starting at seed, flood fill with label newLabel all pixels within a canvas that contain (in the sense of LabelMultisetType)
+     * the label of labels at seed.
+     * @param labels {@link RandomAccessibleInterval} containing {@link LabelMultisetType} for each pixel
+     * @param canvas {@link RandomAccessibleInterval} canvas containing region to be filled
+     * @param seed {@link Localizable} initial seed for fill
+     * @param seedLabel label at seed point (will be compared to {@link LabelMultisetType} at neighboring pixels
+     * @param newLabel new label that will be written into canvas within filled region
+     * @param shape {@link Shape} neighborhood for flood fill (e.g. 2D 4-neighborhood, 8-neighborhood or higher-dimensional equivalents)
+     * @param min minimum bound of labels and canvas
+     * @param max maximum bound of labels and canvas
+     */
     public static void fill(
             RandomAccessibleInterval< LabelMultisetType > labels,
             RandomAccessibleInterval< LongType > canvas,
