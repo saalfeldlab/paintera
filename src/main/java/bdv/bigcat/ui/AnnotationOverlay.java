@@ -5,7 +5,12 @@ import java.awt.BasicStroke;
 import java.awt.Color;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
+import java.awt.Polygon;
+import java.awt.Shape;
+import java.awt.geom.AffineTransform;
+import java.awt.geom.GeneralPath;
 import java.awt.geom.Line2D;
+import java.awt.geom.Path2D;
 import java.util.List;
 
 import bdv.bigcat.annotation.Annotation;
@@ -53,11 +58,9 @@ public class AnnotationOverlay implements OverlayRenderer
 	{
 		if ( visible )
 		{
-			final double scale;
 			synchronized ( viewer )
 			{
 				viewer.getState().getViewerTransform( viewerTransform );
-				scale = Affine3DHelpers.extractScale( viewerTransform, 0 );
 			}
 			
 			AffineTransform3D invTransform = viewerTransform.inverse();
@@ -92,29 +95,32 @@ public class AnnotationOverlay implements OverlayRenderer
 					g2d.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, zAlpha));
 					
 					if (pass == 0) {
+						
+						double sx = displayPosition.getDoublePosition(0);
+						double sy = displayPosition.getDoublePosition(1);
 
-						g2d.setPaint(synapticSiteColor.brighter());
-						g2d.setStroke(new BasicStroke(4.0f));
 						for (SynapticSite site : s.getPostSynapticPartners()) {
 							
 							RealPoint siteDisplayPosition = new RealPoint(3);
 							viewerTransform.apply(site.getPosition(), siteDisplayPosition);
 							
-							g2d.draw(new Line2D.Double(
-									displayPosition.getDoublePosition(0),
-									displayPosition.getDoublePosition(1),
-									siteDisplayPosition.getDoublePosition(0),
-									siteDisplayPosition.getDoublePosition(1)
-									));
+							double px = siteDisplayPosition.getDoublePosition(0);
+							double py = siteDisplayPosition.getDoublePosition(1);
+							
+							g2d.setStroke(new BasicStroke(4.0f));
+							g2d.setPaint(synapticSiteColor.brighter());
+							g2d.draw(new Line2D.Double(sx, sy, px, py));
 						}
 					}
 
 					if (pass == 1) {
+
 						final int radius = 10;
 						if (s == controller.getSelectedAnnotation())
 							g2d.setPaint(selectedSynapseColor);
 						else
 							g2d.setPaint(synapseColor);
+						g2d.setStroke(new BasicStroke(2.0f));
 						g2d.fillOval(
 								Math.round(displayPosition.getFloatPosition(0) - radius),
 								Math.round(displayPosition.getFloatPosition(1) - radius),
@@ -126,13 +132,42 @@ public class AnnotationOverlay implements OverlayRenderer
 								Math.round(displayPosition.getFloatPosition(1) - radius),
 								2 * radius + 1,
 								2 * radius + 1 );
+
+						double sx = displayPosition.getDoublePosition(0);
+						double sy = displayPosition.getDoublePosition(1);
+
+						for (SynapticSite site : s.getPostSynapticPartners()) {
+							
+							RealPoint siteDisplayPosition = new RealPoint(3);
+							viewerTransform.apply(site.getPosition(), siteDisplayPosition);
+
+							double px = siteDisplayPosition.getDoublePosition(0);
+							double py = siteDisplayPosition.getDoublePosition(1);
+							double dx = px - sx;
+							double dy = py - sy;
+							
+							Polygon tip = new Polygon();
+							tip.addPoint(0, 0);
+							tip.addPoint(-10, -20);
+							tip.addPoint(10, -20);
+
+							AffineTransform transform = new AffineTransform();
+							transform.concatenate(AffineTransform.getTranslateInstance(px, py));
+							transform.concatenate(AffineTransform.getScaleInstance(0.5, 0.5));
+							transform.concatenate(AffineTransform.getRotateInstance(Math.atan2(dy, dx) - Math.PI*0.5));
+							Shape shape = new GeneralPath(tip).createTransformedShape(transform);
+							g2d.setPaint(synapticSiteColor.darker().darker());
+							g2d.draw(shape);
+							g2d.setPaint(synapticSiteColor.brighter().brighter());
+							g2d.fill(shape);
+						}
 					}
 				}
 
 				@Override
 				public void visit(SynapticSite synapticSite) {
 					
-					if (pass != 1)
+					if (pass != 0)
 						return;
 					
 					RealPoint displayPosition = new RealPoint(3);
@@ -143,6 +178,7 @@ public class AnnotationOverlay implements OverlayRenderer
 
 					final int radius = 10;
 					g2d.setPaint(synapticSiteColor);
+					g2d.setStroke(new BasicStroke(2.0f));
 					g2d.fillOval(
 							Math.round(displayPosition.getFloatPosition(0) - radius),
 							Math.round(displayPosition.getFloatPosition(1) - radius),
@@ -182,6 +218,6 @@ public class AnnotationOverlay implements OverlayRenderer
 	final private int visibilityThreshold = 10; // show annotations closer than this to currently visible plane
 	
 	final static private Color synapseColor = new Color(155, 13, 75);
-	final static private Color selectedSynapseColor = new Color(155, 155, 75);
+	final static private Color selectedSynapseColor = new Color(155, 255, 75);
 	final static private Color synapticSiteColor = new Color(75, 13, 155);
 }
