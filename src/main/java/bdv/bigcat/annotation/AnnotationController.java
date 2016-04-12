@@ -112,52 +112,30 @@ public class AnnotationController {
 	 * 
 	 * @param x
 	 * @param y
-	 * @param maxDistance Max Manhattan distance to consider for the search. If no annotation exists in the search area, null is returned.
+	 * @param maxDistance Max distance to consider for the search. If no annotation exists in the search area, null is returned.
 	 * @return
 	 */
-	private Annotation getClosestAnnotation(int x, int y, int maxDistance) {
+	private Annotation getClosestAnnotation(int x, int y, double maxDistance) {
 
 		RealPoint pos = new RealPoint(3);
 		viewer.displayToGlobalCoordinates(x, y, pos);
 		System.out.println("clicked at global coordinates " + pos);
-
-		AffineTransform3D viewerTransform = new AffineTransform3D();
-		synchronized (viewer) {
-			viewer.getState().getViewerTransform(viewerTransform);
-		}
-		AffineTransform3D invTransform = viewerTransform.inverse();
-
-		// Manhattan distance to search for annotations in pixels
-		HyperPlane left = new HyperPlane(1, 0, 0, x - maxDistance);
-		HyperPlane right = new HyperPlane(-1, 0, 0, -x - maxDistance);
-		HyperPlane bottom = new HyperPlane(0, 1, 0, y - maxDistance);
-		HyperPlane top = new HyperPlane(0, -1, 0, -y - maxDistance);
-		HyperPlane front = new HyperPlane(0, 0, -1, -maxDistance);
-		HyperPlane back = new HyperPlane(0, 0, 1, -maxDistance);
-
-		ConvexPolytope visibilityClip = ConvexPolytope
-				.transform(new ConvexPolytope(left, right, bottom, top, front, back), invTransform);
-
-		List<Annotation> nearbyAnnotations = annotations.getLocalAnnotations(visibilityClip);
-
-		double minDistance = -1;
-		Annotation closestAnnotation = null;
+		
+		List< Annotation > closest = annotations.getKNearest(pos, 1);
+		
+		if (closest.size() == 0)
+			return null;
+			
 		double[] a = new double[3];
 		double[] b = new double[3];
 		pos.localize(a);
-		for (Annotation annotation : nearbyAnnotations) {
-
-			annotation.getPosition().localize(b);
-			double distance = LinAlgHelpers.squareDistance(a, b);
-
-			if (minDistance < 0 || minDistance > distance) {
-
-				minDistance = distance;
-				closestAnnotation = annotation;
-			}
-		}
+		closest.get(0).getPosition().localize(b);
+		double distance = LinAlgHelpers.distance(a, b);
 		
-		return closestAnnotation;
+		if (distance <= maxDistance)
+			return closest.get(0);
+			
+		return null;
 	}
 
 	////////////////
