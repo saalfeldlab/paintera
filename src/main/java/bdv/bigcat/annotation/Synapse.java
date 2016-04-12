@@ -1,5 +1,6 @@
 package bdv.bigcat.annotation;
 
+import java.util.LinkedList;
 import java.util.List;
 
 import net.imglib2.RealPoint;
@@ -26,11 +27,16 @@ public class Synapse extends Annotation {
 		this.postSynapticPartners = postSynapticPartners;
 	}
 
+	public void addPostSynapticPartner(SynapticSite site) {
+		this.postSynapticPartners.add(site);
+		
+	}
+
 	@Override
 	public void accept(AnnotationVisitor visitor) {
 		visitor.visit(this);
 	}
 	
 	private SynapticSite preSynapticPartner;
-	private List< SynapticSite > postSynapticPartners;
+	private List< SynapticSite > postSynapticPartners = new LinkedList< SynapticSite >();
 }

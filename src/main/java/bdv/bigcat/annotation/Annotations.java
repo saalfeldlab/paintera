@@ -26,6 +26,12 @@ public class Annotations {
 		kdTreeDirty = true;
 	}	
 	
+	public void remove(Annotation annotation) {
+		
+		annotations.remove(annotation);
+		kdTreeDirty = true;
+	}
+	
 	public List< Annotation > getLocalAnnotations(ConvexPolytope polytope) {
 	
 		if (kdTreeDirty)
@@ -39,6 +45,11 @@ public class Annotations {
 			localAnnotations.add(node.get());
 			
 		return localAnnotations;
+	}
+	
+	public void markDirty() {
+		
+		kdTreeDirty = true;
 	}
 	
 	private void updateKdTree() {

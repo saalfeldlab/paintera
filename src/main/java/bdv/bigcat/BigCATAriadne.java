@@ -183,6 +183,9 @@ public class BigCATAriadne
 		bindings.addBehaviourMap( "annotation", annotationController.getBehaviourMap() );
 		bindings.addInputTriggerMap( "annotation", annotationController.getInputTriggerMap() );
 		
+//		bindings.addBehaviourMap( "paint", paintController.getBehaviourMap() );
+//		bindings.addInputTriggerMap( "paint", paintController.getInputTriggerMap() );
+		
 		bindings.addBehaviourMap( "merge", mergeController.getBehaviourMap() );
 		bindings.addInputTriggerMap( "merge", mergeController.getInputTriggerMap() );
 		
@@ -190,7 +193,7 @@ public class BigCATAriadne
 		bindings.addInputTriggerMap( "brush", paintController.getInputTriggerMap() );
 		
 		bdv.getViewer().getDisplay().addOverlayRenderer( annotationController.getAnnotationOverlay() );
-		bdv.getViewer().getDisplay().addOverlayRenderer( paintController.getBrushOverlay() );
+//		bdv.getViewer().getDisplay().addOverlayRenderer( paintController.getBrushOverlay() );
 		
 		
 //			final ZContext ctx = new ZContext();
