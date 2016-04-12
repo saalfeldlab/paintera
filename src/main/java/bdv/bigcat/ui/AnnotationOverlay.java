@@ -1,9 +1,11 @@
 package bdv.bigcat.ui;
 
 import java.awt.AlphaComposite;
+import java.awt.BasicStroke;
 import java.awt.Color;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
+import java.awt.geom.Line2D;
 import java.util.List;
 
 import bdv.bigcat.annotation.Annotation;
@@ -74,6 +76,12 @@ public class AnnotationOverlay implements OverlayRenderer
 			Graphics2D g2d = (Graphics2D)g;
 			class AnnotationRenderer extends AnnotationVisitor {
 				
+				private final int pass;
+				
+				AnnotationRenderer(int pass) {
+					this.pass = pass;
+				}
+				
 				@Override
 				public void visit(Synapse s) {
 					
@@ -82,27 +90,50 @@ public class AnnotationOverlay implements OverlayRenderer
 
 					float zAlpha = Math.max(0, (float)1.0 - (float)0.1*Math.abs(displayPosition.getFloatPosition(2)));
 					g2d.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, zAlpha));
+					
+					if (pass == 0) {
 
-					final int radius = 10;
-					if (s == controller.getSelectedAnnotation())
-						g2d.setPaint(selectedSynapseColor);
-					else
-						g2d.setPaint(synapseColor);
-					g2d.fillOval(
-							Math.round(displayPosition.getFloatPosition(0) - radius),
-							Math.round(displayPosition.getFloatPosition(1) - radius),
-							2 * radius + 1,
-							2 * radius + 1 );
-					g2d.setPaint(synapseColor.darker());
-					g2d.drawOval(
-							Math.round(displayPosition.getFloatPosition(0) - radius),
-							Math.round(displayPosition.getFloatPosition(1) - radius),
-							2 * radius + 1,
-							2 * radius + 1 );
+						g2d.setPaint(synapticSiteColor.brighter());
+						g2d.setStroke(new BasicStroke(4.0f));
+						for (SynapticSite site : s.getPostSynapticPartners()) {
+							
+							RealPoint siteDisplayPosition = new RealPoint(3);
+							viewerTransform.apply(site.getPosition(), siteDisplayPosition);
+							
+							g2d.draw(new Line2D.Double(
+									displayPosition.getDoublePosition(0),
+									displayPosition.getDoublePosition(1),
+									siteDisplayPosition.getDoublePosition(0),
+									siteDisplayPosition.getDoublePosition(1)
+									));
+						}
+					}
+
+					if (pass == 1) {
+						final int radius = 10;
+						if (s == controller.getSelectedAnnotation())
+							g2d.setPaint(selectedSynapseColor);
+						else
+							g2d.setPaint(synapseColor);
+						g2d.fillOval(
+								Math.round(displayPosition.getFloatPosition(0) - radius),
+								Math.round(displayPosition.getFloatPosition(1) - radius),
+								2 * radius + 1,
+								2 * radius + 1 );
+						g2d.setPaint(synapseColor.darker());
+						g2d.drawOval(
+								Math.round(displayPosition.getFloatPosition(0) - radius),
+								Math.round(displayPosition.getFloatPosition(1) - radius),
+								2 * radius + 1,
+								2 * radius + 1 );
+					}
 				}
 
 				@Override
 				public void visit(SynapticSite synapticSite) {
+					
+					if (pass != 1)
+						return;
 					
 					RealPoint displayPosition = new RealPoint(3);
 					viewerTransform.apply(synapticSite.getPosition(), displayPosition);
@@ -126,7 +157,10 @@ public class AnnotationOverlay implements OverlayRenderer
 				}
 			}
 			
-			AnnotationRenderer renderer = new AnnotationRenderer();
+			AnnotationRenderer renderer = new AnnotationRenderer(0);
+			for (Annotation a : visibleAnnotations)
+				a.accept(renderer);
+			renderer = new AnnotationRenderer(1);
 			for (Annotation a : visibleAnnotations)
 				a.accept(renderer);
 		}
