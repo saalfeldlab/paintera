@@ -5,6 +5,7 @@ import java.util.Arrays;
 import bdv.img.cache.CacheArrayLoader;
 import bdv.labels.labelset.LabelMultisetEntry;
 import bdv.labels.labelset.LabelMultisetEntryList;
+import bdv.labels.labelset.LongMappedAccess;
 import bdv.labels.labelset.LongMappedAccessData;
 import bdv.labels.labelset.VolatileLabelMultisetArray;
 import ch.systemsx.cisd.base.mdarray.MDIntArray;
@@ -23,12 +24,16 @@ public class H5IntLabelMultisetArrayLoader extends AbstractH5LabelMultisetArrayL
 {
 	final private IHDF5IntReader reader;
 
+	final private IHDF5IntReader scaleReader;
+
 	public H5IntLabelMultisetArrayLoader(
 			final IHDF5Reader reader,
+			final IHDF5Reader scaleReader,
 			final String dataset )
 	{
 		super( dataset );
 		this.reader = reader.int32();
+		this.scaleReader = ( scaleReader == null ) ? null : scaleReader.uint32();
 	}
 
 	@Override
@@ -42,6 +47,25 @@ public class H5IntLabelMultisetArrayLoader extends AbstractH5LabelMultisetArrayL
 			final int timepoint,
 			final int setup,
 			final int level,
+			final int[] dimensions,
+			final long[] min ) throws InterruptedException
+	{
+		if ( level == 0 )
+			return loadArrayLevel0( dimensions, min );
+
+		final String listsPath = String.format( "l%02d/z%05d/y%05d/x%05d/lists", level, min[ 2 ], min[ 1 ], min[ 0 ] );
+		final String dataPath = String.format( "l%02d/z%05d/y%05d/x%05d/data", level, min[ 2 ], min[ 1 ], min[ 0 ] );
+
+		final int[] offsets = scaleReader.readMDArray( dataPath ).getAsFlatArray();
+		final int[] lists = scaleReader.readArray( listsPath );
+		final LongMappedAccessData listData = LongMappedAccessData.factory.createStorage( lists.length * 4 );
+		final LongMappedAccess access = listData.createAccess();
+		for ( int i = 0; i < lists.length; ++i )
+			access.putInt( lists[ i ], i * 4 );
+		return new VolatileLabelMultisetArray( offsets, listData, 0, true );
+	}
+
+	public VolatileLabelMultisetArray loadArrayLevel0(
 			final int[] dimensions,
 			final long[] min ) throws InterruptedException
 	{
@@ -79,7 +103,6 @@ A:		for ( int i = 0; i < data.length; ++i )
 		{
 			final long id = data[ i ] & 0xffff;
 
-//			does the list [id x 1] already exist?
 			final int offset = idOffsetHash.get( id );
 			if ( offset == idOffsetHash.getNoEntryValue() )
 			{

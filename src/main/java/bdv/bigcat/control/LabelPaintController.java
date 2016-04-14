@@ -119,8 +119,8 @@ public class LabelPaintController
 		this.labelsH5Dataset = labelsH5Dataset;
 		this.labelsH5CellDimensions = labelsH5CellDimensions;
 		brushOverlay = new BrushOverlay( viewer );
-		inputAdder = config.inputTriggerAdder( inputTriggerMap, "paint" );
-		ksKeyStrokeAdder = config.keyStrokeAdder( ksInputMap, "paint" );
+		inputAdder = config.inputTriggerAdder( inputTriggerMap, "brush" );
+		ksKeyStrokeAdder = config.keyStrokeAdder( ksInputMap, "b" );
 
 		labelLocation = new RealPoint( 3 );
 

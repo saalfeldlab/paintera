@@ -60,7 +60,13 @@ public class BigCATAriadne
 		final H5UnsignedByteSetupImageLoader raw = new H5UnsignedByteSetupImageLoader( reader, "/em_raw", 0, cellDimensions );
 		
 		/* fragments */
-		final H5LabelMultisetSetupImageLoader fragments = new H5LabelMultisetSetupImageLoader( reader, "/labels", 1, cellDimensions );
+		final H5LabelMultisetSetupImageLoader fragments =
+				new H5LabelMultisetSetupImageLoader(
+						reader,
+						null,
+						"/labels",
+						1,
+						cellDimensions );
 		final RandomAccessibleInterval< VolatileLabelMultisetType > fragmentsPixels = fragments.getVolatileImage( 0, 0 );
 		final long[] fragmentsDimensions = Intervals.dimensionsAsLongArray( fragmentsPixels );
 		
@@ -180,22 +186,19 @@ public class BigCATAriadne
 				bdv.getViewerFrame().getKeybindings(),
 				new InputTriggerConfig() );
 		
-		bindings.addBehaviourMap( "annotation", annotationController.getBehaviourMap() );
-		bindings.addInputTriggerMap( "annotation", annotationController.getInputTriggerMap() );
-		
-//		bindings.addBehaviourMap( "paint", paintController.getBehaviourMap() );
-//		bindings.addInputTriggerMap( "paint", paintController.getInputTriggerMap() );
-		
+//		bindings.addBehaviourMap( "annotation", annotationController.getBehaviourMap() );
+//		bindings.addInputTriggerMap( "annotation", annotationController.getInputTriggerMap() );
+				
 		bindings.addBehaviourMap( "merge", mergeController.getBehaviourMap() );
 		bindings.addInputTriggerMap( "merge", mergeController.getInputTriggerMap() );
-		
+
 		bindings.addBehaviourMap( "brush", paintController.getBehaviourMap() );
 		bindings.addInputTriggerMap( "brush", paintController.getInputTriggerMap() );
-		
+
 		bdv.getViewer().getDisplay().addOverlayRenderer( annotationController.getAnnotationOverlay() );
-//		bdv.getViewer().getDisplay().addOverlayRenderer( paintController.getBrushOverlay() );
-		
-		
+		bdv.getViewer().getDisplay().addOverlayRenderer( paintController.getBrushOverlay() );
+
+
 //			final ZContext ctx = new ZContext();
 //			final Socket socket = ctx.createSocket( ZMQ.REQ );
 //			socket.connect( "tcp://10.103.40.190:8128" );
