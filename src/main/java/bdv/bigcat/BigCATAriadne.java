@@ -155,40 +155,40 @@ public class BigCATAriadne
 				bdv.getViewerFrame().getKeybindings(),
 				new InputTriggerConfig() );
 		
-		final LabelPaintController paintController = new LabelPaintController(
-				bdv.getViewer(),
-				paintedLabels,
-				fragments.getMipmapTransforms()[ 0 ],
-				colorStream,
-				assignment,
-				mergeController,
-				paintedLabelsFilePath,
-				paintedLabelsDataset,
-				cellDimensions,
-				new InputTriggerConfig(),
-				bdv.getViewerFrame().getKeybindings() );
+//		final LabelPaintController paintController = new LabelPaintController(
+//				bdv.getViewer(),
+//				paintedLabels,
+//				fragments.getMipmapTransforms()[ 0 ],
+//				colorStream,
+//				assignment,
+//				mergeController,
+//				paintedLabelsFilePath,
+//				paintedLabelsDataset,
+//				cellDimensions,
+//				new InputTriggerConfig(),
+//				bdv.getViewerFrame().getKeybindings() );
 		
-		Annotations annotations = new Annotations();
-		final AnnotationController annotationController = new AnnotationController(
-				bdv.getViewer(),
-				annotations,
-				new InputTriggerConfig(),
-				bdv.getViewerFrame().getKeybindings(),
-				new InputTriggerConfig() );
+//		Annotations annotations = new Annotations();
+//		final AnnotationController annotationController = new AnnotationController(
+//				bdv.getViewer(),
+//				annotations,
+//				new InputTriggerConfig(),
+//				bdv.getViewerFrame().getKeybindings(),
+//				new InputTriggerConfig() );
 		
-		bindings.addBehaviourMap( "annotation", annotationController.getBehaviourMap() );
-		bindings.addInputTriggerMap( "annotation", annotationController.getInputTriggerMap() );
-		
+//		bindings.addBehaviourMap( "annotation", annotationController.getBehaviourMap() );
+//		bindings.addInputTriggerMap( "annotation", annotationController.getInputTriggerMap() );
+
 //		bindings.addBehaviourMap( "paint", paintController.getBehaviourMap() );
 //		bindings.addInputTriggerMap( "paint", paintController.getInputTriggerMap() );
 		
 		bindings.addBehaviourMap( "merge", mergeController.getBehaviourMap() );
 		bindings.addInputTriggerMap( "merge", mergeController.getInputTriggerMap() );
 		
-		bindings.addBehaviourMap( "brush", paintController.getBehaviourMap() );
-		bindings.addInputTriggerMap( "brush", paintController.getInputTriggerMap() );
+//		bindings.addBehaviourMap( "brush", paintController.getBehaviourMap() );
+//		bindings.addInputTriggerMap( "brush", paintController.getInputTriggerMap() );
 		
-		bdv.getViewer().getDisplay().addOverlayRenderer( annotationController.getAnnotationOverlay() );
+//		bdv.getViewer().getDisplay().addOverlayRenderer( annotationController.getAnnotationOverlay() );
 //		bdv.getViewer().getDisplay().addOverlayRenderer( paintController.getBrushOverlay() );
 		
 		
