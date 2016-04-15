@@ -50,4 +50,6 @@ public interface MappedAccess< T extends MappedAccess< T > >
 	public double getDouble( final int offset );
 
 	public void copyFrom( final T fromAccess, final int numBytes );
+
+	public void swapWith( final T access, final int numBytes );
 }
