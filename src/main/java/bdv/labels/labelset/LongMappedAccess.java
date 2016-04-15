@@ -19,7 +19,7 @@ public class LongMappedAccess implements MappedAccess< LongMappedAccess >
 	 */
 	private LongMappedAccessData dataArray;
 
-	static Object lock = new Object();
+//	static Object lock = new Object();
 
 	LongMappedAccess( final LongMappedAccessData dataArray, final long baseOffset )
 	{
@@ -143,5 +143,17 @@ public class LongMappedAccess implements MappedAccess< LongMappedAccess >
 	public void copyFrom( final LongMappedAccess fromAccess, final int numBytes )
 	{
 		ByteUtils.copyBytes( fromAccess.dataArray.data, fromAccess.baseOffset, dataArray.data, baseOffset, numBytes );
+	}
+
+	private long[] swapTmp = new long[ 0 ];
+
+	@Override
+	public void swapWith( final LongMappedAccess access, final int numBytes )
+	{
+		if ( ( swapTmp.length << 3 ) < numBytes )
+			swapTmp = new long[ ( numBytes >> 3 ) + 1 ];
+		ByteUtils.copyBytes( dataArray.data, baseOffset, swapTmp, 0, numBytes );
+		ByteUtils.copyBytes( access.dataArray.data, access.baseOffset, dataArray.data, baseOffset, numBytes );
+		ByteUtils.copyBytes( swapTmp, 0, access.dataArray.data, access.baseOffset, numBytes );
 	}
 }

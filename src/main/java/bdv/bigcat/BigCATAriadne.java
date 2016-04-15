@@ -60,7 +60,13 @@ public class BigCATAriadne
 		final H5UnsignedByteSetupImageLoader raw = new H5UnsignedByteSetupImageLoader( reader, "/em_raw", 0, cellDimensions );
 		
 		/* fragments */
-		final H5LabelMultisetSetupImageLoader fragments = new H5LabelMultisetSetupImageLoader( reader, "/labels", 1, cellDimensions );
+		final H5LabelMultisetSetupImageLoader fragments =
+				new H5LabelMultisetSetupImageLoader(
+						reader,
+						null,
+						"/labels",
+						1,
+						cellDimensions );
 		final RandomAccessibleInterval< VolatileLabelMultisetType > fragmentsPixels = fragments.getVolatileImage( 0, 0 );
 		final long[] fragmentsDimensions = Intervals.dimensionsAsLongArray( fragmentsPixels );
 		
