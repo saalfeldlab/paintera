@@ -91,7 +91,8 @@ public class AnnotationController {
 		new MoveAnnotation("move annotation", "SPACE button1").register();
 		new RemoveAnnotation("remove annotation", "SPACE button3").register();
 		new AddSynapseAnnotation("add synapse annotation", "SPACE shift button3").register();
-		new AddSynapticSiteAnnotation("add synaptic site annotation", "SPACE shift button1").register();
+		new AddPreSynapticSiteAnnotation("add presynaptic site annotation", "SPACE shift button2").register();
+		new AddPostSynapticSiteAnnotation("add postsynaptic site annotation", "SPACE shift button1").register();
 
 		inputActionBindings.addActionMap("bdv", ksActionMap);
 		inputActionBindings.addInputMap("bdv", ksInputMap);
@@ -232,8 +233,8 @@ public class AnnotationController {
 		}
 	}
 
-	private class AddSynapticSiteAnnotation extends SelfRegisteringBehaviour implements ClickBehaviour {
-		public AddSynapticSiteAnnotation(final String name, final String... defaultTriggers) {
+	private class AddPreSynapticSiteAnnotation extends SelfRegisteringBehaviour implements ClickBehaviour {
+		public AddPreSynapticSiteAnnotation(final String name, final String... defaultTriggers) {
 			super(name, defaultTriggers);
 		}
 
@@ -251,7 +252,37 @@ public class AnnotationController {
 			RealPoint pos = new RealPoint(3);
 			viewer.displayToGlobalCoordinates(x, y, pos);
 			
-			System.out.println("Adding synaptic site at " + pos);
+			System.out.println("Adding presynaptic site at " + pos);
+			
+			SynapticSite site = new SynapticSite(IdService.allocate(), pos, "");
+			site.setSynapse(synapse);
+			synapse.setPreSynapticPartner(site);
+			annotations.add(site);
+
+			viewer.requestRepaint();
+		}
+	}
+
+	private class AddPostSynapticSiteAnnotation extends SelfRegisteringBehaviour implements ClickBehaviour {
+		public AddPostSynapticSiteAnnotation(final String name, final String... defaultTriggers) {
+			super(name, defaultTriggers);
+		}
+
+		@Override
+		public void click(int x, int y) {
+		
+			if (selectedAnnotation == null || !(selectedAnnotation instanceof Synapse)) {
+
+				System.out.println("select a synapse before adding synaptic sites to it");
+				return;
+			}
+			
+			Synapse synapse = (Synapse)selectedAnnotation;
+			
+			RealPoint pos = new RealPoint(3);
+			viewer.displayToGlobalCoordinates(x, y, pos);
+			
+			System.out.println("Adding postsynaptic site at " + pos);
 			
 			SynapticSite site = new SynapticSite(IdService.allocate(), pos, "");
 			site.setSynapse(synapse);

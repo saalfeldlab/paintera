@@ -34,6 +34,10 @@ public class Annotations {
 	}
 	
 	public List< Annotation > getLocalAnnotations(ConvexPolytope polytope) {
+
+		List< Annotation > localAnnotations = new LinkedList< Annotation >();
+		if (annotations.size() == 0)
+			return localAnnotations;
 	
 		if (kdTreeDirty)
 			updateKdTree();
@@ -41,7 +45,6 @@ public class Annotations {
 		final ClipConvexPolytopeKDTree< Annotation > clip = new ClipConvexPolytopeKDTree< Annotation >( kdTree );
 		clip.clip( polytope );
 		
-		List< Annotation > localAnnotations = new LinkedList< Annotation >();
 		for (KDTreeNode< Annotation > node : clip.getInsideNodes())
 			localAnnotations.add(node.get());
 			
@@ -55,6 +58,11 @@ public class Annotations {
 	 * @return List of k nearest annotations, sorted by distance.
 	 */
 	public List< Annotation > getKNearest(RealPoint pos, int k) {
+
+		List< Annotation > nearest = new LinkedList< Annotation >();
+
+		if (annotations.size() == 0)
+			return nearest;
 	
 		if (kdTreeDirty)
 			updateKdTree();
@@ -62,7 +70,6 @@ public class Annotations {
 		KNearestNeighborSearchOnKDTree< Annotation > search = new KNearestNeighborSearchOnKDTree< Annotation >(kdTree, k);
 		search.search(pos);
 		
-		List< Annotation > nearest = new LinkedList< Annotation >();
 		for (int i = 0; i < k && search.getSampler(i) != null; i++)
 			nearest.add(search.getSampler(i).get());
 		

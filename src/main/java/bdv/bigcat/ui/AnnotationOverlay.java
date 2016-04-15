@@ -93,25 +93,9 @@ public class AnnotationOverlay implements OverlayRenderer
 
 					float zAlpha = Math.max(0, (float)1.0 - (float)0.1*Math.abs(displayPosition.getFloatPosition(2)));
 					g2d.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, zAlpha));
-					
-					if (pass == 0) {
 						
-						double sx = displayPosition.getDoublePosition(0);
-						double sy = displayPosition.getDoublePosition(1);
-
-						for (SynapticSite site : s.getPostSynapticPartners()) {
-							
-							RealPoint siteDisplayPosition = new RealPoint(3);
-							viewerTransform.apply(site.getPosition(), siteDisplayPosition);
-							
-							double px = siteDisplayPosition.getDoublePosition(0);
-							double py = siteDisplayPosition.getDoublePosition(1);
-							
-							g2d.setStroke(new BasicStroke(4.0f));
-							g2d.setPaint(synapticSiteColor.brighter());
-							g2d.draw(new Line2D.Double(sx, sy, px, py));
-						}
-					}
+					double sx = displayPosition.getDoublePosition(0);
+					double sy = displayPosition.getDoublePosition(1);
 
 					if (pass == 1) {
 
@@ -132,35 +116,28 @@ public class AnnotationOverlay implements OverlayRenderer
 								Math.round(displayPosition.getFloatPosition(1) - radius),
 								2 * radius + 1,
 								2 * radius + 1 );
+					}
 
-						double sx = displayPosition.getDoublePosition(0);
-						double sy = displayPosition.getDoublePosition(1);
+					for (SynapticSite site : s.getPostSynapticPartners()) {
+						
+						RealPoint siteDisplayPosition = new RealPoint(3);
+						viewerTransform.apply(site.getPosition(), siteDisplayPosition);
+						
+						double px = siteDisplayPosition.getDoublePosition(0);
+						double py = siteDisplayPosition.getDoublePosition(1);
+						
+						drawArrow(g2d, sx, sy, px, py, pass);
+					}
 
-						for (SynapticSite site : s.getPostSynapticPartners()) {
-							
-							RealPoint siteDisplayPosition = new RealPoint(3);
-							viewerTransform.apply(site.getPosition(), siteDisplayPosition);
+					if (s.getPreSynapticPartner() != null) {
+					
+						RealPoint siteDisplayPosition = new RealPoint(3);
+						viewerTransform.apply(s.getPreSynapticPartner().getPosition(), siteDisplayPosition);
 
-							double px = siteDisplayPosition.getDoublePosition(0);
-							double py = siteDisplayPosition.getDoublePosition(1);
-							double dx = px - sx;
-							double dy = py - sy;
-							
-							Polygon tip = new Polygon();
-							tip.addPoint(0, 0);
-							tip.addPoint(-10, -20);
-							tip.addPoint(10, -20);
-
-							AffineTransform transform = new AffineTransform();
-							transform.concatenate(AffineTransform.getTranslateInstance(px, py));
-							transform.concatenate(AffineTransform.getScaleInstance(0.5, 0.5));
-							transform.concatenate(AffineTransform.getRotateInstance(Math.atan2(dy, dx) - Math.PI*0.5));
-							Shape shape = new GeneralPath(tip).createTransformedShape(transform);
-							g2d.setPaint(synapticSiteColor.darker().darker());
-							g2d.draw(shape);
-							g2d.setPaint(synapticSiteColor.brighter().brighter());
-							g2d.fill(shape);
-						}
+						double px = siteDisplayPosition.getDoublePosition(0);
+						double py = siteDisplayPosition.getDoublePosition(1);
+						
+						drawArrow(g2d, px, py, sx, sy, pass);
 					}
 				}
 
@@ -207,6 +184,36 @@ public class AnnotationOverlay implements OverlayRenderer
 	{
 		this.width = width;
 		this.height = height;
+	}
+	
+	private void drawArrow( Graphics2D g2d, double sx, double sy, double px, double py, int pass) {
+	
+		if (pass == 0) {
+
+			g2d.setStroke(new BasicStroke(4.0f));
+			g2d.setPaint(synapticSiteColor.brighter());
+			g2d.draw(new Line2D.Double(sx, sy, px, py));
+
+			return;
+		}
+
+		double dx = px - sx;
+		double dy = py - sy;
+							
+		Polygon tip = new Polygon();
+		tip.addPoint(0, 0);
+		tip.addPoint(-10, -20);
+		tip.addPoint(10, -20);
+
+		AffineTransform transform = new AffineTransform();
+		transform.concatenate(AffineTransform.getTranslateInstance(px, py));
+		transform.concatenate(AffineTransform.getScaleInstance(0.5, 0.5));
+		transform.concatenate(AffineTransform.getRotateInstance(Math.atan2(dy, dx) - Math.PI*0.5));
+		Shape shape = new GeneralPath(tip).createTransformedShape(transform);
+		g2d.setPaint(synapticSiteColor.darker().darker());
+		g2d.draw(shape);
+		g2d.setPaint(synapticSiteColor.brighter().brighter());
+		g2d.fill(shape);
 	}
 
 	final protected ViewerPanel viewer;

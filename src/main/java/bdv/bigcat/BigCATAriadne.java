@@ -169,10 +169,6 @@ public class BigCATAriadne
 				bdv.getViewerFrame().getKeybindings() );
 		
 		Annotations annotations = new Annotations();
-		for (int i = 0; i < 100; i++) {
-			RealPoint pos = new RealPoint(new double[]{Math.random()*500, Math.random()*500, Math.random()*500});
-			annotations.add(new Synapse(IdService.allocate(), pos, "synapse " + i));
-		}
 		final AnnotationController annotationController = new AnnotationController(
 				bdv.getViewer(),
 				annotations,
