@@ -32,7 +32,7 @@ public class H5LabelMultisetSetupImageLoader
 	final private long[][] dimensions;
 
 	final private double[][] mipmapResolutions;
-	
+
 	final private int[][] blockDimensions;
 
 	final private AffineTransform3D[] mipmapTransforms;
@@ -45,8 +45,9 @@ public class H5LabelMultisetSetupImageLoader
 		final HDF5DataSetInformation typeInfo = reader.object().getDataSetInformation( dataset );
 		final Class< ? > cls = typeInfo.getTypeInformation().tryGetJavaType();
 		System.out.println( typeInfo.getTypeInformation().tryGetJavaType().toString() );
-		if ( int.class == cls )
-		//return new H5IntLabelMultisetArrayLoader( reader, scaleReader, dataset );
+		if ( short.class == cls )
+			return new H5ShortLabelMultisetArrayLoader( reader, scaleReader, dataset );
+		else if ( int.class == cls )
 			return new H5IntLabelMultisetArrayLoader( reader, scaleReader, dataset );
 		else if ( long.class == cls )
 			return new H5LongLabelMultisetArrayLoader( reader, scaleReader, dataset );

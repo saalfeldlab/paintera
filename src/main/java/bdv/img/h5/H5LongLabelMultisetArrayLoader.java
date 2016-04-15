@@ -5,11 +5,9 @@ import java.util.Arrays;
 import bdv.img.cache.CacheArrayLoader;
 import bdv.labels.labelset.LabelMultisetEntry;
 import bdv.labels.labelset.LabelMultisetEntryList;
-import bdv.labels.labelset.LongMappedAccess;
 import bdv.labels.labelset.LongMappedAccessData;
 import bdv.labels.labelset.VolatileLabelMultisetArray;
 import ch.systemsx.cisd.base.mdarray.MDLongArray;
-import ch.systemsx.cisd.hdf5.IHDF5IntReader;
 import ch.systemsx.cisd.hdf5.IHDF5LongReader;
 import ch.systemsx.cisd.hdf5.IHDF5Reader;
 import gnu.trove.impl.Constants;
@@ -24,16 +22,13 @@ public class H5LongLabelMultisetArrayLoader extends AbstractH5LabelMultisetArray
 {
 	final private IHDF5LongReader reader;
 
-	private final IHDF5IntReader scaleReader;
-
 	public H5LongLabelMultisetArrayLoader(
 			final IHDF5Reader reader,
 			final IHDF5Reader scaleReader,
 			final String dataset )
 	{
-		super( dataset );
+		super( scaleReader, dataset );
 		this.reader = reader.uint64();
-		this.scaleReader = ( scaleReader == null ) ? null : scaleReader.uint32();
 	}
 
 	@Override
@@ -43,28 +38,6 @@ public class H5LongLabelMultisetArrayLoader extends AbstractH5LabelMultisetArray
 	}
 
 	@Override
-	public VolatileLabelMultisetArray loadArray(
-			final int timepoint,
-			final int setup,
-			final int level,
-			final int[] dimensions,
-			final long[] min ) throws InterruptedException
-	{
-		if ( level == 0 )
-			return loadArrayLevel0( dimensions, min );
-
-		final String listsPath = String.format( "l%02d/z%05d/y%05d/x%05d/lists", level, min[ 2 ], min[ 1 ], min[ 0 ] );
-		final String dataPath = String.format( "l%02d/z%05d/y%05d/x%05d/data", level, min[ 2 ], min[ 1 ], min[ 0 ] );
-
-		final int[] offsets = scaleReader.readMDArray( dataPath ).getAsFlatArray();
-		final int[] lists = scaleReader.readArray( listsPath );
-		final LongMappedAccessData listData = LongMappedAccessData.factory.createStorage( lists.length * 4 );
-		final LongMappedAccess access = listData.createAccess();
-		for ( int i = 0; i < lists.length; ++i )
-			access.putInt( lists[ i ], i * 4 );
-		return new VolatileLabelMultisetArray( offsets, listData, 0, true );
-	}
-
 	public VolatileLabelMultisetArray loadArrayLevel0(
 			final int[] dimensions,
 			final long[] min ) throws InterruptedException
