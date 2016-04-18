@@ -14,10 +14,9 @@ import gnu.trove.impl.Constants;
 import gnu.trove.map.hash.TLongIntHashMap;
 
 /**
- * {@link CacheArrayLoader} for
- * Jan Funke's and other's h5 files
+ * {@link CacheArrayLoader} for simple HDF5 files
  *
- * @author Stephan Saalfeld <saalfelds@janelia.hhmi.org>
+ * @author Stephan Saalfeld &lt;saalfelds@janelia.hhmi.org&gt;
  */
 public class H5ShortLabelMultisetArrayLoader extends AbstractH5LabelMultisetArrayLoader
 {
@@ -25,9 +24,10 @@ public class H5ShortLabelMultisetArrayLoader extends AbstractH5LabelMultisetArra
 
 	public H5ShortLabelMultisetArrayLoader(
 			final IHDF5Reader reader,
+			final IHDF5Reader scaleReader,
 			final String dataset )
 	{
-		super( dataset );
+		super( scaleReader, dataset );
 		this.reader = reader.int16();
 	}
 
@@ -38,10 +38,7 @@ public class H5ShortLabelMultisetArrayLoader extends AbstractH5LabelMultisetArra
 	}
 
 	@Override
-	public VolatileLabelMultisetArray loadArray(
-			final int timepoint,
-			final int setup,
-			final int level,
+	public VolatileLabelMultisetArray loadArrayLevel0(
 			final int[] dimensions,
 			final long[] min ) throws InterruptedException
 	{

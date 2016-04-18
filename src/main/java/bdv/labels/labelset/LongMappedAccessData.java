@@ -83,14 +83,6 @@ public class LongMappedAccessData implements MappedAccessData< LongMappedAccess 
 		this.size = size;
 	}
 
-//	/**
-//	 * For internal use only!
-//	 */
-//	public long[] getCurrentDataArray()
-//	{
-//		return data;
-//	}
-
 	/**
 	 * A factory for {@link LongMappedAccessData}s.
 	 */
