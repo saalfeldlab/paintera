@@ -7,6 +7,7 @@ import net.imglib2.algorithm.neighborhood.Neighborhood;
 import net.imglib2.algorithm.neighborhood.Shape;
 import net.imglib2.type.logic.BitType;
 import net.imglib2.type.numeric.IntegerType;
+import net.imglib2.view.Views;
 
 import java.util.*;
 
@@ -218,6 +219,7 @@ public class LabelMultisetFill {
                     }
                 }
 
+                // why does this work here but not for intersect?
                 if ( isInBounds && ( ! visitedPoints.contains( labelsNeighborhoodCursor ) ) ) {
                     Point newTask = new Point( labelsNeighborhoodCursor );
                     openTasks.add( newTask );
@@ -227,16 +229,6 @@ public class LabelMultisetFill {
 
         }
 
-    }
-
-    public static LabelMultisetType generateLabelMultisetTypeFromID( long id, int count )
-    {
-        VolatileLabelMultisetArray arr = new VolatileLabelMultisetArray(1, true);
-        int[] d = arr.data;
-        long[] l = arr.listData.data;
-        ByteUtils.putInt( count, l, 12 );
-        ByteUtils.putLong( id, l, 4 );
-        return new LabelMultisetType( arr );
     }
 
 
@@ -291,6 +283,354 @@ public class LabelMultisetFill {
 //        ImageJFunctions.show(canvas.copy(), "canvas-edited");
 //
 //        ImageJFunctions.show(bitCanvas.copy(), "bit-canvas-edited" );
+//
+//        System.out.println("Done");
+//    }
+
+
+
+
+
+
+
+
+    public static interface Intersect<T>
+    {
+        public void intersect( LabelMultisetType label, T source, T target );
+    }
+
+
+    public static class LongTypeIntersect<T extends IntegerType > implements Intersect< T >
+    {
+
+        private final long label;
+        private final T maskLabel;
+
+        public LongTypeIntersect(long label, T maskLabel) {
+            this.label = label;
+            this.maskLabel = maskLabel;
+        }
+
+        @Override
+        public void intersect(LabelMultisetType label, T source, T target) {
+            if ( source.equals( maskLabel ) && label.contains( this.label ) )
+                target.set( source );
+        }
+    }
+
+
+    public static class BitTypeIntersect implements Intersect< BitType >
+    {
+
+        private final long label;
+
+        public BitTypeIntersect(long label) {
+            this.label = label;
+        }
+
+        @Override
+        public void intersect(LabelMultisetType label, BitType source, BitType target) {
+            target.set( source.get() && label.contains( this.label ) );
+        }
+    }
+
+
+    public static <T> void intersect(
+            RandomAccessible< LabelMultisetType > labels,
+            RandomAccessible< T > sourceMask,
+            RandomAccessible< T > targetMask,
+            Interval regionOfInterest,
+            Intersect<T> intersect
+    )
+    {
+        Cursor<LabelMultisetType> labelsCursor = Views.interval(labels, regionOfInterest).cursor();
+        Cursor<T> sourceCursor = Views.interval(sourceMask, regionOfInterest).cursor();
+        Cursor<T> targetCursor = Views.interval(targetMask, regionOfInterest).cursor();
+
+        while( labelsCursor.hasNext() )
+        {
+            intersect.intersect( labelsCursor.next(), sourceCursor.next(), targetCursor.next() );
+        }
+
+    }
+
+
+    public static interface NeighborhoodCheckForIntersect<T>
+    {
+        public boolean isGoodNeighbor( LabelMultisetType label, T maskLabel );
+    }
+
+
+    public static class IntegerNeighborhoodCheckMaskOnly<T extends IntegerType<T> > implements NeighborhoodCheckForIntersect<T>
+    {
+
+        private final long maskLabel;
+
+        public IntegerNeighborhoodCheckMaskOnly(long maskLabel) {
+            this.maskLabel = maskLabel;
+        }
+
+        @Override
+        public boolean isGoodNeighbor(LabelMultisetType label, T maskLabel) {
+            return maskLabel.equals( this.maskLabel );
+        }
+    }
+
+
+    public static class IntegerNeighborhoodCheckLabelsOnly<T extends IntegerType<T> > implements NeighborhoodCheckForIntersect<T>
+    {
+
+        private final long label;
+
+        public IntegerNeighborhoodCheckLabelsOnly(long label) {
+            this.label = label;
+        }
+
+        @Override
+        public boolean isGoodNeighbor(LabelMultisetType label, T maskLabel) {
+            return label.contains( label );
+        }
+    }
+
+
+    public static class IntegerNeighborhoodCheckLabelsAndMask< T extends IntegerType<T> > implements NeighborhoodCheckForIntersect<T>
+    {
+
+        private final long label;
+        private final long maskLabel;
+
+        public IntegerNeighborhoodCheckLabelsAndMask(long label, long maskLabel) {
+            this.label = label;
+            this.maskLabel = maskLabel;
+        }
+
+        @Override
+        public boolean isGoodNeighbor(LabelMultisetType label, T maskLabel) {
+            return maskLabel.equals( maskLabel ) && label.contains( label );
+        }
+    }
+
+
+    public static class BooleanNeighborhoodCheckMaskOnly implements NeighborhoodCheckForIntersect<BitType>
+    {
+        @Override
+        public boolean isGoodNeighbor(LabelMultisetType label, BitType maskLabel) {
+            return maskLabel.get();
+        }
+    }
+
+
+    public static class BooleanNeighborhoodCheckLabelsOnly implements NeighborhoodCheckForIntersect<BitType>
+    {
+
+        private final long label;
+
+        public BooleanNeighborhoodCheckLabelsOnly(long label) {
+            this.label = label;
+        }
+
+        @Override
+        public boolean isGoodNeighbor(LabelMultisetType label, BitType maskLabel) {
+            return label.contains( this.label );
+        }
+    }
+
+
+    public static class BooleanNeighborhoodCheckLabelsAndMask implements NeighborhoodCheckForIntersect<BitType>
+    {
+
+        private final long label;
+
+        public BooleanNeighborhoodCheckLabelsAndMask(long label) {
+            this.label = label;
+        }
+
+        @Override
+        public boolean isGoodNeighbor(LabelMultisetType label, BitType maskLabel) {
+            return maskLabel.get() && label.contains( this.label );
+        }
+    }
+
+
+    public static <T> void intersect(
+            RandomAccessibleInterval< LabelMultisetType > labels,
+            RandomAccessibleInterval< T > sourceMask,
+            RandomAccessibleInterval< T > targetMask,
+            Localizable seed,
+            Shape shape,
+            Intersect<T> intersect,
+            NeighborhoodCheckForIntersect<T> neighborCheck
+    )
+    {
+        long[] min = new long[ labels.numDimensions() ];
+        long[] max = new long[ labels.numDimensions() ];
+
+        labels.min( min );
+        labels.max( max );
+
+        intersect( labels, sourceMask, targetMask, seed, shape, intersect, neighborCheck, min, max );
+
+    }
+
+
+    public static <T> void intersect(
+            RandomAccessible< LabelMultisetType > labels,
+            RandomAccessible< T > sourceMask,
+            RandomAccessible< T > targetMask,
+            Localizable seed,
+            Shape shape,
+            Intersect<T> intersect,
+            NeighborhoodCheckForIntersect<T> neighborCheck,
+            long[] min,
+            long[] max
+    )
+    {
+        RandomAccess<LabelMultisetType> labelsAccess = labels.randomAccess();
+        RandomAccess<T> sourceAccess = sourceMask.randomAccess();
+        RandomAccess<T> targetAccess = targetMask.randomAccess();
+
+        sourceAccess.setPosition( seed );
+
+//        long startingCanvasLabel = canvasAccess.get().get();
+
+        long[] dim = new long[seed.numDimensions()];
+        seed.localize( dim );
+
+        Point startingPoint = new Point(seed);
+        ArrayList<Localizable> visitedPoints = new ArrayList<Localizable>();
+        // implement with long[]?
+        ArrayDeque<Localizable> openTasks = new ArrayDeque<Localizable>();
+        openTasks.add( startingPoint );
+        visitedPoints.add( startingPoint );
+
+        RandomAccessible<Neighborhood<LabelMultisetType>> labelsNeighborhood = shape.neighborhoodsRandomAccessible( labels );
+        RandomAccessible<Neighborhood<T>> sourceNeighborhood = shape.neighborhoodsRandomAccessible(sourceMask);
+        RandomAccess<Neighborhood<LabelMultisetType>> labelsNeighborhoodAccess = labelsNeighborhood.randomAccess();
+        RandomAccess<Neighborhood<T>> sourceNeighborhoodAccess = sourceNeighborhood.randomAccess();
+
+
+        Point dummyPoint = new Point( startingPoint.numDimensions() );
+
+
+        while( ! openTasks.isEmpty() )
+        {
+            // get point that has been waiting for the longest
+            Localizable currentPoint = openTasks.remove();
+            sourceAccess.setPosition( currentPoint );
+            labelsAccess.setPosition( currentPoint );
+            targetAccess.setPosition( currentPoint );
+
+            intersect.intersect( labelsAccess.get(), sourceAccess.get(), targetAccess.get() );
+
+            labelsNeighborhoodAccess.setPosition( currentPoint );
+            sourceNeighborhoodAccess.setPosition( currentPoint );
+
+            Cursor<LabelMultisetType> labelsNeighborhoodCursor = labelsNeighborhoodAccess.get().cursor();
+            Cursor<T> sourceNeighborhoodCursor = sourceNeighborhoodAccess.get().cursor();
+
+            while( labelsNeighborhoodCursor.hasNext() )
+            {
+                labelsNeighborhoodCursor.fwd();
+                sourceNeighborhoodCursor.fwd();
+                // dummyPoint.setPosition( labelsNeighborhoodCursor );
+
+                boolean isInBounds = true;
+                for ( int d = 0; d < min.length; ++d )
+                {
+                    long currentPos = labelsNeighborhoodCursor.getLongPosition( d );
+                    if ( currentPos < min[d] || currentPos > max[d] )
+                    {
+                        isInBounds = false;
+                        break;
+                    }
+                }
+                Point newTask = new Point( labelsNeighborhoodCursor );
+                if ( isInBounds &&
+                        ( ! visitedPoints.contains( newTask ) ) &&
+                        neighborCheck.isGoodNeighbor( labelsNeighborhoodCursor.get(), sourceNeighborhoodCursor.get() ) )
+                {
+                    openTasks.add( newTask );
+                    visitedPoints.add( newTask );
+                }
+            }
+
+        }
+    }
+
+
+    public static LabelMultisetType generateLabelMultisetTypeFromID( long id, int count )
+    {
+        VolatileLabelMultisetArray arr = new VolatileLabelMultisetArray(1, true);
+        int[] d = arr.data;
+        long[] l = arr.listData.data;
+        ByteUtils.putInt( count, l, 12 );
+        ByteUtils.putLong( id, l, 4 );
+        return new LabelMultisetType( arr );
+    }
+
+
+//    public static void main(String[] args) {
+//
+//        long[] dim = new long[]{80, 60};
+//
+//        long label = 10;
+//
+//
+//        ArrayImg<LongType, LongArray> labelsLong = ArrayImgs.longs(dim);
+//        ArrayList<LabelMultisetType> labelsList = new ArrayList<LabelMultisetType>();
+//        for (ArrayCursor<LongType> c = labelsLong.cursor(); c.hasNext(); )
+//        {
+//            c.fwd();
+//            c.get().set( c.getIntPosition( 0 ) > c.getIntPosition( 1 ) ? label : 0 );
+//            labelsList.add( generateLabelMultisetTypeFromID( c.get().get(), 1 ) );
+//        }
+//
+//        new ImageJ();
+//        ImageJFunctions.show( labelsLong, "labels" );
+//        ListImg<LabelMultisetType> labels = new ListImg<LabelMultisetType>(labelsList, dim);
+//
+//        ArrayImg<BitType, LongArray> source = ArrayImgs.bits(dim);
+//        ArrayImg<BitType, LongArray> target = ArrayImgs.bits(dim);
+//
+//        // x, y, r
+//        long[][] circles = new long[][]{
+//                { 10, 10, 10 },
+//                { 50, 30, 20 }
+//        };
+//
+//        for (ArrayCursor<BitType> c = source.cursor(); c.hasNext() ; )
+//        {
+//            c.fwd();
+//            for( int i = 0; i < circles.length; ++i )
+//            {
+//                long diffX = c.getIntPosition( 0 ) - circles[i][0];
+//                long diffY = c.getIntPosition( 1 ) - circles[i][1];
+//                if ( diffX * diffX + diffY * diffY <= circles[i][2]*circles[i][2] )
+//                    c.get().set( true );
+//            }
+//        }
+//
+//        ImageJFunctions.show( source, "source" );
+//
+//        intersect( labels, source, target, source, new BitTypeIntersect( label ) );
+//        ImageJFunctions.show( target.copy(), "target interval intersect" );
+//        for ( BitType t : target ) t.set( false );
+//
+//        Point seed = new Point(new long[]{50, 30});
+//        intersect( labels, source, target, seed, new DiamondShape( 1 ), new BitTypeIntersect( label ), new BooleanNeighborhoodCheckLabelsOnly( label ) );
+//        ImageJFunctions.show( target.copy(), "fill intersect labels only" );
+//        for ( BitType t : target ) t.set( false );
+//
+//        intersect( labels, source, target, seed, new DiamondShape( 1 ), new BitTypeIntersect( label ), new BooleanNeighborhoodCheckMaskOnly() );
+//        ImageJFunctions.show( target.copy(), "fill intersect mask only" );
+//        for ( BitType t : target ) t.set( false );
+//
+//        intersect( labels, source, target, seed, new DiamondShape( 1 ), new BitTypeIntersect( label ), new BooleanNeighborhoodCheckLabelsAndMask( label ) );
+//        ImageJFunctions.show( target.copy(), "fill intersect both mask and labels" );
+//        for ( BitType t : target ) t.set( false );
+//
+//        System.out.println( "Done" );
+//
 //    }
 
 
