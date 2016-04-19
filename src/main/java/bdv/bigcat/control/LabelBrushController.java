@@ -46,7 +46,7 @@ import net.imglib2.view.Views;
  * @author Stephan Saalfeld &lt;saalfelds@janelia.hhmi.org&gt;
  * @author Tobias Pietzsch &lt;tobias.pietzsch@gmail.com&gt;
  */
-public class LabelPaintController
+public class LabelBrushController
 {
 	final protected ViewerPanel viewer;
 	final protected RandomAccessibleInterval< LongType > labels;
@@ -57,11 +57,11 @@ public class LabelPaintController
 	final protected MergeController mergeController;
 	final protected RealPoint labelLocation;
 	final protected BrushOverlay brushOverlay;
-	
+
 	final protected String labelsH5Path;
 	final protected String labelsH5Dataset;
 	final protected int[] labelsH5CellDimensions;
-	
+
 	protected int brushRadius = 5;
 
 	// for behavioUrs
@@ -74,7 +74,7 @@ public class LabelPaintController
 	private final InputMap ksInputMap = new InputMap();
 	private final NamedActionAdder ksActionAdder = new NamedActionAdder( ksActionMap );
 	private final KeyStrokeAdder ksKeyStrokeAdder;
-		
+
 	public BehaviourMap getBehaviourMap()
 	{
 		return behaviourMap;
@@ -84,7 +84,7 @@ public class LabelPaintController
 	{
 		return inputTriggerMap;
 	}
-	
+
 	public BrushOverlay getBrushOverlay()
 	{
 		return brushOverlay;
@@ -95,7 +95,7 @@ public class LabelPaintController
 	 */
 	private int oX, oY;
 
-	public LabelPaintController(
+	public LabelBrushController(
 			final ViewerPanel viewer,
 			final RandomAccessibleInterval< LongType > labels,
 			final AffineTransform3D labelTransform,
@@ -129,7 +129,7 @@ public class LabelPaintController
 		new ChangeBrushRadius( "change brush radius", "SPACE scroll", "SPACE scroll" ).register();
 		new MoveBrush( "move brush", "SPACE" ).register();
 		new SavePaintedLabels( "save painted labels", "S" ).register();
-		
+
 		inputActionBindings.addActionMap( "brush", ksActionMap );
 		inputActionBindings.addInputMap( "brush", ksInputMap );
 	}
@@ -168,11 +168,11 @@ public class LabelPaintController
 			inputAdder.put( name, defaultTriggers );
 		}
 	}
-	
+
 	private abstract class SelfRegisteringAction extends AbstractNamedAction
 	{
 		private final String[] defaultTriggers;
-		
+
 		public SelfRegisteringAction( final String name, final String ... defaultTriggers )
 		{
 			super( name );
@@ -205,29 +205,29 @@ public class LabelPaintController
 			for ( final LongType t : sphere )
 				t.set( getValue() );
 		}
-		
+
 		protected void paint( final int x, final int y )
 		{
 			setCoordinates( x, y );
 			paint( labelLocation );
 		}
-		
+
 		protected void paint( final int x1, final int y1, final int x2, final int y2 )
 		{
 			setCoordinates( x1, y1 );
 			final double[] p1 = new double[ 3 ];
 			final RealPoint rp1 = RealPoint.wrap( p1 );
 			labelLocation.localize( p1 );
-			
+
 			setCoordinates( x2, y2 );
 			final double[] d = new double[ 3 ];
 			labelLocation.localize( d );
-			
+
 			LinAlgHelpers.subtract( d, p1, d );
-			
+
 			final double l = LinAlgHelpers.length( d );
 			LinAlgHelpers.normalize( d );
-			
+
 			for ( int i = 1; i < l; ++i )
 			{
 				LinAlgHelpers.add( p1, d, p1 );
@@ -235,9 +235,9 @@ public class LabelPaintController
 			}
 			paint( labelLocation );
 		}
-		
+
 		abstract protected long getValue();
-		
+
 		@Override
 		public void init( final int x, final int y )
 		{
@@ -246,11 +246,11 @@ public class LabelPaintController
 				oX = x;
 				oY = y;
 			}
-			
+
 			paint( x, y );
-			
+
 			viewer.requestRepaint();
-			
+
 			// System.out.println( getName() + " drag start (" + oX + ", " + oY + ")" );
 		}
 
@@ -258,15 +258,15 @@ public class LabelPaintController
 		public void drag( final int x, final int y )
 		{
 			brushOverlay.setPosition( x, y );
-			
+
 			paint( oX, oY, x, y );
-			
+
 			synchronized ( this )
 			{
 				oX = x;
 				oY = y;
 			}
-			
+
 			viewer.requestRepaint();
 
 			// System.out.println( getName() + " drag by (" + dX + ", " + dY + ")" );
@@ -283,7 +283,7 @@ public class LabelPaintController
 		{
 			super( name, defaultTriggers );
 		}
-		
+
 		@Override
 		protected long getValue()
 		{
@@ -313,7 +313,7 @@ public class LabelPaintController
 		}
 
 		@Override
-		public void scroll( double wheelRotation, boolean isHorizontal, int x, int y )
+		public void scroll( final double wheelRotation, final boolean isHorizontal, final int x, final int y )
 		{
 			if ( !isHorizontal )
 			{
@@ -337,7 +337,7 @@ public class LabelPaintController
 		}
 
 		@Override
-		public void init( int x, int y )
+		public void init( final int x, final int y )
 		{
 			brushOverlay.setPosition( x, y );
 			brushOverlay.setVisible( true );
@@ -347,13 +347,13 @@ public class LabelPaintController
 		}
 
 		@Override
-		public void drag( int x, int y )
+		public void drag( final int x, final int y )
 		{
 			brushOverlay.setPosition( x, y );
 		}
 
 		@Override
-		public void end( int x, int y )
+		public void end( final int x, final int y )
 		{
 			brushOverlay.setVisible( false );
 			// TODO request only overlays to repaint
@@ -362,19 +362,19 @@ public class LabelPaintController
 
 		}
 	}
-	
+
 	private class SavePaintedLabels extends SelfRegisteringAction
 	{
 		public SavePaintedLabels( final String name, final String ... defaultTriggers )
 		{
 			super( name, defaultTriggers );
 		}
-		
+
 		@Override
 		public void actionPerformed( final ActionEvent e )
 		{
 			System.out.println( "Saving painted labels into " + labelsH5Path );
-			
+
 			synchronized ( viewer )
 			{
 				viewer.setCursor( Cursor.getPredefinedCursor( Cursor.WAIT_CURSOR ) );
