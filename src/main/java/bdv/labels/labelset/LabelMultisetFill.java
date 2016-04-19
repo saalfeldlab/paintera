@@ -2,14 +2,15 @@ package bdv.labels.labelset;
 
 
 import net.imglib2.*;
-import net.imglib2.RandomAccess;
 import net.imglib2.algorithm.neighborhood.Neighborhood;
 import net.imglib2.algorithm.neighborhood.Shape;
 import net.imglib2.type.logic.BitType;
 import net.imglib2.type.numeric.IntegerType;
 import net.imglib2.view.Views;
 
-import java.util.*;
+import java.util.ArrayDeque;
+import java.util.ArrayList;
+import java.util.Set;
 
 /**
  *
@@ -411,6 +412,24 @@ public class LabelMultisetFill {
     }
 
 
+    public static class IntegerNeighborhoodCheckLabelsOrMask< T extends IntegerType<T> > implements NeighborhoodCheckForIntersect<T>
+    {
+
+        private final long label;
+        private final long maskLabel;
+
+        public IntegerNeighborhoodCheckLabelsOrMask(long label, long maskLabel) {
+            this.label = label;
+            this.maskLabel = maskLabel;
+        }
+
+        @Override
+        public boolean isGoodNeighbor(LabelMultisetType label, T maskLabel) {
+            return maskLabel.equals( maskLabel ) || label.contains( label );
+        }
+    }
+
+
     public static class BooleanNeighborhoodCheckMaskOnly implements NeighborhoodCheckForIntersect<BitType>
     {
         @Override
@@ -448,6 +467,21 @@ public class LabelMultisetFill {
         @Override
         public boolean isGoodNeighbor(LabelMultisetType label, BitType maskLabel) {
             return maskLabel.get() && label.contains( this.label );
+        }
+    }
+
+    public static class BooleanNeighborhoodCheckLabelsOrMask implements NeighborhoodCheckForIntersect<BitType>
+    {
+
+        private final long label;
+
+        public BooleanNeighborhoodCheckLabelsOrMask(long label) {
+            this.label = label;
+        }
+
+        @Override
+        public boolean isGoodNeighbor(LabelMultisetType label, BitType maskLabel) {
+            return maskLabel.get() || label.contains( this.label );
         }
     }
 
@@ -627,6 +661,10 @@ public class LabelMultisetFill {
 //
 //        intersect( labels, source, target, seed, new DiamondShape( 1 ), new BitTypeIntersect( label ), new BooleanNeighborhoodCheckLabelsAndMask( label ) );
 //        ImageJFunctions.show( target.copy(), "fill intersect both mask and labels" );
+//        for ( BitType t : target ) t.set( false );
+//
+//        intersect( labels, source, target, seed, new DiamondShape( 1 ), new BitTypeIntersect( label ), new BooleanNeighborhoodCheckLabelsOrMask( label ) );
+//        ImageJFunctions.show( target.copy(), "fill intersect both mask or labels" );
 //        for ( BitType t : target ) t.set( false );
 //
 //        System.out.println( "Done" );
