@@ -211,12 +211,12 @@ public class LabelMultisetEntryList
 		releaseRef( e1 );
 	}
 
-	public void mergeWith( final Multiset< SuperVoxel > multiset )
+	public void mergeWith( final Multiset< Label > multiset )
 	{
 		mergeWith( multiset.entrySet() );
 	}
 
-	public void mergeWith( final Set< Entry< SuperVoxel > > entrySet )
+	public void mergeWith( final Set< Entry< Label > > entrySet )
 	{
 		if ( entrySet.isEmpty() )
 			return;
@@ -227,7 +227,7 @@ public class LabelMultisetEntryList
 			this.ensureCapacity( entrySet.size() );
 			this.setSize( entrySet.size() );
 			int i = 0;
-			for ( final Entry< SuperVoxel > e : entrySet )
+			for ( final Entry< Label > e : entrySet )
 			{
 				get( i++, e1 );
 				e1.setId( e.getElement().id() );
@@ -238,8 +238,8 @@ public class LabelMultisetEntryList
 		}
 
 		final LabelMultisetEntry e1 = createRef();
-		final Iterator< Entry< SuperVoxel > > iter = entrySet.iterator();
-		Entry< SuperVoxel > e2 = iter.next();
+		final Iterator< Entry< Label > > iter = entrySet.iterator();
+		Entry< Label > e2 = iter.next();
 		int i = 0;
 		long id1 = get( i, e1 ).getId();
 		long id2 = e2.getElement().id();

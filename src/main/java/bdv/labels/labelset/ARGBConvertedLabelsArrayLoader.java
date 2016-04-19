@@ -62,7 +62,7 @@ public class ARGBConvertedLabelsArrayLoader implements CacheArrayLoader< Volatil
 			double g = 0;
 			double b = 0;
 			int size = 0;
-			for ( final Entry< SuperVoxel > entry : t.entrySet() )
+			for ( final Entry< Label > entry : t.entrySet() )
 			{
 				final long superVoxelId = entry.getElement().id();
 				final int count = entry.getCount();

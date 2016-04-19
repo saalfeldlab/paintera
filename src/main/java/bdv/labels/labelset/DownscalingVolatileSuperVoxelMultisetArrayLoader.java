@@ -99,11 +99,11 @@ public class DownscalingVolatileSuperVoxelMultisetArrayLoader implements CacheAr
 
 	private static class SortedPeekIterator implements Comparable< SortedPeekIterator >
 	{
-		Iterator< Entry< SuperVoxel > > iter;
+		Iterator< Entry< Label > > iter;
 
-		Entry< SuperVoxel > head;
+		Entry< Label > head;
 
-		void init( final Iterator< Entry< SuperVoxel > > iter )
+		void init( final Iterator< Entry< Label > > iter )
 		{
 			this.iter = iter;
 			head = iter.hasNext() ? iter.next() : null;

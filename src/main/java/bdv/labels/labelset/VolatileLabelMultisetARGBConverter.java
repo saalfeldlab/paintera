@@ -47,7 +47,7 @@ public class VolatileLabelMultisetARGBConverter implements Converter< VolatileLa
 		double b = 0;
 		double alphaCountSize = 0;
 
-		for ( final Entry< SuperVoxel > entry : input.get().entrySet() )
+		for ( final Entry< Label > entry : input.get().entrySet() )
 		{
 			final int argb = argbSource.argb( entry.getElement().id() );
 			final double alpha = ARGBType.alpha( argb );

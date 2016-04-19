@@ -9,9 +9,9 @@ import net.imglib2.converter.Converters;
 import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.type.numeric.integer.LongType;
 import net.imglib2.type.volatiles.VolatileARGBType;
+import net.imglib2.util.Pair;
 import net.imglib2.view.Views;
 
-@SuppressWarnings( "unchecked" )
 public class ARGBConvertedLabelPairSource extends AbstractARGBConvertedLabelsSource
 {
 	final private RandomAccessiblePair< VolatileLabelMultisetType, LongType > source;
@@ -35,7 +35,13 @@ public class ARGBConvertedLabelPairSource extends AbstractARGBConvertedLabelsSou
 	public RandomAccessibleInterval< VolatileARGBType > getSource( final int t, final int level )
 	{
 		return Converters.convert(
-				Views.interval( source, interval ),
+				// cast necessary for java-8-openjdk-amd64, version 1.8.0_66-internal, vendor: Oracle Corporation
+				// to prevent
+				// [ERROR] reference to convert is ambiguous both
+				// [ERROR] method <A,B>convert(net.imglib2.RandomAccessibleInterval<A>,net.imglib2.converter.Converter<? super A,? super B>,B) in net.imglib2.converter.Converters and
+				// [ERROR] method <A,B>convert(net.imglib2.IterableInterval<A>,net.imglib2.converter.Converter<? super A,? super B>,B) in net.imglib2.converter.Converters match
+				( RandomAccessibleInterval< Pair< VolatileLabelMultisetType, LongType > > )Views.interval( source, interval ),
+				//Views.interval( source, interval ),
 				new PairVolatileLabelMultisetLongARGBConverter( argbStream ),
 				new VolatileARGBType() );
 	}

@@ -120,11 +120,11 @@ public class DownscalingVolatileSuperVoxelMultisetArrayLoaderDvid implements Cac
 
 	private static class SortedPeekIterator implements Comparable< SortedPeekIterator >
 	{
-		Iterator< Entry< SuperVoxel > > iter;
+		Iterator< Entry< Label > > iter;
 
-		Entry< SuperVoxel > head;
+		Entry< Label > head;
 
-		void init( final Iterator< Entry< SuperVoxel > > iter )
+		void init( final Iterator< Entry< Label > > iter )
 		{
 			this.iter = iter;
 			head = iter.hasNext() ? iter.next() : null;
@@ -207,7 +207,7 @@ public class DownscalingVolatileSuperVoxelMultisetArrayLoaderDvid implements Cac
 						)
 				{
 					iters[ i ].init(
-							new Iterator< Multiset.Entry<SuperVoxel> >()
+							new Iterator< Multiset.Entry<Label> >()
 							{
 
 								private boolean hasNext = true;
@@ -219,16 +219,16 @@ public class DownscalingVolatileSuperVoxelMultisetArrayLoaderDvid implements Cac
 								}
 
 								@Override
-								public Entry< SuperVoxel > next()
+								public Entry< Label > next()
 								{
 									hasNext = false;
-									return new Entry< SuperVoxel >()
+									return new Entry< Label >()
 									{
 
 										@Override
-										public SuperVoxel getElement()
+										public Label getElement()
 										{
-											return new SuperVoxel()
+											return new Label()
 											{
 
 												@Override

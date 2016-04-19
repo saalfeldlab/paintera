@@ -36,7 +36,7 @@ public class LabelMultisetARGBConverter implements Converter< LabelMultisetType,
 		double g = 0;
 		double b = 0;
 		int size = 0;
-		for ( final Entry< SuperVoxel > entry : input.entrySet() )
+		for ( final Entry< Label > entry : input.entrySet() )
 		{
 			final long superVoxelId = entry.getElement().id();
 			final int count = entry.getCount();
