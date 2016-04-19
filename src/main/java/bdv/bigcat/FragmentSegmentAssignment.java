@@ -366,7 +366,7 @@ A:					for ( final Entry< String, JsonElement > entry : ilutJsonEntrySet )
 	 * @param segmentId1
 	 * @param segmentId2
 	 */
-	public void mergeBodies( final long segmentId1, final long segmentId2 )
+	public void mergeSegments( final long segmentId1, final long segmentId2 )
 	{
 		if ( segmentId1 == segmentId2 )
 			return;
@@ -399,7 +399,7 @@ A:					for ( final Entry< String, JsonElement > entry : ilutJsonEntrySet )
 			segmentId1 = getSegment( fragmentId1 );
 			segmentId2 = getSegment( fragmentId2 );
 		}
-		mergeBodies( segmentId1, segmentId2 );
+		mergeSegments( segmentId1, segmentId2 );
 	}
 
 	/**
