@@ -373,7 +373,7 @@ public class LabelMultisetFill {
 
         @Override
         public boolean isGoodNeighbor(LabelMultisetType label, T maskLabel) {
-            return maskLabel.equals( this.maskLabel );
+            return maskLabel.getIntegerLong() == this.maskLabel;
         }
     }
 
@@ -389,7 +389,7 @@ public class LabelMultisetFill {
 
         @Override
         public boolean isGoodNeighbor(LabelMultisetType label, T maskLabel) {
-            return label.contains( label );
+            return label.contains( this.label );
         }
     }
 
@@ -407,7 +407,7 @@ public class LabelMultisetFill {
 
         @Override
         public boolean isGoodNeighbor(LabelMultisetType label, T maskLabel) {
-            return maskLabel.equals( maskLabel ) && label.contains( label );
+            return maskLabel.getIntegerLong() == this.maskLabel && label.contains( this.label );
         }
     }
 
@@ -425,7 +425,7 @@ public class LabelMultisetFill {
 
         @Override
         public boolean isGoodNeighbor(LabelMultisetType label, T maskLabel) {
-            return maskLabel.equals( maskLabel ) || label.contains( label );
+            return maskLabel.getIntegerLong() == this.maskLabel || label.contains( this.label );
         }
     }
 
