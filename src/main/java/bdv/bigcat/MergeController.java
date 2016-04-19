@@ -394,30 +394,30 @@ public class MergeController
 		{
 			for (Merge merge : merges)
 				System.out.println(
-						"merge, " + merge.prevZ +
-						", " + merge.prevY +
-						", " + merge.prevX +
-						", " + merge.z +
+						"merge, " + merge.prevY +
+						", " + merge.prevZ +
+						", " + Math.round(merge.prevX/10.0) +
 						", " + merge.y +
-						", " + merge.x +
+						", " + merge.z +
+						", " + Math.round(merge.x/10.0) +
 						", " + merge.id1 +
 						", " + merge.id2);
 			for (Split split : splits)
 				System.out.println(
-						"split, " + split.z +
-						", " + split.y +
-						", " + split.x +
+						"split, " + split.y +
+						", " + split.z +
+						", " + Math.round(split.x/10.0) +
 						", " + split.id);
 			for (Paint paint : paints)
 				System.out.println(
-						"paint, " + paint.z +
-						", " + paint.y +
-						", " + paint.x);
+						"paint, " + paint.y +
+						", " + paint.z +
+						", " + Math.round(paint.x/10.0));
 			for (Action action : actions)
 				System.out.println(
-						"check, " + action.z +
-						", " + action.y +
-						", " + action.x);
+						"check, " + action.y +
+						", " + action.z +
+						", " + Math.round(action.x/10.0));
 		}
 	}
 	
