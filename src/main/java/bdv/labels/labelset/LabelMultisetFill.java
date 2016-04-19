@@ -626,21 +626,33 @@ public class LabelMultisetFill {
 //        ArrayImg<BitType, LongArray> source = ArrayImgs.bits(dim);
 //        ArrayImg<BitType, LongArray> target = ArrayImgs.bits(dim);
 //
+//        ShortProcessor shortTargetProc = new ShortProcessor((int) dim[0], (int) dim[1]);
+//        short[] shortTargetArray = (short[]) shortTargetProc.getPixels();
+//        ArrayImg<UnsignedShortType, ShortArray> shortSource = ArrayImgs.unsignedShorts(dim);
+//        ArrayImg<UnsignedShortType, ShortArray> shortTarget = ArrayImgs.unsignedShorts(shortTargetArray, dim);
+//
+//
+//
+//
 //        // x, y, r
 //        long[][] circles = new long[][]{
 //                { 10, 10, 10 },
 //                { 50, 30, 20 }
 //        };
 //
+//        ArrayCursor<UnsignedShortType> s = shortSource.cursor();
 //        for (ArrayCursor<BitType> c = source.cursor(); c.hasNext() ; )
 //        {
 //            c.fwd();
+//            s.fwd();
 //            for( int i = 0; i < circles.length; ++i )
 //            {
 //                long diffX = c.getIntPosition( 0 ) - circles[i][0];
 //                long diffY = c.getIntPosition( 1 ) - circles[i][1];
-//                if ( diffX * diffX + diffY * diffY <= circles[i][2]*circles[i][2] )
-//                    c.get().set( true );
+//                if ( diffX * diffX + diffY * diffY <= circles[i][2]*circles[i][2] ) {
+//                    c.get().set(true);
+//                    s.get().set(1);
+//                }
 //            }
 //        }
 //
@@ -663,8 +675,37 @@ public class LabelMultisetFill {
 //        ImageJFunctions.show( target.copy(), "fill intersect both mask and labels" );
 //        for ( BitType t : target ) t.set( false );
 //
-//        intersect( labels, source, target, seed, new DiamondShape( 1 ), new BitTypeIntersect( label ), new BooleanNeighborhoodCheckLabelsOrMask( label ) );
-//        ImageJFunctions.show( target.copy(), "fill intersect both mask or labels" );
+//
+//
+//        final ImagePlus shortImp = new ImagePlus("fill intersect both mask or labels", shortTargetProc);
+//        shortImp.show();
+//
+//        Intersect<UnsignedShortType> intersect = new Intersect<UnsignedShortType>() {
+//
+//            long compLabel = label;
+//
+//            @Override
+//            public void intersect(LabelMultisetType label, UnsignedShortType source, UnsignedShortType target) {
+//                if (source.getIntegerLong() == 1 && label.contains(compLabel)) {
+//                    try {
+//                        Thread.sleep( 2 );
+//                    } catch (InterruptedException e) {
+//                        e.printStackTrace();
+//                    }
+//                    target.set( 1 );
+//                    shortImp.updateAndDraw();
+//                }
+//
+//            }
+//        };
+//        intersect(
+//                labels,
+//                shortSource,
+//                shortTarget,
+//                seed,
+//                new DiamondShape( 1 ),
+//                intersect /* new BitTypeIntersect( label ) */,
+//                new IntegerNeighborhoodCheckLabelsOrMask<UnsignedShortType>( label, 1 ) );
 //        for ( BitType t : target ) t.set( false );
 //
 //        System.out.println( "Done" );
