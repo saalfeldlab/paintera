@@ -29,22 +29,25 @@ import org.scijava.ui.behaviour.ClickBehaviour;
 import org.scijava.ui.behaviour.InputTriggerAdder;
 import org.scijava.ui.behaviour.InputTriggerMap;
 import org.scijava.ui.behaviour.KeyStrokeAdder;
+import org.scijava.ui.behaviour.ScrollBehaviour;
 import org.scijava.ui.behaviour.io.InputTriggerConfig;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 
 import bdv.bigcat.ui.AbstractSaturatedARGBStream;
-import bdv.labels.labelset.Multiset.Entry;
 import bdv.labels.labelset.Label;
+import bdv.labels.labelset.Multiset.Entry;
 import bdv.labels.labelset.VolatileLabelMultisetType;
 import bdv.util.AbstractNamedAction;
 import bdv.util.AbstractNamedAction.NamedActionAdder;
+import bdv.util.Affine3DHelpers;
 import bdv.viewer.InputActionBindings;
 import bdv.viewer.ViewerPanel;
 import net.imglib2.RealPoint;
 import net.imglib2.RealRandomAccess;
 import net.imglib2.RealRandomAccessible;
+import net.imglib2.realtransform.AffineTransform3D;
 
 /**
  * @author Stephan Saalfeld &lt;saalfelds@janelia.hhmi.org&gt;
@@ -70,24 +73,24 @@ public class MergeController
 	private final InputMap ksInputMap = new InputMap();
 	private final NamedActionAdder ksActionAdder = new NamedActionAdder( ksActionMap );
 	private final KeyStrokeAdder ksKeyStrokeAdder;
-	
+
 	private class Action {
-		
+
 		public double x, y, z;
-		
-		Action(double x, double y, double z) {
+
+		Action(final double x, final double y, final double z) {
 			this.x = x;
 			this.y = y;
 			this.z = z;
 		}
 	}
-	
+
 	private class Merge extends Action {
-		
+
 		public double prevX, prevY, prevZ;
 		public long id1, id2;
-		
-		Merge(double x1, double y1, double z1, double x2, double y2, double z2, long id1, long id2) {
+
+		Merge(final double x1, final double y1, final double z1, final double x2, final double y2, final double z2, final long id1, final long id2) {
 			super(x2, y2, z2);
 			this.prevX = x1;
 			this.prevY = y1;
@@ -97,21 +100,21 @@ public class MergeController
 		}
 	}
 	private class Split extends Action {
-		
+
 		public long id;
-		
-		Split(double x, double y, double z, long id) {
+
+		Split(final double x, final double y, final double z, final long id) {
 			super(x, y, z);
 			this.id = id;
 		}
 	}
 	private class Paint extends Action {
-		
-		Paint(double x, double y, double z) {
+
+		Paint(final double x, final double y, final double z) {
 			super(x, y, z);
 		}
 	}
-	
+
 	private List< Merge > merges = new LinkedList< Merge >();
 	private List< Split > splits = new LinkedList< Split >();
 	private List< Paint > paints = new LinkedList< Paint >();
@@ -122,7 +125,7 @@ public class MergeController
 	{
 		return behaviourMap;
 	}
-	
+
 	public InputTriggerMap getInputTriggerMap()
 	{
 		return inputTriggerMap;
@@ -152,7 +155,7 @@ public class MergeController
 		inputAdder = config.inputTriggerAdder( inputTriggerMap, "merge" );
 
 		ksKeyStrokeAdder = keyProperties.keyStrokeAdder( ksInputMap, "merge" );
-		
+
 		new SelectFragment("select fragment", "button1").register();
 		new NeedMerge("need merge", "shift button1").register();
 		new NeedSplit("need split", "control button1").register();
@@ -161,11 +164,15 @@ public class MergeController
 		new ExportActions("export assignments", "E").register();
 		new IncColorSeed("increase color seed", "C").register();
 		new DecColorSeed("decrease color seed", "shift C").register();
-		
+		new FixDistanceTranslateZ( 1.0, "scroll browse z", "scroll" ).register();
+		new FixDistanceTranslateZ( 10.0, "scroll browse z fast", "shift scroll" ).register();
+		new FixDistanceTranslateZ( 0.1, "scroll browse z slow", "ctrl scroll" ).register();
+
+
 		inputActionBindings.addActionMap( "merge", ksActionMap );
 		inputActionBindings.addInputMap( "merge", ksInputMap );
 	}
-	
+
 	public long getActiveFragmentId()
 	{
 		return activeFragmentId;
@@ -173,12 +180,12 @@ public class MergeController
 
 	/**
 	 * Find the id of the fragment that overlaps the most with the given pixel.
-	 * 
+	 *
 	 * @param x
 	 * @param y
 	 * @return
 	 */
-	private long getFragmentIdByDisplayCoordinate( int x, int y )
+	private long getFragmentIdByDisplayCoordinate( final int x, final int y )
 	{
 		labelAccess.setPosition( x, 0 );
 		labelAccess.setPosition( y, 1 );
@@ -204,11 +211,11 @@ public class MergeController
 					fragmentId = label.id();
 				}
 			}
-			
+
 			colorStream.setActive( fragmentId );
 			viewer.requestRepaint();
 		}
-		
+
 		return fragmentId;
 	}
 
@@ -221,7 +228,7 @@ public class MergeController
 		private final String name;
 
 		private final String[] defaultTriggers;
-		
+
 		public SelfRegisteringBehaviour( final String name, final String ... defaultTriggers )
 		{
 			this.name = name;
@@ -238,7 +245,7 @@ public class MergeController
 	private abstract class SelfRegisteringAction extends AbstractNamedAction
 	{
 		private final String[] defaultTriggers;
-		
+
 		public SelfRegisteringAction( final String name, final String ... defaultTriggers )
 		{
 			super( name );
@@ -251,16 +258,16 @@ public class MergeController
 			ksKeyStrokeAdder.put( name(), defaultTriggers );
 		}
 	}
-	
+
 	private class SelectFragment extends SelfRegisteringBehaviour implements ClickBehaviour
-	{	
+	{
 		public SelectFragment( final String name, final String ... defaultTriggers )
 		{
 			super( name, defaultTriggers );
 		}
-		
+
 		@Override
-		public void click( int x, int y )
+		public void click( final int x, final int y )
 		{
 			activeFragmentId = getFragmentIdByDisplayCoordinate( x, y );
 			viewer.displayToGlobalCoordinates(x, y, lastClick);
@@ -268,26 +275,26 @@ public class MergeController
 			viewer.requestRepaint();
 		}
 	}
-		
+
 	private class NeedMerge extends SelfRegisteringBehaviour implements ClickBehaviour
-	{	
+	{
 		public NeedMerge( final String name, final String ... defaultTriggers )
 		{
 			super( name, defaultTriggers );
 		}
-		
+
 		@Override
-		public void click( int x, int y )
+		public void click( final int x, final int y )
 		{
 			final long oldActiveFragmentId = activeFragmentId;
 			activeFragmentId = getFragmentIdByDisplayCoordinate( x, y );
 			assignment.mergeFragmentSegments( oldActiveFragmentId, activeFragmentId );
 			colorStream.setActive( activeFragmentId );
 			viewer.requestRepaint();
-			
-			RealPoint pos = new RealPoint(3);
-			viewer.displayToGlobalCoordinates(x, y, pos);	
-			Merge merge = new Merge(
+
+			final RealPoint pos = new RealPoint(3);
+			viewer.displayToGlobalCoordinates(x, y, pos);
+			final Merge merge = new Merge(
 					lastClick.getDoublePosition(0),
 					lastClick.getDoublePosition(1),
 					lastClick.getDoublePosition(2),
@@ -302,24 +309,24 @@ public class MergeController
 			System.out.println("recoreded 'need merge' of " + oldActiveFragmentId + " with " + activeFragmentId);
 		}
 	}
-		
+
 	private class NeedSplit extends SelfRegisteringBehaviour implements ClickBehaviour
-	{	
+	{
 		public NeedSplit( final String name, final String ... defaultTriggers )
 		{
 			super( name, defaultTriggers );
 		}
-		
+
 		@Override
-		public void click( int x, int y )
+		public void click( final int x, final int y )
 		{
-			activeFragmentId = getFragmentIdByDisplayCoordinate( x, y );	
+			activeFragmentId = getFragmentIdByDisplayCoordinate( x, y );
 			viewer.displayToGlobalCoordinates(x, y, lastClick);
 			assignment.detachFragment( activeFragmentId );
 			colorStream.setActive( activeFragmentId );
 			viewer.requestRepaint();
 
-			Split split = new Split(
+			final Split split = new Split(
 					lastClick.getDoublePosition(0),
 					lastClick.getDoublePosition(1),
 					lastClick.getDoublePosition(2),
@@ -329,23 +336,23 @@ public class MergeController
 			System.out.println("recorded 'need-split' of " + activeFragmentId);
 		}
 	}
-		
+
 	private class NeedPaint extends SelfRegisteringBehaviour implements ClickBehaviour
-	{	
+	{
 		public NeedPaint( final String name, final String ... defaultTriggers )
 		{
 			super( name, defaultTriggers );
 		}
-		
+
 		@Override
-		public void click( int x, int y )
+		public void click( final int x, final int y )
 		{
-			activeFragmentId = getFragmentIdByDisplayCoordinate( x, y );	
+			activeFragmentId = getFragmentIdByDisplayCoordinate( x, y );
 			viewer.displayToGlobalCoordinates(x, y, lastClick);
 			colorStream.setActive( activeFragmentId );
 			viewer.requestRepaint();
 
-			Paint paint = new Paint(
+			final Paint paint = new Paint(
 					lastClick.getDoublePosition(0),
 					lastClick.getDoublePosition(1),
 					lastClick.getDoublePosition(2));
@@ -354,23 +361,23 @@ public class MergeController
 			System.out.println("recorded 'need-paint' at " + lastClick);
 		}
 	}
-		
+
 	private class NeedGeneralAction extends SelfRegisteringBehaviour implements ClickBehaviour
-	{	
+	{
 		public NeedGeneralAction( final String name, final String ... defaultTriggers )
 		{
 			super( name, defaultTriggers );
 		}
-		
+
 		@Override
-		public void click( int x, int y )
+		public void click( final int x, final int y )
 		{
-			activeFragmentId = getFragmentIdByDisplayCoordinate( x, y );	
+			activeFragmentId = getFragmentIdByDisplayCoordinate( x, y );
 			viewer.displayToGlobalCoordinates(x, y, lastClick);
 			colorStream.setActive( activeFragmentId );
 			viewer.requestRepaint();
 
-			Action action = new Action(
+			final Action action = new Action(
 					lastClick.getDoublePosition(0),
 					lastClick.getDoublePosition(1),
 					lastClick.getDoublePosition(2));
@@ -392,7 +399,7 @@ public class MergeController
 		@Override
 		public void actionPerformed( final ActionEvent e )
 		{
-			for (Merge merge : merges)
+			for (final Merge merge : merges)
 				System.out.println(
 						"merge, " + merge.prevY +
 						", " + merge.prevZ +
@@ -402,32 +409,32 @@ public class MergeController
 						", " + Math.round(merge.x/10.0) +
 						", " + merge.id1 +
 						", " + merge.id2);
-			for (Split split : splits)
+			for (final Split split : splits)
 				System.out.println(
 						"split, " + split.y +
 						", " + split.z +
 						", " + Math.round(split.x/10.0) +
 						", " + split.id);
-			for (Paint paint : paints)
+			for (final Paint paint : paints)
 				System.out.println(
 						"paint, " + paint.y +
 						", " + paint.z +
 						", " + Math.round(paint.x/10.0));
-			for (Action action : actions)
+			for (final Action action : actions)
 				System.out.println(
 						"check, " + action.y +
 						", " + action.z +
 						", " + Math.round(action.x/10.0));
 		}
 	}
-	
+
 	private class IncColorSeed extends SelfRegisteringAction
 	{
 		public IncColorSeed( final String name, final String ... defaultTriggers )
 		{
 			super( name, defaultTriggers );
 		}
-		
+
 		@Override
 		public void actionPerformed( final ActionEvent e )
 		{
@@ -436,20 +443,48 @@ public class MergeController
 			viewer.requestRepaint();
 		}
 	}
-	
+
 	private class DecColorSeed extends SelfRegisteringAction
 	{
 		public DecColorSeed( final String name, final String ... defaultTriggers )
 		{
 			super( name, defaultTriggers );
 		}
-		
+
 		@Override
 		public void actionPerformed( final ActionEvent e )
 		{
 			colorStream.decSeed();
 			colorStream.clearCache();
 			viewer.requestRepaint();
+		}
+	}
+
+	private class FixDistanceTranslateZ extends SelfRegisteringBehaviour implements ScrollBehaviour
+	{
+		final private double speed;
+
+		final private AffineTransform3D affine = new AffineTransform3D();
+
+		public FixDistanceTranslateZ( final double speed, final String name, final String ... defaultTriggers )
+		{
+			super( name, defaultTriggers );
+			this.speed = speed;
+		}
+
+		@Override
+		public void scroll( final double wheelRotation, final boolean isHorizontal, final int x, final int y )
+		{
+			synchronized ( viewer )
+			{
+				viewer.getState().getViewerTransform( affine );
+				final double dZ = speed * -wheelRotation * Affine3DHelpers.extractScale( affine, 0 );
+				affine.set( affine.get( 2, 3 ) - dZ, 2, 3 );
+
+				System.out.println( speed + " " + affine );
+
+				viewer.setCurrentViewerTransform( affine );
+			}
 		}
 	}
 }
