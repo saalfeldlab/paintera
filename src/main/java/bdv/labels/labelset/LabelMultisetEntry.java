@@ -5,7 +5,7 @@ import static bdv.labels.labelset.ByteUtils.LONG_SIZE;
 
 public class LabelMultisetEntry
 		extends MappedObject< LabelMultisetEntry, LongMappedAccess >
-		implements Multiset.Entry< SuperVoxel >
+		implements Multiset.Entry< Label >
 {
 	public static final LabelMultisetEntry type = new LabelMultisetEntry();
 
@@ -13,8 +13,10 @@ public class LabelMultisetEntry
 	protected static final int COUNT_OFFSET = SUPERVOXEL_ID_OFFSET + LONG_SIZE;
 	protected static final int SIZE_IN_BYTES = COUNT_OFFSET + INT_SIZE;
 
-	public SuperVoxel id = new SuperVoxel()
+	public Label id = new Label()
 	{
+		// TODO: add equals(), hashcode(), etc?
+
 		@Override
 		public long id()
 		{
@@ -42,7 +44,7 @@ public class LabelMultisetEntry
 	}
 
 	@Override
-	public SuperVoxel getElement()
+	public Label getElement()
 	{
 		return id;
 	}
@@ -77,7 +79,7 @@ public class LabelMultisetEntry
 	@Override
 	public int hashCode()
 	{
-		return Long.hashCode( getId() ) + Integer.hashCode( getCount() );
+		return 31 * Long.hashCode( getId() ) + Integer.hashCode( getCount() );
 	}
 
 	@Override
@@ -92,6 +94,7 @@ public class LabelMultisetEntry
 		return new LabelMultisetEntry( new LongMappedAccess( null, 0 ) );
 	}
 
+	// TODO: should not be public
 	public void setId( final long id )
 	{
 		access.putLong( id, SUPERVOXEL_ID_OFFSET );

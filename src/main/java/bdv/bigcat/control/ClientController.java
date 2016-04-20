@@ -33,7 +33,7 @@ import com.google.gson.GsonBuilder;
 import bdv.bigcat.FragmentSegmentAssignment;
 import bdv.bigcat.ui.AbstractSaturatedARGBStream;
 import bdv.labels.labelset.Multiset.Entry;
-import bdv.labels.labelset.SuperVoxel;
+import bdv.labels.labelset.Label;
 import bdv.labels.labelset.VolatileLabelMultisetType;
 import bdv.viewer.ViewerPanel;
 import net.imglib2.RealRandomAccess;
@@ -144,9 +144,9 @@ public class ClientController implements MouseListener, KeyListener
 			labelSetString = "";
 			final long oldActiveFragmentId = activeFragmentId;
 			long maxCount = 0;
-			for ( final Entry< SuperVoxel > entry : labelValues.get().entrySet() )
+			for ( final Entry< Label > entry : labelValues.get().entrySet() )
 			{
-				final SuperVoxel label = entry.getElement();
+				final Label label = entry.getElement();
 				final long count = entry.getCount();
 
 				if ( count > maxCount )

@@ -3,6 +3,7 @@ package bdv.labels.labelset;
 import static bdv.labels.labelset.ByteUtils.INT_SIZE;
 
 import java.util.AbstractList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.ListIterator;
 import java.util.concurrent.ConcurrentLinkedQueue;
@@ -12,9 +13,6 @@ public class MappedObjectArrayList< O extends MappedObject< O, T >, T extends Ma
 		extends AbstractList< O >
 		implements RefList< O >
 {
-// TODO: REMOVE. This is just here for debugging, to uncover places where too many Refs are created.
-	int numRefs = 0;
-
 	private final O type;
 
 	private MappedAccessData< T > data;
@@ -77,31 +75,30 @@ public class MappedObjectArrayList< O extends MappedObject< O, T >, T extends Ma
 		setSize( 0 );
 	}
 
-	private void setSize( final int size )
+	protected void setSize( final int size )
 	{
 		access.putInt( size, 0 );
 	}
 
-	static Object lock = new Object();
+// TODO: REMOVE. This is just here for debugging, to uncover places where too many Refs are created.
+//	int numRefs = 0;
+//	static Object lock = new Object();
 
 	@Override
 	public O createRef()
 	{
-
-
 // TODO: REMOVE. This is just here for debugging, to uncover places where too many Refs are created.
-		++numRefs;
-		synchronized( lock )
-		{
-			if ( numRefs > 10 )
-			{
-				System.out.println( "createRef (" + numRefs + ")" );
-				for ( final StackTraceElement e : Thread.currentThread().getStackTrace() )
-					System.out.println( e );
-				System.out.println();
-			}
-		}
-
+//		++numRefs;
+//		synchronized( lock )
+//		{
+//			if ( numRefs > 10 )
+//			{
+//				System.out.println( "createRef (" + numRefs + ")" );
+//				for ( final StackTraceElement e : Thread.currentThread().getStackTrace() )
+//					System.out.println( e );
+//				System.out.println();
+//			}
+//		}
 
 		final O obj = tmpObjRefs.poll();
 		return obj == null ? type.createRef() : obj;
@@ -118,7 +115,7 @@ public class MappedObjectArrayList< O extends MappedObject< O, T >, T extends Ma
 	public void releaseRef( final O ref )
 	{
 // TODO: REMOVE. This is just here for debugging, to uncover places where too many Refs are created.
-		--numRefs;
+//		--numRefs;
 
 		tmpObjRefs.add( ref );
 	}
@@ -128,7 +125,7 @@ public class MappedObjectArrayList< O extends MappedObject< O, T >, T extends Ma
 		return type.getSizeInBytes();
 	}
 
-	private void ensureCapacity( final int size )
+	protected void ensureCapacity( final int size )
 	{
 		final int required = ( size + 1 ) * elementSizeInBytes();
 		if ( data.size() < elementBaseOffset + required )
@@ -191,6 +188,23 @@ public class MappedObjectArrayList< O extends MappedObject< O, T >, T extends Ma
 		releaseRef( ref );
 
 		return true;
+	}
+
+	@Override
+	public void add( final int index, final O obj )
+	{
+		final int size = size();
+		ensureCapacity( size + 1 );
+		setSize( size + 1 );
+		final O ref = createRefAt( index );
+		if ( index < size )
+		{
+			final O shift = createRefAt( index + 1 );
+			shift.access.copyFrom( ref.access, elementSizeInBytes() * ( size - index ) );
+			releaseRef( shift );
+		}
+		ref.set( obj );
+		releaseRef( ref );
 	}
 
 	@Override
@@ -276,5 +290,58 @@ public class MappedObjectArrayList< O extends MappedObject< O, T >, T extends Ma
 				return false;
 		}
 		return !( e1.hasNext() || e2.hasNext() );
+	}
+
+	@Override
+	public void sort( final Comparator< ? super O > comparator )
+	{
+		if ( size() < 2 )
+			return;
+		final O r1 = createRef();
+		final O r2 = createRef();
+		final O r3 = createRef();
+		quicksort( 0, size() - 1, comparator, r1, r2, r3 );
+		releaseRef( r3 );
+		releaseRef( r2 );
+		releaseRef( r1 );
+	}
+
+	private void quicksort( final int low, final int high, final Comparator< ? super O > comparator, final O tmpRef1, final O tmpRef2, final O tmpRef3 )
+	{
+		int pivotpos = ( low + high ) / 2;
+		final O pivot = get( pivotpos, tmpRef1 );
+
+		int i = low;
+		int j = high;
+
+		do
+		{
+			while ( comparator.compare( get( i, tmpRef2 ), pivot ) < 0 )
+				i++;
+			while ( comparator.compare( pivot, get( j, tmpRef3 ) ) < 0 )
+				j--;
+			if ( i <= j )
+			{
+				get( i, tmpRef2 ).access.swapWith( get( j, tmpRef3 ).access, elementSizeInBytes() );
+				if ( pivotpos == i )
+				{
+					pivotpos = j;
+					get( pivotpos, pivot );
+				}
+				else if ( pivotpos == j )
+				{
+					pivotpos = i;
+					get( pivotpos, pivot );
+				}
+				i++;
+				j--;
+			}
+		}
+		while ( i <= j );
+
+		if ( low < j )
+			quicksort( low, j, comparator, tmpRef1, tmpRef2, tmpRef3 );
+		if ( i < high )
+			quicksort( i, high, comparator, tmpRef1, tmpRef2, tmpRef3 );
 	}
 }

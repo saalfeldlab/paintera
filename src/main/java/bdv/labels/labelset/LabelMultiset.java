@@ -5,18 +5,18 @@ import java.util.Collection;
 import java.util.Iterator;
 import java.util.Set;
 
-public class SuperVoxelMultiset implements Multiset< SuperVoxel >
+public class LabelMultiset implements Multiset< Label >
 {
 	private final LabelMultisetEntryList entries;
 
 	private final int totalSize;
 
-	private final Set< Entry< SuperVoxel > > entrySet = new AbstractSet< Entry< SuperVoxel > >()
+	private final Set< Entry< Label > > entrySet = new AbstractSet< Entry< Label > >()
 	{
 		@Override
-		public Iterator< Entry< SuperVoxel > > iterator()
+		public Iterator< Entry< Label > > iterator()
 		{
-			return new Iterator< Entry< SuperVoxel > >()
+			return new Iterator< Entry< Label > >()
 			{
 				private int i = 0;
 
@@ -41,7 +41,7 @@ public class SuperVoxelMultiset implements Multiset< SuperVoxel >
 		}
 	};
 
-	public SuperVoxelMultiset( final LabelMultisetEntryList entries )
+	public LabelMultiset( final LabelMultisetEntryList entries )
 	{
 		this.entries = entries;
 		int s = 0;
@@ -50,13 +50,13 @@ public class SuperVoxelMultiset implements Multiset< SuperVoxel >
 		this.totalSize = s;
 	}
 
-	public SuperVoxelMultiset( final LabelMultisetEntryList entries, final int size )
+	public LabelMultiset( final LabelMultisetEntryList entries, final int size )
 	{
 		this.entries = entries;
 		this.totalSize = size;
 	}
 
-	protected SuperVoxelMultiset( final int size )
+	protected LabelMultiset( final int size )
 	{
 		this.entries = new LabelMultisetEntryList();
 		this.totalSize = size;
@@ -85,8 +85,8 @@ public class SuperVoxelMultiset implements Multiset< SuperVoxel >
 	@Override
 	public boolean contains( final Object o )
 	{
-		return ( o instanceof SuperVoxel ) &&
-				entries.binarySearch( ( ( SuperVoxel ) o ).id() ) >= 0;
+		return ( o instanceof Label ) &&
+				entries.binarySearch( ( ( Label ) o ).id() ) >= 0;
 	}
 
 	@Override
@@ -101,10 +101,10 @@ public class SuperVoxelMultiset implements Multiset< SuperVoxel >
 	@Override
 	public int count( final Object o )
 	{
-		if ( ! ( o instanceof SuperVoxel ) )
+		if ( ! ( o instanceof Label ) )
 			return 0;
 
-		final int pos = entries.binarySearch( ( ( SuperVoxel ) o ).id() );
+		final int pos = entries.binarySearch( ( ( Label ) o ).id() );
 		if ( pos < 0 )
 			return 0;
 
@@ -112,7 +112,7 @@ public class SuperVoxelMultiset implements Multiset< SuperVoxel >
 	}
 
 	@Override
-	public Set< Entry< SuperVoxel > > entrySet()
+	public Set< Entry< Label > > entrySet()
 	{
 		return entrySet;
 	}
@@ -124,7 +124,7 @@ public class SuperVoxelMultiset implements Multiset< SuperVoxel >
 	}
 
 	@Override
-	public Iterator< SuperVoxel > iterator()
+	public Iterator< Label > iterator()
 	{
 		throw new UnsupportedOperationException();
 	}
@@ -142,7 +142,7 @@ public class SuperVoxelMultiset implements Multiset< SuperVoxel >
 	}
 
 	@Override
-	public boolean add( final SuperVoxel e )
+	public boolean add( final Label e )
 	{
 		throw new UnsupportedOperationException();
 	}
@@ -154,7 +154,7 @@ public class SuperVoxelMultiset implements Multiset< SuperVoxel >
 	}
 
 	@Override
-	public boolean addAll( final Collection< ? extends SuperVoxel > c )
+	public boolean addAll( final Collection< ? extends Label > c )
 	{
 		throw new UnsupportedOperationException();
 	}

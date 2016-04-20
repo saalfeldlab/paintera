@@ -14,10 +14,9 @@ import gnu.trove.impl.Constants;
 import gnu.trove.map.hash.TLongIntHashMap;
 
 /**
- * {@link CacheArrayLoader} for
- * Jan Funke's h5 files
+ * {@link CacheArrayLoader} for simple HDF5 files
  *
- * @author Stephan Saalfeld <saalfelds@janelia.hhmi.org>
+ * @author Stephan Saalfeld &lt;saalfelds@janelia.hhmi.org&gt;
  */
 public class H5LongLabelMultisetArrayLoader extends AbstractH5LabelMultisetArrayLoader
 {
@@ -25,9 +24,10 @@ public class H5LongLabelMultisetArrayLoader extends AbstractH5LabelMultisetArray
 
 	public H5LongLabelMultisetArrayLoader(
 			final IHDF5Reader reader,
+			final IHDF5Reader scaleReader,
 			final String dataset )
 	{
-		super( dataset );
+		super( scaleReader, dataset );
 		this.reader = reader.uint64();
 	}
 
@@ -38,10 +38,7 @@ public class H5LongLabelMultisetArrayLoader extends AbstractH5LabelMultisetArray
 	}
 
 	@Override
-	public VolatileLabelMultisetArray loadArray(
-			final int timepoint,
-			final int setup,
-			final int level,
+	public VolatileLabelMultisetArray loadArrayLevel0(
 			final int[] dimensions,
 			final long[] min ) throws InterruptedException
 	{
@@ -74,7 +71,7 @@ public class H5LongLabelMultisetArrayLoader extends AbstractH5LabelMultisetArray
 				Constants.DEFAULT_CAPACITY,
 				Constants.DEFAULT_LOAD_FACTOR,
 				-1,
-				-1);
+				-1 );
 A:		for ( int i = 0; i < data.length; ++i )
 		{
 			final long id = data[ i ];
@@ -98,6 +95,6 @@ A:		for ( int i = 0; i < data.length; ++i )
 		}
 //		System.out.println( listData.size() );
 
-		return new VolatileLabelMultisetArray( offsets, listData, true );
+		return new VolatileLabelMultisetArray( offsets, listData, nextListOffset, true );
 	}
 }

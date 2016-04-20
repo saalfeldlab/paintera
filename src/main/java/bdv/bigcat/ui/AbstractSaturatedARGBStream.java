@@ -28,7 +28,7 @@ import gnu.trove.map.hash.TLongIntHashMap;
  *
  * @author Stephan Saalfeld <saalfelds@janelia.hhmi.org>
  */
-abstract public class AbstractSaturatedARGBStream implements ARGBSource
+abstract public class AbstractSaturatedARGBStream implements ARGBStream
 {
 	final static protected double[] rs = new double[]{ 1, 1, 0, 0, 0, 1, 1 };
 	final static protected double[] gs = new double[]{ 0, 1, 1, 1, 0, 0, 0 };

@@ -31,15 +31,6 @@ abstract public class AbstractH5SetupImageLoader< T extends NativeType< T > , V 
 	extends AbstractViewerSetupImgLoader< T, V >
 	implements ViewerImgLoader, SetCache
 {
-	/**
-	 * It seems unnecessary to hold a reference to the {@link IHDF5Reader} if
-	 * consumers use only its subclasses, e.g. {@link IHDF5Reader#float32()},
-	 * however, the subclasses do not have a reference to their generator and
-	 * {@link IHDF5Reader} closes the file when it gets garbage collected by
-	 * which the subclasses loose their source. Really quirky!
-	 */
-	final protected IHDF5Reader reader;
-
 	final protected double[] resolution;
 
 	final protected long[] dimension;
@@ -64,7 +55,6 @@ abstract public class AbstractH5SetupImageLoader< T extends NativeType< T > , V 
 			final CacheArrayLoader< A > loader ) throws IOException
 	{
 		super( type, vType );
-		this.reader = reader;
 		this.setupId = setupId;
 		this.loader = loader;
 
@@ -75,7 +65,7 @@ abstract public class AbstractH5SetupImageLoader< T extends NativeType< T > , V 
 				h5dim[ 1 ],
 				h5dim[ 0 ], };
 
-		if ( reader.hasAttribute( dataset, "resolution" ) )
+		if ( reader.object().hasAttribute( dataset, "resolution" ) )
 		{
 			final double[] h5res = reader.float64().getArrayAttr( dataset, "resolution" );
 			resolution = new double[]{

@@ -1,6 +1,6 @@
 package bdv.labels.labelset;
 
-public interface SuperVoxel
+public interface Label
 {
 	public long id();
 }

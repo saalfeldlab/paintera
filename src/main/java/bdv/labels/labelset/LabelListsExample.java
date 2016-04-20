@@ -4,7 +4,7 @@ import gnu.trove.list.array.TIntArrayList;
 
 import java.util.List;
 
-public class SuperVoxelListsExample
+public class LabelListsExample
 {
 	public static void main( final String[] args )
 	{

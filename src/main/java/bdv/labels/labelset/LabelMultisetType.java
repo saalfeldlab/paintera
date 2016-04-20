@@ -11,7 +11,7 @@ import net.imglib2.type.AbstractNativeType;
 import net.imglib2.util.Fraction;
 import bdv.labels.labelset.RefList.RefIterator;
 
-public class LabelMultisetType extends AbstractNativeType< LabelMultisetType > implements Multiset< SuperVoxel >
+public class LabelMultisetType extends AbstractNativeType< LabelMultisetType > implements Multiset< Label >
 {
 	public static final LabelMultisetType type = new LabelMultisetType();
 
@@ -21,7 +21,7 @@ public class LabelMultisetType extends AbstractNativeType< LabelMultisetType > i
 
 	private final LabelMultisetEntryList entries;
 
-	private final Set< Entry< SuperVoxel > > entrySet;
+	private final Set< Entry< Label > > entrySet;
 
 	// this is the constructor if you want it to read from an array
 	public LabelMultisetType( final NativeImg< ?, VolatileLabelMultisetArray > img )
@@ -46,9 +46,9 @@ public class LabelMultisetType extends AbstractNativeType< LabelMultisetType > i
 		this.entries = new LabelMultisetEntryList();
 		this.img = img;
 		this.access = access;
-		this.entrySet = new AbstractSet< Entry< SuperVoxel > >()
+		this.entrySet = new AbstractSet< Entry< Label > >()
 		{
-			private final RefIterator< Entry< SuperVoxel > > iterator = new RefIterator< Entry< SuperVoxel > >()
+			private final RefIterator< Entry< Label > > iterator = new RefIterator< Entry< Label > >()
 			{
 				private final RefIterator< LabelMultisetEntry > it = entries.iterator();
 
@@ -78,7 +78,7 @@ public class LabelMultisetType extends AbstractNativeType< LabelMultisetType > i
 			};
 
 			@Override
-			public RefIterator< Entry< SuperVoxel > > iterator()
+			public RefIterator< Entry< Label > > iterator()
 			{
 				iterator.reset();
 				return iterator;
@@ -154,7 +154,7 @@ public class LabelMultisetType extends AbstractNativeType< LabelMultisetType > i
 	public boolean contains( final Object o )
 	{
 		access.getValue( i, entries );
-		return ( ( o instanceof SuperVoxel ) && entries.binarySearch( ( ( SuperVoxel ) o ).id() ) >= 0 );
+		return ( ( o instanceof Label ) && entries.binarySearch( ( ( Label ) o ).id() ) >= 0 );
 	}
 
 	public boolean contains( final long id )
@@ -177,7 +177,7 @@ public class LabelMultisetType extends AbstractNativeType< LabelMultisetType > i
 	{
 		access.getValue( i, entries );
 		for ( final Object o : c )
-			if ( ! ( ( o instanceof SuperVoxel ) && entries.binarySearch( ( ( SuperVoxel ) o ).id() ) >= 0 ) )
+			if ( ! ( ( o instanceof Label ) && entries.binarySearch( ( ( Label ) o ).id() ) >= 0 ) )
 				return false;
 		return true;
 	}
@@ -186,10 +186,10 @@ public class LabelMultisetType extends AbstractNativeType< LabelMultisetType > i
 	public int count( final Object o )
 	{
 		access.getValue( i, entries );
-		if ( ! ( o instanceof SuperVoxel ) )
+		if ( ! ( o instanceof Label ) )
 			return 0;
 
-		final int pos = entries.binarySearch( ( ( SuperVoxel ) o ).id() );
+		final int pos = entries.binarySearch( ( ( Label ) o ).id() );
 		if ( pos < 0 )
 			return 0;
 
@@ -197,7 +197,7 @@ public class LabelMultisetType extends AbstractNativeType< LabelMultisetType > i
 	}
 
 	@Override
-	public Set< Entry< SuperVoxel > > entrySet()
+	public Set< Entry< Label > > entrySet()
 	{
 		access.getValue( i, entries );
 		return entrySet;
@@ -216,12 +216,12 @@ public class LabelMultisetType extends AbstractNativeType< LabelMultisetType > i
 		return access.isValid();
 	}
 
-	@Override public Iterator< SuperVoxel > iterator() { throw new UnsupportedOperationException(); }
+	@Override public Iterator< Label > iterator() { throw new UnsupportedOperationException(); }
 	@Override public Object[] toArray() { throw new UnsupportedOperationException(); }
 	@Override public < T > T[] toArray( final T[] a ) { throw new UnsupportedOperationException(); }
-	@Override public boolean add( final SuperVoxel e ) { throw new UnsupportedOperationException(); }
+	@Override public boolean add( final Label e ) { throw new UnsupportedOperationException(); }
 	@Override public boolean remove( final Object o ) { throw new UnsupportedOperationException(); }
-	@Override public boolean addAll( final Collection< ? extends SuperVoxel > c ) { throw new UnsupportedOperationException(); }
+	@Override public boolean addAll( final Collection< ? extends Label > c ) { throw new UnsupportedOperationException(); }
 	@Override public boolean removeAll( final Collection< ? > c ) { throw new UnsupportedOperationException(); }
 	@Override public boolean retainAll( final Collection< ? > c ) { throw new UnsupportedOperationException(); }
 	@Override public void clear() { throw new UnsupportedOperationException(); }

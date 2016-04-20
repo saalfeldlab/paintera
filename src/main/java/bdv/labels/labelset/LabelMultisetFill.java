@@ -88,10 +88,10 @@ public class LabelMultisetFill {
         RandomAccess<LabelMultisetType> labelsAccess = labels.randomAccess();
         labelsAccess.setPosition( seed );
 
-        Set<Multiset.Entry<SuperVoxel>> entries = labelsAccess.get().entrySet();
+        Set<Multiset.Entry<Label>> entries = labelsAccess.get().entrySet();
         long seedLabel = -1;
         long seedCount = 0;
-        for ( Multiset.Entry<SuperVoxel> e : entries )
+        for ( Multiset.Entry<Label> e : entries )
         {
             int count = e.getCount();
             if ( count > seedCount )
@@ -231,7 +231,6 @@ public class LabelMultisetFill {
         }
 
     }
-
 
 //    public static void main(String[] args) {
 //        new ImageJ();
@@ -591,12 +590,11 @@ public class LabelMultisetFill {
         }
     }
 
-
+    
     public static LabelMultisetType generateLabelMultisetTypeFromID( long id, int count )
     {
         VolatileLabelMultisetArray arr = new VolatileLabelMultisetArray(1, true);
-        int[] d = arr.data;
-        long[] l = arr.listData.data;
+        long[] l = ((LongMappedAccessData)arr.getListData()).data;
         ByteUtils.putInt( count, l, 12 );
         ByteUtils.putLong( id, l, 4 );
         return new LabelMultisetType( arr );

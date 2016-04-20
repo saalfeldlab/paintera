@@ -33,6 +33,7 @@ import com.google.gson.JsonPrimitive;
 import com.google.gson.JsonSerializationContext;
 import com.google.gson.JsonSerializer;
 
+import bdv.util.IdService;
 import gnu.trove.iterator.TLongLongIterator;
 import gnu.trove.iterator.TLongObjectIterator;
 import gnu.trove.list.array.TLongArrayList;
@@ -339,9 +340,9 @@ A:					for ( final Entry< String, JsonElement > entry : ilutJsonEntrySet )
 		{
 			final long segmentId = lut.get( fragmentId );
 			if ( segmentId == lut.getNoEntryValue() ) {
-				lut.put( fragmentId, fragmentId );
-				ilut.put( fragmentId, new long[]{ fragmentId } );
-				id = fragmentId;
+				id = IdService.allocate();
+				lut.put( fragmentId, id);
+				ilut.put( id, new long[]{ fragmentId } );
 			}
 			else
 				id = segmentId;
@@ -365,19 +366,21 @@ A:					for ( final Entry< String, JsonElement > entry : ilutJsonEntrySet )
 	 * @param segmentId1
 	 * @param segmentId2
 	 */
-	public void mergeBodies( final long segmentId1, final long segmentId2 )
+	public void mergeSegments( final long segmentId1, final long segmentId2 )
 	{
 		if ( segmentId1 == segmentId2 )
 			return;
 
+		long mergedSegmentId = IdService.allocate();
 		synchronized ( ilut )
 		{
 			final long[] fragments1 = getFragments( segmentId1 );
 			final long[] fragments2 = getFragments( segmentId2 );
 			final long[] fragments = ArrayUtils.addAll( fragments1, fragments2 );
 			for ( final long fragmentId : fragments )
-				lut.put( fragmentId, segmentId1 );
-			ilut.put( segmentId1, fragments );
+				lut.put( fragmentId, mergedSegmentId );
+			ilut.put( mergedSegmentId, fragments );
+			ilut.remove( segmentId1 );
 			ilut.remove( segmentId2 );
 		}
 	}
@@ -396,7 +399,7 @@ A:					for ( final Entry< String, JsonElement > entry : ilutJsonEntrySet )
 			segmentId1 = getSegment( fragmentId1 );
 			segmentId2 = getSegment( fragmentId2 );
 		}
-		mergeBodies( segmentId1, segmentId2 );
+		mergeSegments( segmentId1, segmentId2 );
 	}
 
 	/**
@@ -415,7 +418,7 @@ A:					for ( final Entry< String, JsonElement > entry : ilutJsonEntrySet )
 				final long[] newFragments = ArrayUtils.removeElement( fragments, fragmentId );
 				ilut.put( segmentId, newFragments );
 
-				final long newSegmentId = segmentId == fragmentId ? newFragments[ 0 ] : fragmentId;
+				final long newSegmentId = IdService.allocate();
 				lut.put( fragmentId, newSegmentId );
 				ilut.put( newSegmentId, new long[]{ fragmentId } );
 			}

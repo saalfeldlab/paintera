@@ -21,7 +21,7 @@ package bdv.bigcat.ui;
  *
  * @author Stephan Saalfeld <saalfelds@janelia.hhmi.org>
  */
-public interface ARGBSource
+public interface ARGBStream
 {
 	/**
 	 * Generates a uint32 packed ARGB color for a long.

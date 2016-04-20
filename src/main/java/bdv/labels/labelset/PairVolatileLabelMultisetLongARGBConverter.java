@@ -16,27 +16,28 @@
  */
 package bdv.labels.labelset;
 
+import bdv.bigcat.ui.ARGBStream;
+import bdv.labels.labelset.Multiset.Entry;
 import net.imglib2.converter.Converter;
 import net.imglib2.type.numeric.ARGBType;
+import net.imglib2.type.numeric.integer.LongType;
 import net.imglib2.type.volatiles.VolatileARGBType;
-import bdv.bigcat.ui.ARGBSource;
-import bdv.labels.labelset.Multiset.Entry;
+import net.imglib2.util.Pair;
 
 /**
- * TODO make the converter reference and use a lookuptable instead of ColorStream.
- * TODO use alpha and calculate alpha
- *
- * @author Stephan Saalfeld <saalfelds@janelia.hhmi.org>
+ * @author Stephan Saalfeld &lt;saalfelds@janelia.hhmi.org&gt;
  */
-public class VolatileSuperVoxelMultisetARGBConverter implements Converter< VolatileLabelMultisetType, VolatileARGBType >
+public class PairVolatileLabelMultisetLongARGBConverter
+		implements Converter< Pair< VolatileLabelMultisetType, LongType >, VolatileARGBType >
 {
-	final protected ARGBSource argbSource;
-
+	static public long TRANSPARENT_LABEL = 0xffffffffffffffffL; // -1L or uint64.MAX_VALUE
 	final static private double iFF = 1.0 / 255.0;
 
-	public VolatileSuperVoxelMultisetARGBConverter( final ARGBSource argbSource )
+	final protected ARGBStream argbStream;
+
+	public PairVolatileLabelMultisetLongARGBConverter( final ARGBStream argbStream )
 	{
-		this.argbSource = argbSource;
+		this.argbStream = argbStream;
 	}
 
 	protected void convertValid( final VolatileLabelMultisetType input, final VolatileARGBType output )
@@ -47,9 +48,9 @@ public class VolatileSuperVoxelMultisetARGBConverter implements Converter< Volat
 		double b = 0;
 		double alphaCountSize = 0;
 
-		for ( final Entry< SuperVoxel > entry : input.get().entrySet() )
+		for ( final Entry< Label > entry : input.get().entrySet() )
 		{
-			final int argb = argbSource.argb( entry.getElement().id() );
+			final int argb = argbStream.argb( entry.getElement().id() );
 			final double alpha = ARGBType.alpha( argb );
 			final double alphaCount = alpha * iFF * entry.getCount();
 			a += alphaCount * alpha;
@@ -59,31 +60,37 @@ public class VolatileSuperVoxelMultisetARGBConverter implements Converter< Volat
 			alphaCountSize += alphaCount;
 		}
 		final double iAlphaCountSize = 1.0 / alphaCountSize;
-		final int aInt = Math.min( 255, ( int )( a * iAlphaCountSize ) );
-		final int rInt = Math.min( 255, ( int )( r * iAlphaCountSize ) );
-		final int gInt = Math.min( 255, ( int )( g * iAlphaCountSize ) );
-		final int bInt = Math.min( 255, ( int )( b * iAlphaCountSize ) );
+		final int aInt = Math.min( 255, ( int ) ( a * iAlphaCountSize ) );
+		final int rInt = Math.min( 255, ( int ) ( r * iAlphaCountSize ) );
+		final int gInt = Math.min( 255, ( int ) ( g * iAlphaCountSize ) );
+		final int bInt = Math.min( 255, ( int ) ( b * iAlphaCountSize ) );
 		output.setValid( true );
 		output.set( ( ( ( ( ( aInt << 8 ) | rInt ) << 8 ) | gInt ) << 8 ) | bInt );
-//		output.set( ARGBType.rgba( rInt, gInt, bInt, aInt ) );
-
+		// output.set( ARGBType.rgba( rInt, gInt, bInt, aInt ) );
 	}
 
 	@Override
-	public void convert( final VolatileLabelMultisetType input, final VolatileARGBType output )
+	public void convert(
+			final Pair< VolatileLabelMultisetType, LongType > input,
+			final VolatileARGBType output )
 	{
-		if ( input.isValid() )
+		final long inputB = input.getB().get();
+		if ( inputB == TRANSPARENT_LABEL )
 		{
-			convertValid( input, output );
-
-//			output.setValid( true );
-//			if ( input.get().contains( 7131l ) )
-//				output.set( ARGBType.rgba( 0, 250, 0, 255 ) );
-//			else
-//				output.set( ARGBType.rgba( 0, 0, 0, 255 ) );
+			final VolatileLabelMultisetType inputA = input.getA();
+			if ( inputA.isValid() )
+			{
+				convertValid( inputA, output );
+			}
+			else
+			{
+				output.setValid( false );
+			}
 		}
-		else {
-			output.setValid( false );
+		else
+		{
+			output.set( argbStream.argb( inputB ) );
+			output.setValid( true );
 		}
 	}
 }

@@ -11,6 +11,8 @@ import java.util.Map;
 
 import javax.xml.ws.http.HTTPException;
 
+import org.scijava.ui.behaviour.io.InputTriggerConfig;
+
 import com.google.gson.JsonIOException;
 import com.google.gson.JsonSyntaxException;
 
@@ -21,6 +23,7 @@ import bdv.bigcat.composite.Composite;
 import bdv.bigcat.composite.CompositeCopy;
 import bdv.bigcat.composite.CompositeProjector;
 import bdv.bigcat.ui.ARGBConvertedLabelsSource;
+import bdv.bigcat.ui.AbstractARGBConvertedLabelsSource;
 import bdv.bigcat.ui.RandomSaturatedARGBStream;
 import bdv.img.SetCache;
 import bdv.img.cache.Cache;
@@ -37,6 +40,7 @@ import bdv.util.dvid.Server;
 import bdv.viewer.DisplayMode;
 import bdv.viewer.Source;
 import bdv.viewer.SourceAndConverter;
+import bdv.viewer.TriggerBehaviourBindings;
 import bdv.viewer.ViewerOptions;
 import bdv.viewer.render.AccumulateProjectorFactory;
 import mpicbg.spim.data.generic.sequence.BasicViewSetup;
@@ -48,6 +52,7 @@ import mpicbg.spim.data.sequence.TimePoints;
 import net.imglib2.display.ScaledARGBConverter;
 import net.imglib2.interpolation.randomaccess.NearestNeighborInterpolatorFactory;
 import net.imglib2.realtransform.AffineTransform3D;
+import net.imglib2.realtransform.RealViews;
 import net.imglib2.type.numeric.ARGBType;
 import net.imglib2.type.numeric.NumericType;
 import net.imglib2.type.volatiles.VolatileARGBType;
@@ -55,7 +60,12 @@ import net.imglib2.view.Views;
 
 public class BigCat
 {
-	public static < A extends ViewerSetupImgLoader< ? extends NumericType< ? >, ? > & SetCache > BigDataViewer createViewer( final String windowTitle, final A[] rawDataLoaders, final ARGBConvertedLabelsSource[] labelSources, final List< Composite< ARGBType, ARGBType > > composites )
+	public static < A extends ViewerSetupImgLoader< ? extends NumericType< ? >, ? > & SetCache > BigDataViewer createViewer(
+			final String windowTitle,
+			final A[] rawDataLoaders,
+			final AbstractARGBConvertedLabelsSource[] labelSources,
+			final SetCache[] labelLoaders,
+			final List< Composite< ARGBType, ARGBType > > composites )
 	{
 		/* raw pixels */
 		final CombinedImgLoader.SetupIdAndLoader[] loaders = new CombinedImgLoader.SetupIdAndLoader[ rawDataLoaders.length ];
@@ -88,10 +98,11 @@ public class BigCat
 		BigDataViewer.initSetups( spimData, converterSetups, sources );
 
 		/* labels */
-		for ( final ARGBConvertedLabelsSource source : labelSources )
+		for ( final SetCache setCache : labelLoaders )
+			setCache.setCache( imgLoader.cache );
+	
+		for ( final AbstractARGBConvertedLabelsSource source : labelSources )
 		{
-			( ( SetCache ) source.getLoader() ).setCache( imgLoader.cache );
-
 			final ScaledARGBConverter.ARGB converter = new ScaledARGBConverter.ARGB( 0, 255 );
 			final ScaledARGBConverter.VolatileARGB vconverter = new ScaledARGBConverter.VolatileARGB( 0, 255 );
 
@@ -184,8 +195,19 @@ public class BigCat
 //					stores );
 
 			/* data sources */
-			final Uint8blkImageLoader dvidGrayscale8ImageLoader = new Uint8blkImageLoader( "http://emdata2.int.janelia.org:7000/api", "e402c09ddd0f45e980d9be6e9fcb9bd0", "grayscale" );
-			final LabelblkMultisetSetupImageLoader dvidLabelsMultisetImageLoader = new LabelblkMultisetSetupImageLoader( 1, "http://emdata2.int.janelia.org:7000/api", "e402c09ddd0f45e980d9be6e9fcb9bd0", "labels1104", resolutions, stores );
+//			final Uint8blkImageLoader dvidGrayscale8ImageLoader = new Uint8blkImageLoader( "http://emdata2.int.janelia.org:7000/api", "e402c09ddd0f45e980d9be6e9fcb9bd0", "grayscale" );
+//			final LabelblkMultisetSetupImageLoader dvidLabelsMultisetImageLoader = new LabelblkMultisetSetupImageLoader( 1, "http://emdata2.int.janelia.org:7000/api", "e402c09ddd0f45e980d9be6e9fcb9bd0", "labels1104", resolutions, stores );
+			final Uint8blkImageLoader dvidGrayscale8ImageLoader = new Uint8blkImageLoader(
+					"http://104.197.250.147:8000/api",
+					"de02b03701e84eb3830e944919fbec5a",
+					"grayscale" );
+			final LabelblkMultisetSetupImageLoader dvidLabelsMultisetImageLoader = new LabelblkMultisetSetupImageLoader(
+					1,
+					"http://104.197.250.147:8000/api",
+					"de02b03701e84eb3830e944919fbec5a",
+					"7colseg1",
+					resolutions,
+					stores );
 //			final ARGBConvertedLabelsSetupImageLoader dvidLabelsARGBImageLoader = new ARGBConvertedLabelsSetupImageLoader(
 //					2,
 //					dvidLabelsMultisetImageLoader );
@@ -245,7 +267,24 @@ public class BigCat
 
 			bdv.getViewerFrame().setVisible( true );
 
-			bdv.getViewer().getDisplay().addHandler( new MergeModeController( bdv.getViewer(), Views.interpolate( Views.extendValue( dvidLabelsMultisetImageLoader.getVolatileImage( 0, 0, ImgLoaderHints.LOAD_COMPLETELY ), new VolatileLabelMultisetType() ), new NearestNeighborInterpolatorFactory< VolatileLabelMultisetType >() ), colorStream, assignment ) );
+			final MergeController mergeController = new MergeController(
+					bdv.getViewer(),
+					RealViews.affineReal(
+							Views.interpolate(
+									Views.extendValue(
+											dvidLabelsMultisetImageLoader.getVolatileImage( 0, 0, ImgLoaderHints.LOAD_COMPLETELY ),
+											new VolatileLabelMultisetType() ),
+									new NearestNeighborInterpolatorFactory< VolatileLabelMultisetType >() ),
+							dvidGrayscale8ImageLoader.getMipmapTransforms()[ 0 ] ),
+					colorStream,
+					assignment,
+					new InputTriggerConfig(),
+					bdv.getViewerFrame().getKeybindings(),
+					new InputTriggerConfig() );
+
+			final TriggerBehaviourBindings bindings = bdv.getViewerFrame().getTriggerbindings();
+			bindings.addBehaviourMap( "bigcat", mergeController.getBehaviourMap() );
+			bindings.addInputTriggerMap( "bigcat", mergeController.getInputTriggerMap() );
 		}
 		catch ( final Exception e )
 		{
