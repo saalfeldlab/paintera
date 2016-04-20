@@ -13,6 +13,8 @@ import bdv.BigDataViewer;
 import bdv.bigcat.composite.ARGBCompositeAlphaYCbCr;
 import bdv.bigcat.composite.Composite;
 import bdv.bigcat.composite.CompositeCopy;
+import bdv.bigcat.control.LabelBrushController;
+import bdv.bigcat.control.LabelPersistenceController;
 import bdv.bigcat.ui.ARGBConvertedLabelPairSource;
 import bdv.bigcat.ui.GoldenAngleSaturatedARGBStream;
 import bdv.bigcat.ui.Util;
@@ -159,28 +161,28 @@ public class BigCATAriadne
 				bdv.getViewerFrame().getKeybindings(),
 				new InputTriggerConfig() );
 
-//		final LabelBrushController brushController = new LabelBrushController(
-//				bdv.getViewer(),
-//				paintedLabels,
-//				fragments.getMipmapTransforms()[ 0 ],
-//				colorStream,
-//				assignment,
-//				mergeController,
-//				paintedLabelsFilePath,
-//				paintedLabelsDataset,
-//				cellDimensions,
-//				new InputTriggerConfig() );
-//
-//		final LabelPersistenceController persistenceController = new LabelPersistenceController(
-//				bdv.getViewer(),
-//				fragments.getImage( 0 ),
-//				paintedLabels,
-//				paintedLabelsFilePath,
-//				paintedLabelsDataset,
-//				mergedLabelsDataset,
-//				cellDimensions,
-//				new InputTriggerConfig(),
-//				bdv.getViewerFrame().getKeybindings() );
+		final LabelBrushController brushController = new LabelBrushController(
+				bdv.getViewer(),
+				paintedLabels,
+				fragments.getMipmapTransforms()[ 0 ],
+				colorStream,
+				assignment,
+				mergeController,
+				paintedLabelsFilePath,
+				paintedLabelsDataset,
+				cellDimensions,
+				new InputTriggerConfig() );
+
+		final LabelPersistenceController persistenceController = new LabelPersistenceController(
+				bdv.getViewer(),
+				fragments.getImage( 0 ),
+				paintedLabels,
+				paintedLabelsFilePath,
+				paintedLabelsDataset,
+				mergedLabelsDataset,
+				cellDimensions,
+				new InputTriggerConfig(),
+				bdv.getViewerFrame().getKeybindings() );
 
 //		Annotations annotations = new Annotations();
 //		final AnnotationController annotationController = new AnnotationController(
@@ -196,12 +198,12 @@ public class BigCATAriadne
 		bindings.addBehaviourMap( "merge", mergeController.getBehaviourMap() );
 		bindings.addInputTriggerMap( "merge", mergeController.getInputTriggerMap() );
 
-//		bindings.addBehaviourMap( "brush", brushController.getBehaviourMap() );
-//		bindings.addInputTriggerMap( "brush", brushController.getInputTriggerMap() );
+		bindings.addBehaviourMap( "brush", brushController.getBehaviourMap() );
+		bindings.addInputTriggerMap( "brush", brushController.getInputTriggerMap() );
 
 //		bdv.getViewer().getDisplay().addOverlayRenderer( annotationController.getAnnotationOverlay() );
 
-//		bdv.getViewer().getDisplay().addOverlayRenderer( brushController.getBrushOverlay() );
+		bdv.getViewer().getDisplay().addOverlayRenderer( brushController.getBrushOverlay() );
 
 
 //			final ZContext ctx = new ZContext();
