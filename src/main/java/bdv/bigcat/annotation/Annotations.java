@@ -33,6 +33,11 @@ public class Annotations {
 		kdTreeDirty = true;
 	}
 	
+	public List< Annotation > getAnnotations() {
+		
+		return annotations;
+	}
+	
 	public List< Annotation > getLocalAnnotations(ConvexPolytope polytope) {
 
 		List< Annotation > localAnnotations = new LinkedList< Annotation >();

@@ -11,23 +11,23 @@ public class Synapse extends Annotation {
 		super(id, pos, comment);
 	}
 
-	public SynapticSite getPreSynapticPartner() {
+	public PostSynapticSite getPreSynapticPartner() {
 		return preSynapticPartner;
 	}
 
-	public void setPreSynapticPartner(SynapticSite preSynapticPartner) {
+	public void setPreSynapticPartner(PostSynapticSite preSynapticPartner) {
 		this.preSynapticPartner = preSynapticPartner;
 	}
 
-	public List<SynapticSite> getPostSynapticPartners() {
+	public List<PostSynapticSite> getPostSynapticPartners() {
 		return postSynapticPartners;
 	}
 
-	public void setPostSynapticPartners(List<SynapticSite> postSynapticPartners) {
+	public void setPostSynapticPartners(List<PostSynapticSite> postSynapticPartners) {
 		this.postSynapticPartners = postSynapticPartners;
 	}
 
-	public void addPostSynapticPartner(SynapticSite site) {
+	public void addPostSynapticPartner(PostSynapticSite site) {
 		this.postSynapticPartners.add(site);
 		
 	}
@@ -37,6 +37,6 @@ public class Synapse extends Annotation {
 		visitor.visit(this);
 	}
 	
-	private SynapticSite preSynapticPartner;
-	private List< SynapticSite > postSynapticPartners = new LinkedList< SynapticSite >();
+	private PostSynapticSite preSynapticPartner;
+	private List< PostSynapticSite > postSynapticPartners = new LinkedList< PostSynapticSite >();
 }

@@ -73,19 +73,7 @@ abstract public class AbstractSaturatedARGBStream implements ARGBStream
 		int argb = argbCache.get( segmentId );
 		if ( argb == 0x00000000 )
 		{
-			double x = getDouble( seed + segmentId );
-			x *= 6.0;
-			final int k = ( int )x;
-			final int l = k + 1;
-			final double u = x - k;
-			final double v = 1.0 - u;
-
-			final int r = interpolate( rs, k, l, u, v );
-			final int g = interpolate( gs, k, l, u, v );
-			final int b = interpolate( bs, k, l, u, v );
-
-			argb = argb( r, g, b, alpha );
-
+			argb = id2argb(seed + segmentId);
 			argbCache.put( segmentId, argb );
 		}
 		if ( activeFragment == fragmentId )
@@ -145,5 +133,76 @@ abstract public class AbstractSaturatedARGBStream implements ARGBStream
 	public void clearCache()
 	{
 		argbCache.clear();
+	}
+
+	protected final static int hsva2argb(double h, double s, double v, int alpha) {
+
+		if(s < 0) s = 0;
+		if(s > 1) s = 1;
+		if(v < 0) v = 0;
+		if(v > 1) v = 1;
+		
+		int r = 0;
+		int g = 0;
+		int b = 0;
+
+		if(s == 0) {
+			r = (int)(255.0*v);
+			g = (int)(255.0*v);
+			b = (int)(255.0*v);
+		}
+
+		h = h%1.0; // want h to be in 0..1
+
+		int i = (int)(h*6);
+		double f = (h*6) - i;
+		double p = v*(1.0f - s); 
+		double q = v*(1.0f - s*f);
+		double t = v*(1.0f - s*(1.0f-f));
+		switch(i%6) {
+		case 0:
+			r = (int)(255.0*v);
+			g = (int)(255.0*t);
+			b = (int)(255.0*p);
+			break;
+		case 1:
+			r = (int)(255.0*q);
+			g = (int)(255.0*v);
+			b = (int)(255.0*p);
+			break;
+		case 2:
+			r = (int)(255.0*p);
+			g = (int)(255.0*v);
+			b = (int)(255.0*t);
+			break;
+		case 3:
+			r = (int)(255.0*p);
+			g = (int)(255.0*q);
+			b = (int)(255.0*v);
+			break;
+		case 4:
+			r = (int)(255.0*t);
+			g = (int)(255.0*p);
+			b = (int)(255.0*v);
+			break;
+		case 5:
+			r = (int)(255.0*v);
+			g = (int)(255.0*p);
+			b = (int)(255.0*q);
+			break;
+		}
+		return argb(r, g, b, alpha);
+	}
+
+	protected final int id2argb(long l) {
+
+		double x = 0.4671057256451202*(l*(l+1))%1.0;
+		double y = 0.6262286337141059*(l*(l+2))%1.0;
+		double z = 0.9424373277692188*(l*(l+3))%1.0;
+
+		double h = x;
+		double s = 0.8 + y*0.2;
+		double v = (l == 0 ? 0.0 : 0.5 + z*0.5);
+		return hsva2argb(h, s, v, alpha);
 	}
 }

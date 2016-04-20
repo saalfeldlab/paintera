@@ -121,7 +121,7 @@ public class BigCat
 
 		final AccumulateProjectorFactory< ARGBType > projectorFactory = new CompositeProjector.CompositeProjectorFactory< ARGBType >( sourceCompositesMap );
 
-		final BigDataViewer bdv = new BigDataViewer( converterSetups, sources, null, timepoints.size(), imgLoader.getCache(), windowTitle, null, ViewerOptions.options().accumulateProjectorFactory( projectorFactory ).numRenderingThreads( 16 ) );
+		final BigDataViewer bdv = new BigDataViewer( converterSetups, sources, null, timepoints.size(), imgLoader.getCache(), windowTitle, null, ViewerOptions.options().accumulateProjectorFactory( projectorFactory ).numRenderingThreads( 16 ).targetRenderNanos(10000000) );
 
 		final AffineTransform3D transform = new AffineTransform3D();
 //		transform.set(

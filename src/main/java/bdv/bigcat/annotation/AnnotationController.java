@@ -16,7 +16,7 @@
  */
 package bdv.bigcat.annotation;
 
-import java.awt.Event;
+import java.awt.event.ActionEvent;
 import java.util.List;
 
 import javax.swing.ActionMap;
@@ -33,20 +33,19 @@ import org.scijava.ui.behaviour.io.InputTriggerConfig;
 
 import bdv.bigcat.ui.AnnotationOverlay;
 import bdv.util.AbstractNamedAction;
-import bdv.util.IdService;
 import bdv.util.AbstractNamedAction.NamedActionAdder;
+import bdv.util.IdService;
 import bdv.viewer.InputActionBindings;
 import bdv.viewer.ViewerPanel;
 import net.imglib2.RealPoint;
-import net.imglib2.algorithm.kdtree.ConvexPolytope;
-import net.imglib2.algorithm.kdtree.HyperPlane;
-import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.util.LinAlgHelpers;
 
 /**
  * @author Jan Funke &lt;jfunke@iri.upc.edu&gt;
  */
 public class AnnotationController {
+	
+	final protected AnnotationsStore store;
 	final protected ViewerPanel viewer;
 	final private AnnotationOverlay overlay;
 	final private Annotations annotations;
@@ -75,24 +74,27 @@ public class AnnotationController {
 		return inputTriggerMap;
 	}
 
-	public AnnotationController(final ViewerPanel viewer, final Annotations annotations,
+	public AnnotationController(final AnnotationsStore annotationsStore, final ViewerPanel viewer,
 			final InputTriggerConfig config, final InputActionBindings inputActionBindings,
 			final KeyStrokeAdder.Factory keyProperties) {
 		this.viewer = viewer;
-		this.annotations = annotations;
+		this.store = annotationsStore;
+		this.annotations = annotationsStore.read();
 		overlay = new AnnotationOverlay(viewer, annotations, this);
 		overlay.setVisible(true);
 		inputAdder = config.inputTriggerAdder(inputTriggerMap, "bigcat");
 
 		ksKeyStrokeAdder = keyProperties.keyStrokeAdder(ksInputMap, "bdv");
 
+
 		// register actions and behaviours here
 		new SelectAnnotation("select annotation", "SPACE button1").register();
 		new MoveAnnotation("move annotation", "SPACE button1").register();
 		new RemoveAnnotation("remove annotation", "SPACE button3").register();
-		new AddSynapseAnnotation("add synapse annotation", "SPACE shift button3").register();
-		new AddPreSynapticSiteAnnotation("add presynaptic site annotation", "SPACE shift button2").register();
-		new AddPostSynapticSiteAnnotation("add postsynaptic site annotation", "SPACE shift button1").register();
+		new AddPreSynapticSiteAnnotation("add presynaptic site annotation", "SPACE shift button1").register();
+		new AddPostSynapticSiteAnnotation("add postsynaptic site annotation", "SPACE shift button3").register();
+		new AddSynapseAnnotation("add synapse annotation", "SPACE shift button2").register();
+		new SaveAnnotations("save annotations", "S").register();
 
 		inputActionBindings.addActionMap("bdv", ksActionMap);
 		inputActionBindings.addInputMap("bdv", ksInputMap);
@@ -241,24 +243,16 @@ public class AnnotationController {
 		@Override
 		public void click(int x, int y) {
 		
-			if (selectedAnnotation == null || !(selectedAnnotation instanceof Synapse)) {
-
-				System.out.println("select a synapse before adding synaptic sites to it");
-				return;
-			}
-			
-			Synapse synapse = (Synapse)selectedAnnotation;
-			
 			RealPoint pos = new RealPoint(3);
 			viewer.displayToGlobalCoordinates(x, y, pos);
 			
 			System.out.println("Adding presynaptic site at " + pos);
 			
-			SynapticSite site = new SynapticSite(IdService.allocate(), pos, "");
-			site.setSynapse(synapse);
-			synapse.setPreSynapticPartner(site);
+			PreSynapticSite site = new PreSynapticSite(IdService.allocate(), pos, "");
 			annotations.add(site);
 
+			selectedAnnotation = site;
+			
 			viewer.requestRepaint();
 		}
 	}
@@ -271,23 +265,25 @@ public class AnnotationController {
 		@Override
 		public void click(int x, int y) {
 		
-			if (selectedAnnotation == null || !(selectedAnnotation instanceof Synapse)) {
+			if (selectedAnnotation == null || !(selectedAnnotation instanceof PreSynapticSite)) {
 
-				System.out.println("select a synapse before adding synaptic sites to it");
+				System.out.println("select a pre-synaptic site before adding a post-synaptic site to it");
 				return;
 			}
 			
-			Synapse synapse = (Synapse)selectedAnnotation;
+			PreSynapticSite pre = (PreSynapticSite)selectedAnnotation;
 			
 			RealPoint pos = new RealPoint(3);
 			viewer.displayToGlobalCoordinates(x, y, pos);
 			
 			System.out.println("Adding postsynaptic site at " + pos);
 			
-			SynapticSite site = new SynapticSite(IdService.allocate(), pos, "");
-			site.setSynapse(synapse);
-			synapse.addPostSynapticPartner(site);
+			PostSynapticSite site = new PostSynapticSite(IdService.allocate(), pos, "");
+			site.setPartner(pre);
+			pre.setPartner(site);
 			annotations.add(site);
+			
+			selectedAnnotation = site;
 
 			viewer.requestRepaint();
 		}
@@ -322,6 +318,24 @@ public class AnnotationController {
 
 			annotations.markDirty();
 		}	
+	}
+
+	private class SaveAnnotations extends SelfRegisteringAction
+	{
+		private static final long serialVersionUID = 1L;
+
+		public SaveAnnotations( final String name, final String ... defaultTriggers )
+		{
+			super( name, defaultTriggers );
+		}
+
+		@Override
+		public void actionPerformed( final ActionEvent e )
+		{
+			System.out.println("Saving annotations...");
+			store.write(annotations);
+			System.out.println("done.");
+		}
 	}
 
 	// define actions and behaviours here
