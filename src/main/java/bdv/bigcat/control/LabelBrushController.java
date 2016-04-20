@@ -157,7 +157,7 @@ public class LabelBrushController
 		{
 			final HyperSphere< LongType > sphere =
 					new HyperSphere<>(
-							Views.hyperSlice( labels, 0, Math.round( coords.getDoublePosition( 0 ) ) ),
+							Views.hyperSlice( extendedLabels, 0, Math.round( coords.getDoublePosition( 0 ) ) ),
 							new Point(
 									Math.round( coords.getDoublePosition( 1 ) ),
 									Math.round( coords.getDoublePosition( 2 ) ) ),
