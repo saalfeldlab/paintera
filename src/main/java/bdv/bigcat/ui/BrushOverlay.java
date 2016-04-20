@@ -19,7 +19,7 @@ import net.imglib2.ui.OverlayRenderer;
  */
 public class BrushOverlay implements OverlayRenderer
 {
-	final static BasicStroke stroke = new BasicStroke( 2 );
+	final static BasicStroke stroke = new BasicStroke( 1 );
 	final protected ViewerPanel viewer;
 	protected int x, y, width, height, radius = 5;
 	protected boolean visible = false;
