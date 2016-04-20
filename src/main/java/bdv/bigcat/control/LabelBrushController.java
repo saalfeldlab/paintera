@@ -3,18 +3,12 @@ package bdv.bigcat.control;
 import static bdv.labels.labelset.PairVolatileLabelMultisetLongARGBConverter.TRANSPARENT_LABEL;
 
 import java.awt.Cursor;
-import java.awt.event.ActionEvent;
-import java.io.File;
-
-import javax.swing.ActionMap;
-import javax.swing.InputMap;
 
 import org.scijava.ui.behaviour.Behaviour;
 import org.scijava.ui.behaviour.BehaviourMap;
 import org.scijava.ui.behaviour.DragBehaviour;
 import org.scijava.ui.behaviour.InputTriggerAdder;
 import org.scijava.ui.behaviour.InputTriggerMap;
-import org.scijava.ui.behaviour.KeyStrokeAdder;
 import org.scijava.ui.behaviour.ScrollBehaviour;
 import org.scijava.ui.behaviour.io.InputTriggerConfig;
 
@@ -22,10 +16,6 @@ import bdv.bigcat.FragmentSegmentAssignment;
 import bdv.bigcat.MergeController;
 import bdv.bigcat.ui.AbstractSaturatedARGBStream;
 import bdv.bigcat.ui.BrushOverlay;
-import bdv.img.h5.H5Utils;
-import bdv.util.AbstractNamedAction;
-import bdv.util.AbstractNamedAction.NamedActionAdder;
-import bdv.viewer.InputActionBindings;
 import bdv.viewer.ViewerPanel;
 import net.imglib2.Point;
 import net.imglib2.RandomAccessible;
@@ -69,12 +59,6 @@ public class LabelBrushController
 	private final InputTriggerMap inputTriggerMap = new InputTriggerMap();
 	private final InputTriggerAdder inputAdder;
 
-	// for keystroke actions
-	private final ActionMap ksActionMap = new ActionMap();
-	private final InputMap ksInputMap = new InputMap();
-	private final NamedActionAdder ksActionAdder = new NamedActionAdder( ksActionMap );
-	private final KeyStrokeAdder ksKeyStrokeAdder;
-
 	public BehaviourMap getBehaviourMap()
 	{
 		return behaviourMap;
@@ -105,8 +89,7 @@ public class LabelBrushController
 			final String labelsH5Path,
 			final String labelsH5Dataset,
 			final int[] labelsH5CellDimensions,
-			final InputTriggerConfig config,
-			final InputActionBindings inputActionBindings )
+			final InputTriggerConfig config )
 	{
 		this.viewer = viewer;
 		this.labels = labels;
@@ -120,7 +103,6 @@ public class LabelBrushController
 		this.labelsH5CellDimensions = labelsH5CellDimensions;
 		brushOverlay = new BrushOverlay( viewer );
 		inputAdder = config.inputTriggerAdder( inputTriggerMap, "brush" );
-		ksKeyStrokeAdder = config.keyStrokeAdder( ksInputMap, "b" );
 
 		labelLocation = new RealPoint( 3 );
 
@@ -128,10 +110,6 @@ public class LabelBrushController
 		new Erase( "erase", "SPACE button2", "SPACE button3" ).register();
 		new ChangeBrushRadius( "change brush radius", "SPACE scroll", "SPACE scroll" ).register();
 		new MoveBrush( "move brush", "SPACE" ).register();
-		new SavePaintedLabels( "save painted labels", "S" ).register();
-
-		inputActionBindings.addActionMap( "brush", ksActionMap );
-		inputActionBindings.addInputMap( "brush", ksInputMap );
 	}
 
 	private void setCoordinates( final int x, final int y )
@@ -166,23 +144,6 @@ public class LabelBrushController
 		{
 			behaviourMap.put( name, this );
 			inputAdder.put( name, defaultTriggers );
-		}
-	}
-
-	private abstract class SelfRegisteringAction extends AbstractNamedAction
-	{
-		private final String[] defaultTriggers;
-
-		public SelfRegisteringAction( final String name, final String ... defaultTriggers )
-		{
-			super( name );
-			this.defaultTriggers = defaultTriggers;
-		}
-
-		public void register()
-		{
-			ksActionAdder.put( this );
-			ksKeyStrokeAdder.put( name(), defaultTriggers );
 		}
 	}
 
@@ -360,27 +321,6 @@ public class LabelBrushController
 			viewer.setCursor( Cursor.getPredefinedCursor( Cursor.DEFAULT_CURSOR ) );
 			viewer.getDisplay().repaint();
 
-		}
-	}
-
-	private class SavePaintedLabels extends SelfRegisteringAction
-	{
-		public SavePaintedLabels( final String name, final String ... defaultTriggers )
-		{
-			super( name, defaultTriggers );
-		}
-
-		@Override
-		public void actionPerformed( final ActionEvent e )
-		{
-			System.out.println( "Saving painted labels into " + labelsH5Path );
-
-			synchronized ( viewer )
-			{
-				viewer.setCursor( Cursor.getPredefinedCursor( Cursor.WAIT_CURSOR ) );
-				H5Utils.saveUnsignedLong( labels, new File( labelsH5Path ), labelsH5Dataset, labelsH5CellDimensions );
-				viewer.setCursor( Cursor.getPredefinedCursor( Cursor.DEFAULT_CURSOR ) );
-			}
 		}
 	}
 }

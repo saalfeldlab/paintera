@@ -10,13 +10,11 @@ import com.google.gson.JsonIOException;
 import com.google.gson.JsonSyntaxException;
 
 import bdv.BigDataViewer;
-import bdv.bigcat.annotation.AnnotationController;
-import bdv.bigcat.annotation.Annotations;
-import bdv.bigcat.annotation.Synapse;
 import bdv.bigcat.composite.ARGBCompositeAlphaYCbCr;
 import bdv.bigcat.composite.Composite;
 import bdv.bigcat.composite.CompositeCopy;
 import bdv.bigcat.control.LabelBrushController;
+import bdv.bigcat.control.LabelPersistenceController;
 import bdv.bigcat.ui.ARGBConvertedLabelPairSource;
 import bdv.bigcat.ui.GoldenAngleSaturatedARGBStream;
 import bdv.bigcat.ui.Util;
@@ -28,13 +26,11 @@ import bdv.img.h5.H5Utils;
 import bdv.img.labelpair.RandomAccessiblePair;
 import bdv.labels.labelset.PairVolatileLabelMultisetLongARGBConverter;
 import bdv.labels.labelset.VolatileLabelMultisetType;
-import bdv.util.IdService;
 import bdv.viewer.TriggerBehaviourBindings;
 import ch.systemsx.cisd.hdf5.HDF5Factory;
 import ch.systemsx.cisd.hdf5.IHDF5Reader;
 import mpicbg.spim.data.generic.sequence.ImgLoaderHints;
 import net.imglib2.RandomAccessibleInterval;
-import net.imglib2.RealPoint;
 import net.imglib2.img.cell.CellImg;
 import net.imglib2.img.cell.CellImgFactory;
 import net.imglib2.interpolation.randomaccess.NearestNeighborInterpolatorFactory;
@@ -48,28 +44,33 @@ import net.imglib2.view.Views;
 public class BigCATAriadne
 {
 	final static private int[] cellDimensions = new int[]{ 8, 64, 64 };
-	
+	final static private String rawDataset = "/em_raw";
+	final static private String backgroundLabelsDataset = "/labels";
+	final static private String paintedLabelsDataset = "/paintedLabels";
+	final static private String mergedLabelsDataset = "/mergedLabels";
+
 	public static void main( final String[] args ) throws JsonSyntaxException, JsonIOException, IOException
 	{
 		Util.initUI();
 
 		System.out.println( "Opening " + args[ 0 ] );
-		final IHDF5Reader reader = HDF5Factory.openForReading( args[ 0 ] );
+		final IHDF5Reader reader = HDF5Factory.open( args[ 0 ] );
 
 		/* raw pixels */
-		final H5UnsignedByteSetupImageLoader raw = new H5UnsignedByteSetupImageLoader( reader, "/em_raw", 0, cellDimensions );
-		
+		final H5UnsignedByteSetupImageLoader raw = new H5UnsignedByteSetupImageLoader( reader, rawDataset, 0, cellDimensions );
+
 		/* fragments */
+		final String labelsDataset = reader.exists( mergedLabelsDataset ) ? mergedLabelsDataset : backgroundLabelsDataset;
 		final H5LabelMultisetSetupImageLoader fragments =
 				new H5LabelMultisetSetupImageLoader(
 						reader,
 						null,
-						"/labels",
+						labelsDataset,
 						1,
 						cellDimensions );
 		final RandomAccessibleInterval< VolatileLabelMultisetType > fragmentsPixels = fragments.getVolatileImage( 0, 0 );
 		final long[] fragmentsDimensions = Intervals.dimensionsAsLongArray( fragmentsPixels );
-		
+
 //		// TODO does not work for uint64
 //		long maxId = 0;
 //		for (final LabelMultisetType t : Views.iterable(fragments.getImage(0))) {
@@ -82,18 +83,17 @@ public class BigCATAriadne
 //		}
 //		// TODO does not work for uint64
 //		IdService.invalidate(0, maxId);
-		
+
 		/* painted labels */
 //		final long[] paintedLabelsArray = new long[ ( int )Intervals.numElements( fragmentsPixels ) ];
 //		Arrays.fill( paintedLabelsArray, PairVolatileLabelMultisetLongARGBConverter.TRANSPARENT_LABEL );
 //		final ArrayImg< LongType, LongArray > paintedLabels = ArrayImgs.longs( paintedLabelsArray, fragmentsDimensions );
-		
+
 		final CellImg< LongType, ?, ? > paintedLabels;
-		final String paintedLabelsFilePath = args[ 0 ] + ".labels.h5";
-		final String paintedLabelsDataset = "paintedLabels";
+		final String paintedLabelsFilePath = args[ 0 ];
 		final File paintedLabelsFile = new File( paintedLabelsFilePath );
-		if ( paintedLabelsFile.exists() )
-			paintedLabels = H5Utils.loadUnsignedLong( new File( paintedLabelsFilePath ), paintedLabelsDataset, cellDimensions );
+		if ( paintedLabelsFile.exists() && reader.exists( paintedLabelsDataset ) )
+				paintedLabels = H5Utils.loadUnsignedLong( new File( paintedLabelsFilePath ), paintedLabelsDataset, cellDimensions );
 		else
 		{
 			paintedLabels = new CellImgFactory< LongType >( cellDimensions ).create( fragmentsDimensions, new LongType() );
@@ -108,7 +108,7 @@ public class BigCATAriadne
 				new RandomAccessiblePair<>(
 						fragments.getVolatileImage( 0, 0 ),
 						paintedLabels );
-		
+
 		/* converters and controls */
 		final FragmentSegmentAssignment assignment = new FragmentSegmentAssignment();
 		final GoldenAngleSaturatedARGBStream colorStream = new GoldenAngleSaturatedARGBStream( assignment );
@@ -145,7 +145,7 @@ public class BigCATAriadne
 		bdv.getViewerFrame().setVisible( true );
 
 		final TriggerBehaviourBindings bindings = bdv.getViewerFrame().getTriggerbindings();
-		
+
 		final MergeController mergeController = new MergeController(
 				bdv.getViewer(),
 				RealViews.affineReal(
@@ -160,20 +160,30 @@ public class BigCATAriadne
 				new InputTriggerConfig(),
 				bdv.getViewerFrame().getKeybindings(),
 				new InputTriggerConfig() );
-		
-//		final LabelPaintController paintController = new LabelPaintController(
-//				bdv.getViewer(),
-//				paintedLabels,
-//				fragments.getMipmapTransforms()[ 0 ],
-//				colorStream,
-//				assignment,
-//				mergeController,
-//				paintedLabelsFilePath,
-//				paintedLabelsDataset,
-//				cellDimensions,
-//				new InputTriggerConfig(),
-//				bdv.getViewerFrame().getKeybindings() );
-		
+
+		final LabelBrushController brushController = new LabelBrushController(
+				bdv.getViewer(),
+				paintedLabels,
+				fragments.getMipmapTransforms()[ 0 ],
+				colorStream,
+				assignment,
+				mergeController,
+				paintedLabelsFilePath,
+				paintedLabelsDataset,
+				cellDimensions,
+				new InputTriggerConfig() );
+
+		final LabelPersistenceController persistenceController = new LabelPersistenceController(
+				bdv.getViewer(),
+				fragments.getImage( 0 ),
+				paintedLabels,
+				paintedLabelsFilePath,
+				paintedLabelsDataset,
+				mergedLabelsDataset,
+				cellDimensions,
+				new InputTriggerConfig(),
+				bdv.getViewerFrame().getKeybindings() );
+
 //		Annotations annotations = new Annotations();
 //		final AnnotationController annotationController = new AnnotationController(
 //				bdv.getViewer(),
@@ -181,23 +191,21 @@ public class BigCATAriadne
 //				new InputTriggerConfig(),
 //				bdv.getViewerFrame().getKeybindings(),
 //				new InputTriggerConfig() );
-		
+
 //		bindings.addBehaviourMap( "annotation", annotationController.getBehaviourMap() );
 //		bindings.addInputTriggerMap( "annotation", annotationController.getInputTriggerMap() );
 
-//		bindings.addBehaviourMap( "paint", paintController.getBehaviourMap() );
-//		bindings.addInputTriggerMap( "paint", paintController.getInputTriggerMap() );
-		
 		bindings.addBehaviourMap( "merge", mergeController.getBehaviourMap() );
 		bindings.addInputTriggerMap( "merge", mergeController.getInputTriggerMap() );
-		
-//		bindings.addBehaviourMap( "brush", paintController.getBehaviourMap() );
-//		bindings.addInputTriggerMap( "brush", paintController.getInputTriggerMap() );
-		
+
+		bindings.addBehaviourMap( "brush", brushController.getBehaviourMap() );
+		bindings.addInputTriggerMap( "brush", brushController.getInputTriggerMap() );
+
 //		bdv.getViewer().getDisplay().addOverlayRenderer( annotationController.getAnnotationOverlay() );
-//		bdv.getViewer().getDisplay().addOverlayRenderer( paintController.getBrushOverlay() );
-		
-		
+
+		bdv.getViewer().getDisplay().addOverlayRenderer( brushController.getBrushOverlay() );
+
+
 //			final ZContext ctx = new ZContext();
 //			final Socket socket = ctx.createSocket( ZMQ.REQ );
 //			socket.connect( "tcp://10.103.40.190:8128" );
