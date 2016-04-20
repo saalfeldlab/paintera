@@ -14,6 +14,7 @@ import bdv.bigcat.composite.ARGBCompositeAlphaYCbCr;
 import bdv.bigcat.composite.Composite;
 import bdv.bigcat.composite.CompositeCopy;
 import bdv.bigcat.control.LabelBrushController;
+import bdv.bigcat.control.LabelFillController;
 import bdv.bigcat.control.LabelPersistenceController;
 import bdv.bigcat.control.MergeController;
 import bdv.bigcat.ui.ARGBConvertedLabelPairSource;
@@ -32,6 +33,7 @@ import ch.systemsx.cisd.hdf5.HDF5Factory;
 import ch.systemsx.cisd.hdf5.IHDF5Reader;
 import mpicbg.spim.data.generic.sequence.ImgLoaderHints;
 import net.imglib2.RandomAccessibleInterval;
+import net.imglib2.algorithm.neighborhood.DiamondShape;
 import net.imglib2.img.cell.CellImg;
 import net.imglib2.img.cell.CellImgFactory;
 import net.imglib2.interpolation.randomaccess.NearestNeighborInterpolatorFactory;
@@ -185,6 +187,16 @@ public class BigCATAriadne
 				new InputTriggerConfig(),
 				bdv.getViewerFrame().getKeybindings() );
 
+		final LabelFillController fillController = new LabelFillController(
+				bdv.getViewer(),
+				fragments.getImage( 0 ),
+				paintedLabels,
+				fragments.getMipmapTransforms()[ 0 ],
+				assignment,
+				mergeController,
+				new DiamondShape( 1 ),
+				new InputTriggerConfig() );
+
 //		Annotations annotations = new Annotations();
 //		final AnnotationController annotationController = new AnnotationController(
 //				bdv.getViewer(),
@@ -201,6 +213,9 @@ public class BigCATAriadne
 
 		bindings.addBehaviourMap( "brush", brushController.getBehaviourMap() );
 		bindings.addInputTriggerMap( "brush", brushController.getInputTriggerMap() );
+
+		bindings.addBehaviourMap( "fill", fillController.getBehaviourMap() );
+		bindings.addInputTriggerMap( "fill", fillController.getInputTriggerMap() );
 
 //		bdv.getViewer().getDisplay().addOverlayRenderer( annotationController.getAnnotationOverlay() );
 
