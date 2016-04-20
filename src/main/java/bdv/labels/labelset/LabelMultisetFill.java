@@ -1,9 +1,12 @@
 package bdv.labels.labelset;
 
+import static bdv.labels.labelset.PairVolatileLabelMultisetLongARGBConverter.TRANSPARENT_LABEL;
+
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Set;
 
+import bdv.img.labelpair.RandomAccessiblePair;
 import gnu.trove.list.array.TLongArrayList;
 import net.imglib2.Cursor;
 import net.imglib2.Interval;
@@ -16,7 +19,9 @@ import net.imglib2.algorithm.neighborhood.Neighborhood;
 import net.imglib2.algorithm.neighborhood.Shape;
 import net.imglib2.type.logic.BitType;
 import net.imglib2.type.numeric.IntegerType;
+import net.imglib2.util.Pair;
 import net.imglib2.view.Views;
+
 
 /**
  *
@@ -125,6 +130,61 @@ public class LabelMultisetFill
 
 
 	/**
+	 *
+	 * @param labels
+	 *            {@link RandomAccessibleInterval} containing
+	 *            {@link LabelMultisetType} for each pixel
+	 * @param canvas
+	 *            {@link RandomAccessibleInterval} canvas containing region to
+	 *            be filled
+	 * @param seed
+	 *            {@link Localizable} initial seed for fill
+	 * @param shape
+	 *            {@link Shape} neighborhood for flood fill (e.g. 2D
+	 *            4-neighborhood, 8-neighborhood or higher-dimensional
+	 *            equivalents)
+	 * @param filler
+	 *            policy for comparing neighboring pixels (check if visited) and
+	 *            fill/write into pixel
+	 */
+	public static < T extends IntegerType< T > > void fillPair(
+			final RandomAccessible< LabelMultisetType > labels,
+			final RandomAccessible< T > canvas,
+			final Localizable seed,
+			final Shape shape,
+			final Filler< T > filler )
+	{
+		final RandomAccessiblePair< LabelMultisetType, T > labelsPair = new RandomAccessiblePair<>( labels, canvas );
+
+		final RandomAccess< Pair< LabelMultisetType, T > > labelsAccess = labelsPair.randomAccess();
+		labelsAccess.setPosition( seed );
+
+		final Pair< LabelMultisetType, T > pair = labelsAccess.get();
+		final T t = pair.getB();
+
+		long seedLabel = t.getIntegerLong();
+		if ( seedLabel == TRANSPARENT_LABEL )
+		{
+			final Set< Multiset.Entry< Label > > entries = labelsAccess.get().getA().entrySet();
+			long seedCount = 0;
+			for ( final Multiset.Entry< Label > e : entries )
+			{
+				final int count = e.getCount();
+				if ( count > seedCount )
+				{
+					seedCount = count;
+					seedLabel = e.getElement().id();
+				}
+			}
+		}
+
+		if ( seedLabel != TRANSPARENT_LABEL )
+			fillPair( labels, canvas, seed, seedLabel, shape, filler );
+
+	}
+
+
+	/**
 	 * Starting at seed, flood fill with label newLabel all pixels within a
 	 * canvas that contain (in the sense of LabelMultisetType) the label of
 	 * labels at seed.
@@ -196,6 +256,84 @@ public class LabelMultisetFill
 				final T t = canvasNeighborhoodCursor.next();
 
 				if ( filler.hasDifferentLabel( t ) && l.contains( seedLabel ) )
+				{
+					filler.fill( t );
+					for ( int d = 0; d < n; ++d )
+						coordinates[ d ].add( labelsNeighborhoodCursor.getLongPosition( d ) );
+				}
+			}
+		}
+	}
+
+	/**
+	 *
+	 *
+	 * @param labels
+	 *            {@link RandomAccessibleInterval} containing
+	 *            {@link LabelMultisetType} for each pixel
+	 * @param canvas
+	 *            {@link RandomAccessibleInterval} canvas containing region to
+	 *            be filled
+	 * @param seed
+	 *            {@link Localizable} initial seed for fill
+	 * @param seedLabel
+	 *            label at seed point (will be compared to
+	 *            {@link LabelMultisetType} at neighboring pixels
+	 * @param shape
+	 *            {@link Shape} neighborhood for flood fill (e.g. 2D
+	 *            4-neighborhood, 8-neighborhood or higher-dimensional
+	 *            equivalents)
+	 * @param min
+	 *            minimum bound of labels and canvas
+	 * @param max
+	 *            maximum bound of labels and canvas
+	 * @param filler
+	 *            policy for comparing neighboring pixels (check if visited) and
+	 *            fill/write into pixel
+	 */
+	public static < T extends IntegerType< T > > void fillPair(
+			final RandomAccessible< LabelMultisetType > labels,
+			final RandomAccessible< T > canvas,
+			final Localizable seed,
+			final long seedLabel,
+			final Shape shape,
+			final Filler< T > filler )
+	{
+		final RandomAccessiblePair< LabelMultisetType, T > labelsPair = new RandomAccessiblePair<>( labels, canvas );
+
+		final int n = labels.numDimensions();
+
+		final TLongArrayList[] coordinates = new TLongArrayList[ n ];
+		for ( int d = 0; d < n; ++d )
+		{
+			coordinates[ d ] = new TLongArrayList();
+			coordinates[ d ].add( seed.getLongPosition( d ) );
+		}
+
+		final RandomAccessible< Neighborhood< Pair< LabelMultisetType, T > > > labelsNeighborhood = shape.neighborhoodsRandomAccessible( labelsPair );
+		final RandomAccess< Neighborhood< Pair< LabelMultisetType, T > > > labelsNeighborhoodAccess = labelsNeighborhood.randomAccess();
+
+		final RandomAccess< T > canvasAccess = canvas.randomAccess();
+		canvasAccess.setPosition( seed );
+		filler.fill( canvasAccess.get() );
+
+		for ( int i = 0; i < coordinates[ 0 ].size(); ++i )
+		{
+			for ( int d = 0; d < n; ++d )
+			{
+				final long pos = coordinates[ d ].get( i );
+				labelsNeighborhoodAccess.setPosition( pos, d );
+			}
+
+			final Cursor< Pair< LabelMultisetType, T > > labelsNeighborhoodCursor = labelsNeighborhoodAccess.get().cursor();
+
+			while ( labelsNeighborhoodCursor.hasNext() )
+			{
+				final Pair< LabelMultisetType, T > l = labelsNeighborhoodCursor.next();
+				final T t = l.getB();
+				final long b = t.getIntegerLong();
+
+				if ( ( b == seedLabel ) || ( ( b == TRANSPARENT_LABEL ) && l.getA().contains( seedLabel ) ) )
 				{
 					filler.fill( t );
 					for ( int d = 0; d < n; ++d )

@@ -132,7 +132,7 @@ public class LabelFillController
 						( long )Math.round( labelLocation.getDoublePosition( 0 ) ),
 						( long )Math.round( labelLocation.getDoublePosition( 1 ) ),
 						( long )Math.round( labelLocation.getDoublePosition( 2 ) ) );
-				LabelMultisetFill.fill(
+				LabelMultisetFill.fillPair(
 						Views.extendValue( labels, new LabelMultisetType() ),
 						Views.extendValue( paintedLabels, new LongType( TRANSPARENT_LABEL ) ),
 						p,
