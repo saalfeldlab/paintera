@@ -480,9 +480,6 @@ public class MergeController
 				viewer.getState().getViewerTransform( affine );
 				final double dZ = speed * -wheelRotation * Affine3DHelpers.extractScale( affine, 0 );
 				affine.set( affine.get( 2, 3 ) - dZ, 2, 3 );
-
-				System.out.println( speed + " " + affine );
-
 				viewer.setCurrentViewerTransform( affine );
 			}
 		}
