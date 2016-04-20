@@ -14,7 +14,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
  */
-package bdv.bigcat;
+package bdv.bigcat.control;
 
 import java.awt.event.ActionEvent;
 import java.util.LinkedList;
@@ -35,6 +35,8 @@ import org.scijava.ui.behaviour.io.InputTriggerConfig;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 
+import bdv.bigcat.FragmentSegmentAssignment;
+import bdv.bigcat.FragmentSegmentAssignment.FragmentSegmentSerializer;
 import bdv.bigcat.ui.AbstractSaturatedARGBStream;
 import bdv.labels.labelset.Label;
 import bdv.labels.labelset.Multiset.Entry;

@@ -13,7 +13,6 @@ import org.scijava.ui.behaviour.ScrollBehaviour;
 import org.scijava.ui.behaviour.io.InputTriggerConfig;
 
 import bdv.bigcat.FragmentSegmentAssignment;
-import bdv.bigcat.MergeController;
 import bdv.bigcat.ui.AbstractSaturatedARGBStream;
 import bdv.bigcat.ui.BrushOverlay;
 import bdv.viewer.ViewerPanel;
