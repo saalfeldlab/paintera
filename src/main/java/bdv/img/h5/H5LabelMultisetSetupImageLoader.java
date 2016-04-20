@@ -44,7 +44,7 @@ public class H5LabelMultisetSetupImageLoader
 	{
 		final HDF5DataSetInformation typeInfo = reader.object().getDataSetInformation( dataset );
 		final Class< ? > cls = typeInfo.getTypeInformation().tryGetJavaType();
-		System.out.println( typeInfo.getTypeInformation().tryGetJavaType().toString() );
+//		System.out.println( typeInfo.getTypeInformation().tryGetJavaType().toString() );
 		if ( short.class == cls )
 			return new H5ShortLabelMultisetArrayLoader( reader, scaleReader, dataset );
 		else if ( int.class == cls )
