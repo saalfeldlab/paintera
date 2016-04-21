@@ -34,7 +34,7 @@ public class H5ShortArrayLoader implements CacheArrayLoader< VolatileShortArray 
 	@Override
 	public int getBytesPerElement()
 	{
-		return 4;
+		return 2;
 	}
 
 
@@ -57,7 +57,7 @@ public class H5ShortArrayLoader implements CacheArrayLoader< VolatileShortArray 
 		if ( data == null )
 		{
 			System.out.println(
-					"H5 float array loader failed loading min = " +
+					"H5 short array loader failed loading min = " +
 					Arrays.toString( min ) +
 					", dimensions = " +
 					Arrays.toString( dimensions ) );

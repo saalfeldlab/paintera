@@ -5,7 +5,6 @@ import java.util.Arrays;
 import bdv.img.cache.CacheArrayLoader;
 import bdv.labels.labelset.LabelMultisetEntry;
 import bdv.labels.labelset.LabelMultisetEntryList;
-import bdv.labels.labelset.LongMappedAccess;
 import bdv.labels.labelset.LongMappedAccessData;
 import bdv.labels.labelset.VolatileLabelMultisetArray;
 import ch.systemsx.cisd.base.mdarray.MDIntArray;
@@ -76,7 +75,7 @@ public class H5IntLabelMultisetArrayLoader extends AbstractH5LabelMultisetArrayL
 				-1);
 A:		for ( int i = 0; i < data.length; ++i )
 		{
-			final long id = data[ i ] & 0xffff;
+			final long id = data[ i ] & 0xffffffffL;
 
 			final int offset = idOffsetHash.get( id );
 			if ( offset == idOffsetHash.getNoEntryValue() )

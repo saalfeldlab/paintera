@@ -74,7 +74,7 @@ public class H5ShortLabelMultisetArrayLoader extends AbstractH5LabelMultisetArra
 				-1);
 A:		for ( int i = 0; i < data.length; ++i )
 		{
-			final long id = data[ i ] & 0xffff;
+			final long id = data[ i ] & 0xffffL;
 
 //			does the list [id x 1] already exist?
 			final int offset = idOffsetHash.get( id );

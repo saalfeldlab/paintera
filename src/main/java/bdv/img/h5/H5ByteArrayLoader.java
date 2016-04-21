@@ -34,7 +34,7 @@ public class H5ByteArrayLoader implements CacheArrayLoader< VolatileByteArray >
 	@Override
 	public int getBytesPerElement()
 	{
-		return 4;
+		return 1;
 	}
 
 
