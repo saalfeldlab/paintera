@@ -11,11 +11,11 @@ import com.google.gson.JsonSyntaxException;
 
 import bdv.BigDataViewer;
 import bdv.bigcat.annotation.AnnotationController;
-import bdv.bigcat.annotation.Annotations;
 import bdv.bigcat.annotation.AnnotationsHdf5Store;
 import bdv.bigcat.composite.ARGBCompositeAlphaYCbCr;
 import bdv.bigcat.composite.Composite;
 import bdv.bigcat.composite.CompositeCopy;
+import bdv.bigcat.control.MergeController;
 import bdv.bigcat.ui.ARGBConvertedLabelPairSource;
 import bdv.bigcat.ui.GoldenAngleSaturatedARGBStream;
 import bdv.bigcat.ui.Util;
@@ -46,7 +46,7 @@ public class BigCatAnnotations
 {
 	final static private int[] cellDimensions = new int[]{ 8, 64, 64 };
 	final static private String rawDataset = "/raw";
-	final static private String backgroundLabelsDataset = "/raw";
+	final static private String backgroundLabelsDataset = "/labels";
 	final static private String paintedLabelsDataset = "/paintedLabels";
 	final static private String mergedLabelsDataset = "/mergedLabels";
 
@@ -185,7 +185,7 @@ public class BigCatAnnotations
 //				new InputTriggerConfig(),
 //				bdv.getViewerFrame().getKeybindings() );
 
-		AnnotationsHdf5Store annotationsStore = new AnnotationsHdf5Store(args[0], "/synapses");
+		AnnotationsHdf5Store annotationsStore = new AnnotationsHdf5Store(args[0], "/");
 		final AnnotationController annotationController = new AnnotationController(
 				annotationsStore,
 				bdv.getViewer(),

@@ -25,11 +25,12 @@ public class AnnotationsHdf5Store implements AnnotationsStore {
 		Annotations annotations = new Annotations();
 	
 		final IHDF5Reader reader = HDF5Factory.openForReading(filename);
-		final MDFloatArray synapseLocations = reader.float32().readMDArray(groupname);
+		final MDFloatArray synapseLocations = reader.float32().readMDArray(groupname + "/synapse_locations");
 		
 		final int[] dims = synapseLocations.dimensions();
 		
-		for (int i = 0; i < dims[1]; i++) {
+		System.out.println("reading " + dims[0] + " synapse locations");
+		for (int i = 0; i < dims[0]; i++) {
 			
 			float p[] = {
 				synapseLocations.get(i, 0),
@@ -101,13 +102,13 @@ public class AnnotationsHdf5Store implements AnnotationsStore {
 
 			@Override
 			public void visit(PreSynapticSite preSynapticSite) {
-				fillPosition(synapseData[preIndex], preSynapticSite);
+				fillPosition(preSynapticSiteData[preIndex], preSynapticSite);
 				preIndex++;
 			}
 
 			@Override
 			public void visit(PostSynapticSite postSynapticSite) {
-				fillPosition(synapseData[postIndex], postSynapticSite);
+				fillPosition(postSynapticSiteData[postIndex], postSynapticSite);
 				postIndex++;
 			}
 		}
@@ -121,9 +122,9 @@ public class AnnotationsHdf5Store implements AnnotationsStore {
 		} catch (HDF5SymbolTableException e) {
 			// nada
 		}
-		writer.float32().writeMatrix(groupname + "/synapses", crawler.synapseData);
-		writer.float32().writeMatrix(groupname + "/presynaptic_sites", crawler.preSynapticSiteData);
-		writer.float32().writeMatrix(groupname + "/postsynaptic_sites", crawler.postSynapticSiteData);
+		writer.float32().writeMatrix(groupname + "/synapse_locations", crawler.synapseData);
+		writer.float32().writeMatrix(groupname + "/presynaptic_site_locations", crawler.preSynapticSiteData);
+		writer.float32().writeMatrix(groupname + "/postsynaptic_site_locations", crawler.postSynapticSiteData);
 	}
 
 }
