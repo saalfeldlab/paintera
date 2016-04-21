@@ -133,13 +133,15 @@ public class LabelFillController
 						( long )Math.round( labelLocation.getDoublePosition( 1 ) ),
 						( long )Math.round( labelLocation.getDoublePosition( 2 ) ) );
 				long t0 = System.currentTimeMillis();
-				LabelMultisetFill.fillPair(
+				LabelMultisetFill.fill(
 						Views.extendValue( labels, new LabelMultisetType() ),
 						Views.extendValue( paintedLabels, new LongType( TRANSPARENT_LABEL ) ),
 						p,
 						shape,
-						mergeController.getActiveFragmentId(),
-						new LabelMultisetFill.IntegerTypeFillerSegments2.Factory<>( assignment ) );
+						new LabelMultisetFill.IntegerTypeFillPolicySegmentsConsiderBackgroundAndCanvas2.Factory<>(
+								mergeController.getActiveFragmentId(),
+								assignment
+						) );
 				long t1 = System.currentTimeMillis();
 				System.out.println( "Filling took " + (t1-t0) + " ms" );
 				viewer.setCursor( Cursor.getPredefinedCursor( Cursor.DEFAULT_CURSOR ) );
