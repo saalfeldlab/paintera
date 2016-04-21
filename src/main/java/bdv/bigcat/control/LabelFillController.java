@@ -26,7 +26,7 @@ import net.imglib2.view.Views;
 /**
  *
  * @author Stephan Saalfeld &lt;saalfelds@janelia.hhmi.org&gt;
- * @author Philipp Hanslovsky
+ * @author Philipp Hanslovsky &lt;hanslovskyp@janelia.hhmi.org&gt;
  */
 public class LabelFillController
 {
@@ -132,12 +132,16 @@ public class LabelFillController
 						( long )Math.round( labelLocation.getDoublePosition( 0 ) ),
 						( long )Math.round( labelLocation.getDoublePosition( 1 ) ),
 						( long )Math.round( labelLocation.getDoublePosition( 2 ) ) );
+				long t0 = System.currentTimeMillis();
 				LabelMultisetFill.fillPair(
 						Views.extendValue( labels, new LabelMultisetType() ),
 						Views.extendValue( paintedLabels, new LongType( TRANSPARENT_LABEL ) ),
 						p,
 						shape,
-						new LabelMultisetFill.LongTypeFiller<>( mergeController.getActiveFragmentId() ) );
+						mergeController.getActiveFragmentId(),
+						new LabelMultisetFill.IntegerTypeFillerSegments2.Factory<>( assignment ) );
+				long t1 = System.currentTimeMillis();
+				System.out.println( "Filling took " + (t1-t0) + " ms" );
 				viewer.setCursor( Cursor.getPredefinedCursor( Cursor.DEFAULT_CURSOR ) );
 				viewer.requestRepaint();
 			}

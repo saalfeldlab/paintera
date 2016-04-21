@@ -4,8 +4,10 @@ import static bdv.labels.labelset.PairVolatileLabelMultisetLongARGBConverter.TRA
 
 import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Set;
 
+import bdv.bigcat.FragmentSegmentAssignment;
 import bdv.img.labelpair.RandomAccessiblePair;
 import gnu.trove.list.array.TLongArrayList;
 import net.imglib2.Cursor;
@@ -33,18 +35,27 @@ import net.imglib2.view.Views;
 public class LabelMultisetFill
 {
 
-	public static interface Filler< T >
+	public interface Filler< T >
 	{
-		public boolean hasDifferentLabel( T value );
+		boolean hasDifferentLabel( T value );
 
-		public void fill( T value );
+		boolean containsBackgroundSeedLabel( LabelMultisetType label );
+
+		void fill( T value );
 	}
 
-	public static class LongTypeFiller< T extends IntegerType< T > > implements Filler< T >
-	{
-		private final long newLabel;
 
-		public LongTypeFiller( final long newLabel )
+    public interface FillerFactory<T>
+    {
+        public Filler<T> call( final long newLabel, final long seedLabel );
+    }
+
+
+	public static abstract class AbstractIntegerTypeFiller< T extends IntegerType< T > > implements Filler< T >
+	{
+		protected final long newLabel;
+
+		public AbstractIntegerTypeFiller(final long newLabel )
 		{
 			this.newLabel = newLabel;
 		}
@@ -62,7 +73,113 @@ public class LabelMultisetFill
 		}
 	}
 
-	public static class BitTypeFiller implements Filler< BitType >
+
+	public static class IntegerTypeFillerFragments< T extends IntegerType< T > > extends AbstractIntegerTypeFiller< T >
+	{
+
+		public static class Factory<U extends IntegerType< U > > implements FillerFactory<U>
+		{
+
+			@Override
+			public IntegerTypeFillerFragments<U> call(long newLabel, long seedLabel) {
+				return new IntegerTypeFillerFragments<U>( newLabel, seedLabel );
+			}
+		}
+
+		private final long seedLabel;
+
+		public IntegerTypeFillerFragments(final long newLabel, final long seedLabel ) {
+			super( newLabel );
+			this.seedLabel = seedLabel;
+		}
+
+		@Override
+		public boolean containsBackgroundSeedLabel(LabelMultisetType label) {
+			return label.contains( this.seedLabel );
+		}
+	}
+
+
+	public static class IntegerTypeFillerSegments< T extends IntegerType< T > > extends AbstractIntegerTypeFiller< T >
+	{
+
+        public static class Factory< U extends IntegerType< U > > implements FillerFactory< U >
+        {
+
+            private final FragmentSegmentAssignment assignment;
+
+            public Factory(FragmentSegmentAssignment assignment) {
+                this.assignment = assignment;
+            }
+
+            @Override
+            public Filler<U> call(long newLabel, long seedLabel) {
+                return new IntegerTypeFillerSegments<U>( newLabel, assignment.getSegment( seedLabel ), assignment );
+            }
+        }
+
+		private final long segmentSeedLabel;
+
+        private final long[] fragmentsContainedInSegment;
+
+		public IntegerTypeFillerSegments(final long newLabel, final long segmentSeedLabel, final FragmentSegmentAssignment assignment) {
+			super(newLabel);
+			this.segmentSeedLabel = segmentSeedLabel;
+            this.fragmentsContainedInSegment = assignment.getFragments( this.segmentSeedLabel );
+		}
+
+		@Override
+		public boolean containsBackgroundSeedLabel(LabelMultisetType label) {
+            for ( long id : this.fragmentsContainedInSegment )
+                if ( label.contains( id ) )
+                    return true;
+			return false;
+		}
+	}
+
+
+	public static class IntegerTypeFillerSegments2< T extends IntegerType< T > > extends AbstractIntegerTypeFiller< T >
+	{
+
+		public static class Factory< U extends IntegerType< U > > implements FillerFactory< U >
+		{
+
+			private final FragmentSegmentAssignment assignment;
+
+			public Factory(FragmentSegmentAssignment assignment) {
+				this.assignment = assignment;
+			}
+
+			@Override
+			public Filler<U> call(long newLabel, long seedLabel) {
+				return new IntegerTypeFillerSegments2<U>( newLabel, assignment.getSegment( seedLabel ), assignment );
+			}
+		}
+
+		private final long segmentSeedLabel;
+
+		private final long[] fragmentsContainedInSegment;
+
+		public IntegerTypeFillerSegments2(final long newLabel, final long segmentSeedLabel, final FragmentSegmentAssignment assignment) {
+			super(newLabel);
+			this.segmentSeedLabel = segmentSeedLabel;
+			this.fragmentsContainedInSegment = assignment.getFragments( this.segmentSeedLabel ).clone();
+			Arrays.sort( this.fragmentsContainedInSegment );
+		}
+
+		@Override
+		public boolean containsBackgroundSeedLabel(LabelMultisetType label) {
+			for ( Multiset.Entry<Label> l : label.entrySet())
+			{
+				if ( Arrays.binarySearch( this.fragmentsContainedInSegment, l.getElement().id() ) >= 0 )
+					return true;
+			}
+			return false;
+		}
+	}
+
+
+	public static abstract class AbstractBitTypeFiller implements Filler< BitType >
 	{
 
 		@Override
@@ -78,6 +195,31 @@ public class LabelMultisetFill
 			value.setOne();
 		}
 	}
+
+
+	public static class BitTypeFiller extends AbstractBitTypeFiller
+	{
+
+		public static class Factory implements FillerFactory<BitType>
+		{
+            @Override
+            public Filler<BitType> call(final long newLabel, final long seedLabel) {
+                return new BitTypeFiller( seedLabel );
+            }
+        }
+
+		private final long seedLabel;
+
+		public BitTypeFiller(long seedLabel) {
+			this.seedLabel = seedLabel;
+		}
+
+		@Override
+		public boolean containsBackgroundSeedLabel(LabelMultisetType label) {
+			return label.contains( this.seedLabel );
+		}
+	}
+
 
 	/**
 	 * Starting at seed, flood fill with label newLabel all pixels within a
@@ -96,7 +238,7 @@ public class LabelMultisetFill
 	 *            {@link Shape} neighborhood for flood fill (e.g. 2D
 	 *            4-neighborhood, 8-neighborhood or higher-dimensional
 	 *            equivalents)
-	 * @param filler
+	 * @param fillerFactory
 	 *            policy for comparing neighboring pixels (check if visited) and
 	 *            fill/write into pixel
 	 */
@@ -105,7 +247,8 @@ public class LabelMultisetFill
 			final RandomAccessible< T > canvas,
 			final Localizable seed,
 			final Shape shape,
-			final Filler< T > filler )
+			final long newLabel,
+			final FillerFactory< T > fillerFactory )
 	{
 		final RandomAccess< LabelMultisetType > labelsAccess = labels.randomAccess();
 		labelsAccess.setPosition( seed );
@@ -124,7 +267,7 @@ public class LabelMultisetFill
 		}
 
 		if ( seedCount > 0 )
-			fill( labels, canvas, seed, seedLabel, shape, filler );
+			fill( labels, canvas, seed, shape, fillerFactory.call( newLabel, seedLabel ) );
 
 	}
 
@@ -143,7 +286,7 @@ public class LabelMultisetFill
 	 *            {@link Shape} neighborhood for flood fill (e.g. 2D
 	 *            4-neighborhood, 8-neighborhood or higher-dimensional
 	 *            equivalents)
-	 * @param filler
+	 * @param fillerFactory
 	 *            policy for comparing neighboring pixels (check if visited) and
 	 *            fill/write into pixel
 	 */
@@ -152,7 +295,8 @@ public class LabelMultisetFill
 			final RandomAccessible< T > canvas,
 			final Localizable seed,
 			final Shape shape,
-			final Filler< T > filler )
+			final long newLabel,
+			final FillerFactory< T > fillerFactory )
 	{
 		final RandomAccessiblePair< LabelMultisetType, T > labelsPair = new RandomAccessiblePair<>( labels, canvas );
 
@@ -179,7 +323,7 @@ public class LabelMultisetFill
 		}
 
 		if ( seedLabel != TRANSPARENT_LABEL )
-			fillPair( labels, canvas, seed, seedLabel, shape, filler );
+			fillPair( labels, canvas, seed, seedLabel, shape, fillerFactory.call( newLabel, seedLabel ) );
 
 	}
 
@@ -196,18 +340,12 @@ public class LabelMultisetFill
 	 *            {@link RandomAccessibleInterval} canvas containing region to
 	 *            be filled
 	 * @param seed
-	 *            {@link Localizable} initial seed for fill
-	 * @param seedLabel
 	 *            label at seed point (will be compared to
 	 *            {@link LabelMultisetType} at neighboring pixels
 	 * @param shape
 	 *            {@link Shape} neighborhood for flood fill (e.g. 2D
 	 *            4-neighborhood, 8-neighborhood or higher-dimensional
 	 *            equivalents)
-	 * @param min
-	 *            minimum bound of labels and canvas
-	 * @param max
-	 *            maximum bound of labels and canvas
 	 * @param filler
 	 *            policy for comparing neighboring pixels (check if visited) and
 	 *            fill/write into pixel
@@ -216,7 +354,6 @@ public class LabelMultisetFill
 			final RandomAccessible< LabelMultisetType > labels,
 			final RandomAccessible< T > canvas,
 			final Localizable seed,
-			final long seedLabel,
 			final Shape shape,
 			final Filler< T > filler )
 	{
@@ -255,7 +392,7 @@ public class LabelMultisetFill
 				final LabelMultisetType l = labelsNeighborhoodCursor.next();
 				final T t = canvasNeighborhoodCursor.next();
 
-				if ( filler.hasDifferentLabel( t ) && l.contains( seedLabel ) )
+				if ( filler.hasDifferentLabel( t ) && filler.containsBackgroundSeedLabel( l ) ) // l.contains( seedLabel ) )
 				{
 					filler.fill( t );
 					for ( int d = 0; d < n; ++d )
@@ -283,10 +420,6 @@ public class LabelMultisetFill
 	 *            {@link Shape} neighborhood for flood fill (e.g. 2D
 	 *            4-neighborhood, 8-neighborhood or higher-dimensional
 	 *            equivalents)
-	 * @param min
-	 *            minimum bound of labels and canvas
-	 * @param max
-	 *            maximum bound of labels and canvas
 	 * @param filler
 	 *            policy for comparing neighboring pixels (check if visited) and
 	 *            fill/write into pixel
@@ -333,7 +466,7 @@ public class LabelMultisetFill
 				final T t = l.getB();
 				final long b = t.getIntegerLong();
 
-				if ( ( b == seedLabel ) || ( ( b == TRANSPARENT_LABEL ) && l.getA().contains( seedLabel ) ) )
+				if ( ( b == seedLabel ) || ( ( b == TRANSPARENT_LABEL ) && filler.containsBackgroundSeedLabel( l.getA() ) ) ) // l.getA().contains( seedLabel ) ) )
 				{
 					filler.fill( t );
 					for ( int d = 0; d < n; ++d )
@@ -387,7 +520,7 @@ public class LabelMultisetFill
 //
 //        ImageJFunctions.show(img.copy(), "labels");
 //
-//        fill(labels, canvas, new Point(new long[]{70, 30}), new DiamondShape(1), new LongTypeFiller<LongType>( fillLabel ));
+//        fill(labels, canvas, new Point(new long[]{70, 30}), new DiamondShape(1), new IntegerTypeFillerFragments<LongType>( fillLabel ));
 //
 //        fill(labels, bitCanvas, new Point(new long[]{70, 30}), new DiamondShape(1), new BitTypeFiller() );
 //
