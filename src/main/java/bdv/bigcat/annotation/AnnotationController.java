@@ -90,7 +90,7 @@ public class AnnotationController {
 		// register actions and behaviours here
 		new SelectAnnotation("select annotation", "SPACE button1").register();
 		new MoveAnnotation("move annotation", "SPACE button1").register();
-		new RemoveAnnotation("remove annotation", "SPACE button3").register();
+		new RemoveAnnotation("remove annotation", "DELETE").register();
 		new AddPreSynapticSiteAnnotation("add presynaptic site annotation", "SPACE shift button1").register();
 		new AddPostSynapticSiteAnnotation("add postsynaptic site annotation", "SPACE shift button3").register();
 		new AddSynapseAnnotation("add synapse annotation", "SPACE shift button2").register();
@@ -191,23 +191,22 @@ public class AnnotationController {
 		}
 	}
 
-	private class RemoveAnnotation extends SelfRegisteringBehaviour implements ClickBehaviour {
+	private class RemoveAnnotation extends SelfRegisteringAction {
 
 		public RemoveAnnotation(final String name, final String... defaultTriggers) {
 			super(name, defaultTriggers);
 		}
 
 		@Override
-		public void click(int x, int y) {
-
-			System.out.println("Removing annotation closest to " + x + ", " + y);
-
-			Annotation poorGuy = getClosestAnnotation(x, y, MaxDistance);
+		public void actionPerformed(final ActionEvent e) {
 			
-			if (poorGuy == null)
+			System.out.println("deleting annotation");
+
+			if (selectedAnnotation == null)
 				return;
 
-			annotations.remove(poorGuy);
+			annotations.remove(selectedAnnotation);
+			selectedAnnotation = null;
 			viewer.requestRepaint();
 		}
 	}

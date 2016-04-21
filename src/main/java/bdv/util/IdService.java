@@ -18,9 +18,16 @@ public class IdService {
 	private static Long nextFree = new Long(0);
 	
 	/**
+	 * Mark an ids as used.
+	 */
+	public static synchronized void invalidate(long id) {
+		
+		if (id >= nextFree)
+			nextFree = id + 1;
+	}
+	
+	/**
 	 * Mark all ids in range [first, last] (inclusive) as used.
-	 * 
-	 * @param next
 	 */
 	public static synchronized void invalidate(long first, long last) {
 		

@@ -1,5 +1,7 @@
 package bdv.bigcat.annotation;
 
+import java.util.Collection;
+import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
 
@@ -18,24 +20,24 @@ import net.imglib2.neighborsearch.KNearestNeighborSearchOnKDTree;
 public class Annotations {
 	
 	public Annotations() {
-		this.annotations = new LinkedList< Annotation >();
+		this.annotations = new HashMap< Long, Annotation >();
 	}
 	
 	public void add(Annotation annotation) {
 	
-		annotations.add(annotation);
+		annotations.put(annotation.getId(), annotation);
 		kdTreeDirty = true;
 	}	
 	
 	public void remove(Annotation annotation) {
 		
-		annotations.remove(annotation);
+		annotations.remove(annotation.getId());
 		kdTreeDirty = true;
 	}
 	
-	public List< Annotation > getAnnotations() {
+	public Collection< Annotation > getAnnotations() {
 		
-		return annotations;
+		return annotations.values();
 	}
 	
 	public List< Annotation > getLocalAnnotations(ConvexPolytope polytope) {
@@ -80,6 +82,11 @@ public class Annotations {
 		
 		return nearest;
 	}
+
+	public Annotation getById(long id) {
+
+		return annotations.get(id);
+	}
 	
 	public void markDirty() {
 		
@@ -89,13 +96,16 @@ public class Annotations {
 	private void updateKdTree() {
 	
 		List< RealPoint > positions = new LinkedList< RealPoint >();
-		for (Annotation a : annotations)
+		List< Annotation > annotations = new LinkedList< Annotation >();
+		for (Annotation a : this.annotations.values()) {
 			positions.add(a.getPosition());
+			annotations.add(a);
+		}
 		kdTree = new KDTree< Annotation >( annotations, positions );
 		kdTreeDirty = false;
 	}
 
-	private List< Annotation > annotations;
+	private HashMap< Long, Annotation > annotations;
 	private KDTree< Annotation > kdTree;
 	private boolean kdTreeDirty = true;
 }
