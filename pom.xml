@@ -134,7 +134,7 @@
 						<argument>-Xmx7g</argument>
 						<argument>-classpath</argument>
 						<classpath />
-						<argument>bdv.bigcat.BigCATAriadne</argument>
+						<argument>${mainclass}</argument>
 						<argument>${h5file}</argument>
 					</arguments>
 				</configuration>
