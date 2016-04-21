@@ -125,6 +125,20 @@
 					<target>1.8</target>
 				</configuration>
 			</plugin>
+			<plugin>
+				<groupId>org.codehaus.mojo</groupId>
+				<artifactId>exec-maven-plugin</artifactId>
+				<configuration>
+					<executable>java</executable>
+					<arguments>
+						<argument>-Xmx7g</argument>
+						<argument>-classpath</argument>
+						<classpath />
+						<argument>bdv.bigcat.BigCATAriadne</argument>
+						<argument>${h5file}</argument>
+					</arguments>
+				</configuration>
+			</plugin>
 		</plugins>
 	</build>
 </project>
