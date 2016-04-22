@@ -58,7 +58,7 @@ public class SelectionController
 
 		ksKeyStrokeAdder = keyProperties.keyStrokeAdder( ksInputMap, "select" );
 
-		new NewActiveFragmentId("new fragment", "I").register();
+		new NewActiveFragmentId("new fragment", "N").register();
 		new IncColorSeed("increase color seed", "C").register();
 		new DecColorSeed("decrease color seed", "shift C").register();
 
