@@ -36,17 +36,12 @@ import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 
 import bdv.bigcat.FragmentSegmentAssignment;
-import bdv.labels.labelset.Label;
-import bdv.labels.labelset.Multiset.Entry;
-import bdv.labels.labelset.VolatileLabelMultisetType;
 import bdv.util.AbstractNamedAction;
 import bdv.util.AbstractNamedAction.NamedActionAdder;
 import bdv.util.Affine3DHelpers;
 import bdv.viewer.InputActionBindings;
 import bdv.viewer.ViewerPanel;
 import net.imglib2.RealPoint;
-import net.imglib2.RealRandomAccess;
-import net.imglib2.RealRandomAccessible;
 import net.imglib2.realtransform.AffineTransform3D;
 
 /**
@@ -56,8 +51,7 @@ import net.imglib2.realtransform.AffineTransform3D;
 public class MergeController
 {
 	final protected ViewerPanel viewer;
-	final protected RealRandomAccessible< VolatileLabelMultisetType > labels;
-	final protected RealRandomAccess< VolatileLabelMultisetType > labelAccess;
+	final protected IdPicker idPicker;
 	final protected SelectionController selectionController;
 	final protected FragmentSegmentAssignment assignment;
 	protected RealPoint lastClick = new RealPoint(3);
@@ -139,7 +133,7 @@ public class MergeController
 
 	public MergeController(
 			final ViewerPanel viewer,
-			final RealRandomAccessible< VolatileLabelMultisetType > labels,
+			final IdPicker idPicker,
 			final SelectionController selectionController,
 			final FragmentSegmentAssignment assignment,
 			final InputTriggerConfig config,
@@ -147,10 +141,9 @@ public class MergeController
 			final KeyStrokeAdder.Factory keyProperties)
 	{
 		this.viewer = viewer;
-		this.labels = labels;
+		this.idPicker = idPicker;
 		this.selectionController = selectionController;
 		this.assignment = assignment;
-		labelAccess = labels.realRandomAccess();
 		inputAdder = config.inputTriggerAdder( inputTriggerMap, "merge" );
 
 		ksKeyStrokeAdder = keyProperties.keyStrokeAdder( ksInputMap, "merge" );
@@ -167,47 +160,6 @@ public class MergeController
 
 		inputActionBindings.addActionMap( "merge", ksActionMap );
 		inputActionBindings.addInputMap( "merge", ksInputMap );
-	}
-
-	/**
-	 * Find the id of the fragment that overlaps the most with the given pixel.
-	 *
-	 * @param x
-	 * @param y
-	 * @return
-	 */
-	private long getFragmentIdByDisplayCoordinate( final int x, final int y )
-	{
-		labelAccess.setPosition( x, 0 );
-		labelAccess.setPosition( y, 1 );
-		labelAccess.setPosition( 0, 2 );
-
-		viewer.displayToGlobalCoordinates( labelAccess );
-
-		final VolatileLabelMultisetType labelValues = labelAccess.get();
-
-		// find the fragment id that has the most overlap with the visible pixel
-		long fragmentId = 0;
-		if ( labelValues.isValid() )
-		{
-			long maxCount = 0;
-			for ( final Entry< Label > entry : labelValues.get().entrySet() )
-			{
-				final Label label = entry.getElement();
-				final long count = entry.getCount();
-
-				if ( count > maxCount )
-				{
-					maxCount = count;
-					fragmentId = label.id();
-				}
-			}
-
-			selectionController.setActiveFragmentId( fragmentId );
-			viewer.requestRepaint();
-		}
-
-		return fragmentId;
 	}
 
 	////////////////
@@ -260,7 +212,7 @@ public class MergeController
 		@Override
 		public void click( final int x, final int y )
 		{
-			final long id = getFragmentIdByDisplayCoordinate( x, y );
+			final long id = idPicker.getIdAtDisplayCoordinate( x, y );
 			viewer.displayToGlobalCoordinates(x, y, lastClick);
 			selectionController.setActiveFragmentId( id );
 			viewer.requestRepaint();
@@ -278,7 +230,7 @@ public class MergeController
 		public void click( final int x, final int y )
 		{
 			final long oldActiveFragmentId = selectionController.getActiveFragmentId();
-			final long id = getFragmentIdByDisplayCoordinate( x, y );
+			final long id = idPicker.getIdAtDisplayCoordinate( x, y );
 			assignment.mergeFragmentSegments( oldActiveFragmentId, id );
 			selectionController.setActiveFragmentId( id );
 			viewer.requestRepaint();
@@ -311,7 +263,7 @@ public class MergeController
 		@Override
 		public void click( final int x, final int y )
 		{
-			final long id = getFragmentIdByDisplayCoordinate( x, y );
+			final long id = idPicker.getIdAtDisplayCoordinate( x, y );
 			viewer.displayToGlobalCoordinates( x, y, lastClick );
 			assignment.detachFragment( id );
 			selectionController.setActiveFragmentId( id );
@@ -338,7 +290,7 @@ public class MergeController
 		@Override
 		public void click( final int x, final int y )
 		{
-			final long id = getFragmentIdByDisplayCoordinate( x, y );
+			final long id = idPicker.getIdAtDisplayCoordinate( x, y );
 			viewer.displayToGlobalCoordinates( x, y, lastClick );
 			selectionController.setActiveFragmentId( id );
 			viewer.requestRepaint();
@@ -363,7 +315,7 @@ public class MergeController
 		@Override
 		public void click( final int x, final int y )
 		{
-			final long id = getFragmentIdByDisplayCoordinate( x, y );
+			final long id = idPicker.getIdAtDisplayCoordinate( x, y );
 			viewer.displayToGlobalCoordinates( x, y, lastClick );
 			selectionController.setActiveFragmentId( id );
 			viewer.requestRepaint();

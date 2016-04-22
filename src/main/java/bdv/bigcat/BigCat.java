@@ -22,6 +22,7 @@ import bdv.bigcat.composite.ARGBCompositeAlphaYCbCr;
 import bdv.bigcat.composite.Composite;
 import bdv.bigcat.composite.CompositeCopy;
 import bdv.bigcat.composite.CompositeProjector;
+import bdv.bigcat.control.LabelMultiSetIdPicker;
 import bdv.bigcat.control.MergeController;
 import bdv.bigcat.control.SelectionController;
 import bdv.bigcat.ui.ARGBConvertedLabelsSource;
@@ -31,7 +32,7 @@ import bdv.img.SetCache;
 import bdv.img.cache.Cache;
 import bdv.img.dvid.LabelblkMultisetSetupImageLoader;
 import bdv.img.dvid.Uint8blkImageLoader;
-import bdv.labels.labelset.VolatileLabelMultisetType;
+import bdv.labels.labelset.LabelMultisetType;
 import bdv.spimdata.SequenceDescriptionMinimal;
 import bdv.spimdata.SpimDataMinimal;
 import bdv.tools.brightness.ConverterSetup;
@@ -46,7 +47,6 @@ import bdv.viewer.TriggerBehaviourBindings;
 import bdv.viewer.ViewerOptions;
 import bdv.viewer.render.AccumulateProjectorFactory;
 import mpicbg.spim.data.generic.sequence.BasicViewSetup;
-import mpicbg.spim.data.generic.sequence.ImgLoaderHints;
 import mpicbg.spim.data.registration.ViewRegistration;
 import mpicbg.spim.data.registration.ViewRegistrations;
 import mpicbg.spim.data.sequence.TimePoint;
@@ -269,6 +269,17 @@ public class BigCat
 
 			bdv.getViewerFrame().setVisible( true );
 
+			final LabelMultiSetIdPicker idPicker = new LabelMultiSetIdPicker(
+					bdv.getViewer(),
+					RealViews.affineReal(
+							Views.interpolate(
+									Views.extendValue(
+											dvidLabelsMultisetImageLoader.getImage( 0 ),
+											new LabelMultisetType() ),
+									new NearestNeighborInterpolatorFactory< LabelMultisetType >() ),
+							dvidLabelsMultisetImageLoader.getMipmapTransforms()[ 0 ] )
+					);
+
 			final SelectionController selectionController = new SelectionController(
 					bdv.getViewer(),
 					colorStream,
@@ -278,13 +289,7 @@ public class BigCat
 
 			final MergeController mergeController = new MergeController(
 					bdv.getViewer(),
-					RealViews.affineReal(
-							Views.interpolate(
-									Views.extendValue(
-											dvidLabelsMultisetImageLoader.getVolatileImage( 0, 0, ImgLoaderHints.LOAD_COMPLETELY ),
-											new VolatileLabelMultisetType() ),
-									new NearestNeighborInterpolatorFactory< VolatileLabelMultisetType >() ),
-							dvidGrayscale8ImageLoader.getMipmapTransforms()[ 0 ] ),
+					idPicker,
 					selectionController,
 					assignment,
 					new InputTriggerConfig(),

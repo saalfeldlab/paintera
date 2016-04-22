@@ -73,8 +73,8 @@ public class LabelMultisetFill
 			final FillPolicyFactory< Pair< LabelMultisetType, T > > fillerFactory
 	)
 	{
-		RandomAccessiblePair<LabelMultisetType, T> pairAccessible = new RandomAccessiblePair<>(labels, canvas);
-		RandomAccessiblePair.RandomAccess pairAccess = pairAccessible.randomAccess();
+		final RandomAccessiblePair<LabelMultisetType, T> pairAccessible = new RandomAccessiblePair<>(labels, canvas);
+		final RandomAccessiblePair.RandomAccess pairAccess = pairAccessible.randomAccess();
 		pairAccess.setPosition( seed );
 		fill( pairAccessible, seed, shape, fillerFactory.call( pairAccess.get() ) );
 	}
@@ -108,7 +108,7 @@ public class LabelMultisetFill
 			coordinates[ d ].add( seed.getLongPosition( d ) );
 		}
 
-		RandomAccessible<Neighborhood<T>> neighborhood = shape.neighborhoodsRandomAccessible(randomAccessible);
+		final RandomAccessible<Neighborhood<T>> neighborhood = shape.neighborhoodsRandomAccessible(randomAccessible);
 		final RandomAccess<Neighborhood<T>> neighborhoodAccess = neighborhood.randomAccess();
 
 		final RandomAccess< T > canvasAccess = randomAccessible.randomAccess();
@@ -149,7 +149,7 @@ public class LabelMultisetFill
             }
 
             @Override
-            public IntegerTypeFillPolicyFragments< U > call(Pair<LabelMultisetType, U> seedPair ) {
+            public IntegerTypeFillPolicyFragments< U > call(final Pair<LabelMultisetType, U> seedPair ) {
                 return new IntegerTypeFillPolicyFragments<>( this.newLabel, getLabelWithMostCounts( seedPair.getA() ) );
             }
         }
@@ -157,20 +157,20 @@ public class LabelMultisetFill
         private final long newLabel;
         private final long seedLabel;
 
-        public IntegerTypeFillPolicyFragments(long newLabel, long seedLabel) {
+        public IntegerTypeFillPolicyFragments(final long newLabel, final long seedLabel) {
             this.newLabel = newLabel;
             this.seedLabel = seedLabel;
         }
 
         @Override
-        public void fill(Pair< LabelMultisetType, T > p) {
+        public void fill(final Pair< LabelMultisetType, T > p) {
             p.getB().setInteger( newLabel );
         }
 
         @Override
-        public boolean isValidNeighbor(Pair< LabelMultisetType, T > p) {
-            LabelMultisetType l = p.getA();
-            T t = p.getB();
+        public boolean isValidNeighbor(final Pair< LabelMultisetType, T > p) {
+            final LabelMultisetType l = p.getA();
+            final T t = p.getB();
             return t.getIntegerLong() != this.newLabel && l.contains( this.seedLabel );
         }
     }
@@ -189,7 +189,7 @@ public class LabelMultisetFill
             }
 
             @Override
-            public IntegerTypeFillPolicyFragmentsConsiderBackgroundAndCanvas< U > call(Pair<LabelMultisetType, U> seedPair ) {
+            public IntegerTypeFillPolicyFragmentsConsiderBackgroundAndCanvas< U > call(final Pair<LabelMultisetType, U> seedPair ) {
                 return new IntegerTypeFillPolicyFragmentsConsiderBackgroundAndCanvas<>( this.newLabel, getLabelWithMostCounts( seedPair.getA() ) );
             }
         }
@@ -197,13 +197,13 @@ public class LabelMultisetFill
         private final long newLabel;
         private final long seedLabel;
 
-        public IntegerTypeFillPolicyFragmentsConsiderBackgroundAndCanvas(long newLabel, long seedLabel) {
+        public IntegerTypeFillPolicyFragmentsConsiderBackgroundAndCanvas(final long newLabel, final long seedLabel) {
             this.newLabel = newLabel;
             this.seedLabel = seedLabel;
         }
 
         @Override
-        public void fill(Pair< LabelMultisetType, T > p) {
+        public void fill(final Pair< LabelMultisetType, T > p) {
             p.getB().setInteger( newLabel );
         }
 
@@ -224,13 +224,13 @@ public class LabelMultisetFill
         private final long newLabel;
         private final long segmentSeedLabel;
 
-        public AbstractIntegerTypeFillPolicySegmentsConsiderBackgroundAndCanvas(long newLabel, long segmentSeedLabel) {
+        public AbstractIntegerTypeFillPolicySegmentsConsiderBackgroundAndCanvas(final long newLabel, final long segmentSeedLabel) {
             this.newLabel = newLabel;
             this.segmentSeedLabel = segmentSeedLabel;
         }
 
         @Override
-        public void fill(Pair< LabelMultisetType, T > p) {
+        public void fill(final Pair< LabelMultisetType, T > p) {
             p.getB().setInteger( newLabel );
         }
 
@@ -252,14 +252,14 @@ public class LabelMultisetFill
      * @return label with most counts (need not be unique)
      */
     public static long getLabelWithMostCounts(
-            LabelMultisetType labels
+            final LabelMultisetType labels
     )
     {
         long seedLabel = -1;
         long seedCount = -1;
 
-        for ( Multiset.Entry<Label> e : labels.entrySet() ) {//seedPair.getA().entrySet() ) {
-            int count = e.getCount();
+        for ( final Multiset.Entry<Label> e : labels.entrySet() ) {//seedPair.getA().entrySet() ) {
+            final int count = e.getCount();
             if ( count > seedCount )
             {
                 seedLabel = e.getElement().id();
@@ -279,7 +279,7 @@ public class LabelMultisetFill
         public IntegerTypeFillPolicySegmentsConsiderBackgroundAndCanvas1(
                 final long newLabel,
                 final Long segmentSeedLabel,
-                FragmentSegmentAssignment assignment
+                final FragmentSegmentAssignment assignment
         ) {
             super( newLabel, segmentSeedLabel );
             this.fragmentsContainedInSegment = assignment.getFragments( segmentSeedLabel );
@@ -291,21 +291,21 @@ public class LabelMultisetFill
             private final long newLabel;
             private final FragmentSegmentAssignment assignment;
 
-            public Factory( final long newLabel, FragmentSegmentAssignment assignment ) {
+            public Factory( final long newLabel, final FragmentSegmentAssignment assignment ) {
                 this.newLabel = newLabel;
                 this.assignment = assignment;
             }
 
             @Override
-            public IntegerTypeFillPolicySegmentsConsiderBackgroundAndCanvas1< U > call(Pair<LabelMultisetType, U> seedPair ) {
-                long seedLabel = getLabelWithMostCounts( seedPair.getA() );
+            public IntegerTypeFillPolicySegmentsConsiderBackgroundAndCanvas1< U > call(final Pair<LabelMultisetType, U> seedPair ) {
+                final long seedLabel = getLabelWithMostCounts( seedPair.getA() );
                 return new IntegerTypeFillPolicySegmentsConsiderBackgroundAndCanvas1<>( this.newLabel, assignment.getSegment( seedLabel ), assignment );
             }
         }
 
         @Override
-        protected boolean anyLabelInMultisetIsPartOfSeedSegment(LabelMultisetType label) {
-            for ( long id : this.fragmentsContainedInSegment )
+        protected boolean anyLabelInMultisetIsPartOfSeedSegment(final LabelMultisetType label) {
+            for ( final long id : this.fragmentsContainedInSegment )
                 if ( label.contains( id ) )
                     return true;
             return false;
@@ -322,7 +322,7 @@ public class LabelMultisetFill
         public IntegerTypeFillPolicySegmentsConsiderBackgroundAndCanvas2(
                 final long newLabel,
                 final Long segmentSeedLabel,
-                FragmentSegmentAssignment assignment
+                final FragmentSegmentAssignment assignment
         ) {
             super( newLabel, segmentSeedLabel );
             this.fragmentsContainedInSegment = assignment.getFragments( segmentSeedLabel ).clone();
@@ -335,21 +335,21 @@ public class LabelMultisetFill
             private final long newLabel;
             private final FragmentSegmentAssignment assignment;
 
-            public Factory( final long newLabel, FragmentSegmentAssignment assignment ) {
+            public Factory( final long newLabel, final FragmentSegmentAssignment assignment ) {
                 this.newLabel = newLabel;
                 this.assignment = assignment;
             }
 
             @Override
-            public IntegerTypeFillPolicySegmentsConsiderBackgroundAndCanvas2< U > call(Pair<LabelMultisetType, U> seedPair ) {
-                long seedLabel = getLabelWithMostCounts( seedPair.getA() );
+            public IntegerTypeFillPolicySegmentsConsiderBackgroundAndCanvas2< U > call(final Pair<LabelMultisetType, U> seedPair ) {
+                final long seedLabel = getLabelWithMostCounts( seedPair.getA() );
                 return new IntegerTypeFillPolicySegmentsConsiderBackgroundAndCanvas2<>( this.newLabel, assignment.getSegment( seedLabel ), assignment );
             }
         }
 
         @Override
-        protected boolean anyLabelInMultisetIsPartOfSeedSegment(LabelMultisetType label) {
-            for ( Multiset.Entry<Label> l : label.entrySet())
+        protected boolean anyLabelInMultisetIsPartOfSeedSegment(final LabelMultisetType label) {
+            for ( final Multiset.Entry<Label> l : label.entrySet())
             {
                 if ( Arrays.binarySearch( this.fragmentsContainedInSegment, l.getElement().id() ) >= 0 )
                     return true;

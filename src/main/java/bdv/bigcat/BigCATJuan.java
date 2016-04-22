@@ -12,6 +12,7 @@ import bdv.BigDataViewer;
 import bdv.bigcat.composite.ARGBCompositeAlphaYCbCr;
 import bdv.bigcat.composite.Composite;
 import bdv.bigcat.composite.CompositeCopy;
+import bdv.bigcat.control.LabelMultiSetIdPicker;
 import bdv.bigcat.control.MergeController;
 import bdv.bigcat.control.SelectionController;
 import bdv.bigcat.ui.ARGBConvertedLabelsSource;
@@ -21,11 +22,10 @@ import bdv.img.SetCache;
 import bdv.img.h5.AbstractH5SetupImageLoader;
 import bdv.img.h5.H5LabelMultisetSetupImageLoader;
 import bdv.img.h5.H5UnsignedByteSetupImageLoader;
-import bdv.labels.labelset.VolatileLabelMultisetType;
+import bdv.labels.labelset.LabelMultisetType;
 import bdv.viewer.TriggerBehaviourBindings;
 import ch.systemsx.cisd.hdf5.HDF5Factory;
 import ch.systemsx.cisd.hdf5.IHDF5Reader;
-import mpicbg.spim.data.generic.sequence.ImgLoaderHints;
 import net.imglib2.interpolation.randomaccess.NearestNeighborInterpolatorFactory;
 import net.imglib2.realtransform.RealViews;
 import net.imglib2.type.numeric.ARGBType;
@@ -69,6 +69,17 @@ public class BigCATJuan
 
 		bdv.getViewerFrame().setVisible( true );
 
+		final LabelMultiSetIdPicker idPicker = new LabelMultiSetIdPicker(
+				bdv.getViewer(),
+				RealViews.affineReal(
+						Views.interpolate(
+								Views.extendValue(
+										fragments.getImage( 0 ),
+										new LabelMultisetType() ),
+								new NearestNeighborInterpolatorFactory< LabelMultisetType >() ),
+						fragments.getMipmapTransforms()[ 0 ] )
+				);
+
 		final SelectionController selectionController = new SelectionController(
 				bdv.getViewer(),
 				colorStream,
@@ -78,13 +89,7 @@ public class BigCATJuan
 
 		final MergeController mergeController = new MergeController(
 				bdv.getViewer(),
-				RealViews.affineReal(
-						Views.interpolate(
-								Views.extendValue(
-										fragments.getVolatileImage( 0, 0, ImgLoaderHints.LOAD_COMPLETELY ),
-										new VolatileLabelMultisetType() ),
-								new NearestNeighborInterpolatorFactory< VolatileLabelMultisetType >() ),
-						fragments.getMipmapTransforms()[ 0 ] ),
+				idPicker,
 				selectionController,
 				assignment,
 				new InputTriggerConfig(),
