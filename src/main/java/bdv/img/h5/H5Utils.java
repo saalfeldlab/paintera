@@ -1,11 +1,11 @@
 package bdv.img.h5;
 
 import static bdv.img.hdf5.Util.reorder;
-import static bdv.labels.labelset.PairVolatileLabelMultisetLongARGBConverter.TRANSPARENT_LABEL;
 
 import java.io.File;
 
 import bdv.img.labelpair.RandomAccessiblePair;
+import bdv.labels.labelset.Label;
 import bdv.labels.labelset.LabelMultiset;
 import bdv.labels.labelset.LabelMultisetType;
 import ch.systemsx.cisd.base.mdarray.MDLongArray;
@@ -188,7 +188,7 @@ public class H5Utils
 							final LongType output )
 					{
 						final long inputB = input.getB().get();
-						if ( inputB == TRANSPARENT_LABEL )
+						if ( inputB == Label.TRANSPARENT )
 						{
 							output.set( input.getA().entrySet().iterator().next().getElement().id() );
 						}

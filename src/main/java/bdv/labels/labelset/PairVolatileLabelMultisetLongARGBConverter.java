@@ -30,7 +30,6 @@ import net.imglib2.util.Pair;
 public class PairVolatileLabelMultisetLongARGBConverter
 		implements Converter< Pair< VolatileLabelMultisetType, LongType >, VolatileARGBType >
 {
-	static public long TRANSPARENT_LABEL = 0xffffffffffffffffL; // -1L or uint64.MAX_VALUE
 	final static private double iFF = 1.0 / 255.0;
 
 	final protected ARGBStream argbStream;
@@ -75,7 +74,7 @@ public class PairVolatileLabelMultisetLongARGBConverter
 			final VolatileARGBType output )
 	{
 		final long inputB = input.getB().get();
-		if ( inputB == TRANSPARENT_LABEL )
+		if ( inputB == Label.TRANSPARENT )
 		{
 			final VolatileLabelMultisetType inputA = input.getA();
 			if ( inputA.isValid() )

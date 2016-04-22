@@ -1,11 +1,8 @@
 package bdv.labels.labelset;
 
-import static bdv.labels.labelset.PairVolatileLabelMultisetLongARGBConverter.TRANSPARENT_LABEL;
-
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Set;
 
 import bdv.bigcat.FragmentSegmentAssignment;
 import bdv.img.labelpair.RandomAccessiblePair;
@@ -211,10 +208,10 @@ public class LabelMultisetFill
         }
 
         @Override
-        public boolean isValidNeighbor(Pair< LabelMultisetType, T > p) {
-            LabelMultisetType l = p.getA();
-            long t = p.getB().getIntegerLong();
-            return ( ( t == seedLabel ) || ( ( t == TRANSPARENT_LABEL ) && l.contains( seedLabel ) ) );
+        public boolean isValidNeighbor(final Pair< LabelMultisetType, T > p) {
+            final LabelMultisetType l = p.getA();
+            final long t = p.getB().getIntegerLong();
+            return ( ( t == seedLabel ) || ( ( t == Label.TRANSPARENT ) && l.contains( seedLabel ) ) );
         }
     }
 
@@ -238,10 +235,10 @@ public class LabelMultisetFill
         }
 
         @Override
-        public boolean isValidNeighbor(Pair< LabelMultisetType, T > p) {
-            LabelMultisetType l = p.getA();
-            long t = p.getB().getIntegerLong();
-            return ( ( t == segmentSeedLabel ) || ( ( t == TRANSPARENT_LABEL ) ) &&  anyLabelInMultisetIsPartOfSeedSegment( l ) );
+        public boolean isValidNeighbor(final Pair< LabelMultisetType, T > p) {
+            final LabelMultisetType l = p.getA();
+            final long t = p.getB().getIntegerLong();
+            return ( ( t == segmentSeedLabel ) || ( ( t == Label.TRANSPARENT ) ) &&  anyLabelInMultisetIsPartOfSeedSegment( l ) );
 //            return t.getIntegerLong() != this.newLabel && l.contains( this.seedLabel );
         }
 

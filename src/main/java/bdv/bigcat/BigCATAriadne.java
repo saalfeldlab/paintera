@@ -27,7 +27,7 @@ import bdv.img.h5.H5LabelMultisetSetupImageLoader;
 import bdv.img.h5.H5UnsignedByteSetupImageLoader;
 import bdv.img.h5.H5Utils;
 import bdv.img.labelpair.RandomAccessiblePair;
-import bdv.labels.labelset.PairVolatileLabelMultisetLongARGBConverter;
+import bdv.labels.labelset.Label;
 import bdv.labels.labelset.VolatileLabelMultisetType;
 import bdv.viewer.TriggerBehaviourBindings;
 import ch.systemsx.cisd.hdf5.HDF5Factory;
@@ -102,7 +102,7 @@ public class BigCATAriadne
 		{
 			paintedLabels = new CellImgFactory< LongType >( cellDimensions ).create( fragmentsDimensions, new LongType() );
 			for ( final LongType t : paintedLabels )
-				t.set( PairVolatileLabelMultisetLongARGBConverter.TRANSPARENT_LABEL );
+				t.set( Label.TRANSPARENT );
 		}
 
 //		H5Utils.saveUnsignedLong( paintedLabels, new File( args[ 0 ] + ".labels.h5" ), "paintedLabels", cellDimensions );

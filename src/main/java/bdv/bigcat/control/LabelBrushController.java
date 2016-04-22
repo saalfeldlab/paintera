@@ -1,7 +1,5 @@
 package bdv.bigcat.control;
 
-import static bdv.labels.labelset.PairVolatileLabelMultisetLongARGBConverter.TRANSPARENT_LABEL;
-
 import java.awt.Cursor;
 
 import org.scijava.ui.behaviour.Behaviour;
@@ -14,6 +12,7 @@ import org.scijava.ui.behaviour.io.InputTriggerConfig;
 
 import bdv.bigcat.FragmentSegmentAssignment;
 import bdv.bigcat.ui.BrushOverlay;
+import bdv.labels.labelset.Label;
 import bdv.viewer.ViewerPanel;
 import net.imglib2.Point;
 import net.imglib2.RandomAccessible;
@@ -89,7 +88,7 @@ public class LabelBrushController
 	{
 		this.viewer = viewer;
 		this.labels = labels;
-		extendedLabels = Views.extendValue( this.labels, new LongType( TRANSPARENT_LABEL ) );
+		extendedLabels = Views.extendValue( this.labels, new LongType( Label.TRANSPARENT ) );
 		this.labelTransform = labelTransform;
 		this.assignment = assignment;
 		this.selectionController = selectionController;
@@ -257,7 +256,7 @@ public class LabelBrushController
 		@Override
 		protected long getValue()
 		{
-			return TRANSPARENT_LABEL;
+			return Label.TRANSPARENT;
 		}
 	}
 

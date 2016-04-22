@@ -15,7 +15,6 @@ import bdv.bigcat.annotation.AnnotationsHdf5Store;
 import bdv.bigcat.composite.ARGBCompositeAlphaYCbCr;
 import bdv.bigcat.composite.Composite;
 import bdv.bigcat.composite.CompositeCopy;
-import bdv.bigcat.control.MergeController;
 import bdv.bigcat.ui.ARGBConvertedLabelPairSource;
 import bdv.bigcat.ui.GoldenAngleSaturatedARGBStream;
 import bdv.bigcat.ui.Util;
@@ -25,22 +24,18 @@ import bdv.img.h5.H5LabelMultisetSetupImageLoader;
 import bdv.img.h5.H5UnsignedByteSetupImageLoader;
 import bdv.img.h5.H5Utils;
 import bdv.img.labelpair.RandomAccessiblePair;
-import bdv.labels.labelset.PairVolatileLabelMultisetLongARGBConverter;
+import bdv.labels.labelset.Label;
 import bdv.labels.labelset.VolatileLabelMultisetType;
 import bdv.viewer.TriggerBehaviourBindings;
 import ch.systemsx.cisd.hdf5.HDF5Factory;
 import ch.systemsx.cisd.hdf5.IHDF5Reader;
-import mpicbg.spim.data.generic.sequence.ImgLoaderHints;
 import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.img.cell.CellImg;
 import net.imglib2.img.cell.CellImgFactory;
-import net.imglib2.interpolation.randomaccess.NearestNeighborInterpolatorFactory;
 import net.imglib2.realtransform.AffineTransform3D;
-import net.imglib2.realtransform.RealViews;
 import net.imglib2.type.numeric.ARGBType;
 import net.imglib2.type.numeric.integer.LongType;
 import net.imglib2.util.Intervals;
-import net.imglib2.view.Views;
 
 public class BigCatAnnotations
 {
@@ -99,7 +94,7 @@ public class BigCatAnnotations
 		{
 			paintedLabels = new CellImgFactory< LongType >( cellDimensions ).create( fragmentsDimensions, new LongType() );
 			for ( final LongType t : paintedLabels )
-				t.set( PairVolatileLabelMultisetLongARGBConverter.TRANSPARENT_LABEL );
+				t.set( Label.TRANSPARENT );
 		}
 
 //		H5Utils.saveUnsignedLong( paintedLabels, new File( args[ 0 ] + ".labels.h5" ), "paintedLabels", cellDimensions );
@@ -185,7 +180,7 @@ public class BigCatAnnotations
 //				new InputTriggerConfig(),
 //				bdv.getViewerFrame().getKeybindings() );
 
-		AnnotationsHdf5Store annotationsStore = new AnnotationsHdf5Store(args[0], "/");
+		final AnnotationsHdf5Store annotationsStore = new AnnotationsHdf5Store(args[0], "/");
 		final AnnotationController annotationController = new AnnotationController(
 				annotationsStore,
 				bdv.getViewer(),

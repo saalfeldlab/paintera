@@ -1,7 +1,5 @@
 package bdv.bigcat.control;
 
-import static bdv.labels.labelset.PairVolatileLabelMultisetLongARGBConverter.TRANSPARENT_LABEL;
-
 import java.awt.Cursor;
 
 import org.scijava.ui.behaviour.Behaviour;
@@ -12,6 +10,7 @@ import org.scijava.ui.behaviour.InputTriggerMap;
 import org.scijava.ui.behaviour.io.InputTriggerConfig;
 
 import bdv.bigcat.FragmentSegmentAssignment;
+import bdv.labels.labelset.Label;
 import bdv.labels.labelset.LabelMultisetFill;
 import bdv.labels.labelset.LabelMultisetType;
 import bdv.viewer.ViewerPanel;
@@ -135,7 +134,7 @@ public class LabelFillController
 				final long t0 = System.currentTimeMillis();
 				LabelMultisetFill.fill(
 						Views.extendValue( labels, new LabelMultisetType() ),
-						Views.extendValue( paintedLabels, new LongType( TRANSPARENT_LABEL ) ),
+						Views.extendValue( paintedLabels, new LongType( Label.TRANSPARENT ) ),
 						p,
 						shape,
 						new LabelMultisetFill.IntegerTypeFillPolicySegmentsConsiderBackgroundAndCanvas2.Factory<>(
