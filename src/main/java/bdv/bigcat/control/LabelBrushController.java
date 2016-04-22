@@ -13,7 +13,6 @@ import org.scijava.ui.behaviour.ScrollBehaviour;
 import org.scijava.ui.behaviour.io.InputTriggerConfig;
 
 import bdv.bigcat.FragmentSegmentAssignment;
-import bdv.bigcat.ui.AbstractSaturatedARGBStream;
 import bdv.bigcat.ui.BrushOverlay;
 import bdv.viewer.ViewerPanel;
 import net.imglib2.Point;
@@ -41,9 +40,8 @@ public class LabelBrushController
 	final protected RandomAccessibleInterval< LongType > labels;
 	final protected RandomAccessible< LongType > extendedLabels;
 	final protected AffineTransform3D labelTransform;
-	final protected AbstractSaturatedARGBStream colorStream;
 	final protected FragmentSegmentAssignment assignment;
-	final protected MergeController mergeController;
+	final protected SelectionController selectionController;
 	final protected RealPoint labelLocation;
 	final protected BrushOverlay brushOverlay;
 
@@ -82,9 +80,8 @@ public class LabelBrushController
 			final ViewerPanel viewer,
 			final RandomAccessibleInterval< LongType > labels,
 			final AffineTransform3D labelTransform,
-			final AbstractSaturatedARGBStream colorStream,
 			final FragmentSegmentAssignment assignment,
-			final MergeController mergeController,
+			final SelectionController selectionController,
 			final String labelsH5Path,
 			final String labelsH5Dataset,
 			final int[] labelsH5CellDimensions,
@@ -94,9 +91,8 @@ public class LabelBrushController
 		this.labels = labels;
 		extendedLabels = Views.extendValue( this.labels, new LongType( TRANSPARENT_LABEL ) );
 		this.labelTransform = labelTransform;
-		this.colorStream = colorStream;
 		this.assignment = assignment;
-		this.mergeController = mergeController;
+		this.selectionController = selectionController;
 		this.labelsH5Path = labelsH5Path;
 		this.labelsH5Dataset = labelsH5Dataset;
 		this.labelsH5CellDimensions = labelsH5CellDimensions;
@@ -247,7 +243,7 @@ public class LabelBrushController
 		@Override
 		protected long getValue()
 		{
-			return mergeController.getActiveFragmentId();
+			return selectionController.getActiveFragmentId();
 		}
 	}
 

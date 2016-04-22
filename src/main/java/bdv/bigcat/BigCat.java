@@ -23,6 +23,7 @@ import bdv.bigcat.composite.Composite;
 import bdv.bigcat.composite.CompositeCopy;
 import bdv.bigcat.composite.CompositeProjector;
 import bdv.bigcat.control.MergeController;
+import bdv.bigcat.control.SelectionController;
 import bdv.bigcat.ui.ARGBConvertedLabelsSource;
 import bdv.bigcat.ui.AbstractARGBConvertedLabelsSource;
 import bdv.bigcat.ui.RandomSaturatedARGBStream;
@@ -101,7 +102,7 @@ public class BigCat
 		/* labels */
 		for ( final SetCache setCache : labelLoaders )
 			setCache.setCache( imgLoader.cache );
-	
+
 		for ( final AbstractARGBConvertedLabelsSource source : labelSources )
 		{
 			final ScaledARGBConverter.ARGB converter = new ScaledARGBConverter.ARGB( 0, 255 );
@@ -268,6 +269,13 @@ public class BigCat
 
 			bdv.getViewerFrame().setVisible( true );
 
+			final SelectionController selectionController = new SelectionController(
+					bdv.getViewer(),
+					colorStream,
+					new InputTriggerConfig(),
+					bdv.getViewerFrame().getKeybindings(),
+					new InputTriggerConfig() );
+
 			final MergeController mergeController = new MergeController(
 					bdv.getViewer(),
 					RealViews.affineReal(
@@ -277,7 +285,7 @@ public class BigCat
 											new VolatileLabelMultisetType() ),
 									new NearestNeighborInterpolatorFactory< VolatileLabelMultisetType >() ),
 							dvidGrayscale8ImageLoader.getMipmapTransforms()[ 0 ] ),
-					colorStream,
+					selectionController,
 					assignment,
 					new InputTriggerConfig(),
 					bdv.getViewerFrame().getKeybindings(),

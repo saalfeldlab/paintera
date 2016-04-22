@@ -17,6 +17,7 @@ import bdv.bigcat.control.LabelBrushController;
 import bdv.bigcat.control.LabelFillController;
 import bdv.bigcat.control.LabelPersistenceController;
 import bdv.bigcat.control.MergeController;
+import bdv.bigcat.control.SelectionController;
 import bdv.bigcat.ui.ARGBConvertedLabelPairSource;
 import bdv.bigcat.ui.GoldenAngleSaturatedARGBStream;
 import bdv.bigcat.ui.Util;
@@ -149,6 +150,13 @@ public class BigCATAriadne
 
 		final TriggerBehaviourBindings bindings = bdv.getViewerFrame().getTriggerbindings();
 
+		final SelectionController selectionController = new SelectionController(
+				bdv.getViewer(),
+				colorStream,
+				new InputTriggerConfig(),
+				bdv.getViewerFrame().getKeybindings(),
+				new InputTriggerConfig() );
+
 		final MergeController mergeController = new MergeController(
 				bdv.getViewer(),
 				RealViews.affineReal(
@@ -158,7 +166,7 @@ public class BigCATAriadne
 										new VolatileLabelMultisetType() ),
 								new NearestNeighborInterpolatorFactory< VolatileLabelMultisetType >() ),
 						fragments.getMipmapTransforms()[ 0 ] ),
-				colorStream,
+				selectionController,
 				assignment,
 				new InputTriggerConfig(),
 				bdv.getViewerFrame().getKeybindings(),
@@ -168,9 +176,8 @@ public class BigCATAriadne
 				bdv.getViewer(),
 				paintedLabels,
 				fragments.getMipmapTransforms()[ 0 ],
-				colorStream,
 				assignment,
-				mergeController,
+				selectionController,
 				paintedLabelsFilePath,
 				paintedLabelsDataset,
 				cellDimensions,
@@ -193,7 +200,7 @@ public class BigCATAriadne
 				paintedLabels,
 				fragments.getMipmapTransforms()[ 0 ],
 				assignment,
-				mergeController,
+				selectionController,
 				new DiamondShape( 1 ),
 				new InputTriggerConfig() );
 

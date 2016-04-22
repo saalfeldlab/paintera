@@ -35,7 +35,7 @@ public class LabelFillController
 	final protected RandomAccessibleInterval< LongType > paintedLabels;
 	final protected AffineTransform3D labelTransform;
 	final protected FragmentSegmentAssignment assignment;
-	final protected MergeController mergeController;
+	final protected SelectionController selectionController;
 	final protected RealPoint labelLocation;
 	final protected Shape shape;
 
@@ -60,7 +60,7 @@ public class LabelFillController
 			final RandomAccessibleInterval< LongType > paintedLabels,
 			final AffineTransform3D labelTransform,
 			final FragmentSegmentAssignment assignment,
-			final MergeController mergeController,
+			final SelectionController selectionController,
 			final Shape shape,
 			final InputTriggerConfig config )
 	{
@@ -69,7 +69,7 @@ public class LabelFillController
 		this.paintedLabels = paintedLabels;
 		this.labelTransform = labelTransform;
 		this.assignment = assignment;
-		this.mergeController = mergeController;
+		this.selectionController = selectionController;
 		this.shape = shape;
 		inputAdder = config.inputTriggerAdder( inputTriggerMap, "fill" );
 
@@ -127,22 +127,22 @@ public class LabelFillController
 			{
 				viewer.setCursor( Cursor.getPredefinedCursor( Cursor.WAIT_CURSOR ) );
 				setCoordinates( x, y );
-				System.out.println( "Filling " + labelLocation + " with " + mergeController.getActiveFragmentId() );
+				System.out.println( "Filling " + labelLocation + " with " + selectionController.getActiveFragmentId() );
 				final Point p = new Point(
 						( long )Math.round( labelLocation.getDoublePosition( 0 ) ),
 						( long )Math.round( labelLocation.getDoublePosition( 1 ) ),
 						( long )Math.round( labelLocation.getDoublePosition( 2 ) ) );
-				long t0 = System.currentTimeMillis();
+				final long t0 = System.currentTimeMillis();
 				LabelMultisetFill.fill(
 						Views.extendValue( labels, new LabelMultisetType() ),
 						Views.extendValue( paintedLabels, new LongType( TRANSPARENT_LABEL ) ),
 						p,
 						shape,
 						new LabelMultisetFill.IntegerTypeFillPolicySegmentsConsiderBackgroundAndCanvas2.Factory<>(
-								mergeController.getActiveFragmentId(),
+								selectionController.getActiveFragmentId(),
 								assignment
 						) );
-				long t1 = System.currentTimeMillis();
+				final long t1 = System.currentTimeMillis();
 				System.out.println( "Filling took " + (t1-t0) + " ms" );
 				viewer.setCursor( Cursor.getPredefinedCursor( Cursor.DEFAULT_CURSOR ) );
 				viewer.requestRepaint();

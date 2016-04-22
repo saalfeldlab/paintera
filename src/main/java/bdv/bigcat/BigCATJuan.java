@@ -13,6 +13,7 @@ import bdv.bigcat.composite.ARGBCompositeAlphaYCbCr;
 import bdv.bigcat.composite.Composite;
 import bdv.bigcat.composite.CompositeCopy;
 import bdv.bigcat.control.MergeController;
+import bdv.bigcat.control.SelectionController;
 import bdv.bigcat.ui.ARGBConvertedLabelsSource;
 import bdv.bigcat.ui.GoldenAngleSaturatedARGBStream;
 import bdv.bigcat.ui.Util;
@@ -68,6 +69,13 @@ public class BigCATJuan
 
 		bdv.getViewerFrame().setVisible( true );
 
+		final SelectionController selectionController = new SelectionController(
+				bdv.getViewer(),
+				colorStream,
+				new InputTriggerConfig(),
+				bdv.getViewerFrame().getKeybindings(),
+				new InputTriggerConfig() );
+
 		final MergeController mergeController = new MergeController(
 				bdv.getViewer(),
 				RealViews.affineReal(
@@ -77,7 +85,7 @@ public class BigCATJuan
 										new VolatileLabelMultisetType() ),
 								new NearestNeighborInterpolatorFactory< VolatileLabelMultisetType >() ),
 						fragments.getMipmapTransforms()[ 0 ] ),
-				colorStream,
+				selectionController,
 				assignment,
 				new InputTriggerConfig(),
 				bdv.getViewerFrame().getKeybindings(),
@@ -86,7 +94,7 @@ public class BigCATJuan
 		final TriggerBehaviourBindings bindings = bdv.getViewerFrame().getTriggerbindings();
 		bindings.addBehaviourMap( "bigcat", mergeController.getBehaviourMap() );
 		bindings.addInputTriggerMap( "bigcat", mergeController.getInputTriggerMap() );
-		
+
 //			final ZContext ctx = new ZContext();
 //			final Socket socket = ctx.createSocket( ZMQ.REQ );
 //			socket.connect( "tcp://10.103.40.190:8128" );
