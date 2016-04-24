@@ -21,6 +21,7 @@ import java.util.List;
 
 import javax.swing.ActionMap;
 import javax.swing.InputMap;
+import javax.swing.JOptionPane;
 
 import org.scijava.ui.behaviour.Behaviour;
 import org.scijava.ui.behaviour.BehaviourMap;
@@ -94,6 +95,7 @@ public class AnnotationController {
 		new AddPreSynapticSiteAnnotation("add presynaptic site annotation", "SPACE shift button1").register();
 		new AddPostSynapticSiteAnnotation("add postsynaptic site annotation", "SPACE shift button3").register();
 		new AddSynapseAnnotation("add synapse annotation", "SPACE shift button2").register();
+		new ChangeComment("change comment", "C").register();
 		new SaveAnnotations("save annotations", "S").register();
 
 		inputActionBindings.addActionMap("bdv", ksActionMap);
@@ -317,6 +319,26 @@ public class AnnotationController {
 
 			annotations.markDirty();
 		}	
+	}
+
+	private class ChangeComment extends SelfRegisteringAction
+	{
+		private static final long serialVersionUID = 1L;
+
+		public ChangeComment( final String name, final String ... defaultTriggers )
+		{
+			super( name, defaultTriggers );
+		}
+
+		@Override
+		public void actionPerformed( final ActionEvent e )
+		{
+			if (selectedAnnotation == null)
+				return;
+
+			selectedAnnotation.setComment(JOptionPane.showInputDialog(viewer, "Change comment:", selectedAnnotation.getComment()));
+			viewer.requestRepaint();
+		}
 	}
 
 	private class SaveAnnotations extends SelfRegisteringAction
