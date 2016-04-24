@@ -29,7 +29,9 @@ public abstract class Annotation {
 		this.comment = comment;
 	}
 
-	public abstract void accept(AnnotationVisitor visitor);
+	public void accept(AnnotationVisitor visitor) {
+		visitor.visit(this);
+	}
 	
 	private long id;
 	private RealPoint pos;

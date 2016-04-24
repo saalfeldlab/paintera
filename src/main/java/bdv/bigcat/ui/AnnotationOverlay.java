@@ -84,17 +84,42 @@ public class AnnotationOverlay implements OverlayRenderer
 					this.pass = pass;
 				}
 				
+				private void setAlpha(double z) {
+					
+					float zAlpha = Math.max(0, (float)1.0 - (float)0.1*Math.abs((float)z));
+					g2d.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, zAlpha));
+				}
+				
+				@Override
+				public void visit(Annotation a) {
+					
+					if (pass != 2)
+						return;
+					
+					RealPoint displayPosition = new RealPoint(3);
+					viewerTransform.apply(a.getPosition(), displayPosition);
+
+					double x = displayPosition.getDoublePosition(0);
+					double y = displayPosition.getDoublePosition(1);
+					double z = displayPosition.getDoublePosition(2);
+					
+					g2d.setPaint(Color.white);
+					setAlpha(z);
+					g2d.drawString(a.getComment(), (int)x, (int)y);
+				}
+				
 				@Override
 				public void visit(Synapse s) {
 					
 					RealPoint displayPosition = new RealPoint(3);
 					viewerTransform.apply(s.getPosition(), displayPosition);
 
-					float zAlpha = Math.max(0, (float)1.0 - (float)0.1*Math.abs(displayPosition.getFloatPosition(2)));
-					g2d.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, zAlpha));
 						
 					double sx = displayPosition.getDoublePosition(0);
 					double sy = displayPosition.getDoublePosition(1);
+					double sz = displayPosition.getDoublePosition(2);
+					
+					setAlpha(sz);
 
 					if (pass == 1) {
 
@@ -124,8 +149,7 @@ public class AnnotationOverlay implements OverlayRenderer
 					RealPoint displayPosition = new RealPoint(3);
 					viewerTransform.apply(synapticSite.getPosition(), displayPosition);
 
-					float zAlpha = Math.max(0, (float)1.0 - (float)0.1*Math.abs(displayPosition.getFloatPosition(2)));
-					g2d.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, zAlpha));
+					setAlpha(displayPosition.getDoublePosition(2));
 
 					final int radius = 10;
 					if (synapticSite == controller.getSelectedAnnotation())
@@ -134,14 +158,14 @@ public class AnnotationOverlay implements OverlayRenderer
 						g2d.setPaint(preSynapticSiteColor);
 					g2d.setStroke(new BasicStroke(2.0f));
 					g2d.fillOval(
-							Math.round(displayPosition.getFloatPosition(0) - radius),
-							Math.round(displayPosition.getFloatPosition(1) - radius),
+							(int)Math.round(displayPosition.getDoublePosition(0) - radius),
+							(int)Math.round(displayPosition.getDoublePosition(1) - radius),
 							2 * radius + 1,
 							2 * radius + 1 );
 					g2d.setPaint(preSynapticSiteColor.darker());
 					g2d.drawOval(
-							Math.round(displayPosition.getFloatPosition(0) - radius),
-							Math.round(displayPosition.getFloatPosition(1) - radius),
+							(int)Math.round(displayPosition.getDoublePosition(0) - radius),
+							(int)Math.round(displayPosition.getDoublePosition(1) - radius),
 							2 * radius + 1,
 							2 * radius + 1 );
 				
@@ -190,12 +214,11 @@ public class AnnotationOverlay implements OverlayRenderer
 				}
 			}
 			
-			AnnotationRenderer renderer = new AnnotationRenderer(0);
-			for (Annotation a : visibleAnnotations)
-				a.accept(renderer);
-			renderer = new AnnotationRenderer(1);
-			for (Annotation a : visibleAnnotations)
-				a.accept(renderer);
+			for (int pass = 0; pass < 3; pass++) {
+				AnnotationRenderer renderer = new AnnotationRenderer(pass);
+				for (Annotation a : visibleAnnotations)
+					a.accept(renderer);
+			}
 		}
 	}
 

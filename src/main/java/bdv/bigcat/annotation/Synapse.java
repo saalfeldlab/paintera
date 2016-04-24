@@ -34,6 +34,7 @@ public class Synapse extends Annotation {
 
 	@Override
 	public void accept(AnnotationVisitor visitor) {
+		super.accept(visitor);
 		visitor.visit(this);
 	}
 	

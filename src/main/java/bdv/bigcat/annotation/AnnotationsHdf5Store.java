@@ -1,5 +1,7 @@
 package bdv.bigcat.annotation;
 
+import java.beans.MethodDescriptor;
+
 import bdv.util.IdService;
 import ch.systemsx.cisd.base.mdarray.MDFloatArray;
 import ch.systemsx.cisd.base.mdarray.MDLongArray;
@@ -41,6 +43,7 @@ public class AnnotationsHdf5Store implements AnnotationsStore {
 		
 		final MDFloatArray locations;
 		final MDLongArray ids;
+		String[] comments;
 
 		try {
 			locations = reader.float32().readMDArray(groupname + "/" + name + "_locations");
@@ -51,6 +54,13 @@ public class AnnotationsHdf5Store implements AnnotationsStore {
 		}
 			
 		final int[] dims = locations.dimensions();
+		
+		try {
+			comments = reader.string().readArray(groupname + "/" + name + "_comments");
+		} catch (HDF5SymbolTableException e) {
+			System.out.println("HDF5 file does not contain comments for " + name);
+			comments = null;
+		}
 		
 		for (int i = 0; i < dims[0]; i++) {
 			
@@ -63,8 +73,9 @@ public class AnnotationsHdf5Store implements AnnotationsStore {
 			pos.setPosition(p);
 			
 			long id = ids.get(i);
+			String comment = (comments == null || comments.length == 0 ? "" : comments[i]);
 			IdService.invalidate(id);
-			Annotation annotation = factory.create(id, pos, "");
+			Annotation annotation = factory.create(id, pos, comment);
 			annotations.add(annotation);
 		}
 	}
@@ -160,6 +171,10 @@ public class AnnotationsHdf5Store implements AnnotationsStore {
 			float[][] postSynapticSiteData = new float[counter.numPostSynapticSites][3];
 			long[] postSynapticSiteIds = new long[counter.numPostSynapticSites];
 			long[][] partners  = new long[counter.numPostSynapticSites][2];
+
+			String[] synapseComments = new String[counter.numSynapses];
+			String[] preSynapticSiteComments = new String[counter.numPreSynapticSites];
+			String[] postSynapticSiteComments = new String[counter.numPostSynapticSites];
 			
 			private int synapseIndex = 0;
 			private int preIndex = 0;
@@ -175,6 +190,7 @@ public class AnnotationsHdf5Store implements AnnotationsStore {
 			public void visit(Synapse synapse) {
 				fillPosition(synapseData[synapseIndex], synapse);
 				synapseIds[synapseIndex] = synapse.getId();
+				synapseComments[synapseIndex] = synapse.getComment();
 				synapseIndex++;
 			}
 
@@ -182,6 +198,7 @@ public class AnnotationsHdf5Store implements AnnotationsStore {
 			public void visit(PreSynapticSite preSynapticSite) {
 				fillPosition(preSynapticSiteData[preIndex], preSynapticSite);
 				preSynapticSiteIds[preIndex] = preSynapticSite.getId();
+				preSynapticSiteComments[preIndex] = preSynapticSite.getComment();
 				preIndex++;
 			}
 
@@ -189,6 +206,7 @@ public class AnnotationsHdf5Store implements AnnotationsStore {
 			public void visit(PostSynapticSite postSynapticSite) {
 				fillPosition(postSynapticSiteData[postIndex], postSynapticSite);
 				postSynapticSiteIds[postIndex] = postSynapticSite.getId();
+				postSynapticSiteComments[postIndex] = postSynapticSite.getComment();
 				partners[postIndex][0] = postSynapticSite.getPartner().getId();
 				partners[postIndex][1] = postSynapticSite.getId();
 				postIndex++;
@@ -206,10 +224,16 @@ public class AnnotationsHdf5Store implements AnnotationsStore {
 		}
 		writer.float32().writeMatrix(groupname + "/synapse_locations", crawler.synapseData);
 		writer.uint64().writeArray(groupname + "/synapse_ids", crawler.synapseIds);
+		writer.string().writeArray(groupname + "/synapse_comments", crawler.synapseComments);
+
 		writer.float32().writeMatrix(groupname + "/presynaptic_site_locations", crawler.preSynapticSiteData);
 		writer.uint64().writeArray(groupname + "/presynaptic_site_ids", crawler.preSynapticSiteIds);
+		writer.string().writeArray(groupname + "/presynaptic_site_comments", crawler.preSynapticSiteComments);
+
 		writer.float32().writeMatrix(groupname + "/postsynaptic_site_locations", crawler.postSynapticSiteData);
 		writer.uint64().writeArray(groupname + "/postsynaptic_site_ids", crawler.postSynapticSiteIds);
+		writer.string().writeArray(groupname + "/postsynaptic_site_comments", crawler.postSynapticSiteComments);
+
 		writer.uint64().writeMatrix(groupname + "/pre_post_partners", crawler.partners);
 	}
 }
