@@ -342,7 +342,10 @@ public class AnnotationController {
 			changeComment = true;
 			
 			// The following is what we want but it freezes the BDV...
-//			selectedAnnotation.setComment(JOptionPane.showInputDialog(viewer, "Change comment:", selectedAnnotation.getComment()));
+//			String comment = JOptionPane.showInputDialog(viewer, "Change comment:", selectedAnnotation.getComment());
+//			if (comment == null)
+//				return;
+//			selectedAnnotation.setComment(comment);
 //			viewer.requestRepaint();
 		}
 	}
@@ -377,7 +380,10 @@ public class AnnotationController {
 			changeComment = false;
 		}
 
-		selectedAnnotation.setComment(JOptionPane.showInputDialog(viewer, "Change comment:", selectedAnnotation.getComment()));
+		String comment = JOptionPane.showInputDialog(viewer, "Change comment:", selectedAnnotation.getComment());
+		if (comment == null)
+			return;
+		selectedAnnotation.setComment(comment);
 		viewer.requestRepaint();
 	}
 }
