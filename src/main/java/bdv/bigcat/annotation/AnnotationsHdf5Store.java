@@ -31,6 +31,7 @@ public class AnnotationsHdf5Store implements AnnotationsStore {
 		readSynapses(annotations, reader);
 		readPreSynapticSites(annotations, reader);
 		readPostSynapticSites(annotations, reader);
+		reader.close();
 		
 		return annotations;
 	}
@@ -235,5 +236,7 @@ public class AnnotationsHdf5Store implements AnnotationsStore {
 		writer.string().writeArray(groupname + "/postsynaptic_site_comments", crawler.postSynapticSiteComments);
 
 		writer.uint64().writeMatrix(groupname + "/pre_post_partners", crawler.partners);
+		
+		writer.close();
 	}
 }
