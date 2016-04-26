@@ -28,17 +28,26 @@ import java.awt.Cursor;
 public class LabelFillController
 {
 	final protected ViewerPanel viewer;
+
 	final protected RandomAccessibleInterval< LabelMultisetType > labels;
+
 	final protected RandomAccessibleInterval< LongType > paintedLabels;
+
 	final protected AffineTransform3D labelTransform;
+
 	final protected FragmentSegmentAssignment assignment;
+
 	final protected SelectionController selectionController;
+
 	final protected RealPoint labelLocation;
+
 	final protected Shape shape;
 
 	// for behavioUrs
 	private final BehaviourMap behaviourMap = new BehaviourMap();
+
 	private final InputTriggerMap inputTriggerMap = new InputTriggerMap();
+
 	private final InputTriggerAdder inputAdder;
 
 	public BehaviourMap getBehaviourMap()
@@ -129,10 +138,9 @@ public class LabelFillController
 				final Point p = new Point(
 						Math.round( labelLocation.getDoublePosition( 0 ) ),
 						Math.round( labelLocation.getDoublePosition( 1 ) ),
-						Math.round( labelLocation.getDoublePosition( 2 ) )
-				);
+						Math.round( labelLocation.getDoublePosition( 2 ) ) );
 
-				RandomAccess<LongType> paintAccess = paintedLabels.randomAccess();
+				RandomAccess< LongType > paintAccess = paintedLabels.randomAccess();
 				paintAccess.setPosition( p );
 				long seedPaint = paintAccess.get().getIntegerLong();
 				long seedFragmentLabel = getBiggestLabel( labels, p );
@@ -148,29 +156,30 @@ public class LabelFillController
 						new SegmentAndPaintFilter1(
 								seedPaint,
 								seedFragmentLabel,
-								assignment )
-				);
+								assignment ) );
 				final long t1 = System.currentTimeMillis();
-				System.out.println( "Filling took " + (t1-t0) + " ms" );
+				System.out.println( "Filling took " + ( t1 - t0 ) + " ms" );
 				viewer.setCursor( Cursor.getPredefinedCursor( Cursor.DEFAULT_CURSOR ) );
 				viewer.requestRepaint();
 			}
 		}
 	}
 
-
 	public static class SegmentAndPaintFilter1 implements Filter< Pair< LabelMultisetType, LongType >, Pair< LabelMultisetType, LongType > >
 	{
 		private final long comparison;
+
 		private final long[] fragmentsContainedInSeedSegment;
 
-		public SegmentAndPaintFilter1( long seedPaint, long seedFragmentLabel, FragmentSegmentAssignment assignment ) {
+		public SegmentAndPaintFilter1( long seedPaint, long seedFragmentLabel, FragmentSegmentAssignment assignment )
+		{
 			this.comparison = seedPaint == Label.TRANSPARENT ? seedFragmentLabel : seedPaint;
 			this.fragmentsContainedInSeedSegment = assignment.getFragments( assignment.getSegment( comparison ) );
 		}
 
 		@Override
-		public boolean accept( Pair<LabelMultisetType, LongType> current, Pair<LabelMultisetType, LongType> reference ) {
+		public boolean accept( Pair< LabelMultisetType, LongType > current, Pair< LabelMultisetType, LongType > reference )
+		{
 
 			final LabelMultisetType currentLabelSet = current.getA();
 			final long currentPaint = current.getB().getIntegerLong();
@@ -178,8 +187,10 @@ public class LabelFillController
 			if ( currentPaint != Label.TRANSPARENT )
 				return currentPaint == comparison && currentPaint != reference.getB().getIntegerLong();
 
-			else {
-				for ( long fragment : this.fragmentsContainedInSeedSegment ) {
+			else
+			{
+				for ( long fragment : this.fragmentsContainedInSeedSegment )
+				{
 					if ( currentLabelSet.contains( fragment ) )
 						return true;
 				}
@@ -189,37 +200,36 @@ public class LabelFillController
 		}
 	}
 
-
 	public static class FragmentFilter implements Filter< Pair< LabelMultisetType, LongType >, Pair< LabelMultisetType, LongType > >
 	{
 
 		private final long seedLabel;
 
-		public FragmentFilter(long seedLabel) {
+		public FragmentFilter( long seedLabel )
+		{
 			this.seedLabel = seedLabel;
 		}
 
 		@Override
-		public boolean accept( Pair< LabelMultisetType, LongType > current, Pair< LabelMultisetType, LongType > reference ) {
+		public boolean accept( Pair< LabelMultisetType, LongType > current, Pair< LabelMultisetType, LongType > reference )
+		{
 			return ( current.getB().getIntegerLong() != reference.getB().getIntegerLong() ) && ( current.getA().contains( seedLabel ) );
 		}
 
 	}
 
-
 	public static long getBiggestLabel( RandomAccessible< LabelMultisetType > accessible, Localizable position )
 	{
-		RandomAccess<LabelMultisetType> access = accessible.randomAccess();
+		RandomAccess< LabelMultisetType > access = accessible.randomAccess();
 		access.setPosition( position );
 		return getBiggestLabel( access.get() );
 	}
 
-
 	public static long getBiggestLabel( LabelMultisetType t )
 	{
-		int  maxCount = Integer.MIN_VALUE;
+		int maxCount = Integer.MIN_VALUE;
 		long maxLabel = -1;
-		for ( Multiset.Entry<Label> e : t.entrySet())
+		for ( Multiset.Entry< Label > e : t.entrySet() )
 		{
 			int c = e.getCount();
 			if ( c > maxCount )
