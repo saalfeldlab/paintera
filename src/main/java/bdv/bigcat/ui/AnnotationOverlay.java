@@ -13,12 +13,12 @@ import java.awt.geom.Line2D;
 import java.util.List;
 
 import bdv.bigcat.annotation.Annotation;
-import bdv.bigcat.annotation.AnnotationController;
 import bdv.bigcat.annotation.AnnotationVisitor;
 import bdv.bigcat.annotation.Annotations;
 import bdv.bigcat.annotation.PostSynapticSite;
 import bdv.bigcat.annotation.PreSynapticSite;
 import bdv.bigcat.annotation.Synapse;
+import bdv.bigcat.control.AnnotationController;
 import bdv.viewer.ViewerPanel;
 import net.imglib2.RealPoint;
 import net.imglib2.algorithm.kdtree.ConvexPolytope;
