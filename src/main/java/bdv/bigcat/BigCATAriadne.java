@@ -4,6 +4,7 @@ import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 
+import bdv.bigcat.control.*;
 import org.scijava.ui.behaviour.io.InputTriggerConfig;
 
 import com.google.gson.JsonIOException;
@@ -13,13 +14,6 @@ import bdv.BigDataViewer;
 import bdv.bigcat.composite.ARGBCompositeAlphaYCbCr;
 import bdv.bigcat.composite.Composite;
 import bdv.bigcat.composite.CompositeCopy;
-import bdv.bigcat.control.LabelBrushController;
-import bdv.bigcat.control.LabelFillController;
-import bdv.bigcat.control.LabelMultiSetIdPicker;
-import bdv.bigcat.control.LabelPersistenceController;
-import bdv.bigcat.control.MergeController;
-import bdv.bigcat.control.PairLabelMultiSetLongIdPicker;
-import bdv.bigcat.control.SelectionController;
 import bdv.bigcat.ui.ARGBConvertedLabelPairSource;
 import bdv.bigcat.ui.GoldenAngleSaturatedARGBStream;
 import bdv.bigcat.ui.Util;
@@ -227,6 +221,16 @@ public class BigCATAriadne
 				new DiamondShape( 1 ),
 				new InputTriggerConfig() );
 
+		LabelRestrictToSegmentController intersectController = new LabelRestrictToSegmentController(
+				bdv.getViewer(),
+				fragments.getImage(0),
+				paintedLabels,
+				fragments.getMipmapTransforms()[0],
+				assignment,
+				selectionController,
+				new DiamondShape(1),
+				new InputTriggerConfig());
+
 //		Annotations annotations = new Annotations();
 //		final AnnotationController annotationController = new AnnotationController(
 //				bdv.getViewer(),
@@ -246,6 +250,9 @@ public class BigCATAriadne
 
 		bindings.addBehaviourMap( "fill", fillController.getBehaviourMap() );
 		bindings.addInputTriggerMap( "fill", fillController.getInputTriggerMap() );
+
+		bindings.addBehaviourMap( "restrict", intersectController.getBehaviourMap() );
+		bindings.addInputTriggerMap( "restrict", intersectController.getInputTriggerMap() );
 
 //		bdv.getViewer().getDisplay().addOverlayRenderer( annotationController.getAnnotationOverlay() );
 
