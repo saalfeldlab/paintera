@@ -94,6 +94,9 @@ public class AnnotationsHdf5Store implements AnnotationsStore {
 	}
 
 	private void readAnnotations(Annotations annotations, final IHDF5Reader reader, String type, AnnotationFactory factory) throws Exception {
+
+		// prior to 0.1 there was no groupname prefix
+		final String groupname = (fileFormat == "0.0" ? "" : this.groupname);
 		
 		String locationsDataset;
 		String idsDataset;
@@ -172,6 +175,9 @@ public class AnnotationsHdf5Store implements AnnotationsStore {
 	}
 
 	private void readPrePostPartners(Annotations annotations, final IHDF5Reader reader) {
+
+		// prior to 0.1 there was no groupname prefix
+		final String groupname = (fileFormat == "0.0" ? "" : this.groupname);
 
 		final String prePostDataset;
 		final MDLongArray prePostPartners;
@@ -338,6 +344,10 @@ public class AnnotationsHdf5Store implements AnnotationsStore {
 	}
 	
 	private void deleteDataset(IHDF5Writer writer, String name) {
+
+		// prior to 0.1 there was no groupname prefix
+		final String groupname = (fileFormat == "0.0" ? "" : this.groupname);
+
 		final String dsName = groupname + "/" + name;
 		try {
 			writer.delete(dsName);
