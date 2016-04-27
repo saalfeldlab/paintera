@@ -180,7 +180,7 @@ public class BigCatAnnotations
 //				new InputTriggerConfig(),
 //				bdv.getViewerFrame().getKeybindings() );
 
-		final AnnotationsHdf5Store annotationsStore = new AnnotationsHdf5Store(args[0], "/");
+		final AnnotationsHdf5Store annotationsStore = new AnnotationsHdf5Store(args[0]);
 		final AnnotationController annotationController = new AnnotationController(
 				annotationsStore,
 				bdv.getViewer(),
