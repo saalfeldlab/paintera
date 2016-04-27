@@ -221,12 +221,5 @@ public class BigCatAnnotations
 
 //			controller.sendMessage( new Message() );
 
-		while ( true ) {
-
-			annotationController.changeCommentOfCurrentSelection();
-			try {
-				Thread.sleep(1000);
-			} catch (InterruptedException e) {}
-		}
 	}
 }

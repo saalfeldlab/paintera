@@ -66,9 +66,6 @@ public class AnnotationController {
 	private final InputMap ksInputMap = new InputMap();
 	private final NamedActionAdder ksActionAdder = new NamedActionAdder(ksActionMap);
 	private final KeyStrokeAdder ksKeyStrokeAdder;
-	
-	// workaround for BDV freezing after showInputDialog inside action or behaviour
-	private Boolean changeComment = false;
 
 	public BehaviourMap getBehaviourMap() {
 		return behaviourMap;
@@ -339,14 +336,11 @@ public class AnnotationController {
 			if (selectedAnnotation == null)
 				return;
 
-			changeComment = true;
-			
-			// The following is what we want but it freezes the BDV...
-//			String comment = JOptionPane.showInputDialog(viewer, "Change comment:", selectedAnnotation.getComment());
-//			if (comment == null)
-//				return;
-//			selectedAnnotation.setComment(comment);
-//			viewer.requestRepaint();
+			String comment = JOptionPane.showInputDialog(viewer, "Change comment:", selectedAnnotation.getComment());
+			if (comment == null)
+				return;
+			selectedAnnotation.setComment(comment);
+			viewer.requestRepaint();
 		}
 	}
 
@@ -367,23 +361,6 @@ public class AnnotationController {
 			System.out.println("done.");
 		}
 	}
-	
-	// workaround
-	
-	public void changeCommentOfCurrentSelection() {
 
-		synchronized(changeComment) {
-
-			if (selectedAnnotation == null || changeComment == false)
-				return;
-
-			changeComment = false;
-		}
-
-		String comment = JOptionPane.showInputDialog(viewer, "Change comment:", selectedAnnotation.getComment());
-		if (comment == null)
-			return;
-		selectedAnnotation.setComment(comment);
-		viewer.requestRepaint();
-	}
+	// define actions and behaviours here
 }
