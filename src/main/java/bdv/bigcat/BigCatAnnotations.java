@@ -45,7 +45,7 @@ public class BigCatAnnotations
 	final static private String paintedLabelsDataset = "/paintedLabels";
 	final static private String mergedLabelsDataset = "/mergedLabels";
 
-	public static void main( final String[] args ) throws JsonSyntaxException, JsonIOException, IOException
+	public static void main( final String[] args ) throws Exception
 	{
 		Util.initUI();
 

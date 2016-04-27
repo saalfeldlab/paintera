@@ -83,7 +83,7 @@ public class AnnotationController {
 
 	public AnnotationController(final AnnotationsStore annotationsStore, final ViewerPanel viewer,
 			final InputTriggerConfig config, final InputActionBindings inputActionBindings,
-			final KeyStrokeAdder.Factory keyProperties) {
+			final KeyStrokeAdder.Factory keyProperties) throws Exception {
 		this.viewer = viewer;
 		this.store = annotationsStore;
 		this.annotations = annotationsStore.read();
@@ -170,6 +170,9 @@ public class AnnotationController {
 	}
 
 	private abstract class SelfRegisteringAction extends AbstractNamedAction {
+
+		private static final long serialVersionUID = 1L;
+
 		private final String[] defaultTriggers;
 
 		public SelfRegisteringAction(final String name, final String... defaultTriggers) {
@@ -200,6 +203,8 @@ public class AnnotationController {
 	}
 
 	private class RemoveAnnotation extends SelfRegisteringAction {
+
+		private static final long serialVersionUID = 1L;
 
 		public RemoveAnnotation(final String name, final String... defaultTriggers) {
 			super(name, defaultTriggers);

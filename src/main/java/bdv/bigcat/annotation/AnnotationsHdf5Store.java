@@ -1,6 +1,7 @@
 package bdv.bigcat.annotation;
 
 import java.beans.MethodDescriptor;
+import java.util.HashMap;
 
 import bdv.util.IdService;
 import ch.systemsx.cisd.base.mdarray.MDFloatArray;
@@ -15,55 +16,143 @@ public class AnnotationsHdf5Store implements AnnotationsStore {
 	
 	private String filename;
 	private String groupname;
+	private String fileFormat;
 	
+	/**
+	 * Create a new HDF5 store for the given file. Annotations will be read from and written to the group "/annotations".
+	 * @param filename
+	 */
+	public AnnotationsHdf5Store(String filename) {
+
+		this(filename, "/annotations");
+	}
+	
+	/**
+	 * Create a new HDF5 store for the given file. Annotations will be read from and written to the given group.
+	 * @param filename
+	 * @param groupname
+	 */
 	public AnnotationsHdf5Store(String filename, String groupname) {
 		
 		this.filename = filename;
 		this.groupname = groupname;
+		
+		final IHDF5Reader reader = HDF5Factory.openForReading(filename);
+		if (reader.hasAttribute("/", "file_format")) {
+			fileFormat = reader.string().getAttr("/", "file_format");
+		} else {
+			fileFormat = "0.0";
+		}
+		reader.close();
+		
+		System.out.println("AnnotationsHdf5Store: detected file format " + fileFormat);
+	}
+	
+	class AnnotationFactory {
+		public Annotation create(long id, RealPoint pos, String comment, String type) throws Exception {
+			switch (type) {
+			case "synapse":
+				return new Synapse(id, pos, comment);
+			case "presynaptic_site":
+				return new PreSynapticSite(id, pos, comment);
+			case "postsynaptic_site":
+				return new PostSynapticSite(id, pos, comment);
+			default:
+				throw new Exception("annotation type " + type + " is unknown");
+			}
+		}
 	}
 
 	@Override
-	public Annotations read() {
+	public Annotations read() throws Exception {
 		
 		Annotations annotations = new Annotations();
 	
 		final IHDF5Reader reader = HDF5Factory.openForReading(filename);
-		readSynapses(annotations, reader);
-		readPreSynapticSites(annotations, reader);
-		readPostSynapticSites(annotations, reader);
+		final AnnotationFactory factory = new AnnotationFactory();
+		
+		if (fileFormat == "0.0") {
+
+			readAnnotations(annotations, reader, "synapse", factory);
+			readAnnotations(annotations, reader, "presynaptic_site", factory);
+			readAnnotations(annotations, reader, "postsynaptic_site", factory);
+			readPrePostPartners(annotations, reader);
+
+		} else if (fileFormat == "0.1") {
+
+			readAnnotations(annotations, reader, "all", factory);
+			readPrePostPartners(annotations, reader);
+			
+		} else {
+			
+			throw new Exception("unsupported file format: " + fileFormat + ". Is your bigcat up-to-date?");
+		}
 		reader.close();
 		
 		return annotations;
 	}
-	
-	interface AnnotationFactory {
-		Annotation create(long id, RealPoint pos, String comment);
-	}
 
-	private void readAnnotations(Annotations annotations, final IHDF5Reader reader, String name, AnnotationFactory factory) {
+	private void readAnnotations(Annotations annotations, final IHDF5Reader reader, String type, AnnotationFactory factory) throws Exception {
+		
+		String locationsDataset;
+		String idsDataset;
+		String typesDataset;
+		String commentsDataset;
+		String commentTargetsDataset;
+		
+		if (fileFormat == "0.0") {
+			locationsDataset = type + "_locations";
+			idsDataset = type + "_ids";
+			typesDataset = null;
+			commentsDataset = type + "_comments";
+			commentTargetsDataset = null;
+		} else if (fileFormat == "0.1") {
+			locationsDataset = "locations";
+			idsDataset = "ids";
+			typesDataset = "types";
+			commentsDataset = "comments/comments";
+			commentTargetsDataset = "comments/target_ids";
+		} else {
+			return;
+		}
 		
 		final MDFloatArray locations;
 		final MDLongArray ids;
-		String[] comments;
+		final String[] types;
+		final HashMap<Long, String> comments = new HashMap<Long, String>();
 
 		try {
-			locations = reader.float32().readMDArray(groupname + "/" + name + "_locations");
-			ids = reader.uint64().readMDArray(groupname + "/" + name + "_ids");
+			locations = reader.float32().readMDArray(groupname + "/" + locationsDataset);
+			ids = reader.uint64().readMDArray(groupname + "/" + idsDataset);
+			if (typesDataset != null)
+				types = reader.string().readArray(groupname + "/" + typesDataset);
+			else
+				types = null;
 		} catch (HDF5SymbolTableException e) {
-			System.out.println("HDF5 file does not contain annotations for " + name);
+			if (type == "all")
+				System.out.println("HDF5 file does not contain (valid) annotations");
+			else
+				System.out.println("HDF5 file does not contain (valid) annotations for " + type);
 			return;
 		}
 			
-		final int[] dims = locations.dimensions();
+		final int numAnnotations = locations.dimensions()[0];
 		
 		try {
-			comments = reader.string().readArray(groupname + "/" + name + "_comments");
+			final String[] commentList = reader.string().readArray(groupname + "/" + commentsDataset);
+			if (fileFormat == "0.0")
+				for (int i = 0; i < numAnnotations; i++)
+					comments.put(ids.get(i), commentList[i]);
+			else if (fileFormat == "0.1") {
+				final MDLongArray commentTargets = reader.uint64().readMDArray(groupname + "/" + commentTargetsDataset);
+				for (int i = 0; i < commentList.length; i++)
+					comments.put(commentTargets.get(i), commentList[i]);
+			}
 		} catch (HDF5SymbolTableException e) {
-			System.out.println("HDF5 file does not contain comments for " + name);
-			comments = null;
+			System.out.println("HDF5 file does not contain comments for " + type);
 		}
 		
-		for (int i = 0; i < dims[0]; i++) {
+		for (int i = 0; i < numAnnotations; i++) {
 			
 			float p[] = {
 				locations.get(i, 0),
@@ -74,49 +163,27 @@ public class AnnotationsHdf5Store implements AnnotationsStore {
 			pos.setPosition(p);
 			
 			long id = ids.get(i);
-			String comment = (comments == null || comments.length == 0 ? "" : comments[i]);
+			String comment = (comments.containsKey(id) ? comments.get(id) : "");
 			IdService.invalidate(id);
-			Annotation annotation = factory.create(id, pos, comment);
+			Annotation annotation = factory.create(id, pos, comment, (types == null ? type : types[i]));
 			annotations.add(annotation);
 		}
 	}
 
-	private void readSynapses(Annotations annotations, final IHDF5Reader reader) {
-		
-		class Factory implements AnnotationFactory {
-			public Annotation create(long id, RealPoint pos, String comment) {
-				return new Synapse(id, pos, comment);
-			}
-		}
-		
-		readAnnotations(annotations, reader, "synapse", new Factory());
-	}
+	private void readPrePostPartners(Annotations annotations, final IHDF5Reader reader) {
 
-	private void readPreSynapticSites(Annotations annotations, final IHDF5Reader reader) {
-		
-		class Factory implements AnnotationFactory {
-			public Annotation create(long id, RealPoint pos, String comment) {
-				return new PreSynapticSite(id, pos, comment);
-			}
-		}
-		
-		readAnnotations(annotations, reader, "presynaptic_site", new Factory());
-	}
-
-	private void readPostSynapticSites(Annotations annotations, final IHDF5Reader reader) {
-		
-		class Factory implements AnnotationFactory {
-			public Annotation create(long id, RealPoint pos, String comment) {
-				return new PostSynapticSite(id, pos, comment);
-			}
-		}
-		
-		readAnnotations(annotations, reader, "postsynaptic_site", new Factory());
-		
+		final String prePostDataset;
 		final MDLongArray prePostPartners;
 		
+		if (fileFormat == "0.0")
+			prePostDataset = "pre_post_partners";
+		else if (fileFormat == "0.1")
+			prePostDataset = "presynaptic_site/partners";
+		else
+			return;
+		
 		try {
-			prePostPartners = reader.uint64().readMDArray(groupname + "/pre_post_partners");
+			prePostPartners = reader.uint64().readMDArray(groupname + "/" + prePostDataset);
 		} catch (HDF5SymbolTableException e) {
 			return;
 		}
