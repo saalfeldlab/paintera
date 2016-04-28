@@ -99,7 +99,7 @@ public class BigCATJuan
 		
 		final TranslateZController translateZController = new TranslateZController(
 				bdv.getViewer(),
-				raw.getMipmapResolutions()[0][0],
+				raw.getMipmapResolutions()[0],
 				new  InputTriggerConfig() );
 
 		final TriggerBehaviourBindings bindings = bdv.getViewerFrame().getTriggerbindings();

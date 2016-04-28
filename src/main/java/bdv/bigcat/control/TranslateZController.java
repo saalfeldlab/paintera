@@ -42,15 +42,19 @@ public class TranslateZController
 
 	public TranslateZController(
 			final ViewerPanel viewer,
-			final double resolutionZ,
+			final double[] resolution,
 			final InputTriggerConfig config)
 	{
 		this.viewer = viewer;
 		inputAdder = config.inputTriggerAdder( inputTriggerMap, "translate_z" );
+		
+		double min = Math.min(Math.min(resolution[0], resolution[1]), resolution[2]);
+		double max = Math.max(Math.max(resolution[0], resolution[1]), resolution[2]);
+		double f = max/min;
 
-		new FixDistanceTranslateZ( resolutionZ, "scroll browse z fast", "shift scroll" ).register();
-		new FixDistanceTranslateZ( 0.1*resolutionZ, "scroll browse z", "scroll" ).register();
-		new FixDistanceTranslateZ( 0.01*resolutionZ, "scroll browse z slow", "ctrl scroll" ).register();
+		new FixDistanceTranslateZ( max, "scroll browse z fast", "shift scroll" ).register();
+		new FixDistanceTranslateZ( min, "scroll browse z", "scroll" ).register();
+		new FixDistanceTranslateZ( min/f, "scroll browse z slow", "ctrl scroll" ).register();
 	}
 
 	public BehaviourMap getBehaviourMap()
