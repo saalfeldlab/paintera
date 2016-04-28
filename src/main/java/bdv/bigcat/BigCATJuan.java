@@ -15,6 +15,7 @@ import bdv.bigcat.composite.CompositeCopy;
 import bdv.bigcat.control.LabelMultiSetIdPicker;
 import bdv.bigcat.control.MergeController;
 import bdv.bigcat.control.SelectionController;
+import bdv.bigcat.control.TranslateZController;
 import bdv.bigcat.ui.ARGBConvertedLabelsSource;
 import bdv.bigcat.ui.GoldenAngleSaturatedARGBStream;
 import bdv.bigcat.ui.Util;
@@ -95,10 +96,16 @@ public class BigCATJuan
 				new InputTriggerConfig(),
 				bdv.getViewerFrame().getKeybindings(),
 				new InputTriggerConfig() );
+		
+		final TranslateZController translateZController = new TranslateZController(
+				bdv.getViewer(),
+				raw.getMipmapResolutions()[0][0],
+				new  InputTriggerConfig() );
 
 		final TriggerBehaviourBindings bindings = bdv.getViewerFrame().getTriggerbindings();
 		bindings.addBehaviourMap( "bigcat", mergeController.getBehaviourMap() );
 		bindings.addInputTriggerMap( "bigcat", mergeController.getInputTriggerMap() );
+		bindings.addBehaviourMap( "translate_z", translateZController.getBehaviourMap() );
 
 //			final ZContext ctx = new ZContext();
 //			final Socket socket = ctx.createSocket( ZMQ.REQ );

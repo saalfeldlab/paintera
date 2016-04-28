@@ -86,7 +86,7 @@ public class AnnotationOverlay implements OverlayRenderer
 				
 				private void setAlpha(double z) {
 					
-					float zAlpha = Math.max(0, (float)1.0 - (float)0.1*Math.abs((float)z));
+					float zAlpha = Math.max(0, (float)1.0 - (float)zAlphaScale*Math.abs((float)z));
 					g2d.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, zAlpha));
 				}
 				
@@ -191,8 +191,7 @@ public class AnnotationOverlay implements OverlayRenderer
 					RealPoint displayPosition = new RealPoint(3);
 					viewerTransform.apply(synapticSite.getPosition(), displayPosition);
 
-					float zAlpha = Math.max(0, (float)1.0 - (float)0.1*Math.abs(displayPosition.getFloatPosition(2)));
-					g2d.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, zAlpha));
+					setAlpha(displayPosition.getDoublePosition(2));
 
 					final int radius = 10;
 					if (synapticSite == controller.getSelectedAnnotation())
@@ -265,7 +264,8 @@ public class AnnotationOverlay implements OverlayRenderer
 	protected boolean visible = false;
 	final AffineTransform3D viewerTransform = new AffineTransform3D();
 	private int width, height;
-	final private int visibilityThreshold = 10; // show annotations closer than this to currently visible plane
+	final private int visibilityThreshold = 40; // show annotations closer than this to currently visible plane
+	final private double zAlphaScale = 1.0/visibilityThreshold;
 	
 	final static private Color synapseColor = new Color(155, 13, 75);
 	final static private Color preSynapticSiteColor = new Color(75, 13, 155);

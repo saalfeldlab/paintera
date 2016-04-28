@@ -15,6 +15,7 @@ import bdv.bigcat.control.AnnotationController;
 import bdv.bigcat.control.MergeController;
 import bdv.bigcat.control.PairLabelMultiSetLongIdPicker;
 import bdv.bigcat.control.SelectionController;
+import bdv.bigcat.control.TranslateZController;
 import bdv.bigcat.ui.ARGBConvertedLabelPairSource;
 import bdv.bigcat.ui.GoldenAngleSaturatedARGBStream;
 import bdv.bigcat.ui.Util;
@@ -200,9 +201,15 @@ public class BigCatAnnotations
 					new InputTriggerConfig(),
 					bdv.getViewerFrame().getKeybindings(),
 					new InputTriggerConfig() );
+			
+			final TranslateZController translateZController = new TranslateZController(
+					bdv.getViewer(),
+					raw.getMipmapResolutions()[0][0],
+					new  InputTriggerConfig() );
 
 			bindings.addBehaviourMap( "merge", mergeController.getBehaviourMap() );
 			bindings.addInputTriggerMap( "merge", mergeController.getInputTriggerMap() );
+			bindings.addBehaviourMap( "translate_z", translateZController.getBehaviourMap() );
 		}
 
 		final AnnotationsHdf5Store annotationsStore = new AnnotationsHdf5Store(projectFile);

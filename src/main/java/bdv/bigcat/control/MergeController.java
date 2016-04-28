@@ -154,9 +154,6 @@ public class MergeController
 		new NeedPaint("need paint", "control shift button1").register();
 		new NeedGeneralAction("need general action", "SPACE button1").register();
 		new ExportActions("export assignments", "E").register();
-		new FixDistanceTranslateZ( 1.0, "scroll browse z", "scroll" ).register();
-		new FixDistanceTranslateZ( 10.0, "scroll browse z fast", "shift scroll" ).register();
-		new FixDistanceTranslateZ( 0.1, "scroll browse z slow", "ctrl scroll" ).register();
 
 		inputActionBindings.addActionMap( "merge", ksActionMap );
 		inputActionBindings.addInputMap( "merge", ksInputMap );
@@ -368,31 +365,6 @@ public class MergeController
 						"check, " + action.y +
 						", " + action.z +
 						", " + Math.round( action.x / 10.0 ) );
-		}
-	}
-
-	private class FixDistanceTranslateZ extends SelfRegisteringBehaviour implements ScrollBehaviour
-	{
-		final private double speed;
-
-		final private AffineTransform3D affine = new AffineTransform3D();
-
-		public FixDistanceTranslateZ( final double speed, final String name, final String ... defaultTriggers )
-		{
-			super( name, defaultTriggers );
-			this.speed = speed;
-		}
-
-		@Override
-		public void scroll( final double wheelRotation, final boolean isHorizontal, final int x, final int y )
-		{
-			synchronized ( viewer )
-			{
-				viewer.getState().getViewerTransform( affine );
-				final double dZ = speed * -wheelRotation * Affine3DHelpers.extractScale( affine, 0 );
-				affine.set( affine.get( 2, 3 ) - dZ, 2, 3 );
-				viewer.setCurrentViewerTransform( affine );
-			}
 		}
 	}
 }

@@ -188,6 +188,11 @@ public class BigCATAriadne
 				new InputTriggerConfig(),
 				bdv.getViewerFrame().getKeybindings(),
 				new InputTriggerConfig() );
+		
+		final TranslateZController translateZController = new TranslateZController(
+				bdv.getViewer(),
+				raw.getMipmapResolutions()[0][0],
+				new  InputTriggerConfig() );
 
 		final LabelBrushController brushController = new LabelBrushController(
 				bdv.getViewer(),
@@ -244,6 +249,8 @@ public class BigCATAriadne
 
 		bindings.addBehaviourMap( "merge", mergeController.getBehaviourMap() );
 		bindings.addInputTriggerMap( "merge", mergeController.getInputTriggerMap() );
+
+		bindings.addBehaviourMap( "translate_z", translateZController.getBehaviourMap() );
 
 		bindings.addBehaviourMap( "brush", brushController.getBehaviourMap() );
 		bindings.addInputTriggerMap( "brush", brushController.getInputTriggerMap() );
