@@ -191,7 +191,7 @@ public class BigCATAriadne
 		
 		final TranslateZController translateZController = new TranslateZController(
 				bdv.getViewer(),
-				raw.getMipmapResolutions()[0][0],
+				raw.getMipmapResolutions()[0],
 				new  InputTriggerConfig() );
 
 		final LabelBrushController brushController = new LabelBrushController(
