@@ -221,7 +221,7 @@ public class BigCATAriadne
 				new DiamondShape( 1 ),
 				new InputTriggerConfig() );
 
-		LabelRestrictToSegmentController intersectController = new LabelRestrictToSegmentController(
+		final LabelRestrictToSegmentController intersectController = new LabelRestrictToSegmentController(
 				bdv.getViewer(),
 				fragments.getImage(0),
 				paintedLabels,
@@ -230,6 +230,29 @@ public class BigCATAriadne
 				selectionController,
 				new DiamondShape(1),
 				new InputTriggerConfig());
+
+		DrawProjectAndIntersectController dpi = new DrawProjectAndIntersectController(
+				bdv,
+				new InputTriggerConfig(),
+				bdv.getViewerFrame().getKeybindings(),
+				bindings,
+				"shift T"
+		);
+
+//		ModeToggleController.noOpToggle(
+//				new InputTriggerConfig(),
+//				bdv.getViewerFrame().getKeybindings(),
+//				bindings,
+//				"no op toggle"
+//		);
+
+//		final ObsoleteModeToggleController toggleController = new ObsoleteModeToggleController(
+//				new InputTriggerConfig(),
+//				bdv.getViewerFrame().getKeybindings(),
+//				bindings,
+//				"shift T",
+//				"T"
+//		);
 
 //		Annotations annotations = new Annotations();
 //		final AnnotationController annotationController = new AnnotationController(
@@ -256,7 +279,15 @@ public class BigCATAriadne
 
 //		bdv.getViewer().getDisplay().addOverlayRenderer( annotationController.getAnnotationOverlay() );
 
+		System.out.println( "inputTriggerMap: " );
+		System.out.println( bindings.getConcatenatedInputTriggerMap().getAllBindings() );
+
+		System.out.println( "behaviourMap: " );
+		System.out.println( bindings.getConcatenatedBehaviourMap().getAllBindings() );
+
+
 		bdv.getViewer().getDisplay().addOverlayRenderer( brushController.getBrushOverlay() );
+//		bdv.getViewer().getDisplay().addOverlayRenderer( dpi.brushOverlay );
 
 
 //			final ZContext ctx = new ZContext();
