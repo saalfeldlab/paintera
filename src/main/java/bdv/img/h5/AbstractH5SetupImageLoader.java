@@ -74,7 +74,7 @@ abstract public class AbstractH5SetupImageLoader< T extends NativeType< T > , V 
 					h5res[ 0 ], };
 		}
 		else
-			resolution = new double[]{10, 1, 1};
+			resolution = new double[]{1, 1, 10};
 
 
 		mipmapTransform = new AffineTransform3D();
