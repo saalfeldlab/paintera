@@ -16,7 +16,7 @@ public class AnnotationsHdf5Store implements AnnotationsStore {
 	
 	private String filename;
 	private String groupname;
-	private String fileFormat;
+	private double fileFormat;
 	
 	/**
 	 * Create a new HDF5 store for the given file. Annotations will be read from and written to the group "/annotations".
@@ -40,9 +40,9 @@ public class AnnotationsHdf5Store implements AnnotationsStore {
 		final IHDF5Reader reader = HDF5Factory.openForReading(filename);
 		// TODO: following call is deprecated, but what to use instead?
 		if (reader.hasAttribute("/", "file_format")) {
-			fileFormat = reader.string().getAttr("/", "file_format");
+			fileFormat = Double.parseDouble(reader.string().getAttr("/", "file_format"));
 		} else {
-			fileFormat = "0.0";
+			fileFormat = 0.0;
 		}
 		reader.close();
 		
@@ -72,14 +72,14 @@ public class AnnotationsHdf5Store implements AnnotationsStore {
 		final IHDF5Reader reader = HDF5Factory.openForReading(filename);
 		final AnnotationFactory factory = new AnnotationFactory();
 		
-		if (fileFormat.equals("0.0")) {
+		if (fileFormat == 0.0) {
 
 			readAnnotations(annotations, reader, "synapse", factory);
 			readAnnotations(annotations, reader, "presynaptic_site", factory);
 			readAnnotations(annotations, reader, "postsynaptic_site", factory);
 			readPrePostPartners(annotations, reader);
 
-		} else if (fileFormat.equals("0.1")) {
+		} else if (fileFormat >= 0.1) {
 
 			readAnnotations(annotations, reader, "all", factory);
 			readPrePostPartners(annotations, reader);
@@ -96,7 +96,7 @@ public class AnnotationsHdf5Store implements AnnotationsStore {
 	private void readAnnotations(Annotations annotations, final IHDF5Reader reader, String type, AnnotationFactory factory) throws Exception {
 
 		// prior to 0.1 there was no groupname prefix
-		final String groupname = (fileFormat == "0.0" ? "" : this.groupname);
+		final String groupname = (fileFormat == 0.0 ? "" : this.groupname);
 		
 		String locationsDataset;
 		String idsDataset;
@@ -104,13 +104,13 @@ public class AnnotationsHdf5Store implements AnnotationsStore {
 		String commentsDataset;
 		String commentTargetsDataset;
 		
-		if (fileFormat.equals("0.0")) {
+		if (fileFormat == 0.0) {
 			locationsDataset = type + "_locations";
 			idsDataset = type + "_ids";
 			typesDataset = null;
 			commentsDataset = type + "_comments";
 			commentTargetsDataset = null;
-		} else if (fileFormat.equals("0.1")) {
+		} else if (fileFormat >= 0.1) {
 			locationsDataset = "locations";
 			idsDataset = "ids";
 			typesDataset = "types";
@@ -144,10 +144,10 @@ public class AnnotationsHdf5Store implements AnnotationsStore {
 		
 		try {
 			final String[] commentList = reader.string().readArray(groupname + "/" + commentsDataset);
-			if (fileFormat.equals("0.0"))
+			if (fileFormat == 0.0)
 				for (int i = 0; i < numAnnotations; i++)
 					comments.put(ids.get(i), commentList[i]);
-			else if (fileFormat.equals("0.1")) {
+			else if (fileFormat == 0.1) {
 				final MDLongArray commentTargets = reader.uint64().readMDArray(groupname + "/" + commentTargetsDataset);
 				for (int i = 0; i < commentList.length; i++)
 					comments.put(commentTargets.get(i), commentList[i]);
@@ -158,10 +158,11 @@ public class AnnotationsHdf5Store implements AnnotationsStore {
 		
 		for (int i = 0; i < numAnnotations; i++) {
 			
+			// coordinates are stored as (z,y,x), but internally we use (x,y,z)
 			float p[] = {
-				locations.get(i, 0),
-				locations.get(i, 1),
 				locations.get(i, 2),
+				locations.get(i, 1),
+				locations.get(i, 0),
 			};
 			RealPoint pos = new RealPoint(3);
 			pos.setPosition(p);
@@ -177,14 +178,14 @@ public class AnnotationsHdf5Store implements AnnotationsStore {
 	private void readPrePostPartners(Annotations annotations, final IHDF5Reader reader) {
 
 		// prior to 0.1 there was no groupname prefix
-		final String groupname = (fileFormat == "0.0" ? "" : this.groupname);
+		final String groupname = (fileFormat == 0.0 ? "" : this.groupname);
 
 		final String prePostDataset;
 		final MDLongArray prePostPartners;
 		
-		if (fileFormat.equals("0.0"))
+		if (fileFormat == 0.0)
 			prePostDataset = "pre_post_partners";
-		else if (fileFormat.equals("0.1"))
+		else if (fileFormat == 0.1)
 			prePostDataset = "presynaptic_site/partners";
 		else
 			return;
@@ -259,8 +260,10 @@ public class AnnotationsHdf5Store implements AnnotationsStore {
 			
 			private void fillPosition(float[] data, Annotation a) {
 				
+				// We store locations as (z,y,x). The internal coordinates
+				// are (x,y,z) and need to be inverted.
 				for (int i = 0; i < 3; i++)
-					data[i] = a.getPosition().getFloatPosition(i);
+					data[i] = a.getPosition().getFloatPosition(2 - i);
 			}
 			
 			@Override
@@ -320,7 +323,7 @@ public class AnnotationsHdf5Store implements AnnotationsStore {
 			// already existed
 		}
 		
-		writer.string().setAttr("/", "file_format", "0.1");
+		writer.string().setAttr("/", "file_format", "0.2");
 		
 		writer.float32().writeMatrix(groupname + "/locations", crawler.locations);
 		writer.uint64().writeArray(groupname + "/ids", crawler.ids);
@@ -332,7 +335,7 @@ public class AnnotationsHdf5Store implements AnnotationsStore {
 		writer.uint64().writeMatrix(groupname + "/presynaptic_site/partners", crawler.partners);
 		
 		// delete old datasets and groups
-		if (fileFormat.equals("0.0")) {
+		if (fileFormat == 0.0) {
 
 			for (String type : new String[]{"synapse", "presynaptic_site", "postsynaptic_site" })
 				for (String ds : new String[]{"locations", "ids", "comments" })
@@ -346,7 +349,7 @@ public class AnnotationsHdf5Store implements AnnotationsStore {
 	private void deleteDataset(IHDF5Writer writer, String name) {
 
 		// prior to 0.1 there was no groupname prefix
-		final String groupname = (fileFormat == "0.0" ? "" : this.groupname);
+		final String groupname = (fileFormat == 0.0 ? "" : this.groupname);
 
 		final String dsName = groupname + "/" + name;
 		try {
