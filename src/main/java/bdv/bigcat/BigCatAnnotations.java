@@ -45,7 +45,7 @@ import net.imglib2.view.Views;
 
 public class BigCatAnnotations
 {
-	final static private int[] cellDimensions = new int[]{ 8, 64, 64 };
+	final static private int[] cellDimensions = new int[]{ 64, 64, 8 };
 	
 	static private H5LabelMultisetSetupImageLoader fragments = null;
 	static private ARGBConvertedLabelPairSource convertedLabelPair = null;
