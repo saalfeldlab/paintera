@@ -18,6 +18,9 @@ public class AnnotationsHdf5Store implements AnnotationsStore {
 	private String groupname;
 	private double fileFormat;
 	
+	// annotations offset in (x,y,z)
+	private float[] offset = {0.0f, 0.0f, 0.0f};
+	
 	/**
 	 * Create a new HDF5 store for the given file. Annotations will be read from and written to the group "/annotations".
 	 * @param filename
@@ -44,6 +47,14 @@ public class AnnotationsHdf5Store implements AnnotationsStore {
 		} else {
 			fileFormat = 0.0;
 		}
+		
+		if (reader.hasAttribute(groupname, "offset")) {
+			float[] data = reader.getFloatArrayAttribute(groupname, "offset");
+			offset[0] = data[2];
+			offset[1] = data[1];
+			offset[2] = data[0];
+		}
+			
 		reader.close();
 		
 		System.out.println("AnnotationsHdf5Store: detected file format " + fileFormat);
@@ -158,9 +169,9 @@ public class AnnotationsHdf5Store implements AnnotationsStore {
 			
 			// coordinates are stored as (z,y,x), but internally we use (x,y,z)
 			float p[] = {
-				locations.get(i, 2),
-				locations.get(i, 1),
-				locations.get(i, 0),
+				locations.get(i, 2) + offset[0],
+				locations.get(i, 1) + offset[1],
+				locations.get(i, 0) + offset[2],
 			};
 			RealPoint pos = new RealPoint(3);
 			pos.setPosition(p);
@@ -259,7 +270,7 @@ public class AnnotationsHdf5Store implements AnnotationsStore {
 				// We store locations as (z,y,x). The internal coordinates
 				// are (x,y,z) and need to be inverted.
 				for (int i = 0; i < 3; i++)
-					data[i] = a.getPosition().getFloatPosition(2 - i);
+					data[i] = a.getPosition().getFloatPosition(2 - i) - offset[2 - i];
 			}
 			
 			@Override
@@ -320,6 +331,11 @@ public class AnnotationsHdf5Store implements AnnotationsStore {
 		}
 		
 		writer.string().setAttr("/", "file_format", "0.2");
+		
+		if (writer.hasAttribute(groupname, "offset")) {
+			float[] data = { offset[2], offset[1], offset[0] };
+			writer.setFloatArrayAttribute(groupname, "offset", data);
+		}
 		
 		writer.float32().writeMatrix(groupname + "/locations", crawler.locations);
 		writer.uint64().writeArray(groupname + "/ids", crawler.ids);
