@@ -79,7 +79,7 @@ public class AnnotationsHdf5Store implements AnnotationsStore {
 			readAnnotations(annotations, reader, "postsynaptic_site", factory);
 			readPrePostPartners(annotations, reader);
 
-		} else if (fileFormat >= 0.1) {
+		} else if (fileFormat >= 0.1 && fileFormat <= 0.2) {
 
 			readAnnotations(annotations, reader, "all", factory);
 			readPrePostPartners(annotations, reader);
@@ -110,14 +110,12 @@ public class AnnotationsHdf5Store implements AnnotationsStore {
 			typesDataset = null;
 			commentsDataset = type + "_comments";
 			commentTargetsDataset = null;
-		} else if (fileFormat >= 0.1) {
+		} else {
 			locationsDataset = "locations";
 			idsDataset = "ids";
 			typesDataset = "types";
 			commentsDataset = "comments/comments";
 			commentTargetsDataset = "comments/target_ids";
-		} else {
-			return;
 		}
 		
 		final MDFloatArray locations;
@@ -147,7 +145,7 @@ public class AnnotationsHdf5Store implements AnnotationsStore {
 			if (fileFormat == 0.0)
 				for (int i = 0; i < numAnnotations; i++)
 					comments.put(ids.get(i), commentList[i]);
-			else if (fileFormat == 0.1) {
+			else if (fileFormat >= 0.1) {
 				final MDLongArray commentTargets = reader.uint64().readMDArray(groupname + "/" + commentTargetsDataset);
 				for (int i = 0; i < commentList.length; i++)
 					comments.put(commentTargets.get(i), commentList[i]);
@@ -185,10 +183,8 @@ public class AnnotationsHdf5Store implements AnnotationsStore {
 		
 		if (fileFormat == 0.0)
 			prePostDataset = "pre_post_partners";
-		else if (fileFormat == 0.1)
-			prePostDataset = "presynaptic_site/partners";
 		else
-			return;
+			prePostDataset = "presynaptic_site/partners";
 		
 		try {
 			prePostPartners = reader.uint64().readMDArray(groupname + "/" + prePostDataset);
