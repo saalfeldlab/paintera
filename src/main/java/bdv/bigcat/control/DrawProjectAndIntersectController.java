@@ -16,8 +16,10 @@ import net.imglib2.img.array.ArrayCursor;
 import net.imglib2.img.array.ArrayImg;
 import net.imglib2.img.array.ArrayImgs;
 import net.imglib2.img.array.ArrayRandomAccess;
+import net.imglib2.img.basictypeaccess.array.IntArray;
 import net.imglib2.img.basictypeaccess.array.LongArray;
 import net.imglib2.type.logic.BitType;
+import net.imglib2.type.numeric.integer.IntType;
 import net.imglib2.ui.OverlayRenderer;
 import net.imglib2.util.LinAlgHelpers;
 import net.imglib2.util.Pair;
@@ -32,6 +34,9 @@ import java.awt.geom.AffineTransform;
 import java.awt.geom.Area;
 import java.awt.geom.Ellipse2D;
 import java.awt.image.BufferedImage;
+import java.awt.image.DataBuffer;
+import java.awt.image.DataBufferInt;
+import java.awt.image.Raster;
 import java.util.Random;
 
 /**
@@ -59,6 +64,7 @@ public class DrawProjectAndIntersectController {
 
     private ArrayImg< BitType, LongArray > localCanvas = null;
     public final BrushOverlay brushOverlay = new BrushOverlay();
+    private float overlayAlpha = 0.5f;
     private int width = 0;
     private int height = 0;
 
@@ -78,8 +84,16 @@ public class DrawProjectAndIntersectController {
         KeyStrokeAdder ksWithinModeInputAdder = config.keyStrokeAdder(ksWithinModeInputMap, "within dpi mode");
         InputTriggerAdder withinModeInputTriggerAdder = config.inputTriggerAdder(withinModeInputTriggerMap, "within dpi mdoe");
 
-        NoActionUnToggle noActionUnToggle =
-                new NoActionUnToggle( bindings, inputActionBindings, "abort dpi", "T" );
+        Runnable action = new Runnable() {
+            @Override
+            public void run() {
+                filledPixelsOverlay.setVisible(false);
+                viewer.getDisplay().repaint();
+            }
+        };
+
+        ModeToggleController.ExecuteOnUnToggle noActionUnToggle =
+                new ModeToggleController.ExecuteOnUnToggle(action, bindings, inputActionBindings, "abort dpi", "T");
         noActionUnToggle.register( ksWithinModeActionAdder, ksWithinModeInputAdder );
 
 //        RandomPixelOnCanvas rpc = new RandomPixelOnCanvas( "draw on image", "D" );
@@ -108,6 +122,9 @@ public class DrawProjectAndIntersectController {
 
         OverlayVisibility ov = new OverlayVisibility("visibility", "V");
         ov.register( ksWithinModeActionAdder, ksWithinModeInputAdder );
+
+        Fill f = new Fill( "fill", "M button1" );
+        f.register( withinModeBehaviourMap, withinModeInputTriggerAdder );
 
 
         Toggle toggle = new Toggle(bindings, inputActionBindings, "activate dpi mode", activateModeKeys );
@@ -160,55 +177,58 @@ public class DrawProjectAndIntersectController {
         @Override
         public void actionImplementation() {
             localCanvas = ArrayImgs.bits( viewer.getWidth(), viewer.getHeight() );
+            filledPixelsOverlay.img = new BufferedImage( viewer.getWidth(), viewer.getHeight(), BufferedImage.TYPE_INT_ARGB );
+            filledPixelsOverlay.imgOld = null;
+            filledPixelsOverlay.setVisible( true );
             System.out.println( "Action: "  + localCanvas );
         }
     }
 
 
-    private class RandomPixelOnCanvas extends ModeToggleController.SelfRegisteringAction
-    {
+//    private class RandomPixelOnCanvas extends ModeToggleController.SelfRegisteringAction
+//    {
+//
+//        Random rng = new Random( 100 );
+//
+//        public RandomPixelOnCanvas(String name, String... defaultTriggers) {
+//            super(name, defaultTriggers);
+//        }
+//
+//        @Override
+//        public void actionPerformed(ActionEvent actionEvent) {
+//            long w = localCanvas.dimension(0);
+//            long h = localCanvas.dimension(1);
+//            int x = rng.nextInt((int) w);
+//            int y = rng.nextInt((int) h);
+//            ArrayRandomAccess<BitType> access = localCanvas.randomAccess();
+//            access.setPosition( new int[] { x, y } );
+//            access.get().set( true );
+//            System.out.println( x + " " + y );
+//        }
+//    }
 
-        Random rng = new Random( 100 );
 
-        public RandomPixelOnCanvas(String name, String... defaultTriggers) {
-            super(name, defaultTriggers);
-        }
-
-        @Override
-        public void actionPerformed(ActionEvent actionEvent) {
-            long w = localCanvas.dimension(0);
-            long h = localCanvas.dimension(1);
-            int x = rng.nextInt((int) w);
-            int y = rng.nextInt((int) h);
-            ArrayRandomAccess<BitType> access = localCanvas.randomAccess();
-            access.setPosition( new int[] { x, y } );
-            access.get().set( true );
-            System.out.println( x + " " + y );
-        }
-    }
-
-
-    private class PutCanvasToScreen extends ModeToggleController.SelfRegisteringAction
-    {
-
-        public PutCanvasToScreen(String name, String... defaultTriggers) {
-            super(name, defaultTriggers);
-        }
-
-        @Override
-        public void actionPerformed(ActionEvent actionEvent) {
-            Graphics g = viewer.getGraphics();
-            for(ArrayCursor<BitType> c = localCanvas.cursor(); c.hasNext(); )
-            {
-                c.fwd();
-                if ( c.get().get() ) {
-                    int x = c.getIntPosition(0);
-                    int y = c.getIntPosition(1);
-                    g.drawLine( x, y, x, y );
-                }
-            }
-        }
-    }
+//    private class PutCanvasToScreen extends ModeToggleController.SelfRegisteringAction
+//    {
+//
+//        public PutCanvasToScreen(String name, String... defaultTriggers) {
+//            super(name, defaultTriggers);
+//        }
+//
+//        @Override
+//        public void actionPerformed(ActionEvent actionEvent) {
+//            Graphics g = viewer.getGraphics();
+//            for(ArrayCursor<BitType> c = localCanvas.cursor(); c.hasNext(); )
+//            {
+//                c.fwd();
+//                if ( c.get().get() ) {
+//                    int x = c.getIntPosition( 0 );
+//                    int y = c.getIntPosition( 1 );
+//                    g.drawLine( x, y, x, y );
+//                }
+//            }
+//        }
+//    }
 
 
     private class ClearArea extends ModeToggleController.SelfRegisteringAction
@@ -220,10 +240,9 @@ public class DrawProjectAndIntersectController {
 
         @Override
         public void actionPerformed(ActionEvent actionEvent) {
-            if ( !filledPixels.isEmpty() ) {
-                filledPixels.reset();
-                viewer.requestRepaint();
-            }
+            filledPixelsOverlay.img = new BufferedImage( viewer.getWidth(), viewer.getHeight(), BufferedImage.TYPE_INT_ARGB );
+            filledPixelsOverlay.imgOld = null;
+            viewer.getDisplay().repaint();
         }
     }
 
@@ -286,7 +305,7 @@ public class DrawProjectAndIntersectController {
         public void drawOverlays( Graphics g ) {
             if ( visible ) {
                 final Graphics2D g2d = (Graphics2D) g;
-                g2d.setColor(Color.WHITE);
+                g2d.setColor( Color.WHITE );
                 g2d.setStroke(stroke);
                 g2d.drawOval(x - radius, y - radius, 2*radius + 1, 2*radius + 1);
             }
@@ -297,6 +316,11 @@ public class DrawProjectAndIntersectController {
         {
             DrawProjectAndIntersectController.this.width = width;
             DrawProjectAndIntersectController.this.height = height;
+        }
+
+        public void setColor( float r, float g, float b, float a )
+        {
+
         }
     }
 
@@ -328,7 +352,9 @@ public class DrawProjectAndIntersectController {
         public void drawOverlays(Graphics g) {
             if ( visible ) {
                 Graphics2D g2d = (Graphics2D) g;
-//                g2d.fill(filledPixels);
+                g2d.setColor( Color.WHITE );
+                AlphaComposite comp = AlphaComposite.getInstance(AlphaComposite.SRC_OVER, overlayAlpha);
+                g2d.setComposite( comp );
                 g2d.drawImage( img, 0, 0, null );
             }
         }
@@ -340,6 +366,7 @@ public class DrawProjectAndIntersectController {
             DrawProjectAndIntersectController.this.height = height;
 //            imgOld = img;
             img = new BufferedImage( width, height, BufferedImage.TYPE_INT_ARGB );
+            imgOld = imgOld == null ? new BufferedImage( width, height, BufferedImage.TYPE_INT_ARGB ) : imgOld;
             Graphics2D g = (Graphics2D) img.getGraphics();
             g.setRenderingHint( RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_NEAREST_NEIGHBOR );
             // define AffineTransform
@@ -474,7 +501,7 @@ public class DrawProjectAndIntersectController {
 
             viewer.getDisplay().repaint();
 
-             System.out.println( getName() + " drag start (" + oX + ", " + oY + ")" );
+//             System.out.println( getName() + " drag start (" + oX + ", " + oY + ")" );
         }
 
         @Override
@@ -484,7 +511,7 @@ public class DrawProjectAndIntersectController {
 
             paint( oX, oY, x, y );
 
-            System.out.println( getName() + " drag by (" + (x -oX ) + ", " + (y-oY) + ")" );
+//            System.out.println( getName() + " drag by (" + (x -oX ) + ", " + (y-oY) + ")" );
 
             synchronized ( this )
             {
@@ -547,11 +574,71 @@ public class DrawProjectAndIntersectController {
 
         @Override
         public void actionPerformed(ActionEvent actionEvent) {
-            if ( !filledPixels.isEmpty() ) {
-                filledPixelsOverlay.setVisible(!filledPixelsOverlay.visible());
-                viewer.requestRepaint();
+            filledPixelsOverlay.setVisible(!filledPixelsOverlay.visible());
+            viewer.getDisplay().repaint();
+        }
+    }
+
+
+    private class Fill extends SelfRegisteringBehaviour implements ClickBehaviour
+    {
+
+        public Filter< Pair< IntType, IntType >, Pair< IntType, IntType > > filter = (p1, p2) -> p1.getB().get() != p2.getB().get();
+//        public Filter< Pair< IntType, IntType >, Pair< IntType, IntType > > filter = new Filter<Pair<IntType, IntType>, Pair<IntType, IntType>>() {
+//            @Override
+//            public boolean accept(Pair<IntType, IntType> p1, Pair<IntType, IntType> p2) {
+//                return p1.getB().getIntegerLong() != p2.getB().getIntegerLong();
+//            }
+//        };
+
+        public Fill(String name, String... defaultTriggers) {
+            super(name, defaultTriggers);
+        }
+
+        @Override
+        public void click( int x, int y ) {
+            synchronized( viewer )
+            {
+                viewer.setCursor( Cursor.getPredefinedCursor( Cursor.WAIT_CURSOR ) );
+
+                final Point p = new Point( x, y );
+
+                int[] imgData = ((DataBufferInt)filledPixelsOverlay.img.getRaster().getDataBuffer()).getData();
+                ArrayImg<IntType, IntArray> img = ArrayImgs.ints(imgData, filledPixelsOverlay.img.getWidth(), filledPixelsOverlay.img.getHeight());
+
+//                IntType extension = new IntType( 0 |
+//                        Color.WHITE.getAlpha() << 24 |
+//                        Color.WHITE.getRed() << 16 |
+//                        Color.WHITE.getGreen() << 8|
+//                        Color.WHITE.getBlue() << 0
+//                );
+
+                IntType extension = new IntType(Color.WHITE.getRGB());
+
+
+
+                final long t0 = System.currentTimeMillis();
+                ArrayRandomAccess<IntType> ra = img.randomAccess();
+                ra.setPosition( p );
+//                ra.get().set( 255 | 255 << 8 );
+                FloodFill.fill(
+                        Views.extendValue( img, extension ),
+                        Views.extendValue( img, extension ),
+                        p,
+                        extension.copy(),
+                        extension.copy(),
+                        new DiamondShape( 1 ),
+                        filter );
+                final long t1 = System.currentTimeMillis();
+                System.out.println( "Filling took " + ( t1 - t0 ) + " ms" );
+                viewer.setCursor( Cursor.getPredefinedCursor( Cursor.DEFAULT_CURSOR ) );
+                filledPixelsOverlay.setVisible( true );
+                viewer.getDisplay().repaint();
+//                filledPixelsOverlay.
+//                viewer.requestRepaint();
             }
         }
     }
+
 
 }
