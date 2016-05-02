@@ -201,6 +201,26 @@ public class ModeToggleController {
 
     }
 
+    public static class ExecuteOnUnToggle extends AbstractUnToggle
+    {
+        private final Runnable action;
+
+        public ExecuteOnUnToggle(
+                final Runnable action,
+                final TriggerBehaviourBindings bindings,
+                final InputActionBindings inputActionBindings,
+                final String name,
+                final String... defaultTriggers) {
+            super(bindings, inputActionBindings, name, defaultTriggers);
+            this.action = action;
+        }
+
+        @Override
+        protected void doOnUnToggle() {
+            action.run();
+        }
+    }
+
 
     public static void noOpToggle(
             final InputTriggerConfig config,
