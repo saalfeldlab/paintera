@@ -1,48 +1,54 @@
 package bdv.bigcat.control;
 
+import static bdv.labels.labelset.Label.*;
+
 import bdv.BigDataViewer;
-import bdv.bigcat.control.ModeToggleController.NoActionUnToggle;
+import bdv.labels.labelset.*;
 import bdv.util.AbstractNamedAction.NamedActionAdder;
 import bdv.viewer.InputActionBindings;
 import bdv.viewer.TriggerBehaviourBindings;
 import bdv.viewer.ViewerPanel;
+import net.imglib2.*;
 import net.imglib2.Point;
 import net.imglib2.algorithm.fill.Filter;
 import net.imglib2.algorithm.fill.FloodFill;
 import net.imglib2.algorithm.fill.Writer;
 import net.imglib2.algorithm.neighborhood.DiamondShape;
 import net.imglib2.algorithm.neighborhood.Shape;
-import net.imglib2.img.array.ArrayCursor;
 import net.imglib2.img.array.ArrayImg;
 import net.imglib2.img.array.ArrayImgs;
 import net.imglib2.img.array.ArrayRandomAccess;
 import net.imglib2.img.basictypeaccess.array.IntArray;
 import net.imglib2.img.basictypeaccess.array.LongArray;
+import net.imglib2.interpolation.randomaccess.NearestNeighborInterpolatorFactory;
+import net.imglib2.outofbounds.OutOfBounds;
+import net.imglib2.realtransform.*;
 import net.imglib2.type.logic.BitType;
 import net.imglib2.type.numeric.integer.IntType;
+import net.imglib2.type.numeric.integer.LongType;
 import net.imglib2.ui.OverlayRenderer;
+import net.imglib2.ui.TransformListener;
 import net.imglib2.util.LinAlgHelpers;
 import net.imglib2.util.Pair;
-import net.imglib2.view.Views;
+import net.imglib2.util.ValuePair;
+import net.imglib2.view.*;
 import org.scijava.ui.behaviour.*;
 import org.scijava.ui.behaviour.io.InputTriggerConfig;
 
 import javax.swing.*;
 import java.awt.*;
+import java.awt.Cursor;
 import java.awt.event.ActionEvent;
 import java.awt.geom.AffineTransform;
 import java.awt.geom.Area;
 import java.awt.geom.Ellipse2D;
 import java.awt.image.BufferedImage;
-import java.awt.image.DataBuffer;
 import java.awt.image.DataBufferInt;
-import java.awt.image.Raster;
-import java.util.Random;
 
 /**
  * @autoher Philipp Hanslovsky &lt;hanslovskyp@janelia.hhmi.org&gt;
  */
-public class DrawProjectAndIntersectController {
+public class DrawProjectAndIntersectController implements TransformListener< AffineTransform3D > {
 
     private final BigDataViewer bdv;
     private final ViewerPanel viewer;
@@ -67,10 +73,19 @@ public class DrawProjectAndIntersectController {
     private float overlayAlpha = 0.5f;
     private int width = 0;
     private int height = 0;
+    final protected RealPoint labelLocation = new RealPoint( 3 );
+    final protected AffineTransform3D viewerToGlobalCoordinatesTransform = new AffineTransform3D();
+    final protected AffineTransform3D labelTransform;
+    final protected RandomAccessibleInterval<LabelMultisetType> labels;
+    final protected RandomAccessibleInterval<LongType> paintedLabels;
 
     public DrawProjectAndIntersectController(
             final BigDataViewer bdv,
+            final AffineTransform3D viewerToGlobalCoordinatesTransform,
             final InputTriggerConfig config,
+            final RandomAccessibleInterval<LabelMultisetType > labels,
+            final RandomAccessibleInterval< LongType > paintedLabels,
+            final AffineTransform3D labelTransform,
             final InputActionBindings inputActionBindings,
             final TriggerBehaviourBindings bindings,
             final String... activateModeKeys ) {
@@ -78,7 +93,12 @@ public class DrawProjectAndIntersectController {
         this.viewer = bdv.getViewer();
         this.config = config;
         this.inputActionBindings = inputActionBindings;
+        this.labels = labels;
+        this.paintedLabels = paintedLabels;
+        this.labelTransform = labelTransform;
         this.bindings = bindings;
+
+        viewer.addTransformListener( this );
 
         NamedActionAdder ksWithinModeActionAdder = new NamedActionAdder(ksWithinModeActionMap);
         KeyStrokeAdder ksWithinModeInputAdder = config.keyStrokeAdder(ksWithinModeInputMap, "within dpi mode");
@@ -95,6 +115,9 @@ public class DrawProjectAndIntersectController {
         ModeToggleController.ExecuteOnUnToggle noActionUnToggle =
                 new ModeToggleController.ExecuteOnUnToggle(action, bindings, inputActionBindings, "abort dpi", "T");
         noActionUnToggle.register( ksWithinModeActionAdder, ksWithinModeInputAdder );
+
+        IntersectAndLeave il = new IntersectAndLeave( action, bindings, inputActionBindings, "execute and leave dpi", "shift button1" );
+        il.register( withinModeBehaviourMap, withinModeInputTriggerAdder );
 
 //        RandomPixelOnCanvas rpc = new RandomPixelOnCanvas( "draw on image", "D" );
 //        rpc.register( ksWithinModeActionAdder, ksWithinModeInputAdder );
@@ -133,6 +156,13 @@ public class DrawProjectAndIntersectController {
         viewer.getDisplay().addOverlayRenderer( brushOverlay );
         viewer.getDisplay().addOverlayRenderer( filledPixelsOverlay );
 
+    }
+
+
+    @Override
+    public void transformChanged( final AffineTransform3D t )
+    {
+        viewerToGlobalCoordinatesTransform.set( t );
     }
 
 
@@ -580,16 +610,17 @@ public class DrawProjectAndIntersectController {
     }
 
 
+    public static ArrayImg< IntType, IntArray > wrapBufferedImage( BufferedImage img )
+    {
+        int[] imgData = ((DataBufferInt)img.getRaster().getDataBuffer()).getData();
+        return ArrayImgs.ints(imgData, img.getWidth(), img.getHeight());
+    }
+
+
     private class Fill extends SelfRegisteringBehaviour implements ClickBehaviour
     {
 
         public Filter< Pair< IntType, IntType >, Pair< IntType, IntType > > filter = (p1, p2) -> p1.getB().get() != p2.getB().get();
-//        public Filter< Pair< IntType, IntType >, Pair< IntType, IntType > > filter = new Filter<Pair<IntType, IntType>, Pair<IntType, IntType>>() {
-//            @Override
-//            public boolean accept(Pair<IntType, IntType> p1, Pair<IntType, IntType> p2) {
-//                return p1.getB().getIntegerLong() != p2.getB().getIntegerLong();
-//            }
-//        };
 
         public Fill(String name, String... defaultTriggers) {
             super(name, defaultTriggers);
@@ -597,14 +628,15 @@ public class DrawProjectAndIntersectController {
 
         @Override
         public void click( int x, int y ) {
-            synchronized( viewer )
-            {
-                viewer.setCursor( Cursor.getPredefinedCursor( Cursor.WAIT_CURSOR ) );
+            if ( filledPixelsOverlay.visible() ) {
+                synchronized (viewer) {
+                    viewer.setCursor(Cursor.getPredefinedCursor(Cursor.WAIT_CURSOR));
 
-                final Point p = new Point( x, y );
+                    final Point p = new Point(x, y);
 
-                int[] imgData = ((DataBufferInt)filledPixelsOverlay.img.getRaster().getDataBuffer()).getData();
-                ArrayImg<IntType, IntArray> img = ArrayImgs.ints(imgData, filledPixelsOverlay.img.getWidth(), filledPixelsOverlay.img.getHeight());
+//                    int[] imgData = ((DataBufferInt) filledPixelsOverlay.img.getRaster().getDataBuffer()).getData();
+//                    ArrayImg<IntType, IntArray> img = ArrayImgs.ints(imgData, filledPixelsOverlay.img.getWidth(), filledPixelsOverlay.img.getHeight());
+                    ArrayImg<IntType, IntArray> img = wrapBufferedImage(filledPixelsOverlay.img);
 
 //                IntType extension = new IntType( 0 |
 //                        Color.WHITE.getAlpha() << 24 |
@@ -613,30 +645,165 @@ public class DrawProjectAndIntersectController {
 //                        Color.WHITE.getBlue() << 0
 //                );
 
-                IntType extension = new IntType(Color.WHITE.getRGB());
+                    IntType extension = new IntType(Color.WHITE.getRGB());
 
 
+                    final long t0 = System.currentTimeMillis();
+                    ArrayRandomAccess<IntType> ra = img.randomAccess();
+                    ra.setPosition(p);
+//                ra.get().set( 255 | 255 << 8 );
+                    FloodFill.fill(
+                            Views.extendValue(img, extension),
+                            Views.extendValue(img, extension),
+                            p,
+                            extension.copy(),
+                            extension.copy(),
+                            new DiamondShape(1),
+                            filter);
+                    final long t1 = System.currentTimeMillis();
+                    System.out.println("Filling took " + (t1 - t0) + " ms");
+                    viewer.setCursor(Cursor.getPredefinedCursor(Cursor.DEFAULT_CURSOR));
+                    viewer.getDisplay().repaint();
+                }
+            }
+        }
+    }
+
+    private void setCoordinates( final int x, final int y )
+    {
+        labelLocation.setPosition( x, 0 );
+        labelLocation.setPosition( y, 1 );
+        labelLocation.setPosition( 0, 2 );
+
+        viewer.displayToGlobalCoordinates( labelLocation );
+
+        labelTransform.applyInverse( labelLocation, labelLocation );
+    }
+
+
+    private class IntersectAndLeave extends ModeToggleController.AbstractUnToggleOnClick implements ClickBehaviour
+    {
+
+        private final Runnable action;
+
+        public IntersectAndLeave(
+                Runnable action,
+                TriggerBehaviourBindings bindings,
+                InputActionBindings inputActionBindings,
+                String name,
+                String... defaultTriggers) {
+            super( bindings, inputActionBindings, name, defaultTriggers);
+            this.action = action;
+        }
+
+        @Override
+        public void doOnUnToggle( int x, int y ) {
+            synchronized ( viewer )
+            {
+                viewer.setCursor( Cursor.getPredefinedCursor( Cursor.WAIT_CURSOR ) );
+                setCoordinates( x, y );
+//                System.out.println( "Filling " + labelLocation + " with " + selectionController.getActiveFragmentId() );
+
+
+                final Point p = new Point(
+                        Math.round( labelLocation.getDoublePosition( 0 ) ),
+                        Math.round( labelLocation.getDoublePosition( 1 ) ),
+                        Math.round( labelLocation.getDoublePosition( 2 ) ) );
+
+                ArrayImg<IntType, IntArray> img = wrapBufferedImage(filledPixelsOverlay.img);
+
+                int overlayValueAtPoint = filledPixelsOverlay.img.getRGB( x, y );
+
+                ExtendedRandomAccessibleInterval<IntType, IntervalView<IntType>> borderExtended
+                        = Views.extendBorder(Views.interval(Views.addDimension(img), new FinalInterval(img.dimension(0), img.dimension(1), 1)));
+
+                AffineTransform3D offset = new AffineTransform3D();
+                offset.setTranslation( new double[] { -0.5*filledPixelsOverlay.img.getWidth(), -0.5*filledPixelsOverlay.img.getHeight(), 0 } );
+
+                AffineTransform3D imgToGlobalCoordinates = viewerToGlobalCoordinatesTransform.inverse().copy().concatenate(offset);
+
+                RealPoint dummy = new RealPoint( 3 );
+                dummy.setPosition( x, 0 );
+                dummy.setPosition( y, 1 );
+                dummy.setPosition( 0, 2 );
+                offset.apply( dummy, dummy );
+                viewer.displayToGlobalCoordinates( dummy );
+
+                RealTransformRandomAccessible<IntType, InverseRealTransform> iat =
+                        RealViews.transform(Views.interpolate(borderExtended, new NearestNeighborInterpolatorFactory<>()), imgToGlobalCoordinates);
+                RealTransformRealRandomAccessible<IntType, InverseRealTransform>.RealTransformRealRandomAccess dummyAccess = iat.realRandomAccess();
+                dummyAccess.setPosition( dummy );
+                System.out.println( "Dummy: " + dummyAccess.get().get() );
+
+                AffineTransform3D toLabelSpace = labelTransform.inverse().copy().concatenate(imgToGlobalCoordinates);
+
+                RandomAccessibleOnRealRandomAccessible<IntType> interpolatedAndTransformed = Views.raster(
+                        RealViews.transform(
+                                Views.interpolate(borderExtended, new NearestNeighborInterpolatorFactory<>()),
+                                labelTransform.inverse().copy().concatenate( viewerToGlobalCoordinatesTransform.inverse() )// toLabelSpace
+                ) );
+
+                RealPoint dummyP = new RealPoint(3);
+                System.out.println( p );
+                toLabelSpace.applyInverse( dummyP , p );
+                imgToGlobalCoordinates.applyInverse( dummy, dummy );
+                System.out.println( x + " " + y + dummy + " " + " " + p + " " + dummyP );
+
+                OutOfBounds<IntType> access1 = borderExtended.randomAccess();
+                access1.setPosition( x, 0 );
+                access1.setPosition( y, 1 );
+
+                RandomAccess<IntType> access2 = interpolatedAndTransformed.randomAccess();
+                access2.setPosition( p );
+
+                RandomAccess<IntType> access3 = Views.interval(Views.addDimension(img), new FinalInterval(img.dimension(0), img.dimension(1), 1)).randomAccess();
+                access3.setPosition( x, 0 );
+                access3.setPosition( y, 1 );
+                access3.setPosition( 0, 2 );
+
+                System.out.println( "access: " + access1.get().get() + " " + access2.get().get() + " " + access3.get().get() );
+
+
+//                RandomAccess< LongType > paintAccess = paintedLabels.randomAccess();
+//                paintAccess.setPosition( p );
+//                long seedPaint = paintAccess.get().getIntegerLong();
+                long seedFragmentLabel = LabelFillController.getBiggestLabel( labels, p );
+                System.out.println( seedFragmentLabel + " " + overlayValueAtPoint + " " + Color.WHITE.getRGB() );
+
+//                Filter< Pair< Pair< LabelMultisetType, IntType >, LongType >, Pair< Pair< LabelMultisetType, IntType >, LongType >  > filter =
+//                        (p1, p2) -> p1.getB().get() != p2.getB().get() &&
+//                                p1.getA( ).getB().get() == overlayValueAtPoint &&
+//                                p1.getA().getA().contains( seedFragmentLabel );
+
+                Filter< Pair< Pair< LabelMultisetType, IntType >, LongType >, Pair< Pair< LabelMultisetType, IntType >, LongType >  > filter =
+                        new Filter<Pair<Pair<LabelMultisetType, IntType>, LongType>, Pair<Pair<LabelMultisetType, IntType>, LongType>>() {
+                            @Override
+                            public boolean accept(Pair<Pair<LabelMultisetType, IntType>, LongType> p1, Pair<Pair<LabelMultisetType, IntType>, LongType> p2) {
+//                                System.out.println( "(" + ")p1: " + p1.getA().getA().contains( seedFragmentLabel ) + " " + p1.getA().getB().get() + " " + p1.getB().get() );
+//                                System.out.println( "(" + ")p2: " + p2.getA().getA().contains( seedFragmentLabel ) + " " + p2.getA().getB().get() + " " + p2.getB().get() );
+                                return p1.getB().get() != p2.getB().get() &&
+                                p1.getA().getB().get() == overlayValueAtPoint &&
+                                p1.getA().getA().contains( seedFragmentLabel );
+                            }
+                        };
 
                 final long t0 = System.currentTimeMillis();
-                ArrayRandomAccess<IntType> ra = img.randomAccess();
-                ra.setPosition( p );
-//                ra.get().set( 255 | 255 << 8 );
+
+                RandomAccessiblePair<LabelMultisetType, IntType> def = new RandomAccessiblePair<>(Views.extendValue(labels, new LabelMultisetType()), interpolatedAndTransformed);
                 FloodFill.fill(
-                        Views.extendValue( img, extension ),
-                        Views.extendValue( img, extension ),
+                        new RandomAccessiblePair<LabelMultisetType, IntType>( Views.extendValue( labels, new LabelMultisetType() ), interpolatedAndTransformed ),
+                        Views.extendValue( paintedLabels, new LongType( TRANSPARENT ) ),
                         p,
-                        extension.copy(),
-                        extension.copy(),
+                        new ValuePair<>( new LabelMultisetType(), new IntType( overlayValueAtPoint )),
+                        new LongType( -2 ),
                         new DiamondShape( 1 ),
                         filter );
                 final long t1 = System.currentTimeMillis();
                 System.out.println( "Filling took " + ( t1 - t0 ) + " ms" );
                 viewer.setCursor( Cursor.getPredefinedCursor( Cursor.DEFAULT_CURSOR ) );
-                filledPixelsOverlay.setVisible( true );
-                viewer.getDisplay().repaint();
-//                filledPixelsOverlay.
-//                viewer.requestRepaint();
+                viewer.requestRepaint();
             }
+            action.run();
         }
     }
 

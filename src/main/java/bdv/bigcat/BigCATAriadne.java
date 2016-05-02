@@ -233,7 +233,11 @@ public class BigCATAriadne
 
 		DrawProjectAndIntersectController dpi = new DrawProjectAndIntersectController(
 				bdv,
+				transform,
 				new InputTriggerConfig(),
+				fragments.getImage(0),
+				paintedLabels,
+				fragments.getMipmapTransforms()[0],
 				bdv.getViewerFrame().getKeybindings(),
 				bindings,
 				"shift T"
