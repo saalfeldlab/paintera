@@ -4,9 +4,7 @@ import bdv.util.AbstractNamedAction;
 import bdv.util.AbstractNamedAction.NamedActionAdder;
 import bdv.viewer.InputActionBindings;
 import bdv.viewer.TriggerBehaviourBindings;
-import org.scijava.ui.behaviour.BehaviourMap;
-import org.scijava.ui.behaviour.InputTriggerMap;
-import org.scijava.ui.behaviour.KeyStrokeAdder;
+import org.scijava.ui.behaviour.*;
 import org.scijava.ui.behaviour.io.InputTriggerConfig;
 
 import javax.swing.*;
@@ -33,6 +31,31 @@ public class ModeToggleController {
         {
             ksActionAdder.put( this );
             ksKeyStrokeAdder.put( name(), defaultTriggers );
+        }
+    }
+
+
+    public static abstract class SelfRegisteringBehaviour implements Behaviour
+    {
+        private final String name;
+
+        private final String[] defaultTriggers;
+
+        protected String getName()
+        {
+            return name;
+        }
+
+        public SelfRegisteringBehaviour( final String name, final String... defaultTriggers )
+        {
+            this.name = name;
+            this.defaultTriggers = defaultTriggers;
+        }
+
+        public void register( BehaviourMap behaviourMap, InputTriggerAdder inputAdder )
+        {
+            behaviourMap.put( name, this );
+            inputAdder.put( name, defaultTriggers );
         }
     }
 
@@ -163,7 +186,42 @@ public class ModeToggleController {
 
         protected abstract void doOnUnToggle();
 
-    };
+    }
+
+
+    public static abstract class AbstractUnToggleOnClick extends SelfRegisteringBehaviour implements ClickBehaviour
+    {
+
+        private final TriggerBehaviourBindings bindings;
+        private final InputActionBindings inputActionBindings;
+
+        public AbstractUnToggleOnClick(
+                final TriggerBehaviourBindings bindings,
+                final InputActionBindings inputActionBindings,
+                String name,
+                String... defaultTriggers
+        ) {
+            super( name, defaultTriggers );
+            this.bindings = bindings;
+            this.inputActionBindings = inputActionBindings;
+        }
+
+        @Override
+        public void click( int x, int y )
+        {
+            doOnUnToggle( x, y );
+            this.bindings.removeBehaviourMap( BLOCKING_MAP_NAME );
+            this.bindings.removeInputTriggerMap( BLOCKING_MAP_NAME );
+
+            this.inputActionBindings.removeActionMap( BLOCKING_MAP_NAME );
+            this.inputActionBindings.removeInputMap( BLOCKING_MAP_NAME );
+
+        }
+
+        protected abstract void doOnUnToggle( int x, int y );
+
+    }
+
 
     public static class NoActionUnToggle extends AbstractUnToggle {
 
@@ -217,6 +275,27 @@ public class ModeToggleController {
 
         @Override
         protected void doOnUnToggle() {
+            action.run();
+        }
+    }
+
+
+    public static class ExecuteOnUnToggleOnClick extends AbstractUnToggleOnClick
+    {
+        private final Runnable action;
+
+        public ExecuteOnUnToggleOnClick(
+                final Runnable action,
+                final TriggerBehaviourBindings bindings,
+                final InputActionBindings inputActionBindings,
+                final String name,
+                final String... defaultTriggers) {
+            super(bindings, inputActionBindings, name, defaultTriggers);
+            this.action = action;
+        }
+
+        @Override
+        protected void doOnUnToggle( int x, int y ) {
             action.run();
         }
     }
