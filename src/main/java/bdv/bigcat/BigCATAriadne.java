@@ -238,6 +238,7 @@ public class BigCATAriadne
 				fragments.getImage(0),
 				paintedLabels,
 				fragments.getMipmapTransforms()[0],
+				assignment,
 				bdv.getViewerFrame().getKeybindings(),
 				bindings,
 				"shift T"

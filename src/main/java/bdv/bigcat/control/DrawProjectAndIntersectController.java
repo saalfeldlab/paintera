@@ -3,6 +3,7 @@ package bdv.bigcat.control;
 import static bdv.labels.labelset.Label.*;
 
 import bdv.BigDataViewer;
+import bdv.bigcat.FragmentSegmentAssignment;
 import bdv.labels.labelset.*;
 import bdv.util.AbstractNamedAction.NamedActionAdder;
 import bdv.util.IdService;
@@ -77,6 +78,8 @@ public class DrawProjectAndIntersectController implements TransformListener< Aff
     final protected RealPoint labelLocation = new RealPoint( 3 );
     final protected AffineTransform3D viewerToGlobalCoordinatesTransform = new AffineTransform3D();
     final protected AffineTransform3D labelTransform;
+
+    final protected FragmentSegmentAssignment assignment;
     final protected RandomAccessibleInterval<LabelMultisetType> labels;
     final protected RandomAccessibleInterval<LongType> paintedLabels;
 
@@ -87,6 +90,7 @@ public class DrawProjectAndIntersectController implements TransformListener< Aff
             final RandomAccessibleInterval<LabelMultisetType > labels,
             final RandomAccessibleInterval< LongType > paintedLabels,
             final AffineTransform3D labelTransform,
+            final FragmentSegmentAssignment assignment,
             final InputActionBindings inputActionBindings,
             final TriggerBehaviourBindings bindings,
             final String... activateModeKeys ) {
@@ -97,6 +101,7 @@ public class DrawProjectAndIntersectController implements TransformListener< Aff
         this.labels = labels;
         this.paintedLabels = paintedLabels;
         this.labelTransform = labelTransform;
+        this.assignment = assignment;
         this.bindings = bindings;
 
         viewer.addTransformListener( this );
@@ -764,29 +769,40 @@ public class DrawProjectAndIntersectController implements TransformListener< Aff
 
                 System.out.println( "access: " + access1.get().get() + " " + access2.get().get() + " " + access3.get().get() );
 
-
-//                RandomAccess< LongType > paintAccess = paintedLabels.randomAccess();
-//                paintAccess.setPosition( p );
-//                long seedPaint = paintAccess.get().getIntegerLong();
-                long seedFragmentLabel = LabelFillController.getBiggestLabel( labels, p );
+                final long seedFragmentLabel = LabelFillController.getBiggestLabel( labels, p );
                 System.out.println( seedFragmentLabel + " " + overlayValueAtPoint + " " + Color.WHITE.getRGB() );
+                final RandomAccess<LongType> paintedLabelAccess = paintedLabels.randomAccess();
+                paintedLabelAccess.setPosition( p );
+                final long paintedLabel = paintedLabelAccess.get().get();
+                long segmentLabel = assignment.getSegment(seedFragmentLabel);
+                final long comparison = paintedLabel == TRANSPARENT ? segmentLabel : paintedLabel;
+                final long[] fragmentsContainedInSegment = assignment.getFragments( segmentLabel );
 
-//                Filter< Pair< Pair< LabelMultisetType, IntType >, LongType >, Pair< Pair< LabelMultisetType, IntType >, LongType >  > filter =
-//                        (p1, p2) -> p1.getB().get() != p2.getB().get() &&
-//                                p1.getA( ).getB().get() == overlayValueAtPoint &&
-//                                p1.getA().getA().contains( seedFragmentLabel );
+                Filter< Pair<
+                        Pair< LabelMultisetType, IntType >, LongType >,
+                        Pair< Pair< LabelMultisetType, IntType >, LongType >  > filter  =
+                        (p1, p2) -> {
 
-                Filter< Pair< Pair< LabelMultisetType, IntType >, LongType >, Pair< Pair< LabelMultisetType, IntType >, LongType >  > filter =
-                        new Filter<Pair<Pair<LabelMultisetType, IntType>, LongType>, Pair<Pair<LabelMultisetType, IntType>, LongType>>() {
-                            @Override
-                            public boolean accept(Pair<Pair<LabelMultisetType, IntType>, LongType> p1, Pair<Pair<LabelMultisetType, IntType>, LongType> p2) {
-//                                System.out.println( "(" + ")p1: " + p1.getA().getA().contains( seedFragmentLabel ) + " " + p1.getA().getB().get() + " " + p1.getB().get() );
-//                                System.out.println( "(" + ")p2: " + p2.getA().getA().contains( seedFragmentLabel ) + " " + p2.getA().getB().get() + " " + p2.getB().get() );
-                                return p1.getB().get() != p2.getB().get() &&
-                                p1.getA().getB().get() == overlayValueAtPoint &&
-                                p1.getA().getA().contains( seedFragmentLabel );
+                            Pair<LabelMultisetType, IntType> multiSetOverlayPairComp = p1.getA();
+                            long currentPaint = p1.getB().get();
+
+                            if ( multiSetOverlayPairComp.getB().get() == overlayValueAtPoint &&
+                                    currentPaint != p2.getB().get() )
+                            {
+                                if ( currentPaint != TRANSPARENT )
+                                    return currentPaint == comparison;
+                                else {
+                                    LabelMultisetType currentMultiSet = multiSetOverlayPairComp.getA();
+                                    for ( final long fragment : fragmentsContainedInSegment )
+                                        if ( currentMultiSet.contains( fragment ) )
+                                            return true;
+                                    return false;
+                                }
                             }
+
+                            return false;
                         };
+
 
                 final long t0 = System.currentTimeMillis();
 
