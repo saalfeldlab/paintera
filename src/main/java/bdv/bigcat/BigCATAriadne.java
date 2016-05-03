@@ -239,10 +239,25 @@ public class BigCATAriadne
 				paintedLabels,
 				fragments.getMipmapTransforms()[0],
 				assignment,
+				colorStream,
+				selectionController,
 				bdv.getViewerFrame().getKeybindings(),
 				bindings,
 				"shift T"
 		);
+
+//		CreateSeparatingManifoldController csm = new CreateSeparatingManifoldController(
+//				bdv,
+//				transform,
+//				new InputTriggerConfig(),
+//				fragments.getImage(0),
+//				paintedLabels,
+//				fragments.getMipmapTransforms()[0],
+//				assignment,
+//				bdv.getViewerFrame().getKeybindings(),
+//				bindings,
+//				"shift C"
+//		);
 
 //		ModeToggleController.noOpToggle(
 //				new InputTriggerConfig(),

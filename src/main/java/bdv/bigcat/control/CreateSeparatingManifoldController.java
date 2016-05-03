@@ -1,39 +1,7 @@
 package bdv.bigcat.control;
 
-import bdv.BigDataViewer;
-import bdv.bigcat.FragmentSegmentAssignment;
-import bdv.bigcat.ui.AbstractSaturatedARGBStream;
-import bdv.labels.labelset.LabelMultisetType;
-import bdv.util.AbstractNamedAction.NamedActionAdder;
-import bdv.util.IdService;
-import bdv.viewer.InputActionBindings;
-import bdv.viewer.TriggerBehaviourBindings;
-import bdv.viewer.ViewerPanel;
-import net.imglib2.*;
-import net.imglib2.Point;
-import net.imglib2.algorithm.fill.Filter;
-import net.imglib2.algorithm.fill.FloodFill;
-import net.imglib2.algorithm.neighborhood.DiamondShape;
-import net.imglib2.algorithm.neighborhood.Shape;
-import net.imglib2.img.array.ArrayImg;
-import net.imglib2.img.array.ArrayImgs;
-import net.imglib2.img.array.ArrayRandomAccess;
-import net.imglib2.img.basictypeaccess.array.ByteArray;
-import net.imglib2.interpolation.randomaccess.NearestNeighborInterpolatorFactory;
-import net.imglib2.realtransform.AffineTransform3D;
-import net.imglib2.realtransform.RealViews;
-import net.imglib2.type.numeric.integer.ByteType;
-import net.imglib2.type.numeric.integer.LongType;
-import net.imglib2.ui.OverlayRenderer;
-import net.imglib2.ui.TransformListener;
-import net.imglib2.util.LinAlgHelpers;
-import net.imglib2.util.Pair;
-import net.imglib2.util.ValuePair;
-import net.imglib2.view.*;
-import org.scijava.ui.behaviour.*;
-import org.scijava.ui.behaviour.io.InputTriggerConfig;
+import static bdv.labels.labelset.Label.TRANSPARENT;
 
-import javax.swing.*;
 import java.awt.*;
 import java.awt.Cursor;
 import java.awt.event.ActionEvent;
@@ -41,16 +9,51 @@ import java.awt.geom.AffineTransform;
 import java.awt.geom.Area;
 import java.awt.geom.Ellipse2D;
 import java.awt.image.BufferedImage;
-import java.awt.image.DataBufferByte;
-import java.awt.image.IndexColorModel;
-import java.util.Arrays;
+import java.awt.image.DataBufferInt;
 
-import static bdv.labels.labelset.Label.TRANSPARENT;
+import javax.swing.*;
+
+import net.imglib2.*;
+import net.imglib2.Point;
+import net.imglib2.algorithm.fill.Filter;
+import net.imglib2.algorithm.fill.FloodFill;
+import net.imglib2.algorithm.fill.Writer;
+import net.imglib2.algorithm.neighborhood.DiamondShape;
+import net.imglib2.algorithm.neighborhood.Shape;
+import net.imglib2.img.array.ArrayImg;
+import net.imglib2.img.array.ArrayImgs;
+import net.imglib2.img.array.ArrayRandomAccess;
+import net.imglib2.img.basictypeaccess.array.IntArray;
+import net.imglib2.img.basictypeaccess.array.LongArray;
+import net.imglib2.interpolation.randomaccess.NearestNeighborInterpolatorFactory;
+import net.imglib2.outofbounds.OutOfBounds;
+import net.imglib2.realtransform.*;
+import net.imglib2.type.logic.BitType;
+import net.imglib2.type.numeric.integer.IntType;
+import net.imglib2.type.numeric.integer.LongType;
+import net.imglib2.ui.OverlayRenderer;
+import net.imglib2.ui.TransformListener;
+import net.imglib2.util.LinAlgHelpers;
+import net.imglib2.util.Pair;
+import net.imglib2.util.ValuePair;
+import net.imglib2.view.*;
+
+import org.scijava.ui.behaviour.*;
+import org.scijava.ui.behaviour.io.InputTriggerConfig;
+
+import bdv.BigDataViewer;
+import bdv.bigcat.FragmentSegmentAssignment;
+import bdv.labels.labelset.LabelMultisetType;
+import bdv.util.AbstractNamedAction.NamedActionAdder;
+import bdv.util.IdService;
+import bdv.viewer.InputActionBindings;
+import bdv.viewer.TriggerBehaviourBindings;
+import bdv.viewer.ViewerPanel;
 
 /**
  * @autoher Philipp Hanslovsky &lt;hanslovskyp@janelia.hhmi.org&gt;
  */
-public class DrawProjectAndIntersectController implements TransformListener< AffineTransform3D > {
+public class CreateSeparatingManifoldController implements TransformListener< AffineTransform3D > {
 
     private final BigDataViewer bdv;
     private final ViewerPanel viewer;
@@ -63,16 +66,20 @@ public class DrawProjectAndIntersectController implements TransformListener< Aff
 
     private final BehaviourMap withinModeBehaviourMap = new BehaviourMap();
     private final InputTriggerMap withinModeInputTriggerMap = new InputTriggerMap();
+
+    private final Shape shape = new DiamondShape( 1 );
+
+    private final Area filledPixels = new Area();
     private final AreaOverlay filledPixelsOverlay = new AreaOverlay();
 
-    private final byte[] r = new byte[] { 0, (byte)0x00 };
-    private final byte[] g = new byte[] { 0, (byte)0xff };
-    private final byte[] b = new byte[] { 0, (byte)0xff };
-    private final byte[] a = new byte[] { 0, (byte)0xff };
+    private Rectangle rectangle = null;
 
 
+    private ArrayImg< BitType, LongArray > localCanvas = null;
     public final BrushOverlay brushOverlay = new BrushOverlay();
     private float overlayAlpha = 0.5f;
+    private int width = 0;
+    private int height = 0;
     final protected RealPoint labelLocation = new RealPoint( 3 );
     final protected AffineTransform3D viewerToGlobalCoordinatesTransform = new AffineTransform3D();
     final protected AffineTransform3D labelTransform;
@@ -81,11 +88,7 @@ public class DrawProjectAndIntersectController implements TransformListener< Aff
     final protected RandomAccessibleInterval<LabelMultisetType> labels;
     final protected RandomAccessibleInterval<LongType> paintedLabels;
 
-    private final AbstractSaturatedARGBStream colorStream;
-    private final SelectionController selectionController;
-
-
-    public DrawProjectAndIntersectController(
+    public CreateSeparatingManifoldController(
             final BigDataViewer bdv,
             final AffineTransform3D viewerToGlobalCoordinatesTransform,
             final InputTriggerConfig config,
@@ -93,8 +96,6 @@ public class DrawProjectAndIntersectController implements TransformListener< Aff
             final RandomAccessibleInterval< LongType > paintedLabels,
             final AffineTransform3D labelTransform,
             final FragmentSegmentAssignment assignment,
-            final AbstractSaturatedARGBStream colorStream,
-            final SelectionController selectionController,
             final InputActionBindings inputActionBindings,
             final TriggerBehaviourBindings bindings,
             final String... activateModeKeys ) {
@@ -106,8 +107,6 @@ public class DrawProjectAndIntersectController implements TransformListener< Aff
         this.paintedLabels = paintedLabels;
         this.labelTransform = labelTransform;
         this.assignment = assignment;
-        this.colorStream = colorStream;
-        this.selectionController = selectionController;
         this.bindings = bindings;
 
         viewer.addTransformListener( this );
@@ -128,32 +127,9 @@ public class DrawProjectAndIntersectController implements TransformListener< Aff
                 new ModeToggleController.ExecuteOnUnToggle(action, bindings, inputActionBindings, "abort dpi", "T");
         noActionUnToggle.register( ksWithinModeActionAdder, ksWithinModeInputAdder );
 
-        IntersectAndLeave il = new IntersectAndLeave( action, bindings, inputActionBindings, "execute and leave dpi", "shift button1" );
-        il.register( withinModeBehaviourMap, withinModeInputTriggerAdder );
+        RectangleCreator rc = new RectangleCreator("rectangle creator", "SPACE button1");
+        rc.register( withinModeBehaviourMap, withinModeInputTriggerAdder );
 
-        NewActiveFragmentId nafi = new NewActiveFragmentId("new active fragment id", "N");
-        nafi.register( ksWithinModeActionAdder, ksWithinModeInputAdder );
-
-        ClearArea cc = new ClearArea("clear canvas", "C");
-        cc.register( ksWithinModeActionAdder, ksWithinModeInputAdder );
-
-        MoveBrush mb = new MoveBrush("move brush", "SPACE");
-        mb.register( withinModeBehaviourMap, withinModeInputTriggerAdder );
-
-        ChangeBrushRadius cbr = new ChangeBrushRadius("change brush radius", "SPACE scroll");
-        cbr.register( withinModeBehaviourMap, withinModeInputTriggerAdder );
-
-        Paint p = new Paint("paint", "SPACE button1");
-        p.register( withinModeBehaviourMap, withinModeInputTriggerAdder );
-
-        Erase e = new Erase("erase", "SPACE button2", "SPACE button3");
-        e.register( withinModeBehaviourMap, withinModeInputTriggerAdder );
-
-        OverlayVisibility ov = new OverlayVisibility("visibility", "V");
-        ov.register( ksWithinModeActionAdder, ksWithinModeInputAdder );
-
-        Fill f = new Fill( "fill", "M button1" );
-        f.register( withinModeBehaviourMap, withinModeInputTriggerAdder );
 
 
         Toggle toggle = new Toggle(bindings, inputActionBindings, "activate dpi mode", activateModeKeys );
@@ -162,33 +138,6 @@ public class DrawProjectAndIntersectController implements TransformListener< Aff
         viewer.getDisplay().addOverlayRenderer( brushOverlay );
         viewer.getDisplay().addOverlayRenderer( filledPixelsOverlay );
 
-
-    }
-
-
-    private void updateCM()
-    {
-        Color c = getColor();
-        r[ 1 ] = (byte)( c.getRed() & 0xFF );
-        g[ 1 ] = (byte)( c.getGreen() & 0xFF );
-        b[ 1 ] = (byte)( c.getBlue() & 0xFF );
-        a[ 1 ] = (byte)0xFF;
-        IndexColorModel cm = new IndexColorModel(2, 2, r, g, b, a);
-        filledPixelsOverlay.img = new BufferedImage(
-                cm,
-                filledPixelsOverlay.img.getRaster(),
-                cm.isAlphaPremultiplied(), // what is this?
-                null
-                );
-
-        filledPixelsOverlay.imgOld = filledPixelsOverlay.imgOld == null ? null : new BufferedImage(
-                cm,
-                filledPixelsOverlay.imgOld.getRaster(),
-                cm.isAlphaPremultiplied(), // what is this?
-                null
-        );
-
-        System.out.println( Arrays.toString( r ) + Arrays.toString( g ) + Arrays.toString( b ) );
     }
 
 
@@ -239,45 +188,12 @@ public class DrawProjectAndIntersectController implements TransformListener< Aff
 
         @Override
         public void actionImplementation() {
-            filledPixelsOverlay.img = filledPixelsOverlay.create();
+            localCanvas = ArrayImgs.bits( viewer.getWidth(), viewer.getHeight() );
+            filledPixelsOverlay.img = new BufferedImage( viewer.getWidth(), viewer.getHeight(), BufferedImage.TYPE_INT_ARGB );
             filledPixelsOverlay.imgOld = null;
             filledPixelsOverlay.setVisible( true );
-//            cmObsolete.updateRGB( getColor() );
-            updateCM();
-            System.out.println( "Action: " + getColor() );
+            System.out.println( "Action: "  + localCanvas );
         }
-    }
-
-
-    private class NewActiveFragmentId extends ModeToggleController.SelfRegisteringAction
-    {
-        public NewActiveFragmentId( final String name, final String ... defaultTriggers )
-        {
-            super( name, defaultTriggers );
-        }
-
-        public void setActiveFragmentId( final long id )
-        {
-            colorStream.setActive( id );
-            selectionController.setActiveFragmentId( id );
-            updateCM();
-        }
-
-        @Override
-        public void actionPerformed( final ActionEvent e )
-        {
-            synchronized ( viewer )
-            {
-                setActiveFragmentId( IdService.allocate() );
-            }
-            viewer.requestRepaint();
-        }
-    }
-
-    private Color getColor()
-    {
-        int c = colorStream.argb( selectionController.getActiveFragmentId() );
-        return new Color( c );
     }
 
 
@@ -290,9 +206,40 @@ public class DrawProjectAndIntersectController implements TransformListener< Aff
 
         @Override
         public void actionPerformed(ActionEvent actionEvent) {
-            filledPixelsOverlay.img = filledPixelsOverlay.create();
+            filledPixelsOverlay.img = new BufferedImage( viewer.getWidth(), viewer.getHeight(), BufferedImage.TYPE_INT_ARGB );
             filledPixelsOverlay.imgOld = null;
             viewer.getDisplay().repaint();
+        }
+    }
+
+
+    private class FillCanvas extends SelfRegisteringBehaviour implements ClickBehaviour
+    {
+
+        private final Point seed = new Point( 2 );
+        private final Filter< Pair< BitType, BitType >, Pair< BitType, BitType > > filter
+                = (Filter) (p1, p2) -> !((Pair<BitType,BitType>)p1).getA().get();
+        private final Writer< BitType > writer = (source, target) -> target.set( true );
+
+
+        public FillCanvas(String name, String... defaultTriggers) {
+            super(name, defaultTriggers);
+        }
+
+        @Override
+        public void click(int x, int y) {
+            seed.setPosition( x , 0 );
+            seed.setPosition( y , 1 );
+            FloodFill.fill(
+                    Views.extendValue( localCanvas, new BitType( true ) ),
+                    Views.extendValue( localCanvas, new BitType( true ) ),
+                    seed,
+                    new BitType( false ),
+                    new BitType( true ),
+                    shape,
+                    filter,
+                    writer
+            );
         }
     }
 
@@ -324,7 +271,7 @@ public class DrawProjectAndIntersectController implements TransformListener< Aff
         public void drawOverlays( Graphics g ) {
             if ( visible ) {
                 final Graphics2D g2d = (Graphics2D) g;
-                g2d.setColor( getColor() );
+                g2d.setColor( Color.WHITE );
                 g2d.setStroke(stroke);
                 g2d.drawOval(x - radius, y - radius, 2*radius + 1, 2*radius + 1);
             }
@@ -333,7 +280,8 @@ public class DrawProjectAndIntersectController implements TransformListener< Aff
         @Override
         public void setCanvasSize( final int width, final int height )
         {
-
+            CreateSeparatingManifoldController.this.width = width;
+            CreateSeparatingManifoldController.this.height = height;
         }
 
         public void setColor( float r, float g, float b, float a )
@@ -366,26 +314,13 @@ public class DrawProjectAndIntersectController implements TransformListener< Aff
             imgOld = img;
         }
 
-        public BufferedImage create()
-        {
-            return create( viewer.getWidth(), viewer.getHeight() );
-        }
-
-        public BufferedImage create( int width, int height )
-        {
-//            return new BufferedImage( width, height, BufferedImage.TYPE_INT_ARGB );
-            return new BufferedImage( width, height, BufferedImage.TYPE_BYTE_INDEXED, new IndexColorModel( 2, 2, r, g, b, a ) );
-        }
-
         @Override
         public void drawOverlays(Graphics g) {
             if ( visible ) {
                 Graphics2D g2d = (Graphics2D) g;
-
-
+                g2d.setColor( Color.WHITE );
                 AlphaComposite comp = AlphaComposite.getInstance(AlphaComposite.SRC_OVER, overlayAlpha);
                 g2d.setComposite( comp );
-
                 g2d.drawImage( img, 0, 0, null );
             }
         }
@@ -393,9 +328,11 @@ public class DrawProjectAndIntersectController implements TransformListener< Aff
         @Override
         public void setCanvasSize( final int width, final int height )
         {
-            img = create( width, height );// new BufferedImage( width, height, BufferedImage.TYPE_INT_ARGB );
-            imgOld = imgOld == null ? create( width, height ) : imgOld; // new BufferedImage( width, height, BufferedImage.TYPE_INT_ARGB ) : imgOld;
-
+            CreateSeparatingManifoldController.this.width = width;
+            CreateSeparatingManifoldController.this.height = height;
+//            imgOld = img;
+            img = new BufferedImage( width, height, BufferedImage.TYPE_INT_ARGB );
+            imgOld = imgOld == null ? new BufferedImage( width, height, BufferedImage.TYPE_INT_ARGB ) : imgOld;
             Graphics2D g = (Graphics2D) img.getGraphics();
             g.setRenderingHint( RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_NEAREST_NEIGHBOR );
             // define AffineTransform
@@ -468,128 +405,78 @@ public class DrawProjectAndIntersectController implements TransformListener< Aff
     }
 
 
-    private abstract class AbstractPaintBehavior extends SelfRegisteringBehaviour implements DragBehaviour
+    private class RectangleCreator extends SelfRegisteringBehaviour implements DragBehaviour
     {
-        private int oX, oY;
 
-        public AbstractPaintBehavior( final String name, final String... defaultTriggers )
-        {
-            super( name, defaultTriggers );
-        }
+        boolean visible = false;
+        Rectangle r = new Rectangle();
+        Area a = new Area( r );
 
+        private OverlayRenderer showRectangleWhileDrawing = new OverlayRenderer() {
 
-        protected void paint( final int x, final int y )
-        {
-            Ellipse2D e = new Ellipse2D.Double( x - brushOverlay.radius, y - brushOverlay.radius, 2*brushOverlay.radius+1, 2*brushOverlay.radius+1 );
-            action( filledPixelsOverlay.img, new Area( e ) );
-            filledPixelsOverlay.updateImage();
-            System.out.println( filledPixelsOverlay.img.getRGB( x, y) );
-        }
-
-        protected void paint( final int x1, final int y1, final int x2, final int y2 )
-        {
-            final double[] p1 = { x1, y1 };
-            final double[] p2 = { x2, y2 };
-            LinAlgHelpers.subtract( p2, p1, p2 );
-
-            final double l = LinAlgHelpers.length( p2 );
-            LinAlgHelpers.normalize( p2 );
-
-            System.out.println( x1 + " " + y1 + ", " + x2 + " " + y2 + ", " + l );
-            long xOld = Math.round( p1[0] ), yOld = Math.round( p1[1] );
-            for ( int i = 1; i < l; ++i )
-            {
-
-                LinAlgHelpers.add( p1, p2, p1 );
-                long x = Math.round( p1[0] ), y = Math.round( p1[1] );
-                if ( x != xOld || y != yOld )
+            @Override
+            public void drawOverlays(Graphics g) {
+                if ( visible )
                 {
-                    paint( (int) x, (int) y );
-                    xOld = x;
-                    yOld = y;
+                    Graphics2D g2d = (Graphics2D) g;
+                    g2d.setColor( Color.WHITE );
+                    g2d.fill( r );
                 }
             }
-            paint( x2, y2 );
-        }
 
-        abstract protected void action( BufferedImage img, Area brush );
+            @Override
+            public void setCanvasSize(int width, int height) {
 
-        @Override
-        public void init( final int x, final int y )
-        {
-
-            filledPixelsOverlay.setVisible( true );
-
-            synchronized ( this )
-            {
-                oX = x;
-                oY = y;
             }
+        };
 
-            paint( x, y );
+        private int startX, startY;
 
-            viewer.getDisplay().repaint();
-
-//             System.out.println( getName() + " drag start (" + oX + ", " + oY + ")" );
-        }
-
-        @Override
-        public void drag( final int x, final int y )
-        {
-            brushOverlay.setPosition( x, y );
-
-            paint( oX, oY, x, y );
-
-//            System.out.println( getName() + " drag by (" + (x -oX ) + ", " + (y-oY) + ")" );
-
-            synchronized ( this )
-            {
-                oX = x;
-                oY = y;
-            }
-            viewer.getDisplay().repaint();
-
-        }
-
-        @Override
-        public void end( final int x, final int y )
-        {
-
-        }
-    }
-
-
-    private class Paint extends AbstractPaintBehavior
-    {
-
-        public Paint(String name, String... defaultTriggers) {
+        public RectangleCreator(String name, String... defaultTriggers) {
             super(name, defaultTriggers);
         }
 
+        private void setRectangle( int x, int y )
+        {
+            int xLow = Math.min(x, startX);
+            int yLow = Math.min(y, startY);
+
+            int xSize = Math.abs(x - startX);
+            int ySize = Math.abs(y - startY);
+
+            r.setLocation( xLow, yLow );
+            r.setSize( xSize, ySize );
+
+        }
+
         @Override
-        protected void action( BufferedImage img, Area brush) {
-            Graphics2D g = (Graphics2D) img.getGraphics();
-            g.fill( brush );
+        public void init(int x, int y) {
+            startX = x;
+            startY = y;
+            r.setLocation( x, y );
+            setRectangle( x, y );
+            visible = true;
+            viewer.getDisplay().addOverlayRenderer( showRectangleWhileDrawing );
+            viewer.getDisplay().repaint();
+        }
+
+        @Override
+        public void drag(int x, int y) {
+            setRectangle( x, y );
+            viewer.getDisplay().repaint();
+        }
+
+        @Override
+        public void end(int x, int y) {
+            setRectangle( x, y );
+            visible = false;
+            viewer.getDisplay().removeOverlayRenderer( showRectangleWhileDrawing );
+            viewer.getDisplay().repaint();
         }
     }
 
 
-    private class Erase extends AbstractPaintBehavior
-    {
 
-        public Erase(String name, String... defaultTriggers) {
-            super(name, defaultTriggers);
-        }
-
-        @Override
-        protected void action( BufferedImage img, Area brush) {
-            Graphics2D g = (Graphics2D) img.getGraphics();
-            g.setComposite( AlphaComposite.Src );
-            g.setColor( new Color( 0, 0, 0, 0 ) );
-            g.fill( brush );
-            g.setComposite( AlphaComposite.SrcOver );
-        }
-    }
 
 
     private class OverlayVisibility extends ModeToggleController.SelfRegisteringAction
@@ -606,21 +493,17 @@ public class DrawProjectAndIntersectController implements TransformListener< Aff
     }
 
 
-    public static ArrayImg<ByteType, ByteArray> wrapBufferedImage(BufferedImage img )
+    public static ArrayImg< IntType, IntArray > wrapBufferedImage( BufferedImage img )
     {
-        byte[] imgData = ((DataBufferByte)img.getRaster().getDataBuffer()).getData();
-        ArrayImgs.bytes( imgData, img.getWidth(), img.getHeight() );
-        return ArrayImgs.bytes(imgData, img.getWidth(), img.getHeight());
+        int[] imgData = ((DataBufferInt)img.getRaster().getDataBuffer()).getData();
+        return ArrayImgs.ints(imgData, img.getWidth(), img.getHeight());
     }
 
 
     private class Fill extends SelfRegisteringBehaviour implements ClickBehaviour
     {
 
-        public Filter< Pair< ByteType, ByteType >, Pair< ByteType, ByteType > > filter = (p1, p2) ->
-        {
-            return p1.getB().get() != p2.getB().get();
-        };
+        public Filter< Pair< IntType, IntType >, Pair< IntType, IntType > > filter = (p1, p2) -> p1.getB().get() != p2.getB().get();
 
         public Fill(String name, String... defaultTriggers) {
             super(name, defaultTriggers);
@@ -634,14 +517,24 @@ public class DrawProjectAndIntersectController implements TransformListener< Aff
 
                     final Point p = new Point(x, y);
 
-                    ArrayImg<ByteType, ByteArray> img = wrapBufferedImage(filledPixelsOverlay.img);
+//                    int[] imgData = ((DataBufferInt) filledPixelsOverlay.img.getRaster().getDataBuffer()).getData();
+//                    ArrayImg<IntType, IntArray> img = ArrayImgs.ints(imgData, filledPixelsOverlay.img.getWidth(), filledPixelsOverlay.img.getHeight());
+                    ArrayImg<IntType, IntArray> img = wrapBufferedImage(filledPixelsOverlay.img);
 
-                    ByteType extension = new ByteType( (byte) 1 );
+//                IntType extension = new IntType( 0 |
+//                        Color.WHITE.getAlpha() << 24 |
+//                        Color.WHITE.getRed() << 16 |
+//                        Color.WHITE.getGreen() << 8|
+//                        Color.WHITE.getBlue() << 0
+//                );
+
+                    IntType extension = new IntType(Color.WHITE.getRGB());
 
 
                     final long t0 = System.currentTimeMillis();
-                    ArrayRandomAccess<ByteType> ra = img.randomAccess();
+                    ArrayRandomAccess<IntType> ra = img.randomAccess();
                     ra.setPosition(p);
+//                ra.get().set( 255 | 255 << 8 );
                     FloodFill.fill(
                             Views.extendValue(img, extension),
                             Views.extendValue(img, extension),
@@ -692,31 +585,69 @@ public class DrawProjectAndIntersectController implements TransformListener< Aff
             {
                 viewer.setCursor( Cursor.getPredefinedCursor( Cursor.WAIT_CURSOR ) );
                 setCoordinates( x, y );
+//                System.out.println( "Filling " + labelLocation + " with " + selectionController.getActiveFragmentId() );
+
 
                 final Point p = new Point(
                         Math.round( labelLocation.getDoublePosition( 0 ) ),
                         Math.round( labelLocation.getDoublePosition( 1 ) ),
                         Math.round( labelLocation.getDoublePosition( 2 ) ) );
 
-                ArrayImg<ByteType, ByteArray> img = wrapBufferedImage(filledPixelsOverlay.img);
-                ArrayRandomAccess<ByteType> imgAccess = img.randomAccess();
-                imgAccess.setPosition( new int[] { x, y } );
+                ArrayImg<IntType, IntArray> img = wrapBufferedImage(filledPixelsOverlay.img);
 
-                byte overlayValueAtPoint = imgAccess.get().get();
+                int overlayValueAtPoint = filledPixelsOverlay.img.getRGB( x, y );
 
-                ExtendedRandomAccessibleInterval<ByteType, IntervalView<ByteType>> borderExtended
-                        = Views.extendBorder(Views.interval(Views.addDimension(img), new FinalInterval(img.dimension(0), img.dimension(1), overlayValueAtPoint)));
+                ExtendedRandomAccessibleInterval<IntType, IntervalView<IntType>> borderExtended
+                        = Views.extendBorder(Views.interval(Views.addDimension(img), new FinalInterval(img.dimension(0), img.dimension(1), 1)));
 
+                AffineTransform3D offset = new AffineTransform3D();
+                offset.setTranslation( new double[] { -0.5*filledPixelsOverlay.img.getWidth(), -0.5*filledPixelsOverlay.img.getHeight(), 0 } );
 
-                RandomAccessibleOnRealRandomAccessible<ByteType> interpolatedAndTransformed = Views.raster(
+                AffineTransform3D imgToGlobalCoordinates = viewerToGlobalCoordinatesTransform.inverse().copy().concatenate(offset);
+
+                RealPoint dummy = new RealPoint( 3 );
+                dummy.setPosition( x, 0 );
+                dummy.setPosition( y, 1 );
+                dummy.setPosition( 0, 2 );
+                offset.apply( dummy, dummy );
+                viewer.displayToGlobalCoordinates( dummy );
+
+                RealTransformRandomAccessible<IntType, InverseRealTransform> iat =
+                        RealViews.transform(Views.interpolate(borderExtended, new NearestNeighborInterpolatorFactory<>()), imgToGlobalCoordinates);
+                RealTransformRealRandomAccessible<IntType, InverseRealTransform>.RealTransformRealRandomAccess dummyAccess = iat.realRandomAccess();
+                dummyAccess.setPosition( dummy );
+                System.out.println( "Dummy: " + dummyAccess.get().get() );
+
+                AffineTransform3D toLabelSpace = labelTransform.inverse().copy().concatenate(imgToGlobalCoordinates);
+
+                RandomAccessibleOnRealRandomAccessible<IntType> interpolatedAndTransformed = Views.raster(
                         RealViews.transform(
                                 Views.interpolate(borderExtended, new NearestNeighborInterpolatorFactory<>()),
                                 labelTransform.inverse().copy().concatenate( viewerToGlobalCoordinatesTransform.inverse() )// toLabelSpace
                 ) );
 
+                RealPoint dummyP = new RealPoint(3);
+                System.out.println( p );
+                toLabelSpace.applyInverse( dummyP , p );
+                imgToGlobalCoordinates.applyInverse( dummy, dummy );
+                System.out.println( x + " " + y + dummy + " " + " " + p + " " + dummyP );
+
+                OutOfBounds<IntType> access1 = borderExtended.randomAccess();
+                access1.setPosition( x, 0 );
+                access1.setPosition( y, 1 );
+
+                RandomAccess<IntType> access2 = interpolatedAndTransformed.randomAccess();
+                access2.setPosition( p );
+
+                RandomAccess<IntType> access3 = Views.interval(Views.addDimension(img), new FinalInterval(img.dimension(0), img.dimension(1), 1)).randomAccess();
+                access3.setPosition( x, 0 );
+                access3.setPosition( y, 1 );
+                access3.setPosition( 0, 2 );
+
+                System.out.println( "access: " + access1.get().get() + " " + access2.get().get() + " " + access3.get().get() );
 
                 final long seedFragmentLabel = LabelFillController.getBiggestLabel( labels, p );
-                System.out.println( seedFragmentLabel + " " + overlayValueAtPoint + " " + getColor().getRGB() );
+                System.out.println( seedFragmentLabel + " " + overlayValueAtPoint + " " + Color.WHITE.getRGB() );
                 final RandomAccess<LongType> paintedLabelAccess = paintedLabels.randomAccess();
                 paintedLabelAccess.setPosition( p );
                 final long paintedLabel = paintedLabelAccess.get().get();
@@ -725,11 +656,11 @@ public class DrawProjectAndIntersectController implements TransformListener< Aff
                 final long[] fragmentsContainedInSegment = assignment.getFragments( segmentLabel );
 
                 Filter< Pair<
-                        Pair< LabelMultisetType, ByteType >, LongType >,
-                        Pair< Pair< LabelMultisetType, ByteType >, LongType >  > filter  =
+                        Pair< LabelMultisetType, IntType >, LongType >,
+                        Pair< Pair< LabelMultisetType, IntType >, LongType >  > filter  =
                         (p1, p2) -> {
 
-                            Pair<LabelMultisetType, ByteType> multiSetOverlayPairComp = p1.getA();
+                            Pair<LabelMultisetType, IntType> multiSetOverlayPairComp = p1.getA();
                             long currentPaint = p1.getB().get();
 
                             if ( multiSetOverlayPairComp.getB().get() == overlayValueAtPoint &&
@@ -752,12 +683,13 @@ public class DrawProjectAndIntersectController implements TransformListener< Aff
 
                 final long t0 = System.currentTimeMillis();
 
+                RandomAccessiblePair<LabelMultisetType, IntType> def = new RandomAccessiblePair<>(Views.extendValue(labels, new LabelMultisetType()), interpolatedAndTransformed);
                 FloodFill.fill(
-                        new RandomAccessiblePair<>(Views.extendValue(labels, new LabelMultisetType()), interpolatedAndTransformed),
+                        new RandomAccessiblePair<LabelMultisetType, IntType>( Views.extendValue( labels, new LabelMultisetType() ), interpolatedAndTransformed ),
                         Views.extendValue( paintedLabels, new LongType( TRANSPARENT ) ),
                         p,
-                        new ValuePair<>( new LabelMultisetType(), new ByteType( overlayValueAtPoint )),
-                        new LongType( selectionController.getActiveFragmentId() ),
+                        new ValuePair<>( new LabelMultisetType(), new IntType( overlayValueAtPoint )),
+                        new LongType( IdService.allocate() ),
                         new DiamondShape( 1 ),
                         filter );
                 final long t1 = System.currentTimeMillis();
