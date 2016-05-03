@@ -5,6 +5,7 @@ import static bdv.labels.labelset.Label.*;
 import bdv.BigDataViewer;
 import bdv.labels.labelset.*;
 import bdv.util.AbstractNamedAction.NamedActionAdder;
+import bdv.util.IdService;
 import bdv.viewer.InputActionBindings;
 import bdv.viewer.TriggerBehaviourBindings;
 import bdv.viewer.ViewerPanel;
@@ -795,7 +796,7 @@ public class DrawProjectAndIntersectController implements TransformListener< Aff
                         Views.extendValue( paintedLabels, new LongType( TRANSPARENT ) ),
                         p,
                         new ValuePair<>( new LabelMultisetType(), new IntType( overlayValueAtPoint )),
-                        new LongType( -2 ),
+                        new LongType( IdService.allocate() ),
                         new DiamondShape( 1 ),
                         filter );
                 final long t1 = System.currentTimeMillis();
