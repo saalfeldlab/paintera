@@ -17,11 +17,16 @@
 package bdv.bigcat.control;
 
 import java.awt.event.ActionEvent;
+import java.awt.event.WindowEvent;
+import java.awt.event.WindowListener;
 import java.util.List;
 
 import javax.swing.ActionMap;
 import javax.swing.InputMap;
 import javax.swing.JOptionPane;
+
+import net.imglib2.RealPoint;
+import net.imglib2.util.LinAlgHelpers;
 
 import org.scijava.ui.behaviour.Behaviour;
 import org.scijava.ui.behaviour.BehaviourMap;
@@ -32,6 +37,7 @@ import org.scijava.ui.behaviour.InputTriggerMap;
 import org.scijava.ui.behaviour.KeyStrokeAdder;
 import org.scijava.ui.behaviour.io.InputTriggerConfig;
 
+import bdv.BigDataViewer;
 import bdv.bigcat.annotation.Annotation;
 import bdv.bigcat.annotation.Annotations;
 import bdv.bigcat.annotation.AnnotationsStore;
@@ -39,18 +45,17 @@ import bdv.bigcat.annotation.PostSynapticSite;
 import bdv.bigcat.annotation.PreSynapticSite;
 import bdv.bigcat.annotation.Synapse;
 import bdv.bigcat.ui.AnnotationOverlay;
+import bdv.bigcat.ui.AnnotationsWindow;
 import bdv.util.AbstractNamedAction;
 import bdv.util.AbstractNamedAction.NamedActionAdder;
 import bdv.util.IdService;
 import bdv.viewer.InputActionBindings;
 import bdv.viewer.ViewerPanel;
-import net.imglib2.RealPoint;
-import net.imglib2.util.LinAlgHelpers;
 
 /**
  * @author Jan Funke &lt;jfunke@iri.upc.edu&gt;
  */
-public class AnnotationController {
+public class AnnotationController implements WindowListener {
 	
 	final protected AnnotationsStore store;
 	final protected ViewerPanel viewer;
@@ -73,6 +78,8 @@ public class AnnotationController {
 	private final NamedActionAdder ksActionAdder = new NamedActionAdder(ksActionMap);
 	private final KeyStrokeAdder ksKeyStrokeAdder;
 
+	private AnnotationsWindow annotationWindow;
+
 	public BehaviourMap getBehaviourMap() {
 		return behaviourMap;
 	}
@@ -81,13 +88,14 @@ public class AnnotationController {
 		return inputTriggerMap;
 	}
 
-	public AnnotationController(final AnnotationsStore annotationsStore, final ViewerPanel viewer,
+	public AnnotationController(final AnnotationsStore annotationsStore, final BigDataViewer viewer,
 			final InputTriggerConfig config, final InputActionBindings inputActionBindings,
 			final KeyStrokeAdder.Factory keyProperties) throws Exception {
-		this.viewer = viewer;
+		this.viewer = viewer.getViewer();
 		this.store = annotationsStore;
 		this.annotations = annotationsStore.read();
-		overlay = new AnnotationOverlay(viewer, annotations, this);
+		this.annotationWindow = new AnnotationsWindow(this.annotations);
+		overlay = new AnnotationOverlay(viewer.getViewer(), annotations, this);
 		overlay.setVisible(true);
 		inputAdder = config.inputTriggerAdder(inputTriggerMap, "bigcat");
 
@@ -103,9 +111,12 @@ public class AnnotationController {
 		new AddSynapseAnnotation("add synapse annotation", "SPACE shift button2").register();
 		new ChangeComment("change comment", "C").register();
 		new SaveAnnotations("save annotations", "S").register();
+		new ShowAnnotationsList("show annotations list", "A").register();
 
 		inputActionBindings.addActionMap("bdv", ksActionMap);
 		inputActionBindings.addInputMap("bdv", ksInputMap);
+
+		viewer.getViewerFrame().addWindowListener(this);
 	}
 
 	public AnnotationOverlay getAnnotationOverlay() {
@@ -373,5 +384,67 @@ public class AnnotationController {
 		}
 	}
 
-	// define actions and behaviours here
+	private class ShowAnnotationsList extends SelfRegisteringAction
+	{
+		private static final long serialVersionUID = 1L;
+
+		public ShowAnnotationsList( final String name, final String ... defaultTriggers )
+		{
+			super( name, defaultTriggers );
+		}
+
+		@Override
+		public void actionPerformed( final ActionEvent e )
+		{
+			System.out.println("showing annotation window");
+			annotationWindow.setVisible(true);
+		}
+	}
+
+	////////////////////
+	// WindowListener //
+	////////////////////
+
+	@Override
+	public void windowClosed(WindowEvent e) {
+
+		System.out.println("received window close event");
+		annotationWindow.dispose();
+	}
+
+	@Override
+	public void windowActivated(WindowEvent arg0) {
+		// TODO Auto-generated method stub
+		
+	}
+
+	@Override
+	public void windowClosing(WindowEvent arg0) {
+		// TODO Auto-generated method stub
+		
+	}
+
+	@Override
+	public void windowDeactivated(WindowEvent arg0) {
+		// TODO Auto-generated method stub
+		
+	}
+
+	@Override
+	public void windowDeiconified(WindowEvent arg0) {
+		// TODO Auto-generated method stub
+		
+	}
+
+	@Override
+	public void windowIconified(WindowEvent arg0) {
+		// TODO Auto-generated method stub
+		
+	}
+
+	@Override
+	public void windowOpened(WindowEvent arg0) {
+		// TODO Auto-generated method stub
+		
+	}
 }

@@ -216,7 +216,7 @@ public class BigCatAnnotations
 		final AnnotationsHdf5Store annotationsStore = new AnnotationsHdf5Store(projectFile);
 		final AnnotationController annotationController = new AnnotationController(
 				annotationsStore,
-				bdv.getViewer(),
+				bdv,
 				new InputTriggerConfig(),
 				bdv.getViewerFrame().getKeybindings(),
 				new InputTriggerConfig() );
