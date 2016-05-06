@@ -5,21 +5,25 @@ import java.util.List;
 
 import javax.swing.JFrame;
 import javax.swing.JScrollPane;
+import javax.swing.event.ListSelectionEvent;
+import javax.swing.event.ListSelectionListener;
 import javax.swing.table.AbstractTableModel;
 
-import net.imglib2.RealPoint;
 import bdv.bigcat.annotation.Annotation;
 import bdv.bigcat.annotation.Annotations;
 import bdv.bigcat.annotation.PostSynapticSite;
 import bdv.bigcat.annotation.PreSynapticSite;
 import bdv.bigcat.annotation.Synapse;
+import bdv.bigcat.util.Selection;
 
-public class AnnotationsWindow extends JFrame {
+public class AnnotationsWindow extends JFrame implements Selection.SelectionListener<Annotation>, ListSelectionListener {
 
 	private static final long serialVersionUID = 1L;
 
 	private final Annotations annotations;
+	private final Selection<Annotation> selection;
 	private final BigCatTable table;
+	private final AnnotationsTableModel tableModel;
 
 	class AnnotationsTableModel extends AbstractTableModel {
 
@@ -42,6 +46,11 @@ public class AnnotationsWindow extends JFrame {
 				ids.add(a.getId());
 		}
 
+		public long getIdFromRow(int row) {
+			
+			return ids.get(row);
+		}
+		
 		public String getColumnName(int column) {
 
 			return ColumnNames[column];
@@ -123,11 +132,16 @@ public class AnnotationsWindow extends JFrame {
 		}
 	}
 
-	public AnnotationsWindow(Annotations annotations) {
+	public AnnotationsWindow(Annotations annotations, Selection<Annotation> selection) {
 
 		this.annotations = annotations;
+		this.selection = selection;
 
-		table = new BigCatTable(new AnnotationsTableModel());
+		selection.addSelectionListener(this);
+		
+		tableModel = new AnnotationsTableModel();
+		table = new BigCatTable(tableModel);
+		table.getSelectionModel().addListSelectionListener(this);
 		JScrollPane scrollPane = new JScrollPane(table);
 		getContentPane().add(scrollPane);
 		setDefaultCloseOperation(JFrame.HIDE_ON_CLOSE);
@@ -144,5 +158,37 @@ public class AnnotationsWindow extends JFrame {
 		if (a instanceof PostSynapticSite)
 			return "postsynaptic_site";
 		throw new RuntimeException("unknown annotation class " + a.getClass());
+	}
+
+	@Override
+	public void itemSelected(Annotation t) {
+		// TODO Auto-generated method stub
+	}
+
+	@Override
+	public void itemUnselected(Annotation t) {
+		// TODO Auto-generated method stub
+	}
+
+	@Override
+	public void selectionCleared() {
+		// TODO Auto-generated method stub
+	}
+
+	@Override
+	public void valueChanged(ListSelectionEvent event) {
+		
+		System.out.println("selection in annotation table changed");
+
+		for (int row = event.getFirstIndex(); row <= event.getLastIndex(); row++)
+			if (table.isRowSelected(row))
+				selection.add(itemFromRow(row));
+			else
+				selection.remove(itemFromRow(row));
+	}
+	
+	private Annotation itemFromRow(int row) {
+		
+		return annotations.getById(tableModel.getIdFromRow(row));
 	}
 }

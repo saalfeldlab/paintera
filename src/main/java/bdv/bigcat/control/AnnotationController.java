@@ -26,6 +26,7 @@ import javax.swing.InputMap;
 import javax.swing.JOptionPane;
 
 import net.imglib2.RealPoint;
+import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.util.LinAlgHelpers;
 
 import org.scijava.ui.behaviour.Behaviour;
@@ -46,8 +47,10 @@ import bdv.bigcat.annotation.PreSynapticSite;
 import bdv.bigcat.annotation.Synapse;
 import bdv.bigcat.ui.AnnotationOverlay;
 import bdv.bigcat.ui.AnnotationsWindow;
+import bdv.bigcat.util.Selection;
 import bdv.util.AbstractNamedAction;
 import bdv.util.AbstractNamedAction.NamedActionAdder;
+import bdv.util.Affine3DHelpers;
 import bdv.util.IdService;
 import bdv.viewer.InputActionBindings;
 import bdv.viewer.ViewerPanel;
@@ -55,14 +58,14 @@ import bdv.viewer.ViewerPanel;
 /**
  * @author Jan Funke &lt;jfunke@iri.upc.edu&gt;
  */
-public class AnnotationController implements WindowListener {
+public class AnnotationController implements WindowListener, Selection.SelectionListener<Annotation> {
 	
 	final protected AnnotationsStore store;
 	final protected ViewerPanel viewer;
 	final private AnnotationOverlay overlay;
 	final private Annotations annotations;
 
-	private Annotation selectedAnnotation;
+	private Selection<Annotation> selection = new Selection<Annotation>();
 	
 	// max distance for nearest annotation search
 	private final static int MaxDistance = 20;
@@ -94,7 +97,8 @@ public class AnnotationController implements WindowListener {
 		this.viewer = viewer.getViewer();
 		this.store = annotationsStore;
 		this.annotations = annotationsStore.read();
-		this.annotationWindow = new AnnotationsWindow(this.annotations);
+		this.selection.addSelectionListener(this);
+		this.annotationWindow = new AnnotationsWindow(this.annotations, this.selection);
 		overlay = new AnnotationOverlay(viewer.getViewer(), annotations, this);
 		overlay.setVisible(true);
 		inputAdder = config.inputTriggerAdder(inputTriggerMap, "bigcat");
@@ -112,6 +116,7 @@ public class AnnotationController implements WindowListener {
 		new ChangeComment("change comment", "C").register();
 		new SaveAnnotations("save annotations", "S").register();
 		new ShowAnnotationsList("show annotations list", "A").register();
+		new GotoAnnotation("goto annotation", "G").register();
 
 		inputActionBindings.addActionMap("bdv", ksActionMap);
 		inputActionBindings.addInputMap("bdv", ksInputMap);
@@ -126,7 +131,7 @@ public class AnnotationController implements WindowListener {
 
 	public Annotation getSelectedAnnotation() {
 
-		return selectedAnnotation;
+		return selection.getLastAdded();
 	}
 
 	/**
@@ -207,9 +212,13 @@ public class AnnotationController implements WindowListener {
 		public void click(int x, int y) {
 
 			System.out.println("Selecting annotation closest to " + x + ", " + y);
-			selectedAnnotation = getClosestAnnotation(x, y, MaxDistance);
-
-			viewer.requestRepaint();
+			
+			Annotation closest = getClosestAnnotation(x, y, MaxDistance);
+			if (closest == null)
+				return;
+			
+			selection.clear();
+			selection.add(closest);
 		}
 	}
 
@@ -224,14 +233,11 @@ public class AnnotationController implements WindowListener {
 		@Override
 		public void actionPerformed(final ActionEvent e) {
 			
-			System.out.println("deleting annotation");
+			System.out.println("deleting annotation(s)");
 
-			if (selectedAnnotation == null)
-				return;
-
-			annotations.remove(selectedAnnotation);
-			selectedAnnotation = null;
-			viewer.requestRepaint();
+			for (Annotation a : selection)
+				annotations.remove(a);
+			selection.clear();
 		}
 	}
 
@@ -252,9 +258,8 @@ public class AnnotationController implements WindowListener {
 			Synapse synapse = new Synapse(IdService.allocate(), pos, "");
 			annotations.add(synapse);
 
-			selectedAnnotation = synapse;
-
-			viewer.requestRepaint();
+			selection.clear();
+			selection.add(synapse);
 		}
 	}
 
@@ -274,9 +279,8 @@ public class AnnotationController implements WindowListener {
 			PreSynapticSite site = new PreSynapticSite(IdService.allocate(), pos, "");
 			annotations.add(site);
 
-			selectedAnnotation = site;
-			
-			viewer.requestRepaint();
+			selection.clear();
+			selection.add(site);
 		}
 	}
 
@@ -288,13 +292,15 @@ public class AnnotationController implements WindowListener {
 		@Override
 		public void click(int x, int y) {
 		
-			if (selectedAnnotation == null || !(selectedAnnotation instanceof PreSynapticSite)) {
+			Annotation active = selection.getLastAdded();
+			
+			if (active == null || !(active instanceof PreSynapticSite)) {
 
 				System.out.println("select a pre-synaptic site before adding a post-synaptic site to it");
 				return;
 			}
 			
-			PreSynapticSite pre = (PreSynapticSite)selectedAnnotation;
+			PreSynapticSite pre = (PreSynapticSite)active;
 			
 			RealPoint pos = new RealPoint(3);
 			viewer.displayToGlobalCoordinates(x, y, pos);
@@ -306,9 +312,8 @@ public class AnnotationController implements WindowListener {
 			pre.setPartner(site);
 			annotations.add(site);
 			
-			selectedAnnotation = site;
-
-			viewer.requestRepaint();
+			selection.clear();
+			selection.add(site);
 		}
 	}
 	
@@ -320,19 +325,24 @@ public class AnnotationController implements WindowListener {
 		@Override
 		public void init(int x, int y) {
 			
-			selectedAnnotation = getClosestAnnotation(x, y, MaxDistance);
-			viewer.requestRepaint();
+			Annotation annotation = getClosestAnnotation(x, y, MaxDistance);
+			if (annotation == null)
+				return;
+			
+			selection.clear();
+			selection.add(annotation);
 		}
 
 		@Override
 		public void drag(int x, int y) {
 		
-			if (selectedAnnotation == null)
+			Annotation active = selection.getLastAdded();
+			if (active == null)
 				return;
 			
 			RealPoint pos = new RealPoint(3);
 			viewer.displayToGlobalCoordinates(x, y, pos);
-			selectedAnnotation.setPosition(pos);
+			active.setPosition(pos);
 			viewer.requestRepaint();
 		}
 
@@ -355,13 +365,14 @@ public class AnnotationController implements WindowListener {
 		@Override
 		public void actionPerformed( final ActionEvent e )
 		{
-			if (selectedAnnotation == null)
+			Annotation active = selection.getLastAdded();
+			if (active == null)
 				return;
 
-			String comment = JOptionPane.showInputDialog(viewer, "Change comment:", selectedAnnotation.getComment());
+			String comment = JOptionPane.showInputDialog(viewer, "Change comment:", active.getComment());
 			if (comment == null)
 				return;
-			selectedAnnotation.setComment(comment);
+			active.setComment(comment);
 			viewer.requestRepaint();
 		}
 	}
@@ -401,6 +412,51 @@ public class AnnotationController implements WindowListener {
 		}
 	}
 
+	private class GotoAnnotation extends SelfRegisteringAction
+	{
+		private static final long serialVersionUID = 1L;
+
+		public GotoAnnotation(final String name, final String ... defaultTriggers) {
+			super( name, defaultTriggers );
+		}
+
+		@Override
+		public void actionPerformed( final ActionEvent e ) {
+			
+			Annotation active = selection.getLastAdded();
+			if (active == null)
+				return;
+			
+			System.out.println("going to annotation at " + active.getPosition());
+			
+			RealPoint currentCenter = new RealPoint(3);
+			viewer.displayToGlobalCoordinates(viewer.getWidth()/2, viewer.getHeight()/2, currentCenter);
+
+			System.out.println("current center is at " + currentCenter);
+			
+			double dX = currentCenter.getDoublePosition(0) - active.getPosition().getDoublePosition(0);
+			double dY = currentCenter.getDoublePosition(1) - active.getPosition().getDoublePosition(1);
+			double dZ = currentCenter.getDoublePosition(2) - active.getPosition().getDoublePosition(2);
+
+
+			System.out.println("translating by " + dX + ", " + dY + ", " + dZ);
+			
+			AffineTransform3D translate = new AffineTransform3D();
+			translate.translate(new double[]{dX, dY, dZ});
+
+	
+			synchronized ( viewer )
+			{
+				AffineTransform3D viewerTransform = new AffineTransform3D();
+				viewer.getState().getViewerTransform(viewerTransform);
+				AffineTransform3D translated = viewerTransform.concatenate(translate);
+				viewer.setCurrentViewerTransform(translated);
+			}
+			
+			viewer.requestRepaint();
+		}
+	}
+
 	////////////////////
 	// WindowListener //
 	////////////////////
@@ -414,37 +470,44 @@ public class AnnotationController implements WindowListener {
 
 	@Override
 	public void windowActivated(WindowEvent arg0) {
-		// TODO Auto-generated method stub
-		
 	}
 
 	@Override
 	public void windowClosing(WindowEvent arg0) {
-		// TODO Auto-generated method stub
-		
 	}
 
 	@Override
 	public void windowDeactivated(WindowEvent arg0) {
-		// TODO Auto-generated method stub
-		
 	}
 
 	@Override
 	public void windowDeiconified(WindowEvent arg0) {
-		// TODO Auto-generated method stub
-		
 	}
 
 	@Override
 	public void windowIconified(WindowEvent arg0) {
-		// TODO Auto-generated method stub
-		
 	}
 
 	@Override
 	public void windowOpened(WindowEvent arg0) {
-		// TODO Auto-generated method stub
-		
+	}
+
+	@Override
+	public void itemSelected(Annotation t) {
+
+		System.out.println("an item got selected");
+		viewer.requestRepaint();
+	}
+
+	@Override
+	public void itemUnselected(Annotation t) {
+
+		viewer.requestRepaint();
+	}
+
+	@Override
+	public void selectionCleared() {
+
+		viewer.requestRepaint();
 	}
 }
