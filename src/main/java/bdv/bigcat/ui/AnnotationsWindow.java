@@ -1,16 +1,11 @@
 package bdv.bigcat.ui;
 
-import java.awt.BorderLayout;
-import java.awt.Component;
-import java.awt.Dimension;
 import java.util.LinkedList;
 import java.util.List;
 
 import javax.swing.JFrame;
 import javax.swing.JScrollPane;
 import javax.swing.table.AbstractTableModel;
-import javax.swing.table.TableCellRenderer;
-import javax.swing.table.TableColumnModel;
 
 import net.imglib2.RealPoint;
 import bdv.bigcat.annotation.Annotation;
@@ -126,17 +121,11 @@ public class AnnotationsWindow extends JFrame {
 		this.annotations = annotations;
 
 		table = new BigCatTable(new AnnotationsTableModel());
-		table.setSurrendersFocusOnKeystroke(true);
-		table.setAutoResizeColumns(true);
-
 		JScrollPane scrollPane = new JScrollPane(table);
-		table.setPreferredScrollableViewportSize(new Dimension(500, 800));
-
-		setLayout(new BorderLayout());
-		getContentPane().add(scrollPane, BorderLayout.CENTER);
-
+		getContentPane().add(scrollPane);
 		setDefaultCloseOperation(JFrame.HIDE_ON_CLOSE);
 		pack();
+		setSize(500, 800);
 	}
 
 	private String toTypeString(Annotation a) {
