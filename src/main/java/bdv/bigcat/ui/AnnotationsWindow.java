@@ -1,7 +1,9 @@
 package bdv.bigcat.ui;
 
+import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
 
 import javax.swing.JFrame;
 import javax.swing.JScrollPane;
@@ -16,7 +18,8 @@ import bdv.bigcat.annotation.PreSynapticSite;
 import bdv.bigcat.annotation.Synapse;
 import bdv.bigcat.util.Selection;
 
-public class AnnotationsWindow extends JFrame implements Selection.SelectionListener<Annotation>, ListSelectionListener {
+public class AnnotationsWindow extends JFrame implements
+		Selection.SelectionListener<Annotation>, ListSelectionListener {
 
 	private static final long serialVersionUID = 1L;
 
@@ -24,6 +27,8 @@ public class AnnotationsWindow extends JFrame implements Selection.SelectionList
 	private final Selection<Annotation> selection;
 	private final BigCatTable table;
 	private final AnnotationsTableModel tableModel;
+
+	private Boolean editingSelection = false;
 
 	class AnnotationsTableModel extends AbstractTableModel {
 
@@ -35,22 +40,33 @@ public class AnnotationsWindow extends JFrame implements Selection.SelectionList
 		public static final int LOCATION_Y_INDEX = 3;
 		public static final int LOCATION_Z_INDEX = 4;
 		public static final int COMMENT_INDEX = 5;
-		public final String[] ColumnNames = { "id", "type", "x", "y", "z", "comment" };
+		public final String[] ColumnNames = { "id", "type", "x", "y", "z",
+				"comment" };
 
 		public List<Long> ids;
+		public Map<Long, Integer> idsToRow = new HashMap<Long, Integer>();
 
 		public AnnotationsTableModel() {
 
 			ids = new LinkedList<Long>();
-			for (Annotation a : annotations.getAnnotations())
+			int row = 0;
+			for (Annotation a : annotations.getAnnotations()) {
 				ids.add(a.getId());
+				idsToRow.put(a.getId(), row);
+				row++;
+			}
 		}
 
 		public long getIdFromRow(int row) {
-			
+
 			return ids.get(row);
 		}
-		
+
+		public int getRowFromId(long id) {
+
+			return idsToRow.get(id);
+		}
+
 		public String getColumnName(int column) {
 
 			return ColumnNames[column];
@@ -96,11 +112,11 @@ public class AnnotationsWindow extends JFrame implements Selection.SelectionList
 			case TYPE_INDEX:
 				return toTypeString(a);
 			case LOCATION_X_INDEX:
-				return (int)Math.round(a.getPosition().getFloatPosition(0));
+				return (int) Math.round(a.getPosition().getFloatPosition(0));
 			case LOCATION_Y_INDEX:
-				return (int)Math.round(a.getPosition().getFloatPosition(1));
+				return (int) Math.round(a.getPosition().getFloatPosition(1));
 			case LOCATION_Z_INDEX:
-				return (int)Math.round(a.getPosition().getFloatPosition(2));
+				return (int) Math.round(a.getPosition().getFloatPosition(2));
 			case COMMENT_INDEX:
 				return a.getComment();
 			default:
@@ -132,13 +148,14 @@ public class AnnotationsWindow extends JFrame implements Selection.SelectionList
 		}
 	}
 
-	public AnnotationsWindow(Annotations annotations, Selection<Annotation> selection) {
+	public AnnotationsWindow(Annotations annotations,
+			Selection<Annotation> selection) {
 
 		this.annotations = annotations;
 		this.selection = selection;
 
 		selection.addSelectionListener(this);
-		
+
 		tableModel = new AnnotationsTableModel();
 		table = new BigCatTable(tableModel);
 		table.getSelectionModel().addListSelectionListener(this);
@@ -162,33 +179,61 @@ public class AnnotationsWindow extends JFrame implements Selection.SelectionList
 
 	@Override
 	public void itemSelected(Annotation t) {
-		// TODO Auto-generated method stub
+
+		synchronized (editingSelection) {
+
+			if (editingSelection)
+				return;
+
+			int row = tableModel.getRowFromId(t.getId());
+			table.addRowSelectionInterval(row, row);
+		}
 	}
 
 	@Override
 	public void itemUnselected(Annotation t) {
-		// TODO Auto-generated method stub
+
+		synchronized (editingSelection) {
+
+			if (editingSelection)
+				return;
+
+			int row = tableModel.getRowFromId(t.getId());
+			table.removeRowSelectionInterval(row, row);
+		}
 	}
 
 	@Override
 	public void selectionCleared() {
-		// TODO Auto-generated method stub
+
+		synchronized (editingSelection) {
+
+			if (editingSelection)
+				return;
+
+			table.removeRowSelectionInterval(0, table.getRowCount() - 1);
+		}
 	}
 
 	@Override
 	public void valueChanged(ListSelectionEvent event) {
-		
+
 		System.out.println("selection in annotation table changed");
 
-		for (int row = event.getFirstIndex(); row <= event.getLastIndex(); row++)
-			if (table.isRowSelected(row))
-				selection.add(itemFromRow(row));
-			else
-				selection.remove(itemFromRow(row));
+		synchronized (editingSelection) {
+
+			editingSelection = true;
+			for (int row = event.getFirstIndex(); row <= event.getLastIndex(); row++)
+				if (table.isRowSelected(row))
+					selection.add(itemFromRow(row));
+				else
+					selection.remove(itemFromRow(row));
+			editingSelection = false;
+		}
 	}
-	
+
 	private Annotation itemFromRow(int row) {
-		
+
 		return annotations.getById(tableModel.getIdFromRow(row));
 	}
 }
