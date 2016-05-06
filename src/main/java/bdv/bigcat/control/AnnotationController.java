@@ -68,7 +68,7 @@ public class AnnotationController implements WindowListener, Selection.Selection
 	private Selection<Annotation> selection = new Selection<Annotation>();
 	
 	// max distance for nearest annotation search
-	private final static int MaxDistance = 20;
+	private final static int MaxDistance = 1000;
 
 	// for behavioUrs
 	private final BehaviourMap behaviourMap = new BehaviourMap();
