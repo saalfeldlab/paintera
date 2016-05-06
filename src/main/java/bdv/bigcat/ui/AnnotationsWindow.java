@@ -27,10 +27,11 @@ public class AnnotationsWindow extends JFrame {
 
 		public static final int ID_INDEX = 0;
 		public static final int TYPE_INDEX = 1;
-		public static final int LOCATION_INDEX = 2;
-		public static final int COMMENT_INDEX = 3;
-		public final String[] ColumnNames = { "id", "type", "location",
-				"comment" };
+		public static final int LOCATION_X_INDEX = 2;
+		public static final int LOCATION_Y_INDEX = 3;
+		public static final int LOCATION_Z_INDEX = 4;
+		public static final int COMMENT_INDEX = 5;
+		public final String[] ColumnNames = { "id", "type", "x", "y", "z", "comment" };
 
 		public List<Long> ids;
 
@@ -61,8 +62,10 @@ public class AnnotationsWindow extends JFrame {
 				return Long.class;
 			case TYPE_INDEX:
 				return String.class;
-			case LOCATION_INDEX:
-				return RealPoint.class;
+			case LOCATION_X_INDEX:
+			case LOCATION_Y_INDEX:
+			case LOCATION_Z_INDEX:
+				return Integer.class;
 			case COMMENT_INDEX:
 				return String.class;
 			default:
@@ -83,8 +86,12 @@ public class AnnotationsWindow extends JFrame {
 
 			case TYPE_INDEX:
 				return toTypeString(a);
-			case LOCATION_INDEX:
-				return a.getPosition();
+			case LOCATION_X_INDEX:
+				return (int)Math.round(a.getPosition().getFloatPosition(0));
+			case LOCATION_Y_INDEX:
+				return (int)Math.round(a.getPosition().getFloatPosition(1));
+			case LOCATION_Z_INDEX:
+				return (int)Math.round(a.getPosition().getFloatPosition(2));
 			case COMMENT_INDEX:
 				return a.getComment();
 			default:
