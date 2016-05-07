@@ -113,4 +113,11 @@ public class VolatileLabelMultisetType
 		t.updateContainer( c );
 		setValid( t.isValid() );
 	}
+
+	@Override
+	public boolean valueEquals( final VolatileLabelMultisetType t )
+	{
+		// TODO Auto-generated method stub
+		return false;
+	}
 }

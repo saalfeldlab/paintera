@@ -341,7 +341,7 @@ A:					for ( final Entry< String, JsonElement > entry : ilutJsonEntrySet )
 			final long segmentId = lut.get( fragmentId );
 			if ( segmentId == lut.getNoEntryValue() ) {
 				id = IdService.allocate();
-				lut.put( fragmentId, id);
+				lut.put( fragmentId, id );
 				ilut.put( id, new long[]{ fragmentId } );
 			}
 			else
@@ -371,7 +371,7 @@ A:					for ( final Entry< String, JsonElement > entry : ilutJsonEntrySet )
 		if ( segmentId1 == segmentId2 )
 			return;
 
-		long mergedSegmentId = IdService.allocate();
+		final long mergedSegmentId = IdService.allocate();
 		synchronized ( ilut )
 		{
 			final long[] fragments1 = getFragments( segmentId1 );

@@ -14,12 +14,12 @@ import bdv.bigcat.FragmentSegmentAssignment;
 import bdv.bigcat.ui.BrushOverlay;
 import bdv.labels.labelset.Label;
 import bdv.viewer.ViewerPanel;
-import net.imglib2.Point;
 import net.imglib2.RandomAccessible;
 import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.RealLocalizable;
 import net.imglib2.RealPoint;
-import net.imglib2.algorithm.region.hypersphere.HyperSphere;
+import net.imglib2.algorithm.neighborhood.HyperEllipsoidNeighborhood;
+import net.imglib2.algorithm.neighborhood.Neighborhood;
 import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.type.numeric.integer.LongType;
 import net.imglib2.ui.TransformEventHandler;
@@ -150,13 +150,26 @@ public class LabelBrushController
 
 		protected void paint( final RealLocalizable coords)
 		{
-			final HyperSphere< LongType > sphere =
-					new HyperSphere<>(
-							Views.hyperSlice( extendedLabels, 0, Math.round( coords.getDoublePosition( 0 ) ) ),
-							new Point(
+			//final RandomAccessible< LongType > labelSource = Views.hyperSlice( extendedLabels, 0, Math.round( coords.getDoublePosition( 0 ) ) );
+			final RandomAccessible< LongType > labelSource = extendedLabels;
+
+//			final Neighborhood< LongType > sphere =
+//					HyperSphereNeighborhood.< LongType >factory().create(
+//							new long[]{
+//									Math.round( coords.getDoublePosition( 1 ) ),
+//									Math.round( coords.getDoublePosition( 2 ) ) },
+//							new long[]{brushRadius, 2 * brushRadius},
+//							labelSource.randomAccess() );
+
+			final Neighborhood< LongType > sphere =
+					HyperEllipsoidNeighborhood.< LongType >factory().create(
+							new long[]{
+									Math.round( coords.getDoublePosition( 0 ) ),
 									Math.round( coords.getDoublePosition( 1 ) ),
-									Math.round( coords.getDoublePosition( 2 ) ) ),
-							brushRadius );
+									Math.round( coords.getDoublePosition( 2 ) ) },
+							new long[]{brushRadius / 10, brushRadius, brushRadius},
+							labelSource.randomAccess() );
+
 			for ( final LongType t : sphere )
 				t.set( getValue() );
 		}
