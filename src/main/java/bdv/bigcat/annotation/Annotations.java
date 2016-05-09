@@ -21,18 +21,23 @@ public class Annotations {
 	
 	public Annotations() {
 		this.annotations = new HashMap< Long, Annotation >();
+		this.listeners = new LinkedList<Annotations.AnnotationsListener>();
 	}
 	
 	public void add(Annotation annotation) {
 	
 		annotations.put(annotation.getId(), annotation);
 		kdTreeDirty = true;
+		for (AnnotationsListener l : listeners)
+			l.onAnnotationAdded(annotation);
 	}	
 	
 	public void remove(Annotation annotation) {
 		
 		annotations.remove(annotation.getId());
 		kdTreeDirty = true;
+		for (AnnotationsListener l : listeners)
+			l.onAnnotationRemoved(annotation);
 	}
 	
 	public Collection< Annotation > getAnnotations() {
@@ -105,7 +110,25 @@ public class Annotations {
 		kdTreeDirty = false;
 	}
 
+	public interface AnnotationsListener {
+		
+		public void onAnnotationAdded(Annotation a);
+		public void onAnnotationRemoved(Annotation a);
+	}
+
+	public void addAnnotationsListener(AnnotationsListener listener) {
+
+		listeners.add(listener);
+	}
+
+	public void removeAnnotationsListener(AnnotationsListener listener) {
+
+		listeners.add(listener);
+	}
+	
 	private HashMap< Long, Annotation > annotations;
 	private KDTree< Annotation > kdTree;
 	private boolean kdTreeDirty = true;
+	
+	private List<AnnotationsListener> listeners;
 }
