@@ -48,7 +48,7 @@ public class AnnotationsHdf5Store implements AnnotationsStore {
 			fileFormat = 0.0;
 		}
 		
-		if (reader.hasAttribute(groupname, "offset")) {
+		if (reader.exists(groupname) && reader.hasAttribute(groupname, "offset")) {
 			float[] data = reader.getFloatArrayAttribute(groupname, "offset");
 			offset[0] = data[2];
 			offset[1] = data[1];
