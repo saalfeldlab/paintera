@@ -52,7 +52,7 @@ import net.imglib2.view.Views;
 
 public class BigCATAriadne
 {
-	final static private int[] cellDimensions = new int[]{ 8, 64, 64 };
+	final static private int[] cellDimensions = new int[]{ 64, 64, 8 };
 	final static private String rawDataset = "/em_raw";
 	final static private String backgroundLabelsDataset = "/labels";
 	final static private String paintedLabelsDataset = "/paintedLabels";
@@ -245,6 +245,20 @@ public class BigCATAriadne
 				new DiamondShape(1),
 				new InputTriggerConfig());
 
+		DrawProjectAndIntersectController dpi = new DrawProjectAndIntersectController(
+				bdv,
+				transform,
+				new InputTriggerConfig(),
+				fragments.getImage(0),
+				paintedLabels,
+				fragments.getMipmapTransforms()[0],
+				assignment,
+				colorStream,
+				selectionController,
+				bdv.getViewerFrame().getKeybindings(),
+				bindings,
+				"shift S"
+		);
 //		Annotations annotations = new Annotations();
 //		final AnnotationController annotationController = new AnnotationController(
 //				bdv.getViewer(),
@@ -272,7 +286,15 @@ public class BigCATAriadne
 
 //		bdv.getViewer().getDisplay().addOverlayRenderer( annotationController.getAnnotationOverlay() );
 
+		System.out.println( "inputTriggerMap: " );
+		System.out.println( bindings.getConcatenatedInputTriggerMap().getAllBindings() );
+
+		System.out.println( "behaviourMap: " );
+		System.out.println( bindings.getConcatenatedBehaviourMap().getAllBindings() );
+
+
 		bdv.getViewer().getDisplay().addOverlayRenderer( brushController.getBrushOverlay() );
+//		bdv.getViewer().getDisplay().addOverlayRenderer( dpi.brushOverlay );
 
 
 //			final ZContext ctx = new ZContext();
