@@ -388,8 +388,7 @@ public class AnnotationController implements WindowListener, Selection.Selection
 		}
 	}
 
-	private class SaveAnnotations extends SelfRegisteringAction
-	{
+	private class SaveAnnotations extends SelfRegisteringAction {
 		private static final long serialVersionUID = 1L;
 
 		public SaveAnnotations( final String name, final String ... defaultTriggers )
@@ -398,16 +397,14 @@ public class AnnotationController implements WindowListener, Selection.Selection
 		}
 
 		@Override
-		public void actionPerformed( final ActionEvent e )
-		{
-			System.out.println("Saving annotations...");
+		public void actionPerformed(final ActionEvent e) {
+
 			store.write(annotations);
-			System.out.println("done.");
+			viewer.showMessage("Annotations saved");
 		}
 	}
 
-	private class ShowAnnotationsList extends SelfRegisteringAction
-	{
+	private class ShowAnnotationsList extends SelfRegisteringAction {
 		private static final long serialVersionUID = 1L;
 
 		public ShowAnnotationsList( final String name, final String ... defaultTriggers )
@@ -416,15 +413,13 @@ public class AnnotationController implements WindowListener, Selection.Selection
 		}
 
 		@Override
-		public void actionPerformed( final ActionEvent e )
-		{
+		public void actionPerformed(final ActionEvent e) {
 			System.out.println("showing annotation window");
 			annotationWindow.setVisible(true);
 		}
 	}
 
-	private class GotoAnnotation extends SelfRegisteringAction
-	{
+	private class GotoAnnotation extends SelfRegisteringAction {
 		private static final long serialVersionUID = 1L;
 
 		public GotoAnnotation(final String name, final String ... defaultTriggers) {
