@@ -8,3 +8,4 @@
 .project
 .settings
 /target
+*.swp

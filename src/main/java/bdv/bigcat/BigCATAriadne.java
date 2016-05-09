@@ -4,7 +4,6 @@ import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 
-import bdv.bigcat.control.*;
 import org.scijava.ui.behaviour.io.InputTriggerConfig;
 
 import com.google.gson.JsonIOException;
@@ -14,6 +13,15 @@ import bdv.BigDataViewer;
 import bdv.bigcat.composite.ARGBCompositeAlphaYCbCr;
 import bdv.bigcat.composite.Composite;
 import bdv.bigcat.composite.CompositeCopy;
+import bdv.bigcat.control.LabelBrushController;
+import bdv.bigcat.control.LabelFillController;
+import bdv.bigcat.control.LabelMultiSetIdPicker;
+import bdv.bigcat.control.LabelPersistenceController;
+import bdv.bigcat.control.LabelRestrictToSegmentController;
+import bdv.bigcat.control.MergeController;
+import bdv.bigcat.control.PairLabelMultiSetLongIdPicker;
+import bdv.bigcat.control.SelectionController;
+import bdv.bigcat.control.TranslateZController;
 import bdv.bigcat.ui.ARGBConvertedLabelPairSource;
 import bdv.bigcat.ui.GoldenAngleSaturatedARGBStream;
 import bdv.bigcat.ui.Util;
@@ -44,7 +52,7 @@ import net.imglib2.view.Views;
 
 public class BigCATAriadne
 {
-	final static private int[] cellDimensions = new int[]{ 8, 64, 64 };
+	final static private int[] cellDimensions = new int[]{ 64, 64, 8 };
 	final static private String rawDataset = "/em_raw";
 	final static private String backgroundLabelsDataset = "/labels";
 	final static private String paintedLabelsDataset = "/paintedLabels";
@@ -188,6 +196,11 @@ public class BigCATAriadne
 				new InputTriggerConfig(),
 				bdv.getViewerFrame().getKeybindings(),
 				new InputTriggerConfig() );
+		
+		final TranslateZController translateZController = new TranslateZController(
+				bdv.getViewer(),
+				raw.getMipmapResolutions()[0],
+				new  InputTriggerConfig() );
 
 		final LabelBrushController brushController = new LabelBrushController(
 				bdv.getViewer(),
@@ -258,6 +271,8 @@ public class BigCATAriadne
 
 		bindings.addBehaviourMap( "merge", mergeController.getBehaviourMap() );
 		bindings.addInputTriggerMap( "merge", mergeController.getInputTriggerMap() );
+
+		bindings.addBehaviourMap( "translate_z", translateZController.getBehaviourMap() );
 
 		bindings.addBehaviourMap( "brush", brushController.getBehaviourMap() );
 		bindings.addInputTriggerMap( "brush", brushController.getInputTriggerMap() );

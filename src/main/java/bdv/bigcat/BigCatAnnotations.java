@@ -15,6 +15,7 @@ import bdv.bigcat.control.AnnotationController;
 import bdv.bigcat.control.MergeController;
 import bdv.bigcat.control.PairLabelMultiSetLongIdPicker;
 import bdv.bigcat.control.SelectionController;
+import bdv.bigcat.control.TranslateZController;
 import bdv.bigcat.ui.ARGBConvertedLabelPairSource;
 import bdv.bigcat.ui.GoldenAngleSaturatedARGBStream;
 import bdv.bigcat.ui.Util;
@@ -44,11 +45,7 @@ import net.imglib2.view.Views;
 
 public class BigCatAnnotations
 {
-	final static private int[] cellDimensions = new int[]{ 8, 64, 64 };
-	final static private String rawDataset = "/raw";
-	final static private String backgroundLabelsDataset = "/volumes/labels/neuron_ids";
-	final static private String paintedLabelsDataset = "/volumes/labels/painted_neuron_ids";
-	final static private String mergedLabelsDataset = "/volumes/labels/merged_neuron_ids";
+	final static private int[] cellDimensions = new int[]{ 64, 64, 8 };
 	
 	static private H5LabelMultisetSetupImageLoader fragments = null;
 	static private ARGBConvertedLabelPairSource convertedLabelPair = null;
@@ -68,17 +65,22 @@ public class BigCatAnnotations
 		final IHDF5Reader reader = HDF5Factory.open( projectFile );
 
 		/* raw pixels */
+		// support both file_format 0.0 and >=0.1
+		final String rawDataset = reader.exists("/volumes/raw") ? "/volumes/raw"  : "/raw";
 		final H5UnsignedByteSetupImageLoader raw = new H5UnsignedByteSetupImageLoader( reader, rawDataset, 0, cellDimensions );
 
 		/* fragments */
+		final String backgroundLabelsDataset = "/volumes/labels/neuron_ids";
+		final String mergedLabelsDataset = "/volumes/labels/merged_neuron_ids";
+		final String paintedLabelsDataset = "/volumes/labels/painted_neuron_ids";
 		final String labelsDataset = reader.exists( mergedLabelsDataset ) ? mergedLabelsDataset : backgroundLabelsDataset;
 		if (reader.exists(labelsDataset))
-			readFragments(args, reader, labelsDataset);
+			readFragments(args, reader, labelsDataset, paintedLabelsDataset);
 
 		setupBdv(raw);
 	}
 
-	private static void readFragments(final String[] args, final IHDF5Reader reader, final String labelsDataset)
+	private static void readFragments(final String[] args, final IHDF5Reader reader, final String labelsDataset, String paintedLabelsDataset)
 			throws IOException {
 
 		fragments =
@@ -160,10 +162,6 @@ public class BigCatAnnotations
 				composites );
 		}
 
-		final AffineTransform3D transform = new AffineTransform3D();
-		transform.set( 0, 0, 1, 0, 0, 1, 0, 0, -1, 0, 0, 0 );
-		bdv.getViewer().setCurrentViewerTransform( transform );
-
 		bdv.getViewerFrame().setVisible( true );
 
 		final TriggerBehaviourBindings bindings = bdv.getViewerFrame().getTriggerbindings();
@@ -200,15 +198,21 @@ public class BigCatAnnotations
 					new InputTriggerConfig(),
 					bdv.getViewerFrame().getKeybindings(),
 					new InputTriggerConfig() );
-
+	
 			bindings.addBehaviourMap( "merge", mergeController.getBehaviourMap() );
 			bindings.addInputTriggerMap( "merge", mergeController.getInputTriggerMap() );
 		}
+		
+		final TranslateZController translateZController = new TranslateZController(
+				bdv.getViewer(),
+				raw.getMipmapResolutions()[0],
+				new  InputTriggerConfig() );
+		bindings.addBehaviourMap( "translate_z", translateZController.getBehaviourMap() );
 
 		final AnnotationsHdf5Store annotationsStore = new AnnotationsHdf5Store(projectFile);
 		final AnnotationController annotationController = new AnnotationController(
 				annotationsStore,
-				bdv.getViewer(),
+				bdv,
 				new InputTriggerConfig(),
 				bdv.getViewerFrame().getKeybindings(),
 				new InputTriggerConfig() );

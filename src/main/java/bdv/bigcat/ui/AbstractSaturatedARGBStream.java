@@ -17,6 +17,7 @@
 package bdv.bigcat.ui;
 
 import bdv.bigcat.FragmentSegmentAssignment;
+import bdv.labels.labelset.Label;
 import gnu.trove.impl.Constants;
 import gnu.trove.map.hash.TLongIntHashMap;
 
@@ -69,6 +70,8 @@ abstract public class AbstractSaturatedARGBStream implements ARGBStream
 	@Override
 	final public int argb( final long fragmentId )
 	{
+		if (fragmentId == Label.TRANSPARENT)
+			return 0;
 		final long segmentId = assignment.getSegment( fragmentId );
 		int argb = argbCache.get( segmentId );
 		if ( argb == 0x00000000 )

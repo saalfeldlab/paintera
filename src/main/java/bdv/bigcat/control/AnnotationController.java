@@ -17,11 +17,19 @@
 package bdv.bigcat.control;
 
 import java.awt.event.ActionEvent;
+import java.awt.event.WindowEvent;
+import java.awt.event.WindowListener;
 import java.util.List;
 
 import javax.swing.ActionMap;
 import javax.swing.InputMap;
+import javax.swing.JComponent;
 import javax.swing.JOptionPane;
+import javax.swing.SwingUtilities;
+
+import net.imglib2.RealPoint;
+import net.imglib2.realtransform.AffineTransform3D;
+import net.imglib2.util.LinAlgHelpers;
 
 import org.scijava.ui.behaviour.Behaviour;
 import org.scijava.ui.behaviour.BehaviourMap;
@@ -32,6 +40,7 @@ import org.scijava.ui.behaviour.InputTriggerMap;
 import org.scijava.ui.behaviour.KeyStrokeAdder;
 import org.scijava.ui.behaviour.io.InputTriggerConfig;
 
+import bdv.BigDataViewer;
 import bdv.bigcat.annotation.Annotation;
 import bdv.bigcat.annotation.Annotations;
 import bdv.bigcat.annotation.AnnotationsStore;
@@ -39,28 +48,29 @@ import bdv.bigcat.annotation.PostSynapticSite;
 import bdv.bigcat.annotation.PreSynapticSite;
 import bdv.bigcat.annotation.Synapse;
 import bdv.bigcat.ui.AnnotationOverlay;
+import bdv.bigcat.ui.AnnotationsWindow;
+import bdv.bigcat.util.Selection;
 import bdv.util.AbstractNamedAction;
 import bdv.util.AbstractNamedAction.NamedActionAdder;
+import bdv.util.Affine3DHelpers;
 import bdv.util.IdService;
 import bdv.viewer.InputActionBindings;
 import bdv.viewer.ViewerPanel;
-import net.imglib2.RealPoint;
-import net.imglib2.util.LinAlgHelpers;
 
 /**
  * @author Jan Funke &lt;jfunke@iri.upc.edu&gt;
  */
-public class AnnotationController {
+public class AnnotationController implements WindowListener, Selection.SelectionListener<Annotation> {
 	
 	final protected AnnotationsStore store;
 	final protected ViewerPanel viewer;
 	final private AnnotationOverlay overlay;
 	final private Annotations annotations;
 
-	private Annotation selectedAnnotation;
+	private Selection<Annotation> selection = new Selection<Annotation>();
 	
 	// max distance for nearest annotation search
-	private final static int MaxDistance = 20;
+	private final static int MaxDistance = 1000;
 
 	// for behavioUrs
 	private final BehaviourMap behaviourMap = new BehaviourMap();
@@ -73,6 +83,8 @@ public class AnnotationController {
 	private final NamedActionAdder ksActionAdder = new NamedActionAdder(ksActionMap);
 	private final KeyStrokeAdder ksKeyStrokeAdder;
 
+	private AnnotationsWindow annotationWindow;
+
 	public BehaviourMap getBehaviourMap() {
 		return behaviourMap;
 	}
@@ -81,13 +93,15 @@ public class AnnotationController {
 		return inputTriggerMap;
 	}
 
-	public AnnotationController(final AnnotationsStore annotationsStore, final ViewerPanel viewer,
+	public AnnotationController(final AnnotationsStore annotationsStore, final BigDataViewer viewer,
 			final InputTriggerConfig config, final InputActionBindings inputActionBindings,
 			final KeyStrokeAdder.Factory keyProperties) throws Exception {
-		this.viewer = viewer;
+		this.viewer = viewer.getViewer();
 		this.store = annotationsStore;
 		this.annotations = annotationsStore.read();
-		overlay = new AnnotationOverlay(viewer, annotations, this);
+		this.selection.addSelectionListener(this);
+		this.annotationWindow = new AnnotationsWindow(this, this.annotations, this.selection);
+		overlay = new AnnotationOverlay(viewer.getViewer(), annotations, this);
 		overlay.setVisible(true);
 		inputAdder = config.inputTriggerAdder(inputTriggerMap, "bigcat");
 
@@ -103,9 +117,22 @@ public class AnnotationController {
 		new AddSynapseAnnotation("add synapse annotation", "SPACE shift button2").register();
 		new ChangeComment("change comment", "C").register();
 		new SaveAnnotations("save annotations", "S").register();
+		new ShowAnnotationsList("show annotations list", "A").register();
+		new GotoAnnotation("goto annotation", "G").register();
 
 		inputActionBindings.addActionMap("bdv", ksActionMap);
 		inputActionBindings.addInputMap("bdv", ksInputMap);
+
+		viewer.getViewerFrame().addWindowListener(this);
+
+		// setup annotation window's keybindings to be the same as bdv's
+		final InputActionBindings viewerKeybindings = viewer.getViewerFrame()
+				.getKeybindings();
+		SwingUtilities.replaceUIActionMap(annotationWindow.getRootPane(),
+				viewerKeybindings.getConcatenatedActionMap());
+		SwingUtilities.replaceUIInputMap(annotationWindow.getRootPane(),
+				JComponent.WHEN_ANCESTOR_OF_FOCUSED_COMPONENT,
+				viewerKeybindings.getConcatenatedInputMap());
 	}
 
 	public AnnotationOverlay getAnnotationOverlay() {
@@ -115,7 +142,7 @@ public class AnnotationController {
 
 	public Annotation getSelectedAnnotation() {
 
-		return selectedAnnotation;
+		return selection.getLastAdded();
 	}
 
 	/**
@@ -196,9 +223,13 @@ public class AnnotationController {
 		public void click(int x, int y) {
 
 			System.out.println("Selecting annotation closest to " + x + ", " + y);
-			selectedAnnotation = getClosestAnnotation(x, y, MaxDistance);
-
-			viewer.requestRepaint();
+			
+			Annotation closest = getClosestAnnotation(x, y, MaxDistance);
+			if (closest == null)
+				return;
+			
+			selection.clear();
+			selection.add(closest);
 		}
 	}
 
@@ -213,14 +244,11 @@ public class AnnotationController {
 		@Override
 		public void actionPerformed(final ActionEvent e) {
 			
-			System.out.println("deleting annotation");
+			System.out.println("deleting annotation(s)");
 
-			if (selectedAnnotation == null)
-				return;
-
-			annotations.remove(selectedAnnotation);
-			selectedAnnotation = null;
-			viewer.requestRepaint();
+			for (Annotation a : selection)
+				annotations.remove(a);
+			selection.clear();
 		}
 	}
 
@@ -241,9 +269,8 @@ public class AnnotationController {
 			Synapse synapse = new Synapse(IdService.allocate(), pos, "");
 			annotations.add(synapse);
 
-			selectedAnnotation = synapse;
-
-			viewer.requestRepaint();
+			selection.clear();
+			selection.add(synapse);
 		}
 	}
 
@@ -263,9 +290,8 @@ public class AnnotationController {
 			PreSynapticSite site = new PreSynapticSite(IdService.allocate(), pos, "");
 			annotations.add(site);
 
-			selectedAnnotation = site;
-			
-			viewer.requestRepaint();
+			selection.clear();
+			selection.add(site);
 		}
 	}
 
@@ -277,13 +303,15 @@ public class AnnotationController {
 		@Override
 		public void click(int x, int y) {
 		
-			if (selectedAnnotation == null || !(selectedAnnotation instanceof PreSynapticSite)) {
+			Annotation active = selection.getLastAdded();
+			
+			if (active == null || !(active instanceof PreSynapticSite)) {
 
-				System.out.println("select a pre-synaptic site before adding a post-synaptic site to it");
+				viewer.showMessage("select a pre-synaptic site before adding a post-synaptic site to it");
 				return;
 			}
 			
-			PreSynapticSite pre = (PreSynapticSite)selectedAnnotation;
+			PreSynapticSite pre = (PreSynapticSite)active;
 			
 			RealPoint pos = new RealPoint(3);
 			viewer.displayToGlobalCoordinates(x, y, pos);
@@ -295,9 +323,8 @@ public class AnnotationController {
 			pre.setPartner(site);
 			annotations.add(site);
 			
-			selectedAnnotation = site;
-
-			viewer.requestRepaint();
+			selection.clear();
+			selection.add(site);
 		}
 	}
 	
@@ -309,19 +336,24 @@ public class AnnotationController {
 		@Override
 		public void init(int x, int y) {
 			
-			selectedAnnotation = getClosestAnnotation(x, y, MaxDistance);
-			viewer.requestRepaint();
+			Annotation annotation = getClosestAnnotation(x, y, MaxDistance);
+			if (annotation == null)
+				return;
+			
+			selection.clear();
+			selection.add(annotation);
 		}
 
 		@Override
 		public void drag(int x, int y) {
 		
-			if (selectedAnnotation == null)
+			Annotation active = selection.getLastAdded();
+			if (active == null)
 				return;
 			
 			RealPoint pos = new RealPoint(3);
 			viewer.displayToGlobalCoordinates(x, y, pos);
-			selectedAnnotation.setPosition(pos);
+			active.setPosition(pos);
 			viewer.requestRepaint();
 		}
 
@@ -344,19 +376,19 @@ public class AnnotationController {
 		@Override
 		public void actionPerformed( final ActionEvent e )
 		{
-			if (selectedAnnotation == null)
+			Annotation active = selection.getLastAdded();
+			if (active == null)
 				return;
 
-			String comment = JOptionPane.showInputDialog(viewer, "Change comment:", selectedAnnotation.getComment());
+			String comment = JOptionPane.showInputDialog(viewer, "Change comment:", active.getComment());
 			if (comment == null)
 				return;
-			selectedAnnotation.setComment(comment);
+			active.setComment(comment);
 			viewer.requestRepaint();
 		}
 	}
 
-	private class SaveAnnotations extends SelfRegisteringAction
-	{
+	private class SaveAnnotations extends SelfRegisteringAction {
 		private static final long serialVersionUID = 1L;
 
 		public SaveAnnotations( final String name, final String ... defaultTriggers )
@@ -365,13 +397,156 @@ public class AnnotationController {
 		}
 
 		@Override
-		public void actionPerformed( final ActionEvent e )
-		{
-			System.out.println("Saving annotations...");
+		public void actionPerformed(final ActionEvent e) {
+
 			store.write(annotations);
-			System.out.println("done.");
+			viewer.showMessage("Annotations saved");
 		}
 	}
 
-	// define actions and behaviours here
+	private class ShowAnnotationsList extends SelfRegisteringAction {
+		private static final long serialVersionUID = 1L;
+
+		public ShowAnnotationsList( final String name, final String ... defaultTriggers )
+		{
+			super( name, defaultTriggers );
+		}
+
+		@Override
+		public void actionPerformed(final ActionEvent e) {
+			System.out.println("showing annotation window");
+			annotationWindow.setVisible(true);
+		}
+	}
+
+	private class GotoAnnotation extends SelfRegisteringAction {
+		private static final long serialVersionUID = 1L;
+
+		public GotoAnnotation(final String name, final String ... defaultTriggers) {
+			super( name, defaultTriggers );
+		}
+
+		@Override
+		public void actionPerformed(final ActionEvent e) {
+
+			Annotation active = selection.getLastAdded();
+			if (active == null)
+				return;
+
+			goTo(active.getPosition());
+		}
+	}
+
+	////////////////////
+	// WindowListener //
+	////////////////////
+
+	@Override
+	public void windowClosed(WindowEvent e) {
+
+		System.out.println("received window close event");
+		annotationWindow.dispose();
+	}
+
+	@Override
+	public void windowActivated(WindowEvent arg0) {
+	}
+
+	@Override
+	public void windowClosing(WindowEvent arg0) {
+	}
+
+	@Override
+	public void windowDeactivated(WindowEvent arg0) {
+	}
+
+	@Override
+	public void windowDeiconified(WindowEvent arg0) {
+	}
+
+	@Override
+	public void windowIconified(WindowEvent arg0) {
+	}
+
+	@Override
+	public void windowOpened(WindowEvent arg0) {
+	}
+
+	@Override
+	public void itemSelected(Annotation t) {
+
+		System.out.println("an item got selected");
+		viewer.requestRepaint();
+	}
+
+	@Override
+	public void itemUnselected(Annotation t) {
+
+		viewer.requestRepaint();
+	}
+
+	@Override
+	public void selectionCleared() {
+
+		viewer.requestRepaint();
+	}
+
+	public void goTo(RealPoint position) {
+
+		RealPoint currentCenter = new RealPoint(3);
+		viewer.displayToGlobalCoordinates(viewer.getWidth() / 2,
+				viewer.getHeight() / 2, currentCenter);
+
+		System.out.println("current center is at " + currentCenter);
+
+		double dX = currentCenter.getDoublePosition(0)
+				- position.getDoublePosition(0);
+		double dY = currentCenter.getDoublePosition(1)
+				- position.getDoublePosition(1);
+		double dZ = currentCenter.getDoublePosition(2)
+				- position.getDoublePosition(2);
+
+		System.out.println("translating by " + dX + ", " + dY + ", " + dZ);
+
+		AffineTransform3D translate = new AffineTransform3D();
+		translate.translate(new double[] { dX, dY, dZ });
+
+		synchronized (viewer) {
+
+			AffineTransform3D viewerTransform = new AffineTransform3D();
+			viewer.getState().getViewerTransform(viewerTransform);
+			AffineTransform3D translated = viewerTransform
+					.concatenate(translate);
+			viewer.setCurrentViewerTransform(translated);
+		}
+
+		viewer.requestRepaint();
+	}
+
+	public void setFov(double fov) {
+
+		synchronized (viewer) {
+
+			RealPoint currentCenter = new RealPoint(3);
+			viewer.displayToGlobalCoordinates(viewer.getWidth() / 2,
+					viewer.getHeight() / 2, currentCenter);
+
+			AffineTransform3D viewerTransform = new AffineTransform3D();
+			viewer.getState().getViewerTransform(viewerTransform);
+
+			double currentFov = Math.min(viewer.getWidth(), viewer.getHeight())
+					/ Affine3DHelpers.extractScale(viewerTransform, 0);
+			double scale = currentFov / fov;
+
+			System.out.println("current fov is " + currentFov
+					+ " in smallest dimension, want " + fov + ", scale by "
+					+ scale);
+
+			viewerTransform.scale(scale);
+			viewer.setCurrentViewerTransform(viewerTransform);
+
+			goTo(currentCenter);
+		}
+
+	}
 }
