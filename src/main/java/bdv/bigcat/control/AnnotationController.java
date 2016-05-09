@@ -427,39 +427,13 @@ public class AnnotationController implements WindowListener, Selection.Selection
 		}
 
 		@Override
-		public void actionPerformed( final ActionEvent e ) {
-			
+		public void actionPerformed(final ActionEvent e) {
+
 			Annotation active = selection.getLastAdded();
 			if (active == null)
 				return;
-			
-			System.out.println("going to annotation at " + active.getPosition());
-			
-			RealPoint currentCenter = new RealPoint(3);
-			viewer.displayToGlobalCoordinates(viewer.getWidth()/2, viewer.getHeight()/2, currentCenter);
 
-			System.out.println("current center is at " + currentCenter);
-			
-			double dX = currentCenter.getDoublePosition(0) - active.getPosition().getDoublePosition(0);
-			double dY = currentCenter.getDoublePosition(1) - active.getPosition().getDoublePosition(1);
-			double dZ = currentCenter.getDoublePosition(2) - active.getPosition().getDoublePosition(2);
-
-
-			System.out.println("translating by " + dX + ", " + dY + ", " + dZ);
-			
-			AffineTransform3D translate = new AffineTransform3D();
-			translate.translate(new double[]{dX, dY, dZ});
-
-	
-			synchronized ( viewer )
-			{
-				AffineTransform3D viewerTransform = new AffineTransform3D();
-				viewer.getState().getViewerTransform(viewerTransform);
-				AffineTransform3D translated = viewerTransform.concatenate(translate);
-				viewer.setCurrentViewerTransform(translated);
-			}
-			
-			viewer.requestRepaint();
+			goTo(active.getPosition());
 		}
 	}
 
@@ -515,5 +489,64 @@ public class AnnotationController implements WindowListener, Selection.Selection
 	public void selectionCleared() {
 
 		viewer.requestRepaint();
+	}
+
+	public void goTo(RealPoint position) {
+
+		RealPoint currentCenter = new RealPoint(3);
+		viewer.displayToGlobalCoordinates(viewer.getWidth() / 2,
+				viewer.getHeight() / 2, currentCenter);
+
+		System.out.println("current center is at " + currentCenter);
+
+		double dX = currentCenter.getDoublePosition(0)
+				- position.getDoublePosition(0);
+		double dY = currentCenter.getDoublePosition(1)
+				- position.getDoublePosition(1);
+		double dZ = currentCenter.getDoublePosition(2)
+				- position.getDoublePosition(2);
+
+		System.out.println("translating by " + dX + ", " + dY + ", " + dZ);
+
+		AffineTransform3D translate = new AffineTransform3D();
+		translate.translate(new double[] { dX, dY, dZ });
+
+		synchronized (viewer) {
+
+			AffineTransform3D viewerTransform = new AffineTransform3D();
+			viewer.getState().getViewerTransform(viewerTransform);
+			AffineTransform3D translated = viewerTransform
+					.concatenate(translate);
+			viewer.setCurrentViewerTransform(translated);
+		}
+
+		viewer.requestRepaint();
+	}
+
+	public void setFov(double fov) {
+
+		synchronized (viewer) {
+
+			RealPoint currentCenter = new RealPoint(3);
+			viewer.displayToGlobalCoordinates(viewer.getWidth() / 2,
+					viewer.getHeight() / 2, currentCenter);
+
+			AffineTransform3D viewerTransform = new AffineTransform3D();
+			viewer.getState().getViewerTransform(viewerTransform);
+
+			double currentFov = Math.min(viewer.getWidth(), viewer.getHeight())
+					/ Affine3DHelpers.extractScale(viewerTransform, 0);
+			double scale = currentFov / fov;
+
+			System.out.println("current fov is " + currentFov
+					+ " in smallest dimension, want " + fov + ", scale by "
+					+ scale);
+
+			viewerTransform.scale(scale);
+			viewer.setCurrentViewerTransform(viewerTransform);
+
+			goTo(currentCenter);
+		}
+
 	}
 }
