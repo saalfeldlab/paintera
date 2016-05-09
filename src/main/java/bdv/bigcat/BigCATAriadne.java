@@ -246,19 +246,6 @@ public class BigCATAriadne
 				"shift T"
 		);
 
-//		CreateSeparatingManifoldController csm = new CreateSeparatingManifoldController(
-//				bdv,
-//				transform,
-//				new InputTriggerConfig(),
-//				fragments.getImage(0),
-//				paintedLabels,
-//				fragments.getMipmapTransforms()[0],
-//				assignment,
-//				bdv.getViewerFrame().getKeybindings(),
-//				bindings,
-//				"shift C"
-//		);
-
 //		ModeToggleController.noOpToggle(
 //				new InputTriggerConfig(),
 //				bdv.getViewerFrame().getKeybindings(),
