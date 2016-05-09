@@ -243,7 +243,7 @@ public class BigCATAriadne
 				selectionController,
 				bdv.getViewerFrame().getKeybindings(),
 				bindings,
-				"shift T"
+				"shift S"
 		);
 //		Annotations annotations = new Annotations();
 //		final AnnotationController annotationController = new AnnotationController(
