@@ -121,7 +121,6 @@ public class BigCatTable extends JTable implements TableModelListener {
 				KeyStroke[] tableKeys = inputMap.allKeys();
 				if (tableKeys != null)
 					allTableKeys.addAll(Arrays.asList(tableKeys));
-
 			}
 		}
 
@@ -131,16 +130,14 @@ public class BigCatTable extends JTable implements TableModelListener {
 		Action nada = new AbstractAction() {
 			private static final long serialVersionUID = 1L;
 			@Override
-			public void actionPerformed(ActionEvent e) {
-			}
+			public void actionPerformed(ActionEvent e) {			}
 		};
 
 		// Replace every table key binding with nothing, thus creating an
 		// event-barrier.
-		for (KeyStroke key : allTableKeys) {
+		for (KeyStroke key : allTableKeys)
 			editorComponent.getInputMap(JComponent.WHEN_ANCESTOR_OF_FOCUSED_COMPONENT).put(key,	"nothing");
-			editorComponent.getActionMap().put("nothing", nada);
-		}
+		editorComponent.getActionMap().put("nothing", nada);
 
 		return editorComponent;
 	}
