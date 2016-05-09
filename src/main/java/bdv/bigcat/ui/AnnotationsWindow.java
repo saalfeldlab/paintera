@@ -354,6 +354,8 @@ public class AnnotationsWindow extends JFrame implements
 
 	private Annotation itemFromRow(int row) {
 
+		if (row < 0 || row >= tableModel.getRowCount())
+			return null;
 		return annotations.getById(tableModel.getIdFromRow(row));
 	}
 
