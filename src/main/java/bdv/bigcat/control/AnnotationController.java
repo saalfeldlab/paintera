@@ -23,7 +23,9 @@ import java.util.List;
 
 import javax.swing.ActionMap;
 import javax.swing.InputMap;
+import javax.swing.JComponent;
 import javax.swing.JOptionPane;
+import javax.swing.SwingUtilities;
 
 import net.imglib2.RealPoint;
 import net.imglib2.realtransform.AffineTransform3D;
@@ -122,6 +124,15 @@ public class AnnotationController implements WindowListener, Selection.Selection
 		inputActionBindings.addInputMap("bdv", ksInputMap);
 
 		viewer.getViewerFrame().addWindowListener(this);
+
+		// setup annotation window's keybindings to be the same as bdv's
+		final InputActionBindings viewerKeybindings = viewer.getViewerFrame()
+				.getKeybindings();
+		SwingUtilities.replaceUIActionMap(annotationWindow.getRootPane(),
+				viewerKeybindings.getConcatenatedActionMap());
+		SwingUtilities.replaceUIInputMap(annotationWindow.getRootPane(),
+				JComponent.WHEN_ANCESTOR_OF_FOCUSED_COMPONENT,
+				viewerKeybindings.getConcatenatedInputMap());
 	}
 
 	public AnnotationOverlay getAnnotationOverlay() {
