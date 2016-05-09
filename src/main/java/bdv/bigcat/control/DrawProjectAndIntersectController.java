@@ -125,7 +125,7 @@ public class DrawProjectAndIntersectController implements TransformListener< Aff
         };
 
         ModeToggleController.ExecuteOnUnToggle noActionUnToggle =
-                new ModeToggleController.ExecuteOnUnToggle(action, bindings, inputActionBindings, "abort dpi", "T");
+                new ModeToggleController.ExecuteOnUnToggle(action, bindings, inputActionBindings, "abort dpi", "ESCAPE");
         noActionUnToggle.register( ksWithinModeActionAdder, ksWithinModeInputAdder );
 
         IntersectAndLeave il = new IntersectAndLeave( action, bindings, inputActionBindings, "execute and leave dpi", "shift button1" );
