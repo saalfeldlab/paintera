@@ -245,22 +245,6 @@ public class BigCATAriadne
 				bindings,
 				"shift T"
 		);
-
-//		ModeToggleController.noOpToggle(
-//				new InputTriggerConfig(),
-//				bdv.getViewerFrame().getKeybindings(),
-//				bindings,
-//				"no op toggle"
-//		);
-
-//		final ObsoleteModeToggleController toggleController = new ObsoleteModeToggleController(
-//				new InputTriggerConfig(),
-//				bdv.getViewerFrame().getKeybindings(),
-//				bindings,
-//				"shift T",
-//				"T"
-//		);
-
 //		Annotations annotations = new Annotations();
 //		final AnnotationController annotationController = new AnnotationController(
 //				bdv.getViewer(),
