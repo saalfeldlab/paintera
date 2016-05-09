@@ -162,10 +162,6 @@ public class BigCatAnnotations
 				composites );
 		}
 
-		final AffineTransform3D transform = new AffineTransform3D();
-		transform.set( 0, 0, 1, 0, 0, 1, 0, 0, -1, 0, 0, 0 );
-		bdv.getViewer().setCurrentViewerTransform( transform );
-
 		bdv.getViewerFrame().setVisible( true );
 
 		final TriggerBehaviourBindings bindings = bdv.getViewerFrame().getTriggerbindings();
