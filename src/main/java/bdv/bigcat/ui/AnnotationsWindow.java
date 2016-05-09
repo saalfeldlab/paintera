@@ -1,21 +1,33 @@
 package bdv.bigcat.ui;
 
+import java.awt.GridBagConstraints;
+import java.awt.GridBagLayout;
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 
+import javax.swing.BorderFactory;
+import javax.swing.JButton;
 import javax.swing.JFrame;
+import javax.swing.JLabel;
+import javax.swing.JPanel;
 import javax.swing.JScrollPane;
+import javax.swing.JSpinner;
+import javax.swing.SpinnerNumberModel;
 import javax.swing.event.ListSelectionEvent;
 import javax.swing.event.ListSelectionListener;
 import javax.swing.table.AbstractTableModel;
 
+import net.imglib2.RealPoint;
 import bdv.bigcat.annotation.Annotation;
 import bdv.bigcat.annotation.Annotations;
 import bdv.bigcat.annotation.PostSynapticSite;
 import bdv.bigcat.annotation.PreSynapticSite;
 import bdv.bigcat.annotation.Synapse;
+import bdv.bigcat.control.AnnotationController;
 import bdv.bigcat.util.Selection;
 
 public class AnnotationsWindow extends JFrame implements
@@ -23,14 +35,19 @@ public class AnnotationsWindow extends JFrame implements
 
 	private static final long serialVersionUID = 1L;
 
+	private final AnnotationController annotationController;
 	private final Annotations annotations;
 	private final Selection<Annotation> selection;
-	private final BigCatTable table;
-	private final AnnotationsTableModel tableModel;
+	private BigCatTable table;
+	private AnnotationsTableModel tableModel;
+
+	private final GridBagLayout gridbag = new GridBagLayout();
+	private final GridBagConstraints gridbagConstraints = new GridBagConstraints();
 
 	private Boolean editingSelection = false;
 
-	class AnnotationsTableModel extends AbstractTableModel {
+	class AnnotationsTableModel extends AbstractTableModel implements
+			Annotations.AnnotationsListener {
 
 		private static final long serialVersionUID = 1L;
 
@@ -48,13 +65,11 @@ public class AnnotationsWindow extends JFrame implements
 
 		public AnnotationsTableModel() {
 
+			annotations.addAnnotationsListener(this);
 			ids = new LinkedList<Long>();
-			int row = 0;
-			for (Annotation a : annotations.getAnnotations()) {
+			for (Annotation a : annotations.getAnnotations())
 				ids.add(a.getId());
-				idsToRow.put(a.getId(), row);
-				row++;
-			}
+			updateTableFromIds();
 		}
 
 		public long getIdFromRow(int row) {
@@ -146,24 +161,129 @@ public class AnnotationsWindow extends JFrame implements
 
 			return ColumnNames.length;
 		}
+
+		@Override
+		public void onAnnotationAdded(Annotation a) {
+
+			ids.add(a.getId());
+			updateTableFromIds();
+		}
+
+		@Override
+		public void onAnnotationRemoved(Annotation a) {
+
+			ids.remove(a.getId());
+			updateTableFromIds();
+		}
+
+		private void updateTableFromIds() {
+
+			int row = 0;
+			idsToRow.clear();
+			for (long id : ids) {
+				idsToRow.put(id, row);
+				row++;
+			}
+
+			fireTableDataChanged();
+		}
 	}
 
-	public AnnotationsWindow(Annotations annotations,
-			Selection<Annotation> selection) {
+	public AnnotationsWindow(AnnotationController annotationController,
+			Annotations annotations, Selection<Annotation> selection) {
 
+		this.annotationController = annotationController;
 		this.annotations = annotations;
 		this.selection = selection;
-
 		selection.addSelectionListener(this);
 
+		getContentPane().setLayout(gridbag);
+
+		JScrollPane scrollPane = createAnnotationTable();
+		gridbagConstraints.fill = GridBagConstraints.BOTH;
+		gridbagConstraints.weightx = 1.0;
+		gridbagConstraints.weighty = 1.0;
+		gridbag.setConstraints(scrollPane, gridbagConstraints);
+		getContentPane().add(scrollPane);
+
+		JPanel localizer = createLocalizer();
+		gridbagConstraints.gridy = 1;
+		gridbag.setConstraints(localizer, gridbagConstraints);
+		getContentPane().add(localizer);
+
+		setDefaultCloseOperation(JFrame.HIDE_ON_CLOSE);
+		pack();
+		setSize(500, 800);
+	}
+
+	private JScrollPane createAnnotationTable() {
 		tableModel = new AnnotationsTableModel();
 		table = new BigCatTable(tableModel);
 		table.getSelectionModel().addListSelectionListener(this);
 		JScrollPane scrollPane = new JScrollPane(table);
-		getContentPane().add(scrollPane);
-		setDefaultCloseOperation(JFrame.HIDE_ON_CLOSE);
-		pack();
-		setSize(500, 800);
+		return scrollPane;
+	}
+
+	private JPanel createLocalizer() {
+
+		JPanel panel = new JPanel();
+		panel.setBorder(BorderFactory.createCompoundBorder(
+				BorderFactory.createTitledBorder("Localize"),
+				BorderFactory.createEmptyBorder(5, 5, 5, 5)));
+
+		GridBagLayout gridBag = new GridBagLayout();
+		GridBagConstraints c = new GridBagConstraints();
+		SpinnerNumberModel fieldXValue = new SpinnerNumberModel(0.0,
+				Double.NEGATIVE_INFINITY, Double.POSITIVE_INFINITY, 0.1);
+		SpinnerNumberModel fieldYValue = new SpinnerNumberModel(0.0,
+				Double.NEGATIVE_INFINITY, Double.POSITIVE_INFINITY, 0.1);
+		SpinnerNumberModel fieldZValue = new SpinnerNumberModel(0.0,
+				Double.NEGATIVE_INFINITY, Double.POSITIVE_INFINITY, 0.1);
+		SpinnerNumberModel fieldFovValue = new SpinnerNumberModel(100.0, 0.1,
+				Double.POSITIVE_INFINITY, 1.0);
+		JSpinner fieldX = new JSpinner(fieldXValue);
+		JSpinner fieldY = new JSpinner(fieldYValue);
+		JSpinner fieldZ = new JSpinner(fieldZValue);
+		JSpinner fieldFov = new JSpinner(fieldFovValue);
+		JButton buttonGo = new JButton("Go");
+		JLabel labelX = new JLabel("x:");
+		JLabel labelY = new JLabel("y:");
+		JLabel labelZ = new JLabel("z:");
+		JLabel labelFov = new JLabel("fov:");
+
+		panel.setLayout(gridBag);
+		c.fill = GridBagConstraints.HORIZONTAL;
+		c.weightx = 0.0;
+		c.ipadx = 10;
+		gridBag.setConstraints(labelX, c);
+		gridBag.setConstraints(labelY, c);
+		gridBag.setConstraints(labelZ, c);
+		c.weightx = 1.0;
+		c.ipadx = 0;
+		gridBag.setConstraints(fieldX, c);
+		gridBag.setConstraints(fieldY, c);
+		gridBag.setConstraints(fieldZ, c);
+		panel.add(labelX);
+		panel.add(fieldX);
+		panel.add(labelY);
+		panel.add(fieldY);
+		panel.add(labelZ);
+		panel.add(fieldZ);
+		c.gridy = 1;
+		c.weightx = 0.0;
+		gridBag.setConstraints(labelFov, c);
+		c.weightx = 1.0;
+		gridBag.setConstraints(fieldFov, c);
+		c.gridwidth = 4;
+		gridBag.setConstraints(buttonGo, c);
+		panel.add(labelFov);
+		panel.add(fieldFov);
+		panel.add(buttonGo);
+
+		buttonGo.addActionListener(new LocalizeAction(fieldXValue, fieldYValue,
+				fieldZValue, fieldFovValue));
+
+		return panel;
 	}
 
 	private String toTypeString(Annotation a) {
@@ -208,7 +328,7 @@ public class AnnotationsWindow extends JFrame implements
 
 		synchronized (editingSelection) {
 
-			if (editingSelection)
+			if (editingSelection || table.getRowCount() == 0)
 				return;
 
 			table.removeRowSelectionInterval(0, table.getRowCount() - 1);
@@ -235,5 +355,35 @@ public class AnnotationsWindow extends JFrame implements
 	private Annotation itemFromRow(int row) {
 
 		return annotations.getById(tableModel.getIdFromRow(row));
+	}
+
+	private class LocalizeAction implements ActionListener {
+
+		final SpinnerNumberModel xValue;
+		final SpinnerNumberModel yValue;
+		final SpinnerNumberModel zValue;
+		final SpinnerNumberModel fovValue;
+
+		public LocalizeAction(SpinnerNumberModel xValue,
+				SpinnerNumberModel yValue, SpinnerNumberModel zValue,
+				SpinnerNumberModel fovValue) {
+
+			this.xValue = xValue;
+			this.yValue = yValue;
+			this.zValue = zValue;
+			this.fovValue = fovValue;
+		}
+
+		@Override
+		public void actionPerformed(ActionEvent arg0) {
+
+			double x = (double) xValue.getNumber();
+			double y = (double) yValue.getNumber();
+			double z = (double) zValue.getNumber();
+			double fov = (double) fovValue.getNumber();
+
+			annotationController.goTo(new RealPoint(x, y, z));
+			annotationController.setFov(fov);
+		}
 	}
 }

@@ -100,7 +100,7 @@ public class AnnotationController implements WindowListener, Selection.Selection
 		this.store = annotationsStore;
 		this.annotations = annotationsStore.read();
 		this.selection.addSelectionListener(this);
-		this.annotationWindow = new AnnotationsWindow(this.annotations, this.selection);
+		this.annotationWindow = new AnnotationsWindow(this, this.annotations, this.selection);
 		overlay = new AnnotationOverlay(viewer.getViewer(), annotations, this);
 		overlay.setVisible(true);
 		inputAdder = config.inputTriggerAdder(inputTriggerMap, "bigcat");
@@ -307,7 +307,7 @@ public class AnnotationController implements WindowListener, Selection.Selection
 			
 			if (active == null || !(active instanceof PreSynapticSite)) {
 
-				System.out.println("select a pre-synaptic site before adding a post-synaptic site to it");
+				viewer.showMessage("select a pre-synaptic site before adding a post-synaptic site to it");
 				return;
 			}
 			
