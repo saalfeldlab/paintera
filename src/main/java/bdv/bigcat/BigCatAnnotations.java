@@ -198,16 +198,16 @@ public class BigCatAnnotations
 					new InputTriggerConfig(),
 					bdv.getViewerFrame().getKeybindings(),
 					new InputTriggerConfig() );
-			
-			final TranslateZController translateZController = new TranslateZController(
-					bdv.getViewer(),
-					raw.getMipmapResolutions()[0],
-					new  InputTriggerConfig() );
-
+	
 			bindings.addBehaviourMap( "merge", mergeController.getBehaviourMap() );
 			bindings.addInputTriggerMap( "merge", mergeController.getInputTriggerMap() );
-			bindings.addBehaviourMap( "translate_z", translateZController.getBehaviourMap() );
 		}
+		
+		final TranslateZController translateZController = new TranslateZController(
+				bdv.getViewer(),
+				raw.getMipmapResolutions()[0],
+				new  InputTriggerConfig() );
+		bindings.addBehaviourMap( "translate_z", translateZController.getBehaviourMap() );
 
 		final AnnotationsHdf5Store annotationsStore = new AnnotationsHdf5Store(projectFile);
 		final AnnotationController annotationController = new AnnotationController(
