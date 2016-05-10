@@ -26,6 +26,7 @@ import bdv.bigcat.composite.CompositeCopy;
 import bdv.bigcat.control.AnnotationsController;
 import bdv.bigcat.control.LabelBrushController;
 import bdv.bigcat.control.LabelFillController;
+import bdv.bigcat.control.LabelPersistenceController;
 import bdv.bigcat.control.LabelRestrictToSegmentController;
 import bdv.bigcat.control.MergeController;
 import bdv.bigcat.control.PairLabelMultiSetLongIdPicker;
@@ -220,6 +221,18 @@ public class BigCatAnnotations
 					cellDimensions,
 					new InputTriggerConfig() );
 
+			final LabelPersistenceController persistenceController = new LabelPersistenceController(
+					bdv.getViewer(),
+					fragments.getImage( 0 ),
+					paintedLabels,
+					assignment,
+					projectFile,
+					paintedLabelsDataset,
+					mergedLabelsDataset,
+					cellDimensions,
+					new InputTriggerConfig(),
+					bdv.getViewerFrame().getKeybindings() );
+			
 			final LabelFillController fillController = new LabelFillController(
 					bdv.getViewer(),
 					fragments.getImage( 0 ),
