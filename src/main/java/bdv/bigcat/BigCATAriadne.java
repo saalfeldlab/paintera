@@ -4,6 +4,7 @@ import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 
+import bdv.bigcat.control.*;
 import org.scijava.ui.behaviour.io.InputTriggerConfig;
 
 import com.google.gson.JsonIOException;
@@ -13,15 +14,6 @@ import bdv.BigDataViewer;
 import bdv.bigcat.composite.ARGBCompositeAlphaYCbCr;
 import bdv.bigcat.composite.Composite;
 import bdv.bigcat.composite.CompositeCopy;
-import bdv.bigcat.control.LabelBrushController;
-import bdv.bigcat.control.LabelFillController;
-import bdv.bigcat.control.LabelMultiSetIdPicker;
-import bdv.bigcat.control.LabelPersistenceController;
-import bdv.bigcat.control.LabelRestrictToSegmentController;
-import bdv.bigcat.control.MergeController;
-import bdv.bigcat.control.PairLabelMultiSetLongIdPicker;
-import bdv.bigcat.control.SelectionController;
-import bdv.bigcat.control.TranslateZController;
 import bdv.bigcat.ui.ARGBConvertedLabelPairSource;
 import bdv.bigcat.ui.GoldenAngleSaturatedARGBStream;
 import bdv.bigcat.ui.Util;
@@ -196,7 +188,7 @@ public class BigCATAriadne
 				new InputTriggerConfig(),
 				bdv.getViewerFrame().getKeybindings(),
 				new InputTriggerConfig() );
-		
+
 		final TranslateZController translateZController = new TranslateZController(
 				bdv.getViewer(),
 				raw.getMipmapResolutions()[0],
@@ -217,6 +209,7 @@ public class BigCATAriadne
 				bdv.getViewer(),
 				fragments.getImage( 0 ),
 				paintedLabels,
+				assignment,
 				paintedLabelsFilePath,
 				paintedLabelsDataset,
 				mergedLabelsDataset,
@@ -234,7 +227,7 @@ public class BigCATAriadne
 				new DiamondShape( 1 ),
 				new InputTriggerConfig() );
 
-		LabelRestrictToSegmentController intersectController = new LabelRestrictToSegmentController(
+		final LabelRestrictToSegmentController intersectController = new LabelRestrictToSegmentController(
 				bdv.getViewer(),
 				fragments.getImage(0),
 				paintedLabels,
@@ -244,6 +237,20 @@ public class BigCATAriadne
 				new DiamondShape(1),
 				new InputTriggerConfig());
 
+		DrawProjectAndIntersectController dpi = new DrawProjectAndIntersectController(
+				bdv,
+				transform,
+				new InputTriggerConfig(),
+				fragments.getImage(0),
+				paintedLabels,
+				fragments.getMipmapTransforms()[0],
+				assignment,
+				colorStream,
+				selectionController,
+				bdv.getViewerFrame().getKeybindings(),
+				bindings,
+				"shift S"
+		);
 //		Annotations annotations = new Annotations();
 //		final AnnotationController annotationController = new AnnotationController(
 //				bdv.getViewer(),
@@ -271,7 +278,15 @@ public class BigCATAriadne
 
 //		bdv.getViewer().getDisplay().addOverlayRenderer( annotationController.getAnnotationOverlay() );
 
+		System.out.println( "inputTriggerMap: " );
+		System.out.println( bindings.getConcatenatedInputTriggerMap().getAllBindings() );
+
+		System.out.println( "behaviourMap: " );
+		System.out.println( bindings.getConcatenatedBehaviourMap().getAllBindings() );
+
+
 		bdv.getViewer().getDisplay().addOverlayRenderer( brushController.getBrushOverlay() );
+//		bdv.getViewer().getDisplay().addOverlayRenderer( dpi.brushOverlay );
 
 
 //			final ZContext ctx = new ZContext();
