@@ -11,7 +11,7 @@ import bdv.bigcat.annotation.AnnotationsHdf5Store;
 import bdv.bigcat.composite.ARGBCompositeAlphaYCbCr;
 import bdv.bigcat.composite.Composite;
 import bdv.bigcat.composite.CompositeCopy;
-import bdv.bigcat.control.AnnotationController;
+import bdv.bigcat.control.AnnotationsController;
 import bdv.bigcat.control.MergeController;
 import bdv.bigcat.control.PairLabelMultiSetLongIdPicker;
 import bdv.bigcat.control.SelectionController;
@@ -210,7 +210,7 @@ public class BigCatAnnotations
 		bindings.addBehaviourMap( "translate_z", translateZController.getBehaviourMap() );
 
 		final AnnotationsHdf5Store annotationsStore = new AnnotationsHdf5Store(projectFile);
-		final AnnotationController annotationController = new AnnotationController(
+		final AnnotationsController annotationController = new AnnotationsController(
 				annotationsStore,
 				bdv,
 				new InputTriggerConfig(),

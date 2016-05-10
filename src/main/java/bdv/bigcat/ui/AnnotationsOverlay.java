@@ -18,7 +18,7 @@ import bdv.bigcat.annotation.Annotations;
 import bdv.bigcat.annotation.PostSynapticSite;
 import bdv.bigcat.annotation.PreSynapticSite;
 import bdv.bigcat.annotation.Synapse;
-import bdv.bigcat.control.AnnotationController;
+import bdv.bigcat.control.AnnotationsController;
 import bdv.viewer.ViewerPanel;
 import net.imglib2.RealPoint;
 import net.imglib2.algorithm.kdtree.ConvexPolytope;
@@ -32,7 +32,7 @@ import net.imglib2.ui.OverlayRenderer;
  */
 public class AnnotationsOverlay implements OverlayRenderer
 {
-	public AnnotationsOverlay( final ViewerPanel viewer, final Annotations annotations, final AnnotationController controller )
+	public AnnotationsOverlay( final ViewerPanel viewer, final Annotations annotations, final AnnotationsController controller )
 	{
 		this.viewer = viewer;
 		this.annotations = annotations;
@@ -260,7 +260,7 @@ public class AnnotationsOverlay implements OverlayRenderer
 
 	final protected ViewerPanel viewer;
 	final private Annotations annotations;
-	final private AnnotationController controller;
+	final private AnnotationsController controller;
 	protected boolean visible = false;
 	final AffineTransform3D viewerTransform = new AffineTransform3D();
 	private int width, height;

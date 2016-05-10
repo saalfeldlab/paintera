@@ -27,7 +27,7 @@ import bdv.bigcat.annotation.Annotations;
 import bdv.bigcat.annotation.PostSynapticSite;
 import bdv.bigcat.annotation.PreSynapticSite;
 import bdv.bigcat.annotation.Synapse;
-import bdv.bigcat.control.AnnotationController;
+import bdv.bigcat.control.AnnotationsController;
 import bdv.bigcat.util.Selection;
 
 public class AnnotationsWindow extends JFrame implements
@@ -35,7 +35,7 @@ public class AnnotationsWindow extends JFrame implements
 
 	private static final long serialVersionUID = 1L;
 
-	private final AnnotationController annotationController;
+	private final AnnotationsController annotationController;
 	private final Annotations annotations;
 	private final Selection<Annotation> selection;
 	private BigCatTable table;
@@ -189,7 +189,7 @@ public class AnnotationsWindow extends JFrame implements
 		}
 	}
 
-	public AnnotationsWindow(AnnotationController annotationController,
+	public AnnotationsWindow(AnnotationsController annotationController,
 			Annotations annotations, Selection<Annotation> selection) {
 
 		this.annotationController = annotationController;

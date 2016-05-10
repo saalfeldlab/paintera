@@ -60,7 +60,7 @@ import bdv.viewer.ViewerPanel;
 /**
  * @author Jan Funke &lt;jfunke@iri.upc.edu&gt;
  */
-public class AnnotationController implements WindowListener, Selection.SelectionListener<Annotation> {
+public class AnnotationsController implements WindowListener, Selection.SelectionListener<Annotation> {
 	
 	final protected AnnotationsStore store;
 	final protected ViewerPanel viewer;
@@ -93,7 +93,7 @@ public class AnnotationController implements WindowListener, Selection.Selection
 		return inputTriggerMap;
 	}
 
-	public AnnotationController(final AnnotationsStore annotationsStore, final BigDataViewer viewer,
+	public AnnotationsController(final AnnotationsStore annotationsStore, final BigDataViewer viewer,
 			final InputTriggerConfig config, final InputActionBindings inputActionBindings,
 			final KeyStrokeAdder.Factory keyProperties) throws Exception {
 		this.viewer = viewer.getViewer();
