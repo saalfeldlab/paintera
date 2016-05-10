@@ -225,11 +225,4 @@ public class LabelMultisetType extends AbstractNativeType< LabelMultisetType > i
 	@Override public boolean removeAll( final Collection< ? > c ) { throw new UnsupportedOperationException(); }
 	@Override public boolean retainAll( final Collection< ? > c ) { throw new UnsupportedOperationException(); }
 	@Override public void clear() { throw new UnsupportedOperationException(); }
-
-	@Override
-	public boolean valueEquals( final LabelMultisetType t )
-	{
-		// TODO Auto-generated method stub
-		return false;
-	}
 }
