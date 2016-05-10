@@ -208,6 +208,7 @@ public class AnnotationsWindow extends JFrame implements
 
 		JPanel localizer = createLocalizer();
 		gridbagConstraints.gridy = 1;
+		gridbagConstraints.weighty = 0.0;
 		gridbag.setConstraints(localizer, gridbagConstraints);
 		getContentPane().add(localizer);
 
