@@ -342,7 +342,7 @@ A:					for ( final Entry< String, JsonElement > entry : ilutJsonEntrySet )
 		{
 			final long segmentId = lut.get( fragmentId );
 			if ( segmentId == lut.getNoEntryValue() ) {
-				id = IdService.allocate();
+				id = fragmentId;
 				lut.put( fragmentId, id );
 				ilut.put( id, new long[]{ fragmentId } );
 			}
