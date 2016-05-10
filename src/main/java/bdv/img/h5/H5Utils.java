@@ -4,6 +4,7 @@ import static bdv.img.hdf5.Util.reorder;
 
 import java.io.File;
 
+import bdv.bigcat.FragmentSegmentAssignment;
 import bdv.img.labelpair.RandomAccessiblePair;
 import bdv.labels.labelset.Label;
 import bdv.labels.labelset.LabelMultiset;
@@ -149,7 +150,6 @@ public class H5Utils
 
 //			System.out.println( Util.printCoordinates( offset ) );
 		}
-
 		writer.close();
 	}
 
@@ -176,8 +176,6 @@ public class H5Utils
 				labelMultisetSource.numDimensions() == labelSource.numDimensions() &&
 				labelSource.numDimensions() == interval.numDimensions() : "input dimensions do not match";
 
-		final int n = interval.numDimensions();
-
 		final RandomAccessiblePair< LabelMultisetType, LongType > pair = new RandomAccessiblePair<>( labelMultisetSource, labelSource );
 		final RandomAccessibleInterval< Pair< LabelMultisetType, LongType > > pairInterval = Views.offsetInterval( pair, interval );
 		final Converter< Pair< LabelMultisetType, LongType >, LongType > converter =
@@ -196,6 +194,63 @@ public class H5Utils
 						else
 						{
 							output.set( inputB );
+						}
+					}
+				};
+
+		final RandomAccessibleInterval< LongType > source =
+				Converters.convert(
+						pairInterval,
+						converter,
+						new LongType() );
+
+		saveUnsignedLong( source, file, dataset, cellDimensions );
+	}
+
+	/**
+	 * Save the combination of a single element {@link LabelMultiset} source
+	 * and a fragment to segment assignment table and a {@link LongType}
+	 * overlay with transparent pixels into an HDF5 uint64 dataset.
+	 *
+	 * @param labelMultisetSource the background
+	 * @param labelSource the overlay
+	 * @param interval the interval to be saved
+	 * @param assignment fragmetn to segment assignment
+	 * @param file
+	 * @param dataset
+	 * @param cellDimensions
+	 */
+	static public void saveAssignedSingleElementLabelMultisetLongPair(
+			final RandomAccessible< LabelMultisetType > labelMultisetSource,
+			final RandomAccessible< LongType > labelSource,
+			final Interval interval,
+			final FragmentSegmentAssignment assignment,
+			final File file,
+			final String dataset,
+			final int[] cellDimensions )
+	{
+		assert
+				labelMultisetSource.numDimensions() == labelSource.numDimensions() &&
+				labelSource.numDimensions() == interval.numDimensions() : "input dimensions do not match";
+
+		final RandomAccessiblePair< LabelMultisetType, LongType > pair = new RandomAccessiblePair<>( labelMultisetSource, labelSource );
+		final RandomAccessibleInterval< Pair< LabelMultisetType, LongType > > pairInterval = Views.offsetInterval( pair, interval );
+		final Converter< Pair< LabelMultisetType, LongType >, LongType > converter =
+				new Converter< Pair< LabelMultisetType, LongType >, LongType >()
+				{
+					@Override
+					public void convert(
+							final Pair< LabelMultisetType, LongType > input,
+							final LongType output )
+					{
+						final long inputB = input.getB().get();
+						if ( inputB == Label.TRANSPARENT )
+						{
+							output.set( assignment.getSegment( input.getA().entrySet().iterator().next().getElement().id() ) );
+						}
+						else
+						{
+							output.set( assignment.getSegment( inputB ) );
 						}
 					}
 				};
