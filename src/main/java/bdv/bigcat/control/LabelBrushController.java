@@ -2,6 +2,18 @@ package bdv.bigcat.control;
 
 import java.awt.Cursor;
 
+import net.imglib2.RandomAccessible;
+import net.imglib2.RandomAccessibleInterval;
+import net.imglib2.RealLocalizable;
+import net.imglib2.RealPoint;
+import net.imglib2.algorithm.neighborhood.HyperSphereNeighborhood;
+import net.imglib2.algorithm.neighborhood.Neighborhood;
+import net.imglib2.realtransform.AffineTransform3D;
+import net.imglib2.type.numeric.integer.LongType;
+import net.imglib2.ui.TransformEventHandler;
+import net.imglib2.util.LinAlgHelpers;
+import net.imglib2.view.Views;
+
 import org.scijava.ui.behaviour.Behaviour;
 import org.scijava.ui.behaviour.BehaviourMap;
 import org.scijava.ui.behaviour.DragBehaviour;
@@ -14,17 +26,6 @@ import bdv.bigcat.FragmentSegmentAssignment;
 import bdv.bigcat.ui.BrushOverlay;
 import bdv.labels.labelset.Label;
 import bdv.viewer.ViewerPanel;
-import net.imglib2.RandomAccessible;
-import net.imglib2.RandomAccessibleInterval;
-import net.imglib2.RealLocalizable;
-import net.imglib2.RealPoint;
-import net.imglib2.algorithm.neighborhood.HyperEllipsoidNeighborhood;
-import net.imglib2.algorithm.neighborhood.Neighborhood;
-import net.imglib2.realtransform.AffineTransform3D;
-import net.imglib2.type.numeric.integer.LongType;
-import net.imglib2.ui.TransformEventHandler;
-import net.imglib2.util.LinAlgHelpers;
-import net.imglib2.view.Views;
 
 /**
  * A {@link TransformEventHandler} that changes an {@link AffineTransform3D}
@@ -150,24 +151,14 @@ public class LabelBrushController
 
 		protected void paint( final RealLocalizable coords)
 		{
-			//final RandomAccessible< LongType > labelSource = Views.hyperSlice( extendedLabels, 0, Math.round( coords.getDoublePosition( 0 ) ) );
-			final RandomAccessible< LongType > labelSource = extendedLabels;
-
-//			final Neighborhood< LongType > sphere =
-//					HyperSphereNeighborhood.< LongType >factory().create(
-//							new long[]{
-//									Math.round( coords.getDoublePosition( 1 ) ),
-//									Math.round( coords.getDoublePosition( 2 ) ) },
-//							new long[]{brushRadius, 2 * brushRadius},
-//							labelSource.randomAccess() );
+			final RandomAccessible< LongType > labelSource = Views.hyperSlice( extendedLabels, 2, Math.round( coords.getDoublePosition( 2 ) ) );
 
 			final Neighborhood< LongType > sphere =
-					HyperEllipsoidNeighborhood.< LongType >factory().create(
+					HyperSphereNeighborhood.< LongType >factory().create(
 							new long[]{
-									Math.round( coords.getDoublePosition( 0 ) ),
 									Math.round( coords.getDoublePosition( 1 ) ),
 									Math.round( coords.getDoublePosition( 2 ) ) },
-							new long[]{brushRadius / 10, brushRadius, brushRadius},
+							brushRadius,
 							labelSource.randomAccess() );
 
 			for ( final LongType t : sphere )
