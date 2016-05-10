@@ -33,7 +33,9 @@ import com.google.gson.JsonPrimitive;
 import com.google.gson.JsonSerializationContext;
 import com.google.gson.JsonSerializer;
 
+import bdv.labels.labelset.Label;
 import bdv.util.IdService;
+import gnu.trove.impl.Constants;
 import gnu.trove.iterator.TLongLongIterator;
 import gnu.trove.iterator.TLongObjectIterator;
 import gnu.trove.list.array.TLongArrayList;
@@ -280,8 +282,8 @@ A:					for ( final Entry< String, JsonElement > entry : ilutJsonEntrySet )
 		}
 	}
 
-	final protected TLongLongHashMap lut = new TLongLongHashMap();
-	final protected TLongObjectHashMap< long[] > ilut = new TLongObjectHashMap< long[] >();
+	final protected TLongLongHashMap lut = new TLongLongHashMap(Constants.DEFAULT_CAPACITY, Constants.DEFAULT_LOAD_FACTOR, Label.TRANSPARENT, Label.TRANSPARENT);
+	final protected TLongObjectHashMap< long[] > ilut = new TLongObjectHashMap< long[] >(Constants.DEFAULT_CAPACITY, Constants.DEFAULT_LOAD_FACTOR, Label.TRANSPARENT);
 
 	public FragmentSegmentAssignment() {}
 
