@@ -118,11 +118,12 @@ public class H5Utils
 		final long[] dimensions = Intervals.dimensionsAsLongArray( source );
 		final IHDF5Writer writer = HDF5Factory.open( file );
 		final IHDF5LongWriter uint64Writer = writer.uint64();
-		uint64Writer.createMDArray(
-				dataset,
-				reorder( dimensions ),
-				reorder( cellDimensions ),
-				HDF5IntStorageFeatures.INT_AUTO_SCALING_DEFLATE );
+		if ( !writer.exists( dataset ) )
+			uint64Writer.createMDArray(
+					dataset,
+					reorder( dimensions ),
+					reorder( cellDimensions ),
+					HDF5IntStorageFeatures.INT_AUTO_SCALING_DEFLATE );
 
 		final long[] offset = new long[ n ];
 		final long[] sourceCellDimensions = new long[ n ];
