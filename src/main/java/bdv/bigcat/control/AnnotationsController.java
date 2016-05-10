@@ -110,7 +110,7 @@ public class AnnotationsController implements WindowListener, Selection.Selectio
 
 		// register actions and behaviours here
 		new SelectAnnotation("select annotation", "SPACE button1").register();
-		new MoveAnnotation("move annotation", "SPACE button1").register();
+		new MoveAnnotation("move annotation", "SPACE shift button1").register();
 		new RemoveAnnotation("remove annotation", "DELETE").register();
 		new AddPreSynapticSiteAnnotation("add presynaptic site annotation", "SPACE shift button1").register();
 		new AddPostSynapticSiteAnnotation("add postsynaptic site annotation", "SPACE shift button3").register();
