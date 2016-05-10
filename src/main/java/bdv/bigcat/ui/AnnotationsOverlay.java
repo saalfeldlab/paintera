@@ -30,9 +30,9 @@ import net.imglib2.ui.OverlayRenderer;
  * @author Jan Funke <jfunke@iri.upc.edu>
  *
  */
-public class AnnotationOverlay implements OverlayRenderer
+public class AnnotationsOverlay implements OverlayRenderer
 {
-	public AnnotationOverlay( final ViewerPanel viewer, final Annotations annotations, final AnnotationController controller )
+	public AnnotationsOverlay( final ViewerPanel viewer, final Annotations annotations, final AnnotationController controller )
 	{
 		this.viewer = viewer;
 		this.annotations = annotations;

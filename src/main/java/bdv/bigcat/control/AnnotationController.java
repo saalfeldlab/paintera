@@ -47,7 +47,7 @@ import bdv.bigcat.annotation.AnnotationsStore;
 import bdv.bigcat.annotation.PostSynapticSite;
 import bdv.bigcat.annotation.PreSynapticSite;
 import bdv.bigcat.annotation.Synapse;
-import bdv.bigcat.ui.AnnotationOverlay;
+import bdv.bigcat.ui.AnnotationsOverlay;
 import bdv.bigcat.ui.AnnotationsWindow;
 import bdv.bigcat.util.Selection;
 import bdv.util.AbstractNamedAction;
@@ -64,7 +64,7 @@ public class AnnotationController implements WindowListener, Selection.Selection
 	
 	final protected AnnotationsStore store;
 	final protected ViewerPanel viewer;
-	final private AnnotationOverlay overlay;
+	final private AnnotationsOverlay overlay;
 	final private Annotations annotations;
 
 	private Selection<Annotation> selection = new Selection<Annotation>();
@@ -101,7 +101,7 @@ public class AnnotationController implements WindowListener, Selection.Selection
 		this.annotations = annotationsStore.read();
 		this.selection.addSelectionListener(this);
 		this.annotationWindow = new AnnotationsWindow(this, this.annotations, this.selection);
-		overlay = new AnnotationOverlay(viewer.getViewer(), annotations, this);
+		overlay = new AnnotationsOverlay(viewer.getViewer(), annotations, this);
 		overlay.setVisible(true);
 		inputAdder = config.inputTriggerAdder(inputTriggerMap, "bigcat");
 
@@ -135,7 +135,7 @@ public class AnnotationController implements WindowListener, Selection.Selection
 				viewerKeybindings.getConcatenatedInputMap());
 	}
 
-	public AnnotationOverlay getAnnotationOverlay() {
+	public AnnotationsOverlay getAnnotationOverlay() {
 
 		return overlay;
 	}
@@ -475,7 +475,6 @@ public class AnnotationController implements WindowListener, Selection.Selection
 	@Override
 	public void itemSelected(Annotation t) {
 
-		System.out.println("an item got selected");
 		viewer.requestRepaint();
 	}
 
