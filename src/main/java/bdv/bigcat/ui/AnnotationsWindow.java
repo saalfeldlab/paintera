@@ -19,7 +19,10 @@ import javax.swing.JSpinner;
 import javax.swing.SpinnerNumberModel;
 import javax.swing.event.ListSelectionEvent;
 import javax.swing.event.ListSelectionListener;
+import javax.swing.event.TableModelEvent;
+import javax.swing.event.TableModelListener;
 import javax.swing.table.AbstractTableModel;
+import javax.swing.table.TableModel;
 
 import net.imglib2.RealPoint;
 import bdv.bigcat.annotation.Annotation;
@@ -206,12 +209,18 @@ public class AnnotationsWindow extends JFrame implements
 		gridbag.setConstraints(scrollPane, gridbagConstraints);
 		getContentPane().add(scrollPane);
 
-		JPanel localizer = createLocalizer();
+		JPanel stats = createTableStats();
 		gridbagConstraints.gridy = 1;
+		gridbagConstraints.weighty = 0.0;
+		gridbag.setConstraints(stats, gridbagConstraints);
+		getContentPane().add(stats);
+		
+		JPanel localizer = createLocalizer();
+		gridbagConstraints.gridy = 2;
 		gridbagConstraints.weighty = 0.0;
 		gridbag.setConstraints(localizer, gridbagConstraints);
 		getContentPane().add(localizer);
-
+				
 		setDefaultCloseOperation(JFrame.HIDE_ON_CLOSE);
 		pack();
 		setSize(500, 800);
@@ -225,6 +234,44 @@ public class AnnotationsWindow extends JFrame implements
 		return scrollPane;
 	}
 
+	private JPanel createTableStats() {
+		
+		JPanel panel = new JPanel();
+		GridBagLayout gridBag = new GridBagLayout();
+		GridBagConstraints c = new GridBagConstraints();
+
+		panel.setLayout(gridBag);
+	
+		JLabel numItemsLabel = new JLabel("total: ");
+		c.gridx = 0;
+		c.gridy = 0;
+		gridBag.setConstraints(numItemsLabel, c);
+		panel.add(numItemsLabel);
+		
+		class NumItems extends JLabel implements TableModelListener {
+
+			private static final long serialVersionUID = 1L;
+			private final TableModel tableModel;
+
+			public NumItems(TableModel model) {
+				tableModel = model;
+				tableModel.addTableModelListener(this);
+				setText(Integer.toString(tableModel.getRowCount()));
+			}
+			
+			@Override
+			public void tableChanged(TableModelEvent e) {
+				setText(Integer.toString(tableModel.getRowCount()));
+			}
+		};
+		NumItems numItems = new NumItems(tableModel);
+		c.gridx = 1;
+		gridBag.setConstraints(numItems, c);
+		panel.add(numItems);
+
+		return panel;
+	}
+	
 	private JPanel createLocalizer() {
 
 		JPanel panel = new JPanel();
@@ -247,20 +294,18 @@ public class AnnotationsWindow extends JFrame implements
 		JSpinner fieldZ = new JSpinner(fieldZValue);
 		JSpinner fieldFov = new JSpinner(fieldFovValue);
 		JButton buttonGo = new JButton("Go");
-		JLabel labelX = new JLabel("x:");
-		JLabel labelY = new JLabel("y:");
-		JLabel labelZ = new JLabel("z:");
-		JLabel labelFov = new JLabel("fov:");
+		JLabel labelX = new JLabel(" x: ");
+		JLabel labelY = new JLabel(" y: ");
+		JLabel labelZ = new JLabel(" z: ");
+		JLabel labelFov = new JLabel("fov: ");
 
 		panel.setLayout(gridBag);
 		c.fill = GridBagConstraints.HORIZONTAL;
 		c.weightx = 0.0;
-		c.ipadx = 10;
 		gridBag.setConstraints(labelX, c);
 		gridBag.setConstraints(labelY, c);
 		gridBag.setConstraints(labelZ, c);
 		c.weightx = 1.0;
-		c.ipadx = 0;
 		gridBag.setConstraints(fieldX, c);
 		gridBag.setConstraints(fieldY, c);
 		gridBag.setConstraints(fieldZ, c);
@@ -275,7 +320,8 @@ public class AnnotationsWindow extends JFrame implements
 		gridBag.setConstraints(labelFov, c);
 		c.weightx = 1.0;
 		gridBag.setConstraints(fieldFov, c);
-		c.gridwidth = 4;
+		c.gridwidth = 3;
+		c.gridx = 3;
 		gridBag.setConstraints(buttonGo, c);
 		panel.add(labelFov);
 		panel.add(fieldFov);
@@ -338,8 +384,6 @@ public class AnnotationsWindow extends JFrame implements
 
 	@Override
 	public void valueChanged(ListSelectionEvent event) {
-
-		System.out.println("selection in annotation table changed");
 
 		synchronized (editingSelection) {
 
