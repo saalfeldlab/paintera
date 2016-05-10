@@ -25,6 +25,7 @@ import org.scijava.ui.behaviour.io.InputTriggerConfig;
 import bdv.bigcat.FragmentSegmentAssignment;
 import bdv.bigcat.ui.BrushOverlay;
 import bdv.labels.labelset.Label;
+import bdv.util.Affine3DHelpers;
 import bdv.viewer.ViewerPanel;
 
 /**
@@ -156,9 +157,9 @@ public class LabelBrushController
 			final Neighborhood< LongType > sphere =
 					HyperSphereNeighborhood.< LongType >factory().create(
 							new long[]{
-									Math.round( coords.getDoublePosition( 1 ) ),
-									Math.round( coords.getDoublePosition( 2 ) ) },
-							brushRadius,
+									Math.round( coords.getDoublePosition( 0 ) ),
+									Math.round( coords.getDoublePosition( 1 ) ) },
+							Math.round(brushRadius/Affine3DHelpers.extractScale(labelTransform, 0)),
 							labelSource.randomAccess() );
 
 			for ( final LongType t : sphere )
