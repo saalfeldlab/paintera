@@ -36,6 +36,7 @@ import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 
 import bdv.bigcat.FragmentSegmentAssignment;
+import bdv.labels.labelset.Label;
 import bdv.util.AbstractNamedAction;
 import bdv.util.AbstractNamedAction.NamedActionAdder;
 import bdv.util.Affine3DHelpers;
@@ -262,7 +263,10 @@ public class MergeController
 		{
 			final long id = idPicker.getIdAtDisplayCoordinate( x, y );
 			viewer.displayToGlobalCoordinates( x, y, lastClick );
-			assignment.detachFragment( id );
+
+			if (id != Label.TRANSPARENT)
+				assignment.detachFragment( id );
+
 			selectionController.setActiveFragmentId( id );
 			viewer.requestRepaint();
 
