@@ -67,11 +67,11 @@ public class BigCatAnnotations
 		Util.initUI();
 		
 		projectFile = args[0];
-		String labelsDataset = "neuron_ids";
+		String labelsDataset = "labels";
 		if (args.length > 1)
 			labelsDataset = args[1];
 
-		String rawDataset = "raw";
+		String rawDataset = "em_raw";
 		if (args.length > 2)
 			rawDataset = args[2];
 
