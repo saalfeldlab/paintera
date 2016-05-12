@@ -67,25 +67,34 @@ public class BigCatAnnotations
 		Util.initUI();
 		
 		projectFile = args[0];
-		String labels = "neuron_ids";
+		String labelsDataset = "neuron_ids";
 		if (args.length > 1)
-			labels = args[1];
+			labelsDataset = args[1];
+
+		String rawDataset = "raw";
+		if (args.length > 2)
+			rawDataset = args[2];
 
 		System.out.println( "Opening " + projectFile );
 		final IHDF5Reader reader = HDF5Factory.open( projectFile );
 
-		/* raw pixels */
 		// support both file_format 0.0 and >=0.1
-		final String rawDataset = reader.exists("/volumes/raw") ? "/volumes/raw"  : "/raw";
-		final H5UnsignedByteSetupImageLoader raw = new H5UnsignedByteSetupImageLoader( reader, rawDataset, 0, cellDimensions );
+		final String volumesPath = reader.isGroup("/volumes") ? "/volumes" : "";
+		final String labelsPath = reader.isGroup(volumesPath + "/labels") ? volumesPath + "/labels" : "";
+
+		/* raw pixels */
+		final String rawPath = volumesPath + "/" + rawDataset;
+		final H5UnsignedByteSetupImageLoader raw = new H5UnsignedByteSetupImageLoader( reader, rawPath, 0, cellDimensions );
 
 		/* fragments */
-		final String backgroundLabelsDataset = "/volumes/labels/" + labels;
-		mergedLabelsDataset = "/volumes/labels/merged_" + labels;
-		paintedLabelsDataset = "/volumes/labels/painted_" + labels;
-		final String labelsDataset = reader.exists( mergedLabelsDataset ) ? mergedLabelsDataset : backgroundLabelsDataset;
-		if (reader.exists(labelsDataset))
-			readFragments(args, reader, labelsDataset, paintedLabelsDataset);
+		String fragmentsPath = labelsPath + "/" + labelsDataset;
+		mergedLabelsDataset = labelsPath + "/merged_" + labelsDataset;
+		paintedLabelsDataset = labelsPath + "/painted_" + labelsDataset;
+		fragmentsPath = reader.isDataSet(mergedLabelsDataset) ? mergedLabelsDataset : fragmentsPath;
+		if (reader.exists(fragmentsPath))
+			readFragments(args, reader, fragmentsPath, paintedLabelsDataset);
+		else
+			System.out.println("no labels found cooresponding to requested dataset '" + labelsDataset + "' (searched in '" + labelsPath + "'");
 
 		setupBdv(raw);
 	}
