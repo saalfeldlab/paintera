@@ -69,12 +69,12 @@ abstract public class AbstractH5SetupImageLoader< T extends NativeType< T > , V 
 		{
 			final double[] h5res = reader.float64().getArrayAttr( dataset, "resolution" );
 			resolution = new double[]{
-					h5res[ 2 ],
+					h5res[ 0 ],
 					h5res[ 1 ],
-					h5res[ 0 ], };
+					h5res[ 2 ], };
 		}
 		else
-			resolution = new double[]{1, 1, 10};
+			resolution = new double[]{10, 1, 1};
 
 
 		mipmapTransform = new AffineTransform3D();
