@@ -104,7 +104,7 @@ public class LabelBrushController
 
 		new Paint( "paint", "SPACE button1" ).register();
 		new Erase( "erase", "SPACE button2", "SPACE button3" ).register();
-		new ChangeBrushRadius( "change brush radius", "SPACE scroll", "SPACE scroll" ).register();
+		new ChangeBrushRadius( "change brush radius", "SPACE scroll" ).register();
 		new MoveBrush( "move brush", "SPACE" ).register();
 	}
 
