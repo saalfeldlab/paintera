@@ -42,6 +42,12 @@ public class AnnotationsOverlay implements OverlayRenderer
 	public void setVisible( final boolean visible )
 	{
 		this.visible = visible;
+		viewer.requestRepaint();
+	}
+	
+	public boolean isVisible() {
+
+		return this.visible;
 	}
 	
 	public int getWidth() {
@@ -55,169 +61,169 @@ public class AnnotationsOverlay implements OverlayRenderer
 	@Override
 	public void drawOverlays( Graphics g )
 	{
-		if ( visible )
+		if (!visible)
+			return;
+
+		synchronized ( viewer )
 		{
-			synchronized ( viewer )
-			{
-				viewer.getState().getViewerTransform( viewerTransform );
+			viewer.getState().getViewerTransform( viewerTransform );
+		}
+		
+		AffineTransform3D invTransform = viewerTransform.inverse();
+		
+		HyperPlane left   = new HyperPlane(1, 0, 0, 0);
+		HyperPlane right  = new HyperPlane(-1, 0, 0, -width);
+		HyperPlane bottom = new HyperPlane(0, 1, 0, 0);
+		HyperPlane top    = new HyperPlane(0, -1, 0, -height);
+		HyperPlane front  = new HyperPlane(0, 0, -1, -visibilityThreshold);
+		HyperPlane back   = new HyperPlane(0, 0, 1, -visibilityThreshold);
+		
+		ConvexPolytope visibilityClip = ConvexPolytope.transform(new ConvexPolytope(left, right, bottom, top, front, back), invTransform);
+		
+		List< Annotation > visibleAnnotations = annotations.getLocalAnnotations(visibilityClip);
+
+		Graphics2D g2d = (Graphics2D)g;
+		class AnnotationRenderer extends AnnotationVisitor {
+			
+			private final int pass;
+			
+			AnnotationRenderer(int pass) {
+				this.pass = pass;
 			}
 			
-			AffineTransform3D invTransform = viewerTransform.inverse();
+			private void setAlpha(double z) {
+				
+				float zAlpha = Math.max(0, (float)1.0 - (float)zAlphaScale*Math.abs((float)z));
+				g2d.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, zAlpha));
+			}
 			
-			HyperPlane left   = new HyperPlane(1, 0, 0, 0);
-			HyperPlane right  = new HyperPlane(-1, 0, 0, -width);
-			HyperPlane bottom = new HyperPlane(0, 1, 0, 0);
-			HyperPlane top    = new HyperPlane(0, -1, 0, -height);
-			HyperPlane front  = new HyperPlane(0, 0, -1, -visibilityThreshold);
-			HyperPlane back   = new HyperPlane(0, 0, 1, -visibilityThreshold);
+			@Override
+			public void visit(Annotation a) {
+				
+				if (pass != 2)
+					return;
+				
+				RealPoint displayPosition = new RealPoint(3);
+				viewerTransform.apply(a.getPosition(), displayPosition);
+
+				double x = displayPosition.getDoublePosition(0);
+				double y = displayPosition.getDoublePosition(1);
+				double z = displayPosition.getDoublePosition(2);
+				
+				g2d.setPaint(Color.white);
+				setAlpha(z);
+				g2d.drawString(a.getComment(), (int)x, (int)y);
+			}
 			
-			ConvexPolytope visibilityClip = ConvexPolytope.transform(new ConvexPolytope(left, right, bottom, top, front, back), invTransform);
-			
-			List< Annotation > visibleAnnotations = annotations.getLocalAnnotations(visibilityClip);
-
-			Graphics2D g2d = (Graphics2D)g;
-			class AnnotationRenderer extends AnnotationVisitor {
+			@Override
+			public void visit(Synapse s) {
 				
-				private final int pass;
+				RealPoint displayPosition = new RealPoint(3);
+				viewerTransform.apply(s.getPosition(), displayPosition);
+
+					
+				double sx = displayPosition.getDoublePosition(0);
+				double sy = displayPosition.getDoublePosition(1);
+				double sz = displayPosition.getDoublePosition(2);
 				
-				AnnotationRenderer(int pass) {
-					this.pass = pass;
-				}
-				
-				private void setAlpha(double z) {
-					
-					float zAlpha = Math.max(0, (float)1.0 - (float)zAlphaScale*Math.abs((float)z));
-					g2d.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, zAlpha));
-				}
-				
-				@Override
-				public void visit(Annotation a) {
-					
-					if (pass != 2)
-						return;
-					
-					RealPoint displayPosition = new RealPoint(3);
-					viewerTransform.apply(a.getPosition(), displayPosition);
+				setAlpha(sz);
 
-					double x = displayPosition.getDoublePosition(0);
-					double y = displayPosition.getDoublePosition(1);
-					double z = displayPosition.getDoublePosition(2);
-					
-					g2d.setPaint(Color.white);
-					setAlpha(z);
-					g2d.drawString(a.getComment(), (int)x, (int)y);
-				}
-				
-				@Override
-				public void visit(Synapse s) {
-					
-					RealPoint displayPosition = new RealPoint(3);
-					viewerTransform.apply(s.getPosition(), displayPosition);
-
-						
-					double sx = displayPosition.getDoublePosition(0);
-					double sy = displayPosition.getDoublePosition(1);
-					double sz = displayPosition.getDoublePosition(2);
-					
-					setAlpha(sz);
-
-					if (pass == 1) {
-
-						final int radius = 10;
-						if (s == controller.getSelectedAnnotation())
-							g2d.setPaint(synapseColor.brighter().brighter());
-						else
-							g2d.setPaint(synapseColor);
-						g2d.setStroke(new BasicStroke(2.0f));
-						g2d.fillOval(
-								(int)Math.round(sx - radius),
-								(int)Math.round(sy - radius),
-								2 * radius + 1,
-								2 * radius + 1 );
-						g2d.setPaint(synapseColor.darker());
-						g2d.drawOval(
-								(int)Math.round(sx - radius),
-								(int)Math.round(sy - radius),
-								2 * radius + 1,
-								2 * radius + 1 );
-					}
-				}
-
-				@Override
-				public void visit(PreSynapticSite synapticSite) {
-					
-					RealPoint displayPosition = new RealPoint(3);
-					viewerTransform.apply(synapticSite.getPosition(), displayPosition);
-
-					setAlpha(displayPosition.getDoublePosition(2));
+				if (pass == 1) {
 
 					final int radius = 10;
-					if (synapticSite == controller.getSelectedAnnotation())
-						g2d.setPaint(preSynapticSiteColor.brighter().brighter());
+					if (s == controller.getSelectedAnnotation())
+						g2d.setPaint(synapseColor.brighter().brighter());
 					else
-						g2d.setPaint(preSynapticSiteColor);
+						g2d.setPaint(synapseColor);
 					g2d.setStroke(new BasicStroke(2.0f));
 					g2d.fillOval(
-							(int)Math.round(displayPosition.getDoublePosition(0) - radius),
-							(int)Math.round(displayPosition.getDoublePosition(1) - radius),
+							(int)Math.round(sx - radius),
+							(int)Math.round(sy - radius),
 							2 * radius + 1,
 							2 * radius + 1 );
-					g2d.setPaint(preSynapticSiteColor.darker());
+					g2d.setPaint(synapseColor.darker());
 					g2d.drawOval(
-							(int)Math.round(displayPosition.getDoublePosition(0) - radius),
-							(int)Math.round(displayPosition.getDoublePosition(1) - radius),
+							(int)Math.round(sx - radius),
+							(int)Math.round(sy - radius),
 							2 * radius + 1,
 							2 * radius + 1 );
+				}
+			}
+
+			@Override
+			public void visit(PreSynapticSite synapticSite) {
 				
+				RealPoint displayPosition = new RealPoint(3);
+				viewerTransform.apply(synapticSite.getPosition(), displayPosition);
 
-					if (synapticSite.getPartner() != null) {
+				setAlpha(displayPosition.getDoublePosition(2));
 
-						RealPoint siteDisplayPosition = new RealPoint(3);
-						viewerTransform.apply(synapticSite.getPartner().getPosition(), siteDisplayPosition);
-
-						double px = siteDisplayPosition.getDoublePosition(0);
-						double py = siteDisplayPosition.getDoublePosition(1);
-						
-						drawArrow(g2d, displayPosition.getDoublePosition(0), displayPosition.getDoublePosition(1), px, py, pass);
-					}
-				}
-
-				@Override
-				public void visit(PostSynapticSite synapticSite) {
-					
-					if (pass != 0)
-						return;
-					
-					RealPoint displayPosition = new RealPoint(3);
-					viewerTransform.apply(synapticSite.getPosition(), displayPosition);
-
-					setAlpha(displayPosition.getDoublePosition(2));
-
-					final int radius = 10;
-					if (synapticSite == controller.getSelectedAnnotation())
-						g2d.setPaint(postSynapticSiteColor.brighter().brighter());
-					else
-						g2d.setPaint(postSynapticSiteColor);
-					g2d.setStroke(new BasicStroke(2.0f));
-					g2d.fillOval(
-							Math.round(displayPosition.getFloatPosition(0) - radius),
-							Math.round(displayPosition.getFloatPosition(1) - radius),
-							2 * radius + 1,
-							2 * radius + 1 );
-					g2d.setPaint(postSynapticSiteColor.darker());
-					g2d.drawOval(
-							Math.round(displayPosition.getFloatPosition(0) - radius),
-							Math.round(displayPosition.getFloatPosition(1) - radius),
-							2 * radius + 1,
-							2 * radius + 1 );
-				}
-			}
+				final int radius = 10;
+				if (synapticSite == controller.getSelectedAnnotation())
+					g2d.setPaint(preSynapticSiteColor.brighter().brighter());
+				else
+					g2d.setPaint(preSynapticSiteColor);
+				g2d.setStroke(new BasicStroke(2.0f));
+				g2d.fillOval(
+						(int)Math.round(displayPosition.getDoublePosition(0) - radius),
+						(int)Math.round(displayPosition.getDoublePosition(1) - radius),
+						2 * radius + 1,
+						2 * radius + 1 );
+				g2d.setPaint(preSynapticSiteColor.darker());
+				g2d.drawOval(
+						(int)Math.round(displayPosition.getDoublePosition(0) - radius),
+						(int)Math.round(displayPosition.getDoublePosition(1) - radius),
+						2 * radius + 1,
+						2 * radius + 1 );
 			
-			for (int pass = 0; pass < 3; pass++) {
-				AnnotationRenderer renderer = new AnnotationRenderer(pass);
-				for (Annotation a : visibleAnnotations)
-					a.accept(renderer);
+
+				if (synapticSite.getPartner() != null) {
+
+					RealPoint siteDisplayPosition = new RealPoint(3);
+					viewerTransform.apply(synapticSite.getPartner().getPosition(), siteDisplayPosition);
+
+					double px = siteDisplayPosition.getDoublePosition(0);
+					double py = siteDisplayPosition.getDoublePosition(1);
+					
+					drawArrow(g2d, displayPosition.getDoublePosition(0), displayPosition.getDoublePosition(1), px, py, pass);
+				}
 			}
+
+			@Override
+			public void visit(PostSynapticSite synapticSite) {
+				
+				if (pass != 0)
+					return;
+				
+				RealPoint displayPosition = new RealPoint(3);
+				viewerTransform.apply(synapticSite.getPosition(), displayPosition);
+
+				setAlpha(displayPosition.getDoublePosition(2));
+
+				final int radius = 10;
+				if (synapticSite == controller.getSelectedAnnotation())
+					g2d.setPaint(postSynapticSiteColor.brighter().brighter());
+				else
+					g2d.setPaint(postSynapticSiteColor);
+				g2d.setStroke(new BasicStroke(2.0f));
+				g2d.fillOval(
+						Math.round(displayPosition.getFloatPosition(0) - radius),
+						Math.round(displayPosition.getFloatPosition(1) - radius),
+						2 * radius + 1,
+						2 * radius + 1 );
+				g2d.setPaint(postSynapticSiteColor.darker());
+				g2d.drawOval(
+						Math.round(displayPosition.getFloatPosition(0) - radius),
+						Math.round(displayPosition.getFloatPosition(1) - radius),
+						2 * radius + 1,
+						2 * radius + 1 );
+			}
+		}
+		
+		for (int pass = 0; pass < 3; pass++) {
+			AnnotationRenderer renderer = new AnnotationRenderer(pass);
+			for (Annotation a : visibleAnnotations)
+				a.accept(renderer);
 		}
 	}
 

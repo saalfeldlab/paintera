@@ -119,6 +119,7 @@ public class AnnotationsController implements WindowListener, Selection.Selectio
 		new SaveAnnotations("save annotations", "S").register();
 		new ShowAnnotationsList("show annotations list", "A").register();
 		new GotoAnnotation("goto annotation", "G").register();
+		new ToggleOverlayVisibility("togle overlay visibility", "O").register();
 
 		inputActionBindings.addActionMap("bdv", ksActionMap);
 		inputActionBindings.addInputMap("bdv", ksInputMap);
@@ -434,6 +435,20 @@ public class AnnotationsController implements WindowListener, Selection.Selectio
 				return;
 
 			goTo(active.getPosition());
+		}
+	}
+
+	private class ToggleOverlayVisibility extends SelfRegisteringAction {
+		private static final long serialVersionUID = 1L;
+
+		public ToggleOverlayVisibility(final String name, final String ... defaultTriggers) {
+			super( name, defaultTriggers );
+		}
+
+		@Override
+		public void actionPerformed(final ActionEvent e) {
+
+			overlay.setVisible(!overlay.isVisible());
 		}
 	}
 
