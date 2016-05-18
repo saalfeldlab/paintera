@@ -102,6 +102,10 @@ public class TranslateZController
 		{
 			synchronized ( viewer )
 			{
+				if (Math.abs(wheelRotation) >= 2.0) {
+					System.out.println("wheel rotation: " + wheelRotation);
+					System.out.println("speed: " + speed);
+				}
 				viewer.getState().getViewerTransform( affine );
 				final double dZ = speed * -wheelRotation * Affine3DHelpers.extractScale( affine, 0 );
 				affine.set( affine.get( 2, 3 ) - dZ, 2, 3 );
