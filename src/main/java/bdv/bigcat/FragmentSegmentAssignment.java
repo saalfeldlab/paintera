@@ -415,7 +415,7 @@ A:					for ( final Entry< String, JsonElement > entry : ilutJsonEntrySet )
 		{
 			final long segmentId = lut.get( fragmentId );
 			final long[] fragments = ilut.get( segmentId );
-			if ( fragments.length > 1 )
+			if ( fragments != null && fragments.length > 1 )
 			{
 				final long[] newFragments = ArrayUtils.removeElement( fragments, fragmentId );
 				ilut.put( segmentId, newFragments );
