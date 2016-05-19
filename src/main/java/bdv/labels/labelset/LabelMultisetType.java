@@ -5,11 +5,11 @@ import java.util.Collection;
 import java.util.Iterator;
 import java.util.Set;
 
+import bdv.labels.labelset.RefList.RefIterator;
 import net.imglib2.img.NativeImg;
 import net.imglib2.img.NativeImgFactory;
 import net.imglib2.type.AbstractNativeType;
 import net.imglib2.util.Fraction;
-import bdv.labels.labelset.RefList.RefIterator;
 
 public class LabelMultisetType extends AbstractNativeType< LabelMultisetType > implements Multiset< Label >
 {

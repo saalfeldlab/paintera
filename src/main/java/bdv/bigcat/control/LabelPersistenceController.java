@@ -10,6 +10,7 @@ import javax.swing.InputMap;
 import org.scijava.ui.behaviour.KeyStrokeAdder;
 import org.scijava.ui.behaviour.io.InputTriggerConfig;
 
+import bdv.bigcat.FragmentSegmentAssignment;
 import bdv.img.h5.H5Utils;
 import bdv.labels.labelset.LabelMultisetType;
 import bdv.util.AbstractNamedAction;
@@ -29,6 +30,7 @@ public class LabelPersistenceController
 	final protected ViewerPanel viewer;
 	final protected RandomAccessibleInterval< LabelMultisetType > labelMultisetSource;
 	final protected RandomAccessibleInterval< LongType > labelSource;
+	final protected FragmentSegmentAssignment assignment;
 
 	final protected String h5Path;
 	final protected String paintedLabelsDataset;
@@ -45,6 +47,7 @@ public class LabelPersistenceController
 			final ViewerPanel viewer,
 			final RandomAccessibleInterval< LabelMultisetType > labelMultisetSource,
 			final RandomAccessibleInterval< LongType > labelSource,
+			final FragmentSegmentAssignment assignment,
 			final String h5Path,
 			final String paintedLabelsDataset,
 			final String mergedLabelsDataset,
@@ -55,6 +58,7 @@ public class LabelPersistenceController
 		this.viewer = viewer;
 		this.labelMultisetSource = labelMultisetSource;
 		this.labelSource = labelSource;
+		this.assignment = assignment;
 		this.h5Path = h5Path;
 		this.paintedLabelsDataset = paintedLabelsDataset;
 		this.mergedLabelsDataset = mergedLabelsDataset;
@@ -62,7 +66,7 @@ public class LabelPersistenceController
 		ksKeyStrokeAdder = config.keyStrokeAdder( ksInputMap, "persistence" );
 
 		new SavePaintedLabels( "save painted labels", "ctrl S" ).register();
-		new SaveMergedLabels( "save merged labels", "ctrl shift S" ).register();
+		new SaveAssignedMergedLabels( "save assigned merged labels", "ctrl shift S" ).register();
 
 		inputActionBindings.addActionMap( "persistence", ksActionMap );
 		inputActionBindings.addInputMap( "persistence", ksInputMap );
@@ -96,13 +100,14 @@ public class LabelPersistenceController
 		public void actionPerformed( final ActionEvent e )
 		{
 			System.out.println( "Saving painted labels into " + h5Path + ":" + paintedLabelsDataset );
-
+			viewer.showMessage( "Saving painted labels ..." );
 			synchronized ( viewer )
 			{
 				viewer.setCursor( Cursor.getPredefinedCursor( Cursor.WAIT_CURSOR ) );
 				H5Utils.saveUnsignedLong( labelSource, new File( h5Path ), paintedLabelsDataset, labelsCellDimensions );
 				viewer.setCursor( Cursor.getPredefinedCursor( Cursor.DEFAULT_CURSOR ) );
 			}
+			viewer.showMessage( "... saved merged labels." );
 		}
 	}
 
@@ -117,10 +122,11 @@ public class LabelPersistenceController
 		public void actionPerformed( final ActionEvent e )
 		{
 			System.out.println( "Saving merged labels into " + h5Path + ":" + mergedLabelsDataset  );
-
+			viewer.showMessage( "Saving merged labels ..." );
 			synchronized ( viewer )
 			{
 				viewer.setCursor( Cursor.getPredefinedCursor( Cursor.WAIT_CURSOR ) );
+				viewer.showMessage( "Saving merged labels ..." );
 				H5Utils.saveSingleElementLabelMultisetLongPair(
 						labelMultisetSource,
 						labelSource,
@@ -130,6 +136,36 @@ public class LabelPersistenceController
 						labelsCellDimensions );
 				viewer.setCursor( Cursor.getPredefinedCursor( Cursor.DEFAULT_CURSOR ) );
 			}
+			viewer.showMessage( "... saved merged labels." );
+		}
+	}
+
+	private class SaveAssignedMergedLabels extends SelfRegisteringAction
+	{
+		public SaveAssignedMergedLabels( final String name, final String ... defaultTriggers )
+		{
+			super( name, defaultTriggers );
+		}
+
+		@Override
+		public void actionPerformed( final ActionEvent e )
+		{
+			System.out.println( "Saving assigned merged labels into " + h5Path + ":" + mergedLabelsDataset  );
+			viewer.showMessage( "Saving assigned merged labels ..." );
+			synchronized ( viewer )
+			{
+				viewer.setCursor( Cursor.getPredefinedCursor( Cursor.WAIT_CURSOR ) );
+				H5Utils.saveAssignedSingleElementLabelMultisetLongPair(
+						labelMultisetSource,
+						labelSource,
+						labelSource,
+						assignment,
+						new File( h5Path ),
+						mergedLabelsDataset,
+						labelsCellDimensions );
+				viewer.setCursor( Cursor.getPredefinedCursor( Cursor.DEFAULT_CURSOR ) );
+			}
+			viewer.showMessage( "... saved assigned merged labels." );
 		}
 	}
 }

@@ -23,26 +23,25 @@ import java.util.List;
 import javax.swing.ActionMap;
 import javax.swing.InputMap;
 
+import net.imglib2.RealPoint;
+
 import org.scijava.ui.behaviour.Behaviour;
 import org.scijava.ui.behaviour.BehaviourMap;
 import org.scijava.ui.behaviour.ClickBehaviour;
 import org.scijava.ui.behaviour.InputTriggerAdder;
 import org.scijava.ui.behaviour.InputTriggerMap;
 import org.scijava.ui.behaviour.KeyStrokeAdder;
-import org.scijava.ui.behaviour.ScrollBehaviour;
 import org.scijava.ui.behaviour.io.InputTriggerConfig;
+
+import bdv.bigcat.FragmentSegmentAssignment;
+import bdv.labels.labelset.Label;
+import bdv.util.AbstractNamedAction;
+import bdv.util.AbstractNamedAction.NamedActionAdder;
+import bdv.viewer.InputActionBindings;
+import bdv.viewer.ViewerPanel;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
-
-import bdv.bigcat.FragmentSegmentAssignment;
-import bdv.util.AbstractNamedAction;
-import bdv.util.AbstractNamedAction.NamedActionAdder;
-import bdv.util.Affine3DHelpers;
-import bdv.viewer.InputActionBindings;
-import bdv.viewer.ViewerPanel;
-import net.imglib2.RealPoint;
-import net.imglib2.realtransform.AffineTransform3D;
 
 /**
  * @author Stephan Saalfeld &lt;saalfelds@janelia.hhmi.org&gt;
@@ -148,11 +147,18 @@ public class MergeController
 
 		ksKeyStrokeAdder = keyProperties.keyStrokeAdder( ksInputMap, "merge" );
 
+		// general, no modifier
 		new SelectFragment("select fragment", "button1").register();
+
+		// often used, one modifier
 		new NeedMerge("need merge", "shift button1").register();
-		new NeedSplit("need split", "control button1").register();
-		new NeedPaint("need paint", "control shift button1").register();
-		new NeedGeneralAction("need general action", "SPACE button1").register();
+		new NeedSplit("need split", "shift button3").register();
+
+		// rarely used (subject to removal)
+		new NeedPaint("need paint", "SPACE shift button1").register();
+		new NeedGeneralAction("need general action", "SPACE shift button3").register();
+
+		// key bindings
 		new ExportActions("export assignments", "E").register();
 
 		inputActionBindings.addActionMap( "merge", ksActionMap );
@@ -262,7 +268,10 @@ public class MergeController
 		{
 			final long id = idPicker.getIdAtDisplayCoordinate( x, y );
 			viewer.displayToGlobalCoordinates( x, y, lastClick );
-			assignment.detachFragment( id );
+
+			if (id != Label.TRANSPARENT)
+				assignment.detachFragment( id );
+
 			selectionController.setActiveFragmentId( id );
 			viewer.requestRepaint();
 

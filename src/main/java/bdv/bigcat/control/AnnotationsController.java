@@ -47,7 +47,7 @@ import bdv.bigcat.annotation.AnnotationsStore;
 import bdv.bigcat.annotation.PostSynapticSite;
 import bdv.bigcat.annotation.PreSynapticSite;
 import bdv.bigcat.annotation.Synapse;
-import bdv.bigcat.ui.AnnotationOverlay;
+import bdv.bigcat.ui.AnnotationsOverlay;
 import bdv.bigcat.ui.AnnotationsWindow;
 import bdv.bigcat.util.Selection;
 import bdv.util.AbstractNamedAction;
@@ -60,15 +60,15 @@ import bdv.viewer.ViewerPanel;
 /**
  * @author Jan Funke &lt;jfunke@iri.upc.edu&gt;
  */
-public class AnnotationController implements WindowListener, Selection.SelectionListener<Annotation> {
-	
+public class AnnotationsController implements WindowListener, Selection.SelectionListener<Annotation> {
+
 	final protected AnnotationsStore store;
 	final protected ViewerPanel viewer;
-	final private AnnotationOverlay overlay;
+	final private AnnotationsOverlay overlay;
 	final private Annotations annotations;
 
 	private Selection<Annotation> selection = new Selection<Annotation>();
-	
+
 	// max distance for nearest annotation search
 	private final static int MaxDistance = 1000;
 
@@ -93,32 +93,42 @@ public class AnnotationController implements WindowListener, Selection.Selection
 		return inputTriggerMap;
 	}
 
-	public AnnotationController(final AnnotationsStore annotationsStore, final BigDataViewer viewer,
+	public AnnotationsController(final AnnotationsStore annotationsStore, final BigDataViewer viewer,
 			final InputTriggerConfig config, final InputActionBindings inputActionBindings,
 			final KeyStrokeAdder.Factory keyProperties) throws Exception {
+
 		this.viewer = viewer.getViewer();
 		this.store = annotationsStore;
 		this.annotations = annotationsStore.read();
 		this.selection.addSelectionListener(this);
 		this.annotationWindow = new AnnotationsWindow(this, this.annotations, this.selection);
-		overlay = new AnnotationOverlay(viewer.getViewer(), annotations, this);
-		overlay.setVisible(true);
-		inputAdder = config.inputTriggerAdder(inputTriggerMap, "bigcat");
+		this.overlay = new AnnotationsOverlay(viewer.getViewer(), annotations, this);
+		this.overlay.setVisible(true);
 
+		inputAdder = config.inputTriggerAdder(inputTriggerMap, "bigcat");
 		ksKeyStrokeAdder = keyProperties.keyStrokeAdder(ksInputMap, "bdv");
 
+		// often used, one modifier
+		new SelectAnnotation("select annotation", "control button1").register();
+		/*
+		 * TODO: "control button1" drag (which I want) collides with bdv
+		 * rotation, the binding should be overwritten here temporarily we use
+		 * "control shift button1".
+		 */
+		new MoveAnnotation("move annotation", "control shift button1").register();
 
-		// register actions and behaviours here
-		new SelectAnnotation("select annotation", "SPACE button1").register();
-		new MoveAnnotation("move annotation", "SPACE button1").register();
-		new RemoveAnnotation("remove annotation", "DELETE").register();
-		new AddPreSynapticSiteAnnotation("add presynaptic site annotation", "SPACE shift button1").register();
-		new AddPostSynapticSiteAnnotation("add postsynaptic site annotation", "SPACE shift button3").register();
-		new AddSynapseAnnotation("add synapse annotation", "SPACE shift button2").register();
+		// less often used, two modifiers
+		new AddPreSynapticSiteAnnotation("add presynaptic site annotation", "control shift button1").register();
+		new AddPostSynapticSiteAnnotation("add postsynaptic site annotation", "control shift button3").register();
+		new AddSynapseAnnotation("add synapse annotation", "control shift button2").register();
+
+		// key bindings
 		new ChangeComment("change comment", "C").register();
 		new SaveAnnotations("save annotations", "S").register();
 		new ShowAnnotationsList("show annotations list", "A").register();
 		new GotoAnnotation("goto annotation", "G").register();
+		new ToggleOverlayVisibility("togle overlay visibility", "O").register();
+		new RemoveAnnotation("remove annotation", "DELETE").register();
 
 		inputActionBindings.addActionMap("bdv", ksActionMap);
 		inputActionBindings.addInputMap("bdv", ksInputMap);
@@ -135,7 +145,7 @@ public class AnnotationController implements WindowListener, Selection.Selection
 				viewerKeybindings.getConcatenatedInputMap());
 	}
 
-	public AnnotationOverlay getAnnotationOverlay() {
+	public AnnotationsOverlay getAnnotationOverlay() {
 
 		return overlay;
 	}
@@ -147,7 +157,7 @@ public class AnnotationController implements WindowListener, Selection.Selection
 
 	/**
 	 * Get the closest annotation to a given display point.
-	 * 
+	 *
 	 * @param x
 	 * @param y
 	 * @param maxDistance Max distance to consider for the search. If no annotation exists in the search area, null is returned.
@@ -158,21 +168,21 @@ public class AnnotationController implements WindowListener, Selection.Selection
 		RealPoint pos = new RealPoint(3);
 		viewer.displayToGlobalCoordinates(x, y, pos);
 		System.out.println("clicked at global coordinates " + pos);
-		
+
 		List< Annotation > closest = annotations.getKNearest(pos, 1);
-		
+
 		if (closest.size() == 0)
 			return null;
-			
+
 		double[] a = new double[3];
 		double[] b = new double[3];
 		pos.localize(a);
 		closest.get(0).getPosition().localize(b);
 		double distance = LinAlgHelpers.distance(a, b);
-		
+
 		if (distance <= maxDistance)
 			return closest.get(0);
-			
+
 		return null;
 	}
 
@@ -223,11 +233,11 @@ public class AnnotationController implements WindowListener, Selection.Selection
 		public void click(int x, int y) {
 
 			System.out.println("Selecting annotation closest to " + x + ", " + y);
-			
+
 			Annotation closest = getClosestAnnotation(x, y, MaxDistance);
 			if (closest == null)
 				return;
-			
+
 			selection.clear();
 			selection.add(closest);
 		}
@@ -243,7 +253,7 @@ public class AnnotationController implements WindowListener, Selection.Selection
 
 		@Override
 		public void actionPerformed(final ActionEvent e) {
-			
+
 			System.out.println("deleting annotation(s)");
 
 			for (Annotation a : selection)
@@ -263,9 +273,9 @@ public class AnnotationController implements WindowListener, Selection.Selection
 
 			RealPoint pos = new RealPoint(3);
 			viewer.displayToGlobalCoordinates(x, y, pos);
-			
+
 			System.out.println("Adding synapse at " + pos);
-			
+
 			Synapse synapse = new Synapse(IdService.allocate(), pos, "");
 			annotations.add(synapse);
 
@@ -281,12 +291,12 @@ public class AnnotationController implements WindowListener, Selection.Selection
 
 		@Override
 		public void click(int x, int y) {
-		
+
 			RealPoint pos = new RealPoint(3);
 			viewer.displayToGlobalCoordinates(x, y, pos);
-			
+
 			System.out.println("Adding presynaptic site at " + pos);
-			
+
 			PreSynapticSite site = new PreSynapticSite(IdService.allocate(), pos, "");
 			annotations.add(site);
 
@@ -302,32 +312,32 @@ public class AnnotationController implements WindowListener, Selection.Selection
 
 		@Override
 		public void click(int x, int y) {
-		
+
 			Annotation active = selection.getLastAdded();
-			
+
 			if (active == null || !(active instanceof PreSynapticSite)) {
 
 				viewer.showMessage("select a pre-synaptic site before adding a post-synaptic site to it");
 				return;
 			}
-			
+
 			PreSynapticSite pre = (PreSynapticSite)active;
-			
+
 			RealPoint pos = new RealPoint(3);
 			viewer.displayToGlobalCoordinates(x, y, pos);
-			
+
 			System.out.println("Adding postsynaptic site at " + pos);
-			
+
 			PostSynapticSite site = new PostSynapticSite(IdService.allocate(), pos, "");
 			site.setPartner(pre);
 			pre.setPartner(site);
 			annotations.add(site);
-			
+
 			selection.clear();
 			selection.add(site);
 		}
 	}
-	
+
 	private class MoveAnnotation extends SelfRegisteringBehaviour implements DragBehaviour {
 		public MoveAnnotation(final String name, final String ... defaultTriggers) {
 			super(name, defaultTriggers);
@@ -335,22 +345,22 @@ public class AnnotationController implements WindowListener, Selection.Selection
 
 		@Override
 		public void init(int x, int y) {
-			
+
 			Annotation annotation = getClosestAnnotation(x, y, MaxDistance);
 			if (annotation == null)
 				return;
-			
+
 			selection.clear();
 			selection.add(annotation);
 		}
 
 		@Override
 		public void drag(int x, int y) {
-		
+
 			Annotation active = selection.getLastAdded();
 			if (active == null)
 				return;
-			
+
 			RealPoint pos = new RealPoint(3);
 			viewer.displayToGlobalCoordinates(x, y, pos);
 			active.setPosition(pos);
@@ -361,7 +371,7 @@ public class AnnotationController implements WindowListener, Selection.Selection
 		public void end(int x, int y) {
 
 			annotations.markDirty();
-		}	
+		}
 	}
 
 	private class ChangeComment extends SelfRegisteringAction
@@ -437,6 +447,20 @@ public class AnnotationController implements WindowListener, Selection.Selection
 		}
 	}
 
+	private class ToggleOverlayVisibility extends SelfRegisteringAction {
+		private static final long serialVersionUID = 1L;
+
+		public ToggleOverlayVisibility(final String name, final String ... defaultTriggers) {
+			super( name, defaultTriggers );
+		}
+
+		@Override
+		public void actionPerformed(final ActionEvent e) {
+
+			overlay.setVisible(!overlay.isVisible());
+		}
+	}
+
 	////////////////////
 	// WindowListener //
 	////////////////////
@@ -475,7 +499,6 @@ public class AnnotationController implements WindowListener, Selection.Selection
 	@Override
 	public void itemSelected(Annotation t) {
 
-		System.out.println("an item got selected");
 		viewer.requestRepaint();
 	}
 
