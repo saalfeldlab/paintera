@@ -1,8 +1,0 @@
-- !mapping
-  action: drag rotate slow
-  contexts: [bdv]
-  triggers: [not mapped]
-- !mapping
-  action: move annotation
-  contexts: [bdv, bigcat]
-  triggers: [control button1]

@@ -110,10 +110,6 @@ public class AnnotationsController implements WindowListener, Selection.Selectio
 
 		// often used, one modifier
 		new SelectAnnotation("select annotation", "control button1").register();
-		/*
-		 * "control button1" drag collides with bdv rotation, the binding of the
-		 * latter should be overwritten in the config file.
-		 */
 		new MoveAnnotation("move annotation", "control button1").register();
 
 		// less often used, two modifiers
