@@ -106,16 +106,15 @@ public class AnnotationsController implements WindowListener, Selection.Selectio
 		this.overlay.setVisible(true);
 
 		inputAdder = config.inputTriggerAdder(inputTriggerMap, "bigcat");
-		ksKeyStrokeAdder = keyProperties.keyStrokeAdder(ksInputMap, "bdv");
+		ksKeyStrokeAdder = keyProperties.keyStrokeAdder(ksInputMap, "bigcat");
 
 		// often used, one modifier
 		new SelectAnnotation("select annotation", "control button1").register();
 		/*
-		 * TODO: "control button1" drag (which I want) collides with bdv
-		 * rotation, the binding should be overwritten here temporarily we use
-		 * "control shift button1".
+		 * "control button1" drag collides with bdv rotation, the binding of the
+		 * latter should be overwritten in the config file.
 		 */
-		new MoveAnnotation("move annotation", "control shift button1").register();
+		new MoveAnnotation("move annotation", "control button1").register();
 
 		// less often used, two modifiers
 		new AddPreSynapticSiteAnnotation("add presynaptic site annotation", "control shift button1").register();
