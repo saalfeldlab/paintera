@@ -114,12 +114,15 @@ public class TranslateZController
 		@Override
 		public void scroll( final double wheelRotation, final boolean isHorizontal, final int x, final int y )
 		{
+			double direction = (wheelRotation < 0 ? 1 : -1);
+
 			synchronized ( viewer )
 			{
-				System.out.println("wheel rotation: " + wheelRotation);
-				System.out.println("speed: " + speed);
+//				System.out.println("wheel rotation: " + wheelRotation);
+//				System.out.println("direction: " + direction);
+//				System.out.println("speed: " + speed);
 				viewer.getState().getViewerTransform( affine );
-				final double dZ = speed * -wheelRotation * Affine3DHelpers.extractScale( affine, 0 );
+				final double dZ = speed * direction * Affine3DHelpers.extractScale( affine, 0 );
 				affine.set( affine.get( 2, 3 ) - dZ, 2, 3 );
 				viewer.setCurrentViewerTransform( affine );
 			}
