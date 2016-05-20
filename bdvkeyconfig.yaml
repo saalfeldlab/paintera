@@ -1,8 +1,7 @@
 - !mapping
   action: drag rotate slow
   contexts: [bdv]
-# just something stupid, "not mapped" is not supported in current version of ui-behaviour
-  triggers: [alt control shift SPACE button2]
+  triggers: [not mapped]
 - !mapping
   action: move annotation
   contexts: [bdv, bigcat]
