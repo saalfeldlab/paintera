@@ -16,6 +16,8 @@
  */
 package bdv.bigcat.control;
 
+import net.imglib2.realtransform.AffineTransform3D;
+
 import org.scijava.ui.behaviour.Behaviour;
 import org.scijava.ui.behaviour.BehaviourMap;
 import org.scijava.ui.behaviour.InputTriggerAdder;
@@ -25,7 +27,6 @@ import org.scijava.ui.behaviour.io.InputTriggerConfig;
 
 import bdv.util.Affine3DHelpers;
 import bdv.viewer.ViewerPanel;
-import net.imglib2.realtransform.AffineTransform3D;
 
 /**
  * @author Stephan Saalfeld &lt;saalfelds@janelia.hhmi.org&gt;
@@ -47,15 +48,28 @@ public class TranslateZController
 	{
 		this.viewer = viewer;
 		inputAdder = config.inputTriggerAdder( inputTriggerMap, "translate_z" );
-		
+
 		double min = Math.min(Math.min(resolution[0], resolution[1]), resolution[2]);
 		double max = Math.max(Math.max(resolution[0], resolution[1]), resolution[2]);
 		double f = max/min;
 
-		new FixDistanceTranslateZ( max, "scroll browse z fast", "shift scroll" ).register();
-		new FixDistanceTranslateZ( min, "scroll browse z", "scroll" ).register();
+//		// fast scrolling is the default, normal and slow with modifiers
+//		new FixDistanceTranslateZ( max, "scroll browse z fast", "scroll" ).register();
+//		new FixDistanceTranslateZ( min, "scroll browse z", "shift scroll" ).register();
+//		new FixDistanceTranslateZ( min/f, "scroll browse z slow", "ctrl scroll" ).register();
+
+		/*
+		 * The above doesn't work, "scroll" still triggers "scroll browse z",
+		 * might be related to bdv mapping with same name...
+		 *
+		 * So we have to do things with the wrong names...
+		 */
+		new FixDistanceTranslateZ( min, "scroll browse z fast", "shift scroll" ).register();
+		new FixDistanceTranslateZ( max, "scroll browse z", "scroll" ).register();
 		new FixDistanceTranslateZ( min/f, "scroll browse z slow", "ctrl scroll" ).register();
 	}
+
+
 
 	public BehaviourMap getBehaviourMap()
 	{
