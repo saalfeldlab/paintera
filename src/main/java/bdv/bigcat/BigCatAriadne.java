@@ -16,13 +16,14 @@ import bdv.bigcat.composite.CompositeCopy;
 import bdv.bigcat.control.DrawProjectAndIntersectController;
 import bdv.bigcat.control.LabelBrushController;
 import bdv.bigcat.control.LabelFillController;
-import bdv.bigcat.control.LabelMultiSetIdPicker;
 import bdv.bigcat.control.LabelPersistenceController;
 import bdv.bigcat.control.LabelRestrictToSegmentController;
 import bdv.bigcat.control.MergeController;
-import bdv.bigcat.control.PairLabelMultiSetLongIdPicker;
 import bdv.bigcat.control.SelectionController;
 import bdv.bigcat.control.TranslateZController;
+import bdv.bigcat.label.FragmentSegmentAssignment;
+import bdv.bigcat.label.LabelMultiSetIdPicker;
+import bdv.bigcat.label.PairLabelMultiSetLongIdPicker;
 import bdv.bigcat.ui.ARGBConvertedLabelPairSource;
 import bdv.bigcat.ui.GoldenAngleSaturatedARGBStream;
 import bdv.bigcat.ui.Util;
@@ -51,7 +52,7 @@ import net.imglib2.util.Intervals;
 import net.imglib2.util.Pair;
 import net.imglib2.view.Views;
 
-public class BigCATAriadne
+public class BigCatAriadne
 {
 	final static private int[] cellDimensions = new int[]{ 8, 64, 64 };
 	final static private double[] resolutions = new double[]{ 10, 1, 1 };
@@ -142,7 +143,7 @@ public class BigCATAriadne
 
 		final String windowTitle = "BigCAT";
 
-		final BigDataViewer bdv = BigCat.createViewer(
+		final BigDataViewer bdv = Util.createViewer(
 				windowTitle,
 				new AbstractH5SetupImageLoader[]{ raw },
 //				new ARGBConvertedLabelsSource[]{ convertedFragments },

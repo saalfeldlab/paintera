@@ -18,7 +18,7 @@ package bdv.bigcat.ui;
 
 import java.util.Random;
 
-import bdv.bigcat.FragmentSegmentAssignment;
+import bdv.bigcat.label.FragmentSegmentAssignment;
 
 
 

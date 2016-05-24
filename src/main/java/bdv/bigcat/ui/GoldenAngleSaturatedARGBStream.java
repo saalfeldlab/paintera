@@ -16,7 +16,7 @@
  */
 package bdv.bigcat.ui;
 
-import bdv.bigcat.FragmentSegmentAssignment;
+import bdv.bigcat.label.FragmentSegmentAssignment;
 
 
 /**

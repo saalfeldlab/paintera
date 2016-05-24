@@ -33,7 +33,8 @@ import org.scijava.ui.behaviour.InputTriggerMap;
 import org.scijava.ui.behaviour.KeyStrokeAdder;
 import org.scijava.ui.behaviour.io.InputTriggerConfig;
 
-import bdv.bigcat.FragmentSegmentAssignment;
+import bdv.bigcat.label.FragmentSegmentAssignment;
+import bdv.bigcat.label.IdPicker;
 import bdv.labels.labelset.Label;
 import bdv.util.AbstractNamedAction;
 import bdv.util.AbstractNamedAction.NamedActionAdder;

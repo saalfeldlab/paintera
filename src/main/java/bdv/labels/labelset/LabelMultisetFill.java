@@ -4,7 +4,7 @@ import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Arrays;
 
-import bdv.bigcat.FragmentSegmentAssignment;
+import bdv.bigcat.label.FragmentSegmentAssignment;
 import bdv.img.labelpair.RandomAccessiblePair;
 import gnu.trove.list.array.TLongArrayList;
 import net.imglib2.Cursor;

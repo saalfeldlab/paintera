@@ -42,7 +42,7 @@ import org.scijava.ui.behaviour.*;
 import org.scijava.ui.behaviour.io.InputTriggerConfig;
 
 import bdv.BigDataViewer;
-import bdv.bigcat.FragmentSegmentAssignment;
+import bdv.bigcat.label.FragmentSegmentAssignment;
 import bdv.labels.labelset.LabelMultisetType;
 import bdv.util.AbstractNamedAction.NamedActionAdder;
 import bdv.util.IdService;

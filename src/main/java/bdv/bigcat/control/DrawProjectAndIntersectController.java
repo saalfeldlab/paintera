@@ -1,7 +1,7 @@
 package bdv.bigcat.control;
 
 import bdv.BigDataViewer;
-import bdv.bigcat.FragmentSegmentAssignment;
+import bdv.bigcat.label.FragmentSegmentAssignment;
 import bdv.bigcat.ui.AbstractSaturatedARGBStream;
 import bdv.labels.labelset.LabelMultisetType;
 import bdv.util.AbstractNamedAction.NamedActionAdder;

@@ -16,7 +16,7 @@
  */
 package bdv.bigcat.ui;
 
-import bdv.bigcat.FragmentSegmentAssignment;
+import bdv.bigcat.label.FragmentSegmentAssignment;
 import bdv.labels.labelset.Label;
 import gnu.trove.impl.Constants;
 import gnu.trove.map.hash.TLongIntHashMap;

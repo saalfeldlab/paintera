@@ -2,6 +2,7 @@ package bdv.bigcat.control;
 
 import static bdv.bigcat.control.LabelFillController.getBiggestLabel;
 
+import bdv.bigcat.label.FragmentSegmentAssignment;
 import bdv.bigcat.ui.BrushOverlay;
 import net.imglib2.*;
 import net.imglib2.Cursor;
@@ -29,7 +30,6 @@ import net.imglib2.view.Views;
 import org.scijava.ui.behaviour.*;
 import org.scijava.ui.behaviour.io.InputTriggerConfig;
 
-import bdv.bigcat.FragmentSegmentAssignment;
 import bdv.labels.labelset.Label;
 import bdv.labels.labelset.LabelMultisetType;
 import bdv.viewer.ViewerPanel;

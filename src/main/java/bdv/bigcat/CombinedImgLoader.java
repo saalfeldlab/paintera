@@ -16,7 +16,7 @@ import bdv.img.cache.VolatileGlobalCellCache;
  */
 public class CombinedImgLoader implements ViewerImgLoader
 {
-	static class SetupIdAndLoader
+	static public class SetupIdAndLoader
 	{
 		public final int setupId;
 
@@ -52,7 +52,7 @@ public class CombinedImgLoader implements ViewerImgLoader
 	}
 
 	@Override
-	public Cache getCache()
+	public VolatileGlobalCellCache getCache()
 	{
 		return cache;
 	}

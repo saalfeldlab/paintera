@@ -30,7 +30,8 @@ import org.zeromq.ZMQ.Socket;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 
-import bdv.bigcat.FragmentSegmentAssignment;
+import bdv.bigcat.Message;
+import bdv.bigcat.label.FragmentSegmentAssignment;
 import bdv.bigcat.ui.AbstractSaturatedARGBStream;
 import bdv.labels.labelset.Multiset.Entry;
 import bdv.labels.labelset.Label;

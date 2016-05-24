@@ -14,45 +14,51 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
  */
-package bdv.bigcat.control;
+package bdv.bigcat.label;
 
 import bdv.labels.labelset.Label;
 import bdv.labels.labelset.LabelMultisetType;
+import bdv.labels.labelset.Multiset.Entry;
 import bdv.viewer.ViewerPanel;
 import net.imglib2.RealRandomAccess;
 import net.imglib2.RealRandomAccessible;
-import net.imglib2.type.numeric.integer.LongType;
-import net.imglib2.util.Pair;
 
 /**
  * @author Stephan Saalfeld &lt;saalfelds@janelia.hhmi.org&gt;
  */
-public class PairLabelMultiSetLongIdPicker implements IdPicker
+public class LabelMultiSetIdPicker implements IdPicker
 {
 	final protected ViewerPanel viewer;
-	final protected RealRandomAccess< Pair< LabelMultisetType, LongType > > labelAccess;
+	final protected RealRandomAccess< LabelMultisetType > labelAccess;
 
-	public PairLabelMultiSetLongIdPicker(
+	public LabelMultiSetIdPicker(
 			final ViewerPanel viewer,
-			final RealRandomAccessible< Pair< LabelMultisetType, LongType > > labels )
+			final RealRandomAccessible< LabelMultisetType > labels )
 	{
 		this.viewer = viewer;
 		labelAccess = labels.realRandomAccess();
 	}
 
-	final private long getId()
+	final static public long getMostSignificantId( final LabelMultisetType t )
 	{
-		final Pair< LabelMultisetType, LongType > ab = labelAccess.get();
-		final LongType b = ab.getB();
-		long id = b.get();
-		if ( id == Label.TRANSPARENT )
-			id = LabelMultiSetIdPicker.getMostSignificantId( ab.getA() );
+		long fragmentId = Label.TRANSPARENT;
+		long maxCount = 0;
+		for ( final Entry< Label > entry : t.entrySet() )
+		{
+			final Label label = entry.getElement();
+			final long count = entry.getCount();
 
-		return id;
+			if ( count > maxCount )
+			{
+				maxCount = count;
+				fragmentId = label.id();
+			}
+		}
+		return fragmentId;
 	}
 
 	@Override
-	public synchronized long getIdAtDisplayCoordinate( final int x, final int y )
+	public long getIdAtDisplayCoordinate( final int x, final int y )
 	{
 		labelAccess.setPosition( x, 0 );
 		labelAccess.setPosition( y, 1 );
@@ -60,7 +66,7 @@ public class PairLabelMultiSetLongIdPicker implements IdPicker
 
 		viewer.displayToGlobalCoordinates( labelAccess );
 
-		return getId();
+		return getMostSignificantId( labelAccess.get() );
 	}
 
 	@Override
@@ -70,6 +76,8 @@ public class PairLabelMultiSetLongIdPicker implements IdPicker
 		labelAccess.setPosition( y, 1 );
 		labelAccess.setPosition( z, 2 );
 
-		return getId();
+		final LabelMultisetType labelValues = labelAccess.get();
+
+		return getMostSignificantId( labelAccess.get() );
 	}
 }

@@ -10,7 +10,7 @@ import javax.swing.InputMap;
 import org.scijava.ui.behaviour.KeyStrokeAdder;
 import org.scijava.ui.behaviour.io.InputTriggerConfig;
 
-import bdv.bigcat.FragmentSegmentAssignment;
+import bdv.bigcat.label.FragmentSegmentAssignment;
 import bdv.img.h5.H5Utils;
 import bdv.labels.labelset.LabelMultisetType;
 import bdv.util.AbstractNamedAction;

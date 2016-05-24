@@ -10,7 +10,7 @@ import org.scijava.ui.behaviour.InputTriggerMap;
 import org.scijava.ui.behaviour.ScrollBehaviour;
 import org.scijava.ui.behaviour.io.InputTriggerConfig;
 
-import bdv.bigcat.FragmentSegmentAssignment;
+import bdv.bigcat.label.FragmentSegmentAssignment;
 import bdv.bigcat.ui.BrushOverlay;
 import bdv.labels.labelset.Label;
 import bdv.util.Affine3DHelpers;

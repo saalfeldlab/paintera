@@ -1,317 +1,348 @@
 package bdv.bigcat;
 
-import static bdv.bigcat.CombinedImgLoader.SetupIdAndLoader.setupIdAndLoader;
-
+import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-
-import javax.xml.ws.http.HTTPException;
-
-import mpicbg.spim.data.generic.sequence.BasicViewSetup;
-import mpicbg.spim.data.registration.ViewRegistration;
-import mpicbg.spim.data.registration.ViewRegistrations;
-import mpicbg.spim.data.sequence.TimePoint;
-import mpicbg.spim.data.sequence.TimePoints;
-import net.imglib2.display.ScaledARGBConverter;
-import net.imglib2.interpolation.randomaccess.NearestNeighborInterpolatorFactory;
-import net.imglib2.realtransform.AffineTransform3D;
-import net.imglib2.realtransform.RealViews;
-import net.imglib2.type.numeric.ARGBType;
-import net.imglib2.type.numeric.NumericType;
-import net.imglib2.type.volatiles.VolatileARGBType;
-import net.imglib2.view.Views;
 
 import org.scijava.ui.behaviour.io.InputTriggerConfig;
+import org.scijava.ui.behaviour.io.InputTriggerDescription;
+import org.scijava.ui.behaviour.io.yaml.YamlConfigIO;
 
 import bdv.BigDataViewer;
-import bdv.ViewerSetupImgLoader;
+import bdv.bigcat.annotation.AnnotationsHdf5Store;
 import bdv.bigcat.composite.ARGBCompositeAlphaYCbCr;
 import bdv.bigcat.composite.Composite;
 import bdv.bigcat.composite.CompositeCopy;
-import bdv.bigcat.composite.CompositeProjector;
-import bdv.bigcat.control.LabelMultiSetIdPicker;
+import bdv.bigcat.control.AnnotationsController;
+import bdv.bigcat.control.LabelBrushController;
+import bdv.bigcat.control.LabelFillController;
+import bdv.bigcat.control.LabelPersistenceController;
+import bdv.bigcat.control.LabelRestrictToSegmentController;
 import bdv.bigcat.control.MergeController;
 import bdv.bigcat.control.SelectionController;
-import bdv.bigcat.ui.ARGBConvertedLabelsSource;
-import bdv.bigcat.ui.AbstractARGBConvertedLabelsSource;
-import bdv.bigcat.ui.RandomSaturatedARGBStream;
+import bdv.bigcat.control.TranslateZController;
+import bdv.bigcat.label.FragmentSegmentAssignment;
+import bdv.bigcat.label.PairLabelMultiSetLongIdPicker;
+import bdv.bigcat.ui.ARGBConvertedLabelPairSource;
+import bdv.bigcat.ui.GoldenAngleSaturatedARGBStream;
+import bdv.bigcat.ui.Util;
 import bdv.img.SetCache;
-import bdv.img.cache.Cache;
-import bdv.img.dvid.LabelblkMultisetSetupImageLoader;
-import bdv.img.dvid.Uint8blkImageLoader;
+import bdv.img.h5.AbstractH5SetupImageLoader;
+import bdv.img.h5.H5LabelMultisetSetupImageLoader;
+import bdv.img.h5.H5UnsignedByteSetupImageLoader;
+import bdv.img.h5.H5Utils;
+import bdv.img.labelpair.RandomAccessiblePair;
+import bdv.labels.labelset.Label;
 import bdv.labels.labelset.LabelMultisetType;
-import bdv.spimdata.SequenceDescriptionMinimal;
-import bdv.spimdata.SpimDataMinimal;
-import bdv.tools.brightness.ConverterSetup;
-import bdv.tools.brightness.RealARGBColorConverterSetup;
-import bdv.util.dvid.DatasetKeyValue;
-import bdv.util.dvid.Repository;
-import bdv.util.dvid.Server;
-import bdv.viewer.DisplayMode;
-import bdv.viewer.Source;
-import bdv.viewer.SourceAndConverter;
+import bdv.labels.labelset.VolatileLabelMultisetType;
 import bdv.viewer.TriggerBehaviourBindings;
-import bdv.viewer.ViewerOptions;
-import bdv.viewer.render.AccumulateProjectorFactory;
-
-import com.google.gson.JsonIOException;
-import com.google.gson.JsonSyntaxException;
+import ch.systemsx.cisd.hdf5.HDF5Factory;
+import ch.systemsx.cisd.hdf5.IHDF5Reader;
+import net.imglib2.RandomAccessibleInterval;
+import net.imglib2.algorithm.neighborhood.DiamondShape;
+import net.imglib2.img.cell.CellImg;
+import net.imglib2.img.cell.CellImgFactory;
+import net.imglib2.interpolation.randomaccess.NearestNeighborInterpolatorFactory;
+import net.imglib2.realtransform.RealViews;
+import net.imglib2.type.numeric.ARGBType;
+import net.imglib2.type.numeric.integer.LongType;
+import net.imglib2.util.Intervals;
+import net.imglib2.util.Pair;
+import net.imglib2.view.Views;
 
 public class BigCat
 {
-	public static < A extends ViewerSetupImgLoader< ? extends NumericType< ? >, ? > & SetCache > BigDataViewer createViewer(
-			final String windowTitle,
-			final A[] rawDataLoaders,
-			final AbstractARGBConvertedLabelsSource[] labelSources,
-			final SetCache[] labelLoaders,
-			final List< Composite< ARGBType, ARGBType > > composites,
-			final InputTriggerConfig config)
+	final static private int[] cellDimensions = new int[]{ 64, 64, 8 };
+
+	private H5LabelMultisetSetupImageLoader fragments = null;
+	private ARGBConvertedLabelPairSource convertedLabelPair = null;
+	private CellImg< LongType, ?, ? > paintedLabels = null;
+	private BigDataViewer bdv;
+	private GoldenAngleSaturatedARGBStream colorStream;
+	private FragmentSegmentAssignment assignment;
+	private String projectFile;
+	private String paintedLabelsDataset;
+	private String mergedLabelsDataset;
+	private InputTriggerConfig config;
+
+	public static void main( final String[] args ) throws Exception
 	{
-		/* raw pixels */
-		final CombinedImgLoader.SetupIdAndLoader[] loaders = new CombinedImgLoader.SetupIdAndLoader[ rawDataLoaders.length ];
-		int setupId = 0;
-		for ( int i = 0; i < rawDataLoaders.length; ++i )
-			loaders[ i ] = setupIdAndLoader( setupId++, rawDataLoaders[ i ] );
-
-		final CombinedImgLoader imgLoader = new CombinedImgLoader( loaders );
-		for ( int i = 0; i < rawDataLoaders.length; ++i )
-			rawDataLoaders[ i ].setCache( imgLoader.cache );
-
-		final ArrayList< TimePoint > timePointsList = new ArrayList< >();
-		final Map< Integer, BasicViewSetup > setups = new HashMap< >();
-		final ArrayList< ViewRegistration > viewRegistrationsList = new ArrayList< >();
-		for ( final CombinedImgLoader.SetupIdAndLoader loader : loaders )
-		{
-			timePointsList.add( new TimePoint( 0 ) );
-			setups.put( loader.setupId, new BasicViewSetup( loader.setupId, null, null, null ) );
-			viewRegistrationsList.add( new ViewRegistration( 0, loader.setupId ) );
-		}
-
-		final TimePoints timepoints = new TimePoints( timePointsList );
-		final ViewRegistrations reg = new ViewRegistrations( viewRegistrationsList );
-		final SequenceDescriptionMinimal seq = new SequenceDescriptionMinimal( timepoints, setups, imgLoader, null );
-		final SpimDataMinimal spimData = new SpimDataMinimal( null, seq, reg );
-
-		final ArrayList< ConverterSetup > converterSetups = new ArrayList< ConverterSetup >();
-		final ArrayList< SourceAndConverter< ? > > sources = new ArrayList< SourceAndConverter< ? > >();
-
-		BigDataViewer.initSetups( spimData, converterSetups, sources );
-
-		/* labels */
-		for ( final SetCache setCache : labelLoaders )
-			setCache.setCache( imgLoader.cache );
-
-		for ( final AbstractARGBConvertedLabelsSource source : labelSources )
-		{
-			final ScaledARGBConverter.ARGB converter = new ScaledARGBConverter.ARGB( 0, 255 );
-			final ScaledARGBConverter.VolatileARGB vconverter = new ScaledARGBConverter.VolatileARGB( 0, 255 );
-
-			final SourceAndConverter< VolatileARGBType > vsoc = new SourceAndConverter< VolatileARGBType >( source, vconverter );
-			final SourceAndConverter< ARGBType > soc = new SourceAndConverter< ARGBType >( source.nonVolatile(), converter, vsoc );
-			sources.add( soc );
-
-			final RealARGBColorConverterSetup fragmentsConverterSetup = new RealARGBColorConverterSetup( 2, converter, vconverter );
-			converterSetups.add( fragmentsConverterSetup );
-		}
-
-		/* composites */
-		final HashMap< Source< ? >, Composite< ARGBType, ARGBType > > sourceCompositesMap = new HashMap< Source< ? >, Composite< ARGBType, ARGBType > >();
-		for ( int i = 0; i < composites.size(); ++i )
-			sourceCompositesMap.put( sources.get( i ).getSpimSource(), composites.get( i ) );
-
-		final AccumulateProjectorFactory< ARGBType > projectorFactory = new CompositeProjector.CompositeProjectorFactory< ARGBType >( sourceCompositesMap );
-
-		ViewerOptions options = ViewerOptions.options()
-				.accumulateProjectorFactory(projectorFactory)
-				.numRenderingThreads(16)
-				.targetRenderNanos(10000000);
-		if (config != null)
-			options = options.inputTriggerConfig(config);
-
-		final BigDataViewer bdv = new BigDataViewer( converterSetups, sources, null, timepoints.size(), imgLoader.getCache(), windowTitle, null, options );
-
-		final AffineTransform3D transform = new AffineTransform3D();
-//		transform.set(
-//			4.3135842398185575, -1.0275561336713027E-16, 1.1102230246251565E-16, -14207.918453952327,
-//			-1.141729037412541E-17, 4.313584239818558, 1.0275561336713028E-16, -9482.518144778587,
-//			1.1102230246251565E-16, -1.141729037412541E-17, 4.313584239818559, -17181.48737890195 );
-//		transform.set( 0, 0, 1, 0, 0, 1, 0, 0, -1, 0, 0, 0 );
-		bdv.getViewer().setCurrentViewerTransform( transform );
-		bdv.getViewer().setDisplayMode( DisplayMode.FUSED );
-
-		/* separate source min max */
-		for ( final ConverterSetup converterSetup : converterSetups )
-		{
-			bdv.getSetupAssignments().removeSetupFromGroup( converterSetup, bdv.getSetupAssignments().getMinMaxGroups().get( 0 ) );
-			converterSetup.setDisplayRange( 0, 255 );
-		}
-
-		return bdv;
+		final BigCat bca = new BigCat(args);
 	}
 
-	public static void main( final String[] args ) throws JsonSyntaxException, JsonIOException, IOException
+	public BigCat( final String[] args ) throws Exception
 	{
-		final String url = "http://vm570.int.janelia.org:8080";
-		final String labelsBase = "multisets-labels-downscaled-zero-extended-2"; // "multisets-labels-downscaled";
-		final String uuid = "4668221206e047648f622dc4690ff7dc";
+		Util.initUI();
 
-		final Server server = new Server( url );
-		final Repository repo = new Repository( server, uuid );
+		this.config = getInputTriggerConfig();
 
-//		final DatasetKeyValue[] stores = new DatasetKeyValue[ 4 ];
-		final DatasetKeyValue[] stores = new DatasetKeyValue[ 0 ];
+		projectFile = args[0];
+		String labelsDataset = "neuron_ids";
+		if (args.length > 1)
+			labelsDataset = args[1];
 
-		for ( int i = 0; i < stores.length; ++i )
+		String rawDataset = "raw";
+		if (args.length > 2)
+			rawDataset = args[2];
+
+		System.out.println( "Opening " + projectFile );
+		final IHDF5Reader reader = HDF5Factory.open( projectFile );
+
+		// support both file_format 0.0 and >=0.1
+		final String volumesPath = reader.isGroup("/volumes") ? "/volumes" : "";
+		final String labelsPath = reader.isGroup(volumesPath + "/labels") ? volumesPath + "/labels" : "";
+
+		/* raw pixels */
+		final String rawPath = volumesPath + "/" + rawDataset;
+		final H5UnsignedByteSetupImageLoader raw = new H5UnsignedByteSetupImageLoader( reader, rawPath, 0, cellDimensions );
+
+		/* fragments */
+		String fragmentsPath = labelsPath + "/" + labelsDataset;
+		mergedLabelsDataset = labelsPath + "/merged_" + labelsDataset;
+		paintedLabelsDataset = labelsPath + "/painted_" + labelsDataset;
+		fragmentsPath = reader.isDataSet(mergedLabelsDataset) ? mergedLabelsDataset : fragmentsPath;
+		if (reader.exists(fragmentsPath))
+			readFragments(args, reader, fragmentsPath, paintedLabelsDataset);
+		else
+			System.out.println("no labels found cooresponding to requested dataset '" + labelsDataset + "' (searched in '" + labelsPath + "'");
+
+		setupBdv(raw);
+	}
+
+	private void readFragments(final String[] args, final IHDF5Reader reader, final String labelsDataset, final String paintedLabelsDataset)
+			throws IOException {
+
+		fragments =
+				new H5LabelMultisetSetupImageLoader(
+						reader,
+						null,
+						labelsDataset,
+						1,
+						cellDimensions );
+		final RandomAccessibleInterval< VolatileLabelMultisetType > fragmentsPixels = fragments.getVolatileImage( 0, 0 );
+		final long[] fragmentsDimensions = Intervals.dimensionsAsLongArray( fragmentsPixels );
+
+//		// TODO does not work for uint64
+//		long maxId = 0;
+//		for (final LabelMultisetType t : Views.iterable(fragments.getImage(0))) {
+//			for (final Multiset.Entry<SuperVoxel> v : t.entrySet()) {
+//				long id = v.getElement().id();
+//				if (id != PairVolatileLabelMultisetLongARGBConverter.TRANSPARENT_LABEL)
+//					// TODO does not work for uint64
+//					maxId = Math.max(maxId, id);
+//			}
+//		}
+//		// TODO does not work for uint64
+//		IdService.invalidate(0, maxId);
+
+
+		final String paintedLabelsFilePath = args[ 0 ];
+		final File paintedLabelsFile = new File( paintedLabelsFilePath );
+		if ( paintedLabelsFile.exists() && reader.exists( paintedLabelsDataset ) )
+				paintedLabels = H5Utils.loadUnsignedLong( new File( paintedLabelsFilePath ), paintedLabelsDataset, cellDimensions );
+		else
 		{
-			stores[ i ] = new DatasetKeyValue( repo.getRootNode(), labelsBase + "-" + ( 1 << ( i + 1 ) ) );
-
-			try
-			{
-				repo.getRootNode().createDataset( stores[ i ].getName(), DatasetKeyValue.TYPE );
-			}
-			catch ( final HTTPException e )
-			{
-				e.printStackTrace( System.err );
-			}
+			paintedLabels = new CellImgFactory< LongType >( cellDimensions ).create( fragmentsDimensions, new LongType() );
+			for ( final LongType t : paintedLabels )
+				t.set( Label.TRANSPARENT );
 		}
 
-//		final double[][] resolutions = new double[][]{
-//				{ 1, 1, 1 },
-//				{ 2, 2, 2 },
-//				{ 4, 4, 4 },
-//				{ 8, 8, 8 },
-//				{16, 16, 16 } };
+		/* pair labels */
+		final RandomAccessiblePair< VolatileLabelMultisetType, LongType > labelPair =
+				new RandomAccessiblePair<>(
+						fragments.getVolatileImage( 0, 0 ),
+						paintedLabels );
 
-		final double[][] resolutions = new double[][] { { 1, 1, 1 } };
+		assignment = new FragmentSegmentAssignment();
+		colorStream = new GoldenAngleSaturatedARGBStream( assignment );
+		colorStream.setAlpha( 0x30 );
+		convertedLabelPair =
+				new ARGBConvertedLabelPairSource(
+						3,
+						labelPair,
+						paintedLabels, // as Interval, used just for the size
+						fragments.getMipmapTransforms(),
+						colorStream );
+	}
 
-		try
-		{
-			System.setProperty( "apple.laf.useScreenMenuBar", "true" );
+	@SuppressWarnings("unchecked")
+	private void setupBdv(final H5UnsignedByteSetupImageLoader raw) throws Exception {
+		/* composites */
+		final ArrayList< Composite< ARGBType, ARGBType > > composites = new ArrayList< Composite< ARGBType, ARGBType > >();
+		composites.add( new CompositeCopy< ARGBType >() );
 
-			/* data sources */
-//			final DvidGrayscale8ImageLoader dvidGrayscale8ImageLoader = new DvidGrayscale8ImageLoader(
-//					"http://emrecon100.janelia.priv/api",
-//					"2a3fd320aef011e4b0ce18037320227c",
-//					"grayscale" );
-//			final DvidLabels64MultisetSetupImageLoader dvidLabelsMultisetImageLoader = new DvidLabels64MultisetSetupImageLoader(
-//					1,
-//					"http://emrecon100.janelia.priv/api",
-//					"2a3fd320aef011e4b0ce18037320227c",
-//					"bodies",
-//					resolutions,
-//					stores );
+		final String windowTitle = "BigCAT";
 
-			/* data sources */
-//			final Uint8blkImageLoader dvidGrayscale8ImageLoader = new Uint8blkImageLoader( "http://emdata2.int.janelia.org:7000/api", "e402c09ddd0f45e980d9be6e9fcb9bd0", "grayscale" );
-//			final LabelblkMultisetSetupImageLoader dvidLabelsMultisetImageLoader = new LabelblkMultisetSetupImageLoader( 1, "http://emdata2.int.janelia.org:7000/api", "e402c09ddd0f45e980d9be6e9fcb9bd0", "labels1104", resolutions, stores );
-			final Uint8blkImageLoader dvidGrayscale8ImageLoader = new Uint8blkImageLoader(
-					"http://104.197.250.147:8000/api",
-					"de02b03701e84eb3830e944919fbec5a",
-					"grayscale" );
-			final LabelblkMultisetSetupImageLoader dvidLabelsMultisetImageLoader = new LabelblkMultisetSetupImageLoader(
-					1,
-					"http://104.197.250.147:8000/api",
-					"de02b03701e84eb3830e944919fbec5a",
-					"7colseg1",
-					resolutions,
-					stores );
-//			final ARGBConvertedLabelsSetupImageLoader dvidLabelsARGBImageLoader = new ARGBConvertedLabelsSetupImageLoader(
-//					2,
-//					dvidLabelsMultisetImageLoader );
+		if (fragments != null) {
 
-			final FragmentSegmentAssignment assignment = new FragmentSegmentAssignment();
-
-//			final GoldenAngleSaturatedARGBStream colorStream = new GoldenAngleSaturatedARGBStream();
-			final RandomSaturatedARGBStream colorStream = new RandomSaturatedARGBStream( assignment );
-			colorStream.setAlpha( 0x30 );
-			final ARGBConvertedLabelsSource convertedLabels = new ARGBConvertedLabelsSource( 2, dvidLabelsMultisetImageLoader, colorStream );
-
-			final CombinedImgLoader imgLoader = new CombinedImgLoader( setupIdAndLoader( 0, dvidGrayscale8ImageLoader ) );
-			dvidGrayscale8ImageLoader.setCache( imgLoader.cache );
-			dvidLabelsMultisetImageLoader.setCache( imgLoader.cache );
-
-			final TimePoints timepoints = new TimePoints( Arrays.asList( new TimePoint( 0 ) ) );
-			final Map< Integer, BasicViewSetup > setups = new HashMap< Integer, BasicViewSetup >();
-			setups.put( 0, new BasicViewSetup( 0, null, null, null ) );
-			final ViewRegistrations reg = new ViewRegistrations( Arrays.asList( new ViewRegistration( 0, 0 ) ) );
-
-			final SequenceDescriptionMinimal seq = new SequenceDescriptionMinimal( timepoints, setups, imgLoader, null );
-			final SpimDataMinimal spimData = new SpimDataMinimal( null, seq, reg );
-
-			final ArrayList< ConverterSetup > converterSetups = new ArrayList< ConverterSetup >();
-			final ArrayList< SourceAndConverter< ? > > sources = new ArrayList< SourceAndConverter< ? > >();
-
-			BigDataViewer.initSetups( spimData, converterSetups, sources );
-
-			final ScaledARGBConverter.ARGB converter = new ScaledARGBConverter.ARGB( 0, 255 );
-			final ScaledARGBConverter.VolatileARGB vconverter = new ScaledARGBConverter.VolatileARGB( 0, 255 );
-
-			final SourceAndConverter< VolatileARGBType > vsoc = new SourceAndConverter< VolatileARGBType >( convertedLabels, vconverter );
-			final SourceAndConverter< ARGBType > soc = new SourceAndConverter< ARGBType >( convertedLabels.nonVolatile(), converter, vsoc );
-			sources.add( soc );
-			converterSetups.add( new RealARGBColorConverterSetup( 2, converter, vconverter ) );
-
-			/* composites */
-			final ArrayList< Composite< ARGBType, ARGBType > > composites = new ArrayList< Composite< ARGBType, ARGBType > >();
-			composites.add( new CompositeCopy< ARGBType >() );
 			composites.add( new ARGBCompositeAlphaYCbCr() );
-//			composites.add( new ARGBCompositeAlpha() );
-			final HashMap< Source< ? >, Composite< ARGBType, ARGBType > > sourceCompositesMap = new HashMap< Source< ? >, Composite< ARGBType, ARGBType > >();
-			sourceCompositesMap.put( sources.get( 0 ).getSpimSource(), composites.get( 0 ) );
-			sourceCompositesMap.put( sources.get( 1 ).getSpimSource(), composites.get( 1 ) );
-			final AccumulateProjectorFactory< ARGBType > projectorFactory = new CompositeProjector.CompositeProjectorFactory< ARGBType >( sourceCompositesMap );
+			bdv = Util.createViewer(
+				windowTitle,
+				new AbstractH5SetupImageLoader[]{ raw },
+				new ARGBConvertedLabelPairSource[]{ convertedLabelPair },
+				new SetCache[]{ fragments },
+				composites,
+				config);
+		} else {
 
-			final Cache cache = imgLoader.getCache();
-			final String windowTitle = "bigcat";
-			final BigDataViewer bdv = new BigDataViewer( converterSetups, sources, null, timepoints.size(), cache, windowTitle, null, ViewerOptions.options().accumulateProjectorFactory( projectorFactory ).numRenderingThreads( 16 ) );
+			bdv = Util.createViewer(
+				windowTitle,
+				new AbstractH5SetupImageLoader[]{ raw },
+				new ARGBConvertedLabelPairSource[]{ },
+				new SetCache[]{ },
+				composites,
+				config);
+		}
 
-			final AffineTransform3D transform = new AffineTransform3D();
-			transform.set( 30.367584357121462, -7.233983582120427E-16, 7.815957561302E-16, -103163.46077512865, -8.037759535689243E-17, 30.367584357121462, 7.233983582120427E-16, -68518.45769918368, 7.815957561302E-16, -8.037759535689243E-17, 30.36758435712147, -120957.47720498207 );
-			bdv.getViewer().setCurrentViewerTransform( transform );
-			bdv.getViewer().setDisplayMode( DisplayMode.FUSED );
+		bdv.getViewerFrame().setVisible( true );
 
-			bdv.getViewerFrame().setSize( 1280 - 32, 720 - 28 - 32 );
+		final TriggerBehaviourBindings bindings = bdv.getViewerFrame().getTriggerbindings();
 
-			bdv.getViewerFrame().setVisible( true );
+		if (fragments != null) {
 
-			final LabelMultiSetIdPicker idPicker = new LabelMultiSetIdPicker(
+			final PairLabelMultiSetLongIdPicker idPicker2 = new PairLabelMultiSetLongIdPicker(
 					bdv.getViewer(),
 					RealViews.affineReal(
 							Views.interpolate(
-									Views.extendValue(
-											dvidLabelsMultisetImageLoader.getImage( 0 ),
-											new LabelMultisetType() ),
-									new NearestNeighborInterpolatorFactory< LabelMultisetType >() ),
-							dvidLabelsMultisetImageLoader.getMipmapTransforms()[ 0 ] )
+									new RandomAccessiblePair< LabelMultisetType, LongType >(
+											Views.extendValue(
+												fragments.getImage( 0 ),
+												new LabelMultisetType() ),
+											Views.extendValue(
+													paintedLabels,
+													new LongType( Label.TRANSPARENT ) ) ),
+									new NearestNeighborInterpolatorFactory< Pair< LabelMultisetType, LongType > >() ),
+							fragments.getMipmapTransforms()[ 0 ] )
 					);
 
 			final SelectionController selectionController = new SelectionController(
 					bdv.getViewer(),
 					colorStream,
-					new InputTriggerConfig(),
+					config,
 					bdv.getViewerFrame().getKeybindings(),
-					new InputTriggerConfig() );
+					config);
 
 			final MergeController mergeController = new MergeController(
 					bdv.getViewer(),
-					idPicker,
+					idPicker2,
 					selectionController,
 					assignment,
-					new InputTriggerConfig(),
+					config,
 					bdv.getViewerFrame().getKeybindings(),
-					new InputTriggerConfig() );
+					config);
 
-			final TriggerBehaviourBindings bindings = bdv.getViewerFrame().getTriggerbindings();
-			bindings.addBehaviourMap( "bigcat", mergeController.getBehaviourMap() );
-			bindings.addInputTriggerMap( "bigcat", mergeController.getInputTriggerMap() );
+			final LabelBrushController brushController = new LabelBrushController(
+					bdv.getViewer(),
+					paintedLabels,
+					fragments.getMipmapTransforms()[ 0 ],
+					assignment,
+					selectionController,
+					projectFile,
+					paintedLabelsDataset,
+					cellDimensions,
+					config);
+
+			final LabelPersistenceController persistenceController = new LabelPersistenceController(
+					bdv.getViewer(),
+					fragments.getImage( 0 ),
+					paintedLabels,
+					assignment,
+					projectFile,
+					paintedLabelsDataset,
+					mergedLabelsDataset,
+					cellDimensions,
+					config,
+					bdv.getViewerFrame().getKeybindings() );
+
+			final LabelFillController fillController = new LabelFillController(
+					bdv.getViewer(),
+					fragments.getImage( 0 ),
+					paintedLabels,
+					fragments.getMipmapTransforms()[ 0 ],
+					assignment,
+					selectionController,
+					new DiamondShape( 1 ),
+					config);
+
+			final LabelRestrictToSegmentController intersectController = new LabelRestrictToSegmentController(
+					bdv.getViewer(),
+					fragments.getImage(0),
+					paintedLabels,
+					fragments.getMipmapTransforms()[0],
+					assignment,
+					selectionController,
+					new DiamondShape(1),
+					config);
+
+			bindings.addBehaviourMap( "merge", mergeController.getBehaviourMap() );
+			bindings.addInputTriggerMap( "merge", mergeController.getInputTriggerMap() );
+
+			bindings.addBehaviourMap( "brush", brushController.getBehaviourMap() );
+			bindings.addInputTriggerMap( "brush", brushController.getInputTriggerMap() );
+
+			bindings.addBehaviourMap( "fill", fillController.getBehaviourMap() );
+			bindings.addInputTriggerMap( "fill", fillController.getInputTriggerMap() );
+
+			bindings.addBehaviourMap( "restrict", intersectController.getBehaviourMap() );
+			bindings.addInputTriggerMap( "restrict", intersectController.getInputTriggerMap() );
+
+			bdv.getViewer().getDisplay().addOverlayRenderer( brushController.getBrushOverlay() );
+
 		}
-		catch ( final Exception e )
-		{
-			e.printStackTrace();
-		}
+
+		final TranslateZController translateZController = new TranslateZController(
+				bdv.getViewer(),
+				raw.getMipmapResolutions()[0],
+				config);
+		bindings.addBehaviourMap( "translate_z", translateZController.getBehaviourMap() );
+
+		final AnnotationsHdf5Store annotationsStore = new AnnotationsHdf5Store(projectFile);
+		final AnnotationsController annotationController = new AnnotationsController(
+				annotationsStore,
+				bdv,
+				config,
+				bdv.getViewerFrame().getKeybindings(),
+				config);
+
+		bindings.addBehaviourMap( "annotation", annotationController.getBehaviourMap() );
+		bindings.addInputTriggerMap( "annotation", annotationController.getInputTriggerMap() );
+
+		bdv.getViewer().getDisplay().addOverlayRenderer( annotationController.getAnnotationOverlay() );
 	}
+
+	protected InputTriggerConfig getInputTriggerConfig() throws IllegalArgumentException {
+
+		final String[] filenames = {
+				"bigcatkeyconfig.yaml",
+				System.getProperty( "user.home" ) + "/.bdv/bigcatkeyconfig.yaml"
+		};
+
+		for (final String filename : filenames) {
+
+			try {
+				if (new File(filename).isFile()) {
+					System.out.println("reading key config from file " + filename);
+					return new InputTriggerConfig(YamlConfigIO.read(filename));
+				}
+			} catch (final IOException e) {
+				System.err.println("Error reading " + filename);
+			}
+		}
+
+		System.out.println("creating default input trigger config");
+
+		// default input trigger config, disables "control button1" drag in bdv
+		// (collides with default of "move annotation")
+		final InputTriggerConfig config = new InputTriggerConfig(
+				Arrays.asList(
+						new InputTriggerDescription[] {
+								new InputTriggerDescription( new String[] { "not mapped" }, "drag rotate slow", "bdv" )
+						}
+				)
+		);
+
+		return config;
+	}
+
 }

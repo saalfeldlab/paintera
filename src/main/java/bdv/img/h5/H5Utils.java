@@ -4,7 +4,7 @@ import static bdv.img.hdf5.Util.reorder;
 
 import java.io.File;
 
-import bdv.bigcat.FragmentSegmentAssignment;
+import bdv.bigcat.label.FragmentSegmentAssignment;
 import bdv.img.labelpair.RandomAccessiblePair;
 import bdv.labels.labelset.Label;
 import bdv.labels.labelset.LabelMultiset;
