@@ -34,7 +34,6 @@
 		<dependency>
 			<groupId>sc.fiji</groupId>
 			<artifactId>bigdataviewer-core</artifactId>
-			<version>2.3.0</version>
 		</dependency>
 		<dependency>
 			<groupId>sc.fiji</groupId>
@@ -48,7 +47,6 @@
 		<dependency>
 			<groupId>cisd</groupId>
 			<artifactId>jhdf5</artifactId>
-			<version>14.12.5</version>
 		</dependency>
 		<dependency>
 			<groupId>org.zeromq</groupId>
@@ -63,7 +61,6 @@
 		<dependency>
 			<groupId>net.imglib2</groupId>
 			<artifactId>imglib2</artifactId>
-			<version>2.9.0</version>
 		</dependency>
 		<dependency>
 			<groupId>net.imglib2</groupId>

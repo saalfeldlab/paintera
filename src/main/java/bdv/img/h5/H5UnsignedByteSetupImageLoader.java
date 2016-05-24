@@ -25,6 +25,24 @@ public class H5UnsignedByteSetupImageLoader
 			final IHDF5Reader reader,
 			final String dataset,
 			final int setupId,
+			final int[] blockDimension,
+			final double[] resolution ) throws IOException
+	{
+		super(
+				reader,
+				dataset,
+				setupId,
+				blockDimension,
+				resolution,
+				new UnsignedByteType(),
+				new VolatileUnsignedByteType(),
+				new H5ByteArrayLoader( reader, dataset ) );
+	}
+
+	public H5UnsignedByteSetupImageLoader(
+			final IHDF5Reader reader,
+			final String dataset,
+			final int setupId,
 			final int[] blockDimension ) throws IOException
 	{
 		super(

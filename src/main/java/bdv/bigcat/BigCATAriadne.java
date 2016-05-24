@@ -4,20 +4,10 @@ import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 
-import net.imglib2.RandomAccessibleInterval;
-import net.imglib2.algorithm.neighborhood.DiamondShape;
-import net.imglib2.img.cell.CellImg;
-import net.imglib2.img.cell.CellImgFactory;
-import net.imglib2.interpolation.randomaccess.NearestNeighborInterpolatorFactory;
-import net.imglib2.realtransform.AffineTransform3D;
-import net.imglib2.realtransform.RealViews;
-import net.imglib2.type.numeric.ARGBType;
-import net.imglib2.type.numeric.integer.LongType;
-import net.imglib2.util.Intervals;
-import net.imglib2.util.Pair;
-import net.imglib2.view.Views;
-
 import org.scijava.ui.behaviour.io.InputTriggerConfig;
+
+import com.google.gson.JsonIOException;
+import com.google.gson.JsonSyntaxException;
 
 import bdv.BigDataViewer;
 import bdv.bigcat.composite.ARGBCompositeAlphaYCbCr;
@@ -48,13 +38,23 @@ import bdv.labels.labelset.VolatileLabelMultisetType;
 import bdv.viewer.TriggerBehaviourBindings;
 import ch.systemsx.cisd.hdf5.HDF5Factory;
 import ch.systemsx.cisd.hdf5.IHDF5Reader;
-
-import com.google.gson.JsonIOException;
-import com.google.gson.JsonSyntaxException;
+import net.imglib2.RandomAccessibleInterval;
+import net.imglib2.algorithm.neighborhood.DiamondShape;
+import net.imglib2.img.cell.CellImg;
+import net.imglib2.img.cell.CellImgFactory;
+import net.imglib2.interpolation.randomaccess.NearestNeighborInterpolatorFactory;
+import net.imglib2.realtransform.AffineTransform3D;
+import net.imglib2.realtransform.RealViews;
+import net.imglib2.type.numeric.ARGBType;
+import net.imglib2.type.numeric.integer.LongType;
+import net.imglib2.util.Intervals;
+import net.imglib2.util.Pair;
+import net.imglib2.view.Views;
 
 public class BigCATAriadne
 {
-	final static private int[] cellDimensions = new int[]{ 64, 64, 8 };
+	final static private int[] cellDimensions = new int[]{ 8, 64, 64 };
+	final static private double[] resolutions = new double[]{ 10, 1, 1 };
 	final static private String rawDataset = "/em_raw";
 	final static private String backgroundLabelsDataset = "/labels";
 	final static private String paintedLabelsDataset = "/paintedLabels";
@@ -68,7 +68,7 @@ public class BigCATAriadne
 		final IHDF5Reader reader = HDF5Factory.open( args[ 0 ] );
 
 		/* raw pixels */
-		final H5UnsignedByteSetupImageLoader raw = new H5UnsignedByteSetupImageLoader( reader, rawDataset, 0, cellDimensions );
+		final H5UnsignedByteSetupImageLoader raw = new H5UnsignedByteSetupImageLoader( reader, rawDataset, 0, cellDimensions, resolutions );
 
 		/* fragments */
 		final String labelsDataset = reader.exists( mergedLabelsDataset ) ? mergedLabelsDataset : backgroundLabelsDataset;
@@ -78,7 +78,8 @@ public class BigCATAriadne
 						null,
 						labelsDataset,
 						1,
-						cellDimensions );
+						cellDimensions,
+						resolutions );
 		final RandomAccessibleInterval< VolatileLabelMultisetType > fragmentsPixels = fragments.getVolatileImage( 0, 0 );
 		final long[] fragmentsDimensions = Intervals.dimensionsAsLongArray( fragmentsPixels );
 
@@ -148,7 +149,7 @@ public class BigCATAriadne
 				new ARGBConvertedLabelPairSource[]{ convertedLabelPair },
 				new SetCache[]{ fragments },
 				composites,
-				null);
+				null );
 
 		final AffineTransform3D transform = new AffineTransform3D();
 		transform.set( 0, 0, 1, 0, 0, 1, 0, 0, -1, 0, 0, 0 );
@@ -214,7 +215,8 @@ public class BigCATAriadne
 				paintedLabelsFilePath,
 				paintedLabelsDataset,
 				cellDimensions,
-				new InputTriggerConfig() );
+				new InputTriggerConfig(),
+				0 );
 
 		final LabelPersistenceController persistenceController = new LabelPersistenceController(
 				bdv.getViewer(),
@@ -248,7 +250,7 @@ public class BigCATAriadne
 				new DiamondShape(1),
 				new InputTriggerConfig());
 
-		DrawProjectAndIntersectController dpi = new DrawProjectAndIntersectController(
+		final DrawProjectAndIntersectController dpi = new DrawProjectAndIntersectController(
 				bdv,
 				transform,
 				new InputTriggerConfig(),

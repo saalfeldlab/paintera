@@ -45,11 +45,26 @@ abstract public class AbstractH5SetupImageLoader< T extends NativeType< T > , V 
 
 	final protected int setupId;
 
+	final static protected double[] readResolution( final IHDF5Reader reader, final String dataset )
+	{
+		final double[] resolution;
+		if ( reader.object().hasAttribute( dataset, "resolution" ) )
+		{
+			final double[] h5res = reader.float64().getArrayAttr( dataset, "resolution" );
+			resolution = new double[] { h5res[ 0 ], h5res[ 1 ], h5res[ 2 ], };
+		}
+		else
+			resolution = new double[] { 1, 1, 1 };
+
+		return resolution;
+	}
+
 	public AbstractH5SetupImageLoader(
 			final IHDF5Reader reader,
 			final String dataset,
 			final int setupId,
 			final int[] blockDimension,
+			final double[] resolution,
 			final T type,
 			final V vType,
 			final CacheArrayLoader< A > loader ) throws IOException
@@ -57,6 +72,7 @@ abstract public class AbstractH5SetupImageLoader< T extends NativeType< T > , V 
 		super( type, vType );
 		this.setupId = setupId;
 		this.loader = loader;
+		this.resolution = resolution;
 
 		final long[] h5dim = reader.object().getDimensions( dataset );
 
@@ -64,18 +80,6 @@ abstract public class AbstractH5SetupImageLoader< T extends NativeType< T > , V 
 				h5dim[ 2 ],
 				h5dim[ 1 ],
 				h5dim[ 0 ], };
-
-		if ( reader.object().hasAttribute( dataset, "resolution" ) )
-		{
-			final double[] h5res = reader.float64().getArrayAttr( dataset, "resolution" );
-			resolution = new double[]{
-					h5res[ 2 ],
-					h5res[ 1 ],
-					h5res[ 0 ], };
-		}
-		else
-			resolution = new double[]{1, 1, 10};
-
 
 		mipmapTransform = new AffineTransform3D();
 
@@ -86,6 +90,18 @@ abstract public class AbstractH5SetupImageLoader< T extends NativeType< T > , V 
 		this.blockDimension = blockDimension;
 
 		cache = new VolatileGlobalCellCache( 1, 1, 1, 10 );
+	}
+
+	public AbstractH5SetupImageLoader(
+			final IHDF5Reader reader,
+			final String dataset,
+			final int setupId,
+			final int[] blockDimension,
+			final T type,
+			final V vType,
+			final CacheArrayLoader< A > loader ) throws IOException
+	{
+		this( reader, dataset, setupId, blockDimension, readResolution( reader, dataset ), type, vType, loader );
 	}
 
 	@Override

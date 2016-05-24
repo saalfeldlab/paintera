@@ -2,18 +2,6 @@ package bdv.bigcat.control;
 
 import java.awt.Cursor;
 
-import net.imglib2.RandomAccessible;
-import net.imglib2.RandomAccessibleInterval;
-import net.imglib2.RealLocalizable;
-import net.imglib2.RealPoint;
-import net.imglib2.algorithm.neighborhood.HyperSphereNeighborhood;
-import net.imglib2.algorithm.neighborhood.Neighborhood;
-import net.imglib2.realtransform.AffineTransform3D;
-import net.imglib2.type.numeric.integer.LongType;
-import net.imglib2.ui.TransformEventHandler;
-import net.imglib2.util.LinAlgHelpers;
-import net.imglib2.view.Views;
-
 import org.scijava.ui.behaviour.Behaviour;
 import org.scijava.ui.behaviour.BehaviourMap;
 import org.scijava.ui.behaviour.DragBehaviour;
@@ -27,6 +15,17 @@ import bdv.bigcat.ui.BrushOverlay;
 import bdv.labels.labelset.Label;
 import bdv.util.Affine3DHelpers;
 import bdv.viewer.ViewerPanel;
+import net.imglib2.RandomAccessible;
+import net.imglib2.RandomAccessibleInterval;
+import net.imglib2.RealLocalizable;
+import net.imglib2.RealPoint;
+import net.imglib2.algorithm.neighborhood.HyperSphereNeighborhood;
+import net.imglib2.algorithm.neighborhood.Neighborhood;
+import net.imglib2.realtransform.AffineTransform3D;
+import net.imglib2.type.numeric.integer.LongType;
+import net.imglib2.ui.TransformEventHandler;
+import net.imglib2.util.LinAlgHelpers;
+import net.imglib2.view.Views;
 
 /**
  * A {@link TransformEventHandler} that changes an {@link AffineTransform3D}
@@ -49,6 +48,8 @@ public class LabelBrushController
 	final protected String labelsH5Path;
 	final protected String labelsH5Dataset;
 	final protected int[] labelsH5CellDimensions;
+
+	final int brushNormalAxis;
 
 	protected int brushRadius = 5;
 
@@ -86,7 +87,8 @@ public class LabelBrushController
 			final String labelsH5Path,
 			final String labelsH5Dataset,
 			final int[] labelsH5CellDimensions,
-			final InputTriggerConfig config )
+			final InputTriggerConfig config,
+			final int brushNormalAxis )
 	{
 		this.viewer = viewer;
 		this.labels = labels;
@@ -97,6 +99,7 @@ public class LabelBrushController
 		this.labelsH5Path = labelsH5Path;
 		this.labelsH5Dataset = labelsH5Dataset;
 		this.labelsH5CellDimensions = labelsH5CellDimensions;
+		this.brushNormalAxis = brushNormalAxis;
 		brushOverlay = new BrushOverlay( viewer );
 		inputAdder = config.inputTriggerAdder( inputTriggerMap, "brush" );
 
@@ -106,6 +109,20 @@ public class LabelBrushController
 		new Erase( "erase", "SPACE button2", "SPACE button3" ).register();
 		new ChangeBrushRadius( "change brush radius", "SPACE scroll" ).register();
 		new MoveBrush( "move brush", "SPACE" ).register();
+	}
+
+	public LabelBrushController(
+			final ViewerPanel viewer,
+			final RandomAccessibleInterval< LongType > labels,
+			final AffineTransform3D labelTransform,
+			final FragmentSegmentAssignment assignment,
+			final SelectionController selectionController,
+			final String labelsH5Path,
+			final String labelsH5Dataset,
+			final int[] labelsH5CellDimensions,
+			final InputTriggerConfig config )
+	{
+		this( viewer, labels, labelTransform, assignment, selectionController, labelsH5Path, labelsH5Dataset, labelsH5CellDimensions, config, 2 );
 	}
 
 	private void setCoordinates( final int x, final int y )
@@ -152,14 +169,14 @@ public class LabelBrushController
 
 		protected void paint( final RealLocalizable coords)
 		{
-			final RandomAccessible< LongType > labelSource = Views.hyperSlice( extendedLabels, 2, Math.round( coords.getDoublePosition( 2 ) ) );
+			final RandomAccessible< LongType > labelSource = Views.hyperSlice( extendedLabels, brushNormalAxis, Math.round( coords.getDoublePosition( 2 ) ) );
 
 			final Neighborhood< LongType > sphere =
 					HyperSphereNeighborhood.< LongType >factory().create(
 							new long[]{
-									Math.round( coords.getDoublePosition( 0 ) ),
-									Math.round( coords.getDoublePosition( 1 ) ) },
-							Math.round(brushRadius/Affine3DHelpers.extractScale(labelTransform, 0)),
+									Math.round( coords.getDoublePosition( brushNormalAxis == 0 ? 1 : 0 ) ),
+									Math.round( coords.getDoublePosition( brushNormalAxis == 2 ? 1 : 2 ) ) },
+							Math.round( brushRadius / Affine3DHelpers.extractScale( labelTransform, brushNormalAxis == 0 ? 1 : 0 ) ),
 							labelSource.randomAccess() );
 
 			for ( final LongType t : sphere )

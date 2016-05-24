@@ -60,13 +60,15 @@ public class H5LabelMultisetSetupImageLoader
 			final IHDF5Reader scaleReader,
 			final String dataset,
 			final int setupId,
-			final int[] blockDimension ) throws IOException
+			final int[] blockDimension,
+			final double[] resolution ) throws IOException
 	{
 		super(
 				reader,
 				dataset,
 				setupId,
 				blockDimension,
+				resolution,
 				new LabelMultisetType(),
 				new VolatileLabelMultisetType(),
 				typedLoader( reader, scaleReader, dataset ) );
@@ -113,6 +115,17 @@ public class H5LabelMultisetSetupImageLoader
 								bdv.img.hdf5.Util.castToDoubles( Util.long2int( factors ) ) ) );
 			}
 		}
+	}
+
+
+	public H5LabelMultisetSetupImageLoader(
+			final IHDF5Reader reader,
+			final IHDF5Reader scaleReader,
+			final String dataset,
+			final int setupId,
+			final int[] blockDimension ) throws IOException
+	{
+		this( reader, scaleReader, dataset, setupId, blockDimension, readResolution( scaleReader, dataset ) );
 	}
 
 	@Override
