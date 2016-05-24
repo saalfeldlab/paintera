@@ -3,10 +3,12 @@ package bdv.bigcat;
 import java.io.IOException;
 import java.util.ArrayList;
 
-import org.scijava.ui.behaviour.io.InputTriggerConfig;
+import net.imglib2.interpolation.randomaccess.NearestNeighborInterpolatorFactory;
+import net.imglib2.realtransform.RealViews;
+import net.imglib2.type.numeric.ARGBType;
+import net.imglib2.view.Views;
 
-import com.google.gson.JsonIOException;
-import com.google.gson.JsonSyntaxException;
+import org.scijava.ui.behaviour.io.InputTriggerConfig;
 
 import bdv.BigDataViewer;
 import bdv.bigcat.composite.ARGBCompositeAlphaYCbCr;
@@ -27,10 +29,9 @@ import bdv.labels.labelset.LabelMultisetType;
 import bdv.viewer.TriggerBehaviourBindings;
 import ch.systemsx.cisd.hdf5.HDF5Factory;
 import ch.systemsx.cisd.hdf5.IHDF5Reader;
-import net.imglib2.interpolation.randomaccess.NearestNeighborInterpolatorFactory;
-import net.imglib2.realtransform.RealViews;
-import net.imglib2.type.numeric.ARGBType;
-import net.imglib2.view.Views;
+
+import com.google.gson.JsonIOException;
+import com.google.gson.JsonSyntaxException;
 
 public class BigCATJuan
 {
@@ -66,7 +67,8 @@ public class BigCATJuan
 				new AbstractH5SetupImageLoader[]{ raw },
 				new ARGBConvertedLabelsSource[]{ convertedFragments },
 				new SetCache[]{ fragments },
-				composites );
+				composites,
+				null);
 
 		bdv.getViewerFrame().setVisible( true );
 
@@ -96,7 +98,7 @@ public class BigCATJuan
 				new InputTriggerConfig(),
 				bdv.getViewerFrame().getKeybindings(),
 				new InputTriggerConfig() );
-		
+
 		final TranslateZController translateZController = new TranslateZController(
 				bdv.getViewer(),
 				raw.getMipmapResolutions()[0],

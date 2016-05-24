@@ -11,10 +11,21 @@ import java.util.Map;
 
 import javax.xml.ws.http.HTTPException;
 
-import org.scijava.ui.behaviour.io.InputTriggerConfig;
+import mpicbg.spim.data.generic.sequence.BasicViewSetup;
+import mpicbg.spim.data.registration.ViewRegistration;
+import mpicbg.spim.data.registration.ViewRegistrations;
+import mpicbg.spim.data.sequence.TimePoint;
+import mpicbg.spim.data.sequence.TimePoints;
+import net.imglib2.display.ScaledARGBConverter;
+import net.imglib2.interpolation.randomaccess.NearestNeighborInterpolatorFactory;
+import net.imglib2.realtransform.AffineTransform3D;
+import net.imglib2.realtransform.RealViews;
+import net.imglib2.type.numeric.ARGBType;
+import net.imglib2.type.numeric.NumericType;
+import net.imglib2.type.volatiles.VolatileARGBType;
+import net.imglib2.view.Views;
 
-import com.google.gson.JsonIOException;
-import com.google.gson.JsonSyntaxException;
+import org.scijava.ui.behaviour.io.InputTriggerConfig;
 
 import bdv.BigDataViewer;
 import bdv.ViewerSetupImgLoader;
@@ -46,19 +57,9 @@ import bdv.viewer.SourceAndConverter;
 import bdv.viewer.TriggerBehaviourBindings;
 import bdv.viewer.ViewerOptions;
 import bdv.viewer.render.AccumulateProjectorFactory;
-import mpicbg.spim.data.generic.sequence.BasicViewSetup;
-import mpicbg.spim.data.registration.ViewRegistration;
-import mpicbg.spim.data.registration.ViewRegistrations;
-import mpicbg.spim.data.sequence.TimePoint;
-import mpicbg.spim.data.sequence.TimePoints;
-import net.imglib2.display.ScaledARGBConverter;
-import net.imglib2.interpolation.randomaccess.NearestNeighborInterpolatorFactory;
-import net.imglib2.realtransform.AffineTransform3D;
-import net.imglib2.realtransform.RealViews;
-import net.imglib2.type.numeric.ARGBType;
-import net.imglib2.type.numeric.NumericType;
-import net.imglib2.type.volatiles.VolatileARGBType;
-import net.imglib2.view.Views;
+
+import com.google.gson.JsonIOException;
+import com.google.gson.JsonSyntaxException;
 
 public class BigCat
 {
@@ -67,7 +68,8 @@ public class BigCat
 			final A[] rawDataLoaders,
 			final AbstractARGBConvertedLabelsSource[] labelSources,
 			final SetCache[] labelLoaders,
-			final List< Composite< ARGBType, ARGBType > > composites )
+			final List< Composite< ARGBType, ARGBType > > composites,
+			final InputTriggerConfig config)
 	{
 		/* raw pixels */
 		final CombinedImgLoader.SetupIdAndLoader[] loaders = new CombinedImgLoader.SetupIdAndLoader[ rawDataLoaders.length ];
@@ -123,7 +125,14 @@ public class BigCat
 
 		final AccumulateProjectorFactory< ARGBType > projectorFactory = new CompositeProjector.CompositeProjectorFactory< ARGBType >( sourceCompositesMap );
 
-		final BigDataViewer bdv = new BigDataViewer( converterSetups, sources, null, timepoints.size(), imgLoader.getCache(), windowTitle, null, ViewerOptions.options().accumulateProjectorFactory( projectorFactory ).numRenderingThreads( 16 ).targetRenderNanos(10000000) );
+		ViewerOptions options = ViewerOptions.options()
+				.accumulateProjectorFactory(projectorFactory)
+				.numRenderingThreads(16)
+				.targetRenderNanos(10000000);
+		if (config != null)
+			options = options.inputTriggerConfig(config);
+
+		final BigDataViewer bdv = new BigDataViewer( converterSetups, sources, null, timepoints.size(), imgLoader.getCache(), windowTitle, null, options );
 
 		final AffineTransform3D transform = new AffineTransform3D();
 //		transform.set(

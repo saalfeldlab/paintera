@@ -3,6 +3,7 @@ package bdv.bigcat;
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Arrays;
 
 import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.algorithm.neighborhood.DiamondShape;
@@ -17,6 +18,8 @@ import net.imglib2.util.Pair;
 import net.imglib2.view.Views;
 
 import org.scijava.ui.behaviour.io.InputTriggerConfig;
+import org.scijava.ui.behaviour.io.InputTriggerDescription;
+import org.scijava.ui.behaviour.io.yaml.YamlConfigIO;
 
 import bdv.BigDataViewer;
 import bdv.bigcat.annotation.AnnotationsHdf5Store;
@@ -51,21 +54,29 @@ import ch.systemsx.cisd.hdf5.IHDF5Reader;
 public class BigCatAnnotations
 {
 	final static private int[] cellDimensions = new int[]{ 64, 64, 8 };
-	
-	static private H5LabelMultisetSetupImageLoader fragments = null;
-	static private ARGBConvertedLabelPairSource convertedLabelPair = null;
-	static private CellImg< LongType, ?, ? > paintedLabels = null;
-	static private BigDataViewer bdv;
-	static private GoldenAngleSaturatedARGBStream colorStream;
-	static private FragmentSegmentAssignment assignment;
-	static private String projectFile;
-	static private String paintedLabelsDataset;
-	static private String mergedLabelsDataset;
+
+	private H5LabelMultisetSetupImageLoader fragments = null;
+	private ARGBConvertedLabelPairSource convertedLabelPair = null;
+	private CellImg< LongType, ?, ? > paintedLabels = null;
+	private BigDataViewer bdv;
+	private GoldenAngleSaturatedARGBStream colorStream;
+	private FragmentSegmentAssignment assignment;
+	private String projectFile;
+	private String paintedLabelsDataset;
+	private String mergedLabelsDataset;
+	private InputTriggerConfig config;
 
 	public static void main( final String[] args ) throws Exception
 	{
+		BigCatAnnotations bca = new BigCatAnnotations(args);
+	}
+
+	public BigCatAnnotations( final String[] args ) throws Exception
+	{
 		Util.initUI();
-		
+
+		this.config = getInputTriggerConfig();
+
 		projectFile = args[0];
 		String labelsDataset = "neuron_ids";
 		if (args.length > 1)
@@ -99,7 +110,7 @@ public class BigCatAnnotations
 		setupBdv(raw);
 	}
 
-	private static void readFragments(final String[] args, final IHDF5Reader reader, final String labelsDataset, String paintedLabelsDataset)
+	private void readFragments(final String[] args, final IHDF5Reader reader, final String labelsDataset, String paintedLabelsDataset)
 			throws IOException {
 
 		fragments =
@@ -156,7 +167,7 @@ public class BigCatAnnotations
 	}
 
 	@SuppressWarnings("unchecked")
-	private static void setupBdv(final H5UnsignedByteSetupImageLoader raw) throws Exception {
+	private void setupBdv(final H5UnsignedByteSetupImageLoader raw) throws Exception {
 		/* composites */
 		final ArrayList< Composite< ARGBType, ARGBType > > composites = new ArrayList< Composite< ARGBType, ARGBType > >();
 		composites.add( new CompositeCopy< ARGBType >() );
@@ -171,7 +182,8 @@ public class BigCatAnnotations
 				new AbstractH5SetupImageLoader[]{ raw },
 				new ARGBConvertedLabelPairSource[]{ convertedLabelPair },
 				new SetCache[]{ fragments },
-				composites );
+				composites,
+				config);
 		} else {
 
 			bdv = BigCat.createViewer(
@@ -179,7 +191,8 @@ public class BigCatAnnotations
 				new AbstractH5SetupImageLoader[]{ raw },
 				new ARGBConvertedLabelPairSource[]{ },
 				new SetCache[]{ },
-				composites );
+				composites,
+				config);
 		}
 
 		bdv.getViewerFrame().setVisible( true );
@@ -206,19 +219,19 @@ public class BigCatAnnotations
 			final SelectionController selectionController = new SelectionController(
 					bdv.getViewer(),
 					colorStream,
-					new InputTriggerConfig(),
+					config,
 					bdv.getViewerFrame().getKeybindings(),
-					new InputTriggerConfig() );
+					config);
 
 			final MergeController mergeController = new MergeController(
 					bdv.getViewer(),
 					idPicker2,
 					selectionController,
 					assignment,
-					new InputTriggerConfig(),
+					config,
 					bdv.getViewerFrame().getKeybindings(),
-					new InputTriggerConfig() );
-			
+					config);
+
 			final LabelBrushController brushController = new LabelBrushController(
 					bdv.getViewer(),
 					paintedLabels,
@@ -228,7 +241,7 @@ public class BigCatAnnotations
 					projectFile,
 					paintedLabelsDataset,
 					cellDimensions,
-					new InputTriggerConfig() );
+					config);
 
 			final LabelPersistenceController persistenceController = new LabelPersistenceController(
 					bdv.getViewer(),
@@ -239,9 +252,9 @@ public class BigCatAnnotations
 					paintedLabelsDataset,
 					mergedLabelsDataset,
 					cellDimensions,
-					new InputTriggerConfig(),
+					config,
 					bdv.getViewerFrame().getKeybindings() );
-			
+
 			final LabelFillController fillController = new LabelFillController(
 					bdv.getViewer(),
 					fragments.getImage( 0 ),
@@ -250,7 +263,7 @@ public class BigCatAnnotations
 					assignment,
 					selectionController,
 					new DiamondShape( 1 ),
-					new InputTriggerConfig() );
+					config);
 
 			final LabelRestrictToSegmentController intersectController = new LabelRestrictToSegmentController(
 					bdv.getViewer(),
@@ -260,8 +273,8 @@ public class BigCatAnnotations
 					assignment,
 					selectionController,
 					new DiamondShape(1),
-					new InputTriggerConfig());
-	
+					config);
+
 			bindings.addBehaviourMap( "merge", mergeController.getBehaviourMap() );
 			bindings.addInputTriggerMap( "merge", mergeController.getInputTriggerMap() );
 
@@ -273,28 +286,63 @@ public class BigCatAnnotations
 
 			bindings.addBehaviourMap( "restrict", intersectController.getBehaviourMap() );
 			bindings.addInputTriggerMap( "restrict", intersectController.getInputTriggerMap() );
-			
+
 			bdv.getViewer().getDisplay().addOverlayRenderer( brushController.getBrushOverlay() );
 
 		}
-		
+
 		final TranslateZController translateZController = new TranslateZController(
 				bdv.getViewer(),
 				raw.getMipmapResolutions()[0],
-				new  InputTriggerConfig() );
+				config);
 		bindings.addBehaviourMap( "translate_z", translateZController.getBehaviourMap() );
 
 		final AnnotationsHdf5Store annotationsStore = new AnnotationsHdf5Store(projectFile);
 		final AnnotationsController annotationController = new AnnotationsController(
 				annotationsStore,
 				bdv,
-				new InputTriggerConfig(),
+				config,
 				bdv.getViewerFrame().getKeybindings(),
-				new InputTriggerConfig() );
+				config);
 
 		bindings.addBehaviourMap( "annotation", annotationController.getBehaviourMap() );
 		bindings.addInputTriggerMap( "annotation", annotationController.getInputTriggerMap() );
 
 		bdv.getViewer().getDisplay().addOverlayRenderer( annotationController.getAnnotationOverlay() );
 	}
+
+	protected InputTriggerConfig getInputTriggerConfig() throws IllegalArgumentException {
+
+		String[] filenames = {
+				"bigcatkeyconfig.yaml",
+				System.getProperty( "user.home" ) + "/.bdv/bigcatkeyconfig.yaml"
+		};
+
+		for (String filename : filenames) {
+
+			try {
+				if (new File(filename).isFile()) {
+					System.out.println("reading key config from file " + filename);
+					return new InputTriggerConfig(YamlConfigIO.read(filename));
+				}
+			} catch (final IOException e) {
+				System.err.println("Error reading " + filename);
+			}
+		}
+
+		System.out.println("creating default input trigger config");
+
+		// default input trigger config, disables "control button1" drag in bdv
+		// (collides with default of "move annotation")
+		final InputTriggerConfig config = new InputTriggerConfig(
+				Arrays.asList(
+						new InputTriggerDescription[] {
+								new InputTriggerDescription( new String[] { "not mapped" }, "drag rotate slow", "bdv" )
+						}
+				)
+		);
+
+		return config;
+	}
+
 }

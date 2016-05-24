@@ -4,16 +4,35 @@ import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 
-import bdv.bigcat.control.*;
-import org.scijava.ui.behaviour.io.InputTriggerConfig;
+import net.imglib2.RandomAccessibleInterval;
+import net.imglib2.algorithm.neighborhood.DiamondShape;
+import net.imglib2.img.cell.CellImg;
+import net.imglib2.img.cell.CellImgFactory;
+import net.imglib2.interpolation.randomaccess.NearestNeighborInterpolatorFactory;
+import net.imglib2.realtransform.AffineTransform3D;
+import net.imglib2.realtransform.RealViews;
+import net.imglib2.type.numeric.ARGBType;
+import net.imglib2.type.numeric.integer.LongType;
+import net.imglib2.util.Intervals;
+import net.imglib2.util.Pair;
+import net.imglib2.view.Views;
 
-import com.google.gson.JsonIOException;
-import com.google.gson.JsonSyntaxException;
+import org.scijava.ui.behaviour.io.InputTriggerConfig;
 
 import bdv.BigDataViewer;
 import bdv.bigcat.composite.ARGBCompositeAlphaYCbCr;
 import bdv.bigcat.composite.Composite;
 import bdv.bigcat.composite.CompositeCopy;
+import bdv.bigcat.control.DrawProjectAndIntersectController;
+import bdv.bigcat.control.LabelBrushController;
+import bdv.bigcat.control.LabelFillController;
+import bdv.bigcat.control.LabelMultiSetIdPicker;
+import bdv.bigcat.control.LabelPersistenceController;
+import bdv.bigcat.control.LabelRestrictToSegmentController;
+import bdv.bigcat.control.MergeController;
+import bdv.bigcat.control.PairLabelMultiSetLongIdPicker;
+import bdv.bigcat.control.SelectionController;
+import bdv.bigcat.control.TranslateZController;
 import bdv.bigcat.ui.ARGBConvertedLabelPairSource;
 import bdv.bigcat.ui.GoldenAngleSaturatedARGBStream;
 import bdv.bigcat.ui.Util;
@@ -29,18 +48,9 @@ import bdv.labels.labelset.VolatileLabelMultisetType;
 import bdv.viewer.TriggerBehaviourBindings;
 import ch.systemsx.cisd.hdf5.HDF5Factory;
 import ch.systemsx.cisd.hdf5.IHDF5Reader;
-import net.imglib2.RandomAccessibleInterval;
-import net.imglib2.algorithm.neighborhood.DiamondShape;
-import net.imglib2.img.cell.CellImg;
-import net.imglib2.img.cell.CellImgFactory;
-import net.imglib2.interpolation.randomaccess.NearestNeighborInterpolatorFactory;
-import net.imglib2.realtransform.AffineTransform3D;
-import net.imglib2.realtransform.RealViews;
-import net.imglib2.type.numeric.ARGBType;
-import net.imglib2.type.numeric.integer.LongType;
-import net.imglib2.util.Intervals;
-import net.imglib2.util.Pair;
-import net.imglib2.view.Views;
+
+import com.google.gson.JsonIOException;
+import com.google.gson.JsonSyntaxException;
 
 public class BigCATAriadne
 {
@@ -137,7 +147,8 @@ public class BigCATAriadne
 //				new ARGBConvertedLabelsSource[]{ convertedFragments },
 				new ARGBConvertedLabelPairSource[]{ convertedLabelPair },
 				new SetCache[]{ fragments },
-				composites );
+				composites,
+				null);
 
 		final AffineTransform3D transform = new AffineTransform3D();
 		transform.set( 0, 0, 1, 0, 0, 1, 0, 0, -1, 0, 0, 0 );

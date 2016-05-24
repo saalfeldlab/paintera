@@ -350,30 +350,30 @@ public class MergeController
 		{
 			for ( final Merge merge : merges )
 				System.out.println(
-						"merge, " + merge.prevY +
-						", " + merge.prevZ +
-						", " + Math.round( merge.prevX / 10.0 ) +
-						", " + merge.y +
-						", " + merge.z +
-						", " + Math.round( merge.x/10.0 ) +
+						"merge, " + merge.prevX/4.0 +
+						", " + merge.prevY/4.0 +
+						", " + Math.round(merge.prevZ/40.0) +
+						", " + merge.x/4.0 +
+						", " + merge.y/4.0 +
+						", " + Math.round(merge.z/40.0) +
 						", " + merge.id1 +
 						", " + merge.id2 );
 			for ( final Split split : splits )
 				System.out.println(
-						"split, " + split.y +
-						", " + split.z +
-						", " + Math.round( split.x / 10.0 ) +
+						"split, " + split.x/4.0 +
+						", " + split.y/4.0 +
+						", " + Math.round(split.z/40.0) +
 						", " + split.id );
 			for ( final Paint paint : paints )
 				System.out.println(
-						"paint, " + paint.y +
-						", " + paint.z +
-						", " + Math.round( paint.x / 10.0 ) );
+						"paint, " + paint.x/4.0 +
+						", " + paint.y/4.0 +
+						", " + Math.round(paint.z/40.0));
 			for ( final Action action : actions )
 				System.out.println(
-						"check, " + action.y +
-						", " + action.z +
-						", " + Math.round( action.x / 10.0 ) );
+						"check, " + action.x/4.0 +
+						", " + action.y/4.0 +
+						", " + Math.round(action.z/40.0));
 		}
 	}
 }
