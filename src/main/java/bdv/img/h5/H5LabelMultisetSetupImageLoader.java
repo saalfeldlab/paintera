@@ -125,7 +125,7 @@ public class H5LabelMultisetSetupImageLoader
 			final int setupId,
 			final int[] blockDimension ) throws IOException
 	{
-		this( reader, scaleReader, dataset, setupId, blockDimension, readResolution( scaleReader, dataset ) );
+		this( reader, scaleReader, dataset, setupId, blockDimension, readResolution( reader, dataset ) );
 	}
 
 	@Override
