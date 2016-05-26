@@ -156,7 +156,7 @@ public class BigCat
 
 		assignment = new FragmentSegmentAssignment();
 		colorStream = new GoldenAngleSaturatedARGBStream( assignment );
-		colorStream.setAlpha( 0x30 );
+		colorStream.setAlpha( 0x20 );
 		convertedLabelPair =
 				new ARGBConvertedLabelPairSource(
 						3,

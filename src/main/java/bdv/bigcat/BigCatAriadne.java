@@ -126,7 +126,7 @@ public class BigCatAriadne
 		final FragmentSegmentAssignment assignment = new FragmentSegmentAssignment();
 		final GoldenAngleSaturatedARGBStream colorStream = new GoldenAngleSaturatedARGBStream( assignment );
 //		final RandomSaturatedARGBStream colorStream = new RandomSaturatedARGBStream( assignment );
-		colorStream.setAlpha( 0x30 );
+		colorStream.setAlpha( 0x20 );
 		//final ARGBConvertedLabelsSource convertedFragments = new ARGBConvertedLabelsSource( 2, fragments, colorStream );
 		final ARGBConvertedLabelPairSource convertedLabelPair =
 				new ARGBConvertedLabelPairSource(
