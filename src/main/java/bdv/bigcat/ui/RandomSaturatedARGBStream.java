@@ -29,7 +29,7 @@ import bdv.bigcat.label.FragmentSegmentAssignment;
  * angle with the hope to make them reasonably distinct.  Changing the seed of
  * the stream makes a new sequence.
  *
- * @author Stephan Saalfeld <saalfelds@janelia.hhmi.org>
+ * @author Stephan Saalfeld &lt;saalfelds@janelia.hhmi.org&gt;
  */
 public class RandomSaturatedARGBStream extends AbstractSaturatedARGBStream
 {
