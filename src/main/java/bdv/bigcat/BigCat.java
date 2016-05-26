@@ -39,6 +39,7 @@ import bdv.labels.labelset.VolatileLabelMultisetType;
 import bdv.viewer.TriggerBehaviourBindings;
 import ch.systemsx.cisd.hdf5.HDF5Factory;
 import ch.systemsx.cisd.hdf5.IHDF5Reader;
+import gnu.trove.map.hash.TLongLongHashMap;
 import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.algorithm.neighborhood.DiamondShape;
 import net.imglib2.img.cell.CellImg;
@@ -77,21 +78,26 @@ public class BigCat
 
 		this.config = getInputTriggerConfig();
 
-		projectFile = args[0];
+		projectFile = args[ 0 ];
+
 		String labelsDataset = "neuron_ids";
-		if (args.length > 1)
-			labelsDataset = args[1];
+		if ( args.length > 1 )
+			labelsDataset = args[ 1 ];
 
 		String rawDataset = "raw";
-		if (args.length > 2)
-			rawDataset = args[2];
+		if ( args.length > 2 )
+			rawDataset = args[ 2 ];
+
+		String fragmentSegmentLutDataset = "fragment_segment_lut";
+		if ( args.length > 3 )
+			fragmentSegmentLutDataset = args[ 3 ];
 
 		System.out.println( "Opening " + projectFile );
 		final IHDF5Reader reader = HDF5Factory.open( projectFile );
 
 		// support both file_format 0.0 and >=0.1
-		final String volumesPath = reader.isGroup("/volumes") ? "/volumes" : "";
-		final String labelsPath = reader.isGroup(volumesPath + "/labels") ? volumesPath + "/labels" : "";
+		final String volumesPath = reader.isGroup( "/volumes" ) ? "/volumes" : "";
+		final String labelsPath = reader.isGroup( volumesPath + "/labels" ) ? volumesPath + "/labels" : "";
 
 		/* raw pixels */
 		final String rawPath = volumesPath + "/" + rawDataset;
@@ -101,17 +107,22 @@ public class BigCat
 		String fragmentsPath = labelsPath + "/" + labelsDataset;
 		mergedLabelsDataset = labelsPath + "/merged_" + labelsDataset;
 		paintedLabelsDataset = labelsPath + "/painted_" + labelsDataset;
-		fragmentsPath = reader.isDataSet(mergedLabelsDataset) ? mergedLabelsDataset : fragmentsPath;
-		if (reader.exists(fragmentsPath))
-			readFragments(args, reader, fragmentsPath, paintedLabelsDataset);
+		fragmentsPath = reader.object().isDataSet( mergedLabelsDataset ) ? mergedLabelsDataset : fragmentsPath;
+		if ( reader.exists( fragmentsPath ) )
+			readFragments( args, reader, fragmentsPath, paintedLabelsDataset, fragmentSegmentLutDataset );
 		else
-			System.out.println("no labels found cooresponding to requested dataset '" + labelsDataset + "' (searched in '" + labelsPath + "'");
+			System.out.println( "no labels found cooresponding to requested dataset '" + labelsDataset + "' (searched in '" + labelsPath + "')" );
 
-		setupBdv(raw);
+		setupBdv( raw );
 	}
 
-	private void readFragments(final String[] args, final IHDF5Reader reader, final String labelsDataset, final String paintedLabelsDataset)
-			throws IOException {
+	private void readFragments(
+			final String[] args,
+			final IHDF5Reader reader,
+			final String labelsDataset,
+			final String paintedLabelsDataset,
+			final String fragmentSegmentLutDataset ) throws IOException
+	{
 
 		fragments =
 				new H5LabelMultisetSetupImageLoader(
@@ -136,7 +147,6 @@ public class BigCat
 //		// TODO does not work for uint64
 //		IdService.invalidate(0, maxId);
 
-
 		final String paintedLabelsFilePath = args[ 0 ];
 		final File paintedLabelsFile = new File( paintedLabelsFilePath );
 		if ( paintedLabelsFile.exists() && reader.exists( paintedLabelsDataset ) )
@@ -155,6 +165,10 @@ public class BigCat
 						paintedLabels );
 
 		assignment = new FragmentSegmentAssignment();
+		final TLongLongHashMap lut = H5Utils.loadLongLongLut( reader, fragmentSegmentLutDataset, 1024 );
+		if ( lut != null )
+			assignment.initLut( lut );
+
 		colorStream = new GoldenAngleSaturatedARGBStream( assignment );
 		colorStream.setAlpha( 0x20 );
 		convertedLabelPair =

@@ -3,6 +3,7 @@ package bdv.img.h5;
 import static bdv.img.hdf5.Util.reorder;
 
 import java.io.File;
+import java.util.Arrays;
 
 import bdv.bigcat.label.FragmentSegmentAssignment;
 import bdv.img.labelpair.RandomAccessiblePair;
@@ -16,6 +17,8 @@ import ch.systemsx.cisd.hdf5.IHDF5LongReader;
 import ch.systemsx.cisd.hdf5.IHDF5LongWriter;
 import ch.systemsx.cisd.hdf5.IHDF5Reader;
 import ch.systemsx.cisd.hdf5.IHDF5Writer;
+import gnu.trove.impl.Constants;
+import gnu.trove.map.hash.TLongLongHashMap;
 import net.imglib2.Dimensions;
 import net.imglib2.Interval;
 import net.imglib2.RandomAccessible;
@@ -262,5 +265,163 @@ public class H5Utils
 						new LongType() );
 
 		saveUnsignedLong( source, file, dataset, cellDimensions );
+	}
+
+	/**
+	 * Load a long to long lookup table from an HDF5 dataset
+	 *
+	 * @param reader
+	 * @param dataset
+	 * @param blockSize
+	 */
+	static public TLongLongHashMap loadLongLongLut(
+			final IHDF5Reader reader,
+			final String dataset,
+			final int blockSize )
+	{
+		final IHDF5LongReader uint64Reader = reader.uint64();
+
+		if ( !reader.exists( dataset ) )
+			return null;
+
+		final long[] dimensions = reader.object().getDimensions( dataset );
+		if ( !( dimensions.length == 2 && dimensions[ 0 ] == 2 ) )
+		{
+			System.err.println( "LUT is not a lookup table, dimensions = " + Arrays.toString( dimensions ) );
+			return null;
+		}
+
+		final long size = dimensions[ 1 ];
+
+		final TLongLongHashMap lut = new TLongLongHashMap(
+				Constants.DEFAULT_CAPACITY,
+				Constants.DEFAULT_LOAD_FACTOR,
+				Label.TRANSPARENT,
+				Label.TRANSPARENT );
+
+		for ( int offset = 0; offset < size; offset += blockSize )
+		{
+			final MDLongArray block = uint64Reader.readMDArrayBlockWithOffset(
+					dataset,
+					new int[]{ 2, ( int )Math.min( blockSize, size - offset ) },
+					new long[]{ 0, offset } );
+
+			for ( int i = 0; i < block.size( 1 ); ++i )
+				lut.put( block.get( 0, i ), block.get( 1, i ) );
+
+		}
+
+		return lut;
+	}
+
+	/**
+	 * Load a long to long lookup table from an HDF5 dataset.
+	 *
+	 * @param file
+	 * @param dataset
+	 * @param cellDimensions
+	 */
+	static public TLongLongHashMap loadLongLongLut(
+			final File file,
+			final String dataset,
+			final int blockSize )
+	{
+		final IHDF5Reader reader = HDF5Factory.openForReading( file );
+		final TLongLongHashMap lut = loadLongLongLut( reader, dataset, blockSize );
+		reader.close();
+		return lut;
+	}
+
+	/**
+	 * Load a long to long lookup table from an HDF5 dataset.
+	 *
+	 * @param filePath
+	 * @param dataset
+	 * @param cellDimensions
+	 */
+	static public TLongLongHashMap loadLongLongLut(
+			final String filePath,
+			final String dataset,
+			final int blockSize )
+	{
+		final IHDF5Reader reader = HDF5Factory.openForReading( filePath );
+		final TLongLongHashMap lut = loadLongLongLut( reader, dataset, blockSize );
+		reader.close();
+		return lut;
+	}
+
+	/**
+	 * Save a long to long lookup table into an HDF5 uint64 dataset.
+	 *
+	 * @param lut
+	 * @param file
+	 * @param dataset
+	 * @param cellDimensions
+	 */
+	static public void saveLongLongLut(
+			final TLongLongHashMap lut,
+			final IHDF5Writer writer,
+			final String dataset,
+			final int blockSize )
+	{
+		final IHDF5LongWriter uint64Writer = writer.uint64();
+		if ( !writer.exists( dataset ) )
+			uint64Writer.createMDArray(
+					dataset,
+					new long[]{ 2, lut.size() },
+					new int[]{ 2, blockSize },
+					HDF5IntStorageFeatures.INT_AUTO_SCALING_DEFLATE );
+
+		final long[] keys = lut.keys();
+		for ( int offset = 0, i = 0; offset < lut.size(); offset += blockSize )
+		{
+			final int size = ( int )Math.min( blockSize, lut.size() - offset );
+			final MDLongArray targetCell = new MDLongArray( new int[]{ 2, size } );
+			for ( int j = 0; j < size; ++j, ++i )
+			{
+				targetCell.set( keys[ i ], 0, j );
+				targetCell.set( lut.get( keys[ i ] ), 1, j );
+			}
+
+			uint64Writer.writeMDArrayBlockWithOffset( dataset, targetCell, new long[]{ 0, offset } );
+		}
+	}
+
+	/**
+	 * Save a long to long lookup table into an HDF5 uint64 dataset.
+	 *
+	 * @param lut
+	 * @param file
+	 * @param dataset
+	 * @param cellDimensions
+	 */
+	static public void saveLongLongLut(
+			final TLongLongHashMap lut,
+			final File file,
+			final String dataset,
+			final int blockSize )
+	{
+		final IHDF5Writer writer = HDF5Factory.open( file );
+		saveLongLongLut( lut, writer, dataset, blockSize );
+		writer.close();
+	}
+
+	/**
+	 * Save a long to long lookup table into an HDF5 uint64 dataset.
+	 *
+	 * @param lut
+	 * @param file
+	 * @param dataset
+	 * @param cellDimensions
+	 */
+	static public void saveLongLongLut(
+			final TLongLongHashMap lut,
+			final String filePath,
+			final String dataset,
+			final int blockSize )
+	{
+		final IHDF5Writer writer = HDF5Factory.open( filePath );
+		saveLongLongLut( lut, writer, dataset, blockSize );
+		writer.close();
 	}
 }
