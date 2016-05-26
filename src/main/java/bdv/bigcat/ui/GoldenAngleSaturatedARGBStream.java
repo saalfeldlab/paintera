@@ -26,13 +26,14 @@ import bdv.bigcat.label.FragmentSegmentAssignment;
  * angle, making them reasonably distinct.  Changing the seed of the stream
  * makes a new sequence.
  *
- * @author Stephan Saalfeld <saalfelds@janelia.hhmi.org>
+ * @author Stephan Saalfeld &lt;saalfelds@janelia.hhmi.org&gt;
  */
 public class GoldenAngleSaturatedARGBStream extends AbstractSaturatedARGBStream
 {
 	public GoldenAngleSaturatedARGBStream( final FragmentSegmentAssignment assignment )
 	{
 		super( assignment );
+		seed = 1;
 	}
 
 	final static protected double goldenRatio = 1.0 / ( 0.5 * Math.sqrt( 5 ) + 0.5 );
@@ -40,7 +41,7 @@ public class GoldenAngleSaturatedARGBStream extends AbstractSaturatedARGBStream
 	@Override
 	final protected double getDouble( final long id )
 	{
-		final double x = ( id + seed ) * goldenRatio;
+		final double x = ( id * seed ) * goldenRatio;
 		return x - ( long )Math.floor( x );
 	}
 }
