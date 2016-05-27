@@ -189,6 +189,7 @@ public class LabelPersistenceController
 				savePaintedLabels();
 				viewer.setCursor( Cursor.getPredefinedCursor( Cursor.DEFAULT_CURSOR ) );
 			}
+			viewer.showMessage( "Saved fragment-segment assignments and painted labels." );
 		}
 	}
 
@@ -246,6 +247,7 @@ public class LabelPersistenceController
 				saveAssignedMergedLabels();
 				viewer.setCursor( Cursor.getPredefinedCursor( Cursor.DEFAULT_CURSOR ) );
 			}
+			viewer.showMessage( "Saved flattened label export." );
 		}
 	}
 }

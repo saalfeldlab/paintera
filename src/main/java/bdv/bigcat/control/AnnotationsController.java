@@ -16,6 +16,7 @@
  */
 package bdv.bigcat.control;
 
+import java.awt.Cursor;
 import java.awt.event.ActionEvent;
 import java.awt.event.WindowEvent;
 import java.awt.event.WindowListener;
@@ -184,6 +185,10 @@ public class AnnotationsController implements WindowListener, Selection.Selectio
 			return closest.get(0);
 
 		return null;
+	}
+
+	public void saveAnnotations() {
+		store.write(annotations);
 	}
 
 	////////////////
@@ -408,8 +413,11 @@ public class AnnotationsController implements WindowListener, Selection.Selectio
 
 		@Override
 		public void actionPerformed(final ActionEvent e) {
-
-			store.write(annotations);
+			synchronized (viewer) {
+				viewer.setCursor(Cursor.getPredefinedCursor(Cursor.WAIT_CURSOR));
+				saveAnnotations();
+				viewer.setCursor(Cursor.getPredefinedCursor(Cursor.DEFAULT_CURSOR));
+			}
 			viewer.showMessage("Annotations saved");
 		}
 	}

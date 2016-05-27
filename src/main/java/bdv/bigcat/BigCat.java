@@ -75,13 +75,14 @@ public class BigCat
 	private String mergedLabelsDataset;
 	private String fragmentSegmentLutDataset;
 	private LabelPersistenceController persistenceController;
+	private AnnotationsController annotationsController;
 	private InputTriggerConfig config;
 
 	private IdService idService = new LocalIdService();
 
 	public static void main( final String[] args ) throws Exception
 	{
-		final BigCat bca = new BigCat( args );
+		new BigCat( args );
 	}
 
 	public BigCat( final String[] args ) throws Exception
@@ -337,7 +338,7 @@ public class BigCat
 		bindings.addBehaviourMap( "translate_z", translateZController.getBehaviourMap() );
 
 		final AnnotationsHdf5Store annotationsStore = new AnnotationsHdf5Store( projectFile, idService );
-		final AnnotationsController annotationController = new AnnotationsController(
+		annotationsController = new AnnotationsController(
 				annotationsStore,
 				bdv,
 				idService,
@@ -345,10 +346,10 @@ public class BigCat
 				bdv.getViewerFrame().getKeybindings(),
 				config );
 
-		bindings.addBehaviourMap( "annotation", annotationController.getBehaviourMap() );
-		bindings.addInputTriggerMap( "annotation", annotationController.getInputTriggerMap() );
+		bindings.addBehaviourMap( "annotation", annotationsController.getBehaviourMap() );
+		bindings.addInputTriggerMap( "annotation", annotationsController.getInputTriggerMap() );
 
-		bdv.getViewer().getDisplay().addOverlayRenderer( annotationController.getAnnotationOverlay() );
+		bdv.getViewer().getDisplay().addOverlayRenderer( annotationsController.getAnnotationOverlay() );
 	}
 
 	protected InputTriggerConfig getInputTriggerConfig() throws IllegalArgumentException {
@@ -397,6 +398,7 @@ public class BigCat
 						JOptionPane.YES_NO_OPTION ) == JOptionPane.YES_OPTION )
 		{
 			bdv.getViewerFrame().setCursor( Cursor.getPredefinedCursor( Cursor.WAIT_CURSOR ) );
+			annotationsController.saveAnnotations();
 			persistenceController.saveNextId();
 			persistenceController.saveFragmentSegmentAssignment();
 			persistenceController.savePaintedLabels();
