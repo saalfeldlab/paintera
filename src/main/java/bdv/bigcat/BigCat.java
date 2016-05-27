@@ -35,7 +35,10 @@ import bdv.img.h5.H5Utils;
 import bdv.img.labelpair.RandomAccessiblePair;
 import bdv.labels.labelset.Label;
 import bdv.labels.labelset.LabelMultisetType;
+import bdv.labels.labelset.Multiset;
 import bdv.labels.labelset.VolatileLabelMultisetType;
+import bdv.util.IdService;
+import bdv.util.LocalIdService;
 import bdv.viewer.TriggerBehaviourBindings;
 import ch.systemsx.cisd.hdf5.HDF5Factory;
 import ch.systemsx.cisd.hdf5.IHDF5Reader;
@@ -65,7 +68,10 @@ public class BigCat
 	private String projectFile;
 	private String paintedLabelsDataset;
 	private String mergedLabelsDataset;
+	private String fragmentSegmentLutDataset;
 	private InputTriggerConfig config;
+
+	private IdService idService = new LocalIdService();
 
 	public static void main( final String[] args ) throws Exception
 	{
@@ -88,7 +94,7 @@ public class BigCat
 		if ( args.length > 2 )
 			rawDataset = args[ 2 ];
 
-		String fragmentSegmentLutDataset = "fragment_segment_lut";
+		fragmentSegmentLutDataset = "/fragment_segment_lut";
 		if ( args.length > 3 )
 			fragmentSegmentLutDataset = args[ 3 ];
 
@@ -123,7 +129,6 @@ public class BigCat
 			final String paintedLabelsDataset,
 			final String fragmentSegmentLutDataset ) throws IOException
 	{
-
 		fragments =
 				new H5LabelMultisetSetupImageLoader(
 						reader,
@@ -134,18 +139,18 @@ public class BigCat
 		final RandomAccessibleInterval< VolatileLabelMultisetType > fragmentsPixels = fragments.getVolatileImage( 0, 0 );
 		final long[] fragmentsDimensions = Intervals.dimensionsAsLongArray( fragmentsPixels );
 
-//		// TODO does not work for uint64
-//		long maxId = 0;
-//		for (final LabelMultisetType t : Views.iterable(fragments.getImage(0))) {
-//			for (final Multiset.Entry<SuperVoxel> v : t.entrySet()) {
-//				long id = v.getElement().id();
-//				if (id != PairVolatileLabelMultisetLongARGBConverter.TRANSPARENT_LABEL)
-//					// TODO does not work for uint64
-//					maxId = Math.max(maxId, id);
-//			}
-//		}
-//		// TODO does not work for uint64
-//		IdService.invalidate(0, maxId);
+		final Long nextIdObject = H5Utils.loadAttribute( reader, "/", "next_id" );
+		long maxId = -1;
+		if ( nextIdObject == null )
+		{
+			maxId = maxId( reader, labelsDataset, maxId );
+			if ( reader.exists( paintedLabelsDataset ) )
+				maxId = maxId( reader, paintedLabelsDataset, maxId );
+		}
+		else
+			maxId = nextIdObject.longValue() - 1;
+
+		idService.invalidate( maxId );
 
 		final String paintedLabelsFilePath = args[ 0 ];
 		final File paintedLabelsFile = new File( paintedLabelsFilePath );
@@ -164,7 +169,7 @@ public class BigCat
 						fragments.getVolatileImage( 0, 0 ),
 						paintedLabels );
 
-		assignment = new FragmentSegmentAssignment();
+		assignment = new FragmentSegmentAssignment( idService );
 		final TLongLongHashMap lut = H5Utils.loadLongLongLut( reader, fragmentSegmentLutDataset, 1024 );
 		if ( lut != null )
 			assignment.initLut( lut );
@@ -180,16 +185,17 @@ public class BigCat
 						colorStream );
 	}
 
-	@SuppressWarnings("unchecked")
-	private void setupBdv(final H5UnsignedByteSetupImageLoader raw) throws Exception {
+	@SuppressWarnings( "unchecked" )
+	private void setupBdv( final H5UnsignedByteSetupImageLoader raw ) throws Exception
+	{
 		/* composites */
 		final ArrayList< Composite< ARGBType, ARGBType > > composites = new ArrayList< Composite< ARGBType, ARGBType > >();
 		composites.add( new CompositeCopy< ARGBType >() );
 
 		final String windowTitle = "BigCAT";
 
-		if (fragments != null) {
-
+		if ( fragments != null )
+		{
 			composites.add( new ARGBCompositeAlphaYCbCr() );
 			bdv = Util.createViewer(
 				windowTitle,
@@ -197,24 +203,25 @@ public class BigCat
 				new ARGBConvertedLabelPairSource[]{ convertedLabelPair },
 				new SetCache[]{ fragments },
 				composites,
-				config);
-		} else {
-
+				config );
+		}
+		else
+		{
 			bdv = Util.createViewer(
 				windowTitle,
 				new AbstractH5SetupImageLoader[]{ raw },
-				new ARGBConvertedLabelPairSource[]{ },
-				new SetCache[]{ },
+				new ARGBConvertedLabelPairSource[]{},
+				new SetCache[]{},
 				composites,
-				config);
+				config );
 		}
 
 		bdv.getViewerFrame().setVisible( true );
 
 		final TriggerBehaviourBindings bindings = bdv.getViewerFrame().getTriggerbindings();
 
-		if (fragments != null) {
-
+		if ( fragments != null )
+		{
 			final PairLabelMultiSetLongIdPicker idPicker2 = new PairLabelMultiSetLongIdPicker(
 					bdv.getViewer(),
 					RealViews.affineReal(
@@ -233,6 +240,7 @@ public class BigCat
 			final SelectionController selectionController = new SelectionController(
 					bdv.getViewer(),
 					colorStream,
+					idService,
 					config,
 					bdv.getViewerFrame().getKeybindings(),
 					config);
@@ -262,10 +270,12 @@ public class BigCat
 					fragments.getImage( 0 ),
 					paintedLabels,
 					assignment,
+					idService,
 					projectFile,
 					paintedLabelsDataset,
 					mergedLabelsDataset,
 					cellDimensions,
+					fragmentSegmentLutDataset,
 					config,
 					bdv.getViewerFrame().getKeybindings() );
 
@@ -281,13 +291,13 @@ public class BigCat
 
 			final LabelRestrictToSegmentController intersectController = new LabelRestrictToSegmentController(
 					bdv.getViewer(),
-					fragments.getImage(0),
+					fragments.getImage( 0 ),
 					paintedLabels,
-					fragments.getMipmapTransforms()[0],
+					fragments.getMipmapTransforms()[ 0 ],
 					assignment,
 					selectionController,
-					new DiamondShape(1),
-					config);
+					new DiamondShape( 1 ),
+					config );
 
 			bindings.addBehaviourMap( "merge", mergeController.getBehaviourMap() );
 			bindings.addInputTriggerMap( "merge", mergeController.getInputTriggerMap() );
@@ -307,17 +317,18 @@ public class BigCat
 
 		final TranslateZController translateZController = new TranslateZController(
 				bdv.getViewer(),
-				raw.getMipmapResolutions()[0],
-				config);
+				raw.getMipmapResolutions()[ 0 ],
+				config );
 		bindings.addBehaviourMap( "translate_z", translateZController.getBehaviourMap() );
 
-		final AnnotationsHdf5Store annotationsStore = new AnnotationsHdf5Store(projectFile);
+		final AnnotationsHdf5Store annotationsStore = new AnnotationsHdf5Store( projectFile, idService );
 		final AnnotationsController annotationController = new AnnotationsController(
 				annotationsStore,
 				bdv,
+				idService,
 				config,
 				bdv.getViewerFrame().getKeybindings(),
-				config);
+				config );
 
 		bindings.addBehaviourMap( "annotation", annotationController.getBehaviourMap() );
 		bindings.addInputTriggerMap( "annotation", annotationController.getInputTriggerMap() );
@@ -359,4 +370,29 @@ public class BigCat
 		return config;
 	}
 
+	final static protected long maxId(
+			final IHDF5Reader reader,
+			final String labelsDataset,
+			long maxId ) throws IOException
+	{
+		final H5LabelMultisetSetupImageLoader labelLoader =
+				new H5LabelMultisetSetupImageLoader(
+						reader,
+						null,
+						labelsDataset,
+						1,
+						cellDimensions );
+
+		for ( final LabelMultisetType t : Views.iterable( labelLoader.getImage( 0 ) ) )
+		{
+			for ( final Multiset.Entry< Label > v : t.entrySet() )
+			{
+				final long id = v.getElement().id();
+				if ( id != Label.TRANSPARENT && IdService.greaterThan( id, maxId ) )
+					maxId = id;
+			}
+		}
+
+		return maxId;
+	}
 }

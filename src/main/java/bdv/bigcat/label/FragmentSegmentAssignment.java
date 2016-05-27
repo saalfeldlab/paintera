@@ -35,6 +35,7 @@ import com.google.gson.JsonSerializer;
 
 import bdv.labels.labelset.Label;
 import bdv.util.IdService;
+import bdv.util.LocalIdService;
 import gnu.trove.impl.Constants;
 import gnu.trove.iterator.TLongLongIterator;
 import gnu.trove.iterator.TLongObjectIterator;
@@ -278,23 +279,45 @@ A:					for ( final Entry< String, JsonElement > entry : ilutJsonEntrySet )
 			if ( notYetDone )
 				throw new JsonParseException( message );
 			else
-				return new FragmentSegmentAssignment( fragments, segments );
+			{
+				final LocalIdService idService = new LocalIdService();
+				final long maxId = IdService.max( IdService.max( fragments ), IdService.max( segments ) );
+				idService.setNext( maxId + 1 );
+				return new FragmentSegmentAssignment( fragments, segments, idService );
+			}
 		}
 	}
 
 	final protected TLongLongHashMap lut = new TLongLongHashMap(Constants.DEFAULT_CAPACITY, Constants.DEFAULT_LOAD_FACTOR, Label.TRANSPARENT, Label.TRANSPARENT);
 	final protected TLongObjectHashMap< long[] > ilut = new TLongObjectHashMap< long[] >(Constants.DEFAULT_CAPACITY, Constants.DEFAULT_LOAD_FACTOR, Label.TRANSPARENT);
 
-	public FragmentSegmentAssignment() {}
+	protected IdService idService;
 
-	public FragmentSegmentAssignment( final long[] fragments, final long[] segments )
+	public FragmentSegmentAssignment( final IdService idService )
+	{
+		this.idService = idService;
+	}
+
+	public FragmentSegmentAssignment( final long[] fragments, final long[] segments, final IdService idService )
 	{
 		assert fragments.length == segments.length : "segments and bodies must be of same length";
 
 		for ( int i = 0; i < fragments.length; ++i )
 			lut.put( fragments[ i ], segments[ i ] );
 
+		this.idService = idService;
+
 		syncILut();
+	}
+
+	public TLongLongHashMap getLut()
+	{
+		return lut;
+	}
+
+	public void setIdService( final IdService idService )
+	{
+		this.idService = idService;
 	}
 
 	public void initLut( final TLongLongHashMap lut )
@@ -373,7 +396,7 @@ A:					for ( final Entry< String, JsonElement > entry : ilutJsonEntrySet )
 		if ( segmentId1 == segmentId2 )
 			return;
 
-		final long mergedSegmentId = IdService.allocate();
+		final long mergedSegmentId = idService.next();
 		synchronized ( ilut )
 		{
 			final long[] fragments1 = getFragments( segmentId1 );
@@ -420,7 +443,7 @@ A:					for ( final Entry< String, JsonElement > entry : ilutJsonEntrySet )
 				final long[] newFragments = ArrayUtils.removeElement( fragments, fragmentId );
 				ilut.put( segmentId, newFragments );
 
-				final long newSegmentId = IdService.allocate();
+				final long newSegmentId = fragmentId;
 				lut.put( fragmentId, newSegmentId );
 				ilut.put( newSegmentId, new long[]{ fragmentId } );
 			}

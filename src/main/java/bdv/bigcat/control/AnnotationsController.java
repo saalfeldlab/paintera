@@ -27,10 +27,6 @@ import javax.swing.JComponent;
 import javax.swing.JOptionPane;
 import javax.swing.SwingUtilities;
 
-import net.imglib2.RealPoint;
-import net.imglib2.realtransform.AffineTransform3D;
-import net.imglib2.util.LinAlgHelpers;
-
 import org.scijava.ui.behaviour.Behaviour;
 import org.scijava.ui.behaviour.BehaviourMap;
 import org.scijava.ui.behaviour.ClickBehaviour;
@@ -56,6 +52,9 @@ import bdv.util.Affine3DHelpers;
 import bdv.util.IdService;
 import bdv.viewer.InputActionBindings;
 import bdv.viewer.ViewerPanel;
+import net.imglib2.RealPoint;
+import net.imglib2.realtransform.AffineTransform3D;
+import net.imglib2.util.LinAlgHelpers;
 
 /**
  * @author Jan Funke &lt;jfunke@iri.upc.edu&gt;
@@ -66,6 +65,7 @@ public class AnnotationsController implements WindowListener, Selection.Selectio
 	final protected ViewerPanel viewer;
 	final private AnnotationsOverlay overlay;
 	final private Annotations annotations;
+	final private IdService idService;
 
 	private Selection<Annotation> selection = new Selection<Annotation>();
 
@@ -93,12 +93,17 @@ public class AnnotationsController implements WindowListener, Selection.Selectio
 		return inputTriggerMap;
 	}
 
-	public AnnotationsController(final AnnotationsStore annotationsStore, final BigDataViewer viewer,
-			final InputTriggerConfig config, final InputActionBindings inputActionBindings,
+	public AnnotationsController(
+			final AnnotationsStore annotationsStore,
+			final BigDataViewer viewer,
+			final IdService idService,
+			final InputTriggerConfig config,
+			final InputActionBindings inputActionBindings,
 			final KeyStrokeAdder.Factory keyProperties) throws Exception {
 
 		this.viewer = viewer.getViewer();
 		this.store = annotationsStore;
+		this.idService = idService;
 		this.annotations = annotationsStore.read();
 		this.selection.addSelectionListener(this);
 		this.annotationWindow = new AnnotationsWindow(this, this.annotations, this.selection);
@@ -158,22 +163,22 @@ public class AnnotationsController implements WindowListener, Selection.Selectio
 	 * @param maxDistance Max distance to consider for the search. If no annotation exists in the search area, null is returned.
 	 * @return
 	 */
-	private Annotation getClosestAnnotation(int x, int y, double maxDistance) {
+	private Annotation getClosestAnnotation(final int x, final int y, final double maxDistance) {
 
-		RealPoint pos = new RealPoint(3);
+		final RealPoint pos = new RealPoint(3);
 		viewer.displayToGlobalCoordinates(x, y, pos);
 		System.out.println("clicked at global coordinates " + pos);
 
-		List< Annotation > closest = annotations.getKNearest(pos, 1);
+		final List< Annotation > closest = annotations.getKNearest(pos, 1);
 
 		if (closest.size() == 0)
 			return null;
 
-		double[] a = new double[3];
-		double[] b = new double[3];
+		final double[] a = new double[3];
+		final double[] b = new double[3];
 		pos.localize(a);
 		closest.get(0).getPosition().localize(b);
-		double distance = LinAlgHelpers.distance(a, b);
+		final double distance = LinAlgHelpers.distance(a, b);
 
 		if (distance <= maxDistance)
 			return closest.get(0);
@@ -225,11 +230,11 @@ public class AnnotationsController implements WindowListener, Selection.Selectio
 		}
 
 		@Override
-		public void click(int x, int y) {
+		public void click(final int x, final int y) {
 
 			System.out.println("Selecting annotation closest to " + x + ", " + y);
 
-			Annotation closest = getClosestAnnotation(x, y, MaxDistance);
+			final Annotation closest = getClosestAnnotation(x, y, MaxDistance);
 			if (closest == null)
 				return;
 
@@ -251,7 +256,7 @@ public class AnnotationsController implements WindowListener, Selection.Selectio
 
 			System.out.println("deleting annotation(s)");
 
-			for (Annotation a : selection)
+			for (final Annotation a : selection)
 				annotations.remove(a);
 			selection.clear();
 		}
@@ -264,14 +269,14 @@ public class AnnotationsController implements WindowListener, Selection.Selectio
 		}
 
 		@Override
-		public void click(int x, int y) {
+		public void click(final int x, final int y) {
 
-			RealPoint pos = new RealPoint(3);
+			final RealPoint pos = new RealPoint(3);
 			viewer.displayToGlobalCoordinates(x, y, pos);
 
 			System.out.println("Adding synapse at " + pos);
 
-			Synapse synapse = new Synapse(IdService.allocate(), pos, "");
+			final Synapse synapse = new Synapse(idService.next(), pos, "");
 			annotations.add(synapse);
 
 			selection.clear();
@@ -285,14 +290,14 @@ public class AnnotationsController implements WindowListener, Selection.Selectio
 		}
 
 		@Override
-		public void click(int x, int y) {
+		public void click(final int x, final int y) {
 
-			RealPoint pos = new RealPoint(3);
+			final RealPoint pos = new RealPoint(3);
 			viewer.displayToGlobalCoordinates(x, y, pos);
 
 			System.out.println("Adding presynaptic site at " + pos);
 
-			PreSynapticSite site = new PreSynapticSite(IdService.allocate(), pos, "");
+			final PreSynapticSite site = new PreSynapticSite(idService.next(), pos, "");
 			annotations.add(site);
 
 			selection.clear();
@@ -306,9 +311,9 @@ public class AnnotationsController implements WindowListener, Selection.Selectio
 		}
 
 		@Override
-		public void click(int x, int y) {
+		public void click(final int x, final int y) {
 
-			Annotation active = selection.getLastAdded();
+			final Annotation active = selection.getLastAdded();
 
 			if (active == null || !(active instanceof PreSynapticSite)) {
 
@@ -316,14 +321,14 @@ public class AnnotationsController implements WindowListener, Selection.Selectio
 				return;
 			}
 
-			PreSynapticSite pre = (PreSynapticSite)active;
+			final PreSynapticSite pre = (PreSynapticSite)active;
 
-			RealPoint pos = new RealPoint(3);
+			final RealPoint pos = new RealPoint(3);
 			viewer.displayToGlobalCoordinates(x, y, pos);
 
 			System.out.println("Adding postsynaptic site at " + pos);
 
-			PostSynapticSite site = new PostSynapticSite(IdService.allocate(), pos, "");
+			final PostSynapticSite site = new PostSynapticSite(idService.next(), pos, "");
 			site.setPartner(pre);
 			pre.setPartner(site);
 			annotations.add(site);
@@ -339,9 +344,9 @@ public class AnnotationsController implements WindowListener, Selection.Selectio
 		}
 
 		@Override
-		public void init(int x, int y) {
+		public void init(final int x, final int y) {
 
-			Annotation annotation = getClosestAnnotation(x, y, MaxDistance);
+			final Annotation annotation = getClosestAnnotation(x, y, MaxDistance);
 			if (annotation == null)
 				return;
 
@@ -350,20 +355,20 @@ public class AnnotationsController implements WindowListener, Selection.Selectio
 		}
 
 		@Override
-		public void drag(int x, int y) {
+		public void drag(final int x, final int y) {
 
-			Annotation active = selection.getLastAdded();
+			final Annotation active = selection.getLastAdded();
 			if (active == null)
 				return;
 
-			RealPoint pos = new RealPoint(3);
+			final RealPoint pos = new RealPoint(3);
 			viewer.displayToGlobalCoordinates(x, y, pos);
 			active.setPosition(pos);
 			viewer.requestRepaint();
 		}
 
 		@Override
-		public void end(int x, int y) {
+		public void end(final int x, final int y) {
 
 			annotations.markDirty();
 		}
@@ -381,11 +386,11 @@ public class AnnotationsController implements WindowListener, Selection.Selectio
 		@Override
 		public void actionPerformed( final ActionEvent e )
 		{
-			Annotation active = selection.getLastAdded();
+			final Annotation active = selection.getLastAdded();
 			if (active == null)
 				return;
 
-			String comment = JOptionPane.showInputDialog(viewer, "Change comment:", active.getComment());
+			final String comment = JOptionPane.showInputDialog(viewer, "Change comment:", active.getComment());
 			if (comment == null)
 				return;
 			active.setComment(comment);
@@ -434,7 +439,7 @@ public class AnnotationsController implements WindowListener, Selection.Selectio
 		@Override
 		public void actionPerformed(final ActionEvent e) {
 
-			Annotation active = selection.getLastAdded();
+			final Annotation active = selection.getLastAdded();
 			if (active == null)
 				return;
 
@@ -461,44 +466,44 @@ public class AnnotationsController implements WindowListener, Selection.Selectio
 	////////////////////
 
 	@Override
-	public void windowClosed(WindowEvent e) {
+	public void windowClosed(final WindowEvent e) {
 
 		System.out.println("received window close event");
 		annotationWindow.dispose();
 	}
 
 	@Override
-	public void windowActivated(WindowEvent arg0) {
+	public void windowActivated(final WindowEvent arg0) {
 	}
 
 	@Override
-	public void windowClosing(WindowEvent arg0) {
+	public void windowClosing(final WindowEvent arg0) {
 	}
 
 	@Override
-	public void windowDeactivated(WindowEvent arg0) {
+	public void windowDeactivated(final WindowEvent arg0) {
 	}
 
 	@Override
-	public void windowDeiconified(WindowEvent arg0) {
+	public void windowDeiconified(final WindowEvent arg0) {
 	}
 
 	@Override
-	public void windowIconified(WindowEvent arg0) {
+	public void windowIconified(final WindowEvent arg0) {
 	}
 
 	@Override
-	public void windowOpened(WindowEvent arg0) {
+	public void windowOpened(final WindowEvent arg0) {
 	}
 
 	@Override
-	public void itemSelected(Annotation t) {
+	public void itemSelected(final Annotation t) {
 
 		viewer.requestRepaint();
 	}
 
 	@Override
-	public void itemUnselected(Annotation t) {
+	public void itemUnselected(final Annotation t) {
 
 		viewer.requestRepaint();
 	}
@@ -509,31 +514,31 @@ public class AnnotationsController implements WindowListener, Selection.Selectio
 		viewer.requestRepaint();
 	}
 
-	public void goTo(RealPoint position) {
+	public void goTo(final RealPoint position) {
 
-		RealPoint currentCenter = new RealPoint(3);
+		final RealPoint currentCenter = new RealPoint(3);
 		viewer.displayToGlobalCoordinates(viewer.getWidth() / 2,
 				viewer.getHeight() / 2, currentCenter);
 
 		System.out.println("current center is at " + currentCenter);
 
-		double dX = currentCenter.getDoublePosition(0)
+		final double dX = currentCenter.getDoublePosition(0)
 				- position.getDoublePosition(0);
-		double dY = currentCenter.getDoublePosition(1)
+		final double dY = currentCenter.getDoublePosition(1)
 				- position.getDoublePosition(1);
-		double dZ = currentCenter.getDoublePosition(2)
+		final double dZ = currentCenter.getDoublePosition(2)
 				- position.getDoublePosition(2);
 
 		System.out.println("translating by " + dX + ", " + dY + ", " + dZ);
 
-		AffineTransform3D translate = new AffineTransform3D();
+		final AffineTransform3D translate = new AffineTransform3D();
 		translate.translate(new double[] { dX, dY, dZ });
 
 		synchronized (viewer) {
 
-			AffineTransform3D viewerTransform = new AffineTransform3D();
+			final AffineTransform3D viewerTransform = new AffineTransform3D();
 			viewer.getState().getViewerTransform(viewerTransform);
-			AffineTransform3D translated = viewerTransform
+			final AffineTransform3D translated = viewerTransform
 					.concatenate(translate);
 			viewer.setCurrentViewerTransform(translated);
 		}
@@ -541,20 +546,20 @@ public class AnnotationsController implements WindowListener, Selection.Selectio
 		viewer.requestRepaint();
 	}
 
-	public void setFov(double fov) {
+	public void setFov(final double fov) {
 
 		synchronized (viewer) {
 
-			RealPoint currentCenter = new RealPoint(3);
+			final RealPoint currentCenter = new RealPoint(3);
 			viewer.displayToGlobalCoordinates(viewer.getWidth() / 2,
 					viewer.getHeight() / 2, currentCenter);
 
-			AffineTransform3D viewerTransform = new AffineTransform3D();
+			final AffineTransform3D viewerTransform = new AffineTransform3D();
 			viewer.getState().getViewerTransform(viewerTransform);
 
-			double currentFov = Math.min(viewer.getWidth(), viewer.getHeight())
+			final double currentFov = Math.min(viewer.getWidth(), viewer.getHeight())
 					/ Affine3DHelpers.extractScale(viewerTransform, 0);
-			double scale = currentFov / fov;
+			final double scale = currentFov / fov;
 
 			System.out.println("current fov is " + currentFov
 					+ " in smallest dimension, want " + fov + ", scale by "

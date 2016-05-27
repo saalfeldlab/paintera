@@ -97,9 +97,9 @@ public class H5UtilsTest
 	@Test
 	public void testSaveAndLoadLongLongLut()
 	{
-		H5Utils.saveLongLongLut( lut, testDirPath + testH5Name, "lut", 4 );
+		H5Utils.saveLongLongLut( lut, testDirPath + testH5Name, "/lut", 4 );
 
-		final TLongLongHashMap lutMap = H5Utils.loadLongLongLut( testDirPath + testH5Name, "lut", 2 );
+		final TLongLongHashMap lutMap = H5Utils.loadLongLongLut( testDirPath + testH5Name, "/lut", 2 );
 		final long[] keys = lutMap.keys();
 
 		System.out.println( "loaded lut: " + new Gson().toJson( lutMap ) );
@@ -107,6 +107,17 @@ public class H5UtilsTest
 		for ( final long key : keys )
 			if ( lut.get( key ) != lutMap.get( key ) )
 				fail( "loaded lut key '" + key + "' does not match lut." );
+	}
+
+	@Test
+	public void testSaveAndLoadLongAttribute()
+	{
+		H5Utils.saveUint64Attribute( 50L, testDirPath + testH5Name, "/", "id" );
+
+		final Long id = H5Utils.loadAttribute( testDirPath + testH5Name, "/", "id" );
+
+		if ( id.longValue() != 50 )
+			fail( "Saving and loading long failed." );
 	}
 
 }

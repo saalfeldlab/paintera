@@ -36,6 +36,8 @@ import bdv.img.labelpair.RandomAccessiblePair;
 import bdv.labels.labelset.Label;
 import bdv.labels.labelset.LabelMultisetType;
 import bdv.labels.labelset.VolatileLabelMultisetType;
+import bdv.util.IdService;
+import bdv.util.LocalIdService;
 import bdv.viewer.TriggerBehaviourBindings;
 import ch.systemsx.cisd.hdf5.HDF5Factory;
 import ch.systemsx.cisd.hdf5.IHDF5Reader;
@@ -60,6 +62,8 @@ public class BigCatAriadne
 	final static private String backgroundLabelsDataset = "/labels";
 	final static private String paintedLabelsDataset = "/paintedLabels";
 	final static private String mergedLabelsDataset = "/mergedLabels";
+	final static private String fragmentSegmentLutDataset = "/fragment_segment_lut";
+	final static private IdService idService = new LocalIdService();
 
 	public static void main( final String[] args ) throws JsonSyntaxException, JsonIOException, IOException
 	{
@@ -123,7 +127,7 @@ public class BigCatAriadne
 						paintedLabels );
 
 		/* converters and controls */
-		final FragmentSegmentAssignment assignment = new FragmentSegmentAssignment();
+		final FragmentSegmentAssignment assignment = new FragmentSegmentAssignment( idService );
 		final GoldenAngleSaturatedARGBStream colorStream = new GoldenAngleSaturatedARGBStream( assignment );
 //		final RandomSaturatedARGBStream colorStream = new RandomSaturatedARGBStream( assignment );
 		colorStream.setAlpha( 0x20 );
@@ -189,6 +193,7 @@ public class BigCatAriadne
 		final SelectionController selectionController = new SelectionController(
 				bdv.getViewer(),
 				colorStream,
+				idService,
 				new InputTriggerConfig(),
 				bdv.getViewerFrame().getKeybindings(),
 				new InputTriggerConfig() );
@@ -224,10 +229,12 @@ public class BigCatAriadne
 				fragments.getImage( 0 ),
 				paintedLabels,
 				assignment,
+				idService,
 				paintedLabelsFilePath,
 				paintedLabelsDataset,
 				mergedLabelsDataset,
 				cellDimensions,
+				fragmentSegmentLutDataset,
 				new InputTriggerConfig(),
 				bdv.getViewerFrame().getKeybindings() );
 
@@ -253,6 +260,7 @@ public class BigCatAriadne
 
 		final DrawProjectAndIntersectController dpi = new DrawProjectAndIntersectController(
 				bdv,
+				idService,
 				transform,
 				new InputTriggerConfig(),
 				fragments.getImage(0),

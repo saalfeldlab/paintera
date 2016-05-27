@@ -38,6 +38,7 @@ public class SelectionController
 {
 	final protected ViewerPanel viewer;
 	final protected AbstractSaturatedARGBStream colorStream;
+	final protected IdService idService;
 	protected long activeFragmentId = 0;
 
 	// for keystroke actions
@@ -49,12 +50,14 @@ public class SelectionController
 	public SelectionController(
 			final ViewerPanel viewer,
 			final AbstractSaturatedARGBStream colorStream,
+			final IdService idService,
 			final InputTriggerConfig config,
 			final InputActionBindings inputActionBindings,
 			final KeyStrokeAdder.Factory keyProperties)
 	{
 		this.viewer = viewer;
 		this.colorStream = colorStream;
+		this.idService = idService;
 
 		ksKeyStrokeAdder = keyProperties.keyStrokeAdder( ksInputMap, "select" );
 
@@ -107,7 +110,7 @@ public class SelectionController
 		{
 			synchronized ( viewer )
 			{
-				setActiveFragmentId( IdService.allocate() );
+				setActiveFragmentId( idService.next() );
 			}
 			viewer.requestRepaint();
 		}

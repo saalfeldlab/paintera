@@ -11,6 +11,7 @@ import bdv.labels.labelset.Label;
 import bdv.labels.labelset.LabelMultiset;
 import bdv.labels.labelset.LabelMultisetType;
 import ch.systemsx.cisd.base.mdarray.MDLongArray;
+import ch.systemsx.cisd.hdf5.HDF5DataTypeInformation;
 import ch.systemsx.cisd.hdf5.HDF5Factory;
 import ch.systemsx.cisd.hdf5.HDF5IntStorageFeatures;
 import ch.systemsx.cisd.hdf5.IHDF5LongReader;
@@ -422,6 +423,166 @@ public class H5Utils
 	{
 		final IHDF5Writer writer = HDF5Factory.open( filePath );
 		saveLongLongLut( lut, writer, dataset, blockSize );
+		writer.close();
+	}
+
+	/**
+	 * Load an attribute from of an HDF5 object.
+	 *
+	 * @param lut
+	 * @param file
+	 * @param dataset
+	 * @param cellDimensions
+	 */
+	static public < T > T loadAttribute(
+			final IHDF5Reader reader,
+			final String object,
+			final String attribute )
+	{
+		if ( !reader.exists( object ) )
+			return null;
+
+		if ( !reader.object().hasAttribute( object, attribute ) )
+			return null;
+
+		final HDF5DataTypeInformation attributeInfo = reader.object().getAttributeInformation( object, attribute );
+		final Class< ? > type = attributeInfo.tryGetJavaType();
+		System.out.println( "class: " + type );
+		if ( type.isAssignableFrom( long.class ) )
+		{
+			if ( attributeInfo.isSigned() )
+				return ( T )new Long( reader.int64().getAttr( object, attribute ) );
+			else
+				return ( T )new Long( reader.uint64().getAttr( object, attribute ) );
+		}
+		else if ( type.isAssignableFrom( int.class ) )
+		{
+			if ( attributeInfo.isSigned() )
+				return ( T )new Integer( reader.int32().getAttr( object, attribute ) );
+			else
+				return ( T )new Integer( reader.uint32().getAttr( object, attribute ) );
+		}
+		else if ( type.isAssignableFrom( short.class ) )
+		{
+			if ( attributeInfo.isSigned() )
+				return ( T )new Short( reader.int16().getAttr( object, attribute ) );
+			else
+				return ( T )new Short( reader.uint16().getAttr( object, attribute ) );
+		}
+		else if ( type.isAssignableFrom( byte.class ) )
+		{
+			if ( attributeInfo.isSigned() )
+				return ( T )new Byte( reader.int8().getAttr( object, attribute ) );
+			else
+				return ( T )new Byte( reader.uint8().getAttr( object, attribute ) );
+		}
+		else if ( type.isAssignableFrom( double.class ) )
+			return ( T )new Double( reader.float64().getAttr( object, attribute ) );
+		else if ( type.isAssignableFrom( float.class ) )
+			return ( T )new Double( reader.float32().getAttr( object, attribute ) );
+		else if ( type.isAssignableFrom( String.class ) )
+			return ( T )new String( reader.string().getAttr( object, attribute ) );
+
+		System.out.println( "Reading attributes of type " + attributeInfo + " not yet implemented." );
+		return null;
+	}
+
+	/**
+	 * Load an attribute from of an HDF5 object.
+	 *
+	 * @param lut
+	 * @param file
+	 * @param dataset
+	 * @param cellDimensions
+	 */
+	static public < T > T loadAttribute(
+			final File file,
+			final String object,
+			final String attribute )
+	{
+		final IHDF5Reader reader = HDF5Factory.openForReading( file );
+		final T t = loadAttribute( reader, object, attribute );
+		reader.close();
+		return t;
+	}
+
+	/**
+	 * Load an attribute from of an HDF5 object.
+	 *
+	 * @param lut
+	 * @param file
+	 * @param dataset
+	 * @param cellDimensions
+	 */
+	static public < T > T loadAttribute(
+			final String filePath,
+			final String object,
+			final String attribute )
+	{
+		final IHDF5Reader reader = HDF5Factory.openForReading( filePath );
+		final T t = loadAttribute( reader, object, attribute );
+		reader.close();
+		return t;
+	}
+
+	/**
+	 * Save a long value as a uint64 attribute of an HDF5 object.
+	 *
+	 * @param value
+	 * @param writer
+	 * @param object
+	 * @param attribute
+	 */
+	static public void saveUint64Attribute(
+			final long value,
+			final IHDF5Writer writer,
+			final String object,
+			final String attribute )
+	{
+		if ( !writer.exists( object ) )
+			writer.object().createGroup( object );
+
+		// TODO Bug in JHDF5, does not save the value most of the time when using the non-deprecated method
+//		writer.uint64().setAttr( object, attribute, value );
+		writer.setLongAttribute( object, attribute, value );
+//		writer.file().flush();
+	}
+
+	/**
+	 * Save a long value as a uint64 attribute of an HDF5 object.
+	 *
+	 * @param value
+	 * @param file
+	 * @param object
+	 * @param attribute
+	 */
+	static public void saveUint64Attribute(
+			final long value,
+			final File file,
+			final String object,
+			final String attribute )
+	{
+		final IHDF5Writer writer = HDF5Factory.open( file );
+		saveUint64Attribute( value, writer, object, attribute );
+		writer.close();
+	}
+
+	/**
+	 * Save a long value as a uint64 attribute of an HDF5 object.
+	 *
+	 * @param value
+	 * @param filePath
+	 * @param object
+	 * @param attribute
+	 */
+	static public void saveUint64Attribute(
+			final long value,
+			final String filePath,
+			final String object,
+			final String attribute )
+	{
+		final IHDF5Writer writer = HDF5Factory.open( filePath );
+		saveUint64Attribute( value, writer, object, attribute );
 		writer.close();
 	}
 }

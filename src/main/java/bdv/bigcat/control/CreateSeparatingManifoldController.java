@@ -2,19 +2,46 @@ package bdv.bigcat.control;
 
 import static bdv.labels.labelset.Label.TRANSPARENT;
 
-import java.awt.*;
+import java.awt.AlphaComposite;
+import java.awt.BasicStroke;
+import java.awt.Color;
 import java.awt.Cursor;
+import java.awt.Graphics;
+import java.awt.Graphics2D;
+import java.awt.Rectangle;
+import java.awt.RenderingHints;
 import java.awt.event.ActionEvent;
 import java.awt.geom.AffineTransform;
 import java.awt.geom.Area;
-import java.awt.geom.Ellipse2D;
 import java.awt.image.BufferedImage;
 import java.awt.image.DataBufferInt;
 
-import javax.swing.*;
+import javax.swing.ActionMap;
+import javax.swing.InputMap;
 
-import net.imglib2.*;
+import org.scijava.ui.behaviour.Behaviour;
+import org.scijava.ui.behaviour.BehaviourMap;
+import org.scijava.ui.behaviour.ClickBehaviour;
+import org.scijava.ui.behaviour.DragBehaviour;
+import org.scijava.ui.behaviour.InputTriggerAdder;
+import org.scijava.ui.behaviour.InputTriggerMap;
+import org.scijava.ui.behaviour.KeyStrokeAdder;
+import org.scijava.ui.behaviour.ScrollBehaviour;
+import org.scijava.ui.behaviour.io.InputTriggerConfig;
+
+import bdv.BigDataViewer;
+import bdv.bigcat.label.FragmentSegmentAssignment;
+import bdv.labels.labelset.LabelMultisetType;
+import bdv.util.AbstractNamedAction.NamedActionAdder;
+import bdv.util.IdService;
+import bdv.viewer.InputActionBindings;
+import bdv.viewer.TriggerBehaviourBindings;
+import bdv.viewer.ViewerPanel;
+import net.imglib2.FinalInterval;
 import net.imglib2.Point;
+import net.imglib2.RandomAccess;
+import net.imglib2.RandomAccessibleInterval;
+import net.imglib2.RealPoint;
 import net.imglib2.algorithm.fill.Filter;
 import net.imglib2.algorithm.fill.FloodFill;
 import net.imglib2.algorithm.fill.Writer;
@@ -27,39 +54,31 @@ import net.imglib2.img.basictypeaccess.array.IntArray;
 import net.imglib2.img.basictypeaccess.array.LongArray;
 import net.imglib2.interpolation.randomaccess.NearestNeighborInterpolatorFactory;
 import net.imglib2.outofbounds.OutOfBounds;
-import net.imglib2.realtransform.*;
+import net.imglib2.realtransform.AffineTransform3D;
+import net.imglib2.realtransform.InverseRealTransform;
+import net.imglib2.realtransform.RealTransformRandomAccessible;
+import net.imglib2.realtransform.RealTransformRealRandomAccessible;
+import net.imglib2.realtransform.RealViews;
 import net.imglib2.type.logic.BitType;
 import net.imglib2.type.numeric.integer.IntType;
 import net.imglib2.type.numeric.integer.LongType;
 import net.imglib2.ui.OverlayRenderer;
 import net.imglib2.ui.TransformListener;
-import net.imglib2.util.LinAlgHelpers;
 import net.imglib2.util.Pair;
 import net.imglib2.util.ValuePair;
-import net.imglib2.view.*;
-
-import org.scijava.ui.behaviour.*;
-import org.scijava.ui.behaviour.io.InputTriggerConfig;
-
-import bdv.BigDataViewer;
-import bdv.bigcat.label.FragmentSegmentAssignment;
-import bdv.labels.labelset.LabelMultisetType;
-import bdv.util.AbstractNamedAction.NamedActionAdder;
-import bdv.util.IdService;
-import bdv.viewer.InputActionBindings;
-import bdv.viewer.TriggerBehaviourBindings;
-import bdv.viewer.ViewerPanel;
+import net.imglib2.view.ExtendedRandomAccessibleInterval;
+import net.imglib2.view.IntervalView;
+import net.imglib2.view.RandomAccessibleOnRealRandomAccessible;
+import net.imglib2.view.RandomAccessiblePair;
+import net.imglib2.view.Views;
 
 /**
  * @autoher Philipp Hanslovsky &lt;hanslovskyp@janelia.hhmi.org&gt;
  */
 public class CreateSeparatingManifoldController implements TransformListener< AffineTransform3D > {
 
-    private final BigDataViewer bdv;
     private final ViewerPanel viewer;
-    private final InputTriggerConfig config;
-    private final InputActionBindings inputActionBindings;
-    private final TriggerBehaviourBindings bindings;
+    private final IdService idService;
 
     private final InputMap ksWithinModeInputMap = new InputMap();
     private final ActionMap ksWithinModeActionMap = new ActionMap();
@@ -69,11 +88,7 @@ public class CreateSeparatingManifoldController implements TransformListener< Af
 
     private final Shape shape = new DiamondShape( 1 );
 
-    private final Area filledPixels = new Area();
     private final AreaOverlay filledPixelsOverlay = new AreaOverlay();
-
-    private Rectangle rectangle = null;
-
 
     private ArrayImg< BitType, LongArray > localCanvas = null;
     public final BrushOverlay brushOverlay = new BrushOverlay();
@@ -90,6 +105,7 @@ public class CreateSeparatingManifoldController implements TransformListener< Af
 
     public CreateSeparatingManifoldController(
             final BigDataViewer bdv,
+            final IdService idService,
             final AffineTransform3D viewerToGlobalCoordinatesTransform,
             final InputTriggerConfig config,
             final RandomAccessibleInterval<LabelMultisetType > labels,
@@ -99,23 +115,20 @@ public class CreateSeparatingManifoldController implements TransformListener< Af
             final InputActionBindings inputActionBindings,
             final TriggerBehaviourBindings bindings,
             final String... activateModeKeys ) {
-        this.bdv = bdv;
         this.viewer = bdv.getViewer();
-        this.config = config;
-        this.inputActionBindings = inputActionBindings;
+        this.idService = idService;
         this.labels = labels;
         this.paintedLabels = paintedLabels;
         this.labelTransform = labelTransform;
         this.assignment = assignment;
-        this.bindings = bindings;
 
         viewer.addTransformListener( this );
 
-        NamedActionAdder ksWithinModeActionAdder = new NamedActionAdder(ksWithinModeActionMap);
-        KeyStrokeAdder ksWithinModeInputAdder = config.keyStrokeAdder(ksWithinModeInputMap, "within dpi mode");
-        InputTriggerAdder withinModeInputTriggerAdder = config.inputTriggerAdder(withinModeInputTriggerMap, "within dpi mdoe");
+        final NamedActionAdder ksWithinModeActionAdder = new NamedActionAdder(ksWithinModeActionMap);
+        final KeyStrokeAdder ksWithinModeInputAdder = config.keyStrokeAdder(ksWithinModeInputMap, "within dpi mode");
+        final InputTriggerAdder withinModeInputTriggerAdder = config.inputTriggerAdder(withinModeInputTriggerMap, "within dpi mdoe");
 
-        Runnable action = new Runnable() {
+        final Runnable action = new Runnable() {
             @Override
             public void run() {
                 filledPixelsOverlay.setVisible(false);
@@ -123,16 +136,16 @@ public class CreateSeparatingManifoldController implements TransformListener< Af
             }
         };
 
-        ModeToggleController.ExecuteOnUnToggle noActionUnToggle =
+        final ModeToggleController.ExecuteOnUnToggle noActionUnToggle =
                 new ModeToggleController.ExecuteOnUnToggle(action, bindings, inputActionBindings, "abort dpi", "T");
         noActionUnToggle.register( ksWithinModeActionAdder, ksWithinModeInputAdder );
 
-        RectangleCreator rc = new RectangleCreator("rectangle creator", "SPACE button1");
+        final RectangleCreator rc = new RectangleCreator("rectangle creator", "SPACE button1");
         rc.register( withinModeBehaviourMap, withinModeInputTriggerAdder );
 
 
 
-        Toggle toggle = new Toggle(bindings, inputActionBindings, "activate dpi mode", activateModeKeys );
+        final Toggle toggle = new Toggle(bindings, inputActionBindings, "activate dpi mode", activateModeKeys );
         ModeToggleController.registerToggle( config, inputActionBindings, toggle, "dpi mode controller" );
 
         viewer.getDisplay().addOverlayRenderer( brushOverlay );
@@ -165,7 +178,7 @@ public class CreateSeparatingManifoldController implements TransformListener< Af
             this.defaultTriggers = defaultTriggers;
         }
 
-        public void register( BehaviourMap behaviourMap, InputTriggerAdder inputAdder )
+        public void register( final BehaviourMap behaviourMap, final InputTriggerAdder inputAdder )
         {
             behaviourMap.put( name, this );
             inputAdder.put( name, defaultTriggers );
@@ -178,10 +191,10 @@ public class CreateSeparatingManifoldController implements TransformListener< Af
     {
 
         private Toggle(
-                TriggerBehaviourBindings bindings,
-                InputActionBindings inputActionBindings,
-                String name,
-                String... defaultTriggers) {
+                final TriggerBehaviourBindings bindings,
+                final InputActionBindings inputActionBindings,
+                final String name,
+                final String... defaultTriggers) {
             super( bindings, inputActionBindings, ksWithinModeInputMap, ksWithinModeActionMap,
                     withinModeBehaviourMap, withinModeInputTriggerMap, name, defaultTriggers );
         }
@@ -200,12 +213,12 @@ public class CreateSeparatingManifoldController implements TransformListener< Af
     private class ClearArea extends ModeToggleController.SelfRegisteringAction
     {
 
-        public ClearArea(String name, String... defaultTriggers) {
+        public ClearArea(final String name, final String... defaultTriggers) {
             super(name, defaultTriggers);
         }
 
         @Override
-        public void actionPerformed(ActionEvent actionEvent) {
+        public void actionPerformed(final ActionEvent actionEvent) {
             filledPixelsOverlay.img = new BufferedImage( viewer.getWidth(), viewer.getHeight(), BufferedImage.TYPE_INT_ARGB );
             filledPixelsOverlay.imgOld = null;
             viewer.getDisplay().repaint();
@@ -222,12 +235,12 @@ public class CreateSeparatingManifoldController implements TransformListener< Af
         private final Writer< BitType > writer = (source, target) -> target.set( true );
 
 
-        public FillCanvas(String name, String... defaultTriggers) {
+        public FillCanvas(final String name, final String... defaultTriggers) {
             super(name, defaultTriggers);
         }
 
         @Override
-        public void click(int x, int y) {
+        public void click(final int x, final int y) {
             seed.setPosition( x , 0 );
             seed.setPosition( y , 1 );
             FloodFill.fill(
@@ -268,7 +281,7 @@ public class CreateSeparatingManifoldController implements TransformListener< Af
         }
 
         @Override
-        public void drawOverlays( Graphics g ) {
+        public void drawOverlays( final Graphics g ) {
             if ( visible ) {
                 final Graphics2D g2d = (Graphics2D) g;
                 g2d.setColor( Color.WHITE );
@@ -284,7 +297,7 @@ public class CreateSeparatingManifoldController implements TransformListener< Af
             CreateSeparatingManifoldController.this.height = height;
         }
 
-        public void setColor( float r, float g, float b, float a )
+        public void setColor( final float r, final float g, final float b, final float a )
         {
 
         }
@@ -299,7 +312,7 @@ public class CreateSeparatingManifoldController implements TransformListener< Af
 
         private boolean visible = false;
 
-        public void setVisible( boolean visible )
+        public void setVisible( final boolean visible )
         {
             this.visible = visible;
         }
@@ -315,11 +328,11 @@ public class CreateSeparatingManifoldController implements TransformListener< Af
         }
 
         @Override
-        public void drawOverlays(Graphics g) {
+        public void drawOverlays(final Graphics g) {
             if ( visible ) {
-                Graphics2D g2d = (Graphics2D) g;
+                final Graphics2D g2d = (Graphics2D) g;
                 g2d.setColor( Color.WHITE );
-                AlphaComposite comp = AlphaComposite.getInstance(AlphaComposite.SRC_OVER, overlayAlpha);
+                final AlphaComposite comp = AlphaComposite.getInstance(AlphaComposite.SRC_OVER, overlayAlpha);
                 g2d.setComposite( comp );
                 g2d.drawImage( img, 0, 0, null );
             }
@@ -333,11 +346,11 @@ public class CreateSeparatingManifoldController implements TransformListener< Af
 //            imgOld = img;
             img = new BufferedImage( width, height, BufferedImage.TYPE_INT_ARGB );
             imgOld = imgOld == null ? new BufferedImage( width, height, BufferedImage.TYPE_INT_ARGB ) : imgOld;
-            Graphics2D g = (Graphics2D) img.getGraphics();
+            final Graphics2D g = (Graphics2D) img.getGraphics();
             g.setRenderingHint( RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_NEAREST_NEIGHBOR );
             // define AffineTransform
-            double scale = (double)img.getWidth()/imgOld.getWidth();
-            AffineTransform tf = new AffineTransform(
+            final double scale = (double)img.getWidth()/imgOld.getWidth();
+            final AffineTransform tf = new AffineTransform(
                     scale, 0,
                     0, scale,
                     0, (img.getHeight() - scale*imgOld.getHeight())*0.5
@@ -415,34 +428,34 @@ public class CreateSeparatingManifoldController implements TransformListener< Af
         private OverlayRenderer showRectangleWhileDrawing = new OverlayRenderer() {
 
             @Override
-            public void drawOverlays(Graphics g) {
+            public void drawOverlays(final Graphics g) {
                 if ( visible )
                 {
-                    Graphics2D g2d = (Graphics2D) g;
+                    final Graphics2D g2d = (Graphics2D) g;
                     g2d.setColor( Color.WHITE );
                     g2d.fill( r );
                 }
             }
 
             @Override
-            public void setCanvasSize(int width, int height) {
+            public void setCanvasSize(final int width, final int height) {
 
             }
         };
 
         private int startX, startY;
 
-        public RectangleCreator(String name, String... defaultTriggers) {
+        public RectangleCreator(final String name, final String... defaultTriggers) {
             super(name, defaultTriggers);
         }
 
-        private void setRectangle( int x, int y )
+        private void setRectangle( final int x, final int y )
         {
-            int xLow = Math.min(x, startX);
-            int yLow = Math.min(y, startY);
+            final int xLow = Math.min(x, startX);
+            final int yLow = Math.min(y, startY);
 
-            int xSize = Math.abs(x - startX);
-            int ySize = Math.abs(y - startY);
+            final int xSize = Math.abs(x - startX);
+            final int ySize = Math.abs(y - startY);
 
             r.setLocation( xLow, yLow );
             r.setSize( xSize, ySize );
@@ -450,7 +463,7 @@ public class CreateSeparatingManifoldController implements TransformListener< Af
         }
 
         @Override
-        public void init(int x, int y) {
+        public void init(final int x, final int y) {
             startX = x;
             startY = y;
             r.setLocation( x, y );
@@ -461,13 +474,13 @@ public class CreateSeparatingManifoldController implements TransformListener< Af
         }
 
         @Override
-        public void drag(int x, int y) {
+        public void drag(final int x, final int y) {
             setRectangle( x, y );
             viewer.getDisplay().repaint();
         }
 
         @Override
-        public void end(int x, int y) {
+        public void end(final int x, final int y) {
             setRectangle( x, y );
             visible = false;
             viewer.getDisplay().removeOverlayRenderer( showRectangleWhileDrawing );
@@ -481,21 +494,21 @@ public class CreateSeparatingManifoldController implements TransformListener< Af
 
     private class OverlayVisibility extends ModeToggleController.SelfRegisteringAction
     {
-        public OverlayVisibility(String name, String... defaultTriggers) {
+        public OverlayVisibility(final String name, final String... defaultTriggers) {
             super(name, defaultTriggers);
         }
 
         @Override
-        public void actionPerformed(ActionEvent actionEvent) {
+        public void actionPerformed(final ActionEvent actionEvent) {
             filledPixelsOverlay.setVisible(!filledPixelsOverlay.visible());
             viewer.getDisplay().repaint();
         }
     }
 
 
-    public static ArrayImg< IntType, IntArray > wrapBufferedImage( BufferedImage img )
+    public static ArrayImg< IntType, IntArray > wrapBufferedImage( final BufferedImage img )
     {
-        int[] imgData = ((DataBufferInt)img.getRaster().getDataBuffer()).getData();
+        final int[] imgData = ((DataBufferInt)img.getRaster().getDataBuffer()).getData();
         return ArrayImgs.ints(imgData, img.getWidth(), img.getHeight());
     }
 
@@ -505,12 +518,12 @@ public class CreateSeparatingManifoldController implements TransformListener< Af
 
         public Filter< Pair< IntType, IntType >, Pair< IntType, IntType > > filter = (p1, p2) -> p1.getB().get() != p2.getB().get();
 
-        public Fill(String name, String... defaultTriggers) {
+        public Fill(final String name, final String... defaultTriggers) {
             super(name, defaultTriggers);
         }
 
         @Override
-        public void click( int x, int y ) {
+        public void click( final int x, final int y ) {
             if ( filledPixelsOverlay.visible() ) {
                 synchronized (viewer) {
                     viewer.setCursor(Cursor.getPredefinedCursor(Cursor.WAIT_CURSOR));
@@ -519,7 +532,7 @@ public class CreateSeparatingManifoldController implements TransformListener< Af
 
 //                    int[] imgData = ((DataBufferInt) filledPixelsOverlay.img.getRaster().getDataBuffer()).getData();
 //                    ArrayImg<IntType, IntArray> img = ArrayImgs.ints(imgData, filledPixelsOverlay.img.getWidth(), filledPixelsOverlay.img.getHeight());
-                    ArrayImg<IntType, IntArray> img = wrapBufferedImage(filledPixelsOverlay.img);
+                    final ArrayImg<IntType, IntArray> img = wrapBufferedImage(filledPixelsOverlay.img);
 
 //                IntType extension = new IntType( 0 |
 //                        Color.WHITE.getAlpha() << 24 |
@@ -528,11 +541,11 @@ public class CreateSeparatingManifoldController implements TransformListener< Af
 //                        Color.WHITE.getBlue() << 0
 //                );
 
-                    IntType extension = new IntType(Color.WHITE.getRGB());
+                    final IntType extension = new IntType(Color.WHITE.getRGB());
 
 
                     final long t0 = System.currentTimeMillis();
-                    ArrayRandomAccess<IntType> ra = img.randomAccess();
+                    final ArrayRandomAccess<IntType> ra = img.randomAccess();
                     ra.setPosition(p);
 //                ra.get().set( 255 | 255 << 8 );
                     FloodFill.fill(
@@ -570,17 +583,17 @@ public class CreateSeparatingManifoldController implements TransformListener< Af
         private final Runnable action;
 
         public IntersectAndLeave(
-                Runnable action,
-                TriggerBehaviourBindings bindings,
-                InputActionBindings inputActionBindings,
-                String name,
-                String... defaultTriggers) {
+                final Runnable action,
+                final TriggerBehaviourBindings bindings,
+                final InputActionBindings inputActionBindings,
+                final String name,
+                final String... defaultTriggers) {
             super( bindings, inputActionBindings, name, defaultTriggers);
             this.action = action;
         }
 
         @Override
-        public void doOnUnToggle( int x, int y ) {
+        public void doOnUnToggle( final int x, final int y ) {
             synchronized ( viewer )
             {
                 viewer.setCursor( Cursor.getPredefinedCursor( Cursor.WAIT_CURSOR ) );
@@ -593,53 +606,53 @@ public class CreateSeparatingManifoldController implements TransformListener< Af
                         Math.round( labelLocation.getDoublePosition( 1 ) ),
                         Math.round( labelLocation.getDoublePosition( 2 ) ) );
 
-                ArrayImg<IntType, IntArray> img = wrapBufferedImage(filledPixelsOverlay.img);
+                final ArrayImg<IntType, IntArray> img = wrapBufferedImage(filledPixelsOverlay.img);
 
-                int overlayValueAtPoint = filledPixelsOverlay.img.getRGB( x, y );
+                final int overlayValueAtPoint = filledPixelsOverlay.img.getRGB( x, y );
 
-                ExtendedRandomAccessibleInterval<IntType, IntervalView<IntType>> borderExtended
+                final ExtendedRandomAccessibleInterval<IntType, IntervalView<IntType>> borderExtended
                         = Views.extendBorder(Views.interval(Views.addDimension(img), new FinalInterval(img.dimension(0), img.dimension(1), 1)));
 
-                AffineTransform3D offset = new AffineTransform3D();
+                final AffineTransform3D offset = new AffineTransform3D();
                 offset.setTranslation( new double[] { -0.5*filledPixelsOverlay.img.getWidth(), -0.5*filledPixelsOverlay.img.getHeight(), 0 } );
 
-                AffineTransform3D imgToGlobalCoordinates = viewerToGlobalCoordinatesTransform.inverse().copy().concatenate(offset);
+                final AffineTransform3D imgToGlobalCoordinates = viewerToGlobalCoordinatesTransform.inverse().copy().concatenate(offset);
 
-                RealPoint dummy = new RealPoint( 3 );
+                final RealPoint dummy = new RealPoint( 3 );
                 dummy.setPosition( x, 0 );
                 dummy.setPosition( y, 1 );
                 dummy.setPosition( 0, 2 );
                 offset.apply( dummy, dummy );
                 viewer.displayToGlobalCoordinates( dummy );
 
-                RealTransformRandomAccessible<IntType, InverseRealTransform> iat =
+                final RealTransformRandomAccessible<IntType, InverseRealTransform> iat =
                         RealViews.transform(Views.interpolate(borderExtended, new NearestNeighborInterpolatorFactory<>()), imgToGlobalCoordinates);
-                RealTransformRealRandomAccessible<IntType, InverseRealTransform>.RealTransformRealRandomAccess dummyAccess = iat.realRandomAccess();
+                final RealTransformRealRandomAccessible<IntType, InverseRealTransform>.RealTransformRealRandomAccess dummyAccess = iat.realRandomAccess();
                 dummyAccess.setPosition( dummy );
                 System.out.println( "Dummy: " + dummyAccess.get().get() );
 
-                AffineTransform3D toLabelSpace = labelTransform.inverse().copy().concatenate(imgToGlobalCoordinates);
+                final AffineTransform3D toLabelSpace = labelTransform.inverse().copy().concatenate(imgToGlobalCoordinates);
 
-                RandomAccessibleOnRealRandomAccessible<IntType> interpolatedAndTransformed = Views.raster(
+                final RandomAccessibleOnRealRandomAccessible<IntType> interpolatedAndTransformed = Views.raster(
                         RealViews.transform(
                                 Views.interpolate(borderExtended, new NearestNeighborInterpolatorFactory<>()),
                                 labelTransform.inverse().copy().concatenate( viewerToGlobalCoordinatesTransform.inverse() )// toLabelSpace
                 ) );
 
-                RealPoint dummyP = new RealPoint(3);
+                final RealPoint dummyP = new RealPoint(3);
                 System.out.println( p );
                 toLabelSpace.applyInverse( dummyP , p );
                 imgToGlobalCoordinates.applyInverse( dummy, dummy );
                 System.out.println( x + " " + y + dummy + " " + " " + p + " " + dummyP );
 
-                OutOfBounds<IntType> access1 = borderExtended.randomAccess();
+                final OutOfBounds<IntType> access1 = borderExtended.randomAccess();
                 access1.setPosition( x, 0 );
                 access1.setPosition( y, 1 );
 
-                RandomAccess<IntType> access2 = interpolatedAndTransformed.randomAccess();
+                final RandomAccess<IntType> access2 = interpolatedAndTransformed.randomAccess();
                 access2.setPosition( p );
 
-                RandomAccess<IntType> access3 = Views.interval(Views.addDimension(img), new FinalInterval(img.dimension(0), img.dimension(1), 1)).randomAccess();
+                final RandomAccess<IntType> access3 = Views.interval(Views.addDimension(img), new FinalInterval(img.dimension(0), img.dimension(1), 1)).randomAccess();
                 access3.setPosition( x, 0 );
                 access3.setPosition( y, 1 );
                 access3.setPosition( 0, 2 );
@@ -651,17 +664,17 @@ public class CreateSeparatingManifoldController implements TransformListener< Af
                 final RandomAccess<LongType> paintedLabelAccess = paintedLabels.randomAccess();
                 paintedLabelAccess.setPosition( p );
                 final long paintedLabel = paintedLabelAccess.get().get();
-                long segmentLabel = assignment.getSegment(seedFragmentLabel);
+                final long segmentLabel = assignment.getSegment(seedFragmentLabel);
                 final long comparison = paintedLabel == TRANSPARENT ? segmentLabel : paintedLabel;
                 final long[] fragmentsContainedInSegment = assignment.getFragments( segmentLabel );
 
-                Filter< Pair<
+                final Filter< Pair<
                         Pair< LabelMultisetType, IntType >, LongType >,
                         Pair< Pair< LabelMultisetType, IntType >, LongType >  > filter  =
                         (p1, p2) -> {
 
-                            Pair<LabelMultisetType, IntType> multiSetOverlayPairComp = p1.getA();
-                            long currentPaint = p1.getB().get();
+                            final Pair<LabelMultisetType, IntType> multiSetOverlayPairComp = p1.getA();
+                            final long currentPaint = p1.getB().get();
 
                             if ( multiSetOverlayPairComp.getB().get() == overlayValueAtPoint &&
                                     currentPaint != p2.getB().get() )
@@ -669,7 +682,7 @@ public class CreateSeparatingManifoldController implements TransformListener< Af
                                 if ( currentPaint != TRANSPARENT )
                                     return currentPaint == comparison;
                                 else {
-                                    LabelMultisetType currentMultiSet = multiSetOverlayPairComp.getA();
+                                    final LabelMultisetType currentMultiSet = multiSetOverlayPairComp.getA();
                                     for ( final long fragment : fragmentsContainedInSegment )
                                         if ( currentMultiSet.contains( fragment ) )
                                             return true;
@@ -683,13 +696,13 @@ public class CreateSeparatingManifoldController implements TransformListener< Af
 
                 final long t0 = System.currentTimeMillis();
 
-                RandomAccessiblePair<LabelMultisetType, IntType> def = new RandomAccessiblePair<>(Views.extendValue(labels, new LabelMultisetType()), interpolatedAndTransformed);
+                final RandomAccessiblePair<LabelMultisetType, IntType> def = new RandomAccessiblePair<>(Views.extendValue(labels, new LabelMultisetType()), interpolatedAndTransformed);
                 FloodFill.fill(
                         new RandomAccessiblePair<LabelMultisetType, IntType>( Views.extendValue( labels, new LabelMultisetType() ), interpolatedAndTransformed ),
                         Views.extendValue( paintedLabels, new LongType( TRANSPARENT ) ),
                         p,
                         new ValuePair<>( new LabelMultisetType(), new IntType( overlayValueAtPoint )),
-                        new LongType( IdService.allocate() ),
+                        new LongType( idService.next() ),
                         new DiamondShape( 1 ),
                         filter );
                 final long t1 = System.currentTimeMillis();
