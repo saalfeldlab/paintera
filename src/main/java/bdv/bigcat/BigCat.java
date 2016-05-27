@@ -140,7 +140,7 @@ public class BigCat
 		final long[] fragmentsDimensions = Intervals.dimensionsAsLongArray( fragmentsPixels );
 
 		final Long nextIdObject = H5Utils.loadAttribute( reader, "/", "next_id" );
-		long maxId = -1;
+		long maxId = 0;
 		if ( nextIdObject == null )
 		{
 			maxId = maxId( reader, labelsDataset, maxId );
