@@ -1,9 +1,14 @@
 package bdv.bigcat;
 
+import java.awt.Cursor;
+import java.awt.event.WindowAdapter;
+import java.awt.event.WindowEvent;
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
+
+import javax.swing.JOptionPane;
 
 import org.scijava.ui.behaviour.io.InputTriggerConfig;
 import org.scijava.ui.behaviour.io.InputTriggerDescription;
@@ -69,13 +74,14 @@ public class BigCat
 	private String paintedLabelsDataset;
 	private String mergedLabelsDataset;
 	private String fragmentSegmentLutDataset;
+	private LabelPersistenceController persistenceController;
 	private InputTriggerConfig config;
 
 	private IdService idService = new LocalIdService();
 
 	public static void main( final String[] args ) throws Exception
 	{
-		final BigCat bca = new BigCat(args);
+		final BigCat bca = new BigCat( args );
 	}
 
 	public BigCat( final String[] args ) throws Exception
@@ -265,7 +271,7 @@ public class BigCat
 					cellDimensions,
 					config);
 
-			final LabelPersistenceController persistenceController = new LabelPersistenceController(
+			persistenceController = new LabelPersistenceController(
 					bdv.getViewer(),
 					fragments.getImage( 0 ),
 					paintedLabels,
@@ -313,6 +319,15 @@ public class BigCat
 
 			bdv.getViewer().getDisplay().addOverlayRenderer( brushController.getBrushOverlay() );
 
+			bdv.getViewerFrame().addWindowListener( new WindowAdapter()
+			{
+				@Override
+				public void windowClosing( final WindowEvent we )
+				{
+					saveBeforeClosing();
+					System.exit( 0 );
+				}
+			} );
 		}
 
 		final TranslateZController translateZController = new TranslateZController(
@@ -368,6 +383,24 @@ public class BigCat
 		);
 
 		return config;
+	}
+
+	public void saveBeforeClosing()
+	{
+		final String message = "Save changes to " + projectFile + " before closing?";
+
+		if (
+				JOptionPane.showConfirmDialog(
+						bdv.getViewerFrame(),
+						message,
+						bdv.getViewerFrame().getTitle(),
+						JOptionPane.YES_NO_OPTION ) == JOptionPane.YES_OPTION )
+		{
+			bdv.getViewerFrame().setCursor( Cursor.getPredefinedCursor( Cursor.WAIT_CURSOR ) );
+			persistenceController.saveNextId();
+			persistenceController.saveFragmentSegmentAssignment();
+			persistenceController.savePaintedLabels();
+		}
 	}
 
 	final static protected long maxId(
