@@ -22,7 +22,8 @@ import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.type.numeric.integer.LongType;
 
 /**
- *
+ * Persist fragment segment assignments, painted labels, viewer state, and
+ * flattened labels.
  *
  * @author Stephan Saalfeld &lt;saalfelds@janelia.hhmi.org&gt;
  */
@@ -96,6 +97,61 @@ public class LabelPersistenceController
 		}
 	}
 
+	public void saveNextId()
+	{
+		System.out.println( "Saving next id " + h5Path + ":/next_id" );
+		H5Utils.saveUint64Attribute(
+				idService.next(),
+				h5Path,
+				"/",
+				"next_id" );
+	}
+
+	public void saveFragmentSegmentAssignment()
+	{
+		System.out.println( "Saving fragment-segment assignments " + h5Path + ":" + assignmentDataset );
+		H5Utils.saveLongLongLut(
+				assignment.getLut(),
+				h5Path,
+				assignmentDataset,
+				1024 );
+	}
+
+	public void savePaintedLabels()
+	{
+		System.out.println( "Saving painted labels into " + h5Path + ":" + paintedLabelsDataset );
+		H5Utils.saveUnsignedLong(
+				labelSource,
+				new File( h5Path ),
+				paintedLabelsDataset,
+				labelsCellDimensions );
+	}
+
+	public void saveMergedLabels()
+	{
+		System.out.println( "Saving merged labels into " + h5Path + ":" + mergedLabelsDataset  );
+		H5Utils.saveSingleElementLabelMultisetLongPair(
+				labelMultisetSource,
+				labelSource,
+				labelSource,
+				new File( h5Path ),
+				mergedLabelsDataset,
+				labelsCellDimensions );
+	}
+
+	public void saveAssignedMergedLabels()
+	{
+		System.out.println( "Saving assigned merged labels into " + h5Path + ":" + mergedLabelsDataset  );
+		H5Utils.saveAssignedSingleElementLabelMultisetLongPair(
+				labelMultisetSource,
+				labelSource,
+				labelSource,
+				assignment,
+				new File( h5Path ),
+				mergedLabelsDataset,
+				labelsCellDimensions );
+	}
+
 	private class SaveFragmentSegmentAssignment extends SelfRegisteringAction
 	{
 		public SaveFragmentSegmentAssignment( final String name, final String ... defaultTriggers )
@@ -106,11 +162,10 @@ public class LabelPersistenceController
 		@Override
 		public void actionPerformed( final ActionEvent e )
 		{
-			System.out.println( "Saving fragment-segment assignments " + h5Path + ":" + assignmentDataset );
 			synchronized ( viewer )
 			{
 				viewer.setCursor( Cursor.getPredefinedCursor( Cursor.WAIT_CURSOR ) );
-				H5Utils.saveLongLongLut( assignment.getLut(), h5Path, assignmentDataset, 1024 );
+				saveFragmentSegmentAssignment();
 				viewer.setCursor( Cursor.getPredefinedCursor( Cursor.DEFAULT_CURSOR ) );
 			}
 		}
@@ -126,13 +181,12 @@ public class LabelPersistenceController
 		@Override
 		public void actionPerformed( final ActionEvent e )
 		{
-			System.out.println( "Saving fragment-segment assignments " + h5Path + ":" + assignmentDataset + " and painted labels " + h5Path + ":" + paintedLabelsDataset );
 			synchronized ( viewer )
 			{
 				viewer.setCursor( Cursor.getPredefinedCursor( Cursor.WAIT_CURSOR ) );
-				H5Utils.saveUint64Attribute( idService.next(), h5Path, "/", "next_id" );
-				H5Utils.saveLongLongLut( assignment.getLut(), h5Path, assignmentDataset, 1024 );
-				H5Utils.saveUnsignedLong( labelSource, new File( h5Path ), paintedLabelsDataset, labelsCellDimensions );
+				saveNextId();
+				saveFragmentSegmentAssignment();
+				savePaintedLabels();
 				viewer.setCursor( Cursor.getPredefinedCursor( Cursor.DEFAULT_CURSOR ) );
 			}
 		}
@@ -148,11 +202,10 @@ public class LabelPersistenceController
 		@Override
 		public void actionPerformed( final ActionEvent e )
 		{
-			System.out.println( "Saving painted labels into " + h5Path + ":" + paintedLabelsDataset );
 			synchronized ( viewer )
 			{
 				viewer.setCursor( Cursor.getPredefinedCursor( Cursor.WAIT_CURSOR ) );
-				H5Utils.saveUnsignedLong( labelSource, new File( h5Path ), paintedLabelsDataset, labelsCellDimensions );
+				savePaintedLabels();
 				viewer.setCursor( Cursor.getPredefinedCursor( Cursor.DEFAULT_CURSOR ) );
 			}
 		}
@@ -168,18 +221,10 @@ public class LabelPersistenceController
 		@Override
 		public void actionPerformed( final ActionEvent e )
 		{
-			System.out.println( "Saving merged labels into " + h5Path + ":" + mergedLabelsDataset  );
-			viewer.showMessage( "Saving merged labels ..." );
 			synchronized ( viewer )
 			{
 				viewer.setCursor( Cursor.getPredefinedCursor( Cursor.WAIT_CURSOR ) );
-				H5Utils.saveSingleElementLabelMultisetLongPair(
-						labelMultisetSource,
-						labelSource,
-						labelSource,
-						new File( h5Path ),
-						mergedLabelsDataset,
-						labelsCellDimensions );
+				saveMergedLabels();
 				viewer.setCursor( Cursor.getPredefinedCursor( Cursor.DEFAULT_CURSOR ) );
 			}
 		}
@@ -195,18 +240,10 @@ public class LabelPersistenceController
 		@Override
 		public void actionPerformed( final ActionEvent e )
 		{
-			System.out.println( "Saving assigned merged labels into " + h5Path + ":" + mergedLabelsDataset  );
 			synchronized ( viewer )
 			{
 				viewer.setCursor( Cursor.getPredefinedCursor( Cursor.WAIT_CURSOR ) );
-				H5Utils.saveAssignedSingleElementLabelMultisetLongPair(
-						labelMultisetSource,
-						labelSource,
-						labelSource,
-						assignment,
-						new File( h5Path ),
-						mergedLabelsDataset,
-						labelsCellDimensions );
+				saveAssignedMergedLabels();
 				viewer.setCursor( Cursor.getPredefinedCursor( Cursor.DEFAULT_CURSOR ) );
 			}
 		}
