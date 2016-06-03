@@ -14,13 +14,14 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
  */
-package bdv.labels.labelset;
+package bdv.bigcat.ui;
 
+import bdv.labels.labelset.Label;
+import bdv.labels.labelset.Multiset.Entry;
+import bdv.labels.labelset.VolatileLabelMultisetType;
 import net.imglib2.converter.Converter;
 import net.imglib2.type.numeric.ARGBType;
 import net.imglib2.type.volatiles.VolatileARGBType;
-import bdv.bigcat.ui.ARGBStream;
-import bdv.labels.labelset.Multiset.Entry;
 
 /**
  * TODO make the converter reference and use a lookuptable instead of ColorStream.

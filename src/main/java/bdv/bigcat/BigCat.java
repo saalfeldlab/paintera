@@ -20,6 +20,8 @@ import bdv.bigcat.composite.ARGBCompositeAlphaYCbCr;
 import bdv.bigcat.composite.Composite;
 import bdv.bigcat.composite.CompositeCopy;
 import bdv.bigcat.control.AnnotationsController;
+import bdv.bigcat.control.ConfirmSegmentController;
+import bdv.bigcat.control.DrawProjectAndIntersectController;
 import bdv.bigcat.control.LabelBrushController;
 import bdv.bigcat.control.LabelFillController;
 import bdv.bigcat.control.LabelPersistenceController;
@@ -53,6 +55,7 @@ import net.imglib2.algorithm.neighborhood.DiamondShape;
 import net.imglib2.img.cell.CellImg;
 import net.imglib2.img.cell.CellImgFactory;
 import net.imglib2.interpolation.randomaccess.NearestNeighborInterpolatorFactory;
+import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.realtransform.RealViews;
 import net.imglib2.type.numeric.ARGBType;
 import net.imglib2.type.numeric.integer.LongType;
@@ -204,6 +207,7 @@ public class BigCat
 		if ( fragments != null )
 		{
 			composites.add( new ARGBCompositeAlphaYCbCr() );
+			//composites.add( new ARGBCompositeAlphaMultiply() );
 			bdv = Util.createViewer(
 				windowTitle,
 				new AbstractH5SetupImageLoader[]{ raw },
@@ -229,7 +233,7 @@ public class BigCat
 
 		if ( fragments != null )
 		{
-			final PairLabelMultiSetLongIdPicker idPicker2 = new PairLabelMultiSetLongIdPicker(
+			final PairLabelMultiSetLongIdPicker idPicker = new PairLabelMultiSetLongIdPicker(
 					bdv.getViewer(),
 					RealViews.affineReal(
 							Views.interpolate(
@@ -254,7 +258,7 @@ public class BigCat
 
 			final MergeController mergeController = new MergeController(
 					bdv.getViewer(),
-					idPicker2,
+					idPicker,
 					selectionController,
 					assignment,
 					config,
@@ -305,6 +309,28 @@ public class BigCat
 					selectionController,
 					new DiamondShape( 1 ),
 					config );
+
+			final DrawProjectAndIntersectController dpi = new DrawProjectAndIntersectController(
+					bdv,
+					idService,
+					new AffineTransform3D(),
+					new InputTriggerConfig(),
+					fragments.getImage(0),
+					paintedLabels,
+					fragments.getMipmapTransforms()[0],
+					assignment,
+					colorStream,
+					selectionController,
+					bdv.getViewerFrame().getKeybindings(),
+					bindings,
+					"shift T" );
+
+			final ConfirmSegmentController confirmSegment = new ConfirmSegmentController(
+					bdv.getViewer(),
+					selectionController,
+					assignment,
+					config,
+					bdv.getViewerFrame().getKeybindings() );
 
 			bindings.addBehaviourMap( "merge", mergeController.getBehaviourMap() );
 			bindings.addInputTriggerMap( "merge", mergeController.getInputTriggerMap() );

@@ -3,8 +3,11 @@ package bdv.bigcat;
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Arrays;
 
 import org.scijava.ui.behaviour.io.InputTriggerConfig;
+import org.scijava.ui.behaviour.io.InputTriggerDescription;
+import org.scijava.ui.behaviour.io.yaml.YamlConfigIO;
 
 import com.google.gson.JsonIOException;
 import com.google.gson.JsonSyntaxException;
@@ -64,6 +67,40 @@ public class BigCatAriadne
 	final static private String mergedLabelsDataset = "/mergedLabels";
 	final static private String fragmentSegmentLutDataset = "/fragment_segment_lut";
 	final static private IdService idService = new LocalIdService();
+
+	static protected InputTriggerConfig getInputTriggerConfig() throws IllegalArgumentException {
+
+		final String[] filenames = {
+				"bigcatkeyconfig.yaml",
+				System.getProperty( "user.home" ) + "/.bdv/bigcatkeyconfig.yaml"
+		};
+
+		for (final String filename : filenames) {
+
+			try {
+				if (new File(filename).isFile()) {
+					System.out.println("reading key config from file " + filename);
+					return new InputTriggerConfig(YamlConfigIO.read(filename));
+				}
+			} catch (final IOException e) {
+				System.err.println("Error reading " + filename);
+			}
+		}
+
+		System.out.println("creating default input trigger config");
+
+		// default input trigger config, disables "control button1" drag in bdv
+		// (collides with default of "move annotation")
+		final InputTriggerConfig config = new InputTriggerConfig(
+				Arrays.asList(
+						new InputTriggerDescription[] {
+								new InputTriggerDescription( new String[] { "not mapped" }, "drag rotate slow", "bdv" )
+						}
+				)
+		);
+
+		return config;
+	}
 
 	public static void main( final String[] args ) throws JsonSyntaxException, JsonIOException, IOException
 	{
@@ -190,27 +227,29 @@ public class BigCatAriadne
 						fragments.getMipmapTransforms()[ 0 ] )
 				);
 
+		final InputTriggerConfig config = getInputTriggerConfig();
+
 		final SelectionController selectionController = new SelectionController(
 				bdv.getViewer(),
 				colorStream,
 				idService,
-				new InputTriggerConfig(),
+				config,
 				bdv.getViewerFrame().getKeybindings(),
-				new InputTriggerConfig() );
+				config );
 
 		final MergeController mergeController = new MergeController(
 				bdv.getViewer(),
 				idPicker2,
 				selectionController,
 				assignment,
-				new InputTriggerConfig(),
+				config,
 				bdv.getViewerFrame().getKeybindings(),
-				new InputTriggerConfig() );
+				config );
 
 		final TranslateZController translateZController = new TranslateZController(
 				bdv.getViewer(),
 				raw.getMipmapResolutions()[0],
-				new  InputTriggerConfig() );
+				config );
 
 		final LabelBrushController brushController = new LabelBrushController(
 				bdv.getViewer(),
@@ -221,7 +260,7 @@ public class BigCatAriadne
 				paintedLabelsFilePath,
 				paintedLabelsDataset,
 				cellDimensions,
-				new InputTriggerConfig(),
+				config,
 				0 );
 
 		final LabelPersistenceController persistenceController = new LabelPersistenceController(
@@ -235,7 +274,7 @@ public class BigCatAriadne
 				mergedLabelsDataset,
 				cellDimensions,
 				fragmentSegmentLutDataset,
-				new InputTriggerConfig(),
+				config,
 				bdv.getViewerFrame().getKeybindings() );
 
 		final LabelFillController fillController = new LabelFillController(
@@ -246,17 +285,17 @@ public class BigCatAriadne
 				assignment,
 				selectionController,
 				new DiamondShape( 1 ),
-				new InputTriggerConfig() );
+				config );
 
 		final LabelRestrictToSegmentController intersectController = new LabelRestrictToSegmentController(
 				bdv.getViewer(),
-				fragments.getImage(0),
+				fragments.getImage( 0 ),
 				paintedLabels,
-				fragments.getMipmapTransforms()[0],
+				fragments.getMipmapTransforms()[ 0 ],
 				assignment,
 				selectionController,
-				new DiamondShape(1),
-				new InputTriggerConfig());
+				new DiamondShape( 1 ),
+				config );
 
 		final DrawProjectAndIntersectController dpi = new DrawProjectAndIntersectController(
 				bdv,

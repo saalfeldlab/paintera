@@ -2,18 +2,16 @@ package bdv.bigcat.ui;
 
 import bdv.AbstractViewerSetupImgLoader;
 import bdv.labels.labelset.LabelMultisetType;
-import bdv.labels.labelset.VolatileLabelMultisetARGBConverter;
 import bdv.labels.labelset.VolatileLabelMultisetType;
 import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.converter.Converters;
 import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.type.volatiles.VolatileARGBType;
 
-@SuppressWarnings( "unchecked" )
 public class ARGBConvertedLabelsSource extends AbstractARGBConvertedLabelsSource
 {
 	final private AbstractViewerSetupImgLoader< LabelMultisetType, VolatileLabelMultisetType > multisetImageLoader;
-	
+
 	public ARGBConvertedLabelsSource(
 			final int setupId,
 			final AbstractViewerSetupImgLoader< LabelMultisetType, VolatileLabelMultisetType > multisetImageLoader,

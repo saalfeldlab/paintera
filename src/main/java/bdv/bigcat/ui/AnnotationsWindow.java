@@ -24,7 +24,6 @@ import javax.swing.event.TableModelListener;
 import javax.swing.table.AbstractTableModel;
 import javax.swing.table.TableModel;
 
-import net.imglib2.RealPoint;
 import bdv.bigcat.annotation.Annotation;
 import bdv.bigcat.annotation.Annotations;
 import bdv.bigcat.annotation.PostSynapticSite;
@@ -32,6 +31,7 @@ import bdv.bigcat.annotation.PreSynapticSite;
 import bdv.bigcat.annotation.Synapse;
 import bdv.bigcat.control.AnnotationsController;
 import bdv.bigcat.util.Selection;
+import net.imglib2.RealPoint;
 
 public class AnnotationsWindow extends JFrame implements
 		Selection.SelectionListener<Annotation>, ListSelectionListener {
@@ -70,34 +70,37 @@ public class AnnotationsWindow extends JFrame implements
 
 			annotations.addAnnotationsListener(this);
 			ids = new LinkedList<Long>();
-			for (Annotation a : annotations.getAnnotations())
+			for (final Annotation a : annotations.getAnnotations())
 				ids.add(a.getId());
 			updateTableFromIds();
 		}
 
-		public long getIdFromRow(int row) {
+		public long getIdFromRow(final int row) {
 
 			return ids.get(row);
 		}
 
-		public int getRowFromId(long id) {
+		public int getRowFromId(final long id) {
 
 			return idsToRow.get(id);
 		}
 
-		public String getColumnName(int column) {
+		@Override
+		public String getColumnName(final int column) {
 
 			return ColumnNames[column];
 		}
 
-		public boolean isCellEditable(int row, int column) {
+		@Override
+		public boolean isCellEditable(final int row, final int column) {
 
 			if (column == COMMENT_INDEX)
 				return true;
 			return false;
 		}
 
-		public Class<?> getColumnClass(int column) {
+		@Override
+		public Class<?> getColumnClass(final int column) {
 
 			switch (column) {
 
@@ -116,14 +119,15 @@ public class AnnotationsWindow extends JFrame implements
 			}
 		}
 
-		public Object getValueAt(int row, int column) {
+		@Override
+		public Object getValueAt(final int row, final int column) {
 
-			Long id = ids.get(row);
+			final Long id = ids.get(row);
 
 			if (column == ID_INDEX)
 				return id;
 
-			Annotation a = annotations.getById(id);
+			final Annotation a = annotations.getById(id);
 
 			switch (column) {
 
@@ -142,38 +146,41 @@ public class AnnotationsWindow extends JFrame implements
 			}
 		}
 
-		public void setValueAt(Object value, int row, int column) {
+		@Override
+		public void setValueAt(final Object value, final int row, final int column) {
 
 			if (column != COMMENT_INDEX)
 				return;
 
-			Long id = ids.get(row);
-			Annotation a = annotations.getById(id);
+			final Long id = ids.get(row);
+			final Annotation a = annotations.getById(id);
 
 			a.setComment((String) value);
 
 			fireTableCellUpdated(row, column);
 		}
 
+		@Override
 		public int getRowCount() {
 
 			return ids.size();
 		}
 
+		@Override
 		public int getColumnCount() {
 
 			return ColumnNames.length;
 		}
 
 		@Override
-		public void onAnnotationAdded(Annotation a) {
+		public void onAnnotationAdded(final Annotation a) {
 
 			ids.add(a.getId());
 			updateTableFromIds();
 		}
 
 		@Override
-		public void onAnnotationRemoved(Annotation a) {
+		public void onAnnotationRemoved(final Annotation a) {
 
 			ids.remove(a.getId());
 			updateTableFromIds();
@@ -183,7 +190,7 @@ public class AnnotationsWindow extends JFrame implements
 
 			int row = 0;
 			idsToRow.clear();
-			for (long id : ids) {
+			for (final long id : ids) {
 				idsToRow.put(id, row);
 				row++;
 			}
@@ -192,8 +199,8 @@ public class AnnotationsWindow extends JFrame implements
 		}
 	}
 
-	public AnnotationsWindow(AnnotationsController annotationController,
-			Annotations annotations, Selection<Annotation> selection) {
+	public AnnotationsWindow(final AnnotationsController annotationController,
+			final Annotations annotations, final Selection<Annotation> selection) {
 
 		this.annotationController = annotationController;
 		this.annotations = annotations;
@@ -202,25 +209,25 @@ public class AnnotationsWindow extends JFrame implements
 
 		getContentPane().setLayout(gridbag);
 
-		JScrollPane scrollPane = createAnnotationTable();
+		final JScrollPane scrollPane = createAnnotationTable();
 		gridbagConstraints.fill = GridBagConstraints.BOTH;
 		gridbagConstraints.weightx = 1.0;
 		gridbagConstraints.weighty = 1.0;
 		gridbag.setConstraints(scrollPane, gridbagConstraints);
 		getContentPane().add(scrollPane);
 
-		JPanel stats = createTableStats();
+		final JPanel stats = createTableStats();
 		gridbagConstraints.gridy = 1;
 		gridbagConstraints.weighty = 0.0;
 		gridbag.setConstraints(stats, gridbagConstraints);
 		getContentPane().add(stats);
-		
-		JPanel localizer = createLocalizer();
+
+		final JPanel localizer = createLocalizer();
 		gridbagConstraints.gridy = 2;
 		gridbagConstraints.weighty = 0.0;
 		gridbag.setConstraints(localizer, gridbagConstraints);
 		getContentPane().add(localizer);
-				
+
 		setDefaultCloseOperation(JFrame.HIDE_ON_CLOSE);
 		pack();
 		setSize(500, 800);
@@ -230,74 +237,75 @@ public class AnnotationsWindow extends JFrame implements
 		tableModel = new AnnotationsTableModel();
 		table = new BigCatTable(tableModel);
 		table.getSelectionModel().addListSelectionListener(this);
-		JScrollPane scrollPane = new JScrollPane(table);
+		final JScrollPane scrollPane = new JScrollPane(table);
 		return scrollPane;
 	}
 
 	private JPanel createTableStats() {
-		
-		JPanel panel = new JPanel();
-		GridBagLayout gridBag = new GridBagLayout();
-		GridBagConstraints c = new GridBagConstraints();
+
+		final JPanel panel = new JPanel();
+		final GridBagLayout gridBag = new GridBagLayout();
+		final GridBagConstraints c = new GridBagConstraints();
 
 		panel.setLayout(gridBag);
-	
-		JLabel numItemsLabel = new JLabel("total: ");
+
+		final JLabel numItemsLabel = new JLabel("total: ");
 		c.gridx = 0;
 		c.gridy = 0;
 		gridBag.setConstraints(numItemsLabel, c);
 		panel.add(numItemsLabel);
-		
+
 		class NumItems extends JLabel implements TableModelListener {
 
 			private static final long serialVersionUID = 1L;
 			private final TableModel tableModel;
 
-			public NumItems(TableModel model) {
+			public NumItems(final TableModel model) {
 				tableModel = model;
 				tableModel.addTableModelListener(this);
 				setText(Integer.toString(tableModel.getRowCount()));
 			}
-			
+
 			@Override
-			public void tableChanged(TableModelEvent e) {
+			public void tableChanged(final TableModelEvent e) {
 				setText(Integer.toString(tableModel.getRowCount()));
 			}
 		};
-		NumItems numItems = new NumItems(tableModel);
+
+		final NumItems numItems = new NumItems(tableModel);
 		c.gridx = 1;
 		gridBag.setConstraints(numItems, c);
 		panel.add(numItems);
 
 		return panel;
 	}
-	
+
 	private JPanel createLocalizer() {
 
-		JPanel panel = new JPanel();
+		final JPanel panel = new JPanel();
 		panel.setBorder(BorderFactory.createCompoundBorder(
 				BorderFactory.createTitledBorder("Localize"),
 				BorderFactory.createEmptyBorder(5, 5, 5, 5)));
 
-		GridBagLayout gridBag = new GridBagLayout();
-		GridBagConstraints c = new GridBagConstraints();
-		SpinnerNumberModel fieldXValue = new SpinnerNumberModel(0.0,
+		final GridBagLayout gridBag = new GridBagLayout();
+		final GridBagConstraints c = new GridBagConstraints();
+		final SpinnerNumberModel fieldXValue = new SpinnerNumberModel(0.0,
 				Double.NEGATIVE_INFINITY, Double.POSITIVE_INFINITY, 0.1);
-		SpinnerNumberModel fieldYValue = new SpinnerNumberModel(0.0,
+		final SpinnerNumberModel fieldYValue = new SpinnerNumberModel(0.0,
 				Double.NEGATIVE_INFINITY, Double.POSITIVE_INFINITY, 0.1);
-		SpinnerNumberModel fieldZValue = new SpinnerNumberModel(0.0,
+		final SpinnerNumberModel fieldZValue = new SpinnerNumberModel(0.0,
 				Double.NEGATIVE_INFINITY, Double.POSITIVE_INFINITY, 0.1);
-		SpinnerNumberModel fieldFovValue = new SpinnerNumberModel(100.0, 0.1,
+		final SpinnerNumberModel fieldFovValue = new SpinnerNumberModel(100.0, 0.1,
 				Double.POSITIVE_INFINITY, 1.0);
-		JSpinner fieldX = new JSpinner(fieldXValue);
-		JSpinner fieldY = new JSpinner(fieldYValue);
-		JSpinner fieldZ = new JSpinner(fieldZValue);
-		JSpinner fieldFov = new JSpinner(fieldFovValue);
-		JButton buttonGo = new JButton("Go");
-		JLabel labelX = new JLabel(" x: ");
-		JLabel labelY = new JLabel(" y: ");
-		JLabel labelZ = new JLabel(" z: ");
-		JLabel labelFov = new JLabel("fov: ");
+		final JSpinner fieldX = new JSpinner(fieldXValue);
+		final JSpinner fieldY = new JSpinner(fieldYValue);
+		final JSpinner fieldZ = new JSpinner(fieldZValue);
+		final JSpinner fieldFov = new JSpinner(fieldFovValue);
+		final JButton buttonGo = new JButton("Go");
+		final JLabel labelX = new JLabel(" x: ");
+		final JLabel labelY = new JLabel(" y: ");
+		final JLabel labelZ = new JLabel(" z: ");
+		final JLabel labelFov = new JLabel("fov: ");
 
 		panel.setLayout(gridBag);
 		c.fill = GridBagConstraints.HORIZONTAL;
@@ -333,7 +341,7 @@ public class AnnotationsWindow extends JFrame implements
 		return panel;
 	}
 
-	private String toTypeString(Annotation a) {
+	private String toTypeString(final Annotation a) {
 
 		if (a instanceof Synapse)
 			return "synapse";
@@ -345,27 +353,27 @@ public class AnnotationsWindow extends JFrame implements
 	}
 
 	@Override
-	public void itemSelected(Annotation t) {
+	public void itemSelected(final Annotation t) {
 
 		synchronized (editingSelection) {
 
 			if (editingSelection)
 				return;
 
-			int row = tableModel.getRowFromId(t.getId());
+			final int row = tableModel.getRowFromId(t.getId());
 			table.addRowSelectionInterval(row, row);
 		}
 	}
 
 	@Override
-	public void itemUnselected(Annotation t) {
+	public void itemUnselected(final Annotation t) {
 
 		synchronized (editingSelection) {
 
 			if (editingSelection)
 				return;
 
-			int row = tableModel.getRowFromId(t.getId());
+			final int row = tableModel.getRowFromId(t.getId());
 			table.removeRowSelectionInterval(row, row);
 		}
 	}
@@ -383,7 +391,7 @@ public class AnnotationsWindow extends JFrame implements
 	}
 
 	@Override
-	public void valueChanged(ListSelectionEvent event) {
+	public void valueChanged(final ListSelectionEvent event) {
 
 		synchronized (editingSelection) {
 
@@ -397,7 +405,7 @@ public class AnnotationsWindow extends JFrame implements
 		}
 	}
 
-	private Annotation itemFromRow(int row) {
+	private Annotation itemFromRow(final int row) {
 
 		if (row < 0 || row >= tableModel.getRowCount())
 			return null;
@@ -411,9 +419,9 @@ public class AnnotationsWindow extends JFrame implements
 		final SpinnerNumberModel zValue;
 		final SpinnerNumberModel fovValue;
 
-		public LocalizeAction(SpinnerNumberModel xValue,
-				SpinnerNumberModel yValue, SpinnerNumberModel zValue,
-				SpinnerNumberModel fovValue) {
+		public LocalizeAction(final SpinnerNumberModel xValue,
+				final SpinnerNumberModel yValue, final SpinnerNumberModel zValue,
+				final SpinnerNumberModel fovValue) {
 
 			this.xValue = xValue;
 			this.yValue = yValue;
@@ -422,12 +430,12 @@ public class AnnotationsWindow extends JFrame implements
 		}
 
 		@Override
-		public void actionPerformed(ActionEvent arg0) {
+		public void actionPerformed(final ActionEvent arg0) {
 
-			double x = (double) xValue.getNumber();
-			double y = (double) yValue.getNumber();
-			double z = (double) zValue.getNumber();
-			double fov = (double) fovValue.getNumber();
+			final double x = (double) xValue.getNumber();
+			final double y = (double) yValue.getNumber();
+			final double z = (double) zValue.getNumber();
+			final double fov = (double) fovValue.getNumber();
 
 			annotationController.goTo(new RealPoint(x, y, z));
 			annotationController.setFov(fov);

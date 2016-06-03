@@ -1,7 +1,6 @@
 package bdv.bigcat.ui;
 
 import bdv.img.labelpair.RandomAccessiblePair;
-import bdv.labels.labelset.PairVolatileLabelMultisetLongARGBConverter;
 import bdv.labels.labelset.VolatileLabelMultisetType;
 import net.imglib2.Interval;
 import net.imglib2.RandomAccessibleInterval;
