@@ -386,6 +386,28 @@ A:					for ( final Entry< String, JsonElement > entry : ilutJsonEntrySet )
 	}
 
 	/**
+	 * Assign all fragments of segmentId1 to segmentId2.
+	 *
+	 * @param segmentId1
+	 * @param segmentId2
+	 */
+	public void assignFragments( final long segmentId1, final long segmentId2 )
+	{
+		if ( segmentId1 == segmentId2 )
+			return;
+
+		synchronized ( ilut )
+		{
+			final long[] fragments1 = getFragments( segmentId1 );
+			final long[] fragments2 = getFragments( segmentId2 );
+			for ( final long fragmentId : fragments1 )
+				lut.put( fragmentId, segmentId2 );
+			ilut.put( segmentId2, ArrayUtils.addAll( fragments1, fragments2 ) );
+			ilut.remove( segmentId1 );
+		}
+	}
+
+	/**
 	 * Merge two segments.
 	 *
 	 * @param segmentId1
