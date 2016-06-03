@@ -37,6 +37,7 @@ abstract public class AbstractARGBStream implements ARGBStream
 	protected int alpha = 0x20000000;
 	protected int activeFragmentAlpha = 0xd0000000;
 	protected int activeSegmentAlpha = 0x80000000;
+	protected int invalidSegmentAlpha = 0x00000000;
 	protected long activeFragment = 0l;
 	protected long activeSegment = 0l;
 

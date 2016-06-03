@@ -17,6 +17,7 @@
 package bdv.bigcat.ui;
 
 import bdv.bigcat.label.FragmentSegmentAssignment;
+import bdv.labels.labelset.Label;
 
 
 /**
@@ -60,7 +61,9 @@ abstract public class AbstractSaturatedARGBStream extends AbstractARGBStream
 
 			argbCache.put( segmentId, argb );
 		}
-		if ( activeFragment == fragmentId )
+		if ( Label.INVALID == segmentId )
+			argb = argb & 0x00ffffff | invalidSegmentAlpha;
+		else if ( activeFragment == fragmentId )
 			argb = argb & 0x00ffffff | activeFragmentAlpha;
 		else if ( activeSegment == segmentId )
 			argb = argb & 0x00ffffff | activeSegmentAlpha;
