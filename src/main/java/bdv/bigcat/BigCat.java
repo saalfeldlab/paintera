@@ -31,7 +31,7 @@ import bdv.bigcat.control.TranslateZController;
 import bdv.bigcat.label.FragmentSegmentAssignment;
 import bdv.bigcat.label.PairLabelMultiSetLongIdPicker;
 import bdv.bigcat.ui.ARGBConvertedLabelPairSource;
-import bdv.bigcat.ui.GoldenAngleSaturatedARGBStream;
+import bdv.bigcat.ui.GoldenAngleSaturatedConfirmSwitchARGBStream;
 import bdv.bigcat.ui.Util;
 import bdv.img.SetCache;
 import bdv.img.h5.AbstractH5SetupImageLoader;
@@ -70,7 +70,7 @@ public class BigCat
 	private ARGBConvertedLabelPairSource convertedLabelPair = null;
 	private CellImg< LongType, ?, ? > paintedLabels = null;
 	private BigDataViewer bdv;
-	private GoldenAngleSaturatedARGBStream colorStream;
+	private GoldenAngleSaturatedConfirmSwitchARGBStream colorStream;
 	private FragmentSegmentAssignment assignment;
 	private String projectFile;
 	private String paintedLabelsDataset;
@@ -183,7 +183,7 @@ public class BigCat
 		if ( lut != null )
 			assignment.initLut( lut );
 
-		colorStream = new GoldenAngleSaturatedARGBStream( assignment );
+		colorStream = new GoldenAngleSaturatedConfirmSwitchARGBStream( assignment );
 		colorStream.setAlpha( 0x20 );
 		convertedLabelPair =
 				new ARGBConvertedLabelPairSource(
@@ -299,6 +299,7 @@ public class BigCat
 					new DiamondShape( 1 ),
 					config);
 
+			/* splitter (and more) */
 			final DrawProjectAndIntersectController dpi = new DrawProjectAndIntersectController(
 					bdv,
 					idService,
@@ -318,6 +319,8 @@ public class BigCat
 					bdv.getViewer(),
 					selectionController,
 					assignment,
+					colorStream,
+					colorStream,
 					config,
 					bdv.getViewerFrame().getKeybindings() );
 
@@ -329,9 +332,6 @@ public class BigCat
 
 			bindings.addBehaviourMap( "fill", fillController.getBehaviourMap() );
 			bindings.addInputTriggerMap( "fill", fillController.getInputTriggerMap() );
-
-			bindings.addBehaviourMap( "restrict", intersectController.getBehaviourMap() );
-			bindings.addInputTriggerMap( "restrict", intersectController.getInputTriggerMap() );
 
 			bdv.getViewer().getDisplay().addOverlayRenderer( brushController.getBrushOverlay() );
 
