@@ -1,12 +1,27 @@
 package bdv.bigcat.control;
 
+import static bdv.bigcat.control.LabelFillController.getBiggestLabel;
+
+import org.scijava.ui.behaviour.Behaviour;
+import org.scijava.ui.behaviour.BehaviourMap;
+import org.scijava.ui.behaviour.ClickBehaviour;
+import org.scijava.ui.behaviour.InputTriggerAdder;
+import org.scijava.ui.behaviour.InputTriggerMap;
+import org.scijava.ui.behaviour.io.InputTriggerConfig;
+
 import bdv.bigcat.label.FragmentSegmentAssignment;
 import bdv.labels.labelset.Label;
 import bdv.labels.labelset.LabelMultisetType;
 import bdv.viewer.ViewerPanel;
 import gnu.trove.list.TLongList;
 import gnu.trove.list.array.TLongArrayList;
-import net.imglib2.*;
+import net.imglib2.Cursor;
+import net.imglib2.Localizable;
+import net.imglib2.Point;
+import net.imglib2.RandomAccess;
+import net.imglib2.RandomAccessible;
+import net.imglib2.RandomAccessibleInterval;
+import net.imglib2.RealPoint;
 import net.imglib2.algorithm.fill.Filter;
 import net.imglib2.algorithm.fill.FloodFill;
 import net.imglib2.algorithm.neighborhood.DiamondShape;
@@ -20,13 +35,11 @@ import net.imglib2.util.Pair;
 import net.imglib2.util.ValuePair;
 import net.imglib2.view.RandomAccessiblePair;
 import net.imglib2.view.Views;
-import org.scijava.ui.behaviour.*;
-import org.scijava.ui.behaviour.io.InputTriggerConfig;
-
-import static bdv.bigcat.control.LabelFillController.getBiggestLabel;
 
 /**
  * @author Philipp Hanslovsky &lt;hanslovskyp@janelia.hhmi.org&gt;
+ *
+ * TODO consider removing
  */
 public class LabelRestrictToSegmentController
 {
@@ -53,9 +66,9 @@ public class LabelRestrictToSegmentController
 //        }
 
 		@Override
-		public boolean accept( Pair< Pair< LabelMultisetType, T >, T > current, Pair< Pair< LabelMultisetType, T >, T > reference )
+		public boolean accept( final Pair< Pair< LabelMultisetType, T >, T > current, final Pair< Pair< LabelMultisetType, T >, T > reference )
 		{
-			long currentPaint = current.getA().getB().getIntegerLong();
+			final long currentPaint = current.getA().getB().getIntegerLong();
 			return currentPaint == reference.getA().getB().getIntegerLong();
 		}
 	}
@@ -72,7 +85,7 @@ public class LabelRestrictToSegmentController
 
 		private final long newPaint;
 
-		public WriteTransparentIfDifferentSegment( long[] fragmentsInSegment, long oldPaint, long newPaint )
+		public WriteTransparentIfDifferentSegment( final long[] fragmentsInSegment, final long oldPaint, final long newPaint )
 		{
 			this.fragmentsInSegment = fragmentsInSegment;
 			this.oldPaint = oldPaint;
@@ -80,15 +93,15 @@ public class LabelRestrictToSegmentController
 		}
 
 		@Override
-		public void convert( Pair< LabelMultisetType, T > source, T target )
+		public void convert( final Pair< LabelMultisetType, T > source, final T target )
 		{
-			LabelMultisetType labelMultiset = source.getA();
+			final LabelMultisetType labelMultiset = source.getA();
 			// comparison to oldPaint obsolete if guaranteed to be inside
 			// non-transparent?
 			if ( source.getB().getIntegerLong() == oldPaint )
 			{
 				boolean isInSameSegment = false;
-				for ( long fragment : fragmentsInSegment )
+				for ( final long fragment : fragmentsInSegment )
 				{
 					isInSameSegment = labelMultiset.contains( fragment );
 					if ( isInSameSegment )
@@ -213,14 +226,14 @@ public class LabelRestrictToSegmentController
 						Math.round( labelLocation.getDoublePosition( 1 ) ),
 						Math.round( labelLocation.getDoublePosition( 2 ) ) );
 
-				RandomAccess< LongType > paintAccess = paintedLabels.randomAccess();
+				final RandomAccess< LongType > paintAccess = paintedLabels.randomAccess();
 				paintAccess.setPosition( p );
-				long seedPaint = paintAccess.get().getIntegerLong();
+				final long seedPaint = paintAccess.get().getIntegerLong();
 
                 if ( seedPaint != Label.TRANSPARENT ) {
-                    long seedFragmentLabel = getBiggestLabel(labels, p);
-                    long seedSegmentLabel = assignment.getSegment(seedFragmentLabel);
-                    long[] fragmentsInSeedSegment = assignment.getFragments(seedSegmentLabel);
+                    final long seedFragmentLabel = getBiggestLabel(labels, p);
+                    final long seedSegmentLabel = assignment.getSegment(seedFragmentLabel);
+                    final long[] fragmentsInSeedSegment = assignment.getFragments(seedSegmentLabel);
 
                     final long t0 = System.currentTimeMillis();
                     // current work around: fill intersect with dummy color, then
@@ -261,38 +274,38 @@ public class LabelRestrictToSegmentController
 	}
 
 	public static < T, U, V > void intersect(
-			RandomAccessible< T > source1,
-			RandomAccessible< U > source2,
-			RandomAccessible< V > target,
-			Shape shape,
-			Localizable seed,
-			Filter< Pair< Pair< T, U >, V >, Pair< Pair< T, U >, V > > filter,
-			Converter< Pair< T, U >, V > writer )
+			final RandomAccessible< T > source1,
+			final RandomAccessible< U > source2,
+			final RandomAccessible< V > target,
+			final Shape shape,
+			final Localizable seed,
+			final Filter< Pair< Pair< T, U >, V >, Pair< Pair< T, U >, V > > filter,
+			final Converter< Pair< T, U >, V > writer )
 	{
-		RandomAccessiblePair.RandomAccess access =
+		final RandomAccessiblePair.RandomAccess access =
 				new RandomAccessiblePair< >( new RandomAccessiblePair< >( source1, source2 ), target ).randomAccess();
 		access.setPosition( seed );
 		intersect( source1, source2, target, shape, seed, access.get().copy(), filter, writer );
 	}
 
 	public static < T, U, V > void intersect(
-			RandomAccessible< T > source1,
-			RandomAccessible< U > source2,
-			RandomAccessible< V > target,
-			Shape shape,
-			Localizable seed,
-			Pair< Pair< T, U >, V > reference,
-			Filter< Pair< Pair< T, U >, V >, Pair< Pair< T, U >, V > > filter,
-			Converter< Pair< T, U >, V > writer )
+			final RandomAccessible< T > source1,
+			final RandomAccessible< U > source2,
+			final RandomAccessible< V > target,
+			final Shape shape,
+			final Localizable seed,
+			final Pair< Pair< T, U >, V > reference,
+			final Filter< Pair< Pair< T, U >, V >, Pair< Pair< T, U >, V > > filter,
+			final Converter< Pair< T, U >, V > writer )
 	{
 
-		int n = source1.numDimensions();
+		final int n = source1.numDimensions();
 
-		RandomAccessiblePair< T, U > sourcesPair = new RandomAccessiblePair< >( source1, source2 );
-		RandomAccessiblePair< Pair< T, U >, V > sourcesTargetPair = new RandomAccessiblePair< >( sourcesPair, target );
+		final RandomAccessiblePair< T, U > sourcesPair = new RandomAccessiblePair< >( source1, source2 );
+		final RandomAccessiblePair< Pair< T, U >, V > sourcesTargetPair = new RandomAccessiblePair< >( sourcesPair, target );
 
-		RandomAccessible< Neighborhood< Pair< Pair< T, U >, V > > > neighborhood = shape.neighborhoodsRandomAccessible( sourcesTargetPair );
-		RandomAccess< Neighborhood< Pair< Pair< T, U >, V > > > neighborhoodAccess = neighborhood.randomAccess();
+		final RandomAccessible< Neighborhood< Pair< Pair< T, U >, V > > > neighborhood = shape.neighborhoodsRandomAccessible( sourcesTargetPair );
+		final RandomAccess< Neighborhood< Pair< Pair< T, U >, V > > > neighborhoodAccess = neighborhood.randomAccess();
 
 		final TLongList[] coordinates = new TLongList[ n ];
 		for ( int d = 0; d < n; ++d )
@@ -309,7 +322,7 @@ public class LabelRestrictToSegmentController
 			{
 				for ( int d = 0; d < coordinates.length; ++d )
 				{
-					TLongList c = coordinates[ d ];
+					final TLongList c = coordinates[ d ];
 					coordinates[ d ] = c.subList( i, c.size() );
 				}
 				i = 0;
@@ -322,7 +335,7 @@ public class LabelRestrictToSegmentController
 
 			while ( neighborhoodCursor.hasNext() )
 			{
-				Pair< Pair< T, U >, V > p = neighborhoodCursor.next();
+				final Pair< Pair< T, U >, V > p = neighborhoodCursor.next();
 				if ( filter.accept( p, reference ) )
 				{
 					writer.convert( p.getA(), p.getB() );
@@ -338,18 +351,18 @@ public class LabelRestrictToSegmentController
 	// why even use this? can't just use ConvertedRandomAccessibleInterval? and
 	// copy if necessary? - works only for V extends Type<V>
 	public static < T, U, V > void intersect(
-			RandomAccessibleInterval< T > source1,
-			RandomAccessibleInterval< U > source2,
-			RandomAccessibleInterval< V > target,
+			final RandomAccessibleInterval< T > source1,
+			final RandomAccessibleInterval< U > source2,
+			final RandomAccessibleInterval< V > target,
 //			Filter< T, U > filter, // can be handled in writer? only writer: requires write for every pixel but simpler interface
-			Converter< Pair< T, U >, V > writer )
+			final Converter< Pair< T, U >, V > writer )
 	{
-		RandomAccessiblePair< T, U > sourcesPair = new RandomAccessiblePair< >( source1, source2 );
-		RandomAccessiblePair< Pair< T, U >, V > sourcesTargetPair = new RandomAccessiblePair< >( sourcesPair, target );
+		final RandomAccessiblePair< T, U > sourcesPair = new RandomAccessiblePair< >( source1, source2 );
+		final RandomAccessiblePair< Pair< T, U >, V > sourcesTargetPair = new RandomAccessiblePair< >( sourcesPair, target );
 
-		for ( Pair< Pair< T, U >, V > entry : Views.interval( sourcesTargetPair, target ) )
+		for ( final Pair< Pair< T, U >, V > entry : Views.interval( sourcesTargetPair, target ) )
 		{
-			Pair< T, U > sources = entry.getA();
+			final Pair< T, U > sources = entry.getA();
 			writer.convert( sources, entry.getB() );
 		}
 	}

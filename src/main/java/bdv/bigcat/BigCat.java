@@ -25,7 +25,6 @@ import bdv.bigcat.control.DrawProjectAndIntersectController;
 import bdv.bigcat.control.LabelBrushController;
 import bdv.bigcat.control.LabelFillController;
 import bdv.bigcat.control.LabelPersistenceController;
-import bdv.bigcat.control.LabelRestrictToSegmentController;
 import bdv.bigcat.control.MergeController;
 import bdv.bigcat.control.SelectionController;
 import bdv.bigcat.control.TranslateZController;
@@ -299,16 +298,6 @@ public class BigCat
 					selectionController,
 					new DiamondShape( 1 ),
 					config);
-
-			final LabelRestrictToSegmentController intersectController = new LabelRestrictToSegmentController(
-					bdv.getViewer(),
-					fragments.getImage( 0 ),
-					paintedLabels,
-					fragments.getMipmapTransforms()[ 0 ],
-					assignment,
-					selectionController,
-					new DiamondShape( 1 ),
-					config );
 
 			final DrawProjectAndIntersectController dpi = new DrawProjectAndIntersectController(
 					bdv,
