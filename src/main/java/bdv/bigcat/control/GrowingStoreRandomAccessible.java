@@ -152,46 +152,6 @@ class GrowingStoreRandomAccessible< T extends Type< T > > implements RandomAcces
         this.store = newStore;
     }
 
-//    @Override
-//    public long min(int d) {
-//        return this.min[d];
-//    }
-//
-//    @Override
-//    public void min(long[] min) {
-//        System.arraycopy( this.min, 0, min, 0, this.min.length );
-//    }
-//
-//    @Override
-//    public void min(Positionable min) {
-//        min.setPosition( this.min );
-//    }
-//
-//    @Override
-//    public long max(int d) {
-//        return this.max[d];
-//    }
-//
-//    @Override
-//    public void max(long[] max) {
-//        System.arraycopy( this.max, 0, max, 0, this.max.length );
-//    }
-//
-//    @Override
-//    public void max(Positionable max) {
-//        max.setPosition( this.max );
-//    }
-//
-//    @Override
-//    public void dimensions(long[] dims) {
-//        System.arraycopy( this.dimensions, 0, dims, 0, this.dimensions.length );
-//    }
-//
-//    @Override
-//    public long dimension(int d) {
-//        return this.dimensions[d];
-//    }
-
     @Override
     public RandomAccess<T> randomAccess() {
 
@@ -242,38 +202,6 @@ class GrowingStoreRandomAccessible< T extends Type< T > > implements RandomAcces
         }
     }
 
-//    @Override
-//    public double realMin(int d) {
-//        return min(d);
-//    }
-//
-//    @Override
-//    public void realMin(double[] min) {
-//        for ( int d = 0; d < this.min.length; ++d )
-//            min[d] = this.min[d];
-//    }
-//
-//    @Override
-//    public void realMin(RealPositionable min) {
-//        min.setPosition( this.min );
-//    }
-//
-//    @Override
-//    public double realMax(int d) {
-//        return max(d);
-//    }
-//
-//    @Override
-//    public void realMax(double[] max) {
-//        for ( int d = 0; d < this.max.length; ++d )
-//            max[d] = this.max[d];
-//    }
-//
-//    @Override
-//    public void realMax(RealPositionable max) {
-//        max.setPosition( this.max );
-//    }
-
     @Override
     public int numDimensions() {
         return this.nDim;
@@ -321,7 +249,7 @@ class GrowingStoreRandomAccessible< T extends Type< T > > implements RandomAcces
                 }
             }
             if (changedStore) {
-                this.storeRandomAccess = store.randomAccess();
+                updateRandomAccessRefs();
             }
 
             this.storeRandomAccess.setPosition(this.position);
@@ -335,185 +263,6 @@ class GrowingStoreRandomAccessible< T extends Type< T > > implements RandomAcces
             return copyRandomAccess();
         }
 
-//        @Override
-//        public void setPosition( long[] pos )
-//        {
-//            for ( int d = 0; d < nDim; ++d )
-//                setPosition( pos[ d ], d );
-//        }
-//
-//        @Override
-//        public void fwd(int d) {
-////            long newPos = this.storeRandomAccess.getLongPosition(d) + 1;
-////            if ( newPos > max[ d ] ) {
-////                growStore( d, SIDE.TOP, 1 );
-////                RandomAccess<T> oldRandomAccess = this.storeRandomAccess;
-////                this.storeRandomAccess = store.randomAccess();
-////                this.storeRandomAccess.setPosition( oldRandomAccess );
-////            }
-//            this.storeRandomAccess.fwd( d );
-//        }
-//
-//        @Override
-//        public void bck(int d) {
-////            long newPos = this.storeRandomAccess.getLongPosition(d) - 1;
-////            if ( newPos < min[ d ] ) {
-////                growStore( d, SIDE.BOTTOM, 1 );
-////                RandomAccess<T> oldRandomAccess = this.storeRandomAccess;
-////                this.storeRandomAccess = store.randomAccess();
-////                this.storeRandomAccess.setPosition( oldRandomAccess );
-////            }
-//            this.storeRandomAccess.bck( d );
-//        }
-//
-//        @Override
-//        public void move(int pos, int d) {
-//            setPosition( storeRandomAccess.getLongPosition( d ) + pos, d );
-//        }
-//
-//        @Override
-//        public void move(long pos, int d) {
-//            setPosition( storeRandomAccess.getLongPosition( d ) + pos, d );
-//        }
-//
-//        @Override
-//        public void move(Localizable step) {
-//            for ( int d = 0; d < nDim; ++d )
-//                setPosition( storeRandomAccess.getLongPosition( d ) + step.getLongPosition( d ), d );
-//        }
-//
-//        @Override
-//        public void move(int[] step) {
-//            for ( int d = 0; d < nDim; ++d )
-//                setPosition( storeRandomAccess.getLongPosition( d ) + step[ d ], d );
-//        }
-//
-//        @Override
-//        public void move(long[] step) {
-//            for ( int d = 0; d < nDim; ++d )
-//                setPosition( storeRandomAccess.getLongPosition( d ) + step[ d ], d );
-//        }
-//
-//        @Override
-//        public void setPosition( Localizable pos )
-//        {
-//            for ( int d = 0; d < nDim; ++d )
-//                setPosition( pos.getLongPosition( d ), d );
-//        }
-//
-//        @Override
-//        public void setPosition(int[] pos) {
-//            for ( int d = 0; d < nDim; ++d )
-//                setPosition( pos[ d ], d );
-//        }
-//
-//        @Override
-//        public void setPosition( long pos, int d )
-//        {
-//            if ( pos < min[ d ] )
-//            {
-//                long minDiff = min[ d ] - pos;
-//                growStore( d, SIDE.BOTTOM, minDiff );
-//                RandomAccess<T> oldRandomAccess = this.storeRandomAccess;
-//                this.storeRandomAccess = store.randomAccess();
-//                this.storeRandomAccess.setPosition( oldRandomAccess );
-//            }
-//            else if ( pos > max[ d ] )
-//            {
-//                long minDiff = max[ d ] - pos;
-//                growStore( d, SIDE.TOP, minDiff );
-//                RandomAccess<T> oldRandomAccess = this.storeRandomAccess;
-//                this.storeRandomAccess = store.randomAccess();
-//                this.storeRandomAccess.setPosition( oldRandomAccess );
-//            }
-//            this.storeRandomAccess.setPosition( pos, d );
-//        }
-//
-//        @Override
-//        public void setPosition( int pos, int d )
-//        {
-//            setPosition( (long) pos, d );
-//        }
-//
-//        @Override
-//        public T get() {
-//            for ( int d = 0; d < nDim; ++d )
-//            {
-//                RandomAccess<T> oldRandomAccess = this.storeRandomAccess;
-//                long pos = this.storeRandomAccess.getLongPosition(d);
-//                if ( pos < min[d] )
-//                {
-//                    long minDiff = min[ d ] - pos;
-//                    growStore( d, SIDE.BOTTOM, minDiff );
-//                    this.storeRandomAccess = store.randomAccess();
-//                    this.storeRandomAccess.setPosition( oldRandomAccess );
-//                }
-//                else if ( pos > max[ d ] )
-//                {
-//                    long minDiff = max[ d ] - pos;
-//                    growStore( d, SIDE.TOP, minDiff );
-//                    this.storeRandomAccess = store.randomAccess();
-//                    this.storeRandomAccess.setPosition( oldRandomAccess );
-//                }
-//            }
-//
-//            return this.storeRandomAccess.get();
-//        }
-//
-//        @Override
-//        public Sampler<T> copy() {
-//            return copyRandomAccess();
-//        }
-//
-//        @Override
-//        public RandomAccess<T> copyRandomAccess() {
-//            return new GrowingStoreRandomAccess( storeRandomAccess.copyRandomAccess() );
-//        }
-//
-//        @Override
-//        public void localize(int[] loc) {
-//            this.storeRandomAccess.localize( loc );
-//        }
-//
-//        @Override
-//        public void localize(long[] loc) {
-//            this.storeRandomAccess.localize( loc );
-//        }
-//
-//        @Override
-//        public int getIntPosition(int d) {
-//            return this.storeRandomAccess.getIntPosition( d );
-//        }
-//
-//        @Override
-//        public long getLongPosition(int d) {
-//            return this.storeRandomAccess.getLongPosition( d );
-//        }
-//
-//        @Override
-//        public void localize(float[] loc) {
-//            this.storeRandomAccess.localize( loc );
-//        }
-//
-//        @Override
-//        public void localize(double[] loc) {
-//            this.storeRandomAccess.localize( loc );
-//        }
-//
-//        @Override
-//        public float getFloatPosition(int d) {
-//            return this.storeRandomAccess.getFloatPosition( d );
-//        }
-//
-//        @Override
-//        public double getDoublePosition(int d) {
-//            return this.storeRandomAccess.getDoublePosition( d );
-//        }
-//
-//        @Override
-//        public int numDimensions() {
-//            return nDim;
-//        }
 
         // only for test purposes
         @Override
