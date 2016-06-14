@@ -12,6 +12,7 @@ import net.imglib2.algorithm.fill.FloodFill;
 import net.imglib2.algorithm.neighborhood.DiamondShape;
 import net.imglib2.algorithm.neighborhood.Shape;
 import net.imglib2.realtransform.AffineTransform3D;
+import net.imglib2.type.Type;
 import net.imglib2.type.numeric.integer.LongType;
 import net.imglib2.util.Pair;
 import net.imglib2.view.Views;
@@ -161,6 +162,26 @@ public class LabelFillController
 				System.out.println( "Filling took " + ( t1 - t0 ) + " ms" );
 				viewer.setCursor( Cursor.getPredefinedCursor( Cursor.DEFAULT_CURSOR ) );
 				viewer.requestRepaint();
+			}
+		}
+	}
+
+	private class Fill2D extends ModeToggleController.SelfRegisteringBehaviour implements ClickBehaviour
+	{
+
+		public Fill2D( final String name, final String... defaultTriggers )
+		{
+			super( name, defaultTriggers );
+		}
+
+		@Override
+		public void click( final int x, final int y )
+		{
+			synchronized ( viewer )
+			{
+				viewer.setCursor( Cursor.getPredefinedCursor( Cursor.WAIT_CURSOR ) );
+				setCoordinates( x, y );
+				System.out.println( "Filling " + labelLocation + " with " + selectionController.getActiveFragmentId() + " (2D)" );
 			}
 		}
 	}
