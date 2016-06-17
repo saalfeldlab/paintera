@@ -9,6 +9,7 @@ import org.scijava.ui.behaviour.KeyStrokeAdder;
 import org.scijava.ui.behaviour.io.InputTriggerConfig;
 
 import bdv.bigcat.label.FragmentSegmentAssignment;
+import bdv.bigcat.ui.AbstractARGBStream;
 import bdv.labels.labelset.Label;
 import bdv.util.AbstractNamedAction;
 import bdv.util.AbstractNamedAction.NamedActionAdder;
@@ -25,6 +26,8 @@ public class ConfirmSegmentController
 	final protected ViewerPanel viewer;
 	final protected SelectionController selectionController;
 	final protected FragmentSegmentAssignment assignment;
+	final protected AbstractARGBStream colorStream;
+	final protected Switch hideConfirmed;
 
 	// for keystroke actions
 	private final ActionMap ksActionMap = new ActionMap();
@@ -36,15 +39,20 @@ public class ConfirmSegmentController
 			final ViewerPanel viewer,
 			final SelectionController selectionController,
 			final FragmentSegmentAssignment assignment,
+			final AbstractARGBStream colorStream,
+			final Switch hideConfirmed,
 			final InputTriggerConfig config,
 			final InputActionBindings inputActionBindings )
 	{
 		this.viewer = viewer;
 		this.selectionController = selectionController;
 		this.assignment = assignment;
+		this.colorStream = colorStream;
+		this.hideConfirmed = hideConfirmed;
 		ksKeyStrokeAdder = config.keyStrokeAdder( ksInputMap, "confirm segment" );
 
 		new ConfirmSegment( "confirm segment", "U" ).register();
+		new ToggleConfirmedSegmentVisibility( "toggle confirmed segment visibility", "J" ).register();
 
 		inputActionBindings.addActionMap( "confirm segment", ksActionMap );
 		inputActionBindings.addInputMap( "confirm segment", ksInputMap );
@@ -77,10 +85,35 @@ public class ConfirmSegmentController
 		@Override
 		public void actionPerformed( final ActionEvent e )
 		{
+			long activeFragmentId;
 			synchronized ( viewer )
 			{
-				assignment.assignFragments( assignment.getSegment( selectionController.getActiveFragmentId() ), Label.INVALID );
+				activeFragmentId = selectionController.getActiveFragmentId();
+				assignment.assignFragments( assignment.getSegment( activeFragmentId ), Label.INVALID );
 			}
+			viewer.showMessage( "confirmed fragment " + activeFragmentId );
+			viewer.requestRepaint();
+		}
+	}
+
+	private class ToggleConfirmedSegmentVisibility extends SelfRegisteringAction
+	{
+		public ToggleConfirmedSegmentVisibility( final String name, final String ... defaultTriggers )
+		{
+			super( name, defaultTriggers );
+		}
+
+		@Override
+		public void actionPerformed( final ActionEvent e )
+		{
+			boolean hideConfirmedState;
+			synchronized ( viewer )
+			{
+				hideConfirmed.toggleSwitch();
+				hideConfirmedState = hideConfirmed.getSwitch();
+				colorStream.clearCache();
+			}
+			viewer.showMessage( ( hideConfirmedState ? "hiding" : "showing" ) + " confirmed fragments" );
 			viewer.requestRepaint();
 		}
 	}
