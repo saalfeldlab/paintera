@@ -361,7 +361,7 @@ A:					for ( final Entry< String, JsonElement > entry : ilutJsonEntrySet )
 	public long getSegment( final long fragmentId )
 	{
 		final long id;
-		synchronized ( lut )
+		synchronized ( this )
 		{
 			final long segmentId = lut.get( fragmentId );
 			if ( segmentId == lut.getNoEntryValue() ) {
@@ -382,7 +382,12 @@ A:					for ( final Entry< String, JsonElement > entry : ilutJsonEntrySet )
 	 */
 	public long[] getFragments( final long segmentId )
 	{
-		return ilut.get( segmentId );
+		final long[] fragments;
+		synchronized ( this )
+		{
+			fragments = ilut.get( segmentId );
+		}
+		return fragments;
 	}
 
 	/**
@@ -396,10 +401,10 @@ A:					for ( final Entry< String, JsonElement > entry : ilutJsonEntrySet )
 		if ( segmentId1 == segmentId2 )
 			return;
 
-		synchronized ( ilut )
+		synchronized ( this )
 		{
-			final long[] fragments1 = getFragments( segmentId1 );
-			final long[] fragments2 = getFragments( segmentId2 );
+			final long[] fragments1 = ilut.get( segmentId1 );
+			final long[] fragments2 = ilut.get( segmentId2 );
 			for ( final long fragmentId : fragments1 )
 				lut.put( fragmentId, segmentId2 );
 			ilut.put( segmentId2, ArrayUtils.addAll( fragments1, fragments2 ) );
@@ -419,7 +424,7 @@ A:					for ( final Entry< String, JsonElement > entry : ilutJsonEntrySet )
 			return;
 
 		final long mergedSegmentId = idService.next();
-		synchronized ( ilut )
+		synchronized ( this )
 		{
 			final long[] fragments1 = getFragments( segmentId1 );
 			final long[] fragments2 = getFragments( segmentId2 );
@@ -441,7 +446,7 @@ A:					for ( final Entry< String, JsonElement > entry : ilutJsonEntrySet )
 	public void mergeFragmentSegments( final long fragmentId1, final long fragmentId2 )
 	{
 		final long segmentId1, segmentId2;
-		synchronized ( ilut )
+		synchronized ( this )
 		{
 			segmentId1 = getSegment( fragmentId1 );
 			segmentId2 = getSegment( fragmentId2 );
@@ -456,7 +461,7 @@ A:					for ( final Entry< String, JsonElement > entry : ilutJsonEntrySet )
 	 */
 	public void detachFragment( final long fragmentId )
 	{
-		synchronized ( ilut )
+		synchronized ( this )
 		{
 			final long segmentId = lut.get( fragmentId );
 			final long[] fragments = ilut.get( segmentId );
