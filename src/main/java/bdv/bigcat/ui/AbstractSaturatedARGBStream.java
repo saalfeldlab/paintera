@@ -59,7 +59,10 @@ abstract public class AbstractSaturatedARGBStream extends AbstractARGBStream
 
 			argb = argb( r, g, b, alpha );
 
-			argbCache.put( segmentId, argb );
+			synchronized ( argbCache )
+			{
+				argbCache.put( segmentId, argb );
+			}
 		}
 		if ( Label.INVALID == segmentId )
 			argb = argb & 0x00ffffff | invalidSegmentAlpha;
