@@ -3,10 +3,12 @@
  */
 package bdv.bigcat.ui;
 
+import java.awt.AlphaComposite;
 import java.awt.BasicStroke;
 import java.awt.Color;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
+import java.awt.RenderingHints;
 
 import bdv.util.Affine3DHelpers;
 import bdv.viewer.ViewerPanel;
@@ -52,6 +54,9 @@ public class BrushOverlay implements OverlayRenderer
 		if ( visible )
 		{
 			final Graphics2D g2d = ( Graphics2D )g;
+
+			g2d.setRenderingHint( RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON );
+			g2d.setComposite( AlphaComposite.SrcOver );
 
 			final double scale;
 			synchronized ( viewer )
