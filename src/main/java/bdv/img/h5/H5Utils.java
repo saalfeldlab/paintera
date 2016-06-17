@@ -10,10 +10,12 @@ import bdv.img.labelpair.RandomAccessiblePair;
 import bdv.labels.labelset.Label;
 import bdv.labels.labelset.LabelMultiset;
 import bdv.labels.labelset.LabelMultisetType;
+import ch.systemsx.cisd.base.mdarray.MDByteArray;
 import ch.systemsx.cisd.base.mdarray.MDLongArray;
 import ch.systemsx.cisd.hdf5.HDF5DataTypeInformation;
 import ch.systemsx.cisd.hdf5.HDF5Factory;
 import ch.systemsx.cisd.hdf5.HDF5IntStorageFeatures;
+import ch.systemsx.cisd.hdf5.IHDF5ByteWriter;
 import ch.systemsx.cisd.hdf5.IHDF5LongReader;
 import ch.systemsx.cisd.hdf5.IHDF5LongWriter;
 import ch.systemsx.cisd.hdf5.IHDF5Reader;
@@ -29,6 +31,7 @@ import net.imglib2.converter.Converters;
 import net.imglib2.img.cell.CellImg;
 import net.imglib2.img.cell.CellImgFactory;
 import net.imglib2.type.numeric.integer.LongType;
+import net.imglib2.type.numeric.integer.UnsignedByteType;
 import net.imglib2.util.Intervals;
 import net.imglib2.util.Pair;
 import net.imglib2.util.Util;
@@ -102,6 +105,59 @@ public class H5Utils
 		reader.close();
 
 		return target;
+	}
+	
+	/**
+	 * Save a {@link RandomAccessibleInterval} of {@link UnsignedByteType} into an HDF5
+	 * uint8 dataset.
+	 *
+	 * @param source
+	 * @param file
+	 * @param dataset
+	 * @param cellDimensions
+	 */
+	static public void saveUnsignedByte(
+			final RandomAccessibleInterval< UnsignedByteType > source,
+			final File file,
+			final String dataset,
+			final int[] cellDimensions )
+	{
+		final int n = source.numDimensions();
+		final long[] dimensions = Intervals.dimensionsAsLongArray( source );
+		final IHDF5Writer writer = HDF5Factory.open( file );
+		final IHDF5ByteWriter uint8Writer = writer.uint8();
+		if ( !writer.exists( dataset ) )
+			uint8Writer.createMDArray(
+					dataset,
+					reorder( dimensions ),
+					reorder( cellDimensions ),
+					HDF5IntStorageFeatures.INT_AUTO_SCALING_DEFLATE );
+
+		final long[] offset = new long[ n ];
+		final long[] sourceCellDimensions = new long[ n ];
+		for ( int d = 0; d < n; )
+		{
+			cropCellDimensions( source, offset, cellDimensions, sourceCellDimensions );
+			final RandomAccessibleInterval< UnsignedByteType > sourceBlock = Views.offsetInterval( source, offset, sourceCellDimensions );
+			final MDByteArray targetCell = new MDByteArray( reorder( sourceCellDimensions ) );
+			int i = 0;
+			for ( final UnsignedByteType t : Views.flatIterable( sourceBlock ) )
+				targetCell.set( UnsignedByteType.getCodedSignedByte( t.get() ), i++ );
+
+			uint8Writer.writeMDArrayBlockWithOffset( dataset, targetCell, reorder( offset ) );
+
+			for ( d = 0; d < n; ++d )
+			{
+				offset[ d ] += cellDimensions[ d ];
+				if ( offset[ d ] < source.dimension( d ) )
+					break;
+				else
+					offset[ d ] = 0;
+			}
+
+//			System.out.println( Util.printCoordinates( offset ) );
+		}
+		writer.close();
 	}
 
 	/**
@@ -376,7 +432,7 @@ public class H5Utils
 		final long[] keys = lut.keys();
 		for ( int offset = 0, i = 0; offset < lut.size(); offset += blockSize )
 		{
-			final int size = ( int )Math.min( blockSize, lut.size() - offset );
+			final int size = Math.min( blockSize, lut.size() - offset );
 			final MDLongArray targetCell = new MDLongArray( new int[]{ 2, size } );
 			for ( int j = 0; j < size; ++j, ++i )
 			{
