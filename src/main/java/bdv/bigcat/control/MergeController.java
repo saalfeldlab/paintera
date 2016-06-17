@@ -23,8 +23,6 @@ import java.util.List;
 import javax.swing.ActionMap;
 import javax.swing.InputMap;
 
-import net.imglib2.RealPoint;
-
 import org.scijava.ui.behaviour.Behaviour;
 import org.scijava.ui.behaviour.BehaviourMap;
 import org.scijava.ui.behaviour.ClickBehaviour;
@@ -33,6 +31,9 @@ import org.scijava.ui.behaviour.InputTriggerMap;
 import org.scijava.ui.behaviour.KeyStrokeAdder;
 import org.scijava.ui.behaviour.io.InputTriggerConfig;
 
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+
 import bdv.bigcat.label.FragmentSegmentAssignment;
 import bdv.bigcat.label.IdPicker;
 import bdv.labels.labelset.Label;
@@ -40,9 +41,7 @@ import bdv.util.AbstractNamedAction;
 import bdv.util.AbstractNamedAction.NamedActionAdder;
 import bdv.viewer.InputActionBindings;
 import bdv.viewer.ViewerPanel;
-
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
+import net.imglib2.RealPoint;
 
 /**
  * @author Stephan Saalfeld &lt;saalfelds@janelia.hhmi.org&gt;
@@ -138,18 +137,15 @@ public class MergeController
 			final FragmentSegmentAssignment assignment,
 			final InputTriggerConfig config,
 			final InputActionBindings inputActionBindings,
-			final KeyStrokeAdder.Factory keyProperties)
+			final KeyStrokeAdder.Factory keyProperties )
 	{
 		this.viewer = viewer;
 		this.idPicker = idPicker;
 		this.selectionController = selectionController;
 		this.assignment = assignment;
+
 		inputAdder = config.inputTriggerAdder( inputTriggerMap, "merge" );
-
 		ksKeyStrokeAdder = keyProperties.keyStrokeAdder( ksInputMap, "merge" );
-
-		// general, no modifier
-		new SelectFragment("select fragment", "button1").register();
 
 		// often used, one modifier
 		new NeedMerge("need merge", "shift button1").register();
@@ -203,23 +199,6 @@ public class MergeController
 		{
 			ksActionAdder.put( this );
 			ksKeyStrokeAdder.put( name(), defaultTriggers );
-		}
-	}
-
-	private class SelectFragment extends SelfRegisteringBehaviour implements ClickBehaviour
-	{
-		public SelectFragment( final String name, final String ... defaultTriggers )
-		{
-			super( name, defaultTriggers );
-		}
-
-		@Override
-		public void click( final int x, final int y )
-		{
-			final long id = idPicker.getIdAtDisplayCoordinate( x, y );
-			viewer.displayToGlobalCoordinates(x, y, lastClick);
-			selectionController.setActiveFragmentId( id );
-			viewer.requestRepaint();
 		}
 	}
 

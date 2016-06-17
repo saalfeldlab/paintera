@@ -230,9 +230,13 @@ public class BigCat
 
 		final TriggerBehaviourBindings bindings = bdv.getViewerFrame().getTriggerbindings();
 
+		final SelectionController selectionController;
+		final LabelBrushController brushController;
+		final PairLabelMultiSetLongIdPicker idPicker;
+
 		if ( fragments != null )
 		{
-			final PairLabelMultiSetLongIdPicker idPicker = new PairLabelMultiSetLongIdPicker(
+			idPicker = new PairLabelMultiSetLongIdPicker(
 					bdv.getViewer(),
 					RealViews.affineReal(
 							Views.interpolate(
@@ -247,10 +251,12 @@ public class BigCat
 							fragments.getMipmapTransforms()[ 0 ] )
 					);
 
-			final SelectionController selectionController = new SelectionController(
+			selectionController = new SelectionController(
 					bdv.getViewer(),
+					idPicker,
 					colorStream,
 					idService,
+					assignment,
 					config,
 					bdv.getViewerFrame().getKeybindings(),
 					config);
@@ -264,7 +270,7 @@ public class BigCat
 					bdv.getViewerFrame().getKeybindings(),
 					config);
 
-			final LabelBrushController brushController = new LabelBrushController(
+			brushController = new LabelBrushController(
 					bdv.getViewer(),
 					paintedLabels,
 					fragments.getMipmapTransforms()[ 0 ],
@@ -324,6 +330,9 @@ public class BigCat
 					config,
 					bdv.getViewerFrame().getKeybindings() );
 
+			bindings.addBehaviourMap( "select", selectionController.getBehaviourMap() );
+			bindings.addInputTriggerMap( "select", selectionController.getInputTriggerMap() );
+
 			bindings.addBehaviourMap( "merge", mergeController.getBehaviourMap() );
 			bindings.addInputTriggerMap( "merge", mergeController.getInputTriggerMap() );
 
@@ -332,8 +341,6 @@ public class BigCat
 
 			bindings.addBehaviourMap( "fill", fillController.getBehaviourMap() );
 			bindings.addInputTriggerMap( "fill", fillController.getInputTriggerMap() );
-
-			bdv.getViewer().getDisplay().addOverlayRenderer( brushController.getBrushOverlay() );
 
 			bdv.getViewerFrame().addWindowListener( new WindowAdapter()
 			{
@@ -344,6 +351,12 @@ public class BigCat
 					System.exit( 0 );
 				}
 			} );
+		}
+		else
+		{
+			selectionController = null;
+			brushController = null;
+			idPicker = null;
 		}
 
 		final TranslateZController translateZController = new TranslateZController(
@@ -364,7 +377,14 @@ public class BigCat
 		bindings.addBehaviourMap( "annotation", annotationsController.getBehaviourMap() );
 		bindings.addInputTriggerMap( "annotation", annotationsController.getInputTriggerMap() );
 
+		/* overlays */
 		bdv.getViewer().getDisplay().addOverlayRenderer( annotationsController.getAnnotationOverlay() );
+
+		if ( brushController != null )
+			bdv.getViewer().getDisplay().addOverlayRenderer( brushController.getBrushOverlay() );
+
+		if ( selectionController != null )
+			bdv.getViewer().getDisplay().addOverlayRenderer( selectionController.getSelectionOverlay() );
 	}
 
 	protected InputTriggerConfig getInputTriggerConfig() throws IllegalArgumentException {

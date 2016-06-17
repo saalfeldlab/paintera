@@ -231,8 +231,10 @@ public class BigCatAriadne
 
 		final SelectionController selectionController = new SelectionController(
 				bdv.getViewer(),
+				idPicker2,
 				colorStream,
 				idService,
+				assignment,
 				config,
 				bdv.getViewerFrame().getKeybindings(),
 				config );
