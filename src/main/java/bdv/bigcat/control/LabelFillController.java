@@ -235,8 +235,8 @@ public class LabelFillController
 				tf.preConcatenate( transform );
 				tf.preConcatenate( new Scale3D( 1.0 / scale, 1.0 / scale, 1.0 / scale ) );
 
-				AffineTransform3D tfFront = tf.copy().preConcatenate(new Translation3D(0, 0, -0.5 / Math.sqrt(3)));
-				AffineTransform3D tfBack = tf.copy().preConcatenate(new Translation3D(0, 0, +0.5 / Math.sqrt(3)));
+				AffineTransform3D tfFront = tf.copy().preConcatenate(new Translation3D(0, 0, -1.0 / Math.sqrt(3)));
+				AffineTransform3D tfBack = tf.copy().preConcatenate(new Translation3D(0, 0, 1.0 / Math.sqrt(3)));
 
 
 
