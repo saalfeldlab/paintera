@@ -1,6 +1,7 @@
 package bdv.bigcat.control;
 
 import bdv.bigcat.label.FragmentSegmentAssignment;
+import bdv.bigcat.label.IdPicker;
 import bdv.labels.labelset.Label;
 import bdv.labels.labelset.LabelMultisetType;
 import bdv.labels.labelset.Multiset;
@@ -59,6 +60,8 @@ public class LabelFillController
 
 	private final InputTriggerAdder inputAdder;
 
+	private final IdPicker idPicker;
+
 	public BehaviourMap getBehaviourMap()
 	{
 		return behaviourMap;
@@ -79,6 +82,7 @@ public class LabelFillController
 			final FragmentSegmentAssignment assignment,
 			final SelectionController selectionController,
 			final Shape shape,
+			final IdPicker idPicker,
 			final InputTriggerConfig config )
 	{
 		this.viewer = viewer;
@@ -88,6 +92,7 @@ public class LabelFillController
 		this.assignment = assignment;
 		this.selectionController = selectionController;
 		this.shape = shape;
+		this.idPicker = idPicker;
 		inputAdder = config.inputTriggerAdder( inputTriggerMap, "fill" );
 
 		labelLocation = new RealPoint( 3 );
@@ -149,6 +154,8 @@ public class LabelFillController
 		{
 			synchronized ( viewer )
 			{
+				if ( idPicker.getIdAtDisplayCoordinate( x, y ) == Label.OUTSIDE )
+					return;
 				viewer.setCursor( Cursor.getPredefinedCursor( Cursor.WAIT_CURSOR ) );
 				setCoordinates( x, y );
 				System.out.println( "Filling " + labelLocation + " with " + selectionController.getActiveFragmentId() );
@@ -158,7 +165,7 @@ public class LabelFillController
 						Math.round( labelLocation.getDoublePosition( 1 ) ),
 						Math.round( labelLocation.getDoublePosition( 2 ) ) );
 
-				final RandomAccess< LongType > paintAccess = paintedLabels.randomAccess();
+				final RandomAccess< LongType > paintAccess = Views.extendValue( paintedLabels, new LongType( Label.OUTSIDE ) ).randomAccess();
 				paintAccess.setPosition( p );
 				final long seedPaint = paintAccess.get().getIntegerLong();
 				final long seedFragmentLabel = getBiggestLabel( labels, p );
@@ -195,9 +202,10 @@ public class LabelFillController
 		@Override
 		public void click( final int x, final int y )
 		{
-			System.out.println( "WAWAWAWAWAWA" );
 			synchronized ( viewer )
 			{
+				if ( idPicker.getIdAtDisplayCoordinate( x, y ) == Label.OUTSIDE )
+					return;
 				AffineTransform3D transform = new AffineTransform3D();
 				viewer.getState().getViewerTransform( transform );
 				double scale = Affine3DHelpers.extractScale(transform, 0) * minLabelScale / Math.sqrt( 3 );
@@ -281,6 +289,8 @@ public class LabelFillController
 			RandomAccessiblePair<LabelMultisetType, LongType>.RandomAccess pairAccess = labelsPaintedLabelsPair.randomAccess();
 			pairAccess.setPosition( p );
 			long seedPaint = pairAccess.get().getB().getIntegerLong();
+			if ( seedPaint == Label.OUTSIDE)
+				return null;
 			long seedFragmentLabel = getBiggestLabel( pairAccess.getA() );
 
 			Writer<Pair<LongType, BitType>> w = new Writer<Pair<LongType, BitType>>() {
@@ -311,6 +321,8 @@ public class LabelFillController
 
 
 		private void writeMask( GrowingStoreRandomAccessibleSingletonAccess< LongType > tmpFill, AffineTransform3D tf ) {
+			if ( tmpFill == null )
+				return;
 			IntervalView<LongType> tmpFillInterval = Views.interval(tmpFill, tmpFill.getIntervalOfSizeOfStore());
 			AffineRandomAccessible<LongType, AffineGet> transformedPaintedLabels = RealViews.affine(
 					Views.interpolate(Views.extendValue(paintedLabels, new LongType(Label.TRANSPARENT)), new NearestNeighborInterpolatorFactory<>()),

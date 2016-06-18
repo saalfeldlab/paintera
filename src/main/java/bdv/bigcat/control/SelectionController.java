@@ -122,7 +122,6 @@ public class SelectionController
 	public void setHoverFragmentId( final long id )
 	{
 		hoverFragmentId = id;
-		System.out.println( "hoverID = " + hoverFragmentId );
 	}
 
 	public SelectionOverlay getSelectionOverlay()

@@ -287,6 +287,7 @@ public class BigCatAriadne
 				assignment,
 				selectionController,
 				new DiamondShape( 1 ),
+				idPicker2,
 				config );
 
 		final LabelRestrictToSegmentController intersectController = new LabelRestrictToSegmentController(

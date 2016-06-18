@@ -246,7 +246,7 @@ public class BigCat
 												new LabelMultisetType() ),
 											Views.extendValue(
 													paintedLabels,
-													new LongType( Label.TRANSPARENT ) ) ),
+													new LongType( Label.OUTSIDE) ) ),
 									new NearestNeighborInterpolatorFactory< Pair< LabelMultisetType, LongType > >() ),
 							fragments.getMipmapTransforms()[ 0 ] )
 					);
@@ -303,6 +303,7 @@ public class BigCat
 					assignment,
 					selectionController,
 					new DiamondShape( 1 ),
+					idPicker,
 					config);
 
 			/* splitter (and more) */
