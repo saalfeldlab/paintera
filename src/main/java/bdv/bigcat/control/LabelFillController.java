@@ -165,7 +165,7 @@ public class LabelFillController
 						Math.round( labelLocation.getDoublePosition( 1 ) ),
 						Math.round( labelLocation.getDoublePosition( 2 ) ) );
 
-				final RandomAccess< LongType > paintAccess = Views.extendValue( paintedLabels, new LongType( Label.OUTSIDE ) ).randomAccess();
+				final RandomAccess< LongType > paintAccess = Views.extendValue( paintedLabels, new LongType( Label.TRANSPARENT ) ).randomAccess();
 				paintAccess.setPosition( p );
 				final long seedPaint = paintAccess.get().getIntegerLong();
 				final long seedFragmentLabel = getBiggestLabel( labels, p );
@@ -289,8 +289,6 @@ public class LabelFillController
 			RandomAccessiblePair<LabelMultisetType, LongType>.RandomAccess pairAccess = labelsPaintedLabelsPair.randomAccess();
 			pairAccess.setPosition( p );
 			long seedPaint = pairAccess.get().getB().getIntegerLong();
-			if ( seedPaint == Label.OUTSIDE)
-				return null;
 			long seedFragmentLabel = getBiggestLabel( pairAccess.getA() );
 
 			Writer<Pair<LongType, BitType>> w = new Writer<Pair<LongType, BitType>>() {
@@ -321,8 +319,6 @@ public class LabelFillController
 
 
 		private void writeMask( GrowingStoreRandomAccessibleSingletonAccess< LongType > tmpFill, AffineTransform3D tf ) {
-			if ( tmpFill == null )
-				return;
 			IntervalView<LongType> tmpFillInterval = Views.interval(tmpFill, tmpFill.getIntervalOfSizeOfStore());
 			AffineRandomAccessible<LongType, AffineGet> transformedPaintedLabels = RealViews.affine(
 					Views.interpolate(Views.extendValue(paintedLabels, new LongType(Label.TRANSPARENT)), new NearestNeighborInterpolatorFactory<>()),
