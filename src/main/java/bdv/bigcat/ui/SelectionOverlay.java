@@ -67,6 +67,8 @@ public class SelectionOverlay implements OverlayRenderer
 			return "         transparent";
 		if ( id == Label.INVALID )
 			return "           completed";
+		if ( id == Label.OUTSIDE )
+			return "             outside";
 		else
 		{
 			final long idDiv10 = Long.divideUnsigned( id, 10 );
