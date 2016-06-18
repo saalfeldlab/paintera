@@ -4,9 +4,14 @@ import ij.ImageJ;
 import net.imglib2.*;
 import net.imglib2.img.array.ArrayImg;
 import net.imglib2.img.array.ArrayImgs;
+import net.imglib2.img.basictypeaccess.array.ByteArray;
 import net.imglib2.img.basictypeaccess.array.FloatArray;
+import net.imglib2.img.basictypeaccess.array.IntArray;
 import net.imglib2.img.display.imagej.ImageJFunctions;
 import net.imglib2.type.Type;
+import net.imglib2.type.numeric.IntegerType;
+import net.imglib2.type.numeric.integer.ByteType;
+import net.imglib2.type.numeric.integer.IntType;
 import net.imglib2.type.numeric.real.FloatType;
 import net.imglib2.view.IntervalView;
 import net.imglib2.view.Views;
@@ -44,8 +49,6 @@ class GrowingStoreRandomAccessible< T extends Type< T > > implements RandomAcces
     private final long[] dimensions;
     private RandomAccessibleInterval< T > store;
     private final Factory< T > factory;
-    private final double resizeFactor;
-    private final double resizeFactorMinusOne;
     T t;
     private final ArrayList< WeakReference< GrowingStoreRandomAccess > > randomAccessRefs;
 
@@ -55,11 +58,10 @@ class GrowingStoreRandomAccessible< T extends Type< T > > implements RandomAcces
     public GrowingStoreRandomAccessible(
             long[] initialDimension,
             final Factory< T > factory,
-            final double resizeFactor,
             final T t
     )
     {
-        this( factory.createStore( initialDimension, t ), factory, resizeFactor );
+        this( factory.createStore( initialDimension, t ), factory );
     }
 
 
@@ -67,84 +69,87 @@ class GrowingStoreRandomAccessible< T extends Type< T > > implements RandomAcces
             long[] initialMin,
             long[] initialMax,
             Factory< T > factory,
-            final double resizeFactor,
             T t
     )
     {
-        this( factory.createStore( initialMin, initialMax, t ), factory, resizeFactor );
+        this( factory.createStore( initialMin, initialMax, t ), factory );
     }
 
 
     public GrowingStoreRandomAccessible(
             RandomAccessibleInterval< T > initialStore,
-            Factory< T > factory,
-            final double resizeFactor
+            Factory< T > factory
     )
     {
         this.nDim = initialStore.numDimensions();
         this.min = new long[ this.nDim ];
         this.max = new long[ this.nDim ];
         this.dimensions = new long[ this.nDim ];
-        updateStore( initialStore );
+        initStore( initialStore );
         this.factory = factory;
-        this.resizeFactor = resizeFactor;
-        this.resizeFactorMinusOne = resizeFactor - 1;
         this.t = initialStore.randomAccess().get().createVariable();
         this.randomAccessRefs = new ArrayList<>();
     }
 
-    private void growStore( int d, SIDE side, long minDiff )
+    private synchronized void growStore( Localizable position )
     {
-        long diff = Math.max( minDiff, (long) ( this.dimensions[d] * resizeFactorMinusOne ) );
-        switch ( side )
+        boolean changedStore = false;
+        for ( int d = 0; d < this.nDim; ++d )
         {
-            case TOP:
-                growStoreTop( d, diff );
-                break;
-            case BOTTOM:
-                growStoreBottom( d, diff );
-                break;
+
+            long currentPos = position.getLongPosition( d );
+            long currentMin = this.min[ d ];
+
+            if ( currentPos < currentMin )
+            {
+                long currentDim = this.dimensions[ d ];
+                long diff = currentMin - currentPos;
+                // what if diff / currentDim == 2**n ?
+                double ratio = ( diff + currentDim ) * 1.0 / currentDim;
+                int ceil = (int) Math.ceil(ratio);
+                int highBit = (Integer.highestOneBit( ceil ));
+                long growFactor = 2 << Integer.numberOfTrailingZeros( highBit == ceil ? 1 : 0 );
+                // n & ( n - 1 ) == 0 : power of 2
+//                growStoreBottom( d, ( ( growFactor & ( growFactor - 1 ) ) == 0 ? 1*growFactor : growFactor )* currentDim );
+                growStoreBottom( d, growFactor * currentDim - currentDim );
+                changedStore = true;
+            }
+            else {
+                long currentMax = this.max[ d ];
+                if ( currentPos > currentMax )
+                {
+                    long currentDim = this.dimensions[ d ];
+                    long diff = currentPos - currentMax;
+                    // what if diff / currentDim == 2**n ?
+                    double ratio = ( diff + currentDim ) * 1.0 / currentDim;
+                    int ceil = (int) Math.ceil(ratio);
+                    int highBit = (Integer.highestOneBit( ceil ));
+                    long growFactor = 2 << Integer.numberOfTrailingZeros( highBit ) - ( highBit == ceil ? 1 : 0 );
+                    growStoreTop( d, growFactor * currentDim - currentDim );
+                    changedStore = true;
+                }
+            }
+        }
+
+        if ( changedStore ) {
+            createNewStoreAndCopyOldContents();
+            updateRandomAccessRefs();
         }
     }
 
-    private void growStoreTop( int d, long diff )
+    private synchronized void growStoreTop( int d, long diff )
     {
         this.dimensions[ d ] += diff;
         this.max[ d ] += diff;
-
-        RandomAccessibleInterval<T> newStore = this.factory.createStore( this.min, this.max, t );
-        Cursor<T> cursor = Views.iterable( this.store ).cursor();
-        RandomAccess<T> access = newStore.randomAccess();
-        while( cursor.hasNext() )
-        {
-            T val = cursor.next();
-            access.setPosition( cursor );
-            access.get().set( val );
-        }
-        this.store = newStore;
     }
 
-    private void growStoreBottom( int d, long diff )
+    private synchronized void growStoreBottom( int d, long diff )
     {
-        long[] oldDimensions = this.dimensions.clone();
-        final long[] dimensionsDiff = new long[ this.dimensions.length ];
-        dimensionsDiff[ d ] = diff;
-        this.dimensions[ d ] += dimensionsDiff[ d ];
-        this.min[ d ] -= dimensionsDiff[ d ];
-
-        RandomAccessibleInterval<T> newStore = this.factory.createStore( this.min, this.max, t );
-        Cursor<T> cursor = Views.iterable( this.store ).cursor();
-        RandomAccess<T> access = newStore.randomAccess();
-        while( cursor.hasNext() )
-        {
-            T val = cursor.next();
-            access.setPosition( cursor );
-            access.get().set( val );
-        }
-        this.store = newStore;
+        this.dimensions[ d ] += diff;
+        this.min[ d ] -= diff;
     }
 
-    private void updateStore( RandomAccessibleInterval< T > newStore )
+    private synchronized void initStore(RandomAccessibleInterval< T > newStore )
     {
         newStore.dimensions( this.dimensions );
         newStore.min( this.min );
@@ -152,52 +157,61 @@ class GrowingStoreRandomAccessible< T extends Type< T > > implements RandomAcces
         this.store = newStore;
     }
 
-    @Override
-    public RandomAccess<T> randomAccess() {
-
-        synchronized ( randomAccessRefs ) {
-            this.cleanRandomAccessRefs();
-            GrowingStoreRandomAccess access = new GrowingStoreRandomAccess();
-            this.randomAccessRefs.add( new WeakReference<GrowingStoreRandomAccess>( access ) );
-            return access;
-
+    private synchronized void createNewStoreAndCopyOldContents()
+    {
+        RandomAccessibleInterval<T> newStore = this.factory.createStore( this.min, this.max, t );
+        Cursor<T> cursor = Views.iterable( this.store ).cursor();
+        RandomAccess<T> access = newStore.randomAccess();
+        while( cursor.hasNext() )
+        {
+            T val = cursor.next();
+            access.setPosition( cursor );
+            access.get().set( val );
         }
+        this.store = newStore;
     }
 
     @Override
-    public RandomAccess<T> randomAccess(Interval interval) {
+    public synchronized RandomAccess<T> randomAccess() {
+        this.cleanRandomAccessRefs();
+        GrowingStoreRandomAccess access = new GrowingStoreRandomAccess();
+        access.setPosition( this.min );
+        this.randomAccessRefs.add( new WeakReference<GrowingStoreRandomAccess>( access ) );
+        return access;
+    }
+
+    @Override
+    public synchronized RandomAccess<T> randomAccess(Interval interval) {
         return Views.interval( this.store, interval ).randomAccess();
     }
 
-    public IntervalView< T > getIntervalOfSizeOfStore() {
+    // should this method even exist? or just return FinalInterval?
+    public synchronized  FinalInterval getIntervalOfSizeOfStore() {
         synchronized ( this.store )
         {
-            return Views.interval( this.store, new FinalInterval( this.min, this.max ) );
+            return new FinalInterval( this.min, this.max );
         }
     }
 
-    private void cleanRandomAccessRefs() {
-        synchronized ( this.randomAccessRefs )
+    private synchronized void cleanRandomAccessRefs() {
+        for ( int i = this.randomAccessRefs.size() - 1; i >= 0; --i )
         {
-            for ( int i = this.randomAccessRefs.size() - 1; i >= 0; --i )
-            {
-                if ( this.randomAccessRefs.get( i ).get() == null )
-                    this.randomAccessRefs.remove( i );
-            }
+            if ( this.randomAccessRefs.get( i ).get() == null )
+                this.randomAccessRefs.remove( i );
         }
     }
 
-    private void updateRandomAccessRefs() {
-        synchronized ( this.randomAccessRefs )
+    private synchronized  void updateRandomAccessRefs() {
+        // go backwards to avoid creating objects that would be removed anyway
+        for ( int i = this.randomAccessRefs.size() - 1; i >= 0; --i )
         {
-            for ( int i = this.randomAccessRefs.size() - 1; i >= 0; --i )
-            {
-                GrowingStoreRandomAccess ra = this.randomAccessRefs.get(i).get();
-                if ( ra == null )
-                    this.randomAccessRefs.remove( i );
-                else {
-                    ra.storeRandomAccess = store.randomAccess();
-                }
+            GrowingStoreRandomAccess ra = this.randomAccessRefs.get( i ).get();
+            if ( ra == null )
+                this.randomAccessRefs.remove( i );
+            else {
+                RandomAccess<T> newAccess = store.randomAccess();
+                newAccess.setPosition( ra );
+                ra.storeRandomAccess = newAccess;
             }
         }
     }
@@ -208,7 +222,8 @@ class GrowingStoreRandomAccessible< T extends Type< T > > implements RandomAcces
     }
 
 
-    public class GrowingStoreRandomAccess extends Point implements RandomAccess< T >
+
+    public class GrowingStoreRandomAccess implements RandomAccess< T >
     {
 
         private RandomAccess< T > storeRandomAccess;
@@ -220,7 +235,6 @@ class GrowingStoreRandomAccessible< T extends Type< T > > implements RandomAcces
 
         private GrowingStoreRandomAccess(RandomAccess< T > storeRandomAccess )
         {
-            super( nDim );
             this.storeRandomAccess = storeRandomAccess;
         }
 
@@ -228,34 +242,24 @@ class GrowingStoreRandomAccessible< T extends Type< T > > implements RandomAcces
 
         @Override
         public RandomAccess<T> copyRandomAccess() {
-            return new GrowingStoreRandomAccess( this.storeRandomAccess.copyRandomAccess() );
+            synchronized ( GrowingStoreRandomAccessible.this ) {
+                GrowingStoreRandomAccess access = new GrowingStoreRandomAccess(this.storeRandomAccess.copyRandomAccess());
+                GrowingStoreRandomAccessible.this.randomAccessRefs.add( new WeakReference<>( access ) );
+                return access;
+            }
         }
 
         @Override
         public T get() {
-            boolean changedStore = false;
-            synchronized ( GrowingStoreRandomAccess.this ) {
-                for (int d = 0; d < nDim; ++d) {
-                    long pos = this.position[d];
-                    while (pos < min[d]) {
-                        growStore(d, SIDE.BOTTOM, 1);
-                        changedStore = true;
-                    }
-                    while (pos > max[d]) {
-                        System.out.println(pos + " " + max[d] + " " + d);
-                        growStore(d, SIDE.TOP, 1);
-                        changedStore = true;
-                    }
+            for (int d = 0; d < nDim; ++d) {
+                long pos = this.storeRandomAccess.getLongPosition( d );
+                if ( pos < min[ d ] || pos > max[ d ] ) {
+                    growStore( this.storeRandomAccess );
+                    break;
                 }
             }
-            if (changedStore) {
-                updateRandomAccessRefs();
-            }
-
-            this.storeRandomAccess.setPosition(this.position);
 
             return this.storeRandomAccess.get();
-
         }
 
         @Override
@@ -271,23 +275,144 @@ class GrowingStoreRandomAccessible< T extends Type< T > > implements RandomAcces
             localize( pos );
             return Arrays.toString( pos );
         }
+
+
+        @Override
+        public void localize( int[] pos ) {
+            this.storeRandomAccess.localize( pos );
+        }
+
+        @Override
+        public void localize( long[] pos ) {
+            this.storeRandomAccess.localize( pos );
+        }
+
+        @Override
+        public int getIntPosition( int d ) {
+            return this.storeRandomAccess.getIntPosition( d );
+        }
+
+        @Override
+        public long getLongPosition( int d ) {
+            return this.storeRandomAccess.getLongPosition( d );
+        }
+
+        @Override
+        public void fwd( int d ) {
+            this.storeRandomAccess.fwd( d );
+        }
+
+        @Override
+        public void bck( int d ) {
+            this.storeRandomAccess.bck( d );
+        }
+
+        @Override
+        public void move( int pos, int d ) {
+            this.storeRandomAccess.move( pos, d );
+        }
+
+        @Override
+        public void move( long pos, int d ) {
+            this.storeRandomAccess.move( pos, d );
+        }
+
+        @Override
+        public void move( Localizable pos ) {
+            this.storeRandomAccess.move( pos );
+        }
+
+        @Override
+        public void move( int[] pos ) {
+            this.storeRandomAccess.move( pos );
+        }
+
+        @Override
+        public void move( long[] pos ) {
+            this.storeRandomAccess.move( pos );
+        }
+
+        @Override
+        public void setPosition( Localizable pos ) {
+            this.storeRandomAccess.setPosition( pos );
+        }
+
+        @Override
+        public void setPosition( int[] pos ) {
+            this.storeRandomAccess.setPosition( pos );
+        }
+
+        @Override
+        public void setPosition( long[] pos ) {
+            this.storeRandomAccess.setPosition( pos );
+        }
+
+        @Override
+        public void setPosition( int pos, int d ) {
+            this.storeRandomAccess.setPosition( pos, d);
+        }
+
+        @Override
+        public void setPosition( long pos, int d ) {
+            this.storeRandomAccess.setPosition( pos, d );
+        }
+
+        @Override
+        public void localize( float[] pos ) {
+            this.storeRandomAccess.localize( pos );
+        }
+
+        @Override
+        public void localize( double[] pos ) {
+            this.storeRandomAccess.localize( pos );
+        }
+
+        @Override
+        public float getFloatPosition( int d ) {
+            return this.storeRandomAccess.getFloatPosition( d );
+        }
+
+        @Override
+        public double getDoublePosition( int d ) {
+            return this.storeRandomAccess.getDoublePosition( d );
+        }
+
+        @Override
+        public int numDimensions() {
+//            return GrowingStoreRandomAccessible.this.nDim;
+            return this.storeRandomAccess.numDimensions();
+        }
     }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
     public static void main(String[] args) {
         final long[] dim = new long[] { 2, 3 };
         long[] m = new long[dim.length];
         long[] M = new long[dim.length];
-        ArrayImg<FloatType, FloatArray> img = ArrayImgs.floats(dim);
+        ArrayImg<IntType, IntArray> img = ArrayImgs.ints(dim);
         int i = 0;
-        for ( FloatType c : img )
+        for ( IntType c : img )
             c.set( i++ );
 
-        Factory< FloatType > factory = (min1, max1, t1) -> {
+        Factory<IntType> factory = (min1, max1, t1) -> {
             final long[] dimensions1 = new long[ min1.length ];
             for (int d = 0; d < min1.length; ++d )
                 dimensions1[d] = max1[d] - min1[d] + 1;
-            ArrayImg<FloatType, FloatArray> imgFac = ArrayImgs.floats(dimensions1);
+            ArrayImg<IntType, IntArray> imgFac = ArrayImgs.ints(dimensions1);
             return Views.translate(imgFac, min1);
         };
 
@@ -298,29 +423,52 @@ class GrowingStoreRandomAccessible< T extends Type< T > > implements RandomAcces
             return result;
         };
 
-        GrowingStoreRandomAccessible<FloatType> rra =
-                new GrowingStoreRandomAccessible<FloatType>(img, factory, 2.0);
+        GrowingStoreRandomAccessible<IntType> rra =
+                new GrowingStoreRandomAccessible<>(img, factory);
 
         new ImageJ();
-        RandomAccess<FloatType> ra = rra.randomAccess();
+        RandomAccess<IntType> ra = rra.randomAccess();
 //        Bdv bdv = BdvFunctions.show(rra, "1");
 
-        ImageJFunctions.show( rra.getIntervalOfSizeOfStore(), "1" );
-        System.out.println(Arrays.toString( dim ) + " " + Arrays.toString( m ) + " " + Arrays.toString( M ) + " " + ra.get().get() + " " + ra );
+        IntType f;
+        ImageJFunctions.show( Views.offsetInterval( rra, rra.getIntervalOfSizeOfStore() ), "1" );
+        System.out.println(Arrays.toString( dim ) + " " + Arrays.toString( m ) + " " + Arrays.toString( M ) + " " + ra.get().get() + " " + ra + " " + rra.getIntervalOfSizeOfStore() );
         ra.setPosition( -2, 0 );
-        ra.get().get();
-        ImageJFunctions.show( rra.getIntervalOfSizeOfStore(), "2" );
-        System.out.println(Arrays.toString( dim ) + " " + Arrays.toString( m ) + " " + Arrays.toString( M ) + " " + ra.get().get() + " " + ra );
+        f = ra.get();
+        f.get();
+        f.set( (byte)25 );
+        ImageJFunctions.show( Views.interval( rra, rra.getIntervalOfSizeOfStore() ), "2" );
+        System.out.println(Arrays.toString( dim ) + " " + Arrays.toString( m ) + " " + Arrays.toString( M ) + " " + ra.get().get() + " " + ra + " " + rra.getIntervalOfSizeOfStore() );
         ra.setPosition( dim[1], 1 );
-        ra.get().get();
-        ImageJFunctions.show( rra.getIntervalOfSizeOfStore(), "3" );
-        System.out.println(Arrays.toString( dim ) + " " + Arrays.toString( m ) + " " + Arrays.toString( M ) + " " + ra.get().get() + " " + ra );
+        f = ra.get();
+        f.get();
+        f.set( (byte)25 );
+        ImageJFunctions.show( Views.interval( rra, rra.getIntervalOfSizeOfStore() ), "3" );
+        System.out.println(Arrays.toString( dim ) + " " + Arrays.toString( m ) + " " + Arrays.toString( M ) + " " + ra.get().get() + " " + ra + " " + rra.getIntervalOfSizeOfStore() );
         ra.setPosition( M );
         ra.setPosition( 32, 0 );
-        ra.move( 17, 1 );
-        ra.get().get();
-        ImageJFunctions.show( rra.getIntervalOfSizeOfStore(), "4" );
-        System.out.println(Arrays.toString( dim ) + " " + Arrays.toString( m ) + " " + Arrays.toString( M ) + " " + ra.get().get() + " " + ra );
+        ra.setPosition( 17, 1 ); // 11 now, was 17 before
+        long[] pos = new long[ra.numDimensions()];
+        ra.localize( pos );
+        System.out.println( Arrays.toString( pos ) );
+        f = ra.get();
+        f.get();
+        f.set( (byte)25 );
+        ImageJFunctions.show( Views.interval( rra, rra.getIntervalOfSizeOfStore() ), "4" );
+        System.out.println(Arrays.toString( dim ) + " " + Arrays.toString( m ) + " " + Arrays.toString( M ) + " " + ra.get().get() + " " + ra + " " + rra.getIntervalOfSizeOfStore() );
+
+
+//        {
+//            RandomAccess<FloatType> accessToBeCollected = rra.randomAccess();
+//            for ( WeakReference< ? > a : rra.randomAccessRefs ) {
+//                System.out.println( a.get() );
+//            }
+//        }
+//        System.gc();
+//        System.gc();
+//        for ( WeakReference< ? > a : rra.randomAccessRefs ) {
+//            System.out.println( a.get() );
+//        }
 
     }
 
