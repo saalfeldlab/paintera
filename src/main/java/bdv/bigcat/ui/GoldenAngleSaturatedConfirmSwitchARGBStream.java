@@ -16,33 +16,54 @@
  */
 package bdv.bigcat.ui;
 
+import bdv.bigcat.control.Switch;
 import bdv.bigcat.label.FragmentSegmentAssignment;
 import bdv.labels.labelset.Label;
 
 
 /**
- * Generates and caches a stream of saturated colors.  Colors are picked from a
- * radial projection of the RGB colors {red, yellow, green, cyan, blue,
- * magenta}.  Changing the seed of the stream makes a new sequence.
+ * Generates a stream of saturated colors.  Colors are picked from a radial
+ * projection of the RGB colors {red, yellow, green, cyan, blue, magenta}.
+ * Adjacent colors along the discrete id axis are separated by the golden
+ * angle, making them reasonably distinct.  Changing the seed of the stream
+ * makes a new sequence.
  *
- * @author Stephan Saalfeld <saalfelds@janelia.hhmi.org>
+ * @author Stephan Saalfeld &lt;saalfelds@janelia.hhmi.org&gt;
  */
-abstract public class AbstractSaturatedARGBStream extends AbstractARGBStream
+public class GoldenAngleSaturatedConfirmSwitchARGBStream extends GoldenAngleSaturatedARGBStream implements Switch
 {
-	public AbstractSaturatedARGBStream( final FragmentSegmentAssignment assignment )
+	protected boolean hideConfirmed = true;
+
+	public GoldenAngleSaturatedConfirmSwitchARGBStream( final FragmentSegmentAssignment assignment )
 	{
 		super( assignment );
+		seed = 1;
 	}
 
-	final static protected int interpolate( final double[] xs, final int k, final int l, final double u, final double v )
+	@Override
+	public void toggleSwitch()
 	{
-		return ( int )( ( v * xs[ k ] + u * xs[ l ] ) * 255.0 + 0.5 );
+		hideConfirmed = !hideConfirmed;
+	}
+
+	@Override
+	public void setSwitch( final boolean value )
+	{
+		hideConfirmed = value;
+	}
+
+	@Override
+	public boolean getSwitch()
+	{
+		return hideConfirmed;
 	}
 
 	@Override
 	public int argb( final long fragmentId )
 	{
-		final long segmentId = assignment.getSegment( fragmentId );
+		long segmentId = assignment.getSegment( fragmentId );
+		if ( Label.INVALID == segmentId && !hideConfirmed )
+			segmentId = fragmentId;
 		int argb = argbCache.get( segmentId );
 		if ( argb == 0x00000000 )
 		{

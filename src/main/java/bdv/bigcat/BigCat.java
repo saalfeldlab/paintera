@@ -25,14 +25,13 @@ import bdv.bigcat.control.DrawProjectAndIntersectController;
 import bdv.bigcat.control.LabelBrushController;
 import bdv.bigcat.control.LabelFillController;
 import bdv.bigcat.control.LabelPersistenceController;
-import bdv.bigcat.control.LabelRestrictToSegmentController;
 import bdv.bigcat.control.MergeController;
 import bdv.bigcat.control.SelectionController;
 import bdv.bigcat.control.TranslateZController;
 import bdv.bigcat.label.FragmentSegmentAssignment;
 import bdv.bigcat.label.PairLabelMultiSetLongIdPicker;
 import bdv.bigcat.ui.ARGBConvertedLabelPairSource;
-import bdv.bigcat.ui.GoldenAngleSaturatedARGBStream;
+import bdv.bigcat.ui.GoldenAngleSaturatedConfirmSwitchARGBStream;
 import bdv.bigcat.ui.Util;
 import bdv.img.SetCache;
 import bdv.img.h5.AbstractH5SetupImageLoader;
@@ -71,7 +70,7 @@ public class BigCat
 	private ARGBConvertedLabelPairSource convertedLabelPair = null;
 	private CellImg< LongType, ?, ? > paintedLabels = null;
 	private BigDataViewer bdv;
-	private GoldenAngleSaturatedARGBStream colorStream;
+	private GoldenAngleSaturatedConfirmSwitchARGBStream colorStream;
 	private FragmentSegmentAssignment assignment;
 	private String projectFile;
 	private String paintedLabelsDataset;
@@ -184,7 +183,7 @@ public class BigCat
 		if ( lut != null )
 			assignment.initLut( lut );
 
-		colorStream = new GoldenAngleSaturatedARGBStream( assignment );
+		colorStream = new GoldenAngleSaturatedConfirmSwitchARGBStream( assignment );
 		colorStream.setAlpha( 0x20 );
 		convertedLabelPair =
 				new ARGBConvertedLabelPairSource(
@@ -231,9 +230,13 @@ public class BigCat
 
 		final TriggerBehaviourBindings bindings = bdv.getViewerFrame().getTriggerbindings();
 
+		final SelectionController selectionController;
+		final LabelBrushController brushController;
+		final PairLabelMultiSetLongIdPicker idPicker;
+
 		if ( fragments != null )
 		{
-			final PairLabelMultiSetLongIdPicker idPicker = new PairLabelMultiSetLongIdPicker(
+			idPicker = new PairLabelMultiSetLongIdPicker(
 					bdv.getViewer(),
 					RealViews.affineReal(
 							Views.interpolate(
@@ -248,10 +251,12 @@ public class BigCat
 							fragments.getMipmapTransforms()[ 0 ] )
 					);
 
-			final SelectionController selectionController = new SelectionController(
+			selectionController = new SelectionController(
 					bdv.getViewer(),
+					idPicker,
 					colorStream,
 					idService,
+					assignment,
 					config,
 					bdv.getViewerFrame().getKeybindings(),
 					config);
@@ -265,7 +270,7 @@ public class BigCat
 					bdv.getViewerFrame().getKeybindings(),
 					config);
 
-			final LabelBrushController brushController = new LabelBrushController(
+			brushController = new LabelBrushController(
 					bdv.getViewer(),
 					paintedLabels,
 					fragments.getMipmapTransforms()[ 0 ],
@@ -300,16 +305,7 @@ public class BigCat
 					new DiamondShape( 1 ),
 					config);
 
-			final LabelRestrictToSegmentController intersectController = new LabelRestrictToSegmentController(
-					bdv.getViewer(),
-					fragments.getImage( 0 ),
-					paintedLabels,
-					fragments.getMipmapTransforms()[ 0 ],
-					assignment,
-					selectionController,
-					new DiamondShape( 1 ),
-					config );
-
+			/* splitter (and more) */
 			final DrawProjectAndIntersectController dpi = new DrawProjectAndIntersectController(
 					bdv,
 					idService,
@@ -329,8 +325,13 @@ public class BigCat
 					bdv.getViewer(),
 					selectionController,
 					assignment,
+					colorStream,
+					colorStream,
 					config,
 					bdv.getViewerFrame().getKeybindings() );
+
+			bindings.addBehaviourMap( "select", selectionController.getBehaviourMap() );
+			bindings.addInputTriggerMap( "select", selectionController.getInputTriggerMap() );
 
 			bindings.addBehaviourMap( "merge", mergeController.getBehaviourMap() );
 			bindings.addInputTriggerMap( "merge", mergeController.getInputTriggerMap() );
@@ -341,11 +342,6 @@ public class BigCat
 			bindings.addBehaviourMap( "fill", fillController.getBehaviourMap() );
 			bindings.addInputTriggerMap( "fill", fillController.getInputTriggerMap() );
 
-			bindings.addBehaviourMap( "restrict", intersectController.getBehaviourMap() );
-			bindings.addInputTriggerMap( "restrict", intersectController.getInputTriggerMap() );
-
-			bdv.getViewer().getDisplay().addOverlayRenderer( brushController.getBrushOverlay() );
-
 			bdv.getViewerFrame().addWindowListener( new WindowAdapter()
 			{
 				@Override
@@ -355,6 +351,12 @@ public class BigCat
 					System.exit( 0 );
 				}
 			} );
+		}
+		else
+		{
+			selectionController = null;
+			brushController = null;
+			idPicker = null;
 		}
 
 		final TranslateZController translateZController = new TranslateZController(
@@ -375,7 +377,14 @@ public class BigCat
 		bindings.addBehaviourMap( "annotation", annotationsController.getBehaviourMap() );
 		bindings.addInputTriggerMap( "annotation", annotationsController.getInputTriggerMap() );
 
+		/* overlays */
 		bdv.getViewer().getDisplay().addOverlayRenderer( annotationsController.getAnnotationOverlay() );
+
+		if ( brushController != null )
+			bdv.getViewer().getDisplay().addOverlayRenderer( brushController.getBrushOverlay() );
+
+		if ( selectionController != null )
+			bdv.getViewer().getDisplay().addOverlayRenderer( selectionController.getSelectionOverlay() );
 	}
 
 	protected InputTriggerConfig getInputTriggerConfig() throws IllegalArgumentException {

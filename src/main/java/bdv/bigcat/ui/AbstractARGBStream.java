@@ -90,11 +90,12 @@ abstract public class AbstractARGBStream implements ARGBStream
 	/**
 	 *
 	 */
-	public void setActive( final long segmentId )
+	public void setActive( final long fragmentId )
 	{
-		activeFragment = segmentId;
-		activeSegment = assignment.getSegment( segmentId );
+		activeFragment = fragmentId;
+		activeSegment = assignment.getSegment( fragmentId );
 	}
+
 
 	/**
 	 * Change alpha.  Values less or greater than [0,255] will be masked.

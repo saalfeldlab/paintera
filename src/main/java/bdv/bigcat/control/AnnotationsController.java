@@ -124,7 +124,7 @@ public class AnnotationsController implements WindowListener, Selection.Selectio
 		new AddSynapseAnnotation("add synapse annotation", "control shift button2").register();
 
 		// key bindings
-		new ChangeComment("change comment", "C").register();
+		new ChangeComment("change comment", "control C").register();
 		new SaveAnnotations("save annotations", "S").register();
 		new ShowAnnotationsList("show annotations list", "A").register();
 		new GotoAnnotation("goto annotation", "G").register();
