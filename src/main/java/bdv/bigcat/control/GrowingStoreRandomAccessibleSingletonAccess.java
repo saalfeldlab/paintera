@@ -16,7 +16,7 @@ import java.util.Arrays;
 import java.util.function.Function;
 
 /**
- * Created by hanslovskyp on 6/13/16.
+ * @author Philipp Hanslovsky &lt;hanslovskyp@janelia.hhmi.org&gt;
  */
 class GrowingStoreRandomAccessibleSingletonAccess< T extends Type< T > > implements RandomAccessible< T >
 {
