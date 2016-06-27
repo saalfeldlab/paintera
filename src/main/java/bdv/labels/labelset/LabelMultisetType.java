@@ -225,4 +225,23 @@ public class LabelMultisetType extends AbstractNativeType< LabelMultisetType > i
 	@Override public boolean removeAll( final Collection< ? > c ) { throw new UnsupportedOperationException(); }
 	@Override public boolean retainAll( final Collection< ? > c ) { throw new UnsupportedOperationException(); }
 	@Override public void clear() { throw new UnsupportedOperationException(); }
+
+	@Override
+	public boolean valueEquals( LabelMultisetType other )
+	{
+		if ( entries.size() != other.entries.size() )
+			return false;
+		
+		final RefIterator< LabelMultisetEntry > ai = entries.iterator();
+		final RefIterator< LabelMultisetEntry > bi = other.entries.iterator();
+		
+		while ( ai.hasNext() )
+		{
+			final LabelMultisetEntry a = ai.next();
+			final LabelMultisetEntry b = ai.next();
+			if ( !( a.getId() == b.getId() && a.getCount() == b.getCount() ) )
+				return false;
+		}
+		return true;
+	}
 }

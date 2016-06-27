@@ -103,7 +103,7 @@ public class DrawProjectAndIntersectController implements TransformListener< Aff
 
 	public final BrushOverlay brushOverlay = new BrushOverlay();
 
-	private float overlayAlpha = 0.5f;
+	private final float overlayAlpha = 0.5f;
 
 	final protected RealPoint labelLocation = new RealPoint( 3 );
 

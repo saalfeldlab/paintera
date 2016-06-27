@@ -38,7 +38,6 @@ import bdv.img.h5.AbstractH5SetupImageLoader;
 import bdv.img.h5.H5LabelMultisetSetupImageLoader;
 import bdv.img.h5.H5UnsignedByteSetupImageLoader;
 import bdv.img.h5.H5Utils;
-import bdv.img.labelpair.RandomAccessiblePair;
 import bdv.labels.labelset.Label;
 import bdv.labels.labelset.LabelMultisetType;
 import bdv.labels.labelset.Multiset;
@@ -60,6 +59,7 @@ import net.imglib2.type.numeric.ARGBType;
 import net.imglib2.type.numeric.integer.LongType;
 import net.imglib2.util.Intervals;
 import net.imglib2.util.Pair;
+import net.imglib2.view.RandomAccessiblePair;
 import net.imglib2.view.Views;
 
 public class BigCat
@@ -72,15 +72,15 @@ public class BigCat
 	private BigDataViewer bdv;
 	private GoldenAngleSaturatedConfirmSwitchARGBStream colorStream;
 	private FragmentSegmentAssignment assignment;
-	private String projectFile;
-	private String paintedLabelsDataset;
-	private String mergedLabelsDataset;
+	private final String projectFile;
+	private final String paintedLabelsDataset;
+	private final String mergedLabelsDataset;
 	private String fragmentSegmentLutDataset;
 	private LabelPersistenceController persistenceController;
 	private AnnotationsController annotationsController;
-	private InputTriggerConfig config;
+	private final InputTriggerConfig config;
 
-	private IdService idService = new LocalIdService();
+	private final IdService idService = new LocalIdService();
 
 	public static void main( final String[] args ) throws Exception
 	{

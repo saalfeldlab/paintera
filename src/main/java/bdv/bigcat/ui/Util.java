@@ -135,7 +135,7 @@ public class Util
 		defaultFontField.setAccessible( true );
 		final Font defaultFont = ( Font ) defaultFontField.get( styleFactory );
 		FontUIResource newFontUI;
-		newFontUI = new FontUIResource( defaultFont.deriveFont( ( float )( defaultFont.getSize() - 2f ) ) );
+		newFontUI = new FontUIResource( defaultFont.deriveFont( defaultFont.getSize() - 2f ) );
 		defaultFontField.set( styleFactory, newFontUI );
 
 		final Field stylesCacheField = styleFactory.getClass().getDeclaredField( "stylesCache" );
@@ -147,7 +147,7 @@ public class Util
 			final Field f = mo.getClass().getDeclaredField( "font" );
 			f.setAccessible( true );
 			final Font fo = ( Font ) f.get( mo );
-			f.set( mo, fo.deriveFont( ( float ) ( fo.getSize() - 2f ) ) );
+			f.set( mo, fo.deriveFont( fo.getSize() - 2f ) );
 		}
 	}
 
@@ -220,6 +220,8 @@ public class Util
 				.targetRenderNanos(10000000);
 		if (config != null)
 			options = options.inputTriggerConfig(config);
+		
+		options = options.screenScales( new double[] { 1, 0.5, 0.25, 0.125 } );
 
 		final BigDataViewer bdv = new BigDataViewer( converterSetups, sources, null, timepoints.size(), imgLoader.getCache(), windowTitle, null, options );
 
