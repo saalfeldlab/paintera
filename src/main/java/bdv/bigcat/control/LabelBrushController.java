@@ -45,8 +45,6 @@ public class LabelBrushController
 	final protected RealPoint labelLocation;
 	final protected BrushOverlay brushOverlay;
 
-	final protected String labelsH5Path;
-	final protected String labelsH5Dataset;
 	final protected int[] labelsH5CellDimensions;
 
 	final int brushNormalAxis;
@@ -84,8 +82,6 @@ public class LabelBrushController
 			final AffineTransform3D labelTransform,
 			final FragmentSegmentAssignment assignment,
 			final SelectionController selectionController,
-			final String labelsH5Path,
-			final String labelsH5Dataset,
 			final int[] labelsH5CellDimensions,
 			final InputTriggerConfig config,
 			final int brushNormalAxis )
@@ -96,8 +92,6 @@ public class LabelBrushController
 		this.labelTransform = labelTransform;
 		this.assignment = assignment;
 		this.selectionController = selectionController;
-		this.labelsH5Path = labelsH5Path;
-		this.labelsH5Dataset = labelsH5Dataset;
 		this.labelsH5CellDimensions = labelsH5CellDimensions;
 		this.brushNormalAxis = brushNormalAxis;
 		brushOverlay = new BrushOverlay( viewer );
@@ -117,12 +111,10 @@ public class LabelBrushController
 			final AffineTransform3D labelTransform,
 			final FragmentSegmentAssignment assignment,
 			final SelectionController selectionController,
-			final String labelsH5Path,
-			final String labelsH5Dataset,
 			final int[] labelsH5CellDimensions,
 			final InputTriggerConfig config )
 	{
-		this( viewer, labels, labelTransform, assignment, selectionController, labelsH5Path, labelsH5Dataset, labelsH5CellDimensions, config, 2 );
+		this( viewer, labels, labelTransform, assignment, selectionController, labelsH5CellDimensions, config, 2 );
 	}
 
 	private void setCoordinates( final int x, final int y )

@@ -153,21 +153,19 @@ public class Util
 
 	public static < A extends ViewerSetupImgLoader< ? extends NumericType< ? >, ? > & SetCache > BigDataViewer createViewer(
 			final String windowTitle,
-			final A[] rawDataLoaders,
-			final AbstractARGBConvertedLabelsSource[] labelSources,
-			final SetCache[] labelLoaders,
+			final List< A > rawDataLoaders,
+			final List< ? extends AbstractARGBConvertedLabelsSource > labelSources,
+			final List< ? extends SetCache > cacheLoaders,
 			final List< Composite< ARGBType, ARGBType > > composites,
 			final InputTriggerConfig config)
 	{
-		/* raw pixels */
-		final CombinedImgLoader.SetupIdAndLoader[] loaders = new CombinedImgLoader.SetupIdAndLoader[ rawDataLoaders.length ];
+		/* raw */
+		final CombinedImgLoader.SetupIdAndLoader[] loaders = new CombinedImgLoader.SetupIdAndLoader[ rawDataLoaders.size() ];
 		int setupId = 0;
-		for ( int i = 0; i < rawDataLoaders.length; ++i )
-			loaders[ i ] = setupIdAndLoader( setupId++, rawDataLoaders[ i ] );
+		for ( int i = 0; i < rawDataLoaders.size(); ++i )
+			loaders[ i ] = setupIdAndLoader( setupId++, rawDataLoaders.get( i ) );
 
 		final CombinedImgLoader imgLoader = new CombinedImgLoader( loaders );
-		for ( int i = 0; i < rawDataLoaders.length; ++i )
-			rawDataLoaders[ i ].setCache( imgLoader.getCache() );
 
 		final ArrayList< TimePoint > timePointsList = new ArrayList< >();
 		final Map< Integer, BasicViewSetup > setups = new HashMap< >();
@@ -190,9 +188,6 @@ public class Util
 		BigDataViewer.initSetups( spimData, converterSetups, sources );
 
 		/* labels */
-		for ( final SetCache setCache : labelLoaders )
-			setCache.setCache( imgLoader.getCache() );
-
 		for ( final AbstractARGBConvertedLabelsSource source : labelSources )
 		{
 			final ScaledARGBConverter.ARGB converter = new ScaledARGBConverter.ARGB( 0, 255 );
@@ -203,9 +198,13 @@ public class Util
 			final SourceAndConverter< ARGBType > soc = new SourceAndConverter< ARGBType >( source.nonVolatile(), converter, vsoc );
 			sources.add( soc );
 
-			final RealARGBColorConverterSetup fragmentsConverterSetup = new RealARGBColorConverterSetup( 2, converter, vconverter );
-			converterSetups.add( fragmentsConverterSetup );
+			final RealARGBColorConverterSetup labelConverterSetup = new RealARGBColorConverterSetup( 2, converter, vconverter );
+			converterSetups.add( labelConverterSetup );
 		}
+
+		/* cache */
+		for ( final SetCache setCache : cacheLoaders )
+			setCache.setCache( imgLoader.getCache() );
 
 		/* composites */
 		final HashMap< Source< ? >, Composite< ARGBType, ARGBType > > sourceCompositesMap = new HashMap< Source< ? >, Composite< ARGBType, ARGBType > >();
@@ -215,11 +214,12 @@ public class Util
 		final AccumulateProjectorFactory< ARGBType > projectorFactory = new CompositeProjector.CompositeProjectorFactory< ARGBType >( sourceCompositesMap );
 
 		ViewerOptions options = ViewerOptions.options()
-				.accumulateProjectorFactory(projectorFactory)
-				.numRenderingThreads(16)
-				.targetRenderNanos(10000000);
-		if (config != null)
-			options = options.inputTriggerConfig(config);
+				.accumulateProjectorFactory( projectorFactory )
+				.numRenderingThreads( 16 )
+				.targetRenderNanos( 10000000 );
+
+		if ( config != null )
+			options = options.inputTriggerConfig( config );
 
 		final BigDataViewer bdv = new BigDataViewer( converterSetups, sources, null, timepoints.size(), imgLoader.getCache(), windowTitle, null, options );
 

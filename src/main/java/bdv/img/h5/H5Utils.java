@@ -59,16 +59,15 @@ public class H5Utils
 	/**
 	 * Load an HDF5 uint64 dataset into a {@link CellImg} of {@link LongType}.
 	 *
-	 * @param file
+	 * @param reader
 	 * @param dataset
 	 * @param cellDimensions
 	 */
 	static public CellImg< LongType, ?, ? > loadUnsignedLong(
-			final File file,
+			final IHDF5Reader reader,
 			final String dataset,
 			final int[] cellDimensions )
 	{
-		final IHDF5Reader reader = HDF5Factory.openForReading( file );
 		final IHDF5LongReader uint64Reader = reader.uint64();
 
 		final long[] dimensions = reorder( reader.object().getDimensions( dataset ) );
@@ -99,14 +98,30 @@ public class H5Utils
 				else
 					offset[ d ] = 0;
 			}
-
-//			System.out.println( Util.printCoordinates( offset ) );
 		}
-		reader.close();
 
 		return target;
 	}
-	
+
+
+	/**
+	 * Load an HDF5 uint64 dataset into a {@link CellImg} of {@link LongType}.
+	 *
+	 * @param file
+	 * @param dataset
+	 * @param cellDimensions
+	 */
+	static public CellImg< LongType, ?, ? > loadUnsignedLong(
+			final File file,
+			final String dataset,
+			final int[] cellDimensions )
+	{
+		final IHDF5Reader reader = HDF5Factory.openForReading( file );
+		final CellImg< LongType, ?, ? > target = loadUnsignedLong( reader, dataset, cellDimensions );
+		reader.close();
+		return target;
+	}
+
 	/**
 	 * Save a {@link RandomAccessibleInterval} of {@link UnsignedByteType} into an HDF5
 	 * uint8 dataset.

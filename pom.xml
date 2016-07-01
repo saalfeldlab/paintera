@@ -90,6 +90,11 @@
 			<groupId>junit</groupId>
 			<artifactId>junit</artifactId>
 		</dependency>
+		<dependency>
+			<groupId>com.beust</groupId>
+			<artifactId>jcommander</artifactId>
+			<version>1.48</version>
+		</dependency>
 	</dependencies>
 
 	<developers>
@@ -155,20 +160,10 @@
 					<target>1.8</target>
 				</configuration>
 			</plugin>
-<!--			<plugin>
-				<groupId>org.codehaus.mojo</groupId>
-				<artifactId>exec-maven-plugin</artifactId>
-				<configuration>
-					<executable>java</executable>
-					<arguments>
-						<argument>-Xmx7g</argument>
-						<argument>-classpath</argument>
-						<classpath />
-						<argument>${mainclass}</argument>
-						<argument>${h5file}</argument>
-					</arguments>
-				</configuration>
-			</plugin>
--->		</plugins>
+			<!-- <plugin> <groupId>org.codehaus.mojo</groupId> <artifactId>exec-maven-plugin</artifactId>
+				<configuration> <executable>java</executable> <arguments> <argument>-Xmx7g</argument>
+				<argument>-classpath</argument> <classpath /> <argument>${mainclass}</argument>
+				<argument>${h5file}</argument> </arguments> </configuration> </plugin> -->
+		</plugins>
 	</build>
 </project>

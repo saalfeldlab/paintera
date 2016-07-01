@@ -184,12 +184,17 @@ public class BigCatAriadne
 
 		final String windowTitle = "BigCAT";
 
+		final ArrayList< SetCache > cacheLoaders = new ArrayList<>();
+		cacheLoaders.add( raw );
+		cacheLoaders.add( fragments );
+
+		@SuppressWarnings( "unchecked" )
 		final BigDataViewer bdv = Util.createViewer(
 				windowTitle,
-				new AbstractH5SetupImageLoader[]{ raw },
+				Arrays.asList( new AbstractH5SetupImageLoader[]{ raw } ),
 //				new ARGBConvertedLabelsSource[]{ convertedFragments },
-				new ARGBConvertedLabelPairSource[]{ convertedLabelPair },
-				new SetCache[]{ fragments },
+				Arrays.asList( new ARGBConvertedLabelPairSource[]{ convertedLabelPair } ),
+				cacheLoaders,
 				composites,
 				null );
 
@@ -259,8 +264,6 @@ public class BigCatAriadne
 				fragments.getMipmapTransforms()[ 0 ],
 				assignment,
 				selectionController,
-				paintedLabelsFilePath,
-				paintedLabelsDataset,
 				cellDimensions,
 				config,
 				0 );
