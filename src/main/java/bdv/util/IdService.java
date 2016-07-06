@@ -5,25 +5,12 @@ import java.util.stream.LongStream;
 public interface IdService
 {
 	/**
-	 * Set the next ID.
-	 *
-	 * @param id
-	 */
-	public void setNext( final long id );
-
-	/**
 	 * Invalidate an ID.  Sets the next ID of this service if the passed ID
 	 * is greater than the current next ID.
 	 *
 	 * @param id
 	 */
-	default public void invalidate( final long id )
-	{
-		synchronized( this )
-		{
-			setNext( max( next(), id + 1 ) );
-		}
-	}
+	public void invalidate( final long id );
 
 	/**
 	 * Get the next ID.

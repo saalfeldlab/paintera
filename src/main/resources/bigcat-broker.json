@@ -1,0 +1,5 @@
+{
+  "id_service_url" : "tcp://localhost:5555",
+  "solver_url" : "tcp://localhost:9001",
+  "client_url" : "tcp://localhost:9002"
+}

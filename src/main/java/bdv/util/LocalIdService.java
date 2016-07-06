@@ -7,6 +7,11 @@ public class LocalIdService implements IdService {
 	private long next = 0;
 
 	@Override
+	public synchronized void invalidate( final long id )
+	{
+		next = IdService.max( next, id + 1 ) ;
+	}
+
 	public void setNext( final long id )
 	{
 		next = id;
