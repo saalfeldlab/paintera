@@ -17,6 +17,8 @@
 package bdv.bigcat.control;
 
 import java.lang.reflect.Type;
+import java.nio.charset.Charset;
+import java.util.Arrays;
 import java.util.LinkedList;
 import java.util.List;
 
@@ -63,6 +65,7 @@ public class AgglomerationClientController
 	final protected SelectionController selectionController;
 	final protected FragmentSegmentAssignment assignment;
 	final protected Socket socket;
+	final protected SocketListener socketListener;
 
 	// for behavioUrs
 	private final BehaviourMap behaviourMap = new BehaviourMap();
@@ -142,6 +145,54 @@ public class AgglomerationClientController
 		}
 	}
 
+	static private class FragmentSegmentLutMessage
+	{
+		private class Data
+		{
+			private long[] fragments;
+			private long[] segments;
+		}
+
+		final public String type = "fragment-segment-lut";
+		final public Data data;
+
+		public FragmentSegmentLutMessage( final Data data )
+		{
+			this.data = data;
+		}
+	}
+
+	protected class SocketListener extends Thread
+	{
+		final void handleMessage( final String json )
+		{
+			final FragmentSegmentLutMessage lutMsg = gson.fromJson( json, FragmentSegmentLutMessage.class );
+
+			System.out.println( "Message received" );
+			System.out.println( lutMsg );
+
+			final TLongLongHashMap lut = new TLongLongHashMap();
+			final long[] fragments = lutMsg.data.fragments;
+			final long[] segments = lutMsg.data.segments;
+			final int n = Math.min( fragments.length, segments.length );
+			for ( int i = 0; i < n; ++i )
+				lut.put( fragments[ i ], segments[ i ] );
+
+			assignment.initLut( lut );
+			viewer.requestRepaint();
+		}
+
+		@Override
+		final public void run()
+		{
+			while ( !isInterrupted() )
+			{
+				final String json = socket.recvStr( Charset.defaultCharset() );
+				handleMessage( json );
+			}
+		}
+	}
+
 	public BehaviourMap getBehaviourMap()
 	{
 		return behaviourMap;
@@ -194,6 +245,9 @@ public class AgglomerationClientController
 
 		inputActionBindings.addActionMap( "agglomerate", ksActionMap );
 		inputActionBindings.addInputMap( "agglomerate", ksInputMap );
+
+		socketListener = new SocketListener();
+		socketListener.start();
 	}
 
 	////////////////
