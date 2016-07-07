@@ -16,13 +16,27 @@
  */
 package bdv.bigcat.label;
 
+import bdv.bigcat.ui.GoldenAngleSaturatedARGBStream;
+import bdv.bigcat.ui.PairLabelMultisetLongARGBConverter;
 import bdv.labels.labelset.Label;
 import bdv.labels.labelset.LabelMultisetType;
+import bdv.labels.labelset.Multiset.Entry;
+import bdv.util.LocalIdService;
 import bdv.viewer.ViewerPanel;
+import gnu.trove.set.hash.TLongHashSet;
+import net.imglib2.FinalInterval;
+import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.RealRandomAccess;
 import net.imglib2.RealRandomAccessible;
+import net.imglib2.converter.Converters;
+import net.imglib2.img.display.imagej.ImageJFunctions;
+import net.imglib2.realtransform.AffineTransform3D;
+import net.imglib2.realtransform.RealViews;
+import net.imglib2.type.numeric.ARGBType;
 import net.imglib2.type.numeric.integer.LongType;
 import net.imglib2.util.Pair;
+import net.imglib2.view.IntervalView;
+import net.imglib2.view.Views;
 
 /**
  * @author Stephan Saalfeld &lt;saalfelds@janelia.hhmi.org&gt;
@@ -30,6 +44,7 @@ import net.imglib2.util.Pair;
 public class PairLabelMultiSetLongIdPicker implements IdPicker
 {
 	final protected ViewerPanel viewer;
+	final protected RealRandomAccessible< Pair< LabelMultisetType, LongType > > labels;
 	final protected RealRandomAccess< Pair< LabelMultisetType, LongType > > labelAccess;
 
 	public PairLabelMultiSetLongIdPicker(
@@ -37,6 +52,7 @@ public class PairLabelMultiSetLongIdPicker implements IdPicker
 			final RealRandomAccessible< Pair< LabelMultisetType, LongType > > labels )
 	{
 		this.viewer = viewer;
+		this.labels = labels;
 		labelAccess = labels.realRandomAccess();
 	}
 
@@ -71,5 +87,58 @@ public class PairLabelMultiSetLongIdPicker implements IdPicker
 		labelAccess.setPosition( z, 2 );
 
 		return getId();
+	}
+
+	@Override
+	public synchronized TLongHashSet getVisibleIds()
+	{
+		final TLongHashSet visibleIds = new TLongHashSet();
+		final int w = viewer.getWidth();
+		final int h = viewer.getHeight();
+		final AffineTransform3D viewerTransform = new AffineTransform3D();
+		viewer.getState().getViewerTransform( viewerTransform );
+		IntervalView< Pair< LabelMultisetType, LongType > > screenLabels =
+				Views.interval(
+						Views.hyperSlice(
+								RealViews.affine( labels, viewerTransform ), 2, 0 ),
+						new FinalInterval( w, h ) );
+
+		for ( final Pair< LabelMultisetType, LongType > pixel : Views.iterable( screenLabels ) )
+		{
+			final long b = pixel.getB().get();
+			if ( b == Label.TRANSPARENT )
+			{
+				final LabelMultisetType a = pixel.getA();
+				for ( final Entry< Label > entry : a.entrySet() )
+					visibleIds.add( entry.getElement().id() );
+			}
+			else
+				visibleIds.add( b );
+		}
+
+		return visibleIds;
+	}
+
+	/**
+	 * Visualization to test how it works.
+	 *
+	 * @param screenLabels
+	 */
+	@SuppressWarnings( "unused" )
+	private void visualizeVisibleIds(
+			final RandomAccessibleInterval< Pair< LabelMultisetType, LongType > > screenLabels )
+	{
+		final GoldenAngleSaturatedARGBStream argbStream =
+				new GoldenAngleSaturatedARGBStream(
+						new FragmentSegmentAssignment(
+								new LocalIdService() ) );
+
+		final RandomAccessibleInterval< ARGBType > convertedScreenLabels =
+				Converters.convert(
+						screenLabels,
+						new PairLabelMultisetLongARGBConverter( argbStream ),
+						new ARGBType() );
+
+		ImageJFunctions.show( convertedScreenLabels );
 	}
 }

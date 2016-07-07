@@ -16,6 +16,8 @@
  */
 package bdv.bigcat.label;
 
+import gnu.trove.set.TLongSet;
+
 /**
  * @author Stephan Saalfeld &lt;saalfelds@janelia.hhmi.org&gt;
  */
@@ -40,5 +42,10 @@ public interface IdPicker
 	 */
 	public long getIdAtWorldCoordinate( final double x, final double y, final double z );
 
-
+	/**
+	 * Get all ids that are currently visible at the screen.
+	 *
+	 * @return
+	 */
+	public TLongSet getVisibleIds();
 }
