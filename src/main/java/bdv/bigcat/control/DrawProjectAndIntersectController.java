@@ -77,12 +77,6 @@ public class DrawProjectAndIntersectController implements TransformListener< Aff
 
 	private final IdService idService;
 
-	private final InputTriggerConfig config;
-
-	private final InputActionBindings inputActionBindings;
-
-	private final TriggerBehaviourBindings bindings;
-
 	private final InputMap ksWithinModeInputMap = new InputMap();
 
 	private final ActionMap ksWithinModeActionMap = new ActionMap();
@@ -103,7 +97,7 @@ public class DrawProjectAndIntersectController implements TransformListener< Aff
 
 	public final BrushOverlay brushOverlay = new BrushOverlay();
 
-	private float overlayAlpha = 0.5f;
+	private final float overlayAlpha = 0.5f;
 
 	final protected RealPoint labelLocation = new RealPoint( 3 );
 
@@ -121,32 +115,16 @@ public class DrawProjectAndIntersectController implements TransformListener< Aff
 
 	private final SelectionController selectionController;
 
-	public DrawProjectAndIntersectController(
-			final BigDataViewer bdv,
-			final IdService idService,
-			final AffineTransform3D viewerToGlobalCoordinatesTransform,
-			final InputTriggerConfig config,
-			final RandomAccessibleInterval< LabelMultisetType > labels,
-			final RandomAccessibleInterval< LongType > paintedLabels,
-			final AffineTransform3D labelTransform,
-			final FragmentSegmentAssignment assignment,
-			final AbstractSaturatedARGBStream colorStream,
-			final SelectionController selectionController,
-			final InputActionBindings inputActionBindings,
-			final TriggerBehaviourBindings bindings,
-			final String... activateModeKeys )
+	public DrawProjectAndIntersectController( final BigDataViewer bdv, final IdService idService, final AffineTransform3D viewerToGlobalCoordinatesTransform, final InputTriggerConfig config, final RandomAccessibleInterval< LabelMultisetType > labels, final RandomAccessibleInterval< LongType > paintedLabels, final AffineTransform3D labelTransform, final FragmentSegmentAssignment assignment, final AbstractSaturatedARGBStream colorStream, final SelectionController selectionController, final InputActionBindings inputActionBindings, final TriggerBehaviourBindings bindings, final String... activateModeKeys )
 	{
 		this.viewer = bdv.getViewer();
 		this.idService = idService;
-		this.config = config;
-		this.inputActionBindings = inputActionBindings;
 		this.labels = labels;
 		this.paintedLabels = paintedLabels;
 		this.labelTransform = labelTransform;
 		this.assignment = assignment;
 		this.colorStream = colorStream;
 		this.selectionController = selectionController;
-		this.bindings = bindings;
 
 		viewer.addTransformListener( this );
 
@@ -267,7 +245,7 @@ public class DrawProjectAndIntersectController implements TransformListener< Aff
 			filledPixelsOverlay.img = filledPixelsOverlay.create();
 			filledPixelsOverlay.imgOld = null;
 			filledPixelsOverlay.setVisible( true );
-//            cmObsolete.updateRGB( getColor() );
+			// cmObsolete.updateRGB( getColor() );
 			updateCM();
 			System.out.println( "Action: " + getColor() );
 		}
@@ -401,7 +379,8 @@ public class DrawProjectAndIntersectController implements TransformListener< Aff
 
 		public BufferedImage create( final int width, final int height )
 		{
-//            return new BufferedImage( width, height, BufferedImage.TYPE_INT_ARGB );
+			// return new BufferedImage( width, height,
+			// BufferedImage.TYPE_INT_ARGB );
 			return new BufferedImage( width, height, BufferedImage.TYPE_BYTE_INDEXED, new IndexColorModel( 2, 2, r, g, b, a ) );
 		}
 
@@ -558,7 +537,8 @@ public class DrawProjectAndIntersectController implements TransformListener< Aff
 
 			viewer.getDisplay().repaint();
 
-//             System.out.println( getName() + " drag start (" + oX + ", " + oY + ")" );
+			// System.out.println( getName() + " drag start (" + oX + ", " + oY
+			// + ")" );
 		}
 
 		@Override
@@ -568,7 +548,8 @@ public class DrawProjectAndIntersectController implements TransformListener< Aff
 
 			paint( oX, oY, x, y );
 
-//            System.out.println( getName() + " drag by (" + (x -oX ) + ", " + (y-oY) + ")" );
+			// System.out.println( getName() + " drag by (" + (x -oX ) + ", " +
+			// (y-oY) + ")" );
 
 			synchronized ( this )
 			{
@@ -723,8 +704,9 @@ public class DrawProjectAndIntersectController implements TransformListener< Aff
 
 				final ExtendedRandomAccessibleInterval< ByteType, IntervalView< ByteType > > borderExtended = Views.extendBorder( Views.interval( Views.addDimension( img ), new FinalInterval( img.dimension( 0 ), img.dimension( 1 ), overlayValueAtPoint ) ) );
 
-				final RandomAccessibleOnRealRandomAccessible< ByteType > interpolatedAndTransformed = Views.raster( RealViews.transform( Views.interpolate( borderExtended, new NearestNeighborInterpolatorFactory<>() ), labelTransform.inverse().copy().concatenate( viewerToGlobalCoordinatesTransform.inverse() )// toLabelSpace
-				) );
+				final RandomAccessibleOnRealRandomAccessible< ByteType > interpolatedAndTransformed =
+						Views.raster( RealViews.transform( Views.interpolate( borderExtended, new NearestNeighborInterpolatorFactory<>() ), labelTransform.inverse().copy().concatenate( viewerToGlobalCoordinatesTransform.inverse() )// toLabelSpace
+								) );
 
 				final long seedFragmentLabel = LabelFillController.getBiggestLabel( labels, p );
 				System.out.println( seedFragmentLabel + " " + overlayValueAtPoint + " " + getColor().getRGB() );
