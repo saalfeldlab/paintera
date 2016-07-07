@@ -27,7 +27,7 @@ public class ConfirmSegmentController
 	final protected SelectionController selectionController;
 	final protected FragmentSegmentAssignment assignment;
 	final protected AbstractARGBStream colorStream;
-	final protected Switch hideConfirmed;
+	final protected Wheel modeWheel;
 
 	// for keystroke actions
 	private final ActionMap ksActionMap = new ActionMap();
@@ -40,7 +40,7 @@ public class ConfirmSegmentController
 			final SelectionController selectionController,
 			final FragmentSegmentAssignment assignment,
 			final AbstractARGBStream colorStream,
-			final Switch hideConfirmed,
+			final Wheel modeWheel,
 			final InputTriggerConfig config,
 			final InputActionBindings inputActionBindings )
 	{
@@ -48,11 +48,12 @@ public class ConfirmSegmentController
 		this.selectionController = selectionController;
 		this.assignment = assignment;
 		this.colorStream = colorStream;
-		this.hideConfirmed = hideConfirmed;
+		this.modeWheel = modeWheel;
 		ksKeyStrokeAdder = config.keyStrokeAdder( ksInputMap, "confirm segment" );
 
 		new ConfirmSegment( "confirm segment", "U" ).register();
-		new ToggleConfirmedSegmentVisibility( "toggle confirmed segment visibility", "J" ).register();
+		new AdvanceVisibilityMode( "advance visibility mode", "J" ).register();
+		new RegressVisibilityMode( "regress visibility mode", "shift J" ).register();
 
 		inputActionBindings.addActionMap( "confirm segment", ksActionMap );
 		inputActionBindings.addInputMap( "confirm segment", ksInputMap );
@@ -96,9 +97,9 @@ public class ConfirmSegmentController
 		}
 	}
 
-	private class ToggleConfirmedSegmentVisibility extends SelfRegisteringAction
+	private class AdvanceVisibilityMode extends SelfRegisteringAction
 	{
-		public ToggleConfirmedSegmentVisibility( final String name, final String ... defaultTriggers )
+		public AdvanceVisibilityMode( final String name, final String ... defaultTriggers )
 		{
 			super( name, defaultTriggers );
 		}
@@ -106,14 +107,30 @@ public class ConfirmSegmentController
 		@Override
 		public void actionPerformed( final ActionEvent e )
 		{
-			boolean hideConfirmedState;
 			synchronized ( viewer )
 			{
-				hideConfirmed.toggleSwitch();
-				hideConfirmedState = hideConfirmed.getSwitch();
+				modeWheel.advance();
 				colorStream.clearCache();
 			}
-			viewer.showMessage( ( hideConfirmedState ? "hiding" : "showing" ) + " confirmed fragments" );
+			viewer.requestRepaint();
+		}
+	}
+
+	private class RegressVisibilityMode extends SelfRegisteringAction
+	{
+		public RegressVisibilityMode( final String name, final String ... defaultTriggers )
+		{
+			super( name, defaultTriggers );
+		}
+
+		@Override
+		public void actionPerformed( final ActionEvent e )
+		{
+			synchronized ( viewer )
+			{
+				modeWheel.regress();
+				colorStream.clearCache();
+			}
 			viewer.requestRepaint();
 		}
 	}

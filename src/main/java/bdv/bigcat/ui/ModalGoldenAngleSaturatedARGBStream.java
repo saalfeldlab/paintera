@@ -16,7 +16,7 @@
  */
 package bdv.bigcat.ui;
 
-import bdv.bigcat.control.Switch;
+import bdv.bigcat.control.Wheel;
 import bdv.bigcat.label.FragmentSegmentAssignment;
 import bdv.labels.labelset.Label;
 
@@ -30,39 +30,55 @@ import bdv.labels.labelset.Label;
  *
  * @author Stephan Saalfeld &lt;saalfelds@janelia.hhmi.org&gt;
  */
-public class GoldenAngleSaturatedConfirmSwitchARGBStream extends GoldenAngleSaturatedARGBStream implements Switch
+public class ModalGoldenAngleSaturatedARGBStream extends GoldenAngleSaturatedARGBStream implements Wheel
 {
-	protected boolean hideConfirmed = true;
+	final static public int NORMAL = 0;
+	final static public int HIDE_CONFIRMED = 1;
+	final static public int SELECTED_ONLY = 2;
 
-	public GoldenAngleSaturatedConfirmSwitchARGBStream( final FragmentSegmentAssignment assignment )
+	protected int mode = 0;
+
+	public ModalGoldenAngleSaturatedARGBStream( final FragmentSegmentAssignment assignment )
 	{
 		super( assignment );
 		seed = 1;
 	}
 
 	@Override
-	public void toggleSwitch()
+	public synchronized void advance()
 	{
-		hideConfirmed = !hideConfirmed;
+		++mode;
+		if ( mode == 3 )
+			mode = 0;
 	}
 
 	@Override
-	public void setSwitch( final boolean value )
+	public synchronized void regress()
 	{
-		hideConfirmed = value;
+		--mode;
+		if ( mode == -1 )
+			mode = 2;
 	}
 
 	@Override
-	public boolean getSwitch()
+	public void setMode( final int value )
 	{
-		return hideConfirmed;
+		mode = value % 3;
+	}
+
+	@Override
+	public int getMode()
+	{
+		return mode;
 	}
 
 	@Override
 	public int argb( final long fragmentId )
 	{
 		long segmentId = assignment.getSegment( fragmentId );
-		if ( Label.INVALID == segmentId && !hideConfirmed )
+
+		/* TODO confusing because mixing segment assignment with display logic, instead track 'confirmed' segments separately */
+		if ( Label.INVALID == segmentId && mode != HIDE_CONFIRMED )
 			segmentId = fragmentId;
 		int argb = argbCache.get( segmentId );
 		if ( argb == 0x00000000 )
@@ -85,12 +101,23 @@ public class GoldenAngleSaturatedConfirmSwitchARGBStream extends GoldenAngleSatu
 				argbCache.put( segmentId, argb );
 			}
 		}
-		if ( Label.INVALID == segmentId )
-			argb = argb & 0x00ffffff | invalidSegmentAlpha;
-		else if ( activeFragment == fragmentId )
-			argb = argb & 0x00ffffff | activeFragmentAlpha;
-		else if ( activeSegment == segmentId )
-			argb = argb & 0x00ffffff | activeSegmentAlpha;
+		if ( mode == SELECTED_ONLY )
+		{
+			argb = argb & 0x00ffffff;
+			if ( activeFragment == fragmentId )
+				argb = argb | activeFragmentAlpha;
+			else if ( activeSegment == segmentId )
+				argb = argb | activeSegmentAlpha;
+		}
+		else
+		{
+			if ( Label.INVALID == segmentId )
+				argb = argb & 0x00ffffff | invalidSegmentAlpha;
+			else if ( activeFragment == fragmentId )
+				argb = argb & 0x00ffffff | activeFragmentAlpha;
+			else if ( activeSegment == segmentId )
+				argb = argb & 0x00ffffff | activeSegmentAlpha;
+		}
 
 		return argb;
 	}

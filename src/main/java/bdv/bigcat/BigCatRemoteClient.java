@@ -38,7 +38,7 @@ import bdv.bigcat.control.TranslateZController;
 import bdv.bigcat.label.FragmentSegmentAssignment;
 import bdv.bigcat.label.PairLabelMultiSetLongIdPicker;
 import bdv.bigcat.ui.ARGBConvertedLabelPairSource;
-import bdv.bigcat.ui.GoldenAngleSaturatedConfirmSwitchARGBStream;
+import bdv.bigcat.ui.ModalGoldenAngleSaturatedARGBStream;
 import bdv.bigcat.ui.Util;
 import bdv.img.SetCache;
 import bdv.img.h5.H5LabelMultisetSetupImageLoader;
@@ -106,7 +106,7 @@ public class BigCatRemoteClient
 	private CellImg< LongType, ?, ? > canvas = null;
 
 	private BigDataViewer bdv;
-	private final GoldenAngleSaturatedConfirmSwitchARGBStream colorStream;
+	private final ModalGoldenAngleSaturatedARGBStream colorStream;
 	private final FragmentSegmentAssignment assignment;
 
 	private LabelPersistenceController persistenceController;
@@ -189,7 +189,7 @@ public class BigCatRemoteClient
 			assignment.initLut( lut );
 
 		/* color stream */
-		colorStream = new GoldenAngleSaturatedConfirmSwitchARGBStream( assignment );
+		colorStream = new ModalGoldenAngleSaturatedARGBStream( assignment );
 		colorStream.setAlpha( 0x20 );
 
 		/* labels */
