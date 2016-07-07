@@ -26,13 +26,13 @@ import bdv.bigcat.annotation.AnnotationsHdf5Store;
 import bdv.bigcat.composite.ARGBCompositeAlphaYCbCr;
 import bdv.bigcat.composite.Composite;
 import bdv.bigcat.composite.CompositeCopy;
+import bdv.bigcat.control.AgglomerationClientController;
 import bdv.bigcat.control.AnnotationsController;
 import bdv.bigcat.control.ConfirmSegmentController;
 import bdv.bigcat.control.DrawProjectAndIntersectController;
 import bdv.bigcat.control.LabelBrushController;
 import bdv.bigcat.control.LabelFillController;
 import bdv.bigcat.control.LabelPersistenceController;
-import bdv.bigcat.control.MergeController;
 import bdv.bigcat.control.SelectionController;
 import bdv.bigcat.control.TranslateZController;
 import bdv.bigcat.label.FragmentSegmentAssignment;
@@ -321,25 +321,25 @@ public class BigCatRemoteClient
 					bdv.getViewerFrame().getKeybindings(),
 					config);
 
-			final MergeController mergeController = new MergeController(
-					bdv.getViewer(),
-					idPicker,
-					selectionController,
-					assignment,
-					config,
-					bdv.getViewerFrame().getKeybindings(),
-					config);
-
-//			final AgglomerationClientController mergeController = new AgglomerationClientController(
+//			final MergeController mergeController = new MergeController(
 //					bdv.getViewer(),
 //					idPicker,
 //					selectionController,
 //					assignment,
-//					ctx,
-//					brokerConfig.solver_url,
 //					config,
 //					bdv.getViewerFrame().getKeybindings(),
 //					config);
+
+			final AgglomerationClientController mergeController = new AgglomerationClientController(
+					bdv.getViewer(),
+					idPicker,
+					selectionController,
+					assignment,
+					ctx,
+					brokerConfig.solver_url,
+					config,
+					bdv.getViewerFrame().getKeybindings(),
+					config);
 
 			/* TODO fix to deal with correct transform */
 			brushController = new LabelBrushController(

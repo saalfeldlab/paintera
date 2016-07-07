@@ -48,6 +48,9 @@ import bdv.util.AbstractNamedAction;
 import bdv.util.AbstractNamedAction.NamedActionAdder;
 import bdv.viewer.InputActionBindings;
 import bdv.viewer.ViewerPanel;
+import gnu.trove.map.hash.TLongLongHashMap;
+import gnu.trove.set.TLongSet;
+import gnu.trove.set.hash.TLongHashSet;
 
 /**
  * @author Stephan Saalfeld &lt;saalfelds@janelia.hhmi.org&gt;
@@ -106,6 +109,21 @@ public class AgglomerationClientController
 
 		@Override
 		public String getType() { return "separate"; }
+	}
+
+	static private class MergeAndSeparate implements Action
+	{
+		final public long[] fragments;
+		final public long[] from;
+
+		public MergeAndSeparate( final long[] fragments, final long[] from )
+		{
+			this.fragments = fragments;
+			this.from = from;
+		}
+
+		@Override
+		public String getType() { return "merge-and-separate"; }
 	}
 
 	static private class ActionSerializer implements JsonSerializer< Action >
@@ -167,11 +185,12 @@ public class AgglomerationClientController
 		ksKeyStrokeAdder = keyProperties.keyStrokeAdder( ksInputMap, "merge" );
 
 		/* connect */
-		socket = ctx.createSocket( ZMQ.REQ );
+		socket = ctx.createSocket( ZMQ.PAIR );
 		socket.connect( solverUrl );
 
 		new MergeBehaviour( "merge", "shift button1" ).register();
 		new SeparateBehavior( "separate", "shift button3" ).register();
+		new MergeAndSeparateBehaviour( "merge-and-separate", "T button1" ).register();
 
 		inputActionBindings.addActionMap( "agglomerate", ksActionMap );
 		inputActionBindings.addInputMap( "agglomerate", ksInputMap );
@@ -238,16 +257,16 @@ public class AgglomerationClientController
 				viewer.requestRepaint();
 
 				/* solver */
-				final Merge merge = new Merge( new long[]{ oldActiveFragmentId, id } );
+				final Merge action = new Merge( new long[]{ oldActiveFragmentId, id } );
 				do
 				{
 					System.out.println( "Sending to " + socket + " :" );
-					System.out.println( gson.toJson( merge ) );
+					System.out.println( gson.toJson( action, Action.class ) );
 				}
-				while ( !socket.send( gson.toJson( merge ) ) );
+				while ( !socket.send( gson.toJson( action, Action.class ) ) );
 
 				/* TODO not necessary, just for the record */
-				actions.add( merge );
+				actions.add( action );
 			}
 		}
 	}
@@ -279,16 +298,58 @@ public class AgglomerationClientController
 				viewer.requestRepaint();
 
 				/* solver */
-				final Separate separate = new Separate( id, from );
+				final Separate action = new Separate( id, from );
 				do
 				{
 					System.out.println( "Sending to " + socket + " :" );
-					System.out.println( gson.toJson( separate ) );
+					System.out.println( gson.toJson( action, Action.class ) );
 				}
-				while ( !socket.send( gson.toJson( separate ) ) );
+				while ( !socket.send( gson.toJson( action, Action.class ) ) );
 
 				/* TODO not necessary, just for the record */
-				actions.add( separate );
+				actions.add( action );
+			}
+		}
+	}
+
+	private class MergeAndSeparateBehaviour extends SelfRegisteringBehaviour implements ClickBehaviour
+	{
+		public MergeAndSeparateBehaviour( final String name, final String ... defaultTriggers )
+		{
+			super( name, defaultTriggers );
+		}
+
+		@Override
+		public void click( final int x, final int y )
+		{
+			final long id = idPicker.getIdAtDisplayCoordinate( x, y );
+			if ( Label.regular( id ) )
+			{
+				final TLongSet visibleIds = idPicker.getVisibleIds();
+				final long[] inActiveSegmentIds = assignment.getFragments( assignment.getSegment( id ) );
+
+				/* helps for intersection and difference as follows */
+				Arrays.sort( inActiveSegmentIds );
+
+				final TLongSet visibleInActiveSegmentIds = new TLongHashSet( visibleIds );
+				visibleInActiveSegmentIds.retainAll( inActiveSegmentIds );
+				final TLongSet visibleNotInActiveSegmentIds = new TLongHashSet( visibleIds );
+				visibleNotInActiveSegmentIds.removeAll( inActiveSegmentIds );
+
+				/* solver */
+				final MergeAndSeparate action =
+						new MergeAndSeparate(
+								visibleInActiveSegmentIds.toArray(),
+								visibleNotInActiveSegmentIds.toArray() );
+				do
+				{
+					System.out.println( "Sending to " + socket + " :" );
+					System.out.println( gson.toJson( action, Action.class ) );
+				}
+				while ( !socket.send( gson.toJson( action, Action.class ) ) );
+
+				/* TODO not necessary, just for the record */
+				actions.add( action );
 			}
 		}
 	}
