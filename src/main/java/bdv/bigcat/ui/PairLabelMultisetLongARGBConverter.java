@@ -17,30 +17,29 @@
 package bdv.bigcat.ui;
 
 import bdv.labels.labelset.Label;
+import bdv.labels.labelset.LabelMultisetType;
 import bdv.labels.labelset.Multiset.Entry;
-import bdv.labels.labelset.VolatileLabelMultisetType;
 import net.imglib2.converter.Converter;
 import net.imglib2.type.numeric.ARGBType;
 import net.imglib2.type.numeric.integer.LongType;
-import net.imglib2.type.volatiles.VolatileARGBType;
 import net.imglib2.util.Pair;
 
 /**
  * @author Stephan Saalfeld &lt;saalfelds@janelia.hhmi.org&gt;
  */
-public class PairVolatileLabelMultisetLongARGBConverter
-		implements Converter< Pair< VolatileLabelMultisetType, LongType >, VolatileARGBType >
+public class PairLabelMultisetLongARGBConverter
+		implements Converter< Pair< LabelMultisetType, LongType >, ARGBType >
 {
 	final static private double iFF = 1.0 / 255.0;
 
 	final protected ARGBStream argbStream;
 
-	public PairVolatileLabelMultisetLongARGBConverter( final ARGBStream argbStream )
+	public PairLabelMultisetLongARGBConverter( final ARGBStream argbStream )
 	{
 		this.argbStream = argbStream;
 	}
 
-	protected void convertValid( final VolatileLabelMultisetType input, final VolatileARGBType output )
+	protected void convert( final LabelMultisetType input, final ARGBType output )
 	{
 		double a = 0;
 		double r = 0;
@@ -48,7 +47,7 @@ public class PairVolatileLabelMultisetLongARGBConverter
 		double b = 0;
 		double alphaCountSize = 0;
 
-		for ( final Entry< Label > entry : input.get().entrySet() )
+		for ( final Entry< Label > entry : input.entrySet() )
 		{
 			final int argb = argbStream.argb( entry.getElement().id() );
 			final double alpha = ARGBType.alpha( argb );
@@ -64,32 +63,21 @@ public class PairVolatileLabelMultisetLongARGBConverter
 		final int rInt = Math.min( 255, ( int ) ( r * iAlphaCountSize ) );
 		final int gInt = Math.min( 255, ( int ) ( g * iAlphaCountSize ) );
 		final int bInt = Math.min( 255, ( int ) ( b * iAlphaCountSize ) );
-		output.setValid( true );
 		output.set( ( ( ( ( ( aInt << 8 ) | rInt ) << 8 ) | gInt ) << 8 ) | bInt );
 	}
 
 	@Override
 	public void convert(
-			final Pair< VolatileLabelMultisetType, LongType > input,
-			final VolatileARGBType output )
+			final Pair< LabelMultisetType, LongType > input,
+			final ARGBType output )
 	{
 		final long inputB = input.getB().get();
 		if ( inputB == Label.TRANSPARENT )
 		{
-			final VolatileLabelMultisetType inputA = input.getA();
-			if ( inputA.isValid() )
-			{
-				convertValid( inputA, output );
-			}
-			else
-			{
-				output.setValid( false );
-			}
+			final LabelMultisetType inputA = input.getA();
+			convert( inputA, output );
 		}
 		else
-		{
 			output.set( argbStream.argb( inputB ) );
-			output.setValid( true );
-		}
 	}
 }
