@@ -169,7 +169,7 @@ public class AgglomerationClientController
 			final FragmentSegmentLutMessage lutMsg = gson.fromJson( json, FragmentSegmentLutMessage.class );
 
 			System.out.println( "Message received" );
-			System.out.println( lutMsg );
+			System.out.println( gson.toJson( lutMsg ) );
 
 			final TLongLongHashMap lut = new TLongLongHashMap();
 			final long[] fragments = lutMsg.data.fragments;
@@ -343,7 +343,8 @@ public class AgglomerationClientController
 				final long sid1 = assignment.getSegment( id );
 				final long sid2 = assignment.getSegment( oldActiveFragmentId );
 				final long[] from =
-						sid1 == sid2 && oldActiveFragmentId != id ?
+//						sid1 == sid2 && oldActiveFragmentId != id ?
+						oldActiveFragmentId != id ?
 								new long[]{ oldActiveFragmentId } : new long[ 0 ];
 
 				/* local */
