@@ -519,6 +519,40 @@ public class H5Utils
 		final HDF5DataTypeInformation attributeInfo = reader.object().getAttributeInformation( object, attribute );
 		final Class< ? > type = attributeInfo.tryGetJavaType();
 		System.out.println( "class: " + type );
+		if ( type.isAssignableFrom( long[].class ) )
+		{
+			if ( attributeInfo.isSigned() )
+				return ( T )( reader.int64().getArrayAttr( object, attribute ) );
+			else
+				return ( T )( reader.uint64().getArrayAttr( object, attribute ) );
+		}
+		if ( type.isAssignableFrom( int[].class ) )
+		{
+			if ( attributeInfo.isSigned() )
+				return ( T )( reader.int32().getArrayAttr( object, attribute ) );
+			else
+				return ( T )( reader.uint32().getArrayAttr( object, attribute ) );
+		}
+		if ( type.isAssignableFrom( short[].class ) )
+		{
+			if ( attributeInfo.isSigned() )
+				return ( T )( reader.int16().getArrayAttr( object, attribute ) );
+			else
+				return ( T )( reader.uint16().getArrayAttr( object, attribute ) );
+		}
+		if ( type.isAssignableFrom( byte[].class ) )
+		{
+			if ( attributeInfo.isSigned() )
+				return ( T )( reader.int8().getArrayAttr( object, attribute ) );
+			else
+				return ( T )( reader.uint8().getArrayAttr( object, attribute ) );
+		}
+		else if ( type.isAssignableFrom( double[].class ) )
+			return ( T )( reader.float64().getArrayAttr( object, attribute ) );
+		else if ( type.isAssignableFrom( float[].class ) )
+			return ( T )( reader.float32().getArrayAttr( object, attribute ) );
+		else if ( type.isAssignableFrom( String[].class ) )
+			return ( T )( reader.string().getArrayAttr( object, attribute ) );
 		if ( type.isAssignableFrom( long.class ) )
 		{
 			if ( attributeInfo.isSigned() )
