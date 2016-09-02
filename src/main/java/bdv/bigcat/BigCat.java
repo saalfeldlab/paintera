@@ -43,7 +43,6 @@ import bdv.img.SetCache;
 import bdv.img.h5.H5LabelMultisetSetupImageLoader;
 import bdv.img.h5.H5UnsignedByteSetupImageLoader;
 import bdv.img.h5.H5Utils;
-import bdv.img.labelpair.RandomAccessiblePair;
 import bdv.labels.labelset.Label;
 import bdv.labels.labelset.LabelMultisetType;
 import bdv.labels.labelset.Multiset;
@@ -64,6 +63,7 @@ import net.imglib2.type.numeric.ARGBType;
 import net.imglib2.type.numeric.integer.LongType;
 import net.imglib2.util.Intervals;
 import net.imglib2.util.Pair;
+import net.imglib2.view.RandomAccessiblePair;
 import net.imglib2.view.Views;
 
 public class BigCat
@@ -388,8 +388,8 @@ public class BigCat
 
 			// TODO I hate this, but we need to prevent the ViewerFrame's
 			// listener from calling stop on the viewer
-			WindowListener[] listeners = bdv.getViewerFrame().getWindowListeners();
-			for ( WindowListener wl : listeners )
+			final WindowListener[] listeners = bdv.getViewerFrame().getWindowListeners();
+			for ( final WindowListener wl : listeners )
 				bdv.getViewerFrame().removeWindowListener( wl );
 
 			bdv.getViewerFrame().addWindowListener( new WindowAdapter()
@@ -397,7 +397,7 @@ public class BigCat
 				@Override
 				public void windowClosing( final WindowEvent we )
 				{
-					boolean reallyClose = saveBeforeClosing( params );
+					final boolean reallyClose = saveBeforeClosing( params );
 					if( reallyClose )
 					{
 						bdv.getViewerFrame().getViewerPanel().stop();
@@ -480,14 +480,14 @@ public class BigCat
 	{
 		final String message = "Save changes to " + params.inFile + " before closing?";
 
-		int option = JOptionPane.showConfirmDialog(
+		final int option = JOptionPane.showConfirmDialog(
 				bdv.getViewerFrame(),
 				message,
 				bdv.getViewerFrame().getTitle(),
 				JOptionPane.YES_NO_CANCEL_OPTION );
 
-		boolean save = option == JOptionPane.YES_OPTION;
-		boolean reallyClose =  save || option == JOptionPane.NO_OPTION;
+		final boolean save = option == JOptionPane.YES_OPTION;
+		final boolean reallyClose =  save || option == JOptionPane.NO_OPTION;
 
 		if ( save )
 		{

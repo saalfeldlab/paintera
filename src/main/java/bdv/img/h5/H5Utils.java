@@ -6,7 +6,6 @@ import java.io.File;
 import java.util.Arrays;
 
 import bdv.bigcat.label.FragmentSegmentAssignment;
-import bdv.img.labelpair.RandomAccessiblePair;
 import bdv.labels.labelset.Label;
 import bdv.labels.labelset.LabelMultiset;
 import bdv.labels.labelset.LabelMultisetType;
@@ -35,6 +34,7 @@ import net.imglib2.type.numeric.integer.UnsignedByteType;
 import net.imglib2.util.Intervals;
 import net.imglib2.util.Pair;
 import net.imglib2.util.Util;
+import net.imglib2.view.RandomAccessiblePair;
 import net.imglib2.view.Views;
 
 /**

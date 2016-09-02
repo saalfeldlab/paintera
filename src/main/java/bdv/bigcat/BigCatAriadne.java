@@ -35,7 +35,6 @@ import bdv.img.h5.AbstractH5SetupImageLoader;
 import bdv.img.h5.H5LabelMultisetSetupImageLoader;
 import bdv.img.h5.H5UnsignedByteSetupImageLoader;
 import bdv.img.h5.H5Utils;
-import bdv.img.labelpair.RandomAccessiblePair;
 import bdv.labels.labelset.Label;
 import bdv.labels.labelset.LabelMultisetType;
 import bdv.labels.labelset.VolatileLabelMultisetType;
@@ -55,6 +54,7 @@ import net.imglib2.type.numeric.ARGBType;
 import net.imglib2.type.numeric.integer.LongType;
 import net.imglib2.util.Intervals;
 import net.imglib2.util.Pair;
+import net.imglib2.view.RandomAccessiblePair;
 import net.imglib2.view.Views;
 
 public class BigCatAriadne
