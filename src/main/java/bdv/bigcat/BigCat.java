@@ -39,6 +39,7 @@ import bdv.bigcat.label.PairLabelMultiSetLongIdPicker;
 import bdv.bigcat.ui.ARGBConvertedLabelPairSource;
 import bdv.bigcat.ui.ModalGoldenAngleSaturatedARGBStream;
 import bdv.bigcat.ui.Util;
+import bdv.bigcat.util.DirtyInterval;
 import bdv.img.SetCache;
 import bdv.img.h5.H5LabelMultisetSetupImageLoader;
 import bdv.img.h5.H5UnsignedByteSetupImageLoader;
@@ -94,6 +95,8 @@ public class BigCat
 	final private ArrayList< H5UnsignedByteSetupImageLoader > raws = new ArrayList<>();
 	final private ArrayList< H5LabelMultisetSetupImageLoader > labels = new ArrayList<>();
 	final private ArrayList< ARGBConvertedLabelPairSource > convertedLabelCanvasPairs = new ArrayList<>();
+
+	final private DirtyInterval dirtyLabelsInterval = new DirtyInterval();
 
 	/* TODO this has to change into a virtual container with temporary storage */
 	private CellImg< LongType, ?, ? > canvas = null;
@@ -313,6 +316,7 @@ public class BigCat
 			brushController = new LabelBrushController(
 					bdv.getViewer(),
 					canvas,
+					dirtyLabelsInterval,
 					labels.get( 0 ).getMipmapTransforms()[ 0 ],
 					assignment,
 					selectionController,
@@ -324,6 +328,7 @@ public class BigCat
 					bdv.getViewer(),
 					labels.get( 0 ).getImage( 0 ),
 					canvas,
+					dirtyLabelsInterval,
 					assignment,
 					idService,
 					params.inFile,
@@ -339,6 +344,7 @@ public class BigCat
 					bdv.getViewer(),
 					labels.get( 0 ).getImage( 0 ),
 					canvas,
+					dirtyLabelsInterval,
 					labels.get( 0 ).getMipmapTransforms()[ 0 ],
 					assignment,
 					selectionController,
@@ -355,6 +361,7 @@ public class BigCat
 					new InputTriggerConfig(),
 					labels.get( 0 ).getImage(0),
 					canvas,
+					dirtyLabelsInterval,
 					labels.get( 0 ).getMipmapTransforms()[ 0 ],
 					assignment,
 					colorStream,

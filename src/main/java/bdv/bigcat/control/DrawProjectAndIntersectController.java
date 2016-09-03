@@ -34,6 +34,9 @@ import org.scijava.ui.behaviour.io.InputTriggerConfig;
 import bdv.BigDataViewer;
 import bdv.bigcat.label.FragmentSegmentAssignment;
 import bdv.bigcat.ui.AbstractSaturatedARGBStream;
+import bdv.bigcat.util.DirtyInterval;
+import bdv.img.AccessBoxRandomAccessible;
+import bdv.labels.labelset.Label;
 import bdv.labels.labelset.LabelMultisetType;
 import bdv.util.AbstractNamedAction.NamedActionAdder;
 import bdv.util.IdService;
@@ -61,6 +64,7 @@ import net.imglib2.ui.OverlayRenderer;
 import net.imglib2.ui.TransformListener;
 import net.imglib2.util.LinAlgHelpers;
 import net.imglib2.util.Pair;
+import net.imglib2.util.Util;
 import net.imglib2.util.ValuePair;
 import net.imglib2.view.ExtendedRandomAccessibleInterval;
 import net.imglib2.view.IntervalView;
@@ -111,16 +115,33 @@ public class DrawProjectAndIntersectController implements TransformListener< Aff
 
 	final protected RandomAccessibleInterval< LongType > paintedLabels;
 
+	final protected DirtyInterval dirtyLabelsInterval;
+
 	private final AbstractSaturatedARGBStream colorStream;
 
 	private final SelectionController selectionController;
 
-	public DrawProjectAndIntersectController( final BigDataViewer bdv, final IdService idService, final AffineTransform3D viewerToGlobalCoordinatesTransform, final InputTriggerConfig config, final RandomAccessibleInterval< LabelMultisetType > labels, final RandomAccessibleInterval< LongType > paintedLabels, final AffineTransform3D labelTransform, final FragmentSegmentAssignment assignment, final AbstractSaturatedARGBStream colorStream, final SelectionController selectionController, final InputActionBindings inputActionBindings, final TriggerBehaviourBindings bindings, final String... activateModeKeys )
+	public DrawProjectAndIntersectController(
+			final BigDataViewer bdv,
+			final IdService idService,
+			final AffineTransform3D viewerToGlobalCoordinatesTransform,
+			final InputTriggerConfig config,
+			final RandomAccessibleInterval< LabelMultisetType > labels,
+			final RandomAccessibleInterval< LongType > paintedLabels,
+			final DirtyInterval dirtyLabelsInterval,
+			final AffineTransform3D labelTransform,
+			final FragmentSegmentAssignment assignment,
+			final AbstractSaturatedARGBStream colorStream,
+			final SelectionController selectionController,
+			final InputActionBindings inputActionBindings,
+			final TriggerBehaviourBindings bindings,
+			final String... activateModeKeys )
 	{
 		this.viewer = bdv.getViewer();
 		this.idService = idService;
 		this.labels = labels;
 		this.paintedLabels = paintedLabels;
+		this.dirtyLabelsInterval = dirtyLabelsInterval;
 		this.labelTransform = labelTransform;
 		this.assignment = assignment;
 		this.colorStream = colorStream;
@@ -741,9 +762,27 @@ public class DrawProjectAndIntersectController implements TransformListener< Aff
 
 				final long t0 = System.currentTimeMillis();
 
-				FloodFill.fill( new RandomAccessiblePair<>( Views.extendValue( labels, new LabelMultisetType() ), interpolatedAndTransformed ), Views.extendValue( paintedLabels, new LongType( TRANSPARENT ) ), p, new ValuePair<>( new LabelMultisetType(), new ByteType( overlayValueAtPoint ) ), new LongType( selectionController.getActiveFragmentId() ), new DiamondShape( 1 ), filter );
+				final AccessBoxRandomAccessible< LongType > accessTrackingExtendedPaintedLabels =
+						new AccessBoxRandomAccessible<>(
+							Views.extendValue(
+									paintedLabels,
+									new LongType( Label.TRANSPARENT ) ) );
+
+				FloodFill.fill( new RandomAccessiblePair<>(
+						Views.extendValue( labels, new LabelMultisetType() ),
+						interpolatedAndTransformed ),
+						accessTrackingExtendedPaintedLabels,
+						p,
+						new ValuePair<>( new LabelMultisetType(), new ByteType( overlayValueAtPoint ) ),
+						new LongType( selectionController.getActiveFragmentId() ),
+						new DiamondShape( 1 ),
+						filter );
+
+				dirtyLabelsInterval.touch( accessTrackingExtendedPaintedLabels.createAccessInterval() );
+
 				final long t1 = System.currentTimeMillis();
 				System.out.println( "Filling took " + ( t1 - t0 ) + " ms" );
+				System.out.println( "  modified box: " + Util.printInterval( dirtyLabelsInterval.getDirtyInterval() ) );
 				viewer.setCursor( Cursor.getPredefinedCursor( Cursor.DEFAULT_CURSOR ) );
 				viewer.requestRepaint();
 			}

@@ -30,6 +30,7 @@ import bdv.bigcat.label.PairLabelMultiSetLongIdPicker;
 import bdv.bigcat.ui.ARGBConvertedLabelPairSource;
 import bdv.bigcat.ui.GoldenAngleSaturatedARGBStream;
 import bdv.bigcat.ui.Util;
+import bdv.bigcat.util.DirtyInterval;
 import bdv.img.SetCache;
 import bdv.img.h5.AbstractH5SetupImageLoader;
 import bdv.img.h5.H5LabelMultisetSetupImageLoader;
@@ -204,6 +205,8 @@ public class BigCatAriadne
 
 		bdv.getViewerFrame().setVisible( true );
 
+		final DirtyInterval dirtyLabelsInterval = new DirtyInterval();
+
 		final TriggerBehaviourBindings bindings = bdv.getViewerFrame().getTriggerbindings();
 
 		final LabelMultiSetIdPicker idPicker = new LabelMultiSetIdPicker(
@@ -261,6 +264,7 @@ public class BigCatAriadne
 		final LabelBrushController brushController = new LabelBrushController(
 				bdv.getViewer(),
 				paintedLabels,
+				dirtyLabelsInterval,
 				fragments.getMipmapTransforms()[ 0 ],
 				assignment,
 				selectionController,
@@ -272,6 +276,7 @@ public class BigCatAriadne
 				bdv.getViewer(),
 				fragments.getImage( 0 ),
 				paintedLabels,
+				dirtyLabelsInterval,
 				assignment,
 				idService,
 				paintedLabelsFilePath,
@@ -286,6 +291,7 @@ public class BigCatAriadne
 				bdv.getViewer(),
 				fragments.getImage( 0 ),
 				paintedLabels,
+				dirtyLabelsInterval,
 				fragments.getMipmapTransforms()[ 0 ],
 				assignment,
 				selectionController,
@@ -310,6 +316,7 @@ public class BigCatAriadne
 				new InputTriggerConfig(),
 				fragments.getImage(0),
 				paintedLabels,
+				dirtyLabelsInterval,
 				fragments.getMipmapTransforms()[0],
 				assignment,
 				colorStream,
