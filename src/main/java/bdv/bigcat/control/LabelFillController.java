@@ -12,6 +12,8 @@ import org.scijava.ui.behaviour.io.InputTriggerConfig;
 
 import bdv.bigcat.label.FragmentSegmentAssignment;
 import bdv.bigcat.label.IdPicker;
+import bdv.bigcat.util.DirtyInterval;
+import bdv.img.AccessBoxRandomAccessible;
 import bdv.img.GrowingStoreRandomAccessibleSingletonAccess;
 import bdv.labels.labelset.Label;
 import bdv.labels.labelset.LabelMultisetType;
@@ -41,6 +43,7 @@ import net.imglib2.type.NativeType;
 import net.imglib2.type.logic.BitType;
 import net.imglib2.type.numeric.integer.LongType;
 import net.imglib2.util.Pair;
+import net.imglib2.util.Util;
 import net.imglib2.util.ValuePair;
 import net.imglib2.view.IntervalView;
 import net.imglib2.view.MixedTransformView;
@@ -59,6 +62,8 @@ public class LabelFillController
 	final protected RandomAccessibleInterval< LabelMultisetType > labels;
 
 	final protected RandomAccessibleInterval< LongType > paintedLabels;
+
+	final protected DirtyInterval dirtyLabelsInterval;
 
 	final protected AffineTransform3D labelTransform;
 
@@ -91,11 +96,22 @@ public class LabelFillController
 
 	private final double minLabelScale;
 
-	public LabelFillController( final ViewerPanel viewer, final RandomAccessibleInterval< LabelMultisetType > labels, final RandomAccessibleInterval< LongType > paintedLabels, final AffineTransform3D labelTransform, final FragmentSegmentAssignment assignment, final SelectionController selectionController, final Shape shape, final IdPicker idPicker, final InputTriggerConfig config )
+	public LabelFillController(
+			final ViewerPanel viewer,
+			final RandomAccessibleInterval< LabelMultisetType > labels,
+			final RandomAccessibleInterval< LongType > paintedLabels,
+			final DirtyInterval dirtyLabelsInterval,
+			final AffineTransform3D labelTransform,
+			final FragmentSegmentAssignment assignment,
+			final SelectionController selectionController,
+			final Shape shape,
+			final IdPicker idPicker,
+			final InputTriggerConfig config )
 	{
 		this.viewer = viewer;
 		this.labels = labels;
 		this.paintedLabels = paintedLabels;
+		this.dirtyLabelsInterval = dirtyLabelsInterval;
 		this.labelTransform = labelTransform;
 		this.assignment = assignment;
 		this.selectionController = selectionController;
@@ -165,15 +181,32 @@ public class LabelFillController
 
 				final Point p = new Point( Math.round( labelLocation.getDoublePosition( 0 ) ), Math.round( labelLocation.getDoublePosition( 1 ) ), Math.round( labelLocation.getDoublePosition( 2 ) ) );
 
-				final RandomAccess< LongType > paintAccess = Views.extendValue( paintedLabels, new LongType( Label.TRANSPARENT ) ).randomAccess();
+				final AccessBoxRandomAccessible< LongType > accessTrackingExtendedPaintedLabels =
+						new AccessBoxRandomAccessible<>(
+							Views.extendValue(
+									paintedLabels,
+									new LongType( Label.TRANSPARENT ) ) );
+
+				final RandomAccess< LongType > paintAccess = accessTrackingExtendedPaintedLabels.randomAccess();
 				paintAccess.setPosition( p );
 				final long seedPaint = paintAccess.get().getIntegerLong();
 				final long seedFragmentLabel = getBiggestLabel( labels, p );
 
 				final long t0 = System.currentTimeMillis();
-				FloodFill.fill( Views.extendValue( labels, new LabelMultisetType() ), Views.extendValue( paintedLabels, new LongType( Label.TRANSPARENT ) ), p, new LabelMultisetType(), new LongType( selectionController.getActiveFragmentId() ), new DiamondShape( 1 ), new SegmentAndPaintFilter1( seedPaint, seedFragmentLabel, assignment ) );
+				FloodFill.fill(
+						Views.extendValue( labels, new LabelMultisetType() ),
+						accessTrackingExtendedPaintedLabels,
+						p,
+						new LabelMultisetType(),
+						new LongType( selectionController.getActiveFragmentId() ),
+						new DiamondShape( 1 ),
+						new SegmentAndPaintFilter1( seedPaint, seedFragmentLabel, assignment ) );
+
+				dirtyLabelsInterval.touch( accessTrackingExtendedPaintedLabels.createAccessInterval() );
+
 				final long t1 = System.currentTimeMillis();
 				System.out.println( "Filling took " + ( t1 - t0 ) + " ms" );
+				System.out.println( "  modified box: " + Util.printInterval( dirtyLabelsInterval.getDirtyInterval() ) );
 				viewer.setCursor( Cursor.getPredefinedCursor( Cursor.DEFAULT_CURSOR ) );
 				viewer.requestRepaint();
 			}
@@ -195,9 +228,9 @@ public class LabelFillController
 			{
 				if ( idPicker.getIdAtDisplayCoordinate( x, y ) == Label.OUTSIDE )
 					return;
-				AffineTransform3D transform = new AffineTransform3D();
+				final AffineTransform3D transform = new AffineTransform3D();
 				viewer.getState().getViewerTransform( transform );
-				double scale = Affine3DHelpers.extractScale( transform, 0 ) * minLabelScale / Math.sqrt( 3 );
+				final double scale = Affine3DHelpers.extractScale( transform, 0 ) * minLabelScale / Math.sqrt( 3 );
 				System.out.println( labelTransform );
 				final int xScale = ( int ) Math.round( x / scale );
 				final int yScale = ( int ) Math.round( y / scale );
@@ -207,26 +240,26 @@ public class LabelFillController
 				setCoordinates( x, y );
 				System.out.println( "Filling " + labelLocation + " with " + selectionController.getActiveFragmentId() + " (2D)" );
 
-				RealPoint rp = new RealPoint( 3 );
+				final RealPoint rp = new RealPoint( 3 );
 				transform.apply( labelLocation, rp );
 				final Point p = new Point( xScale, yScale );
 
 				System.out.println( x + " " + y + " " + p + " " + rp );
 
-				AffineTransform3D tf = labelTransform.copy();
+				final AffineTransform3D tf = labelTransform.copy();
 				tf.preConcatenate( transform );
 				tf.preConcatenate( new Scale3D( 1.0 / scale, 1.0 / scale, 1.0 / scale ) );
 
-				AffineTransform3D tfFront = tf.copy().preConcatenate( new Translation3D( 0, 0, -1.0 / Math.sqrt( 3 ) ) );
-				AffineTransform3D tfBack = tf.copy().preConcatenate( new Translation3D( 0, 0, 1.0 / Math.sqrt( 3 ) ) );
+				final AffineTransform3D tfFront = tf.copy().preConcatenate( new Translation3D( 0, 0, -1.0 / Math.sqrt( 3 ) ) );
+				final AffineTransform3D tfBack = tf.copy().preConcatenate( new Translation3D( 0, 0, 1.0 / Math.sqrt( 3 ) ) );
 
 				final long t0 = System.currentTimeMillis();
 
-				BitType notVisited = new BitType( false );
-				BitType fillLabel = new BitType( true );
+				final BitType notVisited = new BitType( false );
+				final BitType fillLabel = new BitType( true );
 
-				GrowingStoreRandomAccessibleSingletonAccess< BitType > tmpFillFront = fillMask( tfFront, initialMin, initialMax, p, notVisited.copy(), fillLabel.copy() );
-				GrowingStoreRandomAccessibleSingletonAccess< BitType > tmpFillBack = fillMask( tfBack, initialMin, initialMax, p, notVisited.copy(), fillLabel.copy() );
+				final GrowingStoreRandomAccessibleSingletonAccess< BitType > tmpFillFront = fillMask( tfFront, initialMin, initialMax, p, notVisited.copy(), fillLabel.copy() );
+				final GrowingStoreRandomAccessibleSingletonAccess< BitType > tmpFillBack = fillMask( tfBack, initialMin, initialMax, p, notVisited.copy(), fillLabel.copy() );
 
 				final long label = selectionController.getActiveFragmentId();
 
@@ -235,45 +268,68 @@ public class LabelFillController
 
 				final long t1 = System.currentTimeMillis();
 				System.out.println( "Filling took " + ( t1 - t0 ) + " ms" );
+				System.out.println( "  modified box: " + Util.printInterval( dirtyLabelsInterval.getDirtyInterval() ) );
 				viewer.setCursor( Cursor.getPredefinedCursor( Cursor.DEFAULT_CURSOR ) );
 				viewer.requestRepaint();
 
 			}
 		}
 
-		private < T extends BooleanType< T > & NativeType< T > > GrowingStoreRandomAccessibleSingletonAccess< T > fillMask( AffineTransform3D tf, long[] initialMin, long[] initialMax, Point p, T notVisited, T fillLabel )
+		private < T extends BooleanType< T > & NativeType< T > > GrowingStoreRandomAccessibleSingletonAccess< T > fillMask( final AffineTransform3D tf, final long[] initialMin, final long[] initialMax, final Point p, final T notVisited, final T fillLabel )
 		{
 			return fillMask( tf, initialMin, initialMax, p, new GrowingStoreRandomAccessibleSingletonAccess.SimpleArrayImgFactory< T >( notVisited ), notVisited, fillLabel );
 		}
 
-		private < T extends BooleanType< T > > GrowingStoreRandomAccessibleSingletonAccess< T > fillMask( AffineTransform3D tf, long[] initialMin, long[] initialMax, Point p, GrowingStoreRandomAccessibleSingletonAccess.Factory< T > factory, T notVisited, T fillLabel )
+		private < T extends BooleanType< T > > GrowingStoreRandomAccessibleSingletonAccess< T > fillMask( final AffineTransform3D tf, final long[] initialMin, final long[] initialMax, final Point p, final GrowingStoreRandomAccessibleSingletonAccess.Factory< T > factory, final T notVisited, final T fillLabel )
 		{
+			final GrowingStoreRandomAccessibleSingletonAccess< T > tmpFill = new GrowingStoreRandomAccessibleSingletonAccess<>( initialMin, initialMax, factory, notVisited.createVariable() );
 
-			GrowingStoreRandomAccessibleSingletonAccess< T > tmpFill = new GrowingStoreRandomAccessibleSingletonAccess<>( initialMin, initialMax, factory, notVisited.createVariable() );
+			final AccessBoxRandomAccessible< LongType > accessTrackingExtendedPaintedLabels = new AccessBoxRandomAccessible<>(
+					Views.extendValue(
+							paintedLabels,
+							new LongType( Label.TRANSPARENT ) ) );
 
-			AffineRandomAccessible< LongType, AffineGet > transformedPaintedLabels = RealViews.affine( Views.interpolate( Views.extendValue( paintedLabels, new LongType( Label.TRANSPARENT ) ), new NearestNeighborInterpolatorFactory<>() ), tf );
-			MixedTransformView< LongType > hyperSlice = Views.hyperSlice( Views.raster( transformedPaintedLabels ), 2, 0 );
+			final AffineRandomAccessible< LongType, AffineGet > transformedPaintedLabels =
+					RealViews.affine(
+							Views.interpolate(
+									accessTrackingExtendedPaintedLabels,
+									new NearestNeighborInterpolatorFactory<>() ),
+							tf );
+			final MixedTransformView< LongType > hyperSlice = Views.hyperSlice( Views.raster( transformedPaintedLabels ), 2, 0 );
 
-			AffineRandomAccessible< LabelMultisetType, AffineGet > transformedLabels = RealViews.affine( Views.interpolate( Views.extendValue( labels, new LabelMultisetType() ), new NearestNeighborInterpolatorFactory<>() ), tf );
-			MixedTransformView< LabelMultisetType > hyperSliceLabels = Views.hyperSlice( Views.raster( transformedLabels ), 2, 0 );
+			final AffineRandomAccessible< LabelMultisetType, AffineGet > transformedLabels = RealViews.affine( Views.interpolate( Views.extendValue( labels, new LabelMultisetType() ), new NearestNeighborInterpolatorFactory<>() ), tf );
+			final MixedTransformView< LabelMultisetType > hyperSliceLabels = Views.hyperSlice( Views.raster( transformedLabels ), 2, 0 );
 
-			RandomAccessiblePair< LabelMultisetType, LongType > labelsPaintedLabelsPair = new RandomAccessiblePair<>( hyperSliceLabels, hyperSlice );
+			final RandomAccessiblePair< LabelMultisetType, LongType > labelsPaintedLabelsPair = new RandomAccessiblePair<>( hyperSliceLabels, hyperSlice );
 
-			RandomAccessiblePair< LabelMultisetType, LongType >.RandomAccess pairAccess = labelsPaintedLabelsPair.randomAccess();
+			final RandomAccessiblePair< LabelMultisetType, LongType >.RandomAccess pairAccess = labelsPaintedLabelsPair.randomAccess();
 			pairAccess.setPosition( p );
-			long seedPaint = pairAccess.get().getB().getIntegerLong();
-			long seedFragmentLabel = getBiggestLabel( pairAccess.getA() );
+			final long seedPaint = pairAccess.get().getB().getIntegerLong();
+			final long seedFragmentLabel = getBiggestLabel( pairAccess.getA() );
 
 			FloodFill.fill( labelsPaintedLabelsPair, tmpFill, p, new ValuePair< LabelMultisetType, LongType >( new LabelMultisetType(), new LongType( selectionController.getActiveFragmentId() ) ), fillLabel, new DiamondShape( 1 ), new SegmentAndPaintFilter2D< T >( seedPaint, seedFragmentLabel, assignment ), new TypeWriter<>() );
+
+			dirtyLabelsInterval.touch( accessTrackingExtendedPaintedLabels.createAccessInterval() );
 
 			return tmpFill;
 		}
 
-		private void writeMask( GrowingStoreRandomAccessibleSingletonAccess< BitType > tmpFill, AffineTransform3D tf, long label )
+		private void writeMask( final GrowingStoreRandomAccessibleSingletonAccess< BitType > tmpFill, final AffineTransform3D tf, final long label )
 		{
-			IntervalView< BitType > tmpFillInterval = Views.interval( tmpFill, tmpFill.getIntervalOfSizeOfStore() );
-			AffineRandomAccessible< LongType, AffineGet > transformedPaintedLabels = RealViews.affine( Views.interpolate( Views.extendValue( paintedLabels, new LongType( Label.TRANSPARENT ) ), new NearestNeighborInterpolatorFactory<>() ), tf );
-			MixedTransformView< LongType > hyperSlice = Views.hyperSlice( Views.raster( transformedPaintedLabels ), 2, 0 );
+			final IntervalView< BitType > tmpFillInterval = Views.interval( tmpFill, tmpFill.getIntervalOfSizeOfStore() );
+
+			final AccessBoxRandomAccessible< LongType > accessTrackingExtendedPaintedLabels = new AccessBoxRandomAccessible<>(
+					Views.extendValue(
+							paintedLabels,
+							new LongType( Label.TRANSPARENT ) ) );
+
+			final AffineRandomAccessible< LongType, AffineGet > transformedPaintedLabels =
+					RealViews.affine(
+							Views.interpolate(
+									accessTrackingExtendedPaintedLabels,
+									new NearestNeighborInterpolatorFactory<>() ),
+							tf );
+			final MixedTransformView< LongType > hyperSlice = Views.hyperSlice( Views.raster( transformedPaintedLabels ), 2, 0 );
 			final net.imglib2.Cursor< BitType > s = tmpFillInterval.cursor();
 			final net.imglib2.Cursor< LongType > t = Views.interval( hyperSlice, tmpFillInterval ).cursor();
 			while ( s.hasNext() )
@@ -282,6 +338,8 @@ public class LabelFillController
 				if ( s.next().get() )
 					t.get().set( label );
 			}
+
+			dirtyLabelsInterval.touch( accessTrackingExtendedPaintedLabels.createAccessInterval() );
 		}
 
 	}
@@ -327,7 +385,7 @@ public class LabelFillController
 
 		private final long[] fragmentsContainedInSeedSegment;
 
-		public SegmentAndPaintFilter2D( long seedPaint, long seedFragmentLabel, FragmentSegmentAssignment assignment )
+		public SegmentAndPaintFilter2D( final long seedPaint, final long seedFragmentLabel, final FragmentSegmentAssignment assignment )
 		{
 			this.comparison = seedPaint == Label.TRANSPARENT ? seedFragmentLabel : seedPaint;
 			this.fragmentsContainedInSeedSegment = assignment.getFragments( assignment.getSegment( comparison ) );
@@ -335,14 +393,14 @@ public class LabelFillController
 		}
 
 		@Override
-		public boolean accept( Pair< Pair< LabelMultisetType, LongType >, T > current, Pair< Pair< LabelMultisetType, LongType >, T > reference )
+		public boolean accept( final Pair< Pair< LabelMultisetType, LongType >, T > current, final Pair< Pair< LabelMultisetType, LongType >, T > reference )
 		{
 
 			final T currentTargetPair = current.getB();
 
 			if ( !currentTargetPair.get() )
 			{
-				Pair< LabelMultisetType, LongType > currentSourcePair = current.getA();
+				final Pair< LabelMultisetType, LongType > currentSourcePair = current.getA();
 				// Pair<LabelMultisetType, LongType> referenceSourcePair =
 				// reference.getA();
 
@@ -357,7 +415,7 @@ public class LabelFillController
 
 				else if ( currentPaint != Label.OUTSIDE )
 				{
-					for ( long fragment : this.fragmentsContainedInSeedSegment )
+					for ( final long fragment : this.fragmentsContainedInSeedSegment )
 					{
 						if ( currentLabelSet.contains( fragment ) )
 							return true;

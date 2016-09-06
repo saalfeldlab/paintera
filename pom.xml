@@ -61,6 +61,7 @@
 		<dependency>
 			<groupId>net.imglib2</groupId>
 			<artifactId>imglib2</artifactId>
+			<version>3.0.0</version>
 		</dependency>
 		<dependency>
 			<groupId>net.imglib2</groupId>
@@ -79,7 +80,6 @@
 		<dependency>
 			<groupId>net.imagej</groupId>
 			<artifactId>ij</artifactId>
-			<version>1.49v</version>
 		</dependency>
 		<dependency>
 			<groupId>org.scijava</groupId>
@@ -160,10 +160,33 @@
 					<target>1.8</target>
 				</configuration>
 			</plugin>
-			<!-- <plugin> <groupId>org.codehaus.mojo</groupId> <artifactId>exec-maven-plugin</artifactId>
-				<configuration> <executable>java</executable> <arguments> <argument>-Xmx7g</argument>
-				<argument>-classpath</argument> <classpath /> <argument>${mainclass}</argument>
-				<argument>${h5file}</argument> </arguments> </configuration> </plugin> -->
-		</plugins>
+			<plugin>
+				<artifactId>maven-assembly-plugin</artifactId>
+				<configuration>
+					<archive>
+						<manifest>
+							<mainClass>bdv.bigcat.BigCat</mainClass>
+						</manifest>
+					</archive>
+					<descriptorRefs>
+						<descriptorRef>jar-with-dependencies</descriptorRef>
+					</descriptorRefs>
+				</configuration>
+			</plugin>
+<!--			<plugin>
+				<groupId>org.codehaus.mojo</groupId>
+				<artifactId>exec-maven-plugin</artifactId>
+				<configuration>
+					<executable>java</executable>
+					<arguments>
+						<argument>-Xmx7g</argument>
+						<argument>-classpath</argument>
+						<classpath />
+						<argument>${mainclass}</argument>
+						<argument>${h5file}</argument>
+					</arguments>
+				</configuration>
+			</plugin>
+-->		</plugins>
 	</build>
 </project>

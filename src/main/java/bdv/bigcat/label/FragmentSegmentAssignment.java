@@ -426,8 +426,8 @@ A:					for ( final Entry< String, JsonElement > entry : ilutJsonEntrySet )
 		final long mergedSegmentId = idService.next();
 		synchronized ( this )
 		{
-			final long[] fragments1 = getFragments( segmentId1 );
-			final long[] fragments2 = getFragments( segmentId2 );
+			final long[] fragments1 = ilut.get( segmentId1 );
+			final long[] fragments2 = ilut.get( segmentId2 );
 			final long[] fragments = ArrayUtils.addAll( fragments1, fragments2 );
 			for ( final long fragmentId : fragments )
 				lut.put( fragmentId, mergedSegmentId );
@@ -446,11 +446,8 @@ A:					for ( final Entry< String, JsonElement > entry : ilutJsonEntrySet )
 	public void mergeFragmentSegments( final long fragmentId1, final long fragmentId2 )
 	{
 		final long segmentId1, segmentId2;
-		synchronized ( this )
-		{
-			segmentId1 = getSegment( fragmentId1 );
-			segmentId2 = getSegment( fragmentId2 );
-		}
+		segmentId1 = getSegment( fragmentId1 );
+		segmentId2 = getSegment( fragmentId2 );
 		mergeSegments( segmentId1, segmentId2 );
 	}
 

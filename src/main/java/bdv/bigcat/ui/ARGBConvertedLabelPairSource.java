@@ -1,6 +1,5 @@
 package bdv.bigcat.ui;
 
-import bdv.img.labelpair.RandomAccessiblePair;
 import bdv.labels.labelset.VolatileLabelMultisetType;
 import net.imglib2.Interval;
 import net.imglib2.RandomAccessibleInterval;
@@ -9,6 +8,7 @@ import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.type.numeric.integer.LongType;
 import net.imglib2.type.volatiles.VolatileARGBType;
 import net.imglib2.util.Pair;
+import net.imglib2.view.RandomAccessiblePair;
 import net.imglib2.view.Views;
 
 public class ARGBConvertedLabelPairSource extends AbstractARGBConvertedLabelsSource
