@@ -30,6 +30,7 @@ import bdv.bigcat.control.LabelBrushController;
 import bdv.bigcat.control.LabelFillController;
 import bdv.bigcat.control.LabelPersistenceController;
 import bdv.bigcat.control.MergeController;
+import bdv.bigcat.control.NeuronIdsToFileController;
 import bdv.bigcat.control.SelectionController;
 import bdv.bigcat.control.TranslateZController;
 import bdv.bigcat.label.FragmentSegmentAssignment;
@@ -369,6 +370,14 @@ public class BigCat
 					colorStream,
 					config,
 					bdv.getViewerFrame().getKeybindings() );
+			final NeuronIdsToFileController storeController = new NeuronIdsToFileController(
+					bdv.getViewer(),
+					canvas,
+					labels.get( 0 ).getMipmapTransforms()[ 0 ],
+					assignment,
+					selectionController,
+					cellDimensions,
+					config);
 
 			bindings.addBehaviourMap( "select", selectionController.getBehaviourMap() );
 			bindings.addInputTriggerMap( "select", selectionController.getInputTriggerMap() );
@@ -382,6 +391,8 @@ public class BigCat
 			bindings.addBehaviourMap( "fill", fillController.getBehaviourMap() );
 			bindings.addInputTriggerMap( "fill", fillController.getInputTriggerMap() );
 
+			bindings.addBehaviourMap( "store", storeController.getBehaviourMap() );
+			bindings.addInputTriggerMap( "store", storeController.getInputTriggerMap() );
 			bdv.getViewerFrame().addWindowListener( new WindowAdapter()
 			{
 				@Override
