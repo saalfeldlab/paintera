@@ -3,6 +3,7 @@ package bdv.bigcat;
 import java.awt.Cursor;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
+import java.awt.event.WindowListener;
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -10,6 +11,7 @@ import java.util.Arrays;
 import java.util.List;
 
 import javax.swing.JOptionPane;
+import javax.swing.WindowConstants;
 
 import org.scijava.ui.behaviour.io.InputTriggerConfig;
 import org.scijava.ui.behaviour.io.InputTriggerDescription;
@@ -393,13 +395,28 @@ public class BigCat
 
 			bindings.addBehaviourMap( "store", storeController.getBehaviourMap() );
 			bindings.addInputTriggerMap( "store", storeController.getInputTriggerMap() );
+
+			bdv.getViewerFrame().setDefaultCloseOperation( WindowConstants.DO_NOTHING_ON_CLOSE );
+
+			// TODO I hate this, but we need to prevent the ViewerFrame's
+			// listener from calling stop on the viewer
+			WindowListener[] listeners = bdv.getViewerFrame().getWindowListeners();
+			for ( WindowListener wl : listeners )
+				bdv.getViewerFrame().removeWindowListener( wl );
+
 			bdv.getViewerFrame().addWindowListener( new WindowAdapter()
 			{
 				@Override
 				public void windowClosing( final WindowEvent we )
 				{
-					saveBeforeClosing( params );
-					System.exit( 0 );
+					boolean reallyClose = saveBeforeClosing( params );
+					if( reallyClose )
+					{
+						bdv.getViewerFrame().getViewerPanel().stop();
+						bdv.getViewerFrame().setVisible( false );
+						// TODO really shouldn't kill the whole jvm in case some other process (e.g. fiji eventually) calls bigcat
+						System.exit( 0 );
+					}
 				}
 			} );
 		}
@@ -471,16 +488,20 @@ public class BigCat
 		return config;
 	}
 
-	public void saveBeforeClosing( final Parameters params )
+	public boolean saveBeforeClosing( final Parameters params )
 	{
 		final String message = "Save changes to " + params.inFile + " before closing?";
 
-		if (
-				JOptionPane.showConfirmDialog(
-						bdv.getViewerFrame(),
-						message,
-						bdv.getViewerFrame().getTitle(),
-						JOptionPane.YES_NO_OPTION ) == JOptionPane.YES_OPTION )
+		int option = JOptionPane.showConfirmDialog(
+				bdv.getViewerFrame(),
+				message,
+				bdv.getViewerFrame().getTitle(),
+				JOptionPane.YES_NO_CANCEL_OPTION );
+
+		boolean save = option == JOptionPane.YES_OPTION;
+		boolean reallyClose =  save || option == JOptionPane.NO_OPTION;
+
+		if ( save )
 		{
 			bdv.getViewerFrame().setCursor( Cursor.getPredefinedCursor( Cursor.WAIT_CURSOR ) );
 			annotationsController.saveAnnotations();
@@ -488,6 +509,7 @@ public class BigCat
 			persistenceController.saveFragmentSegmentAssignment();
 			persistenceController.savePaintedLabels();
 		}
+		return reallyClose;
 	}
 
 	final static protected long maxId(
