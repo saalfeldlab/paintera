@@ -12,6 +12,8 @@ import org.scijava.ui.behaviour.io.InputTriggerConfig;
 
 import bdv.bigcat.label.FragmentSegmentAssignment;
 import bdv.bigcat.ui.BrushOverlay;
+import bdv.bigcat.util.DirtyInterval;
+import bdv.img.AccessBoxRandomAccessible;
 import bdv.labels.labelset.Label;
 import bdv.util.Affine3DHelpers;
 import bdv.viewer.ViewerPanel;
@@ -25,6 +27,7 @@ import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.type.numeric.integer.LongType;
 import net.imglib2.ui.TransformEventHandler;
 import net.imglib2.util.LinAlgHelpers;
+import net.imglib2.util.Util;
 import net.imglib2.view.Views;
 
 /**
@@ -39,6 +42,7 @@ public class LabelBrushController
 	final protected ViewerPanel viewer;
 	final protected RandomAccessibleInterval< LongType > labels;
 	final protected RandomAccessible< LongType > extendedLabels;
+	final protected DirtyInterval dirtyLabelsInterval;
 	final protected AffineTransform3D labelTransform;
 	final protected FragmentSegmentAssignment assignment;
 	final protected SelectionController selectionController;
@@ -79,6 +83,7 @@ public class LabelBrushController
 	public LabelBrushController(
 			final ViewerPanel viewer,
 			final RandomAccessibleInterval< LongType > labels,
+			final DirtyInterval dirtyLabelsInterval,
 			final AffineTransform3D labelTransform,
 			final FragmentSegmentAssignment assignment,
 			final SelectionController selectionController,
@@ -89,6 +94,7 @@ public class LabelBrushController
 		this.viewer = viewer;
 		this.labels = labels;
 		extendedLabels = Views.extendValue( this.labels, new LongType( Label.TRANSPARENT ) );
+		this.dirtyLabelsInterval = dirtyLabelsInterval;
 		this.labelTransform = labelTransform;
 		this.assignment = assignment;
 		this.selectionController = selectionController;
@@ -108,13 +114,14 @@ public class LabelBrushController
 	public LabelBrushController(
 			final ViewerPanel viewer,
 			final RandomAccessibleInterval< LongType > labels,
+			final DirtyInterval dirtyLabelsInterval,
 			final AffineTransform3D labelTransform,
 			final FragmentSegmentAssignment assignment,
 			final SelectionController selectionController,
 			final int[] labelsH5CellDimensions,
 			final InputTriggerConfig config )
 	{
-		this( viewer, labels, labelTransform, assignment, selectionController, labelsH5CellDimensions, config, 2 );
+		this( viewer, labels, dirtyLabelsInterval, labelTransform, assignment, selectionController, labelsH5CellDimensions, config, 2 );
 	}
 
 	private void setCoordinates( final int x, final int y )
@@ -161,7 +168,8 @@ public class LabelBrushController
 
 		protected void paint( final RealLocalizable coords)
 		{
-			final RandomAccessible< LongType > labelSource = Views.hyperSlice( extendedLabels, brushNormalAxis, Math.round( coords.getDoublePosition( 2 ) ) );
+			final AccessBoxRandomAccessible< LongType > accessBoxExtendedLabels = new AccessBoxRandomAccessible<>( extendedLabels );
+			final RandomAccessible< LongType > labelSource = Views.hyperSlice( accessBoxExtendedLabels, brushNormalAxis, Math.round( coords.getDoublePosition( 2 ) ) );
 
 			final Neighborhood< LongType > sphere =
 					HyperSphereNeighborhood.< LongType >factory().create(
@@ -173,6 +181,8 @@ public class LabelBrushController
 
 			for ( final LongType t : sphere )
 				t.set( getValue() );
+
+			dirtyLabelsInterval.touch( accessBoxExtendedLabels.createAccessInterval() );
 		}
 
 		protected void paint( final int x, final int y )
@@ -243,7 +253,9 @@ public class LabelBrushController
 
 		@Override
 		public void end( final int x, final int y )
-		{}
+		{
+			System.out.println( "modified box: " + Util.printInterval( dirtyLabelsInterval.getDirtyInterval() ) );
+		}
 	}
 
 	private class Paint extends AbstractPaintBehavior

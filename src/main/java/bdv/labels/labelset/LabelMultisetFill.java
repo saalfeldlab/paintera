@@ -5,7 +5,6 @@ import java.util.ArrayList;
 import java.util.Arrays;
 
 import bdv.bigcat.label.FragmentSegmentAssignment;
-import bdv.img.labelpair.RandomAccessiblePair;
 import gnu.trove.list.array.TLongArrayList;
 import net.imglib2.Cursor;
 import net.imglib2.Interval;
@@ -19,6 +18,7 @@ import net.imglib2.algorithm.neighborhood.Shape;
 import net.imglib2.type.logic.BitType;
 import net.imglib2.type.numeric.IntegerType;
 import net.imglib2.util.Pair;
+import net.imglib2.view.RandomAccessiblePair;
 import net.imglib2.view.Views;
 
 

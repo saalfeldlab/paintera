@@ -139,7 +139,7 @@ public class AnnotationsHdf5Store implements AnnotationsStore {
 		try {
 			locations = reader.float32().readMDArray(groupname + "/" + locationsDataset);
 			ids = reader.uint64().readMDArray(groupname + "/" + idsDataset);
-			if (typesDataset != null)
+			if (typesDataset != null && locations.size() > 0 )
 				types = reader.string().readArray(groupname + "/" + typesDataset);
 			else
 				types = null;
@@ -164,6 +164,8 @@ public class AnnotationsHdf5Store implements AnnotationsStore {
 					comments.put(commentTargets.get(i), commentList[i]);
 			}
 		} catch (final HDF5SymbolTableException e) {
+			System.out.println("HDF5 file does not contain comments for " + type);
+		} catch (final NullPointerException e) {
 			System.out.println("HDF5 file does not contain comments for " + type);
 		}
 

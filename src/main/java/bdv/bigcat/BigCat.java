@@ -3,6 +3,7 @@ package bdv.bigcat;
 import java.awt.Cursor;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
+import java.awt.event.WindowListener;
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -10,6 +11,7 @@ import java.util.Arrays;
 import java.util.List;
 
 import javax.swing.JOptionPane;
+import javax.swing.WindowConstants;
 
 import org.scijava.ui.behaviour.io.InputTriggerConfig;
 import org.scijava.ui.behaviour.io.InputTriggerDescription;
@@ -30,6 +32,7 @@ import bdv.bigcat.control.LabelBrushController;
 import bdv.bigcat.control.LabelFillController;
 import bdv.bigcat.control.LabelPersistenceController;
 import bdv.bigcat.control.MergeController;
+import bdv.bigcat.control.NeuronIdsToFileController;
 import bdv.bigcat.control.SelectionController;
 import bdv.bigcat.control.TranslateZController;
 import bdv.bigcat.label.FragmentSegmentAssignment;
@@ -37,11 +40,11 @@ import bdv.bigcat.label.PairLabelMultiSetLongIdPicker;
 import bdv.bigcat.ui.ARGBConvertedLabelPairSource;
 import bdv.bigcat.ui.ModalGoldenAngleSaturatedARGBStream;
 import bdv.bigcat.ui.Util;
+import bdv.bigcat.util.DirtyInterval;
 import bdv.img.SetCache;
 import bdv.img.h5.H5LabelMultisetSetupImageLoader;
 import bdv.img.h5.H5UnsignedByteSetupImageLoader;
 import bdv.img.h5.H5Utils;
-import bdv.img.labelpair.RandomAccessiblePair;
 import bdv.labels.labelset.Label;
 import bdv.labels.labelset.LabelMultisetType;
 import bdv.labels.labelset.Multiset;
@@ -62,6 +65,7 @@ import net.imglib2.type.numeric.ARGBType;
 import net.imglib2.type.numeric.integer.LongType;
 import net.imglib2.util.Intervals;
 import net.imglib2.util.Pair;
+import net.imglib2.view.RandomAccessiblePair;
 import net.imglib2.view.Views;
 
 public class BigCat
@@ -92,6 +96,8 @@ public class BigCat
 	final private ArrayList< H5UnsignedByteSetupImageLoader > raws = new ArrayList<>();
 	final private ArrayList< H5LabelMultisetSetupImageLoader > labels = new ArrayList<>();
 	final private ArrayList< ARGBConvertedLabelPairSource > convertedLabelCanvasPairs = new ArrayList<>();
+
+	final private DirtyInterval dirtyLabelsInterval = new DirtyInterval();
 
 	/* TODO this has to change into a virtual container with temporary storage */
 	private CellImg< LongType, ?, ? > canvas = null;
@@ -311,6 +317,7 @@ public class BigCat
 			brushController = new LabelBrushController(
 					bdv.getViewer(),
 					canvas,
+					dirtyLabelsInterval,
 					labels.get( 0 ).getMipmapTransforms()[ 0 ],
 					assignment,
 					selectionController,
@@ -322,6 +329,7 @@ public class BigCat
 					bdv.getViewer(),
 					labels.get( 0 ).getImage( 0 ),
 					canvas,
+					dirtyLabelsInterval,
 					assignment,
 					idService,
 					params.inFile,
@@ -337,6 +345,7 @@ public class BigCat
 					bdv.getViewer(),
 					labels.get( 0 ).getImage( 0 ),
 					canvas,
+					dirtyLabelsInterval,
 					labels.get( 0 ).getMipmapTransforms()[ 0 ],
 					assignment,
 					selectionController,
@@ -353,6 +362,7 @@ public class BigCat
 					new InputTriggerConfig(),
 					labels.get( 0 ).getImage(0),
 					canvas,
+					dirtyLabelsInterval,
 					labels.get( 0 ).getMipmapTransforms()[ 0 ],
 					assignment,
 					colorStream,
@@ -370,6 +380,15 @@ public class BigCat
 					config,
 					bdv.getViewerFrame().getKeybindings() );
 
+			final NeuronIdsToFileController storeController = new NeuronIdsToFileController(
+					bdv.getViewer(),
+					canvas,
+					labels.get( 0 ).getMipmapTransforms()[ 0 ],
+					assignment,
+					selectionController,
+					cellDimensions,
+					config);
+
 			bindings.addBehaviourMap( "select", selectionController.getBehaviourMap() );
 			bindings.addInputTriggerMap( "select", selectionController.getInputTriggerMap() );
 
@@ -382,13 +401,30 @@ public class BigCat
 			bindings.addBehaviourMap( "fill", fillController.getBehaviourMap() );
 			bindings.addInputTriggerMap( "fill", fillController.getInputTriggerMap() );
 
+			bindings.addBehaviourMap( "store", storeController.getBehaviourMap() );
+			bindings.addInputTriggerMap( "store", storeController.getInputTriggerMap() );
+
+			bdv.getViewerFrame().setDefaultCloseOperation( WindowConstants.DO_NOTHING_ON_CLOSE );
+
+			// TODO I hate this, but we need to prevent the ViewerFrame's
+			// listener from calling stop on the viewer
+			final WindowListener[] listeners = bdv.getViewerFrame().getWindowListeners();
+			for ( final WindowListener wl : listeners )
+				bdv.getViewerFrame().removeWindowListener( wl );
+
 			bdv.getViewerFrame().addWindowListener( new WindowAdapter()
 			{
 				@Override
 				public void windowClosing( final WindowEvent we )
 				{
-					saveBeforeClosing( params );
-					System.exit( 0 );
+					final boolean reallyClose = saveBeforeClosing( params );
+					if( reallyClose )
+					{
+						bdv.getViewerFrame().getViewerPanel().stop();
+						bdv.getViewerFrame().setVisible( false );
+						// TODO really shouldn't kill the whole jvm in case some other process (e.g. fiji eventually) calls bigcat
+						System.exit( 0 );
+					}
 				}
 			} );
 		}
@@ -460,16 +496,20 @@ public class BigCat
 		return config;
 	}
 
-	public void saveBeforeClosing( final Parameters params )
+	public boolean saveBeforeClosing( final Parameters params )
 	{
 		final String message = "Save changes to " + params.inFile + " before closing?";
 
-		if (
-				JOptionPane.showConfirmDialog(
-						bdv.getViewerFrame(),
-						message,
-						bdv.getViewerFrame().getTitle(),
-						JOptionPane.YES_NO_OPTION ) == JOptionPane.YES_OPTION )
+		final int option = JOptionPane.showConfirmDialog(
+				bdv.getViewerFrame(),
+				message,
+				bdv.getViewerFrame().getTitle(),
+				JOptionPane.YES_NO_CANCEL_OPTION );
+
+		final boolean save = option == JOptionPane.YES_OPTION;
+		final boolean reallyClose =  save || option == JOptionPane.NO_OPTION;
+
+		if ( save )
 		{
 			bdv.getViewerFrame().setCursor( Cursor.getPredefinedCursor( Cursor.WAIT_CURSOR ) );
 			annotationsController.saveAnnotations();
@@ -477,6 +517,7 @@ public class BigCat
 			persistenceController.saveFragmentSegmentAssignment();
 			persistenceController.savePaintedLabels();
 		}
+		return reallyClose;
 	}
 
 	final static protected long maxId(

@@ -11,6 +11,7 @@ import org.scijava.ui.behaviour.KeyStrokeAdder;
 import org.scijava.ui.behaviour.io.InputTriggerConfig;
 
 import bdv.bigcat.label.FragmentSegmentAssignment;
+import bdv.bigcat.util.DirtyInterval;
 import bdv.img.h5.H5Utils;
 import bdv.labels.labelset.LabelMultisetType;
 import bdv.util.AbstractNamedAction;
@@ -32,6 +33,7 @@ public class LabelPersistenceController
 	final protected ViewerPanel viewer;
 	final protected RandomAccessibleInterval< LabelMultisetType > labelMultisetSource;
 	final protected RandomAccessibleInterval< LongType > labelSource;
+	final protected DirtyInterval dirtyLabelSourceInterval;
 	final protected FragmentSegmentAssignment assignment;
 	final protected IdService idService;
 
@@ -51,6 +53,7 @@ public class LabelPersistenceController
 			final ViewerPanel viewer,
 			final RandomAccessibleInterval< LabelMultisetType > labelMultisetSource,
 			final RandomAccessibleInterval< LongType > labelSource,
+			final DirtyInterval dirtyLabelSourceInterval,
 			final FragmentSegmentAssignment assignment,
 			final IdService idService,
 			final String h5Path,
@@ -64,6 +67,7 @@ public class LabelPersistenceController
 		this.viewer = viewer;
 		this.labelMultisetSource = labelMultisetSource;
 		this.labelSource = labelSource;
+		this.dirtyLabelSourceInterval = dirtyLabelSourceInterval;
 		this.assignment = assignment;
 		this.idService = idService;
 		this.h5Path = h5Path;

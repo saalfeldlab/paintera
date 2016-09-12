@@ -4,7 +4,6 @@ import java.awt.Cursor;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
 import java.io.File;
-import java.io.FileReader;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -15,24 +14,22 @@ import javax.swing.JOptionPane;
 import org.scijava.ui.behaviour.io.InputTriggerConfig;
 import org.scijava.ui.behaviour.io.InputTriggerDescription;
 import org.scijava.ui.behaviour.io.yaml.YamlConfigIO;
-import org.zeromq.ZContext;
 
 import com.beust.jcommander.JCommander;
 import com.beust.jcommander.Parameter;
-import com.google.gson.Gson;
 
 import bdv.BigDataViewer;
 import bdv.bigcat.annotation.AnnotationsHdf5Store;
 import bdv.bigcat.composite.ARGBCompositeAlphaYCbCr;
 import bdv.bigcat.composite.Composite;
 import bdv.bigcat.composite.CompositeCopy;
-import bdv.bigcat.control.AgglomerationClientController;
 import bdv.bigcat.control.AnnotationsController;
 import bdv.bigcat.control.ConfirmSegmentController;
 import bdv.bigcat.control.DrawProjectAndIntersectController;
 import bdv.bigcat.control.LabelBrushController;
 import bdv.bigcat.control.LabelFillController;
 import bdv.bigcat.control.LabelPersistenceController;
+import bdv.bigcat.control.MergeController;
 import bdv.bigcat.control.SelectionController;
 import bdv.bigcat.control.TranslateZController;
 import bdv.bigcat.label.FragmentSegmentAssignment;
@@ -40,7 +37,6 @@ import bdv.bigcat.label.PairLabelMultiSetLongIdPicker;
 import bdv.bigcat.ui.ARGBConvertedLabelPairSource;
 import bdv.bigcat.ui.ModalGoldenAngleSaturatedARGBStream;
 import bdv.bigcat.ui.Util;
-import bdv.bigcat.util.DirtyInterval;
 import bdv.img.SetCache;
 import bdv.img.h5.H5LabelMultisetSetupImageLoader;
 import bdv.img.h5.H5UnsignedByteSetupImageLoader;
@@ -51,11 +47,12 @@ import bdv.labels.labelset.Multiset;
 import bdv.labels.labelset.VolatileLabelMultisetType;
 import bdv.util.IdService;
 import bdv.util.LocalIdService;
-import bdv.util.RemoteIdService;
 import bdv.viewer.TriggerBehaviourBindings;
 import ch.systemsx.cisd.hdf5.HDF5Factory;
 import ch.systemsx.cisd.hdf5.IHDF5Reader;
 import gnu.trove.map.hash.TLongLongHashMap;
+import net.imglib2.FinalInterval;
+import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.algorithm.neighborhood.DiamondShape;
 import net.imglib2.img.cell.CellImg;
 import net.imglib2.img.cell.CellImgFactory;
@@ -64,18 +61,16 @@ import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.realtransform.RealViews;
 import net.imglib2.type.numeric.ARGBType;
 import net.imglib2.type.numeric.integer.LongType;
+import net.imglib2.util.ConstantUtils;
 import net.imglib2.util.Intervals;
 import net.imglib2.util.Pair;
 import net.imglib2.view.RandomAccessiblePair;
 import net.imglib2.view.Views;
 
-public class BigCatRemoteClient
+public class BigCatShowPadded
 {
 	static private class Parameters
 	{
-		@Parameter( names = { "--broker", "-b" }, description = "URL to configuration broker" )
-		public String config = "";
-
 		@Parameter( names = { "--infile", "-i" }, description = "Input file path" )
 		public String inFile = "";
 
@@ -101,22 +96,19 @@ public class BigCatRemoteClient
 	final private ArrayList< H5LabelMultisetSetupImageLoader > labels = new ArrayList<>();
 	final private ArrayList< ARGBConvertedLabelPairSource > convertedLabelCanvasPairs = new ArrayList<>();
 
-	final private DirtyInterval dirtyLabelsInterval = new DirtyInterval();
-
-	final private ZContext ctx;
-
 	/* TODO this has to change into a virtual container with temporary storage */
-	private CellImg< LongType, ?, ? > canvas = null;
+//	private CellImg< LongType, ?, ? > canvas = null;
+	private RandomAccessibleInterval< LongType > canvas = null;
 
 	private BigDataViewer bdv;
-	private final ModalGoldenAngleSaturatedARGBStream colorStream;
-	private final FragmentSegmentAssignment assignment;
+	private ModalGoldenAngleSaturatedARGBStream colorStream;
+	private FragmentSegmentAssignment assignment;
 
 	private LabelPersistenceController persistenceController;
 	private AnnotationsController annotationsController;
-	private final InputTriggerConfig config;
+	private InputTriggerConfig config;
 
-	private final IdService idService;
+	private IdService idService = new LocalIdService();
 
 	/**
 	 * Writes max(a,b) into a
@@ -134,23 +126,15 @@ public class BigCatRemoteClient
 	public static void main( final String[] args ) throws Exception
 	{
 		final Parameters params = new Parameters();
-		new JCommander( params, args );
-
-		final Config config;
-		try ( final FileReader reader = new FileReader( new File( params.config ) ) )
-		{
-			config = new Gson().fromJson( reader, Config.class );
-			new BigCatRemoteClient( params, config );
-		}
+        new JCommander( params, args );
+        new BigCatShowPadded( params );
 	}
 
-	public BigCatRemoteClient( final Parameters params, final Config brokerConfig ) throws Exception
+	public BigCatShowPadded( final Parameters params ) throws Exception
 	{
 		Util.initUI();
 
 		this.config = getInputTriggerConfig();
-
-		ctx = new ZContext();
 
 		System.out.println( "Opening " + params.inFile );
 		final IHDF5Reader reader = HDF5Factory.open( params.inFile );
@@ -174,16 +158,11 @@ public class BigCatRemoteClient
 			canvas = H5Utils.loadUnsignedLong( reader, params.canvas, cellDimensions );
 		else
 		{
-			canvas = new CellImgFactory< LongType >( cellDimensions ).create( maxRawDimensions, new LongType() );
-			for ( final LongType t : canvas )
-				t.set( Label.TRANSPARENT );
+			canvas = ConstantUtils.constantRandomAccessibleInterval(new LongType(Label.TRANSPARENT), maxRawDimensions.length, new FinalInterval(maxRawDimensions ) );
+//			canvas = new CellImgFactory< LongType >( cellDimensions ).create( maxRawDimensions, new LongType() );
+//			for ( final LongType t : canvas )
+//				t.set( Label.TRANSPARENT );
 		}
-
-		/* id service */
-		if ( brokerConfig.id_service_url != null )
-			idService = new RemoteIdService( ctx, brokerConfig.id_service_url );
-		else
-			idService = new LocalIdService();
 
 		/* fragment segment assignment */
 		assignment = new FragmentSegmentAssignment( idService );
@@ -210,15 +189,15 @@ public class BigCatRemoteClient
 			for ( final H5LabelMultisetSetupImageLoader labelLoader : labels )
 				maxId = maxId( labelLoader, maxId );
 
-			if ( reader.exists( params.canvas ) )
-					maxId = maxId( canvas, maxId );
+//			if ( reader.exists( params.canvas ) )
+//					maxId = maxId( canvas, maxId );
 		}
 		else
 			maxId = nextIdObject.longValue() - 1;
 
 		idService.invalidate( maxId );
 
-		setupBdv( params, brokerConfig );
+		setupBdv( params );
 	}
 
 	/**
@@ -262,7 +241,7 @@ public class BigCatRemoteClient
 	}
 
 	@SuppressWarnings( "unchecked" )
-	private void setupBdv( final Parameters params, final Config brokerConfig ) throws Exception
+	private void setupBdv( final Parameters params ) throws Exception
 	{
 		/* composites */
 		final ArrayList< Composite< ARGBType, ARGBType > > composites = new ArrayList< Composite< ARGBType, ARGBType > >();
@@ -293,7 +272,6 @@ public class BigCatRemoteClient
 		final TriggerBehaviourBindings bindings = bdv.getViewerFrame().getTriggerbindings();
 
 		final SelectionController selectionController;
-		final LabelBrushController brushController;
 		final PairLabelMultiSetLongIdPicker idPicker;
 
 		if ( labels.size() > 0 )
@@ -307,9 +285,9 @@ public class BigCatRemoteClient
 											Views.extendValue(
 												labels.get( 0 ).getImage( 0 ),
 												new LabelMultisetType() ),
-											Views.extendValue(
-													canvas,
-													new LongType( Label.OUTSIDE) ) ),
+											ConstantUtils.constantRandomAccessible(
+													new LongType( Label.OUTSIDE),
+													3 ) ),
 									new NearestNeighborInterpolatorFactory< Pair< LabelMultisetType, LongType > >() ),
 							labels.get( 0 ).getMipmapTransforms()[ 0 ] )
 					);
@@ -324,83 +302,14 @@ public class BigCatRemoteClient
 					bdv.getViewerFrame().getKeybindings(),
 					config);
 
-//			final MergeController mergeController = new MergeController(
-//					bdv.getViewer(),
-//					idPicker,
-//					selectionController,
-//					assignment,
-//					config,
-//					bdv.getViewerFrame().getKeybindings(),
-//					config);
-
-			final AgglomerationClientController mergeController = new AgglomerationClientController(
+			final MergeController mergeController = new MergeController(
 					bdv.getViewer(),
 					idPicker,
 					selectionController,
 					assignment,
-					ctx,
-					brokerConfig.solver_url,
 					config,
 					bdv.getViewerFrame().getKeybindings(),
 					config);
-
-			/* TODO fix to deal with correct transform */
-			brushController = new LabelBrushController(
-					bdv.getViewer(),
-					canvas,
-					dirtyLabelsInterval,
-					labels.get( 0 ).getMipmapTransforms()[ 0 ],
-					assignment,
-					selectionController,
-					cellDimensions,
-					config);
-
-			/* TODO fix to deal with more than one label set */
-			persistenceController = new LabelPersistenceController(
-					bdv.getViewer(),
-					labels.get( 0 ).getImage( 0 ),
-					canvas,
-					dirtyLabelsInterval,
-					assignment,
-					idService,
-					params.inFile,
-					params.canvas,
-					params.export,
-					cellDimensions,
-					params.assignment,
-					config,
-					bdv.getViewerFrame().getKeybindings() );
-
-			/* TODO fix to deal with more than one label set */
-			final LabelFillController fillController = new LabelFillController(
-					bdv.getViewer(),
-					labels.get( 0 ).getImage( 0 ),
-					canvas,
-					dirtyLabelsInterval,
-					labels.get( 0 ).getMipmapTransforms()[ 0 ],
-					assignment,
-					selectionController,
-					new DiamondShape( 1 ),
-					idPicker,
-					config);
-
-			/* splitter (and more) */
-			/* TODO fix to deal with more than one label set */
-			final DrawProjectAndIntersectController dpi = new DrawProjectAndIntersectController(
-					bdv,
-					idService,
-					new AffineTransform3D(),
-					new InputTriggerConfig(),
-					labels.get( 0 ).getImage(0),
-					canvas,
-					dirtyLabelsInterval,
-					labels.get( 0 ).getMipmapTransforms()[ 0 ],
-					assignment,
-					colorStream,
-					selectionController,
-					bdv.getViewerFrame().getKeybindings(),
-					bindings,
-					"shift T" );
 
 			final ConfirmSegmentController confirmSegment = new ConfirmSegmentController(
 					bdv.getViewer(),
@@ -417,12 +326,6 @@ public class BigCatRemoteClient
 			bindings.addBehaviourMap( "merge", mergeController.getBehaviourMap() );
 			bindings.addInputTriggerMap( "merge", mergeController.getInputTriggerMap() );
 
-			bindings.addBehaviourMap( "brush", brushController.getBehaviourMap() );
-			bindings.addInputTriggerMap( "brush", brushController.getInputTriggerMap() );
-
-			bindings.addBehaviourMap( "fill", fillController.getBehaviourMap() );
-			bindings.addInputTriggerMap( "fill", fillController.getInputTriggerMap() );
-
 			bdv.getViewerFrame().addWindowListener( new WindowAdapter()
 			{
 				@Override
@@ -436,7 +339,6 @@ public class BigCatRemoteClient
 		else
 		{
 			selectionController = null;
-			brushController = null;
 			idPicker = null;
 		}
 
@@ -461,9 +363,6 @@ public class BigCatRemoteClient
 
 		/* overlays */
 		bdv.getViewer().getDisplay().addOverlayRenderer( annotationsController.getAnnotationOverlay() );
-
-		if ( brushController != null )
-			bdv.getViewer().getDisplay().addOverlayRenderer( brushController.getBrushOverlay() );
 
 		if ( selectionController != null )
 			bdv.getViewer().getDisplay().addOverlayRenderer( selectionController.getSelectionOverlay() );
