@@ -10,6 +10,9 @@ import java.util.Arrays;
 
 import javax.swing.JOptionPane;
 
+import com.beust.jcommander.JCommander;
+import com.beust.jcommander.Parameter;
+
 import org.scijava.ui.behaviour.io.InputTriggerConfig;
 import org.scijava.ui.behaviour.io.InputTriggerDescription;
 import org.scijava.ui.behaviour.io.yaml.YamlConfigIO;
@@ -30,8 +33,13 @@ import bdv.bigcat.control.SelectionController;
 import bdv.bigcat.control.TranslateZController;
 import bdv.bigcat.label.FragmentSegmentAssignment;
 import bdv.bigcat.label.PairLabelMultiSetLongIdPicker;
+import bdv.bigcat.label.LabelMultiSetIdPicker;
+import bdv.bigcat.label.IdPicker;
 import bdv.bigcat.ui.ARGBConvertedLabelPairSource;
+import bdv.bigcat.ui.ARGBConvertedLabelsSource;
+import bdv.bigcat.ui.AbstractARGBConvertedLabelsSource;
 import bdv.bigcat.ui.GoldenAngleSaturatedConfirmSwitchARGBStream;
+import bdv.bigcat.ui.GoldenAngleSaturatedARGBStream;
 import bdv.bigcat.ui.Util;
 import bdv.img.SetCache;
 import bdv.img.h5.AbstractH5SetupImageLoader;
@@ -64,10 +72,28 @@ import net.imglib2.view.Views;
 
 public class BigCat
 {
+	public static class Parameters {
+
+		@Parameter(names={"--file", "-f"}, description = "CREMI-format HDF5 file name")
+		public String file;
+
+		@Parameter(names={"--raw", "-r"}, description = "Name of raw volume to show in overlay (defaults to 'raw')")
+		public String rawDataset = "raw";
+
+		@Parameter(names={"--labels", "-l"}, description = "Name of label volume to show in overlay (defaults to 'neuron_ids')")
+		public String labelsDataset = "neuron_ids";
+
+		@Parameter(names={"--lut"}, description = "Name of fragment-segment LUT dataset (defaults to 'fragment_segment_lut')")
+		public String fragmentSegmentLutDataset = "fragment_segment_lut";
+
+		@Parameter(names={"--readonly", "-ro"}, description = "Do not load label editing extensions. Faster, consumes less memory.")
+		public boolean readOnly;
+	}
+
 	final static private int[] cellDimensions = new int[]{ 64, 64, 8 };
 
 	private H5LabelMultisetSetupImageLoader fragments = null;
-	private ARGBConvertedLabelPairSource convertedLabelPair = null;
+	private AbstractARGBConvertedLabelsSource convertedLabels = null;
 	private CellImg< LongType, ?, ? > paintedLabels = null;
 	private BigDataViewer bdv;
 	private GoldenAngleSaturatedConfirmSwitchARGBStream colorStream;
@@ -82,30 +108,29 @@ public class BigCat
 
 	private final IdService idService = new LocalIdService();
 
+	private boolean loadPaintedLabels = false;
+
 	public static void main( final String[] args ) throws Exception
 	{
-		new BigCat( args );
+
+		final Parameters params = new Parameters();
+		new JCommander(params, args);
+		new BigCat(params);
 	}
 
-	public BigCat( final String[] args ) throws Exception
+	public BigCat(Parameters params) throws Exception
 	{
 		Util.initUI();
 
 		this.config = getInputTriggerConfig();
 
-		projectFile = args[ 0 ];
+		projectFile = params.file;
 
-		String labelsDataset = "neuron_ids";
-		if ( args.length > 1 )
-			labelsDataset = args[ 1 ];
+		String labelsDataset = params.labelsDataset;
+		String rawDataset = params.rawDataset;
+		loadPaintedLabels = !params.readOnly;
 
-		String rawDataset = "raw";
-		if ( args.length > 2 )
-			rawDataset = args[ 2 ];
-
-		fragmentSegmentLutDataset = "/fragment_segment_lut";
-		if ( args.length > 3 )
-			fragmentSegmentLutDataset = args[ 3 ];
+		fragmentSegmentLutDataset = "/" + params.fragmentSegmentLutDataset;
 
 		System.out.println( "Opening " + projectFile );
 		final IHDF5Reader reader = HDF5Factory.open( projectFile );
@@ -124,7 +149,7 @@ public class BigCat
 		paintedLabelsDataset = labelsPath + "/painted_" + labelsDataset;
 		fragmentsPath = reader.object().isDataSet( mergedLabelsDataset ) ? mergedLabelsDataset : fragmentsPath;
 		if ( reader.exists( fragmentsPath ) )
-			readFragments( args, reader, fragmentsPath, paintedLabelsDataset, fragmentSegmentLutDataset );
+			readFragments( params, reader, fragmentsPath, paintedLabelsDataset, fragmentSegmentLutDataset );
 		else
 			System.out.println( "no labels found cooresponding to requested dataset '" + labelsDataset + "' (searched in '" + labelsPath + "')" );
 
@@ -132,12 +157,13 @@ public class BigCat
 	}
 
 	private void readFragments(
-			final String[] args,
+			final Parameters params,
 			final IHDF5Reader reader,
 			final String labelsDataset,
 			final String paintedLabelsDataset,
 			final String fragmentSegmentLutDataset ) throws IOException
 	{
+		System.out.println("Reading fragments...");
 		fragments =
 				new H5LabelMultisetSetupImageLoader(
 						reader,
@@ -147,6 +173,29 @@ public class BigCat
 						cellDimensions );
 		final RandomAccessibleInterval< VolatileLabelMultisetType > fragmentsPixels = fragments.getVolatileImage( 0, 0 );
 		final long[] fragmentsDimensions = Intervals.dimensionsAsLongArray( fragmentsPixels );
+
+		assignment = new FragmentSegmentAssignment( idService );
+		final TLongLongHashMap lut = H5Utils.loadLongLongLut( reader, fragmentSegmentLutDataset, 1024 );
+		if ( lut != null )
+			assignment.initLut( lut );
+
+		colorStream = new GoldenAngleSaturatedConfirmSwitchARGBStream( assignment );
+		colorStream.setAlpha( 0x20 );
+
+		if (!loadPaintedLabels) {
+
+			final GoldenAngleSaturatedARGBStream cs = new GoldenAngleSaturatedARGBStream( assignment );
+			cs.setAlpha( 0x20 );
+
+			convertedLabels =
+					new ARGBConvertedLabelsSource(
+							3,
+							fragments,
+							cs);
+			return;
+		}
+
+		System.out.println("Finding max ID");
 
 		final Long nextIdObject = H5Utils.loadAttribute( reader, "/", "next_id" );
 		long maxId = 0;
@@ -161,12 +210,13 @@ public class BigCat
 
 		idService.invalidate( maxId );
 
-		final String paintedLabelsFilePath = args[ 0 ];
+		final String paintedLabelsFilePath = params.file;
 		final File paintedLabelsFile = new File( paintedLabelsFilePath );
-		if ( paintedLabelsFile.exists() && reader.exists( paintedLabelsDataset ) )
-				paintedLabels = H5Utils.loadUnsignedLong( new File( paintedLabelsFilePath ), paintedLabelsDataset, cellDimensions );
-		else
-		{
+		if ( paintedLabelsFile.exists() && reader.exists( paintedLabelsDataset ) ) {
+			System.out.println("Reading painted labels...");
+			paintedLabels = H5Utils.loadUnsignedLong( new File( paintedLabelsFilePath ), paintedLabelsDataset, cellDimensions );
+		} else {
+			System.out.println("Creating painted labels...");
 			paintedLabels = new CellImgFactory< LongType >( cellDimensions ).create( fragmentsDimensions, new LongType() );
 			for ( final LongType t : paintedLabels )
 				t.set( Label.TRANSPARENT );
@@ -177,15 +227,7 @@ public class BigCat
 				new RandomAccessiblePair<>(
 						fragments.getVolatileImage( 0, 0 ),
 						paintedLabels );
-
-		assignment = new FragmentSegmentAssignment( idService );
-		final TLongLongHashMap lut = H5Utils.loadLongLongLut( reader, fragmentSegmentLutDataset, 1024 );
-		if ( lut != null )
-			assignment.initLut( lut );
-
-		colorStream = new GoldenAngleSaturatedConfirmSwitchARGBStream( assignment );
-		colorStream.setAlpha( 0x20 );
-		convertedLabelPair =
+		convertedLabels =
 				new ARGBConvertedLabelPairSource(
 						3,
 						labelPair,
@@ -197,6 +239,8 @@ public class BigCat
 	@SuppressWarnings( "unchecked" )
 	private void setupBdv( final H5UnsignedByteSetupImageLoader raw ) throws Exception
 	{
+		System.out.println("Setting up BDV");
+
 		/* composites */
 		final ArrayList< Composite< ARGBType, ARGBType > > composites = new ArrayList< Composite< ARGBType, ARGBType > >();
 		composites.add( new CompositeCopy< ARGBType >() );
@@ -210,7 +254,7 @@ public class BigCat
 			bdv = Util.createViewer(
 				windowTitle,
 				new AbstractH5SetupImageLoader[]{ raw },
-				new ARGBConvertedLabelPairSource[]{ convertedLabelPair },
+				new AbstractARGBConvertedLabelsSource[]{ convertedLabels },
 				new SetCache[]{ fragments },
 				composites,
 				config );
@@ -232,24 +276,40 @@ public class BigCat
 
 		final SelectionController selectionController;
 		final LabelBrushController brushController;
-		final PairLabelMultiSetLongIdPicker idPicker;
+		final IdPicker idPicker;
 
 		if ( fragments != null )
 		{
-			idPicker = new PairLabelMultiSetLongIdPicker(
-					bdv.getViewer(),
-					RealViews.affineReal(
-							Views.interpolate(
-									new RandomAccessiblePair< LabelMultisetType, LongType >(
-											Views.extendValue(
+			if (paintedLabels != null) {
+
+				idPicker = new PairLabelMultiSetLongIdPicker(
+						bdv.getViewer(),
+						RealViews.affineReal(
+								Views.interpolate(
+										new RandomAccessiblePair< LabelMultisetType, LongType >(
+												Views.extendValue(
+													fragments.getImage( 0 ),
+													new LabelMultisetType() ),
+												Views.extendValue(
+														paintedLabels,
+														new LongType( Label.OUTSIDE) ) ),
+										new NearestNeighborInterpolatorFactory< Pair< LabelMultisetType, LongType > >() ),
+								fragments.getMipmapTransforms()[ 0 ] )
+						);
+
+			} else {
+
+				idPicker = new LabelMultiSetIdPicker(
+						bdv.getViewer(),
+						RealViews.affineReal(
+								Views.interpolate(
+										Views.extendValue(
 												fragments.getImage( 0 ),
 												new LabelMultisetType() ),
-											Views.extendValue(
-													paintedLabels,
-													new LongType( Label.OUTSIDE) ) ),
-									new NearestNeighborInterpolatorFactory< Pair< LabelMultisetType, LongType > >() ),
-							fragments.getMipmapTransforms()[ 0 ] )
-					);
+										new NearestNeighborInterpolatorFactory< LabelMultisetType >() ),
+								fragments.getMipmapTransforms()[ 0 ] )
+						);
+			}
 
 			selectionController = new SelectionController(
 					bdv.getViewer(),
@@ -270,66 +330,79 @@ public class BigCat
 					bdv.getViewerFrame().getKeybindings(),
 					config);
 
-			brushController = new LabelBrushController(
-					bdv.getViewer(),
-					paintedLabels,
-					fragments.getMipmapTransforms()[ 0 ],
-					assignment,
-					selectionController,
-					projectFile,
-					paintedLabelsDataset,
-					cellDimensions,
-					config);
+			if (loadPaintedLabels) {
 
-			persistenceController = new LabelPersistenceController(
-					bdv.getViewer(),
-					fragments.getImage( 0 ),
-					paintedLabels,
-					assignment,
-					idService,
-					projectFile,
-					paintedLabelsDataset,
-					mergedLabelsDataset,
-					cellDimensions,
-					fragmentSegmentLutDataset,
-					config,
-					bdv.getViewerFrame().getKeybindings() );
+				brushController = new LabelBrushController(
+						bdv.getViewer(),
+						paintedLabels,
+						fragments.getMipmapTransforms()[ 0 ],
+						assignment,
+						selectionController,
+						projectFile,
+						paintedLabelsDataset,
+						cellDimensions,
+						config);
 
-			final LabelFillController fillController = new LabelFillController(
-					bdv.getViewer(),
-					fragments.getImage( 0 ),
-					paintedLabels,
-					fragments.getMipmapTransforms()[ 0 ],
-					assignment,
-					selectionController,
-					new DiamondShape( 1 ),
-					idPicker,
-					config);
+				persistenceController = new LabelPersistenceController(
+						bdv.getViewer(),
+						fragments.getImage( 0 ),
+						paintedLabels,
+						assignment,
+						idService,
+						projectFile,
+						paintedLabelsDataset,
+						mergedLabelsDataset,
+						cellDimensions,
+						fragmentSegmentLutDataset,
+						config,
+						bdv.getViewerFrame().getKeybindings() );
 
-			/* splitter (and more) */
-			final DrawProjectAndIntersectController dpi = new DrawProjectAndIntersectController(
-					bdv,
-					idService,
-					new AffineTransform3D(),
-					new InputTriggerConfig(),
-					fragments.getImage(0),
-					paintedLabels,
-					fragments.getMipmapTransforms()[0],
-					assignment,
-					colorStream,
-					selectionController,
-					bdv.getViewerFrame().getKeybindings(),
-					bindings,
-					"shift T" );
+				final LabelFillController fillController = new LabelFillController(
+						bdv.getViewer(),
+						fragments.getImage( 0 ),
+						paintedLabels,
+						fragments.getMipmapTransforms()[ 0 ],
+						assignment,
+						selectionController,
+						new DiamondShape( 1 ),
+						idPicker,
+						config);
 
-			final ConfirmSegmentController confirmSegment = new ConfirmSegmentController(
-					bdv.getViewer(),
-					selectionController,
-					assignment,
-					colorStream,
-					colorStream,
-					config,
-					bdv.getViewerFrame().getKeybindings() );
+				/* splitter (and more) */
+				final DrawProjectAndIntersectController dpi = new DrawProjectAndIntersectController(
+						bdv,
+						idService,
+						new AffineTransform3D(),
+						new InputTriggerConfig(),
+						fragments.getImage(0),
+						paintedLabels,
+						fragments.getMipmapTransforms()[0],
+						assignment,
+						colorStream,
+						selectionController,
+						bdv.getViewerFrame().getKeybindings(),
+						bindings,
+						"shift T" );
+
+				final ConfirmSegmentController confirmSegment = new ConfirmSegmentController(
+						bdv.getViewer(),
+						selectionController,
+						assignment,
+						colorStream,
+						colorStream,
+						config,
+						bdv.getViewerFrame().getKeybindings() );
+
+				bindings.addBehaviourMap( "brush", brushController.getBehaviourMap() );
+				bindings.addInputTriggerMap( "brush", brushController.getInputTriggerMap() );
+
+				bindings.addBehaviourMap( "fill", fillController.getBehaviourMap() );
+				bindings.addInputTriggerMap( "fill", fillController.getInputTriggerMap() );
+
+			} else {
+
+				brushController = null;
+			}
 
 			bindings.addBehaviourMap( "select", selectionController.getBehaviourMap() );
 			bindings.addInputTriggerMap( "select", selectionController.getInputTriggerMap() );
@@ -337,21 +410,17 @@ public class BigCat
 			bindings.addBehaviourMap( "merge", mergeController.getBehaviourMap() );
 			bindings.addInputTriggerMap( "merge", mergeController.getInputTriggerMap() );
 
-			bindings.addBehaviourMap( "brush", brushController.getBehaviourMap() );
-			bindings.addInputTriggerMap( "brush", brushController.getInputTriggerMap() );
-
-			bindings.addBehaviourMap( "fill", fillController.getBehaviourMap() );
-			bindings.addInputTriggerMap( "fill", fillController.getInputTriggerMap() );
-
-			bdv.getViewerFrame().addWindowListener( new WindowAdapter()
-			{
-				@Override
-				public void windowClosing( final WindowEvent we )
+			if (loadPaintedLabels) {
+				bdv.getViewerFrame().addWindowListener( new WindowAdapter()
 				{
-					saveBeforeClosing();
-					System.exit( 0 );
-				}
-			} );
+					@Override
+					public void windowClosing( final WindowEvent we )
+					{
+						saveBeforeClosing();
+						System.exit( 0 );
+					}
+				} );
+			}
 		}
 		else
 		{
