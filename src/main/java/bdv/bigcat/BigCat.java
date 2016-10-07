@@ -529,7 +529,7 @@ public class BigCat
 			for ( final Multiset.Entry< Label > v : t.entrySet() )
 			{
 				final long id = v.getElement().id();
-				if ( id != Label.TRANSPARENT && IdService.greaterThan( id, maxId ) )
+				if ( Label.regular( id ) && IdService.greaterThan( id, maxId ) )
 					maxId = id;
 			}
 		}
@@ -544,7 +544,7 @@ public class BigCat
 		for ( final LongType t : labels )
 		{
 			final long id = t.get();
-			if ( id != Label.TRANSPARENT && IdService.greaterThan( id, maxId ) )
+			if ( Label.regular( id ) && IdService.greaterThan( id, maxId ) )
 				maxId = id;
 		}
 

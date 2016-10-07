@@ -10,14 +10,24 @@ import bdv.labels.labelset.Label;
 import bdv.labels.labelset.LabelMultiset;
 import bdv.labels.labelset.LabelMultisetType;
 import ch.systemsx.cisd.base.mdarray.MDByteArray;
+import ch.systemsx.cisd.base.mdarray.MDDoubleArray;
+import ch.systemsx.cisd.base.mdarray.MDFloatArray;
 import ch.systemsx.cisd.base.mdarray.MDLongArray;
+import ch.systemsx.cisd.base.mdarray.MDShortArray;
 import ch.systemsx.cisd.hdf5.HDF5DataTypeInformation;
 import ch.systemsx.cisd.hdf5.HDF5Factory;
 import ch.systemsx.cisd.hdf5.HDF5IntStorageFeatures;
+import ch.systemsx.cisd.hdf5.IHDF5ByteReader;
 import ch.systemsx.cisd.hdf5.IHDF5ByteWriter;
+import ch.systemsx.cisd.hdf5.IHDF5DoubleReader;
+import ch.systemsx.cisd.hdf5.IHDF5DoubleWriter;
+import ch.systemsx.cisd.hdf5.IHDF5FloatReader;
+import ch.systemsx.cisd.hdf5.IHDF5FloatWriter;
 import ch.systemsx.cisd.hdf5.IHDF5LongReader;
 import ch.systemsx.cisd.hdf5.IHDF5LongWriter;
 import ch.systemsx.cisd.hdf5.IHDF5Reader;
+import ch.systemsx.cisd.hdf5.IHDF5ShortReader;
+import ch.systemsx.cisd.hdf5.IHDF5ShortWriter;
 import ch.systemsx.cisd.hdf5.IHDF5Writer;
 import gnu.trove.impl.Constants;
 import gnu.trove.map.hash.TLongLongHashMap;
@@ -30,7 +40,11 @@ import net.imglib2.converter.Converters;
 import net.imglib2.img.cell.CellImg;
 import net.imglib2.img.cell.CellImgFactory;
 import net.imglib2.type.numeric.integer.LongType;
+import net.imglib2.type.numeric.integer.ShortType;
 import net.imglib2.type.numeric.integer.UnsignedByteType;
+import net.imglib2.type.numeric.integer.UnsignedShortType;
+import net.imglib2.type.numeric.real.DoubleType;
+import net.imglib2.type.numeric.real.FloatType;
 import net.imglib2.util.Intervals;
 import net.imglib2.util.Pair;
 import net.imglib2.util.Util;
@@ -55,6 +69,169 @@ public class H5Utils
 		for ( int d = 0; d < n; ++d )
 			croppedCellDimensions[ d ] = Math.min( cellDimensions[ d ], sourceDimensions.dimension( d ) - offset[ d ] );
 	}
+
+
+	/**
+	 * Load an HDF5 float32 dataset into a {@link CellImg} of {@link FloatType}.
+	 *
+	 * @param reader
+	 * @param dataset
+	 * @param cellDimensions
+	 */
+	static public CellImg< FloatType, ?, ? > loadFloat(
+			final IHDF5Reader reader,
+			final String dataset,
+			final int[] cellDimensions )
+	{
+		final IHDF5FloatReader float32Reader = reader.float32();
+
+		final long[] dimensions = reorder( reader.object().getDimensions( dataset ) );
+		final int n = dimensions.length;
+
+		final CellImg< FloatType, ?, ? > target = new CellImgFactory< FloatType >( cellDimensions ).create( dimensions, new FloatType() );
+
+		final long[] offset = new long[ n ];
+		final long[] targetCellDimensions = new long[ n ];
+		for ( int d = 0; d < n; )
+		{
+			cropCellDimensions( target, offset, cellDimensions, targetCellDimensions );
+			final RandomAccessibleInterval< FloatType > targetBlock = Views.offsetInterval( target, offset, targetCellDimensions );
+			final MDFloatArray targetCell = float32Reader.readMDArrayBlockWithOffset(
+					dataset,
+					Util.long2int( reorder( targetCellDimensions ) ),
+					reorder( offset ) );
+
+			int i = 0;
+			for ( final FloatType t : Views.flatIterable( targetBlock ) )
+				t.set( targetCell.get( i++ ) );
+
+			for ( d = 0; d < n; ++d )
+			{
+				offset[ d ] += cellDimensions[ d ];
+				if ( offset[ d ] < dimensions[ d ] )
+					break;
+				else
+					offset[ d ] = 0;
+			}
+		}
+
+		return target;
+	}
+
+	/**
+	 * Load an HDF5 float32 dataset into a {@link CellImg} of {@link FloatType}.
+	 *
+	 * @param file
+	 * @param dataset
+	 * @param cellDimensions
+	 */
+	static public CellImg< FloatType, ?, ? > loadFloat(
+			final File file,
+			final String dataset,
+			final int[] cellDimensions )
+	{
+		final IHDF5Reader reader = HDF5Factory.openForReading( file );
+		final CellImg< FloatType, ?, ? > target = loadFloat( reader, dataset, cellDimensions );
+		reader.close();
+		return target;
+	}
+
+	/**
+	 * Load an HDF5 float32 dataset into a {@link CellImg} of {@link FloatType}.
+	 *
+	 * @param filePath
+	 * @param dataset
+	 * @param cellDimensions
+	 */
+	static public CellImg< FloatType, ?, ? > loadFloat(
+			final String filePath,
+			final String dataset,
+			final int[] cellDimensions )
+	{
+		return loadFloat( new File( filePath ), dataset, cellDimensions );
+	}
+
+
+	/**
+	 * Load an HDF5 float64 dataset into a {@link CellImg} of {@link DoubleType}.
+	 *
+	 * @param reader
+	 * @param dataset
+	 * @param cellDimensions
+	 */
+	static public CellImg< DoubleType, ?, ? > loadDouble(
+			final IHDF5Reader reader,
+			final String dataset,
+			final int[] cellDimensions )
+	{
+		final IHDF5DoubleReader float64Reader = reader.float64();
+
+		final long[] dimensions = reorder( reader.object().getDimensions( dataset ) );
+		final int n = dimensions.length;
+
+		final CellImg< DoubleType, ?, ? > target = new CellImgFactory< DoubleType >( cellDimensions ).create( dimensions, new DoubleType() );
+
+		final long[] offset = new long[ n ];
+		final long[] targetCellDimensions = new long[ n ];
+		for ( int d = 0; d < n; )
+		{
+			cropCellDimensions( target, offset, cellDimensions, targetCellDimensions );
+			final RandomAccessibleInterval< DoubleType > targetBlock = Views.offsetInterval( target, offset, targetCellDimensions );
+			final MDDoubleArray targetCell = float64Reader.readMDArrayBlockWithOffset(
+					dataset,
+					Util.long2int( reorder( targetCellDimensions ) ),
+					reorder( offset ) );
+
+			int i = 0;
+			for ( final DoubleType t : Views.flatIterable( targetBlock ) )
+				t.set( targetCell.get( i++ ) );
+
+			for ( d = 0; d < n; ++d )
+			{
+				offset[ d ] += cellDimensions[ d ];
+				if ( offset[ d ] < dimensions[ d ] )
+					break;
+				else
+					offset[ d ] = 0;
+			}
+		}
+
+		return target;
+	}
+
+	/**
+	 * Load an HDF5 float64 dataset into a {@link CellImg} of {@link DoubleType}.
+	 *
+	 * @param file
+	 * @param dataset
+	 * @param cellDimensions
+	 */
+	static public CellImg< DoubleType, ?, ? > loadDouble(
+			final File file,
+			final String dataset,
+			final int[] cellDimensions )
+	{
+		final IHDF5Reader reader = HDF5Factory.openForReading( file );
+		final CellImg< DoubleType, ?, ? > target = loadDouble( reader, dataset, cellDimensions );
+		reader.close();
+		return target;
+	}
+
+	/**
+	 * Load an HDF5 float64 dataset into a {@link CellImg} of {@link DoubleType}.
+	 *
+	 * @param filePath
+	 * @param dataset
+	 * @param cellDimensions
+	 */
+	static public CellImg< DoubleType, ?, ? > loadDouble(
+			final String filePath,
+			final String dataset,
+			final int[] cellDimensions )
+	{
+		return loadDouble( new File( filePath ), dataset, cellDimensions );
+	}
+
 
 	/**
 	 * Load an HDF5 uint64 dataset into a {@link CellImg} of {@link LongType}.
@@ -103,7 +280,6 @@ public class H5Utils
 		return target;
 	}
 
-
 	/**
 	 * Load an HDF5 uint64 dataset into a {@link CellImg} of {@link LongType}.
 	 *
@@ -123,23 +299,200 @@ public class H5Utils
 	}
 
 	/**
+	 * Load an HDF5 uint64 dataset into a {@link CellImg} of {@link LongType}.
+	 *
+	 * @param filePath
+	 * @param dataset
+	 * @param cellDimensions
+	 */
+	static public CellImg< LongType, ?, ? > loadUnsignedLong(
+			final String filePath,
+			final String dataset,
+			final int[] cellDimensions )
+	{
+		return loadUnsignedLong( new File( filePath ), dataset, cellDimensions );
+	}
+
+
+	/**
+	 * Load an HDF5 uint16 dataset into a {@link CellImg} of {@link UnsignedShortType}.
+	 *
+	 * @param reader
+	 * @param dataset
+	 * @param cellDimensions
+	 */
+	static public CellImg< UnsignedShortType, ?, ? > loadUnsignedShort(
+			final IHDF5Reader reader,
+			final String dataset,
+			final int[] cellDimensions )
+	{
+		final IHDF5ShortReader uint16Reader = reader.uint16();
+
+		final long[] dimensions = reorder( reader.object().getDimensions( dataset ) );
+		final int n = dimensions.length;
+
+		final CellImg< UnsignedShortType, ?, ? > target = new CellImgFactory< UnsignedShortType >( cellDimensions ).create( dimensions, new UnsignedShortType() );
+
+		final long[] offset = new long[ n ];
+		final long[] targetCellDimensions = new long[ n ];
+		for ( int d = 0; d < n; )
+		{
+			cropCellDimensions( target, offset, cellDimensions, targetCellDimensions );
+			final RandomAccessibleInterval< UnsignedShortType > targetBlock = Views.offsetInterval( target, offset, targetCellDimensions );
+			final MDShortArray targetCell = uint16Reader.readMDArrayBlockWithOffset(
+					dataset,
+					Util.long2int( reorder( targetCellDimensions ) ),
+					reorder( offset ) );
+
+			int i = 0;
+			for ( final UnsignedShortType t : Views.flatIterable( targetBlock ) )
+				t.set( targetCell.get( i++ ) );
+
+			for ( d = 0; d < n; ++d )
+			{
+				offset[ d ] += cellDimensions[ d ];
+				if ( offset[ d ] < dimensions[ d ] )
+					break;
+				else
+					offset[ d ] = 0;
+			}
+		}
+
+		return target;
+	}
+
+	/**
+	 * Load an HDF5 uint16 dataset into a {@link CellImg} of {@link UnsignedShortType}.
+	 *
+	 * @param file
+	 * @param dataset
+	 * @param cellDimensions
+	 */
+	static public CellImg< UnsignedShortType, ?, ? > loadUnsignedShort(
+			final File file,
+			final String dataset,
+			final int[] cellDimensions )
+	{
+		final IHDF5Reader reader = HDF5Factory.openForReading( file );
+		final CellImg< UnsignedShortType, ?, ? > target = loadUnsignedShort( reader, dataset, cellDimensions );
+		reader.close();
+		return target;
+	}
+
+	/**
+	 * Load an HDF5 uint16 dataset into a {@link CellImg} of {@link UnsignedShortType}.
+	 *
+	 * @param filePath
+	 * @param dataset
+	 * @param cellDimensions
+	 */
+	static public CellImg< UnsignedShortType, ?, ? > loadUnsignedShort(
+			final String filePath,
+			final String dataset,
+			final int[] cellDimensions )
+	{
+		return loadUnsignedShort( new File( filePath ), dataset, cellDimensions );
+	}
+
+
+	/**
+	 * Load an HDF5 uint8 dataset into a {@link CellImg} of {@link UnsignedByteType}.
+	 *
+	 * @param reader
+	 * @param dataset
+	 * @param cellDimensions
+	 */
+	static public CellImg< UnsignedByteType, ?, ? > loadUnsignedByte(
+			final IHDF5Reader reader,
+			final String dataset,
+			final int[] cellDimensions )
+	{
+		final IHDF5ByteReader uint8Reader = reader.uint8();
+
+		final long[] dimensions = reorder( reader.object().getDimensions( dataset ) );
+		final int n = dimensions.length;
+
+		final CellImg< UnsignedByteType, ?, ? > target = new CellImgFactory< UnsignedByteType >( cellDimensions ).create( dimensions, new UnsignedByteType() );
+
+		final long[] offset = new long[ n ];
+		final long[] targetCellDimensions = new long[ n ];
+		for ( int d = 0; d < n; )
+		{
+			cropCellDimensions( target, offset, cellDimensions, targetCellDimensions );
+			final RandomAccessibleInterval< UnsignedByteType > targetBlock = Views.offsetInterval( target, offset, targetCellDimensions );
+			final MDByteArray targetCell = uint8Reader.readMDArrayBlockWithOffset(
+					dataset,
+					Util.long2int( reorder( targetCellDimensions ) ),
+					reorder( offset ) );
+
+			int i = 0;
+			for ( final UnsignedByteType t : Views.flatIterable( targetBlock ) )
+				t.set( targetCell.get( i++ ) );
+
+			for ( d = 0; d < n; ++d )
+			{
+				offset[ d ] += cellDimensions[ d ];
+				if ( offset[ d ] < dimensions[ d ] )
+					break;
+				else
+					offset[ d ] = 0;
+			}
+		}
+
+		return target;
+	}
+
+	/**
+	 * Load an HDF5 uint8 dataset into a {@link CellImg} of {@link UnsignedByteType}.
+	 *
+	 * @param file
+	 * @param dataset
+	 * @param cellDimensions
+	 */
+	static public CellImg< UnsignedByteType, ?, ? > loadUnsignedByte(
+			final File file,
+			final String dataset,
+			final int[] cellDimensions )
+	{
+		final IHDF5Reader reader = HDF5Factory.openForReading( file );
+		final CellImg< UnsignedByteType, ?, ? > target = loadUnsignedByte( reader, dataset, cellDimensions );
+		reader.close();
+		return target;
+	}
+
+	/**
+	 * Load an HDF5 uint8 dataset into a {@link CellImg} of {@link UnsignedByteType}.
+	 *
+	 * @param filePath
+	 * @param dataset
+	 * @param cellDimensions
+	 */
+	static public CellImg< UnsignedByteType, ?, ? > loadUnsignedByte(
+			final String filePath,
+			final String dataset,
+			final int[] cellDimensions )
+	{
+		return loadUnsignedByte( new File( filePath ), dataset, cellDimensions );
+	}
+
+
+	/**
 	 * Save a {@link RandomAccessibleInterval} of {@link UnsignedByteType} into an HDF5
 	 * uint8 dataset.
 	 *
 	 * @param source
-	 * @param file
+	 * @param writer
 	 * @param dataset
 	 * @param cellDimensions
 	 */
 	static public void saveUnsignedByte(
 			final RandomAccessibleInterval< UnsignedByteType > source,
-			final File file,
+			final IHDF5Writer writer,
 			final String dataset,
 			final int[] cellDimensions )
 	{
 		final int n = source.numDimensions();
 		final long[] dimensions = Intervals.dimensionsAsLongArray( source );
-		final IHDF5Writer writer = HDF5Factory.open( file );
 		final IHDF5ByteWriter uint8Writer = writer.uint8();
 		if ( !writer.exists( dataset ) )
 			uint8Writer.createMDArray(
@@ -169,30 +522,330 @@ public class H5Utils
 				else
 					offset[ d ] = 0;
 			}
-
-//			System.out.println( Util.printCoordinates( offset ) );
 		}
-		writer.close();
 	}
 
 	/**
-	 * Save a {@link RandomAccessibleInterval} of {@link LongType} into an HDF5
-	 * uint64 dataset.
+	 * Save a {@link RandomAccessibleInterval} of {@link UnsignedByteType} into an HDF5
+	 * uint8 dataset.
 	 *
 	 * @param source
 	 * @param file
 	 * @param dataset
 	 * @param cellDimensions
 	 */
-	static public void saveUnsignedLong(
-			final RandomAccessibleInterval< LongType > source,
+	static public void saveUnsignedByte(
+			final RandomAccessibleInterval< UnsignedByteType > source,
 			final File file,
+			final String dataset,
+			final int[] cellDimensions )
+	{
+		final IHDF5Writer writer = HDF5Factory.open( file );
+		saveUnsignedByte( source, writer, dataset, cellDimensions );
+		writer.close();
+	}
+
+	/**
+	 * Save a {@link RandomAccessibleInterval} of {@link UnsignedByteType} into an HDF5
+	 * uint8 dataset.
+	 *
+	 * @param source
+	 * @param filePAth
+	 * @param dataset
+	 * @param cellDimensions
+	 */
+	static public void saveUnsignedByte(
+			final RandomAccessibleInterval< UnsignedByteType > source,
+			final String filePath,
+			final String dataset,
+			final int[] cellDimensions )
+	{
+		saveUnsignedByte( source, new File( filePath ), dataset, cellDimensions );
+	}
+
+
+	/**
+	 * Save a {@link RandomAccessibleInterval} of {@link FloatType} into an HDF5
+	 * float32 dataset.
+	 *
+	 * @param source
+	 * @param writer
+	 * @param dataset
+	 * @param cellDimensions
+	 */
+	static public void saveFloat(
+			final RandomAccessibleInterval< FloatType > source,
+			final IHDF5Writer writer,
 			final String dataset,
 			final int[] cellDimensions )
 	{
 		final int n = source.numDimensions();
 		final long[] dimensions = Intervals.dimensionsAsLongArray( source );
+		final IHDF5FloatWriter float32Writer = writer.float32();
+		if ( !writer.exists( dataset ) )
+			float32Writer.createMDArray(
+					dataset,
+					reorder( dimensions ),
+					reorder( cellDimensions ) );
+
+		final long[] offset = new long[ n ];
+		final long[] sourceCellDimensions = new long[ n ];
+		for ( int d = 0; d < n; )
+		{
+			cropCellDimensions( source, offset, cellDimensions, sourceCellDimensions );
+			final RandomAccessibleInterval< FloatType > sourceBlock = Views.offsetInterval( source, offset, sourceCellDimensions );
+			final MDFloatArray targetCell = new MDFloatArray( reorder( sourceCellDimensions ) );
+			int i = 0;
+			for ( final FloatType t : Views.flatIterable( sourceBlock ) )
+				targetCell.set( t.get(), i++ );
+
+			float32Writer.writeMDArrayBlockWithOffset( dataset, targetCell, reorder( offset ) );
+
+			for ( d = 0; d < n; ++d )
+			{
+				offset[ d ] += cellDimensions[ d ];
+				if ( offset[ d ] < source.dimension( d ) )
+					break;
+				else
+					offset[ d ] = 0;
+			}
+		}
+	}
+
+	/**
+	 * Save a {@link RandomAccessibleInterval} of {@link FloatType} into an HDF5
+	 * float32 dataset.
+	 *
+	 * @param source
+	 * @param file
+	 * @param dataset
+	 * @param cellDimensions
+	 */
+	static public void saveFloat(
+			final RandomAccessibleInterval< FloatType > source,
+			final File file,
+			final String dataset,
+			final int[] cellDimensions )
+	{
 		final IHDF5Writer writer = HDF5Factory.open( file );
+		saveFloat( source, writer, dataset, cellDimensions );
+		writer.close();
+	}
+
+	/**
+	 * Save a {@link RandomAccessibleInterval} of {@link FloatType} into an HDF5
+	 * float32 dataset.
+	 *
+	 * @param source
+	 * @param filePAth
+	 * @param dataset
+	 * @param cellDimensions
+	 */
+	static public void saveFloat(
+			final RandomAccessibleInterval< FloatType > source,
+			final String filePath,
+			final String dataset,
+			final int[] cellDimensions )
+	{
+		saveFloat( source, new File( filePath ), dataset, cellDimensions );
+	}
+
+
+	/**
+	 * Save a {@link RandomAccessibleInterval} of {@link DoubleType} into an HDF5
+	 * float64 dataset.
+	 *
+	 * @param source
+	 * @param writer
+	 * @param dataset
+	 * @param cellDimensions
+	 */
+	static public void saveDouble(
+			final RandomAccessibleInterval< DoubleType > source,
+			final IHDF5Writer writer,
+			final String dataset,
+			final int[] cellDimensions )
+	{
+		final int n = source.numDimensions();
+		final long[] dimensions = Intervals.dimensionsAsLongArray( source );
+		final IHDF5DoubleWriter float64Writer = writer.float64();
+		if ( !writer.exists( dataset ) )
+			float64Writer.createMDArray(
+					dataset,
+					reorder( dimensions ),
+					reorder( cellDimensions ) );
+
+		final long[] offset = new long[ n ];
+		final long[] sourceCellDimensions = new long[ n ];
+		for ( int d = 0; d < n; )
+		{
+			cropCellDimensions( source, offset, cellDimensions, sourceCellDimensions );
+			final RandomAccessibleInterval< DoubleType > sourceBlock = Views.offsetInterval( source, offset, sourceCellDimensions );
+			final MDDoubleArray targetCell = new MDDoubleArray( reorder( sourceCellDimensions ) );
+			int i = 0;
+			for ( final DoubleType t : Views.flatIterable( sourceBlock ) )
+				targetCell.set( t.get(), i++ );
+
+			float64Writer.writeMDArrayBlockWithOffset( dataset, targetCell, reorder( offset ) );
+
+			for ( d = 0; d < n; ++d )
+			{
+				offset[ d ] += cellDimensions[ d ];
+				if ( offset[ d ] < source.dimension( d ) )
+					break;
+				else
+					offset[ d ] = 0;
+			}
+		}
+	}
+
+	/**
+	 * Save a {@link RandomAccessibleInterval} of {@link DoubleType} into an HDF5
+	 * float64 dataset.
+	 *
+	 * @param source
+	 * @param file
+	 * @param dataset
+	 * @param cellDimensions
+	 */
+	static public void saveDouble(
+			final RandomAccessibleInterval< DoubleType > source,
+			final File file,
+			final String dataset,
+			final int[] cellDimensions )
+	{
+		final IHDF5Writer writer = HDF5Factory.open( file );
+		saveDouble( source, writer, dataset, cellDimensions );
+		writer.close();
+	}
+
+	/**
+	 * Save a {@link RandomAccessibleInterval} of {@link DoubleType} into an HDF5
+	 * float64 dataset.
+	 *
+	 * @param source
+	 * @param filePAth
+	 * @param dataset
+	 * @param cellDimensions
+	 */
+	static public void saveDouble(
+			final RandomAccessibleInterval< DoubleType > source,
+			final String filePath,
+			final String dataset,
+			final int[] cellDimensions )
+	{
+		saveDouble( source, new File( filePath ), dataset, cellDimensions );
+	}
+
+
+	/**
+	 * Save a {@link RandomAccessibleInterval} of {@link ShortType} into an HDF5
+	 * uint16 dataset.
+	 *
+	 * @param source
+	 * @param writer
+	 * @param dataset
+	 * @param cellDimensions
+	 */
+	static public void saveUnsignedShort(
+			final RandomAccessibleInterval< ShortType > source,
+			final IHDF5Writer writer,
+			final String dataset,
+			final int[] cellDimensions )
+	{
+		final int n = source.numDimensions();
+		final long[] dimensions = Intervals.dimensionsAsLongArray( source );
+		final IHDF5ShortWriter uint16Writer = writer.uint16();
+		if ( !writer.exists( dataset ) )
+			uint16Writer.createMDArray(
+					dataset,
+					reorder( dimensions ),
+					reorder( cellDimensions ),
+					HDF5IntStorageFeatures.INT_AUTO_SCALING_DEFLATE );
+
+		final long[] offset = new long[ n ];
+		final long[] sourceCellDimensions = new long[ n ];
+		for ( int d = 0; d < n; )
+		{
+			cropCellDimensions( source, offset, cellDimensions, sourceCellDimensions );
+			final RandomAccessibleInterval< ShortType > sourceBlock = Views.offsetInterval( source, offset, sourceCellDimensions );
+			final MDShortArray targetCell = new MDShortArray( reorder( sourceCellDimensions ) );
+			int i = 0;
+			for ( final ShortType t : Views.flatIterable( sourceBlock ) )
+				targetCell.set( t.get(), i++ );
+
+			uint16Writer.writeMDArrayBlockWithOffset( dataset, targetCell, reorder( offset ) );
+
+			for ( d = 0; d < n; ++d )
+			{
+				offset[ d ] += cellDimensions[ d ];
+				if ( offset[ d ] < source.dimension( d ) )
+					break;
+				else
+					offset[ d ] = 0;
+			}
+		}
+	}
+
+	/**
+	 * Save a {@link RandomAccessibleInterval} of {@link ShortType} into an HDF5
+	 * uint16 dataset.
+	 *
+	 * @param source
+	 * @param file
+	 * @param dataset
+	 * @param cellDimensions
+	 */
+	static public void saveUnsignedShort(
+			final RandomAccessibleInterval< ShortType > source,
+			final File file,
+			final String dataset,
+			final int[] cellDimensions )
+	{
+		final IHDF5Writer writer = HDF5Factory.open( file );
+		saveUnsignedShort( source, writer, dataset, cellDimensions );
+		writer.close();
+	}
+
+	/**
+	 * Save a {@link RandomAccessibleInterval} of {@link ShortType} into an HDF5
+	 * uint16 dataset.
+	 *
+	 * @param source
+	 * @param filePAth
+	 * @param dataset
+	 * @param cellDimensions
+	 */
+	static public void saveUnsignedShort(
+			final RandomAccessibleInterval< ShortType > source,
+			final String filePath,
+			final String dataset,
+			final int[] cellDimensions )
+	{
+		saveUnsignedShort( source, new File( filePath ), dataset, cellDimensions );
+	}
+
+
+
+
+
+	/**
+	 * Save a {@link RandomAccessibleInterval} of {@link LongType} into an HDF5
+	 * uint64 dataset.
+	 *
+	 * @param source
+	 * @param writer
+	 * @param dataset
+	 * @param cellDimensions
+	 */
+	static public void saveUnsignedLong(
+			final RandomAccessibleInterval< LongType > source,
+			final IHDF5Writer writer,
+			final String dataset,
+			final int[] cellDimensions )
+	{
+		final int n = source.numDimensions();
+		final long[] dimensions = Intervals.dimensionsAsLongArray( source );
 		final IHDF5LongWriter uint64Writer = writer.uint64();
 		if ( !writer.exists( dataset ) )
 			uint64Writer.createMDArray(
@@ -222,11 +875,49 @@ public class H5Utils
 				else
 					offset[ d ] = 0;
 			}
-
-//			System.out.println( Util.printCoordinates( offset ) );
 		}
+	}
+
+	/**
+	 * Save a {@link RandomAccessibleInterval} of {@link LongType} into an HDF5
+	 * uint64 dataset.
+	 *
+	 * @param source
+	 * @param file
+	 * @param dataset
+	 * @param cellDimensions
+	 */
+	static public void saveUnsignedLong(
+			final RandomAccessibleInterval< LongType > source,
+			final File file,
+			final String dataset,
+			final int[] cellDimensions )
+	{
+		final IHDF5Writer writer = HDF5Factory.open( file );
+		saveUnsignedLong( source, writer, dataset, cellDimensions );
 		writer.close();
 	}
+
+	/**
+	 * Save a {@link RandomAccessibleInterval} of {@link LongType} into an HDF5
+	 * uint64 dataset.
+	 *
+	 * @param source
+	 * @param filePAth
+	 * @param dataset
+	 * @param cellDimensions
+	 */
+	static public void saveUnsignedLong(
+			final RandomAccessibleInterval< LongType > source,
+			final String filePath,
+			final String dataset,
+			final int[] cellDimensions )
+	{
+		saveUnsignedLong( source, new File( filePath ), dataset, cellDimensions );
+	}
+
+
+
 
 	/**
 	 * Save the combination of a single element {@link LabelMultiset} source
@@ -505,6 +1196,7 @@ public class H5Utils
 	 * @param dataset
 	 * @param cellDimensions
 	 */
+	@SuppressWarnings( "unchecked" )
 	static public < T > T loadAttribute(
 			final IHDF5Reader reader,
 			final String object,
