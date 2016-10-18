@@ -1,9 +1,7 @@
 /**
- * 
+ *
  */
 package bdv.zmqtest;
-
-import java.nio.charset.Charset;
 
 import org.zeromq.ZContext;
 import org.zeromq.ZMQ;
@@ -25,14 +23,14 @@ public class ZmqTestServer
 		server.bind( "ipc:///tmp/zmqtest" );
 //		server.bind( "tcp://*:5556" );
 		System.out.println( "bind complete" );
-		
+
 		String msg = "";
 		while ( !msg.equals( "exit" ) )
 		{
-			msg = server.recvStr( Charset.forName( "UTF-8" ) );
+			msg = server.recvStr();
 			System.out.println( msg );
 		}
-		
+
 		ctx.destroy();
 	}
 }

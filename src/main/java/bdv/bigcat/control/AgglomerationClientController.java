@@ -17,7 +17,6 @@
 package bdv.bigcat.control;
 
 import java.lang.reflect.Type;
-import java.nio.charset.Charset;
 import java.util.Arrays;
 import java.util.LinkedList;
 import java.util.List;
@@ -187,7 +186,7 @@ public class AgglomerationClientController
 		{
 			while ( !isInterrupted() )
 			{
-				final String json = socket.recvStr( Charset.defaultCharset() );
+				final String json = socket.recvStr();
 				handleMessage( json );
 			}
 		}

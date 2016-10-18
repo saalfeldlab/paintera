@@ -1,6 +1,5 @@
 package bdv.util;
 
-import java.nio.charset.Charset;
 import java.util.stream.LongStream;
 
 import org.zeromq.ZContext;
@@ -64,7 +63,7 @@ public class RemoteIdService implements IdService
 		while ( !socket.send( gson.toJson( new Request( count ) ) ) )
 			System.out.println( "Failed sending message." );
 		final Response response = gson.fromJson(
-				socket.recvStr( Charset.defaultCharset() ),
+				socket.recvStr(),
 				Response.class );
 		next = response.begin;
 		end = response.end;
