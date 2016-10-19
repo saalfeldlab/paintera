@@ -1323,6 +1323,64 @@ public class H5Utils
 	}
 
 	/**
+	 * Save a double array as a float64[] attribute of an HDF5 object.
+	 *
+	 * @param values
+	 * @param writer
+	 * @param object
+	 * @param attribute
+	 */
+	static public void saveAttribute(
+			final double[] values,
+			final IHDF5Writer writer,
+			final String object,
+			final String attribute )
+	{
+		if ( !writer.exists( object ) )
+			writer.object().createGroup( object );
+
+		writer.float64().setArrayAttr( object, attribute, values );
+	}
+
+	/**
+	 * Save a double array as a float64[] attribute of an HDF5 object.
+	 *
+	 * @param values
+	 * @param file
+	 * @param object
+	 * @param attribute
+	 */
+	static public void saveAttribute(
+			final double[] values,
+			final File file,
+			final String object,
+			final String attribute )
+	{
+		final IHDF5Writer writer = HDF5Factory.open( file );
+		saveAttribute( values, writer, object, attribute );
+		writer.close();
+	}
+
+	/**
+	 * Save a double array as a float64[] attribute of an HDF5 object.
+	 *
+	 * @param values
+	 * @param filePath
+	 * @param object
+	 * @param attribute
+	 */
+	static public void saveAttribute(
+			final double[] values,
+			final String filePath,
+			final String object,
+			final String attribute )
+	{
+		final IHDF5Writer writer = HDF5Factory.open( filePath );
+		saveAttribute( values, writer, object, attribute );
+		writer.close();
+	}
+
+	/**
 	 * Save a long value as a uint64 attribute of an HDF5 object.
 	 *
 	 * @param value
