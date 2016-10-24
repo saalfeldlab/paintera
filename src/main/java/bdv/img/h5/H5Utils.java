@@ -882,21 +882,28 @@ public class H5Utils
 			final String dataset,
 			final int[] cellDimensions )
 	{
-		final int n = source.numDimensions();
-		final long[] dimensions = Intervals.dimensionsAsLongArray( source );
-		final IHDF5LongWriter uint64Writer = writer.uint64();
 		if ( !writer.exists( dataset ) )
-			uint64Writer.createMDArray(
-					dataset,
-					reorder( dimensions ),
-					reorder( cellDimensions ),
-					HDF5IntStorageFeatures.INT_AUTO_SCALING_DEFLATE );
+			createUnsignedLong( writer, dataset, source, cellDimensions );
 
-		final long[] offset = new long[ n ];
+		final long[] dimensions = reorder( writer.object().getDimensions( dataset ) );
+		final int n = source.numDimensions();
+
+		final IHDF5LongWriter uint64Writer = writer.uint64();
+
+		/* min is >= 0, max is < dimensions */
+		final long[] min = Intervals.minAsLongArray( source );
+		final long[] max = Intervals.maxAsLongArray( source );
+		for ( int d = 0; d < min.length; ++d )
+		{
+			min[ d ] = Math.max( 0, min[ d ] );
+			max[ d ] = Math.min( dimensions[ d ] - 1, max[ d ] );
+		}
+
+		final long[] offset = min.clone();
 		final long[] sourceCellDimensions = new long[ n ];
 		for ( int d = 0; d < n; )
 		{
-			cropCellDimensions( source, offset, cellDimensions, sourceCellDimensions );
+			cropCellDimensions( max, offset, cellDimensions, sourceCellDimensions );
 			final RandomAccessibleInterval< LongType > sourceBlock = Views.offsetInterval( source, offset, sourceCellDimensions );
 			final MDLongArray targetCell = new MDLongArray( reorder( sourceCellDimensions ) );
 			int i = 0;
@@ -908,10 +915,10 @@ public class H5Utils
 			for ( d = 0; d < n; ++d )
 			{
 				offset[ d ] += cellDimensions[ d ];
-				if ( offset[ d ] < source.dimension( d ) )
+				if ( offset[ d ] <= max[ d ] )
 					break;
 				else
-					offset[ d ] = 0;
+					offset[ d ] = min[ d ];
 			}
 		}
 	}
