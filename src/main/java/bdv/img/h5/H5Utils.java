@@ -838,6 +838,34 @@ public class H5Utils
 
 
 
+	/**
+	 * Save a {@link RandomAccessibleInterval} of {@link LongType} into an HDF5
+	 * uint64 dataset.
+	 *
+	 * @param source source
+	 * @param dimensions dimensions of the dataset if created new
+	 * @param writer
+	 * @param dataset
+	 * @param cellDimensions
+	 */
+	static public void createUnsignedLong(
+			final IHDF5Writer writer,
+			final String dataset,
+			final Dimensions datasetDimensions,
+			final int[] cellDimensions )
+	{
+		final IHDF5LongWriter uint64Writer = writer.uint64();
+
+		if ( writer.exists( dataset ) )
+			writer.delete( dataset );
+
+		uint64Writer.createMDArray(
+				dataset,
+				reorder( Intervals.dimensionsAsLongArray( datasetDimensions ) ),
+				reorder( cellDimensions ),
+				HDF5IntStorageFeatures.INT_AUTO_SCALING_DEFLATE );
+	}
+
 
 	/**
 	 * Save a {@link RandomAccessibleInterval} of {@link LongType} into an HDF5
