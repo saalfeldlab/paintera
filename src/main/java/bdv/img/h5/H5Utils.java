@@ -70,6 +70,16 @@ public class H5Utils
 			croppedCellDimensions[ d ] = Math.min( cellDimensions[ d ], sourceDimensions.dimension( d ) - offset[ d ] );
 	}
 
+	static public void cropCellDimensions(
+			final long[] max,
+			final long[] offset,
+			final int[] cellDimensions,
+			final long[] croppedCellDimensions )
+	{
+		for ( int d = 0; d < max.length; ++d )
+			croppedCellDimensions[ d ] = Math.min( cellDimensions[ d ], max[ d ] - offset[ d ] + 1 );
+	}
+
 
 	/**
 	 * Load an HDF5 float32 dataset into a {@link CellImg} of {@link FloatType}.
