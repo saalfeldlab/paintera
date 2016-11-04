@@ -641,4 +641,26 @@ public class H5Utils
 		saveUint64Attribute( value, writer, object, attribute );
 		writer.close();
 	}
+
+	static public void saveFloatArrayAttribute(
+			final float[] value,
+			final File file,
+			final String dataset,
+			final String attribute)
+	{
+		final IHDF5Writer writer = HDF5Factory.open( file );
+		writer.float32().setArrayAttr(dataset, attribute, value);
+		writer.close();
+	}
+
+	static public void saveDoubleArrayAttribute(
+			final double[] value,
+			final File file,
+			final String dataset,
+			final String attribute)
+	{
+		final IHDF5Writer writer = HDF5Factory.open( file );
+		writer.float64().setArrayAttr(dataset, attribute, value);
+		writer.close();
+	}
 }

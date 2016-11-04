@@ -343,10 +343,13 @@ public class BigCat
 						cellDimensions,
 						config);
 
+				final double[] labelResolution = fragments.getMipmapResolutions()[0];
+
 				persistenceController = new LabelPersistenceController(
 						bdv.getViewer(),
 						fragments.getImage( 0 ),
 						paintedLabels,
+						labelResolution,
 						assignment,
 						idService,
 						projectFile,
