@@ -487,6 +487,37 @@ public class H5Utils
 
 
 	/**
+	 * Save a {@link RandomAccessibleInterval} of {@link LongType} into an HDF5
+	 * uint8 dataset.
+	 *
+	 * @param source source
+	 * @param dimensions dimensions of the dataset if created new
+	 * @param writer
+	 * @param dataset
+	 * @param cellDimensions
+	 */
+	static public void createUnsignedByte(
+			final IHDF5Writer writer,
+			final String dataset,
+			final Dimensions datasetDimensions,
+			final int[] cellDimensions )
+	{
+		final IHDF5ByteWriter uint8Writer = writer.uint8();
+
+		if ( writer.exists( dataset ) )
+			writer.delete( dataset );
+
+		uint8Writer.createMDArray(
+				dataset,
+				reorder( Intervals.dimensionsAsLongArray( datasetDimensions ) ),
+				reorder( cellDimensions ),
+				HDF5IntStorageFeatures.INT_AUTO_SCALING_DEFLATE );
+
+
+	}
+
+
+	/**
 	 * Save a {@link RandomAccessibleInterval} of {@link UnsignedByteType} into an HDF5
 	 * uint8 dataset.
 	 *
@@ -501,21 +532,28 @@ public class H5Utils
 			final String dataset,
 			final int[] cellDimensions )
 	{
-		final int n = source.numDimensions();
-		final long[] dimensions = Intervals.dimensionsAsLongArray( source );
-		final IHDF5ByteWriter uint8Writer = writer.uint8();
 		if ( !writer.exists( dataset ) )
-			uint8Writer.createMDArray(
-					dataset,
-					reorder( dimensions ),
-					reorder( cellDimensions ),
-					HDF5IntStorageFeatures.INT_AUTO_SCALING_DEFLATE );
+			createUnsignedByte( writer, dataset, source, cellDimensions );
 
-		final long[] offset = new long[ n ];
+		final long[] dimensions = reorder( writer.object().getDimensions( dataset ) );
+		final int n = source.numDimensions();
+
+		final IHDF5ByteWriter uint8Writer = writer.uint8();
+
+		/* min is >= 0, max is < dimensions */
+		final long[] min = Intervals.minAsLongArray( source );
+		final long[] max = Intervals.maxAsLongArray( source );
+		for ( int d = 0; d < min.length; ++d )
+		{
+			min[ d ] = Math.max( 0, min[ d ] );
+			max[ d ] = Math.min( dimensions[ d ] - 1, max[ d ] );
+		}
+
+		final long[] offset = min.clone();
 		final long[] sourceCellDimensions = new long[ n ];
 		for ( int d = 0; d < n; )
 		{
-			cropCellDimensions( source, offset, cellDimensions, sourceCellDimensions );
+			cropCellDimensions( max, offset, cellDimensions, sourceCellDimensions );
 			final RandomAccessibleInterval< UnsignedByteType > sourceBlock = Views.offsetInterval( source, offset, sourceCellDimensions );
 			final MDByteArray targetCell = new MDByteArray( reorder( sourceCellDimensions ) );
 			int i = 0;
@@ -527,10 +565,10 @@ public class H5Utils
 			for ( d = 0; d < n; ++d )
 			{
 				offset[ d ] += cellDimensions[ d ];
-				if ( offset[ d ] < source.dimension( d ) )
+				if ( offset[ d ] <= max[ d ] )
 					break;
 				else
-					offset[ d ] = 0;
+					offset[ d ] = min[ d ];
 			}
 		}
 	}
@@ -871,7 +909,7 @@ public class H5Utils
 	 * Save a {@link RandomAccessibleInterval} of {@link LongType} into an HDF5
 	 * uint64 dataset.
 	 *
-	 * @param source
+	 * @param source source
 	 * @param writer
 	 * @param dataset
 	 * @param cellDimensions
