@@ -167,7 +167,7 @@ public class Util
 
 		final CombinedImgLoader imgLoader = new CombinedImgLoader( loaders );
 		for ( int i = 0; i < rawDataLoaders.length; ++i )
-			rawDataLoaders[ i ].setCache( imgLoader.getCache() );
+			rawDataLoaders[ i ].setCache( imgLoader.getCacheControl() );
 
 		final ArrayList< TimePoint > timePointsList = new ArrayList< >();
 		final Map< Integer, BasicViewSetup > setups = new HashMap< >();
@@ -191,7 +191,7 @@ public class Util
 
 		/* labels */
 		for ( final SetCache setCache : labelLoaders )
-			setCache.setCache( imgLoader.getCache() );
+			setCache.setCache( imgLoader.getCacheControl() );
 
 		for ( final AbstractARGBConvertedLabelsSource source : labelSources )
 		{
@@ -223,7 +223,7 @@ public class Util
 		
 		options = options.screenScales( new double[] { 1, 0.5, 0.25, 0.125 } );
 
-		final BigDataViewer bdv = new BigDataViewer( converterSetups, sources, null, timepoints.size(), imgLoader.getCache(), windowTitle, null, options );
+		final BigDataViewer bdv = new BigDataViewer( converterSetups, sources, null, timepoints.size(), imgLoader.getCacheControl(), windowTitle, null, options );
 
 		final AffineTransform3D transform = new AffineTransform3D();
 		bdv.getViewer().setCurrentViewerTransform( transform );

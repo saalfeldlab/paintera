@@ -7,13 +7,12 @@ import javax.swing.InputMap;
 
 import org.scijava.ui.behaviour.KeyStrokeAdder;
 import org.scijava.ui.behaviour.io.InputTriggerConfig;
+import org.scijava.ui.behaviour.util.AbstractNamedAction;
+import org.scijava.ui.behaviour.util.InputActionBindings;
 
 import bdv.bigcat.label.FragmentSegmentAssignment;
 import bdv.bigcat.ui.AbstractARGBStream;
 import bdv.labels.labelset.Label;
-import bdv.util.AbstractNamedAction;
-import bdv.util.AbstractNamedAction.NamedActionAdder;
-import bdv.viewer.InputActionBindings;
 import bdv.viewer.ViewerPanel;
 
 /**
@@ -32,7 +31,6 @@ public class ConfirmSegmentController
 	// for keystroke actions
 	private final ActionMap ksActionMap = new ActionMap();
 	private final InputMap ksInputMap = new InputMap();
-	private final NamedActionAdder ksActionAdder = new NamedActionAdder( ksActionMap );
 	private final KeyStrokeAdder ksKeyStrokeAdder;
 
 	public ConfirmSegmentController(
@@ -70,7 +68,7 @@ public class ConfirmSegmentController
 
 		public void register()
 		{
-			ksActionAdder.put( this );
+			put( ksActionMap );
 			ksKeyStrokeAdder.put( name(), defaultTriggers );
 		}
 	}

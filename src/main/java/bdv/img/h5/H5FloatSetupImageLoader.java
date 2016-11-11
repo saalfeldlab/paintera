@@ -4,9 +4,9 @@ import java.io.IOException;
 
 import bdv.ViewerImgLoader;
 import bdv.ViewerSetupImgLoader;
-import bdv.img.cache.Cache;
+import bdv.cache.CacheControl;
+import bdv.cache.LoadingStrategy;
 import bdv.img.cache.CachedCellImg;
-import bdv.img.cache.LoadingStrategy;
 import ch.systemsx.cisd.hdf5.IHDF5Reader;
 import mpicbg.spim.data.generic.sequence.ImgLoaderHint;
 import net.imglib2.RandomAccessibleInterval;
@@ -65,7 +65,7 @@ public class H5FloatSetupImageLoader
 	}
 
 	@Override
-	public Cache getCache()
+	public CacheControl getCacheControl()
 	{
 		return cache;
 	}

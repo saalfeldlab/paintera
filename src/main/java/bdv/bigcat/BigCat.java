@@ -10,12 +10,13 @@ import java.util.Arrays;
 
 import javax.swing.JOptionPane;
 
-import com.beust.jcommander.JCommander;
-import com.beust.jcommander.Parameter;
-
 import org.scijava.ui.behaviour.io.InputTriggerConfig;
 import org.scijava.ui.behaviour.io.InputTriggerDescription;
 import org.scijava.ui.behaviour.io.yaml.YamlConfigIO;
+import org.scijava.ui.behaviour.util.TriggerBehaviourBindings;
+
+import com.beust.jcommander.JCommander;
+import com.beust.jcommander.Parameter;
 
 import bdv.BigDataViewer;
 import bdv.bigcat.annotation.AnnotationsHdf5Store;
@@ -32,14 +33,14 @@ import bdv.bigcat.control.MergeController;
 import bdv.bigcat.control.SelectionController;
 import bdv.bigcat.control.TranslateZController;
 import bdv.bigcat.label.FragmentSegmentAssignment;
-import bdv.bigcat.label.PairLabelMultiSetLongIdPicker;
-import bdv.bigcat.label.LabelMultiSetIdPicker;
 import bdv.bigcat.label.IdPicker;
+import bdv.bigcat.label.LabelMultiSetIdPicker;
+import bdv.bigcat.label.PairLabelMultiSetLongIdPicker;
 import bdv.bigcat.ui.ARGBConvertedLabelPairSource;
 import bdv.bigcat.ui.ARGBConvertedLabelsSource;
 import bdv.bigcat.ui.AbstractARGBConvertedLabelsSource;
-import bdv.bigcat.ui.GoldenAngleSaturatedConfirmSwitchARGBStream;
 import bdv.bigcat.ui.GoldenAngleSaturatedARGBStream;
+import bdv.bigcat.ui.GoldenAngleSaturatedConfirmSwitchARGBStream;
 import bdv.bigcat.ui.Util;
 import bdv.img.SetCache;
 import bdv.img.h5.AbstractH5SetupImageLoader;
@@ -52,7 +53,6 @@ import bdv.labels.labelset.Multiset;
 import bdv.labels.labelset.VolatileLabelMultisetType;
 import bdv.util.IdService;
 import bdv.util.LocalIdService;
-import bdv.viewer.TriggerBehaviourBindings;
 import ch.systemsx.cisd.hdf5.HDF5Factory;
 import ch.systemsx.cisd.hdf5.IHDF5Reader;
 import gnu.trove.map.hash.TLongLongHashMap;

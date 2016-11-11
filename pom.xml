@@ -6,7 +6,7 @@
 	<parent>
 		<groupId>sc.fiji</groupId>
 		<artifactId>pom-bigdataviewer</artifactId>
-		<version>3.2.0</version>
+		<version>4.0.1</version>
 	</parent>
 
 	<artifactId>bigcat</artifactId>
@@ -38,7 +38,6 @@
 		<dependency>
 			<groupId>sc.fiji</groupId>
 			<artifactId>spim_data</artifactId>
-			<version>2.0.2-SNAPSHOT</version>
 		</dependency>
 		<dependency>
 			<groupId>com.google.code.gson</groupId>
@@ -61,12 +60,10 @@
 		<dependency>
 			<groupId>net.imglib2</groupId>
 			<artifactId>imglib2</artifactId>
-			<version>3.0.0</version>
 		</dependency>
 		<dependency>
 			<groupId>net.imglib2</groupId>
 			<artifactId>imglib2-algorithm</artifactId>
-			<version>0.5.1-SNAPSHOT</version>
 		</dependency>
 		<dependency>
 			<groupId>net.imglib2</groupId>
@@ -75,17 +72,15 @@
 		<dependency>
 			<groupId>sc.fiji</groupId>
 			<artifactId>bigdataviewer-vistools</artifactId>
-			<version>1.0.0-beta-3-SNAPSHOT</version>
+			<version>1.0.0-beta-4</version>
 		</dependency>
 		<dependency>
 			<groupId>net.imagej</groupId>
 			<artifactId>ij</artifactId>
-			<version>1.49v</version>
 		</dependency>
 		<dependency>
 			<groupId>org.scijava</groupId>
 			<artifactId>ui-behaviour</artifactId>
-			<version>1.0.5</version>
 		</dependency>
 		<dependency>
 			<groupId>junit</groupId>

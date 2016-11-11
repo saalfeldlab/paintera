@@ -36,6 +36,8 @@ import org.scijava.ui.behaviour.InputTriggerAdder;
 import org.scijava.ui.behaviour.InputTriggerMap;
 import org.scijava.ui.behaviour.KeyStrokeAdder;
 import org.scijava.ui.behaviour.io.InputTriggerConfig;
+import org.scijava.ui.behaviour.util.AbstractNamedAction;
+import org.scijava.ui.behaviour.util.InputActionBindings;
 
 import bdv.BigDataViewer;
 import bdv.bigcat.annotation.Annotation;
@@ -47,11 +49,8 @@ import bdv.bigcat.annotation.Synapse;
 import bdv.bigcat.ui.AnnotationsOverlay;
 import bdv.bigcat.ui.AnnotationsWindow;
 import bdv.bigcat.util.Selection;
-import bdv.util.AbstractNamedAction;
-import bdv.util.AbstractNamedAction.NamedActionAdder;
 import bdv.util.Affine3DHelpers;
 import bdv.util.IdService;
-import bdv.viewer.InputActionBindings;
 import bdv.viewer.ViewerPanel;
 import net.imglib2.RealPoint;
 import net.imglib2.realtransform.AffineTransform3D;
@@ -81,7 +80,6 @@ public class AnnotationsController implements WindowListener, Selection.Selectio
 	// for keystroke actions
 	private final ActionMap ksActionMap = new ActionMap();
 	private final InputMap ksInputMap = new InputMap();
-	private final NamedActionAdder ksActionAdder = new NamedActionAdder(ksActionMap);
 	private final KeyStrokeAdder ksKeyStrokeAdder;
 
 	private AnnotationsWindow annotationWindow;
@@ -223,7 +221,7 @@ public class AnnotationsController implements WindowListener, Selection.Selectio
 		}
 
 		public void register() {
-			ksActionAdder.put(this);
+			put( ksActionMap );
 			ksKeyStrokeAdder.put(name(), defaultTriggers);
 		}
 	}

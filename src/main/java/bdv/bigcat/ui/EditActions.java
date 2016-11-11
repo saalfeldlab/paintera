@@ -23,10 +23,9 @@ import javax.swing.ActionMap;
 import javax.swing.InputMap;
 
 import org.scijava.ui.behaviour.KeyStrokeAdder;
+import org.scijava.ui.behaviour.util.AbstractNamedAction;
+import org.scijava.ui.behaviour.util.InputActionBindings;
 
-import bdv.util.AbstractNamedAction;
-import bdv.util.AbstractNamedAction.NamedActionAdder;
-import bdv.viewer.InputActionBindings;
 import bdv.viewer.ViewerPanel;
 
 public class EditActions {
@@ -73,11 +72,9 @@ public class EditActions {
 	{
 		ActionMap actionMap = new ActionMap();
 		
-		final NamedActionAdder map = new NamedActionAdder(actionMap);
-
-		map.put(new SelectFragmentAction(viewer));
-		map.put(new ClearSelectionAction(viewer));
-		map.put(new MergeAction(viewer));
+		new SelectFragmentAction(viewer).put( actionMap );
+		new ClearSelectionAction(viewer).put( actionMap );
+		new MergeAction(viewer).put( actionMap );
 			
 		return actionMap;
 	}

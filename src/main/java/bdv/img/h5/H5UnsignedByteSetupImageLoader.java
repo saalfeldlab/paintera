@@ -3,8 +3,8 @@ package bdv.img.h5;
 import java.io.IOException;
 
 import bdv.ViewerSetupImgLoader;
+import bdv.cache.LoadingStrategy;
 import bdv.img.cache.CachedCellImg;
-import bdv.img.cache.LoadingStrategy;
 import ch.systemsx.cisd.hdf5.IHDF5Reader;
 import mpicbg.spim.data.generic.sequence.ImgLoaderHint;
 import net.imglib2.RandomAccessibleInterval;

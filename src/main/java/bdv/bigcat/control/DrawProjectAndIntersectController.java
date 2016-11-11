@@ -30,15 +30,14 @@ import org.scijava.ui.behaviour.InputTriggerMap;
 import org.scijava.ui.behaviour.KeyStrokeAdder;
 import org.scijava.ui.behaviour.ScrollBehaviour;
 import org.scijava.ui.behaviour.io.InputTriggerConfig;
+import org.scijava.ui.behaviour.util.InputActionBindings;
+import org.scijava.ui.behaviour.util.TriggerBehaviourBindings;
 
 import bdv.BigDataViewer;
 import bdv.bigcat.label.FragmentSegmentAssignment;
 import bdv.bigcat.ui.AbstractSaturatedARGBStream;
 import bdv.labels.labelset.LabelMultisetType;
-import bdv.util.AbstractNamedAction.NamedActionAdder;
 import bdv.util.IdService;
-import bdv.viewer.InputActionBindings;
-import bdv.viewer.TriggerBehaviourBindings;
 import bdv.viewer.ViewerPanel;
 import net.imglib2.FinalInterval;
 import net.imglib2.Point;
@@ -150,7 +149,6 @@ public class DrawProjectAndIntersectController implements TransformListener< Aff
 
 		viewer.addTransformListener( this );
 
-		final NamedActionAdder ksWithinModeActionAdder = new NamedActionAdder( ksWithinModeActionMap );
 		final KeyStrokeAdder ksWithinModeInputAdder = config.keyStrokeAdder( ksWithinModeInputMap, "within dpi mode" );
 		final InputTriggerAdder withinModeInputTriggerAdder = config.inputTriggerAdder( withinModeInputTriggerMap, "within dpi mdoe" );
 
@@ -165,16 +163,16 @@ public class DrawProjectAndIntersectController implements TransformListener< Aff
 		};
 
 		final ModeToggleController.ExecuteOnUnToggle noActionUnToggle = new ModeToggleController.ExecuteOnUnToggle( action, bindings, inputActionBindings, "abort dpi", "ESCAPE" );
-		noActionUnToggle.register( ksWithinModeActionAdder, ksWithinModeInputAdder );
+		noActionUnToggle.register( ksWithinModeActionMap, ksWithinModeInputAdder );
 
 		final IntersectAndLeave il = new IntersectAndLeave( action, bindings, inputActionBindings, "execute and leave dpi", "shift button1" );
 		il.register( withinModeBehaviourMap, withinModeInputTriggerAdder );
 
 		final NewActiveFragmentId nafi = new NewActiveFragmentId( "new active fragment id", "N" );
-		nafi.register( ksWithinModeActionAdder, ksWithinModeInputAdder );
+		nafi.register( ksWithinModeActionMap, ksWithinModeInputAdder );
 
 		final ClearArea cc = new ClearArea( "clear canvas", "C" );
-		cc.register( ksWithinModeActionAdder, ksWithinModeInputAdder );
+		cc.register( ksWithinModeActionMap, ksWithinModeInputAdder );
 
 		final MoveBrush mb = new MoveBrush( "move brush", "SPACE" );
 		mb.register( withinModeBehaviourMap, withinModeInputTriggerAdder );
@@ -189,7 +187,7 @@ public class DrawProjectAndIntersectController implements TransformListener< Aff
 		e.register( withinModeBehaviourMap, withinModeInputTriggerAdder );
 
 		final OverlayVisibility ov = new OverlayVisibility( "visibility", "V" );
-		ov.register( ksWithinModeActionAdder, ksWithinModeInputAdder );
+		ov.register( ksWithinModeActionMap, ksWithinModeInputAdder );
 
 		final Fill f = new Fill( "fill", "M button1" );
 		f.register( withinModeBehaviourMap, withinModeInputTriggerAdder );

@@ -10,7 +10,7 @@ import com.google.gson.Gson;
 import bdv.AbstractViewerSetupImgLoader;
 import bdv.ViewerImgLoader;
 import bdv.ViewerSetupImgLoader;
-import bdv.img.cache.Cache;
+import bdv.cache.CacheControl;
 import bdv.img.cache.VolatileGlobalCellCache;
 import net.imglib2.Volatile;
 import net.imglib2.realtransform.AffineTransform3D;
@@ -120,7 +120,7 @@ abstract public class AbstractKnossosImageLoader< T, V extends Volatile< T > > e
 			mipmapTransforms[ l ] = mipmapTransform;
 		}
 
-		cache = new VolatileGlobalCellCache( 1, 1, config.numScales, 10 );
+		cache = new VolatileGlobalCellCache( config.numScales, 10 );
 	}
 
 	final static public KnossosConfig fetchConfig( final String configUrl ) throws IOException
@@ -226,7 +226,7 @@ abstract public class AbstractKnossosImageLoader< T, V extends Volatile< T > > e
 	}
 
 	@Override
-	public Cache getCache()
+	public CacheControl getCacheControl()
 	{
 		return cache;
 	}
