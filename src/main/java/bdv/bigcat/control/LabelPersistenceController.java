@@ -33,6 +33,7 @@ public class LabelPersistenceController
 	final protected ViewerPanel viewer;
 	final protected RandomAccessibleInterval< LabelMultisetType > labelMultisetSource;
 	final protected RandomAccessibleInterval< LongType > labelSource;
+	final protected double[] labelResolution;
 	final protected DirtyInterval dirtyLabelSourceInterval;
 	final protected FragmentSegmentAssignment assignment;
 	final protected IdService idService;
@@ -53,6 +54,7 @@ public class LabelPersistenceController
 			final ViewerPanel viewer,
 			final RandomAccessibleInterval< LabelMultisetType > labelMultisetSource,
 			final RandomAccessibleInterval< LongType > labelSource,
+			final double[] labelResolution,
 			final DirtyInterval dirtyLabelSourceInterval,
 			final FragmentSegmentAssignment assignment,
 			final IdService idService,
@@ -67,6 +69,7 @@ public class LabelPersistenceController
 		this.viewer = viewer;
 		this.labelMultisetSource = labelMultisetSource;
 		this.labelSource = labelSource;
+		this.labelResolution = labelResolution;
 		this.dirtyLabelSourceInterval = dirtyLabelSourceInterval;
 		this.assignment = assignment;
 		this.idService = idService;
@@ -124,23 +127,37 @@ public class LabelPersistenceController
 	public void savePaintedLabels()
 	{
 		System.out.println( "Saving painted labels into " + h5Path + ":" + paintedLabelsDataset );
+
+		final File file = new File( h5Path );
 		H5Utils.saveUnsignedLong(
 				labelSource,
-				new File( h5Path ),
+				file,
 				paintedLabelsDataset,
 				labelsCellDimensions );
+		H5Utils.saveDoubleArrayAttribute(
+				new double[]{labelResolution[2], labelResolution[1], labelResolution[0]},
+				file,
+				paintedLabelsDataset,
+				"resolution");
 	}
 
 	public void saveMergedLabels()
 	{
 		System.out.println( "Saving merged labels into " + h5Path + ":" + mergedLabelsDataset  );
+
+		final File file = new File( h5Path );
 		H5Utils.saveSingleElementLabelMultisetLongPair(
 				labelMultisetSource,
 				labelSource,
 				labelSource,
-				new File( h5Path ),
+				file,
 				mergedLabelsDataset,
 				labelsCellDimensions );
+		H5Utils.saveDoubleArrayAttribute(
+				new double[]{labelResolution[2], labelResolution[1], labelResolution[0]},
+				file,
+				mergedLabelsDataset,
+				"resolution");
 	}
 
 	public void saveAssignedMergedLabels()

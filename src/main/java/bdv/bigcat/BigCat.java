@@ -329,6 +329,7 @@ public class BigCat
 					bdv.getViewer(),
 					labels.get( 0 ).getImage( 0 ),
 					canvas,
+					labels.get( 0 ).getMipmapResolutions()[ 0 ],
 					dirtyLabelsInterval,
 					assignment,
 					idService,

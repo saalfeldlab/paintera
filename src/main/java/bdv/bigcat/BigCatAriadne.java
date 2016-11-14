@@ -276,6 +276,7 @@ public class BigCatAriadne
 				bdv.getViewer(),
 				fragments.getImage( 0 ),
 				paintedLabels,
+				fragments.getMipmapResolutions()[ 0 ],
 				dirtyLabelsInterval,
 				assignment,
 				idService,
