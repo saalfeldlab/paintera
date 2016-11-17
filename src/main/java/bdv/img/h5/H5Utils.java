@@ -29,7 +29,9 @@ import ch.systemsx.cisd.hdf5.IHDF5Reader;
 import ch.systemsx.cisd.hdf5.IHDF5ShortReader;
 import ch.systemsx.cisd.hdf5.IHDF5ShortWriter;
 import ch.systemsx.cisd.hdf5.IHDF5Writer;
+import gnu.trove.TLongCollection;
 import gnu.trove.impl.Constants;
+import gnu.trove.iterator.TLongIterator;
 import gnu.trove.map.hash.TLongLongHashMap;
 import net.imglib2.Dimensions;
 import net.imglib2.Interval;
@@ -1064,7 +1066,7 @@ public class H5Utils
 	 * @param labelMultisetSource the background
 	 * @param labelSource the overlay
 	 * @param interval the interval to be saved
-	 * @param assignment fragmetn to segment assignment
+	 * @param assignment fragment to segment assignment
 	 * @param file
 	 * @param dataset
 	 * @param cellDimensions
@@ -1268,6 +1270,163 @@ public class H5Utils
 	{
 		final IHDF5Writer writer = HDF5Factory.open( filePath );
 		saveLongLongLut( lut, writer, dataset, blockSize );
+		writer.close();
+	}
+
+
+	/**
+	 * Load a long collection from an HDF5 dataset
+	 *
+	 * @param collection
+	 * @param reader
+	 * @param dataset
+	 * @param blockSize
+	 */
+	static public boolean loadLongCollection(
+			final TLongCollection collection,
+			final IHDF5Reader reader,
+			final String dataset,
+			final int blockSize )
+	{
+		final IHDF5LongReader uint64Reader = reader.uint64();
+
+		if ( !reader.exists( dataset ) )
+			return false;
+
+		final long[] dimensions = reader.object().getDimensions( dataset );
+		if ( dimensions.length != 1 )
+		{
+			System.err.println( "Dataset is not a collection, dimensions = " + Arrays.toString( dimensions ) );
+			return false;
+		}
+
+		final long size = dimensions[ 0 ];
+
+		for ( int offset = 0; offset < size; offset += blockSize )
+		{
+			final MDLongArray block = uint64Reader.readMDArrayBlockWithOffset(
+					dataset,
+					new int[]{ ( int )Math.min( blockSize, size - offset ) },
+					new long[]{ offset } );
+
+			for ( int i = 0; i < block.size( 0 ); ++i )
+				collection.add( block.get( i ) );
+		}
+
+		return true;
+	}
+
+	/**
+	 * Load a long collection from an HDF5 dataset
+	 *
+	 * @param collection
+	 * @param file
+	 * @param dataset
+	 * @param cellDimensions
+	 */
+	static public boolean loadLongCollection(
+			final TLongCollection collection,
+			final File file,
+			final String dataset,
+			final int blockSize )
+	{
+		final IHDF5Reader reader = HDF5Factory.openForReading( file );
+		final boolean success = loadLongCollection( collection, reader, dataset, blockSize );
+		reader.close();
+		return success;
+	}
+
+	/**
+	 * Load a long collection from an HDF5 dataset
+	 *
+	 * @param collection
+	 * @param filePath
+	 * @param dataset
+	 * @param cellDimensions
+	 */
+	static public boolean loadLongCollection(
+			final TLongCollection collection,
+			final String filePath,
+			final String dataset,
+			final int blockSize )
+	{
+		final IHDF5Reader reader = HDF5Factory.openForReading( filePath );
+		final boolean success = loadLongCollection( collection, reader, dataset, blockSize );
+		reader.close();
+		return success;
+	}
+
+
+	/**
+	 * Save a long collection into an HDF5 uint64 dataset.
+	 *
+	 * @param lut
+	 * @param file
+	 * @param dataset
+	 * @param cellDimensions
+	 */
+	static public void saveLongCollection(
+			final TLongCollection longs,
+			final IHDF5Writer writer,
+			final String dataset,
+			final int blockSize )
+	{
+		final IHDF5LongWriter uint64Writer = writer.uint64();
+		if ( !writer.exists( dataset ) )
+			uint64Writer.createMDArray(
+					dataset,
+					new long[]{ longs.size() },
+					new int[]{ blockSize },
+					HDF5IntStorageFeatures.INT_AUTO_SCALING_DEFLATE );
+
+		final TLongIterator iterator = longs.iterator();
+
+		for ( int offset = 0; offset < longs.size(); offset += blockSize )
+		{
+			final int size = Math.min( blockSize, longs.size() - offset );
+			final MDLongArray targetCell = new MDLongArray( new int[]{ size } );
+			for ( int i = 0; i < size; ++i )
+				targetCell.set( iterator.next(), i );
+
+			uint64Writer.writeMDArrayBlockWithOffset( dataset, targetCell, new long[]{ offset } );
+		}
+	}
+
+	/**
+	 * Save a long collection into an HDF5 uint64 dataset.
+	 *
+	 * @param longs
+	 * @param file
+	 * @param dataset
+	 * @param cellDimensions
+	 */
+	static public void saveLongCollection(
+			final TLongCollection longs,
+			final File file,
+			final String dataset,
+			final int blockSize )
+	{
+		final IHDF5Writer writer = HDF5Factory.open( file );
+		saveLongCollection( longs, writer, dataset, blockSize );
+		writer.close();
+	}
+
+	/**
+	 * Save a collection of longs into an HDF5 uint64 dataset.
+	 *
+	 * @param longs
+	 * @param file
+	 * @param dataset
+	 * @param cellDimensions
+	 */
+	static public void saveLongCollection(
+			final TLongCollection longs,
+			final String filePath,
+			final String dataset,
+			final int blockSize )
+	{
+		final IHDF5Writer writer = HDF5Factory.open( filePath );
+		saveLongCollection( longs, writer, dataset, blockSize );
 		writer.close();
 	}
 

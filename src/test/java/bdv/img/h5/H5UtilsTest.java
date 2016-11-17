@@ -16,6 +16,7 @@
  */
 package bdv.img.h5;
 
+import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 import java.io.File;
@@ -31,6 +32,7 @@ import com.google.gson.Gson;
 import bdv.labels.labelset.Label;
 import gnu.trove.impl.Constants;
 import gnu.trove.map.hash.TLongLongHashMap;
+import gnu.trove.set.hash.TLongHashSet;
 
 /**
  *
@@ -49,11 +51,15 @@ public class H5UtilsTest
 			Label.TRANSPARENT,
 			Label.TRANSPARENT );
 
-	static private long[][] lutExamples = new long[][]{
-		{1, 2},
-		{3, 4},
-		{5, 6},
-		{7, 8}
+	static private long[][] lutExamples = new long[][] {
+		{ 1, 2 },
+		{ 3, 4 },
+		{ 5, 6 },
+		{ 7, 8 }
+	};
+
+	static private long[] setExamples = new long[]{
+			3, 7, 20, -10, 13
 	};
 
 	/**
@@ -118,6 +124,23 @@ public class H5UtilsTest
 
 		if ( id.longValue() != 50 )
 			fail( "Saving and loading long failed." );
+	}
+
+
+	@Test
+	public void testSaveAndLoadLongCollection()
+	{
+		final TLongHashSet expected = new TLongHashSet( setExamples );
+		H5Utils.saveLongCollection( expected, testDirPath + testH5Name, "/set", 3 );
+
+		final TLongHashSet test = new TLongHashSet();
+		H5Utils.loadLongCollection( test, testDirPath + testH5Name, "/set", 3 );
+
+		for ( final long testValue : test.toArray() )
+			assertTrue( "loaded test value '" + testValue + "' does not exist.", expected.contains( testValue ) );
+
+		for ( final long expectedValue : expected.toArray() )
+			assertTrue( "loaded expected value '" + expectedValue + "' does not exist.", test.contains( expectedValue ) );
 	}
 
 }
