@@ -10,6 +10,7 @@ import javax.swing.InputMap;
 import org.scijava.ui.behaviour.KeyStrokeAdder;
 import org.scijava.ui.behaviour.io.InputTriggerConfig;
 
+import bdv.bigcat.label.FragmentAssignment;
 import bdv.bigcat.label.FragmentSegmentAssignment;
 import bdv.bigcat.util.DirtyInterval;
 import bdv.img.h5.H5Utils;
@@ -36,6 +37,7 @@ public class LabelPersistenceController
 	final protected double[] labelResolution;
 	final protected DirtyInterval dirtyLabelSourceInterval;
 	final protected FragmentSegmentAssignment assignment;
+	final protected FragmentAssignment completeFragments;
 	final protected IdService idService;
 
 	final protected String h5Path;
@@ -43,6 +45,7 @@ public class LabelPersistenceController
 	final protected String mergedLabelsDataset;
 	final protected int[] labelsCellDimensions;
 	final protected String assignmentDataset;
+	final protected String completeFragmentsDataset;
 
 	// for keystroke actions
 	private final ActionMap ksActionMap = new ActionMap();
@@ -57,12 +60,14 @@ public class LabelPersistenceController
 			final double[] labelResolution,
 			final DirtyInterval dirtyLabelSourceInterval,
 			final FragmentSegmentAssignment assignment,
+			final FragmentAssignment completeFragments,
 			final IdService idService,
 			final String h5Path,
 			final String paintedLabelsDataset,
 			final String mergedLabelsDataset,
 			final int[] labelsH5CellDimensions,
 			final String assignmentDataset,
+			final String completeFragmentsDataset,
 			final InputTriggerConfig config,
 			final InputActionBindings inputActionBindings )
 	{
@@ -72,12 +77,14 @@ public class LabelPersistenceController
 		this.labelResolution = labelResolution;
 		this.dirtyLabelSourceInterval = dirtyLabelSourceInterval;
 		this.assignment = assignment;
+		this.completeFragments = completeFragments;
 		this.idService = idService;
 		this.h5Path = h5Path;
 		this.paintedLabelsDataset = paintedLabelsDataset;
 		this.mergedLabelsDataset = mergedLabelsDataset;
 		this.labelsCellDimensions = labelsH5CellDimensions;
 		this.assignmentDataset = assignmentDataset;
+		this.completeFragmentsDataset = completeFragmentsDataset;
 		ksKeyStrokeAdder = config.keyStrokeAdder( ksInputMap, "persistence" );
 
 		new SaveFragmentSegmentAssignmentAndPaintedLabels( "save fragment segment assignment and painted labels", "ctrl S" ).register();
@@ -121,6 +128,16 @@ public class LabelPersistenceController
 				assignment.getLut(),
 				h5Path,
 				assignmentDataset,
+				1024 );
+	}
+
+	public void saveCompleteFragmentsAssignment()
+	{
+		System.out.println( "Saving complete fragments " + h5Path + ":" + completeFragmentsDataset );
+		H5Utils.saveLongCollection(
+				completeFragments.getAssignedFragments(),
+				h5Path,
+				completeFragmentsDataset,
 				1024 );
 	}
 
@@ -211,6 +228,29 @@ public class LabelPersistenceController
 				viewer.setCursor( Cursor.getPredefinedCursor( Cursor.DEFAULT_CURSOR ) );
 			}
 			viewer.showMessage( "Saved fragment-segment assignments and painted labels." );
+		}
+	}
+
+	private class SaveAssignmentsAndPaintedLabels extends SelfRegisteringAction
+	{
+		public SaveAssignmentsAndPaintedLabels( final String name, final String ... defaultTriggers )
+		{
+			super( name, defaultTriggers );
+		}
+
+		@Override
+		public void actionPerformed( final ActionEvent e )
+		{
+			synchronized ( viewer )
+			{
+				viewer.setCursor( Cursor.getPredefinedCursor( Cursor.WAIT_CURSOR ) );
+				saveNextId();
+				saveFragmentSegmentAssignment();
+				saveCompleteFragmentsAssignment();
+				savePaintedLabels();
+				viewer.setCursor( Cursor.getPredefinedCursor( Cursor.DEFAULT_CURSOR ) );
+			}
+			viewer.showMessage( "Saved assignments and painted labels." );
 		}
 	}
 

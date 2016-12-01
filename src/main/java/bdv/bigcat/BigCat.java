@@ -35,6 +35,7 @@ import bdv.bigcat.control.MergeController;
 import bdv.bigcat.control.NeuronIdsToFileController;
 import bdv.bigcat.control.SelectionController;
 import bdv.bigcat.control.TranslateZController;
+import bdv.bigcat.label.FragmentAssignment;
 import bdv.bigcat.label.FragmentSegmentAssignment;
 import bdv.bigcat.label.PairLabelMultiSetLongIdPicker;
 import bdv.bigcat.ui.ARGBConvertedLabelPairSource;
@@ -55,6 +56,7 @@ import bdv.viewer.TriggerBehaviourBindings;
 import ch.systemsx.cisd.hdf5.HDF5Factory;
 import ch.systemsx.cisd.hdf5.IHDF5Reader;
 import gnu.trove.map.hash.TLongLongHashMap;
+import gnu.trove.set.hash.TLongHashSet;
 import net.imglib2.algorithm.neighborhood.DiamondShape;
 import net.imglib2.img.cell.CellImg;
 import net.imglib2.img.cell.CellImgFactory;
@@ -68,9 +70,9 @@ import net.imglib2.util.Pair;
 import net.imglib2.view.RandomAccessiblePair;
 import net.imglib2.view.Views;
 
-public class BigCat
+public class BigCat< P extends BigCat.Parameters >
 {
-	static private class Parameters
+	static protected class Parameters
 	{
 		@Parameter( names = { "--infile", "-i" }, description = "Input file path" )
 		public String inFile = "";
@@ -84,6 +86,9 @@ public class BigCat
 		@Parameter( names = { "--assignment", "-a" }, description = "fragment segment assignment table" )
 		public String assignment = "/fragment_segment_lut";
 
+		@Parameter( names = { "--complete", "-f" }, description = "complete fragments" )
+		public String completeFragments = "/complete_fragments";
+
 		@Parameter( names = { "--canvas", "-c" }, description = "canvas dataset" )
 		public String canvas = "/volumes/labels/painted_neuron_ids";
 
@@ -91,26 +96,27 @@ public class BigCat
 		public String export = "/volumes/labels/merged_neuron_ids";
 	}
 
-	final static private int[] cellDimensions = new int[]{ 64, 64, 8 };
+	final static protected int[] cellDimensions = new int[]{ 64, 64, 8 };
 
-	final private ArrayList< H5UnsignedByteSetupImageLoader > raws = new ArrayList<>();
-	final private ArrayList< H5LabelMultisetSetupImageLoader > labels = new ArrayList<>();
-	final private ArrayList< ARGBConvertedLabelPairSource > convertedLabelCanvasPairs = new ArrayList<>();
+	final protected ArrayList< H5UnsignedByteSetupImageLoader > raws = new ArrayList<>();
+	final protected ArrayList< H5LabelMultisetSetupImageLoader > labels = new ArrayList<>();
+	final protected ArrayList< ARGBConvertedLabelPairSource > convertedLabelCanvasPairs = new ArrayList<>();
 
-	final private DirtyInterval dirtyLabelsInterval = new DirtyInterval();
+	final protected DirtyInterval dirtyLabelsInterval = new DirtyInterval();
 
 	/* TODO this has to change into a virtual container with temporary storage */
-	private CellImg< LongType, ?, ? > canvas = null;
+	protected CellImg< LongType, ?, ? > canvas = null;
 
-	private BigDataViewer bdv;
-	private ModalGoldenAngleSaturatedARGBStream colorStream;
-	private FragmentSegmentAssignment assignment;
+	protected BigDataViewer bdv;
+	protected ModalGoldenAngleSaturatedARGBStream colorStream;
+	protected FragmentSegmentAssignment assignment;
+	protected FragmentAssignment completeFragmentsAssignment;
 
-	private LabelPersistenceController persistenceController;
-	private AnnotationsController annotationsController;
-	private InputTriggerConfig config;
+	protected LabelPersistenceController persistenceController;
+	protected AnnotationsController annotationsController;
+	protected InputTriggerConfig config;
 
-	private IdService idService = new LocalIdService();
+	protected IdService idService;
 
 	/**
 	 * Writes max(a,b) into a
@@ -118,7 +124,7 @@ public class BigCat
 	 * @param a
 	 * @param b
 	 */
-	final static private void max( final long[] a, final long[] b )
+	final static protected void max( final long[] a, final long[] b )
 	{
 		for ( int i = 0; i < a.length; ++i )
 			if ( b[ i ] > a[ i ] )
@@ -128,16 +134,34 @@ public class BigCat
 	public static void main( final String[] args ) throws Exception
 	{
 		final Parameters params = new Parameters();
-        new JCommander( params, args );
-        new BigCat( params );
+		new JCommander( params, args );
+		final BigCat< Parameters > bigCat = new BigCat<>();
+		bigCat.init( params );
+		bigCat.setupBdv( params );
 	}
 
-	public BigCat( final Parameters params ) throws Exception
+	public BigCat() throws Exception
 	{
 		Util.initUI();
-
 		this.config = getInputTriggerConfig();
+	}
 
+	/**
+	 * Initialize BigCat, load data, setup IdService and assignments, and create controllers
+	 *
+	 * @param params
+	 * @throws IOException
+	 */
+	protected void init( final P params ) throws IOException
+	{
+		initData( params );
+		initIdService( params );
+		initAssignments( params );
+	}
+
+	/* load raw data and labels and initialize canvas */
+	protected void initData( final P params ) throws IOException
+	{
 		System.out.println( "Opening " + params.inFile );
 		final IHDF5Reader reader = HDF5Factory.open( params.inFile );
 
@@ -165,24 +189,21 @@ public class BigCat
 				t.set( Label.TRANSPARENT );
 		}
 
-		/* fragment segment assignment */
-		assignment = new FragmentSegmentAssignment( idService );
-		final TLongLongHashMap lut = H5Utils.loadLongLongLut( reader, params.assignment, 1024 );
-		if ( lut != null )
-			assignment.initLut( lut );
-
-		/* color stream */
-		colorStream = new ModalGoldenAngleSaturatedARGBStream( assignment );
-		colorStream.setAlpha( 0x20 );
-
 		/* labels */
 		for ( final String label : params.labels )
 			if ( reader.exists( label ) )
 				readLabels( reader, label );
 		else
 				System.out.println( "no label dataset '" + label + "' found" );
+	}
 
+	protected void initIdService( final P params ) throws IOException
+	{
 		/* id */
+		idService = new LocalIdService();
+
+		final IHDF5Reader reader = HDF5Factory.open( params.inFile );
+
 		long maxId = 0;
 		final Long nextIdObject = H5Utils.loadAttribute( reader, "/", "next_id" );
 		if ( nextIdObject == null )
@@ -198,51 +219,34 @@ public class BigCat
 
 		idService.invalidate( maxId );
 
-		setupBdv( params );
+		reader.close();
 	}
 
-	/**
-	 * Creates a label loader, a label canvas pair and the converted
-	 * pair and adds them to the respective lists.
-	 *
-	 * @param reader
-	 * @param labelDataset
-	 * @throws IOException
-	 */
-	private void readLabels(
-			final IHDF5Reader reader,
-			final String labelDataset ) throws IOException
+	protected void initAssignments( final P params )
 	{
-		/* labels */
-		final H5LabelMultisetSetupImageLoader labelLoader =
-				new H5LabelMultisetSetupImageLoader(
-						reader,
-						null,
-						labelDataset,
-						1,
-						cellDimensions );
+		final IHDF5Reader reader = HDF5Factory.open( params.inFile );
 
-		/* pair labels */
-		final RandomAccessiblePair< VolatileLabelMultisetType, LongType > labelCanvasPair =
-				new RandomAccessiblePair<>(
-						labelLoader.getVolatileImage( 0, 0 ),
-						canvas );
+		/* fragment segment assignment */
+		assignment = new FragmentSegmentAssignment( idService );
+		final TLongLongHashMap lut = H5Utils.loadLongLongLut( reader, params.assignment, 1024 );
+		if ( lut != null )
+			assignment.initLut( lut );
 
-		/* converted pair */
-		final ARGBConvertedLabelPairSource convertedLabelCanvasPair =
-				new ARGBConvertedLabelPairSource(
-						3,
-						labelCanvasPair,
-						canvas, // as Interval, used just for the size
-						labelLoader.getMipmapTransforms(),
-						colorStream );
+		/* complete fragments */
+		completeFragmentsAssignment = new FragmentAssignment();
+		final TLongHashSet set = new TLongHashSet();
+		H5Utils.loadLongCollection( set, reader, params.completeFragments, 1024 );
+		if ( lut != null )
+			assignment.initLut( lut );
 
-		labels.add( labelLoader );
-		convertedLabelCanvasPairs.add( convertedLabelCanvasPair );
+		/* color stream */
+		colorStream = new ModalGoldenAngleSaturatedARGBStream( assignment );
+		colorStream.setAlpha( 0x20 );
+
+		reader.close();
 	}
 
-	@SuppressWarnings( "unchecked" )
-	private void setupBdv( final Parameters params ) throws Exception
+	protected void setupBdv( final P params ) throws Exception
 	{
 		/* composites */
 		final ArrayList< Composite< ARGBType, ARGBType > > composites = new ArrayList< Composite< ARGBType, ARGBType > >();
@@ -332,12 +336,14 @@ public class BigCat
 					labels.get( 0 ).getMipmapResolutions()[ 0 ],
 					dirtyLabelsInterval,
 					assignment,
+					completeFragmentsAssignment,
 					idService,
 					params.inFile,
 					params.canvas,
 					params.export,
 					cellDimensions,
 					params.assignment,
+					params.completeFragments,
 					config,
 					bdv.getViewerFrame().getKeybindings() );
 
@@ -352,7 +358,7 @@ public class BigCat
 					selectionController,
 					new DiamondShape( 1 ),
 					idPicker,
-					config);
+					config );
 
 			/* splitter (and more) */
 			/* TODO fix to deal with more than one label set */
@@ -463,6 +469,46 @@ public class BigCat
 
 		if ( selectionController != null )
 			bdv.getViewer().getDisplay().addOverlayRenderer( selectionController.getSelectionOverlay() );
+	}
+
+	/**
+	 * Creates a label loader, a label canvas pair and the converted
+	 * pair and adds them to the respective lists.
+	 *
+	 * @param reader
+	 * @param labelDataset
+	 * @throws IOException
+	 */
+	protected void readLabels(
+			final IHDF5Reader reader,
+			final String labelDataset ) throws IOException
+	{
+		/* labels */
+		final H5LabelMultisetSetupImageLoader labelLoader =
+				new H5LabelMultisetSetupImageLoader(
+						reader,
+						null,
+						labelDataset,
+						1,
+						cellDimensions );
+
+		/* pair labels */
+		final RandomAccessiblePair< VolatileLabelMultisetType, LongType > labelCanvasPair =
+				new RandomAccessiblePair<>(
+						labelLoader.getVolatileImage( 0, 0 ),
+						canvas );
+
+		/* converted pair */
+		final ARGBConvertedLabelPairSource convertedLabelCanvasPair =
+				new ARGBConvertedLabelPairSource(
+						3,
+						labelCanvasPair,
+						canvas, // as Interval, used just for the size
+						labelLoader.getMipmapTransforms(),
+						colorStream );
+
+		labels.add( labelLoader );
+		convertedLabelCanvasPairs.add( convertedLabelCanvasPair );
 	}
 
 	static protected InputTriggerConfig getInputTriggerConfig() throws IllegalArgumentException
