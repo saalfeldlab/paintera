@@ -30,15 +30,14 @@ import org.scijava.ui.behaviour.InputTriggerAdder;
 import org.scijava.ui.behaviour.InputTriggerMap;
 import org.scijava.ui.behaviour.KeyStrokeAdder;
 import org.scijava.ui.behaviour.io.InputTriggerConfig;
+import org.scijava.ui.behaviour.util.AbstractNamedAction;
+import org.scijava.ui.behaviour.util.InputActionBindings;
 
 import bdv.bigcat.label.FragmentSegmentAssignment;
 import bdv.bigcat.label.IdPicker;
 import bdv.bigcat.ui.AbstractSaturatedARGBStream;
 import bdv.bigcat.ui.SelectionOverlay;
-import bdv.util.AbstractNamedAction;
-import bdv.util.AbstractNamedAction.NamedActionAdder;
 import bdv.util.IdService;
-import bdv.viewer.InputActionBindings;
 import bdv.viewer.ViewerPanel;
 import net.imglib2.RealPoint;
 
@@ -66,7 +65,6 @@ public class SelectionController
 	// for keystroke actions
 	private final ActionMap ksActionMap = new ActionMap();
 	private final InputMap ksInputMap = new InputMap();
-	private final NamedActionAdder ksActionAdder = new NamedActionAdder( ksActionMap );
 	private final KeyStrokeAdder ksKeyStrokeAdder;
 
 	public SelectionController(
@@ -174,7 +172,7 @@ public class SelectionController
 
 		public void register()
 		{
-			ksActionAdder.put( this );
+			put( ksActionMap );
 			ksKeyStrokeAdder.put( name(), defaultTriggers );
 		}
 	}

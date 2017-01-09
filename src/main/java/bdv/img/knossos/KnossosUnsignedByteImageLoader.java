@@ -1,10 +1,10 @@
 package bdv.img.knossos;
 
 import bdv.ViewerSetupImgLoader;
-import bdv.img.cache.Cache;
-import bdv.img.cache.CacheHints;
+import bdv.cache.CacheControl;
+import bdv.cache.CacheHints;
+import bdv.cache.LoadingStrategy;
 import bdv.img.cache.CachedCellImg;
-import bdv.img.cache.LoadingStrategy;
 import bdv.img.cache.VolatileImgCells;
 import bdv.img.cache.VolatileImgCells.CellCache;
 import mpicbg.spim.data.generic.sequence.ImgLoaderHint;
@@ -110,7 +110,7 @@ public class KnossosUnsignedByteImageLoader extends AbstractKnossosImageLoader< 
 	}
 
 	@Override
-	public Cache getCache()
+	public CacheControl getCacheControl()
 	{
 		return cache;
 	}

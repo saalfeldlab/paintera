@@ -3,9 +3,9 @@ package bdv.img.h5;
 import java.io.IOException;
 
 import bdv.ViewerSetupImgLoader;
+import bdv.cache.LoadingStrategy;
 import bdv.img.cache.CacheArrayLoader;
 import bdv.img.cache.CachedCellImg;
-import bdv.img.cache.LoadingStrategy;
 import bdv.labels.labelset.LabelMultisetType;
 import bdv.labels.labelset.VolatileLabelMultisetArray;
 import bdv.labels.labelset.VolatileLabelMultisetType;

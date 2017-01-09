@@ -7,9 +7,9 @@ import com.google.gson.JsonSyntaxException;
 
 import bdv.AbstractViewerSetupImgLoader;
 import bdv.ViewerSetupImgLoader;
-import bdv.img.cache.CacheHints;
+import bdv.cache.CacheHints;
+import bdv.cache.LoadingStrategy;
 import bdv.img.cache.CachedCellImg;
-import bdv.img.cache.LoadingStrategy;
 import bdv.img.cache.VolatileGlobalCellCache;
 import bdv.img.cache.VolatileImgCells;
 import bdv.img.cache.VolatileImgCells.CellCache;
@@ -89,7 +89,7 @@ public class Uint8blkSetupImageLoader
 		blockDimensions = dataInstance.Extended.BlockSize;
 
 		loader = new Uint8blkVolatileArrayLoader( apiUrl, nodeId, dataInstanceId, blockDimensions );
-		cache = new VolatileGlobalCellCache( 1, 1, 1, 10 );
+		cache = new VolatileGlobalCellCache( 1, 10 );
 	}
 
 	@Override

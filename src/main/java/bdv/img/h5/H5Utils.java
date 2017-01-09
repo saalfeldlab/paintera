@@ -943,7 +943,7 @@ public class H5Utils
 		final long[] sourceCellDimensions = new long[ n ];
 		for ( int d = 0; d < n; )
 		{
-			cropCellDimensions( max, offset, cellDimensions, sourceCellDimensions );
+			cropCellDimensions( source, offset, cellDimensions, sourceCellDimensions );
 			final RandomAccessibleInterval< LongType > sourceBlock = Views.offsetInterval( source, offset, sourceCellDimensions );
 			final MDLongArray targetCell = new MDLongArray( reorder( sourceCellDimensions ) );
 			int i = 0;
@@ -999,6 +999,128 @@ public class H5Utils
 			final int[] cellDimensions )
 	{
 		saveUnsignedLong( source, new File( filePath ), dataset, cellDimensions );
+	}
+
+	/**
+	 * Create anHDF5 int64 dataset.
+	 *
+	 * @param source source
+	 * @param dimensions dimensions of the dataset if created new
+	 * @param writer
+	 * @param dataset
+	 * @param cellDimensions
+	 */
+	static public void createLong(
+			final IHDF5Writer writer,
+			final String dataset,
+			final Dimensions datasetDimensions,
+			final int[] cellDimensions )
+	{
+		final IHDF5LongWriter int64Writer = writer.int64();
+
+		if ( writer.exists( dataset ) )
+			writer.delete( dataset );
+
+		int64Writer.createMDArray(
+				dataset,
+				reorder( Intervals.dimensionsAsLongArray( datasetDimensions ) ),
+				reorder( cellDimensions ),
+				HDF5IntStorageFeatures.INT_AUTO_SCALING_DEFLATE );
+	}
+
+
+	/**
+	 * Save a {@link RandomAccessibleInterval} of {@link LongType} into an HDF5
+	 * int64 dataset.
+	 *
+	 * @param source source
+	 * @param writer
+	 * @param dataset
+	 * @param cellDimensions
+	 */
+	static public void saveLong(
+			final RandomAccessibleInterval< LongType > source,
+			final IHDF5Writer writer,
+			final String dataset,
+			final int[] cellDimensions )
+	{
+		if ( !writer.exists( dataset ) )
+			createLong( writer, dataset, source, cellDimensions );
+
+		final long[] dimensions = reorder( writer.object().getDimensions( dataset ) );
+		final int n = source.numDimensions();
+
+		final IHDF5LongWriter int64Writer = writer.int64();
+
+		/* min is >= 0, max is < dimensions */
+		final long[] min = Intervals.minAsLongArray( source );
+		final long[] max = Intervals.maxAsLongArray( source );
+		for ( int d = 0; d < min.length; ++d )
+		{
+			min[ d ] = Math.max( 0, min[ d ] );
+			max[ d ] = Math.min( dimensions[ d ] - 1, max[ d ] );
+		}
+
+		final long[] offset = min.clone();
+		final long[] sourceCellDimensions = new long[ n ];
+		for ( int d = 0; d < n; )
+		{
+			cropCellDimensions( max, offset, cellDimensions, sourceCellDimensions );
+			final RandomAccessibleInterval< LongType > sourceBlock = Views.offsetInterval( source, offset, sourceCellDimensions );
+			final MDLongArray targetCell = new MDLongArray( reorder( sourceCellDimensions ) );
+			int i = 0;
+			for ( final LongType t : Views.flatIterable( sourceBlock ) )
+				targetCell.set( t.get(), i++ );
+
+			int64Writer.writeMDArrayBlockWithOffset( dataset, targetCell, reorder( offset ) );
+
+			for ( d = 0; d < n; ++d )
+			{
+				offset[ d ] += cellDimensions[ d ];
+				if ( offset[ d ] <= max[ d ] )
+					break;
+				else
+					offset[ d ] = min[ d ];
+			}
+		}
+	}
+
+	/**
+	 * Save a {@link RandomAccessibleInterval} of {@link LongType} into an HDF5
+	 * int64 dataset.
+	 *
+	 * @param source
+	 * @param file
+	 * @param dataset
+	 * @param cellDimensions
+	 */
+	static public void saveLong(
+			final RandomAccessibleInterval< LongType > source,
+			final File file,
+			final String dataset,
+			final int[] cellDimensions )
+	{
+		final IHDF5Writer writer = HDF5Factory.open( file );
+		saveLong( source, writer, dataset, cellDimensions );
+		writer.close();
+	}
+
+	/**
+	 * Save a {@link RandomAccessibleInterval} of {@link LongType} into an HDF5
+	 * int64 dataset.
+	 *
+	 * @param source
+	 * @param filePAth
+	 * @param dataset
+	 * @param cellDimensions
+	 */
+	static public void saveLong(
+			final RandomAccessibleInterval< LongType > source,
+			final String filePath,
+			final String dataset,
+			final int[] cellDimensions )
+	{
+		saveLong( source, new File( filePath ), dataset, cellDimensions );
 	}
 
 

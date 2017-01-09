@@ -51,12 +51,6 @@ public class ARGBConvertedLabelPairSource extends AbstractARGBConvertedLabelsSou
 		transform.set( sourceTransforms[ level ] );
 	}
 
-	@Override
-	public AffineTransform3D getSourceTransform( final int t, final int level )
-	{
-		return sourceTransforms[ level ];
-	}
-
 	/**
 	 * TODO Store this in a field
 	 */

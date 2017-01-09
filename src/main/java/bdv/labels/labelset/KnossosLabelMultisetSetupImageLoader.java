@@ -1,9 +1,9 @@
 package bdv.labels.labelset;
 
 import bdv.AbstractViewerSetupImgLoader;
-import bdv.img.cache.CacheHints;
+import bdv.cache.CacheHints;
+import bdv.cache.LoadingStrategy;
 import bdv.img.cache.CachedCellImg;
-import bdv.img.cache.LoadingStrategy;
 import bdv.img.cache.VolatileGlobalCellCache;
 import bdv.img.cache.VolatileGlobalCellCache.VolatileCellCache;
 import bdv.img.cache.VolatileImgCells;

@@ -1,14 +1,20 @@
 package bdv.bigcat.control;
 
-import bdv.util.AbstractNamedAction;
-import bdv.util.AbstractNamedAction.NamedActionAdder;
-import bdv.viewer.InputActionBindings;
-import bdv.viewer.TriggerBehaviourBindings;
-import org.scijava.ui.behaviour.*;
-import org.scijava.ui.behaviour.io.InputTriggerConfig;
-
-import javax.swing.*;
 import java.awt.event.ActionEvent;
+
+import javax.swing.ActionMap;
+import javax.swing.InputMap;
+
+import org.scijava.ui.behaviour.Behaviour;
+import org.scijava.ui.behaviour.BehaviourMap;
+import org.scijava.ui.behaviour.ClickBehaviour;
+import org.scijava.ui.behaviour.InputTriggerAdder;
+import org.scijava.ui.behaviour.InputTriggerMap;
+import org.scijava.ui.behaviour.KeyStrokeAdder;
+import org.scijava.ui.behaviour.io.InputTriggerConfig;
+import org.scijava.ui.behaviour.util.AbstractNamedAction;
+import org.scijava.ui.behaviour.util.InputActionBindings;
+import org.scijava.ui.behaviour.util.TriggerBehaviourBindings;
 
 /**
  * @autoher Philipp Hanslovsky &lt;hanslovskyp@janelia.hhmi.org&gt;
@@ -27,9 +33,9 @@ public class ModeToggleController {
             this.defaultTriggers = defaultTriggers;
         }
 
-        public void register( final NamedActionAdder ksActionAdder, final KeyStrokeAdder ksKeyStrokeAdder )
+        public void register( final ActionMap actionMap, final KeyStrokeAdder ksKeyStrokeAdder )
         {
-            ksActionAdder.put( this );
+            put( actionMap );
             ksKeyStrokeAdder.put( name(), defaultTriggers );
         }
     }
@@ -252,8 +258,7 @@ public class ModeToggleController {
         final ActionMap ksGlobalActionMap = new ActionMap();
 
         KeyStrokeAdder ksGlobalKeyStrokeAdder = config.keyStrokeAdder( ksGlobalInputMap, controllerName );
-        NamedActionAdder ksGlobalActionAdder = new NamedActionAdder( ksGlobalActionMap );
-        toggle.register( ksGlobalActionAdder, ksGlobalKeyStrokeAdder );
+        toggle.register( ksGlobalActionMap, ksGlobalKeyStrokeAdder );
         inputActionBindings.addActionMap( controllerName, ksGlobalActionMap );
         inputActionBindings.addInputMap( controllerName, ksGlobalInputMap );
 
@@ -311,10 +316,9 @@ public class ModeToggleController {
         final InputMap ksWithinModeInputMap = new InputMap();
         final ActionMap ksWithinModeActionMap = new ActionMap();
         final KeyStrokeAdder ksWithinModeInputAdder = config.keyStrokeAdder(ksWithinModeInputMap, "within mode");
-        final NamedActionAdder ksWithinModeActionAdder = new NamedActionAdder( ksWithinModeActionMap );
 
         NoActionUnToggle unToggle = new NoActionUnToggle( bindings, inputActionBindings, "untoggle", "T" );
-        unToggle.register( ksWithinModeActionAdder, ksWithinModeInputAdder );
+        unToggle.register( ksWithinModeActionMap, ksWithinModeInputAdder );
 
         NoActionToggle toggle = new NoActionToggle(
                 bindings,

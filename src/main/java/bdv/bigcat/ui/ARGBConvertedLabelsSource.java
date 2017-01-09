@@ -41,12 +41,6 @@ public class ARGBConvertedLabelsSource extends AbstractARGBConvertedLabelsSource
 		transform.set( multisetImageLoader.getMipmapTransforms()[ level ] );
 	}
 
-	@Override
-	public AffineTransform3D getSourceTransform( final int t, final int level )
-	{
-		return multisetImageLoader.getMipmapTransforms()[ level ];
-	}
-
 	/**
 	 * TODO Store this in a field
 	 */

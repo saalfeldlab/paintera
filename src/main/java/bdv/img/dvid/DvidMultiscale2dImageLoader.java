@@ -2,13 +2,13 @@ package bdv.img.dvid;
 
 import java.io.IOException;
 
+import com.google.gson.JsonIOException;
+import com.google.gson.JsonSyntaxException;
+
 import bdv.ViewerImgLoader;
 import bdv.ViewerSetupImgLoader;
 import bdv.img.cache.VolatileGlobalCellCache;
 import bdv.util.ColorStream;
-
-import com.google.gson.JsonIOException;
-import com.google.gson.JsonSyntaxException;
 
 /**
  * {@link ViewerImgLoader} for
@@ -39,7 +39,7 @@ public class DvidMultiscale2dImageLoader extends DvidMultiscale2dSetupImageLoade
 	}
 
 	@Override
-	public VolatileGlobalCellCache getCache()
+	public VolatileGlobalCellCache getCacheControl()
 	{
 		return cache;
 	}

@@ -16,6 +16,7 @@ import javax.swing.WindowConstants;
 import org.scijava.ui.behaviour.io.InputTriggerConfig;
 import org.scijava.ui.behaviour.io.InputTriggerDescription;
 import org.scijava.ui.behaviour.io.yaml.YamlConfigIO;
+import org.scijava.ui.behaviour.util.TriggerBehaviourBindings;
 
 import com.beust.jcommander.JCommander;
 import com.beust.jcommander.Parameter;
@@ -52,7 +53,6 @@ import bdv.labels.labelset.Multiset;
 import bdv.labels.labelset.VolatileLabelMultisetType;
 import bdv.util.IdService;
 import bdv.util.LocalIdService;
-import bdv.viewer.TriggerBehaviourBindings;
 import ch.systemsx.cisd.hdf5.HDF5Factory;
 import ch.systemsx.cisd.hdf5.IHDF5Reader;
 import gnu.trove.map.hash.TLongLongHashMap;
@@ -249,7 +249,7 @@ public class BigCat< P extends BigCat.Parameters >
 	protected void setupBdv( final P params ) throws Exception
 	{
 		/* composites */
-		final ArrayList< Composite< ARGBType, ARGBType > > composites = new ArrayList< Composite< ARGBType, ARGBType > >();
+		final ArrayList< Composite< ARGBType, ARGBType > > composites = new ArrayList< >();
 		final ArrayList< SetCache > cacheLoaders = new ArrayList<>();
 		for ( final H5UnsignedByteSetupImageLoader loader : raws )
 		{
@@ -287,7 +287,7 @@ public class BigCat< P extends BigCat.Parameters >
 					bdv.getViewer(),
 					RealViews.affineReal(
 							Views.interpolate(
-									new RandomAccessiblePair< LabelMultisetType, LongType >(
+									new RandomAccessiblePair< >(
 											Views.extendValue(
 												labels.get( 0 ).getImage( 0 ),
 												new LabelMultisetType() ),

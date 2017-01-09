@@ -6,6 +6,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 
 import org.scijava.ui.behaviour.io.InputTriggerConfig;
+import org.scijava.ui.behaviour.util.TriggerBehaviourBindings;
 import org.zeromq.ZContext;
 
 import com.beust.jcommander.JCommander;
@@ -33,7 +34,6 @@ import bdv.labels.labelset.Label;
 import bdv.labels.labelset.LabelMultisetType;
 import bdv.util.LocalIdService;
 import bdv.util.RemoteIdService;
-import bdv.viewer.TriggerBehaviourBindings;
 import net.imglib2.algorithm.neighborhood.DiamondShape;
 import net.imglib2.interpolation.randomaccess.NearestNeighborInterpolatorFactory;
 import net.imglib2.realtransform.AffineTransform3D;
@@ -86,7 +86,7 @@ public class BigCatRemoteClient extends BigCat< BigCatRemoteClient.Parameters >
 	protected void setupBdv( final Parameters params ) throws Exception
 	{
 		/* composites */
-		final ArrayList< Composite< ARGBType, ARGBType > > composites = new ArrayList< Composite< ARGBType, ARGBType > >();
+		final ArrayList< Composite< ARGBType, ARGBType > > composites = new ArrayList< >();
 		final ArrayList< SetCache > cacheLoaders = new ArrayList<>();
 		for ( final H5UnsignedByteSetupImageLoader loader : raws )
 		{
@@ -124,7 +124,7 @@ public class BigCatRemoteClient extends BigCat< BigCatRemoteClient.Parameters >
 					bdv.getViewer(),
 					RealViews.affineReal(
 							Views.interpolate(
-									new RandomAccessiblePair< LabelMultisetType, LongType >(
+									new RandomAccessiblePair< >(
 											Views.extendValue(
 												labels.get( 0 ).getImage( 0 ),
 												new LabelMultisetType() ),

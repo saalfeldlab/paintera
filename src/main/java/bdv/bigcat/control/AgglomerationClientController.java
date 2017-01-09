@@ -31,6 +31,8 @@ import org.scijava.ui.behaviour.InputTriggerAdder;
 import org.scijava.ui.behaviour.InputTriggerMap;
 import org.scijava.ui.behaviour.KeyStrokeAdder;
 import org.scijava.ui.behaviour.io.InputTriggerConfig;
+import org.scijava.ui.behaviour.util.AbstractNamedAction;
+import org.scijava.ui.behaviour.util.InputActionBindings;
 import org.zeromq.ZContext;
 import org.zeromq.ZMQ;
 import org.zeromq.ZMQ.Socket;
@@ -45,9 +47,6 @@ import com.google.gson.JsonSerializer;
 import bdv.bigcat.label.FragmentSegmentAssignment;
 import bdv.bigcat.label.IdPicker;
 import bdv.labels.labelset.Label;
-import bdv.util.AbstractNamedAction;
-import bdv.util.AbstractNamedAction.NamedActionAdder;
-import bdv.viewer.InputActionBindings;
 import bdv.viewer.ViewerPanel;
 import gnu.trove.map.hash.TLongLongHashMap;
 import gnu.trove.set.TLongSet;
@@ -74,11 +73,10 @@ public class AgglomerationClientController
 	// for keystroke actions
 	private final ActionMap ksActionMap = new ActionMap();
 	private final InputMap ksInputMap = new InputMap();
-	private final NamedActionAdder ksActionAdder = new NamedActionAdder( ksActionMap );
 	private final KeyStrokeAdder ksKeyStrokeAdder;
 
 	/* TODO not necessary, just for the record */
-	private final List< Action > actions = new LinkedList< Action >();
+	private final List< Action > actions = new LinkedList< >();
 
 	static public interface Action
 	{
@@ -132,9 +130,9 @@ public class AgglomerationClientController
 	{
 		@Override
 		public JsonElement serialize(
-				Action action,
-				Type typeOfAction,
-				JsonSerializationContext context )
+				final Action action,
+				final Type typeOfAction,
+				final JsonSerializationContext context )
 		{
 			final JsonObject jsonObject = new JsonObject();
 			jsonObject.addProperty( "type", action.getType() );
@@ -284,7 +282,7 @@ public class AgglomerationClientController
 
 		public void register()
 		{
-			ksActionAdder.put( this );
+			put( ksActionMap );
 			ksKeyStrokeAdder.put( name(), defaultTriggers );
 		}
 	}

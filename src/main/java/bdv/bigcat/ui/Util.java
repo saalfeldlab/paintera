@@ -204,7 +204,7 @@ public class Util
 
 		/* cache */
 		for ( final SetCache setCache : cacheLoaders )
-			setCache.setCache( imgLoader.getCache() );
+			setCache.setCache( imgLoader.getCacheControl() );
 
 		/* composites */
 		final HashMap< Source< ? >, Composite< ARGBType, ARGBType > > sourceCompositesMap = new HashMap< Source< ? >, Composite< ARGBType, ARGBType > >();
@@ -221,7 +221,7 @@ public class Util
 		if ( config != null )
 			options = options.inputTriggerConfig( config );
 
-		final BigDataViewer bdv = new BigDataViewer( converterSetups, sources, null, timepoints.size(), imgLoader.getCache(), windowTitle, null, options );
+		final BigDataViewer bdv = new BigDataViewer( converterSetups, sources, null, timepoints.size(), imgLoader.getCacheControl(), windowTitle, null, options );
 
 		final AffineTransform3D transform = new AffineTransform3D();
 		bdv.getViewer().setCurrentViewerTransform( transform );

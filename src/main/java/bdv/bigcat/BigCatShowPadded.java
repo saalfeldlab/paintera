@@ -14,6 +14,7 @@ import javax.swing.JOptionPane;
 import org.scijava.ui.behaviour.io.InputTriggerConfig;
 import org.scijava.ui.behaviour.io.InputTriggerDescription;
 import org.scijava.ui.behaviour.io.yaml.YamlConfigIO;
+import org.scijava.ui.behaviour.util.TriggerBehaviourBindings;
 
 import com.beust.jcommander.JCommander;
 import com.beust.jcommander.Parameter;
@@ -25,9 +26,6 @@ import bdv.bigcat.composite.Composite;
 import bdv.bigcat.composite.CompositeCopy;
 import bdv.bigcat.control.AnnotationsController;
 import bdv.bigcat.control.ConfirmSegmentController;
-import bdv.bigcat.control.DrawProjectAndIntersectController;
-import bdv.bigcat.control.LabelBrushController;
-import bdv.bigcat.control.LabelFillController;
 import bdv.bigcat.control.LabelPersistenceController;
 import bdv.bigcat.control.MergeController;
 import bdv.bigcat.control.SelectionController;
@@ -47,17 +45,12 @@ import bdv.labels.labelset.Multiset;
 import bdv.labels.labelset.VolatileLabelMultisetType;
 import bdv.util.IdService;
 import bdv.util.LocalIdService;
-import bdv.viewer.TriggerBehaviourBindings;
 import ch.systemsx.cisd.hdf5.HDF5Factory;
 import ch.systemsx.cisd.hdf5.IHDF5Reader;
 import gnu.trove.map.hash.TLongLongHashMap;
 import net.imglib2.FinalInterval;
 import net.imglib2.RandomAccessibleInterval;
-import net.imglib2.algorithm.neighborhood.DiamondShape;
-import net.imglib2.img.cell.CellImg;
-import net.imglib2.img.cell.CellImgFactory;
 import net.imglib2.interpolation.randomaccess.NearestNeighborInterpolatorFactory;
-import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.realtransform.RealViews;
 import net.imglib2.type.numeric.ARGBType;
 import net.imglib2.type.numeric.integer.LongType;
@@ -244,7 +237,7 @@ public class BigCatShowPadded
 	private void setupBdv( final Parameters params ) throws Exception
 	{
 		/* composites */
-		final ArrayList< Composite< ARGBType, ARGBType > > composites = new ArrayList< Composite< ARGBType, ARGBType > >();
+		final ArrayList< Composite< ARGBType, ARGBType > > composites = new ArrayList< >();
 		final ArrayList< SetCache > cacheLoaders = new ArrayList<>();
 		for ( final H5UnsignedByteSetupImageLoader loader : raws )
 		{
@@ -281,7 +274,7 @@ public class BigCatShowPadded
 					bdv.getViewer(),
 					RealViews.affineReal(
 							Views.interpolate(
-									new RandomAccessiblePair< LabelMultisetType, LongType >(
+									new RandomAccessiblePair< >(
 											Views.extendValue(
 												labels.get( 0 ).getImage( 0 ),
 												new LabelMultisetType() ),

@@ -5,12 +5,12 @@ import java.io.IOException;
 import bdv.AbstractViewerSetupImgLoader;
 import bdv.ViewerImgLoader;
 import bdv.ViewerSetupImgLoader;
+import bdv.cache.CacheControl;
+import bdv.cache.CacheHints;
+import bdv.cache.LoadingStrategy;
 import bdv.img.SetCache;
-import bdv.img.cache.Cache;
 import bdv.img.cache.CacheArrayLoader;
-import bdv.img.cache.CacheHints;
 import bdv.img.cache.CachedCellImg;
-import bdv.img.cache.LoadingStrategy;
 import bdv.img.cache.VolatileGlobalCellCache;
 import bdv.img.cache.VolatileImgCells;
 import bdv.img.cache.VolatileImgCells.CellCache;
@@ -89,7 +89,7 @@ abstract public class AbstractH5SetupImageLoader< T extends NativeType< T > , V 
 
 		this.blockDimension = blockDimension;
 
-		cache = new VolatileGlobalCellCache( 1, 1, 1, 10 );
+		cache = new VolatileGlobalCellCache( 1, 10 );
 	}
 
 	public AbstractH5SetupImageLoader(
@@ -149,7 +149,7 @@ abstract public class AbstractH5SetupImageLoader< T extends NativeType< T > , V 
 	}
 
 	@Override
-	public Cache getCache()
+	public CacheControl getCacheControl()
 	{
 		return cache;
 	}

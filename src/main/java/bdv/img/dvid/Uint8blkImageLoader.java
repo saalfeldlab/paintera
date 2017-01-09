@@ -2,12 +2,12 @@ package bdv.img.dvid;
 
 import java.io.IOException;
 
-import bdv.ViewerImgLoader;
-import bdv.ViewerSetupImgLoader;
-import bdv.img.cache.Cache;
-
 import com.google.gson.JsonIOException;
 import com.google.gson.JsonSyntaxException;
+
+import bdv.ViewerImgLoader;
+import bdv.ViewerSetupImgLoader;
+import bdv.cache.CacheControl;
 
 /**
  * {@link ViewerImgLoader} for
@@ -43,7 +43,7 @@ public class Uint8blkImageLoader extends Uint8blkSetupImageLoader
 	}
 
 	@Override
-	public Cache getCache()
+	public CacheControl getCacheControl()
 	{
 		return cache;
 	}

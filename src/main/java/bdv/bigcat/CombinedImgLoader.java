@@ -4,7 +4,6 @@ import java.util.HashMap;
 
 import bdv.ViewerImgLoader;
 import bdv.ViewerSetupImgLoader;
-import bdv.img.cache.Cache;
 import bdv.img.cache.VolatileGlobalCellCache;
 
 /**
@@ -48,11 +47,11 @@ public class CombinedImgLoader implements ViewerImgLoader
 			setupImgLoaders.put( il.setupId, il.loader );
 		}
 
-		cache = new VolatileGlobalCellCache( 1, loaders.length, maxNumLevels, 10 );
+		cache = new VolatileGlobalCellCache( maxNumLevels, 10 );
 	}
 
 	@Override
-	public VolatileGlobalCellCache getCache()
+	public VolatileGlobalCellCache getCacheControl()
 	{
 		return cache;
 	}
