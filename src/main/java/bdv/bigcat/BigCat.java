@@ -96,27 +96,47 @@ public class BigCat< P extends BigCat.Parameters >
 		public String export = "/volumes/labels/merged_neuron_ids";
 	}
 
+	/** default cell dimensions */
 	final static protected int[] cellDimensions = new int[]{ 64, 64, 8 };
 
+	/** global ID generator */
+	protected IdService idService;
+
+	/** raw pixels (image data) */
 	final protected ArrayList< H5UnsignedByteSetupImageLoader > raws = new ArrayList<>();
-	final protected ArrayList< H5LabelMultisetSetupImageLoader > labels = new ArrayList<>();
-	final protected ArrayList< ARGBConvertedLabelPairSource > convertedLabelCanvasPairs = new ArrayList<>();
 
-	final protected DirtyInterval dirtyLabelsInterval = new DirtyInterval();
-
-	/* TODO this has to change into a virtual container with temporary storage */
+	/**
+	 * canvas that gets modified by brush
+	 * TODO this has to change into a virtual container with temporary storage */
 	protected CellImg< LongType, ?, ? > canvas = null;
 
-	protected BigDataViewer bdv;
-	protected ModalGoldenAngleSaturatedARGBStream colorStream;
+	/** fragment to segment assignment */
 	protected FragmentSegmentAssignment assignment;
+
+	/** complete fragments */
 	protected FragmentAssignment completeFragmentsAssignment;
 
+	/** color generator for composition of loaded segments and canvas */
+	protected ModalGoldenAngleSaturatedARGBStream colorStream;
+
+	/** loaded segments */
+	final protected ArrayList< H5LabelMultisetSetupImageLoader > labels = new ArrayList<>();
+
+	/** compositions of labels and canvas that are displayed */
+	final protected ArrayList< ARGBConvertedLabelPairSource > convertedLabelCanvasPairs = new ArrayList<>();
+
+	/** interval in which pixels were modified */
+	final protected DirtyInterval dirtyLabelsInterval = new DirtyInterval();
+
+	/** main BDV instance */
+	protected BigDataViewer bdv;
+
+	/** controllers */
 	protected LabelPersistenceController persistenceController;
 	protected AnnotationsController annotationsController;
 	protected InputTriggerConfig config;
 
-	protected IdService idService;
+	protected int setupId = 0;
 
 	/**
 	 * Writes max(a,b) into a
@@ -147,22 +167,35 @@ public class BigCat< P extends BigCat.Parameters >
 	}
 
 	/**
-	 * Initialize BigCat, load data, setup IdService and assignments, and create controllers
+	 * Initialize BigCat, order is important because individual initializers depend on previous members initialized.
+	 *
+	 * <ol>
+	 * <li>Load raw and canvas,</li>
+	 * <li>setup IdService,</li>
+	 * <li>setup assignments,</li>
+	 * <li>load labels and create label+canvas compositions.</li>
+	 * </ol>
 	 *
 	 * @param params
 	 * @throws IOException
 	 */
 	protected void init( final P params ) throws IOException
 	{
-		initData( params );
+		initRawAndCanvas( params );
 		initIdService( params );
 		initAssignments( params );
+		initLabels( params );
 	}
 
-	/* load raw data and labels and initialize canvas */
-	protected void initData( final P params ) throws IOException
+	/**
+	 * Load raw data and labels and initialize canvas
+	 *
+	 * @param params
+	 * @throws IOException
+	 */
+	protected void initRawAndCanvas( final P params ) throws IOException
 	{
-		System.out.println( "Opening " + params.inFile );
+		System.out.println( "Opening raw and canvas from " + params.inFile );
 		final IHDF5Reader reader = HDF5Factory.open( params.inFile );
 
 		/* raw pixels */
@@ -171,7 +204,7 @@ public class BigCat< P extends BigCat.Parameters >
 		{
 			if ( reader.exists( raw ) )
 			{
-				final H5UnsignedByteSetupImageLoader rawLoader = new H5UnsignedByteSetupImageLoader( reader, raw, 0, cellDimensions );
+				final H5UnsignedByteSetupImageLoader rawLoader = new H5UnsignedByteSetupImageLoader( reader, raw, setupId++, cellDimensions );
 				raws.add( rawLoader );
 				max( maxRawDimensions, Intervals.dimensionsAsLongArray( rawLoader.getVolatileImage( 0, 0 ) ) );
 			}
@@ -188,15 +221,14 @@ public class BigCat< P extends BigCat.Parameters >
 			for ( final LongType t : canvas )
 				t.set( Label.TRANSPARENT );
 		}
-
-		/* labels */
-		for ( final String label : params.labels )
-			if ( reader.exists( label ) )
-				readLabels( reader, label );
-		else
-				System.out.println( "no label dataset '" + label + "' found" );
 	}
 
+	/**
+	 * Initialize ID service.
+	 *
+	 * @param params
+	 * @throws IOException
+	 */
 	protected void initIdService( final P params ) throws IOException
 	{
 		/* id */
@@ -222,6 +254,11 @@ public class BigCat< P extends BigCat.Parameters >
 		reader.close();
 	}
 
+	/**
+	 * Initialize assignments.
+	 *
+	 * @param params
+	 */
 	protected void initAssignments( final P params )
 	{
 		final IHDF5Reader reader = HDF5Factory.open( params.inFile );
@@ -236,8 +273,6 @@ public class BigCat< P extends BigCat.Parameters >
 		completeFragmentsAssignment = new FragmentAssignment();
 		final TLongHashSet set = new TLongHashSet();
 		H5Utils.loadLongCollection( set, reader, params.completeFragments, 1024 );
-		if ( lut != null )
-			assignment.initLut( lut );
 
 		/* color stream */
 		colorStream = new ModalGoldenAngleSaturatedARGBStream( assignment );
@@ -246,10 +281,44 @@ public class BigCat< P extends BigCat.Parameters >
 		reader.close();
 	}
 
+	/**
+	 * Load labels and create label+canvas compositions.
+	 *
+	 * @param params
+	 * @throws IOException
+	 */
+	protected void initLabels( final P params ) throws IOException
+	{
+		System.out.println( "Opening labels from " + params.inFile );
+		final IHDF5Reader reader = HDF5Factory.open( params.inFile );
+
+		/* labels */
+		for ( final String label : params.labels )
+			if ( reader.exists( label ) )
+				readLabels( reader, label );
+		else
+				System.out.println( "no label dataset '" + label + "' found" );
+	}
+
+	/**
+	 * Create tool.
+	 *
+	 * Depends on {@link #raws}, {@link #labels},
+	 * {@link #convertedLabelCanvasPairs}, {@link #colorStream},
+	 * {@link #idService}, {@link #assignment},
+	 * {@link #config}, {@link #dirtyLabelsInterval},
+	 * {@link #completeFragmentsAssignment}, {@link #canvas} being initialized.
+	 *
+	 * Modifies {@link #bdv}, {@link #convertedLabelCanvasPairs},
+	 * {@link #persistenceController},
+	 *
+	 * @param params
+	 * @throws Exception
+	 */
 	protected void setupBdv( final P params ) throws Exception
 	{
 		/* composites */
-		final ArrayList< Composite< ARGBType, ARGBType > > composites = new ArrayList< >();
+		final ArrayList< Composite< ARGBType, ARGBType > > composites = new ArrayList<>();
 		final ArrayList< SetCache > cacheLoaders = new ArrayList<>();
 		for ( final H5UnsignedByteSetupImageLoader loader : raws )
 		{
@@ -475,6 +544,10 @@ public class BigCat< P extends BigCat.Parameters >
 	 * Creates a label loader, a label canvas pair and the converted
 	 * pair and adds them to the respective lists.
 	 *
+	 * Depends on {@link #canvas} and {@link #colorStream} being initialized.
+	 *
+	 * Modifies {@link #labels}, {@link #setupId}, {@link #convertedLabelCanvasPairs}.
+	 *
 	 * @param reader
 	 * @param labelDataset
 	 * @throws IOException
@@ -489,7 +562,7 @@ public class BigCat< P extends BigCat.Parameters >
 						reader,
 						null,
 						labelDataset,
-						1,
+						setupId++,
 						cellDimensions );
 
 		/* pair labels */
@@ -501,7 +574,7 @@ public class BigCat< P extends BigCat.Parameters >
 		/* converted pair */
 		final ARGBConvertedLabelPairSource convertedLabelCanvasPair =
 				new ARGBConvertedLabelPairSource(
-						3,
+						setupId++,
 						labelCanvasPair,
 						canvas, // as Interval, used just for the size
 						labelLoader.getMipmapTransforms(),
@@ -543,6 +616,13 @@ public class BigCat< P extends BigCat.Parameters >
 		return config;
 	}
 
+
+	/**
+	 * Create dialog for before shutdown saving, and save if confirmed.
+	 *
+	 * @param params
+	 * @return
+	 */
 	public boolean saveBeforeClosing( final Parameters params )
 	{
 		final String message = "Save changes to " + params.inFile + " before closing?";

@@ -97,7 +97,7 @@ public class PairLabelMultiSetLongIdPicker implements IdPicker
 		final int h = viewer.getHeight();
 		final AffineTransform3D viewerTransform = new AffineTransform3D();
 		viewer.getState().getViewerTransform( viewerTransform );
-		IntervalView< Pair< LabelMultisetType, LongType > > screenLabels =
+		final IntervalView< Pair< LabelMultisetType, LongType > > screenLabels =
 				Views.interval(
 						Views.hyperSlice(
 								RealViews.affine( labels, viewerTransform ), 2, 0 ),
@@ -125,7 +125,7 @@ public class PairLabelMultiSetLongIdPicker implements IdPicker
 	 * @param screenLabels
 	 */
 	@SuppressWarnings( "unused" )
-	private void visualizeVisibleIds(
+	public static void visualizeVisibleIds(
 			final RandomAccessibleInterval< Pair< LabelMultisetType, LongType > > screenLabels )
 	{
 		final GoldenAngleSaturatedARGBStream argbStream =
