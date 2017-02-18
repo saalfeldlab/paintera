@@ -9,6 +9,7 @@ import bdv.AbstractViewerSetupImgLoader;
 import bdv.ViewerSetupImgLoader;
 import bdv.cache.CacheHints;
 import bdv.cache.LoadingStrategy;
+import bdv.img.SetCache;
 import bdv.img.cache.CachedCellImg;
 import bdv.img.cache.VolatileGlobalCellCache;
 import bdv.img.cache.VolatileImgCells;
@@ -31,6 +32,7 @@ import net.imglib2.util.Fraction;
  */
 public class Uint8blkSetupImageLoader
 	extends AbstractViewerSetupImgLoader< UnsignedByteType, VolatileUnsignedByteType >
+	implements SetCache
 {
 	protected final double[] resolutions;
 
@@ -142,6 +144,7 @@ public class Uint8blkSetupImageLoader
 		return new AffineTransform3D[]{ mipmapTransform };
 	}
 
+	@Override
 	public void setCache( final VolatileGlobalCellCache cache )
 	{
 		this.cache = cache;
