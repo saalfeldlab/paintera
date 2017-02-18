@@ -72,6 +72,7 @@ public class BigCatRemoteClient extends BigCat< BigCatRemoteClient.Parameters >
 	{
 		final Parameters params = new Parameters();
 		new JCommander( params, args );
+		params.init();
 		params.loadConfig();
 		final BigCatRemoteClient bigCat = new BigCatRemoteClient();
 		bigCat.init( params );
