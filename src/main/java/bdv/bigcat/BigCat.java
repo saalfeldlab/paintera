@@ -263,6 +263,7 @@ public class BigCat< P extends BigCat.Parameters > extends BigCatViewer< P >
 				config );
 
 		bdv.getViewerFrame().setVisible( true );
+		bdv.getViewerFrame().setSize( 1248, 656 );
 
 		final TriggerBehaviourBindings bindings = bdv.getViewerFrame().getTriggerbindings();
 
