@@ -1,11 +1,13 @@
 package bdv.labels.labelset;
 
+import net.imglib2.img.basictypeaccess.array.ArrayDataAccess;
 import net.imglib2.img.basictypeaccess.volatiles.VolatileAccess;
-import net.imglib2.img.basictypeaccess.volatiles.array.AbstractVolatileArray;
 
 
-public class VolatileLabelMultisetArray extends AbstractVolatileArray< VolatileLabelMultisetArray > implements VolatileAccess
+public class VolatileLabelMultisetArray implements VolatileAccess, ArrayDataAccess< VolatileLabelMultisetArray >
 {
+	private boolean isValid = false;
+
 	private final int[] data;
 
 	private final MappedAccessData< LongMappedAccess > listData;
@@ -14,11 +16,11 @@ public class VolatileLabelMultisetArray extends AbstractVolatileArray< VolatileL
 
 	public VolatileLabelMultisetArray( final int numEntities, final boolean isValid )
 	{
-		super( isValid );
 		this.data = new int[ numEntities ];
 		listData = LongMappedAccessData.factory.createStorage( 16 );
 		listDataUsedSizeInBytes = 0;
 		new MappedObjectArrayList<>( LabelMultisetEntry.type, listData, 0 ).add( new LabelMultisetEntry() );
+		this.isValid = isValid;
 	}
 
 	public VolatileLabelMultisetArray(
@@ -35,10 +37,10 @@ public class VolatileLabelMultisetArray extends AbstractVolatileArray< VolatileL
 			final long listDataUsedSizeInBytes,
 			final boolean isValid )
 	{
-		super( isValid );
 		this.data = data;
 		this.listData = listData;
 		this.listDataUsedSizeInBytes = listDataUsedSizeInBytes;
+		this.isValid = isValid;
 	}
 
 	public void getValue( final int index, final LabelMultisetEntryList ref )
@@ -66,5 +68,11 @@ public class VolatileLabelMultisetArray extends AbstractVolatileArray< VolatileL
 	public long getListDataUsedSizeInBytes()
 	{
 		return listDataUsedSizeInBytes;
+	}
+
+	@Override
+	public boolean isValid()
+	{
+		return isValid;
 	}
 }

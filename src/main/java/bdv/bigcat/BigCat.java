@@ -75,7 +75,7 @@ public class BigCat< P extends BigCat.Parameters > extends BigCatViewer< P >
 	/**
 	 * canvas that gets modified by brush
 	 * TODO this has to change into a virtual container with temporary storage */
-	protected CellImg< LongType, ?, ? > canvas = null;
+	protected CellImg< LongType, ? > canvas = null;
 
 	/** interval in which pixels were modified */
 	final protected DirtyInterval dirtyLabelsInterval = new DirtyInterval();
@@ -153,7 +153,7 @@ public class BigCat< P extends BigCat.Parameters > extends BigCatViewer< P >
 		{
 			if ( reader.exists( raw ) )
 			{
-				final H5UnsignedByteSetupImageLoader rawLoader = new H5UnsignedByteSetupImageLoader( reader, raw, setupId++, cellDimensions );
+				final H5UnsignedByteSetupImageLoader rawLoader = new H5UnsignedByteSetupImageLoader( reader, raw, setupId++, cellDimensions, cache );
 				raws.add( rawLoader );
 				max( maxRawDimensions, Intervals.dimensionsAsLongArray( rawLoader.getVolatileImage( 0, 0 ) ) );
 			}
@@ -486,7 +486,8 @@ public class BigCat< P extends BigCat.Parameters > extends BigCatViewer< P >
 						null,
 						labelDataset,
 						setupId++,
-						cellDimensions );
+						cellDimensions,
+						cache );
 
 		/* pair labels */
 		final RandomAccessiblePair< VolatileLabelMultisetType, LongType > labelCanvasPair =

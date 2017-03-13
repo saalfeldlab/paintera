@@ -10,7 +10,7 @@
 	</parent>
 
 	<artifactId>bigcat</artifactId>
-	<version>0.0.1-SNAPSHOT</version>
+	<version>0.0.2-SNAPSHOT</version>
 
 	<name>BIGCAT</name>
 	<description>Collaborative volume annotation and segmentation with BigDataViewer</description>
@@ -34,6 +34,7 @@
 		<dependency>
 			<groupId>sc.fiji</groupId>
 			<artifactId>bigdataviewer-core</artifactId>
+			<version>3.0.4-SNAPSHOT</version>
 		</dependency>
 		<dependency>
 			<groupId>sc.fiji</groupId>
@@ -55,6 +56,7 @@
 		<dependency>
 			<groupId>net.imglib2</groupId>
 			<artifactId>imglib2</artifactId>
+			<version>3.3.1-SNAPSHOT</version>
 		</dependency>
 		<dependency>
 			<groupId>net.imglib2</groupId>
@@ -63,11 +65,6 @@
 		<dependency>
 			<groupId>net.imglib2</groupId>
 			<artifactId>imglib2-ij</artifactId>
-		</dependency>
-		<dependency>
-			<groupId>sc.fiji</groupId>
-			<artifactId>bigdataviewer-vistools</artifactId>
-			<version>1.0.0-beta-4</version>
 		</dependency>
 		<dependency>
 			<groupId>net.imagej</groupId>

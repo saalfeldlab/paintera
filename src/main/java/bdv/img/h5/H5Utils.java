@@ -90,7 +90,7 @@ public class H5Utils
 	 * @param dataset
 	 * @param cellDimensions
 	 */
-	static public CellImg< FloatType, ?, ? > loadFloat(
+	static public CellImg< FloatType, ? > loadFloat(
 			final IHDF5Reader reader,
 			final String dataset,
 			final int[] cellDimensions )
@@ -100,7 +100,7 @@ public class H5Utils
 		final long[] dimensions = reorder( reader.object().getDimensions( dataset ) );
 		final int n = dimensions.length;
 
-		final CellImg< FloatType, ?, ? > target = new CellImgFactory< FloatType >( cellDimensions ).create( dimensions, new FloatType() );
+		final CellImg< FloatType, ? > target = new CellImgFactory< FloatType >( cellDimensions ).create( dimensions, new FloatType() );
 
 		final long[] offset = new long[ n ];
 		final long[] targetCellDimensions = new long[ n ];
@@ -137,13 +137,13 @@ public class H5Utils
 	 * @param dataset
 	 * @param cellDimensions
 	 */
-	static public CellImg< FloatType, ?, ? > loadFloat(
+	static public CellImg< FloatType, ? > loadFloat(
 			final File file,
 			final String dataset,
 			final int[] cellDimensions )
 	{
 		final IHDF5Reader reader = HDF5Factory.openForReading( file );
-		final CellImg< FloatType, ?, ? > target = loadFloat( reader, dataset, cellDimensions );
+		final CellImg< FloatType, ? > target = loadFloat( reader, dataset, cellDimensions );
 		reader.close();
 		return target;
 	}
@@ -155,7 +155,7 @@ public class H5Utils
 	 * @param dataset
 	 * @param cellDimensions
 	 */
-	static public CellImg< FloatType, ?, ? > loadFloat(
+	static public CellImg< FloatType, ? > loadFloat(
 			final String filePath,
 			final String dataset,
 			final int[] cellDimensions )
@@ -171,7 +171,7 @@ public class H5Utils
 	 * @param dataset
 	 * @param cellDimensions
 	 */
-	static public CellImg< DoubleType, ?, ? > loadDouble(
+	static public CellImg< DoubleType, ? > loadDouble(
 			final IHDF5Reader reader,
 			final String dataset,
 			final int[] cellDimensions )
@@ -181,7 +181,7 @@ public class H5Utils
 		final long[] dimensions = reorder( reader.object().getDimensions( dataset ) );
 		final int n = dimensions.length;
 
-		final CellImg< DoubleType, ?, ? > target = new CellImgFactory< DoubleType >( cellDimensions ).create( dimensions, new DoubleType() );
+		final CellImg< DoubleType, ? > target = new CellImgFactory< DoubleType >( cellDimensions ).create( dimensions, new DoubleType() );
 
 		final long[] offset = new long[ n ];
 		final long[] targetCellDimensions = new long[ n ];
@@ -218,13 +218,13 @@ public class H5Utils
 	 * @param dataset
 	 * @param cellDimensions
 	 */
-	static public CellImg< DoubleType, ?, ? > loadDouble(
+	static public CellImg< DoubleType, ? > loadDouble(
 			final File file,
 			final String dataset,
 			final int[] cellDimensions )
 	{
 		final IHDF5Reader reader = HDF5Factory.openForReading( file );
-		final CellImg< DoubleType, ?, ? > target = loadDouble( reader, dataset, cellDimensions );
+		final CellImg< DoubleType, ? > target = loadDouble( reader, dataset, cellDimensions );
 		reader.close();
 		return target;
 	}
@@ -236,7 +236,7 @@ public class H5Utils
 	 * @param dataset
 	 * @param cellDimensions
 	 */
-	static public CellImg< DoubleType, ?, ? > loadDouble(
+	static public CellImg< DoubleType, ? > loadDouble(
 			final String filePath,
 			final String dataset,
 			final int[] cellDimensions )
@@ -252,7 +252,7 @@ public class H5Utils
 	 * @param dataset
 	 * @param cellDimensions
 	 */
-	static public CellImg< LongType, ?, ? > loadUnsignedLong(
+	static public CellImg< LongType, ? > loadUnsignedLong(
 			final IHDF5Reader reader,
 			final String dataset,
 			final int[] cellDimensions )
@@ -262,7 +262,7 @@ public class H5Utils
 		final long[] dimensions = reorder( reader.object().getDimensions( dataset ) );
 		final int n = dimensions.length;
 
-		final CellImg< LongType, ?, ? > target = new CellImgFactory< LongType >( cellDimensions ).create( dimensions, new LongType() );
+		final CellImg< LongType, ? > target = new CellImgFactory< LongType >( cellDimensions ).create( dimensions, new LongType() );
 
 		final long[] offset = new long[ n ];
 		final long[] targetCellDimensions = new long[ n ];
@@ -299,13 +299,13 @@ public class H5Utils
 	 * @param dataset
 	 * @param cellDimensions
 	 */
-	static public CellImg< LongType, ?, ? > loadUnsignedLong(
+	static public CellImg< LongType, ? > loadUnsignedLong(
 			final File file,
 			final String dataset,
 			final int[] cellDimensions )
 	{
 		final IHDF5Reader reader = HDF5Factory.openForReading( file );
-		final CellImg< LongType, ?, ? > target = loadUnsignedLong( reader, dataset, cellDimensions );
+		final CellImg< LongType, ? > target = loadUnsignedLong( reader, dataset, cellDimensions );
 		reader.close();
 		return target;
 	}
@@ -317,7 +317,7 @@ public class H5Utils
 	 * @param dataset
 	 * @param cellDimensions
 	 */
-	static public CellImg< LongType, ?, ? > loadUnsignedLong(
+	static public CellImg< LongType, ? > loadUnsignedLong(
 			final String filePath,
 			final String dataset,
 			final int[] cellDimensions )
@@ -333,7 +333,7 @@ public class H5Utils
 	 * @param dataset
 	 * @param cellDimensions
 	 */
-	static public CellImg< UnsignedShortType, ?, ? > loadUnsignedShort(
+	static public CellImg< UnsignedShortType, ? > loadUnsignedShort(
 			final IHDF5Reader reader,
 			final String dataset,
 			final int[] cellDimensions )
@@ -343,7 +343,7 @@ public class H5Utils
 		final long[] dimensions = reorder( reader.object().getDimensions( dataset ) );
 		final int n = dimensions.length;
 
-		final CellImg< UnsignedShortType, ?, ? > target = new CellImgFactory< UnsignedShortType >( cellDimensions ).create( dimensions, new UnsignedShortType() );
+		final CellImg< UnsignedShortType, ? > target = new CellImgFactory< UnsignedShortType >( cellDimensions ).create( dimensions, new UnsignedShortType() );
 
 		final long[] offset = new long[ n ];
 		final long[] targetCellDimensions = new long[ n ];
@@ -380,13 +380,13 @@ public class H5Utils
 	 * @param dataset
 	 * @param cellDimensions
 	 */
-	static public CellImg< UnsignedShortType, ?, ? > loadUnsignedShort(
+	static public CellImg< UnsignedShortType, ? > loadUnsignedShort(
 			final File file,
 			final String dataset,
 			final int[] cellDimensions )
 	{
 		final IHDF5Reader reader = HDF5Factory.openForReading( file );
-		final CellImg< UnsignedShortType, ?, ? > target = loadUnsignedShort( reader, dataset, cellDimensions );
+		final CellImg< UnsignedShortType, ? > target = loadUnsignedShort( reader, dataset, cellDimensions );
 		reader.close();
 		return target;
 	}
@@ -398,7 +398,7 @@ public class H5Utils
 	 * @param dataset
 	 * @param cellDimensions
 	 */
-	static public CellImg< UnsignedShortType, ?, ? > loadUnsignedShort(
+	static public CellImg< UnsignedShortType, ? > loadUnsignedShort(
 			final String filePath,
 			final String dataset,
 			final int[] cellDimensions )
@@ -414,7 +414,7 @@ public class H5Utils
 	 * @param dataset
 	 * @param cellDimensions
 	 */
-	static public CellImg< UnsignedByteType, ?, ? > loadUnsignedByte(
+	static public CellImg< UnsignedByteType, ? > loadUnsignedByte(
 			final IHDF5Reader reader,
 			final String dataset,
 			final int[] cellDimensions )
@@ -424,7 +424,7 @@ public class H5Utils
 		final long[] dimensions = reorder( reader.object().getDimensions( dataset ) );
 		final int n = dimensions.length;
 
-		final CellImg< UnsignedByteType, ?, ? > target = new CellImgFactory< UnsignedByteType >( cellDimensions ).create( dimensions, new UnsignedByteType() );
+		final CellImg< UnsignedByteType, ? > target = new CellImgFactory< UnsignedByteType >( cellDimensions ).create( dimensions, new UnsignedByteType() );
 
 		final long[] offset = new long[ n ];
 		final long[] targetCellDimensions = new long[ n ];
@@ -461,13 +461,13 @@ public class H5Utils
 	 * @param dataset
 	 * @param cellDimensions
 	 */
-	static public CellImg< UnsignedByteType, ?, ? > loadUnsignedByte(
+	static public CellImg< UnsignedByteType, ? > loadUnsignedByte(
 			final File file,
 			final String dataset,
 			final int[] cellDimensions )
 	{
 		final IHDF5Reader reader = HDF5Factory.openForReading( file );
-		final CellImg< UnsignedByteType, ?, ? > target = loadUnsignedByte( reader, dataset, cellDimensions );
+		final CellImg< UnsignedByteType, ? > target = loadUnsignedByte( reader, dataset, cellDimensions );
 		reader.close();
 		return target;
 	}
@@ -479,7 +479,7 @@ public class H5Utils
 	 * @param dataset
 	 * @param cellDimensions
 	 */
-	static public CellImg< UnsignedByteType, ?, ? > loadUnsignedByte(
+	static public CellImg< UnsignedByteType, ? > loadUnsignedByte(
 			final String filePath,
 			final String dataset,
 			final int[] cellDimensions )
