@@ -1,11 +1,12 @@
 package bdv.labels.labelset;
 
+import java.io.IOException;
+
 import bdv.AbstractCachedViewerSetupImgLoader;
 import bdv.img.cache.VolatileGlobalCellCache;
 import bdv.img.knossos.AbstractKnossosImageLoader;
 import bdv.img.knossos.AbstractKnossosImageLoader.KnossosConfig;
 import net.imglib2.RandomAccessibleInterval;
-import net.imglib2.realtransform.AffineTransform3D;
 
 /**
  * Loader for uint8 volumes stored in the KNOSSOS format
@@ -32,11 +33,16 @@ public class KnossosLabelMultisetSetupImageLoader
 {
 	final protected KnossosConfig config;
 
+	private static KnossosConfig loadConfig( final String configUrl )
+	{
+		return AbstractKnossosImageLoader.tryFetchConfig( configUrl, 20 );
+	}
+
 	public KnossosLabelMultisetSetupImageLoader(
 			final int setupId,
-			final String configUrl,
+			final KnossosConfig config,
 			final String urlFormat,
-			final VolatileGlobalCellCache cache )
+			final VolatileGlobalCellCache cache ) throws IOException
 	{
 		super(
 				setupId,
@@ -51,21 +57,17 @@ public class KnossosLabelMultisetSetupImageLoader
 						config.experimentName,
 						config.format ),
 				cache );
-		this.setupId = setupId;
 
-		config = AbstractKnossosImageLoader.tryFetchConfig( configUrl, 20 );
+		this.config = config;
+	}
 
-		dimension = new long[] { config.width, config.height, config.depth };
-
-		resolution =
-
-		mipmapTransform = new AffineTransform3D();
-
-		mipmapTransform.set( config.scaleX, 0, 0 );
-		mipmapTransform.set( config.scaleY, 1, 1 );
-		mipmapTransform.set( config.scaleZ, 2, 2 );
-
-		loader =
+	public KnossosLabelMultisetSetupImageLoader(
+			final int setupId,
+			final String configUrl,
+			final String urlFormat,
+			final VolatileGlobalCellCache cache ) throws IOException
+	{
+		this( setupId, loadConfig( configUrl ), urlFormat, cache );
 	}
 
 	public void setCache( final VolatileGlobalCellCache cache )

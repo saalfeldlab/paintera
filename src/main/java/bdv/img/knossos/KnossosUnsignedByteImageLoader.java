@@ -2,13 +2,10 @@ package bdv.img.knossos;
 
 import bdv.ViewerSetupImgLoader;
 import bdv.cache.CacheControl;
-import bdv.cache.CacheHints;
-import bdv.cache.LoadingStrategy;
-import bdv.img.cache.CachedCellImg;
-import bdv.img.cache.VolatileImgCells;
-import bdv.img.cache.VolatileImgCells.CellCache;
 import mpicbg.spim.data.generic.sequence.ImgLoaderHint;
 import net.imglib2.RandomAccessibleInterval;
+import net.imglib2.cache.volatiles.CacheHints;
+import net.imglib2.cache.volatiles.LoadingStrategy;
 import net.imglib2.img.NativeImg;
 import net.imglib2.img.basictypeaccess.volatiles.array.VolatileByteArray;
 import net.imglib2.type.NativeType;
@@ -19,12 +16,12 @@ import net.imglib2.type.volatiles.VolatileUnsignedByteType;
 import net.imglib2.util.Fraction;
 /**
  * Loader for uint8 volumes stored in the KNOSSOS format
- * 
+ *
  * http://knossostool.org/
- * 
+ *
  * Volumes are stored as 128<sup>3</sup> 8bit datacubes either
  * jpeg-compressed or raw in a nested file structure.
- * 
+ *
  * Files names follow a convention that is typically
  * <baseURL>/mag%d/x%04d/y%04d/z%04d/<experiment>_x%04d_y%04d_z%04d_mag%d.raw
 
@@ -65,7 +62,7 @@ public class KnossosUnsignedByteImageLoader extends AbstractKnossosImageLoader< 
 	public KnossosUnsignedByteImageLoader( final String configUrl, final String urlFormat )
 	{
 		super( new UnsignedByteType(), new VolatileUnsignedByteType(), configUrl, urlFormat );
-		
+
 		loader = new KnossosUnsignedByteVolatileArrayLoader(
 				config.baseUrl,
 				urlFormat,
