@@ -143,7 +143,6 @@ A:		for ( int i = 0, j = -1; i < data.length; ++i )
 		return new VolatileLabelMultisetArray( data, listData, true );
 	}
 
-	@Override
 	public VolatileLabelMultisetArray emptyArray( final int[] dimensions )
 	{
 		int numEntities = 1;

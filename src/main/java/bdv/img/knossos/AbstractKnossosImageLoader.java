@@ -220,16 +220,15 @@ abstract public class AbstractKnossosImageLoader< T extends NativeType< T >, V e
 	final protected KnossosConfig config;
 
 	public AbstractKnossosImageLoader(
-			final int setupId,
 			final KnossosConfig config,
 			final String urlFormat,
 			final T type,
 			final V volatileType,
 			final CacheArrayLoader< A > loader,
-			final VolatileGlobalCellCache cache ) throws IOException
+			final VolatileGlobalCellCache cache )
 	{
 		super(
-				setupId,
+				0,
 				config.createDimensions(),
 				config.createCellDimensions(),
 				config.createMipmapResolutions(),
@@ -243,7 +242,6 @@ abstract public class AbstractKnossosImageLoader< T extends NativeType< T >, V e
 	}
 
 	public AbstractKnossosImageLoader(
-			final int setupId,
 			final String configUrl,
 			final String urlFormat,
 			final T type,
@@ -252,7 +250,6 @@ abstract public class AbstractKnossosImageLoader< T extends NativeType< T >, V e
 			final VolatileGlobalCellCache cache ) throws IOException
 	{
 		this(
-				setupId,
 				tryFetchConfig( configUrl, 20 ),
 				urlFormat,
 				type,
@@ -270,9 +267,6 @@ abstract public class AbstractKnossosImageLoader< T extends NativeType< T >, V e
 	@Override
 	public ViewerSetupImgLoader< ?, ? > getSetupImgLoader( @SuppressWarnings( "hiding" ) final int setupId )
 	{
-		if ( this.setupId == setupId )
-			return this;
-		else
-			return null;
+		return this;
 	}
 }

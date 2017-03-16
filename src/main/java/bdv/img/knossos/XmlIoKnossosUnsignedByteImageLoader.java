@@ -1,9 +1,11 @@
 package bdv.img.knossos;
 
 import java.io.File;
+import java.io.IOException;
 
 import org.jdom2.Element;
 
+import bdv.img.cache.VolatileGlobalCellCache;
 import mpicbg.spim.data.generic.sequence.AbstractSequenceDescription;
 import mpicbg.spim.data.generic.sequence.ImgLoaderIo;
 import mpicbg.spim.data.generic.sequence.XmlIoBasicImgLoader;
@@ -22,6 +24,14 @@ public class XmlIoKnossosUnsignedByteImageLoader implements XmlIoBasicImgLoader<
 	{
 		final String configUrl = elem.getChildText( "configUrl" );
 		final String urlFormat = elem.getChildText( "urlFormat" );
-		return new KnossosUnsignedByteImageLoader( configUrl, urlFormat );
+		try
+		{
+			return new KnossosUnsignedByteImageLoader( configUrl, urlFormat, new VolatileGlobalCellCache( 1, 10 ) );
+		}
+		catch ( final IOException e )
+		{
+			e.printStackTrace();
+			return null;
+		}
 	}
 }

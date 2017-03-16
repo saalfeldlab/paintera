@@ -56,18 +56,4 @@ abstract public class AbstractH5LabelMultisetArrayLoader implements CacheArrayLo
 			access.putInt( lists[ i ], i * 4 );
 		return new VolatileLabelMultisetArray( offsets, listData, 0, true );
 	}
-
-	/**
-	 * Reuses the existing empty array if it already has the desired size.
-	 */
-	@Override
-	public VolatileLabelMultisetArray emptyArray( final int[] dimensions )
-	{
-		int numEntities = 1;
-		for ( int i = 0; i < dimensions.length; ++i )
-			numEntities *= dimensions[ i ];
-		if ( theEmptyArray.getCurrentStorageArray().length < numEntities )
-			theEmptyArray = new VolatileLabelMultisetArray( numEntities, false );
-		return theEmptyArray;
-	}
 }
