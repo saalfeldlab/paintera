@@ -1,6 +1,7 @@
 package bdv.img.h5;
 
 import bdv.img.cache.CacheArrayLoader;
+import bdv.img.cache.EmptyArrayCreator;
 import bdv.labels.labelset.LongMappedAccess;
 import bdv.labels.labelset.LongMappedAccessData;
 import bdv.labels.labelset.VolatileLabelMultisetArray;
@@ -55,5 +56,11 @@ abstract public class AbstractH5LabelMultisetArrayLoader implements CacheArrayLo
 		for ( int i = 0; i < lists.length; ++i )
 			access.putInt( lists[ i ], i * 4 );
 		return new VolatileLabelMultisetArray( offsets, listData, 0, true );
+	}
+
+	@Override
+	public EmptyArrayCreator< VolatileLabelMultisetArray > getEmptyArrayCreator()
+	{
+		return VolatileLabelMultisetArray.emptyArrayCreator;
 	}
 }
