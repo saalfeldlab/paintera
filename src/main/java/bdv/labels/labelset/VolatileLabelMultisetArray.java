@@ -1,10 +1,11 @@
 package bdv.labels.labelset;
 
-import net.imglib2.img.basictypeaccess.array.ArrayDataAccess;
+import bdv.img.cache.DefaultEmptyArrayCreator;
 import net.imglib2.img.basictypeaccess.volatiles.VolatileAccess;
+import net.imglib2.img.basictypeaccess.volatiles.VolatileArrayDataAccess;
 
 
-public class VolatileLabelMultisetArray implements VolatileAccess, ArrayDataAccess< VolatileLabelMultisetArray >
+public class VolatileLabelMultisetArray implements VolatileAccess, VolatileArrayDataAccess< VolatileLabelMultisetArray >
 {
 	private boolean isValid = false;
 
@@ -55,6 +56,12 @@ public class VolatileLabelMultisetArray implements VolatileAccess, ArrayDataAcce
 	}
 
 	@Override
+	public VolatileLabelMultisetArray createArray( final int numEntities, final boolean isValid )
+	{
+		return new VolatileLabelMultisetArray( numEntities, isValid );
+	}
+
+	@Override
 	public int[] getCurrentStorageArray()
 	{
 		return data;
@@ -75,4 +82,6 @@ public class VolatileLabelMultisetArray implements VolatileAccess, ArrayDataAcce
 	{
 		return isValid;
 	}
+
+	public static DefaultEmptyArrayCreator< VolatileLabelMultisetArray > emptyArrayCreator = new DefaultEmptyArrayCreator<>( new VolatileLabelMultisetArray( 1, false ) );
 }

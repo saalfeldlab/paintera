@@ -7,8 +7,8 @@ import java.net.URL;
 
 import javax.imageio.ImageIO;
 
-import net.imglib2.img.basictypeaccess.volatiles.array.VolatileByteArray;
 import bdv.img.cache.CacheArrayLoader;
+import net.imglib2.img.basictypeaccess.volatiles.array.VolatileByteArray;
 
 /**
  * {@link CacheArrayLoader} for
@@ -18,8 +18,6 @@ import bdv.img.cache.CacheArrayLoader;
  */
 public class DvidMultiscale2dVolatileArrayLoader implements CacheArrayLoader< VolatileByteArray >
 {
-	private VolatileByteArray theEmptyArray;
-
 	private final String apiUrl;
 	private final String nodeId;
 	private final String dataInstanceId;
@@ -33,7 +31,6 @@ public class DvidMultiscale2dVolatileArrayLoader implements CacheArrayLoader< Vo
 			final int[] zScales,
 			final int[][] blockDimensions )
 	{
-		theEmptyArray = new VolatileByteArray( 1, false );
 		this.apiUrl = apiUrl;
 		this.nodeId = nodeId;
 		this.dataInstanceId = dataInstanceId;
@@ -150,16 +147,5 @@ public class DvidMultiscale2dVolatileArrayLoader implements CacheArrayLoader< Vo
 			e.printStackTrace();
 		}
 		return new VolatileByteArray( bytes, true );
-	}
-
-	@Override
-	public VolatileByteArray emptyArray( final int[] dimensions )
-	{
-		int numEntities = 1;
-		for ( int i = 0; i < dimensions.length; ++i )
-			numEntities *= dimensions[ i ];
-		if ( theEmptyArray.getCurrentStorageArray().length < numEntities )
-			theEmptyArray = new VolatileByteArray( numEntities, false );
-		return theEmptyArray;
 	}
 }

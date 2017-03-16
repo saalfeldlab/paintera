@@ -6,7 +6,9 @@ import java.net.URL;
 import java.util.Arrays;
 
 import bdv.img.cache.CacheArrayLoader;
+import bdv.img.cache.EmptyArrayCreator;
 import gnu.trove.list.array.TLongArrayList;
+import net.imglib2.util.Intervals;
 
 /**
  * <p>
@@ -24,8 +26,6 @@ import gnu.trove.list.array.TLongArrayList;
  */
 public class KnossosVolatileLabelsMultisetArrayLoader implements CacheArrayLoader< VolatileLabelMultisetArray >
 {
-	private VolatileLabelMultisetArray theEmptyArray;
-
 	final private String urlFormat;
 
 	public KnossosVolatileLabelsMultisetArrayLoader(
@@ -34,7 +34,6 @@ public class KnossosVolatileLabelsMultisetArrayLoader implements CacheArrayLoade
 			final String experiment,
 			final String format )
 	{
-		theEmptyArray = new VolatileLabelMultisetArray( 1, false );
 		this.urlFormat = baseUrl + urlFormat.replace( "%5$s", experiment );
 	}
 
@@ -137,19 +136,15 @@ A:		for ( int i = 0, j = -1; i < data.length; ++i )
 							Arrays.toString( min ) +
 							", dimensions = " +
 							Arrays.toString( dimensions ) );
-			return emptyArray( dimensions );
+			return getEmptyArrayCreator().getEmptyArray( Intervals.numElements( dimensions ) );
 		}
 
 		return new VolatileLabelMultisetArray( data, listData, true );
 	}
 
-	public VolatileLabelMultisetArray emptyArray( final int[] dimensions )
+	@Override
+	public EmptyArrayCreator< VolatileLabelMultisetArray > getEmptyArrayCreator()
 	{
-		int numEntities = 1;
-		for ( int i = 0; i < dimensions.length; ++i )
-			numEntities *= dimensions[ i ];
-		if ( theEmptyArray.getCurrentStorageArray().length < numEntities )
-			theEmptyArray = new VolatileLabelMultisetArray( numEntities, false );
-		return theEmptyArray;
+		return VolatileLabelMultisetArray.emptyArrayCreator;
 	}
 }
