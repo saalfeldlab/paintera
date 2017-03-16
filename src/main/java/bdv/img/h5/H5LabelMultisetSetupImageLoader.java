@@ -134,8 +134,8 @@ public class H5LabelMultisetSetupImageLoader
 
 	final static protected double[] readResolution( final IHDF5Reader reader, final String dataset )
 	{
-		final double[] h5dim = reader.float64().readArray( dataset );
-		return new double[]{ h5dim[ 2 ], h5dim[ 1 ], h5dim[ 0 ] };
+		final double[] h5res = reader.float64().getArrayAttr( dataset, "resolution" );
+		return new double[]{ h5res[ 2 ], h5res[ 1 ], h5res[ 0 ] };
 	}
 
 	public H5LabelMultisetSetupImageLoader(
