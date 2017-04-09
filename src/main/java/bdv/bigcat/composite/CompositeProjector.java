@@ -22,15 +22,14 @@ public class CompositeProjector< A extends Type< A > > extends AccumulateProject
 {
 	public static class CompositeProjectorFactory< A extends Type< A > > implements AccumulateProjectorFactory< A >
 	{
-		final private Map< Source< ? >, Composite< A, A > > composites;
+		final private Map< Source< ? extends A >, Composite< A, A > > composites;
 
 		/**
-		 * Constructor with a list (to preserve the order) of
-		 * {@link Composite Composites}.
+		 * Constructor with a map that associates sources and {@link Composite Composites}.
 		 *
 		 * @param composites
 		 */
-		public CompositeProjectorFactory( final Map< Source< ? >, Composite< A, A > > composites )
+		public CompositeProjectorFactory( final Map< Source< ? extends A >, Composite< A, A > > composites )
 		{
 			this.composites = composites;
 		}
@@ -38,8 +37,8 @@ public class CompositeProjector< A extends Type< A > > extends AccumulateProject
 		@Override
 		public VolatileProjector createAccumulateProjector(
 				final ArrayList< VolatileProjector > sourceProjectors,
-				final ArrayList< Source< ? > > sources,
-				final ArrayList< ? extends RandomAccessible< A > > sourceScreenImages,
+				final ArrayList< Source< ? extends A > > sources,
+				final ArrayList< ? extends RandomAccessible< ? extends A > > sourceScreenImages,
 				final RandomAccessibleInterval< A > targetScreenImages,
 				final int numThreads,
 				final ExecutorService executorService )
@@ -80,7 +79,7 @@ public class CompositeProjector< A extends Type< A > > extends AccumulateProject
 	}
 
 	@Override
-	protected void accumulate( final Cursor< A >[] accesses, final A t )
+	protected void accumulate( final Cursor< ? extends A >[] accesses, final A t )
 	{
 		for ( int i = 0; i < composites.size(); ++i )
 			composites.get( i ).compose( t, accesses[ i ].get() );
