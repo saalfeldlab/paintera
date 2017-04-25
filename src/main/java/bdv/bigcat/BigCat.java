@@ -4,24 +4,19 @@ import java.awt.Cursor;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
 import java.awt.event.WindowListener;
-import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.List;
 
 import javax.swing.JOptionPane;
 import javax.swing.WindowConstants;
 
 import org.scijava.ui.behaviour.io.InputTriggerConfig;
-import org.scijava.ui.behaviour.io.InputTriggerDescription;
-import org.scijava.ui.behaviour.io.yaml.YamlConfigIO;
 import org.scijava.ui.behaviour.util.TriggerBehaviourBindings;
 
 import com.beust.jcommander.JCommander;
 import com.beust.jcommander.Parameter;
 
-import bdv.BigDataViewer;
 import bdv.bigcat.annotation.AnnotationsHdf5Store;
 import bdv.bigcat.composite.ARGBCompositeAlphaYCbCr;
 import bdv.bigcat.composite.Composite;
@@ -36,11 +31,8 @@ import bdv.bigcat.control.MergeController;
 import bdv.bigcat.control.NeuronIdsToFileController;
 import bdv.bigcat.control.SelectionController;
 import bdv.bigcat.control.TranslateZController;
-import bdv.bigcat.label.FragmentAssignment;
-import bdv.bigcat.label.FragmentSegmentAssignment;
 import bdv.bigcat.label.PairLabelMultiSetLongIdPicker;
 import bdv.bigcat.ui.ARGBConvertedLabelPairSource;
-import bdv.bigcat.ui.ModalGoldenAngleSaturatedARGBStream;
 import bdv.bigcat.ui.Util;
 import bdv.bigcat.util.DirtyInterval;
 import bdv.img.SetCache;
@@ -49,14 +41,10 @@ import bdv.img.h5.H5UnsignedByteSetupImageLoader;
 import bdv.img.h5.H5Utils;
 import bdv.labels.labelset.Label;
 import bdv.labels.labelset.LabelMultisetType;
-import bdv.labels.labelset.Multiset;
 import bdv.labels.labelset.VolatileLabelMultisetType;
-import bdv.util.IdService;
 import bdv.util.LocalIdService;
 import ch.systemsx.cisd.hdf5.HDF5Factory;
 import ch.systemsx.cisd.hdf5.IHDF5Reader;
-import gnu.trove.map.hash.TLongLongHashMap;
-import gnu.trove.set.hash.TLongHashSet;
 import net.imglib2.algorithm.neighborhood.DiamondShape;
 import net.imglib2.img.cell.CellImg;
 import net.imglib2.img.cell.CellImgFactory;
@@ -70,25 +58,10 @@ import net.imglib2.util.Pair;
 import net.imglib2.view.RandomAccessiblePair;
 import net.imglib2.view.Views;
 
-public class BigCat< P extends BigCat.Parameters >
+public class BigCat< P extends BigCat.Parameters > extends BigCatViewer< P >
 {
-	static protected class Parameters
+	static public class Parameters extends BigCatViewer.Parameters
 	{
-		@Parameter( names = { "--infile", "-i" }, description = "Input file path" )
-		public String inFile = "";
-
-		@Parameter( names = { "--raw", "-r" }, description = "raw pixel datasets" )
-		public List< String > raws = Arrays.asList( new String[] { "/volumes/raw" } );
-
-		@Parameter( names = { "--label", "-l" }, description = "label datasets" )
-		public List< String > labels = Arrays.asList( new String[] { "/volumes/labels/neuron_ids" } );
-
-		@Parameter( names = { "--assignment", "-a" }, description = "fragment segment assignment table" )
-		public String assignment = "/fragment_segment_lut";
-
-		@Parameter( names = { "--complete", "-f" }, description = "complete fragments" )
-		public String completeFragments = "/complete_fragments";
-
 		@Parameter( names = { "--canvas", "-c" }, description = "canvas dataset" )
 		public String canvas = "/volumes/labels/painted_neuron_ids";
 
@@ -96,47 +69,20 @@ public class BigCat< P extends BigCat.Parameters >
 		public String export = "/volumes/labels/merged_neuron_ids";
 	}
 
-	/** default cell dimensions */
-	final static protected int[] cellDimensions = new int[]{ 64, 64, 8 };
-
-	/** global ID generator */
-	protected IdService idService;
-
-	/** raw pixels (image data) */
-	final protected ArrayList< H5UnsignedByteSetupImageLoader > raws = new ArrayList<>();
+	/** max raw dimensions */
+	final protected long[] maxRawDimensions = new long[ 3 ];
 
 	/**
 	 * canvas that gets modified by brush
 	 * TODO this has to change into a virtual container with temporary storage */
 	protected CellImg< LongType, ? > canvas = null;
 
-	/** fragment to segment assignment */
-	protected FragmentSegmentAssignment assignment;
-
-	/** complete fragments */
-	protected FragmentAssignment completeFragmentsAssignment;
-
-	/** color generator for composition of loaded segments and canvas */
-	protected ModalGoldenAngleSaturatedARGBStream colorStream;
-
-	/** loaded segments */
-	final protected ArrayList< H5LabelMultisetSetupImageLoader > labels = new ArrayList<>();
-
-	/** compositions of labels and canvas that are displayed */
-	final protected ArrayList< ARGBConvertedLabelPairSource > convertedLabelCanvasPairs = new ArrayList<>();
-
 	/** interval in which pixels were modified */
 	final protected DirtyInterval dirtyLabelsInterval = new DirtyInterval();
-
-	/** main BDV instance */
-	protected BigDataViewer bdv;
 
 	/** controllers */
 	protected LabelPersistenceController persistenceController;
 	protected AnnotationsController annotationsController;
-	protected InputTriggerConfig config;
-
-	protected int setupId = 0;
 
 	/**
 	 * Writes max(a,b) into a
@@ -155,6 +101,7 @@ public class BigCat< P extends BigCat.Parameters >
 	{
 		final Parameters params = new Parameters();
 		new JCommander( params, args );
+		params.init();
 		final BigCat< Parameters > bigCat = new BigCat<>();
 		bigCat.init( params );
 		bigCat.setupBdv( params );
@@ -162,8 +109,7 @@ public class BigCat< P extends BigCat.Parameters >
 
 	public BigCat() throws Exception
 	{
-		Util.initUI();
-		this.config = getInputTriggerConfig();
+		super();
 	}
 
 	/**
@@ -179,27 +125,30 @@ public class BigCat< P extends BigCat.Parameters >
 	 * @param params
 	 * @throws IOException
 	 */
+	@Override
 	protected void init( final P params ) throws IOException
 	{
-		initRawAndCanvas( params );
+		initRaw( params );
+		initCanvas( params );
 		initIdService( params );
 		initAssignments( params );
 		initLabels( params );
 	}
 
 	/**
-	 * Load raw data and labels and initialize canvas
+	 * Load raw data, find maximum raw dimensions
 	 *
 	 * @param params
 	 * @throws IOException
 	 */
-	protected void initRawAndCanvas( final P params ) throws IOException
+	@Override
+	protected void initRaw( final P params ) throws IOException
 	{
-		System.out.println( "Opening raw and canvas from " + params.inFile );
+		System.out.println( "Opening raw from " + params.inFile );
 		final IHDF5Reader reader = HDF5Factory.open( params.inFile );
 
 		/* raw pixels */
-		final long[] maxRawDimensions = new long[]{ 0, 0, 0 };
+		Arrays.fill( maxRawDimensions, 0 );
 		for ( final String raw : params.raws )
 		{
 			if ( reader.exists( raw ) )
@@ -211,6 +160,18 @@ public class BigCat< P extends BigCat.Parameters >
 			else
 				System.out.println( "no raw dataset '" + raw + "' found" );
 		}
+	}
+
+	/**
+	 * Load or initialize canvas
+	 *
+	 * @param params
+	 * @throws IOException
+	 */
+	protected void initCanvas( final P params ) throws IOException
+	{
+		System.out.println( "Opening canvas from " + params.inFile );
+		final IHDF5Reader reader = HDF5Factory.open( params.inFile );
 
 		/* canvas (to which the brush paints) */
 		if ( reader.exists( params.canvas ) )
@@ -221,14 +182,18 @@ public class BigCat< P extends BigCat.Parameters >
 			for ( final LongType t : canvas )
 				t.set( Label.TRANSPARENT );
 		}
+
+		reader.close();
 	}
 
 	/**
-	 * Initialize ID service.
+	 * Initialize ID service, load max id from file or find max id in labels
+	 * and canvas.
 	 *
 	 * @param params
 	 * @throws IOException
 	 */
+	@Override
 	protected void initIdService( final P params ) throws IOException
 	{
 		/* id */
@@ -238,6 +203,9 @@ public class BigCat< P extends BigCat.Parameters >
 
 		long maxId = 0;
 		final Long nextIdObject = H5Utils.loadAttribute( reader, "/", "next_id" );
+
+		reader.close();
+
 		if ( nextIdObject == null )
 		{
 			for ( final H5LabelMultisetSetupImageLoader labelLoader : labels )
@@ -250,54 +218,6 @@ public class BigCat< P extends BigCat.Parameters >
 			maxId = nextIdObject.longValue() - 1;
 
 		idService.invalidate( maxId );
-
-		reader.close();
-	}
-
-	/**
-	 * Initialize assignments.
-	 *
-	 * @param params
-	 */
-	protected void initAssignments( final P params )
-	{
-		final IHDF5Reader reader = HDF5Factory.open( params.inFile );
-
-		/* fragment segment assignment */
-		assignment = new FragmentSegmentAssignment( idService );
-		final TLongLongHashMap lut = H5Utils.loadLongLongLut( reader, params.assignment, 1024 );
-		if ( lut != null )
-			assignment.initLut( lut );
-
-		/* complete fragments */
-		completeFragmentsAssignment = new FragmentAssignment();
-		final TLongHashSet set = new TLongHashSet();
-		H5Utils.loadLongCollection( set, reader, params.completeFragments, 1024 );
-
-		/* color stream */
-		colorStream = new ModalGoldenAngleSaturatedARGBStream( assignment );
-		colorStream.setAlpha( 0x20 );
-
-		reader.close();
-	}
-
-	/**
-	 * Load labels and create label+canvas compositions.
-	 *
-	 * @param params
-	 * @throws IOException
-	 */
-	protected void initLabels( final P params ) throws IOException
-	{
-		System.out.println( "Opening labels from " + params.inFile );
-		final IHDF5Reader reader = HDF5Factory.open( params.inFile );
-
-		/* labels */
-		for ( final String label : params.labels )
-			if ( reader.exists( label ) )
-				readLabels( reader, label );
-		else
-				System.out.println( "no label dataset '" + label + "' found" );
 	}
 
 	/**
@@ -315,6 +235,7 @@ public class BigCat< P extends BigCat.Parameters >
 	 * @param params
 	 * @throws Exception
 	 */
+	@Override
 	protected void setupBdv( final P params ) throws Exception
 	{
 		/* composites */
@@ -336,12 +257,13 @@ public class BigCat< P extends BigCat.Parameters >
 		bdv = Util.createViewer(
 				windowTitle,
 				raws,
-				convertedLabelCanvasPairs,
+				convertedLabels,
 				cacheLoaders,
 				composites,
 				config );
 
 		bdv.getViewerFrame().setVisible( true );
+		bdv.getViewerFrame().setSize( 1248, 656 );
 
 		final TriggerBehaviourBindings bindings = bdv.getViewerFrame().getTriggerbindings();
 
@@ -552,6 +474,7 @@ public class BigCat< P extends BigCat.Parameters >
 	 * @param labelDataset
 	 * @throws IOException
 	 */
+	@Override
 	protected void readLabels(
 			final IHDF5Reader reader,
 			final String labelDataset ) throws IOException
@@ -581,41 +504,8 @@ public class BigCat< P extends BigCat.Parameters >
 						colorStream );
 
 		labels.add( labelLoader );
-		convertedLabelCanvasPairs.add( convertedLabelCanvasPair );
+		convertedLabels.add( convertedLabelCanvasPair );
 	}
-
-	static protected InputTriggerConfig getInputTriggerConfig() throws IllegalArgumentException
-	{
-		final String[] filenames = { "bigcatkeyconfig.yaml", System.getProperty( "user.home" ) + "/.bdv/bigcatkeyconfig.yaml" };
-
-		for ( final String filename : filenames )
-		{
-			try
-			{
-				if ( new File( filename ).isFile() )
-				{
-					System.out.println( "reading key config from file " + filename );
-					return new InputTriggerConfig( YamlConfigIO.read( filename ) );
-				}
-			}
-			catch ( final IOException e )
-			{
-				System.err.println( "Error reading " + filename );
-			}
-		}
-
-		System.out.println( "creating default input trigger config" );
-
-		// default input trigger config, disables "control button1" drag in bdv
-		// (collides with default of "move annotation")
-		final InputTriggerConfig config =
-				new InputTriggerConfig(
-						Arrays.asList(
-								new InputTriggerDescription[] { new InputTriggerDescription( new String[] { "not mapped" }, "drag rotate slow", "bdv" ) } ) );
-
-		return config;
-	}
-
 
 	/**
 	 * Create dialog for before shutdown saving, and save if confirmed.
@@ -645,36 +535,5 @@ public class BigCat< P extends BigCat.Parameters >
 			persistenceController.savePaintedLabels();
 		}
 		return reallyClose;
-	}
-
-	final static protected long maxId(
-			final H5LabelMultisetSetupImageLoader labelLoader,
-			long maxId ) throws IOException
-	{
-		for ( final LabelMultisetType t : Views.iterable( labelLoader.getImage( 0 ) ) )
-		{
-			for ( final Multiset.Entry< Label > v : t.entrySet() )
-			{
-				final long id = v.getElement().id();
-				if ( Label.regular( id ) && IdService.greaterThan( id, maxId ) )
-					maxId = id;
-			}
-		}
-
-		return maxId;
-	}
-
-	final static protected long maxId(
-			final Iterable< LongType > labels,
-			long maxId ) throws IOException
-	{
-		for ( final LongType t : labels )
-		{
-			final long id = t.get();
-			if ( Label.regular( id ) && IdService.greaterThan( id, maxId ) )
-				maxId = id;
-		}
-
-		return maxId;
 	}
 }

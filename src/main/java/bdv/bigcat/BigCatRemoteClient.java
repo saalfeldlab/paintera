@@ -2,6 +2,9 @@ package bdv.bigcat;
 
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
+import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.FileReader;
 import java.io.IOException;
 import java.util.ArrayList;
 
@@ -11,6 +14,7 @@ import org.zeromq.ZContext;
 
 import com.beust.jcommander.JCommander;
 import com.beust.jcommander.Parameter;
+import com.google.gson.Gson;
 
 import bdv.bigcat.annotation.AnnotationsHdf5Store;
 import bdv.bigcat.composite.ARGBCompositeAlphaYCbCr;
@@ -46,12 +50,20 @@ import net.imglib2.view.Views;
 
 public class BigCatRemoteClient extends BigCat< BigCatRemoteClient.Parameters >
 {
-	static protected class Parameters extends BigCat.Parameters
+	static public class Parameters extends BigCat.Parameters
 	{
 		@Parameter( names = { "--broker", "-b" }, description = "URL to configuration broker" )
 		public String config = "";
 
 		private Config brokerConfig;
+
+		public void loadConfig() throws FileNotFoundException, IOException
+		{
+			try ( final FileReader reader = new FileReader( new File( config ) ) )
+			{
+				brokerConfig = new Gson().fromJson( reader, Config.class );
+			}
+		}
 	}
 
 	final private ZContext ctx;
@@ -60,6 +72,8 @@ public class BigCatRemoteClient extends BigCat< BigCatRemoteClient.Parameters >
 	{
 		final Parameters params = new Parameters();
 		new JCommander( params, args );
+		params.init();
+		params.loadConfig();
 		final BigCatRemoteClient bigCat = new BigCatRemoteClient();
 		bigCat.init( params );
 		bigCat.setupBdv( params );
@@ -82,7 +96,6 @@ public class BigCatRemoteClient extends BigCat< BigCatRemoteClient.Parameters >
 	}
 
 	@Override
-	@SuppressWarnings( "unchecked" )
 	protected void setupBdv( final Parameters params ) throws Exception
 	{
 		/* composites */
@@ -104,7 +117,7 @@ public class BigCatRemoteClient extends BigCat< BigCatRemoteClient.Parameters >
 		bdv = Util.createViewer(
 				windowTitle,
 				raws,
-				convertedLabelCanvasPairs,
+				convertedLabels,
 				cacheLoaders,
 				composites,
 				config );

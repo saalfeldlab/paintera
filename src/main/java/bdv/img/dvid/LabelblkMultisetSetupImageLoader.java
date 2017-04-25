@@ -9,6 +9,7 @@ import com.google.gson.JsonSyntaxException;
 import bdv.AbstractViewerSetupImgLoader;
 import bdv.cache.CacheHints;
 import bdv.cache.LoadingStrategy;
+import bdv.img.SetCache;
 import bdv.img.cache.CacheArrayLoader;
 import bdv.img.cache.CachedCellImg;
 import bdv.img.cache.VolatileGlobalCellCache;
@@ -28,6 +29,7 @@ import net.imglib2.util.Fraction;
 
 public class LabelblkMultisetSetupImageLoader
 	extends AbstractViewerSetupImgLoader< LabelMultisetType, VolatileLabelMultisetType >
+	implements SetCache
 {
 	final protected double[][] resolutions;
 
@@ -161,6 +163,7 @@ public class LabelblkMultisetSetupImageLoader
 		return mipmapTransforms;
 	}
 
+	@Override
 	public void setCache( final VolatileGlobalCellCache cache )
 	{
 		this.cache = cache;
