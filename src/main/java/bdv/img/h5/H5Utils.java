@@ -943,7 +943,7 @@ public class H5Utils
 		final long[] sourceCellDimensions = new long[ n ];
 		for ( int d = 0; d < n; )
 		{
-			cropCellDimensions( source, offset, cellDimensions, sourceCellDimensions );
+			cropCellDimensions( max, offset, cellDimensions, sourceCellDimensions );
 			final RandomAccessibleInterval< LongType > sourceBlock = Views.offsetInterval( source, offset, sourceCellDimensions );
 			final MDLongArray targetCell = new MDLongArray( reorder( sourceCellDimensions ) );
 			int i = 0;
