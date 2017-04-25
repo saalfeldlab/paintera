@@ -14,31 +14,23 @@ import net.imglib2.type.numeric.ARGBType;
 
 public class AccumulateProjectorCompositeARGB extends AccumulateProjector< ARGBType, ARGBType >
 {
-
 	public static AccumulateProjectorFactory< ARGBType > factory = new AccumulateProjectorFactory< ARGBType >()
 	{
-//		@Override
-//		public AccumulateProjectorCompositeARGB createAccumulateProjector(
-//				final ArrayList< VolatileProjector > sourceProjectors,
-//				final ArrayList< Source< ? extends ARGBType > > sour,
-//				final ArrayList< ? extends RandomAccessible< ? extends ARGBType > > sourceScreenImages,
-//				final RandomAccessibleInterval< ARGBType > targetScreenImages,
-//				final int numThreads,
-//				final ExecutorService executorService )
-//		{
-//			return new AccumulateProjectorCompositeARGB( sourceProjectors, sourceScreenImages, targetScreenImages, numThreads, executorService );
-//		}
-
 		@Override
 		public AccumulateProjectorCompositeARGB createAccumulateProjector(
 				ArrayList< VolatileProjector > sourceProjectors,
 				ArrayList< Source< ? > > sources,
-				ArrayList< ? extends RandomAccessible< ARGBType > > sourceScreenImages,
+				ArrayList< ? extends RandomAccessible< ? extends ARGBType > > sourceScreenImages,
 				RandomAccessibleInterval< ARGBType > targetScreenImage,
 				int numThreads,
 				ExecutorService executorService )
 		{
-			return new AccumulateProjectorCompositeARGB( sourceProjectors, sourceScreenImages, targetScreenImage, numThreads, executorService );
+			return new AccumulateProjectorCompositeARGB(
+					sourceProjectors,
+					sourceScreenImages,
+					targetScreenImage,
+					numThreads,
+					executorService );
 		}
 	};
 
@@ -46,7 +38,7 @@ public class AccumulateProjectorCompositeARGB extends AccumulateProjector< ARGBT
 
 	public AccumulateProjectorCompositeARGB(
 			final ArrayList< VolatileProjector > sourceProjectors,
-			final ArrayList< ? extends RandomAccessible< ARGBType > > sources,
+			final ArrayList< ? extends RandomAccessible< ? extends ARGBType > > sources,
 			final RandomAccessibleInterval< ARGBType > target,
 			final int numThreads,
 			final ExecutorService executorService )

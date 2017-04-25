@@ -37,16 +37,16 @@ public class CompositeProjector< A extends Type< A > > extends AccumulateProject
 		@Override
 		public VolatileProjector createAccumulateProjector(
 				final ArrayList< VolatileProjector > sourceProjectors,
-				final ArrayList< Source< ? extends A > > sources,
+				final ArrayList< Source< ? > > sources,
 				final ArrayList< ? extends RandomAccessible< ? extends A > > sourceScreenImages,
-				final RandomAccessibleInterval< A > targetScreenImages,
+				final RandomAccessibleInterval< A > targetScreenImage,
 				final int numThreads,
 				final ExecutorService executorService )
 		{
 			final CompositeProjector< A > projector = new CompositeProjector< A >(
 					sourceProjectors,
 					sourceScreenImages,
-					targetScreenImages,
+					targetScreenImage,
 					numThreads,
 					executorService );
 
@@ -64,7 +64,7 @@ public class CompositeProjector< A extends Type< A > > extends AccumulateProject
 
 	public CompositeProjector(
 			final ArrayList< VolatileProjector > sourceProjectors,
-			final ArrayList< ? extends RandomAccessible< A > > sources,
+			final ArrayList< ? extends RandomAccessible< ? extends A > > sources,
 			final RandomAccessibleInterval< A > target,
 			final int numThreads,
 			final ExecutorService executorService )
