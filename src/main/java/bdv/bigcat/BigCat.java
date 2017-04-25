@@ -108,7 +108,7 @@ public class BigCat< P extends BigCat.Parameters >
 	/**
 	 * canvas that gets modified by brush
 	 * TODO this has to change into a virtual container with temporary storage */
-	protected CellImg< LongType, ?, ? > canvas = null;
+	protected CellImg< LongType, ? > canvas = null;
 
 	/** fragment to segment assignment */
 	protected FragmentSegmentAssignment assignment;
