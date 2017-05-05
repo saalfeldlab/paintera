@@ -13,18 +13,23 @@ public abstract class Annotation {
 	public long getId() {
 		return id;
 	}
+
 	public void setId(long id) {
 		this.id = id;
 	}
+
 	public RealPoint getPosition() {
 		return pos;
 	}
+
 	public void setPosition(RealPoint pos) {
 		this.pos = pos;
 	}
+
 	public String getComment() {
 		return comment;
 	}
+
 	public void setComment(String comment) {
 		this.comment = comment;
 	}
@@ -32,7 +37,7 @@ public abstract class Annotation {
 	public void accept(AnnotationVisitor visitor) {
 		visitor.visit(this);
 	}
-	
+
 	private long id;
 	private RealPoint pos;
 	private String comment;
