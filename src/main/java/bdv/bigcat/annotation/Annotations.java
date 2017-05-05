@@ -14,55 +14,54 @@ import net.imglib2.neighborsearch.KNearestNeighborSearchOnKDTree;
 
 /**
  * Set of annotations and query functions.
- *  
  * @author Jan Funke <jfunke@iri.upc.edu>
  */
 public class Annotations {
-	
+
 	public Annotations() {
 		this.annotations = new HashMap< Long, Annotation >();
 		this.listeners = new LinkedList<Annotations.AnnotationsListener>();
 	}
-	
+
 	public void add(Annotation annotation) {
-	
+
 		annotations.put(annotation.getId(), annotation);
 		kdTreeDirty = true;
 		for (AnnotationsListener l : listeners)
 			l.onAnnotationAdded(annotation);
-	}	
-	
+	}
+
 	public void remove(Annotation annotation) {
-		
+
 		annotations.remove(annotation.getId());
 		kdTreeDirty = true;
 		for (AnnotationsListener l : listeners)
 			l.onAnnotationRemoved(annotation);
 	}
-	
+
 	public Collection< Annotation > getAnnotations() {
-		
+
 		return annotations.values();
 	}
-	
+
 	public List< Annotation > getLocalAnnotations(ConvexPolytope polytope) {
 
 		List< Annotation > localAnnotations = new LinkedList< Annotation >();
 		if (annotations.size() == 0)
 			return localAnnotations;
-	
+
 		if (kdTreeDirty)
 			updateKdTree();
-	
+
 		final ClipConvexPolytopeKDTree< Annotation > clip = new ClipConvexPolytopeKDTree< Annotation >( kdTree );
 		clip.clip( polytope );
-		
+
 		for (KDTreeNode< Annotation > node : clip.getInsideNodes())
 			localAnnotations.add(node.get());
-			
+
 		return localAnnotations;
 	}
-	
+
 	/**
 	 * Find the k nearest annotations to a point.
 	 * @param pos
@@ -75,16 +74,16 @@ public class Annotations {
 
 		if (annotations.size() == 0)
 			return nearest;
-	
+
 		if (kdTreeDirty)
 			updateKdTree();
 
 		KNearestNeighborSearchOnKDTree< Annotation > search = new KNearestNeighborSearchOnKDTree< Annotation >(kdTree, k);
 		search.search(pos);
-		
+
 		for (int i = 0; i < k && search.getSampler(i) != null; i++)
 			nearest.add(search.getSampler(i).get());
-		
+
 		return nearest;
 	}
 
@@ -92,14 +91,14 @@ public class Annotations {
 
 		return annotations.get(id);
 	}
-	
+
 	public void markDirty() {
-		
+
 		kdTreeDirty = true;
 	}
-	
+
 	private void updateKdTree() {
-	
+
 		List< RealPoint > positions = new LinkedList< RealPoint >();
 		List< Annotation > annotations = new LinkedList< Annotation >();
 		for (Annotation a : this.annotations.values()) {
@@ -111,7 +110,7 @@ public class Annotations {
 	}
 
 	public interface AnnotationsListener {
-		
+
 		public void onAnnotationAdded(Annotation a);
 		public void onAnnotationRemoved(Annotation a);
 	}
@@ -125,10 +124,10 @@ public class Annotations {
 
 		listeners.add(listener);
 	}
-	
+
 	private HashMap< Long, Annotation > annotations;
 	private KDTree< Annotation > kdTree;
 	private boolean kdTreeDirty = true;
-	
+
 	private List<AnnotationsListener> listeners;
 }
