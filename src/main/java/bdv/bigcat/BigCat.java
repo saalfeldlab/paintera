@@ -204,8 +204,6 @@ public class BigCat< P extends BigCat.Parameters > extends BigCatViewer< P >
 		long maxId = 0;
 		final Long nextIdObject = H5Utils.loadAttribute( reader, "/", "next_id" );
 
-		reader.close();
-
 		if ( nextIdObject == null )
 		{
 			for ( final H5LabelMultisetSetupImageLoader labelLoader : labels )
@@ -218,6 +216,8 @@ public class BigCat< P extends BigCat.Parameters > extends BigCatViewer< P >
 			maxId = nextIdObject.longValue() - 1;
 
 		idService.invalidate( maxId );
+
+		reader.close();
 	}
 
 	/**
