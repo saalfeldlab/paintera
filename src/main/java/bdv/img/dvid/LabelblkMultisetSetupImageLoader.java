@@ -7,14 +7,10 @@ import com.google.gson.JsonIOException;
 import com.google.gson.JsonSyntaxException;
 
 import bdv.AbstractViewerSetupImgLoader;
-import bdv.cache.CacheHints;
-import bdv.cache.LoadingStrategy;
 import bdv.img.SetCache;
 import bdv.img.cache.CacheArrayLoader;
-import bdv.img.cache.CachedCellImg;
+import bdv.img.cache.VolatileCachedCellImg;
 import bdv.img.cache.VolatileGlobalCellCache;
-import bdv.img.cache.VolatileGlobalCellCache.VolatileCellCache;
-import bdv.img.cache.VolatileImgCells;
 import bdv.labels.labelset.LabelMultisetType;
 import bdv.labels.labelset.VolatileLabelMultisetArray;
 import bdv.labels.labelset.VolatileLabelMultisetType;
@@ -23,21 +19,23 @@ import bdv.util.MipmapTransforms;
 import bdv.util.dvid.DatasetKeyValue;
 import mpicbg.spim.data.generic.sequence.ImgLoaderHint;
 import net.imglib2.RandomAccessibleInterval;
+import net.imglib2.cache.volatiles.CacheHints;
+import net.imglib2.cache.volatiles.LoadingStrategy;
+import net.imglib2.img.cell.CellGrid;
 import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.type.NativeType;
-import net.imglib2.util.Fraction;
 
 public class LabelblkMultisetSetupImageLoader
 	extends AbstractViewerSetupImgLoader< LabelMultisetType, VolatileLabelMultisetType >
 	implements SetCache
 {
-	final protected double[][] resolutions;
+	protected final long[][] dimensions;
 
-	final protected long[][] dimensions;
+	protected final int[][] cellDimensions;
 
-	final protected int[][] blockDimensions;
+	protected final double[][] resolutions;
 
-	final protected AffineTransform3D[] mipmapTransforms;
+	protected final AffineTransform3D[] mipmapTransforms;
 
 	protected VolatileGlobalCellCache cache;
 
@@ -93,74 +91,19 @@ public class LabelblkMultisetSetupImageLoader
 
 		final int numMipmapLevels = resolutions.length;
 
-		blockDimensions = new int[ numMipmapLevels ][];
+		cellDimensions = new int[ numMipmapLevels ][];
 		loaders = new CacheArrayLoader[ numMipmapLevels ];
 
 		/* first loader is a labels64 source */
-		blockDimensions[ 0 ] = dataInstance.Extended.BlockSize;
-		loaders[ 0 ] = new LabelblkMultisetVolatileArrayLoader( apiUrl, nodeId, dataInstanceId, blockDimensions[ 0 ] );
+		cellDimensions[ 0 ] = dataInstance.Extended.BlockSize;
+		loaders[ 0 ] = new LabelblkMultisetVolatileArrayLoader( apiUrl, nodeId, dataInstanceId, cellDimensions[ 0 ] );
 
 		/* subsequent loaders are key value stores */
 		for ( int i = 0; i < dvidStores.length; ++i ) {
 			loaders[ i + 1 ] =
 				new DvidLabelMultisetArrayLoader( dvidStores[ i ] );
-			blockDimensions[ i + 1 ] = blockDimensions[ 0 ];
+			cellDimensions[ i + 1 ] = cellDimensions[ 0 ];
 		}
-	}
-
-	@Override
-	public RandomAccessibleInterval< LabelMultisetType > getImage( final int timepointId, final int level, final ImgLoaderHint... hints )
-	{
-		final CachedCellImg< LabelMultisetType, VolatileLabelMultisetArray > img = prepareCachedImage( timepointId, level, LoadingStrategy.BLOCKING );
-		final LabelMultisetType linkedType = new LabelMultisetType( img );
-		img.setLinkedType( linkedType );
-		return img;
-	}
-
-	@Override
-	public RandomAccessibleInterval< VolatileLabelMultisetType > getVolatileImage( final int timepointId, final int level, final ImgLoaderHint... hints )
-	{
-		final CachedCellImg< VolatileLabelMultisetType, VolatileLabelMultisetArray > img = prepareCachedImage( timepointId, level, LoadingStrategy.VOLATILE );
-		final VolatileLabelMultisetType linkedType = new VolatileLabelMultisetType( img );
-		img.setLinkedType( linkedType );
-		return img;
-	}
-
-	@Override
-	public double[][] getMipmapResolutions()
-	{
-		return resolutions;
-	}
-
-	@Override
-	public int numMipmapLevels()
-	{
-		return resolutions.length;
-	}
-
-	protected < T extends NativeType< T > > CachedCellImg< T, VolatileLabelMultisetArray > prepareCachedImage(
-			final int timepointId,
-			final int level,
-			final LoadingStrategy loadingStrategy )
-	{
-		final int priority = resolutions.length - level - 1;
-		final CacheHints cacheHints = new CacheHints( loadingStrategy, priority, false );
-		final VolatileCellCache< VolatileLabelMultisetArray > c =
-				cache.new VolatileCellCache< VolatileLabelMultisetArray >(
-						timepointId,
-						setupId,
-						level,
-						cacheHints,
-						loaders[ level ] );
-		final VolatileImgCells< VolatileLabelMultisetArray > cells = new VolatileImgCells< VolatileLabelMultisetArray >( c, new Fraction(), dimensions[ level ], blockDimensions[ level ] );
-		final CachedCellImg< T, VolatileLabelMultisetArray > img = new CachedCellImg< T, VolatileLabelMultisetArray >( cells );
-		return img;
-	}
-
-	@Override
-	public AffineTransform3D[] getMipmapTransforms()
-	{
-		return mipmapTransforms;
 	}
 
 	@Override
@@ -213,6 +156,49 @@ public class LabelblkMultisetSetupImageLoader
 
 	public int[] getBlockDimensions( final int level )
 	{
-		return blockDimensions[ level ];
-	};
+		return cellDimensions[ level ];
+	}
+
+	protected < S extends NativeType< S > > VolatileCachedCellImg< S, VolatileLabelMultisetArray > prepareCachedImage(
+			final int timepointId,
+			final int level,
+			final LoadingStrategy loadingStrategy,
+			final S t )
+	{
+		final int priority = resolutions.length - 1 - level;
+		final CacheHints cacheHints = new CacheHints( loadingStrategy, priority, false );
+		final CellGrid grid = new CellGrid( dimensions[ level ], cellDimensions[level ] );
+
+		return cache.createImg( grid, timepointId, setupId, level, cacheHints, loaders[ level ], t );
+	}
+
+	@Override
+	public RandomAccessibleInterval< LabelMultisetType > getImage( final int timepointId, final int level, final ImgLoaderHint... hints )
+	{
+		return prepareCachedImage( timepointId, level, LoadingStrategy.BLOCKING, type );
+	}
+
+	@Override
+	public RandomAccessibleInterval< VolatileLabelMultisetType > getVolatileImage( final int timepointId, final int level, final ImgLoaderHint... hints )
+	{
+		return prepareCachedImage( timepointId, level, LoadingStrategy.VOLATILE, volatileType );
+	}
+
+	@Override
+	public double[][] getMipmapResolutions()
+	{
+		return resolutions;
+	}
+
+	@Override
+	public AffineTransform3D[] getMipmapTransforms()
+	{
+		return mipmapTransforms;
+	}
+
+	@Override
+	public int numMipmapLevels()
+	{
+		return dimensions.length;
+	}
 }

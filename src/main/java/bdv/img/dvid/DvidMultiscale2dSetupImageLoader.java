@@ -6,26 +6,22 @@ import com.google.gson.JsonIOException;
 import com.google.gson.JsonSyntaxException;
 
 import bdv.AbstractViewerSetupImgLoader;
-import bdv.cache.CacheHints;
-import bdv.cache.LoadingStrategy;
-import bdv.img.cache.CachedCellImg;
+import bdv.img.SetCache;
+import bdv.img.cache.VolatileCachedCellImg;
 import bdv.img.cache.VolatileGlobalCellCache;
-import bdv.img.cache.VolatileGlobalCellCache.VolatileCellCache;
-import bdv.img.cache.VolatileImgCells;
 import bdv.img.dvid.Multiscale2dDataInstance.Extended.Level;
 import bdv.util.ColorStream;
 import bdv.util.JsonHelper;
 import mpicbg.spim.data.generic.sequence.ImgLoaderHint;
 import net.imglib2.RandomAccessibleInterval;
-import net.imglib2.img.NativeImg;
+import net.imglib2.cache.volatiles.CacheHints;
+import net.imglib2.cache.volatiles.LoadingStrategy;
 import net.imglib2.img.basictypeaccess.volatiles.array.VolatileByteArray;
+import net.imglib2.img.cell.CellGrid;
 import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.type.NativeType;
-import net.imglib2.type.numeric.ARGBType;
 import net.imglib2.type.numeric.integer.UnsignedByteType;
-import net.imglib2.type.volatiles.VolatileARGBType;
 import net.imglib2.type.volatiles.VolatileUnsignedByteType;
-import net.imglib2.util.Fraction;
 
 /**
  * {@link ViewerImgSetupLoader} for
@@ -36,14 +32,15 @@ import net.imglib2.util.Fraction;
  */
 public class DvidMultiscale2dSetupImageLoader
 	extends AbstractViewerSetupImgLoader< UnsignedByteType, VolatileUnsignedByteType >
+	implements SetCache
 {
 	private final int numScales;
 
-	private final double[][] mipmapResolutions;
+	private final double[][] resolutions;
 
-	private final long[][] imageDimensions;
+	private final long[][] dimensions;
 
-	private final int[][] blockDimensions;
+	private final int[][] cellDimensions;
 
 	private final AffineTransform3D[] mipmapTransforms;
 
@@ -51,7 +48,7 @@ public class DvidMultiscale2dSetupImageLoader
 
 	private final DvidMultiscale2dVolatileArrayLoader loader;
 
-	private final int setupId;
+	final int setupId;
 
 	/**
 	 * http://hackathon.janelia.org/api/help/multiscale2d
@@ -70,6 +67,7 @@ public class DvidMultiscale2dSetupImageLoader
 			final int setupId ) throws JsonSyntaxException, JsonIOException, IOException
 	{
 		super( new UnsignedByteType(), new VolatileUnsignedByteType() );
+
 		this.setupId = setupId;
 
 		/* fetch the list of available DataInstances */
@@ -99,10 +97,10 @@ public class DvidMultiscale2dSetupImageLoader
 
 		numScales = tileInstance.Extended.Levels.size();
 
-		mipmapResolutions = new double[ numScales ][];
-		imageDimensions = new long[ numScales ][];
+		resolutions = new double[ numScales ][];
+		dimensions = new long[ numScales ][];
 		mipmapTransforms = new AffineTransform3D[ numScales ];
-		blockDimensions = new int[ numScales ][];
+		cellDimensions = new int[ numScales ][];
 		final int[] zScales = new int[ numScales ];
 
 		for ( int l = 0; l < numScales; ++l )
@@ -112,9 +110,9 @@ public class DvidMultiscale2dSetupImageLoader
 			final int sixy = 1 << l;
 			final int siz = Math.max( 1, ( int )Math.round( sixy / zScale ) );
 
-			mipmapResolutions[ l ] = new double[] { sixy, sixy, siz };
-			imageDimensions[ l ] = new long[]{ width >> l, height >> l, depth / siz };
-			blockDimensions[ l ] = new int[]{ level.TileSize[ 0 ], level.TileSize[ 1 ], 1 };
+			resolutions[ l ] = new double[] { sixy, sixy, siz };
+			dimensions[ l ] = new long[]{ width >> l, height >> l, depth / siz };
+			cellDimensions[ l ] = new int[]{ level.TileSize[ 0 ], level.TileSize[ 1 ], 1 };
 			zScales[ l ] = siz;
 
 			final AffineTransform3D mipmapTransform = new AffineTransform3D();
@@ -130,7 +128,7 @@ public class DvidMultiscale2dSetupImageLoader
 			mipmapTransforms[ l ] = mipmapTransform;
 		}
 
-		loader = new DvidMultiscale2dVolatileArrayLoader( apiUrl, nodeId, dataInstanceId, zScales, blockDimensions );
+		loader = new DvidMultiscale2dVolatileArrayLoader( apiUrl, nodeId, dataInstanceId, zScales, cellDimensions );
 
 
 //		"http://hackathon.janelia.org/api/repo/2a3fd320aef011e4b0ce18037320227c/info"
@@ -141,28 +139,35 @@ public class DvidMultiscale2dSetupImageLoader
 
 	}
 
+	protected < S extends NativeType< S > > VolatileCachedCellImg< S, VolatileByteArray > prepareCachedImage(
+			final int timepointId,
+			final int level,
+			final LoadingStrategy loadingStrategy,
+			final S t )
+	{
+		final int priority = resolutions.length - 1 - level;
+		final CacheHints cacheHints = new CacheHints( loadingStrategy, priority, false );
+		final CellGrid grid = new CellGrid( dimensions[ level ], cellDimensions[level ] );
+
+		return cache.createImg( grid, timepointId, setupId, level, cacheHints, loader, t );
+	}
+
 	@Override
 	public RandomAccessibleInterval< UnsignedByteType > getImage( final int timepointId, final int level, final ImgLoaderHint... hints )
 	{
-		final CachedCellImg< UnsignedByteType, VolatileByteArray > img = prepareCachedImage( timepointId, setupId, level, LoadingStrategy.BLOCKING );
-		final UnsignedByteType linkedType = new UnsignedByteType( img );
-		img.setLinkedType( linkedType );
-		return img;
+		return prepareCachedImage( timepointId, level, LoadingStrategy.BLOCKING, type );
 	}
 
 	@Override
 	public RandomAccessibleInterval< VolatileUnsignedByteType > getVolatileImage( final int timepointId, final int level, final ImgLoaderHint... hints )
 	{
-		final CachedCellImg< VolatileUnsignedByteType, VolatileByteArray > img = prepareCachedImage( timepointId, setupId, level, LoadingStrategy.VOLATILE );
-		final VolatileUnsignedByteType linkedType = new VolatileUnsignedByteType( img );
-		img.setLinkedType( linkedType );
-		return img;
+		return prepareCachedImage( timepointId, level, LoadingStrategy.VOLATILE, volatileType );
 	}
 
 	@Override
 	public double[][] getMipmapResolutions()
 	{
-		return mipmapResolutions;
+		return resolutions;
 	}
 
 	@Override
@@ -171,28 +176,7 @@ public class DvidMultiscale2dSetupImageLoader
 		return numScales;
 	}
 
-	/**
-	 * (Almost) create a {@link CachedCellImg} backed by the cache. The created image
-	 * needs a {@link NativeImg#setLinkedType(net.imglib2.type.Type) linked
-	 * type} before it can be used. The type should be either {@link ARGBType}
-	 * and {@link VolatileARGBType}.
-	 */
-	protected < T extends NativeType< T > > CachedCellImg< T, VolatileByteArray > prepareCachedImage(
-			final int timepointId,
-			final int setupId,
-			final int level,
-			final LoadingStrategy loadingStrategy )
-	{
-		final long[] dimensions = imageDimensions[ level ];
-		final int[] cellDimensions = blockDimensions[ level ];
 
-		final int priority = numScales - 1 - level;
-		final CacheHints cacheHints = new CacheHints( loadingStrategy, priority, false );
-		final VolatileCellCache< VolatileByteArray > c = cache.new VolatileCellCache< VolatileByteArray >( timepointId, setupId, level, cacheHints, loader );
-		final VolatileImgCells< VolatileByteArray > cells = new VolatileImgCells< VolatileByteArray >( c, new Fraction(), dimensions, cellDimensions );
-		final CachedCellImg< T, VolatileByteArray > img = new CachedCellImg< T, VolatileByteArray >( cells );
-		return img;
-	}
 
 	@Override
 	public AffineTransform3D[] getMipmapTransforms()
@@ -200,6 +184,7 @@ public class DvidMultiscale2dSetupImageLoader
 		return mipmapTransforms;
 	}
 
+	@Override
 	public void setCache( final VolatileGlobalCellCache cache )
 	{
 		this.cache = cache;

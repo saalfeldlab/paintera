@@ -96,7 +96,7 @@ abstract public class AbstractH5SetupImageLoader< T extends NativeType< T > , V 
 	}
 
 	@Override
-	public ViewerSetupImgLoader< ?, ? > getSetupImgLoader( @SuppressWarnings( "hiding" ) final int setupId )
+	public AbstractH5SetupImageLoader< T, V, A > getSetupImgLoader( final int setupId )
 	{
 		return this;
 	}
