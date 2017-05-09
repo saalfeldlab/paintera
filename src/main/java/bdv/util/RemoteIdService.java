@@ -92,7 +92,6 @@ public class RemoteIdService implements IdService
 	@Override
 	public synchronized long[] next( final int n )
 	{
-		int m = 0;
 		TLongArrayList ids = new TLongArrayList();
 		do
 		{
