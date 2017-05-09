@@ -349,7 +349,10 @@ public class AnnotationsController implements WindowListener, Selection.Selectio
 		@Override
 		public void init(final int x, final int y) {
 
-			final Annotation annotation = getClosestAnnotation(x, y, MaxDistance);
+			double selectRadius = 10.0/getViewerScale();
+			System.out.println("select radius is " + selectRadius);
+
+			annotation = getClosestAnnotation(x, y, selectRadius);
 			if (annotation == null)
 				return;
 
@@ -360,13 +363,12 @@ public class AnnotationsController implements WindowListener, Selection.Selectio
 		@Override
 		public void drag(final int x, final int y) {
 
-			final Annotation active = selection.getLastAdded();
-			if (active == null)
+			if (annotation == null)
 				return;
 
 			final RealPoint pos = new RealPoint(3);
 			viewer.displayToGlobalCoordinates(x, y, pos);
-			active.setPosition(pos);
+			annotation.setPosition(pos);
 			viewer.requestRepaint();
 		}
 
@@ -375,6 +377,8 @@ public class AnnotationsController implements WindowListener, Selection.Selectio
 
 			annotations.markDirty();
 		}
+
+		private Annotation annotation;
 	}
 
 	private class ChangeComment extends SelfRegisteringAction
@@ -550,6 +554,17 @@ public class AnnotationsController implements WindowListener, Selection.Selectio
 		}
 
 		viewer.requestRepaint();
+	}
+
+	private double getViewerScale() {
+
+		synchronized (viewer) {
+
+			final AffineTransform3D viewerTransform = new AffineTransform3D();
+			viewer.getState().getViewerTransform(viewerTransform);
+
+			return Affine3DHelpers.extractScale(viewerTransform, 0);
+		}
 	}
 
 	public void setFov(final double fov) {
