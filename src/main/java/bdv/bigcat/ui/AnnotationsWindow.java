@@ -48,6 +48,7 @@ public class AnnotationsWindow extends JFrame implements
 	private final GridBagConstraints gridbagConstraints = new GridBagConstraints();
 
 	private Boolean editingSelection = false;
+	private final Object lock = new Object();
 
 	class AnnotationsTableModel extends AbstractTableModel implements
 			Annotations.AnnotationsListener {
@@ -355,8 +356,7 @@ public class AnnotationsWindow extends JFrame implements
 	@Override
 	public void itemSelected(final Annotation t) {
 
-		synchronized (editingSelection) {
-
+		synchronized (lock) {
 			if (editingSelection)
 				return;
 
@@ -367,9 +367,9 @@ public class AnnotationsWindow extends JFrame implements
 
 	@Override
 	public void itemUnselected(final Annotation t) {
+		System.out.println("item unselected");
 
-		synchronized (editingSelection) {
-
+		synchronized (lock) {		
 			if (editingSelection)
 				return;
 
@@ -381,8 +381,7 @@ public class AnnotationsWindow extends JFrame implements
 	@Override
 	public void selectionCleared() {
 
-		synchronized (editingSelection) {
-
+		synchronized (lock) {
 			if (editingSelection || table.getRowCount() == 0)
 				return;
 
@@ -393,8 +392,7 @@ public class AnnotationsWindow extends JFrame implements
 	@Override
 	public void valueChanged(final ListSelectionEvent event) {
 
-		synchronized (editingSelection) {
-
+		synchronized (lock) {
 			editingSelection = true;
 			for (int row = event.getFirstIndex(); row <= event.getLastIndex(); row++)
 				if (table.isRowSelected(row))
