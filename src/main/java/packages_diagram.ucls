@@ -250,7 +250,7 @@
     </display>  
   </class>  
   <association id="28">    
-    <end type="SOURCE" refId="20" navigable="false">      
+    <end type="SOURCE" refId="16" navigable="false">      
       <attribute id="29" name="selectionController">        
         <position height="0" width="0" x="-7630" y="-2656"/>      
       </attribute>      
@@ -262,96 +262,98 @@
     <display labels="true" multiplicity="true"/>  
   </association>  
   <association id="31">    
-    <bendpoint x="3555" y="496"/>    
-    <end type="SOURCE" refId="10" navigable="false">      
-      <attribute id="32" name="idPicker">        
-        <position height="0" width="0" x="1775" y="195"/>      
+    <bendpoint x="4915" y="496"/>    
+    <bendpoint x="4915" y="991"/>    
+    <end type="SOURCE" refId="14" navigable="false">      
+      <attribute id="32" name="assignment">        
+        <position height="0" width="0" x="-553" y="-2029"/>      
       </attribute>      
       <multiplicity id="33" minimum="0" maximum="1">        
+        <position height="0" width="0" x="-553" y="-2029"/>      
+      </multiplicity>    
+    </end>    
+    <end type="TARGET" refId="7" navigable="true"/>    
+    <display labels="true" multiplicity="true"/>  
+  </association>  
+  <association id="34">    
+    <end type="SOURCE" refId="12" navigable="false">      
+      <attribute id="35" name="selectionController">        
+        <position height="0" width="0" x="-7630" y="-2656"/>      
+      </attribute>      
+      <multiplicity id="36" minimum="0" maximum="1">        
+        <position height="0" width="0" x="-7630" y="-2656"/>      
+      </multiplicity>    
+    </end>    
+    <end type="TARGET" refId="17" navigable="true"/>    
+    <display labels="true" multiplicity="true"/>  
+  </association>  
+  <association id="37">    
+    <end type="SOURCE" refId="22" navigable="false">      
+      <attribute id="38" name="annotations">        
+        <position height="0" width="0" x="590" y="-2612"/>      
+      </attribute>      
+      <multiplicity id="39" minimum="0" maximum="1">        
+        <position height="0" width="0" x="590" y="-2612"/>      
+      </multiplicity>    
+    </end>    
+    <end type="TARGET" refId="3" navigable="true"/>    
+    <display labels="true" multiplicity="true"/>  
+  </association>  
+  <association id="40">    
+    <bendpoint x="3555" y="496"/>    
+    <end type="SOURCE" refId="10" navigable="false">      
+      <attribute id="41" name="idPicker">        
+        <position height="0" width="0" x="1775" y="195"/>      
+      </attribute>      
+      <multiplicity id="42" minimum="0" maximum="1">        
         <position height="0" width="0" x="1775" y="195"/>      
       </multiplicity>    
     </end>    
     <end type="TARGET" refId="6" navigable="true"/>    
     <display labels="true" multiplicity="true"/>  
   </association>  
-  <association id="34">    
-    <end type="SOURCE" refId="27" navigable="false">      
-      <attribute id="35" name="selection">        
-        <position height="0" width="0" x="1771" y="-2855"/>      
-      </attribute>      
-      <multiplicity id="36" minimum="0" maximum="2147483647">        
-        <position height="0" width="0" x="1771" y="-2855"/>      
-      </multiplicity>    
-    </end>    
-    <end type="TARGET" refId="4" navigable="true"/>    
-    <display labels="true" multiplicity="true"/>  
-  </association>  
-  <association id="37">    
-    <end type="SOURCE" refId="18" navigable="false">      
-      <attribute id="38" name="store">        
-        <position height="0" width="0" x="-286" y="-842"/>      
-      </attribute>      
-      <multiplicity id="39" minimum="0" maximum="1">        
-        <position height="0" width="0" x="-286" y="-842"/>      
-      </multiplicity>    
-    </end>    
-    <end type="TARGET" refId="5" navigable="true"/>    
-    <display labels="true" multiplicity="true"/>  
-  </association>  
-  <association id="40">    
-    <bendpoint x="3072" y="496"/>    
-    <bendpoint x="3072" y="991"/>    
-    <end type="SOURCE" refId="19" navigable="false">      
-      <attribute id="41" name="assignment">        
+  <association id="43">    
+    <bendpoint x="4894" y="496"/>    
+    <bendpoint x="4894" y="991"/>    
+    <end type="SOURCE" refId="12" navigable="false">      
+      <attribute id="44" name="assignment">        
         <position height="0" width="0" x="-553" y="-2029"/>      
       </attribute>      
-      <multiplicity id="42" minimum="0" maximum="1">        
+      <multiplicity id="45" minimum="0" maximum="1">        
         <position height="0" width="0" x="-553" y="-2029"/>      
       </multiplicity>    
     </end>    
     <end type="TARGET" refId="7" navigable="true"/>    
-    <display labels="true" multiplicity="true"/>  
-  </association>  
-  <association id="43">    
-    <end type="SOURCE" refId="11" navigable="false">      
-      <attribute id="44" name="completeFragments">        
-        <position height="0" width="0" x="-779" y="-3065"/>      
-      </attribute>      
-      <multiplicity id="45" minimum="0" maximum="1">        
-        <position height="0" width="0" x="-779" y="-3065"/>      
-      </multiplicity>    
-    </end>    
-    <end type="TARGET" refId="8" navigable="true"/>    
     <display labels="true" multiplicity="true"/>  
   </association>  
   <association id="46">    
-    <end type="SOURCE" refId="1" navigable="false">      
-      <attribute id="47" name="completeFragmentsAssignment">        
-        <position height="0" width="0" x="-779" y="-3065"/>      
+    <end type="SOURCE" refId="18" navigable="false">      
+      <attribute id="47" name="annotationWindow">        
+        <position height="0" width="0" x="2141" y="-4355"/>      
       </attribute>      
       <multiplicity id="48" minimum="0" maximum="1">        
-        <position height="0" width="0" x="-779" y="-3065"/>      
+        <position height="0" width="0" x="2141" y="-4355"/>      
       </multiplicity>    
     </end>    
-    <end type="TARGET" refId="8" navigable="true"/>    
+    <end type="TARGET" refId="27" navigable="true"/>    
     <display labels="true" multiplicity="true"/>  
   </association>  
   <association id="49">    
-    <bendpoint x="2435" y="496"/>    
-    <bendpoint x="2435" y="991"/>    
-    <end type="SOURCE" refId="9" navigable="false">      
-      <attribute id="50" name="assignment">        
-        <position height="0" width="0" x="-553" y="-2029"/>      
+    <end type="SOURCE" refId="14" navigable="false">      
+      <attribute id="50" name="selectionController">        
+        <position height="0" width="0" x="-7630" y="-2656"/>      
       </attribute>      
       <multiplicity id="51" minimum="0" maximum="1">        
-        <position height="0" width="0" x="-553" y="-2029"/>      
+        <position height="0" width="0" x="-7630" y="-2656"/>      
       </multiplicity>    
     </end>    
-    <end type="TARGET" refId="7" navigable="true"/>    
+    <end type="TARGET" refId="17" navigable="true"/>    
     <display labels="true" multiplicity="true"/>  
   </association>  
   <association id="52">    
-    <end type="SOURCE" refId="20" navigable="false">      
+    <bendpoint x="3936" y="496"/>    
+    <bendpoint x="3936" y="991"/>    
+    <end type="SOURCE" refId="16" navigable="false">      
       <attribute id="53" name="assignment">        
         <position height="0" width="0" x="-553" y="-2029"/>      
       </attribute>      
@@ -363,358 +365,358 @@
     <display labels="true" multiplicity="true"/>  
   </association>  
   <association id="55">    
-    <end type="SOURCE" refId="18" navigable="false">      
-      <attribute id="56" name="annotationWindow">        
-        <position height="0" width="0" x="2141" y="-4355"/>      
+    <end type="SOURCE" refId="19" navigable="false">      
+      <attribute id="56" name="brushOverlay">        
+        <position height="0" width="0" x="1899" y="-2085"/>      
       </attribute>      
       <multiplicity id="57" minimum="0" maximum="1">        
-        <position height="0" width="0" x="2141" y="-4355"/>      
+        <position height="0" width="0" x="1899" y="-2085"/>      
       </multiplicity>    
     </end>    
-    <end type="TARGET" refId="27" navigable="true"/>    
+    <end type="TARGET" refId="24" navigable="true"/>    
     <display labels="true" multiplicity="true"/>  
   </association>  
   <association id="58">    
     <end type="SOURCE" refId="22" navigable="false">      
-      <attribute id="59" name="annotations">        
-        <position height="0" width="0" x="590" y="-2612"/>      
+      <attribute id="59" name="controller">        
+        <position height="0" width="0" x="-7634" y="-528"/>      
       </attribute>      
       <multiplicity id="60" minimum="0" maximum="1">        
-        <position height="0" width="0" x="590" y="-2612"/>      
+        <position height="0" width="0" x="-7634" y="-528"/>      
       </multiplicity>    
     </end>    
-    <end type="TARGET" refId="3" navigable="true"/>    
+    <end type="TARGET" refId="18" navigable="true"/>    
     <display labels="true" multiplicity="true"/>  
   </association>  
   <association id="61">    
-    <bendpoint x="4873" y="496"/>    
-    <bendpoint x="4873" y="991"/>    
-    <end type="SOURCE" refId="13" navigable="false">      
-      <attribute id="62" name="assignment">        
-        <position height="0" width="0" x="-553" y="-2029"/>      
+    <end type="SOURCE" refId="18" navigable="false">      
+      <attribute id="62" name="store">        
+        <position height="0" width="0" x="-286" y="-842"/>      
       </attribute>      
       <multiplicity id="63" minimum="0" maximum="1">        
-        <position height="0" width="0" x="-553" y="-2029"/>      
+        <position height="0" width="0" x="-286" y="-842"/>      
       </multiplicity>    
     </end>    
-    <end type="TARGET" refId="7" navigable="true"/>    
+    <end type="TARGET" refId="5" navigable="true"/>    
     <display labels="true" multiplicity="true"/>  
   </association>  
   <association id="64">    
-    <end type="SOURCE" refId="14" navigable="false">      
-      <attribute id="65" name="selectionController">        
-        <position height="0" width="0" x="-7630" y="-2656"/>      
+    <bendpoint x="2435" y="496"/>    
+    <bendpoint x="2435" y="991"/>    
+    <end type="SOURCE" refId="9" navigable="false">      
+      <attribute id="65" name="assignment">        
+        <position height="0" width="0" x="-553" y="-2029"/>      
       </attribute>      
       <multiplicity id="66" minimum="0" maximum="1">        
-        <position height="0" width="0" x="-7630" y="-2656"/>      
+        <position height="0" width="0" x="-553" y="-2029"/>      
       </multiplicity>    
     </end>    
-    <end type="TARGET" refId="17" navigable="true"/>    
+    <end type="TARGET" refId="7" navigable="true"/>    
     <display labels="true" multiplicity="true"/>  
   </association>  
   <association id="67">    
-    <bendpoint x="4915" y="496"/>    
-    <bendpoint x="4915" y="991"/>    
-    <end type="SOURCE" refId="14" navigable="false">      
-      <attribute id="68" name="assignment">        
-        <position height="0" width="0" x="-553" y="-2029"/>      
+    <end type="SOURCE" refId="27" navigable="false">      
+      <attribute id="68" name="annotationController">        
+        <position height="0" width="0" x="-7634" y="-528"/>      
       </attribute>      
       <multiplicity id="69" minimum="0" maximum="1">        
-        <position height="0" width="0" x="-553" y="-2029"/>      
+        <position height="0" width="0" x="-7634" y="-528"/>      
       </multiplicity>    
     </end>    
-    <end type="TARGET" refId="7" navigable="true"/>    
+    <end type="TARGET" refId="18" navigable="true"/>    
     <display labels="true" multiplicity="true"/>  
   </association>  
   <association id="70">    
-    <end type="SOURCE" refId="12" navigable="false">      
-      <attribute id="71" name="selectionController">        
-        <position height="0" width="0" x="-7630" y="-2656"/>      
-      </attribute>      
-      <multiplicity id="72" minimum="0" maximum="1">        
-        <position height="0" width="0" x="-7630" y="-2656"/>      
-      </multiplicity>    
-    </end>    
-    <end type="TARGET" refId="17" navigable="true"/>    
-    <display labels="true" multiplicity="true"/>  
-  </association>  
-  <association id="73">    
-    <end type="SOURCE" refId="1" navigable="false">      
-      <attribute id="74" name="convertedLabels">        
-        <position height="0" width="0" x="-2632" y="-5367"/>      
-      </attribute>      
-      <multiplicity id="75" minimum="0" maximum="2147483647">        
-        <position height="0" width="0" x="-2632" y="-5367"/>      
-      </multiplicity>    
-    </end>    
-    <end type="TARGET" refId="26" navigable="true"/>    
-    <display labels="true" multiplicity="true"/>  
-  </association>  
-  <association id="76">    
-    <end type="SOURCE" refId="11" navigable="false">      
-      <attribute id="77" name="assignment">        
-        <position height="0" width="0" x="-553" y="-2029"/>      
-      </attribute>      
-      <multiplicity id="78" minimum="0" maximum="1">        
-        <position height="0" width="0" x="-553" y="-2029"/>      
-      </multiplicity>    
-    </end>    
-    <end type="TARGET" refId="7" navigable="true"/>    
-    <display labels="true" multiplicity="true"/>  
-  </association>  
-  <association id="79">    
-    <bendpoint x="3936" y="496"/>    
-    <bendpoint x="3936" y="991"/>    
-    <end type="SOURCE" refId="16" navigable="false">      
-      <attribute id="80" name="assignment">        
-        <position height="0" width="0" x="-553" y="-2029"/>      
-      </attribute>      
-      <multiplicity id="81" minimum="0" maximum="1">        
-        <position height="0" width="0" x="-553" y="-2029"/>      
-      </multiplicity>    
-    </end>    
-    <end type="TARGET" refId="7" navigable="true"/>    
-    <display labels="true" multiplicity="true"/>  
-  </association>  
-  <association id="82">    
-    <end type="SOURCE" refId="17" navigable="false">      
-      <attribute id="83" name="colorStream">        
-        <position height="0" width="0" x="-520" y="-3269"/>      
-      </attribute>      
-      <multiplicity id="84" minimum="0" maximum="1">        
-        <position height="0" width="0" x="-520" y="-3269"/>      
-      </multiplicity>    
-    </end>    
-    <end type="TARGET" refId="21" navigable="true"/>    
-    <display labels="true" multiplicity="true"/>  
-  </association>  
-  <association id="85">    
-    <end type="SOURCE" refId="15" navigable="false">      
-      <attribute id="86" name="colorStream">        
-        <position height="0" width="0" x="-519" y="-3950"/>      
-      </attribute>      
-      <multiplicity id="87" minimum="0" maximum="1">        
-        <position height="0" width="0" x="-519" y="-3950"/>      
-      </multiplicity>    
-    </end>    
-    <end type="TARGET" refId="25" navigable="true"/>    
-    <display labels="true" multiplicity="true"/>  
-  </association>  
-  <association id="88">    
-    <end type="SOURCE" refId="15" navigable="false">      
-      <attribute id="89" name="selectionController">        
-        <position height="0" width="0" x="-7630" y="-2656"/>      
-      </attribute>      
-      <multiplicity id="90" minimum="0" maximum="1">        
-        <position height="0" width="0" x="-7630" y="-2656"/>      
-      </multiplicity>    
-    </end>    
-    <end type="TARGET" refId="17" navigable="true"/>    
-    <display labels="true" multiplicity="true"/>  
-  </association>  
-  <association id="91">    
     <bendpoint x="3976" y="496"/>    
     <end type="SOURCE" refId="16" navigable="false">      
-      <attribute id="92" name="idPicker">        
+      <attribute id="71" name="idPicker">        
         <position height="0" width="0" x="1775" y="195"/>      
       </attribute>      
-      <multiplicity id="93" minimum="0" maximum="1">        
+      <multiplicity id="72" minimum="0" maximum="1">        
         <position height="0" width="0" x="1775" y="195"/>      
       </multiplicity>    
     </end>    
     <end type="TARGET" refId="6" navigable="true"/>    
     <display labels="true" multiplicity="true"/>  
   </association>  
-  <association id="94">    
-    <bendpoint x="5271" y="496"/>    
-    <end type="SOURCE" refId="14" navigable="false">      
-      <attribute id="95" name="colorStream">        
-        <position height="0" width="0" x="-520" y="-3269"/>      
-      </attribute>      
-      <multiplicity id="96" minimum="0" maximum="1">        
-        <position height="0" width="0" x="-520" y="-3269"/>      
-      </multiplicity>    
-    </end>    
-    <end type="TARGET" refId="21" navigable="true"/>    
-    <display labels="true" multiplicity="true"/>  
-  </association>  
-  <association id="97">    
-    <end type="SOURCE" refId="1" navigable="false">      
-      <attribute id="98" name="colorStream">        
-        <position height="0" width="0" x="-980" y="-6313"/>      
-      </attribute>      
-      <multiplicity id="99" minimum="0" maximum="1">        
-        <position height="0" width="0" x="-980" y="-6313"/>      
-      </multiplicity>    
-    </end>    
-    <end type="TARGET" refId="23" navigable="true"/>    
-    <display labels="true" multiplicity="true"/>  
-  </association>  
-  <association id="100">    
-    <bendpoint x="5311" y="991"/>    
-    <end type="SOURCE" refId="25" navigable="false">      
-      <attribute id="101" name="assignment">        
-        <position height="0" width="0" x="-553" y="-2029"/>      
-      </attribute>      
-      <multiplicity id="102" minimum="0" maximum="1">        
-        <position height="0" width="0" x="-553" y="-2029"/>      
-      </multiplicity>    
-    </end>    
-    <end type="TARGET" refId="7" navigable="true"/>    
-    <display labels="true" multiplicity="true"/>  
-  </association>  
-  <association id="103">    
-    <end type="SOURCE" refId="3" navigable="false">      
-      <attribute id="104" name="annotations">        
-        <position height="0" width="0" x="1771" y="-2855"/>      
-      </attribute>      
-      <multiplicity id="105" minimum="0" maximum="2147483647">        
-        <position height="0" width="0" x="1771" y="-2855"/>      
-      </multiplicity>    
-    </end>    
-    <end type="TARGET" refId="4" navigable="true"/>    
-    <display labels="true" multiplicity="true"/>  
-  </association>  
-  <association id="106">    
-    <end type="SOURCE" refId="9" navigable="false">      
-      <attribute id="107" name="selectionController">        
-        <position height="0" width="0" x="-7630" y="-2656"/>      
-      </attribute>      
-      <multiplicity id="108" minimum="0" maximum="1">        
-        <position height="0" width="0" x="-7630" y="-2656"/>      
-      </multiplicity>    
-    </end>    
-    <end type="TARGET" refId="17" navigable="true"/>    
-    <display labels="true" multiplicity="true"/>  
-  </association>  
-  <association id="109">    
-    <end type="SOURCE" refId="18" navigable="false">      
-      <attribute id="110" name="selection">        
-        <position height="0" width="0" x="1771" y="-2855"/>      
-      </attribute>      
-      <multiplicity id="111" minimum="0" maximum="2147483647">        
-        <position height="0" width="0" x="1771" y="-2855"/>      
-      </multiplicity>    
-    </end>    
-    <end type="TARGET" refId="4" navigable="true"/>    
-    <display labels="true" multiplicity="true"/>  
-  </association>  
-  <association id="112">    
+  <association id="73">    
     <end type="SOURCE" refId="2" navigable="false">      
-      <attribute id="113" name="persistenceController">        
+      <attribute id="74" name="persistenceController">        
         <position height="0" width="0" x="-4584" y="-1392"/>      
       </attribute>      
-      <multiplicity id="114" minimum="0" maximum="1">        
+      <multiplicity id="75" minimum="0" maximum="1">        
         <position height="0" width="0" x="-4584" y="-1392"/>      
       </multiplicity>    
     </end>    
     <end type="TARGET" refId="11" navigable="true"/>    
     <display labels="true" multiplicity="true"/>  
   </association>  
-  <association id="115">    
+  <association id="76">    
+    <end type="SOURCE" refId="19" navigable="false">      
+      <attribute id="77" name="selectionController">        
+        <position height="0" width="0" x="-7630" y="-2656"/>      
+      </attribute>      
+      <multiplicity id="78" minimum="0" maximum="1">        
+        <position height="0" width="0" x="-7630" y="-2656"/>      
+      </multiplicity>    
+    </end>    
+    <end type="TARGET" refId="17" navigable="true"/>    
+    <display labels="true" multiplicity="true"/>  
+  </association>  
+  <association id="79">    
     <end type="SOURCE" refId="18" navigable="false">      
-      <attribute id="116" name="overlay">        
+      <attribute id="80" name="overlay">        
         <position height="0" width="0" x="1430" y="-3052"/>      
       </attribute>      
-      <multiplicity id="117" minimum="0" maximum="1">        
+      <multiplicity id="81" minimum="0" maximum="1">        
         <position height="0" width="0" x="1430" y="-3052"/>      
       </multiplicity>    
     </end>    
     <end type="TARGET" refId="22" navigable="true"/>    
     <display labels="true" multiplicity="true"/>  
   </association>  
-  <association id="118">    
-    <end type="SOURCE" refId="10" navigable="false">      
-      <attribute id="119" name="selectionController">        
+  <association id="82">    
+    <end type="SOURCE" refId="15" navigable="false">      
+      <attribute id="83" name="selectionController">        
         <position height="0" width="0" x="-7630" y="-2656"/>      
       </attribute>      
-      <multiplicity id="120" minimum="0" maximum="1">        
+      <multiplicity id="84" minimum="0" maximum="1">        
         <position height="0" width="0" x="-7630" y="-2656"/>      
       </multiplicity>    
     </end>    
     <end type="TARGET" refId="17" navigable="true"/>    
     <display labels="true" multiplicity="true"/>  
   </association>  
-  <generalization id="121">    
-    <end type="SOURCE" refId="2"/>    
-    <end type="TARGET" refId="1"/>  
-  </generalization>  
-  <association id="122">    
+  <association id="85">    
     <end type="SOURCE" refId="27" navigable="false">      
-      <attribute id="123" name="annotations">        
-        <position height="0" width="0" x="590" y="-2612"/>      
+      <attribute id="86" name="selection">        
+        <position height="0" width="0" x="1771" y="-2855"/>      
       </attribute>      
-      <multiplicity id="124" minimum="0" maximum="1">        
-        <position height="0" width="0" x="590" y="-2612"/>      
+      <multiplicity id="87" minimum="0" maximum="2147483647">        
+        <position height="0" width="0" x="1771" y="-2855"/>      
       </multiplicity>    
     </end>    
-    <end type="TARGET" refId="3" navigable="true"/>    
+    <end type="TARGET" refId="4" navigable="true"/>    
     <display labels="true" multiplicity="true"/>  
   </association>  
-  <association id="125">    
-    <end type="SOURCE" refId="18" navigable="false">      
-      <attribute id="126" name="annotations">        
-        <position height="0" width="0" x="590" y="-2612"/>      
+  <association id="88">    
+    <bendpoint x="5311" y="991"/>    
+    <end type="SOURCE" refId="25" navigable="false">      
+      <attribute id="89" name="assignment">        
+        <position height="0" width="0" x="-553" y="-2029"/>      
       </attribute>      
-      <multiplicity id="127" minimum="0" maximum="1">        
-        <position height="0" width="0" x="590" y="-2612"/>      
+      <multiplicity id="90" minimum="0" maximum="1">        
+        <position height="0" width="0" x="-553" y="-2029"/>      
       </multiplicity>    
     </end>    
-    <end type="TARGET" refId="3" navigable="true"/>    
+    <end type="TARGET" refId="7" navigable="true"/>    
     <display labels="true" multiplicity="true"/>  
   </association>  
-  <association id="128">    
+  <association id="91">    
+    <end type="SOURCE" refId="10" navigable="false">      
+      <attribute id="92" name="selectionController">        
+        <position height="0" width="0" x="-7630" y="-2656"/>      
+      </attribute>      
+      <multiplicity id="93" minimum="0" maximum="1">        
+        <position height="0" width="0" x="-7630" y="-2656"/>      
+      </multiplicity>    
+    </end>    
+    <end type="TARGET" refId="17" navigable="true"/>    
+    <display labels="true" multiplicity="true"/>  
+  </association>  
+  <association id="94">    
+    <end type="SOURCE" refId="15" navigable="false">      
+      <attribute id="95" name="colorStream">        
+        <position height="0" width="0" x="-519" y="-3950"/>      
+      </attribute>      
+      <multiplicity id="96" minimum="0" maximum="1">        
+        <position height="0" width="0" x="-519" y="-3950"/>      
+      </multiplicity>    
+    </end>    
+    <end type="TARGET" refId="25" navigable="true"/>    
+    <display labels="true" multiplicity="true"/>  
+  </association>  
+  <association id="97">    
+    <end type="SOURCE" refId="1" navigable="false">      
+      <attribute id="98" name="completeFragmentsAssignment">        
+        <position height="0" width="0" x="-779" y="-3065"/>      
+      </attribute>      
+      <multiplicity id="99" minimum="0" maximum="1">        
+        <position height="0" width="0" x="-779" y="-3065"/>      
+      </multiplicity>    
+    </end>    
+    <end type="TARGET" refId="8" navigable="true"/>    
+    <display labels="true" multiplicity="true"/>  
+  </association>  
+  <association id="100">    
+    <end type="SOURCE" refId="9" navigable="false">      
+      <attribute id="101" name="selectionController">        
+        <position height="0" width="0" x="-7630" y="-2656"/>      
+      </attribute>      
+      <multiplicity id="102" minimum="0" maximum="1">        
+        <position height="0" width="0" x="-7630" y="-2656"/>      
+      </multiplicity>    
+    </end>    
+    <end type="TARGET" refId="17" navigable="true"/>    
+    <display labels="true" multiplicity="true"/>  
+  </association>  
+  <association id="103">    
+    <end type="SOURCE" refId="11" navigable="false">      
+      <attribute id="104" name="assignment">        
+        <position height="0" width="0" x="-553" y="-2029"/>      
+      </attribute>      
+      <multiplicity id="105" minimum="0" maximum="1">        
+        <position height="0" width="0" x="-553" y="-2029"/>      
+      </multiplicity>    
+    </end>    
+    <end type="TARGET" refId="7" navigable="true"/>    
+    <display labels="true" multiplicity="true"/>  
+  </association>  
+  <association id="106">    
+    <bendpoint x="3072" y="496"/>    
+    <bendpoint x="3072" y="991"/>    
+    <end type="SOURCE" refId="19" navigable="false">      
+      <attribute id="107" name="assignment">        
+        <position height="0" width="0" x="-553" y="-2029"/>      
+      </attribute>      
+      <multiplicity id="108" minimum="0" maximum="1">        
+        <position height="0" width="0" x="-553" y="-2029"/>      
+      </multiplicity>    
+    </end>    
+    <end type="TARGET" refId="7" navigable="true"/>    
+    <display labels="true" multiplicity="true"/>  
+  </association>  
+  <association id="109">    
+    <end type="SOURCE" refId="9" navigable="false">      
+      <attribute id="110" name="brushOverlay">        
+        <position height="0" width="0" x="1899" y="-2085"/>      
+      </attribute>      
+      <multiplicity id="111" minimum="0" maximum="1">        
+        <position height="0" width="0" x="1899" y="-2085"/>      
+      </multiplicity>    
+    </end>    
+    <end type="TARGET" refId="24" navigable="true"/>    
+    <display labels="true" multiplicity="true"/>  
+  </association>  
+  <generalization id="112">    
+    <end type="SOURCE" refId="21"/>    
+    <end type="TARGET" refId="25"/>  
+  </generalization>  
+  <association id="113">    
     <end type="SOURCE" refId="17" navigable="false">      
-      <attribute id="129" name="idPicker">        
+      <attribute id="114" name="idPicker">        
         <position height="0" width="0" x="1775" y="195"/>      
       </attribute>      
-      <multiplicity id="130" minimum="0" maximum="1">        
+      <multiplicity id="115" minimum="0" maximum="1">        
         <position height="0" width="0" x="1775" y="195"/>      
       </multiplicity>    
     </end>    
     <end type="TARGET" refId="6" navigable="true"/>    
     <display labels="true" multiplicity="true"/>  
   </association>  
-  <association id="131">    
-    <end type="SOURCE" refId="22" navigable="false">      
-      <attribute id="132" name="controller">        
+  <association id="116">    
+    <bendpoint x="4873" y="496"/>    
+    <bendpoint x="4873" y="991"/>    
+    <end type="SOURCE" refId="13" navigable="false">      
+      <attribute id="117" name="assignment">        
+        <position height="0" width="0" x="-553" y="-2029"/>      
+      </attribute>      
+      <multiplicity id="118" minimum="0" maximum="1">        
+        <position height="0" width="0" x="-553" y="-2029"/>      
+      </multiplicity>    
+    </end>    
+    <end type="TARGET" refId="7" navigable="true"/>    
+    <display labels="true" multiplicity="true"/>  
+  </association>  
+  <association id="119">    
+    <end type="SOURCE" refId="2" navigable="false">      
+      <attribute id="120" name="annotationsController">        
         <position height="0" width="0" x="-7634" y="-528"/>      
       </attribute>      
-      <multiplicity id="133" minimum="0" maximum="1">        
+      <multiplicity id="121" minimum="0" maximum="1">        
         <position height="0" width="0" x="-7634" y="-528"/>      
       </multiplicity>    
     </end>    
     <end type="TARGET" refId="18" navigable="true"/>    
+    <display labels="true" multiplicity="true"/>  
+  </association>  
+  <association id="122">    
+    <bendpoint x="5271" y="496"/>    
+    <end type="SOURCE" refId="14" navigable="false">      
+      <attribute id="123" name="colorStream">        
+        <position height="0" width="0" x="-520" y="-3269"/>      
+      </attribute>      
+      <multiplicity id="124" minimum="0" maximum="1">        
+        <position height="0" width="0" x="-520" y="-3269"/>      
+      </multiplicity>    
+    </end>    
+    <end type="TARGET" refId="21" navigable="true"/>    
+    <display labels="true" multiplicity="true"/>  
+  </association>  
+  <association id="125">    
+    <bendpoint x="5620" y="496"/>    
+    <bendpoint x="5620" y="991"/>    
+    <end type="SOURCE" refId="15" navigable="false">      
+      <attribute id="126" name="assignment">        
+        <position height="0" width="0" x="-553" y="-2029"/>      
+      </attribute>      
+      <multiplicity id="127" minimum="0" maximum="1">        
+        <position height="0" width="0" x="-553" y="-2029"/>      
+      </multiplicity>    
+    </end>    
+    <end type="TARGET" refId="7" navigable="true"/>    
+    <display labels="true" multiplicity="true"/>  
+  </association>  
+  <association id="128">    
+    <end type="SOURCE" refId="18" navigable="false">      
+      <attribute id="129" name="annotations">        
+        <position height="0" width="0" x="590" y="-2612"/>      
+      </attribute>      
+      <multiplicity id="130" minimum="0" maximum="1">        
+        <position height="0" width="0" x="590" y="-2612"/>      
+      </multiplicity>    
+    </end>    
+    <end type="TARGET" refId="3" navigable="true"/>    
+    <display labels="true" multiplicity="true"/>  
+  </association>  
+  <association id="131">    
+    <end type="SOURCE" refId="1" navigable="false">      
+      <attribute id="132" name="convertedLabels">        
+        <position height="0" width="0" x="-2632" y="-5367"/>      
+      </attribute>      
+      <multiplicity id="133" minimum="0" maximum="2147483647">        
+        <position height="0" width="0" x="-2632" y="-5367"/>      
+      </multiplicity>    
+    </end>    
+    <end type="TARGET" refId="26" navigable="true"/>    
     <display labels="true" multiplicity="true"/>  
   </association>  
   <association id="134">    
-    <end type="SOURCE" refId="13" navigable="false">      
-      <attribute id="135" name="selectionController">        
-        <position height="0" width="0" x="-7630" y="-2656"/>      
+    <end type="SOURCE" refId="11" navigable="false">      
+      <attribute id="135" name="completeFragments">        
+        <position height="0" width="0" x="-779" y="-3065"/>      
       </attribute>      
       <multiplicity id="136" minimum="0" maximum="1">        
-        <position height="0" width="0" x="-7630" y="-2656"/>      
+        <position height="0" width="0" x="-779" y="-3065"/>      
       </multiplicity>    
     </end>    
-    <end type="TARGET" refId="17" navigable="true"/>    
+    <end type="TARGET" refId="8" navigable="true"/>    
     <display labels="true" multiplicity="true"/>  
   </association>  
   <association id="137">    
-    <end type="SOURCE" refId="27" navigable="false">      
-      <attribute id="138" name="annotationController">        
-        <position height="0" width="0" x="-7634" y="-528"/>      
+    <end type="SOURCE" refId="17" navigable="false">      
+      <attribute id="138" name="selectionOverlay">        
+        <position height="0" width="0" x="-158" y="-5429"/>      
       </attribute>      
       <multiplicity id="139" minimum="0" maximum="1">        
-        <position height="0" width="0" x="-7634" y="-528"/>      
+        <position height="0" width="0" x="-158" y="-5429"/>      
       </multiplicity>    
     </end>    
-    <end type="TARGET" refId="18" navigable="true"/>    
+    <end type="TARGET" refId="20" navigable="true"/>    
     <display labels="true" multiplicity="true"/>  
   </association>  
   <association id="140">    
-    <bendpoint x="2414" y="496"/>    
-    <bendpoint x="2414" y="991"/>    
-    <end type="SOURCE" refId="1" navigable="false">      
+    <end type="SOURCE" refId="20" navigable="false">      
       <attribute id="141" name="assignment">        
         <position height="0" width="0" x="-553" y="-2029"/>      
       </attribute>      
@@ -726,134 +728,128 @@
     <display labels="true" multiplicity="true"/>  
   </association>  
   <association id="143">    
-    <bendpoint x="3534" y="496"/>    
-    <bendpoint x="3534" y="991"/>    
-    <end type="SOURCE" refId="10" navigable="false">      
-      <attribute id="144" name="assignment">        
-        <position height="0" width="0" x="-553" y="-2029"/>      
+    <end type="SOURCE" refId="20" navigable="false">      
+      <attribute id="144" name="selectionController">        
+        <position height="0" width="0" x="-7630" y="-2656"/>      
       </attribute>      
       <multiplicity id="145" minimum="0" maximum="1">        
-        <position height="0" width="0" x="-553" y="-2029"/>      
+        <position height="0" width="0" x="-7630" y="-2656"/>      
       </multiplicity>    
     </end>    
-    <end type="TARGET" refId="7" navigable="true"/>    
+    <end type="TARGET" refId="17" navigable="true"/>    
     <display labels="true" multiplicity="true"/>  
   </association>  
   <association id="146">    
-    <bendpoint x="5620" y="496"/>    
-    <bendpoint x="5620" y="991"/>    
-    <end type="SOURCE" refId="15" navigable="false">      
-      <attribute id="147" name="assignment">        
+    <end type="SOURCE" refId="18" navigable="false">      
+      <attribute id="147" name="selection">        
+        <position height="0" width="0" x="1771" y="-2855"/>      
+      </attribute>      
+      <multiplicity id="148" minimum="0" maximum="2147483647">        
+        <position height="0" width="0" x="1771" y="-2855"/>      
+      </multiplicity>    
+    </end>    
+    <end type="TARGET" refId="4" navigable="true"/>    
+    <display labels="true" multiplicity="true"/>  
+  </association>  
+  <association id="149">    
+    <bendpoint x="2414" y="496"/>    
+    <bendpoint x="2414" y="991"/>    
+    <end type="SOURCE" refId="1" navigable="false">      
+      <attribute id="150" name="assignment">        
         <position height="0" width="0" x="-553" y="-2029"/>      
       </attribute>      
-      <multiplicity id="148" minimum="0" maximum="1">        
+      <multiplicity id="151" minimum="0" maximum="1">        
         <position height="0" width="0" x="-553" y="-2029"/>      
       </multiplicity>    
     </end>    
     <end type="TARGET" refId="7" navigable="true"/>    
     <display labels="true" multiplicity="true"/>  
   </association>  
-  <association id="149">    
-    <end type="SOURCE" refId="19" navigable="false">      
-      <attribute id="150" name="brushOverlay">        
-        <position height="0" width="0" x="1899" y="-2085"/>      
+  <association id="152">    
+    <end type="SOURCE" refId="3" navigable="false">      
+      <attribute id="153" name="annotations">        
+        <position height="0" width="0" x="1771" y="-2855"/>      
       </attribute>      
-      <multiplicity id="151" minimum="0" maximum="1">        
-        <position height="0" width="0" x="1899" y="-2085"/>      
+      <multiplicity id="154" minimum="0" maximum="2147483647">        
+        <position height="0" width="0" x="1771" y="-2855"/>      
       </multiplicity>    
     </end>    
-    <end type="TARGET" refId="24" navigable="true"/>    
+    <end type="TARGET" refId="4" navigable="true"/>    
     <display labels="true" multiplicity="true"/>  
   </association>  
-  <association id="152">    
+  <association id="155">    
+    <bendpoint x="3534" y="496"/>    
+    <bendpoint x="3534" y="991"/>    
+    <end type="SOURCE" refId="10" navigable="false">      
+      <attribute id="156" name="assignment">        
+        <position height="0" width="0" x="-553" y="-2029"/>      
+      </attribute>      
+      <multiplicity id="157" minimum="0" maximum="1">        
+        <position height="0" width="0" x="-553" y="-2029"/>      
+      </multiplicity>    
+    </end>    
+    <end type="TARGET" refId="7" navigable="true"/>    
+    <display labels="true" multiplicity="true"/>  
+  </association>  
+  <association id="158">    
+    <end type="SOURCE" refId="1" navigable="false">      
+      <attribute id="159" name="colorStream">        
+        <position height="0" width="0" x="-980" y="-6313"/>      
+      </attribute>      
+      <multiplicity id="160" minimum="0" maximum="1">        
+        <position height="0" width="0" x="-980" y="-6313"/>      
+      </multiplicity>    
+    </end>    
+    <end type="TARGET" refId="23" navigable="true"/>    
+    <display labels="true" multiplicity="true"/>  
+  </association>  
+  <association id="161">    
+    <end type="SOURCE" refId="17" navigable="false">      
+      <attribute id="162" name="colorStream">        
+        <position height="0" width="0" x="-520" y="-3269"/>      
+      </attribute>      
+      <multiplicity id="163" minimum="0" maximum="1">        
+        <position height="0" width="0" x="-520" y="-3269"/>      
+      </multiplicity>    
+    </end>    
+    <end type="TARGET" refId="21" navigable="true"/>    
+    <display labels="true" multiplicity="true"/>  
+  </association>  
+  <association id="164">    
+    <end type="SOURCE" refId="27" navigable="false">      
+      <attribute id="165" name="annotations">        
+        <position height="0" width="0" x="590" y="-2612"/>      
+      </attribute>      
+      <multiplicity id="166" minimum="0" maximum="1">        
+        <position height="0" width="0" x="590" y="-2612"/>      
+      </multiplicity>    
+    </end>    
+    <end type="TARGET" refId="3" navigable="true"/>    
+    <display labels="true" multiplicity="true"/>  
+  </association>  
+  <association id="167">    
+    <end type="SOURCE" refId="13" navigable="false">      
+      <attribute id="168" name="selectionController">        
+        <position height="0" width="0" x="-7630" y="-2656"/>      
+      </attribute>      
+      <multiplicity id="169" minimum="0" maximum="1">        
+        <position height="0" width="0" x="-7630" y="-2656"/>      
+      </multiplicity>    
+    </end>    
+    <end type="TARGET" refId="17" navigable="true"/>    
+    <display labels="true" multiplicity="true"/>  
+  </association>  
+  <association id="170">    
     <bendpoint x="3997" y="496"/>    
     <end type="SOURCE" refId="13" navigable="false">      
-      <attribute id="153" name="idPicker">        
+      <attribute id="171" name="idPicker">        
         <position height="0" width="0" x="1775" y="195"/>      
       </attribute>      
-      <multiplicity id="154" minimum="0" maximum="1">        
+      <multiplicity id="172" minimum="0" maximum="1">        
         <position height="0" width="0" x="1775" y="195"/>      
       </multiplicity>    
     </end>    
     <end type="TARGET" refId="6" navigable="true"/>    
-    <display labels="true" multiplicity="true"/>  
-  </association>  
-  <generalization id="155">    
-    <end type="SOURCE" refId="21"/>    
-    <end type="TARGET" refId="25"/>  
-  </generalization>  
-  <association id="156">    
-    <end type="SOURCE" refId="19" navigable="false">      
-      <attribute id="157" name="selectionController">        
-        <position height="0" width="0" x="-7630" y="-2656"/>      
-      </attribute>      
-      <multiplicity id="158" minimum="0" maximum="1">        
-        <position height="0" width="0" x="-7630" y="-2656"/>      
-      </multiplicity>    
-    </end>    
-    <end type="TARGET" refId="17" navigable="true"/>    
-    <display labels="true" multiplicity="true"/>  
-  </association>  
-  <association id="159">    
-    <end type="SOURCE" refId="2" navigable="false">      
-      <attribute id="160" name="annotationsController">        
-        <position height="0" width="0" x="-7634" y="-528"/>      
-      </attribute>      
-      <multiplicity id="161" minimum="0" maximum="1">        
-        <position height="0" width="0" x="-7634" y="-528"/>      
-      </multiplicity>    
-    </end>    
-    <end type="TARGET" refId="18" navigable="true"/>    
-    <display labels="true" multiplicity="true"/>  
-  </association>  
-  <association id="162">    
-    <bendpoint x="4894" y="496"/>    
-    <bendpoint x="4894" y="991"/>    
-    <end type="SOURCE" refId="12" navigable="false">      
-      <attribute id="163" name="assignment">        
-        <position height="0" width="0" x="-553" y="-2029"/>      
-      </attribute>      
-      <multiplicity id="164" minimum="0" maximum="1">        
-        <position height="0" width="0" x="-553" y="-2029"/>      
-      </multiplicity>    
-    </end>    
-    <end type="TARGET" refId="7" navigable="true"/>    
-    <display labels="true" multiplicity="true"/>  
-  </association>  
-  <association id="165">    
-    <end type="SOURCE" refId="16" navigable="false">      
-      <attribute id="166" name="selectionController">        
-        <position height="0" width="0" x="-7630" y="-2656"/>      
-      </attribute>      
-      <multiplicity id="167" minimum="0" maximum="1">        
-        <position height="0" width="0" x="-7630" y="-2656"/>      
-      </multiplicity>    
-    </end>    
-    <end type="TARGET" refId="17" navigable="true"/>    
-    <display labels="true" multiplicity="true"/>  
-  </association>  
-  <association id="168">    
-    <end type="SOURCE" refId="9" navigable="false">      
-      <attribute id="169" name="brushOverlay">        
-        <position height="0" width="0" x="1899" y="-2085"/>      
-      </attribute>      
-      <multiplicity id="170" minimum="0" maximum="1">        
-        <position height="0" width="0" x="1899" y="-2085"/>      
-      </multiplicity>    
-    </end>    
-    <end type="TARGET" refId="24" navigable="true"/>    
-    <display labels="true" multiplicity="true"/>  
-  </association>  
-  <association id="171">    
-    <end type="SOURCE" refId="17" navigable="false">      
-      <attribute id="172" name="selectionOverlay">        
-        <position height="0" width="0" x="-158" y="-5429"/>      
-      </attribute>      
-      <multiplicity id="173" minimum="0" maximum="1">        
-        <position height="0" width="0" x="-158" y="-5429"/>      
-      </multiplicity>    
-    </end>    
-    <end type="TARGET" refId="20" navigable="true"/>    
     <display labels="true" multiplicity="true"/>  
   </association>  
   <classifier-display autosize="true" stereotype="true" package="true" initial-value="false" signature="true" 
