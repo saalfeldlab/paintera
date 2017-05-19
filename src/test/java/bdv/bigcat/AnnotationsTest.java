@@ -4,9 +4,12 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
+import java.awt.AWTException;
 import java.awt.Robot;
 import java.awt.event.KeyEvent;
 import java.util.List;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -23,16 +26,35 @@ import bdv.util.IdService;
 import bdv.util.LocalIdService;
 import net.imglib2.RealPoint;
 
+/**
+ * Unit test for annotations
+ * Covering: addition, removal and change in visibility of annotations
+ * 
+ * @author vleite
+ */
 public class AnnotationsTest
 {
-	static Annotations annotations = null;
+	/**
+	 * Annotations in the project - presynaptic, postsynaptic and synapse
+	 * annotations
+	 */
+	private static Annotations annotations;
 
-	static AnnotationsController controller = null;
+	/** Controller of annotation overlay */
+	private static AnnotationsController controller;
 
-	static IdService idService = new LocalIdService();
+	/** Unique id for each annotation */
+	private static IdService idService = new LocalIdService();
 
+	/** Log */
+	private static final Logger LOGGER = Logger.getLogger( AnnotationsTest.class.getName() );
+
+	/**
+	 * This method load the hdf file and the annotations. Initialize annotations
+	 * and controller variables that will be used
+	 */
 	@BeforeClass
-	public static void loadData() throws Exception
+	public static void loadData()
 	{
 
 		// hdf file to use on test
@@ -41,27 +63,47 @@ public class AnnotationsTest
 		params.init();
 
 		// Start the visualization
-		final BigCat< Parameters > bigCat = new BigCat<>();
-		bigCat.init( params );
-		bigCat.setupBdv( params );
-		AnnotationsHdf5Store annotationStore = new AnnotationsHdf5Store( params.inFile, idService );
+		BigCat< Parameters > bigCat;
+		try
+		{
+			bigCat = new BigCat<>();
+			bigCat.init( params );
+			bigCat.setupBdv( params );
+			controller = bigCat.annotationsController;
+		}
+		catch ( Exception e )
+		{
+			LOGGER.log( Level.SEVERE, "BigCat was not initialized successfully.", e );
+		}
 
-		annotations = annotationStore.read();
-		controller = bigCat.annotationsController;
+		final AnnotationsHdf5Store annotationStore = new AnnotationsHdf5Store( params.inFile, idService );
+
+		try
+		{
+			annotations = annotationStore.read();
+		}
+		catch ( Exception e )
+		{
+			LOGGER.log( Level.SEVERE, "Couldn't read annotations from hdf file", e );
+		}
 	}
 
+	/**
+	 * This test uses two points to add a pre- and a postsynaptic annotation.
+	 * Each one increases in one unity the number of annotations available
+	 */
 	@Test
-	public void createAnnotations() throws Exception
+	public void createAnnotations()
 	{
-		double[] prePoint = { 532, 1799, 0 };
-		double[] postPoint = { 749, 1835, 0 };
+		final double[] prePoint = { 532, 1799, 0 };
+		final double[] postPoint = { 749, 1835, 0 };
 		final RealPoint prePosition = new RealPoint( prePoint );
 		final RealPoint postPosition = new RealPoint( postPoint );
 
 		final int numAnnotations = annotations.getAnnotations().size();
 
-		PreSynapticSite pre = new PreSynapticSite( idService.next(), prePosition, "" );
-		PostSynapticSite post = new PostSynapticSite( idService.next(), postPosition, "" );
+		final PreSynapticSite pre = new PreSynapticSite( idService.next(), prePosition, "" );
+		final PostSynapticSite post = new PostSynapticSite( idService.next(), postPosition, "" );
 		pre.setPartner( post );
 		post.setPartner( pre );
 
@@ -71,12 +113,14 @@ public class AnnotationsTest
 		assertEquals( "The number of annotations must increase in two units", numAnnotations + 2, annotations.getAnnotations().size() );
 	}
 
+	/**
+	 * This test removes one annotation (doesn't matter which type).
+	 */
 	@Test
-	public void removeAnnotation() throws Exception
+	public void removeAnnotation()
 	{
 		final int numAnnotations = annotations.getAnnotations().size();
-
-		double[] point = { 618, 1528, 0 };
+		final double[] point = { 618, 1528, 0 };
 		final RealPoint position = new RealPoint( point );
 		final List< Annotation > closest = annotations.getKNearest( position, 1 );
 
@@ -88,73 +132,98 @@ public class AnnotationsTest
 		assertEquals( "The number of annotations must decrease in one unit", numAnnotations - 1, annotations.getAnnotations().size() );
 	}
 
+	/**
+	 * This test turns the annotation overlay visible. default visibility is
+	 * true when the bigcat is initialized however once each test is
+	 * independent, the hideAnnotations can be called before this one, and then
+	 * change the visibility of the overlay.
+	 */
 	@Test
-	public void showAnnotations() throws Exception
+	public void showAnnotations()
 	{
-		// default visibility is true
-		// however the hideAnnotations test can be called before this one, and
-		// then change the visibility
-		boolean visibility = controller.getAnnotationOverlay().isVisible();
+		final boolean visibility = controller.getAnnotationOverlay().isVisible();
 
-		Robot robot = new Robot();
-
-		if ( visibility )
+		try
 		{
-			// hiding annotations
+			final Robot robot = new Robot();
+
+			if ( visibility )
+			{
+				// hiding annotations
+				robot.keyPress( KeyEvent.VK_O );
+				robot.keyRelease( KeyEvent.VK_O );
+
+				try
+				{
+					Thread.sleep( 50 );
+				}
+				catch ( InterruptedException e )
+				{
+					LOGGER.log( Level.SEVERE, "Thread sleep was interrupted", e );
+				}
+			}
+
+			// showing annotations
 			robot.keyPress( KeyEvent.VK_O );
 			robot.keyRelease( KeyEvent.VK_O );
+
 			try
 			{
 				Thread.sleep( 50 );
 			}
 			catch ( InterruptedException e )
 			{
-				System.out.println( "sleep was interrupted" );
+				LOGGER.log( Level.SEVERE, "Thread sleep was interrupted", e );
 			}
 		}
-
-		// showing annotations
-		robot.keyPress( KeyEvent.VK_O );
-		robot.keyRelease( KeyEvent.VK_O );
-		try
+		catch ( AWTException e )
 		{
-			Thread.sleep( 50 );
-		}
-		catch ( InterruptedException e )
-		{
-			System.out.println( "sleep was interrupted" );
+			LOGGER.log( Level.SEVERE, "Couldn't initialize robot", e );
 		}
 
 		assertTrue( "The annotations must be visible", controller.getAnnotationOverlay().isVisible() );
 	}
 
+	/**
+	 * Test hiding the annotation overlay After this test the annotation will
+	 * not be visible
+	 */
 	@Test
-	public void hideAnnotations() throws Exception
+	public void hideAnnotations()
 	{
-		Robot robot = new Robot();
-		robot.keyPress( KeyEvent.VK_O );
-		robot.keyRelease( KeyEvent.VK_O );
+		try
+		{
+			final Robot robot = new Robot();
+			robot.keyPress( KeyEvent.VK_O );
+			robot.keyRelease( KeyEvent.VK_O );
+		}
+		catch ( AWTException e )
+		{
+			LOGGER.log( Level.SEVERE, "Couldn't initialize robot", e );
+		}
 		try
 		{
 			Thread.sleep( 50 );
 		}
 		catch ( InterruptedException e )
 		{
-			System.out.println( "sleep was interrupted" );
+			LOGGER.log( Level.SEVERE, "Thread sleep was interrupted", e );
 		}
 
 		assertFalse( "The annotations must be invisible", controller.getAnnotationOverlay().isVisible() );
 	}
 
+	/**
+	 * Add a syanpse annotation that increases the number of annotations by one.
+	 */
 	@Test
-	public void addCommentAnnotation() throws Exception
+	public void addCommentAnnotation()
 	{
 		final int numAnnotations = annotations.getAnnotations().size();
-
-		double[] point = { 600, 1799, 0 };
+		final double[] point = { 600, 1799, 0 };
 		final RealPoint position = new RealPoint( point );
 
-		Annotation annotation = new Synapse( idService.next(), position, "comment here" );
+		final Annotation annotation = new Synapse( idService.next(), position, "comment here" );
 		annotations.add( annotation );
 
 		assertEquals( "The number of annotations must increase in one unit", numAnnotations + 1, annotations.getAnnotations().size() );
