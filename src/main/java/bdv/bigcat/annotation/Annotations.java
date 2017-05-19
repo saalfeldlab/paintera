@@ -120,11 +120,6 @@ public class Annotations {
 		listeners.add(listener);
 	}
 
-	public void removeAnnotationsListener(AnnotationsListener listener) {
-
-		listeners.add(listener);
-	}
-
 	private HashMap< Long, Annotation > annotations;
 	private KDTree< Annotation > kdTree;
 	private boolean kdTreeDirty = true;
