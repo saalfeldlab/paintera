@@ -60,6 +60,21 @@ import net.imglib2.view.Views;
 
 public class BigCat< P extends BigCat.Parameters > extends BigCatViewer< P >
 {
+	/** max raw dimensions */
+	final protected long[] maxRawDimensions = new long[ 3 ];
+	
+	/** interval in which pixels were modified */
+	final protected DirtyInterval dirtyLabelsInterval = new DirtyInterval();
+
+	/**
+	 * canvas that gets modified by brush TODO this has to change into a virtual
+	 * container with temporary storage
+	 */
+	protected CellImg< LongType, ?, ? > canvas = null;
+
+	/** controllers */
+	protected LabelPersistenceController persistenceController;
+
 	static public class Parameters extends BigCatViewer.Parameters
 	{
 		@Parameter( names = { "--canvas", "-c" }, description = "canvas dataset" )
@@ -69,19 +84,6 @@ public class BigCat< P extends BigCat.Parameters > extends BigCatViewer< P >
 		public String export = "/volumes/labels/merged_neuron_ids";
 	}
 
-	/** max raw dimensions */
-	final protected long[] maxRawDimensions = new long[ 3 ];
-
-	/**
-	 * canvas that gets modified by brush
-	 * TODO this has to change into a virtual container with temporary storage */
-	protected CellImg< LongType, ?, ? > canvas = null;
-
-	/** interval in which pixels were modified */
-	final protected DirtyInterval dirtyLabelsInterval = new DirtyInterval();
-
-	/** controllers */
-	protected LabelPersistenceController persistenceController;
 	protected AnnotationsController annotationsController;
 
 	/**
@@ -93,8 +95,12 @@ public class BigCat< P extends BigCat.Parameters > extends BigCatViewer< P >
 	final static protected void max( final long[] a, final long[] b )
 	{
 		for ( int i = 0; i < a.length; ++i )
+		{
 			if ( b[ i ] > a[ i ] )
+			{
 				a[ i ] = b[ i ];
+			}
+		}
 	}
 
 	public static void main( final String[] args ) throws Exception
@@ -113,7 +119,8 @@ public class BigCat< P extends BigCat.Parameters > extends BigCatViewer< P >
 	}
 
 	/**
-	 * Initialize BigCat, order is important because individual initializers depend on previous members initialized.
+	 * Initialize BigCat, order is important because individual initializers
+	 * depend on previous members initialized.
 	 *
 	 * <ol>
 	 * <li>Load raw and canvas,</li>
@@ -187,8 +194,8 @@ public class BigCat< P extends BigCat.Parameters > extends BigCatViewer< P >
 	}
 
 	/**
-	 * Initialize ID service, load max id from file or find max id in labels
-	 * and canvas.
+	 * Initialize ID service, load max id from file or find max id in labels and
+	 * canvas.
 	 *
 	 * @param params
 	 * @throws IOException
@@ -210,7 +217,7 @@ public class BigCat< P extends BigCat.Parameters > extends BigCatViewer< P >
 				maxId = maxId( labelLoader, maxId );
 
 			if ( reader.exists( params.canvas ) )
-					maxId = maxId( canvas, maxId );
+				maxId = maxId( canvas, maxId );
 		}
 		else
 			maxId = nextIdObject.longValue() - 1;
@@ -225,9 +232,9 @@ public class BigCat< P extends BigCat.Parameters > extends BigCatViewer< P >
 	 *
 	 * Depends on {@link #raws}, {@link #labels},
 	 * {@link #convertedLabelCanvasPairs}, {@link #colorStream},
-	 * {@link #idService}, {@link #assignment},
-	 * {@link #config}, {@link #dirtyLabelsInterval},
-	 * {@link #completeFragmentsAssignment}, {@link #canvas} being initialized.
+	 * {@link #idService}, {@link #assignment}, {@link #config},
+	 * {@link #dirtyLabelsInterval}, {@link #completeFragmentsAssignment},
+	 * {@link #canvas} being initialized.
 	 *
 	 * Modifies {@link #bdv}, {@link #convertedLabelCanvasPairs},
 	 * {@link #persistenceController},
@@ -278,16 +285,15 @@ public class BigCat< P extends BigCat.Parameters > extends BigCatViewer< P >
 					bdv.getViewer(),
 					RealViews.affineReal(
 							Views.interpolate(
-									new RandomAccessiblePair< >(
+									new RandomAccessiblePair<>(
 											Views.extendValue(
-												labels.get( 0 ).getImage( 0 ),
-												new LabelMultisetType() ),
+													labels.get( 0 ).getImage( 0 ),
+													new LabelMultisetType() ),
 											Views.extendValue(
 													canvas,
-													new LongType( Label.OUTSIDE) ) ),
+													new LongType( Label.OUTSIDE ) ) ),
 									new NearestNeighborInterpolatorFactory< Pair< LabelMultisetType, LongType > >() ),
-							labels.get( 0 ).getMipmapTransforms()[ 0 ] )
-					);
+							labels.get( 0 ).getMipmapTransforms()[ 0 ] ) );
 
 			selectionController = new SelectionController(
 					bdv.getViewer(),
@@ -297,7 +303,7 @@ public class BigCat< P extends BigCat.Parameters > extends BigCatViewer< P >
 					assignment,
 					config,
 					bdv.getViewerFrame().getKeybindings(),
-					config);
+					config );
 
 			final MergeController mergeController = new MergeController(
 					bdv.getViewer(),
@@ -306,7 +312,7 @@ public class BigCat< P extends BigCat.Parameters > extends BigCatViewer< P >
 					assignment,
 					config,
 					bdv.getViewerFrame().getKeybindings(),
-					config);
+					config );
 
 			/* TODO fix to deal with correct transform */
 			brushController = new LabelBrushController(
@@ -317,7 +323,7 @@ public class BigCat< P extends BigCat.Parameters > extends BigCatViewer< P >
 					assignment,
 					selectionController,
 					cellDimensions,
-					config);
+					config );
 
 			/* TODO fix to deal with more than one label set */
 			persistenceController = new LabelPersistenceController(
@@ -358,7 +364,7 @@ public class BigCat< P extends BigCat.Parameters > extends BigCatViewer< P >
 					idService,
 					new AffineTransform3D(),
 					new InputTriggerConfig(),
-					labels.get( 0 ).getImage(0),
+					labels.get( 0 ).getImage( 0 ),
 					canvas,
 					dirtyLabelsInterval,
 					labels.get( 0 ).getMipmapTransforms()[ 0 ],
@@ -385,7 +391,7 @@ public class BigCat< P extends BigCat.Parameters > extends BigCatViewer< P >
 					assignment,
 					selectionController,
 					cellDimensions,
-					config);
+					config );
 
 			bindings.addBehaviourMap( "select", selectionController.getBehaviourMap() );
 			bindings.addInputTriggerMap( "select", selectionController.getInputTriggerMap() );
@@ -416,11 +422,12 @@ public class BigCat< P extends BigCat.Parameters > extends BigCatViewer< P >
 				public void windowClosing( final WindowEvent we )
 				{
 					final boolean reallyClose = saveBeforeClosing( params );
-					if( reallyClose )
+					if ( reallyClose )
 					{
 						bdv.getViewerFrame().getViewerPanel().stop();
 						bdv.getViewerFrame().setVisible( false );
-						// TODO really shouldn't kill the whole jvm in case some other process (e.g. fiji eventually) calls bigcat
+						// TODO really shouldn't kill the whole jvm in case some
+						// other process (e.g. fiji eventually) calls bigcat
 						System.exit( 0 );
 					}
 				}
@@ -463,12 +470,13 @@ public class BigCat< P extends BigCat.Parameters > extends BigCatViewer< P >
 	}
 
 	/**
-	 * Creates a label loader, a label canvas pair and the converted
-	 * pair and adds them to the respective lists.
+	 * Creates a label loader, a label canvas pair and the converted pair and
+	 * adds them to the respective lists.
 	 *
 	 * Depends on {@link #canvas} and {@link #colorStream} being initialized.
 	 *
-	 * Modifies {@link #labels}, {@link #setupId}, {@link #convertedLabelCanvasPairs}.
+	 * Modifies {@link #labels}, {@link #setupId},
+	 * {@link #convertedLabelCanvasPairs}.
 	 *
 	 * @param reader
 	 * @param labelDataset
@@ -524,7 +532,7 @@ public class BigCat< P extends BigCat.Parameters > extends BigCatViewer< P >
 				JOptionPane.YES_NO_CANCEL_OPTION );
 
 		final boolean save = option == JOptionPane.YES_OPTION;
-		final boolean reallyClose =  save || option == JOptionPane.NO_OPTION;
+		final boolean reallyClose = save || option == JOptionPane.NO_OPTION;
 
 		if ( save )
 		{

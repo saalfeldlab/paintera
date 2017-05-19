@@ -4,6 +4,10 @@ import net.imglib2.RealPoint;
 
 public abstract class Annotation {
 
+	private long id;
+	private RealPoint pos;
+	private String comment;
+
 	public Annotation(long id, RealPoint pos, String comment) {
 		this.id = id;
 		this.pos = pos;
@@ -37,8 +41,4 @@ public abstract class Annotation {
 	public void accept(AnnotationVisitor visitor) {
 		visitor.visit(this);
 	}
-
-	private long id;
-	private RealPoint pos;
-	private String comment;
 }
