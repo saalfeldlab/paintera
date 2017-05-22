@@ -31,10 +31,10 @@ To run all tests:
 mvn clean test
 ```
 
-###Annotations Test
+### Annotations Test
 
-* creation of annotation
-* removal of annotation
+* creation of annotations
+* removal of annotations
 * changes in visibility of annotation overlay
 
 ```
