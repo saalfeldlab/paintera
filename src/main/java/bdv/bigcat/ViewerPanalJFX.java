@@ -27,8 +27,10 @@ import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableView;
 import javafx.scene.control.TextField;
 import javafx.scene.input.MouseEvent;
+import javafx.scene.layout.ColumnConstraints;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.Pane;
+import javafx.scene.layout.RowConstraints;
 import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
 import net.imglib2.converter.Converter;
@@ -74,6 +76,16 @@ public class ViewerPanalJFX
 			final VBox jfxStuff = new VBox( 1 );
 			jfxStuff.getChildren().addAll( tf, table );
 
+			final ColumnConstraints column1 = new ColumnConstraints();
+			final ColumnConstraints column2 = new ColumnConstraints();
+			column1.setPercentWidth( 50 );
+			column2.setPercentWidth( 50 );
+
+			final RowConstraints row1 = new RowConstraints();
+			final RowConstraints row2 = new RowConstraints();
+			row1.setPercentHeight( 50 );
+			row2.setPercentHeight( 50 );
+
 			GridPane.setConstraints( swingNode1, 0, 0 );
 			GridPane.setConstraints( swingNode2, 1, 0 );
 			GridPane.setConstraints( swingNode3, 0, 1 );
@@ -82,6 +94,12 @@ public class ViewerPanalJFX
 			root.getChildren().add( swingNode2 );
 			root.getChildren().add( swingNode3 );
 			root.getChildren().add( jfxStuff );
+
+			root.getColumnConstraints().add( column1 );
+			root.getColumnConstraints().add( column2 );
+
+			root.getRowConstraints().add( row1 );
+			root.getRowConstraints().add( row2 );
 
 			primaryStage.setTitle( "BDV" );
 			primaryStage.setScene( scene );
