@@ -124,7 +124,12 @@ public class ViewerPanalJFX
 		}
 	}
 
-	public static ViewerPanel makeViewer( final List< SourceAndConverter< ? > > sacs, final int numTimePoints, final CacheControl cacheControl, final SwingNode swingNode, final Pane root )
+	public static ViewerPanel makeViewer(
+			final List< SourceAndConverter< ? > > sacs,
+			final int numTimePoints,
+			final CacheControl cacheControl,
+			final SwingNode swingNode,
+			final Pane root )
 	{
 
 		final ViewerPanel viewer = new ViewerPanel( sacs, numTimePoints, cacheControl );
@@ -143,16 +148,13 @@ public class ViewerPanalJFX
 		if ( tfHandler instanceof BehaviourTransformEventHandler )
 			( ( BehaviourTransformEventHandler< ? > ) tfHandler ).install( triggerbindings );
 
+		NavigationActions.installActionBindings( keybindings, viewer, inputTriggerConfig );
+
+		swingNode.addEventHandler( MouseEvent.MOUSE_CLICKED, event -> swingNode.requestFocus() );
+
 		swingNode.addEventHandler( MouseEvent.MOUSE_ENTERED, event -> {
-			NavigationActions.installActionBindings( keybindings, viewer, inputTriggerConfig );
-			swingNode.requestFocus();
-		} );
-//
-		swingNode.addEventHandler( MouseEvent.MOUSE_EXITED, event -> {
-			// maybe do nothing here? If we do this, no action will happen if
-			// mouse is outside main window
-			keybindings.removeActionMap( "navigation" );
-			keybindings.removeInputMap( "navigation" );
+			if ( swingNode.sceneProperty().get().focusOwnerProperty().get() instanceof SwingNode )
+				swingNode.requestFocus();
 		} );
 
 		swingNode.setContent( viewer );
