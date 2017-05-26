@@ -211,7 +211,7 @@ public class ViewerPanalJFX
 
 			final boolean[] isFullScreen = new boolean[] { false };
 
-			primaryStage.setTitle( "BDV" );
+			primaryStage.setTitle( "BigCAT" );
 			primaryStage.setScene( scene );
 			createSwingContent( viewerNode1, viewerNode2, viewerNode3, root );
 
