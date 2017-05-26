@@ -23,6 +23,7 @@ import bdv.viewer.NavigationActions;
 import bdv.viewer.SourceAndConverter;
 import bdv.viewer.ViewerPanel;
 import javafx.application.Application;
+import javafx.beans.value.ChangeListener;
 import javafx.embed.swing.SwingNode;
 import javafx.scene.Node;
 import javafx.scene.Scene;
@@ -32,12 +33,14 @@ import javafx.scene.control.TabPane;
 import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableView;
 import javafx.scene.control.TextField;
+import javafx.scene.effect.DropShadow;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.ColumnConstraints;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.Pane;
 import javafx.scene.layout.RowConstraints;
 import javafx.scene.layout.VBox;
+import javafx.scene.paint.Color;
 import javafx.stage.Stage;
 import net.imglib2.converter.Converter;
 import net.imglib2.img.Img;
@@ -153,23 +156,31 @@ public class ViewerPanalJFX
 			final SwingNode viewerNode1 = new SwingNode();
 			final SwingNode viewerNode2 = new SwingNode();
 			final SwingNode viewerNode3 = new SwingNode();
+			final SwingNode[] viewerNodesArray = new SwingNode[] { viewerNode1, viewerNode2, viewerNode3 };
 
-			final HashSet< SwingNode > viewerNodes = new HashSet<>( Arrays.asList( new SwingNode[] { viewerNode1, viewerNode2, viewerNode3 } ) );
+			final HashSet< SwingNode > viewerNodes = new HashSet<>( Arrays.asList( viewerNodesArray ) );
 
 			final Class< ? >[] focusKeepers = { TextField.class };
-			for ( final SwingNode swingNode : viewerNodes )
+			for ( int i = 0; i < viewerNodesArray.length; ++i )
 			{
-				swingNode.addEventHandler( MouseEvent.MOUSE_CLICKED, event -> swingNode.requestFocus() );
+				final SwingNode viewerNode = viewerNodesArray[ i ];
+//				final DropShadow ds = new DropShadow( 10, Color.PURPLE );
+				final DropShadow ds = new DropShadow( 10, Color.hsb( 60.0 + 360.0 * i / viewerNodes.size(), 1.0, 0.5, 1.0 ) );
+				viewerNode.focusedProperty().addListener( ( ChangeListener< Boolean > ) ( observable, oldValue, newValue ) -> {
+					if ( newValue )
+						viewerNode.setEffect( ds );
+					else
+						viewerNode.setEffect( null );
+				} );
 
-				swingNode.addEventHandler( MouseEvent.MOUSE_ENTERED, event -> {
-					final Node focusOwner = swingNode.sceneProperty().get().focusOwnerProperty().get();
+				viewerNode.addEventHandler( MouseEvent.MOUSE_CLICKED, event -> viewerNode.requestFocus() );
+
+				viewerNode.addEventHandler( MouseEvent.MOUSE_ENTERED, event -> {
+					final Node focusOwner = viewerNode.sceneProperty().get().focusOwnerProperty().get();
 					for ( final Class< ? > focusKeeper : focusKeepers )
 						if ( focusKeeper.isInstance( focusOwner ) )
 							return;
-					swingNode.requestFocus();
-//					final Node focusOwner = swingNode.sceneProperty().get().focusOwnerProperty().get();
-//					if ( focusOwner instanceof SwingNode )
-//						swingNode.requestFocus();
+					viewerNode.requestFocus();
 				} );
 			}
 
