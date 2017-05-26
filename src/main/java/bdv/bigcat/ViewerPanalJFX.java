@@ -110,6 +110,17 @@ public class ViewerPanalJFX
 		private void createSwingContent( final SwingNode swingNode1, final SwingNode swingNode2, final SwingNode swingNode3, final Pane root )
 		{
 			SwingUtilities.invokeLater( () -> {
+				// this is just temporary: sleep until all javafx is set up to
+				// avoid width == 0 or height == 0 exceptions
+				try
+				{
+					Thread.sleep( 100 );
+				}
+				catch ( final InterruptedException e )
+				{
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				}
 				final Random rng = new Random( 100 );
 				final Img< FloatType > rai = ArrayImgs.floats( 100, 200, 300 );
 
