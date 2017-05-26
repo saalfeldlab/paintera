@@ -156,6 +156,23 @@ public class ViewerPanalJFX
 
 			final HashSet< SwingNode > viewerNodes = new HashSet<>( Arrays.asList( new SwingNode[] { viewerNode1, viewerNode2, viewerNode3 } ) );
 
+			final Class< ? >[] focusKeepers = { TextField.class };
+			for ( final SwingNode swingNode : viewerNodes )
+			{
+				swingNode.addEventHandler( MouseEvent.MOUSE_CLICKED, event -> swingNode.requestFocus() );
+
+				swingNode.addEventHandler( MouseEvent.MOUSE_ENTERED, event -> {
+					final Node focusOwner = swingNode.sceneProperty().get().focusOwnerProperty().get();
+					for ( final Class< ? > focusKeeper : focusKeepers )
+						if ( focusKeeper.isInstance( focusOwner ) )
+							return;
+					swingNode.requestFocus();
+//					final Node focusOwner = swingNode.sceneProperty().get().focusOwnerProperty().get();
+//					if ( focusOwner instanceof SwingNode )
+//						swingNode.requestFocus();
+				} );
+			}
+
 			final TableView< ? > table = new TableView<>();
 			table.setEditable( true );
 			table.getColumns().addAll( new TableColumn<>( "Property" ), new TableColumn<>( "Value" ) );
@@ -306,13 +323,6 @@ public class ViewerPanalJFX
 			( ( BehaviourTransformEventHandler< ? > ) tfHandler ).install( triggerbindings );
 
 		NavigationActions.installActionBindings( keybindings, viewer, inputTriggerConfig );
-
-		swingNode.addEventHandler( MouseEvent.MOUSE_CLICKED, event -> swingNode.requestFocus() );
-
-		swingNode.addEventHandler( MouseEvent.MOUSE_ENTERED, event -> {
-			if ( swingNode.sceneProperty().get().focusOwnerProperty().get() instanceof SwingNode )
-				swingNode.requestFocus();
-		} );
 
 		swingNode.setContent( viewer );
 		SwingUtilities.replaceUIActionMap( viewer.getRootPane(), keybindings.getConcatenatedActionMap() );
