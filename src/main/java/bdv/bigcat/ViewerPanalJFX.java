@@ -295,16 +295,12 @@ public class ViewerPanalJFX
 				final ViewerPanel viewer2 = makeViewer( sacsWildcard, 1, new CacheControl.Dummy(), swingNode2, root );
 				final ViewerPanel viewer3 = makeViewer( sacsWildcard, 1, new CacheControl.Dummy(), swingNode3, root );
 
-
-
 				swingNode1.setVisible( true );
 				swingNode2.setVisible( true );
 				swingNode3.setVisible( true );
 				viewer1.setVisible( true );
 				viewer2.setVisible( true );
 				viewer3.setVisible( true );
-
-
 			} );
 		}
 	}
