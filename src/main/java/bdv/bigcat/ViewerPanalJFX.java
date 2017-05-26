@@ -1,6 +1,8 @@
 package bdv.bigcat;
 
 import java.awt.Dimension;
+import java.util.Arrays;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Random;
 import java.util.stream.Collectors;
@@ -22,7 +24,11 @@ import bdv.viewer.SourceAndConverter;
 import bdv.viewer.ViewerPanel;
 import javafx.application.Application;
 import javafx.embed.swing.SwingNode;
+import javafx.scene.Node;
 import javafx.scene.Scene;
+import javafx.scene.control.Label;
+import javafx.scene.control.Tab;
+import javafx.scene.control.TabPane;
 import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableView;
 import javafx.scene.control.TextField;
@@ -51,6 +57,92 @@ public class ViewerPanalJFX
 	public static class MyApplication extends Application
 	{
 
+		public static class GridConstraintsManager
+		{
+
+			private final double defaultColumnWidth1 = 50;
+
+			private final double defaultColumnWidth2 = 50;
+
+			private final double defaultRowHeight1 = 50;
+
+			private final double defaultRowHeight2 = 50;
+
+			private final ColumnConstraints column1 = new ColumnConstraints();
+
+			private final ColumnConstraints column2 = new ColumnConstraints();
+
+			final RowConstraints row1 = new RowConstraints();
+
+			final RowConstraints row2 = new RowConstraints();
+
+			private double columnWidth1;
+
+			private double columnWidth2;
+
+			private double rowHeight1;
+
+			private double rowHeight2;
+
+			public GridConstraintsManager()
+			{
+				resetToDefault();
+				storeCurrent();
+			}
+
+			private synchronized final void resetToDefault()
+			{
+				column1.setPercentWidth( defaultColumnWidth1 );
+				column2.setPercentWidth( defaultColumnWidth2 );
+				row1.setPercentHeight( defaultRowHeight1 );
+				row2.setPercentHeight( defaultRowHeight2 );
+			}
+
+			private synchronized final void resetToLast()
+			{
+				column1.setPercentWidth( columnWidth1 );
+				column2.setPercentWidth( columnWidth2 );
+				row1.setPercentHeight( rowHeight1 );
+				row2.setPercentHeight( rowHeight2 );
+			}
+
+			private synchronized void storeCurrent()
+			{
+				this.columnWidth1 = column1.getPercentWidth();
+				this.columnWidth2 = column2.getPercentWidth();
+				this.rowHeight1 = row1.getPercentHeight();
+				this.rowHeight2 = row2.getPercentHeight();
+			}
+
+			private synchronized void maximize( final int r, final int c, final int steps )
+			{
+				storeCurrent();
+				final ColumnConstraints increaseColumn = c == 0 ? column1 : column2;
+				final ColumnConstraints decreaseColumn = c == 0 ? column2 : column1;
+				final RowConstraints increaseRow = r == 0 ? row1 : row2;
+				final RowConstraints decreaseRow = r == 0 ? row2 : row1;
+				final double increaseColumnStep = ( 100 - increaseColumn.getPercentWidth() ) / steps;
+				final double decreaseColumnStep = ( decreaseColumn.getPercentWidth() - 0 ) / steps;
+				final double increaseRowStep = ( 100 - increaseRow.getPercentHeight() ) / steps;
+				final double decreaseRowStep = ( decreaseRow.getPercentHeight() - 0 ) / steps;
+
+				for ( int i = 0; i < steps; ++i )
+				{
+					increaseColumn.setPercentWidth( increaseColumn.getPercentWidth() + increaseColumnStep );
+					decreaseColumn.setPercentWidth( decreaseColumn.getPercentWidth() - decreaseColumnStep );
+					increaseRow.setPercentHeight( increaseRow.getPercentHeight() + increaseRowStep );
+					decreaseRow.setPercentHeight( decreaseRow.getPercentHeight() - decreaseRowStep );
+				}
+
+				increaseColumn.setPercentWidth( 100 );
+				decreaseColumn.setPercentWidth( 0 );
+				increaseRow.setPercentHeight( 100 );
+				decreaseRow.setPercentHeight( 0 );
+
+			}
+
+		}
+
 		@SuppressWarnings( "unchecked" )
 		@Override
 		public void start( final Stage primaryStage ) throws Exception
@@ -58,9 +150,11 @@ public class ViewerPanalJFX
 //			final StackPane root = new StackPane();
 			final GridPane root = new GridPane();
 
-			final SwingNode swingNode1 = new SwingNode();
-			final SwingNode swingNode2 = new SwingNode();
-			final SwingNode swingNode3 = new SwingNode();
+			final SwingNode viewerNode1 = new SwingNode();
+			final SwingNode viewerNode2 = new SwingNode();
+			final SwingNode viewerNode3 = new SwingNode();
+
+			final HashSet< SwingNode > viewerNodes = new HashSet<>( Arrays.asList( new SwingNode[] { viewerNode1, viewerNode2, viewerNode3 } ) );
 
 			final TableView< ? > table = new TableView<>();
 			table.setEditable( true );
@@ -73,37 +167,70 @@ public class ViewerPanalJFX
 
 			final Scene scene = new Scene( root, 500, 500 );
 
+			final TabPane infoPane = new TabPane();
+
 			final VBox jfxStuff = new VBox( 1 );
 			jfxStuff.getChildren().addAll( tf, table );
+			infoPane.getTabs().add( new Tab( "jfx stuff", jfxStuff ) );
 
-			final ColumnConstraints column1 = new ColumnConstraints();
-			final ColumnConstraints column2 = new ColumnConstraints();
-			column1.setPercentWidth( 50 );
-			column2.setPercentWidth( 50 );
+			infoPane.getTabs().add( new Tab( "dataset info", new Label( "random floats" ) ) );
 
-			final RowConstraints row1 = new RowConstraints();
-			final RowConstraints row2 = new RowConstraints();
-			row1.setPercentHeight( 50 );
-			row2.setPercentHeight( 50 );
+			final GridConstraintsManager gridConstraintsManager = new GridConstraintsManager();
 
-			GridPane.setConstraints( swingNode1, 0, 0 );
-			GridPane.setConstraints( swingNode2, 1, 0 );
-			GridPane.setConstraints( swingNode3, 0, 1 );
-			GridPane.setConstraints( jfxStuff, 1, 1 );
-			root.getChildren().add( swingNode1 );
-			root.getChildren().add( swingNode2 );
-			root.getChildren().add( swingNode3 );
-			root.getChildren().add( jfxStuff );
+			GridPane.setConstraints( viewerNode1, 0, 0 );
+			GridPane.setConstraints( viewerNode2, 1, 0 );
+			GridPane.setConstraints( viewerNode3, 0, 1 );
+			GridPane.setConstraints( infoPane, 1, 1 );
+			root.getChildren().add( viewerNode1 );
+			root.getChildren().add( viewerNode2 );
+			root.getChildren().add( viewerNode3 );
+			root.getChildren().add( infoPane );
 
-			root.getColumnConstraints().add( column1 );
-			root.getColumnConstraints().add( column2 );
+			root.getColumnConstraints().add( gridConstraintsManager.column1 );
+			root.getColumnConstraints().add( gridConstraintsManager.column2 );
 
-			root.getRowConstraints().add( row1 );
-			root.getRowConstraints().add( row2 );
+			root.getRowConstraints().add( gridConstraintsManager.row1 );
+			root.getRowConstraints().add( gridConstraintsManager.row2 );
+
+			final boolean[] isFullScreen = new boolean[] { false };
 
 			primaryStage.setTitle( "BDV" );
 			primaryStage.setScene( scene );
-			createSwingContent( swingNode1, swingNode2, swingNode3, root );
+			createSwingContent( viewerNode1, viewerNode2, viewerNode3, root );
+
+			scene.setOnKeyTyped( event -> {
+				if ( event.getCharacter().equals( "a" ) )
+				{
+					final Node focusOwner = scene.focusOwnerProperty().get();
+					if ( viewerNodes.contains( focusOwner ) )
+					{
+						event.consume();
+						if ( !isFullScreen[ 0 ] )
+						{
+							viewerNodes.forEach( node -> node.setVisible( node == focusOwner ) );
+							infoPane.setVisible( false );
+							gridConstraintsManager.maximize(
+									GridPane.getRowIndex( focusOwner ),
+									GridPane.getColumnIndex( focusOwner ),
+									0 );
+							( ( ViewerPanel ) ( ( SwingNode ) focusOwner ).getContent() ).requestRepaint();
+							root.setHgap( 0 );
+							root.setVgap( 0 );
+						}
+						else
+						{
+							gridConstraintsManager.resetToLast();
+							viewerNodes.forEach( node -> node.setVisible( true ) );
+							viewerNodes.forEach( node -> ( ( ViewerPanel ) node.getContent() ).requestRepaint() );
+							infoPane.setVisible( true );
+							root.setHgap( 1 );
+							root.setVgap( 1 );
+						}
+						isFullScreen[ 0 ] = !isFullScreen[ 0 ];
+					}
+				}
+			} );
+
 			primaryStage.show();
 		}
 
@@ -139,6 +266,7 @@ public class ViewerPanalJFX
 				final ViewerPanel viewer1 = makeViewer( sacsWildcard, 1, new CacheControl.Dummy(), swingNode1, root );
 				final ViewerPanel viewer2 = makeViewer( sacsWildcard, 1, new CacheControl.Dummy(), swingNode2, root );
 				final ViewerPanel viewer3 = makeViewer( sacsWildcard, 1, new CacheControl.Dummy(), swingNode3, root );
+
 
 
 				swingNode1.setVisible( true );
