@@ -17,8 +17,6 @@ import net.imglib2.img.basictypeaccess.volatiles.array.VolatileIntArray;
  */
 public class LabelblkVolatileArrayLoader implements CacheArrayLoader< VolatileIntArray >
 {
-	private VolatileIntArray theEmptyArray;
-
 	private final String apiUrl;
 	private final String nodeId;
 	private final String dataInstanceId;
@@ -31,7 +29,6 @@ public class LabelblkVolatileArrayLoader implements CacheArrayLoader< VolatileIn
 			final int[] blockDimensions,
 			final int argbMask )
 	{
-		theEmptyArray = new VolatileIntArray( 1, false );
 		this.apiUrl = apiUrl;
 		this.nodeId = nodeId;
 		this.dataInstanceId = dataInstanceId;
@@ -150,16 +147,5 @@ public class LabelblkVolatileArrayLoader implements CacheArrayLoader< VolatileIn
 					Arrays.toString( dimensions ) );
 		}
 		return new VolatileIntArray( data, true );
-	}
-
-	@Override
-	public VolatileIntArray emptyArray( final int[] dimensions )
-	{
-		int numEntities = 1;
-		for ( int i = 0; i < dimensions.length; ++i )
-			numEntities *= dimensions[ i ];
-		if ( theEmptyArray.getCurrentStorageArray().length < numEntities )
-			theEmptyArray = new VolatileIntArray( numEntities, false );
-		return theEmptyArray;
 	}
 }

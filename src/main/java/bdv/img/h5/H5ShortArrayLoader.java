@@ -16,8 +16,6 @@ import net.imglib2.img.basictypeaccess.volatiles.array.VolatileShortArray;
  */
 public class H5ShortArrayLoader implements CacheArrayLoader< VolatileShortArray >
 {
-	private VolatileShortArray theEmptyArray;
-
 	final private IHDF5ShortReader reader;
 
 	final private String dataset;
@@ -26,7 +24,6 @@ public class H5ShortArrayLoader implements CacheArrayLoader< VolatileShortArray 
 			final IHDF5Reader reader,
 			final String dataset )
 	{
-		theEmptyArray = new VolatileShortArray( 1, false );
 		this.reader = reader.int16();
 		this.dataset = dataset;
 	}
@@ -66,19 +63,5 @@ public class H5ShortArrayLoader implements CacheArrayLoader< VolatileShortArray 
 		}
 
 		return new VolatileShortArray( data, true );
-	}
-
-	/**
-	 * Reuses the existing empty array if it already has the desired size.
-	 */
-	@Override
-	public VolatileShortArray emptyArray( final int[] dimensions )
-	{
-		int numEntities = 1;
-		for ( int i = 0; i < dimensions.length; ++i )
-			numEntities *= dimensions[ i ];
-		if ( theEmptyArray.getCurrentStorageArray().length < numEntities )
-			theEmptyArray = new VolatileShortArray( numEntities, false );
-		return theEmptyArray;
 	}
 }
