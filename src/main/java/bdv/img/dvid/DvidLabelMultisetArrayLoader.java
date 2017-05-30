@@ -82,8 +82,7 @@ public class DvidLabelMultisetArrayLoader implements CacheArrayLoader< VolatileL
 		return new VolatileLabelMultisetArray( data, listData, true );
 	}
 
-	@Override
-	public VolatileLabelMultisetArray emptyArray( final int[] dimensions )
+	private VolatileLabelMultisetArray emptyArray( final int[] dimensions )
 	{
 		int numEntities = 1;
 		for ( int i = 0; i < dimensions.length; ++i )

@@ -19,12 +19,12 @@ public class DownscalingVolatileSuperVoxelMultisetArrayLoaderDvid implements Cac
 	private VolatileLabelMultisetArray theEmptyArray;
 
 	private final MultisetSource multisetSource;
-	
+
 	// store the data sets for reading/writing cached SuperVoxelMultisetArray
 	// from dvid store for levels > 0
 	private final DatasetKeyValue[] dvidStores;
 
-	public DownscalingVolatileSuperVoxelMultisetArrayLoaderDvid( final MultisetSource multisetSource, DatasetKeyValue[] dvidStores )
+	public DownscalingVolatileSuperVoxelMultisetArrayLoaderDvid( final MultisetSource multisetSource, final DatasetKeyValue[] dvidStores )
 	{
 		theEmptyArray = new VolatileLabelMultisetArray( 1, false );
 		this.multisetSource = multisetSource;
@@ -44,10 +44,10 @@ public class DownscalingVolatileSuperVoxelMultisetArrayLoaderDvid implements Cac
 //				);
 //		final String filename = getFilename( timepoint, setup, level, min );
 		// level 0 does not have an associated data set, thus need to subtract 1
-		RandomAccessibleInterval< LabelMultisetType > source = multisetSource.getSource( timepoint, level );
+		final RandomAccessibleInterval< LabelMultisetType > source = multisetSource.getSource( timepoint, level );
 
-		int strideByDimensionSource = 1 << level;
-		int nElementsPerSource = strideByDimensionSource * strideByDimensionSource * strideByDimensionSource;
+		final int strideByDimensionSource = 1 << level;
+		final int nElementsPerSource = strideByDimensionSource * strideByDimensionSource * strideByDimensionSource;
 
 		if (
 				// TODO Adapt if source dimensions are corrected (right now, it's the dimension of the
@@ -59,14 +59,14 @@ public class DownscalingVolatileSuperVoxelMultisetArrayLoaderDvid implements Cac
 			return createOutOfBoundsOnlyZeros( dimensions, nElementsPerSource );
 		}
 
-		DatasetKeyValue store = dvidStores[ level - 1 ]; // -1? TODO
-		String key = getKey( timepoint, setup, min );
+		final DatasetKeyValue store = dvidStores[ level - 1 ]; // -1? TODO
+		final String key = getKey( timepoint, setup, min );
 		final VolatileLabelMultisetArray cached = tryLoadCached( dimensions, store, key );
 		if ( cached != null )
 			return cached;
 
-		int strideByDimensionInput = 1 << ( level - 1 ); // need to get the stride of previous (aka input) level
-		int nElementsPerInputPixel = strideByDimensionInput * strideByDimensionInput * strideByDimensionInput;
+		final int strideByDimensionInput = 1 << ( level - 1 ); // need to get the stride of previous (aka input) level
+		final int nElementsPerInputPixel = strideByDimensionInput * strideByDimensionInput * strideByDimensionInput;
 		final RandomAccessibleInterval< LabelMultisetType > input = multisetSource.getSource( timepoint, level - 1 );
 		final int[] factors = new int[] { 2, 2, 2 }; // for now 2,2,2
 		return downscale( input, factors, dimensions, min, store, key, nElementsPerInputPixel );
@@ -345,7 +345,6 @@ public class DownscalingVolatileSuperVoxelMultisetArrayLoaderDvid implements Cac
 		return new VolatileLabelMultisetArray( data, listData, true );
 	}
 
-	@Override
 	public VolatileLabelMultisetArray emptyArray( final int[] dimensions )
 	{
 		int numEntities = 1;
@@ -356,7 +355,7 @@ public class DownscalingVolatileSuperVoxelMultisetArrayLoaderDvid implements Cac
 		return theEmptyArray;
 	}
 
-	private VolatileLabelMultisetArray createOutOfBoundsOnlyZeros( int[] dimensions, int nElementsPerSource )
+	private VolatileLabelMultisetArray createOutOfBoundsOnlyZeros( final int[] dimensions, final int nElementsPerSource )
 	{
 		final int nElements = dimensions[ 0 ] * dimensions[ 1 ] * dimensions[ 2 ];
 		final int[] data = new int[ nElements ];

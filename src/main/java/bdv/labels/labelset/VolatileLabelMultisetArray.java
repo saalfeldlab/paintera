@@ -1,11 +1,14 @@
 package bdv.labels.labelset;
 
+import bdv.img.cache.DefaultEmptyArrayCreator;
 import net.imglib2.img.basictypeaccess.volatiles.VolatileAccess;
-import net.imglib2.img.basictypeaccess.volatiles.array.AbstractVolatileArray;
+import net.imglib2.img.basictypeaccess.volatiles.VolatileArrayDataAccess;
 
 
-public class VolatileLabelMultisetArray extends AbstractVolatileArray< VolatileLabelMultisetArray > implements VolatileAccess
+public class VolatileLabelMultisetArray implements VolatileAccess, VolatileArrayDataAccess< VolatileLabelMultisetArray >
 {
+	private boolean isValid = false;
+
 	private final int[] data;
 
 	private final MappedAccessData< LongMappedAccess > listData;
@@ -14,11 +17,11 @@ public class VolatileLabelMultisetArray extends AbstractVolatileArray< VolatileL
 
 	public VolatileLabelMultisetArray( final int numEntities, final boolean isValid )
 	{
-		super( isValid );
 		this.data = new int[ numEntities ];
 		listData = LongMappedAccessData.factory.createStorage( 16 );
 		listDataUsedSizeInBytes = 0;
 		new MappedObjectArrayList<>( LabelMultisetEntry.type, listData, 0 ).add( new LabelMultisetEntry() );
+		this.isValid = isValid;
 	}
 
 	public VolatileLabelMultisetArray(
@@ -35,10 +38,10 @@ public class VolatileLabelMultisetArray extends AbstractVolatileArray< VolatileL
 			final long listDataUsedSizeInBytes,
 			final boolean isValid )
 	{
-		super( isValid );
 		this.data = data;
 		this.listData = listData;
 		this.listDataUsedSizeInBytes = listDataUsedSizeInBytes;
+		this.isValid = isValid;
 	}
 
 	public void getValue( final int index, final LabelMultisetEntryList ref )
@@ -50,6 +53,12 @@ public class VolatileLabelMultisetArray extends AbstractVolatileArray< VolatileL
 	public VolatileLabelMultisetArray createArray( final int numEntities )
 	{
 		return new VolatileLabelMultisetArray( numEntities, true );
+	}
+
+	@Override
+	public VolatileLabelMultisetArray createArray( final int numEntities, final boolean isValid )
+	{
+		return new VolatileLabelMultisetArray( numEntities, isValid );
 	}
 
 	@Override
@@ -67,4 +76,12 @@ public class VolatileLabelMultisetArray extends AbstractVolatileArray< VolatileL
 	{
 		return listDataUsedSizeInBytes;
 	}
+
+	@Override
+	public boolean isValid()
+	{
+		return isValid;
+	}
+
+	public static DefaultEmptyArrayCreator< VolatileLabelMultisetArray > emptyArrayCreator = new DefaultEmptyArrayCreator<>( new VolatileLabelMultisetArray( 1, false ) );
 }

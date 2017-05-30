@@ -43,7 +43,7 @@ abstract public class AbstractARGBConvertedLabelsSource implements Source< Volat
 
 	@Override
 	abstract public RandomAccessibleInterval< VolatileARGBType > getSource( final int t, final int level );
-	
+
 	@Override
 	public RealRandomAccessible< VolatileARGBType > getInterpolatedSource( final int t, final int level, final Interpolation method )
 	{

@@ -135,7 +135,7 @@ public class Util
 		defaultFontField.setAccessible( true );
 		final Font defaultFont = ( Font ) defaultFontField.get( styleFactory );
 		FontUIResource newFontUI;
-		newFontUI = new FontUIResource( defaultFont.deriveFont( ( float )( defaultFont.getSize() - 2f ) ) );
+		newFontUI = new FontUIResource( defaultFont.deriveFont( defaultFont.getSize() - 2f ) );
 		defaultFontField.set( styleFactory, newFontUI );
 
 		final Field stylesCacheField = styleFactory.getClass().getDeclaredField( "stylesCache" );
@@ -147,7 +147,7 @@ public class Util
 			final Field f = mo.getClass().getDeclaredField( "font" );
 			f.setAccessible( true );
 			final Font fo = ( Font ) f.get( mo );
-			f.set( mo, fo.deriveFont( ( float ) ( fo.getSize() - 2f ) ) );
+			f.set( mo, fo.deriveFont( fo.getSize() - 2f ) );
 		}
 	}
 
@@ -207,11 +207,12 @@ public class Util
 			setCache.setCache( imgLoader.getCacheControl() );
 
 		/* composites */
-		final HashMap< Source< ? >, Composite< ARGBType, ARGBType > > sourceCompositesMap = new HashMap< Source< ? >, Composite< ARGBType, ARGBType > >();
+		final HashMap< Source< ? extends ARGBType >, Composite< ARGBType, ARGBType > > sourceCompositesMap = new HashMap<>();
 		for ( int i = 0; i < composites.size(); ++i )
-			sourceCompositesMap.put( sources.get( i ).getSpimSource(), composites.get( i ) );
+			sourceCompositesMap.put( ( Source< ? extends ARGBType > ) sources.get( i ).getSpimSource(), composites.get( i ) );
 
-		final AccumulateProjectorFactory< ARGBType > projectorFactory = new CompositeProjector.CompositeProjectorFactory< ARGBType >( sourceCompositesMap );
+		final AccumulateProjectorFactory< ARGBType > projectorFactory =
+				new CompositeProjector.CompositeProjectorFactory< ARGBType >( sourceCompositesMap );
 
 		ViewerOptions options = ViewerOptions.options()
 				.accumulateProjectorFactory( projectorFactory )
