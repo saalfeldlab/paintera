@@ -63,7 +63,8 @@ public class H5LabelMultisetSetupImageLoader
 			final String dataset,
 			final int setupId,
 			final int[] blockDimension,
-			final double[] resolution ) throws IOException
+			final double[] resolution,
+			final double[] offset ) throws IOException
 	{
 		super(
 				reader,
@@ -71,6 +72,7 @@ public class H5LabelMultisetSetupImageLoader
 				setupId,
 				blockDimension,
 				resolution,
+				offset,
 				new LabelMultisetType(),
 				new VolatileLabelMultisetType(),
 				typedLoader( reader, scaleReader, dataset ) );
@@ -127,7 +129,7 @@ public class H5LabelMultisetSetupImageLoader
 			final int setupId,
 			final int[] blockDimension ) throws IOException
 	{
-		this( reader, scaleReader, dataset, setupId, blockDimension, readResolution( reader, dataset ) );
+		this( reader, scaleReader, dataset, setupId, blockDimension, readResolution( reader, dataset ), readOffset( reader, dataset ) );
 	}
 
 	@Override
