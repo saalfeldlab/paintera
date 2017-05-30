@@ -1,6 +1,7 @@
 package bdv.bigcat;
 
 import java.awt.Dimension;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
@@ -10,16 +11,16 @@ import java.util.stream.Collectors;
 import javax.swing.JComponent;
 import javax.swing.SwingUtilities;
 
+import org.scijava.ui.behaviour.DragBehaviour;
 import org.scijava.ui.behaviour.MouseAndKeyHandler;
 import org.scijava.ui.behaviour.io.InputTriggerConfig;
+import org.scijava.ui.behaviour.util.Behaviours;
 import org.scijava.ui.behaviour.util.InputActionBindings;
 import org.scijava.ui.behaviour.util.TriggerBehaviourBindings;
 
-import bdv.BehaviourTransformEventHandler;
 import bdv.cache.CacheControl;
 import bdv.util.AxisOrder;
 import bdv.util.BdvFunctions;
-import bdv.viewer.NavigationActions;
 import bdv.viewer.SourceAndConverter;
 import bdv.viewer.ViewerPanel;
 import javafx.application.Application;
@@ -49,6 +50,7 @@ import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.type.numeric.ARGBType;
 import net.imglib2.type.numeric.real.FloatType;
 import net.imglib2.ui.TransformEventHandler;
+import net.imglib2.ui.TransformListener;
 
 public class ViewerPanalJFX
 {
@@ -265,8 +267,7 @@ public class ViewerPanalJFX
 		private void createSwingContent( final SwingNode swingNode1, final SwingNode swingNode2, final SwingNode swingNode3, final Pane root )
 		{
 			SwingUtilities.invokeLater( () -> {
-				// this is just temporary: sleep until all javafx is set up to
-				// avoid width == 0 or height == 0 exceptions
+				// this is just temporary: sleep until all javafx is set up to avoid width == 0 or height == 0 exceptions
 				try
 				{
 					Thread.sleep( 100 );
@@ -291,16 +292,62 @@ public class ViewerPanalJFX
 				final List< SourceAndConverter< FloatType > > sacs = BdvFunctions.toSourceAndConverter( rai, conv, AxisOrder.XYZ, tf, "ok" );
 				final List< SourceAndConverter< ? > > sacsWildcard = sacs.stream().map( sac -> (SourceAndConverter< ? >)sac ).collect( Collectors.toList() );
 
-				final ViewerPanel viewer1 = makeViewer( sacsWildcard, 1, new CacheControl.Dummy(), swingNode1, root );
-				final ViewerPanel viewer2 = makeViewer( sacsWildcard, 1, new CacheControl.Dummy(), swingNode2, root );
-				final ViewerPanel viewer3 = makeViewer( sacsWildcard, 1, new CacheControl.Dummy(), swingNode3, root );
+				final GlobalTransformManager gm = new GlobalTransformManager( new AffineTransform3D() );
 
-				swingNode1.setVisible( true );
-				swingNode2.setVisible( true );
-				swingNode3.setVisible( true );
-				viewer1.setVisible( true );
-				viewer2.setVisible( true );
-				viewer3.setVisible( true );
+				gm.setTransform( new AffineTransform3D() );
+
+				final AffineTransform3D tf1 = new AffineTransform3D();
+				final AffineTransform3D tf2 = new AffineTransform3D();
+				final AffineTransform3D tf3 = new AffineTransform3D();
+				tf2.rotate( 1, Math.PI / 2 );
+				tf3.rotate( 0, -Math.PI / 2 );
+
+				tf2.set( tf2.copy() );
+				tf3.set( tf3.copy() );
+
+				System.out.println( "WAS IST DA LOS?" );
+				System.out.println( tf2 );
+				System.out.println( tf2.inverse() );
+
+				final ViewerPanel viewer1 = makeViewer( sacsWildcard, 1, new CacheControl.Dummy(), swingNode1, root, gm, tf1 );
+				final ViewerPanel viewer2 = makeViewer( sacsWildcard, 1, new CacheControl.Dummy(), swingNode2, root, gm, tf2 );
+				final ViewerPanel viewer3 = makeViewer( sacsWildcard, 1, new CacheControl.Dummy(), swingNode3, root, gm, tf3 );
+
+				viewer1.setPreferredSize( new Dimension( 200, 200 ) );
+				viewer2.setPreferredSize( new Dimension( 200, 200 ) );
+				viewer3.setPreferredSize( new Dimension( 200, 200 ) );
+
+				final AffineTransform3D translation = new AffineTransform3D();
+				translation.translate( rai.dimension( 0 ) / 2 * 1e-1, rai.dimension( 1 ) / 2 * 1e-1, rai.dimension( 2 ) / 2 * 1e-1 );
+
+
+				final AffineTransform3D scale = new AffineTransform3D();
+				scale.scale( 1e-1 );
+				gm.preConcatenate( scale );
+
+//				gm.setTransform( translation );
+
+//				final Thread t = new Thread( () -> {
+//					final AffineTransform3D rotation = new AffineTransform3D();
+//					rotation.rotate( 0, 0.1 );
+////					rotation.rotate( 1, 0.2 );
+//					while ( !Thread.currentThread().isInterrupted() )
+//					{
+//						try
+//						{
+//							Thread.sleep( 100 );
+//						}
+//						catch ( final InterruptedException e )
+//						{
+//							// TODO Auto-generated catch block
+//							e.printStackTrace();
+//						}
+//						gm.concatenate( rotation );
+//					}
+//				} );
+//
+//				t.start();
+
 			} );
 		}
 	}
@@ -310,7 +357,9 @@ public class ViewerPanalJFX
 			final int numTimePoints,
 			final CacheControl cacheControl,
 			final SwingNode swingNode,
-			final Pane root )
+			final Pane root,
+			final GlobalTransformManager gm,
+			final AffineTransform3D tf )
 	{
 
 		final ViewerPanel viewer = new ViewerPanel( sacs, numTimePoints, cacheControl );
@@ -320,16 +369,20 @@ public class ViewerPanalJFX
 		final TriggerBehaviourBindings triggerbindings = new TriggerBehaviourBindings();
 		final InputTriggerConfig inputTriggerConfig = new InputTriggerConfig();
 
+		final ViewerTransformManager vtm = new ViewerTransformManager( gm, tf, viewer );
+		viewer.getDisplay().setTransformEventHandler( vtm );
+		vtm.install( triggerbindings );
+
 		final MouseAndKeyHandler mouseAndKeyHandler = new MouseAndKeyHandler();
 		mouseAndKeyHandler.setInputMap( triggerbindings.getConcatenatedInputTriggerMap() );
 		mouseAndKeyHandler.setBehaviourMap( triggerbindings.getConcatenatedBehaviourMap() );
 		viewer.getDisplay().addHandler( mouseAndKeyHandler );
 
-		final TransformEventHandler< ? > tfHandler = viewer.getDisplay().getTransformEventHandler();
-		if ( tfHandler instanceof BehaviourTransformEventHandler )
-			( ( BehaviourTransformEventHandler< ? > ) tfHandler ).install( triggerbindings );
-
-		NavigationActions.installActionBindings( keybindings, viewer, inputTriggerConfig );
+//		final TransformEventHandler< ? > tfHandler = viewer.getDisplay().getTransformEventHandler();
+//		if ( tfHandler instanceof BehaviourTransformEventHandler )
+//			( ( BehaviourTransformEventHandler< ? > ) tfHandler ).install( triggerbindings );
+//
+//		NavigationActions.installActionBindings( keybindings, viewer, inputTriggerConfig );
 
 		swingNode.setContent( viewer );
 		SwingUtilities.replaceUIActionMap( viewer.getRootPane(), keybindings.getConcatenatedActionMap() );
@@ -338,4 +391,220 @@ public class ViewerPanalJFX
 		return viewer;
 	}
 
+	public static class GlobalTransformManager
+	{
+
+		private final ArrayList< TransformListener< AffineTransform3D > > listeners;
+
+		private final AffineTransform3D affine;
+
+		public GlobalTransformManager( final AffineTransform3D affine, final TransformListener< AffineTransform3D >... listeners )
+		{
+			this( affine, Arrays.asList( listeners ) );
+		}
+
+		public GlobalTransformManager( final AffineTransform3D affine, final List< TransformListener< AffineTransform3D > > listeners )
+		{
+			super();
+			this.listeners = new ArrayList<>( listeners );
+			this.affine = affine;
+		}
+
+		public synchronized void setTransform( final AffineTransform3D affine )
+		{
+			this.affine.set( affine );
+			notifyListeners();
+		}
+
+		public void addListener( final TransformListener< AffineTransform3D > listener )
+		{
+			this.listeners.add( listener );
+		}
+
+		public synchronized void preConcatenate( final AffineTransform3D transform )
+		{
+			this.affine.preConcatenate( transform );
+			notifyListeners();
+		}
+
+		public synchronized void concatenate( final AffineTransform3D transform )
+		{
+			this.affine.concatenate( transform );
+			notifyListeners();
+		}
+
+		private synchronized void notifyListeners()
+		{
+			for ( final TransformListener< AffineTransform3D > l : listeners )
+				l.transformChanged( this.affine );
+		}
+
+	}
+
+	public static class ViewerTransformManager implements TransformListener< AffineTransform3D >, TransformEventHandler< AffineTransform3D >
+	{
+
+		public ViewerTransformManager(
+				final GlobalTransformManager manager,
+				final AffineTransform3D globalToViewer,
+				final TransformListener< AffineTransform3D > listener )
+		{
+			super();
+			this.manager = manager;
+			this.globalToViewer = globalToViewer;
+			this.listener = listener;
+			this.manager.addListener( this );
+			this.canvasH = 1;
+			this.canvasW = 1;
+			this.centerX = this.canvasW / 2;
+			this.centerY = this.canvasH / 2;
+
+			behaviours = new Behaviours( config, "bdv" );
+
+			behaviours.behaviour( new TranslateXY(), "drag translate", "button2", "button3" );
+		}
+
+		private final GlobalTransformManager manager;
+
+		private final InputTriggerConfig config = new InputTriggerConfig();
+
+		private final AffineTransform3D global = new AffineTransform3D();
+
+		private final AffineTransform3D concatenated = new AffineTransform3D();
+
+		private final AffineTransform3D displayTransform = new AffineTransform3D();
+
+		private final AffineTransform3D globalToViewer;
+
+		private TransformListener< AffineTransform3D > listener;
+
+		private final Behaviours behaviours;
+
+		private int canvasW = 1, canvasH = 1;
+
+		private int centerX = 0, centerY = 0;
+
+		private void notifyListener()
+		{
+			final AffineTransform3D copy = concatenated.copy();
+//			copy.preConcatenate( globalToViewer );
+//			System.out.println( copy );
+			listener.transformChanged( copy );
+		}
+
+		private synchronized void update()
+		{
+			concatenated.set( global );
+			concatenated.preConcatenate( globalToViewer );
+//			System.out.println( "UPDATE " + displayTransform );
+			concatenated.preConcatenate( displayTransform );
+			notifyListener();
+		}
+
+		@Override
+		public synchronized void setTransform( final AffineTransform3D transform )
+		{
+			global.set( transform );
+			update();
+		}
+
+		@Override
+		public synchronized void transformChanged( final AffineTransform3D transform )
+		{
+			setTransform( transform );
+		}
+
+		@Override
+		public void setCanvasSize( final int width, final int height, final boolean updateTransform )
+		{
+			if ( width == 0 || height == 0 )
+				return;
+//			System.out.println( "setCanvasSize " + width + " " + height + " " + displayTransform + " " + canvasW + " " + canvasH );
+			if ( updateTransform ) // && false )
+				synchronized ( this )
+				{
+					displayTransform.set( displayTransform.get( 0, 3 ) - canvasW / 2, 0, 3 );
+					displayTransform.set( displayTransform.get( 1, 3 ) - canvasH / 2, 1, 3 );
+					displayTransform.scale( ( double ) width / canvasW );
+					displayTransform.set( displayTransform.get( 0, 3 ) + width / 2, 0, 3 );
+					displayTransform.set( displayTransform.get( 1, 3 ) + height / 2, 1, 3 );
+					update();
+					notifyListener();
+				}
+			canvasW = width;
+			canvasH = height;
+			centerX = width / 2;
+			centerY = height / 2;
+		}
+
+		@Override
+		public synchronized AffineTransform3D getTransform()
+		{
+			return concatenated.copy();
+		}
+
+		@Override
+		public void setTransformListener( final TransformListener< AffineTransform3D > transformListener )
+		{
+			this.listener = listener;
+		}
+
+		@Override
+		public String getHelpString()
+		{
+			return "TODO";
+		}
+
+		public void install( final TriggerBehaviourBindings bindings )
+		{
+			behaviours.install( bindings, "transform" );
+		}
+
+		private class TranslateXY implements DragBehaviour
+		{
+
+			private int oX, oY;
+
+			private final double[] delta = new double[ 3 ];
+
+			private final AffineTransform3D affineDrag = new AffineTransform3D();
+
+			@Override
+			public synchronized void init( final int x, final int y )
+			{
+				synchronized ( global )
+				{
+					this.oX = x;
+					this.oY = y;
+					affineDrag.set( global );
+				}
+			}
+
+			@Override
+			public synchronized void drag( final int x, final int y )
+			{
+				synchronized ( global )
+				{
+					final double dX = ( x - oX ) / displayTransform.get( 0, 0 );
+					final double dY = ( y - oY ) / displayTransform.get( 0, 0 );
+					global.set( affineDrag );
+					delta[ 0 ] = dX;
+					delta[ 1 ] = dY;
+					delta[ 2 ] = 0.0;
+
+
+					globalToViewer.applyInverse( delta, delta );
+					for ( int d = 0; d < delta.length; ++d )
+						global.set( global.get( d, 3 ) + delta[ d ], d, 3 );
+					manager.setTransform( global );
+				}
+
+			}
+
+			@Override
+			public void end( final int x, final int y )
+			{}
+		}
+
+	}
 }
