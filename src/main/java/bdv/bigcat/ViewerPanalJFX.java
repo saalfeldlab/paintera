@@ -13,6 +13,7 @@ import javax.swing.SwingUtilities;
 
 import org.scijava.ui.behaviour.DragBehaviour;
 import org.scijava.ui.behaviour.MouseAndKeyHandler;
+import org.scijava.ui.behaviour.ScrollBehaviour;
 import org.scijava.ui.behaviour.io.InputTriggerConfig;
 import org.scijava.ui.behaviour.util.Behaviours;
 import org.scijava.ui.behaviour.util.InputActionBindings;
@@ -321,32 +322,9 @@ public class ViewerPanalJFX
 				translation.translate( rai.dimension( 0 ) / 2 * 1e-1, rai.dimension( 1 ) / 2 * 1e-1, rai.dimension( 2 ) / 2 * 1e-1 );
 
 
-				final AffineTransform3D scale = new AffineTransform3D();
-				scale.scale( 1e-1 );
-				gm.preConcatenate( scale );
-
-//				gm.setTransform( translation );
-
-//				final Thread t = new Thread( () -> {
-//					final AffineTransform3D rotation = new AffineTransform3D();
-//					rotation.rotate( 0, 0.1 );
-////					rotation.rotate( 1, 0.2 );
-//					while ( !Thread.currentThread().isInterrupted() )
-//					{
-//						try
-//						{
-//							Thread.sleep( 100 );
-//						}
-//						catch ( final InterruptedException e )
-//						{
-//							// TODO Auto-generated catch block
-//							e.printStackTrace();
-//						}
-//						gm.concatenate( rotation );
-//					}
-//				} );
-//
-//				t.start();
+//				final AffineTransform3D scale = new AffineTransform3D();
+//				scale.scale( 1e-1 );
+//				gm.preConcatenate( scale );
 
 			} );
 		}
@@ -444,6 +422,38 @@ public class ViewerPanalJFX
 	public static class ViewerTransformManager implements TransformListener< AffineTransform3D >, TransformEventHandler< AffineTransform3D >
 	{
 
+		final String DRAG_TRANSLATE = "drag translate";
+
+		final String ZOOM_NORMAL = "scroll zoom";
+
+		final String SELECT_AXIS_X = "axis x";
+
+		final String SELECT_AXIS_Y = "axis y";
+
+		final String SELECT_AXIS_Z = "axis z";
+
+		final double[] speed = { 1.0, 10.0, 0.1 };
+
+		final String[] SPEED_NAME = { "", " fast", " slow" };
+
+		final String[] speedMod = { "", "shift ", "ctrl " };
+
+		final String DRAG_ROTATE = "drag rotate";
+
+		final String SCROLL_Z = "scroll browse z";
+
+		final String ROTATE_LEFT = "rotate left";
+
+		final String ROTATE_RIGHT = "rotate right";
+
+		final String KEY_ZOOM_IN = "zoom in";
+
+		final String KEY_ZOOM_OUT = "zoom out";
+
+		final String KEY_FORWARD_Z = "forward z";
+
+		final String KEY_BACKWARD_Z = "backward z";
+
 		public ViewerTransformManager(
 				final GlobalTransformManager manager,
 				final AffineTransform3D globalToViewer,
@@ -462,6 +472,9 @@ public class ViewerPanalJFX
 			behaviours = new Behaviours( config, "bdv" );
 
 			behaviours.behaviour( new TranslateXY(), "drag translate", "button2", "button3" );
+			behaviours.behaviour( new Zoom( speed[ 0 ] ), ZOOM_NORMAL, "meta scroll", "ctrl shift scroll" );
+			for ( int s = 0; s < 3; ++s )
+				behaviours.behaviour( new TranslateZ( speed[ s ] ), SCROLL_Z + SPEED_NAME[ s ], speedMod[ s ] + "scroll" );
 		}
 
 		private final GlobalTransformManager manager;
@@ -604,6 +617,63 @@ public class ViewerPanalJFX
 			@Override
 			public void end( final int x, final int y )
 			{}
+		}
+
+		private class TranslateZ implements ScrollBehaviour
+		{
+			private final double speed;
+
+			private final double[] delta = new double[ 3 ];
+
+			public TranslateZ( final double speed )
+			{
+				this.speed = speed;
+			}
+
+			@Override
+			public void scroll( final double wheelRotation, final boolean isHorizontal, final int x, final int y )
+			{
+				synchronized ( global )
+				{
+					delta[ 0 ] = 0;
+					delta[ 1 ] = 0;
+					delta[ 2 ] = speed * -wheelRotation;
+					globalToViewer.applyInverse( delta, delta );
+					final AffineTransform3D shift = new AffineTransform3D();
+					shift.translate( delta );
+					manager.preConcatenate( shift );
+				}
+			}
+		}
+
+		private class Zoom implements ScrollBehaviour
+		{
+			private final double speed;
+
+			public Zoom( final double speed )
+			{
+				this.speed = speed;
+			}
+
+			@Override
+			public void scroll( final double wheelRotation, final boolean isHorizontal, final int x, final int y )
+			{
+				synchronized ( global )
+				{
+					final double[] location = new double[] { x, y, 0 };
+					concatenated.applyInverse( location, location );
+					final double s = speed * wheelRotation;
+					final double dScale = 1.0 + 0.05;
+					final double scale = s > 0 ? 1.0 / dScale : dScale;
+					global.scale( scale );
+					global.apply( location, location );
+					globalToViewer.apply( location, location );
+					displayTransform.apply( location, location );
+					displayTransform.set( displayTransform.get( 0, 3 ) + x - location[ 0 ], 0, 3 );
+					displayTransform.set( displayTransform.get( 1, 3 ) + y - location[ 1 ], 1, 3 );
+					manager.setTransform( global );
+				}
+			}
 		}
 
 	}
