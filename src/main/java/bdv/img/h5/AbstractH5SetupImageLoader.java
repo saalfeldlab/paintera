@@ -28,8 +28,8 @@ import net.imglib2.util.Fraction;
  * @author Stephan Saalfeld <saalfelds@janelia.hhmi.org>
  */
 abstract public class AbstractH5SetupImageLoader< T extends NativeType< T > , V extends Volatile< T >, A extends VolatileAccess >
-	extends AbstractViewerSetupImgLoader< T, V >
-	implements ViewerImgLoader, SetCache
+extends AbstractViewerSetupImgLoader< T, V >
+implements ViewerImgLoader, SetCache
 {
 	final protected double[] resolution;
 
@@ -105,6 +105,13 @@ abstract public class AbstractH5SetupImageLoader< T extends NativeType< T > , V 
 		mipmapTransform.set( resolution[ 1 ], 1, 1 );
 		mipmapTransform.set( resolution[ 2 ], 2, 2 );
 
+//		final double[] offsetPixels = offset.clone();
+//		for ( int d = 0; d < offsetPixels.length; ++d )
+//			offsetPixels[ d ] /= resolution[ d ];
+
+		mipmapTransform.translate( this.offset );
+		System.out.println( "Bring da mipmap! : " + mipmapTransform );
+
 		this.blockDimension = blockDimension;
 
 		cache = new VolatileGlobalCellCache( 1, 10 );
@@ -142,9 +149,9 @@ abstract public class AbstractH5SetupImageLoader< T extends NativeType< T > , V 
 	{
 		final int priority = 0;
 		final CacheHints cacheHints = new CacheHints( loadingStrategy, priority, false );
-		final CellCache< A > c = cache.new VolatileCellCache< A >( timepointId, setupId, level, cacheHints, loader );
-		final VolatileImgCells< A > cells = new VolatileImgCells< A >( c, new Fraction(), dimension, blockDimension );
-		final CachedCellImg< S, A > img = new CachedCellImg< S, A >( cells );
+		final CellCache< A > c = cache.new VolatileCellCache< >( timepointId, setupId, level, cacheHints, loader );
+		final VolatileImgCells< A > cells = new VolatileImgCells< >( c, new Fraction(), dimension, blockDimension );
+		final CachedCellImg< S, A > img = new CachedCellImg< >( cells );
 		return img;
 	}
 
