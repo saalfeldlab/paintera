@@ -172,6 +172,11 @@ public class BigCatViewerJan< P extends BigCatViewerJan.Parameters >
 
 	protected double[] offset = null;
 
+	public BigDataViewer getBigDataViewer()
+	{
+		return bdv;
+	}
+
 	public static void main( final String[] args ) throws Exception
 	{
 		final String[] argv = new String[] {
@@ -187,12 +192,13 @@ public class BigCatViewerJan< P extends BigCatViewerJan.Parameters >
 		run( params );
 	}
 
-	public static void run( final Parameters params ) throws Exception
+	public static BigCatViewerJan< Parameters > run( final Parameters params ) throws Exception
 	{
 
 		final BigCatViewerJan< Parameters > bigCat = new BigCatViewerJan<>();
 		bigCat.init( params );
 		bigCat.setupBdv( params );
+		return bigCat;
 	}
 
 	public BigCatViewerJan() throws Exception
