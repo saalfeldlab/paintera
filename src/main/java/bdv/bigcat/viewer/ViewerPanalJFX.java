@@ -142,6 +142,18 @@ public class ViewerPanalJFX
 
 			this.listeners = new ArrayList<>( Arrays.asList( listeners ) );
 
+			final String pattern = "[0-9]*\\.?[0-9]*";
+
+			this.min.textProperty().addListener( ( ChangeListener< String > ) ( observable, oldValue, newValue ) -> {
+				if ( !newValue.matches( pattern ) )
+					this.min.setText( oldValue );
+			} );
+
+			this.max.textProperty().addListener( ( ChangeListener< String > ) ( observable, oldValue, newValue ) -> {
+				if ( !newValue.matches( pattern ) )
+					this.max.setText( oldValue );
+			} );
+
 		}
 
 	}
