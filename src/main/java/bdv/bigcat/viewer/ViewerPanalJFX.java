@@ -1,4 +1,4 @@
-package bdv.bigcat;
+package bdv.bigcat.viewer;
 
 import java.awt.Dimension;
 import java.util.ArrayList;
@@ -26,10 +26,14 @@ import bdv.viewer.SourceAndConverter;
 import bdv.viewer.ViewerPanel;
 import javafx.application.Application;
 import javafx.beans.value.ChangeListener;
+import javafx.collections.FXCollections;
+import javafx.collections.ObservableList;
 import javafx.embed.swing.SwingNode;
 import javafx.scene.Node;
 import javafx.scene.Scene;
 import javafx.scene.control.Label;
+import javafx.scene.control.ListCell;
+import javafx.scene.control.ListView;
 import javafx.scene.control.Tab;
 import javafx.scene.control.TabPane;
 import javafx.scene.control.TableColumn;
@@ -45,6 +49,7 @@ import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
 import javafx.stage.Stage;
 import net.imglib2.converter.Converter;
+import net.imglib2.converter.RealARGBConverter;
 import net.imglib2.img.Img;
 import net.imglib2.img.array.ArrayImgs;
 import net.imglib2.realtransform.AffineTransform3D;
@@ -55,6 +60,92 @@ import net.imglib2.ui.TransformListener;
 
 public class ViewerPanalJFX
 {
+
+	public static class SetMinMaxCell extends ListCell< SourceAndConverter< ? > >
+	{
+
+		public static interface UpdateListener
+		{
+
+			public void contrastChanged();
+
+		}
+
+		private final GridPane gridPane;
+
+		private final TextField min;
+
+		private final TextField max;
+
+		private final ArrayList< UpdateListener > listeners;
+
+		private void updateMinAndNotify( final RealARGBConverter< ? > conv, final double min )
+		{
+			conv.setMin( min );
+			listeners.forEach( UpdateListener::contrastChanged );
+		}
+
+		private void updateMaxAndNotify( final RealARGBConverter< ? > conv, final double max )
+		{
+			conv.setMax( max );
+			listeners.forEach( UpdateListener::contrastChanged );
+		}
+
+		@Override
+		public void updateItem( final SourceAndConverter< ? > sac, final boolean empty )
+		{
+
+			super.updateItem( sac, empty );
+			if ( empty || sac == null )
+			{
+				setGraphic( null );
+				setText( null );
+			}
+
+			else
+			{
+				System.out.println( "WAAAAT " + sac + " " + empty );
+				if ( sac.getConverter() instanceof RealARGBConverter )
+				{
+					final Converter< ?, ARGBType > conv = sac.getConverter();
+					this.min.setText( ( ( RealARGBConverter ) conv ).getMin() + "" );
+					this.max.setText( ( ( RealARGBConverter ) conv ).getMax() + "" );
+					this.min.setDisable( false );
+					this.max.setDisable( false );
+					this.min.setOnAction( e -> updateMinAndNotify( ( RealARGBConverter ) conv, Double.parseDouble( this.min.getText() ) ) );
+					this.max.setOnAction( e -> updateMaxAndNotify( ( RealARGBConverter ) conv, Double.parseDouble( this.max.getText() ) ) );
+				}
+				else
+				{
+					this.min.setText( "" );
+					this.max.setText( "" );
+					this.min.setDisable( true );
+					this.max.setDisable( true );
+					this.min.setOnAction( e -> {} );
+					this.max.setOnAction( e -> {} );
+
+				}
+				setGraphic( gridPane );
+			}
+		}
+
+		public SetMinMaxCell( final UpdateListener... listeners )
+		{
+			super();
+
+			this.min = new TextField();
+			this.max = new TextField();
+			this.gridPane = new GridPane();
+			this.gridPane.add( this.min, 0, 0 );
+			this.gridPane.add( this.max, 1, 0 );
+			setGraphic( gridPane );
+
+			this.listeners = new ArrayList<>( Arrays.asList( listeners ) );
+
+		}
+
+	}
+
 	public static void main( final String[] args )
 	{
 		Application.launch( MyApplication.class );
@@ -62,6 +153,8 @@ public class ViewerPanalJFX
 
 	public static class MyApplication extends Application
 	{
+
+		private boolean createdViewers;
 
 		public static class GridConstraintsManager
 		{
@@ -153,6 +246,9 @@ public class ViewerPanalJFX
 		@Override
 		public void start( final Stage primaryStage ) throws Exception
 		{
+
+			final List< SourceAndConverter< ? > > sacs = createSourceAndConverter();
+
 //			final StackPane root = new StackPane();
 			final GridPane root = new GridPane();
 
@@ -203,8 +299,20 @@ public class ViewerPanalJFX
 			final VBox jfxStuff = new VBox( 1 );
 			jfxStuff.getChildren().addAll( tf, table );
 			infoPane.getTabs().add( new Tab( "jfx stuff", jfxStuff ) );
-
 			infoPane.getTabs().add( new Tab( "dataset info", new Label( "random floats" ) ) );
+
+
+			final ObservableList< SourceAndConverter< ? > > observableSacs = FXCollections.observableArrayList( sacs );
+			final ListView< SourceAndConverter< ? > > listView = new ListView<>( observableSacs );
+			System.out.println( "sac count: " + sacs.size() );
+			System.out.println( "sacs: " + sacs );
+			System.out.println( "ITEMS: " + listView.getItems() );
+			listView.setCellFactory( param -> new SetMinMaxCell( () -> viewerNodes.forEach( ( viewerNode ) -> {
+				final JComponent content = viewerNode.getContent();
+				if ( content != null && content instanceof ViewerPanel )
+					( (ViewerPanel) content ).requestRepaint();
+			} ) ) );
+			infoPane.getTabs().add( new Tab( "contrast", listView ) );
 
 			final GridConstraintsManager gridConstraintsManager = new GridConstraintsManager();
 
@@ -227,7 +335,7 @@ public class ViewerPanalJFX
 
 			primaryStage.setTitle( "BigCAT" );
 			primaryStage.setScene( scene );
-			createSwingContent( viewerNode1, viewerNode2, viewerNode3, root );
+			final ViewerPanel[] viewers = createSwingContent( sacs, viewerNode1, viewerNode2, viewerNode3, root );
 
 			scene.setOnKeyTyped( event -> {
 				if ( event.getCharacter().equals( "a" ) )
@@ -262,36 +370,67 @@ public class ViewerPanalJFX
 				}
 			} );
 
+//			primaryStage.setOnShowing( e -> {
+////				final Runnable r = () -> {
+////					while ( viewers[ 0 ] == null || viewers[ 1 ] == null || viewers[ 2 ] == null )
+////						try
+////					{
+////							Thread.sleep( 10 );
+////					}
+////					catch ( final InterruptedException e1 )
+////					{
+////						e1.printStackTrace();
+////						return;
+////					}
+//////					final ObservableList< SourceAndConverter< ? > > observableSacs = FXCollections.observableArrayList( sacs );
+//////					final ListView< SourceAndConverter< ? > > listView = new ListView<>( observableSacs );
+//////					System.out.println( "sac count: " + sacs.size() );
+//////					System.out.println( "sacs: " + sacs );
+//////					System.out.println( "ITEMS: " + listView.getItems() );
+//////					listView.setCellFactory( param -> new SetMinMaxCell( () -> Arrays.asList( viewers ).forEach( ViewerPanel::requestRepaint ) ) );
+//////					infoPane.getTabs().add( new Tab( "contrast", listView ) );
+////				};
+////				final Thread t = new Thread( r );
+////				t.start();
+//			} );
+
 			primaryStage.show();
 		}
 
-		private void createSwingContent( final SwingNode swingNode1, final SwingNode swingNode2, final SwingNode swingNode3, final Pane root )
+		protected List< SourceAndConverter< ? > > createSourceAndConverter() {
+			final Random rng = new Random( 100 );
+			final Img< FloatType > rai = ArrayImgs.floats( 100, 200, 300 );
+
+			for ( final FloatType f1 : rai )
+				f1.set( rng.nextFloat() );
+
+//			final Converter< FloatType, ARGBType > conv = ( s, t ) -> {
+//				t.set( ARGBType.rgba( 0, s.getRealDouble() * 255, 0, 0 ) );
+//			};
+			final RealARGBConverter< FloatType > conv = new RealARGBConverter<>( 0.0, 1.0 );
+
+			final AffineTransform3D tf = new AffineTransform3D();
+
+			final List< SourceAndConverter< FloatType > > sacs = BdvFunctions.toSourceAndConverter( rai, conv, AxisOrder.XYZ, tf, "ok" );
+			final List< SourceAndConverter< ? > > sacsWildcard = sacs.stream().map( sac -> (SourceAndConverter< ? >)sac ).collect( Collectors.toList() );
+			return sacsWildcard;
+		}
+
+		private ViewerPanel[] createSwingContent( final List< SourceAndConverter< ? > > sacsWildcard, final SwingNode swingNode1, final SwingNode swingNode2, final SwingNode swingNode3, final Pane root )
 		{
+			final ViewerPanel[] viewers = new ViewerPanel[ 3 ];
 			SwingUtilities.invokeLater( () -> {
 				// this is just temporary: sleep until all javafx is set up to avoid width == 0 or height == 0 exceptions
 				try
 				{
-					Thread.sleep( 100 );
+//					System.out.println( swingNode1.isVisible() + " " + swingNode2.isVisible() + " " + swingNode3.isVisible() );
+					Thread.sleep( 1000 );
 				}
 				catch ( final InterruptedException e )
 				{
 					// TODO Auto-generated catch block
 					e.printStackTrace();
 				}
-				final Random rng = new Random( 100 );
-				final Img< FloatType > rai = ArrayImgs.floats( 100, 200, 300 );
-
-				for ( final FloatType f1 : rai )
-					f1.set( rng.nextFloat() );
-
-				final Converter< FloatType, ARGBType > conv = ( s, t ) -> {
-					t.set( ARGBType.rgba( 0, s.getRealDouble() * 255, 0, 0 ) );
-				};
-
-				final AffineTransform3D tf = new AffineTransform3D();
-
-				final List< SourceAndConverter< FloatType > > sacs = BdvFunctions.toSourceAndConverter( rai, conv, AxisOrder.XYZ, tf, "ok" );
-				final List< SourceAndConverter< ? > > sacsWildcard = sacs.stream().map( sac -> (SourceAndConverter< ? >)sac ).collect( Collectors.toList() );
 
 				final GlobalTransformManager gm = new GlobalTransformManager( new AffineTransform3D() );
 
@@ -319,14 +458,21 @@ public class ViewerPanalJFX
 				viewer3.setPreferredSize( new Dimension( 200, 200 ) );
 
 				final AffineTransform3D translation = new AffineTransform3D();
-				translation.translate( rai.dimension( 0 ) / 2 * 1e-1, rai.dimension( 1 ) / 2 * 1e-1, rai.dimension( 2 ) / 2 * 1e-1 );
+//				translation.translate( rai.dimension( 0 ) / 2 * 1e-1, rai.dimension( 1 ) / 2 * 1e-1, rai.dimension( 2 ) / 2 * 1e-1 );
 
 
 //				final AffineTransform3D scale = new AffineTransform3D();
 //				scale.scale( 1e-1 );
 //				gm.preConcatenate( scale );
 
+				viewers[ 0 ] = viewer1;
+				viewers[ 1 ] = viewer2;
+				viewers[ 2 ] = viewer3;
+
+				createdViewers = true;
+
 			} );
+			return viewers;
 		}
 	}
 
