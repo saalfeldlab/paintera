@@ -799,7 +799,7 @@ public class ViewerPanalJFX
 					globalToViewer.applyInverse( delta, delta );
 					final AffineTransform3D shift = new AffineTransform3D();
 					shift.translate( delta );
-					manager.preConcatenate( shift );
+					manager.concatenate( shift );
 				}
 			}
 		}
