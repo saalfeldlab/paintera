@@ -513,29 +513,6 @@ public class ViewerPanalJFX
 		mouseAndKeyHandler.setInputMap( triggerbindings.getConcatenatedInputTriggerMap() );
 		mouseAndKeyHandler.setBehaviourMap( triggerbindings.getConcatenatedBehaviourMap() );
 		viewer.getDisplay().addHandler( mouseAndKeyHandler );
-		viewer.getDisplay().addOverlayRenderer( new OverlayRenderer()
-		{
-
-			private int w, h;
-
-			@Override
-			public void setCanvasSize( final int width, final int height )
-			{
-				w = width;
-				h = height;
-
-			}
-
-			@Override
-			public void drawOverlays( final Graphics g )
-			{
-
-				g.setColor( java.awt.Color.RED );
-				g.drawLine( 0, h / 2, w, h / 2 );
-				g.drawLine( w / 2, 0, w / 2, h );
-
-			}
-		} );
 
 //		final TransformEventHandler< ? > tfHandler = viewer.getDisplay().getTransformEventHandler();
 //		if ( tfHandler instanceof BehaviourTransformEventHandler )
@@ -752,6 +729,14 @@ public class ViewerPanalJFX
 		public void install( final TriggerBehaviourBindings bindings )
 		{
 			behaviours.install( bindings, "transform" );
+		}
+
+		private class GetOuter
+		{
+			public ViewerTransformManager getOuter()
+			{
+				return ViewerTransformManager.this;
+			}
 		}
 
 		private class TranslateXY implements DragBehaviour
