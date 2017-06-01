@@ -824,23 +824,31 @@ public class ViewerPanalJFX
 			@Override
 			public void scroll( final double wheelRotation, final boolean isHorizontal, final int x, final int y )
 			{
-				synchronized ( global )
+				final AffineTransform3D global;
+				synchronized ( getOuter().global )
 				{
-					final double[] location = new double[] { x, y, 0 };
-					concatenated.applyInverse( location, location );
-					final double s = speed * wheelRotation;
-					final double dScale = 1.0 + 0.05;
-					final double scale = s > 0 ? 1.0 / dScale : dScale;
-					global.scale( scale );
-					global.apply( location, location );
-					globalToViewer.apply( location, location );
-					displayTransform.apply( location, location );
-					displayTransform.set( displayTransform.get( 0, 3 ) + x - location[ 0 ], 0, 3 );
-					displayTransform.set( displayTransform.get( 1, 3 ) + y - location[ 1 ], 1, 3 );
-					manager.setTransform( global );
+					global = getOuter().global.copy();
 				}
+				final double[] location = new double[] { x, y, 0 };
+				concatenated.applyInverse( location, location );
+				global.apply( location, location );
+
+
+				final double s = speed * wheelRotation;
+				final double dScale = 1.0 + 0.05;
+				final double scale = s > 0 ? 1.0 / dScale : dScale;
+
+				for ( int d = 0; d < location.length; ++d )
+					global.set( global.get( d, 3 ) - location[ d ], d, 3 );
+				global.scale( scale );
+				for ( int d = 0; d < location.length; ++d )
+					global.set( global.get( d, 3 ) + location[ d ], d, 3 );
+
+				manager.setTransform( global );
 			}
 		}
+
+
 
 	}
 }
