@@ -637,7 +637,10 @@ public class ViewerPanalJFX
 			behaviours.behaviour( new TranslateXY(), "drag translate", "button2", "button3" );
 			behaviours.behaviour( new Zoom( speed[ 0 ] ), ZOOM_NORMAL, "meta scroll", "ctrl shift scroll" );
 			for ( int s = 0; s < 3; ++s )
+			{
+				behaviours.behaviour( new Rotate( speed[ s ] ), DRAG_ROTATE + SPEED_NAME[ s ], speedMod[ s ] + "button1" );
 				behaviours.behaviour( new TranslateZ( speed[ s ] ), SCROLL_Z + SPEED_NAME[ s ], speedMod[ s ] + "scroll" );
+			}
 		}
 
 		private final GlobalTransformManager manager;
@@ -853,7 +856,75 @@ public class ViewerPanalJFX
 			}
 		}
 
+		private class Rotate extends GetOuter implements DragBehaviour
+		{
+			private final double speed;
 
+			public Rotate( final double speed )
+			{
+				this.speed = speed;
+			}
+
+			private int oX;
+
+			private int oY;
+
+			private final AffineTransform3D affineDragStart = new AffineTransform3D();
+
+			@Override
+			public void init( final int x, final int y )
+			{
+				synchronized ( global )
+				{
+					oX = x;
+					oY = y;
+					affineDragStart.set( global );
+				}
+			}
+
+			@Override
+			public void drag( final int x, final int y )
+			{
+				final AffineTransform3D affine = new AffineTransform3D();
+				synchronized ( global )
+				{
+					final double v = step * speed;
+					affine.set( affineDragStart );
+					final double[] point = new double[] { x, y, 0 };
+					final double[] origin = new double[] { oX, oY, 0 };
+
+					displayTransform.applyInverse( point, point );
+					displayTransform.applyInverse( origin, origin );
+
+					System.out.println( Arrays.toString( point ) + " " + Arrays.toString( origin ) );
+					final double[] delta = new double[] { point[ 0 ] - origin[ 0 ], point[ 1 ] - origin[ 1 ], 0 };
+					// TODO do scaling separately. need to swap .get( 0, 0 ) and
+					// .get( 1, 1 ) ?
+					final double[] rotation = new double[] { delta[ 1 ] * v * displayTransform.get( 0, 0 ), -delta[ 0 ] * v * displayTransform.get( 1, 1 ), 0 };
+
+					globalToViewer.applyInverse( origin, origin );
+					globalToViewer.applyInverse( delta, delta );
+					globalToViewer.applyInverse( rotation, rotation );
+
+					// center shift
+					for ( int d = 0; d < origin.length; ++d )
+						affine.set( affine.get( d, 3 ) - origin[ d ], d, 3 );
+
+					for ( int d = 0; d < delta.length; ++d )
+						affine.rotate( d, rotation[ d ] );
+
+					// center un-shift
+					for ( int d = 0; d < origin.length; ++d )
+						affine.set( affine.get( d, 3 ) + origin[ d ], d, 3 );
+
+					manager.setTransform( affine );
+				}
+			}
+
+			@Override
+			public void end( final int x, final int y )
+			{}
+		}
 
 	}
 }
