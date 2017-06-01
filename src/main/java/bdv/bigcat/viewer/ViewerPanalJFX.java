@@ -739,7 +739,7 @@ public class ViewerPanalJFX
 			}
 		}
 
-		private class TranslateXY implements DragBehaviour
+		private class TranslateXY extends GetOuter implements DragBehaviour
 		{
 
 			private int oX, oY;
@@ -785,7 +785,7 @@ public class ViewerPanalJFX
 			{}
 		}
 
-		private class TranslateZ implements ScrollBehaviour
+		private class TranslateZ extends GetOuter implements ScrollBehaviour
 		{
 			private final double speed;
 
@@ -812,7 +812,7 @@ public class ViewerPanalJFX
 			}
 		}
 
-		private class Zoom implements ScrollBehaviour
+		private class Zoom extends GetOuter implements ScrollBehaviour
 		{
 			private final double speed;
 
