@@ -33,6 +33,8 @@ abstract public class AbstractH5SetupImageLoader< T extends NativeType< T > , V 
 {
 	final protected double[] resolution;
 
+	final protected double[] offset;
+
 	final protected long[] dimension;
 
 	final protected int[] blockDimension;
@@ -59,12 +61,27 @@ abstract public class AbstractH5SetupImageLoader< T extends NativeType< T > , V 
 		return resolution;
 	}
 
+	final static protected double[] readOffset( final IHDF5Reader reader, final String dataset )
+	{
+		final double[] offset;
+		if ( reader.object().hasAttribute( dataset, "offset" ) )
+		{
+			final double[] h5offset = reader.float64().getArrayAttr( dataset, "offset" );
+			offset = new double[] { h5offset[ 2 ], h5offset[ 1 ], h5offset[ 0 ], };
+		}
+		else
+			offset = new double[] { 0, 0, 0 };
+
+		return offset;
+	}
+
 	public AbstractH5SetupImageLoader(
 			final IHDF5Reader reader,
 			final String dataset,
 			final int setupId,
 			final int[] blockDimension,
 			final double[] resolution,
+			final double[] offset,
 			final T type,
 			final V vType,
 			final CacheArrayLoader< A > loader ) throws IOException
@@ -73,6 +90,7 @@ abstract public class AbstractH5SetupImageLoader< T extends NativeType< T > , V 
 		this.setupId = setupId;
 		this.loader = loader;
 		this.resolution = resolution;
+		this.offset = offset;
 
 		final long[] h5dim = reader.object().getDimensions( dataset );
 
@@ -101,7 +119,7 @@ abstract public class AbstractH5SetupImageLoader< T extends NativeType< T > , V 
 			final V vType,
 			final CacheArrayLoader< A > loader ) throws IOException
 	{
-		this( reader, dataset, setupId, blockDimension, readResolution( reader, dataset ), type, vType, loader );
+		this( reader, dataset, setupId, blockDimension, readResolution( reader, dataset ), readResolution( reader, dataset ), type, vType, loader );
 	}
 
 	@Override
@@ -152,5 +170,10 @@ abstract public class AbstractH5SetupImageLoader< T extends NativeType< T > , V 
 	public CacheControl getCacheControl()
 	{
 		return cache;
+	}
+
+	public double[] getOffset()
+	{
+		return offset;
 	}
 }

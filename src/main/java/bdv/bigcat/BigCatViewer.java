@@ -55,14 +55,14 @@ public class BigCatViewer< P extends BigCatViewer.Parameters >
 		@Parameter( names = { "--infile", "-i" }, description = "Input file path" )
 		public String inFile = "";
 
-		@Parameter( names = { "--infilelabels", "-j" }, description = "Input file path for labels" )
+		@Parameter( names = { "--infilelabels", "-j" }, description = "Input file path for labels (if different from input file path for raw data)" )
 		public String inFileLabels = null;
 
 		@Parameter( names = { "--raw", "-r" }, description = "raw pixel datasets" )
-		public List< String > raws = Arrays.asList( new String[] { "/volumes/raw" } );
+		public List< String > raws = new ArrayList<>();
 
 		@Parameter( names = { "--label", "-l" }, description = "label datasets" )
-		public List< String > labels = Arrays.asList( new String[] { "/volumes/labels/neuron_ids" } );
+		public List< String > labels = new ArrayList<>();
 
 		@Parameter( names = { "--assignment", "-a" }, description = "fragment segment assignment table" )
 		public String assignment = "/fragment_segment_lut";
@@ -74,6 +74,9 @@ public class BigCatViewer< P extends BigCatViewer.Parameters >
 		{
 			if ( inFileLabels == null )
 				inFileLabels = inFile;
+
+			if ( inFile == null )
+				inFile = inFileLabels;
 		}
 	}
 
@@ -155,7 +158,7 @@ public class BigCatViewer< P extends BigCatViewer.Parameters >
 	protected void initRaw( final P params ) throws IOException
 	{
 		System.out.println( "Opening raw from " + params.inFile );
-		final IHDF5Reader reader = HDF5Factory.open( params.inFile );
+		final IHDF5Reader reader = HDF5Factory.openForReading( params.inFile );
 
 		/* raw pixels */
 		for ( final String raw : params.raws )
@@ -181,7 +184,7 @@ public class BigCatViewer< P extends BigCatViewer.Parameters >
 		/* id */
 		idService = new LocalIdService();
 
-		final IHDF5Reader reader = HDF5Factory.open( params.inFile );
+		final IHDF5Reader reader = HDF5Factory.openForReading( params.inFile );
 
 		long maxId = 0;
 		final Long nextIdObject = H5Utils.loadAttribute( reader, "/", "next_id" );
@@ -206,7 +209,7 @@ public class BigCatViewer< P extends BigCatViewer.Parameters >
 	 */
 	protected void initAssignments( final P params )
 	{
-		final IHDF5Reader reader = HDF5Factory.open( params.inFile );
+		final IHDF5Reader reader = HDF5Factory.openForReading( params.inFile );
 
 		/* fragment segment assignment */
 		assignment = new FragmentSegmentAssignment( idService );
@@ -235,7 +238,7 @@ public class BigCatViewer< P extends BigCatViewer.Parameters >
 	protected void initLabels( final P params ) throws IOException
 	{
 		System.out.println( "Opening labels from " + params.inFileLabels );
-		final IHDF5Reader reader = HDF5Factory.open( params.inFileLabels );
+		final IHDF5Reader reader = HDF5Factory.openForReading( params.inFileLabels );
 
 		/* labels */
 		for ( final String label : params.labels )

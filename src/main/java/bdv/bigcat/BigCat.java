@@ -78,10 +78,22 @@ public class BigCat< P extends BigCat.Parameters > extends BigCatViewer< P >
 	static public class Parameters extends BigCatViewer.Parameters
 	{
 		@Parameter( names = { "--canvas", "-c" }, description = "canvas dataset" )
-		public String canvas = "/volumes/labels/painted_neuron_ids";
+		public String canvas = "/volumes/labels/canvas";
 
 		@Parameter( names = { "--export", "-e" }, description = "export dataset" )
-		public String export = "/volumes/labels/merged_neuron_ids";
+		public String export = "/volumes/labels/merged_ids";
+
+		@Parameter( names = { "--outfile", "-o" }, description = "Output file path" )
+		public String outFile;
+
+		@Override
+		public void init()
+		{
+			super.init();
+
+			if ( outFile == null )
+				outFile = inFile;
+		}
 	}
 
 	protected AnnotationsController annotationsController;
@@ -152,7 +164,7 @@ public class BigCat< P extends BigCat.Parameters > extends BigCatViewer< P >
 	protected void initRaw( final P params ) throws IOException
 	{
 		System.out.println( "Opening raw from " + params.inFile );
-		final IHDF5Reader reader = HDF5Factory.open( params.inFile );
+		final IHDF5Reader reader = HDF5Factory.openForReading( params.inFile );
 
 		/* raw pixels */
 		Arrays.fill( maxRawDimensions, 0 );
@@ -178,7 +190,7 @@ public class BigCat< P extends BigCat.Parameters > extends BigCatViewer< P >
 	protected void initCanvas( final P params ) throws IOException
 	{
 		System.out.println( "Opening canvas from " + params.inFile );
-		final IHDF5Reader reader = HDF5Factory.open( params.inFile );
+		final IHDF5Reader reader = HDF5Factory.openForReading( params.inFile );
 
 		/* canvas (to which the brush paints) */
 		if ( reader.exists( params.canvas ) )
@@ -206,7 +218,7 @@ public class BigCat< P extends BigCat.Parameters > extends BigCatViewer< P >
 		/* id */
 		idService = new LocalIdService();
 
-		final IHDF5Reader reader = HDF5Factory.open( params.inFile );
+		final IHDF5Reader reader = HDF5Factory.openForReading( params.inFile );
 
 		long maxId = 0;
 		final Long nextIdObject = H5Utils.loadAttribute( reader, "/", "next_id" );
@@ -331,11 +343,12 @@ public class BigCat< P extends BigCat.Parameters > extends BigCatViewer< P >
 					labels.get( 0 ).getImage( 0 ),
 					canvas,
 					labels.get( 0 ).getMipmapResolutions()[ 0 ],
+					labels.get( 0 ).getOffset(),
 					dirtyLabelsInterval,
 					assignment,
 					completeFragmentsAssignment,
 					idService,
-					params.inFile,
+					params.outFile,
 					params.canvas,
 					params.export,
 					cellDimensions,

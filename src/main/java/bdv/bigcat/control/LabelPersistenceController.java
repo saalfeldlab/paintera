@@ -34,6 +34,7 @@ public class LabelPersistenceController
 	final protected RandomAccessibleInterval< LabelMultisetType > labelMultisetSource;
 	final protected RandomAccessibleInterval< LongType > labelSource;
 	final protected double[] labelResolution;
+	final protected double[] labelOffset;
 	final protected DirtyInterval dirtyLabelSourceInterval;
 	final protected FragmentSegmentAssignment assignment;
 	final protected FragmentAssignment completeFragments;
@@ -56,6 +57,7 @@ public class LabelPersistenceController
 			final RandomAccessibleInterval< LabelMultisetType > labelMultisetSource,
 			final RandomAccessibleInterval< LongType > labelSource,
 			final double[] labelResolution,
+			final double[] labelOffset,
 			final DirtyInterval dirtyLabelSourceInterval,
 			final FragmentSegmentAssignment assignment,
 			final FragmentAssignment completeFragments,
@@ -73,6 +75,7 @@ public class LabelPersistenceController
 		this.labelMultisetSource = labelMultisetSource;
 		this.labelSource = labelSource;
 		this.labelResolution = labelResolution;
+		this.labelOffset = labelOffset;
 		this.dirtyLabelSourceInterval = dirtyLabelSourceInterval;
 		this.assignment = assignment;
 		this.completeFragments = completeFragments;
@@ -85,8 +88,10 @@ public class LabelPersistenceController
 		this.completeFragmentsDataset = completeFragmentsDataset;
 		ksKeyStrokeAdder = config.keyStrokeAdder( ksInputMap, "persistence" );
 
+		// TODO use compled assignments
 		new SaveFragmentSegmentAssignmentAndPaintedLabels( "save fragment segment assignment and painted labels", "ctrl S" ).register();
-		new SaveAssignedMergedLabels( "save assigned merged labels", "ctrl shift S" ).register();
+//		new SaveAssignedMergedLabels( "save assigned merged labels", "ctrl shift S" ).register();
+		new SaveMergedLabels( "save merged labels", "ctrl shift S" ).register();
 
 		inputActionBindings.addActionMap( "persistence", ksActionMap );
 		inputActionBindings.addInputMap( "persistence", ksInputMap );
@@ -154,6 +159,11 @@ public class LabelPersistenceController
 				file,
 				paintedLabelsDataset,
 				"resolution");
+		H5Utils.saveDoubleArrayAttribute(
+				new double[]{labelOffset[2], labelOffset[1], labelOffset[0]},
+				file,
+				paintedLabelsDataset,
+				"offset");
 	}
 
 	public void saveMergedLabels()
@@ -173,19 +183,36 @@ public class LabelPersistenceController
 				file,
 				mergedLabelsDataset,
 				"resolution");
+		H5Utils.saveDoubleArrayAttribute(
+				new double[]{labelOffset[2], labelOffset[1], labelOffset[0]},
+				file,
+				mergedLabelsDataset,
+				"offset");
 	}
 
 	public void saveAssignedMergedLabels()
 	{
 		System.out.println( "Saving assigned merged labels into " + h5Path + ":" + mergedLabelsDataset  );
+
+		final File file = new File( h5Path );
 		H5Utils.saveAssignedSingleElementLabelMultisetLongPair(
 				labelMultisetSource,
 				labelSource,
 				labelSource,
 				assignment,
-				new File( h5Path ),
+				file,
 				mergedLabelsDataset,
 				labelsCellDimensions );
+		H5Utils.saveDoubleArrayAttribute(
+				new double[]{labelResolution[2], labelResolution[1], labelResolution[0]},
+				file,
+				mergedLabelsDataset,
+				"resolution");
+		H5Utils.saveDoubleArrayAttribute(
+				new double[]{labelOffset[2], labelOffset[1], labelOffset[0]},
+				file,
+				mergedLabelsDataset,
+				"offset");
 	}
 
 	private class SaveFragmentSegmentAssignment extends SelfRegisteringAction
