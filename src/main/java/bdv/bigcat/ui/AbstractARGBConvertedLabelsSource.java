@@ -16,7 +16,7 @@ import net.imglib2.view.Views;
 @SuppressWarnings( "unchecked" )
 abstract public class AbstractARGBConvertedLabelsSource implements Source< VolatileARGBType >
 {
-	final protected ARGBStream argbStream;
+	protected ARGBStream argbStream;
 	final protected long setupId;
 
 	final protected InterpolatorFactory< VolatileARGBType, RandomAccessible< VolatileARGBType > >[] interpolatorFactories;
@@ -33,6 +33,11 @@ abstract public class AbstractARGBConvertedLabelsSource implements Source< Volat
 	{
 		this.setupId = setupId;
 		this.argbStream = argbStream;
+	}
+
+	public void setStream( final ARGBStream stream )
+	{
+		this.argbStream = stream;
 	}
 
 	@Override

@@ -77,9 +77,9 @@ public class ExampleApplication2 extends Application
 
 		final OrthoView viewer = makeViewer();
 
-		viewer.addSource( soc );
-
-		viewer.speedFactor( 40 );
+//		viewer.addSource( soc );
+//
+//		viewer.speedFactor( 40 );
 
 //		viewer.addSource( source );
 

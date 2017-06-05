@@ -85,6 +85,12 @@ public class ViewerTransformManager implements TransformListener< AffineTransfor
 		}
 	}
 
+	public void setGlobalToViewer( final AffineTransform3D affine )
+	{
+		this.globalToViewer.set( affine );
+		update();
+	}
+
 	private final GlobalTransformManager manager;
 
 	private final InputTriggerConfig config = new InputTriggerConfig();
@@ -167,7 +173,7 @@ public class ViewerTransformManager implements TransformListener< AffineTransfor
 	@Override
 	public void setTransformListener( final TransformListener< AffineTransform3D > transformListener )
 	{
-		this.listener = listener;
+		this.listener = transformListener;
 	}
 
 	@Override
