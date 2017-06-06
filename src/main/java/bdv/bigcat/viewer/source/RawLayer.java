@@ -25,7 +25,7 @@ public class RawLayer< T extends RealType< T > > implements SourceLayer
 
 	private final bdv.viewer.Source< T > sourceSource;
 
-	public RawLayer( final Source< T, VolatileRealType< T > > source )
+	public RawLayer( final Source< T, VolatileRealType< T > > source ) throws Exception
 	{
 		super();
 		this.source = source;
@@ -65,6 +65,12 @@ public class RawLayer< T extends RealType< T > > implements SourceLayer
 	public Source< T, VolatileRealType< T > > source()
 	{
 		return source;
+	}
+
+	public void setContrast( final double min, final double max )
+	{
+		this.conv.setMax( min );
+		this.conv.setMax( max );
 	}
 
 	public class SourceSource implements bdv.viewer.Source< T >

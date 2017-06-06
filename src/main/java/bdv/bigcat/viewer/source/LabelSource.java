@@ -8,5 +8,5 @@ public interface LabelSource extends Source< LabelMultisetType, VolatileLabelMul
 {
 
 	@Override
-	public AbstractViewerSetupImgLoader< LabelMultisetType, VolatileLabelMultisetType > loader();
+	public AbstractViewerSetupImgLoader< LabelMultisetType, VolatileLabelMultisetType > loader() throws Exception;
 }

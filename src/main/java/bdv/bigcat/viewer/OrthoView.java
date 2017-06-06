@@ -11,7 +11,6 @@ import bdv.bigcat.composite.Composite;
 import bdv.bigcat.viewer.ViewerNode.ViewerAxis;
 import bdv.bigcat.viewer.source.LabelLayer;
 import bdv.bigcat.viewer.source.LabelSource;
-import bdv.bigcat.viewer.source.RandomAccessibleIntervalSource;
 import bdv.bigcat.viewer.source.RawLayer;
 import bdv.bigcat.viewer.source.Source;
 import bdv.bigcat.viewer.source.SourceLayer;
@@ -108,29 +107,31 @@ public class OrthoView
 //		}
 //	}
 
-	public void addSource( final Source< ?, ? > source )
+	public SourceLayer addSource( final Source< ?, ? > source ) throws Exception
 	{
 		waitUntilInitialized();
 
 		if ( sourceLayers.stream().map( SourceLayer::name ).filter( source::equals ).count() > 0 )
-			return;
+			return null;
 
 		final SourceLayer sourceLayer;
 		if ( source instanceof LabelSource )
 			sourceLayer = new LabelLayer( ( LabelSource ) source, sourceCompositeMap );
-		else if ( source instanceof RandomAccessibleIntervalSource ) {
-			if ( source.loader().getImageType() instanceof FloatType )
-				sourceLayer = new RawLayer<>( ( RandomAccessibleIntervalSource< FloatType > ) source );
-			else
-				return;
-		}
+//		else if ( source instanceof RandomAccessibleIntervalSource )
 		else
-		{
-			sourceLayer = null;
-			return;
-		}
+			//			if ( source.loader().getImageType() instanceof RealType )
+			sourceLayer = new RawLayer<>( ( Source ) source );
+//			else
+//				return;
+//		else
+//		{
+//			sourceLayer = null;
+//			return;
+//		}
 
 		this.sourceLayers.add( sourceLayer );
+
+		return sourceLayer;
 
 	}
 
@@ -471,7 +472,23 @@ public class OrthoView
 		sourceLayers.addListener( viewerNode2 );
 		sourceLayers.addListener( viewerNode3 );
 
-		createdViewers = true;
+		final Thread t = new Thread( () -> {
+			while ( !createdViewers )
+			{
+				try
+				{
+					Thread.sleep( 10 );
+				}
+				catch ( final InterruptedException e )
+				{
+					e.printStackTrace();
+					return;
+				}
+				createdViewers = viewerNode1.isReady() && viewerNode2.isReady() && viewerNode3.isReady();
+			}
+			createdViewers = true;
+		} );
+		t.start();
 
 		this.grid.add( viewerNode1, 0, 0 );
 		this.grid.add( viewerNode2, 1, 0 );

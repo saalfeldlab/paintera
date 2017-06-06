@@ -1,17 +1,17 @@
 package bdv.bigcat.viewer;
 
-import java.io.IOException;
 import java.util.HashMap;
+import java.util.Optional;
 import java.util.concurrent.atomic.AtomicLong;
 
 import bdv.AbstractViewerSetupImgLoader;
+import bdv.bigcat.viewer.source.H5Source;
+import bdv.bigcat.viewer.source.H5Source.LabelMultisets;
+import bdv.bigcat.viewer.source.H5Source.UnsignedBytes;
+import bdv.bigcat.viewer.source.SourceLayer;
 import bdv.img.cache.VolatileGlobalCellCache;
-import bdv.img.h5.H5UnsignedByteSetupImageLoader;
 import bdv.viewer.Interpolation;
 import bdv.viewer.Source;
-import bdv.viewer.SourceAndConverter;
-import ch.systemsx.cisd.hdf5.HDF5Factory;
-import ch.systemsx.cisd.hdf5.IHDF5Writer;
 import javafx.application.Application;
 import javafx.stage.Stage;
 import mpicbg.spim.data.sequence.VoxelDimensions;
@@ -22,18 +22,12 @@ import net.imglib2.Volatile;
 import net.imglib2.converter.Converter;
 import net.imglib2.converter.Converters;
 import net.imglib2.display.AbstractLinearRange;
-import net.imglib2.display.ScaledARGBConverter;
-import net.imglib2.display.ScaledARGBConverter.ARGB;
-import net.imglib2.display.ScaledARGBConverter.VolatileARGB;
 import net.imglib2.interpolation.InterpolatorFactory;
 import net.imglib2.interpolation.randomaccess.ClampingNLinearInterpolatorFactory;
 import net.imglib2.interpolation.randomaccess.NearestNeighborInterpolatorFactory;
 import net.imglib2.realtransform.AffineTransform3D;
-import net.imglib2.type.numeric.ARGBType;
 import net.imglib2.type.numeric.RealType;
-import net.imglib2.type.numeric.integer.UnsignedByteType;
 import net.imglib2.type.volatiles.VolatileARGBType;
-import net.imglib2.type.volatiles.VolatileUnsignedByteType;
 import net.imglib2.view.ExtendedRandomAccessibleInterval;
 import net.imglib2.view.Views;
 
@@ -49,12 +43,14 @@ public class ExampleApplication2 extends Application
 
 	public static AtomicLong index = new AtomicLong( 0 );
 
-	public static void main( final String[] args ) throws InterruptedException, IOException
+	public static void main( final String[] args ) throws Exception
 	{
 
 
 		final String rawFile = "/groups/saalfeld/home/hanslovskyp/from_funkej/phil/sample_B.augmented.0.hdf";
 		final String rawDataset = "volumes/raw";
+		final String labelsFile = rawFile;
+		final String labelsDataset = "/volumes/labels/neuron_ids";
 
 		final double[] resolution = { 4, 4, 40 };
 		final double[] offset = { 424, 424, 560 };
@@ -62,26 +58,15 @@ public class ExampleApplication2 extends Application
 
 		final VolatileGlobalCellCache cache = new VolatileGlobalCellCache( 1, 20 );
 
-		final IHDF5Writer reader = HDF5Factory.open( rawFile );
-		final H5UnsignedByteSetupImageLoader rawLoader = new H5UnsignedByteSetupImageLoader( reader, rawDataset, 0, cellSize, resolution, cache );
-
-		final RandomAccessibleInterval< VolatileUnsignedByteType > img = rawLoader.getVolatileImage( 0, 0 );
-		Converters.convert( img, new VolatileRealARGBConverter<>( 0, 255 ), new VolatileARGBType() );
-
-		final ARGB converter = new ScaledARGBConverter.ARGB( 0, 255 );
-		final VolatileARGB vconverter = new ScaledARGBConverter.VolatileARGB( 0, 255 );
-
-		final ARGBConvertedSource< UnsignedByteType > rawSource = new ARGBConvertedSource<>( 1, rawLoader, new VolatileRealARGBConverter<>( 0, 255 ) );
-		final SourceAndConverter< VolatileARGBType > vsoc = new SourceAndConverter<>( rawSource, vconverter );
-		final SourceAndConverter< ARGBType > soc = new SourceAndConverter<>( rawSource.nonVolatile(), converter, vsoc );
+		final UnsignedBytes raw = new H5Source.UnsignedBytes( rawFile, rawDataset, Optional.of( resolution ), Optional.empty(), Optional.of( cellSize ), cache );
+		final LabelMultisets labels = new H5Source.LabelMultisets( labelsFile, labelsDataset, Optional.of( resolution ), Optional.of( offset ), Optional.of( cellSize ), cache );
 
 		final OrthoView viewer = makeViewer();
 
-//		viewer.addSource( soc );
-//
-//		viewer.speedFactor( 40 );
+//		final RawLayer< ? > rawLayer = ( RawLayer< ? > ) viewer.addSource( raw );
+//		rawLayer.setContrast( 0, 255 );
 
-//		viewer.addSource( source );
+		final SourceLayer labelsLayer = viewer.addSource( labels );
 
 	}
 

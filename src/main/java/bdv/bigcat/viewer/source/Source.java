@@ -12,7 +12,7 @@ public interface Source< T, VT extends Volatile< T > >
 //
 //	public int[] cellSize();
 
-	public ViewerSetupImgLoader< T, VT > loader();
+	public ViewerSetupImgLoader< T, VT > loader() throws Exception;
 
 	public String name();
 

@@ -38,7 +38,7 @@ public class LabelLayer implements SourceLayer, Listener< TLongHashSet >
 
 	private final bdv.viewer.Source< ? > nonVolatile;
 
-	public LabelLayer( final LabelSource source, final HashMap< bdv.viewer.Source< ? >, Composite< ARGBType, ARGBType > > sourceCompositesMap )
+	public LabelLayer( final LabelSource source, final HashMap< bdv.viewer.Source< ? >, Composite< ARGBType, ARGBType > > sourceCompositesMap ) throws Exception
 	{
 		super();
 		this.source = source;

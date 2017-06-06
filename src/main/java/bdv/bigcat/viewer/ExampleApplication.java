@@ -24,7 +24,7 @@ public class ExampleApplication extends Application
 
 	public static AtomicLong index = new AtomicLong( 0 );
 
-	public static void main( final String[] args ) throws InterruptedException
+	public static void main( final String[] args ) throws Exception
 	{
 		System.out.println( "before: " + activeViewers );
 		final OrthoView viewer = makeViewer();
