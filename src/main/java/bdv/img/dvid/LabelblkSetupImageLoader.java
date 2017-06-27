@@ -5,24 +5,11 @@ import java.io.IOException;
 import com.google.gson.JsonIOException;
 import com.google.gson.JsonSyntaxException;
 
-import bdv.AbstractViewerSetupImgLoader;
 import bdv.ViewerSetupImgLoader;
-import bdv.cache.CacheHints;
-import bdv.cache.LoadingStrategy;
-import bdv.img.cache.CachedCellImg;
-import bdv.img.cache.VolatileGlobalCellCache;
-import bdv.img.cache.VolatileGlobalCellCache.VolatileCellCache;
-import bdv.img.cache.VolatileImgCells;
 import bdv.util.ColorStream;
-import bdv.util.JsonHelper;
-import mpicbg.spim.data.generic.sequence.ImgLoaderHint;
-import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.img.basictypeaccess.volatiles.array.VolatileIntArray;
-import net.imglib2.realtransform.AffineTransform3D;
-import net.imglib2.type.NativeType;
 import net.imglib2.type.numeric.ARGBType;
 import net.imglib2.type.volatiles.VolatileARGBType;
-import net.imglib2.util.Fraction;
 
 
 /**
@@ -32,22 +19,26 @@ import net.imglib2.util.Fraction;
  *
  * @author Stephan Saalfeld <saalfelds@janelia.hhmi.org>
  */
-public class LabelblkSetupImageLoader
-	extends AbstractViewerSetupImgLoader< ARGBType, VolatileARGBType >
+public class LabelblkSetupImageLoader extends
+	AbstractDvidSetupImageLoader< ARGBType, VolatileARGBType, VolatileIntArray >
 {
-	private final double[] resolutions;
-
-	private final long[] dimensions;
-
-	private final int[] blockDimensions;
-
-	private final AffineTransform3D mipmapTransform;
-
-	protected VolatileGlobalCellCache cache;
-
-	private final LabelblkVolatileArrayLoader loader;
-
-	private final int setupId;
+	private LabelblkSetupImageLoader(
+			final ConstructorParameters parameters,
+			final int setupId,
+			final int argbMask ) throws JsonSyntaxException, JsonIOException, IOException
+	{
+		super(
+				setupId,
+				new ARGBType(),
+				new VolatileARGBType(),
+				parameters,
+				new LabelblkVolatileArrayLoader(
+						parameters.apiUrl,
+						parameters.nodeId,
+						parameters.dataInstanceId,
+						parameters.cellDimensions,
+						argbMask ) );
+	}
 
 	/**
 	 * http://hackathon.janelia.org/api/help/labels64
@@ -68,33 +59,7 @@ public class LabelblkSetupImageLoader
 			final int setupId,
 			final int argbMask ) throws JsonSyntaxException, JsonIOException, IOException
 	{
-		super( new ARGBType(), new VolatileARGBType() );
-		this.setupId = setupId;
-
-		final LabelblkDataInstance dataInstance =
-				JsonHelper.fetch(
-						apiUrl + "/node/" + nodeId + "/" + dataInstanceId + "/info",
-						LabelblkDataInstance.class );
-
-		dimensions = new long[]{
-				dataInstance.Extended.MaxPoint[ 0 ] - dataInstance.Extended.MinPoint[ 0 ],
-				dataInstance.Extended.MaxPoint[ 1 ] - dataInstance.Extended.MinPoint[ 1 ],
-				dataInstance.Extended.MaxPoint[ 2 ] - dataInstance.Extended.MinPoint[ 2 ] };
-
-		resolutions = new double[]{
-				dataInstance.Extended.VoxelSize[ 0 ],
-				dataInstance.Extended.VoxelSize[ 1 ],
-				dataInstance.Extended.VoxelSize[ 2 ] };
-
-		mipmapTransform = new AffineTransform3D();
-
-		mipmapTransform.set( 1, 0, 0 );
-		mipmapTransform.set( 1, 1, 1 );
-		mipmapTransform.set( 1, 2, 2 );
-
-		blockDimensions = dataInstance.Extended.BlockSize;
-
-		loader = new LabelblkVolatileArrayLoader( apiUrl, nodeId, dataInstanceId, blockDimensions, argbMask );
+		this( new ConstructorParameters( apiUrl, nodeId, dataInstanceId ), setupId, argbMask );
 	}
 
 	/**
@@ -115,56 +80,5 @@ public class LabelblkSetupImageLoader
 			final int setupId ) throws JsonSyntaxException, JsonIOException, IOException
 	{
 		this( apiUrl, nodeId, dataInstanceId, setupId, 0xffffffff );
-	}
-
-	@Override
-	public RandomAccessibleInterval< ARGBType > getImage( final int timepointId, final int level, final ImgLoaderHint... hints )
-	{
-		final CachedCellImg< ARGBType, VolatileIntArray > img = prepareCachedImage( timepointId, setupId, level, LoadingStrategy.BLOCKING );
-		final ARGBType linkedType = new ARGBType( img );
-		img.setLinkedType( linkedType );
-		return img;
-	}
-
-	@Override
-	public RandomAccessibleInterval< VolatileARGBType > getVolatileImage( final int timepointId, final int level, final ImgLoaderHint... hints )
-	{
-		final CachedCellImg< VolatileARGBType, VolatileIntArray > img = prepareCachedImage( timepointId, setupId, level, LoadingStrategy.VOLATILE );
-		final VolatileARGBType linkedType = new VolatileARGBType( img );
-		img.setLinkedType( linkedType );
-		return img;
-	}
-
-	@Override
-	public double[][] getMipmapResolutions()
-	{
-		return new double[][]{ resolutions };
-	}
-
-	@Override
-	public int numMipmapLevels()
-	{
-		return 1;
-	}
-
-	protected < T extends NativeType< T > > CachedCellImg< T, VolatileIntArray > prepareCachedImage( final int timepointId,  final int setupId, final int level, final LoadingStrategy loadingStrategy )
-	{
-		final int priority = 0;
-		final CacheHints cacheHints = new CacheHints( loadingStrategy, priority, false );
-		final VolatileCellCache< VolatileIntArray > c = cache.new VolatileCellCache< VolatileIntArray >( timepointId, setupId, level, cacheHints, loader );
-		final VolatileImgCells< VolatileIntArray > cells = new VolatileImgCells< VolatileIntArray >( c, new Fraction(), dimensions, blockDimensions );
-		final CachedCellImg< T, VolatileIntArray > img = new CachedCellImg< T, VolatileIntArray >( cells );
-		return img;
-	}
-
-	@Override
-	public AffineTransform3D[] getMipmapTransforms()
-	{
-		return new AffineTransform3D[]{ mipmapTransform };
-	}
-
-	public void setCache( final VolatileGlobalCellCache cache )
-	{
-		this.cache = cache;
 	}
 }

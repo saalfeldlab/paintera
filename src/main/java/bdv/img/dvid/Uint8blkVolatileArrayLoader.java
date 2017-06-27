@@ -5,8 +5,8 @@ import java.io.InputStream;
 import java.net.URL;
 import java.util.Arrays;
 
-import net.imglib2.img.basictypeaccess.volatiles.array.VolatileByteArray;
 import bdv.img.cache.CacheArrayLoader;
+import net.imglib2.img.basictypeaccess.volatiles.array.VolatileByteArray;
 
 /**
  * {@link CacheArrayLoader} for
@@ -16,8 +16,6 @@ import bdv.img.cache.CacheArrayLoader;
  */
 public class Uint8blkVolatileArrayLoader implements CacheArrayLoader< VolatileByteArray >
 {
-	private VolatileByteArray theEmptyArray;
-
 	private final String apiUrl;
 	private final String nodeId;
 	private final String dataInstanceId;
@@ -28,7 +26,6 @@ public class Uint8blkVolatileArrayLoader implements CacheArrayLoader< VolatileBy
 			final String dataInstanceId,
 			final int[] blockDimensions )
 	{
-		theEmptyArray = new VolatileByteArray( 1, false );
 		this.apiUrl = apiUrl;
 		this.nodeId = nodeId;
 		this.dataInstanceId = dataInstanceId;
@@ -104,19 +101,5 @@ public class Uint8blkVolatileArrayLoader implements CacheArrayLoader< VolatileBy
 					Arrays.toString( dimensions ) );
 		}
 		return new VolatileByteArray( data, true );
-	}
-
-	/**
-	 * Reuses the existing empty array if it already has the desired size.
-	 */
-	@Override
-	public VolatileByteArray emptyArray( final int[] dimensions )
-	{
-		int numEntities = 1;
-		for ( int i = 0; i < dimensions.length; ++i )
-			numEntities *= dimensions[ i ];
-		if ( theEmptyArray.getCurrentStorageArray().length < numEntities )
-			theEmptyArray = new VolatileByteArray( numEntities, false );
-		return theEmptyArray;
 	}
 }

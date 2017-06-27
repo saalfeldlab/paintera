@@ -30,6 +30,7 @@ import bdv.bigcat.ui.AbstractARGBConvertedLabelsSource;
 import bdv.bigcat.ui.ModalGoldenAngleSaturatedARGBStream;
 import bdv.bigcat.ui.Util;
 import bdv.img.SetCache;
+import bdv.img.cache.VolatileGlobalCellCache;
 import bdv.img.h5.H5LabelMultisetSetupImageLoader;
 import bdv.img.h5.H5UnsignedByteSetupImageLoader;
 import bdv.img.h5.H5Utils;
@@ -104,6 +105,8 @@ public class BigCatViewer< P extends BigCatViewer.Parameters >
 	/** compositions of labels and canvas that are displayed */
 	final protected ArrayList< AbstractARGBConvertedLabelsSource > convertedLabels = new ArrayList<>();
 
+	final protected VolatileGlobalCellCache cache;
+
 	/** main BDV instance */
 	protected BigDataViewer bdv;
 
@@ -126,6 +129,8 @@ public class BigCatViewer< P extends BigCatViewer.Parameters >
 	{
 		Util.initUI();
 		this.config = getInputTriggerConfig();
+		cache = new VolatileGlobalCellCache( 1, 12 );
+
 	}
 
 	/**
@@ -165,7 +170,7 @@ public class BigCatViewer< P extends BigCatViewer.Parameters >
 		{
 			if ( reader.exists( raw ) )
 			{
-				final H5UnsignedByteSetupImageLoader rawLoader = new H5UnsignedByteSetupImageLoader( reader, raw, setupId++, cellDimensions );
+				final H5UnsignedByteSetupImageLoader rawLoader = new H5UnsignedByteSetupImageLoader( reader, raw, setupId++, cellDimensions, cache );
 				raws.add( rawLoader );
 			}
 			else
@@ -385,7 +390,8 @@ public class BigCatViewer< P extends BigCatViewer.Parameters >
 						null,
 						labelDataset,
 						setupId++,
-						cellDimensions );
+						cellDimensions,
+						cache );
 
 		/* converted labels */
 		final ARGBConvertedLabelsSource convertedLabelsSource =

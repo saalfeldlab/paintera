@@ -6,6 +6,7 @@ import java.net.URL;
 import java.util.Arrays;
 
 import bdv.img.cache.CacheArrayLoader;
+import bdv.img.cache.EmptyArrayCreator;
 import bdv.labels.labelset.LabelMultisetEntry;
 import bdv.labels.labelset.LabelMultisetEntryList;
 import bdv.labels.labelset.LongMappedAccessData;
@@ -167,13 +168,18 @@ A:		for ( int i = 0, j = -1; i < data.length; ++i )
 							Arrays.toString( min ) +
 							", dimensions = " +
 							Arrays.toString( dimensions ) );
-			return emptyArray( dimensions );
+			return null;
 		}
 
 		return new VolatileLabelMultisetArray( data, listData, true );
 	}
 
 	@Override
+	public EmptyArrayCreator< VolatileLabelMultisetArray > getEmptyArrayCreator()
+	{
+		return VolatileLabelMultisetArray.emptyArrayCreator;
+	}
+
 	public VolatileLabelMultisetArray emptyArray( final int[] dimensions )
 	{
 		int numEntities = 1;

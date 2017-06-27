@@ -3,7 +3,6 @@ package bdv.labels.labelset;
 import static java.nio.file.StandardOpenOption.CREATE;
 import static java.nio.file.StandardOpenOption.TRUNCATE_EXISTING;
 import static java.nio.file.StandardOpenOption.WRITE;
-import gnu.trove.list.array.TIntArrayList;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -11,12 +10,13 @@ import java.nio.file.Paths;
 import java.util.Arrays;
 import java.util.Iterator;
 
-import net.imglib2.RandomAccess;
-import net.imglib2.RandomAccessibleInterval;
-import net.imglib2.util.IntervalIndexer;
 import bdv.img.cache.CacheArrayLoader;
 import bdv.img.dvid.LabelblkMultisetSetupImageLoader.MultisetSource;
 import bdv.labels.labelset.Multiset.Entry;
+import gnu.trove.list.array.TIntArrayList;
+import net.imglib2.RandomAccess;
+import net.imglib2.RandomAccessibleInterval;
+import net.imglib2.util.IntervalIndexer;
 
 
 public class DownscalingVolatileSuperVoxelMultisetArrayLoader implements CacheArrayLoader< VolatileLabelMultisetArray >
@@ -264,7 +264,6 @@ public class DownscalingVolatileSuperVoxelMultisetArrayLoader implements CacheAr
 		return new VolatileLabelMultisetArray( data, listData, true );
 	}
 
-	@Override
 	public VolatileLabelMultisetArray emptyArray( final int[] dimensions )
 	{
 		int numEntities = 1;
