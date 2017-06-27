@@ -7,36 +7,39 @@ import org.apache.commons.io.IOUtils;
 
 import com.google.gson.Gson;
 
-import bdv.AbstractViewerSetupImgLoader;
+import bdv.AbstractCachedViewerSetupImgLoader;
 import bdv.ViewerImgLoader;
 import bdv.ViewerSetupImgLoader;
 import bdv.cache.CacheControl;
+import bdv.img.cache.CacheArrayLoader;
 import bdv.img.cache.VolatileGlobalCellCache;
 import net.imglib2.Volatile;
+import net.imglib2.img.basictypeaccess.volatiles.VolatileAccess;
 import net.imglib2.realtransform.AffineTransform3D;
+import net.imglib2.type.NativeType;
 import net.imglib2.util.Util;
 /**
  * Loader for uint8 volumes stored in the KNOSSOS format
- * 
+ *
  * http://knossostool.org/
- * 
+ *
  * Blocks of 128^3 voxels (fill with zero if smaller) uint64 voxels in network
  * byte order from left top front to right bottom rear,
  * index = z 128<sup>2</sup> + y 128 + x
  * naming convention
- * 
+ *
  * x%1$d/y%2$d/z%3$d/%4$s_x%1$d_y%2$d_z%3$d.raw
  * with arguments
- * 
+ *
  * (1) x / 128
  * (2) y / 128
  * (3) z / 128
  * (4) name
- * 
+ *
  * @author Stephan Saalfeld <saalfelds@janelia.hhmi.org>
  *
  */
-abstract public class AbstractKnossosImageLoader< T, V extends Volatile< T > > extends AbstractViewerSetupImgLoader< T, V > implements ViewerImgLoader
+abstract public class AbstractKnossosImageLoader< T extends NativeType< T >, V extends Volatile< T > & NativeType< V >, A extends VolatileAccess > extends AbstractCachedViewerSetupImgLoader< T, V, A > implements ViewerImgLoader
 {
 	static public class KnossosConfig
 	{
@@ -50,7 +53,7 @@ abstract public class AbstractKnossosImageLoader< T, V extends Volatile< T > > e
 		final public int numScales;
 		final public String baseUrl;
 		final public String format;
-		
+
 		public KnossosConfig(
 				final String experimentName,
 				final double scaleX,
@@ -74,88 +77,95 @@ abstract public class AbstractKnossosImageLoader< T, V extends Volatile< T > > e
 			this.baseUrl = baseUrl;
 			this.format = format;
 		}
-	}
-	
-	final protected KnossosConfig config;
-	
-	final protected double[][] mipmapResolutions;
 
-	final protected long[][] imageDimensions;
-
-	final protected AffineTransform3D[] mipmapTransforms;
-
-	final protected VolatileGlobalCellCache cache;
-
-	public AbstractKnossosImageLoader(
-			T type,
-			V volatileType,
-			final String configUrl, final String urlFormat )
-	{
-		super( type, volatileType );
-		
-		config = tryFetchConfig( configUrl, 20 );
-
-		mipmapResolutions = new double[ config.numScales ][];
-		imageDimensions = new long[ config.numScales ][];
-		mipmapTransforms = new AffineTransform3D[ config.numScales ];
-		for ( int l = 0; l < config.numScales; ++l )
+		public double[][] createMipmapResolutions()
 		{
-			final int si = 1 << l;
-			
-			mipmapResolutions[ l ] = new double[] { si, si, si };
-			imageDimensions[ l ] = new long[] { config.width >> l, config.height >> l, config.depth >> l };
-			
-			final AffineTransform3D mipmapTransform = new AffineTransform3D();
-
-			mipmapTransform.set( si * config.scaleX, 0, 0 );
-			mipmapTransform.set( si * config.scaleY, 1, 1 );
-			mipmapTransform.set( si * config.scaleZ, 2, 2 );
-			
-			final double offset = 0.5 * ( si - 1 );
-
-			mipmapTransform.set( offset * config.scaleX, 0, 3 );
-			mipmapTransform.set( offset * config.scaleY, 1, 3 );
-			mipmapTransform.set( offset * config.scaleZ, 2, 3 );
-
-			mipmapTransforms[ l ] = mipmapTransform;
+			final double[][] mipmapResolutions = new double[ numScales ][];
+			for ( int l = 0; l < numScales; ++l )
+			{
+				final int si = 1 << l;
+				mipmapResolutions[ l ] = new double[] { si, si, si };
+			}
+			return mipmapResolutions;
 		}
 
-		cache = new VolatileGlobalCellCache( config.numScales, 10 );
+		public long[][] createDimensions()
+		{
+			final long[][] dimensions = new long[ numScales ][];
+			for ( int l = 0; l < numScales; ++l )
+				dimensions[ l ] = new long[] { width >> l, height >> l, depth >> l };
+
+			return dimensions;
+		}
+
+		public int[][] createCellDimensions()
+		{
+			final int[][] cellDimensions = new int[ numScales ][];
+			for ( int l = 0; l < numScales; ++l )
+				cellDimensions[ l ] = new int[] { 128, 128, 128 };
+
+			return cellDimensions;
+		}
+
+		public  AffineTransform3D[] createMipmapTransforms()
+		{
+			final AffineTransform3D[] mipmapTransforms = new AffineTransform3D[ numScales ];
+			for ( int l = 0; l < numScales; ++l )
+			{
+				final int si = 1 << l;
+
+				final AffineTransform3D mipmapTransform = new AffineTransform3D();
+
+				mipmapTransform.set( si * scaleX, 0, 0 );
+				mipmapTransform.set( si * scaleY, 1, 1 );
+				mipmapTransform.set( si * scaleZ, 2, 2 );
+
+				final double offset = 0.5 * ( si - 1 );
+
+				mipmapTransform.set( offset * scaleX, 0, 3 );
+				mipmapTransform.set( offset * scaleY, 1, 3 );
+				mipmapTransform.set( offset * scaleZ, 2, 3 );
+
+				mipmapTransforms[ l ] = mipmapTransform;
+			}
+
+			return mipmapTransforms;
+		}
 	}
 
 	final static public KnossosConfig fetchConfig( final String configUrl ) throws IOException
 	{
 		final URL url = new URL( configUrl );
 		System.out.println( "Fetching config from " + url );
-		
+
 		final String config = IOUtils.toString( url.openStream() );
-		
+
 		final String experimentName = config.replaceAll( "(?s).*experiment name \"([^\"]*)\";.*", "$1" );
-		
+
 		final String scaleXString = config.replaceAll( "(?s).*scale x ([^;]*);.*", "$1" );
 		final String scaleYString = config.replaceAll( "(?s).*scale y ([^;]*);.*", "$1" );
 		final String scaleZString = config.replaceAll( "(?s).*scale z ([^;]*);.*", "$1" );
-		
+
 		final String boundaryXString = config.replaceAll( "(?s).*boundary x ([^;]*);.*", "$1" );
 		final String boundaryYString = config.replaceAll( "(?s).*boundary y ([^;]*);.*", "$1" );
 		final String boundaryZString = config.replaceAll( "(?s).*boundary z ([^;]*);.*", "$1" );
-		
+
 		final String magnificationString = config.replaceAll( "(?s).*magnification ([^;]*);.*", "$1" );
-		
+
 		final String compressionRatioString = config.replaceAll( "(?s).*compression_ratio ([^;]*);.*", "$1" );
-		
+
 		String baseUrl = "";
 		if ( config.contains( "ftp_mode" ) )
 		{
 			baseUrl = "http://";
-			String server = config.replaceAll( "(?s).*ftp_mode ([^ ]*) .*", "$1" );
+			final String server = config.replaceAll( "(?s).*ftp_mode ([^ ]*) .*", "$1" );
 			if ( !server.equals( config ) )
 				baseUrl += server;
-			String httpUser = config.replaceAll( "(?s).*ftp_mode [^ ]* [^ ]* ([^ ]*).*", "$1" );
-			String httpPasswd = config.replaceAll( "(?s).*ftp_mode [^ ]* [^ ]* [^ ]* ([^ ]*).*", "$1" );
+			final String httpUser = config.replaceAll( "(?s).*ftp_mode [^ ]* [^ ]* ([^ ]*).*", "$1" );
+			final String httpPasswd = config.replaceAll( "(?s).*ftp_mode [^ ]* [^ ]* [^ ]* ([^ ]*).*", "$1" );
 			if ( !( httpUser.equals( config ) || httpPasswd.equals( config ) ) )
 				baseUrl += httpUser + ":" + httpPasswd + "@";
-			String rootDirectory = config.replaceAll( "(?s).*ftp_mode [^ ]* ([^ ]*).*", "$1" );
+			final String rootDirectory = config.replaceAll( "(?s).*ftp_mode [^ ]* ([^ ]*).*", "$1" );
 			if ( !rootDirectory.equals( config ) )
 				baseUrl += "/" + rootDirectory;
 			String timeout = config.replaceAll( "(?s).*ftp_mode [^ ]* [^ ]* [^ ]* [^ ]* ([^ ;]*);.*", "$1" );
@@ -163,9 +173,9 @@ abstract public class AbstractKnossosImageLoader< T, V extends Volatile< T > > e
 		}
 		else
 			baseUrl = configUrl.replaceAll( "^(.*)/[^/]*/[^/]*$", "$1" );
-		
-		int numScales = magnificationString.equals( config ) ? 1 : Util.ldu( Integer.parseInt( magnificationString ) );
-		
+
+		final int numScales = magnificationString.equals( config ) ? 1 : Util.ldu( Integer.parseInt( magnificationString ) );
+
 		final KnossosConfig knossosConfig = new KnossosConfig(
 				experimentName,
 				Double.parseDouble( scaleXString ),
@@ -177,12 +187,12 @@ abstract public class AbstractKnossosImageLoader< T, V extends Volatile< T > > e
 				numScales,
 				baseUrl,
 				compressionRatioString.equals( "1000" ) ? "jpg" : "raw" );
-		
+
 		System.out.println( new Gson().toJson( knossosConfig ) );
-		
+
 		return knossosConfig;
 	}
-	
+
 	final static public KnossosConfig tryFetchConfig( final String configUrl, final int maxNumTrials )
 	{
 		KnossosConfig config = null;
@@ -207,22 +217,45 @@ abstract public class AbstractKnossosImageLoader< T, V extends Volatile< T > > e
 		return config;
 	}
 
-	@Override
-	public double[][] getMipmapResolutions()
+	final protected KnossosConfig config;
+
+	public AbstractKnossosImageLoader(
+			final KnossosConfig config,
+			final String urlFormat,
+			final T type,
+			final V volatileType,
+			final CacheArrayLoader< A > loader,
+			final VolatileGlobalCellCache cache )
 	{
-		return mipmapResolutions;
+		super(
+				0,
+				config.createDimensions(),
+				config.createCellDimensions(),
+				config.createMipmapResolutions(),
+				type,
+				volatileType,
+				loader,
+				cache );
+
+		this.config = config;
+
 	}
 
-	@Override
-	public int numMipmapLevels()
+	public AbstractKnossosImageLoader(
+			final String configUrl,
+			final String urlFormat,
+			final T type,
+			final V volatileType,
+			final CacheArrayLoader< A > loader,
+			final VolatileGlobalCellCache cache ) throws IOException
 	{
-		return config.numScales;
-	}
-
-	@Override
-	public AffineTransform3D[] getMipmapTransforms()
-	{
-		return mipmapTransforms;
+		this(
+				tryFetchConfig( configUrl, 20 ),
+				urlFormat,
+				type,
+				volatileType,
+				loader,
+				cache );
 	}
 
 	@Override
@@ -232,7 +265,7 @@ abstract public class AbstractKnossosImageLoader< T, V extends Volatile< T > > e
 	}
 
 	@Override
-	public ViewerSetupImgLoader< ?, ? > getSetupImgLoader( final int setupId )
+	public ViewerSetupImgLoader< ?, ? > getSetupImgLoader( @SuppressWarnings( "hiding" ) final int setupId )
 	{
 		return this;
 	}

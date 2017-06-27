@@ -10,14 +10,11 @@ import net.imglib2.img.basictypeaccess.volatiles.array.VolatileByteArray;
 
 public class KnossosUnsignedByteVolatileArrayLoader implements CacheArrayLoader< VolatileByteArray >
 {
-	private VolatileByteArray theEmptyArray;
-	
 	final private String urlFormat;
 
 	public KnossosUnsignedByteVolatileArrayLoader( final String baseUrl, final String urlFormat, final String experiment, final String format )
 	{
 		this.urlFormat = baseUrl + urlFormat.replace( "%5$s", experiment );
-		theEmptyArray = new VolatileByteArray( 1, false );
 	}
 
 	@Override
@@ -51,16 +48,16 @@ public class KnossosUnsignedByteVolatileArrayLoader implements CacheArrayLoader<
 			final long[] min ) throws InterruptedException
 	{
 		final int mag = 1 << level;
-		
+
 		final String url = String.format(
 				urlFormat,
 				mag,
 				min[ 0 ] / 128,
 				min[ 1 ] / 128,
 				min[ 2 ] / 128 );
-		
+
 		System.out.println( url );
-		
+
 		byte[] data;
 
 		try
@@ -83,16 +80,5 @@ public class KnossosUnsignedByteVolatileArrayLoader implements CacheArrayLoader<
 		}
 
 		return new VolatileByteArray( data, true );
-	}
-
-	@Override
-	public VolatileByteArray emptyArray( final int[] dimensions )
-	{
-		int numEntities = 1;
-		for ( int i = 0; i < dimensions.length; ++i )
-			numEntities *= dimensions[ i ];
-		if ( theEmptyArray.getCurrentStorageArray().length < numEntities )
-			theEmptyArray = new VolatileByteArray( numEntities, false );
-		return theEmptyArray;
 	}
 }

@@ -16,7 +16,7 @@ import net.imglib2.view.Views;
 @SuppressWarnings( "unchecked" )
 abstract public class AbstractARGBConvertedLabelsSource implements Source< VolatileARGBType >
 {
-	final protected ARGBStream argbStream;
+	protected ARGBStream argbStream;
 	final protected long setupId;
 
 	final protected InterpolatorFactory< VolatileARGBType, RandomAccessible< VolatileARGBType > >[] interpolatorFactories;
@@ -35,6 +35,11 @@ abstract public class AbstractARGBConvertedLabelsSource implements Source< Volat
 		this.argbStream = argbStream;
 	}
 
+	public void setStream( final ARGBStream stream )
+	{
+		this.argbStream = stream;
+	}
+
 	@Override
 	public boolean isPresent( final int t )
 	{
@@ -43,7 +48,7 @@ abstract public class AbstractARGBConvertedLabelsSource implements Source< Volat
 
 	@Override
 	abstract public RandomAccessibleInterval< VolatileARGBType > getSource( final int t, final int level );
-	
+
 	@Override
 	public RealRandomAccessible< VolatileARGBType > getInterpolatedSource( final int t, final int level, final Interpolation method )
 	{

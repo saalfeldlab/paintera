@@ -6,8 +6,6 @@ import com.google.gson.JsonIOException;
 import com.google.gson.JsonSyntaxException;
 
 import bdv.ViewerImgLoader;
-import bdv.ViewerSetupImgLoader;
-import bdv.cache.CacheControl;
 
 /**
  * {@link ViewerImgLoader} for
@@ -16,7 +14,6 @@ import bdv.cache.CacheControl;
  * @author Stephan Saalfeld <saalfelds@janelia.hhmi.org>
  */
 public class Uint8blkImageLoader extends Uint8blkSetupImageLoader
-		implements ViewerImgLoader
 {
 	/**
 	 * http://emdata.janelia.org/api/help/grayscale8
@@ -35,17 +32,4 @@ public class Uint8blkImageLoader extends Uint8blkSetupImageLoader
 	{
 		super( apiUrl, nodeId, dataInstanceId, 0 );
 	}
-
-	@Override
-	public ViewerSetupImgLoader< ?, ? > getSetupImgLoader( final int setupId )
-	{
-		return this;
-	}
-
-	@Override
-	public CacheControl getCacheControl()
-	{
-		return cache;
-	}
-
 }
