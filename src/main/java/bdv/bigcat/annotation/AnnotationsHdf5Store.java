@@ -355,7 +355,6 @@ public class AnnotationsHdf5Store implements AnnotationsStore {
 		// delete old datasets and groups
 		if (fileFormat == 0.0) {
 
-			// TODO: delete only if exist
 			for (final String type : new String[]{"synapse", "presynaptic_site", "postsynaptic_site" })
 				for (final String ds : new String[]{"locations", "ids", "comments" })
 					deleteDataset(writer, type + "_" + ds);
