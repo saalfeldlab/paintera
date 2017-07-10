@@ -16,6 +16,7 @@ import graphics.scenery.Scene;
 import graphics.scenery.SceneryElement;
 import graphics.scenery.Settings;
 import graphics.scenery.backends.Renderer;
+import graphics.scenery.utils.SceneryPanel;
 import javafx.embed.swing.SwingNode;
 
 public class Viewer3DNode extends SwingNode {
@@ -31,7 +32,8 @@ public class Viewer3DNode extends SwingNode {
 		Hub hub = new Hub();
 		Scene scene = new Scene();
 		hub.add( SceneryElement.Settings, settings );
-		Renderer renderer = Renderer.Factory.createRenderer(hub, "name", scene, 250, 250);
+		SceneryPanel scPanel = new SceneryPanel( 250, 250 );
+		Renderer renderer = Renderer.Factory.createRenderer(hub, "name", scene, 250, 250, scPanel);
 		hub.add(SceneryElement.Renderer, renderer);
 
 
@@ -85,11 +87,12 @@ public class Viewer3DNode extends SwingNode {
 		rotator.start();
 
 		SwingUtilities.invokeLater(() -> {
-			panel = new JPanel();
-
-			panel.setLayout(new BorderLayout());
-			panel.add(renderer.getWindow().getClearglWindow().getNewtCanvasAWT(), BorderLayout.CENTER);
-			this.setContent(panel);
+//			panel = new JPanel();
+//
+//			panel.setLayout(new BorderLayout());
+//
+//			panel.add(renderer.getWindow().getClearglWindow().getNewtCanvasAWT(), BorderLayout.CENTER);
+//			this.setContent(panel);
 
 			_isReady = true;
 			setVisible(true);
