@@ -19,66 +19,76 @@ import graphics.scenery.backends.Renderer;
 import graphics.scenery.utils.SceneryPanel;
 import javafx.embed.swing.SwingNode;
 
-public class Viewer3DNode extends SwingNode {
+public class Viewer3DNode extends SwingNode
+{
 	boolean _isReady = false;
+
 	JPanel panel;
 
-	public Viewer3DNode() {
+	public Viewer3DNode()
+	{
 		initialize();
 	}
 
-	public void initialize() {
+	public void initialize()
+	{
 		Settings settings = new Settings();
 		Hub hub = new Hub();
 		Scene scene = new Scene();
 		hub.add( SceneryElement.Settings, settings );
 		SceneryPanel scPanel = new SceneryPanel( 250, 250 );
-		Renderer renderer = Renderer.Factory.createRenderer(hub, "name", scene, 250, 250, scPanel);
-		hub.add(SceneryElement.Renderer, renderer);
-
+		Renderer renderer = Renderer.Factory.createRenderer( hub, "name", scene, 250, 250, scPanel );
+		hub.add( SceneryElement.Renderer, renderer );
 
 		Material boxmaterial = new Material();
-		boxmaterial.setAmbient(new GLVector(1.0f, 0.0f, 0.0f));
-		boxmaterial.setDiffuse(new GLVector(0.0f, 1.0f, 0.0f));
-		boxmaterial.setSpecular(new GLVector(1.0f, 1.0f, 1.0f));
-		System.out.println(Viewer3DNode.class);
-		boxmaterial.getTextures().put("diffuse", "data/helix.png");
+		boxmaterial.setAmbient( new GLVector( 1.0f, 0.0f, 0.0f ) );
+		boxmaterial.setDiffuse( new GLVector( 0.0f, 1.0f, 0.0f ) );
+		boxmaterial.setSpecular( new GLVector( 1.0f, 1.0f, 1.0f ) );
+		System.out.println( Viewer3DNode.class );
+		boxmaterial.getTextures().put( "diffuse", "data/helix.png" );
 
-		final Box box = new Box(new GLVector(1.0f, 1.0f, 1.0f));
-		box.setMaterial(boxmaterial);
-		box.setPosition(new GLVector(0.0f, 0.0f, 0.0f));
+		final Box box = new Box( new GLVector( 1.0f, 1.0f, 1.0f ) );
+		box.setMaterial( boxmaterial );
+		box.setPosition( new GLVector( 0.0f, 0.0f, 0.0f ) );
 
-		scene.addChild(box);
+		scene.addChild( box );
 
-		PointLight[] lights = new PointLight[2];
+		PointLight[] lights = new PointLight[ 2 ];
 
-		for (int i = 0; i < lights.length; i++) {
-			lights[i] = new PointLight();
-			lights[i].setPosition(new GLVector(2.0f * i, 2.0f * i, 2.0f * i));
-			lights[i].setEmissionColor(new GLVector(1.0f, 0.0f, 1.0f));
-			lights[i].setIntensity(0.2f * (i + 1));
-			lights[i].setIntensity(100.2f * (i + 1));
-			lights[i].setLinear(0.0f);
-			lights[i].setQuadratic(0.5f);
-			scene.addChild(lights[i]);
+		for ( int i = 0; i < lights.length; i++ )
+		{
+			lights[ i ] = new PointLight();
+			lights[ i ].setPosition( new GLVector( 2.0f * i, 2.0f * i, 2.0f * i ) );
+			lights[ i ].setEmissionColor( new GLVector( 1.0f, 0.0f, 1.0f ) );
+			lights[ i ].setIntensity( 0.2f * ( i + 1 ) );
+			lights[ i ].setIntensity( 100.2f * ( i + 1 ) );
+			lights[ i ].setLinear( 0.0f );
+			lights[ i ].setQuadratic( 0.5f );
+			scene.addChild( lights[ i ] );
 		}
 
 		Camera cam = new DetachedHeadCamera();
-		cam.setPosition(new GLVector(0.0f, 0.0f, 5.0f));
-		cam.perspectiveCamera(50.0f, renderer.getWindow().getWidth(), renderer.getWindow().getHeight(), 0.1f, 1000.0f);
+		cam.setPosition( new GLVector( 0.0f, 0.0f, 5.0f ) );
+		cam.perspectiveCamera( 50.0f, renderer.getWindow().getWidth(), renderer.getWindow().getHeight(), 0.1f, 1000.0f );
 
-		cam.setActive(true);
-		scene.addChild(cam);
+		cam.setActive( true );
+		scene.addChild( cam );
 
-		Thread rotator = new Thread() {
-			public void run() {
-				while (true) {
-					box.getRotation().rotateByAngleY(0.01f);
-					box.setNeedsUpdate(true);
+		Thread rotator = new Thread()
+		{
+			public void run()
+			{
+				while ( true )
+				{
+					box.getRotation().rotateByAngleY( 0.01f );
+					box.setNeedsUpdate( true );
 
-					try {
-						Thread.sleep(20);
-					} catch (InterruptedException e) {
+					try
+					{
+						Thread.sleep( 20 );
+					}
+					catch ( InterruptedException e )
+					{
 						e.printStackTrace();
 					}
 				}
@@ -86,7 +96,7 @@ public class Viewer3DNode extends SwingNode {
 		};
 		rotator.start();
 
-		SwingUtilities.invokeLater(() -> {
+		SwingUtilities.invokeLater( () -> {
 //			panel = new JPanel();
 //
 //			panel.setLayout(new BorderLayout());
@@ -95,11 +105,12 @@ public class Viewer3DNode extends SwingNode {
 //			this.setContent(panel);
 
 			_isReady = true;
-			setVisible(true);
-		});
+			setVisible( true );
+		} );
 	}
 
-	boolean isReady() {
+	boolean isReady()
+	{
 		return _isReady;
 	}
 
