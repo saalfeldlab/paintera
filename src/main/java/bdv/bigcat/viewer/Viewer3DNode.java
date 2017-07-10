@@ -97,12 +97,11 @@ public class Viewer3DNode extends SwingNode
 		rotator.start();
 
 		SwingUtilities.invokeLater( () -> {
-//			panel = new JPanel();
-//
-//			panel.setLayout(new BorderLayout());
-//
+			panel = new JPanel();
+			panel.setLayout( new BorderLayout() );
+
 //			panel.add(renderer.getWindow().getClearglWindow().getNewtCanvasAWT(), BorderLayout.CENTER);
-//			this.setContent(panel);
+			this.setContent( panel );
 
 			_isReady = true;
 			setVisible( true );
