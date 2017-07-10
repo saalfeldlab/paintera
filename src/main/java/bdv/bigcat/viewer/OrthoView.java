@@ -19,6 +19,17 @@ import bdv.util.AxisOrder;
 import bdv.util.BdvFunctions;
 import bdv.viewer.SourceAndConverter;
 import bdv.viewer.ViewerPanel;
+import cleargl.GLVector;
+import graphics.scenery.Box;
+import graphics.scenery.Camera;
+import graphics.scenery.DetachedHeadCamera;
+import graphics.scenery.Hub;
+import graphics.scenery.Material;
+import graphics.scenery.PointLight;
+import graphics.scenery.SceneryElement;
+import graphics.scenery.Settings;
+import graphics.scenery.backends.Renderer;
+import graphics.scenery.utils.SceneryPanel;
 import javafx.beans.value.ChangeListener;
 import javafx.collections.FXCollections;
 import javafx.collections.ListChangeListener;
@@ -189,26 +200,92 @@ public class OrthoView {
 
 	private void createInfo() {
 		// this.infoPane = new Label( "info box" );
-		final Viewer3DNode viewer3DNode = new Viewer3DNode();
-		this.infoPane = viewer3DNode;
+		Settings settings = new Settings();
+		Hub hub = new Hub();
+		graphics.scenery.Scene scene = new graphics.scenery.Scene();
+		hub.add( SceneryElement.Settings, settings );
+		SceneryPanel scPanel = new SceneryPanel( 250, 250 );
+		Renderer renderer = Renderer.Factory.createRenderer( hub, "name", scene, 250, 250, scPanel );
+		hub.add( SceneryElement.Renderer, renderer );
 
-		// sourceLayers.addListener(infoPane);
+		Material boxmaterial = new Material();
+		boxmaterial.setAmbient( new GLVector( 1.0f, 0.0f, 0.0f ) );
+		boxmaterial.setDiffuse( new GLVector( 0.0f, 1.0f, 0.0f ) );
+		boxmaterial.setSpecular( new GLVector( 1.0f, 1.0f, 1.0f ) );
+		System.out.println( Viewer3DNode.class );
+		boxmaterial.getTextures().put( "diffuse", "data/helix.png" );
 
-		final Thread t = new Thread(() -> {
-			while (!created3DViewer) {
-				try {
-					Thread.sleep(10);
-				} catch (final InterruptedException e) {
-					e.printStackTrace();
-					return;
+		final Box box = new Box( new GLVector( 1.0f, 1.0f, 1.0f ) );
+		box.setMaterial( boxmaterial );
+		box.setPosition( new GLVector( 0.0f, 0.0f, 0.0f ) );
+
+		scene.addChild( box );
+
+		PointLight[] lights = new PointLight[ 2 ];
+
+		for ( int i = 0; i < lights.length; i++ )
+		{
+			lights[ i ] = new PointLight();
+			lights[ i ].setPosition( new GLVector( 2.0f * i, 2.0f * i, 2.0f * i ) );
+			lights[ i ].setEmissionColor( new GLVector( 1.0f, 0.0f, 1.0f ) );
+			lights[ i ].setIntensity( 0.2f * ( i + 1 ) );
+			lights[ i ].setIntensity( 100.2f * ( i + 1 ) );
+			lights[ i ].setLinear( 0.0f );
+			lights[ i ].setQuadratic( 0.5f );
+			scene.addChild( lights[ i ] );
+		}
+
+		Camera cam = new DetachedHeadCamera();
+		cam.setPosition( new GLVector( 0.0f, 0.0f, 5.0f ) );
+		cam.perspectiveCamera( 50.0f, renderer.getWindow().getWidth(), renderer.getWindow().getHeight(), 0.1f, 1000.0f );
+
+		cam.setActive( true );
+		scene.addChild( cam );
+
+		Thread rotator = new Thread()
+		{
+			public void run()
+			{
+				while ( true )
+				{
+					box.getRotation().rotateByAngleY( 0.01f );
+					box.setNeedsUpdate( true );
+
+					try
+					{
+						Thread.sleep( 20 );
+					}
+					catch ( InterruptedException e )
+					{
+						e.printStackTrace();
+					}
 				}
-				created3DViewer = viewer3DNode.isReady();
 			}
-			created3DViewer = true;
-		});
-		t.start();
+		};
+		rotator.start();
+		
+		
+		
+//		final Viewer3DNode viewer3DNode = new Viewer3DNode();
+//		this.infoPane = viewer3DNode;
+//
+//		// sourceLayers.addListener(infoPane);
+//
+//		final Thread t = new Thread(() -> {
+//			while (!created3DViewer) {
+//				try {
+//					Thread.sleep(10);
+//				} catch (final InterruptedException e) {
+//					e.printStackTrace();
+//					return;
+//				}
+//				created3DViewer = viewer3DNode.isReady();
+//			}
+//			created3DViewer = true;
+//		});
+//		t.start();
 
-		this.grid.add(viewer3DNode, 1, 1);
+		this.grid.add(scPanel, 1, 1);
 
 		// final Label node = new Label( "This is a box for info or 3D
 		// rendering." );
