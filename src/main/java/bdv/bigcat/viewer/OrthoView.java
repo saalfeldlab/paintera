@@ -1,9 +1,17 @@
 package bdv.bigcat.viewer;
 
+import java.io.IOException;
+import java.nio.FloatBuffer;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Random;
+import java.util.concurrent.CompletionService;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorCompletionService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -15,16 +23,21 @@ import bdv.bigcat.viewer.source.RawLayer;
 import bdv.bigcat.viewer.source.Source;
 import bdv.bigcat.viewer.source.SourceLayer;
 import bdv.cache.CacheControl;
+import bdv.img.h5.H5LabelMultisetSetupImageLoader;
+import bdv.labels.labelset.LabelMultisetType;
 import bdv.util.AxisOrder;
 import bdv.util.BdvFunctions;
 import bdv.viewer.SourceAndConverter;
 import bdv.viewer.ViewerPanel;
+import ch.systemsx.cisd.hdf5.HDF5Factory;
+import ch.systemsx.cisd.hdf5.IHDF5Reader;
 import cleargl.GLVector;
 import graphics.scenery.Box;
 import graphics.scenery.Camera;
 import graphics.scenery.DetachedHeadCamera;
 import graphics.scenery.Hub;
 import graphics.scenery.Material;
+import graphics.scenery.Mesh;
 import graphics.scenery.PointLight;
 import graphics.scenery.SceneryElement;
 import graphics.scenery.Settings;
@@ -45,12 +58,14 @@ import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.GridPane;
 import javafx.scene.paint.Color;
 import javafx.stage.Stage;
+import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.converter.RealARGBConverter;
 import net.imglib2.img.Img;
 import net.imglib2.img.array.ArrayImgs;
 import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.type.numeric.ARGBType;
 import net.imglib2.type.numeric.real.FloatType;
+import net.imglib2.view.Views;
 
 public class OrthoView {
 	// private Node infoPane;
@@ -69,6 +84,17 @@ public class OrthoView {
 	private boolean created3DViewer;
 
 	final boolean[] isFullScreen = new boolean[] { false };
+	
+	private static RandomAccessibleInterval< LabelMultisetType > volumeLabels = null;
+	/** small hdf5 for test - subset from sample B */
+	static String path = "data/sample_B_20160708_frags_46_50.hdf";
+	int isoLevel = 7;
+	int[] volDim = { 500, 500, 5 };
+	static String path_label = "/volumes/labels/neuron_ids";
+	float[] voxDim = { 1f, 1f, 1f };
+	float maxAxisVal = 0;
+	float[] verticesArray = new float[ 0 ];
+
 
 	final HashMap<bdv.viewer.Source<?>, Composite<ARGBType, ARGBType>> sourceCompositeMap = new HashMap<>();
 
@@ -85,7 +111,6 @@ public class OrthoView {
 	public OrthoView() {
 		this.grid = createGrid( /* infoPane, */ gridConstraintsManager);
 		addViewerNodesHandlers(this.viewerNodes);
-		createInfo();
 	}
 
 	public synchronized boolean isInitialized() {
@@ -200,72 +225,67 @@ public class OrthoView {
 
 	private void createInfo() {
 		// this.infoPane = new Label( "info box" );
+		loadData();
+		
 		Settings settings = new Settings();
 		Hub hub = new Hub();
 		graphics.scenery.Scene scene = new graphics.scenery.Scene();
 		hub.add( SceneryElement.Settings, settings );
 		SceneryPanel scPanel = new SceneryPanel( 250, 250 );
-		Renderer renderer = Renderer.Factory.createRenderer( hub, "name", scene, 250, 250, scPanel );
+		Renderer renderer = Renderer.Factory.createRenderer( hub, "BigCAT", scene, 250, 250, scPanel );
 		hub.add( SceneryElement.Renderer, renderer );
 
-		Material boxmaterial = new Material();
-		boxmaterial.setAmbient( new GLVector( 1.0f, 0.0f, 0.0f ) );
-		boxmaterial.setDiffuse( new GLVector( 0.0f, 1.0f, 0.0f ) );
-		boxmaterial.setSpecular( new GLVector( 1.0f, 1.0f, 1.0f ) );
-		System.out.println( Viewer3DNode.class );
-		boxmaterial.getTextures().put( "diffuse", "data/helix.png" );
+		final Box hull = new Box( new GLVector( 50.0f, 50.0f, 50.0f ), true );
+		hull.getMaterial().setDiffuse( new GLVector( 0.5f, 0.5f, 0.5f ) );
+		hull.getMaterial().setDoubleSided( true );
+		scene.addChild( hull );
 
-		final Box box = new Box( new GLVector( 1.0f, 1.0f, 1.0f ) );
-		box.setMaterial( boxmaterial );
-		box.setPosition( new GLVector( 0.0f, 0.0f, 0.0f ) );
+		final Material material = new Material();
+		material.setAmbient( new GLVector( 0.1f * ( 1 ), 1.0f, 1.0f ) );
+		material.setDiffuse( new GLVector( 0.1f * ( 1 ), 0.0f, 1.0f ) );
+		material.setSpecular( new GLVector( 0.1f * ( 1 ), 0f, 0f ) );
 
-		scene.addChild( box );
+		final Camera cam = new DetachedHeadCamera();
 
-		PointLight[] lights = new PointLight[ 2 ];
+		cam.perspectiveCamera( 50f, renderer.getWindow().getHeight(), renderer.getWindow().getWidth(), 0.1f, 1000.0f );
+		cam.setActive( true );
+		cam.setPosition( new GLVector( 0.5f, 0.5f, 5 ) );
+		scene.addChild( cam );
+
+		PointLight[] lights = new PointLight[ 4 ];
 
 		for ( int i = 0; i < lights.length; i++ )
 		{
 			lights[ i ] = new PointLight();
-			lights[ i ].setPosition( new GLVector( 2.0f * i, 2.0f * i, 2.0f * i ) );
-			lights[ i ].setEmissionColor( new GLVector( 1.0f, 0.0f, 1.0f ) );
-			lights[ i ].setIntensity( 0.2f * ( i + 1 ) );
-			lights[ i ].setIntensity( 100.2f * ( i + 1 ) );
+			lights[ i ].setEmissionColor( new GLVector( 1.0f, 1.0f, 1.0f ) );
+			lights[ i ].setIntensity( 100.2f * 5 );
 			lights[ i ].setLinear( 0.0f );
-			lights[ i ].setQuadratic( 0.5f );
-			scene.addChild( lights[ i ] );
+			lights[ i ].setQuadratic( 0.1f );
+			// lights[ i ].showLightBox();
 		}
 
-		Camera cam = new DetachedHeadCamera();
-		cam.setPosition( new GLVector( 0.0f, 0.0f, 5.0f ) );
-		cam.perspectiveCamera( 50.0f, renderer.getWindow().getWidth(), renderer.getWindow().getHeight(), 0.1f, 1000.0f );
+		lights[ 0 ].setPosition( new GLVector( 1.0f, 0f, -1.0f / ( float ) Math.sqrt( 2.0 ) ) );
+		lights[ 1 ].setPosition( new GLVector( -1.0f, 0f, -1.0f / ( float ) Math.sqrt( 2.0 ) ) );
+		lights[ 2 ].setPosition( new GLVector( 0.0f, 1.0f, 1.0f / ( float ) Math.sqrt( 2.0 ) ) );
+		lights[ 3 ].setPosition( new GLVector( 0.0f, -1.0f, 1.0f / ( float ) Math.sqrt( 2.0 ) ) );
 
-		cam.setActive( true );
-		scene.addChild( cam );
+		for ( int i = 0; i < lights.length; i++ )
+			scene.addChild( lights[ i ] );
 
-		Thread rotator = new Thread()
-		{
-			public void run()
-			{
-				while ( true )
-				{
-					box.getRotation().rotateByAngleY( 0.01f );
-					box.setNeedsUpdate( true );
+		Mesh neuron = new Mesh();
+		neuron.setMaterial( material );
+		neuron.setName("neuron");
+		neuron.setPosition( new GLVector( 0.0f, 0.0f, 0.0f ) );
+//		neuron.setScale( new GLVector( 1.0f, 1.0f, 100.0f ) );
+		scene.addChild(neuron);
 
-					try
-					{
-						Thread.sleep( 20 );
-					}
-					catch ( InterruptedException e )
-					{
-						e.printStackTrace();
-					}
-				}
+		new Thread() {
+			public void run() {
+
+			marchingCube(neuron, material, scene, cam );
 			}
-		};
-		rotator.start();
-		
-		
-		
+		}.start();
+
 //		final Viewer3DNode viewer3DNode = new Viewer3DNode();
 //		this.infoPane = viewer3DNode;
 //
@@ -309,6 +329,234 @@ public class OrthoView {
 		// return new Label( "info box" );
 	}
 
+	public void updateMesh( Mesh2 m, Mesh neuron )
+	{
+		System.out.println( "previous size of vertices: " + verticesArray.length );
+		int vertexCount = verticesArray.length;
+
+		int numberOfTriangles = m.getNumberOfTriangles();
+		System.out.println( "number of triangles: " + numberOfTriangles );
+
+		// resize array to fit the new mesh
+		verticesArray = Arrays.copyOf( verticesArray, ( numberOfTriangles * 3 * 3 + vertexCount ) );
+		System.out.println( "size of verticesArray: " + ( numberOfTriangles * 3 * 3 + vertexCount ) );
+
+		float[][] vertices = m.getVertices();
+		int[] triangles = m.getTriangles();
+
+		float[] point0 = new float[ 3 ];
+		float[] point1 = new float[ 3 ];
+		float[] point2 = new float[ 3 ];
+		int v = 0;
+
+		for ( int i = 0; i < numberOfTriangles; i++ )
+		{
+			long id0 = triangles[ i * 3 ];
+			long id1 = triangles[ i * 3 + 1 ];
+			long id2 = triangles[ i * 3 + 2 ];
+
+			point0 = vertices[ ( int ) id0 ];
+			point1 = vertices[ ( int ) id1 ];
+			point2 = vertices[ ( int ) id2 ];
+
+			verticesArray[ vertexCount + v++ ] = point0[ 0 ];
+			verticesArray[ vertexCount + v++ ] = point0[ 1 ];
+			verticesArray[ vertexCount + v++ ] = point0[ 2 ];
+
+			verticesArray[ vertexCount + v++ ] = point1[ 0 ];
+			verticesArray[ vertexCount + v++ ] = point1[ 1 ];
+			verticesArray[ vertexCount + v++ ] = point1[ 2 ];
+
+			verticesArray[ vertexCount + v++ ] = point2[ 0 ];
+			verticesArray[ vertexCount + v++ ] = point2[ 1 ];
+			verticesArray[ vertexCount + v++ ] = point2[ 2 ];
+		}
+
+		// TODO: to define this value in a global way
+		maxAxisVal = 499;
+
+		// omp parallel for
+		System.out.println( "vsize: " + verticesArray.length );
+		for ( int i = vertexCount; i < verticesArray.length; ++i )
+		{
+			verticesArray[ i ] /= maxAxisVal;
+		}
+
+		neuron.setVertices( FloatBuffer.wrap( verticesArray ) );
+		neuron.recalculateNormals();
+		neuron.setDirty( true );
+	}
+	public static void loadData()
+	{
+		System.out.println( "Opening labels from " + path );
+		final IHDF5Reader reader = HDF5Factory.openForReading( path );
+
+		/** loaded segments */
+		ArrayList< H5LabelMultisetSetupImageLoader > labels = null;
+
+		/* labels */
+		if ( reader.exists( path_label ) )
+		{
+			try
+			{
+				labels = HDF5Reader.readLabels( reader, path_label );
+			}
+			catch ( IOException e )
+			{
+				e.printStackTrace();
+			}
+		}
+		else
+		{
+			System.out.println( "no label dataset '" + path_label + "' found" );
+		}
+
+		volumeLabels = labels.get( 0 ).getImage( 0 );
+	}
+
+	private List< RandomAccessibleInterval< LabelMultisetType > > dataPartitioning( int numberOfPartitions, int[][] offset )
+	{
+		List< RandomAccessibleInterval< LabelMultisetType > > parts = new ArrayList< RandomAccessibleInterval< LabelMultisetType > >();
+
+		int partitionXSize = ( int ) (( volumeLabels.max( 0 ) - volumeLabels.min( 0 ) ) + numberOfPartitions - 1 ) / numberOfPartitions;
+		System.out.println("partition size - X: " + partitionXSize);
+		
+		int partitionYSize = ( int ) (( volumeLabels.max( 1 ) - volumeLabels.min( 1 ) ) + numberOfPartitions - 1 ) / numberOfPartitions;
+		System.out.println("partition size - Y: " + partitionYSize);
+		
+		int partitionZSize = ( int ) (( volumeLabels.max( 2 ) - volumeLabels.min( 2 ) ) + numberOfPartitions - 1 ) / numberOfPartitions;
+		System.out.println("partition size - Z: " + partitionZSize);
+
+		RandomAccessibleInterval< LabelMultisetType > first = Views.interval( volumeLabels,
+				new long[] { volumeLabels.min( 0 ), volumeLabels.min( 1 ), volumeLabels.min( 2 ) },
+				new long[] { ( ( volumeLabels.max( 0 ) - volumeLabels.min( 0 ) ) / 2 ) + 1,
+						( ( volumeLabels.max( 1 ) - volumeLabels.min( 1 ) ) / 2 ) + 1, volumeLabels.max( 2 ) } );
+
+		offset[ 0 ][ 0 ] = 0;
+		offset[ 0 ][ 1 ] = 0;
+		offset[ 0 ][ 2 ] = 0;
+
+		RandomAccessibleInterval< LabelMultisetType > second = Views.interval( volumeLabels,
+				new long[] { ( ( volumeLabels.max( 0 ) - volumeLabels.min( 0 ) ) / 2 ) - 1, volumeLabels.min( 1 ),
+						volumeLabels.min( 2 ) },
+				new long[] { volumeLabels.max( 0 ), ( ( volumeLabels.max( 1 ) - volumeLabels.min( 1 ) ) / 2 ) + 1,
+						volumeLabels.max( 2 ) } );
+
+		offset[ 1 ][ 0 ] = ( int ) ( ( ( volumeLabels.max( 0 ) - volumeLabels.min( 0 ) ) / 2 ) - 1 ) + 20;
+		offset[ 1 ][ 1 ] = 0;
+		offset[ 1 ][ 2 ] = 0;
+
+		RandomAccessibleInterval< LabelMultisetType > third = Views.interval( volumeLabels,
+				new long[] { volumeLabels.min( 0 ), ( ( volumeLabels.max( 1 ) - volumeLabels.min( 1 ) ) / 2 ) - 1,
+						volumeLabels.min( 2 ) },
+				new long[] { ( ( volumeLabels.max( 0 ) - volumeLabels.min( 0 ) ) / 2 ) + 1, volumeLabels.max( 1 ),
+						volumeLabels.max( 2 ) } );
+
+		offset[ 2 ][ 0 ] = 0;
+		offset[ 2 ][ 1 ] = ( int ) ( ( ( volumeLabels.max( 1 ) - volumeLabels.min( 1 ) ) / 2 ) - 1 ) + 20;
+		offset[ 2 ][ 2 ] = 0;
+
+		RandomAccessibleInterval< LabelMultisetType > forth = Views.interval( volumeLabels,
+				new long[] { ( ( volumeLabels.max( 0 ) - volumeLabels.min( 0 ) ) / 2 ) - 1,
+						( ( volumeLabels.max( 1 ) - volumeLabels.min( 1 ) ) / 2 ) - 1, volumeLabels.min( 2 ) },
+				new long[] { volumeLabels.max( 0 ), volumeLabels.max( 1 ), volumeLabels.max( 2 ) } );
+
+		offset[ 3 ][ 0 ] = ( int ) ( ( ( volumeLabels.max( 0 ) - volumeLabels.min( 0 ) ) / 2 ) - 1 ) + 20;
+		offset[ 3 ][ 1 ] = ( int ) ( ( ( volumeLabels.max( 1 ) - volumeLabels.min( 1 ) ) / 2 ) - 1 ) + 20;
+		offset[ 3 ][ 2 ] = 0;
+
+		parts.add( first );
+		parts.add( second );
+		parts.add( third );
+		parts.add( forth );
+
+		return parts;
+	}
+	
+	private void marchingCube( Mesh neuron, Material material, graphics.scenery.Scene scene, Camera cam )
+	{
+		Mesh2 m = new Mesh2();
+		int numberOfPartitions = 4;
+		int[][] offset = new int[ numberOfPartitions ][ 3 ];
+		List< RandomAccessibleInterval< LabelMultisetType > > subvolumes = dataPartitioning( numberOfPartitions, offset );
+
+//		subvolumes.clear();
+//		subvolumes.add( volumeLabels );
+
+		System.out.println( "starting executor..." );
+		CompletionService< Mesh2 > executor = new ExecutorCompletionService< Mesh2 >(
+				Executors.newWorkStealingPool() );
+
+		List< Future< Mesh2 > > resultMeshList = new ArrayList<>();
+
+		float maxX = voxDim[ 0 ] * ( volDim[ 0 ] - 1 );
+		float maxY = voxDim[ 1 ] * ( volDim[ 1 ] - 1 );
+		float maxZ = voxDim[ 2 ] * ( volDim[ 2 ] - 1 );
+
+		maxAxisVal = Math.max( maxX, Math.max( maxY, maxZ ) );
+		System.out.println( "maxX " + maxX + " maxY: " + maxY + " maxZ: " + maxZ + " maxAxisVal: " + maxAxisVal );
+
+		System.out.println( "creating callables..." );
+		for ( int i = 0; i < subvolumes.size(); i++ )
+		{
+			System.out.println( "dimension: " + subvolumes.get( i ).dimension( 0 ) + "x" + subvolumes.get( i ).dimension( 1 )
+					+ "x" + subvolumes.get( i ).dimension( 2 ) );
+			volDim = new int[] { ( int ) subvolumes.get( i ).dimension( 0 ), ( int ) subvolumes.get( i ).dimension( 1 ),
+					( int ) subvolumes.get( i ).dimension( 2 ) };
+			MarchingCubesCallable callable = new MarchingCubesCallable( subvolumes.get( i ), volDim, offset[ i ], voxDim, true, isoLevel,
+					false );
+			System.out.println( "callable: " + callable );
+			System.out.println( "input " + subvolumes.get( i ) );
+			Future< Mesh2 > result = executor.submit( callable );
+			resultMeshList.add( result );
+		}
+
+		Future< Mesh2 > completedFuture = null;
+		System.out.println( "waiting results..." );
+
+		while ( resultMeshList.size() > 0 )
+		{
+			// block until a task completes
+			try
+			{
+				completedFuture = executor.take();
+				System.out.println( "task " + completedFuture + " is ready: " + completedFuture.isDone() );
+			}
+			catch ( InterruptedException e1 )
+			{
+				// TODO Auto-generated catch block
+				e1.printStackTrace();
+			}
+
+			resultMeshList.remove( completedFuture );
+
+			// get the mesh, if the task was able to create it
+			try
+			{
+				m = completedFuture.get();
+				System.out.println( "getting mesh" );
+			}
+			catch ( InterruptedException | ExecutionException e )
+			{
+				Throwable cause = e.getCause();
+				System.out.println( "Mesh creation failed: " + cause );
+				e.printStackTrace();
+				break;
+			}
+
+			// a mesh was created, so update the existing mesh
+			System.out.println( "updating mesh " );
+			updateMesh( m, neuron );
+			neuron.setVertices( FloatBuffer.wrap( verticesArray ) );
+			neuron.recalculateNormals();
+			neuron.setDirty( true );
+
+		}
+
+		System.out.println( "size of mesh " + verticesArray.length );
+
+	}
+	
 	private static void addViewerNodesHandlers(final ViewerNode[] viewerNodesArray) {
 		final Thread t = new Thread(() -> {
 			while (viewerNodesArray[0] == null || viewerNodesArray[1] == null || viewerNodesArray[2] == null)
@@ -485,6 +733,8 @@ public class OrthoView {
 		// } );
 
 		createSwingContent();
+		
+		createInfo();
 
 		final Thread t = new Thread(() -> {
 			while (viewerNodes[0] == null || viewerNodes[1] == null || viewerNodes[2] == null)
