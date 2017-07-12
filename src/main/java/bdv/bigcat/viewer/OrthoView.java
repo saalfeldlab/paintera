@@ -223,7 +223,7 @@ public class OrthoView {
 		return grid;
 	}
 
-	private void createInfo() {
+	private void create3DView() {
 		// this.infoPane = new Label( "info box" );
 		loadData();
 		
@@ -734,7 +734,7 @@ public class OrthoView {
 
 		createSwingContent();
 		
-		createInfo();
+		create3DView();
 
 		final Thread t = new Thread(() -> {
 			while (viewerNodes[0] == null || viewerNodes[1] == null || viewerNodes[2] == null)
