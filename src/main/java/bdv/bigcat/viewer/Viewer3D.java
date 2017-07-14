@@ -46,12 +46,17 @@ public class Viewer3D
 	static float[] voxDim = { 1f, 1f, 1f };
 	static float maxAxisVal = 0;
 	static float[] verticesArray = new float[ 0 ];
+	private boolean isReady = false;
 
 	private static RandomAccessibleInterval< LabelMultisetType > volumeLabels = null;
 	
-	private SceneryPanel scPanel = new SceneryPanel( 250, 250 );
+	private SceneryPanel scPanel = new SceneryPanel( 500, 500 );
 
 	public Viewer3D()
+	{
+		
+	}
+	public void createViewer3D()
 	{
 		// this.infoPane = new Label( "info box" );
 		loadData();
@@ -114,6 +119,8 @@ public class Viewer3D
 			marchingCube(neuron, material, scene, cam );
 			}
 		}.start();
+		
+		isReady = true;
 	}
 	
 	public static void updateMesh( SimpleMesh m, Mesh neuron )
@@ -322,5 +329,15 @@ public class Viewer3D
 	public SceneryPanel getPanel()
 	{
 		return scPanel;
+	}
+	
+	public boolean isReady()
+	{
+		return isReady;
+	}
+	
+	public Renderer getRenderer()
+	{
+		return getRenderer();
 	}
 }
