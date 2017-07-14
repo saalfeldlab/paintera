@@ -3,18 +3,17 @@ package bdv.bigcat.viewer;
 import java.util.HashMap;
 import java.util.HashSet;
 
-import org.dockfx.DockNode;
-import org.dockfx.DockPane;
-import org.dockfx.DockPos;
-
 import bdv.bigcat.composite.Composite;
 import bdv.bigcat.viewer.ViewerNode.ViewerAxis;
 import bdv.cache.CacheControl;
 import bdv.viewer.Source;
 import bdv.viewer.SourceAndConverter;
+import bdv.viewer.ViewerPanel;
 import javafx.collections.FXCollections;
 import javafx.collections.ListChangeListener;
 import javafx.collections.ObservableList;
+import javafx.embed.swing.SwingNode;
+import javafx.event.Event;
 import javafx.scene.Node;
 import javafx.scene.Scene;
 import javafx.scene.control.Label;
@@ -25,6 +24,7 @@ import javafx.scene.control.TableView;
 import javafx.scene.control.TextField;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.BorderPane;
+import javafx.scene.layout.GridPane;
 import javafx.scene.layout.VBox;
 import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.type.numeric.ARGBType;
@@ -40,16 +40,13 @@ public class BaseView
 
 	private final HashMap< ViewerNode, ViewerTransformManager > managers = new HashMap<>();
 
-	private final DockPane dock = new DockPane();
+	private final GridPane grid;
 
-	private final BorderPane root = new BorderPane( dock );
-
-	private final DockNode status = new DockNode( new Label( "STATUS-BAR" ) );
-	{
-		root.setBottom( status );
-	}
+	private final BorderPane root;
 
 	private final GlobalTransformManager gm;
+
+	private final GridConstraintsManager constraintsManager;
 
 	final boolean[] isFullScreen = new boolean[] { false };
 
@@ -71,8 +68,9 @@ public class BaseView
 		this.gm = new GlobalTransformManager( new AffineTransform3D() );
 		gm.setTransform( new AffineTransform3D() );
 
-		final DockNode infoDock = new DockNode( this.infoPane );
-		infoDock.dock( this.dock, DockPos.RIGHT );
+		this.constraintsManager = new GridConstraintsManager();
+		this.grid = constraintsManager.createGrid();
+		this.root = new BorderPane( grid );
 	}
 
 	public synchronized void addSource( final SourceAndConverter< ? > source, final Composite< ARGBType, ARGBType > comp )
@@ -124,13 +122,12 @@ public class BaseView
 
 	public Scene createScene( final int width, final int height ) throws Exception
 	{
-
-		final Scene scene = new Scene( this.root, width, height );
+		final Scene scene = new Scene( this.root, width, height );scene.setOnKeyTyped( event -> {
+			if ( event.getCharacter().equals( "a" ) )
+				maximizeActiveOrthoView( scene, event );
+		} );
 
 		return scene;
-
-//		final Thread t = new Thread( () -> primaryStage.show() );
-//		t.start();
 	}
 
 	private static void addViewerNodesHandler( final ViewerNode viewerNode, final Class< ? >[] focusKeepers )
@@ -147,13 +144,15 @@ public class BaseView
 		} );
 	}
 
-	public void addViewer( final ViewerAxis axis, final DockPos pos )
+	private void addViewer( final ViewerAxis axis, final int rowIndex, final int colIndex )
 	{
 		final ViewerNode viewerNode = new ViewerNode( new CacheControl.Dummy(), axis, gm );
 		this.viewerNodes.add( viewerNode );
 		this.managers.put( viewerNode, viewerNode.manager() );
 
 		sourceLayers.addListener( viewerNode );
+
+		this.grid.add( viewerNode, rowIndex, colIndex );
 
 		final Thread t = new Thread( () -> {
 			boolean createdViewer = false;
@@ -174,19 +173,46 @@ public class BaseView
 			sourceLayers.remove( null );
 		} );
 		t.start();
-		final DockNode dockNode = new DockNode( viewerNode );
-		dockNode.dock( dock, pos );
 
 		addViewerNodesHandler( viewerNode, FOCUS_KEEPERS );
 	}
 
 	public void makeDefaultLayout()
 	{
-		final DockNode dockNode = ( DockNode ) this.infoPane.parentProperty().get();
-		dockNode.undock();
-		addViewer( ViewerAxis.Z, DockPos.LEFT );
-		addViewer( ViewerAxis.Y, DockPos.RIGHT );
-		addViewer( ViewerAxis.X, DockPos.BOTTOM );
-		dockNode.dock( this.dock, DockPos.RIGHT );
+		addViewer( ViewerAxis.Z, 0, 0 );
+		addViewer( ViewerAxis.Y, 0, 1 );
+		addViewer( ViewerAxis.X, 1, 0 );
+		this.grid.add( this.infoPane, 1, 1 );
+	}
+
+	private void maximizeActiveOrthoView( final Scene scene, final Event event )
+	{
+		final Node focusOwner = scene.focusOwnerProperty().get();
+		if ( viewerNodes.contains( focusOwner ) )
+		{
+			event.consume();
+			if ( !isFullScreen[ 0 ] )
+			{
+				viewerNodes.forEach( node -> node.setVisible( node == focusOwner ) );
+				infoPane.setVisible( false );
+				constraintsManager.maximize(
+						GridPane.getRowIndex( focusOwner ),
+						GridPane.getColumnIndex( focusOwner ),
+						0 );
+				( ( ViewerPanel ) ( ( SwingNode ) focusOwner ).getContent() ).requestRepaint();
+				grid.setHgap( 0 );
+				grid.setVgap( 0 );
+			}
+			else
+			{
+				constraintsManager.resetToLast();
+				viewerNodes.forEach( node -> node.setVisible( true ) );
+				viewerNodes.forEach( node -> ( ( ViewerPanel ) node.getContent() ).requestRepaint() );
+				infoPane.setVisible( true );
+				grid.setHgap( 1 );
+				grid.setVgap( 1 );
+			}
+			isFullScreen[ 0 ] = !isFullScreen[ 0 ];
+		}
 	}
 }

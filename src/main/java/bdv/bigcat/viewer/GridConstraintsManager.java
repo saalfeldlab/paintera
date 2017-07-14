@@ -1,6 +1,7 @@
 package bdv.bigcat.viewer;
 
 import javafx.scene.layout.ColumnConstraints;
+import javafx.scene.layout.GridPane;
 import javafx.scene.layout.RowConstraints;
 
 public class GridConstraintsManager
@@ -85,6 +86,23 @@ public class GridConstraintsManager
 		increaseRow.setPercentHeight( 100 );
 		decreaseRow.setPercentHeight( 0 );
 
+	}
+
+	public GridPane createGrid()
+	{
+
+		final GridPane grid = new GridPane();
+
+		grid.getColumnConstraints().add( this.column1 );
+		grid.getColumnConstraints().add( this.column2 );
+
+		grid.getRowConstraints().add( this.row1 );
+		grid.getRowConstraints().add( this.row2 );
+
+		grid.setHgap( 1 );
+		grid.setVgap( 1 );
+
+		return grid;
 	}
 
 }
