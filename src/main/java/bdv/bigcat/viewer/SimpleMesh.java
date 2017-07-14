@@ -3,7 +3,7 @@ package bdv.bigcat.viewer;
 /**
  * the primary structure used to pass around the components of a mesh
  */
-public class Mesh2
+public class SimpleMesh
 {
 	/**
 	 * the number of vertices and normals
@@ -16,11 +16,6 @@ public class Mesh2
 	float[][] vertices;
 
 	/**
-	 * the normal direction of each vertex as an array of points
-	 */
-	float[][] normals;
-
-	/**
 	 * the number of faces
 	 */
 	public int numberOfTriangles;
@@ -30,16 +25,15 @@ public class Mesh2
 	 */
 	int[] triangles;
 
-	Mesh2( int vertexCount, float[][] verticesArray, float[][] normalsArray, int trianglesCount, int[] trianglesArray )
+	SimpleMesh( int vertexCount, float[][] verticesArray, int trianglesCount, int[] trianglesArray )
 	{
 		numberOfVertices = vertexCount;
 		vertices = verticesArray;
-		normals = normalsArray;
 		numberOfTriangles = trianglesCount;
 		triangles = trianglesArray;
 	}
 
-	public Mesh2()
+	public SimpleMesh()
 	{}
 	
 	public int getNumberOfVertices()
@@ -70,17 +64,6 @@ public class Mesh2
 	public void setVertices(float[][] verticesArray)
 	{
 		vertices = verticesArray;
-	}
-
-	
-	public float[][] getNormals()
-	{
-		return normals;
-	}
-	
-	public void setNormals(float[][] normalsArray)
-	{
-		normals = normalsArray;
 	}
 
 	public int[] getTriangles()

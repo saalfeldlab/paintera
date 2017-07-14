@@ -5,7 +5,7 @@ import java.util.concurrent.Callable;
 import bdv.labels.labelset.LabelMultisetType;
 import net.imglib2.RandomAccessibleInterval;
 
-public class MarchingCubesCallable implements Callable< Mesh2 >
+public class MarchingCubesCallable implements Callable< SimpleMesh >
 {
 	/** volume data */
 	RandomAccessibleInterval< LabelMultisetType > volume;
@@ -46,10 +46,10 @@ public class MarchingCubesCallable implements Callable< Mesh2 >
 	}
 
 	@Override
-	public Mesh2 call() throws Exception
+	public SimpleMesh call() throws Exception
 	{
 		MarchingCubesRAI mc_rai = new MarchingCubesRAI();
-		Mesh2 m = mc_rai.generateSurface( volume, volDim, offset, voxDim, isExact, isolevel, usingRAI );
+		SimpleMesh m = mc_rai.generateSurface( volume, volDim, offset, voxDim, isExact, isolevel, usingRAI );
 
 		return m;
 	}
