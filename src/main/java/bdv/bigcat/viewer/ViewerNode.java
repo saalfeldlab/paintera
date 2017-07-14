@@ -13,16 +13,17 @@ import org.scijava.ui.behaviour.io.InputTriggerConfig;
 import org.scijava.ui.behaviour.util.InputActionBindings;
 import org.scijava.ui.behaviour.util.TriggerBehaviourBindings;
 
-import bdv.bigcat.viewer.source.SourceLayer;
 import bdv.cache.CacheControl;
 import bdv.viewer.DisplayMode;
+import bdv.viewer.Source;
+import bdv.viewer.SourceAndConverter;
 import bdv.viewer.ViewerPanel;
 import javafx.collections.ListChangeListener;
 import javafx.embed.swing.SwingNode;
 import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.ui.OverlayRenderer;
 
-public class ViewerNode extends SwingNode implements ListChangeListener< SourceLayer >
+public class ViewerNode extends SwingNode implements ListChangeListener< SourceAndConverter< ? > >
 {
 
 	public enum ViewerAxis
@@ -38,7 +39,7 @@ public class ViewerNode extends SwingNode implements ListChangeListener< SourceL
 
 	private final CacheControl cacheControl;
 
-	private final HashMap< SourceLayer, Boolean > visibility = new HashMap<>();
+	private final HashMap< Source< ? >, Boolean > visibility = new HashMap<>();
 
 	private boolean managesOwnLayerVisibility = false;
 
@@ -59,6 +60,11 @@ public class ViewerNode extends SwingNode implements ListChangeListener< SourceL
 		this.viewerAxis = viewerAxis;
 		this.manager = new ViewerTransformManager( manager, globalToViewer( viewerAxis ), viewer );
 		initialize();
+	}
+
+	public ViewerTransformManager manager()
+	{
+		return manager;
 	}
 
 	private void setViewer( final ViewerPanel viewer )
@@ -82,11 +88,11 @@ public class ViewerNode extends SwingNode implements ListChangeListener< SourceL
 			final ViewerPanel vp = new ViewerPanel( new ArrayList<>(), 1, cacheControl );
 			setViewer( vp );
 
-			this.setContent( viewer );
-
 			viewer.setDisplayMode( DisplayMode.FUSED );
 			viewer.setMinimumSize( new Dimension( 100, 100 ) );
 			viewer.setPreferredSize( new Dimension( 100, 100 ) );
+
+			this.setContent( viewer );
 
 			viewer.getDisplay().setTransformEventHandler( this.manager );
 			this.manager.install( triggerbindings );
@@ -127,6 +133,7 @@ public class ViewerNode extends SwingNode implements ListChangeListener< SourceL
 
 	public static AffineTransform3D globalToViewer( final ViewerAxis axis )
 	{
+
 		final AffineTransform3D tf = new AffineTransform3D();
 		switch ( axis )
 		{
@@ -143,18 +150,18 @@ public class ViewerNode extends SwingNode implements ListChangeListener< SourceL
 	}
 
 	@Override
-	public void onChanged( final javafx.collections.ListChangeListener.Change< ? extends SourceLayer > c )
+	public void onChanged( final javafx.collections.ListChangeListener.Change< ? extends SourceAndConverter< ? > > c )
 	{
 		c.next();
 		if ( c.wasRemoved() )
 			c.getRemoved().forEach( removed -> {
 				visibility.remove( removed );
-				viewer.removeSource( removed.getSourceAndConverter().getSpimSource() );
+				viewer.removeSource( removed.getSpimSource() );
 			} );
 		else if ( c.wasAdded() )
 			c.getAddedSubList().forEach( added -> {
-				visibility.put( added, added.isActive() );
-				viewer.addSource( added.getSourceAndConverter() );
+				visibility.put( added.getSpimSource(), true );
+				viewer.addSource( added );
 			} );
 	}
 
@@ -177,6 +184,42 @@ public class ViewerNode extends SwingNode implements ListChangeListener< SourceL
 	public AffineTransform3D getTransformCopy()
 	{
 		return this.manager.getTransform();
+	}
+
+	@Override
+	public double minWidth( final double height )
+	{
+		return getContent() == null ? 0 : getContent().getMinimumSize().getWidth();
+	}
+
+	@Override
+	public double minHeight( final double width )
+	{
+		return getContent() == null ? 0 : getContent().getMinimumSize().getHeight();
+	}
+
+	@Override
+	public double maxWidth( final double height )
+	{
+		return getContent() == null ? 100 : getContent().getMaximumSize().getWidth();
+	}
+
+	@Override
+	public double maxHeight( final double width )
+	{
+		return getContent() == null ? 100 : getContent().getMaximumSize().getHeight();
+	}
+
+	@Override
+	public double prefWidth( final double height )
+	{
+		return getContent() == null ? 10 : getContent().getPreferredSize().getWidth();
+	}
+
+	@Override
+	public double prefHeight( final double width )
+	{
+		return getContent() == null ? 10 : getContent().getPreferredSize().getHeight();
 	}
 
 }

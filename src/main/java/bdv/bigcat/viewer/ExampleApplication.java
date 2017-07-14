@@ -4,10 +4,12 @@ import java.util.HashMap;
 import java.util.Random;
 import java.util.concurrent.atomic.AtomicLong;
 
-import bdv.bigcat.viewer.source.RandomAccessibleIntervalSource;
+import bdv.util.RandomAccessibleIntervalSource;
+import bdv.viewer.SourceAndConverter;
 import javafx.application.Application;
 import javafx.stage.Stage;
 import net.imglib2.RandomAccessibleInterval;
+import net.imglib2.converter.RealARGBConverter;
 import net.imglib2.img.Img;
 import net.imglib2.img.array.ArrayImgs;
 import net.imglib2.type.numeric.real.FloatType;
@@ -20,14 +22,14 @@ public class ExampleApplication extends Application
 		super();
 	}
 
-	public static HashMap< Long, OrthoView > activeViewers = new HashMap<>();
+	public static HashMap< Long, Atlas > activeViewers = new HashMap<>();
 
 	public static AtomicLong index = new AtomicLong( 0 );
 
 	public static void main( final String[] args ) throws Exception
 	{
 		System.out.println( "before: " + activeViewers );
-		final OrthoView viewer = makeViewer();
+		final Atlas viewer = makeViewer();
 		System.out.println( "after: " + activeViewers );
 
 		final Random rng = new Random();
@@ -35,11 +37,12 @@ public class ExampleApplication extends Application
 		final RandomAccessibleInterval< FloatType > rai1 = createRandom( rng, 100, 200, 300 );
 		final RandomAccessibleInterval< FloatType > rai2 = createRandom( rng, 50, 100, 150 );
 
-		final RandomAccessibleIntervalSource< FloatType > source1 = new RandomAccessibleIntervalSource< >( rai1 );
-		final RandomAccessibleIntervalSource< FloatType > source2 = new RandomAccessibleIntervalSource<>( rai2 );
+		final FloatType t = new FloatType();
+		final RandomAccessibleIntervalSource< FloatType > source1 = new RandomAccessibleIntervalSource<>( rai1, t, "source1" );
+		final RandomAccessibleIntervalSource< FloatType > source2 = new RandomAccessibleIntervalSource<>( rai2, t, "source2" );
 
-		viewer.addSource( source1 );
-		viewer.addSource( source2 );
+		viewer.addSource( new SourceAndConverter<>( source1, new RealARGBConverter<>( 0.0, 1.0 ) ) );
+		viewer.addSource( new SourceAndConverter<>( source2, new RealARGBConverter<>( 0.0, 1.0 ) ) );
 
 
 //		final List< SourceAndConverter< ? > > sacs2 = createSourceAndConverter( rng, new RealARGBConverter<>( 0.0, 1.0 ), 100, 200, 300 );
@@ -52,13 +55,13 @@ public class ExampleApplication extends Application
 	@Override
 	public void start( final Stage primaryStage ) throws Exception
 	{
-		final OrthoView viewer = new OrthoView();
+		final Atlas viewer = new Atlas();
 		viewer.start( primaryStage );
 		System.out.println( getParameters() );
 		activeViewers.put( Long.parseLong( getParameters().getRaw().get( 0 ) ), viewer );
 	}
 
-	public static OrthoView makeViewer() throws InterruptedException
+	public static Atlas makeViewer() throws InterruptedException
 	{
 
 		synchronized ( index )
