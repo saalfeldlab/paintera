@@ -50,12 +50,13 @@ public class Viewer3D
 
 	private static RandomAccessibleInterval< LabelMultisetType > volumeLabels = null;
 	
-	private SceneryPanel scPanel = new SceneryPanel( 500, 500 );
+	private SceneryPanel scPanel[] = {null};
 
 	public Viewer3D()
 	{
 		
 	}
+
 	public void createViewer3D()
 	{
 		// this.infoPane = new Label( "info box" );
@@ -66,7 +67,7 @@ public class Viewer3D
 		graphics.scenery.Scene scene = new graphics.scenery.Scene();
 		hub.add( SceneryElement.Settings, settings );
 		
-		Renderer renderer = Renderer.Factory.createRenderer( hub, "BigCAT", scene, 250, 250, scPanel );
+		Renderer renderer = Renderer.Factory.createRenderer( hub, "BigCAT", scene, 250, 250, scPanel[0] );
 		hub.add( SceneryElement.Renderer, renderer );
 
 		final Box hull = new Box( new GLVector( 50.0f, 50.0f, 50.0f ), true );
@@ -121,6 +122,11 @@ public class Viewer3D
 		}.start();
 		
 		isReady = true;
+	}
+	
+	public void createPanel()
+	{
+		scPanel[0] = new SceneryPanel( 500, 500 );
 	}
 	
 	public static void updateMesh( SimpleMesh m, Mesh neuron )
@@ -328,7 +334,11 @@ public class Viewer3D
 	
 	public SceneryPanel getPanel()
 	{
-		return scPanel;
+		if (scPanel[0] == null)
+			createPanel();
+		
+		return scPanel[0];
+		
 	}
 	
 	public boolean isReady()

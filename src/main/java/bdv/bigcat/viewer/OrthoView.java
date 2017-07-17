@@ -54,6 +54,7 @@ import javafx.embed.swing.SwingNode;
 import javafx.event.Event;
 import javafx.event.EventHandler;
 import javafx.geometry.HPos;
+import javafx.geometry.Insets;
 import javafx.geometry.VPos;
 import javafx.scene.Node;
 import javafx.scene.Scene;
@@ -61,8 +62,12 @@ import javafx.scene.control.Label;
 import javafx.scene.control.TextField;
 import javafx.scene.effect.DropShadow;
 import javafx.scene.input.MouseEvent;
+import javafx.scene.layout.Background;
+import javafx.scene.layout.BackgroundFill;
+import javafx.scene.layout.CornerRadii;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.Priority;
+import javafx.scene.layout.StackPane;
 import javafx.scene.paint.Color;
 import javafx.stage.Stage;
 import javafx.stage.WindowEvent;
@@ -149,8 +154,10 @@ public class OrthoView {
 	private static GridPane createGrid( Viewer3D viewer3D ) {
 
 		final GridPane grid = new GridPane();
-		
+
 		GridPane pane = new GridPane();
+		
+		viewer3D.createPanel();
 		GridPane.setHgrow(viewer3D.getPanel(), Priority.ALWAYS);
 		GridPane.setVgrow(viewer3D.getPanel(), Priority.ALWAYS);
 
@@ -192,40 +199,20 @@ public class OrthoView {
 		
 	}
 
-	private static void addViewerNodesHandlers(final ViewerNode[] viewerNodesArray) {
-		final Thread t = new Thread(() -> {
-			while (viewerNodesArray[0] == null || viewerNodesArray[1] == null || viewerNodesArray[2] == null)
-				try {
-					Thread.sleep(10);
-				} catch (final InterruptedException e) {
-					e.printStackTrace();
-					return;
-				}
-			final Class<?>[] focusKeepers = { TextField.class };
-			for (int i = 0; i < viewerNodesArray.length; ++i) {
-				final SwingNode viewerNode = viewerNodesArray[i];
-				// final DropShadow ds = new DropShadow( 10, Color.PURPLE );
-				final DropShadow ds = new DropShadow(10,
-						Color.hsb(60.0 + 360.0 * i / viewerNodesArray.length, 1.0, 0.5, 1.0));
-				viewerNode.focusedProperty().addListener((ChangeListener<Boolean>) (observable, oldValue, newValue) -> {
-					if (newValue)
-						viewerNode.setEffect(ds);
-					else
-						viewerNode.setEffect(null);
-				});
-			}
-		});
-		t.start();
-	}
-
 	public void start(final Stage primaryStage) throws Exception {
 
 		System.out.println("stage: " + primaryStage );
 		primaryStage.setTitle("BigCAT");
 
-		this.grid = createGrid( viewer3D);
+		StackPane stackPane = new StackPane();
+		stackPane.setBackground(
+				new Background( new BackgroundFill( Color.TRANSPARENT, CornerRadii.EMPTY, Insets.EMPTY ) ) );
 
-		final Scene scene = new Scene(grid, 500, 500);
+		this.grid = createGrid( viewer3D);
+		
+		stackPane.getChildren().addAll(this.grid);
+
+		final Scene scene = new Scene(stackPane, 500, 500);
 		primaryStage.setScene(scene);
 		primaryStage.setOnCloseRequest( new EventHandler<WindowEvent>(){
 
