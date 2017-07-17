@@ -322,9 +322,9 @@ public class JavaFXMarchingCubesExample
 		VolumePartitioner partitioner = new VolumePartitioner( volumeLabels, partitionSize );
 		List< RandomAccessibleInterval< LabelMultisetType > > subvolumes = partitioner.dataPartitioning( offsets );
 
-//		subvolumes.clear();
-//		subvolumes.add( volumeLabels );
-//		offsets.set( 0, new int[] { 0, 0, 0 } );
+		subvolumes.clear();
+		subvolumes.add( volumeLabels );
+		offsets.set( 0, new int[] { 0, 0, 0 } );
 
 		logger.info( "starting executor..." );
 		CompletionService< SimpleMesh > executor = new ExecutorCompletionService< SimpleMesh >(
