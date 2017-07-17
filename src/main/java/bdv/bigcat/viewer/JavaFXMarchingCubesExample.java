@@ -38,10 +38,16 @@ import graphics.scenery.utils.SceneryPanel;
 import javafx.application.Platform;
 import javafx.event.EventHandler;
 import javafx.geometry.HPos;
+import javafx.geometry.Insets;
 import javafx.geometry.VPos;
 import javafx.scene.control.Label;
+import javafx.scene.layout.Background;
+import javafx.scene.layout.BackgroundFill;
+import javafx.scene.layout.CornerRadii;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.Priority;
+import javafx.scene.layout.StackPane;
+import javafx.scene.paint.Color;
 import javafx.scene.text.TextAlignment;
 import javafx.stage.Stage;
 import javafx.stage.WindowEvent;
@@ -153,75 +159,69 @@ public class JavaFXMarchingCubesExample
 		}
 
 		@Override
-		public void init()
-		{
-			CountDownLatch latch = new CountDownLatch(1);
-			SceneryPanel imagePanel = new SceneryPanel(250, 250);
+		public void init() {
 
-			PlatformImpl.startup(() -> {});
-			Platform.runLater(new Runnable() {
-				public void run() {
+            CountDownLatch latch = new CountDownLatch(1);
+            final SceneryPanel[] imagePanel = {null};
 
-					Stage stage = new Stage();
-					stage.setTitle(getApplicationName());
+            PlatformImpl.startup(() -> {
+            });
 
-					GridPane pane = new GridPane();
-					Label label = new Label(getApplicationName());
+            Platform.runLater(() -> {
 
-					GridPane.setHgrow(imagePanel, Priority.ALWAYS);
-					GridPane.setVgrow(imagePanel, Priority.ALWAYS);
+                Stage stage = new Stage();
+                stage.setTitle(getApplicationName());
 
-					GridPane.setFillHeight(imagePanel, true);
-					GridPane.setFillWidth(imagePanel, true);
+                StackPane stackPane = new StackPane();
+                stackPane.setBackground(
+                    new Background(new BackgroundFill(Color.TRANSPARENT, CornerRadii.EMPTY, Insets.EMPTY)));
 
-					GridPane.setHgrow(label, Priority.ALWAYS);
-					GridPane.setHalignment(label, HPos.CENTER);
-					GridPane.setValignment(label, VPos.BOTTOM);
+                GridPane pane = new GridPane();
+                Label label = new Label(getApplicationName());
 
-					label.maxWidthProperty().bind(pane.widthProperty());
+                imagePanel[0] = new SceneryPanel(getWindowWidth(), getWindowHeight());
 
-					pane.setStyle("-fx-background-color: rgb(20, 255, 20);"
-								+ "-fx-font-family: Consolas;"
-								+ "-fx-font-weight: 400;"
-								+ "-fx-font-size: 1.2em;"
-								+ "-fx-text-fill: white;"
-								+ "-fx-text-alignment: center;");
-					
-					label.setStyle("-fx-padding: 0.2em;"
-								 + "-fx-text-fill: black;");
+                GridPane.setHgrow(imagePanel[0], Priority.ALWAYS);
+                GridPane.setVgrow(imagePanel[0], Priority.ALWAYS);
 
-					label.setTextAlignment(TextAlignment.CENTER);
+                GridPane.setFillHeight(imagePanel[0], true);
+                GridPane.setFillWidth(imagePanel[0], true);
 
-					pane.add(imagePanel, 1, 1);
-					pane.add(label, 1, 2);
+                GridPane.setHgrow(label, Priority.ALWAYS);
+                GridPane.setHalignment(label, HPos.CENTER);
+                GridPane.setValignment(label, VPos.BOTTOM);
 
-					javafx.scene.Scene scene = new javafx.scene.Scene(pane, 500, 500);
-					stage.setScene(scene);
-					stage.setOnCloseRequest( new EventHandler<WindowEvent>(){
+                label.maxWidthProperty().bind(pane.widthProperty());
 
-						@Override
-						public void handle(WindowEvent event) {
-							getRenderer().setShouldClose(true);
-							
-							Platform.runLater( new Runnable() {
-								
-								@Override
-								public void run() {
-									Platform.exit();
-								}
-							});
-						}
-					});
-					stage.show();
-					latch.countDown();
-				}
-			});
+                pane.setStyle("-fx-background-color: rgb(20, 255, 20);" + "-fx-font-family: Consolas;"
+                    + "-fx-font-weight: 400;" + "-fx-font-size: 1.2em;" + "-fx-text-fill: white;"
+                    + "-fx-text-alignment: center;");
 
-			try {
-				latch.await();
-			} catch (InterruptedException e1) {
-				e1.printStackTrace();
-			}
+                label.setStyle("-fx-padding: 0.2em;" + "-fx-text-fill: black;");
+
+                label.setTextAlignment(TextAlignment.CENTER);
+
+                pane.add(imagePanel[0], 1, 1);
+                pane.add(label, 1, 2);
+                stackPane.getChildren().addAll(pane);
+
+                javafx.scene.Scene scene = new javafx.scene.Scene(stackPane);
+                stage.setScene(scene);
+                stage.setOnCloseRequest(event -> {
+                    getRenderer().setShouldClose(true);
+
+                    Platform.runLater(Platform::exit);
+                });
+                stage.show();
+
+                latch.countDown();
+            });
+
+            try {
+                latch.await();
+            } catch (InterruptedException e1) {
+                e1.printStackTrace();
+            }
 
 			loadData();
 
@@ -235,7 +235,7 @@ public class JavaFXMarchingCubesExample
 			}
 
 			setRenderer( Renderer.Factory.createRenderer( getHub(), getApplicationName(), getScene(), getWindowWidth(),
-					getWindowHeight(), imagePanel ) );
+					getWindowHeight(), imagePanel[0] ) );
 			getHub().add( SceneryElement.Renderer, getRenderer() );
 
 			final Box hull = new Box( new GLVector( 50.0f, 50.0f, 50.0f ), true );
