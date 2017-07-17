@@ -67,7 +67,7 @@ public class Viewer3D
 		graphics.scenery.Scene scene = new graphics.scenery.Scene();
 		hub.add( SceneryElement.Settings, settings );
 		
-		Renderer renderer = Renderer.Factory.createRenderer( hub, "BigCAT", scene, 250, 250, scPanel[0] );
+		Renderer renderer = Renderer.Factory.createRenderer( hub, "BigCAT", scene, 500, 500, scPanel[0] );
 		hub.add( SceneryElement.Renderer, renderer );
 
 		final Box hull = new Box( new GLVector( 50.0f, 50.0f, 50.0f ), true );
