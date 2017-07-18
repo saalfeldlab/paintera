@@ -54,9 +54,7 @@ public class ExampleApplication2 extends Application
 
 	public static void main( final String[] args ) throws Exception
 	{
-
-
-		final String rawFile = "/groups/saalfeld/home/hanslovskyp/from_funkej/phil/sample_B.augmented.0.hdf";
+		final String rawFile = "data/sample_B.augmented.0.hdf";
 		final String rawDataset = "volumes/raw";
 		final String labelsFile = rawFile;
 		final String labelsDataset = "/volumes/labels/neuron_ids";

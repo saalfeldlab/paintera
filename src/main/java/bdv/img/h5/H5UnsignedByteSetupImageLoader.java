@@ -29,7 +29,6 @@ public class H5UnsignedByteSetupImageLoader
 				setupId,
 				blockDimension,
 				resolution,
-				offset,
 				new UnsignedByteType(),
 				new VolatileUnsignedByteType(),
 				new H5ByteArrayLoader( reader, dataset ),
