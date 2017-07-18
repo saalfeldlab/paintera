@@ -2,8 +2,6 @@ package bdv.bigcat.viewer;
 
 import java.util.HashSet;
 
-import org.dockfx.DockPane;
-
 import bdv.bigcat.composite.ARGBCompositeAlphaYCbCr;
 import bdv.viewer.Source;
 import bdv.viewer.SourceAndConverter;
@@ -50,7 +48,7 @@ public class Atlas
 		// controls
 		// this must be called after the primary stage is shown
 		// https://bugs.openjdk.java.net/browse/JDK-8132900
-		DockPane.initializeDefaultUserAgentStylesheet();
+		// DockPane.initializeDefaultUserAgentStylesheet();
 
 	}
 
