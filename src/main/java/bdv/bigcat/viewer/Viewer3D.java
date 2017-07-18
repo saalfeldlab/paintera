@@ -54,13 +54,14 @@ public class Viewer3D
 
 	public Viewer3D()
 	{
-		
 	}
 
 	public void createViewer3D()
 	{
 		// this.infoPane = new Label( "info box" );
 		loadData();
+		
+		scPanel[0] = new SceneryPanel(250, 250);
 		
 		Settings settings = new Settings();
 		Hub hub = new Hub();
