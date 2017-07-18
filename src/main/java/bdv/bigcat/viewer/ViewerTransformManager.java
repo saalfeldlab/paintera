@@ -1,7 +1,6 @@
 package bdv.bigcat.viewer;
 
-import java.util.Arrays;
-
+import org.scijava.ui.behaviour.ClickBehaviour;
 import org.scijava.ui.behaviour.DragBehaviour;
 import org.scijava.ui.behaviour.ScrollBehaviour;
 import org.scijava.ui.behaviour.io.InputTriggerConfig;
@@ -78,6 +77,8 @@ public class ViewerTransformManager implements TransformListener< AffineTransfor
 
 		behaviours.behaviour( new TranslateXY(), "drag translate", "button2", "button3" );
 		behaviours.behaviour( new Zoom( speed[ 0 ] ), ZOOM_NORMAL, "meta scroll", "ctrl shift scroll" );
+		behaviours.behaviour( new ButtonZoom( 1.05 ), "zoom", "UP" );
+		behaviours.behaviour( new ButtonZoom( 1.0 / 1.05 ), "zoom", "DOWN" );
 		for ( int s = 0; s < 3; ++s )
 		{
 			behaviours.behaviour( new Rotate( speed[ s ] ), DRAG_ROTATE + SPEED_NAME[ s ], speedMod[ s ] + "button1" );
@@ -279,6 +280,7 @@ public class ViewerTransformManager implements TransformListener< AffineTransfor
 		@Override
 		public void scroll( final double wheelRotation, final boolean isHorizontal, final int x, final int y )
 		{
+			System.out.println( "ZOOM ZOOM" );
 			final AffineTransform3D global;
 			synchronized ( getOuter().global )
 			{
@@ -295,6 +297,38 @@ public class ViewerTransformManager implements TransformListener< AffineTransfor
 			for ( int d = 0; d < location.length; ++d )
 				global.set( global.get( d, 3 ) - location[ d ], d, 3 );
 			global.scale( scale );
+			for ( int d = 0; d < location.length; ++d )
+				global.set( global.get( d, 3 ) + location[ d ], d, 3 );
+
+			manager.setTransform( global );
+		}
+	}
+
+	private class ButtonZoom extends GetOuter implements ClickBehaviour
+	{
+		private final double factor;
+
+		public ButtonZoom( final double factor )
+		{
+			this.factor = factor;
+		}
+
+		@Override
+		public void click( final int x, final int y )
+		{
+			System.out.println( "ZOOM ZOOM" );
+			final AffineTransform3D global;
+			synchronized ( getOuter().global )
+			{
+				global = getOuter().global.copy();
+			}
+			final double[] location = new double[] { x, y, 0 };
+			concatenated.applyInverse( location, location );
+			global.apply( location, location );
+
+			for ( int d = 0; d < location.length; ++d )
+				global.set( global.get( d, 3 ) - location[ d ], d, 3 );
+			global.scale( factor );
 			for ( int d = 0; d < location.length; ++d )
 				global.set( global.get( d, 3 ) + location[ d ], d, 3 );
 
@@ -342,7 +376,6 @@ public class ViewerTransformManager implements TransformListener< AffineTransfor
 				displayTransform.applyInverse( point, point );
 				displayTransform.applyInverse( origin, origin );
 
-				System.out.println( Arrays.toString( point ) + " " + Arrays.toString( origin ) );
 				final double[] delta = new double[] { point[ 0 ] - origin[ 0 ], point[ 1 ] - origin[ 1 ], 0 };
 				// TODO do scaling separately. need to swap .get( 0, 0 ) and
 				// .get( 1, 1 ) ?
