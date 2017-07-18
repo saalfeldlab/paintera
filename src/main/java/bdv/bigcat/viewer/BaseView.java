@@ -52,6 +52,9 @@ public class BaseView
 
 	final HashMap< Source< ? >, Composite< ARGBType, ARGBType > > sourceCompositeMap = new HashMap<>();
 
+	private final Viewer3D viewer3D;
+	private boolean created3DViewer;
+
 	final ObservableList< SourceAndConverter< ? > > sourceLayers = FXCollections.observableArrayList();
 	{
 		sourceLayers.addListener( ( ListChangeListener< SourceAndConverter< ? > > ) c -> {
@@ -64,6 +67,7 @@ public class BaseView
 
 	public BaseView()
 	{
+		viewer3D = new Viewer3D();
 		this.infoPane = createInfo();
 		this.gm = new GlobalTransformManager( new AffineTransform3D() );
 		gm.setTransform( new AffineTransform3D() );
@@ -103,6 +107,21 @@ public class BaseView
 
 	protected Node createInfo()
 	{
+		viewer3D.createViewer3D();
+
+		final Thread t = new Thread(() -> {
+			while (!created3DViewer) {
+				try {
+					Thread.sleep(10);
+				} catch (final InterruptedException e) {
+					e.printStackTrace();
+					return;
+				}
+				created3DViewer = viewer3D.isReady();
+			}
+			created3DViewer = true;
+		});
+		t.start();
 
 		final TableView< ? > table = new TableView<>();
 		table.setEditable( true );
@@ -114,6 +133,7 @@ public class BaseView
 
 		final VBox jfxStuff = new VBox( 1 );
 		jfxStuff.getChildren().addAll( tf, table );
+		infoPane.getTabs().add( new Tab( "3d view", viewer3D.getPanel() ) );
 		infoPane.getTabs().add( new Tab( "jfx stuff", jfxStuff ) );
 		infoPane.getTabs().add( new Tab( "dataset info", new Label( "random floats" ) ) );
 		return infoPane;
