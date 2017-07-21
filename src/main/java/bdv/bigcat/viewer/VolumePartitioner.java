@@ -3,85 +3,129 @@ package bdv.bigcat.viewer;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import bdv.labels.labelset.LabelMultisetType;
 import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.view.Views;
 
+/**
+ * This class is responsible for create small subvolumes from a
+ * RandomAccessibleInterval. Given the data, the size of each partition and the
+ * size of the cube (from marching cubes algorithm), this class return a vector
+ * with subvolumes and the offsets of each subvolume.
+ * 
+ * @author vleite
+ *
+ */
 public class VolumePartitioner
 {
+	/** logger */
+	private static final Logger LOGGER = LoggerFactory.getLogger( VolumePartitioner.class );
+
+	/** number of voxels that must overlap between partitions */
+	private static final long OVERLAP = 1;
+
 	/** volume to be partitioned */
-	private static RandomAccessibleInterval< LabelMultisetType > volumeLabels = null;
+	private final RandomAccessibleInterval< LabelMultisetType > volumeLabels;
 
-	private final int partitionXSize;
-
-	private final int partitionYSize;
-
-	private final int partitionZSize;
-
-	private final long overlap = 1;
+	/** Minimum size of each partition the partition */
+	private final int[] partitionSize;
 
 	/**
-	 * Constructor Initialize parameters
+	 * dimension of the cube that will be used on the marching cubes algorithm
 	 */
-	public VolumePartitioner( RandomAccessibleInterval< LabelMultisetType > volumeLabels, int[] partitionSize )
-	{
-		VolumePartitioner.volumeLabels = volumeLabels;
-		this.partitionXSize = partitionSize[ 0 ];
-		this.partitionYSize = partitionSize[ 1 ];
-		this.partitionZSize = partitionSize[ 2 ];
+	private final int[] cubeSize;
 
-		System.out.println( "partition defined as: " + partitionXSize + " " + partitionYSize + " " + partitionZSize );
+	/**
+	 * Constructor - initialize parameters
+	 */
+	public VolumePartitioner( RandomAccessibleInterval< LabelMultisetType > volumeLabels, int[] partitionSize, int[] cubeSize )
+	{
+		this.volumeLabels = volumeLabels;
+		this.partitionSize = partitionSize;
+		this.cubeSize = cubeSize;
+
+		if ( LOGGER.isTraceEnabled() )
+		{
+			LOGGER.trace( "partition defined as: " + partitionSize[ 0 ] + " " + partitionSize[ 1 ] + " " + partitionSize[ 2 ] );
+		}
 	}
 
-	public List< RandomAccessibleInterval< LabelMultisetType > > dataPartitioning( List< int[] > offsets )
+	/**
+	 * Method to partitioning the data in small chunks.
+	 * 
+	 * @param subvolumes
+	 *            list of each subvolume created
+	 * @param offsets
+	 *            the offset of each subvolume
+	 */
+	public List< Chunk > dataPartitioning( )
 	{
-		List< RandomAccessibleInterval< LabelMultisetType > > parts = new ArrayList< RandomAccessibleInterval< LabelMultisetType > >();
-		int offsetIdx = 0;
+		List< Chunk > chunks = new ArrayList< Chunk >();
 
-		for ( long bx = volumeLabels.min( 0 ); ( bx + partitionXSize ) <= volumeLabels.max( 0 ); bx += partitionXSize )
+		for ( long bx = volumeLabels.min( 0 ); ( bx + partitionSize[ 0 ] ) <= volumeLabels.max( 0 ); bx += partitionSize[ 0 ] )
 		{
-			for ( long by = volumeLabels.min( 1 ); ( by + partitionYSize ) <= volumeLabels.max( 1 ); by += partitionYSize )
+			for ( long by = volumeLabels.min( 1 ); ( by + partitionSize[ 1 ] ) <= volumeLabels.max( 1 ); by += partitionSize[1 ] )
 			{
-				for ( long bz = volumeLabels.min( 2 ); ( bz + partitionZSize ) <= volumeLabels.max( 2 ); bz += partitionZSize )
+				for ( long bz = volumeLabels.min( 2 ); ( bz + partitionSize[ 2 ] ) <= volumeLabels.max( 2 ); bz += partitionSize[ 2 ] )
 				{
 					long[] begin = new long[] { bx, by, bz };
-					System.out.println( "begin: " + bx + " " + by + " " + bz );
+					long[] end = new long[] { begin[ 0 ] + partitionSize[ 0 ],
+							begin[ 1 ] + partitionSize[ 1 ],
+							begin[ 2 ] + partitionSize[ 2 ] };
 
-					long[] end = new long[] { begin[ 0 ] + partitionXSize,
-							begin[ 1 ] + partitionYSize,
-							begin[ 2 ] + partitionZSize };
+					if (LOGGER.isTraceEnabled())
+					{
+						LOGGER.trace( "begin: " + bx + " " + by + " " + bz );
+						LOGGER.trace( "end: " + end[ 0 ] + " " + end[ 1 ] + " " + end[ 2 ] );
+					}
 
-					System.out.println( "end: " + end[ 0 ] + " " + end[ 1 ] + " " + end[ 2 ] );
+					if ( begin[ 0 ] - OVERLAP >= 0 )
+					{
+						begin[ 0 ] -= OVERLAP;
+					}
 
-					if ( begin[ 0 ] - overlap >= 0 )
-						begin[ 0 ] -= overlap;
-					if ( begin[ 1 ] - overlap >= 0 )
-						begin[ 1 ] -= overlap;
-					if ( begin[ 2 ] - overlap >= 0 )
-						begin[ 2 ] -= overlap;
+					if ( begin[ 1 ] - OVERLAP >= 0 )
+					{
+						begin[ 1 ] -= OVERLAP;
+					}
 
-					if ( volumeLabels.max( 0 ) - end[ 0 ] < partitionXSize )
+					if ( begin[ 2 ] - OVERLAP >= 0 )
+					{
+						begin[ 2 ] -= OVERLAP;
+					}
+
+					if ( volumeLabels.max( 0 ) - end[ 0 ] < partitionSize[ 0 ] )
+					{
 						end[ 0 ] = volumeLabels.max( 0 );
+					}
 
-					if ( volumeLabels.max( 1 ) - end[ 1 ] < partitionYSize )
+					if ( volumeLabels.max( 1 ) - end[ 1 ] < partitionSize[ 1 ] )
+					{
 						end[ 1 ] = volumeLabels.max( 1 );
+					}
 
-					if ( volumeLabels.max( 2 ) - end[ 2 ] < partitionZSize )
+					if ( volumeLabels.max( 2 ) - end[ 2 ] < partitionSize[ 2 ] )
+					{
 						end[ 2 ] = volumeLabels.max( 2 );
+					}
 
-					RandomAccessibleInterval< LabelMultisetType > partition = Views.interval( volumeLabels, begin, end );
+					final Chunk chunk = new Chunk();
+					chunk.setVolume( Views.interval( volumeLabels, begin, end ) );
+					chunk.setOffset( new int[] { ( int ) ( begin[ 0 ] / cubeSize[ 0 ] ), ( int ) ( begin[ 1 ] / cubeSize[ 1 ] ), ( int ) ( begin[ 2 ] / cubeSize[ 2 ] ) } );
+					chunks.add( chunk );
 
-					offsets.add( new int[] { ( int ) begin[ 0 ], ( int ) begin[ 1 ], ( int ) begin[ 2 ] } );
-					System.out.println( " partition begins at: " + begin[ 0 ] + " x " + begin[ 1 ] + " x " + begin[ 2 ] );
-					System.out.println( " partition ends at: " + end[ 0 ] + " x " + end[ 1 ] + " x " + end[ 2 ] );
-					System.out.println( "offset: " + offsets.get( offsetIdx )[ 0 ] + " x " + offsets.get( offsetIdx )[ 1 ] + " x " + offsets.get( offsetIdx )[ 2 ] );
-
-					offsetIdx++;
-
-					parts.add( partition );
+					if ( LOGGER.isDebugEnabled() )
+					{
+						LOGGER.debug( "partition begins at: " + begin[ 0 ] + " " + begin[ 1 ] + " " + begin[ 2 ] );
+						LOGGER.debug( "partition ends at: " + end[ 0 ] + " " + end[ 1 ] + " " + end[ 2 ] );
+					}
 				}
 			}
 		}
-		return parts;
+
+		return chunks;
 	}
 }
