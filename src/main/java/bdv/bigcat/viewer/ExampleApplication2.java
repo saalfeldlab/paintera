@@ -1,22 +1,19 @@
 package bdv.bigcat.viewer;
 
+import java.awt.Color;
+import java.awt.Graphics;
+import java.awt.Graphics2D;
 import java.util.HashMap;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicLong;
 
 import bdv.AbstractViewerSetupImgLoader;
-import bdv.ViewerSetupImgLoader;
-import bdv.bigcat.ui.ARGBConvertedLabelsSource;
-import bdv.bigcat.ui.highlighting.ModalGoldenAngleSaturatedHighlightingARGBStream;
 import bdv.bigcat.viewer.source.H5Source;
 import bdv.bigcat.viewer.source.H5Source.LabelMultisets;
 import bdv.bigcat.viewer.source.H5Source.UnsignedBytes;
 import bdv.img.cache.VolatileGlobalCellCache;
-import bdv.util.RandomAccessibleIntervalSource;
 import bdv.viewer.Interpolation;
 import bdv.viewer.Source;
-import bdv.viewer.SourceAndConverter;
-import gnu.trove.set.hash.TLongHashSet;
 import javafx.application.Application;
 import javafx.stage.Stage;
 import mpicbg.spim.data.sequence.VoxelDimensions;
@@ -26,17 +23,14 @@ import net.imglib2.RealRandomAccessible;
 import net.imglib2.Volatile;
 import net.imglib2.converter.Converter;
 import net.imglib2.converter.Converters;
-import net.imglib2.converter.RealARGBConverter;
 import net.imglib2.display.AbstractLinearRange;
 import net.imglib2.interpolation.InterpolatorFactory;
 import net.imglib2.interpolation.randomaccess.ClampingNLinearInterpolatorFactory;
 import net.imglib2.interpolation.randomaccess.NearestNeighborInterpolatorFactory;
 import net.imglib2.realtransform.AffineTransform3D;
-import net.imglib2.type.numeric.ARGBType;
 import net.imglib2.type.numeric.RealType;
-import net.imglib2.type.numeric.integer.UnsignedByteType;
 import net.imglib2.type.volatiles.VolatileARGBType;
-import net.imglib2.type.volatiles.VolatileUnsignedByteType;
+import net.imglib2.ui.OverlayRenderer;
 import net.imglib2.view.ExtendedRandomAccessibleInterval;
 import net.imglib2.view.Views;
 
@@ -72,19 +66,58 @@ public class ExampleApplication2 extends Application
 
 		final Atlas viewer = makeViewer();
 
-		final ViewerSetupImgLoader< UnsignedByteType, VolatileUnsignedByteType > rawLoader = raw.loader();
-		final RandomAccessibleInterval< VolatileUnsignedByteType > rawImg = rawLoader.getVolatileImage( 0, 0 );
-		final RandomAccessibleIntervalSource< VolatileUnsignedByteType > rawSource = new RandomAccessibleIntervalSource<>( rawImg, new VolatileUnsignedByteType(), "raw" );
-		final SourceAndConverter< VolatileUnsignedByteType > rawSac = new SourceAndConverter<>( rawSource, new RealARGBConverter<>( 0, 255 ) );
+//		final ViewerSetupImgLoader< UnsignedByteType, VolatileUnsignedByteType > rawLoader = raw.loader();
+//		final RandomAccessibleInterval< VolatileUnsignedByteType > rawImg = rawLoader.getVolatileImage( 0, 0 );
+//		final RandomAccessibleIntervalSource< VolatileUnsignedByteType > rawSource = new RandomAccessibleIntervalSource<>( rawImg, new VolatileUnsignedByteType(), "raw" );
+//		final SourceAndConverter< VolatileUnsignedByteType > rawSac = new SourceAndConverter<>( rawSource, new RealARGBConverter<>( 0, 255 ) );
 
-		final TLongHashSet activeIds = new TLongHashSet();
-		final ModalGoldenAngleSaturatedHighlightingARGBStream stream = new ModalGoldenAngleSaturatedHighlightingARGBStream( activeIds );
-		final ARGBConvertedLabelsSource convertedSource = new ARGBConvertedLabelsSource( 0, labels.loader(), stream );
-		System.out.println( convertedSource.getVoxelDimensions() + " " + rawSource.getVoxelDimensions() );
-		final Converter< VolatileARGBType, ARGBType > conv = ( input, output ) -> output.set( input.get() );
-		final SourceAndConverter< VolatileARGBType > sac = new SourceAndConverter<>( convertedSource, conv );
-		viewer.addSource( sac );
+		final HDF5LabelMultisetSourceSpec labelSpec = new HDF5LabelMultisetSourceSpec( labelsFile, labelsDataset, cellSize );
+		viewer.addSource( labelSpec );
+//		final TLongHashSet activeIds = new TLongHashSet();
+//		final ModalGoldenAngleSaturatedHighlightingARGBStream stream = new ModalGoldenAngleSaturatedHighlightingARGBStream( activeIds );
+//		final ARGBConvertedLabelsSource convertedSource = new ARGBConvertedLabelsSource( 0, labels.loader(), stream );
+//		final Converter< VolatileARGBType, ARGBType > conv = ( input, output ) -> output.set( input.get() );
+//		final SourceAndConverter< VolatileARGBType > sac = new SourceAndConverter<>( convertedSource, conv );
+//		viewer.addSource( sac );
 //		viewer.addSource( rawSac );
+
+		final OverlayRenderer hwRenderer = new OverlayRenderer()
+		{
+
+			@Override
+			public void setCanvasSize( final int width, final int height )
+			{
+				// TODO Auto-generated method stub
+
+			}
+
+			@Override
+			public void drawOverlays( final Graphics g )
+			{
+				final Graphics2D g2d = ( Graphics2D ) g;
+				g2d.setColor( Color.WHITE );
+				g2d.drawString( "Hello world!", 30, 130 );
+
+			}
+		};
+
+//		viewer.baseView().addOverlayRenderer( hwRenderer );
+//		final MouseMotionListener mml = new MouseMotionListener()
+//		{
+//
+//			@Override
+//			public void mouseMoved( final MouseEvent e )
+//			{
+//				System.out.println( " MOVING! " + e.getX() + " " + e.getY() );
+//			}
+//
+//			@Override
+//			public void mouseDragged( final MouseEvent e )
+//			{
+//				System.out.println( " DRAGGING! " + e.getX() + " " + e.getY() );
+//			}
+//		};
+//		viewer.baseView().addMouseMotionListener( mml );
 
 	}
 

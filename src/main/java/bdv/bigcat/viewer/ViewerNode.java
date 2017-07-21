@@ -2,14 +2,19 @@ package bdv.bigcat.viewer;
 
 import java.awt.Dimension;
 import java.awt.Graphics;
+import java.awt.event.MouseMotionListener;
 import java.util.ArrayList;
 import java.util.HashMap;
 
 import javax.swing.JComponent;
 import javax.swing.SwingUtilities;
 
+import org.scijava.ui.behaviour.Behaviour;
 import org.scijava.ui.behaviour.MouseAndKeyHandler;
 import org.scijava.ui.behaviour.io.InputTriggerConfig;
+import org.scijava.ui.behaviour.util.AbstractNamedAction;
+import org.scijava.ui.behaviour.util.Actions;
+import org.scijava.ui.behaviour.util.Behaviours;
 import org.scijava.ui.behaviour.util.InputActionBindings;
 import org.scijava.ui.behaviour.util.TriggerBehaviourBindings;
 
@@ -49,7 +54,11 @@ public class ViewerNode extends SwingNode implements ListChangeListener< SourceA
 
 	private final InputTriggerConfig inputTriggerConfig = new InputTriggerConfig();
 
-	final MouseAndKeyHandler mouseAndKeyHandler = new MouseAndKeyHandler();
+	private final Behaviours behaviours = new Behaviours( inputTriggerConfig );
+
+	private final Actions actions = new Actions( inputTriggerConfig );
+
+	private final MouseAndKeyHandler mouseAndKeyHandler = new MouseAndKeyHandler();
 
 	private boolean isReady = false;
 
@@ -82,7 +91,48 @@ public class ViewerNode extends SwingNode implements ListChangeListener< SourceA
 		return isReady;
 	}
 
-	public void initialize()
+	public void addBehaviour( final Behaviour behaviour, final String name, final String... defaultTriggers )
+	{
+		this.behaviours.behaviour( behaviour, name, defaultTriggers );
+	}
+
+	public void addAction( final AbstractNamedAction action, final String... defaultKeyStrokes )
+	{
+		this.actions.namedAction( action, defaultKeyStrokes );
+	}
+
+	public void addAction( final Runnable action, final String name, final String... defaultKeyStrokes )
+	{
+		this.actions.runnableAction( action, name, defaultKeyStrokes );
+	}
+
+	public void addMouseMotionListener( final MouseMotionListener listener )
+	{
+		waitUntilInitialized();
+		this.viewer.getDisplay().addMouseMotionListener( listener );
+	}
+
+	public void removeMouseMotionListener( final MouseMotionListener listener )
+	{
+		waitUntilInitialized();
+		this.viewer.getDisplay().removeMouseMotionListener( listener );
+	}
+
+	private void waitUntilInitialized()
+	{
+		while ( this.viewer == null )
+			try
+		{
+				Thread.sleep( 10 );
+		}
+		catch ( final InterruptedException e )
+		{
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+	}
+
+	private void initialize()
 	{
 		SwingUtilities.invokeLater( () -> {
 			final ViewerPanel vp = new ViewerPanel( new ArrayList<>(), 1, cacheControl );
@@ -96,6 +146,11 @@ public class ViewerNode extends SwingNode implements ListChangeListener< SourceA
 
 			viewer.getDisplay().setTransformEventHandler( this.manager );
 			this.manager.install( triggerbindings );
+
+			triggerbindings.addBehaviourMap( "default", behaviours.getBehaviourMap() );
+			triggerbindings.addInputTriggerMap( "default", behaviours.getInputTriggerMap() );
+			keybindings.addActionMap( "default", actions.getActionMap() );
+			keybindings.addInputMap( "default", actions.getInputMap() );
 
 			mouseAndKeyHandler.setInputMap( triggerbindings.getConcatenatedInputTriggerMap() );
 			mouseAndKeyHandler.setBehaviourMap( triggerbindings.getConcatenatedBehaviourMap() );
@@ -184,6 +239,11 @@ public class ViewerNode extends SwingNode implements ListChangeListener< SourceA
 	public AffineTransform3D getTransformCopy()
 	{
 		return this.manager.getTransform();
+	}
+
+	public InputTriggerConfig inputTriggerConfig()
+	{
+		return inputTriggerConfig;
 	}
 
 	@Override

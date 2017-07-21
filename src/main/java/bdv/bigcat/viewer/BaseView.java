@@ -1,7 +1,11 @@
 package bdv.bigcat.viewer;
 
+import java.awt.event.MouseMotionListener;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.function.Consumer;
+
+import org.scijava.ui.behaviour.Behaviour;
 
 import bdv.bigcat.composite.Composite;
 import bdv.bigcat.viewer.ViewerNode.ViewerAxis;
@@ -9,6 +13,7 @@ import bdv.cache.CacheControl;
 import bdv.viewer.Source;
 import bdv.viewer.SourceAndConverter;
 import bdv.viewer.ViewerPanel;
+import javafx.beans.value.ChangeListener;
 import javafx.collections.FXCollections;
 import javafx.collections.ListChangeListener;
 import javafx.collections.ObservableList;
@@ -28,8 +33,9 @@ import javafx.scene.layout.GridPane;
 import javafx.scene.layout.VBox;
 import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.type.numeric.ARGBType;
+import net.imglib2.ui.OverlayRenderer;
 
-public class BaseView
+public class BaseView extends BorderPane
 {
 
 	public static final Class< ? >[] FOCUS_KEEPERS = { TextField.class };
@@ -42,17 +48,15 @@ public class BaseView
 
 	private final GridPane grid;
 
-	private final BorderPane root;
-
 	private final GlobalTransformManager gm;
 
 	private final GridConstraintsManager constraintsManager;
 
-	final boolean[] isFullScreen = new boolean[] { false };
+	private final boolean[] isFullScreen = new boolean[] { false };
 
-	final HashMap< Source< ? >, Composite< ARGBType, ARGBType > > sourceCompositeMap = new HashMap<>();
+	private final HashMap< Source< ? >, Composite< ARGBType, ARGBType > > sourceCompositeMap = new HashMap<>();
 
-	final ObservableList< SourceAndConverter< ? > > sourceLayers = FXCollections.observableArrayList();
+	private final ObservableList< SourceAndConverter< ? > > sourceLayers = FXCollections.observableArrayList();
 	{
 		sourceLayers.addListener( ( ListChangeListener< SourceAndConverter< ? > > ) c -> {
 			c.next();
@@ -62,15 +66,68 @@ public class BaseView
 		} );
 	}
 
+	private final ObservableList< OverlayRenderer > overlayRenderers = FXCollections.observableArrayList();
+	{
+		overlayRenderers.addListener( ( ListChangeListener< OverlayRenderer > ) c -> {
+			while ( c.next() )
+				if ( c.wasRemoved() )
+					for ( final OverlayRenderer renderer : c.getRemoved() )
+						viewerNodes.forEach( vn -> ( ( ViewerPanel ) vn.getContent() ).getDisplay().removeOverlayRenderer( renderer ) );
+				else if ( c.wasAdded() )
+					for ( final OverlayRenderer renderer : c.getAddedSubList() )
+						viewerNodes.forEach( vn -> ( ( ViewerPanel ) vn.getContent() ).getDisplay().addOverlayRenderer( renderer ) );
+		});
+	}
+
+	private final ObservableList< Behaviour > behaviours = FXCollections.observableArrayList();
+
+	private final HashMap< Behaviour, String > behaviourNames = new HashMap<>();
+
+	private final HashMap< Behaviour, String[] > behaviourTriggers = new HashMap<>();
+	{
+		behaviours.addListener( ( ListChangeListener< Behaviour > ) c -> {
+			while( c.next() )
+				if ( c.wasAdded() )
+					for ( final Behaviour behaviour : c.getAddedSubList() )
+						viewerNodes.forEach( vn -> vn.addBehaviour( behaviour, behaviourNames.get( behaviour ), behaviourTriggers.get( behaviour ) ) );
+		} );
+	}
+
+	private final ObservableList< MouseMotionListener > mouseMotionListeners = FXCollections.observableArrayList();
+	{
+		mouseMotionListeners.addListener( ( ListChangeListener< MouseMotionListener > ) c -> {
+			System.out.println( "EVENT! " );
+			while ( c.next() )
+				if ( c.wasAdded() )
+					for ( final MouseMotionListener listener : c.getAddedSubList() )
+						viewerNodes.forEach( vn -> vn.addMouseMotionListener( listener ) );
+				else if ( c.wasRemoved() )
+					for ( final MouseMotionListener listener : c.getRemoved() )
+						viewerNodes.forEach( vn -> vn.removeMouseMotionListener( listener ) );
+		} );
+	}
+
+	private final Consumer< ViewerPanel > onFocusEnter;
+
+	private final Consumer< ViewerPanel > onFocusExit;
+
 	public BaseView()
 	{
+		this( ( vp ) -> {}, ( vp ) -> {} );
+	}
+
+	public BaseView( final Consumer< ViewerPanel > onFocusEnter, final Consumer< ViewerPanel > onFocusExit )
+	{
+		super();
 		this.infoPane = createInfo();
 		this.gm = new GlobalTransformManager( new AffineTransform3D() );
 		gm.setTransform( new AffineTransform3D() );
 
 		this.constraintsManager = new GridConstraintsManager();
 		this.grid = constraintsManager.createGrid();
-		this.root = new BorderPane( grid );
+		this.centerProperty().set( grid );
+		this.onFocusEnter = onFocusEnter;
+		this.onFocusExit = onFocusExit;
 	}
 
 	public synchronized void addSource( final SourceAndConverter< ? > source, final Composite< ARGBType, ARGBType > comp )
@@ -122,7 +179,8 @@ public class BaseView
 
 	public Scene createScene( final int width, final int height ) throws Exception
 	{
-		final Scene scene = new Scene( this.root, width, height );scene.setOnKeyTyped( event -> {
+		final Scene scene = new Scene( this, width, height );
+		scene.setOnKeyTyped( event -> {
 			if ( event.getCharacter().equals( "a" ) )
 				maximizeActiveOrthoView( scene, event );
 		} );
@@ -130,7 +188,22 @@ public class BaseView
 		return scene;
 	}
 
-	private static void addViewerNodesHandler( final ViewerNode viewerNode, final Class< ? >[] focusKeepers )
+	public synchronized void addOverlayRenderer( final OverlayRenderer renderer )
+	{
+		this.overlayRenderers.add( renderer );
+	}
+
+	public synchronized void removeOverlayRenderer( final OverlayRenderer renderer )
+	{
+		this.overlayRenderers.remove( renderer );
+	}
+
+	public synchronized void addMouseMotionListener( final MouseMotionListener listener )
+	{
+		this.mouseMotionListeners.add( listener );
+	}
+
+	private void addViewerNodesHandler( final ViewerNode viewerNode, final Class< ? >[] focusKeepers )
 	{
 
 		viewerNode.addEventHandler( MouseEvent.MOUSE_CLICKED, event -> viewerNode.requestFocus() );
@@ -142,9 +215,27 @@ public class BaseView
 					return;
 			viewerNode.requestFocus();
 		} );
+
+		handleFocusEvent( viewerNode );
 	}
 
-	private void addViewer( final ViewerAxis axis, final int rowIndex, final int colIndex )
+	private synchronized void handleFocusEvent( final ViewerNode viewerNode )
+	{
+		viewerNode.focusedProperty().addListener( ( ChangeListener< Boolean > ) ( observable, oldValue, newValue ) -> {
+			final ViewerPanel viewer = ( ViewerPanel ) viewerNode.getContent();
+			if ( viewer == null )
+				return;
+			else if ( newValue )
+				this.onFocusEnter.accept( viewer );
+			else
+			{
+				System.out.println( "Handling exit: accept viewer!" );
+				this.onFocusExit.accept( viewer );
+			}
+		} );
+	}
+
+	private synchronized void addViewer( final ViewerAxis axis, final int rowIndex, final int colIndex )
 	{
 		final ViewerNode viewerNode = new ViewerNode( new CacheControl.Dummy(), axis, gm );
 		this.viewerNodes.add( viewerNode );
@@ -170,7 +261,9 @@ public class BaseView
 				createdViewer = viewerNode.isReady();
 			}
 			createdViewer = true;
-			sourceLayers.remove( null );
+			sourceLayers.forEach( sl -> ( ( ViewerPanel ) viewerNode.getContent() ).addSource( sl ) );
+			behaviours.forEach( behaviour -> viewerNode.addBehaviour( behaviour, behaviourNames.get( behaviour ), behaviourTriggers.get( behaviour ) ) );
+
 		} );
 		t.start();
 
