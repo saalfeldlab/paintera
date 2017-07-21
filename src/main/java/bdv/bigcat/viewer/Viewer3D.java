@@ -37,40 +37,46 @@ public class Viewer3D
 {
 	/** logger */
 	static final Logger LOGGER = LoggerFactory.getLogger( Viewer3D.class );
-	
+
 	/** small hdf5 for test - subset from sample B */
 	static String path = "data/sample_B_20160708_frags_46_50.hdf";
+
 	static int foregroundValue = 7;
+
 	static int[] volDim = { 500, 500, 5 };
+
 	static String path_label = "/volumes/labels/neuron_ids";
+
 	static int[] cubeSize = { 1, 1, 1 };
+
 	static float maxAxisVal = 0;
+
 	static float[] verticesArray = new float[ 0 ];
+
 	private boolean isReady = false;
 
 	private static RandomAccessibleInterval< LabelMultisetType > volumeLabels = null;
-	
+
 	private static MarchingCubes.ForegroundCriterion criterion = MarchingCubes.ForegroundCriterion.EQUAL;
-	
-	private SceneryPanel scPanel[] = {null};
+
+	private SceneryPanel scPanel[] = { null };
 
 	public Viewer3D()
-	{
-	}
+	{}
 
 	public void createViewer3D()
 	{
 		// this.infoPane = new Label( "info box" );
 		loadData();
-		
-		scPanel[0] = new SceneryPanel(250, 250);
-		
+
+		scPanel[ 0 ] = new SceneryPanel( 250, 250 );
+
 		Settings settings = new Settings();
 		Hub hub = new Hub();
 		graphics.scenery.Scene scene = new graphics.scenery.Scene();
 		hub.add( SceneryElement.Settings, settings );
-		
-		Renderer renderer = Renderer.Factory.createRenderer( hub, "BigCAT", scene, 500, 500, scPanel[0] );
+
+		Renderer renderer = Renderer.Factory.createRenderer( hub, "BigCAT", scene, 500, 500, scPanel[ 0 ] );
 		hub.add( SceneryElement.Renderer, renderer );
 
 		final Box hull = new Box( new GLVector( 50.0f, 50.0f, 50.0f ), true );
@@ -111,26 +117,28 @@ public class Viewer3D
 
 		Mesh neuron = new Mesh();
 		neuron.setMaterial( material );
-		neuron.setName("neuron");
+		neuron.setName( "neuron" );
 		neuron.setPosition( new GLVector( 0.0f, 0.0f, 0.0f ) );
 		neuron.setScale( new GLVector( 4.0f, 4.0f, 40.0f ) );
-		scene.addChild(neuron);
+		scene.addChild( neuron );
 
-		new Thread() {
-			public void run() {
+		new Thread()
+		{
+			public void run()
+			{
 
-			marchingCubes(scene);
+				marchingCubes( scene );
 			}
 		}.start();
-		
+
 		isReady = true;
 	}
-	
+
 	public void createPanel()
 	{
-		scPanel[0] = new SceneryPanel( 500, 500 );
+		scPanel[ 0 ] = new SceneryPanel( 500, 500 );
 	}
-	
+
 	/**
 	 * this method update the mesh with new data
 	 * 
@@ -148,14 +156,14 @@ public class Viewer3D
 	public static void updateMesh( SimpleMesh m, Mesh neuron, boolean overwriteArray )
 	{
 		/** max value int = 2,147,483,647 */
-		if (LOGGER.isDebugEnabled())
+		if ( LOGGER.isDebugEnabled() )
 		{
 			LOGGER.debug( "previous size of vertices: " + verticesArray.length );
 		}
 
 		final int vertexCount;
 		// resize array to fit the new mesh
-		if (overwriteArray)
+		if ( overwriteArray )
 		{
 			vertexCount = 0;
 			verticesArray = new float[ m.getNumberOfVertices() * 3 ];
@@ -185,7 +193,7 @@ public class Viewer3D
 		neuron.recalculateNormals();
 		neuron.setDirty( true );
 	}
-	
+
 	public static void loadData()
 	{
 		System.out.println( "Opening labels from " + path );
@@ -213,7 +221,7 @@ public class Viewer3D
 
 		volumeLabels = labels.get( 0 ).getImage( 0 );
 	}
-	
+
 	private static void marchingCubes( Scene scene )
 	{
 		int numberOfCellsX = ( int ) ( ( volumeLabels.max( 0 ) - volumeLabels.min( 0 ) ) + 1 ) / 32;
@@ -276,7 +284,7 @@ public class Viewer3D
 			cubeSize[ 2 ] = 1;
 
 			VolumePartitioner partitioner = new VolumePartitioner( volumeLabels, partitionSize, cubeSize );
-			chunks = partitioner.dataPartitioning( );
+			chunks = partitioner.dataPartitioning();
 
 //			chunks.clear();
 //			Chunk chunk = new Chunk();
@@ -295,12 +303,12 @@ public class Viewer3D
 
 			maxAxisVal = Math.max( maxX, Math.max( maxY, maxZ ) );
 
-			if (LOGGER.isTraceEnabled())
+			if ( LOGGER.isTraceEnabled() )
 			{
 				LOGGER.trace( "maxX " + maxX + " maxY: " + maxY + " maxZ: " + maxZ + " maxAxisVal: " + maxAxisVal );
 			}
 
-			if (LOGGER.isDebugEnabled())
+			if ( LOGGER.isDebugEnabled() )
 			{
 				LOGGER.debug( "creating callables for " + chunks.size() + " partitions..." );
 			}
@@ -312,8 +320,8 @@ public class Viewer3D
 
 				MarchingCubesCallable callable = new MarchingCubesCallable( chunks.get( i ).getVolume(), subvolDim, chunks.get( i ).getOffset(), cubeSize, criterion, foregroundValue,
 						true );
-				
-				if (LOGGER.isDebugEnabled())
+
+				if ( LOGGER.isDebugEnabled() )
 				{
 					LOGGER.debug( "dimension: " + chunks.get( i ).getVolume().dimension( 0 ) + "x" + chunks.get( i ).getVolume().dimension( 1 )
 							+ "x" + chunks.get( i ).getVolume().dimension( 2 ) );
@@ -334,7 +342,7 @@ public class Viewer3D
 				try
 				{
 					completedFuture = executor.take();
-					if (LOGGER.isTraceEnabled())
+					if ( LOGGER.isTraceEnabled() )
 					{
 						LOGGER.trace( "task " + completedFuture + " is ready: " + completedFuture.isDone() );
 					}
@@ -388,25 +396,25 @@ public class Viewer3D
 				// TODO Auto-generated catch block
 				e.printStackTrace();
 			}
-			if (voxSize != 1)
+			if ( voxSize != 1 )
 				scene.removeChild( neuron );
 		}
 	}
-	
+
 	public SceneryPanel getPanel()
 	{
-		if (scPanel[0] == null)
+		if ( scPanel[ 0 ] == null )
 			createPanel();
-		
-		return scPanel[0];
-		
+
+		return scPanel[ 0 ];
+
 	}
-	
+
 	public boolean isReady()
 	{
 		return isReady;
 	}
-	
+
 	public Renderer getRenderer()
 	{
 		return getRenderer();

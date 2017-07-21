@@ -108,7 +108,7 @@ public class JavaFXMarchingCubesExample
 	PrintWriter writer2 = null;
 
 	static float maxAxisVal = 0;
-	
+
 	private static MarchingCubes.ForegroundCriterion criterion = MarchingCubes.ForegroundCriterion.EQUAL;
 
 	/**
@@ -336,7 +336,7 @@ public class JavaFXMarchingCubesExample
 			cubeSize[ 2 ] = 1;
 
 			VolumePartitioner partitioner = new VolumePartitioner( volumeLabels, partitionSize, cubeSize );
-			chunks = partitioner.dataPartitioning( );
+			chunks = partitioner.dataPartitioning();
 
 //			chunks.clear();
 //			Chunk chunk = new Chunk();
@@ -361,7 +361,7 @@ public class JavaFXMarchingCubesExample
 
 				MarchingCubesCallable callable = new MarchingCubesCallable( chunks.get( i ).getVolume(), subvolDim, chunks.get( i ).getOffset(), cubeSize, criterion, foregroundValue,
 						true );
-				
+
 				Future< SimpleMesh > result = executor.submit( callable );
 				resultMeshList.add( result );
 			}
@@ -416,7 +416,7 @@ public class JavaFXMarchingCubesExample
 				// TODO Auto-generated catch block
 				e.printStackTrace();
 			}
-			if (voxSize != 1)
+			if ( voxSize != 1 )
 				scene.removeChild( neuron );
 		}
 	}
@@ -440,7 +440,7 @@ public class JavaFXMarchingCubesExample
 		/** max value int = 2,147,483,647 */
 		final int vertexCount;
 		// resize array to fit the new mesh
-		if (overwriteArray)
+		if ( overwriteArray )
 		{
 			vertexCount = 0;
 			verticesArray = new float[ m.getNumberOfVertices() * 3 ];

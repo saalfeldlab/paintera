@@ -8,12 +8,13 @@ class MarchingCubesTables
 	static final int Invalid = -1;
 
 	/**
-	 * For any edge, if one vertex is inside of the surface and the other is outside of the surface
-	 * then the edge intersects the surface.
-	 * For each of the 8 vertices of the cube can be two possible states: either inside or outside of the surface
-	 * For any cube the are 2^8=256 possible sets of vertex states.
-	 * This table lists the edges intersected by the surface for all 256 possible vertex states.
-	 * There are 12 edges. For each entry in the table, if edge #n is intersected, then bit #n is set to 1
+	 * For any edge, if one vertex is inside of the surface and the other is
+	 * outside of the surface then the edge intersects the surface. For each of
+	 * the 8 vertices of the cube can be two possible states: either inside or
+	 * outside of the surface For any cube the are 2^8=256 possible sets of
+	 * vertex states. This table lists the edges intersected by the surface for
+	 * all 256 possible vertex states. There are 12 edges. For each entry in the
+	 * table, if edge #n is intersected, then bit #n is set to 1
 	 */
 	static final int[] MC_EDGE_TABLE = {
 			0x0, 0x109, 0x203, 0x30a, 0x406, 0x50f, 0x605, 0x70c,
@@ -50,10 +51,11 @@ class MarchingCubesTables
 			0x70c, 0x605, 0x50f, 0x406, 0x30a, 0x203, 0x109, 0x0 };
 
 	/**
-	 * For each of the possible cube state there is a specific triangulation of the edge intersection points.
-	 * This table lists all of them in the form of 0-5 edge triples with the list terminated by the invalid value.
-	 * For example: tritable[3] list the 2 triangles formed when corner[0] and corner[1] are inside of the surface,
-	 * but the rest of the cube is not.
+	 * For each of the possible cube state there is a specific triangulation of
+	 * the edge intersection points. This table lists all of them in the form of
+	 * 0-5 edge triples with the list terminated by the invalid value. For
+	 * example: tritable[3] list the 2 triangles formed when corner[0] and
+	 * corner[1] are inside of the surface, but the rest of the cube is not.
 	 */
 	static final int MC_TRI_TABLE[][] = {
 			{ Invalid, Invalid, Invalid, Invalid, Invalid, Invalid, Invalid, Invalid, Invalid, Invalid, Invalid, Invalid, Invalid, Invalid, Invalid, Invalid },

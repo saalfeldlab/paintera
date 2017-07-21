@@ -11,7 +11,7 @@ public class SimpleMesh
 	int numberOfVertices;
 
 	/**
-	 * the vertices positions as an array of points 
+	 * the vertices positions as an array of points
 	 */
 	float[][] vertices;
 
@@ -35,17 +35,17 @@ public class SimpleMesh
 
 	public SimpleMesh()
 	{}
-	
+
 	public int getNumberOfVertices()
 	{
 		return numberOfVertices;
 	}
-	
+
 	public void setNumberOfVertices( int nVertices )
 	{
 		numberOfVertices = nVertices;
 	}
-	
+
 	public int getNumberOfTriangles()
 	{
 		return numberOfTriangles;
@@ -53,7 +53,7 @@ public class SimpleMesh
 
 	public void setNumberOfTriangles( int ntriangles )
 	{
-		numberOfTriangles= ntriangles;
+		numberOfTriangles = ntriangles;
 	}
 
 	public float[][] getVertices()
@@ -61,7 +61,7 @@ public class SimpleMesh
 		return vertices;
 	}
 
-	public void setVertices(float[][] verticesArray)
+	public void setVertices( float[][] verticesArray )
 	{
 		vertices = verticesArray;
 	}
@@ -70,8 +70,8 @@ public class SimpleMesh
 	{
 		return triangles;
 	}
-	
-	public void setTriangles( int[] trianglesArray)
+
+	public void setTriangles( int[] trianglesArray )
 	{
 		triangles = trianglesArray;
 	}

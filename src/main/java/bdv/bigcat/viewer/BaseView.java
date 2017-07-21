@@ -53,6 +53,7 @@ public class BaseView
 	final HashMap< Source< ? >, Composite< ARGBType, ARGBType > > sourceCompositeMap = new HashMap<>();
 
 	private final Viewer3D viewer3D;
+
 	private boolean created3DViewer;
 
 	final ObservableList< SourceAndConverter< ? > > sourceLayers = FXCollections.observableArrayList();
@@ -109,18 +110,22 @@ public class BaseView
 	{
 		viewer3D.createViewer3D();
 
-		final Thread t = new Thread(() -> {
-			while (!created3DViewer) {
-				try {
-					Thread.sleep(10);
-				} catch (final InterruptedException e) {
+		final Thread t = new Thread( () -> {
+			while ( !created3DViewer )
+			{
+				try
+				{
+					Thread.sleep( 10 );
+				}
+				catch ( final InterruptedException e )
+				{
 					e.printStackTrace();
 					return;
 				}
 				created3DViewer = viewer3D.isReady();
 			}
 			created3DViewer = true;
-		});
+		} );
 		t.start();
 
 		final TableView< ? > table = new TableView<>();
@@ -142,7 +147,8 @@ public class BaseView
 
 	public Scene createScene( final int width, final int height ) throws Exception
 	{
-		final Scene scene = new Scene( this.root, width, height );scene.setOnKeyTyped( event -> {
+		final Scene scene = new Scene( this.root, width, height );
+		scene.setOnKeyTyped( event -> {
 			if ( event.getCharacter().equals( "a" ) )
 				maximizeActiveOrthoView( scene, event );
 		} );

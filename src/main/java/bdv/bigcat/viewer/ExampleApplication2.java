@@ -144,7 +144,7 @@ public class ExampleApplication2 extends Application
 
 		final protected InterpolatorFactory< VolatileARGBType, RandomAccessible< VolatileARGBType > >[] interpolatorFactories;
 		{
-			interpolatorFactories = new InterpolatorFactory[]{
+			interpolatorFactories = new InterpolatorFactory[] {
 					new NearestNeighborInterpolatorFactory< VolatileARGBType >(),
 					new ClampingNLinearInterpolatorFactory< VolatileARGBType >()
 			};
@@ -153,7 +153,7 @@ public class ExampleApplication2 extends Application
 		public ARGBConvertedSource(
 				final int setupId,
 				final AbstractViewerSetupImgLoader< T, ? extends Volatile< T > > loader,
-						final Converter< Volatile< T >, VolatileARGBType > converter )
+				final Converter< Volatile< T >, VolatileARGBType > converter )
 		{
 			this.setupId = setupId;
 			this.loader = loader;
@@ -234,6 +234,5 @@ public class ExampleApplication2 extends Application
 			return this;
 		}
 	}
-
 
 }

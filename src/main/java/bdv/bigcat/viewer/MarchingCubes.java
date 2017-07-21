@@ -17,8 +17,8 @@ import net.imglib2.view.ExtendedRandomAccessibleInterval;
 import net.imglib2.view.Views;
 
 /**
- * Implements the marching cubes algorithm.
- * Based on http://paulbourke.net/geometry/polygonise/
+ * Implements the marching cubes algorithm. Based on
+ * http://paulbourke.net/geometry/polygonise/
  * 
  * @author vleite
  */
@@ -39,7 +39,7 @@ public class MarchingCubes
 	/** Indicates whether a valid surface is present. */
 	private boolean hasValidSurface;
 
-	/**Indicates which criterion is going to be applied */
+	/** Indicates which criterion is going to be applied */
 	private ForegroundCriterion criterion = ForegroundCriterion.EQUAL;
 
 	/** array where the data will be copied if {@link #copyToArray} is true */
@@ -53,9 +53,9 @@ public class MarchingCubes
 
 	/** size of the cube */
 	int[] cubeSize;
-	
+
 	private ArrayList< float[] > vertices = new ArrayList<>();
-	
+
 	public enum ForegroundCriterion
 	{
 		EQUAL,
@@ -88,8 +88,7 @@ public class MarchingCubes
 	public SimpleMesh generateMesh( RandomAccessibleInterval< LabelMultisetType > input, int[] volDim, int[] offset, int[] cubeSize,
 			ForegroundCriterion foregroundCriteria, int level, boolean copyToArray )
 	{
-		if ( copyToArray )
-			return generateMeshFromArray( input, volDim, offset, cubeSize, foregroundCriteria, level );
+		if ( copyToArray ) { return generateMeshFromArray( input, volDim, offset, cubeSize, foregroundCriteria, level ); }
 
 		return generateMeshFromRAI( input, volDim, offset, cubeSize, foregroundCriteria, level );
 	}
@@ -109,10 +108,13 @@ public class MarchingCubes
 	{
 
 		if ( hasValidSurface )
+		{
 			deleteSurface();
+		}
 
-		// when using RAI the offset is not necessary, because the data is not repositioned
-		this.offset = new int[] {0, 0, 0};
+		// when using RAI the offset is not necessary, because the data is not
+		// repositioned
+		this.offset = new int[] { 0, 0, 0 };
 
 		mesh = new SimpleMesh();
 
@@ -145,8 +147,8 @@ public class MarchingCubes
 			int cursorX = cursor.getIntPosition( 0 );
 			int cursorY = cursor.getIntPosition( 1 );
 			int cursorZ = cursor.getIntPosition( 2 );
-			
-			if (beginX != cursorX)
+
+			if ( beginX != cursorX )
 			{
 				xDirection++;
 			}
@@ -157,14 +159,14 @@ public class MarchingCubes
 			verticesCursor.add( getCube( extended, cursorX, cursorY + cubeSize[ 1 ], cursorZ ) );
 			verticesCursor.add( getCube( extended, cursorX + cubeSize[ 0 ], cursorY + cubeSize[ 1 ], cursorZ ) );
 			verticesCursor.add( getCube( extended, cursorX, cursorY, cursorZ + cubeSize[ 2 ] ) );
-			verticesCursor.add( getCube( extended, cursorX + cubeSize[ 0 ], cursorY, cursorZ + cubeSize [ 2 ]) );
+			verticesCursor.add( getCube( extended, cursorX + cubeSize[ 0 ], cursorY, cursorZ + cubeSize[ 2 ] ) );
 			verticesCursor.add( getCube( extended, cursorX, cursorY + cubeSize[ 1 ], cursorZ + cubeSize[ 2 ] ) );
 			verticesCursor.add( getCube( extended, cursorX + cubeSize[ 0 ], cursorY + cubeSize[ 1 ], cursorZ + cubeSize[ 2 ] ) );
 
 			int i = 0;
 			double[] vertexValues = new double[ 8 ];
 
-			for (int vert = 0; vert < verticesCursor.size(); vert++)
+			for ( int vert = 0; vert < verticesCursor.size(); vert++ )
 			{
 				Cursor< LabelMultisetType > cursor2 = verticesCursor.get( vert );
 				while ( cursor2.hasNext() )
@@ -178,7 +180,7 @@ public class MarchingCubes
 					i++;
 				}
 			}
-			
+
 			// @formatter:off
 			// the values from the cube are given first in z, then y, then x
 			// this way, the vertex_values (from getCube) are positioned in this
@@ -209,52 +211,52 @@ public class MarchingCubes
 			vertexValues = remapCube( vertexValues );
 
 			triangulation( vertexValues, cursorX, cursorY, cursorZ );
-			
-			for (int j = 0; j < cubeSize[0];j++)
+
+			for ( int j = 0; j < cubeSize[ 0 ]; j++ )
 				cursor.next();
 
-			if (xDirection == nCellsX - 1)
+			if ( xDirection == nCellsX - 1 )
 			{
 				int newY = cursorY + cubeSize[ 1 ];
-				while(cursor.hasNext())
+				while ( cursor.hasNext() )
 				{
 					cursor.next();
 					cursorX = cursor.getIntPosition( 0 );
 					cursorY = cursor.getIntPosition( 1 );
-					if (cursorX == input.min( 0 ) - 1 && cursorY == newY )
+					if ( cursorX == input.min( 0 ) - 1 && cursorY == newY )
 						break;
 				}
-				
+
 				xDirection = 0;
 				yDirection++;
 			}
-			
-			if (yDirection == nCellsY)
+
+			if ( yDirection == nCellsY )
 			{
 				int newZ = cursorZ + cubeSize[ 2 ];
-				while(cursor.hasNext())
+				while ( cursor.hasNext() )
 				{
 					cursor.next();
 					cursorY = cursor.getIntPosition( 1 );
 					cursorZ = cursor.getIntPosition( 2 );
-					if (cursorY == input.min( 1 ) - 1 && cursorZ == newZ)
+					if ( cursorY == input.min( 1 ) - 1 && cursorZ == newZ )
 						break;
 				}
-				
+
 				yDirection = 0;
 				zDirection++;
 			}
 
-			if (zDirection == nCellsZ)
+			if ( zDirection == nCellsZ )
 			{
-				while(cursor.hasNext())
+				while ( cursor.hasNext() )
 				{
 					cursor.next();
 					cursorZ = cursor.getIntPosition( 2 );
-					if (cursorZ == input.min( 2 ) - 1)
+					if ( cursorZ == input.min( 2 ) - 1 )
 						break;
 				}
-				
+
 				zDirection = 0;
 			}
 
@@ -307,10 +309,9 @@ public class MarchingCubes
 			for ( final Multiset.Entry< Label > e : iterator.entrySet() )
 			{
 				volumeArray.add( e.getElement().id() );
-				LOGGER.trace( " {}" , e.getElement().id() );
+				LOGGER.trace( " {}", e.getElement().id() );
 			}
 		}
-
 
 		// two dimensions more: from 'min minus one' to 'max plus one'
 		xWidth = ( volDim[ 0 ] + 2 );
@@ -372,7 +373,7 @@ public class MarchingCubes
 					vertexValues[ 5 ] = volumeArray.get( ( ( ( int ) ( cubeSize[ 2 ] * ( cursorZ + 1 ) ) ) * xyWidth + ( int ) ( cubeSize[ 1 ] * ( cursorY + 1 ) ) * xWidth + ( int ) ( cubeSize[ 0 ] * cursorX ) ) );
 					vertexValues[ 1 ] = volumeArray.get( ( ( ( int ) ( cubeSize[ 2 ] * ( cursorZ + 1 ) ) ) * xyWidth + ( int ) ( cubeSize[ 1 ] * ( cursorY + 1 ) ) * xWidth + ( int ) ( cubeSize[ 0 ] * ( cursorX + 1 ) ) ) );
 
-					if (LOGGER.isDebugEnabled())
+					if ( LOGGER.isDebugEnabled() )
 					{
 						// @formatter:off
 						LOGGER.debug( " " + ( int ) vertexValues[ 4 ] + "------" + ( int ) vertexValues[ 5 ] );

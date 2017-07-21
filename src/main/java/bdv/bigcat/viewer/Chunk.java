@@ -6,8 +6,9 @@ import net.imglib2.RandomAccessibleInterval;
 public class Chunk
 {
 	private RandomAccessibleInterval< LabelMultisetType > volume;
+
 	private int[] offset;
-	
+
 	public Chunk()
 	{
 		volume = null;
