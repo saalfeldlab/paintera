@@ -17,39 +17,38 @@ public class MarchingCubesCallable implements Callable< SimpleMesh >
 	int[] offset;
 
 	/** marching cube voxel dimension */
-	float[] voxDim;
+	int[] cubeSize;
 
 	/**
-	 * defines if the mesh must be create for the exact isolevel (true) or for
-	 * all above isolevels (false)
+	 * defines if the criterion that will be used to generate the mesh
 	 */
-	boolean isExact;
+	MarchingCubes.ForegroundCriterion criterion;
 
-	/** the isolevel */
-	int isolevel;
+	/** the value to match the criterion */
+	int foregroundValue;
 
 	/**
-	 * indicates if it is to use the implementation directly with RAI (true) or
-	 * if we must convert for an array first (false)
+	 * indicates if it is to use the implementation directly with RAI (false) or
+	 * if we must copy the data for an array first (true)
 	 */
-	boolean usingRAI;
+	boolean copyToArray;
 
-	public MarchingCubesCallable( RandomAccessibleInterval< LabelMultisetType > input, int[] volDim, int[] offset, float[] voxDim, boolean isExact, int level, boolean usingRAI )
+	public MarchingCubesCallable( RandomAccessibleInterval< LabelMultisetType > input, int[] volDim, int[] offset, int[] cubeSize, MarchingCubes.ForegroundCriterion criterion, int level, boolean usingRAI )
 	{
 		this.volume = input;
 		this.volDim = volDim;
 		this.offset = offset;
-		this.voxDim = voxDim;
-		this.isExact = isExact;
-		this.isolevel = level;
-		this.usingRAI = usingRAI;
+		this.cubeSize = cubeSize;
+		this.criterion = criterion;
+		this.foregroundValue = level;
+		this.copyToArray = usingRAI;
 	}
 
 	@Override
 	public SimpleMesh call() throws Exception
 	{
-		MarchingCubesRAI mc_rai = new MarchingCubesRAI();
-		SimpleMesh m = mc_rai.generateSurface( volume, volDim, offset, voxDim, isExact, isolevel, usingRAI );
+		MarchingCubes mc = new MarchingCubes();
+		SimpleMesh m = mc.generateMesh( volume, volDim, offset, cubeSize, criterion, foregroundValue, copyToArray );
 
 		return m;
 	}
