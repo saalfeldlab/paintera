@@ -1,14 +1,9 @@
 package bdv.bigcat.viewer;
 
 import java.util.HashMap;
-import java.util.Optional;
 import java.util.concurrent.atomic.AtomicLong;
 
 import bdv.AbstractViewerSetupImgLoader;
-import bdv.bigcat.viewer.source.H5Source;
-import bdv.bigcat.viewer.source.H5Source.LabelMultisets;
-import bdv.bigcat.viewer.source.H5Source.UnsignedBytes;
-import bdv.img.cache.VolatileGlobalCellCache;
 import bdv.viewer.Interpolation;
 import bdv.viewer.Source;
 import javafx.application.Application;
@@ -54,53 +49,17 @@ public class ExampleApplication2 extends Application
 		final double[] offset = { 424, 424, 560 };
 		final int[] cellSize = { 145, 53, 5 };
 
-		final VolatileGlobalCellCache cache = new VolatileGlobalCellCache( 1, 20 );
-
-		final UnsignedBytes raw = new H5Source.UnsignedBytes( rawFile, rawDataset, Optional.of( resolution ), Optional.empty(), Optional.of( cellSize ), cache );
-		final LabelMultisets labels = new H5Source.LabelMultisets( labelsFile, labelsDataset, Optional.of( resolution ), Optional.of( offset ), Optional.of( cellSize ), cache );
+		final HDF5UnsignedByteSpec rawSource = new HDF5UnsignedByteSpec( rawFile, rawDataset, cellSize, resolution, 0, 255 );
 
 		final Atlas viewer = makeViewer();
 
-		final HDF5LabelMultisetSourceSpec labelSpec = new HDF5LabelMultisetSourceSpec( labelsFile, labelsDataset, cellSize );
-		viewer.addSource( labelSpec );
+//		viewer.addSource( rawSource );
 
-//		final OverlayRenderer hwRenderer = new OverlayRenderer()
-//		{
-//
-//			@Override
-//			public void setCanvasSize( final int width, final int height )
-//			{
-//				// TODO Auto-generated method stub
-//
-//			}
-//
-//			@Override
-//			public void drawOverlays( final Graphics g )
-//			{
-//				final Graphics2D g2d = ( Graphics2D ) g;
-//				g2d.setColor( Color.WHITE );
-//				g2d.drawString( "Hello world!", 30, 130 );
-//
-//			}
-//		};
+//		final HDF5LabelMultisetSourceSpecDeprecated labelSpec = new HDF5LabelMultisetSourceSpecDeprecated( labelsFile, labelsDataset, cellSize );
+//		viewer.addSource( labelSpec );
 
-//		viewer.baseView().addOverlayRenderer( hwRenderer );
-//		final MouseMotionListener mml = new MouseMotionListener()
-//		{
-//
-//			@Override
-//			public void mouseMoved( final MouseEvent e )
-//			{
-//				System.out.println( " MOVING! " + e.getX() + " " + e.getY() );
-//			}
-//
-//			@Override
-//			public void mouseDragged( final MouseEvent e )
-//			{
-//				System.out.println( " DRAGGING! " + e.getX() + " " + e.getY() );
-//			}
-//		};
-//		viewer.baseView().addMouseMotionListener( mml );
+		final HDF5LabelMultisetSourceSpec labelSpec2 = new HDF5LabelMultisetSourceSpec( labelsFile, labelsDataset, cellSize );
+		viewer.addSource( labelSpec2 );
 
 	}
 

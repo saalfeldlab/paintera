@@ -22,6 +22,7 @@ import bdv.cache.CacheControl;
 import bdv.viewer.DisplayMode;
 import bdv.viewer.Source;
 import bdv.viewer.SourceAndConverter;
+import bdv.viewer.ViewerOptions;
 import bdv.viewer.ViewerPanel;
 import javafx.collections.ListChangeListener;
 import javafx.embed.swing.SwingNode;
@@ -62,13 +63,13 @@ public class ViewerNode extends SwingNode implements ListChangeListener< SourceA
 
 	private boolean isReady = false;
 
-	public ViewerNode( final CacheControl cacheControl, final ViewerAxis viewerAxis, final GlobalTransformManager manager )
+	public ViewerNode( final CacheControl cacheControl, final ViewerAxis viewerAxis, final GlobalTransformManager manager, final ViewerOptions viewerOptions )
 	{
 		this.viewer = null;
 		this.cacheControl = cacheControl;
 		this.viewerAxis = viewerAxis;
 		this.manager = new ViewerTransformManager( manager, globalToViewer( viewerAxis ), viewer );
-		initialize();
+		initialize( viewerOptions );
 	}
 
 	public ViewerTransformManager manager()
@@ -122,20 +123,20 @@ public class ViewerNode extends SwingNode implements ListChangeListener< SourceA
 	{
 		while ( this.viewer == null )
 			try
-		{
+			{
 				Thread.sleep( 10 );
-		}
-		catch ( final InterruptedException e )
-		{
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
+			}
+			catch ( final InterruptedException e )
+			{
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
 	}
 
-	private void initialize()
+	private void initialize( final ViewerOptions viewerOptions )
 	{
 		SwingUtilities.invokeLater( () -> {
-			final ViewerPanel vp = new ViewerPanel( new ArrayList<>(), 1, cacheControl );
+			final ViewerPanel vp = new ViewerPanel( new ArrayList<>(), 1, cacheControl, viewerOptions );
 			setViewer( vp );
 
 			viewer.setDisplayMode( DisplayMode.FUSED );

@@ -1,103 +1,80 @@
 package bdv.bigcat.viewer;
 
 import java.io.IOException;
+import java.util.Iterator;
 
-import bdv.bigcat.ui.ARGBConvertedLabelsSource;
-import bdv.bigcat.ui.ARGBConvertedLabelsSourceNonVolatile;
 import bdv.bigcat.ui.ARGBStream;
-import bdv.bigcat.ui.highlighting.ModalGoldenAngleSaturatedHighlightingARGBStream;
+import bdv.bigcat.ui.LabelMultisetSource;
+import bdv.bigcat.ui.VolatileLabelMultisetSource;
+import bdv.bigcat.viewer.stream.ModalGoldenAngleSaturatedHighlightingARGBStream;
 import bdv.img.cache.VolatileGlobalCellCache;
 import bdv.img.h5.H5LabelMultisetSetupImageLoader;
+import bdv.labels.labelset.Label;
 import bdv.labels.labelset.LabelMultisetType;
+import bdv.labels.labelset.Multiset.Entry;
+import bdv.labels.labelset.VolatileLabelMultisetType;
 import bdv.util.volatiles.SharedQueue;
 import ch.systemsx.cisd.hdf5.HDF5Factory;
 import ch.systemsx.cisd.hdf5.IHDF5Reader;
-import gnu.trove.set.hash.TLongHashSet;
 import net.imglib2.converter.Converter;
-import net.imglib2.converter.TypeIdentity;
 import net.imglib2.type.numeric.ARGBType;
-import net.imglib2.type.volatiles.VolatileARGBType;
 
-public class HDF5LabelMultisetSourceSpec implements DatasetSpec< ARGBType, VolatileARGBType >
+public class HDF5LabelMultisetSourceSpec implements DatasetSpec< LabelMultisetType, VolatileLabelMultisetType >
 {
 
 	private final ARGBStream stream;
 
 	private final H5LabelMultisetSetupImageLoader loader;
 
+	private final SelectedIds selectedIds = new SelectedIds();
+
 	public HDF5LabelMultisetSourceSpec( final String path, final String dataset, final int[] cellSize ) throws IOException
 	{
-		this( path, dataset, cellSize, new ModalGoldenAngleSaturatedHighlightingARGBStream( new TLongHashSet() ) );
-	}
-
-	public HDF5LabelMultisetSourceSpec( final String path, final String dataset, final int[] cellSize, final ARGBStream stream ) throws IOException
-	{
 		super();
-		this.stream = stream;
+		this.stream = new ModalGoldenAngleSaturatedHighlightingARGBStream( selectedIds );
 		final IHDF5Reader h5reader = HDF5Factory.open( path );
 		this.loader = new H5LabelMultisetSetupImageLoader( h5reader, null, dataset, 0, cellSize, new VolatileGlobalCellCache( new SharedQueue( 8 ) ) );
 	}
 
-	@Override
-	public ARGBConvertedLabelsSourceNonVolatile getSource()
+	public SelectedIds getSelectedIds()
 	{
-		final ARGBConvertedLabelsSourceNonVolatile convertedSource = new ARGBConvertedLabelsSourceNonVolatile( 0, loader, stream );
-		return convertedSource;
-
-//		final ARGBConvertedLabelsSourceNonVolatile convertedSource = new ARGBConvertedLabelsSourceNonVolatile( 0, loader, stream );
-//		final VoxelDimensions vd = convertedSource.getVoxelDimensions();
-//		final int numMipMapLevels = convertedSource.getNumMipmapLevels();
-//		final double[][] mipmapScales = convertedSource.getLoader().getMipmapResolutions();
-//		final RandomAccessibleInterval< ARGBType >[] imgs = new RandomAccessibleInterval[ numMipMapLevels ];
-//
-//		for ( int level = 0; level < numMipMapLevels; ++level )
-//		{
-//			final RandomAccessibleInterval< VolatileARGBType > src = convertedSource.getSource( 0, level );
-//			imgs[ level ] = Converters.convert( src, ( s, t ) -> {
-//				// WHY DOES THIS NOT WORK?
-////				while ( !s.isValid() )
-////					try
-////					{
-////						System.out.println( "WAITING FOR VALIDATION!" );
-////						Thread.sleep( 10 );
-////					}
-////					catch ( final InterruptedException e )
-////					{
-////						// TODO Auto-generated catch block
-////						e.printStackTrace();
-////					}
-//				t.set( s.get() );
-//			}, new ARGBType() );
-//
-//		}
-//
-//		return new RandomAccessibleIntervalMipmapSource<>( imgs, new ARGBType(), mipmapScales, vd, convertedSource.getName() );
+		return selectedIds;
 	}
 
 	@Override
-	public ARGBConvertedLabelsSource getVolatileSource()
+	public LabelMultisetSource getSource()
 	{
-		final ARGBConvertedLabelsSource convertedSource = new ARGBConvertedLabelsSource( 0, loader, stream );
-		return convertedSource;
+		final LabelMultisetSource source = new LabelMultisetSource( 0, loader, stream );
+		return source;
 	}
 
 	@Override
-	public Converter< ARGBType, ARGBType > getConverter()
+	public VolatileLabelMultisetSource getVolatileSource()
 	{
-		return new TypeIdentity<>();
+		final VolatileLabelMultisetSource source = new VolatileLabelMultisetSource( 0, loader, stream );
+		return source;
 	}
 
 	@Override
-	public Converter< VolatileARGBType, ARGBType > getVolatileConverter()
+	public Converter< LabelMultisetType, ARGBType > getConverter()
 	{
-		return ( s, t ) -> t.set( s.get() );
+		return defaultConverter( stream );
 	}
 
-	public static Converter< LabelMultisetType, ARGBType > defaultConverter()
+	@Override
+	public Converter< VolatileLabelMultisetType, ARGBType > getVolatileConverter()
 	{
-		final ModalGoldenAngleSaturatedHighlightingARGBStream stream = new ModalGoldenAngleSaturatedHighlightingARGBStream( new TLongHashSet() );
+		final Converter< LabelMultisetType, ARGBType > conv = defaultConverter( stream );
 		return ( s, t ) -> {
-			t.set( stream.argb( s.entrySet().iterator().next().getElement().id() ) );
+			conv.convert( s.get(), t );
+		};
+	}
+
+	public static Converter< LabelMultisetType, ARGBType > defaultConverter( final ARGBStream stream )
+	{
+		return ( s, t ) -> {
+			final Iterator< Entry< Label > > it = s.entrySet().iterator();
+			t.set( it.hasNext() ? stream.argb( it.next().getElement().id() ) : 0 );
 		};
 	}
 

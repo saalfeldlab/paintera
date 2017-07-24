@@ -12,6 +12,7 @@ import bdv.bigcat.viewer.ViewerNode.ViewerAxis;
 import bdv.cache.CacheControl;
 import bdv.viewer.Source;
 import bdv.viewer.SourceAndConverter;
+import bdv.viewer.ViewerOptions;
 import bdv.viewer.ViewerPanel;
 import javafx.beans.value.ChangeListener;
 import javafx.collections.FXCollections;
@@ -56,6 +57,8 @@ public class BaseView extends BorderPane
 
 	private final HashMap< Source< ? >, Composite< ARGBType, ARGBType > > sourceCompositeMap = new HashMap<>();
 
+	private final ViewerOptions viewerOptions;
+
 	private final ObservableList< SourceAndConverter< ? > > sourceLayers = FXCollections.observableArrayList();
 	{
 		sourceLayers.addListener( ( ListChangeListener< SourceAndConverter< ? > > ) c -> {
@@ -76,7 +79,7 @@ public class BaseView extends BorderPane
 				else if ( c.wasAdded() )
 					for ( final OverlayRenderer renderer : c.getAddedSubList() )
 						viewerNodes.forEach( vn -> ( ( ViewerPanel ) vn.getContent() ).getDisplay().addOverlayRenderer( renderer ) );
-		});
+		} );
 	}
 
 	private final ObservableList< Behaviour > behaviours = FXCollections.observableArrayList();
@@ -86,7 +89,7 @@ public class BaseView extends BorderPane
 	private final HashMap< Behaviour, String[] > behaviourTriggers = new HashMap<>();
 	{
 		behaviours.addListener( ( ListChangeListener< Behaviour > ) c -> {
-			while( c.next() )
+			while ( c.next() )
 				if ( c.wasAdded() )
 					for ( final Behaviour behaviour : c.getAddedSubList() )
 						viewerNodes.forEach( vn -> vn.addBehaviour( behaviour, behaviourNames.get( behaviour ), behaviourTriggers.get( behaviour ) ) );
@@ -113,10 +116,15 @@ public class BaseView extends BorderPane
 
 	public BaseView()
 	{
-		this( ( vp ) -> {}, ( vp ) -> {} );
+		this( ViewerOptions.options() );
 	}
 
-	public BaseView( final Consumer< ViewerPanel > onFocusEnter, final Consumer< ViewerPanel > onFocusExit )
+	public BaseView( final ViewerOptions viewerOptions )
+	{
+		this( ( vp ) -> {}, ( vp ) -> {}, viewerOptions );
+	}
+
+	public BaseView( final Consumer< ViewerPanel > onFocusEnter, final Consumer< ViewerPanel > onFocusExit, final ViewerOptions viewerOptions )
 	{
 		super();
 		this.infoPane = createInfo();
@@ -128,6 +136,7 @@ public class BaseView extends BorderPane
 		this.centerProperty().set( grid );
 		this.onFocusEnter = onFocusEnter;
 		this.onFocusExit = onFocusExit;
+		this.viewerOptions = viewerOptions;
 	}
 
 	public synchronized void addSource( final SourceAndConverter< ? > source, final Composite< ARGBType, ARGBType > comp )
@@ -237,7 +246,7 @@ public class BaseView extends BorderPane
 
 	private synchronized void addViewer( final ViewerAxis axis, final int rowIndex, final int colIndex )
 	{
-		final ViewerNode viewerNode = new ViewerNode( new CacheControl.Dummy(), axis, gm );
+		final ViewerNode viewerNode = new ViewerNode( new CacheControl.Dummy(), axis, gm, viewerOptions );
 		this.viewerNodes.add( viewerNode );
 		this.managers.put( viewerNode, viewerNode.manager() );
 
