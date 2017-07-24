@@ -45,7 +45,6 @@ public class ExampleApplication2 extends Application
 	public static void main( final String[] args ) throws Exception
 	{
 
-
 		final String rawFile = "/groups/saalfeld/home/hanslovskyp/from_funkej/phil/sample_B.augmented.0.hdf";
 		final String rawDataset = "volumes/raw";
 		final String labelsFile = rawFile;
@@ -62,20 +61,8 @@ public class ExampleApplication2 extends Application
 
 		final Atlas viewer = makeViewer();
 
-//		final ViewerSetupImgLoader< UnsignedByteType, VolatileUnsignedByteType > rawLoader = raw.loader();
-//		final RandomAccessibleInterval< VolatileUnsignedByteType > rawImg = rawLoader.getVolatileImage( 0, 0 );
-//		final RandomAccessibleIntervalSource< VolatileUnsignedByteType > rawSource = new RandomAccessibleIntervalSource<>( rawImg, new VolatileUnsignedByteType(), "raw" );
-//		final SourceAndConverter< VolatileUnsignedByteType > rawSac = new SourceAndConverter<>( rawSource, new RealARGBConverter<>( 0, 255 ) );
-
 		final HDF5LabelMultisetSourceSpec labelSpec = new HDF5LabelMultisetSourceSpec( labelsFile, labelsDataset, cellSize );
 		viewer.addSource( labelSpec );
-//		final TLongHashSet activeIds = new TLongHashSet();
-//		final ModalGoldenAngleSaturatedHighlightingARGBStream stream = new ModalGoldenAngleSaturatedHighlightingARGBStream( activeIds );
-//		final ARGBConvertedLabelsSource convertedSource = new ARGBConvertedLabelsSource( 0, labels.loader(), stream );
-//		final Converter< VolatileARGBType, ARGBType > conv = ( input, output ) -> output.set( input.get() );
-//		final SourceAndConverter< VolatileARGBType > sac = new SourceAndConverter<>( convertedSource, conv );
-//		viewer.addSource( sac );
-//		viewer.addSource( rawSac );
 
 //		final OverlayRenderer hwRenderer = new OverlayRenderer()
 //		{
@@ -175,7 +162,7 @@ public class ExampleApplication2 extends Application
 
 		final protected InterpolatorFactory< VolatileARGBType, RandomAccessible< VolatileARGBType > >[] interpolatorFactories;
 		{
-			interpolatorFactories = new InterpolatorFactory[]{
+			interpolatorFactories = new InterpolatorFactory[] {
 					new NearestNeighborInterpolatorFactory< VolatileARGBType >(),
 					new ClampingNLinearInterpolatorFactory< VolatileARGBType >()
 			};
@@ -184,7 +171,7 @@ public class ExampleApplication2 extends Application
 		public ARGBConvertedSource(
 				final int setupId,
 				final AbstractViewerSetupImgLoader< T, ? extends Volatile< T > > loader,
-						final Converter< Volatile< T >, VolatileARGBType > converter )
+				final Converter< Volatile< T >, VolatileARGBType > converter )
 		{
 			this.setupId = setupId;
 			this.loader = loader;
@@ -265,6 +252,5 @@ public class ExampleApplication2 extends Application
 			return this;
 		}
 	}
-
 
 }

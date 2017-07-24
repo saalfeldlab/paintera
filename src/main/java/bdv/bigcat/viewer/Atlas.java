@@ -21,6 +21,8 @@ import javafx.scene.Scene;
 import javafx.scene.control.Label;
 import javafx.stage.Stage;
 import net.imglib2.Volatile;
+import net.imglib2.realtransform.AffineTransform3D;
+import net.imglib2.realtransform.RealViews;
 import net.imglib2.type.numeric.ARGBType;
 import net.imglib2.type.numeric.IntegerType;
 import net.imglib2.type.numeric.RealType;
@@ -113,7 +115,9 @@ public class Atlas
 			valueToString = ( Function< T, String > ) rt -> String.format( "%.3f", ( ( RealType< ? > ) rt ).getRealDouble() );
 		else
 			valueToString = rt -> "Do not understand type!";
-		this.valueDisplayListener.addSource( source, source.getInterpolatedSource( 0, 0, Interpolation.NLINEAR ).realRandomAccess(), Optional.of( valueToString ) );
+		final AffineTransform3D affine = new AffineTransform3D();
+		source.getSourceTransform( 0, 0, affine );
+		this.valueDisplayListener.addSource( source, RealViews.transformReal( source.getInterpolatedSource( 0, 0, Interpolation.NEARESTNEIGHBOR ), affine ).realRandomAccess(), Optional.of( valueToString ) );
 	}
 
 	// this needs to be rewritten to addDataset( DatasetSpec spec );

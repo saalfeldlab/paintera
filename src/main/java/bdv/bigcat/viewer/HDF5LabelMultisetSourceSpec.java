@@ -3,21 +3,17 @@ package bdv.bigcat.viewer;
 import java.io.IOException;
 
 import bdv.bigcat.ui.ARGBConvertedLabelsSource;
+import bdv.bigcat.ui.ARGBConvertedLabelsSourceNonVolatile;
 import bdv.bigcat.ui.ARGBStream;
 import bdv.bigcat.ui.highlighting.ModalGoldenAngleSaturatedHighlightingARGBStream;
 import bdv.img.cache.VolatileGlobalCellCache;
 import bdv.img.h5.H5LabelMultisetSetupImageLoader;
 import bdv.labels.labelset.LabelMultisetType;
-import bdv.util.RandomAccessibleIntervalMipmapSource;
 import bdv.util.volatiles.SharedQueue;
-import bdv.viewer.Source;
 import ch.systemsx.cisd.hdf5.HDF5Factory;
 import ch.systemsx.cisd.hdf5.IHDF5Reader;
 import gnu.trove.set.hash.TLongHashSet;
-import mpicbg.spim.data.sequence.VoxelDimensions;
-import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.converter.Converter;
-import net.imglib2.converter.Converters;
 import net.imglib2.converter.TypeIdentity;
 import net.imglib2.type.numeric.ARGBType;
 import net.imglib2.type.volatiles.VolatileARGBType;
@@ -43,24 +39,39 @@ public class HDF5LabelMultisetSourceSpec implements DatasetSpec< ARGBType, Volat
 	}
 
 	@Override
-	public Source< ARGBType > getSource()
+	public ARGBConvertedLabelsSourceNonVolatile getSource()
 	{
-		final ARGBConvertedLabelsSource convertedSource = new ARGBConvertedLabelsSource( 0, loader, stream );
-		final VoxelDimensions vd = convertedSource.getVoxelDimensions();
-		final int numMipMapLevels = convertedSource.getNumMipmapLevels();
-		final double[][] mipmapScales = convertedSource.getLoader().getMipmapResolutions();
-		final RandomAccessibleInterval< ARGBType >[] imgs = new RandomAccessibleInterval[ numMipMapLevels ];
+		final ARGBConvertedLabelsSourceNonVolatile convertedSource = new ARGBConvertedLabelsSourceNonVolatile( 0, loader, stream );
+		return convertedSource;
 
-		for ( int level = 0; level < numMipMapLevels; ++level )
-		{
-			final RandomAccessibleInterval< VolatileARGBType > src = convertedSource.getSource( 0, level );
-			imgs[ level ] = Converters.convert( src, ( s, t ) -> {
-				t.set( s.get() );
-			}, new ARGBType() );
-
-		}
-
-		return new RandomAccessibleIntervalMipmapSource<>( imgs, new ARGBType(), mipmapScales, vd, convertedSource.getName() );
+//		final ARGBConvertedLabelsSourceNonVolatile convertedSource = new ARGBConvertedLabelsSourceNonVolatile( 0, loader, stream );
+//		final VoxelDimensions vd = convertedSource.getVoxelDimensions();
+//		final int numMipMapLevels = convertedSource.getNumMipmapLevels();
+//		final double[][] mipmapScales = convertedSource.getLoader().getMipmapResolutions();
+//		final RandomAccessibleInterval< ARGBType >[] imgs = new RandomAccessibleInterval[ numMipMapLevels ];
+//
+//		for ( int level = 0; level < numMipMapLevels; ++level )
+//		{
+//			final RandomAccessibleInterval< VolatileARGBType > src = convertedSource.getSource( 0, level );
+//			imgs[ level ] = Converters.convert( src, ( s, t ) -> {
+//				// WHY DOES THIS NOT WORK?
+////				while ( !s.isValid() )
+////					try
+////					{
+////						System.out.println( "WAITING FOR VALIDATION!" );
+////						Thread.sleep( 10 );
+////					}
+////					catch ( final InterruptedException e )
+////					{
+////						// TODO Auto-generated catch block
+////						e.printStackTrace();
+////					}
+//				t.set( s.get() );
+//			}, new ARGBType() );
+//
+//		}
+//
+//		return new RandomAccessibleIntervalMipmapSource<>( imgs, new ARGBType(), mipmapScales, vd, convertedSource.getName() );
 	}
 
 	@Override
