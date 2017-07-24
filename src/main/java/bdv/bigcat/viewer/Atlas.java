@@ -105,7 +105,9 @@ public class Atlas
 
 		System.out.println( t.getClass().getName() + " " + ( t instanceof VolatileARGBType ) );
 		final Function< T, String > valueToString;
-		if ( t instanceof IntegerType< ? > )
+		if ( t instanceof ARGBType )
+			valueToString = ( Function< T, String > ) Object::toString;
+		else if ( t instanceof IntegerType< ? > )
 			valueToString = ( Function< T, String > ) rt -> String.format( "%d", ( ( IntegerType< ? > ) rt ).getIntegerLong() );
 		else if ( t instanceof RealType< ? > )
 			valueToString = ( Function< T, String > ) rt -> String.format( "%.3f", ( ( RealType< ? > ) rt ).getRealDouble() );
