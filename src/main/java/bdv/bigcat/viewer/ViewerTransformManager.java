@@ -280,7 +280,6 @@ public class ViewerTransformManager implements TransformListener< AffineTransfor
 		@Override
 		public void scroll( final double wheelRotation, final boolean isHorizontal, final int x, final int y )
 		{
-			System.out.println( "ZOOM ZOOM" );
 			final AffineTransform3D global;
 			synchronized ( getOuter().global )
 			{
@@ -316,7 +315,6 @@ public class ViewerTransformManager implements TransformListener< AffineTransfor
 		@Override
 		public void click( final int x, final int y )
 		{
-			System.out.println( "ZOOM ZOOM" );
 			final AffineTransform3D global;
 			synchronized ( getOuter().global )
 			{
