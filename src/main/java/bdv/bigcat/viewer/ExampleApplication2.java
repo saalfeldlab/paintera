@@ -1,8 +1,5 @@
 package bdv.bigcat.viewer;
 
-import java.awt.Color;
-import java.awt.Graphics;
-import java.awt.Graphics2D;
 import java.util.HashMap;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicLong;
@@ -30,7 +27,6 @@ import net.imglib2.interpolation.randomaccess.NearestNeighborInterpolatorFactory
 import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.type.numeric.RealType;
 import net.imglib2.type.volatiles.VolatileARGBType;
-import net.imglib2.ui.OverlayRenderer;
 import net.imglib2.view.ExtendedRandomAccessibleInterval;
 import net.imglib2.view.Views;
 
@@ -81,25 +77,25 @@ public class ExampleApplication2 extends Application
 //		viewer.addSource( sac );
 //		viewer.addSource( rawSac );
 
-		final OverlayRenderer hwRenderer = new OverlayRenderer()
-		{
-
-			@Override
-			public void setCanvasSize( final int width, final int height )
-			{
-				// TODO Auto-generated method stub
-
-			}
-
-			@Override
-			public void drawOverlays( final Graphics g )
-			{
-				final Graphics2D g2d = ( Graphics2D ) g;
-				g2d.setColor( Color.WHITE );
-				g2d.drawString( "Hello world!", 30, 130 );
-
-			}
-		};
+//		final OverlayRenderer hwRenderer = new OverlayRenderer()
+//		{
+//
+//			@Override
+//			public void setCanvasSize( final int width, final int height )
+//			{
+//				// TODO Auto-generated method stub
+//
+//			}
+//
+//			@Override
+//			public void drawOverlays( final Graphics g )
+//			{
+//				final Graphics2D g2d = ( Graphics2D ) g;
+//				g2d.setColor( Color.WHITE );
+//				g2d.drawString( "Hello world!", 30, 130 );
+//
+//			}
+//		};
 
 //		viewer.baseView().addOverlayRenderer( hwRenderer );
 //		final MouseMotionListener mml = new MouseMotionListener()

@@ -9,7 +9,6 @@ import bdv.viewer.Source;
 import bdv.viewer.ViewerPanel;
 import net.imglib2.RealPoint;
 import net.imglib2.RealRandomAccess;
-import net.imglib2.type.volatiles.VolatileARGBType;
 
 public class ValueDisplayListener implements MouseMotionListener
 {
@@ -38,8 +37,9 @@ public class ValueDisplayListener implements MouseMotionListener
 		final int x = e.getX();
 		final int y = e.getY();
 
-		final Source< ? > activeSource = viewer.getState().getSources().get( viewer.getState().getCurrentSource()  ).getSpimSource();
-		if ( accessMap.containsKey( activeSource ) ) {
+		final Source< ? > activeSource = viewer.getState().getSources().get( viewer.getState().getCurrentSource() ).getSpimSource();
+		if ( accessMap.containsKey( activeSource ) )
+		{
 			final Object val = getVal( x, y, accessMap.get( activeSource ), viewer );
 			if ( valueHandlers.containsKey( activeSource ) )
 				valueHandlers.get( activeSource ).accept( val );
@@ -53,7 +53,7 @@ public class ValueDisplayListener implements MouseMotionListener
 //		access.setPosition( 0, 2 );
 
 		viewer.displayToGlobalCoordinates( x, y, access );
-		System.out.println( "trololo " + x + " " + y + ( ( VolatileARGBType ) access.get() ).get().toString() + " " + new RealPoint( access ) );
+		System.out.println( "trololo " + x + " " + y + " " + access.get().toString() + " " + new RealPoint( access ) );
 //		System.out.println( x + " " + y + " " + new RealPoint( access ) );
 
 		return access.get();

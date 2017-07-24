@@ -273,8 +273,8 @@ public class BaseView extends BorderPane
 	public void makeDefaultLayout()
 	{
 		addViewer( ViewerAxis.Z, 0, 0 );
-		addViewer( ViewerAxis.Y, 0, 1 );
-		addViewer( ViewerAxis.X, 1, 0 );
+		addViewer( ViewerAxis.X, 0, 1 );
+		addViewer( ViewerAxis.Y, 1, 0 );
 		this.grid.add( this.infoPane, 1, 1 );
 	}
 
