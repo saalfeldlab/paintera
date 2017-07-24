@@ -19,7 +19,6 @@ import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.converter.Converter;
 import net.imglib2.converter.Converters;
 import net.imglib2.converter.TypeIdentity;
-import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.type.numeric.ARGBType;
 import net.imglib2.type.volatiles.VolatileARGBType;
 
@@ -49,19 +48,15 @@ public class HDF5LabelMultisetSourceSpec implements DatasetSpec< ARGBType, Volat
 		final ARGBConvertedLabelsSource convertedSource = new ARGBConvertedLabelsSource( 0, loader, stream );
 		final VoxelDimensions vd = convertedSource.getVoxelDimensions();
 		final int numMipMapLevels = convertedSource.getNumMipmapLevels();
-		final double[][] mipmapScales = new double[ numMipMapLevels ][];
+		final double[][] mipmapScales = convertedSource.getLoader().getMipmapResolutions();
 		final RandomAccessibleInterval< ARGBType >[] imgs = new RandomAccessibleInterval[ numMipMapLevels ];
 
-		for ( int level = 0;  level < numMipMapLevels; ++level ) {
+		for ( int level = 0; level < numMipMapLevels; ++level )
+		{
 			final RandomAccessibleInterval< VolatileARGBType > src = convertedSource.getSource( 0, level );
 			imgs[ level ] = Converters.convert( src, ( s, t ) -> {
 				t.set( s.get() );
 			}, new ARGBType() );
-			final AffineTransform3D affine = new AffineTransform3D();
-			convertedSource.getSource( 0, level );
-			mipmapScales[ level ] = new double[ affine.numDimensions() ];
-			for ( int d = 0; d < affine.numDimensions(); ++d )
-				mipmapScales[ level ][ d ] = affine.get( d, d );
 
 		}
 
