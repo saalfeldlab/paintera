@@ -44,6 +44,7 @@ public class AtlasValueDisplayListener
 			if ( !this.listeners.containsKey( t ) )
 				this.listeners.put( t, new ValueDisplayListener( accessMap, handlerMap, t ) );
 			t.getDisplay().addMouseMotionListener( this.listeners.get( t ) );
+			t.addTransformListener( this.listeners.get( t ) );
 		};
 	}
 
@@ -51,6 +52,7 @@ public class AtlasValueDisplayListener
 	{
 		return t -> {
 			t.getDisplay().removeMouseMotionListener( this.listeners.get( t ) );
+			t.removeTransformListener( this.listeners.get( t ) );
 			if ( statusBar != null )
 				statusBar.setText( "" );
 		};
