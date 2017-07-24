@@ -7,7 +7,6 @@ import java.util.function.Consumer;
 
 import bdv.viewer.Source;
 import bdv.viewer.ViewerPanel;
-import net.imglib2.RealPoint;
 import net.imglib2.RealRandomAccess;
 
 public class ValueDisplayListener implements MouseMotionListener
@@ -48,14 +47,7 @@ public class ValueDisplayListener implements MouseMotionListener
 
 	public static Object getVal( final int x, final int y, final RealRandomAccess< ? > access, final ViewerPanel viewer )
 	{
-//		access.setPosition( x, 0 );
-//		access.setPosition( y, 1 );
-//		access.setPosition( 0, 2 );
-
 		viewer.displayToGlobalCoordinates( x, y, access );
-		System.out.println( "trololo " + x + " " + y + " " + access.get().toString() + " " + new RealPoint( access ) );
-//		System.out.println( x + " " + y + " " + new RealPoint( access ) );
-
 		return access.get();
 	}
 
