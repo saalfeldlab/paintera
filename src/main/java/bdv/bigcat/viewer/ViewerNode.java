@@ -69,7 +69,7 @@ public class ViewerNode extends SwingNode implements ListChangeListener< SourceA
 		this.viewer = null;
 		this.cacheControl = cacheControl;
 		this.viewerAxis = viewerAxis;
-		this.manager = new ViewerTransformManager( manager, globalToViewer( viewerAxis ), viewer );
+		this.manager = new ViewerTransformManager( manager, globalToViewer( viewerAxis ) );
 		initialize( viewerOptions );
 	}
 
@@ -166,7 +166,7 @@ public class ViewerNode extends SwingNode implements ListChangeListener< SourceA
 			this.setContent( viewer );
 
 			viewer.getDisplay().setTransformEventHandler( this.manager );
-			this.manager.install( triggerbindings );
+			this.manager.install( triggerbindings, keybindings );
 
 			addAction( () -> {
 				synchronized ( viewer )
@@ -203,7 +203,7 @@ public class ViewerNode extends SwingNode implements ListChangeListener< SourceA
 				public void drawOverlays( final Graphics g )
 				{
 
-					g.setColor( java.awt.Color.RED );
+					g.setColor( java.awt.Color.GREEN );
 					g.drawLine( 0, h / 2, w, h / 2 );
 					g.drawLine( w / 2, 0, w / 2, h );
 
@@ -214,6 +214,7 @@ public class ViewerNode extends SwingNode implements ListChangeListener< SourceA
 			setReady( true );
 			viewer.setVisible( true );
 			this.manager.setTransformListener( viewer );
+			this.manager.setViewer( viewer );
 		} );
 	}
 

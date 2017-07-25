@@ -1,12 +1,19 @@
 package bdv.bigcat.viewer;
 
+import java.awt.event.ActionEvent;
+
 import org.scijava.ui.behaviour.ClickBehaviour;
 import org.scijava.ui.behaviour.DragBehaviour;
 import org.scijava.ui.behaviour.ScrollBehaviour;
 import org.scijava.ui.behaviour.io.InputTriggerConfig;
+import org.scijava.ui.behaviour.util.AbstractNamedAction;
+import org.scijava.ui.behaviour.util.Actions;
 import org.scijava.ui.behaviour.util.Behaviours;
+import org.scijava.ui.behaviour.util.InputActionBindings;
 import org.scijava.ui.behaviour.util.TriggerBehaviourBindings;
 
+import bdv.viewer.ViewerPanel;
+import net.imglib2.RealPoint;
 import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.ui.TransformEventHandler;
 import net.imglib2.ui.TransformListener;
@@ -60,13 +67,11 @@ public class ViewerTransformManager implements TransformListener< AffineTransfor
 
 	public ViewerTransformManager(
 			final GlobalTransformManager manager,
-			final AffineTransform3D globalToViewer,
-			final TransformListener< AffineTransform3D > listener )
+			final AffineTransform3D globalToViewer )
 	{
 		super();
 		this.manager = manager;
 		this.globalToViewer = globalToViewer;
-		this.listener = listener;
 		this.manager.addListener( this );
 		this.canvasH = 1;
 		this.canvasW = 1;
@@ -74,6 +79,7 @@ public class ViewerTransformManager implements TransformListener< AffineTransfor
 		this.centerY = this.canvasH / 2;
 
 		behaviours = new Behaviours( config, "bdv" );
+		actions = new Actions( config );
 
 		behaviours.behaviour( new TranslateXY(), "drag translate", "button2", "button3" );
 		behaviours.behaviour( new Zoom( speed[ 0 ] ), ZOOM_NORMAL, "meta scroll", "ctrl shift scroll" );
@@ -84,6 +90,7 @@ public class ViewerTransformManager implements TransformListener< AffineTransfor
 			behaviours.behaviour( new Rotate( speed[ s ] ), DRAG_ROTATE + SPEED_NAME[ s ], speedMod[ s ] + "button1" );
 			behaviours.behaviour( new TranslateZ( speed[ s ] ), SCROLL_Z + SPEED_NAME[ s ], speedMod[ s ] + "scroll" );
 		}
+		actions.namedAction( new RemoveRotation(), "shift Z" );
 	}
 
 	public void setGlobalToViewer( final AffineTransform3D affine )
@@ -107,6 +114,10 @@ public class ViewerTransformManager implements TransformListener< AffineTransfor
 	private TransformListener< AffineTransform3D > listener;
 
 	private final Behaviours behaviours;
+
+	private final Actions actions;
+
+	private ViewerPanel viewer;
 
 	private int canvasW = 1, canvasH = 1;
 
@@ -177,15 +188,21 @@ public class ViewerTransformManager implements TransformListener< AffineTransfor
 		this.listener = transformListener;
 	}
 
+	public void setViewer( final ViewerPanel viewer )
+	{
+		this.viewer = viewer;
+	}
+
 	@Override
 	public String getHelpString()
 	{
 		return "TODO";
 	}
 
-	public void install( final TriggerBehaviourBindings bindings )
+	public void install( final TriggerBehaviourBindings bindings, final InputActionBindings inputActionBindings )
 	{
 		behaviours.install( bindings, "transform" );
+		actions.install( inputActionBindings, "transform" );
 	}
 
 	private class GetOuter
@@ -400,6 +417,74 @@ public class ViewerTransformManager implements TransformListener< AffineTransfor
 		@Override
 		public void end( final int x, final int y )
 		{}
+	}
+
+	private class RemoveRotation extends AbstractNamedAction
+	{
+
+//		https://stackoverflow.com/questions/10546320/remove-rotation-from-a-4x4-homogeneous-transformation-matrix
+//		scaling S is symmetric
+//		tr is transpose
+//		| x2 |   | R11*SX R12*SY R13*SZ TX | | x1 |
+//		| y2 | = | R21*SX R22*SY R23*SZ TY | | y1 |
+//		| z2 |   | R31*SX R32*SY R33*SZ TZ | | z1 |
+//		| 1  |   | 0      0      0      1  | |  1 |
+//		tr(A)*A = tr(R*S)*(R*S) = tr(S)*tr(R)*R*S = tr(S)*S == S * S
+//		S = sqrt( tr(A) * A )
+//		( tr(A)*A )_ij = sum_k( tr(A)_ik * A_kj ) = sum_k( A_ki * A_kj )
+//		( tr(A)*A )_ii = sum_k( (A_ki)^2 )
+
+//		displayTransform.set( displayTransform.get( 0, 3 ) - canvasW / 2, 0, 3 );
+//				displayTransform.set( displayTransform.get( 1, 3 ) - canvasH / 2, 1, 3 );
+//				displayTransform.scale( ( double ) width / canvasW );
+//				displayTransform.set( displayTransform.get( 0, 3 ) + width / 2, 0, 3 );
+//				displayTransform.set( displayTransform.get( 1, 3 ) + height / 2, 1, 3 );
+
+		public RemoveRotation()
+		{
+			super( "remove rotation" );
+		}
+
+		private final RealPoint mouseLocation = new RealPoint( 3 );
+
+		@Override
+		public void actionPerformed( final ActionEvent e )
+		{
+			synchronized ( global )
+			{
+				System.out.println( viewer );
+				viewer.getMouseCoordinates( mouseLocation );
+				for ( int d = 0; d < mouseLocation.numDimensions(); ++d )
+					mouseLocation.setPosition( -mouseLocation.getDoublePosition( d ), d );
+
+				displayTransform.applyInverse( mouseLocation, mouseLocation );
+				globalToViewer.applyInverse( mouseLocation, mouseLocation );
+
+				final double[] loc = new double[ mouseLocation.numDimensions() ];
+				mouseLocation.localize( loc );
+				global.translate( loc );
+				for ( int d = 0; d < loc.length; ++d )
+					loc[ d ] *= -1;
+
+				final AffineTransform3D affine = new AffineTransform3D();
+				affine.setTranslation( global.getTranslation() );
+				for ( int i = 0; i < affine.numDimensions(); ++i )
+				{
+					double val = 0.0;
+					for ( int k = 0; k < affine.numDimensions(); ++k )
+					{
+						final double entry = global.get( k, i );
+						val += entry * entry;
+					}
+					affine.set( Math.sqrt( val ), i, i );
+				}
+
+				affine.translate( loc );
+
+				manager.setTransform( affine );
+			}
+		}
+
 	}
 
 }
