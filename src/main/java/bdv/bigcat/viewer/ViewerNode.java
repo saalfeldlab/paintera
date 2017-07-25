@@ -24,6 +24,7 @@ import bdv.viewer.Source;
 import bdv.viewer.SourceAndConverter;
 import bdv.viewer.ViewerOptions;
 import bdv.viewer.ViewerPanel;
+import bdv.viewer.state.ViewerState;
 import javafx.collections.ListChangeListener;
 import javafx.embed.swing.SwingNode;
 import net.imglib2.realtransform.AffineTransform3D;
@@ -142,11 +143,40 @@ public class ViewerNode extends SwingNode implements ListChangeListener< SourceA
 			viewer.setDisplayMode( DisplayMode.FUSED );
 			viewer.setMinimumSize( new Dimension( 100, 100 ) );
 			viewer.setPreferredSize( new Dimension( 100, 100 ) );
+			viewer.setFocusTraversalKeysEnabled( false );
+			this.setFocusTraversable( false );
+			// how to make ctrl tab work here?
+			// http://www.davidc.net/programming/java/how-make-ctrl-tab-switch-tabs-jtabbedpane&usg=AFQjCNHZr2pQpE3cxIn7G6zYt3gZZcHSug
+
+//			{
+//				final KeyStroke ctrlTab = KeyStroke.getKeyStroke( "ctrl TAB" );
+//				final Set< AWTKeyStroke > fwdKeys = vp.getFocusTraversalKeys( KeyboardFocusManager.FORWARD_TRAVERSAL_KEYS );
+//				fwdKeys.remove( ctrlTab );
+//				vp.setFocusTraversalKeys( KeyboardFocusManager.FORWARD_TRAVERSAL_KEYS, fwdKeys );
+//			}
+
+//			{
+//				final KeyStroke ctrlShiftTab = KeyStroke.getKeyStroke( "ctrl shift TAB" );
+//				final Set< AWTKeyStroke > bckKeys = vp.getFocusTraversalKeys( KeyboardFocusManager.BACKWARD_TRAVERSAL_KEYS );
+//				bckKeys.remove( ctrlShiftTab );
+//				vp.setFocusTraversalKeys( KeyboardFocusManager.BACKWARD_TRAVERSAL_KEYS, bckKeys );
+//			}
+//			.remove( ctrlTab );
 
 			this.setContent( viewer );
 
 			viewer.getDisplay().setTransformEventHandler( this.manager );
 			this.manager.install( triggerbindings );
+
+			addAction( () -> {
+				synchronized ( viewer )
+				{
+					final ViewerState state = viewer.getState();
+					final int nSources = state.numSources();
+					viewer.getVisibilityAndGrouping().setCurrentSource( ( state.getCurrentSource() + 1 ) % nSources );
+					System.out.println( "TOGGLED!" );
+				}
+			}, "scroll sources", "ctrl S" );
 
 			triggerbindings.addBehaviourMap( "default", behaviours.getBehaviourMap() );
 			triggerbindings.addInputTriggerMap( "default", behaviours.getInputTriggerMap() );
