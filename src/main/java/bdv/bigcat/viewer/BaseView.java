@@ -1,11 +1,8 @@
 package bdv.bigcat.viewer;
 
-import java.awt.event.MouseMotionListener;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.function.Consumer;
-
-import org.scijava.ui.behaviour.Behaviour;
 
 import bdv.bigcat.composite.Composite;
 import bdv.bigcat.viewer.ViewerNode.ViewerAxis;
@@ -34,7 +31,6 @@ import javafx.scene.layout.GridPane;
 import javafx.scene.layout.VBox;
 import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.type.numeric.ARGBType;
-import net.imglib2.ui.OverlayRenderer;
 
 public class BaseView extends BorderPane
 {
@@ -66,47 +62,6 @@ public class BaseView extends BorderPane
 			if ( c.wasRemoved() )
 				c.getRemoved().forEach( sourceCompositeMap::remove );
 
-		} );
-	}
-
-	private final ObservableList< OverlayRenderer > overlayRenderers = FXCollections.observableArrayList();
-	{
-		overlayRenderers.addListener( ( ListChangeListener< OverlayRenderer > ) c -> {
-			while ( c.next() )
-				if ( c.wasRemoved() )
-					for ( final OverlayRenderer renderer : c.getRemoved() )
-						viewerNodes.forEach( vn -> ( ( ViewerPanel ) vn.getContent() ).getDisplay().removeOverlayRenderer( renderer ) );
-				else if ( c.wasAdded() )
-					for ( final OverlayRenderer renderer : c.getAddedSubList() )
-						viewerNodes.forEach( vn -> ( ( ViewerPanel ) vn.getContent() ).getDisplay().addOverlayRenderer( renderer ) );
-		} );
-	}
-
-	private final ObservableList< Behaviour > behaviours = FXCollections.observableArrayList();
-
-	private final HashMap< Behaviour, String > behaviourNames = new HashMap<>();
-
-	private final HashMap< Behaviour, String[] > behaviourTriggers = new HashMap<>();
-	{
-		behaviours.addListener( ( ListChangeListener< Behaviour > ) c -> {
-			while ( c.next() )
-				if ( c.wasAdded() )
-					for ( final Behaviour behaviour : c.getAddedSubList() )
-						viewerNodes.forEach( vn -> vn.addBehaviour( behaviour, behaviourNames.get( behaviour ), behaviourTriggers.get( behaviour ) ) );
-		} );
-	}
-
-	private final ObservableList< MouseMotionListener > mouseMotionListeners = FXCollections.observableArrayList();
-	{
-		mouseMotionListeners.addListener( ( ListChangeListener< MouseMotionListener > ) c -> {
-			System.out.println( "EVENT! " );
-			while ( c.next() )
-				if ( c.wasAdded() )
-					for ( final MouseMotionListener listener : c.getAddedSubList() )
-						viewerNodes.forEach( vn -> vn.addMouseMotionListener( listener ) );
-				else if ( c.wasRemoved() )
-					for ( final MouseMotionListener listener : c.getRemoved() )
-						viewerNodes.forEach( vn -> vn.removeMouseMotionListener( listener ) );
 		} );
 	}
 
@@ -216,21 +171,6 @@ public class BaseView extends BorderPane
 		return scene;
 	}
 
-	public synchronized void addOverlayRenderer( final OverlayRenderer renderer )
-	{
-		this.overlayRenderers.add( renderer );
-	}
-
-	public synchronized void removeOverlayRenderer( final OverlayRenderer renderer )
-	{
-		this.overlayRenderers.remove( renderer );
-	}
-
-	public synchronized void addMouseMotionListener( final MouseMotionListener listener )
-	{
-		this.mouseMotionListeners.add( listener );
-	}
-
 	private void addViewerNodesHandler( final ViewerNode viewerNode, final Class< ? >[] focusKeepers )
 	{
 
@@ -290,7 +230,6 @@ public class BaseView extends BorderPane
 			}
 			createdViewer = true;
 			sourceLayers.forEach( sl -> ( ( ViewerPanel ) viewerNode.getContent() ).addSource( sl ) );
-			behaviours.forEach( behaviour -> viewerNode.addBehaviour( behaviour, behaviourNames.get( behaviour ), behaviourTriggers.get( behaviour ) ) );
 			viewerActors.forEach( actor -> actor.onAdd().accept( ( ViewerPanel ) viewerNode.getContent() ) );
 
 		} );
