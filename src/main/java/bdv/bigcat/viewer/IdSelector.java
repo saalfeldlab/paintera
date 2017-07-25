@@ -72,7 +72,6 @@ public class IdSelector
 				final Object val = access.get();
 				final long id = toIdConverters.get( source ).applyAsLong( val );
 				actOn( id, selectedIds.get( source ) );
-				System.out.println( "Ran act on for " + name() );
 			}
 		}
 
