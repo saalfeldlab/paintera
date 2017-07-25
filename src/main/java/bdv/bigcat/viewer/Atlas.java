@@ -209,28 +209,6 @@ public class Atlas
 		}
 	}
 
-	// this needs to be rewritten to addDataset( DatasetSpec spec );
-	public < T > void addSource( final SourceAndConverter< T > source )
-	{
-		final T t = source.getSpimSource().getType();
-		final Composite comp = t instanceof ARGBType ? new ARGBCompositeAlphaYCbCr() : new CompositeCopy<>();
-		view.addSource( source, comp );
-		this.sources.add( source.getSpimSource() );
-		this.composites.put( source.getSpimSource(), comp );
-
-		final Function< T, String > valueToString;
-		System.out.println( t.getClass().getName() + " " + ( t instanceof VolatileARGBType ) );
-		if ( t instanceof VolatileARGBType )
-			valueToString = ( Function< T, String > ) ( Function< VolatileARGBType, String > ) rt -> rt.get().toString();
-		else if ( t instanceof IntegerType< ? > )
-			valueToString = ( Function< T, String > ) rt -> String.format( "%d", ( ( IntegerType< ? > ) rt ).getIntegerLong() );
-		else if ( t instanceof RealType< ? > )
-			valueToString = ( Function< T, String > ) rt -> String.format( "%.3f", ( ( RealType< ? > ) rt ).getRealDouble() );
-		else
-			valueToString = rt -> "Do not understand type!";
-		this.valueDisplayListener.addSource( source.getSpimSource(), source.getSpimSource().getInterpolatedSource( 0, 0, Interpolation.NLINEAR ).realRandomAccess(), Optional.of( valueToString ) );
-	}
-
 	public BaseView baseView()
 	{
 		return this.view;
