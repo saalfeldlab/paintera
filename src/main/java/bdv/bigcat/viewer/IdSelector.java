@@ -102,7 +102,6 @@ public class IdSelector
 		public Append( final String name )
 		{
 			super( name );
-			// TODO Auto-generated constructor stub
 		}
 
 		@Override
