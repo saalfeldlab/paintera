@@ -53,7 +53,7 @@ public class ExampleApplication2 extends Application
 
 		final Atlas viewer = makeViewer();
 
-//		viewer.addSource( rawSource );
+		viewer.addSource( rawSource );
 
 //		final HDF5LabelMultisetSourceSpecDeprecated labelSpec = new HDF5LabelMultisetSourceSpecDeprecated( labelsFile, labelsDataset, cellSize );
 //		viewer.addSource( labelSpec );

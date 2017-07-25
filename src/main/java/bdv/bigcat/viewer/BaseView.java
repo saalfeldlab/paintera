@@ -110,6 +110,19 @@ public class BaseView extends BorderPane
 		} );
 	}
 
+	private final ObservableList< ViewerActor > viewerActors = FXCollections.observableArrayList();
+	{
+		viewerActors.addListener( ( ListChangeListener< ViewerActor > ) c -> {
+			while ( c.next() )
+				if ( c.wasAdded() )
+					for ( final ViewerActor actor : c.getAddedSubList() )
+						viewerNodes.forEach( vn -> actor.onAdd().accept( ( ViewerPanel ) vn.getContent() ) );
+				else if ( c.wasRemoved() )
+					for ( final ViewerActor actor : c.getRemoved() )
+						viewerNodes.forEach( vn -> actor.onRemove().accept( ( ViewerPanel ) vn.getContent() ) );
+		} );
+	}
+
 	private final Consumer< ViewerPanel > onFocusEnter;
 
 	private final Consumer< ViewerPanel > onFocusExit;
@@ -128,6 +141,7 @@ public class BaseView extends BorderPane
 	{
 		super();
 		this.infoPane = createInfo();
+		this.infoPane.requestFocus();
 		this.gm = new GlobalTransformManager( new AffineTransform3D() );
 		gm.setTransform( new AffineTransform3D() );
 
@@ -165,6 +179,11 @@ public class BaseView extends BorderPane
 			sourceLayers.remove( i );
 			sourceCompositeMap.remove( source );
 		}
+	}
+
+	public synchronized void addActor( final ViewerActor actor )
+	{
+		this.viewerActors.add( actor );
 	}
 
 	protected Node createInfo()
@@ -272,6 +291,7 @@ public class BaseView extends BorderPane
 			createdViewer = true;
 			sourceLayers.forEach( sl -> ( ( ViewerPanel ) viewerNode.getContent() ).addSource( sl ) );
 			behaviours.forEach( behaviour -> viewerNode.addBehaviour( behaviour, behaviourNames.get( behaviour ), behaviourTriggers.get( behaviour ) ) );
+			viewerActors.forEach( actor -> actor.onAdd().accept( ( ViewerPanel ) viewerNode.getContent() ) );
 
 		} );
 		t.start();
@@ -284,6 +304,8 @@ public class BaseView extends BorderPane
 		addViewer( ViewerAxis.Z, 0, 0 );
 		addViewer( ViewerAxis.X, 0, 1 );
 		addViewer( ViewerAxis.Y, 1, 0 );
+		this.viewerNodes.forEach( Node::requestFocus );
+		this.infoPane.requestFocus();
 		this.grid.add( this.infoPane, 1, 1 );
 	}
 

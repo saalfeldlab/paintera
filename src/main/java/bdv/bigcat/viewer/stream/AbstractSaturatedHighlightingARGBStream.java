@@ -16,7 +16,7 @@
  */
 package bdv.bigcat.viewer.stream;
 
-import bdv.bigcat.viewer.SelectedIds;
+import bdv.bigcat.viewer.state.SelectedIds;
 import bdv.labels.labelset.Label;
 
 /**

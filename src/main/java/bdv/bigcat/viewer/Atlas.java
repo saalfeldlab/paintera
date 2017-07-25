@@ -15,6 +15,7 @@ import bdv.bigcat.composite.Composite;
 import bdv.bigcat.composite.CompositeCopy;
 import bdv.bigcat.composite.CompositeProjector.CompositeProjectorFactory;
 import bdv.bigcat.viewer.AtlasFocusHandler.OnEnterOnExit;
+import bdv.bigcat.viewer.state.SelectedIds;
 import bdv.labels.labelset.LabelMultisetType;
 import bdv.labels.labelset.Multiset.Entry;
 import bdv.util.RandomAccessibleSource;
@@ -58,9 +59,11 @@ public class Atlas
 
 	private final HashMap< DatasetSpec< ?, ? >, Source< ? > > specs = new HashMap<>();
 
-	private final AtlasIdSelector idSelector = new AtlasIdSelector();
+	private final HashMap< Source< ? >, SelectedIds > selectedIds = new HashMap<>();
 
-	private final HashMap< Source< ? extends ARGBType >, Composite< ARGBType, ARGBType > > composites = new HashMap<>();
+	private final AtlasIdSelector idSelector = new AtlasIdSelector( selectedIds );
+
+	private final HashMap< Source< ? >, Composite< ARGBType, ARGBType > > composites = new HashMap<>();
 
 	private final ViewerOptions viewerOptions;
 
@@ -81,7 +84,7 @@ public class Atlas
 //		final AtlasMouseCoordinatePrinter mcp = new AtlasMouseCoordinatePrinter( this.status );
 //		addOnEnterOnExit( mcp.onEnter(), mcp.onExit(), true );
 		addOnEnterOnExit( valueDisplayListener.onEnter(), valueDisplayListener.onExit(), true );
-		addOnEnterOnExit( idSelector.onEnter(), idSelector.onExit(), true );
+		addOnEnterOnExit( idSelector.onEnter(), idSelector.onExit(), false );
 		final RandomAccessibleSource< FloatType > bg = new RandomAccessibleSource<>( ConstantUtils.constantRandomAccessible( new FloatType( 0.0f ), 3 ), new FinalInterval( 1000, 1000, 100 ), new FloatType(), "background" );
 		final RandomAccessibleSource< VolatileFloatType > vbg = new RandomAccessibleSource<>( ConstantUtils.constantRandomAccessible( new VolatileFloatType( 0.0f ), 3 ), new FinalInterval( 1000, 1000, 100 ), new VolatileFloatType(), "background" );
 		final RealARGBConverter< FloatType > conv = new RealARGBConverter<>( 0.0, 1.0 );
@@ -133,12 +136,13 @@ public class Atlas
 	public < T, VT extends Volatile< T > > void addSource( final DatasetSpec< T, VT > spec )
 	{
 		final T t = spec.getSource().getType();
-		final Composite< ARGBType, ARGBType > comp = t instanceof ARGBType ? new ARGBCompositeAlphaYCbCr() : new CompositeCopy<>();
+		final Composite< ARGBType, ARGBType > comp = t instanceof ARGBType || t instanceof LabelMultisetType ? new ARGBCompositeAlphaYCbCr() : new CompositeCopy<>();
 		final Source< T > source = spec.getSource();
 		final SourceAndConverter< VT > vsource = new SourceAndConverter<>( spec.getVolatileSource(), spec.getVolatileConverter() );
 		final SourceAndConverter< ? > src = new SourceAndConverter<>( source, spec.getConverter(), vsource );
 		view.addSource( src, comp );
 		this.specs.put( spec, source );
+		this.composites.put( source, comp );
 
 		System.out.println( t.getClass().getName() + " " + ( t instanceof VolatileARGBType ) );
 		final Function< T, String > valueToString;
@@ -183,7 +187,25 @@ public class Atlas
 					return it.hasNext() ? it.next().getElement().id() : 0;
 				};
 			final SelectedIds selectedIds = spec instanceof HDF5LabelMultisetSourceSpec ? ( ( HDF5LabelMultisetSourceSpec ) spec ).getSelectedIds() : new SelectedIds();
-			this.idSelector.addSource( source, rra.realRandomAccess(), toIdConverter, selectedIds );
+			this.selectedIds.put( source, selectedIds );
+			this.idSelector.addSource( source, rra.realRandomAccess(), toIdConverter );
+
+			view.addActor( new ViewerActor()
+			{
+
+				@Override
+				public Consumer< ViewerPanel > onRemove()
+				{
+					return vp -> {};
+				}
+
+				@Override
+				public Consumer< ViewerPanel > onAdd()
+				{
+					return vp -> selectedIds.addListener( () -> vp.requestRepaint() );
+				}
+			} );
+
 		}
 	}
 
@@ -194,6 +216,7 @@ public class Atlas
 		final Composite comp = t instanceof ARGBType ? new ARGBCompositeAlphaYCbCr() : new CompositeCopy<>();
 		view.addSource( source, comp );
 		this.sources.add( source.getSpimSource() );
+		this.composites.put( source.getSpimSource(), comp );
 
 		final Function< T, String > valueToString;
 		System.out.println( t.getClass().getName() + " " + ( t instanceof VolatileARGBType ) );

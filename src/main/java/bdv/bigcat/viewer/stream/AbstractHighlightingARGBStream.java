@@ -17,7 +17,7 @@
 package bdv.bigcat.viewer.stream;
 
 import bdv.bigcat.ui.ARGBStream;
-import bdv.bigcat.viewer.SelectedIds;
+import bdv.bigcat.viewer.state.SelectedIds;
 import bdv.labels.labelset.Label;
 import gnu.trove.impl.Constants;
 import gnu.trove.map.hash.TLongIntHashMap;

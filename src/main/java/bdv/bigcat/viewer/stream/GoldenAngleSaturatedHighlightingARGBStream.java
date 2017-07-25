@@ -16,7 +16,7 @@
  */
 package bdv.bigcat.viewer.stream;
 
-import bdv.bigcat.viewer.SelectedIds;
+import bdv.bigcat.viewer.state.SelectedIds;
 
 /**
  * Generates a stream of saturated colors. Colors are picked from a radial

@@ -8,6 +8,7 @@ import java.util.function.ToLongFunction;
 import org.scijava.ui.behaviour.ClickBehaviour;
 import org.scijava.ui.behaviour.util.AbstractNamedBehaviour;
 
+import bdv.bigcat.viewer.state.SelectedIds;
 import bdv.viewer.Source;
 import bdv.viewer.ViewerPanel;
 import bdv.viewer.state.SourceState;
@@ -72,7 +73,6 @@ public class IdSelector
 				final long id = toIdConverters.get( source ).applyAsLong( val );
 				actOn( id, selectedIds.get( source ) );
 				System.out.println( "Ran act on for " + name() );
-				viewer.requestRepaint();
 			}
 		}
 

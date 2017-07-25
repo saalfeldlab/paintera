@@ -218,6 +218,9 @@ public class ViewerNode extends SwingNode implements ListChangeListener< SourceA
 			c.getAddedSubList().forEach( added -> {
 				visibility.put( added.getSpimSource(), true );
 				viewer.addSource( added );
+				final int numSources = viewer.getState().numSources();
+				if ( numSources > 1 )
+					viewer.getVisibilityAndGrouping().setCurrentSource( 1 );
 			} );
 	}
 

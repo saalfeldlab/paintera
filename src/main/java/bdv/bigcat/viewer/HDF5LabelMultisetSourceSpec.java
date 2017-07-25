@@ -6,6 +6,7 @@ import java.util.Iterator;
 import bdv.bigcat.ui.ARGBStream;
 import bdv.bigcat.ui.LabelMultisetSource;
 import bdv.bigcat.ui.VolatileLabelMultisetSource;
+import bdv.bigcat.viewer.state.SelectedIds;
 import bdv.bigcat.viewer.stream.ModalGoldenAngleSaturatedHighlightingARGBStream;
 import bdv.img.cache.VolatileGlobalCellCache;
 import bdv.img.h5.H5LabelMultisetSetupImageLoader;

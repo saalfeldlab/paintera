@@ -9,6 +9,7 @@ import org.scijava.ui.behaviour.io.InputTriggerConfig;
 import org.scijava.ui.behaviour.util.Behaviours;
 import org.scijava.ui.behaviour.util.TriggerBehaviourBindings;
 
+import bdv.bigcat.viewer.state.SelectedIds;
 import bdv.viewer.Source;
 import bdv.viewer.ViewerPanel;
 import net.imglib2.RealRandomAccess;
@@ -20,16 +21,20 @@ public class AtlasIdSelector
 
 	private final HashMap< Source< ? >, ToLongFunction > toIdConverters = new HashMap<>();
 
-	private final HashMap< Source< ? >, SelectedIds > selectedIds = new HashMap<>();
+	private final HashMap< Source< ? >, SelectedIds > selectedIds;
 
 	private final HashMap< ViewerPanel, MouseAndKeyHandler > mouseAndKeyHandlers = new HashMap<>();
 
-	public void addSource( final Source< ? > source, final RealRandomAccess< ? > access, final ToLongFunction< ? > toIdConverter, final SelectedIds selectedIds )
+	public AtlasIdSelector( final HashMap< Source< ? >, SelectedIds > selectedIds )
+	{
+		this.selectedIds = selectedIds;
+	}
+
+	public void addSource( final Source< ? > source, final RealRandomAccess< ? > access, final ToLongFunction< ? > toIdConverter )
 	{
 
 		this.accesses.put( source, access );
 		this.toIdConverters.put( source, toIdConverter );
-		this.selectedIds.put( source, selectedIds );
 	}
 
 	public Consumer< ViewerPanel > onEnter()
@@ -48,15 +53,20 @@ public class AtlasIdSelector
 				mouseAndKeyHandler.setInputMap( bindings.getConcatenatedInputTriggerMap() );
 				mouseAndKeyHandler.setBehaviourMap( bindings.getConcatenatedBehaviourMap() );
 				this.mouseAndKeyHandlers.put( t, mouseAndKeyHandler );
+//				this.selectedIds.values().forEach( selectedIds -> selectedIds.addListener( () -> t.requestRepaint() ) );
+				System.out.println( "Installed handler for " + t );// + " " +
+																	// this.mouseAndKeyHandlers
+																	// );
+				t.getDisplay().addHandler( mouseAndKeyHandler );
 			}
-			t.getDisplay().addHandler( this.mouseAndKeyHandlers.get( t ) );
+//			t.getDisplay().addHandler( this.mouseAndKeyHandlers.get( t ) );
 		};
 	}
 
 	public Consumer< ViewerPanel > onExit()
 	{
 		return t -> {
-			t.getDisplay().removeHandler( this.mouseAndKeyHandlers.get( t ) );
+//			t.getDisplay().removeHandler( this.mouseAndKeyHandlers.get( t ) );
 		};
 	}
 
