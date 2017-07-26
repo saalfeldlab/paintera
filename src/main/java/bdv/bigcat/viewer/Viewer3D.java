@@ -69,7 +69,7 @@ public class Viewer3D
 		// this.infoPane = new Label( "info box" );
 		loadData();
 
-		scPanel[ 0 ] = new SceneryPanel( 250, 250 );
+		scPanel[ 0 ] = getPanel();
 
 		Settings settings = new Settings();
 		Hub hub = new Hub();
@@ -137,6 +137,11 @@ public class Viewer3D
 	public void createPanel()
 	{
 		scPanel[ 0 ] = new SceneryPanel( 500, 500 );
+	}
+
+	public void setPanel( SceneryPanel panel)
+	{
+		scPanel[ 0 ] = panel;
 	}
 
 	/**
