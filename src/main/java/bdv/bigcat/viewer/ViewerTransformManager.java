@@ -450,7 +450,7 @@ public class ViewerTransformManager implements TransformListener< AffineTransfor
 
 		private final RealPoint p = RealPoint.wrap( mouseLocation );
 
-		private boolean isInside;
+		private boolean isInside = false;
 
 		@Override
 		public void actionPerformed( final ActionEvent e )
@@ -459,7 +459,7 @@ public class ViewerTransformManager implements TransformListener< AffineTransfor
 			{
 				viewer.getMouseCoordinates( p );
 				p.setPosition( 0l, 2 );
-				if ( !isInside )
+				if ( false )
 				{
 					p.setPosition( centerX, 0 );
 					p.setPosition( centerY, 1 );
