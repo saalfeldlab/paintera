@@ -80,17 +80,6 @@ public class ViewerTransformManager implements TransformListener< AffineTransfor
 
 		behaviours = new Behaviours( config, "bdv" );
 		actions = new Actions( config );
-
-		behaviours.behaviour( new TranslateXY(), "drag translate", "button2", "button3" );
-		behaviours.behaviour( new Zoom( speed[ 0 ] ), ZOOM_NORMAL, "meta scroll", "ctrl shift scroll" );
-		behaviours.behaviour( new ButtonZoom( 1.05 ), "zoom", "UP" );
-		behaviours.behaviour( new ButtonZoom( 1.0 / 1.05 ), "zoom", "DOWN" );
-		for ( int s = 0; s < 3; ++s )
-		{
-			behaviours.behaviour( new Rotate( speed[ s ] ), DRAG_ROTATE + SPEED_NAME[ s ], speedMod[ s ] + "button1" );
-			behaviours.behaviour( new TranslateZ( speed[ s ] ), SCROLL_Z + SPEED_NAME[ s ], speedMod[ s ] + "scroll" );
-		}
-		actions.namedAction( new RemoveRotation(), "shift Z" );
 	}
 
 	public void setGlobalToViewer( final AffineTransform3D affine )
@@ -191,6 +180,18 @@ public class ViewerTransformManager implements TransformListener< AffineTransfor
 	public void setViewer( final ViewerPanel viewer )
 	{
 		this.viewer = viewer;
+
+		behaviours.behaviour( new TranslateXY(), "drag translate", "button2", "button3" );
+		behaviours.behaviour( new Zoom( speed[ 0 ] ), ZOOM_NORMAL, "meta scroll", "ctrl shift scroll" );
+		behaviours.behaviour( new ButtonZoom( 1.05 ), "zoom", "UP" );
+		behaviours.behaviour( new ButtonZoom( 1.0 / 1.05 ), "zoom", "DOWN" );
+		for ( int s = 0; s < 3; ++s )
+		{
+			behaviours.behaviour( new Rotate( speed[ s ] ), DRAG_ROTATE + SPEED_NAME[ s ], speedMod[ s ] + "button1" );
+			behaviours.behaviour( new TranslateZ( speed[ s ] ), SCROLL_Z + SPEED_NAME[ s ], speedMod[ s ] + "scroll" );
+		}
+		final RemoveRotation removeRotation = new RemoveRotation();
+		actions.namedAction( removeRotation, "shift Z" );
 	}
 
 	@Override
