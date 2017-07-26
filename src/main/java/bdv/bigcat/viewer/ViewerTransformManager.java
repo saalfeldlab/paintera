@@ -434,11 +434,6 @@ public class ViewerTransformManager implements TransformListener< AffineTransfor
 //		( tr(A)*A )_ij = sum_k( tr(A)_ik * A_kj ) = sum_k( A_ki * A_kj )
 //		( tr(A)*A )_ii = sum_k( (A_ki)^2 )
 
-//		displayTransform.set( displayTransform.get( 0, 3 ) - canvasW / 2, 0, 3 );
-//				displayTransform.set( displayTransform.get( 1, 3 ) - canvasH / 2, 1, 3 );
-//				displayTransform.scale( ( double ) width / canvasW );
-//				displayTransform.set( displayTransform.get( 0, 3 ) + width / 2, 0, 3 );
-//				displayTransform.set( displayTransform.get( 1, 3 ) + height / 2, 1, 3 );
 
 		public RemoveRotation()
 		{
