@@ -16,16 +16,10 @@ import javafx.embed.swing.SwingNode;
 import javafx.event.Event;
 import javafx.scene.Node;
 import javafx.scene.Scene;
-import javafx.scene.control.Label;
-import javafx.scene.control.Tab;
-import javafx.scene.control.TabPane;
-import javafx.scene.control.TableColumn;
-import javafx.scene.control.TableView;
 import javafx.scene.control.TextField;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.GridPane;
-import javafx.scene.layout.VBox;
 import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.type.numeric.ARGBType;
 
@@ -109,7 +103,6 @@ public class BaseView
 	protected Node createInfo()
 	{
 		viewer3D.createViewer3D();
-
 		final Thread t = new Thread( () -> {
 			while ( !created3DViewer )
 			{
@@ -127,22 +120,7 @@ public class BaseView
 			created3DViewer = true;
 		} );
 		t.start();
-
-		final TableView< ? > table = new TableView<>();
-		table.setEditable( true );
-		table.getColumns().addAll( new TableColumn<>( "Property" ), new TableColumn<>( "Value" ) );
-
-		final TextField tf = new TextField( "some text" );
-
-		final TabPane infoPane = new TabPane();
-
-		final VBox jfxStuff = new VBox( 1 );
-		jfxStuff.getChildren().addAll( tf, table );
-		infoPane.getTabs().add( new Tab( "3d view", viewer3D.getPanel() ) );
-		infoPane.getTabs().add( new Tab( "jfx stuff", jfxStuff ) );
-		infoPane.getTabs().add( new Tab( "dataset info", new Label( "random floats" ) ) );
-		return infoPane;
-
+		return viewer3D.getPanel();
 	}
 
 	public Scene createScene( final int width, final int height ) throws Exception
