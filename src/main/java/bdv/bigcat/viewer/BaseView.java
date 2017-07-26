@@ -244,8 +244,8 @@ public class BaseView extends BorderPane
 		addViewer( ViewerAxis.X, 0, 1 );
 		addViewer( ViewerAxis.Y, 1, 0 );
 		this.viewerNodes.forEach( Node::requestFocus );
-		this.infoPane.requestFocus();
 		this.grid.add( this.infoPane, 1, 1 );
+		this.requestFocus();
 	}
 
 	private void maximizeActiveOrthoView( final Scene scene, final Event event )
