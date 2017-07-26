@@ -18,6 +18,7 @@ import bdv.bigcat.viewer.AtlasFocusHandler.OnEnterOnExit;
 import bdv.bigcat.viewer.state.SelectedIds;
 import bdv.labels.labelset.LabelMultisetType;
 import bdv.labels.labelset.Multiset.Entry;
+import bdv.labels.labelset.VolatileLabelMultisetType;
 import bdv.util.RandomAccessibleSource;
 import bdv.viewer.Interpolation;
 import bdv.viewer.Source;
@@ -29,7 +30,6 @@ import javafx.scene.Scene;
 import javafx.scene.control.Label;
 import javafx.stage.Stage;
 import net.imglib2.FinalInterval;
-import net.imglib2.Volatile;
 import net.imglib2.converter.Converter;
 import net.imglib2.converter.RealARGBConverter;
 import net.imglib2.realtransform.AffineTransform3D;
@@ -133,17 +133,21 @@ public class Atlas
 		this.focusHandler.add( onEnterOnExit, onExitRemovable );
 	}
 
-	public < T, VT extends Volatile< T > > void addSource( final DatasetSpec< T, VT > spec )
+	public < T, VT > void addSource( final DatasetSpec< T, VT > spec )
 	{
-		final T t = spec.getSource().getType();
-		final Composite< ARGBType, ARGBType > comp = t instanceof ARGBType || t instanceof LabelMultisetType ? new ARGBCompositeAlphaYCbCr() : new CompositeCopy<>();
-		final Source< T > source = spec.getSource();
-		final SourceAndConverter< VT > vsource = new SourceAndConverter<>( spec.getVolatileSource(), spec.getVolatileConverter() );
-		final SourceAndConverter< ? > src = new SourceAndConverter<>( source, spec.getConverter(), vsource );
+		final Source< VT > vsource = spec.getViewerSource();
+		final VT vt = vsource.getType();
+		final Composite< ARGBType, ARGBType > comp = vt instanceof ARGBType
+				|| vt instanceof LabelMultisetType
+				|| vt instanceof VolatileARGBType
+				|| vt instanceof VolatileLabelMultisetType ? new ARGBCompositeAlphaYCbCr() : new CompositeCopy<>();
+		final SourceAndConverter< VT > src = new SourceAndConverter<>( vsource, spec.getViewerConverter() );
 		view.addSource( src, comp );
-		this.specs.put( spec, source );
-		this.composites.put( source, comp );
+		this.specs.put( spec, vsource );
+		this.composites.put( vsource, comp );
 
+		final Source< T > source = spec.getSource();
+		final T t = source.getType();
 		System.out.println( t.getClass().getName() + " " + ( t instanceof VolatileARGBType ) );
 		final Function< T, String > valueToString;
 		if ( t instanceof ARGBType )
@@ -174,8 +178,9 @@ public class Atlas
 		final AffineTransform3D affine = new AffineTransform3D();
 		source.getSourceTransform( 0, 0, affine );
 		final RealTransformRealRandomAccessible< T, InverseRealTransform > rra = RealViews.transformReal( source.getInterpolatedSource( 0, 0, Interpolation.NEARESTNEIGHBOR ), affine );
-		this.valueDisplayListener.addSource( source, rra.realRandomAccess(), Optional.of( valueToString ) );
+		this.valueDisplayListener.addSource( vsource, rra.realRandomAccess(), Optional.of( valueToString ) );
 
+		System.out.println( t.getClass().getName() + " oge" );
 		if ( t instanceof ARGBType || t instanceof LabelMultisetType )
 		{
 			final ToLongFunction< T > toIdConverter;
@@ -187,8 +192,8 @@ public class Atlas
 					return it.hasNext() ? it.next().getElement().id() : 0;
 				};
 			final SelectedIds selectedIds = spec instanceof HDF5LabelMultisetSourceSpec ? ( ( HDF5LabelMultisetSourceSpec ) spec ).getSelectedIds() : new SelectedIds();
-			this.selectedIds.put( source, selectedIds );
-			this.idSelector.addSource( source, rra.realRandomAccess(), toIdConverter );
+			this.selectedIds.put( vsource, selectedIds );
+			this.idSelector.addSource( vsource, rra.realRandomAccess(), toIdConverter );
 
 			view.addActor( new ViewerActor()
 			{

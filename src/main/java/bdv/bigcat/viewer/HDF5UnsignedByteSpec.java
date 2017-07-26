@@ -149,19 +149,13 @@ public class HDF5UnsignedByteSpec implements DatasetSpec< UnsignedByteType, Vola
 	}
 
 	@Override
-	public VolatileUnsignedByteSource getVolatileSource()
+	public VolatileUnsignedByteSource getViewerSource()
 	{
 		return new VolatileUnsignedByteSource( loader, new VolatileUnsignedByteType(), "volatile unsigned byte" );
 	}
 
 	@Override
-	public Converter< UnsignedByteType, ARGBType > getConverter()
-	{
-		return conv;
-	}
-
-	@Override
-	public Converter< VolatileUnsignedByteType, ARGBType > getVolatileConverter()
+	public Converter< VolatileUnsignedByteType, ARGBType > getViewerConverter()
 	{
 		return ( s, t ) -> {
 			conv.convert( s.get(), t );

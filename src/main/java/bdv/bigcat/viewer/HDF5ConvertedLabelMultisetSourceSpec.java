@@ -67,20 +67,14 @@ public class HDF5ConvertedLabelMultisetSourceSpec implements DatasetSpec< LabelM
 	}
 
 	@Override
-	public Source< VolatileLabelMultisetType > getVolatileSource()
+	public Source< VolatileLabelMultisetType > getViewerSource()
 	{
 		// TODO Auto-generated method stub
 		return null;
 	}
 
 	@Override
-	public Converter< LabelMultisetType, ARGBType > getConverter()
-	{
-		return converter;
-	}
-
-	@Override
-	public Converter< VolatileLabelMultisetType, ARGBType > getVolatileConverter()
+	public Converter< VolatileLabelMultisetType, ARGBType > getViewerConverter()
 	{
 		return vconverter;
 	}

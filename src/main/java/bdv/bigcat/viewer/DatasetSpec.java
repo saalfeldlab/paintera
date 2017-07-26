@@ -1,17 +1,14 @@
 package bdv.bigcat.viewer;
 
 import bdv.viewer.Source;
-import net.imglib2.Volatile;
 import net.imglib2.converter.Converter;
 import net.imglib2.type.numeric.ARGBType;
 
-public interface DatasetSpec< T, VT extends Volatile< T > >
+public interface DatasetSpec< DataType, ViewerType >
 {
-	public Source< T > getSource();
+	public Source< DataType > getSource();
 
-	public Source< VT > getVolatileSource();
+	public Source< ViewerType > getViewerSource();
 
-	public Converter< T, ARGBType > getConverter();
-
-	public Converter< VT, ARGBType > getVolatileConverter();
+	public Converter< ViewerType, ARGBType > getViewerConverter();
 }

@@ -28,7 +28,7 @@ public class AtlasValueDisplayListener
 		this.statusBar = statusBar;
 	}
 
-	public < T > void addSource( final Source< T > source, final RealRandomAccess< T > access, final Optional< Function< T, String > > valueToString )
+	public < VT, T > void addSource( final Source< VT > source, final RealRandomAccess< T > access, final Optional< Function< T, String > > valueToString )
 	{
 		final Function< T, String > actualValueToString = valueToString.orElseGet( () -> Object::toString );
 		this.accessMap.put( source, access );

@@ -14,7 +14,6 @@ import ch.systemsx.cisd.hdf5.HDF5Factory;
 import ch.systemsx.cisd.hdf5.IHDF5Reader;
 import gnu.trove.set.hash.TLongHashSet;
 import net.imglib2.converter.Converter;
-import net.imglib2.converter.TypeIdentity;
 import net.imglib2.type.numeric.ARGBType;
 import net.imglib2.type.volatiles.VolatileARGBType;
 
@@ -46,20 +45,14 @@ public class HDF5LabelMultisetSourceSpecDeprecated implements DatasetSpec< ARGBT
 	}
 
 	@Override
-	public ARGBConvertedLabelsSource getVolatileSource()
+	public ARGBConvertedLabelsSource getViewerSource()
 	{
 		final ARGBConvertedLabelsSource convertedSource = new ARGBConvertedLabelsSource( 0, loader, stream );
 		return convertedSource;
 	}
 
 	@Override
-	public Converter< ARGBType, ARGBType > getConverter()
-	{
-		return new TypeIdentity<>();
-	}
-
-	@Override
-	public Converter< VolatileARGBType, ARGBType > getVolatileConverter()
+	public Converter< VolatileARGBType, ARGBType > getViewerConverter()
 	{
 		return ( s, t ) -> t.set( s.get() );
 	}
