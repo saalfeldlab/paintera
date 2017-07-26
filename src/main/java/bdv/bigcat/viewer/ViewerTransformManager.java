@@ -1,6 +1,8 @@
 package bdv.bigcat.viewer;
 
 import java.awt.event.ActionEvent;
+import java.awt.event.MouseEvent;
+import java.awt.event.MouseListener;
 
 import org.scijava.ui.behaviour.ClickBehaviour;
 import org.scijava.ui.behaviour.DragBehaviour;
@@ -192,6 +194,7 @@ public class ViewerTransformManager implements TransformListener< AffineTransfor
 		}
 		final RemoveRotation removeRotation = new RemoveRotation();
 		actions.namedAction( removeRotation, "shift Z" );
+		this.viewer.addMouseListener( removeRotation );
 	}
 
 	@Override
@@ -420,7 +423,7 @@ public class ViewerTransformManager implements TransformListener< AffineTransfor
 		{}
 	}
 
-	private class RemoveRotation extends AbstractNamedAction
+	private class RemoveRotation extends AbstractNamedAction implements MouseListener
 	{
 
 //		This only works when we assume that affine can be
@@ -447,6 +450,8 @@ public class ViewerTransformManager implements TransformListener< AffineTransfor
 
 		private final RealPoint p = RealPoint.wrap( mouseLocation );
 
+		private boolean isInside;
+
 		@Override
 		public void actionPerformed( final ActionEvent e )
 		{
@@ -454,6 +459,12 @@ public class ViewerTransformManager implements TransformListener< AffineTransfor
 			{
 				viewer.getMouseCoordinates( p );
 				p.setPosition( 0l, 2 );
+				if ( !isInside )
+				{
+					System.out.println( "OUT OF CANVAS!" );
+					p.setPosition( centerX, 0 );
+					p.setPosition( centerY, 1 );
+				}
 				displayTransform.applyInverse( mouseLocation, mouseLocation );
 				globalToViewer.applyInverse( mouseLocation, mouseLocation );
 
@@ -475,6 +486,36 @@ public class ViewerTransformManager implements TransformListener< AffineTransfor
 
 				manager.setTransform( affine );
 			}
+		}
+
+		@Override
+		public void mouseClicked( final MouseEvent e )
+		{
+
+		}
+
+		@Override
+		public void mouseEntered( final MouseEvent e )
+		{
+			isInside = true;
+		}
+
+		@Override
+		public void mouseExited( final MouseEvent e )
+		{
+			isInside = false;
+		}
+
+		@Override
+		public void mousePressed( final MouseEvent e )
+		{
+
+		}
+
+		@Override
+		public void mouseReleased( final MouseEvent e )
+		{
+
 		}
 
 	}
