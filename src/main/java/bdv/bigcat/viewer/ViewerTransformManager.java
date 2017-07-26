@@ -461,7 +461,6 @@ public class ViewerTransformManager implements TransformListener< AffineTransfor
 				p.setPosition( 0l, 2 );
 				if ( !isInside )
 				{
-					System.out.println( "OUT OF CANVAS!" );
 					p.setPosition( centerX, 0 );
 					p.setPosition( centerY, 1 );
 				}
