@@ -422,6 +422,7 @@ public class ViewerTransformManager implements TransformListener< AffineTransfor
 	private class RemoveRotation extends AbstractNamedAction
 	{
 
+//		This only works when we assume that affine can be
 //		https://stackoverflow.com/questions/10546320/remove-rotation-from-a-4x4-homogeneous-transformation-matrix
 //		scaling S is symmetric
 //		tr is transpose
@@ -434,35 +435,30 @@ public class ViewerTransformManager implements TransformListener< AffineTransfor
 //		( tr(A)*A )_ij = sum_k( tr(A)_ik * A_kj ) = sum_k( A_ki * A_kj )
 //		( tr(A)*A )_ii = sum_k( (A_ki)^2 )
 
-
 		public RemoveRotation()
 		{
 			super( "remove rotation" );
 		}
 
-		private final RealPoint mouseLocation = new RealPoint( 3 );
+		private final double[] mouseLocation = new double[ 3 ];
+
+		private final double[] inOriginalSpace = new double[ 3 ];
+
+		private final RealPoint p = RealPoint.wrap( mouseLocation );
 
 		@Override
 		public void actionPerformed( final ActionEvent e )
 		{
 			synchronized ( global )
 			{
-				System.out.println( viewer );
-				viewer.getMouseCoordinates( mouseLocation );
-				for ( int d = 0; d < mouseLocation.numDimensions(); ++d )
-					mouseLocation.setPosition( -mouseLocation.getDoublePosition( d ), d );
-
+				viewer.getMouseCoordinates( p );
+				p.setPosition( 0l, 2 );
 				displayTransform.applyInverse( mouseLocation, mouseLocation );
 				globalToViewer.applyInverse( mouseLocation, mouseLocation );
 
-				final double[] loc = new double[ mouseLocation.numDimensions() ];
-				mouseLocation.localize( loc );
-				global.translate( loc );
-				for ( int d = 0; d < loc.length; ++d )
-					loc[ d ] *= -1;
+				global.applyInverse( inOriginalSpace, mouseLocation );
 
 				final AffineTransform3D affine = new AffineTransform3D();
-				affine.setTranslation( global.getTranslation() );
 				for ( int i = 0; i < affine.numDimensions(); ++i )
 				{
 					double val = 0.0;
@@ -471,10 +467,10 @@ public class ViewerTransformManager implements TransformListener< AffineTransfor
 						final double entry = global.get( k, i );
 						val += entry * entry;
 					}
-					affine.set( Math.sqrt( val ), i, i );
+					val = Math.sqrt( val );
+					affine.set( val, i, i );
+					affine.set( mouseLocation[ i ] - inOriginalSpace[ i ] * val, i, 3 );
 				}
-
-				affine.translate( loc );
 
 				manager.setTransform( affine );
 			}
