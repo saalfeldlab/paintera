@@ -178,7 +178,7 @@ public class Atlas
 		final AffineTransform3D affine = new AffineTransform3D();
 		source.getSourceTransform( 0, 0, affine );
 		final RealTransformRealRandomAccessible< T, InverseRealTransform > rra = RealViews.transformReal( source.getInterpolatedSource( 0, 0, Interpolation.NEARESTNEIGHBOR ), affine );
-		this.valueDisplayListener.addSource( vsource, rra.realRandomAccess(), Optional.of( valueToString ) );
+		this.valueDisplayListener.addSource( vsource, source, Optional.of( valueToString ) );
 
 		System.out.println( t.getClass().getName() + " oge" );
 		if ( t instanceof ARGBType || t instanceof LabelMultisetType )

@@ -9,12 +9,11 @@ import bdv.viewer.Source;
 import bdv.viewer.ViewerPanel;
 import javafx.application.Platform;
 import javafx.scene.control.Label;
-import net.imglib2.RealRandomAccess;
 
 public class AtlasValueDisplayListener
 {
 
-	private final HashMap< Source< ? >, RealRandomAccess< ? > > accessMap = new HashMap<>();
+	private final HashMap< Source< ? >, Source< ? > > dataSourceMap = new HashMap<>();
 
 	private final HashMap< Source< ? >, Consumer > handlerMap = new HashMap<>();
 
@@ -28,10 +27,10 @@ public class AtlasValueDisplayListener
 		this.statusBar = statusBar;
 	}
 
-	public < VT, T > void addSource( final Source< VT > source, final RealRandomAccess< T > access, final Optional< Function< T, String > > valueToString )
+	public < VT, T > void addSource( final Source< VT > source, final Source< T > dataSource, final Optional< Function< T, String > > valueToString )
 	{
 		final Function< T, String > actualValueToString = valueToString.orElseGet( () -> Object::toString );
-		this.accessMap.put( source, access );
+		this.dataSourceMap.put( source, dataSource );
 		final Consumer< T > handler = t -> {
 			Platform.runLater( () -> statusBar.setText( actualValueToString.apply( t ) ) );
 		};
@@ -42,7 +41,7 @@ public class AtlasValueDisplayListener
 	{
 		return t -> {
 			if ( !this.listeners.containsKey( t ) )
-				this.listeners.put( t, new ValueDisplayListener( accessMap, handlerMap, t ) );
+				this.listeners.put( t, new ValueDisplayListener( dataSourceMap, handlerMap, t ) );
 			t.getDisplay().addMouseMotionListener( this.listeners.get( t ) );
 			t.addTransformListener( this.listeners.get( t ) );
 		};

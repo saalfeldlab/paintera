@@ -7,9 +7,11 @@ import java.util.List;
 import java.util.Optional;
 import java.util.function.Consumer;
 
+import bdv.viewer.Interpolation;
 import bdv.viewer.Source;
 import bdv.viewer.ViewerPanel;
 import bdv.viewer.state.SourceState;
+import bdv.viewer.state.ViewerState;
 import net.imglib2.RealRandomAccess;
 import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.ui.TransformListener;
@@ -17,16 +19,18 @@ import net.imglib2.ui.TransformListener;
 public class ValueDisplayListener implements MouseMotionListener, TransformListener< AffineTransform3D >
 {
 
-	private final HashMap< Source< ? >, RealRandomAccess< ? > > accessMap;
+	private final HashMap< Source< ? >, Source< ? > > dataSourceMap;
 
 	private final HashMap< Source< ? >, Consumer > valueHandlers;
 
 	private final ViewerPanel viewer;
 
-	public ValueDisplayListener( final HashMap< Source< ? >, RealRandomAccess< ? > > accessMap, final HashMap< Source< ? >, Consumer > valueHandlers, final ViewerPanel viewer )
+	private final AffineTransform3D viewerTransform = new AffineTransform3D();
+
+	public ValueDisplayListener( final HashMap< Source< ? >, Source< ? > > dataSourceMap, final HashMap< Source< ? >, Consumer > valueHandlers, final ViewerPanel viewer )
 	{
 		super();
-		this.accessMap = accessMap;
+		this.dataSourceMap = dataSourceMap;
 		this.valueHandlers = valueHandlers;
 		this.viewer = viewer;
 	}
@@ -47,9 +51,14 @@ public class ValueDisplayListener implements MouseMotionListener, TransformListe
 			if ( optionalSource.isPresent() )
 			{
 				final Source< ? > activeSource = optionalSource.get();
-				if ( accessMap.containsKey( activeSource ) && valueHandlers.containsKey( activeSource ) )
+				if ( dataSourceMap.containsKey( activeSource ) && valueHandlers.containsKey( activeSource ) )
 				{
-					final RealRandomAccess< ? > access = accessMap.get( activeSource );
+					final ViewerState state = viewer.getState();
+					final int currentSource = state.getCurrentSource();
+					final Interpolation interpolation = state.getInterpolation();
+					final int level = state.getBestMipMapLevel( this.viewerTransform, currentSource );
+					final Source< ? > source = dataSourceMap.get( activeSource );
+					final RealRandomAccess< ? > access = source.getInterpolatedSource( 0, level, interpolation ).realRandomAccess();
 					final Object val = getVal( x, y, access, viewer );
 					valueHandlers.get( activeSource ).accept( val );
 				}
@@ -62,13 +71,19 @@ public class ValueDisplayListener implements MouseMotionListener, TransformListe
 	{
 		synchronized ( viewer )
 		{
+			this.viewerTransform.set( transform );
 			final Optional< Source< ? > > optionalSource = getSource();
 			if ( optionalSource.isPresent() )
 			{
 				final Source< ? > activeSource = optionalSource.get();
-				if ( accessMap.containsKey( activeSource ) && valueHandlers.containsKey( activeSource ) )
+				if ( dataSourceMap.containsKey( activeSource ) && valueHandlers.containsKey( activeSource ) )
 				{
-					final RealRandomAccess< ? > access = accessMap.get( activeSource );
+					final ViewerState state = viewer.getState();
+					final int currentSource = state.getCurrentSource();
+					final Interpolation interpolation = state.getInterpolation();
+					final int level = state.getBestMipMapLevel( this.viewerTransform, currentSource );
+					final Source< ? > source = dataSourceMap.get( activeSource );
+					final RealRandomAccess< ? > access = source.getInterpolatedSource( 0, level, interpolation ).realRandomAccess();
 					viewer.getMouseCoordinates( access );
 					access.setPosition( 0l, 2 );
 					viewer.displayToGlobalCoordinates( access );
