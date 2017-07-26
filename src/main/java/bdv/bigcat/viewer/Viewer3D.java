@@ -53,30 +53,28 @@ public class Viewer3D
 
 	static float[] verticesArray = new float[ 0 ];
 
-	private boolean isReady = false;
-
 	private static RandomAccessibleInterval< LabelMultisetType > volumeLabels = null;
 
 	private static MarchingCubes.ForegroundCriterion criterion = MarchingCubes.ForegroundCriterion.EQUAL;
 
-	private SceneryPanel scPanel[] = { null };
+	private final SceneryPanel scPanel;
 
 	public Viewer3D()
-	{}
+	{
+		this.scPanel = new SceneryPanel( 500, 500 );
+	}
 
-	public void createViewer3D()
+	public void init()
 	{
 		// this.infoPane = new Label( "info box" );
 		loadData();
 
-		scPanel[ 0 ] = getPanel();
-
-		Settings settings = new Settings();
-		Hub hub = new Hub();
-		graphics.scenery.Scene scene = new graphics.scenery.Scene();
+		final Settings settings = new Settings();
+		final Hub hub = new Hub();
+		final graphics.scenery.Scene scene = new graphics.scenery.Scene();
 		hub.add( SceneryElement.Settings, settings );
 
-		Renderer renderer = Renderer.Factory.createRenderer( hub, "BigCAT", scene, 500, 500, scPanel[ 0 ] );
+		final Renderer renderer = Renderer.Factory.createRenderer( hub, "BigCAT", scene, 500, 500, scPanel );
 		hub.add( SceneryElement.Renderer, renderer );
 
 		final Box hull = new Box( new GLVector( 50.0f, 50.0f, 50.0f ), true );
@@ -85,9 +83,9 @@ public class Viewer3D
 		scene.addChild( hull );
 
 		final Material material = new Material();
-		material.setAmbient( new GLVector( 0.1f * ( 1 ), 1.0f, 1.0f ) );
-		material.setDiffuse( new GLVector( 0.1f * ( 1 ), 0.0f, 1.0f ) );
-		material.setSpecular( new GLVector( 0.1f * ( 1 ), 0f, 0f ) );
+		material.setAmbient( new GLVector( 0.1f * 1, 1.0f, 1.0f ) );
+		material.setDiffuse( new GLVector( 0.1f * 1, 0.0f, 1.0f ) );
+		material.setSpecular( new GLVector( 0.1f * 1, 0f, 0f ) );
 
 		final Camera cam = new DetachedHeadCamera();
 
@@ -96,7 +94,7 @@ public class Viewer3D
 		cam.setPosition( new GLVector( 2f, 2f, 10 ) );
 		scene.addChild( cam );
 
-		PointLight[] lights = new PointLight[ 4 ];
+		final PointLight[] lights = new PointLight[ 4 ];
 
 		for ( int i = 0; i < lights.length; i++ )
 		{
@@ -115,7 +113,7 @@ public class Viewer3D
 		for ( int i = 0; i < lights.length; i++ )
 			scene.addChild( lights[ i ] );
 
-		Mesh neuron = new Mesh();
+		final Mesh neuron = new Mesh();
 		neuron.setMaterial( material );
 		neuron.setName( "neuron" );
 		neuron.setPosition( new GLVector( 0.0f, 0.0f, 0.0f ) );
@@ -124,6 +122,7 @@ public class Viewer3D
 
 		new Thread()
 		{
+			@Override
 			public void run()
 			{
 
@@ -131,22 +130,11 @@ public class Viewer3D
 			}
 		}.start();
 
-		isReady = true;
-	}
-
-	public void createPanel()
-	{
-		scPanel[ 0 ] = new SceneryPanel( 500, 500 );
-	}
-
-	public void setPanel( SceneryPanel panel)
-	{
-		scPanel[ 0 ] = panel;
 	}
 
 	/**
 	 * this method update the mesh with new data
-	 * 
+	 *
 	 * @param m
 	 *            mesh information to be converted in a mesh for scenery
 	 * @param neuron
@@ -158,13 +146,11 @@ public class Viewer3D
 	 *            time this method is called it add more vertices to the already
 	 *            existing array.
 	 */
-	public static void updateMesh( SimpleMesh m, Mesh neuron, boolean overwriteArray )
+	public static void updateMesh( final SimpleMesh m, final Mesh neuron, final boolean overwriteArray )
 	{
 		/** max value int = 2,147,483,647 */
 		if ( LOGGER.isDebugEnabled() )
-		{
 			LOGGER.debug( "previous size of vertices: " + verticesArray.length );
-		}
 
 		final int vertexCount;
 		// resize array to fit the new mesh
@@ -176,10 +162,10 @@ public class Viewer3D
 		else
 		{
 			vertexCount = verticesArray.length;
-			verticesArray = Arrays.copyOf( verticesArray, ( m.getNumberOfVertices() * 3 + vertexCount ) );
+			verticesArray = Arrays.copyOf( verticesArray, m.getNumberOfVertices() * 3 + vertexCount );
 		}
 
-		float[][] vertices = m.getVertices();
+		final float[][] vertices = m.getVertices();
 		int v = 0;
 		for ( int i = 0; i < m.getNumberOfVertices(); i++ )
 		{
@@ -190,9 +176,7 @@ public class Viewer3D
 
 		// omp parallel for
 		for ( int i = vertexCount; i < verticesArray.length; ++i )
-		{
 			verticesArray[ i ] /= maxAxisVal;
-		}
 
 		neuron.setVertices( FloatBuffer.wrap( verticesArray ) );
 		neuron.recalculateNormals();
@@ -209,29 +193,25 @@ public class Viewer3D
 
 		/* labels */
 		if ( reader.exists( path_label ) )
-		{
 			try
-			{
+		{
 				labels = HDF5Reader.readLabels( reader, path_label );
-			}
-			catch ( IOException e )
-			{
-				e.printStackTrace();
-			}
+		}
+		catch ( final IOException e )
+		{
+			e.printStackTrace();
 		}
 		else
-		{
 			System.out.println( "no label dataset '" + path_label + "' found" );
-		}
 
 		volumeLabels = labels.get( 0 ).getImage( 0 );
 	}
 
-	private static void marchingCubes( Scene scene )
+	private static void marchingCubes( final Scene scene )
 	{
-		int numberOfCellsX = ( int ) ( ( volumeLabels.max( 0 ) - volumeLabels.min( 0 ) ) + 1 ) / 32;
-		int numberOfCellsY = ( int ) ( ( volumeLabels.max( 1 ) - volumeLabels.min( 1 ) ) + 1 ) / 32;
-		int numberOfCellsZ = ( int ) ( ( volumeLabels.max( 2 ) - volumeLabels.min( 2 ) ) + 1 ) / 32;
+		int numberOfCellsX = ( int ) ( volumeLabels.max( 0 ) - volumeLabels.min( 0 ) + 1 ) / 32;
+		int numberOfCellsY = ( int ) ( volumeLabels.max( 1 ) - volumeLabels.min( 1 ) + 1 ) / 32;
+		int numberOfCellsZ = ( int ) ( volumeLabels.max( 2 ) - volumeLabels.min( 2 ) + 1 ) / 32;
 
 		LOGGER.trace( "division: " + numberOfCellsX + " " + numberOfCellsY + " " + numberOfCellsZ );
 
@@ -241,16 +221,16 @@ public class Viewer3D
 
 		LOGGER.trace( "partition size 1: " + numberOfCellsX + " " + numberOfCellsY + " " + numberOfCellsZ );
 
-		numberOfCellsX = ( numberOfCellsX == 0 ) ? 1 : numberOfCellsX;
-		numberOfCellsY = ( numberOfCellsY == 0 ) ? 1 : numberOfCellsY;
-		numberOfCellsZ = ( numberOfCellsZ == 0 ) ? 1 : numberOfCellsZ;
+		numberOfCellsX = numberOfCellsX == 0 ? 1 : numberOfCellsX;
+		numberOfCellsY = numberOfCellsY == 0 ? 1 : numberOfCellsY;
+		numberOfCellsZ = numberOfCellsZ == 0 ? 1 : numberOfCellsZ;
 
 		LOGGER.trace( "zero verification: " + numberOfCellsX + " " + numberOfCellsY + " " + numberOfCellsZ );
 
-		int[] partitionSize = new int[] { numberOfCellsX, numberOfCellsY, numberOfCellsZ };
+		final int[] partitionSize = new int[] { numberOfCellsX, numberOfCellsY, numberOfCellsZ };
 		LOGGER.trace( "final partition size: " + numberOfCellsX + " " + numberOfCellsY + " " + numberOfCellsZ );
 
-		List< Chunk > chunks = new ArrayList< Chunk >();
+		List< Chunk > chunks = new ArrayList< >();
 
 		CompletionService< SimpleMesh > executor = null;
 		List< Future< SimpleMesh > > resultMeshList = null;
@@ -260,7 +240,7 @@ public class Viewer3D
 			verticesArray = new float[ 0 ];
 			chunks.clear();
 
-			Mesh neuron = new Mesh();
+			final Mesh neuron = new Mesh();
 			final Material material = new Material();
 			material.setAmbient( new GLVector( 1f, 0.0f, 1f ) );
 			material.setSpecular( new GLVector( 1f, 0.0f, 1f ) );
@@ -288,7 +268,7 @@ public class Viewer3D
 			cubeSize[ 1 ] = voxSize;
 			cubeSize[ 2 ] = 1;
 
-			VolumePartitioner partitioner = new VolumePartitioner( volumeLabels, partitionSize, cubeSize );
+			final VolumePartitioner partitioner = new VolumePartitioner( volumeLabels, partitionSize, cubeSize );
 			chunks = partitioner.dataPartitioning();
 
 //			chunks.clear();
@@ -298,7 +278,7 @@ public class Viewer3D
 //			chunks.add( chunk );
 
 			LOGGER.info( "starting executor..." );
-			executor = new ExecutorCompletionService< SimpleMesh >( Executors.newWorkStealingPool() );
+			executor = new ExecutorCompletionService< >( Executors.newWorkStealingPool() );
 
 			resultMeshList = new ArrayList<>();
 
@@ -309,21 +289,17 @@ public class Viewer3D
 			maxAxisVal = Math.max( maxX, Math.max( maxY, maxZ ) );
 
 			if ( LOGGER.isTraceEnabled() )
-			{
 				LOGGER.trace( "maxX " + maxX + " maxY: " + maxY + " maxZ: " + maxZ + " maxAxisVal: " + maxAxisVal );
-			}
 
 			if ( LOGGER.isDebugEnabled() )
-			{
 				LOGGER.debug( "creating callables for " + chunks.size() + " partitions..." );
-			}
 
 			for ( int i = 0; i < chunks.size(); i++ )
 			{
-				int[] subvolDim = new int[] { ( int ) chunks.get( i ).getVolume().dimension( 0 ), ( int ) chunks.get( i ).getVolume().dimension( 1 ),
+				final int[] subvolDim = new int[] { ( int ) chunks.get( i ).getVolume().dimension( 0 ), ( int ) chunks.get( i ).getVolume().dimension( 1 ),
 						( int ) chunks.get( i ).getVolume().dimension( 2 ) };
 
-				MarchingCubesCallable callable = new MarchingCubesCallable( chunks.get( i ).getVolume(), subvolDim, chunks.get( i ).getOffset(), cubeSize, criterion, foregroundValue,
+				final MarchingCubesCallable callable = new MarchingCubesCallable( chunks.get( i ).getVolume(), subvolDim, chunks.get( i ).getOffset(), cubeSize, criterion, foregroundValue,
 						true );
 
 				if ( LOGGER.isDebugEnabled() )
@@ -334,7 +310,7 @@ public class Viewer3D
 					LOGGER.debug( "callable: " + callable );
 				}
 
-				Future< SimpleMesh > result = executor.submit( callable );
+				final Future< SimpleMesh > result = executor.submit( callable );
 				resultMeshList.add( result );
 			}
 
@@ -348,11 +324,9 @@ public class Viewer3D
 				{
 					completedFuture = executor.take();
 					if ( LOGGER.isTraceEnabled() )
-					{
 						LOGGER.trace( "task " + completedFuture + " is ready: " + completedFuture.isDone() );
-					}
 				}
-				catch ( InterruptedException e )
+				catch ( final InterruptedException e )
 				{
 					// TODO Auto-generated catch block
 					LOGGER.error( " task interrupted: " + e.getCause() );
@@ -385,9 +359,7 @@ public class Viewer3D
 			}
 
 			if ( LOGGER.isDebugEnabled() )
-			{
 				LOGGER.debug( "size of mesh " + verticesArray.length );
-			}
 
 			LOGGER.info( "all results generated!" );
 
@@ -396,7 +368,7 @@ public class Viewer3D
 			{
 				Thread.sleep( 2000 );
 			}
-			catch ( InterruptedException e )
+			catch ( final InterruptedException e )
 			{
 				// TODO Auto-generated catch block
 				e.printStackTrace();
@@ -408,16 +380,7 @@ public class Viewer3D
 
 	public SceneryPanel getPanel()
 	{
-		if ( scPanel[ 0 ] == null )
-			createPanel();
-
-		return scPanel[ 0 ];
-
-	}
-
-	public boolean isReady()
-	{
-		return isReady;
+		return scPanel;
 	}
 
 	public Renderer getRenderer()

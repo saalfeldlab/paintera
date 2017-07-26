@@ -102,24 +102,7 @@ public class BaseView
 
 	protected Node createInfo()
 	{
-		viewer3D.createViewer3D();
-		final Thread t = new Thread( () -> {
-			while ( !created3DViewer )
-			{
-				try
-				{
-					Thread.sleep( 10 );
-				}
-				catch ( final InterruptedException e )
-				{
-					e.printStackTrace();
-					return;
-				}
-				created3DViewer = viewer3D.isReady();
-			}
-			created3DViewer = true;
-		} );
-		t.start();
+		viewer3D.init();
 		return viewer3D.getPanel();
 	}
 

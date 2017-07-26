@@ -36,24 +36,13 @@ import graphics.scenery.SceneryElement;
 import graphics.scenery.backends.Renderer;
 import graphics.scenery.utils.SceneryPanel;
 import javafx.application.Platform;
-import javafx.geometry.HPos;
-import javafx.geometry.Insets;
-import javafx.geometry.VPos;
-import javafx.scene.control.Label;
-import javafx.scene.layout.Background;
-import javafx.scene.layout.BackgroundFill;
-import javafx.scene.layout.CornerRadii;
-import javafx.scene.layout.GridPane;
-import javafx.scene.layout.Priority;
 import javafx.scene.layout.StackPane;
-import javafx.scene.paint.Color;
-import javafx.scene.text.TextAlignment;
 import javafx.stage.Stage;
 import net.imglib2.RandomAccessibleInterval;
 
 /**
  * Unit test for marching cubes
- * 
+ *
  * @author vleite
  */
 public class JavaFXMarchingCubesExample
@@ -124,35 +113,31 @@ public class JavaFXMarchingCubesExample
 
 		/* labels */
 		if ( reader.exists( path_label ) )
-		{
 			try
-			{
+		{
 				labels = HDF5Reader.readLabels( reader, path_label );
-			}
-			catch ( IOException e )
-			{
-				e.printStackTrace();
-			}
+		}
+		catch ( final IOException e )
+		{
+			e.printStackTrace();
 		}
 		else
-		{
 			logger.error( "no label dataset '" + path_label + "' found" );
-		}
 
 		volumeLabels = labels.get( 0 ).getImage( 0 );
 	}
 
-	public static void main( String[] args ) throws Exception
+	public static void main( final String[] args ) throws Exception
 	{
 		// Set the log level
 		System.setProperty( org.slf4j.impl.SimpleLogger.DEFAULT_LOG_LEVEL_KEY, "INFO" );
-		MarchingCubeApplication viewer = new MarchingCubeApplication( "Marching cube", 800, 600 );
+		final MarchingCubeApplication viewer = new MarchingCubeApplication( "Marching cube", 800, 600 );
 		viewer.main();
 	}
 
 	private static class MarchingCubeApplication extends SceneryDefaultApplication
 	{
-		public MarchingCubeApplication( String applicationName, int windowWidth, int windowHeight )
+		public MarchingCubeApplication( final String applicationName, final int windowWidth, final int windowHeight )
 		{
 			super( applicationName, windowWidth, windowHeight, false );
 		}
@@ -160,50 +145,21 @@ public class JavaFXMarchingCubesExample
 		@Override
 		public void init()
 		{
-			CountDownLatch latch = new CountDownLatch( 1 );
+			final CountDownLatch latch = new CountDownLatch( 1 );
 			final SceneryPanel[] imagePanel = { null };
 
 			PlatformImpl.startup( () -> {} );
 
 			Platform.runLater( () -> {
 
-				Stage stage = new Stage();
+				final Stage stage = new Stage();
 				stage.setTitle( getApplicationName() );
 
-				StackPane stackPane = new StackPane();
-				stackPane.setBackground(
-						new Background( new BackgroundFill( Color.TRANSPARENT, CornerRadii.EMPTY, Insets.EMPTY ) ) );
-
-				GridPane pane = new GridPane();
-				Label label = new Label( getApplicationName() );
-
+				final StackPane pane = new StackPane();
 				imagePanel[ 0 ] = new SceneryPanel( getWindowWidth(), getWindowHeight() );
+				pane.getChildren().addAll( imagePanel[ 0 ] );
 
-				GridPane.setHgrow( imagePanel[ 0 ], Priority.ALWAYS );
-				GridPane.setVgrow( imagePanel[ 0 ], Priority.ALWAYS );
-
-				GridPane.setFillHeight( imagePanel[ 0 ], true );
-				GridPane.setFillWidth( imagePanel[ 0 ], true );
-
-				GridPane.setHgrow( label, Priority.ALWAYS );
-				GridPane.setHalignment( label, HPos.CENTER );
-				GridPane.setValignment( label, VPos.BOTTOM );
-
-				label.maxWidthProperty().bind( pane.widthProperty() );
-
-				pane.setStyle( "-fx-background-color: rgb(20, 255, 20);" + "-fx-font-family: Consolas;"
-						+ "-fx-font-weight: 400;" + "-fx-font-size: 1.2em;" + "-fx-text-fill: white;"
-						+ "-fx-text-alignment: center;" );
-
-				label.setStyle( "-fx-padding: 0.2em;" + "-fx-text-fill: black;" );
-
-				label.setTextAlignment( TextAlignment.CENTER );
-
-				pane.add( imagePanel[ 0 ], 1, 1 );
-				pane.add( label, 1, 2 );
-				stackPane.getChildren().addAll( pane );
-
-				javafx.scene.Scene scene = new javafx.scene.Scene( stackPane );
+				final javafx.scene.Scene scene = new javafx.scene.Scene( pane );
 				stage.setScene( scene );
 				stage.setOnCloseRequest( event -> {
 					getRenderer().setShouldClose( true );
@@ -219,7 +175,7 @@ public class JavaFXMarchingCubesExample
 			{
 				latch.await();
 			}
-			catch ( InterruptedException e1 )
+			catch ( final InterruptedException e1 )
 			{
 				e1.printStackTrace();
 			}
@@ -230,7 +186,7 @@ public class JavaFXMarchingCubesExample
 			{
 				writer = new PrintWriter( "vertices_.txt", "UTF-8" );
 			}
-			catch ( IOException e )
+			catch ( final IOException e )
 			{
 				e.printStackTrace();
 			}
@@ -251,7 +207,7 @@ public class JavaFXMarchingCubesExample
 			cam.setPosition( new GLVector( 2f, 2f, 10 ) );
 			getScene().addChild( cam );
 
-			PointLight[] lights = new PointLight[ 4 ];
+			final PointLight[] lights = new PointLight[ 4 ];
 
 			for ( int i = 0; i < lights.length; i++ )
 			{
@@ -272,6 +228,7 @@ public class JavaFXMarchingCubesExample
 
 			new Thread()
 			{
+				@Override
 				public void run()
 				{
 
@@ -281,23 +238,23 @@ public class JavaFXMarchingCubesExample
 		}
 	}
 
-	private static void marchingCube( Scene scene )
+	private static void marchingCube( final Scene scene )
 	{
-		int numberOfCellsX = ( int ) ( ( volumeLabels.max( 0 ) - volumeLabels.min( 0 ) ) + 1 ) / 32;
-		int numberOfCellsY = ( int ) ( ( volumeLabels.max( 1 ) - volumeLabels.min( 1 ) ) + 1 ) / 32;
-		int numberOfCellsZ = ( int ) ( ( volumeLabels.max( 2 ) - volumeLabels.min( 2 ) ) + 1 ) / 32;
+		int numberOfCellsX = ( int ) ( volumeLabels.max( 0 ) - volumeLabels.min( 0 ) + 1 ) / 32;
+		int numberOfCellsY = ( int ) ( volumeLabels.max( 1 ) - volumeLabels.min( 1 ) + 1 ) / 32;
+		int numberOfCellsZ = ( int ) ( volumeLabels.max( 2 ) - volumeLabels.min( 2 ) + 1 ) / 32;
 
 		numberOfCellsX = numberOfCellsX >= 7 ? 7 * 32 : numberOfCellsX * 32;
 		numberOfCellsY = numberOfCellsY >= 7 ? 7 * 32 : numberOfCellsY * 32;
 		numberOfCellsZ = numberOfCellsZ >= 7 ? 7 * 32 : numberOfCellsZ * 32;
 
-		numberOfCellsX = ( numberOfCellsX == 0 ) ? 1 : numberOfCellsX;
-		numberOfCellsY = ( numberOfCellsY == 0 ) ? 1 : numberOfCellsY;
-		numberOfCellsZ = ( numberOfCellsZ == 0 ) ? 1 : numberOfCellsZ;
+		numberOfCellsX = numberOfCellsX == 0 ? 1 : numberOfCellsX;
+		numberOfCellsY = numberOfCellsY == 0 ? 1 : numberOfCellsY;
+		numberOfCellsZ = numberOfCellsZ == 0 ? 1 : numberOfCellsZ;
 
-		int[] partitionSize = new int[] { numberOfCellsX, numberOfCellsY, numberOfCellsZ };
+		final int[] partitionSize = new int[] { numberOfCellsX, numberOfCellsY, numberOfCellsZ };
 
-		List< Chunk > chunks = new ArrayList< Chunk >();
+		List< Chunk > chunks = new ArrayList< >();
 
 		CompletionService< SimpleMesh > executor = null;
 		List< Future< SimpleMesh > > resultMeshList = null;
@@ -307,7 +264,7 @@ public class JavaFXMarchingCubesExample
 			verticesArray = new float[ 0 ];
 			chunks.clear();
 
-			Mesh neuron = new Mesh();
+			final Mesh neuron = new Mesh();
 			final Material material = new Material();
 			material.setAmbient( new GLVector( 1f, 0.0f, 1f ) );
 			material.setSpecular( new GLVector( 1f, 0.0f, 1f ) );
@@ -335,7 +292,7 @@ public class JavaFXMarchingCubesExample
 			cubeSize[ 1 ] = voxSize;
 			cubeSize[ 2 ] = 1;
 
-			VolumePartitioner partitioner = new VolumePartitioner( volumeLabels, partitionSize, cubeSize );
+			final VolumePartitioner partitioner = new VolumePartitioner( volumeLabels, partitionSize, cubeSize );
 			chunks = partitioner.dataPartitioning();
 
 //			chunks.clear();
@@ -344,7 +301,7 @@ public class JavaFXMarchingCubesExample
 //			chunk.setOffset( new int[] { 0, 0, 0 } );
 //			chunks.add( chunk );
 
-			executor = new ExecutorCompletionService< SimpleMesh >( Executors.newWorkStealingPool() );
+			executor = new ExecutorCompletionService< >( Executors.newWorkStealingPool() );
 
 			resultMeshList = new ArrayList<>();
 
@@ -356,13 +313,13 @@ public class JavaFXMarchingCubesExample
 
 			for ( int i = 0; i < chunks.size(); i++ )
 			{
-				int[] subvolDim = new int[] { ( int ) chunks.get( i ).getVolume().dimension( 0 ), ( int ) chunks.get( i ).getVolume().dimension( 1 ),
+				final int[] subvolDim = new int[] { ( int ) chunks.get( i ).getVolume().dimension( 0 ), ( int ) chunks.get( i ).getVolume().dimension( 1 ),
 						( int ) chunks.get( i ).getVolume().dimension( 2 ) };
 
-				MarchingCubesCallable callable = new MarchingCubesCallable( chunks.get( i ).getVolume(), subvolDim, chunks.get( i ).getOffset(), cubeSize, criterion, foregroundValue,
+				final MarchingCubesCallable callable = new MarchingCubesCallable( chunks.get( i ).getVolume(), subvolDim, chunks.get( i ).getOffset(), cubeSize, criterion, foregroundValue,
 						true );
 
-				Future< SimpleMesh > result = executor.submit( callable );
+				final Future< SimpleMesh > result = executor.submit( callable );
 				resultMeshList.add( result );
 			}
 
@@ -375,7 +332,7 @@ public class JavaFXMarchingCubesExample
 				{
 					completedFuture = executor.take();
 				}
-				catch ( InterruptedException e )
+				catch ( final InterruptedException e )
 				{
 					e.printStackTrace();
 				}
@@ -411,7 +368,7 @@ public class JavaFXMarchingCubesExample
 			{
 				Thread.sleep( 2000 );
 			}
-			catch ( InterruptedException e )
+			catch ( final InterruptedException e )
 			{
 				// TODO Auto-generated catch block
 				e.printStackTrace();
@@ -423,7 +380,7 @@ public class JavaFXMarchingCubesExample
 
 	/**
 	 * this method update the mesh with new data
-	 * 
+	 *
 	 * @param m
 	 *            mesh information to be converted in a mesh for scenery
 	 * @param neuron
@@ -435,7 +392,7 @@ public class JavaFXMarchingCubesExample
 	 *            time this method is called it add more vertices to the already
 	 *            existing array.
 	 */
-	public static void updateMesh( SimpleMesh m, Mesh neuron, boolean overwriteArray )
+	public static void updateMesh( final SimpleMesh m, final Mesh neuron, final boolean overwriteArray )
 	{
 		/** max value int = 2,147,483,647 */
 		final int vertexCount;
@@ -448,10 +405,10 @@ public class JavaFXMarchingCubesExample
 		else
 		{
 			vertexCount = verticesArray.length;
-			verticesArray = Arrays.copyOf( verticesArray, ( m.getNumberOfVertices() * 3 + vertexCount ) );
+			verticesArray = Arrays.copyOf( verticesArray, m.getNumberOfVertices() * 3 + vertexCount );
 		}
 
-		float[][] vertices = m.getVertices();
+		final float[][] vertices = m.getVertices();
 		int v = 0;
 		for ( int i = 0; i < m.getNumberOfVertices(); i++ )
 		{
