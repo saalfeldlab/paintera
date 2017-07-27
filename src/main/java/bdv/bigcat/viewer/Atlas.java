@@ -25,6 +25,9 @@ import bdv.viewer.SourceAndConverter;
 import bdv.viewer.ViewerOptions;
 import bdv.viewer.ViewerPanel;
 import javafx.application.Application;
+import javafx.collections.FXCollections;
+import javafx.collections.MapChangeListener;
+import javafx.collections.ObservableMap;
 import javafx.scene.Node;
 import javafx.scene.Scene;
 import javafx.scene.control.Label;
@@ -61,13 +64,13 @@ public class Atlas
 
 	private final AtlasValueDisplayListener valueDisplayListener;
 
-	private final HashMap< DatasetSpec< ?, ? >, Source< ? > > specs = new HashMap<>();
+	private final ObservableMap< DatasetSpec< ?, ? >, Source< ? > > specs = FXCollections.observableHashMap();
 
 	private final HashMap< Source< ? >, SelectedIds > selectedIds = new HashMap<>();
 
-	private final AtlasIdSelector idSelector = new AtlasIdSelector( selectedIds );
-
 	private final HashMap< Source< ? >, Composite< ARGBType, ARGBType > > composites = new HashMap<>();
+
+	private final AtlasIdSelector idSelector = new AtlasIdSelector( selectedIds );
 
 	private final ViewerOptions viewerOptions;
 
@@ -95,6 +98,16 @@ public class Atlas
 		final Converter< VolatileFloatType, ARGBType > vconv = ( input, output ) -> {
 			conv.convert( input.get(), output );
 		};
+
+		this.specs.addListener( ( MapChangeListener< DatasetSpec< ?, ? >, Source< ? > > ) c -> {
+			if ( c.wasRemoved() )
+			{
+				final Source< ? > source = c.getValueRemoved();
+				this.selectedIds.remove( source );
+				this.composites.remove( source );
+				this.view.removeSource( source );
+			}
+		} );
 
 	}
 
@@ -218,6 +231,11 @@ public class Atlas
 		}
 	}
 
+	public < T, VT > void removeSource( final DatasetSpec< T, VT > spec )
+	{
+		this.specs.remove( spec );
+	}
+
 	public BaseView baseView()
 	{
 		return this.view;
@@ -225,7 +243,6 @@ public class Atlas
 
 	protected Node createInfo()
 	{
-
 		final TableView< ? > table = new TableView<>();
 		table.setEditable( true );
 		table.getColumns().addAll( new TableColumn<>( "Property" ), new TableColumn<>( "Value" ) );
