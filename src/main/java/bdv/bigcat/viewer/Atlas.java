@@ -93,7 +93,7 @@ public class Atlas
 		this.view = new BaseView( focusHandler.onEnter(), focusHandler.onExit(), this.viewerOptions );
 		this.status = new Label();
 		this.view.setBottom( status );
-		this.view.setInfoNode( createInfo() );
+		this.view.setInfoNode( this.view.globalSourcesInfoNode() );
 		valueDisplayListener = new AtlasValueDisplayListener( status );
 //		final AtlasMouseCoordinatePrinter mcp = new AtlasMouseCoordinatePrinter( this.status );
 //		addOnEnterOnExit( mcp.onEnter(), mcp.onExit(), true );

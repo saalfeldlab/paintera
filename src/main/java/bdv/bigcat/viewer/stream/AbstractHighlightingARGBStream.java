@@ -113,7 +113,7 @@ abstract public class AbstractHighlightingARGBStream implements ARGBStream
 	 */
 	public void setAlpha( final int alpha )
 	{
-		this.alpha = alpha << 24;
+		this.alpha = ( alpha & 0xff ) << 24;
 	}
 
 	/**
@@ -124,7 +124,27 @@ abstract public class AbstractHighlightingARGBStream implements ARGBStream
 	 */
 	public void setHighlightAlpha( final int alpha )
 	{
-		this.highlightAlpha = alpha << 24;
+		this.highlightAlpha = ( alpha & 0xff ) << 24;
+	}
+
+	public void setInvalidSegmentAlpha( final int alpha )
+	{
+		this.invalidSegmentAlpha = ( alpha & 0xff ) << 24;
+	}
+
+	public int getAlpha()
+	{
+		return this.alpha >>> 24;
+	}
+
+	public int getHighlightAlpha()
+	{
+		return this.highlightAlpha >>> 24;
+	}
+
+	public int getInvalidSegmentAlpha()
+	{
+		return invalidSegmentAlpha >>> 24;
 	}
 
 	public void clearCache()

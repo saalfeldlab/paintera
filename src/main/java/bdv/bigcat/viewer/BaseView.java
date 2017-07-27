@@ -3,8 +3,10 @@ package bdv.bigcat.viewer;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.function.Consumer;
+import java.util.function.Function;
 
 import bdv.bigcat.composite.Composite;
+import bdv.bigcat.viewer.HDF5LabelMultisetSourceSpec.HighlightingStreamConverter;
 import bdv.bigcat.viewer.ViewerNode.ViewerAxis;
 import bdv.cache.CacheControl;
 import bdv.viewer.Source;
@@ -17,13 +19,18 @@ import javafx.collections.ListChangeListener;
 import javafx.collections.ObservableList;
 import javafx.embed.swing.SwingNode;
 import javafx.event.Event;
+import javafx.geometry.Orientation;
 import javafx.scene.Node;
 import javafx.scene.Scene;
 import javafx.scene.control.Label;
+import javafx.scene.control.Spinner;
 import javafx.scene.control.TextField;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.BorderPane;
+import javafx.scene.layout.FlowPane;
 import javafx.scene.layout.GridPane;
+import net.imglib2.converter.Converter;
+import net.imglib2.converter.RealARGBConverter;
 import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.type.numeric.ARGBType;
 
@@ -199,8 +206,6 @@ public class BaseView extends BorderPane
 
 		sourceLayers.addListener( viewerNode );
 
-		this.grid.add( viewerNode, rowIndex, colIndex );
-
 		final Thread t = new Thread( () -> {
 			boolean createdViewer = false;
 			while ( !createdViewer )
@@ -224,6 +229,8 @@ public class BaseView extends BorderPane
 		t.start();
 
 		addViewerNodesHandler( viewerNode, FOCUS_KEEPERS );
+
+		this.grid.add( viewerNode, rowIndex, colIndex );
 	}
 
 	private void maximizeActiveOrthoView( final Scene scene, final Event event )
@@ -253,5 +260,112 @@ public class BaseView extends BorderPane
 			}
 			isFullScreen[ 0 ] = !isFullScreen[ 0 ];
 		}
+	}
+
+	public Node globalSourcesInfoNode()
+	{
+		final FlowPane p = new FlowPane( Orientation.VERTICAL );
+
+		final HashMap< Source< ? >, Node > sourceToEntry = new HashMap<>();
+
+		final Function< SourceAndConverter< ? >, Node > entryCreator = ( sac ) -> {
+			final FlowPane fp = new FlowPane();
+			fp.getChildren().add( new Label( sac.getSpimSource().getName() ) );
+
+			final Converter< ?, ARGBType > conv = sac.getConverter();
+
+			if ( conv instanceof RealARGBConverter )
+			{
+				final RealARGBConverter< ? > c = ( RealARGBConverter< ? > ) conv;
+				// alpha
+				{
+					final Spinner< Integer > sp = new Spinner<>( 0, 255, c.getAlpha() );
+					sp.valueProperty().addListener( ( ChangeListener< Integer > ) ( observable, oldValue, newValue ) -> {
+						c.setAlpha( newValue );
+						viewerNodes.forEach( vn -> ( ( ViewerPanel ) vn.getContent() ).requestRepaint() );
+					} );
+					sp.setEditable( true );
+					fp.getChildren().add( sp );
+				}
+
+				// min
+				{
+					final Spinner< Double > sp = new Spinner<>( Double.NEGATIVE_INFINITY, Double.POSITIVE_INFINITY, c.getMin() );
+					sp.valueProperty().addListener( ( ChangeListener< Double > ) ( observable, oldValue, newValue ) -> {
+						c.setMin( newValue );
+						viewerNodes.forEach( vn -> ( ( ViewerPanel ) vn.getContent() ).requestRepaint() );
+					} );
+					sp.setEditable( true );
+					fp.getChildren().add( sp );
+				}
+
+				// max
+				{
+					final Spinner< Double > sp = new Spinner<>( Double.NEGATIVE_INFINITY, Double.POSITIVE_INFINITY, c.getMax() );
+					sp.valueProperty().addListener( ( ChangeListener< Double > ) ( observable, oldValue, newValue ) -> {
+						c.setMax( newValue );
+						viewerNodes.forEach( vn -> ( ( ViewerPanel ) vn.getContent() ).requestRepaint() );
+					} );
+					sp.setEditable( true );
+					fp.getChildren().add( sp );
+				}
+			}
+
+			else if ( conv instanceof HighlightingStreamConverter )
+			{
+				final HighlightingStreamConverter c = ( HighlightingStreamConverter ) conv;
+
+				// alpha
+				{
+					final Spinner< Integer > sp = new Spinner<>( 0, 255, c.getAlpha() );
+					sp.valueProperty().addListener( ( ChangeListener< Integer > ) ( observable, oldValue, newValue ) -> {
+						c.setAlpha( newValue );
+						viewerNodes.forEach( vn -> ( ( ViewerPanel ) vn.getContent() ).requestRepaint() );
+					} );
+					sp.setEditable( true );
+					fp.getChildren().add( sp );
+				}
+
+				// highlighting alpha
+				{
+					final Spinner< Integer > sp = new Spinner<>( 0, 255, c.getHighlightAlpha() );
+					sp.valueProperty().addListener( ( ChangeListener< Integer > ) ( observable, oldValue, newValue ) -> {
+						c.setHighlightAlpha( newValue );
+						viewerNodes.forEach( vn -> ( ( ViewerPanel ) vn.getContent() ).requestRepaint() );
+					} );
+					sp.setEditable( true );
+					fp.getChildren().add( sp );
+				}
+
+				// invalid alpha
+				{
+					final Spinner< Integer > sp = new Spinner<>( 0, 255, c.getInvalidSegmentAlpha() );
+					sp.valueProperty().addListener( ( ChangeListener< Integer > ) ( observable, oldValue, newValue ) -> {
+						c.setInvalidSegmentAlpha( newValue );
+						viewerNodes.forEach( vn -> ( ( ViewerPanel ) vn.getContent() ).requestRepaint() );
+					} );
+					sp.setEditable( true );
+					fp.getChildren().add( sp );
+				}
+			}
+
+			sourceToEntry.put( sac.getSpimSource(), fp );
+			p.getChildren().add( fp );
+
+			return fp;
+		};
+		for ( final SourceAndConverter< ? > source : sourceLayers )
+			entryCreator.apply( source );
+
+		sourceLayers.addListener( ( ListChangeListener< SourceAndConverter< ? > > ) c -> {
+			while ( c.next() )
+				if ( c.wasRemoved() )
+					c.getRemoved().forEach( rm -> p.getChildren().remove( sourceToEntry.remove( rm.getSpimSource() ) ) );
+				else if ( c.wasAdded() )
+					c.getAddedSubList().forEach( entryCreator::apply );
+
+		} );
+
+		return p;
 	}
 }

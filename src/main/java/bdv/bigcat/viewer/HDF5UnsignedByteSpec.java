@@ -131,7 +131,7 @@ public class HDF5UnsignedByteSpec implements DatasetSpec< UnsignedByteType, Vola
 
 	private final H5UnsignedByteSetupImageLoader loader;
 
-	private final RealARGBConverter< UnsignedByteType > conv = new RealARGBConverter<>();
+	private final RealARGBConverter< VolatileUnsignedByteType > conv = new RealARGBConverter<>();
 
 	public HDF5UnsignedByteSpec( final String path, final String dataset, final int[] cellSize, final double[] resolution, final double min, final double max ) throws IOException
 	{
@@ -145,21 +145,19 @@ public class HDF5UnsignedByteSpec implements DatasetSpec< UnsignedByteType, Vola
 	@Override
 	public UnsignedByteSource getSource()
 	{
-		return new UnsignedByteSource( loader, new UnsignedByteType(), "unsigned byte" );
+		return new UnsignedByteSource( loader, new UnsignedByteType(), "data" );
 	}
 
 	@Override
 	public VolatileUnsignedByteSource getViewerSource()
 	{
-		return new VolatileUnsignedByteSource( loader, new VolatileUnsignedByteType(), "volatile unsigned byte" );
+		return new VolatileUnsignedByteSource( loader, new VolatileUnsignedByteType(), "data" );
 	}
 
 	@Override
 	public Converter< VolatileUnsignedByteType, ARGBType > getViewerConverter()
 	{
-		return ( s, t ) -> {
-			conv.convert( s.get(), t );
-		};
+		return conv;
 	}
 
 }

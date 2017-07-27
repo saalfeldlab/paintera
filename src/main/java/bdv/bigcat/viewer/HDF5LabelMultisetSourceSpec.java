@@ -3,10 +3,10 @@ package bdv.bigcat.viewer;
 import java.io.IOException;
 import java.util.Iterator;
 
-import bdv.bigcat.ui.ARGBStream;
 import bdv.bigcat.ui.LabelMultisetSource;
 import bdv.bigcat.ui.VolatileLabelMultisetSource;
 import bdv.bigcat.viewer.state.SelectedIds;
+import bdv.bigcat.viewer.stream.AbstractHighlightingARGBStream;
 import bdv.bigcat.viewer.stream.ModalGoldenAngleSaturatedHighlightingARGBStream;
 import bdv.img.cache.VolatileGlobalCellCache;
 import bdv.img.h5.H5LabelMultisetSetupImageLoader;
@@ -23,7 +23,7 @@ import net.imglib2.type.numeric.ARGBType;
 public class HDF5LabelMultisetSourceSpec implements DatasetSpec< LabelMultisetType, VolatileLabelMultisetType >
 {
 
-	private final ARGBStream stream;
+	private final AbstractHighlightingARGBStream stream;
 
 	private final H5LabelMultisetSetupImageLoader loader;
 
@@ -59,18 +59,67 @@ public class HDF5LabelMultisetSourceSpec implements DatasetSpec< LabelMultisetTy
 	@Override
 	public Converter< VolatileLabelMultisetType, ARGBType > getViewerConverter()
 	{
-		final Converter< LabelMultisetType, ARGBType > conv = defaultConverter( stream );
-		return ( s, t ) -> {
-			conv.convert( s.get(), t );
-		};
+		return defaultConverter( stream );
 	}
 
-	public static Converter< LabelMultisetType, ARGBType > defaultConverter( final ARGBStream stream )
+	public static Converter< VolatileLabelMultisetType, ARGBType > defaultConverter( final AbstractHighlightingARGBStream stream )
 	{
-		return ( s, t ) -> {
-			final Iterator< Entry< Label > > it = s.entrySet().iterator();
-			t.set( it.hasNext() ? stream.argb( it.next().getElement().id() ) : 0 );
-		};
+		return new HighlightingStreamConverter( stream );
+	}
+
+	public static class HighlightingStreamConverter implements Converter< VolatileLabelMultisetType, ARGBType >
+	{
+
+		private final AbstractHighlightingARGBStream stream;
+
+		public HighlightingStreamConverter( final AbstractHighlightingARGBStream stream )
+		{
+			super();
+			this.stream = stream;
+		}
+
+		@Override
+		public void convert( final VolatileLabelMultisetType input, final ARGBType output )
+		{
+			final Iterator< Entry< Label > > it = input.get().entrySet().iterator();
+			output.set( stream.argb( it.hasNext() ? considerMaxUnsignedInt( it.next().getElement().id() ) : Label.INVALID ) );
+		}
+
+		public void setAlpha( final int alpha )
+		{
+			stream.setAlpha( alpha );
+		}
+
+		public void setHighlightAlpha( final int alpha )
+		{
+			stream.setHighlightAlpha( alpha );
+		}
+
+		public void setInvalidSegmentAlpha( final int alpha )
+		{
+			stream.setInvalidSegmentAlpha( alpha );
+		}
+
+		public int getAlpha()
+		{
+			return stream.getAlpha();
+		}
+
+		public int getHighlightAlpha()
+		{
+			return stream.getHighlightAlpha();
+		}
+
+		public int getInvalidSegmentAlpha()
+		{
+			return stream.getInvalidSegmentAlpha();
+		}
+
+		private static long considerMaxUnsignedInt( final long val )
+		{
+			return val >= Integer.MAX_VALUE ? Label.INVALID : val;
+		}
+
 	}
 
 }
