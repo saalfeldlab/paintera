@@ -1,7 +1,6 @@
 package bdv.bigcat.viewer;
 
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.Iterator;
 import java.util.Optional;
 import java.util.function.Consumer;
@@ -56,8 +55,6 @@ public class Atlas
 
 	private final BaseView view;
 
-	private final HashSet< Source< ? > > sources;
-
 	private final Label status;
 
 	private final AtlasFocusHandler focusHandler = new AtlasFocusHandler();
@@ -84,7 +81,6 @@ public class Atlas
 		super();
 		this.viewerOptions = viewerOptions.accumulateProjectorFactory( new CompositeProjectorFactory<>( composites ) );
 		this.view = new BaseView( focusHandler.onEnter(), focusHandler.onExit(), this.viewerOptions );
-		this.sources = new HashSet<>();
 		this.status = new Label();
 		this.view.setBottom( status );
 		this.view.setInfoNode( createInfo() );
