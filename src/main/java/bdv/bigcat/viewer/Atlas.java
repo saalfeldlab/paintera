@@ -111,7 +111,7 @@ public class Atlas
 
 	}
 
-	public void start( final Stage primaryStage ) throws Exception
+	public void start( final Stage primaryStage )
 	{
 
 		final Scene scene = view.createScene( 800, 600 );

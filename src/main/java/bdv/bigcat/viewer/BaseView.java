@@ -148,7 +148,7 @@ public class BaseView extends BorderPane
 		this.viewerActors.add( actor );
 	}
 
-	public Scene createScene( final int width, final int height ) throws Exception
+	public Scene createScene( final int width, final int height )
 	{
 		final Scene scene = new Scene( this, width, height );
 		scene.setOnKeyTyped( event -> {
