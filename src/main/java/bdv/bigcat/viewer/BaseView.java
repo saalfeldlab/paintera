@@ -119,6 +119,12 @@ public class BaseView extends BorderPane
 
 	public void setInfoNode( final Node node )
 	{
+		for ( final Node child : grid.getChildren() )
+			if ( GridPane.getRowIndex( child ) == 1 && GridPane.getColumnIndex( child ) == 1 )
+			{
+				grid.getChildren().remove( child );
+				break;
+			}
 		this.grid.add( node, 1, 1 );
 	}
 
