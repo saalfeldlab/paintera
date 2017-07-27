@@ -14,6 +14,7 @@ import bdv.viewer.state.SourceState;
 import bdv.viewer.state.ViewerState;
 import net.imglib2.RealRandomAccess;
 import net.imglib2.realtransform.AffineTransform3D;
+import net.imglib2.realtransform.RealViews;
 import net.imglib2.ui.TransformListener;
 
 public class ValueDisplayListener implements MouseMotionListener, TransformListener< AffineTransform3D >
@@ -104,7 +105,7 @@ public class ValueDisplayListener implements MouseMotionListener, TransformListe
 				final Source< ? > source = dataSourceMap.get( activeSource );
 				final AffineTransform3D affine = new AffineTransform3D();
 				source.getSourceTransform( 0, level, affine );
-				final RealRandomAccess< ? > access = source.getInterpolatedSource( 0, level, interpolation ).realRandomAccess();
+				final RealRandomAccess< ? > access = RealViews.transformReal( source.getInterpolatedSource( 0, level, interpolation ), affine ).realRandomAccess();
 				final Object val = getVal( x, y, access, viewer );
 				valueHandlers.get( activeSource ).accept( val );
 			}
