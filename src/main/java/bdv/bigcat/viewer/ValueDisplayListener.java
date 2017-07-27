@@ -27,6 +27,10 @@ public class ValueDisplayListener implements MouseMotionListener, TransformListe
 
 	private final AffineTransform3D viewerTransform = new AffineTransform3D();
 
+	private int x = -1;
+
+	private int y = -1;
+
 	public ValueDisplayListener( final HashMap< Source< ? >, Source< ? > > dataSourceMap, final HashMap< Source< ? >, Consumer > valueHandlers, final ViewerPanel viewer )
 	{
 		super();
@@ -42,55 +46,22 @@ public class ValueDisplayListener implements MouseMotionListener, TransformListe
 	@Override
 	public void mouseMoved( final MouseEvent e )
 	{
-		final int x = e.getX();
-		final int y = e.getY();
+		x = e.getX();
+		y = e.getY();
 
 		synchronized ( viewer )
 		{
-			final Optional< Source< ? > > optionalSource = getSource();
-			if ( optionalSource.isPresent() )
-			{
-				final Source< ? > activeSource = optionalSource.get();
-				if ( dataSourceMap.containsKey( activeSource ) && valueHandlers.containsKey( activeSource ) )
-				{
-					final ViewerState state = viewer.getState();
-					final int currentSource = state.getCurrentSource();
-					final Interpolation interpolation = state.getInterpolation();
-					final int level = state.getBestMipMapLevel( this.viewerTransform, currentSource );
-					final Source< ? > source = dataSourceMap.get( activeSource );
-					final RealRandomAccess< ? > access = source.getInterpolatedSource( 0, level, interpolation ).realRandomAccess();
-					final Object val = getVal( x, y, access, viewer );
-					valueHandlers.get( activeSource ).accept( val );
-				}
-			}
+			getInfo();
 		}
 	}
 
 	@Override
 	public void transformChanged( final AffineTransform3D transform )
 	{
+		this.viewerTransform.set( transform );
 		synchronized ( viewer )
 		{
-			this.viewerTransform.set( transform );
-			final Optional< Source< ? > > optionalSource = getSource();
-			if ( optionalSource.isPresent() )
-			{
-				final Source< ? > activeSource = optionalSource.get();
-				if ( dataSourceMap.containsKey( activeSource ) && valueHandlers.containsKey( activeSource ) )
-				{
-					final ViewerState state = viewer.getState();
-					final int currentSource = state.getCurrentSource();
-					final Interpolation interpolation = state.getInterpolation();
-					final int level = state.getBestMipMapLevel( this.viewerTransform, currentSource );
-					final Source< ? > source = dataSourceMap.get( activeSource );
-					final RealRandomAccess< ? > access = source.getInterpolatedSource( 0, level, interpolation ).realRandomAccess();
-					viewer.getMouseCoordinates( access );
-					access.setPosition( 0l, 2 );
-					viewer.displayToGlobalCoordinates( access );
-					final Object val = access.get();
-					valueHandlers.get( activeSource ).accept( val );
-				}
-			}
+			getInfo();
 		}
 	}
 
@@ -116,6 +87,28 @@ public class ValueDisplayListener implements MouseMotionListener, TransformListe
 			return Optional.empty();
 		final Source< ? > activeSource = sources.get( currentSource ).getSpimSource();
 		return Optional.of( activeSource );
+	}
+
+	private void getInfo()
+	{
+		final Optional< Source< ? > > optionalSource = getSource();
+		if ( optionalSource.isPresent() )
+		{
+			final Source< ? > activeSource = optionalSource.get();
+			if ( dataSourceMap.containsKey( activeSource ) && valueHandlers.containsKey( activeSource ) )
+			{
+				final ViewerState state = viewer.getState();
+				final int currentSource = state.getCurrentSource();
+				final Interpolation interpolation = state.getInterpolation();
+				final int level = state.getBestMipMapLevel( this.viewerTransform, currentSource );
+				final Source< ? > source = dataSourceMap.get( activeSource );
+				final AffineTransform3D affine = new AffineTransform3D();
+				source.getSourceTransform( 0, level, affine );
+				final RealRandomAccess< ? > access = source.getInterpolatedSource( 0, level, interpolation ).realRandomAccess();
+				final Object val = getVal( x, y, access, viewer );
+				valueHandlers.get( activeSource ).accept( val );
+			}
+		}
 	}
 
 }
