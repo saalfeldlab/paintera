@@ -9,7 +9,7 @@ import java.util.function.ToLongFunction;
 
 import org.dockfx.DockPane;
 
-import bdv.bigcat.composite.ARGBCompositeAlphaYCbCr;
+import bdv.bigcat.composite.ARGBCompositeAlphaAdd;
 import bdv.bigcat.composite.Composite;
 import bdv.bigcat.composite.CompositeCopy;
 import bdv.bigcat.composite.CompositeProjector.CompositeProjectorFactory;
@@ -17,8 +17,8 @@ import bdv.bigcat.viewer.AtlasFocusHandler.OnEnterOnExit;
 import bdv.bigcat.viewer.state.SelectedIds;
 import bdv.labels.labelset.LabelMultisetType;
 import bdv.labels.labelset.Multiset.Entry;
-import bdv.labels.labelset.VolatileLabelMultisetType;
 import bdv.util.RandomAccessibleSource;
+import bdv.util.RealRandomAccessibleIntervalSource;
 import bdv.viewer.Interpolation;
 import bdv.viewer.Source;
 import bdv.viewer.SourceAndConverter;
@@ -39,8 +39,11 @@ import javafx.scene.control.TextField;
 import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
 import net.imglib2.FinalInterval;
+import net.imglib2.Interval;
+import net.imglib2.RealRandomAccessible;
 import net.imglib2.converter.Converter;
 import net.imglib2.converter.RealARGBConverter;
+import net.imglib2.converter.TypeIdentity;
 import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.realtransform.InverseRealTransform;
 import net.imglib2.realtransform.RealTransformRealRandomAccessible;
@@ -74,12 +77,16 @@ public class Atlas
 
 	private final ViewerOptions viewerOptions;
 
-	public Atlas()
+	private final WrappedRealRandomAccessible< ARGBType > background;
+
+	private final Source< ARGBType > backgroundSource;
+
+	public Atlas( final Interval interval )
 	{
-		this( ViewerOptions.options() );
+		this( ViewerOptions.options(), interval );
 	}
 
-	public Atlas( final ViewerOptions viewerOptions )
+	public Atlas( final ViewerOptions viewerOptions, final Interval interval )
 	{
 		super();
 		this.viewerOptions = viewerOptions.accumulateProjectorFactory( new CompositeProjectorFactory<>( composites ) );
@@ -109,6 +116,21 @@ public class Atlas
 			}
 		} );
 
+		this.background = new WrappedRealRandomAccessible<>( ConstantUtils.constantRealRandomAccessible( new ARGBType(), interval.numDimensions() ) );
+		this.backgroundSource = new RealRandomAccessibleIntervalSource<>( this.background, interval, new ARGBType(), "background" );
+		final CompositeCopy< ARGBType > comp = new CompositeCopy<>();
+		this.composites.put( this.backgroundSource, comp );
+		this.view.addSource( new SourceAndConverter<>( this.backgroundSource, new TypeIdentity<>() ), comp );
+	}
+
+	public void setBackground( final RealRandomAccessible< ARGBType > background )
+	{
+		this.background.wrap( background );
+	}
+
+	public void setBackground( final ARGBType background )
+	{
+		this.background.wrap( ConstantUtils.constantRealRandomAccessible( background, this.background.numDimensions() ) );
 	}
 
 	public void start( final Stage primaryStage )
@@ -153,11 +175,7 @@ public class Atlas
 	public < T, VT > void addSource( final DatasetSpec< T, VT > spec )
 	{
 		final Source< VT > vsource = spec.getViewerSource();
-		final VT vt = vsource.getType();
-		final Composite< ARGBType, ARGBType > comp = vt instanceof ARGBType
-				|| vt instanceof LabelMultisetType
-				|| vt instanceof VolatileARGBType
-				|| vt instanceof VolatileLabelMultisetType ? new ARGBCompositeAlphaYCbCr() : new CompositeCopy<>();
+		final Composite< ARGBType, ARGBType > comp = new ARGBCompositeAlphaAdd();
 		final SourceAndConverter< VT > src = new SourceAndConverter<>( vsource, spec.getViewerConverter() );
 		view.addSource( src, comp );
 		this.specs.put( spec, vsource );
