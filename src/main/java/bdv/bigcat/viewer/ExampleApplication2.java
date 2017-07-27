@@ -1,12 +1,15 @@
 package bdv.bigcat.viewer;
 
-import java.util.HashMap;
-import java.util.concurrent.atomic.AtomicLong;
+import com.sun.javafx.application.PlatformImpl;
 
 import bdv.AbstractViewerSetupImgLoader;
 import bdv.viewer.Interpolation;
 import bdv.viewer.Source;
-import javafx.application.Application;
+import javafx.application.Platform;
+import javafx.scene.control.Button;
+import javafx.scene.control.ButtonBar.ButtonData;
+import javafx.scene.control.ButtonType;
+import javafx.scene.control.Dialog;
 import javafx.stage.Stage;
 import mpicbg.spim.data.sequence.VoxelDimensions;
 import net.imglib2.RandomAccessible;
@@ -25,20 +28,13 @@ import net.imglib2.type.volatiles.VolatileARGBType;
 import net.imglib2.view.ExtendedRandomAccessibleInterval;
 import net.imglib2.view.Views;
 
-public class ExampleApplication2 extends Application
+public class ExampleApplication2
 {
-
-	public ExampleApplication2()
-	{
-		super();
-	}
-
-	public static HashMap< Long, Atlas > activeViewers = new HashMap<>();
-
-	public static AtomicLong index = new AtomicLong( 0 );
 
 	public static void main( final String[] args ) throws Exception
 	{
+
+		PlatformImpl.startup( () -> {} );
 
 		final String rawFile = "/groups/saalfeld/home/hanslovskyp/from_funkej/phil/sample_B.augmented.0.hdf";
 		final String rawDataset = "volumes/raw";
@@ -51,15 +47,40 @@ public class ExampleApplication2 extends Application
 
 		final HDF5UnsignedByteSpec rawSource = new HDF5UnsignedByteSpec( rawFile, rawDataset, cellSize, resolution, 0, 255 );
 
-		final Atlas viewer = makeViewer();
+		final Atlas viewer = new Atlas();
+
+		Platform.runLater( () -> {
+			final Stage stage = new Stage();
+			viewer.start( stage );
+			stage.show();
+		} );
 
 		viewer.addSource( rawSource );
 
-//		final HDF5LabelMultisetSourceSpecDeprecated labelSpec = new HDF5LabelMultisetSourceSpecDeprecated( labelsFile, labelsDataset, cellSize );
-//		viewer.addSource( labelSpec );
-
 		final HDF5LabelMultisetSourceSpec labelSpec2 = new HDF5LabelMultisetSourceSpec( labelsFile, labelsDataset, cellSize );
 		viewer.addSource( labelSpec2 );
+
+		final boolean demonstrateRemove = true;
+		if ( demonstrateRemove )
+		{
+			final HDF5LabelMultisetSourceSpec labelSpec3 = new HDF5LabelMultisetSourceSpec( labelsFile, labelsDataset, cellSize );
+			viewer.addSource( labelSpec3 );
+
+			Platform.runLater( () -> {
+				final Dialog< Boolean > d = new Dialog<>();
+				final ButtonType removeType = new ButtonType( "Remove extra source", ButtonData.OK_DONE );
+				d.getDialogPane().getButtonTypes().add( removeType );
+				final Button b = ( Button ) d.getDialogPane().lookupButton( removeType );
+				System.out.println( "b " + b );
+				d.show();
+				d.setOnHiding( event -> {
+					System.out.println( "Removing source!" );
+					viewer.baseView().requestFocus();
+					viewer.removeSource( labelSpec3 );
+				} );
+				viewer.baseView().requestFocus();
+			} );
+		}
 
 	}
 
@@ -85,30 +106,6 @@ public class ExampleApplication2 extends Application
 			}
 		}
 
-	}
-
-	@Override
-	public void start( final Stage primaryStage ) throws Exception
-	{
-
-		final Atlas viewer = new Atlas();
-		viewer.start( primaryStage );
-		System.out.println( getParameters() );
-		activeViewers.put( Long.parseLong( getParameters().getRaw().get( 0 ) ), viewer );
-	}
-
-	public static Atlas makeViewer() throws InterruptedException
-	{
-
-		synchronized ( index )
-		{
-			final long idx = index.get();
-			final Thread t = new Thread( () -> Application.launch( ExampleApplication2.class, Long.toString( idx ) ) );
-			t.start();
-			while ( !activeViewers.containsKey( idx ) )
-				Thread.sleep( 10 );
-			return activeViewers.get( idx );
-		}
 	}
 
 	public static class ARGBConvertedSource< T > implements Source< VolatileARGBType >
