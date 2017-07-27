@@ -26,8 +26,15 @@ import bdv.viewer.SourceAndConverter;
 import bdv.viewer.ViewerOptions;
 import bdv.viewer.ViewerPanel;
 import javafx.application.Application;
+import javafx.scene.Node;
 import javafx.scene.Scene;
 import javafx.scene.control.Label;
+import javafx.scene.control.Tab;
+import javafx.scene.control.TabPane;
+import javafx.scene.control.TableColumn;
+import javafx.scene.control.TableView;
+import javafx.scene.control.TextField;
+import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
 import net.imglib2.FinalInterval;
 import net.imglib2.converter.Converter;
@@ -80,6 +87,7 @@ public class Atlas
 		this.sources = new HashSet<>();
 		this.status = new Label();
 		this.view.setBottom( status );
+		this.view.setInfoNode( createInfo() );
 		valueDisplayListener = new AtlasValueDisplayListener( status );
 //		final AtlasMouseCoordinatePrinter mcp = new AtlasMouseCoordinatePrinter( this.status );
 //		addOnEnterOnExit( mcp.onEnter(), mcp.onExit(), true );
@@ -217,6 +225,25 @@ public class Atlas
 	public BaseView baseView()
 	{
 		return this.view;
+	}
+
+	protected Node createInfo()
+	{
+
+		final TableView< ? > table = new TableView<>();
+		table.setEditable( true );
+		table.getColumns().addAll( new TableColumn<>( "Property" ), new TableColumn<>( "Value" ) );
+
+		final TextField tf = new TextField( "some text" );
+
+		final TabPane infoPane = new TabPane();
+
+		final VBox jfxStuff = new VBox( 1 );
+		jfxStuff.getChildren().addAll( tf, table );
+		infoPane.getTabs().add( new Tab( "jfx stuff", jfxStuff ) );
+		infoPane.getTabs().add( new Tab( "dataset info", new Label( "random floats" ) ) );
+		return infoPane;
+
 	}
 
 }

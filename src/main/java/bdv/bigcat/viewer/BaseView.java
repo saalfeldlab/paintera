@@ -20,15 +20,10 @@ import javafx.event.Event;
 import javafx.scene.Node;
 import javafx.scene.Scene;
 import javafx.scene.control.Label;
-import javafx.scene.control.Tab;
-import javafx.scene.control.TabPane;
-import javafx.scene.control.TableColumn;
-import javafx.scene.control.TableView;
 import javafx.scene.control.TextField;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.GridPane;
-import javafx.scene.layout.VBox;
 import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.type.numeric.ARGBType;
 
@@ -36,8 +31,6 @@ public class BaseView extends BorderPane
 {
 
 	public static final Class< ? >[] FOCUS_KEEPERS = { TextField.class };
-
-	private final Node infoPane;
 
 	private final HashSet< ViewerNode > viewerNodes = new HashSet<>();
 
@@ -95,8 +88,6 @@ public class BaseView extends BorderPane
 	public BaseView( final Consumer< ViewerPanel > onFocusEnter, final Consumer< ViewerPanel > onFocusExit, final ViewerOptions viewerOptions )
 	{
 		super();
-		this.infoPane = createInfo();
-		this.infoPane.requestFocus();
 		this.gm = new GlobalTransformManager( new AffineTransform3D() );
 		gm.setTransform( new AffineTransform3D() );
 
@@ -106,6 +97,22 @@ public class BaseView extends BorderPane
 		this.onFocusEnter = onFocusEnter;
 		this.onFocusExit = onFocusExit;
 		this.viewerOptions = viewerOptions;
+		this.grid.requestFocus();
+		this.setInfoNode( new Label( "Place your node here!" ) );
+	}
+
+	public void makeDefaultLayout()
+	{
+		addViewer( ViewerAxis.Z, 0, 0 );
+		addViewer( ViewerAxis.X, 0, 1 );
+		addViewer( ViewerAxis.Y, 1, 0 );
+		this.viewerNodes.forEach( Node::requestFocus );
+		this.grid.requestFocus();
+	}
+
+	public void setInfoNode( final Node node )
+	{
+		this.grid.add( node, 1, 1 );
 	}
 
 	public synchronized void addSource( final SourceAndConverter< ? > source, final Composite< ARGBType, ARGBType > comp )
@@ -139,25 +146,6 @@ public class BaseView extends BorderPane
 	public synchronized void addActor( final ViewerActor actor )
 	{
 		this.viewerActors.add( actor );
-	}
-
-	protected Node createInfo()
-	{
-
-		final TableView< ? > table = new TableView<>();
-		table.setEditable( true );
-		table.getColumns().addAll( new TableColumn<>( "Property" ), new TableColumn<>( "Value" ) );
-
-		final TextField tf = new TextField( "some text" );
-
-		final TabPane infoPane = new TabPane();
-
-		final VBox jfxStuff = new VBox( 1 );
-		jfxStuff.getChildren().addAll( tf, table );
-		infoPane.getTabs().add( new Tab( "jfx stuff", jfxStuff ) );
-		infoPane.getTabs().add( new Tab( "dataset info", new Label( "random floats" ) ) );
-		return infoPane;
-
 	}
 
 	public Scene createScene( final int width, final int height ) throws Exception
@@ -238,16 +226,6 @@ public class BaseView extends BorderPane
 		addViewerNodesHandler( viewerNode, FOCUS_KEEPERS );
 	}
 
-	public void makeDefaultLayout()
-	{
-		addViewer( ViewerAxis.Z, 0, 0 );
-		addViewer( ViewerAxis.X, 0, 1 );
-		addViewer( ViewerAxis.Y, 1, 0 );
-		this.viewerNodes.forEach( Node::requestFocus );
-		this.grid.add( this.infoPane, 1, 1 );
-		this.requestFocus();
-	}
-
 	private void maximizeActiveOrthoView( final Scene scene, final Event event )
 	{
 		final Node focusOwner = scene.focusOwnerProperty().get();
@@ -257,7 +235,6 @@ public class BaseView extends BorderPane
 			if ( !isFullScreen[ 0 ] )
 			{
 				viewerNodes.forEach( node -> node.setVisible( node == focusOwner ) );
-				infoPane.setVisible( false );
 				constraintsManager.maximize(
 						GridPane.getRowIndex( focusOwner ),
 						GridPane.getColumnIndex( focusOwner ),
@@ -271,7 +248,6 @@ public class BaseView extends BorderPane
 				constraintsManager.resetToLast();
 				viewerNodes.forEach( node -> node.setVisible( true ) );
 				viewerNodes.forEach( node -> ( ( ViewerPanel ) node.getContent() ).requestRepaint() );
-				infoPane.setVisible( true );
 				grid.setHgap( 1 );
 				grid.setVgap( 1 );
 			}
