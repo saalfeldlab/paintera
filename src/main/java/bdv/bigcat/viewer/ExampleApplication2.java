@@ -71,7 +71,7 @@ public class ExampleApplication2
 		final HDF5LabelMultisetSourceSpec labelSpec2 = new HDF5LabelMultisetSourceSpec( labelsFile, labelsDataset, cellSize );
 		viewer.addSource( labelSpec2 );
 
-		final boolean demonstrateRemove = true;
+		final boolean demonstrateRemove = false;
 		if ( demonstrateRemove )
 		{
 			final HDF5LabelMultisetSourceSpec labelSpec3 = new HDF5LabelMultisetSourceSpec( labelsFile, labelsDataset, cellSize );
