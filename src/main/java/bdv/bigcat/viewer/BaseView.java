@@ -89,7 +89,7 @@ public class BaseView extends BorderPane
 	public BaseView( final Consumer< ViewerPanel > onFocusEnter, final Consumer< ViewerPanel > onFocusExit, final ViewerOptions viewerOptions )
 	{
 		super();
-		this.gm = new GlobalTransformManager( new AffineTransform3D() );
+		this.gm = new GlobalTransformManager();
 		gm.setTransform( new AffineTransform3D() );
 
 		this.constraintsManager = new GridConstraintsManager();
