@@ -90,7 +90,7 @@ public class Atlas
 	{
 		super();
 		this.viewerOptions = viewerOptions.accumulateProjectorFactory( new CompositeProjectorFactory<>( composites ) );
-		this.view = new BaseView( focusHandler.onEnter(), focusHandler.onExit(), this.viewerOptions );
+		this.view = new BaseView( focusHandler.onEnter(), focusHandler.onExit(), new BaseViewState( this.viewerOptions ) );
 		this.status = new Label();
 		this.view.setBottom( status );
 		this.view.setInfoNode( this.view.globalSourcesInfoNode() );

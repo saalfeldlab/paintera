@@ -45,11 +45,7 @@ public class BaseView extends BorderPane
 
 	private final GridPane grid;
 
-	private final GlobalTransformManager gm;
-
-	private final GridConstraintsManager constraintsManager;
-
-	private final ViewerOptions viewerOptions;
+	private final BaseViewState state;
 
 	private final ObservableList< SourceAndConverter< ? > > sourceLayers = FXCollections.observableArrayList();
 	{
@@ -78,26 +74,29 @@ public class BaseView extends BorderPane
 
 	public BaseView()
 	{
-		this( ViewerOptions.options() );
+		this( new BaseViewState() );
 	}
 
 	public BaseView( final ViewerOptions viewerOptions )
 	{
-		this( ( vp ) -> {}, ( vp ) -> {}, viewerOptions );
+		this( new BaseViewState( viewerOptions ) );
 	}
 
-	public BaseView( final Consumer< ViewerPanel > onFocusEnter, final Consumer< ViewerPanel > onFocusExit, final ViewerOptions viewerOptions )
+	public BaseView( final BaseViewState state )
+	{
+		this( ( vp ) -> {}, ( vp ) -> {}, state );
+	}
+
+	public BaseView( final Consumer< ViewerPanel > onFocusEnter, final Consumer< ViewerPanel > onFocusExit, final BaseViewState state )
 	{
 		super();
-		this.gm = new GlobalTransformManager();
-		gm.setTransform( new AffineTransform3D() );
+		this.state = state;
+		this.state.globalTransform.setTransform( new AffineTransform3D() );
 
-		this.constraintsManager = new GridConstraintsManager();
-		this.grid = constraintsManager.createGrid();
+		this.grid = this.state.constraintsManager.createGrid();
 		this.centerProperty().set( grid );
 		this.onFocusEnter = onFocusEnter;
 		this.onFocusExit = onFocusExit;
-		this.viewerOptions = viewerOptions;
 		this.grid.requestFocus();
 		this.setInfoNode( new Label( "Place your node here!" ) );
 	}
@@ -188,7 +187,7 @@ public class BaseView extends BorderPane
 
 	private synchronized void addViewer( final ViewerAxis axis, final int rowIndex, final int colIndex )
 	{
-		final ViewerNode viewerNode = new ViewerNode( new CacheControl.Dummy(), axis, gm, viewerOptions );
+		final ViewerNode viewerNode = new ViewerNode( new CacheControl.Dummy(), axis, this.state.globalTransform, this.state.viewerOptions );
 		this.viewerNodes.add( viewerNode );
 		this.managers.put( viewerNode, viewerNode.manager() );
 
@@ -227,10 +226,10 @@ public class BaseView extends BorderPane
 		if ( viewerNodes.contains( focusOwner ) )
 		{
 			event.consume();
-			if ( !constraintsManager.isFullScreen() )
+			if ( !this.state.constraintsManager.isFullScreen() )
 			{
 				viewerNodes.forEach( node -> node.setVisible( node == focusOwner ) );
-				constraintsManager.maximize(
+				this.state.constraintsManager.maximize(
 						GridPane.getRowIndex( focusOwner ),
 						GridPane.getColumnIndex( focusOwner ),
 						0 );
@@ -240,7 +239,7 @@ public class BaseView extends BorderPane
 			}
 			else
 			{
-				constraintsManager.resetToLast();
+				this.state.constraintsManager.resetToLast();
 				viewerNodes.forEach( node -> node.setVisible( true ) );
 				viewerNodes.forEach( node -> ( ( ViewerPanel ) node.getContent() ).requestRepaint() );
 				grid.setHgap( 1 );
