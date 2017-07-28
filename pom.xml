@@ -99,11 +99,6 @@
 			<artifactId>jeromq</artifactId>
 			<version>0.3.6</version>
 		</dependency>
-		<dependency>
-			<groupId>org.dockfx</groupId>
-			<artifactId>DockFX</artifactId>
-			<version>0.1.12</version>
-		</dependency>
 	</dependencies>
 
 	<developers>

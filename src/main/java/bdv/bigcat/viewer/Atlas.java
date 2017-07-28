@@ -7,8 +7,6 @@ import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.ToLongFunction;
 
-import org.dockfx.DockPane;
-
 import bdv.bigcat.composite.ARGBCompositeAlphaAdd;
 import bdv.bigcat.composite.Composite;
 import bdv.bigcat.composite.CompositeCopy;
@@ -158,7 +156,6 @@ public class Atlas
 		// controls
 		// this must be called after the primary stage is shown
 		// https://bugs.openjdk.java.net/browse/JDK-8132900
-		DockPane.initializeDefaultUserAgentStylesheet();
 
 	}
 
