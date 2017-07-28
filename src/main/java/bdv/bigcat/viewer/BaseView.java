@@ -51,16 +51,12 @@ public class BaseView extends BorderPane
 
 	private final boolean[] isFullScreen = new boolean[] { false };
 
-	private final HashMap< Source< ? >, Composite< ARGBType, ARGBType > > sourceCompositeMap = new HashMap<>();
-
 	private final ViewerOptions viewerOptions;
 
 	private final ObservableList< SourceAndConverter< ? > > sourceLayers = FXCollections.observableArrayList();
 	{
 		sourceLayers.addListener( ( ListChangeListener< SourceAndConverter< ? > > ) c -> {
-			c.next();
-			if ( c.wasRemoved() )
-				c.getRemoved().forEach( sourceCompositeMap::remove );
+			while ( c.next() );
 
 		} );
 	}
@@ -130,16 +126,8 @@ public class BaseView extends BorderPane
 
 	public synchronized void addSource( final SourceAndConverter< ? > source, final Composite< ARGBType, ARGBType > comp )
 	{
-
-		if ( sourceLayers.contains( source ) || sourceCompositeMap.containsKey( source.getSpimSource() ) )
-		{
-
-		}
-		else
-		{
+		if ( !sourceLayers.contains( source ) )
 			this.sourceLayers.add( source );
-			this.sourceCompositeMap.put( source.getSpimSource(), comp );
-		}
 	}
 
 	public synchronized void removeSource( final Source< ? > source )
@@ -149,11 +137,7 @@ public class BaseView extends BorderPane
 			if ( sourceLayers.get( i ).getSpimSource().equals( source ) )
 				break;
 		if ( i < sourceLayers.size() )
-		{
-			assert sourceCompositeMap.containsKey( source );
 			sourceLayers.remove( i );
-			sourceCompositeMap.remove( source );
-		}
 	}
 
 	public synchronized void addActor( final ViewerActor actor )
