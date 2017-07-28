@@ -34,7 +34,7 @@
 		<dependency>
 			<groupId>sc.fiji</groupId>
 			<artifactId>bigdataviewer-core</artifactId>
-			<version>4.0.3-SNAPSHOT</version>
+			<version>4.1.1</version>
 		</dependency>
 		<dependency>
 			<groupId>sc.fiji</groupId>
