@@ -31,6 +31,8 @@ public class GridConstraintsManager
 
 	private double rowHeight2;
 
+	private boolean isFullScreen = false;
+
 	public GridConstraintsManager()
 	{
 		resetToDefault();
@@ -43,6 +45,8 @@ public class GridConstraintsManager
 		column2.setPercentWidth( defaultColumnWidth2 );
 		row1.setPercentHeight( defaultRowHeight1 );
 		row2.setPercentHeight( defaultRowHeight2 );
+
+		isFullScreen = false;
 	}
 
 	synchronized final void resetToLast()
@@ -51,6 +55,8 @@ public class GridConstraintsManager
 		column2.setPercentWidth( columnWidth2 );
 		row1.setPercentHeight( rowHeight1 );
 		row2.setPercentHeight( rowHeight2 );
+
+		isFullScreen = false;
 	}
 
 	private synchronized void storeCurrent()
@@ -61,7 +67,7 @@ public class GridConstraintsManager
 		this.rowHeight2 = row2.getPercentHeight();
 	}
 
-	synchronized void maximize( final int r, final int c, final int steps )
+	public synchronized void maximize( final int r, final int c, final int steps )
 	{
 		storeCurrent();
 		final ColumnConstraints increaseColumn = c == 0 ? column1 : column2;
@@ -86,6 +92,8 @@ public class GridConstraintsManager
 		increaseRow.setPercentHeight( 100 );
 		decreaseRow.setPercentHeight( 0 );
 
+		isFullScreen = true;
+
 	}
 
 	public GridPane createGrid()
@@ -103,6 +111,11 @@ public class GridConstraintsManager
 		grid.setVgap( 1 );
 
 		return grid;
+	}
+
+	public synchronized boolean isFullScreen()
+	{
+		return isFullScreen;
 	}
 
 }

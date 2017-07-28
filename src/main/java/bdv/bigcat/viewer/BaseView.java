@@ -49,8 +49,6 @@ public class BaseView extends BorderPane
 
 	private final GridConstraintsManager constraintsManager;
 
-	private final boolean[] isFullScreen = new boolean[] { false };
-
 	private final ViewerOptions viewerOptions;
 
 	private final ObservableList< SourceAndConverter< ? > > sourceLayers = FXCollections.observableArrayList();
@@ -229,7 +227,7 @@ public class BaseView extends BorderPane
 		if ( viewerNodes.contains( focusOwner ) )
 		{
 			event.consume();
-			if ( !isFullScreen[ 0 ] )
+			if ( !constraintsManager.isFullScreen() )
 			{
 				viewerNodes.forEach( node -> node.setVisible( node == focusOwner ) );
 				constraintsManager.maximize(
@@ -248,7 +246,6 @@ public class BaseView extends BorderPane
 				grid.setHgap( 1 );
 				grid.setVgap( 1 );
 			}
-			isFullScreen[ 0 ] = !isFullScreen[ 0 ];
 		}
 	}
 
