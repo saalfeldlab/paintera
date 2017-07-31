@@ -195,6 +195,8 @@ public class ViewerTransformManager implements TransformListener< AffineTransfor
 		final RemoveRotation removeRotation = new RemoveRotation();
 		actions.namedAction( removeRotation, "shift Z" );
 		this.viewer.addMouseListener( removeRotation );
+
+		actions.namedAction( new ToggleVisibility(), "shift V" );
 	}
 
 	@Override
@@ -515,6 +517,29 @@ public class ViewerTransformManager implements TransformListener< AffineTransfor
 		public void mouseReleased( final MouseEvent e )
 		{
 
+		}
+
+	}
+
+	private class ToggleVisibility extends AbstractNamedAction
+	{
+
+		public ToggleVisibility()
+		{
+			super( "toggle visibility" );
+			// TODO Auto-generated constructor stub
+		}
+
+		@Override
+		public void actionPerformed( final ActionEvent e )
+		{
+			synchronized ( viewer )
+			{
+				final int currentSourceIndex = viewer.getState().getCurrentSource();
+				System.out.println( "TOGGLING VISIBILITY!" + " " + currentSourceIndex + " " + viewer.getVisibilityAndGrouping().isSourceActive( currentSourceIndex ) );
+				viewer.getVisibilityAndGrouping().setSourceActive( currentSourceIndex, !viewer.getVisibilityAndGrouping().isSourceActive( currentSourceIndex ) );
+				viewer.requestRepaint();
+			}
 		}
 
 	}
