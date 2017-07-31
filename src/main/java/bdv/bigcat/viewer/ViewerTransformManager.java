@@ -14,6 +14,7 @@ import org.scijava.ui.behaviour.util.Behaviours;
 import org.scijava.ui.behaviour.util.InputActionBindings;
 import org.scijava.ui.behaviour.util.TriggerBehaviourBindings;
 
+import bdv.viewer.Source;
 import bdv.viewer.ViewerPanel;
 import net.imglib2.RealPoint;
 import net.imglib2.realtransform.AffineTransform3D;
@@ -110,6 +111,8 @@ public class ViewerTransformManager implements TransformListener< AffineTransfor
 
 	private ViewerPanel viewer;
 
+	private ViewerPanelState state;
+
 	private int canvasW = 1, canvasH = 1;
 
 	private int centerX = 0, centerY = 0;
@@ -181,6 +184,7 @@ public class ViewerTransformManager implements TransformListener< AffineTransfor
 
 	public void setViewer( final ViewerPanel viewer )
 	{
+
 		this.viewer = viewer;
 
 		behaviours.behaviour( new TranslateXY(), "drag translate", "button2", "button3" );
@@ -217,6 +221,11 @@ public class ViewerTransformManager implements TransformListener< AffineTransfor
 		{
 			return ViewerTransformManager.this;
 		}
+	}
+
+	public void setState( final ViewerPanelState state )
+	{
+		this.state = state;
 	}
 
 	private class TranslateXY extends GetOuter implements DragBehaviour
@@ -535,10 +544,14 @@ public class ViewerTransformManager implements TransformListener< AffineTransfor
 		{
 			synchronized ( viewer )
 			{
-				final int currentSourceIndex = viewer.getState().getCurrentSource();
-				System.out.println( "TOGGLING VISIBILITY!" + " " + currentSourceIndex + " " + viewer.getVisibilityAndGrouping().isSourceActive( currentSourceIndex ) );
-				viewer.getVisibilityAndGrouping().setSourceActive( currentSourceIndex, !viewer.getVisibilityAndGrouping().isSourceActive( currentSourceIndex ) );
-				viewer.requestRepaint();
+				if ( state != null )
+				{
+					final int currentSourceIndex = viewer.getState().getCurrentSource();
+					final Source< ? > currentSource = viewer.getVisibilityAndGrouping().getSources().get( currentSourceIndex ).getSpimSource();
+					System.out.println( "TOGGLING VISIBILITY!" + " " + currentSourceIndex + " " + viewer.getVisibilityAndGrouping().isSourceActive( currentSourceIndex ) );
+					final boolean isVisible = viewer.getVisibilityAndGrouping().isSourceActive( currentSourceIndex );
+					state.setVisibility( currentSource, !isVisible );
+				}
 			}
 		}
 

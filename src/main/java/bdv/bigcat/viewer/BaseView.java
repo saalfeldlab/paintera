@@ -47,13 +47,13 @@ public class BaseView extends BorderPane
 
 	private final BaseViewState state;
 
-	private final ObservableList< SourceAndConverter< ? > > sourceLayers = FXCollections.observableArrayList();
-	{
-		sourceLayers.addListener( ( ListChangeListener< SourceAndConverter< ? > > ) c -> {
-			while ( c.next() );
-
-		} );
-	}
+//	private final ObservableList< SourceAndConverter< ? > > sourceLayers = FXCollections.observableArrayList();
+//	{
+//		sourceLayers.addListener( ( ListChangeListener< SourceAndConverter< ? > > ) c -> {
+//			while ( c.next() );
+//
+//		} );
+//	}
 
 	private final ObservableList< ViewerActor > viewerActors = FXCollections.observableArrayList();
 	{
@@ -123,18 +123,13 @@ public class BaseView extends BorderPane
 
 	public synchronized void addSource( final SourceAndConverter< ? > source, final Composite< ARGBType, ARGBType > comp )
 	{
-		if ( !sourceLayers.contains( source ) )
-			this.sourceLayers.add( source );
+		this.state.viewerPanelState.addSource( source );
 	}
 
 	public synchronized void removeSource( final Source< ? > source )
+
 	{
-		int i = 0;
-		for ( ; i < sourceLayers.size(); ++i )
-			if ( sourceLayers.get( i ).getSpimSource().equals( source ) )
-				break;
-		if ( i < sourceLayers.size() )
-			sourceLayers.remove( i );
+		this.state.viewerPanelState.removeSource( source );
 	}
 
 	public synchronized void addActor( final ViewerActor actor )
@@ -190,8 +185,7 @@ public class BaseView extends BorderPane
 		final ViewerNode viewerNode = new ViewerNode( new CacheControl.Dummy(), axis, this.state.globalTransform, this.state.viewerOptions );
 		this.viewerNodes.add( viewerNode );
 		this.managers.put( viewerNode, viewerNode.manager() );
-
-		sourceLayers.addListener( viewerNode );
+		viewerNode.manager().setState( this.state.viewerPanelState );
 
 		final Thread t = new Thread( () -> {
 			boolean createdViewer = false;
@@ -209,7 +203,7 @@ public class BaseView extends BorderPane
 				createdViewer = viewerNode.isReady();
 			}
 			createdViewer = true;
-			sourceLayers.forEach( sl -> ( ( ViewerPanel ) viewerNode.getContent() ).addSource( sl ) );
+			viewerNode.setViewerPanelState( this.state.viewerPanelState );
 			viewerActors.forEach( actor -> actor.onAdd().accept( ( ViewerPanel ) viewerNode.getContent() ) );
 
 		} );
@@ -340,10 +334,10 @@ public class BaseView extends BorderPane
 
 			return fp;
 		};
-		for ( final SourceAndConverter< ? > source : sourceLayers )
+		for ( final SourceAndConverter< ? > source : this.state.viewerPanelState.getSourcesCopy() )
 			entryCreator.apply( source );
 
-		sourceLayers.addListener( ( ListChangeListener< SourceAndConverter< ? > > ) c -> {
+		this.state.viewerPanelState.addSourcesListener( c -> {
 			while ( c.next() )
 				if ( c.wasRemoved() )
 					c.getRemoved().forEach( rm -> p.getChildren().remove( sourceToEntry.remove( rm.getSpimSource() ) ) );

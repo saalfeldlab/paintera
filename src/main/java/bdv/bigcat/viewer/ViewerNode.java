@@ -64,6 +64,8 @@ public class ViewerNode extends SwingNode implements ListChangeListener< SourceA
 
 	private boolean isReady = false;
 
+	private ViewerPanelState state;
+
 	public ViewerNode( final CacheControl cacheControl, final ViewerAxis viewerAxis, final GlobalTransformManager manager, final ViewerOptions viewerOptions )
 	{
 		this.viewer = null;
@@ -118,6 +120,19 @@ public class ViewerNode extends SwingNode implements ListChangeListener< SourceA
 	{
 		waitUntilInitialized();
 		this.viewer.getDisplay().removeMouseMotionListener( listener );
+	}
+
+	public void setViewerPanelState( final ViewerPanelState state )
+	{
+		if ( this.viewer != null )
+		{
+			if ( this.state != null )
+				this.state.removeViewer( viewer );
+			this.state = state;
+			System.out.println( "SETTING STATE " + this.state.isViewerInstalled( viewer ) );
+			if ( !this.state.isViewerInstalled( viewer ) )
+				this.state.installViewer( viewer );
+		}
 	}
 
 	private void waitUntilInitialized()

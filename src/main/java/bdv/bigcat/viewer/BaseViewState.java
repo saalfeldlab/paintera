@@ -21,6 +21,8 @@ public class BaseViewState
 
 	protected final ArrayList< Converter< ?, ARGBType > > converters;
 
+	protected final ViewerPanelState viewerPanelState = new ViewerPanelState();
+
 	public BaseViewState()
 	{
 		this( ViewerOptions.options() );
