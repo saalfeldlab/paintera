@@ -114,7 +114,7 @@ public class Atlas
 			}
 		} );
 
-		this.background = new WrappedRealRandomAccessible<>( ConstantUtils.constantRealRandomAccessible( new ARGBType(), interval.numDimensions() ) );
+		this.background = new WrappedRealRandomAccessible<>( ConstantUtils.constantRealRandomAccessible( new ARGBType( ARGBType.rgba( 0, 0, 0, 0 ) ), interval.numDimensions() ) );
 		this.backgroundSource = new RealRandomAccessibleIntervalSource<>( this.background, interval, new ARGBType(), "background" );
 		final CompositeCopy< ARGBType > comp = new CompositeCopy<>();
 		this.composites.put( this.backgroundSource, comp );
