@@ -75,7 +75,7 @@ public class ViewerPanelState
 
 	private final ObservableList< SourceAndConverter< ? > > sacs = FXCollections.observableArrayList();
 
-	SimpleObjectProperty< Source< ? > > currentSource = new SimpleObjectProperty<>( null, "current source" );
+	private final SimpleObjectProperty< Source< ? > > currentSource = new SimpleObjectProperty<>( null, "current source" );
 
 	public synchronized void addVisibilityListener( final MapChangeListener< Source< ? >, Boolean > listener )
 	{
