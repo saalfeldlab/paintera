@@ -552,7 +552,6 @@ public class ViewerTransformManager implements TransformListener< AffineTransfor
 				{
 					final int currentSourceIndex = viewer.getState().getCurrentSource();
 					final Source< ? > currentSource = viewer.getVisibilityAndGrouping().getSources().get( currentSourceIndex ).getSpimSource();
-					System.out.println( "TOGGLING VISIBILITY!" + " " + currentSourceIndex + " " + viewer.getVisibilityAndGrouping().isSourceActive( currentSourceIndex ) );
 					final boolean isVisible = viewer.getVisibilityAndGrouping().isSourceActive( currentSourceIndex );
 					state.setVisibility( currentSource, !isVisible );
 				}

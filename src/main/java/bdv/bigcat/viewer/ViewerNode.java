@@ -128,7 +128,6 @@ public class ViewerNode extends SwingNode implements ListChangeListener< SourceA
 			if ( this.state != null )
 				this.state.removeViewer( viewer );
 			this.state = state;
-			System.out.println( "SETTING STATE " + this.state.isViewerInstalled( viewer ) );
 			if ( !this.state.isViewerInstalled( viewer ) )
 				this.state.installViewer( viewer );
 		}
