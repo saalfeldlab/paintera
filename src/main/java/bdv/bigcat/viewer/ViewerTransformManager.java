@@ -3,6 +3,7 @@ package bdv.bigcat.viewer;
 import java.awt.event.ActionEvent;
 import java.awt.event.MouseEvent;
 import java.awt.event.MouseListener;
+import java.util.List;
 
 import org.scijava.ui.behaviour.ClickBehaviour;
 import org.scijava.ui.behaviour.DragBehaviour;
@@ -16,6 +17,7 @@ import org.scijava.ui.behaviour.util.TriggerBehaviourBindings;
 
 import bdv.viewer.Source;
 import bdv.viewer.ViewerPanel;
+import bdv.viewer.state.SourceState;
 import net.imglib2.RealPoint;
 import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.ui.TransformEventHandler;
@@ -201,6 +203,7 @@ public class ViewerTransformManager implements TransformListener< AffineTransfor
 		this.viewer.addMouseListener( removeRotation );
 
 		actions.namedAction( new ToggleVisibility(), "shift V" );
+		actions.namedAction( new CycleSources(), "shift S" );
 	}
 
 	@Override
@@ -551,6 +554,30 @@ public class ViewerTransformManager implements TransformListener< AffineTransfor
 					System.out.println( "TOGGLING VISIBILITY!" + " " + currentSourceIndex + " " + viewer.getVisibilityAndGrouping().isSourceActive( currentSourceIndex ) );
 					final boolean isVisible = viewer.getVisibilityAndGrouping().isSourceActive( currentSourceIndex );
 					state.setVisibility( currentSource, !isVisible );
+				}
+			}
+		}
+
+	}
+
+	private class CycleSources extends AbstractNamedAction
+	{
+
+		public CycleSources()
+		{
+			super( "cycle sources" );
+		}
+
+		@Override
+		public void actionPerformed( final ActionEvent arg0 )
+		{
+			synchronized ( state )
+			{
+				synchronized ( viewer )
+				{
+					final int activeSource = viewer.getVisibilityAndGrouping().getCurrentSource();
+					final List< SourceState< ? > > sources = viewer.getVisibilityAndGrouping().getSources();
+					state.setCurrentSource( sources.get( ( activeSource + 1 ) % sources.size() ).getSpimSource() );
 				}
 			}
 		}
