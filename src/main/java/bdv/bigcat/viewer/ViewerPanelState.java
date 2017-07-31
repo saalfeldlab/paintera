@@ -22,8 +22,6 @@ public class ViewerPanelState
 	public class ViewerPanelListener
 	{
 
-		private final ViewerPanel viewer;
-
 		private final MapChangeListener< Source< ? >, Boolean > visibilityListener;
 
 		private final ListChangeListener< SourceAndConverter< ? > > sourcesListener;
@@ -35,7 +33,6 @@ public class ViewerPanelState
 		public ViewerPanelListener( final ViewerPanel viewer )
 		{
 			super();
-			this.viewer = viewer;
 
 			this.visibilityListener = change -> {
 				if ( change.wasAdded() )
@@ -57,21 +54,6 @@ public class ViewerPanelState
 			this.interpolationListener = ( observable, oldInterpolation, newInterpolation ) -> {
 				viewer.setInterpolation( newInterpolation );
 			};
-		}
-
-		public MapChangeListener< Source< ? >, Boolean > getVisibilityListener()
-		{
-			return this.visibilityListener;
-		}
-
-		public ListChangeListener< SourceAndConverter< ? > > getSourcesListener()
-		{
-			return this.sourcesListener;
-		}
-
-		public ChangeListener< Source< ? > > getCurrentSourceListener()
-		{
-			return this.currentSourceListener;
 		}
 
 	}
@@ -146,9 +128,9 @@ public class ViewerPanelState
 				sacs.forEach( viewer::addSource );
 			}
 
-			addVisibilityListener( listener.getVisibilityListener() );
-			addSourcesListener( listener.getSourcesListener() );
-			addCurrentSourceListener( listener.getCurrentSourceListener() );
+			addVisibilityListener( listener.visibilityListener );
+			addSourcesListener( listener.sourcesListener );
+			addCurrentSourceListener( listener.currentSourceListener );
 			addInterpolationListener( listener.interpolationListener );
 
 			synchronized ( interpolation )
@@ -168,9 +150,9 @@ public class ViewerPanelState
 		if ( listener != null )
 			synchronized ( viewer )
 			{
-				removeVisibilityListener( listener.getVisibilityListener() );
-				removeSourcesListener( listener.getSourcesListener() );
-				removeCurrentSourceListener( listener.getCurrentSourceListener() );
+				removeVisibilityListener( listener.visibilityListener );
+				removeSourcesListener( listener.sourcesListener );
+				removeCurrentSourceListener( listener.currentSourceListener );
 				removeInterpolationListener( listener.interpolationListener );
 			}
 	}
