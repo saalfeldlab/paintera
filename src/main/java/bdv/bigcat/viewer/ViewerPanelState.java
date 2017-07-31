@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 
+import bdv.viewer.Interpolation;
 import bdv.viewer.Source;
 import bdv.viewer.SourceAndConverter;
 import bdv.viewer.ViewerPanel;
@@ -29,6 +30,8 @@ public class ViewerPanelState
 
 		private final ChangeListener< Source< ? > > currentSourceListener;
 
+		private final ChangeListener< Interpolation > interpolationListener;
+
 		public ViewerPanelListener( final ViewerPanel viewer )
 		{
 			super();
@@ -49,6 +52,10 @@ public class ViewerPanelState
 
 			this.currentSourceListener = ( observable, oldSource, newSource ) -> {
 				viewer.getVisibilityAndGrouping().setCurrentSource( newSource );
+			};
+
+			this.interpolationListener = ( observable, oldInterpolation, newInterpolation ) -> {
+				viewer.setInterpolation( newInterpolation );
 			};
 		}
 
@@ -76,6 +83,8 @@ public class ViewerPanelState
 	private final ObservableList< SourceAndConverter< ? > > sacs = FXCollections.observableArrayList();
 
 	private final SimpleObjectProperty< Source< ? > > currentSource = new SimpleObjectProperty<>( null, "current source" );
+
+	private final SimpleObjectProperty< Interpolation > interpolation = new SimpleObjectProperty<>( null, "interpolation" );
 
 	public synchronized void addVisibilityListener( final MapChangeListener< Source< ? >, Boolean > listener )
 	{
@@ -107,6 +116,16 @@ public class ViewerPanelState
 		this.currentSource.removeListener( listener );
 	}
 
+	public synchronized void addInterpolationListener( final ChangeListener< Interpolation > listener )
+	{
+		this.interpolation.addListener( listener );
+	}
+
+	public synchronized void removeInterpolationListener( final ChangeListener< Interpolation > listener )
+	{
+		this.interpolation.removeListener( listener );
+	}
+
 	public boolean isViewerInstalled( final ViewerPanel viewer )
 	{
 		synchronized ( viewerListeners )
@@ -126,13 +145,24 @@ public class ViewerPanelState
 			{
 				sacs.forEach( viewer::addSource );
 			}
+
 			addVisibilityListener( listener.getVisibilityListener() );
 			addSourcesListener( listener.getSourcesListener() );
 			addCurrentSourceListener( listener.getCurrentSourceListener() );
+			addInterpolationListener( listener.interpolationListener );
+
+			synchronized ( interpolation )
+			{
+				final Interpolation method = interpolation.get();
+				if ( method == null )
+					interpolation.set( viewer.getState().getInterpolation() );
+				else
+					viewer.setInterpolation( interpolation.get() );
+			}
 		}
 	}
 
-	public void removeViewer( final ViewerPanel viewer )
+	public synchronized void removeViewer( final ViewerPanel viewer )
 	{
 		final ViewerPanelListener listener = this.viewerListeners.remove( viewer );
 		if ( listener != null )
@@ -141,6 +171,7 @@ public class ViewerPanelState
 				removeVisibilityListener( listener.getVisibilityListener() );
 				removeSourcesListener( listener.getSourcesListener() );
 				removeCurrentSourceListener( listener.getCurrentSourceListener() );
+				removeInterpolationListener( listener.interpolationListener );
 			}
 	}
 
@@ -178,6 +209,26 @@ public class ViewerPanelState
 		{
 			return new ArrayList<>( this.sacs );
 		}
+	}
+
+	public synchronized void toggleInterpolation()
+	{
+		final Interpolation interpolation = this.interpolation.get();
+		if ( interpolation == null )
+			this.interpolation.set( Interpolation.NEARESTNEIGHBOR );
+		else
+			switch ( interpolation )
+			{
+			case NEARESTNEIGHBOR:
+				this.interpolation.set( Interpolation.NLINEAR );
+				break;
+			case NLINEAR:
+				this.interpolation.set( Interpolation.NEARESTNEIGHBOR );
+				break;
+			default:
+				this.interpolation.set( Interpolation.NEARESTNEIGHBOR );
+				break;
+			}
 	}
 
 }

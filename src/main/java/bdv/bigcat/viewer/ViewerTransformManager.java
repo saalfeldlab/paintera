@@ -204,6 +204,7 @@ public class ViewerTransformManager implements TransformListener< AffineTransfor
 
 		actions.namedAction( new ToggleVisibility(), "shift V" );
 		actions.namedAction( new CycleSources(), "shift S" );
+		actions.namedAction( new ToggleInterpolation(), "I" );
 	}
 
 	@Override
@@ -579,6 +580,23 @@ public class ViewerTransformManager implements TransformListener< AffineTransfor
 					final List< SourceState< ? > > sources = viewer.getVisibilityAndGrouping().getSources();
 					state.setCurrentSource( sources.get( ( activeSource + 1 ) % sources.size() ).getSpimSource() );
 				}
+			}
+		}
+	}
+
+	private class ToggleInterpolation extends AbstractNamedAction
+	{
+		public ToggleInterpolation()
+		{
+			super( "toggle interpolation" );
+		}
+
+		@Override
+		public void actionPerformed( final ActionEvent e )
+		{
+			synchronized ( state )
+			{
+				state.toggleInterpolation();
 			}
 		}
 
