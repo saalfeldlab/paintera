@@ -4,6 +4,7 @@ import java.util.function.Consumer;
 
 import bdv.labels.labelset.Label;
 import gnu.trove.impl.Constants;
+import gnu.trove.iterator.TLongIterator;
 import gnu.trove.iterator.TLongLongIterator;
 import gnu.trove.map.hash.TLongLongHashMap;
 import gnu.trove.map.hash.TLongObjectHashMap;
@@ -125,15 +126,42 @@ public class BufferedFragmentSegmentAssignmentHashMap extends FragmentSegmentAss
 	@Override
 	protected synchronized void detachFragmentImpl( final long fragmentId )
 	{
-		final long segmentId = getSegment( fragmentId );
-		final TLongHashSet fragments = getFragments( segmentId );
-		if ( fragments != null && fragments.size() > 1 )
+		synchronized ( sourceAssignment )
 		{
-			fragments.remove( fragmentId );
+			final long segmentId = getSegment( fragmentId );
+			final TLongHashSet fragments = getFragments( segmentId );
+			if ( fragments != null && fragments.size() > 1 )
+			{
+				final TLongHashSet fragmentsCopy = new TLongHashSet( fragments );
+				fragmentsCopy.remove( fragmentId );
 
-			final long newSegmentId = fragmentId;
-			fragmentToSegmentMap.put( fragmentId, newSegmentId );
-			segmentToFragmentsMap.put( newSegmentId, new TLongHashSet( new long[] { fragmentId } ) );
+				if ( fragmentId == segmentId )
+				{
+					final long actualSegmentId = fragmentsCopy.iterator().next();
+					for ( final TLongIterator fragmentIt = fragmentsCopy.iterator(); fragmentIt.hasNext(); )
+						this.fragmentToSegmentMap.put( fragmentIt.next(), actualSegmentId );
+					this.segmentToFragmentsMap.put( actualSegmentId, fragmentsCopy );
+				}
+				else
+					this.segmentToFragmentsMap.put( segmentId, fragmentsCopy );
+
+//				final TLongHashSet original = sourceAssignment.getFragments( segmentId );
+//				if ( false && original != null && fragmentsCopy.equals( original ) )
+//					this.segmentToFragmentsMap.remove( segmentId );
+//				else
+
+				final long newSegmentId = fragmentId;
+//				if ( false && sourceAssignment.getSegment( fragmentId ) == newSegmentId )
+//				{
+//					fragmentToSegmentMap.remove( fragmentId );
+//					segmentToFragmentsMap.remove( newSegmentId );
+//				}
+//				else
+//				{
+				fragmentToSegmentMap.put( fragmentId, newSegmentId );
+				segmentToFragmentsMap.put( newSegmentId, new TLongHashSet( new long[] { fragmentId } ) );
+//				}
+			}
 		}
 	}
 

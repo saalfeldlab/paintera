@@ -67,6 +67,7 @@ public class Merges extends AbstractStateMode
 				final Behaviours behaviours = new Behaviours( inputTriggerConfig );
 				behaviours.namedBehaviour( selector.selectSingle( "toggle single id" ), "button1" );
 				behaviours.namedBehaviour( selector.merge( assignments ), "shift button1" );
+				behaviours.namedBehaviour( selector.detach( assignments ), "shift button3" );
 				final TriggerBehaviourBindings bindings = new TriggerBehaviourBindings();
 				behaviours.install( bindings, "merge and split" );
 				final MouseAndKeyHandler mouseAndKeyHandler = new MouseAndKeyHandler();

@@ -54,6 +54,11 @@ public class IdSelector
 		return new MergeSegments( assignments );
 	}
 
+	public DetachFragment detach( final HashMap< Source< ? >, ? extends FragmentSegmentAssignment > assignments )
+	{
+		return new DetachFragment( assignments );
+	}
+
 	private abstract class Select extends AbstractNamedBehaviour implements ClickBehaviour
 	{
 		public Select( final String name )
@@ -160,6 +165,50 @@ public class IdSelector
 					return;
 
 				assignments.get( source ).assignFragments( id, selectedId );
+
+			}
+		}
+
+	}
+
+	private class DetachFragment extends AbstractNamedBehaviour implements ClickBehaviour
+	{
+
+		private final HashMap< Source< ? >, ? extends FragmentSegmentAssignment > assignments;
+
+		public DetachFragment( final HashMap< Source< ? >, ? extends FragmentSegmentAssignment > assignments )
+		{
+			super( "detach fragment" );
+			this.assignments = assignments;
+		}
+
+		@Override
+		public void click( final int x, final int y )
+		{
+			final Optional< Source< ? > > optionalSource = getSource();
+			if ( !optionalSource.isPresent() )
+				return;
+			final Source< ? > source = optionalSource.get();
+			if ( toIdConverters.containsKey( source ) && selectedIds.containsKey( source ) && accesses.containsKey( source ) && assignments.containsKey( source ) )
+			{
+
+				final long[] selIds = selectedIds.get( source ).getActiveIds();
+				if ( selIds.length != 1 )
+					return;
+
+				final FragmentSegmentAssignment assignment = assignments.get( source );
+
+				final long selectedSegment = assignment.getSegment( selIds[ 0 ] );
+
+				final RealRandomAccess< ? > access = accesses.get( source );
+				viewer.getMouseCoordinates( access );
+				access.setPosition( 0l, 2 );
+				viewer.displayToGlobalCoordinates( access );
+				final Object val = access.get();
+				final long id = toIdConverters.get( source ).applyAsLong( val );
+
+				if ( assignment.getSegment( id ) == selectedSegment )
+					assignment.detachFragment( id );
 
 			}
 		}
