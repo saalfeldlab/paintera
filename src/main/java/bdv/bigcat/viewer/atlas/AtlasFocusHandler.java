@@ -1,4 +1,4 @@
-package bdv.bigcat.viewer;
+package bdv.bigcat.viewer.atlas;
 
 import java.util.HashMap;
 import java.util.HashSet;

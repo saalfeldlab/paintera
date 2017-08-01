@@ -1,4 +1,4 @@
-package bdv.bigcat.viewer;
+package bdv.bigcat.viewer.atlas;
 
 import java.util.HashMap;
 import java.util.function.Consumer;
@@ -9,6 +9,7 @@ import org.scijava.ui.behaviour.io.InputTriggerConfig;
 import org.scijava.ui.behaviour.util.Behaviours;
 import org.scijava.ui.behaviour.util.TriggerBehaviourBindings;
 
+import bdv.bigcat.viewer.IdSelector;
 import bdv.bigcat.viewer.state.SelectedIds;
 import bdv.viewer.Source;
 import bdv.viewer.ViewerPanel;

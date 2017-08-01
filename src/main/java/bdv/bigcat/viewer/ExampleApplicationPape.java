@@ -5,6 +5,8 @@ import java.util.Arrays;
 import com.sun.javafx.application.PlatformImpl;
 
 import bdv.AbstractViewerSetupImgLoader;
+import bdv.bigcat.viewer.atlas.Atlas;
+import bdv.bigcat.viewer.atlas.data.HDF5UnsignedByteSpec;
 import bdv.viewer.Interpolation;
 import bdv.viewer.Source;
 import javafx.application.Platform;

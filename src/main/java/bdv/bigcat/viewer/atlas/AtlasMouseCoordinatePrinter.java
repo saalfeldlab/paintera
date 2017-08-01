@@ -1,4 +1,4 @@
-package bdv.bigcat.viewer;
+package bdv.bigcat.viewer.atlas;
 
 import java.awt.event.MouseEvent;
 import java.awt.event.MouseMotionListener;

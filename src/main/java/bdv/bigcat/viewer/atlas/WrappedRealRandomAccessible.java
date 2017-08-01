@@ -1,4 +1,4 @@
-package bdv.bigcat.viewer;
+package bdv.bigcat.viewer.atlas;
 
 import net.imglib2.RealInterval;
 import net.imglib2.RealRandomAccess;

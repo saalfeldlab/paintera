@@ -1,4 +1,4 @@
-package bdv.bigcat.viewer;
+package bdv.bigcat.viewer.atlas;
 
 import java.util.HashMap;
 import java.util.Iterator;
@@ -11,7 +11,12 @@ import bdv.bigcat.composite.ARGBCompositeAlphaAdd;
 import bdv.bigcat.composite.Composite;
 import bdv.bigcat.composite.CompositeCopy;
 import bdv.bigcat.composite.CompositeProjector.CompositeProjectorFactory;
-import bdv.bigcat.viewer.AtlasFocusHandler.OnEnterOnExit;
+import bdv.bigcat.viewer.BaseView;
+import bdv.bigcat.viewer.BaseViewState;
+import bdv.bigcat.viewer.ViewerActor;
+import bdv.bigcat.viewer.atlas.AtlasFocusHandler.OnEnterOnExit;
+import bdv.bigcat.viewer.atlas.data.DatasetSpec;
+import bdv.bigcat.viewer.atlas.data.HDF5LabelMultisetSourceSpec;
 import bdv.bigcat.viewer.state.SelectedIds;
 import bdv.labels.labelset.LabelMultisetType;
 import bdv.labels.labelset.Multiset.Entry;

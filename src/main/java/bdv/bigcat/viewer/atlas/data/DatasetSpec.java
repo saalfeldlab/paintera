@@ -1,4 +1,4 @@
-package bdv.bigcat.viewer;
+package bdv.bigcat.viewer.atlas.data;
 
 import bdv.viewer.Source;
 import net.imglib2.converter.Converter;
