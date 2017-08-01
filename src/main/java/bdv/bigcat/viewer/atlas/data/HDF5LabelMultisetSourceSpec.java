@@ -98,7 +98,7 @@ public class HDF5LabelMultisetSourceSpec implements LabelSpec< LabelMultisetType
 
 		public void setHighlightAlpha( final int alpha )
 		{
-			stream.setHighlightAlpha( alpha );
+			stream.setActiveSegmentAlpha( alpha );
 		}
 
 		public void setInvalidSegmentAlpha( final int alpha )
@@ -113,7 +113,7 @@ public class HDF5LabelMultisetSourceSpec implements LabelSpec< LabelMultisetType
 
 		public int getHighlightAlpha()
 		{
-			return stream.getHighlightAlpha();
+			return stream.getActiveSegmentAlpha();
 		}
 
 		public int getInvalidSegmentAlpha()

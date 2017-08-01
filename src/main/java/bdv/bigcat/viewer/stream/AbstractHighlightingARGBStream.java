@@ -40,7 +40,9 @@ abstract public class AbstractHighlightingARGBStream implements ARGBStream
 
 	protected int alpha = 0x20000000;
 
-	protected int highlightAlpha = 0x80000000;
+	protected int activeFragmentAlpha = 0xd0000000;
+
+	protected int activeSegmentAlpha = 0x80000000;
 
 	protected int invalidSegmentAlpha = 0x00000000;
 
@@ -72,7 +74,17 @@ abstract public class AbstractHighlightingARGBStream implements ARGBStream
 //		this.highlights.addAll( highlights );
 //	}
 
-	public boolean isHighlight( final long id )
+	public boolean isActiveFragment( final long id )
+	{
+		// TODO FIX THIS THING HERE!
+		for ( final long i : highlights.getActiveIds() )
+			if ( id == i )
+				return true;
+
+		return false;
+	}
+
+	public boolean isActiveSegment( final long id )
 	{
 		// TODO FIX THIS THING HERE!
 		final long segment = this.assignment.getSegment( id );
@@ -89,7 +101,7 @@ abstract public class AbstractHighlightingARGBStream implements ARGBStream
 
 	protected double getDouble( final long id )
 	{
-		return getDoubleImpl( assignment.getSegment( id ) );
+		return getDoubleImpl( id );
 	}
 
 	protected abstract double getDoubleImpl( final long id );
@@ -97,7 +109,7 @@ abstract public class AbstractHighlightingARGBStream implements ARGBStream
 	@Override
 	public int argb( final long id )
 	{
-		return argbImpl( assignment.getSegment( id ) );
+		return argbImpl( id );
 	}
 
 	protected abstract int argbImpl( long id );
@@ -144,9 +156,9 @@ abstract public class AbstractHighlightingARGBStream implements ARGBStream
 	 *
 	 * @param alpha
 	 */
-	public void setHighlightAlpha( final int alpha )
+	public void setActiveSegmentAlpha( final int alpha )
 	{
-		this.highlightAlpha = ( alpha & 0xff ) << 24;
+		this.activeSegmentAlpha = ( alpha & 0xff ) << 24;
 	}
 
 	public void setInvalidSegmentAlpha( final int alpha )
@@ -159,9 +171,9 @@ abstract public class AbstractHighlightingARGBStream implements ARGBStream
 		return this.alpha >>> 24;
 	}
 
-	public int getHighlightAlpha()
+	public int getActiveSegmentAlpha()
 	{
-		return this.highlightAlpha >>> 24;
+		return this.activeSegmentAlpha >>> 24;
 	}
 
 	public int getInvalidSegmentAlpha()

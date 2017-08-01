@@ -77,9 +77,12 @@ public class ModalGoldenAngleSaturatedHighlightingARGBStream extends GoldenAngle
 	@Override
 	protected int argbImpl( final long fragmentId )
 	{
-		if ( !argbCache.contains( fragmentId ) )
+
+		final long assigned = assignment.getSegment( fragmentId );
+
+		if ( !argbCache.contains( assigned ) )
 		{
-			double x = getDouble( seed + fragmentId );
+			double x = getDouble( seed + assigned );
 			x *= 6.0;
 			final int k = ( int ) x;
 			final int l = k + 1;
@@ -94,16 +97,16 @@ public class ModalGoldenAngleSaturatedHighlightingARGBStream extends GoldenAngle
 
 			synchronized ( argbCache )
 			{
-				argbCache.put( fragmentId, argb );
+				argbCache.put( assigned, argb );
 			}
 		}
 
-		int argb = argbCache.get( fragmentId );
+		int argb = argbCache.get( assigned );
 
 		if ( Label.INVALID == fragmentId )
 			argb = argb & 0x00ffffff | invalidSegmentAlpha;
 		else
-			argb = argb & 0x00ffffff | ( isHighlight( fragmentId ) ? highlightAlpha : alpha );
+			argb = argb & 0x00ffffff | ( isActiveSegment( fragmentId ) ? isActiveFragment( fragmentId ) ? activeFragmentAlpha : activeSegmentAlpha : alpha );
 
 //		System.out.println( "GETTING COLOR FOR " + fragmentId + " " + highlights );
 		return argb;
