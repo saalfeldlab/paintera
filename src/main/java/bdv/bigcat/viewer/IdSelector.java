@@ -164,7 +164,7 @@ public class IdSelector
 				if ( selectedId == id )
 					return;
 
-				assignments.get( source ).assignFragments( id, selectedId );
+				assignment.assignFragments( id, selectedId );
 
 			}
 		}
