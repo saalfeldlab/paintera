@@ -61,7 +61,6 @@ import net.imglib2.type.numeric.ARGBType;
 import net.imglib2.type.numeric.IntegerType;
 import net.imglib2.type.numeric.RealType;
 import net.imglib2.type.numeric.real.FloatType;
-import net.imglib2.type.volatiles.VolatileARGBType;
 import net.imglib2.type.volatiles.VolatileFloatType;
 import net.imglib2.util.ConstantUtils;
 
@@ -104,10 +103,7 @@ public class Atlas
 		this.view.setInfoNode( this.view.globalSourcesInfoNode() );
 
 		for ( final Mode mode : modes )
-		{
-			System.out.println( "MODE " + mode.getName() );
 			addOnEnterOnExit( mode.onEnter(), mode.onExit(), true );
-		}
 
 		final ComboBox< Mode > modeSelector = ModeUtil.comboBox( modes );
 		modeSelector.setPromptText( "Mode" );
@@ -204,7 +200,6 @@ public class Atlas
 
 		final Source< T > source = spec.getSource();
 		final T t = source.getType();
-		System.out.println( t.getClass().getName() + " " + ( t instanceof VolatileARGBType ) );
 		final Function< T, String > valueToString;
 		if ( t instanceof ARGBType )
 			valueToString = ( Function< T, String > ) Object::toString;
@@ -236,7 +231,6 @@ public class Atlas
 		final RealTransformRealRandomAccessible< T, InverseRealTransform > rra = RealViews.transformReal( source.getInterpolatedSource( 0, 0, Interpolation.NEARESTNEIGHBOR ), affine );
 		this.valueDisplayListener.addSource( vsource, source, Optional.of( valueToString ) );
 
-		System.out.println( t.getClass().getName() + " oge" );
 		if ( t instanceof ARGBType || t instanceof LabelMultisetType )
 		{
 			final ToLongFunction< T > toIdConverter;

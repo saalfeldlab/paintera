@@ -173,10 +173,7 @@ public class BaseView extends BorderPane
 			else if ( newValue )
 				this.onFocusEnter.accept( viewer );
 			else
-			{
-				System.out.println( "Handling exit: accept viewer!" );
 				this.onFocusExit.accept( viewer );
-			}
 		} );
 	}
 

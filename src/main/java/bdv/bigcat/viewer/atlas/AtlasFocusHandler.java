@@ -92,7 +92,6 @@ public class AtlasFocusHandler
 		@Override
 		public void accept( final ViewerPanel t )
 		{
-			System.out.println( "Handler: exiting" );
 			synchronized ( AtlasFocusHandler.this )
 			{
 				installOnExitRemovables.forEach( consumer -> consumer.onExit.accept( t ) );
