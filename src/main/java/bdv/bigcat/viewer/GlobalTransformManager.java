@@ -27,8 +27,9 @@ public class GlobalTransformManager
 	public GlobalTransformManager( final AffineTransform3D affine, final List< TransformListener< AffineTransform3D > > listeners )
 	{
 		super();
-		this.listeners = new ArrayList<>( listeners );
+		this.listeners = new ArrayList<>();
 		this.affine = affine;
+		listeners.forEach( l -> addListener( l ) );
 	}
 
 	public synchronized void setTransform( final AffineTransform3D affine )
@@ -40,6 +41,7 @@ public class GlobalTransformManager
 	public void addListener( final TransformListener< AffineTransform3D > listener )
 	{
 		this.listeners.add( listener );
+		listener.transformChanged( this.affine );
 	}
 
 	public synchronized void preConcatenate( final AffineTransform3D transform )

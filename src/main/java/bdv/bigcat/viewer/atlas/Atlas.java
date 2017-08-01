@@ -17,10 +17,13 @@ import bdv.bigcat.viewer.ViewerActor;
 import bdv.bigcat.viewer.atlas.AtlasFocusHandler.OnEnterOnExit;
 import bdv.bigcat.viewer.atlas.data.DatasetSpec;
 import bdv.bigcat.viewer.atlas.data.HDF5LabelMultisetSourceSpec;
+import bdv.bigcat.viewer.atlas.data.LabelSpec;
 import bdv.bigcat.viewer.atlas.mode.Highlights;
+import bdv.bigcat.viewer.atlas.mode.Merges;
 import bdv.bigcat.viewer.atlas.mode.Mode;
 import bdv.bigcat.viewer.atlas.mode.ModeUtil;
 import bdv.bigcat.viewer.atlas.mode.NavigationOnly;
+import bdv.bigcat.viewer.state.FragmentSegmentAssignmentState;
 import bdv.bigcat.viewer.state.SelectedIds;
 import bdv.labels.labelset.LabelMultisetType;
 import bdv.labels.labelset.Multiset.Entry;
@@ -79,6 +82,8 @@ public class Atlas
 
 	private final HashMap< Source< ? >, SelectedIds > selectedIds = new HashMap<>();
 
+	private final HashMap< Source< ? >, FragmentSegmentAssignmentState< ? > > assignments = new HashMap<>();
+
 	private final HashMap< Source< ? >, Composite< ARGBType, ARGBType > > composites = new HashMap<>();
 
 	private final ViewerOptions viewerOptions;
@@ -87,7 +92,7 @@ public class Atlas
 
 	private final Source< ARGBType > backgroundSource;
 
-	private final Mode[] modes = { new NavigationOnly(), new Highlights( selectedIds ) };
+	private final Mode[] modes = { new NavigationOnly(), new Highlights( selectedIds ), new Merges( selectedIds, assignments ) };
 
 	public Atlas( final Interval interval )
 	{
@@ -108,7 +113,7 @@ public class Atlas
 		final ComboBox< Mode > modeSelector = ModeUtil.comboBox( modes );
 		modeSelector.setPromptText( "Mode" );
 		this.status.getChildren().add( modeSelector );
-		modeSelector.getSelectionModel().select( modes[ 0 ] );
+		modeSelector.getSelectionModel().select( modes[ 2 ] );
 
 		final Label label = new Label();
 		valueDisplayListener = new AtlasValueDisplayListener( label );
@@ -231,6 +236,28 @@ public class Atlas
 		final RealTransformRealRandomAccessible< T, InverseRealTransform > rra = RealViews.transformReal( source.getInterpolatedSource( 0, 0, Interpolation.NEARESTNEIGHBOR ), affine );
 		this.valueDisplayListener.addSource( vsource, source, Optional.of( valueToString ) );
 
+		if ( spec instanceof LabelSpec< ?, ? > )
+		{
+			final LabelSpec lspec = ( LabelSpec ) spec;
+			final FragmentSegmentAssignmentState< ? > assgn = lspec.getAssignment();
+			this.assignments.put( vsource, assgn );
+			view.addActor( new ViewerActor()
+			{
+
+				@Override
+				public Consumer< ViewerPanel > onRemove()
+				{
+					return vp -> {};
+				}
+
+				@Override
+				public Consumer< ViewerPanel > onAdd()
+				{
+					return vp -> assgn.addListener( () -> vp.requestRepaint() );
+				}
+			} );
+		}
+
 		if ( t instanceof ARGBType || t instanceof LabelMultisetType )
 		{
 			final ToLongFunction< T > toIdConverter;
@@ -246,6 +273,8 @@ public class Atlas
 			for ( final Mode mode : this.modes )
 				if ( mode instanceof Highlights )
 					( ( Highlights ) mode ).addSource( vsource, rra.realRandomAccess(), toIdConverter );
+				else if ( mode instanceof Merges )
+					( ( Merges ) mode ).addSource( vsource, rra.realRandomAccess(), toIdConverter );
 
 			view.addActor( new ViewerActor()
 			{

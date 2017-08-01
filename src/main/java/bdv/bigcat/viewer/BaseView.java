@@ -91,7 +91,11 @@ public class BaseView extends BorderPane
 	{
 		super();
 		this.state = state;
-		this.state.globalTransform.setTransform( new AffineTransform3D() );
+		final AffineTransform3D tf = new AffineTransform3D();
+		final double scale = 1e-3;
+		tf.scale( scale );
+		tf.translate( scale * -1938, scale * -1760, scale * -664 );
+		this.state.globalTransform.setTransform( tf );
 
 		this.grid = this.state.constraintsManager.createGrid();
 		this.centerProperty().set( grid );

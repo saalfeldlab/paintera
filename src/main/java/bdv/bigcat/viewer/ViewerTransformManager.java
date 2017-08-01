@@ -77,7 +77,6 @@ public class ViewerTransformManager implements TransformListener< AffineTransfor
 		super();
 		this.manager = manager;
 		this.globalToViewer = globalToViewer;
-		this.manager.addListener( this );
 		this.canvasH = 1;
 		this.canvasW = 1;
 		this.centerX = this.canvasW / 2;
@@ -205,6 +204,8 @@ public class ViewerTransformManager implements TransformListener< AffineTransfor
 		actions.namedAction( new ToggleVisibility(), "shift V" );
 		actions.namedAction( new CycleSources(), "shift S" );
 		actions.namedAction( new ToggleInterpolation(), "I" );
+
+		this.manager.addListener( this );
 	}
 
 	@Override

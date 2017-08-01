@@ -1,28 +1,33 @@
 package bdv.bigcat.viewer.state;
 
+import java.util.function.Consumer;
+
 import bdv.labels.labelset.Label;
-import bdv.util.IdService;
 import gnu.trove.impl.Constants;
 import gnu.trove.iterator.TLongLongIterator;
 import gnu.trove.map.hash.TLongLongHashMap;
 import gnu.trove.map.hash.TLongObjectHashMap;
 import gnu.trove.set.hash.TLongHashSet;
 
-public class FragmentSegmentAssignmentHashMap extends FragmentSegmentAssignmentState< FragmentSegmentAssignmentHashMap >
+public class BufferedFragmentSegmentAssignmentHashMap extends FragmentSegmentAssignmentState< BufferedFragmentSegmentAssignmentHashMap >
 {
 
 	private final TLongLongHashMap fragmentToSegmentMap = new TLongLongHashMap( Constants.DEFAULT_CAPACITY, Constants.DEFAULT_LOAD_FACTOR, Label.TRANSPARENT, Label.TRANSPARENT );
 
 	private final TLongObjectHashMap< TLongHashSet > segmentToFragmentsMap = new TLongObjectHashMap<>( Constants.DEFAULT_CAPACITY, Constants.DEFAULT_LOAD_FACTOR, Label.TRANSPARENT );
 
-	private IdService idService;
+	private final FragmentSegmentAssignment sourceAssignment;
 
-	public FragmentSegmentAssignmentHashMap( final IdService idService )
+	private final Consumer< TLongLongHashMap > writeBufferToSource;
+
+	private boolean showBufferedChanges = true;
+
+	public BufferedFragmentSegmentAssignmentHashMap( final FragmentSegmentAssignment sourceAssignment, final Consumer< TLongLongHashMap > writeBufferToSource )
 	{
-		this( new long[ 0 ], new long[ 0 ], idService );
+		this( new long[ 0 ], new long[ 0 ], sourceAssignment, writeBufferToSource );
 	}
 
-	public FragmentSegmentAssignmentHashMap( final long[] fragments, final long[] segments, final IdService idService )
+	public BufferedFragmentSegmentAssignmentHashMap( final long[] fragments, final long[] segments, final FragmentSegmentAssignment sourceAssignment, final Consumer< TLongLongHashMap > writeBufferToSource )
 	{
 
 		super();
@@ -33,38 +38,40 @@ public class FragmentSegmentAssignmentHashMap extends FragmentSegmentAssignmentS
 			fragmentToSegmentMap.put( fragments[ i ], segments[ i ] );
 
 		syncILut();
-		this.idService = idService;
+		this.sourceAssignment = sourceAssignment;
+		this.writeBufferToSource = writeBufferToSource;
 	}
 
-	public void setIdService( final IdService idService )
+	public void showBufferedChanges( final boolean showBufferedChanges )
 	{
-		this.idService = idService;
+		this.showBufferedChanges = showBufferedChanges;
+	}
+
+	public synchronized void clearBuffer( final boolean writeToSource )
+	{
+		if ( writeToSource )
+		{
+			writeBufferToSource.accept( fragmentToSegmentMap );
+			if ( sourceAssignment instanceof FragmentSegmentAssignmentFromSource )
+				( ( FragmentSegmentAssignmentFromSource ) sourceAssignment ).reload();
+		}
+		fragmentToSegmentMap.clear();
+		segmentToFragmentsMap.clear();
 	}
 
 	@Override
 	public synchronized long getSegment( final long fragmentId )
 	{
-		final long id;
-		final long segmentId = fragmentToSegmentMap.get( fragmentId );
-//		System.out.println( "FRAGMENT " + fragmentId + " " + segmentId + " " + segmentToFragmentsMap.getNoEntryValue() + " " + fragmentToSegmentMap.getNoEntryValue() );
-		if ( segmentId == fragmentToSegmentMap.getNoEntryValue() )
-		{
-			id = fragmentId;
-			fragmentToSegmentMap.put( fragmentId, id );
-			final TLongHashSet set = new TLongHashSet();
-			set.add( fragmentId );
-			segmentToFragmentsMap.put( id, set );
-		}
+		if ( showBufferedChanges && fragmentToSegmentMap.contains( fragmentId ) )
+			return fragmentToSegmentMap.get( fragmentId );
 		else
-			id = segmentId;
-		return id;
+			return sourceAssignment.getSegment( fragmentId );
 	}
 
 	@Override
 	public synchronized TLongHashSet getFragments( final long segmentId )
 	{
-		final TLongHashSet fragments = segmentToFragmentsMap.get( segmentId );
-		return fragments;
+		return segmentToFragmentsMap.contains( segmentId ) ? segmentToFragmentsMap.get( segmentId ) : sourceAssignment.getFragments( segmentId );
 	}
 
 	@Override
@@ -75,13 +82,16 @@ public class FragmentSegmentAssignmentHashMap extends FragmentSegmentAssignmentS
 
 		synchronized ( this )
 		{
-			final TLongHashSet fragments1 = segmentToFragmentsMap.get( assignFrom );
-			final TLongHashSet fragments2 = segmentToFragmentsMap.get( assignTo );
-			fragments2.addAll( fragments1 );
+			final TLongHashSet fragments1 = getFragments( assignFrom );
+			final TLongHashSet fragments2 = getFragments( assignTo );
+			final TLongHashSet fragments = new TLongHashSet();
+			fragments.addAll( fragments1 );
+			fragments.addAll( fragments2 );
 			fragments1.forEach( fragmentId -> {
 				fragmentToSegmentMap.put( fragmentId, assignTo );
 				return true;
 			} );
+			segmentToFragmentsMap.put( assignTo, fragments );
 			segmentToFragmentsMap.remove( assignFrom );
 		}
 	}
@@ -92,11 +102,12 @@ public class FragmentSegmentAssignmentHashMap extends FragmentSegmentAssignmentS
 		if ( segmentId1 == segmentId2 )
 			return;
 
-		final long mergedSegmentId = idService.next();
+		// TODO fix this!!!
+		final long mergedSegmentId = segmentId2; // idService.next();
 		synchronized ( this )
 		{
-			final TLongHashSet fragments1 = segmentToFragmentsMap.get( segmentId1 );
-			final TLongHashSet fragments2 = segmentToFragmentsMap.get( segmentId2 );
+			final TLongHashSet fragments1 = getFragments( segmentId1 );
+			final TLongHashSet fragments2 = getFragments( segmentId2 );
 			final TLongHashSet fragments = fragments1;
 			fragments.addAll( fragments2 );
 
@@ -114,8 +125,8 @@ public class FragmentSegmentAssignmentHashMap extends FragmentSegmentAssignmentS
 	@Override
 	protected synchronized void detachFragmentImpl( final long fragmentId )
 	{
-		final long segmentId = fragmentToSegmentMap.get( fragmentId );
-		final TLongHashSet fragments = segmentToFragmentsMap.get( segmentId );
+		final long segmentId = getSegment( fragmentId );
+		final TLongHashSet fragments = getFragments( segmentId );
 		if ( fragments != null && fragments.size() > 1 )
 		{
 			fragments.remove( fragmentId );

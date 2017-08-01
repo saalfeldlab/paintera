@@ -17,6 +17,7 @@
 package bdv.bigcat.viewer.stream;
 
 import bdv.bigcat.ui.ARGBStream;
+import bdv.bigcat.viewer.state.FragmentSegmentAssignment;
 import bdv.bigcat.viewer.state.SelectedIds;
 import bdv.labels.labelset.Label;
 import gnu.trove.impl.Constants;
@@ -43,11 +44,14 @@ abstract public class AbstractHighlightingARGBStream implements ARGBStream
 
 	protected int invalidSegmentAlpha = 0x00000000;
 
-	final protected SelectedIds highlights;
+	protected final SelectedIds highlights;
 
-	public AbstractHighlightingARGBStream( final SelectedIds highlights )
+	protected final FragmentSegmentAssignment assignment;
+
+	public AbstractHighlightingARGBStream( final SelectedIds highlights, final FragmentSegmentAssignment assignment )
 	{
 		this.highlights = highlights;
+		this.assignment = assignment;
 	}
 
 	protected TLongIntHashMap argbCache = new TLongIntHashMap(
@@ -70,7 +74,12 @@ abstract public class AbstractHighlightingARGBStream implements ARGBStream
 
 	public boolean isHighlight( final long id )
 	{
-		return this.highlights.isActive( id );
+		// TODO FIX THIS THING HERE!
+		final long segment = this.assignment.getSegment( id );
+		for ( final long i : highlights.getActiveIds() )
+			if ( this.assignment.getSegment( i ) == segment )
+				return true;
+		return false;
 	}
 
 	final static protected int argb( final int r, final int g, final int b, final int alpha )
@@ -78,7 +87,20 @@ abstract public class AbstractHighlightingARGBStream implements ARGBStream
 		return ( r << 8 | g ) << 8 | b | alpha;
 	}
 
-	abstract protected double getDouble( final long id );
+	protected double getDouble( final long id )
+	{
+		return getDoubleImpl( assignment.getSegment( id ) );
+	}
+
+	protected abstract double getDoubleImpl( final long id );
+
+	@Override
+	public int argb( final long id )
+	{
+		return argbImpl( assignment.getSegment( id ) );
+	}
+
+	protected abstract int argbImpl( long id );
 
 	/**
 	 * Change the seed.

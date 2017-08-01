@@ -27,6 +27,7 @@ public abstract class AbstractStateMode implements Mode
 	public void enable()
 	{
 		isActive = true;
+		additionalActionOnEnable();
 	}
 
 	@Override
@@ -36,6 +37,17 @@ public abstract class AbstractStateMode implements Mode
 		final Consumer< ViewerPanel > onExit = onExit();
 		for ( final ViewerPanel viewer : knownViewers )
 			onExit.accept( viewer );
+		additionalActionOnDisable();
+	}
+
+	protected void additionalActionOnEnable()
+	{
+
+	}
+
+	protected void additionalActionOnDisable()
+	{
+
 	}
 
 	protected abstract Consumer< ViewerPanel > getOnEnter();

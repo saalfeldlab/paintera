@@ -8,6 +8,7 @@ import java.util.function.ToLongFunction;
 import org.scijava.ui.behaviour.ClickBehaviour;
 import org.scijava.ui.behaviour.util.AbstractNamedBehaviour;
 
+import bdv.bigcat.viewer.state.FragmentSegmentAssignment;
 import bdv.bigcat.viewer.state.SelectedIds;
 import bdv.viewer.Source;
 import bdv.viewer.ViewerPanel;
@@ -46,6 +47,11 @@ public class IdSelector
 	public Append append( final String name )
 	{
 		return new Append( name );
+	}
+
+	public MergeSegments merge( final HashMap< Source< ? >, ? extends FragmentSegmentAssignment > assignments )
+	{
+		return new MergeSegments( assignments );
 	}
 
 	private abstract class Select extends AbstractNamedBehaviour implements ClickBehaviour
@@ -111,6 +117,51 @@ public class IdSelector
 				selectedIds.deactivate( id );
 			else
 				selectedIds.activateAlso( id );
+		}
+
+	}
+
+	private class MergeSegments extends AbstractNamedBehaviour implements ClickBehaviour
+	{
+
+		private final HashMap< Source< ? >, ? extends FragmentSegmentAssignment > assignments;
+
+		public MergeSegments( final HashMap< Source< ? >, ? extends FragmentSegmentAssignment > assignments )
+		{
+			super( "merge segments" );
+			this.assignments = assignments;
+		}
+
+		@Override
+		public void click( final int x, final int y )
+		{
+			final Optional< Source< ? > > optionalSource = getSource();
+			if ( !optionalSource.isPresent() )
+				return;
+			final Source< ? > source = optionalSource.get();
+			if ( toIdConverters.containsKey( source ) && selectedIds.containsKey( source ) && accesses.containsKey( source ) && assignments.containsKey( source ) )
+			{
+
+				final long[] selIds = selectedIds.get( source ).getActiveIds();
+				if ( selIds.length != 1 )
+					return;
+
+				final RealRandomAccess< ? > access = accesses.get( source );
+				viewer.getMouseCoordinates( access );
+				access.setPosition( 0l, 2 );
+				viewer.displayToGlobalCoordinates( access );
+				final Object val = access.get();
+				final FragmentSegmentAssignment assignment = assignments.get( source );
+				final long id = assignment.getSegment( toIdConverters.get( source ).applyAsLong( val ) );
+
+				final long selectedId = assignment.getSegment( selIds[ 0 ] );
+
+				if ( selectedId == id )
+					return;
+
+				assignments.get( source ).assignFragments( id, selectedId );
+
+			}
 		}
 
 	}

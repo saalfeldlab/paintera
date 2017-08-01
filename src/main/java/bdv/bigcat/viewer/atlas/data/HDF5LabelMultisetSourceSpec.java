@@ -5,6 +5,9 @@ import java.util.Iterator;
 
 import bdv.bigcat.ui.LabelMultisetSource;
 import bdv.bigcat.ui.VolatileLabelMultisetSource;
+import bdv.bigcat.viewer.state.BufferedFragmentSegmentAssignmentHashMap;
+import bdv.bigcat.viewer.state.FragmentSegmentAssignmentHashMap;
+import bdv.bigcat.viewer.state.FragmentSegmentAssignmentState;
 import bdv.bigcat.viewer.state.SelectedIds;
 import bdv.bigcat.viewer.stream.AbstractHighlightingARGBStream;
 import bdv.bigcat.viewer.stream.ModalGoldenAngleSaturatedHighlightingARGBStream;
@@ -14,13 +17,14 @@ import bdv.labels.labelset.Label;
 import bdv.labels.labelset.LabelMultisetType;
 import bdv.labels.labelset.Multiset.Entry;
 import bdv.labels.labelset.VolatileLabelMultisetType;
+import bdv.util.LocalIdService;
 import bdv.util.volatiles.SharedQueue;
 import ch.systemsx.cisd.hdf5.HDF5Factory;
 import ch.systemsx.cisd.hdf5.IHDF5Reader;
 import net.imglib2.converter.Converter;
 import net.imglib2.type.numeric.ARGBType;
 
-public class HDF5LabelMultisetSourceSpec implements DatasetSpec< LabelMultisetType, VolatileLabelMultisetType >
+public class HDF5LabelMultisetSourceSpec implements LabelSpec< LabelMultisetType, VolatileLabelMultisetType >
 {
 
 	private final AbstractHighlightingARGBStream stream;
@@ -29,10 +33,12 @@ public class HDF5LabelMultisetSourceSpec implements DatasetSpec< LabelMultisetTy
 
 	private final SelectedIds selectedIds = new SelectedIds();
 
+	private final FragmentSegmentAssignmentState< ? > assignment = new BufferedFragmentSegmentAssignmentHashMap( new FragmentSegmentAssignmentHashMap( new LocalIdService() ), m -> {} );
+
 	public HDF5LabelMultisetSourceSpec( final String path, final String dataset, final int[] cellSize ) throws IOException
 	{
 		super();
-		this.stream = new ModalGoldenAngleSaturatedHighlightingARGBStream( selectedIds );
+		this.stream = new ModalGoldenAngleSaturatedHighlightingARGBStream( selectedIds, assignment );
 		final IHDF5Reader h5reader = HDF5Factory.open( path );
 		this.loader = new H5LabelMultisetSetupImageLoader( h5reader, null, dataset, 0, cellSize, new VolatileGlobalCellCache( new SharedQueue( 8 ) ) );
 	}
@@ -120,6 +126,12 @@ public class HDF5LabelMultisetSourceSpec implements DatasetSpec< LabelMultisetTy
 			return val >= Integer.MAX_VALUE ? Label.INVALID : val;
 		}
 
+	}
+
+	@Override
+	public FragmentSegmentAssignmentState< ? > getAssignment()
+	{
+		return assignment;
 	}
 
 }

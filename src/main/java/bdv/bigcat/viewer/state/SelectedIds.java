@@ -60,6 +60,11 @@ public class SelectedIds extends AbstractState< SelectedIds >
 		return selectedIds.size() == 1 && isActive( id );
 	}
 
+	public long[] getActiveIds()
+	{
+		return this.selectedIds.toArray();
+	}
+
 	@Override
 	public String toString()
 	{

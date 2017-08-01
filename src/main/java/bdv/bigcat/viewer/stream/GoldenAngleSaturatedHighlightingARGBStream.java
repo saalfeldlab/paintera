@@ -16,6 +16,7 @@
  */
 package bdv.bigcat.viewer.stream;
 
+import bdv.bigcat.viewer.state.FragmentSegmentAssignment;
 import bdv.bigcat.viewer.state.SelectedIds;
 
 /**
@@ -29,16 +30,16 @@ import bdv.bigcat.viewer.state.SelectedIds;
  */
 public class GoldenAngleSaturatedHighlightingARGBStream extends AbstractSaturatedHighlightingARGBStream
 {
-	public GoldenAngleSaturatedHighlightingARGBStream( final SelectedIds highlights )
+	public GoldenAngleSaturatedHighlightingARGBStream( final SelectedIds highlights, final FragmentSegmentAssignment assignment )
 	{
-		super( highlights );
+		super( highlights, assignment );
 		seed = 1;
 	}
 
 	final static protected double goldenRatio = 1.0 / ( 0.5 * Math.sqrt( 5 ) + 0.5 );
 
 	@Override
-	final protected double getDouble( final long id )
+	final protected double getDoubleImpl( final long id )
 	{
 		final double x = id * seed * goldenRatio;
 		return x - ( long ) Math.floor( x );
