@@ -17,6 +17,10 @@ import bdv.bigcat.viewer.ViewerActor;
 import bdv.bigcat.viewer.atlas.AtlasFocusHandler.OnEnterOnExit;
 import bdv.bigcat.viewer.atlas.data.DatasetSpec;
 import bdv.bigcat.viewer.atlas.data.HDF5LabelMultisetSourceSpec;
+import bdv.bigcat.viewer.atlas.mode.Highlights;
+import bdv.bigcat.viewer.atlas.mode.Mode;
+import bdv.bigcat.viewer.atlas.mode.ModeUtil;
+import bdv.bigcat.viewer.atlas.mode.NavigationOnly;
 import bdv.bigcat.viewer.state.SelectedIds;
 import bdv.labels.labelset.LabelMultisetType;
 import bdv.labels.labelset.Multiset.Entry;
@@ -33,12 +37,14 @@ import javafx.collections.MapChangeListener;
 import javafx.collections.ObservableMap;
 import javafx.scene.Node;
 import javafx.scene.Scene;
+import javafx.scene.control.ComboBox;
 import javafx.scene.control.Label;
 import javafx.scene.control.Tab;
 import javafx.scene.control.TabPane;
 import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableView;
 import javafx.scene.control.TextField;
+import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
 import net.imglib2.FinalInterval;
@@ -64,7 +70,7 @@ public class Atlas
 
 	private final BaseView view;
 
-	private final Label status;
+	private final HBox status = new HBox();
 
 	private final AtlasFocusHandler focusHandler = new AtlasFocusHandler();
 
@@ -76,13 +82,13 @@ public class Atlas
 
 	private final HashMap< Source< ? >, Composite< ARGBType, ARGBType > > composites = new HashMap<>();
 
-	private final AtlasIdSelector idSelector = new AtlasIdSelector( selectedIds );
-
 	private final ViewerOptions viewerOptions;
 
 	private final WrappedRealRandomAccessible< ARGBType > background;
 
 	private final Source< ARGBType > backgroundSource;
+
+	private final Mode[] modes = { new NavigationOnly(), new Highlights( selectedIds ) };
 
 	public Atlas( final Interval interval )
 	{
@@ -94,14 +100,27 @@ public class Atlas
 		super();
 		this.viewerOptions = viewerOptions.accumulateProjectorFactory( new CompositeProjectorFactory<>( composites ) );
 		this.view = new BaseView( focusHandler.onEnter(), focusHandler.onExit(), new BaseViewState( this.viewerOptions ) );
-		this.status = new Label();
 		this.view.setBottom( status );
 		this.view.setInfoNode( this.view.globalSourcesInfoNode() );
-		valueDisplayListener = new AtlasValueDisplayListener( status );
+
+		for ( final Mode mode : modes )
+		{
+			System.out.println( "MODE " + mode.getName() );
+			addOnEnterOnExit( mode.onEnter(), mode.onExit(), true );
+		}
+
+		final ComboBox< Mode > modeSelector = ModeUtil.comboBox( modes );
+		modeSelector.setPromptText( "Mode" );
+		this.status.getChildren().add( modeSelector );
+		modeSelector.getSelectionModel().select( modes[ 0 ] );
+
+		final Label label = new Label();
+		valueDisplayListener = new AtlasValueDisplayListener( label );
+		this.status.getChildren().add( label );
+
 //		final AtlasMouseCoordinatePrinter mcp = new AtlasMouseCoordinatePrinter( this.status );
 //		addOnEnterOnExit( mcp.onEnter(), mcp.onExit(), true );
 		addOnEnterOnExit( valueDisplayListener.onEnter(), valueDisplayListener.onExit(), true );
-		addOnEnterOnExit( idSelector.onEnter(), idSelector.onExit(), false );
 		final RandomAccessibleSource< FloatType > bg = new RandomAccessibleSource<>( ConstantUtils.constantRandomAccessible( new FloatType( 0.0f ), 3 ), new FinalInterval( 1000, 1000, 100 ), new FloatType(), "background" );
 		final RandomAccessibleSource< VolatileFloatType > vbg = new RandomAccessibleSource<>( ConstantUtils.constantRandomAccessible( new VolatileFloatType( 0.0f ), 3 ), new FinalInterval( 1000, 1000, 100 ), new VolatileFloatType(), "background" );
 		final RealARGBConverter< FloatType > conv = new RealARGBConverter<>( 0.0, 1.0 );
@@ -230,7 +249,9 @@ public class Atlas
 				};
 			final SelectedIds selectedIds = spec instanceof HDF5LabelMultisetSourceSpec ? ( ( HDF5LabelMultisetSourceSpec ) spec ).getSelectedIds() : new SelectedIds();
 			this.selectedIds.put( vsource, selectedIds );
-			this.idSelector.addSource( vsource, rra.realRandomAccess(), toIdConverter );
+			for ( final Mode mode : this.modes )
+				if ( mode instanceof Highlights )
+					( ( Highlights ) mode ).addSource( vsource, rra.realRandomAccess(), toIdConverter );
 
 			view.addActor( new ViewerActor()
 			{
