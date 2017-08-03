@@ -29,6 +29,8 @@ public class Merges extends AbstractStateMode
 
 	private final HashMap< Source< ? >, FragmentSegmentAssignmentState< ? > > assignments;
 
+	public static String AMBIGUOUS_SELECTION_MESSAGE = "";
+
 	public Merges( final HashMap< Source< ? >, SelectedIds > selectedIds, final HashMap< Source< ? >, FragmentSegmentAssignmentState< ? > > assignments )
 	{
 		this.selectedIds = selectedIds;
@@ -65,7 +67,7 @@ public class Merges extends AbstractStateMode
 				final InputTriggerConfig inputTriggerConfig = new InputTriggerConfig();
 				final IdSelector selector = new IdSelector( t, toIdConverters, selectedIds, accesses );
 				final Behaviours behaviours = new Behaviours( inputTriggerConfig );
-				behaviours.namedBehaviour( selector.selectSingle( "toggle single id" ), "button1" );
+				behaviours.namedBehaviour( selector.selectSingle( "toggle single id", new SelectionDialogSingleId( AMBIGUOUS_SELECTION_MESSAGE ) ), "button1" );
 				behaviours.namedBehaviour( selector.merge( assignments ), "shift button1" );
 				behaviours.namedBehaviour( selector.detach( assignments ), "shift button3" );
 				final TriggerBehaviourBindings bindings = new TriggerBehaviourBindings();

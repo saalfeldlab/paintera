@@ -8,6 +8,7 @@ import java.util.function.Function;
 import org.scijava.ui.behaviour.ClickBehaviour;
 import org.scijava.ui.behaviour.util.AbstractNamedBehaviour;
 
+import bdv.bigcat.viewer.atlas.mode.HandleMultipleIds;
 import bdv.bigcat.viewer.state.FragmentSegmentAssignment;
 import bdv.bigcat.viewer.state.SelectedIds;
 import bdv.viewer.Source;
@@ -39,14 +40,14 @@ public class IdSelector
 		this.accesses = accesses;
 	}
 
-	public SelectSingle selectSingle( final String name )
+	public SelectSingle selectSingle( final String name, final HandleMultipleIds handleMultipleEntries )
 	{
-		return new SelectSingle( name );
+		return new SelectSingle( name, handleMultipleEntries );
 	}
 
-	public Append append( final String name )
+	public Append append( final String name, final HandleMultipleIds handleMultipleEntries )
 	{
-		return new Append( name );
+		return new Append( name, handleMultipleEntries );
 	}
 
 	public MergeSegments merge( final HashMap< Source< ? >, ? extends FragmentSegmentAssignment > assignments )
@@ -61,6 +62,7 @@ public class IdSelector
 
 	private abstract class Select extends AbstractNamedBehaviour implements ClickBehaviour
 	{
+
 		public Select( final String name )
 		{
 			super( name );
@@ -92,9 +94,12 @@ public class IdSelector
 	private class SelectSingle extends Select
 	{
 
-		public SelectSingle( final String name )
+		private final HandleMultipleIds handleMultipleEntries;
+
+		public SelectSingle( final String name, final HandleMultipleIds handleMultipleEntries )
 		{
 			super( name );
+			this.handleMultipleEntries = handleMultipleEntries;
 		}
 
 		@Override
@@ -104,13 +109,27 @@ public class IdSelector
 			{
 			case 0:
 				return;
-			case 1:
-				final long id = ids[ 0 ];
-				if ( selectedIds.isOnlyActiveId( id ) )
-					selectedIds.deactivate( id );
-				else
-					selectedIds.activate( id );
+//			case 1:
+//				final long id = ids[ 0 ];
+//				if ( selectedIds.isOnlyActiveId( id ) )
+//					selectedIds.deactivate( id );
+//				else
+//					selectedIds.activate( id );
 			default:
+				final boolean[] isActive = new boolean[ ids.length ];
+				final boolean requiresAction = handleMultipleEntries.handle( ids, selectedIds, isActive );
+				if ( requiresAction )
+				{
+					selectedIds.deactivateAll();
+					for ( int i = 0; i < ids.length; ++i )
+					{
+						System.out.println( "ACTIVATE? " + isActive[ i ] + ids[ i ] );
+						if ( isActive[ i ] )
+							selectedIds.activateAlso( ids[ i ] );
+						else
+							selectedIds.deactivate( ids[ i ] );
+					}
+				}
 				break;
 			}
 		}
@@ -119,9 +138,12 @@ public class IdSelector
 	private class Append extends Select
 	{
 
-		public Append( final String name )
+		private final HandleMultipleIds handleMultipleEntries;
+
+		public Append( final String name, final HandleMultipleIds handleMultipleEntries )
 		{
 			super( name );
+			this.handleMultipleEntries = handleMultipleEntries;
 		}
 
 		@Override
@@ -131,12 +153,22 @@ public class IdSelector
 			{
 			case 0:
 				return;
-			case 1:
-				final long id = ids[ 0 ];
-				if ( selectedIds.isActive( id ) )
-					selectedIds.deactivate( id );
-				else
-					selectedIds.activateAlso( id );
+//			case 1:
+//				final long id = ids[ 0 ];
+//				if ( selectedIds.isActive( id ) )
+//					selectedIds.deactivate( id );
+//				else
+//					selectedIds.activateAlso( id );
+			default:
+				final boolean[] isActive = new boolean[ ids.length ];
+				final boolean requiresAction = handleMultipleEntries.handle( ids, selectedIds, isActive );
+				if ( requiresAction )
+					for ( int i = 0; i < ids.length; ++i )
+						if ( isActive[ i ] )
+							selectedIds.activateAlso( ids[ i ] );
+						else
+							selectedIds.deactivate( ids[ i ] );
+				break;
 			}
 		}
 
