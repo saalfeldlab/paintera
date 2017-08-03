@@ -109,12 +109,13 @@ public class IdSelector
 			{
 			case 0:
 				return;
-//			case 1:
-//				final long id = ids[ 0 ];
-//				if ( selectedIds.isOnlyActiveId( id ) )
-//					selectedIds.deactivate( id );
-//				else
-//					selectedIds.activate( id );
+			case 1:
+				final long id = ids[ 0 ];
+				if ( selectedIds.isOnlyActiveId( id ) )
+					selectedIds.deactivate( id );
+				else
+					selectedIds.activate( id );
+				break;
 			default:
 				final boolean[] isActive = new boolean[ ids.length ];
 				final boolean requiresAction = handleMultipleEntries.handle( ids, selectedIds, isActive );
@@ -153,12 +154,13 @@ public class IdSelector
 			{
 			case 0:
 				return;
-//			case 1:
-//				final long id = ids[ 0 ];
-//				if ( selectedIds.isActive( id ) )
-//					selectedIds.deactivate( id );
-//				else
-//					selectedIds.activateAlso( id );
+			case 1:
+				final long id = ids[ 0 ];
+				if ( selectedIds.isActive( id ) )
+					selectedIds.deactivate( id );
+				else
+					selectedIds.activateAlso( id );
+				break;
 			default:
 				final boolean[] isActive = new boolean[ ids.length ];
 				final boolean requiresAction = handleMultipleEntries.handle( ids, selectedIds, isActive );
