@@ -3,7 +3,7 @@ package bdv.bigcat.viewer;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Optional;
-import java.util.function.ToLongFunction;
+import java.util.function.Function;
 
 import org.scijava.ui.behaviour.ClickBehaviour;
 import org.scijava.ui.behaviour.util.AbstractNamedBehaviour;
@@ -20,7 +20,7 @@ public class IdSelector
 
 	private final ViewerPanel viewer;
 
-	private final HashMap< Source< ? >, ToLongFunction > toIdConverters;
+	private final HashMap< Source< ? >, Function< Object, long[] > > toIdConverters;
 
 	private final HashMap< Source< ? >, SelectedIds > selectedIds;
 
@@ -28,7 +28,7 @@ public class IdSelector
 
 	public IdSelector(
 			final ViewerPanel viewer,
-			final HashMap< Source< ? >, ToLongFunction > toIdConverters,
+			final HashMap< Source< ? >, Function< Object, long[] > > toIdConverters,
 			final HashMap< Source< ? >, SelectedIds > selectedIds,
 			final HashMap< Source< ? >, RealRandomAccess< ? > > accesses )
 	{
@@ -81,12 +81,12 @@ public class IdSelector
 				access.setPosition( 0l, 2 );
 				viewer.displayToGlobalCoordinates( access );
 				final Object val = access.get();
-				final long id = toIdConverters.get( source ).applyAsLong( val );
+				final long[] id = toIdConverters.get( source ).apply( val );
 				actOn( id, selectedIds.get( source ) );
 			}
 		}
 
-		protected abstract void actOn( final long id, SelectedIds selectedIds );
+		protected abstract void actOn( final long[] id, SelectedIds selectedIds );
 	}
 
 	private class SelectSingle extends Select
@@ -98,12 +98,21 @@ public class IdSelector
 		}
 
 		@Override
-		protected void actOn( final long id, final SelectedIds selectedIds )
+		protected void actOn( final long[] ids, final SelectedIds selectedIds )
 		{
-			if ( selectedIds.isOnlyActiveId( id ) )
-				selectedIds.deactivate( id );
-			else
-				selectedIds.activate( id );
+			switch ( ids.length )
+			{
+			case 0:
+				return;
+			case 1:
+				final long id = ids[ 0 ];
+				if ( selectedIds.isOnlyActiveId( id ) )
+					selectedIds.deactivate( id );
+				else
+					selectedIds.activate( id );
+			default:
+				break;
+			}
 		}
 	}
 
@@ -116,12 +125,19 @@ public class IdSelector
 		}
 
 		@Override
-		protected void actOn( final long id, final SelectedIds selectedIds )
+		protected void actOn( final long[] ids, final SelectedIds selectedIds )
 		{
-			if ( selectedIds.isActive( id ) )
-				selectedIds.deactivate( id );
-			else
-				selectedIds.activateAlso( id );
+			switch ( ids.length )
+			{
+			case 0:
+				return;
+			case 1:
+				final long id = ids[ 0 ];
+				if ( selectedIds.isActive( id ) )
+					selectedIds.deactivate( id );
+				else
+					selectedIds.activateAlso( id );
+			}
 		}
 
 	}
@@ -146,25 +162,46 @@ public class IdSelector
 			final Source< ? > source = optionalSource.get();
 			if ( toIdConverters.containsKey( source ) && selectedIds.containsKey( source ) && accesses.containsKey( source ) && assignments.containsKey( source ) )
 			{
+				final FragmentSegmentAssignment assignment = assignments.get( source );
 
 				final long[] selIds = selectedIds.get( source ).getActiveIds();
-				if ( selIds.length != 1 )
+
+				if ( selIds.length < 1 )
 					return;
+
+				final long selectedId = assignment.getSegment( selIds[ 0 ] );
+
+				for ( int i = 1; i < selIds.length; ++i )
+					if ( assignment.getSegment( selIds[ i ] ) != selectedId )
+					{
+						System.out.println( "Ambiguity: Selected multiple active segments -- will not apply merge!" );
+						return;
+					}
 
 				final RealRandomAccess< ? > access = accesses.get( source );
 				viewer.getMouseCoordinates( access );
 				access.setPosition( 0l, 2 );
 				viewer.displayToGlobalCoordinates( access );
 				final Object val = access.get();
-				final FragmentSegmentAssignment assignment = assignments.get( source );
-				final long id = assignment.getSegment( toIdConverters.get( source ).applyAsLong( val ) );
+				final long[] ids = toIdConverters.get( source ).apply( val );
 
-				final long selectedId = assignment.getSegment( selIds[ 0 ] );
+//				final long firstSegment = assignment.getSegment( ids[ 0 ] );
+//				for ( int i = 0; i < ids.length; ++i )
+//					if ( assignment.getSegment( ids[ i ] ) != firstSegment )
+//					{
+//						System.out.println( "Ambiguity: Selected multiple segments -- will not apply merge!" );
+//						return;
+//					}
 
-				if ( selectedId == id )
-					return;
+//				if ( selectedId == id )
+//					return;
 
-				assignment.assignFragments( id, selectedId );
+				for ( int i = 0; i < ids.length; ++i )
+				{
+					final long id = assignment.getSegment( ids[ i ] );
+					if ( id != selectedId )
+						assignment.assignFragments( id, selectedId );
+				}
 
 			}
 		}
@@ -192,11 +229,21 @@ public class IdSelector
 			if ( toIdConverters.containsKey( source ) && selectedIds.containsKey( source ) && accesses.containsKey( source ) && assignments.containsKey( source ) )
 			{
 
+				final FragmentSegmentAssignment assignment = assignments.get( source );
+
 				final long[] selIds = selectedIds.get( source ).getActiveIds();
-				if ( selIds.length != 1 )
+
+				if ( selIds.length < 1 )
 					return;
 
-				final FragmentSegmentAssignment assignment = assignments.get( source );
+				final long selectedId = assignment.getSegment( selIds[ 0 ] );
+
+				for ( int i = 1; i < selIds.length; ++i )
+					if ( assignment.getSegment( selIds[ i ] ) != selectedId )
+					{
+						System.out.println( "Ambiguity: Selected multiple active segments -- will not apply merge!" );
+						return;
+					}
 
 				final long selectedSegment = assignment.getSegment( selIds[ 0 ] );
 
@@ -205,10 +252,11 @@ public class IdSelector
 				access.setPosition( 0l, 2 );
 				viewer.displayToGlobalCoordinates( access );
 				final Object val = access.get();
-				final long id = toIdConverters.get( source ).applyAsLong( val );
+				final long[] ids = toIdConverters.get( source ).apply( val );
 
-				if ( assignment.getSegment( id ) == selectedSegment )
-					assignment.detachFragment( id );
+				for ( final long id : ids )
+					if ( assignment.getSegment( id ) == selectedSegment )
+						assignment.detachFragment( id );
 
 			}
 		}

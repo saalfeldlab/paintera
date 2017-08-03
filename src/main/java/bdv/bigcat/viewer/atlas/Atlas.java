@@ -3,9 +3,9 @@ package bdv.bigcat.viewer.atlas;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Optional;
+import java.util.Set;
 import java.util.function.Consumer;
 import java.util.function.Function;
-import java.util.function.ToLongFunction;
 
 import bdv.bigcat.composite.ARGBCompositeAlphaAdd;
 import bdv.bigcat.composite.Composite;
@@ -260,13 +260,17 @@ public class Atlas
 
 		if ( t instanceof ARGBType || t instanceof LabelMultisetType )
 		{
-			final ToLongFunction< T > toIdConverter;
+			final Function< Object, long[] > toIdConverter;
 			if ( t instanceof ARGBType )
-				toIdConverter = argb -> ( ( ARGBType ) argb ).get();
+				toIdConverter = argb -> new long[] { ( ( ARGBType ) argb ).get() };
 			else
 				toIdConverter = multiset -> {
-					final Iterator< Entry< bdv.labels.labelset.Label > > it = ( ( LabelMultisetType ) multiset ).entrySet().iterator();
-					return it.hasNext() ? it.next().getElement().id() : 0;
+					final Set< Entry< bdv.labels.labelset.Label > > es = ( ( LabelMultisetType ) multiset ).entrySet();
+					final long[] ids = new long[ es.size() ];
+					final Iterator< Entry< bdv.labels.labelset.Label > > it = es.iterator();
+					for ( int i = 0; it.hasNext(); ++i )
+						ids[ i ] = it.next().getElement().id();
+					return ids;
 				};
 			final SelectedIds selectedIds = spec instanceof HDF5LabelMultisetSourceSpec ? ( ( HDF5LabelMultisetSourceSpec ) spec ).getSelectedIds() : new SelectedIds();
 			this.selectedIds.put( vsource, selectedIds );

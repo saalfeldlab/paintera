@@ -2,7 +2,7 @@ package bdv.bigcat.viewer.atlas.mode;
 
 import java.util.HashMap;
 import java.util.function.Consumer;
-import java.util.function.ToLongFunction;
+import java.util.function.Function;
 
 import org.scijava.ui.behaviour.MouseAndKeyHandler;
 import org.scijava.ui.behaviour.io.InputTriggerConfig;
@@ -20,7 +20,7 @@ public class Highlights extends AbstractStateMode
 
 	private final HashMap< Source< ? >, RealRandomAccess< ? > > accesses = new HashMap<>();
 
-	private final HashMap< Source< ? >, ToLongFunction > toIdConverters = new HashMap<>();
+	private final HashMap< Source< ? >, Function< Object, long[] > > toIdConverters = new HashMap<>();
 
 	private final HashMap< Source< ? >, SelectedIds > selectedIds;
 
@@ -31,7 +31,7 @@ public class Highlights extends AbstractStateMode
 		this.selectedIds = selectedIds;
 	}
 
-	public void addSource( final Source< ? > source, final RealRandomAccess< ? > access, final ToLongFunction< ? > toIdConverter )
+	public void addSource( final Source< ? > source, final RealRandomAccess< ? > access, final Function< Object, long[] > toIdConverter )
 	{
 
 		this.accesses.put( source, access );
