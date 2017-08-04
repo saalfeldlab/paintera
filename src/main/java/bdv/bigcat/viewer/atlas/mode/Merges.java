@@ -14,12 +14,11 @@ import bdv.bigcat.viewer.state.FragmentSegmentAssignmentState;
 import bdv.bigcat.viewer.state.SelectedIds;
 import bdv.viewer.Source;
 import bdv.viewer.ViewerPanel;
-import net.imglib2.RealRandomAccess;
 
 public class Merges extends AbstractStateMode
 {
 
-	private final HashMap< Source< ? >, RealRandomAccess< ? > > accesses = new HashMap<>();
+	private final HashMap< Source< ? >, Source< ? > > dataSources = new HashMap<>();
 
 	private final HashMap< Source< ? >, Function< Object, long[] > > toIdConverters = new HashMap<>();
 
@@ -37,16 +36,16 @@ public class Merges extends AbstractStateMode
 		this.assignments = assignments;
 	}
 
-	public void addSource( final Source< ? > source, final RealRandomAccess< ? > access, final Function< Object, long[] > toIdConverter )
+	public void addSource( final Source< ? > source, final Source< ? > dataSource, final Function< Object, long[] > toIdConverter )
 	{
 
-		this.accesses.put( source, access );
+		this.dataSources.put( source, dataSource );
 		this.toIdConverters.put( source, toIdConverter );
 	}
 
 	public void removeSource( final Source< ? > source )
 	{
-		this.accesses.remove( source );
+		this.dataSources.remove( source );
 		this.toIdConverters.remove( source );
 	}
 
@@ -65,7 +64,7 @@ public class Merges extends AbstractStateMode
 			{
 				System.out.println( "Entering for merger!" );
 				final InputTriggerConfig inputTriggerConfig = new InputTriggerConfig();
-				final IdSelector selector = new IdSelector( t, toIdConverters, selectedIds, accesses );
+				final IdSelector selector = new IdSelector( t, toIdConverters, selectedIds, dataSources );
 				final Behaviours behaviours = new Behaviours( inputTriggerConfig );
 				behaviours.namedBehaviour( selector.selectSingle( "toggle single id", new SelectionDialogSingleId( AMBIGUOUS_SELECTION_MESSAGE ) ), "button1" );
 				behaviours.namedBehaviour( selector.merge( assignments ), "shift button1" );

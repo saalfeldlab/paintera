@@ -29,7 +29,6 @@ import bdv.labels.labelset.LabelMultisetType;
 import bdv.labels.labelset.Multiset.Entry;
 import bdv.util.RandomAccessibleSource;
 import bdv.util.RealRandomAccessibleIntervalSource;
-import bdv.viewer.Interpolation;
 import bdv.viewer.Source;
 import bdv.viewer.SourceAndConverter;
 import bdv.viewer.ViewerOptions;
@@ -57,9 +56,6 @@ import net.imglib2.converter.Converter;
 import net.imglib2.converter.RealARGBConverter;
 import net.imglib2.converter.TypeIdentity;
 import net.imglib2.realtransform.AffineTransform3D;
-import net.imglib2.realtransform.InverseRealTransform;
-import net.imglib2.realtransform.RealTransformRealRandomAccessible;
-import net.imglib2.realtransform.RealViews;
 import net.imglib2.type.numeric.ARGBType;
 import net.imglib2.type.numeric.IntegerType;
 import net.imglib2.type.numeric.RealType;
@@ -233,7 +229,6 @@ public class Atlas
 			valueToString = rt -> "Do not understand type!";
 		final AffineTransform3D affine = new AffineTransform3D();
 		source.getSourceTransform( 0, 0, affine );
-		final RealTransformRealRandomAccessible< T, InverseRealTransform > rra = RealViews.transformReal( source.getInterpolatedSource( 0, 0, Interpolation.NEARESTNEIGHBOR ), affine );
 		this.valueDisplayListener.addSource( vsource, source, Optional.of( valueToString ) );
 
 		if ( spec instanceof LabelSpec< ?, ? > )
@@ -276,9 +271,9 @@ public class Atlas
 			this.selectedIds.put( vsource, selectedIds );
 			for ( final Mode mode : this.modes )
 				if ( mode instanceof Highlights )
-					( ( Highlights ) mode ).addSource( vsource, rra.realRandomAccess(), toIdConverter );
+					( ( Highlights ) mode ).addSource( vsource, source, toIdConverter );
 				else if ( mode instanceof Merges )
-					( ( Merges ) mode ).addSource( vsource, rra.realRandomAccess(), toIdConverter );
+					( ( Merges ) mode ).addSource( vsource, source, toIdConverter );
 
 			view.addActor( new ViewerActor()
 			{

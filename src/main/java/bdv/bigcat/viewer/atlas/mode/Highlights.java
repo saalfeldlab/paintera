@@ -13,12 +13,11 @@ import bdv.bigcat.viewer.IdSelector;
 import bdv.bigcat.viewer.state.SelectedIds;
 import bdv.viewer.Source;
 import bdv.viewer.ViewerPanel;
-import net.imglib2.RealRandomAccess;
 
 public class Highlights extends AbstractStateMode
 {
 
-	private final HashMap< Source< ? >, RealRandomAccess< ? > > accesses = new HashMap<>();
+	private final HashMap< Source< ? >, Source< ? > > dataSources = new HashMap<>();
 
 	private final HashMap< Source< ? >, Function< Object, long[] > > toIdConverters = new HashMap<>();
 
@@ -31,16 +30,16 @@ public class Highlights extends AbstractStateMode
 		this.selectedIds = selectedIds;
 	}
 
-	public void addSource( final Source< ? > source, final RealRandomAccess< ? > access, final Function< Object, long[] > toIdConverter )
+	public void addSource( final Source< ? > source, final Source< ? > dataSources, final Function< Object, long[] > toIdConverter )
 	{
 
-		this.accesses.put( source, access );
+		this.dataSources.put( source, dataSources );
 		this.toIdConverters.put( source, toIdConverter );
 	}
 
 	public void removeSource( final Source< ? > source )
 	{
-		this.accesses.remove( source );
+		this.dataSources.remove( source );
 		this.toIdConverters.remove( source );
 	}
 
@@ -57,7 +56,7 @@ public class Highlights extends AbstractStateMode
 			if ( !this.mouseAndKeyHandlers.containsKey( t ) )
 			{
 				final InputTriggerConfig inputTriggerConfig = new InputTriggerConfig();
-				final IdSelector selector = new IdSelector( t, toIdConverters, selectedIds, accesses );
+				final IdSelector selector = new IdSelector( t, toIdConverters, selectedIds, dataSources );
 				final Behaviours behaviours = new Behaviours( inputTriggerConfig );
 				behaviours.namedBehaviour( selector.selectSingle( "toggle single id", new SelectionDialog( "oge1" ) ), "button1" );
 				behaviours.namedBehaviour( selector.append( "append id", new SelectionDialog( "oge2" ) ), "shift button1" );
