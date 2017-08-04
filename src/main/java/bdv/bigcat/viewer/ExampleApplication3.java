@@ -16,13 +16,13 @@ public class ExampleApplication3 extends Application
 	{
 		System.out.println( "creating viewer... " );
 		final Viewer3D viewer3D = new Viewer3D();
-		System.out.println( "... " );
-		viewer3D.init();
 
 		final StackPane stackPane = new StackPane();
 		stackPane.getChildren().add( viewer3D.getPanel() );
 		final javafx.scene.Scene scene = new javafx.scene.Scene( stackPane );
 		primaryStage.setScene( scene );
 		primaryStage.show();
+
+		viewer3D.init();
 	}
 }
