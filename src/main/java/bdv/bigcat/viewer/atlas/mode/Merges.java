@@ -59,7 +59,6 @@ public class Merges extends AbstractStateMode
 	protected Consumer< ViewerPanel > getOnEnter()
 	{
 		return t -> {
-			System.out.println( "Entering for merger regardless!" );
 			if ( !this.mouseAndKeyHandlers.containsKey( t ) )
 			{
 				System.out.println( "Entering for merger!" );
