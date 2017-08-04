@@ -14,6 +14,7 @@ import bdv.labels.labelset.VolatileLabelMultisetArray;
 import bdv.labels.labelset.VolatileLabelMultisetType;
 import ch.systemsx.cisd.hdf5.HDF5DataSetInformation;
 import ch.systemsx.cisd.hdf5.IHDF5Reader;
+import ncsa.hdf.hdf5lib.exceptions.HDF5AttributeException;
 import net.imglib2.util.Util;
 
 /**
@@ -138,8 +139,15 @@ public class H5LabelMultisetSetupImageLoader
 
 	final static protected double[] readOffset( final IHDF5Reader reader, final String dataset )
 	{
-		final double[] h5res = reader.float64().getArrayAttr( dataset, "offset" );
-		return new double[] { h5res[ 2 ], h5res[ 1 ], h5res[ 0 ] };
+		try
+		{
+			final double[] h5res = reader.float64().getArrayAttr( dataset, "offset" );
+			return new double[] { h5res[ 2 ], h5res[ 1 ], h5res[ 0 ] };
+		}
+		catch ( final HDF5AttributeException e )
+		{
+			return new double[ 3 ];
+		}
 	}
 
 	private final double[] offset;
