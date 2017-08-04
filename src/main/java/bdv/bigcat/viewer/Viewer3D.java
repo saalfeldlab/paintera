@@ -30,7 +30,9 @@ import graphics.scenery.Scene;
 import graphics.scenery.SceneryElement;
 import graphics.scenery.Settings;
 import graphics.scenery.backends.Renderer;
+import graphics.scenery.controls.InputHandler;
 import graphics.scenery.utils.SceneryPanel;
+import graphics.scenery.utils.Statistics;
 import net.imglib2.RandomAccessibleInterval;
 
 public class Viewer3D
@@ -66,16 +68,22 @@ public class Viewer3D
 
 	public void init()
 	{
-		// this.infoPane = new Label( "info box" );
 		loadData();
+		
+		final Hub hub = new Hub();
 
 		final Settings settings = new Settings();
-		final Hub hub = new Hub();
-		final graphics.scenery.Scene scene = new graphics.scenery.Scene();
 		hub.add( SceneryElement.Settings, settings );
 
-		final Renderer renderer = Renderer.Factory.createRenderer( hub, "BigCAT", scene, 500, 500, scPanel );
+		final Statistics statistics = new Statistics( hub );
+		hub.add( SceneryElement.Statistics, statistics );
+
+		final graphics.scenery.Scene scene = new graphics.scenery.Scene();
+		final Renderer renderer = Renderer.Factory.createRenderer( hub, "Simple Scene", scene, 500, 500, scPanel );
 		hub.add( SceneryElement.Renderer, renderer );
+
+		InputHandler inputHandler = new InputHandler( scene, renderer, hub );
+		inputHandler.useDefaultBindings( System.getProperty( "user.home" ) + "/.$applicationName.bindings" );
 
 		final Box hull = new Box( new GLVector( 50.0f, 50.0f, 50.0f ), true );
 		hull.getMaterial().setDiffuse( new GLVector( 0.5f, 0.5f, 0.5f ) );
