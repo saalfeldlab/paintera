@@ -21,14 +21,17 @@ import net.imglib2.type.NativeType;
  *
  * @author Stephan Saalfeld &lt;saalfelds@janelia.hhmi.org&gt;
  */
-abstract public class AbstractH5SetupImageLoader< T extends NativeType< T > , V extends Volatile< T > & NativeType< V >, A extends VolatileAccess >
-	extends AbstractCachedViewerSetupImgLoader< T, V, A >
-	implements ViewerImgLoader, SetCache
+abstract public class AbstractH5SetupImageLoader< T extends NativeType< T >, V extends Volatile< T > & NativeType< V >, A extends VolatileAccess >
+		extends AbstractCachedViewerSetupImgLoader< T, V, A >
+		implements ViewerImgLoader, SetCache
 {
+
+	final protected double[] offset;
+
 	final static protected long[] readDimension( final IHDF5Reader reader, final String dataset )
 	{
 		final long[] h5dim = reader.object().getDimensions( dataset );
-		return new long[]{ h5dim[ 2 ], h5dim[ 1 ], h5dim[ 0 ] };
+		return new long[] { h5dim[ 2 ], h5dim[ 1 ], h5dim[ 0 ] };
 	}
 
 	final static protected double[] readResolution( final IHDF5Reader reader, final String dataset )
@@ -45,12 +48,27 @@ abstract public class AbstractH5SetupImageLoader< T extends NativeType< T > , V 
 		return resolution;
 	}
 
+	final static protected double[] readOffset( final IHDF5Reader reader, final String dataset )
+	{
+		final double[] offset;
+		if ( reader.object().hasAttribute( dataset, "offset" ) )
+		{
+			final double[] h5offset = reader.float64().getArrayAttr( dataset, "offset" );
+			offset = new double[] { h5offset[ 2 ], h5offset[ 1 ], h5offset[ 0 ], };
+		}
+		else
+			offset = new double[] { 0, 0, 0 };
+
+		return offset;
+	}
+
 	public AbstractH5SetupImageLoader(
 			final IHDF5Reader reader,
 			final String dataset,
 			final int setupId,
 			final int[] blockDimension,
 			final double[] resolution,
+			final double[] offset,
 			final T type,
 			final V vType,
 			final CacheArrayLoader< A > loader,
@@ -58,13 +76,14 @@ abstract public class AbstractH5SetupImageLoader< T extends NativeType< T > , V 
 	{
 		super(
 				setupId,
-				new long[][]{ readDimension( reader, dataset ) },
-				new int[][]{ blockDimension },
-				new double[][]{ resolution },
+				new long[][] { readDimension( reader, dataset ) },
+				new int[][] { blockDimension },
+				new double[][] { resolution },
 				type,
 				vType,
 				loader,
 				cache );
+		this.offset = offset;
 	}
 
 	public AbstractH5SetupImageLoader(
@@ -83,6 +102,7 @@ abstract public class AbstractH5SetupImageLoader< T extends NativeType< T > , V 
 				setupId,
 				blockDimension,
 				readResolution( reader, dataset ),
+				new double[ 3 ],
 				type,
 				vType,
 				loader,
@@ -105,5 +125,10 @@ abstract public class AbstractH5SetupImageLoader< T extends NativeType< T > , V 
 	public CacheControl getCacheControl()
 	{
 		return cache;
+	}
+
+	public double[] getOffset()
+	{
+		return offset;
 	}
 }

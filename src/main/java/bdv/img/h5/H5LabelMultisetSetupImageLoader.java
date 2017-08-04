@@ -23,8 +23,8 @@ import net.imglib2.util.Util;
  * @author Tobias Pietzsch &lt;tobias.pietzsch@gmail.com&gt;
  */
 public class H5LabelMultisetSetupImageLoader
-	extends AbstractCachedViewerSetupImgLoader< LabelMultisetType, VolatileLabelMultisetType, VolatileLabelMultisetArray >
-	implements ViewerImgLoader, SetCache
+		extends AbstractCachedViewerSetupImgLoader< LabelMultisetType, VolatileLabelMultisetType, VolatileLabelMultisetArray >
+		implements ViewerImgLoader, SetCache
 {
 	static private CacheArrayLoader< VolatileLabelMultisetArray > typedLoader(
 			final IHDF5Reader reader,
@@ -53,15 +53,13 @@ public class H5LabelMultisetSetupImageLoader
 	{
 		final long[] h5dim = reader.object().getDimensions( dataset );
 		if ( scaleReader == null )
-		{
-			return new long[][]{ { h5dim[ 2 ], h5dim[ 1 ], h5dim[ 0 ] } };
-		}
+			return new long[][] { { h5dim[ 2 ], h5dim[ 1 ], h5dim[ 0 ] } };
 		else
 		{
 			final int numMipmapLevels = scaleReader.uint32().read( "levels" );
 			final long[][] dimensions = new long[ numMipmapLevels ][];
 
-			dimensions[ 0 ] = new long[]{ h5dim[ 2 ], h5dim[ 1 ], h5dim[ 0 ] };
+			dimensions[ 0 ] = new long[] { h5dim[ 2 ], h5dim[ 1 ], h5dim[ 0 ] };
 
 			for ( int level = 1; level < numMipmapLevels; ++level )
 			{
@@ -79,9 +77,7 @@ public class H5LabelMultisetSetupImageLoader
 			final int[] cellDimension )
 	{
 		if ( scaleReader == null )
-		{
-			return new int[][]{ cellDimension };
-		}
+			return new int[][] { cellDimension };
 		else
 		{
 			final int numMipmapLevels = scaleReader.uint32().read( "levels" );
@@ -109,10 +105,10 @@ public class H5LabelMultisetSetupImageLoader
 			if ( reader.object().hasAttribute( dataset, "resolution" ) )
 			{
 				final double[] h5res = reader.float64().getArrayAttr( dataset, "resolution" );
-				return new double[][]{ { h5res[ 2 ], h5res[ 1 ], h5res[ 0 ] } };
+				return new double[][] { { h5res[ 2 ], h5res[ 1 ], h5res[ 0 ] } };
 			}
 			else
-				return new double[][]{ { 1, 1, 1 } };
+				return new double[][] { { 1, 1, 1 } };
 		}
 		else
 		{
@@ -137,8 +133,16 @@ public class H5LabelMultisetSetupImageLoader
 	final static protected double[] readResolution( final IHDF5Reader reader, final String dataset )
 	{
 		final double[] h5res = reader.float64().getArrayAttr( dataset, "resolution" );
-		return new double[]{ h5res[ 2 ], h5res[ 1 ], h5res[ 0 ] };
+		return new double[] { h5res[ 2 ], h5res[ 1 ], h5res[ 0 ] };
 	}
+
+	final static protected double[] readOffset( final IHDF5Reader reader, final String dataset )
+	{
+		final double[] h5res = reader.float64().getArrayAttr( dataset, "offset" );
+		return new double[] { h5res[ 2 ], h5res[ 1 ], h5res[ 0 ] };
+	}
+
+	private final double[] offset;
 
 	public H5LabelMultisetSetupImageLoader(
 			final IHDF5Reader reader,
@@ -147,11 +151,11 @@ public class H5LabelMultisetSetupImageLoader
 			final int setupId,
 			final int[] cellDimension,
 			final double[] resolution,
+			final double[] offset,
 			final VolatileGlobalCellCache cache ) throws IOException
 	{
 
-		super(
-				setupId,
+		super( setupId,
 				readDimensions( reader, scaleReader, dataset ),
 				readCellDimensions( reader, scaleReader, dataset, cellDimension ),
 				readResolutions( reader, scaleReader, dataset, resolution ),
@@ -159,8 +163,8 @@ public class H5LabelMultisetSetupImageLoader
 				new VolatileLabelMultisetType(),
 				typedLoader( reader, scaleReader, dataset ),
 				cache );
+		this.offset = offset;
 	}
-
 
 	public H5LabelMultisetSetupImageLoader(
 			final IHDF5Reader reader,
@@ -170,7 +174,7 @@ public class H5LabelMultisetSetupImageLoader
 			final int[] cellDimension,
 			final VolatileGlobalCellCache cache ) throws IOException
 	{
-		this( reader, scaleReader, dataset, setupId, cellDimension, readResolution( reader, dataset ), cache );
+		this( reader, scaleReader, dataset, setupId, cellDimension, readResolution( reader, dataset ), readOffset( reader, dataset ), cache );
 	}
 
 	@Override
@@ -189,5 +193,10 @@ public class H5LabelMultisetSetupImageLoader
 	public CacheControl getCacheControl()
 	{
 		return cache;
+	}
+
+	public double[] getOffset()
+	{
+		return this.offset;
 	}
 }

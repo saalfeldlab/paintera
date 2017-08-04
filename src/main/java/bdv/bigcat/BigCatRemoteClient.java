@@ -195,6 +195,7 @@ public class BigCatRemoteClient extends BigCat< BigCatRemoteClient.Parameters >
 					labels.get( 0 ).getImage( 0 ),
 					canvas,
 					labels.get( 0 ).getMipmapResolutions()[ 0 ],
+					labels.get( 0 ).getOffset(),
 					dirtyLabelsInterval,
 					assignment,
 					completeFragmentsAssignment,

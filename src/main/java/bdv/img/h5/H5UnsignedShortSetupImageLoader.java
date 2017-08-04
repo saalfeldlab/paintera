@@ -13,7 +13,7 @@ import net.imglib2.type.volatiles.VolatileUnsignedShortType;
  * @author Stephan Saalfeld &lt;saalfelds@janelia.hhmi.org&gt;
  */
 public class H5UnsignedShortSetupImageLoader
-	extends AbstractH5SetupImageLoader< UnsignedShortType, VolatileUnsignedShortType, VolatileShortArray >
+		extends AbstractH5SetupImageLoader< UnsignedShortType, VolatileUnsignedShortType, VolatileShortArray >
 {
 	public H5UnsignedShortSetupImageLoader(
 			final IHDF5Reader reader,
@@ -47,6 +47,7 @@ public class H5UnsignedShortSetupImageLoader
 				setupId,
 				cellDimension,
 				resolution,
+				new double[ 3 ],
 				new UnsignedShortType(),
 				new VolatileUnsignedShortType(),
 				new H5ShortArrayLoader( reader, dataset ),
