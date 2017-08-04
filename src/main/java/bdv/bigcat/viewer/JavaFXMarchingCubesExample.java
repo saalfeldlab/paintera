@@ -58,12 +58,6 @@ public class JavaFXMarchingCubesExample
 
 	static float[] verticesArray = new float[ 0 ];
 
-	/** big hdf5 for test - whole sample B */
-//	static String path = "data/sample_B.augmented.0.hdf";
-//	static int isoLevel = 73396;
-////	static int isoLevel = 1854;
-//	static int[] volDim = {2340, 1685, 153};
-
 	/** small hdf5 for test - subset from sample B */
 	static String path = "data/sample_B_20160708_frags_46_50.hdf";
 
@@ -72,11 +66,6 @@ public class JavaFXMarchingCubesExample
 	static int[] volDim = { 500, 500, 5 };
 
 	static String path_label = "/volumes/labels/neuron_ids";
-
-	// /** tiny hdf5 for test - dummy values */
-//	 static String path_label = "/volumes/labels/small_neuron_ids";
-//	 int isoLevel = 2;
-//	 int[] volDim = {3, 3, 3};
 
 	static int[] cubeSize = { 8, 8, 1 };
 
