@@ -2,20 +2,18 @@ package bdv.img.h5;
 
 import java.io.IOException;
 
+import bdv.AbstractCachedViewerSetupImgLoader;
+import bdv.ViewerImgLoader;
 import bdv.ViewerSetupImgLoader;
-import bdv.cache.LoadingStrategy;
+import bdv.cache.CacheControl;
+import bdv.img.SetCache;
 import bdv.img.cache.CacheArrayLoader;
-import bdv.img.cache.CachedCellImg;
+import bdv.img.cache.VolatileGlobalCellCache;
 import bdv.labels.labelset.LabelMultisetType;
 import bdv.labels.labelset.VolatileLabelMultisetArray;
 import bdv.labels.labelset.VolatileLabelMultisetType;
-import bdv.util.MipmapTransforms;
 import ch.systemsx.cisd.hdf5.HDF5DataSetInformation;
 import ch.systemsx.cisd.hdf5.IHDF5Reader;
-import mpicbg.spim.data.generic.sequence.ImgLoaderHint;
-import mpicbg.spim.data.generic.sequence.ImgLoaderHints;
-import net.imglib2.RandomAccessibleInterval;
-import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.util.Util;
 
 /**
@@ -25,19 +23,10 @@ import net.imglib2.util.Util;
  * @author Tobias Pietzsch &lt;tobias.pietzsch@gmail.com&gt;
  */
 public class H5LabelMultisetSetupImageLoader
-	extends AbstractH5SetupImageLoader< LabelMultisetType, VolatileLabelMultisetType, VolatileLabelMultisetArray >
+		extends AbstractCachedViewerSetupImgLoader< LabelMultisetType, VolatileLabelMultisetType, VolatileLabelMultisetArray >
+		implements ViewerImgLoader, SetCache
 {
-	final private int numMipmapLevels;
-
-	final private long[][] dimensions;
-
-	final private double[][] mipmapResolutions;
-
-	final private int[][] blockDimensions;
-
-	final private AffineTransform3D[] mipmapTransforms;
-
-	static private CacheArrayLoader<VolatileLabelMultisetArray> typedLoader(
+	static private CacheArrayLoader< VolatileLabelMultisetArray > typedLoader(
 			final IHDF5Reader reader,
 			final IHDF5Reader scaleReader,
 			final String dataset )
@@ -57,124 +46,157 @@ public class H5LabelMultisetSetupImageLoader
 			return null;
 	}
 
-	public H5LabelMultisetSetupImageLoader(
+	static private long[][] readDimensions(
 			final IHDF5Reader reader,
 			final IHDF5Reader scaleReader,
-			final String dataset,
-			final int setupId,
-			final int[] blockDimension,
-			final double[] resolution,
-			final double[] offset ) throws IOException
+			final String dataset )
 	{
-		super(
-				reader,
-				dataset,
-				setupId,
-				blockDimension,
-				resolution,
-				offset,
-				new LabelMultisetType(),
-				new VolatileLabelMultisetType(),
-				typedLoader( reader, scaleReader, dataset ) );
-
+		final long[] h5dim = reader.object().getDimensions( dataset );
 		if ( scaleReader == null )
-		{
-			numMipmapLevels = 1;
-			dimensions = new long[][] { dimension };
-			blockDimensions = new int[][] { blockDimension };
-			mipmapResolutions = new double[][] { resolution };
-			mipmapTransforms = new AffineTransform3D[] { mipmapTransform };
-		}
+			return new long[][] { { h5dim[ 2 ], h5dim[ 1 ], h5dim[ 0 ] } };
 		else
 		{
-			numMipmapLevels = scaleReader.uint32().read( "levels" );
-			dimensions = new long[ numMipmapLevels ][];
-			blockDimensions = new int[ numMipmapLevels ][];
-			mipmapResolutions = new double[ numMipmapLevels ][];
-			mipmapTransforms = new AffineTransform3D[ numMipmapLevels ];
+			final int numMipmapLevels = scaleReader.uint32().read( "levels" );
+			final long[][] dimensions = new long[ numMipmapLevels ][];
 
-			dimensions[ 0 ] = dimension;
-			blockDimensions[ 0 ] = blockDimension;
-			mipmapResolutions[ 0 ] = resolution;
-			mipmapTransforms[ 0 ] = mipmapTransform;
+			dimensions[ 0 ] = new long[] { h5dim[ 2 ], h5dim[ 1 ], h5dim[ 0 ] };
 
 			for ( int level = 1; level < numMipmapLevels; ++level )
 			{
 				final String dimensionsPath = String.format( "l%02d/dimensions", level );
-				final String factorsPath = String.format( "l%02d/factors", level );
-				final String blocksizePath = String.format( "l%02d/blocksize", level );
-
 				dimensions[ level ] = scaleReader.uint64().readArray( dimensionsPath );
-				blockDimensions[ level ] = Util.long2int( scaleReader.uint64().readArray( blocksizePath ) );
-
-				final long[] factors = scaleReader.uint64().readArray( factorsPath );
-				mipmapResolutions[ level ] = new double[ 3 ];
-				for ( int d = 0; d < 3; ++d )
-					mipmapResolutions[ level ][ d ] = resolution[ d ] * factors[ d ];
-
-				mipmapTransforms[ level ] = new AffineTransform3D();
-				mipmapTransforms[ level ].set( mipmapTransform );
-				mipmapTransforms[ level ].concatenate(
-						MipmapTransforms.getMipmapTransformDefault(
-								bdv.img.hdf5.Util.castToDoubles( Util.long2int( factors ) ) ) );
 			}
+			return dimensions;
 		}
 	}
 
+	static private int[][] readCellDimensions(
+			final IHDF5Reader reader,
+			final IHDF5Reader scaleReader,
+			final String dataset,
+			final int[] cellDimension )
+	{
+		if ( scaleReader == null )
+			return new int[][] { cellDimension };
+		else
+		{
+			final int numMipmapLevels = scaleReader.uint32().read( "levels" );
+			final int[][] cellDimensions = new int[ numMipmapLevels ][];
+
+			cellDimensions[ 0 ] = cellDimension;
+
+			for ( int level = 1; level < numMipmapLevels; ++level )
+			{
+				final String blocksizePath = String.format( "l%02d/blocksize", level );
+				cellDimensions[ level ] = Util.long2int( scaleReader.uint64().readArray( blocksizePath ) );
+			}
+			return cellDimensions;
+		}
+	}
+
+	static private double[][] readResolutions(
+			final IHDF5Reader reader,
+			final IHDF5Reader scaleReader,
+			final String dataset,
+			final double[] resolution )
+	{
+		if ( scaleReader == null )
+		{
+			if ( reader.object().hasAttribute( dataset, "resolution" ) )
+			{
+				final double[] h5res = reader.float64().getArrayAttr( dataset, "resolution" );
+				return new double[][] { { h5res[ 2 ], h5res[ 1 ], h5res[ 0 ] } };
+			}
+			else
+				return new double[][] { { 1, 1, 1 } };
+		}
+		else
+		{
+			final int numMipmapLevels = scaleReader.uint32().read( "levels" );
+			final double[][] resolutions = new double[ numMipmapLevels ][];
+
+			resolutions[ 0 ] = resolution;
+
+			for ( int level = 1; level < numMipmapLevels; ++level )
+			{
+				final String factorsPath = String.format( "l%02d/factors", level );
+
+				final long[] factors = scaleReader.uint64().readArray( factorsPath );
+				resolutions[ level ] = new double[ 3 ];
+				for ( int d = 0; d < 3; ++d )
+					resolutions[ level ][ d ] = resolution[ d ] * factors[ d ];
+			}
+			return resolutions;
+		}
+	}
+
+	final static protected double[] readResolution( final IHDF5Reader reader, final String dataset )
+	{
+		final double[] h5res = reader.float64().getArrayAttr( dataset, "resolution" );
+		return new double[] { h5res[ 2 ], h5res[ 1 ], h5res[ 0 ] };
+	}
+
+	final static protected double[] readOffset( final IHDF5Reader reader, final String dataset )
+	{
+		final double[] h5res = reader.float64().getArrayAttr( dataset, "offset" );
+		return new double[] { h5res[ 2 ], h5res[ 1 ], h5res[ 0 ] };
+	}
+
+	private final double[] offset;
 
 	public H5LabelMultisetSetupImageLoader(
 			final IHDF5Reader reader,
 			final IHDF5Reader scaleReader,
 			final String dataset,
 			final int setupId,
-			final int[] blockDimension ) throws IOException
+			final int[] cellDimension,
+			final double[] resolution,
+			final double[] offset,
+			final VolatileGlobalCellCache cache ) throws IOException
 	{
-		this( reader, scaleReader, dataset, setupId, blockDimension, readResolution( reader, dataset ), readOffset( reader, dataset ) );
+
+		super( setupId,
+				readDimensions( reader, scaleReader, dataset ),
+				readCellDimensions( reader, scaleReader, dataset, cellDimension ),
+				readResolutions( reader, scaleReader, dataset, resolution ),
+				new LabelMultisetType(),
+				new VolatileLabelMultisetType(),
+				typedLoader( reader, scaleReader, dataset ),
+				cache );
+		this.offset = offset;
+	}
+
+	public H5LabelMultisetSetupImageLoader(
+			final IHDF5Reader reader,
+			final IHDF5Reader scaleReader,
+			final String dataset,
+			final int setupId,
+			final int[] cellDimension,
+			final VolatileGlobalCellCache cache ) throws IOException
+	{
+		this( reader, scaleReader, dataset, setupId, cellDimension, readResolution( reader, dataset ), readOffset( reader, dataset ), cache );
 	}
 
 	@Override
-	public RandomAccessibleInterval< LabelMultisetType > getImage( final int timepointId, final int level, final ImgLoaderHint... hints )
+	public void setCache( final VolatileGlobalCellCache cache )
 	{
-		final CachedCellImg< LabelMultisetType, VolatileLabelMultisetArray > img =
-				prepareCachedImage( timepointId, setupId, level, LoadingStrategy.BLOCKING );
-		final LabelMultisetType linkedType = new LabelMultisetType( img );
-		img.setLinkedType( linkedType );
-		return img;
+		this.cache = cache;
 	}
 
 	@Override
-	public RandomAccessibleInterval< VolatileLabelMultisetType > getVolatileImage( final int timepointId, final int level, final ImgLoaderHint... hints )
+	public ViewerSetupImgLoader< ?, ? > getSetupImgLoader( final int setupId )
 	{
-		boolean blocking = false;
-		if ( hints.length > 0 )
-			for ( final ImgLoaderHint hint : hints )
-				if ( hint == ImgLoaderHints.LOAD_COMPLETELY )
-				{
-					blocking = true;
-					break;
-				}
-		final CachedCellImg< VolatileLabelMultisetType, VolatileLabelMultisetArray > img =
-				prepareCachedImage( timepointId, setupId, level, blocking ? LoadingStrategy.BLOCKING : LoadingStrategy.VOLATILE );
-		final VolatileLabelMultisetType linkedType = new VolatileLabelMultisetType( img );
-		img.setLinkedType( linkedType );
-		return img;
+		return this;
 	}
 
 	@Override
-	public double[][] getMipmapResolutions()
+	public CacheControl getCacheControl()
 	{
-		return mipmapResolutions;
+		return cache;
 	}
 
-	@Override
-	public int numMipmapLevels()
+	public double[] getOffset()
 	{
-		return numMipmapLevels;
-	}
-
-	@Override
-	public AffineTransform3D[] getMipmapTransforms()
-	{
-		return mipmapTransforms;
+		return this.offset;
 	}
 }

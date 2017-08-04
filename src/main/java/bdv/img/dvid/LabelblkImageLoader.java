@@ -6,8 +6,6 @@ import com.google.gson.JsonIOException;
 import com.google.gson.JsonSyntaxException;
 
 import bdv.ViewerImgLoader;
-import bdv.ViewerSetupImgLoader;
-import bdv.img.cache.VolatileGlobalCellCache;
 import bdv.util.ColorStream;
 
 /**
@@ -19,7 +17,6 @@ import bdv.util.ColorStream;
  */
 public class LabelblkImageLoader
 	extends LabelblkSetupImageLoader
-	implements ViewerImgLoader
 {
 	/**
 	 * http://emdata.janelia.org/api/help/labels64
@@ -59,17 +56,5 @@ public class LabelblkImageLoader
 			final String dataInstanceId ) throws JsonSyntaxException, JsonIOException, IOException
 	{
 		this( apiUrl, nodeId, dataInstanceId, 0xffffffff );
-	}
-
-	@Override
-	public VolatileGlobalCellCache getCacheControl()
-	{
-		return cache;
-	}
-
-	@Override
-	public ViewerSetupImgLoader< ?, ? > getSetupImgLoader( final int setupId )
-	{
-		return this;
 	}
 }

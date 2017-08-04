@@ -2,50 +2,37 @@ package bdv.img.h5;
 
 import java.io.IOException;
 
-import bdv.AbstractViewerSetupImgLoader;
+import bdv.AbstractCachedViewerSetupImgLoader;
 import bdv.ViewerImgLoader;
 import bdv.ViewerSetupImgLoader;
 import bdv.cache.CacheControl;
-import bdv.cache.CacheHints;
-import bdv.cache.LoadingStrategy;
 import bdv.img.SetCache;
 import bdv.img.cache.CacheArrayLoader;
-import bdv.img.cache.CachedCellImg;
 import bdv.img.cache.VolatileGlobalCellCache;
-import bdv.img.cache.VolatileImgCells;
-import bdv.img.cache.VolatileImgCells.CellCache;
 import ch.systemsx.cisd.hdf5.IHDF5Reader;
 import net.imglib2.Volatile;
 import net.imglib2.img.basictypeaccess.volatiles.VolatileAccess;
-import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.type.NativeType;
-import net.imglib2.util.Fraction;
 
 /**
- * {@link ViewerSetupImgLoader} for
- * Jan Funke's and other's h5 files
+ * {@link ViewerSetupImgLoader} for CREMI style 3D H5 datasets meaning that the
+ * dataset may have an optional <code>double[]:resolution</code> field that
+ * specifies the size of voxels.
  *
- * @author Stephan Saalfeld <saalfelds@janelia.hhmi.org>
+ * @author Stephan Saalfeld &lt;saalfelds@janelia.hhmi.org&gt;
  */
-abstract public class AbstractH5SetupImageLoader< T extends NativeType< T > , V extends Volatile< T >, A extends VolatileAccess >
-	extends AbstractViewerSetupImgLoader< T, V >
-	implements ViewerImgLoader, SetCache
+abstract public class AbstractH5SetupImageLoader< T extends NativeType< T >, V extends Volatile< T > & NativeType< V >, A extends VolatileAccess >
+		extends AbstractCachedViewerSetupImgLoader< T, V, A >
+		implements ViewerImgLoader, SetCache
 {
-	final protected double[] resolution;
 
 	final protected double[] offset;
 
-	final protected long[] dimension;
-
-	final protected int[] blockDimension;
-
-	final protected AffineTransform3D mipmapTransform;
-
-	protected VolatileGlobalCellCache cache;
-
-	final protected CacheArrayLoader< A > loader;
-
-	final protected int setupId;
+	final static protected long[] readDimension( final IHDF5Reader reader, final String dataset )
+	{
+		final long[] h5dim = reader.object().getDimensions( dataset );
+		return new long[] { h5dim[ 2 ], h5dim[ 1 ], h5dim[ 0 ] };
+	}
 
 	final static protected double[] readResolution( final IHDF5Reader reader, final String dataset )
 	{
@@ -84,30 +71,19 @@ abstract public class AbstractH5SetupImageLoader< T extends NativeType< T > , V 
 			final double[] offset,
 			final T type,
 			final V vType,
-			final CacheArrayLoader< A > loader ) throws IOException
+			final CacheArrayLoader< A > loader,
+			final VolatileGlobalCellCache cache ) throws IOException
 	{
-		super( type, vType );
-		this.setupId = setupId;
-		this.loader = loader;
-		this.resolution = resolution;
+		super(
+				setupId,
+				new long[][] { readDimension( reader, dataset ) },
+				new int[][] { blockDimension },
+				new double[][] { resolution },
+				type,
+				vType,
+				loader,
+				cache );
 		this.offset = offset;
-
-		final long[] h5dim = reader.object().getDimensions( dataset );
-
-		dimension = new long[]{
-				h5dim[ 2 ],
-				h5dim[ 1 ],
-				h5dim[ 0 ], };
-
-		mipmapTransform = new AffineTransform3D();
-
-		mipmapTransform.set( resolution[ 0 ], 0, 0 );
-		mipmapTransform.set( resolution[ 1 ], 1, 1 );
-		mipmapTransform.set( resolution[ 2 ], 2, 2 );
-
-		this.blockDimension = blockDimension;
-
-		cache = new VolatileGlobalCellCache( 1, 10 );
 	}
 
 	public AbstractH5SetupImageLoader(
@@ -117,41 +93,20 @@ abstract public class AbstractH5SetupImageLoader< T extends NativeType< T > , V 
 			final int[] blockDimension,
 			final T type,
 			final V vType,
-			final CacheArrayLoader< A > loader ) throws IOException
+			final CacheArrayLoader< A > loader,
+			final VolatileGlobalCellCache cache ) throws IOException
 	{
-		this( reader, dataset, setupId, blockDimension, readResolution( reader, dataset ), readResolution( reader, dataset ), type, vType, loader );
-	}
-
-	@Override
-	public double[][] getMipmapResolutions()
-	{
-		return new double[][]{ resolution };
-	}
-
-	@Override
-	public int numMipmapLevels()
-	{
-		return 1;
-	}
-
-	protected < S extends NativeType< S > > CachedCellImg< S, A > prepareCachedImage(
-			final int timepointId,
-			@SuppressWarnings( "hiding" ) final int setupId,
-			final int level,
-			final LoadingStrategy loadingStrategy )
-	{
-		final int priority = 0;
-		final CacheHints cacheHints = new CacheHints( loadingStrategy, priority, false );
-		final CellCache< A > c = cache.new VolatileCellCache< A >( timepointId, setupId, level, cacheHints, loader );
-		final VolatileImgCells< A > cells = new VolatileImgCells< A >( c, new Fraction(), dimension, blockDimension );
-		final CachedCellImg< S, A > img = new CachedCellImg< S, A >( cells );
-		return img;
-	}
-
-	@Override
-	public AffineTransform3D[] getMipmapTransforms()
-	{
-		return new AffineTransform3D[]{ mipmapTransform };
+		this(
+				reader,
+				dataset,
+				setupId,
+				blockDimension,
+				readResolution( reader, dataset ),
+				new double[ 3 ],
+				type,
+				vType,
+				loader,
+				cache );
 	}
 
 	@Override
@@ -161,7 +116,7 @@ abstract public class AbstractH5SetupImageLoader< T extends NativeType< T > , V 
 	}
 
 	@Override
-	public ViewerSetupImgLoader< ?, ? > getSetupImgLoader( final int setupId )
+	public AbstractH5SetupImageLoader< T, V, A > getSetupImgLoader( final int setupId )
 	{
 		return this;
 	}

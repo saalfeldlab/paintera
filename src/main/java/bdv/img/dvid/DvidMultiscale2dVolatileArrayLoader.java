@@ -7,8 +7,8 @@ import java.net.URL;
 
 import javax.imageio.ImageIO;
 
-import net.imglib2.img.basictypeaccess.volatiles.array.VolatileByteArray;
 import bdv.img.cache.CacheArrayLoader;
+import net.imglib2.img.basictypeaccess.volatiles.array.VolatileByteArray;
 
 /**
  * {@link CacheArrayLoader} for
@@ -152,7 +152,6 @@ public class DvidMultiscale2dVolatileArrayLoader implements CacheArrayLoader< Vo
 		return new VolatileByteArray( bytes, true );
 	}
 
-	@Override
 	public VolatileByteArray emptyArray( final int[] dimensions )
 	{
 		int numEntities = 1;

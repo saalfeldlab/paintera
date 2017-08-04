@@ -2,11 +2,11 @@ package bdv.img.dvid;
 
 import java.io.File;
 
+import org.jdom2.Element;
+
 import mpicbg.spim.data.generic.sequence.AbstractSequenceDescription;
 import mpicbg.spim.data.generic.sequence.ImgLoaderIo;
 import mpicbg.spim.data.generic.sequence.XmlIoBasicImgLoader;
-
-import org.jdom2.Element;
 
 @ImgLoaderIo( format = "dvid-grayscale8", type = Uint8blkImageLoader.class )
 public class XmlIoDvidGrayscale8ImageLoader

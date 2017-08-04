@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 
 import bdv.export.ExportMipmapInfo;
+import bdv.img.cache.VolatileGlobalCellCache;
 import bdv.img.h5.H5LabelMultisetSetupImageLoader;
 import ch.systemsx.cisd.base.mdarray.MDIntArray;
 import ch.systemsx.cisd.hdf5.HDF5Factory;
@@ -53,7 +54,8 @@ public class DownscaleToHdf5
 					level == 1 ? null : writer,
 					"/bodies",
 					1,
-					new int[] {64, 64, 8} );
+					new int[] {64, 64, 8},
+					new VolatileGlobalCellCache( 1, 10 ) );
 
 
 			final ArrayList< RandomAccessibleInterval< LabelMultisetType > > imgs = new ArrayList<>();
