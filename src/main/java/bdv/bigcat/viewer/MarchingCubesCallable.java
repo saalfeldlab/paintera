@@ -33,8 +33,7 @@ public class MarchingCubesCallable implements Callable< SimpleMesh >
 	 */
 	boolean copyToArray;
 
-	public MarchingCubesCallable( RandomAccessibleInterval< LabelMultisetType > input, int[] volDim, int[] offset, int[] cubeSize,
-			MarchingCubes.ForegroundCriterion criterion, int level, boolean usingRAI )
+	public MarchingCubesCallable( RandomAccessibleInterval< LabelMultisetType > input, int[] volDim, int[] offset, int[] cubeSize, MarchingCubes.ForegroundCriterion criterion, int level, boolean usingRAI )
 	{
 		this.volume = input;
 		this.volDim = volDim;
@@ -48,8 +47,8 @@ public class MarchingCubesCallable implements Callable< SimpleMesh >
 	@Override
 	public SimpleMesh call() throws Exception
 	{
-		MarchingCubes mc = new MarchingCubes();
-		SimpleMesh m = mc.generateMesh( volume, volDim, offset, cubeSize, criterion, foregroundValue, copyToArray );
+		MarchingCubes mc_rai = new MarchingCubes();
+		SimpleMesh m = mc_rai.generateMesh( volume, volDim, offset, cubeSize, criterion, foregroundValue, copyToArray );
 
 		return m;
 	}
