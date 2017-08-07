@@ -70,6 +70,8 @@ public class BaseView
 		this.constraintsManager = new GridConstraintsManager();
 		this.grid = constraintsManager.createGrid();
 		this.root = new BorderPane( grid );
+
+		viewer3D.init();
 	}
 
 	public synchronized void addSource( final SourceAndConverter< ? > source, final Composite< ARGBType, ARGBType > comp )
@@ -102,7 +104,6 @@ public class BaseView
 
 	protected Node createInfo()
 	{
-		viewer3D.init();
 		return viewer3D.getPanel();
 	}
 
