@@ -4,9 +4,6 @@ import java.io.IOException;
 import java.nio.FloatBuffer;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.List;
-import java.util.concurrent.CompletionService;
-import java.util.concurrent.Future;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -19,20 +16,17 @@ import cleargl.GLVector;
 import graphics.scenery.Box;
 import graphics.scenery.Camera;
 import graphics.scenery.DetachedHeadCamera;
-import graphics.scenery.Hub;
 import graphics.scenery.Material;
 import graphics.scenery.Mesh;
 import graphics.scenery.PointLight;
 import graphics.scenery.Scene;
+import graphics.scenery.SceneryDefaultApplication;
 import graphics.scenery.SceneryElement;
-import graphics.scenery.Settings;
 import graphics.scenery.backends.Renderer;
-import graphics.scenery.controls.InputHandler;
 import graphics.scenery.utils.SceneryPanel;
-import graphics.scenery.utils.Statistics;
 import net.imglib2.RandomAccessibleInterval;
 
-public class Viewer3D
+public class Viewer3D extends SceneryDefaultApplication
 {
 	/** logger */
 	static final Logger LOGGER = LoggerFactory.getLogger( Viewer3D.class );
@@ -58,34 +52,25 @@ public class Viewer3D
 
 	private final SceneryPanel scPanel;
 
-	public Viewer3D()
+	public Viewer3D( String applicationName, int windowWidth, int windowHeight, boolean wantREPL )
 	{
-		this.scPanel = new SceneryPanel( 500, 500 );
+		super( applicationName, windowWidth, windowHeight, wantREPL );
+
+		scPanel = new SceneryPanel( 500, 500 );
 	}
 
 	public void init()
 	{
 		loadData();
 		
-		final Hub hub = new Hub();
-
-		final Settings settings = new Settings();
-		hub.add( SceneryElement.Settings, settings );
-
-		final Statistics statistics = new Statistics( hub );
-		hub.add( SceneryElement.Statistics, statistics );
-
-		final graphics.scenery.Scene scene = new graphics.scenery.Scene();
-		final Renderer renderer = Renderer.Factory.createRenderer( hub, "Simple Scene", scene, 500, 500, scPanel );
-		hub.add( SceneryElement.Renderer, renderer );
-
-		InputHandler inputHandler = new InputHandler( scene, renderer, hub );
-		inputHandler.useDefaultBindings( System.getProperty( "user.home" ) + "/.$applicationName.bindings" );
+		setRenderer(
+				Renderer.Factory.createRenderer( getHub(), getApplicationName(), getScene(), getWindowWidth(), getWindowHeight(), scPanel ) );
+		getHub().add( SceneryElement.Renderer, getRenderer() );
 
 		final Box hull = new Box( new GLVector( 50.0f, 50.0f, 50.0f ), true );
 		hull.getMaterial().setDiffuse( new GLVector( 0.5f, 0.5f, 0.5f ) );
 		hull.getMaterial().setDoubleSided( true );
-		scene.addChild( hull );
+		getScene().addChild( hull );
 
 		final Material material = new Material();
 		material.setAmbient( new GLVector( 0.1f * 1, 1.0f, 1.0f ) );
@@ -94,12 +79,10 @@ public class Viewer3D
 
 		final Camera cam = new DetachedHeadCamera();
 
-		cam.perspectiveCamera( 50f, renderer.getWindow().getHeight(), renderer.getWindow().getWidth(), 0.1f, 1000.0f );
+		cam.perspectiveCamera( 50f, getWindowWidth(), getWindowHeight(), 0.1f, 1000.0f );
 		cam.setActive( true );
 		cam.setPosition( new GLVector( 2f, 2f, 10 ) );
-		scene.addChild( cam );
-		// delta value for keyboard controls
-		cam.setDeltaT( 5 );
+		getScene().addChild( cam );
 
 		final PointLight[] lights = new PointLight[ 4 ];
 
@@ -118,22 +101,21 @@ public class Viewer3D
 		lights[ 3 ].setPosition( new GLVector( 0.0f, -1.0f, 1.0f / ( float ) Math.sqrt( 2.0 ) ) );
 
 		for ( int i = 0; i < lights.length; i++ )
-			scene.addChild( lights[ i ] );
+			getScene().addChild( lights[ i ] );
 
 		final Mesh neuron = new Mesh();
 		neuron.setMaterial( material );
 		neuron.setName( "neuron" );
 		neuron.setPosition( new GLVector( 0.0f, 0.0f, 0.0f ) );
 		neuron.setScale( new GLVector( 4.0f, 4.0f, 40.0f ) );
-		scene.addChild( neuron );
+		getScene().addChild( neuron );
 
 		new Thread()
 		{
 			@Override
 			public void run()
 			{
-
-				marchingCubes( scene );
+				marchingCubes( getScene() );
 			}
 		}.start();
 
@@ -214,64 +196,48 @@ public class Viewer3D
 		volumeLabels = labels.get( 0 ).getImage( 0 );
 	}
 
-	private static void marchingCubes( final Scene scene )
+	private static void marchingCubes( Scene scene )
 	{
-		int numberOfCellsX = ( int ) ( volumeLabels.max( 0 ) - volumeLabels.min( 0 ) + 1 ) / 32;
-		int numberOfCellsY = ( int ) ( volumeLabels.max( 1 ) - volumeLabels.min( 1 ) + 1 ) / 32;
-		int numberOfCellsZ = ( int ) ( volumeLabels.max( 2 ) - volumeLabels.min( 2 ) + 1 ) / 32;
-
-		LOGGER.trace( "division: " + numberOfCellsX + " " + numberOfCellsY + " " + numberOfCellsZ );
-
-		numberOfCellsX = numberOfCellsX >= 7 ? 7 * 32 : numberOfCellsX * 32;
-		numberOfCellsY = numberOfCellsY >= 7 ? 7 * 32 : numberOfCellsY * 32;
-		numberOfCellsZ = numberOfCellsZ >= 7 ? 7 * 32 : numberOfCellsZ * 32;
-
-		LOGGER.trace( "partition size 1: " + numberOfCellsX + " " + numberOfCellsY + " " + numberOfCellsZ );
-
-		numberOfCellsX = numberOfCellsX == 0 ? 1 : numberOfCellsX;
-		numberOfCellsY = numberOfCellsY == 0 ? 1 : numberOfCellsY;
-		numberOfCellsZ = numberOfCellsZ == 0 ? 1 : numberOfCellsZ;
-
-		LOGGER.trace( "zero verification: " + numberOfCellsX + " " + numberOfCellsY + " " + numberOfCellsZ );
-
-		final int[] partitionSize = new int[] { numberOfCellsX, numberOfCellsY, numberOfCellsZ };
-		LOGGER.trace( "final partition size: " + numberOfCellsX + " " + numberOfCellsY + " " + numberOfCellsZ );
-
-		List< Chunk > chunks = new ArrayList< >();
-
-		CompletionService< SimpleMesh > executor = null;
-		List< Future< SimpleMesh > > resultMeshList = null;
-		for ( int voxSize = 32; voxSize > 0; voxSize /= 2 )
+		for ( int voxelSize = 32; voxelSize > 0; voxelSize /= 2 )
 		{
-			// clean the vertices, offsets and subvolumes
-			verticesArray = new float[ 0 ];
-			chunks.clear();
-
-			final Mesh completeNeuron = new Mesh();
+			Mesh completeNeuron = new Mesh();
 			final Material material = new Material();
 			material.setAmbient( new GLVector( 1f, 0.0f, 1f ) );
 			material.setSpecular( new GLVector( 1f, 0.0f, 1f ) );
 
-			if ( voxSize == 32 )
+			if ( voxelSize == 32 )
+			{
 				material.setDiffuse( new GLVector( 1, 0, 0 ) );
-			if ( voxSize == 16 )
+			}
+			if ( voxelSize == 16 )
+			{
 				material.setDiffuse( new GLVector( 0, 1, 0 ) );
-			if ( voxSize == 8 )
+			}
+			if ( voxelSize == 8 )
+			{
 				material.setDiffuse( new GLVector( 0, 0, 1 ) );
-			if ( voxSize == 4 )
+			}
+			if ( voxelSize == 4 )
+			{
 				material.setDiffuse( new GLVector( 1, 0, 1 ) );
-			if ( voxSize == 2 )
+			}
+			if ( voxelSize == 2 )
+			{
 				material.setDiffuse( new GLVector( 0, 1, 1 ) );
-			if ( voxSize == 1 )
+			}
+			if ( voxelSize == 1 )
+			{
 				material.setDiffuse( new GLVector( 1, 1, 0 ) );
+			}
 
 			completeNeuron.setMaterial( material );
-			completeNeuron.setName( String.valueOf( foregroundValue + " " + voxSize ) );
+			completeNeuron.setName( String.valueOf( foregroundValue + " " + voxelSize ) );
 			completeNeuron.setPosition( new GLVector( 0.0f, 0.0f, 0.0f ) );
 			completeNeuron.setScale( new GLVector( 4.0f, 4.0f, 40.0f ) );
 			scene.addChild( completeNeuron );
-			cubeSize[ 0 ] = voxSize;
-			cubeSize[ 1 ] = voxSize;
+
+			cubeSize[ 0 ] = voxelSize;
+			cubeSize[ 1 ] = voxelSize;
 			cubeSize[ 2 ] = 1;
 
 			MeshExtractor meshExtractor = new MeshExtractor( volumeLabels, cubeSize, foregroundValue, criterion );
@@ -309,12 +275,12 @@ public class Viewer3D
 			{
 				Thread.sleep( 2000 );
 			}
-			catch ( final InterruptedException e )
+			catch ( InterruptedException e )
 			{
 				// TODO Auto-generated catch block
 				e.printStackTrace();
 			}
-			if ( voxSize != 1 )
+			if ( voxelSize != 1 )
 				scene.removeChild( completeNeuron );
 		}
 	}
@@ -322,10 +288,5 @@ public class Viewer3D
 	public SceneryPanel getPanel()
 	{
 		return scPanel;
-	}
-
-	public Renderer getRenderer()
-	{
-		return getRenderer();
 	}
 }
