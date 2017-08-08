@@ -62,7 +62,7 @@ public class BaseView
 
 	public BaseView()
 	{
-		viewer3D = new Viewer3D();
+		viewer3D = new Viewer3D( "Marching Cubes", 500, 500, false );
 		this.infoPane = createInfo();
 		this.gm = new GlobalTransformManager( new AffineTransform3D() );
 		gm.setTransform( new AffineTransform3D() );
@@ -71,7 +71,9 @@ public class BaseView
 		this.grid = constraintsManager.createGrid();
 		this.root = new BorderPane( grid );
 
-		viewer3D.init();
+		new Thread( () -> {
+			viewer3D.main();
+		} ).start();
 	}
 
 	public synchronized void addSource( final SourceAndConverter< ? > source, final Composite< ARGBType, ARGBType > comp )
