@@ -1,7 +1,6 @@
 package bdv.bigcat.viewer;
 
 import java.io.IOException;
-import java.io.PrintWriter;
 import java.nio.FloatBuffer;
 import java.sql.Timestamp;
 import java.util.ArrayList;
@@ -68,22 +67,6 @@ public class JavaFXMarchingCubesExample
 	static String path_label = "/volumes/labels/neuron_ids";
 
 	static int[] cubeSize = { 8, 8, 1 };
-
-	float smallx = 0.0f;
-
-	float smally = 0.0f;
-
-	float smallz = 0.0f;
-
-	float bigx = 0.0f;
-
-	float bigy = 0.0f;
-
-	float bigz = 0.0f;
-
-	static PrintWriter writer = null;
-
-	PrintWriter writer2 = null;
 
 	static float maxAxisVal = 0;
 
@@ -170,15 +153,6 @@ public class JavaFXMarchingCubesExample
 			}
 
 			loadData();
-
-			try
-			{
-				writer = new PrintWriter( "vertices_.txt", "UTF-8" );
-			}
-			catch ( final IOException e )
-			{
-				e.printStackTrace();
-			}
 
 			setRenderer( Renderer.Factory.createRenderer( getHub(), getApplicationName(), getScene(), getWindowWidth(),
 					getWindowHeight(), imagePanel[ 0 ] ) );
@@ -350,8 +324,6 @@ public class JavaFXMarchingCubesExample
 				}
 			}
 
-			writer.close();
-
 			// Pause for 2 seconds
 			try
 			{
@@ -410,7 +382,6 @@ public class JavaFXMarchingCubesExample
 		for ( int i = vertexCount; i < verticesArray.length; ++i )
 		{
 			verticesArray[ i ] /= maxAxisVal;
-			writer.println( verticesArray[ i ] );
 		}
 
 		neuron.setVertices( FloatBuffer.wrap( verticesArray ) );
