@@ -15,14 +15,18 @@ public class ExampleApplication3 extends Application
 	public void start( final Stage primaryStage ) throws Exception
 	{
 		System.out.println( "creating viewer... " );
-		final Viewer3D viewer3D = new Viewer3D();
-
 		final StackPane stackPane = new StackPane();
-		stackPane.getChildren().add( viewer3D.getPanel() );
+
+		final Viewer3D viewer3D = new Viewer3D( "Marching Cubes", 500, 500, false );
+		stackPane.getChildren().addAll( viewer3D.getPanel() );
+
 		final javafx.scene.Scene scene = new javafx.scene.Scene( stackPane );
 		primaryStage.setScene( scene );
 		primaryStage.show();
 
-		viewer3D.init();
+		new Thread( () -> {
+			viewer3D.main();
+		} ).start();
+
 	}
 }
