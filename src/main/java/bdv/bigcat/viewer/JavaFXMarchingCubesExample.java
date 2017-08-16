@@ -30,7 +30,7 @@ import graphics.scenery.Material;
 import graphics.scenery.Mesh;
 import graphics.scenery.PointLight;
 import graphics.scenery.Scene;
-import graphics.scenery.SceneryDefaultApplication;
+import graphics.scenery.SceneryBase;
 import graphics.scenery.SceneryElement;
 import graphics.scenery.backends.Renderer;
 import graphics.scenery.utils.SceneryPanel;
@@ -107,7 +107,7 @@ public class JavaFXMarchingCubesExample
 		viewer.main();
 	}
 
-	private static class MarchingCubeApplication extends SceneryDefaultApplication
+	private static class MarchingCubeApplication extends SceneryBase
 	{
 		public MarchingCubeApplication( final String applicationName, final int windowWidth, final int windowHeight )
 		{
@@ -154,7 +154,7 @@ public class JavaFXMarchingCubesExample
 
 			loadData();
 
-			setRenderer( Renderer.Factory.createRenderer( getHub(), getApplicationName(), getScene(), getWindowWidth(),
+			setRenderer( Renderer.createRenderer( getHub(), getApplicationName(), getScene(), getWindowWidth(),
 					getWindowHeight(), imagePanel[ 0 ] ) );
 			getHub().add( SceneryElement.Renderer, getRenderer() );
 

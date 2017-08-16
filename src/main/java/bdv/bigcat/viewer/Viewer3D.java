@@ -20,13 +20,13 @@ import graphics.scenery.Material;
 import graphics.scenery.Mesh;
 import graphics.scenery.PointLight;
 import graphics.scenery.Scene;
-import graphics.scenery.SceneryDefaultApplication;
+import graphics.scenery.SceneryBase;
 import graphics.scenery.SceneryElement;
 import graphics.scenery.backends.Renderer;
 import graphics.scenery.utils.SceneryPanel;
 import net.imglib2.RandomAccessibleInterval;
 
-public class Viewer3D extends SceneryDefaultApplication
+public class Viewer3D extends SceneryBase
 {
 	/** logger */
 	static final Logger LOGGER = LoggerFactory.getLogger( Viewer3D.class );
@@ -64,7 +64,7 @@ public class Viewer3D extends SceneryDefaultApplication
 		loadData();
 		
 		setRenderer(
-				Renderer.Factory.createRenderer( getHub(), getApplicationName(), getScene(), getWindowWidth(), getWindowHeight(), scPanel ) );
+				Renderer.createRenderer( getHub(), getApplicationName(), getScene(), getWindowWidth(), getWindowHeight(), scPanel ) );
 		getHub().add( SceneryElement.Renderer, getRenderer() );
 
 		final Box hull = new Box( new GLVector( 50.0f, 50.0f, 50.0f ), true );
