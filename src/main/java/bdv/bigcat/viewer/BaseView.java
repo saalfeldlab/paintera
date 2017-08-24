@@ -13,6 +13,7 @@ import bdv.viewer.Source;
 import bdv.viewer.SourceAndConverter;
 import bdv.viewer.ViewerOptions;
 import bdv.viewer.ViewerPanel;
+import javafx.application.Platform;
 import javafx.beans.value.ChangeListener;
 import javafx.collections.FXCollections;
 import javafx.collections.ListChangeListener;
@@ -241,6 +242,15 @@ public class BaseView extends BorderPane
 				grid.setVgap( 1 );
 			}
 		}
+	}
+
+	public Node viewerNode()
+	{
+		final Viewer3D v3d = new Viewer3D( "test", 100, 100, false );
+		Platform.runLater( () -> {
+			v3d.init();
+		} );
+		return v3d.getPanel();
 	}
 
 	public Node globalSourcesInfoNode()

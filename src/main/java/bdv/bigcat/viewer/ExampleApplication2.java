@@ -65,6 +65,9 @@ public class ExampleApplication2
 			final Stage stage = new Stage();
 			viewer.start( stage );
 			stage.show();
+			final Viewer3D v3d = new Viewer3D( "appname", 100, 100, false );
+			new Thread( () -> v3d.main() ).start();
+			viewer.baseView().setInfoNode( v3d.getPanel() );
 		} );
 
 		viewer.addSource( rawSource );
