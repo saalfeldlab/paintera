@@ -146,7 +146,7 @@ public class BaseView extends BorderPane
 	{
 		final Scene scene = new Scene( this, width, height );
 		scene.setOnKeyTyped( event -> {
-			if ( event.getCharacter().equals( "a" ) )
+			if ( event.getCharacter().equals( "f" ) )
 				maximizeActiveOrthoView( scene, event );
 		} );
 
