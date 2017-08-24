@@ -12,6 +12,8 @@ import bdv.labels.labelset.ByteUtils;
 
 public class MultisetDataset
 {
+	private final DatasetBlkLabel original;
+	private final DatasetKeyValue[] levels;
 	
 	public static class VolatileCachedKeyValue extends DatasetKeyValue
 	{
@@ -23,9 +25,6 @@ public class MultisetDataset
 		
 	}
 	
-	private final DatasetBlkLabel original;
-	private final DatasetKeyValue[] levels;
-
 	public MultisetDataset( DatasetBlkLabel original, DatasetKeyValue[] levels )
 	{
 		super();

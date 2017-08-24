@@ -40,10 +40,8 @@ public class ExampleApplication2
 
 	public static void main( final String[] args ) throws Exception
 	{
-
+		final String rawFile = "data/sample_B_20160708_frags_46_50.hdf";
 		PlatformImpl.startup( () -> {} );
-
-		final String rawFile = "/groups/saalfeld/home/hanslovskyp/from_funkej/phil/sample_B.augmented.0.hdf";
 		final String rawDataset = "volumes/raw";
 		final String labelsFile = rawFile;
 		final String labelsDataset = "/volumes/labels/neuron_ids";

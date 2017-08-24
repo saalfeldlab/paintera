@@ -2,25 +2,29 @@ package bdv.bigcat.annotation;
 
 import net.imglib2.RealPoint;
 
-public class PreSynapticSite extends Annotation {
+public class PreSynapticSite extends Annotation
+{
+	private PostSynapticSite partner;
 
-	public PreSynapticSite(long id, RealPoint pos, String comment) {
-		super(id, pos, comment);
+	public PreSynapticSite( long id, RealPoint pos, String comment )
+	{
+		super( id, pos, comment );
 	}
 
-	public PostSynapticSite getPartner() {
+	public PostSynapticSite getPartner()
+	{
 		return partner;
 	}
 
-	public void setPartner(PostSynapticSite partner) {
+	public void setPartner( PostSynapticSite partner )
+	{
 		this.partner = partner;
 	}
 
 	@Override
-	public void accept(AnnotationVisitor visitor) {
-		super.accept(visitor);
-		visitor.visit(this);	
+	public void accept( AnnotationVisitor visitor )
+	{
+		super.accept( visitor );
+		visitor.visit( this );
 	}
-	
-	private PostSynapticSite partner;
 }

@@ -68,7 +68,6 @@ abstract public class AbstractH5SetupImageLoader< T extends NativeType< T >, V e
 			final int setupId,
 			final int[] blockDimension,
 			final double[] resolution,
-			final double[] offset,
 			final T type,
 			final V vType,
 			final CacheArrayLoader< A > loader,

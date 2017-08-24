@@ -22,15 +22,14 @@ public class ZmqTestClient
 		final Socket client = ctx.createSocket( ZMQ.PAIR );
 		//client.connect( "ipc:///tmp/zmqtest" );
 		client.connect( "tcp://localhost:5556" );
-		
-		String msg = "";
+
 		for ( int i = 0; i < 10; ++i )
 		{
 			client.send( "Hello " + i );
 		}
 		
 		client.send( "exit" );
-		
+
 		ctx.destroy();
 	}
 }

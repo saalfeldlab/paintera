@@ -158,7 +158,7 @@ public class FragmentSegmentAssignment
 	/**
 	 * Deserializes the various serializations of FragmentSegmentAssignment.
 	 *
-	 * TODO number of fragments and segmentsis limited by implementation to
+	 * TODO number of fragments and segments is limited by implementation to
 	 * 2<sup>31</sup> due to collecting them in a long[].
 	 *
 	 */

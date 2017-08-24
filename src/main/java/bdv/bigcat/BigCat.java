@@ -60,6 +60,21 @@ import net.imglib2.view.Views;
 
 public class BigCat< P extends BigCat.Parameters > extends BigCatViewer< P >
 {
+	/** max raw dimensions */
+	final protected long[] maxRawDimensions = new long[ 3 ];
+
+	/** interval in which pixels were modified */
+	final protected DirtyInterval dirtyLabelsInterval = new DirtyInterval();
+
+	/**
+	 * canvas that gets modified by brush TODO this has to change into a virtual
+	 * container with temporary storage
+	 */
+	protected CellImg< LongType, ? > canvas = null;
+
+	/** controllers */
+	protected LabelPersistenceController persistenceController;
+
 	static public class Parameters extends BigCatViewer.Parameters
 	{
 		@Parameter( names = { "--canvas", "-c" }, description = "canvas dataset" )
@@ -71,30 +86,7 @@ public class BigCat< P extends BigCat.Parameters > extends BigCatViewer< P >
 		@Parameter( names = { "--outfile", "-o" }, description = "Output file path" )
 		public String outFile;
 
-		@Override
-		public void init()
-		{
-			super.init();
-
-			if ( outFile == null )
-				outFile = inFile;
-		}
 	}
-
-	/** max raw dimensions */
-	final protected long[] maxRawDimensions = new long[ 3 ];
-
-	/**
-	 * canvas that gets modified by brush TODO this has to change into a virtual
-	 * container with temporary storage
-	 */
-	protected CellImg< LongType, ? > canvas = null;
-
-	/** interval in which pixels were modified */
-	final protected DirtyInterval dirtyLabelsInterval = new DirtyInterval();
-
-	/** controllers */
-	protected LabelPersistenceController persistenceController;
 
 	protected AnnotationsController annotationsController;
 
@@ -107,8 +99,12 @@ public class BigCat< P extends BigCat.Parameters > extends BigCatViewer< P >
 	final static protected void max( final long[] a, final long[] b )
 	{
 		for ( int i = 0; i < a.length; ++i )
+		{
 			if ( b[ i ] > a[ i ] )
+			{
 				a[ i ] = b[ i ];
+			}
+		}
 	}
 
 	public static void main( final String[] args ) throws Exception
@@ -165,6 +161,7 @@ public class BigCat< P extends BigCat.Parameters > extends BigCatViewer< P >
 		/* raw pixels */
 		Arrays.fill( maxRawDimensions, 0 );
 		for ( final String raw : params.raws )
+		{
 			if ( reader.exists( raw ) )
 			{
 				final H5UnsignedByteSetupImageLoader rawLoader = new H5UnsignedByteSetupImageLoader( reader, raw, setupId++, cellDimensions, cache );
@@ -173,6 +170,7 @@ public class BigCat< P extends BigCat.Parameters > extends BigCatViewer< P >
 			}
 			else
 				System.out.println( "no raw dataset '" + raw + "' found" );
+		}
 	}
 
 	/**
@@ -337,12 +335,11 @@ public class BigCat< P extends BigCat.Parameters > extends BigCatViewer< P >
 					labels.get( 0 ).getImage( 0 ),
 					canvas,
 					labels.get( 0 ).getMipmapResolutions()[ 0 ],
-					labels.get( 0 ).getOffset(),
 					dirtyLabelsInterval,
 					assignment,
 					completeFragmentsAssignment,
 					idService,
-					params.outFile,
+					params.inFile,
 					params.canvas,
 					params.export,
 					cellDimensions,

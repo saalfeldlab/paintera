@@ -646,8 +646,6 @@ public class LabelMultisetFill
 		final RandomAccess< Neighborhood< LabelMultisetType > > labelsNeighborhoodAccess = labelsNeighborhood.randomAccess();
 		final RandomAccess< Neighborhood< T > > sourceNeighborhoodAccess = sourceNeighborhood.randomAccess();
 
-		final Point dummyPoint = new Point( startingPoint.numDimensions() );
-
 		while ( !openTasks.isEmpty() )
 		{
 			// get point that has been waiting for the longest

@@ -99,8 +99,19 @@
 			<artifactId>jeromq</artifactId>
 			<version>0.3.6</version>
 		</dependency>
+		<!-- https://mvnrepository.com/artifact/org.scijava/script-editor -->
+		<dependency>
+			<groupId>org.scijava</groupId>
+			<artifactId>script-editor</artifactId>
+			<version>0.1.0</version>
+		</dependency>
+		<!-- https://mvnrepository.com/artifact/graphics.scenery/scenery -->
+		<dependency>
+			<groupId>graphics.scenery</groupId>
+			<artifactId>scenery</artifactId>
+			<version>0.1.1-SNAPSHOT</version>
+		</dependency>
 	</dependencies>
-
 	<developers>
 		<developer>
 			<id>tpietzsch</id>
