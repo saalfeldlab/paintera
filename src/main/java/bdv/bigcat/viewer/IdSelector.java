@@ -283,26 +283,10 @@ public class IdSelector
 			if ( !optionalSource.isPresent() )
 				return;
 			final Source< ? > source = optionalSource.get();
-			if ( toIdConverters.containsKey( source ) && selectedIds.containsKey( source ) && dataSources.containsKey( source ) && assignments.containsKey( source ) )
+			if ( toIdConverters.containsKey( source ) && dataSources.containsKey( source ) && assignments.containsKey( source ) )
 				synchronized ( viewer )
 				{
 					final FragmentSegmentAssignment assignment = assignments.get( source );
-
-					final long[] selIds = selectedIds.get( source ).getActiveIds();
-
-					if ( selIds.length < 1 )
-						return;
-
-					final long selectedId = assignment.getSegment( selIds[ 0 ] );
-
-					for ( int i = 1; i < selIds.length; ++i )
-						if ( assignment.getSegment( selIds[ i ] ) != selectedId )
-						{
-							System.out.println( "Ambiguity: Selected multiple active segments -- will not apply merge!" );
-							return;
-						}
-
-					final long selectedSegment = assignment.getSegment( selIds[ 0 ] );
 
 					final Source< ? > dataSource = dataSources.get( source );
 
@@ -319,8 +303,7 @@ public class IdSelector
 					final long[] ids = toIdConverters.get( source ).apply( val );
 
 					for ( final long id : ids )
-						if ( assignment.getSegment( id ) == selectedSegment )
-							assignment.detachFragment( id );
+						assignment.detachFragment( id );
 				}
 		}
 
