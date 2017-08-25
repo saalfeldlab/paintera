@@ -17,10 +17,28 @@ public class FragmentSegmentAssignmentWithHistory extends FragmentSegmentAssignm
 
 	public interface Action
 	{
+		public enum TYPE
+		{
+			NO_ACTION, MERGE, DETACH
+		};
+
 		public long[] ids();
 	}
 
-	public class Merge implements Action
+	public static class NoAction implements Action
+	{
+
+		public static final long[] NO_IDS = {};
+
+		@Override
+		public long[] ids()
+		{
+			return NO_IDS;
+		}
+
+	}
+
+	public static class Merge implements Action
 	{
 
 		private final long[] ids;
@@ -45,7 +63,7 @@ public class FragmentSegmentAssignmentWithHistory extends FragmentSegmentAssignm
 
 	}
 
-	public class Detach implements Action
+	public static class Detach implements Action
 	{
 
 		private final long[] ids;
