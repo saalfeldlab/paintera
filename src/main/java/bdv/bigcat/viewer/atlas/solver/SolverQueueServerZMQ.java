@@ -27,7 +27,7 @@ public class SolverQueueServerZMQ implements Closeable
 
 	private final ZMQ.Socket solutionDistributionSocket;
 
-	private final ZMQ.Socket latestSolutionRequestAddress;
+	private final ZMQ.Socket latestSolutionRequestSocket;
 
 	private final SolverQueue queue;
 
@@ -46,24 +46,33 @@ public class SolverQueueServerZMQ implements Closeable
 		final TYPE[] actionTypes = Action.TYPE.values();
 
 		this.actionReceiverSocket = ctx.socket( ZMQ.REP );
-		this.actionReceiverSocket.connect( actionReceiverAddress );
+		this.actionReceiverSocket.bind( actionReceiverAddress );
 		final Supplier< Action > actionReceiver = () -> {
+//			System.out.println( "ACT " + 1 );
 			final byte[] message = this.actionReceiverSocket.recv();
+//			System.out.println( "GOT MESSAGE " + Arrays.toString( message ) );
 
-			this.actionReceiverSocket.send( new byte[] { ( byte ) 0 } );
+//			System.out.println( "ACT " + 2 );
+//			this.actionReceiverSocket.send( new byte[] { ( byte ) 0 } );
 
+//			System.out.println( "ACT " + 3 );
 			if ( message == null )
 				return new NoAction();
 
+//			System.out.println( "ACT " + 4 );
 			final ByteBuffer bb = ByteBuffer.wrap( message );
 
+//			System.out.println( "ACT " + 5 );
 			final int actionTypeIndex = bb.getInt();
 
+//			System.out.println( "ACT " + 6 + " " + actionTypeIndex );
 			if ( actionTypeIndex < 0 || actionTypeIndex >= actionTypes.length )
 				return new NoAction();
 
+//			System.out.println( "ACT " + 7 );
 			final TYPE actionType = actionTypes[ actionTypeIndex ];
 
+//			System.out.println( "ACT " + 8 + " " + actionType );
 			switch ( actionType )
 			{
 
@@ -79,10 +88,13 @@ public class SolverQueueServerZMQ implements Closeable
 
 		};
 
+		final Runnable actionReceiptConfirmation = () -> this.actionReceiverSocket.send( new byte[] { ( byte ) 0 } );
+
 		this.solutionRequestResponseSocket = ctx.socket( ZMQ.REQ );
 		this.solutionRequestResponseSocket.connect( solutionRequestResponseAddress );
 
 		final Consumer< Collection< Action > > solutionRequester = actions -> {
+//			System.out.println( "ABOUT TO REQUEST SOLUTION!" );
 			final int requiredSizeInBytes = actions.stream().filter( a -> !( a instanceof NoAction ) ).mapToInt( a -> Integer.BYTES + Long.BYTES * ( a instanceof Merge ? 2 : 1 ) ).sum();
 			final byte[] data = new byte[ requiredSizeInBytes ];
 			final ByteBuffer bb = ByteBuffer.wrap( data );
@@ -101,6 +113,8 @@ public class SolverQueueServerZMQ implements Closeable
 					bb.putLong( detach.ids()[ 0 ] );
 				}
 			} );
+//			System.out.println( "REQUESTING SOLUTION SIZE " + data.length + " " + Arrays.toString( data ) );
+			this.solutionRequestResponseSocket.send( data );
 		};
 
 		final Supplier< TLongLongHashMap > solutionReceiver = () -> {
@@ -119,6 +133,7 @@ public class SolverQueueServerZMQ implements Closeable
 
 		this.solutionDistributionSocket = ctx.socket( ZMQ.PUB );
 		this.solutionDistributionSocket.bind( solutionDistributionAddress );
+//		System.out.println( "ADDR! " + solutionDistributionAddress );
 
 		final Consumer< TLongLongHashMap > solutionDistributor = solution -> {
 			final long[] keys = solution.keys();
@@ -130,14 +145,17 @@ public class SolverQueueServerZMQ implements Closeable
 				bb.putLong( keys[ i ] );
 				bb.putLong( values[ i ] );
 			}
+//			System.out.println( "PUBLISHING SOLUTION " + solution + " " + Arrays.toString( data ) );
 			this.solutionDistributionSocket.send( data );
 		};
 
-		this.latestSolutionRequestAddress = ctx.socket( ZMQ.REP );
-		this.latestSolutionRequestAddress.bind( latestSolutionRequestAddress );
+		this.latestSolutionRequestSocket = ctx.socket( ZMQ.REP );
+		this.latestSolutionRequestSocket.bind( latestSolutionRequestAddress );
 
 		final Supplier< Void > currentSolutionRequest = () -> {
-			this.latestSolutionRequestAddress.recv();
+//			System.out.println( "Received solution request! 0" );
+			this.latestSolutionRequestSocket.recv( 0 );
+//			System.out.println( "Received solution request! 1" );
 			return null;
 		};
 
@@ -151,11 +169,13 @@ public class SolverQueueServerZMQ implements Closeable
 				bb.putLong( keys[ i ] );
 				bb.putLong( values[ i ] );
 			}
-			this.solutionDistributionSocket.send( data );
+//			System.out.println( "Sending solution response! " + Arrays.toString( data ) );
+			this.latestSolutionRequestSocket.send( data );
 		};
 
 		this.queue = new SolverQueue(
 				actionReceiver,
+				actionReceiptConfirmation,
 				solutionRequester,
 				solutionReceiver,
 				solutionDistributor,

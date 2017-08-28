@@ -30,6 +30,7 @@ public class SolverQueue
 
 	public SolverQueue(
 			final Supplier< Action > actionReceiver,
+			final Runnable actionReceiptConfirmation,
 			final Consumer< Collection< Action > > solutionRequestToSolver,
 			final Supplier< TLongLongHashMap > solutionReceiver,
 			final Consumer< TLongLongHashMap > solutionDistributor,
@@ -44,7 +45,11 @@ public class SolverQueue
 		actionReceiverThread = new Thread( () -> {
 			while ( !interrupt.get() )
 			{
+//				System.out.println( "Waiting for action!" );
 				final Action action = actionReceiver.get();
+//				System.out.println( "Got action! " + action );
+				actionReceiptConfirmation.run();
+//				System.out.println( "Sent confirmation" );
 				if ( action != null )
 					synchronized ( queue )
 					{
@@ -63,7 +68,7 @@ public class SolverQueue
 				{
 					final long currentTime = System.currentTimeMillis();
 					final long timeDiff = currentTime - timeOfLastAction.get();
-					if ( timeDiff >= minWaitTimeAfterLastAction )
+					if ( timeDiff >= minWaitTimeAfterLastAction && queue.size() > 0 )
 					{
 						sentRequest = true;
 						solutionRequestToSolver.accept( queue );
@@ -72,19 +77,32 @@ public class SolverQueue
 					else
 						sentRequest = false;
 
+//					System.out.println( "DID SEND REQUEST? " + sentRequest );
+
 					if ( sentRequest )
 					{
+//						System.out.println( "WAITING FOR SOLUTION!" );
 						final TLongLongHashMap solution = solutionReceiver.get();
+//						System.out.println( "GOT RESOLUTION! " + solution );
 						synchronized ( latestSolution )
 						{
 							this.latestSolution.clear();
 							this.latestSolution.putAll( solution );
+//							System.out.println( "DISTRIBUTING SOLUTION!" );
 							solutionDistributor.accept( latestSolution );
 						}
 					}
-//					else
-//						Thread.sleep( 10 );
 				}
+				if ( !sentRequest )
+					try
+					{
+						Thread.sleep( 10 );
+					}
+					catch ( final InterruptedException e )
+					{
+						// TODO Auto-generated catch block
+						e.printStackTrace();
+					}
 			}
 		} );
 		solutionHandlerThread.start();
@@ -95,6 +113,7 @@ public class SolverQueue
 				final Void empty = currentSolutionRequest.get();
 				synchronized ( this.latestSolution )
 				{
+//					System.out.println( "SENDING LATEST SOLUTION!" );
 					currentSolutionResponse.accept( this.latestSolution );
 				}
 			}
