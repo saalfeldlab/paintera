@@ -4,6 +4,9 @@ import java.util.ArrayList;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 
+import bdv.bigcat.viewer.atlas.solver.action.Action;
+import bdv.bigcat.viewer.atlas.solver.action.Detach;
+import bdv.bigcat.viewer.atlas.solver.action.Merge;
 import bdv.labels.labelset.Label;
 import gnu.trove.impl.Constants;
 import gnu.trove.iterator.TLongIterator;
@@ -14,79 +17,6 @@ import gnu.trove.set.hash.TLongHashSet;
 
 public class FragmentSegmentAssignmentWithHistory extends FragmentSegmentAssignmentState< FragmentSegmentAssignmentWithHistory >
 {
-
-	public interface Action
-	{
-		public enum TYPE
-		{
-			NO_ACTION, MERGE, DETACH
-		};
-
-		public long[] ids();
-	}
-
-	public static class NoAction implements Action
-	{
-
-		public static final long[] NO_IDS = {};
-
-		@Override
-		public long[] ids()
-		{
-			return NO_IDS;
-		}
-
-	}
-
-	public static class Merge implements Action
-	{
-
-		private final long[] ids;
-
-		public Merge( final long... ids )
-		{
-			super();
-			this.ids = ids;
-		}
-
-		@Override
-		public long[] ids()
-		{
-			return ids;
-		}
-
-		@Override
-		public String toString()
-		{
-			return "Merge (" + ids[ 0 ] + ", " + ids[ 1 ] + ")";
-		}
-
-	}
-
-	public static class Detach implements Action
-	{
-
-		private final long[] ids;
-
-		public Detach( final long id )
-		{
-			super();
-			this.ids = new long[] { id };
-		}
-
-		@Override
-		public long[] ids()
-		{
-			return ids;
-		}
-
-		@Override
-		public String toString()
-		{
-			return "Detach (" + ids[ 0 ] + ")";
-		}
-
-	}
 
 	private final TLongLongHashMap fragmentToSegmentMap = new TLongLongHashMap( Constants.DEFAULT_CAPACITY, Constants.DEFAULT_LOAD_FACTOR, Label.TRANSPARENT, Label.TRANSPARENT );
 
@@ -133,9 +63,20 @@ public class FragmentSegmentAssignmentWithHistory extends FragmentSegmentAssignm
 							this.syncILut();
 							for ( final Action action : history )
 								if ( action instanceof Merge )
-									this.mergeSegments( this.fragmentToSegmentMap.get( action.ids()[ 0 ] ), this.fragmentToSegmentMap.get( action.ids()[ 1 ] ) );
+								{
+									final Merge merge = ( Merge ) action;
+									final long[] ids = merge.ids();
+									for ( int i = 0; i < ids.length; ++i )
+										for ( int k = i; k < ids.length; ++k )
+											this.mergeSegments( this.fragmentToSegmentMap.get( ids[ i ] ), this.fragmentToSegmentMap.get( ids[ k ] ) );
+								}
 								else if ( action instanceof Detach )
-									this.detachFragment( action.ids()[ 0 ] );
+								{
+									final Detach detach = ( Detach ) action;
+									final long id = detach.id();
+//									long[] from = detach.from();
+									this.detachFragment( id );
+								}
 							this.history.clear();
 						}
 

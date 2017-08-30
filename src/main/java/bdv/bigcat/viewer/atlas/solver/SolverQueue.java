@@ -7,7 +7,7 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 
-import bdv.bigcat.viewer.state.FragmentSegmentAssignmentWithHistory.Action;
+import bdv.bigcat.viewer.atlas.solver.action.Action;
 import gnu.trove.map.hash.TLongLongHashMap;
 
 public class SolverQueue
@@ -29,7 +29,7 @@ public class SolverQueue
 	private final TLongLongHashMap latestSolution;
 
 	public SolverQueue(
-			final Supplier< Action > actionReceiver,
+			final Supplier< Iterable< Action > > actionReceiver,
 			final Runnable actionReceiptConfirmation,
 			final Consumer< Collection< Action > > solutionRequestToSolver,
 			final Supplier< TLongLongHashMap > solutionReceiver,
@@ -46,15 +46,15 @@ public class SolverQueue
 			while ( !interrupt.get() )
 			{
 //				System.out.println( "Waiting for action!" );
-				final Action action = actionReceiver.get();
+				final Iterable< Action > actions = actionReceiver.get();
 //				System.out.println( "Got action! " + action );
 				actionReceiptConfirmation.run();
 //				System.out.println( "Sent confirmation" );
-				if ( action != null )
+				if ( actions != null )
 					synchronized ( queue )
 					{
 						timeOfLastAction.set( System.currentTimeMillis() );
-						queue.add( action );
+						actions.forEach( queue::add );
 					}
 			}
 		} );
