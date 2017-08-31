@@ -3,6 +3,7 @@ package bdv.bigcat.viewer.atlas.solver;
 import java.io.Closeable;
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
@@ -46,7 +47,9 @@ public class SolverQueueServerZMQ implements Closeable
 		final Supplier< Iterable< Action > > actionReceiver = () -> {
 //			System.out.println( "ACT " + 1 );
 //			final byte[] message = this.actionReceiverSocket.recv();
-			final String message = this.actionReceiverSocket.recvStr();
+			System.out.println( "WAITING FOR MESSAGE IN ACTION RECEIVER at address! " + actionReceiverAddress );
+			final String message = this.actionReceiverSocket.recvStr( 0, Charset.defaultCharset() );
+			System.out.println( "RECEIVED THE FOLLOWING MESSAGE: " + message );
 
 			if ( message == null )
 				return new ArrayList<>();
@@ -57,7 +60,7 @@ public class SolverQueueServerZMQ implements Closeable
 
 		};
 
-		final Runnable actionReceiptConfirmation = () -> this.actionReceiverSocket.send( new byte[] { ( byte ) 0 } );
+		final Runnable actionReceiptConfirmation = () -> this.actionReceiverSocket.send( new byte[] { ( byte ) 0 }, 0 );
 
 		this.solutionRequestResponseSocket = ctx.socket( ZMQ.REQ );
 		this.solutionRequestResponseSocket.connect( solutionRequestResponseAddress );
@@ -93,7 +96,7 @@ public class SolverQueueServerZMQ implements Closeable
 				bb.putLong( values[ i ] );
 			}
 //			System.out.println( "PUBLISHING SOLUTION " + solution + " " + Arrays.toString( data ) );
-			this.solutionDistributionSocket.send( data );
+			this.solutionDistributionSocket.send( data, 0 );
 		};
 
 		this.latestSolutionRequestSocket = ctx.socket( ZMQ.REP );
@@ -117,7 +120,7 @@ public class SolverQueueServerZMQ implements Closeable
 				bb.putLong( values[ i ] );
 			}
 //			System.out.println( "Sending solution response! " + Arrays.toString( data ) );
-			this.latestSolutionRequestSocket.send( data );
+			this.latestSolutionRequestSocket.send( data, 0 );
 		};
 
 		this.queue = new SolverQueue(

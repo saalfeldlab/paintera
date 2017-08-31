@@ -103,7 +103,7 @@ public class SolverQueueServerZMQTest
 					responseBuffer.putLong( v );
 					return true;
 				} );
-				socket.send( response );
+				socket.send( response, 0 );
 
 			}
 
@@ -148,7 +148,7 @@ public class SolverQueueServerZMQTest
 		final Socket subscriptionSocket = ctx.socket( ZMQ.SUB );
 		actionSocket.connect( ACTION_ADDRESS );
 		subscriptionSocket.connect( SOLUTION_DIST );
-		subscriptionSocket.subscribe( "" );
+		subscriptionSocket.subscribe( "".getBytes() );
 		final TLongLongHashMap solutionSubscription = new TLongLongHashMap();
 		final Thread solutionSubscriptionThread = new Thread( () -> {
 			final byte[] msg = subscriptionSocket.recv();
