@@ -1,6 +1,7 @@
 package bdv.bigcat.viewer.state;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 
@@ -23,6 +24,8 @@ public class FragmentSegmentAssignmentWithHistory extends FragmentSegmentAssignm
 	private final TLongObjectHashMap< TLongHashSet > segmentToFragmentsMap = new TLongObjectHashMap<>( Constants.DEFAULT_CAPACITY, Constants.DEFAULT_LOAD_FACTOR, Label.TRANSPARENT );
 
 	private final ArrayList< Action > history = new ArrayList<>();
+
+	private final HashSet< Action > submittedActions = new HashSet<>();
 
 	private final Consumer< Action > broadcaster;
 
@@ -61,6 +64,8 @@ public class FragmentSegmentAssignmentWithHistory extends FragmentSegmentAssignm
 							this.fragmentToSegmentMap.clear();
 							this.fragmentToSegmentMap.putAll( solution );
 							this.syncILut();
+							history.removeAll( submittedActions );
+							submittedActions.clear();
 							for ( final Action action : history )
 								if ( action instanceof Merge )
 								{
@@ -77,7 +82,7 @@ public class FragmentSegmentAssignmentWithHistory extends FragmentSegmentAssignm
 //									long[] from = detach.from();
 									this.detachFragment( id );
 								}
-							this.history.clear();
+//							this.history.clear();
 						}
 
 					}
@@ -131,19 +136,17 @@ public class FragmentSegmentAssignmentWithHistory extends FragmentSegmentAssignm
 		final TLongHashSet fragments = new TLongHashSet();
 		System.out.println( "ASSIGN?" + " " + fragments1 + " " + fragments2 + " " + this.fragmentToSegmentMap + " " + this.segmentToFragmentsMap );
 
-		for ( final long f1 : fragments1.toArray() )
-			for ( final long f2 : fragments2.toArray() )
-			{
-				final Merge merge = new Merge( f1, f2 );
-				synchronized ( history )
-				{
-					history.add( merge );
-					broadcaster.accept( merge );
-				}
-			}
-
 		fragments.addAll( fragments1 );
 		fragments.addAll( fragments2 );
+
+		final Merge merge = new Merge( fragments.toArray() );
+		synchronized ( history )
+		{
+			history.add( merge );
+			broadcaster.accept( merge );
+			submittedActions.add( merge );
+		}
+
 		fragments1.forEach( fragmentId -> {
 			fragmentToSegmentMap.put( fragmentId, assignTo );
 			return true;
@@ -177,6 +180,7 @@ public class FragmentSegmentAssignmentWithHistory extends FragmentSegmentAssignm
 				{
 					history.add( detach );
 					broadcaster.accept( detach );
+					submittedActions.add( detach );
 				}
 				final TLongHashSet fragmentsCopy = new TLongHashSet( fragments );
 				fragmentsCopy.remove( fragmentId );
