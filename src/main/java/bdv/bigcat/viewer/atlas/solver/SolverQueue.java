@@ -45,9 +45,9 @@ public class SolverQueue
 		actionReceiverThread = new Thread( () -> {
 			while ( !interrupt.get() )
 			{
-//				System.out.println( "Waiting for action!" );
+				System.out.println( "Waiting for action in queue!" );
 				final Iterable< Action > actions = actionReceiver.get();
-//				System.out.println( "Got action! " + action );
+				System.out.println( "Got action in queue! " + actions );
 //				System.out.println( "Sent confirmation" );
 				if ( actions != null )
 					synchronized ( queue )

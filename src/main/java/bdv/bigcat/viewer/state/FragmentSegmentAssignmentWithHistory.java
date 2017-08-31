@@ -55,6 +55,7 @@ public class FragmentSegmentAssignmentWithHistory extends FragmentSegmentAssignm
 				while ( true )
 				{
 					final TLongLongHashMap solution = solutionFetcher.get();
+					System.out.println( "Got solution " + solution );
 					if ( solution == null )
 						continue;
 					synchronized ( this )
@@ -64,6 +65,8 @@ public class FragmentSegmentAssignmentWithHistory extends FragmentSegmentAssignm
 							this.fragmentToSegmentMap.clear();
 							this.fragmentToSegmentMap.putAll( solution );
 							this.syncILut();
+							System.out.println( "Removing submitted actions from history: " + submittedActions );
+							System.out.println( history.size() + " " + submittedActions.size() );
 							history.removeAll( submittedActions );
 							submittedActions.clear();
 							for ( final Action action : history )
@@ -143,6 +146,7 @@ public class FragmentSegmentAssignmentWithHistory extends FragmentSegmentAssignm
 		synchronized ( history )
 		{
 			history.add( merge );
+			System.out.println( "Broadcasting merge!" );
 			broadcaster.accept( merge );
 			submittedActions.add( merge );
 		}

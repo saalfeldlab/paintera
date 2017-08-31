@@ -1,6 +1,13 @@
 package bdv.bigcat.viewer;
 
+import java.nio.ByteBuffer;
 import java.util.Arrays;
+import java.util.function.Consumer;
+import java.util.function.Supplier;
+
+import org.zeromq.ZMQ;
+import org.zeromq.ZMQ.Context;
+import org.zeromq.ZMQ.Socket;
 
 import com.sun.javafx.application.PlatformImpl;
 
@@ -8,8 +15,11 @@ import bdv.AbstractViewerSetupImgLoader;
 import bdv.bigcat.viewer.atlas.Atlas;
 import bdv.bigcat.viewer.atlas.data.HDF5LabelMultisetSourceSpec;
 import bdv.bigcat.viewer.atlas.data.HDF5UnsignedByteSpec;
+import bdv.bigcat.viewer.atlas.solver.SolverQueueServerZMQ;
+import bdv.bigcat.viewer.atlas.solver.action.Action;
 import bdv.viewer.Interpolation;
 import bdv.viewer.Source;
+import gnu.trove.map.hash.TLongLongHashMap;
 import javafx.application.Platform;
 import javafx.stage.Stage;
 import mpicbg.spim.data.sequence.VoxelDimensions;
@@ -43,6 +53,43 @@ public class PHART
 		final String labelsFile = "/data/hanslovskyp/constantin-example-data/data/seg.h5";
 		final String labelsDataset = "data";
 
+		final String actionReceiverAddress = "ipc://actions";
+
+		// https://github.com/zeromq/jeromq
+		// ipc:// protocol works only between jeromq (uses tcp://127.0.0.1:port
+		// internally).
+		// ipc:// protocol with zeromq. Java doesn't support UNIX domain socket.
+		// WHY?
+		final String solutionRequestResponseAddress = "ipc:///tmp/mc-solver";
+
+		final String solutionDistributionAddress = "ipc://solution";
+
+		final String latestSolutionRequestAddress = "ipc://latest-solution";
+
+		final int ioThreads = 1;
+
+		final long minWaitTimeAfterLastAction = 100;
+
+		final Context ctx = ZMQ.context( ioThreads );
+		final Socket initialSolutionSocket = ctx.socket( ZMQ.REQ );
+		initialSolutionSocket.connect( solutionRequestResponseAddress );
+		initialSolutionSocket.send( "" );
+		final byte[] solutionBytes = initialSolutionSocket.recv();
+		final TLongLongHashMap initialSolutionHashMap = new TLongLongHashMap();
+		final ByteBuffer bb = ByteBuffer.wrap( solutionBytes );
+		while ( bb.hasRemaining() )
+			initialSolutionHashMap.put( bb.getLong(), bb.getLong() );
+		final Supplier< TLongLongHashMap > initialSolution = () -> initialSolutionHashMap;
+
+		final SolverQueueServerZMQ solveQueue = new SolverQueueServerZMQ(
+				actionReceiverAddress,
+				solutionRequestResponseAddress,
+				solutionDistributionAddress,
+				initialSolution,
+				latestSolutionRequestAddress,
+				ioThreads,
+				minWaitTimeAfterLastAction );
+
 		final double[] resolution = { 4, 4, 40 };
 		final double[] offset = { 0, 0, 0 };
 		final int[] cellSize = { 145, 53, 5 };
@@ -66,8 +113,35 @@ public class PHART
 
 		viewer.addSource( rawSource );
 
-		final HDF5LabelMultisetSourceSpec labelSpec2 = new HDF5LabelMultisetSourceSpec( labelsFile, labelsDataset, cellSize );
+		final Socket assignmentSocket = ctx.socket( ZMQ.REQ );
+		final Socket solutionSocket = ctx.socket( ZMQ.SUB );
+
+		assignmentSocket.connect( actionReceiverAddress );
+		solutionSocket.connect( solutionDistributionAddress );
+		solutionSocket.subscribe( "".getBytes() );
+
+		final Consumer< Action > actionBroadcast = action -> {
+			assignmentSocket.send( Action.toJson( Arrays.asList( action ) ).toString() );
+			System.out.println( "WAITING FOR RESPONSE! on socket " + actionReceiverAddress );
+			final byte[] response = assignmentSocket.recv();
+			System.out.println( "GOT RESPONSE: " + Arrays.toString( response ) );
+		};
+
+		final Supplier< TLongLongHashMap > solutionReceiver = () -> {
+			final byte[] data = solutionSocket.recv();
+			final ByteBuffer dataBuffer = ByteBuffer.wrap( data );
+			final TLongLongHashMap result = new TLongLongHashMap();
+			while ( dataBuffer.hasRemaining() )
+				result.put( dataBuffer.getLong(), dataBuffer.getLong() );
+			return result;
+		};
+
+		final HDF5LabelMultisetSourceSpec labelSpec2 = new HDF5LabelMultisetSourceSpec( labelsFile, labelsDataset, cellSize, actionBroadcast, solutionReceiver );
 		viewer.addSource( labelSpec2 );
+
+		initialSolutionSocket.send( "" );
+		initialSolutionSocket.recv();
+		initialSolutionSocket.close();
 
 	}
 
