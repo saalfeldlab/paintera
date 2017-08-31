@@ -1,6 +1,7 @@
 package bdv.img.h5;
 
 import java.io.IOException;
+import java.util.stream.DoubleStream;
 
 import bdv.AbstractCachedViewerSetupImgLoader;
 import bdv.ViewerImgLoader;
@@ -133,8 +134,15 @@ public class H5LabelMultisetSetupImageLoader
 
 	final static protected double[] readResolution( final IHDF5Reader reader, final String dataset )
 	{
-		final double[] h5res = reader.float64().getArrayAttr( dataset, "resolution" );
-		return new double[] { h5res[ 2 ], h5res[ 1 ], h5res[ 0 ] };
+		try
+		{
+			final double[] h5res = reader.float64().getArrayAttr( dataset, "resolution" );
+			return new double[] { h5res[ 2 ], h5res[ 1 ], h5res[ 0 ] };
+		}
+		catch ( final HDF5AttributeException e )
+		{
+			return DoubleStream.generate( () -> 1.0 ).limit( 3 ).toArray();
+		}
 	}
 
 	final static protected double[] readOffset( final IHDF5Reader reader, final String dataset )
