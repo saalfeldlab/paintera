@@ -153,10 +153,4 @@ public class HDF5LabelMultisetSourceSpec implements LabelSpec< LabelMultisetType
 		return assignment;
 	}
 
-	@Override
-	public Consumer< TLongLongHashMap > assignmentWriteBack()
-	{
-		return this.assignmentWriteBack;
-	}
-
 }
