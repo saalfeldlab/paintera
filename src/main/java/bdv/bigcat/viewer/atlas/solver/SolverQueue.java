@@ -48,13 +48,13 @@ public class SolverQueue
 //				System.out.println( "Waiting for action!" );
 				final Iterable< Action > actions = actionReceiver.get();
 //				System.out.println( "Got action! " + action );
-				actionReceiptConfirmation.run();
 //				System.out.println( "Sent confirmation" );
 				if ( actions != null )
 					synchronized ( queue )
 					{
 						timeOfLastAction.set( System.currentTimeMillis() );
 						actions.forEach( queue::add );
+						actionReceiptConfirmation.run();
 					}
 			}
 		} );
