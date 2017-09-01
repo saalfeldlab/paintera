@@ -77,8 +77,8 @@ public class PHART
 		final byte[] solutionBytes = initialSolutionSocket.recv();
 		final TLongLongHashMap initialSolutionHashMap = new TLongLongHashMap();
 		final ByteBuffer bb = ByteBuffer.wrap( solutionBytes );
-		while ( bb.hasRemaining() )
-			initialSolutionHashMap.put( bb.getLong(), bb.getLong() );
+		for ( int i = 0; bb.hasRemaining(); ++i )
+			initialSolutionHashMap.put( i, bb.getLong() );
 		final Supplier< TLongLongHashMap > initialSolution = () -> initialSolutionHashMap;
 
 		final SolverQueueServerZMQ solveQueue = new SolverQueueServerZMQ(
