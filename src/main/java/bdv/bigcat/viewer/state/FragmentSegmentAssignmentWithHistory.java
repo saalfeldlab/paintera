@@ -81,14 +81,14 @@ public class FragmentSegmentAssignmentWithHistory extends FragmentSegmentAssignm
 									final long[] ids = merge.ids();
 									for ( int i = 0; i < ids.length; ++i )
 										for ( int k = i; k < ids.length; ++k )
-											this.mergeSegments( this.fragmentToSegmentMap.get( ids[ i ] ), this.fragmentToSegmentMap.get( ids[ k ] ) );
+											this.mergeSegmentsImpl( this.fragmentToSegmentMap.get( ids[ i ] ), this.fragmentToSegmentMap.get( ids[ k ] ), false );
 								}
 								else if ( action instanceof Detach )
 								{
 									final Detach detach = ( Detach ) action;
 									final long id = detach.id();
 //									long[] from = detach.from();
-									this.detachFragment( id );
+									this.detachFragmentImpl( id, false );
 								}
 //							this.history.clear();
 						}
@@ -192,6 +192,11 @@ public class FragmentSegmentAssignmentWithHistory extends FragmentSegmentAssignm
 	@Override
 	protected synchronized void detachFragmentImpl( final long fragmentId )
 	{
+		detachFragmentImpl( fragmentId, true );
+	}
+
+	protected synchronized void detachFragmentImpl( final long fragmentId, final boolean broadcastEvent )
+	{
 
 		final long segmentId = getSegment( fragmentId );
 		final TLongHashSet fragments = getFragments( segmentId );
@@ -200,12 +205,13 @@ public class FragmentSegmentAssignmentWithHistory extends FragmentSegmentAssignm
 			{
 
 				final Detach detach = new Detach( fragmentId );
-				synchronized ( history )
-				{
-					history.add( detach );
-					broadcaster.accept( detach );
-					submittedActions.add( detach );
-				}
+				if ( broadcastEvent )
+					synchronized ( history )
+					{
+						history.add( detach );
+						broadcaster.accept( detach );
+						submittedActions.add( detach );
+					}
 				final TLongHashSet fragmentsCopy = new TLongHashSet( fragments );
 				fragmentsCopy.remove( fragmentId );
 
