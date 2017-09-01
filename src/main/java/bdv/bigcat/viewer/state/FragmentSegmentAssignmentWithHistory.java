@@ -34,6 +34,11 @@ public class FragmentSegmentAssignmentWithHistory extends FragmentSegmentAssignm
 		this( new long[ 0 ], new long[ 0 ], broadcaster, solutionFetcher );
 	}
 
+	public FragmentSegmentAssignmentWithHistory( final TLongLongHashMap initialSolution, final Consumer< Action > broadcaster, final Supplier< TLongLongHashMap > solutionFetcher )
+	{
+		this( initialSolution.keys(), initialSolution.values(), broadcaster, solutionFetcher );
+	}
+
 	public FragmentSegmentAssignmentWithHistory( final long[] fragments, final long[] segments, final Consumer< Action > broadcaster, final Supplier< TLongLongHashMap > solutionFetcher )
 	{
 

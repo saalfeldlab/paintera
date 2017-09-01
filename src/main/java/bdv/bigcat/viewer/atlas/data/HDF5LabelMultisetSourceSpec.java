@@ -50,7 +50,7 @@ public class HDF5LabelMultisetSourceSpec implements LabelSpec< LabelMultisetType
 				e.printStackTrace();
 			}
 			return null;
-		} );
+		}, TLongLongHashMap::new );
 	}
 
 	public HDF5LabelMultisetSourceSpec(
@@ -58,12 +58,13 @@ public class HDF5LabelMultisetSourceSpec implements LabelSpec< LabelMultisetType
 			final String dataset,
 			final int[] cellSize,
 			final Consumer< Action > actionBroadcaster,
-			final Supplier< TLongLongHashMap > solutionFetcher ) throws IOException
+			final Supplier< TLongLongHashMap > solutionFetcher,
+			final Supplier< TLongLongHashMap > initialSolution ) throws IOException
 	{
 		super();
 		final IHDF5Reader h5reader = HDF5Factory.open( path );
 		this.loader = new H5LabelMultisetSetupImageLoader( h5reader, null, dataset, 0, cellSize, new VolatileGlobalCellCache( new SharedQueue( 8 ) ) );
-		this.assignment = new FragmentSegmentAssignmentWithHistory( actionBroadcaster, solutionFetcher );
+		this.assignment = new FragmentSegmentAssignmentWithHistory( initialSolution.get(), actionBroadcaster, solutionFetcher );
 		this.stream = new ModalGoldenAngleSaturatedHighlightingARGBStream( selectedIds, assignment );
 	}
 

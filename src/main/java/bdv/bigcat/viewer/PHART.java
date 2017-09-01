@@ -136,7 +136,12 @@ public class PHART
 			return result;
 		};
 
-		final HDF5LabelMultisetSourceSpec labelSpec2 = new HDF5LabelMultisetSourceSpec( labelsFile, labelsDataset, cellSize, actionBroadcast, solutionReceiver );
+		final HDF5LabelMultisetSourceSpec labelSpec2 = new HDF5LabelMultisetSourceSpec(
+				labelsFile,
+				labelsDataset,
+				cellSize,
+				actionBroadcast,
+				solutionReceiver, () -> initialSolutionHashMap );
 		viewer.addSource( labelSpec2 );
 
 		initialSolutionSocket.send( "" );
