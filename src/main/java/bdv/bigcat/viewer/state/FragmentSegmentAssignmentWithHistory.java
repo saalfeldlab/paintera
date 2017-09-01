@@ -60,7 +60,6 @@ public class FragmentSegmentAssignmentWithHistory extends FragmentSegmentAssignm
 				while ( true )
 				{
 					final TLongLongHashMap solution = solutionFetcher.get();
-					System.out.println( "Got solution " + solution );
 					if ( solution == null )
 						continue;
 					synchronized ( this )
@@ -149,7 +148,6 @@ public class FragmentSegmentAssignmentWithHistory extends FragmentSegmentAssignm
 		final TLongHashSet fragments1 = getFragments( assignFrom );
 		final TLongHashSet fragments2 = getFragments( assignTo );
 		final TLongHashSet fragments = new TLongHashSet();
-		System.out.println( "ASSIGN?" + " " + fragments1 + " " + fragments2 + " " + this.fragmentToSegmentMap + " " + this.segmentToFragmentsMap );
 
 		fragments.addAll( fragments1 );
 		fragments.addAll( fragments2 );
@@ -182,7 +180,6 @@ public class FragmentSegmentAssignmentWithHistory extends FragmentSegmentAssignm
 
 	protected synchronized void mergeSegmentsImpl( final long segmentId1, final long segmentId2, final boolean broadcastEvents )
 	{
-		System.out.println( "MERGE?" );
 		if ( segmentId1 == segmentId2 )
 			return;
 
