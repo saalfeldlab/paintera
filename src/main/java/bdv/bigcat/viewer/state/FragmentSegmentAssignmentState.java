@@ -9,6 +9,8 @@ public abstract class FragmentSegmentAssignmentState< T extends FragmentSegmentA
 
 	protected abstract void detachFragmentImpl( final long fragmentId );
 
+	protected abstract void mergeFragmentsImpl( final long... fragments );
+
 	@Override
 	public void assignFragments( final long segmentId1, final long segmentId2 )
 	{
@@ -24,12 +26,9 @@ public abstract class FragmentSegmentAssignmentState< T extends FragmentSegmentA
 	}
 
 	@Override
-	public void mergeFragmentSegments( final long fragmentId1, final long fragmentId2 )
+	public void mergeFragments( final long... fragments )
 	{
-		final long segmentId1, segmentId2;
-		segmentId1 = getSegment( fragmentId1 );
-		segmentId2 = getSegment( fragmentId2 );
-		mergeSegments( segmentId1, segmentId2 );
+		mergeFragmentsImpl( fragments );
 		stateChanged();
 	}
 

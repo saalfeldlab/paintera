@@ -17,6 +17,7 @@ import bdv.viewer.Source;
 import bdv.viewer.ViewerPanel;
 import bdv.viewer.state.SourceState;
 import bdv.viewer.state.ViewerState;
+import gnu.trove.set.hash.TLongHashSet;
 import net.imglib2.RealRandomAccess;
 import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.realtransform.InverseRealTransform;
@@ -57,9 +58,9 @@ public class IdSelector
 		return new Append( name, handleMultipleEntries );
 	}
 
-	public MergeSegments merge( final HashMap< Source< ? >, ? extends FragmentSegmentAssignment > assignments )
+	public MergeFragments merge( final HashMap< Source< ? >, ? extends FragmentSegmentAssignment > assignments )
 	{
-		return new MergeSegments( assignments );
+		return new MergeFragments( assignments );
 	}
 
 	public DetachFragment detach( final HashMap< Source< ? >, ? extends FragmentSegmentAssignment > assignments )
@@ -260,6 +261,57 @@ public class IdSelector
 						if ( id != selectedId )
 							assignment.assignFragments( id, selectedId );
 					}
+				}
+		}
+
+	}
+
+	private class MergeFragments extends AbstractNamedBehaviour implements ClickBehaviour
+	{
+
+		private final HashMap< Source< ? >, ? extends FragmentSegmentAssignment > assignments;
+
+		public MergeFragments( final HashMap< Source< ? >, ? extends FragmentSegmentAssignment > assignments )
+		{
+			super( "merge segments" );
+			this.assignments = assignments;
+		}
+
+		@Override
+		public void click( final int x, final int y )
+		{
+			final Optional< Source< ? > > optionalSource = getSource();
+			if ( !optionalSource.isPresent() )
+				return;
+			final Source< ? > source = optionalSource.get();
+			if ( toIdConverters.containsKey( source ) && selectedIds.containsKey( source ) && dataSources.containsKey( source ) && assignments.containsKey( source ) )
+				synchronized ( viewer )
+				{
+					final FragmentSegmentAssignment assignment = assignments.get( source );
+
+					final long[] selIds = selectedIds.get( source ).getActiveIds();
+
+					if ( selIds.length < 1 )
+						return;
+
+					final Source< ? > dataSource = dataSources.get( source );
+
+					final AffineTransform3D affine = new AffineTransform3D();
+					final ViewerState state = viewer.getState();
+					state.getViewerTransform( affine );
+					final int level = state.getBestMipMapLevel( affine, state.getSources().stream().map( src -> src.getSpimSource() ).collect( Collectors.toList() ).indexOf( source ) );
+					dataSource.getSourceTransform( 0, level, affine );
+					final RealRandomAccess< ? > access = RealViews.transformReal( dataSource.getInterpolatedSource( 0, level, Interpolation.NEARESTNEIGHBOR ), affine ).realRandomAccess();
+					viewer.getMouseCoordinates( access );
+					access.setPosition( 0l, 2 );
+					viewer.displayToGlobalCoordinates( access );
+					final Object val = access.get();
+					final long[] ids = toIdConverters.get( source ).apply( val );
+
+					final TLongHashSet fragments = new TLongHashSet();
+					fragments.addAll( ids );
+					fragments.addAll( selIds );
+					assignment.mergeFragments( fragments.toArray() );
 				}
 		}
 

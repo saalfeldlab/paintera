@@ -13,7 +13,7 @@ public interface FragmentSegmentAssignment
 
 	public void mergeSegments( final long segmentId1, final long segmentId2 );
 
-	public void mergeFragmentSegments( final long fragmentId1, final long fragmentId2 );
+	public void mergeFragments( final long... fragments );
 
 	public void detachFragment( final long fragmentId );
 

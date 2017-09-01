@@ -138,6 +138,11 @@ public class FragmentSegmentAssignmentWithHistory extends FragmentSegmentAssignm
 	@Override
 	protected synchronized void assignFragmentsImpl( final long assignFrom, final long assignTo )
 	{
+		assignFragmentsImpl( assignFrom, assignTo, true );
+	}
+
+	protected synchronized void assignFragmentsImpl( final long assignFrom, final long assignTo, final boolean broadcastEvents )
+	{
 		if ( assignFrom == assignTo )
 			return;
 
@@ -149,13 +154,16 @@ public class FragmentSegmentAssignmentWithHistory extends FragmentSegmentAssignm
 		fragments.addAll( fragments1 );
 		fragments.addAll( fragments2 );
 
-		final Merge merge = new Merge( fragments.toArray() );
-		synchronized ( history )
+		if ( broadcastEvents )
 		{
-			history.add( merge );
-			System.out.println( "Broadcasting merge!" );
-			broadcaster.accept( merge );
-			submittedActions.add( merge );
+			final Merge merge = new Merge( fragments.toArray() );
+			synchronized ( history )
+			{
+				history.add( merge );
+				System.out.println( "Broadcasting merge!" );
+				broadcaster.accept( merge );
+				submittedActions.add( merge );
+			}
 		}
 
 		fragments1.forEach( fragmentId -> {
@@ -169,11 +177,16 @@ public class FragmentSegmentAssignmentWithHistory extends FragmentSegmentAssignm
 	@Override
 	protected synchronized void mergeSegmentsImpl( final long segmentId1, final long segmentId2 )
 	{
+		mergeSegmentsImpl( segmentId1, segmentId2, true );
+	}
+
+	protected synchronized void mergeSegmentsImpl( final long segmentId1, final long segmentId2, final boolean broadcastEvents )
+	{
 		System.out.println( "MERGE?" );
 		if ( segmentId1 == segmentId2 )
 			return;
 
-		assignFragmentsImpl( Math.max( segmentId1, segmentId2 ), Math.min( segmentId1, segmentId2 ) );
+		assignFragmentsImpl( Math.max( segmentId1, segmentId2 ), Math.min( segmentId1, segmentId2 ), broadcastEvents );
 	}
 
 	@Override
@@ -211,6 +224,29 @@ public class FragmentSegmentAssignmentWithHistory extends FragmentSegmentAssignm
 				segmentToFragmentsMap.put( newSegmentId, new TLongHashSet( new long[] { fragmentId } ) );
 //				}
 			}
+	}
+
+	@Override
+	protected void mergeFragmentsImpl( final long... fragments )
+	{
+		final Merge merge = new Merge( fragments );
+		synchronized ( history )
+		{
+			history.add( merge );
+			broadcaster.accept( merge );
+			submittedActions.add( merge );
+		}
+		for ( int i = 0; i < fragments.length; ++i )
+		{
+			final long id1 = fragments[ i ];
+			for ( int k = i + 1; k < fragments.length; ++k )
+			{
+				final long id2 = fragments[ k ];
+				final long seg1 = getSegment( id1 );
+				final long seg2 = getSegment( id2 );
+				mergeSegmentsImpl( seg1, seg2, false );
+			}
+		}
 	}
 
 	private synchronized void syncILut()
