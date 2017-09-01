@@ -69,16 +69,27 @@ public class SolverQueueServerZMQ implements Closeable
 
 		final Supplier< TLongLongHashMap > solutionReceiver = () -> {
 			final byte[] data = this.solutionRequestResponseSocket.recv();
-			final int numEntries = data.length / ( Long.BYTES * 2 );
+			final int numEntries = data.length / Long.BYTES;
 			final long[] keys = new long[ numEntries ];
 			final long[] values = new long[ numEntries ];
 			final ByteBuffer bb = ByteBuffer.wrap( data );
 			for ( int i = 0; i < numEntries; ++i )
 			{
-				keys[ i ] = bb.getLong();
+				keys[ i ] = i;
 				values[ i ] = bb.getLong();
 			}
 			return new TLongLongHashMap( keys, values );
+//			final byte[] data = this.solutionRequestResponseSocket.recv();
+//			final int numEntries = data.length / ( Long.BYTES * 2 );
+//			final long[] keys = new long[ numEntries ];
+//			final long[] values = new long[ numEntries ];
+//			final ByteBuffer bb = ByteBuffer.wrap( data );
+//			for ( int i = 0; i < numEntries; ++i )
+//			{
+//				keys[ i ] = bb.getLong();
+//				values[ i ] = bb.getLong();
+//			}
+//			return new TLongLongHashMap( keys, values );
 		};
 
 		this.solutionDistributionSocket = ctx.socket( ZMQ.PUB );
