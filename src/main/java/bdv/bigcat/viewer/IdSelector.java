@@ -1,5 +1,6 @@
 package bdv.bigcat.viewer;
 
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Optional;
@@ -18,11 +19,17 @@ import bdv.viewer.ViewerPanel;
 import bdv.viewer.state.SourceState;
 import bdv.viewer.state.ViewerState;
 import gnu.trove.set.hash.TLongHashSet;
+import net.imglib2.Cursor;
+import net.imglib2.FinalInterval;
+import net.imglib2.RandomAccess;
 import net.imglib2.RealRandomAccess;
+import net.imglib2.RealRandomAccessible;
 import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.realtransform.InverseRealTransform;
 import net.imglib2.realtransform.RealTransformRealRandomAccessible;
 import net.imglib2.realtransform.RealViews;
+import net.imglib2.view.IntervalView;
+import net.imglib2.view.Views;
 
 public class IdSelector
 {
@@ -58,9 +65,14 @@ public class IdSelector
 		return new Append( name, handleMultipleEntries );
 	}
 
-	public MergeFragments merge( final HashMap< Source< ? >, ? extends FragmentSegmentAssignment > assignments )
+//	public MergeFragments merge( final HashMap< Source< ? >, ? extends FragmentSegmentAssignment > assignments )
+//	{
+//		return new MergeFragments( assignments );
+//	}
+
+	public MergeSegments merge( final HashMap< Source< ? >, ? extends FragmentSegmentAssignment > assignments )
 	{
-		return new MergeFragments( assignments );
+		return new MergeSegments( assignments );
 	}
 
 	public DetachFragment detach( final HashMap< Source< ? >, ? extends FragmentSegmentAssignment > assignments )
@@ -232,39 +244,123 @@ public class IdSelector
 
 					final Source< ? > dataSource = dataSources.get( source );
 
+					final AffineTransform3D viewerTransform = new AffineTransform3D();
 					final AffineTransform3D affine = new AffineTransform3D();
 					final ViewerState state = viewer.getState();
-					state.getViewerTransform( affine );
-					final int level = state.getBestMipMapLevel( affine, state.getSources().stream().map( src -> src.getSpimSource() ).collect( Collectors.toList() ).indexOf( source ) );
+					state.getViewerTransform( viewerTransform );
+					final int level = state.getBestMipMapLevel( viewerTransform, state.getSources().stream().map( src -> src.getSpimSource() ).collect( Collectors.toList() ).indexOf( source ) );
 					dataSource.getSourceTransform( 0, level, affine );
-					final RealRandomAccess< ? > access = RealViews.transformReal( dataSource.getInterpolatedSource( 0, level, Interpolation.NEARESTNEIGHBOR ), affine ).realRandomAccess();
+					final RealRandomAccessible< ? > interpolatedSource = dataSource.getInterpolatedSource( 0, level, Interpolation.NEARESTNEIGHBOR );
+					final RealTransformRealRandomAccessible< ?, InverseRealTransform > transformedSource = RealViews.transformReal( interpolatedSource, affine );
+					final RealRandomAccess< ? > access = transformedSource.realRandomAccess();
 					viewer.getMouseCoordinates( access );
 					access.setPosition( 0l, 2 );
 					viewer.displayToGlobalCoordinates( access );
 					final Object val = access.get();
-					final long[] ids = toIdConverters.get( source ).apply( val );
+					final Function< Object, long[] > toIdConverter = toIdConverters.get( source );
+					final long[] ids = toIdConverter.apply( val );
 
-//				final long firstSegment = assignment.getSegment( ids[ 0 ] );
-//				for ( int i = 0; i < ids.length; ++i )
-//					if ( assignment.getSegment( ids[ i ] ) != firstSegment )
-//					{
-//						System.out.println( "Ambiguity: Selected multiple segments -- will not apply merge!" );
-//						return;
-//					}
+					final TLongHashSet segments = new TLongHashSet();
+					Arrays.stream( ids ).map( assignment::getSegment ).forEach( segments::add );
+					Arrays.stream( selIds ).map( assignment::getSegment ).forEach( segments::add );
 
-//				if ( selectedId == id )
-//					return;
+					final int w = viewer.getWidth();
+					final int h = viewer.getHeight();
+					final IntervalView< ? > screenLabels =
+							Views.interval(
+									Views.hyperSlice(
+											RealViews.affine( transformedSource, viewerTransform ), 2, 0 ),
+									new FinalInterval( w - 1, h - 1 ) );
 
-					for ( int i = 0; i < ids.length; ++i )
+					final Cursor< ? > cursor = screenLabels.cursor();
+					final RandomAccess< ? > ra1 = screenLabels.randomAccess();
+					final RandomAccess< ? > ra2 = screenLabels.randomAccess();
+
+					final TLongHashSet fragments = new TLongHashSet();
+
+					final double[] min = new double[] { 0, 0, 0 };
+					final double[] max = new double[] { w - 1, h - 1, 0 };
+					viewerTransform.applyInverse( min, min );
+					viewerTransform.applyInverse( max, max );
+
+					while ( cursor.hasNext() )
 					{
-						final long id = assignment.getSegment( ids[ i ] );
-						if ( id != selectedId )
-							assignment.assignFragments( id, selectedId );
+						cursor.fwd();
+						ra1.setPosition( cursor );
+						ra2.setPosition( cursor );
+						ra1.fwd( 0 );
+						ra2.fwd( 1 );
+
+						final long[] ids1 = toIdConverter.apply( cursor.get() );
+						final long[] ids2 = toIdConverter.apply( ra1.get() );
+						final long[] ids3 = toIdConverter.apply( ra2.get() );
+//						if ( ( ids1[ 0 ] != ids2[ 0 ] || ids1[ 0 ] != ids3[ 0 ] ) && segments.contains( assignment.getSegment( ids1[ 0 ] ) ) )
+//						{
+//							System.out.println( Arrays.toString( ids1 ) + " " + Arrays.toString( ids2 ) + " " + Arrays.toString( ids3 ) );
+//							System.out.println( assignment.getSegment( ids1[ 0 ] ) + " " + assignment.getSegment( ids2[ 0 ] ) + " " + assignment.getSegment( ids3[ 0 ] ) );
+//							System.out.println( segments );
+//							System.out.println();
+//						}
+
+						for ( final long id1 : ids1 )
+						{
+							final long s1 = assignment.getSegment( id1 );
+							if ( !segments.contains( s1 ) )
+								continue;
+
+							for ( final long id2 : ids2 )
+							{
+								final long s2 = assignment.getSegment( id2 );
+								if ( !segments.contains( s2 ) || s1 == s2 )
+									continue;
+								fragments.add( id1 );
+								fragments.add( id2 );
+							}
+
+							for ( final long id2 : ids3 )
+							{
+								final long s2 = assignment.getSegment( id2 );
+								if ( !segments.contains( s2 ) || s1 == s2 )
+									continue;
+								fragments.add( id1 );
+								fragments.add( id2 );
+							}
+
+						}
+
 					}
+
+					assignment.mergeFragments( fragments.toArray() );
 				}
 		}
 
 	}
+
+//	public static TLongHashSet getMergableFragmentIdsFromVisibilityOnScreen(
+//			final ViewerPanel viewer,
+//			final FragmentSegmentAssignment assignment, final long[] segments )
+//	{
+//		final TLongHashSet fragments = new TLongHashSet();
+//
+//		synchronized ( viewer )
+//		{
+//			final int w = viewer.getWidth();
+//			final int h = viewer.getHeight();
+//			final AffineTransform3D viewerTransform = new AffineTransform3D();
+//			viewer.getState().getViewerTransform( viewerTransform );
+//			final IntervalView< LabelMultisetType > screenLabels =
+//					Views.interval(
+//							Views.hyperSlice(
+//									RealViews.affine( labels, viewerTransform ), 2, 0 ),
+//							new FinalInterval( w, h ) );
+//
+//			for ( final LabelMultisetType pixel : Views.iterable( screenLabels ) )
+//				for ( final Entry< Label > entry : pixel.entrySet() )
+//					visibleIds.add( entry.getElement().id() );
+//		}
+//
+//		return fragments;
+//	}
 
 	private class MergeFragments extends AbstractNamedBehaviour implements ClickBehaviour
 	{
