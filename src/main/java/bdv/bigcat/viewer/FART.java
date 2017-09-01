@@ -41,7 +41,7 @@ import net.imglib2.util.Intervals;
 import net.imglib2.view.ExtendedRandomAccessibleInterval;
 import net.imglib2.view.Views;
 
-public class PHART
+public class FART
 {
 
 	public static void main( final String[] args ) throws Exception
