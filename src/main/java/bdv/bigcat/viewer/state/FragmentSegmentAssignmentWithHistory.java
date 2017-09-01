@@ -94,6 +94,8 @@ public class FragmentSegmentAssignmentWithHistory extends FragmentSegmentAssignm
 						}
 
 					}
+					// notify listeners about changed state!
+					stateChanged();
 				}
 			} );
 
