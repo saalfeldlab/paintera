@@ -187,12 +187,12 @@ public class FragmentSegmentAssignmentWithHistory extends FragmentSegmentAssignm
 	}
 
 	@Override
-	protected synchronized void detachFragmentImpl( final long fragmentId )
+	protected synchronized void detachFragmentImpl( final long fragmentId, final long... from )
 	{
-		detachFragmentImpl( fragmentId, true );
+		detachFragmentImpl( fragmentId, true, from );
 	}
 
-	protected synchronized void detachFragmentImpl( final long fragmentId, final boolean broadcastEvent )
+	protected synchronized void detachFragmentImpl( final long fragmentId, final boolean broadcastEvent, final long... from )
 	{
 
 		final long segmentId = getSegment( fragmentId );
@@ -201,7 +201,7 @@ public class FragmentSegmentAssignmentWithHistory extends FragmentSegmentAssignm
 			synchronized ( history )
 			{
 
-				final Detach detach = new Detach( fragmentId );
+				final Detach detach = new Detach( fragmentId, from );
 				if ( broadcastEvent )
 					synchronized ( history )
 					{

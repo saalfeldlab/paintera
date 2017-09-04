@@ -5,6 +5,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Optional;
 import java.util.function.Function;
+import java.util.function.LongBinaryOperator;
 import java.util.stream.Collectors;
 
 import org.scijava.ui.behaviour.ClickBehaviour;
@@ -18,10 +19,12 @@ import bdv.viewer.Source;
 import bdv.viewer.ViewerPanel;
 import bdv.viewer.state.SourceState;
 import bdv.viewer.state.ViewerState;
+import gnu.trove.map.hash.TLongObjectHashMap;
 import gnu.trove.set.hash.TLongHashSet;
 import net.imglib2.Cursor;
 import net.imglib2.FinalInterval;
 import net.imglib2.RandomAccess;
+import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.RealRandomAccess;
 import net.imglib2.RealRandomAccessible;
 import net.imglib2.realtransform.AffineTransform3D;
@@ -392,10 +395,11 @@ public class IdSelector
 
 					final Source< ? > dataSource = dataSources.get( source );
 
-					final AffineTransform3D affine = new AffineTransform3D();
+					final AffineTransform3D viewerTransform = new AffineTransform3D();
 					final ViewerState state = viewer.getState();
-					state.getViewerTransform( affine );
-					final int level = state.getBestMipMapLevel( affine, state.getSources().stream().map( src -> src.getSpimSource() ).collect( Collectors.toList() ).indexOf( source ) );
+					state.getViewerTransform( viewerTransform );
+					final int level = state.getBestMipMapLevel( viewerTransform, state.getSources().stream().map( src -> src.getSpimSource() ).collect( Collectors.toList() ).indexOf( source ) );
+					final AffineTransform3D affine = new AffineTransform3D();
 					dataSource.getSourceTransform( 0, level, affine );
 					final RealRandomAccess< ? > access = RealViews.transformReal( dataSource.getInterpolatedSource( 0, level, Interpolation.NEARESTNEIGHBOR ), affine ).realRandomAccess();
 					viewer.getMouseCoordinates( access );
@@ -434,24 +438,57 @@ public class IdSelector
 			if ( toIdConverters.containsKey( source ) && dataSources.containsKey( source ) && assignments.containsKey( source ) )
 				synchronized ( viewer )
 				{
+
+					final long[] selIds = selectedIds.containsKey( source ) ? selectedIds.get( source ).getActiveIds() : new long[] {};
+
 					final FragmentSegmentAssignment assignment = assignments.get( source );
 
 					final Source< ? > dataSource = dataSources.get( source );
 
-					final AffineTransform3D affine = new AffineTransform3D();
+					final AffineTransform3D viewerTransform = new AffineTransform3D();
 					final ViewerState state = viewer.getState();
-					state.getViewerTransform( affine );
-					final int level = state.getBestMipMapLevel( affine, state.getSources().stream().map( src -> src.getSpimSource() ).collect( Collectors.toList() ).indexOf( source ) );
+					state.getViewerTransform( viewerTransform );
+					final int level = state.getBestMipMapLevel( viewerTransform, state.getSources().stream().map( src -> src.getSpimSource() ).collect( Collectors.toList() ).indexOf( source ) );
+					final AffineTransform3D affine = new AffineTransform3D();
 					dataSource.getSourceTransform( 0, level, affine );
-					final RealRandomAccess< ? > access = RealViews.transformReal( dataSource.getInterpolatedSource( 0, level, Interpolation.NEARESTNEIGHBOR ), affine ).realRandomAccess();
+					final RealTransformRealRandomAccessible< ?, InverseRealTransform > transformedSource = RealViews.transformReal( dataSource.getInterpolatedSource( 0, level, Interpolation.NEARESTNEIGHBOR ), affine );
+					final RealRandomAccess< ? > access = transformedSource.realRandomAccess();
 					viewer.getMouseCoordinates( access );
 					access.setPosition( 0l, 2 );
 					viewer.displayToGlobalCoordinates( access );
 					final Object val = access.get();
-					final long[] ids = toIdConverters.get( source ).apply( val );
+					final Function< Object, long[] > toIdConverter = toIdConverters.get( source );
+					final long[] ids = toIdConverter.apply( val );
 
-					for ( final long id : ids )
-						assignment.detachFragment( id );
+					final TLongHashSet segments = new TLongHashSet();
+					Arrays.stream( selIds ).map( assignment::getSegment ).forEach( segments::add );
+
+					final int w = viewer.getWidth();
+					final int h = viewer.getHeight();
+					final IntervalView< ? > screenLabels =
+							Views.interval(
+									Views.hyperSlice(
+											RealViews.affine( transformedSource, viewerTransform ), 2, 0 ),
+									new FinalInterval( w - 1, h - 1 ) );
+
+					final double[] min = new double[] { 0, 0, 0 };
+					final double[] max = new double[] { w - 1, h - 1, 0 };
+					viewerTransform.applyInverse( min, min );
+					viewerTransform.applyInverse( max, max );
+
+					final TLongObjectHashMap< TLongHashSet > detaches = new TLongObjectHashMap<>();
+					Arrays.stream( ids ).forEach( id -> detaches.put( id, new TLongHashSet() ) );
+
+					detachFragments( screenLabels, toIdConverter, assignment, segments, new TLongHashSet( ids ), ( frag, id ) -> {
+						detaches.get( frag ).add( id );
+						return 0;
+					} );
+
+					detaches.forEachEntry( ( k, v ) -> {
+						assignment.detachFragment( k, v.toArray() );
+						return true;
+					} );
+
 				}
 		}
 
@@ -465,6 +502,41 @@ public class IdSelector
 			return Optional.empty();
 		final Source< ? > activeSource = sources.get( currentSource ).getSpimSource();
 		return Optional.of( activeSource );
+	}
+
+	private static void detachFragments(
+			final RandomAccessibleInterval< ? > img,
+			final Function< Object, long[] > toIdConverter,
+			final FragmentSegmentAssignment assignment,
+			final TLongHashSet fromSegments,
+			final TLongHashSet detachFragments,
+			final LongBinaryOperator fragmentIdHandler )
+	{
+		final Cursor< ? > cursor = Views.flatIterable( img ).cursor();
+
+		final TLongHashSet fragments = new TLongHashSet();
+
+		while ( cursor.hasNext() )
+		{
+			cursor.fwd();
+
+			final long[] ids = toIdConverter.apply( cursor.get() );
+
+			for ( final long id : ids )
+			{
+				final long segment = assignment.getSegment( id );
+				if ( fromSegments.contains( segment ) )
+					detachFragments.forEach( frag -> {
+						fragmentIdHandler.applyAsLong( frag, id );
+						return true;
+					} );
+
+			}
+
+		}
+
+		assignment.mergeFragments( fragments.toArray() );
+
 	}
 
 }

@@ -15,6 +15,6 @@ public interface FragmentSegmentAssignment
 
 	public void mergeFragments( final long... fragments );
 
-	public void detachFragment( final long fragmentId );
+	public void detachFragment( final long fragmentId, long... from );
 
 }
