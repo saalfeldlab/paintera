@@ -460,28 +460,11 @@ public class IdSelector
 					final Function< Object, long[] > toIdConverter = toIdConverters.get( source );
 					final long[] ids = toIdConverter.apply( val );
 
-					final TLongHashSet segments = new TLongHashSet();
-					Arrays.stream( selIds ).map( assignment::getSegment ).forEach( segments::add );
-
-					final int w = viewer.getWidth();
-					final int h = viewer.getHeight();
-					final IntervalView< ? > screenLabels =
-							Views.interval(
-									Views.hyperSlice(
-											RealViews.affine( transformedSource, viewerTransform ), 2, 0 ),
-									new FinalInterval( w - 1, h - 1 ) );
-
-					final double[] min = new double[] { 0, 0, 0 };
-					final double[] max = new double[] { w - 1, h - 1, 0 };
-					viewerTransform.applyInverse( min, min );
-					viewerTransform.applyInverse( max, max );
-
 					final TLongObjectHashMap< TLongHashSet > detaches = new TLongObjectHashMap<>();
-					Arrays.stream( ids ).forEach( id -> detaches.put( id, new TLongHashSet() ) );
-
-					detachFragments( screenLabels, toIdConverter, assignment, segments, new TLongHashSet( ids ), ( frag, id ) -> {
-						detaches.get( frag ).add( id );
-						return 0;
+					Arrays.stream( ids ).forEach( id -> {
+						final TLongHashSet from = new TLongHashSet();
+						Arrays.stream( selIds ).filter( sId -> sId != id ).forEach( from::add );
+						detaches.put( id, from );
 					} );
 
 					detaches.forEachEntry( ( k, v ) -> {
