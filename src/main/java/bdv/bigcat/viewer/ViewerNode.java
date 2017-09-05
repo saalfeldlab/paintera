@@ -1,5 +1,6 @@
 package bdv.bigcat.viewer;
 
+import java.awt.Color;
 import java.awt.Dimension;
 import java.awt.Graphics;
 import java.awt.event.MouseMotionListener;
@@ -206,7 +207,8 @@ public class ViewerNode extends SwingNode implements ListChangeListener< SourceA
 				public void drawOverlays( final Graphics g )
 				{
 
-					g.setColor( java.awt.Color.GREEN );
+					final Color c = java.awt.Color.WHITE;
+					g.setColor( new Color( c.getRed(), c.getGreen(), c.getBlue(), 127 ) );
 					g.drawLine( 0, h / 2, w, h / 2 );
 					g.drawLine( w / 2, 0, w / 2, h );
 
