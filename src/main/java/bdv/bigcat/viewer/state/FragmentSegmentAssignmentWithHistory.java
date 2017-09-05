@@ -195,20 +195,24 @@ public class FragmentSegmentAssignmentWithHistory extends FragmentSegmentAssignm
 	protected synchronized void detachFragmentImpl( final long fragmentId, final boolean broadcastEvent, final long... from )
 	{
 
-		final long segmentId = getSegment( fragmentId );
-		final TLongHashSet fragments = getFragments( segmentId );
-		if ( fragments != null && fragments.size() > 1 )
-			synchronized ( history )
-			{
+//		final long segmentId = getSegment( fragmentId );
+//		final TLongHashSet fragments = getFragments( segmentId );
+//		if ( fragments != null && fragments.size() > 1 )
+		synchronized ( history )
+		{
 
-				final Detach detach = new Detach( fragmentId, from );
-				if ( broadcastEvent )
-					synchronized ( history )
-					{
-						history.add( detach );
-						broadcaster.accept( detach );
-						submittedActions.add( detach );
-					}
+			final Detach detach = new Detach( fragmentId, from );
+			if ( broadcastEvent )
+				synchronized ( history )
+				{
+					history.add( detach );
+					broadcaster.accept( detach );
+					submittedActions.add( detach );
+				}
+			final long segmentId = getSegment( fragmentId );
+			final TLongHashSet fragments = getFragments( segmentId );
+			if ( fragments != null && fragments.size() > 1 )
+			{
 				final TLongHashSet fragmentsCopy = new TLongHashSet( fragments );
 				fragmentsCopy.remove( fragmentId );
 
@@ -227,6 +231,7 @@ public class FragmentSegmentAssignmentWithHistory extends FragmentSegmentAssignm
 				segmentToFragmentsMap.put( newSegmentId, new TLongHashSet( new long[] { fragmentId } ) );
 //				}
 			}
+		}
 	}
 
 	@Override
