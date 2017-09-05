@@ -17,6 +17,7 @@ import bdv.bigcat.viewer.atlas.data.HDF5LabelMultisetSourceSpec;
 import bdv.bigcat.viewer.atlas.data.HDF5UnsignedByteSpec;
 import bdv.bigcat.viewer.atlas.solver.SolverQueueServerZMQ;
 import bdv.bigcat.viewer.atlas.solver.action.Action;
+import bdv.util.Prefs;
 import bdv.viewer.Interpolation;
 import bdv.viewer.Source;
 import gnu.trove.map.hash.TLongLongHashMap;
@@ -46,6 +47,8 @@ public class FART
 
 	public static void main( final String[] args ) throws Exception
 	{
+		Prefs.showMultibox( false );
+		Prefs.showTextOverlay( false );
 		// need to add resolution to Constantin's data!
 		final String rawFile = "/data/hanslovskyp/constantin-example-data/data/raw.h5";
 		PlatformImpl.startup( () -> {} );
