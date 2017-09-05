@@ -19,7 +19,6 @@ import bdv.viewer.Source;
 import bdv.viewer.ViewerPanel;
 import bdv.viewer.state.SourceState;
 import bdv.viewer.state.ViewerState;
-import gnu.trove.map.hash.TLongObjectHashMap;
 import gnu.trove.set.hash.TLongHashSet;
 import net.imglib2.Cursor;
 import net.imglib2.FinalInterval;
@@ -460,17 +459,20 @@ public class IdSelector
 					final Function< Object, long[] > toIdConverter = toIdConverters.get( source );
 					final long[] ids = toIdConverter.apply( val );
 
-					final TLongObjectHashMap< TLongHashSet > detaches = new TLongObjectHashMap<>();
-					Arrays.stream( ids ).forEach( id -> {
-						final TLongHashSet from = new TLongHashSet();
-						Arrays.stream( selIds ).filter( sId -> sId != id ).forEach( from::add );
-						detaches.put( id, from );
-					} );
+					for ( final long id : ids )
+						assignment.detachFragment( id, selIds );
 
-					detaches.forEachEntry( ( k, v ) -> {
-						assignment.detachFragment( k, v.toArray() );
-						return true;
-					} );
+//					final TLongObjectHashMap< TLongHashSet > detaches = new TLongObjectHashMap<>();
+//					Arrays.stream( ids ).forEach( id -> {
+//						final TLongHashSet from = new TLongHashSet();
+//						Arrays.stream( selIds ).filter( sId -> sId != id ).forEach( from::add );
+//						detaches.put( id, from );
+//					} );
+//
+//					detaches.forEachEntry( ( k, v ) -> {
+//						assignment.detachFragment( k, v.toArray() );
+//						return true;
+//					} );
 
 				}
 		}
