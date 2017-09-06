@@ -8,6 +8,7 @@ import java.util.function.Supplier;
 import bdv.bigcat.viewer.atlas.solver.action.Action;
 import bdv.bigcat.viewer.atlas.solver.action.Detach;
 import bdv.bigcat.viewer.atlas.solver.action.Merge;
+import bdv.bigcat.viewer.atlas.solver.action.MergeAndDetach;
 import bdv.labels.labelset.Label;
 import gnu.trove.impl.Constants;
 import gnu.trove.iterator.TLongIterator;
@@ -88,6 +89,11 @@ public class FragmentSegmentAssignmentWithHistory extends FragmentSegmentAssignm
 									final long id = detach.id();
 //									long[] from = detach.from();
 									this.detachFragmentImpl( id, false );
+								}
+								else if ( action instanceof MergeAndDetach )
+								{
+									final MergeAndDetach mad = ( MergeAndDetach ) action;
+									this.confirmGroupingImpl( mad.mergeIds(), mad.from(), false );
 								}
 //							this.history.clear();
 						}
@@ -273,6 +279,29 @@ public class FragmentSegmentAssignmentWithHistory extends FragmentSegmentAssignm
 				segmentToFragmentsMap.put( segmentId, fragments );
 			}
 			fragments.add( fragmentId );
+		}
+	}
+
+	@Override
+	protected synchronized void confirmGroupingImpl( final long[] group, final long[] outsideGroup )
+	{
+		confirmGroupingImpl( group, outsideGroup, true );
+	}
+
+	protected synchronized void confirmGroupingImpl( final long[] merge, final long[] detach, final boolean broadcast )
+	{
+		// should we even apply the goruping or just pass message?
+//		Arrays.sort( merge );
+//		final long segment = merge[ 0 ];
+//		Arrays.stream( merge ).forEach( id -> fragmentToSegmentMap.put( id, segment ) );
+//		syncILut();
+		System.out.println( "Confirm grouping" );
+		if ( broadcast )
+		{
+			final MergeAndDetach action = new MergeAndDetach( merge, detach );
+			System.out.println( "BROADCASTING! " + action );
+			broadcaster.accept( action );
+			history.add( action );
 		}
 	}
 

@@ -17,4 +17,6 @@ public interface FragmentSegmentAssignment
 
 	public void detachFragment( final long fragmentId, long... from );
 
+	public void confirmGrouping( final long[] groupedFragments, final long[] notInGroupFragments );
+
 }

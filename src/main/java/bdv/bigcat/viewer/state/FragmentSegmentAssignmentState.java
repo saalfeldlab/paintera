@@ -11,6 +11,8 @@ public abstract class FragmentSegmentAssignmentState< T extends FragmentSegmentA
 
 	protected abstract void mergeFragmentsImpl( final long... fragments );
 
+	protected abstract void confirmGroupingImpl( final long[] merge, final long[] detach );
+
 	@Override
 	public void assignFragments( final long segmentId1, final long segmentId2 )
 	{
@@ -36,6 +38,13 @@ public abstract class FragmentSegmentAssignmentState< T extends FragmentSegmentA
 	public void detachFragment( final long fragmentId, final long... from )
 	{
 		detachFragmentImpl( fragmentId, from );
+		stateChanged();
+	}
+
+	@Override
+	public void confirmGrouping( final long[] groupedFragments, final long[] notInGroupFragments )
+	{
+		confirmGroupingImpl( groupedFragments, notInGroupFragments );
 		stateChanged();
 	}
 

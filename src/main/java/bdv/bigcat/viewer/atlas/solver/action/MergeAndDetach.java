@@ -51,4 +51,17 @@ public class MergeAndDetach implements Action
 		return json;
 	}
 
+	public static MergeAndDetach fromJson( final JsonObject json )
+	{
+		final JsonArray fragmentsJson = json.get( "fragments" ).getAsJsonArray();
+		final JsonArray fromJson = json.get( "from" ).getAsJsonArray();
+		final long[] fragments = new long[ fragmentsJson.size() ];
+		final long[] from = new long[ fromJson.size() ];
+		for ( int i = 0; i < fragments.length; ++i )
+			fragments[ i ] = fragmentsJson.get( i ).getAsLong();
+		for ( int i = 0; i < from.length; ++i )
+			from[ i ] = fromJson.get( i ).getAsLong();
+		return new MergeAndDetach( fragments, from );
+	}
+
 }

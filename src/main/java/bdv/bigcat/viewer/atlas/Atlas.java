@@ -287,7 +287,11 @@ public class Atlas
 				@Override
 				public Consumer< ViewerPanel > onAdd()
 				{
-					return vp -> selectedIds.addListener( () -> vp.requestRepaint() );
+					System.out.println( " selected Ids? " + selectedIds );
+					return vp -> {
+						System.out.println( "VP? " + vp + " " + selectedIds );
+						selectedIds.addListener( () -> vp.requestRepaint() );
+					};
 				}
 			} );
 
