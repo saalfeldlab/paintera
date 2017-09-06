@@ -39,7 +39,7 @@ public class IdSelector
 
 	private final ViewerPanel viewer;
 
-	private final HashMap< Source< ? >, Function< Object, long[] > > toIdConverters;
+	private final HashMap< Source< ? >, ToIdConverter > toIdConverters;
 
 	private final HashMap< Source< ? >, SelectedIds > selectedIds;
 
@@ -47,7 +47,7 @@ public class IdSelector
 
 	public IdSelector(
 			final ViewerPanel viewer,
-			final HashMap< Source< ? >, Function< Object, long[] > > toIdConverters,
+			final HashMap< Source< ? >, ToIdConverter > toIdConverters,
 			final HashMap< Source< ? >, SelectedIds > selectedIds,
 			final HashMap< Source< ? >, Source< ? > > dataSources )
 	{
@@ -119,7 +119,7 @@ public class IdSelector
 					access.setPosition( 0l, 2 );
 					viewer.displayToGlobalCoordinates( access );
 					final Object val = access.get();
-					final long[] id = toIdConverters.get( source ).apply( val );
+					final long[] id = toIdConverters.get( source ).allIds( val );
 					actOn( id, selectedIds.get( source ) );
 				}
 			}
@@ -265,8 +265,8 @@ public class IdSelector
 					access.setPosition( 0l, 2 );
 					viewer.displayToGlobalCoordinates( access );
 					final Object val = access.get();
-					final Function< Object, long[] > toIdConverter = toIdConverters.get( source );
-					final long[] ids = toIdConverter.apply( val );
+					final ToIdConverter toIdConverter = toIdConverters.get( source );
+					final long[] ids = toIdConverter.allIds( val );
 
 					final TLongHashSet segments = new TLongHashSet();
 					Arrays.stream( ids ).map( assignment::getSegment ).forEach( segments::add );
@@ -299,9 +299,9 @@ public class IdSelector
 						ra1.fwd( 0 );
 						ra2.fwd( 1 );
 
-						final long[] ids1 = toIdConverter.apply( cursor.get() );
-						final long[] ids2 = toIdConverter.apply( ra1.get() );
-						final long[] ids3 = toIdConverter.apply( ra2.get() );
+						final long[] ids1 = toIdConverter.allIds( cursor.get() );
+						final long[] ids2 = toIdConverter.allIds( ra1.get() );
+						final long[] ids3 = toIdConverter.allIds( ra2.get() );
 //						if ( ( ids1[ 0 ] != ids2[ 0 ] || ids1[ 0 ] != ids3[ 0 ] ) && segments.contains( assignment.getSegment( ids1[ 0 ] ) ) )
 //						{
 //							System.out.println( Arrays.toString( ids1 ) + " " + Arrays.toString( ids2 ) + " " + Arrays.toString( ids3 ) );
@@ -411,7 +411,7 @@ public class IdSelector
 					access.setPosition( 0l, 2 );
 					viewer.displayToGlobalCoordinates( access );
 					final Object val = access.get();
-					final long[] ids = toIdConverters.get( source ).apply( val );
+					final long[] ids = toIdConverters.get( source ).allIds( val );
 
 					final TLongHashSet fragments = new TLongHashSet();
 					fragments.addAll( ids );
@@ -462,8 +462,8 @@ public class IdSelector
 					access.setPosition( 0l, 2 );
 					viewer.displayToGlobalCoordinates( access );
 					final Object val = access.get();
-					final Function< Object, long[] > toIdConverter = toIdConverters.get( source );
-					final long[] ids = toIdConverter.apply( val );
+					final ToIdConverter toIdConverter = toIdConverters.get( source );
+					final long[] ids = toIdConverter.allIds( val );
 
 					for ( final long id : ids )
 						assignment.detachFragment( id, selIds );
@@ -510,7 +510,7 @@ public class IdSelector
 			if ( toIdConverters.containsKey( source ) && dataSources.containsKey( source ) && assignments.containsKey( source ) )
 				synchronized ( viewer )
 				{
-					final Function< Object, long[] > toIdConverter = toIdConverters.get( source );
+					final ToIdConverter toIdConverter = toIdConverters.get( source );
 					final FragmentSegmentAssignment assignment = assignments.get( source );
 					final Source< ? > dataSource = dataSources.get( source );
 
@@ -526,11 +526,11 @@ public class IdSelector
 					access.setPosition( 0l, 2 );
 					viewer.displayToGlobalCoordinates( access );
 					final Object val = access.get();
-					final long[] selectedFragments = toIdConverter.apply( val );
+					final long[] selectedFragments = toIdConverter.allIds( val );
 					final long[] selectedSegments = Arrays.stream( selectedFragments ).map( assignment::getSegment ).toArray();
 					final TLongHashSet selectedSegmentsSet = new TLongHashSet( selectedSegments );
 					final TLongHashSet visibleFragmentsSet = new TLongHashSet();
-					visitEveryDisplayPixel( source, dataSource, viewer, obj -> visibleFragmentsSet.addAll( toIdConverter.apply( obj ) ) );
+					visitEveryDisplayPixel( source, dataSource, viewer, obj -> visibleFragmentsSet.addAll( toIdConverter.allIds( obj ) ) );
 					final long[] visibleFragments = visibleFragmentsSet.toArray();
 					final long[] fragmentsInActiveSegment = Arrays.stream( visibleFragments ).filter( frag -> selectedSegmentsSet.contains( assignment.getSegment( frag ) ) ).toArray();
 					final long[] fragmentsNotInActiveSegment = Arrays.stream( visibleFragments ).filter( frag -> !selectedSegmentsSet.contains( assignment.getSegment( frag ) ) ).toArray();

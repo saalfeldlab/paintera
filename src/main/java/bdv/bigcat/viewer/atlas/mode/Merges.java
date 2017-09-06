@@ -2,7 +2,6 @@ package bdv.bigcat.viewer.atlas.mode;
 
 import java.util.HashMap;
 import java.util.function.Consumer;
-import java.util.function.Function;
 
 import org.scijava.ui.behaviour.MouseAndKeyHandler;
 import org.scijava.ui.behaviour.io.InputTriggerConfig;
@@ -10,6 +9,7 @@ import org.scijava.ui.behaviour.util.Behaviours;
 import org.scijava.ui.behaviour.util.TriggerBehaviourBindings;
 
 import bdv.bigcat.viewer.IdSelector;
+import bdv.bigcat.viewer.ToIdConverter;
 import bdv.bigcat.viewer.state.FragmentSegmentAssignmentState;
 import bdv.bigcat.viewer.state.SelectedIds;
 import bdv.viewer.Source;
@@ -20,7 +20,7 @@ public class Merges extends AbstractStateMode
 
 	private final HashMap< Source< ? >, Source< ? > > dataSources = new HashMap<>();
 
-	private final HashMap< Source< ? >, Function< Object, long[] > > toIdConverters = new HashMap<>();
+	private final HashMap< Source< ? >, ToIdConverter > toIdConverters = new HashMap<>();
 
 	private final HashMap< Source< ? >, SelectedIds > selectedIds;
 
@@ -36,7 +36,7 @@ public class Merges extends AbstractStateMode
 		this.assignments = assignments;
 	}
 
-	public void addSource( final Source< ? > source, final Source< ? > dataSource, final Function< Object, long[] > toIdConverter )
+	public void addSource( final Source< ? > source, final Source< ? > dataSource, final ToIdConverter toIdConverter )
 	{
 
 		this.dataSources.put( source, dataSource );
