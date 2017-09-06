@@ -65,7 +65,7 @@ public class Merges extends AbstractStateMode
 				final InputTriggerConfig inputTriggerConfig = new InputTriggerConfig();
 				final IdSelector selector = new IdSelector( t, toIdConverters, selectedIds, dataSources );
 				final Behaviours behaviours = new Behaviours( inputTriggerConfig );
-				behaviours.namedBehaviour( selector.selectSingle( "toggle single id", new SelectionDialogSingleId( AMBIGUOUS_SELECTION_MESSAGE ) ), "button1" );
+				behaviours.namedBehaviour( selector.selectFragmentWithMaximumCount( "toggle single id" ), "button1" );
 				behaviours.namedBehaviour( selector.merge( assignments ), "shift button1" );
 				behaviours.namedBehaviour( selector.detach( assignments ), "shift button3" );
 				behaviours.namedBehaviour( selector.confirm( assignments ), "ctrl shift button1" );

@@ -15,6 +15,7 @@ import org.scijava.ui.behaviour.util.AbstractNamedBehaviour;
 import bdv.bigcat.viewer.atlas.mode.HandleMultipleIds;
 import bdv.bigcat.viewer.state.FragmentSegmentAssignment;
 import bdv.bigcat.viewer.state.SelectedIds;
+import bdv.labels.labelset.Label;
 import bdv.viewer.Interpolation;
 import bdv.viewer.Source;
 import bdv.viewer.ViewerPanel;
@@ -66,6 +67,16 @@ public class IdSelector
 	public Append append( final String name, final HandleMultipleIds handleMultipleEntries )
 	{
 		return new Append( name, handleMultipleEntries );
+	}
+
+	public SelectFragmentWithMaximumCount selectFragmentWithMaximumCount( final String name )
+	{
+		return new SelectFragmentWithMaximumCount( name );
+	}
+
+	public AppendFragmentWithMaximumCount appendFragmentWithMaximumCount( final String name )
+	{
+		return new AppendFragmentWithMaximumCount( name );
 	}
 
 //	public MergeFragments merge( final HashMap< Source< ? >, ? extends FragmentSegmentAssignment > assignments )
@@ -128,6 +139,46 @@ public class IdSelector
 		protected abstract void actOn( final long[] id, SelectedIds selectedIds );
 	}
 
+	private abstract class SelectMaximumCount extends AbstractNamedBehaviour implements ClickBehaviour
+	{
+
+		public SelectMaximumCount( final String name )
+		{
+			super( name );
+		}
+
+		@Override
+		public void click( final int x, final int y )
+		{
+			final Optional< Source< ? > > optionalSource = getSource();
+			if ( !optionalSource.isPresent() )
+				return;
+			final Source< ? > source = optionalSource.get();
+			if ( toIdConverters.containsKey( source ) && selectedIds.containsKey( source ) && dataSources.containsKey( source ) )
+			{
+
+				final Source< ? > dataSource = dataSources.get( source );
+				synchronized ( viewer )
+				{
+					final AffineTransform3D affine = new AffineTransform3D();
+					final ViewerState state = viewer.getState();
+					state.getViewerTransform( affine );
+					final int level = state.getBestMipMapLevel( affine, state.getSources().stream().map( src -> src.getSpimSource() ).collect( Collectors.toList() ).indexOf( source ) );
+					dataSource.getSourceTransform( 0, level, affine );
+					final RealTransformRealRandomAccessible< ?, InverseRealTransform >.RealTransformRealRandomAccess access = RealViews.transformReal( dataSource.getInterpolatedSource( 0, level, Interpolation.NEARESTNEIGHBOR ), affine ).realRandomAccess();
+					viewer.getMouseCoordinates( access );
+					access.setPosition( 0l, 2 );
+					viewer.displayToGlobalCoordinates( access );
+					final Object val = access.get();
+					final long id = toIdConverters.get( source ).biggestFragment( val );
+					actOn( id, selectedIds.get( source ) );
+				}
+			}
+		}
+
+		protected abstract void actOn( final long id, SelectedIds selectedIds );
+	}
+
 	private class SelectSingle extends Select
 	{
 
@@ -170,6 +221,44 @@ public class IdSelector
 				}
 				break;
 			}
+		}
+	}
+
+	private class SelectFragmentWithMaximumCount extends SelectMaximumCount
+	{
+
+		public SelectFragmentWithMaximumCount( final String name )
+		{
+			super( name );
+		}
+
+		@Override
+		protected void actOn( final long id, final SelectedIds selectedIds )
+		{
+			if ( Label.regular( id ) )
+				if ( selectedIds.isOnlyActiveId( id ) )
+					selectedIds.deactivate( id );
+				else
+					selectedIds.activate( id );
+		}
+	}
+
+	private class AppendFragmentWithMaximumCount extends SelectMaximumCount
+	{
+
+		public AppendFragmentWithMaximumCount( final String name )
+		{
+			super( name );
+		}
+
+		@Override
+		protected void actOn( final long id, final SelectedIds selectedIds )
+		{
+			if ( Label.regular( id ) )
+				if ( selectedIds.isOnlyActiveId( id ) )
+					selectedIds.deactivate( id );
+				else
+					selectedIds.activateAlso( id );
 		}
 	}
 
