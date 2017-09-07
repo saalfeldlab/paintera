@@ -302,6 +302,7 @@ public class FragmentSegmentAssignmentWithHistory extends FragmentSegmentAssignm
 			System.out.println( "BROADCASTING! " + action );
 			broadcaster.accept( action );
 			history.add( action );
+			submittedActions.add( action );
 		}
 	}
 
