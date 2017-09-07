@@ -295,7 +295,7 @@ public class FragmentSegmentAssignmentWithHistory extends FragmentSegmentAssignm
 //		final long segment = merge[ 0 ];
 //		Arrays.stream( merge ).forEach( id -> fragmentToSegmentMap.put( id, segment ) );
 //		syncILut();
-		System.out.println( "Confirm grouping" );
+		System.out.println( "Confirm grouping " + broadcast );
 		if ( broadcast )
 		{
 			final MergeAndDetach action = new MergeAndDetach( merge, detach );
