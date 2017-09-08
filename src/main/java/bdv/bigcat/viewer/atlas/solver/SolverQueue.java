@@ -2,6 +2,8 @@ package bdv.bigcat.viewer.atlas.solver;
 
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.HashMap;
+import java.util.Map.Entry;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Consumer;
@@ -9,6 +11,8 @@ import java.util.function.Supplier;
 
 import bdv.bigcat.viewer.atlas.solver.action.Action;
 import gnu.trove.map.hash.TLongLongHashMap;
+import net.imglib2.util.Pair;
+import net.imglib2.util.ValuePair;
 
 public class SolverQueue
 {
@@ -16,7 +20,7 @@ public class SolverQueue
 	public static class Solution
 	{}
 
-	private final ArrayList< Action > queue = new ArrayList<>();
+	private final HashMap< String, ArrayList< Action > > queue = new HashMap<>();
 
 	private final AtomicLong timeOfLastAction = new AtomicLong( 0 );
 
@@ -29,9 +33,9 @@ public class SolverQueue
 	private final TLongLongHashMap latestSolution;
 
 	public SolverQueue(
-			final Supplier< Iterable< Action > > actionReceiver,
+			final Supplier< Pair< String, Iterable< Action > > > actionReceiver,
 			final Runnable actionReceiptConfirmation,
-			final Consumer< Collection< Action > > solutionRequestToSolver,
+			final Consumer< Pair< String, Collection< Action > > > solutionRequestToSolver,
 			final Supplier< TLongLongHashMap > solutionReceiver,
 			final Consumer< TLongLongHashMap > solutionDistributor,
 			final Supplier< TLongLongHashMap > initialSolution,
@@ -46,7 +50,12 @@ public class SolverQueue
 			while ( !interrupt.get() )
 			{
 				System.out.println( "Waiting for action in queue!" );
-				final Iterable< Action > actions = actionReceiver.get();
+				final Pair< String, Iterable< Action > > versionedActions = actionReceiver.get();
+				final String version = versionedActions.getA();
+				final Iterable< Action > actions = versionedActions.getB();
+				if ( !this.queue.containsKey( version ) )
+					this.queue.put( version, new ArrayList<>() );
+				final ArrayList< Action > queue = this.queue.get( version );
 				System.out.println( "Got action in queue! " + actions );
 //				System.out.println( "Sent confirmation" );
 				if ( actions != null )
@@ -63,19 +72,24 @@ public class SolverQueue
 		solutionHandlerThread = new Thread( () -> {
 			while ( !interrupt.get() )
 			{
-				final boolean sentRequest;
-				synchronized ( queue )
+				boolean sentRequest = false;
+				synchronized ( this.queue )
 				{
 					final long currentTime = System.currentTimeMillis();
 					final long timeDiff = currentTime - timeOfLastAction.get();
-					if ( timeDiff >= minWaitTimeAfterLastAction && queue.size() > 0 )
-					{
-						sentRequest = true;
-						solutionRequestToSolver.accept( queue );
-						queue.clear();
-					}
-					else
-						sentRequest = false;
+
+					if ( timeDiff >= minWaitTimeAfterLastAction )
+						for ( final Entry< String, ArrayList< Action > > entry : this.queue.entrySet() )
+						{
+							final ArrayList< Action > queue = entry.getValue();
+							if ( queue.size() > 0 )
+							{
+								final String version = entry.getKey();
+								solutionRequestToSolver.accept( new ValuePair<>( version, queue ) );
+								sentRequest |= true;
+								queue.clear();
+							}
+						}
 
 //					System.out.println( "DID SEND REQUEST? " + sentRequest );
 

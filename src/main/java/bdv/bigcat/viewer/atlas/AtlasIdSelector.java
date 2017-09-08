@@ -46,7 +46,7 @@ public class AtlasIdSelector
 				final IdSelector selector = new IdSelector( t, toIdConverters, selectedIds, dataSources );
 				final Behaviours behaviours = new Behaviours( inputTriggerConfig );
 				behaviours.namedBehaviour( selector.selectSingle( "toggle single id", ( ids, selection, isActive ) -> false ), "button1" );
-				behaviours.namedBehaviour( selector.append( "append id", ( ids, selection, isActive ) -> false ), "shift button1" );
+				behaviours.namedBehaviour( selector.append( "append id", ( ids, selection, isActive ) -> false ), "button3" );
 				final TriggerBehaviourBindings bindings = new TriggerBehaviourBindings();
 				behaviours.install( bindings, "id selection bindings" );
 				final MouseAndKeyHandler mouseAndKeyHandler = new MouseAndKeyHandler();

@@ -9,6 +9,7 @@ import org.zeromq.ZMQ;
 import org.zeromq.ZMQ.Context;
 import org.zeromq.ZMQ.Socket;
 
+import com.google.gson.JsonObject;
 import com.sun.javafx.application.PlatformImpl;
 
 import bdv.AbstractViewerSetupImgLoader;
@@ -124,7 +125,10 @@ public class FART
 		solutionSocket.subscribe( "".getBytes() );
 
 		final Consumer< Action > actionBroadcast = action -> {
-			assignmentSocket.send( Action.toJson( Arrays.asList( action ) ).toString() );
+			final JsonObject json = new JsonObject();
+			json.add( "actions", Action.toJson( Arrays.asList( action ) ) );
+			json.addProperty( "version", "1" );
+			assignmentSocket.send( json.toString() );
 			System.out.println( "WAITING FOR RESPONSE! on socket " + actionReceiverAddress );
 			final byte[] response = assignmentSocket.recv();
 			System.out.println( "GOT RESPONSE: " + Arrays.toString( response ) );

@@ -59,7 +59,7 @@ public class Highlights extends AbstractStateMode
 				final IdSelector selector = new IdSelector( t, toIdConverters, selectedIds, dataSources );
 				final Behaviours behaviours = new Behaviours( inputTriggerConfig );
 				behaviours.namedBehaviour( selector.selectSingle( "toggle single id", new SelectionDialog( "oge1" ) ), "button1" );
-				behaviours.namedBehaviour( selector.append( "append id", new SelectionDialog( "oge2" ) ), "shift button1" );
+				behaviours.namedBehaviour( selector.append( "append id", new SelectionDialog( "oge2" ) ), "button3" );
 				final TriggerBehaviourBindings bindings = new TriggerBehaviourBindings();
 				behaviours.install( bindings, "id selection bindings" );
 				final MouseAndKeyHandler mouseAndKeyHandler = new MouseAndKeyHandler();

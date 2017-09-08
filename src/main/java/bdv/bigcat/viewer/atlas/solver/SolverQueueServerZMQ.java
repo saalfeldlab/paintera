@@ -12,8 +12,14 @@ import java.util.function.Supplier;
 
 import org.zeromq.ZMQ;
 
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParseException;
+import com.google.gson.JsonParser;
+
 import bdv.bigcat.viewer.atlas.solver.action.Action;
 import gnu.trove.map.hash.TLongLongHashMap;
+import net.imglib2.util.Pair;
+import net.imglib2.util.ValuePair;
 
 public class SolverQueueServerZMQ implements Closeable
 {
@@ -44,7 +50,7 @@ public class SolverQueueServerZMQ implements Closeable
 
 		this.actionReceiverSocket = ctx.socket( ZMQ.REP );
 		this.actionReceiverSocket.bind( actionReceiverAddress );
-		final Supplier< Iterable< Action > > actionReceiver = () -> {
+		final Supplier< Pair< String, Iterable< Action > > > actionReceiver = () -> {
 //			System.out.println( "ACT " + 1 );
 //			final byte[] message = this.actionReceiverSocket.recv();
 			System.out.println( "WAITING FOR MESSAGE IN ACTION RECEIVER at address! " + actionReceiverAddress );
@@ -52,11 +58,23 @@ public class SolverQueueServerZMQ implements Closeable
 			System.out.println( "RECEIVED THE FOLLOWING MESSAGE: " + message );
 
 			if ( message == null )
-				return new ArrayList<>();
+				return new ValuePair<>( "", new ArrayList<>() );
 
-			final List< Action > actions = Action.fromJson( message );
+			try
+			{
 
-			return actions;
+				final JsonObject json = new JsonParser().parse( message ).getAsJsonObject();
+				if ( !json.has( "version" ) )
+					return new ValuePair<>( "", new ArrayList<>() );
+				final String version = json.get( "version" ).getAsString();
+
+				final List< Action > actions = Action.fromJson( json.get( "actions" ).toString() );
+				return new ValuePair<>( version, actions );
+			}
+			catch ( final JsonParseException e )
+			{
+				return new ValuePair<>( "", new ArrayList<>() );
+			}
 
 		};
 
@@ -65,7 +83,13 @@ public class SolverQueueServerZMQ implements Closeable
 		this.solutionRequestResponseSocket = ctx.socket( ZMQ.REQ );
 		this.solutionRequestResponseSocket.connect( solutionRequestResponseAddress );
 
-		final Consumer< Collection< Action > > solutionRequester = actions -> this.solutionRequestResponseSocket.send( Action.toJson( actions ).toString() );
+		final Consumer< Pair< String, Collection< Action > > > solutionRequester = versionedActions -> {
+			final String version = versionedActions.getA();
+			final JsonObject json = new JsonObject();
+			json.addProperty( "version", version );
+			json.add( "actions", Action.toJson( versionedActions.getB() ) );
+			this.solutionRequestResponseSocket.send( json.toString() );
+		};
 
 		final Supplier< TLongLongHashMap > solutionReceiver = () -> {
 			final byte[] data = this.solutionRequestResponseSocket.recv();
