@@ -18,6 +18,7 @@ public class AbstractState< T extends AbstractState< T > >
 
 	protected void stateChanged()
 	{
+		System.out.println( "CHANGED STATE! " + this.getClass().getSimpleName() + " " + listeners );
 		listeners.forEach( StateListener::stateChanged );
 	}
 

@@ -2,6 +2,7 @@ package bdv.bigcat.viewer;
 
 import java.nio.ByteBuffer;
 import java.util.Arrays;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 
@@ -109,13 +110,32 @@ public class FART
 
 		final Atlas viewer = new Atlas( new FinalInterval( Arrays.stream( min ).mapToLong( Math::round ).toArray(), Arrays.stream( max ).mapToLong( Math::round ).toArray() ) );
 
+		final AtomicBoolean viewerIsShowing = new AtomicBoolean( false );
+
 		Platform.runLater( () -> {
 			final Stage stage = new Stage();
 			viewer.start( stage );
 			stage.show();
+			viewerIsShowing.set( true );
 		} );
 
-		viewer.addSource( rawSource );
+		final Thread t = new Thread( () -> {
+			while ( !viewerIsShowing.get() )
+				try
+				{
+					Thread.sleep( 100 );
+				}
+				catch ( final InterruptedException e )
+				{
+					throw new RuntimeException( e );
+				}
+		} );
+		t.start();
+		t.join();
+
+		Platform.runLater( () -> {
+			viewer.addSource( rawSource );
+		} );
 
 		final Socket assignmentSocket = ctx.socket( ZMQ.REQ );
 		final Socket solutionSocket = ctx.socket( ZMQ.SUB );
@@ -149,7 +169,9 @@ public class FART
 				cellSize,
 				actionBroadcast,
 				solutionReceiver, () -> initialSolutionHashMap );
-		viewer.addSource( labelSpec2 );
+		Platform.runLater( () -> {
+			viewer.addSource( labelSpec2 );
+		} );
 
 		initialSolutionSocket.send( "" );
 		initialSolutionSocket.recv();
