@@ -1,9 +1,15 @@
 package bdv.bigcat.viewer;
 
+import java.awt.AWTKeyStroke;
+import java.awt.KeyboardFocusManager;
 import java.awt.event.ActionEvent;
 import java.awt.event.MouseEvent;
 import java.awt.event.MouseListener;
+import java.util.HashSet;
 import java.util.List;
+
+import javax.swing.JPanel;
+import javax.swing.KeyStroke;
 
 import org.scijava.ui.behaviour.ClickBehaviour;
 import org.scijava.ui.behaviour.DragBehaviour;
@@ -183,10 +189,27 @@ public class ViewerTransformManager implements TransformListener< AffineTransfor
 		this.listener = transformListener;
 	}
 
+	private static void removeFocusTraversalKeys( final JPanel panel )
+	{
+		final KeyStroke ctrlTab = KeyStroke.getKeyStroke( "ctrl TAB" );
+		final KeyStroke ctrlShiftTab = KeyStroke.getKeyStroke( "ctrl shift TAB" );
+
+		final HashSet< AWTKeyStroke > forwardKeys = new HashSet<>( panel.getFocusTraversalKeys( KeyboardFocusManager.FORWARD_TRAVERSAL_KEYS ) );
+		forwardKeys.remove( ctrlTab );
+		forwardKeys.remove( ctrlShiftTab );
+		panel.setFocusTraversalKeys( KeyboardFocusManager.FORWARD_TRAVERSAL_KEYS, forwardKeys );
+
+		final HashSet< AWTKeyStroke > backwardKeys = new HashSet<>( panel.getFocusTraversalKeys( KeyboardFocusManager.BACKWARD_TRAVERSAL_KEYS ) );
+		backwardKeys.remove( ctrlTab );
+		backwardKeys.remove( ctrlShiftTab );
+		panel.setFocusTraversalKeys( KeyboardFocusManager.BACKWARD_TRAVERSAL_KEYS, backwardKeys );
+	}
+
 	public void setViewer( final ViewerPanel viewer )
 	{
 
 		this.viewer = viewer;
+		removeFocusTraversalKeys( viewer );
 
 		behaviours.behaviour( new TranslateXY(), "drag translate", "button2", "button3" );
 		behaviours.behaviour( new Zoom( speed[ 0 ] ), ZOOM_NORMAL, "meta scroll", "ctrl shift scroll" );
@@ -202,8 +225,8 @@ public class ViewerTransformManager implements TransformListener< AffineTransfor
 		this.viewer.addMouseListener( removeRotation );
 
 		actions.namedAction( new ToggleVisibility(), "shift V" );
-		actions.namedAction( new CycleSources( 1 ), "shift S" );
-		actions.namedAction( new CycleSources( -1 ), "ctrl shift S" );
+		actions.namedAction( new CycleSources( 1 ), "ctrl TAB" );
+		actions.namedAction( new CycleSources( -1 ), "ctrl shift TAB" );
 		actions.namedAction( new ToggleInterpolation(), "I" );
 
 		this.manager.addListener( this );
