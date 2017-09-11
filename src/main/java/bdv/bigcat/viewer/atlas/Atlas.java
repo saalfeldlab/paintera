@@ -101,7 +101,8 @@ public class Atlas
 		this.viewerOptions = viewerOptions.accumulateProjectorFactory( new CompositeProjectorFactory<>( composites ) );
 		this.view = new BaseView( focusHandler.onEnter(), focusHandler.onExit(), new BaseViewState( this.viewerOptions ) );
 		this.view.setBottom( status );
-		this.view.setInfoNode( this.view.globalSourcesInfoNode() );
+//		this.view.setInfoNode( this.view.globalSourcesInfoNode() );
+		this.view.setInfoNode( new Label( "" ) );
 
 		for ( final Mode mode : modes )
 			addOnEnterOnExit( mode.onEnter(), mode.onExit(), true );

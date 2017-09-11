@@ -104,6 +104,8 @@ public class BaseView extends BorderPane
 		this.onFocusExit = onFocusExit;
 		this.grid.requestFocus();
 		this.setInfoNode( new Label( "Place your node here!" ) );
+
+		final GridResizer resizer = new GridResizer( this.state.constraintsManager, 10, grid );
 	}
 
 	public void makeDefaultLayout()
@@ -220,8 +222,7 @@ public class BaseView extends BorderPane
 	{
 		final Node focusOwner = scene.focusOwnerProperty().get();
 		if ( viewerNodes.contains( focusOwner ) )
-		{
-			event.consume();
+			// event.consume();
 			if ( !this.state.constraintsManager.isFullScreen() )
 			{
 				viewerNodes.forEach( node -> node.setVisible( node == focusOwner ) );
@@ -241,7 +242,6 @@ public class BaseView extends BorderPane
 				grid.setHgap( 1 );
 				grid.setVgap( 1 );
 			}
-		}
 	}
 
 	public Node viewerNode()
