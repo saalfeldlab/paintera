@@ -225,8 +225,8 @@ public class ViewerTransformManager implements TransformListener< AffineTransfor
 		this.viewer.addMouseListener( removeRotation );
 
 		actions.namedAction( new ToggleVisibility(), "shift V" );
-		actions.namedAction( new CycleSources( 1 ), "ctrl TAB" );
-		actions.namedAction( new CycleSources( -1 ), "ctrl shift TAB" );
+		actions.namedAction( new CycleSources( CycleSources.FORWARD ), "ctrl TAB" );
+		actions.namedAction( new CycleSources( CycleSources.BACKWARD ), "ctrl shift TAB" );
 		actions.namedAction( new ToggleInterpolation(), "I" );
 
 		this.manager.addListener( this );
@@ -587,6 +587,10 @@ public class ViewerTransformManager implements TransformListener< AffineTransfor
 
 	private class CycleSources extends AbstractNamedAction
 	{
+
+		private final static int FORWARD = 1;
+
+		private final static int BACKWARD = -1;
 
 		private final int direction;
 
