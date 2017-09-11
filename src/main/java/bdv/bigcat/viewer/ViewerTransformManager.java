@@ -202,7 +202,8 @@ public class ViewerTransformManager implements TransformListener< AffineTransfor
 		this.viewer.addMouseListener( removeRotation );
 
 		actions.namedAction( new ToggleVisibility(), "shift V" );
-		actions.namedAction( new CycleSources(), "shift S" );
+		actions.namedAction( new CycleSources( 1 ), "shift S" );
+		actions.namedAction( new CycleSources( -1 ), "ctrl shift S" );
 		actions.namedAction( new ToggleInterpolation(), "I" );
 
 		this.manager.addListener( this );
@@ -564,9 +565,12 @@ public class ViewerTransformManager implements TransformListener< AffineTransfor
 	private class CycleSources extends AbstractNamedAction
 	{
 
-		public CycleSources()
+		private final int direction;
+
+		public CycleSources( final int direction )
 		{
-			super( "cycle sources" );
+			super( "cycle sources " + direction );
+			this.direction = direction;
 		}
 
 		@Override
@@ -578,7 +582,10 @@ public class ViewerTransformManager implements TransformListener< AffineTransfor
 				{
 					final int activeSource = viewer.getVisibilityAndGrouping().getCurrentSource();
 					final List< SourceState< ? > > sources = viewer.getVisibilityAndGrouping().getSources();
-					state.setCurrentSource( sources.get( ( activeSource + 1 ) % sources.size() ).getSpimSource() );
+					final int numSources = sources.size();
+					final int sourceIndex = activeSource + Integer.signum( direction );
+					final int selectedSource = ( sourceIndex < 0 ? sources.size() + sourceIndex : sourceIndex ) % numSources;
+					state.setCurrentSource( sources.get( selectedSource ).getSpimSource() );
 				}
 			}
 		}
