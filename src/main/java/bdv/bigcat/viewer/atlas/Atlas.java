@@ -111,6 +111,11 @@ public class Atlas
 		this.status.getChildren().add( modeSelector );
 		modeSelector.getSelectionModel().select( modes[ 2 ] );
 
+		final Label coordinates = new Label();
+		final AtlasMouseCoordinatePrinter coordinatePrinter = new AtlasMouseCoordinatePrinter( coordinates );
+		this.status.getChildren().add( coordinates );
+		addOnEnterOnExit( coordinatePrinter.onEnter(), coordinatePrinter.onExit(), true );
+
 		final Label label = new Label();
 		valueDisplayListener = new AtlasValueDisplayListener( label );
 		this.status.getChildren().add( label );
