@@ -111,7 +111,7 @@ public class FART
 
 		Platform.runLater( () -> {
 			final Stage stage = new Stage();
-			viewer.start( stage );
+			viewer.start( stage, "FART" );
 			stage.show();
 		} );
 
