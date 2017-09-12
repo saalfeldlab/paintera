@@ -49,8 +49,8 @@ public interface Action
 				actions.add( Detach.fromJson( obj.get( "data" ).getAsJsonObject() ) );
 			else if ( type.equals( Merge.IDENTIFIER ) )
 				actions.add( Merge.fromJson( obj.get( "data" ).getAsJsonObject() ) );
-			else if ( type.equals( MergeAndDetach.IDENTIFIER ) )
-				actions.add( MergeAndDetach.fromJson( obj.get( "data" ).getAsJsonObject() ) );
+			else if ( type.equals( ConfirmSingleSegment.IDENTIFIER ) )
+				actions.add( ConfirmSingleSegment.fromJson( obj.get( "data" ).getAsJsonObject() ) );
 		}
 
 		return actions;

@@ -8,7 +8,7 @@ import java.util.function.Supplier;
 import bdv.bigcat.viewer.atlas.solver.action.Action;
 import bdv.bigcat.viewer.atlas.solver.action.Detach;
 import bdv.bigcat.viewer.atlas.solver.action.Merge;
-import bdv.bigcat.viewer.atlas.solver.action.MergeAndDetach;
+import bdv.bigcat.viewer.atlas.solver.action.ConfirmSingleSegment;
 import bdv.labels.labelset.Label;
 import gnu.trove.impl.Constants;
 import gnu.trove.iterator.TLongIterator;
@@ -90,9 +90,9 @@ public class FragmentSegmentAssignmentWithHistory extends FragmentSegmentAssignm
 //									long[] from = detach.from();
 									this.detachFragmentImpl( id, false );
 								}
-								else if ( action instanceof MergeAndDetach )
+								else if ( action instanceof ConfirmSingleSegment )
 								{
-									final MergeAndDetach mad = ( MergeAndDetach ) action;
+									final ConfirmSingleSegment mad = ( ConfirmSingleSegment ) action;
 									this.confirmGroupingImpl( mad.mergeIds(), mad.from(), false );
 								}
 //							this.history.clear();
@@ -298,7 +298,7 @@ public class FragmentSegmentAssignmentWithHistory extends FragmentSegmentAssignm
 		System.out.println( "Confirm grouping " + broadcast );
 		if ( broadcast )
 		{
-			final MergeAndDetach action = new MergeAndDetach( merge, detach );
+			final ConfirmSingleSegment action = new ConfirmSingleSegment( merge, detach );
 			System.out.println( "BROADCASTING! " + action );
 			broadcaster.accept( action );
 			history.add( action );

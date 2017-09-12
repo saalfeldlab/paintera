@@ -6,7 +6,7 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 
-public class MergeAndDetach implements Action
+public class ConfirmSingleSegment implements Action
 {
 
 	public static String IDENTIFIER = "merge-and-separate";
@@ -15,7 +15,7 @@ public class MergeAndDetach implements Action
 
 	private final long[] from;
 
-	public MergeAndDetach( final long[] mergeIds, final long[] from )
+	public ConfirmSingleSegment( final long[] mergeIds, final long[] from )
 	{
 		super();
 		this.mergeIds = mergeIds;
@@ -51,7 +51,7 @@ public class MergeAndDetach implements Action
 		return json;
 	}
 
-	public static MergeAndDetach fromJson( final JsonObject json )
+	public static ConfirmSingleSegment fromJson( final JsonObject json )
 	{
 		final JsonArray fragmentsJson = json.get( "fragments" ).getAsJsonArray();
 		final JsonArray fromJson = json.get( "from" ).getAsJsonArray();
@@ -61,7 +61,7 @@ public class MergeAndDetach implements Action
 			fragments[ i ] = fragmentsJson.get( i ).getAsLong();
 		for ( int i = 0; i < from.length; ++i )
 			from[ i ] = fromJson.get( i ).getAsLong();
-		return new MergeAndDetach( fragments, from );
+		return new ConfirmSingleSegment( fragments, from );
 	}
 
 }
