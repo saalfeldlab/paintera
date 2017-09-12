@@ -1,10 +1,14 @@
 package bdv.bigcat.viewer;
 
+import javafx.animation.KeyFrame;
+import javafx.animation.KeyValue;
+import javafx.animation.Timeline;
 import javafx.event.EventHandler;
 import javafx.scene.Cursor;
 import javafx.scene.Scene;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.GridPane;
+import javafx.util.Duration;
 
 public class GridResizer
 {
@@ -39,11 +43,31 @@ public class GridResizer
 		this.manager = manager;
 		this.tolerance = tolerance;
 		this.grid = grid;
-		this.grid.setOnMouseMoved( new MouseChanged() );
-		this.grid.setOnMousePressed( new MousePressed() );
-		this.grid.setOnMouseDragged( new MouseDragged() );
-		this.grid.setOnMouseClicked( new MouseDoubleClicked() );
+//		this.grid.setOnMouseMoved( new MouseChanged() );
+//		this.grid.setOnMousePressed( new MousePressed() );
+//		this.grid.setOnMouseDragged( new MouseDragged() );
+//		this.grid.setOnMouseClicked( new MouseDoubleClicked() );
 		System.out.println( "ADDED MC!" );
+	}
+
+	public EventHandler< MouseEvent > onMouseMovedHandler()
+	{
+		return new MouseChanged();
+	}
+
+	public EventHandler< MouseEvent > onMousePresedHandler()
+	{
+		return new MousePressed();
+	}
+
+	public EventHandler< MouseEvent > onMouseDraggedHandler()
+	{
+		return new MouseDragged();
+	}
+
+	public EventHandler< MouseEvent > onMouseDoubleClickedHandler()
+	{
+		return new MouseDoubleClicked();
 	}
 
 	private class MouseChanged implements EventHandler< MouseEvent >
