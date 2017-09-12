@@ -156,10 +156,6 @@ public class GridResizer
 			{
 				final double x = event.getX();
 				final double y = event.getY();
-				final double width = grid.widthProperty().get();
-				final double height = grid.heightProperty().get();
-				final double xPercentage = x / width * 100;
-				final double yPercentage = y / height * 100;
 				final double gridBorderX = manager.column1.getPercentWidth() / 100 * grid.widthProperty().get();
 				final double gridBorderY = manager.row1.getPercentHeight() / 100 * grid.heightProperty().get();
 //					System.out.println( "REGISTERING EVENT AT " + x + " " + y + " " + proportionX + " " + proportionY + " " + tolerance );
@@ -167,77 +163,40 @@ public class GridResizer
 				final boolean mouseWithinResizableRangeY = Math.abs( y - gridBorderY ) < tolerance;
 
 				if ( mouseWithinResizableRangeX || mouseWithinResizableRangeY )
+				{
+					final int time = 300;
 					event.consume();
+					final Timeline timeline = new Timeline();
 
-				if ( mouseWithinResizableRangeX && mouseWithinResizableRangeY )
-				{
-
-					final int steps = 10;
-					final double startX = manager.column1.getPercentWidth();
-					final double startY = manager.row1.getPercentHeight();
-					final double stepX = ( 50 - startX ) / steps;
-					final double stepY = ( 50 - startY ) / steps;
-
-					for ( int i = 0; i < steps; ++i )
-					{
-						final double pw = startX + i * stepX;
-						final double ph = startY + i * stepY;
-
-						System.out.println( i + " " + pw + " " + ph + " " + stepX + " " + stepY );
-
-						manager.column1.setPercentWidth( pw );
-						manager.column2.setPercentWidth( 100 - pw );
-
-						manager.row1.setPercentHeight( ph );
-						manager.row2.setPercentHeight( 100 - ph );
-
-						grid.requestLayout();
-					}
-
-					manager.column1.setPercentWidth( 50 );
-					manager.column2.setPercentWidth( 50 );
-
-					manager.row1.setPercentHeight( 50 );
-					manager.row2.setPercentHeight( 50 );
-				}
-				else if ( mouseWithinResizableRangeX )
-				{
-					final int steps = 10;
-					final double startX = manager.column1.getPercentWidth();
-					final double stepX = ( 50 - startX ) / steps;
-
-					for ( int i = 0; i < steps; ++i )
-					{
-						final double pw = startX + i * stepX;
-
-						manager.column1.setPercentWidth( pw );
-						manager.column2.setPercentWidth( 100 - pw );
-
-						grid.requestLayout();
-					}
-
-					manager.column1.setPercentWidth( 50 );
-					manager.column2.setPercentWidth( 50 );
-				}
-				else if ( mouseWithinResizableRangeY )
-				{
-
-					final int steps = 10;
-					final double startY = manager.row1.getPercentHeight();
-					final double stepY = ( 50 - startY ) / steps;
-
-					for ( int i = 0; i < steps; ++i )
-					{
-						final double ph = startY + i * stepY;
-
-						manager.row1.setPercentHeight( ph );
-						manager.row2.setPercentHeight( 100 - ph );
-
-						grid.requestLayout();
-					}
-
-					manager.row1.setPercentHeight( 50 );
-					manager.row2.setPercentHeight( 50 );
+					if ( mouseWithinResizableRangeX && mouseWithinResizableRangeY )
+						timeline.getKeyFrames().addAll(
+								new KeyFrame( Duration.ZERO,
+										new KeyValue( manager.column1.percentWidthProperty(), manager.column1.getPercentWidth() ),
+										new KeyValue( manager.column2.percentWidthProperty(), manager.column2.getPercentWidth() ),
+										new KeyValue( manager.row1.percentHeightProperty(), manager.row1.getPercentHeight() ),
+										new KeyValue( manager.row2.percentHeightProperty(), manager.row2.getPercentHeight() ) ),
+								new KeyFrame( new Duration( time ),
+										new KeyValue( manager.column1.percentWidthProperty(), 50 ),
+										new KeyValue( manager.column2.percentWidthProperty(), 50 ),
+										new KeyValue( manager.row1.percentHeightProperty(), 50 ),
+										new KeyValue( manager.row2.percentHeightProperty(), 50 ) ) );
+					else if ( mouseWithinResizableRangeX )
+						timeline.getKeyFrames().addAll(
+								new KeyFrame( Duration.ZERO,
+										new KeyValue( manager.column1.percentWidthProperty(), manager.column1.getPercentWidth() ),
+										new KeyValue( manager.column2.percentWidthProperty(), manager.column2.getPercentWidth() ) ),
+								new KeyFrame( new Duration( time ),
+										new KeyValue( manager.column1.percentWidthProperty(), 50 ),
+										new KeyValue( manager.column2.percentWidthProperty(), 50 ) ) );
+					else if ( mouseWithinResizableRangeY )
+						timeline.getKeyFrames().addAll(
+								new KeyFrame( Duration.ZERO,
+										new KeyValue( manager.row1.percentHeightProperty(), manager.row1.getPercentHeight() ),
+										new KeyValue( manager.row2.percentHeightProperty(), manager.row2.getPercentHeight() ) ),
+								new KeyFrame( new Duration( time ),
+										new KeyValue( manager.row1.percentHeightProperty(), 50 ),
+										new KeyValue( manager.row2.percentHeightProperty(), 50 ) ) );
+					timeline.play();
 				}
 			}
 		}
