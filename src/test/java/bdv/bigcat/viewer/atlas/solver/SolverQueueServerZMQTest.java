@@ -3,6 +3,7 @@ package bdv.bigcat.viewer.atlas.solver;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.function.Supplier;
 
@@ -11,6 +12,9 @@ import org.junit.Test;
 import org.zeromq.ZMQ;
 import org.zeromq.ZMQ.Context;
 import org.zeromq.ZMQ.Socket;
+
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
 
 import bdv.bigcat.viewer.atlas.solver.action.Action;
 import bdv.bigcat.viewer.atlas.solver.action.Detach;
@@ -49,8 +53,10 @@ public class SolverQueueServerZMQTest
 			{
 
 				final String msg = socket.recvStr();
-//				System.out.println( "RECEIVED MSG " + Arrays.toString( msg ) );
-				final List< Action > incomingActions = Action.fromJson( msg );
+//				System.out.println( "RECEIVED MSG " + msg );
+				final JsonObject jsonObject = new JsonParser().parse( msg ).getAsJsonObject();
+				final List< Action > incomingActions = Action.fromJson( jsonObject.get( "actions" ).toString() );
+//				System.out.println( "Got actions! " + incomingActions );
 
 				actions.addAll( incomingActions );
 
@@ -96,13 +102,17 @@ public class SolverQueueServerZMQTest
 							solution.put( id, id );
 					}
 
-				final byte[] response = new byte[ solution.size() * 2 * Long.BYTES ];
+				final long maxLabel = Arrays.stream( solution.keys() ).reduce( Long::max ).getAsLong();
+				final long[] mapping = new long[ ( int ) ( maxLabel + 1 ) ];
+				final byte[] response = new byte[ mapping.length * Long.BYTES ];
+				Arrays.fill( mapping, -1 );
 				final ByteBuffer responseBuffer = ByteBuffer.wrap( response );
 				solution.forEachEntry( ( k, v ) -> {
-					responseBuffer.putLong( k );
-					responseBuffer.putLong( v );
+					mapping[ ( int ) k ] = v;
 					return true;
 				} );
+				for ( final long m : mapping )
+					responseBuffer.putLong( m );
 				socket.send( response, 0 );
 
 			}
@@ -156,7 +166,12 @@ public class SolverQueueServerZMQTest
 			solutionSubscription.clear();
 			final ByteBuffer bb = ByteBuffer.wrap( msg );
 			while ( bb.hasRemaining() )
-				solutionSubscription.put( bb.getLong(), bb.getLong() );
+			{
+				final long k = bb.getLong();
+				final long v = bb.getLong();
+				if ( v >= 0 )
+					solutionSubscription.put( k, v );
+			}
 		} );
 		solutionSubscriptionThread.start();
 
@@ -166,7 +181,11 @@ public class SolverQueueServerZMQTest
 		testActions.add( new Detach( 5 ) );
 		testActions.add( new Detach( 3 ) );
 
-		actionSocket.send( Action.toJson( testActions ).toString() );
+		final JsonObject jsonObject = new JsonObject();
+		jsonObject.add( "actions", Action.toJson( testActions ) );
+		jsonObject.addProperty( "version", "1" );
+
+		actionSocket.send( jsonObject.toString() );
 		final byte[] response = actionSocket.recv();
 		Assert.assertEquals( 1, response.length );
 		Assert.assertEquals( 0, response[ 0 ] );
@@ -184,10 +203,12 @@ public class SolverQueueServerZMQTest
 		final TLongLongHashMap solutionNormalized = new TLongLongHashMap();
 		final TLongLongHashMap minimumLabelInSegmentMap = new TLongLongHashMap();
 		solution.forEachEntry( ( k, v ) -> {
-			if ( !minimumLabelInSegmentMap.contains( v ) )
-				minimumLabelInSegmentMap.put( v, k );
-			else
-				minimumLabelInSegmentMap.put( v, Math.min( minimumLabelInSegmentMap.get( v ), k ) );
+
+			if ( v >= 0 )
+				if ( !minimumLabelInSegmentMap.contains( v ) )
+					minimumLabelInSegmentMap.put( v, k );
+				else
+					minimumLabelInSegmentMap.put( v, Math.min( minimumLabelInSegmentMap.get( v ), k ) );
 			return true;
 		} );
 
