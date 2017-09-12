@@ -113,7 +113,17 @@ public class BaseView extends BorderPane
 		addViewer( ViewerAxis.Z, 0, 0 );
 		addViewer( ViewerAxis.X, 0, 1 );
 		addViewer( ViewerAxis.Y, 1, 0 );
-		this.viewerNodes.forEach( Node::requestFocus );
+		while ( viewerNodes.stream().filter( ViewerNode::isReady ).count() < viewerNodes.size() )
+			try
+			{
+				System.out.println( "WAITING FOR VIEWER TO BE INITIALIZED!" );
+				Thread.sleep( 100 );
+			}
+			catch ( final InterruptedException e )
+			{
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
 		this.grid.requestFocus();
 	}
 
