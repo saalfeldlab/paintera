@@ -280,9 +280,7 @@ public class Atlas
 				@Override
 				public Consumer< ViewerPanel > onRemove()
 				{
-					return vp -> {
-						selectedIds.removeListener( new ViewerPanelRequestRepaintListener( vp ) );
-					};
+					return vp -> {};
 				}
 
 				@Override
@@ -290,7 +288,8 @@ public class Atlas
 				{
 					System.out.println( " selected Ids? " + selectedIds );
 					return vp -> {
-						selectedIds.addListener( new ViewerPanelRequestRepaintListener( vp ) );
+						System.out.println( "VP? " + vp + " " + selectedIds );
+						selectedIds.addListener( () -> vp.requestRepaint() );
 					};
 				}
 			} );
