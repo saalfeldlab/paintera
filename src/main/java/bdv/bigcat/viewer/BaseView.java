@@ -30,6 +30,7 @@ import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.FlowPane;
 import javafx.scene.layout.GridPane;
+import javafx.scene.layout.StackPane;
 import net.imglib2.converter.Converter;
 import net.imglib2.converter.RealARGBConverter;
 import net.imglib2.realtransform.AffineTransform3D;
@@ -44,7 +45,11 @@ public class BaseView extends BorderPane
 
 	private final HashMap< ViewerNode, ViewerTransformManager > managers = new HashMap<>();
 
+	private final StackPane root = new StackPane();
+
 	private final GridPane grid;
+
+	private final GridResizer resizer;
 
 	private final BaseViewState state;
 
@@ -99,13 +104,22 @@ public class BaseView extends BorderPane
 		this.state.globalTransform.setTransform( tf );
 
 		this.grid = this.state.constraintsManager.createGrid();
-		this.centerProperty().set( grid );
+		this.centerProperty().set( this.root );
 		this.onFocusEnter = onFocusEnter;
 		this.onFocusExit = onFocusExit;
 		this.grid.requestFocus();
 		this.setInfoNode( new Label( "Place your node here!" ) );
 
-		final GridResizer resizer = new GridResizer( this.state.constraintsManager, 10, grid );
+//		final Pane dummyPane = new Pane();
+		this.resizer = new GridResizer( this.state.constraintsManager, 10, grid );
+		this.grid.setOnMouseMoved( resizer.onMouseMovedHandler() );
+		this.grid.setOnMouseDragged( resizer.onMouseDraggedHandler() );
+		this.grid.setOnMouseClicked( resizer.onMouseDoubleClickedHandler() );
+		this.grid.setOnMousePressed( resizer.onMousePresedHandler() );
+//		dummyPane.addEventHandler( EventType.ROOT, this.grid::fireEvent );
+//		dummyPane.setPickOnBounds( false );
+		this.root.getChildren().add( this.grid );
+//		this.root.getChildren().add( dummyPane );
 	}
 
 	public void makeDefaultLayout()
@@ -226,6 +240,10 @@ public class BaseView extends BorderPane
 		addViewerNodesHandler( viewerNode, FOCUS_KEEPERS );
 
 		this.grid.add( viewerNode, rowIndex, colIndex );
+		viewerNode.setOnMouseClicked( resizer.onMouseDoubleClickedHandler() );
+		viewerNode.setOnMousePressed( resizer.onMousePresedHandler() );
+		viewerNode.setOnMouseDragged( resizer.onMouseDraggedHandler() );
+		viewerNode.setOnMouseMoved( resizer.onMouseMovedHandler() );
 	}
 
 	private void maximizeActiveOrthoView( final Scene scene, final Event event )
