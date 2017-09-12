@@ -160,10 +160,15 @@ public class Atlas
 
 	public void start( final Stage primaryStage )
 	{
+		start( primaryStage, "ATLAS" );
+	}
+
+	public void start( final Stage primaryStage, final String title )
+	{
 
 		final Scene scene = view.createScene( 800, 600 );
 
-		primaryStage.setTitle( "ATLAS" );
+		primaryStage.setTitle( title );
 		primaryStage.setScene( scene );
 		primaryStage.sizeToScene();
 
