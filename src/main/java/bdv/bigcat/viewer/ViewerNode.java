@@ -1,8 +1,6 @@
 package bdv.bigcat.viewer;
 
-import java.awt.Color;
 import java.awt.Dimension;
-import java.awt.Graphics;
 import java.awt.event.MouseMotionListener;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -28,7 +26,6 @@ import bdv.viewer.ViewerPanel;
 import javafx.collections.ListChangeListener;
 import javafx.embed.swing.SwingNode;
 import net.imglib2.realtransform.AffineTransform3D;
-import net.imglib2.ui.OverlayRenderer;
 
 public class ViewerNode extends SwingNode implements ListChangeListener< SourceAndConverter< ? > >
 {
@@ -66,6 +63,8 @@ public class ViewerNode extends SwingNode implements ListChangeListener< SourceA
 
 	private ViewerPanelState state;
 
+	private final CrossHair crosshair = new CrossHair();
+
 	public ViewerNode( final CacheControl cacheControl, final ViewerAxis viewerAxis, final GlobalTransformManager manager, final ViewerOptions viewerOptions )
 	{
 		this.viewer = null;
@@ -73,6 +72,11 @@ public class ViewerNode extends SwingNode implements ListChangeListener< SourceA
 		this.viewerAxis = viewerAxis;
 		this.manager = new ViewerTransformManager( manager, globalToViewer( viewerAxis ) );
 		initialize( viewerOptions );
+	}
+
+	public void setCrossHairColor( final int r, final int g, final int b, final int a )
+	{
+		this.crosshair.setColor( r, g, b, a );
 	}
 
 	public ViewerTransformManager manager()
@@ -182,30 +186,7 @@ public class ViewerNode extends SwingNode implements ListChangeListener< SourceA
 			mouseAndKeyHandler.setInputMap( triggerbindings.getConcatenatedInputTriggerMap() );
 			mouseAndKeyHandler.setBehaviourMap( triggerbindings.getConcatenatedBehaviourMap() );
 			viewer.getDisplay().addHandler( mouseAndKeyHandler );
-			viewer.getDisplay().addOverlayRenderer( new OverlayRenderer()
-			{
-
-				private int w, h;
-
-				@Override
-				public void setCanvasSize( final int width, final int height )
-				{
-					w = width;
-					h = height;
-
-				}
-
-				@Override
-				public void drawOverlays( final Graphics g )
-				{
-
-					final Color c = java.awt.Color.WHITE;
-					g.setColor( new Color( c.getRed(), c.getGreen(), c.getBlue(), 127 ) );
-					g.drawLine( 0, h / 2, w, h / 2 );
-					g.drawLine( w / 2, 0, w / 2, h );
-
-				}
-			} );
+			viewer.getDisplay().addOverlayRenderer( crosshair );
 			SwingUtilities.replaceUIActionMap( viewer.getRootPane(), keybindings.getConcatenatedActionMap() );
 			SwingUtilities.replaceUIInputMap( viewer.getRootPane(), JComponent.WHEN_ANCESTOR_OF_FOCUSED_COMPONENT, keybindings.getConcatenatedInputMap() );
 			viewer.setVisible( true );
