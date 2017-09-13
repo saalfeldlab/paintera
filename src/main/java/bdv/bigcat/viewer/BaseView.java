@@ -127,17 +127,6 @@ public class BaseView extends BorderPane
 		addViewer( ViewerAxis.Z, 0, 0 );
 		addViewer( ViewerAxis.X, 0, 1 );
 		addViewer( ViewerAxis.Y, 1, 0 );
-		while ( viewerNodes.stream().filter( ViewerNode::isReady ).count() < viewerNodes.size() )
-			try
-			{
-				System.out.println( "WAITING FOR VIEWER TO BE INITIALIZED!" );
-				Thread.sleep( 100 );
-			}
-			catch ( final InterruptedException e )
-			{
-				// TODO Auto-generated catch block
-				e.printStackTrace();
-			}
 		this.grid.requestFocus();
 	}
 
@@ -214,29 +203,8 @@ public class BaseView extends BorderPane
 		this.viewerNodes.add( viewerNode );
 		this.managers.put( viewerNode, viewerNode.manager() );
 		viewerNode.manager().setState( this.state.viewerPanelState );
-
-		final Thread t = new Thread( () -> {
-			boolean createdViewer = false;
-			while ( !createdViewer )
-			{
-				try
-				{
-					Thread.sleep( 10 );
-				}
-				catch ( final InterruptedException e )
-				{
-					e.printStackTrace();
-					return;
-				}
-				createdViewer = viewerNode.isReady();
-			}
-			createdViewer = true;
-			viewerNode.setViewerPanelState( this.state.viewerPanelState );
-			viewerActors.forEach( actor -> actor.onAdd().accept( ( ViewerPanel ) viewerNode.getContent() ) );
-
-		} );
-		t.start();
-
+		viewerNode.setViewerPanelState( this.state.viewerPanelState );
+		viewerActors.forEach( actor -> actor.onAdd().accept( ( ViewerPanel ) viewerNode.getContent() ) );
 		addViewerNodesHandler( viewerNode, FOCUS_KEEPERS );
 
 		this.grid.add( viewerNode, rowIndex, colIndex );

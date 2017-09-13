@@ -83,6 +83,7 @@ public class ViewerNode extends SwingNode implements ListChangeListener< SourceA
 	private void setViewer( final ViewerPanel viewer )
 	{
 		this.viewer = viewer;
+		this.setContent( this.viewer );
 	}
 
 	private void setReady( final boolean ready )
@@ -150,15 +151,25 @@ public class ViewerNode extends SwingNode implements ListChangeListener< SourceA
 
 	private void initialize( final ViewerOptions viewerOptions )
 	{
+		final Object notifyObject = this;
 		SwingUtilities.invokeLater( () -> {
-			final ViewerPanel vp = new ViewerPanel( new ArrayList<>(), 1, cacheControl, viewerOptions );
-			setViewer( vp );
+			try
+			{
+				final ViewerPanel vp = new ViewerPanel( new ArrayList<>(), 1, cacheControl, viewerOptions );
+				setViewer( vp );
+				setReady( true );
+			}
+			finally
+			{
+				synchronized ( notifyObject )
+				{
+					notifyObject.notify();
+				}
+			}
 
 			viewer.setDisplayMode( DisplayMode.FUSED );
 			viewer.setMinimumSize( new Dimension( 100, 100 ) );
 			viewer.setPreferredSize( new Dimension( 100, 100 ) );
-
-			this.setContent( viewer );
 
 			viewer.getDisplay().setTransformEventHandler( this.manager );
 			this.manager.install( triggerbindings, keybindings );
@@ -197,11 +208,24 @@ public class ViewerNode extends SwingNode implements ListChangeListener< SourceA
 			} );
 			SwingUtilities.replaceUIActionMap( viewer.getRootPane(), keybindings.getConcatenatedActionMap() );
 			SwingUtilities.replaceUIInputMap( viewer.getRootPane(), JComponent.WHEN_ANCESTOR_OF_FOCUSED_COMPONENT, keybindings.getConcatenatedInputMap() );
-			setReady( true );
 			viewer.setVisible( true );
 			this.manager.setTransformListener( viewer );
 			this.manager.setViewer( viewer );
 		} );
+		try
+		{
+			System.out.println( "Waiting for viewer to be initialized!" );
+			synchronized ( notifyObject )
+			{
+				notifyObject.wait();
+			}
+			System.out.println( "Notified about initialization!" );
+		}
+		catch ( final InterruptedException e )
+		{
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
 	}
 
 	public static AffineTransform3D globalToViewer( final ViewerAxis axis )
