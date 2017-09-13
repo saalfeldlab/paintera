@@ -1,5 +1,6 @@
 package bdv.bigcat.viewer;
 
+import java.awt.Color;
 import java.awt.Dimension;
 import java.awt.event.MouseMotionListener;
 import java.util.ArrayList;
@@ -23,6 +24,7 @@ import bdv.viewer.Source;
 import bdv.viewer.SourceAndConverter;
 import bdv.viewer.ViewerOptions;
 import bdv.viewer.ViewerPanel;
+import javafx.beans.value.ChangeListener;
 import javafx.collections.ListChangeListener;
 import javafx.embed.swing.SwingNode;
 import net.imglib2.realtransform.AffineTransform3D;
@@ -65,6 +67,13 @@ public class ViewerNode extends SwingNode implements ListChangeListener< SourceA
 
 	private final CrossHair crosshair = new CrossHair();
 
+	private final Color onFocusColor = new Color( 255, 255, 255, 180 );
+
+	private final Color outOfFocusColor = new Color( 127, 127, 127, 100 );
+	{
+		crosshair.setColor( outOfFocusColor );
+	}
+
 	public ViewerNode( final CacheControl cacheControl, final ViewerAxis viewerAxis, final GlobalTransformManager manager, final ViewerOptions viewerOptions )
 	{
 		this.viewer = null;
@@ -72,6 +81,14 @@ public class ViewerNode extends SwingNode implements ListChangeListener< SourceA
 		this.viewerAxis = viewerAxis;
 		this.manager = new ViewerTransformManager( manager, globalToViewer( viewerAxis ) );
 		initialize( viewerOptions );
+		this.focusedProperty().addListener( ( ChangeListener< Boolean > ) ( observable, oldValue, newValue ) -> {
+			if ( newValue )
+				crosshair.setColor( onFocusColor );
+			else
+				crosshair.setColor( outOfFocusColor );
+			if ( isReady )
+				viewer.requestRepaint();
+		} );
 	}
 
 	public void setCrossHairColor( final int r, final int g, final int b, final int a )

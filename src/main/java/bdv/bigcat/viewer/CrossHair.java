@@ -19,7 +19,12 @@ public class CrossHair implements OverlayRenderer
 
 	public void setColor( final int r, final int g, final int b, final int a )
 	{
-		this.color = new Color( r, g, b, a );
+		setColor( new Color( r, g, b, a ) );
+	}
+
+	public void setColor( final Color color )
+	{
+		this.color = color;
 	}
 
 	@Override
