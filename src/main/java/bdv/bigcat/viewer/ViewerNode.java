@@ -117,14 +117,14 @@ public class ViewerNode extends SwingNode implements ListChangeListener< SourceA
 
 	public void addMouseMotionListener( final MouseMotionListener listener )
 	{
-		waitUntilInitialized();
-		this.viewer.getDisplay().addMouseMotionListener( listener );
+		if ( isReady() )
+			this.viewer.getDisplay().addMouseMotionListener( listener );
 	}
 
 	public void removeMouseMotionListener( final MouseMotionListener listener )
 	{
-		waitUntilInitialized();
-		this.viewer.getDisplay().removeMouseMotionListener( listener );
+		if ( isReady() )
+			this.viewer.getDisplay().removeMouseMotionListener( listener );
 	}
 
 	public void setViewerPanelState( final ViewerPanelState state )
@@ -137,20 +137,6 @@ public class ViewerNode extends SwingNode implements ListChangeListener< SourceA
 			if ( !this.state.isViewerInstalled( viewer ) )
 				this.state.installViewer( viewer );
 		}
-	}
-
-	private void waitUntilInitialized()
-	{
-		while ( this.viewer == null )
-			try
-			{
-				Thread.sleep( 10 );
-			}
-			catch ( final InterruptedException e )
-			{
-				// TODO Auto-generated catch block
-				e.printStackTrace();
-			}
 	}
 
 	private void initialize( final ViewerOptions viewerOptions )
