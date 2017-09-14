@@ -87,7 +87,7 @@ public class ViewerNode extends SwingNode implements ListChangeListener< SourceA
 			else
 				crosshair.setColor( outOfFocusColor );
 			if ( isReady )
-				viewer.requestRepaint();
+				viewer.getDisplay().repaint();
 		} );
 	}
 
