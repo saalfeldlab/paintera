@@ -70,6 +70,11 @@ public class GridResizer
 		return new MouseDoubleClicked();
 	}
 
+	public EventHandler< MouseEvent > onMouseReleased()
+	{
+		return new MouseReleased();
+	}
+
 	private class MouseChanged implements EventHandler< MouseEvent >
 	{
 
@@ -130,6 +135,18 @@ public class GridResizer
 				event.consume();
 			}
 
+		}
+
+	}
+
+	private class MouseReleased implements EventHandler< MouseEvent >
+	{
+
+		@Override
+		public void handle( final MouseEvent event )
+		{
+			dragging = false;
+			grid.sceneProperty().get().setCursor( Cursor.DEFAULT );
 		}
 
 	}

@@ -116,6 +116,7 @@ public class BaseView extends BorderPane
 		this.grid.setOnMouseDragged( resizer.onMouseDraggedHandler() );
 		this.grid.setOnMouseClicked( resizer.onMouseDoubleClickedHandler() );
 		this.grid.setOnMousePressed( resizer.onMousePresedHandler() );
+		this.grid.setOnMouseReleased( resizer.onMouseReleased() );
 //		dummyPane.addEventHandler( EventType.ROOT, this.grid::fireEvent );
 //		dummyPane.setPickOnBounds( false );
 		this.root.getChildren().add( this.grid );
