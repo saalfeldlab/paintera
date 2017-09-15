@@ -27,7 +27,6 @@ import bdv.bigcat.viewer.state.FragmentSegmentAssignmentState;
 import bdv.bigcat.viewer.state.SelectedIds;
 import bdv.labels.labelset.LabelMultisetType;
 import bdv.labels.labelset.Multiset.Entry;
-import bdv.util.RandomAccessibleSource;
 import bdv.util.RealRandomAccessibleIntervalSource;
 import bdv.viewer.Source;
 import bdv.viewer.SourceAndConverter;
@@ -49,18 +48,13 @@ import javafx.scene.control.TextField;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
-import net.imglib2.FinalInterval;
 import net.imglib2.Interval;
 import net.imglib2.RealRandomAccessible;
-import net.imglib2.converter.Converter;
-import net.imglib2.converter.RealARGBConverter;
 import net.imglib2.converter.TypeIdentity;
 import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.type.numeric.ARGBType;
 import net.imglib2.type.numeric.IntegerType;
 import net.imglib2.type.numeric.RealType;
-import net.imglib2.type.numeric.real.FloatType;
-import net.imglib2.type.volatiles.VolatileFloatType;
 import net.imglib2.util.ConstantUtils;
 
 public class Atlas
@@ -124,12 +118,6 @@ public class Atlas
 //		final AtlasMouseCoordinatePrinter mcp = new AtlasMouseCoordinatePrinter( this.status );
 //		addOnEnterOnExit( mcp.onEnter(), mcp.onExit(), true );
 		addOnEnterOnExit( valueDisplayListener.onEnter(), valueDisplayListener.onExit(), true );
-		final RandomAccessibleSource< FloatType > bg = new RandomAccessibleSource<>( ConstantUtils.constantRandomAccessible( new FloatType( 0.0f ), 3 ), new FinalInterval( 1000, 1000, 100 ), new FloatType(), "background" );
-		final RandomAccessibleSource< VolatileFloatType > vbg = new RandomAccessibleSource<>( ConstantUtils.constantRandomAccessible( new VolatileFloatType( 0.0f ), 3 ), new FinalInterval( 1000, 1000, 100 ), new VolatileFloatType(), "background" );
-		final RealARGBConverter< FloatType > conv = new RealARGBConverter<>( 0.0, 1.0 );
-		final Converter< VolatileFloatType, ARGBType > vconv = ( input, output ) -> {
-			conv.convert( input.get(), output );
-		};
 
 		this.specs.addListener( ( MapChangeListener< DatasetSpec< ?, ? >, Source< ? > > ) c -> {
 			if ( c.wasRemoved() )
