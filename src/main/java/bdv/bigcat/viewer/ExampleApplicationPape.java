@@ -45,7 +45,7 @@ public class ExampleApplicationPape
 		final double[] resolution = { 1, 1, 1 };
 		final int[] cellSize = { 1024, 1024, 1 };
 
-		final HDF5UnsignedByteSpec rawSource = new HDF5UnsignedByteSpec( rawFile, rawDataset, cellSize, resolution, 0, 255 );
+		final HDF5UnsignedByteSpec rawSource = new HDF5UnsignedByteSpec( rawFile, rawDataset, cellSize, resolution );
 
 		final double[] min = Arrays.stream( Intervals.minAsLongArray( rawSource.getSource().getSource( 0, 0 ) ) ).mapToDouble( v -> v ).toArray();
 		final double[] max = Arrays.stream( Intervals.maxAsLongArray( rawSource.getSource().getSource( 0, 0 ) ) ).mapToDouble( v -> v ).toArray();
@@ -62,7 +62,7 @@ public class ExampleApplicationPape
 			stage.show();
 		} );
 
-		viewer.addSource( rawSource );
+		viewer.addRawSource( rawSource, 0, 255 );
 
 	}
 

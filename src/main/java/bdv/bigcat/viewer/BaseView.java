@@ -1,7 +1,12 @@
 package bdv.bigcat.viewer;
 
+import java.awt.Color;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 import java.util.function.Function;
 
@@ -129,6 +134,20 @@ public class BaseView extends BorderPane
 		addViewer( ViewerAxis.X, 0, 1 );
 		addViewer( ViewerAxis.Y, 1, 0 );
 		this.grid.requestFocus();
+		this.viewerNodes.stream().map( ViewerNode::getContent ).forEach( vp -> ( ( ViewerPanel ) vp ).setBackgroundCreator( new GradientBackgroundAlpha() ) );
+		new Thread( () -> {
+			final AtomicInteger degrees = new AtomicInteger( 0 );
+			final ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor();
+			scheduler.scheduleAtFixedRate( () -> {
+				final int h = degrees.get();
+				degrees.set( ( h + 3 ) % 360 );
+				final Color c = Color.getHSBColor( h / 360.0f, 0.3f, 0.4f );
+				viewerNodes.stream().map( ViewerNode::getContent ).forEach( v -> {
+					final ViewerPanel vp = ( ViewerPanel ) v;
+					vp.setBackground( c );
+				} );
+			}, 0, 200, TimeUnit.MILLISECONDS );
+		} ).start();
 	}
 
 	public void setInfoNode( final Node node )

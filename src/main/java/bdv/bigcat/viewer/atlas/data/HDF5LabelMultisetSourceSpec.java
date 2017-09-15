@@ -119,17 +119,6 @@ public class HDF5LabelMultisetSourceSpec implements LabelSpec< LabelMultisetType
 		return source;
 	}
 
-	@Override
-	public Converter< VolatileLabelMultisetType, ARGBType > getViewerConverter()
-	{
-		return defaultConverter( stream );
-	}
-
-	public static Converter< VolatileLabelMultisetType, ARGBType > defaultConverter( final AbstractHighlightingARGBStream stream )
-	{
-		return new HighlightingStreamConverter( stream );
-	}
-
 	public static class HighlightingStreamConverter implements Converter< VolatileLabelMultisetType, ARGBType >
 	{
 

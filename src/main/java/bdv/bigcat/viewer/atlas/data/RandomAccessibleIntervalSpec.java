@@ -30,8 +30,6 @@ public class RandomAccessibleIntervalSpec< T extends NumericType< T >, VT extend
 
 	private final Source< VT > viewerSource;
 
-	private final Converter< VT, ARGBType > viewerConverter;
-
 	public RandomAccessibleIntervalSpec(
 			final Converter< VT, ARGBType > viewerConverter,
 			final RandomAccessibleInterval< T >[] sources,
@@ -44,7 +42,6 @@ public class RandomAccessibleIntervalSpec< T extends NumericType< T >, VT extend
 		this.source = new RandomAccessibleIntervalMipmapSource( sources, Util.getTypeFromInterval( sources[ 0 ] ), resolutions, voxelDimensions, name );
 		this.viewerSource = new RandomAccessibleIntervalMipmapSource( viewerSources, Util.getTypeFromInterval( sources[ 0 ] ), resolutions, voxelDimensions, name );
 
-		this.viewerConverter = viewerConverter;
 	}
 
 	@Override
@@ -57,12 +54,6 @@ public class RandomAccessibleIntervalSpec< T extends NumericType< T >, VT extend
 	public Source< VT > getViewerSource()
 	{
 		return viewerSource;
-	}
-
-	@Override
-	public Converter< VT, ARGBType > getViewerConverter()
-	{
-		return viewerConverter;
 	}
 
 	public static < T extends NativeType< T > & NumericType< T >, VT extends Volatile< T > & NumericType< VT >, A > RandomAccessibleIntervalSpec< T, VT > fromCachedCellLoader(

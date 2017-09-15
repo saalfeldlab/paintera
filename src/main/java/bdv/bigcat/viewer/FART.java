@@ -99,7 +99,7 @@ public class FART
 		final double[] offset = { 0, 0, 0 };
 		final int[] cellSize = { 145, 53, 5 };
 
-		final HDF5UnsignedByteSpec rawSource = new HDF5UnsignedByteSpec( rawFile, rawDataset, cellSize, resolution, 0, 255 );
+		final HDF5UnsignedByteSpec rawSource = new HDF5UnsignedByteSpec( rawFile, rawDataset, cellSize, resolution );
 
 		final double[] min = Arrays.stream( Intervals.minAsLongArray( rawSource.getSource().getSource( 0, 0 ) ) ).mapToDouble( v -> v ).toArray();
 		final double[] max = Arrays.stream( Intervals.maxAsLongArray( rawSource.getSource().getSource( 0, 0 ) ) ).mapToDouble( v -> v ).toArray();
@@ -117,7 +117,7 @@ public class FART
 			stage.show();
 		} );
 
-		viewer.addSource( rawSource );
+		viewer.addRawSource( rawSource, 0, 255 );
 
 		final Socket assignmentSocket = ctx.socket( ZMQ.REQ );
 		final Socket solutionSocket = ctx.socket( ZMQ.SUB );
@@ -151,7 +151,7 @@ public class FART
 				cellSize,
 				actionBroadcast,
 				solutionReceiver, () -> initialSolutionHashMap );
-		viewer.addSource( labelSpec2 );
+		viewer.addLabelSource( labelSpec2 );
 
 		initialSolutionSocket.send( "" );
 		initialSolutionSocket.recv();

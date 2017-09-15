@@ -30,6 +30,7 @@ import net.imglib2.interpolation.randomaccess.ClampingNLinearInterpolatorFactory
 import net.imglib2.interpolation.randomaccess.NearestNeighborInterpolatorFactory;
 import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.type.numeric.RealType;
+import net.imglib2.type.numeric.integer.UnsignedByteType;
 import net.imglib2.type.volatiles.VolatileARGBType;
 import net.imglib2.util.Intervals;
 import net.imglib2.view.ExtendedRandomAccessibleInterval;
@@ -50,7 +51,7 @@ public class ExampleApplication2
 		final double[] offset = { 424, 424, 560 };
 		final int[] cellSize = { 145, 53, 5 };
 
-		final HDF5UnsignedByteSpec rawSource = new HDF5UnsignedByteSpec( rawFile, rawDataset, cellSize, resolution, 0, 255 );
+		final HDF5UnsignedByteSpec rawSource = new HDF5UnsignedByteSpec( rawFile, rawDataset, cellSize, resolution );
 
 		final double[] min = Arrays.stream( Intervals.minAsLongArray( rawSource.getSource().getSource( 0, 0 ) ) ).mapToDouble( v -> v ).toArray();
 		final double[] max = Arrays.stream( Intervals.maxAsLongArray( rawSource.getSource().getSource( 0, 0 ) ) ).mapToDouble( v -> v ).toArray();
@@ -70,16 +71,17 @@ public class ExampleApplication2
 //			viewer.baseView().setInfoNode( v3d.getPanel() );
 		} );
 
-		viewer.addSource( rawSource );
+		final Volatile< UnsignedByteType > abc = rawSource.getViewerSource().getType();
+		viewer.addRawSource( rawSource, 0., 255. );
 
 		final HDF5LabelMultisetSourceSpec labelSpec2 = new HDF5LabelMultisetSourceSpec( labelsFile, labelsDataset, cellSize );
-		viewer.addSource( labelSpec2 );
+		viewer.addLabelSource( labelSpec2 );
 
 		final boolean demonstrateRemove = false;
 		if ( demonstrateRemove )
 		{
 			final HDF5LabelMultisetSourceSpec labelSpec3 = new HDF5LabelMultisetSourceSpec( labelsFile, labelsDataset, cellSize );
-			viewer.addSource( labelSpec3 );
+			viewer.addLabelSource( labelSpec3 );
 
 			Platform.runLater( () -> {
 				final Dialog< Boolean > d = new Dialog<>();

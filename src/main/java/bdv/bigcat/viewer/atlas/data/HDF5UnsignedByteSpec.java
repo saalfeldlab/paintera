@@ -12,12 +12,9 @@ import ch.systemsx.cisd.hdf5.IHDF5Reader;
 import mpicbg.spim.data.sequence.VoxelDimensions;
 import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.RealRandomAccessible;
-import net.imglib2.converter.Converter;
-import net.imglib2.converter.RealARGBConverter;
 import net.imglib2.interpolation.randomaccess.NLinearInterpolatorFactory;
 import net.imglib2.interpolation.randomaccess.NearestNeighborInterpolatorFactory;
 import net.imglib2.realtransform.AffineTransform3D;
-import net.imglib2.type.numeric.ARGBType;
 import net.imglib2.type.numeric.integer.UnsignedByteType;
 import net.imglib2.type.volatiles.VolatileUnsignedByteType;
 import net.imglib2.view.Views;
@@ -131,15 +128,11 @@ public class HDF5UnsignedByteSpec implements DatasetSpec< UnsignedByteType, Vola
 
 	private final H5UnsignedByteSetupImageLoader loader;
 
-	private final RealARGBConverter< VolatileUnsignedByteType > conv = new RealARGBConverter<>();
-
-	public HDF5UnsignedByteSpec( final String path, final String dataset, final int[] cellSize, final double[] resolution, final double min, final double max ) throws IOException
+	public HDF5UnsignedByteSpec( final String path, final String dataset, final int[] cellSize, final double[] resolution ) throws IOException
 	{
 		super();
 		final IHDF5Reader h5reader = HDF5Factory.open( path );
 		this.loader = new H5UnsignedByteSetupImageLoader( h5reader, dataset, 0, cellSize, resolution, new VolatileGlobalCellCache( new SharedQueue( 8 ) ) );
-		this.conv.setMin( min );
-		this.conv.setMax( max );
 	}
 
 	@Override
@@ -152,12 +145,6 @@ public class HDF5UnsignedByteSpec implements DatasetSpec< UnsignedByteType, Vola
 	public VolatileUnsignedByteSource getViewerSource()
 	{
 		return new VolatileUnsignedByteSource( loader, new VolatileUnsignedByteType(), "data" );
-	}
-
-	@Override
-	public Converter< VolatileUnsignedByteType, ARGBType > getViewerConverter()
-	{
-		return conv;
 	}
 
 }

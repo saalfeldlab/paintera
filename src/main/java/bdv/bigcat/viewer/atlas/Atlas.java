@@ -13,10 +13,15 @@ import bdv.bigcat.composite.CompositeProjector.CompositeProjectorFactory;
 import bdv.bigcat.viewer.BaseView;
 import bdv.bigcat.viewer.BaseViewState;
 import bdv.bigcat.viewer.ToIdConverter;
+import bdv.bigcat.viewer.ToIdConverter.FromLabelMultisetType;
 import bdv.bigcat.viewer.ViewerActor;
 import bdv.bigcat.viewer.atlas.AtlasFocusHandler.OnEnterOnExit;
+import bdv.bigcat.viewer.atlas.converter.NaNMaskedRealARGBConverter;
+import bdv.bigcat.viewer.atlas.converter.VolatileARGBIdentiyWithAlpha;
+import bdv.bigcat.viewer.atlas.data.ConvertedSource;
 import bdv.bigcat.viewer.atlas.data.DatasetSpec;
 import bdv.bigcat.viewer.atlas.data.HDF5LabelMultisetSourceSpec;
+import bdv.bigcat.viewer.atlas.data.HDF5LabelMultisetSourceSpec.HighlightingStreamConverter;
 import bdv.bigcat.viewer.atlas.data.LabelSpec;
 import bdv.bigcat.viewer.atlas.mode.Highlights;
 import bdv.bigcat.viewer.atlas.mode.Merges;
@@ -25,8 +30,10 @@ import bdv.bigcat.viewer.atlas.mode.ModeUtil;
 import bdv.bigcat.viewer.atlas.mode.NavigationOnly;
 import bdv.bigcat.viewer.state.FragmentSegmentAssignmentState;
 import bdv.bigcat.viewer.state.SelectedIds;
+import bdv.bigcat.viewer.stream.ModalGoldenAngleSaturatedHighlightingARGBStream;
 import bdv.labels.labelset.LabelMultisetType;
 import bdv.labels.labelset.Multiset.Entry;
+import bdv.labels.labelset.VolatileLabelMultisetType;
 import bdv.util.RealRandomAccessibleIntervalSource;
 import bdv.viewer.Source;
 import bdv.viewer.SourceAndConverter;
@@ -50,11 +57,16 @@ import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
 import net.imglib2.Interval;
 import net.imglib2.RealRandomAccessible;
+import net.imglib2.Volatile;
+import net.imglib2.converter.Converter;
 import net.imglib2.converter.TypeIdentity;
 import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.type.numeric.ARGBType;
 import net.imglib2.type.numeric.IntegerType;
 import net.imglib2.type.numeric.RealType;
+import net.imglib2.type.numeric.real.DoubleType;
+import net.imglib2.type.volatiles.VolatileARGBType;
+import net.imglib2.type.volatiles.VolatileRealType;
 import net.imglib2.util.ConstantUtils;
 
 public class Atlas
@@ -189,17 +201,141 @@ public class Atlas
 		this.focusHandler.add( onEnterOnExit, onExitRemovable );
 	}
 
-	public < T, VT > void addSource( final DatasetSpec< T, VT > spec )
+	private void addSource( final SourceAndConverter< ? > src, final Composite< ARGBType, ARGBType > comp, final DatasetSpec< ?, ? > spec )
 	{
-		final Source< VT > vsource = spec.getViewerSource();
+		view.addSource( src, comp );
+		this.specs.put( spec, src.getSpimSource() );
+		this.composites.put( src.getSpimSource(), comp );
+	}
+
+	public < T, VT > void removeSource( final DatasetSpec< T, VT > spec )
+	{
+		final Source< ? > vsource = this.specs.remove( spec );
+		this.view.removeSource( vsource );
+		this.composites.remove( vsource );
+	}
+
+	public void addLabelSource( final LabelSpec< LabelMultisetType, VolatileLabelMultisetType > spec )
+	{
+		final Source< VolatileLabelMultisetType > originalVSource = spec.getViewerSource();
+		final FragmentSegmentAssignmentState< ? > assignment = spec.getAssignment();
+		final SelectedIds selIds = new SelectedIds();
+		final ModalGoldenAngleSaturatedHighlightingARGBStream stream = new ModalGoldenAngleSaturatedHighlightingARGBStream( selIds, assignment );
+		final HighlightingStreamConverter streamConverter = new HDF5LabelMultisetSourceSpec.HighlightingStreamConverter( stream );
+		final Converter< VolatileLabelMultisetType, VolatileARGBType > converter = ( s, t ) -> {
+			final boolean isValid = s.isValid();
+			t.setValid( isValid );
+			if ( isValid )
+				streamConverter.convert( s, t.get() );
+		};
+
+		final VolatileARGBIdentiyWithAlpha identity = new VolatileARGBIdentiyWithAlpha( 255 );
+//		final Converter< VolatileARGBType, ARGBType > identity = ( source, target ) -> {
+//			target.set( source.get() );
+//		};
+
+		final Source< VolatileARGBType > vsource = new ConvertedSource<>( originalVSource, new VolatileARGBType( 0 ), converter, originalVSource.getName() );
 		final Composite< ARGBType, ARGBType > comp = new ARGBCompositeAlphaAdd();
-		final SourceAndConverter< VT > src = new SourceAndConverter<>( vsource, spec.getViewerConverter() );
+		final SourceAndConverter< ? > src = new SourceAndConverter<>( vsource, identity );
+		addSource( src, comp, spec );
+
+		final Source< LabelMultisetType > source = spec.getSource();
+		final LabelMultisetType t = source.getType();
+		final Function< LabelMultisetType, String > valueToString = valueToString( t );
+		final AffineTransform3D affine = new AffineTransform3D();
+		source.getSourceTransform( 0, 0, affine );
+		this.valueDisplayListener.addSource( vsource, source, Optional.of( valueToString ) );
+
+		this.assignments.put( vsource, assignment );
+		view.addActor( new ViewerActor()
+		{
+
+			@Override
+			public Consumer< ViewerPanel > onRemove()
+			{
+				return vp -> {};
+			}
+
+			@Override
+			public Consumer< ViewerPanel > onAdd()
+			{
+				return vp -> assignment.addListener( () -> vp.requestRepaint() );
+			}
+		} );
+
+		final FromLabelMultisetType toIdConverter = ToIdConverter.fromLabelMultisetType();
+		final SelectedIds selectedIds = selIds;
+		this.selectedIds.put( vsource, selectedIds );
+		for ( final Mode mode : this.modes )
+			if ( mode instanceof Highlights )
+				( ( Highlights ) mode ).addSource( vsource, source, toIdConverter );
+			else if ( mode instanceof Merges )
+				( ( Merges ) mode ).addSource( vsource, source, toIdConverter );
+
+		view.addActor( new ViewerActor()
+		{
+
+			@Override
+			public Consumer< ViewerPanel > onRemove()
+			{
+				return vp -> {};
+			}
+
+			@Override
+			public Consumer< ViewerPanel > onAdd()
+			{
+				return vp -> {
+					System.out.println( "VP? " + vp + " " + selectedIds );
+					selectedIds.addListener( () -> vp.requestRepaint() );
+				};
+			}
+		} );
+
+	}
+
+	public < T extends RealType< T >, U extends RealType< U > > void addRawSource( final DatasetSpec< T, ? extends Volatile< U > > spec, final double min, final double max )
+	{
+		final Source< VolatileRealType< DoubleType > > vsource = ConvertedSource.volatileRealTypeAsDoubleType( spec.getViewerSource() );
+		final Composite< ARGBType, ARGBType > comp = new ARGBCompositeAlphaAdd();
+		final NaNMaskedRealARGBConverter< VolatileRealType< DoubleType > > conv = new NaNMaskedRealARGBConverter<>( min, max );
+		final SourceAndConverter< ? > src = new SourceAndConverter<>( vsource, conv );
 		view.addSource( src, comp );
 		this.specs.put( spec, vsource );
 		this.composites.put( vsource, comp );
 
 		final Source< T > source = spec.getSource();
 		final T t = source.getType();
+		final Function< T, String > valueToString = valueToString( t );
+		final AffineTransform3D affine = new AffineTransform3D();
+		source.getSourceTransform( 0, 0, affine );
+		this.valueDisplayListener.addSource( vsource, source, Optional.of( valueToString ) );
+	}
+
+	public BaseView baseView()
+	{
+		return this.view;
+	}
+
+	protected Node createInfo()
+	{
+		final TableView< ? > table = new TableView<>();
+		table.setEditable( true );
+		table.getColumns().addAll( new TableColumn<>( "Property" ), new TableColumn<>( "Value" ) );
+
+		final TextField tf = new TextField( "some text" );
+
+		final TabPane infoPane = new TabPane();
+
+		final VBox jfxStuff = new VBox( 1 );
+		jfxStuff.getChildren().addAll( tf, table );
+		infoPane.getTabs().add( new Tab( "jfx stuff", jfxStuff ) );
+		infoPane.getTabs().add( new Tab( "dataset info", new Label( "random floats" ) ) );
+		return infoPane;
+
+	}
+
+	public static < T > Function< T, String > valueToString( final T t )
+	{
 		final Function< T, String > valueToString;
 		if ( t instanceof ARGBType )
 			valueToString = ( Function< T, String > ) Object::toString;
@@ -226,96 +362,7 @@ public class Atlas
 			};
 		else
 			valueToString = rt -> "Do not understand type!";
-		final AffineTransform3D affine = new AffineTransform3D();
-		source.getSourceTransform( 0, 0, affine );
-		this.valueDisplayListener.addSource( vsource, source, Optional.of( valueToString ) );
-
-		if ( spec instanceof LabelSpec< ?, ? > )
-		{
-			final LabelSpec lspec = ( LabelSpec ) spec;
-			final FragmentSegmentAssignmentState< ? > assgn = lspec.getAssignment();
-			this.assignments.put( vsource, assgn );
-			view.addActor( new ViewerActor()
-			{
-
-				@Override
-				public Consumer< ViewerPanel > onRemove()
-				{
-					return vp -> {};
-				}
-
-				@Override
-				public Consumer< ViewerPanel > onAdd()
-				{
-					return vp -> assgn.addListener( () -> vp.requestRepaint() );
-				}
-			} );
-		}
-
-		if ( t instanceof ARGBType || t instanceof LabelMultisetType )
-		{
-			final ToIdConverter toIdConverter;
-			if ( t instanceof ARGBType )
-				toIdConverter = ToIdConverter.fromARGB();
-			else
-				toIdConverter = ToIdConverter.fromLabelMultisetType();
-			final SelectedIds selectedIds = spec instanceof HDF5LabelMultisetSourceSpec ? ( ( HDF5LabelMultisetSourceSpec ) spec ).getSelectedIds() : new SelectedIds();
-			this.selectedIds.put( vsource, selectedIds );
-			for ( final Mode mode : this.modes )
-				if ( mode instanceof Highlights )
-					( ( Highlights ) mode ).addSource( vsource, source, toIdConverter );
-				else if ( mode instanceof Merges )
-					( ( Merges ) mode ).addSource( vsource, source, toIdConverter );
-
-			view.addActor( new ViewerActor()
-			{
-
-				@Override
-				public Consumer< ViewerPanel > onRemove()
-				{
-					return vp -> {};
-				}
-
-				@Override
-				public Consumer< ViewerPanel > onAdd()
-				{
-					System.out.println( " selected Ids? " + selectedIds );
-					return vp -> {
-						System.out.println( "VP? " + vp + " " + selectedIds );
-						selectedIds.addListener( () -> vp.requestRepaint() );
-					};
-				}
-			} );
-
-		}
-	}
-
-	public < T, VT > void removeSource( final DatasetSpec< T, VT > spec )
-	{
-		this.specs.remove( spec );
-	}
-
-	public BaseView baseView()
-	{
-		return this.view;
-	}
-
-	protected Node createInfo()
-	{
-		final TableView< ? > table = new TableView<>();
-		table.setEditable( true );
-		table.getColumns().addAll( new TableColumn<>( "Property" ), new TableColumn<>( "Value" ) );
-
-		final TextField tf = new TextField( "some text" );
-
-		final TabPane infoPane = new TabPane();
-
-		final VBox jfxStuff = new VBox( 1 );
-		jfxStuff.getChildren().addAll( tf, table );
-		infoPane.getTabs().add( new Tab( "jfx stuff", jfxStuff ) );
-		infoPane.getTabs().add( new Tab( "dataset info", new Label( "random floats" ) ) );
-		return infoPane;
-
+		return valueToString;
 	}
 
 }
