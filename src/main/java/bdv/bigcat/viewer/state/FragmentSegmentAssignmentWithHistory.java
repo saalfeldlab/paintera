@@ -1,14 +1,16 @@
 package bdv.bigcat.viewer.state;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashSet;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 
 import bdv.bigcat.viewer.atlas.solver.action.Action;
+import bdv.bigcat.viewer.atlas.solver.action.ConfirmGroupings;
+import bdv.bigcat.viewer.atlas.solver.action.ConfirmSingleSegment;
 import bdv.bigcat.viewer.atlas.solver.action.Detach;
 import bdv.bigcat.viewer.atlas.solver.action.Merge;
-import bdv.bigcat.viewer.atlas.solver.action.ConfirmSingleSegment;
 import bdv.labels.labelset.Label;
 import gnu.trove.impl.Constants;
 import gnu.trove.iterator.TLongIterator;
@@ -94,6 +96,11 @@ public class FragmentSegmentAssignmentWithHistory extends FragmentSegmentAssignm
 								{
 									final ConfirmSingleSegment mad = ( ConfirmSingleSegment ) action;
 									this.confirmGroupingImpl( mad.mergeIds(), mad.from(), false );
+								}
+								else if ( action instanceof ConfirmGroupings )
+								{
+									final ConfirmGroupings confirmation = ( ConfirmGroupings ) action;
+									this.confirmTwoSegmentsImpl( confirmation.fragmentsBySegment()[ 0 ], confirmation.fragmentsBySegment()[ 1 ], false );
 								}
 //							this.history.clear();
 						}
@@ -300,6 +307,30 @@ public class FragmentSegmentAssignmentWithHistory extends FragmentSegmentAssignm
 		{
 			final ConfirmSingleSegment action = new ConfirmSingleSegment( merge, detach );
 			System.out.println( "BROADCASTING! " + action );
+			broadcaster.accept( action );
+			history.add( action );
+			submittedActions.add( action );
+		}
+	}
+
+	@Override
+	protected synchronized void confirmTwoSegmentsImpl( final long[] fragmentsInSegment1, final long[] fragmentsInSegment2 )
+	{
+		confirmTwoSegmentsImpl( fragmentsInSegment1, fragmentsInSegment2, true );
+	}
+
+	protected synchronized void confirmTwoSegmentsImpl( final long[] fragmentsInSegment1, final long[] fragmentsInSegment2, final boolean broadcast )
+	{
+		// should we even apply the goruping or just pass message?
+//		Arrays.sort( merge );
+//		final long segment = merge[ 0 ];
+//		Arrays.stream( merge ).forEach( id -> fragmentToSegmentMap.put( id, segment ) );
+//		syncILut();
+		if ( broadcast )
+		{
+			System.out.println( "Confirming grouping " + broadcast + " " + Arrays.toString( fragmentsInSegment1 ) + " " + Arrays.toString( fragmentsInSegment2 ) );
+			final ConfirmGroupings action = new ConfirmGroupings( fragmentsInSegment1, fragmentsInSegment2 );
+//			System.out.println( "BROADCASTING! " + action );
 			broadcaster.accept( action );
 			history.add( action );
 			submittedActions.add( action );

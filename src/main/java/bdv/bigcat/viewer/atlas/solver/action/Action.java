@@ -51,6 +51,11 @@ public interface Action
 				actions.add( Merge.fromJson( obj.get( "data" ).getAsJsonObject() ) );
 			else if ( type.equals( ConfirmSingleSegment.IDENTIFIER ) )
 				actions.add( ConfirmSingleSegment.fromJson( obj.get( "data" ).getAsJsonObject() ) );
+			else if ( type.equals( ConfirmGroupings.IDENTIFIER ) )
+			{
+				final JsonObject data = obj.get( "data" ).getAsJsonObject();
+				actions.add( ConfirmGroupings.fromJson( data ) );
+			}
 		}
 
 		return actions;

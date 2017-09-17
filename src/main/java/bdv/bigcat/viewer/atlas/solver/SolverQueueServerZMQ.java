@@ -5,6 +5,7 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.charset.Charset;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 import java.util.function.Consumer;
@@ -17,6 +18,7 @@ import com.google.gson.JsonParseException;
 import com.google.gson.JsonParser;
 
 import bdv.bigcat.viewer.atlas.solver.action.Action;
+import bdv.bigcat.viewer.atlas.solver.action.ConfirmGroupings;
 import gnu.trove.map.hash.TLongLongHashMap;
 import net.imglib2.util.Pair;
 import net.imglib2.util.ValuePair;
@@ -69,6 +71,9 @@ public class SolverQueueServerZMQ implements Closeable
 				final String version = json.get( "version" ).getAsString();
 
 				final List< Action > actions = Action.fromJson( json.get( "actions" ).toString() );
+				System.out.println( "RETURNING THESE ACTIONS: " + actions );
+				if ( actions.get( 0 ) instanceof ConfirmGroupings )
+					System.out.println( Arrays.toString( ( ( ConfirmGroupings ) actions.get( 0 ) ).fragmentsBySegment() ) );
 				return new ValuePair<>( version, actions );
 			}
 			catch ( final JsonParseException e )

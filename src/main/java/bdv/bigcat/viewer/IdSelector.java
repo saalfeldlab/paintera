@@ -21,6 +21,7 @@ import bdv.viewer.Source;
 import bdv.viewer.ViewerPanel;
 import bdv.viewer.state.SourceState;
 import bdv.viewer.state.ViewerState;
+import gnu.trove.map.hash.TLongObjectHashMap;
 import gnu.trove.set.hash.TLongHashSet;
 import net.imglib2.Cursor;
 import net.imglib2.FinalInterval;
@@ -603,6 +604,21 @@ public class IdSelector
 					final FragmentSegmentAssignment assignment = assignments.get( source );
 					final Source< ? > dataSource = dataSources.get( source );
 
+					final long[] activeFragments = selectedIds.containsKey( source ) ? selectedIds.get( source ).getActiveIds() : new long[] {};
+					final long[] activeSegments = Arrays.stream( activeFragments ).map( id -> assignment.getSegment( id ) ).toArray();
+
+					if ( activeSegments.length > 1 )
+					{
+						System.out.println( "More than one segment active, not doing anything!" );
+						return;
+					}
+
+					if ( activeSegments.length == 0 )
+					{
+						System.out.println( "No segments active, not doing anything!" );
+						return;
+					}
+
 					final AffineTransform3D viewerTransform = new AffineTransform3D();
 					final ViewerState state = viewer.getState();
 					state.getViewerTransform( viewerTransform );
@@ -615,15 +631,38 @@ public class IdSelector
 					access.setPosition( 0l, 2 );
 					viewer.displayToGlobalCoordinates( access );
 					final Object val = access.get();
-					final long[] selectedFragments = toIdConverter.allIds( val );
-					final long[] selectedSegments = Arrays.stream( selectedFragments ).map( assignment::getSegment ).toArray();
-					final TLongHashSet selectedSegmentsSet = new TLongHashSet( selectedSegments );
+					final long selectedFragment = toIdConverter.biggestFragment( val );
+					final long selectedSegment = assignment.getSegment( selectedFragment );
+					final TLongHashSet selectedSegmentsSet = new TLongHashSet( new long[] { selectedSegment } );
 					final TLongHashSet visibleFragmentsSet = new TLongHashSet();
-					visitEveryDisplayPixel( source, dataSource, viewer, obj -> visibleFragmentsSet.addAll( toIdConverter.allIds( obj ) ) );
-					final long[] visibleFragments = visibleFragmentsSet.toArray();
-					final long[] fragmentsInActiveSegment = Arrays.stream( visibleFragments ).filter( frag -> selectedSegmentsSet.contains( assignment.getSegment( frag ) ) ).toArray();
-					final long[] fragmentsNotInActiveSegment = Arrays.stream( visibleFragments ).filter( frag -> !selectedSegmentsSet.contains( assignment.getSegment( frag ) ) ).toArray();
-					assignment.confirmGrouping( fragmentsInActiveSegment, fragmentsNotInActiveSegment );
+
+					if ( activeSegments.length == 0 || activeSegments[ 0 ] == selectedSegment )
+					{
+						System.out.println( "confirm merge and separate of single segment" );
+						visitEveryDisplayPixel( source, dataSource, viewer, obj -> visibleFragmentsSet.addAll( toIdConverter.allIds( obj ) ) );
+						final long[] visibleFragments = visibleFragmentsSet.toArray();
+						final long[] fragmentsInActiveSegment = Arrays.stream( visibleFragments ).filter( frag -> selectedSegmentsSet.contains( assignment.getSegment( frag ) ) ).toArray();
+						final long[] fragmentsNotInActiveSegment = Arrays.stream( visibleFragments ).filter( frag -> !selectedSegmentsSet.contains( assignment.getSegment( frag ) ) ).toArray();
+						assignment.confirmGrouping( fragmentsInActiveSegment, fragmentsNotInActiveSegment );
+					}
+
+					else
+					{
+						System.out.println( "confirm merge and separate of two segments" );
+						final long[] relevantSegments = new long[] { activeSegments[ 0 ], selectedSegment };
+						final TLongObjectHashMap< TLongHashSet > fragmentsBySegment = new TLongObjectHashMap<>();
+						Arrays.stream( relevantSegments ).forEach( seg -> fragmentsBySegment.put( seg, new TLongHashSet() ) );
+						visitEveryDisplayPixel( source, dataSource, viewer, obj -> {
+							final long[] fragments = toIdConverter.allIds( obj );
+							for ( final long frag : fragments )
+							{
+								final TLongHashSet frags = fragmentsBySegment.get( assignment.getSegment( frag ) );
+								if ( frags != null )
+									frags.add( frag );
+							}
+						} );
+						assignment.confirmTwoSegments( fragmentsBySegment.get( relevantSegments[ 0 ] ).toArray(), fragmentsBySegment.get( relevantSegments[ 1 ] ).toArray() );
+					}
 
 				}
 		}

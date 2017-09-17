@@ -131,7 +131,7 @@ public class FART
 			json.add( "actions", Action.toJson( Arrays.asList( action ) ) );
 			json.addProperty( "version", "1" );
 			assignmentSocket.send( json.toString() );
-			System.out.println( "WAITING FOR RESPONSE! on socket " + actionReceiverAddress );
+			System.out.println( "Sent action " + json.toString() + " WAITING FOR RESPONSE! on socket " + actionReceiverAddress );
 			final byte[] response = assignmentSocket.recv();
 			System.out.println( "GOT RESPONSE: " + Arrays.toString( response ) );
 		};

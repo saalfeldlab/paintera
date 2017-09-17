@@ -14,7 +14,7 @@ public class GradientBackgroundAlpha implements BiFunction< Integer, Integer, Op
 		final int height = u;
 		final int size = width * height;
 		final double factor = 255.0 / size;
-		final BufferedImage bi = new BufferedImage( width, height, BufferedImage.TYPE_INT_ARGB );
+		final BufferedImage bi = new BufferedImage( width, height, BufferedImage.TYPE_INT_ARGB_PRE );
 //		final int[] data = new int[ size ];
 		for ( int i = 0, y = 0; y < height; ++y )
 			for ( int x = 0; x < width; ++x, ++i )

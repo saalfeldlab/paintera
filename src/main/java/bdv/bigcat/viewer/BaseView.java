@@ -135,6 +135,7 @@ public class BaseView extends BorderPane
 		addViewer( ViewerAxis.Y, 1, 0 );
 		this.grid.requestFocus();
 		this.viewerNodes.stream().map( ViewerNode::getContent ).forEach( vp -> ( ( ViewerPanel ) vp ).setBackgroundCreator( new GradientBackgroundAlpha() ) );
+//		this.viewerNodes.stream().map( ViewerNode::getContent ).forEach( vp -> ( ( ViewerPanel ) vp ).setBackgroundCreator( ( w, h ) -> Optional.empty() ) );
 		new Thread( () -> {
 			final AtomicInteger degrees = new AtomicInteger( 0 );
 			final ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor();

@@ -19,4 +19,6 @@ public interface FragmentSegmentAssignment
 
 	public void confirmGrouping( final long[] groupedFragments, final long[] notInGroupFragments );
 
+	public void confirmTwoSegments( final long[] fragmentsInSegment1, final long[] fragmentsInSegment2 );
+
 }
