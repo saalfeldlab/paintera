@@ -20,6 +20,9 @@ import net.imglib2.type.Type;
  */
 public class CompositeProjector< A extends Type< A > > extends AccumulateProjector< A, A >
 {
+
+	private final CompositeCopy< A > baseComposite = new CompositeCopy<>();
+
 	public static class CompositeProjectorFactory< A extends Type< A > > implements AccumulateProjectorFactory< A >
 	{
 		final private Map< Source< ? >, Composite< A, A > > composites;
@@ -82,7 +85,9 @@ public class CompositeProjector< A extends Type< A > > extends AccumulateProject
 	@Override
 	protected void accumulate( final Cursor< ? extends A >[] accesses, final A t )
 	{
-		for ( int i = 0; i < composites.size(); ++i )
+		if ( accesses.length > 0 )
+			baseComposite.compose( t, accesses[ 0 ].get() );
+		for ( int i = 1; i < composites.size(); ++i )
 			composites.get( i ).compose( t, accesses[ i ].get() );
 	}
 }
