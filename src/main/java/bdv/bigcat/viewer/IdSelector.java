@@ -536,6 +536,9 @@ public class IdSelector
 
 					final long[] selIds = selectedIds.containsKey( source ) ? selectedIds.get( source ).getActiveIds() : new long[] {};
 
+					if ( selIds.length != 1 )
+						return;
+
 					final FragmentSegmentAssignment assignment = assignments.get( source );
 
 					final Source< ? > dataSource = dataSources.get( source );
@@ -553,10 +556,9 @@ public class IdSelector
 					viewer.displayToGlobalCoordinates( access );
 					final Object val = access.get();
 					final ToIdConverter toIdConverter = toIdConverters.get( source );
-					final long[] ids = toIdConverter.allIds( val );
+					final long id = toIdConverter.biggestFragment( val );
 
-					for ( final long id : ids )
-						assignment.detachFragment( id, selIds );
+					assignment.detachFragment( id, selIds[ 0 ] );
 
 //					final TLongObjectHashMap< TLongHashSet > detaches = new TLongObjectHashMap<>();
 //					Arrays.stream( ids ).forEach( id -> {
