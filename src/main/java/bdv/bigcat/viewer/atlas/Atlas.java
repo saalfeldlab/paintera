@@ -9,7 +9,6 @@ import java.util.function.Function;
 import bdv.bigcat.composite.ARGBCompositeAlphaAdd;
 import bdv.bigcat.composite.ARGBCompositeAlphaYCbCr;
 import bdv.bigcat.composite.Composite;
-import bdv.bigcat.composite.CompositeCopy;
 import bdv.bigcat.composite.CompositeProjector.CompositeProjectorFactory;
 import bdv.bigcat.viewer.BaseView;
 import bdv.bigcat.viewer.BaseViewState;
@@ -35,7 +34,6 @@ import bdv.bigcat.viewer.stream.ModalGoldenAngleSaturatedHighlightingARGBStream;
 import bdv.labels.labelset.LabelMultisetType;
 import bdv.labels.labelset.Multiset.Entry;
 import bdv.labels.labelset.VolatileLabelMultisetType;
-import bdv.util.RealRandomAccessibleIntervalSource;
 import bdv.viewer.Source;
 import bdv.viewer.SourceAndConverter;
 import bdv.viewer.ViewerOptions;
@@ -57,10 +55,8 @@ import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
 import net.imglib2.Interval;
-import net.imglib2.RealRandomAccessible;
 import net.imglib2.Volatile;
 import net.imglib2.converter.Converter;
-import net.imglib2.converter.TypeIdentity;
 import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.type.numeric.ARGBType;
 import net.imglib2.type.numeric.IntegerType;
@@ -68,7 +64,6 @@ import net.imglib2.type.numeric.RealType;
 import net.imglib2.type.numeric.real.DoubleType;
 import net.imglib2.type.volatiles.VolatileARGBType;
 import net.imglib2.type.volatiles.VolatileRealType;
-import net.imglib2.util.ConstantUtils;
 
 public class Atlas
 {
@@ -90,10 +85,6 @@ public class Atlas
 	private final HashMap< Source< ? >, Composite< ARGBType, ARGBType > > composites = new HashMap<>();
 
 	private final ViewerOptions viewerOptions;
-
-	private final WrappedRealRandomAccessible< ARGBType > background;
-
-	private final Source< ARGBType > backgroundSource;
 
 	private final Mode[] modes = { new NavigationOnly(), new Highlights( selectedIds ), new Merges( selectedIds, assignments ) };
 
@@ -142,21 +133,6 @@ public class Atlas
 			}
 		} );
 
-		this.background = new WrappedRealRandomAccessible<>( ConstantUtils.constantRealRandomAccessible( new ARGBType( ARGBType.rgba( 0, 0, 0, 0 ) ), interval.numDimensions() ) );
-		this.backgroundSource = new RealRandomAccessibleIntervalSource<>( this.background, interval, new ARGBType(), "background" );
-		final CompositeCopy< ARGBType > comp = new CompositeCopy<>();
-		this.composites.put( this.backgroundSource, comp );
-		this.view.addSource( new SourceAndConverter<>( this.backgroundSource, new TypeIdentity<>() ), comp );
-	}
-
-	public void setBackground( final RealRandomAccessible< ARGBType > background )
-	{
-		this.background.wrap( background );
-	}
-
-	public void setBackground( final ARGBType background )
-	{
-		this.background.wrap( ConstantUtils.constantRealRandomAccessible( background, this.background.numDimensions() ) );
 	}
 
 	public void start( final Stage primaryStage )
