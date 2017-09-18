@@ -80,15 +80,15 @@ public class IdSelector
 		return new AppendFragmentWithMaximumCount( name );
 	}
 
-//	public MergeFragments merge( final HashMap< Source< ? >, ? extends FragmentSegmentAssignment > assignments )
-//	{
-//		return new MergeFragments( assignments );
-//	}
-
-	public MergeSegments merge( final HashMap< Source< ? >, ? extends FragmentSegmentAssignment > assignments )
+	public MergeFragments merge( final HashMap< Source< ? >, ? extends FragmentSegmentAssignment > assignments )
 	{
-		return new MergeSegments( assignments );
+		return new MergeFragments( assignments );
 	}
+
+//	public MergeSegments merge( final HashMap< Source< ? >, ? extends FragmentSegmentAssignment > assignments )
+//	{
+//		return new MergeSegments( assignments );
+//	}
 
 	public DetachFragment detach( final HashMap< Source< ? >, ? extends FragmentSegmentAssignment > assignments )
 	{
@@ -485,7 +485,7 @@ public class IdSelector
 
 					final long[] selIds = selectedIds.get( source ).getActiveIds();
 
-					if ( selIds.length < 1 )
+					if ( selIds.length != 1 )
 						return;
 
 					final Source< ? > dataSource = dataSources.get( source );
@@ -501,11 +501,11 @@ public class IdSelector
 					access.setPosition( 0l, 2 );
 					viewer.displayToGlobalCoordinates( access );
 					final Object val = access.get();
-					final long[] ids = toIdConverters.get( source ).allIds( val );
+					final long id = toIdConverters.get( source ).biggestFragment( val );
 
 					final TLongHashSet fragments = new TLongHashSet();
-					fragments.addAll( ids );
-					fragments.addAll( selIds );
+					fragments.add( id );
+					fragments.add( selIds[ 0 ] );
 					assignment.mergeFragments( fragments.toArray() );
 				}
 		}
