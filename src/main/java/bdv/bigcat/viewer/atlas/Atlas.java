@@ -7,6 +7,7 @@ import java.util.function.Consumer;
 import java.util.function.Function;
 
 import bdv.bigcat.composite.ARGBCompositeAlphaAdd;
+import bdv.bigcat.composite.ARGBCompositeAlphaYCbCr;
 import bdv.bigcat.composite.Composite;
 import bdv.bigcat.composite.CompositeCopy;
 import bdv.bigcat.composite.CompositeProjector.CompositeProjectorFactory;
@@ -235,7 +236,7 @@ public class Atlas
 //		};
 
 		final Source< VolatileARGBType > vsource = new ConvertedSource<>( originalVSource, new VolatileARGBType( 0 ), converter, originalVSource.getName() );
-		final Composite< ARGBType, ARGBType > comp = new ARGBCompositeAlphaAdd();
+		final ARGBCompositeAlphaYCbCr comp = new ARGBCompositeAlphaYCbCr();
 		final SourceAndConverter< ? > src = new SourceAndConverter<>( vsource, identity );
 		addSource( src, comp, spec );
 
