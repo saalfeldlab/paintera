@@ -8,8 +8,8 @@ import java.util.function.Function;
 
 import bdv.bigcat.composite.ARGBCompositeAlphaAdd;
 import bdv.bigcat.composite.ARGBCompositeAlphaYCbCr;
+import bdv.bigcat.composite.ClearingCompositeProjector.ClearingCompositeProjectorFactory;
 import bdv.bigcat.composite.Composite;
-import bdv.bigcat.composite.CompositeProjector.CompositeProjectorFactory;
 import bdv.bigcat.viewer.BaseView;
 import bdv.bigcat.viewer.BaseViewState;
 import bdv.bigcat.viewer.ToIdConverter;
@@ -96,7 +96,7 @@ public class Atlas
 	public Atlas( final ViewerOptions viewerOptions, final Interval interval )
 	{
 		super();
-		this.viewerOptions = viewerOptions.accumulateProjectorFactory( new CompositeProjectorFactory<>( composites ) );
+		this.viewerOptions = viewerOptions.accumulateProjectorFactory( new ClearingCompositeProjectorFactory<>( composites, new ARGBType() ) );
 		this.view = new BaseView( focusHandler.onEnter(), focusHandler.onExit(), new BaseViewState( this.viewerOptions ) );
 		this.view.setBottom( status );
 //		this.view.setInfoNode( this.view.globalSourcesInfoNode() );
