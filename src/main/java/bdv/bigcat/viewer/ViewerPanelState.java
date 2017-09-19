@@ -1,6 +1,7 @@
 package bdv.bigcat.viewer;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 
@@ -18,6 +19,16 @@ import javafx.collections.ObservableMap;
 
 public class ViewerPanelState
 {
+
+	private final HashMap< ViewerPanel, ViewerPanelListener > viewerListeners = new HashMap<>();
+
+	private final ObservableMap< Source< ? >, Boolean > isVisible = FXCollections.observableHashMap();
+
+	private final ObservableList< SourceAndConverter< ? > > sacs = FXCollections.observableArrayList();
+
+	private final SimpleObjectProperty< Source< ? > > currentSource = new SimpleObjectProperty<>( null, "current source" );
+
+	private final SimpleObjectProperty< Interpolation > interpolation = new SimpleObjectProperty<>( null, "interpolation" );
 
 	public class ViewerPanelListener
 	{
@@ -57,16 +68,6 @@ public class ViewerPanelState
 		}
 
 	}
-
-	private final HashMap< ViewerPanel, ViewerPanelListener > viewerListeners = new HashMap<>();
-
-	private final ObservableMap< Source< ? >, Boolean > isVisible = FXCollections.observableHashMap();
-
-	private final ObservableList< SourceAndConverter< ? > > sacs = FXCollections.observableArrayList();
-
-	private final SimpleObjectProperty< Source< ? > > currentSource = new SimpleObjectProperty<>( null, "current source" );
-
-	private final SimpleObjectProperty< Interpolation > interpolation = new SimpleObjectProperty<>( null, "interpolation" );
 
 	public synchronized void addVisibilityListener( final MapChangeListener< Source< ? >, Boolean > listener )
 	{
@@ -118,6 +119,7 @@ public class ViewerPanelState
 
 	public synchronized void installViewer( final ViewerPanel viewer )
 	{
+		System.out.println( "INSTALLING VIEWER " + viewer + " " + sacs );
 		final ViewerPanelListener listener = new ViewerPanelListener( viewer );
 		this.viewerListeners.put( viewer, listener );
 		synchronized ( viewer )
@@ -125,6 +127,7 @@ public class ViewerPanelState
 			viewer.getVisibilityAndGrouping().getSources().forEach( state -> viewer.removeSource( state.getSpimSource() ) );
 			synchronized ( sacs )
 			{
+				System.out.println( " CRASH? " + viewer + " " + sacs );
 				sacs.forEach( viewer::addSource );
 			}
 
@@ -172,6 +175,11 @@ public class ViewerPanelState
 		this.sacs.add( sac );
 	}
 
+	public synchronized void addSources( final Collection< SourceAndConverter< ? > > sacs )
+	{
+		this.sacs.addAll( sacs );
+	}
+
 	public synchronized void removeSource( final Source< ? > source )
 	{
 		SourceAndConverter< ? > sac = null;
@@ -183,6 +191,11 @@ public class ViewerPanelState
 			}
 		if ( sac != null )
 			this.sacs.remove( sac );
+	}
+
+	public synchronized void removeAllSources()
+	{
+		this.sacs.clear();
 	}
 
 	public List< SourceAndConverter< ? > > getSourcesCopy()

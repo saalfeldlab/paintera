@@ -2,6 +2,7 @@ package bdv.bigcat.viewer.atlas.data;
 
 import java.io.IOException;
 import java.util.Iterator;
+import java.util.Optional;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 
@@ -37,7 +38,11 @@ public class HDF5LabelMultisetSourceSpec implements LabelSpec< LabelMultisetType
 
 	private final FragmentSegmentAssignmentState< ? > assignment;
 
-	public HDF5LabelMultisetSourceSpec( final String path, final String dataset, final int[] cellSize ) throws IOException
+	private final String name;
+
+	private final String uri;
+
+	public HDF5LabelMultisetSourceSpec( final String path, final String dataset, final int[] cellSize, final String name ) throws IOException
 	{
 		this( path, dataset, cellSize, action -> {}, () -> {
 			try
@@ -50,7 +55,7 @@ public class HDF5LabelMultisetSourceSpec implements LabelSpec< LabelMultisetType
 				e.printStackTrace();
 			}
 			return null;
-		}, TLongLongHashMap::new );
+		}, TLongLongHashMap::new, name );
 	}
 
 	public HDF5LabelMultisetSourceSpec(
@@ -59,16 +64,19 @@ public class HDF5LabelMultisetSourceSpec implements LabelSpec< LabelMultisetType
 			final int[] cellSize,
 			final Consumer< Action > actionBroadcaster,
 			final Supplier< TLongLongHashMap > solutionFetcher,
-			final Supplier< TLongLongHashMap > initialSolution ) throws IOException
+			final Supplier< TLongLongHashMap > initialSolution,
+			final String name ) throws IOException
 	{
 		super();
 		final IHDF5Reader h5reader = HDF5Factory.open( path );
 		this.loader = new H5LabelMultisetSetupImageLoader( h5reader, null, dataset, 0, cellSize, new VolatileGlobalCellCache( new SharedQueue( 8 ) ) );
 		this.assignment = new FragmentSegmentAssignmentWithHistory( initialSolution.get(), actionBroadcaster, solutionFetcher );
 		this.stream = new ModalGoldenAngleSaturatedHighlightingARGBStream( selectedIds, assignment );
+		this.uri = "h5://" + path + "/dataset";
+		this.name = name;
 	}
 
-	public HDF5LabelMultisetSourceSpec( final String path, final String dataset, final int[] cellSize, final double[] resolution, final double[] offset ) throws IOException
+	public HDF5LabelMultisetSourceSpec( final String path, final String dataset, final int[] cellSize, final double[] resolution, final double[] offset, final String name ) throws IOException
 	{
 		this( path, dataset, cellSize, action -> {}, () -> {
 			try
@@ -81,7 +89,7 @@ public class HDF5LabelMultisetSourceSpec implements LabelSpec< LabelMultisetType
 				e.printStackTrace();
 			}
 			return null;
-		}, resolution, offset );
+		}, resolution, offset, name );
 	}
 
 	public HDF5LabelMultisetSourceSpec(
@@ -91,13 +99,16 @@ public class HDF5LabelMultisetSourceSpec implements LabelSpec< LabelMultisetType
 			final Consumer< Action > actionBroadcaster,
 			final Supplier< TLongLongHashMap > solutionFetcher,
 			final double[] resolution,
-			final double[] offset ) throws IOException
+			final double[] offset,
+			final String name ) throws IOException
 	{
 		super();
 		final IHDF5Reader h5reader = HDF5Factory.open( path );
 		this.loader = new H5LabelMultisetSetupImageLoader( h5reader, null, dataset, 0, cellSize, resolution, offset, new VolatileGlobalCellCache( new SharedQueue( 8 ) ) );
 		this.assignment = new FragmentSegmentAssignmentWithHistory( actionBroadcaster, solutionFetcher );
 		this.stream = new ModalGoldenAngleSaturatedHighlightingARGBStream( selectedIds, assignment );
+		this.name = name;
+		this.uri = "h5:/" + path + "/dataset";
 	}
 
 	public SelectedIds getSelectedIds()
@@ -178,6 +189,18 @@ public class HDF5LabelMultisetSourceSpec implements LabelSpec< LabelMultisetType
 	public FragmentSegmentAssignmentState< ? > getAssignment()
 	{
 		return assignment;
+	}
+
+	@Override
+	public String name()
+	{
+		return name;
+	}
+
+	@Override
+	public Optional< String > uri()
+	{
+		return Optional.of( uri );
 	}
 
 }

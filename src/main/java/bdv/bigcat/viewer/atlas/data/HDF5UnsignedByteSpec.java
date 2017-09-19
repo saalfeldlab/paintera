@@ -1,6 +1,7 @@
 package bdv.bigcat.viewer.atlas.data;
 
 import java.io.IOException;
+import java.util.Optional;
 
 import bdv.img.cache.VolatileGlobalCellCache;
 import bdv.img.h5.H5UnsignedByteSetupImageLoader;
@@ -21,6 +22,10 @@ import net.imglib2.view.Views;
 
 public class HDF5UnsignedByteSpec implements DatasetSpec< UnsignedByteType, VolatileUnsignedByteType >
 {
+
+	private final String name;
+
+	private final String uri;
 
 	public abstract class InternalSource< T > implements Source< T >
 	{
@@ -128,11 +133,13 @@ public class HDF5UnsignedByteSpec implements DatasetSpec< UnsignedByteType, Vola
 
 	private final H5UnsignedByteSetupImageLoader loader;
 
-	public HDF5UnsignedByteSpec( final String path, final String dataset, final int[] cellSize, final double[] resolution ) throws IOException
+	public HDF5UnsignedByteSpec( final String path, final String dataset, final int[] cellSize, final double[] resolution, final String name ) throws IOException
 	{
 		super();
 		final IHDF5Reader h5reader = HDF5Factory.open( path );
 		this.loader = new H5UnsignedByteSetupImageLoader( h5reader, dataset, 0, cellSize, resolution, new VolatileGlobalCellCache( new SharedQueue( 8 ) ) );
+		this.name = name;
+		this.uri = "h5://" + path + "/" + dataset;
 	}
 
 	@Override
@@ -145,6 +152,18 @@ public class HDF5UnsignedByteSpec implements DatasetSpec< UnsignedByteType, Vola
 	public VolatileUnsignedByteSource getViewerSource()
 	{
 		return new VolatileUnsignedByteSource( loader, new VolatileUnsignedByteType(), "data" );
+	}
+
+	@Override
+	public String name()
+	{
+		return name;
+	}
+
+	@Override
+	public Optional< String > uri()
+	{
+		return Optional.of( uri );
 	}
 
 }

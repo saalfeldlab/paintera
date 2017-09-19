@@ -41,7 +41,6 @@ public class RandomAccessibleIntervalSpec< T extends NumericType< T >, VT extend
 
 		this.source = new RandomAccessibleIntervalMipmapSource( sources, Util.getTypeFromInterval( sources[ 0 ] ), resolutions, voxelDimensions, name );
 		this.viewerSource = new RandomAccessibleIntervalMipmapSource( viewerSources, Util.getTypeFromInterval( sources[ 0 ] ), resolutions, voxelDimensions, name );
-
 	}
 
 	@Override
@@ -141,6 +140,12 @@ public class RandomAccessibleIntervalSpec< T extends NumericType< T >, VT extend
 	{
 		final RandomAccessibleInterval< VT >[] vsources = Arrays.stream( sources ).map( source -> VolatileViews.wrapAsVolatile( source, queue, hints ) ).toArray( RandomAccessibleInterval[]::new );
 		return new RandomAccessibleIntervalSpec<>( viewerConverter, sources, vsources, resolutions, voxelDimensions, name );
+	}
+
+	@Override
+	public String name()
+	{
+		return source.getName();
 	}
 
 }

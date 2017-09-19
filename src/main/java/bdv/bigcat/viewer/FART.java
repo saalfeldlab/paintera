@@ -99,7 +99,7 @@ public class FART
 		final double[] offset = { 0, 0, 0 };
 		final int[] cellSize = { 145, 53, 5 };
 
-		final HDF5UnsignedByteSpec rawSource = new HDF5UnsignedByteSpec( rawFile, rawDataset, cellSize, resolution );
+		final HDF5UnsignedByteSpec rawSource = new HDF5UnsignedByteSpec( rawFile, rawDataset, cellSize, resolution, "raw" );
 
 		final double[] min = Arrays.stream( Intervals.minAsLongArray( rawSource.getSource().getSource( 0, 0 ) ) ).mapToDouble( v -> v ).toArray();
 		final double[] max = Arrays.stream( Intervals.maxAsLongArray( rawSource.getSource().getSource( 0, 0 ) ) ).mapToDouble( v -> v ).toArray();
@@ -150,7 +150,7 @@ public class FART
 				labelsDataset,
 				cellSize,
 				actionBroadcast,
-				solutionReceiver, () -> initialSolutionHashMap );
+				solutionReceiver, () -> initialSolutionHashMap, "labels" );
 		viewer.addLabelSource( labelSpec2 );
 
 		initialSolutionSocket.send( "" );

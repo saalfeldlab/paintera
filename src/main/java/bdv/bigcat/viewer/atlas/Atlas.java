@@ -2,9 +2,11 @@ package bdv.bigcat.viewer.atlas;
 
 import java.util.HashMap;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Optional;
 import java.util.function.Consumer;
 import java.util.function.Function;
+import java.util.stream.Collectors;
 
 import bdv.bigcat.composite.ARGBCompositeAlphaAdd;
 import bdv.bigcat.composite.ARGBCompositeAlphaYCbCr;
@@ -16,6 +18,7 @@ import bdv.bigcat.viewer.ToIdConverter;
 import bdv.bigcat.viewer.ToIdConverter.FromLabelMultisetType;
 import bdv.bigcat.viewer.ViewerActor;
 import bdv.bigcat.viewer.atlas.AtlasFocusHandler.OnEnterOnExit;
+import bdv.bigcat.viewer.atlas.Specs.SourceState;
 import bdv.bigcat.viewer.atlas.converter.NaNMaskedRealARGBConverter;
 import bdv.bigcat.viewer.atlas.converter.VolatileARGBIdentiyWithAlpha;
 import bdv.bigcat.viewer.atlas.data.ConvertedSource;
@@ -39,9 +42,8 @@ import bdv.viewer.SourceAndConverter;
 import bdv.viewer.ViewerOptions;
 import bdv.viewer.ViewerPanel;
 import javafx.application.Application;
-import javafx.collections.FXCollections;
-import javafx.collections.MapChangeListener;
-import javafx.collections.ObservableMap;
+import javafx.beans.value.ChangeListener;
+import javafx.collections.ListChangeListener;
 import javafx.scene.Node;
 import javafx.scene.Scene;
 import javafx.scene.control.ComboBox;
@@ -51,6 +53,8 @@ import javafx.scene.control.TabPane;
 import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableView;
 import javafx.scene.control.TextField;
+import javafx.scene.input.KeyCode;
+import javafx.scene.input.KeyEvent;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
@@ -76,7 +80,7 @@ public class Atlas
 
 	private final AtlasValueDisplayListener valueDisplayListener;
 
-	private final ObservableMap< DatasetSpec< ?, ? >, Source< ? > > specs = FXCollections.observableHashMap();
+	private final Specs specs = new Specs();
 
 	private final HashMap< Source< ? >, SelectedIds > selectedIds = new HashMap<>();
 
@@ -87,6 +91,8 @@ public class Atlas
 	private final ViewerOptions viewerOptions;
 
 	private final Mode[] modes = { new NavigationOnly(), new Highlights( selectedIds ), new Merges( selectedIds, assignments ) };
+
+	private final SourcesTab sourcesTab = new SourcesTab( specs );
 
 	public Atlas( final Interval interval )
 	{
@@ -101,6 +107,17 @@ public class Atlas
 		this.view.setBottom( status );
 //		this.view.setInfoNode( this.view.globalSourcesInfoNode() );
 		this.view.setInfoNode( new Label( "" ) );
+		this.view.setRight( sourcesTab );
+		this.view.heightProperty().addListener( ( ChangeListener< Number > ) ( observable, old, newVal ) -> {
+			this.sourcesTab.prefHeightProperty().set( newVal.doubleValue() );
+		} );
+//		this.sourcesTab.listen( this.specs );
+
+		this.view.addCurrentSourceListener( ( observable, oldValue, newValue ) -> {
+			final Optional< SourceState< ?, ?, ? > > state = specs.getState( newValue );
+			if ( state.isPresent() )
+				specs.selectedSourceProperty().setValue( Optional.of( state.get().spec() ) );
+		} );
 
 		for ( final Mode mode : modes )
 			addOnEnterOnExit( mode.onEnter(), mode.onExit(), true );
@@ -122,17 +139,44 @@ public class Atlas
 //		final AtlasMouseCoordinatePrinter mcp = new AtlasMouseCoordinatePrinter( this.status );
 //		addOnEnterOnExit( mcp.onEnter(), mcp.onExit(), true );
 		addOnEnterOnExit( valueDisplayListener.onEnter(), valueDisplayListener.onExit(), true );
+		this.specs.addVisibilityChangedListener( () -> {
+			final List< SourceState< ?, ?, ? > > states = this.specs.sourceStates();
 
-		this.specs.addListener( ( MapChangeListener< DatasetSpec< ?, ? >, Source< ? > > ) c -> {
-			if ( c.wasRemoved() )
-			{
-				final Source< ? > source = c.getValueRemoved();
-				this.selectedIds.remove( source );
-				this.composites.remove( source );
-				this.view.removeSource( source );
-			}
+			System.out.println( "LALELU " + states );
 		} );
 
+		this.specs.addListChangeListener( ( ListChangeListener< Specs.SourceState< ?, ?, ? > > ) c -> {
+			while ( c.next() )
+				if ( c.wasRemoved() )
+					for ( final SourceState< ?, ?, ? > removed : c.getRemoved() )
+					{
+						final Source< ? > source = removed.source();
+						this.selectedIds.remove( source );
+						this.composites.remove( source );
+						this.baseView().removeSource( source );
+					}
+				else if ( c.wasAdded() )
+					this.baseView().addSources( c.getAddedSubList().stream().map( Specs.SourceState::sourceAndConverter ).collect( Collectors.toList() ) );
+		} );
+
+//		this.specs.addListener( () -> {
+//			this.baseView().removeAllSources();
+//			final List< SourceAndConverter< ? > > sacs = this.specs.getSourceAndConverters();
+//			this.baseView().addSource( sacs.get( 0 ) );
+//		} );
+
+		this.baseView().addEventHandler( KeyEvent.KEY_PRESSED, event -> {
+			if ( !event.isConsumed() && event.isAltDown() && event.getCode().equals( KeyCode.S ) )
+			{
+				toggleSourcesTable();
+				event.consume();
+			}
+		} );
+	}
+
+	public void toggleSourcesTable()
+	{
+		this.baseView().setRight( this.baseView().getRight() == null ? this.sourcesTab : null );
 	}
 
 	public void start( final Stage primaryStage )
@@ -178,18 +222,17 @@ public class Atlas
 		this.focusHandler.add( onEnterOnExit, onExitRemovable );
 	}
 
-	private void addSource( final SourceAndConverter< ? > src, final Composite< ARGBType, ARGBType > comp, final DatasetSpec< ?, ? > spec )
+	private < T, U, V > void addSource( final SourceAndConverter< T > src, final Composite< ARGBType, ARGBType > comp, final DatasetSpec< U, V > spec )
 	{
-		view.addSource( src, comp );
-		this.specs.put( spec, src.getSpimSource() );
 		this.composites.put( src.getSpimSource(), comp );
+		this.specs.addSpec( spec, src.getSpimSource(), src.getConverter() );
 	}
 
 	public < T, VT > void removeSource( final DatasetSpec< T, VT > spec )
 	{
-		final Source< ? > vsource = this.specs.remove( spec );
-		this.view.removeSource( vsource );
-		this.composites.remove( vsource );
+		final List< SourceAndConverter< ? > > sacs = this.specs.getSourceAndConverters( spec );
+		this.specs.removeSpec( spec );
+		sacs.stream().map( SourceAndConverter::getSpimSource ).forEach( this.composites::remove );
 	}
 
 	public void addLabelSource( final LabelSpec< LabelMultisetType, VolatileLabelMultisetType > spec )
@@ -213,7 +256,7 @@ public class Atlas
 
 		final Source< VolatileARGBType > vsource = new ConvertedSource<>( originalVSource, new VolatileARGBType( 0 ), converter, originalVSource.getName() );
 		final ARGBCompositeAlphaYCbCr comp = new ARGBCompositeAlphaYCbCr();
-		final SourceAndConverter< ? > src = new SourceAndConverter<>( vsource, identity );
+		final SourceAndConverter< VolatileARGBType > src = new SourceAndConverter<>( vsource, identity );
 		addSource( src, comp, spec );
 
 		final Source< LabelMultisetType > source = spec.getSource();
@@ -276,9 +319,10 @@ public class Atlas
 		final Composite< ARGBType, ARGBType > comp = new ARGBCompositeAlphaAdd();
 		final NaNMaskedRealARGBConverter< VolatileRealType< DoubleType > > conv = new NaNMaskedRealARGBConverter<>( min, max );
 		final SourceAndConverter< ? > src = new SourceAndConverter<>( vsource, conv );
-		view.addSource( src, comp );
-		this.specs.put( spec, vsource );
-		this.composites.put( vsource, comp );
+		addSource( src, comp, spec );
+//		view.addSource( src, comp );
+//		this.specs.put( spec, vsource );
+//		this.composites.put( vsource, comp );
 
 		final Source< T > source = spec.getSource();
 		final T t = source.getType();

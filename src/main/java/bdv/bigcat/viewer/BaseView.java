@@ -1,8 +1,11 @@
 package bdv.bigcat.viewer;
 
 import java.awt.Color;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -22,6 +25,7 @@ import javafx.application.Platform;
 import javafx.beans.value.ChangeListener;
 import javafx.collections.FXCollections;
 import javafx.collections.ListChangeListener;
+import javafx.collections.MapChangeListener;
 import javafx.collections.ObservableList;
 import javafx.embed.swing.SwingNode;
 import javafx.event.Event;
@@ -162,15 +166,55 @@ public class BaseView extends BorderPane
 		this.grid.add( node, 1, 1 );
 	}
 
-	public synchronized void addSource( final SourceAndConverter< ? > source, final Composite< ARGBType, ARGBType > comp )
+	public synchronized void addSource( final SourceAndConverter< ? > source )
 	{
 		this.state.viewerPanelState.addSource( source );
 	}
 
-	public synchronized void removeSource( final Source< ? > source )
+	public synchronized void addSources( final Collection< SourceAndConverter< ? > > sources )
+	{
+		this.state.viewerPanelState.addSources( sources );
+	}
 
+	public synchronized void setVisible( final Source< ? > source, final boolean isVisible )
+	{
+		this.state.viewerPanelState.setVisibility( source, isVisible );
+	}
+
+	public void addVisibilityListener( final MapChangeListener< Source< ? >, Boolean > listener )
+	{
+		this.state.viewerPanelState.addVisibilityListener( listener );
+	}
+
+	public void addCurrentSourceListener( final ChangeListener< Source< ? > > listener )
+	{
+		this.state.viewerPanelState.addCurrentSourceListener( listener );
+	}
+
+	public synchronized void removeSource( final Source< ? > source )
 	{
 		this.state.viewerPanelState.removeSource( source );
+	}
+
+	public synchronized void removeAllSources()
+	{
+		this.state.viewerPanelState.removeAllSources();
+	}
+
+	public synchronized List< SourceAndConverter< ? > > getSourcesCopy()
+	{
+		return this.state.viewerPanelState.getSourcesCopy();
+	}
+
+	public synchronized void setSources( final Collection< SourceAndConverter< ? > > sources, final Optional< Composite< ARGBType, ARGBType > > composites )
+	{
+		this.state.viewerPanelState.getSourcesCopy().stream().map( SourceAndConverter::getSpimSource ).forEach( this.state.viewerPanelState::removeSource );
+		this.state.viewerPanelState.addSources( sources );
+	}
+
+	public synchronized void addSourcesListener( final ListChangeListener< SourceAndConverter< ? > > listener )
+	{
+		this.state.viewerPanelState.addSourcesListener( listener );
 	}
 
 	public synchronized void addActor( final ViewerActor actor )
