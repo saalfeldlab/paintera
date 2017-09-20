@@ -53,7 +53,8 @@ public class ViewerPanelState
 			this.sourcesListener = change -> {
 				while ( change.next() )
 				{
-					viewer.getVisibilityAndGrouping().getSources().forEach( sourceState -> viewer.removeSource( sourceState.getSpimSource() ) );
+//					viewer.getVisibilityAndGrouping().getSources().forEach( sourceState -> viewer.removeSource( sourceState.getSpimSource() ) );
+					viewer.removeAllSources();
 					change.getList().forEach( viewer::addSource );
 				}
 			};
