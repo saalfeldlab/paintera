@@ -61,6 +61,7 @@ import javafx.stage.Stage;
 import net.imglib2.Interval;
 import net.imglib2.Volatile;
 import net.imglib2.converter.Converter;
+import net.imglib2.converter.RealDoubleConverter;
 import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.type.numeric.ARGBType;
 import net.imglib2.type.numeric.IntegerType;
@@ -312,6 +313,25 @@ public class Atlas
 			}
 		} );
 
+	}
+
+	public < T extends RealType< T >, U extends RealType< U > > void addRawSourceNonVolatile( final DatasetSpec< T, U > spec, final double min, final double max )
+	{
+		final Source< DoubleType > vsource = new ConvertedSource<>( spec.getViewerSource(), new DoubleType( Double.NaN ), new RealDoubleConverter<>(), spec.getViewerSource().getName() );
+		final Composite< ARGBType, ARGBType > comp = new ARGBCompositeAlphaAdd();
+		final NaNMaskedRealARGBConverter< DoubleType > conv = new NaNMaskedRealARGBConverter<>( min, max );
+		final SourceAndConverter< ? > src = new SourceAndConverter<>( vsource, conv );
+		addSource( src, comp, spec );
+//		view.addSource( src, comp );
+//		this.specs.put( spec, vsource );
+//		this.composites.put( vsource, comp );
+
+		final Source< T > source = spec.getSource();
+		final T t = source.getType();
+		final Function< T, String > valueToString = valueToString( t );
+		final AffineTransform3D affine = new AffineTransform3D();
+		source.getSourceTransform( 0, 0, affine );
+		this.valueDisplayListener.addSource( vsource, source, Optional.of( valueToString ) );
 	}
 
 	public < T extends RealType< T >, U extends RealType< U > > void addRawSource( final DatasetSpec< T, ? extends Volatile< U > > spec, final double min, final double max )
