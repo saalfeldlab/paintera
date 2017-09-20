@@ -610,9 +610,12 @@ public class ViewerTransformManager implements TransformListener< AffineTransfor
 					final int activeSource = viewer.getVisibilityAndGrouping().getCurrentSource();
 					final List< SourceState< ? > > sources = viewer.getVisibilityAndGrouping().getSources();
 					final int numSources = sources.size();
-					final int sourceIndex = activeSource + Integer.signum( direction );
-					final int selectedSource = ( sourceIndex < 0 ? sources.size() + sourceIndex : sourceIndex ) % numSources;
-					state.setCurrentSource( sources.get( selectedSource ).getSpimSource() );
+					if ( numSources > 0 )
+					{
+						final int sourceIndex = activeSource + Integer.signum( direction );
+						final int selectedSource = ( sourceIndex < 0 ? sources.size() + sourceIndex : sourceIndex ) % numSources;
+						state.setCurrentSource( sources.get( selectedSource ).getSpimSource() );
+					}
 				}
 			}
 		}
