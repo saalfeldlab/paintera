@@ -1,15 +1,20 @@
 package bdv.bigcat.viewer;
 
+import java.awt.Color;
 import java.awt.Dimension;
-import java.awt.Graphics;
+import java.awt.event.MouseMotionListener;
 import java.util.ArrayList;
 import java.util.HashMap;
 
 import javax.swing.JComponent;
 import javax.swing.SwingUtilities;
 
+import org.scijava.ui.behaviour.Behaviour;
 import org.scijava.ui.behaviour.MouseAndKeyHandler;
 import org.scijava.ui.behaviour.io.InputTriggerConfig;
+import org.scijava.ui.behaviour.util.AbstractNamedAction;
+import org.scijava.ui.behaviour.util.Actions;
+import org.scijava.ui.behaviour.util.Behaviours;
 import org.scijava.ui.behaviour.util.InputActionBindings;
 import org.scijava.ui.behaviour.util.TriggerBehaviourBindings;
 
@@ -17,11 +22,12 @@ import bdv.cache.CacheControl;
 import bdv.viewer.DisplayMode;
 import bdv.viewer.Source;
 import bdv.viewer.SourceAndConverter;
+import bdv.viewer.ViewerOptions;
 import bdv.viewer.ViewerPanel;
+import javafx.beans.value.ChangeListener;
 import javafx.collections.ListChangeListener;
 import javafx.embed.swing.SwingNode;
 import net.imglib2.realtransform.AffineTransform3D;
-import net.imglib2.ui.OverlayRenderer;
 
 public class ViewerNode extends SwingNode implements ListChangeListener< SourceAndConverter< ? > >
 {
@@ -49,17 +55,45 @@ public class ViewerNode extends SwingNode implements ListChangeListener< SourceA
 
 	private final InputTriggerConfig inputTriggerConfig = new InputTriggerConfig();
 
-	final MouseAndKeyHandler mouseAndKeyHandler = new MouseAndKeyHandler();
+	private final Behaviours behaviours = new Behaviours( inputTriggerConfig );
+
+	private final Actions actions = new Actions( inputTriggerConfig );
+
+	private final MouseAndKeyHandler mouseAndKeyHandler = new MouseAndKeyHandler();
 
 	private boolean isReady = false;
 
-	public ViewerNode( final CacheControl cacheControl, final ViewerAxis viewerAxis, final GlobalTransformManager manager )
+	private ViewerPanelState state;
+
+	private final CrossHair crosshair = new CrossHair();
+
+	private final Color onFocusColor = new Color( 255, 255, 255, 180 );
+
+	private final Color outOfFocusColor = new Color( 127, 127, 127, 100 );
+	{
+		crosshair.setColor( outOfFocusColor );
+	}
+
+	public ViewerNode( final CacheControl cacheControl, final ViewerAxis viewerAxis, final GlobalTransformManager manager, final ViewerOptions viewerOptions )
 	{
 		this.viewer = null;
 		this.cacheControl = cacheControl;
 		this.viewerAxis = viewerAxis;
-		this.manager = new ViewerTransformManager( manager, globalToViewer( viewerAxis ), viewer );
-		initialize();
+		this.manager = new ViewerTransformManager( manager, globalToViewer( viewerAxis ) );
+		initialize( viewerOptions );
+		this.focusedProperty().addListener( ( ChangeListener< Boolean > ) ( observable, oldValue, newValue ) -> {
+			if ( newValue )
+				crosshair.setColor( onFocusColor );
+			else
+				crosshair.setColor( outOfFocusColor );
+			if ( isReady )
+				viewer.getDisplay().repaint();
+		} );
+	}
+
+	public void setCrossHairColor( final int r, final int g, final int b, final int a )
+	{
+		this.crosshair.setColor( r, g, b, a );
 	}
 
 	public ViewerTransformManager manager()
@@ -70,6 +104,7 @@ public class ViewerNode extends SwingNode implements ListChangeListener< SourceA
 	private void setViewer( final ViewerPanel viewer )
 	{
 		this.viewer = viewer;
+		this.setContent( this.viewer );
 	}
 
 	private void setReady( final boolean ready )
@@ -82,53 +117,99 @@ public class ViewerNode extends SwingNode implements ListChangeListener< SourceA
 		return isReady;
 	}
 
-	public void initialize()
+	public void addBehaviour( final Behaviour behaviour, final String name, final String... defaultTriggers )
 	{
+		this.behaviours.behaviour( behaviour, name, defaultTriggers );
+	}
+
+	public void addAction( final AbstractNamedAction action, final String... defaultKeyStrokes )
+	{
+		this.actions.namedAction( action, defaultKeyStrokes );
+	}
+
+	public void addAction( final Runnable action, final String name, final String... defaultKeyStrokes )
+	{
+		this.actions.runnableAction( action, name, defaultKeyStrokes );
+	}
+
+	public void addMouseMotionListener( final MouseMotionListener listener )
+	{
+		if ( isReady() )
+			this.viewer.getDisplay().addMouseMotionListener( listener );
+	}
+
+	public void removeMouseMotionListener( final MouseMotionListener listener )
+	{
+		if ( isReady() )
+			this.viewer.getDisplay().removeMouseMotionListener( listener );
+	}
+
+	public void setViewerPanelState( final ViewerPanelState state )
+	{
+		if ( this.viewer != null )
+		{
+			if ( this.state != null )
+				this.state.removeViewer( viewer );
+			this.state = state;
+			if ( !this.state.isViewerInstalled( viewer ) )
+				this.state.installViewer( viewer );
+		}
+	}
+
+	private void initialize( final ViewerOptions viewerOptions )
+	{
+		final Object notifyObject = this;
 		SwingUtilities.invokeLater( () -> {
-			final ViewerPanel vp = new ViewerPanel( new ArrayList<>(), 1, cacheControl );
-			setViewer( vp );
+			try
+			{
+				final ViewerPanel vp = new ViewerPanel( new ArrayList<>(), 1, cacheControl, viewerOptions );
+				setViewer( vp );
+				setReady( true );
+			}
+			finally
+			{
+				synchronized ( notifyObject )
+				{
+					notifyObject.notify();
+				}
+			}
 
 			viewer.setDisplayMode( DisplayMode.FUSED );
 			viewer.setMinimumSize( new Dimension( 100, 100 ) );
 			viewer.setPreferredSize( new Dimension( 100, 100 ) );
 
-			this.setContent( viewer );
-
 			viewer.getDisplay().setTransformEventHandler( this.manager );
-			this.manager.install( triggerbindings );
+			this.manager.install( triggerbindings, keybindings );
+
+			triggerbindings.addBehaviourMap( "default", behaviours.getBehaviourMap() );
+			triggerbindings.addInputTriggerMap( "default", behaviours.getInputTriggerMap() );
+			keybindings.addActionMap( "default", actions.getActionMap() );
+			keybindings.addInputMap( "default", actions.getInputMap() );
 
 			mouseAndKeyHandler.setInputMap( triggerbindings.getConcatenatedInputTriggerMap() );
 			mouseAndKeyHandler.setBehaviourMap( triggerbindings.getConcatenatedBehaviourMap() );
 			viewer.getDisplay().addHandler( mouseAndKeyHandler );
-			viewer.getDisplay().addOverlayRenderer( new OverlayRenderer()
-			{
-
-				private int w, h;
-
-				@Override
-				public void setCanvasSize( final int width, final int height )
-				{
-					w = width;
-					h = height;
-
-				}
-
-				@Override
-				public void drawOverlays( final Graphics g )
-				{
-
-					g.setColor( java.awt.Color.RED );
-					g.drawLine( 0, h / 2, w, h / 2 );
-					g.drawLine( w / 2, 0, w / 2, h );
-
-				}
-			} );
+			viewer.getDisplay().addOverlayRenderer( crosshair );
 			SwingUtilities.replaceUIActionMap( viewer.getRootPane(), keybindings.getConcatenatedActionMap() );
 			SwingUtilities.replaceUIInputMap( viewer.getRootPane(), JComponent.WHEN_ANCESTOR_OF_FOCUSED_COMPONENT, keybindings.getConcatenatedInputMap() );
-			setReady( true );
 			viewer.setVisible( true );
 			this.manager.setTransformListener( viewer );
+			this.manager.setViewer( viewer );
 		} );
+		try
+		{
+			System.out.println( "Waiting for viewer to be initialized!" );
+			synchronized ( notifyObject )
+			{
+				notifyObject.wait();
+			}
+			System.out.println( "Notified about initialization!" );
+		}
+		catch ( final InterruptedException e )
+		{
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
 	}
 
 	public static AffineTransform3D globalToViewer( final ViewerAxis axis )
@@ -162,6 +243,9 @@ public class ViewerNode extends SwingNode implements ListChangeListener< SourceA
 			c.getAddedSubList().forEach( added -> {
 				visibility.put( added.getSpimSource(), true );
 				viewer.addSource( added );
+				final int numSources = viewer.getState().numSources();
+				if ( numSources > 1 )
+					viewer.getVisibilityAndGrouping().setCurrentSource( 1 );
 			} );
 	}
 
@@ -184,6 +268,11 @@ public class ViewerNode extends SwingNode implements ListChangeListener< SourceA
 	public AffineTransform3D getTransformCopy()
 	{
 		return this.manager.getTransform();
+	}
+
+	public InputTriggerConfig inputTriggerConfig()
+	{
+		return inputTriggerConfig;
 	}
 
 	@Override

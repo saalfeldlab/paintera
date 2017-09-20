@@ -20,16 +20,18 @@ import net.imglib2.type.Type;
  */
 public class CompositeProjector< A extends Type< A > > extends AccumulateProjector< A, A >
 {
+
 	public static class CompositeProjectorFactory< A extends Type< A > > implements AccumulateProjectorFactory< A >
 	{
-		final private Map< Source< ? extends A >, Composite< A, A > > composites;
+		final private Map< Source< ? >, Composite< A, A > > composites;
 
 		/**
-		 * Constructor with a map that associates sources and {@link Composite Composites}.
+		 * Constructor with a map that associates sources and {@link Composite
+		 * Composites}.
 		 *
 		 * @param composites
 		 */
-		public CompositeProjectorFactory( final Map< Source< ? extends A >, Composite< A, A > > composites )
+		public CompositeProjectorFactory( final Map< Source< ? >, Composite< A, A > > composites )
 		{
 			this.composites = composites;
 		}
@@ -43,14 +45,14 @@ public class CompositeProjector< A extends Type< A > > extends AccumulateProject
 				final int numThreads,
 				final ExecutorService executorService )
 		{
-			final CompositeProjector< A > projector = new CompositeProjector< A >(
+			final CompositeProjector< A > projector = new CompositeProjector<>(
 					sourceProjectors,
 					sourceScreenImages,
 					targetScreenImage,
 					numThreads,
 					executorService );
 
-			final ArrayList< Composite< A, A > > activeComposites = new ArrayList< Composite< A, A > >();
+			final ArrayList< Composite< A, A > > activeComposites = new ArrayList<>();
 			for ( final Source< ? > activeSource : sources )
 				activeComposites.add( composites.get( activeSource ) );
 
@@ -60,7 +62,7 @@ public class CompositeProjector< A extends Type< A > > extends AccumulateProject
 		}
 	}
 
-	final protected ArrayList< Composite< A, A > > composites = new ArrayList< Composite< A, A > >();
+	final protected ArrayList< Composite< A, A > > composites = new ArrayList<>();
 
 	public CompositeProjector(
 			final ArrayList< VolatileProjector > sourceProjectors,

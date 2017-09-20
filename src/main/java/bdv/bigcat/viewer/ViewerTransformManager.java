@@ -1,12 +1,30 @@
 package bdv.bigcat.viewer;
 
+import java.awt.AWTKeyStroke;
+import java.awt.KeyboardFocusManager;
+import java.awt.event.ActionEvent;
+import java.awt.event.MouseEvent;
+import java.awt.event.MouseListener;
+import java.util.HashSet;
+import java.util.List;
+
+import javax.swing.JPanel;
+import javax.swing.KeyStroke;
+
 import org.scijava.ui.behaviour.ClickBehaviour;
 import org.scijava.ui.behaviour.DragBehaviour;
 import org.scijava.ui.behaviour.ScrollBehaviour;
 import org.scijava.ui.behaviour.io.InputTriggerConfig;
+import org.scijava.ui.behaviour.util.AbstractNamedAction;
+import org.scijava.ui.behaviour.util.Actions;
 import org.scijava.ui.behaviour.util.Behaviours;
+import org.scijava.ui.behaviour.util.InputActionBindings;
 import org.scijava.ui.behaviour.util.TriggerBehaviourBindings;
 
+import bdv.viewer.Source;
+import bdv.viewer.ViewerPanel;
+import bdv.viewer.state.SourceState;
+import net.imglib2.RealPoint;
 import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.ui.TransformEventHandler;
 import net.imglib2.ui.TransformListener;
@@ -60,30 +78,18 @@ public class ViewerTransformManager implements TransformListener< AffineTransfor
 
 	public ViewerTransformManager(
 			final GlobalTransformManager manager,
-			final AffineTransform3D globalToViewer,
-			final TransformListener< AffineTransform3D > listener )
+			final AffineTransform3D globalToViewer )
 	{
 		super();
 		this.manager = manager;
 		this.globalToViewer = globalToViewer;
-		this.listener = listener;
-		this.manager.addListener( this );
 		this.canvasH = 1;
 		this.canvasW = 1;
 		this.centerX = this.canvasW / 2;
 		this.centerY = this.canvasH / 2;
 
 		behaviours = new Behaviours( config, "bdv" );
-
-		behaviours.behaviour( new TranslateXY(), "drag translate", "button2", "button3" );
-		behaviours.behaviour( new Zoom( speed[ 0 ] ), ZOOM_NORMAL, "meta scroll", "ctrl shift scroll" );
-		behaviours.behaviour( new ButtonZoom( 1.05 ), "zoom", "UP" );
-		behaviours.behaviour( new ButtonZoom( 1.0 / 1.05 ), "zoom", "DOWN" );
-		for ( int s = 0; s < 3; ++s )
-		{
-			behaviours.behaviour( new Rotate( speed[ s ] ), DRAG_ROTATE + SPEED_NAME[ s ], speedMod[ s ] + "button1" );
-			behaviours.behaviour( new TranslateZ( speed[ s ] ), SCROLL_Z + SPEED_NAME[ s ], speedMod[ s ] + "scroll" );
-		}
+		actions = new Actions( config );
 	}
 
 	public void setGlobalToViewer( final AffineTransform3D affine )
@@ -107,6 +113,12 @@ public class ViewerTransformManager implements TransformListener< AffineTransfor
 	private TransformListener< AffineTransform3D > listener;
 
 	private final Behaviours behaviours;
+
+	private final Actions actions;
+
+	private ViewerPanel viewer;
+
+	private ViewerPanelState state;
 
 	private int canvasW = 1, canvasH = 1;
 
@@ -177,15 +189,59 @@ public class ViewerTransformManager implements TransformListener< AffineTransfor
 		this.listener = transformListener;
 	}
 
+	private static void removeFocusTraversalKeys( final JPanel panel )
+	{
+		final KeyStroke ctrlTab = KeyStroke.getKeyStroke( "ctrl TAB" );
+		final KeyStroke ctrlShiftTab = KeyStroke.getKeyStroke( "ctrl shift TAB" );
+
+		final HashSet< AWTKeyStroke > forwardKeys = new HashSet<>( panel.getFocusTraversalKeys( KeyboardFocusManager.FORWARD_TRAVERSAL_KEYS ) );
+		forwardKeys.remove( ctrlTab );
+		forwardKeys.remove( ctrlShiftTab );
+		panel.setFocusTraversalKeys( KeyboardFocusManager.FORWARD_TRAVERSAL_KEYS, forwardKeys );
+
+		final HashSet< AWTKeyStroke > backwardKeys = new HashSet<>( panel.getFocusTraversalKeys( KeyboardFocusManager.BACKWARD_TRAVERSAL_KEYS ) );
+		backwardKeys.remove( ctrlTab );
+		backwardKeys.remove( ctrlShiftTab );
+		panel.setFocusTraversalKeys( KeyboardFocusManager.BACKWARD_TRAVERSAL_KEYS, backwardKeys );
+	}
+
+	public void setViewer( final ViewerPanel viewer )
+	{
+
+		this.viewer = viewer;
+		removeFocusTraversalKeys( viewer );
+
+		behaviours.behaviour( new TranslateXY(), "drag translate", "button2", "button3" );
+		behaviours.behaviour( new Zoom( speed[ 0 ] ), ZOOM_NORMAL, "meta scroll", "ctrl shift scroll" );
+		behaviours.behaviour( new ButtonZoom( 1.05 ), "zoom", "UP" );
+		behaviours.behaviour( new ButtonZoom( 1.0 / 1.05 ), "zoom", "DOWN" );
+		for ( int s = 0; s < 3; ++s )
+		{
+			behaviours.behaviour( new Rotate( speed[ s ] ), DRAG_ROTATE + SPEED_NAME[ s ], speedMod[ s ] + "button1" );
+			behaviours.behaviour( new TranslateZ( speed[ s ] ), SCROLL_Z + SPEED_NAME[ s ], speedMod[ s ] + "scroll" );
+		}
+		final RemoveRotation removeRotation = new RemoveRotation();
+		actions.namedAction( removeRotation, "shift Z" );
+		this.viewer.addMouseListener( removeRotation );
+
+		actions.namedAction( new ToggleVisibility(), "shift V" );
+		actions.namedAction( new CycleSources( CycleSources.FORWARD ), "ctrl TAB" );
+		actions.namedAction( new CycleSources( CycleSources.BACKWARD ), "ctrl shift TAB" );
+		actions.namedAction( new ToggleInterpolation(), "I" );
+
+		this.manager.addListener( this );
+	}
+
 	@Override
 	public String getHelpString()
 	{
 		return "TODO";
 	}
 
-	public void install( final TriggerBehaviourBindings bindings )
+	public void install( final TriggerBehaviourBindings bindings, final InputActionBindings inputActionBindings )
 	{
 		behaviours.install( bindings, "transform" );
+		actions.install( inputActionBindings, "transform" );
 	}
 
 	private class GetOuter
@@ -194,6 +250,11 @@ public class ViewerTransformManager implements TransformListener< AffineTransfor
 		{
 			return ViewerTransformManager.this;
 		}
+	}
+
+	public void setState( final ViewerPanelState state )
+	{
+		this.state = state;
 	}
 
 	private class TranslateXY extends GetOuter implements DragBehaviour
@@ -280,7 +341,6 @@ public class ViewerTransformManager implements TransformListener< AffineTransfor
 		@Override
 		public void scroll( final double wheelRotation, final boolean isHorizontal, final int x, final int y )
 		{
-			System.out.println( "ZOOM ZOOM" );
 			final AffineTransform3D global;
 			synchronized ( getOuter().global )
 			{
@@ -316,7 +376,6 @@ public class ViewerTransformManager implements TransformListener< AffineTransfor
 		@Override
 		public void click( final int x, final int y )
 		{
-			System.out.println( "ZOOM ZOOM" );
 			final AffineTransform3D global;
 			synchronized ( getOuter().global )
 			{
@@ -402,6 +461,182 @@ public class ViewerTransformManager implements TransformListener< AffineTransfor
 		@Override
 		public void end( final int x, final int y )
 		{}
+	}
+
+	private class RemoveRotation extends AbstractNamedAction implements MouseListener
+	{
+
+//		This only works when we assume that affine can be
+//		https://stackoverflow.com/questions/10546320/remove-rotation-from-a-4x4-homogeneous-transformation-matrix
+//		scaling S is symmetric
+//		tr is transpose
+//		| x2 |   | R11*SX R12*SY R13*SZ TX | | x1 |
+//		| y2 | = | R21*SX R22*SY R23*SZ TY | | y1 |
+//		| z2 |   | R31*SX R32*SY R33*SZ TZ | | z1 |
+//		| 1  |   | 0      0      0      1  | |  1 |
+//		tr(A)*A = tr(R*S)*(R*S) = tr(S)*tr(R)*R*S = tr(S)*S == S * S
+//		S = sqrt( tr(A) * A )
+//		( tr(A)*A )_ij = sum_k( tr(A)_ik * A_kj ) = sum_k( A_ki * A_kj )
+//		( tr(A)*A )_ii = sum_k( (A_ki)^2 )
+
+		public RemoveRotation()
+		{
+			super( "remove rotation" );
+		}
+
+		private final double[] mouseLocation = new double[ 3 ];
+
+		private final double[] inOriginalSpace = new double[ 3 ];
+
+		private final RealPoint p = RealPoint.wrap( mouseLocation );
+
+		private boolean isInside = false;
+
+		@Override
+		public void actionPerformed( final ActionEvent e )
+		{
+			synchronized ( global )
+			{
+				viewer.getMouseCoordinates( p );
+				p.setPosition( 0l, 2 );
+				if ( false )
+				{
+					p.setPosition( centerX, 0 );
+					p.setPosition( centerY, 1 );
+				}
+				displayTransform.applyInverse( mouseLocation, mouseLocation );
+				globalToViewer.applyInverse( mouseLocation, mouseLocation );
+
+				global.applyInverse( inOriginalSpace, mouseLocation );
+
+				final AffineTransform3D affine = new AffineTransform3D();
+				for ( int i = 0; i < affine.numDimensions(); ++i )
+				{
+					double val = 0.0;
+					for ( int k = 0; k < affine.numDimensions(); ++k )
+					{
+						final double entry = global.get( k, i );
+						val += entry * entry;
+					}
+					val = Math.sqrt( val );
+					affine.set( val, i, i );
+					affine.set( mouseLocation[ i ] - inOriginalSpace[ i ] * val, i, 3 );
+				}
+
+				manager.setTransform( affine );
+			}
+		}
+
+		@Override
+		public void mouseClicked( final MouseEvent e )
+		{
+
+		}
+
+		@Override
+		public void mouseEntered( final MouseEvent e )
+		{
+			isInside = true;
+		}
+
+		@Override
+		public void mouseExited( final MouseEvent e )
+		{
+			isInside = false;
+		}
+
+		@Override
+		public void mousePressed( final MouseEvent e )
+		{
+
+		}
+
+		@Override
+		public void mouseReleased( final MouseEvent e )
+		{
+
+		}
+
+	}
+
+	private class ToggleVisibility extends AbstractNamedAction
+	{
+
+		public ToggleVisibility()
+		{
+			super( "toggle visibility" );
+			// TODO Auto-generated constructor stub
+		}
+
+		@Override
+		public void actionPerformed( final ActionEvent e )
+		{
+			synchronized ( viewer )
+			{
+				if ( state != null )
+				{
+					final int currentSourceIndex = viewer.getState().getCurrentSource();
+					final Source< ? > currentSource = viewer.getVisibilityAndGrouping().getSources().get( currentSourceIndex ).getSpimSource();
+					final boolean isVisible = viewer.getVisibilityAndGrouping().isSourceActive( currentSourceIndex );
+					state.setVisibility( currentSource, !isVisible );
+				}
+			}
+		}
+
+	}
+
+	private class CycleSources extends AbstractNamedAction
+	{
+
+		private final static int FORWARD = 1;
+
+		private final static int BACKWARD = -1;
+
+		private final int direction;
+
+		public CycleSources( final int direction )
+		{
+			super( "cycle sources " + direction );
+			this.direction = direction;
+		}
+
+		@Override
+		public void actionPerformed( final ActionEvent arg0 )
+		{
+			synchronized ( state )
+			{
+				synchronized ( viewer )
+				{
+					final int activeSource = viewer.getVisibilityAndGrouping().getCurrentSource();
+					final List< SourceState< ? > > sources = viewer.getVisibilityAndGrouping().getSources();
+					final int numSources = sources.size();
+					if ( numSources > 0 )
+					{
+						final int sourceIndex = activeSource + Integer.signum( direction );
+						final int selectedSource = ( sourceIndex < 0 ? sources.size() + sourceIndex : sourceIndex ) % numSources;
+						state.setCurrentSource( sources.get( selectedSource ).getSpimSource() );
+					}
+				}
+			}
+		}
+	}
+
+	private class ToggleInterpolation extends AbstractNamedAction
+	{
+		public ToggleInterpolation()
+		{
+			super( "toggle interpolation" );
+		}
+
+		@Override
+		public void actionPerformed( final ActionEvent e )
+		{
+			synchronized ( state )
+			{
+				state.toggleInterpolation();
+			}
+		}
+
 	}
 
 }

@@ -13,7 +13,7 @@ import net.imglib2.type.volatiles.VolatileUnsignedByteType;
  * @author Stephan Saalfeld &lt;saalfelds@janelia.hhmi.org&gt;
  */
 public class H5UnsignedByteSetupImageLoader
-	extends AbstractH5SetupImageLoader< UnsignedByteType, VolatileUnsignedByteType, VolatileByteArray >
+		extends AbstractH5SetupImageLoader< UnsignedByteType, VolatileUnsignedByteType, VolatileByteArray >
 {
 	public H5UnsignedByteSetupImageLoader(
 			final IHDF5Reader reader,
@@ -29,6 +29,7 @@ public class H5UnsignedByteSetupImageLoader
 				setupId,
 				blockDimension,
 				resolution,
+				readOffset( reader, dataset ),
 				new UnsignedByteType(),
 				new VolatileUnsignedByteType(),
 				new H5ByteArrayLoader( reader, dataset ),

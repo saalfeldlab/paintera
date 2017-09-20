@@ -79,7 +79,8 @@ import net.imglib2.type.volatiles.VolatileARGBType;
  */
 public class Util
 {
-	private Util(){}
+	private Util()
+	{}
 
 	public static void initUI()
 	{
@@ -157,7 +158,7 @@ public class Util
 			final List< ? extends AbstractARGBConvertedLabelsSource > labelSources,
 			final List< ? extends SetCache > cacheLoaders,
 			final List< Composite< ARGBType, ARGBType > > composites,
-			final InputTriggerConfig config)
+			final InputTriggerConfig config )
 	{
 		/* raw */
 		final CombinedImgLoader.SetupIdAndLoader[] loaders = new CombinedImgLoader.SetupIdAndLoader[ rawDataLoaders.size() ];
@@ -167,9 +168,9 @@ public class Util
 
 		final CombinedImgLoader imgLoader = new CombinedImgLoader( loaders );
 
-		final ArrayList< TimePoint > timePointsList = new ArrayList< >();
-		final Map< Integer, BasicViewSetup > setups = new HashMap< >();
-		final ArrayList< ViewRegistration > viewRegistrationsList = new ArrayList< >();
+		final ArrayList< TimePoint > timePointsList = new ArrayList<>();
+		final Map< Integer, BasicViewSetup > setups = new HashMap<>();
+		final ArrayList< ViewRegistration > viewRegistrationsList = new ArrayList<>();
 		for ( final CombinedImgLoader.SetupIdAndLoader loader : loaders )
 		{
 			timePointsList.add( new TimePoint( 0 ) );
@@ -182,8 +183,8 @@ public class Util
 		final SequenceDescriptionMinimal seq = new SequenceDescriptionMinimal( timepoints, setups, imgLoader, null );
 		final SpimDataMinimal spimData = new SpimDataMinimal( null, seq, reg );
 
-		final ArrayList< ConverterSetup > converterSetups = new ArrayList< ConverterSetup >();
-		final ArrayList< SourceAndConverter< ? > > sources = new ArrayList< SourceAndConverter< ? > >();
+		final ArrayList< ConverterSetup > converterSetups = new ArrayList< >();
+		final ArrayList< SourceAndConverter< ? > > sources = new ArrayList< >();
 
 		BigDataViewer.initSetups( spimData, converterSetups, sources );
 
@@ -193,7 +194,7 @@ public class Util
 			final ScaledARGBConverter.ARGB converter = new ScaledARGBConverter.ARGB( 0, 255 );
 			final ScaledARGBConverter.VolatileARGB vconverter = new ScaledARGBConverter.VolatileARGB( 0, 255 );
 
-			final SourceAndConverter< VolatileARGBType > vsoc = new SourceAndConverter< VolatileARGBType >( source, vconverter );
+			final SourceAndConverter< VolatileARGBType > vsoc = new SourceAndConverter< >( source, vconverter );
 			@SuppressWarnings( "unchecked" )
 			final SourceAndConverter< ARGBType > soc = new SourceAndConverter< ARGBType >( source.nonVolatile(), converter, vsoc );
 			sources.add( soc );
@@ -207,12 +208,12 @@ public class Util
 			setCache.setCache( imgLoader.getCacheControl() );
 
 		/* composites */
-		final HashMap< Source< ? extends ARGBType >, Composite< ARGBType, ARGBType > > sourceCompositesMap = new HashMap<>();
+		final HashMap< Source< ? >, Composite< ARGBType, ARGBType > > sourceCompositesMap = new HashMap<>();
 		for ( int i = 0; i < composites.size(); ++i )
-			sourceCompositesMap.put( ( Source< ? extends ARGBType > ) sources.get( i ).getSpimSource(), composites.get( i ) );
+			sourceCompositesMap.put( sources.get( i ).getSpimSource(), composites.get( i ) );
 
 		final AccumulateProjectorFactory< ARGBType > projectorFactory =
-				new CompositeProjector.CompositeProjectorFactory< ARGBType >( sourceCompositesMap );
+				new CompositeProjector.CompositeProjectorFactory< >( sourceCompositesMap );
 
 		ViewerOptions options = ViewerOptions.options()
 				.accumulateProjectorFactory( projectorFactory )

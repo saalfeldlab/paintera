@@ -1,60 +1,48 @@
 package bdv.bigcat.viewer;
 
-import java.util.HashMap;
-import java.util.Optional;
-import java.util.concurrent.atomic.AtomicLong;
+import java.util.Arrays;
+
+import com.sun.javafx.application.PlatformImpl;
 
 import bdv.AbstractViewerSetupImgLoader;
-import bdv.ViewerSetupImgLoader;
-import bdv.bigcat.ui.ARGBConvertedLabelsSource;
-import bdv.bigcat.ui.highlighting.ModalGoldenAngleSaturatedHighlightingARGBStream;
-import bdv.bigcat.viewer.source.H5Source;
-import bdv.bigcat.viewer.source.H5Source.LabelMultisets;
-import bdv.bigcat.viewer.source.H5Source.UnsignedBytes;
-import bdv.img.cache.VolatileGlobalCellCache;
-import bdv.util.RandomAccessibleIntervalSource;
+import bdv.bigcat.viewer.atlas.Atlas;
+import bdv.bigcat.viewer.atlas.data.HDF5LabelMultisetSourceSpec;
+import bdv.bigcat.viewer.atlas.data.HDF5UnsignedByteSpec;
 import bdv.viewer.Interpolation;
 import bdv.viewer.Source;
-import bdv.viewer.SourceAndConverter;
-import gnu.trove.set.hash.TLongHashSet;
-import javafx.application.Application;
+import javafx.application.Platform;
+import javafx.scene.control.Button;
+import javafx.scene.control.ButtonBar.ButtonData;
+import javafx.scene.control.ButtonType;
+import javafx.scene.control.Dialog;
 import javafx.stage.Stage;
 import mpicbg.spim.data.sequence.VoxelDimensions;
+import net.imglib2.FinalInterval;
 import net.imglib2.RandomAccessible;
 import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.RealRandomAccessible;
 import net.imglib2.Volatile;
 import net.imglib2.converter.Converter;
 import net.imglib2.converter.Converters;
-import net.imglib2.converter.RealARGBConverter;
 import net.imglib2.display.AbstractLinearRange;
 import net.imglib2.interpolation.InterpolatorFactory;
 import net.imglib2.interpolation.randomaccess.ClampingNLinearInterpolatorFactory;
 import net.imglib2.interpolation.randomaccess.NearestNeighborInterpolatorFactory;
 import net.imglib2.realtransform.AffineTransform3D;
-import net.imglib2.type.numeric.ARGBType;
 import net.imglib2.type.numeric.RealType;
 import net.imglib2.type.numeric.integer.UnsignedByteType;
 import net.imglib2.type.volatiles.VolatileARGBType;
-import net.imglib2.type.volatiles.VolatileUnsignedByteType;
+import net.imglib2.util.Intervals;
 import net.imglib2.view.ExtendedRandomAccessibleInterval;
 import net.imglib2.view.Views;
 
-public class ExampleApplication2 extends Application
+public class ExampleApplication2
 {
-
-	public ExampleApplication2()
-	{
-		super();
-	}
-
-	public static HashMap< Long, Atlas > activeViewers = new HashMap<>();
-
-	public static AtomicLong index = new AtomicLong( 0 );
 
 	public static void main( final String[] args ) throws Exception
 	{
 		final String rawFile = "data/sample_B_20160708_frags_46_50.hdf";
+		PlatformImpl.startup( () -> {} );
 		final String rawDataset = "volumes/raw";
 		final String labelsFile = rawFile;
 		final String labelsDataset = "/volumes/labels/neuron_ids";
@@ -63,26 +51,53 @@ public class ExampleApplication2 extends Application
 		final double[] offset = { 424, 424, 560 };
 		final int[] cellSize = { 145, 53, 5 };
 
-		final VolatileGlobalCellCache cache = new VolatileGlobalCellCache( 1, 20 );
+		final HDF5UnsignedByteSpec rawSource = new HDF5UnsignedByteSpec( rawFile, rawDataset, cellSize, resolution, "raw" );
 
-		final UnsignedBytes raw = new H5Source.UnsignedBytes( rawFile, rawDataset, Optional.of( resolution ), Optional.empty(), Optional.of( cellSize ), cache );
-		final LabelMultisets labels = new H5Source.LabelMultisets( labelsFile, labelsDataset, Optional.of( resolution ), Optional.of( offset ), Optional.of( cellSize ), cache );
+		final double[] min = Arrays.stream( Intervals.minAsLongArray( rawSource.getSource().getSource( 0, 0 ) ) ).mapToDouble( v -> v ).toArray();
+		final double[] max = Arrays.stream( Intervals.maxAsLongArray( rawSource.getSource().getSource( 0, 0 ) ) ).mapToDouble( v -> v ).toArray();
+		final AffineTransform3D affine = new AffineTransform3D();
+		rawSource.getSource().getSourceTransform( 0, 0, affine );
+		affine.apply( min, min );
+		affine.apply( max, max );
 
-		final Atlas viewer = makeViewer();
+		final Atlas viewer = new Atlas( new FinalInterval( Arrays.stream( min ).mapToLong( Math::round ).toArray(), Arrays.stream( max ).mapToLong( Math::round ).toArray() ) );
 
-		final ViewerSetupImgLoader< UnsignedByteType, VolatileUnsignedByteType > rawLoader = raw.loader();
-		final RandomAccessibleInterval< VolatileUnsignedByteType > rawImg = rawLoader.getVolatileImage( 0, 0 );
-		final RandomAccessibleIntervalSource< VolatileUnsignedByteType > rawSource = new RandomAccessibleIntervalSource<>( rawImg, new VolatileUnsignedByteType(), "raw" );
-		final SourceAndConverter< VolatileUnsignedByteType > rawSac = new SourceAndConverter<>( rawSource, new RealARGBConverter<>( 0, 255 ) );
+		Platform.runLater( () -> {
+			final Stage stage = new Stage();
+			viewer.start( stage );
+			stage.show();
+//			final Viewer3D v3d = new Viewer3D( "appname", 100, 100, false );
+//			new Thread( () -> v3d.main() ).start();
+//			viewer.baseView().setInfoNode( v3d.getPanel() );
+		} );
 
-		final TLongHashSet activeIds = new TLongHashSet();
-		final ModalGoldenAngleSaturatedHighlightingARGBStream stream = new ModalGoldenAngleSaturatedHighlightingARGBStream( activeIds );
-		final ARGBConvertedLabelsSource convertedSource = new ARGBConvertedLabelsSource( 0, labels.loader(), stream );
-		System.out.println( convertedSource.getVoxelDimensions() + " " + rawSource.getVoxelDimensions() );
-		final Converter< VolatileARGBType, ARGBType > conv = ( input, output ) -> output.set( input.get() );
-		final SourceAndConverter< VolatileARGBType > sac = new SourceAndConverter<>( convertedSource, conv );
-		viewer.addSource( sac );
-//		viewer.addSource( rawSac );
+		final Volatile< UnsignedByteType > abc = rawSource.getViewerSource().getType();
+		viewer.addRawSource( rawSource, 0., 255. );
+
+		final HDF5LabelMultisetSourceSpec labelSpec2 = new HDF5LabelMultisetSourceSpec( labelsFile, labelsDataset, cellSize, "labels" );
+		viewer.addLabelSource( labelSpec2 );
+
+		final boolean demonstrateRemove = false;
+		if ( demonstrateRemove )
+		{
+			final HDF5LabelMultisetSourceSpec labelSpec3 = new HDF5LabelMultisetSourceSpec( labelsFile, labelsDataset, cellSize, "labels2" );
+			viewer.addLabelSource( labelSpec3 );
+
+			Platform.runLater( () -> {
+				final Dialog< Boolean > d = new Dialog<>();
+				final ButtonType removeType = new ButtonType( "Remove extra source", ButtonData.OK_DONE );
+				d.getDialogPane().getButtonTypes().add( removeType );
+				final Button b = ( Button ) d.getDialogPane().lookupButton( removeType );
+				System.out.println( "b " + b );
+				d.show();
+				d.setOnHiding( event -> {
+					System.out.println( "Removing source!" );
+					viewer.baseView().requestFocus();
+					viewer.removeSource( labelSpec3 );
+				} );
+				viewer.baseView().requestFocus();
+			} );
+		}
 
 	}
 
@@ -108,30 +123,6 @@ public class ExampleApplication2 extends Application
 			}
 		}
 
-	}
-
-	@Override
-	public void start( final Stage primaryStage ) throws Exception
-	{
-
-		final Atlas viewer = new Atlas();
-		viewer.start( primaryStage );
-		System.out.println( getParameters() );
-		activeViewers.put( Long.parseLong( getParameters().getRaw().get( 0 ) ), viewer );
-	}
-
-	public static Atlas makeViewer() throws InterruptedException
-	{
-
-		synchronized ( index )
-		{
-			final long idx = index.get();
-			final Thread t = new Thread( () -> Application.launch( ExampleApplication2.class, Long.toString( idx ) ) );
-			t.start();
-			while ( !activeViewers.containsKey( idx ) )
-				Thread.sleep( 10 );
-			return activeViewers.get( idx );
-		}
 	}
 
 	public static class ARGBConvertedSource< T > implements Source< VolatileARGBType >

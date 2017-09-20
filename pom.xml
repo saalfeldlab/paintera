@@ -34,7 +34,7 @@
 		<dependency>
 			<groupId>sc.fiji</groupId>
 			<artifactId>bigdataviewer-core</artifactId>
-			<version>4.0.3-SNAPSHOT</version>
+			<version>4.2.1-SNAPSHOT</version>
 		</dependency>
 		<dependency>
 			<groupId>sc.fiji</groupId>
@@ -56,7 +56,7 @@
 		<dependency>
 			<groupId>net.imglib2</groupId>
 			<artifactId>imglib2</artifactId>
-			<version>4.0.0</version>
+			<version>4.3.1-SNAPSHOT</version>
 		</dependency>
 		<dependency>
 			<groupId>net.imglib2</groupId>
@@ -74,7 +74,7 @@
 		<dependency>
 			<groupId>sc.fiji</groupId>
 			<artifactId>bigdataviewer-vistools</artifactId>
-			<version>1.0.0-beta-6-SNAPSHOT</version>
+			<version>1.0.0-beta-7-SNAPSHOT</version>
 		</dependency>
 		<dependency>
 			<groupId>net.imagej</groupId>
@@ -94,10 +94,16 @@
 			<artifactId>jcommander</artifactId>
 			<version>1.48</version>
 		</dependency>
+		<!-- jeromq does not support ipc!! -->
+		<!-- <dependency> -->
+		<!-- <groupId>org.zeromq</groupId> -->
+		<!-- <artifactId>jeromq</artifactId> -->
+		<!-- <version>0.4.2</version> -->
+		<!-- </dependency> -->
 		<dependency>
 			<groupId>org.zeromq</groupId>
-			<artifactId>jeromq</artifactId>
-			<version>0.3.6</version>
+			<artifactId>jzmq</artifactId>
+			<version>3.1.0</version>
 		</dependency>
 		<!-- https://mvnrepository.com/artifact/org.scijava/script-editor -->
 		<dependency>

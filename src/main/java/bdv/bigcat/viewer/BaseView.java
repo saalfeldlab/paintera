@@ -1,126 +1,239 @@
 package bdv.bigcat.viewer;
 
+import java.awt.Color;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
+import java.util.Optional;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.Consumer;
+import java.util.function.Function;
 
 import bdv.bigcat.composite.Composite;
 import bdv.bigcat.viewer.ViewerNode.ViewerAxis;
+import bdv.bigcat.viewer.atlas.data.HDF5LabelMultisetSourceSpec.HighlightingStreamConverter;
 import bdv.cache.CacheControl;
 import bdv.viewer.Source;
 import bdv.viewer.SourceAndConverter;
+import bdv.viewer.ViewerOptions;
 import bdv.viewer.ViewerPanel;
+import javafx.application.Platform;
+import javafx.beans.value.ChangeListener;
 import javafx.collections.FXCollections;
 import javafx.collections.ListChangeListener;
+import javafx.collections.MapChangeListener;
 import javafx.collections.ObservableList;
 import javafx.embed.swing.SwingNode;
 import javafx.event.Event;
+import javafx.geometry.Orientation;
 import javafx.scene.Node;
 import javafx.scene.Scene;
+import javafx.scene.control.Label;
+import javafx.scene.control.Spinner;
 import javafx.scene.control.TextField;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.BorderPane;
+import javafx.scene.layout.FlowPane;
 import javafx.scene.layout.GridPane;
+import javafx.scene.layout.StackPane;
+import net.imglib2.converter.Converter;
+import net.imglib2.converter.RealARGBConverter;
 import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.type.numeric.ARGBType;
 
-public class BaseView
+public class BaseView extends BorderPane
 {
 
 	public static final Class< ? >[] FOCUS_KEEPERS = { TextField.class };
-
-	private final Node infoPane;
 
 	private final HashSet< ViewerNode > viewerNodes = new HashSet<>();
 
 	private final HashMap< ViewerNode, ViewerTransformManager > managers = new HashMap<>();
 
+	private final StackPane root = new StackPane();
+
 	private final GridPane grid;
 
-	private final BorderPane root;
+	private final GridResizer resizer;
 
-	private final GlobalTransformManager gm;
+	private final BaseViewState state;
 
-	private final GridConstraintsManager constraintsManager;
+//	private final ObservableList< SourceAndConverter< ? > > sourceLayers = FXCollections.observableArrayList();
+//	{
+//		sourceLayers.addListener( ( ListChangeListener< SourceAndConverter< ? > > ) c -> {
+//			while ( c.next() );
+//
+//		} );
+//	}
 
-	final boolean[] isFullScreen = new boolean[] { false };
-
-	final HashMap< Source< ? >, Composite< ARGBType, ARGBType > > sourceCompositeMap = new HashMap<>();
-
-	private final Viewer3D viewer3D;
-
-	private boolean created3DViewer;
-
-	final ObservableList< SourceAndConverter< ? > > sourceLayers = FXCollections.observableArrayList();
+	private final ObservableList< ViewerActor > viewerActors = FXCollections.observableArrayList();
 	{
-		sourceLayers.addListener( ( ListChangeListener< SourceAndConverter< ? > > ) c -> {
-			c.next();
-			if ( c.wasRemoved() )
-				c.getRemoved().forEach( sourceCompositeMap::remove );
-
+		viewerActors.addListener( ( ListChangeListener< ViewerActor > ) c -> {
+			while ( c.next() )
+				if ( c.wasAdded() )
+					for ( final ViewerActor actor : c.getAddedSubList() )
+						viewerNodes.forEach( vn -> actor.onAdd().accept( ( ViewerPanel ) vn.getContent() ) );
+				else if ( c.wasRemoved() )
+					for ( final ViewerActor actor : c.getRemoved() )
+						viewerNodes.forEach( vn -> actor.onRemove().accept( ( ViewerPanel ) vn.getContent() ) );
 		} );
 	}
 
+	private final Consumer< ViewerPanel > onFocusEnter;
+
+	private final Consumer< ViewerPanel > onFocusExit;
+
 	public BaseView()
 	{
-		viewer3D = new Viewer3D( "Marching Cubes", 500, 500, false );
-		this.infoPane = createInfo();
-		this.gm = new GlobalTransformManager( new AffineTransform3D() );
-		gm.setTransform( new AffineTransform3D() );
+		this( new BaseViewState() );
+	}
 
-		this.constraintsManager = new GridConstraintsManager();
-		this.grid = constraintsManager.createGrid();
-		this.root = new BorderPane( grid );
+	public BaseView( final ViewerOptions viewerOptions )
+	{
+		this( new BaseViewState( viewerOptions ) );
+	}
 
+	public BaseView( final BaseViewState state )
+	{
+		this( ( vp ) -> {}, ( vp ) -> {}, state );
+	}
+
+	public BaseView( final Consumer< ViewerPanel > onFocusEnter, final Consumer< ViewerPanel > onFocusExit, final BaseViewState state )
+	{
+		super();
+		this.state = state;
+		final AffineTransform3D tf = new AffineTransform3D();
+		final double scale = 1e-3;
+		tf.scale( scale );
+		tf.translate( scale * -1938, scale * -1760, scale * -664 );
+		this.state.globalTransform.setTransform( tf );
+
+		this.grid = this.state.constraintsManager.createGrid();
+		this.centerProperty().set( this.root );
+		this.onFocusEnter = onFocusEnter;
+		this.onFocusExit = onFocusExit;
+		this.grid.requestFocus();
+		this.setInfoNode( new Label( "Place your node here!" ) );
+
+//		final Pane dummyPane = new Pane();
+		this.resizer = new GridResizer( this.state.constraintsManager, 10, grid );
+		this.grid.setOnMouseMoved( resizer.onMouseMovedHandler() );
+		this.grid.setOnMouseDragged( resizer.onMouseDraggedHandler() );
+		this.grid.setOnMouseClicked( resizer.onMouseDoubleClickedHandler() );
+		this.grid.setOnMousePressed( resizer.onMousePresedHandler() );
+		this.grid.setOnMouseReleased( resizer.onMouseReleased() );
+//		dummyPane.addEventHandler( EventType.ROOT, this.grid::fireEvent );
+//		dummyPane.setPickOnBounds( false );
+		this.root.getChildren().add( this.grid );
+//		this.root.getChildren().add( dummyPane );
+	}
+
+	public void makeDefaultLayout()
+	{
+		addViewer( ViewerAxis.Z, 0, 0 );
+		addViewer( ViewerAxis.X, 0, 1 );
+		addViewer( ViewerAxis.Y, 1, 0 );
+		this.grid.requestFocus();
+		this.viewerNodes.stream().map( ViewerNode::getContent ).forEach( vp -> ( ( ViewerPanel ) vp ).setBackgroundCreator( new GradientBackgroundAlpha() ) );
+//		this.viewerNodes.stream().map( ViewerNode::getContent ).forEach( vp -> ( ( ViewerPanel ) vp ).setBackgroundCreator( ( w, h ) -> Optional.empty() ) );
 		new Thread( () -> {
-			viewer3D.main();
+			final AtomicInteger degrees = new AtomicInteger( 0 );
+			final ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor();
+			scheduler.scheduleAtFixedRate( () -> {
+				final int h = degrees.get();
+				degrees.set( ( h + 3 ) % 360 );
+				final Color c = Color.getHSBColor( h / 360.0f, 0.3f, 0.4f );
+				viewerNodes.stream().map( ViewerNode::getContent ).forEach( v -> {
+					final ViewerPanel vp = ( ViewerPanel ) v;
+					vp.setBackground( c );
+				} );
+			}, 0, 200, TimeUnit.MILLISECONDS );
 		} ).start();
 	}
 
-	public synchronized void addSource( final SourceAndConverter< ? > source, final Composite< ARGBType, ARGBType > comp )
+	public void setInfoNode( final Node node )
 	{
+		for ( final Node child : grid.getChildren() )
+			if ( GridPane.getRowIndex( child ) == 1 && GridPane.getColumnIndex( child ) == 1 )
+			{
+				grid.getChildren().remove( child );
+				break;
+			}
+		this.grid.add( node, 1, 1 );
+	}
 
-		if ( sourceLayers.contains( source ) || sourceCompositeMap.containsKey( source.getSpimSource() ) )
-		{
+	public synchronized void addSource( final SourceAndConverter< ? > source )
+	{
+		this.state.viewerPanelState.addSource( source );
+	}
 
-		}
-		else
-		{
-			this.sourceLayers.add( source );
-			this.sourceCompositeMap.put( source.getSpimSource(), comp );
-		}
+	public synchronized void addSources( final Collection< SourceAndConverter< ? > > sources )
+	{
+		this.state.viewerPanelState.addSources( sources );
+	}
+
+	public synchronized void setVisible( final Source< ? > source, final boolean isVisible )
+	{
+		this.state.viewerPanelState.setVisibility( source, isVisible );
+	}
+
+	public void addVisibilityListener( final MapChangeListener< Source< ? >, Boolean > listener )
+	{
+		this.state.viewerPanelState.addVisibilityListener( listener );
+	}
+
+	public void addCurrentSourceListener( final ChangeListener< Source< ? > > listener )
+	{
+		this.state.viewerPanelState.addCurrentSourceListener( listener );
 	}
 
 	public synchronized void removeSource( final Source< ? > source )
 	{
-		int i = 0;
-		for ( ; i < sourceLayers.size(); ++i )
-			if ( sourceLayers.get( i ).getSpimSource().equals( source ) )
-				break;
-		if ( i < sourceLayers.size() )
-		{
-			assert sourceCompositeMap.containsKey( source );
-			sourceLayers.remove( i );
-			sourceCompositeMap.remove( source );
-		}
+		this.state.viewerPanelState.removeSource( source );
 	}
 
-	protected Node createInfo()
+	public synchronized void removeAllSources()
 	{
-		return viewer3D.getPanel();
+		this.state.viewerPanelState.removeAllSources();
 	}
 
-	public Scene createScene( final int width, final int height ) throws Exception
+	public synchronized List< SourceAndConverter< ? > > getSourcesCopy()
 	{
-		final Scene scene = new Scene( this.root, width, height );
+		return this.state.viewerPanelState.getSourcesCopy();
+	}
+
+	public synchronized void setSources( final Collection< SourceAndConverter< ? > > sources, final Optional< Composite< ARGBType, ARGBType > > composites )
+	{
+		this.state.viewerPanelState.getSourcesCopy().stream().map( SourceAndConverter::getSpimSource ).forEach( this.state.viewerPanelState::removeSource );
+		this.state.viewerPanelState.addSources( sources );
+	}
+
+	public synchronized void addSourcesListener( final ListChangeListener< SourceAndConverter< ? > > listener )
+	{
+		this.state.viewerPanelState.addSourcesListener( listener );
+	}
+
+	public synchronized void addActor( final ViewerActor actor )
+	{
+		this.viewerActors.add( actor );
+	}
+
+	public Scene createScene( final int width, final int height )
+	{
+		final Scene scene = new Scene( this, width, height );
 		scene.setOnKeyTyped( event -> {
-			if ( event.getCharacter().equals( "a" ) )
+			if ( event.getCharacter().equals( "f" ) )
 				maximizeActiveOrthoView( scene, event );
 		} );
 
 		return scene;
 	}
 
-	private static void addViewerNodesHandler( final ViewerNode viewerNode, final Class< ? >[] focusKeepers )
+	private void addViewerNodesHandler( final ViewerNode viewerNode, final Class< ? >[] focusKeepers )
 	{
 
 		viewerNode.addEventHandler( MouseEvent.MOUSE_CLICKED, event -> viewerNode.requestFocus() );
@@ -132,60 +245,49 @@ public class BaseView
 					return;
 			viewerNode.requestFocus();
 		} );
+
+		handleFocusEvent( viewerNode );
 	}
 
-	private void addViewer( final ViewerAxis axis, final int rowIndex, final int colIndex )
+	private synchronized void handleFocusEvent( final ViewerNode viewerNode )
 	{
-		final ViewerNode viewerNode = new ViewerNode( new CacheControl.Dummy(), axis, gm );
+		viewerNode.focusedProperty().addListener( ( ChangeListener< Boolean > ) ( observable, oldValue, newValue ) -> {
+			final ViewerPanel viewer = ( ViewerPanel ) viewerNode.getContent();
+			if ( viewer == null )
+				return;
+			else if ( newValue )
+				this.onFocusEnter.accept( viewer );
+			else
+				this.onFocusExit.accept( viewer );
+		} );
+	}
+
+	private synchronized void addViewer( final ViewerAxis axis, final int rowIndex, final int colIndex )
+	{
+		final ViewerNode viewerNode = new ViewerNode( new CacheControl.Dummy(), axis, this.state.globalTransform, this.state.viewerOptions );
 		this.viewerNodes.add( viewerNode );
 		this.managers.put( viewerNode, viewerNode.manager() );
-
-		sourceLayers.addListener( viewerNode );
+		viewerNode.manager().setState( this.state.viewerPanelState );
+		viewerNode.setViewerPanelState( this.state.viewerPanelState );
+		viewerActors.forEach( actor -> actor.onAdd().accept( ( ViewerPanel ) viewerNode.getContent() ) );
+		addViewerNodesHandler( viewerNode, FOCUS_KEEPERS );
 
 		this.grid.add( viewerNode, rowIndex, colIndex );
-
-		final Thread t = new Thread( () -> {
-			boolean createdViewer = false;
-			while ( !createdViewer )
-			{
-				try
-				{
-					Thread.sleep( 10 );
-				}
-				catch ( final InterruptedException e )
-				{
-					e.printStackTrace();
-					return;
-				}
-				createdViewer = viewerNode.isReady();
-			}
-			createdViewer = true;
-			sourceLayers.remove( null );
-		} );
-		t.start();
-
-		addViewerNodesHandler( viewerNode, FOCUS_KEEPERS );
-	}
-
-	public void makeDefaultLayout()
-	{
-		addViewer( ViewerAxis.Z, 0, 0 );
-		addViewer( ViewerAxis.Y, 0, 1 );
-		addViewer( ViewerAxis.X, 1, 0 );
-		this.grid.add( this.infoPane, 1, 1 );
+		viewerNode.setOnMouseClicked( resizer.onMouseDoubleClickedHandler() );
+		viewerNode.setOnMousePressed( resizer.onMousePresedHandler() );
+		viewerNode.setOnMouseDragged( resizer.onMouseDraggedHandler() );
+		viewerNode.setOnMouseMoved( resizer.onMouseMovedHandler() );
 	}
 
 	private void maximizeActiveOrthoView( final Scene scene, final Event event )
 	{
 		final Node focusOwner = scene.focusOwnerProperty().get();
 		if ( viewerNodes.contains( focusOwner ) )
-		{
-			event.consume();
-			if ( !isFullScreen[ 0 ] )
+			// event.consume();
+			if ( !this.state.constraintsManager.isFullScreen() )
 			{
 				viewerNodes.forEach( node -> node.setVisible( node == focusOwner ) );
-				infoPane.setVisible( false );
-				constraintsManager.maximize(
+				this.state.constraintsManager.maximize(
 						GridPane.getRowIndex( focusOwner ),
 						GridPane.getColumnIndex( focusOwner ),
 						0 );
@@ -195,14 +297,127 @@ public class BaseView
 			}
 			else
 			{
-				constraintsManager.resetToLast();
+				this.state.constraintsManager.resetToLast();
 				viewerNodes.forEach( node -> node.setVisible( true ) );
 				viewerNodes.forEach( node -> ( ( ViewerPanel ) node.getContent() ).requestRepaint() );
-				infoPane.setVisible( true );
 				grid.setHgap( 1 );
 				grid.setVgap( 1 );
 			}
-			isFullScreen[ 0 ] = !isFullScreen[ 0 ];
-		}
+	}
+
+	public Node viewerNode()
+	{
+		final Viewer3D v3d = new Viewer3D( "test", 100, 100, false );
+		Platform.runLater( () -> {
+			v3d.init();
+		} );
+		return v3d.getPanel();
+	}
+
+	public Node globalSourcesInfoNode()
+	{
+		final FlowPane p = new FlowPane( Orientation.VERTICAL );
+
+		final HashMap< Source< ? >, Node > sourceToEntry = new HashMap<>();
+
+		final Function< SourceAndConverter< ? >, Node > entryCreator = ( sac ) -> {
+			final FlowPane fp = new FlowPane();
+			fp.getChildren().add( new Label( sac.getSpimSource().getName() ) );
+
+			final Converter< ?, ARGBType > conv = sac.getConverter();
+
+			if ( conv instanceof RealARGBConverter )
+			{
+				final RealARGBConverter< ? > c = ( RealARGBConverter< ? > ) conv;
+				// alpha
+				{
+					final Spinner< Integer > sp = new Spinner<>( 0, 255, c.getAlpha() );
+					sp.valueProperty().addListener( ( ChangeListener< Integer > ) ( observable, oldValue, newValue ) -> {
+						c.setAlpha( newValue );
+						viewerNodes.forEach( vn -> ( ( ViewerPanel ) vn.getContent() ).requestRepaint() );
+					} );
+					sp.setEditable( true );
+					fp.getChildren().add( sp );
+				}
+
+				// min
+				{
+					final Spinner< Double > sp = new Spinner<>( Double.NEGATIVE_INFINITY, Double.POSITIVE_INFINITY, c.getMin() );
+					sp.valueProperty().addListener( ( ChangeListener< Double > ) ( observable, oldValue, newValue ) -> {
+						c.setMin( newValue );
+						viewerNodes.forEach( vn -> ( ( ViewerPanel ) vn.getContent() ).requestRepaint() );
+					} );
+					sp.setEditable( true );
+					fp.getChildren().add( sp );
+				}
+
+				// max
+				{
+					final Spinner< Double > sp = new Spinner<>( Double.NEGATIVE_INFINITY, Double.POSITIVE_INFINITY, c.getMax() );
+					sp.valueProperty().addListener( ( ChangeListener< Double > ) ( observable, oldValue, newValue ) -> {
+						c.setMax( newValue );
+						viewerNodes.forEach( vn -> ( ( ViewerPanel ) vn.getContent() ).requestRepaint() );
+					} );
+					sp.setEditable( true );
+					fp.getChildren().add( sp );
+				}
+			}
+
+			else if ( conv instanceof HighlightingStreamConverter )
+			{
+				final HighlightingStreamConverter c = ( HighlightingStreamConverter ) conv;
+
+				// alpha
+				{
+					final Spinner< Integer > sp = new Spinner<>( 0, 255, c.getAlpha() );
+					sp.valueProperty().addListener( ( ChangeListener< Integer > ) ( observable, oldValue, newValue ) -> {
+						c.setAlpha( newValue );
+						viewerNodes.forEach( vn -> ( ( ViewerPanel ) vn.getContent() ).requestRepaint() );
+					} );
+					sp.setEditable( true );
+					fp.getChildren().add( sp );
+				}
+
+				// highlighting alpha
+				{
+					final Spinner< Integer > sp = new Spinner<>( 0, 255, c.getHighlightAlpha() );
+					sp.valueProperty().addListener( ( ChangeListener< Integer > ) ( observable, oldValue, newValue ) -> {
+						c.setHighlightAlpha( newValue );
+						viewerNodes.forEach( vn -> ( ( ViewerPanel ) vn.getContent() ).requestRepaint() );
+					} );
+					sp.setEditable( true );
+					fp.getChildren().add( sp );
+				}
+
+				// invalid alpha
+				{
+					final Spinner< Integer > sp = new Spinner<>( 0, 255, c.getInvalidSegmentAlpha() );
+					sp.valueProperty().addListener( ( ChangeListener< Integer > ) ( observable, oldValue, newValue ) -> {
+						c.setInvalidSegmentAlpha( newValue );
+						viewerNodes.forEach( vn -> ( ( ViewerPanel ) vn.getContent() ).requestRepaint() );
+					} );
+					sp.setEditable( true );
+					fp.getChildren().add( sp );
+				}
+			}
+
+			sourceToEntry.put( sac.getSpimSource(), fp );
+			p.getChildren().add( fp );
+
+			return fp;
+		};
+		for ( final SourceAndConverter< ? > source : this.state.viewerPanelState.getSourcesCopy() )
+			entryCreator.apply( source );
+
+		this.state.viewerPanelState.addSourcesListener( c -> {
+			while ( c.next() )
+				if ( c.wasRemoved() )
+					c.getRemoved().forEach( rm -> p.getChildren().remove( sourceToEntry.remove( rm.getSpimSource() ) ) );
+				else if ( c.wasAdded() )
+					c.getAddedSubList().forEach( entryCreator::apply );
+
+		} );
+
+		return p;
 	}
 }

@@ -14,8 +14,8 @@ import net.imglib2.type.volatiles.VolatileFloatType;
  * @author Stephan Saalfeld &lt;saalfelds@janelia.hhmi.org&gt;
  */
 public class H5FloatSetupImageLoader
-	extends AbstractH5SetupImageLoader< FloatType, VolatileFloatType, VolatileFloatArray >
-	implements ViewerImgLoader
+		extends AbstractH5SetupImageLoader< FloatType, VolatileFloatType, VolatileFloatArray >
+		implements ViewerImgLoader
 {
 	public H5FloatSetupImageLoader(
 			final IHDF5Reader reader,
@@ -49,6 +49,7 @@ public class H5FloatSetupImageLoader
 				setupId,
 				cellDimension,
 				resolution,
+				new double[ 3 ],
 				new FloatType(),
 				new VolatileFloatType(),
 				new H5FloatArrayLoader( reader, dataset ),
