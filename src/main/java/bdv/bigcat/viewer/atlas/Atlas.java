@@ -62,7 +62,9 @@ import net.imglib2.Interval;
 import net.imglib2.Volatile;
 import net.imglib2.converter.Converter;
 import net.imglib2.converter.RealDoubleConverter;
+import net.imglib2.converter.TypeIdentity;
 import net.imglib2.realtransform.AffineTransform3D;
+import net.imglib2.type.Type;
 import net.imglib2.type.numeric.ARGBType;
 import net.imglib2.type.numeric.IntegerType;
 import net.imglib2.type.numeric.RealType;
@@ -351,6 +353,23 @@ public class Atlas
 		final AffineTransform3D affine = new AffineTransform3D();
 		source.getSourceTransform( 0, 0, affine );
 		this.valueDisplayListener.addSource( vsource, source, Optional.of( valueToString ) );
+	}
+
+	public < T extends Type< T > > void addARGB( final DatasetSpec< T, ARGBType > spec )
+	{
+		final Source< ARGBType > originalSource = spec.getViewerSource();
+		final ARGBCompositeAlphaYCbCr comp = new ARGBCompositeAlphaYCbCr();
+		final ConvertedSource< ARGBType, ARGBType > vsource = new ConvertedSource<>( originalSource, new ARGBType( 0 ), new TypeIdentity<>(), originalSource.getName() );
+		final SourceAndConverter< ARGBType > src = new SourceAndConverter<>( vsource, new TypeIdentity<>() );
+		addSource( src, comp, spec );
+
+		final Source< T > source = spec.getSource();
+		final T t = source.getType();
+		final AffineTransform3D affine = new AffineTransform3D();
+		source.getSourceTransform( 0, 0, affine );
+		final Optional< Function< T, String > > valueToString = Optional.of( valueToString( t ) );
+		this.valueDisplayListener.addSource( vsource, source, valueToString );
+
 	}
 
 	public BaseView baseView()
