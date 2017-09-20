@@ -23,7 +23,6 @@ import bdv.viewer.Interpolation;
 import bdv.viewer.Source;
 import gnu.trove.map.hash.TLongLongHashMap;
 import javafx.application.Platform;
-import javafx.scene.image.Image;
 import javafx.stage.Stage;
 import mpicbg.spim.data.sequence.VoxelDimensions;
 import net.imglib2.FinalInterval;
@@ -44,7 +43,7 @@ import net.imglib2.util.Intervals;
 import net.imglib2.view.ExtendedRandomAccessibleInterval;
 import net.imglib2.view.Views;
 
-public class FART
+public class LART
 {
 
 	public static void main( final String[] args ) throws Exception
@@ -112,8 +111,7 @@ public class FART
 
 		Platform.runLater( () -> {
 			final Stage stage = new Stage();
-			stage.getIcons().add( new Image( "url:https://openclipart.org/image/300px/svg_to_png/220311/fart.png" ) );
-			viewer.start( stage, "FART" );
+			viewer.start( stage, "l’art" );
 			stage.show();
 		} );
 
