@@ -69,13 +69,18 @@ public class SourcesTab extends Pane implements StateListener< Specs >, ListChan
 				toggleVisibilityCheckBox.selectedProperty().set( item.isVisible() );
 				visibilityLabel.setGraphic( contents );
 				setGraphic( toggleVisibilityCheckBox );
-				toggleVisibilityCheckBox.selectedProperty().addListener( ( observable, oldv, newv ) -> {
-					System.out.println( "SETTING VISIBILITY " + newv );
-					specs.setVisibility( item.spec(), !newv );
-				} );
-//				item.visibleProperty().addListener( ( observable, oldv, newv ) -> {
-//					toggleVisibilityCheckBox.selectedProperty().set( item.isVisible() );
+				toggleVisibilityCheckBox.setOnMouseClicked( click -> specs.setVisibility( spec, !item.isVisible() ) );
+//				toggleVisibilityCheckBox.addEventHandler( MouseEvent.MOUSE_CLICKED, click -> {
+//					final boolean isVisible = item.isVisible();
+//					specs.setVisibility( spec, !isVisible );
 //				} );
+//				toggleVisibilityCheckBox.selectedProperty().addListener( ( observable, oldv, newv ) -> {
+//					System.out.println( "SETTING VISIBILITY " + newv );
+//					specs.setVisibility( item.spec(), !newv );
+//				} );
+				item.visibleProperty().addListener( ( observable, oldv, newv ) -> {
+					toggleVisibilityCheckBox.selectedProperty().set( item.isVisible() );
+				} );
 			}
 		}
 	}

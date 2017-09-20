@@ -141,8 +141,9 @@ public class Atlas
 		addOnEnterOnExit( valueDisplayListener.onEnter(), valueDisplayListener.onExit(), true );
 		this.specs.addVisibilityChangedListener( () -> {
 			final List< SourceState< ?, ?, ? > > states = this.specs.sourceStates();
-
-			System.out.println( "LALELU " + states );
+			final List< SourceAndConverter< ? > > onlyVisible = states.stream().filter( SourceState::isVisible ).map( SourceState::sourceAndConverter ).collect( Collectors.toList() );
+			this.baseView().removeAllSources();
+			this.baseView().addSources( onlyVisible );
 		} );
 
 		this.specs.addListChangeListener( ( ListChangeListener< Specs.SourceState< ?, ?, ? > > ) c -> {
