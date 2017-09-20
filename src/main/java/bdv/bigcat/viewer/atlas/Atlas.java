@@ -1,5 +1,6 @@
 package bdv.bigcat.viewer.atlas;
 
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
@@ -176,6 +177,16 @@ public class Atlas
 				event.consume();
 			}
 		} );
+
+		final AffineTransform3D tf = new AffineTransform3D();
+		final long[] sums = {
+				interval.max( 0 ) + interval.min( 0 ),
+				interval.max( 1 ) + interval.min( 1 ),
+				interval.max( 2 ) + interval.min( 2 )
+		};
+		tf.translate( Arrays.stream( sums ).mapToDouble( sum -> -0.5 * sum ).toArray() );
+		this.baseView().setTransform( tf );
+
 	}
 
 	public void toggleSourcesTable()
@@ -424,6 +435,11 @@ public class Atlas
 		else
 			valueToString = rt -> "Do not understand type!";
 		return valueToString;
+	}
+
+	public void setTransform( final AffineTransform3D transform )
+	{
+		this.baseView().setTransform( transform );
 	}
 
 }
