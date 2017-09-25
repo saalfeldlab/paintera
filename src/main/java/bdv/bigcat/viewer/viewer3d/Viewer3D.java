@@ -12,6 +12,7 @@ import graphics.scenery.PointLight;
 import graphics.scenery.SceneryBase;
 import graphics.scenery.SceneryElement;
 import graphics.scenery.backends.Renderer;
+import graphics.scenery.controls.behaviours.MovementCommand;
 import graphics.scenery.utils.SceneryPanel;
 
 public class Viewer3D extends SceneryBase
@@ -92,9 +93,13 @@ public class Viewer3D extends SceneryBase
 	public void addChild( Mesh child )
 	{
 		getScene().addChild( child );
-		// TODO: this is an attempt to move the mesh
-		// MovementCommand movement = new MovementCommand( "move_forward",
-		// "forward", () -> child );
+		MovementCommand movement = new MovementCommand( "move_forward", "forward", () -> child );
+	}
+
+	@Override
+	public void inputSetup()
+	{
+		setupCameraModeSwitching( "C" );
 	}
 
 	public void removeChild( Mesh child )
