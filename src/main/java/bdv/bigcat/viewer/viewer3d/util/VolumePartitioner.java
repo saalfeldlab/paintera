@@ -1,4 +1,4 @@
-package bdv.bigcat.viewer;
+package bdv.bigcat.viewer.viewer3d.util;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -31,11 +31,6 @@ public class VolumePartitioner
 	/** Minimum size of each partition the partition */
 	private final int[] partitionSize;
 
-	/**
-	 * dimension of the cube that will be used on the marching cubes algorithm
-	 */
-	private final int[] cubeSize;
-
 	private static List< Chunk > chunks;
 
 	/**
@@ -45,7 +40,6 @@ public class VolumePartitioner
 	{
 		this.volumeLabels = volumeLabels;
 		this.partitionSize = partitionSize;
-		this.cubeSize = cubeSize;
 		this.OVERLAP = cubeSize;
 		VolumePartitioner.chunks = new ArrayList< Chunk >();
 
@@ -53,6 +47,11 @@ public class VolumePartitioner
 		{
 			LOGGER.trace( "partition size: " + partitionSize[ 0 ] + " " + partitionSize[ 1 ] + " " + partitionSize[ 2 ] );
 		}
+	}
+
+	public void setOverlapSize( int[] cubeSize )
+	{
+		this.OVERLAP = cubeSize;
 	}
 
 	/**
@@ -94,7 +93,7 @@ public class VolumePartitioner
 
 					final Chunk chunk = new Chunk();
 					chunk.setVolume( Views.interval( volumeLabels, begin, end ) );
-					chunk.setOffset( new int[] { ( int ) ( begin[ 0 ] / cubeSize[ 0 ] ), ( int ) ( begin[ 1 ] / cubeSize[ 1 ] ), ( int ) ( begin[ 2 ] / cubeSize[ 2 ] ) } );
+					chunk.setOffset( new int[] { ( int ) ( begin[ 0 ] ), ( int ) ( begin[ 1 ] ), ( int ) ( begin[ 2 ] ) } );
 					chunks.add( chunk );
 
 					if ( LOGGER.isDebugEnabled() )
@@ -152,7 +151,7 @@ public class VolumePartitioner
 
 		final Chunk chunk = new Chunk();
 		chunk.setVolume( Views.interval( volumeLabels, begin, end ) );
-		chunk.setOffset( new int[] { ( int ) ( begin[ 0 ] / cubeSize[ 0 ] ), ( int ) ( begin[ 1 ] / cubeSize[ 1 ] ), ( int ) ( ( begin[ 2 ] / cubeSize[ 2 ] ) ) } );
+		chunk.setOffset( new int[] { ( int ) ( begin[ 0 ] ), ( int ) ( begin[ 1 ] ), ( int ) ( ( begin[ 2 ] ) ) } );
 		chunk.setIndex( index );
 		chunks.add( chunk );
 

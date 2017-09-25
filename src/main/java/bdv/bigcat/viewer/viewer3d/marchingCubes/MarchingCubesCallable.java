@@ -1,7 +1,8 @@
-package bdv.bigcat.viewer;
+package bdv.bigcat.viewer.viewer3d.marchingCubes;
 
 import java.util.concurrent.Callable;
 
+import bdv.bigcat.viewer.viewer3d.util.SimpleMesh;
 import bdv.labels.labelset.LabelMultisetType;
 import net.imglib2.RandomAccessibleInterval;
 

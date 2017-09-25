@@ -1,11 +1,13 @@
-package bdv.bigcat.viewer;
+package bdv.bigcat.viewer.viewer3d.marchingCubes;
 
+import java.sql.Timestamp;
 import java.util.ArrayList;
 import java.util.List;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import bdv.bigcat.viewer.viewer3d.util.SimpleMesh;
 import bdv.labels.labelset.Label;
 import bdv.labels.labelset.LabelMultisetType;
 import bdv.labels.labelset.Multiset;
@@ -86,10 +88,22 @@ public class MarchingCubes
 			final int[] cubeSize, final ForegroundCriterion foregroundCriteria, final int foregroundValue,
 			final boolean copyToArray )
 	{
+		Timestamp begin = new Timestamp( System.currentTimeMillis() );
 		initializeVariables( volDim, offset, cubeSize, foregroundCriteria, foregroundValue );
-		if ( copyToArray ) { return generateMeshFromArray( input, volDim, cubeSize ); }
+		SimpleMesh mesh = null;
+		if ( copyToArray )
+		{
+			mesh = generateMeshFromArray( input, volDim, cubeSize );
+		}
+		else
+		{
+			mesh = generateMeshFromRAI( input, cubeSize );
+		}
+		Timestamp end = new Timestamp( System.currentTimeMillis() );
+		System.out.println( "marching cube block finished: " + ( end.getTime() - begin.getTime() ) );
+		System.out.println( "mesh has: " + mesh.getNumberOfVertices() + " vertices" );
 
-		return generateMeshFromRAI( input, cubeSize );
+		return mesh;
 	}
 
 	private void initializeVariables( final int[] volDim, final int[] offset, final int[] cubeSize, final ForegroundCriterion foregroundCriteria, final int foregroundValue )
@@ -742,13 +756,13 @@ public class MarchingCubes
 			break;
 		}
 
-		v1x = ( v1x + offset[ 0 ] ) * cubeSize[ 0 ];
-		v1y = ( v1y + offset[ 1 ] ) * cubeSize[ 1 ];
-		v1z = ( v1z + offset[ 2 ] ) * cubeSize[ 2 ];
+		v1x = ( v1x + ( offset[ 0 ] / cubeSize[ 0 ] ) ) * cubeSize[ 0 ];
+		v1y = ( v1y + ( offset[ 1 ] / cubeSize[ 1 ] ) ) * cubeSize[ 1 ];
+		v1z = ( v1z + ( offset[ 2 ] / cubeSize[ 2 ] ) ) * cubeSize[ 2 ];
 
-		v2x = ( v2x + offset[ 0 ] ) * cubeSize[ 0 ];
-		v2y = ( v2y + offset[ 1 ] ) * cubeSize[ 1 ];
-		v2z = ( v2z + offset[ 2 ] ) * cubeSize[ 2 ];
+		v2x = ( v2x + ( offset[ 0 ] / cubeSize[ 0 ] ) ) * cubeSize[ 0 ];
+		v2y = ( v2y + ( offset[ 1 ] / cubeSize[ 1 ] ) ) * cubeSize[ 1 ];
+		v2z = ( v2z + ( offset[ 2 ] / cubeSize[ 2 ] ) ) * cubeSize[ 2 ];
 
 		if (LOGGER.isTraceEnabled())
 		{

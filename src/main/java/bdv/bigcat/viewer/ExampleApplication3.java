@@ -1,5 +1,6 @@
 package bdv.bigcat.viewer;
 
+import bdv.bigcat.viewer.viewer3d.Viewer3D;
 import javafx.application.Application;
 import javafx.scene.layout.StackPane;
 import javafx.stage.Stage;

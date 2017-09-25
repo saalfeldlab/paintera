@@ -16,6 +16,7 @@ import java.util.function.Function;
 import bdv.bigcat.composite.Composite;
 import bdv.bigcat.viewer.ViewerNode.ViewerAxis;
 import bdv.bigcat.viewer.atlas.data.HDF5LabelMultisetSourceSpec.HighlightingStreamConverter;
+import bdv.bigcat.viewer.viewer3d.Viewer3D;
 import bdv.cache.CacheControl;
 import bdv.viewer.Source;
 import bdv.viewer.SourceAndConverter;
