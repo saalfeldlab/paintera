@@ -107,8 +107,6 @@ public class JavaFXMarchingCubesExample
 
 	public static void main( final String[] args ) throws Exception
 	{
-		// Set the log level
-		System.setProperty( org.slf4j.impl.SimpleLogger.DEFAULT_LOG_LEVEL_KEY, "INFO" );
 		final MarchingCubeApplication viewer = new MarchingCubeApplication( "Marching cube", 800, 600 );
 		viewer.main();
 	}
