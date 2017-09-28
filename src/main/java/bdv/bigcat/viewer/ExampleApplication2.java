@@ -8,6 +8,7 @@ import bdv.AbstractViewerSetupImgLoader;
 import bdv.bigcat.viewer.atlas.Atlas;
 import bdv.bigcat.viewer.atlas.data.HDF5LabelMultisetSourceSpec;
 import bdv.bigcat.viewer.atlas.data.HDF5UnsignedByteSpec;
+import bdv.bigcat.viewer.viewer3d.Viewer3D;
 import bdv.viewer.Interpolation;
 import bdv.viewer.Source;
 import javafx.application.Platform;
@@ -66,9 +67,9 @@ public class ExampleApplication2
 			final Stage stage = new Stage();
 			viewer.start( stage );
 			stage.show();
-//			final Viewer3D v3d = new Viewer3D( "appname", 100, 100, false );
-//			new Thread( () -> v3d.main() ).start();
-//			viewer.baseView().setInfoNode( v3d.getPanel() );
+			final Viewer3D v3d = new Viewer3D( "appname", 100, 100, false );
+			new Thread( () -> v3d.main() ).start();
+			viewer.baseView().setInfoNode( v3d.getPanel() );
 		} );
 
 		final Volatile< UnsignedByteType > abc = rawSource.getViewerSource().getType();
