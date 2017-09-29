@@ -1,6 +1,8 @@
 package bdv.bigcat.viewer;
 
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.concurrent.CountDownLatch;
 
 import com.sun.javafx.application.PlatformImpl;
 
@@ -9,8 +11,13 @@ import bdv.bigcat.viewer.atlas.Atlas;
 import bdv.bigcat.viewer.atlas.data.HDF5LabelMultisetSourceSpec;
 import bdv.bigcat.viewer.atlas.data.HDF5UnsignedByteSpec;
 import bdv.bigcat.viewer.viewer3d.Viewer3D;
+import bdv.bigcat.viewer.viewer3d.Viewer3DController;
+import bdv.img.h5.H5LabelMultisetSetupImageLoader;
+import bdv.labels.labelset.LabelMultisetType;
 import bdv.viewer.Interpolation;
 import bdv.viewer.Source;
+import ch.systemsx.cisd.hdf5.HDF5Factory;
+import ch.systemsx.cisd.hdf5.IHDF5Reader;
 import javafx.application.Platform;
 import javafx.scene.control.Button;
 import javafx.scene.control.ButtonBar.ButtonData;
@@ -19,6 +26,8 @@ import javafx.scene.control.Dialog;
 import javafx.stage.Stage;
 import mpicbg.spim.data.sequence.VoxelDimensions;
 import net.imglib2.FinalInterval;
+import net.imglib2.Localizable;
+import net.imglib2.Point;
 import net.imglib2.RandomAccessible;
 import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.RealRandomAccessible;
@@ -63,6 +72,10 @@ public class ExampleApplication2
 
 		final Atlas viewer = new Atlas( new FinalInterval( Arrays.stream( min ).mapToLong( Math::round ).toArray(), Arrays.stream( max ).mapToLong( Math::round ).toArray() ) );
 
+		final Viewer3DController controller = new Viewer3DController();
+		controller.setMode( Viewer3DController.ViewerMode.ONLY_ONE_NEURON_VISIBLE );
+
+		final CountDownLatch latch = new CountDownLatch( 1 );
 		Platform.runLater( () -> {
 			final Stage stage = new Stage();
 			viewer.start( stage );
@@ -70,7 +83,26 @@ public class ExampleApplication2
 			final Viewer3D v3d = new Viewer3D( "appname", 100, 100, false );
 			new Thread( () -> v3d.main() ).start();
 			viewer.baseView().setInfoNode( v3d.getPanel() );
+			controller.setViewer3D( v3d );
+			controller.setResolution( resolution );
+			latch.countDown();
 		} );
+
+		RandomAccessibleInterval< LabelMultisetType > volumeLabels = null;
+		final IHDF5Reader reader;
+		reader = HDF5Factory.openForReading( labelsFile );
+		/** loaded segments */
+		ArrayList< H5LabelMultisetSetupImageLoader > labels = null;
+		if ( reader.exists( labelsDataset ) )
+		{
+			labels = bdv.bigcat.viewer.viewer3d.util.HDF5Reader.readLabels( reader, labelsDataset );
+		}
+		volumeLabels = labels.get( 0 ).getImage( 0 );
+
+		Localizable location = new Point( new int[] { 10, 267, 0 } );
+
+		latch.await();
+		controller.generateMesh( volumeLabels, location );
 
 		final Volatile< UnsignedByteType > abc = rawSource.getViewerSource().getType();
 		viewer.addRawSource( rawSource, 0., 255. );
