@@ -7,6 +7,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import bdv.labels.labelset.LabelMultisetType;
+import net.imglib2.Localizable;
 import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.view.Views;
 
@@ -116,14 +117,14 @@ public class VolumePartitioner
 	 *            x, y, z coordinates
 	 * @return chunk were this position belongs to.
 	 */
-	public Chunk getChunk( int[] position )
+	public Chunk getChunk( Localizable location )
 	{
 		for ( int i = 0; i < chunks.size(); i++ )
 		{
-			if ( chunks.get( i ).contains( position ) ) { return chunks.get( i ); }
+			if ( chunks.get( i ).contains( location ) ) { return chunks.get( i ); }
 		}
 
-		long[] offset = getVolumeOffset( position );
+		long[] offset = getVolumeOffset( location );
 
 		int xWidth = ( int ) volumeLabels.dimension( 0 );
 		int xyWidth = ( int ) ( xWidth * volumeLabels.dimension( 1 ) );
@@ -164,16 +165,16 @@ public class VolumePartitioner
 		return chunk;
 	}
 
-	public long[] getVolumeOffset( int[] position )
+	public long[] getVolumeOffset( Localizable location )
 	{
 		long[] offset = new long[ 3 ];
-		offset[ 0 ] = ( position[ 0 ] / partitionSize[ 0 ] );
-		offset[ 1 ] = ( position[ 1 ] / partitionSize[ 1 ] );
-		offset[ 2 ] = ( position[ 2 ] / partitionSize[ 2 ] );
+		offset[ 0 ] = ( location.getIntPosition( 0 ) / partitionSize[ 0 ] );
+		offset[ 1 ] = ( location.getIntPosition( 1 ) / partitionSize[ 1 ] );
+		offset[ 2 ] = ( location.getIntPosition( 2 ) / partitionSize[ 2 ] );
 
 		for ( int i = 0; i < offset.length; i++ )
 		{
-			if ( position[ i ] % partitionSize[ i ] == 0 )
+			if ( location.getIntPosition( i ) % partitionSize[ i ] == 0 )
 			{
 				if ( offset[ i ] > 0 )
 					offset[ i ]--;

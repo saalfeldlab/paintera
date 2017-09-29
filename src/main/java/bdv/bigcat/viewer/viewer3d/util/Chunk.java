@@ -7,6 +7,7 @@ import java.util.Map;
 
 import bdv.labels.labelset.LabelMultisetType;
 import graphics.scenery.Mesh;
+import net.imglib2.Localizable;
 import net.imglib2.RandomAccessibleInterval;
 
 /**
@@ -173,14 +174,14 @@ public class Chunk
 	 *            x, y, z in world coordinates
 	 * @return true if the point is inside the chunk, false otherwise.
 	 */
-	public boolean contains( int[] position )
+	public boolean contains( Localizable location )
 	{
-		assert volume.numDimensions() == position.length: "volume dimension is " + volume.numDimensions() +
-				" and point dimension is " + position.length;
+		assert volume.numDimensions() == location.numDimensions(): "volume dimension is " + volume.numDimensions() +
+				" and point dimension is " + location.numDimensions();
 
 		for ( int i = 0; i < volume.numDimensions(); i++ )
 		{
-			if ( volume.max( i ) < position[ i ] || volume.min( i ) > position[ i ] )
+			if ( volume.max( i ) < location.getIntPosition( i ) || volume.min( i ) > location.getIntPosition( i ) )
 			{
 				return false;
 			}

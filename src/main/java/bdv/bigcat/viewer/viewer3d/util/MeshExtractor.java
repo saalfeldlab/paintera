@@ -16,6 +16,8 @@ import bdv.bigcat.viewer.viewer3d.marchingCubes.MarchingCubes;
 import bdv.bigcat.viewer.viewer3d.marchingCubes.MarchingCubesCallable;
 import bdv.labels.labelset.LabelMultisetType;
 import graphics.scenery.Mesh;
+import net.imglib2.Localizable;
+import net.imglib2.Point;
 import net.imglib2.RandomAccessibleInterval;
 
 /**
@@ -165,8 +167,8 @@ public class MeshExtractor
 			LOGGER.debug( "chunk number of meshes resolutions: " + chunk.getNumberOfMeshResolutions() );
 		}
 
-		createChunks( newPosition );
-		// System.out.println( "new chunks created" );
+		Localizable newLocation = new Point( newPosition );
+		createChunks( newLocation );
 
 		// a mesh was created, return it
 		return sceneryMesh;
@@ -179,15 +181,15 @@ public class MeshExtractor
 	 * @param position
 	 *            x, y, z coordinates
 	 */
-	public void createChunks( int[] position )
+	public void createChunks( Localizable location )
 	{
-		if ( position == null )
+		if ( location == null )
 		{
 			LOGGER.info( "Given position to create a chunk is null" );
 			return;
 		}
 
-		long[] offset = partitioner.getVolumeOffset( position );
+		long[] offset = partitioner.getVolumeOffset( location );
 		LOGGER.trace( "offset: {}, {}, {}", offset[ 0 ], offset[ 1 ], offset[ 2 ] );
 
 		int[] newPosition = null;
@@ -202,7 +204,8 @@ public class MeshExtractor
 		LOGGER.trace( "Initial position is: {}, {}, {}", newPosition[ 0 ], newPosition[ 1 ], newPosition[ 2 ] );
 
 		// creates the callable for the chunk in the given position
-		createChunk( newPosition );
+		Localizable newLocation = new Point( newPosition );
+		createChunk( newLocation );
 
 		// if one of the neighbors chunks exist, creates it
 		// newOffsetposition = x + partitionSizeX, y, z
@@ -211,11 +214,11 @@ public class MeshExtractor
 
 		if ( newOffset[ 0 ] < nCellsX )
 		{
-			newPosition = new int[] {
+			newLocation = new Point(
 					( int ) ( newOffset[ 0 ] * ( partitionSize[ 0 ] + 1 ) ),
 					( int ) ( newOffset[ 1 ] * ( partitionSize[ 1 ] + 1 ) ),
-					( int ) ( newOffset[ 2 ] * ( partitionSize[ 2 ] + 1 ) ) };
-			createChunk( newPosition );
+					( int ) ( newOffset[ 2 ] * ( partitionSize[ 2 ] + 1 ) ) );
+			createChunk( newLocation );
 		}
 
 		// position = x - partitionSizeX, y, z
@@ -224,11 +227,11 @@ public class MeshExtractor
 
 		if ( newOffset[ 0 ] >= 0 )
 		{
-			newPosition = new int[] {
+			newLocation = new Point(
 					( int ) ( newOffset[ 0 ] * ( partitionSize[ 0 ] + 1 ) ),
 					( int ) ( newOffset[ 1 ] * ( partitionSize[ 1 ] + 1 ) ),
-					( int ) ( newOffset[ 2 ] * ( partitionSize[ 2 ] + 1 ) ) };
-			createChunk( newPosition );
+					( int ) ( newOffset[ 2 ] * ( partitionSize[ 2 ] + 1 ) ) );
+			createChunk( newLocation );
 		}
 
 		// position = x, y + partitionSizeY, z
@@ -237,11 +240,11 @@ public class MeshExtractor
 
 		if ( newOffset[ 1 ] < nCellsY )
 		{
-			newPosition = new int[] {
+			newLocation = new Point(
 					( int ) ( newOffset[ 0 ] * ( partitionSize[ 0 ] + 1 ) ),
 					( int ) ( newOffset[ 1 ] * ( partitionSize[ 1 ] + 1 ) ),
-					( int ) ( newOffset[ 2 ] * ( partitionSize[ 2 ] + 1 ) ) };
-			createChunk( newPosition );
+					( int ) ( newOffset[ 2 ] * ( partitionSize[ 2 ] + 1 ) ) );
+			createChunk( newLocation );
 		}
 
 		// position = x, y - partitionSizeY, z
@@ -250,11 +253,11 @@ public class MeshExtractor
 
 		if ( newOffset[ 1 ] >= 0 )
 		{
-			newPosition = new int[] {
+			newLocation = new Point(
 					( int ) ( newOffset[ 0 ] * ( partitionSize[ 0 ] + 1 ) ),
 					( int ) ( newOffset[ 1 ] * ( partitionSize[ 1 ] + 1 ) ),
-					( int ) ( newOffset[ 2 ] * ( partitionSize[ 2 ] + 1 ) ) };
-			createChunk( newPosition );
+					( int ) ( newOffset[ 2 ] * ( partitionSize[ 2 ] + 1 ) ) );
+			createChunk( newLocation );
 		}
 
 		// position = x, y, z + partitionSizeZ
@@ -263,11 +266,11 @@ public class MeshExtractor
 
 		if ( newOffset[ 2 ] < nCellsZ )
 		{
-			newPosition = new int[] {
+			newLocation = new Point(
 					( int ) ( newOffset[ 0 ] * ( partitionSize[ 0 ] + 1 ) ),
 					( int ) ( newOffset[ 1 ] * ( partitionSize[ 1 ] + 1 ) ),
-					( int ) ( newOffset[ 2 ] * ( partitionSize[ 2 ] + 1 ) ) };
-			createChunk( newPosition );
+					( int ) ( newOffset[ 2 ] * ( partitionSize[ 2 ] + 1 ) ) );
+			createChunk( newLocation );
 		}
 
 		// position = x, y, z - partitionSizeZ
@@ -276,23 +279,23 @@ public class MeshExtractor
 
 		if ( newOffset[ 2 ] >= 0 )
 		{
-			newPosition = new int[] {
+			newLocation = new Point(
 					( int ) ( newOffset[ 0 ] * ( partitionSize[ 0 ] + 1 ) ),
 					( int ) ( newOffset[ 1 ] * ( partitionSize[ 1 ] + 1 ) ),
-					( int ) ( newOffset[ 2 ] * ( partitionSize[ 2 ] + 1 ) ) };
-			createChunk( newPosition );
+					( int ) ( newOffset[ 2 ] * ( partitionSize[ 2 ] + 1 ) ) );
+			createChunk( newLocation );
 		}
 
 		LOGGER.trace( "There is/are {} threads to calculate chunk mesh", resultMeshMap.size() );
 	}
 
-	private void createChunk( int[] position )
+	private void createChunk( Localizable location )
 	{
-		Chunk chunk = partitioner.getChunk( position );
+		Chunk chunk = partitioner.getChunk( location );
 		if ( LOGGER.isTraceEnabled() )
 		{
 			int[] chunkBb = chunk.getChunkBoundinBox();
-			LOGGER.trace( "position: " + position[ 0 ] + " " + position[ 1 ] + " " + position[ 2 ] );
+			LOGGER.trace( "position: " + location.getIntPosition( 0 ) + " " + location.getIntPosition( 1 ) + " " + location.getIntPosition( 2 ) );
 			LOGGER.trace( "adding in the set: " + chunkBb[ 0 ] + " " + chunkBb[ 1 ] + " " + chunkBb[ 2 ] );
 			LOGGER.trace( " to " + chunkBb[ 3 ] + " " + chunkBb[ 4 ] + " " + chunkBb[ 5 ] );
 		}
@@ -318,9 +321,7 @@ public class MeshExtractor
 		int[] volumeDimension = new int[] { ( int ) chunk.getVolume().dimension( 0 ), ( int ) chunk.getVolume().dimension( 1 ),
 				( int ) chunk.getVolume().dimension( 2 ) };
 
-		MarchingCubesCallable callable = new MarchingCubesCallable( chunk.getVolume(), volumeDimension, chunk.getOffset(), cubeSize, criterion, foregroundValue,
-				true );
-
+		MarchingCubesCallable callable = new MarchingCubesCallable( chunk.getVolume(), volumeDimension, chunk.getOffset(), cubeSize, criterion, foregroundValue, true );
 		Future< SimpleMesh > result = executor.submit( callable );
 
 		resultMeshMap.put( result, chunk );
@@ -384,10 +385,5 @@ public class MeshExtractor
 		}
 
 		sceneryMesh.setVertices( FloatBuffer.wrap( verticesArray ) );
-	}
-
-	private void initialize()
-	{
-
 	}
 }
