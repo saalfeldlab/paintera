@@ -1,6 +1,5 @@
 package bdv.bigcat.viewer.viewer3d.marchingCubes;
 
-import java.sql.Timestamp;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -88,7 +87,6 @@ public class MarchingCubes
 			final int[] cubeSize, final ForegroundCriterion foregroundCriteria, final int foregroundValue,
 			final boolean copyToArray )
 	{
-		Timestamp begin = new Timestamp( System.currentTimeMillis() );
 		initializeVariables( volDim, offset, cubeSize, foregroundCriteria, foregroundValue );
 		SimpleMesh mesh = null;
 		if ( copyToArray )
@@ -99,9 +97,6 @@ public class MarchingCubes
 		{
 			mesh = generateMeshFromRAI( input, cubeSize );
 		}
-		Timestamp end = new Timestamp( System.currentTimeMillis() );
-		System.out.println( "marching cube block finished: " + ( end.getTime() - begin.getTime() ) );
-		System.out.println( "mesh has: " + mesh.getNumberOfVertices() + " vertices" );
 
 		return mesh;
 	}
