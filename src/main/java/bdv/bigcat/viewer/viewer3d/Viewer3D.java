@@ -1,5 +1,8 @@
 package bdv.bigcat.viewer.viewer3d;
 
+import java.util.Iterator;
+import java.util.concurrent.CopyOnWriteArrayList;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -8,6 +11,7 @@ import graphics.scenery.Box;
 import graphics.scenery.Camera;
 import graphics.scenery.DetachedHeadCamera;
 import graphics.scenery.Mesh;
+import graphics.scenery.Node;
 import graphics.scenery.PointLight;
 import graphics.scenery.SceneryBase;
 import graphics.scenery.SceneryElement;
@@ -20,7 +24,7 @@ public class Viewer3D extends SceneryBase
 	/** logger */
 	static final Logger LOGGER = LoggerFactory.getLogger( Viewer3D.class );
 
-	private float[] volumeResolution = null;
+	private double[] volumeResolution = null;
 
 	private final SceneryPanel scPanel;
 
@@ -31,7 +35,7 @@ public class Viewer3D extends SceneryBase
 		scPanel = new SceneryPanel( 500, 500 );
 	}
 
-	public void setVolumeResolution( float[] resolution )
+	public void setVolumeResolution( double[] resolution )
 	{
 		this.volumeResolution = resolution;
 	}
@@ -62,7 +66,7 @@ public class Viewer3D extends SceneryBase
 		}
 		else
 		{
-			cam.setPosition( new GLVector( volumeResolution[ 0 ] / 2, volumeResolution[ 1 ] / 2, 2 ) );
+			cam.setPosition( new GLVector( ( float ) ( volumeResolution[ 0 ] / 2 ), ( float ) ( volumeResolution[ 1 ] / 2 ), 2 ) );
 		}
 		getScene().addChild( cam );
 
@@ -110,5 +114,20 @@ public class Viewer3D extends SceneryBase
 	public SceneryPanel getPanel()
 	{
 		return scPanel;
+	}
+	
+	public void removeAllNeurons()
+	{
+		CopyOnWriteArrayList< Node > children = getScene().getChildren();
+		Iterator< Node > iterator = children.iterator();
+		while (iterator.hasNext()) {
+			Node child = iterator.next();
+			System.out.println( child.getNodeType() );
+
+			if ( child.getNodeType().compareTo( "Mesh" ) == 0 )
+			{
+				getScene().removeChild( child );
+			}
+		}
 	}
 }
