@@ -54,7 +54,6 @@ public class Viewer3DController
 	public void setViewer3D( Viewer3D viewer3D )
 	{
 		this.viewer3D = viewer3D; 
-		System.out.println( "Defining viewer3d: " + viewer3D );
 	}
 
 	public void setMode( ViewerMode mode )
