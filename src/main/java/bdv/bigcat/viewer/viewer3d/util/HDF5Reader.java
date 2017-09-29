@@ -9,7 +9,6 @@ import ch.systemsx.cisd.hdf5.IHDF5Reader;
 
 public class HDF5Reader
 {
-
 	protected static int setupId = 0;
 
 	final static protected int[] cellDimensions = new int[] { 64, 64, 8 };
@@ -17,7 +16,6 @@ public class HDF5Reader
 	public static ArrayList< H5LabelMultisetSetupImageLoader > readLabels( final IHDF5Reader reader,
 			final String labelDataset ) throws IOException
 	{
-
 		/** loaded segments */
 		final ArrayList< H5LabelMultisetSetupImageLoader > labels = new ArrayList<>();
 
@@ -27,5 +25,4 @@ public class HDF5Reader
 
 		return labels;
 	}
-
 }
