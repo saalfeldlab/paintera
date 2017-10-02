@@ -1,4 +1,4 @@
-package bdv.bigcat.viewer;
+package bdv.bigcat.viewer.viewer3d.util;
 
 /**
  * the primary structure used to pass around the components of a mesh

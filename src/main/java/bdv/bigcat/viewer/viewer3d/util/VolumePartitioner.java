@@ -1,4 +1,4 @@
-package bdv.bigcat.viewer;
+package bdv.bigcat.viewer.viewer3d.util;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -7,6 +7,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import bdv.labels.labelset.LabelMultisetType;
+import net.imglib2.Localizable;
 import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.view.Views;
 
@@ -31,11 +32,6 @@ public class VolumePartitioner
 	/** Minimum size of each partition the partition */
 	private final int[] partitionSize;
 
-	/**
-	 * dimension of the cube that will be used on the marching cubes algorithm
-	 */
-	private final int[] cubeSize;
-
 	private static List< Chunk > chunks;
 
 	/**
@@ -45,7 +41,6 @@ public class VolumePartitioner
 	{
 		this.volumeLabels = volumeLabels;
 		this.partitionSize = partitionSize;
-		this.cubeSize = cubeSize;
 		this.OVERLAP = cubeSize;
 		VolumePartitioner.chunks = new ArrayList< Chunk >();
 
@@ -53,6 +48,11 @@ public class VolumePartitioner
 		{
 			LOGGER.trace( "partition size: " + partitionSize[ 0 ] + " " + partitionSize[ 1 ] + " " + partitionSize[ 2 ] );
 		}
+	}
+
+	public void setOverlapSize( int[] cubeSize )
+	{
+		this.OVERLAP = cubeSize;
 	}
 
 	/**
@@ -94,7 +94,7 @@ public class VolumePartitioner
 
 					final Chunk chunk = new Chunk();
 					chunk.setVolume( Views.interval( volumeLabels, begin, end ) );
-					chunk.setOffset( new int[] { ( int ) ( begin[ 0 ] / cubeSize[ 0 ] ), ( int ) ( begin[ 1 ] / cubeSize[ 1 ] ), ( int ) ( begin[ 2 ] / cubeSize[ 2 ] ) } );
+					chunk.setOffset( new int[] { ( int ) ( begin[ 0 ] ), ( int ) ( begin[ 1 ] ), ( int ) ( begin[ 2 ] ) } );
 					chunks.add( chunk );
 
 					if ( LOGGER.isDebugEnabled() )
@@ -117,14 +117,14 @@ public class VolumePartitioner
 	 *            x, y, z coordinates
 	 * @return chunk were this position belongs to.
 	 */
-	public Chunk getChunk( int[] position )
+	public Chunk getChunk( Localizable location )
 	{
 		for ( int i = 0; i < chunks.size(); i++ )
 		{
-			if ( chunks.get( i ).contains( position ) ) { return chunks.get( i ); }
+			if ( chunks.get( i ).contains( location ) ) { return chunks.get( i ); }
 		}
 
-		long[] offset = getVolumeOffset( position );
+		long[] offset = getVolumeOffset( location );
 
 		int xWidth = ( int ) volumeLabels.dimension( 0 );
 		int xyWidth = ( int ) ( xWidth * volumeLabels.dimension( 1 ) );
@@ -152,7 +152,7 @@ public class VolumePartitioner
 
 		final Chunk chunk = new Chunk();
 		chunk.setVolume( Views.interval( volumeLabels, begin, end ) );
-		chunk.setOffset( new int[] { ( int ) ( begin[ 0 ] / cubeSize[ 0 ] ), ( int ) ( begin[ 1 ] / cubeSize[ 1 ] ), ( int ) ( ( begin[ 2 ] / cubeSize[ 2 ] ) ) } );
+		chunk.setOffset( new int[] { ( int ) ( begin[ 0 ] ), ( int ) ( begin[ 1 ] ), ( int ) ( ( begin[ 2 ] ) ) } );
 		chunk.setIndex( index );
 		chunks.add( chunk );
 
@@ -165,16 +165,16 @@ public class VolumePartitioner
 		return chunk;
 	}
 
-	public long[] getVolumeOffset( int[] position )
+	public long[] getVolumeOffset( Localizable location )
 	{
 		long[] offset = new long[ 3 ];
-		offset[ 0 ] = ( position[ 0 ] / partitionSize[ 0 ] );
-		offset[ 1 ] = ( position[ 1 ] / partitionSize[ 1 ] );
-		offset[ 2 ] = ( position[ 2 ] / partitionSize[ 2 ] );
+		offset[ 0 ] = ( location.getIntPosition( 0 ) / partitionSize[ 0 ] );
+		offset[ 1 ] = ( location.getIntPosition( 1 ) / partitionSize[ 1 ] );
+		offset[ 2 ] = ( location.getIntPosition( 2 ) / partitionSize[ 2 ] );
 
 		for ( int i = 0; i < offset.length; i++ )
 		{
-			if ( position[ i ] % partitionSize[ i ] == 0 )
+			if ( location.getIntPosition( i ) % partitionSize[ i ] == 0 )
 			{
 				if ( offset[ i ] > 0 )
 					offset[ i ]--;

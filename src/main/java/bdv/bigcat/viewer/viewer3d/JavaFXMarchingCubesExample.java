@@ -1,4 +1,4 @@
-package bdv.bigcat.viewer;
+package bdv.bigcat.viewer.viewer3d;
 
 import java.io.IOException;
 import java.nio.FloatBuffer;
@@ -18,6 +18,12 @@ import org.slf4j.LoggerFactory;
 
 import com.sun.javafx.application.PlatformImpl;
 
+import bdv.bigcat.viewer.viewer3d.marchingCubes.MarchingCubes;
+import bdv.bigcat.viewer.viewer3d.marchingCubes.MarchingCubesCallable;
+import bdv.bigcat.viewer.viewer3d.util.Chunk;
+import bdv.bigcat.viewer.viewer3d.util.HDF5Reader;
+import bdv.bigcat.viewer.viewer3d.util.SimpleMesh;
+import bdv.bigcat.viewer.viewer3d.util.VolumePartitioner;
 import bdv.img.h5.H5LabelMultisetSetupImageLoader;
 import bdv.labels.labelset.LabelMultisetType;
 import ch.systemsx.cisd.hdf5.HDF5Factory;
@@ -101,8 +107,6 @@ public class JavaFXMarchingCubesExample
 
 	public static void main( final String[] args ) throws Exception
 	{
-		// Set the log level
-		System.setProperty( org.slf4j.impl.SimpleLogger.DEFAULT_LOG_LEVEL_KEY, "INFO" );
 		final MarchingCubeApplication viewer = new MarchingCubeApplication( "Marching cube", 800, 600 );
 		viewer.main();
 	}

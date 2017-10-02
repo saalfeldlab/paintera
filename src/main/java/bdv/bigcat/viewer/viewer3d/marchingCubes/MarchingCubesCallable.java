@@ -1,7 +1,8 @@
-package bdv.bigcat.viewer;
+package bdv.bigcat.viewer.viewer3d.marchingCubes;
 
 import java.util.concurrent.Callable;
 
+import bdv.bigcat.viewer.viewer3d.util.SimpleMesh;
 import bdv.labels.labelset.LabelMultisetType;
 import net.imglib2.RandomAccessibleInterval;
 
@@ -11,21 +12,21 @@ public class MarchingCubesCallable implements Callable< SimpleMesh >
 	RandomAccessibleInterval< LabelMultisetType > volume;
 
 	/** volume dimension */
-	int[] volDim;
+	private int[] volDim;
 
 	/** offset to positioning the vertices in global coordinates */
-	int[] offset;
+	private int[] offset;
 
 	/** marching cube voxel dimension */
-	int[] cubeSize;
+	private int[] cubeSize;
 
 	/**
 	 * defines if the criterion that will be used to generate the mesh
 	 */
-	MarchingCubes.ForegroundCriterion criterion;
+	private MarchingCubes.ForegroundCriterion criterion;
 
 	/** the value to match the criterion */
-	int foregroundValue;
+	private int foregroundValue;
 
 	/**
 	 * indicates if it is to use the implementation directly with RAI (false) or
@@ -33,14 +34,14 @@ public class MarchingCubesCallable implements Callable< SimpleMesh >
 	 */
 	boolean copyToArray;
 
-	public MarchingCubesCallable( RandomAccessibleInterval< LabelMultisetType > input, int[] volDim, int[] offset, int[] cubeSize, MarchingCubes.ForegroundCriterion criterion, int level, boolean usingRAI )
+	public MarchingCubesCallable( RandomAccessibleInterval< LabelMultisetType > input, int[] volDim, int[] offset, int[] cubeSize, MarchingCubes.ForegroundCriterion criterion, int foregroundValue, boolean usingRAI )
 	{
 		this.volume = input;
 		this.volDim = volDim;
 		this.offset = offset;
 		this.cubeSize = cubeSize;
 		this.criterion = criterion;
-		this.foregroundValue = level;
+		this.foregroundValue = foregroundValue;
 		this.copyToArray = usingRAI;
 	}
 

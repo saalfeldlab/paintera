@@ -9,11 +9,11 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 
-import bdv.bigcat.viewer.Viewer3D;
 import bdv.bigcat.viewer.ViewerActor;
 import bdv.bigcat.viewer.panel.ViewerNode;
 import bdv.bigcat.viewer.panel.ViewerNode.ViewerAxis;
 import bdv.bigcat.viewer.panel.ViewerTransformManager;
+import bdv.bigcat.viewer.viewer3d.Viewer3D;
 import bdv.cache.CacheControl;
 import bdv.viewer.SourceAndConverter;
 import bdv.viewer.ViewerOptions;
