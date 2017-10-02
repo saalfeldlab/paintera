@@ -1,4 +1,4 @@
-package bdv.bigcat.viewer;
+package bdv.bigcat.viewer.ortho;
 
 import java.awt.image.BufferedImage;
 import java.util.Optional;

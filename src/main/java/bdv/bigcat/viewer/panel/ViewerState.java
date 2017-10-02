@@ -1,16 +1,16 @@
-package bdv.bigcat.viewer.state.viewer;
+package bdv.bigcat.viewer.panel;
 
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
-import bdv.bigcat.viewer.GlobalTransformManager;
-import bdv.bigcat.viewer.ViewerTransformManager;
+import bdv.bigcat.viewer.state.GlobalTransformManager;
 import bdv.viewer.Interpolation;
 import bdv.viewer.Source;
 import bdv.viewer.SourceAndConverter;
 import bdv.viewer.ViewerPanel;
+import javafx.beans.property.Property;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.value.ChangeListener;
 import javafx.beans.value.ObservableValue;
@@ -24,8 +24,6 @@ public class ViewerState
 {
 	private final ViewerPanel viewer;
 
-	private final ViewerTransformManager viewerTransform;
-
 	private final SourcesListener sacs = new SourcesListener();
 
 	private final VisibilityListener visibility = new VisibilityListener();
@@ -34,11 +32,12 @@ public class ViewerState
 
 	private final InterpolationListener interpolation = new InterpolationListener();
 
-	public ViewerState( final ViewerPanel viewer, final ViewerTransformManager viewerTransform )
+	private final SimpleObjectProperty< GlobalTransformManager > globalTransform = new SimpleObjectProperty<>( new GlobalTransformManager() );
+
+	public ViewerState( final ViewerPanel viewer )
 	{
 		super();
 		this.viewer = viewer;
-		this.viewerTransform = viewerTransform;
 	}
 
 	public synchronized void set( final ViewerState state )
@@ -49,12 +48,17 @@ public class ViewerState
 
 	public synchronized void setGlobalTransform( final ViewerState state )
 	{
-		setGlobalTransform( state.viewerTransform.getGlobalTransform() );
+		setGlobalTransform( state.globalTransform.get() );
 	}
 
 	public synchronized void setGlobalTransform( final GlobalTransformManager gm )
 	{
-		this.viewerTransform.setGlobalTransform( gm );
+		this.globalTransform.set( gm );
+	}
+
+	public synchronized Property< GlobalTransformManager > globalTransformProperty()
+	{
+		return this.globalTransform;
 	}
 
 	public synchronized void setSources( final ViewerState state )

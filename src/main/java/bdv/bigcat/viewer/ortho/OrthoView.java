@@ -1,4 +1,4 @@
-package bdv.bigcat.viewer;
+package bdv.bigcat.viewer.ortho;
 
 import java.awt.Color;
 import java.util.HashMap;
@@ -9,7 +9,11 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 
-import bdv.bigcat.viewer.ViewerNode.ViewerAxis;
+import bdv.bigcat.viewer.Viewer3D;
+import bdv.bigcat.viewer.ViewerActor;
+import bdv.bigcat.viewer.panel.ViewerNode;
+import bdv.bigcat.viewer.panel.ViewerNode.ViewerAxis;
+import bdv.bigcat.viewer.panel.ViewerTransformManager;
 import bdv.cache.CacheControl;
 import bdv.viewer.SourceAndConverter;
 import bdv.viewer.ViewerOptions;
@@ -31,7 +35,7 @@ import javafx.scene.layout.GridPane;
 import javafx.scene.layout.StackPane;
 import net.imglib2.realtransform.AffineTransform3D;
 
-public class BaseView extends BorderPane
+public class OrthoView extends BorderPane
 {
 
 	public static final Class< ? >[] FOCUS_KEEPERS = { TextField.class };
@@ -46,7 +50,7 @@ public class BaseView extends BorderPane
 
 	private final GridResizer resizer;
 
-	private final BaseViewState state;
+	private final OrthoViewState state;
 
 //	private final ObservableList< SourceAndConverter< ? > > sourceLayers = FXCollections.observableArrayList();
 //	{
@@ -73,22 +77,22 @@ public class BaseView extends BorderPane
 
 	private final Consumer< ViewerPanel > onFocusExit;
 
-	public BaseView()
+	public OrthoView()
 	{
-		this( new BaseViewState() );
+		this( new OrthoViewState() );
 	}
 
-	public BaseView( final ViewerOptions viewerOptions )
+	public OrthoView( final ViewerOptions viewerOptions )
 	{
-		this( new BaseViewState( viewerOptions ) );
+		this( new OrthoViewState( viewerOptions ) );
 	}
 
-	public BaseView( final BaseViewState state )
+	public OrthoView( final OrthoViewState state )
 	{
 		this( ( vp ) -> {}, ( vp ) -> {}, state );
 	}
 
-	public BaseView( final Consumer< ViewerPanel > onFocusEnter, final Consumer< ViewerPanel > onFocusExit, final BaseViewState state )
+	public OrthoView( final Consumer< ViewerPanel > onFocusEnter, final Consumer< ViewerPanel > onFocusExit, final OrthoViewState state )
 	{
 		super();
 		this.state = state;
@@ -199,7 +203,7 @@ public class BaseView extends BorderPane
 
 	private synchronized void addViewer( final ViewerAxis axis, final int rowIndex, final int colIndex ) throws InterruptedException
 	{
-		final ViewerNode viewerNode = new ViewerNode( new CacheControl.Dummy(), axis, this.state.globalTransform, this.state.viewerOptions );
+		final ViewerNode viewerNode = new ViewerNode( new CacheControl.Dummy(), axis, this.state.viewerOptions );
 		this.viewerNodes.add( viewerNode );
 		this.managers.put( viewerNode, viewerNode.manager() );
 		viewerNode.getState().setSources( state.sacs, state.visibility, state.currentSource, state.interpolation );
@@ -361,8 +365,13 @@ public class BaseView extends BorderPane
 		this.state.globalTransform.setTransform( transform );
 	}
 
-	public BaseViewState getState()
+	public OrthoViewState getState()
 	{
 		return this.state;
+	}
+
+	public void addAction( final Runnable r, final String name, final String... keyStrokes )
+	{
+		viewerNodes.forEach( viewerNode -> viewerNode.addAction( r, name, keyStrokes ) );
 	}
 }

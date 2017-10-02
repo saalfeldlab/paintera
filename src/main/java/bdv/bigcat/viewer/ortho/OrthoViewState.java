@@ -1,4 +1,4 @@
-package bdv.bigcat.viewer;
+package bdv.bigcat.viewer.ortho;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -6,6 +6,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
+import bdv.bigcat.viewer.state.GlobalTransformManager;
 import bdv.viewer.Interpolation;
 import bdv.viewer.Source;
 import bdv.viewer.SourceAndConverter;
@@ -20,7 +21,7 @@ import javafx.collections.ObservableMap;
 import net.imglib2.converter.Converter;
 import net.imglib2.type.numeric.ARGBType;
 
-public class BaseViewState
+public class OrthoViewState
 {
 
 	protected final GridConstraintsManager constraintsManager;
@@ -39,17 +40,17 @@ public class BaseViewState
 
 	protected final ObservableMap< Source< ? >, Boolean > visibility = FXCollections.observableHashMap();
 
-	public BaseViewState()
+	public OrthoViewState()
 	{
 		this( ViewerOptions.options() );
 	}
 
-	public BaseViewState( final ViewerOptions viewerOptions )
+	public OrthoViewState( final ViewerOptions viewerOptions )
 	{
 		this( viewerOptions, new GlobalTransformManager(), new GridConstraintsManager(), new ArrayList<>() );
 	}
 
-	public BaseViewState( final ViewerOptions viewerOptions, final GlobalTransformManager globalTransform, final GridConstraintsManager constraintsManager, final List< Converter< ?, ARGBType > > converters )
+	public OrthoViewState( final ViewerOptions viewerOptions, final GlobalTransformManager globalTransform, final GridConstraintsManager constraintsManager, final List< Converter< ?, ARGBType > > converters )
 	{
 		this.viewerOptions = viewerOptions;
 		this.globalTransform = globalTransform;
@@ -116,6 +117,27 @@ public class BaseViewState
 	public synchronized List< SourceAndConverter< ? > > getSourcesCopy()
 	{
 		return new ArrayList<>( sacs );
+	}
+
+	public void toggleInterpolation()
+	{
+		switch ( this.interpolation.get() )
+		{
+		case NEARESTNEIGHBOR:
+			this.interpolation.set( Interpolation.NLINEAR );
+			break;
+		case NLINEAR:
+			this.interpolation.set( Interpolation.NEARESTNEIGHBOR );
+			break;
+		default:
+			this.interpolation.set( Interpolation.NEARESTNEIGHBOR );
+			break;
+		}
+	}
+
+	public void setCurrentSource( final Optional< Source< ? > > source )
+	{
+		this.currentSource.set( source );
 	}
 
 }

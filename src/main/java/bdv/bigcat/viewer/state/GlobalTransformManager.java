@@ -1,4 +1,4 @@
-package bdv.bigcat.viewer;
+package bdv.bigcat.viewer.state;
 
 import java.util.ArrayList;
 import java.util.Arrays;

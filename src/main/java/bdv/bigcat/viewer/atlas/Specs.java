@@ -319,4 +319,21 @@ public class Specs extends AbstractState< Specs >
 		this.visibiltyChangeListeners.add( listener );
 	}
 
+	public void cycleSource( final int direction )
+	{
+		final Optional< DatasetSpec< ?, ? > > selectedSource = this.selectedSource.getValue();
+		if ( selectedSource.isPresent() )
+		{
+			final int index = indexOf( this.sourceStates, selectedSource.get() );
+			final int step = ( int ) Math.signum( direction );
+			final int newPosition = index + step;
+			this.selectedSource.setValue( Optional.of( this.sourceStates.get( ( newPosition < 0 ? this.sourceStates.size() + newPosition : newPosition ) % this.sourceStates.size() ).spec() ) );
+		}
+		else if ( this.sourceStates.size() > 0 )
+			this.selectedSource.setValue( Optional.of( this.sourceStates.get( 0 ).spec() ) );
+		else
+			this.selectedSource.setValue( Optional.empty() );
+		System.out.println( "Set selected source to " + selectedSource );
+	}
+
 }

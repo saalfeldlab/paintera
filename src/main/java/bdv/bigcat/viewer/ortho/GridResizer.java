@@ -1,4 +1,4 @@
-package bdv.bigcat.viewer;
+package bdv.bigcat.viewer.ortho;
 
 import javafx.animation.KeyFrame;
 import javafx.animation.KeyValue;

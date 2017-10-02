@@ -1,4 +1,4 @@
-package bdv.bigcat.viewer;
+package bdv.bigcat.viewer.panel;
 
 import java.awt.Color;
 import java.awt.Dimension;
@@ -18,7 +18,6 @@ import org.scijava.ui.behaviour.util.Behaviours;
 import org.scijava.ui.behaviour.util.InputActionBindings;
 import org.scijava.ui.behaviour.util.TriggerBehaviourBindings;
 
-import bdv.bigcat.viewer.state.viewer.ViewerState;
 import bdv.cache.CacheControl;
 import bdv.viewer.DisplayMode;
 import bdv.viewer.Source;
@@ -74,14 +73,13 @@ public class ViewerNode extends SwingNode implements ListChangeListener< SourceA
 	public ViewerNode(
 			final CacheControl cacheControl,
 			final ViewerAxis viewerAxis,
-			final GlobalTransformManager manager,
 			final ViewerOptions viewerOptions ) throws InterruptedException
 	{
 		this.viewer = createViewer( viewerOptions, cacheControl );
 		this.setContent( this.viewer );
 		this.viewerAxis = viewerAxis;
-		this.manager = new ViewerTransformManager( this.viewer, manager, globalToViewer( viewerAxis ) );
-		this.state = new ViewerState( this.viewer, this.manager );
+		this.state = new ViewerState( this.viewer );
+		this.manager = new ViewerTransformManager( this.viewer, state, globalToViewer( viewerAxis ) );
 		initializeViewer();
 		addCrosshair();
 	}

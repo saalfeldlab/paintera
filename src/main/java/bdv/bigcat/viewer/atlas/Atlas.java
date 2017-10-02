@@ -13,8 +13,6 @@ import bdv.bigcat.composite.ARGBCompositeAlphaAdd;
 import bdv.bigcat.composite.ARGBCompositeAlphaYCbCr;
 import bdv.bigcat.composite.ClearingCompositeProjector.ClearingCompositeProjectorFactory;
 import bdv.bigcat.composite.Composite;
-import bdv.bigcat.viewer.BaseView;
-import bdv.bigcat.viewer.BaseViewState;
 import bdv.bigcat.viewer.ToIdConverter;
 import bdv.bigcat.viewer.ToIdConverter.FromLabelMultisetType;
 import bdv.bigcat.viewer.ViewerActor;
@@ -32,6 +30,8 @@ import bdv.bigcat.viewer.atlas.mode.Merges;
 import bdv.bigcat.viewer.atlas.mode.Mode;
 import bdv.bigcat.viewer.atlas.mode.ModeUtil;
 import bdv.bigcat.viewer.atlas.mode.NavigationOnly;
+import bdv.bigcat.viewer.ortho.OrthoView;
+import bdv.bigcat.viewer.ortho.OrthoViewState;
 import bdv.bigcat.viewer.state.FragmentSegmentAssignmentState;
 import bdv.bigcat.viewer.state.SelectedIds;
 import bdv.bigcat.viewer.stream.ModalGoldenAngleSaturatedHighlightingARGBStream;
@@ -76,7 +76,7 @@ import net.imglib2.type.volatiles.VolatileRealType;
 public class Atlas
 {
 
-	private final BaseView view;
+	private final OrthoView view;
 
 	private final HBox status = new HBox();
 
@@ -107,7 +107,7 @@ public class Atlas
 	{
 		super();
 		this.viewerOptions = viewerOptions.accumulateProjectorFactory( new ClearingCompositeProjectorFactory<>( composites, new ARGBType() ) );
-		this.view = new BaseView( focusHandler.onEnter(), focusHandler.onExit(), new BaseViewState( this.viewerOptions ) );
+		this.view = new OrthoView( focusHandler.onEnter(), focusHandler.onExit(), new OrthoViewState( this.viewerOptions ) );
 		this.view.setBottom( status );
 //		this.view.setInfoNode( this.view.globalSourcesInfoNode() );
 		this.view.setInfoNode( new Label( "" ) );
@@ -186,6 +186,16 @@ public class Atlas
 		};
 		tf.translate( Arrays.stream( sums ).mapToDouble( sum -> -0.5 * sum ).toArray() );
 		this.baseView().setTransform( tf );
+
+		this.baseView().getState().addCurrentSourceListener( ( observable, oldValue, newValue ) -> {
+			if ( newValue.isPresent() )
+			{
+				final Optional< SourceState< ?, ?, ? > > spec = this.specs.getState( newValue.get() );
+				this.specs.selectedSourceProperty().setValue( spec.isPresent() ? Optional.of( spec.get().spec() ) : Optional.empty() );
+			}
+			else
+				this.specs.selectedSourceProperty().setValue( Optional.empty() );
+		} );
 
 	}
 
@@ -383,7 +393,7 @@ public class Atlas
 
 	}
 
-	public BaseView baseView()
+	public OrthoView baseView()
 	{
 		return this.view;
 	}
