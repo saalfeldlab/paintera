@@ -64,7 +64,15 @@ public class ExampleApplication2
 
 		Platform.runLater( () -> {
 			final Stage stage = new Stage();
-			viewer.start( stage );
+			try
+			{
+				viewer.start( stage );
+			}
+			catch ( final InterruptedException e )
+			{
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
 			stage.show();
 //			final Viewer3D v3d = new Viewer3D( "appname", 100, 100, false );
 //			new Thread( () -> v3d.main() ).start();

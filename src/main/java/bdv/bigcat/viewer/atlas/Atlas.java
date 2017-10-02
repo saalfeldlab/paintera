@@ -117,11 +117,11 @@ public class Atlas
 		} );
 //		this.sourcesTab.listen( this.specs );
 
-		this.view.addCurrentSourceListener( ( observable, oldValue, newValue ) -> {
-			final Optional< SourceState< ?, ?, ? > > state = specs.getState( newValue );
-			if ( state.isPresent() )
-				specs.selectedSourceProperty().setValue( Optional.of( state.get().spec() ) );
-		} );
+//		this.view.addCurrentSourceListener( ( observable, oldValue, newValue ) -> {
+//			final Optional< SourceState< ?, ?, ? > > state = specs.getState( newValue );
+//			if ( state.isPresent() )
+//				specs.selectedSourceProperty().setValue( Optional.of( state.get().spec() ) );
+//		} );
 
 		for ( final Mode mode : modes )
 			addOnEnterOnExit( mode.onEnter(), mode.onExit(), true );
@@ -146,8 +146,8 @@ public class Atlas
 		this.specs.addVisibilityChangedListener( () -> {
 			final List< SourceState< ?, ?, ? > > states = this.specs.sourceStates();
 			final List< SourceAndConverter< ? > > onlyVisible = states.stream().filter( SourceState::isVisible ).map( SourceState::sourceAndConverter ).collect( Collectors.toList() );
-			this.baseView().removeAllSources();
-			this.baseView().addSources( onlyVisible );
+			this.baseView().getState().removeAllSources();
+			this.baseView().getState().addSources( onlyVisible );
 		} );
 
 		this.specs.addListChangeListener( ( ListChangeListener< Specs.SourceState< ?, ?, ? > > ) c -> {
@@ -158,10 +158,10 @@ public class Atlas
 						final Source< ? > source = removed.source();
 						this.selectedIds.remove( source );
 						this.composites.remove( source );
-						this.baseView().removeSource( source );
+						this.baseView().getState().removeSource( source );
 					}
 				else if ( c.wasAdded() )
-					this.baseView().addSources( c.getAddedSubList().stream().map( Specs.SourceState::sourceAndConverter ).collect( Collectors.toList() ) );
+					this.baseView().getState().addSources( c.getAddedSubList().stream().map( Specs.SourceState::sourceAndConverter ).collect( Collectors.toList() ) );
 		} );
 
 //		this.specs.addListener( () -> {
@@ -194,12 +194,12 @@ public class Atlas
 		this.baseView().setRight( this.baseView().getRight() == null ? this.sourcesTab : null );
 	}
 
-	public void start( final Stage primaryStage )
+	public void start( final Stage primaryStage ) throws InterruptedException
 	{
 		start( primaryStage, "ATLAS" );
 	}
 
-	public void start( final Stage primaryStage, final String title )
+	public void start( final Stage primaryStage, final String title ) throws InterruptedException
 	{
 
 		final Scene scene = view.createScene( 800, 600 );

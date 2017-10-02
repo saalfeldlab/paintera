@@ -117,7 +117,15 @@ public class LART
 
 		Platform.runLater( () -> {
 			final Stage stage = new Stage();
-			viewer.start( stage, "l’art" );
+			try
+			{
+				viewer.start( stage, "l’art" );
+			}
+			catch ( final InterruptedException e )
+			{
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
 			stage.show();
 		} );
 

@@ -6,7 +6,6 @@ import java.awt.event.ActionEvent;
 import java.awt.event.MouseEvent;
 import java.awt.event.MouseListener;
 import java.util.HashSet;
-import java.util.List;
 
 import javax.swing.JPanel;
 import javax.swing.KeyStroke;
@@ -21,9 +20,7 @@ import org.scijava.ui.behaviour.util.Behaviours;
 import org.scijava.ui.behaviour.util.InputActionBindings;
 import org.scijava.ui.behaviour.util.TriggerBehaviourBindings;
 
-import bdv.viewer.Source;
 import bdv.viewer.ViewerPanel;
-import bdv.viewer.state.SourceState;
 import net.imglib2.RealPoint;
 import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.ui.TransformEventHandler;
@@ -77,10 +74,12 @@ public class ViewerTransformManager implements TransformListener< AffineTransfor
 	}
 
 	public ViewerTransformManager(
+			final ViewerPanel viewer,
 			final GlobalTransformManager manager,
 			final AffineTransform3D globalToViewer )
 	{
 		super();
+		this.viewer = viewer;
 		this.manager = manager;
 		this.globalToViewer = globalToViewer;
 		this.canvasH = 1;
@@ -90,6 +89,11 @@ public class ViewerTransformManager implements TransformListener< AffineTransfor
 
 		behaviours = new Behaviours( config, "bdv" );
 		actions = new Actions( config );
+
+		setTransformListener( viewer );
+		manager.addListener( this );
+
+		setUpViewer();
 	}
 
 	public void setGlobalToViewer( final AffineTransform3D affine )
@@ -98,7 +102,7 @@ public class ViewerTransformManager implements TransformListener< AffineTransfor
 		update();
 	}
 
-	private final GlobalTransformManager manager;
+	private GlobalTransformManager manager;
 
 	private final InputTriggerConfig config = new InputTriggerConfig();
 
@@ -116,13 +120,18 @@ public class ViewerTransformManager implements TransformListener< AffineTransfor
 
 	private final Actions actions;
 
-	private ViewerPanel viewer;
-
-	private ViewerPanelState state;
+	private final ViewerPanel viewer;
 
 	private int canvasW = 1, canvasH = 1;
 
 	private int centerX = 0, centerY = 0;
+
+	public synchronized void setGlobalTransform( final GlobalTransformManager manager )
+	{
+		this.manager.removeListener( this );
+		this.manager = manager;
+		this.manager.addListener( this );
+	}
 
 	private void notifyListener()
 	{
@@ -136,7 +145,6 @@ public class ViewerTransformManager implements TransformListener< AffineTransfor
 	{
 		concatenated.set( global );
 		concatenated.preConcatenate( globalToViewer );
-//			System.out.println( "UPDATE " + displayTransform );
 		concatenated.preConcatenate( displayTransform );
 		notifyListener();
 	}
@@ -205,10 +213,9 @@ public class ViewerTransformManager implements TransformListener< AffineTransfor
 		panel.setFocusTraversalKeys( KeyboardFocusManager.BACKWARD_TRAVERSAL_KEYS, backwardKeys );
 	}
 
-	public void setViewer( final ViewerPanel viewer )
+	private void setUpViewer()
 	{
 
-		this.viewer = viewer;
 		removeFocusTraversalKeys( viewer );
 
 		behaviours.behaviour( new TranslateXY(), "drag translate", "button2", "button3" );
@@ -224,10 +231,10 @@ public class ViewerTransformManager implements TransformListener< AffineTransfor
 		actions.namedAction( removeRotation, "shift Z" );
 		this.viewer.addMouseListener( removeRotation );
 
-		actions.namedAction( new ToggleVisibility(), "shift V" );
-		actions.namedAction( new CycleSources( CycleSources.FORWARD ), "ctrl TAB" );
-		actions.namedAction( new CycleSources( CycleSources.BACKWARD ), "ctrl shift TAB" );
-		actions.namedAction( new ToggleInterpolation(), "I" );
+//		actions.namedAction( new ToggleVisibility(), "shift V" );
+//		actions.namedAction( new CycleSources( CycleSources.FORWARD ), "ctrl TAB" );
+//		actions.namedAction( new CycleSources( CycleSources.BACKWARD ), "ctrl shift TAB" );
+//		actions.namedAction( new ToggleInterpolation(), "I" );
 
 		this.manager.addListener( this );
 	}
@@ -252,9 +259,9 @@ public class ViewerTransformManager implements TransformListener< AffineTransfor
 		}
 	}
 
-	public void setState( final ViewerPanelState state )
+	public GlobalTransformManager getGlobalTransform()
 	{
-		this.state = state;
+		return this.manager;
 	}
 
 	private class TranslateXY extends GetOuter implements DragBehaviour
@@ -559,84 +566,58 @@ public class ViewerTransformManager implements TransformListener< AffineTransfor
 
 	}
 
-	private class ToggleVisibility extends AbstractNamedAction
-	{
-
-		public ToggleVisibility()
-		{
-			super( "toggle visibility" );
-			// TODO Auto-generated constructor stub
-		}
-
-		@Override
-		public void actionPerformed( final ActionEvent e )
-		{
-			synchronized ( viewer )
-			{
-				if ( state != null )
-				{
-					final int currentSourceIndex = viewer.getState().getCurrentSource();
-					final Source< ? > currentSource = viewer.getVisibilityAndGrouping().getSources().get( currentSourceIndex ).getSpimSource();
-					final boolean isVisible = viewer.getVisibilityAndGrouping().isSourceActive( currentSourceIndex );
-					state.setVisibility( currentSource, !isVisible );
-				}
-			}
-		}
-
-	}
-
-	private class CycleSources extends AbstractNamedAction
-	{
-
-		private final static int FORWARD = 1;
-
-		private final static int BACKWARD = -1;
-
-		private final int direction;
-
-		public CycleSources( final int direction )
-		{
-			super( "cycle sources " + direction );
-			this.direction = direction;
-		}
-
-		@Override
-		public void actionPerformed( final ActionEvent arg0 )
-		{
-			synchronized ( state )
-			{
-				synchronized ( viewer )
-				{
-					final int activeSource = viewer.getVisibilityAndGrouping().getCurrentSource();
-					final List< SourceState< ? > > sources = viewer.getVisibilityAndGrouping().getSources();
-					final int numSources = sources.size();
-					if ( numSources > 0 )
-					{
-						final int sourceIndex = activeSource + Integer.signum( direction );
-						final int selectedSource = ( sourceIndex < 0 ? sources.size() + sourceIndex : sourceIndex ) % numSources;
-						state.setCurrentSource( sources.get( selectedSource ).getSpimSource() );
-					}
-				}
-			}
-		}
-	}
-
-	private class ToggleInterpolation extends AbstractNamedAction
-	{
-		public ToggleInterpolation()
-		{
-			super( "toggle interpolation" );
-		}
-
-		@Override
-		public void actionPerformed( final ActionEvent e )
-		{
-			synchronized ( state )
-			{
-				state.toggleInterpolation();
-			}
-		}
-
-	}
+//	private class CycleSources extends AbstractNamedAction
+//	{
+//
+//		private final static int FORWARD = 1;
+//
+//		private final static int BACKWARD = -1;
+//
+//		private final int direction;
+//
+//		public CycleSources( final int direction )
+//		{
+//			super( "cycle sources " + direction );
+//			this.direction = direction;
+//		}
+//
+//		@Override
+//		public void actionPerformed( final ActionEvent arg0 )
+//		{
+//			synchronized ( state )
+//			{
+//				synchronized ( viewer )
+//				{
+//					final int activeSource = viewer.getVisibilityAndGrouping().getCurrentSource();
+//					final List< SourceState< ? > > sources = viewer.getVisibilityAndGrouping().getSources();
+//					final int numSources = sources.size();
+//					if ( numSources > 0 )
+//					{
+//						final int sourceIndex = activeSource + Integer.signum( direction );
+//						final int selectedSource = ( sourceIndex < 0 ? sources.size() + sourceIndex : sourceIndex ) % numSources;
+//						state.setCurrentSource( sources.get( selectedSource ).getSpimSource() );
+//					}
+//				}
+//			}
+//		}
+//	}
+//
+//	private class ToggleInterpolation extends AbstractNamedAction
+//	{
+//		public ToggleInterpolation()
+//		{
+//			super( "toggle interpolation" );
+//		}
+//
+//		@Override
+//		public void actionPerformed( final ActionEvent e )
+//		{
+//			synchronized ( state )
+//			{
+//				state.toggleInterpolation();
+//			}
+//		}
+//
+//	}
 
 }

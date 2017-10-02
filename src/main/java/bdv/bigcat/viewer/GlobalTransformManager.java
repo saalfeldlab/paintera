@@ -44,6 +44,11 @@ public class GlobalTransformManager
 		listener.transformChanged( this.affine );
 	}
 
+	public void removeListener( final TransformListener< AffineTransform3D > listener )
+	{
+		this.listeners.remove( listener );
+	}
+
 	public synchronized void preConcatenate( final AffineTransform3D transform )
 	{
 		this.affine.preConcatenate( transform );
