@@ -106,11 +106,13 @@ public class ExampleApplication2
 			labels = bdv.bigcat.viewer.viewer3d.util.HDF5Reader.readLabels( reader, labelsDataset );
 		}
 		volumeLabels = labels.get( 0 ).getImage( 0 );
-
-		Localizable location = new Point( new int[] { 10, 267, 0 } );
-
 		latch.await();
-		controller.generateMesh( volumeLabels, location );
+		
+//		AffineTransform3D transform = new AffineTransform3D();
+//		final long label = 7;
+//		controller.renderAtSelectionMultiset( volumeLabels, transform, location, label );
+		Localizable location = new Point( new int[] { 10, 267, 0 } ); // id 7
+		Viewer3DController.generateMesh( volumeLabels, location );
 
 		final Volatile< UnsignedByteType > abc = rawSource.getViewerSource().getType();
 		viewer.addRawSource( rawSource, 0., 255. );
