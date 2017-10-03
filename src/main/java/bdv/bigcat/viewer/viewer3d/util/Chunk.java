@@ -5,7 +5,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import bdv.labels.labelset.LabelMultisetType;
 import graphics.scenery.Mesh;
 import net.imglib2.Localizable;
 import net.imglib2.RandomAccessibleInterval;
@@ -15,14 +14,16 @@ import net.imglib2.RandomAccessibleInterval;
  * in different resolutions.
  * 
  * @author vleite
+ * @param <T>
+ * @param <T>
  *
  */
-public class Chunk
+public class Chunk< T >
 {
 	/**
 	 * Volume of the chunk.
 	 */
-	private RandomAccessibleInterval< LabelMultisetType > volume;
+	private RandomAccessibleInterval< T > volume;
 
 	/**
 	 * offset of the chunk, to positioning it in the world.
@@ -56,7 +57,7 @@ public class Chunk
 	 * 
 	 * @return RAI correspondent to the chunk
 	 */
-	public RandomAccessibleInterval< LabelMultisetType > getVolume()
+	public RandomAccessibleInterval< T > getVolume()
 	{
 		return volume;
 	}
@@ -67,7 +68,7 @@ public class Chunk
 	 * @param volume
 	 *            RAI
 	 */
-	public void setVolume( RandomAccessibleInterval< LabelMultisetType > volume )
+	public void setVolume( RandomAccessibleInterval< T > volume )
 	{
 		this.volume = volume;
 	}

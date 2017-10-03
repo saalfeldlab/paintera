@@ -3,13 +3,12 @@ package bdv.bigcat.viewer.viewer3d.marchingCubes;
 import java.util.concurrent.Callable;
 
 import bdv.bigcat.viewer.viewer3d.util.SimpleMesh;
-import bdv.labels.labelset.LabelMultisetType;
 import net.imglib2.RandomAccessibleInterval;
 
-public class MarchingCubesCallable implements Callable< SimpleMesh >
+public class MarchingCubesCallable< T > implements Callable< SimpleMesh >
 {
 	/** volume data */
-	RandomAccessibleInterval< LabelMultisetType > volume;
+	RandomAccessibleInterval< T > volume;
 
 	/** volume dimension */
 	private int[] volDim;
@@ -34,7 +33,7 @@ public class MarchingCubesCallable implements Callable< SimpleMesh >
 	 */
 	boolean copyToArray;
 
-	public MarchingCubesCallable( RandomAccessibleInterval< LabelMultisetType > input, int[] volDim, int[] offset, int[] cubeSize, MarchingCubes.ForegroundCriterion criterion, int foregroundValue, boolean usingRAI )
+	public MarchingCubesCallable( RandomAccessibleInterval< T > input, int[] volDim, int[] offset, int[] cubeSize, MarchingCubes.ForegroundCriterion criterion, int foregroundValue, boolean usingRAI )
 	{
 		this.volume = input;
 		this.volDim = volDim;
@@ -48,7 +47,7 @@ public class MarchingCubesCallable implements Callable< SimpleMesh >
 	@Override
 	public SimpleMesh call() throws Exception
 	{
-		MarchingCubes mc_rai = new MarchingCubes();
+		MarchingCubes< T > mc_rai = new MarchingCubes<>();
 		SimpleMesh m = mc_rai.generateMesh( volume, volDim, offset, cubeSize, criterion, foregroundValue, copyToArray );
 
 		return m;

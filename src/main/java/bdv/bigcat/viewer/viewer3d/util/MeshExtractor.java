@@ -14,7 +14,6 @@ import org.slf4j.LoggerFactory;
 
 import bdv.bigcat.viewer.viewer3d.marchingCubes.MarchingCubes;
 import bdv.bigcat.viewer.viewer3d.marchingCubes.MarchingCubesCallable;
-import bdv.labels.labelset.LabelMultisetType;
 import graphics.scenery.Mesh;
 import net.imglib2.Localizable;
 import net.imglib2.Point;
@@ -28,16 +27,17 @@ import net.imglib2.RandomAccessibleInterval;
  * based on x, y and z)
  * 
  * @author vleite
+ * @param <T>
  *
  */
-public class MeshExtractor
+public class MeshExtractor< T >
 {
 	/** logger */
 	static final Logger LOGGER = LoggerFactory.getLogger( MeshExtractor.class );
 
 	static final int MAX_CUBE_SIZE = 16;
 
-	private RandomAccessibleInterval< LabelMultisetType > volumeLabels;
+	private RandomAccessibleInterval< T > volumeLabels;
 
 	int[] partitionSize;
 
@@ -55,9 +55,9 @@ public class MeshExtractor
 
 	private static CompletionService< SimpleMesh > executor = null;
 
-	private static VolumePartitioner partitioner;
+	private VolumePartitioner< T > partitioner;
 
-	public MeshExtractor( RandomAccessibleInterval< LabelMultisetType > volumeLabels, final int[] cubeSize, final int foregroundValue, final MarchingCubes.ForegroundCriterion criterion )
+	public MeshExtractor( RandomAccessibleInterval< T > volumeLabels, final int[] cubeSize, final int foregroundValue, final MarchingCubes.ForegroundCriterion criterion )
 	{
 		this.volumeLabels = volumeLabels;
 		this.partitionSize = new int[] { 1, 1, 1 };
@@ -85,7 +85,7 @@ public class MeshExtractor
 		if ( volumeLabels.dimension( 2 ) % partitionSize[ 2 ] == 0 )
 			nCellsZ--;
 
-		partitioner = new VolumePartitioner( this.volumeLabels, partitionSize, this.cubeSize );
+		partitioner = new VolumePartitioner< T >( this.volumeLabels, partitionSize, this.cubeSize );
 	}
 
 	public void setCubeSize( int[] cubeSize )
