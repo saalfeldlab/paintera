@@ -7,16 +7,10 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import bdv.bigcat.viewer.viewer3d.util.SimpleMesh;
-import bdv.labels.labelset.Label;
 import bdv.labels.labelset.LabelMultisetType;
-import bdv.labels.labelset.Multiset;
 import net.imglib2.Cursor;
-import net.imglib2.FinalInterval;
 import net.imglib2.RandomAccessibleInterval;
-import net.imglib2.type.logic.BitType;
 import net.imglib2.type.numeric.IntegerType;
-import net.imglib2.view.ExtendedRandomAccessibleInterval;
-import net.imglib2.view.Views;
 
 /**
  * This class implements the marching cubes algorithm. Based on
@@ -86,7 +80,7 @@ public class MarchingCubes< T >
 	 * @param copyToArray
 	 * @return
 	 */
-	public SimpleMesh generateMesh( final RandomAccessibleInterval< T > input, final int[] volDim, final int[] offset,
+	public < I extends IntegerType< I > > SimpleMesh generateMesh( final RandomAccessibleInterval< T > input, final int[] volDim, final int[] offset,
 			final int[] cubeSize, final ForegroundCriterion foregroundCriteria, final int foregroundValue,
 			final boolean copyToArray )
 	{
@@ -94,11 +88,31 @@ public class MarchingCubes< T >
 		SimpleMesh mesh = null;
 		if ( copyToArray )
 		{
-			mesh = generateMeshFromArray( input, volDim, cubeSize );
+			if ( input instanceof LabelMultisetType )
+			{
+				// TODO: to verify this instantiation
+				CopyDataToArray< T > copy = ( CopyDataToArray< T > ) new CopyDataToArrayFromLabelMultisetType();
+				mesh = generateMeshFromArray( input, volDim, cubeSize, copy );
+			}
+			else if ( input instanceof IntegerType< ? > )
+			{
+				// TODO: to verify this instantiation
+				CopyDataToArray< T > copy = ( CopyDataToArray< T > ) new CopyDataToArrayFromIntegerType< I >();
+				mesh = generateMeshFromArray( input, volDim, cubeSize, copy );
+			}
 		}
 		else
 		{
-			mesh = generateMeshFromRAI( input, cubeSize );
+			if ( input instanceof IntegerType< ? > )
+			{
+				NextVertexValues< T > nextVertices = ( NextVertexValues< T > ) new NextVertexValuesFromIntegerType< I >();
+				mesh = generateMeshFromRAI( input, cubeSize, nextVertices );
+			}
+			else if ( input instanceof LabelMultisetType )
+			{
+				NextVertexValues< T > nextVertices = ( NextVertexValues< T > ) new NextVertexValuesFromLabelMultisetType();
+				mesh = generateMeshFromRAI( input, cubeSize, nextVertices );
+			}
 		}
 
 		return mesh;
@@ -129,15 +143,9 @@ public class MarchingCubes< T >
 	 * @param cubeSize
 	 * @return
 	 */
-	private SimpleMesh generateMeshFromRAI( final RandomAccessibleInterval< T > input, final int[] cubeSize )
+	private SimpleMesh generateMeshFromRAI( final RandomAccessibleInterval< T > input, final int[] cubeSize, NextVertexValues< T > nextValuesVertex )
 	{
-		final ExtendedRandomAccessibleInterval< T, RandomAccessibleInterval< T > > extended =
-				Views.extendValue( input, new LabelMultisetType() );
-
-		final Cursor< T > cursor = Views.flatIterable( Views.interval( extended,
-				new FinalInterval( new long[] { input.min( 0 ) - 1, input.min( 1 ) - 1, input.min( 2 ) - 1 },
-						new long[] { input.max( 0 ) + 1, input.max( 1 ) + 1, input.max( 2 ) + 1 } ) ) )
-				.localizingCursor();
+		Cursor< T > cursor = nextValuesVertex.createCursor( input );
 
 		cursor.next();
 		int beginX = cursor.getIntPosition( 0 );
@@ -158,32 +166,9 @@ public class MarchingCubes< T >
 				xCells++;
 			}
 
-			// get the 8 vertices of the cube taking into account the cube size
-			List< Cursor< T > > verticesCursor = new ArrayList< Cursor< T > >();
-			verticesCursor.add( getVertex( extended, cursorX, cursorY, cursorZ ) );
-			verticesCursor.add( getVertex( extended, cursorX + cubeSize[ 0 ], cursorY, cursorZ ) );
-			verticesCursor.add( getVertex( extended, cursorX, cursorY + cubeSize[ 1 ], cursorZ ) );
-			verticesCursor.add( getVertex( extended, cursorX + cubeSize[ 0 ], cursorY + cubeSize[ 1 ], cursorZ ) );
-			verticesCursor.add( getVertex( extended, cursorX, cursorY, cursorZ + cubeSize[ 2 ] ) );
-			verticesCursor.add( getVertex( extended, cursorX + cubeSize[ 0 ], cursorY, cursorZ + cubeSize[ 2 ] ) );
-			verticesCursor.add( getVertex( extended, cursorX, cursorY + cubeSize[ 1 ], cursorZ + cubeSize[ 2 ] ) );
-			verticesCursor.add( getVertex( extended, cursorX + cubeSize[ 0 ], cursorY + cubeSize[ 1 ], cursorZ + cubeSize[ 2 ] ) );
-
 			// for each one of the verticesCursor, get its value
 			double[] vertexValues = new double[ 8 ];
-			for ( int i = 0; i < verticesCursor.size(); i++ )
-			{
-				Cursor< LabelMultisetType > vertex = verticesCursor.get( i );
-				while ( vertex.hasNext() )
-				{
-					LabelMultisetType it = vertex.next();
-
-					for ( final Multiset.Entry< Label > e : it.entrySet() )
-					{
-						vertexValues[ i ] = e.getElement().id();
-					}
-				}
-			}
+			nextValuesVertex.verticesValues( cursorX, cursorY, cursorZ, cubeSize, vertexValues );
 
 			if ( LOGGER.isDebugEnabled() )
 			{
@@ -306,8 +291,7 @@ public class MarchingCubes< T >
 	 * @param cubeSize
 	 * @return
 	 */
-	@SuppressWarnings( "unchecked" )
-	private SimpleMesh generateMeshFromArray( final RandomAccessibleInterval< T > input, final int[] volDim, final int[] cubeSize )
+	private SimpleMesh generateMeshFromArray( final RandomAccessibleInterval< T > input, final int[] volDim, final int[] cubeSize, CopyDataToArray< T > copyData )
 	{
 		// array where the data will be copied
 		final List< Long > volumeArray = new ArrayList< Long >();
@@ -318,14 +302,7 @@ public class MarchingCubes< T >
 		// dimension on xy direction, used to access the volume as an array
 		int xyWidth = 0;
 
-		if ( input instanceof IntegerType< ? > )
-		{
-			volumeArrayFromIntegerType( input, volumeArray );
-		}
-		else if ( input instanceof LabelMultisetType )
-		{
-			volumeArrayFromLabelMultisetType( ( RandomAccessibleInterval< LabelMultisetType > ) input, volumeArray );
-		}
+		copyData.copyDataToArray( input, volumeArray );
 
 		// two dimensions more: from 'min minus one' to 'max plus one'
 		xWidth = ( volDim[ 0 ] + 2 );
@@ -433,46 +410,6 @@ public class MarchingCubes< T >
 		convertVerticesFormat();
 
 		return mesh;
-	}
-
-	private void volumeArrayFromIntegerType( RandomAccessibleInterval< T > input, List< Long > volumeArray )
-	{
-		final ExtendedRandomAccessibleInterval< T, RandomAccessibleInterval< T > > extended =
-				Views.extendValue( input, new BitType() );
-
-		final Cursor< T > cursor = Views.flatIterable( Views.interval( extended,
-				new FinalInterval( new long[] { input.min( 0 ) - 1, input.min( 1 ) - 1, input.min( 2 ) - 1 },
-						new long[] { input.max( 0 ) + 1, input.max( 1 ) + 1, input.max( 2 ) + 1 } ) ) )
-				.localizingCursor();
-
-		while ( cursor.hasNext() )
-		{
-			Long label = cursor.get().getIntegerLong();
-			volumeArray.add( label );
-			LOGGER.trace( " {}", label );
-		}
-	}
-
-	private void volumeArrayFromLabelMultisetType( RandomAccessibleInterval< LabelMultisetType > input, List< Long > volumeArray )
-	{
-		final ExtendedRandomAccessibleInterval< LabelMultisetType, RandomAccessibleInterval< LabelMultisetType > > extended =
-				Views.extendValue( input, new LabelMultisetType() );
-
-		final Cursor< LabelMultisetType > cursor = Views.flatIterable( Views.interval( extended,
-				new FinalInterval( new long[] { input.min( 0 ) - 1, input.min( 1 ) - 1, input.min( 2 ) - 1 },
-						new long[] { input.max( 0 ) + 1, input.max( 1 ) + 1, input.max( 2 ) + 1 } ) ) )
-				.localizingCursor();
-
-		while ( cursor.hasNext() )
-		{
-			final LabelMultisetType iterator = cursor.next();
-
-			for ( final Multiset.Entry< Label > e : iterator.entrySet() )
-			{
-				volumeArray.add( e.getElement().id() );
-				LOGGER.trace( " {}", e.getElement().id() );
-			}
-		}
 	}
 
 	/**
@@ -859,26 +796,26 @@ public class MarchingCubes< T >
 		return vv;
 	}
 
-	/**
-	 * Get a cursor of a cube vertex from a RAI
-	 * 
-	 * @param extended
-	 *            an interval with the data
-	 * @param cursorX
-	 *            position on x
-	 * @param cursorY
-	 *            position on y
-	 * @param cursorZ
-	 *            position on z
-	 * @return
-	 */
-	private Cursor<T> getVertex(
-			final ExtendedRandomAccessibleInterval<T, RandomAccessibleInterval<T>> extended,
-			final int cursorX, final int cursorY, final int cursorZ)
-	{
-		final long[] begin = new long[] { cursorX, cursorY, cursorZ };
-		final long[] end = new long[] { cursorX, cursorY, cursorZ};
-
-		return Views.flatIterable(Views.interval(extended, new FinalInterval( begin, end ))).cursor();
-	}
+//	/**
+//	 * Get a cursor of a cube vertex from a RAI
+//	 * 
+//	 * @param extended
+//	 *            an interval with the data
+//	 * @param cursorX
+//	 *            position on x
+//	 * @param cursorY
+//	 *            position on y
+//	 * @param cursorZ
+//	 *            position on z
+//	 * @return
+//	 */
+//	private Cursor<LabelMultisetType> getVertexLabelMultisetType(
+//			final ExtendedRandomAccessibleInterval<LabelMultisetType, RandomAccessibleInterval<LabelMultisetType>> extended,
+//			final int cursorX, final int cursorY, final int cursorZ)
+//	{
+//		final long[] begin = new long[] { cursorX, cursorY, cursorZ };
+//		final long[] end = new long[] { cursorX, cursorY, cursorZ};
+//
+//		return Views.flatIterable(Views.interval(extended, new FinalInterval( begin, end ))).cursor();
+//	}
 }
