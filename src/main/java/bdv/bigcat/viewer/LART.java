@@ -109,9 +109,23 @@ public class LART
 
 		final Atlas viewer = new Atlas( new FinalInterval( Arrays.stream( min ).mapToLong( Math::round ).toArray(), Arrays.stream( max ).mapToLong( Math::round ).toArray() ) );
 
+		final AffineTransform3D tf = new AffineTransform3D();
+		final double scale = 1e-3;
+		tf.scale( scale );
+		tf.translate( scale * -1938, scale * -1760, scale * -664 );
+		viewer.setTransform( tf );
+
 		Platform.runLater( () -> {
 			final Stage stage = new Stage();
-			viewer.start( stage, "l’art" );
+			try
+			{
+				viewer.start( stage, "l’art" );
+			}
+			catch ( final InterruptedException e )
+			{
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
 			stage.show();
 		} );
 

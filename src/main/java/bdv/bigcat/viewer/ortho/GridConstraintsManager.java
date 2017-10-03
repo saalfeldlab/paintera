@@ -1,4 +1,4 @@
-package bdv.bigcat.viewer;
+package bdv.bigcat.viewer.ortho;
 
 import javafx.scene.layout.ColumnConstraints;
 import javafx.scene.layout.GridPane;

@@ -1,4 +1,4 @@
-package bdv.bigcat.viewer;
+package bdv.bigcat.viewer.panel;
 
 import java.awt.Color;
 import java.awt.Graphics;

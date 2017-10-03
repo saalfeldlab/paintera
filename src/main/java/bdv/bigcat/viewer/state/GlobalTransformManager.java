@@ -1,4 +1,4 @@
-package bdv.bigcat.viewer;
+package bdv.bigcat.viewer.state;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -42,6 +42,11 @@ public class GlobalTransformManager
 	{
 		this.listeners.add( listener );
 		listener.transformChanged( this.affine );
+	}
+
+	public void removeListener( final TransformListener< AffineTransform3D > listener )
+	{
+		this.listeners.remove( listener );
 	}
 
 	public synchronized void preConcatenate( final AffineTransform3D transform )

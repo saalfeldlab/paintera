@@ -1,4 +1,4 @@
-package bdv.bigcat.viewer;
+package bdv.bigcat.viewer.panel;
 
 import java.awt.Color;
 import java.awt.Dimension;
@@ -37,13 +37,13 @@ public class ViewerNode extends SwingNode implements ListChangeListener< SourceA
 		X, Y, Z
 	};
 
-	private ViewerPanel viewer;
+	private final ViewerPanel viewer;
+
+	private final ViewerState state;
 
 	private final ViewerTransformManager manager;
 
 	private ViewerAxis viewerAxis;
-
-	private final CacheControl cacheControl;
 
 	private final HashMap< Source< ? >, Boolean > visibility = new HashMap<>();
 
@@ -61,10 +61,6 @@ public class ViewerNode extends SwingNode implements ListChangeListener< SourceA
 
 	private final MouseAndKeyHandler mouseAndKeyHandler = new MouseAndKeyHandler();
 
-	private boolean isReady = false;
-
-	private ViewerPanelState state;
-
 	private final CrossHair crosshair = new CrossHair();
 
 	private final Color onFocusColor = new Color( 255, 255, 255, 180 );
@@ -74,20 +70,29 @@ public class ViewerNode extends SwingNode implements ListChangeListener< SourceA
 		crosshair.setColor( outOfFocusColor );
 	}
 
-	public ViewerNode( final CacheControl cacheControl, final ViewerAxis viewerAxis, final GlobalTransformManager manager, final ViewerOptions viewerOptions )
+	public ViewerNode(
+			final CacheControl cacheControl,
+			final ViewerAxis viewerAxis,
+			final ViewerOptions viewerOptions ) throws InterruptedException
 	{
-		this.viewer = null;
-		this.cacheControl = cacheControl;
+		this.viewer = createViewer( viewerOptions, cacheControl );
+		this.setContent( this.viewer );
 		this.viewerAxis = viewerAxis;
-		this.manager = new ViewerTransformManager( manager, globalToViewer( viewerAxis ) );
-		initialize( viewerOptions );
+		this.state = new ViewerState( this.viewer );
+		this.manager = new ViewerTransformManager( this.viewer, state, globalToViewer( viewerAxis ) );
+		initializeViewer();
+		addCrosshair();
+	}
+
+	private void addCrosshair()
+	{
+
 		this.focusedProperty().addListener( ( ChangeListener< Boolean > ) ( observable, oldValue, newValue ) -> {
 			if ( newValue )
 				crosshair.setColor( onFocusColor );
 			else
 				crosshair.setColor( outOfFocusColor );
-			if ( isReady )
-				viewer.getDisplay().repaint();
+			viewer.getDisplay().repaint();
 		} );
 	}
 
@@ -99,22 +104,6 @@ public class ViewerNode extends SwingNode implements ListChangeListener< SourceA
 	public ViewerTransformManager manager()
 	{
 		return manager;
-	}
-
-	private void setViewer( final ViewerPanel viewer )
-	{
-		this.viewer = viewer;
-		this.setContent( this.viewer );
-	}
-
-	private void setReady( final boolean ready )
-	{
-		isReady = ready;
-	}
-
-	public boolean isReady()
-	{
-		return isReady;
 	}
 
 	public void addBehaviour( final Behaviour behaviour, final String name, final String... defaultTriggers )
@@ -134,46 +123,43 @@ public class ViewerNode extends SwingNode implements ListChangeListener< SourceA
 
 	public void addMouseMotionListener( final MouseMotionListener listener )
 	{
-		if ( isReady() )
-			this.viewer.getDisplay().addMouseMotionListener( listener );
+		this.viewer.getDisplay().addMouseMotionListener( listener );
 	}
 
 	public void removeMouseMotionListener( final MouseMotionListener listener )
 	{
-		if ( isReady() )
-			this.viewer.getDisplay().removeMouseMotionListener( listener );
+		this.viewer.getDisplay().removeMouseMotionListener( listener );
 	}
 
-	public void setViewerPanelState( final ViewerPanelState state )
+	public void setViewerPanelState( final ViewerState state )
 	{
-		if ( this.viewer != null )
-		{
-			if ( this.state != null )
-				this.state.removeViewer( viewer );
-			this.state = state;
-			if ( !this.state.isViewerInstalled( viewer ) )
-				this.state.installViewer( viewer );
-		}
+		this.state.set( state );
 	}
 
-	private void initialize( final ViewerOptions viewerOptions )
+	private ViewerPanel createViewer( final ViewerOptions viewerOptions, final CacheControl cacheControl ) throws InterruptedException
+	{
+		final Object notifyObject = this;
+		final ViewerPanel[] viewerStore = new ViewerPanel[ 1 ];
+		SwingUtilities.invokeLater( () -> {
+			viewerStore[ 0 ] = new ViewerPanel( new ArrayList<>(), 1, cacheControl, viewerOptions );
+			synchronized ( notifyObject )
+			{
+				notifyObject.notify();
+			}
+		} );
+		System.out.println( "Waiting for viewer to be initialized!" );
+		synchronized ( notifyObject )
+		{
+			notifyObject.wait();
+		}
+		System.out.println( "Notified about initialization!" );
+		return viewerStore[ 0 ];
+	}
+
+	private void initializeViewer() throws InterruptedException
 	{
 		final Object notifyObject = this;
 		SwingUtilities.invokeLater( () -> {
-			try
-			{
-				final ViewerPanel vp = new ViewerPanel( new ArrayList<>(), 1, cacheControl, viewerOptions );
-				setViewer( vp );
-				setReady( true );
-			}
-			finally
-			{
-				synchronized ( notifyObject )
-				{
-					notifyObject.notify();
-				}
-			}
-
 			viewer.setDisplayMode( DisplayMode.FUSED );
 			viewer.setMinimumSize( new Dimension( 100, 100 ) );
 			viewer.setPreferredSize( new Dimension( 100, 100 ) );
@@ -193,22 +179,14 @@ public class ViewerNode extends SwingNode implements ListChangeListener< SourceA
 			SwingUtilities.replaceUIActionMap( viewer.getRootPane(), keybindings.getConcatenatedActionMap() );
 			SwingUtilities.replaceUIInputMap( viewer.getRootPane(), JComponent.WHEN_ANCESTOR_OF_FOCUSED_COMPONENT, keybindings.getConcatenatedInputMap() );
 			viewer.setVisible( true );
-			this.manager.setTransformListener( viewer );
-			this.manager.setViewer( viewer );
-		} );
-		try
-		{
-			System.out.println( "Waiting for viewer to be initialized!" );
 			synchronized ( notifyObject )
 			{
-				notifyObject.wait();
+				notifyObject.notify();
 			}
-			System.out.println( "Notified about initialization!" );
-		}
-		catch ( final InterruptedException e )
+		} );
+		synchronized ( notifyObject )
 		{
-			// TODO Auto-generated catch block
-			e.printStackTrace();
+			notifyObject.wait();
 		}
 	}
 
@@ -309,6 +287,11 @@ public class ViewerNode extends SwingNode implements ListChangeListener< SourceA
 	public double prefHeight( final double width )
 	{
 		return getContent() == null ? 10 : getContent().getPreferredSize().getHeight();
+	}
+
+	public ViewerState getState()
+	{
+		return state;
 	}
 
 }

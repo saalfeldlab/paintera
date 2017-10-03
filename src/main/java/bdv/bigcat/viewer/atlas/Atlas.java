@@ -1,5 +1,6 @@
 package bdv.bigcat.viewer.atlas;
 
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
@@ -12,8 +13,6 @@ import bdv.bigcat.composite.ARGBCompositeAlphaAdd;
 import bdv.bigcat.composite.ARGBCompositeAlphaYCbCr;
 import bdv.bigcat.composite.ClearingCompositeProjector.ClearingCompositeProjectorFactory;
 import bdv.bigcat.composite.Composite;
-import bdv.bigcat.viewer.BaseView;
-import bdv.bigcat.viewer.BaseViewState;
 import bdv.bigcat.viewer.ToIdConverter;
 import bdv.bigcat.viewer.ToIdConverter.FromLabelMultisetType;
 import bdv.bigcat.viewer.ViewerActor;
@@ -31,6 +30,8 @@ import bdv.bigcat.viewer.atlas.mode.Merges;
 import bdv.bigcat.viewer.atlas.mode.Mode;
 import bdv.bigcat.viewer.atlas.mode.ModeUtil;
 import bdv.bigcat.viewer.atlas.mode.NavigationOnly;
+import bdv.bigcat.viewer.ortho.OrthoView;
+import bdv.bigcat.viewer.ortho.OrthoViewState;
 import bdv.bigcat.viewer.state.FragmentSegmentAssignmentState;
 import bdv.bigcat.viewer.state.SelectedIds;
 import bdv.bigcat.viewer.stream.ModalGoldenAngleSaturatedHighlightingARGBStream;
@@ -61,7 +62,10 @@ import javafx.stage.Stage;
 import net.imglib2.Interval;
 import net.imglib2.Volatile;
 import net.imglib2.converter.Converter;
+import net.imglib2.converter.RealDoubleConverter;
+import net.imglib2.converter.TypeIdentity;
 import net.imglib2.realtransform.AffineTransform3D;
+import net.imglib2.type.Type;
 import net.imglib2.type.numeric.ARGBType;
 import net.imglib2.type.numeric.IntegerType;
 import net.imglib2.type.numeric.RealType;
@@ -72,7 +76,7 @@ import net.imglib2.type.volatiles.VolatileRealType;
 public class Atlas
 {
 
-	private final BaseView view;
+	private final OrthoView view;
 
 	private final HBox status = new HBox();
 
@@ -103,7 +107,7 @@ public class Atlas
 	{
 		super();
 		this.viewerOptions = viewerOptions.accumulateProjectorFactory( new ClearingCompositeProjectorFactory<>( composites, new ARGBType() ) );
-		this.view = new BaseView( focusHandler.onEnter(), focusHandler.onExit(), new BaseViewState( this.viewerOptions ) );
+		this.view = new OrthoView( focusHandler.onEnter(), focusHandler.onExit(), new OrthoViewState( this.viewerOptions ) );
 		this.view.setBottom( status );
 //		this.view.setInfoNode( this.view.globalSourcesInfoNode() );
 		this.view.setInfoNode( new Label( "" ) );
@@ -113,11 +117,11 @@ public class Atlas
 		} );
 //		this.sourcesTab.listen( this.specs );
 
-		this.view.addCurrentSourceListener( ( observable, oldValue, newValue ) -> {
-			final Optional< SourceState< ?, ?, ? > > state = specs.getState( newValue );
-			if ( state.isPresent() )
-				specs.selectedSourceProperty().setValue( Optional.of( state.get().spec() ) );
-		} );
+//		this.view.addCurrentSourceListener( ( observable, oldValue, newValue ) -> {
+//			final Optional< SourceState< ?, ?, ? > > state = specs.getState( newValue );
+//			if ( state.isPresent() )
+//				specs.selectedSourceProperty().setValue( Optional.of( state.get().spec() ) );
+//		} );
 
 		for ( final Mode mode : modes )
 			addOnEnterOnExit( mode.onEnter(), mode.onExit(), true );
@@ -142,8 +146,8 @@ public class Atlas
 		this.specs.addVisibilityChangedListener( () -> {
 			final List< SourceState< ?, ?, ? > > states = this.specs.sourceStates();
 			final List< SourceAndConverter< ? > > onlyVisible = states.stream().filter( SourceState::isVisible ).map( SourceState::sourceAndConverter ).collect( Collectors.toList() );
-			this.baseView().removeAllSources();
-			this.baseView().addSources( onlyVisible );
+			this.baseView().getState().removeAllSources();
+			this.baseView().getState().addSources( onlyVisible );
 		} );
 
 		this.specs.addListChangeListener( ( ListChangeListener< Specs.SourceState< ?, ?, ? > > ) c -> {
@@ -154,10 +158,10 @@ public class Atlas
 						final Source< ? > source = removed.source();
 						this.selectedIds.remove( source );
 						this.composites.remove( source );
-						this.baseView().removeSource( source );
+						this.baseView().getState().removeSource( source );
 					}
 				else if ( c.wasAdded() )
-					this.baseView().addSources( c.getAddedSubList().stream().map( Specs.SourceState::sourceAndConverter ).collect( Collectors.toList() ) );
+					this.baseView().getState().addSources( c.getAddedSubList().stream().map( Specs.SourceState::sourceAndConverter ).collect( Collectors.toList() ) );
 		} );
 
 //		this.specs.addListener( () -> {
@@ -173,6 +177,26 @@ public class Atlas
 				event.consume();
 			}
 		} );
+
+		final AffineTransform3D tf = new AffineTransform3D();
+		final long[] sums = {
+				interval.max( 0 ) + interval.min( 0 ),
+				interval.max( 1 ) + interval.min( 1 ),
+				interval.max( 2 ) + interval.min( 2 )
+		};
+		tf.translate( Arrays.stream( sums ).mapToDouble( sum -> -0.5 * sum ).toArray() );
+		this.baseView().setTransform( tf );
+
+		this.baseView().getState().addCurrentSourceListener( ( observable, oldValue, newValue ) -> {
+			if ( newValue.isPresent() )
+			{
+				final Optional< SourceState< ?, ?, ? > > spec = this.specs.getState( newValue.get() );
+				this.specs.selectedSourceProperty().setValue( spec.isPresent() ? Optional.of( spec.get().spec() ) : Optional.empty() );
+			}
+			else
+				this.specs.selectedSourceProperty().setValue( Optional.empty() );
+		} );
+
 	}
 
 	public void toggleSourcesTable()
@@ -180,12 +204,12 @@ public class Atlas
 		this.baseView().setRight( this.baseView().getRight() == null ? this.sourcesTab : null );
 	}
 
-	public void start( final Stage primaryStage )
+	public void start( final Stage primaryStage ) throws InterruptedException
 	{
 		start( primaryStage, "ATLAS" );
 	}
 
-	public void start( final Stage primaryStage, final String title )
+	public void start( final Stage primaryStage, final String title ) throws InterruptedException
 	{
 
 		final Scene scene = view.createScene( 800, 600 );
@@ -314,6 +338,25 @@ public class Atlas
 
 	}
 
+	public < T extends RealType< T >, U extends RealType< U > > void addRawSourceNonVolatile( final DatasetSpec< T, U > spec, final double min, final double max )
+	{
+		final Source< DoubleType > vsource = new ConvertedSource<>( spec.getViewerSource(), new DoubleType( Double.NaN ), new RealDoubleConverter<>(), spec.getViewerSource().getName() );
+		final Composite< ARGBType, ARGBType > comp = new ARGBCompositeAlphaAdd();
+		final NaNMaskedRealARGBConverter< DoubleType > conv = new NaNMaskedRealARGBConverter<>( min, max );
+		final SourceAndConverter< ? > src = new SourceAndConverter<>( vsource, conv );
+		addSource( src, comp, spec );
+//		view.addSource( src, comp );
+//		this.specs.put( spec, vsource );
+//		this.composites.put( vsource, comp );
+
+		final Source< T > source = spec.getSource();
+		final T t = source.getType();
+		final Function< T, String > valueToString = valueToString( t );
+		final AffineTransform3D affine = new AffineTransform3D();
+		source.getSourceTransform( 0, 0, affine );
+		this.valueDisplayListener.addSource( vsource, source, Optional.of( valueToString ) );
+	}
+
 	public < T extends RealType< T >, U extends RealType< U > > void addRawSource( final DatasetSpec< T, ? extends Volatile< U > > spec, final double min, final double max )
 	{
 		final Source< VolatileRealType< DoubleType > > vsource = ConvertedSource.volatileRealTypeAsDoubleType( spec.getViewerSource() );
@@ -333,7 +376,24 @@ public class Atlas
 		this.valueDisplayListener.addSource( vsource, source, Optional.of( valueToString ) );
 	}
 
-	public BaseView baseView()
+	public < T extends Type< T > > void addARGB( final DatasetSpec< T, ARGBType > spec )
+	{
+		final Source< ARGBType > originalSource = spec.getViewerSource();
+		final ARGBCompositeAlphaYCbCr comp = new ARGBCompositeAlphaYCbCr();
+		final ConvertedSource< ARGBType, ARGBType > vsource = new ConvertedSource<>( originalSource, new ARGBType( 0 ), new TypeIdentity<>(), originalSource.getName() );
+		final SourceAndConverter< ARGBType > src = new SourceAndConverter<>( vsource, new TypeIdentity<>() );
+		addSource( src, comp, spec );
+
+		final Source< T > source = spec.getSource();
+		final T t = source.getType();
+		final AffineTransform3D affine = new AffineTransform3D();
+		source.getSourceTransform( 0, 0, affine );
+		final Optional< Function< T, String > > valueToString = Optional.of( valueToString( t ) );
+		this.valueDisplayListener.addSource( vsource, source, valueToString );
+
+	}
+
+	public OrthoView baseView()
 	{
 		return this.view;
 	}
@@ -385,6 +445,11 @@ public class Atlas
 		else
 			valueToString = rt -> "Do not understand type!";
 		return valueToString;
+	}
+
+	public void setTransform( final AffineTransform3D transform )
+	{
+		this.baseView().setTransform( transform );
 	}
 
 }

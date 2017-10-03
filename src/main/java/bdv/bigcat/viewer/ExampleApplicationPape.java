@@ -58,7 +58,15 @@ public class ExampleApplicationPape
 
 		Platform.runLater( () -> {
 			final Stage stage = new Stage();
-			viewer.start( stage );
+			try
+			{
+				viewer.start( stage );
+			}
+			catch ( final InterruptedException e )
+			{
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
 			stage.show();
 		} );
 
