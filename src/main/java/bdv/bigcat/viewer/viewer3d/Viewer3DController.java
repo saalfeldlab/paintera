@@ -16,6 +16,7 @@ import net.imglib2.RandomAccess;
 import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.RealPoint;
 import net.imglib2.realtransform.AffineTransform3D;
+import net.imglib2.type.numeric.IntegerType;
 
 /**
  * Main class for the Marching Cubes
@@ -102,6 +103,7 @@ public class Viewer3DController
 			final Material material = new Material();
 			material.setAmbient( new GLVector( 1f, 0.0f, 1f ) );
 			material.setSpecular( new GLVector( 1f, 0.0f, 1f ) );
+			// TODO: Get the color of the neuron in the segmentation
 			material.setDiffuse( new GLVector( 1f, 1f, 0f ) );
 			material.setOpacity( 1f );
 
@@ -159,93 +161,94 @@ public class Viewer3DController
 		}
 	}
 
-//	public static < I extends IntegerType< I > > void renderAtSelection(
-//			final RandomAccessibleInterval< I >[] labelVolumes,
-//			final AffineTransform3D[] transforms,
-//			final Localizable location )
-//	{
-//		if ( mode == ViewerMode.ONLY_ONE_NEURON_VISIBLE )
-//		{
-//			viewer3D.removeAllNeurons();
-//		}
-//
-//		for ( int i = 0; i < labelVolumes.length; ++i )
-//		{
-//			// parameters for each resolution
-//			final RandomAccessibleInterval< I > labelVolume = labelVolumes[ i ];
-//			final AffineTransform3D transform = transforms[ i ];
-//			final RandomAccess< I > access = labelVolume.randomAccess();
-//			final RealPoint p = new RealPoint( labelVolume.numDimensions() );
-//			transform.applyInverse( p, location );
-//			for ( int d = 0; d < p.numDimensions(); ++d )
-//				access.setPosition( ( long ) p.getDoublePosition( d ), d );
-//			final long label = access.get().getIntegerLong();
-//
-//			// same label for all resolutions
-//			int foregroundValue = ( int ) label;
-//			MeshExtractor meshExtractor = new MeshExtractor( labelVolume, cubeSize, foregroundValue, criterion );
-//
-//			// create an empty mesh
-//			Mesh completeNeuron = new Mesh();
-//			final Material material = new Material();
-//			material.setAmbient( new GLVector( 1f, 0.0f, 1f ) );
-//			material.setSpecular( new GLVector( 1f, 0.0f, 1f ) );
-//			material.setDiffuse( new GLVector( 1f, 1f, 0f ) );
-//			material.setOpacity( 1f );
-//
-//			// define scale, position and material of the mesh
-//			completeNeuron.setMaterial( material );
-//			completeNeuron.setScale( new GLVector( ( float ) resolution[ 0 ], ( float ) resolution[ 1 ], ( float ) resolution[ 2 ] ) );
-//			completeNeuron.setPosition( new GLVector( 0.0f, 0.0f, 0.0f ) );
-//
-//			// if it is not the first resolution, remove the already created
-//			// resolution.
-//			// TODO: this must be done in a piece-wise way. I do not think
-//			// remove all the mesh and grown it again is the best way to do
-//			// this.
-//			if ( i != 0 )
-//			{
-//				viewer3D.removeChild( completeNeuron );
-//			}
-//
-//			// add the mesh (still empty) in the viewer
-//			viewer3D.addChild( completeNeuron );
-//			// use cube of size - resolution is given by the data itself
-//			meshExtractor.setCubeSize( cubeSize );
-//			// TODO: generate mesh starting at position defined by access
-//			meshExtractor.createChunks( location );
-//
-//			float[] completeNeuronVertices = new float[ 0 ];
-//			int completeMeshSize = 0;
-//			while ( meshExtractor.hasNext() )
-//			{
-//				Mesh neuron = new Mesh();
-//				neuron = meshExtractor.next();
-//				if ( neuron == null )
-//				{
-//					continue;
-//				}
-//
-//				if ( completeNeuron.getVertices().hasArray() )
-//				{
-//					completeNeuronVertices = completeNeuron.getVertices().array();
-//					completeMeshSize = completeNeuronVertices.length;
-//				}
-//
-//				float[] neuronVertices = neuron.getVertices().array();
-//				int meshSize = neuronVertices.length;
-//				verticesArray = Arrays.copyOf( completeNeuronVertices, completeMeshSize + meshSize );
-//				System.arraycopy( neuronVertices, 0, verticesArray, completeMeshSize, meshSize );
-//
-//				// transform mesh into real world coordinates using
-//				verticesArray = applyTransformation( verticesArray, transform );
-//				// update the mesh in the viewer
-//				completeNeuron.setVertices( FloatBuffer.wrap( verticesArray ) );
-//				completeNeuron.recalculateNormals();
-//				completeNeuron.setDirty( true );
-//			}
-//		}
-//	}
+	public static < I extends IntegerType< I > > void renderAtSelection(
+			final RandomAccessibleInterval< I >[] labelVolumes,
+			final AffineTransform3D[] transforms,
+			final Localizable location )
+	{
+		if ( mode == ViewerMode.ONLY_ONE_NEURON_VISIBLE )
+		{
+			viewer3D.removeAllNeurons();
+		}
+
+		for ( int i = 0; i < labelVolumes.length; ++i )
+		{
+			// parameters for each resolution
+			final RandomAccessibleInterval< I > labelVolume = labelVolumes[ i ];
+			final AffineTransform3D transform = transforms[ i ];
+			final RandomAccess< I > access = labelVolume.randomAccess();
+			final RealPoint p = new RealPoint( labelVolume.numDimensions() );
+			transform.applyInverse( p, location );
+			for ( int d = 0; d < p.numDimensions(); ++d )
+				access.setPosition( ( long ) p.getDoublePosition( d ), d );
+			final long label = access.get().getIntegerLong();
+
+			// same label for all resolutions
+			int foregroundValue = ( int ) label;
+			MeshExtractor< I > meshExtractor = new MeshExtractor< I >( labelVolume, cubeSize, foregroundValue, criterion );
+
+			// create an empty mesh
+			Mesh completeNeuron = new Mesh();
+			final Material material = new Material();
+			material.setAmbient( new GLVector( 1f, 0.0f, 1f ) );
+			material.setSpecular( new GLVector( 1f, 0.0f, 1f ) );
+			// TODO: Get the color of the neuron in the segmentation
+			material.setDiffuse( new GLVector( 1f, 1f, 0f ) );
+			material.setOpacity( 1f );
+
+			// define scale, position and material of the mesh
+			completeNeuron.setMaterial( material );
+			completeNeuron.setScale( new GLVector( ( float ) resolution[ 0 ], ( float ) resolution[ 1 ], ( float ) resolution[ 2 ] ) );
+			completeNeuron.setPosition( new GLVector( 0.0f, 0.0f, 0.0f ) );
+
+			// if it is not the first resolution, remove the already created
+			// resolution.
+			// TODO: this must be done in a piece-wise way. I do not think
+			// remove all the mesh and grown it again is the best way to do
+			// this.
+			if ( i != 0 )
+			{
+				viewer3D.removeChild( completeNeuron );
+			}
+
+			// add the mesh (still empty) in the viewer
+			viewer3D.addChild( completeNeuron );
+			// use cube of size - resolution is given by the data itself
+			meshExtractor.setCubeSize( cubeSize );
+			// TODO: generate mesh starting at position defined by access
+			meshExtractor.createChunks( location );
+
+			float[] completeNeuronVertices = new float[ 0 ];
+			int completeMeshSize = 0;
+			while ( meshExtractor.hasNext() )
+			{
+				Mesh neuron = new Mesh();
+				neuron = meshExtractor.next();
+				if ( neuron == null )
+				{
+					continue;
+				}
+
+				if ( completeNeuron.getVertices().hasArray() )
+				{
+					completeNeuronVertices = completeNeuron.getVertices().array();
+					completeMeshSize = completeNeuronVertices.length;
+				}
+
+				float[] neuronVertices = neuron.getVertices().array();
+				int meshSize = neuronVertices.length;
+				verticesArray = Arrays.copyOf( completeNeuronVertices, completeMeshSize + meshSize );
+				System.arraycopy( neuronVertices, 0, verticesArray, completeMeshSize, meshSize );
+
+				// transform mesh into real world coordinates using
+				verticesArray = applyTransformation( verticesArray, transform );
+				// update the mesh in the viewer
+				completeNeuron.setVertices( FloatBuffer.wrap( verticesArray ) );
+				completeNeuron.recalculateNormals();
+				completeNeuron.setDirty( true );
+			}
+		}
+	}
 
 	public static void generateMesh( RandomAccessibleInterval< LabelMultisetType > volumeLabels, Localizable location )
 	{
@@ -263,7 +266,7 @@ public class Viewer3DController
 		material.setAmbient( new GLVector( 1f, 0.0f, 1f ) );
 		material.setSpecular( new GLVector( 1f, 0.0f, 1f ) );
 
-//		Get the color of the neuron in the segmentation
+//		TODO: Get the color of the neuron in the segmentation
 //		LabelMultisetARGBConverter converter = new LabelMultisetARGBConverter();
 //		ARGBType argb = new ARGBType();
 //		converter.convert( volumeLabels.randomAccess().get(), argb );
