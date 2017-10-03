@@ -96,21 +96,17 @@ public class GridConstraintsManager
 
 	}
 
-	public GridPane createGrid()
+	public void manageGrid( final GridPane grid )
 	{
 
-		final GridPane grid = new GridPane();
-
+		grid.getColumnConstraints().clear();
 		grid.getColumnConstraints().add( this.column1 );
 		grid.getColumnConstraints().add( this.column2 );
 
+		grid.getRowConstraints().clear();
 		grid.getRowConstraints().add( this.row1 );
 		grid.getRowConstraints().add( this.row2 );
 
-		grid.setHgap( 1 );
-		grid.setVgap( 1 );
-
-		return grid;
 	}
 
 	public synchronized boolean isFullScreen()

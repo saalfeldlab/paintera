@@ -56,6 +56,7 @@ import javafx.scene.control.TableView;
 import javafx.scene.control.TextField;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyEvent;
+import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
@@ -75,6 +76,8 @@ import net.imglib2.type.volatiles.VolatileRealType;
 
 public class Atlas
 {
+
+	private final BorderPane root;
 
 	private final OrthoView view;
 
@@ -108,10 +111,11 @@ public class Atlas
 		super();
 		this.viewerOptions = viewerOptions.accumulateProjectorFactory( new ClearingCompositeProjectorFactory<>( composites, new ARGBType() ) );
 		this.view = new OrthoView( focusHandler.onEnter(), focusHandler.onExit(), new OrthoViewState( this.viewerOptions ) );
-		this.view.setBottom( status );
+		this.root = new BorderPane( this.view );
+		this.root.setBottom( status );
 //		this.view.setInfoNode( this.view.globalSourcesInfoNode() );
 		this.view.setInfoNode( new Label( "" ) );
-		this.view.setRight( sourcesTab );
+		this.root.setRight( sourcesTab );
 		this.view.heightProperty().addListener( ( ChangeListener< Number > ) ( observable, old, newVal ) -> {
 			this.sourcesTab.prefHeightProperty().set( newVal.doubleValue() );
 		} );
@@ -201,7 +205,7 @@ public class Atlas
 
 	public void toggleSourcesTable()
 	{
-		this.baseView().setRight( this.baseView().getRight() == null ? this.sourcesTab : null );
+		this.root.setRight( this.root.getRight() == null ? this.sourcesTab : null );
 	}
 
 	public void start( final Stage primaryStage ) throws InterruptedException
@@ -212,7 +216,7 @@ public class Atlas
 	public void start( final Stage primaryStage, final String title ) throws InterruptedException
 	{
 
-		final Scene scene = view.createScene( 800, 600 );
+		final Scene scene = new Scene( this.root, 800, 600 );
 
 		primaryStage.setTitle( title );
 		primaryStage.setScene( scene );
@@ -396,6 +400,11 @@ public class Atlas
 	public OrthoView baseView()
 	{
 		return this.view;
+	}
+
+	public BorderPane root()
+	{
+		return this.root;
 	}
 
 	protected Node createInfo()

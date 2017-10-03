@@ -102,12 +102,10 @@ public class ExampleApplication2
 		/** loaded segments */
 		ArrayList< H5LabelMultisetSetupImageLoader > labels = null;
 		if ( reader.exists( labelsDataset ) )
-		{
 			labels = bdv.bigcat.viewer.viewer3d.util.HDF5Reader.readLabels( reader, labelsDataset );
-		}
 		volumeLabels = labels.get( 0 ).getImage( 0 );
 
-		Localizable location = new Point( new int[] { 10, 267, 0 } );
+		final Localizable location = new Point( new int[] { 10, 267, 0 } );
 
 		latch.await();
 		controller.generateMesh( volumeLabels, location );
