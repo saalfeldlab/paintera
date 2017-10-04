@@ -4,6 +4,8 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.concurrent.CountDownLatch;
 
+import org.slf4j.Logger;
+
 import com.sun.javafx.application.PlatformImpl;
 
 import bdv.AbstractViewerSetupImgLoader;
@@ -48,9 +50,14 @@ import net.imglib2.view.Views;
 
 public class ExampleApplication2
 {
+	/** logger */
+	static Logger LOGGER;
 
 	public static void main( final String[] args ) throws Exception
 	{
+		// Set the log level
+		System.setProperty( org.slf4j.impl.SimpleLogger.DEFAULT_LOG_LEVEL_KEY, "off" );
+
 		final String rawFile = "data/sample_B_20160708_frags_46_50.hdf";
 		PlatformImpl.startup( () -> {} );
 		final String rawDataset = "volumes/raw";
