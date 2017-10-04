@@ -5,6 +5,14 @@ import java.util.concurrent.Callable;
 import bdv.bigcat.viewer.viewer3d.util.SimpleMesh;
 import net.imglib2.RandomAccessibleInterval;
 
+/**
+ * Class that calls the method to generate the mesh. This class is necessary to
+ * use the future threads.
+ *
+ * @author vleite
+ *
+ * @param <T>
+ */
 public class MarchingCubesCallable< T > implements Callable< SimpleMesh >
 {
 	/** volume data */
@@ -33,7 +41,26 @@ public class MarchingCubesCallable< T > implements Callable< SimpleMesh >
 	 */
 	boolean copyToArray;
 
-	public MarchingCubesCallable( RandomAccessibleInterval< T > input, int[] volDim, int[] offset, int[] cubeSize, MarchingCubes.ForegroundCriterion criterion, int foregroundValue, boolean usingRAI )
+	/**
+	 * Constructor
+	 *
+	 * @param input
+	 *            the data that will be used to generate the mesh
+	 * @param volDim
+	 *            dimension of the dataset (chunk)
+	 * @param offset
+	 *            offset of the dataset (chunk)
+	 * @param cubeSize
+	 *            the size of the cube that will "march" through the data
+	 * @param criterion
+	 *            the criteria used to activate voxels
+	 * @param foregroundValue
+	 *            the value that will be used to generate the mesh
+	 * @param copyToArray
+	 *            boolean that indicates if the data must be copied to an array
+	 *            before generate the mesh
+	 */
+	public MarchingCubesCallable( RandomAccessibleInterval< T > input, int[] volDim, int[] offset, int[] cubeSize, MarchingCubes.ForegroundCriterion criterion, int foregroundValue, boolean copyToArray )
 	{
 		this.volume = input;
 		this.volDim = volDim;
@@ -41,7 +68,7 @@ public class MarchingCubesCallable< T > implements Callable< SimpleMesh >
 		this.cubeSize = cubeSize;
 		this.criterion = criterion;
 		this.foregroundValue = foregroundValue;
-		this.copyToArray = usingRAI;
+		this.copyToArray = copyToArray;
 	}
 
 	@Override

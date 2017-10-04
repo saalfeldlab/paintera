@@ -52,6 +52,17 @@ public class NextVertexValuesFromIntegerType< I extends IntegerType< I > > imple
 		}
 	}
 
+	/**
+	 * Get a cursor of a cube vertex from RAI
+	 *
+	 * @param cursorX
+	 *            position on x
+	 * @param cursorY
+	 *            position on y
+	 * @param cursorZ
+	 *            position on z
+	 * @return Cursor<I> with the one position
+	 */
 	private Cursor< I > getVertex( final int cursorX, final int cursorY, final int cursorZ )
 	{
 		final long[] begin = new long[] { cursorX, cursorY, cursorZ };

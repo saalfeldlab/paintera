@@ -59,6 +59,17 @@ public class NextVertexValuesFromLabelMultisetType implements NextVertexValues< 
 		}
 	}
 
+	/**
+	 * Get a cursor of a cube vertex from RAI
+	 *
+	 * @param cursorX
+	 *            position on x
+	 * @param cursorY
+	 *            position on y
+	 * @param cursorZ
+	 *            position on z
+	 * @return Cursor<LabelMultisetType> with the one position
+	 */
 	private Cursor< LabelMultisetType > getVertex( final int cursorX, final int cursorY, final int cursorZ )
 	{
 		final long[] begin = new long[] { cursorX, cursorY, cursorZ };

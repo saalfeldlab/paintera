@@ -49,27 +49,55 @@ public class Viewer3DController
 		MANY_NEURONS_VISIBLE
 	}
 
+	/**
+	 * Default constructor
+	 */
 	public Viewer3DController()
 	{
 		viewer3D = null;
 	}
 
+	/**
+	 * Initialize the viewer3D
+	 * 
+	 * @param viewer3D
+	 *            instance of the viewer3D that will be used
+	 */
 	public void setViewer3D( Viewer3D viewer3D )
 	{
 		Viewer3DController.viewer3D = viewer3D;
 	}
 
+	/**
+	 * Define the mode that will be used to draw the mesh (neurons)
+	 * 
+	 * @param mode
+	 *            can be ONLY_ONE_NEURON_VISIBLE or MANY_NEURONS_VISIBLE
+	 */
 	public void setMode( ViewerMode mode )
 	{
 		Viewer3DController.mode = mode;
 	}
 
+	/**
+	 * Define the resolution of the data been visualized
+	 * 
+	 * @param resolution
+	 *            resolution in x, y and z
+	 */
 	public void setResolution( double[] resolution )
 	{
 		Viewer3DController.resolution = resolution;
 		viewer3D.setVolumeResolution( resolution );
 	}
 
+	/**
+	 * 
+	 * @param labelVolumes
+	 * @param transforms
+	 * @param location
+	 * @param label
+	 */
 	public static void renderAtSelectionMultiset(
 			final RandomAccessibleInterval< LabelMultisetType >[] labelVolumes,
 			final AffineTransform3D[] transforms,
@@ -161,6 +189,12 @@ public class Viewer3DController
 		}
 	}
 
+	/**
+	 * 
+	 * @param labelVolumes
+	 * @param transforms
+	 * @param location
+	 */
 	public static < I extends IntegerType< I > > void renderAtSelection(
 			final RandomAccessibleInterval< I >[] labelVolumes,
 			final AffineTransform3D[] transforms,
@@ -250,6 +284,11 @@ public class Viewer3DController
 		}
 	}
 
+	/**
+	 * 
+	 * @param volumeLabels
+	 * @param location
+	 */
 	public static void generateMesh( RandomAccessibleInterval< LabelMultisetType > volumeLabels, Localizable location )
 	{
 		if ( mode == ViewerMode.ONLY_ONE_NEURON_VISIBLE )
@@ -311,6 +350,12 @@ public class Viewer3DController
 		}
 	}
 
+	/**
+	 * 
+	 * @param input
+	 * @param location
+	 * @return
+	 */
 	private static int getForegroundValue( RandomAccessibleInterval< LabelMultisetType > input, Localizable location )
 	{
 		final RandomAccess< LabelMultisetType > access = input.randomAccess();

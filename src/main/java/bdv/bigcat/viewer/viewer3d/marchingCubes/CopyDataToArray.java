@@ -6,5 +6,13 @@ import net.imglib2.RandomAccessibleInterval;
 
 public interface CopyDataToArray< T >
 {
-	public void copyDataToArray( RandomAccessibleInterval< T > input, List< Long > volumeArray );
+	/**
+	 * Copy the information on input to volumeArray
+	 * 
+	 * @param source
+	 *            the data that will be copied
+	 * @param target
+	 *            the array that will contain the information from source
+	 */
+	public void copyDataToArray( RandomAccessibleInterval< T > source, List< Long > target );
 }
