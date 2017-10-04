@@ -29,18 +29,18 @@ public class NextVertexValuesFromIntegerType< I extends IntegerType< I > > imple
 	}
 
 	@Override
-	public void verticesValues( int cursorX, int cursorY, int cursorZ, int[] cubeSize, double[] vertices )
+	public void getVerticesValues( int cursorX, int cursorY, int cursorZ, int[] cubeSize, double[] vertices )
 	{
 		// get the 8 vertices of the cube taking into account the cube size
 		List< Cursor< I > > verticesCursor = new ArrayList< Cursor< I > >();
-		verticesCursor.add( getVertexLabelMultisetType( cursorX, cursorY, cursorZ ) );
-		verticesCursor.add( getVertexLabelMultisetType( cursorX + cubeSize[ 0 ], cursorY, cursorZ ) );
-		verticesCursor.add( getVertexLabelMultisetType( cursorX, cursorY + cubeSize[ 1 ], cursorZ ) );
-		verticesCursor.add( getVertexLabelMultisetType( cursorX + cubeSize[ 0 ], cursorY + cubeSize[ 1 ], cursorZ ) );
-		verticesCursor.add( getVertexLabelMultisetType( cursorX, cursorY, cursorZ + cubeSize[ 2 ] ) );
-		verticesCursor.add( getVertexLabelMultisetType( cursorX + cubeSize[ 0 ], cursorY, cursorZ + cubeSize[ 2 ] ) );
-		verticesCursor.add( getVertexLabelMultisetType( cursorX, cursorY + cubeSize[ 1 ], cursorZ + cubeSize[ 2 ] ) );
-		verticesCursor.add( getVertexLabelMultisetType( cursorX + cubeSize[ 0 ], cursorY + cubeSize[ 1 ], cursorZ + cubeSize[ 2 ] ) );
+		verticesCursor.add( getVertex( cursorX, cursorY, cursorZ ) );
+		verticesCursor.add( getVertex( cursorX + cubeSize[ 0 ], cursorY, cursorZ ) );
+		verticesCursor.add( getVertex( cursorX, cursorY + cubeSize[ 1 ], cursorZ ) );
+		verticesCursor.add( getVertex( cursorX + cubeSize[ 0 ], cursorY + cubeSize[ 1 ], cursorZ ) );
+		verticesCursor.add( getVertex( cursorX, cursorY, cursorZ + cubeSize[ 2 ] ) );
+		verticesCursor.add( getVertex( cursorX + cubeSize[ 0 ], cursorY, cursorZ + cubeSize[ 2 ] ) );
+		verticesCursor.add( getVertex( cursorX, cursorY + cubeSize[ 1 ], cursorZ + cubeSize[ 2 ] ) );
+		verticesCursor.add( getVertex( cursorX + cubeSize[ 0 ], cursorY + cubeSize[ 1 ], cursorZ + cubeSize[ 2 ] ) );
 
 		for ( int i = 0; i < verticesCursor.size(); i++ )
 		{
@@ -52,7 +52,7 @@ public class NextVertexValuesFromIntegerType< I extends IntegerType< I > > imple
 		}
 	}
 
-	private Cursor< I > getVertexLabelMultisetType( final int cursorX, final int cursorY, final int cursorZ )
+	private Cursor< I > getVertex( final int cursorX, final int cursorY, final int cursorZ )
 	{
 		final long[] begin = new long[] { cursorX, cursorY, cursorZ };
 		final long[] end = new long[] { cursorX, cursorY, cursorZ };

@@ -7,6 +7,6 @@ public interface NextVertexValues< T >
 {
 	public Cursor< T > createCursor( RandomAccessibleInterval< T > input );
 
-	public void verticesValues( int cursorX, int cursorY, int cursorZ, int[] cubeSize, double[] vertices );
+	public void getVerticesValues( int cursorX, int cursorY, int cursorZ, int[] cubeSize, double[] vertices );
 
 }
