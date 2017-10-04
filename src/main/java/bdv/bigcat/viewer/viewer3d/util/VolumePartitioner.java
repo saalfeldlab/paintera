@@ -1,19 +1,22 @@
 package bdv.bigcat.viewer.viewer3d.util;
 
-import java.util.ArrayList;
-import java.util.List;
+import java.util.HashMap;
+import java.util.stream.IntStream;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import net.imglib2.Localizable;
 import net.imglib2.RandomAccessibleInterval;
+import net.imglib2.img.cell.CellGrid;
+import net.imglib2.util.IntervalIndexer;
+import net.imglib2.util.Intervals;
 import net.imglib2.view.Views;
 
 /**
  * This class is responsible for create small subvolumes from a
  * RandomAccessibleInterval.
- * 
+ *
  * @author vleite
  * @param <T>
  *
@@ -24,7 +27,7 @@ public class VolumePartitioner< T >
 	private static final Logger LOGGER = LoggerFactory.getLogger( VolumePartitioner.class );
 
 	/** number of voxels that must overlap between partitions */
-	private int[] OVERLAP = { 1, 1, 1 };
+	private final int[] OVERLAP;
 
 	/** volume to be partitioned */
 	private final RandomAccessibleInterval< T > volumeLabels;
@@ -32,161 +35,87 @@ public class VolumePartitioner< T >
 	/** Minimum size of each partition the partition */
 	private final int[] partitionSize;
 
-	private List< Chunk< T > > chunks;
+	private final HashMap< Long, Chunk< T > > chunks;
+
+	private final CellGrid grid;
+
+	private final long[] gridDimensions;
 
 	/**
 	 * Constructor - initialize parameters
 	 */
-	public VolumePartitioner( RandomAccessibleInterval< T > volumeLabels, int[] partitionSize, int[] cubeSize )
+	public VolumePartitioner( final RandomAccessibleInterval< T > volumeLabels, final int[] partitionSize, final int[] cubeSize )
 	{
 		this.volumeLabels = volumeLabels;
 		this.partitionSize = partitionSize;
 		this.OVERLAP = cubeSize;
-		chunks = new ArrayList< Chunk< T > >();
+		this.chunks = new HashMap<>();
+		this.grid = new CellGrid( Intervals.dimensionsAsLongArray( volumeLabels ), partitionSize );
+		this.gridDimensions = this.grid.getGridDimensions();
 
 		if ( LOGGER.isTraceEnabled() )
-		{
 			LOGGER.trace( "partition size: " + partitionSize[ 0 ] + " " + partitionSize[ 1 ] + " " + partitionSize[ 2 ] );
-		}
-	}
-
-	public void setOverlapSize( int[] cubeSize )
-	{
-		this.OVERLAP = cubeSize;
-	}
-
-	/**
-	 * Method to partitioning the data in small chunks.
-	 * 
-	 * @return list of chunks with its subvolume and offset created
-	 */
-	public List< Chunk< T > > dataPartitioning()
-	{
-		for ( long bx = volumeLabels.min( 0 ); ( bx + partitionSize[ 0 ] ) <= volumeLabels.max( 0 ); bx += partitionSize[ 0 ] )
-		{
-			for ( long by = volumeLabels.min( 1 ); ( by + partitionSize[ 1 ] ) <= volumeLabels.max( 1 ); by += partitionSize[ 1 ] )
-			{
-				for ( long bz = volumeLabels.min( 2 ); ( bz + partitionSize[ 2 ] ) <= volumeLabels.max( 2 ); bz += partitionSize[ 2 ] )
-				{
-					long[] begin = new long[] { bx, by, bz };
-					long[] end = new long[] { begin[ 0 ] + partitionSize[ 0 ],
-							begin[ 1 ] + partitionSize[ 1 ],
-							begin[ 2 ] + partitionSize[ 2 ] };
-
-					if ( LOGGER.isTraceEnabled() )
-					{
-						LOGGER.trace( "begin: " + bx + " " + by + " " + bz );
-						LOGGER.trace( "end: " + end[ 0 ] + " " + end[ 1 ] + " " + end[ 2 ] );
-					}
-
-					for ( int i = 0; i < begin.length; i++ )
-					{
-						if ( begin[ i ] - OVERLAP[ i ] >= 0 )
-						{
-							begin[ i ] -= OVERLAP[ i ];
-						}
-
-						if ( volumeLabels.max( i ) - end[ i ] < partitionSize[ i ] )
-						{
-							end[ i ] = volumeLabels.max( i );
-						}
-					}
-
-					final Chunk< T > chunk = new Chunk< T >();
-					chunk.setVolume( Views.interval( volumeLabels, begin, end ) );
-					chunk.setOffset( new int[] { ( int ) ( begin[ 0 ] ), ( int ) ( begin[ 1 ] ), ( int ) ( begin[ 2 ] ) } );
-					chunks.add( chunk );
-
-					if ( LOGGER.isDebugEnabled() )
-					{
-						LOGGER.debug( "partition begins at: " + begin[ 0 ] + " " + begin[ 1 ] + " " + begin[ 2 ] );
-						LOGGER.debug( "partition ends at: " + end[ 0 ] + " " + end[ 1 ] + " " + end[ 2 ] );
-					}
-				}
-			}
-		}
-		return chunks;
 	}
 
 	/**
 	 * Given a specific position, return the chunk were this position is. If the
 	 * chunk already exists, just return the chunk. If not, create a chunk for
 	 * the informed position.
-	 * 
+	 *
 	 * @param position
 	 *            x, y, z coordinates
 	 * @return chunk were this position belongs to.
 	 */
-	public Chunk< T > getChunk( Localizable location )
+	public Chunk< T > getChunk( final Localizable gridLocation )
 	{
-		for ( int i = 0; i < chunks.size(); i++ )
-		{
-			if ( chunks.get( i ).contains( location ) ) { return chunks.get( i ); }
-		}
+		final long[] gridPosition = new long[ gridLocation.numDimensions() ];
+		gridLocation.localize( gridPosition );
+//		for ( int d = 0; d < gridPosition.length; ++d )
+//			gridPosition[ d ] /= this.partitionSize[ d ];
 
-		long[] offset = getVolumeOffset( location );
+		final long index = IntervalIndexer.positionToIndex( gridPosition, gridDimensions );
 
-		int xWidth = ( int ) volumeLabels.dimension( 0 );
-		int xyWidth = ( int ) ( xWidth * volumeLabels.dimension( 1 ) );
-		int index = ( int ) ( offset[ 0 ] + offset[ 1 ] * xWidth + offset[ 2 ] * xyWidth );
+		if ( chunks.containsKey( index ) )
+			return chunks.get( index );
 
-		long[] begin = new long[] { offset[ 0 ] * partitionSize[ 0 ],
-				offset[ 1 ] * partitionSize[ 1 ],
-				offset[ 2 ] * partitionSize[ 2 ] };
-		long[] end = new long[] { begin[ 0 ] + partitionSize[ 0 ],
-				begin[ 1 ] + partitionSize[ 1 ],
-				begin[ 2 ] + partitionSize[ 2 ] };
+		final long[] offset = IntStream.range( 0, gridPosition.length ).mapToLong( d -> gridPosition[ d ] * partitionSize[ d ] ).toArray();
+		final long[] lower = IntStream.range( 0, offset.length ).mapToLong( d -> Math.max( offset[ d ] - OVERLAP[ d ], 0 ) ).toArray();
+		final long[] upper = IntStream.range( 0, offset.length ).mapToLong( d -> Math.min( offset[ d ] + partitionSize[ d ], this.volumeLabels.dimension( d ) ) - 1 ).toArray();
 
-		for ( int i = 0; i < begin.length; i++ )
-		{
-			if ( begin[ i ] - OVERLAP[ i ] >= 0 )
-			{
-				begin[ i ] -= OVERLAP[ i ];
-			}
-
-			if ( volumeLabels.max( i ) - end[ i ] < partitionSize[ i ] )
-			{
-				end[ i ] = volumeLabels.max( i );
-			}
-		}
-
-		final Chunk< T > chunk = new Chunk< T >();
-		chunk.setVolume( Views.interval( volumeLabels, begin, end ) );
-		chunk.setOffset( new int[] { ( int ) ( begin[ 0 ] ), ( int ) ( begin[ 1 ] ), ( int ) ( ( begin[ 2 ] ) ) } );
-		chunk.setIndex( index );
-		chunks.add( chunk );
+		final Chunk< T > chunk = new Chunk<>( Views.interval( volumeLabels, lower, upper ), offset, ( int ) index );
+		chunks.put( index, chunk );
 
 		if ( LOGGER.isDebugEnabled() )
 		{
-			LOGGER.debug( "partition begins at: " + begin[ 0 ] + " " + begin[ 1 ] + " " + begin[ 2 ] );
-			LOGGER.debug( "partition ends at: " + end[ 0 ] + " " + end[ 1 ] + " " + end[ 2 ] );
+			LOGGER.debug( "partition begins at: " + lower[ 0 ] + " " + lower[ 1 ] + " " + lower[ 2 ] );
+			LOGGER.debug( "partition ends at: " + upper[ 0 ] + " " + upper[ 1 ] + " " + upper[ 2 ] );
 		}
 
 		return chunk;
 	}
 
-	public long[] getVolumeOffset( Localizable location )
+	public void getVolumeOffset( final long[] offset )
 	{
-		long[] offset = new long[ 3 ];
-		offset[ 0 ] = ( location.getIntPosition( 0 ) / partitionSize[ 0 ] );
-		offset[ 1 ] = ( location.getIntPosition( 1 ) / partitionSize[ 1 ] );
-		offset[ 2 ] = ( location.getIntPosition( 2 ) / partitionSize[ 2 ] );
+		offset[ 0 ] /= partitionSize[ 0 ];
+		offset[ 1 ] /= partitionSize[ 1 ];
+		offset[ 2 ] /= partitionSize[ 2 ];
+	}
 
-		for ( int i = 0; i < offset.length; i++ )
-		{
-			if ( location.getIntPosition( i ) % partitionSize[ i ] == 0 )
-			{
-				if ( offset[ i ] > 0 )
-					offset[ i ]--;
-			}
+	public boolean isGridOffsetContained( final long offset, final int dimension )
+	{
+		return offset > 0 && offset < gridDimensions[ dimension ];
+	}
 
-			if ( offset[ i ] >= ( volumeLabels.dimension( i ) / partitionSize[ i ] ) )
-			{
-				offset[ i ]--;
-			}
-		}
+	public boolean isGridOffsetContained( final long[] offset )
+	{
+		boolean isContained = true;
+		for ( int d = 0; d < offset.length; ++d )
+			isContained &= isGridOffsetContained( offset[ d ], d );
+		return isContained;
+	}
 
-		LOGGER.info( "volume offset: " + offset[ 0 ] + " " + offset[ 1 ] + " " + offset[ 2 ] );
-		return offset;
+	public void indexToGridOffset( final long index, final long[] offset )
+	{
+		IntervalIndexer.indexToPosition( index, gridDimensions, offset );
 	}
 }

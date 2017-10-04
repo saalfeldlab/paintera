@@ -1,5 +1,6 @@
 package bdv.bigcat.viewer.atlas;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -30,11 +31,15 @@ import bdv.bigcat.viewer.atlas.mode.Merges;
 import bdv.bigcat.viewer.atlas.mode.Mode;
 import bdv.bigcat.viewer.atlas.mode.ModeUtil;
 import bdv.bigcat.viewer.atlas.mode.NavigationOnly;
+import bdv.bigcat.viewer.atlas.mode.Render3D;
 import bdv.bigcat.viewer.ortho.OrthoView;
 import bdv.bigcat.viewer.ortho.OrthoViewState;
 import bdv.bigcat.viewer.state.FragmentSegmentAssignmentState;
 import bdv.bigcat.viewer.state.SelectedIds;
 import bdv.bigcat.viewer.stream.ModalGoldenAngleSaturatedHighlightingARGBStream;
+import bdv.bigcat.viewer.viewer3d.Viewer3D;
+import bdv.bigcat.viewer.viewer3d.Viewer3DController;
+import bdv.bigcat.viewer.viewer3d.Viewer3DController.ViewerMode;
 import bdv.labels.labelset.LabelMultisetType;
 import bdv.labels.labelset.Multiset.Entry;
 import bdv.labels.labelset.VolatileLabelMultisetType;
@@ -97,9 +102,21 @@ public class Atlas
 
 	private final ViewerOptions viewerOptions;
 
-	private final Mode[] modes = { new NavigationOnly(), new Highlights( selectedIds ), new Merges( selectedIds, assignments ) };
+//	private final Mode[] modes = { new NavigationOnly(), new Highlights( selectedIds ), new Merges( selectedIds, assignments ) };
+
+	private final ArrayList< Mode > modes = new ArrayList<>();
 
 	private final SourcesTab sourcesTab = new SourcesTab( specs );
+
+	private final Viewer3D renderView = new Viewer3D( "", 1000, 1000, false );
+
+	private final Viewer3DController controller = new Viewer3DController();
+	{
+		new Thread( renderView::main ).start();
+		controller.setViewer3D( renderView );
+		controller.setResolution( new double[] { 4, 4, 40 } );
+		controller.setMode( ViewerMode.ONLY_ONE_NEURON_VISIBLE );
+	}
 
 	public Atlas( final Interval interval )
 	{
@@ -127,13 +144,18 @@ public class Atlas
 //				specs.selectedSourceProperty().setValue( Optional.of( state.get().spec() ) );
 //		} );
 
+		this.view.add( renderView.getPanel(), 1, 1 );
+
+		final Mode[] initialModes = { new NavigationOnly(), new Highlights( selectedIds ), new Merges( selectedIds, assignments ), new Render3D() };
+		Arrays.stream( initialModes ).forEach( modes::add );
+
 		for ( final Mode mode : modes )
 			addOnEnterOnExit( mode.onEnter(), mode.onExit(), true );
 
 		final ComboBox< Mode > modeSelector = ModeUtil.comboBox( modes );
 		modeSelector.setPromptText( "Mode" );
 		this.status.getChildren().add( modeSelector );
-		modeSelector.getSelectionModel().select( modes[ 2 ] );
+		modeSelector.getSelectionModel().select( initialModes[ 2 ] );
 
 		final Label coordinates = new Label();
 		final AtlasMouseCoordinatePrinter coordinatePrinter = new AtlasMouseCoordinatePrinter( coordinates );
@@ -320,6 +342,8 @@ public class Atlas
 				( ( Highlights ) mode ).addSource( vsource, source, toIdConverter );
 			else if ( mode instanceof Merges )
 				( ( Merges ) mode ).addSource( vsource, source, toIdConverter );
+			else if ( mode instanceof Render3D )
+				( ( Render3D ) mode ).addSource( vsource, source, toIdConverter );
 
 		view.addActor( new ViewerActor()
 		{
@@ -459,6 +483,21 @@ public class Atlas
 	public void setTransform( final AffineTransform3D transform )
 	{
 		this.baseView().setTransform( transform );
+	}
+
+	public synchronized void addMode( final Mode mode )
+	{
+		if ( modes.contains( mode ) )
+			return;
+		final Node focusOwner;
+		if ( this.view.sceneProperty().get() != null )
+			focusOwner = this.view.sceneProperty().get().getFocusOwner();
+		else
+			focusOwner = null;
+		this.modes.add( mode );
+
+		if ( focusOwner != null )
+			focusOwner.requestFocus();
 	}
 
 }

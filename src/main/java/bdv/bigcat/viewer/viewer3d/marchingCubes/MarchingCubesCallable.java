@@ -19,21 +19,21 @@ public class MarchingCubesCallable< T > implements Callable< SimpleMesh >
 	RandomAccessibleInterval< T > volume;
 
 	/** volume dimension */
-	private int[] volDim;
+	private final int[] volDim;
 
 	/** offset to positioning the vertices in global coordinates */
-	private int[] offset;
+	private final long[] offset;
 
 	/** marching cube voxel dimension */
-	private int[] cubeSize;
+	private final int[] cubeSize;
 
 	/**
 	 * defines if the criterion that will be used to generate the mesh
 	 */
-	private MarchingCubes.ForegroundCriterion criterion;
+	private final MarchingCubes.ForegroundCriterion criterion;
 
 	/** the value to match the criterion */
-	private int foregroundValue;
+	private final int foregroundValue;
 
 	/**
 	 * indicates if it is to use the implementation directly with RAI (false) or
@@ -60,7 +60,7 @@ public class MarchingCubesCallable< T > implements Callable< SimpleMesh >
 	 *            boolean that indicates if the data must be copied to an array
 	 *            before generate the mesh
 	 */
-	public MarchingCubesCallable( RandomAccessibleInterval< T > input, int[] volDim, int[] offset, int[] cubeSize, MarchingCubes.ForegroundCriterion criterion, int foregroundValue, boolean copyToArray )
+	public MarchingCubesCallable( final RandomAccessibleInterval< T > input, final int[] volDim, final long[] offset, final int[] cubeSize, final MarchingCubes.ForegroundCriterion criterion, final int foregroundValue, final boolean copyToArray )
 	{
 		this.volume = input;
 		this.volDim = volDim;
@@ -74,8 +74,8 @@ public class MarchingCubesCallable< T > implements Callable< SimpleMesh >
 	@Override
 	public SimpleMesh call() throws Exception
 	{
-		MarchingCubes< T > mc_rai = new MarchingCubes<>();
-		SimpleMesh m = mc_rai.generateMesh( volume, volDim, offset, cubeSize, criterion, foregroundValue, copyToArray );
+		final MarchingCubes< T > mc_rai = new MarchingCubes<>();
+		final SimpleMesh m = mc_rai.generateMesh( volume, volDim, offset, cubeSize, criterion, foregroundValue, copyToArray );
 
 		return m;
 	}
