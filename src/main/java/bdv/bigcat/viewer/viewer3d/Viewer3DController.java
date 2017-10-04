@@ -96,7 +96,7 @@ public class Viewer3DController
 
 			// same label for all resolutions
 			int foregroundValue = ( int ) label;
-			MeshExtractor meshExtractor = new MeshExtractor( labelVolume, cubeSize, foregroundValue, criterion );
+			MeshExtractor< LabelMultisetType > meshExtractor = new MeshExtractor< LabelMultisetType >( labelVolume, cubeSize, foregroundValue, criterion );
 
 			// create an empty mesh
 			Mesh completeNeuron = new Mesh();
@@ -258,7 +258,7 @@ public class Viewer3DController
 		}
 
 		int foregroundValue = getForegroundValue( volumeLabels, location );
-		MeshExtractor meshExtractor = new MeshExtractor( volumeLabels, cubeSize, foregroundValue, criterion );
+		MeshExtractor< LabelMultisetType > meshExtractor = new MeshExtractor< LabelMultisetType >( volumeLabels, cubeSize, foregroundValue, criterion );
 
 		// use cube of size 1
 		Mesh completeNeuron = new Mesh();
@@ -328,38 +328,16 @@ public class Viewer3DController
 		return foregroundValue;
 	}
 
-	private static int getForegroundValue( RandomAccess< LabelMultisetType > access )
-	{
-		int foregroundValue = -1;
-		for ( final Multiset.Entry< Label > e : access.get().entrySet() )
-		{
-			foregroundValue = ( int ) e.getElement().id();
-			System.out.println( "foregroundValue: " + foregroundValue );
-		}
-
-		return foregroundValue;
-	}
-
 	/**
 	 * transform mesh into real world coordinates applying affine
 	 * transformations
+	 * 
+	 * @param source
+	 *            original vertices values
 	 * @param transform
+	 *            transformations to be applied
+	 * @return vertices transformed
 	 */
-	private static void applyTransformation( Mesh completeNeuron, AffineTransform3D transform )
-	{
-		float[] source = null;
-		if ( completeNeuron.getVertices().hasArray() )
-		{
-			source = completeNeuron.getVertices().array();
-		}
-
-		float[] target = new float[ source.length ];
-
-		transform.apply( source, target );
-
-		completeNeuron.setVertices( FloatBuffer.wrap( target ) );
-	}
-
 	private static float[] applyTransformation( float[] source, AffineTransform3D transform )
 	{
 		float[] target = new float[ source.length ];
