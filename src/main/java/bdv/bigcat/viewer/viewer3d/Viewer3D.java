@@ -122,12 +122,11 @@ public class Viewer3D extends SceneryBase
 		Iterator< Node > iterator = children.iterator();
 		while (iterator.hasNext()) {
 			Node child = iterator.next();
-			System.out.println( child.getNodeType() );
-
-			if ( child.getNodeType().compareTo( "Mesh" ) == 0 )
+			if ( child.getName().compareTo( "Mesh" ) == 0 )
 			{
 				getScene().removeChild( child );
 			}
 		}
 	}
+
 }

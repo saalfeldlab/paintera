@@ -14,7 +14,6 @@ import org.slf4j.LoggerFactory;
 
 import bdv.bigcat.viewer.viewer3d.marchingCubes.MarchingCubes;
 import bdv.bigcat.viewer.viewer3d.marchingCubes.MarchingCubesCallable;
-import bdv.labels.labelset.LabelMultisetType;
 import graphics.scenery.Mesh;
 import net.imglib2.Localizable;
 import net.imglib2.Point;
@@ -24,20 +23,22 @@ import net.imglib2.RandomAccessibleInterval;
  * This class is responsible for generate region of interests (map of
  * boundaries).
  * 
- * Will call the VolumePartitioner must have a callNext method (use chunk index
- * based on x, y and z)
+ * This class Will call the VolumePartitioner. It contains a callNext method (it
+ * uses the chunk index based on x, y and z) that calls the mesh creation for
+ * the next chunk.
  * 
  * @author vleite
- *
+ * @param <T>
+ *            Can be either LabelMultisetType or IntegerType<I>
  */
-public class MeshExtractor
+public class MeshExtractor< T >
 {
 	/** logger */
 	static final Logger LOGGER = LoggerFactory.getLogger( MeshExtractor.class );
 
 	static final int MAX_CUBE_SIZE = 16;
 
-	private RandomAccessibleInterval< LabelMultisetType > volumeLabels;
+	private RandomAccessibleInterval< T > volumeLabels;
 
 	int[] partitionSize;
 
@@ -49,15 +50,16 @@ public class MeshExtractor
 
 	private MarchingCubes.ForegroundCriterion criterion;
 
-	private static Map< Future< SimpleMesh >, Chunk > resultMeshMap = null;
+	private Map< Future< SimpleMesh >, Chunk< T > > resultMeshMap = null;
 
-	private static Map< Chunk, int[] > chunkResolutionMap = null;
+	private Map< Chunk< T >, int[] > chunkResolutionMap = null;
 
 	private static CompletionService< SimpleMesh > executor = null;
 
-	private static VolumePartitioner partitioner;
+	private VolumePartitioner< T > partitioner;
 
-	public MeshExtractor( RandomAccessibleInterval< LabelMultisetType > volumeLabels, final int[] cubeSize, final int foregroundValue, final MarchingCubes.ForegroundCriterion criterion )
+	public MeshExtractor( RandomAccessibleInterval< T > volumeLabels, final int[] cubeSize, final int foregroundValue,
+			final MarchingCubes.ForegroundCriterion criterion )
 	{
 		this.volumeLabels = volumeLabels;
 		this.partitionSize = new int[] { 1, 1, 1 };
@@ -68,9 +70,9 @@ public class MeshExtractor
 		executor = new ExecutorCompletionService< SimpleMesh >(
 				Executors.newWorkStealingPool() );
 
-		resultMeshMap = new HashMap< Future< SimpleMesh >, Chunk >();
+		resultMeshMap = new HashMap< Future< SimpleMesh >, Chunk< T > >();
 
-		chunkResolutionMap = new HashMap< Chunk, int[] >();
+		chunkResolutionMap = new HashMap< Chunk< T >, int[] >();
 
 		generatePartitionSize();
 
@@ -85,7 +87,7 @@ public class MeshExtractor
 		if ( volumeLabels.dimension( 2 ) % partitionSize[ 2 ] == 0 )
 			nCellsZ--;
 
-		partitioner = new VolumePartitioner( this.volumeLabels, partitionSize, this.cubeSize );
+		partitioner = new VolumePartitioner< T >( this.volumeLabels, partitionSize, this.cubeSize );
 	}
 
 	public void setCubeSize( int[] cubeSize )
@@ -115,14 +117,15 @@ public class MeshExtractor
 		}
 		catch ( InterruptedException e )
 		{
-			// TODO Auto-generated catch block
 			LOGGER.error( " task interrupted: " + e.getCause() );
 		}
 
 		// System.out.println( "get completed future" );
 
-		Chunk chunk = resultMeshMap.remove( completedFuture );
+		Chunk< T > chunk = resultMeshMap.remove( completedFuture );
 		SimpleMesh m = new SimpleMesh();
+
+		System.out.println( "mesh: " + m );
 
 		// get the mesh, if the task was able to create it
 		try
@@ -135,13 +138,12 @@ public class MeshExtractor
 			LOGGER.error( "Mesh creation failed: " + e.getCause() );
 		}
 
-		// System.out.println( "get mesh" );
+		System.out.println( "got mesh" );
 
 		Mesh sceneryMesh = null;
 		if ( m.getNumberOfVertices() == 0 )
 		{
 			LOGGER.info( "empty mesh" );
-			// System.out.println( "empty mesh" );
 		}
 		else
 		{
@@ -150,7 +152,6 @@ public class MeshExtractor
 			chunk.setMesh( sceneryMesh, cubeSize );
 		}
 
-		// System.out.println( "new positions" );
 		int index = chunk.getIndex();
 		int xWidth = ( int ) volumeLabels.dimension( 0 );
 		int xyWidth = ( int ) ( volumeLabels.dimension( 1 ) * xWidth );
@@ -185,7 +186,7 @@ public class MeshExtractor
 	{
 		if ( location == null )
 		{
-			LOGGER.info( "Given position to create a chunk is null" );
+			LOGGER.info( "The initial position to create the chunk is null" );
 			return;
 		}
 
@@ -194,7 +195,12 @@ public class MeshExtractor
 
 		int[] newPosition = null;
 		if ( offset[ 0 ] >= 0 && offset[ 0 ] < nCellsX && offset[ 1 ] >= 0 && offset[ 1 ] < nCellsY && offset[ 2 ] >= 0 && offset[ 2 ] < nCellsZ )
-			newPosition = new int[] { ( int ) ( offset[ 0 ] * ( partitionSize[ 0 ] + 1 ) ), ( int ) ( offset[ 1 ] * ( partitionSize[ 1 ] + 1 ) ), ( int ) ( offset[ 2 ] * ( partitionSize[ 2 ] + 1 ) ) };
+		{
+			newPosition = new int[] {
+					( int ) ( offset[ 0 ] * ( partitionSize[ 0 ] + 1 ) ),
+					( int ) ( offset[ 1 ] * ( partitionSize[ 1 ] + 1 ) ),
+					( int ) ( offset[ 2 ] * ( partitionSize[ 2 ] + 1 ) ) };
+		}
 		else
 		{
 			LOGGER.debug( "The offset does not fit in the data" );
@@ -291,7 +297,8 @@ public class MeshExtractor
 
 	private void createChunk( Localizable location )
 	{
-		Chunk chunk = partitioner.getChunk( location );
+		Chunk< T > chunk = partitioner.getChunk( location );
+
 		if ( LOGGER.isTraceEnabled() )
 		{
 			int[] chunkBb = chunk.getChunkBoundinBox();
@@ -316,12 +323,13 @@ public class MeshExtractor
 		createCallable( chunk );
 	}
 
-	private void createCallable( Chunk chunk )
+	private void createCallable( Chunk< T > chunk )
 	{
 		int[] volumeDimension = new int[] { ( int ) chunk.getVolume().dimension( 0 ), ( int ) chunk.getVolume().dimension( 1 ),
 				( int ) chunk.getVolume().dimension( 2 ) };
 
-		MarchingCubesCallable callable = new MarchingCubesCallable( chunk.getVolume(), volumeDimension, chunk.getOffset(), cubeSize, criterion, foregroundValue, true );
+		MarchingCubesCallable< T > callable = new MarchingCubesCallable< T >( chunk.getVolume(), volumeDimension, chunk.getOffset(),
+				cubeSize, criterion, foregroundValue, true );
 		Future< SimpleMesh > result = executor.submit( callable );
 
 		resultMeshMap.put( result, chunk );

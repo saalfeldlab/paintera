@@ -6,7 +6,6 @@ import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import bdv.labels.labelset.LabelMultisetType;
 import net.imglib2.Localizable;
 import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.view.Views;
@@ -16,9 +15,10 @@ import net.imglib2.view.Views;
  * RandomAccessibleInterval.
  * 
  * @author vleite
+ * @param <T>
  *
  */
-public class VolumePartitioner
+public class VolumePartitioner< T >
 {
 	/** logger */
 	private static final Logger LOGGER = LoggerFactory.getLogger( VolumePartitioner.class );
@@ -27,22 +27,22 @@ public class VolumePartitioner
 	private int[] OVERLAP = { 1, 1, 1 };
 
 	/** volume to be partitioned */
-	private final RandomAccessibleInterval< LabelMultisetType > volumeLabels;
+	private final RandomAccessibleInterval< T > volumeLabels;
 
 	/** Minimum size of each partition the partition */
 	private final int[] partitionSize;
 
-	private static List< Chunk > chunks;
+	private List< Chunk< T > > chunks;
 
 	/**
 	 * Constructor - initialize parameters
 	 */
-	public VolumePartitioner( RandomAccessibleInterval< LabelMultisetType > volumeLabels, int[] partitionSize, int[] cubeSize )
+	public VolumePartitioner( RandomAccessibleInterval< T > volumeLabels, int[] partitionSize, int[] cubeSize )
 	{
 		this.volumeLabels = volumeLabels;
 		this.partitionSize = partitionSize;
 		this.OVERLAP = cubeSize;
-		VolumePartitioner.chunks = new ArrayList< Chunk >();
+		chunks = new ArrayList< Chunk< T > >();
 
 		if ( LOGGER.isTraceEnabled() )
 		{
@@ -60,7 +60,7 @@ public class VolumePartitioner
 	 * 
 	 * @return list of chunks with its subvolume and offset created
 	 */
-	public List< Chunk > dataPartitioning()
+	public List< Chunk< T > > dataPartitioning()
 	{
 		for ( long bx = volumeLabels.min( 0 ); ( bx + partitionSize[ 0 ] ) <= volumeLabels.max( 0 ); bx += partitionSize[ 0 ] )
 		{
@@ -92,7 +92,7 @@ public class VolumePartitioner
 						}
 					}
 
-					final Chunk chunk = new Chunk();
+					final Chunk< T > chunk = new Chunk< T >();
 					chunk.setVolume( Views.interval( volumeLabels, begin, end ) );
 					chunk.setOffset( new int[] { ( int ) ( begin[ 0 ] ), ( int ) ( begin[ 1 ] ), ( int ) ( begin[ 2 ] ) } );
 					chunks.add( chunk );
@@ -117,7 +117,7 @@ public class VolumePartitioner
 	 *            x, y, z coordinates
 	 * @return chunk were this position belongs to.
 	 */
-	public Chunk getChunk( Localizable location )
+	public Chunk< T > getChunk( Localizable location )
 	{
 		for ( int i = 0; i < chunks.size(); i++ )
 		{
@@ -150,7 +150,7 @@ public class VolumePartitioner
 			}
 		}
 
-		final Chunk chunk = new Chunk();
+		final Chunk< T > chunk = new Chunk< T >();
 		chunk.setVolume( Views.interval( volumeLabels, begin, end ) );
 		chunk.setOffset( new int[] { ( int ) ( begin[ 0 ] ), ( int ) ( begin[ 1 ] ), ( int ) ( ( begin[ 2 ] ) ) } );
 		chunk.setIndex( index );

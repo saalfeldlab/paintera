@@ -4,6 +4,8 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.concurrent.CountDownLatch;
 
+import org.slf4j.Logger;
+
 import com.sun.javafx.application.PlatformImpl;
 
 import bdv.AbstractViewerSetupImgLoader;
@@ -48,9 +50,14 @@ import net.imglib2.view.Views;
 
 public class ExampleApplication2
 {
+	/** logger */
+	static Logger LOGGER;
 
 	public static void main( final String[] args ) throws Exception
 	{
+		// Set the log level
+		System.setProperty( org.slf4j.impl.SimpleLogger.DEFAULT_LOG_LEVEL_KEY, "off" );
+
 		final String rawFile = "data/sample_B_20160708_frags_46_50.hdf";
 		PlatformImpl.startup( () -> {} );
 		final String rawDataset = "volumes/raw";
@@ -104,11 +111,13 @@ public class ExampleApplication2
 		if ( reader.exists( labelsDataset ) )
 			labels = bdv.bigcat.viewer.viewer3d.util.HDF5Reader.readLabels( reader, labelsDataset );
 		volumeLabels = labels.get( 0 ).getImage( 0 );
-
-		final Localizable location = new Point( new int[] { 10, 267, 0 } );
-
 		latch.await();
-		controller.generateMesh( volumeLabels, location );
+		
+//		AffineTransform3D transform = new AffineTransform3D();
+//		final long label = 7;
+//		controller.renderAtSelectionMultiset( volumeLabels, transform, location, label );
+		Localizable location = new Point( new int[] { 10, 267, 0 } ); // id 7
+		Viewer3DController.generateMesh( volumeLabels, location );
 
 		final Volatile< UnsignedByteType > abc = rawSource.getViewerSource().getType();
 		viewer.addRawSource( rawSource, 0., 255. );
