@@ -213,12 +213,14 @@ public class MeshExtractor< T >
 		Localizable newLocation = new Point( newPosition );
 		createChunk( newLocation );
 
-		// if one of the neighbors chunks exist, creates it
-		// newOffsetposition = x + partitionSizeX, y, z
+		// if one of the neighbors chunks exist and contains the foreground
+		// value in the boundary that goes in the neighbor direction, creates it
+
+		// newOffsetposition = x + partitionSizeX, y, z -> right
 		int[] newOffset = new int[] { ( int ) ( offset[ 0 ] + 1 ), ( int ) offset[ 1 ], ( int ) offset[ 2 ] };
 		LOGGER.trace( "New offset: {}, {}, {}", offset[ 0 ], offset[ 1 ], offset[ 2 ] );
 
-		if ( newOffset[ 0 ] < nCellsX )
+		if ( newOffset[ 0 ] < nCellsX && hasNeighborData( "right" ) )
 		{
 			newLocation = new Point(
 					( int ) ( newOffset[ 0 ] * ( partitionSize[ 0 ] + 1 ) ),
@@ -227,11 +229,12 @@ public class MeshExtractor< T >
 			createChunk( newLocation );
 		}
 
-		// position = x - partitionSizeX, y, z
+		// position = x - partitionSizeX, y, z -> left
+
 		newOffset = new int[] { ( int ) ( offset[ 0 ] - 1 ), ( int ) offset[ 1 ], ( int ) offset[ 2 ] };
 		LOGGER.trace( "New offset: {}, {}, {}", offset[ 0 ], offset[ 1 ], offset[ 2 ] );
 
-		if ( newOffset[ 0 ] >= 0 )
+		if ( newOffset[ 0 ] >= 0 && hasNeighborData( "left" ) )
 		{
 			newLocation = new Point(
 					( int ) ( newOffset[ 0 ] * ( partitionSize[ 0 ] + 1 ) ),
@@ -240,11 +243,11 @@ public class MeshExtractor< T >
 			createChunk( newLocation );
 		}
 
-		// position = x, y + partitionSizeY, z
+		// position = x, y + partitionSizeY, z -> up
 		newOffset = new int[] { ( int ) offset[ 0 ], ( int ) ( offset[ 1 ] + 1 ), ( int ) offset[ 2 ] };
 		LOGGER.trace( "New offset: {}, {}, {}", offset[ 0 ], offset[ 1 ], offset[ 2 ] );
 
-		if ( newOffset[ 1 ] < nCellsY )
+		if ( newOffset[ 1 ] < nCellsY && hasNeighborData( "up" ) )
 		{
 			newLocation = new Point(
 					( int ) ( newOffset[ 0 ] * ( partitionSize[ 0 ] + 1 ) ),
@@ -253,11 +256,11 @@ public class MeshExtractor< T >
 			createChunk( newLocation );
 		}
 
-		// position = x, y - partitionSizeY, z
+		// position = x, y - partitionSizeY, z -> down
 		newOffset = new int[] { ( int ) offset[ 0 ], ( int ) ( offset[ 1 ] - 1 ), ( int ) offset[ 2 ] };
 		LOGGER.trace( "New offset: {}, {}, {}", offset[ 0 ], offset[ 1 ], offset[ 2 ] );
 
-		if ( newOffset[ 1 ] >= 0 )
+		if ( newOffset[ 1 ] >= 0 && hasNeighborData( "down" ) )
 		{
 			newLocation = new Point(
 					( int ) ( newOffset[ 0 ] * ( partitionSize[ 0 ] + 1 ) ),
@@ -266,11 +269,11 @@ public class MeshExtractor< T >
 			createChunk( newLocation );
 		}
 
-		// position = x, y, z + partitionSizeZ
+		// position = x, y, z + partitionSizeZ -> behind
 		newOffset = new int[] { ( int ) offset[ 0 ], ( int ) offset[ 1 ], ( int ) offset[ 2 ] + 1 };
 		LOGGER.trace( "New offset: {}, {}, {}", offset[ 0 ], offset[ 1 ], offset[ 2 ] );
 
-		if ( newOffset[ 2 ] < nCellsZ )
+		if ( newOffset[ 2 ] < nCellsZ && hasNeighborData( "behind" ) )
 		{
 			newLocation = new Point(
 					( int ) ( newOffset[ 0 ] * ( partitionSize[ 0 ] + 1 ) ),
@@ -279,11 +282,11 @@ public class MeshExtractor< T >
 			createChunk( newLocation );
 		}
 
-		// position = x, y, z - partitionSizeZ
+		// position = x, y, z - partitionSizeZ -> front
 		newOffset = new int[] { ( int ) offset[ 0 ], ( int ) offset[ 1 ], ( int ) offset[ 2 ] - 1 };
 		LOGGER.trace( "New offset: {}, {}, {}", offset[ 0 ], offset[ 1 ], offset[ 2 ] );
 
-		if ( newOffset[ 2 ] >= 0 )
+		if ( newOffset[ 2 ] >= 0 && hasNeighborData( "front" ) )
 		{
 			newLocation = new Point(
 					( int ) ( newOffset[ 0 ] * ( partitionSize[ 0 ] + 1 ) ),
@@ -293,6 +296,21 @@ public class MeshExtractor< T >
 		}
 
 		LOGGER.trace( "There is/are {} threads to calculate chunk mesh", resultMeshMap.size() );
+	}
+
+	private boolean hasNeighborData( String direction )
+	{
+		switch ( direction )
+		{
+		case "left":
+		case "right":
+		case "up":
+		case "down":
+		case "behind":
+		case "front":
+		default:
+		}
+		return true;
 	}
 
 	private void createChunk( Localizable location )
