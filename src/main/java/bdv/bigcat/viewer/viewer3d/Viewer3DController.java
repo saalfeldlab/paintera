@@ -161,8 +161,7 @@ public class Viewer3DController
 			int completeMeshSize = 0;
 			while ( meshExtractor.hasNext() )
 			{
-				Mesh neuron = new Mesh();
-				neuron = meshExtractor.next();
+				Mesh neuron = meshExtractor.next();
 				if ( neuron == null )
 				{
 					continue;
@@ -256,8 +255,7 @@ public class Viewer3DController
 			int completeMeshSize = 0;
 			while ( meshExtractor.hasNext() )
 			{
-				Mesh neuron = new Mesh();
-				neuron = meshExtractor.next();
+				Mesh neuron = meshExtractor.next();
 				if ( neuron == null )
 				{
 					continue;
@@ -326,8 +324,7 @@ public class Viewer3DController
 		int completeMeshSize = 0;
 		while ( meshExtractor.hasNext() )
 		{
-			Mesh neuron = new Mesh();
-			neuron = meshExtractor.next();
+			Mesh neuron = meshExtractor.next();
 			if ( neuron == null )
 			{
 				continue;
