@@ -43,9 +43,6 @@ public class MarchingCubes< T >
 	/** The value (id) that we will use to create the mesh. */
 	private final int foregroundValue;
 
-	/** Indicates which criterion is going to be applied */
-	private final ForegroundCriterion criteria;
-
 	/** size of the cube */
 	private final int[] cubeSize;
 
@@ -71,7 +68,6 @@ public class MarchingCubes< T >
 		this.input = input;
 		this.interval = interval;
 		this.foregroundValue = foregroundValue;
-		this.criteria = ForegroundCriterion.EQUAL;
 		this.cubeSize = cubeSize;
 		this.vertices = new ArrayList<>();
 	}

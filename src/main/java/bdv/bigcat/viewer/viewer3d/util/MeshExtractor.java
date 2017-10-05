@@ -75,7 +75,7 @@ public class MeshExtractor< T >
 
 		resultMeshMap = new HashMap<>();
 
-		partitioner = new VolumePartitioner<>( this.volumeLabels, this.interval, this.partitionSize, this.cubeSize );
+		partitioner = new VolumePartitioner<>( this.interval, this.partitionSize );
 
 		final long[] offset = new long[ startingPoint.numDimensions() ];
 		startingPoint.localize( offset );

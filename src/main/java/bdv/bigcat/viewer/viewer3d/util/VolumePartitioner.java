@@ -11,7 +11,6 @@ import net.imglib2.FinalDimensions;
 import net.imglib2.FinalInterval;
 import net.imglib2.Interval;
 import net.imglib2.Localizable;
-import net.imglib2.RandomAccessible;
 import net.imglib2.img.cell.CellGrid;
 import net.imglib2.util.IntervalIndexer;
 import net.imglib2.util.Intervals;
@@ -31,12 +30,6 @@ public class VolumePartitioner< T >
 	/** logger */
 	private static final Logger LOGGER = LoggerFactory.getLogger( VolumePartitioner.class );
 
-	/** number of voxels that must overlap between partitions */
-	private final int[] OVERLAP;
-
-	/** volume to be partitioned */
-	private final RandomAccessible< T > volumeLabels;
-
 	private final Interval interval;
 
 	/** Minimum size of each partition the partition */
@@ -53,12 +46,10 @@ public class VolumePartitioner< T >
 	/**
 	 * Constructor - initialize parameters
 	 */
-	public VolumePartitioner( final RandomAccessible< T > volumeLabels, final Interval interval, final int[] partitionSize, final int[] cubeSize )
+	public VolumePartitioner( final Interval interval, final int[] partitionSize )
 	{
-		this.volumeLabels = volumeLabels;
 		this.interval = interval;
 		this.partitionSize = partitionSize;
-		this.OVERLAP = cubeSize;
 		this.chunks = new HashMap<>();
 		this.grid = new CellGrid( Intervals.dimensionsAsLongArray( interval ), partitionSize );
 		this.gridDimensions = this.grid.getGridDimensions();
