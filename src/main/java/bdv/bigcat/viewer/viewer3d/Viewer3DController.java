@@ -4,7 +4,6 @@ import java.nio.FloatBuffer;
 import java.util.Arrays;
 import java.util.Optional;
 
-import bdv.bigcat.viewer.viewer3d.marchingCubes.MarchingCubes;
 import bdv.bigcat.viewer.viewer3d.util.MeshExtractor;
 import bdv.labels.labelset.Label;
 import bdv.labels.labelset.LabelMultisetType;
@@ -28,17 +27,11 @@ import net.imglib2.view.Views;
  */
 public class Viewer3DController
 {
-	private static MarchingCubes.ForegroundCriterion criterion = MarchingCubes.ForegroundCriterion.EQUAL;
+	private final Viewer3D viewer3D;
 
-	private static int[] cubeSize = { 1, 1, 1 };
+	private final ViewerMode mode;
 
-	private static float[] verticesArray = new float[ 0 ];
-
-	private static Viewer3D viewer3D;
-
-	private static ViewerMode mode;
-
-	private static double[] resolution;
+	private final double[] resolution;
 
 	/**
 	 * Enum of the viewer modes. There are two types: ONLY_ONE_NEURON_VISIBLE:
@@ -55,43 +48,11 @@ public class Viewer3DController
 	/**
 	 * Default constructor
 	 */
-	public Viewer3DController()
+	public Viewer3DController( final Viewer3D viewer, final ViewerMode mode, final double[] resolution )
 	{
-		viewer3D = null;
-	}
-
-	/**
-	 * Initialize the viewer3D
-	 *
-	 * @param viewer3D
-	 *            instance of the viewer3D that will be used
-	 */
-	public void setViewer3D( final Viewer3D viewer3D )
-	{
-		Viewer3DController.viewer3D = viewer3D;
-	}
-
-	/**
-	 * Define the mode that will be used to draw the mesh (neurons)
-	 *
-	 * @param mode
-	 *            can be ONLY_ONE_NEURON_VISIBLE or MANY_NEURONS_VISIBLE
-	 */
-	public void setMode( final ViewerMode mode )
-	{
-		Viewer3DController.mode = mode;
-	}
-
-	/**
-	 * Define the resolution of the data been visualized
-	 *
-	 * @param resolution
-	 *            resolution in x, y and z
-	 */
-	public void setResolution( final double[] resolution )
-	{
-		Viewer3DController.resolution = resolution;
-		viewer3D.setVolumeResolution( resolution );
+		this.viewer3D = viewer;
+		this.mode = mode;
+		this.resolution = resolution;
 	}
 
 	/**
@@ -101,7 +62,7 @@ public class Viewer3DController
 	 * @param location
 	 * @param label
 	 */
-	public static void renderAtSelectionMultiset(
+	public void renderAtSelectionMultiset(
 			final RandomAccessibleInterval< LabelMultisetType >[] labelVolumes,
 			final AffineTransform3D[] transforms,
 			final Localizable location,
@@ -112,6 +73,7 @@ public class Viewer3DController
 		if ( mode == ViewerMode.ONLY_ONE_NEURON_VISIBLE )
 			viewer3D.removeAllNeurons();
 
+		float[] verticesArray = new float[ 0 ];
 		for ( int i = 0; i < labelVolumes.length; ++i )
 		{
 			// parameters for each resolution
@@ -197,7 +159,7 @@ public class Viewer3DController
 	 * @param transforms
 	 * @param location
 	 */
-	public static < I extends IntegerType< I > > void renderAtSelection(
+	public < I extends IntegerType< I > > void renderAtSelection(
 			final RandomAccessibleInterval< I >[] labelVolumes,
 			final AffineTransform3D[] transforms,
 			final Localizable location,
@@ -206,6 +168,8 @@ public class Viewer3DController
 	{
 		if ( mode == ViewerMode.ONLY_ONE_NEURON_VISIBLE )
 			viewer3D.removeAllNeurons();
+
+		float[] verticesArray = new float[ 0 ];
 
 		for ( int i = 0; i < labelVolumes.length; ++i )
 		{
@@ -294,7 +258,7 @@ public class Viewer3DController
 	 * @param volumeLabels
 	 * @param location
 	 */
-	public static void generateMesh(
+	public void generateMesh(
 			final RandomAccessibleInterval< LabelMultisetType > volumeLabels,
 			final Localizable location,
 			final int[] partitionSize,
@@ -302,6 +266,8 @@ public class Viewer3DController
 	{
 		if ( mode == ViewerMode.ONLY_ONE_NEURON_VISIBLE )
 			viewer3D.removeAllNeurons();
+
+		float[] verticesArray = new float[ 0 ];
 
 		final int foregroundValue = getForegroundValue( volumeLabels, location );
 		final MeshExtractor< LabelMultisetType > meshExtractor = new MeshExtractor<>(
