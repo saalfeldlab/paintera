@@ -6,11 +6,15 @@ import java.util.stream.IntStream;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import net.imglib2.Dimensions;
+import net.imglib2.FinalDimensions;
 import net.imglib2.Localizable;
 import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.img.cell.CellGrid;
 import net.imglib2.util.IntervalIndexer;
 import net.imglib2.util.Intervals;
+import net.imglib2.util.Pair;
+import net.imglib2.util.ValuePair;
 import net.imglib2.view.Views;
 
 /**
@@ -41,6 +45,8 @@ public class VolumePartitioner< T >
 
 	private final long[] gridDimensions;
 
+	private final Dimensions dimensions;
+
 	/**
 	 * Constructor - initialize parameters
 	 */
@@ -52,6 +58,7 @@ public class VolumePartitioner< T >
 		this.chunks = new HashMap<>();
 		this.grid = new CellGrid( Intervals.dimensionsAsLongArray( volumeLabels ), partitionSize );
 		this.gridDimensions = this.grid.getGridDimensions();
+		this.dimensions = new FinalDimensions( this.gridDimensions );
 
 		if ( LOGGER.isTraceEnabled() )
 			LOGGER.trace( "partition size: " + partitionSize[ 0 ] + " " + partitionSize[ 1 ] + " " + partitionSize[ 2 ] );
@@ -66,7 +73,7 @@ public class VolumePartitioner< T >
 	 *            x, y, z coordinates
 	 * @return chunk were this position belongs to.
 	 */
-	public Chunk< T > getChunk( final Localizable gridLocation )
+	public Pair< Chunk< T >, Boolean > getChunk( final Localizable gridLocation )
 	{
 		final long[] gridPosition = new long[ gridLocation.numDimensions() ];
 		gridLocation.localize( gridPosition );
@@ -76,7 +83,7 @@ public class VolumePartitioner< T >
 		final long index = IntervalIndexer.positionToIndex( gridPosition, gridDimensions );
 
 		if ( chunks.containsKey( index ) )
-			return chunks.get( index );
+			return new ValuePair<>( chunks.get( index ), false );
 
 		final long[] offset = IntStream.range( 0, gridPosition.length ).mapToLong( d -> gridPosition[ d ] * partitionSize[ d ] ).toArray();
 		final long[] lower = IntStream.range( 0, offset.length ).mapToLong( d -> Math.max( offset[ d ] - OVERLAP[ d ], 0 ) ).toArray();
@@ -91,7 +98,7 @@ public class VolumePartitioner< T >
 			LOGGER.debug( "partition ends at: " + upper[ 0 ] + " " + upper[ 1 ] + " " + upper[ 2 ] );
 		}
 
-		return chunk;
+		return new ValuePair<>( chunk, true );
 	}
 
 	public void getVolumeOffset( final long[] offset )
@@ -117,5 +124,15 @@ public class VolumePartitioner< T >
 	public void indexToGridOffset( final long index, final long[] offset )
 	{
 		IntervalIndexer.indexToPosition( index, gridDimensions, offset );
+	}
+
+	public long gridOffsetToIndex( final Localizable offset )
+	{
+		return IntervalIndexer.positionToIndex( offset, dimensions );
+	}
+
+	public boolean isChunkPresent( final Localizable location )
+	{
+		return this.chunks.containsKey( gridOffsetToIndex( location ) );
 	}
 }

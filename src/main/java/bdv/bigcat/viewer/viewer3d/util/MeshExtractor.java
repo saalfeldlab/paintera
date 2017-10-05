@@ -19,6 +19,7 @@ import graphics.scenery.Mesh;
 import net.imglib2.Localizable;
 import net.imglib2.Point;
 import net.imglib2.RandomAccessibleInterval;
+import net.imglib2.util.Pair;
 
 /**
  * This class is responsible for generate region of interests (map of
@@ -118,7 +119,7 @@ public class MeshExtractor< T >
 		catch ( InterruptedException | ExecutionException e )
 		{
 			LOGGER.error( "Mesh creation failed: " + e.getCause() );
-			m = Optional.empty();
+			return Optional.empty();
 		}
 
 		final Optional< Mesh > sceneryMesh;
@@ -130,24 +131,15 @@ public class MeshExtractor< T >
 			sceneryMesh = Optional.of( mesh );
 		}
 		else
-			sceneryMesh = Optional.empty();
+			return Optional.empty();
 
-		long index = chunk.getIndex();
-		final long xWidth = volumeLabels.dimension( 0 );
-		final long xyWidth = volumeLabels.dimension( 1 ) * xWidth;
-		final long z = index / xyWidth;
-		index -= z * xyWidth;
-		final long y = index / xWidth;
-		index -= y * xWidth;
-		final long x = index;
-		final long[] newPosition = new long[] { x * ( partitionSize[ 0 ] + 1 ), y * ( partitionSize[ 1 ] + 1 ), z * ( partitionSize[ 2 ] + 1 ) };
-//		final long[] offset = new long[ 3 ];
-//		partitioner.indexToGridOffset( index, offset );
-//		final long[] shiftedOffset = Arrays.stream( offset ).map( o -> o + 1 ).toArray();
+		final long index = chunk.getIndex();
+		final long[] offset = new long[ 3 ];
+		partitioner.indexToGridOffset( index, offset );
 
 		LOGGER.debug( "chunk {} ", chunk );
 
-		final Localizable newLocation = new Point( newPosition );
+		final Localizable newLocation = new Point( offset );
 		createNeighboringChunks( newLocation );
 
 		// a mesh was created, return it
@@ -172,21 +164,12 @@ public class MeshExtractor< T >
 
 		final long[] offset = new long[ location.numDimensions() ];
 		location.localize( offset );
-//		partitioner.getVolumeOffset( offset );
-		LOGGER.trace( "offset: {}, {}, {}", offset[ 0 ], offset[ 1 ], offset[ 2 ] );
-		if ( !partitioner.isGridOffsetContained( offset ) )
-		{
-			LOGGER.debug( "The offset does not fit in the data" );
-			return;
-		}
 
 		final Point p = Point.wrap( offset );
 
 		LOGGER.trace( "Initial position is: {}, {}, {}", offset[ 0 ], offset[ 1 ], offset[ 2 ] );
 
 		// creates the callable for the chunk in the given position
-		createChunk( p );
-
 		// if one of the neighbors chunks exist, creates it
 		// newOffsetposition = x + partitionSizeX, y, z
 		for ( int d = 0; d < offset.length; ++d )
@@ -194,11 +177,11 @@ public class MeshExtractor< T >
 
 			offset[ d ] += 1;
 			LOGGER.trace( "New offset: {}, {}, {}", offset[ 0 ], offset[ 1 ], offset[ 2 ] );
-			if ( partitioner.isGridOffsetContained( offset[ d ], d ) )
+			if ( partitioner.isGridOffsetContained( offset[ d ], d ) && !partitioner.isChunkPresent( p ) )
 				createChunk( p );
 			offset[ d ] -= 2;
 			LOGGER.trace( "New offset: {}, {}, {}", offset[ 0 ], offset[ 1 ], offset[ 2 ] );
-			if ( partitioner.isGridOffsetContained( offset[ d ], d ) )
+			if ( partitioner.isGridOffsetContained( offset[ d ], d ) && !partitioner.isChunkPresent( p ) )
 				createChunk( p );
 			offset[ d ] += 1;
 
@@ -209,8 +192,9 @@ public class MeshExtractor< T >
 
 	private void createChunk( final Localizable offset )
 	{
-		final Chunk< T > chunk = partitioner.getChunk( offset );
-		createCallable( chunk );
+		final Pair< Chunk< T >, Boolean > chunk = partitioner.getChunk( offset );
+		if ( chunk.getB() )
+			createCallable( chunk.getA() );
 	}
 
 	private void createCallable( final Chunk< T > chunk )
