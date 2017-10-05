@@ -71,9 +71,10 @@ public class Viewer3DController
 		if ( mode == ViewerMode.ONLY_ONE_NEURON_VISIBLE )
 			viewer3D.removeAllNeurons();
 
-		float[] verticesArray = new float[ 0 ];
+		Mesh previousNeuron = null;
 		for ( int i = 0; i < labelVolumes.length; ++i )
 		{
+			float[] verticesArray = new float[ 0 ];
 			// parameters for each resolution
 			final RandomAccessibleInterval< T > labelVolume = labelVolumes[ i ];
 			final AffineTransform3D transform = transforms[ i ];
@@ -112,7 +113,7 @@ public class Viewer3DController
 			// remove all the mesh and grown it again is the best way to do
 			// this.
 			if ( i != 0 )
-				viewer3D.removeChild( completeNeuron );
+				viewer3D.removeChild( previousNeuron );
 
 			// add the mesh (still empty) in the viewer
 			viewer3D.addChild( completeNeuron );
@@ -123,6 +124,7 @@ public class Viewer3DController
 			int completeMeshSize = 0;
 			while ( meshExtractor.hasNext() )
 			{
+				System.out.println( "GETTING NEXT MESH?" );
 				final Optional< Mesh > neuron = meshExtractor.next();
 				if ( neuron.isPresent() )
 				{
@@ -146,6 +148,7 @@ public class Viewer3DController
 					completeNeuron.setDirty( true );
 				}
 			}
+			previousNeuron = completeNeuron;
 		}
 	}
 
