@@ -155,7 +155,6 @@ public class MeshExtractor< T >
 	 */
 	private void createNeighboringChunks( final Localizable location )
 	{
-		System.out.println( "CREATING CHUNKS AT " + location );
 		if ( location == null )
 		{
 			LOGGER.info( "The initial position to create the chunk is null" );

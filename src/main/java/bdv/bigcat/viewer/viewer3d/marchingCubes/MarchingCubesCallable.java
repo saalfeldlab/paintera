@@ -74,8 +74,9 @@ public class MarchingCubesCallable< T > implements Callable< SimpleMesh >
 	@Override
 	public SimpleMesh call() throws Exception
 	{
-		final MarchingCubes< T > mc_rai = new MarchingCubes<>();
-		final SimpleMesh m = mc_rai.generateMesh( volume, volDim, offset, cubeSize, criterion, foregroundValue, copyToArray );
+		final MarchingCubes< T > mc_rai = new MarchingCubes<>( volume, cubeSize, foregroundValue, offset );// new
+		// MarchingCubes<>();
+		final SimpleMesh m = mc_rai.generateMesh( copyToArray );
 
 		return m;
 	}

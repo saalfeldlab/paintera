@@ -11,6 +11,7 @@ import bdv.labels.labelset.LabelMultisetType;
 import net.imglib2.Cursor;
 import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.type.numeric.IntegerType;
+import net.imglib2.util.Intervals;
 import net.imglib2.util.Util;
 
 /**
@@ -28,20 +29,24 @@ public class MarchingCubes< T >
 	/** the mesh that represents the surface. */
 	private final SimpleMesh mesh;
 
+	private final RandomAccessibleInterval< T > input;
+
 	/** No. of cells in x, y and z directions. */
-	private long nCellsX, nCellsY, nCellsZ;
+	private final long nCellsX, nCellsY, nCellsZ;
 
 	/** The value (id) that we will use to create the mesh. */
-	private int foregroundValue;
+	private final int foregroundValue;
 
 	/** Indicates which criterion is going to be applied */
-	private ForegroundCriterion criteria;
+	private final ForegroundCriterion criteria;
 
 	/** size of the cube */
-	private int[] cubeSize;
+	private final int[] cubeSize;
 
 	/** list of calculated vertices */
 	private final ArrayList< float[] > vertices;
+
+	private final long[] offset;
 
 	/**
 	 * Enum of the available criteria. These criteria are used to evaluate if
@@ -56,19 +61,33 @@ public class MarchingCubes< T >
 	/**
 	 * Initialize the class parameters with default values
 	 */
-	public MarchingCubes()
+	public MarchingCubes( final RandomAccessibleInterval< T > input, final int[] cubeSize, final int foregroundValue, final long[] offset )
 	{
 		this.mesh = new SimpleMesh();
-		this.nCellsX = 0;
-		this.nCellsY = 0;
-		this.nCellsZ = 0;
-		this.foregroundValue = 0;
+		this.input = input;
+		this.foregroundValue = foregroundValue;
 		this.criteria = ForegroundCriterion.EQUAL;
-		this.cubeSize = new int[] { 1, 1, 1 };
+		this.cubeSize = cubeSize;
 		this.vertices = new ArrayList<>();
-	}
+		this.offset = offset;
 
-	long[] offset;
+		final long[] volDim = Intervals.dimensionsAsLongArray( input );
+
+		long nCellsX = ( long ) Math.ceil( ( volDim[ 0 ] + 2 ) / cubeSize[ 0 ] );
+		long nCellsY = ( long ) Math.ceil( ( volDim[ 1 ] + 2 ) / cubeSize[ 1 ] );
+		long nCellsZ = ( long ) Math.ceil( ( volDim[ 2 ] + 2 ) / cubeSize[ 2 ] );
+
+		if ( ( volDim[ 0 ] + 2 ) % cubeSize[ 0 ] == 0 )
+			nCellsX--;
+		if ( ( volDim[ 1 ] + 2 ) % cubeSize[ 1 ] == 0 )
+			nCellsY--;
+		if ( ( volDim[ 2 ] + 2 ) % cubeSize[ 2 ] == 0 )
+			nCellsZ--;
+
+		this.nCellsX = nCellsX;
+		this.nCellsY = nCellsY;
+		this.nCellsZ = nCellsZ;
+	}
 
 	/**
 	 * Generic method to generate the mesh
@@ -90,12 +109,10 @@ public class MarchingCubes< T >
 	 *            generation
 	 * @return SimpleMesh, basically an array with the vertices
 	 */
-	public < I extends IntegerType< I > > SimpleMesh generateMesh( final RandomAccessibleInterval< T > input, final int[] volDim, final long[] offset,
-			final int[] cubeSize, final ForegroundCriterion foregroundCriteria, final int foregroundValue,
-			final boolean copyToArray )
+	public < I extends IntegerType< I > > SimpleMesh generateMesh( final boolean copyToArray )
 	{
-		initializeVariables( volDim, offset, cubeSize, foregroundCriteria, foregroundValue );
 		SimpleMesh mesh = null;
+		final int[] volDim = Intervals.dimensionsAsIntArray( input );
 		if ( copyToArray )
 		{
 			if ( Util.getTypeFromInterval( input ) instanceof LabelMultisetType )
@@ -131,40 +148,6 @@ public class MarchingCubes< T >
 			LOGGER.error( "input has unknown type" );
 
 		return mesh;
-	}
-
-	/**
-	 * Initialize necessary variables to mesh creation. This method maximum
-	 * number of cells in each volume (chunk).
-	 *
-	 * @param volDim
-	 *            dimension of the volume (chunk)
-	 * @param offset
-	 *            the chunk offset to correctly positioning the mesh
-	 * @param cubeSize
-	 *            the size of the cube that will generate the mesh
-	 * @param foregroundCriteria
-	 *            criteria to be considered in order to activate voxels
-	 * @param foregroundValue
-	 *            the value that will be used to generate the mesh
-	 */
-	private void initializeVariables( final int[] volDim, final long[] offset, final int[] cubeSize, final ForegroundCriterion foregroundCriteria, final int foregroundValue )
-	{
-		this.offset = offset;
-		this.cubeSize = cubeSize;
-		this.criteria = foregroundCriteria;
-		this.foregroundValue = foregroundValue;
-
-		nCellsX = ( long ) Math.ceil( ( volDim[ 0 ] + 2 ) / cubeSize[ 0 ] );
-		nCellsY = ( long ) Math.ceil( ( volDim[ 1 ] + 2 ) / cubeSize[ 1 ] );
-		nCellsZ = ( long ) Math.ceil( ( volDim[ 2 ] + 2 ) / cubeSize[ 2 ] );
-
-		if ( ( volDim[ 0 ] + 2 ) % cubeSize[ 0 ] == 0 )
-			nCellsX--;
-		if ( ( volDim[ 1 ] + 2 ) % cubeSize[ 1 ] == 0 )
-			nCellsY--;
-		if ( ( volDim[ 2 ] + 2 ) % cubeSize[ 2 ] == 0 )
-			nCellsZ--;
 	}
 
 	/**
@@ -331,7 +314,6 @@ public class MarchingCubes< T >
 		// dimension on xy direction, used to access the volume as an array
 		int xyWidth = 0;
 
-		System.out.println( "COPYING DATA INTO ARRAY!" );
 		copyData.copyDataToArray( input, volumeArray );
 
 		// two dimensions more: from 'min minus one' to 'max plus one'
