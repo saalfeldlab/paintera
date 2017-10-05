@@ -46,7 +46,7 @@ public class MeshExtractor< T >
 
 	private final int[] cubeSize;
 
-	private final int foregroundValue;
+	private final long foregroundValue;
 
 	private final MarchingCubes.ForegroundCriterion criterion;
 
@@ -59,7 +59,7 @@ public class MeshExtractor< T >
 	public MeshExtractor(
 			final RandomAccessibleInterval< T > volumeLabels,
 			final int[] cubeSize,
-			final int foregroundValue,
+			final long foregroundValue,
 			final MarchingCubes.ForegroundCriterion criterion,
 			final Localizable startingPoint )
 	{
@@ -170,8 +170,7 @@ public class MeshExtractor< T >
 
 		// creates the callable for the chunk in the given position
 
-		// if one of the neighbors chunks exist, creates it
-		// newOffsetposition = x + partitionSizeX, y, z
+		// if one of the neighbors chunks exists, creates it
 		for ( int d = 0; d < offset.length; ++d )
 		{
 			offset[ d ] += 1;
@@ -186,21 +185,6 @@ public class MeshExtractor< T >
 		}
 
 		LOGGER.trace( "There is/are {} threads to calculate chunk mesh", resultMeshMap.size() );
-	}
-
-	private boolean hasNeighborData( String direction )
-	{
-		switch ( direction )
-		{
-		case "left":
-		case "right":
-		case "up":
-		case "down":
-		case "behind":
-		case "front":
-		default:
-		}
-		return true;
 	}
 
 	private void createChunk( final Localizable offset )
