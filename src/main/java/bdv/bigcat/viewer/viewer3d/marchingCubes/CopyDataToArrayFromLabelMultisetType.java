@@ -14,7 +14,7 @@ import net.imglib2.view.Views;
 public class CopyDataToArrayFromLabelMultisetType implements CopyDataToArray< LabelMultisetType >
 {
 	@Override
-	public void copyDataToArray( RandomAccessibleInterval< LabelMultisetType > input, List< Long > volumeArray )
+	public void copyDataToArray( final RandomAccessibleInterval< LabelMultisetType > input, final List< Long > volumeArray )
 	{
 		final ExtendedRandomAccessibleInterval< LabelMultisetType, RandomAccessibleInterval< LabelMultisetType > > extended =
 				Views.extendValue( input, new LabelMultisetType() );
@@ -27,11 +27,14 @@ public class CopyDataToArrayFromLabelMultisetType implements CopyDataToArray< La
 		while ( cursor.hasNext() )
 		{
 			final LabelMultisetType iterator = cursor.next();
+			int count = Integer.MIN_VALUE;
 
 			for ( final Multiset.Entry< Label > e : iterator.entrySet() )
-			{
-				volumeArray.add( e.getElement().id() );
-			}
+				if ( e.getCount() > count )
+				{
+					count = e.getCount();
+					volumeArray.add( e.getElement().id() );
+				}
 		}
 	}
 }
