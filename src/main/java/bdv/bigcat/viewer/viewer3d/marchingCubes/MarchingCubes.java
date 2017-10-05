@@ -164,31 +164,12 @@ public class MarchingCubes< T >
 		cursors[ 7 ] = Views.flatIterable( Views.interval( Views.offset( subsampled, 1, 1, 1 ), zeroMinInterval ) ).cursor();
 
 		final long[] vertexValues = new long[ 8 ];
-		final long[] remappedVertexValues = new long[ 8 ];
 
 		while ( cursors[ 0 ].hasNext() )
 		{
-			vertexValues[ 0 ] = extractVertexLabel.applyAsLong( cursors[ 0 ].next() );
-			vertexValues[ 1 ] = extractVertexLabel.applyAsLong( cursors[ 1 ].next() );
-			vertexValues[ 2 ] = extractVertexLabel.applyAsLong( cursors[ 2 ].next() );
-			vertexValues[ 3 ] = extractVertexLabel.applyAsLong( cursors[ 3 ].next() );
-			vertexValues[ 4 ] = extractVertexLabel.applyAsLong( cursors[ 4 ].next() );
-			vertexValues[ 5 ] = extractVertexLabel.applyAsLong( cursors[ 5 ].next() );
-			vertexValues[ 6 ] = extractVertexLabel.applyAsLong( cursors[ 6 ].next() );
-			vertexValues[ 7 ] = extractVertexLabel.applyAsLong( cursors[ 7 ].next() );
 
-			if ( LOGGER.isDebugEnabled() )
-			{
-				// @formatter:off
-				LOGGER.debug( " " + ( int ) vertexValues[ 4 ] + "------" + ( int ) vertexValues[ 5 ] );
-				LOGGER.debug( " /|     /|" );
-				LOGGER.debug( " " + ( int ) vertexValues[ 7 ] + "-----" + ( int ) vertexValues[ 6 ] + " |" );
-				LOGGER.debug( " |" + ( int ) vertexValues[ 0 ] + "----|-" + ( int ) vertexValues[ 1 ] );
-				LOGGER.debug( " |/    |/" );
-				LOGGER.debug( " " + ( int ) vertexValues[ 3 ] + "-----" + ( int ) vertexValues[ 2 ] );
-				// @formatter:on
-			}
-
+			// Remap the vertices of the cube (8 positions) obtained from a RAI
+			// to match the expected order for this implementation
 			// @formatter:off
 			// the values from the cube are given first in z, then y, then x
 			// this way, the vertex_values (from getCube) are positioned in this
@@ -215,8 +196,26 @@ public class MarchingCubes< T >
 			//
 			// This way, we need to remap the cube vertices:
 			// @formatter:on
+			vertexValues[ 0 ] = extractVertexLabel.applyAsLong( cursors[ 5 ].next() );
+			vertexValues[ 1 ] = extractVertexLabel.applyAsLong( cursors[ 7 ].next() );
+			vertexValues[ 2 ] = extractVertexLabel.applyAsLong( cursors[ 3 ].next() );
+			vertexValues[ 3 ] = extractVertexLabel.applyAsLong( cursors[ 1 ].next() );
+			vertexValues[ 4 ] = extractVertexLabel.applyAsLong( cursors[ 4 ].next() );
+			vertexValues[ 5 ] = extractVertexLabel.applyAsLong( cursors[ 6 ].next() );
+			vertexValues[ 6 ] = extractVertexLabel.applyAsLong( cursors[ 2 ].next() );
+			vertexValues[ 7 ] = extractVertexLabel.applyAsLong( cursors[ 0 ].next() );
 
-			remapCube( vertexValues, remappedVertexValues );
+			if ( LOGGER.isDebugEnabled() )
+			{
+				// @formatter:off
+				LOGGER.debug( " " + ( int ) vertexValues[ 4 ] + "------" + ( int ) vertexValues[ 5 ] );
+				LOGGER.debug( " /|     /|" );
+				LOGGER.debug( " " + ( int ) vertexValues[ 7 ] + "-----" + ( int ) vertexValues[ 6 ] + " |" );
+				LOGGER.debug( " |" + ( int ) vertexValues[ 0 ] + "----|-" + ( int ) vertexValues[ 1 ] );
+				LOGGER.debug( " |/    |/" );
+				LOGGER.debug( " " + ( int ) vertexValues[ 3 ] + "-----" + ( int ) vertexValues[ 2 ] );
+				// @formatter:on
+			}
 
 			if ( LOGGER.isDebugEnabled() )
 			{
@@ -231,7 +230,7 @@ public class MarchingCubes< T >
 			}
 
 			triangulation(
-					remappedVertexValues,
+					vertexValues,
 					cursors[ 0 ].getLongPosition( 0 ),
 					cursors[ 0 ].getLongPosition( 1 ),
 					cursors[ 0 ].getLongPosition( 2 ) );
@@ -557,25 +556,5 @@ public class MarchingCubes< T >
 		diffZ += v1z;
 
 		return new float[] { diffX, diffY, diffZ };
-	}
-
-	/**
-	 * Remap the vertices of the cube (8 positions) obtained from a RAI to match
-	 * the expected order for this implementation
-	 *
-	 * @param vertexValues
-	 *            the vertices to change the order
-	 * @return same array but with positions in the expected place
-	 */
-	private void remapCube(final long[] vertexValues, final long[] remappedVertexValues)
-	{
-		remappedVertexValues[0] = vertexValues[5];
-		remappedVertexValues[1] = vertexValues[7];
-		remappedVertexValues[2] = vertexValues[3];
-		remappedVertexValues[3] = vertexValues[1];
-		remappedVertexValues[4] = vertexValues[4];
-		remappedVertexValues[5] = vertexValues[6];
-		remappedVertexValues[6] = vertexValues[2];
-		remappedVertexValues[7] = vertexValues[0];
 	}
 }
