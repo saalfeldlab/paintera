@@ -139,13 +139,23 @@ public class Render3D extends AbstractStateMode
 								}
 								return argMaxLabel == selectedId ? 1 : 0;
 							};
-							v3dControl.generateMesh(
-									volumes[ 0 ],
-									Point.wrap( Arrays.stream( worldCoordinate ).mapToLong( d -> ( long ) d ).toArray() ),
-									partitionSize,
-									cubeSize,
-									isForeground,
-									new LabelMultisetType() );
+//							v3dControl.renderAtSelection(
+//									volumes,
+//									transforms,
+//									Point.wrap( Arrays.stream( worldCoordinate ).mapToLong( d -> ( long ) d ).toArray() ),
+//									isForeground,
+//									new LabelMultisetType(),
+//									partitionSize,
+//									cubeSize );
+							new Thread( () -> {
+								v3dControl.generateMesh(
+										volumes[ 0 ],
+										Point.wrap( Arrays.stream( worldCoordinate ).mapToLong( d -> ( long ) d ).toArray() ),
+										partitionSize,
+										cubeSize,
+										isForeground,
+										new LabelMultisetType() );
+							} ).start();
 						}
 					}
 				}
