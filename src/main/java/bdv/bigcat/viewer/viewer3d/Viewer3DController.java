@@ -2,6 +2,7 @@ package bdv.bigcat.viewer.viewer3d;
 
 import java.nio.FloatBuffer;
 import java.util.Arrays;
+import java.util.Optional;
 
 import bdv.bigcat.viewer.viewer3d.marchingCubes.MarchingCubes;
 import bdv.bigcat.viewer.viewer3d.util.MeshExtractor;
@@ -120,7 +121,12 @@ public class Viewer3DController
 
 			// same label for all resolutions
 			final int foregroundValue = ( int ) label;
-			final MeshExtractor< LabelMultisetType > meshExtractor = new MeshExtractor<>( labelVolume, cubeSize, foregroundValue, criterion );
+			final MeshExtractor< LabelMultisetType > meshExtractor = new MeshExtractor<>(
+					labelVolume,
+					cubeSize,
+					foregroundValue,
+					criterion,
+					access );
 
 			// create an empty mesh
 			final Mesh completeNeuron = new Mesh();
@@ -149,34 +155,33 @@ public class Viewer3DController
 			viewer3D.addChild( completeNeuron );
 			// use cube of size - resolution is given by the data itself
 			// TODO: generate mesh starting at position defined by access
-			meshExtractor.createChunks( access );
 
 			float[] completeNeuronVertices = new float[ 0 ];
 			int completeMeshSize = 0;
 			while ( meshExtractor.hasNext() )
 			{
-				Mesh neuron = new Mesh();
-				neuron = meshExtractor.next();
-				if ( neuron == null )
-					continue;
-
-				if ( completeNeuron.getVertices().hasArray() )
+				final Optional< Mesh > neuron = meshExtractor.next();
+				if ( neuron.isPresent() )
 				{
-					completeNeuronVertices = completeNeuron.getVertices().array();
-					completeMeshSize = completeNeuronVertices.length;
+
+					if ( completeNeuron.getVertices().hasArray() )
+					{
+						completeNeuronVertices = completeNeuron.getVertices().array();
+						completeMeshSize = completeNeuronVertices.length;
+					}
+
+					final float[] neuronVertices = neuron.get().getVertices().array();
+					final int meshSize = neuronVertices.length;
+					verticesArray = Arrays.copyOf( completeNeuronVertices, completeMeshSize + meshSize );
+					System.arraycopy( neuronVertices, 0, verticesArray, completeMeshSize, meshSize );
+
+					// transform mesh into real world coordinates using
+					verticesArray = applyTransformation( verticesArray, transform );
+					// update the mesh in the viewer
+					completeNeuron.setVertices( FloatBuffer.wrap( verticesArray ) );
+					completeNeuron.recalculateNormals();
+					completeNeuron.setDirty( true );
 				}
-
-				final float[] neuronVertices = neuron.getVertices().array();
-				final int meshSize = neuronVertices.length;
-				verticesArray = Arrays.copyOf( completeNeuronVertices, completeMeshSize + meshSize );
-				System.arraycopy( neuronVertices, 0, verticesArray, completeMeshSize, meshSize );
-
-				// transform mesh into real world coordinates using
-				verticesArray = applyTransformation( verticesArray, transform );
-				// update the mesh in the viewer
-				completeNeuron.setVertices( FloatBuffer.wrap( verticesArray ) );
-				completeNeuron.recalculateNormals();
-				completeNeuron.setDirty( true );
 			}
 		}
 	}
@@ -209,7 +214,12 @@ public class Viewer3DController
 
 			// same label for all resolutions
 			final int foregroundValue = ( int ) label;
-			final MeshExtractor< I > meshExtractor = new MeshExtractor<>( labelVolume, cubeSize, foregroundValue, criterion );
+			final MeshExtractor< I > meshExtractor = new MeshExtractor<>(
+					labelVolume,
+					cubeSize,
+					foregroundValue,
+					criterion,
+					access );
 
 			// create an empty mesh
 			final Mesh completeNeuron = new Mesh();
@@ -238,34 +248,33 @@ public class Viewer3DController
 			viewer3D.addChild( completeNeuron );
 			// use cube of size - resolution is given by the data itself
 			// TODO: generate mesh starting at position defined by access
-			meshExtractor.createChunks( location );
 
 			float[] completeNeuronVertices = new float[ 0 ];
 			int completeMeshSize = 0;
 			while ( meshExtractor.hasNext() )
 			{
-				Mesh neuron = new Mesh();
-				neuron = meshExtractor.next();
-				if ( neuron == null )
-					continue;
-
-				if ( completeNeuron.getVertices().hasArray() )
+				final Optional< Mesh > neuron = meshExtractor.next();
+				if ( neuron.isPresent() )
 				{
-					completeNeuronVertices = completeNeuron.getVertices().array();
-					completeMeshSize = completeNeuronVertices.length;
+
+					if ( completeNeuron.getVertices().hasArray() )
+					{
+						completeNeuronVertices = completeNeuron.getVertices().array();
+						completeMeshSize = completeNeuronVertices.length;
+					}
+
+					final float[] neuronVertices = neuron.get().getVertices().array();
+					final int meshSize = neuronVertices.length;
+					verticesArray = Arrays.copyOf( completeNeuronVertices, completeMeshSize + meshSize );
+					System.arraycopy( neuronVertices, 0, verticesArray, completeMeshSize, meshSize );
+
+					// transform mesh into real world coordinates using
+					verticesArray = applyTransformation( verticesArray, transform );
+					// update the mesh in the viewer
+					completeNeuron.setVertices( FloatBuffer.wrap( verticesArray ) );
+					completeNeuron.recalculateNormals();
+					completeNeuron.setDirty( true );
 				}
-
-				final float[] neuronVertices = neuron.getVertices().array();
-				final int meshSize = neuronVertices.length;
-				verticesArray = Arrays.copyOf( completeNeuronVertices, completeMeshSize + meshSize );
-				System.arraycopy( neuronVertices, 0, verticesArray, completeMeshSize, meshSize );
-
-				// transform mesh into real world coordinates using
-				verticesArray = applyTransformation( verticesArray, transform );
-				// update the mesh in the viewer
-				completeNeuron.setVertices( FloatBuffer.wrap( verticesArray ) );
-				completeNeuron.recalculateNormals();
-				completeNeuron.setDirty( true );
 			}
 		}
 	}
@@ -281,7 +290,12 @@ public class Viewer3DController
 			viewer3D.removeAllNeurons();
 
 		final int foregroundValue = getForegroundValue( volumeLabels, location );
-		final MeshExtractor< LabelMultisetType > meshExtractor = new MeshExtractor<>( volumeLabels, cubeSize, foregroundValue, criterion );
+		final MeshExtractor< LabelMultisetType > meshExtractor = new MeshExtractor<>(
+				volumeLabels,
+				cubeSize,
+				foregroundValue,
+				criterion,
+				location );
 
 		// use cube of size 1
 		final Mesh completeNeuron = new Mesh();
@@ -303,31 +317,29 @@ public class Viewer3DController
 		completeNeuron.setScale( new GLVector( ( float ) resolution[ 0 ], ( float ) resolution[ 1 ], ( float ) resolution[ 2 ] ) );
 		viewer3D.addChild( completeNeuron );
 
-		meshExtractor.createChunks( location );
-
 		float[] completeNeuronVertices = new float[ 0 ];
 		int completeMeshSize = 0;
 		while ( meshExtractor.hasNext() )
 		{
-			Mesh neuron = new Mesh();
-			neuron = meshExtractor.next();
-			if ( neuron == null )
-				continue;
-
-			if ( completeNeuron.getVertices().hasArray() )
+			final Optional< Mesh > neuron = meshExtractor.next();
+			if ( neuron.isPresent() )
 			{
-				completeNeuronVertices = completeNeuron.getVertices().array();
-				completeMeshSize = completeNeuronVertices.length;
+
+				if ( completeNeuron.getVertices().hasArray() )
+				{
+					completeNeuronVertices = completeNeuron.getVertices().array();
+					completeMeshSize = completeNeuronVertices.length;
+				}
+
+				final float[] neuronVertices = neuron.get().getVertices().array();
+				final int meshSize = neuronVertices.length;
+				verticesArray = Arrays.copyOf( completeNeuronVertices, completeMeshSize + meshSize );
+				System.arraycopy( neuronVertices, 0, verticesArray, completeMeshSize, meshSize );
+
+				completeNeuron.setVertices( FloatBuffer.wrap( verticesArray ) );
+				completeNeuron.recalculateNormals();
+				completeNeuron.setDirty( true );
 			}
-
-			final float[] neuronVertices = neuron.getVertices().array();
-			final int meshSize = neuronVertices.length;
-			verticesArray = Arrays.copyOf( completeNeuronVertices, completeMeshSize + meshSize );
-			System.arraycopy( neuronVertices, 0, verticesArray, completeMeshSize, meshSize );
-
-			completeNeuron.setVertices( FloatBuffer.wrap( verticesArray ) );
-			completeNeuron.recalculateNormals();
-			completeNeuron.setDirty( true );
 		}
 	}
 

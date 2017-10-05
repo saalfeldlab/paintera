@@ -3,6 +3,7 @@ package bdv.bigcat.viewer.viewer3d.util;
 import java.nio.FloatBuffer;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.CompletionService;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorCompletionService;
@@ -54,8 +55,12 @@ public class MeshExtractor< T >
 
 	private final VolumePartitioner< T > partitioner;
 
-	public MeshExtractor( final RandomAccessibleInterval< T > volumeLabels, final int[] cubeSize, final int foregroundValue,
-			final MarchingCubes.ForegroundCriterion criterion )
+	public MeshExtractor(
+			final RandomAccessibleInterval< T > volumeLabels,
+			final int[] cubeSize,
+			final int foregroundValue,
+			final MarchingCubes.ForegroundCriterion criterion,
+			final Localizable startingPoint )
 	{
 		this.volumeLabels = volumeLabels;
 		this.partitionSize = new int[] { 1, 1, 1 };
@@ -70,6 +75,11 @@ public class MeshExtractor< T >
 		generatePartitionSize();
 
 		partitioner = new VolumePartitioner<>( this.volumeLabels, partitionSize, this.cubeSize );
+
+		final long[] offset = new long[ startingPoint.numDimensions() ];
+		startingPoint.localize( offset );
+		partitioner.getVolumeOffset( offset );
+		createChunk( new Point( offset ) );
 	}
 
 	public boolean hasNext()
@@ -78,7 +88,7 @@ public class MeshExtractor< T >
 		return resultMeshMap.size() > 0;
 	}
 
-	public Mesh next()
+	public Optional< Mesh > next()
 	{
 		// System.out.println( "next method" );
 		Future< SimpleMesh > completedFuture = null;
@@ -97,47 +107,48 @@ public class MeshExtractor< T >
 		// System.out.println( "get completed future" );
 
 		final Chunk< T > chunk = resultMeshMap.remove( completedFuture );
-		SimpleMesh m = new SimpleMesh();
-
-		System.out.println( "mesh: " + m );
 
 		// get the mesh, if the task was able to create it
+		Optional< SimpleMesh > m;
 		try
 		{
-			m = completedFuture.get();
+			m = Optional.of( completedFuture.get() );
 			LOGGER.info( "getting mesh" );
 		}
 		catch ( InterruptedException | ExecutionException e )
 		{
 			LOGGER.error( "Mesh creation failed: " + e.getCause() );
+			m = Optional.empty();
 		}
 
-		System.out.println( "got mesh" );
-
-		Mesh sceneryMesh = null;
-		if ( m.getNumberOfVertices() == 0 )
-			LOGGER.info( "empty mesh" );
-		else
+		final Optional< Mesh > sceneryMesh;
+		if ( m.isPresent() )
 		{
-			sceneryMesh = new Mesh();
-			updateMesh( m, sceneryMesh );
-			chunk.addMesh( sceneryMesh );
+			final Mesh mesh = new Mesh();
+			updateMesh( m.get(), mesh );
+			chunk.addMesh( mesh );
+			sceneryMesh = Optional.of( mesh );
 		}
+		else
+			sceneryMesh = Optional.empty();
 
-		int index = chunk.getIndex();
-		final int xWidth = ( int ) volumeLabels.dimension( 0 );
-		final int xyWidth = ( int ) ( volumeLabels.dimension( 1 ) * xWidth );
-		final int z = index / xyWidth;
+		long index = chunk.getIndex();
+		final long xWidth = volumeLabels.dimension( 0 );
+		final long xyWidth = volumeLabels.dimension( 1 ) * xWidth;
+		final long z = index / xyWidth;
 		index -= z * xyWidth;
-		final int y = index / xWidth;
+		final long y = index / xWidth;
 		index -= y * xWidth;
-		final int x = index;
-		final int[] newPosition = new int[] { x * ( partitionSize[ 0 ] + 1 ), y * ( partitionSize[ 1 ] + 1 ), z * ( partitionSize[ 2 ] + 1 ) };
+		final long x = index;
+		final long[] newPosition = new long[] { x * ( partitionSize[ 0 ] + 1 ), y * ( partitionSize[ 1 ] + 1 ), z * ( partitionSize[ 2 ] + 1 ) };
+//		final long[] offset = new long[ 3 ];
+//		partitioner.indexToGridOffset( index, offset );
+//		final long[] shiftedOffset = Arrays.stream( offset ).map( o -> o + 1 ).toArray();
 
 		LOGGER.debug( "chunk {} ", chunk );
 
 		final Localizable newLocation = new Point( newPosition );
-		createChunks( newLocation );
+		createNeighboringChunks( newLocation );
 
 		// a mesh was created, return it
 		return sceneryMesh;
@@ -150,7 +161,7 @@ public class MeshExtractor< T >
 	 * @param position
 	 *            x, y, z coordinates
 	 */
-	public void createChunks( final Localizable location )
+	private void createNeighboringChunks( final Localizable location )
 	{
 		System.out.println( "CREATING CHUNKS AT " + location );
 		if ( location == null )
@@ -161,7 +172,7 @@ public class MeshExtractor< T >
 
 		final long[] offset = new long[ location.numDimensions() ];
 		location.localize( offset );
-		partitioner.getVolumeOffset( offset );
+//		partitioner.getVolumeOffset( offset );
 		LOGGER.trace( "offset: {}, {}, {}", offset[ 0 ], offset[ 1 ], offset[ 2 ] );
 		if ( !partitioner.isGridOffsetContained( offset ) )
 		{
