@@ -471,7 +471,7 @@ public class MarchingCubes< T >
 		int tableIndex = 0;
 		for ( int i = 0; i < 8; i++ )
 			if ( foregroundCriterionTest( vertexValues[ i ] ) )
-				tableIndex |= ( int ) Math.pow( 2, i );
+				tableIndex |= 1 << i;
 
 		// edge indexes:
 		// @formatter:off
