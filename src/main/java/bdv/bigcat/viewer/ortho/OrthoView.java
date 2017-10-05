@@ -29,13 +29,12 @@ import javafx.scene.Node;
 import javafx.scene.Scene;
 import javafx.scene.control.Label;
 import javafx.scene.control.TextField;
+import javafx.scene.input.KeyEvent;
 import javafx.scene.input.MouseEvent;
-import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.GridPane;
-import javafx.scene.layout.StackPane;
 import net.imglib2.realtransform.AffineTransform3D;
 
-public class OrthoView extends BorderPane
+public class OrthoView extends GridPane
 {
 
 	public static final Class< ? >[] FOCUS_KEEPERS = { TextField.class };
@@ -44,21 +43,9 @@ public class OrthoView extends BorderPane
 
 	private final HashMap< ViewerNode, ViewerTransformManager > managers = new HashMap<>();
 
-	private final StackPane root = new StackPane();
-
-	private final GridPane grid;
-
 	private final GridResizer resizer;
 
 	private final OrthoViewState state;
-
-//	private final ObservableList< SourceAndConverter< ? > > sourceLayers = FXCollections.observableArrayList();
-//	{
-//		sourceLayers.addListener( ( ListChangeListener< SourceAndConverter< ? > > ) c -> {
-//			while ( c.next() );
-//
-//		} );
-//	}
 
 	private final ObservableList< ViewerActor > viewerActors = FXCollections.observableArrayList();
 	{
@@ -97,24 +84,26 @@ public class OrthoView extends BorderPane
 		super();
 		this.state = state;
 
-		this.grid = this.state.constraintsManager.createGrid();
-		this.centerProperty().set( this.root );
+		this.state.constraintsManager.manageGrid( this );
 		this.onFocusEnter = onFocusEnter;
 		this.onFocusExit = onFocusExit;
-		this.grid.requestFocus();
+		this.requestFocus();
 		this.setInfoNode( new Label( "Place your node here!" ) );
 
-//		final Pane dummyPane = new Pane();
-		this.resizer = new GridResizer( this.state.constraintsManager, 10, grid );
-		this.grid.setOnMouseMoved( resizer.onMouseMovedHandler() );
-		this.grid.setOnMouseDragged( resizer.onMouseDraggedHandler() );
-		this.grid.setOnMouseClicked( resizer.onMouseDoubleClickedHandler() );
-		this.grid.setOnMousePressed( resizer.onMousePresedHandler() );
-		this.grid.setOnMouseReleased( resizer.onMouseReleased() );
-//		dummyPane.addEventHandler( EventType.ROOT, this.grid::fireEvent );
-//		dummyPane.setPickOnBounds( false );
-		this.root.getChildren().add( this.grid );
-//		this.root.getChildren().add( dummyPane );
+		this.resizer = new GridResizer( this.state.constraintsManager, 10, this );
+		this.setOnMouseMoved( resizer.onMouseMovedHandler() );
+		this.setOnMouseDragged( resizer.onMouseDraggedHandler() );
+		this.setOnMouseClicked( resizer.onMouseDoubleClickedHandler() );
+		this.setOnMousePressed( resizer.onMousePresedHandler() );
+		this.setOnMouseReleased( resizer.onMouseReleased() );
+
+		this.setVgap( 1.0 );
+		this.setHgap( 1.0 );
+		this.addEventHandler( KeyEvent.KEY_TYPED, event -> {
+			if ( event.getCharacter().equals( "f" ) )
+				maximizeActiveOrthoView( event );
+		} );
+
 	}
 
 	public void makeDefaultLayout() throws InterruptedException
@@ -122,7 +111,7 @@ public class OrthoView extends BorderPane
 		addViewer( ViewerAxis.Z, 0, 0 );
 		addViewer( ViewerAxis.X, 0, 1 );
 		addViewer( ViewerAxis.Y, 1, 0 );
-		this.grid.requestFocus();
+		this.requestFocus();
 		this.viewerNodes.stream().map( ViewerNode::getContent ).forEach( vp -> ( ( ViewerPanel ) vp ).setBackgroundCreator( new GradientBackgroundAlpha() ) );
 //		this.viewerNodes.stream().map( ViewerNode::getContent ).forEach( vp -> ( ( ViewerPanel ) vp ).setBackgroundCreator( ( w, h ) -> Optional.empty() ) );
 		new Thread( () -> {
@@ -142,13 +131,13 @@ public class OrthoView extends BorderPane
 
 	public void setInfoNode( final Node node )
 	{
-		for ( final Node child : grid.getChildren() )
+		for ( final Node child : this.getChildren() )
 			if ( GridPane.getRowIndex( child ) == 1 && GridPane.getColumnIndex( child ) == 1 )
 			{
-				grid.getChildren().remove( child );
+				this.getChildren().remove( child );
 				break;
 			}
-		this.grid.add( node, 1, 1 );
+		this.add( node, 1, 1 );
 	}
 
 	public synchronized void addSourcesListener( final ListChangeListener< SourceAndConverter< ? > > listener )
@@ -159,17 +148,6 @@ public class OrthoView extends BorderPane
 	public synchronized void addActor( final ViewerActor actor )
 	{
 		this.viewerActors.add( actor );
-	}
-
-	public Scene createScene( final int width, final int height )
-	{
-		final Scene scene = new Scene( this, width, height );
-		scene.setOnKeyTyped( event -> {
-			if ( event.getCharacter().equals( "f" ) )
-				maximizeActiveOrthoView( scene, event );
-		} );
-
-		return scene;
 	}
 
 	private void addViewerNodesHandler( final ViewerNode viewerNode, final Class< ? >[] focusKeepers )
@@ -211,15 +189,16 @@ public class OrthoView extends BorderPane
 		viewerActors.forEach( actor -> actor.onAdd().accept( ( ViewerPanel ) viewerNode.getContent() ) );
 		addViewerNodesHandler( viewerNode, FOCUS_KEEPERS );
 
-		this.grid.add( viewerNode, rowIndex, colIndex );
+		this.add( viewerNode, rowIndex, colIndex );
 		viewerNode.setOnMouseClicked( resizer.onMouseDoubleClickedHandler() );
 		viewerNode.setOnMousePressed( resizer.onMousePresedHandler() );
 		viewerNode.setOnMouseDragged( resizer.onMouseDraggedHandler() );
 		viewerNode.setOnMouseMoved( resizer.onMouseMovedHandler() );
 	}
 
-	private void maximizeActiveOrthoView( final Scene scene, final Event event )
+	private void maximizeActiveOrthoView( final Event event )
 	{
+		final Scene scene = getScene();
 		final Node focusOwner = scene.focusOwnerProperty().get();
 		if ( viewerNodes.contains( focusOwner ) )
 			// event.consume();
@@ -231,16 +210,16 @@ public class OrthoView extends BorderPane
 						GridPane.getColumnIndex( focusOwner ),
 						0 );
 				( ( ViewerPanel ) ( ( SwingNode ) focusOwner ).getContent() ).requestRepaint();
-				grid.setHgap( 0 );
-				grid.setVgap( 0 );
+				this.setHgap( 0 );
+				this.setVgap( 0 );
 			}
 			else
 			{
 				this.state.constraintsManager.resetToLast();
 				viewerNodes.forEach( node -> node.setVisible( true ) );
 				viewerNodes.forEach( node -> ( ( ViewerPanel ) node.getContent() ).requestRepaint() );
-				grid.setHgap( 1 );
-				grid.setVgap( 1 );
+				this.setHgap( 1 );
+				this.setVgap( 1 );
 			}
 	}
 

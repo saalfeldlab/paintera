@@ -33,8 +33,10 @@ public class Highlights extends AbstractStateMode
 	public void addSource( final Source< ? > source, final Source< ? > dataSources, final ToIdConverter toIdConverter )
 	{
 
-		this.dataSources.put( source, dataSources );
-		this.toIdConverters.put( source, toIdConverter );
+		if ( !this.dataSources.containsKey( source ) )
+			this.dataSources.put( source, dataSources );
+		if ( !this.toIdConverters.containsKey( source ) )
+			this.toIdConverters.put( source, toIdConverter );
 	}
 
 	public void removeSource( final Source< ? > source )

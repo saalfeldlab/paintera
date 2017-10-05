@@ -12,8 +12,6 @@ import bdv.AbstractViewerSetupImgLoader;
 import bdv.bigcat.viewer.atlas.Atlas;
 import bdv.bigcat.viewer.atlas.data.HDF5LabelMultisetSourceSpec;
 import bdv.bigcat.viewer.atlas.data.HDF5UnsignedByteSpec;
-import bdv.bigcat.viewer.viewer3d.Viewer3D;
-import bdv.bigcat.viewer.viewer3d.Viewer3DController;
 import bdv.img.h5.H5LabelMultisetSetupImageLoader;
 import bdv.labels.labelset.LabelMultisetType;
 import bdv.viewer.Interpolation;
@@ -28,8 +26,6 @@ import javafx.scene.control.Dialog;
 import javafx.stage.Stage;
 import mpicbg.spim.data.sequence.VoxelDimensions;
 import net.imglib2.FinalInterval;
-import net.imglib2.Localizable;
-import net.imglib2.Point;
 import net.imglib2.RandomAccessible;
 import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.RealRandomAccessible;
@@ -79,8 +75,8 @@ public class ExampleApplication2
 
 		final Atlas viewer = new Atlas( new FinalInterval( Arrays.stream( min ).mapToLong( Math::round ).toArray(), Arrays.stream( max ).mapToLong( Math::round ).toArray() ) );
 
-		final Viewer3DController controller = new Viewer3DController();
-		controller.setMode( Viewer3DController.ViewerMode.ONLY_ONE_NEURON_VISIBLE );
+//		final Viewer3DController controller = new Viewer3DController();
+//		controller.setMode( Viewer3DController.ViewerMode.ONLY_ONE_NEURON_VISIBLE );
 
 		final CountDownLatch latch = new CountDownLatch( 1 );
 		Platform.runLater( () -> {
@@ -95,11 +91,11 @@ public class ExampleApplication2
 				e.printStackTrace();
 			}
 			stage.show();
-			final Viewer3D v3d = new Viewer3D( "appname", 100, 100, false );
-			new Thread( () -> v3d.main() ).start();
-			viewer.baseView().setInfoNode( v3d.getPanel() );
-			controller.setViewer3D( v3d );
-			controller.setResolution( resolution );
+//			final Viewer3D v3d = new Viewer3D( "appname", 100, 100, false );
+//			new Thread( () -> v3d.main() ).start();
+//			viewer.baseView().setInfoNode( v3d.getPanel() );
+//			controller.setViewer3D( v3d );
+//			controller.setResolution( resolution );
 			latch.countDown();
 		} );
 
@@ -109,17 +105,14 @@ public class ExampleApplication2
 		/** loaded segments */
 		ArrayList< H5LabelMultisetSetupImageLoader > labels = null;
 		if ( reader.exists( labelsDataset ) )
-		{
 			labels = bdv.bigcat.viewer.viewer3d.util.HDF5Reader.readLabels( reader, labelsDataset );
-		}
 		volumeLabels = labels.get( 0 ).getImage( 0 );
 		latch.await();
-		
+
 //		AffineTransform3D transform = new AffineTransform3D();
 //		final long label = 7;
 //		controller.renderAtSelectionMultiset( volumeLabels, transform, location, label );
-		Localizable location = new Point( new int[] { 10, 267, 0 } ); // id 7
-		Viewer3DController.generateMesh( volumeLabels, location );
+//		Viewer3DController.generateMesh( volumeLabels, location );
 
 		final Volatile< UnsignedByteType > abc = rawSource.getViewerSource().getType();
 		viewer.addRawSource( rawSource, 0., 255. );

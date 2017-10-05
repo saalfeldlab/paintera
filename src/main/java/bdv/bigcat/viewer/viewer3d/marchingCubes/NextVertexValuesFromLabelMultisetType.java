@@ -18,11 +18,11 @@ public class NextVertexValuesFromLabelMultisetType implements NextVertexValues< 
 	ExtendedRandomAccessibleInterval< LabelMultisetType, RandomAccessibleInterval< LabelMultisetType > > extended;
 
 	@Override
-	public Cursor< LabelMultisetType > createCursor( RandomAccessibleInterval< LabelMultisetType > input )
+	public Cursor< LabelMultisetType > createCursor( final RandomAccessibleInterval< LabelMultisetType > input )
 	{
-		extended = Views.extendValue( ( RandomAccessibleInterval< LabelMultisetType > ) input, new LabelMultisetType() );
+		extended = Views.extendValue( input, new LabelMultisetType() );
 
-		Cursor< LabelMultisetType > cursor = Views.flatIterable( Views.interval( extended,
+		final Cursor< LabelMultisetType > cursor = Views.flatIterable( Views.interval( extended,
 				new FinalInterval( new long[] { input.min( 0 ) - 1, input.min( 1 ) - 1, input.min( 2 ) - 1 },
 						new long[] { input.max( 0 ) + 1, input.max( 1 ) + 1, input.max( 2 ) + 1 } ) ) )
 				.localizingCursor();
@@ -31,10 +31,10 @@ public class NextVertexValuesFromLabelMultisetType implements NextVertexValues< 
 	}
 
 	@Override
-	public void getVerticesValues( int cursorX, int cursorY, int cursorZ, int[] cubeSize, double[] vertices )
+	public void getVerticesValues( final int cursorX, final int cursorY, final int cursorZ, final int[] cubeSize, final double[] vertices )
 	{
 		// get the 8 vertices of the cube taking into account the cube size
-		List< Cursor< LabelMultisetType > > verticesCursor = new ArrayList< Cursor< LabelMultisetType > >();
+		final List< Cursor< LabelMultisetType > > verticesCursor = new ArrayList<>();
 		verticesCursor.add( getVertex( cursorX, cursorY, cursorZ ) );
 		verticesCursor.add( getVertex( cursorX + cubeSize[ 0 ], cursorY, cursorZ ) );
 		verticesCursor.add( getVertex( cursorX, cursorY + cubeSize[ 1 ], cursorZ ) );
@@ -46,15 +46,18 @@ public class NextVertexValuesFromLabelMultisetType implements NextVertexValues< 
 
 		for ( int i = 0; i < verticesCursor.size(); i++ )
 		{
-			Cursor< LabelMultisetType > vertex = verticesCursor.get( i );
+			final Cursor< LabelMultisetType > vertex = verticesCursor.get( i );
 			while ( vertex.hasNext() )
 			{
-				LabelMultisetType it = vertex.next();
+				final LabelMultisetType it = vertex.next();
+				long count = Integer.MIN_VALUE;
 
 				for ( final Multiset.Entry< Label > e : it.entrySet() )
-				{
-					vertices[ i ] = e.getElement().id();
-				}
+					if ( e.getCount() > count )
+					{
+						vertices[ i ] = e.getElement().id();
+						count = e.getCount();
+					}
 			}
 		}
 	}

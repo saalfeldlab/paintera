@@ -39,8 +39,10 @@ public class Merges extends AbstractStateMode
 	public void addSource( final Source< ? > source, final Source< ? > dataSource, final ToIdConverter toIdConverter )
 	{
 
-		this.dataSources.put( source, dataSource );
-		this.toIdConverters.put( source, toIdConverter );
+		if ( !this.dataSources.containsKey( source ) )
+			this.dataSources.put( source, dataSource );
+		if ( !this.toIdConverters.containsKey( source ) )
+			this.toIdConverters.put( source, toIdConverter );
 	}
 
 	public void removeSource( final Source< ? > source )
