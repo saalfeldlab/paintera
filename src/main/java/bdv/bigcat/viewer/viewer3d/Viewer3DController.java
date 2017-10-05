@@ -18,6 +18,8 @@ import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.RealPoint;
 import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.type.numeric.IntegerType;
+import net.imglib2.util.Util;
+import net.imglib2.view.Views;
 
 /**
  * Main class for the Marching Cubes
@@ -103,7 +105,9 @@ public class Viewer3DController
 			final RandomAccessibleInterval< LabelMultisetType >[] labelVolumes,
 			final AffineTransform3D[] transforms,
 			final Localizable location,
-			final long label )
+			final long label,
+			final int[] partitionSize,
+			final int[] cubeSize )
 	{
 		if ( mode == ViewerMode.ONLY_ONE_NEURON_VISIBLE )
 			viewer3D.removeAllNeurons();
@@ -122,10 +126,11 @@ public class Viewer3DController
 			// same label for all resolutions
 			final int foregroundValue = ( int ) label;
 			final MeshExtractor< LabelMultisetType > meshExtractor = new MeshExtractor<>(
-					labelVolume,
+					Views.extendValue( labelVolumes[ i ], new LabelMultisetType() ),
+					labelVolumes[ i ],
+					partitionSize,
 					cubeSize,
 					foregroundValue,
-					criterion,
 					access );
 
 			// create an empty mesh
@@ -195,7 +200,9 @@ public class Viewer3DController
 	public static < I extends IntegerType< I > > void renderAtSelection(
 			final RandomAccessibleInterval< I >[] labelVolumes,
 			final AffineTransform3D[] transforms,
-			final Localizable location )
+			final Localizable location,
+			final int[] partitionSize,
+			final int[] cubeSize )
 	{
 		if ( mode == ViewerMode.ONLY_ONE_NEURON_VISIBLE )
 			viewer3D.removeAllNeurons();
@@ -214,11 +221,14 @@ public class Viewer3DController
 
 			// same label for all resolutions
 			final int foregroundValue = ( int ) label;
+			final I ext = Util.getTypeFromInterval( labelVolume );
+			ext.setInteger( Label.INVALID );
 			final MeshExtractor< I > meshExtractor = new MeshExtractor<>(
+					Views.extendValue( labelVolume, ext ),
 					labelVolume,
+					partitionSize,
 					cubeSize,
 					foregroundValue,
-					criterion,
 					access );
 
 			// create an empty mesh
@@ -284,17 +294,22 @@ public class Viewer3DController
 	 * @param volumeLabels
 	 * @param location
 	 */
-	public static void generateMesh( final RandomAccessibleInterval< LabelMultisetType > volumeLabels, final Localizable location )
+	public static void generateMesh(
+			final RandomAccessibleInterval< LabelMultisetType > volumeLabels,
+			final Localizable location,
+			final int[] partitionSize,
+			final int[] cubeSize )
 	{
 		if ( mode == ViewerMode.ONLY_ONE_NEURON_VISIBLE )
 			viewer3D.removeAllNeurons();
 
 		final int foregroundValue = getForegroundValue( volumeLabels, location );
 		final MeshExtractor< LabelMultisetType > meshExtractor = new MeshExtractor<>(
+				Views.extendValue( volumeLabels, new LabelMultisetType() ),
 				volumeLabels,
+				partitionSize,
 				cubeSize,
 				foregroundValue,
-				criterion,
 				location );
 
 		// use cube of size 1

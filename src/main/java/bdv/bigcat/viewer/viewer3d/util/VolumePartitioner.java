@@ -8,14 +8,15 @@ import org.slf4j.LoggerFactory;
 
 import net.imglib2.Dimensions;
 import net.imglib2.FinalDimensions;
+import net.imglib2.FinalInterval;
+import net.imglib2.Interval;
 import net.imglib2.Localizable;
-import net.imglib2.RandomAccessibleInterval;
+import net.imglib2.RandomAccessible;
 import net.imglib2.img.cell.CellGrid;
 import net.imglib2.util.IntervalIndexer;
 import net.imglib2.util.Intervals;
 import net.imglib2.util.Pair;
 import net.imglib2.util.ValuePair;
-import net.imglib2.view.Views;
 
 /**
  * This class is responsible for create small subvolumes from a
@@ -34,7 +35,9 @@ public class VolumePartitioner< T >
 	private final int[] OVERLAP;
 
 	/** volume to be partitioned */
-	private final RandomAccessibleInterval< T > volumeLabels;
+	private final RandomAccessible< T > volumeLabels;
+
+	private final Interval interval;
 
 	/** Minimum size of each partition the partition */
 	private final int[] partitionSize;
@@ -50,13 +53,14 @@ public class VolumePartitioner< T >
 	/**
 	 * Constructor - initialize parameters
 	 */
-	public VolumePartitioner( final RandomAccessibleInterval< T > volumeLabels, final int[] partitionSize, final int[] cubeSize )
+	public VolumePartitioner( final RandomAccessible< T > volumeLabels, final Interval interval, final int[] partitionSize, final int[] cubeSize )
 	{
 		this.volumeLabels = volumeLabels;
+		this.interval = interval;
 		this.partitionSize = partitionSize;
 		this.OVERLAP = cubeSize;
 		this.chunks = new HashMap<>();
-		this.grid = new CellGrid( Intervals.dimensionsAsLongArray( volumeLabels ), partitionSize );
+		this.grid = new CellGrid( Intervals.dimensionsAsLongArray( interval ), partitionSize );
 		this.gridDimensions = this.grid.getGridDimensions();
 		this.dimensions = new FinalDimensions( this.gridDimensions );
 
@@ -86,10 +90,12 @@ public class VolumePartitioner< T >
 			return new ValuePair<>( chunks.get( index ), false );
 
 		final long[] offset = IntStream.range( 0, gridPosition.length ).mapToLong( d -> gridPosition[ d ] * partitionSize[ d ] ).toArray();
-		final long[] lower = IntStream.range( 0, offset.length ).mapToLong( d -> Math.max( offset[ d ] - OVERLAP[ d ], 0 ) ).toArray();
-		final long[] upper = IntStream.range( 0, offset.length ).mapToLong( d -> Math.min( offset[ d ] + partitionSize[ d ], this.volumeLabels.dimension( d ) ) - 1 ).toArray();
+//		final long[] lower = IntStream.range( 0, offset.length ).mapToLong( d -> Math.max( offset[ d ] - OVERLAP[ d ], 0 ) ).toArray();
+//		final long[] upper = IntStream.range( 0, offset.length ).mapToLong( d -> Math.min( offset[ d ] + partitionSize[ d ] + OVERLAP[ d ], this.interval.dimension( d ) ) - 1 ).toArray();
+		final long[] lower = offset.clone();
+		final long[] upper = IntStream.range( 0, offset.length ).mapToLong( d -> Math.min( offset[ d ] + partitionSize[ d ], this.interval.dimension( d ) ) - 1 ).toArray();
 
-		final Chunk< T > chunk = new Chunk<>( Views.interval( volumeLabels, lower, upper ), offset, ( int ) index );
+		final Chunk< T > chunk = new Chunk<>( new FinalInterval( lower, upper ), index );
 		chunks.put( index, chunk );
 
 		if ( LOGGER.isDebugEnabled() )

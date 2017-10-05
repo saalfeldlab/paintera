@@ -3,7 +3,8 @@ package bdv.bigcat.viewer.viewer3d.marchingCubes;
 import java.util.concurrent.Callable;
 
 import bdv.bigcat.viewer.viewer3d.util.SimpleMesh;
-import net.imglib2.RandomAccessibleInterval;
+import net.imglib2.Interval;
+import net.imglib2.RandomAccessible;
 
 /**
  * Class that calls the method to generate the mesh. This class is necessary to
@@ -16,13 +17,9 @@ import net.imglib2.RandomAccessibleInterval;
 public class MarchingCubesCallable< T > implements Callable< SimpleMesh >
 {
 	/** volume data */
-	RandomAccessibleInterval< T > volume;
+	RandomAccessible< T > volume;
 
-	/** volume dimension */
-	private final int[] volDim;
-
-	/** offset to positioning the vertices in global coordinates */
-	private final long[] offset;
+	private final Interval interval;
 
 	/** marching cube voxel dimension */
 	private final int[] cubeSize;
@@ -30,8 +27,6 @@ public class MarchingCubesCallable< T > implements Callable< SimpleMesh >
 	/**
 	 * defines if the criterion that will be used to generate the mesh
 	 */
-	private final MarchingCubes.ForegroundCriterion criterion;
-
 	/** the value to match the criterion */
 	private final int foregroundValue;
 
@@ -60,13 +55,11 @@ public class MarchingCubesCallable< T > implements Callable< SimpleMesh >
 	 *            boolean that indicates if the data must be copied to an array
 	 *            before generate the mesh
 	 */
-	public MarchingCubesCallable( final RandomAccessibleInterval< T > input, final int[] volDim, final long[] offset, final int[] cubeSize, final MarchingCubes.ForegroundCriterion criterion, final int foregroundValue, final boolean copyToArray )
+	public MarchingCubesCallable( final RandomAccessible< T > input, final Interval interval, final int[] cubeSize, final int foregroundValue, final boolean copyToArray )
 	{
 		this.volume = input;
-		this.volDim = volDim;
-		this.offset = offset;
+		this.interval = interval;
 		this.cubeSize = cubeSize;
-		this.criterion = criterion;
 		this.foregroundValue = foregroundValue;
 		this.copyToArray = copyToArray;
 	}
@@ -74,7 +67,7 @@ public class MarchingCubesCallable< T > implements Callable< SimpleMesh >
 	@Override
 	public SimpleMesh call() throws Exception
 	{
-		final MarchingCubes< T > mc_rai = new MarchingCubes<>( volume, cubeSize, foregroundValue, offset );// new
+		final MarchingCubes< T > mc_rai = new MarchingCubes<>( volume, interval, cubeSize, foregroundValue );// new
 		// MarchingCubes<>();
 		final SimpleMesh m = mc_rai.generateMesh( copyToArray );
 

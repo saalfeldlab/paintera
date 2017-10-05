@@ -1,10 +1,7 @@
 package bdv.bigcat.viewer.viewer3d.util;
 
-import java.util.Optional;
-
-import graphics.scenery.Mesh;
+import net.imglib2.Interval;
 import net.imglib2.Localizable;
-import net.imglib2.RandomAccessibleInterval;
 
 /**
  * Chunk is a part of the volume. Each chunk knows its offset and keeps its mesh
@@ -20,68 +17,27 @@ public class Chunk< T >
 	/**
 	 * Volume of the chunk.
 	 */
-	private final RandomAccessibleInterval< T > volume;
+	private final Interval interval;
 
-	/**
-	 * offset of the chunk, to positioning it in the world.
-	 */
-	private final long[] offset;
-
-	/**
-	 * All the mesh generated for the chunk and its resolution
-	 */
-	private Optional< Mesh > mesh;
-
-	/**
-	 * Unique index of each chunk, it takes into account the position of the
-	 * chunk in the world
-	 */
-	private final int index;
+	private final long index;
 
 	/**
 	 * Constructor, initialize variables with dummy values.
 	 */
-	public Chunk( final RandomAccessibleInterval< T > volume, final long[] offset, final int index )
+	public Chunk( final Interval interval, final long index )
 	{
-		this.volume = volume;
-		this.offset = offset;
-		this.mesh = Optional.empty();
+		this.interval = interval;
 		this.index = index;
 	}
 
-	/**
-	 * Return the volume of the chunk
-	 *
-	 * @return RAI correspondent to the chunk
-	 */
-	public RandomAccessibleInterval< T > getVolume()
-	{
-		return volume;
-	}
-
-	/**
-	 * Return the offset of the chunk
-	 *
-	 * @return int[] with x, y and z offset (the initial position of the chunk),
-	 *         must be divided by the cubeSize to get the exact position in the
-	 *         world
-	 */
-	public long[] getOffset()
-	{
-		return offset;
-	}
-
-	public void addMesh( final Mesh mesh )
-	{
-		this.mesh = Optional.of( mesh );
-	}
-
-	/**
-	 * @return the unique chunk index
-	 */
-	public int getIndex()
+	public long index()
 	{
 		return index;
+	}
+
+	public Interval interval()
+	{
+		return this.interval;
 	}
 
 	/**
@@ -94,26 +50,13 @@ public class Chunk< T >
 	 */
 	public boolean contains( final Localizable location )
 	{
-		assert volume.numDimensions() == location.numDimensions(): "volume dimension is " + volume.numDimensions() +
+		assert interval.numDimensions() == location.numDimensions(): "volume dimension is " + interval.numDimensions() +
 				" and point dimension is " + location.numDimensions();
 
-		for ( int i = 0; i < volume.numDimensions(); i++ )
-			if ( volume.max( i ) < location.getIntPosition( i ) || volume.min( i ) > location.getIntPosition( i ) )
+		for ( int i = 0; i < interval.numDimensions(); i++ )
+			if ( interval.max( i ) < location.getIntPosition( i ) || interval.min( i ) > location.getIntPosition( i ) )
 				return false;
 
 		return true;
-	}
-
-	/**
-	 * The bounding box is given by a vector of six positions: the first 3 are
-	 * the (x, y, z) from the begin and the 3 lasts are the (x, y, z) for the
-	 * end of the bb
-	 *
-	 * @return the bounding box of the chunk
-	 */
-	public int[] getChunkBoundinBox()
-	{
-		return new int[] { ( int ) volume.min( 0 ), ( int ) volume.min( 1 ), ( int ) volume.min( 2 ),
-				( int ) volume.max( 0 ), ( int ) volume.max( 1 ), ( int ) volume.max( 2 ) };
 	}
 }

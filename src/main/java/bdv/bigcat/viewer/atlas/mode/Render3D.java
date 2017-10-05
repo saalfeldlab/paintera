@@ -106,7 +106,9 @@ public class Render3D extends AbstractStateMode
 						rra.setPosition( worldCoordinate );
 
 //						Viewer3DController.renderAtSelectionMultiset( volumes, transforms, Point.wrap( worldCoordinateLong ), toIdConverters.get( spimSource ).biggestFragment( rra.get() ) );
-						Viewer3DController.generateMesh( volumes[ 0 ], Point.wrap( Arrays.stream( worldCoordinate ).mapToLong( d -> ( long ) d ).toArray() ) );
+						final int[] partitionSize = { 64, 64, 10 };
+						final int[] cubeSize = { 1, 1, 1 };
+						Viewer3DController.generateMesh( volumes[ 0 ], Point.wrap( Arrays.stream( worldCoordinate ).mapToLong( d -> ( long ) d ).toArray() ), partitionSize, cubeSize );
 					}
 				}
 			}
