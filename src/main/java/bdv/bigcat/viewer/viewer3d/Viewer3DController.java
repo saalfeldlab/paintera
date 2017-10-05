@@ -289,7 +289,7 @@ public class Viewer3DController
 		if ( mode == ViewerMode.ONLY_ONE_NEURON_VISIBLE )
 			viewer3D.removeAllNeurons();
 
-		final int foregroundValue = getForegroundValue( volumeLabels, location );
+		final long foregroundValue = getForegroundValue( volumeLabels, location );
 		final MeshExtractor< LabelMultisetType > meshExtractor = new MeshExtractor<>(
 				volumeLabels,
 				cubeSize,
@@ -348,14 +348,14 @@ public class Viewer3DController
 	 * @param location
 	 * @return
 	 */
-	private static int getForegroundValue( final RandomAccessibleInterval< LabelMultisetType > input, final Localizable location )
+	private static long getForegroundValue( final RandomAccessibleInterval< LabelMultisetType > input, final Localizable location )
 	{
 		final RandomAccess< LabelMultisetType > access = input.randomAccess();
 		access.setPosition( location );
 
 		System.out.println( " location: " + location.getIntPosition( 0 ) + "x" + location.getIntPosition( 1 ) + "x" + location.getIntPosition( 2 ) );
 
-		int foregroundValue = -1;
+		long foregroundValue = -1;
 		for ( final Multiset.Entry< Label > e : access.get().entrySet() )
 		{
 			foregroundValue = ( int ) e.getElement().id();
