@@ -35,7 +35,7 @@ public class MarchingCubes< T >
 	private final long nCellsX, nCellsY, nCellsZ;
 
 	/** The value (id) that we will use to create the mesh. */
-	private final int foregroundValue;
+	private final long foregroundValue;
 
 	/** Indicates which criterion is going to be applied */
 	private final ForegroundCriterion criteria;
@@ -61,7 +61,7 @@ public class MarchingCubes< T >
 	/**
 	 * Initialize the class parameters with default values
 	 */
-	public MarchingCubes( final RandomAccessibleInterval< T > input, final int[] cubeSize, final int foregroundValue, final long[] offset )
+	public MarchingCubes( final RandomAccessibleInterval< T > input, final int[] cubeSize, final long foregroundValue, final long[] offset )
 	{
 		this.mesh = new SimpleMesh();
 		this.input = input;
@@ -109,7 +109,7 @@ public class MarchingCubes< T >
 	 *            generation
 	 * @return SimpleMesh, basically an array with the vertices
 	 */
-	public < I extends IntegerType< I > > SimpleMesh generateMesh( final boolean copyToArray )
+	public SimpleMesh generateMesh( final boolean copyToArray )
 	{
 		SimpleMesh mesh = null;
 		final int[] volDim = Intervals.dimensionsAsIntArray( input );
@@ -126,7 +126,7 @@ public class MarchingCubes< T >
 			{
 				LOGGER.info( "copyToArray - input is instance of IntegerType" );
 				// TODO: to verify this instantiation
-				final CopyDataToArray< T > copy = ( CopyDataToArray< T > ) new CopyDataToArrayFromIntegerType< I >();
+				final CopyDataToArray< T > copy = ( CopyDataToArray< T > ) new CopyDataToArrayFromIntegerType<>();
 				mesh = generateMeshFromArray( input, volDim, cubeSize, copy );
 			}
 			else
@@ -141,7 +141,7 @@ public class MarchingCubes< T >
 		else if ( Util.getTypeFromInterval( input ) instanceof IntegerType< ? > )
 		{
 			LOGGER.info( "input is instance of IntegerType" );
-			final NextVertexValues< T > nextVertices = ( NextVertexValues< T > ) new NextVertexValuesFromIntegerType< I >();
+			final NextVertexValues< T > nextVertices = ( NextVertexValues< T > ) new NextVertexValuesFromIntegerType<>();
 			mesh = generateMeshFromRAI( input, cubeSize, nextVertices );
 		}
 		else
@@ -743,10 +743,11 @@ public class MarchingCubes< T >
 	 */
 	private boolean foregroundCriterionTest(final double vertexValue)
 	{
+		int result = Double.compare( vertexValue, foregroundValue );
 		if (criteria.equals( ForegroundCriterion.EQUAL ))
-			return vertexValue == foregroundValue;
+			return (result == 0); // vertexValue == foregroundValue;
 		else
-			return vertexValue >= foregroundValue;
+			return (result > 0); // vertexValue >= foregroundValue;
 	}
 
 	/**
