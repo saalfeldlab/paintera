@@ -105,15 +105,28 @@ public class Chunk< T >
 	}
 
 	/**
-	 * The bounding box is given by a vector of six positions: the first 3 are
-	 * the (x, y, z) from the begin and the 3 lasts are the (x, y, z) for the
-	 * end of the bb
+	 * The bounding box is given by a vector of volume.numDimensions * 2
+	 * positions: the first half contains the begin in each dimension and the
+	 * second half contains the end in each dimension
 	 *
 	 * @return the bounding box of the chunk
 	 */
 	public int[] getChunkBoundinBox()
 	{
-		return new int[] { ( int ) volume.min( 0 ), ( int ) volume.min( 1 ), ( int ) volume.min( 2 ),
-				( int ) volume.max( 0 ), ( int ) volume.max( 1 ), ( int ) volume.max( 2 ) };
+		// begin and end of each dimension
+		int[] bb = new int[ volume.numDimensions() * 2 ];
+		// first half is the minimum in each dimension
+		for ( int i = 0; i < volume.numDimensions(); i++ )
+		{
+			bb[ i ] = ( int ) volume.min( i );
+		}
+
+		// second half is the maximum of each dimension
+		for ( int i = volume.numDimensions(); i < volume.numDimensions() * 2; i++ )
+		{
+			bb[ i ] = ( int ) volume.max( i );
+		}
+
+		return bb;
 	}
 }
