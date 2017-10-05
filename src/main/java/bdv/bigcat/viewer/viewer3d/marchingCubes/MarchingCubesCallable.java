@@ -33,7 +33,7 @@ public class MarchingCubesCallable< T > implements Callable< SimpleMesh >
 	private final MarchingCubes.ForegroundCriterion criterion;
 
 	/** the value to match the criterion */
-	private final int foregroundValue;
+	private final long foregroundValue;
 
 	/**
 	 * indicates if it is to use the implementation directly with RAI (false) or
@@ -60,7 +60,7 @@ public class MarchingCubesCallable< T > implements Callable< SimpleMesh >
 	 *            boolean that indicates if the data must be copied to an array
 	 *            before generate the mesh
 	 */
-	public MarchingCubesCallable( final RandomAccessibleInterval< T > input, final int[] volDim, final long[] offset, final int[] cubeSize, final MarchingCubes.ForegroundCriterion criterion, final int foregroundValue, final boolean copyToArray )
+	public MarchingCubesCallable( final RandomAccessibleInterval< T > input, final int[] volDim, final long[] offset, final int[] cubeSize, final MarchingCubes.ForegroundCriterion criterion, final long foregroundValue, final boolean copyToArray )
 	{
 		this.volume = input;
 		this.volDim = volDim;
