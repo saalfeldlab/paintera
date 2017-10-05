@@ -10,6 +10,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorCompletionService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.function.ToIntFunction;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -49,7 +50,7 @@ public class MeshExtractor< T >
 
 	private final int[] cubeSize;
 
-	private final int foregroundValue;
+	private final ToIntFunction< T > isForeground;
 
 	private final Map< Future< SimpleMesh >, Chunk< T > > resultMeshMap;
 
@@ -62,14 +63,14 @@ public class MeshExtractor< T >
 			final Interval interval,
 			final int[] partitionSize,
 			final int[] cubeSize,
-			final int foregroundValue,
-			final Localizable startingPoint )
+			final Localizable startingPoint,
+			final ToIntFunction< T > isForeground )
 	{
 		this.volumeLabels = volumeLabels;
 		this.interval = interval;
 		this.partitionSize = partitionSize;
 		this.cubeSize = cubeSize;
-		this.foregroundValue = foregroundValue;
+		this.isForeground = isForeground;
 
 		executor = new ExecutorCompletionService<>( Executors.newWorkStealingPool() );
 
@@ -202,7 +203,7 @@ public class MeshExtractor< T >
 
 	private void createCallable( final Chunk< T > chunk )
 	{
-		final Callable< SimpleMesh > callable = () -> new MarchingCubes<>( volumeLabels, chunk.interval(), cubeSize, foregroundValue ).generateMesh( true );
+		final Callable< SimpleMesh > callable = () -> new MarchingCubes<>( volumeLabels, chunk.interval(), cubeSize ).generateMesh( isForeground );
 		final Future< SimpleMesh > result = executor.submit( callable );
 		resultMeshMap.put( result, chunk );
 	}
