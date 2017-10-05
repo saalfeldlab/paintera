@@ -2,7 +2,7 @@ package bdv.bigcat.viewer.viewer3d.marchingCubes;
 
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.function.ToLongFunction;
+import java.util.function.ToIntFunction;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -105,7 +105,7 @@ public class MarchingCubes< T >
 		if ( t instanceof LabelMultisetType )
 		{
 			LOGGER.info( "input is instance of LabelMultisetType" );
-			final ToLongFunction< T > f = ( ToLongFunction< T > ) ( ToLongFunction< LabelMultisetType > ) multiset -> {
+			final ToIntFunction< T > f = ( ToIntFunction< T > ) ( ToIntFunction< LabelMultisetType > ) multiset -> {
 				long argMaxLabel = Label.INVALID;
 				long argMaxCount = Integer.MIN_VALUE;
 				for ( final Entry< Label > entry : multiset.entrySet() )
@@ -117,13 +117,15 @@ public class MarchingCubes< T >
 						argMaxCount = count;
 					}
 				}
-				return argMaxLabel;
+				return argMaxLabel == foregroundValue ? 1 : 0;
 			};
 			mesh = generateMeshFromRAI( f );
 		}
 		else if ( t instanceof IntegerType< ? > )
 		{
-			final ToLongFunction< T > f = ( ToLongFunction< T > ) ( ToLongFunction< IntegerType< ? > > ) IntegerType::getIntegerLong;
+			final ToIntFunction< T > f = ( ToIntFunction< T > ) ( ToIntFunction< IntegerType< ? > > ) val -> {
+				return val.getIntegerLong() == foregroundValue ? 1 : 0;
+			};
 			LOGGER.info( "input is instance of IntegerType" );
 			mesh = generateMeshFromRAI( f );
 		}
@@ -144,13 +146,10 @@ public class MarchingCubes< T >
 	 *            generic interface to access the information on RAI
 	 * @return SimpleMesh, basically an array with the vertices
 	 */
-	private SimpleMesh generateMeshFromRAI( final ToLongFunction< T > extractVertexLabel )
+	private SimpleMesh generateMeshFromRAI( final ToIntFunction< T > extractVertexLabel )
 	{
-//		final Cursor< T > cursor = nextValuesVertex.createCursor( input );
-
 		final long[] stride = Arrays.stream( cubeSize ).mapToLong( i -> i ).toArray();
 		final FinalInterval expandedInterval = Intervals.expand( interval, stride );
-//		System.out.println( "Interval ok? " + Arrays.toString( Intervals.minAsLongArray( interval ) ) + " " + Arrays.toString( Intervals.minAsLongArray( expandedInterval ) ) );
 		final SubsampleView< T > subsampled = Views.subsample( Views.interval( input, expandedInterval ), stride );
 		final Cursor< T >[] cursors = new Cursor[ 8 ];
 		final FinalInterval zeroMinInterval = new FinalInterval( Arrays.stream( Intervals.dimensionsAsLongArray( expandedInterval ) ).map( l -> l - 1 ).toArray() );
@@ -162,8 +161,6 @@ public class MarchingCubes< T >
 		cursors[ 5 ] = Views.flatIterable( Views.interval( Views.offset( subsampled, 1, 0, 1 ), zeroMinInterval ) ).cursor();
 		cursors[ 6 ] = Views.flatIterable( Views.interval( Views.offset( subsampled, 0, 1, 1 ), zeroMinInterval ) ).cursor();
 		cursors[ 7 ] = Views.flatIterable( Views.interval( Views.offset( subsampled, 1, 1, 1 ), zeroMinInterval ) ).cursor();
-
-		final long[] vertexValues = new long[ 8 ];
 
 		while ( cursors[ 0 ].hasNext() )
 		{
@@ -196,38 +193,16 @@ public class MarchingCubes< T >
 			//
 			// This way, we need to remap the cube vertices:
 			// @formatter:on
-			vertexValues[ 0 ] = extractVertexLabel.applyAsLong( cursors[ 5 ].next() );
-			vertexValues[ 1 ] = extractVertexLabel.applyAsLong( cursors[ 7 ].next() );
-			vertexValues[ 2 ] = extractVertexLabel.applyAsLong( cursors[ 3 ].next() );
-			vertexValues[ 3 ] = extractVertexLabel.applyAsLong( cursors[ 1 ].next() );
-			vertexValues[ 4 ] = extractVertexLabel.applyAsLong( cursors[ 4 ].next() );
-			vertexValues[ 5 ] = extractVertexLabel.applyAsLong( cursors[ 6 ].next() );
-			vertexValues[ 6 ] = extractVertexLabel.applyAsLong( cursors[ 2 ].next() );
-			vertexValues[ 7 ] = extractVertexLabel.applyAsLong( cursors[ 0 ].next() );
-
-			if ( LOGGER.isDebugEnabled() )
-			{
-				// @formatter:off
-				LOGGER.debug( " " + ( int ) vertexValues[ 4 ] + "------" + ( int ) vertexValues[ 5 ] );
-				LOGGER.debug( " /|     /|" );
-				LOGGER.debug( " " + ( int ) vertexValues[ 7 ] + "-----" + ( int ) vertexValues[ 6 ] + " |" );
-				LOGGER.debug( " |" + ( int ) vertexValues[ 0 ] + "----|-" + ( int ) vertexValues[ 1 ] );
-				LOGGER.debug( " |/    |/" );
-				LOGGER.debug( " " + ( int ) vertexValues[ 3 ] + "-----" + ( int ) vertexValues[ 2 ] );
-				// @formatter:on
-			}
-
-			if ( LOGGER.isDebugEnabled() )
-			{
-				// @formatter:off
-				LOGGER.debug( " " + ( int ) vertexValues[ 4 ] + "------" + ( int ) vertexValues[ 5 ] );
-				LOGGER.debug( " /|     /|" );
-				LOGGER.debug( " " + ( int ) vertexValues[ 7 ] + "-----" + ( int ) vertexValues[ 6 ] + " |" );
-				LOGGER.debug( " |" + ( int ) vertexValues[ 0 ] + "----|-" + ( int ) vertexValues[ 1 ] );
-				LOGGER.debug( " |/    |/" );
-				LOGGER.debug( " " + ( int ) vertexValues[ 3 ] + "-----" + ( int ) vertexValues[ 2 ] );
-				// @formatter:on
-			}
+			final int vertexValues =
+					( extractVertexLabel.applyAsInt( cursors[ 5 ].next() ) & 1 ) << 0 |
+							( extractVertexLabel.applyAsInt( cursors[ 7 ].next() ) & 1 ) << 1 |
+							( extractVertexLabel.applyAsInt( cursors[ 3 ].next() ) & 1 ) << 2 |
+							( extractVertexLabel.applyAsInt( cursors[ 1 ].next() ) & 1 ) << 3 |
+							( extractVertexLabel.applyAsInt( cursors[ 4 ].next() ) & 1 ) << 4 |
+							( extractVertexLabel.applyAsInt( cursors[ 6 ].next() ) & 1 ) << 5 |
+							( extractVertexLabel.applyAsInt( cursors[ 2 ].next() ) & 1 ) << 6 |
+							( extractVertexLabel.applyAsInt( cursors[ 0 ].next() ) & 1 ) << 7;
+//			}
 
 			triangulation(
 					vertexValues,
@@ -235,11 +210,6 @@ public class MarchingCubes< T >
 					cursors[ 0 ].getLongPosition( 1 ),
 					cursors[ 0 ].getLongPosition( 2 ) );
 
-//			triangulation(
-//					remappedVertexValues,
-//					cursors[ 0 ].getLongPosition( 0 ) * cubeSize[ 0 ] + offset[ 0 ],
-//					cursors[ 0 ].getLongPosition( 1 ) * cubeSize[ 1 ] + offset[ 1 ],
-//					cursors[ 0 ].getLongPosition( 2 ) * cubeSize[ 2 ] + offset[ 2 ] );
 		}
 
 		convertVerticesFormat();
@@ -261,7 +231,7 @@ public class MarchingCubes< T >
 	 * @param cursorZ
 	 *            position on z
 	 */
-	private void triangulation( final long[] vertexValues, final long cursorX, final long cursorY, final long cursorZ )
+	private void triangulation( final int vertexValues, final long cursorX, final long cursorY, final long cursorZ )
 	{
 		// @formatter:off
 		// this algorithm (based on http://paulbourke.net/geometry/polygonise/)
@@ -277,10 +247,10 @@ public class MarchingCubes< T >
 
 		// Calculate table lookup index from those vertices which
 		// are below the isolevel.
-		int tableIndex = 0;
-		for ( int i = 0; i < 8; i++ )
-			if ( vertexValues[ i ] == foregroundValue )
-				tableIndex |= 1 << i;
+		final int tableIndex = vertexValues;
+//		for ( int i = 0; i < 8; i++ )
+//			if ( vertexValues[ i ] == foregroundValue )
+//				tableIndex |= 1 << i;
 
 		// edge indexes:
 		// @formatter:off
