@@ -16,6 +16,7 @@ import bdv.labels.labelset.VolatileLabelMultisetType;
 import ch.systemsx.cisd.hdf5.HDF5DataSetInformation;
 import ch.systemsx.cisd.hdf5.IHDF5Reader;
 import ncsa.hdf.hdf5lib.exceptions.HDF5AttributeException;
+import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.util.Util;
 
 /**
@@ -180,6 +181,13 @@ public class H5LabelMultisetSetupImageLoader
 				typedLoader( reader, scaleReader, dataset ),
 				cache );
 		this.offset = offset;
+		for ( int i = 0; i < mipmapTransforms.length; ++i )
+		{
+			final AffineTransform3D translation = new AffineTransform3D();
+			translation.translate( offset );
+			final AffineTransform3D transform = translation.concatenate( mipmapTransforms[ i ] );
+			mipmapTransforms[ i ].set( transform );
+		}
 	}
 
 	public H5LabelMultisetSetupImageLoader(
