@@ -10,11 +10,11 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorCompletionService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
-import java.util.function.ToIntFunction;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import bdv.bigcat.viewer.viewer3d.marchingCubes.ForegroundCheck;
 import bdv.bigcat.viewer.viewer3d.marchingCubes.MarchingCubes;
 import graphics.scenery.Mesh;
 import net.imglib2.Interval;
@@ -50,7 +50,7 @@ public class MeshExtractor< T >
 
 	private final int[] cubeSize;
 
-	private final ToIntFunction< T > isForeground;
+	private final ForegroundCheck< T > isForeground;
 
 	private final Map< Future< float[] >, Chunk< T > > resultMeshMap;
 
@@ -64,7 +64,7 @@ public class MeshExtractor< T >
 			final int[] partitionSize,
 			final int[] cubeSize,
 			final Localizable startingPoint,
-			final ToIntFunction< T > isForeground )
+			final ForegroundCheck< T > isForeground )
 	{
 		this.volumeLabels = volumeLabels;
 		this.interval = interval;

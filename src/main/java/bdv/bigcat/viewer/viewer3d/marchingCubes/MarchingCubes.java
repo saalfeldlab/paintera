@@ -1,7 +1,6 @@
 package bdv.bigcat.viewer.viewer3d.marchingCubes;
 
 import java.util.Arrays;
-import java.util.function.ToIntFunction;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -129,7 +128,7 @@ public class MarchingCubes< T >
 	 *            generic interface to access the information on RAI
 	 * @return SimpleMesh, basically an array with the vertices
 	 */
-	public float[] generateMesh( final ToIntFunction< T > extractVertexLabel )
+	public float[] generateMesh( final ForegroundCheck< T > foregroundCheck )
 	{
 		final long[] stride = Arrays.stream( cubeSize ).mapToLong( i -> i ).toArray();
 		final FinalInterval expandedInterval = Intervals.expand( interval, stride );
@@ -179,14 +178,14 @@ public class MarchingCubes< T >
 			// This way, we need to remap the cube vertices:
 			// @formatter:on
 			final int vertexValues =
-					( extractVertexLabel.applyAsInt( cursors[ 5 ].next() ) & 1 ) << 0 |
-							( extractVertexLabel.applyAsInt( cursors[ 7 ].next() ) & 1 ) << 1 |
-							( extractVertexLabel.applyAsInt( cursors[ 3 ].next() ) & 1 ) << 2 |
-							( extractVertexLabel.applyAsInt( cursors[ 1 ].next() ) & 1 ) << 3 |
-							( extractVertexLabel.applyAsInt( cursors[ 4 ].next() ) & 1 ) << 4 |
-							( extractVertexLabel.applyAsInt( cursors[ 6 ].next() ) & 1 ) << 5 |
-							( extractVertexLabel.applyAsInt( cursors[ 2 ].next() ) & 1 ) << 6 |
-							( extractVertexLabel.applyAsInt( cursors[ 0 ].next() ) & 1 ) << 7;
+					( foregroundCheck.test( cursors[ 5 ].next() ) & 1 ) << 0 |
+							( foregroundCheck.test( cursors[ 7 ].next() ) & 1 ) << 1 |
+							( foregroundCheck.test( cursors[ 3 ].next() ) & 1 ) << 2 |
+							( foregroundCheck.test( cursors[ 1 ].next() ) & 1 ) << 3 |
+							( foregroundCheck.test( cursors[ 4 ].next() ) & 1 ) << 4 |
+							( foregroundCheck.test( cursors[ 6 ].next() ) & 1 ) << 5 |
+							( foregroundCheck.test( cursors[ 2 ].next() ) & 1 ) << 6 |
+							( foregroundCheck.test( cursors[ 0 ].next() ) & 1 ) << 7;
 //			}
 
 			triangulation(

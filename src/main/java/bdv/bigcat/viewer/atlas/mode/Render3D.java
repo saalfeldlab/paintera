@@ -4,7 +4,6 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.function.Consumer;
-import java.util.function.ToIntFunction;
 
 import org.scijava.ui.behaviour.ClickBehaviour;
 import org.scijava.ui.behaviour.MouseAndKeyHandler;
@@ -15,6 +14,7 @@ import org.scijava.ui.behaviour.util.TriggerBehaviourBindings;
 
 import bdv.bigcat.viewer.ToIdConverter;
 import bdv.bigcat.viewer.viewer3d.Viewer3DController;
+import bdv.bigcat.viewer.viewer3d.marchingCubes.ForegroundCheck;
 import bdv.labels.labelset.Label;
 import bdv.labels.labelset.LabelMultisetType;
 import bdv.labels.labelset.Multiset.Entry;
@@ -125,7 +125,7 @@ public class Render3D extends AbstractStateMode
 							final int[] partitionSize = { 64, 64, 10 };
 							final int[] cubeSize = { 1, 1, 1 };
 
-							final ToIntFunction< LabelMultisetType > isForeground = multiset -> {
+							final ForegroundCheck< LabelMultisetType > isForeground = multiset -> {
 								long argMaxLabel = Label.INVALID;
 								long argMaxCount = Integer.MIN_VALUE;
 								for ( final Entry< Label > entry : multiset.entrySet() )

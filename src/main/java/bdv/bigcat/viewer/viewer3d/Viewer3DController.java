@@ -3,8 +3,8 @@ package bdv.bigcat.viewer.viewer3d;
 import java.nio.FloatBuffer;
 import java.util.Arrays;
 import java.util.Optional;
-import java.util.function.ToIntFunction;
 
+import bdv.bigcat.viewer.viewer3d.marchingCubes.ForegroundCheck;
 import bdv.bigcat.viewer.viewer3d.util.MeshExtractor;
 import cleargl.GLVector;
 import graphics.scenery.Material;
@@ -63,7 +63,7 @@ public class Viewer3DController
 			final RandomAccessibleInterval< T >[] labelVolumes,
 			final AffineTransform3D[] transforms,
 			final Localizable location,
-			final ToIntFunction< T > isForeground,
+			final ForegroundCheck< T > isForeground,
 			final T extension,
 			final int[] partitionSize,
 			final int[] cubeSize )
@@ -162,7 +162,7 @@ public class Viewer3DController
 			final Localizable location,
 			final int[] partitionSize,
 			final int[] cubeSize,
-			final ToIntFunction< T > isForeground,
+			final ForegroundCheck< T > isForeground,
 			final T extension )
 	{
 		if ( mode == ViewerMode.ONLY_ONE_NEURON_VISIBLE )
