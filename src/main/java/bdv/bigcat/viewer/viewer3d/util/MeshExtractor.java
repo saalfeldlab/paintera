@@ -10,11 +10,11 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorCompletionService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
-import java.util.function.ToIntFunction;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import bdv.bigcat.viewer.viewer3d.marchingCubes.ForegroundCheck;
 import bdv.bigcat.viewer.viewer3d.marchingCubes.MarchingCubes;
 import graphics.scenery.Mesh;
 import net.imglib2.Interval;
@@ -50,11 +50,11 @@ public class MeshExtractor< T >
 
 	private final int[] cubeSize;
 
-	private final ToIntFunction< T > isForeground;
+	private final ForegroundCheck< T > isForeground;
 
-	private final Map< Future< SimpleMesh >, Chunk< T > > resultMeshMap;
+	private final Map< Future< float[] >, Chunk< T > > resultMeshMap;
 
-	private final CompletionService< SimpleMesh > executor;
+	private final CompletionService< float[] > executor;
 
 	private final VolumePartitioner< T > partitioner;
 
@@ -64,7 +64,7 @@ public class MeshExtractor< T >
 			final int[] partitionSize,
 			final int[] cubeSize,
 			final Localizable startingPoint,
-			final ToIntFunction< T > isForeground )
+			final ForegroundCheck< T > isForeground )
 	{
 		this.volumeLabels = volumeLabels;
 		this.interval = interval;
@@ -93,7 +93,7 @@ public class MeshExtractor< T >
 	public Optional< Mesh > next()
 	{
 		// System.out.println( "next method" );
-		Future< SimpleMesh > completedFuture = null;
+		Future< float[] > completedFuture = null;
 		// block until any task completes
 		try
 		{
@@ -111,10 +111,10 @@ public class MeshExtractor< T >
 		final Chunk< T > chunk = resultMeshMap.remove( completedFuture );
 
 		// get the mesh, if the task was able to create it
-		Optional< SimpleMesh > simpleMesh;
+		Optional< float[] > verticesOptional;
 		try
 		{
-			simpleMesh = Optional.of( completedFuture.get() );
+			verticesOptional = Optional.of( completedFuture.get() );
 			LOGGER.info( "getting mesh" );
 		}
 		catch ( InterruptedException | ExecutionException e )
@@ -124,12 +124,12 @@ public class MeshExtractor< T >
 		}
 
 		final Optional< Mesh > sceneryMesh;
-		if ( simpleMesh.isPresent() )
+		if ( verticesOptional.isPresent() )
 		{
 			final Mesh mesh = new Mesh();
-			final SimpleMesh m = simpleMesh.get();
-			final int numVertices = m.getNumberOfVertices();
-			updateMesh( m, mesh );
+			final float[] vertices = verticesOptional.get();
+			final int numVertices = vertices.length / 3;
+			updateMesh( vertices, mesh );
 			sceneryMesh = Optional.of( mesh );
 
 			if ( numVertices > 0 )
@@ -201,8 +201,8 @@ public class MeshExtractor< T >
 
 	private void createCallable( final Chunk< T > chunk )
 	{
-		final Callable< SimpleMesh > callable = () -> new MarchingCubes<>( volumeLabels, chunk.interval(), cubeSize ).generateMesh( isForeground );
-		final Future< SimpleMesh > result = executor.submit( callable );
+		final Callable< float[] > callable = () -> new MarchingCubes<>( volumeLabels, chunk.interval(), cubeSize ).generateMesh( isForeground );
+		final Future< float[] > result = executor.submit( callable );
 		resultMeshMap.put( result, chunk );
 	}
 
@@ -227,23 +227,13 @@ public class MeshExtractor< T >
 	/**
 	 * this method convert the viewer mesh into the scenery mesh
 	 *
-	 * @param mesh
+	 * @param vertices
 	 *            mesh information to be converted in a mesh for scenery
 	 * @param sceneryMesh
 	 *            scenery mesh that will receive the information
 	 */
-	public void updateMesh( final SimpleMesh mesh, final Mesh sceneryMesh )
+	public void updateMesh( final float[] vertices, final Mesh sceneryMesh )
 	{
-		final float[] verticesArray = new float[ mesh.getNumberOfVertices() * 3 ];
-
-		final float[][] vertices = mesh.getVertices();
-		int v = 0;
-		for ( int i = 0; i < mesh.getNumberOfVertices(); i++ )
-		{
-			verticesArray[ v++ ] = vertices[ i ][ 0 ];
-			verticesArray[ v++ ] = vertices[ i ][ 1 ];
-			verticesArray[ v++ ] = vertices[ i ][ 2 ];
-		}
 
 		final float maxX = interval.dimension( 0 ) - 1;
 		final float maxY = interval.dimension( 1 ) - 1;
@@ -251,9 +241,9 @@ public class MeshExtractor< T >
 
 		final float maxAxisVal = Math.max( maxX, Math.max( maxY, maxZ ) );
 		// omp parallel for
-		for ( int i = 0; i < verticesArray.length; i++ )
-			verticesArray[ i ] /= maxAxisVal;
+		for ( int i = 0; i < vertices.length; i++ )
+			vertices[ i ] /= maxAxisVal;
 
-		sceneryMesh.setVertices( FloatBuffer.wrap( verticesArray ) );
+		sceneryMesh.setVertices( FloatBuffer.wrap( vertices ) );
 	}
 }

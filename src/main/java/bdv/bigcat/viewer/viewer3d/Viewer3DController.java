@@ -3,19 +3,19 @@ package bdv.bigcat.viewer.viewer3d;
 import java.nio.FloatBuffer;
 import java.util.Arrays;
 import java.util.Optional;
-import java.util.function.ToIntFunction;
 
+import bdv.bigcat.viewer.viewer3d.marchingCubes.ForegroundCheck;
 import bdv.bigcat.viewer.viewer3d.util.MeshExtractor;
 import cleargl.GLVector;
 import graphics.scenery.Material;
 import graphics.scenery.Mesh;
+import net.imglib2.Interval;
 import net.imglib2.Localizable;
 import net.imglib2.RandomAccess;
-import net.imglib2.RandomAccessibleInterval;
+import net.imglib2.RandomAccessible;
 import net.imglib2.RealPoint;
 import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.type.Type;
-import net.imglib2.view.Views;
 
 /**
  * Main class for the Marching Cubes
@@ -60,11 +60,11 @@ public class Viewer3DController
 	 * @param label
 	 */
 	public < T extends Type< T > > void renderAtSelection(
-			final RandomAccessibleInterval< T >[] labelVolumes,
+			final RandomAccessible< T >[] labelVolumes,
+			final Interval[] intervals,
 			final AffineTransform3D[] transforms,
 			final Localizable location,
-			final ToIntFunction< T > isForeground,
-			final T extension,
+			final ForegroundCheck< T > isForeground,
 			final int[] partitionSize,
 			final int[] cubeSize )
 	{
@@ -76,7 +76,7 @@ public class Viewer3DController
 		{
 			float[] verticesArray = new float[ 0 ];
 			// parameters for each resolution
-			final RandomAccessibleInterval< T > labelVolume = labelVolumes[ i ];
+			final RandomAccessible< T > labelVolume = labelVolumes[ i ];
 			final AffineTransform3D transform = transforms[ i ];
 			final RandomAccess< T > access = labelVolume.randomAccess();
 			final RealPoint p = new RealPoint( labelVolume.numDimensions() );
@@ -86,8 +86,8 @@ public class Viewer3DController
 
 			// same label for all resolutions
 			final MeshExtractor< T > meshExtractor = new MeshExtractor<>(
-					Views.extendValue( labelVolume, extension ),
 					labelVolume,
+					intervals[ i ],
 					partitionSize,
 					cubeSize,
 					access,
@@ -158,12 +158,12 @@ public class Viewer3DController
 	 * @param location
 	 */
 	public < T extends Type< T > > void generateMesh(
-			final RandomAccessibleInterval< T > volumeLabels,
+			final RandomAccessible< T > volumeLabels,
+			final Interval interval,
 			final Localizable location,
 			final int[] partitionSize,
 			final int[] cubeSize,
-			final ToIntFunction< T > isForeground,
-			final T extension )
+			final ForegroundCheck< T > isForeground )
 	{
 		if ( mode == ViewerMode.ONLY_ONE_NEURON_VISIBLE )
 			viewer3D.removeAllNeurons();
@@ -171,8 +171,8 @@ public class Viewer3DController
 		float[] verticesArray = new float[ 0 ];
 
 		final MeshExtractor< T > meshExtractor = new MeshExtractor<>(
-				Views.extendValue( volumeLabels, extension ),
 				volumeLabels,
+				interval,
 				partitionSize,
 				cubeSize,
 				location,

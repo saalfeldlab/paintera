@@ -28,18 +28,19 @@ public class Viewer3D extends SceneryBase
 
 	private final SceneryPanel scPanel;
 
-	public Viewer3D( String applicationName, int windowWidth, int windowHeight, boolean wantREPL )
+	public Viewer3D( final String applicationName, final int windowWidth, final int windowHeight, final boolean wantREPL )
 	{
 		super( applicationName, windowWidth, windowHeight, wantREPL );
 
 		scPanel = new SceneryPanel( 500, 500 );
 	}
 
-	public void setVolumeResolution( double[] resolution )
+	public void setVolumeResolution( final double[] resolution )
 	{
 		this.volumeResolution = resolution;
 	}
 
+	@Override
 	public void init()
 	{
 		System.out.println( "init... " );
@@ -61,13 +62,9 @@ public class Viewer3D extends SceneryBase
 		// TODO: camera position must be related with the mesh not with the
 		// whole volume
 		if ( volumeResolution == null )
-		{
 			cam.setPosition( new GLVector( 0, 0, 5 ) );
-		}
 		else
-		{
 			cam.setPosition( new GLVector( ( float ) ( volumeResolution[ 0 ] / 2 ), ( float ) ( volumeResolution[ 1 ] / 2 ), 2 ) );
-		}
 		getScene().addChild( cam );
 
 		// TODO: camera position must be related with the object
@@ -94,10 +91,10 @@ public class Viewer3D extends SceneryBase
 			getScene().addChild( lights[ i ] );
 	}
 
-	public void addChild( Mesh child )
+	public void addChild( final Mesh child )
 	{
 		getScene().addChild( child );
-		MovementCommand movement = new MovementCommand( "move_forward", "forward", () -> child );
+		final MovementCommand movement = new MovementCommand( "move_forward", "forward", () -> child );
 	}
 
 	@Override
@@ -106,7 +103,7 @@ public class Viewer3D extends SceneryBase
 		setupCameraModeSwitching( "C" );
 	}
 
-	public void removeChild( Mesh child )
+	public void removeChild( final Mesh child )
 	{
 		getScene().removeChild( child );
 	}
@@ -115,17 +112,16 @@ public class Viewer3D extends SceneryBase
 	{
 		return scPanel;
 	}
-	
+
 	public void removeAllNeurons()
 	{
-		CopyOnWriteArrayList< Node > children = getScene().getChildren();
-		Iterator< Node > iterator = children.iterator();
-		while (iterator.hasNext()) {
-			Node child = iterator.next();
+		final CopyOnWriteArrayList< Node > children = getScene().getChildren();
+		final Iterator< Node > iterator = children.iterator();
+		while ( iterator.hasNext() )
+		{
+			final Node child = iterator.next();
 			if ( child.getName().compareTo( "Mesh" ) == 0 )
-			{
 				getScene().removeChild( child );
-			}
 		}
 	}
 
