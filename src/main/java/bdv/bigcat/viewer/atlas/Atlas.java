@@ -26,6 +26,7 @@ import bdv.bigcat.viewer.atlas.data.DatasetSpec;
 import bdv.bigcat.viewer.atlas.data.HDF5LabelMultisetSourceSpec;
 import bdv.bigcat.viewer.atlas.data.HDF5LabelMultisetSourceSpec.HighlightingStreamConverter;
 import bdv.bigcat.viewer.atlas.data.LabelSpec;
+import bdv.bigcat.viewer.atlas.data.RenderableSpec;
 import bdv.bigcat.viewer.atlas.mode.Highlights;
 import bdv.bigcat.viewer.atlas.mode.Merges;
 import bdv.bigcat.viewer.atlas.mode.Mode;
@@ -339,8 +340,11 @@ public class Atlas
 				( ( Highlights ) mode ).addSource( vsource, source, toIdConverter );
 			else if ( mode instanceof Merges )
 				( ( Merges ) mode ).addSource( vsource, source, toIdConverter );
-			else if ( mode instanceof Render3D )
-				( ( Render3D ) mode ).addSource( vsource, source, toIdConverter );
+			else if ( mode instanceof Render3D && spec instanceof RenderableSpec )
+			{
+				System.out.println( "ADDING RENDERABLE SOURCE!" );
+				( ( Render3D ) mode ).addSource( vsource, source, toIdConverter, ( ( RenderableSpec ) spec )::foregroundCheck );
+			}
 
 		view.addActor( new ViewerActor()
 		{

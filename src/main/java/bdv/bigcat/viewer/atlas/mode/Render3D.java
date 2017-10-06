@@ -4,6 +4,7 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.function.Consumer;
+import java.util.function.Function;
 
 import org.scijava.ui.behaviour.ClickBehaviour;
 import org.scijava.ui.behaviour.MouseAndKeyHandler;
@@ -16,17 +17,17 @@ import bdv.bigcat.viewer.ToIdConverter;
 import bdv.bigcat.viewer.viewer3d.Viewer3DController;
 import bdv.bigcat.viewer.viewer3d.marchingCubes.ForegroundCheck;
 import bdv.labels.labelset.Label;
-import bdv.labels.labelset.LabelMultisetType;
-import bdv.labels.labelset.Multiset.Entry;
 import bdv.viewer.Interpolation;
 import bdv.viewer.Source;
 import bdv.viewer.ViewerPanel;
 import bdv.viewer.state.SourceState;
 import bdv.viewer.state.ViewerState;
+import net.imglib2.Interval;
 import net.imglib2.Point;
-import net.imglib2.RandomAccessibleInterval;
+import net.imglib2.RandomAccessible;
 import net.imglib2.RealRandomAccess;
 import net.imglib2.realtransform.AffineTransform3D;
+import net.imglib2.view.Views;
 
 public class Render3D extends AbstractStateMode
 {
@@ -36,6 +37,8 @@ public class Render3D extends AbstractStateMode
 	private final HashMap< ViewerPanel, MouseAndKeyHandler > mouseAndKeyHandlers = new HashMap<>();
 
 	private final HashMap< Source< ? >, ToIdConverter > toIdConverters = new HashMap<>();
+
+	private final HashMap< Source< ? >, Function< ?, ForegroundCheck< ? > > > foregroundChecks = new HashMap<>();
 
 	private final Viewer3DController v3dControl;
 
@@ -51,13 +54,15 @@ public class Render3D extends AbstractStateMode
 		return "Render 3D";
 	}
 
-	public void addSource( final Source< ? > source, final Source< ? > dataSources, final ToIdConverter toIdConverter )
+	public void addSource( final Source< ? > source, final Source< ? > dataSources, final ToIdConverter toIdConverter, final Function< ?, ForegroundCheck< ? > > foregroundCheck )
 	{
 
 		if ( !this.dataSources.containsKey( source ) )
 			this.dataSources.put( source, dataSources );
 		if ( !this.toIdConverters.containsKey( source ) )
 			this.toIdConverters.put( source, toIdConverter );
+		if ( !this.foregroundChecks.containsKey( source ) )
+			this.foregroundChecks.put( source, foregroundCheck );
 	}
 
 	public void removeSource( final Source< ? > source )
@@ -90,7 +95,7 @@ public class Render3D extends AbstractStateMode
 					final SourceState< ? > source = sources.get( sourceIndex );
 					final Source< ? > spimSource = source.getSpimSource();
 					final Source< ? > dataSource = dataSources.get( spimSource );
-					if ( dataSource != null && dataSource.getType() instanceof LabelMultisetType )
+					if ( dataSource != null && foregroundChecks.containsKey( spimSource ) )
 					{
 						final AffineTransform3D viewerTransform = new AffineTransform3D();
 						state.getViewerTransform( viewerTransform );
@@ -101,12 +106,14 @@ public class Render3D extends AbstractStateMode
 						final long[] worldCoordinateLong = Arrays.stream( worldCoordinate ).mapToLong( d -> ( long ) d ).toArray();
 
 						final int numVolumes = dataSource.getNumMipmapLevels();
-						final RandomAccessibleInterval< LabelMultisetType >[] volumes = new RandomAccessibleInterval[ numVolumes ];
+						final RandomAccessible[] volumes = new RandomAccessible[ numVolumes ];
+						final Interval[] intervals = new Interval[ numVolumes ];
 						final AffineTransform3D[] transforms = new AffineTransform3D[ numVolumes ];
 
 						for ( int i = 0; i < numVolumes; ++i )
 						{
-							volumes[ i ] = ( RandomAccessibleInterval< LabelMultisetType > ) dataSource.getSource( numVolumes - 1 - i, 0 );
+							volumes[ i ] = Views.raster( dataSource.getInterpolatedSource( 0, numVolumes - 1 - i, Interpolation.NEARESTNEIGHBOR ) );
+							intervals[ i ] = dataSource.getSource( 0, numVolumes - 1 - i );
 							final AffineTransform3D tf = new AffineTransform3D();
 							dataSource.getSourceTransform( 0, numVolumes - 1 - i, tf );
 							transforms[ i ] = tf;
@@ -121,40 +128,18 @@ public class Render3D extends AbstractStateMode
 						if ( Label.regular( selectedId ) )
 						{
 
-//						Viewer3DController.renderAtSelectionMultiset( volumes, transforms, Point.wrap( worldCoordinateLong ), toIdConverters.get( spimSource ).biggestFragment( rra.get() ) );
 							final int[] partitionSize = { 64, 64, 10 };
 							final int[] cubeSize = { 1, 1, 1 };
 
-							final ForegroundCheck< LabelMultisetType > isForeground = multiset -> {
-								long argMaxLabel = Label.INVALID;
-								long argMaxCount = Integer.MIN_VALUE;
-								for ( final Entry< Label > entry : multiset.entrySet() )
-								{
-									final int count = entry.getCount();
-									if ( count > argMaxCount )
-									{
-										argMaxLabel = entry.getElement().id();
-										argMaxCount = count;
-									}
-								}
-								return argMaxLabel == selectedId ? 1 : 0;
-							};
-//							v3dControl.renderAtSelection(
-//									volumes,
-//									transforms,
-//									Point.wrap( Arrays.stream( worldCoordinate ).mapToLong( d -> ( long ) d ).toArray() ),
-//									isForeground,
-//									new LabelMultisetType(),
-//									partitionSize,
-//									cubeSize );
+							final ForegroundCheck isForeground = ( ( Function< Object, ForegroundCheck< ? > > ) foregroundChecks.get( spimSource ) ).apply( rra.get() );
 							new Thread( () -> {
 								v3dControl.generateMesh(
 										volumes[ 0 ],
+										intervals[ 0 ],
 										Point.wrap( Arrays.stream( worldCoordinate ).mapToLong( d -> ( long ) d ).toArray() ),
 										partitionSize,
 										cubeSize,
-										isForeground,
-										new LabelMultisetType() );
+										isForeground );
 							} ).start();
 						}
 					}
