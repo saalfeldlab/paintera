@@ -13,12 +13,10 @@ import bdv.bigcat.viewer.ViewerActor;
 import bdv.bigcat.viewer.panel.ViewerNode;
 import bdv.bigcat.viewer.panel.ViewerNode.ViewerAxis;
 import bdv.bigcat.viewer.panel.ViewerTransformManager;
-import bdv.bigcat.viewer.viewer3d.Viewer3D;
 import bdv.cache.CacheControl;
 import bdv.viewer.SourceAndConverter;
 import bdv.viewer.ViewerOptions;
 import bdv.viewer.ViewerPanel;
-import javafx.application.Platform;
 import javafx.beans.value.ChangeListener;
 import javafx.collections.FXCollections;
 import javafx.collections.ListChangeListener;
@@ -221,15 +219,6 @@ public class OrthoView extends GridPane
 				this.setHgap( 1 );
 				this.setVgap( 1 );
 			}
-	}
-
-	public Node viewerNode()
-	{
-		final Viewer3D v3d = new Viewer3D( "test", 100, 100, false );
-		Platform.runLater( () -> {
-			v3d.init();
-		} );
-		return v3d.getPanel();
 	}
 
 //	public Node globalSourcesInfoNode()
