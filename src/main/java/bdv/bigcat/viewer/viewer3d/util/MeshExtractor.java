@@ -17,11 +17,15 @@ import org.slf4j.LoggerFactory;
 import bdv.bigcat.viewer.viewer3d.marchingCubes.ForegroundCheck;
 import bdv.bigcat.viewer.viewer3d.marchingCubes.MarchingCubes;
 import graphics.scenery.Mesh;
+import net.imglib2.Cursor;
+import net.imglib2.FinalInterval;
 import net.imglib2.Interval;
 import net.imglib2.Localizable;
 import net.imglib2.Point;
 import net.imglib2.RandomAccessible;
+import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.util.Pair;
+import net.imglib2.view.Views;
 
 /**
  * This class is responsible for generate region of interests (map of
@@ -173,18 +177,26 @@ public class MeshExtractor< T >
 
 		LOGGER.trace( "Initial position is: {}, {}, {}", offset[ 0 ], offset[ 1 ], offset[ 2 ] );
 
-		// creates the callable for the chunk in the given position
+		boolean[] neighboring = new boolean[ interval.numDimensions() * 2];
+		hasNeighboringData( location, neighboring );
 
+		System.out.println( "Initial position is: " + offset[ 0 ] + " " + offset[ 1 ] + " " + offset[ 2 ] );
+		for ( int i = 0; i < neighboring.length; i++ )
+			System.out.println( "[i]: " + neighboring[ i ] );
+
+		// creates the callable for the chunk in the given position
 		// if one of the neighbors chunks exists, creates it
 		for ( int d = 0; d < offset.length; ++d )
 		{
 			offset[ d ] += 1;
 			LOGGER.trace( "New offset: {}, {}, {}", offset[ 0 ], offset[ 1 ], offset[ 2 ] );
-			if ( partitioner.isGridOffsetContained( offset[ d ], d ) && !partitioner.isChunkPresent( p ) )
+			System.out.println( "New offset +: " + offset[ 0 ] + " " + offset[ 1 ] + " " + offset[ 2 ] );
+			if ( partitioner.isGridOffsetContained( offset[ d ], d ) && !partitioner.isChunkPresent( p ) && neighboring[ d * 2 ] )
 				createChunk( p );
 			offset[ d ] -= 2;
+			System.out.println( "New offset -: " + offset[ 0 ] + " " + offset[ 1 ] + " " + offset[ 2 ] );
 			LOGGER.trace( "New offset: {}, {}, {}", offset[ 0 ], offset[ 1 ], offset[ 2 ] );
-			if ( partitioner.isGridOffsetContained( offset[ d ], d ) && !partitioner.isChunkPresent( p ) )
+			if ( partitioner.isGridOffsetContained( offset[ d ], d ) && !partitioner.isChunkPresent( p ) && neighboring[ d * 2 + 1 ] )
 				createChunk( p );
 			offset[ d ] += 1;
 		}
@@ -204,24 +216,6 @@ public class MeshExtractor< T >
 		final Callable< float[] > callable = () -> new MarchingCubes<>( volumeLabels, chunk.interval(), cubeSize ).generateMesh( isForeground );
 		final Future< float[] > result = executor.submit( callable );
 		resultMeshMap.put( result, chunk );
-	}
-
-	private void generatePartitionSize()
-	{
-		for ( int i = 0; i < partitionSize.length; i++ )
-			partitionSize[ i ] = ( int ) ( interval.max( i ) - interval.min( i ) + 1 ) / MAX_CUBE_SIZE;
-
-		LOGGER.trace( "division: {}, {}, {}", partitionSize[ 0 ], partitionSize[ 1 ], partitionSize[ 2 ] );
-
-		for ( int i = 0; i < partitionSize.length; i++ )
-			partitionSize[ i ] = partitionSize[ i ] >= 7 ? 7 * MAX_CUBE_SIZE : partitionSize[ i ] * MAX_CUBE_SIZE;
-
-		LOGGER.trace( "partition size: {}, {}, {}", partitionSize[ 0 ], partitionSize[ 1 ], partitionSize[ 2 ] );
-
-		for ( int i = 0; i < partitionSize.length; i++ )
-			partitionSize[ i ] = partitionSize[ i ] == 0 ? 1 : partitionSize[ i ];
-
-		LOGGER.info( "final partition size: {}, {}, {}", partitionSize[ 0 ], partitionSize[ 1 ], partitionSize[ 2 ] );
 	}
 
 	/**
@@ -245,5 +239,57 @@ public class MeshExtractor< T >
 			vertices[ i ] /= maxAxisVal;
 
 		sceneryMesh.setVertices( FloatBuffer.wrap( vertices ) );
+	}
+
+	private void hasNeighboringData( Localizable location, boolean[] neighboring )
+	{
+		// for each dimension, verifies first in the +, then in the - direction
+		// if the voxels in the boundary contain the foregroundvalue
+		final Interval chunkInterval = partitioner.getChunk( location ).getA().interval();
+		for ( int i = 0; i < chunkInterval.numDimensions(); i++ )
+		{
+			// initialize each direction with false
+			neighboring[ i * 2 ] = false;
+			neighboring[ i * 2 + 1 ] = false;
+
+			checkData( i, chunkInterval, neighboring, "+" );
+			checkData( i, chunkInterval, neighboring, "-" );
+		}
+	}
+
+	private void checkData( int i, Interval chunkInterval, boolean[] neighboring, String direction )
+	{
+		final long[] begin = new long[ chunkInterval.numDimensions() ];
+		final long[] end = new long[ chunkInterval.numDimensions() ];
+
+		begin[ i ] = ( direction.compareTo( "+" ) == 0 ) ? chunkInterval.max( i ) : chunkInterval.min( i );
+		end[ i ] = begin[ i ];
+
+		for ( int j = 0; j < chunkInterval.numDimensions(); j++ )
+		{
+			if ( i == j )
+				continue;
+
+			begin[ j ] = chunkInterval.min( j );
+			end[ j ] = chunkInterval.max( j );
+		}
+
+		RandomAccessibleInterval< T > slice = Views.interval( volumeLabels, new FinalInterval( begin, end ) );
+		Cursor< T > cursor = Views.flatIterable( slice ).cursor();
+
+		System.out.println( "Checking dataset from: " + begin[ 0 ] + " " + begin[ 1 ] + " " + begin[ 2 ] + " to " + end[ 0 ] + " " + end[ 1 ] + " " + end[ 2 ] );
+
+		while ( cursor.hasNext() )
+		{
+			cursor.next();
+			if ( isForeground.test( cursor.get() ) == 1 )
+			{
+				int index = ( direction.compareTo( "+" ) == 0 ) ? i * 2 : i * 2 + 1;
+				neighboring[ index ] = true;
+				break;
+			}
+		}
+		int index = ( direction.compareTo( "+" ) == 0 ) ? i * 2 : i * 2 + 1;
+		System.out.println( "this dataset is: " + neighboring[ index ] );
 	}
 }
