@@ -1,6 +1,5 @@
 package bdv.bigcat.viewer.viewer3d.marchingCubes;
 
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.function.ToIntFunction;
 
@@ -8,6 +7,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import bdv.bigcat.viewer.viewer3d.util.SimpleMesh;
+import gnu.trove.list.array.TFloatArrayList;
 import net.imglib2.Cursor;
 import net.imglib2.FinalInterval;
 import net.imglib2.Interval;
@@ -38,9 +38,6 @@ public class MarchingCubes< T >
 	/** size of the cube */
 	private final int[] cubeSize;
 
-	/** list of calculated vertices */
-	private final ArrayList< float[] > vertices;
-
 	/**
 	 * Enum of the available criteria. These criteria are used to evaluate if
 	 * the vertex is part of the mesh or not.
@@ -60,7 +57,6 @@ public class MarchingCubes< T >
 		this.input = input;
 		this.interval = interval;
 		this.cubeSize = cubeSize;
-		this.vertices = new ArrayList<>();
 	}
 
 //	/**
@@ -133,7 +129,7 @@ public class MarchingCubes< T >
 	 *            generic interface to access the information on RAI
 	 * @return SimpleMesh, basically an array with the vertices
 	 */
-	public SimpleMesh generateMesh( final ToIntFunction< T > extractVertexLabel )
+	public float[] generateMesh( final ToIntFunction< T > extractVertexLabel )
 	{
 		final long[] stride = Arrays.stream( cubeSize ).mapToLong( i -> i ).toArray();
 		final FinalInterval expandedInterval = Intervals.expand( interval, stride );
@@ -148,6 +144,8 @@ public class MarchingCubes< T >
 		cursors[ 5 ] = Views.flatIterable( Views.interval( Views.offset( subsampled, 1, 0, 1 ), zeroMinInterval ) ).cursor();
 		cursors[ 6 ] = Views.flatIterable( Views.interval( Views.offset( subsampled, 0, 1, 1 ), zeroMinInterval ) ).cursor();
 		cursors[ 7 ] = Views.flatIterable( Views.interval( Views.offset( subsampled, 1, 1, 1 ), zeroMinInterval ) ).cursor();
+
+		final TFloatArrayList vertices = new TFloatArrayList();
 
 		while ( cursors[ 0 ].hasNext() )
 		{
@@ -195,13 +193,12 @@ public class MarchingCubes< T >
 					vertexValues,
 					cursors[ 0 ].getLongPosition( 0 ),
 					cursors[ 0 ].getLongPosition( 1 ),
-					cursors[ 0 ].getLongPosition( 2 ) );
+					cursors[ 0 ].getLongPosition( 2 ),
+					vertices );
 
 		}
 
-		convertVerticesFormat();
-
-		return mesh;
+		return vertices.toArray();
 	}
 
 	/**
@@ -218,7 +215,7 @@ public class MarchingCubes< T >
 	 * @param cursorZ
 	 *            position on z
 	 */
-	private void triangulation( final int vertexValues, final long cursorX, final long cursorY, final long cursorZ )
+	private void triangulation( final int vertexValues, final long cursorX, final long cursorY, final long cursorZ, final TFloatArrayList vertices )
 	{
 		// @formatter:off
 		// this algorithm (based on http://paulbourke.net/geometry/polygonise/)
@@ -295,51 +292,21 @@ public class MarchingCubes< T >
 			if ((MarchingCubesTables.MC_EDGE_TABLE[tableIndex] & 2048) != 0)
 				interpolationPoints[ 11 ] = calculateIntersection(cursorX, cursorY, cursorZ, 11);
 
-			for (int i = 0; MarchingCubesTables.MC_TRI_TABLE[tableIndex][i] != MarchingCubesTables.Invalid; i += 3)
+			for ( int i = 0; MarchingCubesTables.MC_TRI_TABLE[tableIndex][i] != MarchingCubesTables.Invalid; i += 3 )
 			{
-				vertices.add( new float[] {
-						interpolationPoints[ MarchingCubesTables.MC_TRI_TABLE[ tableIndex ][ i ] ][ 0 ],
-						interpolationPoints[ MarchingCubesTables.MC_TRI_TABLE[ tableIndex ][ i ] ][ 1 ],
-						interpolationPoints[ MarchingCubesTables.MC_TRI_TABLE[ tableIndex ][ i ] ][ 2 ]} );
+				vertices.add( interpolationPoints[ MarchingCubesTables.MC_TRI_TABLE[ tableIndex ][ i ] ][ 0 ] );
+				vertices.add( interpolationPoints[ MarchingCubesTables.MC_TRI_TABLE[ tableIndex ][ i ] ][ 1 ] );
+				vertices.add( interpolationPoints[ MarchingCubesTables.MC_TRI_TABLE[ tableIndex ][ i ] ][ 2 ] );
 
-				vertices.add( new float[] {
-						interpolationPoints[ MarchingCubesTables.MC_TRI_TABLE[ tableIndex ][ i + 1 ] ][ 0 ],
-						interpolationPoints[ MarchingCubesTables.MC_TRI_TABLE[ tableIndex ][ i + 1 ] ][ 1 ],
-						interpolationPoints[ MarchingCubesTables.MC_TRI_TABLE[ tableIndex ][ i + 1 ] ][ 2 ]} );
+				vertices.add( interpolationPoints[ MarchingCubesTables.MC_TRI_TABLE[ tableIndex ][ i + 1 ] ][ 0 ] );
+				vertices.add( interpolationPoints[ MarchingCubesTables.MC_TRI_TABLE[ tableIndex ][ i + 1 ] ][ 1 ] );
+				vertices.add( interpolationPoints[ MarchingCubesTables.MC_TRI_TABLE[ tableIndex ][ i + 1 ] ][ 2 ] );
 
-				vertices.add( new float[] {
-						interpolationPoints[ MarchingCubesTables.MC_TRI_TABLE[ tableIndex ][ i + 2] ][ 0 ],
-						interpolationPoints[ MarchingCubesTables.MC_TRI_TABLE[ tableIndex ][ i  + 2] ][ 1 ],
-						interpolationPoints[ MarchingCubesTables.MC_TRI_TABLE[ tableIndex ][ i  + 2] ][ 2 ]} );
+				vertices.add( interpolationPoints[ MarchingCubesTables.MC_TRI_TABLE[ tableIndex ][ i + 2 ] ][ 0 ] );
+				vertices.add( interpolationPoints[ MarchingCubesTables.MC_TRI_TABLE[ tableIndex ][ i + 2 ] ][ 1 ] );
+				vertices.add( interpolationPoints[ MarchingCubesTables.MC_TRI_TABLE[ tableIndex ][ i + 2 ] ][ 2 ] );
 			}
 		}
-	}
-
-	/**
-	 * Convert the arraylist into a float[][]
-	 */
-	private void convertVerticesFormat()
-	{
-		final int numberOfVertices = vertices.size();
-		mesh.setNumberOfVertices(numberOfVertices);
-
-		final float[][] verticesArray = new float[numberOfVertices][3];
-
-		for (int i = 0; i < numberOfVertices; i++)
-		{
-			verticesArray[i][0] = vertices.get( i )[ 0 ];
-			verticesArray[i][1] = vertices.get( i )[ 1 ];
-			verticesArray[i][2] = vertices.get( i )[ 2 ];
-
-			if (LOGGER.isTraceEnabled())
-			{
-				LOGGER.trace( "vertex x: " + verticesArray[i][0] );
-				LOGGER.trace( "vertex y: " + verticesArray[i][1] );
-				LOGGER.trace( "vertex z: " + verticesArray[i][2] );
-			}
-		}
-
-		mesh.setVertices(verticesArray);
 	}
 
 	/**
