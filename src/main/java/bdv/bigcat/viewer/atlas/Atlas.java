@@ -110,12 +110,9 @@ public class Atlas
 
 	private final Viewer3D renderView = new Viewer3D( "", 1000, 1000, false );
 
-	private final Viewer3DController controller = new Viewer3DController();
+	private final Viewer3DController controller = new Viewer3DController( renderView, ViewerMode.ONLY_ONE_NEURON_VISIBLE, new double[] { 4, 4, 40 } );
 	{
 		new Thread( renderView::main ).start();
-		controller.setViewer3D( renderView );
-		controller.setResolution( new double[] { 4, 4, 40 } );
-		controller.setMode( ViewerMode.ONLY_ONE_NEURON_VISIBLE );
 	}
 
 	public Atlas( final Interval interval )
@@ -146,7 +143,7 @@ public class Atlas
 
 		this.view.add( renderView.getPanel(), 1, 1 );
 
-		final Mode[] initialModes = { new NavigationOnly(), new Highlights( selectedIds ), new Merges( selectedIds, assignments ), new Render3D() };
+		final Mode[] initialModes = { new NavigationOnly(), new Highlights( selectedIds ), new Merges( selectedIds, assignments ), new Render3D( controller ) };
 		Arrays.stream( initialModes ).forEach( modes::add );
 
 		for ( final Mode mode : modes )

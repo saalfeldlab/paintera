@@ -4,6 +4,7 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.function.Consumer;
+import java.util.function.ToIntFunction;
 
 import org.scijava.ui.behaviour.ClickBehaviour;
 import org.scijava.ui.behaviour.MouseAndKeyHandler;
@@ -14,7 +15,9 @@ import org.scijava.ui.behaviour.util.TriggerBehaviourBindings;
 
 import bdv.bigcat.viewer.ToIdConverter;
 import bdv.bigcat.viewer.viewer3d.Viewer3DController;
+import bdv.labels.labelset.Label;
 import bdv.labels.labelset.LabelMultisetType;
+import bdv.labels.labelset.Multiset.Entry;
 import bdv.viewer.Interpolation;
 import bdv.viewer.Source;
 import bdv.viewer.ViewerPanel;
@@ -33,6 +36,14 @@ public class Render3D extends AbstractStateMode
 	private final HashMap< ViewerPanel, MouseAndKeyHandler > mouseAndKeyHandlers = new HashMap<>();
 
 	private final HashMap< Source< ? >, ToIdConverter > toIdConverters = new HashMap<>();
+
+	private final Viewer3DController v3dControl;
+
+	public Render3D( final Viewer3DController v3dControl )
+	{
+		super();
+		this.v3dControl = v3dControl;
+	}
 
 	@Override
 	public String getName()
@@ -105,8 +116,47 @@ public class Render3D extends AbstractStateMode
 						final RealRandomAccess< ? > rra = dataSource.getInterpolatedSource( 0, bestMipMapLevel, Interpolation.NEARESTNEIGHBOR ).realRandomAccess();
 						rra.setPosition( worldCoordinate );
 
+						final long selectedId = toIdConverters.get( spimSource ).biggestFragment( rra.get() );
+
+						if ( Label.regular( selectedId ) )
+						{
+
 //						Viewer3DController.renderAtSelectionMultiset( volumes, transforms, Point.wrap( worldCoordinateLong ), toIdConverters.get( spimSource ).biggestFragment( rra.get() ) );
-						Viewer3DController.generateMesh( volumes[ 0 ], Point.wrap( Arrays.stream( worldCoordinate ).mapToLong( d -> ( long ) d ).toArray() ) );
+							final int[] partitionSize = { 64, 64, 10 };
+							final int[] cubeSize = { 1, 1, 1 };
+
+							final ToIntFunction< LabelMultisetType > isForeground = multiset -> {
+								long argMaxLabel = Label.INVALID;
+								long argMaxCount = Integer.MIN_VALUE;
+								for ( final Entry< Label > entry : multiset.entrySet() )
+								{
+									final int count = entry.getCount();
+									if ( count > argMaxCount )
+									{
+										argMaxLabel = entry.getElement().id();
+										argMaxCount = count;
+									}
+								}
+								return argMaxLabel == selectedId ? 1 : 0;
+							};
+//							v3dControl.renderAtSelection(
+//									volumes,
+//									transforms,
+//									Point.wrap( Arrays.stream( worldCoordinate ).mapToLong( d -> ( long ) d ).toArray() ),
+//									isForeground,
+//									new LabelMultisetType(),
+//									partitionSize,
+//									cubeSize );
+							new Thread( () -> {
+								v3dControl.generateMesh(
+										volumes[ 0 ],
+										Point.wrap( Arrays.stream( worldCoordinate ).mapToLong( d -> ( long ) d ).toArray() ),
+										partitionSize,
+										cubeSize,
+										isForeground,
+										new LabelMultisetType() );
+							} ).start();
+						}
 					}
 				}
 			}

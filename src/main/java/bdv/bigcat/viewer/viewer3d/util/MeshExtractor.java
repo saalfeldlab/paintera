@@ -4,21 +4,23 @@ import java.nio.FloatBuffer;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.Callable;
 import java.util.concurrent.CompletionService;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorCompletionService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.function.ToIntFunction;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import bdv.bigcat.viewer.viewer3d.marchingCubes.MarchingCubes;
-import bdv.bigcat.viewer.viewer3d.marchingCubes.MarchingCubesCallable;
 import graphics.scenery.Mesh;
+import net.imglib2.Interval;
 import net.imglib2.Localizable;
 import net.imglib2.Point;
-import net.imglib2.RandomAccessibleInterval;
+import net.imglib2.RandomAccessible;
 import net.imglib2.util.Pair;
 
 /**
@@ -40,15 +42,15 @@ public class MeshExtractor< T >
 
 	static final int MAX_CUBE_SIZE = 16;
 
-	private final RandomAccessibleInterval< T > volumeLabels;
+	private final RandomAccessible< T > volumeLabels;
+
+	private final Interval interval;
 
 	private final int[] partitionSize;
 
 	private final int[] cubeSize;
 
-	private final long foregroundValue;
-
-	private final MarchingCubes.ForegroundCriterion criterion;
+	private final ToIntFunction< T > isForeground;
 
 	private final Map< Future< SimpleMesh >, Chunk< T > > resultMeshMap;
 
@@ -57,25 +59,24 @@ public class MeshExtractor< T >
 	private final VolumePartitioner< T > partitioner;
 
 	public MeshExtractor(
-			final RandomAccessibleInterval< T > volumeLabels,
+			final RandomAccessible< T > volumeLabels,
+			final Interval interval,
+			final int[] partitionSize,
 			final int[] cubeSize,
-			final long foregroundValue,
-			final MarchingCubes.ForegroundCriterion criterion,
-			final Localizable startingPoint )
+			final Localizable startingPoint,
+			final ToIntFunction< T > isForeground )
 	{
 		this.volumeLabels = volumeLabels;
-		this.partitionSize = new int[] { 1, 1, 1 };
+		this.interval = interval;
+		this.partitionSize = partitionSize;
 		this.cubeSize = cubeSize;
-		this.foregroundValue = foregroundValue;
-		this.criterion = criterion;
+		this.isForeground = isForeground;
 
 		executor = new ExecutorCompletionService<>( Executors.newWorkStealingPool() );
 
 		resultMeshMap = new HashMap<>();
 
-		generatePartitionSize();
-
-		partitioner = new VolumePartitioner<>( this.volumeLabels, partitionSize, this.cubeSize );
+		partitioner = new VolumePartitioner<>( this.interval, this.partitionSize );
 
 		final long[] offset = new long[ startingPoint.numDimensions() ];
 		startingPoint.localize( offset );
@@ -110,10 +111,10 @@ public class MeshExtractor< T >
 		final Chunk< T > chunk = resultMeshMap.remove( completedFuture );
 
 		// get the mesh, if the task was able to create it
-		Optional< SimpleMesh > m;
+		Optional< SimpleMesh > simpleMesh;
 		try
 		{
-			m = Optional.of( completedFuture.get() );
+			simpleMesh = Optional.of( completedFuture.get() );
 			LOGGER.info( "getting mesh" );
 		}
 		catch ( InterruptedException | ExecutionException e )
@@ -123,24 +124,28 @@ public class MeshExtractor< T >
 		}
 
 		final Optional< Mesh > sceneryMesh;
-		if ( m.isPresent() )
+		if ( simpleMesh.isPresent() )
 		{
 			final Mesh mesh = new Mesh();
-			updateMesh( m.get(), mesh );
-			chunk.addMesh( mesh );
+			final SimpleMesh m = simpleMesh.get();
+			final int numVertices = m.getNumberOfVertices();
+			updateMesh( m, mesh );
 			sceneryMesh = Optional.of( mesh );
+
+			if ( numVertices > 0 )
+			{
+				final long index = chunk.index();
+				final long[] offset = new long[ 3 ];
+				partitioner.indexToGridOffset( index, offset );
+
+				LOGGER.debug( "chunk {} ", chunk );
+
+				final Localizable newLocation = new Point( offset );
+				createNeighboringChunks( newLocation );
+			}
 		}
 		else
 			return Optional.empty();
-
-		final long index = chunk.getIndex();
-		final long[] offset = new long[ 3 ];
-		partitioner.indexToGridOffset( index, offset );
-
-		LOGGER.debug( "chunk {} ", chunk );
-
-		final Localizable newLocation = new Point( offset );
-		createNeighboringChunks( newLocation );
 
 		// a mesh was created, return it
 		return sceneryMesh;
@@ -196,20 +201,15 @@ public class MeshExtractor< T >
 
 	private void createCallable( final Chunk< T > chunk )
 	{
-		final int[] volumeDimension = new int[] { ( int ) chunk.getVolume().dimension( 0 ), ( int ) chunk.getVolume().dimension( 1 ),
-				( int ) chunk.getVolume().dimension( 2 ) };
-
-		final MarchingCubesCallable< T > callable = new MarchingCubesCallable<>( chunk.getVolume(), volumeDimension, chunk.getOffset(),
-				cubeSize, criterion, foregroundValue, true );
+		final Callable< SimpleMesh > callable = () -> new MarchingCubes<>( volumeLabels, chunk.interval(), cubeSize ).generateMesh( isForeground );
 		final Future< SimpleMesh > result = executor.submit( callable );
-
 		resultMeshMap.put( result, chunk );
 	}
 
 	private void generatePartitionSize()
 	{
 		for ( int i = 0; i < partitionSize.length; i++ )
-			partitionSize[ i ] = ( int ) ( volumeLabels.max( i ) - volumeLabels.min( i ) + 1 ) / MAX_CUBE_SIZE;
+			partitionSize[ i ] = ( int ) ( interval.max( i ) - interval.min( i ) + 1 ) / MAX_CUBE_SIZE;
 
 		LOGGER.trace( "division: {}, {}, {}", partitionSize[ 0 ], partitionSize[ 1 ], partitionSize[ 2 ] );
 
@@ -245,9 +245,9 @@ public class MeshExtractor< T >
 			verticesArray[ v++ ] = vertices[ i ][ 2 ];
 		}
 
-		final float maxX = volumeLabels.dimension( 0 ) - 1;
-		final float maxY = volumeLabels.dimension( 1 ) - 1;
-		final float maxZ = volumeLabels.dimension( 2 ) - 1;
+		final float maxX = interval.dimension( 0 ) - 1;
+		final float maxY = interval.dimension( 1 ) - 1;
+		final float maxZ = interval.dimension( 2 ) - 1;
 
 		final float maxAxisVal = Math.max( maxX, Math.max( maxY, maxZ ) );
 		// omp parallel for
