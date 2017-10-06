@@ -119,9 +119,10 @@ public class Render3D extends AbstractStateMode
 							transforms[ i ] = tf;
 						}
 
-						transforms[ bestMipMapLevel ].applyInverse( worldCoordinate, worldCoordinate );
+						final double[] imageCoordinate = new double[ worldCoordinate.length ];
+						transforms[ 0 ].applyInverse( imageCoordinate, worldCoordinate );
 						final RealRandomAccess< ? > rra = dataSource.getInterpolatedSource( 0, bestMipMapLevel, Interpolation.NEARESTNEIGHBOR ).realRandomAccess();
-						rra.setPosition( worldCoordinate );
+						rra.setPosition( imageCoordinate );
 
 						final long selectedId = toIdConverters.get( spimSource ).biggestFragment( rra.get() );
 
@@ -133,10 +134,18 @@ public class Render3D extends AbstractStateMode
 
 							final ForegroundCheck isForeground = ( ( Function< Object, ForegroundCheck< ? > > ) foregroundChecks.get( spimSource ) ).apply( rra.get() );
 							new Thread( () -> {
+//								v3dControl.renderAtSelection(
+//										volumes,
+//										intervals,
+//										transforms,
+//										Point.wrap( Arrays.stream( worldCoordinate ).mapToLong( d -> ( long ) d ).toArray() ),
+//										isForeground,
+//										partitionSize,
+//										cubeSize );
 								v3dControl.generateMesh(
 										volumes[ 0 ],
 										intervals[ 0 ],
-										Point.wrap( Arrays.stream( worldCoordinate ).mapToLong( d -> ( long ) d ).toArray() ),
+										Point.wrap( Arrays.stream( imageCoordinate ).mapToLong( d -> ( long ) d ).toArray() ),
 										partitionSize,
 										cubeSize,
 										isForeground );
