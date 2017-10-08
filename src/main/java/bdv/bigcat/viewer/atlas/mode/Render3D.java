@@ -23,8 +23,8 @@ import bdv.viewer.ViewerPanel;
 import bdv.viewer.state.SourceState;
 import bdv.viewer.state.ViewerState;
 import net.imglib2.Interval;
-import net.imglib2.Point;
 import net.imglib2.RandomAccessible;
+import net.imglib2.RealPoint;
 import net.imglib2.RealRandomAccess;
 import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.view.Views;
@@ -128,9 +128,8 @@ public class Render3D extends AbstractStateMode
 
 						if ( Label.regular( selectedId ) )
 						{
-
 							final int[] partitionSize = { 64, 64, 10 };
-							final int[] cubeSize = { 1, 1, 1 };
+							final int[] cubeSize = { 10, 10, 1 };
 
 							final ForegroundCheck isForeground = ( ( Function< Object, ForegroundCheck< ? > > ) foregroundChecks.get( spimSource ) ).apply( rra.get() );
 							new Thread( () -> {
@@ -145,7 +144,8 @@ public class Render3D extends AbstractStateMode
 								v3dControl.generateMesh(
 										volumes[ 0 ],
 										intervals[ 0 ],
-										Point.wrap( Arrays.stream( imageCoordinate ).mapToLong( d -> ( long ) d ).toArray() ),
+										transforms[ 0 ],
+										new RealPoint( worldCoordinate ),
 										partitionSize,
 										cubeSize,
 										isForeground );

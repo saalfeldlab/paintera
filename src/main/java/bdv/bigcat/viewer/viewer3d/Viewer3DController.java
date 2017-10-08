@@ -7,12 +7,14 @@ import java.util.Optional;
 import bdv.bigcat.viewer.viewer3d.marchingCubes.ForegroundCheck;
 import bdv.bigcat.viewer.viewer3d.util.MeshExtractor;
 import cleargl.GLVector;
+import gnu.trove.list.array.TFloatArrayList;
 import graphics.scenery.Material;
 import graphics.scenery.Mesh;
 import net.imglib2.Interval;
-import net.imglib2.Localizable;
+import net.imglib2.Point;
 import net.imglib2.RandomAccess;
 import net.imglib2.RandomAccessible;
+import net.imglib2.RealLocalizable;
 import net.imglib2.RealPoint;
 import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.type.Type;
@@ -27,8 +29,6 @@ public class Viewer3DController
 	private final Viewer3D viewer3D;
 
 	private final ViewerMode mode;
-
-	private final double[] resolution;
 
 	/**
 	 * Enum of the viewer modes. There are two types: ONLY_ONE_NEURON_VISIBLE:
@@ -45,11 +45,10 @@ public class Viewer3DController
 	/**
 	 * Default constructor
 	 */
-	public Viewer3DController( final Viewer3D viewer, final ViewerMode mode, final double[] resolution )
+	public Viewer3DController( final Viewer3D viewer, final ViewerMode mode )
 	{
 		this.viewer3D = viewer;
 		this.mode = mode;
-		this.resolution = resolution;
 	}
 
 	/**
@@ -63,7 +62,7 @@ public class Viewer3DController
 			final RandomAccessible< T >[] labelVolumes,
 			final Interval[] intervals,
 			final AffineTransform3D[] transforms,
-			final Localizable location,
+			final RealLocalizable location,
 			final ForegroundCheck< T > isForeground,
 			final int[] partitionSize,
 			final int[] cubeSize )
@@ -83,11 +82,13 @@ public class Viewer3DController
 			transform.applyInverse( p, location );
 			for ( int d = 0; d < p.numDimensions(); ++d )
 				access.setPosition( ( long ) p.getDoublePosition( d ), d );
+			System.out.println( "Starting at " + new RealPoint( location ) + " " + p );
 
 			// same label for all resolutions
 			final MeshExtractor< T > meshExtractor = new MeshExtractor<>(
 					labelVolume,
 					intervals[ i ],
+					transforms[ i ],
 					partitionSize,
 					cubeSize,
 					access,
@@ -104,7 +105,6 @@ public class Viewer3DController
 
 			// define scale, position and material of the mesh
 			completeNeuron.setMaterial( material );
-			completeNeuron.setScale( new GLVector( ( float ) resolution[ 0 ], ( float ) resolution[ 1 ], ( float ) resolution[ 2 ] ) );
 			completeNeuron.setPosition( new GLVector( 0.0f, 0.0f, 0.0f ) );
 
 			// if it is not the first resolution, remove the already created
@@ -112,8 +112,8 @@ public class Viewer3DController
 			// TODO: this must be done in a piece-wise way. I do not think
 			// remove all the mesh and grown it again is the best way to do
 			// this.
-			if ( i != 0 )
-				viewer3D.removeChild( previousNeuron );
+//			if ( i != 0 )
+//				viewer3D.removeChild( previousNeuron );
 
 			// add the mesh (still empty) in the viewer
 			viewer3D.addChild( completeNeuron );
@@ -124,7 +124,6 @@ public class Viewer3DController
 			int completeMeshSize = 0;
 			while ( meshExtractor.hasNext() )
 			{
-				System.out.println( "GETTING NEXT MESH?" );
 				final Optional< Mesh > neuron = meshExtractor.next();
 				if ( neuron.isPresent() )
 				{
@@ -137,6 +136,7 @@ public class Viewer3DController
 
 					final float[] neuronVertices = neuron.get().getVertices().array();
 					final int meshSize = neuronVertices.length;
+					System.out.println( "GOT " + meshSize + " veritces (*3)" );
 					verticesArray = Arrays.copyOf( completeNeuronVertices, completeMeshSize + meshSize );
 					System.arraycopy( neuronVertices, 0, verticesArray, completeMeshSize, meshSize );
 
@@ -160,7 +160,8 @@ public class Viewer3DController
 	public < T extends Type< T > > void generateMesh(
 			final RandomAccessible< T > volumeLabels,
 			final Interval interval,
-			final Localizable location,
+			final AffineTransform3D transform,
+			final RealLocalizable worldLocation,
 			final int[] partitionSize,
 			final int[] cubeSize,
 			final ForegroundCheck< T > isForeground )
@@ -168,11 +169,21 @@ public class Viewer3DController
 		if ( mode == ViewerMode.ONLY_ONE_NEURON_VISIBLE )
 			viewer3D.removeAllNeurons();
 
-		float[] verticesArray = new float[ 0 ];
+//		viewer3D.setCameraPosition( worldLocation );
+
+		final RealPoint imageLocation = new RealPoint( worldLocation.numDimensions() );
+		transform.applyInverse( imageLocation, worldLocation );
+		final Point location = new Point( imageLocation.numDimensions() );
+		for ( int d = 0; d < location.numDimensions(); ++d )
+			location.setPosition( ( long ) imageLocation.getDoublePosition( d ), d );
+		System.out.println( "LOCATION " + location + " " + new RealPoint( worldLocation ) );
+
+		final float[] verticesArray = new float[ 0 ];
 
 		final MeshExtractor< T > meshExtractor = new MeshExtractor<>(
 				volumeLabels,
 				interval,
+				transform,
 				partitionSize,
 				cubeSize,
 				location,
@@ -195,31 +206,48 @@ public class Viewer3DController
 
 		completeNeuron.setMaterial( material );
 		completeNeuron.setPosition( new GLVector( 0.0f, 0.0f, 0.0f ) );
-		completeNeuron.setScale( new GLVector( ( float ) resolution[ 0 ], ( float ) resolution[ 1 ], ( float ) resolution[ 2 ] ) );
 		viewer3D.addChild( completeNeuron );
 
-		float[] completeNeuronVertices = new float[ 0 ];
-		int completeMeshSize = 0;
+//		float[] completeNeuronVertices = new float[ 0 ];
+//		int completeMeshSize = 0;
+		final TFloatArrayList completeNeuronVertices = new TFloatArrayList();
+		final TFloatArrayList completeNeuronNormals = new TFloatArrayList();
+		System.out.println( "GENERATING MESH! " + meshExtractor.hasNext() );
+
 		while ( meshExtractor.hasNext() )
 		{
 			final Optional< Mesh > neuron = meshExtractor.next();
+
+			System.out.println( "GETTING NEURON AT " + neuron.isPresent() );
 			if ( neuron.isPresent() )
 			{
 
-				if ( completeNeuron.getVertices().hasArray() )
-				{
-					completeNeuronVertices = completeNeuron.getVertices().array();
-					completeMeshSize = completeNeuronVertices.length;
-				}
+//				if ( completeNeuron.getVertices().hasArray() )
+//				{
+//					completeNeuronVertices = completeNeuron.getVertices().array();
+//					completeMeshSize = completeNeuronVertices.length;
+//				}
+				viewer3D.addChild( neuron.get() );
+				neuron.get().setDirty( true );
+				material.setDiffuse( new GLVector( 1f, 1f, 0f ) );
+				material.setOpacity( 0.5f );
 
-				final float[] neuronVertices = neuron.get().getVertices().array();
-				final int meshSize = neuronVertices.length;
-				verticesArray = Arrays.copyOf( completeNeuronVertices, completeMeshSize + meshSize );
-				System.arraycopy( neuronVertices, 0, verticesArray, completeMeshSize, meshSize );
+				neuron.get().setMaterial( material );
+				neuron.get().setPosition( new GLVector( 0.0f, 0.0f, 0.0f ) );
 
-				completeNeuron.setVertices( FloatBuffer.wrap( verticesArray ) );
-				completeNeuron.recalculateNormals();
-				completeNeuron.setDirty( true );
+//				final Mesh mesh = neuron.get();
+//				final float[] neuronVertices = mesh.getVertices().array();
+//				final int meshSize = neuronVertices.length;
+//				if ( meshSize > 0 )
+//				{
+//					completeNeuronVertices.addAll( neuronVertices );
+//					final FloatBuffer normals = mesh.getNormals();
+//					while ( normals.hasRemaining() )
+//						completeNeuronNormals.add( normals.get() );
+//					completeNeuron.setVertices( FloatBuffer.wrap( completeNeuronVertices.toArray() ) );
+//					completeNeuron.setNormals( FloatBuffer.wrap( completeNeuronNormals.toArray() ) );
+//					completeNeuron.setDirty( true );
+//				}
 			}
 		}
 	}
@@ -234,7 +262,7 @@ public class Viewer3DController
 	 *            transformations to be applied
 	 * @return vertices transformed
 	 */
-	private static float[] applyTransformation( final float[] source, final AffineTransform3D transform )
+	public static float[] applyTransformation( final float[] source, final AffineTransform3D transform )
 	{
 		final RealPoint p = new RealPoint( 3 );
 		final float[] target = new float[ source.length ];

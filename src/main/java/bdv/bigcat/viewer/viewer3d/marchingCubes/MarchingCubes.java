@@ -11,6 +11,8 @@ import net.imglib2.Cursor;
 import net.imglib2.FinalInterval;
 import net.imglib2.Interval;
 import net.imglib2.RandomAccessible;
+import net.imglib2.RealPoint;
+import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.util.Intervals;
 import net.imglib2.view.SubsampleView;
 import net.imglib2.view.Views;
@@ -34,6 +36,8 @@ public class MarchingCubes< T >
 
 	private final Interval interval;
 
+	private final AffineTransform3D transform;
+
 	/** size of the cube */
 	private final int[] cubeSize;
 
@@ -50,12 +54,13 @@ public class MarchingCubes< T >
 	/**
 	 * Initialize the class parameters with default values
 	 */
-	public MarchingCubes( final RandomAccessible< T > input, final Interval interval, final int[] cubeSize )
+	public MarchingCubes( final RandomAccessible< T > input, final Interval interval, final AffineTransform3D transform, final int[] cubeSize )
 	{
 		this.mesh = new SimpleMesh();
 		this.input = input;
 		this.interval = interval;
 		this.cubeSize = cubeSize;
+		this.transform = transform;
 	}
 
 //	/**
@@ -130,12 +135,13 @@ public class MarchingCubes< T >
 	 */
 	public float[] generateMesh( final ForegroundCheck< T > foregroundCheck )
 	{
+		System.out.println( "MESH GENERATING? " + Arrays.toString( Intervals.minAsLongArray( interval ) ) + " " + Arrays.toString( Intervals.maxAsLongArray( interval ) ) );
 		final long[] stride = Arrays.stream( cubeSize ).mapToLong( i -> i ).toArray();
 		final FinalInterval expandedInterval = Intervals.expand( interval, stride );
 		final SubsampleView< T > subsampled = Views.subsample( Views.interval( input, expandedInterval ), stride );
 		final Cursor< T >[] cursors = new Cursor[ 8 ];
 		final FinalInterval zeroMinInterval = new FinalInterval( Arrays.stream( Intervals.dimensionsAsLongArray( expandedInterval ) ).map( l -> l - 1 ).toArray() );
-		cursors[ 0 ] = Views.flatIterable( Views.interval( Views.offset( subsampled, 0, 0, 0 ), zeroMinInterval ) ).cursor();
+		cursors[ 0 ] = Views.flatIterable( Views.interval( Views.offset( subsampled, 0, 0, 0 ), zeroMinInterval ) ).localizingCursor();
 		cursors[ 1 ] = Views.flatIterable( Views.interval( Views.offset( subsampled, 1, 0, 0 ), zeroMinInterval ) ).cursor();
 		cursors[ 2 ] = Views.flatIterable( Views.interval( Views.offset( subsampled, 0, 1, 0 ), zeroMinInterval ) ).cursor();
 		cursors[ 3 ] = Views.flatIterable( Views.interval( Views.offset( subsampled, 1, 1, 0 ), zeroMinInterval ) ).cursor();
@@ -145,6 +151,7 @@ public class MarchingCubes< T >
 		cursors[ 7 ] = Views.flatIterable( Views.interval( Views.offset( subsampled, 1, 1, 1 ), zeroMinInterval ) ).cursor();
 
 		final TFloatArrayList vertices = new TFloatArrayList();
+		final RealPoint p = new RealPoint( interval.numDimensions() );
 
 		while ( cursors[ 0 ].hasNext() )
 		{
@@ -186,7 +193,11 @@ public class MarchingCubes< T >
 							( foregroundCheck.test( cursors[ 6 ].next() ) & 1 ) << 5 |
 							( foregroundCheck.test( cursors[ 2 ].next() ) & 1 ) << 6 |
 							( foregroundCheck.test( cursors[ 0 ].next() ) & 1 ) << 7;
+//			System.out.println( new Point( cursors[ 0 ] ) + " " + cursors[ 0 ].get() + " " + vertexValues );
 //			}
+
+//			p.setPosition( cursors[ 0 ] );
+//			transform.apply( p, p );
 
 			triangulation(
 					vertexValues,
@@ -197,6 +208,20 @@ public class MarchingCubes< T >
 
 		}
 
+		for ( int i = 0; i < vertices.size(); i += 3 )
+		{
+			p.setPosition( vertices.get( i + 0 ), 0 );
+			p.setPosition( vertices.get( i + 1 ), 1 );
+			p.setPosition( vertices.get( i + 2 ), 2 );
+			transform.apply( p, p );
+			vertices.set( i + 0, p.getFloatPosition( 0 ) );
+			vertices.set( i + 1, p.getFloatPosition( 1 ) );
+			vertices.set( i + 2, p.getFloatPosition( 2 ) );
+		}
+
+//		System.out.println( vertices.size() );
+		if ( vertices.size() > 0 )
+			System.out.println( vertices.get( 0 ) + " " + vertices.get( 1 ) + " " + vertices.get( 2 ) + " " + Arrays.toString( Intervals.minAsLongArray( interval ) ) + " " + transform );
 		return vertices.toArray();
 	}
 
@@ -470,9 +495,9 @@ public class MarchingCubes< T >
 		float diffY = v2y - v1y;
 		float diffZ = v2z - v1z;
 
-		diffX *= 0.5f;
-		diffY *= 0.5f;
-		diffZ *= 0.5f;
+		diffX *= 0.5;
+		diffY *= 0.5;
+		diffZ *= 0.5;
 
 		diffX += v1x;
 		diffY += v1y;

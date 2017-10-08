@@ -21,6 +21,7 @@ import net.imglib2.Interval;
 import net.imglib2.Localizable;
 import net.imglib2.Point;
 import net.imglib2.RandomAccessible;
+import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.util.Pair;
 
 /**
@@ -46,6 +47,8 @@ public class MeshExtractor< T >
 
 	private final Interval interval;
 
+	private final AffineTransform3D transform;
+
 	private final int[] partitionSize;
 
 	private final int[] cubeSize;
@@ -61,6 +64,7 @@ public class MeshExtractor< T >
 	public MeshExtractor(
 			final RandomAccessible< T > volumeLabels,
 			final Interval interval,
+			final AffineTransform3D transform,
 			final int[] partitionSize,
 			final int[] cubeSize,
 			final Localizable startingPoint,
@@ -68,6 +72,7 @@ public class MeshExtractor< T >
 	{
 		this.volumeLabels = volumeLabels;
 		this.interval = interval;
+		this.transform = transform;
 		this.partitionSize = partitionSize;
 		this.cubeSize = cubeSize;
 		this.isForeground = isForeground;
@@ -103,7 +108,8 @@ public class MeshExtractor< T >
 		}
 		catch ( final InterruptedException e )
 		{
-			LOGGER.error( " task interrupted: " + e.getCause() );
+			throw new RuntimeException( e );
+//			LOGGER.error( " task interrupted: " + e.getCause() );
 		}
 
 		// System.out.println( "get completed future" );
@@ -120,7 +126,8 @@ public class MeshExtractor< T >
 		catch ( InterruptedException | ExecutionException e )
 		{
 			LOGGER.error( "Mesh creation failed: " + e.getCause() );
-			return Optional.empty();
+			throw new RuntimeException( e );
+//			return Optional.empty();
 		}
 
 		final Optional< Mesh > sceneryMesh;
@@ -203,7 +210,7 @@ public class MeshExtractor< T >
 
 	private void createCallable( final Chunk< T > chunk )
 	{
-		final Callable< float[] > callable = () -> new MarchingCubes<>( volumeLabels, chunk.interval(), cubeSize ).generateMesh( isForeground );
+		final Callable< float[] > callable = () -> new MarchingCubes<>( volumeLabels, chunk.interval(), transform, cubeSize ).generateMesh( isForeground );
 		final Future< float[] > result = executor.submit( callable );
 		resultMeshMap.put( result, chunk );
 	}
@@ -237,15 +244,16 @@ public class MeshExtractor< T >
 	public void updateMesh( final float[] vertices, final Mesh sceneryMesh )
 	{
 
-		final float maxX = interval.dimension( 0 ) - 1;
-		final float maxY = interval.dimension( 1 ) - 1;
-		final float maxZ = interval.dimension( 2 ) - 1;
-
-		final float maxAxisVal = Math.max( maxX, Math.max( maxY, maxZ ) );
-		// omp parallel for
-		for ( int i = 0; i < vertices.length; i++ )
-			vertices[ i ] /= maxAxisVal;
+//		final float maxX = interval.dimension( 0 ) - 1;
+//		final float maxY = interval.dimension( 1 ) - 1;
+//		final float maxZ = interval.dimension( 2 ) - 1;
+//
+//		final float maxAxisVal = Math.max( maxX, Math.max( maxY, maxZ ) );
+//		// omp parallel for
+//		for ( int i = 0; i < vertices.length; i++ )
+//			vertices[ i ] /= maxAxisVal;
 
 		sceneryMesh.setVertices( FloatBuffer.wrap( vertices ) );
+		sceneryMesh.recalculateNormals();
 	}
 }
