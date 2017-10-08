@@ -169,7 +169,7 @@ public class Viewer3DController
 		if ( mode == ViewerMode.ONLY_ONE_NEURON_VISIBLE )
 			viewer3D.removeAllNeurons();
 
-//		viewer3D.setCameraPosition( worldLocation );
+		viewer3D.setCameraPosition( worldLocation );
 
 		final RealPoint imageLocation = new RealPoint( worldLocation.numDimensions() );
 		transform.applyInverse( imageLocation, worldLocation );
