@@ -26,6 +26,7 @@ import bdv.bigcat.viewer.atlas.data.DatasetSpec;
 import bdv.bigcat.viewer.atlas.data.HDF5LabelMultisetSourceSpec;
 import bdv.bigcat.viewer.atlas.data.HDF5LabelMultisetSourceSpec.HighlightingStreamConverter;
 import bdv.bigcat.viewer.atlas.data.LabelSpec;
+import bdv.bigcat.viewer.atlas.data.RenderableSpec;
 import bdv.bigcat.viewer.atlas.mode.Highlights;
 import bdv.bigcat.viewer.atlas.mode.Merges;
 import bdv.bigcat.viewer.atlas.mode.Mode;
@@ -110,12 +111,9 @@ public class Atlas
 
 	private final Viewer3D renderView = new Viewer3D( "", 1000, 1000, false );
 
-	private final Viewer3DController controller = new Viewer3DController();
+	private final Viewer3DController controller = new Viewer3DController( renderView, ViewerMode.ONLY_ONE_NEURON_VISIBLE );
 	{
 		new Thread( renderView::main ).start();
-		controller.setViewer3D( renderView );
-		controller.setResolution( new double[] { 4, 4, 40 } );
-		controller.setMode( ViewerMode.ONLY_ONE_NEURON_VISIBLE );
 	}
 
 	public Atlas( final Interval interval )
@@ -146,7 +144,7 @@ public class Atlas
 
 		this.view.add( renderView.getPanel(), 1, 1 );
 
-		final Mode[] initialModes = { new NavigationOnly(), new Highlights( selectedIds ), new Merges( selectedIds, assignments ), new Render3D() };
+		final Mode[] initialModes = { new NavigationOnly(), new Highlights( selectedIds ), new Merges( selectedIds, assignments ), new Render3D( controller ) };
 		Arrays.stream( initialModes ).forEach( modes::add );
 
 		for ( final Mode mode : modes )
@@ -342,8 +340,11 @@ public class Atlas
 				( ( Highlights ) mode ).addSource( vsource, source, toIdConverter );
 			else if ( mode instanceof Merges )
 				( ( Merges ) mode ).addSource( vsource, source, toIdConverter );
-			else if ( mode instanceof Render3D )
-				( ( Render3D ) mode ).addSource( vsource, source, toIdConverter );
+			else if ( mode instanceof Render3D && spec instanceof RenderableSpec )
+			{
+				System.out.println( "ADDING RENDERABLE SOURCE!" );
+				( ( Render3D ) mode ).addSource( vsource, source, toIdConverter, ( ( RenderableSpec ) spec )::foregroundCheck );
+			}
 
 		view.addActor( new ViewerActor()
 		{

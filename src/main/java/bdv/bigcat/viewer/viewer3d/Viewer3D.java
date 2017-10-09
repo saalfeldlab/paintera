@@ -18,28 +18,30 @@ import graphics.scenery.SceneryElement;
 import graphics.scenery.backends.Renderer;
 import graphics.scenery.controls.behaviours.MovementCommand;
 import graphics.scenery.utils.SceneryPanel;
+import net.imglib2.RealLocalizable;
 
 public class Viewer3D extends SceneryBase
 {
 	/** logger */
 	static final Logger LOGGER = LoggerFactory.getLogger( Viewer3D.class );
 
-	private double[] volumeResolution = null;
-
 	private final SceneryPanel scPanel;
 
-	public Viewer3D( String applicationName, int windowWidth, int windowHeight, boolean wantREPL )
+	private final Camera cam = new DetachedHeadCamera();
+
+	public Viewer3D( final String applicationName, final int windowWidth, final int windowHeight, final boolean wantREPL )
 	{
 		super( applicationName, windowWidth, windowHeight, wantREPL );
 
 		scPanel = new SceneryPanel( 500, 500 );
 	}
 
-	public void setVolumeResolution( double[] resolution )
+	public void setCameraPosition( final RealLocalizable position )
 	{
-		this.volumeResolution = resolution;
+		cam.setPosition( new GLVector( position.getFloatPosition( 0 ), position.getFloatPosition( 1 ), position.getFloatPosition( 2 ) ) );
 	}
 
+	@Override
 	public void init()
 	{
 		System.out.println( "init... " );
@@ -47,31 +49,21 @@ public class Viewer3D extends SceneryBase
 				Renderer.createRenderer( getHub(), getApplicationName(), getScene(), getWindowWidth(), getWindowHeight(), scPanel ) );
 		getHub().add( SceneryElement.Renderer, getRenderer() );
 
-		final Box hull = new Box( new GLVector( 50.0f, 50.0f, 50.0f ), true );
+		final Box hull = new Box( new GLVector( 20000, 20000, 20000 ), true );
 		hull.getMaterial().setDiffuse( new GLVector( 0.5f, 0.5f, 0.5f ) );
 		hull.getMaterial().setDoubleSided( true );
 		getScene().addChild( hull );
 
-		final Camera cam = new DetachedHeadCamera();
-
 		System.out.println( "camera... " );
 
-		cam.perspectiveCamera( 50f, getWindowWidth(), getWindowHeight(), 0.1f, 1000.0f );
+		cam.perspectiveCamera( 50f, getWindowWidth(), getWindowHeight(), 0.1f, 40000.0f );
 		cam.setActive( true );
 		// TODO: camera position must be related with the mesh not with the
 		// whole volume
-		if ( volumeResolution == null )
-		{
-			cam.setPosition( new GLVector( 0, 0, 5 ) );
-		}
-		else
-		{
-			cam.setPosition( new GLVector( ( float ) ( volumeResolution[ 0 ] / 2 ), ( float ) ( volumeResolution[ 1 ] / 2 ), 2 ) );
-		}
 		getScene().addChild( cam );
 
 		// TODO: camera position must be related with the object
-		cam.setPosition( new GLVector( 2f, 2f, 10 ) );
+		cam.setPosition( new GLVector( 0f, 0f, 0f ) );
 		getScene().addChild( cam );
 
 		final PointLight[] lights = new PointLight[ 4 ];
@@ -81,23 +73,23 @@ public class Viewer3D extends SceneryBase
 			lights[ i ] = new PointLight();
 			lights[ i ].setEmissionColor( new GLVector( 1.0f, 1.0f, 1.0f ) );
 			lights[ i ].setIntensity( 100.2f * 5 );
-			lights[ i ].setLinear( 0.0f );
-			lights[ i ].setQuadratic( 0.1f );
+			lights[ i ].setLinear( 0.001f );
+			lights[ i ].setQuadratic( 0.0f );
 		}
-
 		lights[ 0 ].setPosition( new GLVector( 1.0f, 0f, -1.0f / ( float ) Math.sqrt( 2.0 ) ) );
 		lights[ 1 ].setPosition( new GLVector( -1.0f, 0f, -1.0f / ( float ) Math.sqrt( 2.0 ) ) );
 		lights[ 2 ].setPosition( new GLVector( 0.0f, 1.0f, 1.0f / ( float ) Math.sqrt( 2.0 ) ) );
 		lights[ 3 ].setPosition( new GLVector( 0.0f, -1.0f, 1.0f / ( float ) Math.sqrt( 2.0 ) ) );
 
-		for ( int i = 0; i < lights.length; i++ )
-			getScene().addChild( lights[ i ] );
+		getScene().addChild( lights[ 0 ] );
+//		for ( int i = 0; i < lights.length; i++ )
+//			getScene().addChild( lights[ i ] );
 	}
 
-	public void addChild( Mesh child )
+	public void addChild( final Mesh child )
 	{
 		getScene().addChild( child );
-		MovementCommand movement = new MovementCommand( "move_forward", "forward", () -> child );
+		final MovementCommand movement = new MovementCommand( "move_forward", "forward", () -> child );
 	}
 
 	@Override
@@ -106,7 +98,7 @@ public class Viewer3D extends SceneryBase
 		setupCameraModeSwitching( "C" );
 	}
 
-	public void removeChild( Mesh child )
+	public void removeChild( final Mesh child )
 	{
 		getScene().removeChild( child );
 	}
@@ -115,17 +107,16 @@ public class Viewer3D extends SceneryBase
 	{
 		return scPanel;
 	}
-	
+
 	public void removeAllNeurons()
 	{
-		CopyOnWriteArrayList< Node > children = getScene().getChildren();
-		Iterator< Node > iterator = children.iterator();
-		while (iterator.hasNext()) {
-			Node child = iterator.next();
+		final CopyOnWriteArrayList< Node > children = getScene().getChildren();
+		final Iterator< Node > iterator = children.iterator();
+		while ( iterator.hasNext() )
+		{
+			final Node child = iterator.next();
 			if ( child.getName().compareTo( "Mesh" ) == 0 )
-			{
 				getScene().removeChild( child );
-			}
 		}
 	}
 

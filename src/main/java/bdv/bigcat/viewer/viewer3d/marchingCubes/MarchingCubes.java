@@ -1,18 +1,21 @@
 package bdv.bigcat.viewer.viewer3d.marchingCubes;
 
-import java.util.ArrayList;
-import java.util.List;
+import java.util.Arrays;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import bdv.bigcat.viewer.viewer3d.util.SimpleMesh;
-import bdv.labels.labelset.LabelMultisetType;
+import gnu.trove.list.array.TFloatArrayList;
 import net.imglib2.Cursor;
-import net.imglib2.RandomAccessibleInterval;
-import net.imglib2.type.numeric.IntegerType;
+import net.imglib2.FinalInterval;
+import net.imglib2.Interval;
+import net.imglib2.RandomAccessible;
+import net.imglib2.RealPoint;
+import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.util.Intervals;
-import net.imglib2.util.Util;
+import net.imglib2.view.SubsampleView;
+import net.imglib2.view.Views;
 
 /**
  * This class implements the marching cubes algorithm. Based on
@@ -29,24 +32,14 @@ public class MarchingCubes< T >
 	/** the mesh that represents the surface. */
 	private final SimpleMesh mesh;
 
-	private final RandomAccessibleInterval< T > input;
+	private final RandomAccessible< T > input;
 
-	/** No. of cells in x, y and z directions. */
-	private final long nCellsX, nCellsY, nCellsZ;
+	private final Interval interval;
 
-	/** The value (id) that we will use to create the mesh. */
-	private final long foregroundValue;
-
-	/** Indicates which criterion is going to be applied */
-	private final ForegroundCriterion criteria;
+	private final AffineTransform3D transform;
 
 	/** size of the cube */
 	private final int[] cubeSize;
-
-	/** list of calculated vertices */
-	private final ArrayList< float[] > vertices;
-
-	private final long[] offset;
 
 	/**
 	 * Enum of the available criteria. These criteria are used to evaluate if
@@ -61,94 +54,73 @@ public class MarchingCubes< T >
 	/**
 	 * Initialize the class parameters with default values
 	 */
-	public MarchingCubes( final RandomAccessibleInterval< T > input, final int[] cubeSize, final long foregroundValue, final long[] offset )
+	public MarchingCubes( final RandomAccessible< T > input, final Interval interval, final AffineTransform3D transform, final int[] cubeSize )
 	{
 		this.mesh = new SimpleMesh();
 		this.input = input;
-		this.foregroundValue = foregroundValue;
-		this.criteria = ForegroundCriterion.EQUAL;
+		this.interval = interval;
 		this.cubeSize = cubeSize;
-		this.vertices = new ArrayList<>();
-		this.offset = offset;
-
-		final long[] volDim = Intervals.dimensionsAsLongArray( input );
-
-		long nCellsX = ( long ) Math.ceil( ( volDim[ 0 ] + 2 ) / cubeSize[ 0 ] );
-		long nCellsY = ( long ) Math.ceil( ( volDim[ 1 ] + 2 ) / cubeSize[ 1 ] );
-		long nCellsZ = ( long ) Math.ceil( ( volDim[ 2 ] + 2 ) / cubeSize[ 2 ] );
-
-		if ( ( volDim[ 0 ] + 2 ) % cubeSize[ 0 ] == 0 )
-			nCellsX--;
-		if ( ( volDim[ 1 ] + 2 ) % cubeSize[ 1 ] == 0 )
-			nCellsY--;
-		if ( ( volDim[ 2 ] + 2 ) % cubeSize[ 2 ] == 0 )
-			nCellsZ--;
-
-		this.nCellsX = nCellsX;
-		this.nCellsY = nCellsY;
-		this.nCellsZ = nCellsZ;
+		this.transform = transform;
 	}
 
-	/**
-	 * Generic method to generate the mesh
-	 *
-	 * @param input
-	 *            RAI<T> that contains the volume label information
-	 * @param volDim
-	 *            dimension of the volume (chunk)
-	 * @param offset
-	 *            the chunk offset to correctly positioning the mesh
-	 * @param cubeSize
-	 *            the size of the cube that will generate the mesh
-	 * @param foregroundCriteria
-	 *            criteria to be considered in order to activate voxels
-	 * @param foregroundValue
-	 *            the value that will be used to generate the mesh
-	 * @param copyToArray
-	 *            if the data must be copied to an array before the mesh
-	 *            generation
-	 * @return SimpleMesh, basically an array with the vertices
-	 */
-	public SimpleMesh generateMesh( final boolean copyToArray )
-	{
-		SimpleMesh mesh = null;
-		final int[] volDim = Intervals.dimensionsAsIntArray( input );
-		if ( copyToArray )
-		{
-			if ( Util.getTypeFromInterval( input ) instanceof LabelMultisetType )
-			{
-				LOGGER.info( "copyToArray - input is instance of LabelMultisetType" );
-				// TODO: to verify this instantiation
-				final CopyDataToArray< T > copy = ( CopyDataToArray< T > ) new CopyDataToArrayFromLabelMultisetType();
-				mesh = generateMeshFromArray( input, volDim, cubeSize, copy );
-			}
-			else if ( Util.getTypeFromInterval( input ) instanceof IntegerType< ? > )
-			{
-				LOGGER.info( "copyToArray - input is instance of IntegerType" );
-				// TODO: to verify this instantiation
-				final CopyDataToArray< T > copy = ( CopyDataToArray< T > ) new CopyDataToArrayFromIntegerType<>();
-				mesh = generateMeshFromArray( input, volDim, cubeSize, copy );
-			}
-			else
-				LOGGER.error( "copyToArray - input has unknown type" );
-		}
-		else if ( Util.getTypeFromInterval( input ) instanceof LabelMultisetType )
-		{
-			LOGGER.info( "input is instance of LabelMultisetType" );
-			final NextVertexValues< T > nextVertices = ( NextVertexValues< T > ) new NextVertexValuesFromLabelMultisetType();
-			mesh = generateMeshFromRAI( input, cubeSize, nextVertices );
-		}
-		else if ( Util.getTypeFromInterval( input ) instanceof IntegerType< ? > )
-		{
-			LOGGER.info( "input is instance of IntegerType" );
-			final NextVertexValues< T > nextVertices = ( NextVertexValues< T > ) new NextVertexValuesFromIntegerType<>();
-			mesh = generateMeshFromRAI( input, cubeSize, nextVertices );
-		}
-		else
-			LOGGER.error( "input has unknown type" );
-
-		return mesh;
-	}
+//	/**
+//	 * Generic method to generate the mesh
+//	 *
+//	 * @param input
+//	 *            RAI<T> that contains the volume label information
+//	 * @param volDim
+//	 *            dimension of the volume (chunk)
+//	 * @param offset
+//	 *            the chunk offset to correctly positioning the mesh
+//	 * @param cubeSize
+//	 *            the size of the cube that will generate the mesh
+//	 * @param foregroundCriteria
+//	 *            criteria to be considered in order to activate voxels
+//	 * @param foregroundValue
+//	 *            the value that will be used to generate the mesh
+//	 * @param copyToArray
+//	 *            if the data must be copied to an array before the mesh
+//	 *            generation
+//	 * @return SimpleMesh, basically an array with the vertices
+//	 */
+//	@SuppressWarnings( "unchecked" )
+//	public SimpleMesh generateMesh( final boolean copyToArray )
+//	{
+//		SimpleMesh mesh = null;
+//
+//		final T t = Util.getTypeFromInterval( Views.interval( input, interval ) );
+//		if ( t instanceof LabelMultisetType )
+//		{
+//			LOGGER.info( "input is instance of LabelMultisetType" );
+//			final ToIntFunction< T > f = ( ToIntFunction< T > ) ( ToIntFunction< LabelMultisetType > ) multiset -> {
+//				long argMaxLabel = Label.INVALID;
+//				long argMaxCount = Integer.MIN_VALUE;
+//				for ( final Entry< Label > entry : multiset.entrySet() )
+//				{
+//					final int count = entry.getCount();
+//					if ( count > argMaxCount )
+//					{
+//						argMaxLabel = entry.getElement().id();
+//						argMaxCount = count;
+//					}
+//				}
+//				return argMaxLabel == foregroundValue ? 1 : 0;
+//			};
+//			mesh = generateMeshFromRAI( f );
+//		}
+//		else if ( t instanceof IntegerType< ? > )
+//		{
+//			final ToIntFunction< T > f = ( ToIntFunction< T > ) ( ToIntFunction< IntegerType< ? > > ) val -> {
+//				return val.getIntegerLong() == foregroundValue ? 1 : 0;
+//			};
+//			LOGGER.info( "input is instance of IntegerType" );
+//			mesh = generateMeshFromRAI( f );
+//		}
+//		else
+//			LOGGER.error( "input has unknown type" );
+//
+//		return mesh;
+//	}
 
 	/**
 	 * Creates the mesh using the information directly from the RAI structure
@@ -161,43 +133,31 @@ public class MarchingCubes< T >
 	 *            generic interface to access the information on RAI
 	 * @return SimpleMesh, basically an array with the vertices
 	 */
-	private SimpleMesh generateMeshFromRAI( final RandomAccessibleInterval< T > input, final int[] cubeSize, final NextVertexValues< T > nextValuesVertex )
+	public float[] generateMesh( final ForegroundCheck< T > foregroundCheck )
 	{
-		final Cursor< T > cursor = nextValuesVertex.createCursor( input );
+		System.out.println( "MESH GENERATING? " + Arrays.toString( Intervals.minAsLongArray( interval ) ) + " " + Arrays.toString( Intervals.maxAsLongArray( interval ) ) );
+		final long[] stride = Arrays.stream( cubeSize ).mapToLong( i -> i ).toArray();
+		final FinalInterval expandedInterval = Intervals.expand( interval, stride );
+		final SubsampleView< T > subsampled = Views.subsample( Views.interval( input, expandedInterval ), stride );
+		final Cursor< T >[] cursors = new Cursor[ 8 ];
+		final FinalInterval zeroMinInterval = new FinalInterval( Arrays.stream( Intervals.dimensionsAsLongArray( expandedInterval ) ).map( l -> l - 1 ).toArray() );
+		cursors[ 0 ] = Views.flatIterable( Views.interval( Views.offset( subsampled, 0, 0, 0 ), zeroMinInterval ) ).localizingCursor();
+		cursors[ 1 ] = Views.flatIterable( Views.interval( Views.offset( subsampled, 1, 0, 0 ), zeroMinInterval ) ).cursor();
+		cursors[ 2 ] = Views.flatIterable( Views.interval( Views.offset( subsampled, 0, 1, 0 ), zeroMinInterval ) ).cursor();
+		cursors[ 3 ] = Views.flatIterable( Views.interval( Views.offset( subsampled, 1, 1, 0 ), zeroMinInterval ) ).cursor();
+		cursors[ 4 ] = Views.flatIterable( Views.interval( Views.offset( subsampled, 0, 0, 1 ), zeroMinInterval ) ).cursor();
+		cursors[ 5 ] = Views.flatIterable( Views.interval( Views.offset( subsampled, 1, 0, 1 ), zeroMinInterval ) ).cursor();
+		cursors[ 6 ] = Views.flatIterable( Views.interval( Views.offset( subsampled, 0, 1, 1 ), zeroMinInterval ) ).cursor();
+		cursors[ 7 ] = Views.flatIterable( Views.interval( Views.offset( subsampled, 1, 1, 1 ), zeroMinInterval ) ).cursor();
 
-		cursor.next();
-		final int beginX = cursor.getIntPosition( 0 );
+		final TFloatArrayList vertices = new TFloatArrayList();
+		final RealPoint p = new RealPoint( interval.numDimensions() );
 
-		// how many cells we walked in x, y and z.
-		int xCells = 0;
-		int yCells = 0;
-		int zCells = 0;
-
-		while ( cursor.hasNext() )
+		while ( cursors[ 0 ].hasNext() )
 		{
-			int cursorX = cursor.getIntPosition( 0 );
-			int cursorY = cursor.getIntPosition( 1 );
-			int cursorZ = cursor.getIntPosition( 2 );
 
-			if ( beginX != cursorX )
-				xCells++;
-
-			// for each one of the verticesCursor, get its value
-			double[] vertexValues = new double[ 8 ];
-			nextValuesVertex.getVerticesValues( cursorX, cursorY, cursorZ, cubeSize, vertexValues );
-
-			if ( LOGGER.isDebugEnabled() )
-			{
-				// @formatter:off
-				LOGGER.debug( " " + ( int ) vertexValues[ 4 ] + "------" + ( int ) vertexValues[ 5 ] );
-				LOGGER.debug( " /|     /|" );
-				LOGGER.debug( " " + ( int ) vertexValues[ 7 ] + "-----" + ( int ) vertexValues[ 6 ] + " |" );
-				LOGGER.debug( " |" + ( int ) vertexValues[ 0 ] + "----|-" + ( int ) vertexValues[ 1 ] );
-				LOGGER.debug( " |/    |/" );
-				LOGGER.debug( " " + ( int ) vertexValues[ 3 ] + "-----" + ( int ) vertexValues[ 2 ] );
-				// @formatter:on
-			}
-
+			// Remap the vertices of the cube (8 positions) obtained from a RAI
+			// to match the expected order for this implementation
 			// @formatter:off
 			// the values from the cube are given first in z, then y, then x
 			// this way, the vertex_values (from getCube) are positioned in this
@@ -224,200 +184,45 @@ public class MarchingCubes< T >
 			//
 			// This way, we need to remap the cube vertices:
 			// @formatter:on
+			final int vertexValues =
+					( foregroundCheck.test( cursors[ 5 ].next() ) & 1 ) << 0 |
+							( foregroundCheck.test( cursors[ 7 ].next() ) & 1 ) << 1 |
+							( foregroundCheck.test( cursors[ 3 ].next() ) & 1 ) << 2 |
+							( foregroundCheck.test( cursors[ 1 ].next() ) & 1 ) << 3 |
+							( foregroundCheck.test( cursors[ 4 ].next() ) & 1 ) << 4 |
+							( foregroundCheck.test( cursors[ 6 ].next() ) & 1 ) << 5 |
+							( foregroundCheck.test( cursors[ 2 ].next() ) & 1 ) << 6 |
+							( foregroundCheck.test( cursors[ 0 ].next() ) & 1 ) << 7;
+//			System.out.println( new Point( cursors[ 0 ] ) + " " + cursors[ 0 ].get() + " " + vertexValues );
+//			}
 
-			vertexValues = remapCube( vertexValues );
+//			p.setPosition( cursors[ 0 ] );
+//			transform.apply( p, p );
 
-			if ( LOGGER.isDebugEnabled() )
-			{
-				// @formatter:off
-				LOGGER.debug( " " + ( int ) vertexValues[ 4 ] + "------" + ( int ) vertexValues[ 5 ] );
-				LOGGER.debug( " /|     /|" );
-				LOGGER.debug( " " + ( int ) vertexValues[ 7 ] + "-----" + ( int ) vertexValues[ 6 ] + " |" );
-				LOGGER.debug( " |" + ( int ) vertexValues[ 0 ] + "----|-" + ( int ) vertexValues[ 1 ] );
-				LOGGER.debug( " |/    |/" );
-				LOGGER.debug( " " + ( int ) vertexValues[ 3 ] + "-----" + ( int ) vertexValues[ 2 ] );
-				// @formatter:on
-			}
+			triangulation(
+					vertexValues,
+					cursors[ 0 ].getLongPosition( 0 ),
+					cursors[ 0 ].getLongPosition( 1 ),
+					cursors[ 0 ].getLongPosition( 2 ),
+					vertices );
 
-			triangulation( vertexValues, xCells, yCells, zCells );
-
-			for ( int j = 0; j < cubeSize[ 0 ]; j++ )
-				cursor.next();
-
-			if ( xCells == nCellsX - 1 )
-			{
-				final int newY = cursorY + cubeSize[ 1 ];
-				while ( cursor.hasNext() )
-				{
-					cursor.next();
-					cursorX = cursor.getIntPosition( 0 );
-					cursorY = cursor.getIntPosition( 1 );
-					if ( cursorX == input.min( 0 ) - 1 && cursorY == newY )
-						break;
-				}
-				xCells = 0;
-				yCells++;
-			}
-
-			if ( yCells == nCellsY )
-			{
-				final int newZ = cursorZ + cubeSize[ 2 ];
-				while ( cursor.hasNext() )
-				{
-					cursor.next();
-					cursorY = cursor.getIntPosition( 1 );
-					cursorZ = cursor.getIntPosition( 2 );
-					if ( cursorY == input.min( 1 ) - 1 && cursorZ == newZ )
-						break;
-				}
-				yCells = 0;
-				zCells++;
-			}
-
-			if ( zCells == nCellsZ )
-			{
-				while ( cursor.hasNext() )
-				{
-					cursor.next();
-					cursorZ = cursor.getIntPosition( 2 );
-					if ( cursorZ == input.min( 2 ) - 1 )
-						break;
-				}
-				zCells = 0;
-			}
 		}
 
-		convertVerticesFormat();
-
-		return mesh;
-	}
-
-	/**
-	 * @param input
-	 *            RAI with the label (segmentation) information
-	 * @param volDim
-	 *            dimension of the volume (chunk)
-	 * @param cubeSize
-	 *            size of the cube to walk in the volume
-	 * @param copyData
-	 *            generic interface that copies the data to an array
-	 * @return SimpleMesh, basically an array with the vertices
-	 */
-	private SimpleMesh generateMeshFromArray( final RandomAccessibleInterval< T > input, final int[] volDim, final int[] cubeSize, final CopyDataToArray< T > copyData )
-	{
-		// array where the data will be copied
-		final List< Long > volumeArray = new ArrayList<>();
-
-		// dimension on x direction, used to access the volume as an array
-		int xWidth = 0;
-
-		// dimension on xy direction, used to access the volume as an array
-		int xyWidth = 0;
-
-		copyData.copyDataToArray( input, volumeArray );
-
-		// two dimensions more: from 'min minus one' to 'max plus one'
-		xWidth = volDim[ 0 ] + 2;
-		xyWidth = xWidth * ( volDim[ 1 ] + 2 );
-
-		if ( LOGGER.isDebugEnabled() )
+		for ( int i = 0; i < vertices.size(); i += 3 )
 		{
-			LOGGER.debug( "volume size: " + volumeArray.size() );
-			LOGGER.debug( "xWidth: " + xWidth + " xyWidth: " + xyWidth );
-			LOGGER.debug( "ncells - x, y, z: " + nCellsX + " " + nCellsY + " " + nCellsZ );
-			LOGGER.debug( "max position on array: "
-					+ ( ( int ) ( cubeSize[ 2 ] * nCellsZ ) * xyWidth
-							+ ( int ) ( cubeSize[ 1 ] * nCellsY ) * xWidth
-							+ ( int ) ( cubeSize[ 0 ] * nCellsX ) ) );
+			p.setPosition( vertices.get( i + 0 ), 0 );
+			p.setPosition( vertices.get( i + 1 ), 1 );
+			p.setPosition( vertices.get( i + 2 ), 2 );
+			transform.apply( p, p );
+			vertices.set( i + 0, p.getFloatPosition( 0 ) );
+			vertices.set( i + 1, p.getFloatPosition( 1 ) );
+			vertices.set( i + 2, p.getFloatPosition( 2 ) );
 		}
 
-		final double[] vertexValues = new double[ 8 ];
-
-		for ( int cursorZ = 0; cursorZ < nCellsZ; cursorZ++ )
-			for ( int cursorY = 0; cursorY < nCellsY; cursorY++ )
-				for ( int cursorX = 0; cursorX < nCellsX; cursorX++ )
-				{
-					// @formatter:off
-					// the values from the cube are given first in y, then x, then z
-					// this way, the vertex_values (from getCube) are positioned in this
-					// way:
-					//
-					//  4------6
-					// /|     /|
-					// 0-----2 |
-					// |5----|-7
-					// |/    |/
-					// 1-----3
-					//
-					// this algorithm (based on
-					// http://paulbourke.net/geometry/polygonise/)
-					// considers the vertices of the cube in this order:
-					//
-					//  4------5
-					// /|     /|
-					// 7-----6 |
-					// |0----|-1
-					// |/    |/
-					// 3-----2
-					//
-					// This way, we need to remap the cube vertices:
-					// @formatter:on
-
-					if ( LOGGER.isTraceEnabled() )
-					{
-						LOGGER.trace( "position 7: " + ( cubeSize[ 2 ] * cursorZ * xyWidth + cubeSize[ 1 ] * cursorY * xWidth
-								+ cursorX * cubeSize[ 0 ] ) );
-						LOGGER.trace( "position 6: " + ( cubeSize[ 2 ] * cursorZ * xyWidth + cubeSize[ 1 ] * cursorY * xWidth
-								+ cubeSize[ 0 ] * ( cursorX + 1 ) ) );
-						LOGGER.trace( "position 3: " + ( cubeSize[ 2 ] * cursorZ * xyWidth + cubeSize[ 1 ] * ( cursorY + 1 ) * xWidth
-								+ cubeSize[ 0 ] * cursorX ) );
-						LOGGER.trace( "position 2: " + ( cubeSize[ 2 ] * cursorZ * xyWidth + cubeSize[ 1 ] * ( cursorY + 1 ) * xWidth
-								+ cubeSize[ 0 ] * ( cursorX + 1 ) ) );
-						LOGGER.trace( "position 4: " + ( cubeSize[ 2 ] * ( cursorZ + 1 ) * xyWidth + cubeSize[ 1 ] * cursorY * xWidth
-								+ cubeSize[ 0 ] * cursorX ) );
-						LOGGER.trace( "position 0: " + ( cubeSize[ 2 ] * ( cursorZ + 1 ) * xyWidth + cubeSize[ 1 ] * cursorY * xWidth
-								+ cubeSize[ 0 ] * ( cursorX + 1 ) ) );
-						LOGGER.trace( "position 5: " + ( cubeSize[ 2 ] * ( cursorZ + 1 ) * xyWidth + cubeSize[ 1 ] * ( cursorY + 1 ) * xWidth
-								+ cubeSize[ 0 ] * cursorX ) );
-						LOGGER.trace( "position 1: " + ( cubeSize[ 2 ] * ( cursorZ + 1 ) * xyWidth + cubeSize[ 1 ] * ( cursorY + 1 ) * xWidth
-								+ cubeSize[ 0 ] * ( cursorX + 1 ) ) );
-					}
-
-					vertexValues[ 7 ] = volumeArray.get( cubeSize[ 2 ] * cursorZ * xyWidth + cubeSize[ 1 ] * cursorY * xWidth
-							+ cursorX * cubeSize[ 0 ] );
-					vertexValues[ 3 ] = volumeArray.get( cubeSize[ 2 ] * cursorZ * xyWidth + cubeSize[ 1 ] * cursorY * xWidth
-							+ cubeSize[ 0 ] * ( cursorX + 1 ) );
-					vertexValues[ 6 ] = volumeArray.get( cubeSize[ 2 ] * cursorZ * xyWidth + cubeSize[ 1 ] * ( cursorY + 1 ) * xWidth
-							+ cubeSize[ 0 ] * cursorX );
-					vertexValues[ 2 ] = volumeArray.get( cubeSize[ 2 ] * cursorZ * xyWidth + cubeSize[ 1 ] * ( cursorY + 1 ) * xWidth
-							+ cubeSize[ 0 ] * ( cursorX + 1 ) );
-					vertexValues[ 4 ] = volumeArray.get( cubeSize[ 2 ] * ( cursorZ + 1 ) * xyWidth + cubeSize[ 1 ] * cursorY * xWidth
-							+ cubeSize[ 0 ] * cursorX );
-					vertexValues[ 0 ] = volumeArray.get( cubeSize[ 2 ] * ( cursorZ + 1 ) * xyWidth + cubeSize[ 1 ] * cursorY * xWidth
-							+ cubeSize[ 0 ] * ( cursorX + 1 ) );
-					vertexValues[ 5 ] = volumeArray.get( cubeSize[ 2 ] * ( cursorZ + 1 ) * xyWidth + cubeSize[ 1 ] * ( cursorY + 1 ) * xWidth
-							+ cubeSize[ 0 ] * cursorX );
-					vertexValues[ 1 ] = volumeArray.get( cubeSize[ 2 ] * ( cursorZ + 1 ) * xyWidth + cubeSize[ 1 ] * ( cursorY + 1 ) * xWidth
-							+ cubeSize[ 0 ] * ( cursorX + 1 ) );
-
-					if ( LOGGER.isDebugEnabled() )
-					{
-						// @formatter:off
-						LOGGER.debug( " " + ( int ) vertexValues[ 4 ] + "------" + ( int ) vertexValues[ 5 ] );
-						LOGGER.debug( " /|     /|" );
-						LOGGER.debug( " " + ( int ) vertexValues[ 7 ] + "-----" + ( int ) vertexValues[ 6 ] + " |" );
-						LOGGER.debug( " |" + ( int ) vertexValues[ 0 ] + "----|-" + ( int ) vertexValues[ 1 ] );
-						LOGGER.debug( " |/    |/" );
-						LOGGER.debug( " " + ( int ) vertexValues[ 3 ] + "-----" + ( int ) vertexValues[ 2 ] );
-						// @formatter:on
-					}
-
-					triangulation( vertexValues, cursorX, cursorY, cursorZ );
-				}
-
-		convertVerticesFormat();
-
-		return mesh;
+//		System.out.println( vertices.size() );
+		if ( vertices.size() > 0 )
+			System.out.println( vertices.get( 0 ) + " " + vertices.get( 1 ) + " " + vertices.get( 2 ) + " " + Arrays.toString( Intervals.minAsLongArray( interval ) ) + " " + transform );
+		return vertices.toArray();
 	}
 
 	/**
@@ -434,7 +239,7 @@ public class MarchingCubes< T >
 	 * @param cursorZ
 	 *            position on z
 	 */
-	private void triangulation( final double[] vertexValues, final int cursorX, final int cursorY, final int cursorZ )
+	private void triangulation( final int vertexValues, final long cursorX, final long cursorY, final long cursorZ, final TFloatArrayList vertices )
 	{
 		// @formatter:off
 		// this algorithm (based on http://paulbourke.net/geometry/polygonise/)
@@ -450,10 +255,10 @@ public class MarchingCubes< T >
 
 		// Calculate table lookup index from those vertices which
 		// are below the isolevel.
-		int tableIndex = 0;
-		for ( int i = 0; i < 8; i++ )
-			if ( foregroundCriterionTest( vertexValues[ i ] ) )
-				tableIndex |= 1 << i;
+		final int tableIndex = vertexValues;
+//		for ( int i = 0; i < 8; i++ )
+//			if ( vertexValues[ i ] == foregroundValue )
+//				tableIndex |= 1 << i;
 
 		// edge indexes:
 		// @formatter:off
@@ -511,51 +316,21 @@ public class MarchingCubes< T >
 			if ((MarchingCubesTables.MC_EDGE_TABLE[tableIndex] & 2048) != 0)
 				interpolationPoints[ 11 ] = calculateIntersection(cursorX, cursorY, cursorZ, 11);
 
-			for (int i = 0; MarchingCubesTables.MC_TRI_TABLE[tableIndex][i] != MarchingCubesTables.Invalid; i += 3)
+			for ( int i = 0; MarchingCubesTables.MC_TRI_TABLE[tableIndex][i] != MarchingCubesTables.Invalid; i += 3 )
 			{
-				vertices.add( new float[] {
-						interpolationPoints[ MarchingCubesTables.MC_TRI_TABLE[ tableIndex ][ i ] ][ 0 ],
-						interpolationPoints[ MarchingCubesTables.MC_TRI_TABLE[ tableIndex ][ i ] ][ 1 ],
-						interpolationPoints[ MarchingCubesTables.MC_TRI_TABLE[ tableIndex ][ i ] ][ 2 ]} );
+				vertices.add( interpolationPoints[ MarchingCubesTables.MC_TRI_TABLE[ tableIndex ][ i ] ][ 0 ] );
+				vertices.add( interpolationPoints[ MarchingCubesTables.MC_TRI_TABLE[ tableIndex ][ i ] ][ 1 ] );
+				vertices.add( interpolationPoints[ MarchingCubesTables.MC_TRI_TABLE[ tableIndex ][ i ] ][ 2 ] );
 
-				vertices.add( new float[] {
-						interpolationPoints[ MarchingCubesTables.MC_TRI_TABLE[ tableIndex ][ i + 1 ] ][ 0 ],
-						interpolationPoints[ MarchingCubesTables.MC_TRI_TABLE[ tableIndex ][ i + 1 ] ][ 1 ],
-						interpolationPoints[ MarchingCubesTables.MC_TRI_TABLE[ tableIndex ][ i + 1 ] ][ 2 ]} );
+				vertices.add( interpolationPoints[ MarchingCubesTables.MC_TRI_TABLE[ tableIndex ][ i + 1 ] ][ 0 ] );
+				vertices.add( interpolationPoints[ MarchingCubesTables.MC_TRI_TABLE[ tableIndex ][ i + 1 ] ][ 1 ] );
+				vertices.add( interpolationPoints[ MarchingCubesTables.MC_TRI_TABLE[ tableIndex ][ i + 1 ] ][ 2 ] );
 
-				vertices.add( new float[] {
-						interpolationPoints[ MarchingCubesTables.MC_TRI_TABLE[ tableIndex ][ i + 2] ][ 0 ],
-						interpolationPoints[ MarchingCubesTables.MC_TRI_TABLE[ tableIndex ][ i  + 2] ][ 1 ],
-						interpolationPoints[ MarchingCubesTables.MC_TRI_TABLE[ tableIndex ][ i  + 2] ][ 2 ]} );
+				vertices.add( interpolationPoints[ MarchingCubesTables.MC_TRI_TABLE[ tableIndex ][ i + 2 ] ][ 0 ] );
+				vertices.add( interpolationPoints[ MarchingCubesTables.MC_TRI_TABLE[ tableIndex ][ i + 2 ] ][ 1 ] );
+				vertices.add( interpolationPoints[ MarchingCubesTables.MC_TRI_TABLE[ tableIndex ][ i + 2 ] ][ 2 ] );
 			}
 		}
-	}
-
-	/**
-	 * Convert the arraylist into a float[][]
-	 */
-	private void convertVerticesFormat()
-	{
-		final int numberOfVertices = vertices.size();
-		mesh.setNumberOfVertices(numberOfVertices);
-
-		final float[][] verticesArray = new float[numberOfVertices][3];
-
-		for (int i = 0; i < numberOfVertices; i++)
-		{
-			verticesArray[i][0] = vertices.get( i )[ 0 ];
-			verticesArray[i][1] = vertices.get( i )[ 1 ];
-			verticesArray[i][2] = vertices.get( i )[ 2 ];
-
-			if (LOGGER.isTraceEnabled())
-			{
-				LOGGER.trace( "vertex x: " + verticesArray[i][0] );
-				LOGGER.trace( "vertex y: " + verticesArray[i][1] );
-				LOGGER.trace( "vertex z: " + verticesArray[i][2] );
-			}
-		}
-
-		mesh.setVertices(verticesArray);
 	}
 
 	/**
@@ -573,7 +348,7 @@ public class MarchingCubes< T >
 	 * @return
 	 *            intersected point in world coordinates
 	 */
-	private float[] calculateIntersection( final int cursorX, final int cursorY, final int cursorZ, final int intersectedEdge )
+	private float[] calculateIntersection( final long cursorX, final long cursorY, final long cursorZ, final int intersectedEdge )
 	{
 		LOGGER.trace("cursor position: " + cursorX + " " + cursorY + " " + cursorZ);
 		long v1x = cursorX, v1y = cursorY, v1z = cursorZ;
@@ -702,13 +477,13 @@ public class MarchingCubes< T >
 			break;
 		}
 
-		v1x = ( v1x + offset[ 0 ] / cubeSize[ 0 ] ) * cubeSize[ 0 ];
-		v1y = ( v1y + offset[ 1 ] / cubeSize[ 1 ] ) * cubeSize[ 1 ];
-		v1z = ( v1z + offset[ 2 ] / cubeSize[ 2 ] ) * cubeSize[ 2 ];
+		v1x = ( v1x + interval.min( 0 ) / cubeSize[ 0 ] ) * cubeSize[ 0 ];
+		v1y = ( v1y + interval.min( 1 ) / cubeSize[ 1 ] ) * cubeSize[ 1 ];
+		v1z = ( v1z + interval.min( 2 ) / cubeSize[ 2 ] ) * cubeSize[ 2 ];
 
-		v2x = ( v2x + offset[ 0 ] / cubeSize[ 0 ] ) * cubeSize[ 0 ];
-		v2y = ( v2y + offset[ 1 ] / cubeSize[ 1 ] ) * cubeSize[ 1 ];
-		v2z = ( v2z + offset[ 2 ] / cubeSize[ 2 ] ) * cubeSize[ 2 ];
+		v2x = ( v2x + interval.min( 0 ) / cubeSize[ 0 ] ) * cubeSize[ 0 ];
+		v2y = ( v2y + interval.min( 1 ) / cubeSize[ 1 ] ) * cubeSize[ 1 ];
+		v2z = ( v2z + interval.min( 2 ) / cubeSize[ 2 ] ) * cubeSize[ 2 ];
 
 		if (LOGGER.isTraceEnabled())
 		{
@@ -720,56 +495,14 @@ public class MarchingCubes< T >
 		float diffY = v2y - v1y;
 		float diffZ = v2z - v1z;
 
-		diffX *= 0.5f;
-		diffY *= 0.5f;
-		diffZ *= 0.5f;
+		diffX *= 0.5;
+		diffY *= 0.5;
+		diffZ *= 0.5;
 
 		diffX += v1x;
 		diffY += v1y;
 		diffZ += v1z;
 
 		return new float[] { diffX, diffY, diffZ };
-	}
-
-	/**
-	 * Checks if the given value matches the foreground accordingly with the
-	 * foreground criterion. This comparison is dependent on the variable
-	 * {@link #criteria}
-	 *
-	 * @param vertexValue
-	 *            value that will be compared with the foregroundValue
-	 *
-	 * @return true if it comply with the comparison, false otherwise.
-	 */
-	private boolean foregroundCriterionTest(final double vertexValue)
-	{
-		int result = Double.compare( vertexValue, foregroundValue );
-		if (criteria.equals( ForegroundCriterion.EQUAL ))
-			return (result == 0); // vertexValue == foregroundValue;
-		else
-			return (result > 0); // vertexValue >= foregroundValue;
-	}
-
-	/**
-	 * Remap the vertices of the cube (8 positions) obtained from a RAI to match
-	 * the expected order for this implementation
-	 *
-	 * @param vertexValues
-	 *            the vertices to change the order
-	 * @return same array but with positions in the expected place
-	 */
-	private double[] remapCube(final double[] vertexValues)
-	{
-		final double[] vv = new double[8];
-		vv[0] = vertexValues[5];
-		vv[1] = vertexValues[7];
-		vv[2] = vertexValues[3];
-		vv[3] = vertexValues[1];
-		vv[4] = vertexValues[4];
-		vv[5] = vertexValues[6];
-		vv[6] = vertexValues[2];
-		vv[7] = vertexValues[0];
-
-		return vv;
 	}
 }
