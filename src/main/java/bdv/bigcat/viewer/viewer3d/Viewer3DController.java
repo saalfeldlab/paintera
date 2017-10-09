@@ -1,7 +1,5 @@
 package bdv.bigcat.viewer.viewer3d;
 
-import java.nio.FloatBuffer;
-import java.util.Arrays;
 import java.util.Optional;
 
 import bdv.bigcat.viewer.viewer3d.marchingCubes.ForegroundCheck;
@@ -70,10 +68,10 @@ public class Viewer3DController
 		if ( mode == ViewerMode.ONLY_ONE_NEURON_VISIBLE )
 			viewer3D.removeAllNeurons();
 
-		Mesh previousNeuron = null;
+		viewer3D.setCameraPosition( location );
+
 		for ( int i = 0; i < labelVolumes.length; ++i )
 		{
-			float[] verticesArray = new float[ 0 ];
 			// parameters for each resolution
 			final RandomAccessible< T > labelVolume = labelVolumes[ i ];
 			final AffineTransform3D transform = transforms[ i ];
@@ -94,61 +92,69 @@ public class Viewer3DController
 					access,
 					isForeground );
 
-			// create an empty mesh
-			final Mesh completeNeuron = new Mesh();
 			final Material material = new Material();
 			material.setAmbient( new GLVector( 1f, 0.0f, 1f ) );
 			material.setSpecular( new GLVector( 1f, 0.0f, 1f ) );
-			// TODO: Get the color of the neuron in the segmentation
-			material.setDiffuse( new GLVector( 1f, 1f, 0f ) );
-			material.setOpacity( 1f );
 
-			// define scale, position and material of the mesh
+//			TODO: Get the color of the neuron in the segmentation
+//			LabelMultisetARGBConverter converter = new LabelMultisetARGBConverter();
+//			ARGBType argb = new ARGBType();
+//			converter.convert( volumeLabels.randomAccess().get(), argb );
+//			material.setDiffuse( new GLVector( ARGBType.red( foregroundValue ), ARGBType.green( foregroundValue ), ARGBType.blue( foregroundValue ) ) );
+
+			material.setDiffuse( new GLVector( 1f, 1f, 0f ) );
+			material.setOpacity( 0.5f );
+
+			final Mesh completeNeuron = new Mesh();
 			completeNeuron.setMaterial( material );
 			completeNeuron.setPosition( new GLVector( 0.0f, 0.0f, 0.0f ) );
-
-			// if it is not the first resolution, remove the already created
-			// resolution.
-			// TODO: this must be done in a piece-wise way. I do not think
-			// remove all the mesh and grown it again is the best way to do
-			// this.
-//			if ( i != 0 )
-//				viewer3D.removeChild( previousNeuron );
-
-			// add the mesh (still empty) in the viewer
 			viewer3D.addChild( completeNeuron );
-			// use cube of size - resolution is given by the data itself
-			// TODO: generate mesh starting at position defined by access
 
-			float[] completeNeuronVertices = new float[ 0 ];
-			int completeMeshSize = 0;
+			// TODO: remove mesh in lower resolution to add the mesh in higher
+			// resolution
+
+//			float[] completeNeuronVertices = new float[ 0 ];
+//			int completeMeshSize = 0;
+			final TFloatArrayList completeNeuronVertices = new TFloatArrayList();
+			final TFloatArrayList completeNeuronNormals = new TFloatArrayList();
+			System.out.println( "GENERATING MESH! " + meshExtractor.hasNext() );
+
 			while ( meshExtractor.hasNext() )
 			{
 				final Optional< Mesh > neuron = meshExtractor.next();
+
+				System.out.println( "GETTING NEURON AT " + neuron.isPresent() );
 				if ( neuron.isPresent() )
 				{
 
-					if ( completeNeuron.getVertices().hasArray() )
-					{
-						completeNeuronVertices = completeNeuron.getVertices().array();
-						completeMeshSize = completeNeuronVertices.length;
-					}
+//					if ( completeNeuron.getVertices().hasArray() )
+//					{
+//						completeNeuronVertices = completeNeuron.getVertices().array();
+//						completeMeshSize = completeNeuronVertices.length;
+//					}
+					viewer3D.addChild( neuron.get() );
+					neuron.get().setDirty( true );
+					material.setDiffuse( new GLVector( 1f, 1f, 0f ) );
+					material.setOpacity( 0.5f );
 
-					final float[] neuronVertices = neuron.get().getVertices().array();
-					final int meshSize = neuronVertices.length;
-					System.out.println( "GOT " + meshSize + " veritces (*3)" );
-					verticesArray = Arrays.copyOf( completeNeuronVertices, completeMeshSize + meshSize );
-					System.arraycopy( neuronVertices, 0, verticesArray, completeMeshSize, meshSize );
+					neuron.get().setMaterial( material );
+					neuron.get().setPosition( new GLVector( 0.0f, 0.0f, 0.0f ) );
 
-					// transform mesh into real world coordinates using
-					verticesArray = applyTransformation( verticesArray, transform );
-					// update the mesh in the viewer
-					completeNeuron.setVertices( FloatBuffer.wrap( verticesArray ) );
-					completeNeuron.recalculateNormals();
-					completeNeuron.setDirty( true );
+//					final Mesh mesh = neuron.get();
+//					final float[] neuronVertices = mesh.getVertices().array();
+//					final int meshSize = neuronVertices.length;
+//					if ( meshSize > 0 )
+//					{
+//						completeNeuronVertices.addAll( neuronVertices );
+//						final FloatBuffer normals = mesh.getNormals();
+//						while ( normals.hasRemaining() )
+//							completeNeuronNormals.add( normals.get() );
+//						completeNeuron.setVertices( FloatBuffer.wrap( completeNeuronVertices.toArray() ) );
+//						completeNeuron.setNormals( FloatBuffer.wrap( completeNeuronNormals.toArray() ) );
+//						completeNeuron.setDirty( true );
+//					}
 				}
 			}
-			previousNeuron = completeNeuron;
 		}
 	}
 
@@ -178,8 +184,6 @@ public class Viewer3DController
 			location.setPosition( ( long ) imageLocation.getDoublePosition( d ), d );
 		System.out.println( "LOCATION " + location + " " + new RealPoint( worldLocation ) );
 
-		final float[] verticesArray = new float[ 0 ];
-
 		final MeshExtractor< T > meshExtractor = new MeshExtractor<>(
 				volumeLabels,
 				interval,
@@ -189,8 +193,6 @@ public class Viewer3DController
 				location,
 				isForeground );
 
-		// use cube of size 1
-		final Mesh completeNeuron = new Mesh();
 		final Material material = new Material();
 		material.setAmbient( new GLVector( 1f, 0.0f, 1f ) );
 		material.setSpecular( new GLVector( 1f, 0.0f, 1f ) );
@@ -204,6 +206,7 @@ public class Viewer3DController
 		material.setDiffuse( new GLVector( 1f, 1f, 0f ) );
 		material.setOpacity( 0.5f );
 
+		final Mesh completeNeuron = new Mesh();
 		completeNeuron.setMaterial( material );
 		completeNeuron.setPosition( new GLVector( 0.0f, 0.0f, 0.0f ) );
 		viewer3D.addChild( completeNeuron );
