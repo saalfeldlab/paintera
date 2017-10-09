@@ -162,4 +162,9 @@ public class Viewer3D extends SceneryBase
 		}
 	}
 
+	public Scene scene()
+	{
+		return this.getScene();
+	}
+
 }

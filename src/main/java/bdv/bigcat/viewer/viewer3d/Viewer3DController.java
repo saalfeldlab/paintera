@@ -2,12 +2,19 @@ package bdv.bigcat.viewer.viewer3d;
 
 import java.nio.FloatBuffer;
 import java.util.Arrays;
+import java.util.HashSet;
+import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
+import bdv.bigcat.ui.ARGBStream;
+import bdv.bigcat.viewer.state.FragmentSegmentAssignmentState;
 import bdv.bigcat.viewer.viewer3d.marchingCubes.ForegroundCheck;
 import bdv.bigcat.viewer.viewer3d.util.MeshExtractor;
 import cleargl.GLVector;
-import gnu.trove.list.array.TFloatArrayList;
 import graphics.scenery.Material;
 import graphics.scenery.Mesh;
 import net.imglib2.Interval;
@@ -29,6 +36,10 @@ public class Viewer3DController
 	private final Viewer3D viewer3D;
 
 	private final ViewerMode mode;
+
+	private final ExecutorService es = Executors.newFixedThreadPool( Runtime.getRuntime().availableProcessors() - 1 );
+
+	private final HashSet< NeuronRenderer > renderers = new HashSet<>();
 
 	/**
 	 * Enum of the viewer modes. There are two types: ONLY_ONE_NEURON_VISIBLE:
@@ -157,99 +168,63 @@ public class Viewer3DController
 	 * @param volumeLabels
 	 * @param location
 	 */
-	public < T extends Type< T > > void generateMesh(
+	public synchronized < T extends Type< T >, F extends FragmentSegmentAssignmentState< F > > void generateMesh(
 			final RandomAccessible< T > volumeLabels,
 			final Interval interval,
 			final AffineTransform3D transform,
 			final RealLocalizable worldLocation,
 			final int[] partitionSize,
 			final int[] cubeSize,
-			final ForegroundCheck< T > isForeground )
+			final Function< T, ForegroundCheck< T > > getForegroundCheck,
+			final long fragmentId,
+			final F fragmentSegmentAssignment,
+			final ARGBStream stream,
+			final boolean append )
 	{
 		if ( mode == ViewerMode.ONLY_ONE_NEURON_VISIBLE )
 			viewer3D.removeAllNeurons();
 
-		viewer3D.setCameraPosition( worldLocation );
+//		viewer3D.setCameraPosition( worldLocation );
 
 		final RealPoint imageLocation = new RealPoint( worldLocation.numDimensions() );
 		transform.applyInverse( imageLocation, worldLocation );
-		final Point location = new Point( imageLocation.numDimensions() );
-		for ( int d = 0; d < location.numDimensions(); ++d )
-			location.setPosition( ( long ) imageLocation.getDoublePosition( d ), d );
-		System.out.println( "LOCATION " + location + " " + new RealPoint( worldLocation ) );
+		final Point locationInImageCoordinates = new Point( imageLocation.numDimensions() );
+		for ( int d = 0; d < locationInImageCoordinates.numDimensions(); ++d )
+			locationInImageCoordinates.setPosition( ( long ) imageLocation.getDoublePosition( d ), d );
+		System.out.println( "LOCATION " + locationInImageCoordinates + " " + new RealPoint( worldLocation ) );
 
-		final float[] verticesArray = new float[ 0 ];
-
-		final MeshExtractor< T > meshExtractor = new MeshExtractor<>(
-				volumeLabels,
-				interval,
-				transform,
-				partitionSize,
-				cubeSize,
-				location,
-				isForeground );
-
-		// use cube of size 1
-		final Mesh completeNeuron = new Mesh();
-		final Material material = new Material();
-		material.setAmbient( new GLVector( 1f, 0.0f, 1f ) );
-		material.setSpecular( new GLVector( 1f, 0.0f, 1f ) );
-
-//		TODO: Get the color of the neuron in the segmentation
-//		LabelMultisetARGBConverter converter = new LabelMultisetARGBConverter();
-//		ARGBType argb = new ARGBType();
-//		converter.convert( volumeLabels.randomAccess().get(), argb );
-//		material.setDiffuse( new GLVector( ARGBType.red( foregroundValue ), ARGBType.green( foregroundValue ), ARGBType.blue( foregroundValue ) ) );
-
-		material.setDiffuse( new GLVector( 1f, 1f, 0f ) );
-		material.setOpacity( 0.5f );
-
-		completeNeuron.setMaterial( material );
-		completeNeuron.setPosition( new GLVector( 0.0f, 0.0f, 0.0f ) );
-		viewer3D.addChild( completeNeuron );
-
-//		float[] completeNeuronVertices = new float[ 0 ];
-//		int completeMeshSize = 0;
-		final TFloatArrayList completeNeuronVertices = new TFloatArrayList();
-		final TFloatArrayList completeNeuronNormals = new TFloatArrayList();
-		System.out.println( "GENERATING MESH! " + meshExtractor.hasNext() );
-
-		while ( meshExtractor.hasNext() )
+		synchronized ( this.renderers )
 		{
-			final Optional< Mesh > neuron = meshExtractor.next();
-
-			System.out.println( "GETTING NEURON AT " + neuron.isPresent() );
-			if ( neuron.isPresent() )
+			if ( !append )
 			{
-
-//				if ( completeNeuron.getVertices().hasArray() )
-//				{
-//					completeNeuronVertices = completeNeuron.getVertices().array();
-//					completeMeshSize = completeNeuronVertices.length;
-//				}
-				viewer3D.addChild( neuron.get() );
-				neuron.get().setDirty( true );
-				material.setDiffuse( new GLVector( 1f, 1f, 0f ) );
-				material.setOpacity( 0.5f );
-
-				neuron.get().setMaterial( material );
-				neuron.get().setPosition( new GLVector( 0.0f, 0.0f, 0.0f ) );
-
-//				final Mesh mesh = neuron.get();
-//				final float[] neuronVertices = mesh.getVertices().array();
-//				final int meshSize = neuronVertices.length;
-//				if ( meshSize > 0 )
-//				{
-//					completeNeuronVertices.addAll( neuronVertices );
-//					final FloatBuffer normals = mesh.getNormals();
-//					while ( normals.hasRemaining() )
-//						completeNeuronNormals.add( normals.get() );
-//					completeNeuron.setVertices( FloatBuffer.wrap( completeNeuronVertices.toArray() ) );
-//					completeNeuron.setNormals( FloatBuffer.wrap( completeNeuronNormals.toArray() ) );
-//					completeNeuron.setDirty( true );
-//				}
+				this.renderers.forEach( NeuronRenderer::removeSelfFromScene );
+				this.renderers.clear();
 			}
+
+			final List< NeuronRenderer< ?, ? > > filteredNrs = renderers.stream()
+					.filter( nr -> nr.fragmentId() == fragmentId || nr.segmentId() == fragmentSegmentAssignment.getSegment( fragmentId ) )
+					.collect( Collectors.toList() );
+
+			filteredNrs.forEach( NeuronRenderer::removeSelfFromScene );
+			this.renderers.removeAll( filteredNrs );
+
+			final NeuronRenderer< T, F > nr = new NeuronRenderer<>(
+					fragmentId,
+					fragmentSegmentAssignment,
+					stream,
+					locationInImageCoordinates,
+					volumeLabels,
+					interval,
+					getForegroundCheck,
+					viewer3D.scene(),
+					es,
+					transform,
+					partitionSize,
+					cubeSize );
+			nr.render();
+			this.renderers.add( nr );
 		}
+
 	}
 
 	/**
