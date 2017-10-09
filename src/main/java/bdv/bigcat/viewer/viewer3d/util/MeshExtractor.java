@@ -29,12 +29,17 @@ import net.imglib2.util.Pair;
 import net.imglib2.view.Views;
 
 /**
- * This class is responsible for generate region of interests (map of
- * boundaries).
+ * This class is responsible for generate regions of interest.
  *
- * This class Will call the VolumePartitioner. It contains a callNext method (it
- * uses the chunk index based on x, y and z) that calls the mesh creation for
- * the next chunk.
+ * This class calls the VolumePartitioner. It contains a `next()` method (that
+ * uses the chunk index based on x, y and z position) that starts the mesh
+ * creation for the neighboring chunks.
+ * 
+ * Two modes: "optimized" and "find all". The "optimized" mode is optimized to
+ * eliminate neighboring chunks that not contain (probably) the id that we are
+ * looking for. The "find all" avoids the optimization. It can be used to
+ * identify when the same object is not represented by one connected component.
+ * 
  *
  * @author vleite
  * @param <T>
@@ -65,6 +70,14 @@ public class MeshExtractor< T >
 
 	private final VolumePartitioner< T > partitioner;
 
+	private final MeshModeGeneration meshMode;
+
+	public enum MeshModeGeneration
+	{
+		OPTIMIZED,
+		FIND_ALL;
+	}
+
 	public MeshExtractor(
 			final RandomAccessible< T > volumeLabels,
 			final Interval interval,
@@ -72,7 +85,8 @@ public class MeshExtractor< T >
 			final int[] partitionSize,
 			final int[] cubeSize,
 			final Localizable startingPoint,
-			final ForegroundCheck< T > isForeground )
+			final ForegroundCheck< T > isForeground,
+			final MeshModeGeneration meshMode )
 	{
 		this.volumeLabels = volumeLabels;
 		this.interval = interval;
@@ -80,6 +94,7 @@ public class MeshExtractor< T >
 		this.partitionSize = partitionSize;
 		this.cubeSize = cubeSize;
 		this.isForeground = isForeground;
+		this.meshMode = meshMode;
 
 		executor = new ExecutorCompletionService<>( Executors.newWorkStealingPool() );
 
@@ -103,6 +118,7 @@ public class MeshExtractor< T >
 	{
 		// System.out.println( "next method" );
 		Future< float[] > completedFuture = null;
+
 		// block until any task completes
 		try
 		{
@@ -112,8 +128,8 @@ public class MeshExtractor< T >
 		}
 		catch ( final InterruptedException e )
 		{
+			LOGGER.error( " task interrupted: " + e.getCause() );
 			throw new RuntimeException( e );
-//			LOGGER.error( " task interrupted: " + e.getCause() );
 		}
 
 		// System.out.println( "get completed future" );
@@ -125,7 +141,7 @@ public class MeshExtractor< T >
 		try
 		{
 			verticesOptional = Optional.of( completedFuture.get() );
-			LOGGER.info( "getting mesh" );
+			LOGGER.debug( "getting mesh" );
 		}
 		catch ( InterruptedException | ExecutionException e )
 		{
@@ -143,13 +159,16 @@ public class MeshExtractor< T >
 			updateMesh( vertices, mesh );
 			sceneryMesh = Optional.of( mesh );
 
-			if ( numVertices > 0 )
+			if ( meshMode == MeshModeGeneration.OPTIMIZED && numVertices == 0 )
+			{
+				// do nothing. In optimized mode just create new chunks if
+				// numVertices > 0
+			}
+			else
 			{
 				final long index = chunk.index();
 				final long[] offset = new long[ 3 ];
 				partitioner.indexToGridOffset( index, offset );
-
-				LOGGER.debug( "chunk {} ", chunk );
 
 				final Localizable newLocation = new Point( offset );
 				createNeighboringChunks( newLocation );
@@ -177,38 +196,46 @@ public class MeshExtractor< T >
 			return;
 		}
 
+
 		final long[] offset = new long[ location.numDimensions() ];
 		location.localize( offset );
 
 		final Point p = Point.wrap( offset );
+		final boolean[] neighboring = new boolean[ interval.numDimensions() * 2 ];
+		if ( meshMode == MeshModeGeneration.OPTIMIZED )
+		{
+			hasNeighboringData( location, neighboring );
+		}
 
-		LOGGER.trace( "Initial position is: {}, {}, {}", offset[ 0 ], offset[ 1 ], offset[ 2 ] );
-
-		boolean[] neighboring = new boolean[ interval.numDimensions() * 2];
-		hasNeighboringData( location, neighboring );
-
-		System.out.println( "Initial position is: " + offset[ 0 ] + " " + offset[ 1 ] + " " + offset[ 2 ] );
-		for ( int i = 0; i < neighboring.length; i++ )
-			System.out.println( "[i]: " + neighboring[ i ] );
+		LOGGER.trace( "Neighboring chunks of : {}, {}, {}", offset[ 0 ], offset[ 1 ], offset[ 2 ] );
 
 		// creates the callable for the chunk in the given position
 		// if one of the neighbors chunks exists, creates it
 		for ( int d = 0; d < offset.length; ++d )
 		{
 			offset[ d ] += 1;
-			LOGGER.trace( "New offset: {}, {}, {}", offset[ 0 ], offset[ 1 ], offset[ 2 ] );
-			System.out.println( "New offset +: " + offset[ 0 ] + " " + offset[ 1 ] + " " + offset[ 2 ] );
-			if ( partitioner.isGridOffsetContained( offset[ d ], d ) && !partitioner.isChunkPresent( p ) && neighboring[ d * 2 ] )
-				createChunk( p );
+			LOGGER.debug( "New offset +: {}, {}, {}", offset[ 0 ], offset[ 1 ], offset[ 2 ] );
+			evaluateChunk( p, offset[ d ], d, neighboring );
+
 			offset[ d ] -= 2;
-			System.out.println( "New offset -: " + offset[ 0 ] + " " + offset[ 1 ] + " " + offset[ 2 ] );
-			LOGGER.trace( "New offset: {}, {}, {}", offset[ 0 ], offset[ 1 ], offset[ 2 ] );
-			if ( partitioner.isGridOffsetContained( offset[ d ], d ) && !partitioner.isChunkPresent( p ) && neighboring[ d * 2 + 1 ] )
-				createChunk( p );
+			LOGGER.debug( "New offset -: {}, {}, {}", offset[ 0 ], offset[ 1 ], offset[ 2 ] );
+			evaluateChunk( p, offset[ d ], d, neighboring );
 			offset[ d ] += 1;
 		}
 
 		LOGGER.trace( "There is/are {} threads to calculate chunk mesh", resultMeshMap.size() );
+	}
+
+	private void evaluateChunk( Point p, long offset, int dimension, boolean[] neighboring )
+	{
+		if ( partitioner.isGridOffsetContained( offset, dimension ) && !partitioner.isChunkPresent( p ) )
+			if ( meshMode == MeshModeGeneration.OPTIMIZED )
+			{
+				if ( neighboring[ dimension * 2 ] )
+					createChunk( p );
+			}
+			else // if it is not in the optimized mode, creates the chunk anyway
+				createChunk( p );
 	}
 
 	private void createChunk( final Localizable offset )
@@ -235,16 +262,6 @@ public class MeshExtractor< T >
 	 */
 	public void updateMesh( final float[] vertices, final Mesh sceneryMesh )
 	{
-
-//		final float maxX = interval.dimension( 0 ) - 1;
-//		final float maxY = interval.dimension( 1 ) - 1;
-//		final float maxZ = interval.dimension( 2 ) - 1;
-//
-//		final float maxAxisVal = Math.max( maxX, Math.max( maxY, maxZ ) );
-//		// omp parallel for
-//		for ( int i = 0; i < vertices.length; i++ )
-//			vertices[ i ] /= maxAxisVal;
-
 		sceneryMesh.setVertices( FloatBuffer.wrap( vertices ) );
 		sceneryMesh.recalculateNormals();
 	}
@@ -285,7 +302,7 @@ public class MeshExtractor< T >
 		RandomAccessibleInterval< T > slice = Views.interval( volumeLabels, new FinalInterval( begin, end ) );
 		Cursor< T > cursor = Views.flatIterable( slice ).cursor();
 
-		System.out.println( "Checking dataset from: " + begin[ 0 ] + " " + begin[ 1 ] + " " + begin[ 2 ] + " to " + end[ 0 ] + " " + end[ 1 ] + " " + end[ 2 ] );
+		LOGGER.debug( "Checking dataset from: {} {} {} to {} {} {}", begin[ 0 ], begin[ 1 ], begin[ 2 ], end[ 0 ], end[ 1 ], end[ 2 ] );
 
 		while ( cursor.hasNext() )
 		{
@@ -298,6 +315,6 @@ public class MeshExtractor< T >
 			}
 		}
 		int index = ( direction.compareTo( "+" ) == 0 ) ? i * 2 : i * 2 + 1;
-		System.out.println( "this dataset is: " + neighboring[ index ] );
+		LOGGER.debug( "this dataset is: {}", neighboring[ index ] );
 	}
 }
