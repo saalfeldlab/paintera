@@ -5,7 +5,6 @@ import java.util.Arrays;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import bdv.bigcat.viewer.viewer3d.util.SimpleMesh;
 import gnu.trove.list.array.TFloatArrayList;
 import net.imglib2.Cursor;
 import net.imglib2.FinalInterval;
@@ -28,9 +27,6 @@ public class MarchingCubes< T >
 {
 	/** logger */
 	private static final Logger LOGGER = LoggerFactory.getLogger( MarchingCubes.class );
-
-	/** the mesh that represents the surface. */
-	private final SimpleMesh mesh;
 
 	private final RandomAccessible< T > input;
 
@@ -56,71 +52,11 @@ public class MarchingCubes< T >
 	 */
 	public MarchingCubes( final RandomAccessible< T > input, final Interval interval, final AffineTransform3D transform, final int[] cubeSize )
 	{
-		this.mesh = new SimpleMesh();
 		this.input = input;
 		this.interval = interval;
 		this.cubeSize = cubeSize;
 		this.transform = transform;
 	}
-
-//	/**
-//	 * Generic method to generate the mesh
-//	 *
-//	 * @param input
-//	 *            RAI<T> that contains the volume label information
-//	 * @param volDim
-//	 *            dimension of the volume (chunk)
-//	 * @param offset
-//	 *            the chunk offset to correctly positioning the mesh
-//	 * @param cubeSize
-//	 *            the size of the cube that will generate the mesh
-//	 * @param foregroundCriteria
-//	 *            criteria to be considered in order to activate voxels
-//	 * @param foregroundValue
-//	 *            the value that will be used to generate the mesh
-//	 * @param copyToArray
-//	 *            if the data must be copied to an array before the mesh
-//	 *            generation
-//	 * @return SimpleMesh, basically an array with the vertices
-//	 */
-//	@SuppressWarnings( "unchecked" )
-//	public SimpleMesh generateMesh( final boolean copyToArray )
-//	{
-//		SimpleMesh mesh = null;
-//
-//		final T t = Util.getTypeFromInterval( Views.interval( input, interval ) );
-//		if ( t instanceof LabelMultisetType )
-//		{
-//			LOGGER.info( "input is instance of LabelMultisetType" );
-//			final ToIntFunction< T > f = ( ToIntFunction< T > ) ( ToIntFunction< LabelMultisetType > ) multiset -> {
-//				long argMaxLabel = Label.INVALID;
-//				long argMaxCount = Integer.MIN_VALUE;
-//				for ( final Entry< Label > entry : multiset.entrySet() )
-//				{
-//					final int count = entry.getCount();
-//					if ( count > argMaxCount )
-//					{
-//						argMaxLabel = entry.getElement().id();
-//						argMaxCount = count;
-//					}
-//				}
-//				return argMaxLabel == foregroundValue ? 1 : 0;
-//			};
-//			mesh = generateMeshFromRAI( f );
-//		}
-//		else if ( t instanceof IntegerType< ? > )
-//		{
-//			final ToIntFunction< T > f = ( ToIntFunction< T > ) ( ToIntFunction< IntegerType< ? > > ) val -> {
-//				return val.getIntegerLong() == foregroundValue ? 1 : 0;
-//			};
-//			LOGGER.info( "input is instance of IntegerType" );
-//			mesh = generateMeshFromRAI( f );
-//		}
-//		else
-//			LOGGER.error( "input has unknown type" );
-//
-//		return mesh;
-//	}
 
 	/**
 	 * Creates the mesh using the information directly from the RAI structure
@@ -256,9 +192,6 @@ public class MarchingCubes< T >
 		// Calculate table lookup index from those vertices which
 		// are below the isolevel.
 		final int tableIndex = vertexValues;
-//		for ( int i = 0; i < 8; i++ )
-//			if ( vertexValues[ i ] == foregroundValue )
-//				tableIndex |= 1 << i;
 
 		// edge indexes:
 		// @formatter:off
