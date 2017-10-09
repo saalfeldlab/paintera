@@ -90,7 +90,8 @@ public class Viewer3DController
 					partitionSize,
 					cubeSize,
 					access,
-					isForeground );
+					isForeground,
+					MeshExtractor.MeshModeGeneration.FIND_ALL );
 
 			final Material material = new Material();
 			material.setAmbient( new GLVector( 1f, 0.0f, 1f ) );
@@ -191,7 +192,8 @@ public class Viewer3DController
 				partitionSize,
 				cubeSize,
 				location,
-				isForeground );
+				isForeground,
+				MeshExtractor.MeshModeGeneration.FIND_ALL );
 
 		final Material material = new Material();
 		material.setAmbient( new GLVector( 1f, 0.0f, 1f ) );
