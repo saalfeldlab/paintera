@@ -111,7 +111,7 @@ public class Atlas
 
 	private final Viewer3D renderView = new Viewer3D( "", 1000, 1000, false );
 
-	private final Viewer3DController controller = new Viewer3DController( renderView, ViewerMode.ONLY_ONE_NEURON_VISIBLE, new double[] { 4, 4, 40 } );
+	private final Viewer3DController controller = new Viewer3DController( renderView, ViewerMode.ONLY_ONE_NEURON_VISIBLE );
 	{
 		new Thread( renderView::main ).start();
 	}
