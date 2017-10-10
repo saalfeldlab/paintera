@@ -196,7 +196,6 @@ public class Viewer3DController
 
 		final RealPoint imageLocation = new RealPoint( worldLocation.numDimensions() );
 		transform.applyInverse( imageLocation, worldLocation );
-
 		final Point locationInImageCoordinates = new Point( imageLocation.numDimensions() );
 		for ( int d = 0; d < locationInImageCoordinates.numDimensions(); ++d )
 			locationInImageCoordinates.setPosition( ( long ) imageLocation.getDoublePosition( d ), d );
