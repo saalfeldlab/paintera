@@ -1,10 +1,14 @@
 package bdv.bigcat.viewer.viewer3d.marchingCubes;
 
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
+import java.util.Map;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import bdv.bigcat.viewer.viewer3d.util.HashWrapper;
 import gnu.trove.list.array.TFloatArrayList;
 import net.imglib2.Cursor;
 import net.imglib2.FinalInterval;
@@ -13,6 +17,8 @@ import net.imglib2.RandomAccessible;
 import net.imglib2.RealPoint;
 import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.util.Intervals;
+import net.imglib2.util.Pair;
+import net.imglib2.util.ValuePair;
 import net.imglib2.view.SubsampleView;
 import net.imglib2.view.Views;
 
@@ -69,9 +75,8 @@ public class MarchingCubes< T >
 	 *            generic interface to access the information on RAI
 	 * @return SimpleMesh, basically an array with the vertices
 	 */
-	public float[] generateMesh( final ForegroundCheck< T > foregroundCheck )
+	public Pair< float[], float[] > generateMesh( final ForegroundCheck< T > foregroundCheck )
 	{
-		System.out.println( "MESH GENERATING? " + Arrays.toString( Intervals.minAsLongArray( interval ) ) + " " + Arrays.toString( Intervals.maxAsLongArray( interval ) ) );
 		final long[] stride = Arrays.stream( cubeSize ).mapToLong( i -> i ).toArray();
 		final FinalInterval expandedInterval = Intervals.expand( interval, stride );
 		final SubsampleView< T > subsampled = Views.subsample( Views.interval( input, expandedInterval ), stride );
@@ -88,6 +93,9 @@ public class MarchingCubes< T >
 
 		final TFloatArrayList vertices = new TFloatArrayList();
 		final RealPoint p = new RealPoint( interval.numDimensions() );
+
+		final ArrayList< float[][] > triangles = new ArrayList<>();
+		final HashMap< HashWrapper< float[] >, float[] > normals = new HashMap<>();
 
 		while ( cursors[ 0 ].hasNext() )
 		{
@@ -140,12 +148,49 @@ public class MarchingCubes< T >
 					cursors[ 0 ].getLongPosition( 0 ),
 					cursors[ 0 ].getLongPosition( 1 ),
 					cursors[ 0 ].getLongPosition( 2 ),
-					vertices );
+					vertices,
+					triangles,
+					normals );
 
 		}
 
-		for ( int i = 0; i < vertices.size(); i += 3 )
+		final float[] vertex = new float[ 3 ];
+		final float[] normalsArray = new float[ vertices.size() ];
+		final AffineTransform3D scaleAndRotationNoTranslation = new AffineTransform3D();
+		scaleAndRotationNoTranslation.set( transform );
+		scaleAndRotationNoTranslation.setTranslation( new double[] { 0, 0, 0 } );
+
+		for ( final float[] normal : normals.values() )
 		{
+			normal[ 0 ] /= normal[ 3 ];
+			normal[ 1 ] /= normal[ 3 ];
+			normal[ 2 ] /= normal[ 3 ];
+			p.setPosition( normal[ 0 ], 0 );
+			p.setPosition( normal[ 1 ], 1 );
+			p.setPosition( normal[ 2 ], 2 );
+			scaleAndRotationNoTranslation.apply( p, p );
+			final float norm = ( float ) Math.sqrt( p.getDoublePosition( 0 ) * p.getDoublePosition( 0 ) + p.getDoublePosition( 1 ) * p.getDoublePosition( 1 ) + p.getDoublePosition( 2 ) * p.getDoublePosition( 2 ) );
+			normal[ 0 ] = p.getFloatPosition( 0 ) / norm;
+			normal[ 1 ] = p.getFloatPosition( 1 ) / norm;
+			normal[ 2 ] = p.getFloatPosition( 2 ) / norm;
+			normal[ 3 ] = 1.0f;
+		}
+
+		for ( int i = 0; i < normalsArray.length; i += 3 )
+		{
+			vertex[ 0 ] = vertices.get( i + 0 );
+			vertex[ 1 ] = vertices.get( i + 1 );
+			vertex[ 2 ] = vertices.get( i + 2 );
+			final HashWrapper< float[] > hw = new HashWrapper<>( vertex, Arrays::hashCode, Arrays::equals );
+			final float[] normal = normals.get( hw );
+			final float sum = normal[ 3 ];
+			normalsArray[ i + 0 ] = normal[ 0 ];// / sum;
+			normalsArray[ i + 1 ] = normal[ 1 ];/// sum;
+			normalsArray[ i + 2 ] = normal[ 2 ];// / sum;
+//		}
+//
+//		for ( int i = 0; i < vertices.size(); i += 3 )
+//		{
 			p.setPosition( vertices.get( i + 0 ), 0 );
 			p.setPosition( vertices.get( i + 1 ), 1 );
 			p.setPosition( vertices.get( i + 2 ), 2 );
@@ -155,10 +200,7 @@ public class MarchingCubes< T >
 			vertices.set( i + 2, p.getFloatPosition( 2 ) );
 		}
 
-//		System.out.println( vertices.size() );
-		if ( vertices.size() > 0 )
-			System.out.println( vertices.get( 0 ) + " " + vertices.get( 1 ) + " " + vertices.get( 2 ) + " " + Arrays.toString( Intervals.minAsLongArray( interval ) ) + " " + transform );
-		return vertices.toArray();
+		return new ValuePair<>( vertices.toArray(), normalsArray );
 	}
 
 	/**
@@ -175,7 +217,7 @@ public class MarchingCubes< T >
 	 * @param cursorZ
 	 *            position on z
 	 */
-	private void triangulation( final int vertexValues, final long cursorX, final long cursorY, final long cursorZ, final TFloatArrayList vertices )
+	private void triangulation( final int vertexValues, final long cursorX, final long cursorY, final long cursorZ, final TFloatArrayList vertices, final ArrayList< float[][] > triangles, final Map< HashWrapper< float[] >, float[] > normals )
 	{
 		// @formatter:off
 		// this algorithm (based on http://paulbourke.net/geometry/polygonise/)
@@ -251,17 +293,120 @@ public class MarchingCubes< T >
 
 			for ( int i = 0; MarchingCubesTables.MC_TRI_TABLE[tableIndex][i] != MarchingCubesTables.Invalid; i += 3 )
 			{
-				vertices.add( interpolationPoints[ MarchingCubesTables.MC_TRI_TABLE[ tableIndex ][ i ] ][ 0 ] );
-				vertices.add( interpolationPoints[ MarchingCubesTables.MC_TRI_TABLE[ tableIndex ][ i ] ][ 1 ] );
-				vertices.add( interpolationPoints[ MarchingCubesTables.MC_TRI_TABLE[ tableIndex ][ i ] ][ 2 ] );
 
-				vertices.add( interpolationPoints[ MarchingCubesTables.MC_TRI_TABLE[ tableIndex ][ i + 1 ] ][ 0 ] );
-				vertices.add( interpolationPoints[ MarchingCubesTables.MC_TRI_TABLE[ tableIndex ][ i + 1 ] ][ 1 ] );
-				vertices.add( interpolationPoints[ MarchingCubesTables.MC_TRI_TABLE[ tableIndex ][ i + 1 ] ][ 2 ] );
+				final float[][] triangle = new float[][] {
+					interpolationPoints[ MarchingCubesTables.MC_TRI_TABLE[ tableIndex ][ i ] ],
+					interpolationPoints[ MarchingCubesTables.MC_TRI_TABLE[ tableIndex ][ i + 1 ] ],
+					interpolationPoints[ MarchingCubesTables.MC_TRI_TABLE[ tableIndex ][ i + 2 ] ]
+				};
+				triangles.add( triangle );
 
-				vertices.add( interpolationPoints[ MarchingCubesTables.MC_TRI_TABLE[ tableIndex ][ i + 2 ] ][ 0 ] );
-				vertices.add( interpolationPoints[ MarchingCubesTables.MC_TRI_TABLE[ tableIndex ][ i + 2 ] ][ 1 ] );
-				vertices.add( interpolationPoints[ MarchingCubesTables.MC_TRI_TABLE[ tableIndex ][ i + 2 ] ][ 2 ] );
+//				 val v1 = GLVector(vertices[i], vertices[i + 1], vertices[i + 2])
+//            i += 3
+//
+//            val v2 = GLVector(vertices[i], vertices[i + 1], vertices[i + 2])
+//            i += 3
+//
+//            val v3 = GLVector(vertices[i], vertices[i + 1], vertices[i + 2])
+//            i += 3
+//
+//            val a = v2 - v1
+//            val b = v3 - v1
+//
+//            val n = a.cross(b).normalized
+//
+//            normals.add(n.x())
+//            normals.add(n.y())
+//            normals.add(n.z())
+//
+//            normals.add(n.x())
+//            normals.add(n.y())
+//            normals.add(n.z())
+//
+//            normals.add(n.x())
+//            normals.add(n.y())
+//            normals.add(n.z())
+
+				final float[] v1 = new float[] {
+				interpolationPoints[ MarchingCubesTables.MC_TRI_TABLE[ tableIndex ][ i ] ][ 0 ],
+				interpolationPoints[ MarchingCubesTables.MC_TRI_TABLE[ tableIndex ][ i ] ][ 1 ],
+				interpolationPoints[ MarchingCubesTables.MC_TRI_TABLE[ tableIndex ][ i ] ][ 2 ]
+				};
+
+				final float[] v2 = {
+						interpolationPoints[ MarchingCubesTables.MC_TRI_TABLE[ tableIndex ][ i + 1 ] ][ 0 ],
+						interpolationPoints[ MarchingCubesTables.MC_TRI_TABLE[ tableIndex ][ i + 1 ] ][ 1 ],
+						interpolationPoints[ MarchingCubesTables.MC_TRI_TABLE[ tableIndex ][ i + 1 ] ][ 2 ]
+				};
+
+				final float[] v3 = {
+						interpolationPoints[ MarchingCubesTables.MC_TRI_TABLE[ tableIndex ][ i + 2 ] ][ 0 ],
+						interpolationPoints[ MarchingCubesTables.MC_TRI_TABLE[ tableIndex ][ i + 2 ] ][ 1 ],
+						interpolationPoints[ MarchingCubesTables.MC_TRI_TABLE[ tableIndex ][ i + 2 ] ][ 2 ]
+				};
+
+				vertices.add( v1[0] );
+				vertices.add( v1[1] );
+				vertices.add( v1[2] );
+
+				vertices.add( v2[0] );
+				vertices.add( v2[1] );
+				vertices.add( v2[2] );
+
+				vertices.add( v3[0] );
+				vertices.add( v3[1] );
+				vertices.add( v3[2] );
+
+				final float[] diff1 = new float[ 3 ];
+				final float[] diff2 = new float[ 3 ];
+				final float[] normal = new float[ 3 ];
+
+				// diff1 = v2 - v1
+				// diff2 = v3 - v1
+				// n = diff1.cross(b).normalized
+
+				for ( int d = 0; d < v1.length; ++d ) {
+					diff1[ d ] = v2[d ] -v1[d];
+					diff2[ d ] = v3[ d ] -v1[d];
+				}
+
+				normal[ 0 ] = diff1[1] * diff2[2] - diff1[2] * diff2[1];
+				normal[ 1 ] = diff1[2] * diff2[0] - diff1[0] * diff2[2];
+				normal[ 2 ] = diff1[0] * diff2[1] - diff1[1] * diff2[0];
+
+				final float norm = (float)Math.sqrt( normal[ 0 ] * normal[ 0 ] + normal[ 1 ] * normal[ 1 ] + normal[ 2 ] * normal[ 2 ] );
+				normal[ 0 ] /= norm;
+				normal[ 1 ] /= norm;
+				normal[ 2 ] /= norm;
+
+				for ( final float[] vertex : new float[][] { v1, v2, v3 } ) {
+					final HashWrapper< float[] > hw = new HashWrapper<>( vertex, Arrays::hashCode, Arrays::equals );
+					final float[] n = normals.get( hw );
+					if ( n == null ) {
+						final float[] newNormal = new float[ 4 ];
+						System.arraycopy( normal, 0, newNormal, 0, normal.length );
+						newNormal[ 3 ] = 1.0f;
+						normals.put( hw, newNormal );
+					} else {
+						n[ 0 ] += normal[ 0 ];
+						n[ 1 ] += normal[ 1 ];
+						n[ 2 ] += normal[ 2 ];
+						n[ 3 ] += 1.0f;
+					}
+				}
+
+
+//				vertices.add( interpolationPoints[ MarchingCubesTables.MC_TRI_TABLE[ tableIndex ][ i ] ][ 0 ] );
+//				vertices.add( interpolationPoints[ MarchingCubesTables.MC_TRI_TABLE[ tableIndex ][ i ] ][ 1 ] );
+//				vertices.add( interpolationPoints[ MarchingCubesTables.MC_TRI_TABLE[ tableIndex ][ i ] ][ 2 ] );
+//
+//				vertices.add( interpolationPoints[ MarchingCubesTables.MC_TRI_TABLE[ tableIndex ][ i + 1 ] ][ 0 ] );
+//				vertices.add( interpolationPoints[ MarchingCubesTables.MC_TRI_TABLE[ tableIndex ][ i + 1 ] ][ 1 ] );
+//				vertices.add( interpolationPoints[ MarchingCubesTables.MC_TRI_TABLE[ tableIndex ][ i + 1 ] ][ 2 ] );
+//
+//				vertices.add( interpolationPoints[ MarchingCubesTables.MC_TRI_TABLE[ tableIndex ][ i + 2 ] ][ 0 ] );
+//				vertices.add( interpolationPoints[ MarchingCubesTables.MC_TRI_TABLE[ tableIndex ][ i + 2 ] ][ 1 ] );
+//				vertices.add( interpolationPoints[ MarchingCubesTables.MC_TRI_TABLE[ tableIndex ][ i + 2 ] ][ 2 ] );
 			}
 		}
 	}

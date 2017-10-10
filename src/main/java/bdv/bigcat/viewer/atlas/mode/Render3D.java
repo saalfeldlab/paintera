@@ -13,7 +13,9 @@ import org.scijava.ui.behaviour.util.AbstractNamedBehaviour;
 import org.scijava.ui.behaviour.util.Behaviours;
 import org.scijava.ui.behaviour.util.TriggerBehaviourBindings;
 
+import bdv.bigcat.ui.ARGBStream;
 import bdv.bigcat.viewer.ToIdConverter;
+import bdv.bigcat.viewer.state.FragmentSegmentAssignmentState;
 import bdv.bigcat.viewer.viewer3d.Viewer3DController;
 import bdv.bigcat.viewer.viewer3d.marchingCubes.ForegroundCheck;
 import bdv.labels.labelset.Label;
@@ -40,6 +42,10 @@ public class Render3D extends AbstractStateMode
 
 	private final HashMap< Source< ? >, Function< ?, ForegroundCheck< ? > > > foregroundChecks = new HashMap<>();
 
+	private final HashMap< Source< ? >, FragmentSegmentAssignmentState< ? > > frags = new HashMap<>();
+
+	private final HashMap< Source< ? >, ARGBStream > streams = new HashMap<>();
+
 	private final Viewer3DController v3dControl;
 
 	public Render3D( final Viewer3DController v3dControl )
@@ -54,15 +60,25 @@ public class Render3D extends AbstractStateMode
 		return "Render 3D";
 	}
 
-	public void addSource( final Source< ? > source, final Source< ? > dataSources, final ToIdConverter toIdConverter, final Function< ?, ForegroundCheck< ? > > foregroundCheck )
+	public void addSource(
+			final Source< ? > source,
+			final Source< ? > dataSource,
+			final ToIdConverter toIdConverter,
+			final Function< ?, ForegroundCheck< ? > > foregroundCheck,
+			final FragmentSegmentAssignmentState< ? > frag,
+			final ARGBStream stream )
 	{
 
 		if ( !this.dataSources.containsKey( source ) )
-			this.dataSources.put( source, dataSources );
+			this.dataSources.put( source, dataSource );
 		if ( !this.toIdConverters.containsKey( source ) )
 			this.toIdConverters.put( source, toIdConverter );
 		if ( !this.foregroundChecks.containsKey( source ) )
 			this.foregroundChecks.put( source, foregroundCheck );
+		if ( !this.frags.containsKey( source ) )
+			this.frags.put( source, frag );
+		if ( !this.streams.containsKey( source ) )
+			this.streams.put( source, stream );
 	}
 
 	public void removeSource( final Source< ? > source )
@@ -76,10 +92,13 @@ public class Render3D extends AbstractStateMode
 
 		private final ViewerPanel viewer;
 
-		public RenderNeuron( final String name, final ViewerPanel viewer )
+		private final boolean append;
+
+		public RenderNeuron( final String name, final ViewerPanel viewer, final boolean append )
 		{
 			super( name );
 			this.viewer = viewer;
+			this.append = append;
 		}
 
 		@Override
@@ -131,16 +150,8 @@ public class Render3D extends AbstractStateMode
 							final int[] partitionSize = { 64, 64, 10 };
 							final int[] cubeSize = { 10, 10, 1 };
 
-							final ForegroundCheck isForeground = ( ( Function< Object, ForegroundCheck< ? > > ) foregroundChecks.get( spimSource ) ).apply( rra.get() );
+							final Function getForegroundCheck = foregroundChecks.get( spimSource );
 							new Thread( () -> {
-//								v3dControl.renderAtSelection(
-//										volumes,
-//										intervals,
-//										transforms,
-//										Point.wrap( Arrays.stream( worldCoordinate ).mapToLong( d -> ( long ) d ).toArray() ),
-//										isForeground,
-//										partitionSize,
-//										cubeSize );
 								v3dControl.generateMesh(
 										volumes[ 0 ],
 										intervals[ 0 ],
@@ -148,7 +159,11 @@ public class Render3D extends AbstractStateMode
 										new RealPoint( worldCoordinate ),
 										partitionSize,
 										cubeSize,
-										isForeground );
+										getForegroundCheck,
+										selectedId,
+										( FragmentSegmentAssignmentState ) frags.get( spimSource ),
+										streams.get( spimSource ),
+										append );
 							} ).start();
 						}
 					}
@@ -167,8 +182,10 @@ public class Render3D extends AbstractStateMode
 				System.out.println( "Entering for merger!" );
 				final InputTriggerConfig inputTriggerConfig = new InputTriggerConfig();
 				final Behaviours behaviours = new Behaviours( inputTriggerConfig );
-				final RenderNeuron render = new RenderNeuron( "render neuron", t );
-				behaviours.namedBehaviour( render, "button1" );
+				final RenderNeuron render = new RenderNeuron( "render neuron", t, false );
+				final RenderNeuron append = new RenderNeuron( "render neuron append", t, true );
+				behaviours.namedBehaviour( render, "shift button1" );
+				behaviours.namedBehaviour( append, "shift button3" );
 				final TriggerBehaviourBindings bindings = new TriggerBehaviourBindings();
 				behaviours.install( bindings, "render" );
 				final MouseAndKeyHandler mouseAndKeyHandler = new MouseAndKeyHandler();

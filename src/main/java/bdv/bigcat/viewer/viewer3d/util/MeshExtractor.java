@@ -64,9 +64,9 @@ public class MeshExtractor< T >
 
 	private final ForegroundCheck< T > isForeground;
 
-	private final Map< Future< float[] >, Chunk< T > > resultMeshMap;
+	private final Map< Future< Pair< float[], float[] > >, Chunk< T > > resultMeshMap;
 
-	private final CompletionService< float[] > executor;
+	private final CompletionService< Pair< float[], float[] > > executor;
 
 	private final VolumePartitioner< T > partitioner;
 
@@ -117,8 +117,7 @@ public class MeshExtractor< T >
 	public Optional< Mesh > next()
 	{
 		// System.out.println( "next method" );
-		Future< float[] > completedFuture = null;
-
+		Future< Pair< float[], float[] > > completedFuture = null;
 		// block until any task completes
 		try
 		{
@@ -137,7 +136,7 @@ public class MeshExtractor< T >
 		final Chunk< T > chunk = resultMeshMap.remove( completedFuture );
 
 		// get the mesh, if the task was able to create it
-		Optional< float[] > verticesOptional;
+		Optional< Pair< float[], float[] > > verticesOptional;
 		try
 		{
 			verticesOptional = Optional.of( completedFuture.get() );
@@ -154,8 +153,8 @@ public class MeshExtractor< T >
 		if ( verticesOptional.isPresent() )
 		{
 			final Mesh mesh = new Mesh();
-			final float[] vertices = verticesOptional.get();
-			final int numVertices = vertices.length / 3;
+			final Pair< float[], float[] > vertices = verticesOptional.get();
+			final int numVertices = vertices.getA().length / 3;
 			updateMesh( vertices, mesh );
 			sceneryMesh = Optional.of( mesh );
 
@@ -247,8 +246,8 @@ public class MeshExtractor< T >
 
 	private void createCallable( final Chunk< T > chunk )
 	{
-		final Callable< float[] > callable = () -> new MarchingCubes<>( volumeLabels, chunk.interval(), transform, cubeSize ).generateMesh( isForeground );
-		final Future< float[] > result = executor.submit( callable );
+		final Callable< Pair< float[], float[] > > callable = () -> new MarchingCubes<>( volumeLabels, chunk.interval(), transform, cubeSize ).generateMesh( isForeground );
+		final Future< Pair< float[], float[] > > result = executor.submit( callable );
 		resultMeshMap.put( result, chunk );
 	}
 
@@ -260,10 +259,20 @@ public class MeshExtractor< T >
 	 * @param sceneryMesh
 	 *            scenery mesh that will receive the information
 	 */
-	public void updateMesh( final float[] vertices, final Mesh sceneryMesh )
+	public void updateMesh( final Pair< float[], float[] > vertices, final Mesh sceneryMesh )
 	{
-		sceneryMesh.setVertices( FloatBuffer.wrap( vertices ) );
-		sceneryMesh.recalculateNormals();
+//		final float maxX = interval.dimension( 0 ) - 1;
+//		final float maxY = interval.dimension( 1 ) - 1;
+//		final float maxZ = interval.dimension( 2 ) - 1;
+//
+//		final float maxAxisVal = Math.max( maxX, Math.max( maxY, maxZ ) );
+//		// omp parallel for
+//		for ( int i = 0; i < vertices.length; i++ )
+//			vertices[ i ] /= maxAxisVal;
+
+		sceneryMesh.setVertices( FloatBuffer.wrap( vertices.getA() ) );
+		sceneryMesh.setNormals( FloatBuffer.wrap( vertices.getB() ) );
+//		sceneryMesh.recalculateNormals();
 	}
 
 	private void hasNeighboringData( Localizable location, boolean[] neighboring )

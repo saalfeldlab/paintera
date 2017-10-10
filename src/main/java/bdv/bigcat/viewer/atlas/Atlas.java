@@ -343,7 +343,7 @@ public class Atlas
 			else if ( mode instanceof Render3D && spec instanceof RenderableSpec )
 			{
 				System.out.println( "ADDING RENDERABLE SOURCE!" );
-				( ( Render3D ) mode ).addSource( vsource, source, toIdConverter, ( ( RenderableSpec ) spec )::foregroundCheck );
+				( ( Render3D ) mode ).addSource( vsource, source, toIdConverter, ( ( RenderableSpec ) spec )::foregroundCheck, assignment, stream );
 			}
 
 		view.addActor( new ViewerActor()
