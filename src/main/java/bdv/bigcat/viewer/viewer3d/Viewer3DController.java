@@ -201,7 +201,7 @@ public class Viewer3DController
 				this.renderers.clear();
 			}
 
-			final List< NeuronRenderer< ?, ? > > filteredNrs = renderers.stream()
+			final List< NeuronRenderer > filteredNrs = renderers.stream()
 					.filter( nr -> nr.fragmentId() == fragmentId || nr.segmentId() == fragmentSegmentAssignment.getSegment( fragmentId ) )
 					.collect( Collectors.toList() );
 
