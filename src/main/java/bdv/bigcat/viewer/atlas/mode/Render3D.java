@@ -179,7 +179,7 @@ public class Render3D extends AbstractStateMode
 		return t -> {
 			if ( !this.mouseAndKeyHandlers.containsKey( t ) )
 			{
-				System.out.println( "Entering for merger!" );
+				System.out.println( "Entering for render3d!" );
 				final InputTriggerConfig inputTriggerConfig = new InputTriggerConfig();
 				final Behaviours behaviours = new Behaviours( inputTriggerConfig );
 				final RenderNeuron render = new RenderNeuron( "render neuron", t, false );
