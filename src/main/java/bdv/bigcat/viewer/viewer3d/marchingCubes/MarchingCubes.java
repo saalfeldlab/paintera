@@ -327,17 +327,17 @@ public class MarchingCubes< T >
 //            normals.add(n.y())
 //            normals.add(n.z())
 
-				vertices.add( triangle[ i ][ 0 ] );
-				vertices.add( triangle[ i ][ 1 ] );
-				vertices.add( triangle[ i ][ 2 ] );
+				vertices.add( triangle[ 0 ][ 0 ] );
+				vertices.add( triangle[ 0 ][ 1 ] );
+				vertices.add( triangle[ 0 ][ 2 ] );
 
-				vertices.add( triangle[ i + 1 ][ 0 ] );
-				vertices.add( triangle[ i + 1 ][ 1 ] );
-				vertices.add( triangle[ i + 1 ][ 2 ] );
+				vertices.add( triangle[ 1 ][ 0 ] );
+				vertices.add( triangle[ 1 ][ 1 ] );
+				vertices.add( triangle[ 1 ][ 2 ] );
 
-				vertices.add( triangle[ i + 2 ][ 0 ] );
-				vertices.add( triangle[ i + 2 ][ 1 ] );
-				vertices.add( triangle[ i + 2 ][ 2 ] );
+				vertices.add( triangle[ 2 ][ 0 ] );
+				vertices.add( triangle[ 2 ][ 1 ] );
+				vertices.add( triangle[ 2 ][ 2 ] );
 
 				final float[] diff1 = new float[ 3 ];
 				final float[] diff2 = new float[ 3 ];
@@ -347,9 +347,9 @@ public class MarchingCubes< T >
 				// diff2 = v3 - v1
 				// n = diff1.cross(b).normalized
 
-				for ( int d = 0; d < triangle[ i ].length; ++d ) {
-					diff1[ d ] = triangle[ i + 1 ][ d ] - triangle[ i ][ d ];
-					diff2[ d ] = triangle[ i + 2 ][ d ] - triangle[ i ][ d ];
+				for ( int d = 0; d < triangle[ 0 ].length; ++d ) {
+					diff1[ d ] = triangle[ 1 ][d ] -triangle[ 0 ][d];
+					diff2[ d ] = triangle[ 2 ][ d ] -triangle[ 0 ][d];
 				}
 
 				normal[ 0 ] = diff1[1] * diff2[2] - diff1[2] * diff2[1];
@@ -361,8 +361,7 @@ public class MarchingCubes< T >
 				normal[ 1 ] /= norm;
 				normal[ 2 ] /= norm;
 
-				for ( final float[] vertex : new float[][] { triangle[ i ], triangle[ i + 1 ], triangle[ i + 2 ] } )
-				{
+				for ( final float[] vertex : new float[][] { triangle[ 0 ], triangle[ 1 ], triangle[ 2 ] } ) {
 					final HashWrapper< float[] > hw = new HashWrapper<>( vertex, Arrays::hashCode, Arrays::equals );
 					final float[] n = normals.get( hw );
 					if ( n == null ) {
