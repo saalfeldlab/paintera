@@ -327,35 +327,17 @@ public class MarchingCubes< T >
 //            normals.add(n.y())
 //            normals.add(n.z())
 
-				final float[] v1 = new float[] {
-				interpolationPoints[ MarchingCubesTables.MC_TRI_TABLE[ tableIndex ][ i ] ][ 0 ],
-				interpolationPoints[ MarchingCubesTables.MC_TRI_TABLE[ tableIndex ][ i ] ][ 1 ],
-				interpolationPoints[ MarchingCubesTables.MC_TRI_TABLE[ tableIndex ][ i ] ][ 2 ]
-				};
+				vertices.add( triangle[ i ][ 0 ] );
+				vertices.add( triangle[ i ][ 1 ] );
+				vertices.add( triangle[ i ][ 2 ] );
 
-				final float[] v2 = {
-						interpolationPoints[ MarchingCubesTables.MC_TRI_TABLE[ tableIndex ][ i + 1 ] ][ 0 ],
-						interpolationPoints[ MarchingCubesTables.MC_TRI_TABLE[ tableIndex ][ i + 1 ] ][ 1 ],
-						interpolationPoints[ MarchingCubesTables.MC_TRI_TABLE[ tableIndex ][ i + 1 ] ][ 2 ]
-				};
+				vertices.add( triangle[ i + 1 ][ 0 ] );
+				vertices.add( triangle[ i + 1 ][ 1 ] );
+				vertices.add( triangle[ i + 1 ][ 2 ] );
 
-				final float[] v3 = {
-						interpolationPoints[ MarchingCubesTables.MC_TRI_TABLE[ tableIndex ][ i + 2 ] ][ 0 ],
-						interpolationPoints[ MarchingCubesTables.MC_TRI_TABLE[ tableIndex ][ i + 2 ] ][ 1 ],
-						interpolationPoints[ MarchingCubesTables.MC_TRI_TABLE[ tableIndex ][ i + 2 ] ][ 2 ]
-				};
-
-				vertices.add( v1[0] );
-				vertices.add( v1[1] );
-				vertices.add( v1[2] );
-
-				vertices.add( v2[0] );
-				vertices.add( v2[1] );
-				vertices.add( v2[2] );
-
-				vertices.add( v3[0] );
-				vertices.add( v3[1] );
-				vertices.add( v3[2] );
+				vertices.add( triangle[ i + 2 ][ 0 ] );
+				vertices.add( triangle[ i + 2 ][ 1 ] );
+				vertices.add( triangle[ i + 2 ][ 2 ] );
 
 				final float[] diff1 = new float[ 3 ];
 				final float[] diff2 = new float[ 3 ];
@@ -365,9 +347,9 @@ public class MarchingCubes< T >
 				// diff2 = v3 - v1
 				// n = diff1.cross(b).normalized
 
-				for ( int d = 0; d < v1.length; ++d ) {
-					diff1[ d ] = v2[d ] -v1[d];
-					diff2[ d ] = v3[ d ] -v1[d];
+				for ( int d = 0; d < triangle[ i ].length; ++d ) {
+					diff1[ d ] = triangle[ i + 1 ][ d ] - triangle[ i ][ d ];
+					diff2[ d ] = triangle[ i + 2 ][ d ] - triangle[ i ][ d ];
 				}
 
 				normal[ 0 ] = diff1[1] * diff2[2] - diff1[2] * diff2[1];
@@ -379,7 +361,8 @@ public class MarchingCubes< T >
 				normal[ 1 ] /= norm;
 				normal[ 2 ] /= norm;
 
-				for ( final float[] vertex : new float[][] { v1, v2, v3 } ) {
+				for ( final float[] vertex : new float[][] { triangle[ i ], triangle[ i + 1 ], triangle[ i + 2 ] } )
+				{
 					final HashWrapper< float[] > hw = new HashWrapper<>( vertex, Arrays::hashCode, Arrays::equals );
 					final float[] n = normals.get( hw );
 					if ( n == null ) {
@@ -394,7 +377,6 @@ public class MarchingCubes< T >
 						n[ 3 ] += 1.0f;
 					}
 				}
-
 
 //				vertices.add( interpolationPoints[ MarchingCubesTables.MC_TRI_TABLE[ tableIndex ][ i ] ][ 0 ] );
 //				vertices.add( interpolationPoints[ MarchingCubesTables.MC_TRI_TABLE[ tableIndex ][ i ] ][ 1 ] );
