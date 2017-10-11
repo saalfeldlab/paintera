@@ -34,31 +34,16 @@ public class Viewer3DController
 {
 	private final Viewer3D viewer3D;
 
-	private final ViewerMode mode;
-
 	private final ExecutorService es = Executors.newFixedThreadPool( Runtime.getRuntime().availableProcessors() - 1 );
 
 	private final HashSet< NeuronRenderer > renderers = new HashSet<>();
 
 	/**
-	 * Enum of the viewer modes. There are two types: ONLY_ONE_NEURON_VISIBLE:
-	 * Remove all previously rendered neurons and show only the most recent one.
-	 * MANY_NEURONS_VISIBLE: Add a new neuron to the viewer and keep the ones
-	 * that were already rendered.
-	 */
-	public enum ViewerMode
-	{
-		ONLY_ONE_NEURON_VISIBLE,
-		MANY_NEURONS_VISIBLE
-	}
-
-	/**
 	 * Default constructor
 	 */
-	public Viewer3DController( final Viewer3D viewer, final ViewerMode mode )
+	public Viewer3DController( final Viewer3D viewer )
 	{
 		this.viewer3D = viewer;
-		this.mode = mode;
 	}
 
 	/**
@@ -77,9 +62,6 @@ public class Viewer3DController
 			final int[] partitionSize,
 			final int[] cubeSize )
 	{
-		if ( mode == ViewerMode.ONLY_ONE_NEURON_VISIBLE )
-			viewer3D.removeAllNeurons();
-
 		viewer3D.setCameraPosition( location );
 
 		for ( int i = 0; i < labelVolumes.length; ++i )
@@ -189,11 +171,6 @@ public class Viewer3DController
 			final ARGBStream stream,
 			final boolean append )
 	{
-		if ( mode == ViewerMode.ONLY_ONE_NEURON_VISIBLE )
-			viewer3D.removeAllNeurons();
-
-//		viewer3D.setCameraPosition( worldLocation );
-
 		final RealPoint imageLocation = new RealPoint( worldLocation.numDimensions() );
 		transform.applyInverse( imageLocation, worldLocation );
 		final Point locationInImageCoordinates = new Point( imageLocation.numDimensions() );
@@ -205,8 +182,10 @@ public class Viewer3DController
 		{
 			if ( !append )
 			{
+				System.out.println( "do not append" );
 				this.renderers.forEach( NeuronRenderer::removeSelfFromScene );
 				this.renderers.clear();
+				viewer3D.setCameraPosition( worldLocation );
 			}
 
 			final List< NeuronRenderer > filteredNrs = renderers.stream()
@@ -232,7 +211,6 @@ public class Viewer3DController
 			nr.render();
 			this.renderers.add( nr );
 		}
-
 	}
 
 	/**
