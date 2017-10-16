@@ -70,65 +70,6 @@ public class MarchingCubes< T >
 		this.transform = transform;
 	}
 
-//	/**
-//	 * Generic method to generate the mesh
-//	 *
-//	 * @param input
-//	 *            RAI<T> that contains the volume label information
-//	 * @param volDim
-//	 *            dimension of the volume (chunk)
-//	 * @param offset
-//	 *            the chunk offset to correctly positioning the mesh
-//	 * @param cubeSize
-//	 *            the size of the cube that will generate the mesh
-//	 * @param foregroundCriteria
-//	 *            criteria to be considered in order to activate voxels
-//	 * @param foregroundValue
-//	 *            the value that will be used to generate the mesh
-//	 * @param copyToArray
-//	 *            if the data must be copied to an array before the mesh
-//	 *            generation
-//	 * @return SimpleMesh, basically an array with the vertices
-//	 */
-//	@SuppressWarnings( "unchecked" )
-//	public SimpleMesh generateMesh( final boolean copyToArray )
-//	{
-//		SimpleMesh mesh = null;
-//
-//		final T t = Util.getTypeFromInterval( Views.interval( input, interval ) );
-//		if ( t instanceof LabelMultisetType )
-//		{
-//			LOGGER.info( "input is instance of LabelMultisetType" );
-//			final ToIntFunction< T > f = ( ToIntFunction< T > ) ( ToIntFunction< LabelMultisetType > ) multiset -> {
-//				long argMaxLabel = Label.INVALID;
-//				long argMaxCount = Integer.MIN_VALUE;
-//				for ( final Entry< Label > entry : multiset.entrySet() )
-//				{
-//					final int count = entry.getCount();
-//					if ( count > argMaxCount )
-//					{
-//						argMaxLabel = entry.getElement().id();
-//						argMaxCount = count;
-//					}
-//				}
-//				return argMaxLabel == foregroundValue ? 1 : 0;
-//			};
-//			mesh = generateMeshFromRAI( f );
-//		}
-//		else if ( t instanceof IntegerType< ? > )
-//		{
-//			final ToIntFunction< T > f = ( ToIntFunction< T > ) ( ToIntFunction< IntegerType< ? > > ) val -> {
-//				return val.getIntegerLong() == foregroundValue ? 1 : 0;
-//			};
-//			LOGGER.info( "input is instance of IntegerType" );
-//			mesh = generateMeshFromRAI( f );
-//		}
-//		else
-//			LOGGER.error( "input has unknown type" );
-//
-//		return mesh;
-//	}
-
 	/**
 	 * Creates the mesh using the information directly from the RAI structure
 	 *
