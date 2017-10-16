@@ -1,5 +1,6 @@
 package bdv.bigcat.viewer.viewer3d;
 
+import java.lang.invoke.MethodHandles;
 import java.nio.FloatBuffer;
 import java.util.Arrays;
 import java.util.HashSet;
@@ -9,6 +10,10 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.function.Function;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import bdv.bigcat.ui.ARGBStream;
 import bdv.bigcat.viewer.state.FragmentSegmentAssignmentState;
@@ -34,6 +39,9 @@ import net.imglib2.type.Type;
  */
 public class Viewer3DController
 {
+
+	public static Logger LOG = LoggerFactory.getLogger( MethodHandles.lookup().lookupClass() );
+
 	private final Viewer3D viewer3D;
 
 	private final ViewerMode mode;
@@ -185,11 +193,18 @@ public class Viewer3DController
 
 //		viewer3D.setCameraPosition( worldLocation );
 
+		if ( LOG.isWarnEnabled() )
+			if ( IntStream.range( 0, cubeSize.length ).map( d -> partitionSize[ d ] % cubeSize[ d ] ).filter( mod -> mod != 0 ).count() > 0 )
+				LOG.warn( "Partition size ({}) not integer multiple of cube size ({}) for at least one dimension. This may result in rendering issues in overlap areas.", Arrays.toString( partitionSize ), Arrays.toString( cubeSize ) );
+
 		final RealPoint imageLocation = new RealPoint( worldLocation.numDimensions() );
 		transform.applyInverse( imageLocation, worldLocation );
 		final Point locationInImageCoordinates = new Point( imageLocation.numDimensions() );
 		for ( int d = 0; d < locationInImageCoordinates.numDimensions(); ++d )
-			locationInImageCoordinates.setPosition( ( long ) imageLocation.getDoublePosition( d ), d );
+		{
+			final long position = ( long ) imageLocation.getDoublePosition( d );
+			locationInImageCoordinates.setPosition( position, d );
+		}
 
 		synchronized ( this.renderers )
 		{
