@@ -40,7 +40,6 @@ import bdv.bigcat.viewer.state.SelectedIds;
 import bdv.bigcat.viewer.stream.ModalGoldenAngleSaturatedHighlightingARGBStream;
 import bdv.bigcat.viewer.viewer3d.Viewer3D;
 import bdv.bigcat.viewer.viewer3d.Viewer3DController;
-import bdv.bigcat.viewer.viewer3d.Viewer3DController.ViewerMode;
 import bdv.labels.labelset.LabelMultisetType;
 import bdv.labels.labelset.Multiset.Entry;
 import bdv.labels.labelset.VolatileLabelMultisetType;
@@ -111,7 +110,7 @@ public class Atlas
 
 	private final Viewer3D renderView = new Viewer3D( "", 1000, 1000, false );
 
-	private final Viewer3DController controller = new Viewer3DController( renderView, ViewerMode.ONLY_ONE_NEURON_VISIBLE );
+	private final Viewer3DController controller = new Viewer3DController( renderView );
 	{
 		new Thread( renderView::main ).start();
 	}
