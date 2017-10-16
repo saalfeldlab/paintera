@@ -153,8 +153,8 @@ public class Render3D extends AbstractStateMode
 
 						if ( Label.regular( selectedId ) )
 						{
-							final int[] partitionSize = { 64, 64, 10 };
-							final int[] cubeSize = { 10, 10, 1 };
+							final int[] partitionSize = { 60, 60, 10 };
+							final int[] cubeSize = { 1, 1, 1 };
 
 							final Function getForegroundCheck = foregroundChecks.get( spimSource );
 							new Thread( () -> {
