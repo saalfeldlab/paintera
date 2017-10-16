@@ -47,7 +47,7 @@ public interface ToIdConverter
 		{
 			final LabelMultisetType t = ( LabelMultisetType ) o;
 			long argMaxId = Label.INVALID;
-			long maxCount = Long.MIN_VALUE;
+			long maxCount = 0;
 			for ( final Entry< Label > entry : t.entrySet() )
 			{
 				final long id = entry.getElement().id();
