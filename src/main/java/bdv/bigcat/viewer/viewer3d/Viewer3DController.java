@@ -93,7 +93,6 @@ public class Viewer3DController
 			transform.applyInverse( p, location );
 			for ( int d = 0; d < p.numDimensions(); ++d )
 				access.setPosition( ( long ) p.getDoublePosition( d ), d );
-			System.out.println( "Starting at " + new RealPoint( location ) + " " + p );
 
 			// same label for all resolutions
 			final MeshExtractor< T > meshExtractor = new MeshExtractor<>(
@@ -147,7 +146,6 @@ public class Viewer3DController
 
 					final float[] neuronVertices = neuron.get().getVertices().array();
 					final int meshSize = neuronVertices.length;
-					System.out.println( "GOT " + meshSize + " veritces (*3)" );
 					verticesArray = Arrays.copyOf( completeNeuronVertices, completeMeshSize + meshSize );
 					System.arraycopy( neuronVertices, 0, verticesArray, completeMeshSize, meshSize );
 
@@ -191,7 +189,6 @@ public class Viewer3DController
 		final Point locationInImageCoordinates = new Point( imageLocation.numDimensions() );
 		for ( int d = 0; d < locationInImageCoordinates.numDimensions(); ++d )
 			locationInImageCoordinates.setPosition( ( long ) imageLocation.getDoublePosition( d ), d );
-		System.out.println( "LOCATION " + locationInImageCoordinates + " " + new RealPoint( worldLocation ) );
 
 		synchronized ( this.renderers )
 		{

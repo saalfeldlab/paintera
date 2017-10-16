@@ -201,7 +201,6 @@ public class MarchingCubes< T >
 							( foregroundCheck.test( cursors[ 6 ].next() ) & 1 ) << 5 |
 							( foregroundCheck.test( cursors[ 2 ].next() ) & 1 ) << 6 |
 							( foregroundCheck.test( cursors[ 0 ].next() ) & 1 ) << 7;
-//			System.out.println( new Point( cursors[ 0 ] ) + " " + cursors[ 0 ].get() + " " + vertexValues );
 //			}
 
 //			p.setPosition( cursors[ 0 ] );
