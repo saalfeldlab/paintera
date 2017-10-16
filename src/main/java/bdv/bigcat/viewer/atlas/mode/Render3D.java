@@ -31,6 +31,12 @@ import net.imglib2.RealRandomAccess;
 import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.view.Views;
 
+/**
+ *
+ *
+ * @author Vanessa Leite
+ * @author Philipp Hanslovsky
+ */
 public class Render3D extends AbstractStateMode
 {
 

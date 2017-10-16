@@ -29,7 +29,8 @@ import net.imglib2.type.Type;
 /**
  * Main class for the Marching Cubes
  *
- * @author vleite
+ * @author Vanessa Leite
+ * @author Philipp Hanslovsky
  */
 public class Viewer3DController
 {

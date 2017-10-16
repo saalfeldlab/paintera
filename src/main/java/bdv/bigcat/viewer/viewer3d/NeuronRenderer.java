@@ -31,6 +31,14 @@ import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.util.Intervals;
 import net.imglib2.util.Pair;
 
+/**
+ * 
+ *
+ * @author Vanessa Leite
+ * @author Philipp Hanslovsky
+ * @param <T>
+ * @param <F>
+ */
 public class NeuronRenderer< T, F extends FragmentSegmentAssignmentState< F > > implements StateListener< F >
 {
 
