@@ -171,6 +171,7 @@ public class Viewer3DController
 			final boolean append )
 	{
 
+		LOG.info( "Rendering neuron: {} {}", fragmentId, fragmentSegmentAssignment.getSegment( fragmentId ) );
 
 		if ( LOG.isWarnEnabled() )
 			if ( IntStream.range( 0, cubeSize.length ).map( d -> partitionSize[ d ] % cubeSize[ d ] ).filter( mod -> mod != 0 ).count() > 0 )
@@ -196,6 +197,7 @@ public class Viewer3DController
 			final List< NeuronRenderer > filteredNrs = renderers.stream()
 					.filter( nr -> nr.fragmentId() == fragmentId || nr.segmentId() == fragmentSegmentAssignment.getSegment( fragmentId ) )
 					.collect( Collectors.toList() );
+			LOG.info( "Removing renderers: {}", filteredNrs );
 
 			filteredNrs.forEach( NeuronRenderer::removeSelfFromScene );
 			this.renderers.removeAll( filteredNrs );
