@@ -202,12 +202,11 @@ public class NeuronRenderer< T, F extends FragmentSegmentAssignmentState< F > > 
 							final long[] otherGridCoordinates = gridCoordinates.clone();
 							otherCoordinates[ d ] += blockSize[ d ];
 							otherGridCoordinates[ d ] += 1;
-							submitForOffset( otherCoordinates, otherGridCoordinates, offsets );
+							submitForOffset( otherCoordinates.clone(), otherGridCoordinates.clone(), offsets );
 
 							otherCoordinates[ d ] -= 2 * blockSize[ d ];
 							otherGridCoordinates[ d ] -= 2;
-							otherGridCoordinates[ d ] += 1;
-							submitForOffset( otherCoordinates, otherGridCoordinates, offsets );
+							submitForOffset( otherCoordinates.clone(), otherGridCoordinates.clone(), offsets );
 						}
 
 					}
