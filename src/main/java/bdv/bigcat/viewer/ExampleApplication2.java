@@ -52,8 +52,6 @@ public class ExampleApplication2
 	public static void main( final String[] args ) throws Exception
 	{
 		// Set the log level
-		System.setProperty( org.slf4j.impl.SimpleLogger.DEFAULT_LOG_LEVEL_KEY, "off" );
-
 		final String rawFile = "data/sample_B_20160708_frags_46_50.hdf";
 		PlatformImpl.startup( () -> {} );
 		final String rawDataset = "volumes/raw";

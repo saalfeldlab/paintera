@@ -48,7 +48,6 @@ public class ExampleApplicationCremi
 	public static void main( final String[] args ) throws Exception
 	{
 		// Set the log level
-		System.setProperty( org.slf4j.impl.SimpleLogger.DEFAULT_LOG_LEVEL_KEY, "off" );
 		final String USER_HOME = System.getProperty( "user.home" );
 
 		final String rawFile = USER_HOME + "/Downloads/sample_A_padded_20160501.hdf";
