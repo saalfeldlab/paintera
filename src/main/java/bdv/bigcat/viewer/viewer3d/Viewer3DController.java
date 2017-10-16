@@ -171,7 +171,6 @@ public class Viewer3DController
 			final boolean append )
 	{
 
-//		viewer3D.setCameraPosition( worldLocation );
 
 		if ( LOG.isWarnEnabled() )
 			if ( IntStream.range( 0, cubeSize.length ).map( d -> partitionSize[ d ] % cubeSize[ d ] ).filter( mod -> mod != 0 ).count() > 0 )
