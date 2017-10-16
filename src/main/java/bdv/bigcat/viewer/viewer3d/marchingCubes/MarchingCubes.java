@@ -137,11 +137,15 @@ public class MarchingCubes< T >
 							( foregroundCheck.test( cursors[ 6 ].next() ) & 1 ) << 5 |
 							( foregroundCheck.test( cursors[ 2 ].next() ) & 1 ) << 6 |
 							( foregroundCheck.test( cursors[ 0 ].next() ) & 1 ) << 7;
-//			System.out.println( new Point( cursors[ 0 ] ) + " " + cursors[ 0 ].get() + " " + vertexValues );
-//			}
 
-//			p.setPosition( cursors[ 0 ] );
-//			transform.apply( p, p );
+			// @formatter:off
+//			System.out.println( " " + cursors[ 4 ].get() + "------" + cursors[ 6 ].get() );
+//			System.out.println( " /|     /|" );
+//			System.out.println( " " + cursors[ 0 ].get() + "-----" + cursors[ 2 ].get() + " |" );
+//			System.out.println( " |" + cursors[ 5 ].get() + "----|-" + cursors[ 7 ].get() );
+//			System.out.println( " |/    |/" );
+//			System.out.println( " " +  cursors[ 1 ].get() + "-----" +  cursors[ 3 ].get() );
+			// @formatter:on
 
 			triangulation(
 					vertexValues,
