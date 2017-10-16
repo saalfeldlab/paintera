@@ -146,13 +146,13 @@ public class NeuronRenderer< T, F extends FragmentSegmentAssignmentState< F > > 
 		final long[] coordinates = new long[ initialLocationInImageCoordinates.numDimensions() ];
 		initialLocationInImageCoordinates.localize( coordinates );
 		final long[] gridCoordinates = toGridCoordinates( coordinates, blockSize );
-		submitForOffset( coordinates, gridCoordinates, offsets );
+		submitForOffset( gridCoordinates, offsets );
 	}
 
-	private void submitForOffset( final long[] coordinates, final long[] gridCoordinates, final Map< HashWrapper< long[] >, long[] > offsets )
+	private void submitForOffset( final long[] gridCoordinates, final Map< HashWrapper< long[] >, long[] > offsets )
 	{
 		final HashWrapper< long[] > offset = HashWrapper.longArray( gridCoordinates );
-
+		final long[] coordinates = IntStream.range( 0, gridCoordinates.length ).mapToLong( d -> gridCoordinates[ d ] * blockSize[ d ] ).toArray();
 		synchronized ( offsets )
 		{
 			if ( isCanceled || offsets.containsKey( offset ) || !Intervals.contains( interval, new Point( coordinates ) ) )
@@ -200,16 +200,12 @@ public class NeuronRenderer< T, F extends FragmentSegmentAssignmentState< F > > 
 
 						for ( int d = 0; d < gridCoordinates.length; ++d )
 						{
-							final long[] otherCoordinates = coordinates.clone();
 							final long[] otherGridCoordinates = gridCoordinates.clone();
-
-							otherCoordinates[ d ] += blockSize[ d ];
 							otherGridCoordinates[ d ] += 1;
-							submitForOffset( otherCoordinates, otherGridCoordinates, offsets );
+							submitForOffset( otherGridCoordinates.clone(), offsets );
 
-							otherCoordinates[ d ] -= 2 * blockSize[ d ];
 							otherGridCoordinates[ d ] -= 2;
-							submitForOffset( otherCoordinates, otherGridCoordinates, offsets );
+							submitForOffset( otherGridCoordinates.clone(), offsets );
 						}
 					}
 				} ) );
