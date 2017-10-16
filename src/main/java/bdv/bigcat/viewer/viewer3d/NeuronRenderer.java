@@ -152,6 +152,7 @@ public class NeuronRenderer< T, F extends FragmentSegmentAssignmentState< F > > 
 	private void submitForOffset( final long[] coordinates, final long[] gridCoordinates, final Map< HashWrapper< long[] >, long[] > offsets )
 	{
 		final HashWrapper< long[] > offset = HashWrapper.longArray( gridCoordinates );
+
 		synchronized ( offsets )
 		{
 			if ( isCanceled || offsets.containsKey( offset ) || !Intervals.contains( interval, new Point( coordinates ) ) )
@@ -161,10 +162,12 @@ public class NeuronRenderer< T, F extends FragmentSegmentAssignmentState< F > > 
 		synchronized ( futures )
 		{
 			if ( !isCanceled )
+			{
 				this.futures.add( es.submit( () -> {
 					final Interval interval = new FinalInterval(
 							coordinates,
 							IntStream.range( 0, coordinates.length ).mapToLong( d -> coordinates[ d ] + blockSize[ d ] ).toArray() );
+
 					final MarchingCubes< T > mc = new MarchingCubes<>( data, interval, toWorldCoordinates, cubeSize );
 					final Pair< float[], float[] > verticesAndNormals = mc.generateMesh( foregroundCheck );
 					final float[] vertices = verticesAndNormals.getA();
@@ -174,7 +177,6 @@ public class NeuronRenderer< T, F extends FragmentSegmentAssignmentState< F > > 
 
 					if ( vertices.length > 0 )
 					{
-
 						final Mesh mesh = new Mesh();
 						final Material material = new Material();
 						final int color = stream.argb( selectedSegmentId );
@@ -200,18 +202,18 @@ public class NeuronRenderer< T, F extends FragmentSegmentAssignmentState< F > > 
 						{
 							final long[] otherCoordinates = coordinates.clone();
 							final long[] otherGridCoordinates = gridCoordinates.clone();
+
 							otherCoordinates[ d ] += blockSize[ d ];
 							otherGridCoordinates[ d ] += 1;
 							submitForOffset( otherCoordinates, otherGridCoordinates, offsets );
 
 							otherCoordinates[ d ] -= 2 * blockSize[ d ];
 							otherGridCoordinates[ d ] -= 2;
-							otherGridCoordinates[ d ] += 1;
 							submitForOffset( otherCoordinates, otherGridCoordinates, offsets );
 						}
-
 					}
 				} ) );
+			}
 		}
 
 	}
