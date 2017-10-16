@@ -258,4 +258,10 @@ public class NeuronRenderer< T, F extends FragmentSegmentAssignmentState< F > > 
 		this.foregroundCheck = getForegroundCheck.apply( ra.get() );
 	}
 
+	@Override
+	public String toString()
+	{
+		return String.format( "%s: %d %d", getClass().getSimpleName(), fragmentId(), segmentId() );
+	}
+
 }
