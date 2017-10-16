@@ -1,5 +1,6 @@
 package bdv.bigcat.viewer.atlas.mode;
 
+import java.lang.invoke.MethodHandles;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
@@ -12,6 +13,8 @@ import org.scijava.ui.behaviour.io.InputTriggerConfig;
 import org.scijava.ui.behaviour.util.AbstractNamedBehaviour;
 import org.scijava.ui.behaviour.util.Behaviours;
 import org.scijava.ui.behaviour.util.TriggerBehaviourBindings;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import bdv.bigcat.ui.ARGBStream;
 import bdv.bigcat.viewer.ToIdConverter;
@@ -39,6 +42,8 @@ import net.imglib2.view.Views;
  */
 public class Render3D extends AbstractStateMode
 {
+
+	public static Logger LOG = LoggerFactory.getLogger( MethodHandles.lookup().getClass() );
 
 	private final HashMap< Source< ? >, Source< ? > > dataSources = new HashMap<>();
 
@@ -172,6 +177,8 @@ public class Render3D extends AbstractStateMode
 										append );
 							} ).start();
 						}
+						else
+							LOG.warn( "Selected irregular label: {}. Will not render.", selectedId );
 					}
 				}
 			}
