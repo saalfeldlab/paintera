@@ -1,11 +1,9 @@
 package bdv.bigcat.viewer.viewer3d;
 
 import java.lang.invoke.MethodHandles;
-import java.nio.FloatBuffer;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Optional;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.function.Function;
@@ -18,13 +16,8 @@ import org.slf4j.LoggerFactory;
 import bdv.bigcat.ui.ARGBStream;
 import bdv.bigcat.viewer.state.FragmentSegmentAssignmentState;
 import bdv.bigcat.viewer.viewer3d.marchingCubes.ForegroundCheck;
-import bdv.bigcat.viewer.viewer3d.util.MeshExtractor;
-import cleargl.GLVector;
-import graphics.scenery.Material;
-import graphics.scenery.Mesh;
 import net.imglib2.Interval;
 import net.imglib2.Point;
-import net.imglib2.RandomAccess;
 import net.imglib2.RandomAccessible;
 import net.imglib2.RealLocalizable;
 import net.imglib2.RealPoint;
@@ -56,107 +49,6 @@ public class Viewer3DController
 		this.viewer3D = viewer;
 	}
 
-	/**
-	 *
-	 * @param labelVolumes
-	 * @param transforms
-	 * @param location
-	 * @param label
-	 */
-	public < T extends Type< T > > void renderAtSelection(
-			final RandomAccessible< T >[] labelVolumes,
-			final Interval[] intervals,
-			final AffineTransform3D[] transforms,
-			final RealLocalizable location,
-			final ForegroundCheck< T > isForeground,
-			final int[] partitionSize,
-			final int[] cubeSize )
-	{
-		Mesh previousNeuron = null;
-		for ( int i = 0; i < labelVolumes.length; ++i )
-		{
-			float[] verticesArray = new float[ 0 ];
-			// parameters for each resolution
-			final RandomAccessible< T > labelVolume = labelVolumes[ i ];
-			final AffineTransform3D transform = transforms[ i ];
-			final RandomAccess< T > access = labelVolume.randomAccess();
-			final RealPoint p = new RealPoint( labelVolume.numDimensions() );
-			transform.applyInverse( p, location );
-			for ( int d = 0; d < p.numDimensions(); ++d )
-				access.setPosition( ( long ) p.getDoublePosition( d ), d );
-
-			// same label for all resolutions
-			final MeshExtractor< T > meshExtractor = new MeshExtractor<>(
-					labelVolume,
-					intervals[ i ],
-					transforms[ i ],
-					partitionSize,
-					cubeSize,
-					access,
-					isForeground );
-
-			// create an empty mesh
-			final Mesh completeNeuron = new Mesh();
-			final Material material = new Material();
-			material.setAmbient( new GLVector( 1f, 0.0f, 1f ) );
-			material.setSpecular( new GLVector( 1f, 0.0f, 1f ) );
-			// TODO: Get the color of the neuron in the segmentation
-			material.setDiffuse( new GLVector( 1f, 1f, 0f ) );
-			material.setOpacity( 1f );
-
-			// define scale, position and material of the mesh
-			completeNeuron.setMaterial( material );
-			completeNeuron.setPosition( new GLVector( 0.0f, 0.0f, 0.0f ) );
-
-			// if it is not the first resolution, remove the already created
-			// resolution.
-			// TODO: this must be done in a piece-wise way. I do not think
-			// remove all the mesh and grown it again is the best way to do
-			// this.
-//			if ( i != 0 )
-//				viewer3D.removeChild( previousNeuron );
-
-			// add the mesh (still empty) in the viewer
-			viewer3D.addChild( completeNeuron );
-			// use cube of size - resolution is given by the data itself
-			// TODO: generate mesh starting at position defined by access
-
-			float[] completeNeuronVertices = new float[ 0 ];
-			int completeMeshSize = 0;
-			while ( meshExtractor.hasNext() )
-			{
-				final Optional< Mesh > neuron = meshExtractor.next();
-				if ( neuron.isPresent() )
-				{
-
-					if ( completeNeuron.getVertices().hasArray() )
-					{
-						completeNeuronVertices = completeNeuron.getVertices().array();
-						completeMeshSize = completeNeuronVertices.length;
-					}
-
-					final float[] neuronVertices = neuron.get().getVertices().array();
-					final int meshSize = neuronVertices.length;
-					verticesArray = Arrays.copyOf( completeNeuronVertices, completeMeshSize + meshSize );
-					System.arraycopy( neuronVertices, 0, verticesArray, completeMeshSize, meshSize );
-
-					// transform mesh into real world coordinates using
-					verticesArray = applyTransformation( verticesArray, transform );
-					// update the mesh in the viewer
-					completeNeuron.setVertices( FloatBuffer.wrap( verticesArray ) );
-					completeNeuron.recalculateNormals();
-					completeNeuron.setDirty( true );
-				}
-			}
-			previousNeuron = completeNeuron;
-		}
-	}
-
-	/**
-	 *
-	 * @param volumeLabels
-	 * @param location
-	 */
 	public synchronized < T extends Type< T >, F extends FragmentSegmentAssignmentState< F > > void generateMesh(
 			final RandomAccessible< T > volumeLabels,
 			final Interval interval,
