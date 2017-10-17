@@ -75,7 +75,6 @@ public class SourcesTab extends Pane implements StateListener< Specs >, ListChan
 //					specs.setVisibility( spec, !isVisible );
 //				} );
 //				toggleVisibilityCheckBox.selectedProperty().addListener( ( observable, oldv, newv ) -> {
-//					System.out.println( "SETTING VISIBILITY " + newv );
 //					specs.setVisibility( item.spec(), !newv );
 //				} );
 				item.visibleProperty().addListener( ( observable, oldv, newv ) -> {
@@ -97,7 +96,6 @@ public class SourcesTab extends Pane implements StateListener< Specs >, ListChan
 			this.specs.addListener( this );
 			this.specs.selectedSourceProperty().addListener( ( ChangeListener< Optional< DatasetSpec< ?, ? > > > ) ( observable, oldValue, newValue ) -> {
 				this.selectedSourceIndex.set( newValue.isPresent() ? Specs.indexOf( sourceStates, newValue.get() ) : -1 );
-				System.out.println( "SELECTING? " + this.selectedSourceIndex );
 				sourcesList.selectionModelProperty().get().select( this.selectedSourceIndex.get() );
 			} );
 		}

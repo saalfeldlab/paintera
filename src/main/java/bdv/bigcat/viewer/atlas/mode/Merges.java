@@ -63,7 +63,6 @@ public class Merges extends AbstractStateMode
 		return t -> {
 			if ( !this.mouseAndKeyHandlers.containsKey( t ) )
 			{
-				System.out.println( "Entering for merger!" );
 				final InputTriggerConfig inputTriggerConfig = new InputTriggerConfig();
 				final IdSelector selector = new IdSelector( t, toIdConverters, selectedIds, dataSources );
 				final Behaviours behaviours = new Behaviours( inputTriggerConfig );

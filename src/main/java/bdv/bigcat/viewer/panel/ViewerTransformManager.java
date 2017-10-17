@@ -147,7 +147,6 @@ public class ViewerTransformManager implements TransformListener< AffineTransfor
 	{
 		final AffineTransform3D copy = concatenated.copy();
 //			copy.preConcatenate( globalToViewer );
-//			System.out.println( copy );
 		listener.transformChanged( copy );
 	}
 
@@ -177,7 +176,6 @@ public class ViewerTransformManager implements TransformListener< AffineTransfor
 	{
 		if ( width == 0 || height == 0 )
 			return;
-//			System.out.println( "setCanvasSize " + width + " " + height + " " + displayTransform + " " + canvasW + " " + canvasH );
 		if ( updateTransform ) // && false )
 			synchronized ( this )
 			{
@@ -604,7 +602,6 @@ public class ViewerTransformManager implements TransformListener< AffineTransfor
 					if ( numSources > 0 )
 					{
 						final int sourceIndex = activeSource + Integer.signum( direction );
-						System.out.println( "Cycling sources " + direction + " " + activeSource + " " + sourceIndex );
 						final int selectedSource = ( sourceIndex < 0 ? sources.size() + sourceIndex : sourceIndex ) % numSources;
 						state.setCurrentSource( sources.get( selectedSource ).getSpimSource() );
 					}

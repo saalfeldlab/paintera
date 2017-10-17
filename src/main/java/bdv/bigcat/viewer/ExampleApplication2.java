@@ -1,6 +1,5 @@
 package bdv.bigcat.viewer;
 
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.concurrent.CountDownLatch;
 
@@ -12,12 +11,8 @@ import bdv.AbstractViewerSetupImgLoader;
 import bdv.bigcat.viewer.atlas.Atlas;
 import bdv.bigcat.viewer.atlas.data.HDF5LabelMultisetSourceSpec;
 import bdv.bigcat.viewer.atlas.data.HDF5UnsignedByteSpec;
-import bdv.img.h5.H5LabelMultisetSetupImageLoader;
-import bdv.labels.labelset.LabelMultisetType;
 import bdv.viewer.Interpolation;
 import bdv.viewer.Source;
-import ch.systemsx.cisd.hdf5.HDF5Factory;
-import ch.systemsx.cisd.hdf5.IHDF5Reader;
 import javafx.application.Platform;
 import javafx.scene.control.Button;
 import javafx.scene.control.ButtonBar.ButtonData;
@@ -38,7 +33,6 @@ import net.imglib2.interpolation.randomaccess.ClampingNLinearInterpolatorFactory
 import net.imglib2.interpolation.randomaccess.NearestNeighborInterpolatorFactory;
 import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.type.numeric.RealType;
-import net.imglib2.type.numeric.integer.UnsignedByteType;
 import net.imglib2.type.volatiles.VolatileARGBType;
 import net.imglib2.util.Intervals;
 import net.imglib2.view.ExtendedRandomAccessibleInterval;
@@ -52,8 +46,6 @@ public class ExampleApplication2
 	public static void main( final String[] args ) throws Exception
 	{
 		// Set the log level
-		System.setProperty( org.slf4j.impl.SimpleLogger.DEFAULT_LOG_LEVEL_KEY, "off" );
-
 		final String rawFile = "data/sample_B_20160708_frags_46_50.hdf";
 		PlatformImpl.startup( () -> {} );
 		final String rawDataset = "volumes/raw";
@@ -98,15 +90,6 @@ public class ExampleApplication2
 //			controller.setResolution( resolution );
 			latch.countDown();
 		} );
-
-		RandomAccessibleInterval< LabelMultisetType > volumeLabels = null;
-		final IHDF5Reader reader;
-		reader = HDF5Factory.openForReading( labelsFile );
-		/** loaded segments */
-		ArrayList< H5LabelMultisetSetupImageLoader > labels = null;
-		if ( reader.exists( labelsDataset ) )
-			labels = bdv.bigcat.viewer.viewer3d.util.HDF5Reader.readLabels( reader, labelsDataset );
-		volumeLabels = labels.get( 0 ).getImage( 0 );
 		latch.await();
 
 //		AffineTransform3D transform = new AffineTransform3D();
@@ -114,7 +97,6 @@ public class ExampleApplication2
 //		controller.renderAtSelectionMultiset( volumeLabels, transform, location, label );
 //		Viewer3DController.generateMesh( volumeLabels, location );
 
-		final Volatile< UnsignedByteType > abc = rawSource.getViewerSource().getType();
 		viewer.addRawSource( rawSource, 0., 255. );
 
 		final HDF5LabelMultisetSourceSpec labelSpec2 = new HDF5LabelMultisetSourceSpec( labelsFile, labelsDataset, cellSize, "labels" );
