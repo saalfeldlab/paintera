@@ -7,7 +7,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import bdv.bigcat.viewer.viewer3d.util.HashWrapper;
-import bdv.bigcat.viewer.viewer3d.util.SimpleMesh;
 import gnu.trove.list.array.TFloatArrayList;
 import net.imglib2.Cursor;
 import net.imglib2.FinalInterval;
@@ -33,9 +32,6 @@ public class MarchingCubes< T >
 	/** logger */
 	private static final Logger LOGGER = LoggerFactory.getLogger( MarchingCubes.class );
 
-	/** the mesh that represents the surface. */
-	private final SimpleMesh mesh;
-
 	private final RandomAccessible< T > input;
 
 	private final Interval interval;
@@ -60,7 +56,6 @@ public class MarchingCubes< T >
 	 */
 	public MarchingCubes( final RandomAccessible< T > input, final Interval interval, final AffineTransform3D transform, final int[] cubeSize )
 	{
-		this.mesh = new SimpleMesh();
 		this.input = input;
 		this.interval = interval;
 		this.cubeSize = cubeSize;
