@@ -24,7 +24,8 @@ import net.imglib2.view.Views;
  * This class implements the marching cubes algorithm. Based on
  * http://paulbourke.net/geometry/polygonise/
  *
- * @author vleite
+ * @author Vanessa Leite
+ * @author Philipp Hanslovsky
  * @param <T>
  */
 public class MarchingCubes< T >
