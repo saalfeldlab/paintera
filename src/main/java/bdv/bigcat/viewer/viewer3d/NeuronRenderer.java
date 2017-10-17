@@ -29,10 +29,9 @@ import net.imglib2.RandomAccess;
 import net.imglib2.RandomAccessible;
 import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.util.Intervals;
-import net.imglib2.util.Pair;
 
 /**
- * 
+ *
  *
  * @author Vanessa Leite
  * @author Philipp Hanslovsky
@@ -175,15 +174,14 @@ public class NeuronRenderer< T, F extends FragmentSegmentAssignmentState< F > > 
 							coordinates,
 							IntStream.range( 0, coordinates.length ).mapToLong( d -> coordinates[ d ] + blockSize[ d ] ).toArray() );
 					final MarchingCubes< T > mc = new MarchingCubes<>( data, interval, toWorldCoordinates, cubeSize );
-					final Pair< float[], float[] > verticesAndNormals = mc.generateMesh( foregroundCheck );
-					final float[] vertices = verticesAndNormals.getA();
-					final float[] normals = verticesAndNormals.getB();
-
-					assert vertices.length == normals.length;
+					final float[] vertices = mc.generateMesh( foregroundCheck );
 
 					if ( vertices.length > 0 )
 					{
 
+						final float[] normals = new float[ vertices.length ];
+//						MarchingCubes.surfaceNormals( vertices, normals );
+						MarchingCubes.averagedSurfaceNormals( vertices, normals );
 						final Mesh mesh = new Mesh();
 						final Material material = new Material();
 						final int color = stream.argb( selectedSegmentId );
