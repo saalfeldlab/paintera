@@ -29,7 +29,6 @@ import net.imglib2.util.Intervals;
 
 public class Neuron< T >
 {
-
 	private static float ONE_OVER_255 = 1.0f / 255.0f;
 
 	private final NeuronRenderer< T, ? > generator;
@@ -37,6 +36,9 @@ public class Neuron< T >
 	private final Interval interval;
 
 	private final Scene scene;
+
+	/** Bounding box of the mesh (xmin, ymin, zmin, xmax, ymax, zmax) */
+	private float[] boundingBox = null;
 
 	public Neuron( final NeuronRenderer< T, ? > generator, final Interval interval, final Scene scene )
 	{
@@ -61,6 +63,7 @@ public class Neuron< T >
 			final AffineTransform3D toWorldCoordinates,
 			final int[] blockSize,
 			final int[] cubeSize,
+			final double[] resolution,
 			final int color,
 			final ExecutorService es )
 	{
@@ -68,7 +71,7 @@ public class Neuron< T >
 		initialLocationInImageCoordinates.localize( gridCoordinates );
 		for ( int i = 0; i < gridCoordinates.length; ++i )
 			gridCoordinates[ i ] /= blockSize[ i ];
-		submitForOffset( gridCoordinates, data, foregroundCheck, toWorldCoordinates, blockSize, cubeSize, color, es );
+		submitForOffset( gridCoordinates, data, foregroundCheck, toWorldCoordinates, blockSize, cubeSize, resolution, color, es );
 	}
 
 	public void cancel()
@@ -93,6 +96,7 @@ public class Neuron< T >
 			final AffineTransform3D toWorldCoordinates,
 			final int[] blockSize,
 			final int[] cubeSize,
+			final double[] resolution,
 			final int color,
 			final ExecutorService es )
 	{
@@ -114,12 +118,9 @@ public class Neuron< T >
 							IntStream.range( 0, coordinates.length ).mapToLong( d -> coordinates[ d ] + blockSize[ d ] ).toArray() );
 
 					final RealPoint p = new RealPoint( interval.numDimensions() );
-
-					// TODO: get the resolution from the data
-					p.setPosition( interval.dimension( 0 ) * 4, 0 );
-					p.setPosition( interval.dimension( 1 ) * 4, 1 );
-					p.setPosition( interval.dimension( 2 ) * 40, 2 );
-
+					p.setPosition( interval.dimension( 0 ) * resolution[ 0 ], 0 );
+					p.setPosition( interval.dimension( 1 ) * resolution[ 1 ], 1 );
+					p.setPosition( interval.dimension( 2 ) * resolution[ 2 ], 2 );
 					final Box chunk = new Box( new GLVector( p.getFloatPosition( 0 ), p.getFloatPosition( 1 ), p.getFloatPosition( 2 ) ), true );
 					System.out.println( "box size: " + p.getFloatPosition( 0 ) + " " + p.getFloatPosition( 1 ) + " " + p.getFloatPosition( 2 ) );
 
@@ -127,14 +128,14 @@ public class Neuron< T >
 					p.setPosition( coordinates[ 1 ], 1 );
 					p.setPosition( coordinates[ 2 ], 2 );
 					toWorldCoordinates.apply( p, p );
-					System.out.println( "coordinates: " + p.getFloatPosition( 0 ) + " " + p.getFloatPosition( 1 ) + " " + p.getFloatPosition( 2 ) );
 					chunk.setPosition( new GLVector( p.getFloatPosition( 0 ), p.getFloatPosition( 1 ), p.getFloatPosition( 2 ) ) );
+					System.out.println( "coordinates: " + p.getFloatPosition( 0 ) + " " + p.getFloatPosition( 1 ) + " " + p.getFloatPosition( 2 ) );
 
 					final GLVector colorVector = new GLVector( ( color >>> 16 & 0xff ) * ONE_OVER_255, ( color >>> 8 & 0xff ) * ONE_OVER_255, ( color >>> 0 & 0xff ) * ONE_OVER_255 );
 					chunk.getMaterial().setDiffuse( colorVector );
 
-					// TODO: this is not working properly... the transparency
-					// and the opacity are not combined
+					// TODO: this is not working properly...
+					// the transparency and the opacity are not combined
 					chunk.getMaterial().setOpacity( 0.1f );
 //					chunk.getMaterial().setTransparent( true );
 					scene.addChild( chunk );
@@ -165,6 +166,8 @@ public class Neuron< T >
 								scene.removeChild( chunk );
 								addNode( mesh );
 								mesh.setDirty( true );
+								generateBoundingBox( mesh );
+								generator.updateCompleteBoundingBox( boundingBox );
 							}
 						}
 
@@ -172,17 +175,21 @@ public class Neuron< T >
 						{
 							final long[] otherGridCoordinates = gridCoordinates.clone();
 							otherGridCoordinates[ d ] += 1;
-							submitForOffset( otherGridCoordinates.clone(), data, foregroundCheck, toWorldCoordinates, blockSize, cubeSize, color, es );
+							submitForOffset( otherGridCoordinates.clone(), data, foregroundCheck, toWorldCoordinates, blockSize, cubeSize, resolution, color, es );
 
 							otherGridCoordinates[ d ] -= 2;
-							submitForOffset( otherGridCoordinates.clone(), data, foregroundCheck, toWorldCoordinates, blockSize, cubeSize, color, es );
+							submitForOffset( otherGridCoordinates.clone(), data, foregroundCheck, toWorldCoordinates, blockSize, cubeSize, resolution, color, es );
 						}
 					}
 					else
 						scene.removeChild( chunk );
 				} ) );
 		}
+	}
 
+	public float[] getBoundingBox()
+	{
+		return boundingBox;
 	}
 
 	private void addNode( final Node node )
@@ -194,4 +201,17 @@ public class Neuron< T >
 		this.scene.addChild( node );
 	}
 
+	private void generateBoundingBox( Mesh mesh )
+	{
+		float[] verticesArray = mesh.getVertices().array();
+		float minX = ( float ) IntStream.range( 0, verticesArray.length ).mapToDouble( i -> verticesArray[ i ] ).filter( i -> ( i + 3 ) % 3 == 0 ).min().getAsDouble();
+		float minY = ( float ) IntStream.range( 0, verticesArray.length ).mapToDouble( i -> verticesArray[ i ] ).filter( i -> ( i + 2 ) % 3 == 0 ).min().getAsDouble();
+		float minZ = ( float ) IntStream.range( 0, verticesArray.length ).mapToDouble( i -> verticesArray[ i ] ).filter( i -> ( i + 1 ) % 3 == 0 ).min().getAsDouble();
+		float maxX = ( float ) IntStream.range( 0, verticesArray.length ).mapToDouble( i -> verticesArray[ i ] ).filter( i -> ( i + 3 ) % 3 == 0 ).max().getAsDouble();
+		float maxY = ( float ) IntStream.range( 0, verticesArray.length ).mapToDouble( i -> verticesArray[ i ] ).filter( i -> ( i + 2 ) % 3 == 0 ).max().getAsDouble();
+		float maxZ = ( float ) IntStream.range( 0, verticesArray.length ).mapToDouble( i -> verticesArray[ i ] ).filter( i -> ( i + 1 ) % 3 == 0 ).max().getAsDouble();
+
+		boundingBox = new float[] { minX, minY, minZ, maxX, maxY, maxZ };
+		System.out.println( "calculated bb: " + minX + "x" + minY + "x" + minZ + " " + maxX + "x" + maxY + "x" + maxZ );
+	}
 }
