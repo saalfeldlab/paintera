@@ -73,7 +73,7 @@ public class Viewer3DController
 		final Point locationInImageCoordinates = new Point( imageLocation.numDimensions() );
 		for ( int d = 0; d < locationInImageCoordinates.numDimensions(); ++d )
 		{
-			final long position = ( long ) imageLocation.getDoublePosition( d );
+			final long position = Math.round( imageLocation.getDoublePosition( d ) );
 			locationInImageCoordinates.setPosition( position, d );
 		}
 
@@ -81,8 +81,9 @@ public class Viewer3DController
 		{
 			if ( !append )
 			{
-				System.out.println( "do not append" );
+				this.renderers.forEach( NeuronRenderer::disallowRendering );
 				this.renderers.forEach( NeuronRenderer::removeSelfFromScene );
+				this.renderers.forEach( NeuronRenderer::stopListening );
 				this.renderers.clear();
 				RealLocalizable cameraPosition = new RealPoint( worldLocation.getFloatPosition( 0 ), worldLocation.getFloatPosition( 1 ), worldLocation.getFloatPosition( 2 ) * 1.5 );
 				viewer3D.setCameraPosition( cameraPosition );
@@ -94,8 +95,10 @@ public class Viewer3DController
 					.collect( Collectors.toList() );
 			LOG.info( "Removing renderers: {}", filteredNrs );
 
+			filteredNrs.forEach( NeuronRenderer::disallowRendering );
 			filteredNrs.forEach( NeuronRenderer::removeSelfFromScene );
-			this.renderers.removeAll( filteredNrs );
+			filteredNrs.forEach( NeuronRenderer::stopListening );
+			filteredNrs.forEach( this.renderers::remove );
 
 			final NeuronRenderer< T, F > nr = new NeuronRenderer<>(
 					fragmentId,
