@@ -60,7 +60,6 @@ public class Neuron< T >
 			final AffineTransform3D toWorldCoordinates,
 			final int[] blockSize,
 			final int[] cubeSize,
-			final double[] resolution,
 			final int color,
 			final ExecutorService es )
 	{
@@ -68,7 +67,7 @@ public class Neuron< T >
 		initialLocationInImageCoordinates.localize( gridCoordinates );
 		for ( int i = 0; i < gridCoordinates.length; ++i )
 			gridCoordinates[ i ] /= blockSize[ i ];
-		submitForOffset( gridCoordinates, data, foregroundCheck, toWorldCoordinates, blockSize, cubeSize, resolution, color, es );
+		submitForOffset( gridCoordinates, data, foregroundCheck, toWorldCoordinates, blockSize, cubeSize, color, es );
 	}
 
 	public void cancel()
@@ -93,7 +92,6 @@ public class Neuron< T >
 			final AffineTransform3D toWorldCoordinates,
 			final int[] blockSize,
 			final int[] cubeSize,
-			final double[] resolution,
 			final int color,
 			final ExecutorService es )
 	{
@@ -114,19 +112,31 @@ public class Neuron< T >
 							coordinates,
 							IntStream.range( 0, coordinates.length ).mapToLong( d -> coordinates[ d ] + blockSize[ d ] ).toArray() );
 
-					final RealPoint p = new RealPoint( interval.numDimensions() );
-					p.setPosition( interval.dimension( 0 ) * resolution[ 0 ], 0 );
-					p.setPosition( interval.dimension( 1 ) * resolution[ 1 ], 1 );
-					p.setPosition( interval.dimension( 2 ) * resolution[ 2 ], 2 );
-					final Box chunk = new Box( new GLVector( p.getFloatPosition( 0 ), p.getFloatPosition( 1 ), p.getFloatPosition( 2 ) ), true );
-					System.out.println( "box size: " + p.getFloatPosition( 0 ) + " " + p.getFloatPosition( 1 ) + " " + p.getFloatPosition( 2 ) );
+					System.out.println( "coordinates: " + coordinates[ 0 ] + " " + coordinates[ 1 ] + " " + coordinates[ 2 ] );
 
-					p.setPosition( coordinates[ 0 ] + blockSize[ 0 ], 0 );
-					p.setPosition( coordinates[ 1 ] + blockSize[ 1 ], 1 );
-					p.setPosition( coordinates[ 2 ] + blockSize[ 2 ], 2 );
-					toWorldCoordinates.apply( p, p );
-					chunk.setPosition( new GLVector( p.getFloatPosition( 0 ), p.getFloatPosition( 1 ), p.getFloatPosition( 2 ) ) );
-					System.out.println( "coordinates: " + p.getFloatPosition( 0 ) + " " + p.getFloatPosition( 1 ) + " " + p.getFloatPosition( 2 ) );
+					final RealPoint begin = new RealPoint( interval.numDimensions() );
+					final RealPoint end = new RealPoint( interval.numDimensions() );
+
+					for ( int i = 0; i < interval.numDimensions(); i++ )
+					{
+						begin.setPosition( interval.min( i ), i );
+						end.setPosition( interval.max( i ), i );
+					}
+					toWorldCoordinates.apply( begin, begin );
+					toWorldCoordinates.apply( end, end );
+
+					final float[] size = new float[ begin.numDimensions() ];
+					final float[] center = new float[ begin.numDimensions() ];
+					for ( int i = 0; i < begin.numDimensions(); i++ )
+					{
+						size[ i ] = end.getFloatPosition( i ) - begin.getFloatPosition( i );
+						center[ i ] = begin.getFloatPosition( i ) + ( size[ i ] / 2 );
+					}
+					final Box chunk = new Box( new GLVector( size[ 0 ], size[ 1 ], size[ 2 ] ), true );
+					System.out.println( "box size: " + size[ 0 ] + " " + size[ 1 ] + " " + size[ 2 ] );
+
+					chunk.setPosition( new GLVector( center[ 0 ], center[ 1 ], center[ 2 ] ) );
+					System.out.println( "coordinates: " + center[ 0 ] + " " + center[ 1 ] + " " + center[ 2 ] );
 
 					final GLVector colorVector = new GLVector( ( color >>> 16 & 0xff ) * ONE_OVER_255, ( color >>> 8 & 0xff ) * ONE_OVER_255, ( color >>> 0 & 0xff ) * ONE_OVER_255 );
 					chunk.getMaterial().setDiffuse( colorVector );
@@ -172,10 +182,10 @@ public class Neuron< T >
 						{
 							final long[] otherGridCoordinates = gridCoordinates.clone();
 							otherGridCoordinates[ d ] += 1;
-							submitForOffset( otherGridCoordinates.clone(), data, foregroundCheck, toWorldCoordinates, blockSize, cubeSize, resolution, color, es );
+							submitForOffset( otherGridCoordinates.clone(), data, foregroundCheck, toWorldCoordinates, blockSize, cubeSize, color, es );
 
 							otherGridCoordinates[ d ] -= 2;
-							submitForOffset( otherGridCoordinates.clone(), data, foregroundCheck, toWorldCoordinates, blockSize, cubeSize, resolution, color, es );
+							submitForOffset( otherGridCoordinates.clone(), data, foregroundCheck, toWorldCoordinates, blockSize, cubeSize, color, es );
 						}
 					}
 					else

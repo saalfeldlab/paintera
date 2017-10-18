@@ -159,7 +159,6 @@ public class Render3D extends AbstractStateMode
 						{
 							final int[] partitionSize = { 60, 60, 10 };
 							final int[] cubeSize = { 10, 10, 1 };
-							final double[] resolution = { 4, 4, 40 };
 
 							final Function getForegroundCheck = foregroundChecks.get( spimSource );
 							new Thread( () -> {
@@ -170,7 +169,6 @@ public class Render3D extends AbstractStateMode
 										new RealPoint( worldCoordinate ),
 										partitionSize,
 										cubeSize,
-										resolution,
 										getForegroundCheck,
 										selectedId,
 										( FragmentSegmentAssignmentState ) frags.get( spimSource ),
