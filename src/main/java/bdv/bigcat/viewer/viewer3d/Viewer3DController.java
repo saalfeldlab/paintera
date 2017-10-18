@@ -56,6 +56,7 @@ public class Viewer3DController
 			final RealLocalizable worldLocation,
 			final int[] partitionSize,
 			final int[] cubeSize,
+			final double[] resolution,
 			final Function< T, ForegroundCheck< T > > getForegroundCheck,
 			final long fragmentId,
 			final F fragmentSegmentAssignment,
@@ -112,7 +113,8 @@ public class Viewer3DController
 					es,
 					transform,
 					partitionSize,
-					cubeSize );
+					cubeSize,
+					resolution );
 			nr.render();
 			this.renderers.add( nr );
 		}
