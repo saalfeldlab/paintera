@@ -30,7 +30,7 @@ public class Viewer3D extends SceneryBase
 	private final SceneryPanel scPanel;
 
 	private final Camera cam = new DetachedHeadCamera();
-
+	
 	public Viewer3D( final String applicationName, final int windowWidth, final int windowHeight, final boolean wantREPL )
 	{
 		super( applicationName, windowWidth, windowHeight, wantREPL );
@@ -51,10 +51,14 @@ public class Viewer3D extends SceneryBase
 				Renderer.createRenderer( getHub(), getApplicationName(), getScene(), getWindowWidth(), getWindowHeight(), scPanel ) );
 		getHub().add( SceneryElement.Renderer, getRenderer() );
 
+		// TODO: box with the size of the data
 		final Box hull = new Box( new GLVector( 20000, 20000, 20000 ), true );
+		hull.getMaterial().setOpacity( 0.5f );
 		hull.getMaterial().setDiffuse( new GLVector( 0.5f, 0.5f, 0.5f ) );
 		hull.getMaterial().setDoubleSided( true );
+//		hull.getMaterial().setAmbient( <set-?> );
 		getScene().addChild( hull );
+
 		final InputHandler handler = new InputHandler( getScene(), getRenderer(), getHub() );
 		handler.removeBehaviour( "move_forward" );
 		handler.removeBehaviour( "move_left" );
@@ -100,16 +104,9 @@ public class Viewer3D extends SceneryBase
 
 		cam.perspectiveCamera( 50f, getWindowWidth(), getWindowHeight(), 0.1f, 40000.0f );
 		cam.setActive( true );
-		// TODO: camera position must be related with the mesh not with the
-		// whole volume
-		getScene().addChild( cam );
-
-		// TODO: camera position must be related with the object
-		cam.setPosition( new GLVector( 0f, 0f, 0f ) );
 		getScene().addChild( cam );
 
 		final PointLight[] lights = new PointLight[ 4 ];
-
 		for ( int i = 0; i < lights.length; i++ )
 		{
 			lights[ i ] = new PointLight();
@@ -117,6 +114,7 @@ public class Viewer3D extends SceneryBase
 			lights[ i ].setIntensity( 100.2f * 5 );
 			lights[ i ].setLinear( 0.001f );
 			lights[ i ].setQuadratic( 0.0f );
+//			lights[ i ].showLightBox();
 		}
 		lights[ 0 ].setPosition( new GLVector( 1.0f, 0f, -1.0f / ( float ) Math.sqrt( 2.0 ) ) );
 		lights[ 1 ].setPosition( new GLVector( -1.0f, 0f, -1.0f / ( float ) Math.sqrt( 2.0 ) ) );

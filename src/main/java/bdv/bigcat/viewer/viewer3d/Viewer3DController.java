@@ -84,7 +84,9 @@ public class Viewer3DController
 				System.out.println( "do not append" );
 				this.renderers.forEach( NeuronRenderer::removeSelfFromScene );
 				this.renderers.clear();
-				viewer3D.setCameraPosition( worldLocation );
+				RealLocalizable cameraPosition = new RealPoint( worldLocation.getFloatPosition( 0 ), worldLocation.getFloatPosition( 1 ), worldLocation.getFloatPosition( 2 ) * 1.5 );
+				viewer3D.setCameraPosition( cameraPosition );
+				System.out.println( "initial camera position: " + cameraPosition.getFloatPosition( 0 ) + "x" + cameraPosition.getFloatPosition( 1 ) + "x" + cameraPosition.getFloatPosition( 2 ) );
 			}
 
 			final List< NeuronRenderer > filteredNrs = renderers.stream()
