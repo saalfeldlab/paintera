@@ -37,9 +37,6 @@ public class Neuron< T >
 
 	private final Scene scene;
 
-	/** Bounding box of the mesh (xmin, ymin, zmin, xmax, ymax, zmax) */
-	private float[] boundingBox = null;
-
 	public Neuron( final NeuronRenderer< T, ? > generator, final Interval interval, final Scene scene )
 	{
 		super();
@@ -124,9 +121,9 @@ public class Neuron< T >
 					final Box chunk = new Box( new GLVector( p.getFloatPosition( 0 ), p.getFloatPosition( 1 ), p.getFloatPosition( 2 ) ), true );
 					System.out.println( "box size: " + p.getFloatPosition( 0 ) + " " + p.getFloatPosition( 1 ) + " " + p.getFloatPosition( 2 ) );
 
-					p.setPosition( coordinates[ 0 ], 0 );
-					p.setPosition( coordinates[ 1 ], 1 );
-					p.setPosition( coordinates[ 2 ], 2 );
+					p.setPosition( coordinates[ 0 ] + blockSize[ 0 ], 0 );
+					p.setPosition( coordinates[ 1 ] + blockSize[ 1 ], 1 );
+					p.setPosition( coordinates[ 2 ] + blockSize[ 2 ], 2 );
 					toWorldCoordinates.apply( p, p );
 					chunk.setPosition( new GLVector( p.getFloatPosition( 0 ), p.getFloatPosition( 1 ), p.getFloatPosition( 2 ) ) );
 					System.out.println( "coordinates: " + p.getFloatPosition( 0 ) + " " + p.getFloatPosition( 1 ) + " " + p.getFloatPosition( 2 ) );
@@ -166,8 +163,8 @@ public class Neuron< T >
 								scene.removeChild( chunk );
 								addNode( mesh );
 								mesh.setDirty( true );
-								generateBoundingBox( mesh );
-								generator.updateCompleteBoundingBox( boundingBox );
+								mesh.generateBoundingBox();
+								generator.updateCompleteBoundingBox( mesh.getBoundingBoxCoords() );
 							}
 						}
 
@@ -187,11 +184,6 @@ public class Neuron< T >
 		}
 	}
 
-	public float[] getBoundingBox()
-	{
-		return boundingBox;
-	}
-
 	private void addNode( final Node node )
 	{
 		synchronized ( this.nodes )
@@ -199,27 +191,5 @@ public class Neuron< T >
 			this.nodes.add( node );
 		}
 		this.scene.addChild( node );
-	}
-
-	private void generateBoundingBox( Mesh mesh )
-	{
-		float[] verticesArray = mesh.getVertices().array();
-		float minX = ( float ) IntStream.range( 0, verticesArray.length ).mapToDouble( i -> verticesArray[ i ] ).filter( i -> ( i + 3 ) % 3 == 0 ).min().getAsDouble();
-		float minY = ( float ) IntStream.range( 0, verticesArray.length ).mapToDouble( i -> verticesArray[ i ] ).filter( i -> ( i + 2 ) % 3 == 0 ).min().getAsDouble();
-		float minZ = ( float ) IntStream.range( 0, verticesArray.length ).mapToDouble( i -> verticesArray[ i ] ).filter( i -> ( i + 1 ) % 3 == 0 ).min().getAsDouble();
-		float maxX = ( float ) IntStream.range( 0, verticesArray.length ).mapToDouble( i -> verticesArray[ i ] ).filter( i -> ( i + 3 ) % 3 == 0 ).max().getAsDouble();
-		float maxY = ( float ) IntStream.range( 0, verticesArray.length ).mapToDouble( i -> verticesArray[ i ] ).filter( i -> ( i + 2 ) % 3 == 0 ).max().getAsDouble();
-		float maxZ = ( float ) IntStream.range( 0, verticesArray.length ).mapToDouble( i -> verticesArray[ i ] ).filter( i -> ( i + 1 ) % 3 == 0 ).max().getAsDouble();
-
-		boundingBox = new float[] { minX, minY, minZ, maxX, maxY, maxZ };
-		System.out.println( "calculated bb: " + minX + "x" + minY + "x" + minZ + " " + maxX + "x" + maxY + "x" + maxZ );
-
-		final Box chunk = new Box( new GLVector( maxX - minX, maxY - minY, maxZ - minZ ), true );
-		System.out.println( "box size: " + ( maxX - minX ) + " " + ( maxY - minY ) + " " + ( maxZ - minZ ) );
-		chunk.setPosition( new GLVector( minX, minY, minZ ) );
-		System.out.println( "box coordinates: " + minX + " " + minY + " " + minZ );
-		
-		scene.addChild( chunk );
-
 	}
 }
