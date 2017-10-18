@@ -26,9 +26,6 @@ import net.imglib2.realtransform.AffineTransform3D;
  */
 public class NeuronRenderer< T, F extends FragmentSegmentAssignmentState< F > > implements StateListener< F >
 {
-
-	private static final float ONE_OVER_255 = 1.0f / 255.0f;
-
 	private final long selectedFragmentId;
 
 	public NeuronRenderer(
@@ -43,7 +40,8 @@ public class NeuronRenderer< T, F extends FragmentSegmentAssignmentState< F > > 
 			final ExecutorService es,
 			final AffineTransform3D toWorldCoordinates,
 			final int[] blockSize,
-			final int[] cubeSize )
+			final int[] cubeSize,
+			final double[] resolution )
 	{
 		super();
 		this.selectedFragmentId = selectedFragmentId;
@@ -59,10 +57,10 @@ public class NeuronRenderer< T, F extends FragmentSegmentAssignmentState< F > > 
 		this.toWorldCoordinates = toWorldCoordinates;
 		this.blockSize = blockSize;
 		this.cubeSize = cubeSize;
+		this.resolution = resolution;
 
 		updateForegroundCheck();
 		this.fragmentSegmentAssignment.addListener( this );
-
 	}
 
 	private long selectedSegmentId;
@@ -91,13 +89,19 @@ public class NeuronRenderer< T, F extends FragmentSegmentAssignmentState< F > > 
 
 	private final int[] cubeSize;
 
+	private final double[] resolution;
+
 	private boolean updateOnStateChange = true;
 
 	private boolean allowRendering = true;
 
 	private final List< Neuron< T > > neurons = new ArrayList<>();
 
-	private float[] completeBoundingBox;
+	/**
+	 * Bounding box of the complete mesh/neuron (xmin, ymin, zmin, xmax, ymax,
+	 * zmax)
+	 */
+	private float[] completeBoundingBox = null;
 
 	public synchronized void cancelRendering()
 	{
@@ -135,8 +139,7 @@ public class NeuronRenderer< T, F extends FragmentSegmentAssignmentState< F > > 
 			final Neuron< T > neuron = new Neuron<>( this, interval, scene );
 			this.neurons.add( neuron );
 			final int color = stream.argb( selectedFragmentId );
-			neuron.render( initialLocationInImageCoordinates, data, foregroundCheck, toWorldCoordinates, blockSize, cubeSize, color, es );
-
+			neuron.render( initialLocationInImageCoordinates, data, foregroundCheck, toWorldCoordinates, blockSize, cubeSize, resolution, color, es );
 		}
 	}
 
@@ -235,38 +238,25 @@ public class NeuronRenderer< T, F extends FragmentSegmentAssignmentState< F > > 
 		this.allowRendering = allow;
 	}
 
-//	public void updateCompleteBoundingBox( Mesh mesh )
-//	{
-//		FloatBuffer vertices = mesh.getVertices();
-//		float[] verticesArray = vertices.array();
-//		float minX = ( float ) IntStream.range( 0, verticesArray.length ).mapToDouble( i -> verticesArray[ i ] ).filter( i -> ( i + 3 ) % 3 == 0 ).min().getAsDouble();
-//		float minY = ( float ) IntStream.range( 0, verticesArray.length ).mapToDouble( i -> verticesArray[ i ] ).filter( i -> ( i + 2 ) % 3 == 0 ).min().getAsDouble();
-//		float minZ = ( float ) IntStream.range( 0, verticesArray.length ).mapToDouble( i -> verticesArray[ i ] ).filter( i -> ( i + 1 ) % 3 == 0 ).min().getAsDouble();
-//		float maxX = ( float ) IntStream.range( 0, verticesArray.length ).mapToDouble( i -> verticesArray[ i ] ).filter( i -> ( i + 3 ) % 3 == 0 ).max().getAsDouble();
-//		float maxY = ( float ) IntStream.range( 0, verticesArray.length ).mapToDouble( i -> verticesArray[ i ] ).filter( i -> ( i + 2 ) % 3 == 0 ).max().getAsDouble();
-//		float maxZ = ( float ) IntStream.range( 0, verticesArray.length ).mapToDouble( i -> verticesArray[ i ] ).filter( i -> ( i + 1 ) % 3 == 0 ).max().getAsDouble();
-//
-//		System.out.println( "calculated bb: " + minX + "x" + minY + "x" + minZ + " " + maxX + "x" + maxY + "x" + maxZ );
-//		float[] boundingBox = new float[] { minX, minY, minZ, maxX, maxY, maxZ };
-//
-////		assert ( completeBoundingBox.length == boundingBox.length );
-////
-//		if ( nodes.size() == 1 )
-//			completeBoundingBox = boundingBox;
-//
-//		// TODO: the bb cames with min, max, min, max!
-//		for ( int d = 0; d < completeBoundingBox.length; d++ )
-//		{
-//			if ( d < ( completeBoundingBox.length / 2 ) && completeBoundingBox[ d ] > boundingBox[ d ] )
-//				completeBoundingBox[ d ] = boundingBox[ d ];
-//			else if ( d >= ( completeBoundingBox.length / 2 ) && completeBoundingBox[ d ] < boundingBox[ d ] )
-//				completeBoundingBox[ d ] = boundingBox[ d ];
-//		}
-//
-//		System.out.println( "completeBB: " + completeBoundingBox[ 0 ] + "x" + completeBoundingBox[ 1 ] + "x" + completeBoundingBox[ 2 ] +
-//				" " + completeBoundingBox[ 3 ] + "x" + completeBoundingBox[ 4 ] + "x" + completeBoundingBox[ 5 ] );
-//
-//	}
+	public void updateCompleteBoundingBox( float[] boundingBox )
+	{
+		assert ( completeBoundingBox.length == boundingBox.length );
+
+		if ( completeBoundingBox == null )
+			completeBoundingBox = boundingBox;
+		else
+		{
+			for ( int d = 0; d < completeBoundingBox.length; d++ )
+			{
+				if ( d < ( completeBoundingBox.length / 2 ) && completeBoundingBox[ d ] > boundingBox[ d ] )
+					completeBoundingBox[ d ] = boundingBox[ d ];
+				else if ( d >= ( completeBoundingBox.length / 2 ) && completeBoundingBox[ d ] < boundingBox[ d ] )
+					completeBoundingBox[ d ] = boundingBox[ d ];
+			}
+			System.out.println( "completeBB: " + completeBoundingBox[ 0 ] + "x" + completeBoundingBox[ 1 ] + "x" + completeBoundingBox[ 2 ] +
+					" " + completeBoundingBox[ 3 ] + "x" + completeBoundingBox[ 4 ] + "x" + completeBoundingBox[ 5 ] );
+		}
+	}
 //
 //	public GLVector getCameraPosition()
 //	{
