@@ -108,7 +108,7 @@ public class Atlas
 
 	private final SourcesTab sourcesTab = new SourcesTab( specs );
 
-	private final Viewer3D renderView = new Viewer3D( "", 1000, 1000, true );
+	private final Viewer3D renderView = new Viewer3D( "", 1000, 1000, false );
 
 	private final Viewer3DController controller = new Viewer3DController( renderView );
 	{
