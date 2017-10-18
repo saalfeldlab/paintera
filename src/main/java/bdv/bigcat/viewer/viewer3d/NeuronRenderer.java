@@ -9,6 +9,7 @@ import bdv.bigcat.ui.ARGBStream;
 import bdv.bigcat.viewer.state.FragmentSegmentAssignmentState;
 import bdv.bigcat.viewer.state.StateListener;
 import bdv.bigcat.viewer.viewer3d.marchingCubes.ForegroundCheck;
+import cleargl.GLVector;
 import graphics.scenery.Scene;
 import net.imglib2.Interval;
 import net.imglib2.Localizable;
@@ -256,27 +257,47 @@ public class NeuronRenderer< T, F extends FragmentSegmentAssignmentState< F > > 
 			System.out.println( "completeBB: " + completeBoundingBox[ 0 ] + "x" + completeBoundingBox[ 1 ] + "x" + completeBoundingBox[ 2 ] +
 					" " + completeBoundingBox[ 3 ] + "x" + completeBoundingBox[ 4 ] + "x" + completeBoundingBox[ 5 ] );
 		}
+
+		GLVector cameraPosition = getCameraPosition();
+		scene.getActiveObserver().setPosition( cameraPosition );
 	}
+
+	private GLVector getCameraPosition()
+	{
+		// set the camera position to the center of the complete bounding box
+		float[] cameraPosition = new float[ 3 ];
+		float maxDistance = 0;
+		for ( int i = 0; i < completeBoundingBox.length / 2; i++ )
+		{
+			cameraPosition[ i ] = ( completeBoundingBox[ i ] + completeBoundingBox[ i + 3 ] ) / 2;
+
+			if ( maxDistance < ( completeBoundingBox[ i + 3 ] - completeBoundingBox[ i ] ) )
+				maxDistance = completeBoundingBox[ i + 3 ] - completeBoundingBox[ i ];
+		}
+
+		System.out.println( "center of bb: " + cameraPosition[ 0 ] + " " + cameraPosition[ 1 ] + " " + cameraPosition[ 2 ] );
+		System.out.println( "max distance " + maxDistance );
+
+		// calculate the distance to the center
+//		float FOV = scene.getActiveObserver().getFov();
+//		System.out.println( "FOV: " + FOV );
+//		float distanceToCenter = ( ( completeBoundingBox[ 3 ] - completeBoundingBox[ 0 ] ) / 2 ) / ( float ) Math.sin( FOV / 2 );
+//		System.out.println( "distanceToCenter: " + distanceToCenter );
+
+//		GLVector forward = scene.getActiveObserver().getForward();
+//		forward.set( 0, forward.get( 0 ) * -1 ); // flip x's sign
 //
-//	public GLVector getCameraPosition()
-//	{
-//		float[] cameraPosition = new float[ 3 ];
-//		cameraPosition[ 0 ] = ( completeBoundingBox[ 0 ] );
+//		System.out.println( "forward direction: " + forward.get( 0 ) + " " + forward.get( 1 ) + " " + forward.get( 2 ) );
 //
-//		for ( int i = 0; i < completeBoundingBox.length / 2; i++ )
+//		for ( int i = 0; i < cameraPosition.length; i++ )
 //		{
-//			cameraPosition[ i ] = ( completeBoundingBox[ i ] );// +
-//																// completeBoundingBox[
-//																// i + 3 ] ) /
-//																// 2;
+//			cameraPosition[ i ] += ( forward.get( i ) * distanceToCenter );
 //		}
-//
-//		// z-axis
-//		double distance = Math.abs( completeBoundingBox[ 5 ] - completeBoundingBox[ 2 ] ) / 2 / Math.tan( scene.getActiveObserver().getFov() / 2 );
-//		cameraPosition[ 2 ] = ( float ) ( completeBoundingBox[ 2 ] + distance );
-//		
-////		System.out.println( "camera position: " + cameraPosition[ 0 ] + " " + cameraPosition[ 1 ] + " " + cameraPosition[ 2 ] );
-//
-//		return new GLVector( cameraPosition[ 0 ], cameraPosition[ 1 ], cameraPosition[ 2 ] );
-//	}
+
+//		cameraPosition[ 2 ] += maxDistance;
+
+		System.out.println( "camera position: " + cameraPosition[ 0 ] + " " + cameraPosition[ 1 ] + " " + cameraPosition[ 2 ] );
+
+		return new GLVector( cameraPosition[ 0 ], cameraPosition[ 1 ], cameraPosition[ 2 ] );
+	}
 }
