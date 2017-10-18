@@ -213,5 +213,13 @@ public class Neuron< T >
 
 		boundingBox = new float[] { minX, minY, minZ, maxX, maxY, maxZ };
 		System.out.println( "calculated bb: " + minX + "x" + minY + "x" + minZ + " " + maxX + "x" + maxY + "x" + maxZ );
+
+		final Box chunk = new Box( new GLVector( maxX - minX, maxY - minY, maxZ - minZ ), true );
+		System.out.println( "box size: " + ( maxX - minX ) + " " + ( maxY - minY ) + " " + ( maxZ - minZ ) );
+		chunk.setPosition( new GLVector( minX, minY, minZ ) );
+		System.out.println( "box coordinates: " + minX + " " + minY + " " + minZ );
+		
+		scene.addChild( chunk );
+
 	}
 }
