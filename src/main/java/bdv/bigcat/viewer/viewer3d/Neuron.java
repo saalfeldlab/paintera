@@ -112,8 +112,6 @@ public class Neuron< T >
 							coordinates,
 							IntStream.range( 0, coordinates.length ).mapToLong( d -> coordinates[ d ] + blockSize[ d ] ).toArray() );
 
-					System.out.println( "coordinates: " + coordinates[ 0 ] + " " + coordinates[ 1 ] + " " + coordinates[ 2 ] );
-
 					final RealPoint begin = new RealPoint( interval.numDimensions() );
 					final RealPoint end = new RealPoint( interval.numDimensions() );
 
@@ -133,10 +131,7 @@ public class Neuron< T >
 						center[ i ] = begin.getFloatPosition( i ) + ( size[ i ] / 2 );
 					}
 					final Box chunk = new Box( new GLVector( size[ 0 ], size[ 1 ], size[ 2 ] ), true );
-					System.out.println( "box size: " + size[ 0 ] + " " + size[ 1 ] + " " + size[ 2 ] );
-
 					chunk.setPosition( new GLVector( center[ 0 ], center[ 1 ], center[ 2 ] ) );
-					System.out.println( "coordinates: " + center[ 0 ] + " " + center[ 1 ] + " " + center[ 2 ] );
 
 					final GLVector colorVector = new GLVector( ( color >>> 16 & 0xff ) * ONE_OVER_255, ( color >>> 8 & 0xff ) * ONE_OVER_255, ( color >>> 0 & 0xff ) * ONE_OVER_255 );
 					chunk.getMaterial().setDiffuse( colorVector );
