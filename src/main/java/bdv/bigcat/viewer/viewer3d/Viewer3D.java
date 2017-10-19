@@ -47,11 +47,10 @@ public class Viewer3D extends SceneryBase
 		getHub().add( SceneryElement.Renderer, getRenderer() );
 
 		// TODO: box with the size of the data
-		final Box hull = new Box( new GLVector( 20000, 20000, 20000 ), true );
+		final Box hull = new Box( new GLVector( 30000, 30000, 30000 ), true );
 		hull.getMaterial().setOpacity( 0.5f );
 		hull.getMaterial().setDiffuse( new GLVector( 0.5f, 0.5f, 0.5f ) );
 		hull.getMaterial().setDoubleSided( true );
-//		hull.getMaterial().setAmbient( <set-?> );
 		getScene().addChild( hull );
 
 		final InputHandler handler = new InputHandler( getScene(), getRenderer(), getHub() );
@@ -111,7 +110,7 @@ public class Viewer3D extends SceneryBase
 			lights[ i ].setQuadratic( 0.0f );
 //			lights[ i ].showLightBox();
 		}
-		lights[ 0 ].setPosition( new GLVector( 1.0f, 0f, -1.0f / ( float ) Math.sqrt( 2.0 ) ) );
+		lights[ 0 ].setPosition( new GLVector( -1.0f, 0f, -1.0f / ( float ) Math.sqrt( 2.0 ) ) );
 		lights[ 1 ].setPosition( new GLVector( -1.0f, 0f, -1.0f / ( float ) Math.sqrt( 2.0 ) ) );
 		lights[ 2 ].setPosition( new GLVector( 0.0f, 1.0f, 1.0f / ( float ) Math.sqrt( 2.0 ) ) );
 		lights[ 3 ].setPosition( new GLVector( 0.0f, -1.0f, 1.0f / ( float ) Math.sqrt( 2.0 ) ) );
