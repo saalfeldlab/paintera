@@ -1,15 +1,19 @@
 package bdv.bigcat.viewer.viewer3d;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.function.Function;
+
+import com.jogamp.opengl.math.Quaternion;
 
 import bdv.bigcat.ui.ARGBStream;
 import bdv.bigcat.viewer.state.FragmentSegmentAssignmentState;
 import bdv.bigcat.viewer.state.StateListener;
 import bdv.bigcat.viewer.viewer3d.marchingCubes.ForegroundCheck;
 import cleargl.GLVector;
+import graphics.scenery.Camera;
 import graphics.scenery.Scene;
 import net.imglib2.Interval;
 import net.imglib2.Localizable;
@@ -41,8 +45,7 @@ public class NeuronRenderer< T, F extends FragmentSegmentAssignmentState< F > > 
 			final ExecutorService es,
 			final AffineTransform3D toWorldCoordinates,
 			final int[] blockSize,
-			final int[] cubeSize,
-			final double[] resolution )
+			final int[] cubeSize )
 	{
 		super();
 		this.selectedFragmentId = selectedFragmentId;
@@ -58,7 +61,6 @@ public class NeuronRenderer< T, F extends FragmentSegmentAssignmentState< F > > 
 		this.toWorldCoordinates = toWorldCoordinates;
 		this.blockSize = blockSize;
 		this.cubeSize = cubeSize;
-		this.resolution = resolution;
 
 		updateForegroundCheck();
 		this.fragmentSegmentAssignment.addListener( this );
@@ -90,8 +92,6 @@ public class NeuronRenderer< T, F extends FragmentSegmentAssignmentState< F > > 
 
 	private final int[] cubeSize;
 
-	private final double[] resolution;
-
 	private boolean updateOnStateChange = true;
 
 	private boolean allowRendering = true;
@@ -99,7 +99,7 @@ public class NeuronRenderer< T, F extends FragmentSegmentAssignmentState< F > > 
 	private final List< Neuron< T > > neurons = new ArrayList<>();
 
 	/**
-	 * Bounding box of the complete mesh/neuron (xmin, ymin, zmin, xmax, ymax,
+	 * Bounding box of the complete mesh/neuron (xmin, xmax, ymin, ymax, zmin,
 	 * zmax)
 	 */
 	private float[] completeBoundingBox = null;
@@ -140,7 +140,7 @@ public class NeuronRenderer< T, F extends FragmentSegmentAssignmentState< F > > 
 			final Neuron< T > neuron = new Neuron<>( this, interval, scene );
 			this.neurons.add( neuron );
 			final int color = stream.argb( selectedFragmentId );
-			neuron.render( initialLocationInImageCoordinates, data, foregroundCheck, toWorldCoordinates, blockSize, cubeSize, resolution, color, es );
+			neuron.render( initialLocationInImageCoordinates, data, foregroundCheck, toWorldCoordinates, blockSize, cubeSize, color, es );
 		}
 	}
 
@@ -243,61 +243,94 @@ public class NeuronRenderer< T, F extends FragmentSegmentAssignmentState< F > > 
 	{
 		assert ( completeBoundingBox.length == boundingBox.length );
 
+		float[] diffBB = new float[ boundingBox.length / 2 ];
+		int maxDirection = 0;
+
 		if ( completeBoundingBox == null )
+		{
 			completeBoundingBox = boundingBox;
+			Arrays.fill( diffBB, 0 );
+		}
 		else
 		{
+			// calculates the size of the bb in each direction before update the
+			// bb
+			for ( int i = 0; i < completeBoundingBox.length / 2; i++ )
+				diffBB[ i ] = completeBoundingBox[ i + 1 ] - completeBoundingBox[ i ];
+
 			for ( int d = 0; d < completeBoundingBox.length; d++ )
 			{
-				if ( d < ( completeBoundingBox.length / 2 ) && completeBoundingBox[ d ] > boundingBox[ d ] )
+				if ( ( d % 2 == 0 ) && completeBoundingBox[ d ] > boundingBox[ d ] )
+				{
 					completeBoundingBox[ d ] = boundingBox[ d ];
-				else if ( d >= ( completeBoundingBox.length / 2 ) && completeBoundingBox[ d ] < boundingBox[ d ] )
+				}
+				else if ( ( d % 2 != 0 ) && completeBoundingBox[ d ] < boundingBox[ d ] )
+				{
 					completeBoundingBox[ d ] = boundingBox[ d ];
+				}
 			}
+
+			for ( int i = 0; i < completeBoundingBox.length / 2; i++ )
+			{
+				diffBB[ i ] = ( completeBoundingBox[ i + 1 ] - completeBoundingBox[ i ] ) - diffBB[ i ];
+				maxDirection = diffBB[ i ] > diffBB[ maxDirection ] ? i : maxDirection;
+			}
+
+			System.out.println( "diffBB " + diffBB[ 0 ] + " " + diffBB[ 1 ] + " " + diffBB[ 2 ] );
+
 			System.out.println( "completeBB: " + completeBoundingBox[ 0 ] + "x" + completeBoundingBox[ 1 ] + "x" + completeBoundingBox[ 2 ] +
 					" " + completeBoundingBox[ 3 ] + "x" + completeBoundingBox[ 4 ] + "x" + completeBoundingBox[ 5 ] );
 		}
 
-		GLVector cameraPosition = getCameraPosition();
-		scene.getActiveObserver().setPosition( cameraPosition );
+		updateCameraPosition( maxDirection );
 	}
 
-	private GLVector getCameraPosition()
+	private void updateCameraPosition( int direction )
 	{
+		GLVector position = scene.getActiveObserver().getPosition();
 		// set the camera position to the center of the complete bounding box
 		float[] cameraPosition = new float[ 3 ];
-		float maxDistance = 0;
+		float[] centerBB = new float[ 3 ];
 		for ( int i = 0; i < completeBoundingBox.length / 2; i++ )
 		{
-			cameraPosition[ i ] = ( completeBoundingBox[ i ] + completeBoundingBox[ i + 3 ] ) / 2;
-
-			if ( maxDistance < ( completeBoundingBox[ i + 3 ] - completeBoundingBox[ i ] ) )
-				maxDistance = completeBoundingBox[ i + 3 ] - completeBoundingBox[ i ];
+			cameraPosition[ i ] = ( completeBoundingBox[ i * 2 ] + completeBoundingBox[ i * 2 + 1 ] ) / 2;
+			centerBB[ i ] = ( completeBoundingBox[ i * 2 ] + completeBoundingBox[ i * 2 + 1 ] ) / 2;
 		}
 
+		Camera camera = scene.getActiveObserver();
 		System.out.println( "center of bb: " + cameraPosition[ 0 ] + " " + cameraPosition[ 1 ] + " " + cameraPosition[ 2 ] );
-		System.out.println( "max distance " + maxDistance );
 
 		// calculate the distance to the center
-//		float FOV = scene.getActiveObserver().getFov();
-//		System.out.println( "FOV: " + FOV );
-//		float distanceToCenter = ( ( completeBoundingBox[ 3 ] - completeBoundingBox[ 0 ] ) / 2 ) / ( float ) Math.sin( FOV / 2 );
-//		System.out.println( "distanceToCenter: " + distanceToCenter );
+		float FOV = ( float ) ( scene.getActiveObserver().getFov() * ( Math.PI / 180 ) );
+		System.out.println( "FOV: " + FOV );
+		float height = completeBoundingBox[ 1 ] - completeBoundingBox[ 0 ];
+		float width = completeBoundingBox[ 3 ] - completeBoundingBox[ 2 ];
+		float depth = completeBoundingBox[ 5 ] - completeBoundingBox[ 4 ];
 
-//		GLVector forward = scene.getActiveObserver().getForward();
-//		forward.set( 0, forward.get( 0 ) * -1 ); // flip x's sign
-//
-//		System.out.println( "forward direction: " + forward.get( 0 ) + " " + forward.get( 1 ) + " " + forward.get( 2 ) );
-//
-//		for ( int i = 0; i < cameraPosition.length; i++ )
-//		{
-//			cameraPosition[ i ] += ( forward.get( i ) * distanceToCenter );
-//		}
-
-//		cameraPosition[ 2 ] += maxDistance;
-
+		float dist = Math.max( height, Math.max( height, depth ) );
+		float distanceToCenter = ( float ) Math.abs( ( dist / 2 ) / Math.tan( FOV / 2 ) ) + width / 2;
+		System.out.println( "distanceToCenter: " + distanceToCenter );
+		System.out.println( "direction " + direction );
+		cameraPosition[ 0 ] += distanceToCenter;
 		System.out.println( "camera position: " + cameraPosition[ 0 ] + " " + cameraPosition[ 1 ] + " " + cameraPosition[ 2 ] );
 
-		return new GLVector( cameraPosition[ 0 ], cameraPosition[ 1 ], cameraPosition[ 2 ] );
+		camera.setPosition( new GLVector( cameraPosition[ 0 ], cameraPosition[ 1 ], cameraPosition[ 2 ] ) );
+		System.out.println( "final camera position: " + cameraPosition[ 0 ] + " " + cameraPosition[ 1 ] + " " + cameraPosition[ 2 ] );
+
+		GLVector directionVector = new GLVector( 0, 0, 0 );
+		float value = ( float ) Math.sqrt( distanceToCenter * distanceToCenter + ( cameraPosition[ 2 ] - centerBB[ 2 ] ) * ( cameraPosition[ 2 ] - centerBB[ 2 ] ) );
+
+		float angle = ( float ) ( -90 * ( Math.PI / 180 ) );// ( float )
+															// Math.acos(distanceToCenter
+															// / value );
+		System.out.println( " angle " + angle );
+//		directionVector.set( direction, centerBB[ direction ] - cameraPosition[ direction ] / distanceToCenter );
+		directionVector.set( 1, angle );
+//		System.out.println( "direction " + directionVector.get( 0 ) + " " + directionVector.get( 1 ) + " " + directionVector.get( 2 ) );
+
+		Quaternion rotation = new Quaternion();
+		rotation.setFromEuler( directionVector.get( 0 ), directionVector.get( 1 ), directionVector.get( 2 ) );
+		camera.setRotation( rotation );
+		System.out.println( "rotation: " + rotation.getX() + " " + rotation.getY() + " " + rotation.getZ() + " " + rotation.getW() );
 	}
 }
