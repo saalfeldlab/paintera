@@ -35,9 +35,11 @@ import bdv.bigcat.viewer.atlas.mode.NavigationOnly;
 import bdv.bigcat.viewer.atlas.mode.Render3D;
 import bdv.bigcat.viewer.ortho.OrthoView;
 import bdv.bigcat.viewer.ortho.OrthoViewState;
+import bdv.bigcat.viewer.panel.ViewerNode;
 import bdv.bigcat.viewer.state.FragmentSegmentAssignmentState;
 import bdv.bigcat.viewer.state.SelectedIds;
 import bdv.bigcat.viewer.stream.ModalGoldenAngleSaturatedHighlightingARGBStream;
+import bdv.bigcat.viewer.viewer3d.OrthoSlice;
 import bdv.bigcat.viewer.viewer3d.Viewer3D;
 import bdv.bigcat.viewer.viewer3d.Viewer3DController;
 import bdv.labels.labelset.LabelMultisetType;
@@ -244,6 +246,13 @@ public class Atlas
 		view.makeDefaultLayout();
 
 		primaryStage.show();
+
+		for ( final Node child : this.baseView().getChildren() )
+			if ( child instanceof ViewerNode )
+			{
+				final ViewerNode vn = ( ViewerNode ) child;
+				final OrthoSlice orthoSlice = new OrthoSlice( renderView.scene(), ( ViewerPanel ) vn.getContent() );
+			}
 
 		// test the look and feel with both Caspian and Modena
 		Application.setUserAgentStylesheet( Application.STYLESHEET_CASPIAN );
