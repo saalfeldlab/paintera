@@ -75,6 +75,7 @@ public class OrthoSlice
 		m.setAmbient( new GLVector( 1.0f, 1.0f, 1.0f ) );
 		m.setDiffuse( new GLVector( 0.0f, 0.0f, .0f ) );
 		m.setSpecular( new GLVector( 0.0f, 0.0f, 0.0f ) );
+		m.setDoubleSided( true );
 		final byte[] data = new byte[ pixels.length * numChannels ];
 		final ByteBuffer bb = ByteBuffer.wrap( data );
 		for ( final int pixel : pixels )
