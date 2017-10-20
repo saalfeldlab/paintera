@@ -1,7 +1,6 @@
 package bdv.bigcat.viewer.viewer3d;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.function.Function;
@@ -243,51 +242,35 @@ public class NeuronRenderer< T, F extends FragmentSegmentAssignmentState< F > > 
 	{
 		assert ( completeBoundingBox.length == boundingBox.length );
 
-		float[] diffBB = new float[ boundingBox.length / 2 ];
-		int maxDirection = 0;
-
+		// TODO: this should take into account alse the bb from other visible
+		// neurons
 		if ( completeBoundingBox == null )
-		{
 			completeBoundingBox = boundingBox;
-			Arrays.fill( diffBB, 0 );
-		}
 		else
 		{
-			// calculates the size of the bb in each direction before update the
-			// bb
-			for ( int i = 0; i < completeBoundingBox.length / 2; i++ )
-				diffBB[ i ] = completeBoundingBox[ i + 1 ] - completeBoundingBox[ i ];
-
-			for ( int d = 0; d < completeBoundingBox.length; d++ )
-			{
-				if ( ( d % 2 == 0 ) && completeBoundingBox[ d ] > boundingBox[ d ] )
-				{
-					completeBoundingBox[ d ] = boundingBox[ d ];
-				}
-				else if ( ( d % 2 != 0 ) && completeBoundingBox[ d ] < boundingBox[ d ] )
-				{
-					completeBoundingBox[ d ] = boundingBox[ d ];
-				}
-			}
-
-			for ( int i = 0; i < completeBoundingBox.length / 2; i++ )
-			{
-				diffBB[ i ] = ( completeBoundingBox[ i + 1 ] - completeBoundingBox[ i ] ) - diffBB[ i ];
-				maxDirection = diffBB[ i ] > diffBB[ maxDirection ] ? i : maxDirection;
-			}
-
-			System.out.println( "diffBB " + diffBB[ 0 ] + " " + diffBB[ 1 ] + " " + diffBB[ 2 ] );
-
-			System.out.println( "completeBB: " + completeBoundingBox[ 0 ] + "x" + completeBoundingBox[ 1 ] + "x" + completeBoundingBox[ 2 ] +
-					" " + completeBoundingBox[ 3 ] + "x" + completeBoundingBox[ 4 ] + "x" + completeBoundingBox[ 5 ] );
+			updateBoundingBox( boundingBox );
 		}
 
-		updateCameraPosition( maxDirection );
+		updateCameraPosition();
 	}
 
-	private void updateCameraPosition( int direction )
+	private void updateBoundingBox( float[] boundingBox )
 	{
-		GLVector position = scene.getActiveObserver().getPosition();
+		for ( int d = 0; d < completeBoundingBox.length; d++ )
+		{
+			if ( ( d % 2 == 0 ) && completeBoundingBox[ d ] > boundingBox[ d ] )
+			{
+				completeBoundingBox[ d ] = boundingBox[ d ];
+			}
+			else if ( ( d % 2 != 0 ) && completeBoundingBox[ d ] < boundingBox[ d ] )
+			{
+				completeBoundingBox[ d ] = boundingBox[ d ];
+			}
+		}
+	}
+
+	private void updateCameraPosition()
+	{
 		// set the camera position to the center of the complete bounding box
 		float[] cameraPosition = new float[ 3 ];
 		float[] centerBB = new float[ 3 ];
@@ -298,39 +281,26 @@ public class NeuronRenderer< T, F extends FragmentSegmentAssignmentState< F > > 
 		}
 
 		Camera camera = scene.getActiveObserver();
-		System.out.println( "center of bb: " + cameraPosition[ 0 ] + " " + cameraPosition[ 1 ] + " " + cameraPosition[ 2 ] );
 
 		// calculate the distance to the center
 		float FOV = ( float ) ( scene.getActiveObserver().getFov() * ( Math.PI / 180 ) );
-		System.out.println( "FOV: " + FOV );
 		float height = completeBoundingBox[ 1 ] - completeBoundingBox[ 0 ];
 		float width = completeBoundingBox[ 3 ] - completeBoundingBox[ 2 ];
 		float depth = completeBoundingBox[ 5 ] - completeBoundingBox[ 4 ];
 
 		float dist = Math.max( height, Math.max( height, depth ) );
 		float distanceToCenter = ( float ) Math.abs( ( dist / 2 ) / Math.tan( FOV / 2 ) ) + width / 2;
-		System.out.println( "distanceToCenter: " + distanceToCenter );
-		System.out.println( "direction " + direction );
 		cameraPosition[ 0 ] += distanceToCenter;
-		System.out.println( "camera position: " + cameraPosition[ 0 ] + " " + cameraPosition[ 1 ] + " " + cameraPosition[ 2 ] );
-
+		// walk with the camera in the x-axis
 		camera.setPosition( new GLVector( cameraPosition[ 0 ], cameraPosition[ 1 ], cameraPosition[ 2 ] ) );
-		System.out.println( "final camera position: " + cameraPosition[ 0 ] + " " + cameraPosition[ 1 ] + " " + cameraPosition[ 2 ] );
 
-		GLVector directionVector = new GLVector( 0, 0, 0 );
-		float value = ( float ) Math.sqrt( distanceToCenter * distanceToCenter + ( cameraPosition[ 2 ] - centerBB[ 2 ] ) * ( cameraPosition[ 2 ] - centerBB[ 2 ] ) );
-
-		float angle = ( float ) ( -90 * ( Math.PI / 180 ) );// ( float )
-															// Math.acos(distanceToCenter
-															// / value );
-		System.out.println( " angle " + angle );
-//		directionVector.set( direction, centerBB[ direction ] - cameraPosition[ direction ] / distanceToCenter );
-		directionVector.set( 1, angle );
-//		System.out.println( "direction " + directionVector.get( 0 ) + " " + directionVector.get( 1 ) + " " + directionVector.get( 2 ) );
-
+		// TODO: work with any rotation degree
+		// rotate the camera 90 degrees to look to the neuron
+		float angle = ( float ) ( -90 * ( Math.PI / 180 ) );
+		GLVector rotationVector = new GLVector( 0, 0, 0 );
+		rotationVector.set( 1, angle );
 		Quaternion rotation = new Quaternion();
-		rotation.setFromEuler( directionVector.get( 0 ), directionVector.get( 1 ), directionVector.get( 2 ) );
+		rotation.setFromEuler( rotationVector.get( 0 ), rotationVector.get( 1 ), rotationVector.get( 2 ) );
 		camera.setRotation( rotation );
-		System.out.println( "rotation: " + rotation.getX() + " " + rotation.getY() + " " + rotation.getZ() + " " + rotation.getW() );
 	}
 }
