@@ -124,7 +124,7 @@ public class Neuron< T >
 						material.setOpacity( 1.0f );
 						material.setDiffuse( new GLVector( ( color >>> 16 & 0xff ) * ONE_OVER_255, ( color >>> 8 & 0xff ) * ONE_OVER_255, ( color >>> 0 & 0xff ) * ONE_OVER_255 ) );
 						material.setAmbient( new GLVector( ( color >>> 16 & 0xff ) * ONE_OVER_255, ( color >>> 8 & 0xff ) * ONE_OVER_255, ( color >>> 0 & 0xff ) * ONE_OVER_255 ) );
-						material.setSpecular( new GLVector( ( color >>> 16 & 0xff ) * ONE_OVER_255, ( color >>> 8 & 0xff ) * ONE_OVER_255, ( color >>> 0 & 0xff ) * ONE_OVER_255 ) );
+						material.setSpecular( new GLVector( 0.0f, 0.0f, 0.0f ) );
 						mesh.setMaterial( material );
 						mesh.setPosition( new GLVector( 0.0f, 0.0f, 0.0f ) );
 						mesh.setVertices( FloatBuffer.wrap( vertices ) );
