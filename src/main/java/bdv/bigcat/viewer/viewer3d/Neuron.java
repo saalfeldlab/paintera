@@ -49,6 +49,8 @@ public class Neuron< T >
 
 	private final List< Future< ? > > futures = new ArrayList<>();
 
+	private final List< Box > chunks = new ArrayList<>();
+
 	private final Set< HashWrapper< long[] > > offsets = new HashSet<>();
 
 	private boolean isCanceled = false;
@@ -76,6 +78,7 @@ public class Neuron< T >
 		{
 			this.isCanceled = true;
 			this.futures.forEach( future -> future.cancel( true ) );
+			this.chunks.forEach( chunk -> scene.removeChild( chunk ) );
 		}
 	}
 
@@ -135,12 +138,11 @@ public class Neuron< T >
 
 					final GLVector colorVector = new GLVector( ( color >>> 16 & 0xff ) * ONE_OVER_255, ( color >>> 8 & 0xff ) * ONE_OVER_255, ( color >>> 0 & 0xff ) * ONE_OVER_255 );
 					chunk.getMaterial().setDiffuse( colorVector );
-
-					// TODO: this is not working properly...
-					// the transparency and the opacity are not combined
-					chunk.getMaterial().setOpacity( 0.1f );
-//					chunk.getMaterial().setTransparent( true );
+//
+					chunk.getMaterial().setOpacity( 0.4f );
+					chunk.getMaterial().setTransparent( true );
 					scene.addChild( chunk );
+					this.chunks.add( chunk );
 
 					final MarchingCubes< T > mc = new MarchingCubes<>( data, interval, toWorldCoordinates, cubeSize );
 					final float[] vertices = mc.generateMesh( foregroundCheck );
@@ -165,6 +167,7 @@ public class Neuron< T >
 						{
 							if ( !isCanceled )
 							{
+								this.chunks.remove( chunk );
 								scene.removeChild( chunk );
 								addNode( mesh );
 								mesh.setDirty( true );
@@ -184,7 +187,10 @@ public class Neuron< T >
 						}
 					}
 					else
+					{
+						this.chunks.remove( chunk );
 						scene.removeChild( chunk );
+					}
 				} ) );
 		}
 	}
