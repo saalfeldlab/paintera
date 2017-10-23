@@ -7,7 +7,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import cleargl.GLVector;
-import graphics.scenery.Box;
 import graphics.scenery.Camera;
 import graphics.scenery.DetachedHeadCamera;
 import graphics.scenery.Mesh;
@@ -50,14 +49,6 @@ public class Viewer3D extends SceneryBase
 		setRenderer(
 				Renderer.createRenderer( getHub(), getApplicationName(), getScene(), getWindowWidth(), getWindowHeight(), scPanel ) );
 		getHub().add( SceneryElement.Renderer, getRenderer() );
-
-		// TODO: box with the size of the data
-		final Box hull = new Box( new GLVector( 20000, 20000, 20000 ), true );
-		hull.getMaterial().setOpacity( 0.5f );
-		hull.getMaterial().setDiffuse( new GLVector( 0.5f, 0.5f, 0.5f ) );
-		hull.getMaterial().setDoubleSided( true );
-//		hull.getMaterial().setAmbient( <set-?> );
-		getScene().addChild( hull );
 
 		final InputHandler handler = new InputHandler( getScene(), getRenderer(), getHub() );
 		handler.removeBehaviour( "move_forward" );
