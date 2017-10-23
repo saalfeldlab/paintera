@@ -46,6 +46,11 @@ public class OrthoSliceMesh extends Mesh implements HasGeometry
 	public OrthoSliceMesh( final Localizable bottomLeft, final Localizable bottomRight, final Localizable topRight, final Localizable topLeft, final AffineTransform3D pointTransform )
 	{
 		super();
+		this.update( bottomLeft, bottomRight, topRight, topLeft, pointTransform );
+	}
+
+	public void update( final Localizable bottomLeft, final Localizable bottomRight, final Localizable topRight, final Localizable topLeft, final AffineTransform3D pointTransform )
+	{
 		final RealPoint p = new RealPoint( 3 );
 
 		final double offset = 0.0;
