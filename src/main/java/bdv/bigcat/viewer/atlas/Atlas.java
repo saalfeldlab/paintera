@@ -125,7 +125,9 @@ public class Atlas
 	public Atlas( final ViewerOptions viewerOptions, final Interval interval )
 	{
 		super();
-		this.viewerOptions = viewerOptions.accumulateProjectorFactory( new ClearingCompositeProjectorFactory<>( composites, new ARGBType() ) );
+		this.viewerOptions = viewerOptions
+				.accumulateProjectorFactory( new ClearingCompositeProjectorFactory<>( composites, new ARGBType() ) )
+				.numRenderingThreads( Math.min( 3, Math.max( 1, Runtime.getRuntime().availableProcessors() / 3 ) ) );
 		this.view = new OrthoView( focusHandler.onEnter(), focusHandler.onExit(), new OrthoViewState( this.viewerOptions ) );
 		this.root = new BorderPane( this.view );
 		this.root.setBottom( status );
