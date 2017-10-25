@@ -84,7 +84,7 @@ public class Viewer3D extends SceneryBase
 
 		setInputHandler( handler );
 
-		cam.perspectiveCamera( 50f, getWindowWidth(), getWindowHeight(), 0.1f, 40000.0f );
+		cam.perspectiveCamera( 50f, getWindowWidth(), getWindowHeight(), 1.0f, 10000.0f );
 		cam.setActive( true );
 		getScene().addChild( cam );
 
@@ -94,8 +94,8 @@ public class Viewer3D extends SceneryBase
 			lights[ i ] = new PointLight();
 			lights[ i ].setEmissionColor( new GLVector( 1.0f, 1.0f, 1.0f ) );
 			lights[ i ].setIntensity( 100.2f * 5 );
-			lights[ i ].setLinear( 0.001f );
-			lights[ i ].setQuadratic( 0.0f );
+			lights[ i ].setLinear( 0.00f );
+			lights[ i ].setQuadratic( 0.01f );
 //			lights[ i ].showLightBox();
 		}
 		lights[ 0 ].setPosition( new GLVector( -1.0f, 0f, -1.0f / ( float ) Math.sqrt( 2.0 ) ) );
