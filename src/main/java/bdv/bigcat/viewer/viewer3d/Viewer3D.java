@@ -1,8 +1,5 @@
 package bdv.bigcat.viewer.viewer3d;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import cleargl.GLVector;
 import graphics.scenery.Camera;
 import graphics.scenery.Mesh;
@@ -19,8 +16,6 @@ import net.imglib2.RealLocalizable;
 public class Viewer3D extends SceneryBase
 {
 	/** logger */
-	static final Logger LOGGER = LoggerFactory.getLogger( Viewer3D.class );
-
 	private final SceneryPanel scPanel;
 
 	private final Camera cam = new Camera();
