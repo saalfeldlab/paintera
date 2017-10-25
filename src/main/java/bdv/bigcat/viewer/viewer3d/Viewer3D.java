@@ -1,8 +1,5 @@
 package bdv.bigcat.viewer.viewer3d;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import cleargl.GLVector;
 import graphics.scenery.Camera;
 import graphics.scenery.Mesh;
@@ -10,6 +7,7 @@ import graphics.scenery.PointLight;
 import graphics.scenery.Scene;
 import graphics.scenery.SceneryBase;
 import graphics.scenery.SceneryElement;
+import graphics.scenery.repl.REPL;
 import graphics.scenery.backends.Renderer;
 import graphics.scenery.controls.InputHandler;
 import graphics.scenery.controls.behaviours.MovementCommand;
@@ -19,8 +17,6 @@ import net.imglib2.RealLocalizable;
 public class Viewer3D extends SceneryBase
 {
 	/** logger */
-	static final Logger LOGGER = LoggerFactory.getLogger( Viewer3D.class );
-
 	private final SceneryPanel scPanel;
 
 	private final Camera cam = new Camera();
@@ -88,7 +84,7 @@ public class Viewer3D extends SceneryBase
 
 		setInputHandler( handler );
 
-		cam.perspectiveCamera( 50f, getWindowWidth(), getWindowHeight(), 0.1f, 40000.0f );
+		cam.perspectiveCamera( 50f, getWindowWidth(), getWindowHeight(), 1.0f, 10000.0f );
 		cam.setActive( true );
 		getScene().addChild( cam );
 
@@ -98,8 +94,8 @@ public class Viewer3D extends SceneryBase
 			lights[ i ] = new PointLight();
 			lights[ i ].setEmissionColor( new GLVector( 1.0f, 1.0f, 1.0f ) );
 			lights[ i ].setIntensity( 100.2f * 5 );
-			lights[ i ].setLinear( 0.001f );
-			lights[ i ].setQuadratic( 0.0f );
+			lights[ i ].setLinear( 0.00f );
+			lights[ i ].setQuadratic( 0.01f );
 //			lights[ i ].showLightBox();
 		}
 		lights[ 0 ].setPosition( new GLVector( -1.0f, 0f, -1.0f / ( float ) Math.sqrt( 2.0 ) ) );
@@ -107,7 +103,17 @@ public class Viewer3D extends SceneryBase
 		lights[ 2 ].setPosition( new GLVector( 0.0f, 1.0f, 1.0f / ( float ) Math.sqrt( 2.0 ) ) );
 		lights[ 3 ].setPosition( new GLVector( 0.0f, -1.0f, 1.0f / ( float ) Math.sqrt( 2.0 ) ) );
 
-		getScene().addChild( lights[ 0 ] );
+		getScene().addChild(lights[0]);
+
+		getHub().add(SceneryElement.Settings, getSettings());
+		getHub().add(SceneryElement.Statistics, getStats());
+
+		setRepl(new REPL(getRenderer(), getSettings(), getScene(), getStats(), getHub()));
+
+		if(getRepl() != null) {
+			getRepl().start();
+			getRepl().showConsoleWindow();
+		}
 	}
 
 	public void addChild( final Mesh child )
