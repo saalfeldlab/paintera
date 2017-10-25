@@ -52,7 +52,6 @@ public class ExampleApplicationCremi
 		String labelsDataset = "volumes/labels/neuron_ids";
 
 		double[] resolution = { 4, 4, 40 };
-//		final double[] offset = { 424, 424, 560 };
 		int[] rawCellSize = { 192, 96, 7 };
 		int[] labelCellSize = { 79, 79, 4 };
 		
@@ -89,7 +88,6 @@ public class ExampleApplicationCremi
 			}
 			catch ( final InterruptedException e )
 			{
-				// TODO Auto-generated catch block
 				e.printStackTrace();
 			}
 			stage.show();
@@ -97,12 +95,6 @@ public class ExampleApplicationCremi
 		} );
 
 		latch.await();
-
-//		AffineTransform3D transform = new AffineTransform3D();
-//		final long label = 7;
-//		controller.renderAtSelectionMultiset( volumeLabels, transform, location, label );
-//		Viewer3DController.generateMesh( volumeLabels, location );
-
 		viewer.addRawSource( rawSource, 0., 255. );
 
 		final HDF5LabelMultisetSourceSpec labelSpec2 = new HDF5LabelMultisetSourceSpec( labelsFile, labelsDataset, labelCellSize, "labels" );
