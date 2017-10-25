@@ -7,6 +7,7 @@ import graphics.scenery.PointLight;
 import graphics.scenery.Scene;
 import graphics.scenery.SceneryBase;
 import graphics.scenery.SceneryElement;
+import graphics.scenery.repl.REPL;
 import graphics.scenery.backends.Renderer;
 import graphics.scenery.controls.InputHandler;
 import graphics.scenery.controls.behaviours.MovementCommand;
@@ -102,7 +103,17 @@ public class Viewer3D extends SceneryBase
 		lights[ 2 ].setPosition( new GLVector( 0.0f, 1.0f, 1.0f / ( float ) Math.sqrt( 2.0 ) ) );
 		lights[ 3 ].setPosition( new GLVector( 0.0f, -1.0f, 1.0f / ( float ) Math.sqrt( 2.0 ) ) );
 
-		getScene().addChild( lights[ 0 ] );
+		getScene().addChild(lights[0]);
+
+		getHub().add(SceneryElement.Settings, getSettings());
+		getHub().add(SceneryElement.Statistics, getStats());
+
+		setRepl(new REPL(getRenderer(), getSettings(), getScene(), getStats(), getHub()));
+
+		if(getRepl() != null) {
+			getRepl().start();
+			getRepl().showConsoleWindow();
+		}
 	}
 
 	public void addChild( final Mesh child )
