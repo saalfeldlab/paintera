@@ -1,29 +1,29 @@
 package bdv.bigcat.viewer.panel;
 
-import java.awt.AWTKeyStroke;
-import java.awt.KeyboardFocusManager;
 import java.awt.event.ActionEvent;
-import java.awt.event.MouseEvent;
-import java.awt.event.MouseListener;
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
-
-import javax.swing.JPanel;
-import javax.swing.KeyStroke;
+import java.util.Set;
+import java.util.function.Predicate;
 
 import org.scijava.ui.behaviour.ClickBehaviour;
-import org.scijava.ui.behaviour.DragBehaviour;
 import org.scijava.ui.behaviour.ScrollBehaviour;
-import org.scijava.ui.behaviour.io.InputTriggerConfig;
 import org.scijava.ui.behaviour.util.AbstractNamedAction;
-import org.scijava.ui.behaviour.util.Actions;
-import org.scijava.ui.behaviour.util.Behaviours;
-import org.scijava.ui.behaviour.util.InputActionBindings;
-import org.scijava.ui.behaviour.util.TriggerBehaviourBindings;
 
 import bdv.bigcat.viewer.state.GlobalTransformManager;
-import bdv.viewer.ViewerPanel;
+import bdv.viewer.ViewerPanelFX;
+import bdv.viewer.fx.MouseDragFX;
 import bdv.viewer.state.SourceState;
+import javafx.beans.property.DoubleProperty;
+import javafx.beans.property.SimpleDoubleProperty;
+import javafx.event.EventHandler;
+import javafx.scene.input.KeyCode;
+import javafx.scene.input.KeyEvent;
+import javafx.scene.input.MouseButton;
+import javafx.scene.input.MouseEvent;
+import javafx.scene.input.ScrollEvent;
 import net.imglib2.RealPoint;
 import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.ui.TransformEventHandler;
@@ -47,7 +47,7 @@ public class ViewerTransformManager implements TransformListener< AffineTransfor
 
 	private static final String SELECT_AXIS_Z = "axis z";
 
-	private static final double[] speed = { 1.0, 10.0, 0.1 };
+	private static final double[] factors = { 1.0, 10.0, 0.1 };
 
 	private static final String[] SPEED_NAME = { "", " fast", " slow" };
 
@@ -69,15 +69,24 @@ public class ViewerTransformManager implements TransformListener< AffineTransfor
 
 	private static final String KEY_BACKWARD_Z = "backward z";
 
-	private double speedFactor = 1;
+	private final Set< KeyCode > activeKeys = Collections.synchronizedSet( new HashSet<>() );
 
-	public void speedFactor( final double speedFactor )
+	private final SimpleDoubleProperty rotationSpeed = new SimpleDoubleProperty( 1.0 );
+
+	private final SimpleDoubleProperty zoomSpeed = new SimpleDoubleProperty( 1.0 );
+
+	public void rotationSpeed( final double speed )
 	{
-		this.speedFactor = speedFactor;
+		this.rotationSpeed.set( speed );
+	}
+
+	public void zoomSpeed( final double speed )
+	{
+		this.zoomSpeed.set( speed );
 	}
 
 	public ViewerTransformManager(
-			final ViewerPanel viewer,
+			final ViewerPanelFX viewer,
 			final ViewerState state,
 			final AffineTransform3D globalToViewer )
 	{
@@ -90,9 +99,6 @@ public class ViewerTransformManager implements TransformListener< AffineTransfor
 		this.canvasW = 1;
 		this.centerX = this.canvasW / 2;
 		this.centerY = this.canvasH / 2;
-
-		behaviours = new Behaviours( config, "bdv" );
-		actions = new Actions( config );
 
 		setTransformListener( viewer );
 		manager.addListener( this );
@@ -112,8 +118,6 @@ public class ViewerTransformManager implements TransformListener< AffineTransfor
 
 	private GlobalTransformManager manager;
 
-	private final InputTriggerConfig config = new InputTriggerConfig();
-
 	private final AffineTransform3D global = new AffineTransform3D();
 
 	private final AffineTransform3D concatenated = new AffineTransform3D();
@@ -124,11 +128,7 @@ public class ViewerTransformManager implements TransformListener< AffineTransfor
 
 	private TransformListener< AffineTransform3D > listener;
 
-	private final Behaviours behaviours;
-
-	private final Actions actions;
-
-	private final ViewerPanel viewer;
+	private final ViewerPanelFX viewer;
 
 	private final ViewerState state;
 
@@ -205,44 +205,53 @@ public class ViewerTransformManager implements TransformListener< AffineTransfor
 		this.listener = transformListener;
 	}
 
-	private static void removeFocusTraversalKeys( final JPanel panel )
-	{
-		final KeyStroke ctrlTab = KeyStroke.getKeyStroke( "ctrl TAB" );
-		final KeyStroke ctrlShiftTab = KeyStroke.getKeyStroke( "ctrl shift TAB" );
-
-		final HashSet< AWTKeyStroke > forwardKeys = new HashSet<>( panel.getFocusTraversalKeys( KeyboardFocusManager.FORWARD_TRAVERSAL_KEYS ) );
-		forwardKeys.remove( ctrlTab );
-		forwardKeys.remove( ctrlShiftTab );
-		panel.setFocusTraversalKeys( KeyboardFocusManager.FORWARD_TRAVERSAL_KEYS, forwardKeys );
-
-		final HashSet< AWTKeyStroke > backwardKeys = new HashSet<>( panel.getFocusTraversalKeys( KeyboardFocusManager.BACKWARD_TRAVERSAL_KEYS ) );
-		backwardKeys.remove( ctrlTab );
-		backwardKeys.remove( ctrlShiftTab );
-		panel.setFocusTraversalKeys( KeyboardFocusManager.BACKWARD_TRAVERSAL_KEYS, backwardKeys );
-	}
-
 	private void setUpViewer()
 	{
 
-		removeFocusTraversalKeys( viewer );
+//		removeFocusTraversalKeys( viewer );
+		viewer.addEventHandler( KeyEvent.KEY_PRESSED, e -> {
+			synchronized ( activeKeys )
+			{
+				activeKeys.add( e.getCode() );
+			}
+		} );
+		viewer.addEventHandler( KeyEvent.KEY_RELEASED, e -> {
+			synchronized ( activeKeys )
+			{
+				activeKeys.remove( e.getCode() );
+			}
+		} );
 
-		behaviours.behaviour( new TranslateXY(), "drag translate", "button2", "button3" );
-		behaviours.behaviour( new Zoom( speed[ 0 ] ), ZOOM_NORMAL, "meta scroll", "ctrl shift scroll" );
-		behaviours.behaviour( new ButtonZoom( 1.05 ), "zoom", "UP" );
-		behaviours.behaviour( new ButtonZoom( 1.0 / 1.05 ), "zoom", "DOWN" );
-		for ( int s = 0; s < 3; ++s )
-		{
-			behaviours.behaviour( new Rotate( speed[ s ] ), DRAG_ROTATE + SPEED_NAME[ s ], speedMod[ s ] + "button1" );
-			behaviours.behaviour( new TranslateZ( speed[ s ] ), SCROLL_Z + SPEED_NAME[ s ], speedMod[ s ] + "scroll" );
-		}
-		final RemoveRotation removeRotation = new RemoveRotation();
-		actions.namedAction( removeRotation, "shift Z" );
-		this.viewer.addMouseListener( removeRotation );
+		final TranslateXY translateXY = new TranslateXY( "drag translate", event -> activeKeys.size() == 0 && event.getButton().equals( MouseButton.SECONDARY ) );
 
-//		actions.namedAction( new ToggleVisibility(), "shift V" );
-		actions.namedAction( new CycleSources( CycleSources.FORWARD ), "ctrl TAB" );
-		actions.namedAction( new CycleSources( CycleSources.BACKWARD ), "ctrl shift TAB" );
-		actions.namedAction( new ToggleInterpolation(), "I" );
+		final Rotate[] rotations = {
+				new Rotate( "rotate", rotationSpeed, factors[ 0 ], event -> activeKeys.size() == 0 && event.getButton().equals( MouseButton.PRIMARY ) ),
+				new Rotate( "rotate fast", rotationSpeed, factors[ 1 ], event -> event.getButton().equals( MouseButton.PRIMARY ) && event.isShiftDown() ),
+				new Rotate( "rotate slow", rotationSpeed, factors[ 2 ], event -> event.getButton().equals( MouseButton.PRIMARY ) && event.isControlDown() )
+		};
+
+		final Zoom zoom = new Zoom(
+				zoomSpeed,
+				event -> activeKeys.size() == 1 && activeKeys.contains( KeyCode.META ),
+				event -> activeKeys.size() == 2 && activeKeys.containsAll( Arrays.asList( KeyCode.CONTROL, KeyCode.SHIFT ) ) );
+
+		translateXY.installInto( this.viewer );
+		Arrays.stream( rotations ).forEach( r -> r.installInto( viewer ) );
+		viewer.addEventHandler( ScrollEvent.SCROLL, zoom );
+//		behaviours.behaviour( new ButtonZoom( 1.05 ), "zoom", "UP" );
+//		behaviours.behaviour( new ButtonZoom( 1.0 / 1.05 ), "zoom", "DOWN" );
+//		for ( int s = 0; s < 3; ++s )
+//		{
+//			behaviours.behaviour( new TranslateZ( speed[ s ] ), SCROLL_Z + SPEED_NAME[ s ], speedMod[ s ] + "scroll" );
+//		}
+//		final RemoveRotation removeRotation = new RemoveRotation();
+//		actions.namedAction( removeRotation, "shift Z" );
+//		this.viewer.addMouseListener( removeRotation );
+//
+////		actions.namedAction( new ToggleVisibility(), "shift V" );
+//		actions.namedAction( new CycleSources( CycleSources.FORWARD ), "ctrl TAB" );
+//		actions.namedAction( new CycleSources( CycleSources.BACKWARD ), "ctrl shift TAB" );
+//		actions.namedAction( new ToggleInterpolation(), "I" );
 
 		this.manager.addListener( this );
 	}
@@ -251,12 +260,6 @@ public class ViewerTransformManager implements TransformListener< AffineTransfor
 	public String getHelpString()
 	{
 		return "TODO";
-	}
-
-	public void install( final TriggerBehaviourBindings bindings, final InputActionBindings inputActionBindings )
-	{
-		behaviours.install( bindings, "transform" );
-		actions.install( inputActionBindings, "transform" );
 	}
 
 	private class GetOuter
@@ -272,33 +275,36 @@ public class ViewerTransformManager implements TransformListener< AffineTransfor
 		return this.manager;
 	}
 
-	private class TranslateXY extends GetOuter implements DragBehaviour
+	private class TranslateXY extends MouseDragFX
 	{
 
-		private int oX, oY;
+		public TranslateXY( final String name, final Predicate< MouseEvent >... eventFilter )
+		{
+			super( name, eventFilter );
+		}
 
 		private final double[] delta = new double[ 3 ];
 
 		private final AffineTransform3D affineDrag = new AffineTransform3D();
 
 		@Override
-		public synchronized void init( final int x, final int y )
+		public synchronized void initDrag( final javafx.scene.input.MouseEvent event )
 		{
 			synchronized ( global )
 			{
-				this.oX = x;
-				this.oY = y;
 				affineDrag.set( global );
 			}
 		}
 
 		@Override
-		public synchronized void drag( final int x, final int y )
+		public synchronized void drag( final javafx.scene.input.MouseEvent event )
 		{
 			synchronized ( global )
 			{
-				final double dX = ( x - oX ) / displayTransform.get( 0, 0 );
-				final double dY = ( y - oY ) / displayTransform.get( 0, 0 );
+				final double x = event.getX();
+				final double y = event.getY();
+				final double dX = ( x - startX ) / displayTransform.get( 0, 0 );
+				final double dY = ( y - startY ) / displayTransform.get( 0, 0 );
 				global.set( affineDrag );
 				delta[ 0 ] = dX;
 				delta[ 1 ] = dY;
@@ -311,21 +317,17 @@ public class ViewerTransformManager implements TransformListener< AffineTransfor
 			}
 
 		}
-
-		@Override
-		public void end( final int x, final int y )
-		{}
 	}
 
 	private class TranslateZ extends GetOuter implements ScrollBehaviour
 	{
-		private final double speed;
+		private final double speedF;
 
 		private final double[] delta = new double[ 3 ];
 
 		public TranslateZ( final double speed )
 		{
-			this.speed = speed;
+			this.speedF = speed;
 		}
 
 		@Override
@@ -335,7 +337,7 @@ public class ViewerTransformManager implements TransformListener< AffineTransfor
 			{
 				delta[ 0 ] = 0;
 				delta[ 1 ] = 0;
-				delta[ 2 ] = speedFactor * speed * -wheelRotation;
+				delta[ 2 ] = rotationSpeed.get() * speedF * -wheelRotation;
 				globalToViewer.applyInverse( delta, delta );
 				final AffineTransform3D shift = new AffineTransform3D();
 				shift.translate( delta );
@@ -344,28 +346,39 @@ public class ViewerTransformManager implements TransformListener< AffineTransfor
 		}
 	}
 
-	private class Zoom extends GetOuter implements ScrollBehaviour
+	private class Zoom extends GetOuter implements EventHandler< ScrollEvent >
 	{
-		private final double speed;
 
-		public Zoom( final double speed )
+		private final SimpleDoubleProperty speed = new SimpleDoubleProperty();
+
+		private final Predicate< ScrollEvent >[] check;
+
+		public Zoom( final DoubleProperty speed, final Predicate< ScrollEvent >... check )
 		{
-			this.speed = speed;
+			this.speed.set( speed.get() );
+			this.speed.bind( speed );
+			this.check = check;
 		}
 
 		@Override
-		public void scroll( final double wheelRotation, final boolean isHorizontal, final int x, final int y )
+		public void handle( final ScrollEvent event )
 		{
-			final AffineTransform3D global;
+			if ( Arrays.stream( check ).filter( c -> c.test( event ) ).count() == 0 )
+				return;
+			final AffineTransform3D global = new AffineTransform3D();
 			synchronized ( getOuter().global )
 			{
-				global = getOuter().global.copy();
+				global.set( getOuter().global );
 			}
+			final double x = event.getX();
+			final double y = event.getY();
 			final double[] location = new double[] { x, y, 0 };
 			concatenated.applyInverse( location, location );
 			global.apply( location, location );
 
-			final double s = speed * wheelRotation;
+			final double wheelRotation = event.getDeltaY();
+
+			final double s = speed.get() * wheelRotation;
 			final double dScale = 1.0 + 0.05;
 			final double scale = s > 0 ? 1.0 / dScale : dScale;
 
@@ -410,47 +423,53 @@ public class ViewerTransformManager implements TransformListener< AffineTransfor
 		}
 	}
 
-	private class Rotate extends GetOuter implements DragBehaviour
+	private class Rotate extends MouseDragFX
 	{
-		private final double speed;
 
-		public Rotate( final double speed )
-		{
-			this.speed = speed;
-		}
-
-		private int oX;
-
-		private int oY;
+		private final SimpleDoubleProperty speed = new SimpleDoubleProperty();
 
 		private final AffineTransform3D affineDragStart = new AffineTransform3D();
 
-		@Override
-		public void init( final int x, final int y )
+		private final double factor;
+
+		public Rotate( final String name, final DoubleProperty speed, final double factor, final Predicate< MouseEvent >... eventFilter )
 		{
+			super( name, eventFilter );
+			this.factor = factor;
+			this.speed.set( speed.get() * this.factor );
+			speed.addListener( ( obs, old, newv ) -> this.speed.set( this.factor * speed.get() ) );
+		}
+
+		@Override
+		public void initDrag( final javafx.scene.input.MouseEvent event )
+		{
+			System.out.println( "INIT DRAG?" );
 			synchronized ( global )
 			{
-				oX = x;
-				oY = y;
 				affineDragStart.set( global );
 			}
 		}
 
 		@Override
-		public void drag( final int x, final int y )
+		public void drag( final javafx.scene.input.MouseEvent event )
 		{
 			final AffineTransform3D affine = new AffineTransform3D();
 			synchronized ( global )
 			{
-				final double v = step * speed;
+				final double v = step * this.speed.get();
+				System.out.println( "V! " + v );
 				affine.set( affineDragStart );
+				final double x = event.getX();
+				final double y = event.getY();
 				final double[] point = new double[] { x, y, 0 };
-				final double[] origin = new double[] { oX, oY, 0 };
+				final double[] origin = new double[] { startX, startY, 0 };
+				System.out.println( "DOING DRAG? " + x + " " + startX + " " + y + " " + startY );
 
 				displayTransform.applyInverse( point, point );
 				displayTransform.applyInverse( origin, origin );
 
 				final double[] delta = new double[] { point[ 0 ] - origin[ 0 ], point[ 1 ] - origin[ 1 ], 0 };
+				System.out.println( "DELTA " + Arrays.toString( delta ) + " " + speed );
 				// TODO do scaling separately. need to swap .get( 0, 0 ) and
 				// .get( 1, 1 ) ?
 				final double[] rotation = new double[] { delta[ 1 ] * v * displayTransform.get( 0, 0 ), -delta[ 0 ] * v * displayTransform.get( 1, 1 ), 0 };
@@ -469,16 +488,13 @@ public class ViewerTransformManager implements TransformListener< AffineTransfor
 				for ( int d = 0; d < origin.length; ++d )
 					affine.set( affine.get( d, 3 ) + origin[ d ], d, 3 );
 
+				System.out.println( affine + " " + affineDragStart );
 				manager.setTransform( affine );
 			}
 		}
-
-		@Override
-		public void end( final int x, final int y )
-		{}
 	}
 
-	private class RemoveRotation extends AbstractNamedAction implements MouseListener
+	private class RemoveRotation implements EventHandler< KeyEvent >
 	{
 
 //		This only works when we assume that affine can be
@@ -494,9 +510,12 @@ public class ViewerTransformManager implements TransformListener< AffineTransfor
 //		( tr(A)*A )_ij = sum_k( tr(A)_ik * A_kj ) = sum_k( A_ki * A_kj )
 //		( tr(A)*A )_ii = sum_k( (A_ki)^2 )
 
-		public RemoveRotation()
+		private final String name;
+
+		public RemoveRotation( final String name )
 		{
-			super( "remove rotation" );
+			super();
+			this.name = name;
 		}
 
 		private final double[] mouseLocation = new double[ 3 ];
@@ -505,20 +524,24 @@ public class ViewerTransformManager implements TransformListener< AffineTransfor
 
 		private final RealPoint p = RealPoint.wrap( mouseLocation );
 
-		private boolean isInside = false;
-
 		@Override
-		public void actionPerformed( final ActionEvent e )
+		public void handle( final KeyEvent event )
 		{
-			synchronized ( global )
+			synchronized ( viewer )
 			{
-				viewer.getMouseCoordinates( p );
-				p.setPosition( 0l, 2 );
-				if ( false )
+				if ( viewer.isMouseInside() )
+					viewer.getMouseCoordinates( p );
+				else
 				{
 					p.setPosition( centerX, 0 );
 					p.setPosition( centerY, 1 );
 				}
+				p.setPosition( 0l, 2 );
+			}
+			synchronized ( global )
+			{
+				viewer.getMouseCoordinates( p );
+				p.setPosition( 0l, 2 );
 				displayTransform.applyInverse( mouseLocation, mouseLocation );
 				globalToViewer.applyInverse( mouseLocation, mouseLocation );
 
@@ -540,36 +563,6 @@ public class ViewerTransformManager implements TransformListener< AffineTransfor
 
 				manager.setTransform( affine );
 			}
-		}
-
-		@Override
-		public void mouseClicked( final MouseEvent e )
-		{
-
-		}
-
-		@Override
-		public void mouseEntered( final MouseEvent e )
-		{
-			isInside = true;
-		}
-
-		@Override
-		public void mouseExited( final MouseEvent e )
-		{
-			isInside = false;
-		}
-
-		@Override
-		public void mousePressed( final MouseEvent e )
-		{
-
-		}
-
-		@Override
-		public void mouseReleased( final MouseEvent e )
-		{
-
 		}
 
 	}

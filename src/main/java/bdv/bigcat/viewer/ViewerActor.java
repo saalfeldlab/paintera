@@ -2,13 +2,13 @@ package bdv.bigcat.viewer;
 
 import java.util.function.Consumer;
 
-import bdv.viewer.ViewerPanel;
+import bdv.viewer.ViewerPanelFX;
 
 public interface ViewerActor
 {
 
-	public Consumer< ViewerPanel > onAdd();
+	public Consumer< ViewerPanelFX > onAdd();
 
-	public Consumer< ViewerPanel > onRemove();
+	public Consumer< ViewerPanelFX > onRemove();
 
 }

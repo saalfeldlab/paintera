@@ -12,7 +12,7 @@ import bdv.bigcat.viewer.IdSelector;
 import bdv.bigcat.viewer.ToIdConverter;
 import bdv.bigcat.viewer.state.SelectedIds;
 import bdv.viewer.Source;
-import bdv.viewer.ViewerPanel;
+import bdv.viewer.ViewerPanelFX;
 
 public class AtlasIdSelector
 {
@@ -23,7 +23,7 @@ public class AtlasIdSelector
 
 	private final HashMap< Source< ? >, SelectedIds > selectedIds;
 
-	private final HashMap< ViewerPanel, MouseAndKeyHandler > mouseAndKeyHandlers = new HashMap<>();
+	private final HashMap< ViewerPanelFX, MouseAndKeyHandler > mouseAndKeyHandlers = new HashMap<>();
 
 	public AtlasIdSelector( final HashMap< Source< ? >, SelectedIds > selectedIds )
 	{
@@ -37,7 +37,7 @@ public class AtlasIdSelector
 		this.toIdConverters.put( source, toIdConverter );
 	}
 
-	public Consumer< ViewerPanel > onEnter()
+	public Consumer< ViewerPanelFX > onEnter()
 	{
 		return t -> {
 			if ( !this.mouseAndKeyHandlers.containsKey( t ) )
@@ -63,7 +63,7 @@ public class AtlasIdSelector
 		};
 	}
 
-	public Consumer< ViewerPanel > onExit()
+	public Consumer< ViewerPanelFX > onExit()
 	{
 		return t -> {
 //			t.getDisplay().removeHandler( this.mouseAndKeyHandlers.get( t ) );

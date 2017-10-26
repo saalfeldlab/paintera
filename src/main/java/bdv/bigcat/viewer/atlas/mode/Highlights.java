@@ -12,7 +12,7 @@ import bdv.bigcat.viewer.IdSelector;
 import bdv.bigcat.viewer.ToIdConverter;
 import bdv.bigcat.viewer.state.SelectedIds;
 import bdv.viewer.Source;
-import bdv.viewer.ViewerPanel;
+import bdv.viewer.ViewerPanelFX;
 
 public class Highlights extends AbstractStateMode
 {
@@ -23,7 +23,7 @@ public class Highlights extends AbstractStateMode
 
 	private final HashMap< Source< ? >, SelectedIds > selectedIds;
 
-	private final HashMap< ViewerPanel, MouseAndKeyHandler > mouseAndKeyHandlers = new HashMap<>();
+	private final HashMap< ViewerPanelFX, MouseAndKeyHandler > mouseAndKeyHandlers = new HashMap<>();
 
 	public Highlights( final HashMap< Source< ? >, SelectedIds > selectedIds )
 	{
@@ -52,7 +52,7 @@ public class Highlights extends AbstractStateMode
 	}
 
 	@Override
-	protected Consumer< ViewerPanel > getOnEnter()
+	protected Consumer< ViewerPanelFX > getOnEnter()
 	{
 		return t -> {
 			if ( !this.mouseAndKeyHandlers.containsKey( t ) )
@@ -74,7 +74,7 @@ public class Highlights extends AbstractStateMode
 	}
 
 	@Override
-	public Consumer< ViewerPanel > onExit()
+	public Consumer< ViewerPanelFX > onExit()
 	{
 		return t -> {
 			t.getDisplay().removeHandler( this.mouseAndKeyHandlers.get( t ) );

@@ -48,7 +48,7 @@ import bdv.labels.labelset.VolatileLabelMultisetType;
 import bdv.viewer.Source;
 import bdv.viewer.SourceAndConverter;
 import bdv.viewer.ViewerOptions;
-import bdv.viewer.ViewerPanel;
+import bdv.viewer.ViewerPanelFX;
 import javafx.application.Application;
 import javafx.beans.value.ChangeListener;
 import javafx.collections.ListChangeListener;
@@ -114,7 +114,7 @@ public class Atlas
 
 	private final Viewer3DController controller = new Viewer3DController( renderView );
 	{
-		new Thread( renderView::main ).start();
+//		new Thread( renderView::main ).start();
 	}
 
 	public Atlas( final Interval interval )
@@ -145,7 +145,7 @@ public class Atlas
 //				specs.selectedSourceProperty().setValue( Optional.of( state.get().spec() ) );
 //		} );
 
-		this.view.add( renderView.getPanel(), 1, 1 );
+//		this.view.add( renderView.getPanel(), 1, 1 );
 
 		final Mode[] initialModes = { new NavigationOnly(), new Highlights( selectedIds ), new Merges( selectedIds, assignments ), new Render3D( controller ) };
 		Arrays.stream( initialModes ).forEach( modes::add );
@@ -245,15 +245,13 @@ public class Atlas
 		primaryStage.setScene( scene );
 		primaryStage.sizeToScene();
 
-		view.makeDefaultLayout();
-
 		primaryStage.show();
 
 		for ( final Node child : this.baseView().getChildren() )
 			if ( child instanceof ViewerNode )
 			{
 				final ViewerNode vn = ( ViewerNode ) child;
-				final OrthoSlice orthoSlice = new OrthoSlice( renderView.scene(), ( ViewerPanel ) vn.getContent() );
+				final OrthoSlice orthoSlice = new OrthoSlice( renderView.scene(), vn.getViewer() );
 			}
 
 		// test the look and feel with both Caspian and Modena
@@ -271,7 +269,7 @@ public class Atlas
 
 	}
 
-	public void addOnEnterOnExit( final Consumer< ViewerPanel > onEnter, final Consumer< ViewerPanel > onExit, final boolean onExitRemovable )
+	public void addOnEnterOnExit( final Consumer< ViewerPanelFX > onEnter, final Consumer< ViewerPanelFX > onExit, final boolean onExitRemovable )
 	{
 		this.addOnEnterOnExit( new OnEnterOnExit( onEnter, onExit ), onExitRemovable );
 	}
@@ -330,13 +328,13 @@ public class Atlas
 		{
 
 			@Override
-			public Consumer< ViewerPanel > onRemove()
+			public Consumer< ViewerPanelFX > onRemove()
 			{
 				return vp -> {};
 			}
 
 			@Override
-			public Consumer< ViewerPanel > onAdd()
+			public Consumer< ViewerPanelFX > onAdd()
 			{
 				return vp -> assignment.addListener( () -> vp.requestRepaint() );
 			}
@@ -360,13 +358,13 @@ public class Atlas
 		{
 
 			@Override
-			public Consumer< ViewerPanel > onRemove()
+			public Consumer< ViewerPanelFX > onRemove()
 			{
 				return vp -> {};
 			}
 
 			@Override
-			public Consumer< ViewerPanel > onAdd()
+			public Consumer< ViewerPanelFX > onAdd()
 			{
 				return vp -> {
 					System.out.println( "VP? " + vp + " " + selectedIds );

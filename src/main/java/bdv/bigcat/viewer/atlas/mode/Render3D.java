@@ -24,7 +24,7 @@ import bdv.bigcat.viewer.viewer3d.marchingCubes.ForegroundCheck;
 import bdv.labels.labelset.Label;
 import bdv.viewer.Interpolation;
 import bdv.viewer.Source;
-import bdv.viewer.ViewerPanel;
+import bdv.viewer.ViewerPanelFX;
 import bdv.viewer.state.SourceState;
 import bdv.viewer.state.ViewerState;
 import net.imglib2.Interval;
@@ -47,7 +47,7 @@ public class Render3D extends AbstractStateMode
 
 	private final HashMap< Source< ? >, Source< ? > > dataSources = new HashMap<>();
 
-	private final HashMap< ViewerPanel, MouseAndKeyHandler > mouseAndKeyHandlers = new HashMap<>();
+	private final HashMap< ViewerPanelFX, MouseAndKeyHandler > mouseAndKeyHandlers = new HashMap<>();
 
 	private final HashMap< Source< ? >, ToIdConverter > toIdConverters = new HashMap<>();
 
@@ -101,11 +101,11 @@ public class Render3D extends AbstractStateMode
 	private class RenderNeuron extends AbstractNamedBehaviour implements ClickBehaviour
 	{
 
-		private final ViewerPanel viewer;
+		private final ViewerPanelFX viewer;
 
 		private final boolean append;
 
-		public RenderNeuron( final String name, final ViewerPanel viewer, final boolean append )
+		public RenderNeuron( final String name, final ViewerPanelFX viewer, final boolean append )
 		{
 			super( name );
 			this.viewer = viewer;
@@ -187,7 +187,7 @@ public class Render3D extends AbstractStateMode
 	}
 
 	@Override
-	protected Consumer< ViewerPanel > getOnEnter()
+	protected Consumer< ViewerPanelFX > getOnEnter()
 	{
 		return t -> {
 			if ( !this.mouseAndKeyHandlers.containsKey( t ) )
@@ -211,7 +211,7 @@ public class Render3D extends AbstractStateMode
 	}
 
 	@Override
-	public Consumer< ViewerPanel > onExit()
+	public Consumer< ViewerPanelFX > onExit()
 	{
 		return t -> {
 			t.getDisplay().removeHandler( this.mouseAndKeyHandlers.get( t ) );

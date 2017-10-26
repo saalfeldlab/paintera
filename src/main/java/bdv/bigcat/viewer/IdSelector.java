@@ -18,7 +18,7 @@ import bdv.bigcat.viewer.state.SelectedIds;
 import bdv.labels.labelset.Label;
 import bdv.viewer.Interpolation;
 import bdv.viewer.Source;
-import bdv.viewer.ViewerPanel;
+import bdv.viewer.ViewerPanelFX;
 import bdv.viewer.state.SourceState;
 import bdv.viewer.state.ViewerState;
 import gnu.trove.map.hash.TLongObjectHashMap;
@@ -39,7 +39,7 @@ import net.imglib2.view.Views;
 public class IdSelector
 {
 
-	private final ViewerPanel viewer;
+	private final ViewerPanelFX viewer;
 
 	private final HashMap< Source< ? >, ToIdConverter > toIdConverters;
 
@@ -48,7 +48,7 @@ public class IdSelector
 	private final HashMap< Source< ? >, Source< ? > > dataSources;
 
 	public IdSelector(
-			final ViewerPanel viewer,
+			final ViewerPanelFX viewer,
 			final HashMap< Source< ? >, ToIdConverter > toIdConverters,
 			final HashMap< Source< ? >, SelectedIds > selectedIds,
 			final HashMap< Source< ? >, Source< ? > > dataSources )
@@ -362,8 +362,8 @@ public class IdSelector
 					Arrays.stream( ids ).map( assignment::getSegment ).forEach( segments::add );
 					Arrays.stream( selIds ).map( assignment::getSegment ).forEach( segments::add );
 
-					final int w = viewer.getWidth();
-					final int h = viewer.getHeight();
+					final int w = ( int ) viewer.getWidth();
+					final int h = ( int ) viewer.getHeight();
 					final IntervalView< ? > screenLabels =
 							Views.interval(
 									Views.hyperSlice(
@@ -718,7 +718,7 @@ public class IdSelector
 	private static void visitEveryDisplayPixel(
 			final Source< ? > source,
 			final Source< ? > dataSource,
-			final ViewerPanel viewer,
+			final ViewerPanelFX viewer,
 			final Consumer< Object > doAtPixel )
 	{
 		final AffineTransform3D viewerTransform = new AffineTransform3D();
@@ -731,8 +731,8 @@ public class IdSelector
 		final RealRandomAccessible< ? > interpolatedSource = dataSource.getInterpolatedSource( 0, level, Interpolation.NEARESTNEIGHBOR );
 		final RealTransformRealRandomAccessible< ?, InverseRealTransform > transformedSource = RealViews.transformReal( interpolatedSource, sourceTransform );
 
-		final int w = viewer.getWidth();
-		final int h = viewer.getHeight();
+		final int w = ( int ) viewer.getWidth();
+		final int h = ( int ) viewer.getHeight();
 		final IntervalView< ? > screenLabels =
 				Views.interval(
 						Views.hyperSlice(

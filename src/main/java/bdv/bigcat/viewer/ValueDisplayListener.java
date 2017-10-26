@@ -1,7 +1,5 @@
 package bdv.bigcat.viewer;
 
-import java.awt.event.MouseEvent;
-import java.awt.event.MouseMotionListener;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Optional;
@@ -9,30 +7,32 @@ import java.util.function.Consumer;
 
 import bdv.viewer.Interpolation;
 import bdv.viewer.Source;
-import bdv.viewer.ViewerPanel;
+import bdv.viewer.ViewerPanelFX;
 import bdv.viewer.state.SourceState;
 import bdv.viewer.state.ViewerState;
+import javafx.event.EventHandler;
+import javafx.scene.input.MouseEvent;
 import net.imglib2.RealRandomAccess;
 import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.realtransform.RealViews;
 import net.imglib2.ui.TransformListener;
 
-public class ValueDisplayListener implements MouseMotionListener, TransformListener< AffineTransform3D >
+public class ValueDisplayListener implements EventHandler< javafx.scene.input.MouseEvent >, TransformListener< AffineTransform3D >
 {
 
 	private final HashMap< Source< ? >, Source< ? > > dataSourceMap;
 
 	private final HashMap< Source< ? >, Consumer > valueHandlers;
 
-	private final ViewerPanel viewer;
+	private final ViewerPanelFX viewer;
 
 	private final AffineTransform3D viewerTransform = new AffineTransform3D();
 
-	private int x = -1;
+	private double x = -1;
 
-	private int y = -1;
+	private double y = -1;
 
-	public ValueDisplayListener( final HashMap< Source< ? >, Source< ? > > dataSourceMap, final HashMap< Source< ? >, Consumer > valueHandlers, final ViewerPanel viewer )
+	public ValueDisplayListener( final HashMap< Source< ? >, Source< ? > > dataSourceMap, final HashMap< Source< ? >, Consumer > valueHandlers, final ViewerPanelFX viewer )
 	{
 		super();
 		this.dataSourceMap = dataSourceMap;
@@ -41,11 +41,7 @@ public class ValueDisplayListener implements MouseMotionListener, TransformListe
 	}
 
 	@Override
-	public void mouseDragged( final MouseEvent e )
-	{}
-
-	@Override
-	public void mouseMoved( final MouseEvent e )
+	public void handle( final MouseEvent e )
 	{
 		x = e.getX();
 		y = e.getY();
@@ -66,7 +62,7 @@ public class ValueDisplayListener implements MouseMotionListener, TransformListe
 		}
 	}
 
-	private static Object getVal( final int x, final int y, final RealRandomAccess< ? > access, final ViewerPanel viewer )
+	private static Object getVal( final double x, final double y, final RealRandomAccess< ? > access, final ViewerPanelFX viewer )
 	{
 		access.setPosition( x, 0 );
 		access.setPosition( y, 1 );
@@ -74,7 +70,7 @@ public class ValueDisplayListener implements MouseMotionListener, TransformListe
 		return getVal( access, viewer );
 	}
 
-	private static Object getVal( final RealRandomAccess< ? > access, final ViewerPanel viewer )
+	private static Object getVal( final RealRandomAccess< ? > access, final ViewerPanelFX viewer )
 	{
 		viewer.displayToGlobalCoordinates( access );
 		return access.get();
