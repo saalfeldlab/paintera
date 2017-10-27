@@ -9,9 +9,9 @@ import java.util.Set;
 import java.util.function.Predicate;
 
 import org.scijava.ui.behaviour.ClickBehaviour;
-import org.scijava.ui.behaviour.ScrollBehaviour;
 import org.scijava.ui.behaviour.util.AbstractNamedAction;
 
+import bdv.bigcat.viewer.atlas.mode.Merges;
 import bdv.bigcat.viewer.state.GlobalTransformManager;
 import bdv.viewer.ViewerPanelFX;
 import bdv.viewer.fx.EventFX;
@@ -233,6 +233,8 @@ public class ViewerTransformManager implements TransformListener< AffineTransfor
 				event -> activeKeys.size() == 1 && activeKeys.contains( KeyCode.META ),
 				event -> activeKeys.size() == 2 && activeKeys.containsAll( Arrays.asList( KeyCode.CONTROL, KeyCode.SHIFT ) ) );
 
+		final EventFX< KeyEvent > removeRotation = EventFX.KEY_PRESSED( "remove rotation", new RemoveRotation()::handle, event -> Merges.shiftOnly( event ) && event.getCode().equals( KeyCode.Z ) );
+
 //		addActiveKey.installInto( viewer );
 //		removeActiveKey.installInto( viewer );
 		translateXY.installInto( this.viewer );
@@ -240,21 +242,13 @@ public class ViewerTransformManager implements TransformListener< AffineTransfor
 		cycleForward.installInto( viewer );
 		cycleBackward.installInto( viewer );
 		viewer.addEventHandler( ScrollEvent.SCROLL, zoom );
+		removeRotation.installInto( this.viewer );
 
 //		behaviours.behaviour( new ButtonZoom( 1.05 ), "zoom", "UP" );
 //		behaviours.behaviour( new ButtonZoom( 1.0 / 1.05 ), "zoom", "DOWN" );
-//		for ( int s = 0; s < 3; ++s )
-//		{
-//			behaviours.behaviour( new TranslateZ( speed[ s ] ), SCROLL_Z + SPEED_NAME[ s ], speedMod[ s ] + "scroll" );
-//		}
-//		final RemoveRotation removeRotation = new RemoveRotation();
-//		actions.namedAction( removeRotation, "shift Z" );
-//		this.viewer.addMouseListener( removeRotation );
-//
-////		actions.namedAction( new ToggleVisibility(), "shift V" );
-//		actions.namedAction( new CycleSources( CycleSources.FORWARD ), "ctrl TAB" );
-//		actions.namedAction( new CycleSources( CycleSources.BACKWARD ), "ctrl shift TAB" );
-//		actions.namedAction( new ToggleInterpolation(), "I" );
+		viewer.addEventHandler( ScrollEvent.SCROLL, new TranslateZ( zoomSpeed.get() * factors[ 0 ], event -> activeKeys.size() == 0 )::scroll );
+		viewer.addEventHandler( ScrollEvent.SCROLL, new TranslateZ( zoomSpeed.get() * factors[ 1 ], event -> activeKeys.size() == 1 && activeKeys.contains( KeyCode.SHIFT ) )::scroll );
+		viewer.addEventHandler( ScrollEvent.SCROLL, new TranslateZ( zoomSpeed.get() * factors[ 2 ], event -> activeKeys.size() == 1 && activeKeys.contains( KeyCode.CONTROL ) )::scroll );
 
 		this.manager.addListener( this );
 	}
@@ -379,30 +373,34 @@ public class ViewerTransformManager implements TransformListener< AffineTransfor
 		}
 	}
 
-	private class TranslateZ extends GetOuter implements ScrollBehaviour
+	private class TranslateZ
 	{
 		private final double speedF;
 
+		private final Predicate< ScrollEvent >[] eventFilter;
+
 		private final double[] delta = new double[ 3 ];
 
-		public TranslateZ( final double speed )
+		public TranslateZ( final double speed, final Predicate< ScrollEvent >... eventFilter )
 		{
 			this.speedF = speed;
+			this.eventFilter = eventFilter;
 		}
 
-		@Override
-		public void scroll( final double wheelRotation, final boolean isHorizontal, final int x, final int y )
+		public void scroll( final ScrollEvent event )
 		{
-			synchronized ( global )
-			{
-				delta[ 0 ] = 0;
-				delta[ 1 ] = 0;
-				delta[ 2 ] = rotationSpeed.get() * speedF * -wheelRotation;
-				globalToViewer.applyInverse( delta, delta );
-				final AffineTransform3D shift = new AffineTransform3D();
-				shift.translate( delta );
-				manager.concatenate( shift );
-			}
+			final double wheelRotation = event.getDeltaY();
+			if ( Arrays.stream( eventFilter ).filter( filter -> filter.test( event ) ).count() > 0 )
+				synchronized ( global )
+				{
+					delta[ 0 ] = 0;
+					delta[ 1 ] = 0;
+					delta[ 2 ] = rotationSpeed.get() * speedF * -wheelRotation;
+					globalToViewer.applyInverse( delta, delta );
+					final AffineTransform3D shift = new AffineTransform3D();
+					shift.translate( delta );
+					manager.concatenate( shift );
+				}
 		}
 	}
 
@@ -554,7 +552,7 @@ public class ViewerTransformManager implements TransformListener< AffineTransfor
 		}
 	}
 
-	private class RemoveRotation implements EventHandler< KeyEvent >
+	private class RemoveRotation
 	{
 
 //		This only works when we assume that affine can be
@@ -570,12 +568,9 @@ public class ViewerTransformManager implements TransformListener< AffineTransfor
 //		( tr(A)*A )_ij = sum_k( tr(A)_ik * A_kj ) = sum_k( A_ki * A_kj )
 //		( tr(A)*A )_ii = sum_k( (A_ki)^2 )
 
-		private final String name;
-
-		public RemoveRotation( final String name )
+		public RemoveRotation()
 		{
 			super();
-			this.name = name;
 		}
 
 		private final double[] mouseLocation = new double[ 3 ];
@@ -584,7 +579,6 @@ public class ViewerTransformManager implements TransformListener< AffineTransfor
 
 		private final RealPoint p = RealPoint.wrap( mouseLocation );
 
-		@Override
 		public void handle( final KeyEvent event )
 		{
 			synchronized ( viewer )
