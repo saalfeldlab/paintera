@@ -210,8 +210,10 @@ public class ViewerTransformManager implements TransformListener< AffineTransfor
 	{
 
 //		removeFocusTraversalKeys( viewer );
-		final EventFX addActiveKey = EventFX.KEY_PRESSED( "add active key", e -> activeKeys.add( e.getCode() ), e -> true );
-		final EventFX removeActiveKey = EventFX.KEY_PRESSED( "add active key", e -> activeKeys.remove( e.getCode() ), e -> true );
+//		final EventFX addActiveKey = EventFX.KEY_PRESSED( "add active key", e -> activeKeys.add( e.getCode() ), e -> true );
+//		final EventFX removeActiveKey = EventFX.KEY_PRESSED( "add active key", e -> activeKeys.remove( e.getCode() ), e -> true );
+		viewer.addEventFilter( KeyEvent.KEY_PRESSED, e -> activeKeys.add( e.getCode() ) );
+		viewer.addEventFilter( KeyEvent.KEY_RELEASED, e -> activeKeys.remove( e.getCode() ) );
 
 		final TranslateXY translateXY = new TranslateXY( "drag translate", event -> activeKeys.size() == 0 && event.getButton().equals( MouseButton.SECONDARY ) );
 
@@ -231,8 +233,8 @@ public class ViewerTransformManager implements TransformListener< AffineTransfor
 				event -> activeKeys.size() == 1 && activeKeys.contains( KeyCode.META ),
 				event -> activeKeys.size() == 2 && activeKeys.containsAll( Arrays.asList( KeyCode.CONTROL, KeyCode.SHIFT ) ) );
 
-		addActiveKey.installInto( viewer );
-		removeActiveKey.installInto( viewer );
+//		addActiveKey.installInto( viewer );
+//		removeActiveKey.installInto( viewer );
 		translateXY.installInto( this.viewer );
 		Arrays.stream( rotations ).forEach( r -> r.installInto( viewer ) );
 		cycleForward.installInto( viewer );
