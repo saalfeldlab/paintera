@@ -213,13 +213,7 @@ public class ViewerTransformManager implements TransformListener< AffineTransfor
 		final EventFX addActiveKey = EventFX.KEY_PRESSED( "add active key", e -> activeKeys.add( e.getCode() ), e -> true );
 		final EventFX removeActiveKey = EventFX.KEY_PRESSED( "add active key", e -> activeKeys.remove( e.getCode() ), e -> true );
 
-//		final TranslateXY translateXY = new TranslateXY( "drag translate", event -> activeKeys.size() == 0 && event.getButton().equals( MouseButton.SECONDARY ) );
-		final TranslateXY2 translateXY = new TranslateXY2();
-		final EventFX< MouseEvent > translatexyInit = EventFX.MOUSE_PRESSED( "init drag", translateXY::initDrag, event -> event.getButton().equals( MouseButton.SECONDARY ) );
-		final EventFX< MouseEvent > translatexyDrag = EventFX.MOUSE_DRAGGED( "drag", translateXY::drag, event -> event.getButton().equals( MouseButton.SECONDARY ) );
-		final EventFX< MouseEvent > translatexyStop = EventFX.MOUSE_DRAGGED( "stop drag", translateXY::endDrag, event -> event.getButton().equals( MouseButton.SECONDARY ) );
-		translatexyInit.installInto( this.viewer );
-		translatexyDrag.installInto( this.viewer );
+		final TranslateXY translateXY = new TranslateXY( "drag translate", event -> activeKeys.size() == 0 && event.getButton().equals( MouseButton.SECONDARY ) );
 
 		final Rotate[] rotations = {
 				new Rotate( "rotate", rotationSpeed, factors[ 0 ], event -> activeKeys.size() == 0 && event.getButton().equals( MouseButton.PRIMARY ) ),
@@ -239,7 +233,7 @@ public class ViewerTransformManager implements TransformListener< AffineTransfor
 
 		addActiveKey.installInto( viewer );
 		removeActiveKey.installInto( viewer );
-//		translateXY.installInto( this.viewer );
+		translateXY.installInto( this.viewer );
 		Arrays.stream( rotations ).forEach( r -> r.installInto( viewer ) );
 		cycleForward.installInto( viewer );
 		cycleBackward.installInto( viewer );
