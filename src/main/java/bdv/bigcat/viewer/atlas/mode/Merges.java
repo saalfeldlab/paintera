@@ -12,6 +12,7 @@ import bdv.bigcat.viewer.state.FragmentSegmentAssignmentState;
 import bdv.bigcat.viewer.state.SelectedIds;
 import bdv.viewer.Source;
 import bdv.viewer.ViewerPanelFX;
+import javafx.scene.input.KeyEvent;
 import javafx.scene.input.MouseEvent;
 import net.imglib2.ui.InstallAndRemove;
 
@@ -92,6 +93,11 @@ public class Merges extends AbstractStateMode
 	}
 
 	public static boolean shiftOnly( final MouseEvent e )
+	{
+		return e.isShiftDown() && !( e.isAltDown() || e.isControlDown() || e.isMetaDown() );
+	}
+
+	public static boolean shiftOnly( final KeyEvent e )
 	{
 		return e.isShiftDown() && !( e.isAltDown() || e.isControlDown() || e.isMetaDown() );
 	}
