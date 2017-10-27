@@ -5,14 +5,10 @@ import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.function.Function;
 
-import com.jogamp.opengl.math.Quaternion;
-
 import bdv.bigcat.ui.ARGBStream;
 import bdv.bigcat.viewer.state.FragmentSegmentAssignmentState;
 import bdv.bigcat.viewer.state.StateListener;
 import bdv.bigcat.viewer.viewer3d.marchingCubes.ForegroundCheck;
-import cleargl.GLVector;
-import graphics.scenery.Camera;
 import graphics.scenery.Scene;
 import net.imglib2.Interval;
 import net.imglib2.Localizable;
@@ -31,6 +27,8 @@ import net.imglib2.realtransform.AffineTransform3D;
 public class NeuronRenderer< T, F extends FragmentSegmentAssignmentState< F > > implements StateListener< F >
 {
 	private final long selectedFragmentId;
+
+	private List< NeuronRendererListener > listeners = new ArrayList< NeuronRendererListener >();
 
 	public NeuronRenderer(
 			final long selectedFragmentId,
@@ -117,6 +115,11 @@ public class NeuronRenderer< T, F extends FragmentSegmentAssignmentState< F > > 
 	public synchronized void updateOnStateChange( final boolean updateOnStateChange )
 	{
 		this.updateOnStateChange = updateOnStateChange;
+	}
+	
+	public void addListener( NeuronRendererListener cameraCallback )
+	{
+		listeners.add( cameraCallback );
 	}
 
 	@Override
@@ -238,24 +241,23 @@ public class NeuronRenderer< T, F extends FragmentSegmentAssignmentState< F > > 
 		this.allowRendering = allow;
 	}
 
-	public void updateCompleteBoundingBox( float[] boundingBox )
+	public synchronized void updateCompleteBoundingBox( float[] boundingBox )
 	{
 		assert ( completeBoundingBox.length == boundingBox.length );
 
-		// TODO: this should take into account alse the bb from other visible
-		// neurons
-		if ( completeBoundingBox == null )
-			completeBoundingBox = boundingBox;
-		else
-		{
-			updateBoundingBox( boundingBox );
-		}
+		completeBoundingBox = maxBoundingBox( completeBoundingBox, boundingBox );
 
-		updateCameraPosition();
+		for ( NeuronRendererListener listener : listeners )
+		{
+			listener.updateCamera( completeBoundingBox );
+		}
 	}
 
-	private void updateBoundingBox( float[] boundingBox )
+	private synchronized float[] maxBoundingBox( float[] completeBoundingBox, float[] boundingBox )
 	{
+		if ( completeBoundingBox == null )
+			return boundingBox;
+
 		for ( int d = 0; d < completeBoundingBox.length; d++ )
 		{
 			if ( ( d % 2 == 0 ) && completeBoundingBox[ d ] > boundingBox[ d ] )
@@ -267,40 +269,7 @@ public class NeuronRenderer< T, F extends FragmentSegmentAssignmentState< F > > 
 				completeBoundingBox[ d ] = boundingBox[ d ];
 			}
 		}
-	}
 
-	private void updateCameraPosition()
-	{
-		// set the camera position to the center of the complete bounding box
-		float[] cameraPosition = new float[ 3 ];
-		float[] centerBB = new float[ 3 ];
-		for ( int i = 0; i < completeBoundingBox.length / 2; i++ )
-		{
-			cameraPosition[ i ] = ( completeBoundingBox[ i * 2 ] + completeBoundingBox[ i * 2 + 1 ] ) / 2;
-			centerBB[ i ] = ( completeBoundingBox[ i * 2 ] + completeBoundingBox[ i * 2 + 1 ] ) / 2;
-		}
-
-		Camera camera = scene.getActiveObserver();
-
-		// calculate the distance to the center
-		float FOV = ( float ) ( scene.getActiveObserver().getFov() * ( Math.PI / 180 ) );
-		float height = completeBoundingBox[ 1 ] - completeBoundingBox[ 0 ];
-		float width = completeBoundingBox[ 3 ] - completeBoundingBox[ 2 ];
-		float depth = completeBoundingBox[ 5 ] - completeBoundingBox[ 4 ];
-
-		float dist = Math.max( height, Math.max( height, depth ) );
-		float distanceToCenter = ( float ) Math.abs( ( dist / 2 ) / Math.tan( FOV / 2 ) ) + width / 2;
-		cameraPosition[ 0 ] += distanceToCenter;
-		// walk with the camera in the x-axis
-		camera.setPosition( new GLVector( cameraPosition[ 0 ], cameraPosition[ 1 ], cameraPosition[ 2 ] ) );
-
-		// TODO: work with any rotation degree
-		// rotate the camera 90 degrees to look to the neuron
-		float angle = ( float ) ( -90 * ( Math.PI / 180 ) );
-		GLVector rotationVector = new GLVector( 0, 0, 0 );
-		rotationVector.set( 1, angle );
-		Quaternion rotation = new Quaternion();
-		rotation.setFromEuler( rotationVector.get( 0 ), rotationVector.get( 1 ), rotationVector.get( 2 ) );
-		camera.setRotation( rotation );
+		return completeBoundingBox;
 	}
 }
