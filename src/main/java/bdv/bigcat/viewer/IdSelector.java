@@ -7,10 +7,8 @@ import java.util.Optional;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.LongBinaryOperator;
+import java.util.function.Predicate;
 import java.util.stream.Collectors;
-
-import org.scijava.ui.behaviour.ClickBehaviour;
-import org.scijava.ui.behaviour.util.AbstractNamedBehaviour;
 
 import bdv.bigcat.viewer.atlas.mode.HandleMultipleIds;
 import bdv.bigcat.viewer.state.FragmentSegmentAssignment;
@@ -19,10 +17,12 @@ import bdv.labels.labelset.Label;
 import bdv.viewer.Interpolation;
 import bdv.viewer.Source;
 import bdv.viewer.ViewerPanelFX;
+import bdv.viewer.fx.MouseClickFX;
 import bdv.viewer.state.SourceState;
 import bdv.viewer.state.ViewerState;
 import gnu.trove.map.hash.TLongObjectHashMap;
 import gnu.trove.set.hash.TLongHashSet;
+import javafx.scene.input.MouseEvent;
 import net.imglib2.Cursor;
 import net.imglib2.FinalInterval;
 import net.imglib2.RandomAccess;
@@ -33,6 +33,7 @@ import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.realtransform.InverseRealTransform;
 import net.imglib2.realtransform.RealTransformRealRandomAccessible;
 import net.imglib2.realtransform.RealViews;
+import net.imglib2.ui.InstallAndRemove;
 import net.imglib2.view.IntervalView;
 import net.imglib2.view.Views;
 
@@ -60,29 +61,34 @@ public class IdSelector
 		this.dataSources = dataSources;
 	}
 
-	public SelectSingle selectSingle( final String name, final HandleMultipleIds handleMultipleEntries )
+	public InstallAndRemove selectSingle( final String name, final HandleMultipleIds handleMultipleEntries, final Predicate< MouseEvent >... eventFilter )
 	{
-		return new SelectSingle( name, handleMultipleEntries );
+		final SelectSingle selectSingle = new SelectSingle( handleMultipleEntries );
+		return new MouseClickFX( name, selectSingle::click, eventFilter );
 	}
 
-	public Append append( final String name, final HandleMultipleIds handleMultipleEntries )
+	public InstallAndRemove append( final String name, final HandleMultipleIds handleMultipleEntries, final Predicate< MouseEvent >... eventFilter )
 	{
-		return new Append( name, handleMultipleEntries );
+		final Append append = new Append( handleMultipleEntries );
+		return new MouseClickFX( name, append::click, eventFilter );
 	}
 
-	public SelectFragmentWithMaximumCount selectFragmentWithMaximumCount( final String name )
+	public InstallAndRemove selectFragmentWithMaximumCount( final String name, final Predicate< MouseEvent >... eventFilter )
 	{
-		return new SelectFragmentWithMaximumCount( name );
+		final SelectFragmentWithMaximumCount selectFragment = new SelectFragmentWithMaximumCount();
+		return new MouseClickFX( name, selectFragment::click, eventFilter );
 	}
 
-	public AppendFragmentWithMaximumCount appendFragmentWithMaximumCount( final String name )
+	public InstallAndRemove appendFragmentWithMaximumCount( final String name, final Predicate< MouseEvent >... eventFilter )
 	{
-		return new AppendFragmentWithMaximumCount( name );
+		final AppendFragmentWithMaximumCount appendFragment = new AppendFragmentWithMaximumCount();
+		return new MouseClickFX( name, appendFragment::click, eventFilter );
 	}
 
-	public MergeFragments merge( final HashMap< Source< ? >, ? extends FragmentSegmentAssignment > assignments )
+	public InstallAndRemove merge( final String name, final HashMap< Source< ? >, ? extends FragmentSegmentAssignment > assignments, final Predicate< MouseEvent >... eventFilter )
 	{
-		return new MergeFragments( assignments );
+		final MergeFragments merge = new MergeFragments( assignments );
+		return new MouseClickFX( name, merge::click, eventFilter );
 	}
 
 //	public MergeSegments merge( final HashMap< Source< ? >, ? extends FragmentSegmentAssignment > assignments )
@@ -90,26 +96,22 @@ public class IdSelector
 //		return new MergeSegments( assignments );
 //	}
 
-	public DetachFragment detach( final HashMap< Source< ? >, ? extends FragmentSegmentAssignment > assignments )
+	public InstallAndRemove detach( final String name, final HashMap< Source< ? >, ? extends FragmentSegmentAssignment > assignments, final Predicate< MouseEvent >... eventFilter )
 	{
-		return new DetachFragment( assignments );
+		final DetachFragment detach = new DetachFragment( assignments );
+		return new MouseClickFX( name, detach::click, eventFilter );
 	}
 
-	public ConfirmSelection confirm( final HashMap< Source< ? >, ? extends FragmentSegmentAssignment > assignments )
+	public InstallAndRemove confirm( final String name, final HashMap< Source< ? >, ? extends FragmentSegmentAssignment > assignments, final Predicate< MouseEvent >... eventFilter )
 	{
-		return new ConfirmSelection( "confirm-selection", assignments );
+		final ConfirmSelection confirmSelection = new ConfirmSelection( assignments );
+		return new MouseClickFX( name, confirmSelection::click, eventFilter );
 	}
 
-	private abstract class Select extends AbstractNamedBehaviour implements ClickBehaviour
+	private abstract class Select
 	{
 
-		public Select( final String name )
-		{
-			super( name );
-		}
-
-		@Override
-		public void click( final int x, final int y )
+		public void click( final MouseEvent e )
 		{
 			final Optional< Source< ? > > optionalSource = getSource();
 			if ( !optionalSource.isPresent() )
@@ -140,16 +142,10 @@ public class IdSelector
 		protected abstract void actOn( final long[] id, SelectedIds selectedIds );
 	}
 
-	private abstract class SelectMaximumCount extends AbstractNamedBehaviour implements ClickBehaviour
+	private abstract class SelectMaximumCount
 	{
 
-		public SelectMaximumCount( final String name )
-		{
-			super( name );
-		}
-
-		@Override
-		public void click( final int x, final int y )
+		public void click( final MouseEvent e )
 		{
 			final Optional< Source< ? > > optionalSource = getSource();
 			if ( !optionalSource.isPresent() )
@@ -185,9 +181,8 @@ public class IdSelector
 
 		private final HandleMultipleIds handleMultipleEntries;
 
-		public SelectSingle( final String name, final HandleMultipleIds handleMultipleEntries )
+		public SelectSingle( final HandleMultipleIds handleMultipleEntries )
 		{
-			super( name );
 			this.handleMultipleEntries = handleMultipleEntries;
 		}
 
@@ -228,11 +223,6 @@ public class IdSelector
 	private class SelectFragmentWithMaximumCount extends SelectMaximumCount
 	{
 
-		public SelectFragmentWithMaximumCount( final String name )
-		{
-			super( name );
-		}
-
 		@Override
 		protected void actOn( final long id, final SelectedIds selectedIds )
 		{
@@ -246,11 +236,6 @@ public class IdSelector
 
 	private class AppendFragmentWithMaximumCount extends SelectMaximumCount
 	{
-
-		public AppendFragmentWithMaximumCount( final String name )
-		{
-			super( name );
-		}
 
 		@Override
 		protected void actOn( final long id, final SelectedIds selectedIds )
@@ -268,9 +253,8 @@ public class IdSelector
 
 		private final HandleMultipleIds handleMultipleEntries;
 
-		public Append( final String name, final HandleMultipleIds handleMultipleEntries )
+		public Append( final HandleMultipleIds handleMultipleEntries )
 		{
-			super( name );
 			this.handleMultipleEntries = handleMultipleEntries;
 		}
 
@@ -303,18 +287,16 @@ public class IdSelector
 
 	}
 
-	private class MergeSegments extends AbstractNamedBehaviour implements ClickBehaviour
+	private class MergeSegments
 	{
 
 		private final HashMap< Source< ? >, ? extends FragmentSegmentAssignment > assignments;
 
 		public MergeSegments( final HashMap< Source< ? >, ? extends FragmentSegmentAssignment > assignments )
 		{
-			super( "merge segments" );
 			this.assignments = assignments;
 		}
 
-		@Override
 		public void click( final int x, final int y )
 		{
 			final Optional< Source< ? > > optionalSource = getSource();
@@ -460,19 +442,17 @@ public class IdSelector
 //		return fragments;
 //	}
 
-	private class MergeFragments extends AbstractNamedBehaviour implements ClickBehaviour
+	private class MergeFragments
 	{
 
 		private final HashMap< Source< ? >, ? extends FragmentSegmentAssignment > assignments;
 
 		public MergeFragments( final HashMap< Source< ? >, ? extends FragmentSegmentAssignment > assignments )
 		{
-			super( "merge segments" );
 			this.assignments = assignments;
 		}
 
-		@Override
-		public void click( final int x, final int y )
+		public void click( final MouseEvent e )
 		{
 			final Optional< Source< ? > > optionalSource = getSource();
 			if ( !optionalSource.isPresent() )
@@ -512,19 +492,17 @@ public class IdSelector
 
 	}
 
-	private class DetachFragment extends AbstractNamedBehaviour implements ClickBehaviour
+	private class DetachFragment
 	{
 
 		private final HashMap< Source< ? >, ? extends FragmentSegmentAssignment > assignments;
 
 		public DetachFragment( final HashMap< Source< ? >, ? extends FragmentSegmentAssignment > assignments )
 		{
-			super( "detach fragment" );
 			this.assignments = assignments;
 		}
 
-		@Override
-		public void click( final int x, final int y )
+		public void click( final MouseEvent e )
 		{
 			final Optional< Source< ? > > optionalSource = getSource();
 			if ( !optionalSource.isPresent() )
@@ -577,19 +555,17 @@ public class IdSelector
 
 	}
 
-	private class ConfirmSelection extends AbstractNamedBehaviour implements ClickBehaviour
+	private class ConfirmSelection
 	{
 		private final HashMap< Source< ? >, ? extends FragmentSegmentAssignment > assignments;
 
-		public ConfirmSelection( final String name, final HashMap< Source< ? >, ? extends FragmentSegmentAssignment > assignments )
+		public ConfirmSelection( final HashMap< Source< ? >, ? extends FragmentSegmentAssignment > assignments )
 		{
-			super( name );
 			this.assignments = assignments;
 			System.out.println( "Created ConfirmSelection" );
 		}
 
-		@Override
-		public void click( final int x, final int y )
+		public void click( final MouseEvent e )
 		{
 			System.out.println( "Clicked confirm selection!" );
 			final Optional< Source< ? > > optionalSource = getSource();

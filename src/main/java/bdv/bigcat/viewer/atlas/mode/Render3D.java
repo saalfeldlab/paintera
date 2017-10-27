@@ -1,18 +1,14 @@
 package bdv.bigcat.viewer.atlas.mode;
 
 import java.lang.invoke.MethodHandles;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.function.Consumer;
 import java.util.function.Function;
 
-import org.scijava.ui.behaviour.ClickBehaviour;
-import org.scijava.ui.behaviour.MouseAndKeyHandler;
-import org.scijava.ui.behaviour.io.InputTriggerConfig;
-import org.scijava.ui.behaviour.util.AbstractNamedBehaviour;
-import org.scijava.ui.behaviour.util.Behaviours;
-import org.scijava.ui.behaviour.util.TriggerBehaviourBindings;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -25,13 +21,16 @@ import bdv.labels.labelset.Label;
 import bdv.viewer.Interpolation;
 import bdv.viewer.Source;
 import bdv.viewer.ViewerPanelFX;
+import bdv.viewer.fx.MouseClickFX;
 import bdv.viewer.state.SourceState;
 import bdv.viewer.state.ViewerState;
+import javafx.scene.input.MouseEvent;
 import net.imglib2.Interval;
 import net.imglib2.RandomAccessible;
 import net.imglib2.RealPoint;
 import net.imglib2.RealRandomAccess;
 import net.imglib2.realtransform.AffineTransform3D;
+import net.imglib2.ui.InstallAndRemove;
 import net.imglib2.view.Views;
 
 /**
@@ -47,7 +46,7 @@ public class Render3D extends AbstractStateMode
 
 	private final HashMap< Source< ? >, Source< ? > > dataSources = new HashMap<>();
 
-	private final HashMap< ViewerPanelFX, MouseAndKeyHandler > mouseAndKeyHandlers = new HashMap<>();
+	private final HashMap< ViewerPanelFX, Collection< InstallAndRemove > > mouseAndKeyHandlers = new HashMap<>();
 
 	private final HashMap< Source< ? >, ToIdConverter > toIdConverters = new HashMap<>();
 
@@ -98,23 +97,23 @@ public class Render3D extends AbstractStateMode
 		this.toIdConverters.remove( source );
 	}
 
-	private class RenderNeuron extends AbstractNamedBehaviour implements ClickBehaviour
+	private class RenderNeuron
 	{
 
 		private final ViewerPanelFX viewer;
 
 		private final boolean append;
 
-		public RenderNeuron( final String name, final ViewerPanelFX viewer, final boolean append )
+		public RenderNeuron( final ViewerPanelFX viewer, final boolean append )
 		{
-			super( name );
 			this.viewer = viewer;
 			this.append = append;
 		}
 
-		@Override
-		public void click( final int x, final int y )
+		public void click( final MouseEvent e )
 		{
+			final double x = e.getX();
+			final double y = e.getY();
 			synchronized ( viewer )
 			{
 				final ViewerState state = viewer.getState();
@@ -192,18 +191,12 @@ public class Render3D extends AbstractStateMode
 		return t -> {
 			if ( !this.mouseAndKeyHandlers.containsKey( t ) )
 			{
-				final InputTriggerConfig inputTriggerConfig = new InputTriggerConfig();
-				final Behaviours behaviours = new Behaviours( inputTriggerConfig );
-				final RenderNeuron render = new RenderNeuron( "render neuron", t, false );
-				final RenderNeuron append = new RenderNeuron( "render neuron append", t, true );
-				behaviours.namedBehaviour( render, "shift button1" );
-				behaviours.namedBehaviour( append, "shift button3" );
-				final TriggerBehaviourBindings bindings = new TriggerBehaviourBindings();
-				behaviours.install( bindings, "render" );
-				final MouseAndKeyHandler mouseAndKeyHandler = new MouseAndKeyHandler();
-				mouseAndKeyHandler.setInputMap( bindings.getConcatenatedInputTriggerMap() );
-				mouseAndKeyHandler.setBehaviourMap( bindings.getConcatenatedBehaviourMap() );
-				this.mouseAndKeyHandlers.put( t, mouseAndKeyHandler );
+				final List< InstallAndRemove > iars = new ArrayList<>();
+				final RenderNeuron render = new RenderNeuron( t, false );
+				final RenderNeuron append = new RenderNeuron( t, true );
+				iars.add( new MouseClickFX( "render single", render::click, event -> Merges.shiftOnly( event ) && event.isPrimaryButtonDown() ) );
+				iars.add( new MouseClickFX( "render append", append::click, event -> Merges.shiftOnly( event ) && event.isSecondaryButtonDown() ) );
+				this.mouseAndKeyHandlers.put( t, iars );
 			}
 			t.getDisplay().addHandler( this.mouseAndKeyHandlers.get( t ) );
 
@@ -214,7 +207,8 @@ public class Render3D extends AbstractStateMode
 	public Consumer< ViewerPanelFX > onExit()
 	{
 		return t -> {
-			t.getDisplay().removeHandler( this.mouseAndKeyHandlers.get( t ) );
+			if ( this.mouseAndKeyHandlers.containsKey( t ) )
+				t.getDisplay().removeHandler( this.mouseAndKeyHandlers.get( t ) );
 		};
 	}
 

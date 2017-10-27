@@ -11,6 +11,7 @@ import bdv.viewer.ViewerOptions;
 import bdv.viewer.ViewerPanelFX;
 import javafx.beans.value.ChangeListener;
 import javafx.collections.ListChangeListener;
+import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.Pane;
 import javafx.scene.paint.Color;
 import net.imglib2.realtransform.AffineTransform3D;
@@ -50,7 +51,7 @@ public class ViewerNode extends Pane implements ListChangeListener< SourceAndCon
 			final ViewerOptions viewerOptions )
 	{
 		super();
-		this.viewer = new ViewerPanelFX( new ArrayList<>(), 1, cacheControl );
+		this.viewer = new ViewerPanelFX( new ArrayList<>(), 1, cacheControl, viewerOptions );
 		this.getChildren().add( this.viewer );
 		this.setMinSize( 0, 0 );
 		this.heightProperty().addListener( ( obs, oldv, newv ) -> viewer.setPrefHeight( getHeight() ) );
@@ -65,10 +66,14 @@ public class ViewerNode extends Pane implements ListChangeListener< SourceAndCon
 //		https://stackoverflow.com/questions/21657034/javafx-keyevent-propagation-order
 //		https://stackoverflow.com/questions/32802664/setonkeypressed-event-not-working-properly
 //		Node only reacts to key events when focused!
-		this.focusedProperty().addListener( ( obs, oldv, newv ) -> {
-			if ( newv )
-				this.viewer.requestFocus();
+//		this.focusedProperty().addListener( ( obs, oldv, newv ) -> {
+//			if ( newv )
+//				this.viewer.requestFocus();
+//		} );
+		this.viewer.addEventHandler( MouseEvent.MOUSE_ENTERED, event -> {
+			this.viewer.requestFocus();
 		} );
+		this.viewer.addEventHandler( MouseEvent.MOUSE_CLICKED, event -> this.viewer.requestFocus() );
 	}
 
 	private void addCrosshair()
@@ -79,7 +84,7 @@ public class ViewerNode extends Pane implements ListChangeListener< SourceAndCon
 				crosshair.setColor( onFocusColor );
 			else
 				crosshair.setColor( outOfFocusColor );
-			viewer.requestRepaint();
+			viewer.getDisplay().drawOverlays();
 		} );
 	}
 

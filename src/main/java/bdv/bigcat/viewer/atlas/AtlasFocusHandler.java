@@ -69,6 +69,7 @@ public class AtlasFocusHandler
 		@Override
 		public void accept( final ViewerPanelFX t )
 		{
+			System.out.println( "ENTERING? " + installOnExitRemovables + " " + installPermanent );
 			synchronized ( AtlasFocusHandler.this )
 			{
 				installOnExitRemovables.forEach( consumer -> consumer.onEnter.accept( t ) );

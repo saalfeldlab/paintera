@@ -15,6 +15,7 @@ import graphics.scenery.Material;
 import graphics.scenery.Node;
 import graphics.scenery.PointLight;
 import graphics.scenery.Scene;
+import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.scene.image.PixelFormat;
 import javafx.scene.image.PixelReader;
@@ -95,9 +96,12 @@ public class OrthoSlice
 				if ( !viewOptional.isPresent() )
 					return;
 				final ImageView view = viewOptional.get();
-				final int[] pixels = new int[ w * h ];
+				final Image img = view.getImage();
+				final int imgW = ( int ) img.getWidth();
+				final int imgH = ( int ) img.getHeight();
+				final int[] pixels = new int[ imgH * imgW ];
 				final PixelReader reader = view.getImage().getPixelReader();
-				reader.getPixels( 0, 0, w, h, PixelFormat.getIntArgbInstance(), pixels, 0, w );
+				reader.getPixels( 0, 0, imgW, imgH, PixelFormat.getIntArgbInstance(), pixels, 0, imgW );
 
 				final Material m = new Material();
 				m.setAmbient( new GLVector( 1.0f, 1.0f, 1.0f ) );

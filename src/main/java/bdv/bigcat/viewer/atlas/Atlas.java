@@ -6,6 +6,8 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -63,6 +65,7 @@ import javafx.scene.control.TableView;
 import javafx.scene.control.TextField;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyEvent;
+import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
@@ -114,7 +117,7 @@ public class Atlas
 
 	private final Viewer3DController controller = new Viewer3DController( renderView );
 	{
-//		new Thread( renderView::main ).start();
+		new Thread( renderView::main ).start();
 	}
 
 	public Atlas( final Interval interval )
@@ -145,7 +148,8 @@ public class Atlas
 //				specs.selectedSourceProperty().setValue( Optional.of( state.get().spec() ) );
 //		} );
 
-//		this.view.add( renderView.getPanel(), 1, 1 );
+		this.view.add( renderView.getPanel(), 1, 1 );
+		this.renderView.getPanel().addEventHandler( MouseEvent.MOUSE_CLICKED, event -> renderView.getPanel().requestFocus() );
 
 		final Mode[] initialModes = { new NavigationOnly(), new Highlights( selectedIds ), new Merges( selectedIds, assignments ), new Render3D( controller ) };
 		Arrays.stream( initialModes ).forEach( modes::add );
@@ -253,6 +257,9 @@ public class Atlas
 				final ViewerNode vn = ( ViewerNode ) child;
 				final OrthoSlice orthoSlice = new OrthoSlice( renderView.scene(), vn.getViewer() );
 			}
+
+		final ScheduledExecutorService es = Executors.newSingleThreadScheduledExecutor();
+//		es.scheduleAtFixedRate( () -> System.out.println( "Current focus owner: " + scene.getFocusOwner() ), 0, 100, TimeUnit.MILLISECONDS );
 
 		// test the look and feel with both Caspian and Modena
 		Application.setUserAgentStylesheet( Application.STYLESHEET_CASPIAN );
@@ -505,8 +512,8 @@ public class Atlas
 			focusOwner = null;
 		this.modes.add( mode );
 
-		if ( focusOwner != null )
-			focusOwner.requestFocus();
+		if ( focusOwner != null && focusOwner instanceof ViewerNode )
+			mode.onEnter().accept( ( ( ViewerNode ) focusOwner ).getViewer() );
 	}
 
 }

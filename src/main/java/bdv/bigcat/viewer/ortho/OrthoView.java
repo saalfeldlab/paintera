@@ -17,6 +17,7 @@ import javafx.collections.FXCollections;
 import javafx.collections.ListChangeListener;
 import javafx.collections.ObservableList;
 import javafx.event.Event;
+import javafx.event.EventHandler;
 import javafx.scene.Node;
 import javafx.scene.Scene;
 import javafx.scene.control.Label;
@@ -79,7 +80,7 @@ public class OrthoView extends GridPane
 		this.state.constraintsManager.manageGrid( this );
 		this.onFocusEnter = onFocusEnter;
 		this.onFocusExit = onFocusExit;
-		this.requestFocus();
+//		this.requestFocus();
 		this.setInfoNode( new Label( "Place your node here!" ) );
 
 		this.resizer = new GridResizer( this.state.constraintsManager, 10, this );
@@ -106,7 +107,7 @@ public class OrthoView extends GridPane
 		addViewer( ViewerAxis.Z, 0, 0 );
 		addViewer( ViewerAxis.X, 0, 1 );
 		addViewer( ViewerAxis.Y, 1, 0 );
-		this.requestFocus();
+//		this.requestFocus();
 	}
 
 	public void setInfoNode( final Node node )
@@ -133,22 +134,28 @@ public class OrthoView extends GridPane
 	private void addViewerNodesHandler( final ViewerNode viewerNode, final Class< ? >[] focusKeepers )
 	{
 
-		viewerNode.addEventHandler( MouseEvent.MOUSE_CLICKED, event -> viewerNode.requestFocus() );
-
-		viewerNode.addEventHandler( MouseEvent.MOUSE_ENTERED, event -> {
-			final Node focusOwner = viewerNode.sceneProperty().get().focusOwnerProperty().get();
-			for ( final Class< ? > focusKeeper : focusKeepers )
-				if ( focusKeeper.isInstance( focusOwner ) )
-					return;
-			viewerNode.requestFocus();
+		final EventHandler< MouseEvent > handler = event -> {
+//			viewerNode.requestFocus();
+		};
+		viewerNode.focusedProperty().addListener( ( obs, o, n ) -> {
+			System.out.println( "Focusing " + viewerNode );
 		} );
+//		viewerNode.addEventHandler( MouseEvent.MOUSE_CLICKED, handler );
+
+//		viewerNode.addEventHandler( MouseEvent.MOUSE_ENTERED, event -> {
+//			final Node focusOwner = viewerNode.sceneProperty().get().focusOwnerProperty().get();
+//			for ( final Class< ? > focusKeeper : focusKeepers )
+//				if ( focusKeeper.isInstance( focusOwner ) )
+//					return;
+//			viewerNode.requestFocus();
+//		} );
 
 		handleFocusEvent( viewerNode );
 	}
 
 	private synchronized void handleFocusEvent( final ViewerNode viewerNode )
 	{
-		viewerNode.focusedProperty().addListener( ( ChangeListener< Boolean > ) ( observable, oldValue, newValue ) -> {
+		viewerNode.getViewer().focusedProperty().addListener( ( ChangeListener< Boolean > ) ( observable, oldValue, newValue ) -> {
 			final ViewerPanelFX viewer = viewerNode.getViewer();
 			if ( newValue )
 				this.onFocusEnter.accept( viewer );

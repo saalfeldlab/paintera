@@ -100,7 +100,7 @@ public class Viewer3D extends SceneryBase
 		getScene().addChild( cam );
 
 		// TODO: camera position must be related with the object
-		cam.setPosition( new GLVector( 0f, 0f, 0f ) );
+		cam.setPosition( new GLVector( 7000f, 8000f, 8000f ) );
 		getScene().addChild( cam );
 
 		final PointLight[] lights = new PointLight[ 4 ];
