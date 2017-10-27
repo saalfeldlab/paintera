@@ -171,8 +171,7 @@ public class Neuron< T >
 								scene.removeChild( chunk );
 								addNode( mesh );
 								mesh.setDirty( true );
-								mesh.generateBoundingBox();
-								generator.updateCompleteBoundingBox( mesh.getBoundingBoxCoords() );
+								generator.updateCompleteBoundingBox( mesh.generateBoundingBox() );
 							}
 						}
 
