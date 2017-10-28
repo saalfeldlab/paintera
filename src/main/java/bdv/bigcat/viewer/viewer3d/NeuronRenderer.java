@@ -30,39 +30,6 @@ public class NeuronRenderer< T, F extends FragmentSegmentAssignmentState< F > > 
 
 	private List< NeuronRendererListener > listeners = new ArrayList< NeuronRendererListener >();
 
-	public NeuronRenderer(
-			final long selectedFragmentId,
-			final F fragmentSegmentAssignment,
-			final ARGBStream stream,
-			final Localizable initialLocationInImageCoordinates,
-			final RandomAccessible< T > data,
-			final Interval interval,
-			final Function< T, ForegroundCheck< T > > getForegroundCheck,
-			final Scene scene,
-			final ExecutorService es,
-			final AffineTransform3D toWorldCoordinates,
-			final int[] blockSize,
-			final int[] cubeSize )
-	{
-		super();
-		this.selectedFragmentId = selectedFragmentId;
-		this.selectedSegmentId = fragmentSegmentAssignment.getSegment( selectedFragmentId );
-		this.fragmentSegmentAssignment = fragmentSegmentAssignment;
-		this.stream = stream;
-		this.initialLocationInImageCoordinates = initialLocationInImageCoordinates;
-		this.data = data;
-		this.interval = interval;
-		this.getForegroundCheck = getForegroundCheck;
-		this.scene = scene;
-		this.es = es;
-		this.toWorldCoordinates = toWorldCoordinates;
-		this.blockSize = blockSize;
-		this.cubeSize = cubeSize;
-
-		updateForegroundCheck();
-		this.fragmentSegmentAssignment.addListener( this );
-	}
-
 	private long selectedSegmentId;
 
 	private final F fragmentSegmentAssignment;
@@ -100,6 +67,39 @@ public class NeuronRenderer< T, F extends FragmentSegmentAssignmentState< F > > 
 	 * zmax)
 	 */
 	private float[] completeBoundingBox = null;
+
+	public NeuronRenderer(
+			final long selectedFragmentId,
+			final F fragmentSegmentAssignment,
+			final ARGBStream stream,
+			final Localizable initialLocationInImageCoordinates,
+			final RandomAccessible< T > data,
+			final Interval interval,
+			final Function< T, ForegroundCheck< T > > getForegroundCheck,
+			final Scene scene,
+			final ExecutorService es,
+			final AffineTransform3D toWorldCoordinates,
+			final int[] blockSize,
+			final int[] cubeSize )
+	{
+		super();
+		this.selectedFragmentId = selectedFragmentId;
+		this.selectedSegmentId = fragmentSegmentAssignment.getSegment( selectedFragmentId );
+		this.fragmentSegmentAssignment = fragmentSegmentAssignment;
+		this.stream = stream;
+		this.initialLocationInImageCoordinates = initialLocationInImageCoordinates;
+		this.data = data;
+		this.interval = interval;
+		this.getForegroundCheck = getForegroundCheck;
+		this.scene = scene;
+		this.es = es;
+		this.toWorldCoordinates = toWorldCoordinates;
+		this.blockSize = blockSize;
+		this.cubeSize = cubeSize;
+
+		updateForegroundCheck();
+		this.fragmentSegmentAssignment.addListener( this );
+	}
 
 	public synchronized void cancelRendering()
 	{
