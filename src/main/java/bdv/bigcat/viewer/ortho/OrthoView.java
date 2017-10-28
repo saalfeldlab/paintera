@@ -80,7 +80,6 @@ public class OrthoView extends GridPane
 		this.state.constraintsManager.manageGrid( this );
 		this.onFocusEnter = onFocusEnter;
 		this.onFocusExit = onFocusExit;
-//		this.requestFocus();
 		this.setInfoNode( new Label( "Place your node here!" ) );
 
 		this.resizer = new GridResizer( this.state.constraintsManager, 10, this );
@@ -107,7 +106,6 @@ public class OrthoView extends GridPane
 		addViewer( ViewerAxis.Z, 0, 0 );
 		addViewer( ViewerAxis.X, 0, 1 );
 		addViewer( ViewerAxis.Y, 1, 0 );
-//		this.requestFocus();
 	}
 
 	public void setInfoNode( final Node node )
@@ -157,9 +155,9 @@ public class OrthoView extends GridPane
 	{
 		viewerNode.getViewer().focusedProperty().addListener( ( ChangeListener< Boolean > ) ( observable, oldValue, newValue ) -> {
 			final ViewerPanelFX viewer = viewerNode.getViewer();
-			if ( newValue )
+			if ( newValue && !oldValue )
 				this.onFocusEnter.accept( viewer );
-			else
+			else if ( !newValue )
 				this.onFocusExit.accept( viewer );
 		} );
 	}

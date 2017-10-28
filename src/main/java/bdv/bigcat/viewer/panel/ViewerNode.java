@@ -66,14 +66,13 @@ public class ViewerNode extends Pane implements ListChangeListener< SourceAndCon
 //		https://stackoverflow.com/questions/21657034/javafx-keyevent-propagation-order
 //		https://stackoverflow.com/questions/32802664/setonkeypressed-event-not-working-properly
 //		Node only reacts to key events when focused!
-//		this.focusedProperty().addListener( ( obs, oldv, newv ) -> {
-//			if ( newv )
-//				this.viewer.requestFocus();
-//		} );
-		this.viewer.addEventHandler( MouseEvent.MOUSE_ENTERED, event -> {
+		this.viewer.addEventFilter( MouseEvent.MOUSE_ENTERED, event -> {
 			this.viewer.requestFocus();
 		} );
-		this.viewer.addEventHandler( MouseEvent.MOUSE_CLICKED, event -> this.viewer.requestFocus() );
+		this.viewer.addEventFilter( MouseEvent.MOUSE_PRESSED, event -> {
+			if ( !this.isFocused() )
+				this.viewer.requestFocus();
+		} );
 	}
 
 	private void addCrosshair()
