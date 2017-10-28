@@ -17,6 +17,7 @@ import bdv.bigcat.ui.ARGBStream;
 import bdv.bigcat.viewer.state.FragmentSegmentAssignmentState;
 import bdv.bigcat.viewer.viewer3d.marchingCubes.ForegroundCheck;
 import cleargl.GLVector;
+import graphics.scenery.SceneryElement;
 import net.imglib2.Interval;
 import net.imglib2.Point;
 import net.imglib2.RandomAccessible;
@@ -41,7 +42,7 @@ public class Viewer3DController
 
 	private final HashSet< NeuronRenderer > renderers = new HashSet<>();
 
-	private final CameraMode camera;
+	private CameraMode camera;
 
 	/**
 	 * Default constructor
@@ -49,10 +50,22 @@ public class Viewer3DController
 	public Viewer3DController( final Viewer3D viewer )
 	{
 		this.viewer3D = viewer;
+		startCamera();
+	}
 
-		camera = new CameraMode( viewer3D.scene(), viewer3D.renderer(), viewer3D.hub() );
+	public void startCamera()
+	{
+		camera = new CameraMode( viewer3D.scene() );
 		camera.perspectiveCamera( 50f, viewer3D.getWindowWidth(), viewer3D.getWindowHeight(), 0.1f, 10000.0f );
-		camera.automaticCamera();
+		
+		System.out.println( viewer3D.getHub().get( SceneryElement.Renderer ) );
+
+		// no HMD, then default mode is automatic camera
+		if ( viewer3D.getHub().getWorkingHMD() == null )
+			camera.manual( viewer3D.renderer(), viewer3D.hub() );
+//		else
+//			camera.manual();
+
 	}
 
 	public synchronized < T extends Type< T >, F extends FragmentSegmentAssignmentState< F > > void generateMesh(
@@ -123,7 +136,9 @@ public class Viewer3DController
 					cubeSize );
 			nr.render();
 			this.renderers.add( nr );
-			nr.addListener( camera );
+
+			if ( camera.getCameraMode() == CameraMode.Mode.AUTOMATIC )
+				nr.addListener( camera );
 
 		}
 	}

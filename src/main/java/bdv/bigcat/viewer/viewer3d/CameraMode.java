@@ -16,10 +16,10 @@ interface NeuronRendererListener
 public class CameraMode implements NeuronRendererListener
 {
 	private final Scene scene;
-
-	private final Renderer renderer;
-
-	private final Hub hub;
+//
+//	private final Renderer renderer;
+//
+//	private final Hub hub;
 
 	private final Camera manualCamera;
 
@@ -27,11 +27,17 @@ public class CameraMode implements NeuronRendererListener
 
 	private float[] completeBoundingBox = null;
 
-	public CameraMode( final Scene scene, final Renderer renderer, final Hub hub )
+	public enum Mode
+	{
+		MANUAL,
+		AUTOMATIC
+	}
+
+	public CameraMode( final Scene scene )
 	{
 		this.scene = scene;
-		this.renderer = renderer;
-		this.hub = hub;
+//		this.renderer = renderer;
+//		this.hub = hub;
 
 		manualCamera = new Camera();
 		automaticCamera = new Camera();
@@ -41,58 +47,26 @@ public class CameraMode implements NeuronRendererListener
 
 	}
 
-//	public void manualCamera()
-//	{
-//		final InputHandler handler = new InputHandler( scene, renderer, hub );
-//		handler.removeBehaviour( "move_forward" );
-//		handler.removeBehaviour( "move_left" );
-//		handler.removeBehaviour( "move_back" );
-//		handler.removeBehaviour( "move_right" );
-//		handler.removeBehaviour( "move_forward_fast" );
-//		handler.removeBehaviour( "move_left_fast" );
-//		handler.removeBehaviour( "move_back_fast" );
-//		handler.removeBehaviour( "move_right_fast" );
-//
-//		handler.removeKeyBinding( "move_forward" );
-//		handler.removeKeyBinding( "move_left" );
-//		handler.removeKeyBinding( "move_back" );
-//		handler.removeKeyBinding( "move_right" );
-//		handler.removeKeyBinding( "move_forward_fast" );
-//		handler.removeKeyBinding( "move_left_fast" );
-//		handler.removeKeyBinding( "move_back_fast" );
-//		handler.removeKeyBinding( "move_right_fast" );
-//
-//		handler.addBehaviour( "move_forward", new MovementCommand( "move_forward", "forward", scene::findObserver, 1.0f ) );
-//		handler.addBehaviour( "move_left", new MovementCommand( "move_left", "left", scene::findObserver, 1.0f ) );
-//		handler.addBehaviour( "move_back", new MovementCommand( "move_back", "back", scene::findObserver, 1.0f ) );
-//		handler.addBehaviour( "move_right", new MovementCommand( "move_right", "right", scene::findObserver, 1.0f ) );
-//		handler.addBehaviour( "move_forward_fast", new MovementCommand( "move_forward_fast", "forward", scene::findObserver, 20.0f ) );
-//		handler.addBehaviour( "move_left_fast", new MovementCommand( "move_left_fast", "left", scene::findObserver, 20.0f ) );
-//		handler.addBehaviour( "move_back_fast", new MovementCommand( "move_back_fast", "back", scene::findObserver, 20.0f ) );
-//		handler.addBehaviour( "move_right_fast", new MovementCommand( "move_right_fast", "right", scene::findObserver, 20.0f ) );
-//
-//		handler.addKeyBinding( "move_forward", "W" );
-//		handler.addKeyBinding( "move_left", "A" );
-//		handler.addKeyBinding( "move_back", "S" );
-//		handler.addKeyBinding( "move_right", "D" );
-//		handler.addKeyBinding( "move_forward_fast", "shift W" );
-//		handler.addKeyBinding( "move_left_fast", "shift A" );
-//		handler.addKeyBinding( "move_back_fast", "shift S" );
-//		handler.addKeyBinding( "move_right_fast", "shift D" );
-//
-//		System.out.println( "manual camera... " );
-//
-////		setInputHandler( handler );
-//
-//		manualCamera.setActive( true );
-//
-//	}
+	public void manual( final Renderer renderer, final Hub hub )
+	{
+		System.out.println( "manual camera... " );
+		manualCamera.setActive( true );
+	}
 
-	public void automaticCamera()
+	public void automatic()
 	{
 		System.out.println( "automatic camera... " );
 		automaticCamera.setActive( true );
-		// TODO: remove controls from camera
+	}
+
+	public Mode getCameraMode()
+	{
+		if (manualCamera.getActive())
+		{
+			return Mode.MANUAL;
+		}
+
+		return Mode.AUTOMATIC;
 	}
 
 	public void perspectiveCamera( float fov, float width, float height, float nearPlaneLocation, float farPlaneLocation )
