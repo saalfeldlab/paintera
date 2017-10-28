@@ -137,7 +137,8 @@ public class HDF5UnsignedByteSpec implements DatasetSpec< UnsignedByteType, Vola
 	{
 		super();
 		final IHDF5Reader h5reader = HDF5Factory.open( path );
-		this.loader = new H5UnsignedByteSetupImageLoader( h5reader, dataset, 0, cellSize, resolution, new VolatileGlobalCellCache( new SharedQueue( 8 ) ) );
+		// TODO Use better value for number of threads of shared queue
+		this.loader = new H5UnsignedByteSetupImageLoader( h5reader, dataset, 0, cellSize, resolution, new VolatileGlobalCellCache( new SharedQueue( 1 ) ) );
 		this.name = name;
 		this.uri = "h5://" + path + "/" + dataset;
 	}

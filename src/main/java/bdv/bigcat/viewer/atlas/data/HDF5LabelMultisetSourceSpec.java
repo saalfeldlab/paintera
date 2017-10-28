@@ -70,7 +70,8 @@ public class HDF5LabelMultisetSourceSpec implements RenderableLabelSpec< LabelMu
 	{
 		super();
 		final IHDF5Reader h5reader = HDF5Factory.open( path );
-		this.loader = new H5LabelMultisetSetupImageLoader( h5reader, null, dataset, 0, cellSize, new VolatileGlobalCellCache( new SharedQueue( 8 ) ) );
+		// TODO Use better value for number of threads of shared queue
+		this.loader = new H5LabelMultisetSetupImageLoader( h5reader, null, dataset, 0, cellSize, new VolatileGlobalCellCache( new SharedQueue( 1 ) ) );
 		this.assignment = new FragmentSegmentAssignmentWithHistory( initialSolution.get(), actionBroadcaster, solutionFetcher );
 		this.stream = new ModalGoldenAngleSaturatedHighlightingARGBStream( selectedIds, assignment );
 		this.uri = "h5://" + path + "/dataset";
