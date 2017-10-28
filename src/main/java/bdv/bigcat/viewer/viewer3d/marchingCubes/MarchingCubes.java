@@ -132,10 +132,15 @@ public class MarchingCubes< T >
 							( foregroundCheck.test( cursors[ 6 ].next() ) & 1 ) << 5 |
 							( foregroundCheck.test( cursors[ 2 ].next() ) & 1 ) << 6 |
 							( foregroundCheck.test( cursors[ 0 ].next() ) & 1 ) << 7;
-//			}
 
-//			p.setPosition( cursors[ 0 ] );
-//			transform.apply( p, p );
+			// @formatter:off
+//			System.out.println( " " + cursors[ 4 ].get() + "------" + cursors[ 6 ].get() );
+//			System.out.println( " /|     /|" );
+//			System.out.println( " " + cursors[ 0 ].get() + "-----" + cursors[ 2 ].get() + " |" );
+//			System.out.println( " |" + cursors[ 5 ].get() + "----|-" + cursors[ 7 ].get() );
+//			System.out.println( " |/    |/" );
+//			System.out.println( " " +  cursors[ 1 ].get() + "-----" +  cursors[ 3 ].get() );
+			// @formatter:on
 
 			triangulation(
 					vertexValues,
@@ -199,9 +204,6 @@ public class MarchingCubes< T >
 		// Calculate table lookup index from those vertices which
 		// are below the isolevel.
 		final int tableIndex = vertexValues;
-//		for ( int i = 0; i < 8; i++ )
-//			if ( vertexValues[ i ] == foregroundValue )
-//				tableIndex |= 1 << i;
 
 		// edge indexes:
 		// @formatter:off
@@ -277,7 +279,6 @@ public class MarchingCubes< T >
 				vertices.add( v3[ 0 ] );
 				vertices.add( v3[ 1 ] );
 				vertices.add( v3[ 2 ] );
-
 			}
 		}
 	}

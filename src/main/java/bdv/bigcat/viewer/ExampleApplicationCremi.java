@@ -5,6 +5,7 @@ import java.util.concurrent.CountDownLatch;
 
 import org.slf4j.Logger;
 
+import com.beust.jcommander.JCommander;
 import com.sun.javafx.application.PlatformImpl;
 
 import bdv.AbstractViewerSetupImgLoader;
@@ -44,17 +45,28 @@ public class ExampleApplicationCremi
 		// Set the log level
 		final String USER_HOME = System.getProperty( "user.home" );
 
-		final String rawFile = USER_HOME + "/Downloads/sample_A_padded_20160501.hdf";
+		String rawFile = USER_HOME + "/Downloads/sample_A_padded_20160501.hdf";
 		PlatformImpl.startup( () -> {} );
-		final String rawDataset = "volumes/raw";
-		final String labelsFile = rawFile;
-		final String labelsDataset = "volumes/labels/neuron_ids";
+		String rawDataset = "volumes/raw";
+		String labelsFile = rawFile;
+		String labelsDataset = "volumes/labels/neuron_ids";
 
-		final double[] resolution = { 4, 4, 40 };
-//		final double[] offset = { 424, 424, 560 };
-		final int[] rawCellSize = { 192, 96, 7 };
-
-		final int[] labelCellSize = { 79, 79, 4 };
+		double[] resolution = { 4, 4, 40 };
+		int[] rawCellSize = { 192, 96, 7 };
+		int[] labelCellSize = { 79, 79, 4 };
+		
+		final Parameters params = getParameters( args );
+		if ( params != null )
+		{
+			System.out.println( "parameters are not null" );
+			rawFile = params.filePath;
+			rawDataset = params.rawDatasetPath;
+			labelsFile = rawFile;
+			labelsDataset = params.labelDatasetPath;
+			resolution = new double[] { params.resolution.get( 0 ), params.resolution.get( 1 ), params.resolution.get( 2 ) };
+			rawCellSize = new int[] { params.rawCellSize.get( 0 ), params.rawCellSize.get( 1 ), params.rawCellSize.get( 2 ) };
+			labelCellSize = new int[] { params.labelCellSize.get( 0 ), params.labelCellSize.get( 1 ), params.labelCellSize.get( 2 ) };
+		}
 
 		final HDF5UnsignedByteSpec rawSource = new HDF5UnsignedByteSpec( rawFile, rawDataset, rawCellSize, resolution, "raw" );
 
@@ -67,9 +79,6 @@ public class ExampleApplicationCremi
 
 		final Atlas viewer = new Atlas( new FinalInterval( Arrays.stream( min ).mapToLong( Math::round ).toArray(), Arrays.stream( max ).mapToLong( Math::round ).toArray() ) );
 
-//		final Viewer3DController controller = new Viewer3DController();
-//		controller.setMode( Viewer3DController.ViewerMode.ONLY_ONE_NEURON_VISIBLE );
-
 		final CountDownLatch latch = new CountDownLatch( 1 );
 		Platform.runLater( () -> {
 			final Stage stage = new Stage();
@@ -79,30 +88,46 @@ public class ExampleApplicationCremi
 			}
 			catch ( final InterruptedException e )
 			{
-				// TODO Auto-generated catch block
 				e.printStackTrace();
 			}
 			stage.show();
-//			final Viewer3D v3d = new Viewer3D( "appname", 100, 100, false );
-//			new Thread( () -> v3d.main() ).start();
-//			viewer.baseView().setInfoNode( v3d.getPanel() );
-//			controller.setViewer3D( v3d );
-//			controller.setResolution( resolution );
 			latch.countDown();
 		} );
 
 		latch.await();
-
-//		AffineTransform3D transform = new AffineTransform3D();
-//		final long label = 7;
-//		controller.renderAtSelectionMultiset( volumeLabels, transform, location, label );
-//		Viewer3DController.generateMesh( volumeLabels, location );
-
 		viewer.addRawSource( rawSource, 0., 255. );
 
 		final HDF5LabelMultisetSourceSpec labelSpec2 = new HDF5LabelMultisetSourceSpec( labelsFile, labelsDataset, labelCellSize, "labels" );
 		viewer.addLabelSource( labelSpec2 );
 
+	}
+
+	private static Parameters getParameters( String[] args )
+	{
+		// get the parameters
+		final Parameters params = new Parameters();
+		JCommander.newBuilder()
+				.addObject( params )
+				.build()
+				.parse( args );
+
+		boolean success = validateParameters( params );
+		if ( !success )
+		{
+			return null;
+		}
+
+		return params;
+	}
+
+	private static boolean validateParameters( Parameters params )
+	{
+		if ( params.filePath == "" )
+		{
+			return false;
+		}
+
+		return true;
 	}
 
 	public static class VolatileRealARGBConverter< T extends RealType< T > > extends AbstractLinearRange implements Converter< Volatile< T >, VolatileARGBType >

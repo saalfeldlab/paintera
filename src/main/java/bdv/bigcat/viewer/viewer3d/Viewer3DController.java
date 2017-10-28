@@ -16,6 +16,8 @@ import org.slf4j.LoggerFactory;
 import bdv.bigcat.ui.ARGBStream;
 import bdv.bigcat.viewer.state.FragmentSegmentAssignmentState;
 import bdv.bigcat.viewer.viewer3d.marchingCubes.ForegroundCheck;
+import cleargl.GLVector;
+import graphics.scenery.SceneryElement;
 import net.imglib2.Interval;
 import net.imglib2.Point;
 import net.imglib2.RandomAccessible;
@@ -32,7 +34,6 @@ import net.imglib2.type.Type;
  */
 public class Viewer3DController
 {
-
 	public static Logger LOG = LoggerFactory.getLogger( MethodHandles.lookup().lookupClass() );
 
 	private final Viewer3D viewer3D;
@@ -41,12 +42,30 @@ public class Viewer3DController
 
 	private final HashSet< NeuronRenderer > renderers = new HashSet<>();
 
+	private CameraMode camera;
+
 	/**
 	 * Default constructor
 	 */
 	public Viewer3DController( final Viewer3D viewer )
 	{
 		this.viewer3D = viewer;
+		startCamera();
+	}
+
+	public void startCamera()
+	{
+		camera = new CameraMode( viewer3D.scene() );
+		camera.perspectiveCamera( 50f, viewer3D.getWindowWidth(), viewer3D.getWindowHeight(), 0.1f, 10000.0f );
+		
+		System.out.println( viewer3D.getHub().get( SceneryElement.Renderer ) );
+
+		// no HMD, then default mode is automatic camera
+		if ( viewer3D.getHub().getWorkingHMD() == null )
+			camera.manual( viewer3D.renderer(), viewer3D.hub() );
+//		else
+//			camera.manual();
+
 	}
 
 	public synchronized < T extends Type< T >, F extends FragmentSegmentAssignmentState< F > > void generateMesh(
@@ -62,7 +81,6 @@ public class Viewer3DController
 			final ARGBStream stream,
 			final boolean append )
 	{
-
 		LOG.info( "Rendering neuron: {} {}", fragmentId, fragmentSegmentAssignment.getSegment( fragmentId ) );
 
 		if ( LOG.isWarnEnabled() )
@@ -86,6 +104,11 @@ public class Viewer3DController
 				this.renderers.forEach( NeuronRenderer::removeSelfFromScene );
 				this.renderers.forEach( NeuronRenderer::stopListening );
 				this.renderers.clear();
+
+				RealLocalizable cameraPosition = new RealPoint( worldLocation.getFloatPosition( 0 ), worldLocation.getFloatPosition( 1 ), worldLocation.getFloatPosition( 2 ) * 1.5 );
+				camera.setPosition( new GLVector( cameraPosition.getFloatPosition( 0 ), cameraPosition.getFloatPosition( 1 ), cameraPosition.getFloatPosition( 2 ) ) );
+				System.out.println( "initial camera position: " + cameraPosition.getFloatPosition( 0 ) + "x" + cameraPosition.getFloatPosition( 1 ) + "x" + cameraPosition.getFloatPosition( 2 ) );
+
 			}
 
 			final List< NeuronRenderer > filteredNrs = renderers.stream()
@@ -113,8 +136,11 @@ public class Viewer3DController
 					cubeSize );
 			nr.render();
 			this.renderers.add( nr );
-		}
 
+			if ( camera.getCameraMode() == CameraMode.Mode.AUTOMATIC )
+				nr.addListener( camera );
+
+		}
 	}
 
 	/**

@@ -41,7 +41,6 @@ import net.imglib2.view.Views;
  */
 public class Render3D extends AbstractStateMode
 {
-
 	public static Logger LOG = LoggerFactory.getLogger( MethodHandles.lookup().getClass() );
 
 	private final HashMap< Source< ? >, Source< ? > > dataSources = new HashMap<>();

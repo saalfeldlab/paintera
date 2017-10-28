@@ -363,7 +363,6 @@ public class Atlas
 
 		view.addActor( new ViewerActor()
 		{
-
 			@Override
 			public Consumer< ViewerPanelFX > onRemove()
 			{

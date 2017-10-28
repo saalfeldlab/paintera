@@ -13,6 +13,7 @@ import bdv.bigcat.viewer.viewer3d.marchingCubes.ForegroundCheck;
 import bdv.bigcat.viewer.viewer3d.marchingCubes.MarchingCubes;
 import bdv.bigcat.viewer.viewer3d.util.HashWrapper;
 import cleargl.GLVector;
+import graphics.scenery.Box;
 import graphics.scenery.Material;
 import graphics.scenery.Mesh;
 import graphics.scenery.Node;
@@ -22,12 +23,12 @@ import net.imglib2.Interval;
 import net.imglib2.Localizable;
 import net.imglib2.Point;
 import net.imglib2.RandomAccessible;
+import net.imglib2.RealPoint;
 import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.util.Intervals;
 
 public class Neuron< T >
 {
-
 	private static float ONE_OVER_255 = 1.0f / 255.0f;
 
 	private final NeuronRenderer< T, ? > generator;
@@ -47,6 +48,8 @@ public class Neuron< T >
 	private final List< Node > nodes = new ArrayList<>();
 
 	private final List< Future< ? > > futures = new ArrayList<>();
+
+	private final List< Box > chunks = new ArrayList<>();
 
 	private final Set< HashWrapper< long[] > > offsets = new HashSet<>();
 
@@ -75,6 +78,7 @@ public class Neuron< T >
 		{
 			this.isCanceled = true;
 			this.futures.forEach( future -> future.cancel( true ) );
+			this.chunks.forEach( chunk -> scene.removeChild( chunk ) );
 		}
 	}
 
@@ -110,6 +114,36 @@ public class Neuron< T >
 					final Interval interval = new FinalInterval(
 							coordinates,
 							IntStream.range( 0, coordinates.length ).mapToLong( d -> coordinates[ d ] + blockSize[ d ] ).toArray() );
+
+					final RealPoint begin = new RealPoint( interval.numDimensions() );
+					final RealPoint end = new RealPoint( interval.numDimensions() );
+
+					for ( int i = 0; i < interval.numDimensions(); i++ )
+					{
+						begin.setPosition( interval.min( i ), i );
+						end.setPosition( interval.max( i ), i );
+					}
+					toWorldCoordinates.apply( begin, begin );
+					toWorldCoordinates.apply( end, end );
+
+					final float[] size = new float[ begin.numDimensions() ];
+					final float[] center = new float[ begin.numDimensions() ];
+					for ( int i = 0; i < begin.numDimensions(); i++ )
+					{
+						size[ i ] = end.getFloatPosition( i ) - begin.getFloatPosition( i );
+						center[ i ] = begin.getFloatPosition( i ) + ( size[ i ] / 2 );
+					}
+					final Box chunk = new Box( new GLVector( size[ 0 ], size[ 1 ], size[ 2 ] ), true );
+					chunk.setPosition( new GLVector( center[ 0 ], center[ 1 ], center[ 2 ] ) );
+
+					final GLVector colorVector = new GLVector( ( color >>> 16 & 0xff ) * ONE_OVER_255, ( color >>> 8 & 0xff ) * ONE_OVER_255, ( color >>> 0 & 0xff ) * ONE_OVER_255 );
+					chunk.getMaterial().setDiffuse( colorVector );
+//
+					chunk.getMaterial().setOpacity( 0.4f );
+					chunk.getMaterial().setTransparent( true );
+					scene.addChild( chunk );
+					this.chunks.add( chunk );
+
 					final MarchingCubes< T > mc = new MarchingCubes<>( data, interval, toWorldCoordinates, cubeSize );
 					final float[] vertices = mc.generateMesh( foregroundCheck );
 
@@ -122,8 +156,8 @@ public class Neuron< T >
 						final Mesh mesh = new Mesh();
 						final Material material = new Material();
 						material.setOpacity( 1.0f );
-						material.setDiffuse( new GLVector( ( color >>> 16 & 0xff ) * ONE_OVER_255, ( color >>> 8 & 0xff ) * ONE_OVER_255, ( color >>> 0 & 0xff ) * ONE_OVER_255 ) );
-						material.setAmbient( new GLVector( ( color >>> 16 & 0xff ) * ONE_OVER_255, ( color >>> 8 & 0xff ) * ONE_OVER_255, ( color >>> 0 & 0xff ) * ONE_OVER_255 ) );
+						material.setDiffuse( colorVector );
+						material.setAmbient( colorVector );
 						material.setSpecular( new GLVector( 0.0f, 0.0f, 0.0f ) );
 						mesh.setMaterial( material );
 						mesh.setPosition( new GLVector( 0.0f, 0.0f, 0.0f ) );
@@ -133,8 +167,11 @@ public class Neuron< T >
 						{
 							if ( !isCanceled )
 							{
+								this.chunks.remove( chunk );
+								scene.removeChild( chunk );
 								addNode( mesh );
 								mesh.setDirty( true );
+								generator.updateCompleteBoundingBox( mesh.generateBoundingBox() );
 							}
 						}
 
@@ -147,11 +184,14 @@ public class Neuron< T >
 							otherGridCoordinates[ d ] -= 2;
 							submitForOffset( otherGridCoordinates.clone(), data, foregroundCheck, toWorldCoordinates, blockSize, cubeSize, color, es );
 						}
-
+					}
+					else
+					{
+						this.chunks.remove( chunk );
+						scene.removeChild( chunk );
 					}
 				} ) );
 		}
-
 	}
 
 	private void addNode( final Node node )
@@ -162,5 +202,4 @@ public class Neuron< T >
 		}
 		this.scene.addChild( node );
 	}
-
 }
