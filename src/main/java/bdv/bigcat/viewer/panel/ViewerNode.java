@@ -105,6 +105,7 @@ public class ViewerNode extends Pane implements ListChangeListener< SourceAndCon
 	private void initializeViewer()
 	{
 		viewer.setDisplayMode( DisplayMode.FUSED );
+		this.manager.setCanvasSize( ( int ) viewer.getDisplay().getWidth(), ( int ) viewer.getDisplay().getHeight(), true );
 		viewer.getDisplay().setTransformEventHandler( this.manager );
 //		this.manager.install( triggerbindings, keybindings );
 //		triggerbindings.addBehaviourMap( "default", behaviours.getBehaviourMap() );
