@@ -25,6 +25,7 @@ import javafx.scene.input.KeyEvent;
 import javafx.scene.input.MouseButton;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.input.ScrollEvent;
+import javafx.stage.Stage;
 import net.imglib2.RealPoint;
 import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.ui.TransformEventHandler;
@@ -214,6 +215,22 @@ public class ViewerTransformManager implements TransformListener< AffineTransfor
 //		final EventFX removeActiveKey = EventFX.KEY_PRESSED( "add active key", e -> activeKeys.remove( e.getCode() ), e -> true );
 		viewer.addEventFilter( KeyEvent.KEY_PRESSED, e -> activeKeys.add( e.getCode() ) );
 		viewer.addEventFilter( KeyEvent.KEY_RELEASED, e -> activeKeys.remove( e.getCode() ) );
+		// clear active keys when switching to different application window
+		final OnWindowInitListener windowInit = new OnWindowInitListener( window -> {
+			if ( window instanceof Stage )
+			{
+				final Stage stage = ( Stage ) window;
+				stage.focusedProperty().addListener( ( obs, oldv, newv ) -> {
+					if ( !newv )
+						activeKeys.clear();
+				} );
+			}
+
+		} );
+		final OnSceneInitListener sceneInit = new OnSceneInitListener( scene -> {
+			scene.windowProperty().addListener( windowInit );
+		} );
+		viewer.sceneProperty().addListener( sceneInit );
 
 		final TranslateXY translateXY = new TranslateXY( "drag translate", event -> activeKeys.size() == 0 && event.getButton().equals( MouseButton.SECONDARY ) );
 
