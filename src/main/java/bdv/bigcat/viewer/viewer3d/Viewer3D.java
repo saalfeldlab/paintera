@@ -1,69 +1,72 @@
 package bdv.bigcat.viewer.viewer3d;
 
-import cleargl.GLVector;
 import graphics.scenery.Hub;
-import graphics.scenery.PointLight;
 import graphics.scenery.Scene;
-import graphics.scenery.SceneryBase;
 import graphics.scenery.SceneryElement;
+import graphics.scenery.Settings;
 import graphics.scenery.backends.Renderer;
+import graphics.scenery.controls.InputHandler;
 import graphics.scenery.repl.REPL;
 import graphics.scenery.utils.SceneryPanel;
+import graphics.scenery.utils.Statistics;
 
-public class Viewer3D extends SceneryBase
+public class Viewer3D
 {
 	/** logger */
 	private final SceneryPanel scPanel;
 
+	private final String applicationName;
+
+	private final int windowWidth;
+
+	private final int windowHeight;
+
+	private final boolean wantREPL;
+
+	private final Scene scene;
+
+	private Hub hub;
+
 	public Viewer3D( final String applicationName, final int windowWidth, final int windowHeight, final boolean wantREPL )
 	{
-		super( applicationName, windowWidth, windowHeight, wantREPL );
+		this.applicationName = applicationName;
+		this.windowWidth = windowWidth;
+		this.windowHeight = windowHeight;
+		this.wantREPL = wantREPL;
 
-		scPanel = new SceneryPanel( 500, 500 );
+		this.scene = new Scene();
+
+		scPanel = new SceneryPanel( windowWidth, windowHeight );
 	}
 
-	@Override
 	public void init()
 	{
 		System.out.println( "init... " );
-		setRenderer(
-				Renderer.createRenderer( getHub(), getApplicationName(), getScene(), getWindowWidth(), getWindowHeight(), scPanel ) );
-		getHub().add( SceneryElement.Renderer, getRenderer() );
 
+		hub = new Hub();
 
-		final PointLight[] lights = new PointLight[ 4 ];
-		for ( int i = 0; i < lights.length; i++ )
+		final Settings settings = new Settings();
+		hub.add( SceneryElement.Settings, settings );
+
+		final Statistics statistics = new Statistics( hub );
+		hub.add( SceneryElement.Statistics, statistics );
+
+		final Renderer renderer = Renderer.createRenderer( hub, applicationName, scene, windowWidth, windowHeight, scPanel );
+		hub.add( SceneryElement.Renderer, renderer );
+		
+		InputHandler inputHandler = new InputHandler(scene, renderer, hub);
+		inputHandler.useDefaultBindings( System.getProperty( "user.home" ) + "/.$applicationName.bindings" );
+		
+		if ( wantREPL )
 		{
-			lights[ i ] = new PointLight();
-			lights[ i ].setEmissionColor( new GLVector( 1.0f, 1.0f, 1.0f ) );
-			lights[ i ].setIntensity( 100.2f * 5 );
-			lights[ i ].setLinear( 0.01f );
-			lights[ i ].setQuadratic( 0.00f );
-//			lights[ i ].showLightBox();
+			REPL repl = new REPL( renderer, settings, scene, statistics, hub );
+
+			if ( repl != null )
+			{
+				repl.start();
+				repl.showConsoleWindow();
+			}
 		}
-		lights[ 0 ].setPosition( new GLVector( -1.0f, 0f, -1.0f / ( float ) Math.sqrt( 2.0 ) ) );
-		lights[ 1 ].setPosition( new GLVector( -1.0f, 0f, -1.0f / ( float ) Math.sqrt( 2.0 ) ) );
-		lights[ 2 ].setPosition( new GLVector( 0.0f, 1.0f, 1.0f / ( float ) Math.sqrt( 2.0 ) ) );
-		lights[ 3 ].setPosition( new GLVector( 0.0f, -1.0f, 1.0f / ( float ) Math.sqrt( 2.0 ) ) );
-
-		getScene().addChild(lights[0]);
-
-		getHub().add(SceneryElement.Settings, getSettings());
-		getHub().add(SceneryElement.Statistics, getStats());
-
-		setRepl(new REPL(getRenderer(), getSettings(), getScene(), getStats(), getHub()));
-
-		if ( getRepl() != null )
-		{
-			getRepl().start();
-			getRepl().showConsoleWindow();
-		}
-	}
-
-	public void manualCamera()
-	{
-		Scene scene = this.getScene();
-
 	}
 
 	public SceneryPanel getPanel()
@@ -73,16 +76,21 @@ public class Viewer3D extends SceneryBase
 
 	public Scene scene()
 	{
-		return this.getScene();
+		return this.scene;
 	}
 
-	public Renderer renderer()
+	public int getWindowWidth()
 	{
-		return this.getRenderer();
+		return this.windowWidth;
 	}
 
-	public Hub hub()
+	public int getWindowHeight()
 	{
-		return this.getHub();
+		return this.windowHeight;
+	}
+
+	public Hub getHub()
+	{
+		return this.hub;
 	}
 }

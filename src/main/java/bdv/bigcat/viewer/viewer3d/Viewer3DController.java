@@ -17,7 +17,6 @@ import bdv.bigcat.ui.ARGBStream;
 import bdv.bigcat.viewer.state.FragmentSegmentAssignmentState;
 import bdv.bigcat.viewer.viewer3d.marchingCubes.ForegroundCheck;
 import cleargl.GLVector;
-import graphics.scenery.SceneryElement;
 import net.imglib2.Interval;
 import net.imglib2.Point;
 import net.imglib2.RandomAccessible;
@@ -27,7 +26,7 @@ import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.type.Type;
 
 /**
- * Main class for the Marching Cubes
+ * Class that controls the 3d scene
  *
  * @author Vanessa Leite
  * @author Philipp Hanslovsky
@@ -50,22 +49,27 @@ public class Viewer3DController
 	public Viewer3DController( final Viewer3D viewer )
 	{
 		this.viewer3D = viewer;
+	}
+
+	public void init()
+	{
+		// initialize the 3d viewer
+		viewer3D.init();
+
+		// start the camera
 		startCamera();
 	}
 
 	public void startCamera()
 	{
-		camera = new CameraMode( viewer3D.scene() );
+		camera = new CameraMode( viewer3D.scene(), viewer3D.getHub() );
 		camera.perspectiveCamera( 50f, viewer3D.getWindowWidth(), viewer3D.getWindowHeight(), 0.1f, 10000.0f );
 		
-		System.out.println( viewer3D.getHub().get( SceneryElement.Renderer ) );
-
 		// no HMD, then default mode is automatic camera
 		if ( viewer3D.getHub().getWorkingHMD() == null )
 			camera.automatic();
-		else
-			camera.manual();
-
+//		else
+//		camera.manual();
 	}
 
 	public synchronized < T extends Type< T >, F extends FragmentSegmentAssignmentState< F > > void generateMesh(
