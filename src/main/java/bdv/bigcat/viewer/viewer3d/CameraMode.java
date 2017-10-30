@@ -4,9 +4,7 @@ import com.jogamp.opengl.math.Quaternion;
 
 import cleargl.GLVector;
 import graphics.scenery.Camera;
-import graphics.scenery.Hub;
 import graphics.scenery.Scene;
-import graphics.scenery.backends.Renderer;
 
 interface NeuronRendererListener
 {
@@ -47,10 +45,52 @@ public class CameraMode implements NeuronRendererListener
 
 	}
 
-	public void manual( final Renderer renderer, final Hub hub )
+	public void manual()
 	{
+//		Renderer renderer
+//		Hub hub
+
 		System.out.println( "manual camera... " );
 		manualCamera.setActive( true );
+
+//		final InputHandler handler = new InputHandler( scene, this.getRenderer(), this.getHub() );
+//		handler.removeBehaviour( "move_forward" );
+//		handler.removeBehaviour( "move_left" );
+//		handler.removeBehaviour( "move_back" );
+//		handler.removeBehaviour( "move_right" );
+//		handler.removeBehaviour( "move_forward_fast" );
+//		handler.removeBehaviour( "move_left_fast" );
+//		handler.removeBehaviour( "move_back_fast" );
+//		handler.removeBehaviour( "move_right_fast" );
+//
+//		handler.removeKeyBinding( "move_forward" );
+//		handler.removeKeyBinding( "move_left" );
+//		handler.removeKeyBinding( "move_back" );
+//		handler.removeKeyBinding( "move_right" );
+//		handler.removeKeyBinding( "move_forward_fast" );
+//		handler.removeKeyBinding( "move_left_fast" );
+//		handler.removeKeyBinding( "move_back_fast" );
+//		handler.removeKeyBinding( "move_right_fast" );
+//
+//		handler.addBehaviour( "move_forward", new MovementCommand( "move_forward", "forward", scene::findObserver, 1.0f ) );
+//		handler.addBehaviour( "move_left", new MovementCommand( "move_left", "left", scene::findObserver, 1.0f ) );
+//		handler.addBehaviour( "move_back", new MovementCommand( "move_back", "back", scene::findObserver, 1.0f ) );
+//		handler.addBehaviour( "move_right", new MovementCommand( "move_right", "right", scene::findObserver, 1.0f ) );
+//		handler.addBehaviour( "move_forward_fast", new MovementCommand( "move_forward_fast", "forward", scene::findObserver, 20.0f ) );
+//		handler.addBehaviour( "move_left_fast", new MovementCommand( "move_left_fast", "left", scene::findObserver, 20.0f ) );
+//		handler.addBehaviour( "move_back_fast", new MovementCommand( "move_back_fast", "back", scene::findObserver, 20.0f ) );
+//		handler.addBehaviour( "move_right_fast", new MovementCommand( "move_right_fast", "right", scene::findObserver, 20.0f ) );
+//
+//		handler.addKeyBinding( "move_forward", "W" );
+//		handler.addKeyBinding( "move_left", "A" );
+//		handler.addKeyBinding( "move_back", "S" );
+//		handler.addKeyBinding( "move_right", "D" );
+//		handler.addKeyBinding( "move_forward_fast", "shift W" );
+//		handler.addKeyBinding( "move_left_fast", "shift A" );
+//		handler.addKeyBinding( "move_back_fast", "shift S" );
+//		handler.addKeyBinding( "move_right_fast", "shift D" );
+//
+//		setInputHandler( handler );
 	}
 
 	public void automatic()
