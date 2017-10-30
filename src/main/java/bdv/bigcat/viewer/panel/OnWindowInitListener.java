@@ -39,4 +39,10 @@ public class OnWindowInitListener implements ChangeListener< Window >
 		}
 	}
 
+	public static OnSceneInitListener doOnStageInit( final Consumer< Stage > stageConsumer )
+	{
+		final OnWindowInitListener onWindowInit = new OnWindowInitListener( window -> window != null && window instanceof Stage, window -> stageConsumer.accept( ( Stage ) window ) );
+		return new OnSceneInitListener( scene -> scene.windowProperty().addListener( onWindowInit ) );
+	}
+
 }
