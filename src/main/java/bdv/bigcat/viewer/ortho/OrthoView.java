@@ -2,9 +2,12 @@ package bdv.bigcat.viewer.ortho;
 
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Set;
 import java.util.function.Consumer;
 
 import bdv.bigcat.viewer.ViewerActor;
+import bdv.bigcat.viewer.panel.OnSceneInitListener;
+import bdv.bigcat.viewer.panel.OnWindowInitListener;
 import bdv.bigcat.viewer.panel.ViewerNode;
 import bdv.bigcat.viewer.panel.ViewerNode.ViewerAxis;
 import bdv.bigcat.viewer.panel.ViewerTransformManager;
@@ -22,6 +25,7 @@ import javafx.scene.Node;
 import javafx.scene.Scene;
 import javafx.scene.control.Label;
 import javafx.scene.control.TextField;
+import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyEvent;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.GridPane;
@@ -56,6 +60,8 @@ public class OrthoView extends GridPane
 	private final Consumer< ViewerPanelFX > onFocusEnter;
 
 	private final Consumer< ViewerPanelFX > onFocusExit;
+
+	private final Set< KeyCode > activeKeys = new HashSet<>();
 
 	public OrthoView()
 	{
@@ -98,6 +104,29 @@ public class OrthoView extends GridPane
 
 		layoutViewers();
 		this.focusTraversableProperty().set( true );
+
+		final OnSceneInitListener stageInit = OnWindowInitListener.doOnStageInit( stage -> {
+			stage.addEventFilter( KeyEvent.KEY_PRESSED, event -> {
+				synchronized ( activeKeys )
+				{
+					activeKeys.add( event.getCode() );
+				}
+			} );
+			stage.addEventFilter( KeyEvent.KEY_RELEASED, event -> {
+				synchronized ( activeKeys )
+				{
+					activeKeys.remove( event.getCode() );
+				}
+			} );
+			stage.focusedProperty().addListener( ( obs, oldv, newv ) -> {
+				if ( !newv )
+					synchronized ( activeKeys )
+					{
+						activeKeys.clear();
+					}
+			} );
+		} );
+		this.sceneProperty().addListener( stageInit );
 
 	}
 
@@ -164,7 +193,7 @@ public class OrthoView extends GridPane
 
 	private synchronized void addViewer( final ViewerAxis axis, final int rowIndex, final int colIndex )
 	{
-		final ViewerNode viewerNode = new ViewerNode( new CacheControl.Dummy(), axis, this.state.viewerOptions );
+		final ViewerNode viewerNode = new ViewerNode( new CacheControl.Dummy(), axis, this.state.viewerOptions, activeKeys );
 		this.viewerNodes.add( viewerNode );
 		this.managers.put( viewerNode, viewerNode.manager() );
 		viewerNode.getViewerState().setSources( state.sacs, state.visibility, state.currentSource, state.interpolation );

@@ -2,8 +2,6 @@ package bdv.bigcat.viewer.panel;
 
 import java.awt.event.ActionEvent;
 import java.util.Arrays;
-import java.util.Collections;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.function.Predicate;
@@ -25,7 +23,6 @@ import javafx.scene.input.KeyEvent;
 import javafx.scene.input.MouseButton;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.input.ScrollEvent;
-import javafx.stage.Stage;
 import net.imglib2.RealPoint;
 import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.ui.TransformEventHandler;
@@ -71,7 +68,7 @@ public class ViewerTransformManager implements TransformListener< AffineTransfor
 
 	private static final String KEY_BACKWARD_Z = "backward z";
 
-	private final Set< KeyCode > activeKeys = Collections.synchronizedSet( new HashSet<>() );
+	private final Set< KeyCode > activeKeys;
 
 	private final SimpleDoubleProperty rotationSpeed = new SimpleDoubleProperty( 1.0 );
 
@@ -90,7 +87,8 @@ public class ViewerTransformManager implements TransformListener< AffineTransfor
 	public ViewerTransformManager(
 			final ViewerPanelFX viewer,
 			final ViewerState state,
-			final AffineTransform3D globalToViewer )
+			final AffineTransform3D globalToViewer,
+			final Set< KeyCode > activeKeys )
 	{
 		super();
 		this.viewer = viewer;
@@ -104,6 +102,8 @@ public class ViewerTransformManager implements TransformListener< AffineTransfor
 
 		setTransformListener( viewer );
 		manager.addListener( this );
+
+		this.activeKeys = activeKeys;
 
 		state.globalTransformProperty().addListener( ( observable, oldValue, newValue ) -> {
 			this.setGlobalTransform( newValue );
@@ -210,34 +210,29 @@ public class ViewerTransformManager implements TransformListener< AffineTransfor
 	private void setUpViewer()
 	{
 
-//		removeFocusTraversalKeys( viewer );
-//		final EventFX addActiveKey = EventFX.KEY_PRESSED( "add active key", e -> activeKeys.add( e.getCode() ), e -> true );
-//		final EventFX removeActiveKey = EventFX.KEY_PRESSED( "add active key", e -> activeKeys.remove( e.getCode() ), e -> true );
-		viewer.addEventFilter( KeyEvent.KEY_PRESSED, e -> activeKeys.add( e.getCode() ) );
-		viewer.addEventFilter( KeyEvent.KEY_RELEASED, e -> activeKeys.remove( e.getCode() ) );
-		// clear active keys when switching to different application window
-		final OnWindowInitListener windowInit = new OnWindowInitListener( window -> {
-			if ( window instanceof Stage )
+		final TranslateXY translateXY = new TranslateXY( "drag translate", event -> {
+			synchronized ( activeKeys )
 			{
-				final Stage stage = ( Stage ) window;
-				stage.focusedProperty().addListener( ( obs, oldv, newv ) -> {
-					if ( !newv )
-						activeKeys.clear();
-				} );
+				return activeKeys.size() == 0 && event.getButton().equals( MouseButton.SECONDARY );
 			}
-
 		} );
-		final OnSceneInitListener sceneInit = new OnSceneInitListener( scene -> {
-			scene.windowProperty().addListener( windowInit );
-		} );
-		viewer.sceneProperty().addListener( sceneInit );
-
-		final TranslateXY translateXY = new TranslateXY( "drag translate", event -> activeKeys.size() == 0 && event.getButton().equals( MouseButton.SECONDARY ) );
 
 		final Rotate[] rotations = {
-				new Rotate( "rotate", rotationSpeed, factors[ 0 ], event -> activeKeys.size() == 0 && event.getButton().equals( MouseButton.PRIMARY ) ),
-				new Rotate( "rotate fast", rotationSpeed, factors[ 1 ], event -> event.getButton().equals( MouseButton.PRIMARY ) && event.isShiftDown() ),
-				new Rotate( "rotate slow", rotationSpeed, factors[ 2 ], event -> event.getButton().equals( MouseButton.PRIMARY ) && event.isControlDown() )
+				new Rotate( "rotate", rotationSpeed, factors[ 0 ], event -> {
+					synchronized ( activeKeys )
+					{
+						return activeKeys.size() == 0 && event.getButton().equals( MouseButton.PRIMARY );
+					}
+				} ),
+				new Rotate( "rotate fast", rotationSpeed, factors[ 1 ], event -> {
+					synchronized ( activeKeys )
+					{
+						return activeKeys.size() == 1 && event.getButton().equals( MouseButton.PRIMARY ) && event.isShiftDown();
+					}
+				} ),
+				new Rotate( "rotate slow", rotationSpeed, factors[ 2 ], event -> {
+					return activeKeys.size() == 1 && event.getButton().equals( MouseButton.PRIMARY ) && event.isControlDown();
+				} )
 		};
 
 //		final EventFX< KeyEvent > cycleForward = EventFX.KEY_PRESSED( "cycle sources forward", new CycleSources( CycleSources.FORWARD )::cycle, event -> activeKeys.size() == 2 && activeKeys.containsAll( Arrays.asList( KeyCode.CONTROL, KeyCode.TAB ) ) );
