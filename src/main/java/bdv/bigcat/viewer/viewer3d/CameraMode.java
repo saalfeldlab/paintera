@@ -59,8 +59,6 @@ public class CameraMode implements NeuronRendererListener
 
 		final InputHandler handler = ( InputHandler ) hub.get( SceneryElement.Input );
 		System.out.println( "======camera manual handler: " + handler );
-//		final InputHandler handler = new InputHandler( scene, renderer, hub );
-//		hub.add( SceneryElement.Input, handler );
 
 		handler.removeKeyBinding( "move_forward" );
 		handler.removeKeyBinding( "move_left" );
@@ -97,18 +95,10 @@ public class CameraMode implements NeuronRendererListener
 		handler.addKeyBinding( "move_left_fast", "shift A" );
 		handler.addKeyBinding( "move_back_fast", "shift S" );
 		handler.addKeyBinding( "move_right_fast", "shift D" );
-
-		//
-//		setInputHandler( handler );
 	}
 
 	public void automatic()
 	{
-		final InputHandler inputHandler = ( InputHandler ) hub.get( SceneryElement.Input );
-		System.out.println( "====== camera automatic handler: " + inputHandler );
-//		InputHandler inputHandler = new InputHandler( scene, renderer, hub );
-		inputHandler.useDefaultBindings( System.getProperty( "user.home" ) + "/.$applicationName.bindings" );
-
 		System.out.println( "automatic camera... " );
 		automaticCamera.setActive( true );
 	}
