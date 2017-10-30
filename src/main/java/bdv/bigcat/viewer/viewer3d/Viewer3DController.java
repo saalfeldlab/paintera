@@ -62,9 +62,9 @@ public class Viewer3DController
 
 		// no HMD, then default mode is automatic camera
 		if ( viewer3D.getHub().getWorkingHMD() == null )
-			camera.manual( viewer3D.renderer(), viewer3D.hub() );
-//		else
-//			camera.manual();
+			camera.automatic();
+		else
+			camera.manual();
 
 	}
 
