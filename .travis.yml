@@ -14,8 +14,6 @@ cache:
     - $HOME/.m2
 
 install:
-  - sudo apt update
-  - sudo apt install -y openjfx
   - cd ..
   - git clone git://github.com/ClearVolume/ClearGL.git ClearGL
   - cd ClearGL
