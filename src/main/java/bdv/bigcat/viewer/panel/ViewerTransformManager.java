@@ -168,7 +168,7 @@ public class ViewerTransformManager implements TransformListener< AffineTransfor
 	}
 
 	@Override
-	public synchronized void transformChanged( final AffineTransform3D transform )
+	public void transformChanged( final AffineTransform3D transform )
 	{
 		setTransform( transform );
 	}
@@ -296,7 +296,7 @@ public class ViewerTransformManager implements TransformListener< AffineTransfor
 
 		private boolean isDragging;
 
-		public synchronized void initDrag( final javafx.scene.input.MouseEvent event )
+		public void initDrag( final javafx.scene.input.MouseEvent event )
 		{
 			synchronized ( global )
 			{
@@ -307,7 +307,7 @@ public class ViewerTransformManager implements TransformListener< AffineTransfor
 			isDragging = true;
 		}
 
-		public synchronized void drag( final javafx.scene.input.MouseEvent event )
+		public void drag( final javafx.scene.input.MouseEvent event )
 		{
 			if ( isDragging )
 			{
@@ -331,7 +331,7 @@ public class ViewerTransformManager implements TransformListener< AffineTransfor
 			}
 		}
 
-		public synchronized void endDrag( final javafx.scene.input.MouseEvent event )
+		public void endDrag( final javafx.scene.input.MouseEvent event )
 		{
 			if ( isDragging )
 			{
@@ -354,7 +354,7 @@ public class ViewerTransformManager implements TransformListener< AffineTransfor
 		private final AffineTransform3D affineDrag = new AffineTransform3D();
 
 		@Override
-		public synchronized void initDrag( final javafx.scene.input.MouseEvent event )
+		public void initDrag( final javafx.scene.input.MouseEvent event )
 		{
 			synchronized ( global )
 			{
@@ -363,7 +363,7 @@ public class ViewerTransformManager implements TransformListener< AffineTransfor
 		}
 
 		@Override
-		public synchronized void drag( final javafx.scene.input.MouseEvent event )
+		public void drag( final javafx.scene.input.MouseEvent event )
 		{
 			synchronized ( global )
 			{
