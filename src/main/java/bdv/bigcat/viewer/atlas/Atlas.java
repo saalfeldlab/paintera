@@ -208,14 +208,22 @@ public class Atlas
 			}
 		} );
 
-		final AffineTransform3D tf = new AffineTransform3D();
-		final long[] sums = {
-				interval.max( 0 ) + interval.min( 0 ),
-				interval.max( 1 ) + interval.min( 1 ),
-				interval.max( 2 ) + interval.min( 2 )
-		};
-		tf.translate( Arrays.stream( sums ).mapToDouble( sum -> -0.5 * sum ).toArray() );
-		this.baseView().setTransform( tf );
+		{
+			final AffineTransform3D tf = new AffineTransform3D();
+			final long[] sums = {
+					interval.max( 0 ) + interval.min( 0 ),
+					interval.max( 1 ) + interval.min( 1 ),
+					interval.max( 2 ) + interval.min( 2 )
+			};
+			tf.translate( Arrays.stream( sums ).mapToDouble( sum -> -0.5 * sum ).toArray() );
+			final ViewerNode vn = this.baseView().getChildren().stream().filter( child -> child instanceof ViewerNode ).map( n -> ( ViewerNode ) n ).findFirst().get();
+			final double w = vn.getWidth();
+			vn.manager().setCanvasSize( 1, 1, true );
+			System.out.println( w + " " + interval.dimension( 0 ) );
+			tf.scale( 1.0 / interval.dimension( 0 ) );
+			vn.manager().setCanvasSize( ( int ) vn.getWidth(), ( int ) vn.getHeight(), true );
+			this.baseView().setTransform( tf );
+		}
 
 		this.baseView().getState().addCurrentSourceListener( ( observable, oldValue, newValue ) -> {
 			if ( newValue.isPresent() )
