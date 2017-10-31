@@ -61,21 +61,19 @@ public class CameraMode implements NeuronRendererListener
 
 	public Mode getCameraMode()
 	{
-		if (manualCamera.getActive())
-		{
+		if ( manualCamera.getActive() )
 			return Mode.MANUAL;
-		}
 
 		return Mode.AUTOMATIC;
 	}
 
-	public void perspectiveCamera( float fov, float width, float height, float nearPlaneLocation, float farPlaneLocation )
+	public void perspectiveCamera( final float fov, final float width, final float height, final float nearPlaneLocation, final float farPlaneLocation )
 	{
 		manualCamera.perspectiveCamera( fov, width, height, nearPlaneLocation, farPlaneLocation );
 		automaticCamera.perspectiveCamera( fov, width, height, nearPlaneLocation, farPlaneLocation );
 	}
 
-	public void setPosition( GLVector position )
+	public void setPosition( final GLVector position )
 	{
 		manualCamera.setPosition( position );
 		automaticCamera.setPosition( position );
