@@ -7,15 +7,15 @@ matrix:
   include:
     - os: linux
       jdk: oraclejdk8
-      sudo: false
+      sudo: true
 
 cache:
   directories:
     - $HOME/.m2
 
 install:
-  - apt update
-  - apt install -y openjfx
+  - sudo apt update
+  - sudo apt install -y openjfx
   - cd ..
   - git clone git://github.com/ClearVolume/ClearGL.git ClearGL
   - cd ClearGL
