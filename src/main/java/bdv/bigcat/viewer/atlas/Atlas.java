@@ -53,6 +53,7 @@ import bdv.viewer.SourceAndConverter;
 import bdv.viewer.ViewerOptions;
 import bdv.viewer.ViewerPanelFX;
 import javafx.application.Application;
+import javafx.application.Platform;
 import javafx.beans.value.ChangeListener;
 import javafx.collections.ListChangeListener;
 import javafx.scene.Node;
@@ -114,12 +115,9 @@ public class Atlas
 
 	private final SourcesTab sourcesTab = new SourcesTab( specs );
 
-	private final Viewer3D renderView = new Viewer3D( "", 1000, 1000, false );
+	private final Viewer3D renderView;
 
-	private final Viewer3DController controller = new Viewer3DController( renderView );
-	{
-		new Thread( renderView::main ).start();
-	}
+	private final Viewer3DController controller;
 
 	public Atlas( final Interval interval, final VolatileGlobalCellCache cellCache )
 	{
@@ -147,6 +145,8 @@ public class Atlas
 //				specs.selectedSourceProperty().setValue( Optional.of( state.get().spec() ) );
 //		} );
 
+		this.renderView = new Viewer3D( "", 1000, 1000, false );
+		this.controller = new Viewer3DController( renderView );
 		this.view.setInfoNode( renderView.getPanel() );
 		this.renderView.getPanel().addEventHandler( MouseEvent.MOUSE_CLICKED, event -> renderView.getPanel().requestFocus() );
 
@@ -249,6 +249,8 @@ public class Atlas
 		primaryStage.sizeToScene();
 
 		primaryStage.show();
+
+		Platform.runLater( () -> new Thread( renderView::main ).start() );
 
 		for ( final Node child : this.baseView().getChildren() )
 			if ( child instanceof ViewerNode )
