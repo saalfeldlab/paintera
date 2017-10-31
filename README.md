@@ -3,13 +3,13 @@
 ## Dependences
 
 * branchs (download and compile each one of them: `mvn clean install`):
-... [imglib2:4.6.0-SNAPSHOT - branch: RealARGBConverter-expose-alpha]( https://github.com/hanslovsky/imglib2/tree/RealARGBConverter-expose-alpha)
+	* [imglib2:4.6.0-SNAPSHOT - branch: RealARGBConverter-expose-alpha]( https://github.com/hanslovsky/imglib2/tree/RealARGBConverter-expose-alpha)
 
-... [bdv-core:4.3.1-SNAPSHOT - branch: TransformAwareBufferedImageOverlayRenderer-with-background](https://github.com/hanslovsky/bigdataviewer-core/tree/TransformAwareBufferedImageOverlayRenderer-with-background)
+	* [bdv-core:4.3.1-SNAPSHOT - branch: TransformAwareBufferedImageOverlayRenderer-with-background](https://github.com/hanslovsky/bigdataviewer-core/tree/TransformAwareBufferedImageOverlayRenderer-with-background)
 
-... [bdv-vistools:1.0.0-beta-8-SNAPSHOT](https://github.com/bigdataviewer/bigdataviewer-vistools.git)
+	* [bdv-vistools:1.0.0-beta-8-SNAPSHOT](https://github.com/bigdataviewer/bigdataviewer-vistools.git)
 
-... [ClearGL:2.1.0](https://github.com/ClearVolume/ClearGL.git)
+	* [ClearGL:2.1.0](https://github.com/ClearVolume/ClearGL.git)
 
 * javafx:
 ... on ubuntu: `sudo apt install openjfx`
