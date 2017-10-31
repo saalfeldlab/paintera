@@ -1,5 +1,7 @@
 # BIGCAT (working title)
 
+[![Build Status](https://travis-ci.org/ssinhaleite/bigcat.svg?branch=javafx-generic-listeners)](https://travis-ci.org/ssinhaleite/bigcat)
+
 ## Dependences
 
 * branchs (download and compile each one of them: `mvn clean install`):
