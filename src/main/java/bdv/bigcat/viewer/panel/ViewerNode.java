@@ -56,6 +56,8 @@ public class ViewerNode extends Pane implements ListChangeListener< SourceAndCon
 		super();
 		this.viewer = new ViewerPanelFX( new ArrayList<>(), 1, cacheControl, viewerOptions );
 		this.getChildren().add( this.viewer );
+		this.setWidth( this.viewer.getWidth() );
+		this.setHeight( this.viewer.getHeight() );
 		this.setMinSize( 0, 0 );
 		this.heightProperty().addListener( ( obs, oldv, newv ) -> viewer.setPrefHeight( getHeight() ) );
 		this.widthProperty().addListener( ( obs, oldv, newv ) -> viewer.setPrefWidth( getWidth() ) );
