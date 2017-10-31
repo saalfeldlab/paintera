@@ -110,11 +110,14 @@ public class Atlas
 
 	private final SourcesTab sourcesTab = new SourcesTab( specs );
 
-	private final Viewer3D renderView = new Viewer3D( "", 1000, 1000, false );
+	private final Viewer3D renderView = new Viewer3D( "", 1000, 1000, true );
+//	{
+//		new Thread( renderView::init ).start();
+//	}
 
 	private final Viewer3DController controller = new Viewer3DController( renderView );
 	{
-		new Thread( renderView::main ).start();
+		new Thread( controller::init ).start();
 	}
 
 	public Atlas( final Interval interval )
