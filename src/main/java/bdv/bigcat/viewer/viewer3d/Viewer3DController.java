@@ -105,7 +105,7 @@ public class Viewer3DController
 				this.renderers.forEach( NeuronRenderer::stopListening );
 				this.renderers.clear();
 
-				RealLocalizable cameraPosition = new RealPoint( worldLocation.getFloatPosition( 0 ), worldLocation.getFloatPosition( 1 ), worldLocation.getFloatPosition( 2 ) * 1.5 );
+				final RealLocalizable cameraPosition = new RealPoint( worldLocation.getFloatPosition( 0 ), worldLocation.getFloatPosition( 1 ), worldLocation.getFloatPosition( 2 ) * 1.5 );
 				camera.setPosition( new GLVector( cameraPosition.getFloatPosition( 0 ), cameraPosition.getFloatPosition( 1 ), cameraPosition.getFloatPosition( 2 ) ) );
 				System.out.println( "initial camera position: " + cameraPosition.getFloatPosition( 0 ) + "x" + cameraPosition.getFloatPosition( 1 ) + "x" + cameraPosition.getFloatPosition( 2 ) );
 

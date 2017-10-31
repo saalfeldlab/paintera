@@ -48,12 +48,12 @@ public class Viewer3D extends SceneryBase
 		lights[ 2 ].setPosition( new GLVector( 0.0f, 1.0f, 1.0f / ( float ) Math.sqrt( 2.0 ) ) );
 		lights[ 3 ].setPosition( new GLVector( 0.0f, -1.0f, 1.0f / ( float ) Math.sqrt( 2.0 ) ) );
 
-		getScene().addChild(lights[0]);
+		getScene().addChild( lights[ 0 ] );
 
-		getHub().add(SceneryElement.Settings, getSettings());
-		getHub().add(SceneryElement.Statistics, getStats());
+		getHub().add( SceneryElement.Settings, getSettings() );
+		getHub().add( SceneryElement.Statistics, getStats() );
 
-		setRepl(new REPL(getRenderer(), getSettings(), getScene(), getStats(), getHub()));
+		setRepl( new REPL( getRenderer(), getSettings(), getScene(), getStats(), getHub() ) );
 
 		if ( getRepl() != null )
 		{
@@ -64,7 +64,7 @@ public class Viewer3D extends SceneryBase
 
 	public void manualCamera()
 	{
-		Scene scene = this.getScene();
+		final Scene scene = this.getScene();
 		final InputHandler handler = new InputHandler( scene, this.getRenderer(), this.getHub() );
 		handler.removeBehaviour( "move_forward" );
 		handler.removeBehaviour( "move_left" );
