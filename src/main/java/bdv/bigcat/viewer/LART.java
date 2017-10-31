@@ -18,6 +18,7 @@ import bdv.bigcat.viewer.atlas.data.HDF5LabelMultisetSourceSpec;
 import bdv.bigcat.viewer.atlas.data.HDF5UnsignedByteSpec;
 import bdv.bigcat.viewer.atlas.solver.SolverQueueServerZMQ;
 import bdv.bigcat.viewer.atlas.solver.action.Action;
+import bdv.img.cache.VolatileGlobalCellCache;
 import bdv.util.Prefs;
 import bdv.viewer.Interpolation;
 import bdv.viewer.Source;
@@ -98,7 +99,8 @@ public class LART
 		final double[] offset = { 0, 0, 0 };
 		final int[] cellSize = { 145, 53, 5 };
 
-		final HDF5UnsignedByteSpec rawSource = new HDF5UnsignedByteSpec( rawFile, rawDataset, cellSize, resolution, "raw" );
+		final VolatileGlobalCellCache cellCache = new VolatileGlobalCellCache( 1, 12 );
+		final HDF5UnsignedByteSpec rawSource = new HDF5UnsignedByteSpec( rawFile, rawDataset, cellSize, resolution, "raw", cellCache );
 
 		final double[] min = Arrays.stream( Intervals.minAsLongArray( rawSource.getSource().getSource( 0, 0 ) ) ).mapToDouble( v -> v ).toArray();
 		final double[] max = Arrays.stream( Intervals.maxAsLongArray( rawSource.getSource().getSource( 0, 0 ) ) ).mapToDouble( v -> v ).toArray();
@@ -107,7 +109,10 @@ public class LART
 		affine.apply( min, min );
 		affine.apply( max, max );
 
-		final Atlas viewer = new Atlas( new FinalInterval( Arrays.stream( min ).mapToLong( Math::round ).toArray(), Arrays.stream( max ).mapToLong( Math::round ).toArray() ) );
+		final Atlas viewer = new Atlas(
+				new FinalInterval( Arrays.stream( min ).mapToLong( Math::round ).toArray(),
+						Arrays.stream( max ).mapToLong( Math::round ).toArray() ),
+				cellCache );
 
 		final AffineTransform3D tf = new AffineTransform3D();
 		final double scale = 1e-3;
@@ -162,7 +167,7 @@ public class LART
 				labelsDataset,
 				cellSize,
 				actionBroadcast,
-				solutionReceiver, () -> initialSolutionHashMap, "labels" );
+				solutionReceiver, () -> initialSolutionHashMap, "labels", cellCache );
 		viewer.addLabelSource( labelSpec2 );
 
 		initialSolutionSocket.send( "" );

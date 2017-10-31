@@ -44,6 +44,7 @@ import bdv.bigcat.viewer.stream.ModalGoldenAngleSaturatedHighlightingARGBStream;
 import bdv.bigcat.viewer.viewer3d.OrthoSlice;
 import bdv.bigcat.viewer.viewer3d.Viewer3D;
 import bdv.bigcat.viewer.viewer3d.Viewer3DController;
+import bdv.img.cache.VolatileGlobalCellCache;
 import bdv.labels.labelset.LabelMultisetType;
 import bdv.labels.labelset.Multiset.Entry;
 import bdv.labels.labelset.VolatileLabelMultisetType;
@@ -120,22 +121,20 @@ public class Atlas
 		new Thread( renderView::main ).start();
 	}
 
-	public Atlas( final Interval interval )
+	public Atlas( final Interval interval, final VolatileGlobalCellCache cellCache )
 	{
-		this( ViewerOptions.options(), interval );
+		this( ViewerOptions.options(), interval, cellCache );
 	}
 
-	public Atlas( final ViewerOptions viewerOptions, final Interval interval )
+	public Atlas( final ViewerOptions viewerOptions, final Interval interval, final VolatileGlobalCellCache cellCache )
 	{
 		super();
 		this.viewerOptions = viewerOptions
 				.accumulateProjectorFactory( new ClearingCompositeProjectorFactory<>( composites, new ARGBType() ) )
 				.numRenderingThreads( Math.min( 3, Math.max( 1, Runtime.getRuntime().availableProcessors() / 3 ) ) );
-		this.view = new OrthoView( focusHandler.onEnter(), focusHandler.onExit(), new OrthoViewState( this.viewerOptions ) );
+		this.view = new OrthoView( focusHandler.onEnter(), focusHandler.onExit(), new OrthoViewState( this.viewerOptions ), cellCache );
 		this.root = new BorderPane( this.view );
 		this.root.setBottom( status );
-//		this.view.setInfoNode( this.view.globalSourcesInfoNode() );
-		this.view.setInfoNode( new Label( "" ) );
 		this.root.setRight( sourcesTab );
 		this.view.heightProperty().addListener( ( ChangeListener< Number > ) ( observable, old, newVal ) -> {
 			this.sourcesTab.prefHeightProperty().set( newVal.doubleValue() );
@@ -148,7 +147,7 @@ public class Atlas
 //				specs.selectedSourceProperty().setValue( Optional.of( state.get().spec() ) );
 //		} );
 
-		this.view.add( renderView.getPanel(), 1, 1 );
+		this.view.setInfoNode( renderView.getPanel() );
 		this.renderView.getPanel().addEventHandler( MouseEvent.MOUSE_CLICKED, event -> renderView.getPanel().requestFocus() );
 
 		final Mode[] initialModes = { new NavigationOnly(), new Highlights( selectedIds ), new Merges( selectedIds, assignments ), new Render3D( controller ) };

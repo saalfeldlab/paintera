@@ -11,7 +11,7 @@ import bdv.bigcat.viewer.panel.OnWindowInitListener;
 import bdv.bigcat.viewer.panel.ViewerNode;
 import bdv.bigcat.viewer.panel.ViewerNode.ViewerAxis;
 import bdv.bigcat.viewer.panel.ViewerTransformManager;
-import bdv.cache.CacheControl;
+import bdv.img.cache.VolatileGlobalCellCache;
 import bdv.viewer.SourceAndConverter;
 import bdv.viewer.ViewerOptions;
 import bdv.viewer.ViewerPanelFX;
@@ -23,7 +23,6 @@ import javafx.event.Event;
 import javafx.event.EventHandler;
 import javafx.scene.Node;
 import javafx.scene.Scene;
-import javafx.scene.control.Label;
 import javafx.scene.control.TextField;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyEvent;
@@ -63,22 +62,22 @@ public class OrthoView extends GridPane
 
 	private final Set< KeyCode > activeKeys = new HashSet<>();
 
-	public OrthoView()
+	public OrthoView( final VolatileGlobalCellCache cellCache )
 	{
-		this( new OrthoViewState() );
+		this( new OrthoViewState(), cellCache );
 	}
 
-	public OrthoView( final ViewerOptions viewerOptions )
+	public OrthoView( final ViewerOptions viewerOptions, final VolatileGlobalCellCache cellCache )
 	{
-		this( new OrthoViewState( viewerOptions ) );
+		this( new OrthoViewState( viewerOptions ), cellCache );
 	}
 
-	public OrthoView( final OrthoViewState state )
+	public OrthoView( final OrthoViewState state, final VolatileGlobalCellCache cellCache )
 	{
-		this( ( vp ) -> {}, ( vp ) -> {}, state );
+		this( ( vp ) -> {}, ( vp ) -> {}, state, cellCache );
 	}
 
-	public OrthoView( final Consumer< ViewerPanelFX > onFocusEnter, final Consumer< ViewerPanelFX > onFocusExit, final OrthoViewState state )
+	public OrthoView( final Consumer< ViewerPanelFX > onFocusEnter, final Consumer< ViewerPanelFX > onFocusExit, final OrthoViewState state, final VolatileGlobalCellCache cellCache )
 	{
 		super();
 		this.state = state;
@@ -86,7 +85,7 @@ public class OrthoView extends GridPane
 		this.state.constraintsManager.manageGrid( this );
 		this.onFocusEnter = onFocusEnter;
 		this.onFocusExit = onFocusExit;
-		this.setInfoNode( new Label( "Place your node here!" ) );
+//		this.setInfoNode( new Label( "Place your node here!" ) );
 
 		this.resizer = new GridResizer( this.state.constraintsManager, 10, this );
 		this.setOnMouseMoved( resizer.onMouseMovedHandler() );
@@ -102,7 +101,7 @@ public class OrthoView extends GridPane
 				maximizeActiveOrthoView( event );
 		} );
 
-		layoutViewers();
+		layoutViewers( cellCache );
 		this.focusTraversableProperty().set( true );
 
 		final OnSceneInitListener stageInit = OnWindowInitListener.doOnStageInit( stage -> {
@@ -130,11 +129,11 @@ public class OrthoView extends GridPane
 
 	}
 
-	private void layoutViewers()
+	private void layoutViewers( final VolatileGlobalCellCache cellCache )
 	{
-		addViewer( ViewerAxis.Z, 0, 0 );
-		addViewer( ViewerAxis.X, 0, 1 );
-		addViewer( ViewerAxis.Y, 1, 0 );
+		addViewer( ViewerAxis.Z, 0, 0, cellCache );
+		addViewer( ViewerAxis.X, 0, 1, cellCache );
+		addViewer( ViewerAxis.Y, 1, 0, cellCache );
 	}
 
 	public void setInfoNode( final Node node )
@@ -191,9 +190,10 @@ public class OrthoView extends GridPane
 		} );
 	}
 
-	private synchronized void addViewer( final ViewerAxis axis, final int rowIndex, final int colIndex )
+	private synchronized void addViewer( final ViewerAxis axis, final int rowIndex, final int colIndex, final VolatileGlobalCellCache cellCache )
 	{
-		final ViewerNode viewerNode = new ViewerNode( new CacheControl.Dummy(), axis, this.state.viewerOptions, activeKeys );
+		final ViewerNode viewerNode = new ViewerNode( cellCache, axis, this.state.viewerOptions, activeKeys );
+//		final ViewerNode viewerNode = new ViewerNode( new CacheControl.Dummy(), axis, this.state.viewerOptions, activeKeys );
 		this.viewerNodes.add( viewerNode );
 		this.managers.put( viewerNode, viewerNode.manager() );
 		viewerNode.getViewerState().setSources( state.sacs, state.visibility, state.currentSource, state.interpolation );
@@ -351,4 +351,12 @@ public class OrthoView extends GridPane
 	{
 		return this.state;
 	}
+
+//	@Override
+//	public void layoutChildren()
+//	{
+//		System.out.println( "LAYING OUT CHILDREN IN OrthoView!" );
+//		new RuntimeException().printStackTrace();
+//		super.layoutChildren();
+//	}
 }

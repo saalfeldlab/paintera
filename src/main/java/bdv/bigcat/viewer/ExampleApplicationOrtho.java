@@ -9,6 +9,7 @@ import com.sun.javafx.application.PlatformImpl;
 
 import bdv.bigcat.viewer.atlas.data.HDF5UnsignedByteSpec;
 import bdv.bigcat.viewer.ortho.OrthoView;
+import bdv.img.cache.VolatileGlobalCellCache;
 import bdv.viewer.SourceAndConverter;
 import bdv.viewer.ViewerOptions;
 import javafx.application.Platform;
@@ -37,8 +38,8 @@ public class ExampleApplicationOrtho
 
 		final double[] resolution = { 4, 4, 40 };
 		final int[] cellSize = { 145, 53, 5 };
-
-		final HDF5UnsignedByteSpec rawSource = new HDF5UnsignedByteSpec( rawFile, rawDataset, cellSize, resolution, "raw" );
+		final VolatileGlobalCellCache cellCache = new VolatileGlobalCellCache( 1, 12 );
+		final HDF5UnsignedByteSpec rawSource = new HDF5UnsignedByteSpec( rawFile, rawDataset, cellSize, resolution, "raw", cellCache );
 
 		final double[] min = Arrays.stream( Intervals.minAsLongArray( rawSource.getSource().getSource( 0, 0 ) ) ).mapToDouble( v -> v ).toArray();
 		final double[] max = Arrays.stream( Intervals.maxAsLongArray( rawSource.getSource().getSource( 0, 0 ) ) ).mapToDouble( v -> v ).toArray();
@@ -46,7 +47,7 @@ public class ExampleApplicationOrtho
 		rawSource.getSource().getSourceTransform( 0, 0, affine );
 		affine.apply( min, min );
 		affine.apply( max, max );
-		final OrthoView ortho = new OrthoView( ViewerOptions.options() );
+		final OrthoView ortho = new OrthoView( ViewerOptions.options(), cellCache );
 
 		final CountDownLatch latch = new CountDownLatch( 1 );
 		Platform.runLater( () -> {

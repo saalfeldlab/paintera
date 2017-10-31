@@ -21,7 +21,6 @@ import bdv.labels.labelset.Label;
 import bdv.labels.labelset.LabelMultisetType;
 import bdv.labels.labelset.Multiset.Entry;
 import bdv.labels.labelset.VolatileLabelMultisetType;
-import bdv.util.volatiles.SharedQueue;
 import ch.systemsx.cisd.hdf5.HDF5Factory;
 import ch.systemsx.cisd.hdf5.IHDF5Reader;
 import gnu.trove.map.hash.TLongLongHashMap;
@@ -43,7 +42,7 @@ public class HDF5LabelMultisetSourceSpec implements RenderableLabelSpec< LabelMu
 
 	private final String uri;
 
-	public HDF5LabelMultisetSourceSpec( final String path, final String dataset, final int[] cellSize, final String name ) throws IOException
+	public HDF5LabelMultisetSourceSpec( final String path, final String dataset, final int[] cellSize, final String name, final VolatileGlobalCellCache cellCache ) throws IOException
 	{
 		this( path, dataset, cellSize, action -> {}, () -> {
 			try
@@ -56,7 +55,7 @@ public class HDF5LabelMultisetSourceSpec implements RenderableLabelSpec< LabelMu
 				e.printStackTrace();
 			}
 			return null;
-		}, TLongLongHashMap::new, name );
+		}, TLongLongHashMap::new, name, cellCache );
 	}
 
 	public HDF5LabelMultisetSourceSpec(
@@ -66,19 +65,20 @@ public class HDF5LabelMultisetSourceSpec implements RenderableLabelSpec< LabelMu
 			final Consumer< Action > actionBroadcaster,
 			final Supplier< TLongLongHashMap > solutionFetcher,
 			final Supplier< TLongLongHashMap > initialSolution,
-			final String name ) throws IOException
+			final String name,
+			final VolatileGlobalCellCache cellCache ) throws IOException
 	{
 		super();
 		final IHDF5Reader h5reader = HDF5Factory.open( path );
 		// TODO Use better value for number of threads of shared queue
-		this.loader = new H5LabelMultisetSetupImageLoader( h5reader, null, dataset, 0, cellSize, new VolatileGlobalCellCache( new SharedQueue( 1 ) ) );
+		this.loader = new H5LabelMultisetSetupImageLoader( h5reader, null, dataset, 1, cellSize, cellCache );
 		this.assignment = new FragmentSegmentAssignmentWithHistory( initialSolution.get(), actionBroadcaster, solutionFetcher );
 		this.stream = new ModalGoldenAngleSaturatedHighlightingARGBStream( selectedIds, assignment );
 		this.uri = "h5://" + path + "/dataset";
 		this.name = name;
 	}
 
-	public HDF5LabelMultisetSourceSpec( final String path, final String dataset, final int[] cellSize, final double[] resolution, final double[] offset, final String name ) throws IOException
+	public HDF5LabelMultisetSourceSpec( final String path, final String dataset, final int[] cellSize, final double[] resolution, final double[] offset, final String name, final VolatileGlobalCellCache cellCache ) throws IOException
 	{
 		this( path, dataset, cellSize, action -> {}, () -> {
 			try
@@ -91,7 +91,7 @@ public class HDF5LabelMultisetSourceSpec implements RenderableLabelSpec< LabelMu
 				e.printStackTrace();
 			}
 			return null;
-		}, resolution, offset, name );
+		}, resolution, offset, name, cellCache );
 	}
 
 	public HDF5LabelMultisetSourceSpec(
@@ -102,11 +102,12 @@ public class HDF5LabelMultisetSourceSpec implements RenderableLabelSpec< LabelMu
 			final Supplier< TLongLongHashMap > solutionFetcher,
 			final double[] resolution,
 			final double[] offset,
-			final String name ) throws IOException
+			final String name,
+			final VolatileGlobalCellCache cellCache ) throws IOException
 	{
 		super();
 		final IHDF5Reader h5reader = HDF5Factory.open( path );
-		this.loader = new H5LabelMultisetSetupImageLoader( h5reader, null, dataset, 0, cellSize, resolution, offset, new VolatileGlobalCellCache( new SharedQueue( 8 ) ) );
+		this.loader = new H5LabelMultisetSetupImageLoader( h5reader, null, dataset, 1, cellSize, resolution, offset, cellCache );
 		this.assignment = new FragmentSegmentAssignmentWithHistory( actionBroadcaster, solutionFetcher );
 		this.stream = new ModalGoldenAngleSaturatedHighlightingARGBStream( selectedIds, assignment );
 		this.name = name;
@@ -121,14 +122,14 @@ public class HDF5LabelMultisetSourceSpec implements RenderableLabelSpec< LabelMu
 	@Override
 	public LabelMultisetSource getSource()
 	{
-		final LabelMultisetSource source = new LabelMultisetSource( 0, loader, stream );
+		final LabelMultisetSource source = new LabelMultisetSource( 1, loader, stream );
 		return source;
 	}
 
 	@Override
 	public VolatileLabelMultisetSource getViewerSource()
 	{
-		final VolatileLabelMultisetSource source = new VolatileLabelMultisetSource( 0, loader, stream );
+		final VolatileLabelMultisetSource source = new VolatileLabelMultisetSource( 1, loader, stream );
 		return source;
 	}
 
