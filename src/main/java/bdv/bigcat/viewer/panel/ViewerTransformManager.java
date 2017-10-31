@@ -513,7 +513,6 @@ public class ViewerTransformManager implements TransformListener< AffineTransfor
 		@Override
 		public void initDrag( final javafx.scene.input.MouseEvent event )
 		{
-			System.out.println( "INIT DRAG?" );
 			synchronized ( global )
 			{
 				affineDragStart.set( global );
@@ -527,19 +526,16 @@ public class ViewerTransformManager implements TransformListener< AffineTransfor
 			synchronized ( global )
 			{
 				final double v = step * this.speed.get();
-				System.out.println( "V! " + v );
 				affine.set( affineDragStart );
 				final double x = event.getX();
 				final double y = event.getY();
 				final double[] point = new double[] { x, y, 0 };
 				final double[] origin = new double[] { startX, startY, 0 };
-				System.out.println( "DOING DRAG? " + x + " " + startX + " " + y + " " + startY );
 
 				displayTransform.applyInverse( point, point );
 				displayTransform.applyInverse( origin, origin );
 
 				final double[] delta = new double[] { point[ 0 ] - origin[ 0 ], point[ 1 ] - origin[ 1 ], 0 };
-				System.out.println( "DELTA " + Arrays.toString( delta ) + " " + speed );
 				// TODO do scaling separately. need to swap .get( 0, 0 ) and
 				// .get( 1, 1 ) ?
 				final double[] rotation = new double[] { delta[ 1 ] * v * displayTransform.get( 0, 0 ), -delta[ 0 ] * v * displayTransform.get( 1, 1 ), 0 };
@@ -558,7 +554,6 @@ public class ViewerTransformManager implements TransformListener< AffineTransfor
 				for ( int d = 0; d < origin.length; ++d )
 					affine.set( affine.get( d, 3 ) + origin[ d ], d, 3 );
 
-				System.out.println( affine + " " + affineDragStart );
 				manager.setTransform( affine );
 			}
 		}
@@ -649,7 +644,6 @@ public class ViewerTransformManager implements TransformListener< AffineTransfor
 
 		public void cycle( final KeyEvent arg0 )
 		{
-			System.out.println( "CYCLING SOURCES? " + direction );
 			synchronized ( state )
 			{
 				synchronized ( viewer )
