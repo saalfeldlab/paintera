@@ -7,9 +7,10 @@ import java.util.function.Function;
 
 import bdv.bigcat.viewer.ValueDisplayListener;
 import bdv.viewer.Source;
-import bdv.viewer.ViewerPanel;
+import bdv.viewer.ViewerPanelFX;
 import javafx.application.Platform;
 import javafx.scene.control.Label;
+import javafx.scene.input.MouseEvent;
 
 public class AtlasValueDisplayListener
 {
@@ -18,7 +19,7 @@ public class AtlasValueDisplayListener
 
 	private final HashMap< Source< ? >, Consumer > handlerMap = new HashMap<>();
 
-	private final HashMap< ViewerPanel, ValueDisplayListener > listeners = new HashMap<>();
+	private final HashMap< ViewerPanelFX, ValueDisplayListener > listeners = new HashMap<>();
 
 	private final Label statusBar;
 
@@ -38,20 +39,20 @@ public class AtlasValueDisplayListener
 		this.handlerMap.put( source, handler );
 	}
 
-	public Consumer< ViewerPanel > onEnter()
+	public Consumer< ViewerPanelFX > onEnter()
 	{
 		return t -> {
 			if ( !this.listeners.containsKey( t ) )
 				this.listeners.put( t, new ValueDisplayListener( dataSourceMap, handlerMap, t ) );
-			t.getDisplay().addMouseMotionListener( this.listeners.get( t ) );
+			t.getDisplay().addEventHandler( MouseEvent.MOUSE_MOVED, this.listeners.get( t ) );
 			t.addTransformListener( this.listeners.get( t ) );
 		};
 	}
 
-	public Consumer< ViewerPanel > onExit()
+	public Consumer< ViewerPanelFX > onExit()
 	{
 		return t -> {
-			t.getDisplay().removeMouseMotionListener( this.listeners.get( t ) );
+			t.getDisplay().removeEventHandler( MouseEvent.MOUSE_MOVED, this.listeners.get( t ) );
 			t.removeTransformListener( this.listeners.get( t ) );
 			if ( statusBar != null )
 				statusBar.setText( "" );

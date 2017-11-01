@@ -9,6 +9,7 @@ import java.util.stream.IntStream;
 import bdv.bigcat.viewer.atlas.Specs.SourceState;
 import bdv.bigcat.viewer.atlas.data.DatasetSpec;
 import bdv.bigcat.viewer.state.StateListener;
+import javafx.application.Platform;
 import javafx.beans.property.IntegerProperty;
 import javafx.beans.property.SimpleIntegerProperty;
 import javafx.beans.value.ChangeListener;
@@ -61,13 +62,13 @@ public class SourcesTab extends Pane implements StateListener< Specs >, ListChan
 		{
 			super.updateItem( item, empty );
 			if ( empty || item == null )
-				setText( null );
+				Platform.runLater( () -> setText( null ) );
 			else
 			{
 				final DatasetSpec< ?, ? > spec = item.spec();
-				setText( spec.name() );
+				Platform.runLater( () -> setText( spec.name() ) );
 				toggleVisibilityCheckBox.selectedProperty().set( item.isVisible() );
-				visibilityLabel.setGraphic( contents );
+				Platform.runLater( () -> visibilityLabel.setGraphic( contents ) );
 				setGraphic( toggleVisibilityCheckBox );
 				toggleVisibilityCheckBox.setOnMouseClicked( click -> specs.setVisibility( spec, !item.isVisible() ) );
 //				toggleVisibilityCheckBox.addEventHandler( MouseEvent.MOUSE_CLICKED, click -> {
@@ -107,10 +108,10 @@ public class SourcesTab extends Pane implements StateListener< Specs >, ListChan
 		{
 			final List< SourceState< ?, ?, ? > > states = specs.sourceStates();
 			if ( sourcesChanged( states ) )
-			{
-				sourceStates.clear();
-				sourceStates.addAll( states );
-			}
+				Platform.runLater( () -> {
+					sourceStates.clear();
+					sourceStates.addAll( states );
+				} );
 		}
 	}
 

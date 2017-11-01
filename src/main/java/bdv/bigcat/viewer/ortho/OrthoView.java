@@ -2,26 +2,29 @@ package bdv.bigcat.viewer.ortho;
 
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Set;
 import java.util.function.Consumer;
 
 import bdv.bigcat.viewer.ViewerActor;
+import bdv.bigcat.viewer.panel.OnSceneInitListener;
+import bdv.bigcat.viewer.panel.OnWindowInitListener;
 import bdv.bigcat.viewer.panel.ViewerNode;
 import bdv.bigcat.viewer.panel.ViewerNode.ViewerAxis;
 import bdv.bigcat.viewer.panel.ViewerTransformManager;
-import bdv.cache.CacheControl;
+import bdv.img.cache.VolatileGlobalCellCache;
 import bdv.viewer.SourceAndConverter;
 import bdv.viewer.ViewerOptions;
-import bdv.viewer.ViewerPanel;
+import bdv.viewer.ViewerPanelFX;
 import javafx.beans.value.ChangeListener;
 import javafx.collections.FXCollections;
 import javafx.collections.ListChangeListener;
 import javafx.collections.ObservableList;
-import javafx.embed.swing.SwingNode;
 import javafx.event.Event;
+import javafx.event.EventHandler;
 import javafx.scene.Node;
 import javafx.scene.Scene;
-import javafx.scene.control.Label;
 import javafx.scene.control.TextField;
+import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyEvent;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.GridPane;
@@ -46,33 +49,35 @@ public class OrthoView extends GridPane
 			while ( c.next() )
 				if ( c.wasAdded() )
 					for ( final ViewerActor actor : c.getAddedSubList() )
-						viewerNodes.forEach( vn -> actor.onAdd().accept( ( ViewerPanel ) vn.getContent() ) );
+						viewerNodes.forEach( vn -> actor.onAdd().accept( vn.getViewer() ) );
 				else if ( c.wasRemoved() )
 					for ( final ViewerActor actor : c.getRemoved() )
-						viewerNodes.forEach( vn -> actor.onRemove().accept( ( ViewerPanel ) vn.getContent() ) );
+						viewerNodes.forEach( vn -> actor.onRemove().accept( vn.getViewer() ) );
 		} );
 	}
 
-	private final Consumer< ViewerPanel > onFocusEnter;
+	private final Consumer< ViewerPanelFX > onFocusEnter;
 
-	private final Consumer< ViewerPanel > onFocusExit;
+	private final Consumer< ViewerPanelFX > onFocusExit;
 
-	public OrthoView()
+	private final Set< KeyCode > activeKeys = new HashSet<>();
+
+	public OrthoView( final VolatileGlobalCellCache cellCache )
 	{
-		this( new OrthoViewState() );
+		this( new OrthoViewState(), cellCache );
 	}
 
-	public OrthoView( final ViewerOptions viewerOptions )
+	public OrthoView( final ViewerOptions viewerOptions, final VolatileGlobalCellCache cellCache )
 	{
-		this( new OrthoViewState( viewerOptions ) );
+		this( new OrthoViewState( viewerOptions ), cellCache );
 	}
 
-	public OrthoView( final OrthoViewState state )
+	public OrthoView( final OrthoViewState state, final VolatileGlobalCellCache cellCache )
 	{
-		this( ( vp ) -> {}, ( vp ) -> {}, state );
+		this( ( vp ) -> {}, ( vp ) -> {}, state, cellCache );
 	}
 
-	public OrthoView( final Consumer< ViewerPanel > onFocusEnter, final Consumer< ViewerPanel > onFocusExit, final OrthoViewState state )
+	public OrthoView( final Consumer< ViewerPanelFX > onFocusEnter, final Consumer< ViewerPanelFX > onFocusExit, final OrthoViewState state, final VolatileGlobalCellCache cellCache )
 	{
 		super();
 		this.state = state;
@@ -80,8 +85,7 @@ public class OrthoView extends GridPane
 		this.state.constraintsManager.manageGrid( this );
 		this.onFocusEnter = onFocusEnter;
 		this.onFocusExit = onFocusExit;
-		this.requestFocus();
-		this.setInfoNode( new Label( "Place your node here!" ) );
+//		this.setInfoNode( new Label( "Place your node here!" ) );
 
 		this.resizer = new GridResizer( this.state.constraintsManager, 10, this );
 		this.setOnMouseMoved( resizer.onMouseMovedHandler() );
@@ -97,14 +101,39 @@ public class OrthoView extends GridPane
 				maximizeActiveOrthoView( event );
 		} );
 
+		layoutViewers( cellCache );
+		this.focusTraversableProperty().set( true );
+
+		final OnSceneInitListener stageInit = OnWindowInitListener.doOnStageInit( stage -> {
+			stage.addEventFilter( KeyEvent.KEY_PRESSED, event -> {
+				synchronized ( activeKeys )
+				{
+					activeKeys.add( event.getCode() );
+				}
+			} );
+			stage.addEventFilter( KeyEvent.KEY_RELEASED, event -> {
+				synchronized ( activeKeys )
+				{
+					activeKeys.remove( event.getCode() );
+				}
+			} );
+			stage.focusedProperty().addListener( ( obs, oldv, newv ) -> {
+				if ( !newv )
+					synchronized ( activeKeys )
+					{
+						activeKeys.clear();
+					}
+			} );
+		} );
+		this.sceneProperty().addListener( stageInit );
+
 	}
 
-	public void makeDefaultLayout() throws InterruptedException
+	private void layoutViewers( final VolatileGlobalCellCache cellCache )
 	{
-		addViewer( ViewerAxis.Z, 0, 0 );
-		addViewer( ViewerAxis.X, 0, 1 );
-		addViewer( ViewerAxis.Y, 1, 0 );
-		this.requestFocus();
+		addViewer( ViewerAxis.Z, 0, 0, cellCache );
+		addViewer( ViewerAxis.X, 0, 1, cellCache );
+		addViewer( ViewerAxis.Y, 1, 0, cellCache );
 	}
 
 	public void setInfoNode( final Node node )
@@ -131,40 +160,45 @@ public class OrthoView extends GridPane
 	private void addViewerNodesHandler( final ViewerNode viewerNode, final Class< ? >[] focusKeepers )
 	{
 
-		viewerNode.addEventHandler( MouseEvent.MOUSE_CLICKED, event -> viewerNode.requestFocus() );
-
-		viewerNode.addEventHandler( MouseEvent.MOUSE_ENTERED, event -> {
-			final Node focusOwner = viewerNode.sceneProperty().get().focusOwnerProperty().get();
-			for ( final Class< ? > focusKeeper : focusKeepers )
-				if ( focusKeeper.isInstance( focusOwner ) )
-					return;
-			viewerNode.requestFocus();
+		final EventHandler< MouseEvent > handler = event -> {
+//			viewerNode.requestFocus();
+		};
+		viewerNode.focusedProperty().addListener( ( obs, o, n ) -> {
+			System.out.println( "Focusing " + viewerNode );
 		} );
+//		viewerNode.addEventHandler( MouseEvent.MOUSE_CLICKED, handler );
+
+//		viewerNode.addEventHandler( MouseEvent.MOUSE_ENTERED, event -> {
+//			final Node focusOwner = viewerNode.sceneProperty().get().focusOwnerProperty().get();
+//			for ( final Class< ? > focusKeeper : focusKeepers )
+//				if ( focusKeeper.isInstance( focusOwner ) )
+//					return;
+//			viewerNode.requestFocus();
+//		} );
 
 		handleFocusEvent( viewerNode );
 	}
 
 	private synchronized void handleFocusEvent( final ViewerNode viewerNode )
 	{
-		viewerNode.focusedProperty().addListener( ( ChangeListener< Boolean > ) ( observable, oldValue, newValue ) -> {
-			final ViewerPanel viewer = ( ViewerPanel ) viewerNode.getContent();
-			if ( viewer == null )
-				return;
-			else if ( newValue )
+		viewerNode.getViewer().focusedProperty().addListener( ( ChangeListener< Boolean > ) ( observable, oldValue, newValue ) -> {
+			final ViewerPanelFX viewer = viewerNode.getViewer();
+			if ( newValue && !oldValue )
 				this.onFocusEnter.accept( viewer );
-			else
+			else if ( !newValue )
 				this.onFocusExit.accept( viewer );
 		} );
 	}
 
-	private synchronized void addViewer( final ViewerAxis axis, final int rowIndex, final int colIndex ) throws InterruptedException
+	private synchronized void addViewer( final ViewerAxis axis, final int rowIndex, final int colIndex, final VolatileGlobalCellCache cellCache )
 	{
-		final ViewerNode viewerNode = new ViewerNode( new CacheControl.Dummy(), axis, this.state.viewerOptions );
+		final ViewerNode viewerNode = new ViewerNode( cellCache, axis, this.state.viewerOptions, activeKeys );
+//		final ViewerNode viewerNode = new ViewerNode( new CacheControl.Dummy(), axis, this.state.viewerOptions, activeKeys );
 		this.viewerNodes.add( viewerNode );
 		this.managers.put( viewerNode, viewerNode.manager() );
-		viewerNode.getState().setSources( state.sacs, state.visibility, state.currentSource, state.interpolation );
-		viewerNode.getState().setGlobalTransform( this.state.globalTransform );
-		viewerActors.forEach( actor -> actor.onAdd().accept( ( ViewerPanel ) viewerNode.getContent() ) );
+		viewerNode.getViewerState().setSources( state.sacs, state.visibility, state.currentSource, state.interpolation );
+		viewerNode.getViewerState().setGlobalTransform( this.state.globalTransform );
+		viewerActors.forEach( actor -> actor.onAdd().accept( viewerNode.getViewer() ) );
 		addViewerNodesHandler( viewerNode, FOCUS_KEEPERS );
 
 		this.add( viewerNode, rowIndex, colIndex );
@@ -187,7 +221,7 @@ public class OrthoView extends GridPane
 						GridPane.getRowIndex( focusOwner ),
 						GridPane.getColumnIndex( focusOwner ),
 						0 );
-				( ( ViewerPanel ) ( ( SwingNode ) focusOwner ).getContent() ).requestRepaint();
+//				( ( ViewerPanel ) ( ( SwingNode ) focusOwner ).getContent() ).requestRepaint();
 				this.setHgap( 0 );
 				this.setVgap( 0 );
 			}
@@ -195,7 +229,7 @@ public class OrthoView extends GridPane
 			{
 				this.state.constraintsManager.resetToLast();
 				viewerNodes.forEach( node -> node.setVisible( true ) );
-				viewerNodes.forEach( node -> ( ( ViewerPanel ) node.getContent() ).requestRepaint() );
+				viewerNodes.forEach( node -> node.getViewer().requestRepaint() );
 				this.setHgap( 1 );
 				this.setVgap( 1 );
 			}
@@ -318,8 +352,11 @@ public class OrthoView extends GridPane
 		return this.state;
 	}
 
-	public void addAction( final Runnable r, final String name, final String... keyStrokes )
-	{
-		viewerNodes.forEach( viewerNode -> viewerNode.addAction( r, name, keyStrokes ) );
-	}
+//	@Override
+//	public void layoutChildren()
+//	{
+//		System.out.println( "LAYING OUT CHILDREN IN OrthoView!" );
+//		new RuntimeException().printStackTrace();
+//		super.layoutChildren();
+//	}
 }

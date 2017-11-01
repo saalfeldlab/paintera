@@ -39,16 +39,16 @@ import bdv.bigcat.viewer.panel.ViewerNode;
 import bdv.bigcat.viewer.state.FragmentSegmentAssignmentState;
 import bdv.bigcat.viewer.state.SelectedIds;
 import bdv.bigcat.viewer.stream.ModalGoldenAngleSaturatedHighlightingARGBStream;
-import bdv.bigcat.viewer.viewer3d.OrthoSlice;
 import bdv.bigcat.viewer.viewer3d.Viewer3D;
 import bdv.bigcat.viewer.viewer3d.Viewer3DController;
+import bdv.img.cache.VolatileGlobalCellCache;
 import bdv.labels.labelset.LabelMultisetType;
 import bdv.labels.labelset.Multiset.Entry;
 import bdv.labels.labelset.VolatileLabelMultisetType;
 import bdv.viewer.Source;
 import bdv.viewer.SourceAndConverter;
 import bdv.viewer.ViewerOptions;
-import bdv.viewer.ViewerPanel;
+import bdv.viewer.ViewerPanelFX;
 import javafx.application.Application;
 import javafx.beans.value.ChangeListener;
 import javafx.collections.ListChangeListener;
@@ -63,6 +63,7 @@ import javafx.scene.control.TableView;
 import javafx.scene.control.TextField;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyEvent;
+import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
@@ -110,32 +111,27 @@ public class Atlas
 
 	private final SourcesTab sourcesTab = new SourcesTab( specs );
 
-	private final Viewer3D renderView = new Viewer3D( "", 1000, 1000, true );
+	private final Viewer3D renderView;
 //	{
 //		new Thread( renderView::init ).start();
 //	}
 
-	private final Viewer3DController controller = new Viewer3DController( renderView );
+	private final Viewer3DController controller;
+
+	public Atlas( final Interval interval, final VolatileGlobalCellCache cellCache )
 	{
-		new Thread( controller::init ).start();
+		this( ViewerOptions.options(), interval, cellCache );
 	}
 
-	public Atlas( final Interval interval )
-	{
-		this( ViewerOptions.options(), interval );
-	}
-
-	public Atlas( final ViewerOptions viewerOptions, final Interval interval )
+	public Atlas( final ViewerOptions viewerOptions, final Interval interval, final VolatileGlobalCellCache cellCache )
 	{
 		super();
 		this.viewerOptions = viewerOptions
 				.accumulateProjectorFactory( new ClearingCompositeProjectorFactory<>( composites, new ARGBType() ) )
 				.numRenderingThreads( Math.min( 3, Math.max( 1, Runtime.getRuntime().availableProcessors() / 3 ) ) );
-		this.view = new OrthoView( focusHandler.onEnter(), focusHandler.onExit(), new OrthoViewState( this.viewerOptions ) );
+		this.view = new OrthoView( focusHandler.onEnter(), focusHandler.onExit(), new OrthoViewState( this.viewerOptions ), cellCache );
 		this.root = new BorderPane( this.view );
 		this.root.setBottom( status );
-//		this.view.setInfoNode( this.view.globalSourcesInfoNode() );
-		this.view.setInfoNode( new Label( "" ) );
 		this.root.setRight( sourcesTab );
 		this.view.heightProperty().addListener( ( ChangeListener< Number > ) ( observable, old, newVal ) -> {
 			this.sourcesTab.prefHeightProperty().set( newVal.doubleValue() );
@@ -148,7 +144,12 @@ public class Atlas
 //				specs.selectedSourceProperty().setValue( Optional.of( state.get().spec() ) );
 //		} );
 
-		this.view.add( renderView.getPanel(), 1, 1 );
+		this.renderView = new Viewer3D( "", 100, 100, false );
+		this.controller = new Viewer3DController( renderView );
+		renderView.getPanel().setMinWidth( 0 );
+		renderView.getPanel().setMinHeight( 0 );
+		this.view.setInfoNode( renderView.getPanel() );
+		this.renderView.getPanel().addEventHandler( MouseEvent.MOUSE_CLICKED, event -> renderView.getPanel().requestFocus() );
 
 		final Mode[] initialModes = { new NavigationOnly(), new Highlights( selectedIds ), new Merges( selectedIds, assignments ), new Render3D( controller ) };
 		Arrays.stream( initialModes ).forEach( modes::add );
@@ -208,14 +209,22 @@ public class Atlas
 			}
 		} );
 
-		final AffineTransform3D tf = new AffineTransform3D();
-		final long[] sums = {
-				interval.max( 0 ) + interval.min( 0 ),
-				interval.max( 1 ) + interval.min( 1 ),
-				interval.max( 2 ) + interval.min( 2 )
-		};
-		tf.translate( Arrays.stream( sums ).mapToDouble( sum -> -0.5 * sum ).toArray() );
-		this.baseView().setTransform( tf );
+		{
+			final AffineTransform3D tf = new AffineTransform3D();
+			final long[] sums = {
+					interval.max( 0 ) + interval.min( 0 ),
+					interval.max( 1 ) + interval.min( 1 ),
+					interval.max( 2 ) + interval.min( 2 )
+			};
+			tf.translate( Arrays.stream( sums ).mapToDouble( sum -> -0.5 * sum ).toArray() );
+			final ViewerNode vn = this.baseView().getChildren().stream().filter( child -> child instanceof ViewerNode ).map( n -> ( ViewerNode ) n ).findFirst().get();
+			final double w = vn.getWidth();
+			vn.manager().setCanvasSize( 1, 1, true );
+			System.out.println( w + " " + interval.dimension( 0 ) );
+			tf.scale( 1.0 / interval.dimension( 0 ) );
+			vn.manager().setCanvasSize( ( int ) vn.getWidth(), ( int ) vn.getHeight(), true );
+			this.baseView().setTransform( tf );
+		}
 
 		this.baseView().getState().addCurrentSourceListener( ( observable, oldValue, newValue ) -> {
 			if ( newValue.isPresent() )
@@ -248,16 +257,16 @@ public class Atlas
 		primaryStage.setScene( scene );
 		primaryStage.sizeToScene();
 
-		view.makeDefaultLayout();
-
 		primaryStage.show();
 
-		for ( final Node child : this.baseView().getChildren() )
-			if ( child instanceof ViewerNode )
-			{
-				final ViewerNode vn = ( ViewerNode ) child;
-				final OrthoSlice orthoSlice = new OrthoSlice( renderView.scene(), ( ViewerPanel ) vn.getContent() );
-			}
+		new Thread( renderView::init ).start();
+
+//		for ( final Node child : this.baseView().getChildren() )
+//			if ( child instanceof ViewerNode )
+//			{
+//				final ViewerNode vn = ( ViewerNode ) child;
+//				final OrthoSlice orthoSlice = new OrthoSlice( renderView.scene(), vn.getViewer() );
+//			}
 
 		// test the look and feel with both Caspian and Modena
 		Application.setUserAgentStylesheet( Application.STYLESHEET_CASPIAN );
@@ -274,7 +283,7 @@ public class Atlas
 
 	}
 
-	public void addOnEnterOnExit( final Consumer< ViewerPanel > onEnter, final Consumer< ViewerPanel > onExit, final boolean onExitRemovable )
+	public void addOnEnterOnExit( final Consumer< ViewerPanelFX > onEnter, final Consumer< ViewerPanelFX > onExit, final boolean onExitRemovable )
 	{
 		this.addOnEnterOnExit( new OnEnterOnExit( onEnter, onExit ), onExitRemovable );
 	}
@@ -333,13 +342,13 @@ public class Atlas
 		{
 
 			@Override
-			public Consumer< ViewerPanel > onRemove()
+			public Consumer< ViewerPanelFX > onRemove()
 			{
 				return vp -> {};
 			}
 
 			@Override
-			public Consumer< ViewerPanel > onAdd()
+			public Consumer< ViewerPanelFX > onAdd()
 			{
 				return vp -> assignment.addListener( () -> vp.requestRepaint() );
 			}
@@ -362,13 +371,13 @@ public class Atlas
 		view.addActor( new ViewerActor()
 		{
 			@Override
-			public Consumer< ViewerPanel > onRemove()
+			public Consumer< ViewerPanelFX > onRemove()
 			{
 				return vp -> {};
 			}
 
 			@Override
-			public Consumer< ViewerPanel > onAdd()
+			public Consumer< ViewerPanelFX > onAdd()
 			{
 				return vp -> {
 					System.out.println( "VP? " + vp + " " + selectedIds );
@@ -509,8 +518,8 @@ public class Atlas
 			focusOwner = null;
 		this.modes.add( mode );
 
-		if ( focusOwner != null )
-			focusOwner.requestFocus();
+		if ( focusOwner != null && focusOwner instanceof ViewerNode )
+			mode.onEnter().accept( ( ( ViewerNode ) focusOwner ).getViewer() );
 	}
 
 }

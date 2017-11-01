@@ -9,7 +9,7 @@ import bdv.bigcat.viewer.state.GlobalTransformManager;
 import bdv.viewer.Interpolation;
 import bdv.viewer.Source;
 import bdv.viewer.SourceAndConverter;
-import bdv.viewer.ViewerPanel;
+import bdv.viewer.ViewerPanelFX;
 import javafx.beans.property.Property;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.value.ChangeListener;
@@ -22,7 +22,7 @@ import javafx.collections.ObservableMap;
 
 public class ViewerState
 {
-	private final ViewerPanel viewer;
+	private final ViewerPanelFX viewer;
 
 	private final SourcesListener sacs = new SourcesListener();
 
@@ -34,7 +34,7 @@ public class ViewerState
 
 	private final SimpleObjectProperty< GlobalTransformManager > globalTransform = new SimpleObjectProperty<>( new GlobalTransformManager() );
 
-	public ViewerState( final ViewerPanel viewer )
+	public ViewerState( final ViewerPanelFX viewer )
 	{
 		super();
 		this.viewer = viewer;

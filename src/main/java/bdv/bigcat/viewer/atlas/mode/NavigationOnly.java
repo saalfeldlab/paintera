@@ -2,19 +2,19 @@ package bdv.bigcat.viewer.atlas.mode;
 
 import java.util.function.Consumer;
 
-import bdv.viewer.ViewerPanel;
+import bdv.viewer.ViewerPanelFX;
 
 public class NavigationOnly implements Mode
 {
 
 	@Override
-	public Consumer< ViewerPanel > onEnter()
+	public Consumer< ViewerPanelFX > onEnter()
 	{
 		return vp -> {};
 	}
 
 	@Override
-	public Consumer< ViewerPanel > onExit()
+	public Consumer< ViewerPanelFX > onExit()
 	{
 		return vp -> {};
 	}

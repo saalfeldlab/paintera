@@ -5,7 +5,6 @@ import java.util.Optional;
 
 import bdv.img.cache.VolatileGlobalCellCache;
 import bdv.img.h5.H5UnsignedByteSetupImageLoader;
-import bdv.util.volatiles.SharedQueue;
 import bdv.viewer.Interpolation;
 import bdv.viewer.Source;
 import ch.systemsx.cisd.hdf5.HDF5Factory;
@@ -133,11 +132,18 @@ public class HDF5UnsignedByteSpec implements DatasetSpec< UnsignedByteType, Vola
 
 	private final H5UnsignedByteSetupImageLoader loader;
 
-	public HDF5UnsignedByteSpec( final String path, final String dataset, final int[] cellSize, final double[] resolution, final String name ) throws IOException
+	public HDF5UnsignedByteSpec(
+			final String path,
+			final String dataset,
+			final int[] cellSize,
+			final double[] resolution,
+			final String name,
+			final VolatileGlobalCellCache cellCache ) throws IOException
 	{
 		super();
 		final IHDF5Reader h5reader = HDF5Factory.open( path );
-		this.loader = new H5UnsignedByteSetupImageLoader( h5reader, dataset, 0, cellSize, resolution, new VolatileGlobalCellCache( new SharedQueue( 8 ) ) );
+		// TODO Use better value for number of threads of shared queue
+		this.loader = new H5UnsignedByteSetupImageLoader( h5reader, dataset, 0, cellSize, resolution, cellCache );
 		this.name = name;
 		this.uri = "h5://" + path + "/" + dataset;
 	}

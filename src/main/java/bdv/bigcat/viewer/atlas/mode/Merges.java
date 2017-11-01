@@ -1,19 +1,20 @@
 package bdv.bigcat.viewer.atlas.mode;
 
+import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashMap;
+import java.util.List;
 import java.util.function.Consumer;
-
-import org.scijava.ui.behaviour.MouseAndKeyHandler;
-import org.scijava.ui.behaviour.io.InputTriggerConfig;
-import org.scijava.ui.behaviour.util.Behaviours;
-import org.scijava.ui.behaviour.util.TriggerBehaviourBindings;
 
 import bdv.bigcat.viewer.IdSelector;
 import bdv.bigcat.viewer.ToIdConverter;
 import bdv.bigcat.viewer.state.FragmentSegmentAssignmentState;
 import bdv.bigcat.viewer.state.SelectedIds;
 import bdv.viewer.Source;
-import bdv.viewer.ViewerPanel;
+import bdv.viewer.ViewerPanelFX;
+import javafx.scene.input.KeyEvent;
+import javafx.scene.input.MouseEvent;
+import net.imglib2.ui.InstallAndRemove;
 
 public class Merges extends AbstractStateMode
 {
@@ -24,7 +25,7 @@ public class Merges extends AbstractStateMode
 
 	private final HashMap< Source< ? >, SelectedIds > selectedIds;
 
-	private final HashMap< ViewerPanel, MouseAndKeyHandler > mouseAndKeyHandlers = new HashMap<>();
+	private final HashMap< ViewerPanelFX, Collection< InstallAndRemove > > mouseAndKeyHandlers = new HashMap<>();
 
 	private final HashMap< Source< ? >, FragmentSegmentAssignmentState< ? > > assignments;
 
@@ -58,25 +59,19 @@ public class Merges extends AbstractStateMode
 	}
 
 	@Override
-	protected Consumer< ViewerPanel > getOnEnter()
+	protected Consumer< ViewerPanelFX > getOnEnter()
 	{
 		return t -> {
 			if ( !this.mouseAndKeyHandlers.containsKey( t ) )
 			{
-				final InputTriggerConfig inputTriggerConfig = new InputTriggerConfig();
 				final IdSelector selector = new IdSelector( t, toIdConverters, selectedIds, dataSources );
-				final Behaviours behaviours = new Behaviours( inputTriggerConfig );
-				behaviours.namedBehaviour( selector.selectFragmentWithMaximumCount( "toggle single id" ), "button1" );
-				behaviours.namedBehaviour( selector.append( "append id", ( ids, selection, isActive ) -> false ), "button3" );
-				behaviours.namedBehaviour( selector.merge( assignments ), "shift button1" );
-				behaviours.namedBehaviour( selector.detach( assignments ), "shift button3" );
-				behaviours.namedBehaviour( selector.confirm( assignments ), "ctrl shift button1" );
-				final TriggerBehaviourBindings bindings = new TriggerBehaviourBindings();
-				behaviours.install( bindings, "merge and split" );
-				final MouseAndKeyHandler mouseAndKeyHandler = new MouseAndKeyHandler();
-				mouseAndKeyHandler.setInputMap( bindings.getConcatenatedInputTriggerMap() );
-				mouseAndKeyHandler.setBehaviourMap( bindings.getConcatenatedBehaviourMap() );
-				this.mouseAndKeyHandlers.put( t, mouseAndKeyHandler );
+				final List< InstallAndRemove > iars = new ArrayList<>();
+				iars.add( selector.selectFragmentWithMaximumCount( "toggle single id", event -> event.isPrimaryButtonDown() && noSpecialKeys( event ) ) );
+				iars.add( selector.append( "append id", ( ids, selection, isActive ) -> false, event -> event.isSecondaryButtonDown() && noSpecialKeys( event ) ) );
+				iars.add( selector.merge( "merge fragments", assignments, event -> event.isPrimaryButtonDown() && shiftOnly( event ) ) );
+				iars.add( selector.detach( "detach", assignments, event -> event.isSecondaryButtonDown() && shiftOnly( event ) ) );
+				iars.add( selector.confirm( "confirm assignments", assignments, event -> event.isPrimaryButtonDown() && shiftAndControl( event ) ) );
+				this.mouseAndKeyHandlers.put( t, iars );
 			}
 			t.getDisplay().addHandler( this.mouseAndKeyHandlers.get( t ) );
 
@@ -84,11 +79,32 @@ public class Merges extends AbstractStateMode
 	}
 
 	@Override
-	public Consumer< ViewerPanel > onExit()
+	public Consumer< ViewerPanelFX > onExit()
 	{
 		return t -> {
-			t.getDisplay().removeHandler( this.mouseAndKeyHandlers.get( t ) );
+			if ( this.mouseAndKeyHandlers.containsKey( t ) )
+				t.getDisplay().removeHandler( this.mouseAndKeyHandlers.get( t ) );
 		};
+	}
+
+	public static boolean noSpecialKeys( final MouseEvent e )
+	{
+		return !( e.isAltDown() || e.isControlDown() || e.isShiftDown() || e.isMetaDown() );
+	}
+
+	public static boolean shiftOnly( final MouseEvent e )
+	{
+		return e.isShiftDown() && !( e.isAltDown() || e.isControlDown() || e.isMetaDown() );
+	}
+
+	public static boolean shiftOnly( final KeyEvent e )
+	{
+		return e.isShiftDown() && !( e.isAltDown() || e.isControlDown() || e.isMetaDown() );
+	}
+
+	public static boolean shiftAndControl( final MouseEvent e )
+	{
+		return e.isShiftDown() && e.isControlDown() && !( e.isAltDown() || e.isMetaDown() );
 	}
 
 }

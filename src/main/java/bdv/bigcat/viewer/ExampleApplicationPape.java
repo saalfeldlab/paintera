@@ -7,6 +7,7 @@ import com.sun.javafx.application.PlatformImpl;
 import bdv.AbstractViewerSetupImgLoader;
 import bdv.bigcat.viewer.atlas.Atlas;
 import bdv.bigcat.viewer.atlas.data.HDF5UnsignedByteSpec;
+import bdv.img.cache.VolatileGlobalCellCache;
 import bdv.viewer.Interpolation;
 import bdv.viewer.Source;
 import javafx.application.Platform;
@@ -45,7 +46,8 @@ public class ExampleApplicationPape
 		final double[] resolution = { 1, 1, 1 };
 		final int[] cellSize = { 1024, 1024, 1 };
 
-		final HDF5UnsignedByteSpec rawSource = new HDF5UnsignedByteSpec( rawFile, rawDataset, cellSize, resolution, "raw" );
+		final VolatileGlobalCellCache cellCache = new VolatileGlobalCellCache( 1, 12 );
+		final HDF5UnsignedByteSpec rawSource = new HDF5UnsignedByteSpec( rawFile, rawDataset, cellSize, resolution, "raw", cellCache );
 
 		final double[] min = Arrays.stream( Intervals.minAsLongArray( rawSource.getSource().getSource( 0, 0 ) ) ).mapToDouble( v -> v ).toArray();
 		final double[] max = Arrays.stream( Intervals.maxAsLongArray( rawSource.getSource().getSource( 0, 0 ) ) ).mapToDouble( v -> v ).toArray();
@@ -54,7 +56,10 @@ public class ExampleApplicationPape
 		affine.apply( min, min );
 		affine.apply( max, max );
 
-		final Atlas viewer = new Atlas( new FinalInterval( Arrays.stream( min ).mapToLong( Math::round ).toArray(), Arrays.stream( max ).mapToLong( Math::round ).toArray() ) );
+		final Atlas viewer = new Atlas(
+				new FinalInterval( Arrays.stream( min ).mapToLong( Math::round ).toArray(),
+						Arrays.stream( max ).mapToLong( Math::round ).toArray() ),
+				cellCache );
 
 		Platform.runLater( () -> {
 			final Stage stage = new Stage();

@@ -4,7 +4,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.function.Consumer;
 
-import bdv.viewer.ViewerPanel;
+import bdv.viewer.ViewerPanelFX;
 
 public class AtlasFocusHandler
 {
@@ -12,11 +12,11 @@ public class AtlasFocusHandler
 	public static class OnEnterOnExit
 	{
 
-		private final Consumer< ViewerPanel > onEnter;
+		private final Consumer< ViewerPanelFX > onEnter;
 
-		private final Consumer< ViewerPanel > onExit;
+		private final Consumer< ViewerPanelFX > onExit;
 
-		public OnEnterOnExit( final Consumer< ViewerPanel > onEnter, final Consumer< ViewerPanel > onExit )
+		public OnEnterOnExit( final Consumer< ViewerPanelFX > onEnter, final Consumer< ViewerPanelFX > onExit )
 		{
 			super();
 			this.onEnter = onEnter;
@@ -29,7 +29,7 @@ public class AtlasFocusHandler
 
 	private final HashSet< OnEnterOnExit > installPermanent;
 
-	private final HashMap< ViewerPanel, HashSet< OnEnterOnExit > > installed;
+	private final HashMap< ViewerPanelFX, HashSet< OnEnterOnExit > > installed;
 
 	public AtlasFocusHandler()
 	{
@@ -53,22 +53,23 @@ public class AtlasFocusHandler
 		this.installPermanent.remove( element );
 	}
 
-	public Consumer< ViewerPanel > onEnter()
+	public Consumer< ViewerPanelFX > onEnter()
 	{
 		return new OnEnter();
 	}
 
-	public Consumer< ViewerPanel > onExit()
+	public Consumer< ViewerPanelFX > onExit()
 	{
 		return new OnExit();
 	}
 
-	private class OnEnter implements Consumer< ViewerPanel >
+	private class OnEnter implements Consumer< ViewerPanelFX >
 	{
 
 		@Override
-		public void accept( final ViewerPanel t )
+		public void accept( final ViewerPanelFX t )
 		{
+			System.out.println( "ENTERING? " + installOnExitRemovables + " " + installPermanent );
 			synchronized ( AtlasFocusHandler.this )
 			{
 				installOnExitRemovables.forEach( consumer -> consumer.onEnter.accept( t ) );
@@ -86,11 +87,11 @@ public class AtlasFocusHandler
 		}
 	}
 
-	private class OnExit implements Consumer< ViewerPanel >
+	private class OnExit implements Consumer< ViewerPanelFX >
 	{
 
 		@Override
-		public void accept( final ViewerPanel t )
+		public void accept( final ViewerPanelFX t )
 		{
 			synchronized ( AtlasFocusHandler.this )
 			{
