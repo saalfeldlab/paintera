@@ -21,7 +21,7 @@ public class Viewer3D extends SceneryBase
 	{
 		super( applicationName, windowWidth, windowHeight, wantREPL );
 
-		scPanel = new SceneryPanel( 500, 500 );
+		scPanel = new SceneryPanel( windowWidth, windowHeight );
 	}
 
 	@Override
@@ -31,7 +31,6 @@ public class Viewer3D extends SceneryBase
 		setRenderer(
 				Renderer.createRenderer( getHub(), getApplicationName(), getScene(), getWindowWidth(), getWindowHeight(), scPanel ) );
 		getHub().add( SceneryElement.Renderer, getRenderer() );
-
 
 		final PointLight[] lights = new PointLight[ 4 ];
 		for ( int i = 0; i < lights.length; i++ )
