@@ -19,10 +19,10 @@
 sudo apt install openjfx
 ```
 
-* zeromq:
+* zeromq (ubuntu):
 
 ```shell
-sudo apt install -y libzmq3-dev
+sudo apt install libzmq3-dev
 ```
 
 * [jzmq](https://github.com/zeromq/jzmq)
