@@ -259,7 +259,7 @@ public class Atlas
 
 		primaryStage.show();
 
-		new Thread( renderView::init ).start();
+		new Thread( controller::init ).start();
 
 //		for ( final Node child : this.baseView().getChildren() )
 //			if ( child instanceof ViewerNode )
