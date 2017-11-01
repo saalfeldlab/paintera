@@ -16,6 +16,13 @@ cache:
 install:
   - sudo apt install -y libzmq3-dev
   - cd ..
+  - git clone https://github.com/zeromq/jzmq.git
+  - cd jzmq/jzmq-jni
+  - ./autogen.sh
+  - ./configure --prefix=/usr
+  - make
+  - sudo make install
+  - cd ../..
   - git clone git://github.com/ClearVolume/ClearGL.git ClearGL
   - cd ClearGL
   - mvn install
