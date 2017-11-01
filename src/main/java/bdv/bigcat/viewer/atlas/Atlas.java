@@ -6,8 +6,6 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Optional;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -53,7 +51,6 @@ import bdv.viewer.SourceAndConverter;
 import bdv.viewer.ViewerOptions;
 import bdv.viewer.ViewerPanelFX;
 import javafx.application.Application;
-import javafx.application.Platform;
 import javafx.beans.value.ChangeListener;
 import javafx.collections.ListChangeListener;
 import javafx.scene.Node;
@@ -145,8 +142,10 @@ public class Atlas
 //				specs.selectedSourceProperty().setValue( Optional.of( state.get().spec() ) );
 //		} );
 
-		this.renderView = new Viewer3D( "", 1000, 1000, false );
+		this.renderView = new Viewer3D( "", 100, 100, false );
 		this.controller = new Viewer3DController( renderView );
+		renderView.getPanel().setMinWidth( 0 );
+		renderView.getPanel().setMinHeight( 0 );
 		this.view.setInfoNode( renderView.getPanel() );
 		this.renderView.getPanel().addEventHandler( MouseEvent.MOUSE_CLICKED, event -> renderView.getPanel().requestFocus() );
 
@@ -258,7 +257,7 @@ public class Atlas
 
 		primaryStage.show();
 
-		Platform.runLater( () -> new Thread( renderView::main ).start() );
+		new Thread( renderView::main ).start();
 
 		for ( final Node child : this.baseView().getChildren() )
 			if ( child instanceof ViewerNode )
@@ -266,9 +265,6 @@ public class Atlas
 				final ViewerNode vn = ( ViewerNode ) child;
 				final OrthoSlice orthoSlice = new OrthoSlice( renderView.scene(), vn.getViewer() );
 			}
-
-		final ScheduledExecutorService es = Executors.newSingleThreadScheduledExecutor();
-//		es.scheduleAtFixedRate( () -> System.out.println( "Current focus owner: " + scene.getFocusOwner() ), 0, 100, TimeUnit.MILLISECONDS );
 
 		// test the look and feel with both Caspian and Modena
 		Application.setUserAgentStylesheet( Application.STYLESHEET_CASPIAN );
