@@ -9,13 +9,23 @@
 
 	* [bdv-core:4.3.1-SNAPSHOT - branch: TransformAwareBufferedImageOverlayRenderer-with-background](https://github.com/hanslovsky/bigdataviewer-core/tree/TransformAwareBufferedImageOverlayRenderer-with-background)
 
-	* [bdv-vistools:1.0.0-beta-8-SNAPSHOT](https://github.com/bigdataviewer/bigdataviewer-vistools.git)
+* [bdv-vistools:1.0.0-beta-8-SNAPSHOT](https://github.com/bigdataviewer/bigdataviewer-vistools.git)
 
-	* [ClearGL:2.1.0](https://github.com/ClearVolume/ClearGL.git)
+* [ClearGL:2.1.0](https://github.com/ClearVolume/ClearGL.git)
 
 * javafx (ubuntu):
 
- `sudo apt install openjfx`
+```shell
+sudo apt install openjfx
+```
+
+* zeromq:
+
+```shell
+sudo apt install -y libzmq3-dev
+```
+
+* [jzmq](https://github.com/zeromq/jzmq)
 
 ## Compile
 
