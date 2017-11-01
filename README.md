@@ -13,8 +13,9 @@
 
 	* [ClearGL:2.1.0](https://github.com/ClearVolume/ClearGL.git)
 
-* javafx:
-... on ubuntu: `sudo apt install openjfx`
+* javafx (ubuntu):
+
+ `sudo apt install openjfx`
 
 ## Compile
 
@@ -24,7 +25,7 @@ run:
 mvn clean install
 ```
 
-or to generate a "fat jar" with all dependencies added, run:
+or, to generate a "fat jar" with all dependencies added, run:
 
 ```shell
 mvn clean compile assembly:single
@@ -33,7 +34,7 @@ mvn clean compile assembly:single
 ## Run
 
 ```shell
-java -Xmx16G -jar target/bigcat-0.0.1-SNAPSHOT-jar-with-dependencies.jar -i <input_hdf_file>
+java -Xmx16G -jar target/bigcat-0.0.3-SNAPSHOT-jar-with-dependencies.jar -i <input_hdf_file>
 ```
 
 ## Development
