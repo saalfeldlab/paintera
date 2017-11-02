@@ -67,9 +67,9 @@ public class Viewer3DController
 		
 		// no HMD, then default mode is automatic camera
 //		if ( viewer3D.getHub().getWorkingHMD() == null )
-//			camera.automatic();
+		camera.automatic();
 //		else
-		camera.manual();
+//		camera.manual();
 	}
 
 	public synchronized < T extends Type< T >, F extends FragmentSegmentAssignmentState< F > > void generateMesh(
