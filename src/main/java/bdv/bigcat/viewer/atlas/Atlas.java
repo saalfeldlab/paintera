@@ -39,6 +39,7 @@ import bdv.bigcat.viewer.panel.ViewerNode;
 import bdv.bigcat.viewer.state.FragmentSegmentAssignmentState;
 import bdv.bigcat.viewer.state.SelectedIds;
 import bdv.bigcat.viewer.stream.ModalGoldenAngleSaturatedHighlightingARGBStream;
+import bdv.bigcat.viewer.viewer3d.OrthoSliceFX;
 import bdv.bigcat.viewer.viewer3d.Viewer3DControllerFX;
 import bdv.bigcat.viewer.viewer3d.Viewer3DFX;
 import bdv.img.cache.VolatileGlobalCellCache;
@@ -256,12 +257,12 @@ public class Atlas
 
 		new Thread( controller::init ).start();
 
-//		for ( final Node child : this.baseView().getChildren() )
-//			if ( child instanceof ViewerNode )
-//			{
-//				final ViewerNode vn = ( ViewerNode ) child;
-//				final OrthoSlice orthoSlice = new OrthoSlice( renderView.scene(), vn.getViewer() );
-//			}
+		for ( final Node child : this.baseView().getChildren() )
+			if ( child instanceof ViewerNode )
+			{
+				final ViewerNode vn = ( ViewerNode ) child;
+				final OrthoSliceFX orthoSlice = new OrthoSliceFX( renderView.root(), vn.getViewer() );
+			}
 
 		// test the look and feel with both Caspian and Modena
 		Application.setUserAgentStylesheet( Application.STYLESHEET_CASPIAN );
