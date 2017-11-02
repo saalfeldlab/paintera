@@ -5,7 +5,6 @@ import java.util.List;
 
 import bdv.util.InvokeOnJavaFXApplicationThread;
 import bdv.viewer.ViewerPanelFX;
-import graphics.scenery.PointLight;
 import javafx.beans.value.ChangeListener;
 import javafx.beans.value.ObservableValue;
 import javafx.scene.Group;
@@ -21,8 +20,6 @@ import net.imglib2.realtransform.AffineTransform3D;
 public class OrthoSliceFX
 {
 
-	private static final String DIFFUSE = "diffuse";
-
 	private final Group scene;
 
 	private final ViewerPanelFX viewer;
@@ -34,13 +31,6 @@ public class OrthoSliceFX
 	private final OrthoSliceMeshFX mesh = new OrthoSliceMeshFX( new Point( 0, 0 ), new Point( 1, 0 ), new Point( 1, 1 ), new Point( 0, 1 ), new AffineTransform3D() );
 
 	private final MeshView mv = new MeshView( mesh );
-
-	final PointLight[] lights = {
-			new PointLight(),
-			new PointLight(),
-			new PointLight(),
-			new PointLight()
-	};
 
 	LatestTaskExecutor es = new LatestTaskExecutor();
 
