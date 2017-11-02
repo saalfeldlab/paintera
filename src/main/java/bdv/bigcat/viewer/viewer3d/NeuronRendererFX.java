@@ -9,11 +9,8 @@ import bdv.bigcat.ui.ARGBStream;
 import bdv.bigcat.viewer.state.FragmentSegmentAssignmentState;
 import bdv.bigcat.viewer.state.StateListener;
 import bdv.bigcat.viewer.viewer3d.marchingCubes.ForegroundCheck;
-import bdv.util.InvokeOnJavaFXApplicationThread;
 import javafx.scene.Camera;
 import javafx.scene.Group;
-import javafx.scene.PointLight;
-import javafx.scene.paint.Color;
 import net.imglib2.Interval;
 import net.imglib2.Localizable;
 import net.imglib2.RandomAccess;
@@ -153,14 +150,14 @@ public class NeuronRendererFX< T, F extends FragmentSegmentAssignmentState< F > 
 			final int color = stream.argb( selectedFragmentId );
 			initialLocationInImageCoordinates.localize( blub );
 			toWorldCoordinates.apply( blub, blub );
-			camera.setTranslateX( blub[ 0 ] );
-			camera.setTranslateY( blub[ 1 ] );
-			camera.setTranslateZ( blub[ 2 ] - 1 );
-			final PointLight l = new PointLight( Color.RED );
-			l.setTranslateX( blub[ 0 ] );
-			l.setTranslateY( blub[ 1 ] );
-			l.setTranslateZ( blub[ 2 ] );
-			InvokeOnJavaFXApplicationThread.invoke( () -> root.getChildren().add( l ) );
+			camera.setTranslateX( blub[ 0 ] - 250 );
+			camera.setTranslateY( blub[ 1 ] - 250 );
+			camera.setTranslateZ( blub[ 2 ] - 300 );
+//			final PointLight l = new PointLight( Color.RED );
+//			l.setTranslateX( blub[ 0 ] );
+//			l.setTranslateY( blub[ 1 ] - 500 );
+//			l.setTranslateZ( blub[ 2 ] - 500 );
+//			InvokeOnJavaFXApplicationThread.invoke( () -> root.getChildren().add( l ) );
 			neuron.render( initialLocationInImageCoordinates, data, foregroundCheck, toWorldCoordinates, blockSize, cubeSize, color, es );
 		}
 	}
