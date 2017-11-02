@@ -32,15 +32,15 @@ import bdv.bigcat.viewer.atlas.mode.Merges;
 import bdv.bigcat.viewer.atlas.mode.Mode;
 import bdv.bigcat.viewer.atlas.mode.ModeUtil;
 import bdv.bigcat.viewer.atlas.mode.NavigationOnly;
-import bdv.bigcat.viewer.atlas.mode.Render3D;
+import bdv.bigcat.viewer.atlas.mode.Render3DFX;
 import bdv.bigcat.viewer.ortho.OrthoView;
 import bdv.bigcat.viewer.ortho.OrthoViewState;
 import bdv.bigcat.viewer.panel.ViewerNode;
 import bdv.bigcat.viewer.state.FragmentSegmentAssignmentState;
 import bdv.bigcat.viewer.state.SelectedIds;
 import bdv.bigcat.viewer.stream.ModalGoldenAngleSaturatedHighlightingARGBStream;
-import bdv.bigcat.viewer.viewer3d.Viewer3D;
-import bdv.bigcat.viewer.viewer3d.Viewer3DController;
+import bdv.bigcat.viewer.viewer3d.Viewer3DControllerFX;
+import bdv.bigcat.viewer.viewer3d.Viewer3DFX;
 import bdv.img.cache.VolatileGlobalCellCache;
 import bdv.labels.labelset.LabelMultisetType;
 import bdv.labels.labelset.Multiset.Entry;
@@ -111,12 +111,9 @@ public class Atlas
 
 	private final SourcesTab sourcesTab = new SourcesTab( specs );
 
-	private final Viewer3D renderView;
-//	{
-//		new Thread( renderView::init ).start();
-//	}
+	private final Viewer3DFX renderView;
 
-	private final Viewer3DController controller;
+	private final Viewer3DControllerFX controller;
 
 	public Atlas( final Interval interval, final VolatileGlobalCellCache cellCache )
 	{
@@ -144,14 +141,12 @@ public class Atlas
 //				specs.selectedSourceProperty().setValue( Optional.of( state.get().spec() ) );
 //		} );
 
-		this.renderView = new Viewer3D( "", 100, 100, false );
-		this.controller = new Viewer3DController( renderView );
-		renderView.getPanel().setMinWidth( 0 );
-		renderView.getPanel().setMinHeight( 0 );
-		this.view.setInfoNode( renderView.getPanel() );
-		this.renderView.getPanel().addEventHandler( MouseEvent.MOUSE_CLICKED, event -> renderView.getPanel().requestFocus() );
+		this.renderView = new Viewer3DFX( 100, 100 );
+		this.controller = new Viewer3DControllerFX( renderView );
+		this.view.setInfoNode( renderView );
+		this.renderView.scene().addEventHandler( MouseEvent.MOUSE_CLICKED, event -> renderView.scene().requestFocus() );
 
-		final Mode[] initialModes = { new NavigationOnly(), new Highlights( selectedIds ), new Merges( selectedIds, assignments ), new Render3D( controller ) };
+		final Mode[] initialModes = { new NavigationOnly(), new Highlights( selectedIds ), new Merges( selectedIds, assignments ), new Render3DFX( controller ) };
 		Arrays.stream( initialModes ).forEach( modes::add );
 
 		for ( final Mode mode : modes )
@@ -362,10 +357,10 @@ public class Atlas
 				( ( Highlights ) mode ).addSource( vsource, source, toIdConverter );
 			else if ( mode instanceof Merges )
 				( ( Merges ) mode ).addSource( vsource, source, toIdConverter );
-			else if ( mode instanceof Render3D && spec instanceof RenderableSpec )
+			else if ( mode instanceof Render3DFX && spec instanceof RenderableSpec )
 			{
 				System.out.println( "ADDING RENDERABLE SOURCE!" );
-				( ( Render3D ) mode ).addSource( vsource, source, toIdConverter, ( ( RenderableSpec ) spec )::foregroundCheck, assignment, stream );
+				( ( Render3DFX ) mode ).addSource( vsource, source, toIdConverter, ( ( RenderableSpec ) spec )::foregroundCheck, assignment, stream );
 			}
 
 		view.addActor( new ViewerActor()
