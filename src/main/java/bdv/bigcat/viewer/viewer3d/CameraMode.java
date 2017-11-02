@@ -1,7 +1,5 @@
 package bdv.bigcat.viewer.viewer3d;
 
-import com.jogamp.opengl.math.Quaternion;
-
 import cleargl.GLVector;
 import graphics.scenery.Camera;
 import graphics.scenery.Hub;
@@ -11,12 +9,12 @@ import graphics.scenery.backends.Renderer;
 import graphics.scenery.controls.InputHandler;
 import graphics.scenery.controls.behaviours.MovementCommand;
 
-interface NeuronRendererListener
-{
-	void updateCamera( float[] boundingBox );
-}
+//interface NeuronRendererListener
+//{
+//	void updateCamera( float[] boundingBox );
+//}
 
-public class CameraMode implements NeuronRendererListener
+public class CameraMode // implements NeuronRendererListener
 {
 	private final Scene scene;
 
@@ -168,49 +166,49 @@ public class CameraMode implements NeuronRendererListener
 //		System.out.println( "test3" );
 //	}
 
-	@Override
-	public void updateCamera( final float[] boundingBox )
-	{
-		System.out.println( "updating camera" );
-		// if completeBoundingBox contains boundingbox, it is not necessary
-		// update the camera
-		if ( completeBoundingBox != null && contains( completeBoundingBox, boundingBox ) )
-			return;
-
-		if ( completeBoundingBox == null )
-			completeBoundingBox = boundingBox.clone();
-
-		System.out.println( "complete bb: " + completeBoundingBox[ 0 ] + " " + completeBoundingBox[ 2 ] + " " + completeBoundingBox[ 4 ] +
-				" " + completeBoundingBox[ 1 ] + " " + completeBoundingBox[ 3 ] + " " + completeBoundingBox[ 5 ] );
-
-		// set the camera position to the center of the complete bounding box
-		final float[] cameraPosition = new float[ 3 ];
-		final float[] centerBB = new float[ 3 ];
-		for ( int i = 0; i < completeBoundingBox.length / 2; i++ )
-		{
-			cameraPosition[ i ] = ( completeBoundingBox[ i * 2 ] + completeBoundingBox[ i * 2 + 1 ] ) / 2;
-			centerBB[ i ] = ( completeBoundingBox[ i * 2 ] + completeBoundingBox[ i * 2 + 1 ] ) / 2;
-		}
-
-		// calculate the distance to the center
-		final float FOV = ( float ) ( automaticCamera.getFov() * ( Math.PI / 180 ) );
-		final float height = completeBoundingBox[ 1 ] - completeBoundingBox[ 0 ];
-		final float width = completeBoundingBox[ 3 ] - completeBoundingBox[ 2 ];
-		final float depth = completeBoundingBox[ 5 ] - completeBoundingBox[ 4 ];
-		final float dist = Math.max( height, Math.max( height, depth ) );
-		final float distanceToCenter = ( float ) Math.abs( dist / 2 / Math.tan( FOV / 2 ) ) + width / 2;
-
-		// walk with the camera in the x-axis
-		cameraPosition[ 0 ] += distanceToCenter;
-		automaticCamera.setPosition( new GLVector( cameraPosition[ 0 ], cameraPosition[ 1 ], cameraPosition[ 2 ] ) );
-
-		final float angle = ( float ) ( -90 * ( Math.PI / 180 ) );
-		final GLVector rotationVector = new GLVector( 0, 0, 0 );
-		rotationVector.set( 1, angle );
-		final Quaternion rotation = new Quaternion();
-		rotation.setFromEuler( rotationVector.get( 0 ), rotationVector.get( 1 ), rotationVector.get( 2 ) );
-		automaticCamera.setRotation( rotation );
-	}
+//	@Override
+//	public void updateCamera( final float[] boundingBox )
+//	{
+//		System.out.println( "updating camera" );
+//		// if completeBoundingBox contains boundingbox, it is not necessary
+//		// update the camera
+//		if ( completeBoundingBox != null && contains( completeBoundingBox, boundingBox ) )
+//			return;
+//
+//		if ( completeBoundingBox == null )
+//			completeBoundingBox = boundingBox.clone();
+//
+//		System.out.println( "complete bb: " + completeBoundingBox[ 0 ] + " " + completeBoundingBox[ 2 ] + " " + completeBoundingBox[ 4 ] +
+//				" " + completeBoundingBox[ 1 ] + " " + completeBoundingBox[ 3 ] + " " + completeBoundingBox[ 5 ] );
+//
+//		// set the camera position to the center of the complete bounding box
+//		final float[] cameraPosition = new float[ 3 ];
+//		final float[] centerBB = new float[ 3 ];
+//		for ( int i = 0; i < completeBoundingBox.length / 2; i++ )
+//		{
+//			cameraPosition[ i ] = ( completeBoundingBox[ i * 2 ] + completeBoundingBox[ i * 2 + 1 ] ) / 2;
+//			centerBB[ i ] = ( completeBoundingBox[ i * 2 ] + completeBoundingBox[ i * 2 + 1 ] ) / 2;
+//		}
+//
+//		// calculate the distance to the center
+//		final float FOV = ( float ) ( automaticCamera.getFov() * ( Math.PI / 180 ) );
+//		final float height = completeBoundingBox[ 1 ] - completeBoundingBox[ 0 ];
+//		final float width = completeBoundingBox[ 3 ] - completeBoundingBox[ 2 ];
+//		final float depth = completeBoundingBox[ 5 ] - completeBoundingBox[ 4 ];
+//		final float dist = Math.max( height, Math.max( height, depth ) );
+//		final float distanceToCenter = ( float ) Math.abs( dist / 2 / Math.tan( FOV / 2 ) ) + width / 2;
+//
+//		// walk with the camera in the x-axis
+//		cameraPosition[ 0 ] += distanceToCenter;
+//		automaticCamera.setPosition( new GLVector( cameraPosition[ 0 ], cameraPosition[ 1 ], cameraPosition[ 2 ] ) );
+//
+//		final float angle = ( float ) ( -90 * ( Math.PI / 180 ) );
+//		final GLVector rotationVector = new GLVector( 0, 0, 0 );
+//		rotationVector.set( 1, angle );
+//		final Quaternion rotation = new Quaternion();
+//		rotation.setFromEuler( rotationVector.get( 0 ), rotationVector.get( 1 ), rotationVector.get( 2 ) );
+//		automaticCamera.setRotation( rotation );
+//	}
 
 	/**
 	 * Return true if completeBoundingBox contains boundingBox, false otherwise.

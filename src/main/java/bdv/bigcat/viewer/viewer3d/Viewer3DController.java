@@ -16,7 +16,6 @@ import org.slf4j.LoggerFactory;
 import bdv.bigcat.ui.ARGBStream;
 import bdv.bigcat.viewer.state.FragmentSegmentAssignmentState;
 import bdv.bigcat.viewer.viewer3d.marchingCubes.ForegroundCheck;
-import cleargl.GLVector;
 import net.imglib2.Interval;
 import net.imglib2.Point;
 import net.imglib2.RandomAccessible;
@@ -54,7 +53,7 @@ public class Viewer3DController
 	public void init()
 	{
 		// initialize the 3d viewer
-		viewer3D.init();
+//		viewer3D.init();
 
 		// start the camera
 		startCamera();
@@ -62,12 +61,12 @@ public class Viewer3DController
 
 	public void startCamera()
 	{
-		camera = new CameraMode( viewer3D.scene(), viewer3D.getHub() );
-		camera.perspectiveCamera( 50f, viewer3D.getWindowWidth(), viewer3D.getWindowHeight(), 0.1f, 10000.0f );
+//		camera = new CameraMode( viewer3D.scene(), viewer3D.getHub() );
+//		camera.perspectiveCamera( 50f, viewer3D.getWindowWidth(), viewer3D.getWindowHeight(), 0.1f, 10000.0f );
 		
 		// no HMD, then default mode is automatic camera
 //		if ( viewer3D.getHub().getWorkingHMD() == null )
-		camera.automatic();
+//		camera.automatic();
 //		else
 //		camera.manual();
 	}
@@ -109,9 +108,9 @@ public class Viewer3DController
 				this.renderers.forEach( NeuronRenderer::stopListening );
 				this.renderers.clear();
 
-				final RealLocalizable cameraPosition = new RealPoint( worldLocation.getFloatPosition( 0 ), worldLocation.getFloatPosition( 1 ), worldLocation.getFloatPosition( 2 ) * 1.5 );
-				camera.setPosition( new GLVector( cameraPosition.getFloatPosition( 0 ), cameraPosition.getFloatPosition( 1 ), cameraPosition.getFloatPosition( 2 ) ) );
-				System.out.println( "initial camera position: " + cameraPosition.getFloatPosition( 0 ) + "x" + cameraPosition.getFloatPosition( 1 ) + "x" + cameraPosition.getFloatPosition( 2 ) );
+//				final RealLocalizable cameraPosition = new RealPoint( worldLocation.getFloatPosition( 0 ), worldLocation.getFloatPosition( 1 ), worldLocation.getFloatPosition( 2 ) * 1.5 );
+//				camera.setPosition( new GLVector( cameraPosition.getFloatPosition( 0 ), cameraPosition.getFloatPosition( 1 ), cameraPosition.getFloatPosition( 2 ) ) );
+//				System.out.println( "initial camera position: " + cameraPosition.getFloatPosition( 0 ) + "x" + cameraPosition.getFloatPosition( 1 ) + "x" + cameraPosition.getFloatPosition( 2 ) );
 
 			}
 
@@ -141,8 +140,8 @@ public class Viewer3DController
 			nr.render();
 			this.renderers.add( nr );
 
-			if ( camera.getCameraMode() == CameraMode.Mode.AUTOMATIC )
-				nr.addListener( camera );
+//			if ( camera.getCameraMode() == CameraMode.Mode.AUTOMATIC )
+//				nr.addListener( camera );
 
 		}
 	}

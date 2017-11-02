@@ -12,6 +12,7 @@ import bdv.bigcat.viewer.viewer3d.marchingCubes.ForegroundCheck;
 import bdv.bigcat.viewer.viewer3d.marchingCubes.MarchingCubes;
 import bdv.bigcat.viewer.viewer3d.util.HashWrapper;
 import bdv.util.InvokeOnJavaFXApplicationThread;
+import javafx.geometry.Bounds;
 import javafx.scene.Group;
 import javafx.scene.image.WritableImage;
 import javafx.scene.paint.Color;
@@ -189,7 +190,10 @@ public class NeuronFX< T >
 								this.chunks.remove( chunk );
 								root.getChildren().remove( chunk );
 								addNode( mv );
-//								generator.updateCompleteBoundingBox( mesh.generateBoundingBox() );
+								Bounds bb = mv.getBoundsInParent();
+								double[] bbArray = new double[] { bb.getMinX(), bb.getMaxX(), bb.getMinY(), bb.getMaxY(), bb.getMinZ(), bb.getMaxZ() };
+								generator.updateCompleteBoundingBox( bbArray );
+								
 							}
 						}
 

@@ -1,7 +1,6 @@
 package bdv.bigcat.viewer.viewer3d;
 
 import javafx.scene.Group;
-import javafx.scene.PerspectiveCamera;
 import javafx.scene.SubScene;
 import javafx.scene.layout.Pane;
 import javafx.scene.paint.Color;
@@ -13,7 +12,7 @@ public class Viewer3DFX extends Pane
 
 	private final SubScene scene;
 
-	private final PerspectiveCamera camera;
+//	private final PerspectiveCamera camera;
 
 	public Viewer3DFX( final double width, final double height )
 	{
@@ -23,13 +22,13 @@ public class Viewer3DFX extends Pane
 		this.setHeight( height );
 		this.scene = new SubScene( root, width, height );
 		this.scene.setFill( Color.BLACK );
-		this.camera = new PerspectiveCamera( true );
-		this.camera.setNearClip( 0.1 );
-		this.camera.setFarClip( 10000.0 );
-		this.camera.setTranslateY( 0 );
-		this.camera.setTranslateX( 0 );
-		this.camera.setTranslateZ( 0 );
-		this.scene.setCamera( this.camera );
+//		this.camera = new PerspectiveCamera( true );
+//		this.camera.setNearClip( 0.1 );
+//		this.camera.setFarClip( 10000.0 );
+//		this.camera.setTranslateY( 0 );
+//		this.camera.setTranslateX( 0 );
+//		this.camera.setTranslateZ( 0 );
+//		this.scene.setCamera( this.camera );
 
 		this.getChildren().add( this.scene );
 		this.scene.widthProperty().bind( widthProperty() );

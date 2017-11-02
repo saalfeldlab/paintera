@@ -69,7 +69,7 @@ public class NeuronRendererFX< T, F extends FragmentSegmentAssignmentState< F > 
 	 * Bounding box of the complete mesh/neuron (xmin, xmax, ymin, ymax, zmin,
 	 * zmax)
 	 */
-	private float[] completeBoundingBox = null;
+	private double[] completeBoundingBox = null;
 
 	public NeuronRendererFX(
 			final long selectedFragmentId,
@@ -257,17 +257,17 @@ public class NeuronRendererFX< T, F extends FragmentSegmentAssignmentState< F > 
 		this.allowRendering = allow;
 	}
 
-	public synchronized void updateCompleteBoundingBox( final float[] boundingBox )
+	public synchronized void updateCompleteBoundingBox( final double[] boundingBox )
 	{
 		assert completeBoundingBox.length == boundingBox.length;
 
 		completeBoundingBox = maxBoundingBox( completeBoundingBox, boundingBox );
 
-		for ( final NeuronRendererListener listener : listeners )
-			listener.updateCamera( completeBoundingBox );
+//		for ( final NeuronRendererListener listener : listeners )
+//			listener.updateCamera( completeBoundingBox );
 	}
 
-	private synchronized float[] maxBoundingBox( final float[] completeBoundingBox, final float[] boundingBox )
+	private synchronized double[] maxBoundingBox( final double[] completeBoundingBox, final double[] boundingBox )
 	{
 		if ( completeBoundingBox == null )
 			return boundingBox;
