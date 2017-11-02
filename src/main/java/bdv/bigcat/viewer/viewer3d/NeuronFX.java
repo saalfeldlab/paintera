@@ -16,6 +16,7 @@ import javafx.scene.Group;
 import javafx.scene.paint.Color;
 import javafx.scene.paint.PhongMaterial;
 import javafx.scene.shape.Box;
+import javafx.scene.shape.CullFace;
 import javafx.scene.shape.MeshView;
 import javafx.scene.shape.ObservableFaceArray;
 import javafx.scene.shape.TriangleMesh;
@@ -160,14 +161,16 @@ public class NeuronFX< T >
 						final float[] normals = new float[ vertices.length ];
 //						MarchingCubes.surfaceNormals( vertices, normals );
 						MarchingCubes.averagedSurfaceNormals( vertices, normals );
+						for ( int i = 0; i < normals.length; ++i )
+							normals[ i ] *= -1;
 						final TriangleMesh mesh = new TriangleMesh();
 						final PhongMaterial material = new PhongMaterial();
 						material.setDiffuseColor( surfaceColor );
-						material.setSpecularColor( Color.WHITE );
+//						material.setSpecularColor( Color.WHITE );
 
 						final MeshView mv = new MeshView( mesh );
-						mv.setOpacity( 0.5 );
-//						mv.setCullFace( CullFace.NONE );
+						mv.setOpacity( 1.0 );
+						mv.setCullFace( CullFace.FRONT );
 						mv.setMaterial( material );
 						mesh.getPoints().addAll( vertices );
 						mesh.getNormals().addAll( normals );

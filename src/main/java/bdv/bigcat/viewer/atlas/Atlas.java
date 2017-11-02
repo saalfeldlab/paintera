@@ -142,7 +142,7 @@ public class Atlas
 //				specs.selectedSourceProperty().setValue( Optional.of( state.get().spec() ) );
 //		} );
 
-		this.renderView = new Viewer3DFX( 100, 100 );
+		this.renderView = new Viewer3DFX( 100, 100, interval );
 		this.controller = new Viewer3DControllerFX( renderView );
 		this.view.setInfoNode( renderView );
 		this.renderView.scene().addEventHandler( MouseEvent.MOUSE_CLICKED, event -> renderView.scene().requestFocus() );
@@ -257,13 +257,19 @@ public class Atlas
 
 		new Thread( controller::init ).start();
 
+		final List< OrthoSliceFX > orthoSlices = new ArrayList<>();
 		for ( final Node child : this.baseView().getChildren() )
 			if ( child instanceof ViewerNode )
 			{
 				final ViewerNode vn = ( ViewerNode ) child;
-				final OrthoSliceFX orthoSlice = new OrthoSliceFX( renderView.root(), vn.getViewer() );
+				final OrthoSliceFX orthoSlice = new OrthoSliceFX( renderView.meshesGroup(), vn.getViewer() );
+				orthoSlices.add( orthoSlice );
 			}
 
+		this.baseView().addEventHandler( KeyEvent.KEY_PRESSED, event -> {
+			if ( event.getCode().equals( KeyCode.O ) && event.isShiftDown() && !event.isAltDown() && !event.isControlDown() )
+				orthoSlices.forEach( OrthoSliceFX::toggleVisibility );
+		} );
 		// test the look and feel with both Caspian and Modena
 		Application.setUserAgentStylesheet( Application.STYLESHEET_CASPIAN );
 //		Application.setUserAgentStylesheet( Application.STYLESHEET_MODENA );

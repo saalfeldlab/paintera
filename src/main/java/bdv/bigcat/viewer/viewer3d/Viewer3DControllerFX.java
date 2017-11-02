@@ -16,7 +16,6 @@ import org.slf4j.LoggerFactory;
 import bdv.bigcat.ui.ARGBStream;
 import bdv.bigcat.viewer.state.FragmentSegmentAssignmentState;
 import bdv.bigcat.viewer.viewer3d.marchingCubes.ForegroundCheck;
-import javafx.scene.Group;
 import net.imglib2.Interval;
 import net.imglib2.Point;
 import net.imglib2.RandomAccessible;
@@ -126,7 +125,7 @@ public class Viewer3DControllerFX
 					volumeLabels,
 					interval,
 					getForegroundCheck,
-					( Group ) viewer3D.scene().getRoot(),
+					viewer3D.meshesGroup(),
 					viewer3D.scene().getCamera(),
 					es,
 					transform,
