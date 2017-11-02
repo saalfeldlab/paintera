@@ -23,12 +23,12 @@ install:
   - make
   - sudo make install
   - cd ../..
-  - git clone -b bigcat-javafx https://github.com/hanslovsky/bigdataviewer-core.git
-  - cd bigdataviewer-core
-  - mvn install
-  - cd ..
   - git clone -b javafx https://github.com/hanslovsky/imglib2-ui.git
   - cd imglib2-ui
+  - mvn install
+  - cd ..
+  - git clone -b bigcat-javafx https://github.com/hanslovsky/bigdataviewer-core.git
+  - cd bigdataviewer-core
   - mvn install
   - cd ..
   - git clone https://github.com/hanslovsky/imglib2.git

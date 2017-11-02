@@ -18,8 +18,8 @@ sudo apt install libzmq3-dev
 * [jzmq](https://github.com/zeromq/jzmq)
 
 * branchs (download and compile each one of them: `mvn clean install`):
-	* [bdv-core:4.3.1-SNAPSHOT - branch: bigcat-javafx](https://github.com/hanslovsky/bigdataviewer-core/tree/bigcat-javafx)
 	* [imglib2-ui:2.0.0-beta-34-SNAPSHOT - branch: javafx](https://github.com/hanslovsky/imglib2-ui/tree/javafx)
+	* [bdv-core:4.3.1-SNAPSHOT - branch: bigcat-javafx](https://github.com/hanslovsky/bigdataviewer-core/tree/bigcat-javafx)
 
 * [imglib2:4.6.0-SNAPSHOT-hanslovsky](https://github.com/hanslovsky/imglib2.git)
 
