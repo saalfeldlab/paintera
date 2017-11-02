@@ -12,6 +12,7 @@ import bdv.AbstractViewerSetupImgLoader;
 import bdv.bigcat.viewer.atlas.Atlas;
 import bdv.bigcat.viewer.atlas.data.HDF5LabelMultisetSourceSpec;
 import bdv.bigcat.viewer.atlas.data.HDF5UnsignedByteSpec;
+import bdv.img.cache.VolatileGlobalCellCache;
 import bdv.viewer.Interpolation;
 import bdv.viewer.Source;
 import javafx.application.Platform;
@@ -54,7 +55,7 @@ public class ExampleApplicationCremi
 		double[] resolution = { 4, 4, 40 };
 		int[] rawCellSize = { 192, 96, 7 };
 		int[] labelCellSize = { 79, 79, 4 };
-		
+
 		final Parameters params = getParameters( args );
 		if ( params != null )
 		{
@@ -67,8 +68,9 @@ public class ExampleApplicationCremi
 			rawCellSize = new int[] { params.rawCellSize.get( 0 ), params.rawCellSize.get( 1 ), params.rawCellSize.get( 2 ) };
 			labelCellSize = new int[] { params.labelCellSize.get( 0 ), params.labelCellSize.get( 1 ), params.labelCellSize.get( 2 ) };
 		}
+		final VolatileGlobalCellCache cellCache = new VolatileGlobalCellCache( 1, 12 );
 
-		final HDF5UnsignedByteSpec rawSource = new HDF5UnsignedByteSpec( rawFile, rawDataset, rawCellSize, resolution, "raw" );
+		final HDF5UnsignedByteSpec rawSource = new HDF5UnsignedByteSpec( rawFile, rawDataset, rawCellSize, resolution, "raw", cellCache );
 
 		final double[] min = Arrays.stream( Intervals.minAsLongArray( rawSource.getSource().getSource( 0, 0 ) ) ).mapToDouble( v -> v ).toArray();
 		final double[] max = Arrays.stream( Intervals.maxAsLongArray( rawSource.getSource().getSource( 0, 0 ) ) ).mapToDouble( v -> v ).toArray();
@@ -77,7 +79,10 @@ public class ExampleApplicationCremi
 		affine.apply( min, min );
 		affine.apply( max, max );
 
-		final Atlas viewer = new Atlas( new FinalInterval( Arrays.stream( min ).mapToLong( Math::round ).toArray(), Arrays.stream( max ).mapToLong( Math::round ).toArray() ) );
+		final Atlas viewer = new Atlas(
+				new FinalInterval( Arrays.stream( min ).mapToLong( Math::round ).toArray(),
+						Arrays.stream( max ).mapToLong( Math::round ).toArray() ),
+				cellCache );
 
 		final CountDownLatch latch = new CountDownLatch( 1 );
 		Platform.runLater( () -> {
@@ -97,12 +102,12 @@ public class ExampleApplicationCremi
 		latch.await();
 		viewer.addRawSource( rawSource, 0., 255. );
 
-		final HDF5LabelMultisetSourceSpec labelSpec2 = new HDF5LabelMultisetSourceSpec( labelsFile, labelsDataset, labelCellSize, "labels" );
+		final HDF5LabelMultisetSourceSpec labelSpec2 = new HDF5LabelMultisetSourceSpec( labelsFile, labelsDataset, labelCellSize, "labels", cellCache );
 		viewer.addLabelSource( labelSpec2 );
 
 	}
 
-	private static Parameters getParameters( String[] args )
+	private static Parameters getParameters( final String[] args )
 	{
 		// get the parameters
 		final Parameters params = new Parameters();
@@ -111,21 +116,17 @@ public class ExampleApplicationCremi
 				.build()
 				.parse( args );
 
-		boolean success = validateParameters( params );
+		final boolean success = validateParameters( params );
 		if ( !success )
-		{
 			return null;
-		}
 
 		return params;
 	}
 
-	private static boolean validateParameters( Parameters params )
+	private static boolean validateParameters( final Parameters params )
 	{
 		if ( params.filePath == "" )
-		{
 			return false;
-		}
 
 		return true;
 	}

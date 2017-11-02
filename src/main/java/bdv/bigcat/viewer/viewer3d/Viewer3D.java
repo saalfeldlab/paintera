@@ -44,7 +44,6 @@ public class Viewer3D
 		System.out.println( "init... " );
 
 		hub = new Hub();
-
 		final Settings settings = new Settings();
 		hub.add( SceneryElement.Settings, settings );
 

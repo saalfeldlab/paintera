@@ -27,7 +27,7 @@ public class LabelMultisetSource extends AbstractLabelMultisetSource
 	@Override
 	public RandomAccessibleInterval< LabelMultisetType > getSource( final int t, final int level )
 	{
-		return multisetImageLoader.getImage( 0 );
+		return multisetImageLoader.getImage( level );
 	}
 
 	@Override

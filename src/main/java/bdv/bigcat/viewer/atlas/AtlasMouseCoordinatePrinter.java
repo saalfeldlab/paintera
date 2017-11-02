@@ -1,14 +1,14 @@
 package bdv.bigcat.viewer.atlas;
 
-import java.awt.event.MouseEvent;
-import java.awt.event.MouseMotionListener;
 import java.util.HashMap;
 import java.util.function.Consumer;
 import java.util.function.Function;
 
-import bdv.viewer.ViewerPanel;
+import bdv.viewer.ViewerPanelFX;
 import javafx.application.Platform;
+import javafx.event.EventHandler;
 import javafx.scene.control.Label;
+import javafx.scene.input.MouseEvent;
 import net.imglib2.RealPoint;
 import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.ui.TransformListener;
@@ -16,18 +16,18 @@ import net.imglib2.ui.TransformListener;
 public class AtlasMouseCoordinatePrinter
 {
 
-	private class Listener implements MouseMotionListener, TransformListener< AffineTransform3D >
+	private class Listener implements EventHandler< javafx.scene.input.MouseEvent >, TransformListener< AffineTransform3D >
 	{
 
-		private final ViewerPanel viewer;
+		private final ViewerPanelFX viewer;
 
-		private int x, y;
+		private double x, y;
 
 		private final double[] pos = new double[ 3 ];
 
 		private final RealPoint p = RealPoint.wrap( pos );
 
-		private Listener( final ViewerPanel viewer )
+		private Listener( final ViewerPanelFX viewer )
 		{
 			this.viewer = viewer;
 		}
@@ -45,13 +45,7 @@ public class AtlasMouseCoordinatePrinter
 		}
 
 		@Override
-		public void mouseDragged( final MouseEvent arg0 )
-		{
-
-		}
-
-		@Override
-		public void mouseMoved( final MouseEvent e )
+		public void handle( final MouseEvent e )
 		{
 			this.x = e.getX();
 			this.y = e.getY();
@@ -68,25 +62,26 @@ public class AtlasMouseCoordinatePrinter
 		this.statusBar = statusBar;
 	}
 
-	private final HashMap< ViewerPanel, Listener > listeners = new HashMap<>();
+	private final HashMap< ViewerPanelFX, Listener > listeners = new HashMap<>();
 
-	private final Function< ViewerPanel, Listener > generator = Listener::new;
+	private final Function< ViewerPanelFX, Listener > generator = Listener::new;
 
-	public Consumer< ViewerPanel > onEnter()
+	public Consumer< ViewerPanelFX > onEnter()
 	{
 		return t -> {
 			this.listeners.put( t, generator.apply( t ) );
 			final Listener listener = this.listeners.get( t );
-			t.getDisplay().addMouseMotionListener( listener );
+			t.addEventHandler( MouseEvent.MOUSE_MOVED, listener );
+//			t.getDisplay().addMouseMotionListener( listener );
 			t.addTransformListener( listener );
 		};
 	}
 
-	public Consumer< ViewerPanel > onExit()
+	public Consumer< ViewerPanelFX > onExit()
 	{
 		return t -> {
 			final Listener listener = this.listeners.get( t );
-			t.getDisplay().removeMouseMotionListener( listener );
+			t.removeEventHandler( MouseEvent.MOUSE_MOVED, listener );
 			t.removeTransformListener( listener );
 			if ( statusBar != null )
 				statusBar.setText( "(---.---, ---.---, ---.---)" );

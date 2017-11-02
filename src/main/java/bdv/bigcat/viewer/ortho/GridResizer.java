@@ -47,7 +47,6 @@ public class GridResizer
 //		this.grid.setOnMousePressed( new MousePressed() );
 //		this.grid.setOnMouseDragged( new MouseDragged() );
 //		this.grid.setOnMouseClicked( new MouseDoubleClicked() );
-		System.out.println( "ADDED MC!" );
 	}
 
 	public EventHandler< MouseEvent > onMouseMovedHandler()

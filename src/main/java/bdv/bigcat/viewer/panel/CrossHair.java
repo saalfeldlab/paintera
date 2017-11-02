@@ -1,25 +1,29 @@
 package bdv.bigcat.viewer.panel;
 
-import java.awt.Color;
-import java.awt.Graphics;
+import javafx.scene.canvas.GraphicsContext;
+import javafx.scene.paint.Color;
+import net.imglib2.ui.OverlayRendererGeneric;
 
-import net.imglib2.ui.OverlayRenderer;
-
-public class CrossHair implements OverlayRenderer
+public class CrossHair implements OverlayRendererGeneric< GraphicsContext >
 {
 
 	private int w, h;
 
-	private Color color = new Color( Color.WHITE.getRed(), Color.WHITE.getGreen(), Color.WHITE.getBlue(), 127 );
+	private Color color = new Color( Color.WHITE.getRed(), Color.WHITE.getGreen(), Color.WHITE.getBlue(), 0.5 );
 
 	public void setColor( final int r, final int g, final int b )
 	{
 		setColor( r, g, b, 127 );
 	}
 
-	public void setColor( final int r, final int g, final int b, final int a )
+	public void setColor( final double r, final double g, final double b, final double a )
 	{
 		setColor( new Color( r, g, b, a ) );
+	}
+
+	public void setColor( final int r, final int g, final int b, final double a )
+	{
+		setColor( Color.rgb( r, g, b, a ) );
 	}
 
 	public void setColor( final Color color )
@@ -35,14 +39,14 @@ public class CrossHair implements OverlayRenderer
 	}
 
 	@Override
-	public void drawOverlays( final Graphics g )
+	public void drawOverlays( final GraphicsContext g )
 	{
 
-		if ( color.getAlpha() > 0 )
+		if ( color.getOpacity() > 0 )
 		{
-			g.setColor( color );
-			g.drawLine( 0, h / 2, w, h / 2 );
-			g.drawLine( w / 2, 0, w / 2, h );
+			g.setStroke( color );
+			g.strokeLine( 0, h / 2, w, h / 2 );
+			g.strokeLine( w / 2, 0, w / 2, h );
 		}
 
 	}

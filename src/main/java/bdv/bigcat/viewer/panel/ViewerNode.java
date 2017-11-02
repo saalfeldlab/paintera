@@ -1,35 +1,24 @@
 package bdv.bigcat.viewer.panel;
 
-import java.awt.Color;
-import java.awt.Dimension;
-import java.awt.event.MouseMotionListener;
 import java.util.ArrayList;
 import java.util.HashMap;
-
-import javax.swing.JComponent;
-import javax.swing.SwingUtilities;
-
-import org.scijava.ui.behaviour.Behaviour;
-import org.scijava.ui.behaviour.MouseAndKeyHandler;
-import org.scijava.ui.behaviour.io.InputTriggerConfig;
-import org.scijava.ui.behaviour.util.AbstractNamedAction;
-import org.scijava.ui.behaviour.util.Actions;
-import org.scijava.ui.behaviour.util.Behaviours;
-import org.scijava.ui.behaviour.util.InputActionBindings;
-import org.scijava.ui.behaviour.util.TriggerBehaviourBindings;
+import java.util.Set;
 
 import bdv.cache.CacheControl;
 import bdv.viewer.DisplayMode;
 import bdv.viewer.Source;
 import bdv.viewer.SourceAndConverter;
 import bdv.viewer.ViewerOptions;
-import bdv.viewer.ViewerPanel;
+import bdv.viewer.ViewerPanelFX;
 import javafx.beans.value.ChangeListener;
 import javafx.collections.ListChangeListener;
-import javafx.embed.swing.SwingNode;
+import javafx.scene.input.KeyCode;
+import javafx.scene.input.MouseEvent;
+import javafx.scene.layout.Pane;
+import javafx.scene.paint.Color;
 import net.imglib2.realtransform.AffineTransform3D;
 
-public class ViewerNode extends SwingNode implements ListChangeListener< SourceAndConverter< ? > >
+public class ViewerNode extends Pane implements ListChangeListener< SourceAndConverter< ? > >
 {
 
 	public enum ViewerAxis
@@ -37,7 +26,7 @@ public class ViewerNode extends SwingNode implements ListChangeListener< SourceA
 		X, Y, Z
 	};
 
-	private final ViewerPanel viewer;
+	private final ViewerPanelFX viewer;
 
 	private final ViewerState state;
 
@@ -49,23 +38,11 @@ public class ViewerNode extends SwingNode implements ListChangeListener< SourceA
 
 	private boolean managesOwnLayerVisibility = false;
 
-	private final InputActionBindings keybindings = new InputActionBindings();
-
-	private final TriggerBehaviourBindings triggerbindings = new TriggerBehaviourBindings();
-
-	private final InputTriggerConfig inputTriggerConfig = new InputTriggerConfig();
-
-	private final Behaviours behaviours = new Behaviours( inputTriggerConfig );
-
-	private final Actions actions = new Actions( inputTriggerConfig );
-
-	private final MouseAndKeyHandler mouseAndKeyHandler = new MouseAndKeyHandler();
-
 	private final CrossHair crosshair = new CrossHair();
 
-	private final Color onFocusColor = new Color( 255, 255, 255, 180 );
+	private final Color onFocusColor = Color.rgb( 255, 255, 255, 180.0 / 255.0 );
 
-	private final Color outOfFocusColor = new Color( 127, 127, 127, 100 );
+	private final Color outOfFocusColor = Color.rgb( 127, 127, 127, 100.0 / 255.0 );
 	{
 		crosshair.setColor( outOfFocusColor );
 	}
@@ -73,26 +50,45 @@ public class ViewerNode extends SwingNode implements ListChangeListener< SourceA
 	public ViewerNode(
 			final CacheControl cacheControl,
 			final ViewerAxis viewerAxis,
-			final ViewerOptions viewerOptions ) throws InterruptedException
+			final ViewerOptions viewerOptions,
+			final Set< KeyCode > activeKeys )
 	{
-		this.viewer = createViewer( viewerOptions, cacheControl );
-		this.setContent( this.viewer );
+		super();
+		this.viewer = new ViewerPanelFX( new ArrayList<>(), 1, cacheControl, viewerOptions );
+		this.getChildren().add( this.viewer );
+		this.setWidth( this.viewer.getWidth() );
+		this.setHeight( this.viewer.getHeight() );
+		this.setMinSize( 0, 0 );
+		this.heightProperty().addListener( ( obs, oldv, newv ) -> viewer.setPrefHeight( getHeight() ) );
+		this.widthProperty().addListener( ( obs, oldv, newv ) -> viewer.setPrefWidth( getWidth() ) );
+		this.viewer.setMinSize( 0, 0 );
+//		this.viewer.showMultibox( false );
 		this.viewerAxis = viewerAxis;
 		this.state = new ViewerState( this.viewer );
-		this.manager = new ViewerTransformManager( this.viewer, state, globalToViewer( viewerAxis ) );
+		this.manager = new ViewerTransformManager( this.viewer, state, globalToViewer( viewerAxis ), activeKeys );
 		initializeViewer();
 		addCrosshair();
+//		https://stackoverflow.com/questions/21657034/javafx-keyevent-propagation-order
+//		https://stackoverflow.com/questions/32802664/setonkeypressed-event-not-working-properly
+//		Node only reacts to key events when focused!
+		this.viewer.addEventFilter( MouseEvent.MOUSE_ENTERED, event -> {
+			this.viewer.requestFocus();
+		} );
+		this.viewer.addEventFilter( MouseEvent.MOUSE_PRESSED, event -> {
+			if ( !this.isFocused() )
+				this.viewer.requestFocus();
+		} );
 	}
 
 	private void addCrosshair()
 	{
 
-		this.focusedProperty().addListener( ( ChangeListener< Boolean > ) ( observable, oldValue, newValue ) -> {
+		this.viewer.focusedProperty().addListener( ( ChangeListener< Boolean > ) ( observable, oldValue, newValue ) -> {
 			if ( newValue )
 				crosshair.setColor( onFocusColor );
 			else
 				crosshair.setColor( outOfFocusColor );
-			viewer.getDisplay().repaint();
+			viewer.getDisplay().drawOverlays();
 		} );
 	}
 
@@ -106,88 +102,25 @@ public class ViewerNode extends SwingNode implements ListChangeListener< SourceA
 		return manager;
 	}
 
-	public void addBehaviour( final Behaviour behaviour, final String name, final String... defaultTriggers )
-	{
-		this.behaviours.behaviour( behaviour, name, defaultTriggers );
-	}
-
-	public void addAction( final AbstractNamedAction action, final String... defaultKeyStrokes )
-	{
-		this.actions.namedAction( action, defaultKeyStrokes );
-	}
-
-	public void addAction( final Runnable action, final String name, final String... defaultKeyStrokes )
-	{
-		this.actions.runnableAction( action, name, defaultKeyStrokes );
-	}
-
-	public void addMouseMotionListener( final MouseMotionListener listener )
-	{
-		this.viewer.getDisplay().addMouseMotionListener( listener );
-	}
-
-	public void removeMouseMotionListener( final MouseMotionListener listener )
-	{
-		this.viewer.getDisplay().removeMouseMotionListener( listener );
-	}
-
 	public void setViewerPanelState( final ViewerState state )
 	{
 		this.state.set( state );
 	}
 
-	private ViewerPanel createViewer( final ViewerOptions viewerOptions, final CacheControl cacheControl ) throws InterruptedException
+	private void initializeViewer()
 	{
-		final Object notifyObject = this;
-		final ViewerPanel[] viewerStore = new ViewerPanel[ 1 ];
-		SwingUtilities.invokeLater( () -> {
-			viewerStore[ 0 ] = new ViewerPanel( new ArrayList<>(), 1, cacheControl, viewerOptions );
-			synchronized ( notifyObject )
-			{
-				notifyObject.notify();
-			}
-		} );
-		System.out.println( "Waiting for viewer to be initialized!" );
-		synchronized ( notifyObject )
-		{
-			notifyObject.wait();
-		}
-		System.out.println( "Notified about initialization!" );
-		return viewerStore[ 0 ];
-	}
-
-	private void initializeViewer() throws InterruptedException
-	{
-		final Object notifyObject = this;
-		SwingUtilities.invokeLater( () -> {
-			viewer.setDisplayMode( DisplayMode.FUSED );
-			viewer.setMinimumSize( new Dimension( 100, 100 ) );
-			viewer.setPreferredSize( new Dimension( 100, 100 ) );
-
-			viewer.getDisplay().setTransformEventHandler( this.manager );
-			this.manager.install( triggerbindings, keybindings );
-
-			triggerbindings.addBehaviourMap( "default", behaviours.getBehaviourMap() );
-			triggerbindings.addInputTriggerMap( "default", behaviours.getInputTriggerMap() );
-			keybindings.addActionMap( "default", actions.getActionMap() );
-			keybindings.addInputMap( "default", actions.getInputMap() );
-
-			mouseAndKeyHandler.setInputMap( triggerbindings.getConcatenatedInputTriggerMap() );
-			mouseAndKeyHandler.setBehaviourMap( triggerbindings.getConcatenatedBehaviourMap() );
-			viewer.getDisplay().addHandler( mouseAndKeyHandler );
-			viewer.getDisplay().addOverlayRenderer( crosshair );
-			SwingUtilities.replaceUIActionMap( viewer.getRootPane(), keybindings.getConcatenatedActionMap() );
-			SwingUtilities.replaceUIInputMap( viewer.getRootPane(), JComponent.WHEN_ANCESTOR_OF_FOCUSED_COMPONENT, keybindings.getConcatenatedInputMap() );
-			viewer.setVisible( true );
-			synchronized ( notifyObject )
-			{
-				notifyObject.notify();
-			}
-		} );
-		synchronized ( notifyObject )
-		{
-			notifyObject.wait();
-		}
+		viewer.setDisplayMode( DisplayMode.FUSED );
+		this.manager.setCanvasSize( ( int ) viewer.getDisplay().getWidth(), ( int ) viewer.getDisplay().getHeight(), true );
+		viewer.getDisplay().setTransformEventHandler( this.manager );
+//		this.manager.install( triggerbindings, keybindings );
+//		triggerbindings.addBehaviourMap( "default", behaviours.getBehaviourMap() );
+//		triggerbindings.addInputTriggerMap( "default", behaviours.getInputTriggerMap() );
+//		keybindings.addActionMap( "default", actions.getActionMap() );
+//		keybindings.addInputMap( "default", actions.getInputMap() );
+//		mouseAndKeyHandler.setInputMap( triggerbindings.getConcatenatedInputTriggerMap() );
+//		mouseAndKeyHandler.setBehaviourMap( triggerbindings.getConcatenatedBehaviourMap() );
+//		viewer.getDisplay().addHandler( mouseAndKeyHandler );
+		viewer.getDisplay().addOverlayRenderer( crosshair );
 	}
 
 	public static AffineTransform3D globalToViewer( final ViewerAxis axis )
@@ -248,50 +181,14 @@ public class ViewerNode extends SwingNode implements ListChangeListener< SourceA
 		return this.manager.getTransform();
 	}
 
-	public InputTriggerConfig inputTriggerConfig()
-	{
-		return inputTriggerConfig;
-	}
-
-	@Override
-	public double minWidth( final double height )
-	{
-		return getContent() == null ? 0 : getContent().getMinimumSize().getWidth();
-	}
-
-	@Override
-	public double minHeight( final double width )
-	{
-		return getContent() == null ? 0 : getContent().getMinimumSize().getHeight();
-	}
-
-	@Override
-	public double maxWidth( final double height )
-	{
-		return getContent() == null ? 100 : getContent().getMaximumSize().getWidth();
-	}
-
-	@Override
-	public double maxHeight( final double width )
-	{
-		return getContent() == null ? 100 : getContent().getMaximumSize().getHeight();
-	}
-
-	@Override
-	public double prefWidth( final double height )
-	{
-		return getContent() == null ? 10 : getContent().getPreferredSize().getWidth();
-	}
-
-	@Override
-	public double prefHeight( final double width )
-	{
-		return getContent() == null ? 10 : getContent().getPreferredSize().getHeight();
-	}
-
-	public ViewerState getState()
+	public ViewerState getViewerState()
 	{
 		return state;
+	}
+
+	public ViewerPanelFX getViewer()
+	{
+		return this.viewer;
 	}
 
 }

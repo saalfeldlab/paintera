@@ -16,7 +16,7 @@ import org.slf4j.LoggerFactory;
 import bdv.bigcat.ui.ARGBStream;
 import bdv.bigcat.viewer.state.FragmentSegmentAssignmentState;
 import bdv.bigcat.viewer.viewer3d.marchingCubes.ForegroundCheck;
-import cleargl.GLVector;
+import javafx.scene.Group;
 import net.imglib2.Interval;
 import net.imglib2.Point;
 import net.imglib2.RandomAccessible;
@@ -31,43 +31,40 @@ import net.imglib2.type.Type;
  * @author Vanessa Leite
  * @author Philipp Hanslovsky
  */
-public class Viewer3DController
+public class Viewer3DControllerFX
 {
 	public static Logger LOG = LoggerFactory.getLogger( MethodHandles.lookup().lookupClass() );
 
-	private final Viewer3D viewer3D;
+	private final Viewer3DFX viewer3D;
 
 	private final ExecutorService es = Executors.newFixedThreadPool( Runtime.getRuntime().availableProcessors() - 1 );
 
-	private final HashSet< NeuronRenderer > renderers = new HashSet<>();
-
-	private CameraMode camera;
+	private final HashSet< NeuronRendererFX > renderers = new HashSet<>();
 
 	/**
 	 * Default constructor
 	 */
-	public Viewer3DController( final Viewer3D viewer )
+	public Viewer3DControllerFX( final Viewer3DFX viewer )
 	{
 		this.viewer3D = viewer;
 	}
 
 	public void init()
 	{
-		// initialize the 3d viewer
-		viewer3D.init();
-
-		// start the camera
-		startCamera();
+//		// start the camera
+//		startCamera();
+//		System.out.println( "STARTED CAMERA!" );
 	}
 
 	public void startCamera()
 	{
-		camera = new CameraMode( viewer3D.scene(), viewer3D.getHub() );
-		camera.perspectiveCamera( 50f, viewer3D.getWindowWidth(), viewer3D.getWindowHeight(), 0.1f, 10000.0f );
-		
-		// no HMD, then default mode is automatic camera
-		if ( viewer3D.getHub().getWorkingHMD() == null )
-			camera.automatic();
+//		camera = new CameraMode( viewer3D.scene(), viewer3D.getHub() );
+//		camera.perspectiveCamera( 50f, viewer3D.getWindowWidth(), viewer3D.getWindowHeight(), 0.1f, 10000.0f );
+//		camera.automatic();
+//
+//		// no HMD, then default mode is automatic camera
+//		if ( viewer3D.getHub().getWorkingHMD() == null )
+//			camera.automatic();
 //		else
 //		camera.manual();
 	}
@@ -104,28 +101,24 @@ public class Viewer3DController
 		{
 			if ( !append )
 			{
-				this.renderers.forEach( NeuronRenderer::disallowRendering );
-				this.renderers.forEach( NeuronRenderer::removeSelfFromScene );
-				this.renderers.forEach( NeuronRenderer::stopListening );
+				this.renderers.forEach( NeuronRendererFX::disallowRendering );
+				this.renderers.forEach( NeuronRendererFX::removeSelfFromScene );
+				this.renderers.forEach( NeuronRendererFX::stopListening );
 				this.renderers.clear();
-
-				final RealLocalizable cameraPosition = new RealPoint( worldLocation.getFloatPosition( 0 ), worldLocation.getFloatPosition( 1 ), worldLocation.getFloatPosition( 2 ) * 1.5 );
-				camera.setPosition( new GLVector( cameraPosition.getFloatPosition( 0 ), cameraPosition.getFloatPosition( 1 ), cameraPosition.getFloatPosition( 2 ) ) );
-				System.out.println( "initial camera position: " + cameraPosition.getFloatPosition( 0 ) + "x" + cameraPosition.getFloatPosition( 1 ) + "x" + cameraPosition.getFloatPosition( 2 ) );
 
 			}
 
-			final List< NeuronRenderer > filteredNrs = renderers.stream()
+			final List< NeuronRendererFX > filteredNrs = renderers.stream()
 					.filter( nr -> nr.fragmentId() == fragmentId || nr.segmentId() == fragmentSegmentAssignment.getSegment( fragmentId ) )
 					.collect( Collectors.toList() );
 			LOG.info( "Removing renderers: {}", filteredNrs );
 
-			filteredNrs.forEach( NeuronRenderer::disallowRendering );
-			filteredNrs.forEach( NeuronRenderer::removeSelfFromScene );
-			filteredNrs.forEach( NeuronRenderer::stopListening );
+			filteredNrs.forEach( NeuronRendererFX::disallowRendering );
+			filteredNrs.forEach( NeuronRendererFX::removeSelfFromScene );
+			filteredNrs.forEach( NeuronRendererFX::stopListening );
 			filteredNrs.forEach( this.renderers::remove );
 
-			final NeuronRenderer< T, F > nr = new NeuronRenderer<>(
+			final NeuronRendererFX< T, F > nr = new NeuronRendererFX<>(
 					fragmentId,
 					fragmentSegmentAssignment,
 					stream,
@@ -133,7 +126,8 @@ public class Viewer3DController
 					volumeLabels,
 					interval,
 					getForegroundCheck,
-					viewer3D.scene(),
+					( Group ) viewer3D.scene().getRoot(),
+					viewer3D.scene().getCamera(),
 					es,
 					transform,
 					partitionSize,
@@ -141,8 +135,8 @@ public class Viewer3DController
 			nr.render();
 			this.renderers.add( nr );
 
-			if ( camera.getCameraMode() == CameraMode.Mode.AUTOMATIC )
-				nr.addListener( camera );
+//			if ( camera.getCameraMode() == CameraMode.Mode.AUTOMATIC )
+//				nr.addListener( camera );
 
 		}
 	}

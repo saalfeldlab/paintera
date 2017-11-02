@@ -3,19 +3,19 @@ package bdv.bigcat.viewer.atlas.mode;
 import java.util.HashSet;
 import java.util.function.Consumer;
 
-import bdv.viewer.ViewerPanel;
+import bdv.viewer.ViewerPanelFX;
 
 public abstract class AbstractStateMode implements Mode
 {
 
-	private final HashSet< ViewerPanel > knownViewers = new HashSet<>();
+	private final HashSet< ViewerPanelFX > knownViewers = new HashSet<>();
 
 	protected boolean isActive = false;
 
 	@Override
-	public Consumer< ViewerPanel > onEnter()
+	public Consumer< ViewerPanelFX > onEnter()
 	{
-		final Consumer< ViewerPanel > onEnter = getOnEnter();
+		final Consumer< ViewerPanelFX > onEnter = getOnEnter();
 		return vp -> {
 			knownViewers.add( vp );
 			if ( isActive )
@@ -34,8 +34,8 @@ public abstract class AbstractStateMode implements Mode
 	public void disable()
 	{
 		isActive = false;
-		final Consumer< ViewerPanel > onExit = onExit();
-		for ( final ViewerPanel viewer : knownViewers )
+		final Consumer< ViewerPanelFX > onExit = onExit();
+		for ( final ViewerPanelFX viewer : knownViewers )
 			onExit.accept( viewer );
 		additionalActionOnDisable();
 	}
@@ -50,6 +50,6 @@ public abstract class AbstractStateMode implements Mode
 
 	}
 
-	protected abstract Consumer< ViewerPanel > getOnEnter();
+	protected abstract Consumer< ViewerPanelFX > getOnEnter();
 
 }

@@ -15,7 +15,7 @@ import org.slf4j.LoggerFactory;
 import bdv.bigcat.ui.ARGBStream;
 import bdv.bigcat.viewer.ToIdConverter;
 import bdv.bigcat.viewer.state.FragmentSegmentAssignmentState;
-import bdv.bigcat.viewer.viewer3d.Viewer3DController;
+import bdv.bigcat.viewer.viewer3d.Viewer3DControllerFX;
 import bdv.bigcat.viewer.viewer3d.marchingCubes.ForegroundCheck;
 import bdv.labels.labelset.Label;
 import bdv.viewer.Interpolation;
@@ -39,7 +39,7 @@ import net.imglib2.view.Views;
  * @author Vanessa Leite
  * @author Philipp Hanslovsky
  */
-public class Render3D extends AbstractStateMode
+public class Render3DFX extends AbstractStateMode
 {
 	public static Logger LOG = LoggerFactory.getLogger( MethodHandles.lookup().getClass() );
 
@@ -55,9 +55,9 @@ public class Render3D extends AbstractStateMode
 
 	private final HashMap< Source< ? >, ARGBStream > streams = new HashMap<>();
 
-	private final Viewer3DController v3dControl;
+	private final Viewer3DControllerFX v3dControl;
 
-	public Render3D( final Viewer3DController v3dControl )
+	public Render3DFX( final Viewer3DControllerFX v3dControl )
 	{
 		super();
 		this.v3dControl = v3dControl;

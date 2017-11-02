@@ -2,14 +2,14 @@ package bdv.bigcat.viewer.atlas.mode;
 
 import java.util.function.Consumer;
 
-import bdv.viewer.ViewerPanel;
+import bdv.viewer.ViewerPanelFX;
 
 public interface Mode
 {
 
-	public Consumer< ViewerPanel > onEnter();
+	public Consumer< ViewerPanelFX > onEnter();
 
-	public Consumer< ViewerPanel > onExit();
+	public Consumer< ViewerPanelFX > onExit();
 
 	public void enable();
 

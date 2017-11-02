@@ -1,13 +1,13 @@
 package bdv.bigcat.viewer.viewer3d;
 
-import java.awt.image.BufferedImage;
 import java.nio.ByteBuffer;
 import java.nio.FloatBuffer;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Optional;
 
-import bdv.viewer.ViewerPanel;
+import bdv.viewer.ViewerPanelFX;
 import cleargl.GLTypeEnum;
 import cleargl.GLVector;
 import graphics.scenery.GenericTexture;
@@ -15,6 +15,10 @@ import graphics.scenery.Material;
 import graphics.scenery.Node;
 import graphics.scenery.PointLight;
 import graphics.scenery.Scene;
+import javafx.scene.image.Image;
+import javafx.scene.image.ImageView;
+import javafx.scene.image.PixelFormat;
+import javafx.scene.image.PixelReader;
 import net.imglib2.Point;
 import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.ui.TransformListener;
@@ -26,7 +30,7 @@ public class OrthoSlice
 
 	private final Scene scene;
 
-	private final ViewerPanel viewer;
+	private final ViewerPanelFX viewer;
 
 	private final RenderTransformListener renderTransformListener = new RenderTransformListener();
 
@@ -43,7 +47,7 @@ public class OrthoSlice
 
 	LatestTaskExecutor es = new LatestTaskExecutor();
 
-	public OrthoSlice( final Scene scene, final ViewerPanel viewer )
+	public OrthoSlice( final Scene scene, final ViewerPanelFX viewer )
 	{
 		super();
 		this.scene = scene;
@@ -81,19 +85,23 @@ public class OrthoSlice
 			{
 				final AffineTransform3D viewerTransform = new AffineTransform3D();
 				this.viewer.getState().getViewerTransform( viewerTransform );
-				final int w = viewer.getWidth();
-				final int h = viewer.getHeight();
+				final int w = ( int ) viewer.getWidth();
+				final int h = ( int ) viewer.getHeight();
 				System.out.println( "RENDERING FOR " + viewerTransform + " " + w + " " + h );
 				if ( w <= 0 || h <= 0 )
 					return;
-				final BufferedImage buffer = new BufferedImage( w, h, BufferedImage.TYPE_INT_ARGB );
 //				https://stackoverflow.com/questions/3857901/how-to-get-a-bufferedimage-from-a-component-in-java
 				final int numChannels = Integer.BYTES;
-				viewer.renderTarget().drawOverlays( buffer.getGraphics() );
-				final int[] pixels = new int[ w * h ];
-				for ( int k = 0, y = 0; y < h; ++y )
-					for ( int x = 0; x < w; ++x, ++k )
-						pixels[ k ] = buffer.getRGB( x, y );
+				final Optional< ImageView > viewOptional = viewer.getDisplay().getChildren().stream().filter( node -> node instanceof ImageView ).map( node -> ( ImageView ) node ).findFirst();
+				if ( !viewOptional.isPresent() )
+					return;
+				final ImageView view = viewOptional.get();
+				final Image img = view.getImage();
+				final int imgW = ( int ) img.getWidth();
+				final int imgH = ( int ) img.getHeight();
+				final int[] pixels = new int[ imgH * imgW ];
+				final PixelReader reader = view.getImage().getPixelReader();
+				reader.getPixels( 0, 0, imgW, imgH, PixelFormat.getIntArgbInstance(), pixels, 0, imgW );
 
 				final Material m = new Material();
 				m.setAmbient( new GLVector( 1.0f, 1.0f, 1.0f ) );
