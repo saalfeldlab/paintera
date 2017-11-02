@@ -39,12 +39,6 @@ public class ExampleApplicationCremi
 
 	public static void main( final String[] args ) throws Exception
 	{
-
-		System.out.println( "======================java class path ======" );
-		System.out.println( System.getProperty( "java.class.path" ) );
-		System.out.println( "====================== class loader resource ======" );
-		System.out.println( System.class.getResource( "libspirvcrossj.so" ) );
-
 		// Set the log level
 		final String USER_HOME = System.getProperty( "user.home" );
 
