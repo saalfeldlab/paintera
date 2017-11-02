@@ -3,7 +3,7 @@ package bdv.bigcat.viewer.viewer3d.marchingCubes;
 /**
  * Lookup tables used in the construction of the isosurface.
  */
-class MarchingCubesTables
+public class MarchingCubesTables
 {
 	static final int Invalid = -1;
 

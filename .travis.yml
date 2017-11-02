@@ -23,16 +23,20 @@ install:
   - make
   - sudo make install
   - cd ../..
-  - git clone git://github.com/ClearVolume/ClearGL.git ClearGL
-  - cd ClearGL
+  - git clone -b bigcat-javafx https://github.com/hanslovsky/bigdataviewer-core.git
+  - cd bigdataviewer-core
   - mvn install
   - cd ..
-  - git clone -b RealARGBConverter-expose-alpha https://github.com/hanslovsky/imglib2.git
+  - git clone -b javafx https://github.com/hanslovsky/imglib2-ui.git
+  - cd imglib2-ui
+  - mvn install
+  - cd ..
+  - git clone https://github.com/hanslovsky/imglib2.git
   - cd imglib2
   - mvn install
   - cd ..
-  - git clone -b TransformAwareBufferedImageOverlayRenderer-with-background https://github.com/hanslovsky/bigdataviewer-core.git
-  - cd bigdataviewer-core
+  - git clone git://github.com/ClearVolume/ClearGL.git ClearGL
+  - cd ClearGL
   - mvn install
   - cd ..
   - git clone https://github.com/bigdataviewer/bigdataviewer-vistools.git

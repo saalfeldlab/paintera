@@ -51,6 +51,7 @@ import bdv.viewer.SourceAndConverter;
 import bdv.viewer.ViewerOptions;
 import bdv.viewer.ViewerPanelFX;
 import javafx.application.Application;
+import javafx.application.Platform;
 import javafx.beans.value.ChangeListener;
 import javafx.collections.ListChangeListener;
 import javafx.scene.Node;
@@ -252,6 +253,10 @@ public class Atlas
 		primaryStage.setTitle( title );
 		primaryStage.setScene( scene );
 		primaryStage.sizeToScene();
+
+		primaryStage.setOnCloseRequest( event -> {
+			Platform.runLater( Platform::exit );
+		} );
 
 		primaryStage.show();
 
@@ -517,5 +522,4 @@ public class Atlas
 		if ( focusOwner != null && focusOwner instanceof ViewerNode )
 			mode.onEnter().accept( ( ( ViewerNode ) focusOwner ).getViewer() );
 	}
-
 }

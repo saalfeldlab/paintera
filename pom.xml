@@ -95,12 +95,6 @@
 			<artifactId>jcommander</artifactId>
 			<version>1.72</version>
 		</dependency>
-		<!-- jeromq does not support ipc!! -->
-		<!-- <dependency> -->
-		<!-- <groupId>org.zeromq</groupId> -->
-		<!-- <artifactId>jeromq</artifactId> -->
-		<!-- <version>0.4.2</version> -->
-		<!-- </dependency> -->
 		<dependency>
 			<groupId>org.zeromq</groupId>
 			<artifactId>jzmq</artifactId>
@@ -130,6 +124,7 @@
 			<version>1.8.0-alpha2</version>
 		</dependency>
 	</dependencies>
+
 	<developers>
 		<developer>
 			<id>tpietzsch</id>
@@ -206,7 +201,23 @@
 					</descriptorRefs>
 				</configuration>
 			</plugin>
-			<!-- <plugin> <groupId>org.codehaus.mojo</groupId> <artifactId>exec-maven-plugin</artifactId> 
+<!-- 			<plugin>
+			    <groupid>org.dstovall</groupid>
+    <artifactid>onejar-maven-plugin</artifactid>
+    <version>1.4.4</version>
+    <executions>
+        <execution>
+            <configuration>
+                <onejarversion>0.97</onejarversion>
+                <classifier>onejar</classifier>
+            </configuration>
+            <goals>
+                <goal>one-jar</goal>
+            </goals>
+        </execution>
+   </executions>
+</plugin>
+ -->			<!-- <plugin> <groupId>org.codehaus.mojo</groupId> <artifactId>exec-maven-plugin</artifactId> 
 				<configuration> <executable>java</executable> <arguments> <argument>-Xmx7g</argument> 
 				<argument>-classpath</argument> <classpath /> <argument>${mainclass}</argument> 
 				<argument>${h5file}</argument> </arguments> </configuration> </plugin> -->

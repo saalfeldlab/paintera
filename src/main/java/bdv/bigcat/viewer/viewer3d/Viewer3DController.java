@@ -66,10 +66,10 @@ public class Viewer3DController
 		camera.perspectiveCamera( 50f, viewer3D.getWindowWidth(), viewer3D.getWindowHeight(), 0.1f, 10000.0f );
 		
 		// no HMD, then default mode is automatic camera
-		if ( viewer3D.getHub().getWorkingHMD() == null )
-			camera.automatic();
+//		if ( viewer3D.getHub().getWorkingHMD() == null )
+//			camera.automatic();
 //		else
-//		camera.manual();
+		camera.manual();
 	}
 
 	public synchronized < T extends Type< T >, F extends FragmentSegmentAssignmentState< F > > void generateMesh(
