@@ -1,14 +1,10 @@
 package bdv.bigcat.viewer.viewer3d;
 
-import javafx.animation.Animation;
-import javafx.animation.KeyFrame;
-import javafx.animation.Timeline;
 import javafx.scene.Group;
 import javafx.scene.PerspectiveCamera;
 import javafx.scene.SubScene;
 import javafx.scene.layout.Pane;
 import javafx.scene.paint.Color;
-import javafx.util.Duration;
 
 public class Viewer3DFX extends Pane
 {
@@ -39,12 +35,12 @@ public class Viewer3DFX extends Pane
 		this.scene.widthProperty().bind( widthProperty() );
 		this.scene.heightProperty().bind( heightProperty() );
 
-		final Timeline tl = new Timeline( 30, new KeyFrame( Duration.seconds( 0.01 ), event -> {
-			camera.setTranslateZ( camera.getTranslateZ() - 3 );
-			camera.setTranslateX( camera.getTranslateX() + 0.5 );
-		} ) );
-		tl.setCycleCount( Animation.INDEFINITE );
-		tl.play();
+//		final Timeline tl = new Timeline( 30, new KeyFrame( Duration.seconds( 0.01 ), event -> {
+//			camera.setTranslateZ( camera.getTranslateZ() - 3 );
+//			camera.setTranslateX( camera.getTranslateX() + 0.5 );
+//		} ) );
+//		tl.setCycleCount( Animation.INDEFINITE );
+//		tl.play();
 
 	}
 
