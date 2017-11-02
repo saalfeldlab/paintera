@@ -2,6 +2,7 @@ package bdv.bigcat.viewer.viewer3d;
 
 import javafx.scene.Group;
 import javafx.scene.PerspectiveCamera;
+import javafx.scene.PointLight;
 import javafx.scene.SubScene;
 import javafx.scene.layout.Pane;
 import javafx.scene.paint.Color;
@@ -14,6 +15,10 @@ public class Viewer3DFX extends Pane
 	private final SubScene scene;
 
 	private final PerspectiveCamera camera;
+
+//	private final AmbientLight light = new AmbientLight( Color.WHITE );
+
+	private final PointLight l = new PointLight( Color.WHITE );
 
 	public Viewer3DFX( final double width, final double height )
 	{
@@ -32,15 +37,13 @@ public class Viewer3DFX extends Pane
 		this.scene.setCamera( this.camera );
 
 		this.getChildren().add( this.scene );
+//		this.root.getChildren().add( light );
+		this.root.getChildren().add( l );
 		this.scene.widthProperty().bind( widthProperty() );
 		this.scene.heightProperty().bind( heightProperty() );
-
-//		final Timeline tl = new Timeline( 30, new KeyFrame( Duration.seconds( 0.01 ), event -> {
-//			camera.setTranslateZ( camera.getTranslateZ() - 3 );
-//			camera.setTranslateX( camera.getTranslateX() + 0.5 );
-//		} ) );
-//		tl.setCycleCount( Animation.INDEFINITE );
-//		tl.play();
+		this.l.translateXProperty().bind( this.camera.translateXProperty() );
+		this.l.translateYProperty().bind( this.camera.translateYProperty() );
+		this.l.translateZProperty().bind( this.camera.translateZProperty() );
 
 	}
 
