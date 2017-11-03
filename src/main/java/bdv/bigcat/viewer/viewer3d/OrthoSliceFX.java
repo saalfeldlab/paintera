@@ -119,8 +119,8 @@ public class OrthoSliceFX
 //		viewerTransform.set( viewerTransform.get( 0, 3 ) - w / 2, 0, 3 );
 //		viewerTransform.set( viewerTransform.get( 1, 3 ) - h / 2, 1, 3 );
 		es.execute( () -> {
-			material.setSelfIlluminationMap( image );
 			InvokeOnJavaFXApplicationThread.invoke( () -> {
+				material.setSelfIlluminationMap( image );
 				mesh.update( new RealPoint( 0, 0 ), new RealPoint( w, 0 ), new RealPoint( w, h ), new RealPoint( 0, h ), viewerTransform.inverse() );
 //				mv.setMaterial( m );
 			} );
