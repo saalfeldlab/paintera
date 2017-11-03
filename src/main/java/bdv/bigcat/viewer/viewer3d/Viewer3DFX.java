@@ -7,6 +7,7 @@ import bdv.viewer.fx.MouseDragFX;
 import javafx.beans.property.DoubleProperty;
 import javafx.beans.property.SimpleDoubleProperty;
 import javafx.geometry.Point3D;
+import javafx.scene.AmbientLight;
 import javafx.scene.Group;
 import javafx.scene.PerspectiveCamera;
 import javafx.scene.PointLight;
@@ -37,9 +38,9 @@ public class Viewer3DFX extends Pane
 
 	final private static double step = 1.0;// Math.PI / 180;
 
-//	private final AmbientLight light = new AmbientLight( Color.WHITE );
-
-	private final PointLight l = new PointLight( Color.WHITE );
+	private final AmbientLight lightAmbient = new AmbientLight( new Color( 0.1, 0.1, 0.1, 1 ) );
+	private final PointLight lightSpot = new PointLight( new Color( 1.0, 0.95, 0.85, 1 ) );
+	private final PointLight lightFill = new PointLight( new Color( 0.35, 0.35, 0.65, 1 ) );
 
 	private final Point3D cameraNormal = new Point3D( 0, 0, 1 );
 
@@ -62,7 +63,7 @@ public class Viewer3DFX extends Pane
 		this.scene.setFill( Color.BLACK );
 		this.camera = new PerspectiveCamera( true );
 		this.camera.setNearClip( 0.01 );
-		this.camera.setFarClip( 2.0 );
+		this.camera.setFarClip( 10.0 );
 		this.camera.setTranslateY( 0 );
 		this.camera.setTranslateX( 0 );
 		this.camera.setTranslateZ( 0 );
@@ -75,8 +76,11 @@ public class Viewer3DFX extends Pane
 //		this.root.getChildren().add( l );
 		this.scene.widthProperty().bind( widthProperty() );
 		this.scene.heightProperty().bind( heightProperty() );
-		l.setTranslateZ( -0.1 );
-		this.cameraGroup.getChildren().addAll( camera, l );
+		lightSpot.setTranslateX( -10 );
+		lightSpot.setTranslateY( -10 );
+		lightSpot.setTranslateZ( -10 );
+		lightFill.setTranslateX( 10 );
+		this.cameraGroup.getChildren().addAll( camera, lightAmbient, lightSpot, lightFill );
 //		this.cameraGroup.getTransforms().addAll( translate, rotX, rotY );
 		this.cameraGroup.getTransforms().add( new Translate( 0, 0, -1 ) );
 
