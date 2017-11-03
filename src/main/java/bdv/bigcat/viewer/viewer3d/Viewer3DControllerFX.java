@@ -54,21 +54,9 @@ public class Viewer3DControllerFX
 
 	public void init()
 	{
-		// start the camera
-		startCamera();
-//		System.out.println( "STARTED CAMERA!" );
-	}
-
-	public void startCamera()
-	{
 		camera = new CameraModeFX( viewer3D.scene() );
 		camera.perspectiveCamera( 50f, 0.1f, 10000.0f );
 		camera.automatic();
-//
-//		// no HMD, then default mode is automatic camera
-//		if ( viewer3D.getHub().getWorkingHMD() == null )
-//			camera.automatic();
-//		else
 //		camera.manual();
 	}
 
