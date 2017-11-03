@@ -14,13 +14,14 @@ import bdv.bigcat.viewer.viewer3d.util.HashWrapper;
 import bdv.util.InvokeOnJavaFXApplicationThread;
 import javafx.geometry.Bounds;
 import javafx.scene.Group;
-import javafx.scene.image.WritableImage;
 import javafx.scene.paint.Color;
 import javafx.scene.paint.PhongMaterial;
 import javafx.scene.shape.Box;
+import javafx.scene.shape.CullFace;
 import javafx.scene.shape.MeshView;
 import javafx.scene.shape.ObservableFaceArray;
 import javafx.scene.shape.TriangleMesh;
+import javafx.scene.shape.VertexFormat;
 import net.imglib2.FinalInterval;
 import net.imglib2.Interval;
 import net.imglib2.Localizable;
@@ -145,12 +146,12 @@ public class NeuronFX< T >
 					chunk.setTranslateZ( center[ 2 ] );
 
 					final PhongMaterial chunkMaterial = new PhongMaterial();
-					final WritableImage im = new WritableImage( 1, 1 );
-					im.getPixelWriter().setArgb( 0, 0, color | 0xffff0000 );
-					chunkMaterial.setSelfIlluminationMap( im );
+					final Color surfaceColor = Color.rgb( color >>> 16 & 0xff, color >>> 8 & 0xff, color >>> 0 & 0xff, 1.0 );
+					chunkMaterial.setDiffuseColor( surfaceColor );
 					chunk.setMaterial( chunkMaterial );
+					chunk.setOpacity( 0.3 );
 //
-//					root.getChildren().add( chunk );
+					InvokeOnJavaFXApplicationThread.invoke( () -> root.getChildren().add( chunk ) );
 					this.chunks.add( chunk );
 
 					final MarchingCubes< T > mc = new MarchingCubes<>( data, interval, toWorldCoordinates, cubeSize );
@@ -161,25 +162,28 @@ public class NeuronFX< T >
 						final float[] normals = new float[ vertices.length ];
 //						MarchingCubes.surfaceNormals( vertices, normals );
 						MarchingCubes.averagedSurfaceNormals( vertices, normals );
+						for ( int i = 0; i < normals.length; ++i )
+							normals[ i ] *= -1;
 						final TriangleMesh mesh = new TriangleMesh();
 						final PhongMaterial material = new PhongMaterial();
-						final WritableImage mvIm = new WritableImage( 1, 1 );
-						mvIm.getPixelWriter().setArgb( 0, 0, color | 0xff000000 );
-						material.setSelfIlluminationMap( mvIm );
-						material.setDiffuseColor( Color.BLACK );
-						material.setSpecularColor( Color.BLACK );
+						material.setDiffuseColor( surfaceColor );
+//						material.setSpecularColor( Color.WHITE );
 
 						final MeshView mv = new MeshView( mesh );
+						mv.setOpacity( 1.0 );
+						mv.setCullFace( CullFace.FRONT );
 						mv.setMaterial( material );
 						mesh.getPoints().addAll( vertices );
 						mesh.getNormals().addAll( normals );
 						mesh.getTexCoords().addAll( 0, 0 );
+						mesh.setVertexFormat( VertexFormat.POINT_NORMAL_TEXCOORD );
 						final ObservableFaceArray faces = mesh.getFaces();
-						final int[] arr = new int[ 2 ];
+						final int[] arr = new int[ 3 ];
 						for ( int i = 0, k = 0; i < vertices.length; i += 3, ++k )
 						{
 							arr[ 0 ] = k;
-							arr[ 1 ] = 0;
+							arr[ 1 ] = k;
+							arr[ 2 ] = 0;
 							faces.addAll( arr );
 						}
 
@@ -188,7 +192,7 @@ public class NeuronFX< T >
 							if ( !isCanceled )
 							{
 								this.chunks.remove( chunk );
-								root.getChildren().remove( chunk );
+								InvokeOnJavaFXApplicationThread.invoke( () -> root.getChildren().remove( chunk ) );
 								addNode( mv );
 								Bounds bb = mv.getBoundsInParent();
 								double[] bbArray = new double[] { bb.getMinX(), bb.getMaxX(), bb.getMinY(), bb.getMaxY(), bb.getMinZ(), bb.getMaxZ() };
@@ -210,7 +214,7 @@ public class NeuronFX< T >
 					else
 					{
 						this.chunks.remove( chunk );
-						root.getChildren().remove( chunk );
+						InvokeOnJavaFXApplicationThread.invoke( () -> root.getChildren().remove( chunk ) );
 					}
 				} ) );
 		}

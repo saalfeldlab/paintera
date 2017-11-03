@@ -17,7 +17,6 @@ import bdv.bigcat.ui.ARGBStream;
 import bdv.bigcat.viewer.state.FragmentSegmentAssignmentState;
 import bdv.bigcat.viewer.viewer3d.marchingCubes.ForegroundCheck;
 import cleargl.GLVector;
-import javafx.scene.Group;
 import net.imglib2.Interval;
 import net.imglib2.Point;
 import net.imglib2.RandomAccessible;
@@ -42,7 +41,7 @@ public class Viewer3DControllerFX
 
 	private final HashSet< NeuronRendererFX > renderers = new HashSet<>();
 
-	private CameraModeFX camera;
+//	private CameraModeFX camera;
 
 	/**
 	 * Default constructor
@@ -54,9 +53,9 @@ public class Viewer3DControllerFX
 
 	public void init()
 	{
-		camera = new CameraModeFX( viewer3D.scene() );
-		camera.perspectiveCamera( 50f, 0.1f, 10000.0f );
-		camera.automatic();
+//		camera = new CameraModeFX( viewer3D.scene() );
+//		camera.perspectiveCamera( 50f, 0.1f, 10000.0f );
+//		camera.automatic();
 //		camera.manual();
 	}
 
@@ -98,7 +97,7 @@ public class Viewer3DControllerFX
 				this.renderers.clear();
 
 				final RealLocalizable cameraPosition = new RealPoint( worldLocation.getFloatPosition( 0 ), worldLocation.getFloatPosition( 1 ), worldLocation.getFloatPosition( 2 ) * 1.5 );
-				camera.setPosition( new GLVector( cameraPosition.getFloatPosition( 0 ), cameraPosition.getFloatPosition( 1 ), cameraPosition.getFloatPosition( 2 ) ) );
+//				camera.setPosition( new GLVector( cameraPosition.getFloatPosition( 0 ), cameraPosition.getFloatPosition( 1 ), cameraPosition.getFloatPosition( 2 ) ) );
 				System.out.println( "initial camera position: " + cameraPosition.getFloatPosition( 0 ) + "x" + cameraPosition.getFloatPosition( 1 ) + "x" + cameraPosition.getFloatPosition( 2 ) );
 			}
 
@@ -120,7 +119,7 @@ public class Viewer3DControllerFX
 					volumeLabels,
 					interval,
 					getForegroundCheck,
-					( Group ) viewer3D.scene().getRoot(),
+					viewer3D.meshesGroup(),
 					viewer3D.scene().getCamera(),
 					es,
 					transform,
@@ -129,8 +128,8 @@ public class Viewer3DControllerFX
 			nr.render();
 			this.renderers.add( nr );
 
-			if ( camera.getCameraMode() == CameraModeFX.Mode.AUTOMATIC )
-				nr.addListener( camera );
+//			if ( camera.getCameraMode() == CameraModeFX.Mode.AUTOMATIC )
+//				nr.addListener( camera );
 
 		}
 	}

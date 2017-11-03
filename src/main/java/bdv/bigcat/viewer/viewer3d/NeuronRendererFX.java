@@ -150,9 +150,9 @@ public class NeuronRendererFX< T, F extends FragmentSegmentAssignmentState< F > 
 			final int color = stream.argb( selectedFragmentId );
 			initialLocationInImageCoordinates.localize( blub );
 			toWorldCoordinates.apply( blub, blub );
-			camera.setTranslateX( blub[ 0 ] - 250 );
-			camera.setTranslateY( blub[ 1 ] - 250 );
-			camera.setTranslateZ( blub[ 2 ] - 300 );
+//			camera.setTranslateX( blub[ 0 ] - 500 );
+//			camera.setTranslateY( blub[ 1 ] - 500 );
+//			camera.setTranslateZ( blub[ 2 ] - 600 );
 //			final PointLight l = new PointLight( Color.RED );
 //			l.setTranslateX( blub[ 0 ] );
 //			l.setTranslateY( blub[ 1 ] - 500 );

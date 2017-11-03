@@ -8,7 +8,7 @@ import org.slf4j.LoggerFactory;
 import javafx.collections.ObservableFloatArray;
 import javafx.scene.shape.ObservableFaceArray;
 import javafx.scene.shape.TriangleMesh;
-import net.imglib2.Localizable;
+import javafx.scene.shape.VertexFormat;
 import net.imglib2.RealLocalizable;
 import net.imglib2.RealPoint;
 import net.imglib2.RealPositionable;
@@ -31,51 +31,51 @@ public class OrthoSliceMeshFX extends TriangleMesh
 			0.0f, 1.0f
 	};
 
-	public OrthoSliceMeshFX( final Localizable bottomLeft, final Localizable bottomRight, final Localizable topRight, final Localizable topLeft, final AffineTransform3D pointTransform )
+	public OrthoSliceMeshFX( final RealLocalizable bottomLeft, final RealLocalizable bottomRight, final RealLocalizable topRight, final RealLocalizable topLeft, final AffineTransform3D pointTransform )
 	{
 		super();
 		getTexCoords().addAll( texcoords );
 		this.update( bottomLeft, bottomRight, topRight, topLeft, pointTransform );
+		final ObservableFaceArray faceIndices = getFaces();
+		for ( final int i : indices )
+			faceIndices.addAll( i, i, i );
+		setVertexFormat( VertexFormat.POINT_NORMAL_TEXCOORD );
 
 	}
 
 	public void update(
-			final Localizable bottomLeft,
-			final Localizable bottomRight,
-			final Localizable topRight,
-			final Localizable topLeft,
+			final RealLocalizable bottomLeft,
+			final RealLocalizable bottomRight,
+			final RealLocalizable topRight,
+			final RealLocalizable topLeft,
 			final AffineTransform3D pointTransform )
 	{
 		final RealPoint p = new RealPoint( 3 );
 
 		final double offset = 0.0;
 
-		final ObservableFaceArray faceIndices = getFaces();
 		final ObservableFloatArray vertices = getPoints();
 		final ObservableFloatArray normals = getNormals();
-		faceIndices.clear();
-		vertices.clear();
-		normals.clear();
-		for ( final int i : indices )
-			faceIndices.addAll( i, i );
 
 		final float[] vertex = new float[ 3 ];
 
+		final float[] vertexBuffer = new float[ 3 * 4 ];
+
 		transformPoint( bottomLeft, p, pointTransform, offset );
 		p.localize( vertex );
-		vertices.addAll( vertex );
+		System.arraycopy( vertex, 0, vertexBuffer, 0, 3 );
 
 		transformPoint( bottomRight, p, pointTransform, offset );
 		p.localize( vertex );
-		vertices.addAll( vertex );
+		System.arraycopy( vertex, 0, vertexBuffer, 3, 3 );
 
 		transformPoint( topRight, p, pointTransform, offset );
 		p.localize( vertex );
-		vertices.addAll( vertex );
+		System.arraycopy( vertex, 0, vertexBuffer, 6, 3 );
 
 		transformPoint( topLeft, p, pointTransform, offset );
 		p.localize( vertex );
-		vertices.addAll( vertex );
+		System.arraycopy( vertex, 0, vertexBuffer, 9, 3 );
 
 		final float[] normal = new float[] { 0.0f, 0.0f, 1.0f };
 		pointTransform.apply( normal, normal );
@@ -83,14 +83,19 @@ public class OrthoSliceMeshFX extends TriangleMesh
 		normal[ 0 ] /= norm;
 		normal[ 1 ] /= norm;
 		normal[ 2 ] /= norm;
-		normals.addAll( normal );
-		normals.addAll( normal );
-		normals.addAll( normal );
-		normals.addAll( normal );
+		final float[] normalBuffer = new float[ 12 ];
+		System.arraycopy( normal, 0, normalBuffer, 0, 3 );
+		System.arraycopy( normal, 0, normalBuffer, 3, 3 );
+		System.arraycopy( normal, 0, normalBuffer, 6, 3 );
+		System.arraycopy( normal, 0, normalBuffer, 9, 3 );
+		vertices.clear();
+		normals.clear();
+		vertices.addAll( vertexBuffer );
+		normals.addAll( normalBuffer );
 	}
 
 	private static < T extends RealPositionable & RealLocalizable > void transformPoint(
-			final Localizable source2D,
+			final RealLocalizable source2D,
 			final T target3D,
 			final RealTransform transform,
 			final double offset )
