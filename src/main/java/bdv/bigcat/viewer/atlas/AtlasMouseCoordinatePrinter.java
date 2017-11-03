@@ -35,7 +35,7 @@ public class AtlasMouseCoordinatePrinter
 		private final void updateStatusBar()
 		{
 			viewer.displayToGlobalCoordinates( x, y, p );
-			Platform.runLater( () -> statusBar.setText( String.format( "(%.3f, %.3f, %.3f)", pos[ 0 ], pos[ 1 ], pos[ 2 ] ) ) );
+			Platform.runLater( () -> statusBar.setText( String.format( "(%.3f, %.3f) (%.3f, %.3f, %.3f)", x, y, pos[ 0 ], pos[ 1 ], pos[ 2 ] ) ) );
 		}
 
 		@Override
@@ -84,7 +84,7 @@ public class AtlasMouseCoordinatePrinter
 			t.removeEventHandler( MouseEvent.MOUSE_MOVED, listener );
 			t.removeTransformListener( listener );
 			if ( statusBar != null )
-				statusBar.setText( "(---.---, ---.---, ---.---)" );
+				statusBar.setText( "(---.---, ---.---) (---.---, ---.---, ---.---)" );
 		};
 	}
 
