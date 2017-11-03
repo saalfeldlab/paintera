@@ -10,15 +10,25 @@ public class LatestTaskExecutor implements Executor
 
 	private final Executor executor;
 
+	private final long delayInNanoSeconds;
+
+	private long lastTime = -1;
+
 	public LatestTaskExecutor()
 	{
-		this( Executors.newSingleThreadExecutor() );
+		this( 0 );
 	}
 
-	public LatestTaskExecutor( final Executor executor )
+	public LatestTaskExecutor( final long delayInNanoSeconds )
+	{
+		this( Executors.newSingleThreadExecutor(), delayInNanoSeconds );
+	}
+
+	public LatestTaskExecutor( final Executor executor, final long delayInNanoSeconds )
 	{
 		super();
 		this.executor = executor;
+		this.delayInNanoSeconds = delayInNanoSeconds;
 	}
 
 	@Override
@@ -28,7 +38,11 @@ public class LatestTaskExecutor implements Executor
 		executor.execute( () -> {
 			final Runnable task = lastTask.getAndSet( null );
 			if ( task != null )
-				task.run();
+				if ( lastTime == -1 || System.nanoTime() - lastTime > delayInNanoSeconds )
+				{
+					task.run();
+					lastTime = System.nanoTime();
+				}
 		} );
 
 	}
