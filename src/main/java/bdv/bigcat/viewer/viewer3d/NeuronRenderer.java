@@ -28,7 +28,7 @@ public class NeuronRenderer< T, F extends FragmentSegmentAssignmentState< F > > 
 {
 	private final long selectedFragmentId;
 
-	private List< NeuronRendererListener > listeners = new ArrayList< NeuronRendererListener >();
+//	private List< NeuronRendererListener > listeners = new ArrayList< NeuronRendererListener >();
 
 	private long selectedSegmentId;
 
@@ -117,10 +117,10 @@ public class NeuronRenderer< T, F extends FragmentSegmentAssignmentState< F > > 
 		this.updateOnStateChange = updateOnStateChange;
 	}
 	
-	public void addListener( NeuronRendererListener cameraCallback )
-	{
-		listeners.add( cameraCallback );
-	}
+//	public void addListener( NeuronRendererListener cameraCallback )
+//	{
+//		listeners.add( cameraCallback );
+//	}
 
 	@Override
 	public synchronized void stateChanged()
@@ -249,10 +249,10 @@ public class NeuronRenderer< T, F extends FragmentSegmentAssignmentState< F > > 
 
 		System.out.println( "updateCompleteBoundingBox" );
 
-		for ( NeuronRendererListener listener : listeners )
-		{
+//		for ( NeuronRendererListener listener : listeners )
+//		{
 //			listener.updateCamera( completeBoundingBox );
-		}
+//		}
 	}
 
 	private synchronized float[] maxBoundingBox( float[] completeBoundingBox, float[] boundingBox )
