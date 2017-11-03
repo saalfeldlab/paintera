@@ -81,7 +81,7 @@ public class NeuronFX< T >
 		{
 			this.isCanceled = true;
 			this.futures.forEach( future -> future.cancel( true ) );
-			this.chunks.forEach( chunk -> root.getChildren().remove( chunk ) );
+			InvokeOnJavaFXApplicationThread.invoke( () -> root.getChildren().removeAll( this.chunks ) );
 		}
 	}
 
