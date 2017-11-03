@@ -240,7 +240,13 @@ public class Atlas
 				final ViewerNode vn = ( ViewerNode ) child;
 				final OrthoSliceFX orthoSlice = new OrthoSliceFX( renderView.meshesGroup(), vn.getViewer() );
 				orthoSlices.add( orthoSlice );
+				orthoSlice.toggleVisibility();
 			}
+
+		this.baseView().addEventHandler( KeyEvent.KEY_PRESSED, event -> {
+			if ( event.getCode().equals( KeyCode.O ) && event.isShiftDown() && !event.isAltDown() && !event.isControlDown() )
+				orthoSlices.forEach( OrthoSliceFX::toggleVisibility );
+		} );
 
 	}
 
@@ -266,11 +272,6 @@ public class Atlas
 		primaryStage.show();
 
 		new Thread( controller::init ).start();
-
-		this.baseView().addEventHandler( KeyEvent.KEY_PRESSED, event -> {
-			if ( event.getCode().equals( KeyCode.O ) && event.isShiftDown() && !event.isAltDown() && !event.isControlDown() )
-				orthoSlices.forEach( OrthoSliceFX::toggleVisibility );
-		} );
 		// test the look and feel with both Caspian and Modena
 		Application.setUserAgentStylesheet( Application.STYLESHEET_CASPIAN );
 //		Application.setUserAgentStylesheet( Application.STYLESHEET_MODENA );
