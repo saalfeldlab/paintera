@@ -121,7 +121,6 @@ public class OrthoSliceFX
 			InvokeOnJavaFXApplicationThread.invoke( () -> {
 				material.setSelfIlluminationMap( image );
 				mesh.update( new RealPoint( 0, 0 ), new RealPoint( w, 0 ), new RealPoint( w, h ), new RealPoint( 0, h ), viewerTransform.inverse() );
-//				mv.setMaterial( m );
 			} );
 		} );
 	}
