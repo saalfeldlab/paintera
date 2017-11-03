@@ -25,7 +25,6 @@ import javafx.scene.paint.Color;
 import javafx.scene.paint.PhongMaterial;
 import javafx.scene.shape.CullFace;
 import javafx.scene.shape.MeshView;
-import net.imglib2.Point;
 import net.imglib2.RealPoint;
 import net.imglib2.RealRandomAccess;
 import net.imglib2.realtransform.AffineTransform3D;
@@ -42,7 +41,7 @@ public class OrthoSliceFX
 
 	private final List< Node > planes = new ArrayList<>();
 
-	private final OrthoSliceMeshFX mesh = new OrthoSliceMeshFX( new Point( 0, 0 ), new Point( 1, 0 ), new Point( 1, 1 ), new Point( 0, 1 ), new AffineTransform3D() );
+	private final OrthoSliceMeshFX mesh = new OrthoSliceMeshFX( new RealPoint( 0, 0 ), new RealPoint( 1, 0 ), new RealPoint( 1, 1 ), new RealPoint( 0, 1 ), new AffineTransform3D() );
 
 	private final MeshView mv = new MeshView( mesh );
 
