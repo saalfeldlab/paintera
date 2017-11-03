@@ -116,6 +116,8 @@ public class Atlas
 
 	private final Viewer3DControllerFX controller;
 
+	private final List< OrthoSliceFX > orthoSlices = new ArrayList<>();
+
 	public Atlas( final Interval interval, final VolatileGlobalCellCache cellCache )
 	{
 		this( ViewerOptions.options(), interval, cellCache );
@@ -232,6 +234,14 @@ public class Atlas
 				this.specs.selectedSourceProperty().setValue( Optional.empty() );
 		} );
 
+		for ( final Node child : this.baseView().getChildren() )
+			if ( child instanceof ViewerNode )
+			{
+				final ViewerNode vn = ( ViewerNode ) child;
+				final OrthoSliceFX orthoSlice = new OrthoSliceFX( renderView.meshesGroup(), vn.getViewer() );
+				orthoSlices.add( orthoSlice );
+			}
+
 	}
 
 	public void toggleSourcesTable()
@@ -256,15 +266,6 @@ public class Atlas
 		primaryStage.show();
 
 		new Thread( controller::init ).start();
-
-		final List< OrthoSliceFX > orthoSlices = new ArrayList<>();
-		for ( final Node child : this.baseView().getChildren() )
-			if ( child instanceof ViewerNode )
-			{
-				final ViewerNode vn = ( ViewerNode ) child;
-				final OrthoSliceFX orthoSlice = new OrthoSliceFX( renderView.meshesGroup(), vn.getViewer() );
-				orthoSlices.add( orthoSlice );
-			}
 
 		this.baseView().addEventHandler( KeyEvent.KEY_PRESSED, event -> {
 			if ( event.getCode().equals( KeyCode.O ) && event.isShiftDown() && !event.isAltDown() && !event.isControlDown() )
@@ -359,6 +360,7 @@ public class Atlas
 		final FromLabelMultisetType toIdConverter = ToIdConverter.fromLabelMultisetType();
 		final SelectedIds selectedIds = selIds;
 		this.selectedIds.put( vsource, selectedIds );
+		this.orthoSlices.forEach( slice -> slice.addSource( vsource, source, toIdConverter, selectedIds ) );
 		for ( final Mode mode : this.modes )
 			if ( mode instanceof Highlights )
 				( ( Highlights ) mode ).addSource( vsource, source, toIdConverter );
