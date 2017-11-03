@@ -45,7 +45,7 @@ public class OrthoSliceFX
 
 	private final MeshView mv = new MeshView( mesh );
 
-	LatestTaskExecutor es = new LatestTaskExecutor();
+	LatestTaskExecutor es = new LatestTaskExecutor( 100000000 );
 
 	private final PhongMaterial material;
 
