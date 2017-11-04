@@ -114,7 +114,17 @@ public class NeuronRendererFX< T, F extends FragmentSegmentAssignmentState< F > 
 	public synchronized void removeSelfFromScene()
 	{
 		cancelRendering();
-		neurons.forEach( NeuronFX::removeSelf );
+		neurons.forEach( t -> {
+			try
+			{
+				t.removeSelf();
+			}
+			catch ( final InterruptedException e )
+			{
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+		} );
 	}
 
 	public synchronized void updateOnStateChange( final boolean updateOnStateChange )
@@ -144,7 +154,7 @@ public class NeuronRendererFX< T, F extends FragmentSegmentAssignmentState< F > 
 		{
 			removeSelfFromScene();
 			this.neurons.clear();
-			final NeuronFX< T > neuron = new NeuronFX<>( this, interval, root );
+			final NeuronFX< T > neuron = new NeuronFX<>( interval, root );
 			this.neurons.add( neuron );
 			final float[] blub = new float[ 3 ];
 			final int color = stream.argb( selectedFragmentId );
