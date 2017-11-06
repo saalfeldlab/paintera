@@ -111,6 +111,18 @@ public class NeuronFX< T >
 		} );
 	}
 
+	public void removeSelfUnchecked()
+	{
+		try
+		{
+			removeSelf();
+		}
+		catch ( final InterruptedException e )
+		{
+			LOG.debug( "Was interrupted when removing neuron!", e );
+		}
+	}
+
 	private void submitForOffset(
 			final long[] gridCoordinates,
 			final RandomAccessible< T > data,

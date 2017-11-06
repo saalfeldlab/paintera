@@ -2,6 +2,7 @@ package bdv.bigcat.viewer.viewer3d;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.ExecutorService;
 import java.util.function.Function;
 
@@ -9,6 +10,8 @@ import bdv.bigcat.ui.ARGBStream;
 import bdv.bigcat.viewer.state.FragmentSegmentAssignmentState;
 import bdv.bigcat.viewer.state.StateListener;
 import bdv.bigcat.viewer.viewer3d.marchingCubes.ForegroundCheck;
+import javafx.beans.property.ObjectProperty;
+import javafx.beans.property.SimpleObjectProperty;
 import javafx.scene.Camera;
 import javafx.scene.Group;
 import net.imglib2.Interval;
@@ -63,7 +66,7 @@ public class NeuronRendererFX< T, F extends FragmentSegmentAssignmentState< F > 
 
 	private boolean allowRendering = true;
 
-	private final List< NeuronFX< T > > neurons = new ArrayList<>();
+	private final ObjectProperty< Optional< NeuronFX< T > > > neuron = new SimpleObjectProperty<>( Optional.empty() );
 
 	/**
 	 * Bounding box of the complete mesh/neuron (xmin, xmax, ymin, ymax, zmin,
@@ -108,23 +111,13 @@ public class NeuronRendererFX< T, F extends FragmentSegmentAssignmentState< F > 
 
 	public synchronized void cancelRendering()
 	{
-		neurons.forEach( NeuronFX::cancel );
+		neuron.get().ifPresent( NeuronFX::cancel );
 	}
 
 	public synchronized void removeSelfFromScene()
 	{
 		cancelRendering();
-		neurons.forEach( t -> {
-			try
-			{
-				t.removeSelf();
-			}
-			catch ( final InterruptedException e )
-			{
-				// TODO Auto-generated catch block
-				e.printStackTrace();
-			}
-		} );
+		neuron.get().ifPresent( NeuronFX::removeSelfUnchecked );
 	}
 
 	public synchronized void updateOnStateChange( final boolean updateOnStateChange )
@@ -153,9 +146,8 @@ public class NeuronRendererFX< T, F extends FragmentSegmentAssignmentState< F > 
 		if ( allowRendering )
 		{
 			removeSelfFromScene();
-			this.neurons.clear();
 			final NeuronFX< T > neuron = new NeuronFX<>( interval, root );
-			this.neurons.add( neuron );
+			this.neuron.set( Optional.of( neuron ) );
 			final float[] blub = new float[ 3 ];
 			final int color = stream.argb( selectedFragmentId );
 			initialLocationInImageCoordinates.localize( blub );
