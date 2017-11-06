@@ -1,7 +1,13 @@
 package bdv.bigcat.viewer.viewer3d;
 
+import java.util.function.Predicate;
+
 import bdv.util.InvokeOnJavaFXApplicationThread;
+import bdv.viewer.fx.MouseDragFX;
+import javafx.beans.property.DoubleProperty;
+import javafx.beans.property.SimpleDoubleProperty;
 import javafx.geometry.Point3D;
+import javafx.scene.AmbientLight;
 import javafx.scene.Group;
 import javafx.scene.PerspectiveCamera;
 import javafx.scene.PointLight;
@@ -30,15 +36,21 @@ public class Viewer3DFX extends Pane
 
 	private final Group cameraGroup;
 
-//	private final AmbientLight light = new AmbientLight( Color.WHITE );
+	final private static double step = 1.0;// Math.PI / 180;
 
-	private final PointLight l = new PointLight( Color.WHITE );
+	private final AmbientLight lightAmbient = new AmbientLight( new Color( 0.1, 0.1, 0.1, 1 ) );
+	private final PointLight lightSpot = new PointLight( new Color( 1.0, 0.95, 0.85, 1 ) );
+	private final PointLight lightFill = new PointLight( new Color( 0.35, 0.35, 0.65, 1 ) );
 
 	private final Point3D cameraNormal = new Point3D( 0, 0, 1 );
 
 	private final Point3D xNormal = new Point3D( 1, 0, 0 );
 
 	private final Point3D yNormal = new Point3D( 0, 1, 0 );
+
+	private final Affine initialTransform = new Affine();
+
+	private final Affine affine = new Affine();
 
 	public Viewer3DFX( final double width, final double height, final Interval interval )
 	{
@@ -52,7 +64,7 @@ public class Viewer3DFX extends Pane
 
 		this.camera = new PerspectiveCamera( true );
 		this.camera.setNearClip( 0.01 );
-		this.camera.setFarClip( 2.0 );
+		this.camera.setFarClip( 10.0 );
 		this.camera.setTranslateY( 0 );
 		this.camera.setTranslateX( 0 );
 		this.camera.setTranslateZ( 0 );
@@ -65,53 +77,26 @@ public class Viewer3DFX extends Pane
 //		this.root.getChildren().add( l );
 		this.scene.widthProperty().bind( widthProperty() );
 		this.scene.heightProperty().bind( heightProperty() );
-		l.setTranslateZ( -0.1 );
-		this.cameraGroup.getChildren().addAll( camera, l );
+		lightSpot.setTranslateX( -10 );
+		lightSpot.setTranslateY( -10 );
+		lightSpot.setTranslateZ( -10 );
+		lightFill.setTranslateX( 10 );
+		this.cameraGroup.getChildren().addAll( camera, lightAmbient, lightSpot, lightFill );
 //		this.cameraGroup.getTransforms().addAll( translate, rotX, rotY );
 		this.cameraGroup.getTransforms().add( new Translate( 0, 0, -1 ) );
 
-		final double[] xy = new double[ 2 ];
-		final Affine initialTransform = new Affine();
-		final Affine affine = new Affine();
-		final Affine affineCopy = new Affine();
 		meshesGroup.getTransforms().addAll( affine );
 		initialTransform.prependTranslation( -interval.dimension( 0 ) / 2, -interval.dimension( 1 ) / 2, -interval.dimension( 2 ) / 2 );
 		final double sf = 1.0 / interval.dimension( 0 );
 		initialTransform.prependScale( sf, sf, sf );
 		affine.setToTransform( initialTransform );
-//		affine.prependTranslation( 0, 0, 0 );
 
-		// TODO should these events invokeAndWait instead of invoke?
-		this.addEventHandler( MouseEvent.MOUSE_PRESSED, event -> {
-			xy[ 0 ] = event.getX();
-			xy[ 1 ] = event.getY();
-			affineCopy.setToTransform( affine );
-		} );
-//
-		this.addEventHandler( MouseEvent.MOUSE_DRAGGED, event -> {
-			if ( !event.isPrimaryButtonDown() || event.isSecondaryButtonDown() )
-				return;
-			final double dX = event.getX() - xy[ 0 ];
-			final double dY = event.getY() - xy[ 1 ];
-			final Affine affineCopy2 = new Affine( affineCopy );
-			affineCopy2.prependRotation( dY, 0, 0, 0, new Point3D( 1, 0, 0 ) );
-			affineCopy2.prependRotation( -dX, 0, 0, 0, new Point3D( 0, 1, 0 ) );
+		final Rotate rotate = new Rotate( "rotate 3d", affine, new SimpleDoubleProperty( 1.0 ), 1.0, MouseEvent::isPrimaryButtonDown );
+		rotate.installInto( this );
 
-			InvokeOnJavaFXApplicationThread.invoke( () -> {
-				affine.setToTransform( affineCopy2 );
-			} );
-		} );
-		this.addEventHandler( MouseEvent.MOUSE_DRAGGED, event -> {
-			if ( event.isPrimaryButtonDown() || !event.isSecondaryButtonDown() )
-				return;
-			final double dX = event.getX() - xy[ 0 ];
-			final double dY = event.getY() - xy[ 1 ];
-			final Affine affineCopy2 = new Affine( affineCopy );
-			affineCopy2.prependTranslation( 2 * dX / getHeight(), 2 * dY / getHeight() );
-			InvokeOnJavaFXApplicationThread.invoke( () -> {
-				affine.setToTransform( affineCopy2 );
-			} );
-		} );
+		final TranslateXY translateXY = new TranslateXY( "translate", affine, MouseEvent::isSecondaryButtonDown );
+		translateXY.installInto( this );
+
 		camera.setFieldOfView( 90 );
 
 		this.addEventHandler( ScrollEvent.SCROLL, event -> {
@@ -122,12 +107,16 @@ public class Viewer3DFX extends Pane
 				InvokeOnJavaFXApplicationThread.invoke( () -> {
 					affine.prependScale( factor, factor, factor );
 				} );
+				event.consume();
 			}
 		} );
 
 		this.addEventHandler( KeyEvent.KEY_PRESSED, event -> {
 			if ( event.getCode().equals( KeyCode.Z ) && event.isShiftDown() )
+			{
 				InvokeOnJavaFXApplicationThread.invoke( () -> affine.setToTransform( initialTransform ) );
+				event.consume();
+			}
 		} );
 
 	}
@@ -145,6 +134,90 @@ public class Viewer3DFX extends Pane
 	public Group meshesGroup()
 	{
 		return meshesGroup;
+	}
+
+	private class Rotate extends MouseDragFX
+	{
+
+		private final SimpleDoubleProperty speed = new SimpleDoubleProperty();
+
+		private final double factor;
+
+		private final Affine affine;
+
+		private final Affine affineDragStart = new Affine();
+
+		public Rotate( final String name, final Affine affine, final DoubleProperty speed, final double factor, final Predicate< MouseEvent >... eventFilter )
+		{
+			super( name, eventFilter );
+			this.factor = factor;
+			this.speed.set( speed.get() * this.factor );
+			speed.addListener( ( obs, old, newv ) -> this.speed.set( this.factor * speed.get() ) );
+			this.affine = affine;
+		}
+
+		@Override
+		public void initDrag( final javafx.scene.input.MouseEvent event )
+		{
+			synchronized ( affine )
+			{
+				affineDragStart.setToTransform( affine );
+			}
+		}
+
+		@Override
+		public void drag( final javafx.scene.input.MouseEvent event )
+		{
+			synchronized ( affineDragStart )
+			{
+				final Affine target = new Affine( affineDragStart );
+				final double dX = event.getX() - startX;
+				final double dY = event.getY() - startY;
+				final double v = step * this.speed.get();
+				target.prependRotation( v * dY, 0, 0, 0, new Point3D( 1, 0, 0 ) );
+				target.prependRotation( v * -dX, 0, 0, 0, new Point3D( 0, 1, 0 ) );
+
+				InvokeOnJavaFXApplicationThread.invoke( () -> {
+					this.affine.setToTransform( target );
+				} );
+			}
+		}
+	}
+
+	private class TranslateXY extends MouseDragFX
+	{
+
+		private final Affine affine;
+
+		private final Affine affineDragStart = new Affine();
+
+		public TranslateXY( final String name, final Affine affine, final Predicate< MouseEvent >... eventFilter )
+		{
+			super( name, eventFilter );
+			this.affine = affine;
+		}
+
+		@Override
+		public void initDrag( final MouseEvent event )
+		{
+			synchronized ( affine )
+			{
+				affineDragStart.setToTransform( affine );
+			}
+		}
+
+		@Override
+		public void drag( final MouseEvent event )
+		{
+			final double dX = event.getX() - startX;
+			final double dY = event.getY() - startY;
+			final Affine target = new Affine( affineDragStart );
+			target.prependTranslation( 2 * dX / getHeight(), 2 * dY / getHeight() );
+			InvokeOnJavaFXApplicationThread.invoke( () -> {
+				affine.setToTransform( target );
+			} );
+		}
+
 	}
 
 }

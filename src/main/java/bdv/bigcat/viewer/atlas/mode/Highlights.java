@@ -55,7 +55,6 @@ public class Highlights extends AbstractStateMode
 	protected Consumer< ViewerPanelFX > getOnEnter()
 	{
 		return t -> {
-			System.out.println( "ENTERING HIGHLIGHTS FOR!" );
 			if ( !this.mouseAndKeyHandlers.containsKey( t ) )
 			{
 				final IdSelector selector = new IdSelector( t, toIdConverters, selectedIds, dataSources );
