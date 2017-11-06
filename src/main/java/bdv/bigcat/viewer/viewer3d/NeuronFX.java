@@ -192,6 +192,12 @@ public class NeuronFX< T >
 							try
 							{
 								InvokeOnJavaFXApplicationThread.invokeAndWait( () -> {
+									if ( !isCanceled )
+									{
+										meshVertices.addAll( vertices );
+										meshNormals.addAll( normals );
+										mesh.getFaces().addAll( faceIndices );
+									}
 									meshVertices.addAll( vertices );
 									meshNormals.addAll( normals );
 									mesh.getFaces().addAll( faceIndices );
