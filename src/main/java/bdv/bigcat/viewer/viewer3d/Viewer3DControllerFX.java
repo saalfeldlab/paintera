@@ -16,7 +16,7 @@ import org.slf4j.LoggerFactory;
 import bdv.bigcat.ui.ARGBStream;
 import bdv.bigcat.viewer.state.FragmentSegmentAssignmentState;
 import bdv.bigcat.viewer.viewer3d.marchingCubes.ForegroundCheck;
-import cleargl.GLVector;
+import javafx.application.Platform;
 import net.imglib2.Interval;
 import net.imglib2.Point;
 import net.imglib2.RandomAccessible;
@@ -41,7 +41,7 @@ public class Viewer3DControllerFX
 
 	private final HashSet< NeuronRendererFX > renderers = new HashSet<>();
 
-//	private CameraModeFX camera;
+	private CameraModeFX camera;
 
 	/**
 	 * Default constructor
@@ -53,10 +53,12 @@ public class Viewer3DControllerFX
 
 	public void init()
 	{
-//		camera = new CameraModeFX( viewer3D.scene() );
-//		camera.perspectiveCamera( 50f, 0.1f, 10000.0f );
-//		camera.automatic();
-//		camera.manual();
+		Platform.runLater( () -> {
+			System.out.println( "starting controller" );
+			camera = new CameraModeFX( viewer3D.meshesGroup() );
+			camera.automatic();
+//			camera.manual();
+		} );
 	}
 
 	public synchronized < T extends Type< T >, F extends FragmentSegmentAssignmentState< F > > void generateMesh(
@@ -72,6 +74,7 @@ public class Viewer3DControllerFX
 			final ARGBStream stream,
 			final boolean append )
 	{
+		System.out.println( "generating mesh" );
 		LOG.info( "Rendering neuron: {} {}", fragmentId, fragmentSegmentAssignment.getSegment( fragmentId ) );
 
 		if ( LOG.isWarnEnabled() )
@@ -97,8 +100,8 @@ public class Viewer3DControllerFX
 				this.renderers.clear();
 
 				final RealLocalizable cameraPosition = new RealPoint( worldLocation.getFloatPosition( 0 ), worldLocation.getFloatPosition( 1 ), worldLocation.getFloatPosition( 2 ) * 1.5 );
-//				camera.setPosition( new GLVector( cameraPosition.getFloatPosition( 0 ), cameraPosition.getFloatPosition( 1 ), cameraPosition.getFloatPosition( 2 ) ) );
-				System.out.println( "initial camera position: " + cameraPosition.getFloatPosition( 0 ) + "x" + cameraPosition.getFloatPosition( 1 ) + "x" + cameraPosition.getFloatPosition( 2 ) );
+//				camera.setPosition( new float[] { cameraPosition.getFloatPosition( 0 ), cameraPosition.getFloatPosition( 1 ), cameraPosition.getFloatPosition( 2 ) } );
+//				System.out.println( "initial camera position: " + cameraPosition.getFloatPosition( 0 ) + "x" + cameraPosition.getFloatPosition( 1 ) + "x" + cameraPosition.getFloatPosition( 2 ) );
 			}
 
 			final List< NeuronRendererFX > filteredNrs = renderers.stream()

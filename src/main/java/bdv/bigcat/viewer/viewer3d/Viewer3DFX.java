@@ -72,6 +72,7 @@ public class Viewer3DFX extends Pane
 		this.cameraGroup = new Group();
 
 		this.getChildren().add( this.scene );
+//		this.root.getChildren().add( meshesGroup );
 		this.root.getChildren().addAll( cameraGroup, meshesGroup );
 //		this.root.getChildren().add( light );
 //		this.root.getChildren().add( l );
@@ -84,9 +85,11 @@ public class Viewer3DFX extends Pane
 		this.cameraGroup.getChildren().addAll( camera, lightAmbient, lightSpot, lightFill );
 //		this.cameraGroup.getTransforms().addAll( translate, rotX, rotY );
 		this.cameraGroup.getTransforms().add( new Translate( 0, 0, -1 ) );
+		Point3D point = new Point3D( camera.getTranslateX(), camera.getTranslateY(), camera.getTranslateZ() );
 
 		meshesGroup.getTransforms().addAll( affine );
 		initialTransform.prependTranslation( -interval.dimension( 0 ) / 2, -interval.dimension( 1 ) / 2, -interval.dimension( 2 ) / 2 );
+		System.out.println( "position: " + ( -interval.dimension( 0 ) / 2 ) + " " + ( -interval.dimension( 1 ) / 2 ) + " " + ( -interval.dimension( 2 ) / 2 ) );
 		final double sf = 1.0 / interval.dimension( 0 );
 		initialTransform.prependScale( sf, sf, sf );
 		affine.setToTransform( initialTransform );
@@ -98,6 +101,8 @@ public class Viewer3DFX extends Pane
 		translateXY.installInto( this );
 
 		camera.setFieldOfView( 90 );
+
+//		System.out.println( "camera position: " + camera.getTranslateX() + " " + getTranslateY() + " " + getTranslateZ() );
 
 		this.addEventHandler( ScrollEvent.SCROLL, event -> {
 			if ( Math.abs( event.getDeltaY() ) > Math.abs( event.getDeltaX() ) )
@@ -118,7 +123,6 @@ public class Viewer3DFX extends Pane
 				event.consume();
 			}
 		} );
-
 	}
 
 	public SubScene scene()

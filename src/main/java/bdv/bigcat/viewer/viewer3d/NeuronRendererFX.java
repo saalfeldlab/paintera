@@ -273,8 +273,11 @@ public class NeuronRendererFX< T, F extends FragmentSegmentAssignmentState< F > 
 
 		completeBoundingBox = maxBoundingBox( completeBoundingBox, boundingBox );
 
-//		for ( final NeuronRendererListener listener : listeners )
-//			listener.updateCamera( completeBoundingBox );
+//		System.out.println( "completeBB: " + completeBoundingBox[ 0 ] + " " + completeBoundingBox[ 1 ] + " " + completeBoundingBox[ 2 ] +
+//				" " + completeBoundingBox[ 3 ] + " " + completeBoundingBox[ 4 ] + " " + completeBoundingBox[ 5 ] );
+
+		for ( final NeuronRendererListener listener : listeners )
+			listener.updateCamera( completeBoundingBox );
 	}
 
 	private synchronized double[] maxBoundingBox( final double[] completeBoundingBox, final double[] boundingBox )
