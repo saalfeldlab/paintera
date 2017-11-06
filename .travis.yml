@@ -31,7 +31,7 @@ install:
   - cd bigdataviewer-core
   - mvn install
   - cd ..
-  - git clone https://github.com/hanslovsky/imglib2.git
+  - git clone https://github.com/imglib/imglib2.git
   - cd imglib2
   - mvn install
   - cd ..
