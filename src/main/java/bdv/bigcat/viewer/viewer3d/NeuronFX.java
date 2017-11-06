@@ -253,4 +253,9 @@ public class NeuronFX< T >
 			this.root.getChildren().add( this.node );
 		} );
 	}
+
+	public MeshView meshView()
+	{
+		return node;
+	}
 }

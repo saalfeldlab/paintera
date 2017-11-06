@@ -1,5 +1,8 @@
 package bdv.bigcat.viewer.viewer3d;
 
+import java.io.File;
+import java.io.IOException;
+import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -10,10 +13,17 @@ import bdv.bigcat.ui.ARGBStream;
 import bdv.bigcat.viewer.state.FragmentSegmentAssignmentState;
 import bdv.bigcat.viewer.state.StateListener;
 import bdv.bigcat.viewer.viewer3d.marchingCubes.ForegroundCheck;
+import bdv.util.InvokeOnJavaFXApplicationThread;
 import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.SimpleObjectProperty;
+import javafx.collections.ObservableFloatArray;
+import javafx.event.EventHandler;
 import javafx.scene.Camera;
 import javafx.scene.Group;
+import javafx.scene.input.MouseEvent;
+import javafx.scene.shape.ObservableFaceArray;
+import javafx.scene.shape.TriangleMesh;
+import javafx.stage.FileChooser;
 import net.imglib2.Interval;
 import net.imglib2.Localizable;
 import net.imglib2.RandomAccess;
@@ -68,6 +78,8 @@ public class NeuronRendererFX< T, F extends FragmentSegmentAssignmentState< F > 
 
 	private final ObjectProperty< Optional< NeuronFX< T > > > neuron = new SimpleObjectProperty<>( Optional.empty() );
 
+	private final MeshSaver meshSaver;
+
 	/**
 	 * Bounding box of the complete mesh/neuron (xmin, xmax, ymin, ymax, zmin,
 	 * zmax)
@@ -107,6 +119,7 @@ public class NeuronRendererFX< T, F extends FragmentSegmentAssignmentState< F > 
 
 		updateForegroundCheck();
 		this.fragmentSegmentAssignment.addListener( this );
+		this.meshSaver = new MeshSaver();
 	}
 
 	public synchronized void cancelRendering()
@@ -118,6 +131,7 @@ public class NeuronRendererFX< T, F extends FragmentSegmentAssignmentState< F > 
 	{
 		cancelRendering();
 		neuron.get().ifPresent( NeuronFX::removeSelfUnchecked );
+		neuron.get().ifPresent( n -> n.meshView().removeEventHandler( MouseEvent.MOUSE_PRESSED, meshSaver ) );
 	}
 
 	public synchronized void updateOnStateChange( final boolean updateOnStateChange )
@@ -161,6 +175,8 @@ public class NeuronRendererFX< T, F extends FragmentSegmentAssignmentState< F > 
 //			l.setTranslateZ( blub[ 2 ] - 500 );
 //			InvokeOnJavaFXApplicationThread.invoke( () -> root.getChildren().add( l ) );
 			neuron.render( initialLocationInImageCoordinates, data, foregroundCheck, toWorldCoordinates, blockSize, cubeSize, color, es );
+			neuron.meshView().addEventHandler( MouseEvent.MOUSE_PRESSED, meshSaver );
+
 		}
 	}
 
@@ -281,5 +297,89 @@ public class NeuronRendererFX< T, F extends FragmentSegmentAssignmentState< F > 
 				completeBoundingBox[ d ] = boundingBox[ d ];
 
 		return completeBoundingBox;
+	}
+
+	private class MeshSaver implements EventHandler< MouseEvent >
+	{
+
+		@Override
+		public void handle( final MouseEvent event )
+		{
+			if ( !neuron.get().isPresent() )
+				return;
+			final TriangleMesh mesh = ( TriangleMesh ) neuron.get().get().meshView().getMesh();
+			final FileChooser fileChooser = new FileChooser();
+			fileChooser.setTitle( "Save neuron with fragment " + fragmentId() + " " + segmentId() );
+			final SimpleObjectProperty< Optional< File > > fileProperty = new SimpleObjectProperty<>( Optional.empty() );
+			try
+			{
+				InvokeOnJavaFXApplicationThread.invokeAndWait( () -> {
+					fileProperty.set( Optional.ofNullable( fileChooser.showSaveDialog( root.sceneProperty().get().getWindow() ) ) );
+				} );
+			}
+			catch ( final InterruptedException e )
+			{
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+			if ( fileProperty.get().isPresent() )
+			{
+				final File file = fileProperty.get().get();
+				final StringBuilder sb = new StringBuilder()
+						.append( "# fragment id: " ).append( fragmentId() ).append( "\n" )
+						.append( "# segment id:  " ).append( segmentId() ).append( "\n" )
+						.append( "# color:       " ).append( Integer.toHexString( stream.argb( selectedFragmentId ) ) );
+				final ObservableFloatArray vertices = mesh.getPoints();
+				final ObservableFloatArray normals = mesh.getNormals();
+				final ObservableFloatArray texCoords = mesh.getTexCoords();
+				final ObservableFaceArray faces = mesh.getFaces();
+				final int numFacesEntries = faces.size();
+
+				sb.append( "\n" );
+				final int numVertices = vertices.size();
+				for ( int k = 0; k < numVertices; k += 3 )
+					sb.append( "\nv " ).append( vertices.get( k + 0 ) ).append( " " ).append( vertices.get( k + 1 ) ).append( " " ).append( vertices.get( k + 2 ) );
+
+				sb.append( "\n" );
+				final int numNormals = normals.size();
+				for ( int k = 0; k < numNormals; k += 3 )
+					sb.append( "\nvn " ).append( normals.get( k + 0 ) ).append( " " ).append( normals.get( k + 1 ) ).append( " " ).append( normals.get( k + 2 ) );
+
+				sb.append( "\n" );
+				final int numTexCoords = texCoords.size();
+				for ( int k = 0; k < numTexCoords; k += 3 )
+					sb.append( "\nvn " ).append( texCoords.get( k + 0 ) ).append( " " ).append( texCoords.get( k + 1 ) );
+
+				sb.append( "\n" );
+				for ( int k = 0; k < numFacesEntries; k += 9 )
+				{
+					final int v1 = faces.get( k );
+					final int n1 = faces.get( k + 1 );
+					final int t1 = faces.get( k + 2 );
+					final int v2 = faces.get( k + 3 );
+					final int n2 = faces.get( k + 4 );
+					final int t2 = faces.get( k + 5 );
+					final int v3 = faces.get( k + 6 );
+					final int n3 = faces.get( k + 7 );
+					final int t3 = faces.get( k + 8 );
+					sb
+							.append( "\nf " ).append( v1 + 1 ).append( "/" ).append( t1 + 1 ).append( "/" ).append( n1 + 1 )
+							.append( " " ).append( v2 + 1 ).append( "/" ).append( t2 + 1 ).append( "/" ).append( n2 + 1 )
+							.append( " " ).append( v3 + 1 ).append( "/" ).append( t3 + 1 ).append( "/" ).append( n3 + 1 );
+				}
+
+				try
+				{
+					Files.write( file.toPath(), sb.toString().getBytes() );
+				}
+				catch ( final IOException e )
+				{
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				}
+			}
+
+		}
+
 	}
 }
