@@ -1,5 +1,6 @@
 package bdv.bigcat.viewer.viewer3d;
 
+import java.lang.invoke.MethodHandles;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -7,6 +8,9 @@ import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
 import java.util.stream.IntStream;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import bdv.bigcat.viewer.viewer3d.marchingCubes.ForegroundCheck;
 import bdv.bigcat.viewer.viewer3d.marchingCubes.MarchingCubes;
@@ -32,6 +36,9 @@ import net.imglib2.util.Intervals;
 
 public class NeuronFX< T >
 {
+
+	private static final Logger LOG = LoggerFactory.getLogger( MethodHandles.lookup().lookupClass() );
+
 	private final Interval interval;
 
 	private final Group root;
@@ -198,14 +205,11 @@ public class NeuronFX< T >
 										meshNormals.addAll( normals );
 										mesh.getFaces().addAll( faceIndices );
 									}
-									meshVertices.addAll( vertices );
-									meshNormals.addAll( normals );
-									mesh.getFaces().addAll( faceIndices );
 								} );
 							}
 							catch ( final InterruptedException e )
 							{
-								e.printStackTrace();
+								LOG.trace( "Interrupted rendering", e );
 							}
 
 						}
