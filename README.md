@@ -48,6 +48,7 @@ java -Xmx16G -jar target/bigcat-0.0.3-SNAPSHOT-jar-with-dependencies.jar -f <inp
 ```
 
 other parameters:
+
 | Option                  | Description        | Default value             |
 | ----------------------- |:------------------:|:-------------------------:|
 | --label or -l           | label dataset name | volumes/labels/neuron_ids |
