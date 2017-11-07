@@ -44,8 +44,17 @@ mvn clean compile assembly:single
 ## Run
 
 ```shell
-java -Xmx16G -jar target/bigcat-0.0.3-SNAPSHOT-jar-with-dependencies.jar -i <input_hdf_file>
+java -Xmx16G -jar target/bigcat-0.0.3-SNAPSHOT-jar-with-dependencies.jar -f <input_hdf_file>
 ```
+
+other parameters:
+| Option                  | Description        | Default value             |
+| ----------------------- |:------------------:|:-------------------------:|
+| --label or -l           | label dataset name | volumes/labels/neuron_ids |
+| --raw or -r             | raw dataset name   | volumes/raw               |
+| --resolution or -rs     | resolution         | { 4, 4, 40 }              |
+| --rawCellSize or -rcs   | raw cell size      | { 192, 96, 7 }            |
+| --labelCellSize or -lcs | label cell size    | { 79, 79, 4 }             |
 
 ## Development
 
