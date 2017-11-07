@@ -29,8 +29,6 @@ public class NeuronRendererFX< T, F extends FragmentSegmentAssignmentState< F > 
 {
 	private final long selectedFragmentId;
 
-	private final List< NeuronRendererListener > listeners = new ArrayList<>();
-
 	private long selectedSegmentId;
 
 	private final F fragmentSegmentAssignment;
@@ -130,11 +128,6 @@ public class NeuronRendererFX< T, F extends FragmentSegmentAssignmentState< F > 
 	public synchronized void updateOnStateChange( final boolean updateOnStateChange )
 	{
 		this.updateOnStateChange = updateOnStateChange;
-	}
-
-	public void addListener( final NeuronRendererListener cameraCallback )
-	{
-		listeners.add( cameraCallback );
 	}
 
 	@Override
@@ -265,32 +258,5 @@ public class NeuronRendererFX< T, F extends FragmentSegmentAssignmentState< F > 
 	public synchronized void allowRendering( final boolean allow )
 	{
 		this.allowRendering = allow;
-	}
-
-	public synchronized void updateCompleteBoundingBox( final double[] boundingBox )
-	{
-		assert completeBoundingBox.length == boundingBox.length;
-
-		completeBoundingBox = maxBoundingBox( completeBoundingBox, boundingBox );
-
-//		System.out.println( "completeBB: " + completeBoundingBox[ 0 ] + " " + completeBoundingBox[ 1 ] + " " + completeBoundingBox[ 2 ] +
-//				" " + completeBoundingBox[ 3 ] + " " + completeBoundingBox[ 4 ] + " " + completeBoundingBox[ 5 ] );
-
-		for ( final NeuronRendererListener listener : listeners )
-			listener.updateCamera( completeBoundingBox );
-	}
-
-	private synchronized double[] maxBoundingBox( final double[] completeBoundingBox, final double[] boundingBox )
-	{
-		if ( completeBoundingBox == null )
-			return boundingBox;
-
-		for ( int d = 0; d < completeBoundingBox.length; d++ )
-			if ( d % 2 == 0 && completeBoundingBox[ d ] > boundingBox[ d ] )
-				completeBoundingBox[ d ] = boundingBox[ d ];
-			else if ( d % 2 != 0 && completeBoundingBox[ d ] < boundingBox[ d ] )
-				completeBoundingBox[ d ] = boundingBox[ d ];
-
-		return completeBoundingBox;
 	}
 }
