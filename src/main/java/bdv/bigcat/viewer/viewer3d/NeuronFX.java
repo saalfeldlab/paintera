@@ -187,13 +187,6 @@ public class NeuronFX< T >
 								faceIndices[ i + 0 ] = k;
 								faceIndices[ i + 1 ] = k;
 								faceIndices[ i + 2 ] = 0;
-//								this.chunks.remove( chunk );
-//								InvokeOnJavaFXApplicationThread.invoke( () -> root.getChildren().remove( chunk ) );
-//								addNode( mv );
-//								Bounds bb = mv.getBoundsInParent();
-//								double[] bbArray = new double[] { bb.getMinX(), bb.getMaxX(), bb.getMinY(), bb.getMaxY(), bb.getMinZ(), bb.getMaxZ() };
-////								System.out.println( "bbArray: " + bbArray[ 0 ] + " " + bbArray[ 1 ] + " " + bbArray[ 2 ] + " " + bbArray[ 3 ] + " " + bbArray[ 4 ] + " " + bbArray[ 5 ] );
-//								generator.updateCompleteBoundingBox( bbArray );
 							}
 
 							try
