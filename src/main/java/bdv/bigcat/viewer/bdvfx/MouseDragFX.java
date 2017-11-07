@@ -8,7 +8,7 @@ import javafx.event.EventHandler;
 import javafx.scene.Node;
 import javafx.scene.input.MouseEvent;
 
-public abstract class MouseDragFX implements InstallAndRemove
+public abstract class MouseDragFX implements InstallAndRemove< Node >
 {
 
 	protected double startX = 0;

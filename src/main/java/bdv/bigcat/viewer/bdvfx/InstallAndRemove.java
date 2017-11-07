@@ -1,12 +1,10 @@
 package bdv.bigcat.viewer.bdvfx;
 
-import javafx.scene.Node;
-
-public interface InstallAndRemove
+public interface InstallAndRemove< T >
 {
 
-	public void installInto( Node node );
+	public void installInto( T t );
 
-	public void removeFrom( Node node );
+	public void removeFrom( T t );
 
 }

@@ -7,7 +7,7 @@ import java.util.function.Predicate;
 import javafx.scene.Node;
 import javafx.scene.input.MouseEvent;
 
-public class MouseClickFX implements InstallAndRemove
+public class MouseClickFX implements InstallAndRemove< Node >
 {
 
 	private final EventFX< MouseEvent > onPress;

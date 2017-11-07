@@ -11,7 +11,7 @@ import javafx.scene.Node;
 import javafx.scene.input.KeyEvent;
 import javafx.scene.input.MouseEvent;
 
-public abstract class EventFX< E extends Event > implements EventHandler< E >, InstallAndRemove
+public abstract class EventFX< E extends Event > implements EventHandler< E >, InstallAndRemove< Node >
 {
 	private final String name;
 

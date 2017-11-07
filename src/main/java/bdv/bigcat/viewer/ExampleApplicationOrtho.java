@@ -8,6 +8,7 @@ import org.slf4j.Logger;
 import com.sun.javafx.application.PlatformImpl;
 
 import bdv.bigcat.viewer.atlas.data.HDF5UnsignedByteSpec;
+import bdv.bigcat.viewer.bdvfx.KeyTracker;
 import bdv.bigcat.viewer.ortho.OrthoView;
 import bdv.img.cache.VolatileGlobalCellCache;
 import bdv.viewer.SourceAndConverter;
@@ -47,7 +48,14 @@ public class ExampleApplicationOrtho
 		rawSource.getSource().getSourceTransform( 0, 0, affine );
 		affine.apply( min, min );
 		affine.apply( max, max );
-		final OrthoView ortho = new OrthoView( ViewerOptions.options(), cellCache );
+		final KeyTracker keyTracker = new KeyTracker();
+		final OrthoView ortho = new OrthoView( ViewerOptions.options(), cellCache, keyTracker );
+		ortho.sceneProperty().addListener( ( obs, oldv, newv ) -> {
+			if ( oldv != null )
+				keyTracker.removeFrom( oldv );
+			if ( newv != null )
+				keyTracker.installInto( newv );
+		} );
 
 		final CountDownLatch latch = new CountDownLatch( 1 );
 		Platform.runLater( () -> {

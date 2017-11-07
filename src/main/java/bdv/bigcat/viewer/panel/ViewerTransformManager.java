@@ -3,7 +3,6 @@ package bdv.bigcat.viewer.panel;
 import java.awt.event.ActionEvent;
 import java.util.Arrays;
 import java.util.List;
-import java.util.Set;
 import java.util.function.Predicate;
 
 import org.scijava.ui.behaviour.ClickBehaviour;
@@ -11,6 +10,7 @@ import org.scijava.ui.behaviour.util.AbstractNamedAction;
 
 import bdv.bigcat.viewer.atlas.mode.Merges;
 import bdv.bigcat.viewer.bdvfx.EventFX;
+import bdv.bigcat.viewer.bdvfx.KeyTracker;
 import bdv.bigcat.viewer.bdvfx.MouseDragFX;
 import bdv.bigcat.viewer.bdvfx.ViewerPanelFX;
 import bdv.bigcat.viewer.state.GlobalTransformManager;
@@ -68,7 +68,7 @@ public class ViewerTransformManager implements TransformListener< AffineTransfor
 
 	private static final String KEY_BACKWARD_Z = "backward z";
 
-	private final Set< KeyCode > activeKeys;
+	private final KeyTracker keyTracker;
 
 	private final SimpleDoubleProperty rotationSpeed = new SimpleDoubleProperty( 1.0 );
 
@@ -88,7 +88,7 @@ public class ViewerTransformManager implements TransformListener< AffineTransfor
 			final ViewerPanelFX viewer,
 			final ViewerState state,
 			final AffineTransform3D globalToViewer,
-			final Set< KeyCode > activeKeys )
+			final KeyTracker keyTracker )
 	{
 		super();
 		this.viewer = viewer;
@@ -103,7 +103,7 @@ public class ViewerTransformManager implements TransformListener< AffineTransfor
 		setTransformListener( viewer );
 		manager.addListener( this );
 
-		this.activeKeys = activeKeys;
+		this.keyTracker = keyTracker;
 
 		state.globalTransformProperty().addListener( ( observable, oldValue, newValue ) -> {
 			this.setGlobalTransform( newValue );
@@ -211,27 +211,18 @@ public class ViewerTransformManager implements TransformListener< AffineTransfor
 	{
 
 		final TranslateXY translateXY = new TranslateXY( "drag translate", event -> {
-			synchronized ( activeKeys )
-			{
-				return activeKeys.size() == 0 && event.getButton().equals( MouseButton.SECONDARY );
-			}
+			return keyTracker.noKeysActive() && event.getButton().equals( MouseButton.SECONDARY );
 		} );
 
 		final Rotate[] rotations = {
 				new Rotate( "rotate", rotationSpeed, factors[ 0 ], event -> {
-					synchronized ( activeKeys )
-					{
-						return activeKeys.size() == 0 && event.getButton().equals( MouseButton.PRIMARY );
-					}
+					return keyTracker.noKeysActive() && event.getButton().equals( MouseButton.PRIMARY );
 				} ),
 				new Rotate( "rotate fast", rotationSpeed, factors[ 1 ], event -> {
-					synchronized ( activeKeys )
-					{
-						return activeKeys.size() == 1 && event.getButton().equals( MouseButton.PRIMARY ) && event.isShiftDown();
-					}
+					return keyTracker.areOnlyTheseKeysDown( KeyCode.SHIFT ) && event.getButton().equals( MouseButton.PRIMARY );
 				} ),
 				new Rotate( "rotate slow", rotationSpeed, factors[ 2 ], event -> {
-					return activeKeys.size() == 1 && event.getButton().equals( MouseButton.PRIMARY ) && event.isControlDown();
+					return keyTracker.areOnlyTheseKeysDown( KeyCode.CONTROL ) && event.getButton().equals( MouseButton.PRIMARY );
 				} )
 		};
 
@@ -242,8 +233,8 @@ public class ViewerTransformManager implements TransformListener< AffineTransfor
 
 		final Zoom zoom = new Zoom(
 				zoomSpeed,
-				event -> activeKeys.size() == 1 && activeKeys.contains( KeyCode.META ),
-				event -> activeKeys.size() == 2 && activeKeys.containsAll( Arrays.asList( KeyCode.CONTROL, KeyCode.SHIFT ) ) );
+				event -> keyTracker.areOnlyTheseKeysDown( KeyCode.META ),
+				event -> keyTracker.areOnlyTheseKeysDown( KeyCode.CONTROL, KeyCode.SHIFT ) );
 
 		final EventFX< KeyEvent > removeRotation = EventFX.KEY_PRESSED( "remove rotation", new RemoveRotation()::handle, event -> Merges.shiftOnly( event ) && event.getCode().equals( KeyCode.Z ) );
 
@@ -258,9 +249,9 @@ public class ViewerTransformManager implements TransformListener< AffineTransfor
 
 //		behaviours.behaviour( new ButtonZoom( 1.05 ), "zoom", "UP" );
 //		behaviours.behaviour( new ButtonZoom( 1.0 / 1.05 ), "zoom", "DOWN" );
-		viewer.addEventHandler( ScrollEvent.SCROLL, new TranslateZ( zoomSpeed.get() * factors[ 0 ], event -> activeKeys.size() == 0 )::scroll );
-		viewer.addEventHandler( ScrollEvent.SCROLL, new TranslateZ( zoomSpeed.get() * factors[ 1 ], event -> activeKeys.size() == 1 && activeKeys.contains( KeyCode.SHIFT ) )::scroll );
-		viewer.addEventHandler( ScrollEvent.SCROLL, new TranslateZ( zoomSpeed.get() * factors[ 2 ], event -> activeKeys.size() == 1 && activeKeys.contains( KeyCode.CONTROL ) )::scroll );
+		viewer.addEventHandler( ScrollEvent.SCROLL, new TranslateZ( zoomSpeed.get() * factors[ 0 ], event -> keyTracker.noKeysActive() )::scroll );
+		viewer.addEventHandler( ScrollEvent.SCROLL, new TranslateZ( zoomSpeed.get() * factors[ 1 ], event -> keyTracker.areOnlyTheseKeysDown( KeyCode.SHIFT ) )::scroll );
+		viewer.addEventHandler( ScrollEvent.SCROLL, new TranslateZ( zoomSpeed.get() * factors[ 2 ], event -> keyTracker.areOnlyTheseKeysDown( KeyCode.CONTROL ) )::scroll );
 
 		this.manager.addListener( this );
 	}

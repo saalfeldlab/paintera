@@ -33,6 +33,7 @@ import bdv.bigcat.viewer.atlas.mode.Mode;
 import bdv.bigcat.viewer.atlas.mode.ModeUtil;
 import bdv.bigcat.viewer.atlas.mode.NavigationOnly;
 import bdv.bigcat.viewer.atlas.mode.Render3DFX;
+import bdv.bigcat.viewer.bdvfx.KeyTracker;
 import bdv.bigcat.viewer.bdvfx.ViewerPanelFX;
 import bdv.bigcat.viewer.ortho.OrthoView;
 import bdv.bigcat.viewer.ortho.OrthoViewState;
@@ -118,6 +119,8 @@ public class Atlas
 
 	private final List< OrthoSliceFX > orthoSlices = new ArrayList<>();
 
+	private final KeyTracker keyTracker = new KeyTracker();
+
 	public Atlas( final Interval interval, final VolatileGlobalCellCache cellCache )
 	{
 		this( ViewerOptions.options(), interval, cellCache );
@@ -129,7 +132,7 @@ public class Atlas
 		this.viewerOptions = viewerOptions
 				.accumulateProjectorFactory( new ClearingCompositeProjectorFactory<>( composites, new ARGBType() ) )
 				.numRenderingThreads( Math.min( 3, Math.max( 1, Runtime.getRuntime().availableProcessors() / 3 ) ) );
-		this.view = new OrthoView( focusHandler.onEnter(), focusHandler.onExit(), new OrthoViewState( this.viewerOptions ), cellCache );
+		this.view = new OrthoView( focusHandler.onEnter(), focusHandler.onExit(), new OrthoViewState( this.viewerOptions ), cellCache, keyTracker );
 		this.root = new BorderPane( this.view );
 		this.root.setBottom( status );
 		this.root.setRight( sourcesTab );
@@ -246,6 +249,13 @@ public class Atlas
 		this.baseView().addEventHandler( KeyEvent.KEY_PRESSED, event -> {
 			if ( event.getCode().equals( KeyCode.O ) && event.isShiftDown() && !event.isAltDown() && !event.isControlDown() )
 				orthoSlices.forEach( OrthoSliceFX::toggleVisibility );
+		} );
+
+		this.root.sceneProperty().addListener( ( obs, oldv, newv ) -> {
+			if ( oldv != null )
+				this.keyTracker.removeFrom( oldv );
+			if ( newv != null )
+				this.keyTracker.installInto( newv );
 		} );
 
 	}
