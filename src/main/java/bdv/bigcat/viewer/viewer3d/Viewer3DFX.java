@@ -90,9 +90,12 @@ public class Viewer3DFX extends Pane
 		meshesGroup.getTransforms().addAll( affine );
 		initialTransform.prependTranslation( -interval.dimension( 0 ) / 2, -interval.dimension( 1 ) / 2, -interval.dimension( 2 ) / 2 );
 		System.out.println( "position: " + ( -interval.dimension( 0 ) / 2 ) + " " + ( -interval.dimension( 1 ) / 2 ) + " " + ( -interval.dimension( 2 ) / 2 ) );
+
 		final double sf = 1.0 / interval.dimension( 0 );
 		initialTransform.prependScale( sf, sf, sf );
 		affine.setToTransform( initialTransform );
+
+		affine.prependRotation( 90, 0, 0, 0, new Point3D( 0, 1, 0 ) );
 
 		final Rotate rotate = new Rotate( "rotate 3d", affine, new SimpleDoubleProperty( 1.0 ), 1.0, MouseEvent::isPrimaryButtonDown );
 		rotate.installInto( this );
@@ -101,8 +104,6 @@ public class Viewer3DFX extends Pane
 		translateXY.installInto( this );
 
 		camera.setFieldOfView( 90 );
-
-//		System.out.println( "camera position: " + camera.getTranslateX() + " " + getTranslateY() + " " + getTranslateZ() );
 
 		this.addEventHandler( ScrollEvent.SCROLL, event -> {
 			if ( Math.abs( event.getDeltaY() ) > Math.abs( event.getDeltaX() ) )
