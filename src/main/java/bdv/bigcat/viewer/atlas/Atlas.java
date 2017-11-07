@@ -152,7 +152,7 @@ public class Atlas
 		this.view.setInfoNode( renderView );
 		this.renderView.scene().addEventHandler( MouseEvent.MOUSE_CLICKED, event -> renderView.scene().requestFocus() );
 
-		final Mode[] initialModes = { new NavigationOnly(), new Highlights( selectedIds ), new Merges( selectedIds, assignments ), new Render3DFX( controller, baseView().getState().transformManager() ) };
+		final Mode[] initialModes = { new NavigationOnly(), new Highlights( selectedIds, keyTracker ), new Merges( selectedIds, assignments ), new Render3DFX( controller, baseView().getState().transformManager() ) };
 		Arrays.stream( initialModes ).forEach( modes::add );
 
 		for ( final Mode mode : modes )

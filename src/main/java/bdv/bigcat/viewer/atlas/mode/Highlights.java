@@ -9,10 +9,11 @@ import java.util.function.Consumer;
 import bdv.bigcat.viewer.IdSelector;
 import bdv.bigcat.viewer.ToIdConverter;
 import bdv.bigcat.viewer.bdvfx.InstallAndRemove;
+import bdv.bigcat.viewer.bdvfx.KeyTracker;
 import bdv.bigcat.viewer.bdvfx.ViewerPanelFX;
 import bdv.bigcat.viewer.state.SelectedIds;
 import bdv.viewer.Source;
-import javafx.scene.input.MouseEvent;
+import javafx.scene.input.KeyCode;
 
 public class Highlights extends AbstractStateMode
 {
@@ -25,9 +26,12 @@ public class Highlights extends AbstractStateMode
 
 	private final HashMap< ViewerPanelFX, Collection< InstallAndRemove > > mouseAndKeyHandlers = new HashMap<>();
 
-	public Highlights( final HashMap< Source< ? >, SelectedIds > selectedIds )
+	private final KeyTracker keyTracker;
+
+	public Highlights( final HashMap< Source< ? >, SelectedIds > selectedIds, final KeyTracker keyTracker )
 	{
 		this.selectedIds = selectedIds;
+		this.keyTracker = keyTracker;
 	}
 
 	public void addSource( final Source< ? > source, final Source< ? > dataSources, final ToIdConverter toIdConverter )
@@ -59,8 +63,8 @@ public class Highlights extends AbstractStateMode
 			{
 				final IdSelector selector = new IdSelector( t, toIdConverters, selectedIds, dataSources );
 				final List< InstallAndRemove > iars = new ArrayList<>();
-				iars.add( selector.selectSingle( "toggle single id", new SelectionDialog( "oge1" ), MouseEvent::isPrimaryButtonDown ) );
-				iars.add( selector.append( "append id", new SelectionDialog( "oge2" ), MouseEvent::isSecondaryButtonDown ) );
+				iars.add( selector.selectFragmentWithMaximumCount( "toggle single id", event -> {}, event -> event.isPrimaryButtonDown() && keyTracker.noKeysActive() ) );
+				iars.add( selector.appendFragmentWithMaximumCount( "append id", event -> {}, event -> event.isPrimaryButtonDown() && keyTracker.areOnlyTheseKeysDown( KeyCode.SHIFT ) ) );
 				this.mouseAndKeyHandlers.put( t, iars );
 			}
 //			t.getDisplay().addHandler( this.mouseAndKeyHandlers.get( t ) );
