@@ -8,11 +8,11 @@ import java.util.function.Consumer;
 
 import bdv.bigcat.viewer.IdSelector;
 import bdv.bigcat.viewer.ToIdConverter;
+import bdv.bigcat.viewer.bdvfx.InstallAndRemove;
+import bdv.bigcat.viewer.bdvfx.ViewerPanelFX;
 import bdv.bigcat.viewer.state.SelectedIds;
 import bdv.viewer.Source;
-import bdv.viewer.ViewerPanelFX;
 import javafx.scene.input.MouseEvent;
-import net.imglib2.ui.InstallAndRemove;
 
 public class Highlights extends AbstractStateMode
 {

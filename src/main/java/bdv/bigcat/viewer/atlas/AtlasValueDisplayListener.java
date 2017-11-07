@@ -6,8 +6,8 @@ import java.util.function.Consumer;
 import java.util.function.Function;
 
 import bdv.bigcat.viewer.ValueDisplayListener;
+import bdv.bigcat.viewer.bdvfx.ViewerPanelFX;
 import bdv.viewer.Source;
-import bdv.viewer.ViewerPanelFX;
 import javafx.application.Platform;
 import javafx.scene.control.Label;
 import javafx.scene.input.MouseEvent;

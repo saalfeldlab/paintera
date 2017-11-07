@@ -10,10 +10,10 @@ import org.scijava.ui.behaviour.ClickBehaviour;
 import org.scijava.ui.behaviour.util.AbstractNamedAction;
 
 import bdv.bigcat.viewer.atlas.mode.Merges;
+import bdv.bigcat.viewer.bdvfx.EventFX;
+import bdv.bigcat.viewer.bdvfx.MouseDragFX;
+import bdv.bigcat.viewer.bdvfx.ViewerPanelFX;
 import bdv.bigcat.viewer.state.GlobalTransformManager;
-import bdv.viewer.ViewerPanelFX;
-import bdv.viewer.fx.EventFX;
-import bdv.viewer.fx.MouseDragFX;
 import bdv.viewer.state.SourceState;
 import javafx.beans.property.DoubleProperty;
 import javafx.beans.property.SimpleDoubleProperty;

@@ -3,7 +3,7 @@ package bdv.bigcat.viewer.atlas.mode;
 import java.util.HashSet;
 import java.util.function.Consumer;
 
-import bdv.viewer.ViewerPanelFX;
+import bdv.bigcat.viewer.bdvfx.ViewerPanelFX;
 
 public abstract class AbstractStateMode implements Mode
 {

@@ -4,7 +4,7 @@ import java.util.HashMap;
 import java.util.function.Consumer;
 import java.util.function.Function;
 
-import bdv.viewer.ViewerPanelFX;
+import bdv.bigcat.viewer.bdvfx.ViewerPanelFX;
 import javafx.application.Platform;
 import javafx.event.EventHandler;
 import javafx.scene.control.Label;

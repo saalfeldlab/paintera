@@ -14,6 +14,9 @@ import org.slf4j.LoggerFactory;
 
 import bdv.bigcat.ui.ARGBStream;
 import bdv.bigcat.viewer.ToIdConverter;
+import bdv.bigcat.viewer.bdvfx.InstallAndRemove;
+import bdv.bigcat.viewer.bdvfx.MouseClickFX;
+import bdv.bigcat.viewer.bdvfx.ViewerPanelFX;
 import bdv.bigcat.viewer.state.FragmentSegmentAssignmentState;
 import bdv.bigcat.viewer.state.GlobalTransformManager;
 import bdv.bigcat.viewer.state.SelectedIds;
@@ -22,8 +25,6 @@ import bdv.bigcat.viewer.viewer3d.marchingCubes.ForegroundCheck;
 import bdv.labels.labelset.Label;
 import bdv.viewer.Interpolation;
 import bdv.viewer.Source;
-import bdv.viewer.ViewerPanelFX;
-import bdv.viewer.fx.MouseClickFX;
 import bdv.viewer.state.SourceState;
 import bdv.viewer.state.ViewerState;
 import javafx.scene.input.MouseEvent;
@@ -32,7 +33,6 @@ import net.imglib2.RandomAccessible;
 import net.imglib2.RealPoint;
 import net.imglib2.RealRandomAccess;
 import net.imglib2.realtransform.AffineTransform3D;
-import net.imglib2.ui.InstallAndRemove;
 import net.imglib2.view.Views;
 
 /**

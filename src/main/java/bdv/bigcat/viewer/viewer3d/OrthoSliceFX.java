@@ -7,12 +7,12 @@ import java.util.Optional;
 import java.util.stream.Collectors;
 
 import bdv.bigcat.viewer.ToIdConverter;
+import bdv.bigcat.viewer.bdvfx.ViewerPanelFX;
 import bdv.bigcat.viewer.state.SelectedIds;
+import bdv.bigcat.viewer.util.InvokeOnJavaFXApplicationThread;
 import bdv.labels.labelset.Label;
-import bdv.util.InvokeOnJavaFXApplicationThread;
 import bdv.viewer.Interpolation;
 import bdv.viewer.Source;
-import bdv.viewer.ViewerPanelFX;
 import bdv.viewer.state.SourceState;
 import bdv.viewer.state.ViewerState;
 import javafx.beans.value.ChangeListener;

@@ -11,13 +11,14 @@ import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
 import bdv.bigcat.viewer.atlas.mode.HandleMultipleIds;
+import bdv.bigcat.viewer.bdvfx.InstallAndRemove;
+import bdv.bigcat.viewer.bdvfx.MouseClickFX;
+import bdv.bigcat.viewer.bdvfx.ViewerPanelFX;
 import bdv.bigcat.viewer.state.FragmentSegmentAssignment;
 import bdv.bigcat.viewer.state.SelectedIds;
 import bdv.labels.labelset.Label;
 import bdv.viewer.Interpolation;
 import bdv.viewer.Source;
-import bdv.viewer.ViewerPanelFX;
-import bdv.viewer.fx.MouseClickFX;
 import bdv.viewer.state.SourceState;
 import bdv.viewer.state.ViewerState;
 import gnu.trove.map.hash.TLongObjectHashMap;
@@ -33,7 +34,6 @@ import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.realtransform.InverseRealTransform;
 import net.imglib2.realtransform.RealTransformRealRandomAccessible;
 import net.imglib2.realtransform.RealViews;
-import net.imglib2.ui.InstallAndRemove;
 import net.imglib2.view.IntervalView;
 import net.imglib2.view.Views;
 

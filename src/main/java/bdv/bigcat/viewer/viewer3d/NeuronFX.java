@@ -12,10 +12,10 @@ import java.util.stream.IntStream;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import bdv.bigcat.viewer.util.InvokeOnJavaFXApplicationThread;
 import bdv.bigcat.viewer.viewer3d.marchingCubes.ForegroundCheck;
 import bdv.bigcat.viewer.viewer3d.marchingCubes.MarchingCubes;
 import bdv.bigcat.viewer.viewer3d.util.HashWrapper;
-import bdv.util.InvokeOnJavaFXApplicationThread;
 import javafx.collections.ObservableFloatArray;
 import javafx.scene.Group;
 import javafx.scene.paint.Color;

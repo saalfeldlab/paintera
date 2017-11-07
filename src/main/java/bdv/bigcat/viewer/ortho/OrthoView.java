@@ -6,6 +6,7 @@ import java.util.Set;
 import java.util.function.Consumer;
 
 import bdv.bigcat.viewer.ViewerActor;
+import bdv.bigcat.viewer.bdvfx.ViewerPanelFX;
 import bdv.bigcat.viewer.panel.OnSceneInitListener;
 import bdv.bigcat.viewer.panel.OnWindowInitListener;
 import bdv.bigcat.viewer.panel.ViewerNode;
@@ -14,7 +15,6 @@ import bdv.bigcat.viewer.panel.ViewerTransformManager;
 import bdv.img.cache.VolatileGlobalCellCache;
 import bdv.viewer.SourceAndConverter;
 import bdv.viewer.ViewerOptions;
-import bdv.viewer.ViewerPanelFX;
 import javafx.beans.value.ChangeListener;
 import javafx.collections.FXCollections;
 import javafx.collections.ListChangeListener;
