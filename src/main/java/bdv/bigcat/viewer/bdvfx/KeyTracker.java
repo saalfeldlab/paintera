@@ -105,7 +105,6 @@ public class KeyTracker implements InstallAndRemove< Scene >
 
 	public boolean noKeysActive()
 	{
-		System.out.println( "NO KEYS ACTIVE ? " + activeKeys );
 		return activeKeyCount() == 0;
 	}
 

@@ -146,6 +146,13 @@ public class Viewer3DControllerFX
 		}
 	}
 
+	public synchronized void removeMesh( final long fragmentId )
+	{
+		final List< NeuronRendererFX > matchingRenderers = renderers.stream().filter( nr -> nr.fragmentId() == fragmentId ).collect( Collectors.toList() );
+		this.renderers.removeAll( matchingRenderers );
+		matchingRenderers.forEach( NeuronRendererFX::removeSelfFromScene );
+	}
+
 	/**
 	 * transform mesh into real world coordinates applying affine
 	 * transformations
