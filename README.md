@@ -44,18 +44,23 @@ mvn clean compile assembly:single
 ## Run
 
 ```shell
-java -Xmx16G -jar target/bigcat-0.0.3-SNAPSHOT-jar-with-dependencies.jar -f <input_hdf_file>
+java -Xmx16G -jar target/bigcat-0.0.3-SNAPSHOT-jar-with-dependencies.jar
 ```
 
-other parameters:
+or you can download a compiled fat jar from [here](https://www.dropbox.com/s/ouhmymh5k057mdg/bigcat-0.0.3-SNAPSHOT-jar-with-dependencies-07112017.jar?dl=0).
+
+Parameters:
 
 | Option                  | Description        | Default value             |
 | ----------------------- |:------------------:|:-------------------------:|
+| `--file` or `-f`        | input file path (hdf5) | USER_HOME + /Downloads/sample_A_padded_20160501.hdf |
 | `--label` or `-l`       | label dataset name | volumes/labels/neuron_ids |
 | `--raw` or `-r`         | raw dataset name   | volumes/raw               |
 | `--resolution` or `-rs` | resolution         | { 4, 4, 40 }              |
 | `--rawCellSize` or `-rcs` | raw cell size    | { 192, 96, 7 }            |
 | `--labelCellSize` or `-lcs`| label cell size | { 79, 79, 4 }             |
+
+The default dataset can be downloaded from the [Cremi challenge website](https://cremi.org/static/data/sample_A_padded_20160501.hdf)(1.47Gb)
 
 ## Usage
 
