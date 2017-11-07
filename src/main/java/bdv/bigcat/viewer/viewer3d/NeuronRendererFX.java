@@ -17,9 +17,12 @@ import bdv.util.InvokeOnJavaFXApplicationThread;
 import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.collections.ObservableFloatArray;
+import javafx.event.ActionEvent;
 import javafx.event.EventHandler;
 import javafx.scene.Camera;
 import javafx.scene.Group;
+import javafx.scene.control.ContextMenu;
+import javafx.scene.control.MenuItem;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.shape.ObservableFaceArray;
 import javafx.scene.shape.TriangleMesh;
@@ -80,6 +83,10 @@ public class NeuronRendererFX< T, F extends FragmentSegmentAssignmentState< F > 
 
 	private final MeshSaver meshSaver;
 
+	private final ContextMenu rightClickMenu;
+
+	private final EventHandler< MouseEvent > menuOpener;
+
 	/**
 	 * Bounding box of the complete mesh/neuron (xmin, xmax, ymin, ymax, zmin,
 	 * zmax)
@@ -120,6 +127,15 @@ public class NeuronRendererFX< T, F extends FragmentSegmentAssignmentState< F > 
 		updateForegroundCheck();
 		this.fragmentSegmentAssignment.addListener( this );
 		this.meshSaver = new MeshSaver();
+		final MenuItem saverItem = new MenuItem( "Save neuron" );
+		this.rightClickMenu = new ContextMenu( saverItem );
+		saverItem.setOnAction( meshSaver );
+		menuOpener = event -> {
+			if ( event.isSecondaryButtonDown() && neuron.get().isPresent() )
+				this.rightClickMenu.show( neuron.get().get().meshView(), event.getScreenX(), event.getScreenY() );
+			else if ( this.rightClickMenu.isShowing() )
+				this.rightClickMenu.hide();
+		};
 	}
 
 	public synchronized void cancelRendering()
@@ -131,7 +147,7 @@ public class NeuronRendererFX< T, F extends FragmentSegmentAssignmentState< F > 
 	{
 		cancelRendering();
 		neuron.get().ifPresent( NeuronFX::removeSelfUnchecked );
-		neuron.get().ifPresent( n -> n.meshView().removeEventHandler( MouseEvent.MOUSE_PRESSED, meshSaver ) );
+		neuron.get().ifPresent( n -> n.meshView().removeEventHandler( MouseEvent.MOUSE_PRESSED, menuOpener ) );
 	}
 
 	public synchronized void updateOnStateChange( final boolean updateOnStateChange )
@@ -175,7 +191,7 @@ public class NeuronRendererFX< T, F extends FragmentSegmentAssignmentState< F > 
 //			l.setTranslateZ( blub[ 2 ] - 500 );
 //			InvokeOnJavaFXApplicationThread.invoke( () -> root.getChildren().add( l ) );
 			neuron.render( initialLocationInImageCoordinates, data, foregroundCheck, toWorldCoordinates, blockSize, cubeSize, color, es );
-			neuron.meshView().addEventHandler( MouseEvent.MOUSE_PRESSED, meshSaver );
+			neuron.meshView().addEventHandler( MouseEvent.MOUSE_PRESSED, menuOpener );
 
 		}
 	}
@@ -299,11 +315,11 @@ public class NeuronRendererFX< T, F extends FragmentSegmentAssignmentState< F > 
 		return completeBoundingBox;
 	}
 
-	private class MeshSaver implements EventHandler< MouseEvent >
+	private class MeshSaver implements EventHandler< ActionEvent >
 	{
 
 		@Override
-		public void handle( final MouseEvent event )
+		public void handle( final ActionEvent event )
 		{
 			if ( !neuron.get().isPresent() )
 				return;
