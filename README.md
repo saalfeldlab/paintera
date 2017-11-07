@@ -57,6 +57,25 @@ other parameters:
 | `--rawCellSize` or `-rcs` | raw cell size    | { 192, 96, 7 }            |
 | `--labelCellSize` or `-lcs`| label cell size | { 79, 79, 4 }             |
 
+## Usage
+
+First, it is necessary to activate the labels 
+press `ctrl` + `tab` until "labels" get selected in the right panel.
+
+There are four modes:
+* Navigation only:
+
+* Highlights:
+
+   In this mode, you can use `shift` + `left click` to select any neuron. Use `shift` + `right click` to select more than one neuron.
+
+* Merge and split:
+
+* Render 3D:
+
+   In this mode, you can use the same commands of highlight mode (`shift` + `left click` or `shift` + `right click`) to generate the 3d shape of the selected(s) neuron(s).
+   In this mode, to generate a mesh does not imply in highlight the neuron on the other views.
+
 ## Development
 
 [![Join the chat at https://gitter.im/saalfeldlab/bigcat](https://badges.gitter.im/Join%20Chat.svg)](https://gitter.im/saalfeldlab/bigcat?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
