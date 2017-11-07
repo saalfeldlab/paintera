@@ -11,6 +11,7 @@ import java.util.function.Function;
 
 import bdv.bigcat.ui.ARGBStream;
 import bdv.bigcat.viewer.state.FragmentSegmentAssignmentState;
+import bdv.bigcat.viewer.state.SelectedIds;
 import bdv.bigcat.viewer.state.StateListener;
 import bdv.bigcat.viewer.viewer3d.marchingCubes.ForegroundCheck;
 import bdv.util.InvokeOnJavaFXApplicationThread;
@@ -87,6 +88,10 @@ public class NeuronRendererFX< T, F extends FragmentSegmentAssignmentState< F > 
 
 	private final EventHandler< MouseEvent > menuOpener;
 
+	private final SelectedIds selectedIds;
+
+	private final IdSelector idSelector = new IdSelector();
+
 	/**
 	 * Bounding box of the complete mesh/neuron (xmin, xmax, ymin, ymax, zmin,
 	 * zmax)
@@ -106,7 +111,8 @@ public class NeuronRendererFX< T, F extends FragmentSegmentAssignmentState< F > 
 			final ExecutorService es,
 			final AffineTransform3D toWorldCoordinates,
 			final int[] blockSize,
-			final int[] cubeSize )
+			final int[] cubeSize,
+			final SelectedIds selectedIds )
 	{
 		super();
 		this.selectedFragmentId = selectedFragmentId;
@@ -127,15 +133,19 @@ public class NeuronRendererFX< T, F extends FragmentSegmentAssignmentState< F > 
 		updateForegroundCheck();
 		this.fragmentSegmentAssignment.addListener( this );
 		this.meshSaver = new MeshSaver();
+		this.rightClickMenu = new ContextMenu();
+		this.selectedIds = selectedIds;
 		final MenuItem saverItem = new MenuItem( "Save neuron" );
-		this.rightClickMenu = new ContextMenu( saverItem );
 		saverItem.setOnAction( meshSaver );
 		menuOpener = event -> {
-			if ( event.isSecondaryButtonDown() && neuron.get().isPresent() )
+			if ( event.isSecondaryButtonDown() && event.isShiftDown() && neuron.get().isPresent() )
 				this.rightClickMenu.show( neuron.get().get().meshView(), event.getScreenX(), event.getScreenY() );
 			else if ( this.rightClickMenu.isShowing() )
 				this.rightClickMenu.hide();
 		};
+
+		this.rightClickMenu.getItems().add( saverItem );
+
 	}
 
 	public synchronized void cancelRendering()
@@ -146,8 +156,11 @@ public class NeuronRendererFX< T, F extends FragmentSegmentAssignmentState< F > 
 	public synchronized void removeSelfFromScene()
 	{
 		cancelRendering();
-		neuron.get().ifPresent( NeuronFX::removeSelfUnchecked );
-		neuron.get().ifPresent( n -> n.meshView().removeEventHandler( MouseEvent.MOUSE_PRESSED, menuOpener ) );
+		neuron.get().ifPresent( n -> {
+			n.removeSelfUnchecked();
+			n.meshView().removeEventHandler( MouseEvent.MOUSE_PRESSED, menuOpener );
+			n.meshView().removeEventHandler( MouseEvent.MOUSE_PRESSED, idSelector );
+		} );
 	}
 
 	public synchronized void updateOnStateChange( final boolean updateOnStateChange )
@@ -192,6 +205,7 @@ public class NeuronRendererFX< T, F extends FragmentSegmentAssignmentState< F > 
 //			InvokeOnJavaFXApplicationThread.invoke( () -> root.getChildren().add( l ) );
 			neuron.render( initialLocationInImageCoordinates, data, foregroundCheck, toWorldCoordinates, blockSize, cubeSize, color, es );
 			neuron.meshView().addEventHandler( MouseEvent.MOUSE_PRESSED, menuOpener );
+			neuron.meshView().addEventHandler( MouseEvent.MOUSE_PRESSED, idSelector );
 
 		}
 	}
@@ -396,6 +410,32 @@ public class NeuronRendererFX< T, F extends FragmentSegmentAssignmentState< F > 
 			}
 
 		}
+	}
 
+	private class IdSelector implements EventHandler< MouseEvent >
+	{
+
+		@Override
+		public void handle( final MouseEvent event )
+		{
+			if ( event.isPrimaryButtonDown() && isNoModifierKeys( event ) )
+			{
+				if ( selectedIds.isOnlyActiveId( selectedFragmentId ) )
+					selectedIds.deactivate( selectedFragmentId );
+				else
+					selectedIds.activate( selectedFragmentId );
+			}
+			else if ( event.isSecondaryButtonDown() && isNoModifierKeys( event ) )
+				if ( selectedIds.isActive( selectedFragmentId ) )
+					selectedIds.deactivate( selectedFragmentId );
+				else
+					selectedIds.activateAlso( selectedFragmentId );
+		}
+
+	}
+
+	public static boolean isNoModifierKeys( final MouseEvent event )
+	{
+		return !( event.isControlDown() || event.isShiftDown() || event.isMetaDown() || event.isAltDown() );
 	}
 }

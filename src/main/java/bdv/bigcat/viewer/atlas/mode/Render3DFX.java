@@ -15,6 +15,7 @@ import org.slf4j.LoggerFactory;
 import bdv.bigcat.ui.ARGBStream;
 import bdv.bigcat.viewer.ToIdConverter;
 import bdv.bigcat.viewer.state.FragmentSegmentAssignmentState;
+import bdv.bigcat.viewer.state.SelectedIds;
 import bdv.bigcat.viewer.viewer3d.Viewer3DControllerFX;
 import bdv.bigcat.viewer.viewer3d.marchingCubes.ForegroundCheck;
 import bdv.labels.labelset.Label;
@@ -55,6 +56,8 @@ public class Render3DFX extends AbstractStateMode
 
 	private final HashMap< Source< ? >, ARGBStream > streams = new HashMap<>();
 
+	private final HashMap< Source< ? >, SelectedIds > selectedIds = new HashMap<>();
+
 	private final Viewer3DControllerFX v3dControl;
 
 	public Render3DFX( final Viewer3DControllerFX v3dControl )
@@ -75,7 +78,8 @@ public class Render3DFX extends AbstractStateMode
 			final ToIdConverter toIdConverter,
 			final Function< ?, ForegroundCheck< ? > > foregroundCheck,
 			final FragmentSegmentAssignmentState< ? > frag,
-			final ARGBStream stream )
+			final ARGBStream stream,
+			final SelectedIds selectedIds )
 	{
 
 		if ( !this.dataSources.containsKey( source ) )
@@ -88,6 +92,8 @@ public class Render3DFX extends AbstractStateMode
 			this.frags.put( source, frag );
 		if ( !this.streams.containsKey( source ) )
 			this.streams.put( source, stream );
+		if ( !this.selectedIds.containsKey( source ) )
+			this.selectedIds.put( source, selectedIds );
 	}
 
 	public void removeSource( final Source< ? > source )
@@ -172,7 +178,8 @@ public class Render3DFX extends AbstractStateMode
 										selectedId,
 										( FragmentSegmentAssignmentState ) frags.get( spimSource ),
 										streams.get( spimSource ),
-										append );
+										append,
+										selectedIds.get( spimSource ) );
 							} ).start();
 						}
 						else

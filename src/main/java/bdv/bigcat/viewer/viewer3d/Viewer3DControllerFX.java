@@ -15,6 +15,7 @@ import org.slf4j.LoggerFactory;
 
 import bdv.bigcat.ui.ARGBStream;
 import bdv.bigcat.viewer.state.FragmentSegmentAssignmentState;
+import bdv.bigcat.viewer.state.SelectedIds;
 import bdv.bigcat.viewer.viewer3d.marchingCubes.ForegroundCheck;
 import net.imglib2.Interval;
 import net.imglib2.Point;
@@ -79,7 +80,8 @@ public class Viewer3DControllerFX
 			final long fragmentId,
 			final F fragmentSegmentAssignment,
 			final ARGBStream stream,
-			final boolean append )
+			final boolean append,
+			final SelectedIds selectedIds )
 	{
 		LOG.info( "Rendering neuron: {} {}", fragmentId, fragmentSegmentAssignment.getSegment( fragmentId ) );
 
@@ -130,7 +132,8 @@ public class Viewer3DControllerFX
 					es,
 					transform,
 					partitionSize,
-					cubeSize );
+					cubeSize,
+					selectedIds );
 			nr.render();
 			this.renderers.add( nr );
 
