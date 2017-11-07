@@ -11,6 +11,7 @@ import java.util.function.Function;
 
 import bdv.bigcat.ui.ARGBStream;
 import bdv.bigcat.viewer.state.FragmentSegmentAssignmentState;
+import bdv.bigcat.viewer.state.GlobalTransformManager;
 import bdv.bigcat.viewer.state.SelectedIds;
 import bdv.bigcat.viewer.state.StateListener;
 import bdv.bigcat.viewer.viewer3d.marchingCubes.ForegroundCheck;
@@ -30,6 +31,7 @@ import javafx.scene.shape.TriangleMesh;
 import javafx.stage.FileChooser;
 import net.imglib2.Interval;
 import net.imglib2.Localizable;
+import net.imglib2.Point;
 import net.imglib2.RandomAccess;
 import net.imglib2.RandomAccessible;
 import net.imglib2.realtransform.AffineTransform3D;
@@ -92,6 +94,8 @@ public class NeuronRendererFX< T, F extends FragmentSegmentAssignmentState< F > 
 
 	private final IdSelector idSelector = new IdSelector();
 
+	private final GlobalTransformManager transformManager;
+
 	/**
 	 * Bounding box of the complete mesh/neuron (xmin, xmax, ymin, ymax, zmin,
 	 * zmax)
@@ -112,7 +116,8 @@ public class NeuronRendererFX< T, F extends FragmentSegmentAssignmentState< F > 
 			final AffineTransform3D toWorldCoordinates,
 			final int[] blockSize,
 			final int[] cubeSize,
-			final SelectedIds selectedIds )
+			final SelectedIds selectedIds,
+			final GlobalTransformManager transformManager )
 	{
 		super();
 		this.selectedFragmentId = selectedFragmentId;
@@ -135,16 +140,37 @@ public class NeuronRendererFX< T, F extends FragmentSegmentAssignmentState< F > 
 		this.meshSaver = new MeshSaver();
 		this.rightClickMenu = new ContextMenu();
 		this.selectedIds = selectedIds;
+		this.transformManager = transformManager;
 		final MenuItem saverItem = new MenuItem( "Save neuron" );
+		final MenuItem centerSlicesAt = new MenuItem();
 		saverItem.setOnAction( meshSaver );
+		// TODO are we ever going to work with data that requires RealPoint,
+		// i.e. resolutions [a,b,c] with a,b,c < 0
+		final Point clickedPoint = new Point( 3 );
+		final AffineTransform3D globalTransform = new AffineTransform3D();
+		transformManager.addListener( globalTransform::set );
+		centerSlicesAt.setOnAction( event -> {
+			globalTransform.setTranslation( 0, 0, 0 );
+			final AffineTransform3D translation = new AffineTransform3D();
+			translation.setTranslation(
+					-clickedPoint.getDoublePosition( 0 ),
+					-clickedPoint.getDoublePosition( 1 ),
+					-clickedPoint.getDoublePosition( 2 ) );
+			transformManager.setTransform( globalTransform.concatenate( translation ) );
+		} );
 		menuOpener = event -> {
 			if ( event.isSecondaryButtonDown() && event.isShiftDown() && neuron.get().isPresent() )
+			{
+				clickedPoint.setPosition( new long[] { Math.round( event.getX() ), Math.round( event.getY() ), Math.round( event.getZ() ) } );
+				centerSlicesAt.setText( "Center ortho slices at " + clickedPoint );
 				this.rightClickMenu.show( neuron.get().get().meshView(), event.getScreenX(), event.getScreenY() );
+			}
 			else if ( this.rightClickMenu.isShowing() )
 				this.rightClickMenu.hide();
 		};
 
 		this.rightClickMenu.getItems().add( saverItem );
+		this.rightClickMenu.getItems().add( centerSlicesAt );
 
 	}
 

@@ -15,6 +15,7 @@ import org.slf4j.LoggerFactory;
 import bdv.bigcat.ui.ARGBStream;
 import bdv.bigcat.viewer.ToIdConverter;
 import bdv.bigcat.viewer.state.FragmentSegmentAssignmentState;
+import bdv.bigcat.viewer.state.GlobalTransformManager;
 import bdv.bigcat.viewer.state.SelectedIds;
 import bdv.bigcat.viewer.viewer3d.Viewer3DControllerFX;
 import bdv.bigcat.viewer.viewer3d.marchingCubes.ForegroundCheck;
@@ -58,12 +59,15 @@ public class Render3DFX extends AbstractStateMode
 
 	private final HashMap< Source< ? >, SelectedIds > selectedIds = new HashMap<>();
 
+	private final GlobalTransformManager transformManager;
+
 	private final Viewer3DControllerFX v3dControl;
 
-	public Render3DFX( final Viewer3DControllerFX v3dControl )
+	public Render3DFX( final Viewer3DControllerFX v3dControl, final GlobalTransformManager transformManger )
 	{
 		super();
 		this.v3dControl = v3dControl;
+		this.transformManager = transformManger;
 	}
 
 	@Override
@@ -179,7 +183,8 @@ public class Render3DFX extends AbstractStateMode
 										( FragmentSegmentAssignmentState ) frags.get( spimSource ),
 										streams.get( spimSource ),
 										append,
-										selectedIds.get( spimSource ) );
+										selectedIds.get( spimSource ),
+										transformManager );
 							} ).start();
 						}
 						else
