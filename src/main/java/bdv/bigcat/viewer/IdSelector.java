@@ -1,7 +1,6 @@
 package bdv.bigcat.viewer;
 
 import java.util.Arrays;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Optional;
 import java.util.function.Consumer;
@@ -10,11 +9,14 @@ import java.util.function.LongBinaryOperator;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
+import bdv.bigcat.viewer.atlas.SourceInfo;
 import bdv.bigcat.viewer.atlas.mode.HandleMultipleIds;
+import bdv.bigcat.viewer.atlas.mode.Mode;
 import bdv.bigcat.viewer.bdvfx.InstallAndRemove;
 import bdv.bigcat.viewer.bdvfx.MouseClickFX;
 import bdv.bigcat.viewer.bdvfx.ViewerPanelFX;
 import bdv.bigcat.viewer.state.FragmentSegmentAssignment;
+import bdv.bigcat.viewer.state.FragmentSegmentAssignmentState;
 import bdv.bigcat.viewer.state.SelectedIds;
 import bdv.labels.labelset.Label;
 import bdv.viewer.Interpolation;
@@ -43,23 +45,19 @@ public class IdSelector
 
 	private final ViewerPanelFX viewer;
 
-	private final HashMap< Source< ? >, ToIdConverter > toIdConverters;
+	private final SourceInfo sourceInfo;
 
-	private final HashMap< Source< ? >, SelectedIds > selectedIds;
-
-	private final HashMap< Source< ? >, Source< ? > > dataSources;
+	private final Mode mode;
 
 	public IdSelector(
 			final ViewerPanelFX viewer,
-			final HashMap< Source< ? >, ToIdConverter > toIdConverters,
-			final HashMap< Source< ? >, SelectedIds > selectedIds,
-			final HashMap< Source< ? >, Source< ? > > dataSources )
+			final SourceInfo sourceInfo,
+			final Mode mode )
 	{
 		super();
 		this.viewer = viewer;
-		this.toIdConverters = toIdConverters;
-		this.selectedIds = selectedIds;
-		this.dataSources = dataSources;
+		this.sourceInfo = sourceInfo;
+		this.mode = mode;
 	}
 
 	public InstallAndRemove< Node > selectSingle( final String name, final HandleMultipleIds handleMultipleEntries, final Predicate< MouseEvent >... eventFilter )
@@ -106,9 +104,9 @@ public class IdSelector
 		return new MouseClickFX( name, handler, eventFilter );
 	}
 
-	public InstallAndRemove< Node > merge( final String name, final HashMap< Source< ? >, ? extends FragmentSegmentAssignment > assignments, final Predicate< MouseEvent >... eventFilter )
+	public InstallAndRemove< Node > merge( final String name, final Predicate< MouseEvent >... eventFilter )
 	{
-		final MergeFragments merge = new MergeFragments( assignments );
+		final MergeFragments merge = new MergeFragments();
 		return new MouseClickFX( name, merge::click, eventFilter );
 	}
 
@@ -117,15 +115,15 @@ public class IdSelector
 //		return new MergeSegments( assignments );
 //	}
 
-	public InstallAndRemove< Node > detach( final String name, final HashMap< Source< ? >, ? extends FragmentSegmentAssignment > assignments, final Predicate< MouseEvent >... eventFilter )
+	public InstallAndRemove< Node > detach( final String name, final Predicate< MouseEvent >... eventFilter )
 	{
-		final DetachFragment detach = new DetachFragment( assignments );
+		final DetachFragment detach = new DetachFragment();
 		return new MouseClickFX( name, detach::click, eventFilter );
 	}
 
-	public InstallAndRemove< Node > confirm( final String name, final HashMap< Source< ? >, ? extends FragmentSegmentAssignment > assignments, final Predicate< MouseEvent >... eventFilter )
+	public InstallAndRemove< Node > confirm( final String name, final Predicate< MouseEvent >... eventFilter )
 	{
-		final ConfirmSelection confirmSelection = new ConfirmSelection( assignments );
+		final ConfirmSelection confirmSelection = new ConfirmSelection();
 		return new MouseClickFX( name, confirmSelection::click, eventFilter );
 	}
 
@@ -138,10 +136,10 @@ public class IdSelector
 			if ( !optionalSource.isPresent() )
 				return;
 			final Source< ? > source = optionalSource.get();
-			if ( toIdConverters.containsKey( source ) && selectedIds.containsKey( source ) && dataSources.containsKey( source ) )
-			{
-
-				final Source< ? > dataSource = dataSources.get( source );
+			final Source< ? > dataSource = sourceInfo.dataSource( source );
+			final Optional< SelectedIds > selectedIds = sourceInfo.selectedIds( source, mode );
+			final Optional< ToIdConverter > toIdConverter = sourceInfo.toIdConverter( source );
+			if ( selectedIds.isPresent() && toIdConverter.isPresent() )
 				synchronized ( viewer )
 				{
 					final AffineTransform3D affine = new AffineTransform3D();
@@ -154,10 +152,9 @@ public class IdSelector
 					access.setPosition( 0l, 2 );
 					viewer.displayToGlobalCoordinates( access );
 					final Object val = access.get();
-					final long[] id = toIdConverters.get( source ).allIds( val );
-					actOn( id, selectedIds.get( source ) );
+					final long[] id = toIdConverter.get().allIds( val );
+					actOn( id, selectedIds.get() );
 				}
-			}
 		}
 
 		protected abstract void actOn( final long[] id, SelectedIds selectedIds );
@@ -172,10 +169,10 @@ public class IdSelector
 			if ( !optionalSource.isPresent() )
 				return;
 			final Source< ? > source = optionalSource.get();
-			if ( toIdConverters.containsKey( source ) && selectedIds.containsKey( source ) && dataSources.containsKey( source ) )
-			{
-
-				final Source< ? > dataSource = dataSources.get( source );
+			final Source< ? > dataSource = sourceInfo.dataSource( source );
+			final Optional< SelectedIds > selectedIds = sourceInfo.selectedIds( source, mode );
+			final Optional< ToIdConverter > toIdConverter = sourceInfo.toIdConverter( source );
+			if ( selectedIds.isPresent() && toIdConverter.isPresent() )
 				synchronized ( viewer )
 				{
 					final AffineTransform3D affine = new AffineTransform3D();
@@ -188,10 +185,9 @@ public class IdSelector
 					access.setPosition( 0l, 2 );
 					viewer.displayToGlobalCoordinates( access );
 					final Object val = access.get();
-					final long id = toIdConverters.get( source ).biggestFragment( val );
-					actOn( id, selectedIds.get( source ) );
+					final long id = toIdConverter.get().biggestFragment( val );
+					actOn( id, selectedIds.get() );
 				}
-			}
 		}
 
 		protected abstract void actOn( final long id, SelectedIds selectedIds );
@@ -311,25 +307,21 @@ public class IdSelector
 	private class MergeSegments
 	{
 
-		private final HashMap< Source< ? >, ? extends FragmentSegmentAssignment > assignments;
-
-		public MergeSegments( final HashMap< Source< ? >, ? extends FragmentSegmentAssignment > assignments )
-		{
-			this.assignments = assignments;
-		}
-
 		public void click( final int x, final int y )
 		{
 			final Optional< Source< ? > > optionalSource = getSource();
 			if ( !optionalSource.isPresent() )
 				return;
 			final Source< ? > source = optionalSource.get();
-			if ( toIdConverters.containsKey( source ) && selectedIds.containsKey( source ) && dataSources.containsKey( source ) && assignments.containsKey( source ) )
+			final Source< ? > dataSource = sourceInfo.dataSource( source );
+			final Optional< SelectedIds > selectedIds = sourceInfo.selectedIds( source, mode );
+			final Optional< ToIdConverter > toIdConverter = sourceInfo.toIdConverter( source );
+			final Optional< FragmentSegmentAssignmentState > assignmentOptional = sourceInfo.assignment( source );
+			if ( toIdConverter.isPresent() && selectedIds.isPresent() && assignmentOptional.isPresent() )
 				synchronized ( viewer )
 				{
-					final FragmentSegmentAssignment assignment = assignments.get( source );
-
-					final long[] selIds = selectedIds.get( source ).getActiveIds();
+					final FragmentSegmentAssignmentState assignment = assignmentOptional.get();
+					final long[] selIds = selectedIds.get().getActiveIds();
 
 					if ( selIds.length < 1 )
 						return;
@@ -342,8 +334,6 @@ public class IdSelector
 							System.out.println( "Ambiguity: Selected multiple active segments -- will not apply merge!" );
 							return;
 						}
-
-					final Source< ? > dataSource = dataSources.get( source );
 
 					final AffineTransform3D viewerTransform = new AffineTransform3D();
 					final AffineTransform3D affine = new AffineTransform3D();
@@ -358,12 +348,11 @@ public class IdSelector
 					access.setPosition( 0l, 2 );
 					viewer.displayToGlobalCoordinates( access );
 					final Object val = access.get();
-					final ToIdConverter toIdConverter = toIdConverters.get( source );
-					final long[] ids = toIdConverter.allIds( val );
+					final long[] ids = toIdConverter.get().allIds( val );
 
 					final TLongHashSet segments = new TLongHashSet();
-					Arrays.stream( ids ).map( assignment::getSegment ).forEach( segments::add );
-					Arrays.stream( selIds ).map( assignment::getSegment ).forEach( segments::add );
+					Arrays.stream( ids ).map( id -> assignment.getSegment( id ) ).forEach( segments::add );
+					Arrays.stream( selIds ).map( id -> assignment.getSegment( id ) ).forEach( segments::add );
 
 					final int w = ( int ) viewer.getWidth();
 					final int h = ( int ) viewer.getHeight();
@@ -392,9 +381,9 @@ public class IdSelector
 						ra1.fwd( 0 );
 						ra2.fwd( 1 );
 
-						final long[] ids1 = toIdConverter.allIds( cursor.get() );
-						final long[] ids2 = toIdConverter.allIds( ra1.get() );
-						final long[] ids3 = toIdConverter.allIds( ra2.get() );
+						final long[] ids1 = toIdConverter.get().allIds( cursor.get() );
+						final long[] ids2 = toIdConverter.get().allIds( ra1.get() );
+						final long[] ids3 = toIdConverter.get().allIds( ra2.get() );
 //						if ( ( ids1[ 0 ] != ids2[ 0 ] || ids1[ 0 ] != ids3[ 0 ] ) && segments.contains( assignment.getSegment( ids1[ 0 ] ) ) )
 //						{
 //							System.out.println( Arrays.toString( ids1 ) + " " + Arrays.toString( ids2 ) + " " + Arrays.toString( ids3 ) );
@@ -466,30 +455,25 @@ public class IdSelector
 	private class MergeFragments
 	{
 
-		private final HashMap< Source< ? >, ? extends FragmentSegmentAssignment > assignments;
-
-		public MergeFragments( final HashMap< Source< ? >, ? extends FragmentSegmentAssignment > assignments )
-		{
-			this.assignments = assignments;
-		}
-
 		public void click( final MouseEvent e )
 		{
 			final Optional< Source< ? > > optionalSource = getSource();
 			if ( !optionalSource.isPresent() )
 				return;
 			final Source< ? > source = optionalSource.get();
-			if ( toIdConverters.containsKey( source ) && selectedIds.containsKey( source ) && dataSources.containsKey( source ) && assignments.containsKey( source ) )
+			final Source< ? > dataSource = sourceInfo.dataSource( source );
+			final Optional< SelectedIds > selectedIds = sourceInfo.selectedIds( source, mode );
+			final Optional< ToIdConverter > toIdConverter = sourceInfo.toIdConverter( source );
+			final Optional< FragmentSegmentAssignmentState > assignmentOptional = sourceInfo.assignment( source );
+			if ( toIdConverter.isPresent() && selectedIds.isPresent() && assignmentOptional.isPresent() )
 				synchronized ( viewer )
 				{
-					final FragmentSegmentAssignment assignment = assignments.get( source );
+					final FragmentSegmentAssignmentState assignments = assignmentOptional.get();
 
-					final long[] selIds = selectedIds.get( source ).getActiveIds();
+					final long[] selIds = selectedIds.get().getActiveIds();
 
 					if ( selIds.length != 1 )
 						return;
-
-					final Source< ? > dataSource = dataSources.get( source );
 
 					final AffineTransform3D viewerTransform = new AffineTransform3D();
 					final ViewerState state = viewer.getState();
@@ -502,12 +486,12 @@ public class IdSelector
 					access.setPosition( 0l, 2 );
 					viewer.displayToGlobalCoordinates( access );
 					final Object val = access.get();
-					final long id = toIdConverters.get( source ).biggestFragment( val );
+					final long id = toIdConverter.get().biggestFragment( val );
 
 					final TLongHashSet fragments = new TLongHashSet();
 					fragments.add( id );
 					fragments.add( selIds[ 0 ] );
-					assignment.mergeFragments( fragments.toArray() );
+					assignments.mergeFragments( fragments.toArray() );
 				}
 		}
 
@@ -516,31 +500,26 @@ public class IdSelector
 	private class DetachFragment
 	{
 
-		private final HashMap< Source< ? >, ? extends FragmentSegmentAssignment > assignments;
-
-		public DetachFragment( final HashMap< Source< ? >, ? extends FragmentSegmentAssignment > assignments )
-		{
-			this.assignments = assignments;
-		}
-
 		public void click( final MouseEvent e )
 		{
 			final Optional< Source< ? > > optionalSource = getSource();
 			if ( !optionalSource.isPresent() )
 				return;
 			final Source< ? > source = optionalSource.get();
-			if ( toIdConverters.containsKey( source ) && dataSources.containsKey( source ) && assignments.containsKey( source ) )
+			final Source< ? > dataSource = sourceInfo.dataSource( source );
+			final Optional< SelectedIds > selectedIds = sourceInfo.selectedIds( source, mode );
+			final Optional< ToIdConverter > toIdConverter = sourceInfo.toIdConverter( source );
+			final Optional< FragmentSegmentAssignmentState > assignmentOptional = sourceInfo.assignment( source );
+			if ( toIdConverter.isPresent() && selectedIds.isPresent() && assignmentOptional.isPresent() )
 				synchronized ( viewer )
 				{
 
-					final long[] selIds = selectedIds.containsKey( source ) ? selectedIds.get( source ).getActiveIds() : new long[] {};
+					final FragmentSegmentAssignmentState assignment = assignmentOptional.get();
+
+					final long[] selIds = selectedIds.get().getActiveIds();
 
 					if ( selIds.length != 1 )
 						return;
-
-					final FragmentSegmentAssignment assignment = assignments.get( source );
-
-					final Source< ? > dataSource = dataSources.get( source );
 
 					final AffineTransform3D viewerTransform = new AffineTransform3D();
 					final ViewerState state = viewer.getState();
@@ -554,8 +533,7 @@ public class IdSelector
 					access.setPosition( 0l, 2 );
 					viewer.displayToGlobalCoordinates( access );
 					final Object val = access.get();
-					final ToIdConverter toIdConverter = toIdConverters.get( source );
-					final long id = toIdConverter.biggestFragment( val );
+					final long id = toIdConverter.get().biggestFragment( val );
 
 					assignment.detachFragment( id, selIds[ 0 ] );
 
@@ -578,14 +556,6 @@ public class IdSelector
 
 	private class ConfirmSelection
 	{
-		private final HashMap< Source< ? >, ? extends FragmentSegmentAssignment > assignments;
-
-		public ConfirmSelection( final HashMap< Source< ? >, ? extends FragmentSegmentAssignment > assignments )
-		{
-			this.assignments = assignments;
-			System.out.println( "Created ConfirmSelection" );
-		}
-
 		public void click( final MouseEvent e )
 		{
 			System.out.println( "Clicked confirm selection!" );
@@ -595,15 +565,17 @@ public class IdSelector
 				System.out.println( "No source present!" );
 				return;
 			}
-			final Source< ? > source = optionalSource.get();
-			if ( toIdConverters.containsKey( source ) && dataSources.containsKey( source ) && assignments.containsKey( source ) )
+			final Source< ? > source = optionalSource.get();;
+			final Source< ? > dataSource = sourceInfo.dataSource( source );
+			final Optional< SelectedIds > selectedIds = sourceInfo.selectedIds( source, mode );
+			final Optional< ToIdConverter > toIdConverter = sourceInfo.toIdConverter( source );
+			final Optional< FragmentSegmentAssignmentState > assignmentOptional = sourceInfo.assignment( source );
+			if ( toIdConverter.isPresent() && selectedIds.isPresent() && assignmentOptional.isPresent() )
 				synchronized ( viewer )
 				{
-					final ToIdConverter toIdConverter = toIdConverters.get( source );
-					final FragmentSegmentAssignment assignment = assignments.get( source );
-					final Source< ? > dataSource = dataSources.get( source );
+					final FragmentSegmentAssignmentState assignment = assignmentOptional.get();
 
-					final long[] activeFragments = selectedIds.containsKey( source ) ? selectedIds.get( source ).getActiveIds() : new long[] {};
+					final long[] activeFragments = selectedIds.get().getActiveIds();
 					final long[] activeSegments = Arrays.stream( activeFragments ).map( id -> assignment.getSegment( id ) ).toArray();
 
 					if ( activeSegments.length > 1 )
@@ -630,7 +602,7 @@ public class IdSelector
 					access.setPosition( 0l, 2 );
 					viewer.displayToGlobalCoordinates( access );
 					final Object val = access.get();
-					final long selectedFragment = toIdConverter.biggestFragment( val );
+					final long selectedFragment = toIdConverter.get().biggestFragment( val );
 					final long selectedSegment = assignment.getSegment( selectedFragment );
 					final TLongHashSet selectedSegmentsSet = new TLongHashSet( new long[] { selectedSegment } );
 					final TLongHashSet visibleFragmentsSet = new TLongHashSet();
@@ -638,7 +610,7 @@ public class IdSelector
 					if ( activeSegments.length == 0 || activeSegments[ 0 ] == selectedSegment )
 					{
 						System.out.println( "confirm merge and separate of single segment" );
-						visitEveryDisplayPixel( source, dataSource, viewer, obj -> visibleFragmentsSet.addAll( toIdConverter.allIds( obj ) ) );
+						visitEveryDisplayPixel( source, dataSource, viewer, obj -> visibleFragmentsSet.addAll( toIdConverter.get().allIds( obj ) ) );
 						final long[] visibleFragments = visibleFragmentsSet.toArray();
 						final long[] fragmentsInActiveSegment = Arrays.stream( visibleFragments ).filter( frag -> selectedSegmentsSet.contains( assignment.getSegment( frag ) ) ).toArray();
 						final long[] fragmentsNotInActiveSegment = Arrays.stream( visibleFragments ).filter( frag -> !selectedSegmentsSet.contains( assignment.getSegment( frag ) ) ).toArray();
@@ -652,7 +624,7 @@ public class IdSelector
 						final TLongObjectHashMap< TLongHashSet > fragmentsBySegment = new TLongObjectHashMap<>();
 						Arrays.stream( relevantSegments ).forEach( seg -> fragmentsBySegment.put( seg, new TLongHashSet() ) );
 						visitEveryDisplayPixel( source, dataSource, viewer, obj -> {
-							final long[] fragments = toIdConverter.allIds( obj );
+							final long[] fragments = toIdConverter.get().allIds( obj );
 							for ( final long frag : fragments )
 							{
 								final TLongHashSet frags = fragmentsBySegment.get( assignment.getSegment( frag ) );

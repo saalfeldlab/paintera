@@ -1,34 +1,25 @@
 package bdv.bigcat.viewer.viewer3d;
 
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Optional;
-import java.util.stream.Collectors;
 
-import bdv.bigcat.viewer.ToIdConverter;
+import bdv.bigcat.viewer.atlas.SourceInfo;
 import bdv.bigcat.viewer.bdvfx.ViewerPanelFX;
-import bdv.bigcat.viewer.state.SelectedIds;
 import bdv.bigcat.viewer.util.InvokeOnJavaFXApplicationThread;
-import bdv.labels.labelset.Label;
-import bdv.viewer.Interpolation;
 import bdv.viewer.Source;
 import bdv.viewer.state.SourceState;
-import bdv.viewer.state.ViewerState;
 import javafx.beans.value.ChangeListener;
 import javafx.beans.value.ObservableValue;
 import javafx.scene.Group;
 import javafx.scene.Node;
 import javafx.scene.image.Image;
-import javafx.scene.input.MouseEvent;
 import javafx.scene.paint.Color;
 import javafx.scene.paint.PhongMaterial;
 import javafx.scene.shape.CullFace;
 import javafx.scene.shape.MeshView;
 import net.imglib2.RealPoint;
-import net.imglib2.RealRandomAccess;
 import net.imglib2.realtransform.AffineTransform3D;
-import net.imglib2.realtransform.RealViews;
 
 public class OrthoSliceFX
 {
@@ -52,17 +43,14 @@ public class OrthoSliceFX
 
 	private boolean isVisible = false;
 
-	private final HashMap< Source< ? >, Source< ? > > dataSources = new HashMap<>();
+	private final SourceInfo sourceInfo;
 
-	private final HashMap< Source< ? >, ToIdConverter > toIdConverters = new HashMap<>();
-
-	private final HashMap< Source< ? >, SelectedIds > selectedIds = new HashMap<>();
-
-	public OrthoSliceFX( final Group scene, final ViewerPanelFX viewer )
+	public OrthoSliceFX( final Group scene, final ViewerPanelFX viewer, final SourceInfo sourceInfo )
 	{
 		super();
 		this.scene = scene;
 		this.viewer = viewer;
+		this.sourceInfo = sourceInfo;
 		this.viewer.getDisplay().addImageChangeListener( this.renderTransformListener );
 		this.planes.add( mv );
 
@@ -74,33 +62,35 @@ public class OrthoSliceFX
 		material.setDiffuseColor( Color.BLACK );
 		material.setSpecularColor( Color.BLACK );
 
-		mv.addEventHandler( MouseEvent.MOUSE_CLICKED, e -> {
-			final Optional< Source< ? > > optionalSource = getSource();
-			if ( !optionalSource.isPresent() )
-				return;
-			final Source< ? > source = optionalSource.get();
-			if ( toIdConverters.containsKey( source ) && selectedIds.containsKey( source ) && dataSources.containsKey( source ) )
-			{
-				final Source< ? > dataSource = dataSources.get( source );
-				synchronized ( viewer )
-				{
-					final AffineTransform3D affine = new AffineTransform3D();
-					final ViewerState state = viewer.getState();
-					state.getViewerTransform( affine );
-					final int level = state.getBestMipMapLevel( affine, state.getSources().stream().map( src -> src.getSpimSource() ).collect( Collectors.toList() ).indexOf( source ) );
-					dataSource.getSourceTransform( 0, level, affine );
-					final RealRandomAccess< ? > access = RealViews.transformReal( dataSource.getInterpolatedSource( 0, level, Interpolation.NEARESTNEIGHBOR ), affine ).realRandomAccess();
-					access.setPosition( new double[] { e.getX(), e.getY(), e.getZ() } );
-					final Object val = access.get();
-					final long id = toIdConverters.get( source ).biggestFragment( val );
-					if ( Label.regular( id ) )
-						if ( selectedIds.get( source ).isOnlyActiveId( id ) )
-							selectedIds.get( source ).deactivate( id );
-						else
-							selectedIds.get( source ).activate( id );
-				}
-			}
-		} );
+//		mv.addEventHandler( MouseEvent.MOUSE_CLICKED, e -> {
+//			final Optional< Source< ? > > optionalSource = getSource();
+//			if ( !optionalSource.isPresent() )
+//				return;
+//			final Source< ? > source = optionalSource.get();
+//			Optional< ToIdConverter > toIdConverter = sourceInfo.toIdConverter( source );
+//			selectedIds = sourceInfo.selectedIds( source, mode )
+//			if ( toIdConverter.isPresent() && selectedIds.containsKey( source ) && dataSources.containsKey( source ) )
+//			{
+//				final Source< ? > dataSource = dataSources.get( source );
+//				synchronized ( viewer )
+//				{
+//					final AffineTransform3D affine = new AffineTransform3D();
+//					final ViewerState state = viewer.getState();
+//					state.getViewerTransform( affine );
+//					final int level = state.getBestMipMapLevel( affine, state.getSources().stream().map( src -> src.getSpimSource() ).collect( Collectors.toList() ).indexOf( source ) );
+//					dataSource.getSourceTransform( 0, level, affine );
+//					final RealRandomAccess< ? > access = RealViews.transformReal( dataSource.getInterpolatedSource( 0, level, Interpolation.NEARESTNEIGHBOR ), affine ).realRandomAccess();
+//					access.setPosition( new double[] { e.getX(), e.getY(), e.getZ() } );
+//					final Object val = access.get();
+//					final long id = toIdConverters.get( source ).biggestFragment( val );
+//					if ( Label.regular( id ) )
+//						if ( selectedIds.get( source ).isOnlyActiveId( id ) )
+//							selectedIds.get( source ).deactivate( id );
+//						else
+//							selectedIds.get( source ).activate( id );
+//				}
+//			}
+//		} );
 	}
 
 	private void paint( final Image image )
@@ -160,19 +150,4 @@ public class OrthoSliceFX
 		final Source< ? > activeSource = sources.get( currentSource ).getSpimSource();
 		return Optional.of( activeSource );
 	}
-
-	public < T, U > void addSource( final Source< T > source, final Source< U > dataSource, final ToIdConverter conv, final SelectedIds sel )
-	{
-		this.dataSources.put( source, dataSource );
-		this.toIdConverters.put( source, conv );
-		this.selectedIds.put( source, sel );
-	}
-
-	public < T, U > void addSource( final Source< T > source )
-	{
-		this.dataSources.remove( source );
-		this.toIdConverters.remove( source );
-		this.selectedIds.remove( source );
-	}
-
 }

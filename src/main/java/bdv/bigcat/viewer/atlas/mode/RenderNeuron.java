@@ -2,8 +2,8 @@ package bdv.bigcat.viewer.atlas.mode;
 
 import java.lang.invoke.MethodHandles;
 import java.util.Arrays;
-import java.util.HashMap;
 import java.util.List;
+import java.util.Optional;
 import java.util.function.Function;
 
 import org.slf4j.Logger;
@@ -11,6 +11,7 @@ import org.slf4j.LoggerFactory;
 
 import bdv.bigcat.ui.ARGBStream;
 import bdv.bigcat.viewer.ToIdConverter;
+import bdv.bigcat.viewer.atlas.SourceInfo;
 import bdv.bigcat.viewer.bdvfx.ViewerPanelFX;
 import bdv.bigcat.viewer.state.FragmentSegmentAssignmentState;
 import bdv.bigcat.viewer.state.GlobalTransformManager;
@@ -44,44 +45,29 @@ public class RenderNeuron
 
 	private final boolean append;
 
-	private final HashMap< Source< ? >, Source< ? > > dataSources;
-
-	private final HashMap< Source< ? >, Function< ?, ForegroundCheck< ? > > > foregroundChecks;
-
-	private final HashMap< Source< ? >, ToIdConverter > toIdConverters;
-
-	private final HashMap< Source< ? >, SelectedIds > selectedIds;
-
-	private final HashMap< Source< ? >, FragmentSegmentAssignmentState > frags;
+	private final SourceInfo sourceInfo;
 
 	private final Viewer3DControllerFX v3dControl;
 
-	private final HashMap< Source< ? >, ARGBStream > streams;
-
 	private final GlobalTransformManager transformManager;
+
+	private final Mode mode;
 
 	public RenderNeuron(
 			final ViewerPanelFX viewer,
-			final boolean append, final HashMap< Source< ? >, Source< ? > > dataSources,
-			final HashMap< Source< ? >, Function< ?, ForegroundCheck< ? > > > foregroundChecks,
-			final HashMap< Source< ? >, ToIdConverter > toIdConverters,
-			final HashMap< Source< ? >, SelectedIds > selectedIds,
-			final HashMap< Source< ? >, FragmentSegmentAssignmentState > frags,
+			final boolean append,
+			final SourceInfo sourceInfo,
 			final Viewer3DControllerFX v3dControl,
-			final HashMap< Source< ? >, ARGBStream > streams,
-			final GlobalTransformManager transformManager )
+			final GlobalTransformManager transformManager,
+			final Mode mode )
 	{
 		super();
 		this.viewer = viewer;
 		this.append = append;
-		this.dataSources = dataSources;
-		this.foregroundChecks = foregroundChecks;
-		this.toIdConverters = toIdConverters;
-		this.selectedIds = selectedIds;
-		this.frags = frags;
+		this.sourceInfo = sourceInfo;
 		this.v3dControl = v3dControl;
-		this.streams = streams;
 		this.transformManager = transformManager;
+		this.mode = mode;
 	}
 
 	public void click( final MouseEvent e )
@@ -97,8 +83,13 @@ public class RenderNeuron
 			{
 				final SourceState< ? > source = sources.get( sourceIndex );
 				final Source< ? > spimSource = source.getSpimSource();
-				final Source< ? > dataSource = dataSources.get( spimSource );
-				if ( dataSource != null && foregroundChecks.containsKey( spimSource ) )
+				final Source< ? > dataSource = sourceInfo.dataSource( spimSource );
+				final Optional< Function< ?, ForegroundCheck< ? > > > foregroundCheck = sourceInfo.foregroundCheck( spimSource );
+				final Optional< ToIdConverter > idConverter = sourceInfo.toIdConverter( spimSource );
+				final Optional< SelectedIds > selectedIds = sourceInfo.selectedIds( spimSource, mode );
+				final Optional< FragmentSegmentAssignmentState > assignment = sourceInfo.assignment( spimSource );
+				final Optional< ARGBStream > stream = sourceInfo.stream( spimSource, mode );
+				if ( foregroundCheck.isPresent() && idConverter.isPresent() && selectedIds.isPresent() && assignment.isPresent() && stream.isPresent() )
 				{
 					final AffineTransform3D viewerTransform = new AffineTransform3D();
 					state.getViewerTransform( viewerTransform );
@@ -127,11 +118,11 @@ public class RenderNeuron
 					final RealRandomAccess< ? > rra = dataSource.getInterpolatedSource( 0, bestMipMapLevel, Interpolation.NEARESTNEIGHBOR ).realRandomAccess();
 					rra.setPosition( imageCoordinate );
 
-					final long selectedId = toIdConverters.get( spimSource ).biggestFragment( rra.get() );
+					final long selectedId = idConverter.get().biggestFragment( rra.get() );
 
 					if ( Label.regular( selectedId ) )
 					{
-						final SelectedIds selIds = selectedIds.get( spimSource );
+						final SelectedIds selIds = selectedIds.get();
 
 						if ( selIds.isActive( selectedId ) )
 						{
@@ -139,7 +130,7 @@ public class RenderNeuron
 							final int[] partitionSize = { 60, 60, 10 };
 							final int[] cubeSize = { 10, 10, 1 };
 
-							final Function getForegroundCheck = foregroundChecks.get( spimSource );
+							final Function getForegroundCheck = foregroundCheck.get();
 							new Thread( () -> {
 								v3dControl.generateMesh(
 										volumes[ 0 ],
@@ -150,8 +141,8 @@ public class RenderNeuron
 										cubeSize,
 										getForegroundCheck,
 										selectedId,
-										frags.get( spimSource ),
-										streams.get( spimSource ),
+										assignment.get(),
+										stream.get(),
 										append,
 										selIds,
 										transformManager );
