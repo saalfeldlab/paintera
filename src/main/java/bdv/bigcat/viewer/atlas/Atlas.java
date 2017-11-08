@@ -61,26 +61,17 @@ import javafx.scene.control.Button;
 import javafx.scene.control.ButtonType;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.Label;
-import javafx.scene.control.Tab;
-import javafx.scene.control.TabPane;
-import javafx.scene.control.TableColumn;
-import javafx.scene.control.TableView;
-import javafx.scene.control.TextField;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyEvent;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.HBox;
-import javafx.scene.layout.VBox;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
 import javafx.stage.WindowEvent;
 import net.imglib2.Interval;
 import net.imglib2.Volatile;
-import net.imglib2.converter.RealDoubleConverter;
-import net.imglib2.converter.TypeIdentity;
 import net.imglib2.realtransform.AffineTransform3D;
-import net.imglib2.type.Type;
 import net.imglib2.type.numeric.ARGBType;
 import net.imglib2.type.numeric.IntegerType;
 import net.imglib2.type.numeric.RealType;
@@ -448,25 +439,6 @@ public class Atlas
 
 	}
 
-	public < T extends RealType< T >, U extends RealType< U > > void addRawSourceNonVolatile( final DatasetSpec< T, U > spec, final double min, final double max )
-	{
-		final Source< DoubleType > vsource = new ConvertedSource<>( spec.getViewerSource(), new DoubleType( Double.NaN ), new RealDoubleConverter<>(), spec.getViewerSource().getName() );
-		final Composite< ARGBType, ARGBType > comp = new ARGBCompositeAlphaAdd();
-		final NaNMaskedRealARGBConverter< DoubleType > conv = new NaNMaskedRealARGBConverter<>( min, max );
-		final SourceAndConverter< ? > src = new SourceAndConverter<>( vsource, conv );
-		addSource( src, comp, spec );
-//		view.addSource( src, comp );
-//		this.specs.put( spec, vsource );
-//		this.composites.put( vsource, comp );
-
-		final Source< T > source = spec.getSource();
-		final T t = source.getType();
-		final Function< T, String > valueToString = valueToString( t );
-		final AffineTransform3D affine = new AffineTransform3D();
-		source.getSourceTransform( 0, 0, affine );
-		this.valueDisplayListener.addSource( vsource, source, Optional.of( valueToString ) );
-	}
-
 	public < T extends RealType< T >, U extends RealType< U > > void addRawSource( final DatasetSpec< T, ? extends Volatile< U > > spec, final double min, final double max )
 	{
 		final Source< VolatileRealType< DoubleType > > vsource = ConvertedSource.volatileRealTypeAsDoubleType( spec.getViewerSource() );
@@ -487,23 +459,6 @@ public class Atlas
 		this.valueDisplayListener.addSource( vsource, source, Optional.of( valueToString ) );
 	}
 
-	public < T extends Type< T > > void addARGB( final DatasetSpec< T, ARGBType > spec )
-	{
-		final Source< ARGBType > originalSource = spec.getViewerSource();
-		final ARGBCompositeAlphaYCbCr comp = new ARGBCompositeAlphaYCbCr();
-		final ConvertedSource< ARGBType, ARGBType > vsource = new ConvertedSource<>( originalSource, new ARGBType( 0 ), new TypeIdentity<>(), originalSource.getName() );
-		final SourceAndConverter< ARGBType > src = new SourceAndConverter<>( vsource, new TypeIdentity<>() );
-		addSource( src, comp, spec );
-
-		final Source< T > source = spec.getSource();
-		final T t = source.getType();
-		final AffineTransform3D affine = new AffineTransform3D();
-		source.getSourceTransform( 0, 0, affine );
-		final Optional< Function< T, String > > valueToString = Optional.of( valueToString( t ) );
-		this.valueDisplayListener.addSource( vsource, source, valueToString );
-
-	}
-
 	public OrthoView baseView()
 	{
 		return this.view;
@@ -512,24 +467,6 @@ public class Atlas
 	public BorderPane root()
 	{
 		return this.root;
-	}
-
-	protected Node createInfo()
-	{
-		final TableView< ? > table = new TableView<>();
-		table.setEditable( true );
-		table.getColumns().addAll( new TableColumn<>( "Property" ), new TableColumn<>( "Value" ) );
-
-		final TextField tf = new TextField( "some text" );
-
-		final TabPane infoPane = new TabPane();
-
-		final VBox jfxStuff = new VBox( 1 );
-		jfxStuff.getChildren().addAll( tf, table );
-		infoPane.getTabs().add( new Tab( "jfx stuff", jfxStuff ) );
-		infoPane.getTabs().add( new Tab( "dataset info", new Label( "random floats" ) ) );
-		return infoPane;
-
 	}
 
 	public static < T > Function< T, String > valueToString( final T t )
@@ -566,20 +503,5 @@ public class Atlas
 	public void setTransform( final AffineTransform3D transform )
 	{
 		this.baseView().setTransform( transform );
-	}
-
-	public synchronized void addMode( final Mode mode )
-	{
-		if ( modes.contains( mode ) )
-			return;
-		final Node focusOwner;
-		if ( this.view.sceneProperty().get() != null )
-			focusOwner = this.view.sceneProperty().get().getFocusOwner();
-		else
-			focusOwner = null;
-		this.modes.add( mode );
-
-		if ( focusOwner != null && focusOwner instanceof ViewerNode )
-			mode.onEnter().accept( ( ( ViewerNode ) focusOwner ).getViewer() );
 	}
 }
