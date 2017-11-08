@@ -332,6 +332,11 @@ public class OrthoView extends GridPane
 		return this.state;
 	}
 
+	public void requestRepaint()
+	{
+		viewerNodes.stream().map( ViewerNode::getViewer ).forEach( ViewerPanelFX::requestRepaint );
+	}
+
 //	@Override
 //	public void layoutChildren()
 //	{
