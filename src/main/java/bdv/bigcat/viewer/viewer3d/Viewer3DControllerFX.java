@@ -38,7 +38,8 @@ public class Viewer3DControllerFX
 
 	private final Viewer3DFX viewer3D;
 
-	private final ExecutorService es = Executors.newFixedThreadPool( Runtime.getRuntime().availableProcessors() - 1 );
+	// TODO pass executor from outside?
+	private final ExecutorService es = Executors.newFixedThreadPool( Math.min( Math.max( ( Runtime.getRuntime().availableProcessors() - 1 ) / 3, 1 ), 3 ) );
 
 	private final HashSet< NeuronRendererFX > renderers = new HashSet<>();
 
