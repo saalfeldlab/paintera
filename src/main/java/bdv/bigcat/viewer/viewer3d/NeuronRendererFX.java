@@ -16,6 +16,8 @@ import bdv.bigcat.viewer.state.SelectedIds;
 import bdv.bigcat.viewer.state.StateListener;
 import bdv.bigcat.viewer.util.InvokeOnJavaFXApplicationThread;
 import bdv.bigcat.viewer.viewer3d.marchingCubes.ForegroundCheck;
+import gnu.trove.list.array.TFloatArrayList;
+import gnu.trove.list.array.TIntArrayList;
 import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.collections.ObservableFloatArray;
@@ -26,6 +28,7 @@ import javafx.scene.Group;
 import javafx.scene.control.ContextMenu;
 import javafx.scene.control.MenuItem;
 import javafx.scene.input.MouseEvent;
+import javafx.scene.shape.MeshView;
 import javafx.scene.shape.ObservableFaceArray;
 import javafx.scene.shape.TriangleMesh;
 import javafx.stage.FileChooser;
@@ -163,7 +166,7 @@ public class NeuronRendererFX< T, F extends FragmentSegmentAssignmentState< F > 
 			{
 				clickedPoint.setPosition( new long[] { Math.round( event.getX() ), Math.round( event.getY() ), Math.round( event.getZ() ) } );
 				centerSlicesAt.setText( "Center ortho slices at " + clickedPoint );
-				this.rightClickMenu.show( neuron.get().get().meshView(), event.getScreenX(), event.getScreenY() );
+				this.rightClickMenu.show( neuron.get().get().meshes(), event.getScreenX(), event.getScreenY() );
 			}
 			else if ( this.rightClickMenu.isShowing() )
 				this.rightClickMenu.hide();
@@ -183,9 +186,9 @@ public class NeuronRendererFX< T, F extends FragmentSegmentAssignmentState< F > 
 	{
 		cancelRendering();
 		neuron.get().ifPresent( n -> {
+			n.meshes().removeEventHandler( MouseEvent.MOUSE_PRESSED, menuOpener );
+			n.meshes().removeEventHandler( MouseEvent.MOUSE_PRESSED, idSelector );
 			n.removeSelfUnchecked();
-			n.meshView().removeEventHandler( MouseEvent.MOUSE_PRESSED, menuOpener );
-			n.meshView().removeEventHandler( MouseEvent.MOUSE_PRESSED, idSelector );
 		} );
 	}
 
@@ -230,8 +233,8 @@ public class NeuronRendererFX< T, F extends FragmentSegmentAssignmentState< F > 
 //			l.setTranslateZ( blub[ 2 ] - 500 );
 //			InvokeOnJavaFXApplicationThread.invoke( () -> root.getChildren().add( l ) );
 			neuron.render( initialLocationInImageCoordinates, data, foregroundCheck, toWorldCoordinates, blockSize, cubeSize, color, es );
-			neuron.meshView().addEventHandler( MouseEvent.MOUSE_PRESSED, menuOpener );
-			neuron.meshView().addEventHandler( MouseEvent.MOUSE_PRESSED, idSelector );
+			neuron.meshes().addEventHandler( MouseEvent.MOUSE_PRESSED, menuOpener );
+			neuron.meshes().addEventHandler( MouseEvent.MOUSE_PRESSED, idSelector );
 
 		}
 	}
@@ -363,7 +366,11 @@ public class NeuronRendererFX< T, F extends FragmentSegmentAssignmentState< F > 
 		{
 			if ( !neuron.get().isPresent() )
 				return;
-			final TriangleMesh mesh = ( TriangleMesh ) neuron.get().get().meshView().getMesh();
+			final Group meshes = neuron.get().get().meshes();
+			final TFloatArrayList vertices = new TFloatArrayList();
+			final TFloatArrayList normals = new TFloatArrayList();
+			final TFloatArrayList texCoords = new TFloatArrayList( new float[] { 0.0f, 0.0f } );
+			final TIntArrayList faces = new TIntArrayList();
 			final FileChooser fileChooser = new FileChooser();
 			fileChooser.setTitle( "Save neuron with fragment " + fragmentId() + " " + segmentId() );
 			final SimpleObjectProperty< Optional< File > > fileProperty = new SimpleObjectProperty<>( Optional.empty() );
@@ -381,14 +388,29 @@ public class NeuronRendererFX< T, F extends FragmentSegmentAssignmentState< F > 
 			if ( fileProperty.get().isPresent() )
 			{
 				final File file = fileProperty.get().get();
+
 				final StringBuilder sb = new StringBuilder()
 						.append( "# fragment id: " ).append( fragmentId() ).append( "\n" )
 						.append( "# segment id:  " ).append( segmentId() ).append( "\n" )
 						.append( "# color:       " ).append( Integer.toHexString( stream.argb( selectedFragmentId ) ) );
-				final ObservableFloatArray vertices = mesh.getPoints();
-				final ObservableFloatArray normals = mesh.getNormals();
-				final ObservableFloatArray texCoords = mesh.getTexCoords();
-				final ObservableFaceArray faces = mesh.getFaces();
+				meshes
+						.getChildren()
+						.stream()
+						.filter( c -> c instanceof MeshView ).map( mv -> ( ( MeshView ) mv ).getMesh() )
+						.filter( m -> m instanceof TriangleMesh ).map( m -> ( TriangleMesh ) m )
+						.forEach( mesh -> {
+							final int previousEntries = vertices.size();
+							append( mesh.getPoints(), vertices );
+							append( mesh.getNormals(), normals );
+							final int currentEntries = vertices.size();
+							assert vertices.size() == normals.size();
+							for ( int e = previousEntries, singleStep = previousEntries / 3; e < currentEntries; e += 3, ++singleStep )
+							{
+								faces.add( singleStep );
+								faces.add( singleStep );
+								faces.add( 0 );
+							}
+						} );
 				final int numFacesEntries = faces.size();
 
 				sb.append( "\n" );
@@ -403,8 +425,8 @@ public class NeuronRendererFX< T, F extends FragmentSegmentAssignmentState< F > 
 
 				sb.append( "\n" );
 				final int numTexCoords = texCoords.size();
-				for ( int k = 0; k < numTexCoords; k += 3 )
-					sb.append( "\nvn " ).append( texCoords.get( k + 0 ) ).append( " " ).append( texCoords.get( k + 1 ) );
+				for ( int k = 0; k < numTexCoords; k += 2 )
+					sb.append( "\nvt " ).append( texCoords.get( k + 0 ) ).append( " " ).append( texCoords.get( k + 1 ) );
 
 				sb.append( "\n" );
 				for ( int k = 0; k < numFacesEntries; k += 9 )
@@ -463,5 +485,19 @@ public class NeuronRendererFX< T, F extends FragmentSegmentAssignmentState< F > 
 	public static boolean isNoModifierKeys( final MouseEvent event )
 	{
 		return !( event.isControlDown() || event.isShiftDown() || event.isMetaDown() || event.isAltDown() );
+	}
+
+	public static void append( final ObservableFloatArray src, final TFloatArrayList target )
+	{
+		final int size = src.size();
+		for ( int i = 0; i < size; ++i )
+			target.add( src.get( i ) );
+	}
+
+	public static void append( final ObservableFaceArray src, final TIntArrayList target )
+	{
+		final int size = src.size();
+		for ( int i = 0; i < size; ++i )
+			target.add( src.get( i ) );
 	}
 }

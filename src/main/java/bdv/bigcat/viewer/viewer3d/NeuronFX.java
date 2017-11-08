@@ -16,6 +16,8 @@ import bdv.bigcat.viewer.util.InvokeOnJavaFXApplicationThread;
 import bdv.bigcat.viewer.viewer3d.marchingCubes.ForegroundCheck;
 import bdv.bigcat.viewer.viewer3d.marchingCubes.MarchingCubes;
 import bdv.bigcat.viewer.viewer3d.util.HashWrapper;
+import javafx.beans.property.ObjectProperty;
+import javafx.beans.property.SimpleObjectProperty;
 import javafx.collections.ObservableFloatArray;
 import javafx.scene.Group;
 import javafx.scene.paint.Color;
@@ -23,6 +25,7 @@ import javafx.scene.paint.PhongMaterial;
 import javafx.scene.shape.Box;
 import javafx.scene.shape.CullFace;
 import javafx.scene.shape.MeshView;
+import javafx.scene.shape.ObservableFaceArray;
 import javafx.scene.shape.TriangleMesh;
 import javafx.scene.shape.VertexFormat;
 import net.imglib2.FinalInterval;
@@ -49,22 +52,27 @@ public class NeuronFX< T >
 
 	private boolean isCanceled = false;
 
-	private final MeshView node;
+	private final ObjectProperty< Group > meshes = new SimpleObjectProperty<>();
+	{
 
-	private final PhongMaterial material;
+	}
 
-	private final Object meshModificationLock = new Object();
+//	private final MeshView node;
+//
+//	private final PhongMaterial material;
+//
+//	private final Object meshModificationLock = new Object();
 
 	public NeuronFX( final Interval interval, final Group root )
 	{
 		super();
 		this.interval = interval;
 		this.root = root;
-		this.node = new MeshView();
-		this.material = new PhongMaterial();
-		this.node.setOpacity( 1.0 );
-		this.node.setCullFace( CullFace.FRONT );
-		this.node.setMaterial( material );
+		meshes.addListener( ( obsv, oldv, newv ) -> {
+			InvokeOnJavaFXApplicationThread.invoke( () -> root.getChildren().remove( oldv ) );
+			if ( newv != null )
+				InvokeOnJavaFXApplicationThread.invoke( () -> root.getChildren().add( newv ) );
+		} );
 	}
 
 	public void render(
@@ -79,13 +87,14 @@ public class NeuronFX< T >
 	{
 		cancel();
 		this.isCanceled = false;
+		this.meshes.set( new Group() );
 		final long[] gridCoordinates = new long[ initialLocationInImageCoordinates.numDimensions() ];
 		initialLocationInImageCoordinates.localize( gridCoordinates );
 		for ( int i = 0; i < gridCoordinates.length; ++i )
 			gridCoordinates[ i ] /= blockSize[ i ];
 		try
 		{
-			initializeMeshView( color );
+//			initializeMeshView( color );
 			submitForOffset( gridCoordinates, data, foregroundCheck, toWorldCoordinates, blockSize, cubeSize, color, es );
 		}
 		catch ( final Exception e )
@@ -107,7 +116,7 @@ public class NeuronFX< T >
 	{
 		cancel();
 		InvokeOnJavaFXApplicationThread.invokeAndWait( () -> {
-			root.getChildren().remove( node );
+			this.meshes.set( null );
 		} );
 	}
 
@@ -135,7 +144,7 @@ public class NeuronFX< T >
 	{
 		final HashWrapper< long[] > offset = HashWrapper.longArray( gridCoordinates );
 		final long[] coordinates = IntStream.range( 0, gridCoordinates.length ).mapToLong( d -> gridCoordinates[ d ] * blockSize[ d ] ).toArray();
-		final TriangleMesh mesh = ( TriangleMesh ) this.node.getMesh();
+//		final TriangleMesh mesh = ( TriangleMesh ) this.node.getMesh();
 
 		synchronized ( futures )
 		{
@@ -145,7 +154,8 @@ public class NeuronFX< T >
 					return;
 				offsets.add( offset );
 			}
-			if ( !isCanceled )
+			final Group meshes = this.meshes.get();
+			if ( !isCanceled && meshes != null )
 				this.futures.add( es.submit( () -> {
 					final Interval interval = new FinalInterval(
 							coordinates,
@@ -179,50 +189,23 @@ public class NeuronFX< T >
 					chunkMaterial.setDiffuseColor( surfaceColor );
 					chunk.setMaterial( chunkMaterial );
 					chunk.setOpacity( 0.3 );
+
 //
-					InvokeOnJavaFXApplicationThread.invoke( () -> root.getChildren().add( chunk ) );
+					InvokeOnJavaFXApplicationThread.invoke( () -> meshes.getChildren().add( chunk ) );
 
 					final MarchingCubes< T > mc = new MarchingCubes<>( data, interval, toWorldCoordinates, cubeSize );
 					final float[] vertices = mc.generateMesh( foregroundCheck );
 
-					InvokeOnJavaFXApplicationThread.invoke( () -> root.getChildren().remove( chunk ) );
+					InvokeOnJavaFXApplicationThread.invoke( () -> meshes.getChildren().remove( chunk ) );
 
 					if ( vertices.length > 0 )
 					{
-						final float[] normals = new float[ vertices.length ];
-//						MarchingCubes.surfaceNormals( vertices, normals );
-						MarchingCubes.averagedSurfaceNormals( vertices, normals );
-						for ( int i = 0; i < normals.length; ++i )
-							normals[ i ] *= -1;
-
-						synchronized ( meshModificationLock )
 						{
-							final ObservableFloatArray meshVertices = mesh.getPoints();
-							final ObservableFloatArray meshNormals = mesh.getNormals();
-							final int numVerticesInMesh = meshVertices.size() / 3;
-							final int[] faceIndices = new int[ vertices.length ];
-							for ( int i = 0, k = numVerticesInMesh; i < vertices.length; i += 3, ++k )
-							{
-								faceIndices[ i + 0 ] = k;
-								faceIndices[ i + 1 ] = k;
-								faceIndices[ i + 2 ] = 0;
-							}
 
-							try
-							{
-								InvokeOnJavaFXApplicationThread.invokeAndWait( () -> {
-									if ( !isCanceled )
-									{
-										meshVertices.addAll( vertices );
-										meshNormals.addAll( normals );
-										mesh.getFaces().addAll( faceIndices );
-									}
-								} );
-							}
-							catch ( final InterruptedException e )
-							{
-								LOG.trace( "Interrupted rendering", e );
-							}
+							final MeshView mv = initializeMeshView( color, vertices );
+
+							if ( !isCanceled )
+								InvokeOnJavaFXApplicationThread.invoke( () -> meshes.getChildren().add( mv ) );
 
 						}
 
@@ -240,22 +223,49 @@ public class NeuronFX< T >
 		}
 	}
 
-	private void initializeMeshView( final int color ) throws InterruptedException
+	private static MeshView initializeMeshView( final int color, final float[] vertices )
 	{
 		final TriangleMesh mesh = new TriangleMesh();
-		mesh.getTexCoords().addAll( 0, 0 );
 		mesh.setVertexFormat( VertexFormat.POINT_NORMAL_TEXCOORD );
+
+		final MeshView meshView = new MeshView();
+		meshView.setCullFace( CullFace.NONE );
+
+		final PhongMaterial material = new PhongMaterial();
 		final Color surfaceColor = Color.rgb( color >>> 16 & 0xff, color >>> 8 & 0xff, color >>> 0 & 0xff, 1.0 );
-		this.node.setMesh( mesh );
-		this.material.setDiffuseColor( surfaceColor );
-		this.node.setMaterial( this.material );
-		InvokeOnJavaFXApplicationThread.invokeAndWait( () -> {
-			this.root.getChildren().add( this.node );
-		} );
+		meshView.setOpacity( 1.0 );
+		material.setDiffuseColor( surfaceColor );
+		meshView.setMaterial( material );
+
+		final float[] normals = new float[ vertices.length ];
+		MarchingCubes.averagedSurfaceNormals( vertices, normals );
+		for ( int i = 0; i < normals.length; ++i )
+			normals[ i ] *= -1;
+
+		final ObservableFloatArray meshVertices = mesh.getPoints();
+		final ObservableFloatArray meshNormals = mesh.getNormals();
+		final ObservableFaceArray faces = mesh.getFaces();
+		final int[] faceIndices = new int[ vertices.length ];
+		for ( int i = 0, k = 0; i < vertices.length; i += 3, ++k )
+		{
+			faceIndices[ i + 0 ] = k;
+			faceIndices[ i + 1 ] = k;
+			faceIndices[ i + 2 ] = 0;
+		}
+
+		mesh.getTexCoords().addAll( 0, 0 );
+		meshVertices.addAll( vertices );
+		meshNormals.addAll( normals );
+		faces.addAll( faceIndices );
+
+		meshView.setMesh( mesh );
+
+		return meshView;
+
 	}
 
-	public MeshView meshView()
+	public Group meshes()
 	{
-		return node;
+		return this.meshes.get();
 	}
 }
