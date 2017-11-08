@@ -83,15 +83,7 @@ public class NeuronFX< T >
 		initialLocationInImageCoordinates.localize( gridCoordinates );
 		for ( int i = 0; i < gridCoordinates.length; ++i )
 			gridCoordinates[ i ] /= blockSize[ i ];
-		try
-		{
-//			initializeMeshView( color );
-			submitForOffset( gridCoordinates, data, foregroundCheck, toWorldCoordinates, blockSize, cubeSize, color, es );
-		}
-		catch ( final Exception e )
-		{
-			e.printStackTrace();
-		}
+		submitForOffset( gridCoordinates, data, foregroundCheck, toWorldCoordinates, blockSize, cubeSize, color, es );
 	}
 
 	public void cancel()
