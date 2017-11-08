@@ -4,15 +4,6 @@
 
 ## Dependences
 
-* branchs (download and compile each one of them: `mvn clean install`):
-	* [imglib2:4.6.0-SNAPSHOT - branch: RealARGBConverter-expose-alpha]( https://github.com/hanslovsky/imglib2/tree/RealARGBConverter-expose-alpha)
-
-	* [bdv-core:4.3.1-SNAPSHOT - branch: TransformAwareBufferedImageOverlayRenderer-with-background](https://github.com/hanslovsky/bigdataviewer-core/tree/TransformAwareBufferedImageOverlayRenderer-with-background)
-
-* [bdv-vistools:1.0.0-beta-8-SNAPSHOT](https://github.com/bigdataviewer/bigdataviewer-vistools.git)
-
-* [ClearGL:2.1.0](https://github.com/ClearVolume/ClearGL.git)
-
 * javafx (ubuntu):
 
 ```shell
@@ -24,8 +15,17 @@ sudo apt install openjfx
 ```shell
 sudo apt install libzmq3-dev
 ```
-
 * [jzmq](https://github.com/zeromq/jzmq)
+
+* branchs (download and compile each one of them: `mvn clean install`):
+	* [imglib2-ui:2.0.0-beta-34-SNAPSHOT - branch: javafx](https://github.com/hanslovsky/imglib2-ui/tree/javafx)
+	* [bdv-core:4.3.1-SNAPSHOT - branch: bigcat-javafx](https://github.com/hanslovsky/bigdataviewer-core/tree/bigcat-javafx)
+
+* [imglib2:4.6.0-SNAPSHOT](https://github.com/imglib/imglib2.git)
+
+* [ClearGL:2.1.0](https://github.com/ClearVolume/ClearGL.git)
+
+* [bdv-vistools:1.0.0-beta-8-SNAPSHOT](https://github.com/bigdataviewer/bigdataviewer-vistools.git)
 
 ## Compile
 
@@ -44,8 +44,38 @@ mvn clean compile assembly:single
 ## Run
 
 ```shell
-java -Xmx16G -jar target/bigcat-0.0.3-SNAPSHOT-jar-with-dependencies.jar -i <input_hdf_file>
+java -Xmx16G -jar target/bigcat-0.0.3-SNAPSHOT-jar-with-dependencies.jar
 ```
+
+or you can download a compiled fat jar from [here](https://www.dropbox.com/s/f82nfc0cbrdmtji/bigcat-0.0.3-SNAPSHOT-jar-with-dependencies-08112017.jar?dl=0).
+
+Parameters:
+
+| Option                  | Description        | Default value             |
+| ----------------------- |:------------------:|:-------------------------:|
+| `--file` or `-f`        | input file path (hdf5) | USER_HOME + /Downloads/sample_A_padded_20160501.hdf |
+| `--label` or `-l`       | label dataset name | volumes/labels/neuron_ids |
+| `--raw` or `-r`         | raw dataset name   | volumes/raw               |
+| `--resolution` or `-rs` | resolution         | { 4, 4, 40 }              |
+| `--rawCellSize` or `-rcs` | raw cell size    | { 192, 96, 7 }            |
+| `--labelCellSize` or `-lcs`| label cell size | { 79, 79, 4 }             |
+
+The default dataset can be downloaded from the [Cremi challenge website](https://cremi.org/static/data/sample_A_padded_20160501.hdf)(1.47Gb)
+
+## Usage
+
+First, it is necessary to activate the labels 
+press `ctrl` + `tab` until "labels" get selected in the right panel.
+
+There are three modes:
+* Navigation only:
+
+* Highlights:
+
+   In this mode, you can use `left click` to select any neuron. Use `shift` + `left click` to select more than one neuron.
+   Every selected neuron will be highlighted on the 2d panels and its 3d shape will be generated.
+
+* Merge and split:
 
 ## Development
 

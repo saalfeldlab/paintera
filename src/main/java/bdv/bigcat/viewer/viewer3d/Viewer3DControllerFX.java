@@ -53,22 +53,6 @@ public class Viewer3DControllerFX
 
 	public void init()
 	{
-//		// start the camera
-//		startCamera();
-//		System.out.println( "STARTED CAMERA!" );
-	}
-
-	public void startCamera()
-	{
-//		camera = new CameraMode( viewer3D.scene(), viewer3D.getHub() );
-//		camera.perspectiveCamera( 50f, viewer3D.getWindowWidth(), viewer3D.getWindowHeight(), 0.1f, 10000.0f );
-//		camera.automatic();
-//
-//		// no HMD, then default mode is automatic camera
-//		if ( viewer3D.getHub().getWorkingHMD() == null )
-//			camera.automatic();
-//		else
-//		camera.manual();
 	}
 
 	public synchronized < T extends Type< T >, F extends FragmentSegmentAssignmentState< F > > void generateMesh(
@@ -86,6 +70,7 @@ public class Viewer3DControllerFX
 			final SelectedIds selectedIds,
 			final GlobalTransformManager transformManager )
 	{
+		System.out.println( "generating mesh" );
 		LOG.info( "Rendering neuron: {} {}", fragmentId, fragmentSegmentAssignment.getSegment( fragmentId ) );
 
 		if ( LOG.isWarnEnabled() )
@@ -110,6 +95,7 @@ public class Viewer3DControllerFX
 				this.renderers.forEach( NeuronRendererFX::stopListening );
 				this.renderers.clear();
 
+				final RealLocalizable cameraPosition = new RealPoint( worldLocation.getFloatPosition( 0 ), worldLocation.getFloatPosition( 1 ), worldLocation.getFloatPosition( 2 ) * 1.5 );
 			}
 
 			final List< NeuronRendererFX > filteredNrs = renderers.stream()
@@ -140,10 +126,6 @@ public class Viewer3DControllerFX
 					transformManager );
 			nr.render();
 			this.renderers.add( nr );
-
-//			if ( camera.getCameraMode() == CameraMode.Mode.AUTOMATIC )
-//				nr.addListener( camera );
-
 		}
 	}
 

@@ -42,16 +42,6 @@ public class MarchingCubes< T >
 	private final int[] cubeSize;
 
 	/**
-	 * Enum of the available criteria. These criteria are used to evaluate if
-	 * the vertex is part of the mesh or not.
-	 */
-	public enum ForegroundCriterion
-	{
-		EQUAL,
-		GREATER_EQUAL
-	}
-
-	/**
 	 * Initialize the class parameters with default values
 	 */
 	public MarchingCubes( final RandomAccessible< T > input, final Interval interval, final AffineTransform3D transform, final int[] cubeSize )
@@ -426,32 +416,6 @@ public class MarchingCubes< T >
 
 			break;
 		}
-
-//		v1x = v1x * cubeSize[ 0 ];
-//		v1y = v1y * cubeSize[ 1 ];
-//		v1z = v1z * cubeSize[ 2 ];
-//
-//		v2x = v2x * cubeSize[ 0 ];
-//		v2y = v2y * cubeSize[ 1 ];
-//		v2z = v2z * cubeSize[ 2 ];
-//
-//		if (LOGGER.isTraceEnabled())
-//		{
-//			LOGGER.trace( "v1: " + v1x + " " + v1y + " " + v1z );
-//			LOGGER.trace( "v2: " + v2x + " " + v2y + " " + v2z );
-//		}
-
-//		float diffX = v2x - v1x;
-//		float diffY = v2y - v1y;
-//		float diffZ = v2z - v1z;
-//
-//		diffX *= 0.5;
-//		diffY *= 0.5;
-//		diffZ *= 0.5;
-//
-//		diffX += v1x;
-//		diffY += v1y;
-//		diffZ += v1z;
 
 		return new float[] { ( float ) ( 0.5 * cubeSize[ 0 ] * ( v1x + v2x ) ),  ( float ) ( 0.5 * cubeSize[ 1 ] * ( v1y + v2y ) ), ( float ) ( 0.5 * cubeSize[ 2 ] * ( v1z + v2z ) ) };
 	}

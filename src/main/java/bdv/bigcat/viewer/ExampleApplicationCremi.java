@@ -3,8 +3,6 @@ package bdv.bigcat.viewer;
 import java.util.Arrays;
 import java.util.concurrent.CountDownLatch;
 
-import org.slf4j.Logger;
-
 import com.beust.jcommander.JCommander;
 import com.sun.javafx.application.PlatformImpl;
 
@@ -38,8 +36,6 @@ import net.imglib2.view.Views;
 
 public class ExampleApplicationCremi
 {
-	/** logger */
-	static Logger LOGGER;
 
 	public static void main( final String[] args ) throws Exception
 	{
@@ -95,6 +91,7 @@ public class ExampleApplicationCremi
 			{
 				e.printStackTrace();
 			}
+
 			stage.show();
 			latch.countDown();
 		} );
@@ -125,10 +122,7 @@ public class ExampleApplicationCremi
 
 	private static boolean validateParameters( final Parameters params )
 	{
-		if ( params.filePath == "" )
-			return false;
-
-		return true;
+		return ( params.filePath != "" );
 	}
 
 	public static class VolatileRealARGBConverter< T extends RealType< T > > extends AbstractLinearRange implements Converter< Volatile< T >, VolatileARGBType >

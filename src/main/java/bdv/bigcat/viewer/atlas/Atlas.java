@@ -53,8 +53,12 @@ import bdv.viewer.ViewerOptions;
 import javafx.application.Application;
 import javafx.beans.value.ChangeListener;
 import javafx.collections.ListChangeListener;
+import javafx.event.EventHandler;
 import javafx.scene.Node;
 import javafx.scene.Scene;
+import javafx.scene.control.Alert;
+import javafx.scene.control.Button;
+import javafx.scene.control.ButtonType;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.Label;
 import javafx.scene.control.Tab;
@@ -68,7 +72,9 @@ import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
+import javafx.stage.Modality;
 import javafx.stage.Stage;
+import javafx.stage.WindowEvent;
 import net.imglib2.Interval;
 import net.imglib2.Volatile;
 import net.imglib2.converter.Converter;
@@ -117,6 +123,8 @@ public class Atlas
 	private final Viewer3DControllerFX controller;
 
 	private final List< OrthoSliceFX > orthoSlices = new ArrayList<>();
+
+	private Stage primaryStage;
 
 	private final KeyTracker keyTracker = new KeyTracker();
 
@@ -266,6 +274,7 @@ public class Atlas
 
 	public void start( final Stage primaryStage ) throws InterruptedException
 	{
+		this.primaryStage = primaryStage;
 		start( primaryStage, "ATLAS" );
 	}
 
@@ -277,6 +286,14 @@ public class Atlas
 		primaryStage.setTitle( title );
 		primaryStage.setScene( scene );
 		primaryStage.sizeToScene();
+
+		primaryStage.setOnCloseRequest( confirmCloseEventHandler );
+
+		Button closeButton = new Button( "Close BigCat" );
+		closeButton.setOnAction( event -> primaryStage.fireEvent(
+				new WindowEvent(
+						primaryStage,
+						WindowEvent.WINDOW_CLOSE_REQUEST ) ) );
 
 		primaryStage.show();
 
@@ -295,6 +312,45 @@ public class Atlas
 		// https://bugs.openjdk.java.net/browse/JDK-8132900
 
 	}
+
+	private EventHandler< WindowEvent > confirmCloseEventHandler = event -> {
+		Alert closeConfirmation = new Alert(
+				Alert.AlertType.CONFIRMATION,
+				"Are you sure you want to exit?" );
+		Button exitButton = ( Button ) closeConfirmation.getDialogPane().lookupButton(
+				ButtonType.OK );
+		exitButton.setText( "Exit" );
+		closeConfirmation.setHeaderText( "Confirm Exit" );
+		closeConfirmation.initModality( Modality.APPLICATION_MODAL );
+		closeConfirmation.initOwner( primaryStage );
+
+		// normally, you would just use the default alert positioning,
+		// but for this simple sample the main stage is small,
+		// so explicitly position the alert so that the main window can still be
+		// seen.
+		closeConfirmation.setX( primaryStage.getX() );
+		closeConfirmation.setY( primaryStage.getY() + primaryStage.getHeight() );
+
+		Optional< ButtonType > closeResponse = closeConfirmation.showAndWait();
+		if ( !ButtonType.OK.equals( closeResponse.get() ) )
+		{
+//			stage.setOnCloseRequest(
+//			event -> {
+//			Platform.runLater( Platform::exit );
+//			}
+//			);
+			event.consume();
+		}
+		else
+		{
+			exitButton.setOnAction(
+					e -> primaryStage.fireEvent(
+							new WindowEvent(
+									primaryStage,
+									WindowEvent.WINDOW_CLOSE_REQUEST ) ) );
+
+		}
+	};
 
 	public void addOnEnterOnExit( final Consumer< ViewerPanelFX > onEnter, final Consumer< ViewerPanelFX > onExit, final boolean onExitRemovable )
 	{
@@ -535,5 +591,4 @@ public class Atlas
 		if ( focusOwner != null && focusOwner instanceof ViewerNode )
 			mode.onEnter().accept( ( ( ViewerNode ) focusOwner ).getViewer() );
 	}
-
 }
