@@ -67,19 +67,15 @@ The default dataset can be downloaded from the [Cremi challenge website](https:/
 First, it is necessary to activate the labels 
 press `ctrl` + `tab` until "labels" get selected in the right panel.
 
-There are four modes:
+There are three modes:
 * Navigation only:
 
 * Highlights:
 
-   In this mode, you can use `shift` + `left click` to select any neuron. Use `shift` + `right click` to select more than one neuron.
+   In this mode, you can use `left click` to select any neuron. Use `shift` + `left click` to select more than one neuron.
+   Every selected neuron will be highlighted on the 2d panels and its 3d shape will be generated.
 
 * Merge and split:
-
-* Render 3D:
-
-   In this mode, you can use the same commands of highlight mode (`shift` + `left click` or `shift` + `right click`) to generate the 3d shape of the selected(s) neuron(s).
-   In this mode, to generate a mesh does not imply in highlight the neuron on the other views.
 
 ## Development
 
