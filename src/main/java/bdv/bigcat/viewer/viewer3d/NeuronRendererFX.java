@@ -99,6 +99,8 @@ public class NeuronRendererFX< T, F extends FragmentSegmentAssignmentState< F > 
 
 	private final GlobalTransformManager transformManager;
 
+	private final MenuItem saverItem = new MenuItem( "Save neuron" );
+
 	/**
 	 * Bounding box of the complete mesh/neuron (xmin, xmax, ymin, ymax, zmin,
 	 * zmax)
@@ -144,9 +146,9 @@ public class NeuronRendererFX< T, F extends FragmentSegmentAssignmentState< F > 
 		this.rightClickMenu = new ContextMenu();
 		this.selectedIds = selectedIds;
 		this.transformManager = transformManager;
-		final MenuItem saverItem = new MenuItem( "Save neuron" );
 		final MenuItem centerSlicesAt = new MenuItem();
 		saverItem.setOnAction( meshSaver );
+		saverItem.setDisable( true );
 		// TODO are we ever going to work with data that requires RealPoint,
 		// i.e. resolutions [a,b,c] with a,b,c < 0
 		final Point clickedPoint = new Point( 3 );
@@ -174,6 +176,9 @@ public class NeuronRendererFX< T, F extends FragmentSegmentAssignmentState< F > 
 
 		this.rightClickMenu.getItems().add( saverItem );
 		this.rightClickMenu.getItems().add( centerSlicesAt );
+		this.neuron.addListener( ( obs, oldv, newv ) -> {
+			newv.ifPresent( n -> n.isReadyProperty().addListener( ( bobs, boldv, bnewv ) -> saverItem.setDisable( !bnewv ) ) );
+		} );
 
 	}
 
