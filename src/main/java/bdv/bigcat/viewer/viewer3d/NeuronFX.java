@@ -253,7 +253,6 @@ public class NeuronFX< T >
 		final Color surfaceColor = Color.rgb( color >>> 16 & 0xff, color >>> 8 & 0xff, color >>> 0 & 0xff, 1.0 );
 		meshView.setOpacity( 1.0 );
 		material.setDiffuseColor( surfaceColor );
-		material.setSpecularColor( surfaceColor );
 		meshView.setMaterial( material );
 
 		final float[] normals = new float[ vertices.length ];
