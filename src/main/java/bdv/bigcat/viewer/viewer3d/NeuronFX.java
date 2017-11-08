@@ -53,15 +53,6 @@ public class NeuronFX< T >
 	private boolean isCanceled = false;
 
 	private final ObjectProperty< Group > meshes = new SimpleObjectProperty<>();
-	{
-
-	}
-
-//	private final MeshView node;
-//
-//	private final PhongMaterial material;
-//
-//	private final Object meshModificationLock = new Object();
 
 	public NeuronFX( final Interval interval, final Group root )
 	{
