@@ -2,9 +2,13 @@ package bdv.bigcat.viewer.viewer3d;
 
 import java.io.File;
 import java.io.IOException;
+import java.lang.invoke.MethodHandles;
 import java.util.function.Predicate;
 
 import javax.imageio.ImageIO;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import bdv.bigcat.viewer.bdvfx.MouseDragFX;
 import bdv.bigcat.viewer.util.InvokeOnJavaFXApplicationThread;
@@ -32,6 +36,8 @@ import net.imglib2.Interval;
 
 public class Viewer3DFX extends Pane
 {
+
+	public static final Logger LOG = LoggerFactory.getLogger( MethodHandles.lookup().lookupClass() );
 
 	private final Group root;
 
@@ -101,11 +107,11 @@ public class Viewer3DFX extends Pane
 		this.cameraGroup.getChildren().addAll( camera, lightAmbient, lightSpot, lightFill );
 //		this.cameraGroup.getTransforms().addAll( translate, rotX, rotY );
 		this.cameraGroup.getTransforms().add( new Translate( 0, 0, -1 ) );
-		Point3D point = new Point3D( camera.getTranslateX(), camera.getTranslateY(), camera.getTranslateZ() );
+		final Point3D point = new Point3D( camera.getTranslateX(), camera.getTranslateY(), camera.getTranslateZ() );
 
 		meshesGroup.getTransforms().addAll( affine );
 		initialTransform.prependTranslation( -interval.dimension( 0 ) / 2, -interval.dimension( 1 ) / 2, -interval.dimension( 2 ) / 2 );
-		System.out.println( "position: " + ( -interval.dimension( 0 ) / 2 ) + " " + ( -interval.dimension( 1 ) / 2 ) + " " + ( -interval.dimension( 2 ) / 2 ) );
+		LOG.debug( "position: " + -interval.dimension( 0 ) / 2 + " " + -interval.dimension( 1 ) / 2 + " " + -interval.dimension( 2 ) / 2 );
 
 		final double sf = 1.0 / interval.dimension( 0 );
 		initialTransform.prependScale( sf, sf, sf );
@@ -182,7 +188,7 @@ public class Viewer3DFX extends Pane
 		public Rotate( final String name, final Affine affine, final DoubleProperty speed, final double factor, final Predicate< MouseEvent >... eventFilter )
 		{
 			super( name, eventFilter );
-			System.out.println( "rotation" );
+			LOG.trace( "rotation" );
 			this.factor = factor;
 			this.speed.set( speed.get() * this.factor );
 			speed.addListener( ( obs, old, newv ) -> this.speed.set( this.factor * speed.get() ) );
@@ -203,17 +209,17 @@ public class Viewer3DFX extends Pane
 		{
 			synchronized ( affineDragStart )
 			{
-				System.out.println( "drag - rotate" );
+				LOG.trace( "drag - rotate" );
 				final Affine target = new Affine( affineDragStart );
 				final double dX = event.getX() - startX;
 				final double dY = event.getY() - startY;
 				final double v = step * this.speed.get();
-				System.out.println( "dx " + dX + " dy: " + dY );
+				LOG.trace( "dx: {} dy: {}", dX, dY );
 
 				target.prependRotation( v * dY, centerX, centerY, 0, new Point3D( 1, 0, 0 ) );
 				target.prependRotation( v * -dX, centerX, centerY, 0, new Point3D( 0, 1, 0 ) );
 
-				System.out.println( "target: " + target );
+				LOG.trace( "target: {}", target );
 				InvokeOnJavaFXApplicationThread.invoke( () -> {
 					this.affine.setToTransform( target );
 				} );
@@ -231,7 +237,7 @@ public class Viewer3DFX extends Pane
 		public TranslateXY( final String name, final Affine affine, final Predicate< MouseEvent >... eventFilter )
 		{
 			super( name, eventFilter );
-			System.out.println( "translate" );
+			LOG.trace( "translate" );
 			this.affine = affine;
 		}
 
@@ -247,18 +253,18 @@ public class Viewer3DFX extends Pane
 		@Override
 		public void drag( final MouseEvent event )
 		{
-			System.out.println( "drag - translate" );
+			LOG.trace( "drag - translate" );
 			final double dX = event.getX() - startX;
 			final double dY = event.getY() - startY;
 
-			System.out.println( "dx " + dX + " dy: " + dY );
+			LOG.trace( "dx " + dX + " dy: " + dY );
 			final Affine target = new Affine( affineDragStart );
 			target.prependTranslation( 2 * dX / getHeight(), 2 * dY / getHeight() );
 
-			System.out.println( "target: " + target );
+			LOG.trace( "target: {}", target );
 			centerX = 2 * dX / getHeight();
 			centerY = 2 * dY / getHeight();
-			System.out.println( "translation value x " + ( 2 * dX / getHeight() ) + " y: " + ( 2 * dY / getHeight() ) );
+			LOG.trace( "translation value x: {} y: {}", 2 * dX / getHeight(), 2 * dY / getHeight() );
 			InvokeOnJavaFXApplicationThread.invoke( () -> {
 				affine.setToTransform( target );
 			} );
@@ -268,10 +274,10 @@ public class Viewer3DFX extends Pane
 
 	private void saveAsPng()
 	{
-		WritableImage image = scene.snapshot( new SnapshotParameters(), null );
+		final WritableImage image = scene.snapshot( new SnapshotParameters(), null );
 
 		// TODO: use a file chooser here
-		File file = new File( "3dscene-bigcat.png" );
+		final File file = new File( "3dscene-bigcat.png" );
 
 //		FileChooser fileChooser = new FileChooser();
 //		fileChooser.setTitle( "Open Resource File" );
@@ -281,7 +287,7 @@ public class Viewer3DFX extends Pane
 		{
 			ImageIO.write( SwingFXUtils.fromFXImage( image, null ), "png", file );
 		}
-		catch ( IOException e )
+		catch ( final IOException e )
 		{
 			// TODO: handle exception here
 		}
