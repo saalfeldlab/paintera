@@ -1,5 +1,6 @@
 package bdv.bigcat.viewer.viewer3d;
 
+import java.lang.invoke.MethodHandles;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -8,10 +9,13 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
 import java.util.stream.IntStream;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import bdv.bigcat.viewer.util.InvokeOnJavaFXApplicationThread;
 import bdv.bigcat.viewer.viewer3d.marchingCubes.ForegroundCheck;
 import bdv.bigcat.viewer.viewer3d.marchingCubes.MarchingCubes;
 import bdv.bigcat.viewer.viewer3d.util.HashWrapper;
-import bdv.util.InvokeOnJavaFXApplicationThread;
 import javafx.collections.ObservableFloatArray;
 import javafx.scene.Group;
 import javafx.scene.paint.Color;
@@ -32,6 +36,9 @@ import net.imglib2.util.Intervals;
 
 public class NeuronFX< T >
 {
+
+	private static final Logger LOG = LoggerFactory.getLogger( MethodHandles.lookup().lookupClass() );
+
 	private final Interval interval;
 
 	private final Group root;
@@ -102,6 +109,18 @@ public class NeuronFX< T >
 		InvokeOnJavaFXApplicationThread.invokeAndWait( () -> {
 			root.getChildren().remove( node );
 		} );
+	}
+
+	public void removeSelfUnchecked()
+	{
+		try
+		{
+			removeSelf();
+		}
+		catch ( final InterruptedException e )
+		{
+			LOG.debug( "Was interrupted when removing neuron!", e );
+		}
 	}
 
 	private void submitForOffset(
@@ -192,14 +211,17 @@ public class NeuronFX< T >
 							try
 							{
 								InvokeOnJavaFXApplicationThread.invokeAndWait( () -> {
-									meshVertices.addAll( vertices );
-									meshNormals.addAll( normals );
-									mesh.getFaces().addAll( faceIndices );
+									if ( !isCanceled )
+									{
+										meshVertices.addAll( vertices );
+										meshNormals.addAll( normals );
+										mesh.getFaces().addAll( faceIndices );
+									}
 								} );
 							}
 							catch ( final InterruptedException e )
 							{
-								e.printStackTrace();
+								LOG.trace( "Interrupted rendering", e );
 							}
 
 						}
@@ -230,6 +252,11 @@ public class NeuronFX< T >
 		InvokeOnJavaFXApplicationThread.invokeAndWait( () -> {
 			this.root.getChildren().add( this.node );
 		} );
+	}
+
+	public MeshView meshView()
+	{
+		return node;
 	}
 
 //	private void hasNeighboringData( Localizable location, boolean[] neighboring )

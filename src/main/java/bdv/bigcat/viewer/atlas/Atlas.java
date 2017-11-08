@@ -25,14 +25,15 @@ import bdv.bigcat.viewer.atlas.data.ConvertedSource;
 import bdv.bigcat.viewer.atlas.data.DatasetSpec;
 import bdv.bigcat.viewer.atlas.data.HDF5LabelMultisetSourceSpec;
 import bdv.bigcat.viewer.atlas.data.HDF5LabelMultisetSourceSpec.HighlightingStreamConverter;
-import bdv.bigcat.viewer.atlas.data.LabelSpec;
+import bdv.bigcat.viewer.atlas.data.RenderableLabelSpec;
 import bdv.bigcat.viewer.atlas.data.RenderableSpec;
 import bdv.bigcat.viewer.atlas.mode.Highlights;
 import bdv.bigcat.viewer.atlas.mode.Merges;
 import bdv.bigcat.viewer.atlas.mode.Mode;
 import bdv.bigcat.viewer.atlas.mode.ModeUtil;
 import bdv.bigcat.viewer.atlas.mode.NavigationOnly;
-import bdv.bigcat.viewer.atlas.mode.Render3DFX;
+import bdv.bigcat.viewer.bdvfx.KeyTracker;
+import bdv.bigcat.viewer.bdvfx.ViewerPanelFX;
 import bdv.bigcat.viewer.ortho.OrthoView;
 import bdv.bigcat.viewer.ortho.OrthoViewState;
 import bdv.bigcat.viewer.panel.ViewerNode;
@@ -49,7 +50,6 @@ import bdv.labels.labelset.VolatileLabelMultisetType;
 import bdv.viewer.Source;
 import bdv.viewer.SourceAndConverter;
 import bdv.viewer.ViewerOptions;
-import bdv.viewer.ViewerPanelFX;
 import javafx.application.Application;
 import javafx.beans.value.ChangeListener;
 import javafx.collections.ListChangeListener;
@@ -126,6 +126,8 @@ public class Atlas
 
 	private Stage primaryStage;
 
+	private final KeyTracker keyTracker = new KeyTracker();
+
 	public Atlas( final Interval interval, final VolatileGlobalCellCache cellCache )
 	{
 		this( ViewerOptions.options(), interval, cellCache );
@@ -137,7 +139,7 @@ public class Atlas
 		this.viewerOptions = viewerOptions
 				.accumulateProjectorFactory( new ClearingCompositeProjectorFactory<>( composites, new ARGBType() ) )
 				.numRenderingThreads( Math.min( 3, Math.max( 1, Runtime.getRuntime().availableProcessors() / 3 ) ) );
-		this.view = new OrthoView( focusHandler.onEnter(), focusHandler.onExit(), new OrthoViewState( this.viewerOptions ), cellCache );
+		this.view = new OrthoView( focusHandler.onEnter(), focusHandler.onExit(), new OrthoViewState( this.viewerOptions ), cellCache, keyTracker );
 		this.root = new BorderPane( this.view );
 		this.root.setBottom( status );
 		this.root.setRight( sourcesTab );
@@ -157,7 +159,7 @@ public class Atlas
 		this.view.setInfoNode( renderView );
 		this.renderView.scene().addEventHandler( MouseEvent.MOUSE_CLICKED, event -> renderView.scene().requestFocus() );
 
-		final Mode[] initialModes = { new NavigationOnly(), new Highlights( selectedIds ), new Merges( selectedIds, assignments ), new Render3DFX( controller ) };
+		final Mode[] initialModes = { new NavigationOnly(), new Highlights( controller, baseView().getState().transformManager(), selectedIds, keyTracker ), new Merges( selectedIds, assignments ) };
 		Arrays.stream( initialModes ).forEach( modes::add );
 
 		for ( final Mode mode : modes )
@@ -254,6 +256,13 @@ public class Atlas
 		this.baseView().addEventHandler( KeyEvent.KEY_PRESSED, event -> {
 			if ( event.getCode().equals( KeyCode.O ) && event.isShiftDown() && !event.isAltDown() && !event.isControlDown() )
 				orthoSlices.forEach( OrthoSliceFX::toggleVisibility );
+		} );
+
+		this.root.sceneProperty().addListener( ( obs, oldv, newv ) -> {
+			if ( oldv != null )
+				this.keyTracker.removeFrom( oldv );
+			if ( newv != null )
+				this.keyTracker.installInto( newv );
 		} );
 
 	}
@@ -366,7 +375,7 @@ public class Atlas
 		sacs.stream().map( SourceAndConverter::getSpimSource ).forEach( this.composites::remove );
 	}
 
-	public void addLabelSource( final LabelSpec< LabelMultisetType, VolatileLabelMultisetType > spec )
+	public void addLabelSource( final RenderableLabelSpec< LabelMultisetType, VolatileLabelMultisetType > spec )
 	{
 		final Source< VolatileLabelMultisetType > originalVSource = spec.getViewerSource();
 		final FragmentSegmentAssignmentState< ? > assignment = spec.getAssignment();
@@ -420,14 +429,14 @@ public class Atlas
 		this.orthoSlices.forEach( slice -> slice.addSource( vsource, source, toIdConverter, selectedIds ) );
 		for ( final Mode mode : this.modes )
 			if ( mode instanceof Highlights )
-				( ( Highlights ) mode ).addSource( vsource, source, toIdConverter );
+				( ( Highlights ) mode ).addSource( vsource, source, toIdConverter, ( ( RenderableSpec ) spec )::foregroundCheck, assignment, stream );
 			else if ( mode instanceof Merges )
 				( ( Merges ) mode ).addSource( vsource, source, toIdConverter );
-			else if ( mode instanceof Render3DFX && spec instanceof RenderableSpec )
-			{
-				System.out.println( "ADDING RENDERABLE SOURCE!" );
-				( ( Render3DFX ) mode ).addSource( vsource, source, toIdConverter, ( ( RenderableSpec ) spec )::foregroundCheck, assignment, stream );
-			}
+//			else if ( mode instanceof Render3DFX && spec instanceof RenderableSpec )
+//			{
+//				System.out.println( "ADDING RENDERABLE SOURCE!" );
+//				( ( Render3DFX ) mode ).addSource( vsource, source, toIdConverter, ( ( RenderableSpec ) spec )::foregroundCheck, assignment, stream, selectedIds );
+//			}
 
 		view.addActor( new ViewerActor()
 		{

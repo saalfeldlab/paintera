@@ -5,11 +5,11 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
+import bdv.bigcat.viewer.bdvfx.ViewerPanelFX;
 import bdv.bigcat.viewer.state.GlobalTransformManager;
 import bdv.viewer.Interpolation;
 import bdv.viewer.Source;
 import bdv.viewer.SourceAndConverter;
-import bdv.viewer.ViewerPanelFX;
 import javafx.beans.property.Property;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.value.ChangeListener;

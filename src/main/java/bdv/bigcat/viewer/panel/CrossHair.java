@@ -1,8 +1,8 @@
 package bdv.bigcat.viewer.panel;
 
+import bdv.bigcat.viewer.bdvfx.OverlayRendererGeneric;
 import javafx.scene.canvas.GraphicsContext;
 import javafx.scene.paint.Color;
-import net.imglib2.ui.OverlayRendererGeneric;
 
 public class CrossHair implements OverlayRendererGeneric< GraphicsContext >
 {

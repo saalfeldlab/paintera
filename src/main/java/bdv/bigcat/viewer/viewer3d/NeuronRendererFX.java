@@ -1,18 +1,35 @@
 package bdv.bigcat.viewer.viewer3d;
 
-import java.util.ArrayList;
-import java.util.List;
+import java.io.File;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.util.Optional;
 import java.util.concurrent.ExecutorService;
 import java.util.function.Function;
 
 import bdv.bigcat.ui.ARGBStream;
 import bdv.bigcat.viewer.state.FragmentSegmentAssignmentState;
+import bdv.bigcat.viewer.state.GlobalTransformManager;
+import bdv.bigcat.viewer.state.SelectedIds;
 import bdv.bigcat.viewer.state.StateListener;
+import bdv.bigcat.viewer.util.InvokeOnJavaFXApplicationThread;
 import bdv.bigcat.viewer.viewer3d.marchingCubes.ForegroundCheck;
+import javafx.beans.property.ObjectProperty;
+import javafx.beans.property.SimpleObjectProperty;
+import javafx.collections.ObservableFloatArray;
+import javafx.event.ActionEvent;
+import javafx.event.EventHandler;
 import javafx.scene.Camera;
 import javafx.scene.Group;
+import javafx.scene.control.ContextMenu;
+import javafx.scene.control.MenuItem;
+import javafx.scene.input.MouseEvent;
+import javafx.scene.shape.ObservableFaceArray;
+import javafx.scene.shape.TriangleMesh;
+import javafx.stage.FileChooser;
 import net.imglib2.Interval;
 import net.imglib2.Localizable;
+import net.imglib2.Point;
 import net.imglib2.RandomAccess;
 import net.imglib2.RandomAccessible;
 import net.imglib2.realtransform.AffineTransform3D;
@@ -61,7 +78,19 @@ public class NeuronRendererFX< T, F extends FragmentSegmentAssignmentState< F > 
 
 	private boolean allowRendering = true;
 
-	private final List< NeuronFX< T > > neurons = new ArrayList<>();
+	private final ObjectProperty< Optional< NeuronFX< T > > > neuron = new SimpleObjectProperty<>( Optional.empty() );
+
+	private final MeshSaver meshSaver;
+
+	private final ContextMenu rightClickMenu;
+
+	private final EventHandler< MouseEvent > menuOpener;
+
+	private final SelectedIds selectedIds;
+
+	private final IdSelector idSelector = new IdSelector();
+
+	private final GlobalTransformManager transformManager;
 
 	/**
 	 * Bounding box of the complete mesh/neuron (xmin, xmax, ymin, ymax, zmin,
@@ -82,7 +111,9 @@ public class NeuronRendererFX< T, F extends FragmentSegmentAssignmentState< F > 
 			final ExecutorService es,
 			final AffineTransform3D toWorldCoordinates,
 			final int[] blockSize,
-			final int[] cubeSize )
+			final int[] cubeSize,
+			final SelectedIds selectedIds,
+			final GlobalTransformManager transformManager )
 	{
 		super();
 		this.selectedFragmentId = selectedFragmentId;
@@ -102,26 +133,55 @@ public class NeuronRendererFX< T, F extends FragmentSegmentAssignmentState< F > 
 
 		updateForegroundCheck();
 		this.fragmentSegmentAssignment.addListener( this );
+		this.meshSaver = new MeshSaver();
+		this.rightClickMenu = new ContextMenu();
+		this.selectedIds = selectedIds;
+		this.transformManager = transformManager;
+		final MenuItem saverItem = new MenuItem( "Save neuron" );
+		final MenuItem centerSlicesAt = new MenuItem();
+		saverItem.setOnAction( meshSaver );
+		// TODO are we ever going to work with data that requires RealPoint,
+		// i.e. resolutions [a,b,c] with a,b,c < 0
+		final Point clickedPoint = new Point( 3 );
+		final AffineTransform3D globalTransform = new AffineTransform3D();
+		transformManager.addListener( globalTransform::set );
+		centerSlicesAt.setOnAction( event -> {
+			globalTransform.setTranslation( 0, 0, 0 );
+			final AffineTransform3D translation = new AffineTransform3D();
+			translation.setTranslation(
+					-clickedPoint.getDoublePosition( 0 ),
+					-clickedPoint.getDoublePosition( 1 ),
+					-clickedPoint.getDoublePosition( 2 ) );
+			transformManager.setTransform( globalTransform.concatenate( translation ) );
+		} );
+		menuOpener = event -> {
+			if ( event.isSecondaryButtonDown() && event.isShiftDown() && neuron.get().isPresent() )
+			{
+				clickedPoint.setPosition( new long[] { Math.round( event.getX() ), Math.round( event.getY() ), Math.round( event.getZ() ) } );
+				centerSlicesAt.setText( "Center ortho slices at " + clickedPoint );
+				this.rightClickMenu.show( neuron.get().get().meshView(), event.getScreenX(), event.getScreenY() );
+			}
+			else if ( this.rightClickMenu.isShowing() )
+				this.rightClickMenu.hide();
+		};
+
+		this.rightClickMenu.getItems().add( saverItem );
+		this.rightClickMenu.getItems().add( centerSlicesAt );
+
 	}
 
 	public synchronized void cancelRendering()
 	{
-		neurons.forEach( NeuronFX::cancel );
+		neuron.get().ifPresent( NeuronFX::cancel );
 	}
 
 	public synchronized void removeSelfFromScene()
 	{
 		cancelRendering();
-		neurons.forEach( t -> {
-			try
-			{
-				t.removeSelf();
-			}
-			catch ( final InterruptedException e )
-			{
-				// TODO Auto-generated catch block
-				e.printStackTrace();
-			}
+		neuron.get().ifPresent( n -> {
+			n.removeSelfUnchecked();
+			n.meshView().removeEventHandler( MouseEvent.MOUSE_PRESSED, menuOpener );
+			n.meshView().removeEventHandler( MouseEvent.MOUSE_PRESSED, idSelector );
 		} );
 	}
 
@@ -146,9 +206,8 @@ public class NeuronRendererFX< T, F extends FragmentSegmentAssignmentState< F > 
 		if ( allowRendering )
 		{
 			removeSelfFromScene();
-			this.neurons.clear();
 			final NeuronFX< T > neuron = new NeuronFX<>( interval, root );
-			this.neurons.add( neuron );
+			this.neuron.set( Optional.of( neuron ) );
 			final float[] blub = new float[ 3 ];
 			final int color = stream.argb( selectedFragmentId );
 			initialLocationInImageCoordinates.localize( blub );
@@ -162,6 +221,9 @@ public class NeuronRendererFX< T, F extends FragmentSegmentAssignmentState< F > 
 //			l.setTranslateZ( blub[ 2 ] - 500 );
 //			InvokeOnJavaFXApplicationThread.invoke( () -> root.getChildren().add( l ) );
 			neuron.render( initialLocationInImageCoordinates, data, foregroundCheck, toWorldCoordinates, blockSize, cubeSize, color, es );
+			neuron.meshView().addEventHandler( MouseEvent.MOUSE_PRESSED, menuOpener );
+			neuron.meshView().addEventHandler( MouseEvent.MOUSE_PRESSED, idSelector );
+
 		}
 	}
 
@@ -206,5 +268,115 @@ public class NeuronRendererFX< T, F extends FragmentSegmentAssignmentState< F > 
 	public synchronized void allowRendering( final boolean allow )
 	{
 		this.allowRendering = allow;
+	}
+
+	private class MeshSaver implements EventHandler< ActionEvent >
+	{
+
+		@Override
+		public void handle( final ActionEvent event )
+		{
+			if ( !neuron.get().isPresent() )
+				return;
+			final TriangleMesh mesh = ( TriangleMesh ) neuron.get().get().meshView().getMesh();
+			final FileChooser fileChooser = new FileChooser();
+			fileChooser.setTitle( "Save neuron with fragment " + fragmentId() + " " + segmentId() );
+			final SimpleObjectProperty< Optional< File > > fileProperty = new SimpleObjectProperty<>( Optional.empty() );
+			try
+			{
+				InvokeOnJavaFXApplicationThread.invokeAndWait( () -> {
+					fileProperty.set( Optional.ofNullable( fileChooser.showSaveDialog( root.sceneProperty().get().getWindow() ) ) );
+				} );
+			}
+			catch ( final InterruptedException e )
+			{
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+			if ( fileProperty.get().isPresent() )
+			{
+				final File file = fileProperty.get().get();
+				final StringBuilder sb = new StringBuilder()
+						.append( "# fragment id: " ).append( fragmentId() ).append( "\n" )
+						.append( "# segment id:  " ).append( segmentId() ).append( "\n" )
+						.append( "# color:       " ).append( Integer.toHexString( stream.argb( selectedFragmentId ) ) );
+				final ObservableFloatArray vertices = mesh.getPoints();
+				final ObservableFloatArray normals = mesh.getNormals();
+				final ObservableFloatArray texCoords = mesh.getTexCoords();
+				final ObservableFaceArray faces = mesh.getFaces();
+				final int numFacesEntries = faces.size();
+
+				sb.append( "\n" );
+				final int numVertices = vertices.size();
+				for ( int k = 0; k < numVertices; k += 3 )
+					sb.append( "\nv " ).append( vertices.get( k + 0 ) ).append( " " ).append( vertices.get( k + 1 ) ).append( " " ).append( vertices.get( k + 2 ) );
+
+				sb.append( "\n" );
+				final int numNormals = normals.size();
+				for ( int k = 0; k < numNormals; k += 3 )
+					sb.append( "\nvn " ).append( normals.get( k + 0 ) ).append( " " ).append( normals.get( k + 1 ) ).append( " " ).append( normals.get( k + 2 ) );
+
+				sb.append( "\n" );
+				final int numTexCoords = texCoords.size();
+				for ( int k = 0; k < numTexCoords; k += 3 )
+					sb.append( "\nvn " ).append( texCoords.get( k + 0 ) ).append( " " ).append( texCoords.get( k + 1 ) );
+
+				sb.append( "\n" );
+				for ( int k = 0; k < numFacesEntries; k += 9 )
+				{
+					final int v1 = faces.get( k );
+					final int n1 = faces.get( k + 1 );
+					final int t1 = faces.get( k + 2 );
+					final int v2 = faces.get( k + 3 );
+					final int n2 = faces.get( k + 4 );
+					final int t2 = faces.get( k + 5 );
+					final int v3 = faces.get( k + 6 );
+					final int n3 = faces.get( k + 7 );
+					final int t3 = faces.get( k + 8 );
+					sb
+							.append( "\nf " ).append( v1 + 1 ).append( "/" ).append( t1 + 1 ).append( "/" ).append( n1 + 1 )
+							.append( " " ).append( v2 + 1 ).append( "/" ).append( t2 + 1 ).append( "/" ).append( n2 + 1 )
+							.append( " " ).append( v3 + 1 ).append( "/" ).append( t3 + 1 ).append( "/" ).append( n3 + 1 );
+				}
+
+				try
+				{
+					Files.write( file.toPath(), sb.toString().getBytes() );
+				}
+				catch ( final IOException e )
+				{
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				}
+			}
+
+		}
+	}
+
+	private class IdSelector implements EventHandler< MouseEvent >
+	{
+
+		@Override
+		public void handle( final MouseEvent event )
+		{
+			if ( event.isPrimaryButtonDown() && isNoModifierKeys( event ) )
+			{
+				if ( selectedIds.isOnlyActiveId( selectedFragmentId ) )
+					selectedIds.deactivate( selectedFragmentId );
+				else
+					selectedIds.activate( selectedFragmentId );
+			}
+			else if ( event.isSecondaryButtonDown() && isNoModifierKeys( event ) )
+				if ( selectedIds.isActive( selectedFragmentId ) )
+					selectedIds.deactivate( selectedFragmentId );
+				else
+					selectedIds.activateAlso( selectedFragmentId );
+		}
+
+	}
+
+	public static boolean isNoModifierKeys( final MouseEvent event )
+	{
+		return !( event.isControlDown() || event.isShiftDown() || event.isMetaDown() || event.isAltDown() );
 	}
 }

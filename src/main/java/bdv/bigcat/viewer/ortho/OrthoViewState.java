@@ -140,4 +140,9 @@ public class OrthoViewState
 		this.currentSource.set( source );
 	}
 
+	public GlobalTransformManager transformManager()
+	{
+		return this.globalTransform;
+	}
+
 }

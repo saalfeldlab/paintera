@@ -2,19 +2,17 @@ package bdv.bigcat.viewer.ortho;
 
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.Set;
 import java.util.function.Consumer;
 
 import bdv.bigcat.viewer.ViewerActor;
-import bdv.bigcat.viewer.panel.OnSceneInitListener;
-import bdv.bigcat.viewer.panel.OnWindowInitListener;
+import bdv.bigcat.viewer.bdvfx.KeyTracker;
+import bdv.bigcat.viewer.bdvfx.ViewerPanelFX;
 import bdv.bigcat.viewer.panel.ViewerNode;
 import bdv.bigcat.viewer.panel.ViewerNode.ViewerAxis;
 import bdv.bigcat.viewer.panel.ViewerTransformManager;
 import bdv.img.cache.VolatileGlobalCellCache;
 import bdv.viewer.SourceAndConverter;
 import bdv.viewer.ViewerOptions;
-import bdv.viewer.ViewerPanelFX;
 import javafx.beans.value.ChangeListener;
 import javafx.collections.FXCollections;
 import javafx.collections.ListChangeListener;
@@ -24,7 +22,6 @@ import javafx.event.EventHandler;
 import javafx.scene.Node;
 import javafx.scene.Scene;
 import javafx.scene.control.TextField;
-import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyEvent;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.GridPane;
@@ -60,24 +57,29 @@ public class OrthoView extends GridPane
 
 	private final Consumer< ViewerPanelFX > onFocusExit;
 
-	private final Set< KeyCode > activeKeys = new HashSet<>();
+	private final KeyTracker keyTracker;
 
-	public OrthoView( final VolatileGlobalCellCache cellCache )
+	public OrthoView( final VolatileGlobalCellCache cellCache, final KeyTracker keyTracker )
 	{
-		this( new OrthoViewState(), cellCache );
+		this( new OrthoViewState(), cellCache, keyTracker );
 	}
 
-	public OrthoView( final ViewerOptions viewerOptions, final VolatileGlobalCellCache cellCache )
+	public OrthoView( final ViewerOptions viewerOptions, final VolatileGlobalCellCache cellCache, final KeyTracker keyTracker )
 	{
-		this( new OrthoViewState( viewerOptions ), cellCache );
+		this( new OrthoViewState( viewerOptions ), cellCache, keyTracker );
 	}
 
-	public OrthoView( final OrthoViewState state, final VolatileGlobalCellCache cellCache )
+	public OrthoView( final OrthoViewState state, final VolatileGlobalCellCache cellCache, final KeyTracker keyTracker )
 	{
-		this( ( vp ) -> {}, ( vp ) -> {}, state, cellCache );
+		this( ( vp ) -> {}, ( vp ) -> {}, state, cellCache, keyTracker );
 	}
 
-	public OrthoView( final Consumer< ViewerPanelFX > onFocusEnter, final Consumer< ViewerPanelFX > onFocusExit, final OrthoViewState state, final VolatileGlobalCellCache cellCache )
+	public OrthoView(
+			final Consumer< ViewerPanelFX > onFocusEnter,
+			final Consumer< ViewerPanelFX > onFocusExit,
+			final OrthoViewState state,
+			final VolatileGlobalCellCache cellCache,
+			final KeyTracker keyTracker )
 	{
 		super();
 		this.state = state;
@@ -88,6 +90,7 @@ public class OrthoView extends GridPane
 //		this.setInfoNode( new Label( "Place your node here!" ) );
 
 		this.resizer = new GridResizer( this.state.constraintsManager, 10, this );
+		this.keyTracker = keyTracker;
 		this.setOnMouseMoved( resizer.onMouseMovedHandler() );
 		this.setOnMouseDragged( resizer.onMouseDraggedHandler() );
 		this.setOnMouseClicked( resizer.onMouseDoubleClickedHandler() );
@@ -103,29 +106,6 @@ public class OrthoView extends GridPane
 
 		layoutViewers( cellCache );
 		this.focusTraversableProperty().set( true );
-
-		final OnSceneInitListener stageInit = OnWindowInitListener.doOnStageInit( stage -> {
-			stage.addEventFilter( KeyEvent.KEY_PRESSED, event -> {
-				synchronized ( activeKeys )
-				{
-					activeKeys.add( event.getCode() );
-				}
-			} );
-			stage.addEventFilter( KeyEvent.KEY_RELEASED, event -> {
-				synchronized ( activeKeys )
-				{
-					activeKeys.remove( event.getCode() );
-				}
-			} );
-			stage.focusedProperty().addListener( ( obs, oldv, newv ) -> {
-				if ( !newv )
-					synchronized ( activeKeys )
-					{
-						activeKeys.clear();
-					}
-			} );
-		} );
-		this.sceneProperty().addListener( stageInit );
 
 	}
 
@@ -192,7 +172,7 @@ public class OrthoView extends GridPane
 
 	private synchronized void addViewer( final ViewerAxis axis, final int rowIndex, final int colIndex, final VolatileGlobalCellCache cellCache )
 	{
-		final ViewerNode viewerNode = new ViewerNode( cellCache, axis, this.state.viewerOptions, activeKeys );
+		final ViewerNode viewerNode = new ViewerNode( cellCache, axis, this.state.viewerOptions, keyTracker );
 //		final ViewerNode viewerNode = new ViewerNode( new CacheControl.Dummy(), axis, this.state.viewerOptions, activeKeys );
 		this.viewerNodes.add( viewerNode );
 		this.managers.put( viewerNode, viewerNode.manager() );

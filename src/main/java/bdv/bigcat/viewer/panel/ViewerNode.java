@@ -2,17 +2,16 @@ package bdv.bigcat.viewer.panel;
 
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.Set;
 
+import bdv.bigcat.viewer.bdvfx.KeyTracker;
+import bdv.bigcat.viewer.bdvfx.ViewerPanelFX;
 import bdv.cache.CacheControl;
 import bdv.viewer.DisplayMode;
 import bdv.viewer.Source;
 import bdv.viewer.SourceAndConverter;
 import bdv.viewer.ViewerOptions;
-import bdv.viewer.ViewerPanelFX;
 import javafx.beans.value.ChangeListener;
 import javafx.collections.ListChangeListener;
-import javafx.scene.input.KeyCode;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.Pane;
 import javafx.scene.paint.Color;
@@ -51,7 +50,7 @@ public class ViewerNode extends Pane implements ListChangeListener< SourceAndCon
 			final CacheControl cacheControl,
 			final ViewerAxis viewerAxis,
 			final ViewerOptions viewerOptions,
-			final Set< KeyCode > activeKeys )
+			final KeyTracker keyTracker )
 	{
 		super();
 		this.viewer = new ViewerPanelFX( new ArrayList<>(), 1, cacheControl, viewerOptions );
@@ -65,7 +64,7 @@ public class ViewerNode extends Pane implements ListChangeListener< SourceAndCon
 //		this.viewer.showMultibox( false );
 		this.viewerAxis = viewerAxis;
 		this.state = new ViewerState( this.viewer );
-		this.manager = new ViewerTransformManager( this.viewer, state, globalToViewer( viewerAxis ), activeKeys );
+		this.manager = new ViewerTransformManager( this.viewer, state, globalToViewer( viewerAxis ), keyTracker );
 		initializeViewer();
 		addCrosshair();
 //		https://stackoverflow.com/questions/21657034/javafx-keyevent-propagation-order

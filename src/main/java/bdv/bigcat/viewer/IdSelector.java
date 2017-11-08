@@ -11,17 +11,19 @@ import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
 import bdv.bigcat.viewer.atlas.mode.HandleMultipleIds;
+import bdv.bigcat.viewer.bdvfx.InstallAndRemove;
+import bdv.bigcat.viewer.bdvfx.MouseClickFX;
+import bdv.bigcat.viewer.bdvfx.ViewerPanelFX;
 import bdv.bigcat.viewer.state.FragmentSegmentAssignment;
 import bdv.bigcat.viewer.state.SelectedIds;
 import bdv.labels.labelset.Label;
 import bdv.viewer.Interpolation;
 import bdv.viewer.Source;
-import bdv.viewer.ViewerPanelFX;
-import bdv.viewer.fx.MouseClickFX;
 import bdv.viewer.state.SourceState;
 import bdv.viewer.state.ViewerState;
 import gnu.trove.map.hash.TLongObjectHashMap;
 import gnu.trove.set.hash.TLongHashSet;
+import javafx.scene.Node;
 import javafx.scene.input.MouseEvent;
 import net.imglib2.Cursor;
 import net.imglib2.FinalInterval;
@@ -33,7 +35,6 @@ import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.realtransform.InverseRealTransform;
 import net.imglib2.realtransform.RealTransformRealRandomAccessible;
 import net.imglib2.realtransform.RealViews;
-import net.imglib2.ui.InstallAndRemove;
 import net.imglib2.view.IntervalView;
 import net.imglib2.view.Views;
 
@@ -61,31 +62,51 @@ public class IdSelector
 		this.dataSources = dataSources;
 	}
 
-	public InstallAndRemove selectSingle( final String name, final HandleMultipleIds handleMultipleEntries, final Predicate< MouseEvent >... eventFilter )
+	public InstallAndRemove< Node > selectSingle( final String name, final HandleMultipleIds handleMultipleEntries, final Predicate< MouseEvent >... eventFilter )
 	{
 		final SelectSingle selectSingle = new SelectSingle( handleMultipleEntries );
 		return new MouseClickFX( name, selectSingle::click, eventFilter );
 	}
 
-	public InstallAndRemove append( final String name, final HandleMultipleIds handleMultipleEntries, final Predicate< MouseEvent >... eventFilter )
+	public InstallAndRemove< Node > append( final String name, final HandleMultipleIds handleMultipleEntries, final Predicate< MouseEvent >... eventFilter )
 	{
 		final Append append = new Append( handleMultipleEntries );
 		return new MouseClickFX( name, append::click, eventFilter );
 	}
 
-	public InstallAndRemove selectFragmentWithMaximumCount( final String name, final Predicate< MouseEvent >... eventFilter )
+	public InstallAndRemove< Node > selectFragmentWithMaximumCount( final String name, final Predicate< MouseEvent >... eventFilter )
 	{
 		final SelectFragmentWithMaximumCount selectFragment = new SelectFragmentWithMaximumCount();
 		return new MouseClickFX( name, selectFragment::click, eventFilter );
 	}
 
-	public InstallAndRemove appendFragmentWithMaximumCount( final String name, final Predicate< MouseEvent >... eventFilter )
+	public InstallAndRemove< Node > selectFragmentWithMaximumCount( final String name, final Consumer< MouseEvent > otherAction, final Predicate< MouseEvent >... eventFilter )
+	{
+		final SelectFragmentWithMaximumCount selectFragment = new SelectFragmentWithMaximumCount();
+		final Consumer< MouseEvent > handler = event -> {
+			selectFragment.click( event );
+			otherAction.accept( event );
+		};
+		return new MouseClickFX( name, handler, eventFilter );
+	}
+
+	public InstallAndRemove< Node > appendFragmentWithMaximumCount( final String name, final Predicate< MouseEvent >... eventFilter )
 	{
 		final AppendFragmentWithMaximumCount appendFragment = new AppendFragmentWithMaximumCount();
 		return new MouseClickFX( name, appendFragment::click, eventFilter );
 	}
 
-	public InstallAndRemove merge( final String name, final HashMap< Source< ? >, ? extends FragmentSegmentAssignment > assignments, final Predicate< MouseEvent >... eventFilter )
+	public InstallAndRemove< Node > appendFragmentWithMaximumCount( final String name, final Consumer< MouseEvent > otherAction, final Predicate< MouseEvent >... eventFilter )
+	{
+		final AppendFragmentWithMaximumCount appendFragment = new AppendFragmentWithMaximumCount();
+		final Consumer< MouseEvent > handler = event -> {
+			appendFragment.click( event );
+			otherAction.accept( event );
+		};
+		return new MouseClickFX( name, handler, eventFilter );
+	}
+
+	public InstallAndRemove< Node > merge( final String name, final HashMap< Source< ? >, ? extends FragmentSegmentAssignment > assignments, final Predicate< MouseEvent >... eventFilter )
 	{
 		final MergeFragments merge = new MergeFragments( assignments );
 		return new MouseClickFX( name, merge::click, eventFilter );
@@ -96,13 +117,13 @@ public class IdSelector
 //		return new MergeSegments( assignments );
 //	}
 
-	public InstallAndRemove detach( final String name, final HashMap< Source< ? >, ? extends FragmentSegmentAssignment > assignments, final Predicate< MouseEvent >... eventFilter )
+	public InstallAndRemove< Node > detach( final String name, final HashMap< Source< ? >, ? extends FragmentSegmentAssignment > assignments, final Predicate< MouseEvent >... eventFilter )
 	{
 		final DetachFragment detach = new DetachFragment( assignments );
 		return new MouseClickFX( name, detach::click, eventFilter );
 	}
 
-	public InstallAndRemove confirm( final String name, final HashMap< Source< ? >, ? extends FragmentSegmentAssignment > assignments, final Predicate< MouseEvent >... eventFilter )
+	public InstallAndRemove< Node > confirm( final String name, final HashMap< Source< ? >, ? extends FragmentSegmentAssignment > assignments, final Predicate< MouseEvent >... eventFilter )
 	{
 		final ConfirmSelection confirmSelection = new ConfirmSelection( assignments );
 		return new MouseClickFX( name, confirmSelection::click, eventFilter );
@@ -241,7 +262,7 @@ public class IdSelector
 		protected void actOn( final long id, final SelectedIds selectedIds )
 		{
 			if ( Label.regular( id ) )
-				if ( selectedIds.isOnlyActiveId( id ) )
+				if ( selectedIds.isActive( id ) )
 					selectedIds.deactivate( id );
 				else
 					selectedIds.activateAlso( id );

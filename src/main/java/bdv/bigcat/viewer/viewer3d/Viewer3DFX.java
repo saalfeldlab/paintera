@@ -2,8 +2,8 @@ package bdv.bigcat.viewer.viewer3d;
 
 import java.util.function.Predicate;
 
-import bdv.util.InvokeOnJavaFXApplicationThread;
-import bdv.viewer.fx.MouseDragFX;
+import bdv.bigcat.viewer.bdvfx.MouseDragFX;
+import bdv.bigcat.viewer.util.InvokeOnJavaFXApplicationThread;
 import javafx.beans.property.DoubleProperty;
 import javafx.beans.property.SimpleDoubleProperty;
 import javafx.geometry.Point3D;
@@ -39,7 +39,9 @@ public class Viewer3DFX extends Pane
 	final private static double step = 1.0;// Math.PI / 180;
 
 	private final AmbientLight lightAmbient = new AmbientLight( new Color( 0.1, 0.1, 0.1, 1 ) );
+
 	private final PointLight lightSpot = new PointLight( new Color( 1.0, 0.95, 0.85, 1 ) );
+
 	private final PointLight lightFill = new PointLight( new Color( 0.35, 0.35, 0.65, 1 ) );
 
 	private final Point3D cameraNormal = new Point3D( 0, 0, 1 );

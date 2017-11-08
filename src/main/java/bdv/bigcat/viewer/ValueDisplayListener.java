@@ -5,9 +5,9 @@ import java.util.List;
 import java.util.Optional;
 import java.util.function.Consumer;
 
+import bdv.bigcat.viewer.bdvfx.ViewerPanelFX;
 import bdv.viewer.Interpolation;
 import bdv.viewer.Source;
-import bdv.viewer.ViewerPanelFX;
 import bdv.viewer.state.SourceState;
 import bdv.viewer.state.ViewerState;
 import javafx.event.EventHandler;

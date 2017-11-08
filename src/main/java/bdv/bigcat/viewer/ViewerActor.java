@@ -2,7 +2,7 @@ package bdv.bigcat.viewer;
 
 import java.util.function.Consumer;
 
-import bdv.viewer.ViewerPanelFX;
+import bdv.bigcat.viewer.bdvfx.ViewerPanelFX;
 
 public interface ViewerActor
 {
