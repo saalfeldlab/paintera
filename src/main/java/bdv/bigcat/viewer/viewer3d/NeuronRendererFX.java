@@ -165,58 +165,6 @@ public class NeuronRendererFX< T, F extends FragmentSegmentAssignmentState< F > 
 		}
 	}
 
-//	private void hasNeighboringData( Localizable location, boolean[] neighboring )
-//	{
-//		// for each dimension, verifies first in the +, then in the - direction
-//		// if the voxels in the boundary contain the foregroundvalue
-//		final Interval chunkInterval = partitioner.getChunk( location ).getA().interval();
-//		for ( int i = 0; i < chunkInterval.numDimensions(); i++ )
-//		{
-//			// initialize each direction with false
-//			neighboring[ i * 2 ] = false;
-//			neighboring[ i * 2 + 1 ] = false;
-//
-//			checkData( i, chunkInterval, neighboring, "+" );
-//			checkData( i, chunkInterval, neighboring, "-" );
-//		}
-//	}
-//
-//	private void checkData( int i, Interval chunkInterval, boolean[] neighboring, String direction )
-//	{
-//		final long[] begin = new long[ chunkInterval.numDimensions() ];
-//		final long[] end = new long[ chunkInterval.numDimensions() ];
-//
-//		begin[ i ] = ( direction.compareTo( "+" ) == 0 ) ? chunkInterval.max( i ) : chunkInterval.min( i );
-//		end[ i ] = begin[ i ];
-//
-//		for ( int j = 0; j < chunkInterval.numDimensions(); j++ )
-//		{
-//			if ( i == j )
-//				continue;
-//
-//			begin[ j ] = chunkInterval.min( j );
-//			end[ j ] = chunkInterval.max( j );
-//		}
-//
-//		RandomAccessibleInterval< T > slice = Views.interval( volumeLabels, new FinalInterval( begin, end ) );
-//		Cursor< T > cursor = Views.flatIterable( slice ).cursor();
-//
-//		System.out.println( "Checking dataset from: " + begin[ 0 ] + " " + begin[ 1 ] + " " + begin[ 2 ] + " to: " + end[ 0 ] + " " + end[ 1 ] + " " + end[ 2 ] );
-//
-//		while ( cursor.hasNext() )
-//		{
-//			cursor.next();
-//			if ( foregroundCheck.test( cursor.get() ) == 1 )
-//			{
-//				int index = ( direction.compareTo( "+" ) == 0 ) ? i * 2 : i * 2 + 1;
-//				neighboring[ index ] = true;
-//				break;
-//			}
-//		}
-//		int index = ( direction.compareTo( "+" ) == 0 ) ? i * 2 : i * 2 + 1;
-//		System.out.println( "this dataset is: {}" + neighboring[ index ] );
-//	}
-
 	public long fragmentId()
 	{
 		return this.selectedFragmentId;
