@@ -47,7 +47,7 @@ mvn clean compile assembly:single
 java -Xmx16G -jar target/bigcat-0.0.3-SNAPSHOT-jar-with-dependencies.jar
 ```
 
-or you can download a compiled fat jar from [here](https://www.dropbox.com/s/ouhmymh5k057mdg/bigcat-0.0.3-SNAPSHOT-jar-with-dependencies-07112017.jar?dl=0).
+or you can download a compiled fat jar from [here](https://www.dropbox.com/s/f82nfc0cbrdmtji/bigcat-0.0.3-SNAPSHOT-jar-with-dependencies-08112017.jar?dl=0).
 
 Parameters:
 
