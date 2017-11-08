@@ -248,6 +248,8 @@ public class NeuronFX< T >
 		final Color surfaceColor = Color.rgb( color >>> 16 & 0xff, color >>> 8 & 0xff, color >>> 0 & 0xff, 1.0 );
 		this.node.setMesh( mesh );
 		this.material.setDiffuseColor( surfaceColor );
+		this.material.setSpecularColor( surfaceColor );
+		this.material.setSpecularPower( 100 );
 		this.node.setMaterial( this.material );
 		InvokeOnJavaFXApplicationThread.invokeAndWait( () -> {
 			this.root.getChildren().add( this.node );
