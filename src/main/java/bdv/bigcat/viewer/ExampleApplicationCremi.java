@@ -66,7 +66,7 @@ public class ExampleApplicationCremi
 		}
 		final VolatileGlobalCellCache cellCache = new VolatileGlobalCellCache( 1, 12 );
 
-		final HDF5UnsignedByteSpec rawSource = new HDF5UnsignedByteSpec( rawFile, rawDataset, rawCellSize, resolution, "raw", cellCache );
+		final HDF5UnsignedByteSpec rawSource = new HDF5UnsignedByteSpec( rawFile, rawDataset, rawCellSize, resolution, "raw", cellCache, 0 );
 
 		final double[] min = Arrays.stream( Intervals.minAsLongArray( rawSource.getSource().getSource( 0, 0 ) ) ).mapToDouble( v -> v ).toArray();
 		final double[] max = Arrays.stream( Intervals.maxAsLongArray( rawSource.getSource().getSource( 0, 0 ) ) ).mapToDouble( v -> v ).toArray();
@@ -99,7 +99,7 @@ public class ExampleApplicationCremi
 		latch.await();
 		viewer.addRawSource( rawSource, 0., 255. );
 
-		final HDF5LabelMultisetSourceSpec labelSpec2 = new HDF5LabelMultisetSourceSpec( labelsFile, labelsDataset, labelCellSize, "labels", cellCache );
+		final HDF5LabelMultisetSourceSpec labelSpec2 = new HDF5LabelMultisetSourceSpec( labelsFile, labelsDataset, labelCellSize, "labels", cellCache, 1 );
 		viewer.addLabelSource( labelSpec2 );
 
 	}
@@ -122,7 +122,7 @@ public class ExampleApplicationCremi
 
 	private static boolean validateParameters( final Parameters params )
 	{
-		return ( params.filePath != "" );
+		return params.filePath != "";
 	}
 
 	public static class VolatileRealARGBConverter< T extends RealType< T > > extends AbstractLinearRange implements Converter< Volatile< T >, VolatileARGBType >

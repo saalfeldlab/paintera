@@ -26,6 +26,8 @@ public class HDF5UnsignedByteSpec implements DatasetSpec< UnsignedByteType, Vola
 
 	private final String uri;
 
+	private final int setupId;
+
 	public abstract class InternalSource< T > implements Source< T >
 	{
 
@@ -86,7 +88,6 @@ public class HDF5UnsignedByteSpec implements DatasetSpec< UnsignedByteType, Vola
 		public UnsignedByteSource( final H5UnsignedByteSetupImageLoader loader, final UnsignedByteType t, final String name )
 		{
 			super( loader, t, name );
-			// TODO Auto-generated constructor stub
 		}
 
 		@Override
@@ -138,14 +139,16 @@ public class HDF5UnsignedByteSpec implements DatasetSpec< UnsignedByteType, Vola
 			final int[] cellSize,
 			final double[] resolution,
 			final String name,
-			final VolatileGlobalCellCache cellCache ) throws IOException
+			final VolatileGlobalCellCache cellCache,
+			final int setupId ) throws IOException
 	{
 		super();
 		final IHDF5Reader h5reader = HDF5Factory.open( path );
 		// TODO Use better value for number of threads of shared queue
-		this.loader = new H5UnsignedByteSetupImageLoader( h5reader, dataset, 0, cellSize, resolution, cellCache );
+		this.loader = new H5UnsignedByteSetupImageLoader( h5reader, dataset, setupId, cellSize, resolution, cellCache );
 		this.name = name;
 		this.uri = "h5://" + path + "/" + dataset;
+		this.setupId = setupId;
 	}
 
 	@Override

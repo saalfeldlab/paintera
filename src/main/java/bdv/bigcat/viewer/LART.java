@@ -100,7 +100,7 @@ public class LART
 		final int[] cellSize = { 145, 53, 5 };
 
 		final VolatileGlobalCellCache cellCache = new VolatileGlobalCellCache( 1, 12 );
-		final HDF5UnsignedByteSpec rawSource = new HDF5UnsignedByteSpec( rawFile, rawDataset, cellSize, resolution, "raw", cellCache );
+		final HDF5UnsignedByteSpec rawSource = new HDF5UnsignedByteSpec( rawFile, rawDataset, cellSize, resolution, "raw", cellCache, 0 );
 
 		final double[] min = Arrays.stream( Intervals.minAsLongArray( rawSource.getSource().getSource( 0, 0 ) ) ).mapToDouble( v -> v ).toArray();
 		final double[] max = Arrays.stream( Intervals.maxAsLongArray( rawSource.getSource().getSource( 0, 0 ) ) ).mapToDouble( v -> v ).toArray();
@@ -167,7 +167,10 @@ public class LART
 				labelsDataset,
 				cellSize,
 				actionBroadcast,
-				solutionReceiver, () -> initialSolutionHashMap, "labels", cellCache );
+				solutionReceiver, () -> initialSolutionHashMap,
+				"labels",
+				cellCache,
+				1 );
 		viewer.addLabelSource( labelSpec2 );
 
 		initialSolutionSocket.send( "" );

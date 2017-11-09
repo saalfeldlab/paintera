@@ -58,7 +58,7 @@ public class ExampleApplication2
 		final int[] cellSize = { 145, 53, 5 };
 		final VolatileGlobalCellCache cellCache = new VolatileGlobalCellCache( 1, 12 );
 
-		final HDF5UnsignedByteSpec rawSource = new HDF5UnsignedByteSpec( rawFile, rawDataset, cellSize, resolution, "raw", cellCache );
+		final HDF5UnsignedByteSpec rawSource = new HDF5UnsignedByteSpec( rawFile, rawDataset, cellSize, resolution, "raw", cellCache, 0 );
 
 		final double[] min = Arrays.stream( Intervals.minAsLongArray( rawSource.getSource().getSource( 0, 0 ) ) ).mapToDouble( v -> v ).toArray();
 		final double[] max = Arrays.stream( Intervals.maxAsLongArray( rawSource.getSource().getSource( 0, 0 ) ) ).mapToDouble( v -> v ).toArray();
@@ -104,13 +104,13 @@ public class ExampleApplication2
 
 		viewer.addRawSource( rawSource, 0., 255. );
 
-		final HDF5LabelMultisetSourceSpec labelSpec2 = new HDF5LabelMultisetSourceSpec( labelsFile, labelsDataset, cellSize, "labels", cellCache );
+		final HDF5LabelMultisetSourceSpec labelSpec2 = new HDF5LabelMultisetSourceSpec( labelsFile, labelsDataset, cellSize, "labels", cellCache, 1 );
 		viewer.addLabelSource( labelSpec2 );
 
 		final boolean demonstrateRemove = false;
 		if ( demonstrateRemove )
 		{
-			final HDF5LabelMultisetSourceSpec labelSpec3 = new HDF5LabelMultisetSourceSpec( labelsFile, labelsDataset, cellSize, "labels2", cellCache );
+			final HDF5LabelMultisetSourceSpec labelSpec3 = new HDF5LabelMultisetSourceSpec( labelsFile, labelsDataset, cellSize, "labels2", cellCache, 2 );
 			viewer.addLabelSource( labelSpec3 );
 
 			Platform.runLater( () -> {
