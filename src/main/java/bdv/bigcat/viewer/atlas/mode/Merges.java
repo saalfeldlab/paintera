@@ -42,7 +42,6 @@ public class Merges extends AbstractStateMode
 				final IdSelector selector = new IdSelector( t, sourceInfo, this );
 				final List< InstallAndRemove > iars = new ArrayList<>();
 				iars.add( selector.selectFragmentWithMaximumCount( "toggle single id", event -> event.isPrimaryButtonDown() && noSpecialKeys( event ) ) );
-				iars.add( selector.append( "append id", ( ids, selection, isActive ) -> false, event -> event.isSecondaryButtonDown() && noSpecialKeys( event ) ) );
 				iars.add( selector.merge( "merge fragments", event -> event.isPrimaryButtonDown() && shiftOnly( event ) ) );
 				iars.add( selector.detach( "detach", event -> event.isSecondaryButtonDown() && shiftOnly( event ) ) );
 				iars.add( selector.confirm( "confirm assignments", event -> event.isPrimaryButtonDown() && shiftAndControl( event ) ) );
