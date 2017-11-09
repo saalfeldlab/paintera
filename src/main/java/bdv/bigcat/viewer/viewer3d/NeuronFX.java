@@ -3,9 +3,9 @@ package bdv.bigcat.viewer.viewer3d;
 import java.lang.invoke.MethodHandles;
 import java.util.HashSet;
 import java.util.Set;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.IntStream;
 
 import org.slf4j.Logger;
@@ -20,7 +20,6 @@ import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.collections.FXCollections;
-import javafx.collections.ListChangeListener;
 import javafx.collections.ObservableFloatArray;
 import javafx.collections.ObservableList;
 import javafx.scene.Group;
@@ -60,6 +59,10 @@ public class NeuronFX< T >
 
 	private final SimpleBooleanProperty isReady = new SimpleBooleanProperty( false );
 
+	private final AtomicLong futuresStartedCount = new AtomicLong( 0 );
+
+	private final AtomicLong futuresFinishedCount = new AtomicLong( 0 );
+
 	public NeuronFX( final Interval interval, final Group root )
 	{
 		super();
@@ -69,13 +72,6 @@ public class NeuronFX< T >
 			InvokeOnJavaFXApplicationThread.invoke( () -> root.getChildren().remove( oldv ) );
 			if ( newv != null )
 				InvokeOnJavaFXApplicationThread.invoke( () -> root.getChildren().add( newv ) );
-		} );
-		futures.addListener( ( ListChangeListener< Future< ? > > ) c -> {
-			synchronized ( futures )
-			{
-				if ( futures.size() == 0 && !isCanceled )
-					isReady.set( true );
-			}
 		} );
 	}
 
@@ -90,6 +86,8 @@ public class NeuronFX< T >
 			final ExecutorService es )
 	{
 		cancel();
+		this.futuresStartedCount.set( 0 );
+		this.futuresFinishedCount.set( 0 );
 		this.isCanceled = false;
 		this.isReady.set( false );
 		this.meshes.set( new Group() );
@@ -105,6 +103,7 @@ public class NeuronFX< T >
 		synchronized ( futures )
 		{
 			this.isCanceled = true;
+			this.offsets.clear();
 			this.futures.forEach( future -> future.cancel( true ) );
 			this.futures.clear();
 		}
@@ -154,6 +153,7 @@ public class NeuronFX< T >
 		if ( !isCanceled && meshes != null )
 		{
 			final Future< ? > future = es.submit( () -> {
+				futuresStartedCount.incrementAndGet();
 				final Interval interval = new FinalInterval(
 						coordinates,
 						IntStream.range( 0, coordinates.length ).mapToLong( d -> coordinates[ d ] + blockSize[ d ] ).toArray() );
@@ -197,47 +197,29 @@ public class NeuronFX< T >
 
 				if ( vertices.length > 0 )
 				{
+					final MeshView mv = initializeMeshView( color, vertices );
+
+					if ( !isCanceled )
 					{
+						InvokeOnJavaFXApplicationThread.invoke( () -> meshes.getChildren().add( mv ) );
 
-						final MeshView mv = initializeMeshView( color, vertices );
+						for ( int d = 0; d < gridCoordinates.length; ++d )
+						{
+							final long[] otherGridCoordinates = gridCoordinates.clone();
+							otherGridCoordinates[ d ] += 1;
+							submitForOffset( otherGridCoordinates.clone(), data, foregroundCheck, toWorldCoordinates, blockSize, cubeSize, color, es );
 
-						if ( !isCanceled )
-							InvokeOnJavaFXApplicationThread.invoke( () -> meshes.getChildren().add( mv ) );
-
-					}
-
-					for ( int d = 0; d < gridCoordinates.length; ++d )
-					{
-						final long[] otherGridCoordinates = gridCoordinates.clone();
-						otherGridCoordinates[ d ] += 1;
-						submitForOffset( otherGridCoordinates.clone(), data, foregroundCheck, toWorldCoordinates, blockSize, cubeSize, color, es );
-
-						otherGridCoordinates[ d ] -= 2;
-						submitForOffset( otherGridCoordinates.clone(), data, foregroundCheck, toWorldCoordinates, blockSize, cubeSize, color, es );
+							otherGridCoordinates[ d ] -= 2;
+							submitForOffset( otherGridCoordinates.clone(), data, foregroundCheck, toWorldCoordinates, blockSize, cubeSize, color, es );
+						}
 					}
 				}
+				incrementFuturesFinishedCount();
 			} );
 			synchronized ( futures )
 			{
 				futures.add( future );
 			}
-			es.execute( () -> {
-				try
-				{
-					synchronized ( futures )
-					{
-						if ( !isCanceled )
-						{
-							future.get();
-							futures.remove( future );
-						}
-					}
-				}
-				catch ( InterruptedException | ExecutionException e )
-				{
-//					e.printStackTrace();
-				}
-			} );
 		}
 	}
 
@@ -290,6 +272,14 @@ public class NeuronFX< T >
 	public BooleanProperty isReadyProperty()
 	{
 		return isReady;
+	}
+
+	private void incrementFuturesFinishedCount()
+	{
+		final long finishedCount = futuresFinishedCount.incrementAndGet();
+		final long startedCount = futuresStartedCount.get();
+		if ( !isCanceled && finishedCount == startedCount )
+			isReady.set( true );
 	}
 
 }
