@@ -192,17 +192,24 @@ public class OrthoView extends GridPane
 	private void maximizeActiveOrthoView( final Event event )
 	{
 		final Scene scene = getScene();
-		final Node focusOwner = scene.focusOwnerProperty().get();
+		final Node focusOwner = scene.focusOwnerProperty().get().getParent();
+		boolean is3DNode = false;
 
-		if ( viewerNodes.contains( focusOwner.getParent() ) )
+		// check if the focus is on the 3d viewer
+		for ( final Node child : this.getChildren() )
+			if ( GridPane.getRowIndex( child ) == 1 && GridPane.getColumnIndex( child ) == 1 )
+				if ( child.equals( focusOwner ) )
+					is3DNode = true;
+
+		if ( viewerNodes.contains( focusOwner ) || is3DNode )
 		{
 			// event.consume();
 			if ( !this.state.constraintsManager.isFullScreen() )
 			{
-				viewerNodes.forEach( node -> node.setVisible( node == focusOwner.getParent() ) );
+				viewerNodes.forEach( node -> node.setVisible( node == focusOwner ) );
 				this.state.constraintsManager.maximize(
-						GridPane.getRowIndex( focusOwner.getParent() ),
-						GridPane.getColumnIndex( focusOwner.getParent() ),
+						GridPane.getRowIndex( focusOwner ),
+						GridPane.getColumnIndex( focusOwner ),
 						0 );
 //					( ( ViewerPanel ) ( ( SwingNode ) focusOwner ).getContent() ).requestRepaint();
 				this.setHgap( 0 );
