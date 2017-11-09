@@ -235,21 +235,20 @@ public class Viewer3DFX extends Pane
 		@Override
 		public void drag( final MouseEvent event )
 		{
-			LOG.trace( "drag - translate" );
-			final double dX = event.getX() - startX;
-			final double dY = event.getY() - startY;
+			synchronized ( transformLock )
+			{
+				LOG.trace( "drag - translate" );
+				final double dX = event.getX() - startX;
+				final double dY = event.getY() - startY;
 
-			LOG.trace( "dx " + dX + " dy: " + dY );
-			final Affine target = new Affine( affineDragStart );
-			target.prependTranslation( 2 * dX / getHeight(), 2 * dY / getHeight() );
+				LOG.trace( "dx " + dX + " dy: " + dY );
+				InvokeOnJavaFXApplicationThread.invoke( () -> {
+					affine.prependTranslation( 2 * dX / getHeight(), 2 * dY / getHeight() );
+				} );
 
-			LOG.trace( "target: {}", target );
-			centerX = 2 * dX / getHeight();
-			centerY = 2 * dY / getHeight();
-			LOG.trace( "translation value x: {} y: {}", 2 * dX / getHeight(), 2 * dY / getHeight() );
-			InvokeOnJavaFXApplicationThread.invoke( () -> {
-				affine.setToTransform( target );
-			} );
+				startX += dX;
+				startY += dY;
+			}
 		}
 
 	}
