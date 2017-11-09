@@ -48,10 +48,8 @@ public class Scene3DHandler
 
 		final double sf = 1.0 / interval.dimension( 0 );
 		initialTransform.prependScale( sf, sf, sf );
-		initialTransform.prependRotation( 90, centerX, centerY, 0, new Point3D( 0, 1, 0 ) );
 
 		affine.setToTransform( initialTransform );
-
 		addCommands();
 
 		final Rotate rotate = new Rotate( "rotate 3d", affine, new SimpleDoubleProperty( 1.0 ), new SimpleDoubleProperty( 1.0 ), MouseEvent::isPrimaryButtonDown );
