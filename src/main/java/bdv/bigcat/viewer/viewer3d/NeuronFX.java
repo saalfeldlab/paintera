@@ -11,6 +11,7 @@ import java.util.stream.IntStream;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import bdv.bigcat.viewer.util.DecorateRunnable;
 import bdv.bigcat.viewer.util.InvokeOnJavaFXApplicationThread;
 import bdv.bigcat.viewer.viewer3d.marchingCubes.ForegroundCheck;
 import bdv.bigcat.viewer.viewer3d.marchingCubes.MarchingCubes;
@@ -152,70 +153,11 @@ public class NeuronFX< T >
 		final Group meshes = this.meshes.get();
 		if ( !isCanceled && meshes != null )
 		{
-			final Future< ? > future = es.submit( () -> {
-				futuresStartedCount.incrementAndGet();
-				final Interval interval = new FinalInterval(
-						coordinates,
-						IntStream.range( 0, coordinates.length ).mapToLong( d -> coordinates[ d ] + blockSize[ d ] ).toArray() );
-
-				final RealPoint begin = new RealPoint( interval.numDimensions() );
-				final RealPoint end = new RealPoint( interval.numDimensions() );
-
-				for ( int i = 0; i < interval.numDimensions(); i++ )
-				{
-					begin.setPosition( interval.min( i ), i );
-					end.setPosition( interval.max( i ), i );
-				}
-				toWorldCoordinates.apply( begin, begin );
-				toWorldCoordinates.apply( end, end );
-
-				final float[] size = new float[ begin.numDimensions() ];
-				final float[] center = new float[ begin.numDimensions() ];
-				for ( int i = 0; i < begin.numDimensions(); i++ )
-				{
-					size[ i ] = end.getFloatPosition( i ) - begin.getFloatPosition( i );
-					center[ i ] = begin.getFloatPosition( i ) + size[ i ] / 2;
-				}
-				final Box chunk = new Box( size[ 0 ], size[ 1 ], size[ 2 ] );
-				chunk.setTranslateX( center[ 0 ] );
-				chunk.setTranslateY( center[ 1 ] );
-				chunk.setTranslateZ( center[ 2 ] );
-
-				final PhongMaterial chunkMaterial = new PhongMaterial();
-				final Color surfaceColor = Color.rgb( color >>> 16 & 0xff, color >>> 8 & 0xff, color >>> 0 & 0xff, 1.0 );
-				chunkMaterial.setDiffuseColor( surfaceColor );
-				chunk.setMaterial( chunkMaterial );
-				chunk.setOpacity( 0.3 );
-
-//
-				InvokeOnJavaFXApplicationThread.invoke( () -> meshes.getChildren().add( chunk ) );
-
-				final MarchingCubes< T > mc = new MarchingCubes<>( data, interval, toWorldCoordinates, cubeSize );
-				final float[] vertices = mc.generateMesh( foregroundCheck );
-
-				InvokeOnJavaFXApplicationThread.invoke( () -> meshes.getChildren().remove( chunk ) );
-
-				if ( vertices.length > 0 )
-				{
-					final MeshView mv = initializeMeshView( color, vertices );
-
-					if ( !isCanceled )
-					{
-						InvokeOnJavaFXApplicationThread.invoke( () -> meshes.getChildren().add( mv ) );
-
-						for ( int d = 0; d < gridCoordinates.length; ++d )
-						{
-							final long[] otherGridCoordinates = gridCoordinates.clone();
-							otherGridCoordinates[ d ] += 1;
-							submitForOffset( otherGridCoordinates.clone(), data, foregroundCheck, toWorldCoordinates, blockSize, cubeSize, color, es );
-
-							otherGridCoordinates[ d ] -= 2;
-							submitForOffset( otherGridCoordinates.clone(), data, foregroundCheck, toWorldCoordinates, blockSize, cubeSize, color, es );
-						}
-					}
-				}
-				incrementFuturesFinishedCount();
-			} );
+			final Future< ? > future = es.submit(
+					DecorateRunnable.beforeAndAfter(
+							() -> generateMesh( data, gridCoordinates, coordinates, blockSize, cubeSize, foregroundCheck, toWorldCoordinates, color, meshes, es ),
+							futuresStartedCount::incrementAndGet,
+							this::incrementFuturesFinishedCount ) );
 			synchronized ( futures )
 			{
 				futures.add( future );
@@ -280,6 +222,80 @@ public class NeuronFX< T >
 		final long startedCount = futuresStartedCount.get();
 		if ( !isCanceled && finishedCount == startedCount )
 			isReady.set( true );
+	}
+
+	private void generateMesh(
+			final RandomAccessible< T > data,
+			final long[] gridCoordinates,
+			final long[] coordinates,
+			final int[] blockSize,
+			final int[] cubeSize,
+			final ForegroundCheck< T > foregroundCheck,
+			final AffineTransform3D toWorldCoordinates,
+			final int color,
+			final Group meshes,
+			final ExecutorService es )
+	{
+		final Interval interval = new FinalInterval(
+				coordinates,
+				IntStream.range( 0, coordinates.length ).mapToLong( d -> coordinates[ d ] + blockSize[ d ] ).toArray() );
+
+		final RealPoint begin = new RealPoint( interval.numDimensions() );
+		final RealPoint end = new RealPoint( interval.numDimensions() );
+
+		for ( int i = 0; i < interval.numDimensions(); i++ )
+		{
+			begin.setPosition( interval.min( i ), i );
+			end.setPosition( interval.max( i ), i );
+		}
+		toWorldCoordinates.apply( begin, begin );
+		toWorldCoordinates.apply( end, end );
+
+		final float[] size = new float[ begin.numDimensions() ];
+		final float[] center = new float[ begin.numDimensions() ];
+		for ( int i = 0; i < begin.numDimensions(); i++ )
+		{
+			size[ i ] = end.getFloatPosition( i ) - begin.getFloatPosition( i );
+			center[ i ] = begin.getFloatPosition( i ) + size[ i ] / 2;
+		}
+		final Box chunk = new Box( size[ 0 ], size[ 1 ], size[ 2 ] );
+		chunk.setTranslateX( center[ 0 ] );
+		chunk.setTranslateY( center[ 1 ] );
+		chunk.setTranslateZ( center[ 2 ] );
+
+		final PhongMaterial chunkMaterial = new PhongMaterial();
+		final Color surfaceColor = Color.rgb( color >>> 16 & 0xff, color >>> 8 & 0xff, color >>> 0 & 0xff, 1.0 );
+		chunkMaterial.setDiffuseColor( surfaceColor );
+		chunk.setMaterial( chunkMaterial );
+		chunk.setOpacity( 0.3 );
+
+//
+		InvokeOnJavaFXApplicationThread.invoke( () -> meshes.getChildren().add( chunk ) );
+
+		final MarchingCubes< T > mc = new MarchingCubes<>( data, interval, toWorldCoordinates, cubeSize );
+		final float[] vertices = mc.generateMesh( foregroundCheck );
+
+		InvokeOnJavaFXApplicationThread.invoke( () -> meshes.getChildren().remove( chunk ) );
+
+		if ( vertices.length > 0 )
+		{
+			final MeshView mv = initializeMeshView( color, vertices );
+
+			if ( !isCanceled )
+			{
+				InvokeOnJavaFXApplicationThread.invoke( () -> meshes.getChildren().add( mv ) );
+
+				for ( int d = 0; d < gridCoordinates.length; ++d )
+				{
+					final long[] otherGridCoordinates = gridCoordinates.clone();
+					otherGridCoordinates[ d ] += 1;
+					submitForOffset( otherGridCoordinates.clone(), data, foregroundCheck, toWorldCoordinates, blockSize, cubeSize, color, es );
+
+					otherGridCoordinates[ d ] -= 2;
+					submitForOffset( otherGridCoordinates.clone(), data, foregroundCheck, toWorldCoordinates, blockSize, cubeSize, color, es );
+				}
+			}
+		}
 	}
 
 }
