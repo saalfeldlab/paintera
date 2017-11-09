@@ -99,6 +99,7 @@ public class OrthoView extends GridPane
 
 		this.setVgap( 1.0 );
 		this.setHgap( 1.0 );
+
 		this.addEventHandler( KeyEvent.KEY_TYPED, event -> {
 			if ( event.getCharacter().equals( "f" ) )
 				maximizeActiveOrthoView( event );
@@ -192,16 +193,18 @@ public class OrthoView extends GridPane
 	{
 		final Scene scene = getScene();
 		final Node focusOwner = scene.focusOwnerProperty().get();
-		if ( viewerNodes.contains( focusOwner ) )
+
+		if ( viewerNodes.contains( focusOwner.getParent() ) )
+		{
 			// event.consume();
 			if ( !this.state.constraintsManager.isFullScreen() )
 			{
-				viewerNodes.forEach( node -> node.setVisible( node == focusOwner ) );
+				viewerNodes.forEach( node -> node.setVisible( node == focusOwner.getParent() ) );
 				this.state.constraintsManager.maximize(
-						GridPane.getRowIndex( focusOwner ),
-						GridPane.getColumnIndex( focusOwner ),
+						GridPane.getRowIndex( focusOwner.getParent() ),
+						GridPane.getColumnIndex( focusOwner.getParent() ),
 						0 );
-//				( ( ViewerPanel ) ( ( SwingNode ) focusOwner ).getContent() ).requestRepaint();
+//					( ( ViewerPanel ) ( ( SwingNode ) focusOwner ).getContent() ).requestRepaint();
 				this.setHgap( 0 );
 				this.setVgap( 0 );
 			}
@@ -213,6 +216,7 @@ public class OrthoView extends GridPane
 				this.setHgap( 1 );
 				this.setVgap( 1 );
 			}
+		}
 	}
 
 //	public Node globalSourcesInfoNode()
