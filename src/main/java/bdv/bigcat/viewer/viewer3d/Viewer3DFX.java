@@ -179,7 +179,7 @@ public class Viewer3DFX extends Pane
 		@SafeVarargs
 		public Rotate( final String name, final DoubleProperty speed, final double factor, final Predicate< MouseEvent >... eventFilter )
 		{
-			super( name, eventFilter );
+			super( name, eventFilter, affine );
 			LOG.trace( "rotation" );
 			this.factor = factor;
 			this.speed.set( speed.get() * this.factor );
@@ -189,7 +189,7 @@ public class Viewer3DFX extends Pane
 		@Override
 		public void initDrag( final javafx.scene.input.MouseEvent event )
 		{
-			synchronized ( affine )
+			synchronized ( transformLock )
 			{
 				affineDragStart.setToTransform( affine );
 			}
@@ -198,7 +198,7 @@ public class Viewer3DFX extends Pane
 		@Override
 		public void drag( final javafx.scene.input.MouseEvent event )
 		{
-			synchronized ( affine )
+			synchronized ( transformLock )
 			{
 				LOG.trace( "drag - rotate" );
 				final Affine target = new Affine( affineDragStart );
@@ -225,18 +225,12 @@ public class Viewer3DFX extends Pane
 		@SafeVarargs
 		public TranslateXY( final String name, final Predicate< MouseEvent >... eventFilter )
 		{
-			super( name, eventFilter );
+			super( name, eventFilter, affine );
 			LOG.trace( "translate" );
 		}
 
 		@Override
-		public void initDrag( final MouseEvent event )
-		{
-			synchronized ( affine )
-			{
-				affineDragStart.setToTransform( affine );
-			}
-		}
+		public void initDrag( final MouseEvent event ) {}
 
 		@Override
 		public void drag( final MouseEvent event )
