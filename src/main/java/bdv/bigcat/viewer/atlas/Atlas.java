@@ -297,7 +297,6 @@ public class Atlas
 
 		primaryStage.show();
 
-		new Thread( controller::init ).start();
 		// test the look and feel with both Caspian and Modena
 		Application.setUserAgentStylesheet( Application.STYLESHEET_CASPIAN );
 //		Application.setUserAgentStylesheet( Application.STYLESHEET_MODENA );
