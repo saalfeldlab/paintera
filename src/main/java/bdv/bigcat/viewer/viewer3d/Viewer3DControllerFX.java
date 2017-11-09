@@ -41,7 +41,7 @@ public class Viewer3DControllerFX
 	// TODO pass executor from outside?
 	private final ExecutorService es = Executors.newFixedThreadPool( Math.min( Math.max( ( Runtime.getRuntime().availableProcessors() - 1 ) / 3, 1 ), 3 ) );
 
-	private final HashSet< NeuronRendererFX > renderers = new HashSet<>();
+	private final HashSet< NeuronRendererFX< ?, ? > > renderers = new HashSet<>();
 
 	/**
 	 * Default constructor
@@ -94,11 +94,9 @@ public class Viewer3DControllerFX
 				this.renderers.forEach( NeuronRendererFX::removeSelfFromScene );
 				this.renderers.forEach( NeuronRendererFX::stopListening );
 				this.renderers.clear();
-
-				final RealLocalizable cameraPosition = new RealPoint( worldLocation.getFloatPosition( 0 ), worldLocation.getFloatPosition( 1 ), worldLocation.getFloatPosition( 2 ) * 1.5 );
 			}
 
-			final List< NeuronRendererFX > filteredNrs = renderers.stream()
+			final List< NeuronRendererFX< ?, ? > > filteredNrs = renderers.stream()
 					.filter( nr -> nr.fragmentId() == fragmentId || nr.segmentId() == fragmentSegmentAssignment.getSegment( fragmentId ) )
 					.collect( Collectors.toList() );
 			LOG.info( "Removing renderers: {}", filteredNrs );
@@ -131,7 +129,7 @@ public class Viewer3DControllerFX
 
 	public synchronized void removeMesh( final long fragmentId )
 	{
-		final List< NeuronRendererFX > matchingRenderers = renderers.stream().filter( nr -> nr.fragmentId() == fragmentId ).collect( Collectors.toList() );
+		final List< NeuronRendererFX< ?, ? > > matchingRenderers = renderers.stream().filter( nr -> nr.fragmentId() == fragmentId ).collect( Collectors.toList() );
 		this.renderers.removeAll( matchingRenderers );
 		matchingRenderers.forEach( NeuronRendererFX::removeSelfFromScene );
 	}

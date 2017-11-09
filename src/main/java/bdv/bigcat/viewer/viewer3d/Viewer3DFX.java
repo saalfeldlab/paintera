@@ -61,11 +61,9 @@ public class Viewer3DFX extends Pane
 
 	private final PointLight lightFill = new PointLight( new Color( 0.35, 0.35, 0.65, 1 ) );
 
-	private final Point3D cameraNormal = new Point3D( 0, 0, 1 );
-
-	private final Point3D xNormal = new Point3D( 1, 0, 0 );
-
-	private final Point3D yNormal = new Point3D( 0, 1, 0 );
+	private static final Point3D xNormal = new Point3D( 1, 0, 0 );
+	private static final Point3D yNormal = new Point3D( 0, 1, 0 );
+	private static final Point3D zNormal = new Point3D( 0, 0, 1 );
 
 	private final Affine initialTransform = new Affine();
 
@@ -78,7 +76,7 @@ public class Viewer3DFX extends Pane
 		this.meshesGroup = new Group();
 		this.setWidth( width );
 		this.setHeight( height );
-		this.scene = new SubScene( root, width, height, true, SceneAntialiasing.DISABLED );
+		this.scene = new SubScene( root, width, height, true, SceneAntialiasing.BALANCED );
 		this.scene.setFill( Color.BLACK );
 
 		this.camera = new PerspectiveCamera( true );
@@ -91,10 +89,7 @@ public class Viewer3DFX extends Pane
 		this.cameraGroup = new Group();
 
 		this.getChildren().add( this.scene );
-//		this.root.getChildren().add( meshesGroup );
 		this.root.getChildren().addAll( cameraGroup, meshesGroup );
-//		this.root.getChildren().add( light );
-//		this.root.getChildren().add( l );
 		this.scene.widthProperty().bind( widthProperty() );
 		this.scene.heightProperty().bind( heightProperty() );
 		lightSpot.setTranslateX( -10 );
@@ -105,9 +100,7 @@ public class Viewer3DFX extends Pane
 		// TODO: specular light
 
 		this.cameraGroup.getChildren().addAll( camera, lightAmbient, lightSpot, lightFill );
-//		this.cameraGroup.getTransforms().addAll( translate, rotX, rotY );
 		this.cameraGroup.getTransforms().add( new Translate( 0, 0, -1 ) );
-		final Point3D point = new Point3D( camera.getTranslateX(), camera.getTranslateY(), camera.getTranslateZ() );
 
 		meshesGroup.getTransforms().addAll( affine );
 		initialTransform.prependTranslation( -interval.dimension( 0 ) / 2, -interval.dimension( 1 ) / 2, -interval.dimension( 2 ) / 2 );
@@ -117,12 +110,12 @@ public class Viewer3DFX extends Pane
 		initialTransform.prependScale( sf, sf, sf );
 		affine.setToTransform( initialTransform );
 
-		affine.prependRotation( 90, centerX, centerY, 0, new Point3D( 0, 1, 0 ) );
+		affine.prependRotation( 90, centerX, centerY, 0, yNormal );
 
-		final Rotate rotate = new Rotate( "rotate 3d", affine, new SimpleDoubleProperty( 1.0 ), 1.0, MouseEvent::isPrimaryButtonDown );
+		final Rotate rotate = new Rotate( "rotate 3d", new SimpleDoubleProperty( 1.0 ), 1.0, MouseEvent::isPrimaryButtonDown );
 		rotate.installInto( this );
 
-		final TranslateXY translateXY = new TranslateXY( "translate", affine, MouseEvent::isSecondaryButtonDown );
+		final TranslateXY translateXY = new TranslateXY( "translate", MouseEvent::isSecondaryButtonDown );
 		translateXY.installInto( this );
 
 		camera.setFieldOfView( 90 );
@@ -181,18 +174,16 @@ public class Viewer3DFX extends Pane
 
 		private final double factor;
 
-		private final Affine affine;
-
 		private final Affine affineDragStart = new Affine();
 
-		public Rotate( final String name, final Affine affine, final DoubleProperty speed, final double factor, final Predicate< MouseEvent >... eventFilter )
+		@SafeVarargs
+		public Rotate( final String name, final DoubleProperty speed, final double factor, final Predicate< MouseEvent >... eventFilter )
 		{
 			super( name, eventFilter );
 			LOG.trace( "rotation" );
 			this.factor = factor;
 			this.speed.set( speed.get() * this.factor );
 			speed.addListener( ( obs, old, newv ) -> this.speed.set( this.factor * speed.get() ) );
-			this.affine = affine;
 		}
 
 		@Override
@@ -207,7 +198,7 @@ public class Viewer3DFX extends Pane
 		@Override
 		public void drag( final javafx.scene.input.MouseEvent event )
 		{
-			synchronized ( affineDragStart )
+			synchronized ( affine )
 			{
 				LOG.trace( "drag - rotate" );
 				final Affine target = new Affine( affineDragStart );
@@ -216,12 +207,12 @@ public class Viewer3DFX extends Pane
 				final double v = step * this.speed.get();
 				LOG.trace( "dx: {} dy: {}", dX, dY );
 
-				target.prependRotation( v * dY, centerX, centerY, 0, new Point3D( 1, 0, 0 ) );
-				target.prependRotation( v * -dX, centerX, centerY, 0, new Point3D( 0, 1, 0 ) );
+				target.prependRotation( v * dY, centerX, centerY, 0, xNormal );
+				target.prependRotation( v * -dX, centerX, centerY, 0, yNormal );
 
 				LOG.trace( "target: {}", target );
 				InvokeOnJavaFXApplicationThread.invoke( () -> {
-					this.affine.setToTransform( target );
+					affine.setToTransform( target );
 				} );
 			}
 		}
@@ -229,16 +220,13 @@ public class Viewer3DFX extends Pane
 
 	private class TranslateXY extends MouseDragFX
 	{
-
-		private final Affine affine;
-
 		private final Affine affineDragStart = new Affine();
 
-		public TranslateXY( final String name, final Affine affine, final Predicate< MouseEvent >... eventFilter )
+		@SafeVarargs
+		public TranslateXY( final String name, final Predicate< MouseEvent >... eventFilter )
 		{
 			super( name, eventFilter );
 			LOG.trace( "translate" );
-			this.affine = affine;
 		}
 
 		@Override
