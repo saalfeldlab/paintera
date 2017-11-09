@@ -71,6 +71,7 @@ import javafx.stage.Stage;
 import javafx.stage.WindowEvent;
 import net.imglib2.Interval;
 import net.imglib2.Volatile;
+import net.imglib2.converter.Converter;
 import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.type.numeric.ARGBType;
 import net.imglib2.type.numeric.IntegerType;
@@ -444,6 +445,26 @@ public class Atlas
 		final Source< VolatileRealType< DoubleType > > vsource = ConvertedSource.volatileRealTypeAsDoubleType( spec.getViewerSource() );
 		final Composite< ARGBType, ARGBType > comp = new ARGBCompositeAlphaAdd();
 		final NaNMaskedRealARGBConverter< VolatileRealType< DoubleType > > conv = new NaNMaskedRealARGBConverter<>( min, max );
+		final SourceAndConverter< ? > src = new SourceAndConverter<>( vsource, conv );
+		addSource( src, comp, spec );
+//		view.addSource( src, comp );
+//		this.specs.put( spec, vsource );
+//		this.composites.put( vsource, comp );
+
+		final Source< T > source = spec.getSource();
+		sourceInfo.addRawSource( vsource, source );
+		final T t = source.getType();
+		final Function< T, String > valueToString = valueToString( t );
+		final AffineTransform3D affine = new AffineTransform3D();
+		source.getSourceTransform( 0, 0, affine );
+		this.valueDisplayListener.addSource( vsource, source, Optional.of( valueToString ) );
+	}
+
+	public < T > void addARGBSource( final DatasetSpec< T, VolatileARGBType > spec )
+	{
+		final Source< VolatileARGBType > vsource = spec.getViewerSource();
+		final Composite< ARGBType, ARGBType > comp = new ARGBCompositeAlphaAdd();
+		final Converter< VolatileARGBType, ARGBType > conv = ( s, t ) -> t.set( s.get() );
 		final SourceAndConverter< ? > src = new SourceAndConverter<>( vsource, conv );
 		addSource( src, comp, spec );
 //		view.addSource( src, comp );
