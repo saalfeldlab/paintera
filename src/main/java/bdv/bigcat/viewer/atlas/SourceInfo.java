@@ -6,6 +6,7 @@ import java.util.function.Function;
 
 import bdv.bigcat.ui.ARGBStream;
 import bdv.bigcat.viewer.ToIdConverter;
+import bdv.bigcat.viewer.atlas.data.DataSource;
 import bdv.bigcat.viewer.atlas.mode.Mode;
 import bdv.bigcat.viewer.state.FragmentSegmentAssignmentState;
 import bdv.bigcat.viewer.state.SelectedIds;
@@ -15,47 +16,45 @@ import bdv.viewer.Source;
 public class SourceInfo
 {
 
-	private final HashMap< Source< ? >, Source< ? > > dataSources = new HashMap<>();
+//	// map volatile sources to sources
+//	private final HashMap< Source< ? >, Source< ? > > sources = new HashMap<>();
 
-	private final HashMap< Source< ? >, ToIdConverter > toIdConverters = new HashMap<>();
+	// volatile sources to id converters
+	private final HashMap< DataSource< ?, ? >, ToIdConverter > toIdConverters = new HashMap<>();
 
-	private final HashMap< Source< ? >, Function< ?, ForegroundCheck< ? > > > foregroundChecks = new HashMap<>();
+	// volatile source to foregorund check
+	private final HashMap< DataSource< ?, ? >, Function< ?, ForegroundCheck< ? > > > foregroundChecks = new HashMap<>();
 
-	private final HashMap< Source< ? >, FragmentSegmentAssignmentState > frags = new HashMap<>();
+	private final HashMap< DataSource< ?, ? >, FragmentSegmentAssignmentState > frags = new HashMap<>();
 
-	private final HashMap< Source< ? >, HashMap< Mode, ARGBStream > > streams = new HashMap<>();
+	private final HashMap< DataSource< ?, ? >, HashMap< Mode, ARGBStream > > streams = new HashMap<>();
 
-	private final HashMap< Source< ? >, HashMap< Mode, SelectedIds > > selectedIds = new HashMap<>();
+	private final HashMap< DataSource< ?, ? >, HashMap< Mode, SelectedIds > > selectedIds = new HashMap<>();
 
-	public synchronized void addRawSource(
-			final Source< ? > source,
-			final Source< ? > dataSource )
+	public synchronized < D, T > void addRawSource( final DataSource< ?, ? > source )
 	{
-		addSource( source, dataSource, Optional.empty(), Optional.empty(), Optional.empty(), Optional.empty(), Optional.empty() );
+		addSource( source, Optional.empty(), Optional.empty(), Optional.empty(), Optional.empty(), Optional.empty() );
 	}
 
-	public synchronized < T, U > void addLabelSource(
-			final Source< T > source,
-			final Source< U > dataSource,
+	public synchronized < D, T > void addLabelSource(
+			final DataSource< D, T > source,
 			final ToIdConverter idConverter,
 			final Function foregroundCheck,
 			final FragmentSegmentAssignmentState frag,
 			final HashMap< Mode, ARGBStream > stream,
 			final HashMap< Mode, SelectedIds > selectedId )
 	{
-		addSource( source, dataSource, Optional.of( idConverter ), Optional.of( foregroundCheck ), Optional.of( frag ), Optional.of( stream ), Optional.of( selectedId ) );
+		addSource( source, Optional.of( idConverter ), Optional.of( foregroundCheck ), Optional.of( frag ), Optional.of( stream ), Optional.of( selectedId ) );
 	}
 
-	public synchronized void addSource(
-			final Source< ? > source,
-			final Source< ? > dataSource,
+	public synchronized < D, T > void addSource(
+			final DataSource< D, T > source,
 			final Optional< ToIdConverter > idConverter,
 			final Optional< Function > foregroundCheck,
 			final Optional< FragmentSegmentAssignmentState > frag,
 			final Optional< HashMap< Mode, ARGBStream > > stream,
 			final Optional< HashMap< Mode, SelectedIds > > selectedId )
 	{
-		this.dataSources.put( source, dataSource );
 		idConverter.ifPresent( conv -> this.toIdConverters.put( source, conv ) );
 		foregroundCheck.ifPresent( f -> this.foregroundChecks.put( source, f ) );
 		frag.ifPresent( f -> this.frags.put( source, f ) );
@@ -63,9 +62,8 @@ public class SourceInfo
 		selectedId.ifPresent( id -> this.selectedIds.put( source, id ) );
 	}
 
-	public synchronized void removeSource( final Source< ? > source )
+	public synchronized < D, T > void removeSource( final DataSource< D, T > source )
 	{
-		dataSources.remove( source );
 		toIdConverters.remove( source );
 		foregroundChecks.remove( source );
 		frags.remove( source );
@@ -83,11 +81,6 @@ public class SourceInfo
 	{
 		this.streams.values().forEach( hm -> hm.remove( mode ) );
 		this.selectedIds.values().forEach( hm -> hm.remove( mode ) );
-	}
-
-	public synchronized Source< ? > dataSource( final Source< ? > source )
-	{
-		return dataSources.get( source );
 	}
 
 	public synchronized Optional< ToIdConverter > toIdConverter( final Source< ? > source )

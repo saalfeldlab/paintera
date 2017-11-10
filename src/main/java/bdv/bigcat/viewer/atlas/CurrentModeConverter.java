@@ -1,6 +1,6 @@
 package bdv.bigcat.viewer.atlas;
 
-import bdv.bigcat.viewer.atlas.data.HDF5LabelMultisetSourceSpec.HighlightingStreamConverter;
+import bdv.bigcat.viewer.atlas.data.HDF5LabelMultisetDataSource.HighlightingStreamConverter;
 import bdv.labels.labelset.VolatileLabelMultisetType;
 import net.imglib2.converter.Converter;
 import net.imglib2.type.numeric.ARGBType;

@@ -12,6 +12,7 @@ import org.slf4j.LoggerFactory;
 import bdv.bigcat.ui.ARGBStream;
 import bdv.bigcat.viewer.ToIdConverter;
 import bdv.bigcat.viewer.atlas.SourceInfo;
+import bdv.bigcat.viewer.atlas.data.DataSource;
 import bdv.bigcat.viewer.bdvfx.ViewerPanelFX;
 import bdv.bigcat.viewer.state.FragmentSegmentAssignmentState;
 import bdv.bigcat.viewer.state.GlobalTransformManager;
@@ -81,78 +82,81 @@ public class RenderNeuron
 			final int sourceIndex = state.getCurrentSource();
 			if ( sourceIndex > 0 && sources.size() > sourceIndex )
 			{
-				final SourceState< ? > source = sources.get( sourceIndex );
-				final Source< ? > spimSource = source.getSpimSource();
-				final Source< ? > dataSource = sourceInfo.dataSource( spimSource );
-				final Optional< Function< ?, ForegroundCheck< ? > > > foregroundCheck = sourceInfo.foregroundCheck( spimSource );
-				final Optional< ToIdConverter > idConverter = sourceInfo.toIdConverter( spimSource );
-				final Optional< SelectedIds > selectedIds = sourceInfo.selectedIds( spimSource, mode );
-				final Optional< FragmentSegmentAssignmentState > assignment = sourceInfo.assignment( spimSource );
-				final Optional< ARGBStream > stream = sourceInfo.stream( spimSource, mode );
-				if ( foregroundCheck.isPresent() && idConverter.isPresent() && selectedIds.isPresent() && assignment.isPresent() && stream.isPresent() )
+				final SourceState< ? > sourceState = sources.get( sourceIndex );
+				final Source< ? > source = sourceState.getSpimSource();
+				if ( source instanceof DataSource< ?, ? > )
 				{
-					final AffineTransform3D viewerTransform = new AffineTransform3D();
-					state.getViewerTransform( viewerTransform );
-					final int bestMipMapLevel = state.getBestMipMapLevel( viewerTransform, sourceIndex );
-
-					final double[] worldCoordinate = new double[] { x, y, 0 };
-					viewerTransform.applyInverse( worldCoordinate, worldCoordinate );
-					final long[] worldCoordinateLong = Arrays.stream( worldCoordinate ).mapToLong( d -> ( long ) d ).toArray();
-
-					final int numVolumes = dataSource.getNumMipmapLevels();
-					final RandomAccessible[] volumes = new RandomAccessible[ numVolumes ];
-					final Interval[] intervals = new Interval[ numVolumes ];
-					final AffineTransform3D[] transforms = new AffineTransform3D[ numVolumes ];
-
-					for ( int i = 0; i < numVolumes; ++i )
+					final DataSource< ?, ? > dataSource = ( DataSource< ?, ? > ) source;
+					final Optional< Function< ?, ForegroundCheck< ? > > > foregroundCheck = sourceInfo.foregroundCheck( source );
+					final Optional< ToIdConverter > idConverter = sourceInfo.toIdConverter( source );
+					final Optional< SelectedIds > selectedIds = sourceInfo.selectedIds( source, mode );
+					final Optional< FragmentSegmentAssignmentState > assignment = sourceInfo.assignment( source );
+					final Optional< ARGBStream > stream = sourceInfo.stream( source, mode );
+					if ( foregroundCheck.isPresent() && idConverter.isPresent() && selectedIds.isPresent() && assignment.isPresent() && stream.isPresent() )
 					{
-						volumes[ i ] = Views.raster( dataSource.getInterpolatedSource( 0, numVolumes - 1 - i, Interpolation.NEARESTNEIGHBOR ) );
-						intervals[ i ] = dataSource.getSource( 0, numVolumes - 1 - i );
-						final AffineTransform3D tf = new AffineTransform3D();
-						dataSource.getSourceTransform( 0, numVolumes - 1 - i, tf );
-						transforms[ i ] = tf;
-					}
+						final AffineTransform3D viewerTransform = new AffineTransform3D();
+						state.getViewerTransform( viewerTransform );
+						final int bestMipMapLevel = state.getBestMipMapLevel( viewerTransform, sourceIndex );
 
-					final double[] imageCoordinate = new double[ worldCoordinate.length ];
-					transforms[ 0 ].applyInverse( imageCoordinate, worldCoordinate );
-					final RealRandomAccess< ? > rra = dataSource.getInterpolatedSource( 0, bestMipMapLevel, Interpolation.NEARESTNEIGHBOR ).realRandomAccess();
-					rra.setPosition( imageCoordinate );
+						final double[] worldCoordinate = new double[] { x, y, 0 };
+						viewerTransform.applyInverse( worldCoordinate, worldCoordinate );
+						final long[] worldCoordinateLong = Arrays.stream( worldCoordinate ).mapToLong( d -> ( long ) d ).toArray();
 
-					final long selectedId = idConverter.get().biggestFragment( rra.get() );
+						final int numVolumes = dataSource.getNumMipmapLevels();
+						final RandomAccessible[] volumes = new RandomAccessible[ numVolumes ];
+						final Interval[] intervals = new Interval[ numVolumes ];
+						final AffineTransform3D[] transforms = new AffineTransform3D[ numVolumes ];
 
-					if ( Label.regular( selectedId ) )
-					{
-						final SelectedIds selIds = selectedIds.get();
-
-						if ( selIds.isActive( selectedId ) )
+						for ( int i = 0; i < numVolumes; ++i )
 						{
+							volumes[ i ] = Views.raster( dataSource.getInterpolatedDataSource( 0, numVolumes - 1 - i, Interpolation.NEARESTNEIGHBOR ) );
+							intervals[ i ] = dataSource.getSource( 0, numVolumes - 1 - i );
+							final AffineTransform3D tf = new AffineTransform3D();
+							dataSource.getSourceTransform( 0, numVolumes - 1 - i, tf );
+							transforms[ i ] = tf;
+						}
 
-							final int[] partitionSize = { 60, 60, 10 };
-							final int[] cubeSize = { 10, 10, 1 };
+						final double[] imageCoordinate = new double[ worldCoordinate.length ];
+						transforms[ 0 ].applyInverse( imageCoordinate, worldCoordinate );
+						final RealRandomAccess< ? > rra = dataSource.getInterpolatedDataSource( 0, bestMipMapLevel, Interpolation.NEARESTNEIGHBOR ).realRandomAccess();
+						rra.setPosition( imageCoordinate );
 
-							final Function getForegroundCheck = foregroundCheck.get();
-							new Thread( () -> {
-								v3dControl.generateMesh(
-										volumes[ 0 ],
-										intervals[ 0 ],
-										transforms[ 0 ],
-										new RealPoint( worldCoordinate ),
-										partitionSize,
-										cubeSize,
-										getForegroundCheck,
-										selectedId,
-										assignment.get(),
-										stream.get(),
-										append,
-										selIds,
-										transformManager );
-							} ).start();
+						final long selectedId = idConverter.get().biggestFragment( rra.get() );
+
+						if ( Label.regular( selectedId ) )
+						{
+							final SelectedIds selIds = selectedIds.get();
+
+							if ( selIds.isActive( selectedId ) )
+							{
+
+								final int[] partitionSize = { 60, 60, 10 };
+								final int[] cubeSize = { 10, 10, 1 };
+
+								final Function getForegroundCheck = foregroundCheck.get();
+								new Thread( () -> {
+									v3dControl.generateMesh(
+											volumes[ 0 ],
+											intervals[ 0 ],
+											transforms[ 0 ],
+											new RealPoint( worldCoordinate ),
+											partitionSize,
+											cubeSize,
+											getForegroundCheck,
+											selectedId,
+											assignment.get(),
+											stream.get(),
+											append,
+											selIds,
+											transformManager );
+								} ).start();
+							}
+							else
+								new Thread( () -> v3dControl.removeMesh( selectedId ) ).start();
 						}
 						else
-							new Thread( () -> v3dControl.removeMesh( selectedId ) ).start();
+							LOG.warn( "Selected irregular label: {}. Will not render.", selectedId );
 					}
-					else
-						LOG.warn( "Selected irregular label: {}. Will not render.", selectedId );
 				}
 			}
 		}

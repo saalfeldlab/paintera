@@ -14,8 +14,8 @@ import com.sun.javafx.application.PlatformImpl;
 
 import bdv.AbstractViewerSetupImgLoader;
 import bdv.bigcat.viewer.atlas.Atlas;
-import bdv.bigcat.viewer.atlas.data.HDF5LabelMultisetSourceSpec;
-import bdv.bigcat.viewer.atlas.data.HDF5UnsignedByteSpec;
+import bdv.bigcat.viewer.atlas.data.HDF5LabelMultisetDataSource;
+import bdv.bigcat.viewer.atlas.data.HDF5UnsignedByteDataSource;
 import bdv.bigcat.viewer.atlas.solver.SolverQueueServerZMQ;
 import bdv.bigcat.viewer.atlas.solver.action.Action;
 import bdv.img.cache.VolatileGlobalCellCache;
@@ -100,12 +100,12 @@ public class LART
 		final int[] cellSize = { 145, 53, 5 };
 
 		final VolatileGlobalCellCache cellCache = new VolatileGlobalCellCache( 1, 12 );
-		final HDF5UnsignedByteSpec rawSource = new HDF5UnsignedByteSpec( rawFile, rawDataset, cellSize, resolution, "raw", cellCache, 0 );
+		final HDF5UnsignedByteDataSource rawSource = new HDF5UnsignedByteDataSource( rawFile, rawDataset, cellSize, resolution, "raw", cellCache, 0 );
 
-		final double[] min = Arrays.stream( Intervals.minAsLongArray( rawSource.getSource().getSource( 0, 0 ) ) ).mapToDouble( v -> v ).toArray();
-		final double[] max = Arrays.stream( Intervals.maxAsLongArray( rawSource.getSource().getSource( 0, 0 ) ) ).mapToDouble( v -> v ).toArray();
+		final double[] min = Arrays.stream( Intervals.minAsLongArray( rawSource.getSource( 0, 0 ) ) ).mapToDouble( v -> v ).toArray();
+		final double[] max = Arrays.stream( Intervals.maxAsLongArray( rawSource.getSource( 0, 0 ) ) ).mapToDouble( v -> v ).toArray();
 		final AffineTransform3D affine = new AffineTransform3D();
-		rawSource.getSource().getSourceTransform( 0, 0, affine );
+		rawSource.getSourceTransform( 0, 0, affine );
 		affine.apply( min, min );
 		affine.apply( max, max );
 
@@ -162,7 +162,7 @@ public class LART
 			return result;
 		};
 
-		final HDF5LabelMultisetSourceSpec labelSpec2 = new HDF5LabelMultisetSourceSpec(
+		final HDF5LabelMultisetDataSource labelSpec2 = new HDF5LabelMultisetDataSource(
 				labelsFile,
 				labelsDataset,
 				cellSize,

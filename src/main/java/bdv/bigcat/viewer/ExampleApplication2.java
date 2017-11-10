@@ -9,8 +9,8 @@ import com.sun.javafx.application.PlatformImpl;
 
 import bdv.AbstractViewerSetupImgLoader;
 import bdv.bigcat.viewer.atlas.Atlas;
-import bdv.bigcat.viewer.atlas.data.HDF5LabelMultisetSourceSpec;
-import bdv.bigcat.viewer.atlas.data.HDF5UnsignedByteSpec;
+import bdv.bigcat.viewer.atlas.data.HDF5LabelMultisetDataSource;
+import bdv.bigcat.viewer.atlas.data.HDF5UnsignedByteDataSource;
 import bdv.img.cache.VolatileGlobalCellCache;
 import bdv.viewer.Interpolation;
 import bdv.viewer.Source;
@@ -58,12 +58,12 @@ public class ExampleApplication2
 		final int[] cellSize = { 145, 53, 5 };
 		final VolatileGlobalCellCache cellCache = new VolatileGlobalCellCache( 1, 12 );
 
-		final HDF5UnsignedByteSpec rawSource = new HDF5UnsignedByteSpec( rawFile, rawDataset, cellSize, resolution, "raw", cellCache, 0 );
+		final HDF5UnsignedByteDataSource rawSource = new HDF5UnsignedByteDataSource( rawFile, rawDataset, cellSize, resolution, "raw", cellCache, 0 );
 
-		final double[] min = Arrays.stream( Intervals.minAsLongArray( rawSource.getSource().getSource( 0, 0 ) ) ).mapToDouble( v -> v ).toArray();
-		final double[] max = Arrays.stream( Intervals.maxAsLongArray( rawSource.getSource().getSource( 0, 0 ) ) ).mapToDouble( v -> v ).toArray();
+		final double[] min = Arrays.stream( Intervals.minAsLongArray( rawSource.getSource( 0, 0 ) ) ).mapToDouble( v -> v ).toArray();
+		final double[] max = Arrays.stream( Intervals.maxAsLongArray( rawSource.getSource( 0, 0 ) ) ).mapToDouble( v -> v ).toArray();
 		final AffineTransform3D affine = new AffineTransform3D();
-		rawSource.getSource().getSourceTransform( 0, 0, affine );
+		rawSource.getSourceTransform( 0, 0, affine );
 		affine.apply( min, min );
 		affine.apply( max, max );
 
@@ -104,13 +104,13 @@ public class ExampleApplication2
 
 		viewer.addRawSource( rawSource, 0., 255. );
 
-		final HDF5LabelMultisetSourceSpec labelSpec2 = new HDF5LabelMultisetSourceSpec( labelsFile, labelsDataset, cellSize, "labels", cellCache, 1 );
+		final HDF5LabelMultisetDataSource labelSpec2 = new HDF5LabelMultisetDataSource( labelsFile, labelsDataset, cellSize, "labels", cellCache, 1 );
 		viewer.addLabelSource( labelSpec2 );
 
 		final boolean demonstrateRemove = false;
 		if ( demonstrateRemove )
 		{
-			final HDF5LabelMultisetSourceSpec labelSpec3 = new HDF5LabelMultisetSourceSpec( labelsFile, labelsDataset, cellSize, "labels2", cellCache, 2 );
+			final HDF5LabelMultisetDataSource labelSpec3 = new HDF5LabelMultisetDataSource( labelsFile, labelsDataset, cellSize, "labels2", cellCache, 2 );
 			viewer.addLabelSource( labelSpec3 );
 
 			Platform.runLater( () -> {

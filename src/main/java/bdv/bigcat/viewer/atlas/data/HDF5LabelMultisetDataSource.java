@@ -6,8 +6,6 @@ import java.util.Optional;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 
-import bdv.bigcat.ui.LabelMultisetSource;
-import bdv.bigcat.ui.VolatileLabelMultisetSource;
 import bdv.bigcat.viewer.atlas.solver.action.Action;
 import bdv.bigcat.viewer.state.FragmentSegmentAssignmentState;
 import bdv.bigcat.viewer.state.FragmentSegmentAssignmentWithHistory;
@@ -21,13 +19,20 @@ import bdv.labels.labelset.Label;
 import bdv.labels.labelset.LabelMultisetType;
 import bdv.labels.labelset.Multiset.Entry;
 import bdv.labels.labelset.VolatileLabelMultisetType;
+import bdv.viewer.Interpolation;
 import ch.systemsx.cisd.hdf5.HDF5Factory;
 import ch.systemsx.cisd.hdf5.IHDF5Reader;
 import gnu.trove.map.hash.TLongLongHashMap;
+import mpicbg.spim.data.sequence.VoxelDimensions;
+import net.imglib2.RandomAccessibleInterval;
+import net.imglib2.RealRandomAccessible;
 import net.imglib2.converter.Converter;
+import net.imglib2.interpolation.randomaccess.NearestNeighborInterpolatorFactory;
+import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.type.numeric.ARGBType;
+import net.imglib2.view.Views;
 
-public class HDF5LabelMultisetSourceSpec implements RenderableLabelSpec< LabelMultisetType, VolatileLabelMultisetType >
+public class HDF5LabelMultisetDataSource implements LabelDataSource< LabelMultisetType, VolatileLabelMultisetType >
 {
 
 	private final AbstractHighlightingARGBStream stream;
@@ -44,7 +49,7 @@ public class HDF5LabelMultisetSourceSpec implements RenderableLabelSpec< LabelMu
 
 	private final int setupId;
 
-	public HDF5LabelMultisetSourceSpec(
+	public HDF5LabelMultisetDataSource(
 			final String path,
 			final String dataset,
 			final int[] cellSize,
@@ -66,7 +71,7 @@ public class HDF5LabelMultisetSourceSpec implements RenderableLabelSpec< LabelMu
 		}, TLongLongHashMap::new, name, cellCache, setupId );
 	}
 
-	public HDF5LabelMultisetSourceSpec(
+	public HDF5LabelMultisetDataSource(
 			final String path,
 			final String dataset,
 			final int[] cellSize,
@@ -88,7 +93,7 @@ public class HDF5LabelMultisetSourceSpec implements RenderableLabelSpec< LabelMu
 		this.setupId = setupId;
 	}
 
-	public HDF5LabelMultisetSourceSpec(
+	public HDF5LabelMultisetDataSource(
 			final String path,
 			final String dataset,
 			final int[] cellSize,
@@ -112,7 +117,7 @@ public class HDF5LabelMultisetSourceSpec implements RenderableLabelSpec< LabelMu
 		}, resolution, offset, name, cellCache, setupId );
 	}
 
-	public HDF5LabelMultisetSourceSpec(
+	public HDF5LabelMultisetDataSource(
 			final String path,
 			final String dataset,
 			final int[] cellSize,
@@ -137,20 +142,6 @@ public class HDF5LabelMultisetSourceSpec implements RenderableLabelSpec< LabelMu
 	public SelectedIds getSelectedIds()
 	{
 		return selectedIds;
-	}
-
-	@Override
-	public LabelMultisetSource getSource()
-	{
-		final LabelMultisetSource source = new LabelMultisetSource( setupId, loader, stream );
-		return source;
-	}
-
-	@Override
-	public VolatileLabelMultisetSource getViewerSource()
-	{
-		final VolatileLabelMultisetSource source = new VolatileLabelMultisetSource( setupId, loader, stream );
-		return source;
 	}
 
 	public static class HighlightingStreamConverter implements Converter< VolatileLabelMultisetType, ARGBType >
@@ -214,13 +205,6 @@ public class HDF5LabelMultisetSourceSpec implements RenderableLabelSpec< LabelMu
 		return assignment;
 	}
 
-	@Override
-	public String name()
-	{
-		return name;
-	}
-
-	@Override
 	public Optional< String > uri()
 	{
 		return Optional.of( uri );
@@ -249,6 +233,72 @@ public class HDF5LabelMultisetSourceSpec implements RenderableLabelSpec< LabelMu
 			}
 		}
 		return argMaxLabel;
+	}
+
+	@Override
+	public RandomAccessibleInterval< LabelMultisetType > getDataSource( final int t, final int level )
+	{
+		return loader.getImage( t, level );
+	}
+
+	@Override
+	public RealRandomAccessible< LabelMultisetType > getInterpolatedDataSource( final int t, final int level, final Interpolation method )
+	{
+		return Views.interpolate( Views.extendValue( getDataSource( t, level ), new LabelMultisetType() ), new NearestNeighborInterpolatorFactory<>() );
+	}
+
+	@Override
+	public LabelMultisetType getDataType()
+	{
+		return new LabelMultisetType();
+	}
+
+	@Override
+	public boolean isPresent( final int t )
+	{
+		return true;
+	}
+
+	@Override
+	public RandomAccessibleInterval< VolatileLabelMultisetType > getSource( final int t, final int level )
+	{
+		return loader.getVolatileImage( t, level );
+	}
+
+	@Override
+	public RealRandomAccessible< VolatileLabelMultisetType > getInterpolatedSource( final int t, final int level, final Interpolation method )
+	{
+		return Views.interpolate( Views.extendValue( getSource( t, level ), new VolatileLabelMultisetType() ), new NearestNeighborInterpolatorFactory<>() );
+	}
+
+	@Override
+	public void getSourceTransform( final int t, final int level, final AffineTransform3D transform )
+	{
+		transform.set( loader.getMipmapTransforms()[ level ] );
+	}
+
+	@Override
+	public VolatileLabelMultisetType getType()
+	{
+		return new VolatileLabelMultisetType();
+	}
+
+	@Override
+	public String getName()
+	{
+		return name;
+	}
+
+	@Override
+	public VoxelDimensions getVoxelDimensions()
+	{
+		return null;
+	}
+
+	@Override
+	public int getNumMipmapLevels()
+	{
+		return loader.getMipmapTransforms().length;
 	}
 
 }

@@ -10,6 +10,7 @@ import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
 import bdv.bigcat.viewer.atlas.SourceInfo;
+import bdv.bigcat.viewer.atlas.data.DataSource;
 import bdv.bigcat.viewer.atlas.mode.HandleMultipleIds;
 import bdv.bigcat.viewer.atlas.mode.Mode;
 import bdv.bigcat.viewer.bdvfx.InstallAndRemove;
@@ -136,25 +137,28 @@ public class IdSelector
 			if ( !optionalSource.isPresent() )
 				return;
 			final Source< ? > source = optionalSource.get();
-			final Source< ? > dataSource = sourceInfo.dataSource( source );
-			final Optional< SelectedIds > selectedIds = sourceInfo.selectedIds( source, mode );
-			final Optional< ToIdConverter > toIdConverter = sourceInfo.toIdConverter( source );
-			if ( selectedIds.isPresent() && toIdConverter.isPresent() )
-				synchronized ( viewer )
-				{
-					final AffineTransform3D affine = new AffineTransform3D();
-					final ViewerState state = viewer.getState();
-					state.getViewerTransform( affine );
-					final int level = state.getBestMipMapLevel( affine, state.getSources().stream().map( src -> src.getSpimSource() ).collect( Collectors.toList() ).indexOf( source ) );
-					dataSource.getSourceTransform( 0, level, affine );
-					final RealTransformRealRandomAccessible< ?, InverseRealTransform >.RealTransformRealRandomAccess access = RealViews.transformReal( dataSource.getInterpolatedSource( 0, level, Interpolation.NEARESTNEIGHBOR ), affine ).realRandomAccess();
-					viewer.getMouseCoordinates( access );
-					access.setPosition( 0l, 2 );
-					viewer.displayToGlobalCoordinates( access );
-					final Object val = access.get();
-					final long[] id = toIdConverter.get().allIds( val );
-					actOn( id, selectedIds.get() );
-				}
+			if ( source instanceof DataSource< ?, ? > )
+			{
+				final DataSource< ?, ? > dataSource = ( DataSource< ?, ? > ) source;
+				final Optional< SelectedIds > selectedIds = sourceInfo.selectedIds( source, mode );
+				final Optional< ToIdConverter > toIdConverter = sourceInfo.toIdConverter( source );
+				if ( selectedIds.isPresent() && toIdConverter.isPresent() )
+					synchronized ( viewer )
+					{
+						final AffineTransform3D affine = new AffineTransform3D();
+						final ViewerState state = viewer.getState();
+						state.getViewerTransform( affine );
+						final int level = state.getBestMipMapLevel( affine, state.getSources().stream().map( src -> src.getSpimSource() ).collect( Collectors.toList() ).indexOf( source ) );
+						dataSource.getSourceTransform( 0, level, affine );
+						final RealTransformRealRandomAccessible< ?, InverseRealTransform >.RealTransformRealRandomAccess access = RealViews.transformReal( dataSource.getInterpolatedDataSource( 0, level, Interpolation.NEARESTNEIGHBOR ), affine ).realRandomAccess();
+						viewer.getMouseCoordinates( access );
+						access.setPosition( 0l, 2 );
+						viewer.displayToGlobalCoordinates( access );
+						final Object val = access.get();
+						final long[] id = toIdConverter.get().allIds( val );
+						actOn( id, selectedIds.get() );
+					}
+			}
 		}
 
 		protected abstract void actOn( final long[] id, SelectedIds selectedIds );
@@ -169,25 +173,28 @@ public class IdSelector
 			if ( !optionalSource.isPresent() )
 				return;
 			final Source< ? > source = optionalSource.get();
-			final Source< ? > dataSource = sourceInfo.dataSource( source );
-			final Optional< SelectedIds > selectedIds = sourceInfo.selectedIds( source, mode );
-			final Optional< ToIdConverter > toIdConverter = sourceInfo.toIdConverter( source );
-			if ( selectedIds.isPresent() && toIdConverter.isPresent() )
-				synchronized ( viewer )
-				{
-					final AffineTransform3D affine = new AffineTransform3D();
-					final ViewerState state = viewer.getState();
-					state.getViewerTransform( affine );
-					final int level = state.getBestMipMapLevel( affine, state.getSources().stream().map( src -> src.getSpimSource() ).collect( Collectors.toList() ).indexOf( source ) );
-					dataSource.getSourceTransform( 0, level, affine );
-					final RealTransformRealRandomAccessible< ?, InverseRealTransform >.RealTransformRealRandomAccess access = RealViews.transformReal( dataSource.getInterpolatedSource( 0, level, Interpolation.NEARESTNEIGHBOR ), affine ).realRandomAccess();
-					viewer.getMouseCoordinates( access );
-					access.setPosition( 0l, 2 );
-					viewer.displayToGlobalCoordinates( access );
-					final Object val = access.get();
-					final long id = toIdConverter.get().biggestFragment( val );
-					actOn( id, selectedIds.get() );
-				}
+			if ( source instanceof DataSource< ?, ? > )
+			{
+				final DataSource< ?, ? > dataSource = ( DataSource< ?, ? > ) source;
+				final Optional< SelectedIds > selectedIds = sourceInfo.selectedIds( source, mode );
+				final Optional< ToIdConverter > toIdConverter = sourceInfo.toIdConverter( source );
+				if ( selectedIds.isPresent() && toIdConverter.isPresent() )
+					synchronized ( viewer )
+					{
+						final AffineTransform3D affine = new AffineTransform3D();
+						final ViewerState state = viewer.getState();
+						state.getViewerTransform( affine );
+						final int level = state.getBestMipMapLevel( affine, state.getSources().stream().map( src -> src.getSpimSource() ).collect( Collectors.toList() ).indexOf( source ) );
+						dataSource.getSourceTransform( 0, level, affine );
+						final RealTransformRealRandomAccessible< ?, InverseRealTransform >.RealTransformRealRandomAccess access = RealViews.transformReal( dataSource.getInterpolatedDataSource( 0, level, Interpolation.NEARESTNEIGHBOR ), affine ).realRandomAccess();
+						viewer.getMouseCoordinates( access );
+						access.setPosition( 0l, 2 );
+						viewer.displayToGlobalCoordinates( access );
+						final Object val = access.get();
+						final long id = toIdConverter.get().biggestFragment( val );
+						actOn( id, selectedIds.get() );
+					}
+			}
 		}
 
 		protected abstract void actOn( final long id, SelectedIds selectedIds );
@@ -313,77 +320,79 @@ public class IdSelector
 			if ( !optionalSource.isPresent() )
 				return;
 			final Source< ? > source = optionalSource.get();
-			final Source< ? > dataSource = sourceInfo.dataSource( source );
-			final Optional< SelectedIds > selectedIds = sourceInfo.selectedIds( source, mode );
-			final Optional< ToIdConverter > toIdConverter = sourceInfo.toIdConverter( source );
-			final Optional< FragmentSegmentAssignmentState > assignmentOptional = sourceInfo.assignment( source );
-			if ( toIdConverter.isPresent() && selectedIds.isPresent() && assignmentOptional.isPresent() )
-				synchronized ( viewer )
-				{
-					final FragmentSegmentAssignmentState assignment = assignmentOptional.get();
-					final long[] selIds = selectedIds.get().getActiveIds();
-
-					if ( selIds.length < 1 )
-						return;
-
-					final long selectedId = assignment.getSegment( selIds[ 0 ] );
-
-					for ( int i = 1; i < selIds.length; ++i )
-						if ( assignment.getSegment( selIds[ i ] ) != selectedId )
-						{
-							System.out.println( "Ambiguity: Selected multiple active segments -- will not apply merge!" );
-							return;
-						}
-
-					final AffineTransform3D viewerTransform = new AffineTransform3D();
-					final AffineTransform3D affine = new AffineTransform3D();
-					final ViewerState state = viewer.getState();
-					state.getViewerTransform( viewerTransform );
-					final int level = state.getBestMipMapLevel( viewerTransform, state.getSources().stream().map( src -> src.getSpimSource() ).collect( Collectors.toList() ).indexOf( source ) );
-					dataSource.getSourceTransform( 0, level, affine );
-					final RealRandomAccessible< ? > interpolatedSource = dataSource.getInterpolatedSource( 0, level, Interpolation.NEARESTNEIGHBOR );
-					final RealTransformRealRandomAccessible< ?, InverseRealTransform > transformedSource = RealViews.transformReal( interpolatedSource, affine );
-					final RealRandomAccess< ? > access = transformedSource.realRandomAccess();
-					viewer.getMouseCoordinates( access );
-					access.setPosition( 0l, 2 );
-					viewer.displayToGlobalCoordinates( access );
-					final Object val = access.get();
-					final long[] ids = toIdConverter.get().allIds( val );
-
-					final TLongHashSet segments = new TLongHashSet();
-					Arrays.stream( ids ).map( id -> assignment.getSegment( id ) ).forEach( segments::add );
-					Arrays.stream( selIds ).map( id -> assignment.getSegment( id ) ).forEach( segments::add );
-
-					final int w = ( int ) viewer.getWidth();
-					final int h = ( int ) viewer.getHeight();
-					final IntervalView< ? > screenLabels =
-							Views.interval(
-									Views.hyperSlice(
-											RealViews.affine( transformedSource, viewerTransform ), 2, 0 ),
-									new FinalInterval( w - 1, h - 1 ) );
-
-					final Cursor< ? > cursor = screenLabels.cursor();
-					final RandomAccess< ? > ra1 = screenLabels.randomAccess();
-					final RandomAccess< ? > ra2 = screenLabels.randomAccess();
-
-					final TLongHashSet fragments = new TLongHashSet();
-
-					final double[] min = new double[] { 0, 0, 0 };
-					final double[] max = new double[] { w - 1, h - 1, 0 };
-					viewerTransform.applyInverse( min, min );
-					viewerTransform.applyInverse( max, max );
-
-					while ( cursor.hasNext() )
+			if ( source instanceof DataSource< ?, ? > )
+			{
+				final DataSource< ?, ? > dataSource = ( DataSource< ?, ? > ) source;
+				final Optional< SelectedIds > selectedIds = sourceInfo.selectedIds( source, mode );
+				final Optional< ToIdConverter > toIdConverter = sourceInfo.toIdConverter( source );
+				final Optional< FragmentSegmentAssignmentState > assignmentOptional = sourceInfo.assignment( source );
+				if ( toIdConverter.isPresent() && selectedIds.isPresent() && assignmentOptional.isPresent() )
+					synchronized ( viewer )
 					{
-						cursor.fwd();
-						ra1.setPosition( cursor );
-						ra2.setPosition( cursor );
-						ra1.fwd( 0 );
-						ra2.fwd( 1 );
+						final FragmentSegmentAssignmentState assignment = assignmentOptional.get();
+						final long[] selIds = selectedIds.get().getActiveIds();
 
-						final long[] ids1 = toIdConverter.get().allIds( cursor.get() );
-						final long[] ids2 = toIdConverter.get().allIds( ra1.get() );
-						final long[] ids3 = toIdConverter.get().allIds( ra2.get() );
+						if ( selIds.length < 1 )
+							return;
+
+						final long selectedId = assignment.getSegment( selIds[ 0 ] );
+
+						for ( int i = 1; i < selIds.length; ++i )
+							if ( assignment.getSegment( selIds[ i ] ) != selectedId )
+							{
+								System.out.println( "Ambiguity: Selected multiple active segments -- will not apply merge!" );
+								return;
+							}
+
+						final AffineTransform3D viewerTransform = new AffineTransform3D();
+						final AffineTransform3D affine = new AffineTransform3D();
+						final ViewerState state = viewer.getState();
+						state.getViewerTransform( viewerTransform );
+						final int level = state.getBestMipMapLevel( viewerTransform, state.getSources().stream().map( src -> src.getSpimSource() ).collect( Collectors.toList() ).indexOf( source ) );
+						dataSource.getSourceTransform( 0, level, affine );
+						final RealRandomAccessible< ? > interpolatedSource = dataSource.getInterpolatedDataSource( 0, level, Interpolation.NEARESTNEIGHBOR );
+						final RealTransformRealRandomAccessible< ?, InverseRealTransform > transformedSource = RealViews.transformReal( interpolatedSource, affine );
+						final RealRandomAccess< ? > access = transformedSource.realRandomAccess();
+						viewer.getMouseCoordinates( access );
+						access.setPosition( 0l, 2 );
+						viewer.displayToGlobalCoordinates( access );
+						final Object val = access.get();
+						final long[] ids = toIdConverter.get().allIds( val );
+
+						final TLongHashSet segments = new TLongHashSet();
+						Arrays.stream( ids ).map( id -> assignment.getSegment( id ) ).forEach( segments::add );
+						Arrays.stream( selIds ).map( id -> assignment.getSegment( id ) ).forEach( segments::add );
+
+						final int w = ( int ) viewer.getWidth();
+						final int h = ( int ) viewer.getHeight();
+						final IntervalView< ? > screenLabels =
+								Views.interval(
+										Views.hyperSlice(
+												RealViews.affine( transformedSource, viewerTransform ), 2, 0 ),
+										new FinalInterval( w - 1, h - 1 ) );
+
+						final Cursor< ? > cursor = screenLabels.cursor();
+						final RandomAccess< ? > ra1 = screenLabels.randomAccess();
+						final RandomAccess< ? > ra2 = screenLabels.randomAccess();
+
+						final TLongHashSet fragments = new TLongHashSet();
+
+						final double[] min = new double[] { 0, 0, 0 };
+						final double[] max = new double[] { w - 1, h - 1, 0 };
+						viewerTransform.applyInverse( min, min );
+						viewerTransform.applyInverse( max, max );
+
+						while ( cursor.hasNext() )
+						{
+							cursor.fwd();
+							ra1.setPosition( cursor );
+							ra2.setPosition( cursor );
+							ra1.fwd( 0 );
+							ra2.fwd( 1 );
+
+							final long[] ids1 = toIdConverter.get().allIds( cursor.get() );
+							final long[] ids2 = toIdConverter.get().allIds( ra1.get() );
+							final long[] ids3 = toIdConverter.get().allIds( ra2.get() );
 //						if ( ( ids1[ 0 ] != ids2[ 0 ] || ids1[ 0 ] != ids3[ 0 ] ) && segments.contains( assignment.getSegment( ids1[ 0 ] ) ) )
 //						{
 //							System.out.println( Arrays.toString( ids1 ) + " " + Arrays.toString( ids2 ) + " " + Arrays.toString( ids3 ) );
@@ -392,36 +401,37 @@ public class IdSelector
 //							System.out.println();
 //						}
 
-						for ( final long id1 : ids1 )
-						{
-							final long s1 = assignment.getSegment( id1 );
-							if ( !segments.contains( s1 ) )
-								continue;
-
-							for ( final long id2 : ids2 )
+							for ( final long id1 : ids1 )
 							{
-								final long s2 = assignment.getSegment( id2 );
-								if ( !segments.contains( s2 ) || s1 == s2 )
+								final long s1 = assignment.getSegment( id1 );
+								if ( !segments.contains( s1 ) )
 									continue;
-								fragments.add( id1 );
-								fragments.add( id2 );
-							}
 
-							for ( final long id2 : ids3 )
-							{
-								final long s2 = assignment.getSegment( id2 );
-								if ( !segments.contains( s2 ) || s1 == s2 )
-									continue;
-								fragments.add( id1 );
-								fragments.add( id2 );
+								for ( final long id2 : ids2 )
+								{
+									final long s2 = assignment.getSegment( id2 );
+									if ( !segments.contains( s2 ) || s1 == s2 )
+										continue;
+									fragments.add( id1 );
+									fragments.add( id2 );
+								}
+
+								for ( final long id2 : ids3 )
+								{
+									final long s2 = assignment.getSegment( id2 );
+									if ( !segments.contains( s2 ) || s1 == s2 )
+										continue;
+									fragments.add( id1 );
+									fragments.add( id2 );
+								}
+
 							}
 
 						}
 
+						assignment.mergeFragments( fragments.toArray() );
 					}
-
-					assignment.mergeFragments( fragments.toArray() );
-				}
+			}
 		}
 
 	}
@@ -461,38 +471,41 @@ public class IdSelector
 			if ( !optionalSource.isPresent() )
 				return;
 			final Source< ? > source = optionalSource.get();
-			final Source< ? > dataSource = sourceInfo.dataSource( source );
-			final Optional< SelectedIds > selectedIds = sourceInfo.selectedIds( source, mode );
-			final Optional< ToIdConverter > toIdConverter = sourceInfo.toIdConverter( source );
-			final Optional< FragmentSegmentAssignmentState > assignmentOptional = sourceInfo.assignment( source );
-			if ( toIdConverter.isPresent() && selectedIds.isPresent() && assignmentOptional.isPresent() )
-				synchronized ( viewer )
-				{
-					final FragmentSegmentAssignmentState assignments = assignmentOptional.get();
+			if ( source instanceof DataSource< ?, ? > )
+			{
+				final DataSource< ?, ? > dataSource = ( DataSource< ?, ? > ) source;
+				final Optional< SelectedIds > selectedIds = sourceInfo.selectedIds( source, mode );
+				final Optional< ToIdConverter > toIdConverter = sourceInfo.toIdConverter( source );
+				final Optional< FragmentSegmentAssignmentState > assignmentOptional = sourceInfo.assignment( source );
+				if ( toIdConverter.isPresent() && selectedIds.isPresent() && assignmentOptional.isPresent() )
+					synchronized ( viewer )
+					{
+						final FragmentSegmentAssignmentState assignments = assignmentOptional.get();
 
-					final long[] selIds = selectedIds.get().getActiveIds();
+						final long[] selIds = selectedIds.get().getActiveIds();
 
-					if ( selIds.length != 1 )
-						return;
+						if ( selIds.length != 1 )
+							return;
 
-					final AffineTransform3D viewerTransform = new AffineTransform3D();
-					final ViewerState state = viewer.getState();
-					state.getViewerTransform( viewerTransform );
-					final int level = state.getBestMipMapLevel( viewerTransform, state.getSources().stream().map( src -> src.getSpimSource() ).collect( Collectors.toList() ).indexOf( source ) );
-					final AffineTransform3D affine = new AffineTransform3D();
-					dataSource.getSourceTransform( 0, level, affine );
-					final RealRandomAccess< ? > access = RealViews.transformReal( dataSource.getInterpolatedSource( 0, level, Interpolation.NEARESTNEIGHBOR ), affine ).realRandomAccess();
-					viewer.getMouseCoordinates( access );
-					access.setPosition( 0l, 2 );
-					viewer.displayToGlobalCoordinates( access );
-					final Object val = access.get();
-					final long id = toIdConverter.get().biggestFragment( val );
+						final AffineTransform3D viewerTransform = new AffineTransform3D();
+						final ViewerState state = viewer.getState();
+						state.getViewerTransform( viewerTransform );
+						final int level = state.getBestMipMapLevel( viewerTransform, state.getSources().stream().map( src -> src.getSpimSource() ).collect( Collectors.toList() ).indexOf( source ) );
+						final AffineTransform3D affine = new AffineTransform3D();
+						dataSource.getSourceTransform( 0, level, affine );
+						final RealRandomAccess< ? > access = RealViews.transformReal( dataSource.getInterpolatedDataSource( 0, level, Interpolation.NEARESTNEIGHBOR ), affine ).realRandomAccess();
+						viewer.getMouseCoordinates( access );
+						access.setPosition( 0l, 2 );
+						viewer.displayToGlobalCoordinates( access );
+						final Object val = access.get();
+						final long id = toIdConverter.get().biggestFragment( val );
 
-					final TLongHashSet fragments = new TLongHashSet();
-					fragments.add( id );
-					fragments.add( selIds[ 0 ] );
-					assignments.mergeFragments( fragments.toArray() );
-				}
+						final TLongHashSet fragments = new TLongHashSet();
+						fragments.add( id );
+						fragments.add( selIds[ 0 ] );
+						assignments.mergeFragments( fragments.toArray() );
+					}
+			}
 		}
 
 	}
@@ -506,36 +519,38 @@ public class IdSelector
 			if ( !optionalSource.isPresent() )
 				return;
 			final Source< ? > source = optionalSource.get();
-			final Source< ? > dataSource = sourceInfo.dataSource( source );
-			final Optional< SelectedIds > selectedIds = sourceInfo.selectedIds( source, mode );
-			final Optional< ToIdConverter > toIdConverter = sourceInfo.toIdConverter( source );
-			final Optional< FragmentSegmentAssignmentState > assignmentOptional = sourceInfo.assignment( source );
-			if ( toIdConverter.isPresent() && selectedIds.isPresent() && assignmentOptional.isPresent() )
-				synchronized ( viewer )
-				{
+			if ( source instanceof DataSource< ?, ? > )
+			{
+				final DataSource< ?, ? > dataSource = ( DataSource< ?, ? > ) source;
+				final Optional< SelectedIds > selectedIds = sourceInfo.selectedIds( source, mode );
+				final Optional< ToIdConverter > toIdConverter = sourceInfo.toIdConverter( source );
+				final Optional< FragmentSegmentAssignmentState > assignmentOptional = sourceInfo.assignment( source );
+				if ( toIdConverter.isPresent() && selectedIds.isPresent() && assignmentOptional.isPresent() )
+					synchronized ( viewer )
+					{
 
-					final FragmentSegmentAssignmentState assignment = assignmentOptional.get();
+						final FragmentSegmentAssignmentState assignment = assignmentOptional.get();
 
-					final long[] selIds = selectedIds.get().getActiveIds();
+						final long[] selIds = selectedIds.get().getActiveIds();
 
-					if ( selIds.length != 1 )
-						return;
+						if ( selIds.length != 1 )
+							return;
 
-					final AffineTransform3D viewerTransform = new AffineTransform3D();
-					final ViewerState state = viewer.getState();
-					state.getViewerTransform( viewerTransform );
-					final int level = state.getBestMipMapLevel( viewerTransform, state.getSources().stream().map( src -> src.getSpimSource() ).collect( Collectors.toList() ).indexOf( source ) );
-					final AffineTransform3D affine = new AffineTransform3D();
-					dataSource.getSourceTransform( 0, level, affine );
-					final RealTransformRealRandomAccessible< ?, InverseRealTransform > transformedSource = RealViews.transformReal( dataSource.getInterpolatedSource( 0, level, Interpolation.NEARESTNEIGHBOR ), affine );
-					final RealRandomAccess< ? > access = transformedSource.realRandomAccess();
-					viewer.getMouseCoordinates( access );
-					access.setPosition( 0l, 2 );
-					viewer.displayToGlobalCoordinates( access );
-					final Object val = access.get();
-					final long id = toIdConverter.get().biggestFragment( val );
+						final AffineTransform3D viewerTransform = new AffineTransform3D();
+						final ViewerState state = viewer.getState();
+						state.getViewerTransform( viewerTransform );
+						final int level = state.getBestMipMapLevel( viewerTransform, state.getSources().stream().map( src -> src.getSpimSource() ).collect( Collectors.toList() ).indexOf( source ) );
+						final AffineTransform3D affine = new AffineTransform3D();
+						dataSource.getSourceTransform( 0, level, affine );
+						final RealTransformRealRandomAccessible< ?, InverseRealTransform > transformedSource = RealViews.transformReal( dataSource.getInterpolatedDataSource( 0, level, Interpolation.NEARESTNEIGHBOR ), affine );
+						final RealRandomAccess< ? > access = transformedSource.realRandomAccess();
+						viewer.getMouseCoordinates( access );
+						access.setPosition( 0l, 2 );
+						viewer.displayToGlobalCoordinates( access );
+						final Object val = access.get();
+						final long id = toIdConverter.get().biggestFragment( val );
 
-					assignment.detachFragment( id, selIds[ 0 ] );
+						assignment.detachFragment( id, selIds[ 0 ] );
 
 //					final TLongObjectHashMap< TLongHashSet > detaches = new TLongObjectHashMap<>();
 //					Arrays.stream( ids ).forEach( id -> {
@@ -549,7 +564,8 @@ public class IdSelector
 //						return true;
 //					} );
 
-				}
+					}
+			}
 		}
 
 	}
@@ -565,77 +581,80 @@ public class IdSelector
 				System.out.println( "No source present!" );
 				return;
 			}
-			final Source< ? > source = optionalSource.get();;
-			final Source< ? > dataSource = sourceInfo.dataSource( source );
-			final Optional< SelectedIds > selectedIds = sourceInfo.selectedIds( source, mode );
-			final Optional< ToIdConverter > toIdConverter = sourceInfo.toIdConverter( source );
-			final Optional< FragmentSegmentAssignmentState > assignmentOptional = sourceInfo.assignment( source );
-			if ( toIdConverter.isPresent() && selectedIds.isPresent() && assignmentOptional.isPresent() )
-				synchronized ( viewer )
-				{
-					final FragmentSegmentAssignmentState assignment = assignmentOptional.get();
-
-					final long[] activeFragments = selectedIds.get().getActiveIds();
-					final long[] activeSegments = Arrays.stream( activeFragments ).map( id -> assignment.getSegment( id ) ).toArray();
-
-					if ( activeSegments.length > 1 )
+			final Source< ? > source = optionalSource.get();
+			if ( source instanceof DataSource< ?, ? > )
+			{
+				final DataSource< ?, ? > dataSource = ( DataSource< ?, ? > ) source;
+				final Optional< SelectedIds > selectedIds = sourceInfo.selectedIds( source, mode );
+				final Optional< ToIdConverter > toIdConverter = sourceInfo.toIdConverter( source );
+				final Optional< FragmentSegmentAssignmentState > assignmentOptional = sourceInfo.assignment( source );
+				if ( toIdConverter.isPresent() && selectedIds.isPresent() && assignmentOptional.isPresent() )
+					synchronized ( viewer )
 					{
-						System.out.println( "More than one segment active, not doing anything!" );
-						return;
+						final FragmentSegmentAssignmentState assignment = assignmentOptional.get();
+
+						final long[] activeFragments = selectedIds.get().getActiveIds();
+						final long[] activeSegments = Arrays.stream( activeFragments ).map( id -> assignment.getSegment( id ) ).toArray();
+
+						if ( activeSegments.length > 1 )
+						{
+							System.out.println( "More than one segment active, not doing anything!" );
+							return;
+						}
+
+						if ( activeSegments.length == 0 )
+						{
+							System.out.println( "No segments active, not doing anything!" );
+							return;
+						}
+
+						final AffineTransform3D viewerTransform = new AffineTransform3D();
+						final ViewerState state = viewer.getState();
+						state.getViewerTransform( viewerTransform );
+						final int level = state.getBestMipMapLevel( viewerTransform, state.getSources().stream().map( src -> src.getSpimSource() ).collect( Collectors.toList() ).indexOf( source ) );
+						final AffineTransform3D affine = new AffineTransform3D();
+						dataSource.getSourceTransform( 0, level, affine );
+						final RealTransformRealRandomAccessible< ?, InverseRealTransform > transformedSource = RealViews.transformReal( dataSource.getInterpolatedDataSource( 0, level, Interpolation.NEARESTNEIGHBOR ), affine );
+						final RealRandomAccess< ? > access = transformedSource.realRandomAccess();
+						viewer.getMouseCoordinates( access );
+						access.setPosition( 0l, 2 );
+						viewer.displayToGlobalCoordinates( access );
+						final Object val = access.get();
+						final long selectedFragment = toIdConverter.get().biggestFragment( val );
+						final long selectedSegment = assignment.getSegment( selectedFragment );
+						final TLongHashSet selectedSegmentsSet = new TLongHashSet( new long[] { selectedSegment } );
+						final TLongHashSet visibleFragmentsSet = new TLongHashSet();
+
+						if ( activeSegments.length == 0 || activeSegments[ 0 ] == selectedSegment )
+						{
+							System.out.println( "confirm merge and separate of single segment" );
+							visitEveryDisplayPixel( dataSource, viewer, obj -> visibleFragmentsSet.addAll( toIdConverter.get().allIds( obj ) ) );
+							final long[] visibleFragments = visibleFragmentsSet.toArray();
+							final long[] fragmentsInActiveSegment = Arrays.stream( visibleFragments ).filter( frag -> selectedSegmentsSet.contains( assignment.getSegment( frag ) ) ).toArray();
+							final long[] fragmentsNotInActiveSegment = Arrays.stream( visibleFragments ).filter( frag -> !selectedSegmentsSet.contains( assignment.getSegment( frag ) ) ).toArray();
+							assignment.confirmGrouping( fragmentsInActiveSegment, fragmentsNotInActiveSegment );
+						}
+
+						else
+						{
+							System.out.println( "confirm merge and separate of two segments" );
+							final long[] relevantSegments = new long[] { activeSegments[ 0 ], selectedSegment };
+							final TLongObjectHashMap< TLongHashSet > fragmentsBySegment = new TLongObjectHashMap<>();
+							Arrays.stream( relevantSegments ).forEach( seg -> fragmentsBySegment.put( seg, new TLongHashSet() ) );
+							visitEveryDisplayPixel( dataSource, viewer, obj -> {
+								final long[] fragments = toIdConverter.get().allIds( obj );
+								for ( final long frag : fragments )
+								{
+									final TLongHashSet frags = fragmentsBySegment.get( assignment.getSegment( frag ) );
+									if ( frags != null )
+										frags.add( frag );
+								}
+							} );
+							assignment.confirmTwoSegments( fragmentsBySegment.get( relevantSegments[ 0 ] ).toArray(), fragmentsBySegment.get( relevantSegments[ 1 ] ).toArray() );
+						}
+
 					}
-
-					if ( activeSegments.length == 0 )
-					{
-						System.out.println( "No segments active, not doing anything!" );
-						return;
-					}
-
-					final AffineTransform3D viewerTransform = new AffineTransform3D();
-					final ViewerState state = viewer.getState();
-					state.getViewerTransform( viewerTransform );
-					final int level = state.getBestMipMapLevel( viewerTransform, state.getSources().stream().map( src -> src.getSpimSource() ).collect( Collectors.toList() ).indexOf( source ) );
-					final AffineTransform3D affine = new AffineTransform3D();
-					dataSource.getSourceTransform( 0, level, affine );
-					final RealTransformRealRandomAccessible< ?, InverseRealTransform > transformedSource = RealViews.transformReal( dataSource.getInterpolatedSource( 0, level, Interpolation.NEARESTNEIGHBOR ), affine );
-					final RealRandomAccess< ? > access = transformedSource.realRandomAccess();
-					viewer.getMouseCoordinates( access );
-					access.setPosition( 0l, 2 );
-					viewer.displayToGlobalCoordinates( access );
-					final Object val = access.get();
-					final long selectedFragment = toIdConverter.get().biggestFragment( val );
-					final long selectedSegment = assignment.getSegment( selectedFragment );
-					final TLongHashSet selectedSegmentsSet = new TLongHashSet( new long[] { selectedSegment } );
-					final TLongHashSet visibleFragmentsSet = new TLongHashSet();
-
-					if ( activeSegments.length == 0 || activeSegments[ 0 ] == selectedSegment )
-					{
-						System.out.println( "confirm merge and separate of single segment" );
-						visitEveryDisplayPixel( source, dataSource, viewer, obj -> visibleFragmentsSet.addAll( toIdConverter.get().allIds( obj ) ) );
-						final long[] visibleFragments = visibleFragmentsSet.toArray();
-						final long[] fragmentsInActiveSegment = Arrays.stream( visibleFragments ).filter( frag -> selectedSegmentsSet.contains( assignment.getSegment( frag ) ) ).toArray();
-						final long[] fragmentsNotInActiveSegment = Arrays.stream( visibleFragments ).filter( frag -> !selectedSegmentsSet.contains( assignment.getSegment( frag ) ) ).toArray();
-						assignment.confirmGrouping( fragmentsInActiveSegment, fragmentsNotInActiveSegment );
-					}
-
-					else
-					{
-						System.out.println( "confirm merge and separate of two segments" );
-						final long[] relevantSegments = new long[] { activeSegments[ 0 ], selectedSegment };
-						final TLongObjectHashMap< TLongHashSet > fragmentsBySegment = new TLongObjectHashMap<>();
-						Arrays.stream( relevantSegments ).forEach( seg -> fragmentsBySegment.put( seg, new TLongHashSet() ) );
-						visitEveryDisplayPixel( source, dataSource, viewer, obj -> {
-							final long[] fragments = toIdConverter.get().allIds( obj );
-							for ( final long frag : fragments )
-							{
-								final TLongHashSet frags = fragmentsBySegment.get( assignment.getSegment( frag ) );
-								if ( frags != null )
-									frags.add( frag );
-							}
-						} );
-						assignment.confirmTwoSegments( fragmentsBySegment.get( relevantSegments[ 0 ] ).toArray(), fragmentsBySegment.get( relevantSegments[ 1 ] ).toArray() );
-					}
-
-				}
+			}
 		}
 	}
 
@@ -685,8 +704,7 @@ public class IdSelector
 	}
 
 	private static void visitEveryDisplayPixel(
-			final Source< ? > source,
-			final Source< ? > dataSource,
+			final DataSource< ?, ? > dataSource,
 			final ViewerPanelFX viewer,
 			final Consumer< Object > doAtPixel )
 	{
@@ -694,10 +712,10 @@ public class IdSelector
 		final AffineTransform3D sourceTransform = new AffineTransform3D();
 		final ViewerState state = viewer.getState();
 		state.getViewerTransform( viewerTransform );
-		final int level = state.getBestMipMapLevel( viewerTransform, state.getSources().stream().map( src -> src.getSpimSource() ).collect( Collectors.toList() ).indexOf( source ) );
+		final int level = state.getBestMipMapLevel( viewerTransform, state.getSources().stream().map( src -> src.getSpimSource() ).collect( Collectors.toList() ).indexOf( dataSource ) );
 		dataSource.getSourceTransform( 0, level, sourceTransform );
 
-		final RealRandomAccessible< ? > interpolatedSource = dataSource.getInterpolatedSource( 0, level, Interpolation.NEARESTNEIGHBOR );
+		final RealRandomAccessible< ? > interpolatedSource = dataSource.getInterpolatedDataSource( 0, level, Interpolation.NEARESTNEIGHBOR );
 		final RealTransformRealRandomAccessible< ?, InverseRealTransform > transformedSource = RealViews.transformReal( interpolatedSource, sourceTransform );
 
 		final int w = ( int ) viewer.getWidth();
