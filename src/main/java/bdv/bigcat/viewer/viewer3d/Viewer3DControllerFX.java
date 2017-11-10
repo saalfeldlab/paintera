@@ -17,14 +17,15 @@ import bdv.bigcat.ui.ARGBStream;
 import bdv.bigcat.viewer.state.FragmentSegmentAssignmentState;
 import bdv.bigcat.viewer.state.GlobalTransformManager;
 import bdv.bigcat.viewer.state.SelectedIds;
-import bdv.bigcat.viewer.viewer3d.marchingCubes.ForegroundCheck;
 import net.imglib2.Interval;
 import net.imglib2.Point;
 import net.imglib2.RandomAccessible;
 import net.imglib2.RealLocalizable;
 import net.imglib2.RealPoint;
+import net.imglib2.converter.Converter;
 import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.type.Type;
+import net.imglib2.type.logic.BoolType;
 
 /**
  * Class that controls the 3d scene
@@ -52,8 +53,7 @@ public class Viewer3DControllerFX
 	}
 
 	public void init()
-	{
-	}
+	{}
 
 	public synchronized < T extends Type< T >, F extends FragmentSegmentAssignmentState< F > > void generateMesh(
 			final RandomAccessible< T > volumeLabels,
@@ -62,7 +62,7 @@ public class Viewer3DControllerFX
 			final RealLocalizable worldLocation,
 			final int[] partitionSize,
 			final int[] cubeSize,
-			final Function< T, ForegroundCheck< T > > getForegroundCheck,
+			final Function< T, Converter< T, BoolType > > createMaskConverterForType,
 			final long fragmentId,
 			final F fragmentSegmentAssignment,
 			final ARGBStream stream,
@@ -113,7 +113,7 @@ public class Viewer3DControllerFX
 					locationInImageCoordinates,
 					volumeLabels,
 					interval,
-					getForegroundCheck,
+					createMaskConverterForType,
 					viewer3D.meshesGroup(),
 					viewer3D.scene().getCamera(),
 					es,

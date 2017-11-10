@@ -13,7 +13,6 @@ import org.slf4j.LoggerFactory;
 
 import bdv.bigcat.viewer.util.DecorateRunnable;
 import bdv.bigcat.viewer.util.InvokeOnJavaFXApplicationThread;
-import bdv.bigcat.viewer.viewer3d.marchingCubes.ForegroundCheck;
 import bdv.bigcat.viewer.viewer3d.marchingCubes.MarchingCubes;
 import bdv.bigcat.viewer.viewer3d.util.HashWrapper;
 import javafx.beans.property.BooleanProperty;
@@ -39,9 +38,10 @@ import net.imglib2.Point;
 import net.imglib2.RandomAccessible;
 import net.imglib2.RealPoint;
 import net.imglib2.realtransform.AffineTransform3D;
+import net.imglib2.type.BooleanType;
 import net.imglib2.util.Intervals;
 
-public class NeuronFX< T >
+public class NeuronFX
 {
 
 	private static final Logger LOG = LoggerFactory.getLogger( MethodHandles.lookup().lookupClass() );
@@ -76,10 +76,9 @@ public class NeuronFX< T >
 		} );
 	}
 
-	public void render(
+	public < B extends BooleanType< B > > void render(
 			final Localizable initialLocationInImageCoordinates,
-			final RandomAccessible< T > data,
-			final ForegroundCheck< T > foregroundCheck,
+			final RandomAccessible< B > data,
 			final AffineTransform3D toWorldCoordinates,
 			final int[] blockSize,
 			final int[] cubeSize,
@@ -96,7 +95,7 @@ public class NeuronFX< T >
 		initialLocationInImageCoordinates.localize( gridCoordinates );
 		for ( int i = 0; i < gridCoordinates.length; ++i )
 			gridCoordinates[ i ] /= blockSize[ i ];
-		submitForOffset( gridCoordinates, data, foregroundCheck, toWorldCoordinates, blockSize, cubeSize, color, es );
+		submitForOffset( gridCoordinates, data, toWorldCoordinates, blockSize, cubeSize, color, es );
 	}
 
 	public void cancel()
@@ -130,10 +129,9 @@ public class NeuronFX< T >
 		}
 	}
 
-	private void submitForOffset(
+	private < B extends BooleanType< B > > void submitForOffset(
 			final long[] gridCoordinates,
-			final RandomAccessible< T > data,
-			final ForegroundCheck< T > foregroundCheck,
+			final RandomAccessible< B > data,
 			final AffineTransform3D toWorldCoordinates,
 			final int[] blockSize,
 			final int[] cubeSize,
@@ -155,7 +153,7 @@ public class NeuronFX< T >
 		{
 			final Future< ? > future = es.submit(
 					DecorateRunnable.beforeAndAfter(
-							() -> generateMesh( data, gridCoordinates, coordinates, blockSize, cubeSize, foregroundCheck, toWorldCoordinates, color, meshes, es ),
+							() -> generateMesh( data, gridCoordinates, coordinates, blockSize, cubeSize, toWorldCoordinates, color, meshes, es ),
 							futuresStartedCount::incrementAndGet,
 							this::incrementFuturesFinishedCount ) );
 			synchronized ( futures )
@@ -224,13 +222,12 @@ public class NeuronFX< T >
 			isReady.set( true );
 	}
 
-	private void generateMesh(
-			final RandomAccessible< T > data,
+	private < B extends BooleanType< B > > void generateMesh(
+			final RandomAccessible< B > data,
 			final long[] gridCoordinates,
 			final long[] coordinates,
 			final int[] blockSize,
 			final int[] cubeSize,
-			final ForegroundCheck< T > foregroundCheck,
 			final AffineTransform3D toWorldCoordinates,
 			final int color,
 			final Group meshes,
@@ -272,8 +269,8 @@ public class NeuronFX< T >
 //
 		InvokeOnJavaFXApplicationThread.invoke( () -> meshes.getChildren().add( chunk ) );
 
-		final MarchingCubes< T > mc = new MarchingCubes<>( data, interval, toWorldCoordinates, cubeSize );
-		final float[] vertices = mc.generateMesh( foregroundCheck );
+		final MarchingCubes< B > mc = new MarchingCubes<>( data, interval, toWorldCoordinates, cubeSize );
+		final float[] vertices = mc.generateMesh();
 
 		InvokeOnJavaFXApplicationThread.invoke( () -> meshes.getChildren().remove( chunk ) );
 
@@ -289,10 +286,10 @@ public class NeuronFX< T >
 				{
 					final long[] otherGridCoordinates = gridCoordinates.clone();
 					otherGridCoordinates[ d ] += 1;
-					submitForOffset( otherGridCoordinates.clone(), data, foregroundCheck, toWorldCoordinates, blockSize, cubeSize, color, es );
+					submitForOffset( otherGridCoordinates.clone(), data, toWorldCoordinates, blockSize, cubeSize, color, es );
 
 					otherGridCoordinates[ d ] -= 2;
-					submitForOffset( otherGridCoordinates.clone(), data, foregroundCheck, toWorldCoordinates, blockSize, cubeSize, color, es );
+					submitForOffset( otherGridCoordinates.clone(), data, toWorldCoordinates, blockSize, cubeSize, color, es );
 				}
 			}
 		}

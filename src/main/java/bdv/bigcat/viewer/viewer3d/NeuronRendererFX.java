@@ -13,7 +13,6 @@ import bdv.bigcat.viewer.state.GlobalTransformManager;
 import bdv.bigcat.viewer.state.SelectedIds;
 import bdv.bigcat.viewer.state.StateListener;
 import bdv.bigcat.viewer.util.InvokeOnJavaFXApplicationThread;
-import bdv.bigcat.viewer.viewer3d.marchingCubes.ForegroundCheck;
 import gnu.trove.list.array.TFloatArrayList;
 import gnu.trove.list.array.TIntArrayList;
 import javafx.beans.property.ObjectProperty;
@@ -35,7 +34,10 @@ import net.imglib2.Localizable;
 import net.imglib2.Point;
 import net.imglib2.RandomAccess;
 import net.imglib2.RandomAccessible;
+import net.imglib2.converter.Converter;
+import net.imglib2.converter.Converters;
 import net.imglib2.realtransform.AffineTransform3D;
+import net.imglib2.type.logic.BoolType;
 
 /**
  *
@@ -61,9 +63,9 @@ public class NeuronRendererFX< T, F extends FragmentSegmentAssignmentState< F > 
 
 	private final Interval interval;
 
-	private final Function< T, ForegroundCheck< T > > getForegroundCheck;
+	private final Function< T, Converter< T, BoolType > > createMaskConverterForType;
 
-	private ForegroundCheck< T > foregroundCheck;
+	private Converter< T, BoolType > maskConverter;
 
 	private final Group root;
 
@@ -81,7 +83,7 @@ public class NeuronRendererFX< T, F extends FragmentSegmentAssignmentState< F > 
 
 	private boolean allowRendering = true;
 
-	private final ObjectProperty< Optional< NeuronFX< T > > > neuron = new SimpleObjectProperty<>( Optional.empty() );
+	private final ObjectProperty< Optional< NeuronFX > > neuron = new SimpleObjectProperty<>( Optional.empty() );
 
 	private final MeshSaver meshSaver;
 
@@ -101,7 +103,7 @@ public class NeuronRendererFX< T, F extends FragmentSegmentAssignmentState< F > 
 	 * Bounding box of the complete mesh/neuron (xmin, xmax, ymin, ymax, zmin,
 	 * zmax)
 	 */
-	private double[] completeBoundingBox = null;
+	private final double[] completeBoundingBox = null;
 
 	public NeuronRendererFX(
 			final long selectedFragmentId,
@@ -110,7 +112,7 @@ public class NeuronRendererFX< T, F extends FragmentSegmentAssignmentState< F > 
 			final Localizable initialLocationInImageCoordinates,
 			final RandomAccessible< T > data,
 			final Interval interval,
-			final Function< T, ForegroundCheck< T > > getForegroundCheck,
+			final Function< T, Converter< T, BoolType > > createMaskConverterForType,
 			final Group root,
 			final Camera camera,
 			final ExecutorService es,
@@ -128,7 +130,7 @@ public class NeuronRendererFX< T, F extends FragmentSegmentAssignmentState< F > 
 		this.initialLocationInImageCoordinates = initialLocationInImageCoordinates;
 		this.data = data;
 		this.interval = interval;
-		this.getForegroundCheck = getForegroundCheck;
+		this.createMaskConverterForType = createMaskConverterForType;
 		this.root = root;
 		this.camera = camera;
 		this.es = es;
@@ -214,7 +216,7 @@ public class NeuronRendererFX< T, F extends FragmentSegmentAssignmentState< F > 
 		if ( allowRendering )
 		{
 			removeSelfFromScene();
-			final NeuronFX< T > neuron = new NeuronFX<>( interval, root );
+			final NeuronFX neuron = new NeuronFX( interval, root );
 			this.neuron.set( Optional.of( neuron ) );
 			final float[] blub = new float[ 3 ];
 			final int color = desaturate( stream.argb( selectedFragmentId ), 0.25 );
@@ -228,7 +230,8 @@ public class NeuronRendererFX< T, F extends FragmentSegmentAssignmentState< F > 
 //			l.setTranslateY( blub[ 1 ] - 500 );
 //			l.setTranslateZ( blub[ 2 ] - 500 );
 //			InvokeOnJavaFXApplicationThread.invoke( () -> root.getChildren().add( l ) );
-			neuron.render( initialLocationInImageCoordinates, data, foregroundCheck, toWorldCoordinates, blockSize, cubeSize, color, es );
+			final RandomAccessible< BoolType > converted = Converters.convert( data, maskConverter, new BoolType() );
+			neuron.render( initialLocationInImageCoordinates, converted, toWorldCoordinates, blockSize, cubeSize, color, es );
 			neuron.meshes().addEventHandler( MouseEvent.MOUSE_PRESSED, menuOpener );
 			neuron.meshes().addEventHandler( MouseEvent.MOUSE_PRESSED, idSelector );
 
@@ -239,11 +242,11 @@ public class NeuronRendererFX< T, F extends FragmentSegmentAssignmentState< F > 
 	{
 		final double normalize = 1.0 + amount;
 
-		final int r = ( int )Math.round( ( ( ( argb >> 16 ) & 0xff ) / 255.0 + amount ) / normalize * 255 );
-		final int g = ( int )Math.round( ( ( ( argb >> 8 ) & 0xff ) / 255.0 + amount ) / normalize * 255 );
-		final int b = ( int )Math.round( ( ( argb & 0xff ) / 255.0 + amount ) / normalize * 255 );
+		final int r = ( int ) Math.round( ( ( argb >> 16 & 0xff ) / 255.0 + amount ) / normalize * 255 );
+		final int g = ( int ) Math.round( ( ( argb >> 8 & 0xff ) / 255.0 + amount ) / normalize * 255 );
+		final int b = ( int ) Math.round( ( ( argb & 0xff ) / 255.0 + amount ) / normalize * 255 );
 
-		return ( argb & 0xff000000 ) | ( r << 16 ) | ( g << 8 ) | b;
+		return argb & 0xff000000 | r << 16 | g << 8 | b;
 	}
 
 	public long fragmentId()
@@ -260,7 +263,7 @@ public class NeuronRendererFX< T, F extends FragmentSegmentAssignmentState< F > 
 	{
 		final RandomAccess< T > ra = data.randomAccess();
 		ra.setPosition( initialLocationInImageCoordinates );
-		this.foregroundCheck = getForegroundCheck.apply( ra.get() );
+		this.maskConverter = createMaskConverterForType.apply( ra.get() );
 	}
 
 	@Override

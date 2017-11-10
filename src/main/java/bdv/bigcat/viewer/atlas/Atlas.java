@@ -38,7 +38,6 @@ import bdv.bigcat.viewer.stream.ModalGoldenAngleSaturatedHighlightingARGBStream;
 import bdv.bigcat.viewer.viewer3d.OrthoSliceFX;
 import bdv.bigcat.viewer.viewer3d.Viewer3DControllerFX;
 import bdv.bigcat.viewer.viewer3d.Viewer3DFX;
-import bdv.bigcat.viewer.viewer3d.marchingCubes.ForegroundCheck;
 import bdv.img.cache.VolatileGlobalCellCache;
 import bdv.labels.labelset.LabelMultisetType;
 import bdv.labels.labelset.Multiset.Entry;
@@ -67,10 +66,12 @@ import javafx.stage.Stage;
 import javafx.stage.WindowEvent;
 import net.imglib2.Interval;
 import net.imglib2.Volatile;
+import net.imglib2.converter.Converter;
 import net.imglib2.converter.RealARGBConverter;
 import net.imglib2.interpolation.randomaccess.ClampingNLinearInterpolatorFactory;
 import net.imglib2.interpolation.randomaccess.NearestNeighborInterpolatorFactory;
 import net.imglib2.realtransform.AffineTransform3D;
+import net.imglib2.type.logic.BoolType;
 import net.imglib2.type.numeric.ARGBType;
 import net.imglib2.type.numeric.IntegerType;
 import net.imglib2.type.numeric.RealType;
@@ -386,7 +387,7 @@ public class Atlas
 		} );
 
 		addSource( src, comp );
-		sourceInfo.addLabelSource( vsource, ToIdConverter.fromLabelMultisetType(), ( Function< LabelMultisetType, ForegroundCheck< LabelMultisetType > > ) sel -> foregroundCheck( sel, assignment ), assignment, streamsMap, selIdsMap );
+		sourceInfo.addLabelSource( vsource, ToIdConverter.fromLabelMultisetType(), ( Function< LabelMultisetType, Converter< LabelMultisetType, BoolType > > ) sel -> createBoolConverter( sel, assignment ), assignment, streamsMap, selIdsMap );
 		Optional.ofNullable( currentMode.get() ).ifPresent( setConverter::accept );
 
 		final LabelMultisetType t = vsource.getDataType();
@@ -501,11 +502,11 @@ public class Atlas
 		this.baseView().setTransform( transform );
 	}
 
-	public static ForegroundCheck< LabelMultisetType > foregroundCheck( final LabelMultisetType selection, final FragmentSegmentAssignmentState< ? > assignment )
+	public static Converter< LabelMultisetType, BoolType > createBoolConverter( final LabelMultisetType selection, final FragmentSegmentAssignmentState< ? > assignment )
 	{
 		final long id = maxCountId( selection );
 		final long segmentId = assignment.getSegment( id );
-		return t -> assignment.getSegment( maxCountId( t ) ) == segmentId ? 1 : 0;
+		return ( s, t ) -> t.set( assignment.getSegment( maxCountId( s ) ) == segmentId );
 	}
 
 	public static long maxCountId( final LabelMultisetType t )

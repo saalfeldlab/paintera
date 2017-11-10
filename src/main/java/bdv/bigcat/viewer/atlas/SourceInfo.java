@@ -10,8 +10,9 @@ import bdv.bigcat.viewer.atlas.data.DataSource;
 import bdv.bigcat.viewer.atlas.mode.Mode;
 import bdv.bigcat.viewer.state.FragmentSegmentAssignmentState;
 import bdv.bigcat.viewer.state.SelectedIds;
-import bdv.bigcat.viewer.viewer3d.marchingCubes.ForegroundCheck;
 import bdv.viewer.Source;
+import net.imglib2.converter.Converter;
+import net.imglib2.type.logic.BoolType;
 
 public class SourceInfo
 {
@@ -23,7 +24,7 @@ public class SourceInfo
 	private final HashMap< DataSource< ?, ? >, ToIdConverter > toIdConverters = new HashMap<>();
 
 	// volatile source to foregorund check
-	private final HashMap< DataSource< ?, ? >, Function< ?, ForegroundCheck< ? > > > foregroundChecks = new HashMap<>();
+	private final HashMap< DataSource< ?, ? >, Function< ?, Converter< ?, BoolType > > > toBoolConverters = new HashMap<>();
 
 	private final HashMap< DataSource< ?, ? >, FragmentSegmentAssignmentState > frags = new HashMap<>();
 
@@ -39,24 +40,24 @@ public class SourceInfo
 	public synchronized < D, T > void addLabelSource(
 			final DataSource< D, T > source,
 			final ToIdConverter idConverter,
-			final Function foregroundCheck,
+			final Function toBoolConverter,
 			final FragmentSegmentAssignmentState frag,
 			final HashMap< Mode, ARGBStream > stream,
 			final HashMap< Mode, SelectedIds > selectedId )
 	{
-		addSource( source, Optional.of( idConverter ), Optional.of( foregroundCheck ), Optional.of( frag ), Optional.of( stream ), Optional.of( selectedId ) );
+		addSource( source, Optional.of( idConverter ), Optional.of( toBoolConverter ), Optional.of( frag ), Optional.of( stream ), Optional.of( selectedId ) );
 	}
 
 	public synchronized < D, T > void addSource(
 			final DataSource< D, T > source,
 			final Optional< ToIdConverter > idConverter,
-			final Optional< Function > foregroundCheck,
+			final Optional< Function > toBoolConverter,
 			final Optional< FragmentSegmentAssignmentState > frag,
 			final Optional< HashMap< Mode, ARGBStream > > stream,
 			final Optional< HashMap< Mode, SelectedIds > > selectedId )
 	{
 		idConverter.ifPresent( conv -> this.toIdConverters.put( source, conv ) );
-		foregroundCheck.ifPresent( f -> this.foregroundChecks.put( source, f ) );
+		toBoolConverter.ifPresent( f -> this.toBoolConverters.put( source, f ) );
 		frag.ifPresent( f -> this.frags.put( source, f ) );
 		stream.ifPresent( s -> this.streams.put( source, s ) );
 		selectedId.ifPresent( id -> this.selectedIds.put( source, id ) );
@@ -65,7 +66,7 @@ public class SourceInfo
 	public synchronized < D, T > void removeSource( final DataSource< D, T > source )
 	{
 		toIdConverters.remove( source );
-		foregroundChecks.remove( source );
+		toBoolConverters.remove( source );
 		frags.remove( source );
 		this.streams.remove( source );
 		this.selectedIds.remove( source );
@@ -88,9 +89,9 @@ public class SourceInfo
 		return Optional.ofNullable( toIdConverters.get( source ) );
 	}
 
-	public synchronized Optional< Function< ?, ForegroundCheck< ? > > > foregroundCheck( final Source< ? > source )
+	public synchronized Optional< Function< ?, Converter< ?, BoolType > > > toBoolConverter( final Source< ? > source )
 	{
-		return Optional.ofNullable( foregroundChecks.get( source ) );
+		return Optional.ofNullable( toBoolConverters.get( source ) );
 	}
 
 	public synchronized Optional< FragmentSegmentAssignmentState > assignment( final Source< ? > source )

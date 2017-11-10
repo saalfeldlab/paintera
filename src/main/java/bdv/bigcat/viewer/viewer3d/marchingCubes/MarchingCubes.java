@@ -14,6 +14,7 @@ import net.imglib2.Interval;
 import net.imglib2.RandomAccessible;
 import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.realtransform.Translation;
+import net.imglib2.type.BooleanType;
 import net.imglib2.util.Intervals;
 import net.imglib2.view.SubsampleIntervalView;
 import net.imglib2.view.Views;
@@ -24,14 +25,14 @@ import net.imglib2.view.Views;
  *
  * @author Vanessa Leite
  * @author Philipp Hanslovsky
- * @param <T>
+ * @param <B>
  */
-public class MarchingCubes< T >
+public class MarchingCubes< B extends BooleanType< B > >
 {
 	/** logger */
 	private static final Logger LOGGER = LoggerFactory.getLogger( MarchingCubes.class );
 
-	private final RandomAccessible< T > input;
+	private final RandomAccessible< B > input;
 
 	private final Interval interval;
 
@@ -43,7 +44,7 @@ public class MarchingCubes< T >
 	/**
 	 * Initialize the class parameters with default values
 	 */
-	public MarchingCubes( final RandomAccessible< T > input, final Interval interval, final AffineTransform3D transform, final int[] cubeSize )
+	public MarchingCubes( final RandomAccessible< B > input, final Interval interval, final AffineTransform3D transform, final int[] cubeSize )
 	{
 		this.input = input;
 		this.interval = interval;
@@ -62,19 +63,19 @@ public class MarchingCubes< T >
 	 *            generic interface to access the information on RAI
 	 * @return SimpleMesh, basically an array with the vertices
 	 */
-	public float[] generateMesh( final ForegroundCheck< T > foregroundCheck )
+	public float[] generateMesh()
 	{
 		final long[] stride = Arrays.stream( cubeSize ).mapToLong( i -> i ).toArray();
 		final FinalInterval expandedInterval = Intervals.expand( interval, Arrays.stream( stride ).map( s -> s + 1 ).toArray() );
-		final SubsampleIntervalView< T > subsampled = Views.subsample( Views.interval( input, expandedInterval ), stride );
-		final Cursor< T > cursor0 = Views.flatIterable( Views.interval( Views.offset( subsampled, 0, 0, 0 ), subsampled ) ).localizingCursor();
-		final Cursor< T > cursor1 = Views.flatIterable( Views.interval( Views.offset( subsampled, 1, 0, 0 ), subsampled ) ).cursor();
-		final Cursor< T > cursor2 = Views.flatIterable( Views.interval( Views.offset( subsampled, 0, 1, 0 ), subsampled ) ).cursor();
-		final Cursor< T > cursor3 = Views.flatIterable( Views.interval( Views.offset( subsampled, 1, 1, 0 ), subsampled ) ).cursor();
-		final Cursor< T > cursor4 = Views.flatIterable( Views.interval( Views.offset( subsampled, 0, 0, 1 ), subsampled ) ).cursor();
-		final Cursor< T > cursor5 = Views.flatIterable( Views.interval( Views.offset( subsampled, 1, 0, 1 ), subsampled ) ).cursor();
-		final Cursor< T > cursor6 = Views.flatIterable( Views.interval( Views.offset( subsampled, 0, 1, 1 ), subsampled ) ).cursor();
-		final Cursor< T > cursor7 = Views.flatIterable( Views.interval( Views.offset( subsampled, 1, 1, 1 ), subsampled ) ).cursor();
+		final SubsampleIntervalView< B > subsampled = Views.subsample( Views.interval( input, expandedInterval ), stride );
+		final Cursor< B > cursor0 = Views.flatIterable( Views.interval( Views.offset( subsampled, 0, 0, 0 ), subsampled ) ).localizingCursor();
+		final Cursor< B > cursor1 = Views.flatIterable( Views.interval( Views.offset( subsampled, 1, 0, 0 ), subsampled ) ).cursor();
+		final Cursor< B > cursor2 = Views.flatIterable( Views.interval( Views.offset( subsampled, 0, 1, 0 ), subsampled ) ).cursor();
+		final Cursor< B > cursor3 = Views.flatIterable( Views.interval( Views.offset( subsampled, 1, 1, 0 ), subsampled ) ).cursor();
+		final Cursor< B > cursor4 = Views.flatIterable( Views.interval( Views.offset( subsampled, 0, 0, 1 ), subsampled ) ).cursor();
+		final Cursor< B > cursor5 = Views.flatIterable( Views.interval( Views.offset( subsampled, 1, 0, 1 ), subsampled ) ).cursor();
+		final Cursor< B > cursor6 = Views.flatIterable( Views.interval( Views.offset( subsampled, 0, 1, 1 ), subsampled ) ).cursor();
+		final Cursor< B > cursor7 = Views.flatIterable( Views.interval( Views.offset( subsampled, 1, 1, 1 ), subsampled ) ).cursor();
 		final Translation translation = new Translation( Arrays.stream( Intervals.minAsLongArray( expandedInterval ) ).mapToDouble( l -> l ).toArray() );
 
 		final TFloatArrayList vertices = new TFloatArrayList();
@@ -114,14 +115,14 @@ public class MarchingCubes< T >
 			// This way, we need to remap the cube vertices:
 			// @formatter:on
 			final int vertexValues =
-					( foregroundCheck.test( cursor5.next() ) & 1 ) << 0 |
-							( foregroundCheck.test( cursor7.next() ) & 1 ) << 1 |
-							( foregroundCheck.test( cursor3.next() ) & 1 ) << 2 |
-							( foregroundCheck.test( cursor1.next() ) & 1 ) << 3 |
-							( foregroundCheck.test( cursor4.next() ) & 1 ) << 4 |
-							( foregroundCheck.test( cursor6.next() ) & 1 ) << 5 |
-							( foregroundCheck.test( cursor2.next() ) & 1 ) << 6 |
-							( foregroundCheck.test( cursor0.next() ) & 1 ) << 7;
+					( cursor5.next().get() ? 1 : 0 ) << 0 |
+							( cursor7.next().get() ? 1 : 0 ) << 1 |
+							( cursor3.next().get() ? 1 : 0 ) << 2 |
+							( cursor1.next().get() ? 1 : 0 ) << 3 |
+							( cursor4.next().get() ? 1 : 0 ) << 4 |
+							( cursor6.next().get() ? 1 : 0 ) << 5 |
+							( cursor2.next().get() ? 1 : 0 ) << 6 |
+							( cursor0.next().get() ? 1 : 0 ) << 7;
 
 			// @formatter:off
 //			System.out.println( " " + cursors[ 4 ].get() + "------" + cursors[ 6 ].get() );
@@ -151,9 +152,9 @@ public class MarchingCubes< T >
 			p[ 2 ] = vertices.get( i + 2 );
 			translation.apply( p, p );
 			transform.apply( p, p );
-			vertexArray[ i + 0 ] = ( float )p[ 0 ];
-			vertexArray[ i + 1 ] = ( float )p[ 1 ];
-			vertexArray[ i + 2 ] = ( float )p[ 2 ];
+			vertexArray[ i + 0 ] = ( float ) p[ 0 ];
+			vertexArray[ i + 1 ] = ( float ) p[ 1 ];
+			vertexArray[ i + 2 ] = ( float ) p[ 2 ];
 		}
 
 		return vertexArray;
@@ -179,7 +180,7 @@ public class MarchingCubes< T >
 			final long cursorY,
 			final long cursorZ,
 			final TFloatArrayList vertices,
-			final float[][] interpolationPoints)
+			final float[][] interpolationPoints )
 	{
 		// @formatter:off
 		// this algorithm (based on http://paulbourke.net/geometry/polygonise/)

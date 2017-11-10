@@ -18,7 +18,6 @@ import bdv.bigcat.viewer.state.FragmentSegmentAssignmentState;
 import bdv.bigcat.viewer.state.GlobalTransformManager;
 import bdv.bigcat.viewer.state.SelectedIds;
 import bdv.bigcat.viewer.viewer3d.Viewer3DControllerFX;
-import bdv.bigcat.viewer.viewer3d.marchingCubes.ForegroundCheck;
 import bdv.labels.labelset.Label;
 import bdv.viewer.Interpolation;
 import bdv.viewer.Source;
@@ -29,7 +28,9 @@ import net.imglib2.Interval;
 import net.imglib2.RandomAccessible;
 import net.imglib2.RealPoint;
 import net.imglib2.RealRandomAccess;
+import net.imglib2.converter.Converter;
 import net.imglib2.realtransform.AffineTransform3D;
+import net.imglib2.type.logic.BoolType;
 import net.imglib2.view.Views;
 
 /**
@@ -87,12 +88,12 @@ public class RenderNeuron
 				if ( source instanceof DataSource< ?, ? > )
 				{
 					final DataSource< ?, ? > dataSource = ( DataSource< ?, ? > ) source;
-					final Optional< Function< ?, ForegroundCheck< ? > > > foregroundCheck = sourceInfo.foregroundCheck( source );
+					final Optional< Function< ?, Converter< ?, BoolType > > > toBoolConverter = sourceInfo.toBoolConverter( source );
 					final Optional< ToIdConverter > idConverter = sourceInfo.toIdConverter( source );
 					final Optional< SelectedIds > selectedIds = sourceInfo.selectedIds( source, mode );
 					final Optional< FragmentSegmentAssignmentState > assignment = sourceInfo.assignment( source );
 					final Optional< ARGBStream > stream = sourceInfo.stream( source, mode );
-					if ( foregroundCheck.isPresent() && idConverter.isPresent() && selectedIds.isPresent() && assignment.isPresent() && stream.isPresent() )
+					if ( toBoolConverter.isPresent() && idConverter.isPresent() && selectedIds.isPresent() && assignment.isPresent() && stream.isPresent() )
 					{
 						final AffineTransform3D viewerTransform = new AffineTransform3D();
 						state.getViewerTransform( viewerTransform );
@@ -133,7 +134,7 @@ public class RenderNeuron
 								final int[] partitionSize = { 60, 60, 10 };
 								final int[] cubeSize = { 10, 10, 1 };
 
-								final Function getForegroundCheck = foregroundCheck.get();
+								final Function getForegroundCheck = toBoolConverter.get();
 								new Thread( () -> {
 									v3dControl.generateMesh(
 											volumes[ 0 ],
