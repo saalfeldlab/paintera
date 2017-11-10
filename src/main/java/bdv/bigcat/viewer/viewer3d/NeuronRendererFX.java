@@ -217,7 +217,7 @@ public class NeuronRendererFX< T, F extends FragmentSegmentAssignmentState< F > 
 			final NeuronFX< T > neuron = new NeuronFX<>( interval, root );
 			this.neuron.set( Optional.of( neuron ) );
 			final float[] blub = new float[ 3 ];
-			final int color = stream.argb( selectedFragmentId );
+			final int color = desaturate( stream.argb( selectedFragmentId ), 0.25 );
 			initialLocationInImageCoordinates.localize( blub );
 			toWorldCoordinates.apply( blub, blub );
 //			camera.setTranslateX( blub[ 0 ] - 500 );
@@ -233,6 +233,17 @@ public class NeuronRendererFX< T, F extends FragmentSegmentAssignmentState< F > 
 			neuron.meshes().addEventHandler( MouseEvent.MOUSE_PRESSED, idSelector );
 
 		}
+	}
+
+	private static int desaturate( final int argb, final double amount )
+	{
+		final double normalize = 1.0 + amount;
+
+		final int r = ( int )Math.round( ( ( ( argb >> 16 ) & 0xff ) / 255.0 + amount ) / normalize * 255 );
+		final int g = ( int )Math.round( ( ( ( argb >> 8 ) & 0xff ) / 255.0 + amount ) / normalize * 255 );
+		final int b = ( int )Math.round( ( ( argb & 0xff ) / 255.0 + amount ) / normalize * 255 );
+
+		return ( argb & 0xff000000 ) | ( r << 16 ) | ( g << 8 ) | b;
 	}
 
 	public long fragmentId()
