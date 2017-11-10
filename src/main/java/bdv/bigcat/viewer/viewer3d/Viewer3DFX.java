@@ -110,8 +110,6 @@ public class Viewer3DFX extends Pane
 		initialTransform.prependScale( sf, sf, sf );
 		affine.setToTransform( initialTransform );
 
-		affine.prependRotation( 90, centerX, centerY, 0, yNormal );
-
 		final Rotate rotate = new Rotate( "rotate 3d", new SimpleDoubleProperty( 1.0 ), 1.0, MouseEvent::isPrimaryButtonDown );
 		rotate.installInto( this );
 
