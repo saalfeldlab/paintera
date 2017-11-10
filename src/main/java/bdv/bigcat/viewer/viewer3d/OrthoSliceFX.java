@@ -36,8 +36,8 @@ public class OrthoSliceFX
 
 	private final MeshView mv = new MeshView( mesh );
 
-	// 30ms
-	LatestTaskExecutor es = new LatestTaskExecutor( 30 * 1000 * 1000 );
+	// no delay
+	LatestTaskExecutor es = new LatestTaskExecutor( 0 );
 
 	private final PhongMaterial material;
 
