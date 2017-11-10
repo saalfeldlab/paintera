@@ -1,12 +1,10 @@
 package bdv.img.h5;
 
-import java.util.Arrays;
-
 import bdv.img.cache.CacheArrayLoader;
-import ch.systemsx.cisd.base.mdarray.MDByteArray;
-import ch.systemsx.cisd.hdf5.IHDF5ByteReader;
 import ch.systemsx.cisd.hdf5.IHDF5Reader;
-import net.imglib2.img.basictypeaccess.volatiles.array.VolatileByteArray;
+import net.imglib2.cache.img.SingleCellArrayImg;
+import net.imglib2.img.basictypeaccess.volatiles.array.DirtyVolatileByteArray;
+import net.imglib2.type.numeric.integer.UnsignedByteType;
 
 /**
  * {@link CacheArrayLoader} for
@@ -14,18 +12,15 @@ import net.imglib2.img.basictypeaccess.volatiles.array.VolatileByteArray;
  *
  * @author Stephan Saalfeld <saalfelds@janelia.hhmi.org>
  */
-public class H5ByteArrayLoader implements CacheArrayLoader< VolatileByteArray >
+public class H5ByteArrayLoader implements CacheArrayLoader< DirtyVolatileByteArray >
 {
-	final private IHDF5ByteReader reader;
-
-	final private String dataset;
+	final private H5CellLoader< UnsignedByteType > loader;
 
 	public H5ByteArrayLoader(
 			final IHDF5Reader reader,
 			final String dataset )
 	{
-		this.reader = reader.uint8();
-		this.dataset = dataset;
+		this.loader = new H5CellLoader<>( reader, dataset );
 	}
 
 	@Override
@@ -36,32 +31,20 @@ public class H5ByteArrayLoader implements CacheArrayLoader< VolatileByteArray >
 
 
 	@Override
-	public VolatileByteArray loadArray(
+	public DirtyVolatileByteArray loadArray(
 			final int timepoint,
 			final int setup,
 			final int level,
 			final int[] dimensions,
 			final long[] min ) throws InterruptedException
 	{
-		byte[] data = null;
-		final MDByteArray slice = reader.readMDArrayBlockWithOffset(
-				dataset,
-				new int[]{ dimensions[ 2 ], dimensions[ 1 ], dimensions[ 0 ] },
-				new long[]{ min[ 2 ], min[ 1 ], min[ 0 ] } );
+		final byte[] data = new byte[ dimensions[ 2 ] * dimensions[ 1 ] * dimensions[ 0 ] ];
+		final DirtyVolatileByteArray cellData = new DirtyVolatileByteArray( data, true );
+		final SingleCellArrayImg< UnsignedByteType, DirtyVolatileByteArray > cell = new SingleCellArrayImg< UnsignedByteType, DirtyVolatileByteArray >( dimensions, min, cellData, cellData );
+		final UnsignedByteType linkedType = new UnsignedByteType( cell );
+		cell.setLinkedType( linkedType );
+		loader.load( cell );
 
-		data = slice.getAsFlatArray();
-
-		if ( data == null )
-		{
-			System.out.println(
-					"H5 byte array loader failed loading min = " +
-					Arrays.toString( min ) +
-					", dimensions = " +
-					Arrays.toString( dimensions ) );
-
-			data = new byte[ dimensions[ 0 ] * dimensions[ 1 ] * dimensions[ 2 ] ];
-		}
-
-		return new VolatileByteArray( data, true );
+		return cellData;
 	}
 }

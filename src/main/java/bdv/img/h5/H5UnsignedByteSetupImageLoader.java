@@ -4,7 +4,7 @@ import java.io.IOException;
 
 import bdv.img.cache.VolatileGlobalCellCache;
 import ch.systemsx.cisd.hdf5.IHDF5Reader;
-import net.imglib2.img.basictypeaccess.volatiles.array.VolatileByteArray;
+import net.imglib2.img.basictypeaccess.volatiles.array.DirtyVolatileByteArray;
 import net.imglib2.type.numeric.integer.UnsignedByteType;
 import net.imglib2.type.volatiles.VolatileUnsignedByteType;
 
@@ -13,7 +13,7 @@ import net.imglib2.type.volatiles.VolatileUnsignedByteType;
  * @author Stephan Saalfeld &lt;saalfelds@janelia.hhmi.org&gt;
  */
 public class H5UnsignedByteSetupImageLoader
-		extends AbstractH5SetupImageLoader< UnsignedByteType, VolatileUnsignedByteType, VolatileByteArray >
+		extends AbstractH5SetupImageLoader< UnsignedByteType, VolatileUnsignedByteType, DirtyVolatileByteArray >
 {
 	public H5UnsignedByteSetupImageLoader(
 			final IHDF5Reader reader,
