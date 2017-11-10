@@ -25,18 +25,6 @@ public class Highlights extends AbstractStateMode
 
 	private final SourceInfo sourceInfo;
 
-//	private final HashMap< Source< ? >, Source< ? > > dataSources = new HashMap<>();
-//
-//	private final HashMap< Source< ? >, ToIdConverter > toIdConverters = new HashMap<>();
-//
-//	private final HashMap< Source< ? >, Function< ?, ForegroundCheck< ? > > > foregroundChecks = new HashMap<>();
-//
-//	private final HashMap< Source< ? >, FragmentSegmentAssignmentState > frags = new HashMap<>();
-//
-//	private final HashMap< Source< ? >, ARGBStream > streams = new HashMap<>();
-//
-//	private final HashMap< Source< ? >, SelectedIds > selectedIds;
-
 	private final HashMap< ViewerPanelFX, Collection< InstallAndRemove< Node > > > mouseAndKeyHandlers = new HashMap<>();
 
 	private final KeyTracker keyTracker;
