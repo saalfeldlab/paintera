@@ -12,7 +12,6 @@ import bdv.bigcat.viewer.state.FragmentSegmentAssignmentWithHistory;
 import bdv.bigcat.viewer.state.SelectedIds;
 import bdv.bigcat.viewer.stream.AbstractHighlightingARGBStream;
 import bdv.bigcat.viewer.stream.ModalGoldenAngleSaturatedHighlightingARGBStream;
-import bdv.bigcat.viewer.viewer3d.marchingCubes.ForegroundCheck;
 import bdv.img.cache.VolatileGlobalCellCache;
 import bdv.img.h5.H5LabelMultisetSetupImageLoader;
 import bdv.labels.labelset.Label;
@@ -208,31 +207,6 @@ public class HDF5LabelMultisetDataSource implements LabelDataSource< LabelMultis
 	public Optional< String > uri()
 	{
 		return Optional.of( uri );
-	}
-
-	@Override
-	public ForegroundCheck< LabelMultisetType > foregroundCheck( final LabelMultisetType selection )
-	{
-		final long id = maxCountId( selection );
-		final FragmentSegmentAssignmentState< ? > assignment = getAssignment();
-		final long segmentId = assignment.getSegment( id );
-		return t -> assignment.getSegment( maxCountId( t ) ) == segmentId ? 1 : 0;
-	}
-
-	public static long maxCountId( final LabelMultisetType t )
-	{
-		long argMaxLabel = Label.INVALID;
-		long argMaxCount = 0;
-		for ( final Entry< Label > entry : t.entrySet() )
-		{
-			final int count = entry.getCount();
-			if ( count > argMaxCount )
-			{
-				argMaxCount = count;
-				argMaxLabel = entry.getElement().id();
-			}
-		}
-		return argMaxLabel;
 	}
 
 	@Override

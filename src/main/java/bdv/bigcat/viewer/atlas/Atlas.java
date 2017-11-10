@@ -38,6 +38,7 @@ import bdv.bigcat.viewer.stream.ModalGoldenAngleSaturatedHighlightingARGBStream;
 import bdv.bigcat.viewer.viewer3d.OrthoSliceFX;
 import bdv.bigcat.viewer.viewer3d.Viewer3DControllerFX;
 import bdv.bigcat.viewer.viewer3d.Viewer3DFX;
+import bdv.bigcat.viewer.viewer3d.marchingCubes.ForegroundCheck;
 import bdv.img.cache.VolatileGlobalCellCache;
 import bdv.labels.labelset.LabelMultisetType;
 import bdv.labels.labelset.Multiset.Entry;
@@ -385,7 +386,7 @@ public class Atlas
 		} );
 
 		addSource( src, comp );
-		sourceInfo.addLabelSource( vsource, ToIdConverter.fromLabelMultisetType(), ( ( LabelDataSource ) spec )::foregroundCheck, assignment, streamsMap, selIdsMap );
+		sourceInfo.addLabelSource( vsource, ToIdConverter.fromLabelMultisetType(), ( Function< LabelMultisetType, ForegroundCheck< LabelMultisetType > > ) sel -> foregroundCheck( sel, assignment ), assignment, streamsMap, selIdsMap );
 		Optional.ofNullable( currentMode.get() ).ifPresent( setConverter::accept );
 
 		final LabelMultisetType t = vsource.getDataType();
@@ -498,5 +499,28 @@ public class Atlas
 	public void setTransform( final AffineTransform3D transform )
 	{
 		this.baseView().setTransform( transform );
+	}
+
+	public static ForegroundCheck< LabelMultisetType > foregroundCheck( final LabelMultisetType selection, final FragmentSegmentAssignmentState< ? > assignment )
+	{
+		final long id = maxCountId( selection );
+		final long segmentId = assignment.getSegment( id );
+		return t -> assignment.getSegment( maxCountId( t ) ) == segmentId ? 1 : 0;
+	}
+
+	public static long maxCountId( final LabelMultisetType t )
+	{
+		long argMaxLabel = bdv.labels.labelset.Label.INVALID;
+		long argMaxCount = 0;
+		for ( final Entry< bdv.labels.labelset.Label > entry : t.entrySet() )
+		{
+			final int count = entry.getCount();
+			if ( count > argMaxCount )
+			{
+				argMaxCount = count;
+				argMaxLabel = entry.getElement().id();
+			}
+		}
+		return argMaxLabel;
 	}
 }
