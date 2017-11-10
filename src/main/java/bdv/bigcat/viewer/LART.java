@@ -54,7 +54,7 @@ public class LART
 		// need to add resolution to Constantin's data!
 		final String rawFile = "/data/hanslovskyp/constantin-example-data/data/raw.h5";
 		PlatformImpl.startup( () -> {} );
-		final String rawDataset = "data";
+		final String rawDataset = "data_u8";
 		final String labelsFile = "/data/hanslovskyp/constantin-example-data/data/seg.h5";
 		final String labelsDataset = "data";
 
