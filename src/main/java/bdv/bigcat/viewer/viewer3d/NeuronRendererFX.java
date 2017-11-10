@@ -15,6 +15,8 @@ import bdv.bigcat.viewer.state.StateListener;
 import bdv.bigcat.viewer.util.InvokeOnJavaFXApplicationThread;
 import gnu.trove.list.array.TFloatArrayList;
 import gnu.trove.list.array.TIntArrayList;
+import javafx.animation.KeyFrame;
+import javafx.animation.Timeline;
 import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.collections.ObservableFloatArray;
@@ -29,6 +31,7 @@ import javafx.scene.shape.MeshView;
 import javafx.scene.shape.ObservableFaceArray;
 import javafx.scene.shape.TriangleMesh;
 import javafx.stage.FileChooser;
+import javafx.util.Duration;
 import net.imglib2.Interval;
 import net.imglib2.Localizable;
 import net.imglib2.Point;
@@ -153,13 +156,34 @@ public class NeuronRendererFX< T, F extends FragmentSegmentAssignmentState< F > 
 		final AffineTransform3D globalTransform = new AffineTransform3D();
 		transformManager.addListener( globalTransform::set );
 		centerSlicesAt.setOnAction( event -> {
-			globalTransform.setTranslation( 0, 0, 0 );
+			final int N = 100;
+			final AffineTransform3D source = globalTransform.copy();
+
+			final AffineTransform3D target = source.copy();
+			target.setTranslation( 0, 0, 0 );
+
 			final AffineTransform3D translation = new AffineTransform3D();
 			translation.setTranslation(
 					-clickedPoint.getDoublePosition( 0 ),
 					-clickedPoint.getDoublePosition( 1 ),
 					-clickedPoint.getDoublePosition( 2 ) );
-			transformManager.setTransform( globalTransform.concatenate( translation ) );
+			target.concatenate( translation );
+			System.out.println( target + " " + source );
+
+			final double[] start = source.getRowPackedCopy();
+			final double[] stop = target.getRowPackedCopy();
+			final double[] step = new double[ start.length ];
+			for ( int d = 0; d < start.length; ++d )
+				step[ d ] = ( stop[ d ] - start[ d ] ) / N;
+
+			final Timeline tl = new Timeline( new KeyFrame( Duration.millis( 500.0 / N ), ev -> {
+				for ( int d = 0; d < start.length; ++d )
+					start[ d ] += step[ d ];
+				target.set( start );
+				transformManager.setTransform( target );
+			} ) );
+			tl.setCycleCount( N );
+			tl.play();
 		} );
 		menuOpener = event -> {
 			if ( event.isSecondaryButtonDown() && event.isShiftDown() && neuron.get().isPresent() )
