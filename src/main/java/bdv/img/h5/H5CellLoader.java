@@ -38,7 +38,6 @@ public class H5CellLoader< T extends NativeType< T > > implements CellLoader< T 
 					for ( int i = 0; i < data.length; ++i )
 						c.next().setByte( data[ i ] );
 				} : ( img ) -> {
-					System.out.println( net.imglib2.util.Util.printInterval( img ) );
 					final byte[] data = reader.uint8().readMDArrayBlockWithOffset(
 							dataset,
 							Util.reorder( Intervals.dimensionsAsIntArray( img ) ),

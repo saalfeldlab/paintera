@@ -12,7 +12,6 @@ import net.imglib2.Cursor;
 import net.imglib2.FinalInterval;
 import net.imglib2.Interval;
 import net.imglib2.RandomAccessible;
-import net.imglib2.RealPoint;
 import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.realtransform.Translation;
 import net.imglib2.util.Intervals;
@@ -68,21 +67,22 @@ public class MarchingCubes< T >
 		final long[] stride = Arrays.stream( cubeSize ).mapToLong( i -> i ).toArray();
 		final FinalInterval expandedInterval = Intervals.expand( interval, Arrays.stream( stride ).map( s -> s + 1 ).toArray() );
 		final SubsampleIntervalView< T > subsampled = Views.subsample( Views.interval( input, expandedInterval ), stride );
-		final Cursor< T >[] cursors = new Cursor[ 8 ];
-		cursors[ 0 ] = Views.flatIterable( Views.interval( Views.offset( subsampled, 0, 0, 0 ), subsampled ) ).localizingCursor();
-		cursors[ 1 ] = Views.flatIterable( Views.interval( Views.offset( subsampled, 1, 0, 0 ), subsampled ) ).cursor();
-		cursors[ 2 ] = Views.flatIterable( Views.interval( Views.offset( subsampled, 0, 1, 0 ), subsampled ) ).cursor();
-		cursors[ 3 ] = Views.flatIterable( Views.interval( Views.offset( subsampled, 1, 1, 0 ), subsampled ) ).cursor();
-		cursors[ 4 ] = Views.flatIterable( Views.interval( Views.offset( subsampled, 0, 0, 1 ), subsampled ) ).cursor();
-		cursors[ 5 ] = Views.flatIterable( Views.interval( Views.offset( subsampled, 1, 0, 1 ), subsampled ) ).cursor();
-		cursors[ 6 ] = Views.flatIterable( Views.interval( Views.offset( subsampled, 0, 1, 1 ), subsampled ) ).cursor();
-		cursors[ 7 ] = Views.flatIterable( Views.interval( Views.offset( subsampled, 1, 1, 1 ), subsampled ) ).cursor();
+		final Cursor< T > cursor0 = Views.flatIterable( Views.interval( Views.offset( subsampled, 0, 0, 0 ), subsampled ) ).localizingCursor();
+		final Cursor< T > cursor1 = Views.flatIterable( Views.interval( Views.offset( subsampled, 1, 0, 0 ), subsampled ) ).cursor();
+		final Cursor< T > cursor2 = Views.flatIterable( Views.interval( Views.offset( subsampled, 0, 1, 0 ), subsampled ) ).cursor();
+		final Cursor< T > cursor3 = Views.flatIterable( Views.interval( Views.offset( subsampled, 1, 1, 0 ), subsampled ) ).cursor();
+		final Cursor< T > cursor4 = Views.flatIterable( Views.interval( Views.offset( subsampled, 0, 0, 1 ), subsampled ) ).cursor();
+		final Cursor< T > cursor5 = Views.flatIterable( Views.interval( Views.offset( subsampled, 1, 0, 1 ), subsampled ) ).cursor();
+		final Cursor< T > cursor6 = Views.flatIterable( Views.interval( Views.offset( subsampled, 0, 1, 1 ), subsampled ) ).cursor();
+		final Cursor< T > cursor7 = Views.flatIterable( Views.interval( Views.offset( subsampled, 1, 1, 1 ), subsampled ) ).cursor();
 		final Translation translation = new Translation( Arrays.stream( Intervals.minAsLongArray( expandedInterval ) ).mapToDouble( l -> l ).toArray() );
 
 		final TFloatArrayList vertices = new TFloatArrayList();
-		final RealPoint p = new RealPoint( interval.numDimensions() );
+		final double[] p = new double[ 3 ];
 
-		while ( cursors[ 0 ].hasNext() )
+		final float[][] interpolationPoints = new float[ 12 ][ 3 ];
+
+		while ( cursor0.hasNext() )
 		{
 
 			// Remap the vertices of the cube (8 positions) obtained from a RAI
@@ -114,14 +114,14 @@ public class MarchingCubes< T >
 			// This way, we need to remap the cube vertices:
 			// @formatter:on
 			final int vertexValues =
-					( foregroundCheck.test( cursors[ 5 ].next() ) & 1 ) << 0 |
-							( foregroundCheck.test( cursors[ 7 ].next() ) & 1 ) << 1 |
-							( foregroundCheck.test( cursors[ 3 ].next() ) & 1 ) << 2 |
-							( foregroundCheck.test( cursors[ 1 ].next() ) & 1 ) << 3 |
-							( foregroundCheck.test( cursors[ 4 ].next() ) & 1 ) << 4 |
-							( foregroundCheck.test( cursors[ 6 ].next() ) & 1 ) << 5 |
-							( foregroundCheck.test( cursors[ 2 ].next() ) & 1 ) << 6 |
-							( foregroundCheck.test( cursors[ 0 ].next() ) & 1 ) << 7;
+					( foregroundCheck.test( cursor5.next() ) & 1 ) << 0 |
+							( foregroundCheck.test( cursor7.next() ) & 1 ) << 1 |
+							( foregroundCheck.test( cursor3.next() ) & 1 ) << 2 |
+							( foregroundCheck.test( cursor1.next() ) & 1 ) << 3 |
+							( foregroundCheck.test( cursor4.next() ) & 1 ) << 4 |
+							( foregroundCheck.test( cursor6.next() ) & 1 ) << 5 |
+							( foregroundCheck.test( cursor2.next() ) & 1 ) << 6 |
+							( foregroundCheck.test( cursor0.next() ) & 1 ) << 7;
 
 			// @formatter:off
 //			System.out.println( " " + cursors[ 4 ].get() + "------" + cursors[ 6 ].get() );
@@ -134,10 +134,11 @@ public class MarchingCubes< T >
 
 			triangulation(
 					vertexValues,
-					cursors[ 0 ].getLongPosition( 0 ),
-					cursors[ 0 ].getLongPosition( 1 ),
-					cursors[ 0 ].getLongPosition( 2 ),
-					vertices );
+					cursor0.getLongPosition( 0 ),
+					cursor0.getLongPosition( 1 ),
+					cursor0.getLongPosition( 2 ),
+					vertices,
+					interpolationPoints );
 
 		}
 
@@ -145,14 +146,14 @@ public class MarchingCubes< T >
 
 		for ( int i = 0; i < vertexArray.length; i += 3 )
 		{
-			p.setPosition( vertices.get( i + 0 ), 0 );
-			p.setPosition( vertices.get( i + 1 ), 1 );
-			p.setPosition( vertices.get( i + 2 ), 2 );
+			p[ 0 ] = vertices.get( i + 0 );
+			p[ 1 ] = vertices.get( i + 1 );
+			p[ 2 ] = vertices.get( i + 2 );
 			translation.apply( p, p );
 			transform.apply( p, p );
-			vertexArray[ i + 0 ] = p.getFloatPosition( 0 );
-			vertexArray[ i + 1 ] = p.getFloatPosition( 1 );
-			vertexArray[ i + 2 ] = p.getFloatPosition( 2 );
+			vertexArray[ i + 0 ] = ( float )p[ 0 ];
+			vertexArray[ i + 1 ] = ( float )p[ 1 ];
+			vertexArray[ i + 2 ] = ( float )p[ 2 ];
 		}
 
 		return vertexArray;
@@ -177,7 +178,8 @@ public class MarchingCubes< T >
 			final long cursorX,
 			final long cursorY,
 			final long cursorZ,
-			final TFloatArrayList vertices )
+			final TFloatArrayList vertices,
+			final float[][] interpolationPoints)
 	{
 		// @formatter:off
 		// this algorithm (based on http://paulbourke.net/geometry/polygonise/)
@@ -212,51 +214,52 @@ public class MarchingCubes< T >
 		// @formatter: on
 
 		// Now create a triangulation of the isosurface in this cell.
-		final float[][] interpolationPoints = new float[ 12 ][];
-		if (MarchingCubesTables.MC_EDGE_TABLE[tableIndex] != 0)
+		final int McEdge = MarchingCubesTables.MC_EDGE_TABLE[tableIndex];
+		if (McEdge != 0)
 		{
-			if ((MarchingCubesTables.MC_EDGE_TABLE[tableIndex] & 1) != 0)
-				interpolationPoints[ 0 ] = calculateIntersection(cursorX, cursorY, cursorZ, 0);
+			if ((McEdge & 1) != 0)
+				calculateIntersection(cursorX, cursorY, cursorZ, 0, interpolationPoints[ 0 ]);
 
-			if ((MarchingCubesTables.MC_EDGE_TABLE[tableIndex] & 2) != 0)
-				interpolationPoints[ 1 ] = calculateIntersection(cursorX, cursorY, cursorZ, 1);
+			if ((McEdge & 2) != 0)
+				calculateIntersection(cursorX, cursorY, cursorZ, 1, interpolationPoints[ 1 ]);
 
-			if ((MarchingCubesTables.MC_EDGE_TABLE[tableIndex] & 4) != 0)
-				interpolationPoints[ 2 ] = calculateIntersection(cursorX, cursorY, cursorZ, 2);
+			if ((McEdge & 4) != 0)
+				calculateIntersection(cursorX, cursorY, cursorZ, 2, interpolationPoints[ 2 ]);
 
-			if ((MarchingCubesTables.MC_EDGE_TABLE[tableIndex] & 8) != 0)
-				interpolationPoints[ 3 ] = calculateIntersection(cursorX, cursorY, cursorZ, 3);
+			if ((McEdge & 8) != 0)
+				calculateIntersection(cursorX, cursorY, cursorZ, 3, interpolationPoints[ 3 ]);
 
-			if ((MarchingCubesTables.MC_EDGE_TABLE[tableIndex] & 16) != 0)
-				interpolationPoints[ 4 ] = calculateIntersection(cursorX, cursorY, cursorZ, 4);
+			if ((McEdge & 16) != 0)
+				calculateIntersection(cursorX, cursorY, cursorZ, 4, interpolationPoints[ 4 ]);
 
-			if ((MarchingCubesTables.MC_EDGE_TABLE[tableIndex] & 32) != 0)
-				interpolationPoints[ 5 ] = calculateIntersection(cursorX, cursorY, cursorZ, 5);
+			if ((McEdge & 32) != 0)
+				calculateIntersection(cursorX, cursorY, cursorZ, 5, interpolationPoints[ 5 ]);
 
-			if ((MarchingCubesTables.MC_EDGE_TABLE[tableIndex] & 64) != 0)
-				interpolationPoints[ 6 ] = calculateIntersection(cursorX, cursorY, cursorZ, 6);
+			if ((McEdge & 64) != 0)
+				calculateIntersection(cursorX, cursorY, cursorZ, 6, interpolationPoints[ 6 ]);
 
-			if ((MarchingCubesTables.MC_EDGE_TABLE[tableIndex] & 128) != 0)
-				interpolationPoints[ 7 ] = calculateIntersection(cursorX, cursorY, cursorZ, 7);
+			if ((McEdge & 128) != 0)
+				calculateIntersection(cursorX, cursorY, cursorZ, 7, interpolationPoints[ 7 ]);
 
-			if ((MarchingCubesTables.MC_EDGE_TABLE[tableIndex] & 256) != 0)
-				interpolationPoints[ 8 ] = calculateIntersection(cursorX, cursorY, cursorZ, 8);
+			if ((McEdge & 256) != 0)
+				calculateIntersection(cursorX, cursorY, cursorZ, 8, interpolationPoints[ 8 ]);
 
-			if ((MarchingCubesTables.MC_EDGE_TABLE[tableIndex] & 512) != 0)
-				interpolationPoints[ 9 ] = calculateIntersection(cursorX, cursorY, cursorZ, 9);
+			if ((McEdge & 512) != 0)
+				calculateIntersection(cursorX, cursorY, cursorZ, 9, interpolationPoints[ 9 ]);
 
-			if ((MarchingCubesTables.MC_EDGE_TABLE[tableIndex] & 1024) != 0)
-				interpolationPoints[ 10 ] = calculateIntersection(cursorX, cursorY, cursorZ, 10);
+			if ((McEdge & 1024) != 0)
+				calculateIntersection(cursorX, cursorY, cursorZ, 10, interpolationPoints[ 10 ]);
 
-			if ((MarchingCubesTables.MC_EDGE_TABLE[tableIndex] & 2048) != 0)
-				interpolationPoints[ 11 ] = calculateIntersection(cursorX, cursorY, cursorZ, 11);
+			if ((McEdge & 2048) != 0)
+				calculateIntersection(cursorX, cursorY, cursorZ, 11, interpolationPoints[ 11 ]);
 
-			for ( int i = 0; MarchingCubesTables.MC_TRI_TABLE[tableIndex][i] != MarchingCubesTables.Invalid; i += 3 )
+			final int[] McTri = MarchingCubesTables.MC_TRI_TABLE[tableIndex];
+
+			for ( int i = 0; McTri[i] != MarchingCubesTables.Invalid; i += 3 )
 			{
-
-				final float[] v1 = interpolationPoints[ MarchingCubesTables.MC_TRI_TABLE[ tableIndex ][ i ] ];
-				final float[] v2 = interpolationPoints[ MarchingCubesTables.MC_TRI_TABLE[ tableIndex ][ i + 1 ] ];
-				final float[] v3 = interpolationPoints[ MarchingCubesTables.MC_TRI_TABLE[ tableIndex ][ i + 2 ] ];
+				final float[] v1 = interpolationPoints[ McTri[ i ] ];
+				final float[] v2 = interpolationPoints[ McTri[ i + 1 ] ];
+				final float[] v3 = interpolationPoints[ McTri[ i + 2 ] ];
 
 				vertices.add( v1[ 0 ] );
 				vertices.add( v1[ 1 ] );
@@ -288,7 +291,7 @@ public class MarchingCubes< T >
 	 * @return
 	 *            intersected point in world coordinates
 	 */
-	private float[] calculateIntersection( final long cursorX, final long cursorY, final long cursorZ, final int intersectedEdge )
+	private void calculateIntersection( final long cursorX, final long cursorY, final long cursorZ, final int intersectedEdge, final float[] intersection )
 	{
 		LOGGER.trace("cursor position: " + cursorX + " " + cursorY + " " + cursorZ);
 		long v1x = cursorX, v1y = cursorY, v1z = cursorZ;
@@ -417,7 +420,9 @@ public class MarchingCubes< T >
 			break;
 		}
 
-		return new float[] { ( float ) ( 0.5 * cubeSize[ 0 ] * ( v1x + v2x ) ),  ( float ) ( 0.5 * cubeSize[ 1 ] * ( v1y + v2y ) ), ( float ) ( 0.5 * cubeSize[ 2 ] * ( v1z + v2z ) ) };
+		intersection[ 0 ] = ( float ) ( 0.5 * cubeSize[ 0 ] * ( v1x + v2x ) );
+		intersection[ 1 ] = ( float ) ( 0.5 * cubeSize[ 1 ] * ( v1y + v2y ) );
+		intersection[ 2 ] = ( float ) ( 0.5 * cubeSize[ 2 ] * ( v1z + v2z ) );
 	}
 
 	public static void surfaceNormals( final float[] triangles, final float[] normals ) {
