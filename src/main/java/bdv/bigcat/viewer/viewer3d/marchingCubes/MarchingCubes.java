@@ -93,10 +93,10 @@ public class MarchingCubes< T >
 			// way:
 			//
 			//
-			//  4------6
-			// /|     /|
+			//   4-----6
+			//  /|    /|
 			// 0-----2 |
-			// |5----|-7
+			// | 5---|-7
 			// |/    |/
 			// 1-----3
 			//
@@ -104,10 +104,10 @@ public class MarchingCubes< T >
 			// http://paulbourke.net/geometry/polygonise/)
 			// considers the vertices of the cube in this order:
 			//
-			//  4------5
-			// /|     /|
+			//   4-----5
+			//  /|    /|
 			// 7-----6 |
-			// |0----|-1
+			// | 0---|-1
 			// |/    |/
 			// 3-----2
 			//
@@ -183,10 +183,10 @@ public class MarchingCubes< T >
 		// this algorithm (based on http://paulbourke.net/geometry/polygonise/)
 		// considers the vertices of the cube in this order:
 		//
-		//  4------5
-		// /|     /|
+		//   4-----5
+		//  /|    /|
 		// 7-----6 |
-		// |0----|-1
+		// | 0---|-1
 		// |/    |/
 		// 3-----2
 		// @formatter:on
@@ -203,7 +203,7 @@ public class MarchingCubes< T >
 		//    *7* |        *5* |
 		//    /   |        /  *9*
 		//   7-----*6*----6    |
-		//   |    0----*0*-----1
+		//   |    0----*0*|----1
 		// *11*  /       *10* /
 		//   |  /         | *1*
 		//   |*3*         | /
