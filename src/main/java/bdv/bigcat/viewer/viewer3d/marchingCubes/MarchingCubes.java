@@ -115,14 +115,14 @@ public class MarchingCubes< B extends BooleanType< B > >
 			// This way, we need to remap the cube vertices:
 			// @formatter:on
 			final int vertexValues =
-					( cursor5.next().get() ? 1 : 0 ) << 0 |
-							( cursor7.next().get() ? 1 : 0 ) << 1 |
-							( cursor3.next().get() ? 1 : 0 ) << 2 |
-							( cursor1.next().get() ? 1 : 0 ) << 3 |
-							( cursor4.next().get() ? 1 : 0 ) << 4 |
-							( cursor6.next().get() ? 1 : 0 ) << 5 |
-							( cursor2.next().get() ? 1 : 0 ) << 6 |
-							( cursor0.next().get() ? 1 : 0 ) << 7;
+					( cursor5.next().get() ? 0b00000001 : 0 ) |
+					( cursor7.next().get() ? 0b00000010 : 0 ) |
+					( cursor3.next().get() ? 0b00000100 : 0 ) |
+					( cursor1.next().get() ? 0b00001000 : 0 ) |
+					( cursor4.next().get() ? 0b00010000 : 0 ) |
+					( cursor6.next().get() ? 0b00100000 : 0 ) |
+					( cursor2.next().get() ? 0b01000000 : 0 ) |
+					( cursor0.next().get() ? 0b10000000 : 0 );
 
 			// @formatter:off
 //			System.out.println( " " + cursors[ 4 ].get() + "------" + cursors[ 6 ].get() );

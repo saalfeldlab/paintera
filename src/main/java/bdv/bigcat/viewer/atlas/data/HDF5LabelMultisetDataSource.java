@@ -82,7 +82,7 @@ public class HDF5LabelMultisetDataSource implements LabelDataSource< LabelMultis
 			final int setupId ) throws IOException
 	{
 		super();
-		final IHDF5Reader h5reader = HDF5Factory.open( path );
+		final IHDF5Reader h5reader = HDF5Factory.openForReading( path );
 		// TODO Use better value for number of threads of shared queue
 		this.loader = new H5LabelMultisetSetupImageLoader( h5reader, null, dataset, setupId, cellSize, cellCache );
 		this.assignment = new FragmentSegmentAssignmentWithHistory( initialSolution.get(), actionBroadcaster, solutionFetcher );

@@ -1,5 +1,6 @@
 package bdv.bigcat.viewer.atlas;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -8,6 +9,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.function.Consumer;
 import java.util.function.Function;
+import java.util.function.Supplier;
 
 import bdv.bigcat.composite.ARGBCompositeAlphaAdd;
 import bdv.bigcat.composite.ARGBCompositeAlphaYCbCr;
@@ -21,6 +23,7 @@ import bdv.bigcat.viewer.atlas.data.ConverterDataSource;
 import bdv.bigcat.viewer.atlas.data.DataSource;
 import bdv.bigcat.viewer.atlas.data.HDF5LabelMultisetDataSource;
 import bdv.bigcat.viewer.atlas.data.LabelDataSource;
+import bdv.bigcat.viewer.atlas.data.RandomAccessibleIntervalDataSource;
 import bdv.bigcat.viewer.atlas.mode.Highlights;
 import bdv.bigcat.viewer.atlas.mode.Merges;
 import bdv.bigcat.viewer.atlas.mode.Mode;
@@ -38,14 +41,17 @@ import bdv.bigcat.viewer.stream.ModalGoldenAngleSaturatedHighlightingARGBStream;
 import bdv.bigcat.viewer.viewer3d.OrthoSliceFX;
 import bdv.bigcat.viewer.viewer3d.Viewer3DControllerFX;
 import bdv.bigcat.viewer.viewer3d.Viewer3DFX;
-import bdv.img.cache.VolatileGlobalCellCache;
+import bdv.img.h5.H5Utils;
 import bdv.labels.labelset.LabelMultisetType;
 import bdv.labels.labelset.Multiset.Entry;
 import bdv.labels.labelset.VolatileLabelMultisetType;
+import bdv.util.volatiles.SharedQueue;
+import bdv.util.volatiles.VolatileViews;
 import bdv.viewer.Interpolation;
 import bdv.viewer.Source;
 import bdv.viewer.SourceAndConverter;
 import bdv.viewer.ViewerOptions;
+import ch.systemsx.cisd.hdf5.HDF5Factory;
 import javafx.application.Application;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.event.EventHandler;
@@ -65,15 +71,21 @@ import javafx.stage.Modality;
 import javafx.stage.Stage;
 import javafx.stage.WindowEvent;
 import net.imglib2.Interval;
+import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.Volatile;
+import net.imglib2.cache.volatiles.CacheHints;
+import net.imglib2.cache.volatiles.LoadingStrategy;
 import net.imglib2.converter.Converter;
 import net.imglib2.converter.RealARGBConverter;
 import net.imglib2.interpolation.randomaccess.ClampingNLinearInterpolatorFactory;
+import net.imglib2.interpolation.randomaccess.NLinearInterpolatorFactory;
 import net.imglib2.interpolation.randomaccess.NearestNeighborInterpolatorFactory;
 import net.imglib2.realtransform.AffineTransform3D;
+import net.imglib2.type.NativeType;
 import net.imglib2.type.logic.BoolType;
 import net.imglib2.type.numeric.ARGBType;
 import net.imglib2.type.numeric.IntegerType;
+import net.imglib2.type.numeric.NumericType;
 import net.imglib2.type.numeric.RealType;
 import net.imglib2.type.volatiles.VolatileARGBType;
 
@@ -114,12 +126,12 @@ public class Atlas
 
 	private final SimpleObjectProperty< Mode > currentMode = new SimpleObjectProperty<>();
 
-	public Atlas( final Interval interval, final VolatileGlobalCellCache cellCache )
+	public Atlas( final Interval interval, final SharedQueue cellCache )
 	{
 		this( ViewerOptions.options(), interval, cellCache );
 	}
 
-	public Atlas( final ViewerOptions viewerOptions, final Interval interval, final VolatileGlobalCellCache cellCache )
+	public Atlas( final ViewerOptions viewerOptions, final Interval interval, final SharedQueue cellCache )
 	{
 		super();
 		this.viewerOptions = viewerOptions
@@ -523,5 +535,69 @@ public class Atlas
 			}
 		}
 		return argMaxLabel;
+	}
+
+	/**
+	 * Create a primitive single scale level source without visualization conversion from an H5 dataset.
+	 *
+	 * @param name
+	 * @param rawFile
+	 * @param rawDataset
+	 * @param rawCellSize
+	 * @param resolution
+	 * @param sharedQueue
+	 * @param priority
+	 * @param typeSupplier
+	 * @param volatileTypeSupplier
+	 * @return
+	 * @throws IOException
+	 */
+	public static < T extends NativeType< T > & NumericType< T >, V extends NumericType< V > > RandomAccessibleIntervalDataSource< T, V > createH5RawSource(
+			final String name,
+			final String rawFile,
+			final String rawDataset,
+			final int[] rawCellSize,
+			final double[] resolution,
+			final SharedQueue sharedQueue,
+			final int priority,
+			final Supplier< T > typeSupplier,
+			final Supplier< V > volatileTypeSupplier) throws IOException
+	{
+		final RandomAccessibleInterval< T > raw = H5Utils.open( HDF5Factory.openForReading( rawFile ), rawDataset, rawCellSize );
+		final AffineTransform3D rawTransform = new AffineTransform3D();
+		rawTransform.set(
+				resolution[ 0 ], 0, 0, 0,
+				0, resolution[ 1 ], 0, 0,
+				0, 0, resolution[ 2 ], 0 );
+
+		@SuppressWarnings( "unchecked" )
+		final RandomAccessibleIntervalDataSource< T, V > rawSource =
+			new RandomAccessibleIntervalDataSource< T, V >(
+					( RandomAccessibleInterval< T >[] )new RandomAccessibleInterval[]{ raw },
+					( RandomAccessibleInterval< V >[] )new RandomAccessibleInterval[] {
+							VolatileViews.wrapAsVolatile( raw, sharedQueue, new CacheHints( LoadingStrategy.VOLATILE, priority, true ) ) },
+					new AffineTransform3D[] { rawTransform },
+					( interpolation ) -> {
+						switch ( ( Interpolation )interpolation )
+						{
+						case NLINEAR:
+							return new NLinearInterpolatorFactory< T >();
+						default:
+							return new NearestNeighborInterpolatorFactory< T >();
+						}
+					},
+					( interpolation ) -> {
+						switch ( ( Interpolation )interpolation )
+						{
+						case NLINEAR:
+							return new NLinearInterpolatorFactory< V >();
+						default:
+							return new NearestNeighborInterpolatorFactory< V >();
+						}
+					},
+					typeSupplier,
+					volatileTypeSupplier,
+					name);
+		return rawSource;
 	}
 }

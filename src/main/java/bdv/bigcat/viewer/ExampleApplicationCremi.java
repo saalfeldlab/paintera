@@ -9,8 +9,9 @@ import com.sun.javafx.application.PlatformImpl;
 import bdv.AbstractViewerSetupImgLoader;
 import bdv.bigcat.viewer.atlas.Atlas;
 import bdv.bigcat.viewer.atlas.data.HDF5LabelMultisetDataSource;
-import bdv.bigcat.viewer.atlas.data.HDF5UnsignedByteDataSource;
+import bdv.bigcat.viewer.atlas.data.RandomAccessibleIntervalDataSource;
 import bdv.img.cache.VolatileGlobalCellCache;
+import bdv.util.volatiles.SharedQueue;
 import bdv.viewer.Interpolation;
 import bdv.viewer.Source;
 import javafx.application.Platform;
@@ -29,7 +30,9 @@ import net.imglib2.interpolation.randomaccess.ClampingNLinearInterpolatorFactory
 import net.imglib2.interpolation.randomaccess.NearestNeighborInterpolatorFactory;
 import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.type.numeric.RealType;
+import net.imglib2.type.numeric.integer.UnsignedByteType;
 import net.imglib2.type.volatiles.VolatileARGBType;
+import net.imglib2.type.volatiles.VolatileUnsignedByteType;
 import net.imglib2.util.Intervals;
 import net.imglib2.view.ExtendedRandomAccessibleInterval;
 import net.imglib2.view.Views;
@@ -42,7 +45,7 @@ public class ExampleApplicationCremi
 		// Set the log level
 		final String USER_HOME = System.getProperty( "user.home" );
 
-		String rawFile = USER_HOME + "/Downloads/sample_A_padded_20160501.hdf";
+		String rawFile = "/groups/saalfeld/home/saalfelds/cremi/sample_B+_padded_20170424.aligned.hdf";
 		PlatformImpl.startup( () -> {} );
 		String rawDataset = "volumes/raw";
 		String labelsFile = rawFile;
@@ -64,9 +67,17 @@ public class ExampleApplicationCremi
 			rawCellSize = new int[] { params.rawCellSize.get( 0 ), params.rawCellSize.get( 1 ), params.rawCellSize.get( 2 ) };
 			labelCellSize = new int[] { params.labelCellSize.get( 0 ), params.labelCellSize.get( 1 ), params.labelCellSize.get( 2 ) };
 		}
+
+		final int numPriorities = 20;
+		final SharedQueue sharedQueue = new SharedQueue( 12, 20 );
+
+		//TODO remove
 		final VolatileGlobalCellCache cellCache = new VolatileGlobalCellCache( 1, 12 );
 
-		final HDF5UnsignedByteDataSource rawSource = new HDF5UnsignedByteDataSource( rawFile, rawDataset, rawCellSize, resolution, "raw", cellCache, 0 );
+		final RandomAccessibleIntervalDataSource< UnsignedByteType, VolatileUnsignedByteType > rawSource =
+				Atlas.createH5RawSource( "raw", rawFile, rawDataset, rawCellSize, resolution, sharedQueue, numPriorities - 1, UnsignedByteType::new, VolatileUnsignedByteType::new );
+
+//		final HDF5UnsignedByteDataSource rawSource = new HDF5UnsignedByteDataSource( rawFile, rawDataset, rawCellSize, resolution, "raw", cellCache, 0 );
 
 		final double[] min = Arrays.stream( Intervals.minAsLongArray( rawSource.getSource( 0, 0 ) ) ).mapToDouble( v -> v ).toArray();
 		final double[] max = Arrays.stream( Intervals.maxAsLongArray( rawSource.getSource( 0, 0 ) ) ).mapToDouble( v -> v ).toArray();
@@ -78,7 +89,7 @@ public class ExampleApplicationCremi
 		final Atlas viewer = new Atlas(
 				new FinalInterval( Arrays.stream( min ).mapToLong( Math::round ).toArray(),
 						Arrays.stream( max ).mapToLong( Math::round ).toArray() ),
-				cellCache );
+				sharedQueue );
 
 		final CountDownLatch latch = new CountDownLatch( 1 );
 		Platform.runLater( () -> {

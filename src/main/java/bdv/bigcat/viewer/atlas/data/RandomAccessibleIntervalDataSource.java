@@ -1,6 +1,7 @@
 package bdv.bigcat.viewer.atlas.data;
 
 import java.util.function.Function;
+import java.util.function.Supplier;
 
 import bdv.viewer.Interpolation;
 import mpicbg.spim.data.sequence.VoxelDimensions;
@@ -12,7 +13,7 @@ import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.type.Type;
 import net.imglib2.view.Views;
 
-public class RAIDataSource< D extends Type< D >, T extends Type< T > > implements DataSource< D, T >
+public class RandomAccessibleIntervalDataSource< D extends Type< D >, T extends Type< T > > implements DataSource< D, T >
 {
 
 	private final AffineTransform3D[] mipmapTransforms;
@@ -25,24 +26,20 @@ public class RAIDataSource< D extends Type< D >, T extends Type< T > > implement
 
 	private final Function< Interpolation, InterpolatorFactory< T, RandomAccessible< T > > > interpolation;
 
-	private final D dataExtension;
+	private final Supplier< D > dataTypeSupplier;
 
-	private final T extension;
+	private final Supplier< T > typeSupplier;
 
 	private final String name;
 
-	private final D d;
-
-	private final T t;
-
-	public RAIDataSource(
+	public RandomAccessibleIntervalDataSource(
 			final RandomAccessibleInterval< D >[] dataSources,
 			final RandomAccessibleInterval< T >[] sources,
 			final AffineTransform3D[] mipmapTransforms,
 			final Function< Interpolation, InterpolatorFactory< D, RandomAccessible< D > > > dataInterpolation,
 			final Function< Interpolation, InterpolatorFactory< T, RandomAccessible< T > > > interpolation,
-			final D dataExtension,
-			final T extension,
+			final Supplier< D > dataTypeSupplier,
+			final Supplier< T > typeSupplier,
 			final String name )
 	{
 		super();
@@ -51,11 +48,9 @@ public class RAIDataSource< D extends Type< D >, T extends Type< T > > implement
 		this.sources = sources;
 		this.dataInterpolation = dataInterpolation;
 		this.interpolation = interpolation;
-		this.dataExtension = dataExtension;
-		this.extension = extension;
+		this.dataTypeSupplier = dataTypeSupplier;
+		this.typeSupplier = typeSupplier;
 		this.name = name;
-		this.d = dataExtension.createVariable();
-		this.t = extension.createVariable();
 	}
 
 	@Override
@@ -73,7 +68,7 @@ public class RAIDataSource< D extends Type< D >, T extends Type< T > > implement
 	@Override
 	public RealRandomAccessible< T > getInterpolatedSource( final int t, final int level, final Interpolation method )
 	{
-		return Views.interpolate( Views.extendValue( getSource( t, level ), extension ), interpolation.apply( method ) );
+		return Views.interpolate( Views.extendValue( getSource( t, level ), typeSupplier.get() ), interpolation.apply( method ) );
 	}
 
 	@Override
@@ -85,7 +80,7 @@ public class RAIDataSource< D extends Type< D >, T extends Type< T > > implement
 	@Override
 	public T getType()
 	{
-		return t;
+		return typeSupplier.get();
 	}
 
 	@Override
@@ -116,13 +111,13 @@ public class RAIDataSource< D extends Type< D >, T extends Type< T > > implement
 	@Override
 	public RealRandomAccessible< D > getInterpolatedDataSource( final int t, final int level, final Interpolation method )
 	{
-		return Views.interpolate( Views.extendValue( getDataSource( t, level ), dataExtension ), dataInterpolation.apply( method ) );
+		return Views.interpolate( Views.extendValue( getDataSource( t, level ), dataTypeSupplier.get() ), dataInterpolation.apply( method ) );
 	}
 
 	@Override
 	public D getDataType()
 	{
-		return d;
+		return dataTypeSupplier.get();
 	}
 
 }

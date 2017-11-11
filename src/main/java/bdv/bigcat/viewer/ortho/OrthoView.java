@@ -10,7 +10,7 @@ import bdv.bigcat.viewer.bdvfx.ViewerPanelFX;
 import bdv.bigcat.viewer.panel.ViewerNode;
 import bdv.bigcat.viewer.panel.ViewerNode.ViewerAxis;
 import bdv.bigcat.viewer.panel.ViewerTransformManager;
-import bdv.img.cache.VolatileGlobalCellCache;
+import bdv.util.volatiles.SharedQueue;
 import bdv.viewer.SourceAndConverter;
 import bdv.viewer.ViewerOptions;
 import javafx.beans.value.ChangeListener;
@@ -59,17 +59,17 @@ public class OrthoView extends GridPane
 
 	private final KeyTracker keyTracker;
 
-	public OrthoView( final VolatileGlobalCellCache cellCache, final KeyTracker keyTracker )
+	public OrthoView( final SharedQueue cellCache, final KeyTracker keyTracker )
 	{
 		this( new OrthoViewState(), cellCache, keyTracker );
 	}
 
-	public OrthoView( final ViewerOptions viewerOptions, final VolatileGlobalCellCache cellCache, final KeyTracker keyTracker )
+	public OrthoView( final ViewerOptions viewerOptions, final SharedQueue cellCache, final KeyTracker keyTracker )
 	{
 		this( new OrthoViewState( viewerOptions ), cellCache, keyTracker );
 	}
 
-	public OrthoView( final OrthoViewState state, final VolatileGlobalCellCache cellCache, final KeyTracker keyTracker )
+	public OrthoView( final OrthoViewState state, final SharedQueue cellCache, final KeyTracker keyTracker )
 	{
 		this( ( vp ) -> {}, ( vp ) -> {}, state, cellCache, keyTracker );
 	}
@@ -78,7 +78,7 @@ public class OrthoView extends GridPane
 			final Consumer< ViewerPanelFX > onFocusEnter,
 			final Consumer< ViewerPanelFX > onFocusExit,
 			final OrthoViewState state,
-			final VolatileGlobalCellCache cellCache,
+			final SharedQueue cellCache,
 			final KeyTracker keyTracker )
 	{
 		super();
@@ -109,7 +109,7 @@ public class OrthoView extends GridPane
 
 	}
 
-	private void layoutViewers( final VolatileGlobalCellCache cellCache )
+	private void layoutViewers( final SharedQueue cellCache )
 	{
 		addViewer( ViewerAxis.Z, 0, 0, cellCache );
 		addViewer( ViewerAxis.X, 0, 1, cellCache );
@@ -170,7 +170,7 @@ public class OrthoView extends GridPane
 		} );
 	}
 
-	private synchronized void addViewer( final ViewerAxis axis, final int rowIndex, final int colIndex, final VolatileGlobalCellCache cellCache )
+	private synchronized void addViewer( final ViewerAxis axis, final int rowIndex, final int colIndex, final SharedQueue cellCache )
 	{
 		final ViewerNode viewerNode = new ViewerNode( cellCache, axis, this.state.viewerOptions, keyTracker );
 //		final ViewerNode viewerNode = new ViewerNode( new CacheControl.Dummy(), axis, this.state.viewerOptions, activeKeys );

@@ -7,10 +7,12 @@ import org.slf4j.Logger;
 
 import com.sun.javafx.application.PlatformImpl;
 
-import bdv.bigcat.viewer.atlas.data.HDF5UnsignedByteDataSource;
+import bdv.bigcat.viewer.atlas.Atlas;
+import bdv.bigcat.viewer.atlas.data.RandomAccessibleIntervalDataSource;
 import bdv.bigcat.viewer.bdvfx.KeyTracker;
 import bdv.bigcat.viewer.ortho.OrthoView;
 import bdv.img.cache.VolatileGlobalCellCache;
+import bdv.util.volatiles.SharedQueue;
 import bdv.viewer.SourceAndConverter;
 import bdv.viewer.ViewerOptions;
 import javafx.application.Platform;
@@ -22,7 +24,9 @@ import net.imglib2.converter.RealARGBConverter;
 import net.imglib2.display.AbstractLinearRange;
 import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.type.numeric.RealType;
+import net.imglib2.type.numeric.integer.UnsignedByteType;
 import net.imglib2.type.volatiles.VolatileARGBType;
+import net.imglib2.type.volatiles.VolatileUnsignedByteType;
 import net.imglib2.util.Intervals;
 
 public class ExampleApplicationOrtho
@@ -39,8 +43,12 @@ public class ExampleApplicationOrtho
 
 		final double[] resolution = { 4, 4, 40 };
 		final int[] cellSize = { 145, 53, 5 };
+		final int numPriorities = 20;
+		final SharedQueue sharedQueue = new SharedQueue( 12, numPriorities );
 		final VolatileGlobalCellCache cellCache = new VolatileGlobalCellCache( 1, 12 );
-		final HDF5UnsignedByteDataSource rawSource = new HDF5UnsignedByteDataSource( rawFile, rawDataset, cellSize, resolution, "raw", cellCache, 0 );
+
+		final RandomAccessibleIntervalDataSource< UnsignedByteType, VolatileUnsignedByteType > rawSource =
+				Atlas.createH5RawSource( "raw", rawFile, rawDataset, cellSize, resolution, sharedQueue, numPriorities - 1, UnsignedByteType::new, VolatileUnsignedByteType::new );
 
 		final double[] min = Arrays.stream( Intervals.minAsLongArray( rawSource.getSource( 0, 0 ) ) ).mapToDouble( v -> v ).toArray();
 		final double[] max = Arrays.stream( Intervals.maxAsLongArray( rawSource.getSource( 0, 0 ) ) ).mapToDouble( v -> v ).toArray();
@@ -49,7 +57,7 @@ public class ExampleApplicationOrtho
 		affine.apply( min, min );
 		affine.apply( max, max );
 		final KeyTracker keyTracker = new KeyTracker();
-		final OrthoView ortho = new OrthoView( ViewerOptions.options(), cellCache, keyTracker );
+		final OrthoView ortho = new OrthoView( ViewerOptions.options(), sharedQueue, keyTracker );
 		ortho.sceneProperty().addListener( ( obs, oldv, newv ) -> {
 			if ( oldv != null )
 				keyTracker.removeFrom( oldv );
