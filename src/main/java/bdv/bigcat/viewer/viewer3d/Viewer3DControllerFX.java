@@ -17,14 +17,15 @@ import bdv.bigcat.ui.ARGBStream;
 import bdv.bigcat.viewer.state.FragmentSegmentAssignmentState;
 import bdv.bigcat.viewer.state.GlobalTransformManager;
 import bdv.bigcat.viewer.state.SelectedIds;
-import bdv.bigcat.viewer.viewer3d.marchingCubes.ForegroundCheck;
 import net.imglib2.Interval;
 import net.imglib2.Point;
 import net.imglib2.RandomAccessible;
 import net.imglib2.RealLocalizable;
 import net.imglib2.RealPoint;
+import net.imglib2.converter.Converter;
 import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.type.Type;
+import net.imglib2.type.logic.BoolType;
 
 /**
  * Class that controls the 3d scene
@@ -38,9 +39,10 @@ public class Viewer3DControllerFX
 
 	private final Viewer3DFX viewer3D;
 
-	private final ExecutorService es = Executors.newFixedThreadPool( Runtime.getRuntime().availableProcessors() - 1 );
+	// TODO pass executor from outside?
+	private final ExecutorService es = Executors.newFixedThreadPool( Math.min( Math.max( ( Runtime.getRuntime().availableProcessors() - 1 ) / 3, 1 ), 3 ) );
 
-	private final HashSet< NeuronRendererFX > renderers = new HashSet<>();
+	private final HashSet< NeuronRendererFX< ?, ? > > renderers = new HashSet<>();
 
 	/**
 	 * Default constructor
@@ -57,7 +59,7 @@ public class Viewer3DControllerFX
 			final RealLocalizable worldLocation,
 			final int[] partitionSize,
 			final int[] cubeSize,
-			final Function< T, ForegroundCheck< T > > getForegroundCheck,
+			final Function< T, Converter< T, BoolType > > createMaskConverterForType,
 			final long fragmentId,
 			final F fragmentSegmentAssignment,
 			final ARGBStream stream,
@@ -89,11 +91,9 @@ public class Viewer3DControllerFX
 				this.renderers.forEach( NeuronRendererFX::removeSelfFromScene );
 				this.renderers.forEach( NeuronRendererFX::stopListening );
 				this.renderers.clear();
-
-				final RealLocalizable cameraPosition = new RealPoint( worldLocation.getFloatPosition( 0 ), worldLocation.getFloatPosition( 1 ), worldLocation.getFloatPosition( 2 ) * 1.5 );
 			}
 
-			final List< NeuronRendererFX > filteredNrs = renderers.stream()
+			final List< NeuronRendererFX< ?, ? > > filteredNrs = renderers.stream()
 					.filter( nr -> nr.fragmentId() == fragmentId || nr.segmentId() == fragmentSegmentAssignment.getSegment( fragmentId ) )
 					.collect( Collectors.toList() );
 			LOG.info( "Removing renderers: {}", filteredNrs );
@@ -110,7 +110,7 @@ public class Viewer3DControllerFX
 					locationInImageCoordinates,
 					volumeLabels,
 					interval,
-					getForegroundCheck,
+					createMaskConverterForType,
 					viewer3D.meshesGroup(),
 					viewer3D.scene().getCamera(),
 					es,
@@ -126,7 +126,7 @@ public class Viewer3DControllerFX
 
 	public synchronized void removeMesh( final long fragmentId )
 	{
-		final List< NeuronRendererFX > matchingRenderers = renderers.stream().filter( nr -> nr.fragmentId() == fragmentId ).collect( Collectors.toList() );
+		final List< NeuronRendererFX< ?, ? > > matchingRenderers = renderers.stream().filter( nr -> nr.fragmentId() == fragmentId ).collect( Collectors.toList() );
 		this.renderers.removeAll( matchingRenderers );
 		matchingRenderers.forEach( NeuronRendererFX::removeSelfFromScene );
 	}

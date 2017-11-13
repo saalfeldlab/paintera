@@ -1,28 +1,34 @@
 package bdv.bigcat.viewer.viewer3d;
 
 import java.lang.invoke.MethodHandles;
-import java.util.ArrayList;
 import java.util.HashSet;
-import java.util.List;
 import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.IntStream;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import bdv.bigcat.viewer.util.DecorateRunnable;
 import bdv.bigcat.viewer.util.InvokeOnJavaFXApplicationThread;
-import bdv.bigcat.viewer.viewer3d.marchingCubes.ForegroundCheck;
 import bdv.bigcat.viewer.viewer3d.marchingCubes.MarchingCubes;
 import bdv.bigcat.viewer.viewer3d.util.HashWrapper;
+import javafx.beans.property.BooleanProperty;
+import javafx.beans.property.ObjectProperty;
+import javafx.beans.property.SimpleBooleanProperty;
+import javafx.beans.property.SimpleObjectProperty;
+import javafx.collections.FXCollections;
 import javafx.collections.ObservableFloatArray;
+import javafx.collections.ObservableList;
 import javafx.scene.Group;
 import javafx.scene.paint.Color;
 import javafx.scene.paint.PhongMaterial;
 import javafx.scene.shape.Box;
 import javafx.scene.shape.CullFace;
 import javafx.scene.shape.MeshView;
+import javafx.scene.shape.ObservableFaceArray;
 import javafx.scene.shape.TriangleMesh;
 import javafx.scene.shape.VertexFormat;
 import net.imglib2.FinalInterval;
@@ -32,9 +38,10 @@ import net.imglib2.Point;
 import net.imglib2.RandomAccessible;
 import net.imglib2.RealPoint;
 import net.imglib2.realtransform.AffineTransform3D;
+import net.imglib2.type.BooleanType;
 import net.imglib2.util.Intervals;
 
-public class NeuronFX< T >
+public class NeuronFX
 {
 
 	private static final Logger LOG = LoggerFactory.getLogger( MethodHandles.lookup().lookupClass() );
@@ -43,34 +50,35 @@ public class NeuronFX< T >
 
 	private final Group root;
 
-	private final List< Future< ? > > futures = new ArrayList<>();
+	private final ObservableList< Future< ? > > futures = FXCollections.observableArrayList();
 
 	private final Set< HashWrapper< long[] > > offsets = new HashSet<>();
 
 	private boolean isCanceled = false;
 
-	private final MeshView node;
+	private final ObjectProperty< Group > meshes = new SimpleObjectProperty<>();
 
-	private final PhongMaterial material;
+	private final SimpleBooleanProperty isReady = new SimpleBooleanProperty( false );
 
-	private final Object meshModificationLock = new Object();
+	private final AtomicLong futuresStartedCount = new AtomicLong( 0 );
+
+	private final AtomicLong futuresFinishedCount = new AtomicLong( 0 );
 
 	public NeuronFX( final Interval interval, final Group root )
 	{
 		super();
 		this.interval = interval;
 		this.root = root;
-		this.node = new MeshView();
-		this.material = new PhongMaterial();
-		this.node.setOpacity( 1.0 );
-		this.node.setCullFace( CullFace.FRONT );
-		this.node.setMaterial( material );
+		meshes.addListener( ( obsv, oldv, newv ) -> {
+			InvokeOnJavaFXApplicationThread.invoke( () -> root.getChildren().remove( oldv ) );
+			if ( newv != null )
+				InvokeOnJavaFXApplicationThread.invoke( () -> root.getChildren().add( newv ) );
+		} );
 	}
 
-	public void render(
+	public < B extends BooleanType< B > > void render(
 			final Localizable initialLocationInImageCoordinates,
-			final RandomAccessible< T > data,
-			final ForegroundCheck< T > foregroundCheck,
+			final RandomAccessible< B > data,
 			final AffineTransform3D toWorldCoordinates,
 			final int[] blockSize,
 			final int[] cubeSize,
@@ -78,20 +86,16 @@ public class NeuronFX< T >
 			final ExecutorService es )
 	{
 		cancel();
+		this.futuresStartedCount.set( 0 );
+		this.futuresFinishedCount.set( 0 );
 		this.isCanceled = false;
+		this.isReady.set( false );
+		this.meshes.set( new Group() );
 		final long[] gridCoordinates = new long[ initialLocationInImageCoordinates.numDimensions() ];
 		initialLocationInImageCoordinates.localize( gridCoordinates );
 		for ( int i = 0; i < gridCoordinates.length; ++i )
 			gridCoordinates[ i ] /= blockSize[ i ];
-		try
-		{
-			initializeMeshView( color );
-			submitForOffset( gridCoordinates, data, foregroundCheck, toWorldCoordinates, blockSize, cubeSize, color, es );
-		}
-		catch ( final Exception e )
-		{
-			e.printStackTrace();
-		}
+		submitForOffset( gridCoordinates, data, toWorldCoordinates, blockSize, cubeSize, color, es );
 	}
 
 	public void cancel()
@@ -99,7 +103,9 @@ public class NeuronFX< T >
 		synchronized ( futures )
 		{
 			this.isCanceled = true;
+			this.offsets.clear();
 			this.futures.forEach( future -> future.cancel( true ) );
+			this.futures.clear();
 		}
 	}
 
@@ -107,7 +113,7 @@ public class NeuronFX< T >
 	{
 		cancel();
 		InvokeOnJavaFXApplicationThread.invokeAndWait( () -> {
-			root.getChildren().remove( node );
+			this.meshes.set( null );
 		} );
 	}
 
@@ -123,10 +129,9 @@ public class NeuronFX< T >
 		}
 	}
 
-	private void submitForOffset(
+	private < B extends BooleanType< B > > void submitForOffset(
 			final long[] gridCoordinates,
-			final RandomAccessible< T > data,
-			final ForegroundCheck< T > foregroundCheck,
+			final RandomAccessible< B > data,
 			final AffineTransform3D toWorldCoordinates,
 			final int[] blockSize,
 			final int[] cubeSize,
@@ -135,181 +140,159 @@ public class NeuronFX< T >
 	{
 		final HashWrapper< long[] > offset = HashWrapper.longArray( gridCoordinates );
 		final long[] coordinates = IntStream.range( 0, gridCoordinates.length ).mapToLong( d -> gridCoordinates[ d ] * blockSize[ d ] ).toArray();
-		final TriangleMesh mesh = ( TriangleMesh ) this.node.getMesh();
+//		final TriangleMesh mesh = ( TriangleMesh ) this.node.getMesh();
 
-		synchronized ( futures )
+		synchronized ( offsets )
 		{
-			synchronized ( offsets )
+			if ( isCanceled || offsets.contains( offset ) || !Intervals.contains( this.interval, new Point( coordinates ) ) )
+				return;
+			offsets.add( offset );
+		}
+		final Group meshes = this.meshes.get();
+		if ( !isCanceled && meshes != null )
+		{
+			final Future< ? > future = es.submit(
+					DecorateRunnable.beforeAndAfter(
+							() -> generateMesh( data, gridCoordinates, coordinates, blockSize, cubeSize, toWorldCoordinates, color, meshes, es ),
+							futuresStartedCount::incrementAndGet,
+							this::incrementFuturesFinishedCount ) );
+			synchronized ( futures )
 			{
-				if ( isCanceled || offsets.contains( offset ) || !Intervals.contains( this.interval, new Point( coordinates ) ) )
-					return;
-				offsets.add( offset );
+				futures.add( future );
 			}
-			if ( !isCanceled )
-				this.futures.add( es.submit( () -> {
-					final Interval interval = new FinalInterval(
-							coordinates,
-							IntStream.range( 0, coordinates.length ).mapToLong( d -> coordinates[ d ] + blockSize[ d ] ).toArray() );
-
-					final RealPoint begin = new RealPoint( interval.numDimensions() );
-					final RealPoint end = new RealPoint( interval.numDimensions() );
-
-					for ( int i = 0; i < interval.numDimensions(); i++ )
-					{
-						begin.setPosition( interval.min( i ), i );
-						end.setPosition( interval.max( i ), i );
-					}
-					toWorldCoordinates.apply( begin, begin );
-					toWorldCoordinates.apply( end, end );
-
-					final float[] size = new float[ begin.numDimensions() ];
-					final float[] center = new float[ begin.numDimensions() ];
-					for ( int i = 0; i < begin.numDimensions(); i++ )
-					{
-						size[ i ] = end.getFloatPosition( i ) - begin.getFloatPosition( i );
-						center[ i ] = begin.getFloatPosition( i ) + size[ i ] / 2;
-					}
-					final Box chunk = new Box( size[ 0 ], size[ 1 ], size[ 2 ] );
-					chunk.setTranslateX( center[ 0 ] );
-					chunk.setTranslateY( center[ 1 ] );
-					chunk.setTranslateZ( center[ 2 ] );
-
-					final PhongMaterial chunkMaterial = new PhongMaterial();
-					final Color surfaceColor = Color.rgb( color >>> 16 & 0xff, color >>> 8 & 0xff, color >>> 0 & 0xff, 1.0 );
-					chunkMaterial.setDiffuseColor( surfaceColor );
-					chunk.setMaterial( chunkMaterial );
-					chunk.setOpacity( 0.3 );
-//
-					InvokeOnJavaFXApplicationThread.invoke( () -> root.getChildren().add( chunk ) );
-
-					final MarchingCubes< T > mc = new MarchingCubes<>( data, interval, toWorldCoordinates, cubeSize );
-					final float[] vertices = mc.generateMesh( foregroundCheck );
-
-					InvokeOnJavaFXApplicationThread.invoke( () -> root.getChildren().remove( chunk ) );
-
-					if ( vertices.length > 0 )
-					{
-						final float[] normals = new float[ vertices.length ];
-//						MarchingCubes.surfaceNormals( vertices, normals );
-						MarchingCubes.averagedSurfaceNormals( vertices, normals );
-						for ( int i = 0; i < normals.length; ++i )
-							normals[ i ] *= -1;
-
-						synchronized ( meshModificationLock )
-						{
-							final ObservableFloatArray meshVertices = mesh.getPoints();
-							final ObservableFloatArray meshNormals = mesh.getNormals();
-							final int numVerticesInMesh = meshVertices.size() / 3;
-							final int[] faceIndices = new int[ vertices.length ];
-							for ( int i = 0, k = numVerticesInMesh; i < vertices.length; i += 3, ++k )
-							{
-								faceIndices[ i + 0 ] = k;
-								faceIndices[ i + 1 ] = k;
-								faceIndices[ i + 2 ] = 0;
-							}
-
-							try
-							{
-								InvokeOnJavaFXApplicationThread.invokeAndWait( () -> {
-									if ( !isCanceled )
-									{
-										meshVertices.addAll( vertices );
-										meshNormals.addAll( normals );
-										mesh.getFaces().addAll( faceIndices );
-									}
-								} );
-							}
-							catch ( final InterruptedException e )
-							{
-								LOG.trace( "Interrupted rendering", e );
-							}
-
-						}
-
-						for ( int d = 0; d < gridCoordinates.length; ++d )
-						{
-							final long[] otherGridCoordinates = gridCoordinates.clone();
-							otherGridCoordinates[ d ] += 1;
-							submitForOffset( otherGridCoordinates.clone(), data, foregroundCheck, toWorldCoordinates, blockSize, cubeSize, color, es );
-
-							otherGridCoordinates[ d ] -= 2;
-							submitForOffset( otherGridCoordinates.clone(), data, foregroundCheck, toWorldCoordinates, blockSize, cubeSize, color, es );
-						}
-					}
-				} ) );
 		}
 	}
 
-	private void initializeMeshView( final int color ) throws InterruptedException
+	private static MeshView initializeMeshView( final int color, final float[] vertices )
 	{
 		final TriangleMesh mesh = new TriangleMesh();
-		mesh.getTexCoords().addAll( 0, 0 );
 		mesh.setVertexFormat( VertexFormat.POINT_NORMAL_TEXCOORD );
+
+		final MeshView meshView = new MeshView();
+		meshView.setCullFace( CullFace.NONE );
+
+		final PhongMaterial material = new PhongMaterial();
 		final Color surfaceColor = Color.rgb( color >>> 16 & 0xff, color >>> 8 & 0xff, color >>> 0 & 0xff, 1.0 );
-		this.node.setMesh( mesh );
-		this.material.setDiffuseColor( surfaceColor );
-		this.material.setSpecularColor( surfaceColor );
-		this.material.setSpecularPower( 100 );
-		this.node.setMaterial( this.material );
-		InvokeOnJavaFXApplicationThread.invokeAndWait( () -> {
-			this.root.getChildren().add( this.node );
-		} );
+		meshView.setOpacity( 1.0 );
+		material.setDiffuseColor( surfaceColor );
+		meshView.setMaterial( material );
+
+		final float[] normals = new float[ vertices.length ];
+		MarchingCubes.averagedSurfaceNormals( vertices, normals );
+		for ( int i = 0; i < normals.length; ++i )
+			normals[ i ] *= -1;
+
+		final ObservableFloatArray meshVertices = mesh.getPoints();
+		final ObservableFloatArray meshNormals = mesh.getNormals();
+		final ObservableFaceArray faces = mesh.getFaces();
+		final int[] faceIndices = new int[ vertices.length ];
+		for ( int i = 0, k = 0; i < vertices.length; i += 3, ++k )
+		{
+			faceIndices[ i + 0 ] = k;
+			faceIndices[ i + 1 ] = k;
+			faceIndices[ i + 2 ] = 0;
+		}
+
+		mesh.getTexCoords().addAll( 0, 0 );
+		meshVertices.addAll( vertices );
+		meshNormals.addAll( normals );
+		faces.addAll( faceIndices );
+
+		meshView.setMesh( mesh );
+
+		return meshView;
+
 	}
 
-	public MeshView meshView()
+	public Group meshes()
 	{
-		return node;
+		return this.meshes.get();
 	}
 
-//	private void hasNeighboringData( Localizable location, boolean[] neighboring )
-//	{
-//		// for each dimension, verifies (first in the +, then in the -
-//		// direction)
-//		// if the voxels in the boundary contain the foregroundvalue
-//		final Interval chunkInterval = partitioner.getChunk( location ).getA().interval();
-//		for ( int i = 0; i < chunkInterval.numDimensions(); i++ )
-//		{
-//			// initialize each direction with false
-//			neighboring[ i * 2 ] = false;
-//			neighboring[ i * 2 + 1 ] = false;
+	public BooleanProperty isReadyProperty()
+	{
+		return isReady;
+	}
+
+	private void incrementFuturesFinishedCount()
+	{
+		final long finishedCount = futuresFinishedCount.incrementAndGet();
+		final long startedCount = futuresStartedCount.get();
+		if ( !isCanceled && finishedCount == startedCount )
+			isReady.set( true );
+	}
+
+	private < B extends BooleanType< B > > void generateMesh(
+			final RandomAccessible< B > data,
+			final long[] gridCoordinates,
+			final long[] coordinates,
+			final int[] blockSize,
+			final int[] cubeSize,
+			final AffineTransform3D toWorldCoordinates,
+			final int color,
+			final Group meshes,
+			final ExecutorService es )
+	{
+		final Interval interval = new FinalInterval(
+				coordinates,
+				IntStream.range( 0, coordinates.length ).mapToLong( d -> coordinates[ d ] + blockSize[ d ] ).toArray() );
+
+		final RealPoint begin = new RealPoint( interval.numDimensions() );
+		final RealPoint end = new RealPoint( interval.numDimensions() );
+
+		for ( int i = 0; i < interval.numDimensions(); i++ )
+		{
+			begin.setPosition( interval.min( i ), i );
+			end.setPosition( interval.max( i ), i );
+		}
+		toWorldCoordinates.apply( begin, begin );
+		toWorldCoordinates.apply( end, end );
+
+		final float[] size = new float[ begin.numDimensions() ];
+		final float[] center = new float[ begin.numDimensions() ];
+		for ( int i = 0; i < begin.numDimensions(); i++ )
+		{
+			size[ i ] = end.getFloatPosition( i ) - begin.getFloatPosition( i );
+			center[ i ] = begin.getFloatPosition( i ) + size[ i ] / 2;
+		}
+		final Box chunk = new Box( size[ 0 ], size[ 1 ], size[ 2 ] );
+		chunk.setTranslateX( center[ 0 ] );
+		chunk.setTranslateY( center[ 1 ] );
+		chunk.setTranslateZ( center[ 2 ] );
+
+		final PhongMaterial chunkMaterial = new PhongMaterial();
+		final Color surfaceColor = Color.rgb( color >>> 16 & 0xff, color >>> 8 & 0xff, color >>> 0 & 0xff, 1.0 );
+		chunkMaterial.setDiffuseColor( surfaceColor );
+		chunk.setMaterial( chunkMaterial );
+		chunk.setOpacity( 0.3 );
+
 //
-//			checkData( i, chunkInterval, neighboring, "+" );
-//			checkData( i, chunkInterval, neighboring, "-" );
-//		}
-//	}
-//
-//	private void checkData( int i, Interval chunkInterval, RandomAccessible< T > data, final ForegroundCheck< T > foregroundCheck, boolean[] neighboring, String direction )
-//	{
-//		final long[] begin = new long[ chunkInterval.numDimensions() ];
-//		final long[] end = new long[ chunkInterval.numDimensions() ];
-//
-//		begin[ i ] = ( direction.compareTo( "+" ) == 0 ) ? chunkInterval.max( i ) : chunkInterval.min( i );
-//		end[ i ] = begin[ i ];
-//
-//		for ( int j = 0; j < chunkInterval.numDimensions(); j++ )
-//		{
-//			if ( i == j )
-//				continue;
-//
-//			begin[ j ] = chunkInterval.min( j );
-//			end[ j ] = chunkInterval.max( j );
-//		}
-//
-//		Cursor< T > cursor = Views.flatIterable( data ).cursor();
-//
-//		System.out.println( "Checking dataset from: " + begin[ 0 ] + " " + begin[ 1 ] + " " + begin[ 2 ] + " to: " + end[ 0 ] + " " + end[ 1 ] + " " + end[ 2 ] );
-//
-//		while ( cursor.hasNext() )
-//		{
-//			cursor.next();
-//			if ( foregroundCheck.test( cursor.get() ) == 1 )
-//			{
-//				int index = ( direction.compareTo( "+" ) == 0 ) ? i * 2 : i * 2 + 1;
-//				neighboring[ index ] = true;
-//				break;
-//			}
-//		}
-//		int index = ( direction.compareTo( "+" ) == 0 ) ? i * 2 : i * 2 + 1;
-//		System.out.println( "this dataset is: {}" + neighboring[ index ] );
-//	}
+		InvokeOnJavaFXApplicationThread.invoke( () -> meshes.getChildren().add( chunk ) );
+
+		final MarchingCubes< B > mc = new MarchingCubes<>( data, interval, toWorldCoordinates, cubeSize );
+		final float[] vertices = mc.generateMesh();
+
+		InvokeOnJavaFXApplicationThread.invoke( () -> meshes.getChildren().remove( chunk ) );
+
+		if ( vertices.length > 0 )
+		{
+			final MeshView mv = initializeMeshView( color, vertices );
+
+			if ( !isCanceled )
+			{
+				InvokeOnJavaFXApplicationThread.invoke( () -> meshes.getChildren().add( mv ) );
+
+				for ( int d = 0; d < gridCoordinates.length; ++d )
+				{
+					final long[] otherGridCoordinates = gridCoordinates.clone();
+					otherGridCoordinates[ d ] += 1;
+					submitForOffset( otherGridCoordinates.clone(), data, toWorldCoordinates, blockSize, cubeSize, color, es );
+
+					otherGridCoordinates[ d ] -= 2;
+					submitForOffset( otherGridCoordinates.clone(), data, toWorldCoordinates, blockSize, cubeSize, color, es );
+				}
+			}
+		}
+	}
+
 }

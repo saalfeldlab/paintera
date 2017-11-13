@@ -1,5 +1,10 @@
 package bdv.bigcat.viewer.viewer3d;
 
+import java.lang.invoke.MethodHandles;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import javafx.geometry.Point3D;
 import javafx.scene.AmbientLight;
 import javafx.scene.Group;
@@ -14,6 +19,8 @@ import net.imglib2.Interval;
 
 public class Viewer3DFX extends Pane
 {
+
+	public static final Logger LOG = LoggerFactory.getLogger( MethodHandles.lookup().lookupClass() );
 
 	private final Group root;
 
@@ -31,11 +38,9 @@ public class Viewer3DFX extends Pane
 
 	private final PointLight lightFill = new PointLight( new Color( 0.35, 0.35, 0.65, 1 ) );
 
-	private final Point3D cameraNormal = new Point3D( 0, 0, 1 );
-
-	private final Point3D xNormal = new Point3D( 1, 0, 0 );
-
-	private final Point3D yNormal = new Point3D( 0, 1, 0 );
+	private static final Point3D xNormal = new Point3D( 1, 0, 0 );
+	private static final Point3D yNormal = new Point3D( 0, 1, 0 );
+	private static final Point3D zNormal = new Point3D( 0, 0, 1 );
 
 	public Viewer3DFX( final double width, final double height, final Interval interval )
 	{
@@ -44,7 +49,7 @@ public class Viewer3DFX extends Pane
 		this.meshesGroup = new Group();
 		this.setWidth( width );
 		this.setHeight( height );
-		this.scene = new SubScene( root, width, height, true, SceneAntialiasing.DISABLED );
+		this.scene = new SubScene( root, width, height, true, SceneAntialiasing.BALANCED );
 		this.scene.setFill( Color.BLACK );
 
 		this.camera = new PerspectiveCamera( true );
@@ -58,10 +63,7 @@ public class Viewer3DFX extends Pane
 		this.cameraGroup = new Group();
 
 		this.getChildren().add( this.scene );
-//		this.root.getChildren().add( meshesGroup );
 		this.root.getChildren().addAll( cameraGroup, meshesGroup );
-//		this.root.getChildren().add( light );
-//		this.root.getChildren().add( l );
 		this.scene.widthProperty().bind( widthProperty() );
 		this.scene.heightProperty().bind( heightProperty() );
 		lightSpot.setTranslateX( -10 );
@@ -70,7 +72,6 @@ public class Viewer3DFX extends Pane
 		lightFill.setTranslateX( 10 );
 
 		this.cameraGroup.getChildren().addAll( camera, lightAmbient, lightSpot, lightFill );
-//		this.cameraGroup.getTransforms().addAll( translate, rotX, rotY );
 		this.cameraGroup.getTransforms().add( new Translate( 0, 0, -1 ) );
 
 		Point3D point = new Point3D( camera.getTranslateX(), camera.getTranslateY(), camera.getTranslateZ() );

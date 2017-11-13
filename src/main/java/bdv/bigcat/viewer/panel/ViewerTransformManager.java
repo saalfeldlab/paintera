@@ -337,7 +337,7 @@ public class ViewerTransformManager implements TransformListener< AffineTransfor
 
 		public TranslateXY( final String name, final Predicate< MouseEvent >... eventFilter )
 		{
-			super( name, eventFilter );
+			super( name, eventFilter, global );
 		}
 
 		private final double[] delta = new double[ 3 ];
@@ -347,7 +347,7 @@ public class ViewerTransformManager implements TransformListener< AffineTransfor
 		@Override
 		public void initDrag( final javafx.scene.input.MouseEvent event )
 		{
-			synchronized ( global )
+			synchronized ( transformLock )
 			{
 				affineDrag.set( global );
 			}
@@ -356,7 +356,7 @@ public class ViewerTransformManager implements TransformListener< AffineTransfor
 		@Override
 		public void drag( final javafx.scene.input.MouseEvent event )
 		{
-			synchronized ( global )
+			synchronized ( transformLock )
 			{
 				final double x = event.getX();
 				final double y = event.getY();
@@ -486,7 +486,6 @@ public class ViewerTransformManager implements TransformListener< AffineTransfor
 
 	private class Rotate extends MouseDragFX
 	{
-
 		private final SimpleDoubleProperty speed = new SimpleDoubleProperty();
 
 		private final AffineTransform3D affineDragStart = new AffineTransform3D();
@@ -495,7 +494,7 @@ public class ViewerTransformManager implements TransformListener< AffineTransfor
 
 		public Rotate( final String name, final DoubleProperty speed, final double factor, final Predicate< MouseEvent >... eventFilter )
 		{
-			super( name, eventFilter );
+			super( name, eventFilter, global );
 			this.factor = factor;
 			this.speed.set( speed.get() * this.factor );
 			speed.addListener( ( obs, old, newv ) -> this.speed.set( this.factor * speed.get() ) );
@@ -504,7 +503,7 @@ public class ViewerTransformManager implements TransformListener< AffineTransfor
 		@Override
 		public void initDrag( final javafx.scene.input.MouseEvent event )
 		{
-			synchronized ( global )
+			synchronized ( transformLock )
 			{
 				affineDragStart.set( global );
 			}
@@ -514,7 +513,7 @@ public class ViewerTransformManager implements TransformListener< AffineTransfor
 		public void drag( final javafx.scene.input.MouseEvent event )
 		{
 			final AffineTransform3D affine = new AffineTransform3D();
-			synchronized ( global )
+			synchronized ( transformLock )
 			{
 				final double v = step * this.speed.get();
 				affine.set( affineDragStart );

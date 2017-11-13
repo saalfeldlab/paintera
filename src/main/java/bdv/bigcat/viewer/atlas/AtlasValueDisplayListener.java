@@ -6,8 +6,8 @@ import java.util.function.Consumer;
 import java.util.function.Function;
 
 import bdv.bigcat.viewer.ValueDisplayListener;
+import bdv.bigcat.viewer.atlas.data.DataSource;
 import bdv.bigcat.viewer.bdvfx.ViewerPanelFX;
-import bdv.viewer.Source;
 import javafx.application.Platform;
 import javafx.scene.control.Label;
 import javafx.scene.input.MouseEvent;
@@ -15,9 +15,7 @@ import javafx.scene.input.MouseEvent;
 public class AtlasValueDisplayListener
 {
 
-	private final HashMap< Source< ? >, Source< ? > > dataSourceMap = new HashMap<>();
-
-	private final HashMap< Source< ? >, Consumer > handlerMap = new HashMap<>();
+	private final HashMap< DataSource< ?, ? >, Consumer > handlerMap = new HashMap<>();
 
 	private final HashMap< ViewerPanelFX, ValueDisplayListener > listeners = new HashMap<>();
 
@@ -29,21 +27,20 @@ public class AtlasValueDisplayListener
 		this.statusBar = statusBar;
 	}
 
-	public < VT, T > void addSource( final Source< VT > source, final Source< T > dataSource, final Optional< Function< T, String > > valueToString )
+	public < D, T > void addSource( final DataSource< D, T > dataSource, final Optional< Function< D, String > > valueToString )
 	{
-		final Function< T, String > actualValueToString = valueToString.orElseGet( () -> Object::toString );
-		this.dataSourceMap.put( source, dataSource );
-		final Consumer< T > handler = t -> {
+		final Function< D, String > actualValueToString = valueToString.orElseGet( () -> Object::toString );
+		final Consumer< D > handler = t -> {
 			Platform.runLater( () -> statusBar.setText( actualValueToString.apply( t ) ) );
 		};
-		this.handlerMap.put( source, handler );
+		this.handlerMap.put( dataSource, handler );
 	}
 
 	public Consumer< ViewerPanelFX > onEnter()
 	{
 		return t -> {
 			if ( !this.listeners.containsKey( t ) )
-				this.listeners.put( t, new ValueDisplayListener( dataSourceMap, handlerMap, t ) );
+				this.listeners.put( t, new ValueDisplayListener( handlerMap, t ) );
 			t.getDisplay().addEventHandler( MouseEvent.MOUSE_MOVED, this.listeners.get( t ) );
 			t.addTransformListener( this.listeners.get( t ) );
 		};

@@ -1,25 +1,30 @@
 package bdv.bigcat.viewer;
 
+import java.nio.ByteBuffer;
 import java.util.Arrays;
-import java.util.concurrent.CountDownLatch;
+import java.util.function.Consumer;
+import java.util.function.Supplier;
 
-import org.slf4j.Logger;
+import org.zeromq.ZMQ;
+import org.zeromq.ZMQ.Context;
+import org.zeromq.ZMQ.Socket;
 
+import com.google.gson.JsonObject;
 import com.sun.javafx.application.PlatformImpl;
 
 import bdv.AbstractViewerSetupImgLoader;
 import bdv.bigcat.viewer.atlas.Atlas;
 import bdv.bigcat.viewer.atlas.data.HDF5LabelMultisetDataSource;
 import bdv.bigcat.viewer.atlas.data.RandomAccessibleIntervalDataSource;
+import bdv.bigcat.viewer.atlas.solver.SolverQueueServerZMQ;
+import bdv.bigcat.viewer.atlas.solver.action.Action;
 import bdv.img.cache.VolatileGlobalCellCache;
+import bdv.util.Prefs;
 import bdv.util.volatiles.SharedQueue;
 import bdv.viewer.Interpolation;
 import bdv.viewer.Source;
+import gnu.trove.map.hash.TLongLongHashMap;
 import javafx.application.Platform;
-import javafx.scene.control.Button;
-import javafx.scene.control.ButtonBar.ButtonData;
-import javafx.scene.control.ButtonType;
-import javafx.scene.control.Dialog;
 import javafx.stage.Stage;
 import mpicbg.spim.data.sequence.VoxelDimensions;
 import net.imglib2.FinalInterval;
@@ -42,22 +47,59 @@ import net.imglib2.util.Intervals;
 import net.imglib2.view.ExtendedRandomAccessibleInterval;
 import net.imglib2.view.Views;
 
-public class ExampleApplication2
+public class LART
 {
-	/** logger */
-	static Logger LOGGER;
 
 	public static void main( final String[] args ) throws Exception
 	{
-		// Set the log level
-		final String rawFile = "data/sample_B_20160708_frags_46_50.hdf";
+		Prefs.showMultibox( false );
+		Prefs.showTextOverlay( false );
+		// need to add resolution to Constantin's data!
+		final String rawFile = "/data/hanslovskyp/constantin-example-data/data/raw.h5";
 		PlatformImpl.startup( () -> {} );
-		final String rawDataset = "volumes/raw";
-		final String labelsFile = rawFile;
-		final String labelsDataset = "/volumes/labels/neuron_ids";
+		final String rawDataset = "data_u8";
+		final String labelsFile = "/data/hanslovskyp/constantin-example-data/data/seg.h5";
+		final String labelsDataset = "data";
+
+		final String actionReceiverAddress = "ipc://actions";
+
+		// https://github.com/zeromq/jeromq
+		// ipc:// protocol works only between jeromq (uses tcp://127.0.0.1:port
+		// internally).
+		// ipc:// protocol with zeromq. Java doesn't support UNIX domain socket.
+		// WHY?
+		final String solutionRequestResponseAddress = "ipc:///tmp/mc-solver";
+
+		final String solutionDistributionAddress = "ipc://solution";
+
+		final String latestSolutionRequestAddress = "ipc://latest-solution";
+
+		final int ioThreads = 1;
+
+		final long minWaitTimeAfterLastAction = 100;
+
+		final Context ctx = ZMQ.context( ioThreads );
+		final Socket initialSolutionSocket = ctx.socket( ZMQ.REQ );
+		initialSolutionSocket.connect( solutionRequestResponseAddress );
+		initialSolutionSocket.send( "" );
+		final byte[] solutionBytes = initialSolutionSocket.recv();
+		final TLongLongHashMap initialSolutionHashMap = new TLongLongHashMap();
+		final ByteBuffer bb = ByteBuffer.wrap( solutionBytes );
+		for ( int i = 0; bb.hasRemaining(); ++i )
+			initialSolutionHashMap.put( i, bb.getLong() );
+		final Supplier< TLongLongHashMap > initialSolution = () -> initialSolutionHashMap;
+
+		final SolverQueueServerZMQ solveQueue = new SolverQueueServerZMQ(
+				actionReceiverAddress,
+				solutionRequestResponseAddress,
+				solutionDistributionAddress,
+				initialSolution,
+				latestSolutionRequestAddress,
+				ioThreads,
+				minWaitTimeAfterLastAction );
 
 		final double[] resolution = { 4, 4, 40 };
-		final double[] offset = { 424, 424, 560 };
+		final double[] offset = { 0, 0, 0 };
 		final int[] cellSize = { 145, 53, 5 };
 
 		final int numPriorities = 20;
@@ -79,15 +121,17 @@ public class ExampleApplication2
 						Arrays.stream( max ).mapToLong( Math::round ).toArray() ),
 				sharedQueue );
 
-//		final Viewer3DController controller = new Viewer3DController();
-//		controller.setMode( Viewer3DController.ViewerMode.ONLY_ONE_NEURON_VISIBLE );
+		final AffineTransform3D tf = new AffineTransform3D();
+		final double scale = 1e-3;
+		tf.scale( scale );
+		tf.translate( scale * -1938, scale * -1760, scale * -664 );
+		viewer.setTransform( tf );
 
-		final CountDownLatch latch = new CountDownLatch( 1 );
 		Platform.runLater( () -> {
 			final Stage stage = new Stage();
 			try
 			{
-				viewer.start( stage );
+				viewer.start( stage, "l’art" );
 			}
 			catch ( final InterruptedException e )
 			{
@@ -95,46 +139,50 @@ public class ExampleApplication2
 				e.printStackTrace();
 			}
 			stage.show();
-//			final Viewer3D v3d = new Viewer3D( "appname", 100, 100, false );
-//			new Thread( () -> v3d.main() ).start();
-//			viewer.baseView().setInfoNode( v3d.getPanel() );
-//			controller.setViewer3D( v3d );
-//			controller.setResolution( resolution );
-			latch.countDown();
 		} );
-		latch.await();
 
-//		AffineTransform3D transform = new AffineTransform3D();
-//		final long label = 7;
-//		controller.renderAtSelectionMultiset( volumeLabels, transform, location, label );
-//		Viewer3DController.generateMesh( volumeLabels, location );
+		viewer.addRawSource( rawSource, 0, 255 );
 
-		viewer.addRawSource( rawSource, 0., 255. );
+		final Socket assignmentSocket = ctx.socket( ZMQ.REQ );
+		final Socket solutionSocket = ctx.socket( ZMQ.SUB );
 
-		final HDF5LabelMultisetDataSource labelSpec2 = new HDF5LabelMultisetDataSource( labelsFile, labelsDataset, cellSize, "labels", cellCache, 1 );
+		assignmentSocket.connect( actionReceiverAddress );
+		solutionSocket.connect( solutionDistributionAddress );
+		solutionSocket.subscribe( "".getBytes() );
+
+		final Consumer< Action > actionBroadcast = action -> {
+			final JsonObject json = new JsonObject();
+			json.add( "actions", Action.toJson( Arrays.asList( action ) ) );
+			json.addProperty( "version", "1" );
+			assignmentSocket.send( json.toString() );
+			System.out.println( "Sent action " + json.toString() + " WAITING FOR RESPONSE! on socket " + actionReceiverAddress );
+			final byte[] response = assignmentSocket.recv();
+			System.out.println( "GOT RESPONSE: " + Arrays.toString( response ) );
+		};
+
+		final Supplier< TLongLongHashMap > solutionReceiver = () -> {
+			final byte[] data = solutionSocket.recv();
+			final ByteBuffer dataBuffer = ByteBuffer.wrap( data );
+			final TLongLongHashMap result = new TLongLongHashMap();
+			while ( dataBuffer.hasRemaining() )
+				result.put( dataBuffer.getLong(), dataBuffer.getLong() );
+			return result;
+		};
+
+		final HDF5LabelMultisetDataSource labelSpec2 = new HDF5LabelMultisetDataSource(
+				labelsFile,
+				labelsDataset,
+				cellSize,
+				actionBroadcast,
+				solutionReceiver, () -> initialSolutionHashMap,
+				"labels",
+				cellCache,
+				1 );
 		viewer.addLabelSource( labelSpec2 );
 
-		final boolean demonstrateRemove = false;
-		if ( demonstrateRemove )
-		{
-			final HDF5LabelMultisetDataSource labelSpec3 = new HDF5LabelMultisetDataSource( labelsFile, labelsDataset, cellSize, "labels2", cellCache, 2 );
-			viewer.addLabelSource( labelSpec3 );
-
-			Platform.runLater( () -> {
-				final Dialog< Boolean > d = new Dialog<>();
-				final ButtonType removeType = new ButtonType( "Remove extra source", ButtonData.OK_DONE );
-				d.getDialogPane().getButtonTypes().add( removeType );
-				final Button b = ( Button ) d.getDialogPane().lookupButton( removeType );
-				System.out.println( "b " + b );
-				d.show();
-				d.setOnHiding( event -> {
-					System.out.println( "Removing source!" );
-					viewer.baseView().requestFocus();
-					viewer.removeSource( labelSpec3 );
-				} );
-				viewer.baseView().requestFocus();
-			} );
-		}
+		initialSolutionSocket.send( "" );
+		initialSolutionSocket.recv();
+		initialSolutionSocket.close();
 
 	}
 

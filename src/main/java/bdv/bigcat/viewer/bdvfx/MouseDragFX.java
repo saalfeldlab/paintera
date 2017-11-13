@@ -10,7 +10,6 @@ import javafx.scene.input.MouseEvent;
 
 public abstract class MouseDragFX implements InstallAndRemove< Node >
 {
-
 	protected double startX = 0;
 
 	protected double startY = 0;
@@ -29,27 +28,27 @@ public abstract class MouseDragFX implements InstallAndRemove< Node >
 
 	private final boolean consume;
 
-	public MouseDragFX( final String name, final Predicate< MouseEvent >[] eventFilter )
+	protected final Object transformLock;
+
+	public MouseDragFX( final String name, final Predicate< MouseEvent >[] eventFilter, final Object transformLock )
 	{
-		this( name, eventFilter, true );
+		this( name, eventFilter, true, transformLock );
 	}
 
-	public MouseDragFX( final String name, final Predicate< MouseEvent >[] eventFilter, final boolean consume )
+	public MouseDragFX( final String name, final Predicate< MouseEvent >[] eventFilter, final boolean consume, final Object transformLock )
 	{
 		super();
 		this.name = name;
 		this.eventFilter = eventFilter;
 		this.consume = consume;
+		this.transformLock = transformLock;
 	}
 
 	public abstract void initDrag( MouseEvent event );
 
 	public abstract void drag( MouseEvent event );
 
-	public void endDrag( final MouseEvent event )
-	{
-
-	}
+	public void endDrag( final MouseEvent event ) {}
 
 	public String name()
 	{

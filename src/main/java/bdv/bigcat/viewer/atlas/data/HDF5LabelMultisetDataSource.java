@@ -6,28 +6,32 @@ import java.util.Optional;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 
-import bdv.bigcat.ui.LabelMultisetSource;
-import bdv.bigcat.ui.VolatileLabelMultisetSource;
 import bdv.bigcat.viewer.atlas.solver.action.Action;
 import bdv.bigcat.viewer.state.FragmentSegmentAssignmentState;
 import bdv.bigcat.viewer.state.FragmentSegmentAssignmentWithHistory;
 import bdv.bigcat.viewer.state.SelectedIds;
 import bdv.bigcat.viewer.stream.AbstractHighlightingARGBStream;
 import bdv.bigcat.viewer.stream.ModalGoldenAngleSaturatedHighlightingARGBStream;
-import bdv.bigcat.viewer.viewer3d.marchingCubes.ForegroundCheck;
 import bdv.img.cache.VolatileGlobalCellCache;
 import bdv.img.h5.H5LabelMultisetSetupImageLoader;
 import bdv.labels.labelset.Label;
 import bdv.labels.labelset.LabelMultisetType;
 import bdv.labels.labelset.Multiset.Entry;
 import bdv.labels.labelset.VolatileLabelMultisetType;
+import bdv.viewer.Interpolation;
 import ch.systemsx.cisd.hdf5.HDF5Factory;
 import ch.systemsx.cisd.hdf5.IHDF5Reader;
 import gnu.trove.map.hash.TLongLongHashMap;
+import mpicbg.spim.data.sequence.VoxelDimensions;
+import net.imglib2.RandomAccessibleInterval;
+import net.imglib2.RealRandomAccessible;
 import net.imglib2.converter.Converter;
+import net.imglib2.interpolation.randomaccess.NearestNeighborInterpolatorFactory;
+import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.type.numeric.ARGBType;
+import net.imglib2.view.Views;
 
-public class HDF5LabelMultisetSourceSpec implements RenderableLabelSpec< LabelMultisetType, VolatileLabelMultisetType >
+public class HDF5LabelMultisetDataSource implements LabelDataSource< LabelMultisetType, VolatileLabelMultisetType >
 {
 
 	private final AbstractHighlightingARGBStream stream;
@@ -42,7 +46,15 @@ public class HDF5LabelMultisetSourceSpec implements RenderableLabelSpec< LabelMu
 
 	private final String uri;
 
-	public HDF5LabelMultisetSourceSpec( final String path, final String dataset, final int[] cellSize, final String name, final VolatileGlobalCellCache cellCache ) throws IOException
+	private final int setupId;
+
+	public HDF5LabelMultisetDataSource(
+			final String path,
+			final String dataset,
+			final int[] cellSize,
+			final String name,
+			final VolatileGlobalCellCache cellCache,
+			final int setupId ) throws IOException
 	{
 		this( path, dataset, cellSize, action -> {}, () -> {
 			try
@@ -55,10 +67,10 @@ public class HDF5LabelMultisetSourceSpec implements RenderableLabelSpec< LabelMu
 				e.printStackTrace();
 			}
 			return null;
-		}, TLongLongHashMap::new, name, cellCache );
+		}, TLongLongHashMap::new, name, cellCache, setupId );
 	}
 
-	public HDF5LabelMultisetSourceSpec(
+	public HDF5LabelMultisetDataSource(
 			final String path,
 			final String dataset,
 			final int[] cellSize,
@@ -66,19 +78,29 @@ public class HDF5LabelMultisetSourceSpec implements RenderableLabelSpec< LabelMu
 			final Supplier< TLongLongHashMap > solutionFetcher,
 			final Supplier< TLongLongHashMap > initialSolution,
 			final String name,
-			final VolatileGlobalCellCache cellCache ) throws IOException
+			final VolatileGlobalCellCache cellCache,
+			final int setupId ) throws IOException
 	{
 		super();
-		final IHDF5Reader h5reader = HDF5Factory.open( path );
+		final IHDF5Reader h5reader = HDF5Factory.openForReading( path );
 		// TODO Use better value for number of threads of shared queue
-		this.loader = new H5LabelMultisetSetupImageLoader( h5reader, null, dataset, 1, cellSize, cellCache );
+		this.loader = new H5LabelMultisetSetupImageLoader( h5reader, null, dataset, setupId, cellSize, cellCache );
 		this.assignment = new FragmentSegmentAssignmentWithHistory( initialSolution.get(), actionBroadcaster, solutionFetcher );
 		this.stream = new ModalGoldenAngleSaturatedHighlightingARGBStream( selectedIds, assignment );
 		this.uri = "h5://" + path + "/dataset";
 		this.name = name;
+		this.setupId = setupId;
 	}
 
-	public HDF5LabelMultisetSourceSpec( final String path, final String dataset, final int[] cellSize, final double[] resolution, final double[] offset, final String name, final VolatileGlobalCellCache cellCache ) throws IOException
+	public HDF5LabelMultisetDataSource(
+			final String path,
+			final String dataset,
+			final int[] cellSize,
+			final double[] resolution,
+			final double[] offset,
+			final String name,
+			final VolatileGlobalCellCache cellCache,
+			final int setupId ) throws IOException
 	{
 		this( path, dataset, cellSize, action -> {}, () -> {
 			try
@@ -91,10 +113,10 @@ public class HDF5LabelMultisetSourceSpec implements RenderableLabelSpec< LabelMu
 				e.printStackTrace();
 			}
 			return null;
-		}, resolution, offset, name, cellCache );
+		}, resolution, offset, name, cellCache, setupId );
 	}
 
-	public HDF5LabelMultisetSourceSpec(
+	public HDF5LabelMultisetDataSource(
 			final String path,
 			final String dataset,
 			final int[] cellSize,
@@ -103,34 +125,22 @@ public class HDF5LabelMultisetSourceSpec implements RenderableLabelSpec< LabelMu
 			final double[] resolution,
 			final double[] offset,
 			final String name,
-			final VolatileGlobalCellCache cellCache ) throws IOException
+			final VolatileGlobalCellCache cellCache,
+			final int setupId ) throws IOException
 	{
 		super();
 		final IHDF5Reader h5reader = HDF5Factory.open( path );
-		this.loader = new H5LabelMultisetSetupImageLoader( h5reader, null, dataset, 1, cellSize, resolution, offset, cellCache );
+		this.loader = new H5LabelMultisetSetupImageLoader( h5reader, null, dataset, setupId, cellSize, resolution, offset, cellCache );
 		this.assignment = new FragmentSegmentAssignmentWithHistory( actionBroadcaster, solutionFetcher );
 		this.stream = new ModalGoldenAngleSaturatedHighlightingARGBStream( selectedIds, assignment );
 		this.name = name;
 		this.uri = "h5:/" + path + "/dataset";
+		this.setupId = setupId;
 	}
 
 	public SelectedIds getSelectedIds()
 	{
 		return selectedIds;
-	}
-
-	@Override
-	public LabelMultisetSource getSource()
-	{
-		final LabelMultisetSource source = new LabelMultisetSource( 1, loader, stream );
-		return source;
-	}
-
-	@Override
-	public VolatileLabelMultisetSource getViewerSource()
-	{
-		final VolatileLabelMultisetSource source = new VolatileLabelMultisetSource( 1, loader, stream );
-		return source;
 	}
 
 	public static class HighlightingStreamConverter implements Converter< VolatileLabelMultisetType, ARGBType >
@@ -194,41 +204,75 @@ public class HDF5LabelMultisetSourceSpec implements RenderableLabelSpec< LabelMu
 		return assignment;
 	}
 
-	@Override
-	public String name()
-	{
-		return name;
-	}
-
-	@Override
 	public Optional< String > uri()
 	{
 		return Optional.of( uri );
 	}
 
 	@Override
-	public ForegroundCheck< LabelMultisetType > foregroundCheck( final LabelMultisetType selection )
+	public RandomAccessibleInterval< LabelMultisetType > getDataSource( final int t, final int level )
 	{
-		final long id = maxCountId( selection );
-		final FragmentSegmentAssignmentState< ? > assignment = getAssignment();
-		final long segmentId = assignment.getSegment( id );
-		return t -> assignment.getSegment( maxCountId( t ) ) == segmentId ? 1 : 0;
+		return loader.getImage( t, level );
 	}
 
-	public static long maxCountId( final LabelMultisetType t )
+	@Override
+	public RealRandomAccessible< LabelMultisetType > getInterpolatedDataSource( final int t, final int level, final Interpolation method )
 	{
-		long argMaxLabel = Label.INVALID;
-		long argMaxCount = 0;
-		for ( final Entry< Label > entry : t.entrySet() )
-		{
-			final int count = entry.getCount();
-			if ( count > argMaxCount )
-			{
-				argMaxCount = count;
-				argMaxLabel = entry.getElement().id();
-			}
-		}
-		return argMaxLabel;
+		return Views.interpolate( Views.extendValue( getDataSource( t, level ), new LabelMultisetType() ), new NearestNeighborInterpolatorFactory<>() );
+	}
+
+	@Override
+	public LabelMultisetType getDataType()
+	{
+		return new LabelMultisetType();
+	}
+
+	@Override
+	public boolean isPresent( final int t )
+	{
+		return true;
+	}
+
+	@Override
+	public RandomAccessibleInterval< VolatileLabelMultisetType > getSource( final int t, final int level )
+	{
+		return loader.getVolatileImage( t, level );
+	}
+
+	@Override
+	public RealRandomAccessible< VolatileLabelMultisetType > getInterpolatedSource( final int t, final int level, final Interpolation method )
+	{
+		return Views.interpolate( Views.extendValue( getSource( t, level ), new VolatileLabelMultisetType() ), new NearestNeighborInterpolatorFactory<>() );
+	}
+
+	@Override
+	public void getSourceTransform( final int t, final int level, final AffineTransform3D transform )
+	{
+		transform.set( loader.getMipmapTransforms()[ level ] );
+	}
+
+	@Override
+	public VolatileLabelMultisetType getType()
+	{
+		return new VolatileLabelMultisetType();
+	}
+
+	@Override
+	public String getName()
+	{
+		return name;
+	}
+
+	@Override
+	public VoxelDimensions getVoxelDimensions()
+	{
+		return null;
+	}
+
+	@Override
+	public int getNumMipmapLevels()
+	{
+		return loader.getMipmapTransforms().length;
 	}
 
 }

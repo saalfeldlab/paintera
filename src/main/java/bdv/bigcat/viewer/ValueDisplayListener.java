@@ -5,6 +5,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.function.Consumer;
 
+import bdv.bigcat.viewer.atlas.data.DataSource;
 import bdv.bigcat.viewer.bdvfx.ViewerPanelFX;
 import bdv.viewer.Interpolation;
 import bdv.viewer.Source;
@@ -20,9 +21,7 @@ import net.imglib2.ui.TransformListener;
 public class ValueDisplayListener implements EventHandler< javafx.scene.input.MouseEvent >, TransformListener< AffineTransform3D >
 {
 
-	private final HashMap< Source< ? >, Source< ? > > dataSourceMap;
-
-	private final HashMap< Source< ? >, Consumer > valueHandlers;
+	private final HashMap< DataSource< ?, ? >, Consumer > valueHandlers;
 
 	private final ViewerPanelFX viewer;
 
@@ -32,10 +31,9 @@ public class ValueDisplayListener implements EventHandler< javafx.scene.input.Mo
 
 	private double y = -1;
 
-	public ValueDisplayListener( final HashMap< Source< ? >, Source< ? > > dataSourceMap, final HashMap< Source< ? >, Consumer > valueHandlers, final ViewerPanelFX viewer )
+	public ValueDisplayListener( final HashMap< DataSource< ?, ? >, Consumer > valueHandlers, final ViewerPanelFX viewer )
 	{
 		super();
-		this.dataSourceMap = dataSourceMap;
 		this.valueHandlers = valueHandlers;
 		this.viewer = viewer;
 	}
@@ -89,21 +87,20 @@ public class ValueDisplayListener implements EventHandler< javafx.scene.input.Mo
 	private void getInfo()
 	{
 		final Optional< Source< ? > > optionalSource = getSource();
-		if ( optionalSource.isPresent() )
+		if ( optionalSource.isPresent() && optionalSource.get() instanceof DataSource< ?, ? > )
 		{
-			final Source< ? > activeSource = optionalSource.get();
-			if ( dataSourceMap.containsKey( activeSource ) && valueHandlers.containsKey( activeSource ) )
+			final DataSource< ?, ? > source = ( DataSource< ?, ? > ) optionalSource.get();
+			if ( valueHandlers.containsKey( source ) )
 			{
 				final ViewerState state = viewer.getState();
 				final int currentSource = state.getCurrentSource();
 				final Interpolation interpolation = state.getInterpolation();
 				final int level = state.getBestMipMapLevel( this.viewerTransform, currentSource );
-				final Source< ? > source = dataSourceMap.get( activeSource );
 				final AffineTransform3D affine = new AffineTransform3D();
 				source.getSourceTransform( 0, level, affine );
-				final RealRandomAccess< ? > access = RealViews.transformReal( source.getInterpolatedSource( 0, level, interpolation ), affine ).realRandomAccess();
+				final RealRandomAccess< ? > access = RealViews.transformReal( source.getInterpolatedDataSource( 0, level, interpolation ), affine ).realRandomAccess();
 				final Object val = getVal( x, y, access, viewer );
-				valueHandlers.get( activeSource ).accept( val );
+				valueHandlers.get( source ).accept( val );
 			}
 		}
 	}

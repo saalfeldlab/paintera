@@ -1,5 +1,6 @@
 package bdv.bigcat.viewer.atlas;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -8,25 +9,21 @@ import java.util.List;
 import java.util.Optional;
 import java.util.function.Consumer;
 import java.util.function.Function;
-import java.util.stream.Collectors;
+import java.util.function.Supplier;
 
 import bdv.bigcat.composite.ARGBCompositeAlphaAdd;
 import bdv.bigcat.composite.ARGBCompositeAlphaYCbCr;
 import bdv.bigcat.composite.ClearingCompositeProjector.ClearingCompositeProjectorFactory;
 import bdv.bigcat.composite.Composite;
+import bdv.bigcat.ui.ARGBStream;
 import bdv.bigcat.viewer.ToIdConverter;
-import bdv.bigcat.viewer.ToIdConverter.FromLabelMultisetType;
 import bdv.bigcat.viewer.ViewerActor;
 import bdv.bigcat.viewer.atlas.AtlasFocusHandler.OnEnterOnExit;
-import bdv.bigcat.viewer.atlas.Specs.SourceState;
-import bdv.bigcat.viewer.atlas.converter.NaNMaskedRealARGBConverter;
-import bdv.bigcat.viewer.atlas.converter.VolatileARGBIdentiyWithAlpha;
-import bdv.bigcat.viewer.atlas.data.ConvertedSource;
-import bdv.bigcat.viewer.atlas.data.DatasetSpec;
-import bdv.bigcat.viewer.atlas.data.HDF5LabelMultisetSourceSpec;
-import bdv.bigcat.viewer.atlas.data.HDF5LabelMultisetSourceSpec.HighlightingStreamConverter;
-import bdv.bigcat.viewer.atlas.data.RenderableLabelSpec;
-import bdv.bigcat.viewer.atlas.data.RenderableSpec;
+import bdv.bigcat.viewer.atlas.data.ConverterDataSource;
+import bdv.bigcat.viewer.atlas.data.DataSource;
+import bdv.bigcat.viewer.atlas.data.HDF5LabelMultisetDataSource;
+import bdv.bigcat.viewer.atlas.data.LabelDataSource;
+import bdv.bigcat.viewer.atlas.data.RandomAccessibleIntervalDataSource;
 import bdv.bigcat.viewer.atlas.mode.Highlights;
 import bdv.bigcat.viewer.atlas.mode.Merges;
 import bdv.bigcat.viewer.atlas.mode.Mode;
@@ -39,20 +36,24 @@ import bdv.bigcat.viewer.ortho.OrthoViewState;
 import bdv.bigcat.viewer.panel.ViewerNode;
 import bdv.bigcat.viewer.state.FragmentSegmentAssignmentState;
 import bdv.bigcat.viewer.state.SelectedIds;
+import bdv.bigcat.viewer.stream.AbstractHighlightingARGBStream;
 import bdv.bigcat.viewer.stream.ModalGoldenAngleSaturatedHighlightingARGBStream;
 import bdv.bigcat.viewer.viewer3d.OrthoSliceFX;
 import bdv.bigcat.viewer.viewer3d.Viewer3DControllerFX;
 import bdv.bigcat.viewer.viewer3d.Viewer3DFX;
-import bdv.img.cache.VolatileGlobalCellCache;
+import bdv.img.h5.H5Utils;
 import bdv.labels.labelset.LabelMultisetType;
 import bdv.labels.labelset.Multiset.Entry;
 import bdv.labels.labelset.VolatileLabelMultisetType;
+import bdv.util.volatiles.SharedQueue;
+import bdv.util.volatiles.VolatileViews;
+import bdv.viewer.Interpolation;
 import bdv.viewer.Source;
 import bdv.viewer.SourceAndConverter;
 import bdv.viewer.ViewerOptions;
+import ch.systemsx.cisd.hdf5.HDF5Factory;
 import javafx.application.Application;
-import javafx.beans.value.ChangeListener;
-import javafx.collections.ListChangeListener;
+import javafx.beans.property.SimpleObjectProperty;
 import javafx.event.EventHandler;
 import javafx.scene.Node;
 import javafx.scene.Scene;
@@ -61,33 +62,32 @@ import javafx.scene.control.Button;
 import javafx.scene.control.ButtonType;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.Label;
-import javafx.scene.control.Tab;
-import javafx.scene.control.TabPane;
-import javafx.scene.control.TableColumn;
-import javafx.scene.control.TableView;
-import javafx.scene.control.TextField;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyEvent;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.HBox;
-import javafx.scene.layout.VBox;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
 import javafx.stage.WindowEvent;
 import net.imglib2.Interval;
+import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.Volatile;
+import net.imglib2.cache.volatiles.CacheHints;
+import net.imglib2.cache.volatiles.LoadingStrategy;
 import net.imglib2.converter.Converter;
-import net.imglib2.converter.RealDoubleConverter;
-import net.imglib2.converter.TypeIdentity;
+import net.imglib2.converter.RealARGBConverter;
+import net.imglib2.interpolation.randomaccess.ClampingNLinearInterpolatorFactory;
+import net.imglib2.interpolation.randomaccess.NLinearInterpolatorFactory;
+import net.imglib2.interpolation.randomaccess.NearestNeighborInterpolatorFactory;
 import net.imglib2.realtransform.AffineTransform3D;
-import net.imglib2.type.Type;
+import net.imglib2.type.NativeType;
+import net.imglib2.type.logic.BoolType;
 import net.imglib2.type.numeric.ARGBType;
 import net.imglib2.type.numeric.IntegerType;
+import net.imglib2.type.numeric.NumericType;
 import net.imglib2.type.numeric.RealType;
-import net.imglib2.type.numeric.real.DoubleType;
 import net.imglib2.type.volatiles.VolatileARGBType;
-import net.imglib2.type.volatiles.VolatileRealType;
 
 public class Atlas
 {
@@ -102,11 +102,7 @@ public class Atlas
 
 	private final AtlasValueDisplayListener valueDisplayListener;
 
-	private final Specs specs = new Specs();
-
-	private final HashMap< Source< ? >, SelectedIds > selectedIds = new HashMap<>();
-
-	private final HashMap< Source< ? >, FragmentSegmentAssignmentState< ? > > assignments = new HashMap<>();
+	private final SourceInfo sourceInfo = new SourceInfo();
 
 	private final HashMap< Source< ? >, Composite< ARGBType, ARGBType > > composites = new HashMap<>();
 
@@ -116,7 +112,7 @@ public class Atlas
 
 	private final ArrayList< Mode > modes = new ArrayList<>();
 
-	private final SourcesTab sourcesTab = new SourcesTab( specs );
+//	private final SourcesTab sourcesTab = new SourcesTab( specs );
 
 	private final Viewer3DFX renderView;
 
@@ -128,12 +124,14 @@ public class Atlas
 
 	private final KeyTracker keyTracker = new KeyTracker();
 
-	public Atlas( final Interval interval, final VolatileGlobalCellCache cellCache )
+	private final SimpleObjectProperty< Mode > currentMode = new SimpleObjectProperty<>();
+
+	public Atlas( final Interval interval, final SharedQueue cellCache )
 	{
 		this( ViewerOptions.options(), interval, cellCache );
 	}
 
-	public Atlas( final ViewerOptions viewerOptions, final Interval interval, final VolatileGlobalCellCache cellCache )
+	public Atlas( final ViewerOptions viewerOptions, final Interval interval, final SharedQueue cellCache )
 	{
 		super();
 		this.viewerOptions = viewerOptions
@@ -142,10 +140,10 @@ public class Atlas
 		this.view = new OrthoView( focusHandler.onEnter(), focusHandler.onExit(), new OrthoViewState( this.viewerOptions ), cellCache, keyTracker );
 		this.root = new BorderPane( this.view );
 		this.root.setBottom( status );
-		this.root.setRight( sourcesTab );
-		this.view.heightProperty().addListener( ( ChangeListener< Number > ) ( observable, old, newVal ) -> {
-			this.sourcesTab.prefHeightProperty().set( newVal.doubleValue() );
-		} );
+//		this.root.setRight( sourcesTab );
+//		this.view.heightProperty().addListener( ( ChangeListener< Number > ) ( observable, old, newVal ) -> {
+//			this.sourcesTab.prefHeightProperty().set( newVal.doubleValue() );
+//		} );
 //		this.sourcesTab.listen( this.specs );
 
 //		this.view.addCurrentSourceListener( ( observable, oldValue, newValue ) -> {
@@ -159,13 +157,14 @@ public class Atlas
 		this.view.setInfoNode( renderView );
 		this.renderView.scene().addEventHandler( MouseEvent.MOUSE_CLICKED, event -> renderView.scene().requestFocus() );
 
-		final Mode[] initialModes = { new NavigationOnly(), new Highlights( controller, baseView().getState().transformManager(), selectedIds, keyTracker ), new Merges( selectedIds, assignments ) };
+		final Mode[] initialModes = { new NavigationOnly(), new Highlights( controller, baseView().getState().transformManager(), sourceInfo, keyTracker ), new Merges( sourceInfo ) };
 		Arrays.stream( initialModes ).forEach( modes::add );
 
 		for ( final Mode mode : modes )
 			addOnEnterOnExit( mode.onEnter(), mode.onExit(), true );
 
 		final ComboBox< Mode > modeSelector = ModeUtil.comboBox( modes );
+		this.currentMode.bind( modeSelector.valueProperty() );
 		modeSelector.setPromptText( "Mode" );
 		this.status.getChildren().add( modeSelector );
 		modeSelector.getSelectionModel().select( initialModes[ 2 ] );
@@ -182,26 +181,26 @@ public class Atlas
 //		final AtlasMouseCoordinatePrinter mcp = new AtlasMouseCoordinatePrinter( this.status );
 //		addOnEnterOnExit( mcp.onEnter(), mcp.onExit(), true );
 		addOnEnterOnExit( valueDisplayListener.onEnter(), valueDisplayListener.onExit(), true );
-		this.specs.addVisibilityChangedListener( () -> {
-			final List< SourceState< ?, ?, ? > > states = this.specs.sourceStates();
-			final List< SourceAndConverter< ? > > onlyVisible = states.stream().filter( SourceState::isVisible ).map( SourceState::sourceAndConverter ).collect( Collectors.toList() );
-			this.baseView().getState().removeAllSources();
-			this.baseView().getState().addSources( onlyVisible );
-		} );
+//		this.specs.addVisibilityChangedListener( () -> {
+//			final List< SourceState< ?, ?, ? > > states = this.specs.sourceStates();
+//			final List< SourceAndConverter< ? > > onlyVisible = states.stream().filter( SourceState::isVisible ).map( SourceState::sourceAndConverter ).collect( Collectors.toList() );
+//			this.baseView().getState().removeAllSources();
+//			this.baseView().getState().addSources( onlyVisible );
+//		} );
 
-		this.specs.addListChangeListener( ( ListChangeListener< Specs.SourceState< ?, ?, ? > > ) c -> {
-			while ( c.next() )
-				if ( c.wasRemoved() )
-					for ( final SourceState< ?, ?, ? > removed : c.getRemoved() )
-					{
-						final Source< ? > source = removed.source();
-						this.selectedIds.remove( source );
-						this.composites.remove( source );
-						this.baseView().getState().removeSource( source );
-					}
-				else if ( c.wasAdded() )
-					this.baseView().getState().addSources( c.getAddedSubList().stream().map( Specs.SourceState::sourceAndConverter ).collect( Collectors.toList() ) );
-		} );
+//		this.specs.addListChangeListener( ( ListChangeListener< Specs.SourceState< ?, ?, ? > > ) c -> {
+//			while ( c.next() )
+//				if ( c.wasRemoved() )
+//					for ( final SourceState< ?, ?, ? > removed : c.getRemoved() )
+//					{
+//						final Source< ? > source = removed.source();
+//						this.sourceInfo.removeSource( source );
+//						this.composites.remove( source );
+//						this.baseView().getState().removeSource( source );
+//					}
+//				else if ( c.wasAdded() )
+//					this.baseView().getState().addSources( c.getAddedSubList().stream().map( Specs.SourceState::sourceAndConverter ).collect( Collectors.toList() ) );
+//		} );
 
 //		this.specs.addListener( () -> {
 //			this.baseView().removeAllSources();
@@ -209,13 +208,13 @@ public class Atlas
 //			this.baseView().addSource( sacs.get( 0 ) );
 //		} );
 
-		this.baseView().addEventHandler( KeyEvent.KEY_PRESSED, event -> {
-			if ( !event.isConsumed() && event.isAltDown() && event.getCode().equals( KeyCode.S ) )
-			{
-				toggleSourcesTable();
-				event.consume();
-			}
-		} );
+//		this.baseView().addEventHandler( KeyEvent.KEY_PRESSED, event -> {
+//			if ( !event.isConsumed() && event.isAltDown() && event.getCode().equals( KeyCode.S ) )
+//			{
+//				toggleSourcesTable();
+//				event.consume();
+//			}
+//		} );
 
 		{
 			final AffineTransform3D tf = new AffineTransform3D();
@@ -234,21 +233,21 @@ public class Atlas
 			this.baseView().setTransform( tf );
 		}
 
-		this.baseView().getState().addCurrentSourceListener( ( observable, oldValue, newValue ) -> {
-			if ( newValue.isPresent() )
-			{
-				final Optional< SourceState< ?, ?, ? > > spec = this.specs.getState( newValue.get() );
-				this.specs.selectedSourceProperty().setValue( spec.isPresent() ? Optional.of( spec.get().spec() ) : Optional.empty() );
-			}
-			else
-				this.specs.selectedSourceProperty().setValue( Optional.empty() );
-		} );
+//		this.baseView().getState().addCurrentSourceListener( ( observable, oldValue, newValue ) -> {
+//			if ( newValue.isPresent() )
+//			{
+//				final Optional< SourceState< ?, ?, ? > > spec = this.specs.getState( newValue.get() );
+//				this.specs.selectedSourceProperty().setValue( spec.isPresent() ? Optional.of( spec.get().spec() ) : Optional.empty() );
+//			}
+//			else
+//				this.specs.selectedSourceProperty().setValue( Optional.empty() );
+//		} );
 
 		for ( final Node child : this.baseView().getChildren() )
 			if ( child instanceof ViewerNode )
 			{
 				final ViewerNode vn = ( ViewerNode ) child;
-				final OrthoSliceFX orthoSlice = new OrthoSliceFX( renderView.meshesGroup(), vn.getViewer() );
+				final OrthoSliceFX orthoSlice = new OrthoSliceFX( renderView.meshesGroup(), vn.getViewer(), sourceInfo );
 				orthoSlices.add( orthoSlice );
 				orthoSlice.toggleVisibility();
 			}
@@ -267,10 +266,10 @@ public class Atlas
 
 	}
 
-	public void toggleSourcesTable()
-	{
-		this.root.setRight( this.root.getRight() == null ? this.sourcesTab : null );
-	}
+//	public void toggleSourcesTable()
+//	{
+//		this.root.setRight( this.root.getRight() == null ? this.sourcesTab : null );
+//	}
 
 	public void start( final Stage primaryStage ) throws InterruptedException
 	{
@@ -289,7 +288,7 @@ public class Atlas
 
 		primaryStage.setOnCloseRequest( confirmCloseEventHandler );
 
-		Button closeButton = new Button( "Close BigCat" );
+		final Button closeButton = new Button( "Close BigCat" );
 		closeButton.setOnAction( event -> primaryStage.fireEvent(
 				new WindowEvent(
 						primaryStage,
@@ -312,11 +311,11 @@ public class Atlas
 
 	}
 
-	private EventHandler< WindowEvent > confirmCloseEventHandler = event -> {
-		Alert closeConfirmation = new Alert(
+	private final EventHandler< WindowEvent > confirmCloseEventHandler = event -> {
+		final Alert closeConfirmation = new Alert(
 				Alert.AlertType.CONFIRMATION,
 				"Are you sure you want to exit?" );
-		Button exitButton = ( Button ) closeConfirmation.getDialogPane().lookupButton(
+		final Button exitButton = ( Button ) closeConfirmation.getDialogPane().lookupButton(
 				ButtonType.OK );
 		exitButton.setText( "Exit" );
 		closeConfirmation.setHeaderText( "Confirm Exit" );
@@ -330,25 +329,20 @@ public class Atlas
 		closeConfirmation.setX( primaryStage.getX() );
 		closeConfirmation.setY( primaryStage.getY() + primaryStage.getHeight() );
 
-		Optional< ButtonType > closeResponse = closeConfirmation.showAndWait();
+		final Optional< ButtonType > closeResponse = closeConfirmation.showAndWait();
 		if ( !ButtonType.OK.equals( closeResponse.get() ) )
-		{
-//			stage.setOnCloseRequest(
+			// stage.setOnCloseRequest(
 //			event -> {
 //			Platform.runLater( Platform::exit );
 //			}
 //			);
 			event.consume();
-		}
 		else
-		{
 			exitButton.setOnAction(
 					e -> primaryStage.fireEvent(
 							new WindowEvent(
 									primaryStage,
 									WindowEvent.WINDOW_CLOSE_REQUEST ) ) );
-
-		}
 	};
 
 	public void addOnEnterOnExit( final Consumer< ViewerPanelFX > onEnter, final Consumer< ViewerPanelFX > onExit, final boolean onExitRemovable )
@@ -361,51 +355,58 @@ public class Atlas
 		this.focusHandler.add( onEnterOnExit, onExitRemovable );
 	}
 
-	private < T, U, V > void addSource( final SourceAndConverter< T > src, final Composite< ARGBType, ARGBType > comp, final DatasetSpec< U, V > spec )
+	private < T, U, V > void addSource( final SourceAndConverter< T > src, final Composite< ARGBType, ARGBType > comp )
 	{
 		this.composites.put( src.getSpimSource(), comp );
-		this.specs.addSpec( spec, src.getSpimSource(), src.getConverter() );
+		this.baseView().getState().addSource( src );
 	}
 
-	public < T, VT > void removeSource( final DatasetSpec< T, VT > spec )
+	public < T, VT > void removeSource( final DataSource< T, VT > spec )
 	{
-		final List< SourceAndConverter< ? > > sacs = this.specs.getSourceAndConverters( spec );
-		this.specs.removeSpec( spec );
-		sacs.stream().map( SourceAndConverter::getSpimSource ).forEach( this.composites::remove );
+		this.composites.remove( spec );
+		this.sourceInfo.removeSource( spec );
 	}
 
-	public void addLabelSource( final RenderableLabelSpec< LabelMultisetType, VolatileLabelMultisetType > spec )
+	public void addLabelSource( final LabelDataSource< LabelMultisetType, VolatileLabelMultisetType > spec )
 	{
-		final Source< VolatileLabelMultisetType > originalVSource = spec.getViewerSource();
 		final FragmentSegmentAssignmentState< ? > assignment = spec.getAssignment();
-		final SelectedIds selIds = new SelectedIds();
-		final ModalGoldenAngleSaturatedHighlightingARGBStream stream = new ModalGoldenAngleSaturatedHighlightingARGBStream( selIds, assignment );
-		final HighlightingStreamConverter streamConverter = new HDF5LabelMultisetSourceSpec.HighlightingStreamConverter( stream );
-		final Converter< VolatileLabelMultisetType, VolatileARGBType > converter = ( s, t ) -> {
-			final boolean isValid = s.isValid();
-			t.setValid( isValid );
-			if ( isValid )
-				streamConverter.convert( s, t.get() );
+		final CurrentModeConverter converter = new CurrentModeConverter();
+		final HashMap< Mode, SelectedIds > selIdsMap = new HashMap<>();
+		final HashMap< Mode, ARGBStream > streamsMap = new HashMap<>();
+		for ( final Mode mode : this.modes )
+		{
+			final SelectedIds selId = new SelectedIds();
+			selIdsMap.put( mode, selId );
+			streamsMap.put( mode, new ModalGoldenAngleSaturatedHighlightingARGBStream( selId, assignment ) );
+		}
+		final DataSource< LabelMultisetType, VolatileARGBType > vsource = new ConverterDataSource<>(
+				spec,
+				converter,
+				method -> method.equals( Interpolation.NLINEAR ) ? new ClampingNLinearInterpolatorFactory<>() : new NearestNeighborInterpolatorFactory<>(),
+				new VolatileARGBType( 0 ) );
+		final ARGBCompositeAlphaYCbCr comp = new ARGBCompositeAlphaYCbCr();
+		final SourceAndConverter< VolatileARGBType > src = new SourceAndConverter<>( vsource, ( s, t ) -> t.set( s.get() ) );
+
+		final Consumer< Mode > setConverter = mode -> {
+			final AbstractHighlightingARGBStream argbStream = ( AbstractHighlightingARGBStream ) sourceInfo.stream( vsource, mode ).get();
+			converter.setConverter( new HDF5LabelMultisetDataSource.HighlightingStreamConverter( argbStream ) );
+			baseView().requestRepaint();
 		};
 
-		final VolatileARGBIdentiyWithAlpha identity = new VolatileARGBIdentiyWithAlpha( 255 );
-//		final Converter< VolatileARGBType, ARGBType > identity = ( source, target ) -> {
-//			target.set( source.get() );
-//		};
+		currentMode.addListener( ( obs, oldv, newv ) -> {
+			Optional.ofNullable( newv ).ifPresent( setConverter::accept );
+		} );
 
-		final Source< VolatileARGBType > vsource = new ConvertedSource<>( originalVSource, new VolatileARGBType( 0 ), converter, originalVSource.getName() );
-		final ARGBCompositeAlphaYCbCr comp = new ARGBCompositeAlphaYCbCr();
-		final SourceAndConverter< VolatileARGBType > src = new SourceAndConverter<>( vsource, identity );
-		addSource( src, comp, spec );
+		addSource( src, comp );
+		sourceInfo.addLabelSource( vsource, ToIdConverter.fromLabelMultisetType(), ( Function< LabelMultisetType, Converter< LabelMultisetType, BoolType > > ) sel -> createBoolConverter( sel, assignment ), assignment, streamsMap, selIdsMap );
+		Optional.ofNullable( currentMode.get() ).ifPresent( setConverter::accept );
 
-		final Source< LabelMultisetType > source = spec.getSource();
-		final LabelMultisetType t = source.getType();
+		final LabelMultisetType t = vsource.getDataType();
 		final Function< LabelMultisetType, String > valueToString = valueToString( t );
 		final AffineTransform3D affine = new AffineTransform3D();
-		source.getSourceTransform( 0, 0, affine );
-		this.valueDisplayListener.addSource( vsource, source, Optional.of( valueToString ) );
+		vsource.getSourceTransform( 0, 0, affine );
+		this.valueDisplayListener.addSource( vsource, Optional.of( valueToString ) );
 
-		this.assignments.put( vsource, assignment );
 		view.addActor( new ViewerActor()
 		{
 
@@ -422,21 +423,6 @@ public class Atlas
 			}
 		} );
 
-		final FromLabelMultisetType toIdConverter = ToIdConverter.fromLabelMultisetType();
-		final SelectedIds selectedIds = selIds;
-		this.selectedIds.put( vsource, selectedIds );
-		this.orthoSlices.forEach( slice -> slice.addSource( vsource, source, toIdConverter, selectedIds ) );
-		for ( final Mode mode : this.modes )
-			if ( mode instanceof Highlights )
-				( ( Highlights ) mode ).addSource( vsource, source, toIdConverter, ( ( RenderableSpec ) spec )::foregroundCheck, assignment, stream );
-			else if ( mode instanceof Merges )
-				( ( Merges ) mode ).addSource( vsource, source, toIdConverter );
-//			else if ( mode instanceof Render3DFX && spec instanceof RenderableSpec )
-//			{
-//				System.out.println( "ADDING RENDERABLE SOURCE!" );
-//				( ( Render3DFX ) mode ).addSource( vsource, source, toIdConverter, ( ( RenderableSpec ) spec )::foregroundCheck, assignment, stream, selectedIds );
-//			}
-
 		view.addActor( new ViewerActor()
 		{
 			@Override
@@ -449,67 +435,36 @@ public class Atlas
 			public Consumer< ViewerPanelFX > onAdd()
 			{
 				return vp -> {
-					System.out.println( "VP? " + vp + " " + selectedIds );
-					selectedIds.addListener( () -> vp.requestRepaint() );
+					selIdsMap.values().forEach( ids -> ids.addListener( () -> vp.requestRepaint() ) );
 				};
 			}
 		} );
 
 	}
 
-	public < T extends RealType< T >, U extends RealType< U > > void addRawSourceNonVolatile( final DatasetSpec< T, U > spec, final double min, final double max )
+	public < T extends RealType< T >, U extends RealType< U > > void addRawSource( final DataSource< T, ? extends Volatile< U > > spec, final double min, final double max )
 	{
-		final Source< DoubleType > vsource = new ConvertedSource<>( spec.getViewerSource(), new DoubleType( Double.NaN ), new RealDoubleConverter<>(), spec.getViewerSource().getName() );
+		final RealARGBConverter< U > realARGBConv = new RealARGBConverter<>( min, max );
+		final SourceAndConverter< ? > src = new SourceAndConverter<>( spec, ( s, t ) -> realARGBConv.convert( s.get(), t ) );
 		final Composite< ARGBType, ARGBType > comp = new ARGBCompositeAlphaAdd();
-		final NaNMaskedRealARGBConverter< DoubleType > conv = new NaNMaskedRealARGBConverter<>( min, max );
-		final SourceAndConverter< ? > src = new SourceAndConverter<>( vsource, conv );
-		addSource( src, comp, spec );
-//		view.addSource( src, comp );
-//		this.specs.put( spec, vsource );
-//		this.composites.put( vsource, comp );
+		addSource( src, comp );
 
-		final Source< T > source = spec.getSource();
-		final T t = source.getType();
+		sourceInfo.addRawSource( spec );
+		final T t = spec.getDataType();
 		final Function< T, String > valueToString = valueToString( t );
-		final AffineTransform3D affine = new AffineTransform3D();
-		source.getSourceTransform( 0, 0, affine );
-		this.valueDisplayListener.addSource( vsource, source, Optional.of( valueToString ) );
+		this.valueDisplayListener.addSource( spec, Optional.of( valueToString ) );
 	}
 
-	public < T extends RealType< T >, U extends RealType< U > > void addRawSource( final DatasetSpec< T, ? extends Volatile< U > > spec, final double min, final double max )
+	public < T > void addARGBSource( final DataSource< T, VolatileARGBType > spec )
 	{
-		final Source< VolatileRealType< DoubleType > > vsource = ConvertedSource.volatileRealTypeAsDoubleType( spec.getViewerSource() );
 		final Composite< ARGBType, ARGBType > comp = new ARGBCompositeAlphaAdd();
-		final NaNMaskedRealARGBConverter< VolatileRealType< DoubleType > > conv = new NaNMaskedRealARGBConverter<>( min, max );
-		final SourceAndConverter< ? > src = new SourceAndConverter<>( vsource, conv );
-		addSource( src, comp, spec );
-//		view.addSource( src, comp );
-//		this.specs.put( spec, vsource );
-//		this.composites.put( vsource, comp );
+		final SourceAndConverter< ? > src = new SourceAndConverter<>( spec, ( s, t ) -> t.set( s.get() ) );
+		addSource( src, comp );
 
-		final Source< T > source = spec.getSource();
-		final T t = source.getType();
+		sourceInfo.addRawSource( spec );
+		final T t = spec.getDataType();
 		final Function< T, String > valueToString = valueToString( t );
-		final AffineTransform3D affine = new AffineTransform3D();
-		source.getSourceTransform( 0, 0, affine );
-		this.valueDisplayListener.addSource( vsource, source, Optional.of( valueToString ) );
-	}
-
-	public < T extends Type< T > > void addARGB( final DatasetSpec< T, ARGBType > spec )
-	{
-		final Source< ARGBType > originalSource = spec.getViewerSource();
-		final ARGBCompositeAlphaYCbCr comp = new ARGBCompositeAlphaYCbCr();
-		final ConvertedSource< ARGBType, ARGBType > vsource = new ConvertedSource<>( originalSource, new ARGBType( 0 ), new TypeIdentity<>(), originalSource.getName() );
-		final SourceAndConverter< ARGBType > src = new SourceAndConverter<>( vsource, new TypeIdentity<>() );
-		addSource( src, comp, spec );
-
-		final Source< T > source = spec.getSource();
-		final T t = source.getType();
-		final AffineTransform3D affine = new AffineTransform3D();
-		source.getSourceTransform( 0, 0, affine );
-		final Optional< Function< T, String > > valueToString = Optional.of( valueToString( t ) );
-		this.valueDisplayListener.addSource( vsource, source, valueToString );
-
+		this.valueDisplayListener.addSource( spec, Optional.of( valueToString ) );
 	}
 
 	public OrthoView baseView()
@@ -520,24 +475,6 @@ public class Atlas
 	public BorderPane root()
 	{
 		return this.root;
-	}
-
-	protected Node createInfo()
-	{
-		final TableView< ? > table = new TableView<>();
-		table.setEditable( true );
-		table.getColumns().addAll( new TableColumn<>( "Property" ), new TableColumn<>( "Value" ) );
-
-		final TextField tf = new TextField( "some text" );
-
-		final TabPane infoPane = new TabPane();
-
-		final VBox jfxStuff = new VBox( 1 );
-		jfxStuff.getChildren().addAll( tf, table );
-		infoPane.getTabs().add( new Tab( "jfx stuff", jfxStuff ) );
-		infoPane.getTabs().add( new Tab( "dataset info", new Label( "random floats" ) ) );
-		return infoPane;
-
 	}
 
 	public static < T > Function< T, String > valueToString( final T t )
@@ -576,18 +513,90 @@ public class Atlas
 		this.baseView().setTransform( transform );
 	}
 
-	public synchronized void addMode( final Mode mode )
+	public static Converter< LabelMultisetType, BoolType > createBoolConverter( final LabelMultisetType selection, final FragmentSegmentAssignmentState< ? > assignment )
 	{
-		if ( modes.contains( mode ) )
-			return;
-		final Node focusOwner;
-		if ( this.view.sceneProperty().get() != null )
-			focusOwner = this.view.sceneProperty().get().getFocusOwner();
-		else
-			focusOwner = null;
-		this.modes.add( mode );
+		final long id = maxCountId( selection );
+		final long segmentId = assignment.getSegment( id );
+		return ( s, t ) -> t.set( assignment.getSegment( maxCountId( s ) ) == segmentId );
+	}
 
-		if ( focusOwner != null && focusOwner instanceof ViewerNode )
-			mode.onEnter().accept( ( ( ViewerNode ) focusOwner ).getViewer() );
+	public static long maxCountId( final LabelMultisetType t )
+	{
+		long argMaxLabel = bdv.labels.labelset.Label.INVALID;
+		long argMaxCount = 0;
+		for ( final Entry< bdv.labels.labelset.Label > entry : t.entrySet() )
+		{
+			final int count = entry.getCount();
+			if ( count > argMaxCount )
+			{
+				argMaxCount = count;
+				argMaxLabel = entry.getElement().id();
+			}
+		}
+		return argMaxLabel;
+	}
+
+	/**
+	 * Create a primitive single scale level source without visualization conversion from an H5 dataset.
+	 *
+	 * @param name
+	 * @param rawFile
+	 * @param rawDataset
+	 * @param rawCellSize
+	 * @param resolution
+	 * @param sharedQueue
+	 * @param priority
+	 * @param typeSupplier
+	 * @param volatileTypeSupplier
+	 * @return
+	 * @throws IOException
+	 */
+	public static < T extends NativeType< T > & NumericType< T >, V extends NumericType< V > > RandomAccessibleIntervalDataSource< T, V > createH5RawSource(
+			final String name,
+			final String rawFile,
+			final String rawDataset,
+			final int[] rawCellSize,
+			final double[] resolution,
+			final SharedQueue sharedQueue,
+			final int priority,
+			final Supplier< T > typeSupplier,
+			final Supplier< V > volatileTypeSupplier) throws IOException
+	{
+		final RandomAccessibleInterval< T > raw = H5Utils.open( HDF5Factory.openForReading( rawFile ), rawDataset, rawCellSize );
+		final AffineTransform3D rawTransform = new AffineTransform3D();
+		rawTransform.set(
+				resolution[ 0 ], 0, 0, 0,
+				0, resolution[ 1 ], 0, 0,
+				0, 0, resolution[ 2 ], 0 );
+
+		@SuppressWarnings( "unchecked" )
+		final RandomAccessibleIntervalDataSource< T, V > rawSource =
+			new RandomAccessibleIntervalDataSource< T, V >(
+					( RandomAccessibleInterval< T >[] )new RandomAccessibleInterval[]{ raw },
+					( RandomAccessibleInterval< V >[] )new RandomAccessibleInterval[] {
+							VolatileViews.wrapAsVolatile( raw, sharedQueue, new CacheHints( LoadingStrategy.VOLATILE, priority, true ) ) },
+					new AffineTransform3D[] { rawTransform },
+					( interpolation ) -> {
+						switch ( ( Interpolation )interpolation )
+						{
+						case NLINEAR:
+							return new NLinearInterpolatorFactory< T >();
+						default:
+							return new NearestNeighborInterpolatorFactory< T >();
+						}
+					},
+					( interpolation ) -> {
+						switch ( ( Interpolation )interpolation )
+						{
+						case NLINEAR:
+							return new NLinearInterpolatorFactory< V >();
+						default:
+							return new NearestNeighborInterpolatorFactory< V >();
+						}
+					},
+					typeSupplier,
+					volatileTypeSupplier,
+					name);
+		return rawSource;
 	}
 }

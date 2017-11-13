@@ -50,7 +50,6 @@ public class MouseClickFX implements InstallAndRemove< Node >
 
 	private void press( final MouseEvent event )
 	{
-
 		if ( testEvent( event ) )
 		{
 			startX = event.getX();
