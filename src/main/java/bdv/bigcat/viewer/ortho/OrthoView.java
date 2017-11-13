@@ -94,7 +94,7 @@ public class OrthoView extends GridPane
 		this.setOnMouseMoved( resizer.onMouseMovedHandler() );
 		this.setOnMouseDragged( resizer.onMouseDraggedHandler() );
 		this.setOnMouseClicked( resizer.onMouseDoubleClickedHandler() );
-		this.setOnMousePressed( resizer.onMousePresedHandler() );
+		this.setOnMousePressed( resizer.onMousePressedHandler() );
 		this.setOnMouseReleased( resizer.onMouseReleased() );
 
 		this.setVgap( 1.0 );
@@ -184,7 +184,7 @@ public class OrthoView extends GridPane
 
 		this.add( viewerNode, rowIndex, colIndex );
 		viewerNode.setOnMouseClicked( resizer.onMouseDoubleClickedHandler() );
-		viewerNode.setOnMousePressed( resizer.onMousePresedHandler() );
+		viewerNode.setOnMousePressed( resizer.onMousePressedHandler() );
 		viewerNode.setOnMouseDragged( resizer.onMouseDraggedHandler() );
 		viewerNode.setOnMouseMoved( resizer.onMouseMovedHandler() );
 	}

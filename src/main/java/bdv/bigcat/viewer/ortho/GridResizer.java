@@ -43,6 +43,7 @@ public class GridResizer
 		this.manager = manager;
 		this.tolerance = tolerance;
 		this.grid = grid;
+
 //		this.grid.setOnMouseMoved( new MouseChanged() );
 //		this.grid.setOnMousePressed( new MousePressed() );
 //		this.grid.setOnMouseDragged( new MouseDragged() );
@@ -54,7 +55,7 @@ public class GridResizer
 		return new MouseChanged();
 	}
 
-	public EventHandler< MouseEvent > onMousePresedHandler()
+	public EventHandler< MouseEvent > onMousePressedHandler()
 	{
 		return new MousePressed();
 	}
@@ -105,7 +106,6 @@ public class GridResizer
 															// );
 					else
 						scene.setCursor( Cursor.DEFAULT );
-
 				}
 			}
 		}
@@ -124,6 +124,7 @@ public class GridResizer
 //					System.out.println( "REGISTERING EVENT AT " + x + " " + y + " " + proportionX + " " + proportionY + " " + tolerance );
 			mouseWithinResizableRangeX = Math.abs( x - gridBorderX ) < tolerance;
 			mouseWithinResizableRangeY = Math.abs( y - gridBorderY ) < tolerance;
+
 			dragging = mouseWithinResizableRangeX || mouseWithinResizableRangeY;
 			if ( dragging )
 			{
@@ -188,7 +189,6 @@ public class GridResizer
 
 	private class MouseDoubleClicked implements EventHandler< MouseEvent >
 	{
-
 		@Override
 		public void handle( final MouseEvent event )
 		{
