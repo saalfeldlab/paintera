@@ -30,11 +30,9 @@ import org.junit.Test;
 import com.google.gson.Gson;
 
 import bdv.labels.labelset.Label;
-import ch.systemsx.cisd.hdf5.HDF5Factory;
 import gnu.trove.impl.Constants;
 import gnu.trove.map.hash.TLongLongHashMap;
 import gnu.trove.set.hash.TLongHashSet;
-import net.imglib2.type.numeric.integer.UnsignedLongType;
 
 /**
  *
@@ -54,13 +52,13 @@ public class H5UtilsTest
 			Label.TRANSPARENT );
 
 	static private long[][] lutExamples = new long[][] {
-		{ 1, 2 },
-		{ 3, 4 },
-		{ 5, 6 },
-		{ 7, 8 }
+			{ 1, 2 },
+			{ 3, 4 },
+			{ 5, 6 },
+			{ 7, 8 }
 	};
 
-	static private long[] setExamples = new long[]{
+	static private long[] setExamples = new long[] {
 			3, 7, 20, -10, 13
 	};
 
@@ -92,8 +90,6 @@ public class H5UtilsTest
 		testFile.delete();
 		testDir.delete();
 	}
-
-
 
 	/**
 	 * @throws java.lang.Exception
@@ -128,7 +124,6 @@ public class H5UtilsTest
 			fail( "Saving and loading long failed." );
 	}
 
-
 	@Test
 	public void testSaveAndLoadLongCollection()
 	{
@@ -143,15 +138,6 @@ public class H5UtilsTest
 
 		for ( final long expectedValue : expected.toArray() )
 			assertTrue( "loaded expected value '" + expectedValue + "' does not exist.", test.contains( expectedValue ) );
-	}
-
-	@Test
-	public void testH5CellLoader()
-	{
-		H5Utils.saveLongLongLut( lut, testDirPath + testH5Name, "/lut", 4 );
-
-		final H5CellLoader< UnsignedLongType > cellLoader = new H5CellLoader<>( HDF5Factory.openForReading( testDirPath + testH5Name ), "/lut" );
-
 	}
 
 }
