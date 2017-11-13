@@ -2,13 +2,18 @@ package bdv.bigcat.viewer.viewer3d;
 
 import java.io.File;
 import java.io.IOException;
+import java.lang.invoke.MethodHandles;
 import java.util.Optional;
 import java.util.function.Predicate;
 
 import javax.imageio.ImageIO;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import bdv.bigcat.viewer.bdvfx.MouseDragFX;
 import bdv.bigcat.viewer.util.InvokeOnJavaFXApplicationThread;
+import javafx.beans.property.DoubleProperty;
 import javafx.beans.property.SimpleDoubleProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.embed.swing.SwingFXUtils;
@@ -25,6 +30,8 @@ import net.imglib2.Interval;
 
 public class Scene3DHandler
 {
+	public static final Logger LOG = LoggerFactory.getLogger( MethodHandles.lookup().lookupClass() );
+
 	private final Viewer3DFX viewer;
 
 	private double centerX = 0;
@@ -39,6 +46,12 @@ public class Scene3DHandler
 
 	private double scrollFactor;
 
+	private static final Point3D xNormal = new Point3D( 1, 0, 0 );
+
+	private static final Point3D yNormal = new Point3D( 0, 1, 0 );
+
+	private static final Point3D zNormal = new Point3D( 0, 0, 1 );
+
 	public Scene3DHandler( Viewer3DFX viewer, final Interval interval )
 	{
 		this.viewer = viewer;
@@ -52,10 +65,10 @@ public class Scene3DHandler
 		affine.setToTransform( initialTransform );
 		addCommands();
 
-		final Rotate rotate = new Rotate( "rotate 3d", affine, new SimpleDoubleProperty( 1.0 ), new SimpleDoubleProperty( 1.0 ), MouseEvent::isPrimaryButtonDown );
+		final Rotate rotate = new Rotate( "rotate 3d", new SimpleDoubleProperty( 1.0 ), 1.0, MouseEvent::isPrimaryButtonDown );
 		rotate.installInto( viewer );
 
-		final TranslateXY translateXY = new TranslateXY( "translate", affine, MouseEvent::isSecondaryButtonDown );
+		final TranslateXY translateXY = new TranslateXY( "translate", MouseEvent::isSecondaryButtonDown );
 		translateXY.installInto( viewer );
 	}
 
@@ -105,44 +118,45 @@ public class Scene3DHandler
 
 	private class Rotate extends MouseDragFX
 	{
-		private SimpleDoubleProperty speed = new SimpleDoubleProperty();
 
-		private final static double SLOW = 0.5;
+		private final SimpleDoubleProperty speed = new SimpleDoubleProperty();
 
-		private final static double NORMAL = 1;
+		private double factor;
 
-		private final static double FAST = 2;
+		private final static double SLOW_FACTOR = 0.5;
 
-		private SimpleDoubleProperty factor;
+		private final static double NORMAL_FACTOR = 1;
 
-		private final Affine affine;
+		private final static double FAST_FACTOR = 2;
 
 		private final Affine affineDragStart = new Affine();
 
-		public Rotate( final String name, final Affine affine, final SimpleDoubleProperty speed, final SimpleDoubleProperty factor, final Predicate< MouseEvent >... eventFilter )
+		@SafeVarargs
+		public Rotate( final String name, final DoubleProperty speed, final double factor, final Predicate< MouseEvent >... eventFilter )
 		{
-			super( name, eventFilter );
-			this.speed.set( speed.get() );
+			super( name, eventFilter, affine );
+			LOG.trace( "rotation" );
 			this.factor = factor;
-			this.affine = affine;
-			this.factor.addListener( ( obs, old, newv ) -> this.speed.set( speed.get() ) );
+			this.speed.set( speed.get() * this.factor );
+			speed.addListener( ( obs, old, newv ) -> this.speed.set( this.factor * speed.get() ) );
+//			this.factor.addListener( ( obs, old, newv ) -> this.speed.set( speed.get() ) );
 		}
 
 		@Override
 		public void initDrag( final javafx.scene.input.MouseEvent event )
 		{
-			factor.set( NORMAL );
+			factor = NORMAL_FACTOR;
 
 			if ( event.isShiftDown() )
 			{
 				if ( event.isControlDown() )
-					factor.set( SLOW );
+					factor = SLOW_FACTOR;
 				else
-					factor.set( FAST );
+					factor = FAST_FACTOR;
 			}
+//			this.speed.set( speed.get() * this.factor.get() );
 
-			this.speed.set( speed.get() * this.factor.get() );
-			synchronized ( affine )
+			synchronized ( transformLock )
 			{
 				affineDragStart.setToTransform( affine );
 			}
@@ -151,18 +165,21 @@ public class Scene3DHandler
 		@Override
 		public void drag( final javafx.scene.input.MouseEvent event )
 		{
-			synchronized ( affineDragStart )
+			synchronized ( transformLock )
 			{
+				LOG.trace( "drag - rotate" );
 				final Affine target = new Affine( affineDragStart );
 				final double dX = event.getX() - startX;
 				final double dY = event.getY() - startY;
 				final double v = step * this.speed.get();
+				LOG.trace( "dx: {} dy: {}", dX, dY );
 
-				target.prependRotation( v * dY, centerX, centerY, 0, new Point3D( 1, 0, 0 ) );
-				target.prependRotation( v * -dX, centerX, centerY, 0, new Point3D( 0, 1, 0 ) );
+				target.prependRotation( v * dY, centerX, centerY, 0, xNormal );
+				target.prependRotation( v * -dX, centerX, centerY, 0, yNormal );
 
+				LOG.trace( "target: {}", target );
 				InvokeOnJavaFXApplicationThread.invoke( () -> {
-					this.affine.setToTransform( target );
+					affine.setToTransform( target );
 				} );
 			}
 		}
@@ -170,42 +187,34 @@ public class Scene3DHandler
 
 	private class TranslateXY extends MouseDragFX
 	{
-
-		private final Affine affine;
-
-		private final Affine affineDragStart = new Affine();
-
-		public TranslateXY( final String name, final Affine affine, final Predicate< MouseEvent >... eventFilter )
+		@SafeVarargs
+		public TranslateXY( final String name, final Predicate< MouseEvent >... eventFilter )
 		{
-			super( name, eventFilter );
-			this.affine = affine;
+			super( name, eventFilter, affine );
+			LOG.trace( "translate" );
 		}
 
 		@Override
 		public void initDrag( final MouseEvent event )
-		{
-			synchronized ( affine )
-			{
-				affineDragStart.setToTransform( affine );
-			}
-		}
+		{}
 
 		@Override
 		public void drag( final MouseEvent event )
 		{
-			final double dX = event.getX() - startX;
-			final double dY = event.getY() - startY;
+			synchronized ( transformLock )
+			{
+				LOG.trace( "drag - translate" );
+				final double dX = event.getX() - startX;
+				final double dY = event.getY() - startY;
 
-			final Affine target = new Affine( affineDragStart );
-			target.prependTranslation( 2 * dX / viewer.getHeight(), 2 * dY / viewer.getHeight() );
+				LOG.trace( "dx " + dX + " dy: " + dY );
+				InvokeOnJavaFXApplicationThread.invoke( () -> {
+					affine.prependTranslation( 2 * dX / viewer.getHeight(), 2 * dY / viewer.getHeight() );
+				} );
 
-			centerX = 2 * dX / viewer.getHeight();
-			centerY = 2 * dY / viewer.getHeight();
-
-			InvokeOnJavaFXApplicationThread.invoke( () -> {
-				affine.setToTransform( target );
-			} );
-
+				startX += dX;
+				startY += dY;
+			}
 		}
 	}
 

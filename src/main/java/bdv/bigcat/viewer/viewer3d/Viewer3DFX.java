@@ -38,10 +38,6 @@ public class Viewer3DFX extends Pane
 
 	private final PointLight lightFill = new PointLight( new Color( 0.35, 0.35, 0.65, 1 ) );
 
-	private static final Point3D xNormal = new Point3D( 1, 0, 0 );
-	private static final Point3D yNormal = new Point3D( 0, 1, 0 );
-	private static final Point3D zNormal = new Point3D( 0, 0, 1 );
-
 	public Viewer3DFX( final double width, final double height, final Interval interval )
 	{
 		super();
