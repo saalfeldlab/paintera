@@ -45,7 +45,7 @@ public class ExampleApplicationCremi
 		// Set the log level
 		final String USER_HOME = System.getProperty( "user.home" );
 
-		String rawFile = "/groups/saalfeld/home/saalfelds/cremi/sample_B+_padded_20170424.aligned.hdf";
+		String rawFile = USER_HOME + "/Downloads/sample_A_padded_20160501.hdf";
 		PlatformImpl.startup( () -> {} );
 		String rawDataset = "volumes/raw";
 		String labelsFile = rawFile;
