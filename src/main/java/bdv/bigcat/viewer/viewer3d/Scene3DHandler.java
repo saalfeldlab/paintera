@@ -121,7 +121,8 @@ public class Scene3DHandler
 
 		private final SimpleDoubleProperty speed = new SimpleDoubleProperty();
 
-		private double factor;
+		private final SimpleDoubleProperty factor = new SimpleDoubleProperty();
+
 
 		private final static double SLOW_FACTOR = 0.5;
 
@@ -136,25 +137,27 @@ public class Scene3DHandler
 		{
 			super( name, eventFilter, affine );
 			LOG.trace( "rotation" );
-			this.factor = factor;
-			this.speed.set( speed.get() * this.factor );
-			speed.addListener( ( obs, old, newv ) -> this.speed.set( this.factor * speed.get() ) );
-//			this.factor.addListener( ( obs, old, newv ) -> this.speed.set( speed.get() ) );
+			this.factor.set( factor );
+			this.speed.set( speed.get() * this.factor.get() );
+
+			speed.addListener( ( obs, old, newv ) -> this.speed.set( this.factor.get() * speed.get() ) );
+			this.factor.addListener( ( obs, old, newv ) -> this.speed.set( speed.get() ) );
 		}
 
 		@Override
 		public void initDrag( final javafx.scene.input.MouseEvent event )
 		{
-			factor = NORMAL_FACTOR;
+			factor.set( NORMAL_FACTOR );
 
 			if ( event.isShiftDown() )
 			{
 				if ( event.isControlDown() )
-					factor = SLOW_FACTOR;
+					factor.set( SLOW_FACTOR );
 				else
-					factor = FAST_FACTOR;
+					factor.set( FAST_FACTOR );
 			}
-//			this.speed.set( speed.get() * this.factor.get() );
+
+			this.speed.set( speed.get() * this.factor.get() );
 
 			synchronized ( transformLock )
 			{
