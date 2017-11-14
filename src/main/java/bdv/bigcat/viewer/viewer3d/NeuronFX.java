@@ -140,7 +140,7 @@ public class NeuronFX
 
 	public void setColor( final int color )
 	{
-		colorProperty.set( Color.rgb( ( color & 0x00ff0000 ) >>> 16, ( color & 0x0000ff00 ) >>> 8, color & 0xff, ( ( color & 0xff000000 ) >>> 24 ) / 255.0 ) );
+		colorProperty.set( Color.rgb( ( color & 0x00ff0000 ) >>> 16, ( color & 0x0000ff00 ) >>> 8, color & 0xff, 1.0 ) );
 	}
 
 	private < B extends BooleanType< B > > void submitForOffset(
