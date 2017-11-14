@@ -1,8 +1,12 @@
 package bdv.bigcat.viewer.ortho;
 
+import java.lang.invoke.MethodHandles;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.function.Consumer;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import bdv.bigcat.viewer.ViewerActor;
 import bdv.bigcat.viewer.bdvfx.KeyTracker;
@@ -18,17 +22,17 @@ import javafx.collections.FXCollections;
 import javafx.collections.ListChangeListener;
 import javafx.collections.ObservableList;
 import javafx.event.Event;
-import javafx.event.EventHandler;
 import javafx.scene.Node;
 import javafx.scene.Scene;
 import javafx.scene.control.TextField;
 import javafx.scene.input.KeyEvent;
-import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.GridPane;
 import net.imglib2.realtransform.AffineTransform3D;
 
 public class OrthoView extends GridPane
 {
+
+	private static final Logger LOG = LoggerFactory.getLogger( MethodHandles.lookup().lookupClass() );
 
 	public static final Class< ? >[] FOCUS_KEEPERS = { TextField.class };
 
@@ -139,23 +143,10 @@ public class OrthoView extends GridPane
 
 	private void addViewerNodesHandler( final ViewerNode viewerNode, final Class< ? >[] focusKeepers )
 	{
-
-		final EventHandler< MouseEvent > handler = event -> {
-//			viewerNode.requestFocus();
-		};
-		viewerNode.focusedProperty().addListener( ( obs, o, n ) -> {
-			System.out.println( "Focusing " + viewerNode );
-		} );
-//		viewerNode.addEventHandler( MouseEvent.MOUSE_CLICKED, handler );
-
-//		viewerNode.addEventHandler( MouseEvent.MOUSE_ENTERED, event -> {
-//			final Node focusOwner = viewerNode.sceneProperty().get().focusOwnerProperty().get();
-//			for ( final Class< ? > focusKeeper : focusKeepers )
-//				if ( focusKeeper.isInstance( focusOwner ) )
-//					return;
-//			viewerNode.requestFocus();
-//		} );
-
+		if ( LOG.isDebugEnabled() )
+			viewerNode.focusedProperty().addListener( ( obs, o, n ) -> {
+				LOG.debug( "Focusing {}", viewerNode );
+			} );
 		handleFocusEvent( viewerNode );
 	}
 
@@ -340,7 +331,6 @@ public class OrthoView extends GridPane
 //	@Override
 //	public void layoutChildren()
 //	{
-//		System.out.println( "LAYING OUT CHILDREN IN OrthoView!" );
 //		new RuntimeException().printStackTrace();
 //		super.layoutChildren();
 //	}

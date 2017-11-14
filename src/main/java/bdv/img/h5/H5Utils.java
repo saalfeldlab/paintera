@@ -11,7 +11,11 @@ import static net.imglib2.cache.img.PrimitiveType.SHORT;
 
 import java.io.File;
 import java.io.IOException;
+import java.lang.invoke.MethodHandles;
 import java.util.Arrays;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import bdv.bigcat.label.FragmentSegmentAssignment;
 import bdv.labels.labelset.Label;
@@ -97,6 +101,9 @@ import net.imglib2.view.Views;
  */
 public class H5Utils
 {
+
+	private static final Logger LOG = LoggerFactory.getLogger( MethodHandles.lookup().lookupClass() );
+
 	static public void cropCellDimensions(
 			final Dimensions sourceDimensions,
 			final long[] offset,
@@ -1273,7 +1280,7 @@ public class H5Utils
 		final long[] dimensions = reader.object().getDimensions( dataset );
 		if ( !( dimensions.length == 2 && dimensions[ 0 ] == 2 ) )
 		{
-			System.err.println( "LUT is not a lookup table, dimensions = " + Arrays.toString( dimensions ) );
+			LOG.warn( "LUT is not a lookup table, dimensions = {}", Arrays.toString( dimensions ) );
 			return null;
 		}
 
@@ -1433,7 +1440,7 @@ public class H5Utils
 		final long[] dimensions = reader.object().getDimensions( dataset );
 		if ( dimensions.length != 1 )
 		{
-			System.err.println( "Dataset is not a collection, dimensions = " + Arrays.toString( dimensions ) );
+			LOG.warn( "Dataset is not a collection, dimensions = {}", Arrays.toString( dimensions ) );
 			return false;
 		}
 
@@ -1588,7 +1595,7 @@ public class H5Utils
 
 		final HDF5DataTypeInformation attributeInfo = reader.object().getAttributeInformation( object, attribute );
 		final Class< ? > type = attributeInfo.tryGetJavaType();
-		System.out.println( "class: " + type );
+		LOG.debug( "class: {}", type );
 		if ( type.isAssignableFrom( long[].class ) )
 			if ( attributeInfo.isSigned() )
 				return ( T ) reader.int64().getArrayAttr( object, attribute );
@@ -1652,7 +1659,7 @@ public class H5Utils
 		else if ( type.isAssignableFrom( String.class ) )
 			return ( T ) new String( reader.string().getAttr( object, attribute ) );
 
-		System.out.println( "Reading attributes of type " + attributeInfo + " not yet implemented." );
+		LOG.warn( "Reading attributes of type {} not yet implemented.", attributeInfo );
 		return null;
 	}
 

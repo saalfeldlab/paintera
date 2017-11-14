@@ -1,5 +1,6 @@
 package bdv.bigcat.viewer.atlas;
 
+import java.lang.invoke.MethodHandles;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -9,6 +10,9 @@ import java.util.Optional;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.ToLongFunction;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import bdv.bigcat.composite.ARGBCompositeAlphaAdd;
 import bdv.bigcat.composite.ARGBCompositeAlphaYCbCr;
@@ -82,6 +86,8 @@ import net.imglib2.type.volatiles.VolatileARGBType;
 
 public class Atlas
 {
+
+	private static final Logger LOG = LoggerFactory.getLogger( MethodHandles.lookup().lookupClass() );
 
 	private final BorderPane root;
 
@@ -221,9 +227,7 @@ public class Atlas
 			};
 			tf.translate( Arrays.stream( sums ).mapToDouble( sum -> -0.5 * sum ).toArray() );
 			final ViewerNode vn = this.baseView().getChildren().stream().filter( child -> child instanceof ViewerNode ).map( n -> ( ViewerNode ) n ).findFirst().get();
-			final double w = vn.getWidth();
 			vn.manager().setCanvasSize( 1, 1, true );
-			System.out.println( w + " " + interval.dimension( 0 ) );
 			tf.scale( 1.0 / interval.dimension( 0 ) );
 			vn.manager().setCanvasSize( ( int ) vn.getWidth(), ( int ) vn.getHeight(), true );
 			this.baseView().setTransform( tf );
@@ -375,7 +379,7 @@ public class Atlas
 				spec,
 				converter,
 				method -> method.equals( Interpolation.NLINEAR ) ? new ClampingNLinearInterpolatorFactory<>() : new NearestNeighborInterpolatorFactory<>(),
-						new VolatileARGBType( 0 ) );
+				new VolatileARGBType( 0 ) );
 		final ARGBCompositeAlphaYCbCr comp = new ARGBCompositeAlphaYCbCr();
 		final SourceAndConverter< VolatileARGBType > src = new SourceAndConverter<>( vsource, ( s, t ) -> t.set( s.get() ) );
 
@@ -455,7 +459,7 @@ public class Atlas
 				spec,
 				converter,
 				method -> method.equals( Interpolation.NLINEAR ) ? new ClampingNLinearInterpolatorFactory<>() : new NearestNeighborInterpolatorFactory<>(),
-						new VolatileARGBType( 0 ) );
+				new VolatileARGBType( 0 ) );
 		final ARGBCompositeAlphaYCbCr comp = new ARGBCompositeAlphaYCbCr();
 		final SourceAndConverter< VolatileARGBType > src = new SourceAndConverter<>( vsource, ( s, t ) -> t.set( s.get() ) );
 
@@ -557,28 +561,28 @@ public class Atlas
 			valueToString = ( Function< T, String > ) Object::toString;
 		else if ( t instanceof IntegerType< ? > )
 			valueToString = ( Function< T, String > ) rt -> String.format( "%d", ( ( IntegerType< ? > ) rt ).getIntegerLong() );
-			else if ( t instanceof RealType< ? > )
-				valueToString = ( Function< T, String > ) rt -> String.format( "%.3f", ( ( RealType< ? > ) rt ).getRealDouble() );
-				else if ( t instanceof LabelMultisetType )
-					valueToString = ( Function< T, String > ) rt -> {
-						final StringBuilder sb = new StringBuilder( "{" );
-						final Iterator< Entry< bdv.labels.labelset.Label > > it = ( ( LabelMultisetType ) rt ).entrySet().iterator();
-						if ( it.hasNext() )
-						{
-							final Entry< bdv.labels.labelset.Label > entry = it.next();
-							sb.append( entry.getElement().id() ).append( ":" ).append( entry.getCount() );
-						}
-						while ( it.hasNext() )
-						{
-							final Entry< bdv.labels.labelset.Label > entry = it.next();
-							sb.append( " " ).append( entry.getElement().id() ).append( ":" ).append( entry.getCount() );
-						}
-						sb.append( "}" );
-						return sb.toString();
-					};
-					else
-						valueToString = rt -> "Do not understand type!";
-						return valueToString;
+		else if ( t instanceof RealType< ? > )
+			valueToString = ( Function< T, String > ) rt -> String.format( "%.3f", ( ( RealType< ? > ) rt ).getRealDouble() );
+		else if ( t instanceof LabelMultisetType )
+			valueToString = ( Function< T, String > ) rt -> {
+				final StringBuilder sb = new StringBuilder( "{" );
+				final Iterator< Entry< bdv.labels.labelset.Label > > it = ( ( LabelMultisetType ) rt ).entrySet().iterator();
+				if ( it.hasNext() )
+				{
+					final Entry< bdv.labels.labelset.Label > entry = it.next();
+					sb.append( entry.getElement().id() ).append( ":" ).append( entry.getCount() );
+				}
+				while ( it.hasNext() )
+				{
+					final Entry< bdv.labels.labelset.Label > entry = it.next();
+					sb.append( " " ).append( entry.getElement().id() ).append( ":" ).append( entry.getCount() );
+				}
+				sb.append( "}" );
+				return sb.toString();
+			};
+		else
+			valueToString = rt -> "Do not understand type!";
+		return valueToString;
 	}
 
 	public void setTransform( final AffineTransform3D transform )
@@ -598,9 +602,7 @@ public class Atlas
 		final boolean isInteger = selection instanceof IntegerType< ? >;
 		final long id = isInteger ? ( ( IntegerType< ? > ) selection ).getIntegerLong() : ( long ) selection.getRealDouble();
 		final long segmentId = assignment.getSegment( id );
-		return isInteger ?
-				( Converter< T, BoolType > ) ( Converter< IntegerType< ? >, BoolType > ) ( s, t ) -> t.set( assignment.getSegment( s.getIntegerLong() ) == segmentId ) :
-					( s, t ) -> t.set( assignment.getSegment( ( long ) s.getRealDouble() ) == segmentId );
+		return isInteger ? ( Converter< T, BoolType > ) ( Converter< IntegerType< ? >, BoolType > ) ( s, t ) -> t.set( assignment.getSegment( s.getIntegerLong() ) == segmentId ) : ( s, t ) -> t.set( assignment.getSegment( ( long ) s.getRealDouble() ) == segmentId );
 
 	}
 

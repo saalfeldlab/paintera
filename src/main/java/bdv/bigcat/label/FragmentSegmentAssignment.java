@@ -16,11 +16,14 @@
  */
 package bdv.bigcat.label;
 
+import java.lang.invoke.MethodHandles;
 import java.lang.reflect.Type;
 import java.util.Map.Entry;
 import java.util.Set;
 
 import org.apache.commons.lang.ArrayUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.google.gson.Gson;
 import com.google.gson.JsonArray;
@@ -50,8 +53,12 @@ import gnu.trove.map.hash.TLongObjectHashMap;
  */
 public class FragmentSegmentAssignment
 {
+
+	private static final Logger LOG = LoggerFactory.getLogger( MethodHandles.lookup().lookupClass() );
+
 	/**
 	 * Serializes {@link FragmentSegmentAssignment} into JSON of the form
+	 *
 	 * <pre>
 	 * {
 	 *   "lut" : {
@@ -84,6 +91,7 @@ public class FragmentSegmentAssignment
 
 	/**
 	 * Serializes {@link FragmentSegmentAssignment} into JSON of the form
+	 *
 	 * <pre>
 	 * {
 	 *   "fragments" : [<segment_id1>, <segment_id2>, ...],
@@ -121,6 +129,7 @@ public class FragmentSegmentAssignment
 
 	/**
 	 * Serializes {@link FragmentSegmentAssignment} into JSON of the form
+	 *
 	 * <pre>
 	 * {
 	 *   "ilut" : {
@@ -184,7 +193,6 @@ public class FragmentSegmentAssignment
 					final Set< Entry< String, JsonElement > > lutJsonEntrySet = lutJsonElement.getAsJsonObject().entrySet();
 					notYetDone = false;
 					for ( final Entry< String, JsonElement > entry : lutJsonEntrySet )
-					{
 						try
 						{
 							final long fragmentId = Long.parseLong( entry.getKey() );
@@ -206,7 +214,6 @@ public class FragmentSegmentAssignment
 							notYetDone = true;
 							message = e.getMessage();
 						}
-					}
 					if ( !notYetDone )
 					{
 						fragments = fragmentsList.toArray();
@@ -224,8 +231,7 @@ public class FragmentSegmentAssignment
 				{
 					final Set< Entry< String, JsonElement > > ilutJsonEntrySet = ilutJsonElement.getAsJsonObject().entrySet();
 					notYetDone = false;
-A:					for ( final Entry< String, JsonElement > entry : ilutJsonEntrySet )
-					{
+					A: for ( final Entry< String, JsonElement > entry : ilutJsonEntrySet )
 						try
 						{
 							final long segmentId = Long.parseLong( entry.getKey() );
@@ -233,7 +239,6 @@ A:					for ( final Entry< String, JsonElement > entry : ilutJsonEntrySet )
 							if ( value.isJsonArray() )
 							{
 								for ( final JsonElement fragment : value.getAsJsonArray() )
-								{
 									if ( fragment.isJsonPrimitive() )
 									{
 										final long fragmentId = fragment.getAsLong();
@@ -245,7 +250,6 @@ A:					for ( final Entry< String, JsonElement > entry : ilutJsonEntrySet )
 										notYetDone = true;
 										break A;
 									}
-								}
 							}
 							else
 							{
@@ -258,7 +262,6 @@ A:					for ( final Entry< String, JsonElement > entry : ilutJsonEntrySet )
 							notYetDone = true;
 							message = e.getMessage();
 						}
-					}
 				}
 			}
 			if ( notYetDone && jsonObject.has( "fragments" ) && jsonObject.has( "segments" ) )
@@ -288,8 +291,9 @@ A:					for ( final Entry< String, JsonElement > entry : ilutJsonEntrySet )
 		}
 	}
 
-	final protected TLongLongHashMap lut = new TLongLongHashMap(Constants.DEFAULT_CAPACITY, Constants.DEFAULT_LOAD_FACTOR, Label.TRANSPARENT, Label.TRANSPARENT);
-	final protected TLongObjectHashMap< long[] > ilut = new TLongObjectHashMap< long[] >(Constants.DEFAULT_CAPACITY, Constants.DEFAULT_LOAD_FACTOR, Label.TRANSPARENT);
+	final protected TLongLongHashMap lut = new TLongLongHashMap( Constants.DEFAULT_CAPACITY, Constants.DEFAULT_LOAD_FACTOR, Label.TRANSPARENT, Label.TRANSPARENT );
+
+	final protected TLongObjectHashMap< long[] > ilut = new TLongObjectHashMap<>( Constants.DEFAULT_CAPACITY, Constants.DEFAULT_LOAD_FACTOR, Label.TRANSPARENT );
 
 	protected IdService idService;
 
@@ -300,7 +304,7 @@ A:					for ( final Entry< String, JsonElement > entry : ilutJsonEntrySet )
 
 	public FragmentSegmentAssignment( final long[] fragments, final long[] segments, final IdService idService )
 	{
-		assert fragments.length == segments.length : "segments and bodies must be of same length";
+		assert fragments.length == segments.length: "segments and bodies must be of same length";
 
 		for ( int i = 0; i < fragments.length; ++i )
 			lut.put( fragments[ i ], segments[ i ] );
@@ -327,18 +331,18 @@ A:					for ( final Entry< String, JsonElement > entry : ilutJsonEntrySet )
 		this.lut.putAll( lut );
 		syncILut();
 
-		System.out.println( "Done" );
+		LOG.debug( "Done with initLut" );
 	}
 
 	/**
 	 * Synchronize the inverse Lookup (segment > [fragments]) with the current
-	 * forward lookup (fragment > segment)).  The current state of the inverse
+	 * forward lookup (fragment > segment)). The current state of the inverse
 	 * lookup will be cleared.
 	 */
 	protected void syncILut()
 	{
 		ilut.clear();
-		final TLongLongIterator lutIterator =  lut.iterator();
+		final TLongLongIterator lutIterator = lut.iterator();
 		while ( lutIterator.hasNext() )
 		{
 			lutIterator.advance();
@@ -346,10 +350,10 @@ A:					for ( final Entry< String, JsonElement > entry : ilutJsonEntrySet )
 			final long segmentId = lutIterator.value();
 			long[] fragments = ilut.get( segmentId );
 			if ( fragments == null )
-				fragments = new long[]{ fragmentId };
+				fragments = new long[] { fragmentId };
 			else
 				fragments = ArrayUtils.add( fragments, fragmentId );
-			ilut.put( segmentId, fragments);
+			ilut.put( segmentId, fragments );
 		}
 	}
 
@@ -364,10 +368,11 @@ A:					for ( final Entry< String, JsonElement > entry : ilutJsonEntrySet )
 		synchronized ( this )
 		{
 			final long segmentId = lut.get( fragmentId );
-			if ( segmentId == lut.getNoEntryValue() ) {
+			if ( segmentId == lut.getNoEntryValue() )
+			{
 				id = fragmentId;
 				lut.put( fragmentId, id );
-				ilut.put( id, new long[]{ fragmentId } );
+				ilut.put( id, new long[] { fragmentId } );
 			}
 			else
 				id = segmentId;
@@ -469,7 +474,7 @@ A:					for ( final Entry< String, JsonElement > entry : ilutJsonEntrySet )
 
 				final long newSegmentId = fragmentId;
 				lut.put( fragmentId, newSegmentId );
-				ilut.put( newSegmentId, new long[]{ fragmentId } );
+				ilut.put( newSegmentId, new long[] { fragmentId } );
 			}
 		}
 	}

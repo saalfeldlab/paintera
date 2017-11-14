@@ -1,10 +1,13 @@
 package bdv.bigcat.viewer;
 
+import java.lang.invoke.MethodHandles;
 import java.nio.ByteBuffer;
 import java.util.Arrays;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.zeromq.ZMQ;
 import org.zeromq.ZMQ.Context;
 import org.zeromq.ZMQ.Socket;
@@ -50,6 +53,8 @@ import net.imglib2.view.Views;
 
 public class LART
 {
+
+	private static final Logger LOG = LoggerFactory.getLogger( MethodHandles.lookup().lookupClass() );
 
 	public static void main( final String[] args ) throws Exception
 	{
@@ -156,9 +161,9 @@ public class LART
 			json.add( "actions", Action.toJson( Arrays.asList( action ) ) );
 			json.addProperty( "version", "1" );
 			assignmentSocket.send( json.toString() );
-			System.out.println( "Sent action " + json.toString() + " WAITING FOR RESPONSE! on socket " + actionReceiverAddress );
+			LOG.debug( "Sent action " + json.toString() + " WAITING FOR RESPONSE! on socket " + actionReceiverAddress );
 			final byte[] response = assignmentSocket.recv();
-			System.out.println( "GOT RESPONSE: " + Arrays.toString( response ) );
+			LOG.debug( "GOT RESPONSE: " + Arrays.toString( response ) );
 		};
 
 		final Supplier< TLongLongHashMap > solutionReceiver = () -> {

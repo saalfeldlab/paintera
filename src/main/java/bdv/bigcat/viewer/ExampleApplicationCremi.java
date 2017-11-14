@@ -1,7 +1,11 @@
 package bdv.bigcat.viewer;
 
+import java.lang.invoke.MethodHandles;
 import java.util.Arrays;
 import java.util.concurrent.CountDownLatch;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.beust.jcommander.JCommander;
 import com.sun.javafx.application.PlatformImpl;
@@ -41,6 +45,8 @@ import net.imglib2.view.Views;
 public class ExampleApplicationCremi
 {
 
+	public static final Logger LOG = LoggerFactory.getLogger( MethodHandles.lookup().lookupClass() );
+
 	public static void main( final String[] args ) throws Exception
 	{
 		PlatformImpl.startup( () -> {} );
@@ -59,7 +65,7 @@ public class ExampleApplicationCremi
 		final Parameters params = getParameters( args );
 		if ( params != null )
 		{
-			System.out.println( "parameters are not null" );
+			LOG.info( "parameters are not null" );
 			rawFile = params.filePath;
 			rawDataset = params.rawDatasetPath;
 			labelsFile = rawFile;

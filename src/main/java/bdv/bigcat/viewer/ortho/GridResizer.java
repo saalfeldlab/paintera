@@ -88,7 +88,6 @@ public class GridResizer
 					final double y = event.getY();
 					final double gridBorderX = manager.column1.getPercentWidth() / 100 * grid.widthProperty().get();
 					final double gridBorderY = manager.row1.getPercentHeight() / 100 * grid.heightProperty().get();
-//					System.out.println( "REGISTERING EVENT AT " + x + " " + y + " " + proportionX + " " + proportionY + " " + tolerance );
 					final boolean mouseWithinResizableRangeX = Math.abs( x - gridBorderX ) < tolerance;
 					final boolean mouseWithinResizableRangeY = Math.abs( y - gridBorderY ) < tolerance;
 
@@ -121,13 +120,11 @@ public class GridResizer
 			final double y = event.getY();
 			final double gridBorderX = manager.column1.getPercentWidth() / 100 * grid.widthProperty().get();
 			final double gridBorderY = manager.row1.getPercentHeight() / 100 * grid.heightProperty().get();
-//					System.out.println( "REGISTERING EVENT AT " + x + " " + y + " " + proportionX + " " + proportionY + " " + tolerance );
 			mouseWithinResizableRangeX = Math.abs( x - gridBorderX ) < tolerance;
 			mouseWithinResizableRangeY = Math.abs( y - gridBorderY ) < tolerance;
 			dragging = mouseWithinResizableRangeX || mouseWithinResizableRangeY;
 			if ( dragging )
 			{
-//				System.out.println( "INITIATE DRAG!" );
 				grid.sceneProperty().get().setCursor( Cursor.CLOSED_HAND );
 				dragStartX = x;
 				dragStartY = y;
@@ -156,7 +153,6 @@ public class GridResizer
 		@Override
 		public void handle( final MouseEvent event )
 		{
-//			System.out.println( "DRAAAAG YOOO! " + mouseWithinResizableRangeX + " " + mouseWithinResizableRangeY );
 			if ( dragging )
 			{
 				final double width = grid.widthProperty().get();
@@ -167,7 +163,6 @@ public class GridResizer
 				if ( mouseWithinResizableRangeX )
 				{
 					final double percentWidth = Math.min( Math.max( stopX * 100.0 / width, 20 ), 80 );
-//					System.out.println( "PERCENTAGE WIDTH! " + percentWidth + " " + width + " " + stopX );
 					manager.column1.setPercentWidth( percentWidth );
 					manager.column2.setPercentWidth( 100 - percentWidth );
 				}
@@ -198,7 +193,6 @@ public class GridResizer
 				final double y = event.getY();
 				final double gridBorderX = manager.column1.getPercentWidth() / 100 * grid.widthProperty().get();
 				final double gridBorderY = manager.row1.getPercentHeight() / 100 * grid.heightProperty().get();
-//					System.out.println( "REGISTERING EVENT AT " + x + " " + y + " " + proportionX + " " + proportionY + " " + tolerance );
 				final boolean mouseWithinResizableRangeX = Math.abs( x - gridBorderX ) < tolerance;
 				final boolean mouseWithinResizableRangeY = Math.abs( y - gridBorderY ) < tolerance;
 

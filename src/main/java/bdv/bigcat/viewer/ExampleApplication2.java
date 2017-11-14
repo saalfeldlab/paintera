@@ -1,9 +1,11 @@
 package bdv.bigcat.viewer;
 
+import java.lang.invoke.MethodHandles;
 import java.util.Arrays;
 import java.util.concurrent.CountDownLatch;
 
 import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.sun.javafx.application.PlatformImpl;
 
@@ -45,8 +47,7 @@ import net.imglib2.view.Views;
 
 public class ExampleApplication2
 {
-	/** logger */
-	static Logger LOGGER;
+	private static final Logger LOG = LoggerFactory.getLogger( MethodHandles.lookup().lookupClass() );
 
 	public static void main( final String[] args ) throws Exception
 	{
@@ -126,10 +127,9 @@ public class ExampleApplication2
 				final ButtonType removeType = new ButtonType( "Remove extra source", ButtonData.OK_DONE );
 				d.getDialogPane().getButtonTypes().add( removeType );
 				final Button b = ( Button ) d.getDialogPane().lookupButton( removeType );
-				System.out.println( "b " + b );
 				d.show();
 				d.setOnHiding( event -> {
-					System.out.println( "Removing source!" );
+					LOG.info( "Removing source!" );
 					viewer.baseView().requestFocus();
 					viewer.removeSource( labelSpec3 );
 				} );

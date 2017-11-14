@@ -118,7 +118,7 @@ public class TransformAwareBufferedImageOverlayRendererFX
 			if ( notifyTransformListeners )
 				for ( final TransformListener< AffineTransform3D > listener : paintedTransformListeners )
 					listener.transformChanged( paintedTransform );
-//			System.out.println( String.format( "g.drawImage() :%4d ms", watch.nanoTime() / 1000000 ) );
+//			LOG.debug( String.format( "g.drawImage() :%4d ms", watch.nanoTime() / 1000000 ) );
 		}
 	}
 

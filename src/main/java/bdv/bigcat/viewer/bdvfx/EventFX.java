@@ -51,9 +51,6 @@ public abstract class EventFX< E extends Event > implements EventHandler< E >, I
 	@Override
 	public void handle( final E e )
 	{
-//		final List< Boolean > tested = Arrays.stream( eventFilter ).map( filter -> filter.test( e ) ).collect( Collectors.toList() );
-//		if ( e instanceof MouseEvent )
-//			System.out.println( name + " " + tested + " " + tested.stream().filter( t -> t ).count() + " " + eventFilter.length + ": Acting on event " + ( ( MouseEvent ) e ).getButton().equals( MouseButton.PRIMARY ) + "? " );
 		if ( Arrays.stream( eventFilter ).filter( filter -> filter.test( e ) ).count() > 0 )
 			actOn( e );
 	}

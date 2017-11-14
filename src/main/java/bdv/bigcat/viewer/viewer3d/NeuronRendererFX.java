@@ -171,7 +171,6 @@ public class NeuronRendererFX< T, F extends FragmentSegmentAssignmentState< F > 
 					-clickedPoint.getDoublePosition( 1 ),
 					-clickedPoint.getDoublePosition( 2 ) );
 			target.concatenate( translation );
-			System.out.println( target + " " + source );
 
 			final double[] start = source.getRowPackedCopy();
 			final double[] stop = target.getRowPackedCopy();

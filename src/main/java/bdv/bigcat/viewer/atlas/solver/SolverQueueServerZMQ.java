@@ -2,6 +2,7 @@ package bdv.bigcat.viewer.atlas.solver;
 
 import java.io.Closeable;
 import java.io.IOException;
+import java.lang.invoke.MethodHandles;
 import java.nio.ByteBuffer;
 import java.nio.charset.Charset;
 import java.util.ArrayList;
@@ -11,6 +12,8 @@ import java.util.List;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.zeromq.ZMQ;
 
 import com.google.gson.JsonObject;
@@ -25,6 +28,8 @@ import net.imglib2.util.ValuePair;
 
 public class SolverQueueServerZMQ implements Closeable
 {
+
+	private static final Logger LOG = LoggerFactory.getLogger( MethodHandles.lookup().lookupClass() );
 
 	private final ZMQ.Context ctx;
 
@@ -53,11 +58,9 @@ public class SolverQueueServerZMQ implements Closeable
 		this.actionReceiverSocket = ctx.socket( ZMQ.REP );
 		this.actionReceiverSocket.bind( actionReceiverAddress );
 		final Supplier< Pair< String, Iterable< Action > > > actionReceiver = () -> {
-//			System.out.println( "ACT " + 1 );
-//			final byte[] message = this.actionReceiverSocket.recv();
-			System.out.println( "WAITING FOR MESSAGE IN ACTION RECEIVER at address! " + actionReceiverAddress );
+			LOG.debug( "WAITING FOR MESSAGE IN ACTION RECEIVER at address! {}", actionReceiverAddress );
 			final String message = this.actionReceiverSocket.recvStr( 0, Charset.defaultCharset() );
-			System.out.println( "RECEIVED THE FOLLOWING MESSAGE: " + message );
+			LOG.debug( "RECEIVED THE FOLLOWING MESSAGE: {}", message );
 
 			if ( message == null )
 				return new ValuePair<>( "", new ArrayList<>() );
@@ -71,9 +74,9 @@ public class SolverQueueServerZMQ implements Closeable
 				final String version = json.get( "version" ).getAsString();
 
 				final List< Action > actions = Action.fromJson( json.get( "actions" ).toString() );
-				System.out.println( "RETURNING THESE ACTIONS: " + actions );
+				LOG.debug( "RETURNING THESE ACTIONS: {}", actions );
 				if ( actions.get( 0 ) instanceof ConfirmGroupings )
-					System.out.println( Arrays.toString( ( ( ConfirmGroupings ) actions.get( 0 ) ).fragmentsBySegment() ) );
+					LOG.debug( Arrays.toString( ( ( ConfirmGroupings ) actions.get( 0 ) ).fragmentsBySegment() ) );
 				return new ValuePair<>( version, actions );
 			}
 			catch ( final JsonParseException e )
@@ -123,7 +126,6 @@ public class SolverQueueServerZMQ implements Closeable
 
 		this.solutionDistributionSocket = ctx.socket( ZMQ.PUB );
 		this.solutionDistributionSocket.bind( solutionDistributionAddress );
-//		System.out.println( "ADDR! " + solutionDistributionAddress );
 
 		final Consumer< TLongLongHashMap > solutionDistributor = solution -> {
 			final long[] keys = solution.keys();
@@ -135,7 +137,6 @@ public class SolverQueueServerZMQ implements Closeable
 				bb.putLong( keys[ i ] );
 				bb.putLong( values[ i ] );
 			}
-//			System.out.println( "PUBLISHING SOLUTION " + solution + " " + Arrays.toString( data ) );
 			this.solutionDistributionSocket.send( data, 0 );
 		};
 
@@ -143,9 +144,7 @@ public class SolverQueueServerZMQ implements Closeable
 		this.latestSolutionRequestSocket.bind( latestSolutionRequestAddress );
 
 		final Supplier< Void > currentSolutionRequest = () -> {
-//			System.out.println( "Received solution request! 0" );
 			this.latestSolutionRequestSocket.recv( 0 );
-//			System.out.println( "Received solution request! 1" );
 			return null;
 		};
 
@@ -159,7 +158,6 @@ public class SolverQueueServerZMQ implements Closeable
 				bb.putLong( keys[ i ] );
 				bb.putLong( values[ i ] );
 			}
-//			System.out.println( "Sending solution response! " + Arrays.toString( data ) );
 			this.latestSolutionRequestSocket.send( data, 0 );
 		};
 

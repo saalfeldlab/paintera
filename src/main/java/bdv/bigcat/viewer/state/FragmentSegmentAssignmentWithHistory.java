@@ -1,10 +1,14 @@
 package bdv.bigcat.viewer.state;
 
+import java.lang.invoke.MethodHandles;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import bdv.bigcat.viewer.atlas.solver.action.Action;
 import bdv.bigcat.viewer.atlas.solver.action.ConfirmGroupings;
@@ -21,6 +25,8 @@ import gnu.trove.set.hash.TLongHashSet;
 
 public class FragmentSegmentAssignmentWithHistory extends FragmentSegmentAssignmentState< FragmentSegmentAssignmentWithHistory >
 {
+
+	private static final Logger LOG = LoggerFactory.getLogger( MethodHandles.lookup().lookupClass() );
 
 	private final TLongLongHashMap fragmentToSegmentMap = new TLongLongHashMap( Constants.DEFAULT_CAPACITY, Constants.DEFAULT_LOAD_FACTOR, Label.TRANSPARENT, Label.TRANSPARENT );
 
@@ -72,8 +78,7 @@ public class FragmentSegmentAssignmentWithHistory extends FragmentSegmentAssignm
 							this.fragmentToSegmentMap.clear();
 							this.fragmentToSegmentMap.putAll( solution );
 							this.syncILut();
-							System.out.println( "Removing submitted actions from history: " + submittedActions );
-							System.out.println( history.size() + " " + submittedActions.size() );
+							LOG.debug( "Removing submitted actions from history: " + submittedActions );
 							history.removeAll( submittedActions );
 							submittedActions.clear();
 							for ( final Action action : history )
@@ -121,7 +126,6 @@ public class FragmentSegmentAssignmentWithHistory extends FragmentSegmentAssignm
 	{
 		final long id;
 		final long segmentId = fragmentToSegmentMap.get( fragmentId );
-//		System.out.println( "FRAGMENT " + fragmentId + " " + segmentId + " " + segmentToFragmentsMap.getNoEntryValue() + " " + fragmentToSegmentMap.getNoEntryValue() );
 		if ( segmentId == fragmentToSegmentMap.getNoEntryValue() )
 		{
 			id = fragmentId;
@@ -171,7 +175,7 @@ public class FragmentSegmentAssignmentWithHistory extends FragmentSegmentAssignm
 			synchronized ( history )
 			{
 				history.add( merge );
-				System.out.println( "Broadcasting merge!" );
+				LOG.debug( "Broadcasting merge!" );
 				broadcaster.accept( merge );
 				submittedActions.add( merge );
 			}
@@ -302,11 +306,11 @@ public class FragmentSegmentAssignmentWithHistory extends FragmentSegmentAssignm
 //		final long segment = merge[ 0 ];
 //		Arrays.stream( merge ).forEach( id -> fragmentToSegmentMap.put( id, segment ) );
 //		syncILut();
-		System.out.println( "Confirm grouping " + broadcast );
+		LOG.debug( "Confirm grouping " + broadcast );
 		if ( broadcast )
 		{
 			final ConfirmSingleSegment action = new ConfirmSingleSegment( merge, detach );
-			System.out.println( "BROADCASTING! " + action );
+			LOG.debug( "BROADCASTING! " + action );
 			broadcaster.accept( action );
 			history.add( action );
 			submittedActions.add( action );
@@ -328,9 +332,8 @@ public class FragmentSegmentAssignmentWithHistory extends FragmentSegmentAssignm
 //		syncILut();
 		if ( broadcast )
 		{
-			System.out.println( "Confirming grouping " + broadcast + " " + Arrays.toString( fragmentsInSegment1 ) + " " + Arrays.toString( fragmentsInSegment2 ) );
+			LOG.debug( "Confirming grouping {} {} {}", broadcast, Arrays.toString( fragmentsInSegment1 ), Arrays.toString( fragmentsInSegment2 ) );
 			final ConfirmGroupings action = new ConfirmGroupings( fragmentsInSegment1, fragmentsInSegment2 );
-//			System.out.println( "BROADCASTING! " + action );
 			broadcaster.accept( action );
 			history.add( action );
 			submittedActions.add( action );

@@ -108,7 +108,6 @@ public class ModalGoldenAngleSaturatedHighlightingARGBStream extends GoldenAngle
 		else
 			argb = argb & 0x00ffffff | ( isActiveSegment( fragmentId ) ? isActiveFragment( fragmentId ) ? activeFragmentAlpha : activeSegmentAlpha : alpha );
 
-//		System.out.println( "GETTING COLOR FOR " + fragmentId + " " + highlights );
 		return argb;
 	}
 }

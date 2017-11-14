@@ -124,15 +124,6 @@ public class MarchingCubes< B extends BooleanType< B > >
 					( cursor2.next().get() ? 0b01000000 : 0 ) |
 					( cursor0.next().get() ? 0b10000000 : 0 );
 
-			// @formatter:off
-//			System.out.println( " " + cursors[ 4 ].get() + "------" + cursors[ 6 ].get() );
-//			System.out.println( " /|     /|" );
-//			System.out.println( " " + cursors[ 0 ].get() + "-----" + cursors[ 2 ].get() + " |" );
-//			System.out.println( " |" + cursors[ 5 ].get() + "----|-" + cursors[ 7 ].get() );
-//			System.out.println( " |/    |/" );
-//			System.out.println( " " +  cursors[ 1 ].get() + "-----" +  cursors[ 3 ].get() );
-			// @formatter:on
-
 			triangulation(
 					vertexValues,
 					cursor0.getLongPosition( 0 ),

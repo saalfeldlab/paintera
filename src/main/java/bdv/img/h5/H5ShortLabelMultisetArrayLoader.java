@@ -1,6 +1,10 @@
 package bdv.img.h5;
 
+import java.lang.invoke.MethodHandles;
 import java.util.Arrays;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import bdv.img.cache.CacheArrayLoader;
 import bdv.labels.labelset.LabelMultisetEntry;
@@ -20,6 +24,9 @@ import gnu.trove.map.hash.TLongIntHashMap;
  */
 public class H5ShortLabelMultisetArrayLoader extends AbstractH5LabelMultisetArrayLoader
 {
+
+	private final Logger LOG = LoggerFactory.getLogger( MethodHandles.lookup().lookupClass() );
+
 	final private IHDF5ShortReader reader;
 
 	public H5ShortLabelMultisetArrayLoader(
@@ -46,18 +53,14 @@ public class H5ShortLabelMultisetArrayLoader extends AbstractH5LabelMultisetArra
 
 		final MDShortArray block = reader.readMDArrayBlockWithOffset(
 				dataset,
-				new int[]{ dimensions[ 2 ], dimensions[ 1 ], dimensions[ 0 ] },
-				new long[]{ min[ 2 ], min[ 1 ], min[ 0 ] } );
+				new int[] { dimensions[ 2 ], dimensions[ 1 ], dimensions[ 0 ] },
+				new long[] { min[ 2 ], min[ 1 ], min[ 0 ] } );
 
 		data = block.getAsFlatArray();
 
 		if ( data == null )
 		{
-			System.out.println(
-					"H5 short label multiset array loader failed loading min = " +
-					Arrays.toString( min ) +
-					", dimensions = " +
-					Arrays.toString( dimensions ) );
+			LOG.warn( "H5 short label multiset array loader failed loading min = {}, dimensions = {}", Arrays.toString( min ), Arrays.toString( dimensions ) );
 
 			data = new short[ dimensions[ 0 ] * dimensions[ 1 ] * dimensions[ 2 ] ];
 		}
@@ -71,8 +74,8 @@ public class H5ShortLabelMultisetArrayLoader extends AbstractH5LabelMultisetArra
 				Constants.DEFAULT_CAPACITY,
 				Constants.DEFAULT_LOAD_FACTOR,
 				-1,
-				-1);
-A:		for ( int i = 0; i < data.length; ++i )
+				-1 );
+		A: for ( int i = 0; i < data.length; ++i )
 		{
 			final long id = data[ i ] & 0xffffL;
 
@@ -93,7 +96,6 @@ A:		for ( int i = 0; i < data.length; ++i )
 				continue A;
 			}
 		}
-//		System.out.println( listData.size() );
 
 		return new VolatileLabelMultisetArray( offsets, listData, true );
 	}
