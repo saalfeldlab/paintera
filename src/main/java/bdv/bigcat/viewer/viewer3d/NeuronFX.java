@@ -174,6 +174,8 @@ public class NeuronFX
 		final PhongMaterial material = new PhongMaterial();
 		final Color surfaceColor = Color.rgb( color >>> 16 & 0xff, color >>> 8 & 0xff, color >>> 0 & 0xff, 1.0 );
 		meshView.setOpacity( 1.0 );
+		material.setSpecularColor( new Color( 1, 1, 1, 1.0 ) );
+		material.setSpecularPower( 50 );
 		material.setDiffuseColor( surfaceColor );
 		meshView.setMaterial( material );
 
