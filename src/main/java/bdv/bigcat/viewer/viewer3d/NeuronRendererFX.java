@@ -12,6 +12,7 @@ import bdv.bigcat.viewer.state.FragmentSegmentAssignmentState;
 import bdv.bigcat.viewer.state.GlobalTransformManager;
 import bdv.bigcat.viewer.state.SelectedIds;
 import bdv.bigcat.viewer.state.StateListener;
+import bdv.bigcat.viewer.stream.AbstractHighlightingARGBStream;
 import bdv.bigcat.viewer.util.InvokeOnJavaFXApplicationThread;
 import gnu.trove.list.array.TFloatArrayList;
 import gnu.trove.list.array.TIntArrayList;
@@ -101,6 +102,8 @@ public class NeuronRendererFX< T, F extends FragmentSegmentAssignmentState< F > 
 	private final GlobalTransformManager transformManager;
 
 	private final MenuItem saverItem = new MenuItem( "Save neuron" );
+
+	private final StateListener< AbstractHighlightingARGBStream > listener;
 
 	/**
 	 * Bounding box of the complete mesh/neuron (xmin, xmax, ymin, ymax, zmin,
@@ -202,6 +205,13 @@ public class NeuronRendererFX< T, F extends FragmentSegmentAssignmentState< F > 
 			newv.ifPresent( n -> n.isReadyProperty().addListener( ( bobs, boldv, bnewv ) -> saverItem.setDisable( !bnewv ) ) );
 		} );
 
+		listener = () -> {
+			if ( this.neuron.get().isPresent() )
+			{
+				final NeuronFX neuron = this.neuron.get().get();
+				neuron.setColor( desaturate( stream.argb( selectedFragmentId ), 0.25 ) );
+			}
+		};
 	}
 
 	public synchronized void cancelRendering()
@@ -217,6 +227,8 @@ public class NeuronRendererFX< T, F extends FragmentSegmentAssignmentState< F > 
 			n.meshes().removeEventHandler( MouseEvent.MOUSE_PRESSED, idSelector );
 			n.removeSelfUnchecked();
 		} );
+		if ( this.stream instanceof AbstractHighlightingARGBStream )
+			( ( AbstractHighlightingARGBStream ) this.stream ).removeListener( listener );
 	}
 
 	public synchronized void updateOnStateChange( final boolean updateOnStateChange )
@@ -240,6 +252,10 @@ public class NeuronRendererFX< T, F extends FragmentSegmentAssignmentState< F > 
 		if ( allowRendering )
 		{
 			removeSelfFromScene();
+
+			if ( this.stream instanceof AbstractHighlightingARGBStream )
+				( ( AbstractHighlightingARGBStream ) this.stream ).addListener( listener );
+
 			final NeuronFX neuron = new NeuronFX( interval, root );
 			this.neuron.set( Optional.of( neuron ) );
 			final float[] blub = new float[ 3 ];

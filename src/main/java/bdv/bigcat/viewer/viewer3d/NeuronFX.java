@@ -17,6 +17,7 @@ import bdv.bigcat.viewer.viewer3d.marchingCubes.MarchingCubes;
 import bdv.bigcat.viewer.viewer3d.util.HashWrapper;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.ObjectProperty;
+import javafx.beans.property.Property;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.collections.FXCollections;
@@ -64,6 +65,8 @@ public class NeuronFX
 
 	private final AtomicLong futuresFinishedCount = new AtomicLong( 0 );
 
+	private final ObjectProperty< Color > colorProperty = new SimpleObjectProperty<>();
+
 	public NeuronFX( final Interval interval, final Group root )
 	{
 		super();
@@ -91,6 +94,7 @@ public class NeuronFX
 		this.isCanceled = false;
 		this.isReady.set( false );
 		this.meshes.set( new Group() );
+		setColor( color );
 		final long[] gridCoordinates = new long[ initialLocationInImageCoordinates.numDimensions() ];
 		initialLocationInImageCoordinates.localize( gridCoordinates );
 		for ( int i = 0; i < gridCoordinates.length; ++i )
@@ -129,6 +133,16 @@ public class NeuronFX
 		}
 	}
 
+	public ObjectProperty< Color > colorProperty()
+	{
+		return this.colorProperty;
+	}
+
+	public void setColor( final int color )
+	{
+		colorProperty.set( Color.rgb( ( color & 0x00ff0000 ) >>> 16, ( color & 0x0000ff00 ) >>> 8, color & 0xff, ( ( color & 0xff000000 ) >>> 24 ) / 255.0 ) );
+	}
+
 	private < B extends BooleanType< B > > void submitForOffset(
 			final long[] gridCoordinates,
 			final RandomAccessible< B > data,
@@ -163,7 +177,7 @@ public class NeuronFX
 		}
 	}
 
-	private static MeshView initializeMeshView( final int color, final float[] vertices )
+	private static MeshView initializeMeshView( final float[] vertices, final Property< Color > color )
 	{
 		final TriangleMesh mesh = new TriangleMesh();
 		mesh.setVertexFormat( VertexFormat.POINT_NORMAL_TEXCOORD );
@@ -172,11 +186,10 @@ public class NeuronFX
 		meshView.setCullFace( CullFace.NONE );
 
 		final PhongMaterial material = new PhongMaterial();
-		final Color surfaceColor = Color.rgb( color >>> 16 & 0xff, color >>> 8 & 0xff, color >>> 0 & 0xff, 1.0 );
 		meshView.setOpacity( 1.0 );
 		material.setSpecularColor( new Color( 1, 1, 1, 1.0 ) );
 		material.setSpecularPower( 50 );
-		material.setDiffuseColor( surfaceColor );
+		material.diffuseColorProperty().bind( color );
 		meshView.setMaterial( material );
 
 		final float[] normals = new float[ vertices.length ];
@@ -263,12 +276,10 @@ public class NeuronFX
 		chunk.setTranslateZ( center[ 2 ] );
 
 		final PhongMaterial chunkMaterial = new PhongMaterial();
-		final Color surfaceColor = Color.rgb( color >>> 16 & 0xff, color >>> 8 & 0xff, color >>> 0 & 0xff, 1.0 );
-		chunkMaterial.setDiffuseColor( surfaceColor );
+		chunkMaterial.diffuseColorProperty().bind( this.colorProperty );
 		chunk.setMaterial( chunkMaterial );
 		chunk.setOpacity( 0.3 );
 
-//
 		InvokeOnJavaFXApplicationThread.invoke( () -> meshes.getChildren().add( chunk ) );
 
 		final MarchingCubes< B > mc = new MarchingCubes<>( data, interval, toWorldCoordinates, cubeSize );
@@ -278,7 +289,7 @@ public class NeuronFX
 
 		if ( vertices.length > 0 )
 		{
-			final MeshView mv = initializeMeshView( color, vertices );
+			final MeshView mv = initializeMeshView( vertices, this.colorProperty );
 
 			if ( !isCanceled )
 			{
