@@ -311,13 +311,6 @@ public class Atlas
 		closeConfirmation.initModality( Modality.APPLICATION_MODAL );
 		closeConfirmation.initOwner( primaryStage );
 
-		// normally, you would just use the default alert positioning,
-		// but for this simple sample the main stage is small,
-		// so explicitly position the alert so that the main window can still be
-		// seen.
-		closeConfirmation.setX( primaryStage.getX() );
-		closeConfirmation.setY( primaryStage.getY() + primaryStage.getHeight() );
-
 		final Optional< ButtonType > closeResponse = closeConfirmation.showAndWait();
 		if ( !ButtonType.OK.equals( closeResponse.get() ) )
 			// stage.setOnCloseRequest(

@@ -23,7 +23,6 @@ import net.imglib2.realtransform.AffineTransform3D;
 
 public class OrthoSliceFX
 {
-
 	private final Group scene;
 
 	private final ViewerPanelFX viewer;
@@ -122,7 +121,6 @@ public class OrthoSliceFX
 		@Override
 		public void changed( final ObservableValue< ? extends Image > observable, final Image oldValue, final Image newValue )
 		{
-
 			if ( newValue != null )
 				paint( newValue );
 		}
