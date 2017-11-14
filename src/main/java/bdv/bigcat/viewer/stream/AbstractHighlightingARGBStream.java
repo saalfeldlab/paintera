@@ -17,6 +17,7 @@
 package bdv.bigcat.viewer.stream;
 
 import bdv.bigcat.ui.ARGBStream;
+import bdv.bigcat.viewer.state.AbstractState;
 import bdv.bigcat.viewer.state.FragmentSegmentAssignment;
 import bdv.bigcat.viewer.state.SelectedIds;
 import bdv.labels.labelset.Label;
@@ -28,7 +29,7 @@ import gnu.trove.map.hash.TLongIntHashMap;
  *
  * @author Stephan Saalfeld &lt;saalfelds@janelia.hhmi.org&gt;
  */
-abstract public class AbstractHighlightingARGBStream implements ARGBStream
+abstract public class AbstractHighlightingARGBStream extends AbstractState< AbstractHighlightingARGBStream > implements ARGBStream
 {
 	final static protected double[] rs = new double[] { 1, 1, 0, 0, 0, 1, 1 };
 
@@ -122,6 +123,7 @@ abstract public class AbstractHighlightingARGBStream implements ARGBStream
 	public void setSeed( final long seed )
 	{
 		this.seed = seed;
+		stateChanged();
 	}
 
 	/**
@@ -129,7 +131,7 @@ abstract public class AbstractHighlightingARGBStream implements ARGBStream
 	 */
 	public void incSeed()
 	{
-		++seed;
+		setSeed( seed + 1 );
 	}
 
 	/**
@@ -137,7 +139,16 @@ abstract public class AbstractHighlightingARGBStream implements ARGBStream
 	 */
 	public void decSeed()
 	{
-		--seed;
+		setSeed( seed - 1 );
+	}
+
+	/**
+	 *
+	 * @return The current seed value
+	 */
+	public long getSeed()
+	{
+		return this.seed;
 	}
 
 	/**
@@ -148,6 +159,7 @@ abstract public class AbstractHighlightingARGBStream implements ARGBStream
 	public void setAlpha( final int alpha )
 	{
 		this.alpha = ( alpha & 0xff ) << 24;
+		stateChanged();
 	}
 
 	/**
@@ -159,11 +171,13 @@ abstract public class AbstractHighlightingARGBStream implements ARGBStream
 	public void setActiveSegmentAlpha( final int alpha )
 	{
 		this.activeSegmentAlpha = ( alpha & 0xff ) << 24;
+		stateChanged();
 	}
 
 	public void setInvalidSegmentAlpha( final int alpha )
 	{
 		this.invalidSegmentAlpha = ( alpha & 0xff ) << 24;
+		stateChanged();
 	}
 
 	public int getAlpha()
@@ -184,5 +198,6 @@ abstract public class AbstractHighlightingARGBStream implements ARGBStream
 	public void clearCache()
 	{
 		argbCache.clear();
+		stateChanged();
 	}
 }

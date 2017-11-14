@@ -359,7 +359,9 @@ public class Atlas
 		{
 			final SelectedIds selId = new SelectedIds();
 			selIdsMap.put( mode, selId );
-			streamsMap.put( mode, new ModalGoldenAngleSaturatedHighlightingARGBStream( selId, assignment ) );
+			final ModalGoldenAngleSaturatedHighlightingARGBStream stream = new ModalGoldenAngleSaturatedHighlightingARGBStream( selId, assignment );
+			stream.addListener( () -> baseView().requestRepaint() );
+			streamsMap.put( mode, stream );
 		}
 		final DataSource< LabelMultisetType, VolatileARGBType > vsource = new ConverterDataSource<>(
 				spec,
