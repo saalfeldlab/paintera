@@ -1,13 +1,19 @@
 package bdv.bigcat.viewer.atlas;
 
+import java.lang.invoke.MethodHandles;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.function.Consumer;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import bdv.bigcat.viewer.bdvfx.ViewerPanelFX;
 
 public class AtlasFocusHandler
 {
+
+	private final static Logger LOG = LoggerFactory.getLogger( MethodHandles.lookup().lookupClass() );
 
 	public static class OnEnterOnExit
 	{
@@ -69,7 +75,7 @@ public class AtlasFocusHandler
 		@Override
 		public void accept( final ViewerPanelFX t )
 		{
-			System.out.println( "ENTERING? " + installOnExitRemovables + " " + installPermanent );
+			LOG.debug( "ENTERING? {} {}", installOnExitRemovables, installPermanent );
 			synchronized ( AtlasFocusHandler.this )
 			{
 				installOnExitRemovables.forEach( consumer -> consumer.onEnter.accept( t ) );
