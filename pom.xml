@@ -4,9 +4,9 @@
 	<modelVersion>4.0.0</modelVersion>
 
 	<parent>
-		<groupId>sc.fiji</groupId>
-		<artifactId>pom-bigdataviewer</artifactId>
-		<version>5.0.0</version>
+		<version>17.1.1</version>
+		<groupId>org.scijava</groupId>
+		<artifactId>pom-scijava</artifactId>
 	</parent>
 
 	<artifactId>bigcat</artifactId>
@@ -51,7 +51,6 @@
 		<dependency>
 			<groupId>net.sf.trove4j</groupId>
 			<artifactId>trove4j</artifactId>
-			<version>3.0.3</version>
 		</dependency>
 		<dependency>
 			<groupId>net.imglib2</groupId>
@@ -65,7 +64,6 @@
 		<dependency>
 			<groupId>net.imglib2</groupId>
 			<artifactId>imglib2-ui</artifactId>
-			<version>2.0.0-beta-33</version>
 		</dependency>
 		<dependency>
 			<groupId>net.imglib2</groupId>
@@ -115,7 +113,6 @@
 		<dependency>
 			<groupId>org.scijava</groupId>
 			<artifactId>script-editor</artifactId>
-			<version>0.1.0</version>
 		</dependency>
 		<!-- https://mvnrepository.com/artifact/graphics.scenery/scenery -->
 		<dependency>
@@ -127,7 +124,6 @@
 		<dependency>
 			<groupId>org.slf4j</groupId>
 			<artifactId>slf4j-api</artifactId>
-			<version>1.7.25</version>
 		</dependency>
 		<dependency>
 			<groupId>org.slf4j</groupId>
@@ -137,7 +133,16 @@
 		<dependency>
 			<groupId>net.imglib2</groupId>
 			<artifactId>imglib2-cache</artifactId>
-			<version>1.0.0-beta-7</version>
+		</dependency>
+		<dependency>
+			<groupId>org.janelia.saalfeldlab</groupId>
+			<artifactId>n5</artifactId>
+			<version>1.2.0</version>
+		</dependency>
+		<dependency>
+			<groupId>org.janelia.saalfeldlab</groupId>
+			<artifactId>n5-imglib2</artifactId>
+			<version>1.0.0</version>
 		</dependency>
 	</dependencies>
 	<developers>
@@ -170,6 +175,10 @@
 	</developers>
 
 	<repositories>
+		<repository>
+			<id>saalfeld-lab-maven-repo</id>
+			<url>https://saalfeldlab.github.io/maven</url>
+		</repository>
 		<repository>
 			<id>imagej.public</id>
 			<url>https://maven.imagej.net/content/groups/public</url>
@@ -237,4 +246,5 @@
 				<argument>${h5file}</argument> </arguments> </configuration> </plugin> -->
 		</plugins>
 	</build>
+	<groupId>org.saalfeldlab</groupId>
 </project>
