@@ -29,10 +29,13 @@
  */
 package bdv.bigcat.viewer.bdvfx;
 
+import java.lang.invoke.MethodHandles;
 import java.util.concurrent.CopyOnWriteArrayList;
 
 import org.apache.commons.collections.Buffer;
 import org.apache.commons.collections.buffer.CircularFifoBuffer;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import bdv.bigcat.viewer.util.InvokeOnJavaFXApplicationThread;
 import javafx.scene.image.ImageView;
@@ -49,6 +52,9 @@ public class TransformAwareBufferedImageOverlayRendererFX
 		extends ImageOverlayRendererFX
 		implements TransformAwareBufferedImageOverlayRendererGeneric< ImageView, ArrayImg< ARGBType, IntArray > >
 {
+
+	private static Logger LOG = LoggerFactory.getLogger( MethodHandles.lookup().lookupClass() );
+
 	protected AffineTransform3D pendingTransform;
 
 	protected AffineTransform3D paintedTransform;
@@ -192,7 +198,7 @@ public class TransformAwareBufferedImageOverlayRendererFX
 				final WritableImage img = ( WritableImage ) obj;
 				if ( img.getWidth() == width && img.getHeight() == height )
 				{
-					System.out.println( "REUSING IMAGE OF SIZE " + width + " " + height );
+					LOG.debug( "REUSING IMAGE OF SIZE " + width + " " + height );
 					return img;
 				}
 			}
