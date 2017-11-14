@@ -12,18 +12,11 @@ import static net.imglib2.cache.img.PrimitiveType.SHORT;
 import java.io.File;
 import java.io.IOException;
 import java.util.Arrays;
-import java.util.function.Supplier;
-
-import org.lwjgl.system.CallbackI.V;
 
 import bdv.bigcat.label.FragmentSegmentAssignment;
-import bdv.bigcat.viewer.atlas.data.RandomAccessibleIntervalDataSource;
 import bdv.labels.labelset.Label;
 import bdv.labels.labelset.LabelMultiset;
 import bdv.labels.labelset.LabelMultisetType;
-import bdv.util.volatiles.SharedQueue;
-import bdv.util.volatiles.VolatileViews;
-import bdv.viewer.Interpolation;
 import ch.systemsx.cisd.base.mdarray.MDByteArray;
 import ch.systemsx.cisd.base.mdarray.MDDoubleArray;
 import ch.systemsx.cisd.base.mdarray.MDFloatArray;
@@ -61,8 +54,6 @@ import net.imglib2.cache.img.CachedCellImg;
 import net.imglib2.cache.img.CellLoader;
 import net.imglib2.cache.img.LoadedCellCacheLoader;
 import net.imglib2.cache.ref.SoftRefLoaderCache;
-import net.imglib2.cache.volatiles.CacheHints;
-import net.imglib2.cache.volatiles.LoadingStrategy;
 import net.imglib2.converter.Converter;
 import net.imglib2.converter.Converters;
 import net.imglib2.img.basictypeaccess.array.ByteArray;
@@ -77,11 +68,7 @@ import net.imglib2.img.cell.CellGrid;
 import net.imglib2.img.cell.CellImg;
 import net.imglib2.img.cell.CellImgFactory;
 import net.imglib2.img.cell.LazyCellImg;
-import net.imglib2.interpolation.randomaccess.NLinearInterpolatorFactory;
-import net.imglib2.interpolation.randomaccess.NearestNeighborInterpolatorFactory;
-import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.type.NativeType;
-import net.imglib2.type.numeric.NumericType;
 import net.imglib2.type.numeric.integer.ByteType;
 import net.imglib2.type.numeric.integer.GenericByteType;
 import net.imglib2.type.numeric.integer.GenericIntType;
@@ -2105,7 +2092,6 @@ public class H5Utils
 	 * @return
 	 * @throws IOException
 	 */
-	@SuppressWarnings( { "unchecked", "rawtypes" } )
 	public static final < T extends NativeType< T > > RandomAccessibleInterval< T > open(
 			final IHDF5Reader reader,
 			final String dataset ) throws IOException
@@ -2121,70 +2107,5 @@ public class H5Utils
 		}
 
 		return open( reader, dataset, blockSize );
-	}
-
-	/**
-	 * Create a primitive single scale level source without visualization
-	 * conversion from an H5 dataset.
-	 *
-	 * @param name
-	 * @param rawFile
-	 * @param rawDataset
-	 * @param rawCellSize
-	 * @param resolution
-	 * @param sharedQueue
-	 * @param priority
-	 * @param typeSupplier
-	 * @param volatileTypeSupplier
-	 * @return
-	 * @throws IOException
-	 */
-	public static < T extends NativeType< T > & NumericType< T >, V extends NumericType< V > > RandomAccessibleIntervalDataSource< T, V > createH5RawSource(
-			final String name,
-			final String rawFile,
-			final String rawDataset,
-			final int[] rawCellSize,
-			final double[] resolution,
-			final SharedQueue sharedQueue,
-			final int priority,
-			final Supplier< T > typeSupplier,
-			final Supplier< V > volatileTypeSupplier ) throws IOException
-	{
-		final RandomAccessibleInterval< T > raw = H5Utils.open( HDF5Factory.openForReading( rawFile ), rawDataset, rawCellSize );
-		final AffineTransform3D rawTransform = new AffineTransform3D();
-		rawTransform.set(
-				resolution[ 0 ], 0, 0, 0,
-				0, resolution[ 1 ], 0, 0,
-				0, 0, resolution[ 2 ], 0 );
-
-		@SuppressWarnings( "unchecked" )
-		final RandomAccessibleIntervalDataSource< T, V > rawSource =
-				new RandomAccessibleIntervalDataSource< T, V >(
-						( RandomAccessibleInterval< T >[] ) new RandomAccessibleInterval[] { raw },
-						( RandomAccessibleInterval< V >[] ) new RandomAccessibleInterval[] {
-								VolatileViews.wrapAsVolatile( raw, sharedQueue, new CacheHints( LoadingStrategy.VOLATILE, priority, true ) ) },
-						new AffineTransform3D[] { rawTransform },
-						( interpolation ) -> {
-							switch ( ( Interpolation ) interpolation )
-							{
-							case NLINEAR:
-								return new NLinearInterpolatorFactory< T >();
-							default:
-								return new NearestNeighborInterpolatorFactory< T >();
-							}
-						},
-						( interpolation ) -> {
-							switch ( ( Interpolation ) interpolation )
-							{
-							case NLINEAR:
-								return new NLinearInterpolatorFactory< V >();
-							default:
-								return new NearestNeighborInterpolatorFactory< V >();
-							}
-						},
-						typeSupplier,
-						volatileTypeSupplier,
-						name );
-		return rawSource;
 	}
 }

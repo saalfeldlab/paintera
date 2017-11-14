@@ -8,10 +8,10 @@ import com.sun.javafx.application.PlatformImpl;
 
 import bdv.AbstractViewerSetupImgLoader;
 import bdv.bigcat.viewer.atlas.Atlas;
+import bdv.bigcat.viewer.atlas.data.DataSource;
 import bdv.bigcat.viewer.atlas.data.HDF5LabelMultisetDataSource;
 import bdv.bigcat.viewer.atlas.data.RandomAccessibleIntervalDataSource;
 import bdv.img.cache.VolatileGlobalCellCache;
-import bdv.img.h5.H5Utils;
 import bdv.util.volatiles.SharedQueue;
 import bdv.viewer.Interpolation;
 import bdv.viewer.Source;
@@ -43,11 +43,11 @@ public class ExampleApplicationCremi
 
 	public static void main( final String[] args ) throws Exception
 	{
-		// Set the log level
+		PlatformImpl.startup( () -> {} );
+
 		final String USER_HOME = System.getProperty( "user.home" );
 
 		String rawFile = "/groups/saalfeld/home/saalfelds/cremi/sample_B+_padded_20170424.aligned.hdf";
-		PlatformImpl.startup( () -> {} );
 		String rawDataset = "volumes/raw";
 		String labelsFile = rawFile;
 		String labelsDataset = "volumes/labels/neuron_ids";
@@ -76,7 +76,7 @@ public class ExampleApplicationCremi
 		final VolatileGlobalCellCache cellCache = new VolatileGlobalCellCache( 1, 12 );
 
 		final RandomAccessibleIntervalDataSource< UnsignedByteType, VolatileUnsignedByteType > rawSource =
-				H5Utils.createH5RawSource( "raw", rawFile, rawDataset, rawCellSize, resolution, sharedQueue, numPriorities - 1, UnsignedByteType::new, VolatileUnsignedByteType::new );
+				DataSource.createH5RawSource( "raw", rawFile, rawDataset, rawCellSize, resolution, sharedQueue, numPriorities - 1, UnsignedByteType::new, VolatileUnsignedByteType::new );
 
 //		final HDF5UnsignedByteDataSource rawSource = new HDF5UnsignedByteDataSource( rawFile, rawDataset, rawCellSize, resolution, "raw", cellCache, 0 );
 
