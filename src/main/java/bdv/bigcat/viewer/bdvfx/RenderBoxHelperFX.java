@@ -103,7 +103,7 @@ public class RenderBoxHelperFX
 			before.getElements().add( new MoveTo( perspectiveX( a ), perspectiveY( a ) ) );
 //			before.moveTo( perspectiveX( a ), perspectiveY( a ) );
 			if ( b[ 2 ] <= 0 )
-				before.getElements().add( new LineTo( perspectiveX( a ), perspectiveY( a ) ) );
+				before.getElements().add( new LineTo( perspectiveX( b ), perspectiveY( b ) ) );
 //				before.lineTo( perspectiveX( b ), perspectiveY( b ) );
 			else
 			{
