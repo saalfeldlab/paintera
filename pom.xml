@@ -9,6 +9,7 @@
 		<artifactId>pom-scijava</artifactId>
 	</parent>
 
+	<groupId>org.saalfeldlab</groupId>
 	<artifactId>bigcat</artifactId>
 	<version>0.0.3-SNAPSHOT</version>
 
@@ -246,5 +247,4 @@
 				<argument>${h5file}</argument> </arguments> </configuration> </plugin> -->
 		</plugins>
 	</build>
-	<groupId>org.saalfeldlab</groupId>
 </project>
