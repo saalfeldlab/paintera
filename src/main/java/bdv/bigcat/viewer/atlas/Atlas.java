@@ -114,6 +114,8 @@ public class Atlas
 
 	private final SimpleObjectProperty< Mode > currentMode = new SimpleObjectProperty<>();
 
+	private final ARGBStreamSeedSetter seedSetter;
+
 	public Atlas( final Interval interval, final SharedQueue cellCache )
 	{
 		this( ViewerOptions.options(), interval, cellCache );
@@ -203,6 +205,9 @@ public class Atlas
 //				event.consume();
 //			}
 //		} );
+
+		this.seedSetter = new ARGBStreamSeedSetter( sourceInfo, keyTracker, currentMode );
+		addOnEnterOnExit( this.seedSetter.onEnter(), this.seedSetter.onEnter(), true );
 
 		{
 			final AffineTransform3D tf = new AffineTransform3D();
