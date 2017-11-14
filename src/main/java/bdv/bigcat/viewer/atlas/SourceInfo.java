@@ -1,7 +1,9 @@
 package bdv.bigcat.viewer.atlas;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Optional;
+import java.util.function.Consumer;
 import java.util.function.Function;
 
 import bdv.bigcat.ui.ARGBStream;
@@ -107,6 +109,11 @@ public class SourceInfo
 	public synchronized Optional< SelectedIds > selectedIds( final Source< ? > source, final Mode mode )
 	{
 		return Optional.ofNullable( Optional.ofNullable( selectedIds.get( source ) ).orElse( new HashMap<>() ).get( mode ) );
+	}
+
+	public synchronized void forEachStream( final Source< ? > source, final Consumer< ARGBStream > actor )
+	{
+		Optional.ofNullable( streams.get( source ) ).map( HashMap::values ).orElseGet( () -> new ArrayList<>() ).stream().forEach( actor );
 	}
 
 }
