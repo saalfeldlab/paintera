@@ -16,6 +16,7 @@ import bdv.viewer.Source;
 import ch.systemsx.cisd.hdf5.HDF5Factory;
 import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.RealRandomAccessible;
+import net.imglib2.Volatile;
 import net.imglib2.cache.volatiles.CacheHints;
 import net.imglib2.cache.volatiles.LoadingStrategy;
 import net.imglib2.interpolation.randomaccess.NLinearInterpolatorFactory;
@@ -184,7 +185,7 @@ public interface DataSource< D, T > extends Source< T >
 	 * @throws IOException
 	 */
 	@SuppressWarnings( "unchecked" )
-	public static < T extends NativeType< T > & NumericType< T >, V extends NumericType< V > > RandomAccessibleIntervalDataSource< T, V > createN5MipmapRawSource(
+	public static < T extends NativeType< T > & NumericType< T >, V extends Volatile< T > & NumericType< V > > RandomAccessibleIntervalDataSource< T, V > createN5MipmapRawSource(
 			final String name,
 			final N5Reader n5,
 			final String group,
@@ -213,7 +214,7 @@ public interface DataSource< D, T > extends Source< T >
 		{
 			final RandomAccessibleInterval< T > mipmap = N5Utils.openVolatile( n5, group + "/" + sortedMipmapDatasets[ i ] );
 			mipmaps.add( mipmap );
-			volatileMipmaps.add( ( RandomAccessibleInterval< V > )VolatileViews.wrapAsVolatile( mipmap, sharedQueue, new CacheHints( LoadingStrategy.VOLATILE, i, true ) ) );
+			volatileMipmaps.add( VolatileViews.wrapAsVolatile( mipmap, sharedQueue, new CacheHints( LoadingStrategy.VOLATILE, i, true ) ) );
 			final long[] downsampleFactors = n5.getAttribute( group + "/" + sortedMipmapDatasets[ i ], "downsamplingFactors", long[].class );
 			final AffineTransform3D mipmapTransform = rawTransform.copy();
 			if ( downsampleFactors != null )
