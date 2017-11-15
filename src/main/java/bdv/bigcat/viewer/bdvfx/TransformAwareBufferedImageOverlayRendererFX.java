@@ -59,8 +59,6 @@ public class TransformAwareBufferedImageOverlayRendererFX
 
 	protected AffineTransform3D paintedTransform;
 
-	private final Buffer imgBuffer = new CircularFifoBuffer( 10 );
-
 	/**
 	 * These listeners will be notified about the transform that is associated
 	 * to the currently rendered image. This is intended for example for
@@ -107,10 +105,7 @@ public class TransformAwareBufferedImageOverlayRendererFX
 			final int h = ( int ) sourceImage.dimension( 1 );
 			new Thread( () -> {
 				final WritableImage wimg;
-				synchronized ( imgBuffer )
-				{
-					wimg = getOrCreateImage( imgBuffer, w, h );
-				}
+				wimg = new WritableImage( w, h );
 				final int[] data = sourceImage.update( null ).getCurrentStorageArray();
 				wimg.getPixelWriter().setPixels( 0, 0, w, h, PixelFormat.getIntArgbInstance(), data, 0, w );
 				InvokeOnJavaFXApplicationThread.invoke( () -> imgView.setImage( wimg ) );
