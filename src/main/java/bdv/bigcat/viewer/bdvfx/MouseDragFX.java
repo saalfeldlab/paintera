@@ -26,13 +26,11 @@ public abstract class MouseDragFX implements InstallAndRemove< Node >
 
 	private final Predicate< MouseEvent >[] eventFilter;
 
-	private final boolean consume;
-
 	protected final Object transformLock;
 
 	public MouseDragFX( final String name, final Predicate< MouseEvent >[] eventFilter, final Object transformLock )
 	{
-		this( name, eventFilter, true, transformLock );
+		this( name, eventFilter, false, transformLock );
 	}
 
 	public MouseDragFX( final String name, final Predicate< MouseEvent >[] eventFilter, final boolean consume, final Object transformLock )
@@ -40,7 +38,6 @@ public abstract class MouseDragFX implements InstallAndRemove< Node >
 		super();
 		this.name = name;
 		this.eventFilter = eventFilter;
-		this.consume = consume;
 		this.transformLock = transformLock;
 	}
 
@@ -83,8 +80,6 @@ public abstract class MouseDragFX implements InstallAndRemove< Node >
 				startY = event.getY();
 				isDragging.set( true );
 				initDrag( event );
-				if ( consume )
-					event.consume();
 			}
 		}
 	}
@@ -95,10 +90,12 @@ public abstract class MouseDragFX implements InstallAndRemove< Node >
 		@Override
 		public void handle( final MouseEvent event )
 		{
+			System.out.println("mouse drag - fxevent");
 			if ( isDragging.get() )
+			{
+				System.out.println("calling drag method");
 				drag( event );
-			if ( consume )
-				event.consume();
+			}
 		}
 	}
 
@@ -111,9 +108,9 @@ public abstract class MouseDragFX implements InstallAndRemove< Node >
 			final boolean wasDragging = isDragging.get();
 			isDragging.set( false );
 			if ( wasDragging )
+			{
 				endDrag( event );
-			if ( consume )
-				event.consume();
+			}
 		}
 
 	}
