@@ -4,6 +4,16 @@
 
 ## Dependences
 
+* java
+```shell
+sudo apt install default-jre default-jdk
+```
+
+* maven (ubuntu):
+```shell
+sudo apt install maven
+```
+
 * javafx (ubuntu):
 
 ```shell
