@@ -71,10 +71,9 @@ public class MultiBoxOverlayFX
 		public AffineTransform3D getSourceToViewer();
 	}
 
-	private final Color activeBackColor = Color.rgb( 0x99, 0x44, 0x99, 1.0 );
-	// new Color( 0x00994499// );// Color.MAGENTA;
+	private final Color activeBackColor = Color.rgb( 0xff, 0x00, 0xff, 1.0 );
 
-	private final Color activeFrontColor = Color.GREEN;
+	private final Color activeFrontColor = Color.rgb( 0x00, 0xff, 0x00, 1.0 );
 
 	private final Color inactiveBackColor = Color.DARKGRAY;
 

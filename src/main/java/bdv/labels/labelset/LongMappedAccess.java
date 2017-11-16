@@ -23,13 +23,6 @@ public class LongMappedAccess implements MappedAccess< LongMappedAccess >
 
 	LongMappedAccess( final LongMappedAccessData dataArray, final long baseOffset )
 	{
-//		synchronized( lock )
-//		{
-//		System.out.println( "LongMappedAccess" );
-//		for ( final StackTraceElement e : Thread.currentThread().getStackTrace() )
-//			System.out.println( "  -  " + e );
-//		System.out.println();
-//		}
 
 		this.dataArray = dataArray;
 		this.baseOffset = baseOffset;
@@ -150,7 +143,7 @@ public class LongMappedAccess implements MappedAccess< LongMappedAccess >
 	@Override
 	public void swapWith( final LongMappedAccess access, final int numBytes )
 	{
-		if ( ( swapTmp.length << 3 ) < numBytes )
+		if ( swapTmp.length << 3 < numBytes )
 			swapTmp = new long[ ( numBytes >> 3 ) + 1 ];
 		ByteUtils.copyBytes( dataArray.data, baseOffset, swapTmp, 0, numBytes );
 		ByteUtils.copyBytes( access.dataArray.data, access.baseOffset, dataArray.data, baseOffset, numBytes );

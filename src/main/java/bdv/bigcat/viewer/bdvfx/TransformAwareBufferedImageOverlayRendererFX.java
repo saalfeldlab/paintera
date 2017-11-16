@@ -29,10 +29,13 @@
  */
 package bdv.bigcat.viewer.bdvfx;
 
+import java.lang.invoke.MethodHandles;
 import java.util.concurrent.CopyOnWriteArrayList;
 
 import org.apache.commons.collections.Buffer;
 import org.apache.commons.collections.buffer.CircularFifoBuffer;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import bdv.bigcat.viewer.util.InvokeOnJavaFXApplicationThread;
 import javafx.scene.image.ImageView;
@@ -49,11 +52,12 @@ public class TransformAwareBufferedImageOverlayRendererFX
 		extends ImageOverlayRendererFX
 		implements TransformAwareBufferedImageOverlayRendererGeneric< ImageView, ArrayImg< ARGBType, IntArray > >
 {
+
+	private static Logger LOG = LoggerFactory.getLogger( MethodHandles.lookup().lookupClass() );
+
 	protected AffineTransform3D pendingTransform;
 
 	protected AffineTransform3D paintedTransform;
-
-	private final Buffer imgBuffer = new CircularFifoBuffer( 10 );
 
 	/**
 	 * These listeners will be notified about the transform that is associated
@@ -101,10 +105,7 @@ public class TransformAwareBufferedImageOverlayRendererFX
 			final int h = ( int ) sourceImage.dimension( 1 );
 			new Thread( () -> {
 				final WritableImage wimg;
-				synchronized ( imgBuffer )
-				{
-					wimg = getOrCreateImage( imgBuffer, w, h );
-				}
+				wimg = new WritableImage( w, h );
 				final int[] data = sourceImage.update( null ).getCurrentStorageArray();
 				wimg.getPixelWriter().setPixels( 0, 0, w, h, PixelFormat.getIntArgbInstance(), data, 0, w );
 				InvokeOnJavaFXApplicationThread.invoke( () -> imgView.setImage( wimg ) );
@@ -112,7 +113,7 @@ public class TransformAwareBufferedImageOverlayRendererFX
 			if ( notifyTransformListeners )
 				for ( final TransformListener< AffineTransform3D > listener : paintedTransformListeners )
 					listener.transformChanged( paintedTransform );
-//			System.out.println( String.format( "g.drawImage() :%4d ms", watch.nanoTime() / 1000000 ) );
+//			LOG.debug( String.format( "g.drawImage() :%4d ms", watch.nanoTime() / 1000000 ) );
 		}
 	}
 
@@ -192,7 +193,7 @@ public class TransformAwareBufferedImageOverlayRendererFX
 				final WritableImage img = ( WritableImage ) obj;
 				if ( img.getWidth() == width && img.getHeight() == height )
 				{
-					System.out.println( "REUSING IMAGE OF SIZE " + width + " " + height );
+					LOG.debug( "REUSING IMAGE OF SIZE " + width + " " + height );
 					return img;
 				}
 			}

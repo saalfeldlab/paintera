@@ -1,17 +1,21 @@
 package bdv.bigcat.viewer;
 
+import java.lang.invoke.MethodHandles;
 import java.util.Arrays;
 import java.util.concurrent.CountDownLatch;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.beust.jcommander.JCommander;
 import com.sun.javafx.application.PlatformImpl;
 
 import bdv.AbstractViewerSetupImgLoader;
 import bdv.bigcat.viewer.atlas.Atlas;
+import bdv.bigcat.viewer.atlas.data.DataSource;
 import bdv.bigcat.viewer.atlas.data.HDF5LabelMultisetDataSource;
 import bdv.bigcat.viewer.atlas.data.RandomAccessibleIntervalDataSource;
 import bdv.img.cache.VolatileGlobalCellCache;
-import bdv.img.h5.H5Utils;
 import bdv.util.volatiles.SharedQueue;
 import bdv.viewer.Interpolation;
 import bdv.viewer.Source;
@@ -41,9 +45,12 @@ import net.imglib2.view.Views;
 public class ExampleApplicationCremi
 {
 
+	public static final Logger LOG = LoggerFactory.getLogger( MethodHandles.lookup().lookupClass() );
+
 	public static void main( final String[] args ) throws Exception
 	{
-		// Set the log level
+		PlatformImpl.startup( () -> {} );
+
 		final String USER_HOME = System.getProperty( "user.home" );
 
 		String rawFile = USER_HOME + "/Downloads/sample_A_padded_20160501.hdf";
@@ -59,7 +66,7 @@ public class ExampleApplicationCremi
 		final Parameters params = getParameters( args );
 		if ( params != null )
 		{
-			System.out.println( "parameters are not null" );
+			LOG.info( "parameters are not null" );
 			rawFile = params.filePath;
 			rawDataset = params.rawDatasetPath;
 			labelsFile = rawFile;
@@ -76,7 +83,7 @@ public class ExampleApplicationCremi
 		final VolatileGlobalCellCache cellCache = new VolatileGlobalCellCache( 1, 12 );
 
 		final RandomAccessibleIntervalDataSource< UnsignedByteType, VolatileUnsignedByteType > rawSource =
-				H5Utils.createH5RawSource( "raw", rawFile, rawDataset, rawCellSize, resolution, sharedQueue, numPriorities - 1, UnsignedByteType::new, VolatileUnsignedByteType::new );
+				DataSource.createH5RawSource( "raw", rawFile, rawDataset, rawCellSize, resolution, sharedQueue, numPriorities - 1, UnsignedByteType::new, VolatileUnsignedByteType::new );
 
 //		final HDF5UnsignedByteDataSource rawSource = new HDF5UnsignedByteDataSource( rawFile, rawDataset, rawCellSize, resolution, "raw", cellCache, 0 );
 

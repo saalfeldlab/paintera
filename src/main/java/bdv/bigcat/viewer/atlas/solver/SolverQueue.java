@@ -1,5 +1,6 @@
 package bdv.bigcat.viewer.atlas.solver;
 
+import java.lang.invoke.MethodHandles;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
@@ -9,6 +10,9 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import bdv.bigcat.viewer.atlas.solver.action.Action;
 import gnu.trove.map.hash.TLongLongHashMap;
 import net.imglib2.util.Pair;
@@ -16,6 +20,8 @@ import net.imglib2.util.ValuePair;
 
 public class SolverQueue
 {
+
+	private static final Logger LOG = LoggerFactory.getLogger( MethodHandles.lookup().lookupClass() );
 
 	public static class Solution
 	{}
@@ -49,15 +55,14 @@ public class SolverQueue
 		actionReceiverThread = new Thread( () -> {
 			while ( !interrupt.get() )
 			{
-				System.out.println( "Waiting for action in queue!" );
+				LOG.debug( "Waiting for action in queue!" );
 				final Pair< String, Iterable< Action > > versionedActions = actionReceiver.get();
 				final String version = versionedActions.getA();
 				final Iterable< Action > actions = versionedActions.getB();
 				if ( !this.queue.containsKey( version ) )
 					this.queue.put( version, new ArrayList<>() );
 				final ArrayList< Action > queue = this.queue.get( version );
-				System.out.println( "Got action in queue! " + actions );
-//				System.out.println( "Sent confirmation" );
+				LOG.debug( "Got action in queue! " + actions );
 				if ( actions != null )
 					synchronized ( queue )
 					{
@@ -91,18 +96,13 @@ public class SolverQueue
 							}
 						}
 
-//					System.out.println( "DID SEND REQUEST? " + sentRequest );
-
 					if ( sentRequest )
 					{
-//						System.out.println( "WAITING FOR SOLUTION!" );
 						final TLongLongHashMap solution = solutionReceiver.get();
-//						System.out.println( "GOT RESOLUTION! " + solution );
 						synchronized ( latestSolution )
 						{
 							this.latestSolution.clear();
 							this.latestSolution.putAll( solution );
-//							System.out.println( "DISTRIBUTING SOLUTION!" );
 							solutionDistributor.accept( latestSolution );
 						}
 					}
@@ -127,7 +127,6 @@ public class SolverQueue
 				final Void empty = currentSolutionRequest.get();
 				synchronized ( this.latestSolution )
 				{
-//					System.out.println( "SENDING LATEST SOLUTION!" );
 					currentSolutionResponse.accept( this.latestSolution );
 				}
 			}

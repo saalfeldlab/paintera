@@ -72,42 +72,6 @@ import net.imglib2.ui.TransformListener;
 public class InteractiveDisplayPaneComponent< A > extends StackPane implements InteractiveDisplayCanvasGeneric< A, GraphicsContext, Collection< InstallAndRemove > >
 {
 
-	private class PixelatedImageView extends ImageView
-	{
-//		@Override
-//		protected NGNode impl_createPeer()
-//		{
-//			return new NGImageView()
-//			{
-//
-//				private com.sun.prism.Image image;
-//
-//				@Override
-//				public void setImage( final Object img )
-//				{
-//					super.setImage( img );
-//					image = ( com.sun.prism.Image ) img;
-//				}
-//
-//				@Override
-//				protected void renderContent( final Graphics g )
-//				{
-//					final BaseResourceFactory factory = ( BaseResourceFactory ) g.getResourceFactory();
-//					final ResourceFactory rf = g.getResourceFactory();
-//					final int w = ( int ) getWidth();
-//					final int h = ( int ) getHeight();
-//					final Texture tex = rf.createTexture( PixelFormat.BYTE_BGRA_PRE, Usage.DEFAULT, WrapMode.CLAMP_NOT_NEEDED, w, h );
-////					final Texture tex = factory.getCachedTexture( image, Texture.WrapMode.CLAMP_TO_EDGE, getWidth(), getHeight() );
-//					tex.setLinearFiltering( false );
-//					tex.update( image );
-//					g.drawTexture( tex, 0, 0, w, h, 0, 0, image.getWidth(), image.getHeight() );
-//					tex.unlock();
-////					super.renderContent( g );
-//				}
-//			};
-//		}
-	}
-
 	private static final long serialVersionUID = -5546719724928785878L;
 
 	/**

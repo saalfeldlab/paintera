@@ -1,11 +1,17 @@
 package bdv.bigcat.viewer.state;
 
+import java.lang.invoke.MethodHandles;
 import java.util.Arrays;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import gnu.trove.set.hash.TLongHashSet;
 
 public class SelectedIds extends AbstractState< SelectedIds >
 {
+
+	private static final Logger LOG = LoggerFactory.getLogger( MethodHandles.lookup().lookupClass() );
 
 	private final TLongHashSet selectedIds;
 
@@ -30,7 +36,7 @@ public class SelectedIds extends AbstractState< SelectedIds >
 		deactivateAll();
 		for ( final long id : ids )
 			activateAlso( id );
-		System.out.println( "Activated " + Arrays.toString( ids ) + " " + selectedIds );
+		LOG.debug( "Activated " + Arrays.toString( ids ) + " " + selectedIds );
 		stateChanged();
 	}
 
@@ -51,7 +57,7 @@ public class SelectedIds extends AbstractState< SelectedIds >
 	{
 		for ( final long id : ids )
 			selectedIds.remove( id );
-		System.out.println( "Deactivated " + Arrays.toString( ids ) + " " + selectedIds );
+		LOG.debug( "Deactivated {}, {}", Arrays.toString( ids ), selectedIds );
 		stateChanged();
 	}
 

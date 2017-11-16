@@ -67,8 +67,7 @@ public class Viewer3DControllerFX
 			final SelectedIds selectedIds,
 			final GlobalTransformManager transformManager )
 	{
-		System.out.println( "generating mesh" );
-		LOG.info( "Rendering neuron: {} {}", fragmentId, fragmentSegmentAssignment.getSegment( fragmentId ) );
+		LOG.debug( "Rendering neuron: {} {}", fragmentId, fragmentSegmentAssignment.getSegment( fragmentId ) );
 
 		if ( LOG.isWarnEnabled() )
 			if ( IntStream.range( 0, cubeSize.length ).map( d -> partitionSize[ d ] % cubeSize[ d ] ).filter( mod -> mod != 0 ).count() > 0 )
@@ -96,7 +95,7 @@ public class Viewer3DControllerFX
 			final List< NeuronRendererFX< ?, ? > > filteredNrs = renderers.stream()
 					.filter( nr -> nr.fragmentId() == fragmentId || nr.segmentId() == fragmentSegmentAssignment.getSegment( fragmentId ) )
 					.collect( Collectors.toList() );
-			LOG.info( "Removing renderers: {}", filteredNrs );
+			LOG.debug( "Removing renderers: {}", filteredNrs );
 
 			filteredNrs.forEach( NeuronRendererFX::disallowRendering );
 			filteredNrs.forEach( NeuronRendererFX::removeSelfFromScene );

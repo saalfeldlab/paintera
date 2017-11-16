@@ -23,7 +23,7 @@ public class MappedObjectArrayList< O extends MappedObject< O, T >, T extends Ma
 
 	private final T access;
 
-	private final ConcurrentLinkedQueue< O > tmpObjRefs = new ConcurrentLinkedQueue< O >();
+	private final ConcurrentLinkedQueue< O > tmpObjRefs = new ConcurrentLinkedQueue<>();
 
 	// TODO: fix confusing constructor overloads
 
@@ -80,25 +80,9 @@ public class MappedObjectArrayList< O extends MappedObject< O, T >, T extends Ma
 		access.putInt( size, 0 );
 	}
 
-// TODO: REMOVE. This is just here for debugging, to uncover places where too many Refs are created.
-//	int numRefs = 0;
-//	static Object lock = new Object();
-
 	@Override
 	public O createRef()
 	{
-// TODO: REMOVE. This is just here for debugging, to uncover places where too many Refs are created.
-//		++numRefs;
-//		synchronized( lock )
-//		{
-//			if ( numRefs > 10 )
-//			{
-//				System.out.println( "createRef (" + numRefs + ")" );
-//				for ( final StackTraceElement e : Thread.currentThread().getStackTrace() )
-//					System.out.println( e );
-//				System.out.println();
-//			}
-//		}
 
 		final O obj = tmpObjRefs.poll();
 		return obj == null ? type.createRef() : obj;
@@ -114,9 +98,6 @@ public class MappedObjectArrayList< O extends MappedObject< O, T >, T extends Ma
 	@Override
 	public void releaseRef( final O ref )
 	{
-// TODO: REMOVE. This is just here for debugging, to uncover places where too many Refs are created.
-//		--numRefs;
-
 		tmpObjRefs.add( ref );
 	}
 
@@ -270,7 +251,7 @@ public class MappedObjectArrayList< O extends MappedObject< O, T >, T extends Ma
 			{
 				final O o1 = e1.next();
 				final Object o2 = e2.next();
-				if ( ! o1.equals( o2 ) )
+				if ( !o1.equals( o2 ) )
 				{
 					e1.release();
 					e2.release();

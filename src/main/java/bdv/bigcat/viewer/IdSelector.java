@@ -1,5 +1,6 @@
 package bdv.bigcat.viewer;
 
+import java.lang.invoke.MethodHandles;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
@@ -8,6 +9,9 @@ import java.util.function.Function;
 import java.util.function.LongBinaryOperator;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import bdv.bigcat.viewer.atlas.SourceInfo;
 import bdv.bigcat.viewer.atlas.data.DataSource;
@@ -43,6 +47,8 @@ import net.imglib2.view.Views;
 
 public class IdSelector
 {
+
+	private static final Logger LOG = LoggerFactory.getLogger( MethodHandles.lookup().lookupClass() );
 
 	private final ViewerPanelFX viewer;
 
@@ -232,7 +238,7 @@ public class IdSelector
 					selectedIds.deactivateAll();
 					for ( int i = 0; i < ids.length; ++i )
 					{
-						System.out.println( "ACTIVATE? " + isActive[ i ] + ids[ i ] );
+						LOG.debug( "ACTIVATE? {} {}", isActive[ i ], ids[ i ] );
 						if ( isActive[ i ] )
 							selectedIds.activateAlso( ids[ i ] );
 						else
@@ -340,7 +346,7 @@ public class IdSelector
 						for ( int i = 1; i < selIds.length; ++i )
 							if ( assignment.getSegment( selIds[ i ] ) != selectedId )
 							{
-								System.out.println( "Ambiguity: Selected multiple active segments -- will not apply merge!" );
+								LOG.warn( "Ambiguity: Selected multiple active segments -- will not apply merge!" );
 								return;
 							}
 
@@ -393,13 +399,6 @@ public class IdSelector
 							final long[] ids1 = toIdConverter.get().allIds( cursor.get() );
 							final long[] ids2 = toIdConverter.get().allIds( ra1.get() );
 							final long[] ids3 = toIdConverter.get().allIds( ra2.get() );
-//						if ( ( ids1[ 0 ] != ids2[ 0 ] || ids1[ 0 ] != ids3[ 0 ] ) && segments.contains( assignment.getSegment( ids1[ 0 ] ) ) )
-//						{
-//							System.out.println( Arrays.toString( ids1 ) + " " + Arrays.toString( ids2 ) + " " + Arrays.toString( ids3 ) );
-//							System.out.println( assignment.getSegment( ids1[ 0 ] ) + " " + assignment.getSegment( ids2[ 0 ] ) + " " + assignment.getSegment( ids3[ 0 ] ) );
-//							System.out.println( segments );
-//							System.out.println();
-//						}
 
 							for ( final long id1 : ids1 )
 							{
@@ -574,11 +573,11 @@ public class IdSelector
 	{
 		public void click( final MouseEvent e )
 		{
-			System.out.println( "Clicked confirm selection!" );
+			LOG.debug( "Clicked confirm selection!" );
 			final Optional< Source< ? > > optionalSource = getSource();
 			if ( !optionalSource.isPresent() )
 			{
-				System.out.println( "No source present!" );
+				LOG.debug( "No source present!" );
 				return;
 			}
 			final Source< ? > source = optionalSource.get();
@@ -598,13 +597,13 @@ public class IdSelector
 
 						if ( activeSegments.length > 1 )
 						{
-							System.out.println( "More than one segment active, not doing anything!" );
+							LOG.warn( "More than one segment active, not doing anything!" );
 							return;
 						}
 
 						if ( activeSegments.length == 0 )
 						{
-							System.out.println( "No segments active, not doing anything!" );
+							LOG.warn( "No segments active, not doing anything!" );
 							return;
 						}
 
@@ -627,7 +626,7 @@ public class IdSelector
 
 						if ( activeSegments.length == 0 || activeSegments[ 0 ] == selectedSegment )
 						{
-							System.out.println( "confirm merge and separate of single segment" );
+							LOG.debug( "confirm merge and separate of single segment" );
 							visitEveryDisplayPixel( dataSource, viewer, obj -> visibleFragmentsSet.addAll( toIdConverter.get().allIds( obj ) ) );
 							final long[] visibleFragments = visibleFragmentsSet.toArray();
 							final long[] fragmentsInActiveSegment = Arrays.stream( visibleFragments ).filter( frag -> selectedSegmentsSet.contains( assignment.getSegment( frag ) ) ).toArray();
@@ -637,7 +636,7 @@ public class IdSelector
 
 						else
 						{
-							System.out.println( "confirm merge and separate of two segments" );
+							LOG.debug( "confirm merge and separate of two segments" );
 							final long[] relevantSegments = new long[] { activeSegments[ 0 ], selectedSegment };
 							final TLongObjectHashMap< TLongHashSet > fragmentsBySegment = new TLongObjectHashMap<>();
 							Arrays.stream( relevantSegments ).forEach( seg -> fragmentsBySegment.put( seg, new TLongHashSet() ) );

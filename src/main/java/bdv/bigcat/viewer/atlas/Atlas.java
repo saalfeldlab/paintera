@@ -1,5 +1,6 @@
 package bdv.bigcat.viewer.atlas;
 
+import java.lang.invoke.MethodHandles;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -8,6 +9,10 @@ import java.util.List;
 import java.util.Optional;
 import java.util.function.Consumer;
 import java.util.function.Function;
+import java.util.function.ToLongFunction;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import bdv.bigcat.composite.ARGBCompositeAlphaAdd;
 import bdv.bigcat.composite.ARGBCompositeAlphaYCbCr;
@@ -34,6 +39,7 @@ import bdv.bigcat.viewer.panel.ViewerNode;
 import bdv.bigcat.viewer.state.FragmentSegmentAssignmentState;
 import bdv.bigcat.viewer.state.SelectedIds;
 import bdv.bigcat.viewer.stream.AbstractHighlightingARGBStream;
+import bdv.bigcat.viewer.stream.HighlightincConverterIntegerType;
 import bdv.bigcat.viewer.stream.ModalGoldenAngleSaturatedHighlightingARGBStream;
 import bdv.bigcat.viewer.viewer3d.OrthoSliceFX;
 import bdv.bigcat.viewer.viewer3d.Viewer3DControllerFX;
@@ -75,10 +81,13 @@ import net.imglib2.type.logic.BoolType;
 import net.imglib2.type.numeric.ARGBType;
 import net.imglib2.type.numeric.IntegerType;
 import net.imglib2.type.numeric.RealType;
+import net.imglib2.type.volatiles.AbstractVolatileRealType;
 import net.imglib2.type.volatiles.VolatileARGBType;
 
 public class Atlas
 {
+
+	private static final Logger LOG = LoggerFactory.getLogger( MethodHandles.lookup().lookupClass() );
 
 	private final BorderPane root;
 
@@ -113,6 +122,8 @@ public class Atlas
 	private final KeyTracker keyTracker = new KeyTracker();
 
 	private final SimpleObjectProperty< Mode > currentMode = new SimpleObjectProperty<>();
+
+	private final ARGBStreamSeedSetter seedSetter;
 
 	public Atlas( final Interval interval, final SharedQueue cellCache )
 	{
@@ -204,6 +215,9 @@ public class Atlas
 //			}
 //		} );
 
+		this.seedSetter = new ARGBStreamSeedSetter( sourceInfo, keyTracker, currentMode );
+		addOnEnterOnExit( this.seedSetter.onEnter(), this.seedSetter.onEnter(), true );
+
 		{
 			final AffineTransform3D tf = new AffineTransform3D();
 			final long[] sums = {
@@ -213,9 +227,7 @@ public class Atlas
 			};
 			tf.translate( Arrays.stream( sums ).mapToDouble( sum -> -0.5 * sum ).toArray() );
 			final ViewerNode vn = this.baseView().getChildren().stream().filter( child -> child instanceof ViewerNode ).map( n -> ( ViewerNode ) n ).findFirst().get();
-			final double w = vn.getWidth();
 			vn.manager().setCanvasSize( 1, 1, true );
-			System.out.println( w + " " + interval.dimension( 0 ) );
 			tf.scale( 1.0 / interval.dimension( 0 ) );
 			vn.manager().setCanvasSize( ( int ) vn.getWidth(), ( int ) vn.getHeight(), true );
 			this.baseView().setTransform( tf );
@@ -310,13 +322,6 @@ public class Atlas
 		closeConfirmation.initModality( Modality.APPLICATION_MODAL );
 		closeConfirmation.initOwner( primaryStage );
 
-		// normally, you would just use the default alert positioning,
-		// but for this simple sample the main stage is small,
-		// so explicitly position the alert so that the main window can still be
-		// seen.
-		closeConfirmation.setX( primaryStage.getX() );
-		closeConfirmation.setY( primaryStage.getY() + primaryStage.getHeight() );
-
 		final Optional< ButtonType > closeResponse = closeConfirmation.showAndWait();
 		if ( !ButtonType.OK.equals( closeResponse.get() ) )
 			// stage.setOnCloseRequest(
@@ -358,14 +363,16 @@ public class Atlas
 	public void addLabelSource( final LabelDataSource< LabelMultisetType, VolatileLabelMultisetType > spec )
 	{
 		final FragmentSegmentAssignmentState< ? > assignment = spec.getAssignment();
-		final CurrentModeConverter converter = new CurrentModeConverter();
+		final CurrentModeConverter< VolatileLabelMultisetType > converter = new CurrentModeConverter<>();
 		final HashMap< Mode, SelectedIds > selIdsMap = new HashMap<>();
 		final HashMap< Mode, ARGBStream > streamsMap = new HashMap<>();
 		for ( final Mode mode : this.modes )
 		{
 			final SelectedIds selId = new SelectedIds();
 			selIdsMap.put( mode, selId );
-			streamsMap.put( mode, new ModalGoldenAngleSaturatedHighlightingARGBStream( selId, assignment ) );
+			final ModalGoldenAngleSaturatedHighlightingARGBStream stream = new ModalGoldenAngleSaturatedHighlightingARGBStream( selId, assignment );
+			stream.addListener( () -> baseView().requestRepaint() );
+			streamsMap.put( mode, stream );
 		}
 		final DataSource< LabelMultisetType, VolatileARGBType > vsource = new ConverterDataSource<>(
 				spec,
@@ -391,6 +398,87 @@ public class Atlas
 
 		final LabelMultisetType t = vsource.getDataType();
 		final Function< LabelMultisetType, String > valueToString = valueToString( t );
+		final AffineTransform3D affine = new AffineTransform3D();
+		vsource.getSourceTransform( 0, 0, affine );
+		this.valueDisplayListener.addSource( vsource, Optional.of( valueToString ) );
+
+		view.addActor( new ViewerActor()
+		{
+
+			@Override
+			public Consumer< ViewerPanelFX > onRemove()
+			{
+				return vp -> {};
+			}
+
+			@Override
+			public Consumer< ViewerPanelFX > onAdd()
+			{
+				return vp -> assignment.addListener( () -> vp.requestRepaint() );
+			}
+		} );
+
+		view.addActor( new ViewerActor()
+		{
+			@Override
+			public Consumer< ViewerPanelFX > onRemove()
+			{
+				return vp -> {};
+			}
+
+			@Override
+			public Consumer< ViewerPanelFX > onAdd()
+			{
+				return vp -> {
+					selIdsMap.values().forEach( ids -> ids.addListener( () -> vp.requestRepaint() ) );
+				};
+			}
+		} );
+
+	}
+
+	// TODO Is there a better bound for V than AbstractVolatileRealType? V
+	// extends Volatile< I > & IntegerType< V > did not work with
+	// VolatileUnsignedLongType
+	public < I extends IntegerType< I >, V extends AbstractVolatileRealType< I, V > > void addLabelSource( final LabelDataSource< I, V > spec, final ToLongFunction< V > toLong )
+	{
+		final FragmentSegmentAssignmentState< ? > assignment = spec.getAssignment();
+		final CurrentModeConverter< V > converter = new CurrentModeConverter<>();
+		final HashMap< Mode, SelectedIds > selIdsMap = new HashMap<>();
+		final HashMap< Mode, ARGBStream > streamsMap = new HashMap<>();
+		for ( final Mode mode : this.modes )
+		{
+			final SelectedIds selId = new SelectedIds();
+			selIdsMap.put( mode, selId );
+			final ModalGoldenAngleSaturatedHighlightingARGBStream stream = new ModalGoldenAngleSaturatedHighlightingARGBStream( selId, assignment );
+			stream.addListener( () -> baseView().requestRepaint() );
+			streamsMap.put( mode, stream );
+		}
+		final DataSource< I, VolatileARGBType > vsource = new ConverterDataSource<>(
+				spec,
+				converter,
+				method -> method.equals( Interpolation.NLINEAR ) ? new ClampingNLinearInterpolatorFactory<>() : new NearestNeighborInterpolatorFactory<>(),
+				new VolatileARGBType( 0 ) );
+		final ARGBCompositeAlphaYCbCr comp = new ARGBCompositeAlphaYCbCr();
+		final SourceAndConverter< VolatileARGBType > src = new SourceAndConverter<>( vsource, ( s, t ) -> t.set( s.get() ) );
+
+		final Consumer< Mode > setConverter = mode -> {
+			final AbstractHighlightingARGBStream argbStream = ( AbstractHighlightingARGBStream ) sourceInfo.stream( vsource, mode ).get();
+			final HighlightincConverterIntegerType< V > conv = new HighlightincConverterIntegerType<>( argbStream, toLong );
+			converter.setConverter( conv );
+			baseView().requestRepaint();
+		};
+
+		currentMode.addListener( ( obs, oldv, newv ) -> {
+			Optional.ofNullable( newv ).ifPresent( setConverter::accept );
+		} );
+
+		addSource( src, comp );
+		sourceInfo.addLabelSource( vsource, spec.getDataType() instanceof IntegerType ? ToIdConverter.fromIntegerType() : ToIdConverter.fromRealType(), ( Function< I, Converter< I, BoolType > > ) sel -> createBoolConverter( sel, assignment ), assignment, streamsMap, selIdsMap );
+		Optional.ofNullable( currentMode.get() ).ifPresent( setConverter::accept );
+
+		final I t = vsource.getDataType();
+		final Function< I, String > valueToString = valueToString( t );
 		final AffineTransform3D affine = new AffineTransform3D();
 		vsource.getSourceTransform( 0, 0, affine );
 		this.valueDisplayListener.addSource( vsource, Optional.of( valueToString ) );
@@ -508,6 +596,15 @@ public class Atlas
 		return ( s, t ) -> t.set( assignment.getSegment( maxCountId( s ) ) == segmentId );
 	}
 
+	public static < T extends RealType< T > > Converter< T, BoolType > createBoolConverter( final T selection, final FragmentSegmentAssignmentState< ? > assignment )
+	{
+		final boolean isInteger = selection instanceof IntegerType< ? >;
+		final long id = isInteger ? ( ( IntegerType< ? > ) selection ).getIntegerLong() : ( long ) selection.getRealDouble();
+		final long segmentId = assignment.getSegment( id );
+		return isInteger ? ( Converter< T, BoolType > ) ( Converter< IntegerType< ? >, BoolType > ) ( s, t ) -> t.set( assignment.getSegment( s.getIntegerLong() ) == segmentId ) : ( s, t ) -> t.set( assignment.getSegment( ( long ) s.getRealDouble() ) == segmentId );
+
+	}
+
 	public static long maxCountId( final LabelMultisetType t )
 	{
 		long argMaxLabel = bdv.labels.labelset.Label.INVALID;
@@ -523,4 +620,5 @@ public class Atlas
 		}
 		return argMaxLabel;
 	}
+
 }

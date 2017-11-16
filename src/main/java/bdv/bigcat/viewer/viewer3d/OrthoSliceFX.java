@@ -13,7 +13,9 @@ import javafx.beans.value.ChangeListener;
 import javafx.beans.value.ObservableValue;
 import javafx.scene.Group;
 import javafx.scene.Node;
+import javafx.scene.SnapshotParameters;
 import javafx.scene.image.Image;
+import javafx.scene.image.ImageView;
 import javafx.scene.paint.Color;
 import javafx.scene.paint.PhongMaterial;
 import javafx.scene.shape.CullFace;
@@ -23,7 +25,6 @@ import net.imglib2.realtransform.AffineTransform3D;
 
 public class OrthoSliceFX
 {
-
 	private final Group scene;
 
 	private final ViewerPanelFX viewer;
@@ -37,7 +38,7 @@ public class OrthoSliceFX
 	private final MeshView mv = new MeshView( mesh );
 
 	// no delay
-	LatestTaskExecutor es = new LatestTaskExecutor( 0 );
+	LatestTaskExecutor es = new LatestTaskExecutor( 50 * 1000 * 1000 );
 
 	private final PhongMaterial material;
 
@@ -106,12 +107,28 @@ public class OrthoSliceFX
 		}
 		if ( w <= 0 || h <= 0 )
 			return;
-//		viewerTransform.set( viewerTransform.get( 0, 3 ) - w / 2, 0, 3 );
-//		viewerTransform.set( viewerTransform.get( 1, 3 ) - h / 2, 1, 3 );
+		InvokeOnJavaFXApplicationThread.invoke( () -> {
+			mesh.update( new RealPoint( 0, 0 ), new RealPoint( w, 0 ), new RealPoint( w, h ), new RealPoint( 0, h ), viewerTransform.inverse() );
+		} );
 		es.execute( () -> {
+			final double scale = 512.0 / Math.max( w, h );
+			final int fitWidth = ( int )Math.round( w * scale );
+			final int fitHeight = ( int )Math.round( h * scale );
+			final ImageView imageView = new ImageView( image );
+			imageView.setPreserveRatio( true );
+			imageView.setFitWidth( fitWidth );
+			imageView.setFitHeight( fitHeight );
+			final SnapshotParameters snapshotParameters = new SnapshotParameters();
+			snapshotParameters.setFill( Color.BLACK );
 			InvokeOnJavaFXApplicationThread.invoke( () -> {
-				material.setSelfIlluminationMap( image );
-				mesh.update( new RealPoint( 0, 0 ), new RealPoint( w, 0 ), new RealPoint( w, h ), new RealPoint( 0, h ), viewerTransform.inverse() );
+				imageView.snapshot( snapshotResult -> {
+					InvokeOnJavaFXApplicationThread.invoke( () -> {
+
+						material.setSelfIlluminationMap( snapshotResult.getImage() );
+						mesh.update( new RealPoint( 0, 0 ), new RealPoint( w, 0 ), new RealPoint( w, h ), new RealPoint( 0, h ), viewerTransform.inverse() );
+					} );
+					return null;
+				}, snapshotParameters, null );
 			} );
 		} );
 	}
@@ -122,7 +139,6 @@ public class OrthoSliceFX
 		@Override
 		public void changed( final ObservableValue< ? extends Image > observable, final Image oldValue, final Image newValue )
 		{
-
 			if ( newValue != null )
 				paint( newValue );
 		}
