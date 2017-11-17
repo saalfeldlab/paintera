@@ -65,12 +65,12 @@ public class OrthoView extends GridPane
 
 	public OrthoView( final SharedQueue cellCache, final KeyTracker keyTracker )
 	{
-		this( new OrthoViewState(), cellCache, keyTracker );
+		this( new OrthoViewState( FXCollections.observableHashMap() ), cellCache, keyTracker );
 	}
 
 	public OrthoView( final ViewerOptions viewerOptions, final SharedQueue cellCache, final KeyTracker keyTracker )
 	{
-		this( new OrthoViewState( viewerOptions ), cellCache, keyTracker );
+		this( new OrthoViewState( viewerOptions, FXCollections.observableHashMap() ), cellCache, keyTracker );
 	}
 
 	public OrthoView( final OrthoViewState state, final SharedQueue cellCache, final KeyTracker keyTracker )
@@ -163,7 +163,7 @@ public class OrthoView extends GridPane
 
 	private synchronized void addViewer( final ViewerAxis axis, final int rowIndex, final int colIndex, final SharedQueue cellCache )
 	{
-		final ViewerNode viewerNode = new ViewerNode( cellCache, axis, this.state.viewerOptions, keyTracker );
+		final ViewerNode viewerNode = new ViewerNode( cellCache, axis, this.state.viewerOptions, keyTracker, this.state.visibility );
 //		final ViewerNode viewerNode = new ViewerNode( new CacheControl.Dummy(), axis, this.state.viewerOptions, activeKeys );
 		this.viewerNodes.add( viewerNode );
 		this.managers.put( viewerNode, viewerNode.manager() );
