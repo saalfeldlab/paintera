@@ -13,6 +13,7 @@ import bdv.bigcat.viewer.bdvfx.EventFX;
 import bdv.bigcat.viewer.bdvfx.KeyTracker;
 import bdv.bigcat.viewer.bdvfx.MouseDragFX;
 import bdv.bigcat.viewer.bdvfx.ViewerPanelFX;
+import bdv.bigcat.viewer.bdvfx.VisibilityAndGrouping;
 import bdv.bigcat.viewer.state.GlobalTransformManager;
 import bdv.viewer.state.SourceState;
 import javafx.beans.property.DoubleProperty;
@@ -252,6 +253,7 @@ public class ViewerTransformManager implements TransformListener< AffineTransfor
 		viewer.addEventHandler( ScrollEvent.SCROLL, new TranslateZ( zoomSpeed.get() * factors[ 0 ], event -> keyTracker.noKeysActive() )::scroll );
 		viewer.addEventHandler( ScrollEvent.SCROLL, new TranslateZ( zoomSpeed.get() * factors[ 1 ], event -> keyTracker.areOnlyTheseKeysDown( KeyCode.SHIFT ) )::scroll );
 		viewer.addEventHandler( ScrollEvent.SCROLL, new TranslateZ( zoomSpeed.get() * factors[ 2 ], event -> keyTracker.areOnlyTheseKeysDown( KeyCode.CONTROL ) )::scroll );
+		viewer.addEventHandler( KeyEvent.KEY_PRESSED, EventFX.KEY_PRESSED( "toggle visibility", new ToggleVisibility()::handle, event -> keyTracker.areOnlyTheseKeysDown( KeyCode.V ) ) );
 
 		this.manager.addListener( this );
 	}
@@ -666,6 +668,20 @@ public class ViewerTransformManager implements TransformListener< AffineTransfor
 			{
 				state.toggleInterpolation();
 			}
+		}
+
+	}
+
+	private class ToggleVisibility implements EventHandler< KeyEvent >
+	{
+		// TODO track state and show in status bar
+		@Override
+		public void handle( final KeyEvent event )
+		{
+			final bdv.viewer.state.ViewerState state = viewer.getState();
+			final VisibilityAndGrouping vag = viewer.getVisibilityAndGrouping();
+			final int currentSource = state.getCurrentSource();
+			vag.setSourceActive( currentSource, !state.isSourceVisible( currentSource ) );
 		}
 
 	}
