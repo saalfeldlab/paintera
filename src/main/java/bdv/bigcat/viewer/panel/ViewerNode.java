@@ -12,6 +12,8 @@ import bdv.viewer.SourceAndConverter;
 import bdv.viewer.ViewerOptions;
 import javafx.beans.value.ChangeListener;
 import javafx.collections.ListChangeListener;
+import javafx.collections.MapChangeListener;
+import javafx.collections.ObservableMap;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.Pane;
 import javafx.scene.paint.Color;
@@ -50,7 +52,8 @@ public class ViewerNode extends Pane implements ListChangeListener< SourceAndCon
 			final CacheControl cacheControl,
 			final ViewerAxis viewerAxis,
 			final ViewerOptions viewerOptions,
-			final KeyTracker keyTracker )
+			final KeyTracker keyTracker,
+			final ObservableMap< Source< ? >, Boolean > visibilityMap )
 	{
 		super();
 		this.viewer = new ViewerPanelFX( new ArrayList<>(), 1, cacheControl, viewerOptions );
@@ -64,7 +67,7 @@ public class ViewerNode extends Pane implements ListChangeListener< SourceAndCon
 //		this.viewer.showMultibox( false );
 		this.viewerAxis = viewerAxis;
 		this.state = new ViewerState( this.viewer );
-		this.manager = new ViewerTransformManager( this.viewer, state, globalToViewer( viewerAxis ), keyTracker );
+		this.manager = new ViewerTransformManager( this.viewer, state, globalToViewer( viewerAxis ), keyTracker, visibilityMap );
 		initializeViewer();
 		addCrosshair();
 //		https://stackoverflow.com/questions/21657034/javafx-keyevent-propagation-order
@@ -76,6 +79,10 @@ public class ViewerNode extends Pane implements ListChangeListener< SourceAndCon
 		this.viewer.addEventFilter( MouseEvent.MOUSE_PRESSED, event -> {
 			if ( !this.isFocused() )
 				this.viewer.requestFocus();
+		} );
+		visibilityMap.addListener( ( MapChangeListener< Source< ? >, Boolean > ) change -> {
+			if ( change.wasAdded() )
+				getViewer().getVisibilityAndGrouping().setSourceActive( change.getKey(), change.getValueAdded() );
 		} );
 	}
 

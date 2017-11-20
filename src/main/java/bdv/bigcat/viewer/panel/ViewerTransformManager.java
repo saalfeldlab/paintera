@@ -14,9 +14,11 @@ import bdv.bigcat.viewer.bdvfx.KeyTracker;
 import bdv.bigcat.viewer.bdvfx.MouseDragFX;
 import bdv.bigcat.viewer.bdvfx.ViewerPanelFX;
 import bdv.bigcat.viewer.state.GlobalTransformManager;
+import bdv.viewer.Source;
 import bdv.viewer.state.SourceState;
 import javafx.beans.property.DoubleProperty;
 import javafx.beans.property.SimpleDoubleProperty;
+import javafx.collections.ObservableMap;
 import javafx.event.EventHandler;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyEvent;
@@ -74,50 +76,6 @@ public class ViewerTransformManager implements TransformListener< AffineTransfor
 
 	private final SimpleDoubleProperty zoomSpeed = new SimpleDoubleProperty( 1.0 );
 
-	public void rotationSpeed( final double speed )
-	{
-		this.rotationSpeed.set( speed );
-	}
-
-	public void zoomSpeed( final double speed )
-	{
-		this.zoomSpeed.set( speed );
-	}
-
-	public ViewerTransformManager(
-			final ViewerPanelFX viewer,
-			final ViewerState state,
-			final AffineTransform3D globalToViewer,
-			final KeyTracker keyTracker )
-	{
-		super();
-		this.viewer = viewer;
-		this.state = state;
-		this.manager = state.globalTransformProperty().getValue();
-		this.globalToViewer = globalToViewer;
-		this.canvasH = 1;
-		this.canvasW = 1;
-		this.centerX = this.canvasW / 2;
-		this.centerY = this.canvasH / 2;
-
-		setTransformListener( viewer );
-		manager.addListener( this );
-
-		this.keyTracker = keyTracker;
-
-		state.globalTransformProperty().addListener( ( observable, oldValue, newValue ) -> {
-			this.setGlobalTransform( newValue );
-		} );
-
-		setUpViewer();
-	}
-
-	public void setGlobalToViewer( final AffineTransform3D affine )
-	{
-		this.globalToViewer.set( affine );
-		update();
-	}
-
 	private GlobalTransformManager manager;
 
 	private final AffineTransform3D global = new AffineTransform3D();
@@ -137,6 +95,54 @@ public class ViewerTransformManager implements TransformListener< AffineTransfor
 	private int canvasW = 1, canvasH = 1;
 
 	private int centerX = 0, centerY = 0;
+
+	private final ObservableMap< Source< ? >, Boolean > visibilityMap;
+
+	public void rotationSpeed( final double speed )
+	{
+		this.rotationSpeed.set( speed );
+	}
+
+	public void zoomSpeed( final double speed )
+	{
+		this.zoomSpeed.set( speed );
+	}
+
+	public ViewerTransformManager(
+			final ViewerPanelFX viewer,
+			final ViewerState state,
+			final AffineTransform3D globalToViewer,
+			final KeyTracker keyTracker,
+			final ObservableMap< Source< ? >, Boolean > visibilityMap )
+	{
+		super();
+		this.viewer = viewer;
+		this.state = state;
+		this.manager = state.globalTransformProperty().getValue();
+		this.globalToViewer = globalToViewer;
+		this.canvasH = 1;
+		this.canvasW = 1;
+		this.centerX = this.canvasW / 2;
+		this.centerY = this.canvasH / 2;
+		this.visibilityMap = visibilityMap;
+
+		setTransformListener( viewer );
+		manager.addListener( this );
+
+		this.keyTracker = keyTracker;
+
+		state.globalTransformProperty().addListener( ( observable, oldValue, newValue ) -> {
+			this.setGlobalTransform( newValue );
+		} );
+
+		setUpViewer();
+	}
+
+	public void setGlobalToViewer( final AffineTransform3D affine )
+	{
+		this.globalToViewer.set( affine );
+		update();
+	}
 
 	private synchronized void setGlobalTransform( final GlobalTransformManager manager )
 	{
@@ -252,6 +258,7 @@ public class ViewerTransformManager implements TransformListener< AffineTransfor
 		viewer.addEventHandler( ScrollEvent.SCROLL, new TranslateZ( zoomSpeed.get() * factors[ 0 ], event -> keyTracker.noKeysActive() )::scroll );
 		viewer.addEventHandler( ScrollEvent.SCROLL, new TranslateZ( zoomSpeed.get() * factors[ 1 ], event -> keyTracker.areOnlyTheseKeysDown( KeyCode.SHIFT ) )::scroll );
 		viewer.addEventHandler( ScrollEvent.SCROLL, new TranslateZ( zoomSpeed.get() * factors[ 2 ], event -> keyTracker.areOnlyTheseKeysDown( KeyCode.CONTROL ) )::scroll );
+		viewer.addEventHandler( KeyEvent.KEY_PRESSED, EventFX.KEY_PRESSED( "toggle visibility", new ToggleVisibility()::handle, event -> keyTracker.areOnlyTheseKeysDown( KeyCode.V ) ) );
 
 		this.manager.addListener( this );
 	}
@@ -666,6 +673,20 @@ public class ViewerTransformManager implements TransformListener< AffineTransfor
 			{
 				state.toggleInterpolation();
 			}
+		}
+
+	}
+
+	private class ToggleVisibility implements EventHandler< KeyEvent >
+	{
+		// TODO track state and show in status bar
+		@Override
+		public void handle( final KeyEvent event )
+		{
+			final bdv.viewer.state.ViewerState state = viewer.getState();
+			final int currentSource = state.getCurrentSource();
+			final List< SourceState< ? > > sources = state.getSources();
+			visibilityMap.put( sources.get( currentSource ).getSpimSource(), !state.isSourceVisible( currentSource ) );
 		}
 
 	}

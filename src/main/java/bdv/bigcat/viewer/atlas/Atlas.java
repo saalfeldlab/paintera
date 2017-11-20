@@ -105,11 +105,7 @@ public class Atlas
 
 	private final ViewerOptions viewerOptions;
 
-//	private final Mode[] modes = { new NavigationOnly(), new Highlights( selectedIds ), new Merges( selectedIds, assignments ) };
-
 	private final ArrayList< Mode > modes = new ArrayList<>();
-
-//	private final SourcesTab sourcesTab = new SourcesTab( specs );
 
 	private final Viewer3DFX renderView;
 
@@ -136,20 +132,9 @@ public class Atlas
 		this.viewerOptions = viewerOptions
 				.accumulateProjectorFactory( new ClearingCompositeProjectorFactory<>( composites, new ARGBType() ) )
 				.numRenderingThreads( Math.min( 3, Math.max( 1, Runtime.getRuntime().availableProcessors() / 3 ) ) );
-		this.view = new OrthoView( focusHandler.onEnter(), focusHandler.onExit(), new OrthoViewState( this.viewerOptions ), cellCache, keyTracker );
+		this.view = new OrthoView( focusHandler.onEnter(), focusHandler.onExit(), new OrthoViewState( this.viewerOptions, sourceInfo.visibility() ), cellCache, keyTracker );
 		this.root = new BorderPane( this.view );
 		this.root.setBottom( status );
-//		this.root.setRight( sourcesTab );
-//		this.view.heightProperty().addListener( ( ChangeListener< Number > ) ( observable, old, newVal ) -> {
-//			this.sourcesTab.prefHeightProperty().set( newVal.doubleValue() );
-//		} );
-//		this.sourcesTab.listen( this.specs );
-
-//		this.view.addCurrentSourceListener( ( observable, oldValue, newValue ) -> {
-//			final Optional< SourceState< ?, ?, ? > > state = specs.getState( newValue );
-//			if ( state.isPresent() )
-//				specs.selectedSourceProperty().setValue( Optional.of( state.get().spec() ) );
-//		} );
 
 		this.renderView = new Viewer3DFX( 100, 100, interval );
 		this.controller = new Viewer3DControllerFX( renderView );
@@ -177,43 +162,7 @@ public class Atlas
 		valueDisplayListener = new AtlasValueDisplayListener( label );
 		this.status.getChildren().add( label );
 
-//		final AtlasMouseCoordinatePrinter mcp = new AtlasMouseCoordinatePrinter( this.status );
-//		addOnEnterOnExit( mcp.onEnter(), mcp.onExit(), true );
 		addOnEnterOnExit( valueDisplayListener.onEnter(), valueDisplayListener.onExit(), true );
-//		this.specs.addVisibilityChangedListener( () -> {
-//			final List< SourceState< ?, ?, ? > > states = this.specs.sourceStates();
-//			final List< SourceAndConverter< ? > > onlyVisible = states.stream().filter( SourceState::isVisible ).map( SourceState::sourceAndConverter ).collect( Collectors.toList() );
-//			this.baseView().getState().removeAllSources();
-//			this.baseView().getState().addSources( onlyVisible );
-//		} );
-
-//		this.specs.addListChangeListener( ( ListChangeListener< Specs.SourceState< ?, ?, ? > > ) c -> {
-//			while ( c.next() )
-//				if ( c.wasRemoved() )
-//					for ( final SourceState< ?, ?, ? > removed : c.getRemoved() )
-//					{
-//						final Source< ? > source = removed.source();
-//						this.sourceInfo.removeSource( source );
-//						this.composites.remove( source );
-//						this.baseView().getState().removeSource( source );
-//					}
-//				else if ( c.wasAdded() )
-//					this.baseView().getState().addSources( c.getAddedSubList().stream().map( Specs.SourceState::sourceAndConverter ).collect( Collectors.toList() ) );
-//		} );
-
-//		this.specs.addListener( () -> {
-//			this.baseView().removeAllSources();
-//			final List< SourceAndConverter< ? > > sacs = this.specs.getSourceAndConverters();
-//			this.baseView().addSource( sacs.get( 0 ) );
-//		} );
-
-//		this.baseView().addEventHandler( KeyEvent.KEY_PRESSED, event -> {
-//			if ( !event.isConsumed() && event.isAltDown() && event.getCode().equals( KeyCode.S ) )
-//			{
-//				toggleSourcesTable();
-//				event.consume();
-//			}
-//		} );
 
 		this.seedSetter = new ARGBStreamSeedSetter( sourceInfo, keyTracker, currentMode );
 		addOnEnterOnExit( this.seedSetter.onEnter(), this.seedSetter.onEnter(), true );
@@ -232,16 +181,6 @@ public class Atlas
 			vn.manager().setCanvasSize( ( int ) vn.getWidth(), ( int ) vn.getHeight(), true );
 			this.baseView().setTransform( tf );
 		}
-
-//		this.baseView().getState().addCurrentSourceListener( ( observable, oldValue, newValue ) -> {
-//			if ( newValue.isPresent() )
-//			{
-//				final Optional< SourceState< ?, ?, ? > > spec = this.specs.getState( newValue.get() );
-//				this.specs.selectedSourceProperty().setValue( spec.isPresent() ? Optional.of( spec.get().spec() ) : Optional.empty() );
-//			}
-//			else
-//				this.specs.selectedSourceProperty().setValue( Optional.empty() );
-//		} );
 
 		for ( final Node child : this.baseView().getChildren() )
 			if ( child instanceof ViewerNode )
@@ -324,11 +263,6 @@ public class Atlas
 
 		final Optional< ButtonType > closeResponse = closeConfirmation.showAndWait();
 		if ( !ButtonType.OK.equals( closeResponse.get() ) )
-			// stage.setOnCloseRequest(
-//			event -> {
-//			Platform.runLater( Platform::exit );
-//			}
-//			);
 			event.consume();
 		else
 			exitButton.setOnAction(
@@ -378,7 +312,7 @@ public class Atlas
 				spec,
 				converter,
 				method -> method.equals( Interpolation.NLINEAR ) ? new ClampingNLinearInterpolatorFactory<>() : new NearestNeighborInterpolatorFactory<>(),
-				new VolatileARGBType( 0 ) );
+						new VolatileARGBType( 0 ) );
 		final ARGBCompositeAlphaYCbCr comp = new ARGBCompositeAlphaYCbCr();
 		final SourceAndConverter< VolatileARGBType > src = new SourceAndConverter<>( vsource, ( s, t ) -> t.set( s.get() ) );
 
@@ -458,7 +392,7 @@ public class Atlas
 				spec,
 				converter,
 				method -> method.equals( Interpolation.NLINEAR ) ? new ClampingNLinearInterpolatorFactory<>() : new NearestNeighborInterpolatorFactory<>(),
-				new VolatileARGBType( 0 ) );
+						new VolatileARGBType( 0 ) );
 		final ARGBCompositeAlphaYCbCr comp = new ARGBCompositeAlphaYCbCr();
 		final SourceAndConverter< VolatileARGBType > src = new SourceAndConverter<>( vsource, ( s, t ) -> t.set( s.get() ) );
 
@@ -560,28 +494,28 @@ public class Atlas
 			valueToString = ( Function< T, String > ) Object::toString;
 		else if ( t instanceof IntegerType< ? > )
 			valueToString = ( Function< T, String > ) rt -> String.format( "%d", ( ( IntegerType< ? > ) rt ).getIntegerLong() );
-		else if ( t instanceof RealType< ? > )
-			valueToString = ( Function< T, String > ) rt -> String.format( "%.3f", ( ( RealType< ? > ) rt ).getRealDouble() );
-		else if ( t instanceof LabelMultisetType )
-			valueToString = ( Function< T, String > ) rt -> {
-				final StringBuilder sb = new StringBuilder( "{" );
-				final Iterator< Entry< bdv.labels.labelset.Label > > it = ( ( LabelMultisetType ) rt ).entrySet().iterator();
-				if ( it.hasNext() )
-				{
-					final Entry< bdv.labels.labelset.Label > entry = it.next();
-					sb.append( entry.getElement().id() ).append( ":" ).append( entry.getCount() );
-				}
-				while ( it.hasNext() )
-				{
-					final Entry< bdv.labels.labelset.Label > entry = it.next();
-					sb.append( " " ).append( entry.getElement().id() ).append( ":" ).append( entry.getCount() );
-				}
-				sb.append( "}" );
-				return sb.toString();
-			};
-		else
-			valueToString = rt -> "Do not understand type!";
-		return valueToString;
+			else if ( t instanceof RealType< ? > )
+				valueToString = ( Function< T, String > ) rt -> String.format( "%.3f", ( ( RealType< ? > ) rt ).getRealDouble() );
+				else if ( t instanceof LabelMultisetType )
+					valueToString = ( Function< T, String > ) rt -> {
+						final StringBuilder sb = new StringBuilder( "{" );
+						final Iterator< Entry< bdv.labels.labelset.Label > > it = ( ( LabelMultisetType ) rt ).entrySet().iterator();
+						if ( it.hasNext() )
+						{
+							final Entry< bdv.labels.labelset.Label > entry = it.next();
+							sb.append( entry.getElement().id() ).append( ":" ).append( entry.getCount() );
+						}
+						while ( it.hasNext() )
+						{
+							final Entry< bdv.labels.labelset.Label > entry = it.next();
+							sb.append( " " ).append( entry.getElement().id() ).append( ":" ).append( entry.getCount() );
+						}
+						sb.append( "}" );
+						return sb.toString();
+					};
+					else
+						valueToString = rt -> "Do not understand type!";
+						return valueToString;
 	}
 
 	public void setTransform( final AffineTransform3D transform )

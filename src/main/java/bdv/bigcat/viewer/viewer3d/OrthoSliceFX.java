@@ -37,14 +37,14 @@ public class OrthoSliceFX
 
 	private final MeshView mv = new MeshView( mesh );
 
-	// no delay
-	LatestTaskExecutor es = new LatestTaskExecutor( 50 * 1000 * 1000 );
-
 	private final PhongMaterial material;
 
 	private boolean isVisible = false;
 
 	private final SourceInfo sourceInfo;
+
+	// 500ms delay
+	LatestTaskExecutor es = new LatestTaskExecutor( 500 * 1000 * 1000 );
 
 	public OrthoSliceFX( final Group scene, final ViewerPanelFX viewer, final SourceInfo sourceInfo )
 	{

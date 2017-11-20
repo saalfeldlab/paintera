@@ -38,25 +38,31 @@ public class OrthoViewState
 
 	protected final SimpleObjectProperty< Optional< Source< ? > > > currentSource = new SimpleObjectProperty<>( Optional.empty() );
 
-	protected final ObservableMap< Source< ? >, Boolean > visibility = FXCollections.observableHashMap();
+	protected final ObservableMap< Source< ? >, Boolean > visibility;
 
-	public OrthoViewState()
+	public OrthoViewState( final ObservableMap< Source< ? >, Boolean > visibility )
 	{
-		this( ViewerOptions.options() );
+		this( ViewerOptions.options(), visibility );
 	}
 
-	public OrthoViewState( final ViewerOptions viewerOptions )
+	public OrthoViewState( final ViewerOptions viewerOptions, final ObservableMap< Source< ? >, Boolean > visibility )
 	{
-		this( viewerOptions, new GlobalTransformManager(), new GridConstraintsManager(), new ArrayList<>() );
+		this( viewerOptions, new GlobalTransformManager(), new GridConstraintsManager(), new ArrayList<>(), visibility );
 	}
 
-	public OrthoViewState( final ViewerOptions viewerOptions, final GlobalTransformManager globalTransform, final GridConstraintsManager constraintsManager, final List< Converter< ?, ARGBType > > converters )
+	public OrthoViewState(
+			final ViewerOptions viewerOptions,
+			final GlobalTransformManager globalTransform,
+			final GridConstraintsManager constraintsManager,
+			final List< Converter< ?, ARGBType > > converters,
+			final ObservableMap< Source< ? >, Boolean > visibility )
 	{
 		this.viewerOptions = viewerOptions;
 		this.globalTransform = globalTransform;
 		this.constraintsManager = constraintsManager;
 		this.converters = new ArrayList<>();
 		this.converters.addAll( converters );
+		this.visibility = visibility;
 	}
 
 	protected void trackConverters( final ObservableList< SourceAndConverter< ? > > list )

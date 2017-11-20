@@ -13,6 +13,9 @@ import bdv.bigcat.viewer.atlas.mode.Mode;
 import bdv.bigcat.viewer.state.FragmentSegmentAssignmentState;
 import bdv.bigcat.viewer.state.SelectedIds;
 import bdv.viewer.Source;
+import javafx.collections.FXCollections;
+import javafx.collections.MapChangeListener;
+import javafx.collections.ObservableMap;
 import net.imglib2.converter.Converter;
 import net.imglib2.type.logic.BoolType;
 
@@ -33,6 +36,8 @@ public class SourceInfo
 	private final HashMap< DataSource< ?, ? >, HashMap< Mode, ARGBStream > > streams = new HashMap<>();
 
 	private final HashMap< DataSource< ?, ? >, HashMap< Mode, SelectedIds > > selectedIds = new HashMap<>();
+
+	private final ObservableMap< Source< ? >, Boolean > visibility = FXCollections.observableHashMap();
 
 	public synchronized < D, T > void addRawSource( final DataSource< ?, ? > source )
 	{
@@ -63,6 +68,7 @@ public class SourceInfo
 		frag.ifPresent( f -> this.frags.put( source, f ) );
 		stream.ifPresent( s -> this.streams.put( source, s ) );
 		selectedId.ifPresent( id -> this.selectedIds.put( source, id ) );
+		this.visibility.put( source, true );
 	}
 
 	public synchronized < D, T > void removeSource( final DataSource< D, T > source )
@@ -72,6 +78,7 @@ public class SourceInfo
 		frags.remove( source );
 		this.streams.remove( source );
 		this.selectedIds.remove( source );
+		this.visibility.remove( source );
 	}
 
 	public synchronized void addMode( final Mode mode, final Function< Source< ? >, Optional< ARGBStream > > makeStream, final Function< Source< ? >, Optional< SelectedIds > > makeSelection )
@@ -114,6 +121,20 @@ public class SourceInfo
 	public synchronized void forEachStream( final Source< ? > source, final Consumer< ARGBStream > actor )
 	{
 		Optional.ofNullable( streams.get( source ) ).map( HashMap::values ).orElseGet( () -> new ArrayList<>() ).stream().forEach( actor );
+	}
+
+	public void listenOnVisibilityChange( final MapChangeListener< Source< ? >, Boolean > listener )
+	{
+		this.visibility.addListener( listener );
+	}
+
+	public void stopListeningOnVisibilityChange( final MapChangeListener< Source< ? >, Boolean > listener )
+	{
+		this.visibility.removeListener( listener );
+	}
+
+	public ObservableMap< Source< ? >, Boolean > visibility() {
+		return this.visibility;
 	}
 
 }
