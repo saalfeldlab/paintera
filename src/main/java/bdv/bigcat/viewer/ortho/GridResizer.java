@@ -98,16 +98,24 @@ public class GridResizer
 					final Scene scene = grid.sceneProperty().get();
 
 					if ( mouseWithinResizableRangeX && mouseWithinResizableRangeY )
+					{
 						scene.setCursor( Cursor.OPEN_HAND );// Cursor.NW_RESIZE
+					}
 															// );
 					else if ( mouseWithinResizableRangeX )
+					{
 						scene.setCursor( Cursor.OPEN_HAND );// Cursor.H_RESIZE
 															// );
+					}
 					else if ( mouseWithinResizableRangeY )
+					{
 						scene.setCursor( Cursor.OPEN_HAND );// Cursor.V_RESIZE
 															// );
+					}
 					else
+					{
 						scene.setCursor( Cursor.DEFAULT );
+					}
 				}
 			}
 		}
@@ -123,6 +131,7 @@ public class GridResizer
 			final double y = event.getY();
 			final double gridBorderX = manager.column1.getPercentWidth() / 100 * grid.widthProperty().get();
 			final double gridBorderY = manager.row1.getPercentHeight() / 100 * grid.heightProperty().get();
+
 			mouseWithinResizableRangeX = Math.abs( x - gridBorderX ) < tolerance;
 			mouseWithinResizableRangeY = Math.abs( y - gridBorderY ) < tolerance;
 

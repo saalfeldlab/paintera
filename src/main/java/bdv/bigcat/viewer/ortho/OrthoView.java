@@ -180,10 +180,10 @@ public class OrthoView extends GridPane
 		addViewerNodesHandler( viewerNode, FOCUS_KEEPERS );
 
 		this.add( viewerNode, rowIndex, colIndex );
-		viewerNode.setOnMouseClicked( resizer.onMouseDoubleClickedHandler() );
-		viewerNode.setOnMousePressed( resizer.onMousePressedHandler() );
-		viewerNode.setOnMouseDragged( resizer.onMouseDraggedHandler() );
-		viewerNode.setOnMouseMoved( resizer.onMouseMovedHandler() );
+//		viewerNode.setOnMouseClicked( resizer.onMouseDoubleClickedHandler() );
+//		viewerNode.setOnMousePressed( resizer.onMousePressedHandler() );
+//		viewerNode.setOnMouseDragged( resizer.onMouseDraggedHandler() );
+//		viewerNode.setOnMouseMoved( resizer.onMouseMovedHandler() );
 	}
 
 	private void maximizeActiveOrthoView( final Event event )
