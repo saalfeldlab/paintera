@@ -1,5 +1,6 @@
 package bdv.bigcat.viewer.atlas;
 
+import java.io.IOException;
 import java.lang.invoke.MethodHandles;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -31,6 +32,8 @@ import bdv.bigcat.viewer.atlas.mode.Merges;
 import bdv.bigcat.viewer.atlas.mode.Mode;
 import bdv.bigcat.viewer.atlas.mode.ModeUtil;
 import bdv.bigcat.viewer.atlas.mode.NavigationOnly;
+import bdv.bigcat.viewer.atlas.opendialog.BackendDialog;
+import bdv.bigcat.viewer.atlas.opendialog.OpenSourceDialog;
 import bdv.bigcat.viewer.bdvfx.KeyTracker;
 import bdv.bigcat.viewer.bdvfx.ViewerPanelFX;
 import bdv.bigcat.viewer.ortho.OrthoView;
@@ -72,7 +75,6 @@ import javafx.stage.Stage;
 import javafx.stage.WindowEvent;
 import net.imglib2.FinalInterval;
 import net.imglib2.Interval;
-import net.imglib2.Volatile;
 import net.imglib2.converter.Converter;
 import net.imglib2.converter.RealARGBConverter;
 import net.imglib2.interpolation.randomaccess.ClampingNLinearInterpolatorFactory;
@@ -188,6 +190,34 @@ public class Atlas
 				this.keyTracker.removeFrom( oldv );
 			if ( newv != null )
 				this.keyTracker.installInto( newv );
+		} );
+
+		this.root.addEventHandler( KeyEvent.KEY_PRESSED, event -> {
+			if ( keyTracker.areOnlyTheseKeysDown( KeyCode.CONTROL, KeyCode.O ) )
+			{
+				final OpenSourceDialog openDialog = new OpenSourceDialog();
+				final Optional< BackendDialog > dataset = openDialog.showAndWait();
+				if ( dataset.isPresent() )
+					switch ( openDialog.getType() )
+					{
+					case RAW:
+
+						try
+						{
+							final Optional< DataSource< ? extends RealType< ? >, ? extends RealType< ? > > > source = dataset.get().getRaw( "NAME" );
+							if ( source.isPresent() )
+								addRawSource( ( DataSource< RealType, RealType > ) source.get(), 0, 255 );
+						}
+						catch ( final IOException e )
+						{
+							// TODO Auto-generated catch block
+							e.printStackTrace();
+						}
+						break;
+					default:
+						break;
+					}
+			}
 		} );
 
 	}
@@ -451,10 +481,10 @@ public class Atlas
 
 	}
 
-	public < T extends RealType< T >, U extends RealType< U > > void addRawSource( final DataSource< T, ? extends Volatile< U > > spec, final double min, final double max )
+	public < T extends RealType< T >, U extends RealType< U > > void addRawSource( final DataSource< T, U > spec, final double min, final double max )
 	{
 		final RealARGBConverter< U > realARGBConv = new RealARGBConverter<>( min, max );
-		final SourceAndConverter< ? > src = new SourceAndConverter<>( spec, ( s, t ) -> realARGBConv.convert( s.get(), t ) );
+		final SourceAndConverter< ? > src = new SourceAndConverter<>( spec, ( s, t ) -> realARGBConv.convert( s, t ) );
 		final Composite< ARGBType, ARGBType > comp = new ARGBCompositeAlphaAdd();
 		addSource( src, comp );
 
@@ -493,28 +523,28 @@ public class Atlas
 			valueToString = ( Function< T, String > ) Object::toString;
 		else if ( t instanceof IntegerType< ? > )
 			valueToString = ( Function< T, String > ) rt -> String.format( "%d", ( ( IntegerType< ? > ) rt ).getIntegerLong() );
-			else if ( t instanceof RealType< ? > )
-				valueToString = ( Function< T, String > ) rt -> String.format( "%.3f", ( ( RealType< ? > ) rt ).getRealDouble() );
-				else if ( t instanceof LabelMultisetType )
-					valueToString = ( Function< T, String > ) rt -> {
-						final StringBuilder sb = new StringBuilder( "{" );
-						final Iterator< Entry< bdv.labels.labelset.Label > > it = ( ( LabelMultisetType ) rt ).entrySet().iterator();
-						if ( it.hasNext() )
-						{
-							final Entry< bdv.labels.labelset.Label > entry = it.next();
-							sb.append( entry.getElement().id() ).append( ":" ).append( entry.getCount() );
-						}
-						while ( it.hasNext() )
-						{
-							final Entry< bdv.labels.labelset.Label > entry = it.next();
-							sb.append( " " ).append( entry.getElement().id() ).append( ":" ).append( entry.getCount() );
-						}
-						sb.append( "}" );
-						return sb.toString();
-					};
-					else
-						valueToString = rt -> "Do not understand type!";
-						return valueToString;
+		else if ( t instanceof RealType< ? > )
+			valueToString = ( Function< T, String > ) rt -> String.format( "%.3f", ( ( RealType< ? > ) rt ).getRealDouble() );
+		else if ( t instanceof LabelMultisetType )
+			valueToString = ( Function< T, String > ) rt -> {
+				final StringBuilder sb = new StringBuilder( "{" );
+				final Iterator< Entry< bdv.labels.labelset.Label > > it = ( ( LabelMultisetType ) rt ).entrySet().iterator();
+				if ( it.hasNext() )
+				{
+					final Entry< bdv.labels.labelset.Label > entry = it.next();
+					sb.append( entry.getElement().id() ).append( ":" ).append( entry.getCount() );
+				}
+				while ( it.hasNext() )
+				{
+					final Entry< bdv.labels.labelset.Label > entry = it.next();
+					sb.append( " " ).append( entry.getElement().id() ).append( ":" ).append( entry.getCount() );
+				}
+				sb.append( "}" );
+				return sb.toString();
+			};
+		else
+			valueToString = rt -> "Do not understand type!";
+		return valueToString;
 	}
 
 	public void setTransform( final AffineTransform3D transform )
