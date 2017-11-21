@@ -1,6 +1,8 @@
 package bdv.bigcat.viewer.bdvfx;
 
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.List;
 import java.util.function.Predicate;
 
 import javafx.beans.property.SimpleBooleanProperty;
@@ -45,7 +47,8 @@ public abstract class MouseDragFX implements InstallAndRemove< Node >
 
 	public abstract void drag( MouseEvent event );
 
-	public void endDrag( final MouseEvent event ) {}
+	public void endDrag( final MouseEvent event )
+	{}
 
 	public String name()
 	{
@@ -90,10 +93,8 @@ public abstract class MouseDragFX implements InstallAndRemove< Node >
 		@Override
 		public void handle( final MouseEvent event )
 		{
-			System.out.println("mouse drag - fxevent");
 			if ( isDragging.get() )
 			{
-				System.out.println("calling drag method");
 				drag( event );
 			}
 		}
