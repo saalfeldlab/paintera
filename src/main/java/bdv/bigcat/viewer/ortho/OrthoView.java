@@ -26,6 +26,7 @@ import javafx.scene.Node;
 import javafx.scene.Scene;
 import javafx.scene.control.TextField;
 import javafx.scene.input.KeyEvent;
+import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.GridPane;
 import net.imglib2.realtransform.AffineTransform3D;
 
@@ -104,6 +105,11 @@ public class OrthoView extends GridPane
 		this.setVgap( 1.0 );
 		this.setHgap( 1.0 );
 
+		this.addEventFilter( MouseEvent.DRAG_DETECTED, event -> {
+			if(this.resizer.isDraggingPanel())
+				event.consume();
+		} );
+		
 		this.addEventHandler( KeyEvent.KEY_TYPED, event -> {
 			if ( event.getCharacter().equals( "f" ) )
 				maximizeActiveOrthoView( event );
