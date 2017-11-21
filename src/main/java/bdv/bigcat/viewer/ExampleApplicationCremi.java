@@ -1,7 +1,6 @@
 package bdv.bigcat.viewer;
 
 import java.lang.invoke.MethodHandles;
-import java.util.Arrays;
 import java.util.concurrent.CountDownLatch;
 
 import org.slf4j.Logger;
@@ -22,7 +21,6 @@ import bdv.viewer.Source;
 import javafx.application.Platform;
 import javafx.stage.Stage;
 import mpicbg.spim.data.sequence.VoxelDimensions;
-import net.imglib2.FinalInterval;
 import net.imglib2.RandomAccessible;
 import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.RealRandomAccessible;
@@ -38,7 +36,6 @@ import net.imglib2.type.numeric.RealType;
 import net.imglib2.type.numeric.integer.UnsignedByteType;
 import net.imglib2.type.volatiles.VolatileARGBType;
 import net.imglib2.type.volatiles.VolatileUnsignedByteType;
-import net.imglib2.util.Intervals;
 import net.imglib2.view.ExtendedRandomAccessibleInterval;
 import net.imglib2.view.Views;
 
@@ -53,7 +50,7 @@ public class ExampleApplicationCremi
 
 		final String USER_HOME = System.getProperty( "user.home" );
 
-		String rawFile = "/groups/saalfeld/home/saalfelds/cremi/sample_B+_padded_20170424.aligned.hdf";
+		String rawFile = USER_HOME + "/Downloads/sample_A_padded_20160501.hdf";
 		String rawDataset = "volumes/raw";
 		String labelsFile = rawFile;
 		String labelsDataset = "volumes/labels/neuron_ids";
@@ -76,27 +73,17 @@ public class ExampleApplicationCremi
 		}
 
 		final int numPriorities = 20;
-		final SharedQueue sharedQueue = new SharedQueue( 12, 20 );
+		final SharedQueue sharedQueue = new SharedQueue( 1, 2 );
 
 		// TODO remove
-		final VolatileGlobalCellCache cellCache = new VolatileGlobalCellCache( 1, 12 );
+		final VolatileGlobalCellCache cellCache = new VolatileGlobalCellCache( 1, 2 );
 
 		final RandomAccessibleIntervalDataSource< UnsignedByteType, VolatileUnsignedByteType > rawSource =
 				DataSource.createH5RawSource( "raw", rawFile, rawDataset, rawCellSize, resolution, sharedQueue, numPriorities - 1, UnsignedByteType::new, VolatileUnsignedByteType::new );
 
 //		final HDF5UnsignedByteDataSource rawSource = new HDF5UnsignedByteDataSource( rawFile, rawDataset, rawCellSize, resolution, "raw", cellCache, 0 );
 
-		final double[] min = Arrays.stream( Intervals.minAsLongArray( rawSource.getSource( 0, 0 ) ) ).mapToDouble( v -> v ).toArray();
-		final double[] max = Arrays.stream( Intervals.maxAsLongArray( rawSource.getSource( 0, 0 ) ) ).mapToDouble( v -> v ).toArray();
-		final AffineTransform3D affine = new AffineTransform3D();
-		rawSource.getSourceTransform( 0, 0, affine );
-		affine.apply( min, min );
-		affine.apply( max, max );
-
-		final Atlas viewer = new Atlas(
-				new FinalInterval( Arrays.stream( min ).mapToLong( Math::round ).toArray(),
-						Arrays.stream( max ).mapToLong( Math::round ).toArray() ),
-				sharedQueue );
+		final Atlas viewer = new Atlas( sharedQueue );
 
 		final CountDownLatch latch = new CountDownLatch( 1 );
 		Platform.runLater( () -> {

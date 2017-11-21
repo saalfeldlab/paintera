@@ -49,9 +49,9 @@ public class Viewer3DFX extends Pane
 
 	private final Group cameraGroup;
 
-	private double centerX = 0;
+	private final double centerX = 0;
 
-	private double centerY = 0;
+	private final double centerY = 0;
 
 	final private static double step = 1.0;// Math.PI / 180;
 
@@ -62,14 +62,16 @@ public class Viewer3DFX extends Pane
 	private final PointLight lightFill = new PointLight( new Color( 0.35, 0.35, 0.65, 1 ) );
 
 	private static final Point3D xNormal = new Point3D( 1, 0, 0 );
+
 	private static final Point3D yNormal = new Point3D( 0, 1, 0 );
+
 	private static final Point3D zNormal = new Point3D( 0, 0, 1 );
 
 	private final Affine initialTransform = new Affine();
 
 	private final Affine affine = new Affine();
 
-	public Viewer3DFX( final double width, final double height, final Interval interval )
+	public Viewer3DFX( final double width, final double height )
 	{
 		super();
 		this.root = new Group();
@@ -103,11 +105,6 @@ public class Viewer3DFX extends Pane
 		this.cameraGroup.getTransforms().add( new Translate( 0, 0, -1 ) );
 
 		meshesGroup.getTransforms().addAll( affine );
-		initialTransform.prependTranslation( -interval.dimension( 0 ) / 2, -interval.dimension( 1 ) / 2, -interval.dimension( 2 ) / 2 );
-		LOG.debug( "position: " + -interval.dimension( 0 ) / 2 + " " + -interval.dimension( 1 ) / 2 + " " + -interval.dimension( 2 ) / 2 );
-
-		final double sf = 1.0 / interval.dimension( 0 );
-		initialTransform.prependScale( sf, sf, sf );
 		affine.setToTransform( initialTransform );
 
 		final Rotate rotate = new Rotate( "rotate 3d", new SimpleDoubleProperty( 1.0 ), 1.0, MouseEvent::isPrimaryButtonDown );
@@ -148,6 +145,15 @@ public class Viewer3DFX extends Pane
 			}
 		} );
 
+	}
+
+	public void setInitialTransformToInterval( final Interval interval )
+	{
+		initialTransform.setToIdentity();
+		initialTransform.prependTranslation( -interval.dimension( 0 ) / 2, -interval.dimension( 1 ) / 2, -interval.dimension( 2 ) / 2 );
+		final double sf = 1.0 / interval.dimension( 0 );
+		initialTransform.prependScale( sf, sf, sf );
+		InvokeOnJavaFXApplicationThread.invoke( () -> affine.setToTransform( initialTransform ) );
 	}
 
 	public SubScene scene()
@@ -228,7 +234,8 @@ public class Viewer3DFX extends Pane
 		}
 
 		@Override
-		public void initDrag( final MouseEvent event ) {}
+		public void initDrag( final MouseEvent event )
+		{}
 
 		@Override
 		public void drag( final MouseEvent event )

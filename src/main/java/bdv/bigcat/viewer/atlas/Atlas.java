@@ -70,6 +70,7 @@ import javafx.scene.layout.HBox;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
 import javafx.stage.WindowEvent;
+import net.imglib2.FinalInterval;
 import net.imglib2.Interval;
 import net.imglib2.Volatile;
 import net.imglib2.converter.Converter;
@@ -83,6 +84,7 @@ import net.imglib2.type.numeric.IntegerType;
 import net.imglib2.type.numeric.RealType;
 import net.imglib2.type.volatiles.AbstractVolatileRealType;
 import net.imglib2.type.volatiles.VolatileARGBType;
+import net.imglib2.util.Intervals;
 
 public class Atlas
 {
@@ -121,12 +123,12 @@ public class Atlas
 
 	private final ARGBStreamSeedSetter seedSetter;
 
-	public Atlas( final Interval interval, final SharedQueue cellCache )
+	public Atlas( final SharedQueue cellCache )
 	{
-		this( ViewerOptions.options(), interval, cellCache );
+		this( ViewerOptions.options(), cellCache );
 	}
 
-	public Atlas( final ViewerOptions viewerOptions, final Interval interval, final SharedQueue cellCache )
+	public Atlas( final ViewerOptions viewerOptions, final SharedQueue cellCache )
 	{
 		super();
 		this.viewerOptions = viewerOptions
@@ -136,7 +138,7 @@ public class Atlas
 		this.root = new BorderPane( this.view );
 		this.root.setBottom( status );
 
-		this.renderView = new Viewer3DFX( 100, 100, interval );
+		this.renderView = new Viewer3DFX( 100, 100 );
 		this.controller = new Viewer3DControllerFX( renderView );
 		this.view.setInfoNode( renderView );
 		this.renderView.scene().addEventHandler( MouseEvent.MOUSE_CLICKED, event -> renderView.scene().requestFocus() );
@@ -166,21 +168,6 @@ public class Atlas
 
 		this.seedSetter = new ARGBStreamSeedSetter( sourceInfo, keyTracker, currentMode );
 		addOnEnterOnExit( this.seedSetter.onEnter(), this.seedSetter.onEnter(), true );
-
-		{
-			final AffineTransform3D tf = new AffineTransform3D();
-			final long[] sums = {
-					interval.max( 0 ) + interval.min( 0 ),
-					interval.max( 1 ) + interval.min( 1 ),
-					interval.max( 2 ) + interval.min( 2 )
-			};
-			tf.translate( Arrays.stream( sums ).mapToDouble( sum -> -0.5 * sum ).toArray() );
-			final ViewerNode vn = this.baseView().getChildren().stream().filter( child -> child instanceof ViewerNode ).map( n -> ( ViewerNode ) n ).findFirst().get();
-			vn.manager().setCanvasSize( 1, 1, true );
-			tf.scale( 1.0 / interval.dimension( 0 ) );
-			vn.manager().setCanvasSize( ( int ) vn.getWidth(), ( int ) vn.getHeight(), true );
-			this.baseView().setTransform( tf );
-		}
 
 		for ( final Node child : this.baseView().getChildren() )
 			if ( child instanceof ViewerNode )
@@ -285,6 +272,17 @@ public class Atlas
 
 	private < T, U, V > void addSource( final SourceAndConverter< T > src, final Composite< ARGBType, ARGBType > comp )
 	{
+		if ( sourceInfo.numSources() == 0 )
+		{
+			final double[] min = Arrays.stream( Intervals.minAsLongArray( src.getSpimSource().getSource( 0, 0 ) ) ).mapToDouble( v -> v ).toArray();
+			final double[] max = Arrays.stream( Intervals.maxAsLongArray( src.getSpimSource().getSource( 0, 0 ) ) ).mapToDouble( v -> v ).toArray();
+			final AffineTransform3D affine = new AffineTransform3D();
+			src.getSpimSource().getSourceTransform( 0, 0, affine );
+			affine.apply( min, min );
+			affine.apply( max, max );
+			final FinalInterval interval = new FinalInterval( Arrays.stream( min ).mapToLong( Math::round ).toArray(), Arrays.stream( max ).mapToLong( Math::round ).toArray() );
+			centerForInterval( interval );
+		}
 		this.composites.put( src.getSpimSource(), comp );
 		this.baseView().getState().addSource( src );
 	}
@@ -313,7 +311,7 @@ public class Atlas
 				spec,
 				converter,
 				method -> method.equals( Interpolation.NLINEAR ) ? new ClampingNLinearInterpolatorFactory<>() : new NearestNeighborInterpolatorFactory<>(),
-						new VolatileARGBType( 0 ) );
+				new VolatileARGBType( 0 ) );
 		final ARGBCompositeAlphaYCbCr comp = new ARGBCompositeAlphaYCbCr();
 		final SourceAndConverter< VolatileARGBType > src = new SourceAndConverter<>( vsource, ( s, t ) -> t.set( s.get() ) );
 
@@ -393,7 +391,7 @@ public class Atlas
 				spec,
 				converter,
 				method -> method.equals( Interpolation.NLINEAR ) ? new ClampingNLinearInterpolatorFactory<>() : new NearestNeighborInterpolatorFactory<>(),
-						new VolatileARGBType( 0 ) );
+				new VolatileARGBType( 0 ) );
 		final ARGBCompositeAlphaYCbCr comp = new ARGBCompositeAlphaYCbCr();
 		final SourceAndConverter< VolatileARGBType > src = new SourceAndConverter<>( vsource, ( s, t ) -> t.set( s.get() ) );
 
@@ -554,6 +552,24 @@ public class Atlas
 			}
 		}
 		return argMaxLabel;
+	}
+
+	public void centerForInterval( final Interval interval )
+
+	{
+		final AffineTransform3D tf = new AffineTransform3D();
+		final long[] sums = {
+				interval.max( 0 ) + interval.min( 0 ),
+				interval.max( 1 ) + interval.min( 1 ),
+				interval.max( 2 ) + interval.min( 2 )
+		};
+		tf.translate( Arrays.stream( sums ).mapToDouble( sum -> -0.5 * sum ).toArray() );
+		final ViewerNode vn = this.baseView().getChildren().stream().filter( child -> child instanceof ViewerNode ).map( n -> ( ViewerNode ) n ).findFirst().get();
+		vn.manager().setCanvasSize( 1, 1, true );
+		tf.scale( 1.0 / interval.dimension( 0 ) );
+		vn.manager().setCanvasSize( ( int ) vn.getWidth(), ( int ) vn.getHeight(), true );
+		this.baseView().setTransform( tf );
+		this.renderView.setInitialTransformToInterval( interval );
 	}
 
 }
