@@ -12,7 +12,6 @@ import javafx.util.Duration;
 
 public class GridResizer
 {
-
 	private final GridConstraintsManager manager;
 
 	private final double tolerance;
@@ -75,9 +74,13 @@ public class GridResizer
 		return new MouseReleased();
 	}
 
+	public boolean isDraggingPanel()
+	{
+		return dragging;
+	}
+
 	private class MouseChanged implements EventHandler< MouseEvent >
 	{
-
 		@Override
 		public void handle( final MouseEvent event )
 		{
@@ -234,7 +237,5 @@ public class GridResizer
 				}
 			}
 		}
-
 	}
-
 }
