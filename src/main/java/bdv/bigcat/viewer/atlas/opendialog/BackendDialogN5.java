@@ -9,21 +9,14 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 import java.util.function.Consumer;
-import java.util.function.Function;
 import java.util.function.Predicate;
-import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
-import org.janelia.saalfeldlab.n5.DataType;
-import org.janelia.saalfeldlab.n5.DatasetAttributes;
 import org.janelia.saalfeldlab.n5.N5FSReader;
-import org.janelia.saalfeldlab.n5.N5Reader;
 import org.janelia.saalfeldlab.n5.imglib2.N5Utils;
 
 import bdv.bigcat.viewer.atlas.data.DataSource;
-import bdv.bigcat.viewer.atlas.data.RandomAccessibleIntervalDataSource;
-import bdv.util.volatiles.VolatileViews;
-import bdv.viewer.Interpolation;
+import bdv.util.volatiles.SharedQueue;
 import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.collections.FXCollections;
@@ -37,19 +30,8 @@ import javafx.scene.control.TextField;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.Priority;
 import javafx.stage.DirectoryChooser;
-import net.imglib2.RandomAccessibleInterval;
-import net.imglib2.interpolation.InterpolatorFactory;
-import net.imglib2.interpolation.randomaccess.NLinearInterpolatorFactory;
-import net.imglib2.interpolation.randomaccess.NearestNeighborInterpolatorFactory;
-import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.type.NativeType;
 import net.imglib2.type.numeric.RealType;
-import net.imglib2.type.numeric.integer.UnsignedByteType;
-import net.imglib2.type.volatiles.AbstractVolatileNativeRealType;
-import net.imglib2.type.volatiles.AbstractVolatileRealType;
-import net.imglib2.type.volatiles.VolatileUnsignedByteType;
-import net.imglib2.util.Pair;
-import net.imglib2.util.ValuePair;
 
 public class BackendDialogN5 implements BackendDialog
 {
@@ -139,29 +121,14 @@ public class BackendDialogN5 implements BackendDialog
 	}
 
 	@Override
-	public Optional< DataSource< ? extends RealType< ? >, ? extends RealType< ? > > > getRaw( final String name ) throws IOException
+	public < T extends RealType< T > & NativeType< T >, V extends RealType< V > > Optional< DataSource< T, V > > getRaw( final String name, final SharedQueue sharedQueue, final int priority ) throws IOException
 	{
 		final String group = n5.get();
 		final N5FSReader reader = new N5FSReader( group );
 		final String dataset = this.dataset.get();
-		final DatasetAttributes attributes = reader.getDatasetAttributes( dataset );
-		final DataType type = attributes.getDataType();
 
-		final Supplier< RealType > t = getType( type );
-		final Supplier< AbstractVolatileRealType > v = getVolatileType( type );
-
-		if ( t != null && v != null )
-		{
-			final RandomAccessibleInterval< ? >[] rai = { N5Utils.openVolatile( reader, dataset ) };
-			final RandomAccessibleInterval< ? >[] volatileRai = { VolatileViews.wrapAsVolatile( rai[ 0 ] ) };
-			final AffineTransform3D[] mipmapTransforms = { new AffineTransform3D() };
-			final Function< Interpolation, InterpolatorFactory > tInterpolation = method -> method.equals( Interpolation.NLINEAR ) ? new NLinearInterpolatorFactory() : new NearestNeighborInterpolatorFactory();
-			final Function< Interpolation, InterpolatorFactory > vInterpolation = method -> method.equals( Interpolation.NLINEAR ) ? new NLinearInterpolatorFactory() : new NearestNeighborInterpolatorFactory();
-			return Optional.of( new RandomAccessibleIntervalDataSource( rai, volatileRai, mipmapTransforms, tInterpolation, vInterpolation, t, v, name ) );
-		}
-//		 VolatileViews.wrapAsVolatile( mipmap, sharedQueue, new CacheHints( LoadingStrategy.VOLATILE, i, true ) ) );
-//		DataSource.createN5MipmapRawSource( name, n5, group, resolution, sharedQueue, typeSupplier, volatileTypeSupplier )
-		return Optional.empty();
+		N5Utils.open( reader, dataset );
+		return Optional.of( DataSource.createN5RawSource( name, reader, dataset, new double[] { 1, 1, 1 }, sharedQueue, priority ) );
 	}
 
 	@Override
@@ -169,45 +136,6 @@ public class BackendDialogN5 implements BackendDialog
 	{
 		// TODO
 		return Optional.empty();
-	}
-
-	private static < T extends RealType< T > > Supplier< T > getType( final DataType t )
-	{
-		switch ( t )
-		{
-		case UINT8:
-			return () -> ( T ) new UnsignedByteType();
-		default:
-			return null;
-		}
-	}
-
-	private static < T extends RealType< T > & NativeType< T >, V extends AbstractVolatileRealType< T, V > > Supplier< V > getVolatileType( final DataType t )
-	{
-		switch ( t )
-		{
-		case UINT8:
-			return () -> ( V ) new VolatileUnsignedByteType();
-		default:
-			return null;
-		}
-	}
-
-	private static < T extends RealType< T > & NativeType< T >, V extends AbstractVolatileNativeRealType< T, V > >
-			Optional< Pair< Supplier< T >, Supplier< V > > > getTypes( final DataType t )
-	{
-		switch ( t )
-		{
-		case UINT8:
-			return Optional.of( new ValuePair<>( ( Supplier< T > ) () -> ( T ) new UnsignedByteType(), ( Supplier< V > ) () -> ( V ) new VolatileUnsignedByteType() ) );
-		default:
-			return Optional.empty();
-		}
-	}
-
-	private static < T extends NativeType< T > > RandomAccessibleInterval< T > getFromLoader( final N5Reader reader, final String dataset, final T t ) throws IOException
-	{
-		return N5Utils.openVolatile( reader, dataset );
 	}
 
 }

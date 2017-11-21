@@ -125,6 +125,8 @@ public class Atlas
 
 	private final ARGBStreamSeedSetter seedSetter;
 
+	private final SharedQueue cellCache;
+
 	public Atlas( final SharedQueue cellCache )
 	{
 		this( ViewerOptions.options(), cellCache );
@@ -139,6 +141,7 @@ public class Atlas
 		this.view = new OrthoView( focusHandler.onEnter(), focusHandler.onExit(), new OrthoViewState( this.viewerOptions, sourceInfo.visibility() ), cellCache, keyTracker );
 		this.root = new BorderPane( this.view );
 		this.root.setBottom( status );
+		this.cellCache = cellCache;
 
 		this.renderView = new Viewer3DFX( 100, 100 );
 		this.controller = new Viewer3DControllerFX( renderView );
@@ -204,9 +207,7 @@ public class Atlas
 
 						try
 						{
-							final Optional< DataSource< ? extends RealType< ? >, ? extends RealType< ? > > > source = dataset.get().getRaw( "NAME" );
-							if ( source.isPresent() )
-								addRawSource( ( DataSource< RealType, RealType > ) source.get(), 0, 255 );
+							dataset.get().getRaw( "NAME", cellCache, cellCache.getNumPriorities() - 1 ).ifPresent( source -> addRawSource( source, 0, 255 ) );
 						}
 						catch ( final IOException e )
 						{
