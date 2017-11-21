@@ -429,10 +429,9 @@ public class NeuronRendererFX< T, F extends FragmentSegmentAssignmentState< F > 
 					e.printStackTrace();
 				}
 			}
-
 		}
 	}
-
+	
 	private class IdSelector implements EventHandler< MouseEvent >
 	{
 
