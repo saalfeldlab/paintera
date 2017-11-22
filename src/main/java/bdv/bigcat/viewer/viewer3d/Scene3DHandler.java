@@ -52,15 +52,10 @@ public class Scene3DHandler
 
 	private static final Point3D zNormal = new Point3D( 0, 0, 1 );
 
-	public Scene3DHandler( Viewer3DFX viewer, final Interval interval )
+	public Scene3DHandler( Viewer3DFX viewer )
 	{
 		this.viewer = viewer;
-
-		viewer.meshesGroup().getTransforms().addAll( affine );
-		initialTransform.prependTranslation( -interval.dimension( 0 ) / 2, -interval.dimension( 1 ) / 2, -interval.dimension( 2 ) / 2 );
-
-		final double sf = 1.0 / interval.dimension( 0 );
-		initialTransform.prependScale( sf, sf, sf );
+		this.viewer.meshesGroup().getTransforms().addAll( affine );
 
 		affine.setToTransform( initialTransform );
 		addCommands();
@@ -70,6 +65,16 @@ public class Scene3DHandler
 
 		final TranslateXY translateXY = new TranslateXY( "translate", MouseEvent::isSecondaryButtonDown );
 		translateXY.installInto( viewer );
+	}
+
+
+	public void setInitialTransformToInterval( final Interval interval )
+	{
+		initialTransform.setToIdentity();
+		initialTransform.prependTranslation( -interval.dimension( 0 ) / 2, -interval.dimension( 1 ) / 2, -interval.dimension( 2 ) / 2 );
+		final double sf = 1.0 / interval.dimension( 0 );
+		initialTransform.prependScale( sf, sf, sf );
+		InvokeOnJavaFXApplicationThread.invoke( () -> affine.setToTransform( initialTransform ) );
 	}
 
 	private void addCommands()
