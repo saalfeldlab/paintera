@@ -49,32 +49,35 @@ public class ARGBStreamSeedSetter
 			if ( !this.handlers.containsKey( t ) )
 			{
 				final EventHandler< KeyEvent > handler = event -> {
-					final Source< ? > source = getSource( t );
-					final Optional< ARGBStream > currentStream = sourceInfo.stream( source, currentMode.get() );
-					if ( keyTracker.areOnlyTheseKeysDown( KeyCode.C ) )
+					final Optional< Source< ? > > source = getSource( t );
+					if ( source.isPresent() )
 					{
-						changeStream( currentStream, seed -> seed + 1, sourceInfo, source );
-						event.consume();
-					}
-					else if ( keyTracker.areOnlyTheseKeysDown( KeyCode.C, KeyCode.SHIFT ) )
-					{
-						changeStream( currentStream, seed -> seed - 1, sourceInfo, source );
-						event.consume();
-					}
-					else if ( keyTracker.areOnlyTheseKeysDown( KeyCode.C, KeyCode.SHIFT, KeyCode.CONTROL ) )
-					{
-						final LongUnaryOperator op = seed -> {
-							final Spinner< Integer > spinner = new Spinner<>( Integer.MIN_VALUE, Integer.MAX_VALUE, ( int ) seed );
-							final Dialog< Long > dialog = new Dialog<>();
-							dialog.getDialogPane().getButtonTypes().addAll( ButtonType.CANCEL, ButtonType.OK );
-							dialog.setHeaderText( "Select seed for ARGB stream" );
-							dialog.getDialogPane().setContent( spinner );
-							dialog.setResultConverter( param -> param.equals( ButtonType.OK ) ? ( long ) spinner.getValue() : seed );
-							final long newSeed = dialog.showAndWait().orElse( seed );
-							return newSeed;
-						};
-						changeStream( currentStream, op, sourceInfo, source );
-						event.consume();
+						final Optional< ARGBStream > currentStream = sourceInfo.stream( source.get(), currentMode.get() );
+						if ( keyTracker.areOnlyTheseKeysDown( KeyCode.C ) )
+						{
+							changeStream( currentStream, seed -> seed + 1, sourceInfo, source.get() );
+							event.consume();
+						}
+						else if ( keyTracker.areOnlyTheseKeysDown( KeyCode.C, KeyCode.SHIFT ) )
+						{
+							changeStream( currentStream, seed -> seed - 1, sourceInfo, source.get() );
+							event.consume();
+						}
+						else if ( keyTracker.areOnlyTheseKeysDown( KeyCode.C, KeyCode.SHIFT, KeyCode.CONTROL ) )
+						{
+							final LongUnaryOperator op = seed -> {
+								final Spinner< Integer > spinner = new Spinner<>( Integer.MIN_VALUE, Integer.MAX_VALUE, ( int ) seed );
+								final Dialog< Long > dialog = new Dialog<>();
+								dialog.getDialogPane().getButtonTypes().addAll( ButtonType.CANCEL, ButtonType.OK );
+								dialog.setHeaderText( "Select seed for ARGB stream" );
+								dialog.getDialogPane().setContent( spinner );
+								dialog.setResultConverter( param -> param.equals( ButtonType.OK ) ? ( long ) spinner.getValue() : seed );
+								final long newSeed = dialog.showAndWait().orElse( seed );
+								return newSeed;
+							};
+							changeStream( currentStream, op, sourceInfo, source.get() );
+							event.consume();
+						}
 					}
 				};
 				this.handlers.put( t, handler );
@@ -91,12 +94,17 @@ public class ARGBStreamSeedSetter
 		};
 	}
 
-	private static Source< ? > getSource( final ViewerPanelFX viewer )
+	private static Optional< Source< ? > > getSource( final ViewerPanelFX viewer )
 	{
 		final ViewerState state = viewer.getState();
 		final List< SourceState< ? > > sources = state.getSources();
-		final SourceState< ? > source = sources.get( state.getCurrentSource() );
-		return source.getSpimSource();
+		if ( state.getCurrentSource() >= 0 )
+		{
+			final SourceState< ? > source = sources.get( state.getCurrentSource() );
+			return Optional.of( source.getSpimSource() );
+		}
+		else
+			return Optional.empty();
 	}
 
 	private static boolean changeStream( final Optional< ARGBStream > currentStream, final LongUnaryOperator seedUpdate, final SourceInfo sourceInfo, final Source< ? > source )

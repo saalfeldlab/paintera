@@ -5,7 +5,6 @@ import java.lang.invoke.MethodHandles;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javafx.geometry.Point3D;
 import javafx.scene.AmbientLight;
 import javafx.scene.Group;
 import javafx.scene.PerspectiveCamera;
@@ -38,7 +37,9 @@ public class Viewer3DFX extends Pane
 
 	private final PointLight lightFill = new PointLight( new Color( 0.35, 0.35, 0.65, 1 ) );
 
-	public Viewer3DFX( final double width, final double height, final Interval interval )
+	private final Scene3DHandler handler;
+
+	public Viewer3DFX( final double width, final double height )
 	{
 		super();
 		this.root = new Group();
@@ -70,9 +71,12 @@ public class Viewer3DFX extends Pane
 		this.cameraGroup.getChildren().addAll( camera, lightAmbient, lightSpot, lightFill );
 		this.cameraGroup.getTransforms().add( new Translate( 0, 0, -1 ) );
 
-		Point3D point = new Point3D( camera.getTranslateX(), camera.getTranslateY(), camera.getTranslateZ() );
+		handler = new Scene3DHandler( this );
+	}
 
-		Scene3DHandler handler = new Scene3DHandler( this, interval );
+	public void setInitialTransformToInterval( final Interval interval )
+	{
+		handler.setInitialTransformToInterval( interval );
 	}
 
 	public SubScene scene()

@@ -1,5 +1,6 @@
 package bdv.bigcat.viewer.atlas;
 
+import java.io.IOException;
 import java.lang.invoke.MethodHandles;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -31,6 +32,8 @@ import bdv.bigcat.viewer.atlas.mode.Merges;
 import bdv.bigcat.viewer.atlas.mode.Mode;
 import bdv.bigcat.viewer.atlas.mode.ModeUtil;
 import bdv.bigcat.viewer.atlas.mode.NavigationOnly;
+import bdv.bigcat.viewer.atlas.opendialog.BackendDialog;
+import bdv.bigcat.viewer.atlas.opendialog.OpenSourceDialog;
 import bdv.bigcat.viewer.bdvfx.KeyTracker;
 import bdv.bigcat.viewer.bdvfx.ViewerPanelFX;
 import bdv.bigcat.viewer.ortho.OrthoView;
@@ -70,8 +73,8 @@ import javafx.scene.layout.HBox;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
 import javafx.stage.WindowEvent;
+import net.imglib2.FinalInterval;
 import net.imglib2.Interval;
-import net.imglib2.Volatile;
 import net.imglib2.converter.Converter;
 import net.imglib2.converter.RealARGBConverter;
 import net.imglib2.interpolation.randomaccess.ClampingNLinearInterpolatorFactory;
@@ -83,6 +86,7 @@ import net.imglib2.type.numeric.IntegerType;
 import net.imglib2.type.numeric.RealType;
 import net.imglib2.type.volatiles.AbstractVolatileRealType;
 import net.imglib2.type.volatiles.VolatileARGBType;
+import net.imglib2.util.Intervals;
 
 public class Atlas
 {
@@ -121,12 +125,14 @@ public class Atlas
 
 	private final ARGBStreamSeedSetter seedSetter;
 
-	public Atlas( final Interval interval, final SharedQueue cellCache )
+	private final SharedQueue cellCache;
+
+	public Atlas( final SharedQueue cellCache )
 	{
-		this( ViewerOptions.options(), interval, cellCache );
+		this( ViewerOptions.options(), cellCache );
 	}
 
-	public Atlas( final ViewerOptions viewerOptions, final Interval interval, final SharedQueue cellCache )
+	public Atlas( final ViewerOptions viewerOptions, final SharedQueue cellCache )
 	{
 		super();
 		this.viewerOptions = viewerOptions
@@ -135,8 +141,9 @@ public class Atlas
 		this.view = new OrthoView( focusHandler.onEnter(), focusHandler.onExit(), new OrthoViewState( this.viewerOptions, sourceInfo.visibility() ), cellCache, keyTracker );
 		this.root = new BorderPane( this.view );
 		this.root.setBottom( status );
+		this.cellCache = cellCache;
 
-		this.renderView = new Viewer3DFX( 100, 100, interval );
+		this.renderView = new Viewer3DFX( 100, 100 );
 		this.controller = new Viewer3DControllerFX( renderView );
 		this.view.setInfoNode( renderView );
 		this.renderView.scene().addEventHandler( MouseEvent.MOUSE_CLICKED, event -> renderView.scene().requestFocus() );
@@ -167,21 +174,6 @@ public class Atlas
 		this.seedSetter = new ARGBStreamSeedSetter( sourceInfo, keyTracker, currentMode );
 		addOnEnterOnExit( this.seedSetter.onEnter(), this.seedSetter.onEnter(), true );
 
-		{
-			final AffineTransform3D tf = new AffineTransform3D();
-			final long[] sums = {
-					interval.max( 0 ) + interval.min( 0 ),
-					interval.max( 1 ) + interval.min( 1 ),
-					interval.max( 2 ) + interval.min( 2 )
-			};
-			tf.translate( Arrays.stream( sums ).mapToDouble( sum -> -0.5 * sum ).toArray() );
-			final ViewerNode vn = this.baseView().getChildren().stream().filter( child -> child instanceof ViewerNode ).map( n -> ( ViewerNode ) n ).findFirst().get();
-			vn.manager().setCanvasSize( 1, 1, true );
-			tf.scale( 1.0 / interval.dimension( 0 ) );
-			vn.manager().setCanvasSize( ( int ) vn.getWidth(), ( int ) vn.getHeight(), true );
-			this.baseView().setTransform( tf );
-		}
-
 		for ( final Node child : this.baseView().getChildren() )
 			if ( child instanceof ViewerNode )
 			{
@@ -201,6 +193,32 @@ public class Atlas
 				this.keyTracker.removeFrom( oldv );
 			if ( newv != null )
 				this.keyTracker.installInto( newv );
+		} );
+
+		this.root.addEventHandler( KeyEvent.KEY_PRESSED, event -> {
+			if ( keyTracker.areOnlyTheseKeysDown( KeyCode.CONTROL, KeyCode.O ) )
+			{
+				final OpenSourceDialog openDialog = new OpenSourceDialog();
+				final Optional< BackendDialog > dataset = openDialog.showAndWait();
+				if ( dataset.isPresent() )
+					switch ( openDialog.getType() )
+					{
+					case RAW:
+
+						try
+						{
+							dataset.get().getRaw( "NAME", cellCache, cellCache.getNumPriorities() - 1 ).ifPresent( source -> addRawSource( source, 0, 255 ) );
+						}
+						catch ( final IOException e )
+						{
+							// TODO Auto-generated catch block
+							e.printStackTrace();
+						}
+						break;
+					default:
+						break;
+					}
+			}
 		} );
 
 	}
@@ -284,6 +302,17 @@ public class Atlas
 
 	private < T, U, V > void addSource( final SourceAndConverter< T > src, final Composite< ARGBType, ARGBType > comp )
 	{
+		if ( sourceInfo.numSources() == 0 )
+		{
+			final double[] min = Arrays.stream( Intervals.minAsLongArray( src.getSpimSource().getSource( 0, 0 ) ) ).mapToDouble( v -> v ).toArray();
+			final double[] max = Arrays.stream( Intervals.maxAsLongArray( src.getSpimSource().getSource( 0, 0 ) ) ).mapToDouble( v -> v ).toArray();
+			final AffineTransform3D affine = new AffineTransform3D();
+			src.getSpimSource().getSourceTransform( 0, 0, affine );
+			affine.apply( min, min );
+			affine.apply( max, max );
+			final FinalInterval interval = new FinalInterval( Arrays.stream( min ).mapToLong( Math::round ).toArray(), Arrays.stream( max ).mapToLong( Math::round ).toArray() );
+			centerForInterval( interval );
+		}
 		this.composites.put( src.getSpimSource(), comp );
 		this.baseView().getState().addSource( src );
 	}
@@ -312,7 +341,7 @@ public class Atlas
 				spec,
 				converter,
 				method -> method.equals( Interpolation.NLINEAR ) ? new ClampingNLinearInterpolatorFactory<>() : new NearestNeighborInterpolatorFactory<>(),
-						new VolatileARGBType( 0 ) );
+				new VolatileARGBType( 0 ) );
 		final ARGBCompositeAlphaYCbCr comp = new ARGBCompositeAlphaYCbCr();
 		final SourceAndConverter< VolatileARGBType > src = new SourceAndConverter<>( vsource, ( s, t ) -> t.set( s.get() ) );
 
@@ -392,7 +421,7 @@ public class Atlas
 				spec,
 				converter,
 				method -> method.equals( Interpolation.NLINEAR ) ? new ClampingNLinearInterpolatorFactory<>() : new NearestNeighborInterpolatorFactory<>(),
-						new VolatileARGBType( 0 ) );
+				new VolatileARGBType( 0 ) );
 		final ARGBCompositeAlphaYCbCr comp = new ARGBCompositeAlphaYCbCr();
 		final SourceAndConverter< VolatileARGBType > src = new SourceAndConverter<>( vsource, ( s, t ) -> t.set( s.get() ) );
 
@@ -452,10 +481,10 @@ public class Atlas
 
 	}
 
-	public < T extends RealType< T >, U extends RealType< U > > void addRawSource( final DataSource< T, ? extends Volatile< U > > spec, final double min, final double max )
+	public < T extends RealType< T >, U extends RealType< U > > void addRawSource( final DataSource< T, U > spec, final double min, final double max )
 	{
 		final RealARGBConverter< U > realARGBConv = new RealARGBConverter<>( min, max );
-		final SourceAndConverter< ? > src = new SourceAndConverter<>( spec, ( s, t ) -> realARGBConv.convert( s.get(), t ) );
+		final SourceAndConverter< ? > src = new SourceAndConverter<>( spec, ( s, t ) -> realARGBConv.convert( s, t ) );
 		final Composite< ARGBType, ARGBType > comp = new ARGBCompositeAlphaAdd();
 		addSource( src, comp );
 
@@ -494,28 +523,28 @@ public class Atlas
 			valueToString = ( Function< T, String > ) Object::toString;
 		else if ( t instanceof IntegerType< ? > )
 			valueToString = ( Function< T, String > ) rt -> String.format( "%d", ( ( IntegerType< ? > ) rt ).getIntegerLong() );
-			else if ( t instanceof RealType< ? > )
-				valueToString = ( Function< T, String > ) rt -> String.format( "%.3f", ( ( RealType< ? > ) rt ).getRealDouble() );
-				else if ( t instanceof LabelMultisetType )
-					valueToString = ( Function< T, String > ) rt -> {
-						final StringBuilder sb = new StringBuilder( "{" );
-						final Iterator< Entry< bdv.labels.labelset.Label > > it = ( ( LabelMultisetType ) rt ).entrySet().iterator();
-						if ( it.hasNext() )
-						{
-							final Entry< bdv.labels.labelset.Label > entry = it.next();
-							sb.append( entry.getElement().id() ).append( ":" ).append( entry.getCount() );
-						}
-						while ( it.hasNext() )
-						{
-							final Entry< bdv.labels.labelset.Label > entry = it.next();
-							sb.append( " " ).append( entry.getElement().id() ).append( ":" ).append( entry.getCount() );
-						}
-						sb.append( "}" );
-						return sb.toString();
-					};
-					else
-						valueToString = rt -> "Do not understand type!";
-						return valueToString;
+		else if ( t instanceof RealType< ? > )
+			valueToString = ( Function< T, String > ) rt -> String.format( "%.3f", ( ( RealType< ? > ) rt ).getRealDouble() );
+		else if ( t instanceof LabelMultisetType )
+			valueToString = ( Function< T, String > ) rt -> {
+				final StringBuilder sb = new StringBuilder( "{" );
+				final Iterator< Entry< bdv.labels.labelset.Label > > it = ( ( LabelMultisetType ) rt ).entrySet().iterator();
+				if ( it.hasNext() )
+				{
+					final Entry< bdv.labels.labelset.Label > entry = it.next();
+					sb.append( entry.getElement().id() ).append( ":" ).append( entry.getCount() );
+				}
+				while ( it.hasNext() )
+				{
+					final Entry< bdv.labels.labelset.Label > entry = it.next();
+					sb.append( " " ).append( entry.getElement().id() ).append( ":" ).append( entry.getCount() );
+				}
+				sb.append( "}" );
+				return sb.toString();
+			};
+		else
+			valueToString = rt -> "Do not understand type!";
+		return valueToString;
 	}
 
 	public void setTransform( final AffineTransform3D transform )
@@ -553,6 +582,24 @@ public class Atlas
 			}
 		}
 		return argMaxLabel;
+	}
+
+	public void centerForInterval( final Interval interval )
+
+	{
+		final AffineTransform3D tf = new AffineTransform3D();
+		final long[] sums = {
+				interval.max( 0 ) + interval.min( 0 ),
+				interval.max( 1 ) + interval.min( 1 ),
+				interval.max( 2 ) + interval.min( 2 )
+		};
+		tf.translate( Arrays.stream( sums ).mapToDouble( sum -> -0.5 * sum ).toArray() );
+		final ViewerNode vn = this.baseView().getChildren().stream().filter( child -> child instanceof ViewerNode ).map( n -> ( ViewerNode ) n ).findFirst().get();
+		vn.manager().setCanvasSize( 1, 1, true );
+		tf.scale( 1.0 / interval.dimension( 0 ) );
+		vn.manager().setCanvasSize( ( int ) vn.getWidth(), ( int ) vn.getHeight(), true );
+		this.baseView().setTransform( tf );
+		this.renderView.setInitialTransformToInterval( interval );
 	}
 
 }

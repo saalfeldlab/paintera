@@ -1,7 +1,5 @@
 package bdv.bigcat.viewer;
 
-import java.util.Arrays;
-
 import com.sun.javafx.application.PlatformImpl;
 
 import bdv.AbstractViewerSetupImgLoader;
@@ -15,7 +13,6 @@ import bdv.viewer.Source;
 import javafx.application.Platform;
 import javafx.stage.Stage;
 import mpicbg.spim.data.sequence.VoxelDimensions;
-import net.imglib2.FinalInterval;
 import net.imglib2.RandomAccessible;
 import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.RealRandomAccessible;
@@ -31,7 +28,6 @@ import net.imglib2.type.numeric.RealType;
 import net.imglib2.type.numeric.integer.UnsignedByteType;
 import net.imglib2.type.volatiles.VolatileARGBType;
 import net.imglib2.type.volatiles.VolatileUnsignedByteType;
-import net.imglib2.util.Intervals;
 import net.imglib2.view.ExtendedRandomAccessibleInterval;
 import net.imglib2.view.Views;
 
@@ -57,17 +53,7 @@ public class ExampleApplicationPape
 		final RandomAccessibleIntervalDataSource< UnsignedByteType, VolatileUnsignedByteType > rawSource =
 				DataSource.createH5RawSource( "raw", rawFile, rawDataset, cellSize, resolution, sharedQueue, numPriorities - 1, UnsignedByteType::new, VolatileUnsignedByteType::new );
 
-		final double[] min = Arrays.stream( Intervals.minAsLongArray( rawSource.getSource( 0, 0 ) ) ).mapToDouble( v -> v ).toArray();
-		final double[] max = Arrays.stream( Intervals.maxAsLongArray( rawSource.getSource( 0, 0 ) ) ).mapToDouble( v -> v ).toArray();
-		final AffineTransform3D affine = new AffineTransform3D();
-		rawSource.getSourceTransform( 0, 0, affine );
-		affine.apply( min, min );
-		affine.apply( max, max );
-
-		final Atlas viewer = new Atlas(
-				new FinalInterval( Arrays.stream( min ).mapToLong( Math::round ).toArray(),
-						Arrays.stream( max ).mapToLong( Math::round ).toArray() ),
-				sharedQueue );
+		final Atlas viewer = new Atlas( sharedQueue );
 
 		Platform.runLater( () -> {
 			final Stage stage = new Stage();

@@ -133,8 +133,14 @@ public class SourceInfo
 		this.visibility.removeListener( listener );
 	}
 
-	public ObservableMap< Source< ? >, Boolean > visibility() {
+	public ObservableMap< Source< ? >, Boolean > visibility()
+	{
 		return this.visibility;
+	}
+
+	public int numSources()
+	{
+		return this.visibility.size();
 	}
 
 }
