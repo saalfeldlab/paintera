@@ -50,10 +50,12 @@ public class ExampleApplicationCremi
 
 		final String USER_HOME = System.getProperty( "user.home" );
 
-		String rawFile = USER_HOME + "/Downloads/sample_A_padded_20160501.hdf";
+		String rawFile = "/groups/saalfeld/home/saalfelds/cremi/sample_C+_padded_20170424.aligned.hdf";
 		String rawDataset = "volumes/raw";
-		String labelsFile = rawFile;
-		String labelsDataset = "volumes/labels/neuron_ids";
+		String labelsFile = "/groups/saalfeld/saalfeldlab/cremi_padded_realigned/BMC_sampleC+_padded_realigned.h5";
+		String labelsDataset = "/data";
+//		String labelsFile = rawFile;
+//		String labelsDataset = "/volumes/labels/neuron_ids";
 
 		double[] resolution = { 4, 4, 40 };
 		int[] rawCellSize = { 192, 96, 7 };

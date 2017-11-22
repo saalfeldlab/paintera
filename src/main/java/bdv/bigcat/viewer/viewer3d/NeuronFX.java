@@ -30,6 +30,7 @@ import javafx.scene.shape.Box;
 import javafx.scene.shape.CullFace;
 import javafx.scene.shape.MeshView;
 import javafx.scene.shape.ObservableFaceArray;
+import javafx.scene.shape.Shape3D;
 import javafx.scene.shape.TriangleMesh;
 import javafx.scene.shape.VertexFormat;
 import net.imglib2.FinalInterval;
@@ -38,12 +39,54 @@ import net.imglib2.Localizable;
 import net.imglib2.Point;
 import net.imglib2.RandomAccessible;
 import net.imglib2.RealPoint;
+import net.imglib2.cache.LoaderCache;
 import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.type.BooleanType;
 import net.imglib2.util.Intervals;
 
 public class NeuronFX
 {
+	public static class ShapeKey
+	{
+		private final long shapeId;
+
+		private final long x;
+		private final long y;
+		private final long z;
+
+		public ShapeKey(
+				final long shapeId,
+				final long x,
+				final long y,
+				final long z )
+		{
+			this.shapeId = shapeId;
+			this.x = x;
+			this.y = y;
+			this.z = z;
+		}
+
+		@Override
+		public int hashCode()
+		{
+			int result = (int) (shapeId ^ (shapeId >>> 32));
+			result = 31 * result + (int) (x ^ (x >>> 32));
+	        result = 31 * result + (int) (y ^ (y >>> 32));
+	        result = 31 * result + (int) (z ^ (z >>> 32));
+	        return result;
+		}
+
+		@Override
+		public boolean equals( final Object other )
+		{
+			if ( other instanceof ShapeKey )
+			{
+				final ShapeKey otherShapeKey = ( ShapeKey )other;
+				return ( shapeId == otherShapeKey.shapeId ) || ( x == otherShapeKey.x ) || ( y == otherShapeKey.y ) || ( z == otherShapeKey.z );
+			}
+			return false;
+		}
+	}
 
 	private static final Logger LOG = LoggerFactory.getLogger( MethodHandles.lookup().lookupClass() );
 
@@ -67,7 +110,7 @@ public class NeuronFX
 
 	private final ObjectProperty< Color > colorProperty = new SimpleObjectProperty<>();
 
-	public NeuronFX( final Interval interval, final Group root )
+	public NeuronFX( final Interval interval, final Group root, final LoaderCache< ShapeKey, Shape3D > shapeCache )
 	{
 		super();
 		this.interval = interval;
