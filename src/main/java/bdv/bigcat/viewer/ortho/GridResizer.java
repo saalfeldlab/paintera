@@ -22,18 +22,6 @@ public class GridResizer
 
 	private boolean mouseWithinResizableRangeY = false;
 
-	private double x;
-
-	private double y;
-
-	private double dragX;
-
-	private double dragY;
-
-	private double dragStartX;
-
-	private double dragStartY;
-
 	private boolean dragging = false;
 
 	public GridResizer( final GridConstraintsManager manager, final double tolerance, final GridPane grid )
@@ -42,11 +30,6 @@ public class GridResizer
 		this.manager = manager;
 		this.tolerance = tolerance;
 		this.grid = grid;
-
-//		this.grid.setOnMouseMoved( new MouseChanged() );
-//		this.grid.setOnMousePressed( new MousePressed() );
-//		this.grid.setOnMouseDragged( new MouseDragged() );
-//		this.grid.setOnMouseClicked( new MouseDoubleClicked() );
 	}
 
 	public EventHandler< MouseEvent > onMouseMovedHandler()
@@ -139,8 +122,6 @@ public class GridResizer
 			if ( dragging )
 			{
 				grid.sceneProperty().get().setCursor( Cursor.CLOSED_HAND );
-				dragStartX = x;
-				dragStartY = y;
 				event.consume();
 			}
 
