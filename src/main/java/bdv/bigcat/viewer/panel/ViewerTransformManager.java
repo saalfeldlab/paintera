@@ -216,9 +216,10 @@ public class ViewerTransformManager implements TransformListener< AffineTransfor
 	private void setUpViewer()
 	{
 
-		final TranslateXY translateXY = new TranslateXY( "drag translate", event -> {
-			return keyTracker.noKeysActive() && event.getButton().equals( MouseButton.SECONDARY );
-		} );
+		final TranslateXY translateXY = new TranslateXY(
+				"drag translate",
+				event -> keyTracker.noKeysActive() && event.getButton().equals( MouseButton.SECONDARY ),
+				event -> keyTracker.noKeysActive() && event.getButton().equals( MouseButton.MIDDLE ) );
 
 		final Rotate[] rotations = {
 				new Rotate( "rotate", rotationSpeed, factors[ 0 ], event -> {
