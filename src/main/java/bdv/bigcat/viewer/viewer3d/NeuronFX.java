@@ -50,17 +50,21 @@ public class NeuronFX
 	{
 		private final long shapeId;
 
+		private final int scaleIndex;
+
 		private final long x;
 		private final long y;
 		private final long z;
 
 		public ShapeKey(
 				final long shapeId,
+				final int scaleIndex,
 				final long x,
 				final long y,
 				final long z )
 		{
 			this.shapeId = shapeId;
+			this.scaleIndex = scaleIndex;
 			this.x = x;
 			this.y = y;
 			this.z = z;
@@ -69,7 +73,8 @@ public class NeuronFX
 		@Override
 		public int hashCode()
 		{
-			int result = (int) (shapeId ^ (shapeId >>> 32));
+			int result = scaleIndex;
+			result = 31 * result + (int) (shapeId ^ (shapeId >>> 32));
 			result = 31 * result + (int) (x ^ (x >>> 32));
 	        result = 31 * result + (int) (y ^ (y >>> 32));
 	        result = 31 * result + (int) (z ^ (z >>> 32));
@@ -110,11 +115,14 @@ public class NeuronFX
 
 	private final ObjectProperty< Color > colorProperty = new SimpleObjectProperty<>();
 
+	private final LoaderCache< ShapeKey, Shape3D > shapeCache;
+
 	public NeuronFX( final Interval interval, final Group root, final LoaderCache< ShapeKey, Shape3D > shapeCache )
 	{
 		super();
 		this.interval = interval;
 		this.root = root;
+		this.shapeCache = shapeCache;
 		meshes.addListener( ( obsv, oldv, newv ) -> {
 			InvokeOnJavaFXApplicationThread.invoke( () -> root.getChildren().remove( oldv ) );
 			if ( newv != null )
@@ -325,6 +333,7 @@ public class NeuronFX
 
 		InvokeOnJavaFXApplicationThread.invoke( () -> meshes.getChildren().add( chunk ) );
 
+//		shapeCache.get( new ShapeKey( shapeId, scaleIndex, x, y, z ), loader );
 		final MarchingCubes< B > mc = new MarchingCubes<>( data, interval, toWorldCoordinates, cubeSize );
 		final float[] vertices = mc.generateMesh();
 
