@@ -82,18 +82,26 @@ public class GridResizer
 
 					if ( mouseWithinResizableRangeX && mouseWithinResizableRangeY )
 					{
-						scene.setCursor( Cursor.OPEN_HAND );// Cursor.NW_RESIZE
+						if ( Double.compare( ( x - gridBorderX ), 0.0 ) < 0 && Double.compare( ( y - gridBorderY ), 0.0 ) < 0 )
+							scene.setCursor( Cursor.SE_RESIZE );
+
+						else if ( Double.compare( ( x - gridBorderX ), 0.0 ) > 0 && Double.compare( ( y - gridBorderY ), 0.0 ) < 0 )
+							scene.setCursor( Cursor.SW_RESIZE );
+
+						else if ( Double.compare( ( x - gridBorderX ), 0.0 ) < 0 && Double.compare( ( y - gridBorderY ), 0.0 ) > 0 )
+							scene.setCursor( Cursor.NE_RESIZE );
+
+						else
+							scene.setCursor( Cursor.NW_RESIZE );
 					}
-															// );
+
 					else if ( mouseWithinResizableRangeX )
 					{
-						scene.setCursor( Cursor.OPEN_HAND );// Cursor.H_RESIZE
-															// );
+						scene.setCursor( Cursor.H_RESIZE );
 					}
 					else if ( mouseWithinResizableRangeY )
 					{
-						scene.setCursor( Cursor.OPEN_HAND );// Cursor.V_RESIZE
-															// );
+						scene.setCursor( Cursor.V_RESIZE );
 					}
 					else
 					{
@@ -121,12 +129,9 @@ public class GridResizer
 			dragging = mouseWithinResizableRangeX || mouseWithinResizableRangeY;
 			if ( dragging )
 			{
-				grid.sceneProperty().get().setCursor( Cursor.CLOSED_HAND );
 				event.consume();
 			}
-
 		}
-
 	}
 
 	private class MouseReleased implements EventHandler< MouseEvent >
