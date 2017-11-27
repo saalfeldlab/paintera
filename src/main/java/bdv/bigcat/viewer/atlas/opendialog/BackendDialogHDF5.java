@@ -5,6 +5,8 @@ import java.io.IOException;
 import java.util.Optional;
 
 import bdv.bigcat.viewer.atlas.data.DataSource;
+import bdv.bigcat.viewer.atlas.data.HDF5LabelMultisetDataSource;
+import bdv.img.cache.VolatileGlobalCellCache;
 import bdv.util.volatiles.SharedQueue;
 import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.SimpleObjectProperty;
@@ -24,30 +26,20 @@ public class BackendDialogHDF5 implements BackendDialog
 {
 	private final SimpleObjectProperty< String > hdf5 = new SimpleObjectProperty<>();
 
-	private final SimpleObjectProperty< String > datasetRaw = new SimpleObjectProperty<>();
-
-	private final SimpleObjectProperty< String > datasetLabel = new SimpleObjectProperty<>();
+	private final SimpleObjectProperty< String > dataset = new SimpleObjectProperty<>();
 
 	private final SimpleObjectProperty< String > error = new SimpleObjectProperty<>();
 
 	{
-		datasetRaw.addListener( ( obs, oldv, newv ) -> {
+		dataset.addListener( ( obs, oldv, newv ) -> {
 			if ( newv != null )
 				error.set( null );
 			else
 				error.set( "No raw dataset" );
 		} );
 
-		datasetLabel.addListener( ( obs, oldv, newv ) -> {
-			if ( newv != null )
-				error.set( null );
-			else
-				error.set( "No label dataset" );
-		} );
-
 		hdf5.set( "" );
-		datasetRaw.set( "" );
-		datasetLabel.set( "" );
+		dataset.set( "" );
 		error.set( "" );
 	}
 
@@ -59,15 +51,10 @@ public class BackendDialogHDF5 implements BackendDialog
 		hdf5Field.setMaxWidth( Double.POSITIVE_INFINITY );
 		hdf5Field.textProperty().bindBidirectional( hdf5 );
 
-		final TextField rawDatasetField = new TextField( datasetRaw.get() );
+		final TextField rawDatasetField = new TextField( dataset.get() );
 		rawDatasetField.setMinWidth( 0 );
 		rawDatasetField.setMaxWidth( Double.POSITIVE_INFINITY );
-		rawDatasetField.textProperty().bindBidirectional( datasetRaw );
-
-		final TextField labelDatasetField = new TextField( datasetLabel.get() );
-		labelDatasetField.setMinWidth( 0 );
-		labelDatasetField.setMaxWidth( Double.POSITIVE_INFINITY );
-		labelDatasetField.textProperty().bindBidirectional( datasetLabel );
+		rawDatasetField.textProperty().bindBidirectional( dataset );
 
 		final GridPane grid = new GridPane();
 		grid.add( new Label( "hdf5" ), 0, 0 );
@@ -105,7 +92,7 @@ public class BackendDialogHDF5 implements BackendDialog
 	public < T extends RealType< T > & NativeType< T >, V extends RealType< V > > Optional< DataSource< T, V > > getRaw( final String name, final SharedQueue sharedQueue, final int priority ) throws IOException
 	{
 		final String rawFile = hdf5.get();
-		final String rawDataset = this.datasetRaw.get();
+		final String rawDataset = this.dataset.get();
 
 		final int[] cellSize = { 192, 96, 7 };
 		final double[] resolution = { 4, 4, 40 };
@@ -116,8 +103,24 @@ public class BackendDialogHDF5 implements BackendDialog
 	@Override
 	public Optional< DataSource< ?, ? > > getLabels( final String name )
 	{
-		// TODO
-		return Optional.empty();
+		final String labelsFile = hdf5.get();
+		final String labelsDataset = this.dataset.get();
+
+		final int[] labelCellSize = { 79, 79, 4 };
+		final VolatileGlobalCellCache cellCache = new VolatileGlobalCellCache( 1, 2 );
+
+		HDF5LabelMultisetDataSource labelSpec2 = null;
+		try
+		{
+			labelSpec2 = new HDF5LabelMultisetDataSource( labelsFile, labelsDataset, labelCellSize, "labels", cellCache, 1 );
+		}
+		catch ( IOException e )
+		{
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+
+		return Optional.of( labelSpec2 );
 	}
 
 }
