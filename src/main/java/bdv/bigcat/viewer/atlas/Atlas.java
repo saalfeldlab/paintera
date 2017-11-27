@@ -215,6 +215,9 @@ public class Atlas
 							e.printStackTrace();
 						}
 						break;
+					case LABEL:
+//						dataset.get().getLabels( "NAME" ).ifPresent( source -> addLabelSource( source ) );
+						break;
 					default:
 						break;
 					}
