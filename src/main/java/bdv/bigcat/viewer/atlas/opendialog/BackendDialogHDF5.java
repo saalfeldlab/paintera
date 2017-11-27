@@ -107,10 +107,10 @@ public class BackendDialogHDF5 implements BackendDialog
 		final String rawFile = hdf5.get();
 		final String rawDataset = this.datasetRaw.get();
 
-		final int[] cellSize = { 1024, 1024, 1 };
+		final int[] cellSize = { 192, 96, 7 };
 		final double[] resolution = { 4, 4, 40 };
 
-		return Optional.empty();
+		return Optional.of( DataSource.createH5RawSource( name, rawFile, rawDataset, cellSize, resolution, sharedQueue, priority ) );
 	}
 
 	@Override

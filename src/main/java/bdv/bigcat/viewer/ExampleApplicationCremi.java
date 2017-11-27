@@ -79,7 +79,7 @@ public class ExampleApplicationCremi
 		final VolatileGlobalCellCache cellCache = new VolatileGlobalCellCache( 1, 2 );
 
 		final RandomAccessibleIntervalDataSource< UnsignedByteType, VolatileUnsignedByteType > rawSource =
-				DataSource.createH5RawSource( "raw", rawFile, rawDataset, rawCellSize, resolution, sharedQueue, numPriorities - 1, UnsignedByteType::new, VolatileUnsignedByteType::new );
+				DataSource.createH5RawSource( "raw", rawFile, rawDataset, rawCellSize, resolution, sharedQueue, numPriorities - 1 );
 
 //		final HDF5UnsignedByteDataSource rawSource = new HDF5UnsignedByteDataSource( rawFile, rawDataset, rawCellSize, resolution, "raw", cellCache, 0 );
 
