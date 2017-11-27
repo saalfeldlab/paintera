@@ -132,7 +132,7 @@ public class RenderNeuron
 							{
 
 								final int[] partitionSize = { 60, 60, 10 };
-								final int[] cubeSize = { 1, 1, 1 };
+								final int[] cubeSize = { 10, 10, 1 };
 
 								final Function getForegroundCheck = toBoolConverter.get();
 								new Thread( () -> {
