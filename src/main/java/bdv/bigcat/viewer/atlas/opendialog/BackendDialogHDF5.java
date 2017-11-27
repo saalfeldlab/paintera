@@ -11,9 +11,6 @@ import bdv.bigcat.viewer.atlas.data.DataSource;
 import bdv.util.volatiles.SharedQueue;
 import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.SimpleObjectProperty;
-import javafx.collections.FXCollections;
-import javafx.collections.ListChangeListener;
-import javafx.collections.ObservableList;
 import javafx.scene.Node;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
@@ -34,19 +31,12 @@ public class BackendDialogHDF5 implements BackendDialog
 
 	private final SimpleObjectProperty< String > error = new SimpleObjectProperty<>();
 
-	private final ObservableList< String > datasetChoices = FXCollections.observableArrayList();
 	{
 		dataset.addListener( ( obs, oldv, newv ) -> {
 			if ( newv != null )
 				error.set( null );
 			else
-				error.set( "No hdf5 dataset found at " + hdf5 + " " + dataset );
-		} );
-
-		datasetChoices.addListener( ( ListChangeListener< String > ) change -> {
-			while ( change.next() )
-				if ( datasetChoices.size() == 0 )
-					error.set( "No datasets found for hdf5 root: " + hdf5.get() );
+				error.set( "No hdf5 dataset" );
 		} );
 
 		hdf5.set( "" );
