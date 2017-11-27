@@ -55,6 +55,7 @@ public class OpenSourceDialog extends Dialog< BackendDialog >
 	private final ObservableMap< BACKEND, BackendDialog > backendInfoDialogs = FXCollections.observableHashMap();
 	{
 		backendInfoDialogs.put( BACKEND.N5, new BackendDialogN5() );
+		backendInfoDialogs.put( BACKEND.HDF5, new BackendDialogHDF5() );
 	}
 
 	public OpenSourceDialog()
@@ -100,6 +101,7 @@ public class OpenSourceDialog extends Dialog< BackendDialog >
 				this.backendDialog.getChildren().setAll( backendDialog.getDialogNode() );
 				this.errorMessage.bind( backendDialog.errorMessage() );
 				this.currentBackend.set( backendDialog );
+				this.getDialogPane().getScene().getWindow().sizeToScene();
 			} );
 		} );
 
