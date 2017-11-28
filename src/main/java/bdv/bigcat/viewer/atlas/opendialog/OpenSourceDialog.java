@@ -56,6 +56,7 @@ public class OpenSourceDialog extends Dialog< BackendDialog >
 	{
 		backendInfoDialogs.put( BACKEND.N5, new BackendDialogN5() );
 		backendInfoDialogs.put( BACKEND.HDF5, new BackendDialogHDF5() );
+		backendInfoDialogs.put( BACKEND.DVID, new BackendDialogDVID() );
 	}
 
 	public OpenSourceDialog()
