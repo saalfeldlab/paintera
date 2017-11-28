@@ -2,7 +2,7 @@
 
 [![Build Status](https://travis-ci.org/ssinhaleite/bigcat.svg?branch=javafx-generic-listeners)](https://travis-ci.org/ssinhaleite/bigcat)
 
-![text](https://www.dropbox.com/s/2l3os5ok80t7kf8/bigcat-20171116.png?dl=0 "BigCat screenshot")
+![screenshot](https://raw.githubusercontent.com/ssinhaleite/bigcat/blob/javafx-generic-listeners/img/bigcat-20171116.png)
 
 ## Dependences
 
