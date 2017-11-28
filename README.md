@@ -2,6 +2,8 @@
 
 [![Build Status](https://travis-ci.org/ssinhaleite/bigcat.svg?branch=javafx-generic-listeners)](https://travis-ci.org/ssinhaleite/bigcat)
 
+![](https://www.dropbox.com/s/2l3os5ok80t7kf8/bigcat-20171116.png "BigCat screenshot")
+
 ## Dependences
 
 * java
