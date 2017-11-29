@@ -58,7 +58,7 @@ public class BackendDialogHDF5 implements BackendDialog
 
 		final GridPane grid = new GridPane();
 		grid.add( new Label( "hdf5" ), 0, 0 );
-		grid.add( new Label( "data set" ), 0, 1 );
+		grid.add( new Label( "data set path" ), 0, 1 );
 		grid.setMinWidth( Region.USE_PREF_SIZE );
 		grid.add( hdf5Field, 1, 0 );
 		grid.add( rawDatasetField, 1, 1 );
