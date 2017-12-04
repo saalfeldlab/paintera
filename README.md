@@ -44,7 +44,7 @@ mvn clean compile assembly:single
 ## Run
 
 ```shell
-java -Xmx16G -jar target/bigcat-0.0.3-SNAPSHOT-jar-with-dependencies.jar
+java -Xmx16G -XX:+UseConcMarkSweepGC -jar target/bigcat-0.0.3-SNAPSHOT-jar-with-dependencies.jar
 ```
 
 or you can download a compiled fat jar from [here](https://www.dropbox.com/s/f82nfc0cbrdmtji/bigcat-0.0.3-SNAPSHOT-jar-with-dependencies-08112017.jar?dl=0).
