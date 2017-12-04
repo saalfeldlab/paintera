@@ -5,6 +5,7 @@ import java.io.IOException;
 import java.util.Optional;
 
 import bdv.bigcat.viewer.atlas.data.DataSource;
+import bdv.bigcat.viewer.atlas.data.HDF5LabelMultisetDataSource;
 import bdv.bigcat.viewer.atlas.data.LabelDataSource;
 import bdv.img.cache.VolatileGlobalCellCache;
 import bdv.util.volatiles.SharedQueue;
@@ -116,19 +117,19 @@ public class BackendDialogHDF5 implements BackendDialog
 		final int[] labelCellSize = { 79, 79, 4 };
 		final VolatileGlobalCellCache cellCache = new VolatileGlobalCellCache( 1, 2 );
 
-//		HDF5LabelMultisetDataSource labelSpec2 = null;
-//		try
-//		{
-//			labelSpec2 = new HDF5LabelMultisetDataSource( labelsFile, labelsDataset, labelCellSize, "labels", cellCache, 1 );
-//		}
-//		catch ( IOException e )
-//		{
-//			// TODO Auto-generated catch block
-//			e.printStackTrace();
-//		}
-//
-//		return Optional.of( labelSpec2 );
-		return Optional.empty();
+		HDF5LabelMultisetDataSource labelSpec2 = null;
+		try
+		{
+			labelSpec2 = new HDF5LabelMultisetDataSource( labelsFile, labelsDataset, labelCellSize, "labels", cellCache, 1 );
+		}
+		catch ( IOException e )
+		{
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+
+		return Optional.of( labelSpec2 );
+
 	}
 
 }
