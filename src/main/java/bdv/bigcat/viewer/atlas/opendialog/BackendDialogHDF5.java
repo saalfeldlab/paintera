@@ -5,7 +5,7 @@ import java.io.IOException;
 import java.util.Optional;
 
 import bdv.bigcat.viewer.atlas.data.DataSource;
-import bdv.bigcat.viewer.atlas.data.HDF5LabelMultisetDataSource;
+import bdv.bigcat.viewer.atlas.data.LabelDataSource;
 import bdv.img.cache.VolatileGlobalCellCache;
 import bdv.util.volatiles.SharedQueue;
 import javafx.beans.property.ObjectProperty;
@@ -87,19 +87,28 @@ public class BackendDialogHDF5 implements BackendDialog
 	}
 
 	@Override
-	public < T extends RealType< T > & NativeType< T >, V extends RealType< V > > Optional< DataSource< T, V > > getRaw( final String name, final SharedQueue sharedQueue, final int priority ) throws IOException
+	public < T extends RealType< T > & NativeType< T >, V extends RealType< V > > Optional< DataSource< T, V > > getRaw(
+			final String name,
+			final double[] resolution,
+			final double[] offset,
+			final SharedQueue sharedQueue,
+			final int priority ) throws IOException
 	{
 		final String rawFile = hdf5.get();
 		final String rawDataset = this.dataset.get();
 
 		final int[] cellSize = { 192, 96, 7 };
-		final double[] resolution = { 4, 4, 40 };
 
 		return Optional.of( DataSource.createH5RawSource( name, rawFile, rawDataset, cellSize, resolution, sharedQueue, priority ) );
 	}
 
 	@Override
-	public Optional< DataSource< ?, ? > > getLabels( final String name )
+	public Optional< LabelDataSource< ?, ? > > getLabels(
+			final String name,
+			final double[] resolution,
+			final double[] offset,
+			final SharedQueue sharedQueue,
+			final int priority ) throws IOException
 	{
 		final String labelsFile = hdf5.get();
 		final String labelsDataset = this.dataset.get();
@@ -107,18 +116,19 @@ public class BackendDialogHDF5 implements BackendDialog
 		final int[] labelCellSize = { 79, 79, 4 };
 		final VolatileGlobalCellCache cellCache = new VolatileGlobalCellCache( 1, 2 );
 
-		HDF5LabelMultisetDataSource labelSpec2 = null;
-		try
-		{
-			labelSpec2 = new HDF5LabelMultisetDataSource( labelsFile, labelsDataset, labelCellSize, "labels", cellCache, 1 );
-		}
-		catch ( IOException e )
-		{
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
-
-		return Optional.of( labelSpec2 );
+//		HDF5LabelMultisetDataSource labelSpec2 = null;
+//		try
+//		{
+//			labelSpec2 = new HDF5LabelMultisetDataSource( labelsFile, labelsDataset, labelCellSize, "labels", cellCache, 1 );
+//		}
+//		catch ( IOException e )
+//		{
+//			// TODO Auto-generated catch block
+//			e.printStackTrace();
+//		}
+//
+//		return Optional.of( labelSpec2 );
+		return Optional.empty();
 	}
 
 }

@@ -3,7 +3,6 @@ package bdv.bigcat.viewer.atlas.opendialog;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URL;
-import java.util.Arrays;
 import java.util.Optional;
 import java.util.function.BiConsumer;
 import java.util.function.Function;
@@ -12,6 +11,7 @@ import java.util.function.LongFunction;
 import org.apache.commons.io.IOUtils;
 
 import bdv.bigcat.viewer.atlas.data.DataSource;
+import bdv.bigcat.viewer.atlas.data.LabelDataSource;
 import bdv.util.volatiles.SharedQueue;
 import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.SimpleObjectProperty;
@@ -82,12 +82,16 @@ public class BackendDialogDVID implements BackendDialog
 	}
 
 	@Override
-	public < T extends RealType< T > & NativeType< T >, V extends RealType< V > > Optional< DataSource< T, V > > getRaw( final String name, final SharedQueue sharedQueue, final int priority ) throws IOException
+	public < T extends RealType< T > & NativeType< T >, V extends RealType< V > > Optional< DataSource< T, V > > getRaw(
+			final String name,
+			final double[] resolution,
+			final double[] offset,
+			final SharedQueue sharedQueue,
+			final int priority ) throws IOException
 	{
 		final String format = dvid.get();
 		// TODO: define information that can be obtained from user
 		final long[] minPoint = { 1728, 1536, 1344 };
-		final long[] offset = Arrays.stream( minPoint ).map( p -> p * 2 ).toArray();
 
 		final Function< Interval, String > addressComposer = interval -> {
 			final String address = String.format(
@@ -113,7 +117,12 @@ public class BackendDialogDVID implements BackendDialog
 	}
 
 	@Override
-	public Optional< DataSource< ?, ? > > getLabels( final String name )
+	public Optional< LabelDataSource< ?, ? > > getLabels(
+			final String name,
+			final double[] resolution,
+			final double[] offset,
+			final SharedQueue sharedQueue,
+			final int priority ) throws IOException
 	{
 		return Optional.empty();
 	}
