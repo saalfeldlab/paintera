@@ -115,6 +115,7 @@ public interface DataSource< D, T > extends Source< T >
 	 * @param n5
 	 * @param rawDataset
 	 * @param resolution
+	 * @param offset
 	 * @param sharedQueue
 	 * @param priority
 	 * @param typeSupplier
@@ -130,6 +131,34 @@ public interface DataSource< D, T > extends Source< T >
 			final SharedQueue sharedQueue,
 			final int priority ) throws IOException
 	{
+		return createN5RawSource( name, n5, dataset, resolution, new double[ resolution.length ], sharedQueue, priority );
+	}
+
+	/**
+	 * Create a primitive single scale level source without visualization
+	 * conversion from an N5 dataset.
+	 *
+	 * @param name
+	 * @param n5
+	 * @param rawDataset
+	 * @param resolution
+	 * @param offset
+	 * @param sharedQueue
+	 * @param priority
+	 * @param typeSupplier
+	 * @param volatileTypeSupplier
+	 * @return
+	 * @throws IOException
+	 */
+	public static < T extends NativeType< T > & NumericType< T >, V extends NumericType< V > > RandomAccessibleIntervalDataSource< T, V > createN5RawSource(
+			final String name,
+			final N5Reader n5,
+			final String dataset,
+			final double[] resolution,
+			final double[] offset,
+			final SharedQueue sharedQueue,
+			final int priority ) throws IOException
+	{
 		final RandomAccessibleInterval< T > raw = N5Utils.openVolatile( n5, dataset );
 		final T t = Util.getTypeFromInterval( raw );
 		@SuppressWarnings( "unchecked" )
@@ -137,9 +166,9 @@ public interface DataSource< D, T > extends Source< T >
 
 		final AffineTransform3D rawTransform = new AffineTransform3D();
 		rawTransform.set(
-				resolution[ 0 ], 0, 0, 0,
-				0, resolution[ 1 ], 0, 0,
-				0, 0, resolution[ 2 ], 0 );
+				resolution[ 0 ], 0, 0, offset[ 0 ],
+				0, resolution[ 1 ], 0, offset[ 1 ],
+				0, 0, resolution[ 2 ], offset[ 2 ] );
 
 		@SuppressWarnings( "unchecked" )
 		final RandomAccessibleIntervalDataSource< T, V > rawSource =

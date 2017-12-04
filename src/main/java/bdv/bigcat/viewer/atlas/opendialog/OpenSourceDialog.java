@@ -1,8 +1,8 @@
 package bdv.bigcat.viewer.atlas.opendialog;
 
+import java.util.Arrays;
 import java.util.Optional;
-
-import com.sun.javafx.application.PlatformImpl;
+import java.util.function.UnaryOperator;
 
 import bdv.bigcat.viewer.util.InvokeOnJavaFXApplicationThread;
 import javafx.beans.property.SimpleObjectProperty;
@@ -14,8 +14,12 @@ import javafx.scene.control.ButtonType;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.Dialog;
 import javafx.scene.control.Label;
+import javafx.scene.control.TextField;
+import javafx.scene.control.TextFormatter;
+import javafx.scene.control.TextFormatter.Change;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.Priority;
+import javafx.scene.layout.Region;
 import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
 
@@ -52,10 +56,24 @@ public class OpenSourceDialog extends Dialog< BackendDialog >
 
 	private final SimpleObjectProperty< BackendDialog > currentBackend = new SimpleObjectProperty<>( new BackendDialogInvalid( BACKEND.N5 ) );
 
+	private final SimpleObjectProperty< String > name = new SimpleObjectProperty<>( "source name" );
+
 	private final ObservableMap< BACKEND, BackendDialog > backendInfoDialogs = FXCollections.observableHashMap();
 	{
 		backendInfoDialogs.put( BACKEND.N5, new BackendDialogN5() );
 	}
+
+	private final TextField resX = new TextField( "1.0" );
+
+	private final TextField resY = new TextField( "1.0" );
+
+	private final TextField resZ = new TextField( "1.0" );
+
+	private final TextField offX = new TextField( "0.0" );
+
+	private final TextField offY = new TextField( "0.0" );
+
+	private final TextField offZ = new TextField( "0.0" );
 
 	public OpenSourceDialog()
 	{
@@ -79,7 +97,10 @@ public class OpenSourceDialog extends Dialog< BackendDialog >
 
 		this.grid = new GridPane();
 		this.backendDialog = new StackPane();
-		this.dialogContent = new VBox( 10, grid, errorInfo );
+		final GridPane resolutionAndOffset = new GridPane();
+		final TextField nameField = new TextField();
+		nameField.textProperty().bindBidirectional( this.name );
+		this.dialogContent = new VBox( 10, nameField, grid, errorInfo, resolutionAndOffset );
 		this.setResizable( true );
 
 		GridPane.setMargin( this.backendDialog, new Insets( 0, 0, 0, 30 ) );
@@ -88,9 +109,6 @@ public class OpenSourceDialog extends Dialog< BackendDialog >
 
 		this.getDialogPane().setContent( dialogContent );
 		final VBox choices = new VBox();
-		backendDialog.widthProperty().addListener( ( obs, oldv, newv ) -> {
-			System.out.println( "CHANGING SIZE TO " + newv );
-		} );
 		this.backendChoice = new ComboBox<>( backendChoices );
 		this.typeChoice = new ComboBox<>( typeChoices );
 
@@ -100,6 +118,55 @@ public class OpenSourceDialog extends Dialog< BackendDialog >
 				this.backendDialog.getChildren().setAll( backendDialog.getDialogNode() );
 				this.errorMessage.bind( backendDialog.errorMessage() );
 				this.currentBackend.set( backendDialog );
+
+				backendDialog.resolutionX().addListener( ( obsRes, oldRes, newRes ) -> {
+					if ( Double.isFinite( newRes.doubleValue() ) )
+						this.resX.setText( newRes.toString() );
+				} );
+
+				backendDialog.resolutionY().addListener( ( obsRes, oldRes, newRes ) -> {
+					if ( Double.isFinite( newRes.doubleValue() ) )
+						this.resY.setText( newRes.toString() );
+				} );
+
+				backendDialog.resolutionZ().addListener( ( obsRes, oldRes, newRes ) -> {
+					if ( Double.isFinite( newRes.doubleValue() ) )
+						this.resZ.setText( newRes.toString() );
+				} );
+
+				backendDialog.offsetX().addListener( ( obsRes, oldRes, newRes ) -> {
+					if ( Double.isFinite( newRes.doubleValue() ) )
+						this.offX.setText( newRes.toString() );
+				} );
+
+				backendDialog.offsetY().addListener( ( obsRes, oldRes, newRes ) -> {
+					if ( Double.isFinite( newRes.doubleValue() ) )
+						this.offY.setText( newRes.toString() );
+				} );
+
+				backendDialog.offsetZ().addListener( ( obsRes, oldRes, newRes ) -> {
+					if ( Double.isFinite( newRes.doubleValue() ) )
+						this.offZ.setText( newRes.toString() );
+				} );
+
+				if ( Double.isFinite( backendDialog.resolutionX().get() ) )
+					this.resX.setText( Double.toString( backendDialog.resolutionX().get() ) );
+
+				if ( Double.isFinite( backendDialog.resolutionY().get() ) )
+					this.resY.setText( Double.toString( backendDialog.resolutionY().get() ) );
+
+				if ( Double.isFinite( backendDialog.resolutionZ().get() ) )
+					this.resZ.setText( Double.toString( backendDialog.resolutionZ().get() ) );
+
+				if ( Double.isFinite( backendDialog.offsetX().get() ) )
+					this.offX.setText( Double.toString( backendDialog.offsetX().get() ) );
+
+				if ( Double.isFinite( backendDialog.resolutionY().get() ) )
+					this.offY.setText( Double.toString( backendDialog.offsetY().get() ) );
+
+				if ( Double.isFinite( backendDialog.resolutionZ().get() ) )
+					this.offZ.setText( Double.toString( backendDialog.offsetZ().get() ) );
+
 			} );
 		} );
 
@@ -111,6 +178,31 @@ public class OpenSourceDialog extends Dialog< BackendDialog >
 		this.grid.add( choices, 0, 0 );
 		this.setResultConverter( button -> button.equals( ButtonType.OK ) ? currentBackend.get() : new BackendDialogInvalid( backendChoice.getValue() ) );
 
+		resX.setTextFormatter( new TextFormatter<>( new DoubleFilter() ) );
+		resY.setTextFormatter( new TextFormatter<>( new DoubleFilter() ) );
+		resZ.setTextFormatter( new TextFormatter<>( new DoubleFilter() ) );
+
+		offX.setTextFormatter( new TextFormatter<>( new DoubleFilter() ) );
+		offY.setTextFormatter( new TextFormatter<>( new DoubleFilter() ) );
+		offZ.setTextFormatter( new TextFormatter<>( new DoubleFilter() ) );
+
+		final Label resolutionLabel = new Label();
+		final Label offsetLabel = new Label();
+		resolutionLabel.minWidthProperty().bindBidirectional( offsetLabel.minWidthProperty() );
+		resolutionLabel.maxWidthProperty().bindBidirectional( offsetLabel.maxWidthProperty() );
+		resolutionLabel.prefWidthProperty().bindBidirectional( offsetLabel.prefWidthProperty() );
+		resolutionLabel.setText( "resolution" );
+		offsetLabel.setText( "offset" );
+		offsetLabel.setMinWidth( Region.USE_PREF_SIZE );
+		resolutionAndOffset.add( resolutionLabel, 0, 0 );
+		resolutionAndOffset.add( offsetLabel, 0, 1 );
+		resolutionAndOffset.add( resX, 1, 0 );
+		resolutionAndOffset.add( resY, 2, 0 );
+		resolutionAndOffset.add( resZ, 3, 0 );
+		resolutionAndOffset.add( offX, 1, 1 );
+		resolutionAndOffset.add( offY, 2, 1 );
+		resolutionAndOffset.add( offZ, 3, 1 );
+
 	}
 
 	public TYPE getType()
@@ -118,13 +210,40 @@ public class OpenSourceDialog extends Dialog< BackendDialog >
 		return typeChoice.getValue();
 	}
 
-	public static void main( final String[] args )
+	public static class DoubleFilter implements UnaryOperator< Change >
 	{
-		PlatformImpl.startup( () -> {} );
-		PlatformImpl.runLater( () -> {
-			final OpenSourceDialog d = new OpenSourceDialog();
-			d.showAndWait();
-		} );
+
+		@Override
+		public Change apply( final Change t )
+		{
+			final String input = t.getText();
+			return input.matches( "\\d*(\\.\\d*)?" ) ? t : null;
+		}
+	}
+
+	public double[] getResolution()
+	{
+		return Arrays
+				.asList( resX, resY, resZ )
+				.stream()
+				.map( res -> res.getText() )
+				.mapToDouble( text -> text.length() > 0 ? Double.parseDouble( text ) : 1.0 )
+				.toArray();
+	}
+
+	public double[] getOffset()
+	{
+		return Arrays
+				.asList( offX, offY, offZ )
+				.stream()
+				.map( res -> res.getText() )
+				.mapToDouble( text -> text.length() > 0 ? Double.parseDouble( text ) : 0.0 )
+				.toArray();
+	}
+
+	public String getName()
+	{
+		return name.get();
 	}
 
 }

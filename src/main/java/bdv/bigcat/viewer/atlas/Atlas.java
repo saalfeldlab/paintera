@@ -206,7 +206,29 @@ public class Atlas
 
 						try
 						{
-							dataset.get().getRaw( "NAME", cellCache, cellCache.getNumPriorities() - 1 ).ifPresent( source -> addRawSource( source, 0, 255 ) );
+							dataset.get().getRaw( openDialog.getName(), openDialog.getResolution(), openDialog.getOffset(), cellCache, cellCache.getNumPriorities() - 1 ).ifPresent( source -> addRawSource( source, 0, 255 ) );
+						}
+						catch ( final IOException e )
+						{
+							e.printStackTrace();
+						}
+						break;
+					case LABEL:
+						try
+						{
+							final Optional< LabelDataSource< ?, ? > > optionalSource = dataset.get().getLabels( openDialog.getName(), openDialog.getResolution(), openDialog.getOffset(), cellCache, cellCache.getNumPriorities() );
+							if ( optionalSource.isPresent() )
+							{
+								final LabelDataSource< ?, ? > source = optionalSource.get();
+								final Object t = source.getDataType();
+								final Object vt = source.getType();
+								if ( t instanceof LabelMultisetType && vt instanceof VolatileLabelMultisetType )
+									this.addLabelSource( ( LabelDataSource< LabelMultisetType, VolatileLabelMultisetType > ) source );
+								else if ( t instanceof IntegerType< ? > && vt instanceof AbstractVolatileRealType< ?, ? > )
+									this.addLabelSource(
+											( LabelDataSource ) source,
+											( ToLongFunction ) ( ToLongFunction< ? extends AbstractVolatileRealType< ? extends IntegerType< ? >, ? > > ) dt -> dt.get().getIntegerLong() );
+							}
 						}
 						catch ( final IOException e )
 						{
@@ -422,7 +444,6 @@ public class Atlas
 		currentMode.addListener( ( obs, oldv, newv ) -> {
 			Optional.ofNullable( newv ).ifPresent( setConverter::accept );
 		} );
-
 		addSource( src, comp );
 		sourceInfo.addLabelSource( vsource, spec.getDataType() instanceof IntegerType ? ToIdConverter.fromIntegerType() : ToIdConverter.fromRealType(), ( Function< I, Converter< I, BoolType > > ) sel -> createBoolConverter( sel, assignment ), assignment, streamsMap, selIdsMap );
 		Optional.ofNullable( currentMode.get() ).ifPresent( setConverter::accept );
