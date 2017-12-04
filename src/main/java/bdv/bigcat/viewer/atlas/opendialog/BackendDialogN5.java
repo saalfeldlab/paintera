@@ -6,18 +6,33 @@ import java.net.URI;
 import java.nio.file.FileSystems;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Optional;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
+import java.util.stream.DoubleStream;
+import java.util.stream.IntStream;
 
+import org.janelia.saalfeldlab.n5.DataType;
 import org.janelia.saalfeldlab.n5.N5FSReader;
 import org.janelia.saalfeldlab.n5.imglib2.N5Utils;
 
+import com.google.gson.JsonElement;
+
 import bdv.bigcat.viewer.atlas.data.DataSource;
+import bdv.bigcat.viewer.atlas.data.LabelDataSource;
+import bdv.bigcat.viewer.atlas.data.LabelDataSourceFromDelegates;
+import bdv.bigcat.viewer.atlas.data.RandomAccessibleIntervalDataSource;
+import bdv.bigcat.viewer.state.FragmentSegmentAssignmentWithHistory;
 import bdv.util.volatiles.SharedQueue;
+import bdv.util.volatiles.VolatileTypeMatcher;
+import bdv.util.volatiles.VolatileViews;
+import gnu.trove.map.hash.TLongLongHashMap;
+import javafx.beans.property.DoubleProperty;
 import javafx.beans.property.ObjectProperty;
+import javafx.beans.property.SimpleDoubleProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.collections.FXCollections;
 import javafx.collections.ListChangeListener;
@@ -30,17 +45,41 @@ import javafx.scene.control.TextField;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.Priority;
 import javafx.stage.DirectoryChooser;
+import net.imglib2.RandomAccessibleInterval;
+import net.imglib2.cache.volatiles.CacheHints;
+import net.imglib2.cache.volatiles.LoadingStrategy;
+import net.imglib2.interpolation.randomaccess.NearestNeighborInterpolatorFactory;
+import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.type.NativeType;
+import net.imglib2.type.numeric.IntegerType;
 import net.imglib2.type.numeric.RealType;
+import net.imglib2.type.volatiles.AbstractVolatileRealType;
+import net.imglib2.util.Util;
 
 public class BackendDialogN5 implements BackendDialog
 {
+
+	private static final String RESOLUTION_KEY = "resolution";
+
+	private static final String OFFSET_KEY = "offset";
 
 	private final SimpleObjectProperty< String > n5 = new SimpleObjectProperty<>();
 
 	private final SimpleObjectProperty< String > dataset = new SimpleObjectProperty<>();
 
 	private final SimpleObjectProperty< String > error = new SimpleObjectProperty<>();
+
+	private final SimpleDoubleProperty resX = new SimpleDoubleProperty( Double.NaN );
+
+	private final SimpleDoubleProperty resY = new SimpleDoubleProperty( Double.NaN );
+
+	private final SimpleDoubleProperty resZ = new SimpleDoubleProperty( Double.NaN );
+
+	private final SimpleDoubleProperty offX = new SimpleDoubleProperty( Double.NaN );
+
+	private final SimpleDoubleProperty offY = new SimpleDoubleProperty( Double.NaN );
+
+	private final SimpleDoubleProperty offZ = new SimpleDoubleProperty( Double.NaN );
 
 	private final ObservableList< String > datasetChoices = FXCollections.observableArrayList();
 	{
@@ -54,6 +93,8 @@ public class BackendDialogN5 implements BackendDialog
 					datasetChoices.add( "" );
 				final URI baseURI = new File( newv ).toURI();
 				datasetChoices.setAll( files.stream().map( File::toURI ).map( baseURI::relativize ).map( URI::getPath ).collect( Collectors.toList() ) );
+				if ( !oldv.equals( newv ) )
+					this.dataset.set( null );
 			}
 			else
 			{
@@ -63,7 +104,28 @@ public class BackendDialogN5 implements BackendDialog
 		} );
 		dataset.addListener( ( obs, oldv, newv ) -> {
 			if ( newv != null )
+			{
 				error.set( null );
+				try
+				{
+					final HashMap< String, JsonElement > attributes = new N5FSReader( n5.get() ).getAttributes( newv );
+					final double[] resolution = attributes.containsKey( RESOLUTION_KEY ) ? IntStream.range( 0, 3 ).mapToDouble( i -> attributes.get( RESOLUTION_KEY ).getAsJsonArray().get( i ).getAsDouble() ).toArray() : DoubleStream.generate( () -> Double.NaN ).limit( 3 ).toArray();
+					resX.set( resolution[ 0 ] );
+					resY.set( resolution[ 1 ] );
+					resZ.set( resolution[ 2 ] );
+
+					final double[] offset = attributes.containsKey( OFFSET_KEY ) ? IntStream.range( 0, 3 ).mapToDouble( i -> attributes.get( OFFSET_KEY ).getAsJsonArray().get( i ).getAsDouble() ).toArray() : DoubleStream.generate( () -> Double.NaN ).limit( 3 ).toArray();
+					offX.set( offset[ 0 ] );
+					offY.set( offset[ 1 ] );
+					offZ.set( offset[ 2 ] );
+
+				}
+				catch ( final IOException e )
+				{
+					// TODO just ignore?
+				}
+
+			}
 			else
 				error.set( "No n5 dataset found at " + n5 + " " + dataset );
 		} );
@@ -121,21 +183,154 @@ public class BackendDialogN5 implements BackendDialog
 	}
 
 	@Override
-	public < T extends RealType< T > & NativeType< T >, V extends RealType< V > > Optional< DataSource< T, V > > getRaw( final String name, final SharedQueue sharedQueue, final int priority ) throws IOException
+	public < T extends RealType< T > & NativeType< T >, V extends RealType< V > > Optional< DataSource< T, V > > getRaw(
+			final String name,
+			final double[] resolution,
+			final double[] offset,
+			final SharedQueue sharedQueue,
+			final int priority ) throws IOException
 	{
 		final String group = n5.get();
 		final N5FSReader reader = new N5FSReader( group );
 		final String dataset = this.dataset.get();
 
-		N5Utils.open( reader, dataset );
-		return Optional.of( DataSource.createN5RawSource( name, reader, dataset, new double[] { 1, 1, 1 }, sharedQueue, priority ) );
+		return Optional.of( DataSource.createN5RawSource( name, reader, dataset, resolution, offset, sharedQueue, priority ) );
 	}
 
 	@Override
-	public Optional< DataSource< ?, ? > > getLabels( final String name )
+	public Optional< LabelDataSource< ?, ? > > getLabels(
+			final String name,
+			final double[] resolution,
+			final double[] offset,
+			final SharedQueue sharedQueue,
+			final int priority ) throws IOException
 	{
-		// TODO
-		return Optional.empty();
+		final String group = n5.get();
+		final N5FSReader reader = new N5FSReader( group );
+		final String dataset = this.dataset.get();
+//		final DataSource< ?, ? > source = DataSource.createN5RawSource( name, reader, dataset, new double[] { 1, 1, 1 }, sharedQueue, priority );
+		final DataType type = reader.getDatasetAttributes( dataset ).getDataType();
+		if ( isLabelType( type ) )
+		{
+			if ( isIntegerType( type ) )
+				return Optional.of( ( LabelDataSource< ?, ? > ) getIntegerTypeSource( name, reader, dataset, resolution, offset, sharedQueue, priority ) );
+			else if ( isLabelMultisetType( type ) )
+				return Optional.empty();
+			else
+				return Optional.empty();
+		}
+		else
+			return Optional.empty();
+	}
+
+	private static final < T extends IntegerType< T > & NativeType< T >, V extends AbstractVolatileRealType< T, V > > LabelDataSource< T, V > getIntegerTypeSource(
+			final String name,
+			final N5FSReader reader,
+			final String dataset,
+			final double[] resolution,
+			final double[] offset,
+			final SharedQueue sharedQueue,
+			final int priority ) throws IOException
+	{
+		final RandomAccessibleInterval< T > raw = N5Utils.openVolatile( reader, dataset );
+		final T t = Util.getTypeFromInterval( raw );
+		@SuppressWarnings( "unchecked" )
+		final V v = ( V ) VolatileTypeMatcher.getVolatileTypeForType( t );
+
+		final AffineTransform3D rawTransform = new AffineTransform3D();
+		rawTransform.set(
+				resolution[ 0 ], 0, 0, offset[ 0 ],
+				0, resolution[ 1 ], 0, offset[ 1 ],
+				0, 0, resolution[ 2 ], offset[ 2 ] );
+
+		@SuppressWarnings( "unchecked" )
+		final RandomAccessibleIntervalDataSource< T, V > source =
+				new RandomAccessibleIntervalDataSource< T, V >(
+						new RandomAccessibleInterval[] { raw },
+						new RandomAccessibleInterval[] { VolatileViews.wrapAsVolatile( raw, sharedQueue, new CacheHints( LoadingStrategy.VOLATILE, priority, true ) ) },
+						new AffineTransform3D[] { rawTransform },
+						interpolation -> new NearestNeighborInterpolatorFactory<>(),
+						interpolation -> new NearestNeighborInterpolatorFactory<>(),
+						t::createVariable,
+						v::createVariable,
+						name );
+		final FragmentSegmentAssignmentWithHistory frag = new FragmentSegmentAssignmentWithHistory( new TLongLongHashMap(), action -> {}, () -> {
+			try
+			{
+				Thread.sleep( 1000 );
+			}
+			catch ( final InterruptedException e )
+			{
+				e.printStackTrace();
+			}
+			return null;
+		} );
+		final LabelDataSourceFromDelegates< T, V > delegated = new LabelDataSourceFromDelegates<>( source, frag );
+		return delegated;
+	}
+
+	private static boolean isLabelType( final DataType type )
+	{
+		return isLabelMultisetType( type ) || isIntegerType( type );
+	}
+
+	private static boolean isLabelMultisetType( final DataType type )
+	{
+		return false;
+	}
+
+	private static boolean isIntegerType( final DataType type )
+	{
+		switch ( type )
+		{
+		case INT8:
+		case INT16:
+		case INT32:
+		case INT64:
+		case UINT8:
+		case UINT16:
+		case UINT32:
+		case UINT64:
+			return true;
+		default:
+			return false;
+		}
+	}
+
+	@Override
+	public DoubleProperty resolutionX()
+	{
+		return this.resX;
+	}
+
+	@Override
+	public DoubleProperty resolutionY()
+	{
+		return this.resY;
+	}
+
+	@Override
+	public DoubleProperty resolutionZ()
+	{
+		return this.resZ;
+	}
+
+	@Override
+	public DoubleProperty offsetX()
+	{
+		return this.offX;
+	}
+
+	@Override
+	public DoubleProperty offsetY()
+	{
+		return this.offY;
+	}
+
+	@Override
+	public DoubleProperty offsetZ()
+	{
+		return this.offZ;
 	}
 
 }

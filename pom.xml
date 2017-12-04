@@ -217,7 +217,7 @@
 				<configuration>
 					<archive>
 						<manifest>
-							<mainClass>bdv.bigcat.viewer.ExampleApplicationCremi</mainClass>
+							<mainClass>bdv.bigcat.viewer.atlas.AtlasApp</mainClass>
 						</manifest>
 					</archive>
 					<descriptorRefs>

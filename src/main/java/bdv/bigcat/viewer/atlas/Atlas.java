@@ -55,7 +55,6 @@ import bdv.viewer.Interpolation;
 import bdv.viewer.Source;
 import bdv.viewer.SourceAndConverter;
 import bdv.viewer.ViewerOptions;
-import javafx.application.Application;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.event.EventHandler;
 import javafx.scene.Node;
@@ -207,16 +206,35 @@ public class Atlas
 
 						try
 						{
-							dataset.get().getRaw( "NAME", cellCache, cellCache.getNumPriorities() - 1 ).ifPresent( source -> addRawSource( source, 0, 255 ) );
+							dataset.get().getRaw( openDialog.getName(), openDialog.getResolution(), openDialog.getOffset(), cellCache, cellCache.getNumPriorities() - 1 ).ifPresent( source -> addRawSource( source, 0, 255 ) );
+						}
+						catch ( final IOException e )
+						{
+							e.printStackTrace();
+						}
+						break;
+					case LABEL:
+						try
+						{
+							final Optional< LabelDataSource< ?, ? > > optionalSource = dataset.get().getLabels( openDialog.getName(), openDialog.getResolution(), openDialog.getOffset(), cellCache, cellCache.getNumPriorities() );
+							if ( optionalSource.isPresent() )
+							{
+								final LabelDataSource< ?, ? > source = optionalSource.get();
+								final Object t = source.getDataType();
+								final Object vt = source.getType();
+								if ( t instanceof LabelMultisetType && vt instanceof VolatileLabelMultisetType )
+									this.addLabelSource( ( LabelDataSource< LabelMultisetType, VolatileLabelMultisetType > ) source );
+								else if ( t instanceof IntegerType< ? > && vt instanceof AbstractVolatileRealType< ?, ? > )
+									this.addLabelSource(
+											( LabelDataSource ) source,
+											( ToLongFunction ) ( ToLongFunction< ? extends AbstractVolatileRealType< ? extends IntegerType< ? >, ? > > ) dt -> dt.get().getIntegerLong() );
+							}
 						}
 						catch ( final IOException e )
 						{
 							// TODO Auto-generated catch block
 							e.printStackTrace();
 						}
-						break;
-					case LABEL:
-//						dataset.get().getLabels( "NAME" ).ifPresent( source -> addLabelSource( source ) );
 						break;
 					default:
 						break;
@@ -255,19 +273,6 @@ public class Atlas
 						WindowEvent.WINDOW_CLOSE_REQUEST ) ) );
 
 		primaryStage.show();
-
-		// test the look and feel with both Caspian and Modena
-		Application.setUserAgentStylesheet( Application.STYLESHEET_CASPIAN );
-//		Application.setUserAgentStylesheet( Application.STYLESHEET_MODENA );
-		// initialize the default styles for the dock pane and undocked nodes
-		// using the DockFX
-		// library's internal Default.css stylesheet
-		// unlike other custom control libraries this allows the user to
-		// override them globally
-		// using the style manager just as they can with internal JavaFX
-		// controls
-		// this must be called after the primary stage is shown
-		// https://bugs.openjdk.java.net/browse/JDK-8132900
 
 	}
 
@@ -438,7 +443,6 @@ public class Atlas
 		currentMode.addListener( ( obs, oldv, newv ) -> {
 			Optional.ofNullable( newv ).ifPresent( setConverter::accept );
 		} );
-
 		addSource( src, comp );
 		sourceInfo.addLabelSource( vsource, spec.getDataType() instanceof IntegerType ? ToIdConverter.fromIntegerType() : ToIdConverter.fromRealType(), ( Function< I, Converter< I, BoolType > > ) sel -> createBoolConverter( sel, assignment ), assignment, streamsMap, selIdsMap );
 		Optional.ofNullable( currentMode.get() ).ifPresent( setConverter::accept );

@@ -157,6 +157,8 @@ public class HDF5LabelMultisetDataSource implements LabelDataSource< LabelMultis
 		@Override
 		public void convert( final VolatileLabelMultisetType input, final ARGBType output )
 		{
+			// TODO this needs to use all LabelMultisetType, not just first
+			// entry
 			final Iterator< Entry< Label > > it = input.get().entrySet().iterator();
 			output.set( stream.argb( it.hasNext() ? considerMaxUnsignedInt( it.next().getElement().id() ) : Label.INVALID ) );
 		}
