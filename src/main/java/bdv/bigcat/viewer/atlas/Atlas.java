@@ -126,6 +126,8 @@ public class Atlas
 
 	private final SharedQueue cellCache;
 
+	private final SourceTabs sourceTabs;
+
 	public Atlas( final SharedQueue cellCache )
 	{
 		this( ViewerOptions.options(), cellCache );
@@ -138,8 +140,13 @@ public class Atlas
 				.accumulateProjectorFactory( new ClearingCompositeProjectorFactory<>( composites, new ARGBType() ) )
 				.numRenderingThreads( Math.min( 3, Math.max( 1, Runtime.getRuntime().availableProcessors() / 3 ) ) );
 		this.view = new OrthoView( focusHandler.onEnter(), focusHandler.onExit(), new OrthoViewState( this.viewerOptions, sourceInfo.visibility() ), cellCache, keyTracker );
+		this.sourceTabs = new SourceTabs(
+				this.view.getState().getSourcesSynchronizedCopy(),
+				this.view.getState().currentSourceIndexProperty(),
+				source -> this.view.getState().removeSource( source ) );
 		this.root = new BorderPane( this.view );
 		this.root.setBottom( status );
+		this.root.setTop( this.sourceTabs.getTabs() );
 		this.cellCache = cellCache;
 
 		this.renderView = new Viewer3DFX( 100, 100 );
@@ -239,6 +246,14 @@ public class Atlas
 					default:
 						break;
 					}
+			}
+		} );
+
+		this.root.addEventHandler( KeyEvent.KEY_PRESSED, event -> {
+			if ( keyTracker.areOnlyTheseKeysDown( KeyCode.ALT, KeyCode.S ) )
+			{
+				this.root.setTop( this.root.getTop() == null ? this.sourceTabs.getTabs() : null );
+				event.consume();
 			}
 		} );
 

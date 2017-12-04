@@ -11,6 +11,8 @@ import bdv.viewer.Interpolation;
 import bdv.viewer.Source;
 import bdv.viewer.SourceAndConverter;
 import bdv.viewer.ViewerOptions;
+import javafx.beans.property.ReadOnlyIntegerProperty;
+import javafx.beans.property.SimpleIntegerProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.value.ChangeListener;
 import javafx.collections.FXCollections;
@@ -38,6 +40,8 @@ public class OrthoViewState
 
 	protected final SimpleObjectProperty< Optional< Source< ? > > > currentSource = new SimpleObjectProperty<>( Optional.empty() );
 
+	protected final SimpleIntegerProperty currentSourceIndex = new SimpleIntegerProperty( -1 );
+
 	protected final ObservableMap< Source< ? >, Boolean > visibility;
 
 	public OrthoViewState( final ObservableMap< Source< ? >, Boolean > visibility )
@@ -63,6 +67,15 @@ public class OrthoViewState
 		this.converters = new ArrayList<>();
 		this.converters.addAll( converters );
 		this.visibility = visibility;
+		this.currentSource.addListener( ( obs, oldv, newv ) -> {
+			if ( newv.isPresent() )
+				for ( int i = 0; i < sacs.size(); ++i )
+					if ( sacs.get( i ).getSpimSource() == newv.get() )
+					{
+						this.currentSourceIndex.set( i );
+						break;
+					}
+		} );
 	}
 
 	protected void trackConverters( final ObservableList< SourceAndConverter< ? > > list )
@@ -125,6 +138,16 @@ public class OrthoViewState
 		return new ArrayList<>( sacs );
 	}
 
+	public synchronized ObservableList< SourceAndConverter< ? > > getSourcesSynchronizedCopy()
+	{
+		final ObservableList< SourceAndConverter< ? > > list = FXCollections.observableArrayList();
+		sacs.addListener( ( ListChangeListener< SourceAndConverter< ? > > ) change -> {
+			while ( change.next() )
+				list.setAll( change.getList() );
+		} );
+		return list;
+	}
+
 	public void toggleInterpolation()
 	{
 		switch ( this.interpolation.get() )
@@ -149,6 +172,11 @@ public class OrthoViewState
 	public GlobalTransformManager transformManager()
 	{
 		return this.globalTransform;
+	}
+
+	public ReadOnlyIntegerProperty currentSourceIndexProperty()
+	{
+		return this.currentSourceIndex;
 	}
 
 }
