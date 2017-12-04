@@ -55,7 +55,6 @@ import bdv.viewer.Interpolation;
 import bdv.viewer.Source;
 import bdv.viewer.SourceAndConverter;
 import bdv.viewer.ViewerOptions;
-import javafx.application.Application;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.event.EventHandler;
 import javafx.scene.Node;
@@ -254,19 +253,6 @@ public class Atlas
 		primaryStage.show();
 
 		new Thread( controller::init ).start();
-		// test the look and feel with both Caspian and Modena
-		Application.setUserAgentStylesheet( Application.STYLESHEET_CASPIAN );
-//		Application.setUserAgentStylesheet( Application.STYLESHEET_MODENA );
-		// initialize the default styles for the dock pane and undocked nodes
-		// using the DockFX
-		// library's internal Default.css stylesheet
-		// unlike other custom control libraries this allows the user to
-		// override them globally
-		// using the style manager just as they can with internal JavaFX
-		// controls
-		// this must be called after the primary stage is shown
-		// https://bugs.openjdk.java.net/browse/JDK-8132900
-
 	}
 
 	private final EventHandler< WindowEvent > confirmCloseEventHandler = event -> {
