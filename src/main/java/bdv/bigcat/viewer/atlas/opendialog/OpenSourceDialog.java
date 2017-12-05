@@ -22,9 +22,12 @@ import javafx.scene.layout.GridPane;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
+import javafx.scene.paint.Color;
 
 public class OpenSourceDialog extends Dialog< BackendDialog > implements CombinesErrorMessages
 {
+
+	public static Color TEXTFIELD_ERROR = Color.ORANGE;
 
 	public static enum BACKEND
 	{
