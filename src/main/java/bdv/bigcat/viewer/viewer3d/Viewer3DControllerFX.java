@@ -52,9 +52,6 @@ public class Viewer3DControllerFX
 		this.viewer3D = viewer;
 	}
 
-	public void init()
-	{}
-
 	public synchronized < T extends Type< T >, F extends FragmentSegmentAssignmentState< F > > void generateMesh(
 			final RandomAccessible< T > volumeLabels,
 			final Interval interval,

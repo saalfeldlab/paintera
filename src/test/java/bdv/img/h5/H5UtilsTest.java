@@ -139,5 +139,4 @@ public class H5UtilsTest
 		for ( final long expectedValue : expected.toArray() )
 			assertTrue( "loaded expected value '" + expectedValue + "' does not exist.", test.contains( expectedValue ) );
 	}
-
 }

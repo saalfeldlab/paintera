@@ -56,6 +56,7 @@ public class OpenSourceDialog extends Dialog< BackendDialog >
 	private final ObservableMap< BACKEND, BackendDialog > backendInfoDialogs = FXCollections.observableHashMap();
 	{
 		backendInfoDialogs.put( BACKEND.N5, new BackendDialogN5() );
+		backendInfoDialogs.put( BACKEND.HDF5, new BackendDialogHDF5() );
 	}
 
 	private final MetaPanel metaPanel = new MetaPanel();
@@ -79,6 +80,7 @@ public class OpenSourceDialog extends Dialog< BackendDialog >
 				this.errorInfo.setText( newv );
 			}
 		} );
+
 
 		this.grid = new GridPane();
 		this.backendDialog = new StackPane();
@@ -122,6 +124,10 @@ public class OpenSourceDialog extends Dialog< BackendDialog >
 		this.grid.add( choices, 0, 0 );
 		this.setResultConverter( button -> button.equals( ButtonType.OK ) ? currentBackend.get() : new BackendDialogInvalid( backendChoice.getValue() ) );
 
+		this.typeChoice.valueProperty().addListener( ( obs, oldv, newv ) -> {
+			final BackendDialog backendDialog = backendInfoDialogs.get( backendChoice.getValue() );
+			backendDialog.typeChanged( newv );
+		} );
 	}
 
 	public TYPE getType()

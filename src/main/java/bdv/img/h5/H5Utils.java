@@ -13,6 +13,7 @@ import java.io.File;
 import java.io.IOException;
 import java.lang.invoke.MethodHandles;
 import java.util.Arrays;
+import java.util.List;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -1680,6 +1681,27 @@ public class H5Utils
 		final T t = loadAttribute( reader, object, attribute );
 		reader.close();
 		return t;
+	}
+
+	static public void getAllDatasetPaths(
+			final IHDF5Reader reader,
+			final String object,
+			List< String > paths )
+	{
+		List< String > allPaths = null;
+
+		if ( reader.object().isDataSet( object ) )
+		{
+			paths.add( object );
+		}
+		else
+		{
+			allPaths = reader.getGroupMembers( object );
+			for ( int j = 0; j < allPaths.size(); j++ )
+			{
+				getAllDatasetPaths( reader, object.concat( allPaths.get( j ) ).concat( "/" ), paths );
+			}
+		}
 	}
 
 	/**

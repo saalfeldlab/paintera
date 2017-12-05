@@ -157,8 +157,6 @@ public class RenderNeuron
 
 								final int[] cubeSize = { stepSizeX, stepSizeY, stepSizeZ };
 
-
-
 								final Function getForegroundCheck = toBoolConverter.get();
 								new Thread( () -> {
 									v3dControl.generateMesh(

@@ -5,6 +5,7 @@ import java.util.Optional;
 
 import bdv.bigcat.viewer.atlas.data.DataSource;
 import bdv.bigcat.viewer.atlas.data.LabelDataSource;
+import bdv.bigcat.viewer.atlas.opendialog.OpenSourceDialog.TYPE;
 import bdv.util.volatiles.SharedQueue;
 import javafx.beans.property.DoubleProperty;
 import javafx.beans.property.ObjectProperty;
@@ -79,6 +80,9 @@ public interface BackendDialog
 	{
 		return new SimpleDoubleProperty( Double.NaN );
 	}
+
+	public default void typeChanged( TYPE type )
+	{}
 
 //	TODO
 //	public DataSource< ?, ? > getChannels();
