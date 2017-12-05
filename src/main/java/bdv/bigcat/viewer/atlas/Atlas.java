@@ -33,6 +33,7 @@ import bdv.bigcat.viewer.atlas.mode.Mode;
 import bdv.bigcat.viewer.atlas.mode.ModeUtil;
 import bdv.bigcat.viewer.atlas.mode.NavigationOnly;
 import bdv.bigcat.viewer.atlas.opendialog.BackendDialog;
+import bdv.bigcat.viewer.atlas.opendialog.MetaPanel;
 import bdv.bigcat.viewer.atlas.opendialog.OpenSourceDialog;
 import bdv.bigcat.viewer.bdvfx.KeyTracker;
 import bdv.bigcat.viewer.bdvfx.ViewerPanelFX;
@@ -207,13 +208,20 @@ public class Atlas
 				final OpenSourceDialog openDialog = new OpenSourceDialog();
 				final Optional< BackendDialog > dataset = openDialog.showAndWait();
 				if ( dataset.isPresent() )
+				{
+					final MetaPanel meta = openDialog.getMeta();
 					switch ( openDialog.getType() )
 					{
 					case RAW:
 
 						try
 						{
-							dataset.get().getRaw( openDialog.getName(), openDialog.getResolution(), openDialog.getOffset(), cellCache, cellCache.getNumPriorities() - 1 ).ifPresent( source -> addRawSource( source, 0, 255 ) );
+							final double min = meta.min();
+							final double max = meta.max();
+							dataset
+									.get()
+									.getRaw( openDialog.getName(), meta.getResolution(), meta.getOffset(), cellCache, cellCache.getNumPriorities() - 1 )
+									.ifPresent( source -> addRawSource( source, Double.isFinite( min ) ? min : getTypeMin( source.getType() ), Double.isFinite( max ) ? max : getTypeMax( source.getType() ) ) );
 						}
 						catch ( final IOException e )
 						{
@@ -223,7 +231,7 @@ public class Atlas
 					case LABEL:
 						try
 						{
-							final Optional< LabelDataSource< ?, ? > > optionalSource = dataset.get().getLabels( openDialog.getName(), openDialog.getResolution(), openDialog.getOffset(), cellCache, cellCache.getNumPriorities() );
+							final Optional< LabelDataSource< ?, ? > > optionalSource = dataset.get().getLabels( openDialog.getName(), meta.getResolution(), meta.getOffset(), cellCache, cellCache.getNumPriorities() );
 							if ( optionalSource.isPresent() )
 							{
 								final LabelDataSource< ?, ? > source = optionalSource.get();
@@ -246,6 +254,7 @@ public class Atlas
 					default:
 						break;
 					}
+				}
 			}
 		} );
 
@@ -623,6 +632,24 @@ public class Atlas
 		vn.manager().setCanvasSize( ( int ) vn.getWidth(), ( int ) vn.getHeight(), true );
 		this.baseView().setTransform( tf );
 		this.renderView.setInitialTransformToInterval( interval );
+	}
+
+	private static < T extends RealType< T > > double getTypeMin( final T t )
+	{
+		if ( t instanceof IntegerType< ? > )
+			return t.getMinValue();
+		else if ( t instanceof AbstractVolatileRealType< ?, ? > && ( ( AbstractVolatileRealType< ?, ? > ) t ).get() instanceof IntegerType< ? > )
+			return t.getMinValue();
+		return 0.0;
+	}
+
+	private static < T extends RealType< T > > double getTypeMax( final T t )
+	{
+		if ( t instanceof IntegerType< ? > )
+			return t.getMaxValue();
+		else if ( t instanceof AbstractVolatileRealType< ?, ? > && ( ( AbstractVolatileRealType< ?, ? > ) t ).get() instanceof IntegerType< ? > )
+			return t.getMaxValue();
+		return 1.0;
 	}
 
 }

@@ -40,7 +40,6 @@ import javafx.collections.ObservableList;
 import javafx.scene.Node;
 import javafx.scene.control.Button;
 import javafx.scene.control.ComboBox;
-import javafx.scene.control.Label;
 import javafx.scene.control.TextField;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.Priority;
@@ -63,6 +62,10 @@ public class BackendDialogN5 implements BackendDialog
 
 	private static final String OFFSET_KEY = "offset";
 
+	private static final String MIN_KEY = "min";
+
+	private static final String MAX_KEY = "max";
+
 	private final SimpleObjectProperty< String > n5 = new SimpleObjectProperty<>();
 
 	private final SimpleObjectProperty< String > dataset = new SimpleObjectProperty<>();
@@ -80,6 +83,10 @@ public class BackendDialogN5 implements BackendDialog
 	private final SimpleDoubleProperty offY = new SimpleDoubleProperty( Double.NaN );
 
 	private final SimpleDoubleProperty offZ = new SimpleDoubleProperty( Double.NaN );
+
+	private final SimpleDoubleProperty min = new SimpleDoubleProperty( Double.NaN );
+
+	private final SimpleDoubleProperty max = new SimpleDoubleProperty( Double.NaN );
 
 	private final ObservableList< String > datasetChoices = FXCollections.observableArrayList();
 	{
@@ -119,6 +126,9 @@ public class BackendDialogN5 implements BackendDialog
 					offY.set( offset[ 1 ] );
 					offZ.set( offset[ 2 ] );
 
+					min.set( attributes.containsKey( MIN_KEY ) ? attributes.get( MIN_KEY ).getAsDouble() : Double.NaN );
+					max.set( attributes.containsKey( MAX_KEY ) ? attributes.get( MAX_KEY ).getAsDouble() : Double.NaN );
+
 				}
 				catch ( final IOException e )
 				{
@@ -143,17 +153,18 @@ public class BackendDialogN5 implements BackendDialog
 		final TextField n5Field = new TextField( n5.get() );
 		n5Field.setMinWidth( 0 );
 		n5Field.setMaxWidth( Double.POSITIVE_INFINITY );
-		final ComboBox< String > datasetDropDown = new ComboBox<>( datasetChoices );
+		n5Field.setPromptText( "n5 group" );
 		n5Field.textProperty().bindBidirectional( n5 );
+		final ComboBox< String > datasetDropDown = new ComboBox<>( datasetChoices );
+		datasetDropDown.setPromptText( "Choose Dataset..." );
+		datasetDropDown.setEditable( false );
 		datasetDropDown.valueProperty().bindBidirectional( dataset );
 		datasetDropDown.setMinWidth( n5Field.getMinWidth() );
 		datasetDropDown.setPrefWidth( n5Field.getPrefWidth() );
 		datasetDropDown.setMaxWidth( n5Field.getMaxWidth() );
 		final GridPane grid = new GridPane();
-		grid.add( new Label( "n5" ), 0, 0 );
-		grid.add( new Label( "data set" ), 0, 1 );
-		grid.add( n5Field, 1, 0 );
-		grid.add( datasetDropDown, 1, 1 );
+		grid.add( n5Field, 0, 0 );
+		grid.add( datasetDropDown, 0, 1 );
 		GridPane.setHgrow( n5Field, Priority.ALWAYS );
 		GridPane.setHgrow( datasetDropDown, Priority.ALWAYS );
 		final Button button = new Button( "Browse" );
@@ -164,7 +175,7 @@ public class BackendDialogN5 implements BackendDialog
 			final File directory = directoryChooser.showDialog( grid.getScene().getWindow() );
 			Optional.ofNullable( directory ).map( File::getAbsolutePath ).ifPresent( n5::set );
 		} );
-		grid.add( button, 2, 0 );
+		grid.add( button, 1, 0 );
 		return grid;
 	}
 
@@ -331,6 +342,18 @@ public class BackendDialogN5 implements BackendDialog
 	public DoubleProperty offsetZ()
 	{
 		return this.offZ;
+	}
+
+	@Override
+	public DoubleProperty min()
+	{
+		return this.min;
+	}
+
+	@Override
+	public DoubleProperty max()
+	{
+		return this.max;
 	}
 
 }
