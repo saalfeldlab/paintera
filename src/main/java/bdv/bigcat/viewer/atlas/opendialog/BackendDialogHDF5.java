@@ -2,18 +2,28 @@ package bdv.bigcat.viewer.atlas.opendialog;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 import bdv.bigcat.viewer.atlas.data.DataSource;
 import bdv.bigcat.viewer.atlas.data.HDF5LabelMultisetDataSource;
 import bdv.bigcat.viewer.atlas.data.LabelDataSource;
 import bdv.img.cache.VolatileGlobalCellCache;
+import bdv.img.h5.H5Utils;
 import bdv.util.volatiles.SharedQueue;
+import ch.systemsx.cisd.hdf5.HDF5Factory;
+import ch.systemsx.cisd.hdf5.IHDF5Reader;
 import javafx.beans.property.ObjectProperty;
+import javafx.beans.property.SimpleDoubleProperty;
 import javafx.beans.property.SimpleObjectProperty;
+import javafx.collections.FXCollections;
+import javafx.collections.ListChangeListener;
+import javafx.collections.ObservableList;
 import javafx.scene.Node;
 import javafx.scene.control.Button;
-import javafx.scene.control.Label;
+import javafx.scene.control.ComboBox;
 import javafx.scene.control.TextField;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.Priority;
@@ -31,17 +41,58 @@ public class BackendDialogHDF5 implements BackendDialog
 
 	private final SimpleObjectProperty< String > error = new SimpleObjectProperty<>();
 
-	{
-		dataset.addListener( ( obs, oldv, newv ) -> {
-			if ( newv != null )
-				error.set( null );
-			else
-				error.set( "No raw dataset" );
-		} );
+	private final SimpleDoubleProperty resX = new SimpleDoubleProperty( Double.NaN );
 
+	private final SimpleDoubleProperty resY = new SimpleDoubleProperty( Double.NaN );
+
+	private final SimpleDoubleProperty resZ = new SimpleDoubleProperty( Double.NaN );
+
+	private final SimpleDoubleProperty offX = new SimpleDoubleProperty( Double.NaN );
+
+	private final SimpleDoubleProperty offY = new SimpleDoubleProperty( Double.NaN );
+
+	private final SimpleDoubleProperty offZ = new SimpleDoubleProperty( Double.NaN );
+
+	private final ObservableList< String > datasetChoices = FXCollections.observableArrayList();
+	{
 		hdf5.set( "" );
 		dataset.set( "" );
 		error.set( "" );
+
+		hdf5.addListener( ( obs, oldv, newv ) -> {
+			if ( newv != null && new File( newv ).exists() )
+			{
+				this.error.set( null );
+				IHDF5Reader reader = HDF5Factory.openForReading( newv );
+				List< String > paths = new ArrayList< String >();
+				H5Utils.getAllDatasets( reader, "/", paths );
+
+				if ( datasetChoices.size() == 0 )
+					datasetChoices.add( "" );
+
+				datasetChoices.setAll( paths.stream().collect( Collectors.toList() ) );
+				if ( !oldv.equals( newv ) )
+					this.dataset.set( null );
+			}
+			else
+			{
+				datasetChoices.clear();
+				error.set( "No valid sources for hdf5 file." );
+			}
+		} );
+
+		datasetChoices.addListener( ( ListChangeListener< String > ) change -> {
+			while ( change.next() )
+				if ( datasetChoices.size() == 0 )
+					error.set( "No datasets found for hdf file: " + hdf5.get() );
+		} );
+
+//		dataset.addListener( ( obs, oldv, newv ) -> {
+//			if ( newv != null )
+//				error.set( null );
+//			else
+//				error.set( "No dataset" );
+//		} );
 	}
 
 	@Override
@@ -50,23 +101,22 @@ public class BackendDialogHDF5 implements BackendDialog
 		final TextField hdf5Field = new TextField( hdf5.get() );
 		hdf5Field.setMinWidth( 0 );
 		hdf5Field.setMaxWidth( Double.POSITIVE_INFINITY );
+		hdf5Field.setPromptText( "hdf file" );
 		hdf5Field.textProperty().bindBidirectional( hdf5 );
 
-		final TextField rawDatasetField = new TextField( dataset.get() );
-		rawDatasetField.setMinWidth( 0 );
-		rawDatasetField.setMaxWidth( Double.POSITIVE_INFINITY );
-		rawDatasetField.textProperty().bindBidirectional( dataset );
+		final ComboBox< String > datasetDropDown = new ComboBox<>( datasetChoices );
+		datasetDropDown.setPromptText( "Choose Dataset..." );
+		datasetDropDown.setEditable( false );
+		datasetDropDown.valueProperty().bindBidirectional( dataset );
+		datasetDropDown.setMinWidth( hdf5Field.getMinWidth() );
+		datasetDropDown.setPrefWidth( hdf5Field.getPrefWidth() );
+		datasetDropDown.setMaxWidth( hdf5Field.getMaxWidth() );
 
 		final GridPane grid = new GridPane();
-		grid.add( new Label( "hdf5" ), 0, 0 );
-		grid.add( new Label( "data set path" ), 0, 1 );
-		grid.setMinWidth( Region.USE_PREF_SIZE );
-		grid.add( hdf5Field, 1, 0 );
-		grid.add( rawDatasetField, 1, 1 );
-		grid.setHgap( 10 );
-
+		grid.add( hdf5Field, 0, 0 );
+		grid.add( datasetDropDown, 0, 1 );
 		GridPane.setHgrow( hdf5Field, Priority.ALWAYS );
-		GridPane.setHgrow( rawDatasetField, Priority.ALWAYS );
+		GridPane.setHgrow( datasetDropDown, Priority.ALWAYS );
 
 		final Button button = new Button( "Browse" );
 		button.setMinWidth( Region.USE_PREF_SIZE );
@@ -77,7 +127,7 @@ public class BackendDialogHDF5 implements BackendDialog
 			File file = fileChooser.showOpenDialog( grid.getScene().getWindow() );
 			Optional.ofNullable( file ).map( File::getAbsolutePath ).ifPresent( hdf5::set );
 		} );
-		grid.add( button, 2, 0 );
+		grid.add( button, 1, 0 );
 		return grid;
 	}
 
