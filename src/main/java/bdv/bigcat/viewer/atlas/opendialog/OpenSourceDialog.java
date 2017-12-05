@@ -18,6 +18,7 @@ import javafx.scene.control.ComboBox;
 import javafx.scene.control.Dialog;
 import javafx.scene.control.Label;
 import javafx.scene.control.TitledPane;
+import javafx.scene.effect.InnerShadow;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.StackPane;
@@ -59,7 +60,7 @@ public class OpenSourceDialog extends Dialog< BackendDialog > implements Combine
 
 	private final SimpleObjectProperty< BackendDialog > currentBackend = new SimpleObjectProperty<>( new BackendDialogInvalid( BACKEND.N5 ) );
 
-	private final NameField nameField = new NameField( "Source name", "Specify source name (required)" );
+	private final NameField nameField = new NameField( "Source name", "Specify source name (required)", new InnerShadow( 10, Color.ORANGE ) );
 
 	private final SimpleBooleanProperty isError = new SimpleBooleanProperty();
 

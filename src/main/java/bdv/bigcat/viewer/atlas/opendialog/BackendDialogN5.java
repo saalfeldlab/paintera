@@ -128,8 +128,8 @@ public class BackendDialogN5 implements BackendDialog, CombinesErrorMessages
 						this.isTraversingDirectories.set( true );
 						findSubdirectories( new File( newv ), dir -> new File( dir, "attributes.json" ).exists(), files::add );
 						this.isTraversingDirectories.set( false );
-						if ( datasetChoices.size() == 0 )
-							datasetChoices.add( "" );
+//						if ( datasetChoices.size() == 0 )
+//							datasetChoices.add( "" );
 						final URI baseURI = new File( newv ).toURI();
 						if ( !Thread.currentThread().isInterrupted() )
 						{
@@ -181,6 +181,8 @@ public class BackendDialogN5 implements BackendDialog, CombinesErrorMessages
 			while ( change.next() )
 				if ( datasetChoices.size() == 0 )
 					datasetError.set( "No datasets found for n5 root: " + n5.get() );
+				else
+					datasetError.set( null );
 		} );
 
 		n5error.addListener( ( obs, oldv, newv ) -> combineErrorMessages() );
