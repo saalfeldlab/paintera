@@ -1683,7 +1683,7 @@ public class H5Utils
 		return t;
 	}
 
-	static public void getAllDatasetsPath(
+	static public void getAllDatasetPaths(
 			final IHDF5Reader reader,
 			final String object,
 			List< String > paths )
@@ -1699,7 +1699,7 @@ public class H5Utils
 			allPaths = reader.getGroupMembers( object );
 			for ( int j = 0; j < allPaths.size(); j++ )
 			{
-				getAllDatasetsPath( reader, object.concat( allPaths.get( j ) ).concat( "/" ), paths );
+				getAllDatasetPaths( reader, object.concat( allPaths.get( j ) ).concat( "/" ), paths );
 			}
 		}
 	}
