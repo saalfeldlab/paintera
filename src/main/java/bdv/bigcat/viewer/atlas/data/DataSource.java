@@ -65,11 +65,13 @@ public interface DataSource< D, T > extends Source< T >
 			final int[] rawCellSize,
 			final double[] resolution,
 			final SharedQueue sharedQueue,
-			final int priority,
-			final Supplier< T > typeSupplier,
-			final Supplier< V > volatileTypeSupplier ) throws IOException
+			final int priority ) throws IOException
 	{
 		final RandomAccessibleInterval< T > raw = H5Utils.open( HDF5Factory.openForReading( rawFile ), rawDataset, rawCellSize );
+		final T t = Util.getTypeFromInterval( raw );
+		@SuppressWarnings( "unchecked" )
+		final V v = ( V ) VolatileTypeMatcher.getVolatileTypeForType( t );
+
 		final AffineTransform3D rawTransform = new AffineTransform3D();
 		rawTransform.set(
 				resolution[ 0 ], 0, 0, 0,
@@ -101,8 +103,8 @@ public interface DataSource< D, T > extends Source< T >
 								return new NearestNeighborInterpolatorFactory<>();
 							}
 						},
-						typeSupplier,
-						volatileTypeSupplier,
+						t::createVariable,
+						v::createVariable,
 						name );
 		return rawSource;
 	}

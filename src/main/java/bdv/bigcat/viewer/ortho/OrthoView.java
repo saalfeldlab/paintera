@@ -26,6 +26,7 @@ import javafx.scene.Node;
 import javafx.scene.Scene;
 import javafx.scene.control.TextField;
 import javafx.scene.input.KeyEvent;
+import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.GridPane;
 import net.imglib2.realtransform.AffineTransform3D;
 
@@ -98,11 +99,17 @@ public class OrthoView extends GridPane
 		this.setOnMouseMoved( resizer.onMouseMovedHandler() );
 		this.setOnMouseDragged( resizer.onMouseDraggedHandler() );
 		this.setOnMouseClicked( resizer.onMouseDoubleClickedHandler() );
-		this.setOnMousePressed( resizer.onMousePresedHandler() );
+		this.setOnMousePressed( resizer.onMousePressedHandler() );
 		this.setOnMouseReleased( resizer.onMouseReleased() );
 
 		this.setVgap( 1.0 );
 		this.setHgap( 1.0 );
+
+		this.addEventFilter( MouseEvent.DRAG_DETECTED, event -> {
+			if(this.resizer.isDraggingPanel())
+				event.consume();
+		} );
+		
 		this.addEventHandler( KeyEvent.KEY_TYPED, event -> {
 			if ( event.getCharacter().equals( "f" ) )
 				maximizeActiveOrthoView( event );
@@ -173,17 +180,26 @@ public class OrthoView extends GridPane
 		addViewerNodesHandler( viewerNode, FOCUS_KEEPERS );
 
 		this.add( viewerNode, rowIndex, colIndex );
-		viewerNode.setOnMouseClicked( resizer.onMouseDoubleClickedHandler() );
-		viewerNode.setOnMousePressed( resizer.onMousePresedHandler() );
-		viewerNode.setOnMouseDragged( resizer.onMouseDraggedHandler() );
-		viewerNode.setOnMouseMoved( resizer.onMouseMovedHandler() );
+//		viewerNode.setOnMouseClicked( resizer.onMouseDoubleClickedHandler() );
+//		viewerNode.setOnMousePressed( resizer.onMousePressedHandler() );
+//		viewerNode.setOnMouseDragged( resizer.onMouseDraggedHandler() );
+//		viewerNode.setOnMouseMoved( resizer.onMouseMovedHandler() );
 	}
 
 	private void maximizeActiveOrthoView( final Event event )
 	{
 		final Scene scene = getScene();
-		final Node focusOwner = scene.focusOwnerProperty().get();
-		if ( viewerNodes.contains( focusOwner ) )
+		final Node focusOwner = scene.focusOwnerProperty().get().getParent();
+		boolean is3DNode = false;
+
+		// check if the focus is on the 3d viewer
+		for ( final Node child : this.getChildren() )
+			if ( GridPane.getRowIndex( child ) == 1 && GridPane.getColumnIndex( child ) == 1 )
+				if ( child.equals( focusOwner ) )
+					is3DNode = true;
+
+		if ( viewerNodes.contains( focusOwner ) || is3DNode )
+		{
 			// event.consume();
 			if ( !this.state.constraintsManager.isFullScreen() )
 			{
@@ -192,7 +208,7 @@ public class OrthoView extends GridPane
 						GridPane.getRowIndex( focusOwner ),
 						GridPane.getColumnIndex( focusOwner ),
 						0 );
-//				( ( ViewerPanel ) ( ( SwingNode ) focusOwner ).getContent() ).requestRepaint();
+//					( ( ViewerPanel ) ( ( SwingNode ) focusOwner ).getContent() ).requestRepaint();
 				this.setHgap( 0 );
 				this.setVgap( 0 );
 			}
@@ -204,6 +220,7 @@ public class OrthoView extends GridPane
 				this.setHgap( 1 );
 				this.setVgap( 1 );
 			}
+		}
 	}
 
 //	public Node globalSourcesInfoNode()

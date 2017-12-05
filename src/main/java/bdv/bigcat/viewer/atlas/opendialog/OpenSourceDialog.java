@@ -67,6 +67,7 @@ public class OpenSourceDialog extends Dialog< BackendDialog > implements Combine
 	private final ObservableMap< BACKEND, BackendDialog > backendInfoDialogs = FXCollections.observableHashMap();
 	{
 		backendInfoDialogs.put( BACKEND.N5, new BackendDialogN5() );
+		backendInfoDialogs.put( BACKEND.HDF5, new BackendDialogHDF5() );
 	}
 
 	private final MetaPanel metaPanel = new MetaPanel();
@@ -129,6 +130,10 @@ public class OpenSourceDialog extends Dialog< BackendDialog > implements Combine
 		this.setResultConverter( button -> button.equals( ButtonType.OK ) ? currentBackend.get() : new BackendDialogInvalid( backendChoice.getValue() ) );
 		combineErrorMessages();
 
+		this.typeChoice.valueProperty().addListener( ( obs, oldv, newv ) -> {
+			final BackendDialog backendDialog = backendInfoDialogs.get( backendChoice.getValue() );
+			backendDialog.typeChanged( newv );
+		} );
 	}
 
 	public TYPE getType()

@@ -112,8 +112,8 @@ public class OrthoSliceFX
 		} );
 		es.execute( () -> {
 			final double scale = 512.0 / Math.max( w, h );
-			final int fitWidth = ( int )Math.round( w * scale );
-			final int fitHeight = ( int )Math.round( h * scale );
+			final int fitWidth = ( int ) Math.round( w * scale );
+			final int fitHeight = ( int ) Math.round( h * scale );
 			final ImageView imageView = new ImageView( image );
 			imageView.setPreserveRatio( true );
 			imageView.setFitWidth( fitWidth );

@@ -12,7 +12,6 @@ import javafx.util.Duration;
 
 public class GridResizer
 {
-
 	private final GridConstraintsManager manager;
 
 	private final double tolerance;
@@ -23,18 +22,6 @@ public class GridResizer
 
 	private boolean mouseWithinResizableRangeY = false;
 
-	private double x;
-
-	private double y;
-
-	private double dragX;
-
-	private double dragY;
-
-	private double dragStartX;
-
-	private double dragStartY;
-
 	private boolean dragging = false;
 
 	public GridResizer( final GridConstraintsManager manager, final double tolerance, final GridPane grid )
@@ -43,10 +30,6 @@ public class GridResizer
 		this.manager = manager;
 		this.tolerance = tolerance;
 		this.grid = grid;
-//		this.grid.setOnMouseMoved( new MouseChanged() );
-//		this.grid.setOnMousePressed( new MousePressed() );
-//		this.grid.setOnMouseDragged( new MouseDragged() );
-//		this.grid.setOnMouseClicked( new MouseDoubleClicked() );
 	}
 
 	public EventHandler< MouseEvent > onMouseMovedHandler()
@@ -54,7 +37,7 @@ public class GridResizer
 		return new MouseChanged();
 	}
 
-	public EventHandler< MouseEvent > onMousePresedHandler()
+	public EventHandler< MouseEvent > onMousePressedHandler()
 	{
 		return new MousePressed();
 	}
@@ -74,9 +57,13 @@ public class GridResizer
 		return new MouseReleased();
 	}
 
+	public boolean isDraggingPanel()
+	{
+		return dragging;
+	}
+
 	private class MouseChanged implements EventHandler< MouseEvent >
 	{
-
 		@Override
 		public void handle( final MouseEvent event )
 		{
@@ -94,17 +81,32 @@ public class GridResizer
 					final Scene scene = grid.sceneProperty().get();
 
 					if ( mouseWithinResizableRangeX && mouseWithinResizableRangeY )
-						scene.setCursor( Cursor.OPEN_HAND );// Cursor.NW_RESIZE
-															// );
-					else if ( mouseWithinResizableRangeX )
-						scene.setCursor( Cursor.OPEN_HAND );// Cursor.H_RESIZE
-															// );
-					else if ( mouseWithinResizableRangeY )
-						scene.setCursor( Cursor.OPEN_HAND );// Cursor.V_RESIZE
-															// );
-					else
-						scene.setCursor( Cursor.DEFAULT );
+					{
+						if ( Double.compare( ( x - gridBorderX ), 0.0 ) < 0 && Double.compare( ( y - gridBorderY ), 0.0 ) < 0 )
+							scene.setCursor( Cursor.SE_RESIZE );
 
+						else if ( Double.compare( ( x - gridBorderX ), 0.0 ) > 0 && Double.compare( ( y - gridBorderY ), 0.0 ) < 0 )
+							scene.setCursor( Cursor.SW_RESIZE );
+
+						else if ( Double.compare( ( x - gridBorderX ), 0.0 ) < 0 && Double.compare( ( y - gridBorderY ), 0.0 ) > 0 )
+							scene.setCursor( Cursor.NE_RESIZE );
+
+						else
+							scene.setCursor( Cursor.NW_RESIZE );
+					}
+
+					else if ( mouseWithinResizableRangeX )
+					{
+						scene.setCursor( Cursor.H_RESIZE );
+					}
+					else if ( mouseWithinResizableRangeY )
+					{
+						scene.setCursor( Cursor.V_RESIZE );
+					}
+					else
+					{
+						scene.setCursor( Cursor.DEFAULT );
+					}
 				}
 			}
 		}
@@ -120,19 +122,16 @@ public class GridResizer
 			final double y = event.getY();
 			final double gridBorderX = manager.column1.getPercentWidth() / 100 * grid.widthProperty().get();
 			final double gridBorderY = manager.row1.getPercentHeight() / 100 * grid.heightProperty().get();
+
 			mouseWithinResizableRangeX = Math.abs( x - gridBorderX ) < tolerance;
 			mouseWithinResizableRangeY = Math.abs( y - gridBorderY ) < tolerance;
+
 			dragging = mouseWithinResizableRangeX || mouseWithinResizableRangeY;
 			if ( dragging )
 			{
-				grid.sceneProperty().get().setCursor( Cursor.CLOSED_HAND );
-				dragStartX = x;
-				dragStartY = y;
 				event.consume();
 			}
-
 		}
-
 	}
 
 	private class MouseReleased implements EventHandler< MouseEvent >
@@ -183,7 +182,6 @@ public class GridResizer
 
 	private class MouseDoubleClicked implements EventHandler< MouseEvent >
 	{
-
 		@Override
 		public void handle( final MouseEvent event )
 		{
@@ -234,7 +232,5 @@ public class GridResizer
 				}
 			}
 		}
-
 	}
-
 }

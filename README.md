@@ -2,7 +2,19 @@
 
 [![Build Status](https://travis-ci.org/ssinhaleite/bigcat.svg?branch=javafx-generic-listeners)](https://travis-ci.org/ssinhaleite/bigcat)
 
+![screenshot](https://raw.githubusercontent.com/ssinhaleite/bigcat/javafx-generic-listeners/img/bigcat-20171116.png)
+
 ## Dependences
+
+* java
+```shell
+sudo apt install default-jre default-jdk
+```
+
+* maven (ubuntu):
+```shell
+sudo apt install maven
+```
 
 * javafx (ubuntu):
 
@@ -16,16 +28,6 @@ sudo apt install openjfx
 sudo apt install libzmq3-dev
 ```
 * [jzmq](https://github.com/zeromq/jzmq)
-
-* branchs (download and compile each one of them: `mvn clean install`):
-	* [imglib2-ui:2.0.0-beta-34-SNAPSHOT - branch: javafx](https://github.com/hanslovsky/imglib2-ui/tree/javafx)
-	* [bdv-core:4.3.1-SNAPSHOT - branch: bigcat-javafx](https://github.com/hanslovsky/bigdataviewer-core/tree/bigcat-javafx)
-
-* [imglib2:4.6.0-SNAPSHOT](https://github.com/imglib/imglib2.git)
-
-* [ClearGL:2.1.0](https://github.com/ClearVolume/ClearGL.git)
-
-* [bdv-vistools:1.0.0-beta-8-SNAPSHOT](https://github.com/bigdataviewer/bigdataviewer-vistools.git)
 
 ## Compile
 
@@ -64,8 +66,7 @@ The default dataset can be downloaded from the [Cremi challenge website](https:/
 
 ## Usage
 
-First, it is necessary to activate the labels 
-press `ctrl` + `tab` until "labels" get selected in the right panel.
+First, it is necessary to activate the labels by pressing `ctrl` + `tab`.
 
 There are three modes:
 * Navigation only:
@@ -76,6 +77,14 @@ There are three modes:
    Every selected neuron will be highlighted on the 2d panels and its 3d shape will be generated.
 
 * Merge and split:
+
+Useful commands:
+| Command                  | Description        |
+| ----------------------- |:------------------:|
+| `ctrl` + `p` | snapshoot of the 3d scene |
+| `shift` + `z` | reset the position of the viewer |
+| `shift` + `right click` (on a 3d mesh)| menu to "export mesh" and to "center ortho slices at the position" |
+
 
 ## Development
 

@@ -298,7 +298,6 @@ public class Atlas
 
 		primaryStage.show();
 
-		new Thread( controller::init ).start();
 	}
 
 	private final EventHandler< WindowEvent > confirmCloseEventHandler = event -> {

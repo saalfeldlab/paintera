@@ -64,7 +64,7 @@ public class ExampleApplication2
 		final VolatileGlobalCellCache cellCache = new VolatileGlobalCellCache( 1, 12 );
 
 		final RandomAccessibleIntervalDataSource< UnsignedByteType, VolatileUnsignedByteType > rawSource =
-				DataSource.createH5RawSource( "raw", rawFile, rawDataset, cellSize, resolution, sharedQueue, numPriorities - 1, UnsignedByteType::new, VolatileUnsignedByteType::new );
+				DataSource.createH5RawSource( "raw", rawFile, rawDataset, cellSize, resolution, sharedQueue, numPriorities - 1 );
 
 		final Atlas viewer = new Atlas( sharedQueue );
 
