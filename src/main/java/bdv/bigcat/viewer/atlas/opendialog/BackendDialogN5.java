@@ -6,9 +6,13 @@ import java.net.URI;
 import java.nio.file.FileSystems;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
@@ -26,14 +30,17 @@ import bdv.bigcat.viewer.atlas.data.LabelDataSource;
 import bdv.bigcat.viewer.atlas.data.LabelDataSourceFromDelegates;
 import bdv.bigcat.viewer.atlas.data.RandomAccessibleIntervalDataSource;
 import bdv.bigcat.viewer.state.FragmentSegmentAssignmentWithHistory;
+import bdv.bigcat.viewer.util.InvokeOnJavaFXApplicationThread;
 import bdv.util.volatiles.SharedQueue;
 import bdv.util.volatiles.VolatileTypeMatcher;
 import bdv.util.volatiles.VolatileViews;
 import gnu.trove.map.hash.TLongLongHashMap;
 import javafx.beans.property.DoubleProperty;
 import javafx.beans.property.ObjectProperty;
+import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleDoubleProperty;
 import javafx.beans.property.SimpleObjectProperty;
+import javafx.beans.value.ObservableValue;
 import javafx.collections.FXCollections;
 import javafx.collections.ListChangeListener;
 import javafx.collections.ObservableList;
@@ -41,8 +48,11 @@ import javafx.scene.Node;
 import javafx.scene.control.Button;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.TextField;
+import javafx.scene.effect.Effect;
+import javafx.scene.effect.InnerShadow;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.Priority;
+import javafx.scene.paint.Color;
 import javafx.stage.DirectoryChooser;
 import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.cache.volatiles.CacheHints;
@@ -55,7 +65,7 @@ import net.imglib2.type.numeric.RealType;
 import net.imglib2.type.volatiles.AbstractVolatileRealType;
 import net.imglib2.util.Util;
 
-public class BackendDialogN5 implements BackendDialog
+public class BackendDialogN5 implements BackendDialog, CombinesErrorMessages
 {
 
 	private static final String RESOLUTION_KEY = "resolution";
@@ -69,6 +79,12 @@ public class BackendDialogN5 implements BackendDialog
 	private final SimpleObjectProperty< String > n5 = new SimpleObjectProperty<>();
 
 	private final SimpleObjectProperty< String > dataset = new SimpleObjectProperty<>();
+
+	private final SimpleObjectProperty< String > n5error = new SimpleObjectProperty<>();
+
+	private final SimpleObjectProperty< Effect > n5errorEffect = new SimpleObjectProperty<>();
+
+	private final SimpleObjectProperty< String > datasetError = new SimpleObjectProperty<>();
 
 	private final SimpleObjectProperty< String > error = new SimpleObjectProperty<>();
 
@@ -88,31 +104,53 @@ public class BackendDialogN5 implements BackendDialog
 
 	private final SimpleDoubleProperty max = new SimpleDoubleProperty( Double.NaN );
 
+	private final ExecutorService singleThreadExecutorService = Executors.newFixedThreadPool( 1 );
+
+	private final ArrayList< Future< Void > > directoryTraversalTasks = new ArrayList<>();
+
+	private final SimpleBooleanProperty isTraversingDirectories = new SimpleBooleanProperty();
+
+	private final Effect textFieldNoErrorEffect = new TextField().getEffect();
+
+	private final Effect textFieldErrorEffect = new InnerShadow( 10, Color.ORANGE );
+
 	private final ObservableList< String > datasetChoices = FXCollections.observableArrayList();
 	{
 		n5.addListener( ( obs, oldv, newv ) -> {
 			if ( newv != null && new File( newv ).exists() )
 			{
-				this.error.set( null );
-				final List< File > files = new ArrayList<>();
-				findSubdirectories( new File( newv ), dir -> new File( dir, "attributes.json" ).exists(), files::add );
-				if ( datasetChoices.size() == 0 )
-					datasetChoices.add( "" );
-				final URI baseURI = new File( newv ).toURI();
-				datasetChoices.setAll( files.stream().map( File::toURI ).map( baseURI::relativize ).map( URI::getPath ).collect( Collectors.toList() ) );
-				if ( !oldv.equals( newv ) )
-					this.dataset.set( null );
+				this.n5error.set( null );
+				synchronized ( directoryTraversalTasks )
+				{
+					directoryTraversalTasks.forEach( f -> f.cancel( true ) );
+					directoryTraversalTasks.add( singleThreadExecutorService.submit( () -> {
+						final List< File > files = new ArrayList<>();
+						this.isTraversingDirectories.set( true );
+						findSubdirectories( new File( newv ), dir -> new File( dir, "attributes.json" ).exists(), files::add );
+						this.isTraversingDirectories.set( false );
+//						if ( datasetChoices.size() == 0 )
+//							datasetChoices.add( "" );
+						final URI baseURI = new File( newv ).toURI();
+						if ( !Thread.currentThread().isInterrupted() )
+						{
+							InvokeOnJavaFXApplicationThread.invoke( () -> datasetChoices.setAll( files.stream().map( File::toURI ).map( baseURI::relativize ).map( URI::getPath ).collect( Collectors.toList() ) ) );
+							if ( !oldv.equals( newv ) )
+								InvokeOnJavaFXApplicationThread.invoke( () -> this.dataset.set( null ) );
+						}
+						return null;
+					} ) );
+				}
 			}
 			else
 			{
 				datasetChoices.clear();
-				error.set( "No valid path for n5 root." );
+				this.n5error.set( "No valid path for n5 root." );
 			}
 		} );
 		dataset.addListener( ( obs, oldv, newv ) -> {
-			if ( newv != null )
+			if ( newv != null && newv.length() > 0 )
 			{
-				error.set( null );
+				datasetError.set( null );
 				try
 				{
 					final HashMap< String, JsonElement > attributes = new N5FSReader( n5.get() ).getAttributes( newv );
@@ -132,19 +170,27 @@ public class BackendDialogN5 implements BackendDialog
 				}
 				catch ( final IOException e )
 				{
-					// TODO just ignore?
+
 				}
 
 			}
-			else
-				error.set( "No n5 dataset found at " + n5 + " " + dataset );
+			else if ( Optional.of( n5.get() ).orElse( "" ).length() > 0 )
+				datasetError.set( "No n5 dataset selected" );
 		} );
 		datasetChoices.addListener( ( ListChangeListener< String > ) change -> {
 			while ( change.next() )
 				if ( datasetChoices.size() == 0 )
-					error.set( "No datasets found for n5 root: " + n5.get() );
+					datasetError.set( "No datasets found for n5 root: " + n5.get() );
+				else
+					datasetError.set( null );
 		} );
+
+		n5error.addListener( ( obs, oldv, newv ) -> combineErrorMessages() );
+		n5error.addListener( ( obs, oldv, newv ) -> this.n5errorEffect.set( newv != null && newv.length() > 0 ? textFieldErrorEffect : textFieldNoErrorEffect ) );
+		datasetError.addListener( ( obs, oldv, newv ) -> combineErrorMessages() );
+
 		n5.set( "" );
+		dataset.set( "" );
 	}
 
 	@Override
@@ -162,6 +208,7 @@ public class BackendDialogN5 implements BackendDialog
 		datasetDropDown.setMinWidth( n5Field.getMinWidth() );
 		datasetDropDown.setPrefWidth( n5Field.getPrefWidth() );
 		datasetDropDown.setMaxWidth( n5Field.getMaxWidth() );
+		datasetDropDown.disableProperty().bind( this.isTraversingDirectories );
 		final GridPane grid = new GridPane();
 		grid.add( n5Field, 0, 0 );
 		grid.add( datasetDropDown, 0, 1 );
@@ -176,6 +223,21 @@ public class BackendDialogN5 implements BackendDialog
 			Optional.ofNullable( directory ).map( File::getAbsolutePath ).ifPresent( n5::set );
 		} );
 		grid.add( button, 1, 0 );
+
+		this.n5errorEffect.addListener( ( obs, oldv, newv ) -> {
+			if ( !n5Field.isFocused() )
+				n5Field.setEffect( newv );
+		} );
+
+		n5Field.setEffect( this.n5errorEffect.get() );
+
+		n5Field.focusedProperty().addListener( ( obs, oldv, newv ) -> {
+			if ( newv )
+				n5Field.setEffect( this.textFieldNoErrorEffect );
+			else
+				n5Field.setEffect( n5errorEffect.get() );
+		} );
+
 		return grid;
 	}
 
@@ -187,10 +249,12 @@ public class BackendDialogN5 implements BackendDialog
 
 	public static void findSubdirectories( final File file, final Predicate< File > check, final Consumer< File > action )
 	{
-		if ( check.test( file ) )
-			action.accept( file );
-		else
-			Arrays.stream( file.listFiles() ).filter( File::isDirectory ).forEach( f -> findSubdirectories( f, check, action ) );
+		if ( !Thread.currentThread().isInterrupted() )
+			if ( check.test( file ) )
+				action.accept( file );
+			else if ( file.exists() )
+				// TODO come up with better filter than File::canWrite
+				Optional.ofNullable( file.listFiles() ).ifPresent( files -> Arrays.stream( files ).filter( File::isDirectory ).filter( File::canRead ).forEach( f -> findSubdirectories( f, check, action ) ) );
 	}
 
 	@Override
@@ -354,6 +418,18 @@ public class BackendDialogN5 implements BackendDialog
 	public DoubleProperty max()
 	{
 		return this.max;
+	}
+
+	@Override
+	public Collection< ObservableValue< String > > errorMessages()
+	{
+		return Arrays.asList( this.n5error, this.datasetError );
+	}
+
+	@Override
+	public Consumer< Collection< String > > combiner()
+	{
+		return strings -> this.error.set( String.join( "\n", strings ) );
 	}
 
 }
