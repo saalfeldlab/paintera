@@ -65,7 +65,7 @@ public class BackendDialogHDF5 implements BackendDialog
 				this.error.set( null );
 				IHDF5Reader reader = HDF5Factory.openForReading( newv );
 				List< String > paths = new ArrayList< String >();
-				H5Utils.getAllDatasets( reader, "/", paths );
+				H5Utils.getAllDatasetsPath( reader, "/", paths );
 
 				if ( datasetChoices.size() == 0 )
 					datasetChoices.add( "" );
