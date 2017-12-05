@@ -16,6 +16,7 @@ import bdv.img.h5.H5Utils;
 import bdv.util.volatiles.SharedQueue;
 import ch.systemsx.cisd.hdf5.HDF5Factory;
 import ch.systemsx.cisd.hdf5.IHDF5Reader;
+import javafx.beans.property.DoubleProperty;
 import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.SimpleDoubleProperty;
 import javafx.beans.property.SimpleObjectProperty;
@@ -36,6 +37,15 @@ import net.imglib2.type.numeric.RealType;
 
 public class BackendDialogHDF5 implements BackendDialog
 {
+
+	private static final String RESOLUTION_KEY = "resolution";
+
+	private static final String OFFSET_KEY = "offset";
+
+	private static final String MIN_KEY = "min";
+
+	private static final String MAX_KEY = "max";
+
 	// path for the hdf file
 	private final SimpleObjectProperty< String > hdf5 = new SimpleObjectProperty<>();
 
@@ -56,6 +66,10 @@ public class BackendDialogHDF5 implements BackendDialog
 
 	private final SimpleDoubleProperty offZ = new SimpleDoubleProperty( Double.NaN );
 
+	private final SimpleDoubleProperty min = new SimpleDoubleProperty( Double.NaN );
+
+	private final SimpleDoubleProperty max = new SimpleDoubleProperty( Double.NaN );
+
 	// all data sets inside the hdf file
 	private final ObservableList< String > datasetChoices = FXCollections.observableArrayList();
 
@@ -69,8 +83,8 @@ public class BackendDialogHDF5 implements BackendDialog
 			if ( newv != null && new File( newv ).exists() )
 			{
 				this.error.set( null );
-				IHDF5Reader reader = HDF5Factory.openForReading( newv );
-				List< String > paths = new ArrayList< String >();
+				final IHDF5Reader reader = HDF5Factory.openForReading( newv );
+				final List< String > paths = new ArrayList<>();
 				H5Utils.getAllDatasetPaths( reader, "/", paths );
 				reader.close();
 
@@ -93,6 +107,42 @@ public class BackendDialogHDF5 implements BackendDialog
 				if ( datasetChoices.size() == 0 )
 					error.set( "No datasets found for hdf file: " + hdf5.get() );
 		} );
+
+		dataset.addListener( ( obs, oldv, newv ) -> {
+			if ( newv != null && newv.length() > 0 )
+			{
+				final IHDF5Reader reader = HDF5Factory.openForReading( hdf5.get() );
+
+				if ( reader.object().hasAttribute( newv, RESOLUTION_KEY ) )
+				{
+					final double[] resolution = reader.float64().getArrayAttr( newv, RESOLUTION_KEY );
+					if ( resolution.length == 3 )
+					{
+						resX.set( resolution[ 2 ] );
+						resY.set( resolution[ 1 ] );
+						resZ.set( resolution[ 0 ] );
+					}
+				}
+
+				if ( reader.object().hasAttribute( newv, OFFSET_KEY ) )
+				{
+					final double[] offset = reader.float64().getArrayAttr( newv, OFFSET_KEY );
+					if ( offset.length == 3 )
+					{
+						offX.set( offset[ 2 ] );
+						offY.set( offset[ 1 ] );
+						offZ.set( offset[ 0 ] );
+					}
+				}
+
+				if ( reader.object().hasAttribute( newv, MIN_KEY ) )
+					min.set( reader.object().hasAttribute( newv, MIN_KEY ) ? reader.float64().getAttr( newv, MIN_KEY ) : Double.NaN );
+				if ( reader.object().hasAttribute( newv, MAX_KEY ) )
+					max.set( reader.object().hasAttribute( newv, MAX_KEY ) ? reader.float64().getAttr( newv, MAX_KEY ) : Double.NaN );
+
+			}
+		} );
+
 	}
 
 	@Override
@@ -124,7 +174,7 @@ public class BackendDialogHDF5 implements BackendDialog
 			final FileChooser fileChooser = new FileChooser();
 			fileChooser.getExtensionFilters().addAll(
 					new ExtensionFilter( "HDF5 Files", "*.hdf" ) );
-			File file = fileChooser.showOpenDialog( grid.getScene().getWindow() );
+			final File file = fileChooser.showOpenDialog( grid.getScene().getWindow() );
 			Optional.ofNullable( file ).map( File::getAbsolutePath ).ifPresent( hdf5::set );
 		} );
 		grid.add( button, 1, 0 );
@@ -172,7 +222,7 @@ public class BackendDialogHDF5 implements BackendDialog
 		{
 			labelSpec2 = new HDF5LabelMultisetDataSource( labelsFile, labelsDataset, labelCellSize, "labels", cellCache, 1 );
 		}
-		catch ( IOException e )
+		catch ( final IOException e )
 		{
 			// TODO Auto-generated catch block
 			e.printStackTrace();
@@ -181,10 +231,11 @@ public class BackendDialogHDF5 implements BackendDialog
 		return Optional.of( labelSpec2 );
 	}
 
-	public void typeChanged( TYPE type )
+	@Override
+	public void typeChanged( final TYPE type )
 	{
-		IHDF5Reader reader = HDF5Factory.openForReading( hdf5.get() );
-		List< String > paths = new ArrayList< String >();
+		final IHDF5Reader reader = HDF5Factory.openForReading( hdf5.get() );
+		final List< String > paths = new ArrayList<>();
 		H5Utils.getAllDatasetPaths( reader, "/", paths );
 
 		switch ( type )
@@ -201,7 +252,7 @@ public class BackendDialogHDF5 implements BackendDialog
 		reader.close();
 	}
 
-	private void updateRawDataset( List< String > paths )
+	private void updateRawDataset( final List< String > paths )
 	{
 		if ( datasetChoices.size() == 0 )
 			datasetChoices.add( "" );
@@ -209,7 +260,7 @@ public class BackendDialogHDF5 implements BackendDialog
 		datasetChoices.setAll( paths.stream().collect( Collectors.toList() ) );
 	}
 
-	private void updateLabelDataset( IHDF5Reader reader, List< String > paths )
+	private void updateLabelDataset( final IHDF5Reader reader, final List< String > paths )
 	{
 		if ( datasetChoices.size() == 0 )
 			datasetChoices.add( "" );
@@ -225,6 +276,54 @@ public class BackendDialogHDF5 implements BackendDialog
 		}
 
 		datasetChoices.setAll( paths.stream().collect( Collectors.toList() ) );
+	}
+
+	@Override
+	public DoubleProperty resolutionX()
+	{
+		return this.resX;
+	}
+
+	@Override
+	public DoubleProperty resolutionY()
+	{
+		return this.resY;
+	}
+
+	@Override
+	public DoubleProperty resolutionZ()
+	{
+		return this.resZ;
+	}
+
+	@Override
+	public DoubleProperty offsetX()
+	{
+		return this.offX;
+	}
+
+	@Override
+	public DoubleProperty offsetY()
+	{
+		return this.offY;
+	}
+
+	@Override
+	public DoubleProperty offsetZ()
+	{
+		return this.offZ;
+	}
+
+	@Override
+	public DoubleProperty min()
+	{
+		return this.min;
+	}
+
+	@Override
+	public DoubleProperty max()
+	{
+		return this.max;
 	}
 
 }
