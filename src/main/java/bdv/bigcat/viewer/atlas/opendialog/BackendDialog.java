@@ -70,6 +70,16 @@ public interface BackendDialog
 		return new SimpleDoubleProperty( Double.NaN );
 	}
 
+	public default DoubleProperty min()
+	{
+		return new SimpleDoubleProperty( Double.NaN );
+	}
+
+	public default DoubleProperty max()
+	{
+		return new SimpleDoubleProperty( Double.NaN );
+	}
+
 //	TODO
 //	public DataSource< ?, ? > getChannels();
 
