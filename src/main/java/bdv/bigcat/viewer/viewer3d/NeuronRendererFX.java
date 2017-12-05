@@ -14,6 +14,7 @@ import bdv.bigcat.viewer.state.SelectedIds;
 import bdv.bigcat.viewer.state.StateListener;
 import bdv.bigcat.viewer.stream.AbstractHighlightingARGBStream;
 import bdv.bigcat.viewer.util.InvokeOnJavaFXApplicationThread;
+import bdv.bigcat.viewer.viewer3d.NeuronFX.ShapeKey;
 import gnu.trove.list.array.TFloatArrayList;
 import gnu.trove.list.array.TIntArrayList;
 import javafx.animation.KeyFrame;
@@ -23,13 +24,13 @@ import javafx.beans.property.SimpleObjectProperty;
 import javafx.collections.ObservableFloatArray;
 import javafx.event.ActionEvent;
 import javafx.event.EventHandler;
-import javafx.scene.Camera;
 import javafx.scene.Group;
 import javafx.scene.control.ContextMenu;
 import javafx.scene.control.MenuItem;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.shape.MeshView;
 import javafx.scene.shape.ObservableFaceArray;
+import javafx.scene.shape.Shape3D;
 import javafx.scene.shape.TriangleMesh;
 import javafx.stage.FileChooser;
 import javafx.util.Duration;
@@ -38,6 +39,7 @@ import net.imglib2.Localizable;
 import net.imglib2.Point;
 import net.imglib2.RandomAccess;
 import net.imglib2.RandomAccessible;
+import net.imglib2.cache.ref.SoftRefLoaderCache;
 import net.imglib2.converter.Converter;
 import net.imglib2.converter.Converters;
 import net.imglib2.realtransform.AffineTransform3D;
@@ -73,8 +75,6 @@ public class NeuronRendererFX< T, F extends FragmentSegmentAssignmentState< F > 
 
 	private final Group root;
 
-	private final Camera camera;
-
 	private final ExecutorService es;
 
 	private final AffineTransform3D toWorldCoordinates;
@@ -99,11 +99,11 @@ public class NeuronRendererFX< T, F extends FragmentSegmentAssignmentState< F > 
 
 	private final IdSelector idSelector = new IdSelector();
 
-	private final GlobalTransformManager transformManager;
-
 	private final MenuItem saverItem = new MenuItem( "Save neuron" );
 
 	private final StateListener< AbstractHighlightingARGBStream > listener;
+
+	private final SoftRefLoaderCache< ShapeKey, Shape3D > shapeCache = new SoftRefLoaderCache<>();
 
 	/**
 	 * Bounding box of the complete mesh/neuron (xmin, xmax, ymin, ymax, zmin,
@@ -120,7 +120,6 @@ public class NeuronRendererFX< T, F extends FragmentSegmentAssignmentState< F > 
 			final Interval interval,
 			final Function< T, Converter< T, BoolType > > createMaskConverterForType,
 			final Group root,
-			final Camera camera,
 			final ExecutorService es,
 			final AffineTransform3D toWorldCoordinates,
 			final int[] blockSize,
@@ -138,7 +137,6 @@ public class NeuronRendererFX< T, F extends FragmentSegmentAssignmentState< F > 
 		this.interval = interval;
 		this.createMaskConverterForType = createMaskConverterForType;
 		this.root = root;
-		this.camera = camera;
 		this.es = es;
 		this.toWorldCoordinates = toWorldCoordinates;
 		this.blockSize = blockSize;
@@ -149,7 +147,6 @@ public class NeuronRendererFX< T, F extends FragmentSegmentAssignmentState< F > 
 		this.meshSaver = new MeshSaver();
 		this.rightClickMenu = new ContextMenu();
 		this.selectedIds = selectedIds;
-		this.transformManager = transformManager;
 		final MenuItem centerSlicesAt = new MenuItem();
 		saverItem.setOnAction( meshSaver );
 		saverItem.setDisable( true );
@@ -230,7 +227,7 @@ public class NeuronRendererFX< T, F extends FragmentSegmentAssignmentState< F > 
 			( ( AbstractHighlightingARGBStream ) this.stream ).removeListener( listener );
 	}
 
-	public synchronized void updateOnStateChange( final boolean updateOnStateChange )
+	public synchronized void updateOnStateChange( @SuppressWarnings( "hiding" ) final boolean updateOnStateChange )
 	{
 		this.updateOnStateChange = updateOnStateChange;
 	}
@@ -255,7 +252,7 @@ public class NeuronRendererFX< T, F extends FragmentSegmentAssignmentState< F > 
 			if ( this.stream instanceof AbstractHighlightingARGBStream )
 				( ( AbstractHighlightingARGBStream ) this.stream ).addListener( listener );
 
-			final NeuronFX neuron = new NeuronFX( interval, root );
+			final NeuronFX neuron = new NeuronFX( interval, root, shapeCache );
 			this.neuron.set( Optional.of( neuron ) );
 			final float[] blub = new float[ 3 ];
 			final int color = desaturate( stream.argb( selectedFragmentId ), 0.25 );

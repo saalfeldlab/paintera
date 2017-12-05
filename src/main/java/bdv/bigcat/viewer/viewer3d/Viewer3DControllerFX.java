@@ -111,7 +111,6 @@ public class Viewer3DControllerFX
 					interval,
 					createMaskConverterForType,
 					viewer3D.meshesGroup(),
-					viewer3D.scene().getCamera(),
 					es,
 					transform,
 					partitionSize,

@@ -130,9 +130,32 @@ public class RenderNeuron
 
 							if ( selIds.isActive( selectedId ) )
 							{
+								final double[] a = transforms[ 0 ].getRowPackedCopy();
+								final double scaleX = Math.sqrt(
+										a[ 0 ] * a[ 0 ] +
+										a[ 4 ] * a[ 4 ] +
+										a[ 8 ] * a[ 8 ] );
+								final double scaleY = Math.sqrt(
+										a[ 1 ] * a[ 1 ] +
+										a[ 5 ] * a[ 5 ] +
+										a[ 9 ] * a[ 9 ] );
+								final double scaleZ = Math.sqrt(
+										a[ 2 ] * a[ 2 ] +
+										a[ 6 ] * a[ 6 ] +
+										a[ 10 ] * a[ 10 ] );
 
-								final int[] partitionSize = { 60, 60, 10 };
-								final int[] cubeSize = { 10, 10, 1 };
+								final double scaleMax = Math.max( Math.max( scaleX, scaleY ), scaleZ );
+								final int stepSizeX = ( int )Math.round( scaleMax / scaleX );
+								final int stepSizeY = ( int )Math.round( scaleMax / scaleY );
+								final int stepSizeZ = ( int )Math.round( scaleMax / scaleZ );
+								final double maxBlockScale = 64.0 / Math.max( Math.max( stepSizeX, stepSizeY ), stepSizeZ );
+
+								final int[] partitionSize = {
+										( int )Math.round( maxBlockScale * stepSizeX ),
+										( int )Math.round( maxBlockScale * stepSizeY ),
+										( int )Math.round( maxBlockScale * stepSizeZ ) };
+
+								final int[] cubeSize = { stepSizeX, stepSizeY, stepSizeZ };
 
 								final Function getForegroundCheck = toBoolConverter.get();
 								new Thread( () -> {
