@@ -57,7 +57,6 @@ public class OpenSourceDialog extends Dialog< BackendDialog >
 	{
 		backendInfoDialogs.put( BACKEND.N5, new BackendDialogN5() );
 		backendInfoDialogs.put( BACKEND.HDF5, new BackendDialogHDF5() );
-		backendInfoDialogs.put( BACKEND.DVID, new BackendDialogDVID() );
 	}
 
 	private final MetaPanel metaPanel = new MetaPanel();
@@ -81,6 +80,7 @@ public class OpenSourceDialog extends Dialog< BackendDialog >
 				this.errorInfo.setText( newv );
 			}
 		} );
+
 
 		this.grid = new GridPane();
 		this.backendDialog = new StackPane();
@@ -108,7 +108,6 @@ public class OpenSourceDialog extends Dialog< BackendDialog >
 				this.backendDialog.getChildren().setAll( backendDialog.getDialogNode() );
 				this.errorMessage.bind( backendDialog.errorMessage() );
 				this.currentBackend.set( backendDialog );
-//				this.getDialogPane().getScene().getWindow().sizeToScene();
 
 				this.metaPanel.listenOnResolution( backendDialog.resolutionX(), backendDialog.resolutionY(), backendDialog.resolutionZ() );
 				this.metaPanel.listenOnOffset( backendDialog.offsetX(), backendDialog.offsetY(), backendDialog.offsetZ() );
@@ -125,6 +124,10 @@ public class OpenSourceDialog extends Dialog< BackendDialog >
 		this.grid.add( choices, 0, 0 );
 		this.setResultConverter( button -> button.equals( ButtonType.OK ) ? currentBackend.get() : new BackendDialogInvalid( backendChoice.getValue() ) );
 
+		this.typeChoice.valueProperty().addListener( ( obs, oldv, newv ) -> {
+			final BackendDialog backendDialog = backendInfoDialogs.get( backendChoice.getValue() );
+			backendDialog.typeChanged( newv );
+		} );
 	}
 
 	public TYPE getType()
