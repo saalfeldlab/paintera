@@ -10,6 +10,7 @@ import java.util.stream.Collectors;
 import bdv.bigcat.viewer.atlas.data.DataSource;
 import bdv.bigcat.viewer.atlas.data.HDF5LabelMultisetDataSource;
 import bdv.bigcat.viewer.atlas.data.LabelDataSource;
+import bdv.bigcat.viewer.atlas.opendialog.OpenSourceDialog.TYPE;
 import bdv.img.cache.VolatileGlobalCellCache;
 import bdv.img.h5.H5Utils;
 import bdv.util.volatiles.SharedQueue;
@@ -35,8 +36,10 @@ import net.imglib2.type.numeric.RealType;
 
 public class BackendDialogHDF5 implements BackendDialog
 {
+	// path for the hdf file
 	private final SimpleObjectProperty< String > hdf5 = new SimpleObjectProperty<>();
 
+	// selected dataset
 	private final SimpleObjectProperty< String > dataset = new SimpleObjectProperty<>();
 
 	private final SimpleObjectProperty< String > error = new SimpleObjectProperty<>();
@@ -53,7 +56,10 @@ public class BackendDialogHDF5 implements BackendDialog
 
 	private final SimpleDoubleProperty offZ = new SimpleDoubleProperty( Double.NaN );
 
+	// all data sets inside the hdf file
 	private final ObservableList< String > datasetChoices = FXCollections.observableArrayList();
+
+	public BackendDialogHDF5()
 	{
 		hdf5.set( "" );
 		dataset.set( "" );
@@ -65,7 +71,8 @@ public class BackendDialogHDF5 implements BackendDialog
 				this.error.set( null );
 				IHDF5Reader reader = HDF5Factory.openForReading( newv );
 				List< String > paths = new ArrayList< String >();
-				H5Utils.getAllDatasetsPath( reader, "/", paths );
+				H5Utils.getAllDatasetPaths( reader, "/", paths );
+				reader.close();
 
 				if ( datasetChoices.size() == 0 )
 					datasetChoices.add( "" );
@@ -86,13 +93,6 @@ public class BackendDialogHDF5 implements BackendDialog
 				if ( datasetChoices.size() == 0 )
 					error.set( "No datasets found for hdf file: " + hdf5.get() );
 		} );
-
-//		dataset.addListener( ( obs, oldv, newv ) -> {
-//			if ( newv != null )
-//				error.set( null );
-//			else
-//				error.set( "No dataset" );
-//		} );
 	}
 
 	@Override
@@ -179,7 +179,52 @@ public class BackendDialogHDF5 implements BackendDialog
 		}
 
 		return Optional.of( labelSpec2 );
+	}
 
+	public void typeChanged( TYPE type )
+	{
+		IHDF5Reader reader = HDF5Factory.openForReading( hdf5.get() );
+		List< String > paths = new ArrayList< String >();
+		H5Utils.getAllDatasetPaths( reader, "/", paths );
+
+		switch ( type )
+		{
+		case LABEL:
+			updateLabelDataset( reader, paths );
+			break;
+		case RAW:
+		default:
+			updateRawDataset( paths );
+			break;
+		}
+
+		reader.close();
+	}
+
+	private void updateRawDataset( List< String > paths )
+	{
+		if ( datasetChoices.size() == 0 )
+			datasetChoices.add( "" );
+
+		datasetChoices.setAll( paths.stream().collect( Collectors.toList() ) );
+	}
+
+	private void updateLabelDataset( IHDF5Reader reader, List< String > paths )
+	{
+		if ( datasetChoices.size() == 0 )
+			datasetChoices.add( "" );
+
+		for ( int i = 0; i < paths.size(); i++ )
+		{
+			final Class< ? > dataType = reader.getDataSetInformation( paths.get( i ) ).getTypeInformation().tryGetJavaType();
+			if ( !dataType.isAssignableFrom( int.class ) && !dataType.isAssignableFrom( long.class ) )
+			{
+				paths.remove( i );
+				i--;
+			}
+		}
+
+		datasetChoices.setAll( paths.stream().collect( Collectors.toList() ) );
 	}
 
 }
