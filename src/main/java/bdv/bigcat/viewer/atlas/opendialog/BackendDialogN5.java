@@ -6,6 +6,7 @@ import java.net.URI;
 import java.nio.file.FileSystems;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Optional;
@@ -34,6 +35,7 @@ import javafx.beans.property.DoubleProperty;
 import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.SimpleDoubleProperty;
 import javafx.beans.property.SimpleObjectProperty;
+import javafx.beans.value.ObservableValue;
 import javafx.collections.FXCollections;
 import javafx.collections.ListChangeListener;
 import javafx.collections.ObservableList;
@@ -55,7 +57,7 @@ import net.imglib2.type.numeric.RealType;
 import net.imglib2.type.volatiles.AbstractVolatileRealType;
 import net.imglib2.util.Util;
 
-public class BackendDialogN5 implements BackendDialog
+public class BackendDialogN5 implements BackendDialog, CombinesErrorMessages
 {
 
 	private static final String RESOLUTION_KEY = "resolution";
@@ -69,6 +71,10 @@ public class BackendDialogN5 implements BackendDialog
 	private final SimpleObjectProperty< String > n5 = new SimpleObjectProperty<>();
 
 	private final SimpleObjectProperty< String > dataset = new SimpleObjectProperty<>();
+
+	private final SimpleObjectProperty< String > n5error = new SimpleObjectProperty<>();
+
+	private final SimpleObjectProperty< String > datasetError = new SimpleObjectProperty<>();
 
 	private final SimpleObjectProperty< String > error = new SimpleObjectProperty<>();
 
@@ -93,7 +99,7 @@ public class BackendDialogN5 implements BackendDialog
 		n5.addListener( ( obs, oldv, newv ) -> {
 			if ( newv != null && new File( newv ).exists() )
 			{
-				this.error.set( null );
+				this.n5error.set( null );
 				final List< File > files = new ArrayList<>();
 				findSubdirectories( new File( newv ), dir -> new File( dir, "attributes.json" ).exists(), files::add );
 				if ( datasetChoices.size() == 0 )
@@ -106,13 +112,13 @@ public class BackendDialogN5 implements BackendDialog
 			else
 			{
 				datasetChoices.clear();
-				error.set( "No valid path for n5 root." );
+				this.n5error.set( "No valid path for n5 root." );
 			}
 		} );
 		dataset.addListener( ( obs, oldv, newv ) -> {
-			if ( newv != null )
+			if ( newv != null && newv.length() > 0 )
 			{
-				error.set( null );
+				datasetError.set( null );
 				try
 				{
 					final HashMap< String, JsonElement > attributes = new N5FSReader( n5.get() ).getAttributes( newv );
@@ -132,19 +138,24 @@ public class BackendDialogN5 implements BackendDialog
 				}
 				catch ( final IOException e )
 				{
-					// TODO just ignore?
+
 				}
 
 			}
-			else
-				error.set( "No n5 dataset found at " + n5 + " " + dataset );
+			else if ( Optional.of( n5.get() ).orElse( "" ).length() > 0 )
+				datasetError.set( "No n5 dataset selected" );
 		} );
 		datasetChoices.addListener( ( ListChangeListener< String > ) change -> {
 			while ( change.next() )
 				if ( datasetChoices.size() == 0 )
-					error.set( "No datasets found for n5 root: " + n5.get() );
+					datasetError.set( "No datasets found for n5 root: " + n5.get() );
 		} );
+
+		n5error.addListener( ( obs, oldv, newv ) -> combineErrorMessages() );
+		datasetError.addListener( ( obs, oldv, newv ) -> combineErrorMessages() );
+
 		n5.set( "" );
+		dataset.set( "" );
 	}
 
 	@Override
@@ -354,6 +365,18 @@ public class BackendDialogN5 implements BackendDialog
 	public DoubleProperty max()
 	{
 		return this.max;
+	}
+
+	@Override
+	public Collection< ObservableValue< String > > errorMessages()
+	{
+		return Arrays.asList( this.n5error, this.datasetError );
+	}
+
+	@Override
+	public Consumer< Collection< String > > combiner()
+	{
+		return strings -> this.error.set( String.join( "\n", strings ) );
 	}
 
 }
