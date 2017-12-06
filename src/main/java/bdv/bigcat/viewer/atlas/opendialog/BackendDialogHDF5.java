@@ -16,13 +16,12 @@ import org.slf4j.LoggerFactory;
 import bdv.bigcat.viewer.atlas.data.DataSource;
 import bdv.bigcat.viewer.atlas.data.LabelDataSource;
 import bdv.bigcat.viewer.atlas.opendialog.OpenSourceDialog.TYPE;
-import bdv.bigcat.viewer.state.FragmentSegmentAssignmentWithHistory;
+import bdv.bigcat.viewer.state.FragmentSegmentAssignmentOnlyLocal;
 import bdv.img.h5.H5Utils;
 import bdv.util.volatiles.SharedQueue;
 import ch.systemsx.cisd.hdf5.HDF5DataSetInformation;
 import ch.systemsx.cisd.hdf5.HDF5Factory;
 import ch.systemsx.cisd.hdf5.IHDF5Reader;
-import gnu.trove.map.hash.TLongLongHashMap;
 import javafx.beans.property.DoubleProperty;
 import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.SimpleDoubleProperty;
@@ -220,18 +219,7 @@ public class BackendDialogHDF5 implements BackendDialog
 	{
 		final String labelsFile = hdf5.get();
 		final String labelsDataset = this.dataset.get();
-
-		final FragmentSegmentAssignmentWithHistory assignment = new FragmentSegmentAssignmentWithHistory( new TLongLongHashMap(), action -> {}, () -> {
-			try
-			{
-				Thread.sleep( 1000 );
-			}
-			catch ( final InterruptedException e )
-			{
-				e.printStackTrace();
-			}
-			return null;
-		} );
+		final FragmentSegmentAssignmentOnlyLocal assignment = new FragmentSegmentAssignmentOnlyLocal();
 		final int[] chunks = getChunkSize( labelsFile, labelsDataset );
 		return Optional.of( LabelDataSource.createH5LabelSource( name, labelsFile, labelsDataset, chunks, resolution, offset, sharedQueue, priority, assignment ) );
 	}
