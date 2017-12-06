@@ -34,6 +34,8 @@ import bdv.bigcat.viewer.util.InvokeOnJavaFXApplicationThread;
 import bdv.util.volatiles.SharedQueue;
 import bdv.util.volatiles.VolatileTypeMatcher;
 import bdv.util.volatiles.VolatileViews;
+import javafx.beans.binding.Bindings;
+import javafx.beans.binding.BooleanBinding;
 import javafx.beans.property.DoubleProperty;
 import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.SimpleBooleanProperty;
@@ -41,7 +43,6 @@ import javafx.beans.property.SimpleDoubleProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.value.ObservableValue;
 import javafx.collections.FXCollections;
-import javafx.collections.ListChangeListener;
 import javafx.collections.ObservableList;
 import javafx.scene.Node;
 import javafx.scene.control.Button;
@@ -109,6 +110,8 @@ public class BackendDialogN5 implements BackendDialog, CombinesErrorMessages
 
 	private final SimpleBooleanProperty isTraversingDirectories = new SimpleBooleanProperty();
 
+	private final BooleanBinding isValidN5 = Bindings.createBooleanBinding( () -> Optional.ofNullable( n5error.get() ).orElse( "" ).length() == 0, n5error );
+
 	private final Effect textFieldNoErrorEffect = new TextField().getEffect();
 
 	private final Effect textFieldErrorEffect = new InnerShadow( 10, Color.ORANGE );
@@ -127,8 +130,6 @@ public class BackendDialogN5 implements BackendDialog, CombinesErrorMessages
 						this.isTraversingDirectories.set( true );
 						findSubdirectories( new File( newv ), dir -> new File( dir, "attributes.json" ).exists(), files::add );
 						this.isTraversingDirectories.set( false );
-//						if ( datasetChoices.size() == 0 )
-//							datasetChoices.add( "" );
 						final URI baseURI = new File( newv ).toURI();
 						if ( !Thread.currentThread().isInterrupted() )
 						{
@@ -173,20 +174,14 @@ public class BackendDialogN5 implements BackendDialog, CombinesErrorMessages
 				}
 
 			}
-			else if ( Optional.of( n5.get() ).orElse( "" ).length() > 0 )
+			else
 				datasetError.set( "No n5 dataset selected" );
-		} );
-		datasetChoices.addListener( ( ListChangeListener< String > ) change -> {
-			while ( change.next() )
-				if ( datasetChoices.size() == 0 )
-					datasetError.set( "No datasets found for n5 root: " + n5.get() );
-				else
-					datasetError.set( null );
 		} );
 
 		n5error.addListener( ( obs, oldv, newv ) -> combineErrorMessages() );
 		n5error.addListener( ( obs, oldv, newv ) -> this.n5errorEffect.set( newv != null && newv.length() > 0 ? textFieldErrorEffect : textFieldNoErrorEffect ) );
 		datasetError.addListener( ( obs, oldv, newv ) -> combineErrorMessages() );
+		this.n5error.addListener( ( obs, oldv, newv ) -> {} );
 
 		n5.set( "" );
 		dataset.set( "" );
@@ -207,7 +202,7 @@ public class BackendDialogN5 implements BackendDialog, CombinesErrorMessages
 		datasetDropDown.setMinWidth( n5Field.getMinWidth() );
 		datasetDropDown.setPrefWidth( n5Field.getPrefWidth() );
 		datasetDropDown.setMaxWidth( n5Field.getMaxWidth() );
-		datasetDropDown.disableProperty().bind( this.isTraversingDirectories );
+		datasetDropDown.disableProperty().bind( this.isTraversingDirectories.or( this.isValidN5.not() ) );
 		final GridPane grid = new GridPane();
 		grid.add( n5Field, 0, 0 );
 		grid.add( datasetDropDown, 0, 1 );
