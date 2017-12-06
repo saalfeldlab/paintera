@@ -81,7 +81,7 @@ public interface BackendDialog
 		return new SimpleDoubleProperty( Double.NaN );
 	}
 
-	public default void typeChanged( TYPE type )
+	public default void typeChanged( final TYPE type )
 	{}
 
 //	TODO

@@ -2,10 +2,16 @@ package bdv.bigcat.viewer.atlas.opendialog;
 
 import java.io.File;
 import java.io.IOException;
+import java.lang.invoke.MethodHandles;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import bdv.bigcat.viewer.atlas.data.DataSource;
 import bdv.bigcat.viewer.atlas.data.HDF5LabelMultisetDataSource;
@@ -14,6 +20,7 @@ import bdv.bigcat.viewer.atlas.opendialog.OpenSourceDialog.TYPE;
 import bdv.img.cache.VolatileGlobalCellCache;
 import bdv.img.h5.H5Utils;
 import bdv.util.volatiles.SharedQueue;
+import ch.systemsx.cisd.hdf5.HDF5DataSetInformation;
 import ch.systemsx.cisd.hdf5.HDF5Factory;
 import ch.systemsx.cisd.hdf5.IHDF5Reader;
 import javafx.beans.property.DoubleProperty;
@@ -37,6 +44,8 @@ import net.imglib2.type.numeric.RealType;
 
 public class BackendDialogHDF5 implements BackendDialog
 {
+
+	private static final Logger LOG = LoggerFactory.getLogger( MethodHandles.lookup().lookupClass() );
 
 	private static final String RESOLUTION_KEY = "resolution";
 
@@ -198,9 +207,7 @@ public class BackendDialogHDF5 implements BackendDialog
 		final String rawFile = hdf5.get();
 		final String rawDataset = this.dataset.get();
 
-		final int[] cellSize = { 192, 96, 7 };
-
-		return Optional.of( DataSource.createH5RawSource( name, rawFile, rawDataset, cellSize, resolution, sharedQueue, priority ) );
+		return Optional.of( DataSource.createH5RawSource( name, rawFile, rawDataset, getChunkSize( rawFile, rawDataset ), resolution, sharedQueue, priority ) );
 	}
 
 	@Override
@@ -214,13 +221,12 @@ public class BackendDialogHDF5 implements BackendDialog
 		final String labelsFile = hdf5.get();
 		final String labelsDataset = this.dataset.get();
 
-		final int[] labelCellSize = { 79, 79, 4 };
 		final VolatileGlobalCellCache cellCache = new VolatileGlobalCellCache( 1, 2 );
 
 		HDF5LabelMultisetDataSource labelSpec2 = null;
 		try
 		{
-			labelSpec2 = new HDF5LabelMultisetDataSource( labelsFile, labelsDataset, labelCellSize, "labels", cellCache, 1 );
+			labelSpec2 = new HDF5LabelMultisetDataSource( labelsFile, labelsDataset, getChunkSize( labelsFile, labelsDataset ), "labels", cellCache, 1 );
 		}
 		catch ( final IOException e )
 		{
@@ -324,6 +330,19 @@ public class BackendDialogHDF5 implements BackendDialog
 	public DoubleProperty max()
 	{
 		return this.max;
+	}
+
+	private static int[] getChunkSize( final String file, final String dataset )
+	{
+		final IHDF5Reader reader = HDF5Factory.openForReading( file );
+		final HDF5DataSetInformation info = reader.getDataSetInformation( dataset );
+		final Optional< int[] > chunksOptional = Optional.ofNullable( info.tryGetChunkSizes() );
+		if ( chunksOptional.isPresent() )
+			LOG.debug( "Found chunk size {} {} {}", chunksOptional.get()[ 0 ], chunksOptional.get()[ 1 ], chunksOptional.get()[ 2 ] );
+		else
+			LOG.warn( "No chunk size specified for {}/{} -- Using dataset dimensions instead.", file, dataset );
+		final int[] chunks = chunksOptional.orElse( Arrays.stream( info.getDimensions() ).mapToInt( l -> ( int ) l ).toArray() );
+		return IntStream.range( 0, chunks.length ).map( i -> chunks[ chunks.length - i - 1 ] ).toArray();
 	}
 
 }
