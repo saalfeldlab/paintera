@@ -67,6 +67,36 @@ public interface DataSource< D, T > extends Source< T >
 			final SharedQueue sharedQueue,
 			final int priority ) throws IOException
 	{
+		return createH5RawSource( name, rawFile, rawDataset, rawCellSize, resolution, new double[ resolution.length ], sharedQueue, priority );
+	}
+
+	/**
+	 * Create a primitive single scale level source without visualization
+	 * conversion from an H5 dataset.
+	 *
+	 * @param name
+	 * @param rawFile
+	 * @param rawDataset
+	 * @param rawCellSize
+	 * @param resolution
+	 * @param offset
+	 * @param sharedQueue
+	 * @param priority
+	 * @param typeSupplier
+	 * @param volatileTypeSupplier
+	 * @return
+	 * @throws IOException
+	 */
+	public static < T extends NativeType< T > & NumericType< T >, V extends NumericType< V > > RandomAccessibleIntervalDataSource< T, V > createH5RawSource(
+			final String name,
+			final String rawFile,
+			final String rawDataset,
+			final int[] rawCellSize,
+			final double[] resolution,
+			final double[] offset,
+			final SharedQueue sharedQueue,
+			final int priority ) throws IOException
+	{
 		final RandomAccessibleInterval< T > raw = H5Utils.open( HDF5Factory.openForReading( rawFile ), rawDataset, rawCellSize );
 		final T t = Util.getTypeFromInterval( raw );
 		@SuppressWarnings( "unchecked" )
@@ -74,9 +104,9 @@ public interface DataSource< D, T > extends Source< T >
 
 		final AffineTransform3D rawTransform = new AffineTransform3D();
 		rawTransform.set(
-				resolution[ 0 ], 0, 0, 0,
-				0, resolution[ 1 ], 0, 0,
-				0, 0, resolution[ 2 ], 0 );
+				resolution[ 0 ], 0, 0, offset[ 0 ],
+				0, resolution[ 1 ], 0, offset[ 1 ],
+				0, 0, resolution[ 2 ], offset[ 2 ] );
 
 		@SuppressWarnings( "unchecked" )
 		final RandomAccessibleIntervalDataSource< T, V > rawSource =

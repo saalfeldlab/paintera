@@ -14,15 +14,15 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import bdv.bigcat.viewer.atlas.data.DataSource;
-import bdv.bigcat.viewer.atlas.data.HDF5LabelMultisetDataSource;
 import bdv.bigcat.viewer.atlas.data.LabelDataSource;
 import bdv.bigcat.viewer.atlas.opendialog.OpenSourceDialog.TYPE;
-import bdv.img.cache.VolatileGlobalCellCache;
+import bdv.bigcat.viewer.state.FragmentSegmentAssignmentWithHistory;
 import bdv.img.h5.H5Utils;
 import bdv.util.volatiles.SharedQueue;
 import ch.systemsx.cisd.hdf5.HDF5DataSetInformation;
 import ch.systemsx.cisd.hdf5.HDF5Factory;
 import ch.systemsx.cisd.hdf5.IHDF5Reader;
+import gnu.trove.map.hash.TLongLongHashMap;
 import javafx.beans.property.DoubleProperty;
 import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.SimpleDoubleProperty;
@@ -207,7 +207,7 @@ public class BackendDialogHDF5 implements BackendDialog
 		final String rawFile = hdf5.get();
 		final String rawDataset = this.dataset.get();
 
-		return Optional.of( DataSource.createH5RawSource( name, rawFile, rawDataset, getChunkSize( rawFile, rawDataset ), resolution, sharedQueue, priority ) );
+		return Optional.of( DataSource.createH5RawSource( name, rawFile, rawDataset, getChunkSize( rawFile, rawDataset ), resolution, offset, sharedQueue, priority ) );
 	}
 
 	@Override
@@ -221,20 +221,19 @@ public class BackendDialogHDF5 implements BackendDialog
 		final String labelsFile = hdf5.get();
 		final String labelsDataset = this.dataset.get();
 
-		final VolatileGlobalCellCache cellCache = new VolatileGlobalCellCache( 1, 2 );
-
-		HDF5LabelMultisetDataSource labelSpec2 = null;
-		try
-		{
-			labelSpec2 = new HDF5LabelMultisetDataSource( labelsFile, labelsDataset, getChunkSize( labelsFile, labelsDataset ), "labels", cellCache, 1 );
-		}
-		catch ( final IOException e )
-		{
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
-
-		return Optional.of( labelSpec2 );
+		final FragmentSegmentAssignmentWithHistory assignment = new FragmentSegmentAssignmentWithHistory( new TLongLongHashMap(), action -> {}, () -> {
+			try
+			{
+				Thread.sleep( 1000 );
+			}
+			catch ( final InterruptedException e )
+			{
+				e.printStackTrace();
+			}
+			return null;
+		} );
+		final int[] chunks = getChunkSize( labelsFile, labelsDataset );
+		return Optional.of( LabelDataSource.createH5LabelSource( name, labelsFile, labelsDataset, chunks, resolution, offset, sharedQueue, priority, assignment ) );
 	}
 
 	@Override
