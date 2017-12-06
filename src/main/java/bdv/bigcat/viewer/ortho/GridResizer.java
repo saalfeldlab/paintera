@@ -24,6 +24,8 @@ public class GridResizer
 
 	private boolean dragging = false;
 
+	private boolean isOnMargin;
+
 	public GridResizer( final GridConstraintsManager manager, final double tolerance, final GridPane grid )
 	{
 		super();
@@ -82,30 +84,34 @@ public class GridResizer
 
 					if ( mouseWithinResizableRangeX && mouseWithinResizableRangeY )
 					{
-						if ( Double.compare( ( x - gridBorderX ), 0.0 ) < 0 && Double.compare( ( y - gridBorderY ), 0.0 ) < 0 )
+						if ( Double.compare( x - gridBorderX, 0.0 ) < 0 && Double.compare( y - gridBorderY, 0.0 ) < 0 )
 							scene.setCursor( Cursor.SE_RESIZE );
 
-						else if ( Double.compare( ( x - gridBorderX ), 0.0 ) > 0 && Double.compare( ( y - gridBorderY ), 0.0 ) < 0 )
+						else if ( Double.compare( x - gridBorderX, 0.0 ) > 0 && Double.compare( y - gridBorderY, 0.0 ) < 0 )
 							scene.setCursor( Cursor.SW_RESIZE );
 
-						else if ( Double.compare( ( x - gridBorderX ), 0.0 ) < 0 && Double.compare( ( y - gridBorderY ), 0.0 ) > 0 )
+						else if ( Double.compare( x - gridBorderX, 0.0 ) < 0 && Double.compare( y - gridBorderY, 0.0 ) > 0 )
 							scene.setCursor( Cursor.NE_RESIZE );
 
 						else
 							scene.setCursor( Cursor.NW_RESIZE );
+						isOnMargin = true;
 					}
 
 					else if ( mouseWithinResizableRangeX )
 					{
 						scene.setCursor( Cursor.H_RESIZE );
+						isOnMargin = true;
 					}
 					else if ( mouseWithinResizableRangeY )
 					{
 						scene.setCursor( Cursor.V_RESIZE );
+						isOnMargin = true;
 					}
-					else
+					else if ( isOnMargin )
 					{
 						scene.setCursor( Cursor.DEFAULT );
+						isOnMargin = false;
 					}
 				}
 			}
@@ -128,9 +134,7 @@ public class GridResizer
 
 			dragging = mouseWithinResizableRangeX || mouseWithinResizableRangeY;
 			if ( dragging )
-			{
 				event.consume();
-			}
 		}
 	}
 
