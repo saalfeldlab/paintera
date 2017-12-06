@@ -29,12 +29,11 @@ import bdv.bigcat.viewer.atlas.data.DataSource;
 import bdv.bigcat.viewer.atlas.data.LabelDataSource;
 import bdv.bigcat.viewer.atlas.data.LabelDataSourceFromDelegates;
 import bdv.bigcat.viewer.atlas.data.RandomAccessibleIntervalDataSource;
-import bdv.bigcat.viewer.state.FragmentSegmentAssignmentWithHistory;
+import bdv.bigcat.viewer.state.FragmentSegmentAssignmentOnlyLocal;
 import bdv.bigcat.viewer.util.InvokeOnJavaFXApplicationThread;
 import bdv.util.volatiles.SharedQueue;
 import bdv.util.volatiles.VolatileTypeMatcher;
 import bdv.util.volatiles.VolatileViews;
-import gnu.trove.map.hash.TLongLongHashMap;
 import javafx.beans.property.DoubleProperty;
 import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.SimpleBooleanProperty;
@@ -329,18 +328,8 @@ public class BackendDialogN5 implements BackendDialog, CombinesErrorMessages
 						t::createVariable,
 						v::createVariable,
 						name );
-		final FragmentSegmentAssignmentWithHistory frag = new FragmentSegmentAssignmentWithHistory( new TLongLongHashMap(), action -> {}, () -> {
-			try
-			{
-				Thread.sleep( 1000 );
-			}
-			catch ( final InterruptedException e )
-			{
-				e.printStackTrace();
-			}
-			return null;
-		} );
-		final LabelDataSourceFromDelegates< T, V > delegated = new LabelDataSourceFromDelegates<>( source, frag );
+		final FragmentSegmentAssignmentOnlyLocal assignment = new FragmentSegmentAssignmentOnlyLocal();
+		final LabelDataSourceFromDelegates< T, V > delegated = new LabelDataSourceFromDelegates<>( source, assignment );
 		return delegated;
 	}
 
