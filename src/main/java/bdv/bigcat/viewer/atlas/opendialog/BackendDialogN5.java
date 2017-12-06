@@ -36,6 +36,7 @@ import bdv.util.volatiles.VolatileTypeMatcher;
 import bdv.util.volatiles.VolatileViews;
 import javafx.beans.binding.Bindings;
 import javafx.beans.binding.BooleanBinding;
+import javafx.beans.binding.StringBinding;
 import javafx.beans.property.DoubleProperty;
 import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.SimpleBooleanProperty;
@@ -112,6 +113,12 @@ public class BackendDialogN5 implements BackendDialog, CombinesErrorMessages
 
 	private final BooleanBinding isValidN5 = Bindings.createBooleanBinding( () -> Optional.ofNullable( n5error.get() ).orElse( "" ).length() == 0, n5error );
 
+	private final StringBinding traversalMessage =
+			Bindings.createStringBinding( () -> isTraversingDirectories.get() ? "Discovering datasets" : "", isTraversingDirectories );
+	{
+		traversalMessage.addListener( ( obs, oldv, newv ) -> System.out.println( traversalMessage ) );
+	}
+
 	private final Effect textFieldNoErrorEffect = new TextField().getEffect();
 
 	private final Effect textFieldErrorEffect = new InnerShadow( 10, Color.ORANGE );
@@ -128,7 +135,7 @@ public class BackendDialogN5 implements BackendDialog, CombinesErrorMessages
 					directoryTraversalTasks.add( singleThreadExecutorService.submit( () -> {
 						final List< File > files = new ArrayList<>();
 						this.isTraversingDirectories.set( true );
-						findSubdirectories( new File( newv ), dir -> new File( dir, "attributes.json" ).exists(), files::add );
+						findSubdirectories( new File( newv ), dir -> new File( dir, "attributes.json" ).exists(), files::add, () -> this.isTraversingDirectories.set( false ) );
 						this.isTraversingDirectories.set( false );
 						final URI baseURI = new File( newv ).toURI();
 						if ( !Thread.currentThread().isInterrupted() )
@@ -178,10 +185,17 @@ public class BackendDialogN5 implements BackendDialog, CombinesErrorMessages
 				datasetError.set( "No n5 dataset selected" );
 		} );
 
-		n5error.addListener( ( obs, oldv, newv ) -> combineErrorMessages() );
 		n5error.addListener( ( obs, oldv, newv ) -> this.n5errorEffect.set( newv != null && newv.length() > 0 ? textFieldErrorEffect : textFieldNoErrorEffect ) );
-		datasetError.addListener( ( obs, oldv, newv ) -> combineErrorMessages() );
-		this.n5error.addListener( ( obs, oldv, newv ) -> {} );
+
+		this.isValidN5.addListener( ( obs, oldv, newv ) -> {
+			synchronized ( directoryTraversalTasks )
+			{
+				directoryTraversalTasks.forEach( task -> task.cancel( !newv ) );
+				directoryTraversalTasks.clear();
+			}
+		} );
+
+		this.errorMessages().forEach( em -> em.addListener( ( obs, oldv, newv ) -> combineErrorMessages() ) );
 
 		n5.set( "" );
 		dataset.set( "" );
@@ -241,14 +255,18 @@ public class BackendDialogN5 implements BackendDialog, CombinesErrorMessages
 		return error;
 	}
 
-	public static void findSubdirectories( final File file, final Predicate< File > check, final Consumer< File > action )
+	public static void findSubdirectories( final File file, final Predicate< File > check, final Consumer< File > action, final Runnable onInterruption )
 	{
 		if ( !Thread.currentThread().isInterrupted() )
+		{
 			if ( check.test( file ) )
 				action.accept( file );
 			else if ( file.exists() )
 				// TODO come up with better filter than File::canWrite
-				Optional.ofNullable( file.listFiles() ).ifPresent( files -> Arrays.stream( files ).filter( File::isDirectory ).filter( File::canRead ).forEach( f -> findSubdirectories( f, check, action ) ) );
+				Optional.ofNullable( file.listFiles() ).ifPresent( files -> Arrays.stream( files ).filter( File::isDirectory ).filter( File::canRead ).forEach( f -> findSubdirectories( f, check, action, onInterruption ) ) );
+		}
+		else
+			onInterruption.run();
 	}
 
 	@Override
@@ -407,7 +425,7 @@ public class BackendDialogN5 implements BackendDialog, CombinesErrorMessages
 	@Override
 	public Collection< ObservableValue< String > > errorMessages()
 	{
-		return Arrays.asList( this.n5error, this.datasetError );
+		return Arrays.asList( this.n5error, this.traversalMessage, this.datasetError );
 	}
 
 	@Override
