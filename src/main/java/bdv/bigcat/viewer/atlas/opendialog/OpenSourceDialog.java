@@ -160,7 +160,7 @@ public class OpenSourceDialog extends Dialog< BackendDialog > implements Combine
 	@Override
 	public Consumer< Collection< String > > combiner()
 	{
-		return strings -> this.errorMessage.setText( String.join( "\n", strings ) );
+		return strings -> InvokeOnJavaFXApplicationThread.invoke( () -> this.errorMessage.setText( String.join( "\n", strings ) ) );
 	}
 
 }
