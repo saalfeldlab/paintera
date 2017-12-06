@@ -6,7 +6,8 @@ import java.util.Optional;
 import java.util.function.Consumer;
 
 import bdv.bigcat.viewer.util.InvokeOnJavaFXApplicationThread;
-import javafx.beans.property.SimpleBooleanProperty;
+import javafx.beans.binding.Bindings;
+import javafx.beans.binding.BooleanBinding;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.value.ObservableValue;
 import javafx.collections.FXCollections;
@@ -62,7 +63,7 @@ public class OpenSourceDialog extends Dialog< BackendDialog > implements Combine
 
 	private final NameField nameField = new NameField( "Source name", "Specify source name (required)", new InnerShadow( 10, Color.ORANGE ) );
 
-	private final SimpleBooleanProperty isError = new SimpleBooleanProperty();
+	private final BooleanBinding isError;
 
 	private final ObservableMap< BACKEND, BackendDialog > backendInfoDialogs = FXCollections.observableHashMap();
 	{
@@ -79,15 +80,11 @@ public class OpenSourceDialog extends Dialog< BackendDialog > implements Combine
 		this.getDialogPane().getButtonTypes().addAll( ButtonType.CANCEL, ButtonType.OK );
 		this.errorMessage = new Label( "" );
 		this.errorInfo = new TitledPane( "", errorMessage );
+		this.isError = Bindings.createBooleanBinding( () -> Optional.ofNullable( this.errorMessage.textProperty().get() ).orElse( "" ).length() > 0, this.errorMessage.textProperty() );
+		errorInfo.textProperty().bind( Bindings.createStringBinding( () -> this.isError.get() ? "ERROR" : "", this.isError ) );
 
-		this.errorMessage.textProperty().addListener( ( obs, oldv, newv ) -> {
-			final boolean isError = newv == null || newv.length() == 0;
-			errorInfo.setText( isError ? "" : "ERROR" );
-			this.isError.set( isError );
-		} );
-
-		this.getDialogPane().lookupButton( ButtonType.OK ).disableProperty().bind( this.isError.not() );
-		this.errorInfo.visibleProperty().bind( this.isError.not() );
+		this.getDialogPane().lookupButton( ButtonType.OK ).disableProperty().bind( this.isError );
+		this.errorInfo.visibleProperty().bind( this.isError );
 
 		this.grid = new GridPane();
 		this.backendDialog = new StackPane();
