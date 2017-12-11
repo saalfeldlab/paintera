@@ -285,7 +285,7 @@ public class BackendDialogN5 implements BackendDialog, CombinesErrorMessages
 	}
 
 	@Override
-	public < T extends RealType< T > & NativeType< T >, V extends RealType< V > > Optional< DataSource< T, V > > getRaw(
+	public < T extends RealType< T > & NativeType< T >, V extends RealType< V > > Collection< DataSource< T, V > > getRaw(
 			final String name,
 			final double[] resolution,
 			final double[] offset,
@@ -300,11 +300,11 @@ public class BackendDialogN5 implements BackendDialog, CombinesErrorMessages
 		final int[] componentMapping = axisOrder.spatialOnly().inversePermutation();
 		final AffineTransform3D rawTransform = permutedSourceTransform( resolution, offset, componentMapping );
 
-		return Optional.of( DataSource.createN5RawSource( name, reader, dataset, rawTransform, sharedQueue, priority ) );
+		return Arrays.asList( DataSource.createN5RawSource( name, reader, dataset, rawTransform, sharedQueue, priority ) );
 	}
 
 	@Override
-	public Optional< LabelDataSource< ?, ? > > getLabels(
+	public Collection< LabelDataSource< ?, ? > > getLabels(
 			final String name,
 			final double[] resolution,
 			final double[] offset,
@@ -320,14 +320,14 @@ public class BackendDialogN5 implements BackendDialog, CombinesErrorMessages
 		if ( isLabelType( type ) )
 		{
 			if ( isIntegerType( type ) )
-				return Optional.of( ( LabelDataSource< ?, ? > ) getIntegerTypeSource( name, reader, dataset, resolution, offset, axisOrder, sharedQueue, priority ) );
+				return Arrays.asList( ( LabelDataSource< ?, ? > ) getIntegerTypeSource( name, reader, dataset, resolution, offset, axisOrder, sharedQueue, priority ) );
 			else if ( isLabelMultisetType( type ) )
-				return Optional.empty();
+				return new ArrayList<>();
 			else
-				return Optional.empty();
+				return new ArrayList<>();
 		}
 		else
-			return Optional.empty();
+			return new ArrayList<>();
 	}
 
 	private static final < T extends IntegerType< T > & NativeType< T >, V extends AbstractVolatileRealType< T, V > > LabelDataSource< T, V > getIntegerTypeSource(

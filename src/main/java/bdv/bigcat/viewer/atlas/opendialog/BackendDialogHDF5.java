@@ -5,6 +5,7 @@ import java.io.IOException;
 import java.lang.invoke.MethodHandles;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
@@ -196,7 +197,7 @@ public class BackendDialogHDF5 implements BackendDialog
 	}
 
 	@Override
-	public < T extends RealType< T > & NativeType< T >, V extends RealType< V > > Optional< DataSource< T, V > > getRaw(
+	public < T extends RealType< T > & NativeType< T >, V extends RealType< V > > Collection< DataSource< T, V > > getRaw(
 			final String name,
 			final double[] resolution,
 			final double[] offset,
@@ -207,11 +208,11 @@ public class BackendDialogHDF5 implements BackendDialog
 		final String rawFile = hdf5.get();
 		final String rawDataset = this.dataset.get();
 
-		return Optional.of( DataSource.createH5RawSource( name, rawFile, rawDataset, getChunkSize( rawFile, rawDataset ), resolution, offset, sharedQueue, priority ) );
+		return Arrays.asList( DataSource.createH5RawSource( name, rawFile, rawDataset, getChunkSize( rawFile, rawDataset ), resolution, offset, sharedQueue, priority ) );
 	}
 
 	@Override
-	public Optional< LabelDataSource< ?, ? > > getLabels(
+	public Collection< LabelDataSource< ?, ? > > getLabels(
 			final String name,
 			final double[] resolution,
 			final double[] offset,
@@ -223,7 +224,7 @@ public class BackendDialogHDF5 implements BackendDialog
 		final String labelsDataset = this.dataset.get();
 		final FragmentSegmentAssignmentOnlyLocal assignment = new FragmentSegmentAssignmentOnlyLocal();
 		final int[] chunks = getChunkSize( labelsFile, labelsDataset );
-		return Optional.of( LabelDataSource.createH5LabelSource( name, labelsFile, labelsDataset, chunks, resolution, offset, sharedQueue, priority, assignment ) );
+		return Arrays.asList( LabelDataSource.createH5LabelSource( name, labelsFile, labelsDataset, chunks, resolution, offset, sharedQueue, priority, assignment ) );
 	}
 
 	@Override

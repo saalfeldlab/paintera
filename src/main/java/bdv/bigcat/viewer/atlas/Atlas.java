@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.lang.invoke.MethodHandles;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
@@ -221,7 +222,7 @@ public class Atlas
 							dataset
 									.get()
 									.getRaw( openDialog.getName(), meta.getResolution(), meta.getOffset(), meta.getAxisOrder(), cellCache, cellCache.getNumPriorities() - 1 )
-									.ifPresent( source -> addRawSource( source, Double.isFinite( min ) ? min : getTypeMin( source.getType() ), Double.isFinite( max ) ? max : getTypeMax( source.getType() ) ) );
+									.forEach( source -> addRawSource( source, Double.isFinite( min ) ? min : getTypeMin( source.getType() ), Double.isFinite( max ) ? max : getTypeMax( source.getType() ) ) );
 						}
 						catch ( final IOException e )
 						{
@@ -231,16 +232,15 @@ public class Atlas
 					case LABEL:
 						try
 						{
-							final Optional< LabelDataSource< ?, ? > > optionalSource = dataset.get().getLabels(
+							final Collection< LabelDataSource< ?, ? > > optionalSource = dataset.get().getLabels(
 									openDialog.getName(),
 									meta.getResolution(),
 									meta.getOffset(),
 									meta.getAxisOrder(),
 									cellCache,
 									cellCache.getNumPriorities() );
-							if ( optionalSource.isPresent() )
+							for ( final LabelDataSource< ?, ? > source : optionalSource )
 							{
-								final LabelDataSource< ?, ? > source = optionalSource.get();
 								final Object t = source.getDataType();
 								final Object vt = source.getType();
 								if ( t instanceof LabelMultisetType && vt instanceof VolatileLabelMultisetType )

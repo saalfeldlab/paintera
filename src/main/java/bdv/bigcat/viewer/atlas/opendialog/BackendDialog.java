@@ -1,7 +1,8 @@
 package bdv.bigcat.viewer.atlas.opendialog;
 
 import java.io.IOException;
-import java.util.Optional;
+import java.util.ArrayList;
+import java.util.Collection;
 
 import bdv.bigcat.viewer.atlas.data.DataSource;
 import bdv.bigcat.viewer.atlas.data.LabelDataSource;
@@ -24,7 +25,7 @@ public interface BackendDialog
 
 	public ObjectProperty< String > errorMessage();
 
-	public default < T extends RealType< T > & NativeType< T >, V extends RealType< V > > Optional< DataSource< T, V > > getRaw(
+	public default < T extends RealType< T > & NativeType< T >, V extends RealType< V > > Collection< DataSource< T, V > > getRaw(
 			final String name,
 			final double[] resolution,
 			final double[] offset,
@@ -32,10 +33,10 @@ public interface BackendDialog
 			final SharedQueue sharedQueue,
 			final int priority ) throws IOException
 	{
-		return Optional.empty();
+		return new ArrayList<>();
 	}
 
-	public default Optional< LabelDataSource< ?, ? > > getLabels(
+	public default Collection< LabelDataSource< ?, ? > > getLabels(
 			final String name,
 			final double[] resolution,
 			final double[] offset,
@@ -43,7 +44,7 @@ public interface BackendDialog
 			final SharedQueue sharedQueue,
 			final int priority ) throws IOException
 	{
-		return Optional.empty();
+		return new ArrayList<>();
 	}
 
 	public default DoubleProperty resolutionX()
