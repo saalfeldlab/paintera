@@ -86,6 +86,7 @@ public class BackendDialogDVID implements BackendDialog
 			final String name,
 			final double[] resolution,
 			final double[] offset,
+			final AxisOrder axisOrder,
 			final SharedQueue sharedQueue,
 			final int priority ) throws IOException
 	{
@@ -121,6 +122,7 @@ public class BackendDialogDVID implements BackendDialog
 			final String name,
 			final double[] resolution,
 			final double[] offset,
+			final AxisOrder axisOrder,
 			final SharedQueue sharedQueue,
 			final int priority ) throws IOException
 	{

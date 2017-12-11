@@ -5,6 +5,7 @@ import java.util.Collection;
 import java.util.Optional;
 import java.util.function.Consumer;
 
+import bdv.bigcat.viewer.atlas.opendialog.meta.MetaPanel;
 import bdv.bigcat.viewer.util.InvokeOnJavaFXApplicationThread;
 import javafx.beans.binding.Bindings;
 import javafx.beans.binding.BooleanBinding;
@@ -109,6 +110,7 @@ public class OpenSourceDialog extends Dialog< BackendDialog > implements Combine
 //				this.errorMessage.bind( backendDialog.errorMessage() );
 				this.currentBackend.set( backendDialog );
 
+				this.metaPanel.defaultAxisOrderProperty().bind( backendDialog.axisOrder() );
 				this.metaPanel.listenOnResolution( backendDialog.resolutionX(), backendDialog.resolutionY(), backendDialog.resolutionZ() );
 				this.metaPanel.listenOnOffset( backendDialog.offsetX(), backendDialog.offsetY(), backendDialog.offsetZ() );
 				this.metaPanel.listenOnMinMax( backendDialog.min(), backendDialog.max() );

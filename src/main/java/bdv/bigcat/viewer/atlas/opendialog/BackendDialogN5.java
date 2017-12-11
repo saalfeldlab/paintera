@@ -16,10 +16,9 @@ import java.util.concurrent.Future;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
-import java.util.stream.DoubleStream;
-import java.util.stream.IntStream;
 
 import org.janelia.saalfeldlab.n5.DataType;
+import org.janelia.saalfeldlab.n5.DatasetAttributes;
 import org.janelia.saalfeldlab.n5.N5FSReader;
 import org.janelia.saalfeldlab.n5.imglib2.N5Utils;
 
@@ -38,9 +37,11 @@ import javafx.beans.binding.Bindings;
 import javafx.beans.binding.BooleanBinding;
 import javafx.beans.binding.StringBinding;
 import javafx.beans.property.DoubleProperty;
+import javafx.beans.property.IntegerProperty;
 import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleDoubleProperty;
+import javafx.beans.property.SimpleIntegerProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.value.ObservableValue;
 import javafx.collections.FXCollections;
@@ -77,6 +78,8 @@ public class BackendDialogN5 implements BackendDialog, CombinesErrorMessages
 
 	private static final String MAX_KEY = "max";
 
+	private static final String AXIS_ORDER_KEY = "axisOrder";
+
 	private final SimpleObjectProperty< String > n5 = new SimpleObjectProperty<>();
 
 	private final SimpleObjectProperty< String > dataset = new SimpleObjectProperty<>();
@@ -104,6 +107,10 @@ public class BackendDialogN5 implements BackendDialog, CombinesErrorMessages
 	private final SimpleDoubleProperty min = new SimpleDoubleProperty( Double.NaN );
 
 	private final SimpleDoubleProperty max = new SimpleDoubleProperty( Double.NaN );
+
+	private final SimpleIntegerProperty numDimensions = new SimpleIntegerProperty();
+
+	private final SimpleObjectProperty< AxisOrder > axisOrder = new SimpleObjectProperty<>( null );
 
 	private final ExecutorService singleThreadExecutorService = Executors.newFixedThreadPool( 1 );
 
@@ -157,13 +164,24 @@ public class BackendDialogN5 implements BackendDialog, CombinesErrorMessages
 				datasetError.set( null );
 				try
 				{
-					final HashMap< String, JsonElement > attributes = new N5FSReader( n5.get() ).getAttributes( newv );
-					final double[] resolution = attributes.containsKey( RESOLUTION_KEY ) ? IntStream.range( 0, 3 ).mapToDouble( i -> attributes.get( RESOLUTION_KEY ).getAsJsonArray().get( i ).getAsDouble() ).toArray() : DoubleStream.generate( () -> Double.NaN ).limit( 3 ).toArray();
+					final N5FSReader reader = new N5FSReader( n5.get() );
+
+					final DatasetAttributes dsAttrs = reader.getDatasetAttributes( newv );
+					final int nDim = dsAttrs.getNumDimensions();
+					this.numDimensions.set( nDim );
+
+					final HashMap< String, JsonElement > attributes = reader.getAttributes( newv );
+
+					if ( attributes.containsKey( AXIS_ORDER_KEY ) )
+						this.axisOrder.set( reader.getAttribute( newv, AXIS_ORDER_KEY, AxisOrder.class ) );
+					else if ( this.axisOrder.get() == null || this.axisOrder.get().numDimensions() != nDim )
+						AxisOrder.defaultOrder( nDim ).ifPresent( this.axisOrder::set );
+
+					final double[] resolution = Optional.ofNullable( reader.getAttribute( newv, RESOLUTION_KEY, double[].class ) ).orElse( new double[] { Double.NaN, Double.NaN, Double.NaN } );
 					resX.set( resolution[ 0 ] );
 					resY.set( resolution[ 1 ] );
 					resZ.set( resolution[ 2 ] );
-
-					final double[] offset = attributes.containsKey( OFFSET_KEY ) ? IntStream.range( 0, 3 ).mapToDouble( i -> attributes.get( OFFSET_KEY ).getAsJsonArray().get( i ).getAsDouble() ).toArray() : DoubleStream.generate( () -> Double.NaN ).limit( 3 ).toArray();
+					final double[] offset = Optional.ofNullable( reader.getAttribute( newv, OFFSET_KEY, double[].class ) ).orElse( new double[] { Double.NaN, Double.NaN, Double.NaN } );
 					offX.set( offset[ 0 ] );
 					offY.set( offset[ 1 ] );
 					offZ.set( offset[ 2 ] );
@@ -271,6 +289,7 @@ public class BackendDialogN5 implements BackendDialog, CombinesErrorMessages
 			final String name,
 			final double[] resolution,
 			final double[] offset,
+			final AxisOrder axisOrder,
 			final SharedQueue sharedQueue,
 			final int priority ) throws IOException
 	{
@@ -278,7 +297,10 @@ public class BackendDialogN5 implements BackendDialog, CombinesErrorMessages
 		final N5FSReader reader = new N5FSReader( group );
 		final String dataset = this.dataset.get();
 
-		return Optional.of( DataSource.createN5RawSource( name, reader, dataset, resolution, offset, sharedQueue, priority ) );
+		final int[] componentMapping = axisOrder.spatialOnly().inversePermutation();
+		final AffineTransform3D rawTransform = permutedSourceTransform( resolution, offset, componentMapping );
+
+		return Optional.of( DataSource.createN5RawSource( name, reader, dataset, rawTransform, sharedQueue, priority ) );
 	}
 
 	@Override
@@ -286,6 +308,7 @@ public class BackendDialogN5 implements BackendDialog, CombinesErrorMessages
 			final String name,
 			final double[] resolution,
 			final double[] offset,
+			final AxisOrder axisOrder,
 			final SharedQueue sharedQueue,
 			final int priority ) throws IOException
 	{
@@ -297,7 +320,7 @@ public class BackendDialogN5 implements BackendDialog, CombinesErrorMessages
 		if ( isLabelType( type ) )
 		{
 			if ( isIntegerType( type ) )
-				return Optional.of( ( LabelDataSource< ?, ? > ) getIntegerTypeSource( name, reader, dataset, resolution, offset, sharedQueue, priority ) );
+				return Optional.of( ( LabelDataSource< ?, ? > ) getIntegerTypeSource( name, reader, dataset, resolution, offset, axisOrder, sharedQueue, priority ) );
 			else if ( isLabelMultisetType( type ) )
 				return Optional.empty();
 			else
@@ -313,25 +336,34 @@ public class BackendDialogN5 implements BackendDialog, CombinesErrorMessages
 			final String dataset,
 			final double[] resolution,
 			final double[] offset,
+			final AxisOrder axisOrder,
 			final SharedQueue sharedQueue,
 			final int priority ) throws IOException
 	{
 		final RandomAccessibleInterval< T > raw = N5Utils.openVolatile( reader, dataset );
+		final RandomAccessibleInterval< V > vraw = VolatileViews.wrapAsVolatile( raw, sharedQueue, new CacheHints( LoadingStrategy.VOLATILE, priority, true ) );
 		final T t = Util.getTypeFromInterval( raw );
 		@SuppressWarnings( "unchecked" )
 		final V v = ( V ) VolatileTypeMatcher.getVolatileTypeForType( t );
 
-		final AffineTransform3D rawTransform = new AffineTransform3D();
-		rawTransform.set(
-				resolution[ 0 ], 0, 0, offset[ 0 ],
-				0, resolution[ 1 ], 0, offset[ 1 ],
-				0, 0, resolution[ 2 ], offset[ 2 ] );
+		final int[] componentMapping = axisOrder.spatialOnly().inversePermutation();
+		final AffineTransform3D rawTransform = permutedSourceTransform( resolution, offset, componentMapping );
+
+		// TODO permute axis or do it in the raw transform?
+//		final DatasetAttributes datasetAttributes = reader.getDatasetAttributes( dataset );
+//		final long[] dimensions = new long[ datasetAttributes.getNumDimensions() ];
+//		for ( int d = 0; d < dimensions.length; ++d )
+//			dimensions[ d ] = datasetAttributes.getDimensions()[ componentMapping[ d ] ];
+//		final MixedTransform tf = new MixedTransform( 3, 3 );
+//		tf.setComponentMapping( componentMapping );
+//		final FinalInterval fi = new FinalInterval( dimensions );
+//		System.out.println( Arrays.toString( componentMapping ) + " mapping " + Arrays.toString( dimensions ) + " " + Arrays.toString( datasetAttributes.getDimensions() ) + " " + isPermuted );
 
 		@SuppressWarnings( "unchecked" )
 		final RandomAccessibleIntervalDataSource< T, V > source =
 				new RandomAccessibleIntervalDataSource< T, V >(
 						new RandomAccessibleInterval[] { raw },
-						new RandomAccessibleInterval[] { VolatileViews.wrapAsVolatile( raw, sharedQueue, new CacheHints( LoadingStrategy.VOLATILE, priority, true ) ) },
+						new RandomAccessibleInterval[] { vraw },
 						new AffineTransform3D[] { rawTransform },
 						interpolation -> new NearestNeighborInterpolatorFactory<>(),
 						interpolation -> new NearestNeighborInterpolatorFactory<>(),
@@ -429,6 +461,31 @@ public class BackendDialogN5 implements BackendDialog, CombinesErrorMessages
 	public Consumer< Collection< String > > combiner()
 	{
 		return strings -> this.error.set( String.join( "\n", strings ) );
+	}
+
+	@Override
+	public IntegerProperty numDimensions()
+	{
+		return this.numDimensions();
+	}
+
+	@Override
+	public ObjectProperty< AxisOrder > axisOrder()
+	{
+		return this.axisOrder;
+	}
+
+	private static final AffineTransform3D permutedSourceTransform( final double[] resolution, final double[] offset, final int[] componentMapping )
+	{
+		final AffineTransform3D rawTransform = new AffineTransform3D();
+		final double[] matrixContent = new double[ 12 ];
+		for ( int i = 0, contentOffset = 0; i < offset.length; ++i, contentOffset += 4 )
+		{
+			matrixContent[ contentOffset + componentMapping[ i ] ] = resolution[ i ];
+			matrixContent[ contentOffset + 3 ] = offset[ i ];
+		}
+		rawTransform.set( matrixContent );
+		return rawTransform;
 	}
 
 }

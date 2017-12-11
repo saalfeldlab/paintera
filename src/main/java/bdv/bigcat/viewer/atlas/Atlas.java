@@ -33,8 +33,8 @@ import bdv.bigcat.viewer.atlas.mode.Mode;
 import bdv.bigcat.viewer.atlas.mode.ModeUtil;
 import bdv.bigcat.viewer.atlas.mode.NavigationOnly;
 import bdv.bigcat.viewer.atlas.opendialog.BackendDialog;
-import bdv.bigcat.viewer.atlas.opendialog.MetaPanel;
 import bdv.bigcat.viewer.atlas.opendialog.OpenSourceDialog;
+import bdv.bigcat.viewer.atlas.opendialog.meta.MetaPanel;
 import bdv.bigcat.viewer.bdvfx.KeyTracker;
 import bdv.bigcat.viewer.bdvfx.ViewerPanelFX;
 import bdv.bigcat.viewer.ortho.OrthoView;
@@ -220,7 +220,7 @@ public class Atlas
 							final double max = meta.max();
 							dataset
 									.get()
-									.getRaw( openDialog.getName(), meta.getResolution(), meta.getOffset(), cellCache, cellCache.getNumPriorities() - 1 )
+									.getRaw( openDialog.getName(), meta.getResolution(), meta.getOffset(), meta.getAxisOrder(), cellCache, cellCache.getNumPriorities() - 1 )
 									.ifPresent( source -> addRawSource( source, Double.isFinite( min ) ? min : getTypeMin( source.getType() ), Double.isFinite( max ) ? max : getTypeMax( source.getType() ) ) );
 						}
 						catch ( final IOException e )
@@ -231,7 +231,13 @@ public class Atlas
 					case LABEL:
 						try
 						{
-							final Optional< LabelDataSource< ?, ? > > optionalSource = dataset.get().getLabels( openDialog.getName(), meta.getResolution(), meta.getOffset(), cellCache, cellCache.getNumPriorities() );
+							final Optional< LabelDataSource< ?, ? > > optionalSource = dataset.get().getLabels(
+									openDialog.getName(),
+									meta.getResolution(),
+									meta.getOffset(),
+									meta.getAxisOrder(),
+									cellCache,
+									cellCache.getNumPriorities() );
 							if ( optionalSource.isPresent() )
 							{
 								final LabelDataSource< ?, ? > source = optionalSource.get();

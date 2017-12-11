@@ -8,8 +8,11 @@ import bdv.bigcat.viewer.atlas.data.LabelDataSource;
 import bdv.bigcat.viewer.atlas.opendialog.OpenSourceDialog.TYPE;
 import bdv.util.volatiles.SharedQueue;
 import javafx.beans.property.DoubleProperty;
+import javafx.beans.property.IntegerProperty;
 import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.SimpleDoubleProperty;
+import javafx.beans.property.SimpleIntegerProperty;
+import javafx.beans.property.SimpleObjectProperty;
 import javafx.scene.Node;
 import net.imglib2.type.NativeType;
 import net.imglib2.type.numeric.RealType;
@@ -25,6 +28,7 @@ public interface BackendDialog
 			final String name,
 			final double[] resolution,
 			final double[] offset,
+			final AxisOrder axisOrder,
 			final SharedQueue sharedQueue,
 			final int priority ) throws IOException
 	{
@@ -35,6 +39,7 @@ public interface BackendDialog
 			final String name,
 			final double[] resolution,
 			final double[] offset,
+			final AxisOrder axisOrder,
 			final SharedQueue sharedQueue,
 			final int priority ) throws IOException
 	{
@@ -83,6 +88,16 @@ public interface BackendDialog
 
 	public default void typeChanged( final TYPE type )
 	{}
+
+	public default IntegerProperty numDimensions()
+	{
+		return new SimpleIntegerProperty( 3 );
+	}
+
+	public default ObjectProperty< AxisOrder > axisOrder()
+	{
+		return new SimpleObjectProperty<>( AxisOrder.defaultOrder( numDimensions().get() ).orElse( null ) );
+	}
 
 //	TODO
 //	public DataSource< ?, ? > getChannels();
