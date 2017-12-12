@@ -9,10 +9,12 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Optional;
-import java.util.Random;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.ToLongFunction;
+import java.util.stream.Collectors;
+import java.util.stream.DoubleStream;
+import java.util.stream.IntStream;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -72,6 +74,7 @@ import javafx.scene.input.KeyEvent;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.HBox;
+import javafx.scene.paint.Color;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
 import javafx.stage.WindowEvent;
@@ -221,10 +224,14 @@ public class Atlas
 						{
 							final double min = meta.min();
 							final double max = meta.max();
-							dataset
-									.get()
-									.getRaw( openDialog.getName(), meta.getResolution(), meta.getOffset(), meta.getAxisOrder(), cellCache, cellCache.getNumPriorities() - 1 )
-									.forEach( source -> addRawSource( source, Double.isFinite( min ) ? min : getTypeMin( source.getType() ), Double.isFinite( max ) ? max : getTypeMax( source.getType() ) ) );
+							final Collection< ? extends DataSource< ? extends RealType< ? >, ? extends RealType< ? > > > raws = dataset.get().getRaw(
+									openDialog.getName(),
+									meta.getResolution(),
+									meta.getOffset(),
+									meta.getAxisOrder(),
+									cellCache,
+									cellCache.getNumPriorities() - 1 );
+							this.addRawSources( ( Collection ) raws, min, max );
 						}
 						catch ( final IOException e )
 						{
@@ -520,11 +527,37 @@ public class Atlas
 
 	}
 
+	public < T extends RealType< T >, U extends RealType< U > > void addRawSources(
+			final Collection< ? extends DataSource< T, U > > specs,
+			final double min,
+			final double max )
+	{
+		final int numSources = specs.size();
+		final double factor = 360.0 / numSources;
+		final List< ARGBType > colors = IntStream
+				.range( 0, numSources )
+				.mapToDouble( i -> i * factor )
+				.mapToObj( hue -> Color.hsb( 60 + hue, 1.0, 1.0, 1.0 ) )
+				.map( Atlas::toARGBType )
+				.collect( Collectors.toList() );
+		addRawSources( specs, colors, DoubleStream.generate( () -> min ).limit( numSources ).toArray(), DoubleStream.generate( () -> max ).limit( numSources ).toArray() );
+	}
+
+	public < T extends RealType< T >, U extends RealType< U > > void addRawSources(
+			final Collection< ? extends DataSource< T, U > > specs,
+			final Collection< ARGBType > colors,
+			final double[] min,
+			final double[] max )
+	{
+		final Iterator< ? extends DataSource< T, U > > specIt = specs.iterator();
+		final Iterator< ARGBType > colorIt = colors.iterator();
+		for ( int i = 0; specIt.hasNext(); ++i )
+			addRawSource( specIt.next(), min[ i ], max[ i ], colorIt.next() );
+	}
+
 	public < T extends RealType< T >, U extends RealType< U > > void addRawSource( final DataSource< T, U > spec, final double min, final double max )
 	{
-		final Random rng = new Random();
-		addRawSource( spec, min, max, new ARGBType( rng.nextInt() | 0xff000000 ) );
-//		addRawSource( spec, min, max, new ARGBType( 0xffffffff ) );
+		addRawSource( spec, min, max, new ARGBType( 0xffffffff ) );
 	}
 
 	public < T extends RealType< T >, U extends RealType< U > > void addRawSource( final DataSource< T, U > spec, final double min, final double max, final ARGBType color )
@@ -668,4 +701,18 @@ public class Atlas
 		return 1.0;
 	}
 
+	private static ARGBType toARGBType( final Color color )
+	{
+		return toARGBType( color, new ARGBType() );
+	}
+
+	private static ARGBType toARGBType( final Color color, final ARGBType argb )
+	{
+		final int r = ( int ) ( 255 * color.getRed() + 0.5 );
+		final int g = ( int ) ( 255 * color.getGreen() + 0.5 );
+		final int b = ( int ) ( 255 * color.getBlue() + 0.5 );
+		final int a = ( int ) ( 255 * color.getOpacity() + 0.5 );
+		argb.set( a << 24 | r << 16 | g << 8 | b << 0 );
+		return argb;
+	}
 }
