@@ -1,6 +1,5 @@
 package bdv.bigcat.viewer.atlas;
 
-import java.io.IOException;
 import java.lang.invoke.MethodHandles;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -36,9 +35,6 @@ import bdv.bigcat.viewer.atlas.mode.Merges;
 import bdv.bigcat.viewer.atlas.mode.Mode;
 import bdv.bigcat.viewer.atlas.mode.ModeUtil;
 import bdv.bigcat.viewer.atlas.mode.NavigationOnly;
-import bdv.bigcat.viewer.atlas.opendialog.BackendDialog;
-import bdv.bigcat.viewer.atlas.opendialog.OpenSourceDialog;
-import bdv.bigcat.viewer.atlas.opendialog.meta.MetaPanel;
 import bdv.bigcat.viewer.bdvfx.KeyTracker;
 import bdv.bigcat.viewer.bdvfx.ViewerPanelFX;
 import bdv.bigcat.viewer.ortho.OrthoView;
@@ -208,70 +204,7 @@ public class Atlas
 				this.keyTracker.installInto( newv );
 		} );
 
-		this.root.addEventHandler( KeyEvent.KEY_PRESSED, event -> {
-			if ( keyTracker.areOnlyTheseKeysDown( KeyCode.CONTROL, KeyCode.O ) )
-			{
-				final OpenSourceDialog openDialog = new OpenSourceDialog();
-				final Optional< BackendDialog > dataset = openDialog.showAndWait();
-				if ( dataset.isPresent() )
-				{
-					final MetaPanel meta = openDialog.getMeta();
-					switch ( openDialog.getType() )
-					{
-					case RAW:
-
-						try
-						{
-							final double min = meta.min();
-							final double max = meta.max();
-							final Collection< ? extends DataSource< ? extends RealType< ? >, ? extends RealType< ? > > > raws = dataset.get().getRaw(
-									openDialog.getName(),
-									meta.getResolution(),
-									meta.getOffset(),
-									meta.getAxisOrder(),
-									cellCache,
-									cellCache.getNumPriorities() - 1 );
-							this.addRawSources( ( Collection ) raws, min, max );
-						}
-						catch ( final IOException e )
-						{
-							e.printStackTrace();
-						}
-						break;
-					case LABEL:
-						try
-						{
-							final Collection< LabelDataSource< ?, ? > > optionalSource = dataset.get().getLabels(
-									openDialog.getName(),
-									meta.getResolution(),
-									meta.getOffset(),
-									meta.getAxisOrder(),
-									cellCache,
-									cellCache.getNumPriorities() );
-							for ( final LabelDataSource< ?, ? > source : optionalSource )
-							{
-								final Object t = source.getDataType();
-								final Object vt = source.getType();
-								if ( t instanceof LabelMultisetType && vt instanceof VolatileLabelMultisetType )
-									this.addLabelSource( ( LabelDataSource< LabelMultisetType, VolatileLabelMultisetType > ) source );
-								else if ( t instanceof IntegerType< ? > && vt instanceof AbstractVolatileRealType< ?, ? > )
-									this.addLabelSource(
-											( LabelDataSource ) source,
-											( ToLongFunction ) ( ToLongFunction< ? extends AbstractVolatileRealType< ? extends IntegerType< ? >, ? > > ) dt -> dt.get().getIntegerLong() );
-							}
-						}
-						catch ( final IOException e )
-						{
-							// TODO Auto-generated catch block
-							e.printStackTrace();
-						}
-						break;
-					default:
-						break;
-					}
-				}
-			}
-		} );
+		this.root.addEventHandler( KeyEvent.KEY_PRESSED, new OpenDialogEventHandler( this, cellCache, e -> keyTracker.areOnlyTheseKeysDown( KeyCode.CONTROL, KeyCode.O ) ) );
 
 		this.root.addEventHandler( KeyEvent.KEY_PRESSED, event -> {
 			if ( keyTracker.areOnlyTheseKeysDown( KeyCode.ALT, KeyCode.S ) )
@@ -282,11 +215,6 @@ public class Atlas
 		} );
 
 	}
-
-//	public void toggleSourcesTable()
-//	{
-//		this.root.setRight( this.root.getRight() == null ? this.sourcesTab : null );
-//	}
 
 	public void start( final Stage primaryStage ) throws InterruptedException
 	{
