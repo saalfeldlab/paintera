@@ -11,6 +11,7 @@ import net.imglib2.RealRandomAccessible;
 import net.imglib2.interpolation.InterpolatorFactory;
 import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.type.Type;
+import net.imglib2.util.Util;
 import net.imglib2.view.Views;
 
 public class RandomAccessibleIntervalDataSourceWithTime< D extends Type< D >, T extends Type< T > > implements DataSource< D, T >
@@ -125,6 +126,48 @@ public class RandomAccessibleIntervalDataSourceWithTime< D extends Type< D >, T 
 	public D getDataType()
 	{
 		return dataTypeSupplier.get();
+	}
+
+	public static < D extends Type< D >, T extends Type< T > > DataSource< D, T > fromRandomAccessibleInterval(
+			final RandomAccessibleInterval< D >[] dataSources,
+			final RandomAccessibleInterval< T >[] sources,
+			final AffineTransform3D[] mipmapTransforms,
+			final int timeDimension,
+			final Function< Interpolation, InterpolatorFactory< D, RandomAccessible< D > > > dataInterpolation,
+			final Function< Interpolation, InterpolatorFactory< T, RandomAccessible< T > > > interpolation,
+			final String name )
+	{
+		final long tMin = dataSources[ 0 ].min( timeDimension );
+		final long tMax = dataSources[ 0 ].max( timeDimension );
+		final int numTimesteps = ( int ) dataSources[ 0 ].dimension( timeDimension );
+		final int numScales = dataSources.length;
+
+		final RandomAccessibleInterval< D >[][] dataSourcesArray = new RandomAccessibleInterval[ numTimesteps ][ dataSources.length ];
+		final RandomAccessibleInterval< T >[][] sourcesArray = new RandomAccessibleInterval[ numTimesteps ][ dataSources.length ];
+		final AffineTransform3D[][] transforms = new AffineTransform3D[ numTimesteps ][];
+
+		for ( long t = tMin, i = 0; t < tMax; ++t )
+			for ( int scale = 0; scale < dataSources.length; ++scale )
+			{
+				dataSourcesArray[ ( int ) i ][ scale ] = Views.hyperSlice( dataSources[ scale ], timeDimension, t );
+				sourcesArray[ ( int ) i ][ scale ] = Views.hyperSlice( sources[ scale ], timeDimension, t );
+				transforms[ ( int ) i ] = mipmapTransforms;
+			}
+
+		final D d = Util.getTypeFromInterval( dataSources[ 0 ] );
+		final T t = Util.getTypeFromInterval( sources[ 0 ] );
+
+		return new RandomAccessibleIntervalDataSourceWithTime<>(
+				dataSourcesArray,
+				sourcesArray,
+				transforms,
+				( int ) tMin,
+				dataInterpolation,
+				interpolation,
+				d::createVariable,
+				t::createVariable,
+				name );
+
 	}
 
 }
