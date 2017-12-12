@@ -138,10 +138,10 @@ public class ViewerNode extends Pane implements ListChangeListener< SourceAndCon
 		case Z:
 			break;
 		case Y:
-			tf.rotate( 1, Math.PI / 2 );
+			tf.rotate( 0, -Math.PI / 2 );
 			break;
 		case X:
-			tf.rotate( 0, -Math.PI / 2 );
+			tf.rotate( 1, Math.PI / 2 );
 			break;
 		}
 		return tf;

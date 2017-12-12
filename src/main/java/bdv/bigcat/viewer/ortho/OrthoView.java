@@ -13,7 +13,7 @@ import bdv.bigcat.viewer.bdvfx.KeyTracker;
 import bdv.bigcat.viewer.bdvfx.ViewerPanelFX;
 import bdv.bigcat.viewer.panel.ViewerNode;
 import bdv.bigcat.viewer.panel.ViewerNode.ViewerAxis;
-import bdv.bigcat.viewer.panel.ViewerTransformManager;
+import bdv.bigcat.viewer.panel.transform.ViewerTransformManager;
 import bdv.util.volatiles.SharedQueue;
 import bdv.viewer.SourceAndConverter;
 import bdv.viewer.ViewerOptions;
@@ -106,10 +106,10 @@ public class OrthoView extends GridPane
 		this.setHgap( 1.0 );
 
 		this.addEventFilter( MouseEvent.DRAG_DETECTED, event -> {
-			if(this.resizer.isDraggingPanel())
+			if ( this.resizer.isDraggingPanel() )
 				event.consume();
 		} );
-		
+
 		this.addEventHandler( KeyEvent.KEY_TYPED, event -> {
 			if ( event.getCharacter().equals( "f" ) )
 				maximizeActiveOrthoView( event );
@@ -123,8 +123,8 @@ public class OrthoView extends GridPane
 	private void layoutViewers( final SharedQueue cellCache )
 	{
 		addViewer( ViewerAxis.Z, 0, 0, cellCache );
-		addViewer( ViewerAxis.X, 0, 1, cellCache );
-		addViewer( ViewerAxis.Y, 1, 0, cellCache );
+		addViewer( ViewerAxis.Y, 0, 1, cellCache );
+		addViewer( ViewerAxis.X, 1, 0, cellCache );
 	}
 
 	public void setInfoNode( final Node node )
@@ -199,7 +199,6 @@ public class OrthoView extends GridPane
 					is3DNode = true;
 
 		if ( viewerNodes.contains( focusOwner ) || is3DNode )
-		{
 			// event.consume();
 			if ( !this.state.constraintsManager.isFullScreen() )
 			{
@@ -220,7 +219,6 @@ public class OrthoView extends GridPane
 				this.setHgap( 1 );
 				this.setVgap( 1 );
 			}
-		}
 	}
 
 //	public Node globalSourcesInfoNode()
