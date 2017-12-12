@@ -17,6 +17,7 @@ import javafx.beans.property.SimpleObjectProperty;
 import javafx.scene.Node;
 import net.imglib2.type.NativeType;
 import net.imglib2.type.numeric.RealType;
+import net.imglib2.type.volatiles.AbstractVolatileRealType;
 
 public interface BackendDialog
 {
@@ -25,7 +26,7 @@ public interface BackendDialog
 
 	public ObjectProperty< String > errorMessage();
 
-	public default < T extends RealType< T > & NativeType< T >, V extends RealType< V > > Collection< DataSource< T, V > > getRaw(
+	public default < T extends RealType< T > & NativeType< T >, V extends AbstractVolatileRealType< T, V > & NativeType< V > > Collection< DataSource< T, V > > getRaw(
 			final String name,
 			final double[] resolution,
 			final double[] offset,

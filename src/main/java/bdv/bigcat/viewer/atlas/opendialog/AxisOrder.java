@@ -50,15 +50,10 @@ public enum AxisOrder
 
 	;
 
-	private static final String TIME_IDENTIFIER = "T";
-
-	private static final String DIMX_IDENTIFIER = "X";
-
-	private static final String DIMY_IDENTIFIER = "Y";
-
-	private static final String DIMZ_IDENTIFIER = "Z";
-
-	private static final String CHAN_IDENTIFIER = "C";
+	public enum AXIS
+	{
+		X, Y, Z, T, C
+	}
 
 	private final int numDimensions;
 
@@ -76,12 +71,12 @@ public enum AxisOrder
 	{
 		final String upperCaseName = this.name().toUpperCase();
 		this.numDimensions = upperCaseName.length();
-		this.hasChannels = upperCaseName.contains( CHAN_IDENTIFIER );
-		this.hasTime = upperCaseName.contains( TIME_IDENTIFIER );
+		this.hasChannels = upperCaseName.contains( AXIS.C.name() );
+		this.hasTime = upperCaseName.contains( AXIS.T.name() );
 		this.numSpaceDimensions = this.numDimensions - ( hasChannels ? 1 : 0 ) - ( hasTime ? 1 : 0 );
 		this.permutation = new int[ this.numDimensions ];
 		for ( int d = 0; d < this.numDimensions; ++d )
-			this.permutation[ getIndexFor( upperCaseName.substring( d, d + 1 ), this.hasTime, this.numSpaceDimensions ) ] = d;
+			this.permutation[ getIndexFor( AXIS.valueOf( upperCaseName.substring( d, d + 1 ) ), this.hasTime, this.numSpaceDimensions ) ] = d;
 		this.inversePermutation = invertPermutation( this.permutation );
 	}
 
@@ -105,6 +100,21 @@ public enum AxisOrder
 		return this.hasTime;
 	}
 
+	public int axis( final AXIS axis )
+	{
+		return name().indexOf( axis.name() );
+	}
+
+	public int timeAxis()
+	{
+		return axis( AXIS.T );
+	}
+
+	public int channelAxis()
+	{
+		return axis( AXIS.C );
+	}
+
 	public int[] permutation()
 	{
 		return this.permutation.clone();
@@ -117,7 +127,7 @@ public enum AxisOrder
 
 	public AxisOrder spatialOnly()
 	{
-		final Pattern pattern = Pattern.compile( String.format( "([%s%s%s]+)+", DIMX_IDENTIFIER, DIMY_IDENTIFIER, DIMZ_IDENTIFIER ) );
+		final Pattern pattern = Pattern.compile( String.format( "([%s%s%s]+)+", AXIS.X.name(), AXIS.Y.name(), AXIS.Z.name() ) );
 		final Matcher matcher = pattern.matcher( name() );
 		matcher.find();
 		final String matched = matcher.group( 1 );
@@ -139,19 +149,24 @@ public enum AxisOrder
 		}
 	}
 
-	private static int getIndexFor( final String identifier, final boolean hasTime, final int numSpaceDimensions )
+	public AxisOrder withoutChannel()
+	{
+		return AxisOrder.valueOf( name().replaceAll( AXIS.C.name(), "" ) );
+	}
+
+	private static int getIndexFor( final AXIS identifier, final boolean hasTime, final int numSpaceDimensions )
 	{
 		switch ( identifier )
 		{
-		case DIMX_IDENTIFIER:
+		case X:
 			return 0;
-		case DIMY_IDENTIFIER:
+		case Y:
 			return 1;
-		case DIMZ_IDENTIFIER:
+		case Z:
 			return 2;
-		case TIME_IDENTIFIER:
+		case T:
 			return 3;
-		case CHAN_IDENTIFIER:
+		case C:
 			return numSpaceDimensions + ( hasTime ? 1 : 0 );
 		default:
 			return -1;

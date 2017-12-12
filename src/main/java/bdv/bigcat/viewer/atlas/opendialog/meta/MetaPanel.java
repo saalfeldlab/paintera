@@ -32,7 +32,7 @@ public class MetaPanel
 
 	private static final double GRID_HGAP = 0;
 
-	private static final double TEXTFIELD_WIDTH = 80;
+	private static final double TEXTFIELD_WIDTH = 100;
 
 	private static final String X_STRING = "X";
 

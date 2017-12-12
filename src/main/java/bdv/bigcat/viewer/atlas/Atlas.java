@@ -9,6 +9,7 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Optional;
+import java.util.Random;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.ToLongFunction;
@@ -77,7 +78,8 @@ import javafx.stage.WindowEvent;
 import net.imglib2.FinalInterval;
 import net.imglib2.Interval;
 import net.imglib2.converter.Converter;
-import net.imglib2.converter.RealARGBConverter;
+import net.imglib2.display.RealARGBColorConverter;
+import net.imglib2.display.RealARGBColorConverter.Imp1;
 import net.imglib2.interpolation.randomaccess.ClampingNLinearInterpolatorFactory;
 import net.imglib2.interpolation.randomaccess.NearestNeighborInterpolatorFactory;
 import net.imglib2.realtransform.AffineTransform3D;
@@ -520,8 +522,17 @@ public class Atlas
 
 	public < T extends RealType< T >, U extends RealType< U > > void addRawSource( final DataSource< T, U > spec, final double min, final double max )
 	{
-		final RealARGBConverter< U > realARGBConv = new RealARGBConverter<>( min, max );
-		final SourceAndConverter< ? > src = new SourceAndConverter<>( spec, ( s, t ) -> realARGBConv.convert( s, t ) );
+		final Random rng = new Random();
+		addRawSource( spec, min, max, new ARGBType( rng.nextInt() | 0xff000000 ) );
+//		addRawSource( spec, min, max, new ARGBType( 0xffffffff ) );
+	}
+
+	public < T extends RealType< T >, U extends RealType< U > > void addRawSource( final DataSource< T, U > spec, final double min, final double max, final ARGBType color )
+	{
+//		final RealARGBConverter< U > realARGBConv = new RealARGBConverter<>( min, max );
+		final Imp1< U > realARGBColorConv = new RealARGBColorConverter.Imp1<>( min, max );
+		realARGBColorConv.setColor( color );
+		final SourceAndConverter< ? > src = new SourceAndConverter<>( spec, realARGBColorConv );
 		final Composite< ARGBType, ARGBType > comp = new ARGBCompositeAlphaAdd();
 		addSource( src, comp );
 

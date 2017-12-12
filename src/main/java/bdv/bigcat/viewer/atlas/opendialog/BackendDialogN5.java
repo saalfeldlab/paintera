@@ -41,7 +41,6 @@ import javafx.beans.property.IntegerProperty;
 import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleDoubleProperty;
-import javafx.beans.property.SimpleIntegerProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.value.ObservableValue;
 import javafx.collections.FXCollections;
@@ -66,6 +65,8 @@ import net.imglib2.type.numeric.IntegerType;
 import net.imglib2.type.numeric.RealType;
 import net.imglib2.type.volatiles.AbstractVolatileRealType;
 import net.imglib2.util.Util;
+import net.imglib2.view.IntervalView;
+import net.imglib2.view.Views;
 
 public class BackendDialogN5 implements BackendDialog, CombinesErrorMessages
 {
@@ -92,25 +93,7 @@ public class BackendDialogN5 implements BackendDialog, CombinesErrorMessages
 
 	private final SimpleObjectProperty< String > error = new SimpleObjectProperty<>();
 
-	private final SimpleDoubleProperty resX = new SimpleDoubleProperty( Double.NaN );
-
-	private final SimpleDoubleProperty resY = new SimpleDoubleProperty( Double.NaN );
-
-	private final SimpleDoubleProperty resZ = new SimpleDoubleProperty( Double.NaN );
-
-	private final SimpleDoubleProperty offX = new SimpleDoubleProperty( Double.NaN );
-
-	private final SimpleDoubleProperty offY = new SimpleDoubleProperty( Double.NaN );
-
-	private final SimpleDoubleProperty offZ = new SimpleDoubleProperty( Double.NaN );
-
-	private final SimpleDoubleProperty min = new SimpleDoubleProperty( Double.NaN );
-
-	private final SimpleDoubleProperty max = new SimpleDoubleProperty( Double.NaN );
-
-	private final SimpleIntegerProperty numDimensions = new SimpleIntegerProperty();
-
-	private final SimpleObjectProperty< AxisOrder > axisOrder = new SimpleObjectProperty<>( null );
+	private final DatasetInfo datasetInfo = new DatasetInfo();
 
 	private final ExecutorService singleThreadExecutorService = Executors.newFixedThreadPool( 1 );
 
@@ -168,26 +151,28 @@ public class BackendDialogN5 implements BackendDialog, CombinesErrorMessages
 
 					final DatasetAttributes dsAttrs = reader.getDatasetAttributes( newv );
 					final int nDim = dsAttrs.getNumDimensions();
-					this.numDimensions.set( nDim );
 
 					final HashMap< String, JsonElement > attributes = reader.getAttributes( newv );
 
 					if ( attributes.containsKey( AXIS_ORDER_KEY ) )
-						this.axisOrder.set( reader.getAttribute( newv, AXIS_ORDER_KEY, AxisOrder.class ) );
-					else if ( this.axisOrder.get() == null || this.axisOrder.get().numDimensions() != nDim )
-						AxisOrder.defaultOrder( nDim ).ifPresent( this.axisOrder::set );
+					{
+						final AxisOrder ao = reader.getAttribute( newv, AXIS_ORDER_KEY, AxisOrder.class );
+						this.datasetInfo.defaultAxisOrderProperty().set( ao );
+						this.datasetInfo.selectedAxisOrderProperty().set( ao );
+					}
+					else
+					{
+						final Optional< AxisOrder > ao = AxisOrder.defaultOrder( nDim );
+						if ( ao.isPresent() )
+							this.datasetInfo.defaultAxisOrderProperty().set( ao.get() );
+						if ( this.datasetInfo.selectedAxisOrderProperty().isNull().get() || this.datasetInfo.selectedAxisOrderProperty().get().numDimensions() != nDim )
+							this.axisOrder().set( ao.get() );
+					}
 
-					final double[] resolution = Optional.ofNullable( reader.getAttribute( newv, RESOLUTION_KEY, double[].class ) ).orElse( new double[] { Double.NaN, Double.NaN, Double.NaN } );
-					resX.set( resolution[ 0 ] );
-					resY.set( resolution[ 1 ] );
-					resZ.set( resolution[ 2 ] );
-					final double[] offset = Optional.ofNullable( reader.getAttribute( newv, OFFSET_KEY, double[].class ) ).orElse( new double[] { Double.NaN, Double.NaN, Double.NaN } );
-					offX.set( offset[ 0 ] );
-					offY.set( offset[ 1 ] );
-					offZ.set( offset[ 2 ] );
-
-					min.set( attributes.containsKey( MIN_KEY ) ? attributes.get( MIN_KEY ).getAsDouble() : Double.NaN );
-					max.set( attributes.containsKey( MAX_KEY ) ? attributes.get( MAX_KEY ).getAsDouble() : Double.NaN );
+					Optional.ofNullable( reader.getAttribute( newv, RESOLUTION_KEY, double[].class ) ).ifPresent( r -> this.datasetInfo.setResolution( r ) );
+					Optional.ofNullable( reader.getAttribute( newv, OFFSET_KEY, double[].class ) ).ifPresent( o -> this.datasetInfo.setOffset( o ) );
+					Optional.ofNullable( reader.getAttribute( newv, MIN_KEY, Double.class ) ).ifPresent( m -> this.datasetInfo.minProperty().set( m ) );
+					Optional.ofNullable( reader.getAttribute( newv, MAX_KEY, Double.class ) ).ifPresent( m -> this.datasetInfo.maxProperty().set( m ) );
 
 				}
 				catch ( final IOException e )
@@ -285,7 +270,7 @@ public class BackendDialogN5 implements BackendDialog, CombinesErrorMessages
 	}
 
 	@Override
-	public < T extends RealType< T > & NativeType< T >, V extends RealType< V > > Collection< DataSource< T, V > > getRaw(
+	public < T extends RealType< T > & NativeType< T >, V extends AbstractVolatileRealType< T, V > & NativeType< V > > Collection< DataSource< T, V > > getRaw(
 			final String name,
 			final double[] resolution,
 			final double[] offset,
@@ -296,10 +281,44 @@ public class BackendDialogN5 implements BackendDialog, CombinesErrorMessages
 		final String group = n5.get();
 		final N5FSReader reader = new N5FSReader( group );
 		final String dataset = this.dataset.get();
+		final DatasetAttributes attributes = reader.getDatasetAttributes( dataset );
+		final long[] dimensions = attributes.getDimensions();
+
+		if ( axisOrder.hasChannels() )
+		{
+			final int channelAxis = axisOrder.channelAxis();
+			final long numChannels = dimensions[ channelAxis ];
+			final RandomAccessibleInterval< T > raw = N5Utils.openVolatile( reader, dataset );
+			final RandomAccessibleInterval< V > vraw = VolatileViews.wrapAsVolatile( raw, sharedQueue, new CacheHints( LoadingStrategy.VOLATILE, priority, true ) );
+			final int[] componentMapping = axisOrder.spatialOnly().inversePermutation();
+			final AffineTransform3D rawTransform = permutedSourceTransform( resolution, offset, componentMapping );
+			final T t = Util.getTypeFromInterval( raw );
+			@SuppressWarnings( "unchecked" )
+			final V v = ( V ) VolatileTypeMatcher.getVolatileTypeForType( t );
+
+			final ArrayList< DataSource< T, V > > sources = new ArrayList<>();
+
+			for ( long pos = 0; pos < numChannels; ++pos )
+			{
+				final IntervalView< T > rawHS = Views.hyperSlice( raw, channelAxis, pos );
+				final IntervalView< V > vrawHS = Views.hyperSlice( vraw, channelAxis, pos );
+				final RandomAccessibleIntervalDataSource< T, V > source =
+						new RandomAccessibleIntervalDataSource< T, V >(
+								new RandomAccessibleInterval[] { rawHS },
+								new RandomAccessibleInterval[] { vrawHS },
+								new AffineTransform3D[] { rawTransform },
+								interpolation -> new NearestNeighborInterpolatorFactory<>(),
+								interpolation -> new NearestNeighborInterpolatorFactory<>(),
+								t::createVariable,
+								v::createVariable,
+								name + " (" + pos + ")" );
+				sources.add( source );
+			}
+			return sources;
+		}
 
 		final int[] componentMapping = axisOrder.spatialOnly().inversePermutation();
 		final AffineTransform3D rawTransform = permutedSourceTransform( resolution, offset, componentMapping );
-
 		return Arrays.asList( DataSource.createN5RawSource( name, reader, dataset, rawTransform, sharedQueue, priority ) );
 	}
 
@@ -406,49 +425,49 @@ public class BackendDialogN5 implements BackendDialog, CombinesErrorMessages
 	@Override
 	public DoubleProperty resolutionX()
 	{
-		return this.resX;
+		return this.datasetInfo.spatialResolutionProperties()[ 0 ];
 	}
 
 	@Override
 	public DoubleProperty resolutionY()
 	{
-		return this.resY;
+		return this.datasetInfo.spatialResolutionProperties()[ 1 ];
 	}
 
 	@Override
 	public DoubleProperty resolutionZ()
 	{
-		return this.resZ;
+		return this.datasetInfo.spatialResolutionProperties()[ 2 ];
 	}
 
 	@Override
 	public DoubleProperty offsetX()
 	{
-		return this.offX;
+		return this.datasetInfo.spatialOffsetProperties()[ 0 ];
 	}
 
 	@Override
 	public DoubleProperty offsetY()
 	{
-		return this.offY;
+		return this.datasetInfo.spatialOffsetProperties()[ 1 ];
 	}
 
 	@Override
 	public DoubleProperty offsetZ()
 	{
-		return this.offZ;
+		return this.datasetInfo.spatialOffsetProperties()[ 2 ];
 	}
 
 	@Override
 	public DoubleProperty min()
 	{
-		return this.min;
+		return this.datasetInfo.minProperty();
 	}
 
 	@Override
 	public DoubleProperty max()
 	{
-		return this.max;
+		return this.datasetInfo.maxProperty();
 	}
 
 	@Override
@@ -472,7 +491,7 @@ public class BackendDialogN5 implements BackendDialog, CombinesErrorMessages
 	@Override
 	public ObjectProperty< AxisOrder > axisOrder()
 	{
-		return this.axisOrder;
+		return this.datasetInfo.selectedAxisOrderProperty();
 	}
 
 	private static final AffineTransform3D permutedSourceTransform( final double[] resolution, final double[] offset, final int[] componentMapping )
@@ -486,6 +505,22 @@ public class BackendDialogN5 implements BackendDialog, CombinesErrorMessages
 		}
 		rawTransform.set( matrixContent );
 		return rawTransform;
+	}
+
+	private final static class PermutedInfo
+	{
+
+		private final DoubleProperty resX = new SimpleDoubleProperty( Double.NaN );
+
+		private final DoubleProperty resY = new SimpleDoubleProperty( Double.NaN );
+
+		private final DoubleProperty resZ = new SimpleDoubleProperty( Double.NaN );
+
+		DoubleProperty[] getInfo()
+		{
+			return new DoubleProperty[] { resX, resY, resZ };
+		}
+
 	}
 
 }
