@@ -28,6 +28,7 @@ import bdv.bigcat.viewer.atlas.data.DataSource;
 import bdv.bigcat.viewer.atlas.data.LabelDataSource;
 import bdv.bigcat.viewer.atlas.data.LabelDataSourceFromDelegates;
 import bdv.bigcat.viewer.atlas.data.RandomAccessibleIntervalDataSource;
+import bdv.bigcat.viewer.atlas.data.RandomAccessibleIntervalDataSourceWithTime;
 import bdv.bigcat.viewer.state.FragmentSegmentAssignmentOnlyLocal;
 import bdv.bigcat.viewer.util.InvokeOnJavaFXApplicationThread;
 import bdv.util.volatiles.SharedQueue;
@@ -302,17 +303,33 @@ public class BackendDialogN5 implements BackendDialog, CombinesErrorMessages
 			{
 				final IntervalView< T > rawHS = Views.hyperSlice( raw, channelAxis, pos );
 				final IntervalView< V > vrawHS = Views.hyperSlice( vraw, channelAxis, pos );
-				final RandomAccessibleIntervalDataSource< T, V > source =
-						new RandomAccessibleIntervalDataSource< T, V >(
-								new RandomAccessibleInterval[] { rawHS },
-								new RandomAccessibleInterval[] { vrawHS },
-								new AffineTransform3D[] { rawTransform },
-								interpolation -> new NearestNeighborInterpolatorFactory<>(),
-								interpolation -> new NearestNeighborInterpolatorFactory<>(),
-								t::createVariable,
-								v::createVariable,
-								name + " (" + pos + ")" );
-				sources.add( source );
+				if ( axisOrder.hasTime() )
+				{
+					final int timeDimension = axisOrder.withoutChannel().timeAxis();
+					final DataSource< T, V > source = RandomAccessibleIntervalDataSourceWithTime.< T, V >fromRandomAccessibleInterval(
+							new RandomAccessibleInterval[] { rawHS },
+							new RandomAccessibleInterval[] { vrawHS },
+							new AffineTransform3D[] { rawTransform },
+							timeDimension,
+							interpolation -> new NearestNeighborInterpolatorFactory<>(),
+							interpolation -> new NearestNeighborInterpolatorFactory<>(),
+							name );
+					sources.add( source );
+				}
+				else
+				{
+					final RandomAccessibleIntervalDataSource< T, V > source =
+							new RandomAccessibleIntervalDataSource< T, V >(
+									new RandomAccessibleInterval[] { rawHS },
+									new RandomAccessibleInterval[] { vrawHS },
+									new AffineTransform3D[] { rawTransform },
+									interpolation -> new NearestNeighborInterpolatorFactory<>(),
+									interpolation -> new NearestNeighborInterpolatorFactory<>(),
+									t::createVariable,
+									v::createVariable,
+									name + " (" + pos + ")" );
+					sources.add( source );
+				}
 			}
 			return sources;
 		}
