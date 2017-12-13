@@ -62,6 +62,18 @@ public class RandomAccessibleIntervalDataSourceWithTime< D extends Type< D >, T 
 	}
 
 	@Override
+	public int tMin()
+	{
+		return t0;
+	}
+
+	@Override
+	public int tMax()
+	{
+		return tMax;
+	}
+
+	@Override
 	public boolean isPresent( final int t )
 	{
 		return t >= t0 && t <= tMax;
@@ -107,7 +119,7 @@ public class RandomAccessibleIntervalDataSourceWithTime< D extends Type< D >, T 
 	@Override
 	public int getNumMipmapLevels()
 	{
-		return mipmapTransforms.length;
+		return mipmapTransforms[ 0 ].length;
 	}
 
 	@Override
@@ -146,13 +158,15 @@ public class RandomAccessibleIntervalDataSourceWithTime< D extends Type< D >, T 
 		final RandomAccessibleInterval< T >[][] sourcesArray = new RandomAccessibleInterval[ numTimesteps ][ dataSources.length ];
 		final AffineTransform3D[][] transforms = new AffineTransform3D[ numTimesteps ][];
 
-		for ( long t = tMin, i = 0; t < tMax; ++t )
+		for ( long t = tMin, i = 0; t <= tMax; ++t, ++i )
+		{
 			for ( int scale = 0; scale < dataSources.length; ++scale )
 			{
 				dataSourcesArray[ ( int ) i ][ scale ] = Views.hyperSlice( dataSources[ scale ], timeDimension, t );
 				sourcesArray[ ( int ) i ][ scale ] = Views.hyperSlice( sources[ scale ], timeDimension, t );
-				transforms[ ( int ) i ] = mipmapTransforms;
 			}
+			transforms[ ( int ) i ] = mipmapTransforms;
+		}
 
 		final D d = Util.getTypeFromInterval( dataSources[ 0 ] );
 		final T t = Util.getTypeFromInterval( sources[ 0 ] );

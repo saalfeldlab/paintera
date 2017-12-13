@@ -29,6 +29,7 @@ final class DoubleInfoFromData
 		{
 			final DoubleProperty b1 = data[ lookup[ i ] ];
 			final DoubleProperty b2 = toBind[ i ];
+			b2.set( b1.get() );
 			Bindings.bindBidirectional( b1, b2 );
 			this.bindings.put( b1, b2 );
 		}

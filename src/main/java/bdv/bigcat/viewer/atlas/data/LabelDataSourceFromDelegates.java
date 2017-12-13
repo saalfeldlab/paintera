@@ -93,4 +93,16 @@ public class LabelDataSourceFromDelegates< D, T > implements LabelDataSource< D,
 		return assignment;
 	}
 
+	@Override
+	public int tMin()
+	{
+		return source.tMin();
+	}
+
+	@Override
+	public int tMax()
+	{
+		return source.tMax();
+	}
+
 }

@@ -106,10 +106,10 @@ public class OrthoView extends GridPane
 		this.setHgap( 1.0 );
 
 		this.addEventFilter( MouseEvent.DRAG_DETECTED, event -> {
-			if(this.resizer.isDraggingPanel())
+			if ( this.resizer.isDraggingPanel() )
 				event.consume();
 		} );
-		
+
 		this.addEventHandler( KeyEvent.KEY_TYPED, event -> {
 			if ( event.getCharacter().equals( "f" ) )
 				maximizeActiveOrthoView( event );
@@ -178,6 +178,7 @@ public class OrthoView extends GridPane
 		viewerNode.getViewerState().setGlobalTransform( this.state.globalTransform );
 		viewerActors.forEach( actor -> actor.onAdd().accept( viewerNode.getViewer() ) );
 		addViewerNodesHandler( viewerNode, FOCUS_KEEPERS );
+		this.state.timeProperty().addListener( ( obs, oldv, newv ) -> viewerNode.getViewer().setTimepoint( newv.intValue() ) );
 
 		this.add( viewerNode, rowIndex, colIndex );
 //		viewerNode.setOnMouseClicked( resizer.onMouseDoubleClickedHandler() );
@@ -199,7 +200,6 @@ public class OrthoView extends GridPane
 					is3DNode = true;
 
 		if ( viewerNodes.contains( focusOwner ) || is3DNode )
-		{
 			// event.consume();
 			if ( !this.state.constraintsManager.isFullScreen() )
 			{
@@ -220,7 +220,6 @@ public class OrthoView extends GridPane
 				this.setHgap( 1 );
 				this.setVgap( 1 );
 			}
-		}
 	}
 
 //	public Node globalSourcesInfoNode()

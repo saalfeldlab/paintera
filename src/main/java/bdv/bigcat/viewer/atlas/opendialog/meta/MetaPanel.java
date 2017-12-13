@@ -133,6 +133,11 @@ public class MetaPanel
 
 	}
 
+	public ObjectProperty< AxisOrder > axisOrderProperty()
+	{
+		return this.axisOrderChoice.valueProperty();
+	}
+
 	public ObjectProperty< AxisOrder > defaultAxisOrderProperty()
 	{
 		return this.defaultAxisOrder;

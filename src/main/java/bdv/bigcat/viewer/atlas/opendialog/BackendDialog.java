@@ -96,6 +96,11 @@ public interface BackendDialog
 		return new SimpleIntegerProperty( 3 );
 	}
 
+	public default ObjectProperty< AxisOrder > defaultAxisOrder()
+	{
+		return new SimpleObjectProperty<>( AxisOrder.defaultOrder( numDimensions().get() ).orElse( null ) );
+	}
+
 	public default ObjectProperty< AxisOrder > axisOrder()
 	{
 		return new SimpleObjectProperty<>( AxisOrder.defaultOrder( numDimensions().get() ).orElse( null ) );
