@@ -11,6 +11,7 @@ import net.imglib2.RealRandomAccessible;
 import net.imglib2.interpolation.InterpolatorFactory;
 import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.type.Type;
+import net.imglib2.util.Util;
 import net.imglib2.view.Views;
 
 public class RandomAccessibleIntervalDataSource< D extends Type< D >, T extends Type< T > > implements DataSource< D, T >
@@ -31,6 +32,25 @@ public class RandomAccessibleIntervalDataSource< D extends Type< D >, T extends 
 	private final Supplier< T > typeSupplier;
 
 	private final String name;
+
+	public RandomAccessibleIntervalDataSource(
+			final RandomAccessibleInterval< D >[] dataSources,
+			final RandomAccessibleInterval< T >[] sources,
+			final AffineTransform3D[] mipmapTransforms,
+			final Function< Interpolation, InterpolatorFactory< D, RandomAccessible< D > > > dataInterpolation,
+			final Function< Interpolation, InterpolatorFactory< T, RandomAccessible< T > > > interpolation,
+			final String name )
+	{
+		this(
+				dataSources,
+				sources,
+				mipmapTransforms,
+				dataInterpolation,
+				interpolation,
+				() -> Util.getTypeFromInterval( dataSources[ 0 ] ).createVariable(),
+				() -> Util.getTypeFromInterval( sources[ 0 ] ).createVariable(),
+				name );
+	}
 
 	public RandomAccessibleIntervalDataSource(
 			final RandomAccessibleInterval< D >[] dataSources,

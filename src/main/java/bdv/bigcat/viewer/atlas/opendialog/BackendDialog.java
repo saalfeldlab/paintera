@@ -1,6 +1,5 @@
 package bdv.bigcat.viewer.atlas.opendialog;
 
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
 
@@ -32,18 +31,18 @@ public interface BackendDialog
 			final double[] offset,
 			final AxisOrder axisOrder,
 			final SharedQueue sharedQueue,
-			final int priority ) throws IOException
+			final int priority ) throws Exception
 	{
 		return new ArrayList<>();
 	}
 
-	public default Collection< LabelDataSource< ?, ? > > getLabels(
+	public default Collection< ? extends LabelDataSource< ?, ? > > getLabels(
 			final String name,
 			final double[] resolution,
 			final double[] offset,
 			final AxisOrder axisOrder,
 			final SharedQueue sharedQueue,
-			final int priority ) throws IOException
+			final int priority ) throws Exception
 	{
 		return new ArrayList<>();
 	}
@@ -105,8 +104,5 @@ public interface BackendDialog
 	{
 		return new SimpleObjectProperty<>( AxisOrder.defaultOrder( numDimensions().get() ).orElse( null ) );
 	}
-
-//	TODO
-//	public DataSource< ?, ? > getChannels();
 
 }

@@ -1,8 +1,8 @@
 package bdv.bigcat.viewer.atlas;
 
-import java.io.IOException;
 import java.util.Collection;
 import java.util.Optional;
+import java.util.function.Consumer;
 import java.util.function.Predicate;
 import java.util.function.ToLongFunction;
 
@@ -31,18 +31,21 @@ public class OpenDialogEventHandler implements EventHandler< Event >
 
 	private final boolean consume;
 
+	private final Consumer< Exception > exceptionHandler;
+
 	public OpenDialogEventHandler( final Atlas viewer, final SharedQueue cellCache, final Predicate< Event > check )
 	{
-		this( viewer, cellCache, check, true );
+		this( viewer, cellCache, check, e -> {}, true );
 	}
 
-	public OpenDialogEventHandler( final Atlas viewer, final SharedQueue cellCache, final Predicate< Event > check, final boolean consume )
+	public OpenDialogEventHandler( final Atlas viewer, final SharedQueue cellCache, final Predicate< Event > check, final Consumer< Exception > exceptionHandler, final boolean consume )
 	{
 		super();
 		this.viewer = viewer;
 		this.cellCache = cellCache;
 		this.check = check;
 		this.consume = consume;
+		this.exceptionHandler = exceptionHandler;
 	}
 
 	@Override
@@ -61,10 +64,10 @@ public class OpenDialogEventHandler implements EventHandler< Event >
 				{
 				case RAW:
 
+					final double min = meta.min();
+					final double max = meta.max();
 					try
 					{
-						final double min = meta.min();
-						final double max = meta.max();
 						final Collection< ? extends DataSource< ? extends RealType< ? >, ? extends RealType< ? > > > raws = dataset.get().getRaw(
 								openDialog.getName(),
 								meta.getResolution(),
@@ -74,15 +77,15 @@ public class OpenDialogEventHandler implements EventHandler< Event >
 								cellCache.getNumPriorities() - 1 );
 						viewer.addRawSources( ( Collection ) raws, min, max );
 					}
-					catch ( final IOException e )
+					catch ( final Exception e )
 					{
-						e.printStackTrace();
+						exceptionHandler.accept( e );
 					}
 					break;
 				case LABEL:
 					try
 					{
-						final Collection< LabelDataSource< ?, ? > > optionalSource = dataset.get().getLabels(
+						final Collection< ? extends LabelDataSource< ?, ? > > optionalSource = dataset.get().getLabels(
 								openDialog.getName(),
 								meta.getResolution(),
 								meta.getOffset(),
@@ -101,10 +104,9 @@ public class OpenDialogEventHandler implements EventHandler< Event >
 										( ToLongFunction ) ( ToLongFunction< ? extends AbstractVolatileRealType< ? extends IntegerType< ? >, ? > > ) dt -> dt.get().getIntegerLong() );
 						}
 					}
-					catch ( final IOException e )
+					catch ( final Exception e )
 					{
-						// TODO Auto-generated catch block
-						e.printStackTrace();
+						exceptionHandler.accept( e );
 					}
 					break;
 				default:

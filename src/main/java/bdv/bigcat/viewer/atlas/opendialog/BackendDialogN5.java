@@ -3,11 +3,11 @@ package bdv.bigcat.viewer.atlas.opendialog;
 import java.io.File;
 import java.io.IOException;
 import java.net.URI;
-import java.nio.file.FileSystems;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.ExecutorService;
@@ -17,6 +17,7 @@ import java.util.function.Consumer;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 import java.util.stream.DoubleStream;
+import java.util.stream.Stream;
 
 import org.janelia.saalfeldlab.n5.DataType;
 import org.janelia.saalfeldlab.n5.DatasetAttributes;
@@ -25,15 +26,10 @@ import org.janelia.saalfeldlab.n5.imglib2.N5Utils;
 
 import com.google.gson.JsonElement;
 
-import bdv.bigcat.viewer.atlas.data.DataSource;
-import bdv.bigcat.viewer.atlas.data.LabelDataSource;
-import bdv.bigcat.viewer.atlas.data.LabelDataSourceFromDelegates;
-import bdv.bigcat.viewer.atlas.data.RandomAccessibleIntervalDataSource;
-import bdv.bigcat.viewer.atlas.data.RandomAccessibleIntervalDataSourceWithTime;
 import bdv.bigcat.viewer.state.FragmentSegmentAssignmentOnlyLocal;
+import bdv.bigcat.viewer.state.FragmentSegmentAssignmentState;
 import bdv.bigcat.viewer.util.InvokeOnJavaFXApplicationThread;
 import bdv.util.volatiles.SharedQueue;
-import bdv.util.volatiles.VolatileTypeMatcher;
 import bdv.util.volatiles.VolatileViews;
 import javafx.beans.binding.Bindings;
 import javafx.beans.binding.BooleanBinding;
@@ -42,35 +38,24 @@ import javafx.beans.property.DoubleProperty;
 import javafx.beans.property.IntegerProperty;
 import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.SimpleBooleanProperty;
-import javafx.beans.property.SimpleDoubleProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.value.ObservableValue;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.scene.Node;
-import javafx.scene.control.Button;
-import javafx.scene.control.ComboBox;
 import javafx.scene.control.TextField;
 import javafx.scene.effect.Effect;
 import javafx.scene.effect.InnerShadow;
-import javafx.scene.layout.GridPane;
-import javafx.scene.layout.Priority;
 import javafx.scene.paint.Color;
-import javafx.stage.DirectoryChooser;
 import net.imglib2.RandomAccessibleInterval;
+import net.imglib2.Volatile;
 import net.imglib2.cache.volatiles.CacheHints;
 import net.imglib2.cache.volatiles.LoadingStrategy;
-import net.imglib2.interpolation.randomaccess.NearestNeighborInterpolatorFactory;
-import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.type.NativeType;
-import net.imglib2.type.numeric.IntegerType;
-import net.imglib2.type.numeric.RealType;
-import net.imglib2.type.volatiles.AbstractVolatileRealType;
-import net.imglib2.util.Util;
-import net.imglib2.view.IntervalView;
-import net.imglib2.view.Views;
+import net.imglib2.util.Pair;
+import net.imglib2.util.ValuePair;
 
-public class BackendDialogN5 implements BackendDialog, CombinesErrorMessages
+public class BackendDialogN5 implements SourceFromRAI, CombinesErrorMessages
 {
 
 	private static final String RESOLUTION_KEY = "resolution";
@@ -113,6 +98,14 @@ public class BackendDialogN5 implements BackendDialog, CombinesErrorMessages
 	private final Effect textFieldErrorEffect = new InnerShadow( 10, Color.ORANGE );
 
 	private final ObservableList< String > datasetChoices = FXCollections.observableArrayList();
+
+	private final GroupAndDatasetStructure nodeCreator = new GroupAndDatasetStructure(
+			"N5 group",
+			"Choose Dataset...",
+			n5,
+			dataset,
+			datasetChoices,
+			this.isTraversingDirectories.or( this.isValidN5.not() ) );
 	{
 		n5.addListener( ( obs, oldv, newv ) -> {
 			if ( newv != null && new File( newv ).exists() )
@@ -206,49 +199,7 @@ public class BackendDialogN5 implements BackendDialog, CombinesErrorMessages
 	@Override
 	public Node getDialogNode()
 	{
-		final TextField n5Field = new TextField( n5.get() );
-		n5Field.setMinWidth( 0 );
-		n5Field.setMaxWidth( Double.POSITIVE_INFINITY );
-		n5Field.setPromptText( "n5 group" );
-		n5Field.textProperty().bindBidirectional( n5 );
-		final ComboBox< String > datasetDropDown = new ComboBox<>( datasetChoices );
-		datasetDropDown.setPromptText( "Choose Dataset..." );
-		datasetDropDown.setEditable( false );
-		datasetDropDown.valueProperty().bindBidirectional( dataset );
-		datasetDropDown.setMinWidth( n5Field.getMinWidth() );
-		datasetDropDown.setPrefWidth( n5Field.getPrefWidth() );
-		datasetDropDown.setMaxWidth( n5Field.getMaxWidth() );
-		datasetDropDown.disableProperty().bind( this.isTraversingDirectories.or( this.isValidN5.not() ) );
-		final GridPane grid = new GridPane();
-		grid.add( n5Field, 0, 0 );
-		grid.add( datasetDropDown, 0, 1 );
-		GridPane.setHgrow( n5Field, Priority.ALWAYS );
-		GridPane.setHgrow( datasetDropDown, Priority.ALWAYS );
-		final Button button = new Button( "Browse" );
-		button.setOnAction( event -> {
-			final DirectoryChooser directoryChooser = new DirectoryChooser();
-			final File initDir = new File( n5.get() );
-			directoryChooser.setInitialDirectory( initDir.exists() && initDir.isDirectory() ? initDir : FileSystems.getDefault().getPath( "." ).toFile() );
-			final File directory = directoryChooser.showDialog( grid.getScene().getWindow() );
-			Optional.ofNullable( directory ).map( File::getAbsolutePath ).ifPresent( n5::set );
-		} );
-		grid.add( button, 1, 0 );
-
-		this.n5errorEffect.addListener( ( obs, oldv, newv ) -> {
-			if ( !n5Field.isFocused() )
-				n5Field.setEffect( newv );
-		} );
-
-		n5Field.setEffect( this.n5errorEffect.get() );
-
-		n5Field.focusedProperty().addListener( ( obs, oldv, newv ) -> {
-			if ( newv )
-				n5Field.setEffect( this.textFieldNoErrorEffect );
-			else
-				n5Field.setEffect( n5errorEffect.get() );
-		} );
-
-		return grid;
+		return nodeCreator.createNode();
 	}
 
 	@Override
@@ -269,167 +220,6 @@ public class BackendDialogN5 implements BackendDialog, CombinesErrorMessages
 		}
 		else
 			onInterruption.run();
-	}
-
-	@Override
-	public < T extends RealType< T > & NativeType< T >, V extends AbstractVolatileRealType< T, V > & NativeType< V > > Collection< DataSource< T, V > > getRaw(
-			final String name,
-			final double[] resolution,
-			final double[] offset,
-			final AxisOrder axisOrder,
-			final SharedQueue sharedQueue,
-			final int priority ) throws IOException
-	{
-		final String group = n5.get();
-		final N5FSReader reader = new N5FSReader( group );
-		final String dataset = this.dataset.get();
-		final DatasetAttributes attributes = reader.getDatasetAttributes( dataset );
-		final long[] dimensions = attributes.getDimensions();
-
-		if ( axisOrder.hasChannels() )
-		{
-			final int channelAxis = axisOrder.channelAxis();
-			final long numChannels = dimensions[ channelAxis ];
-			final RandomAccessibleInterval< T > raw = N5Utils.openVolatile( reader, dataset );
-			final RandomAccessibleInterval< V > vraw = VolatileViews.wrapAsVolatile( raw, sharedQueue, new CacheHints( LoadingStrategy.VOLATILE, priority, true ) );
-			final int[] componentMapping = axisOrder.spatialOnly().inversePermutation();
-			final AffineTransform3D rawTransform = permutedSourceTransform( resolution, offset, componentMapping );
-			final T t = Util.getTypeFromInterval( raw );
-			@SuppressWarnings( "unchecked" )
-			final V v = ( V ) VolatileTypeMatcher.getVolatileTypeForType( t );
-
-			final ArrayList< DataSource< T, V > > sources = new ArrayList<>();
-
-			for ( long pos = 0; pos < numChannels; ++pos )
-			{
-				final IntervalView< T > rawHS = Views.hyperSlice( raw, channelAxis, pos );
-				final IntervalView< V > vrawHS = Views.hyperSlice( vraw, channelAxis, pos );
-				if ( axisOrder.hasTime() )
-				{
-					final int timeDimension = axisOrder.withoutChannel().timeAxis();
-					final DataSource< T, V > source = RandomAccessibleIntervalDataSourceWithTime.< T, V >fromRandomAccessibleInterval(
-							new RandomAccessibleInterval[] { rawHS },
-							new RandomAccessibleInterval[] { vrawHS },
-							new AffineTransform3D[] { rawTransform },
-							timeDimension,
-							interpolation -> new NearestNeighborInterpolatorFactory<>(),
-							interpolation -> new NearestNeighborInterpolatorFactory<>(),
-							name );
-					sources.add( source );
-				}
-				else
-				{
-					final RandomAccessibleIntervalDataSource< T, V > source =
-							new RandomAccessibleIntervalDataSource< T, V >(
-									new RandomAccessibleInterval[] { rawHS },
-									new RandomAccessibleInterval[] { vrawHS },
-									new AffineTransform3D[] { rawTransform },
-									interpolation -> new NearestNeighborInterpolatorFactory<>(),
-									interpolation -> new NearestNeighborInterpolatorFactory<>(),
-									t::createVariable,
-									v::createVariable,
-									name + " (" + pos + ")" );
-					sources.add( source );
-				}
-			}
-			return sources;
-		}
-		else if ( axisOrder.hasTime() )
-		{
-			final RandomAccessibleInterval< T > raw = N5Utils.openVolatile( reader, dataset );
-			final RandomAccessibleInterval< V > vraw = VolatileViews.wrapAsVolatile( raw, sharedQueue, new CacheHints( LoadingStrategy.VOLATILE, priority, true ) );
-			final int[] componentMapping = axisOrder.spatialOnly().inversePermutation();
-			final AffineTransform3D rawTransform = permutedSourceTransform( resolution, offset, componentMapping );
-			final T t = Util.getTypeFromInterval( raw );
-			@SuppressWarnings( "unchecked" )
-			final V v = ( V ) VolatileTypeMatcher.getVolatileTypeForType( t );
-			final int timeDimension = axisOrder.withoutChannel().timeAxis();
-			final DataSource< T, V > source = RandomAccessibleIntervalDataSourceWithTime.< T, V >fromRandomAccessibleInterval(
-					new RandomAccessibleInterval[] { raw },
-					new RandomAccessibleInterval[] { vraw },
-					new AffineTransform3D[] { rawTransform },
-					timeDimension,
-					interpolation -> new NearestNeighborInterpolatorFactory<>(),
-					interpolation -> new NearestNeighborInterpolatorFactory<>(),
-					name );
-			return Arrays.asList( source );
-		}
-
-		final int[] componentMapping = axisOrder.spatialOnly().inversePermutation();
-		final AffineTransform3D rawTransform = permutedSourceTransform( resolution, offset, componentMapping );
-		return Arrays.asList( DataSource.createN5RawSource( name, reader, dataset, rawTransform, sharedQueue, priority ) );
-	}
-
-	@Override
-	public Collection< LabelDataSource< ?, ? > > getLabels(
-			final String name,
-			final double[] resolution,
-			final double[] offset,
-			final AxisOrder axisOrder,
-			final SharedQueue sharedQueue,
-			final int priority ) throws IOException
-	{
-		final String group = n5.get();
-		final N5FSReader reader = new N5FSReader( group );
-		final String dataset = this.dataset.get();
-//		final DataSource< ?, ? > source = DataSource.createN5RawSource( name, reader, dataset, new double[] { 1, 1, 1 }, sharedQueue, priority );
-		final DataType type = reader.getDatasetAttributes( dataset ).getDataType();
-		if ( isLabelType( type ) )
-		{
-			if ( isIntegerType( type ) )
-				return Arrays.asList( ( LabelDataSource< ?, ? > ) getIntegerTypeSource( name, reader, dataset, resolution, offset, axisOrder, sharedQueue, priority ) );
-			else if ( isLabelMultisetType( type ) )
-				return new ArrayList<>();
-			else
-				return new ArrayList<>();
-		}
-		else
-			return new ArrayList<>();
-	}
-
-	private static final < T extends IntegerType< T > & NativeType< T >, V extends AbstractVolatileRealType< T, V > > LabelDataSource< T, V > getIntegerTypeSource(
-			final String name,
-			final N5FSReader reader,
-			final String dataset,
-			final double[] resolution,
-			final double[] offset,
-			final AxisOrder axisOrder,
-			final SharedQueue sharedQueue,
-			final int priority ) throws IOException
-	{
-		final RandomAccessibleInterval< T > raw = N5Utils.openVolatile( reader, dataset );
-		final RandomAccessibleInterval< V > vraw = VolatileViews.wrapAsVolatile( raw, sharedQueue, new CacheHints( LoadingStrategy.VOLATILE, priority, true ) );
-		final T t = Util.getTypeFromInterval( raw );
-		@SuppressWarnings( "unchecked" )
-		final V v = ( V ) VolatileTypeMatcher.getVolatileTypeForType( t );
-
-		final int[] componentMapping = axisOrder.spatialOnly().inversePermutation();
-		final AffineTransform3D rawTransform = permutedSourceTransform( resolution, offset, componentMapping );
-
-		// TODO permute axis or do it in the raw transform?
-//		final DatasetAttributes datasetAttributes = reader.getDatasetAttributes( dataset );
-//		final long[] dimensions = new long[ datasetAttributes.getNumDimensions() ];
-//		for ( int d = 0; d < dimensions.length; ++d )
-//			dimensions[ d ] = datasetAttributes.getDimensions()[ componentMapping[ d ] ];
-//		final MixedTransform tf = new MixedTransform( 3, 3 );
-//		tf.setComponentMapping( componentMapping );
-//		final FinalInterval fi = new FinalInterval( dimensions );
-//		System.out.println( Arrays.toString( componentMapping ) + " mapping " + Arrays.toString( dimensions ) + " " + Arrays.toString( datasetAttributes.getDimensions() ) + " " + isPermuted );
-
-		@SuppressWarnings( "unchecked" )
-		final RandomAccessibleIntervalDataSource< T, V > source =
-				new RandomAccessibleIntervalDataSource< T, V >(
-						new RandomAccessibleInterval[] { raw },
-						new RandomAccessibleInterval[] { vraw },
-						new AffineTransform3D[] { rawTransform },
-						interpolation -> new NearestNeighborInterpolatorFactory<>(),
-						interpolation -> new NearestNeighborInterpolatorFactory<>(),
-						t::createVariable,
-						v::createVariable,
-						name );
-		final FragmentSegmentAssignmentOnlyLocal assignment = new FragmentSegmentAssignmentOnlyLocal();
-		final LabelDataSourceFromDelegates< T, V > delegated = new LabelDataSourceFromDelegates<>( source, assignment );
-		return delegated;
 	}
 
 	private static boolean isLabelType( final DataType type )
@@ -532,35 +322,6 @@ public class BackendDialogN5 implements BackendDialog, CombinesErrorMessages
 		return this.datasetInfo.selectedAxisOrderProperty();
 	}
 
-	private static final AffineTransform3D permutedSourceTransform( final double[] resolution, final double[] offset, final int[] componentMapping )
-	{
-		final AffineTransform3D rawTransform = new AffineTransform3D();
-		final double[] matrixContent = new double[ 12 ];
-		for ( int i = 0, contentOffset = 0; i < offset.length; ++i, contentOffset += 4 )
-		{
-			matrixContent[ contentOffset + componentMapping[ i ] ] = resolution[ i ];
-			matrixContent[ contentOffset + 3 ] = offset[ i ];
-		}
-		rawTransform.set( matrixContent );
-		return rawTransform;
-	}
-
-	private final static class PermutedInfo
-	{
-
-		private final DoubleProperty resX = new SimpleDoubleProperty( Double.NaN );
-
-		private final DoubleProperty resY = new SimpleDoubleProperty( Double.NaN );
-
-		private final DoubleProperty resZ = new SimpleDoubleProperty( Double.NaN );
-
-		DoubleProperty[] getInfo()
-		{
-			return new DoubleProperty[] { resX, resY, resZ };
-		}
-
-	}
-
 	private static double minForType( final DataType t )
 	{
 		// TODO ever return non-zero here?
@@ -597,6 +358,43 @@ public class BackendDialogN5 implements BackendDialog, CombinesErrorMessages
 		default:
 			return 1.0;
 		}
+	}
+
+	@Override
+	public < T extends NativeType< T >, V extends Volatile< T > > Pair< RandomAccessibleInterval< T >, RandomAccessibleInterval< V > > getDataAndVolatile(
+			final SharedQueue sharedQueue,
+			final int priority ) throws IOException
+	{
+		final String group = n5.get();
+		final N5FSReader reader = new N5FSReader( group );
+		final String dataset = this.dataset.get();
+		final RandomAccessibleInterval< T > raw = N5Utils.openVolatile( reader, dataset );
+		final RandomAccessibleInterval< V > vraw = VolatileViews.wrapAsVolatile( raw, sharedQueue, new CacheHints( LoadingStrategy.VOLATILE, priority, true ) );
+		return new ValuePair<>( raw, vraw );
+	}
+
+	@Override
+	public boolean isLabelType() throws IOException
+	{
+		return isLabelType( new N5FSReader( n5.get() ).getDatasetAttributes( dataset.get() ).getDataType() );
+	}
+
+	@Override
+	public boolean isLabelMultisetType() throws IOException
+	{
+		return isLabelMultisetType( new N5FSReader( n5.get() ).getDatasetAttributes( dataset.get() ).getDataType() );
+	}
+
+	@Override
+	public boolean isIntegerType() throws IOException
+	{
+		return isIntegerType( new N5FSReader( n5.get() ).getDatasetAttributes( dataset.get() ).getDataType() );
+	}
+
+	@Override
+	public Iterator< ? extends FragmentSegmentAssignmentState< ? > > assignments()
+	{
+		return Stream.generate( FragmentSegmentAssignmentOnlyLocal::new ).iterator();
 	}
 
 }
