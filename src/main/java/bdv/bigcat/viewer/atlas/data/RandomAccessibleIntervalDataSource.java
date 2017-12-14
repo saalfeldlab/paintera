@@ -1,7 +1,11 @@
 package bdv.bigcat.viewer.atlas.data;
 
+import java.lang.invoke.MethodHandles;
 import java.util.function.Function;
 import java.util.function.Supplier;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import bdv.viewer.Interpolation;
 import mpicbg.spim.data.sequence.VoxelDimensions;
@@ -16,6 +20,8 @@ import net.imglib2.view.Views;
 
 public class RandomAccessibleIntervalDataSource< D extends Type< D >, T extends Type< T > > implements DataSource< D, T >
 {
+
+	private static final Logger LOG = LoggerFactory.getLogger( MethodHandles.lookup().lookupClass() );
 
 	private final AffineTransform3D[] mipmapTransforms;
 
@@ -94,6 +100,7 @@ public class RandomAccessibleIntervalDataSource< D extends Type< D >, T extends 
 	@Override
 	public void getSourceTransform( final int t, final int level, final AffineTransform3D transform )
 	{
+		LOG.trace( "Requesting mipmap transform for level {} at time {}: {}", level, t, mipmapTransforms[ level ] );
 		transform.set( mipmapTransforms[ level ] );
 	}
 

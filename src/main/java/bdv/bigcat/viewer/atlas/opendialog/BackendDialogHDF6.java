@@ -85,7 +85,7 @@ public class BackendDialogHDF6 extends BackendDialogGroupAndDataset implements C
 	}
 
 	@Override
-	public < T extends NativeType< T >, V extends Volatile< T > > Pair< RandomAccessibleInterval< T >, RandomAccessibleInterval< V > > getDataAndVolatile(
+	public < T extends NativeType< T >, V extends Volatile< T > > Pair< RandomAccessibleInterval< T >[], RandomAccessibleInterval< V >[] > getDataAndVolatile(
 			final SharedQueue sharedQueue,
 			final int priority ) throws IOException
 	{
@@ -95,7 +95,7 @@ public class BackendDialogHDF6 extends BackendDialogGroupAndDataset implements C
 		// TODO optimize block size
 		final RandomAccessibleInterval< T > raw = H5Utils.open( reader, dataset );
 		final RandomAccessibleInterval< V > vraw = VolatileViews.wrapAsVolatile( raw, sharedQueue, new CacheHints( LoadingStrategy.VOLATILE, priority, true ) );
-		return new ValuePair<>( raw, vraw );
+		return new ValuePair<>( new RandomAccessibleInterval[] { raw }, new RandomAccessibleInterval[] { vraw } );
 	}
 
 	@Override

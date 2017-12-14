@@ -1,11 +1,15 @@
 package bdv.bigcat.viewer.atlas.opendialog;
 
 import java.io.IOException;
+import java.lang.invoke.MethodHandles;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Iterator;
 import java.util.function.Function;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import bdv.bigcat.viewer.atlas.data.DataSource;
 import bdv.bigcat.viewer.atlas.data.LabelDataSource;
@@ -35,7 +39,9 @@ import net.imglib2.view.Views;
 public interface SourceFromRAI extends BackendDialog
 {
 
-	public < T extends NativeType< T >, V extends Volatile< T > > Pair< RandomAccessibleInterval< T >, RandomAccessibleInterval< V > > getDataAndVolatile(
+	public static final Logger LOG = LoggerFactory.getLogger( MethodHandles.lookup().lookupClass() );
+
+	public < T extends NativeType< T >, V extends Volatile< T > > Pair< RandomAccessibleInterval< T >[], RandomAccessibleInterval< V >[] > getDataAndVolatile(
 			final SharedQueue sharedQueue,
 			final int priority ) throws IOException;
 
@@ -56,7 +62,7 @@ public interface SourceFromRAI extends BackendDialog
 			final SharedQueue sharedQueue,
 			final int priority ) throws IOException
 	{
-		final Pair< RandomAccessibleInterval< T >, RandomAccessibleInterval< V > > dataAndVolatile = getDataAndVolatile( sharedQueue, priority );
+		final Pair< RandomAccessibleInterval< T >[], RandomAccessibleInterval< V >[] > dataAndVolatile = getDataAndVolatile( sharedQueue, priority );
 		return getCached( dataAndVolatile.getA(), dataAndVolatile.getB(), name, resolution, offset, axisOrder, sharedQueue, priority );
 	}
 
@@ -78,8 +84,8 @@ public interface SourceFromRAI extends BackendDialog
 	}
 
 	public static < T extends NumericType< T >, V extends NumericType< V > > Collection< DataSource< T, V > > getCached(
-			final RandomAccessibleInterval< T > rai,
-			final RandomAccessibleInterval< V > vrai,
+			final RandomAccessibleInterval< T >[] rai,
+			final RandomAccessibleInterval< V >[] vrai,
 			final String nameOrPattern,
 			final double[] resolution,
 			final double[] offset,
@@ -101,8 +107,8 @@ public interface SourceFromRAI extends BackendDialog
 	}
 
 	public static < T extends Type< T >, V extends Type< V > > Collection< DataSource< T, V > > getCached(
-			final RandomAccessibleInterval< T > rai,
-			final RandomAccessibleInterval< V > vrai,
+			final RandomAccessibleInterval< T >[] rai,
+			final RandomAccessibleInterval< V >[] vrai,
 			final Function< Interpolation, InterpolatorFactory< T, RandomAccessible< T > > > interpolation,
 			final Function< Interpolation, InterpolatorFactory< V, RandomAccessible< V > > > vinterpolation,
 			final String nameOrPattern,
@@ -112,19 +118,35 @@ public interface SourceFromRAI extends BackendDialog
 			final SharedQueue sharedQueue,
 			final int priority ) throws IOException
 	{
-		final long[] dimensions = Intervals.dimensionsAsLongArray( rai );
+		final long[] dimensionsAtHighestRes = Intervals.dimensionsAsLongArray( rai[ 0 ] );
 		final int[] componentMapping = axisOrder.spatialOnly().inversePermutation();
 		final AffineTransform3D sourceTransform = permutedSourceTransform( resolution, offset, componentMapping );
-		final AffineTransform3D[] transforms = new AffineTransform3D[] { sourceTransform };
+		final AffineTransform3D[] transforms = new AffineTransform3D[ rai.length ];
+		for ( int scale = 0, factor = 1; scale < transforms.length; ++scale, factor *= 2 )
+		{
+			final AffineTransform3D copy = sourceTransform.copy();
+			for ( int i = 0; i < 3; ++i )
+				for ( int k = 0; k < 3; ++k )
+					copy.set( copy.get( i, k ) * factor, i, k );
+			transforms[ scale ] = copy;
+		}
+		LOG.info( "Using source transforms {} for {} sources", Arrays.toString( transforms ), rai.length );
 
 		if ( axisOrder.hasChannels() )
 		{
 			final int channelAxis = axisOrder.channelAxis();
-			final long numChannels = dimensions[ channelAxis ];
+			final long numChannels = dimensionsAtHighestRes[ channelAxis ];
 
 			final ArrayList< DataSource< T, V > > sources = new ArrayList<>();
 			for ( long channel = 0; channel < numChannels; ++channel )
-				sources.add( getAsSource( Views.hyperSlice( rai, channelAxis, channel ), Views.hyperSlice( vrai, channelAxis, channel ), axisOrder, transforms, interpolation, vinterpolation, String.format( nameOrPattern, channel ) ) );
+			{
+				final long fChannel = channel;
+				@SuppressWarnings( "unchecked" )
+				final RandomAccessibleInterval< T >[] hs = Arrays.stream( rai ).map( r -> Views.hyperSlice( r, channelAxis, fChannel ) ).toArray( RandomAccessibleInterval[]::new );
+				@SuppressWarnings( "unchecked" )
+				final RandomAccessibleInterval< V >[] vhs = Arrays.stream( vrai ).map( r -> Views.hyperSlice( r, channelAxis, fChannel ) ).toArray( RandomAccessibleInterval[]::new );
+				sources.add( getAsSource( hs, vhs, axisOrder, transforms, interpolation, vinterpolation, String.format( nameOrPattern, channel ) ) );
+			}
 			return sources;
 		}
 		else
@@ -140,7 +162,7 @@ public interface SourceFromRAI extends BackendDialog
 			final int priority,
 			final Iterator< ? extends FragmentSegmentAssignmentState< ? > > assignment ) throws IOException
 	{
-		final Pair< RandomAccessibleInterval< T >, RandomAccessibleInterval< V > > dataAndVolatile = getDataAndVolatile( sharedQueue, priority );
+		final Pair< RandomAccessibleInterval< T >[], RandomAccessibleInterval< V >[] > dataAndVolatile = getDataAndVolatile( sharedQueue, priority );
 		final Collection< DataSource< T, V > > sources = SourceFromRAI.getCached(
 				dataAndVolatile.getA(),
 				dataAndVolatile.getB(),
@@ -154,18 +176,18 @@ public interface SourceFromRAI extends BackendDialog
 	}
 
 	public static < T extends Type< T >, V extends Type< V > > DataSource< T, V > getAsSource(
-			final RandomAccessibleInterval< T > rai,
-			final RandomAccessibleInterval< V > vrai,
+			final RandomAccessibleInterval< T >[] rais,
+			final RandomAccessibleInterval< V >[] vrais,
 			final AxisOrder axisOrder,
 			final AffineTransform3D[] transforms,
 			final Function< Interpolation, InterpolatorFactory< T, RandomAccessible< T > > > interpolation,
 			final Function< Interpolation, InterpolatorFactory< V, RandomAccessible< V > > > vinterpolation,
 			final String name )
 	{
-		@SuppressWarnings( "unchecked" )
-		final RandomAccessibleInterval< T >[] rais = new RandomAccessibleInterval[] { rai };
-		@SuppressWarnings( "unchecked" )
-		final RandomAccessibleInterval< V >[] vrais = new RandomAccessibleInterval[] { vrai };
+
+		assert rais.length == vrais.length;
+		assert rais.length == transforms.length;
+
 		if ( axisOrder.hasTime() )
 		{
 			final int timeAxis = axisOrder.withoutChannel().timeAxis();

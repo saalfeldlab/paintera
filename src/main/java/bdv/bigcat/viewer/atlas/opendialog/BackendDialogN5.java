@@ -2,6 +2,7 @@ package bdv.bigcat.viewer.atlas.opendialog;
 
 import java.io.File;
 import java.io.IOException;
+import java.lang.invoke.MethodHandles;
 import java.net.URI;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -12,11 +13,15 @@ import java.util.function.Consumer;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 import java.util.stream.DoubleStream;
+import java.util.stream.Stream;
 
 import org.janelia.saalfeldlab.n5.DataType;
 import org.janelia.saalfeldlab.n5.DatasetAttributes;
 import org.janelia.saalfeldlab.n5.N5FSReader;
+import org.janelia.saalfeldlab.n5.N5Reader;
 import org.janelia.saalfeldlab.n5.imglib2.N5Utils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.google.gson.JsonElement;
 
@@ -34,6 +39,8 @@ import net.imglib2.util.ValuePair;
 public class BackendDialogN5 extends BackendDialogGroupAndDataset implements CombinesErrorMessages
 {
 
+	private static final Logger LOG = LoggerFactory.getLogger( MethodHandles.lookup().lookupClass() );
+
 	private static final String RESOLUTION_KEY = "resolution";
 
 	private static final String OFFSET_KEY = "offset";
@@ -43,6 +50,8 @@ public class BackendDialogN5 extends BackendDialogGroupAndDataset implements Com
 	private static final String MAX_KEY = "max";
 
 	private static final String AXIS_ORDER_KEY = "axisOrder";
+
+	private static final String ATTRIBUTES_JSON = "attributes.json";
 
 	public BackendDialogN5()
 	{
@@ -121,16 +130,48 @@ public class BackendDialogN5 extends BackendDialogGroupAndDataset implements Com
 		}
 	}
 
+	@SuppressWarnings( "unchecked" )
 	@Override
-	public < T extends NativeType< T >, V extends Volatile< T > > Pair< RandomAccessibleInterval< T >, RandomAccessibleInterval< V > > getDataAndVolatile(
+	public < T extends NativeType< T >, V extends Volatile< T > > Pair< RandomAccessibleInterval< T >[], RandomAccessibleInterval< V >[] > getDataAndVolatile(
 			final SharedQueue sharedQueue,
 			final int priority ) throws IOException
 	{
 		final String group = groupProperty.get();
 		final N5FSReader reader = new N5FSReader( group );
 		final String dataset = this.dataset.get();
-		final RandomAccessibleInterval< T > raw = N5Utils.openVolatile( reader, dataset );
-		final RandomAccessibleInterval< V > vraw = VolatileViews.wrapAsVolatile( raw, sharedQueue, new CacheHints( LoadingStrategy.VOLATILE, priority, true ) );
+		try
+		{
+			if ( reader.getDatasetAttributes( dataset ) != null )
+			{
+				final RandomAccessibleInterval< T > raw = N5Utils.openVolatile( reader, dataset );
+				final RandomAccessibleInterval< V > vraw = VolatileViews.wrapAsVolatile( raw, sharedQueue, new CacheHints( LoadingStrategy.VOLATILE, priority, true ) );
+				return new ValuePair<>( new RandomAccessibleInterval[] { raw }, new RandomAccessibleInterval[] { vraw } );
+			}
+		}
+		catch ( final IOException e )
+		{
+
+		}
+		// TODO for now only scales allowed?
+		final URI groupURI = URI.create( group );
+		final File[] scaleDirs = filterTime( new File( group, dataset ) )
+				.map( File::getPath )
+				.map( f -> f.replace( group, "" ) )
+				.map( f -> f.replaceFirst( "^/", "" ) )
+				.map( File::new )
+				.toArray( File[]::new );
+		sortScaleDirs( scaleDirs );
+		LOG.info( "Opening directories {} as multi-scale in {}: ", Arrays.toString( scaleDirs ), groupURI );
+
+		final RandomAccessibleInterval< T >[] raw = new RandomAccessibleInterval[ scaleDirs.length ];
+		final RandomAccessibleInterval< V >[] vraw = new RandomAccessibleInterval[ scaleDirs.length ];
+		for ( int scale = 0; scale < scaleDirs.length; ++scale )
+		{
+			LOG.debug( "Populating scale level {}", scale );
+			raw[ scale ] = N5Utils.openVolatile( reader, scaleDirs[ scale ].getPath() );
+			vraw[ scale ] = VolatileViews.wrapAsVolatile( raw[ scale ], sharedQueue, new CacheHints( LoadingStrategy.VOLATILE, priority, true ) );
+			LOG.debug( "Populated scale level {}", scale );
+		}
 		return new ValuePair<>( raw, vraw );
 	}
 
@@ -153,11 +194,16 @@ public class BackendDialogN5 extends BackendDialogGroupAndDataset implements Com
 	}
 
 	@Override
-	public void updateDatasetInfo( final String dataset, final DatasetInfo info )
+	public void updateDatasetInfo( final String basePath, final DatasetInfo info )
 	{
 		try
 		{
-			final N5FSReader reader = new N5FSReader( groupProperty.get() );
+			final String group = groupProperty.get();
+			final N5FSReader reader = new N5FSReader( group );
+
+			final String dataset = getAttributesContainingPath( reader, group, basePath );
+
+			LOG.debug( "Got dataset {} for base path {} in {}", dataset, basePath, group );
 
 			final DatasetAttributes dsAttrs = reader.getDatasetAttributes( dataset );
 			final int nDim = dsAttrs.getNumDimensions();
@@ -197,7 +243,7 @@ public class BackendDialogN5 extends BackendDialogGroupAndDataset implements Com
 	{
 		final ArrayList< File > files = new ArrayList<>();
 		final URI baseURI = new File( at ).toURI();
-		discoverSubdirectories( new File( at ), dir -> new File( dir, "attributes.json" ).exists(), files::add, () -> this.isTraversingDirectories.set( false ) );
+		discoverSubdirectories( new File( at ), dir -> isDatasetOrCollection( dir ), files::add, () -> this.isTraversingDirectories.set( false ) );
 		return files.stream().map( File::toURI ).map( baseURI::relativize ).map( URI::getPath ).collect( Collectors.toList() );
 	}
 
@@ -214,6 +260,65 @@ public class BackendDialogN5 extends BackendDialogGroupAndDataset implements Com
 		}
 		else
 			onInterruption.run();
+	}
+
+	public static boolean isDataset( final File file )
+	{
+		final N5FSReader reader = new N5FSReader( file.toString() );
+		DatasetAttributes attrs;
+		try
+		{
+			attrs = reader.getDatasetAttributes( "." );
+		}
+		catch ( final IOException e )
+		{
+			return false;
+		}
+		if ( attrs != null )
+			return true;
+		return false;
+	}
+
+	public static boolean isDatasetOrCollection( final File file )
+	{
+
+		return isDataset( file ) || filterTime( file ).count() > 0;
+	}
+
+	public static Stream< File > filterTime( final File file )
+	{
+//		System.out.println( "FILTERING FOR TIME " + file );
+		return Arrays
+				.stream( file.list() )
+				.filter( s -> s.matches( "^s[0-9]+$" ) )
+				.map( s -> new File( file, s ) )
+				.filter( File::isDirectory )
+				.filter( BackendDialogN5::isDataset );
+	}
+
+	public static void sortScaleDirs( final File[] scaleDirs )
+	{
+		Arrays.sort( scaleDirs, ( f1, f2 ) -> {
+			return Integer.compare(
+					Integer.parseInt( f1.getPath().replaceAll( "[^\\d]", "" ) ),
+					Integer.parseInt( f2.getPath().replaceAll( "[^\\d]", "" ) ) );
+		} );
+	}
+
+	public String getAttributesContainingPath( final N5Reader reader, final String group, final String basePath ) throws IOException
+	{
+		if ( reader.getDatasetAttributes( basePath ) != null )
+			return basePath;
+		final URI groupURI = new File( group ).toURI();
+		final File[] scaleDirs = filterTime( new File( new File( group ), basePath ) )
+				.map( File::toURI )
+				.map( groupURI::relativize )
+				.map( URI::getPath )
+				.map( File::new )
+				.toArray( File[]::new );
+		sortScaleDirs( scaleDirs );
+		LOG.debug( "Got the following scale dirs: {}", Arrays.toString( scaleDirs ) );
+		return scaleDirs[ 0 ].getPath();
 	}
 
 }
