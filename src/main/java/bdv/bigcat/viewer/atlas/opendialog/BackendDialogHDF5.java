@@ -5,8 +5,10 @@ import java.io.IOException;
 import java.lang.invoke.MethodHandles;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
+import java.util.function.Consumer;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
@@ -26,6 +28,7 @@ import javafx.beans.property.DoubleProperty;
 import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.SimpleDoubleProperty;
 import javafx.beans.property.SimpleObjectProperty;
+import javafx.beans.value.ObservableValue;
 import javafx.collections.FXCollections;
 import javafx.collections.ListChangeListener;
 import javafx.collections.ObservableList;
@@ -33,15 +36,18 @@ import javafx.scene.Node;
 import javafx.scene.control.Button;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.TextField;
+import javafx.scene.effect.Effect;
+import javafx.scene.effect.InnerShadow;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
+import javafx.scene.paint.Color;
 import javafx.stage.FileChooser;
 import javafx.stage.FileChooser.ExtensionFilter;
 import net.imglib2.type.NativeType;
 import net.imglib2.type.numeric.RealType;
 
-public class BackendDialogHDF5 implements BackendDialog
+public class BackendDialogHDF5 implements BackendDialog, CombinesErrorMessages
 {
 
 	private static final Logger LOG = LoggerFactory.getLogger( MethodHandles.lookup().lookupClass() );
@@ -60,7 +66,21 @@ public class BackendDialogHDF5 implements BackendDialog
 	// selected dataset
 	private final SimpleObjectProperty< String > dataset = new SimpleObjectProperty<>();
 
-	private final SimpleObjectProperty< String > error = new SimpleObjectProperty<>();
+	// error message for invalid data set
+	private final SimpleObjectProperty< String > datasetError = new SimpleObjectProperty<>();
+
+	// error message for invalid hdf5 selection
+	private final SimpleObjectProperty< String > hdf5error = new SimpleObjectProperty<>();
+
+	// combined error messages
+	private final SimpleObjectProperty< String > errorMessage = new SimpleObjectProperty<>();
+
+	private final SimpleObjectProperty< Effect > hdf5errorEffect = new SimpleObjectProperty<>();
+
+	private final Effect textFieldNoErrorEffect = new TextField().getEffect();
+
+	// appearance of the text box when there is an error
+	private final Effect textFieldErrorEffect = new InnerShadow( 10, Color.ORANGE );
 
 	private final SimpleDoubleProperty resX = new SimpleDoubleProperty( Double.NaN );
 
@@ -83,14 +103,10 @@ public class BackendDialogHDF5 implements BackendDialog
 
 	public BackendDialogHDF5()
 	{
-		hdf5.set( "" );
-		dataset.set( "" );
-		error.set( "" );
-
 		hdf5.addListener( ( obs, oldv, newv ) -> {
 			if ( newv != null && new File( newv ).exists() )
 			{
-				this.error.set( null );
+				this.hdf5error.set( null );
 				final IHDF5Reader reader = HDF5Factory.openForReading( newv );
 				final List< String > paths = new ArrayList<>();
 				H5Utils.getAllDatasetPaths( reader, "/", paths );
@@ -106,19 +122,14 @@ public class BackendDialogHDF5 implements BackendDialog
 			else
 			{
 				datasetChoices.clear();
-				error.set( "No valid sources for hdf5 file." );
+				this.hdf5error.set( "No valid hdf5 file." );
 			}
-		} );
-
-		datasetChoices.addListener( ( ListChangeListener< String > ) change -> {
-			while ( change.next() )
-				if ( datasetChoices.size() == 0 )
-					error.set( "No datasets found for hdf file: " + hdf5.get() );
 		} );
 
 		dataset.addListener( ( obs, oldv, newv ) -> {
 			if ( newv != null && newv.length() > 0 )
 			{
+				datasetError.set( null );
 				final IHDF5Reader reader = HDF5Factory.openForReading( hdf5.get() );
 
 				if ( reader.object().hasAttribute( newv, RESOLUTION_KEY ) )
@@ -147,10 +158,23 @@ public class BackendDialogHDF5 implements BackendDialog
 					min.set( reader.object().hasAttribute( newv, MIN_KEY ) ? reader.float64().getAttr( newv, MIN_KEY ) : Double.NaN );
 				if ( reader.object().hasAttribute( newv, MAX_KEY ) )
 					max.set( reader.object().hasAttribute( newv, MAX_KEY ) ? reader.float64().getAttr( newv, MAX_KEY ) : Double.NaN );
-
 			}
+			else
+				datasetError.set( "No hdf5 dataset selected" );
 		} );
 
+		hdf5error.addListener( ( obs, oldv, newv ) -> this.hdf5errorEffect.set( newv != null && newv.length() > 0 ? textFieldErrorEffect : textFieldNoErrorEffect ) );
+
+		datasetChoices.addListener( ( ListChangeListener< String > ) change -> {
+			while ( change.next() )
+				if ( datasetChoices.size() == 0 )
+					datasetError.set( "No datasets found for hdf file: " + hdf5.get() );
+		} );
+
+		this.errorMessages().forEach( em -> em.addListener( ( obs, oldv, newv ) -> combineErrorMessages() ) );
+
+		hdf5.set( "" );
+		dataset.set( "" );
 	}
 
 	@Override
@@ -186,13 +210,27 @@ public class BackendDialogHDF5 implements BackendDialog
 			Optional.ofNullable( file ).map( File::getAbsolutePath ).ifPresent( hdf5::set );
 		} );
 		grid.add( button, 1, 0 );
+
+		this.hdf5errorEffect.addListener( ( obs, oldv, newv ) -> {
+			if ( !hdf5Field.isFocused() )
+				hdf5Field.setEffect( newv );
+		} );
+
+		hdf5Field.setEffect( this.hdf5errorEffect.get() );
+
+		hdf5Field.focusedProperty().addListener( ( obs, oldv, newv ) -> {
+			if ( newv )
+				hdf5Field.setEffect( this.textFieldNoErrorEffect );
+			else
+				hdf5Field.setEffect( hdf5errorEffect.get() );
+		} );
 		return grid;
 	}
 
 	@Override
 	public ObjectProperty< String > errorMessage()
 	{
-		return error;
+		return errorMessage;
 	}
 
 	@Override
@@ -332,4 +370,15 @@ public class BackendDialogHDF5 implements BackendDialog
 		return IntStream.range( 0, chunks.length ).map( i -> chunks[ chunks.length - i - 1 ] ).toArray();
 	}
 
+	@Override
+	public Collection< ObservableValue< String > > errorMessages()
+	{
+		return Arrays.asList( this.hdf5error, this.datasetError );
+	}
+
+	@Override
+	public Consumer< Collection< String > > combiner()
+	{
+		return strings -> this.errorMessage.set( String.join( "\n", strings ) );
+	}
 }
