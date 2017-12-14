@@ -1,7 +1,7 @@
 package bdv.bigcat.viewer.atlas.opendialog;
 
-import java.io.File;
 import java.util.Optional;
+import java.util.function.BiFunction;
 
 import javafx.beans.binding.Bindings;
 import javafx.beans.property.Property;
@@ -9,13 +9,13 @@ import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.value.ObservableValue;
 import javafx.collections.ObservableList;
 import javafx.scene.Node;
+import javafx.scene.Scene;
 import javafx.scene.control.Button;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.TextField;
 import javafx.scene.effect.Effect;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.Priority;
-import javafx.stage.DirectoryChooser;
 
 public class GroupAndDatasetStructure
 {
@@ -32,6 +32,8 @@ public class GroupAndDatasetStructure
 
 	private final ObservableValue< Boolean > isDropDownReady;
 
+	private final BiFunction< String, Scene, String > onBrowseClicked;
+
 	private final SimpleObjectProperty< Effect > groupErrorEffect = new SimpleObjectProperty<>();
 
 	private final Effect textFieldNoErrorEffect = new TextField().getEffect();
@@ -42,7 +44,8 @@ public class GroupAndDatasetStructure
 			final Property< String > group,
 			final Property< String > dataset,
 			final ObservableList< String > datasetChoices,
-			final ObservableValue< Boolean > isDropDownReady )
+			final ObservableValue< Boolean > isDropDownReady,
+			final BiFunction< String, Scene, String > onBrowseClicked )
 	{
 		super();
 		this.groupPromptText = groupPromptText;
@@ -51,6 +54,7 @@ public class GroupAndDatasetStructure
 		this.dataset = dataset;
 		this.datasetChoices = datasetChoices;
 		this.isDropDownReady = isDropDownReady;
+		this.onBrowseClicked = onBrowseClicked;
 	}
 
 	public Node createNode()
@@ -75,11 +79,7 @@ public class GroupAndDatasetStructure
 		GridPane.setHgrow( datasetDropDown, Priority.ALWAYS );
 		final Button button = new Button( "Browse" );
 		button.setOnAction( event -> {
-			final DirectoryChooser directoryChooser = new DirectoryChooser();
-			final File initDir = new File( group.getValue() );
-			directoryChooser.setInitialDirectory( initDir.exists() && initDir.isDirectory() ? initDir : new File( System.getProperty( "user.home" ) ) );
-			final File directory = directoryChooser.showDialog( grid.getScene().getWindow() );
-			Optional.ofNullable( directory ).map( File::getAbsolutePath ).ifPresent( group::setValue );
+			Optional.ofNullable( onBrowseClicked.apply( group.getValue(), grid.getScene() ) ).ifPresent( group::setValue );
 		} );
 		grid.add( button, 1, 0 );
 
