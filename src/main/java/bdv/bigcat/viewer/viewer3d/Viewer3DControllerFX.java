@@ -52,6 +52,25 @@ public class Viewer3DControllerFX
 		this.viewer3D = viewer;
 	}
 
+	public void init()
+	{}
+
+	/**
+	 *
+	 * @param volumeLabels
+	 * @param interval
+	 * @param transform
+	 * @param worldLocation
+	 * @param partitionSize
+	 * @param cubeSize
+	 * @param createMaskConverterForType
+	 * @param fragmentId
+	 * @param fragmentSegmentAssignment
+	 * @param stream
+	 * @param append
+	 * @param selectedIds
+	 * @param transformManager
+	 */
 	public synchronized < T extends Type< T >, F extends FragmentSegmentAssignmentState< F > > void generateMesh(
 			final RandomAccessible< T > volumeLabels,
 			final Interval interval,
