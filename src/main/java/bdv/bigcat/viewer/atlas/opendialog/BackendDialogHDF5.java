@@ -2,56 +2,28 @@ package bdv.bigcat.viewer.atlas.opendialog;
 
 import java.io.File;
 import java.io.IOException;
-import java.lang.invoke.MethodHandles;
 import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
-import java.util.function.Consumer;
-import java.util.stream.Collectors;
-import java.util.stream.IntStream;
+import java.util.stream.DoubleStream;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import bdv.bigcat.viewer.atlas.data.DataSource;
-import bdv.bigcat.viewer.atlas.data.LabelDataSource;
-import bdv.bigcat.viewer.atlas.opendialog.OpenSourceDialog.TYPE;
-import bdv.bigcat.viewer.state.FragmentSegmentAssignmentOnlyLocal;
 import bdv.img.h5.H5Utils;
 import bdv.util.volatiles.SharedQueue;
-import ch.systemsx.cisd.hdf5.HDF5DataSetInformation;
+import bdv.util.volatiles.VolatileViews;
 import ch.systemsx.cisd.hdf5.HDF5Factory;
 import ch.systemsx.cisd.hdf5.IHDF5Reader;
-import javafx.beans.property.DoubleProperty;
-import javafx.beans.property.ObjectProperty;
-import javafx.beans.property.SimpleDoubleProperty;
-import javafx.beans.property.SimpleObjectProperty;
-import javafx.beans.value.ObservableValue;
-import javafx.collections.FXCollections;
-import javafx.collections.ListChangeListener;
-import javafx.collections.ObservableList;
-import javafx.scene.Node;
-import javafx.scene.control.Button;
-import javafx.scene.control.ComboBox;
-import javafx.scene.control.TextField;
-import javafx.scene.effect.Effect;
-import javafx.scene.effect.InnerShadow;
-import javafx.scene.layout.GridPane;
-import javafx.scene.layout.Priority;
-import javafx.scene.layout.Region;
-import javafx.scene.paint.Color;
 import javafx.stage.FileChooser;
 import javafx.stage.FileChooser.ExtensionFilter;
+import net.imglib2.RandomAccessibleInterval;
+import net.imglib2.Volatile;
+import net.imglib2.cache.volatiles.CacheHints;
+import net.imglib2.cache.volatiles.LoadingStrategy;
 import net.imglib2.type.NativeType;
-import net.imglib2.type.numeric.RealType;
-import net.imglib2.type.volatiles.AbstractVolatileRealType;
+import net.imglib2.util.Pair;
+import net.imglib2.util.ValuePair;
 
-public class BackendDialogHDF5 implements BackendDialog, CombinesErrorMessages
+public class BackendDialogHDF5 extends BackendDialogGroupAndDataset implements CombinesErrorMessages
 {
-
-	private static final Logger LOG = LoggerFactory.getLogger( MethodHandles.lookup().lookupClass() );
 
 	private static final String RESOLUTION_KEY = "resolution";
 
@@ -61,327 +33,158 @@ public class BackendDialogHDF5 implements BackendDialog, CombinesErrorMessages
 
 	private static final String MAX_KEY = "max";
 
-	// path for the hdf file
-	private final SimpleObjectProperty< String > hdf5 = new SimpleObjectProperty<>();
-
-	// selected dataset
-	private final SimpleObjectProperty< String > dataset = new SimpleObjectProperty<>();
-
-	// error message for invalid data set
-	private final SimpleObjectProperty< String > datasetError = new SimpleObjectProperty<>();
-
-	// error message for invalid hdf5 selection
-	private final SimpleObjectProperty< String > hdf5error = new SimpleObjectProperty<>();
-
-	// combined error messages
-	private final SimpleObjectProperty< String > errorMessage = new SimpleObjectProperty<>();
-
-	private final SimpleObjectProperty< Effect > hdf5errorEffect = new SimpleObjectProperty<>();
-
-	private final Effect textFieldNoErrorEffect = new TextField().getEffect();
-
-	// appearance of the text box when there is an error
-	private final Effect textFieldErrorEffect = new InnerShadow( 10, Color.ORANGE );
-
-	private final SimpleDoubleProperty resX = new SimpleDoubleProperty( Double.NaN );
-
-	private final SimpleDoubleProperty resY = new SimpleDoubleProperty( Double.NaN );
-
-	private final SimpleDoubleProperty resZ = new SimpleDoubleProperty( Double.NaN );
-
-	private final SimpleDoubleProperty offX = new SimpleDoubleProperty( Double.NaN );
-
-	private final SimpleDoubleProperty offY = new SimpleDoubleProperty( Double.NaN );
-
-	private final SimpleDoubleProperty offZ = new SimpleDoubleProperty( Double.NaN );
-
-	private final SimpleDoubleProperty min = new SimpleDoubleProperty( Double.NaN );
-
-	private final SimpleDoubleProperty max = new SimpleDoubleProperty( Double.NaN );
-
-	// all data sets inside the hdf file
-	private final ObservableList< String > datasetChoices = FXCollections.observableArrayList();
+	private static final String AXIS_ORDER_KEY = "axisOrder";
 
 	public BackendDialogHDF5()
 	{
-		hdf5.addListener( ( obs, oldv, newv ) -> {
-			if ( newv != null && new File( newv ).exists() )
-			{
-				this.hdf5error.set( null );
-				final IHDF5Reader reader = HDF5Factory.openForReading( newv );
-				final List< String > paths = new ArrayList<>();
-				H5Utils.getAllDatasetPaths( reader, "/", paths );
-				reader.close();
-
-				if ( datasetChoices.size() == 0 )
-					datasetChoices.add( "" );
-
-				datasetChoices.setAll( paths.stream().collect( Collectors.toList() ) );
-				if ( !oldv.equals( newv ) )
-					this.dataset.set( null );
-			}
-			else
-			{
-				datasetChoices.clear();
-				this.hdf5error.set( "No valid hdf5 file." );
-			}
-		} );
-
-		dataset.addListener( ( obs, oldv, newv ) -> {
-			if ( newv != null && newv.length() > 0 )
-			{
-				datasetError.set( null );
-				final IHDF5Reader reader = HDF5Factory.openForReading( hdf5.get() );
-
-				if ( reader.object().hasAttribute( newv, RESOLUTION_KEY ) )
-				{
-					final double[] resolution = reader.float64().getArrayAttr( newv, RESOLUTION_KEY );
-					if ( resolution.length == 3 )
-					{
-						resX.set( resolution[ 2 ] );
-						resY.set( resolution[ 1 ] );
-						resZ.set( resolution[ 0 ] );
-					}
-				}
-
-				if ( reader.object().hasAttribute( newv, OFFSET_KEY ) )
-				{
-					final double[] offset = reader.float64().getArrayAttr( newv, OFFSET_KEY );
-					if ( offset.length == 3 )
-					{
-						offX.set( offset[ 2 ] );
-						offY.set( offset[ 1 ] );
-						offZ.set( offset[ 0 ] );
-					}
-				}
-
-				if ( reader.object().hasAttribute( newv, MIN_KEY ) )
-					min.set( reader.object().hasAttribute( newv, MIN_KEY ) ? reader.float64().getAttr( newv, MIN_KEY ) : Double.NaN );
-				if ( reader.object().hasAttribute( newv, MAX_KEY ) )
-					max.set( reader.object().hasAttribute( newv, MAX_KEY ) ? reader.float64().getAttr( newv, MAX_KEY ) : Double.NaN );
-			}
-			else
-				datasetError.set( "No hdf5 dataset selected" );
-		} );
-
-		hdf5error.addListener( ( obs, oldv, newv ) -> this.hdf5errorEffect.set( newv != null && newv.length() > 0 ? textFieldErrorEffect : textFieldNoErrorEffect ) );
-
-		datasetChoices.addListener( ( ListChangeListener< String > ) change -> {
-			while ( change.next() )
-				if ( datasetChoices.size() == 0 )
-					datasetError.set( "No datasets found for hdf file: " + hdf5.get() );
-		} );
-
-		this.errorMessages().forEach( em -> em.addListener( ( obs, oldv, newv ) -> combineErrorMessages() ) );
-
-		hdf5.set( "" );
-		dataset.set( "" );
-	}
-
-	@Override
-	public Node getDialogNode()
-	{
-		final TextField hdf5Field = new TextField( hdf5.get() );
-		hdf5Field.setMinWidth( 0 );
-		hdf5Field.setMaxWidth( Double.POSITIVE_INFINITY );
-		hdf5Field.setPromptText( "hdf file" );
-		hdf5Field.textProperty().bindBidirectional( hdf5 );
-
-		final ComboBox< String > datasetDropDown = new ComboBox<>( datasetChoices );
-		datasetDropDown.setPromptText( "Choose Dataset..." );
-		datasetDropDown.setEditable( false );
-		datasetDropDown.valueProperty().bindBidirectional( dataset );
-		datasetDropDown.setMinWidth( hdf5Field.getMinWidth() );
-		datasetDropDown.setPrefWidth( hdf5Field.getPrefWidth() );
-		datasetDropDown.setMaxWidth( hdf5Field.getMaxWidth() );
-
-		final GridPane grid = new GridPane();
-		grid.add( hdf5Field, 0, 0 );
-		grid.add( datasetDropDown, 0, 1 );
-		GridPane.setHgrow( hdf5Field, Priority.ALWAYS );
-		GridPane.setHgrow( datasetDropDown, Priority.ALWAYS );
-
-		final Button button = new Button( "Browse" );
-		button.setMinWidth( Region.USE_PREF_SIZE );
-		button.setOnAction( event -> {
+		super( "HDF file", "Dataset", ( group, scene ) -> {
 			final FileChooser fileChooser = new FileChooser();
-			fileChooser.getExtensionFilters().addAll(
-					new ExtensionFilter( "HDF5 Files", "*.hdf" ) );
-			final File file = fileChooser.showOpenDialog( grid.getScene().getWindow() );
-			Optional.ofNullable( file ).map( File::getAbsolutePath ).ifPresent( hdf5::set );
+//			fileChooser.setInitialDirectory( new File( group ) );
+			fileChooser.getExtensionFilters().addAll( new ExtensionFilter( "HDF5 Files", "*.hdf", "*.h5" ) );
+			final File file = fileChooser.showOpenDialog( scene.getWindow() );
+			return file.getAbsolutePath();
 		} );
-		grid.add( button, 1, 0 );
-
-		this.hdf5errorEffect.addListener( ( obs, oldv, newv ) -> {
-			if ( !hdf5Field.isFocused() )
-				hdf5Field.setEffect( newv );
-		} );
-
-		hdf5Field.setEffect( this.hdf5errorEffect.get() );
-
-		hdf5Field.focusedProperty().addListener( ( obs, oldv, newv ) -> {
-			if ( newv )
-				hdf5Field.setEffect( this.textFieldNoErrorEffect );
-			else
-				hdf5Field.setEffect( hdf5errorEffect.get() );
-		} );
-		return grid;
 	}
 
-	@Override
-	public ObjectProperty< String > errorMessage()
+	private static < T > boolean isLabelType( final Class< T > clazz, final boolean signed )
 	{
-		return errorMessage;
+		System.out.println( "IS LABEL TYPE ? " + clazz + " " + signed + " " + isIntegerType( clazz, signed ) + clazz.isAssignableFrom( long.class ) );
+		return isLabelMultisetType( clazz ) || isIntegerType( clazz, signed );
+	}
+
+	private static < T > boolean isLabelMultisetType( final Class< T > clazz )
+	{
+		return false;
+	}
+
+	private static < T > boolean isIntegerType( final Class< T > clazz, final boolean signed )
+	{
+		if ( clazz.isAssignableFrom( byte.class ) || clazz.isAssignableFrom( short.class ) || clazz.isAssignableFrom( int.class ) || clazz.isAssignableFrom( long.class ) )
+			return true;
+		return false;
+
+	}
+
+	private static < T > double minForType( final Class< T > clazz, final boolean signed )
+	{
+		// TODO ever return non-zero here?
+		return 0.0;
+	}
+
+	private static < T > double maxForType( final Class< T > clazz, final boolean signed )
+	{
+		if ( clazz.isAssignableFrom( byte.class ) )
+			return signed ? Byte.MAX_VALUE : 0xff;
+		if ( clazz.isAssignableFrom( short.class ) )
+			return signed ? Short.MAX_VALUE : 0xffff;
+		if ( clazz.isAssignableFrom( int.class ) )
+			return signed ? Integer.MAX_VALUE : 0xffffffffl;
+		if ( clazz.isAssignableFrom( long.class ) )
+			return signed ? Long.MAX_VALUE : 2.0 * Long.MAX_VALUE;
+		return 1.0;
 	}
 
 	@Override
-	public < T extends RealType< T > & NativeType< T >, V extends AbstractVolatileRealType< T, V > & NativeType< V > > Collection< DataSource< T, V > > getRaw(
-			final String name,
-			final double[] resolution,
-			final double[] offset,
-			final AxisOrder axisOrder,
+	public < T extends NativeType< T >, V extends Volatile< T > > Pair< RandomAccessibleInterval< T >[], RandomAccessibleInterval< V >[] > getDataAndVolatile(
 			final SharedQueue sharedQueue,
 			final int priority ) throws IOException
 	{
-		final String rawFile = hdf5.get();
-		final String rawDataset = this.dataset.get();
-
-		return Arrays.asList( DataSource.createH5RawSource( name, rawFile, rawDataset, getChunkSize( rawFile, rawDataset ), resolution, offset, sharedQueue, priority ) );
+		final String group = groupProperty.get();
+		final IHDF5Reader reader = HDF5Factory.openForReading( group );
+		final String dataset = this.dataset.get();
+		// TODO optimize block size
+		final RandomAccessibleInterval< T > raw = H5Utils.open( reader, dataset );
+		final RandomAccessibleInterval< V > vraw = VolatileViews.wrapAsVolatile( raw, sharedQueue, new CacheHints( LoadingStrategy.VOLATILE, priority, true ) );
+		return new ValuePair<>( new RandomAccessibleInterval[] { raw }, new RandomAccessibleInterval[] { vraw } );
 	}
 
 	@Override
-	public Collection< LabelDataSource< ?, ? > > getLabels(
-			final String name,
-			final double[] resolution,
-			final double[] offset,
-			final AxisOrder axisOrder,
-			final SharedQueue sharedQueue,
-			final int priority ) throws IOException
+	public boolean isLabelType() throws IOException
 	{
-		final String labelsFile = hdf5.get();
-		final String labelsDataset = this.dataset.get();
-		final FragmentSegmentAssignmentOnlyLocal assignment = new FragmentSegmentAssignmentOnlyLocal();
-		final int[] chunks = getChunkSize( labelsFile, labelsDataset );
-		return Arrays.asList( LabelDataSource.createH5LabelSource( name, labelsFile, labelsDataset, chunks, resolution, offset, sharedQueue, priority, assignment ) );
-	}
-
-	@Override
-	public void typeChanged( final TYPE type )
-	{
-		final IHDF5Reader reader = HDF5Factory.openForReading( hdf5.get() );
-		final List< String > paths = new ArrayList<>();
-		H5Utils.getAllDatasetPaths( reader, "/", paths );
-
-		switch ( type )
+		try (final IHDF5Reader reader = HDF5Factory.openForReading( groupProperty.get() ))
 		{
-		case LABEL:
-			updateLabelDataset( reader, paths );
-			break;
-		case RAW:
-		default:
-			updateRawDataset( paths );
-			break;
+			final Class< ? > dataType = reader.getDataSetInformation( dataset.get() ).getTypeInformation().tryGetJavaType();
+			final boolean signed = reader.getDataSetInformation( dataset.get() ).getTypeInformation().isSigned();
+			return isLabelType( dataType, signed );
 		}
-
-		reader.close();
 	}
 
-	private void updateRawDataset( final List< String > paths )
+	@Override
+	public boolean isLabelMultisetType() throws IOException
 	{
-		if ( datasetChoices.size() == 0 )
-			datasetChoices.add( "" );
-
-		datasetChoices.setAll( paths.stream().collect( Collectors.toList() ) );
-	}
-
-	private void updateLabelDataset( final IHDF5Reader reader, final List< String > paths )
-	{
-		if ( datasetChoices.size() == 0 )
-			datasetChoices.add( "" );
-
-		for ( int i = 0; i < paths.size(); i++ )
+		try (final IHDF5Reader reader = HDF5Factory.openForReading( groupProperty.get() ))
 		{
-			final Class< ? > dataType = reader.getDataSetInformation( paths.get( i ) ).getTypeInformation().tryGetJavaType();
-			if ( !dataType.isAssignableFrom( int.class ) && !dataType.isAssignableFrom( long.class ) )
+			final Class< ? > dataType = reader.getDataSetInformation( dataset.get() ).getTypeInformation().tryGetJavaType();
+			return isLabelMultisetType( dataType );
+		}
+	}
+
+	@Override
+	public boolean isIntegerType() throws IOException
+	{
+		try (final IHDF5Reader reader = HDF5Factory.openForReading( groupProperty.get() ))
+		{
+			final Class< ? > dataType = reader.getDataSetInformation( dataset.get() ).getTypeInformation().tryGetJavaType();
+			final boolean signed = reader.getDataSetInformation( dataset.get() ).getTypeInformation().isSigned();
+			return isIntegerType( dataType, signed );
+		}
+	}
+
+	@Override
+	public void updateDatasetInfo( final String dataset, final DatasetInfo info )
+	{
+		try (final IHDF5Reader reader = HDF5Factory.openForReading( this.groupProperty.get() ))
+		{
+
+			final int nDim = reader.object().getDimensions( dataset ).length;
+
+			if ( reader.object().hasAttribute( dataset, AXIS_ORDER_KEY ) )
 			{
-				paths.remove( i );
-				i--;
+				final AxisOrder ao = AxisOrder.valueOf( reader.string().getAttr( dataset, AXIS_ORDER_KEY ) );
+				datasetInfo.defaultAxisOrderProperty().set( ao );
+				datasetInfo.selectedAxisOrderProperty().set( ao );
 			}
+			else
+			{
+				final Optional< AxisOrder > ao = AxisOrder.defaultOrder( nDim );
+				if ( ao.isPresent() )
+					this.datasetInfo.defaultAxisOrderProperty().set( ao.get() );
+				if ( this.datasetInfo.selectedAxisOrderProperty().isNull().get() || this.datasetInfo.selectedAxisOrderProperty().get().numDimensions() != nDim )
+					this.axisOrder().set( ao.get() );
+			}
+
+			final Class< ? > type = reader.getDataSetInformation( dataset ).getTypeInformation().tryGetJavaType();
+			final boolean signed = reader.getDataSetInformation( dataset ).getTypeInformation().isSigned();
+
+			final boolean hasResolution = reader.object().hasAttribute( dataset, RESOLUTION_KEY );
+			final boolean hasOffset = reader.object().hasAttribute( dataset, OFFSET_KEY );
+			final boolean hasMin = reader.object().hasAttribute( dataset, MIN_KEY );
+			final boolean hasMax = reader.object().hasAttribute( dataset, MAX_KEY );
+
+			this.datasetInfo.setResolution( hasResolution ? invert( reader.float64().getArrayAttr( dataset, RESOLUTION_KEY ) ) : DoubleStream.generate( () -> 1.0 ).limit( nDim ).toArray() );
+			this.datasetInfo.setOffset( hasOffset ? invert( reader.float64().getArrayAttr( dataset, OFFSET_KEY ) ) : new double[ nDim ] );
+			this.datasetInfo.minProperty().set( hasMin ? reader.float64().getAttr( dataset, MIN_KEY ) : minForType( type, signed ) );
+			this.datasetInfo.maxProperty().set( hasMax ? reader.float64().getAttr( dataset, MAX_KEY ) : maxForType( type, signed ) );
 		}
 
-		datasetChoices.setAll( paths.stream().collect( Collectors.toList() ) );
 	}
 
 	@Override
-	public DoubleProperty resolutionX()
+	public List< String > discoverDatasetAt( final String at )
 	{
-		return this.resX;
+		try (IHDF5Reader reader = HDF5Factory.openForReading( new File( at ) ))
+		{
+			final ArrayList< String > datasets = new ArrayList<>();
+			H5Utils.getAllDatasetPaths( reader, "/", datasets );
+			return datasets;
+		}
 	}
 
-	@Override
-	public DoubleProperty resolutionY()
+	public static double[] invert( final double[] array )
 	{
-		return this.resY;
-	}
-
-	@Override
-	public DoubleProperty resolutionZ()
-	{
-		return this.resZ;
-	}
-
-	@Override
-	public DoubleProperty offsetX()
-	{
-		return this.offX;
-	}
-
-	@Override
-	public DoubleProperty offsetY()
-	{
-		return this.offY;
-	}
-
-	@Override
-	public DoubleProperty offsetZ()
-	{
-		return this.offZ;
-	}
-
-	@Override
-	public DoubleProperty min()
-	{
-		return this.min;
-	}
-
-	@Override
-	public DoubleProperty max()
-	{
-		return this.max;
-	}
-
-	private static int[] getChunkSize( final String file, final String dataset )
-	{
-		final IHDF5Reader reader = HDF5Factory.openForReading( file );
-		final HDF5DataSetInformation info = reader.getDataSetInformation( dataset );
-		final Optional< int[] > chunksOptional = Optional.ofNullable( info.tryGetChunkSizes() );
-		if ( chunksOptional.isPresent() )
-			LOG.debug( "Found chunk size {} {} {}", chunksOptional.get()[ 0 ], chunksOptional.get()[ 1 ], chunksOptional.get()[ 2 ] );
-		else
-			LOG.warn( "No chunk size specified for {}/{} -- Using dataset dimensions instead.", file, dataset );
-		final int[] chunks = chunksOptional.orElse( Arrays.stream( info.getDimensions() ).mapToInt( l -> ( int ) l ).toArray() );
-		return IntStream.range( 0, chunks.length ).map( i -> chunks[ chunks.length - i - 1 ] ).toArray();
-	}
-
-	@Override
-	public Collection< ObservableValue< String > > errorMessages()
-	{
-		return Arrays.asList( this.hdf5error, this.datasetError );
-	}
-
-	@Override
-	public Consumer< Collection< String > > combiner()
-	{
-		return strings -> this.errorMessage.set( String.join( "\n", strings ) );
+		final double[] ret = new double[ array.length ];
+		for ( int i = 0, k = array.length - 1; i < array.length; ++i, --k )
+			ret[ k ] = array[ i ];
+		return ret;
 	}
 }
