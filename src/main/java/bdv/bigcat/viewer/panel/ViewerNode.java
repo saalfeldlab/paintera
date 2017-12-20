@@ -5,6 +5,7 @@ import java.util.HashMap;
 
 import bdv.bigcat.viewer.bdvfx.KeyTracker;
 import bdv.bigcat.viewer.bdvfx.ViewerPanelFX;
+import bdv.bigcat.viewer.panel.transform.ViewerTransformManager;
 import bdv.cache.CacheControl;
 import bdv.viewer.DisplayMode;
 import bdv.viewer.Source;
@@ -67,7 +68,7 @@ public class ViewerNode extends Pane implements ListChangeListener< SourceAndCon
 //		this.viewer.showMultibox( false );
 		this.viewerAxis = viewerAxis;
 		this.state = new ViewerState( this.viewer );
-		this.manager = new ViewerTransformManager( this.viewer, state, globalToViewer( viewerAxis ), keyTracker, visibilityMap );
+		this.manager = new ViewerTransformManager( this.viewer, viewerAxis, state, globalToViewer( viewerAxis ), keyTracker, visibilityMap );
 		initializeViewer();
 		addCrosshair();
 //		https://stackoverflow.com/questions/21657034/javafx-keyevent-propagation-order
@@ -138,10 +139,10 @@ public class ViewerNode extends Pane implements ListChangeListener< SourceAndCon
 		case Z:
 			break;
 		case Y:
-			tf.rotate( 1, Math.PI / 2 );
+			tf.rotate( 0, -Math.PI / 2 );
 			break;
 		case X:
-			tf.rotate( 0, -Math.PI / 2 );
+			tf.rotate( 1, Math.PI / 2 );
 			break;
 		}
 		return tf;

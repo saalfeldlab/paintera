@@ -41,7 +41,7 @@ public class GlobalTransformManager
 	public void addListener( final TransformListener< AffineTransform3D > listener )
 	{
 		this.listeners.add( listener );
-		listener.transformChanged( this.affine );
+		listener.transformChanged( this.affine.copy() );
 	}
 
 	public void removeListener( final TransformListener< AffineTransform3D > listener )
@@ -64,7 +64,7 @@ public class GlobalTransformManager
 	private synchronized void notifyListeners()
 	{
 		for ( final TransformListener< AffineTransform3D > l : listeners )
-			l.transformChanged( this.affine );
+			l.transformChanged( this.affine.copy() );
 	}
 
 }

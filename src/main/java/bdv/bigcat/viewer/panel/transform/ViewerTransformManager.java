@@ -1,8 +1,10 @@
-package bdv.bigcat.viewer.panel;
+package bdv.bigcat.viewer.panel.transform;
 
 import java.awt.event.ActionEvent;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Optional;
 import java.util.function.Predicate;
 
 import org.scijava.ui.behaviour.ClickBehaviour;
@@ -13,11 +15,15 @@ import bdv.bigcat.viewer.bdvfx.EventFX;
 import bdv.bigcat.viewer.bdvfx.KeyTracker;
 import bdv.bigcat.viewer.bdvfx.MouseDragFX;
 import bdv.bigcat.viewer.bdvfx.ViewerPanelFX;
+import bdv.bigcat.viewer.panel.ViewerNode.ViewerAxis;
+import bdv.bigcat.viewer.panel.ViewerState;
 import bdv.bigcat.viewer.state.GlobalTransformManager;
 import bdv.viewer.Source;
 import bdv.viewer.state.SourceState;
 import javafx.beans.property.DoubleProperty;
+import javafx.beans.property.Property;
 import javafx.beans.property.SimpleDoubleProperty;
+import javafx.beans.property.SimpleObjectProperty;
 import javafx.collections.ObservableMap;
 import javafx.event.EventHandler;
 import javafx.scene.input.KeyCode;
@@ -38,45 +44,15 @@ public class ViewerTransformManager implements TransformListener< AffineTransfor
 	 */
 	final private static double step = Math.PI / 180;
 
-	private static final String DRAG_TRANSLATE = "drag translate";
-
-	private static final String ZOOM_NORMAL = "scroll zoom";
-
-	private static final String SELECT_AXIS_X = "axis x";
-
-	private static final String SELECT_AXIS_Y = "axis y";
-
-	private static final String SELECT_AXIS_Z = "axis z";
-
 	private static final double[] factors = { 1.0, 10.0, 0.1 };
-
-	private static final String[] SPEED_NAME = { "", " fast", " slow" };
-
-	private static final String[] speedMod = { "", "shift ", "ctrl " };
-
-	private static final String DRAG_ROTATE = "drag rotate";
-
-	private static final String SCROLL_Z = "scroll browse z";
-
-	private static final String ROTATE_LEFT = "rotate left";
-
-	private static final String ROTATE_RIGHT = "rotate right";
-
-	private static final String KEY_ZOOM_IN = "zoom in";
-
-	private static final String KEY_ZOOM_OUT = "zoom out";
-
-	private static final String KEY_FORWARD_Z = "forward z";
-
-	private static final String KEY_BACKWARD_Z = "backward z";
 
 	private final KeyTracker keyTracker;
 
-	private final SimpleDoubleProperty rotationSpeed = new SimpleDoubleProperty( 1.0 );
+	final SimpleDoubleProperty rotationSpeed = new SimpleDoubleProperty( 1.0 );
 
 	private final SimpleDoubleProperty zoomSpeed = new SimpleDoubleProperty( 1.0 );
 
-	private GlobalTransformManager manager;
+	private final Property< GlobalTransformManager > manager = new SimpleObjectProperty<>();
 
 	private final AffineTransform3D global = new AffineTransform3D();
 
@@ -84,11 +60,13 @@ public class ViewerTransformManager implements TransformListener< AffineTransfor
 
 	private final AffineTransform3D displayTransform = new AffineTransform3D();
 
-	private final AffineTransform3D globalToViewer;
+	final AffineTransform3D globalToViewer;
 
 	private TransformListener< AffineTransform3D > listener;
 
 	private final ViewerPanelFX viewer;
+
+	private final ViewerAxis axis;
 
 	private final ViewerState state;
 
@@ -97,6 +75,8 @@ public class ViewerTransformManager implements TransformListener< AffineTransfor
 	private int centerX = 0, centerY = 0;
 
 	private final ObservableMap< Source< ? >, Boolean > visibilityMap;
+
+	private final ArrayList< TransformListener< AffineTransform3D > > globalTransformListeners = new ArrayList<>();
 
 	public void rotationSpeed( final double speed )
 	{
@@ -110,6 +90,7 @@ public class ViewerTransformManager implements TransformListener< AffineTransfor
 
 	public ViewerTransformManager(
 			final ViewerPanelFX viewer,
+			final ViewerAxis axis,
 			final ViewerState state,
 			final AffineTransform3D globalToViewer,
 			final KeyTracker keyTracker,
@@ -117,8 +98,8 @@ public class ViewerTransformManager implements TransformListener< AffineTransfor
 	{
 		super();
 		this.viewer = viewer;
+		this.axis = axis;
 		this.state = state;
-		this.manager = state.globalTransformProperty().getValue();
 		this.globalToViewer = globalToViewer;
 		this.canvasH = 1;
 		this.canvasW = 1;
@@ -127,13 +108,14 @@ public class ViewerTransformManager implements TransformListener< AffineTransfor
 		this.visibilityMap = visibilityMap;
 
 		setTransformListener( viewer );
-		manager.addListener( this );
+		manager.addListener( ( obs, oldv, newv ) -> {
+			Optional.ofNullable( oldv ).ifPresent( this::hangUp );
+			Optional.ofNullable( newv ).ifPresent( this::listen );
+		} );
 
 		this.keyTracker = keyTracker;
 
-		state.globalTransformProperty().addListener( ( observable, oldValue, newValue ) -> {
-			this.setGlobalTransform( newValue );
-		} );
+		this.manager.bind( state.globalTransformProperty() );
 
 		setUpViewer();
 	}
@@ -142,13 +124,6 @@ public class ViewerTransformManager implements TransformListener< AffineTransfor
 	{
 		this.globalToViewer.set( affine );
 		update();
-	}
-
-	private synchronized void setGlobalTransform( final GlobalTransformManager manager )
-	{
-		this.manager.removeListener( this );
-		this.manager = manager;
-		this.manager.addListener( this );
 	}
 
 	private void notifyListener()
@@ -256,12 +231,11 @@ public class ViewerTransformManager implements TransformListener< AffineTransfor
 
 //		behaviours.behaviour( new ButtonZoom( 1.05 ), "zoom", "UP" );
 //		behaviours.behaviour( new ButtonZoom( 1.0 / 1.05 ), "zoom", "DOWN" );
-		viewer.addEventHandler( ScrollEvent.SCROLL, new TranslateZ( zoomSpeed.get() * factors[ 0 ], event -> keyTracker.noKeysActive() )::scroll );
-		viewer.addEventHandler( ScrollEvent.SCROLL, new TranslateZ( zoomSpeed.get() * factors[ 1 ], event -> keyTracker.areOnlyTheseKeysDown( KeyCode.SHIFT ) )::scroll );
-		viewer.addEventHandler( ScrollEvent.SCROLL, new TranslateZ( zoomSpeed.get() * factors[ 2 ], event -> keyTracker.areOnlyTheseKeysDown( KeyCode.CONTROL ) )::scroll );
+		viewer.addEventHandler( ScrollEvent.SCROLL, new TranslateZ( zoomSpeed, manager, global, axis, factors[ 0 ], viewer, event -> keyTracker.noKeysActive() )::scroll );
+		viewer.addEventHandler( ScrollEvent.SCROLL, new TranslateZ( zoomSpeed, manager, global, axis, factors[ 1 ], viewer, event -> keyTracker.areOnlyTheseKeysDown( KeyCode.SHIFT ) )::scroll );
+		viewer.addEventHandler( ScrollEvent.SCROLL, new TranslateZ( zoomSpeed, manager, global, axis, factors[ 2 ], viewer, event -> keyTracker.areOnlyTheseKeysDown( KeyCode.CONTROL ) )::scroll );
 		viewer.addEventHandler( KeyEvent.KEY_PRESSED, EventFX.KEY_PRESSED( "toggle visibility", new ToggleVisibility()::handle, event -> keyTracker.areOnlyTheseKeysDown( KeyCode.V ) ) );
 
-		this.manager.addListener( this );
 	}
 
 	@Override
@@ -280,7 +254,7 @@ public class ViewerTransformManager implements TransformListener< AffineTransfor
 
 	public GlobalTransformManager getGlobalTransform()
 	{
-		return this.manager;
+		return this.manager.getValue();
 	}
 
 	private class TranslateXY2
@@ -325,7 +299,7 @@ public class ViewerTransformManager implements TransformListener< AffineTransfor
 					globalToViewer.applyInverse( delta, delta );
 					for ( int d = 0; d < delta.length; ++d )
 						global.set( global.get( d, 3 ) + delta[ d ], d, 3 );
-					manager.setTransform( global );
+					getGlobalTransform().setTransform( global );
 				}
 			}
 		}
@@ -378,40 +352,9 @@ public class ViewerTransformManager implements TransformListener< AffineTransfor
 				globalToViewer.applyInverse( delta, delta );
 				for ( int d = 0; d < delta.length; ++d )
 					global.set( global.get( d, 3 ) + delta[ d ], d, 3 );
-				manager.setTransform( global );
+				getGlobalTransform().setTransform( global );
 			}
 
-		}
-	}
-
-	private class TranslateZ
-	{
-		private final double speedF;
-
-		private final Predicate< ScrollEvent >[] eventFilter;
-
-		private final double[] delta = new double[ 3 ];
-
-		public TranslateZ( final double speed, final Predicate< ScrollEvent >... eventFilter )
-		{
-			this.speedF = speed;
-			this.eventFilter = eventFilter;
-		}
-
-		public void scroll( final ScrollEvent event )
-		{
-			final double wheelRotation = event.getDeltaY();
-			if ( Arrays.stream( eventFilter ).filter( filter -> filter.test( event ) ).count() > 0 )
-				synchronized ( global )
-				{
-					delta[ 0 ] = 0;
-					delta[ 1 ] = 0;
-					delta[ 2 ] = rotationSpeed.get() * speedF * -wheelRotation;
-					globalToViewer.applyInverse( delta, delta );
-					final AffineTransform3D shift = new AffineTransform3D();
-					shift.translate( delta );
-					manager.concatenate( shift );
-				}
 		}
 	}
 
@@ -457,7 +400,7 @@ public class ViewerTransformManager implements TransformListener< AffineTransfor
 			for ( int d = 0; d < location.length; ++d )
 				global.set( global.get( d, 3 ) + location[ d ], d, 3 );
 
-			manager.setTransform( global );
+			getGlobalTransform().setTransform( global );
 		}
 	}
 
@@ -488,7 +431,7 @@ public class ViewerTransformManager implements TransformListener< AffineTransfor
 			for ( int d = 0; d < location.length; ++d )
 				global.set( global.get( d, 3 ) + location[ d ], d, 3 );
 
-			manager.setTransform( global );
+			getGlobalTransform().setTransform( global );
 		}
 	}
 
@@ -552,7 +495,7 @@ public class ViewerTransformManager implements TransformListener< AffineTransfor
 				for ( int d = 0; d < origin.length; ++d )
 					affine.set( affine.get( d, 3 ) + origin[ d ], d, 3 );
 
-				manager.setTransform( affine );
+				getGlobalTransform().setTransform( affine );
 			}
 		}
 	}
@@ -620,7 +563,7 @@ public class ViewerTransformManager implements TransformListener< AffineTransfor
 					affine.set( mouseLocation[ i ] - inOriginalSpace[ i ] * val, i, 3 );
 				}
 
-				manager.setTransform( affine );
+				getGlobalTransform().setTransform( affine );
 			}
 		}
 
@@ -689,7 +632,16 @@ public class ViewerTransformManager implements TransformListener< AffineTransfor
 			final List< SourceState< ? > > sources = state.getSources();
 			visibilityMap.put( sources.get( currentSource ).getSpimSource(), !state.isSourceVisible( currentSource ) );
 		}
+	}
 
+	private void listen( final GlobalTransformManager m )
+	{
+		m.addListener( this );
+	}
+
+	private void hangUp( final GlobalTransformManager m )
+	{
+		m.removeListener( this );
 	}
 
 }
