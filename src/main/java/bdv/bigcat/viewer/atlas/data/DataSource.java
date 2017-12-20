@@ -22,6 +22,7 @@ import net.imglib2.cache.volatiles.CacheHints;
 import net.imglib2.cache.volatiles.LoadingStrategy;
 import net.imglib2.interpolation.randomaccess.NLinearInterpolatorFactory;
 import net.imglib2.interpolation.randomaccess.NearestNeighborInterpolatorFactory;
+import net.imglib2.realtransform.AffineGet;
 import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.type.NativeType;
 import net.imglib2.type.numeric.NumericType;
@@ -191,16 +192,29 @@ public interface DataSource< D, T > extends Source< T >
 			final SharedQueue sharedQueue,
 			final int priority ) throws IOException
 	{
+		final AffineTransform3D rawTransform = new AffineTransform3D();
+		rawTransform.set(
+				resolution[ 0 ], 0, 0, offset[ 0 ],
+				0, resolution[ 1 ], 0, 0, offset[ 1 ],
+				0, 0, resolution[ 2 ], offset[ 2 ] );
+		return createN5RawSource( name, n5, dataset, rawTransform, sharedQueue, priority );
+	}
+
+	public static < T extends NativeType< T > & NumericType< T >, V extends NumericType< V > > RandomAccessibleIntervalDataSource< T, V > createN5RawSource(
+			final String name,
+			final N5Reader n5,
+			final String dataset,
+			final AffineGet rawTransform,
+			final SharedQueue sharedQueue,
+			final int priority ) throws IOException
+	{
 		final RandomAccessibleInterval< T > raw = N5Utils.openVolatile( n5, dataset );
 		final T t = Util.getTypeFromInterval( raw );
 		@SuppressWarnings( "unchecked" )
 		final V v = ( V ) VolatileTypeMatcher.getVolatileTypeForType( t );
 
-		final AffineTransform3D rawTransform = new AffineTransform3D();
-		rawTransform.set(
-				resolution[ 0 ], 0, 0, offset[ 0 ],
-				0, resolution[ 1 ], 0, offset[ 1 ],
-				0, 0, resolution[ 2 ], offset[ 2 ] );
+		final AffineTransform3D transform = new AffineTransform3D();
+		transform.set( rawTransform.getRowPackedCopy() );
 
 		@SuppressWarnings( "unchecked" )
 		final RandomAccessibleIntervalDataSource< T, V > rawSource =
@@ -208,7 +222,7 @@ public interface DataSource< D, T > extends Source< T >
 						new RandomAccessibleInterval[] { raw },
 						new RandomAccessibleInterval[] {
 								VolatileViews.wrapAsVolatile( raw, sharedQueue, new CacheHints( LoadingStrategy.VOLATILE, priority, true ) ) },
-						new AffineTransform3D[] { rawTransform },
+						new AffineTransform3D[] { transform },
 						( interpolation ) -> {
 							switch ( interpolation )
 							{
@@ -316,5 +330,15 @@ public interface DataSource< D, T > extends Source< T >
 						volatileTypeSupplier,
 						name );
 		return rawSource;
+	}
+
+	default public int tMin()
+	{
+		return 0;
+	}
+
+	default public int tMax()
+	{
+		return 0;
 	}
 }

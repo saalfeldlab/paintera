@@ -1,7 +1,11 @@
 package bdv.bigcat.viewer.atlas.data;
 
+import java.lang.invoke.MethodHandles;
 import java.util.function.Function;
 import java.util.function.Supplier;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import bdv.viewer.Interpolation;
 import mpicbg.spim.data.sequence.VoxelDimensions;
@@ -11,10 +15,13 @@ import net.imglib2.RealRandomAccessible;
 import net.imglib2.interpolation.InterpolatorFactory;
 import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.type.Type;
+import net.imglib2.util.Util;
 import net.imglib2.view.Views;
 
 public class RandomAccessibleIntervalDataSource< D extends Type< D >, T extends Type< T > > implements DataSource< D, T >
 {
+
+	private static final Logger LOG = LoggerFactory.getLogger( MethodHandles.lookup().lookupClass() );
 
 	private final AffineTransform3D[] mipmapTransforms;
 
@@ -31,6 +38,25 @@ public class RandomAccessibleIntervalDataSource< D extends Type< D >, T extends 
 	private final Supplier< T > typeSupplier;
 
 	private final String name;
+
+	public RandomAccessibleIntervalDataSource(
+			final RandomAccessibleInterval< D >[] dataSources,
+			final RandomAccessibleInterval< T >[] sources,
+			final AffineTransform3D[] mipmapTransforms,
+			final Function< Interpolation, InterpolatorFactory< D, RandomAccessible< D > > > dataInterpolation,
+			final Function< Interpolation, InterpolatorFactory< T, RandomAccessible< T > > > interpolation,
+			final String name )
+	{
+		this(
+				dataSources,
+				sources,
+				mipmapTransforms,
+				dataInterpolation,
+				interpolation,
+				() -> Util.getTypeFromInterval( dataSources[ 0 ] ).createVariable(),
+				() -> Util.getTypeFromInterval( sources[ 0 ] ).createVariable(),
+				name );
+	}
 
 	public RandomAccessibleIntervalDataSource(
 			final RandomAccessibleInterval< D >[] dataSources,
@@ -74,6 +100,7 @@ public class RandomAccessibleIntervalDataSource< D extends Type< D >, T extends 
 	@Override
 	public void getSourceTransform( final int t, final int level, final AffineTransform3D transform )
 	{
+		LOG.trace( "Requesting mipmap transform for level {} at time {}: {}", level, t, mipmapTransforms[ level ] );
 		transform.set( mipmapTransforms[ level ] );
 	}
 

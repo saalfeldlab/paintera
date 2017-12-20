@@ -1,9 +1,9 @@
 package bdv.bigcat.viewer.atlas;
 
-import java.io.IOException;
 import java.lang.invoke.MethodHandles;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
@@ -11,6 +11,9 @@ import java.util.Optional;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.ToLongFunction;
+import java.util.stream.Collectors;
+import java.util.stream.DoubleStream;
+import java.util.stream.IntStream;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -32,9 +35,6 @@ import bdv.bigcat.viewer.atlas.mode.Merges;
 import bdv.bigcat.viewer.atlas.mode.Mode;
 import bdv.bigcat.viewer.atlas.mode.ModeUtil;
 import bdv.bigcat.viewer.atlas.mode.NavigationOnly;
-import bdv.bigcat.viewer.atlas.opendialog.BackendDialog;
-import bdv.bigcat.viewer.atlas.opendialog.MetaPanel;
-import bdv.bigcat.viewer.atlas.opendialog.OpenSourceDialog;
 import bdv.bigcat.viewer.bdvfx.KeyTracker;
 import bdv.bigcat.viewer.bdvfx.ViewerPanelFX;
 import bdv.bigcat.viewer.ortho.OrthoView;
@@ -56,6 +56,9 @@ import bdv.viewer.Interpolation;
 import bdv.viewer.Source;
 import bdv.viewer.SourceAndConverter;
 import bdv.viewer.ViewerOptions;
+import javafx.beans.binding.Bindings;
+import javafx.beans.property.BooleanProperty;
+import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.event.EventHandler;
 import javafx.scene.Node;
@@ -65,18 +68,22 @@ import javafx.scene.control.Button;
 import javafx.scene.control.ButtonType;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.Label;
+import javafx.scene.control.Slider;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyEvent;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.HBox;
+import javafx.scene.layout.VBox;
+import javafx.scene.paint.Color;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
 import javafx.stage.WindowEvent;
 import net.imglib2.FinalInterval;
 import net.imglib2.Interval;
 import net.imglib2.converter.Converter;
-import net.imglib2.converter.RealARGBConverter;
+import net.imglib2.display.RealARGBColorConverter;
+import net.imglib2.display.RealARGBColorConverter.Imp1;
 import net.imglib2.interpolation.randomaccess.ClampingNLinearInterpolatorFactory;
 import net.imglib2.interpolation.randomaccess.NearestNeighborInterpolatorFactory;
 import net.imglib2.realtransform.AffineTransform3D;
@@ -97,7 +104,13 @@ public class Atlas
 
 	private final OrthoView view;
 
+	VBox statusRoot = new VBox();
+
 	private final HBox status = new HBox();
+
+	private final Slider time = new Slider( 0, 0, 0 );
+
+	private final BooleanProperty showTime = new SimpleBooleanProperty( true );
 
 	private final AtlasFocusHandler focusHandler = new AtlasFocusHandler();
 
@@ -146,8 +159,28 @@ public class Atlas
 				this.view.getState().currentSourceIndexProperty(),
 				source -> this.view.getState().removeSource( source ) );
 		this.root = new BorderPane( this.view );
-		this.root.setBottom( status );
+		this.root.setBottom( statusRoot );
+		this.statusRoot.getChildren().addAll( status, this.time );
+		this.time.valueProperty().addListener( ( obs, oldv, newv ) -> this.time.setValue( ( int ) ( newv.doubleValue() + 0.5 ) ) );
+		this.view.getState().timeProperty().bind( Bindings.createIntegerBinding( () -> ( int ) ( time.getValue() + 0.5 ), time.valueProperty() ) );
 		this.root.setTop( this.sourceTabs.getTabs() );
+
+		this.time.visibleProperty().bind( this.time.minProperty().isEqualTo( this.time.maxProperty() ).not().and( this.showTime ) );
+		this.view.addEventHandler( KeyEvent.KEY_PRESSED, event -> {
+			if ( this.keyTracker.areOnlyTheseKeysDown( KeyCode.N ) )
+			{
+				this.time.setValue( this.time.getValue() - 1 );
+				event.consume();
+			}
+		} );
+		this.view.addEventHandler( KeyEvent.KEY_PRESSED, event -> {
+			if ( this.keyTracker.areOnlyTheseKeysDown( KeyCode.M ) )
+			{
+				this.time.setValue( this.time.getValue() + 1 );
+				event.consume();
+			}
+		} );
+
 		this.cellCache = cellCache;
 
 		this.renderView = new Viewer3DFX( 100, 100 );
@@ -202,61 +235,7 @@ public class Atlas
 				this.keyTracker.installInto( newv );
 		} );
 
-		this.root.addEventHandler( KeyEvent.KEY_PRESSED, event -> {
-			if ( keyTracker.areOnlyTheseKeysDown( KeyCode.CONTROL, KeyCode.O ) )
-			{
-				final OpenSourceDialog openDialog = new OpenSourceDialog();
-				final Optional< BackendDialog > dataset = openDialog.showAndWait();
-				if ( dataset.isPresent() )
-				{
-					final MetaPanel meta = openDialog.getMeta();
-					switch ( openDialog.getType() )
-					{
-					case RAW:
-
-						try
-						{
-							final double min = meta.min();
-							final double max = meta.max();
-							dataset
-									.get()
-									.getRaw( openDialog.getName(), meta.getResolution(), meta.getOffset(), cellCache, cellCache.getNumPriorities() - 1 )
-									.ifPresent( source -> addRawSource( source, Double.isFinite( min ) ? min : getTypeMin( source.getType() ), Double.isFinite( max ) ? max : getTypeMax( source.getType() ) ) );
-						}
-						catch ( final IOException e )
-						{
-							e.printStackTrace();
-						}
-						break;
-					case LABEL:
-						try
-						{
-							final Optional< LabelDataSource< ?, ? > > optionalSource = dataset.get().getLabels( openDialog.getName(), meta.getResolution(), meta.getOffset(), cellCache, cellCache.getNumPriorities() );
-							if ( optionalSource.isPresent() )
-							{
-								final LabelDataSource< ?, ? > source = optionalSource.get();
-								final Object t = source.getDataType();
-								final Object vt = source.getType();
-								if ( t instanceof LabelMultisetType && vt instanceof VolatileLabelMultisetType )
-									this.addLabelSource( ( LabelDataSource< LabelMultisetType, VolatileLabelMultisetType > ) source );
-								else if ( t instanceof IntegerType< ? > && vt instanceof AbstractVolatileRealType< ?, ? > )
-									this.addLabelSource(
-											( LabelDataSource ) source,
-											( ToLongFunction ) ( ToLongFunction< ? extends AbstractVolatileRealType< ? extends IntegerType< ? >, ? > > ) dt -> dt.get().getIntegerLong() );
-							}
-						}
-						catch ( final IOException e )
-						{
-							// TODO Auto-generated catch block
-							e.printStackTrace();
-						}
-						break;
-					default:
-						break;
-					}
-				}
-			}
-		} );
+		this.root.addEventHandler( KeyEvent.KEY_PRESSED, new OpenDialogEventHandler( this, cellCache, e -> keyTracker.areOnlyTheseKeysDown( KeyCode.CONTROL, KeyCode.O ) ) );
 
 		this.root.addEventHandler( KeyEvent.KEY_PRESSED, event -> {
 			if ( keyTracker.areOnlyTheseKeysDown( KeyCode.ALT, KeyCode.S ) )
@@ -267,11 +246,6 @@ public class Atlas
 		} );
 
 	}
-
-//	public void toggleSourcesTable()
-//	{
-//		this.root.setRight( this.root.getRight() == null ? this.sourcesTab : null );
-//	}
 
 	public void start( final Stage primaryStage ) throws InterruptedException
 	{
@@ -332,7 +306,7 @@ public class Atlas
 		this.focusHandler.add( onEnterOnExit, onExitRemovable );
 	}
 
-	private < T, U, V > void addSource( final SourceAndConverter< T > src, final Composite< ARGBType, ARGBType > comp )
+	private < T, U, V > void addSource( final SourceAndConverter< T > src, final Composite< ARGBType, ARGBType > comp, final int tMin, final int tMax )
 	{
 		if ( sourceInfo.numSources() == 0 )
 		{
@@ -344,9 +318,12 @@ public class Atlas
 			affine.apply( max, max );
 			final FinalInterval interval = new FinalInterval( Arrays.stream( min ).mapToLong( Math::round ).toArray(), Arrays.stream( max ).mapToLong( Math::round ).toArray() );
 			centerForInterval( interval );
+			this.time.setValue( tMin );
 		}
 		this.composites.put( src.getSpimSource(), comp );
 		this.baseView().getState().addSource( src );
+		this.time.setMin( Math.min( tMin, this.time.getMin() ) );
+		this.time.setMax( Math.max( tMax, this.time.getMax() ) );
 	}
 
 	public < T, VT > void removeSource( final DataSource< T, VT > spec )
@@ -387,7 +364,7 @@ public class Atlas
 			Optional.ofNullable( newv ).ifPresent( setConverter::accept );
 		} );
 
-		addSource( src, comp );
+		addSource( src, comp, spec.tMin(), spec.tMax() );
 		sourceInfo.addLabelSource( vsource, ToIdConverter.fromLabelMultisetType(), ( Function< LabelMultisetType, Converter< LabelMultisetType, BoolType > > ) sel -> createBoolConverter( sel, assignment ), assignment, streamsMap, selIdsMap );
 		Optional.ofNullable( currentMode.get() ).ifPresent( setConverter::accept );
 
@@ -467,7 +444,7 @@ public class Atlas
 		currentMode.addListener( ( obs, oldv, newv ) -> {
 			Optional.ofNullable( newv ).ifPresent( setConverter::accept );
 		} );
-		addSource( src, comp );
+		addSource( src, comp, spec.tMin(), spec.tMax() );
 		sourceInfo.addLabelSource( vsource, spec.getDataType() instanceof IntegerType ? ToIdConverter.fromIntegerType() : ToIdConverter.fromRealType(), ( Function< I, Converter< I, BoolType > > ) sel -> createBoolConverter( sel, assignment ), assignment, streamsMap, selIdsMap );
 		Optional.ofNullable( currentMode.get() ).ifPresent( setConverter::accept );
 
@@ -512,12 +489,52 @@ public class Atlas
 
 	}
 
+	public < T extends RealType< T >, U extends RealType< U > > void addRawSources(
+			final Collection< ? extends DataSource< T, U > > specs,
+			final double min,
+			final double max )
+	{
+		final int numSources = specs.size();
+		final double factor = 360.0 / numSources;
+		if ( numSources == 1 )
+			addRawSource( specs.iterator().next(), min, max );
+		else
+		{
+			final List< ARGBType > colors = IntStream
+					.range( 0, numSources )
+					.mapToDouble( i -> i * factor )
+					.mapToObj( hue -> Color.hsb( 60 + hue, 1.0, 1.0, 1.0 ) )
+					.map( Atlas::toARGBType )
+					.collect( Collectors.toList() );
+			addRawSources( specs, colors, DoubleStream.generate( () -> min ).limit( numSources ).toArray(), DoubleStream.generate( () -> max ).limit( numSources ).toArray() );
+		}
+	}
+
+	public < T extends RealType< T >, U extends RealType< U > > void addRawSources(
+			final Collection< ? extends DataSource< T, U > > specs,
+			final Collection< ARGBType > colors,
+			final double[] min,
+			final double[] max )
+	{
+		final Iterator< ? extends DataSource< T, U > > specIt = specs.iterator();
+		final Iterator< ARGBType > colorIt = colors.iterator();
+		for ( int i = 0; specIt.hasNext(); ++i )
+			addRawSource( specIt.next(), min[ i ], max[ i ], colorIt.next() );
+	}
+
 	public < T extends RealType< T >, U extends RealType< U > > void addRawSource( final DataSource< T, U > spec, final double min, final double max )
 	{
-		final RealARGBConverter< U > realARGBConv = new RealARGBConverter<>( min, max );
-		final SourceAndConverter< ? > src = new SourceAndConverter<>( spec, ( s, t ) -> realARGBConv.convert( s, t ) );
+		addRawSource( spec, min, max, new ARGBType( 0xffffffff ) );
+	}
+
+	public < T extends RealType< T >, U extends RealType< U > > void addRawSource( final DataSource< T, U > spec, final double min, final double max, final ARGBType color )
+	{
+//		final RealARGBConverter< U > realARGBConv = new RealARGBConverter<>( min, max );
+		final Imp1< U > realARGBColorConv = new RealARGBColorConverter.Imp1<>( min, max );
+		realARGBColorConv.setColor( color );
+		final SourceAndConverter< ? > src = new SourceAndConverter<>( spec, realARGBColorConv );
 		final Composite< ARGBType, ARGBType > comp = new ARGBCompositeAlphaAdd();
-		addSource( src, comp );
+		addSource( src, comp, spec.tMin(), spec.tMax() );
 
 		sourceInfo.addRawSource( spec );
 		final T t = spec.getDataType();
@@ -529,7 +546,7 @@ public class Atlas
 	{
 		final Composite< ARGBType, ARGBType > comp = new ARGBCompositeAlphaAdd();
 		final SourceAndConverter< ? > src = new SourceAndConverter<>( spec, ( s, t ) -> t.set( s.get() ) );
-		addSource( src, comp );
+		addSource( src, comp, spec.tMin(), spec.tMax() );
 
 		sourceInfo.addRawSource( spec );
 		final T t = spec.getDataType();
@@ -651,4 +668,18 @@ public class Atlas
 		return 1.0;
 	}
 
+	private static ARGBType toARGBType( final Color color )
+	{
+		return toARGBType( color, new ARGBType() );
+	}
+
+	private static ARGBType toARGBType( final Color color, final ARGBType argb )
+	{
+		final int r = ( int ) ( 255 * color.getRed() + 0.5 );
+		final int g = ( int ) ( 255 * color.getGreen() + 0.5 );
+		final int b = ( int ) ( 255 * color.getBlue() + 0.5 );
+		final int a = ( int ) ( 255 * color.getOpacity() + 0.5 );
+		argb.set( a << 24 | r << 16 | g << 8 | b << 0 );
+		return argb;
+	}
 }

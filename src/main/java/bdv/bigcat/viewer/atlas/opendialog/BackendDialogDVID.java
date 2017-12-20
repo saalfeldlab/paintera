@@ -3,7 +3,8 @@ package bdv.bigcat.viewer.atlas.opendialog;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URL;
-import java.util.Optional;
+import java.util.ArrayList;
+import java.util.Collection;
 import java.util.function.BiConsumer;
 import java.util.function.Function;
 import java.util.function.LongFunction;
@@ -25,6 +26,7 @@ import net.imglib2.Interval;
 import net.imglib2.img.basictypeaccess.volatiles.array.DirtyVolatileByteArray;
 import net.imglib2.type.NativeType;
 import net.imglib2.type.numeric.RealType;
+import net.imglib2.type.volatiles.AbstractVolatileRealType;
 import net.imglib2.util.Intervals;
 
 public class BackendDialogDVID implements BackendDialog
@@ -82,10 +84,11 @@ public class BackendDialogDVID implements BackendDialog
 	}
 
 	@Override
-	public < T extends RealType< T > & NativeType< T >, V extends RealType< V > > Optional< DataSource< T, V > > getRaw(
+	public < T extends RealType< T > & NativeType< T >, V extends AbstractVolatileRealType< T, V > & NativeType< V > > Collection< DataSource< T, V > > getRaw(
 			final String name,
 			final double[] resolution,
 			final double[] offset,
+			final AxisOrder axisOrder,
 			final SharedQueue sharedQueue,
 			final int priority ) throws IOException
 	{
@@ -113,18 +116,19 @@ public class BackendDialogDVID implements BackendDialog
 
 		final HTTPLoader< DirtyVolatileByteArray > functor = new HTTPLoader<>( addressComposer, ( n ) -> new DirtyVolatileByteArray( ( int ) n, true ), copier );
 
-		return Optional.empty();
+		return new ArrayList<>();
 	}
 
 	@Override
-	public Optional< LabelDataSource< ?, ? > > getLabels(
+	public Collection< LabelDataSource< ?, ? > > getLabels(
 			final String name,
 			final double[] resolution,
 			final double[] offset,
+			final AxisOrder axisOrder,
 			final SharedQueue sharedQueue,
 			final int priority ) throws IOException
 	{
-		return Optional.empty();
+		return new ArrayList<>();
 	}
 
 	public class HTTPLoader< A > implements Function< Interval, A >

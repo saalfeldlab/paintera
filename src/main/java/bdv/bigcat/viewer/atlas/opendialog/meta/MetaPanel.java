@@ -1,19 +1,25 @@
-package bdv.bigcat.viewer.atlas.opendialog;
+package bdv.bigcat.viewer.atlas.opendialog.meta;
 
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.function.UnaryOperator;
+import java.util.stream.Collectors;
 
+import bdv.bigcat.viewer.atlas.opendialog.AxisOrder;
+import bdv.bigcat.viewer.atlas.opendialog.OpenSourceDialog;
 import bdv.bigcat.viewer.util.InvokeOnJavaFXApplicationThread;
 import javafx.beans.property.DoubleProperty;
 import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.SimpleObjectProperty;
+import javafx.beans.value.ObservableStringValue;
+import javafx.beans.value.ObservableValue;
+import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.scene.Node;
+import javafx.scene.control.ComboBox;
 import javafx.scene.control.Label;
 import javafx.scene.control.ScrollPane;
 import javafx.scene.control.TextField;
-import javafx.scene.control.TextFormatter;
 import javafx.scene.control.TextFormatter.Change;
 import javafx.scene.control.TitledPane;
 import javafx.scene.layout.ColumnConstraints;
@@ -26,7 +32,7 @@ public class MetaPanel
 
 	private static final double GRID_HGAP = 0;
 
-	private static final double TEXTFIELD_WIDTH = 80;
+	private static final double TEXTFIELD_WIDTH = 100;
 
 	private static final String X_STRING = "X";
 
@@ -34,17 +40,15 @@ public class MetaPanel
 
 	private static final String Z_STRING = "Z";
 
-	private final TextField resX = new TextField( "" );
+	private final ObjectProperty< AxisOrder > defaultAxisOrder = new SimpleObjectProperty<>();
 
-	private final TextField resY = new TextField( "" );
+	private final ObservableList< AxisOrder > compatibleOrders = FXCollections.observableArrayList();
 
-	private final TextField resZ = new TextField( "" );
+	private final ComboBox< AxisOrder > axisOrderChoice = new ComboBox<>( compatibleOrders );
 
-	private final TextField offX = new TextField( "" );
+	private final SpatialInformation resolution = new SpatialInformation( TEXTFIELD_WIDTH, X_STRING, Y_STRING, Z_STRING );
 
-	private final TextField offY = new TextField( "" );
-
-	private final TextField offZ = new TextField( "" );
+	private final SpatialInformation offset = new SpatialInformation( TEXTFIELD_WIDTH, X_STRING, Y_STRING, Z_STRING );
 
 	private final TextField min = new TextField( "" );
 
@@ -68,45 +72,31 @@ public class MetaPanel
 	{
 		cc.setFitToWidth( true );
 
-		final GridPane resolutionAndOffset = new GridPane();
-		resolutionAndOffset.setHgap( GRID_HGAP );
-		final Label resolutionLabel = new Label( "resolution" );
-		final Label offsetLabel = new Label( "offset" );
-		resolutionAndOffset.add( resolutionLabel, 0, 0 );
-		resolutionAndOffset.add( offsetLabel, 0, 1 );
-		resolutionAndOffset.add( resX, 1, 0 );
-		resolutionAndOffset.add( resY, 2, 0 );
-		resolutionAndOffset.add( resZ, 3, 0 );
-		resolutionAndOffset.add( offX, 1, 1 );
-		resolutionAndOffset.add( offY, 2, 1 );
-		resolutionAndOffset.add( offZ, 3, 1 );
-
-		resX.setPrefWidth( TEXTFIELD_WIDTH );
-		resY.setPrefWidth( TEXTFIELD_WIDTH );
-		resZ.setPrefWidth( TEXTFIELD_WIDTH );
-		offX.setPrefWidth( TEXTFIELD_WIDTH );
-		offY.setPrefWidth( TEXTFIELD_WIDTH );
-		offZ.setPrefWidth( TEXTFIELD_WIDTH );
-
-		resX.setPromptText( X_STRING );
-		resY.setPromptText( Y_STRING );
-		resZ.setPromptText( Z_STRING );
-		offX.setPromptText( X_STRING );
-		offY.setPromptText( Y_STRING );
-		offZ.setPromptText( Z_STRING );
-
+		final GridPane spatialInfo = new GridPane();
+		spatialInfo.setHgap( GRID_HGAP );
+		addToGrid( spatialInfo, 0, 0, new Label( "Resolution " ), resolution.textX(), resolution.textY(), resolution.textZ() );
+		addToGrid( spatialInfo, 0, 1, new Label( "Offset" ), offset.textX(), offset.textY(), offset.textZ() );
 		final ColumnConstraints cc = new ColumnConstraints();
 		cc.setHgrow( Priority.ALWAYS );
-		resolutionAndOffset.getColumnConstraints().addAll( cc );
+		spatialInfo.getColumnConstraints().addAll( cc );
 
-		resX.setTextFormatter( new TextFormatter<>( new DoubleFilter() ) );
-		resY.setTextFormatter( new TextFormatter<>( new DoubleFilter() ) );
-		resZ.setTextFormatter( new TextFormatter<>( new DoubleFilter() ) );
+		this.axisOrderChoice.setPrefWidth( TEXTFIELD_WIDTH );
+		this.defaultAxisOrder.addListener( ( obs, oldv, newv ) -> {
+			if ( newv != null )
+			{
+				this.compatibleOrders.setAll(
+						Arrays
+								.stream( AxisOrder.values() )
+								.filter( ao -> ao.numDimensions() == newv.numDimensions() )
+								.collect( Collectors.toList() ) );
+				this.axisOrderChoice.setValue( newv );
+			}
+		} );
+		this.axisOrderChoice.setPromptText( "Axis Order" );
+		addToGrid( spatialInfo, 0, 2, new Label( "Axis Order" ) );
+		addToGrid( spatialInfo, 3, 2, this.axisOrderChoice );
 
-		offX.setTextFormatter( new TextFormatter<>( new DoubleFilter() ) );
-		offY.setTextFormatter( new TextFormatter<>( new DoubleFilter() ) );
-		offZ.setTextFormatter( new TextFormatter<>( new DoubleFilter() ) );
-		content.getChildren().add( resolutionAndOffset );
+		content.getChildren().add( spatialInfo );
 
 		this.dataType.addListener( ( obs, oldv, newv ) -> {
 			if ( newv != null )
@@ -143,40 +133,29 @@ public class MetaPanel
 
 	}
 
-	public void listenOnResolution( final DoubleProperty resX, final DoubleProperty resY, final DoubleProperty resZ )
+	public ObjectProperty< AxisOrder > axisOrderProperty()
 	{
-		resX.addListener( ( obsRes, oldRes, newRes ) -> {
-			if ( Double.isFinite( newRes.doubleValue() ) )
-				this.resX.setText( newRes.toString() );
-		} );
-
-		resY.addListener( ( obsRes, oldRes, newRes ) -> {
-			if ( Double.isFinite( newRes.doubleValue() ) )
-				this.resY.setText( newRes.toString() );
-		} );
-
-		resZ.addListener( ( obsRes, oldRes, newRes ) -> {
-			if ( Double.isFinite( newRes.doubleValue() ) )
-				this.resZ.setText( newRes.toString() );
-		} );
+		return this.axisOrderChoice.valueProperty();
 	}
 
-	public void listenOnOffset( final DoubleProperty offX, final DoubleProperty offY, final DoubleProperty offZ )
+	public ObjectProperty< AxisOrder > defaultAxisOrderProperty()
 	{
-		offX.addListener( ( obsOff, oldOff, newOff ) -> {
-			if ( Double.isFinite( newOff.doubleValue() ) )
-				this.offX.setText( newOff.toString() );
-		} );
+		return this.defaultAxisOrder;
+	}
 
-		offY.addListener( ( obsOff, oldOff, newOff ) -> {
-			if ( Double.isFinite( newOff.doubleValue() ) )
-				this.offY.setText( newOff.toString() );
-		} );
+	public AxisOrder getAxisOrder()
+	{
+		return this.axisOrderChoice.valueProperty().get();
+	}
 
-		offZ.addListener( ( obsOff, oldOff, newOff ) -> {
-			if ( Double.isFinite( newOff.doubleValue() ) )
-				this.offZ.setText( newOff.toString() );
-		} );
+	public void listenOnResolution( final DoubleProperty x, final DoubleProperty y, final DoubleProperty z )
+	{
+		this.resolution.bindTo( this.axisOrderChoice.valueProperty(), x, y, z );
+	}
+
+	public void listenOnOffset( final DoubleProperty x, final DoubleProperty y, final DoubleProperty z )
+	{
+		this.offset.bindTo( this.axisOrderChoice.valueProperty(), x, y, z );
 	}
 
 	public void listenOnMinMax( final DoubleProperty min, final DoubleProperty max )
@@ -210,22 +189,17 @@ public class MetaPanel
 
 	public double[] getResolution()
 	{
-		return Arrays
-				.asList( resX, resY, resZ )
-				.stream()
-				.map( res -> res.getText() )
-				.mapToDouble( text -> text.length() > 0 ? Double.parseDouble( text ) : 1.0 )
-				.toArray();
+		return asArray( resolution.textX().textProperty(), resolution.textY().textProperty(), resolution.textZ().textProperty() );
 	}
 
 	public double[] getOffset()
 	{
-		return Arrays
-				.asList( offX, offY, offZ )
-				.stream()
-				.map( res -> res.getText() )
-				.mapToDouble( text -> text.length() > 0 ? Double.parseDouble( text ) : 0.0 )
-				.toArray();
+		return asArray( offset.textX().textProperty(), offset.textY().textProperty(), offset.textZ().textProperty() );
+	}
+
+	public double[] asArray( final ObservableStringValue... values )
+	{
+		return Arrays.stream( values ).map( ObservableValue::getValue ).mapToDouble( Double::parseDouble ).toArray();
 	}
 
 	public double min()
@@ -243,6 +217,12 @@ public class MetaPanel
 	public void bindDataTypeTo( final ObjectProperty< OpenSourceDialog.TYPE > dataType )
 	{
 		this.dataType.bind( dataType );
+	}
+
+	private static void addToGrid( final GridPane grid, final int startCol, final int row, final Node... nodes )
+	{
+		for ( int col = startCol, i = 0; i < nodes.length; ++i, ++col )
+			grid.add( nodes[ i ], col, row );
 	}
 
 }

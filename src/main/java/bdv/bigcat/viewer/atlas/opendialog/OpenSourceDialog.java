@@ -5,6 +5,7 @@ import java.util.Collection;
 import java.util.Optional;
 import java.util.function.Consumer;
 
+import bdv.bigcat.viewer.atlas.opendialog.meta.MetaPanel;
 import bdv.bigcat.viewer.util.InvokeOnJavaFXApplicationThread;
 import javafx.beans.binding.Bindings;
 import javafx.beans.binding.BooleanBinding;
@@ -68,7 +69,7 @@ public class OpenSourceDialog extends Dialog< BackendDialog > implements Combine
 	private final ObservableMap< BACKEND, BackendDialog > backendInfoDialogs = FXCollections.observableHashMap();
 	{
 		backendInfoDialogs.put( BACKEND.N5, new BackendDialogN5() );
-		backendInfoDialogs.put( BACKEND.HDF5, new BackendDialogHDF5() );
+		backendInfoDialogs.put( BACKEND.HDF5, new BackendDialogHDF6() );
 	}
 
 	private final MetaPanel metaPanel = new MetaPanel();
@@ -103,12 +104,18 @@ public class OpenSourceDialog extends Dialog< BackendDialog > implements Combine
 		this.metaPanel.bindDataTypeTo( this.typeChoice.valueProperty() );
 
 		this.backendChoice.valueProperty().addListener( ( obs, oldv, newv ) -> {
+			if ( this.currentBackend.get() != null )
+				Bindings.unbindBidirectional(
+						this.currentBackend.get().axisOrder(),
+						this.metaPanel.axisOrderProperty() );
 			InvokeOnJavaFXApplicationThread.invoke( () -> {
 				final BackendDialog backendDialog = Optional.ofNullable( backendInfoDialogs.get( newv ) ).orElse( new BackendDialogInvalid( newv ) );
 				this.backendDialog.getChildren().setAll( backendDialog.getDialogNode() );
 //				this.errorMessage.bind( backendDialog.errorMessage() );
 				this.currentBackend.set( backendDialog );
 
+				this.metaPanel.axisOrderProperty().bindBidirectional( backendDialog.axisOrder() );
+				this.metaPanel.defaultAxisOrderProperty().bind( backendDialog.axisOrder() );
 				this.metaPanel.listenOnResolution( backendDialog.resolutionX(), backendDialog.resolutionY(), backendDialog.resolutionZ() );
 				this.metaPanel.listenOnOffset( backendDialog.offsetX(), backendDialog.offsetY(), backendDialog.offsetZ() );
 				this.metaPanel.listenOnMinMax( backendDialog.min(), backendDialog.max() );

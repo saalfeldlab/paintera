@@ -46,6 +46,7 @@ import javafx.stage.FileChooser;
 import javafx.stage.FileChooser.ExtensionFilter;
 import net.imglib2.type.NativeType;
 import net.imglib2.type.numeric.RealType;
+import net.imglib2.type.volatiles.AbstractVolatileRealType;
 
 public class BackendDialogHDF5 implements BackendDialog, CombinesErrorMessages
 {
@@ -234,24 +235,26 @@ public class BackendDialogHDF5 implements BackendDialog, CombinesErrorMessages
 	}
 
 	@Override
-	public < T extends RealType< T > & NativeType< T >, V extends RealType< V > > Optional< DataSource< T, V > > getRaw(
+	public < T extends RealType< T > & NativeType< T >, V extends AbstractVolatileRealType< T, V > & NativeType< V > > Collection< DataSource< T, V > > getRaw(
 			final String name,
 			final double[] resolution,
 			final double[] offset,
+			final AxisOrder axisOrder,
 			final SharedQueue sharedQueue,
 			final int priority ) throws IOException
 	{
 		final String rawFile = hdf5.get();
 		final String rawDataset = this.dataset.get();
 
-		return Optional.of( DataSource.createH5RawSource( name, rawFile, rawDataset, getChunkSize( rawFile, rawDataset ), resolution, offset, sharedQueue, priority ) );
+		return Arrays.asList( DataSource.createH5RawSource( name, rawFile, rawDataset, getChunkSize( rawFile, rawDataset ), resolution, offset, sharedQueue, priority ) );
 	}
 
 	@Override
-	public Optional< LabelDataSource< ?, ? > > getLabels(
+	public Collection< LabelDataSource< ?, ? > > getLabels(
 			final String name,
 			final double[] resolution,
 			final double[] offset,
+			final AxisOrder axisOrder,
 			final SharedQueue sharedQueue,
 			final int priority ) throws IOException
 	{
@@ -259,7 +262,7 @@ public class BackendDialogHDF5 implements BackendDialog, CombinesErrorMessages
 		final String labelsDataset = this.dataset.get();
 		final FragmentSegmentAssignmentOnlyLocal assignment = new FragmentSegmentAssignmentOnlyLocal();
 		final int[] chunks = getChunkSize( labelsFile, labelsDataset );
-		return Optional.of( LabelDataSource.createH5LabelSource( name, labelsFile, labelsDataset, chunks, resolution, offset, sharedQueue, priority, assignment ) );
+		return Arrays.asList( LabelDataSource.createH5LabelSource( name, labelsFile, labelsDataset, chunks, resolution, offset, sharedQueue, priority, assignment ) );
 	}
 
 	@Override

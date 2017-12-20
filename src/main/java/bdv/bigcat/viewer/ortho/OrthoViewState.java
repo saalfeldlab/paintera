@@ -11,6 +11,7 @@ import bdv.viewer.Interpolation;
 import bdv.viewer.Source;
 import bdv.viewer.SourceAndConverter;
 import bdv.viewer.ViewerOptions;
+import javafx.beans.property.IntegerProperty;
 import javafx.beans.property.ReadOnlyIntegerProperty;
 import javafx.beans.property.SimpleIntegerProperty;
 import javafx.beans.property.SimpleObjectProperty;
@@ -43,6 +44,8 @@ public class OrthoViewState
 	protected final SimpleIntegerProperty currentSourceIndex = new SimpleIntegerProperty( -1 );
 
 	protected final ObservableMap< Source< ? >, Boolean > visibility;
+
+	private final IntegerProperty time = new SimpleIntegerProperty();
 
 	public OrthoViewState( final ObservableMap< Source< ? >, Boolean > visibility )
 	{
@@ -177,6 +180,11 @@ public class OrthoViewState
 	public ReadOnlyIntegerProperty currentSourceIndexProperty()
 	{
 		return this.currentSourceIndex;
+	}
+
+	public IntegerProperty timeProperty()
+	{
+		return this.time;
 	}
 
 }
