@@ -11,6 +11,7 @@ import bdv.viewer.Interpolation;
 import bdv.viewer.Source;
 import bdv.viewer.SourceAndConverter;
 import bdv.viewer.ViewerOptions;
+import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.IntegerProperty;
 import javafx.beans.property.ReadOnlyIntegerProperty;
 import javafx.beans.property.SimpleIntegerProperty;
@@ -18,7 +19,6 @@ import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.value.ChangeListener;
 import javafx.collections.FXCollections;
 import javafx.collections.ListChangeListener;
-import javafx.collections.MapChangeListener;
 import javafx.collections.ObservableList;
 import javafx.collections.ObservableMap;
 import net.imglib2.converter.Converter;
@@ -43,16 +43,16 @@ public class OrthoViewState
 
 	protected final SimpleIntegerProperty currentSourceIndex = new SimpleIntegerProperty( -1 );
 
-	protected final ObservableMap< Source< ? >, Boolean > visibility;
+	protected final ObservableMap< Source< ? >, BooleanProperty > visibility;
 
 	private final IntegerProperty time = new SimpleIntegerProperty();
 
-	public OrthoViewState( final ObservableMap< Source< ? >, Boolean > visibility )
+	public OrthoViewState( final ObservableMap< Source< ? >, BooleanProperty > visibility )
 	{
 		this( ViewerOptions.options(), visibility );
 	}
 
-	public OrthoViewState( final ViewerOptions viewerOptions, final ObservableMap< Source< ? >, Boolean > visibility )
+	public OrthoViewState( final ViewerOptions viewerOptions, final ObservableMap< Source< ? >, BooleanProperty > visibility )
 	{
 		this( viewerOptions, new GlobalTransformManager(), new GridConstraintsManager(), new ArrayList<>(), visibility );
 	}
@@ -62,7 +62,7 @@ public class OrthoViewState
 			final GlobalTransformManager globalTransform,
 			final GridConstraintsManager constraintsManager,
 			final List< Converter< ?, ARGBType > > converters,
-			final ObservableMap< Source< ? >, Boolean > visibility )
+			final ObservableMap< Source< ? >, BooleanProperty > visibility )
 	{
 		this.viewerOptions = viewerOptions;
 		this.globalTransform = globalTransform;
@@ -113,12 +113,12 @@ public class OrthoViewState
 
 	public synchronized void setVisible( final Source< ? > source, final boolean isVisible )
 	{
-		this.visibility.put( source, isVisible );
+		this.visibility.get( source ).set( isVisible );
 	}
 
-	public void addVisibilityListener( final MapChangeListener< Source< ? >, Boolean > listener )
+	public void addVisibilityListener( final Source< ? > source, final ChangeListener< Boolean > listener )
 	{
-		this.visibility.addListener( listener );
+		this.visibility.get( source ).addListener( listener );
 	}
 
 	public void addCurrentSourceListener( final ChangeListener< Optional< Source< ? > > > listener )

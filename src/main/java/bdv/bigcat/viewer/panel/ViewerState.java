@@ -2,6 +2,7 @@ package bdv.bigcat.viewer.panel;
 
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Optional;
 
@@ -10,6 +11,7 @@ import bdv.bigcat.viewer.state.GlobalTransformManager;
 import bdv.viewer.Interpolation;
 import bdv.viewer.Source;
 import bdv.viewer.SourceAndConverter;
+import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.Property;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.value.ChangeListener;
@@ -33,6 +35,8 @@ public class ViewerState
 	private final InterpolationListener interpolation = new InterpolationListener();
 
 	private final SimpleObjectProperty< GlobalTransformManager > globalTransform = new SimpleObjectProperty<>( new GlobalTransformManager() );
+
+	private final HashMap< Source< ? >, ChangeListener< Boolean > > visibilityListeners = new HashMap<>();
 
 	public ViewerState( final ViewerPanelFX viewer )
 	{
@@ -68,34 +72,16 @@ public class ViewerState
 
 	public synchronized void setSources(
 			final ObservableList< SourceAndConverter< ? > > sacs,
-			final ObservableMap< Source< ? >, Boolean > isVisible,
+			final ObservableMap< Source< ? >, BooleanProperty > isVisible,
 			final SimpleObjectProperty< Optional< Source< ? > > > currentSource,
 			final SimpleObjectProperty< Interpolation > interpolation )
 	{
 		this.sacs.replaceObservable( sacs );
+		this.sacs.observable.stream().map( SourceAndConverter::getSpimSource ).forEach( s -> Optional.ofNullable( visibility.observable.get( s ) ).ifPresent( v -> v.removeListener( visibilityListeners.get( s ) ) ) );
+		this.visibilityListeners.clear();
 		this.visibility.replaceObservable( isVisible );
 		this.currentSource.replaceObservable( currentSource );
 		this.interpolation.replaceObservable( interpolation );
-	}
-
-	public class VisibilityListener implements MapChangeListener< Source< ? >, Boolean >
-	{
-
-		private ObservableMap< Source< ? >, Boolean > observable = FXCollections.observableHashMap();
-
-		public void replaceObservable( final ObservableMap< Source< ? >, Boolean > observable )
-		{
-			this.observable.removeListener( this );
-			this.observable = observable;
-			this.observable.addListener( this );
-		}
-
-		@Override
-		public void onChanged( final Change< ? extends Source< ? >, ? extends Boolean > change )
-		{
-			if ( change.wasAdded() )
-				viewer.getVisibilityAndGrouping().setSourceActive( change.getKey(), change.getValueAdded() );
-		}
 	}
 
 	public abstract class ObservableRegisteringChangeListener< T > implements ChangeListener< T >
@@ -116,6 +102,37 @@ public class ViewerState
 			this.observable.addListener( this );
 		}
 
+	}
+
+	public class VisibilityListener implements MapChangeListener< Source< ? >, BooleanProperty >
+	{
+
+		private ObservableMap< Source< ? >, BooleanProperty > observable = FXCollections.observableHashMap();
+
+		public void replaceObservable( final ObservableMap< Source< ? >, BooleanProperty > observable )
+		{
+			this.observable.removeListener( this );
+			this.observable = observable;
+			this.observable.addListener( this );
+			this.observable.forEach( ( k, v ) -> {
+				if ( !visibilityListeners.containsKey( k ) )
+					visibilityListeners.put( k, ( obs, oldv, newv ) -> viewer.getVisibilityAndGrouping().setSourceActive( k, newv.booleanValue() ) );
+				v.addListener( visibilityListeners.get( k ) );
+			} );
+		}
+
+		@Override
+		public void onChanged( final Change< ? extends Source< ? >, ? extends BooleanProperty > change )
+		{
+			if ( change.wasRemoved() )
+				change.getValueRemoved().removeListener( visibilityListeners.remove( change.getKey() ) );
+			if ( change.wasAdded() )
+			{
+				if ( !visibilityListeners.containsKey( change.getKey() ) )
+					visibilityListeners.put( change.getKey(), ( obs, oldv, newv ) -> viewer.getVisibilityAndGrouping().setSourceActive( change.getKey(), newv.booleanValue() ) );
+				change.getValueAdded().addListener( visibilityListeners.get( change.getKey() ) );
+			}
+		}
 	}
 
 	public class CurrentSourceListener extends ObservableRegisteringChangeListener< Optional< Source< ? > > >
@@ -180,7 +197,7 @@ public class ViewerState
 
 	public void setVisibility( final Source< ? > source, final boolean isVisible )
 	{
-		this.visibility.observable.put( source, isVisible );
+		this.visibility.observable.get( source ).set( isVisible );
 	}
 
 	public synchronized void setCurrentSource( final Source< ? > source )

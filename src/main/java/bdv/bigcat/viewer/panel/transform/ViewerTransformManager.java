@@ -20,6 +20,7 @@ import bdv.bigcat.viewer.panel.ViewerState;
 import bdv.bigcat.viewer.state.GlobalTransformManager;
 import bdv.viewer.Source;
 import bdv.viewer.state.SourceState;
+import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.DoubleProperty;
 import javafx.beans.property.Property;
 import javafx.beans.property.SimpleDoubleProperty;
@@ -74,7 +75,7 @@ public class ViewerTransformManager implements TransformListener< AffineTransfor
 
 	private int centerX = 0, centerY = 0;
 
-	private final ObservableMap< Source< ? >, Boolean > visibilityMap;
+	private final ObservableMap< Source< ? >, BooleanProperty > visibilityMap;
 
 	private final ArrayList< TransformListener< AffineTransform3D > > globalTransformListeners = new ArrayList<>();
 
@@ -94,7 +95,7 @@ public class ViewerTransformManager implements TransformListener< AffineTransfor
 			final ViewerState state,
 			final AffineTransform3D globalToViewer,
 			final KeyTracker keyTracker,
-			final ObservableMap< Source< ? >, Boolean > visibilityMap )
+			final ObservableMap< Source< ? >, BooleanProperty > visibilityMap )
 	{
 		super();
 		this.viewer = viewer;
@@ -630,7 +631,7 @@ public class ViewerTransformManager implements TransformListener< AffineTransfor
 			final bdv.viewer.state.ViewerState state = viewer.getState();
 			final int currentSource = state.getCurrentSource();
 			final List< SourceState< ? > > sources = state.getSources();
-			visibilityMap.put( sources.get( currentSource ).getSpimSource(), !state.isSourceVisible( currentSource ) );
+			visibilityMap.get( sources.get( currentSource ).getSpimSource() ).set( !state.isSourceVisible( currentSource ) );
 		}
 	}
 

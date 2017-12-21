@@ -1,21 +1,28 @@
-package bdv.bigcat.viewer.atlas;
+package bdv.bigcat.viewer.atlas.source;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Optional;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
+import com.sun.javafx.scene.control.skin.CustomColorDialog;
+
+import bdv.bigcat.viewer.atlas.source.AtlasSourceState.RawSourceState;
 import bdv.bigcat.viewer.util.InvokeOnJavaFXApplicationThread;
 import bdv.viewer.Source;
-import bdv.viewer.SourceAndConverter;
 import javafx.beans.property.ReadOnlyIntegerProperty;
 import javafx.collections.ListChangeListener;
 import javafx.collections.ObservableList;
+import javafx.geometry.Orientation;
 import javafx.scene.Node;
+import javafx.scene.control.CheckBox;
 import javafx.scene.control.ContextMenu;
 import javafx.scene.control.MenuItem;
 import javafx.scene.control.TitledPane;
 import javafx.scene.layout.TilePane;
+import javafx.scene.shape.Rectangle;
 
 public class SourceTabs
 {
@@ -28,27 +35,36 @@ public class SourceTabs
 
 	private final Consumer< Source< ? > > remove;
 
+	private final SourceInfo info;
+
+	private final HashMap< Source< ? >, Boolean > expanded = new HashMap<>();
+
 	public SourceTabs(
-			final ObservableList< SourceAndConverter< ? > > sources,
 			final ReadOnlyIntegerProperty currentSourceIndex,
-			final Consumer< Source< ? > > remove )
+			final Consumer< Source< ? > > remove,
+			final SourceInfo info )
 	{
 		this.remove = remove;
-		sources.addListener( ( ListChangeListener< SourceAndConverter< ? > > ) change -> {
+		this.info = info;
+		info.trackSources().addListener( ( ListChangeListener< Source< ? > > ) change -> {
 			while ( change.next() )
 			{
 				final List< TitledPane > tabs = change
 						.getList()
 						.stream()
-						.map( SourceAndConverter::getSpimSource )
 						.map( source -> {
 							final String name = source.getName();
 							final TitledPane p = new TitledPane();
 							p.setText( name );
-		//							p.setContent( new Label( "expanded (source info will go here)" ) );
-							p.setExpanded( false );
+							// p.setContent( new Label( "expanded (source info
+							// will go here)" ) );
+							if ( !expanded.containsKey( source ) )
+								expanded.put( source, false );
+							p.setExpanded( expanded.get( source ) );
 							final ContextMenu m = createMenu( source, remove );
 							p.setContextMenu( m );
+							System.out.println( "GENERATING FOR SOURCE: " + source );
+							p.setGraphic( getPaneGraphics( info.getState( source ) ) );
 							return p;
 						} )
 //						.map( Label::new )
@@ -75,6 +91,11 @@ public class SourceTabs
 		return fp;
 	}
 
+	public void setOrientation( final Orientation orientation )
+	{
+		this.fp.setOrientation( orientation );
+	}
+
 	private static ContextMenu createMenu( final Source< ? > source, final Consumer< Source< ? > > remove )
 	{
 		final ContextMenu menu = new ContextMenu();
@@ -83,6 +104,31 @@ public class SourceTabs
 		removeItem.setOnAction( a -> remove.accept( source ) );
 		menu.getItems().add( removeItem );
 		return menu;
+	}
+
+	@SuppressWarnings( "restriction" )
+	private static Node getPaneGraphics( final AtlasSourceState< ?, ? > state )
+	{
+		final CheckBox cb = new CheckBox();
+		cb.selectedProperty().bindBidirectional( state.visibleProperty() );
+		cb.selectedProperty().set( state.visibleProperty().get() );
+		final TilePane tp = new TilePane( cb );
+		if ( state instanceof RawSourceState< ?, ? > )
+		{
+			final RawSourceState< ?, ? > rawState = ( RawSourceState< ?, ? > ) state;
+			final Rectangle rect = new Rectangle( 15.0, 15.0 );
+			rect.fillProperty().bind( rawState.colorProperty() );
+			rect.setOnMouseClicked( event -> {
+				System.out.println( "CLICKED!" );
+				final CustomColorDialog ccd = new CustomColorDialog( rect.getScene().getWindow() );
+				ccd.setCurrentColor( rawState.colorProperty().get() );
+				ccd.show();
+				Optional.ofNullable( ccd.getCustomColor() ).ifPresent( c -> rawState.colorProperty().set( c ) );
+			} );
+			tp.getChildren().add( rect );
+//			System.out.println( "ADDING RECTANGLE " + rect.getFill() + " " + rect );
+		}
+		return tp;
 	}
 
 }

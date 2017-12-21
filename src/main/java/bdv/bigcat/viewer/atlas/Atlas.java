@@ -35,6 +35,8 @@ import bdv.bigcat.viewer.atlas.mode.Merges;
 import bdv.bigcat.viewer.atlas.mode.Mode;
 import bdv.bigcat.viewer.atlas.mode.ModeUtil;
 import bdv.bigcat.viewer.atlas.mode.NavigationOnly;
+import bdv.bigcat.viewer.atlas.source.SourceInfo;
+import bdv.bigcat.viewer.atlas.source.SourceTabs;
 import bdv.bigcat.viewer.bdvfx.KeyTracker;
 import bdv.bigcat.viewer.bdvfx.ViewerPanelFX;
 import bdv.bigcat.viewer.ortho.OrthoView;
@@ -61,6 +63,7 @@ import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.event.EventHandler;
+import javafx.geometry.Orientation;
 import javafx.scene.Node;
 import javafx.scene.Scene;
 import javafx.scene.control.Alert;
@@ -155,15 +158,16 @@ public class Atlas
 				.numRenderingThreads( Math.min( 3, Math.max( 1, Runtime.getRuntime().availableProcessors() / 3 ) ) );
 		this.view = new OrthoView( focusHandler.onEnter(), focusHandler.onExit(), new OrthoViewState( this.viewerOptions, sourceInfo.visibility() ), cellCache, keyTracker );
 		this.sourceTabs = new SourceTabs(
-				this.view.getState().getSourcesSynchronizedCopy(),
 				this.view.getState().currentSourceIndexProperty(),
-				source -> this.view.getState().removeSource( source ) );
+				source -> this.view.getState().removeSource( source ),
+				this.sourceInfo );
 		this.root = new BorderPane( this.view );
 		this.root.setBottom( statusRoot );
 		this.statusRoot.getChildren().addAll( status, this.time );
 		this.time.valueProperty().addListener( ( obs, oldv, newv ) -> this.time.setValue( ( int ) ( newv.doubleValue() + 0.5 ) ) );
 		this.view.getState().timeProperty().bind( Bindings.createIntegerBinding( () -> ( int ) ( time.getValue() + 0.5 ), time.valueProperty() ) );
-		this.root.setTop( this.sourceTabs.getTabs() );
+		this.sourceTabs.setOrientation( Orientation.VERTICAL );
+		toggleSourcesTabs();
 
 		this.time.visibleProperty().bind( this.time.minProperty().isEqualTo( this.time.maxProperty() ).not().and( this.showTime ) );
 		this.view.addEventHandler( KeyEvent.KEY_PRESSED, event -> {
@@ -240,11 +244,16 @@ public class Atlas
 		this.root.addEventHandler( KeyEvent.KEY_PRESSED, event -> {
 			if ( keyTracker.areOnlyTheseKeysDown( KeyCode.ALT, KeyCode.S ) )
 			{
-				this.root.setTop( this.root.getTop() == null ? this.sourceTabs.getTabs() : null );
+				toggleSourcesTabs();
 				event.consume();
 			}
 		} );
 
+	}
+
+	public void toggleSourcesTabs()
+	{
+		this.root.setRight( this.root.getRight() == null ? this.sourceTabs.getTabs() : null );
 	}
 
 	public void start( final Stage primaryStage ) throws InterruptedException
@@ -365,7 +374,13 @@ public class Atlas
 		} );
 
 		addSource( src, comp, spec.tMin(), spec.tMax() );
-		sourceInfo.addLabelSource( vsource, ToIdConverter.fromLabelMultisetType(), ( Function< LabelMultisetType, Converter< LabelMultisetType, BoolType > > ) sel -> createBoolConverter( sel, assignment ), assignment, streamsMap, selIdsMap );
+		sourceInfo.addLabelSource(
+				vsource,
+				ToIdConverter.fromLabelMultisetType(),
+				( Function< LabelMultisetType, Converter< LabelMultisetType, BoolType > > ) sel -> createBoolConverter( sel, assignment ),
+				( FragmentSegmentAssignmentState ) assignment,
+				streamsMap,
+				selIdsMap );
 		Optional.ofNullable( currentMode.get() ).ifPresent( setConverter::accept );
 
 		final LabelMultisetType t = vsource.getDataType();
@@ -445,7 +460,13 @@ public class Atlas
 			Optional.ofNullable( newv ).ifPresent( setConverter::accept );
 		} );
 		addSource( src, comp, spec.tMin(), spec.tMax() );
-		sourceInfo.addLabelSource( vsource, spec.getDataType() instanceof IntegerType ? ToIdConverter.fromIntegerType() : ToIdConverter.fromRealType(), ( Function< I, Converter< I, BoolType > > ) sel -> createBoolConverter( sel, assignment ), assignment, streamsMap, selIdsMap );
+		sourceInfo.addLabelSource(
+				vsource,
+				spec.getDataType() instanceof IntegerType ? ToIdConverter.fromIntegerType() : ToIdConverter.fromRealType(),
+				( Function< I, Converter< I, BoolType > > ) sel -> createBoolConverter( sel, assignment ),
+				( FragmentSegmentAssignmentState ) assignment,
+				streamsMap,
+				selIdsMap );
 		Optional.ofNullable( currentMode.get() ).ifPresent( setConverter::accept );
 
 		final I t = vsource.getDataType();
@@ -536,19 +557,8 @@ public class Atlas
 		final Composite< ARGBType, ARGBType > comp = new ARGBCompositeAlphaAdd();
 		addSource( src, comp, spec.tMin(), spec.tMax() );
 
-		sourceInfo.addRawSource( spec );
-		final T t = spec.getDataType();
-		final Function< T, String > valueToString = valueToString( t );
-		this.valueDisplayListener.addSource( spec, Optional.of( valueToString ) );
-	}
-
-	public < T > void addARGBSource( final DataSource< T, VolatileARGBType > spec )
-	{
-		final Composite< ARGBType, ARGBType > comp = new ARGBCompositeAlphaAdd();
-		final SourceAndConverter< ? > src = new SourceAndConverter<>( spec, ( s, t ) -> t.set( s.get() ) );
-		addSource( src, comp, spec.tMin(), spec.tMax() );
-
-		sourceInfo.addRawSource( spec );
+		final Color colorFX = Color.rgb( ARGBType.red( color.get() ), ARGBType.green( color.get() ), ARGBType.blue( color.get() ), ARGBType.alpha( color.get() ) / 255.0 );
+		sourceInfo.addRawSource( spec, min, max, colorFX );
 		final T t = spec.getDataType();
 		final Function< T, String > valueToString = valueToString( t );
 		this.valueDisplayListener.addSource( spec, Optional.of( valueToString ) );

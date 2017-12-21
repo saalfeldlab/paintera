@@ -13,10 +13,10 @@ import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import bdv.bigcat.viewer.atlas.SourceInfo;
 import bdv.bigcat.viewer.atlas.data.DataSource;
 import bdv.bigcat.viewer.atlas.mode.HandleMultipleIds;
 import bdv.bigcat.viewer.atlas.mode.Mode;
+import bdv.bigcat.viewer.atlas.source.SourceInfo;
 import bdv.bigcat.viewer.bdvfx.InstallAndRemove;
 import bdv.bigcat.viewer.bdvfx.MouseClickFX;
 import bdv.bigcat.viewer.bdvfx.ViewerPanelFX;
@@ -331,11 +331,11 @@ public class IdSelector
 				final DataSource< ?, ? > dataSource = ( DataSource< ?, ? > ) source;
 				final Optional< SelectedIds > selectedIds = sourceInfo.selectedIds( source, mode );
 				final Optional< ToIdConverter > toIdConverter = sourceInfo.toIdConverter( source );
-				final Optional< FragmentSegmentAssignmentState > assignmentOptional = sourceInfo.assignment( source );
+				final Optional< ? extends FragmentSegmentAssignmentState< ? > > assignmentOptional = sourceInfo.assignment( source );
 				if ( toIdConverter.isPresent() && selectedIds.isPresent() && assignmentOptional.isPresent() )
 					synchronized ( viewer )
 					{
-						final FragmentSegmentAssignmentState assignment = assignmentOptional.get();
+						final FragmentSegmentAssignmentState< ? > assignment = assignmentOptional.get();
 						final long[] selIds = selectedIds.get().getActiveIds();
 
 						if ( selIds.length < 1 )
@@ -475,11 +475,11 @@ public class IdSelector
 				final DataSource< ?, ? > dataSource = ( DataSource< ?, ? > ) source;
 				final Optional< SelectedIds > selectedIds = sourceInfo.selectedIds( source, mode );
 				final Optional< ToIdConverter > toIdConverter = sourceInfo.toIdConverter( source );
-				final Optional< FragmentSegmentAssignmentState > assignmentOptional = sourceInfo.assignment( source );
+				final Optional< ? extends FragmentSegmentAssignmentState< ? > > assignmentOptional = sourceInfo.assignment( source );
 				if ( toIdConverter.isPresent() && selectedIds.isPresent() && assignmentOptional.isPresent() )
 					synchronized ( viewer )
 					{
-						final FragmentSegmentAssignmentState assignments = assignmentOptional.get();
+						final FragmentSegmentAssignmentState< ? > assignments = assignmentOptional.get();
 
 						final long[] selIds = selectedIds.get().getActiveIds();
 
@@ -523,12 +523,12 @@ public class IdSelector
 				final DataSource< ?, ? > dataSource = ( DataSource< ?, ? > ) source;
 				final Optional< SelectedIds > selectedIds = sourceInfo.selectedIds( source, mode );
 				final Optional< ToIdConverter > toIdConverter = sourceInfo.toIdConverter( source );
-				final Optional< FragmentSegmentAssignmentState > assignmentOptional = sourceInfo.assignment( source );
+				final Optional< ? extends FragmentSegmentAssignmentState< ? > > assignmentOptional = sourceInfo.assignment( source );
 				if ( toIdConverter.isPresent() && selectedIds.isPresent() && assignmentOptional.isPresent() )
 					synchronized ( viewer )
 					{
 
-						final FragmentSegmentAssignmentState assignment = assignmentOptional.get();
+						final FragmentSegmentAssignmentState< ? > assignment = assignmentOptional.get();
 
 						final long[] selIds = selectedIds.get().getActiveIds();
 
@@ -586,11 +586,11 @@ public class IdSelector
 				final DataSource< ?, ? > dataSource = ( DataSource< ?, ? > ) source;
 				final Optional< SelectedIds > selectedIds = sourceInfo.selectedIds( source, mode );
 				final Optional< ToIdConverter > toIdConverter = sourceInfo.toIdConverter( source );
-				final Optional< FragmentSegmentAssignmentState > assignmentOptional = sourceInfo.assignment( source );
+				final Optional< ? extends FragmentSegmentAssignmentState< ? > > assignmentOptional = sourceInfo.assignment( source );
 				if ( toIdConverter.isPresent() && selectedIds.isPresent() && assignmentOptional.isPresent() )
 					synchronized ( viewer )
 					{
-						final FragmentSegmentAssignmentState assignment = assignmentOptional.get();
+						final FragmentSegmentAssignmentState< ? > assignment = assignmentOptional.get();
 
 						final long[] activeFragments = selectedIds.get().getActiveIds();
 						final long[] activeSegments = Arrays.stream( activeFragments ).map( id -> assignment.getSegment( id ) ).toArray();
