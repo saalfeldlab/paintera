@@ -62,6 +62,7 @@ import javafx.beans.binding.Bindings;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleObjectProperty;
+import javafx.collections.ListChangeListener;
 import javafx.event.EventHandler;
 import javafx.geometry.Orientation;
 import javafx.scene.Node;
@@ -158,9 +159,28 @@ public class Atlas
 				.numRenderingThreads( Math.min( 3, Math.max( 1, Runtime.getRuntime().availableProcessors() / 3 ) ) );
 		this.view = new OrthoView( focusHandler.onEnter(), focusHandler.onExit(), new OrthoViewState( this.viewerOptions, sourceInfo.visibility() ), cellCache, keyTracker );
 		this.sourceTabs = new SourceTabs(
-				this.view.getState().currentSourceIndexProperty(),
-				source -> this.view.getState().removeSource( source ),
+				this.sourceInfo.currentSourceIndexProperty(),
+				source -> {
+					this.sourceInfo.removeSource( source );
+					// this.view.getState().removeSource( source );
+				},
+				// this.view.getState().removeSource( source ),
 				this.sourceInfo );
+		this.view.getState().currentSourceProperty().bindBidirectional( this.sourceInfo.currentSourceProperty() );
+
+		this.sourceInfo.trackSources().addListener( ( ListChangeListener< Source< ? > > ) change -> {
+			while ( change.next() )
+			{
+				final List< SourceAndConverter< ? > > sacs = change
+						.getList()
+						.stream()
+						// TODO better management of converters
+						.map( s -> new SourceAndConverter( s, sourceInfo.getState( s ).getConverter() == null ? identity() : sourceInfo.getState( s ).getConverter() ) )
+						.collect( Collectors.toList() );
+				this.view.getState().removeAllSources();
+				this.view.getState().addSources( sacs );
+			}
+		} );
 		this.root = new BorderPane( this.view );
 		this.root.setBottom( statusRoot );
 		this.statusRoot.getChildren().addAll( status, this.time );
@@ -361,7 +381,7 @@ public class Atlas
 				method -> method.equals( Interpolation.NLINEAR ) ? new ClampingNLinearInterpolatorFactory<>() : new NearestNeighborInterpolatorFactory<>(),
 				new VolatileARGBType( 0 ) );
 		final ARGBCompositeAlphaYCbCr comp = new ARGBCompositeAlphaYCbCr();
-		final SourceAndConverter< VolatileARGBType > src = new SourceAndConverter<>( vsource, ( s, t ) -> t.set( s.get() ) );
+		final SourceAndConverter< VolatileARGBType > src = new SourceAndConverter<>( vsource, identity() );
 
 		final Consumer< Mode > setConverter = mode -> {
 			final AbstractHighlightingARGBStream argbStream = ( AbstractHighlightingARGBStream ) sourceInfo.stream( vsource, mode ).get();
@@ -447,13 +467,15 @@ public class Atlas
 				method -> method.equals( Interpolation.NLINEAR ) ? new ClampingNLinearInterpolatorFactory<>() : new NearestNeighborInterpolatorFactory<>(),
 				new VolatileARGBType( 0 ) );
 		final ARGBCompositeAlphaYCbCr comp = new ARGBCompositeAlphaYCbCr();
-		final SourceAndConverter< VolatileARGBType > src = new SourceAndConverter<>( vsource, ( s, t ) -> t.set( s.get() ) );
+		final SourceAndConverter< VolatileARGBType > src = new SourceAndConverter<>( vsource, identity() );
 
 		final Consumer< Mode > setConverter = mode -> {
-			final AbstractHighlightingARGBStream argbStream = ( AbstractHighlightingARGBStream ) sourceInfo.stream( vsource, mode ).get();
-			final HighlightincConverterIntegerType< V > conv = new HighlightincConverterIntegerType<>( argbStream, toLong );
-			converter.setConverter( conv );
-			baseView().requestRepaint();
+			sourceInfo.stream( vsource, mode ).ifPresent( stream -> {
+				final AbstractHighlightingARGBStream argbStream = ( AbstractHighlightingARGBStream ) stream;
+				final HighlightincConverterIntegerType< V > conv = new HighlightincConverterIntegerType<>( argbStream, toLong );
+				converter.setConverter( conv );
+				baseView().requestRepaint();
+			} );
 		};
 
 		currentMode.addListener( ( obs, oldv, newv ) -> {
@@ -691,5 +713,10 @@ public class Atlas
 		final int a = ( int ) ( 255 * color.getOpacity() + 0.5 );
 		argb.set( a << 24 | r << 16 | g << 8 | b << 0 );
 		return argb;
+	}
+
+	private static Converter< VolatileARGBType, ARGBType > identity()
+	{
+		return ( s, t ) -> t.set( s.get() );
 	}
 }

@@ -12,6 +12,7 @@ import bdv.viewer.Interpolation;
 import bdv.viewer.Source;
 import bdv.viewer.SourceAndConverter;
 import javafx.beans.property.BooleanProperty;
+import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.Property;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.value.ChangeListener;
@@ -73,8 +74,8 @@ public class ViewerState
 	public synchronized void setSources(
 			final ObservableList< SourceAndConverter< ? > > sacs,
 			final ObservableMap< Source< ? >, BooleanProperty > isVisible,
-			final SimpleObjectProperty< Optional< Source< ? > > > currentSource,
-			final SimpleObjectProperty< Interpolation > interpolation )
+			final ObjectProperty< Source< ? > > currentSource,
+			final ObjectProperty< Interpolation > interpolation )
 	{
 		this.sacs.replaceObservable( sacs );
 		this.sacs.observable.stream().map( SourceAndConverter::getSpimSource ).forEach( s -> Optional.ofNullable( visibility.observable.get( s ) ).ifPresent( v -> v.removeListener( visibilityListeners.get( s ) ) ) );
@@ -87,7 +88,7 @@ public class ViewerState
 	public abstract class ObservableRegisteringChangeListener< T > implements ChangeListener< T >
 	{
 
-		protected SimpleObjectProperty< T > observable;
+		protected ObjectProperty< T > observable;
 
 		public ObservableRegisteringChangeListener( final SimpleObjectProperty< T > observable )
 		{
@@ -95,7 +96,7 @@ public class ViewerState
 			this.observable = observable;
 		}
 
-		public void replaceObservable( final SimpleObjectProperty< T > observable )
+		public void replaceObservable( final ObjectProperty< T > observable )
 		{
 			this.observable.removeListener( this );
 			this.observable = observable;
@@ -135,19 +136,18 @@ public class ViewerState
 		}
 	}
 
-	public class CurrentSourceListener extends ObservableRegisteringChangeListener< Optional< Source< ? > > >
+	public class CurrentSourceListener extends ObservableRegisteringChangeListener< Source< ? > >
 	{
 
 		public CurrentSourceListener()
 		{
-			super( new SimpleObjectProperty<>( Optional.empty() ) );
+			super( new SimpleObjectProperty<>( null ) );
 		}
 
 		@Override
-		public void changed( final ObservableValue< ? extends Optional< Source< ? > > > observable, final Optional< Source< ? > > oldValue, final Optional< Source< ? > > newValue )
+		public void changed( final ObservableValue< ? extends Source< ? > > observable, final Source< ? > oldValue, final Source< ? > newValue )
 		{
-			if ( newValue.isPresent() )
-				viewer.getVisibilityAndGrouping().setCurrentSource( newValue.get() );
+			viewer.getVisibilityAndGrouping().setCurrentSource( newValue );
 		}
 
 	}
@@ -202,7 +202,7 @@ public class ViewerState
 
 	public synchronized void setCurrentSource( final Source< ? > source )
 	{
-		this.currentSource.observable.set( Optional.of( source ) );
+		this.currentSource.observable.set( source );
 	}
 
 	public synchronized void addSource( final SourceAndConverter< ? > sac )

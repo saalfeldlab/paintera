@@ -50,6 +50,11 @@ public abstract class AtlasSourceState< T, D >
 		this.converter.set( converter );
 	}
 
+	public Converter< T, ARGBType > getConverter()
+	{
+		return converter.get();
+	}
+
 	public ReadOnlyObjectProperty< Converter< T, ARGBType > > converterProperty()
 	{
 		return this.converter;

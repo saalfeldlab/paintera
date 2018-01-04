@@ -12,9 +12,8 @@ import com.sun.javafx.scene.control.skin.CustomColorDialog;
 import bdv.bigcat.viewer.atlas.source.AtlasSourceState.RawSourceState;
 import bdv.bigcat.viewer.util.InvokeOnJavaFXApplicationThread;
 import bdv.viewer.Source;
-import javafx.beans.property.ReadOnlyIntegerProperty;
+import javafx.beans.value.ObservableIntegerValue;
 import javafx.collections.ListChangeListener;
-import javafx.collections.ObservableList;
 import javafx.geometry.Orientation;
 import javafx.scene.Node;
 import javafx.scene.control.CheckBox;
@@ -40,13 +39,13 @@ public class SourceTabs
 	private final HashMap< Source< ? >, Boolean > expanded = new HashMap<>();
 
 	public SourceTabs(
-			final ReadOnlyIntegerProperty currentSourceIndex,
+			final ObservableIntegerValue currentSourceIndex,
 			final Consumer< Source< ? > > remove,
 			final SourceInfo info )
 	{
 		this.remove = remove;
 		this.info = info;
-		info.trackSources().addListener( ( ListChangeListener< Source< ? > > ) change -> {
+		this.info.trackSources().addListener( ( ListChangeListener< Source< ? > > ) change -> {
 			while ( change.next() )
 			{
 				final List< TitledPane > tabs = change
@@ -61,10 +60,10 @@ public class SourceTabs
 							if ( !expanded.containsKey( source ) )
 								expanded.put( source, false );
 							p.setExpanded( expanded.get( source ) );
-							final ContextMenu m = createMenu( source, remove );
+							final ContextMenu m = createMenu( source, this.remove );
 							p.setContextMenu( m );
-							System.out.println( "GENERATING FOR SOURCE: " + source );
 							p.setGraphic( getPaneGraphics( info.getState( source ) ) );
+							addDragAndDropListener( p, this.info, fp.getChildren() );
 							return p;
 						} )
 //						.map( Label::new )
@@ -72,18 +71,19 @@ public class SourceTabs
 				InvokeOnJavaFXApplicationThread.invoke( () -> {
 					fp.getChildren().clear();
 					fp.getChildren().addAll( tabs );
+					underlineActive( fp, currentSourceIndex.intValue() );
 				} );
 			}
 		} );
 
-		currentSourceIndex.addListener( ( obs, oldv, newv ) -> {
-			final ObservableList< Node > children = fp.getChildren();
-			final int index = newv.intValue();
-			if ( index >= 0 && index < children.size() )
-				InvokeOnJavaFXApplicationThread.invoke(
-						() -> IntStream.range( 0, children.size() ).forEach( i -> ( ( TitledPane ) children.get( i ) ).setUnderline( i == index ) ) );
-		} );
+		currentSourceIndex.addListener( ( obs, oldv, newv ) -> underlineActive( fp, newv.intValue() ) );
 
+	}
+
+	private static void underlineActive( final TilePane pane, final int index )
+	{
+		final List< TitledPane > children = pane.getChildren().stream().filter( p -> p instanceof TitledPane ).map( p -> ( TitledPane ) p ).collect( Collectors.toList() );
+		IntStream.range( 0, children.size() ).forEach( i -> children.get( i ).setUnderline( i == index ) );
 	}
 
 	public Node getTabs()
@@ -119,7 +119,6 @@ public class SourceTabs
 			final Rectangle rect = new Rectangle( 15.0, 15.0 );
 			rect.fillProperty().bind( rawState.colorProperty() );
 			rect.setOnMouseClicked( event -> {
-				System.out.println( "CLICKED!" );
 				final CustomColorDialog ccd = new CustomColorDialog( rect.getScene().getWindow() );
 				ccd.setCurrentColor( rawState.colorProperty().get() );
 				ccd.show();
@@ -129,6 +128,24 @@ public class SourceTabs
 //			System.out.println( "ADDING RECTANGLE " + rect.getFill() + " " + rect );
 		}
 		return tp;
+	}
+
+	private static void addDragAndDropListener( final TitledPane p, final SourceInfo info, final List< Node > children )
+	{
+		p.setOnDragDetected( event -> {
+			p.startFullDrag();
+		} );
+
+		p.setOnMouseDragReleased( event -> {
+			final Object origin = event.getGestureSource();
+			if ( origin != p && origin instanceof TitledPane )
+			{
+				final TitledPane pane = ( TitledPane ) origin;
+				final int sourceIndex = children.indexOf( pane );
+				final int targetIndex = children.indexOf( p );
+				info.moveSourceTo( sourceIndex, targetIndex );
+			}
+		} );
 	}
 
 }

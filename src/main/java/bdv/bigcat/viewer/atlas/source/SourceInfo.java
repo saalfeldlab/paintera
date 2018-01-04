@@ -18,6 +18,10 @@ import bdv.bigcat.viewer.state.FragmentSegmentAssignmentState;
 import bdv.bigcat.viewer.state.SelectedIds;
 import bdv.viewer.Source;
 import javafx.beans.property.BooleanProperty;
+import javafx.beans.property.IntegerProperty;
+import javafx.beans.property.ObjectProperty;
+import javafx.beans.property.SimpleIntegerProperty;
+import javafx.beans.property.SimpleObjectProperty;
 import javafx.collections.FXCollections;
 import javafx.collections.ListChangeListener;
 import javafx.collections.MapChangeListener;
@@ -35,6 +39,16 @@ public class SourceInfo
 
 	private final ObservableList< Source< ? > > sources = FXCollections.observableArrayList();
 
+	private final ObjectProperty< Source< ? > > currentSource = new SimpleObjectProperty<>( null );
+
+	private final IntegerProperty currentSourceIndex = new SimpleIntegerProperty( -1 );
+
+	{
+		this.currentSource.addListener( ( oldv, obs, newv ) -> this.currentSourceIndex.set( this.sources.indexOf( newv ) ) );
+		this.currentSourceIndex.addListener( ( oldv, obs, newv ) -> this.currentSource.set( newv.intValue() < 0 || newv.intValue() >= this.sources.size() ? null : this.sources.get( newv.intValue() ) ) );
+
+	}
+
 	public < D, T extends RealType< T > > void addRawSource(
 			final DataSource< D, T > source,
 			final double min,
@@ -43,7 +57,6 @@ public class SourceInfo
 	{
 		final RawSourceState< T, D > state = new AtlasSourceState.RawSourceState<>( source, min, max );
 		state.colorProperty().set( color );
-		System.out.println( "ADDING SOURCE: " + source + " " + state );
 		addState( source, state );
 	}
 
@@ -70,12 +83,17 @@ public class SourceInfo
 	{
 		this.states.put( source, state );
 		this.sources.add( source );
+		state.visibleProperty().set( true );
+		if ( this.currentSource.get() == null )
+			this.currentSource.set( source );
 	}
 
-	public synchronized < D, T > void removeSource( final DataSource< D, T > source )
+	public synchronized < T > void removeSource( final Source< T > source )
 	{
+		final int currentSourceIndex = this.sources.indexOf( source );
 		this.states.remove( source );
 		this.sources.remove( source );
+		this.currentSource.set( this.sources.size() == 0 ? null : this.sources.get( Math.max( currentSourceIndex - 1, 0 ) ) );
 	}
 
 	public synchronized void addMode( final Mode mode, final Function< Source< ? >, Optional< ARGBStream > > makeStream, final Function< Source< ? >, Optional< SelectedIds > > makeSelection )
@@ -134,16 +152,6 @@ public class SourceInfo
 				.map( Map::values ).orElseGet( () -> new ArrayList<>() ).stream().forEach( actor );
 	}
 
-//	public void listenOnVisibilityChange( final MapChangeListener< Source< ? >, Boolean > listener )
-//	{
-//		this.visibility.addListener( listener );
-//	}
-//
-//	public void stopListeningOnVisibilityChange( final MapChangeListener< Source< ? >, Boolean > listener )
-//	{
-//		this.visibility.removeListener( listener );
-//	}
-//
 	public ObservableMap< Source< ? >, BooleanProperty > visibility()
 	{
 		final ObservableMap< Source< ? >, BooleanProperty > visibility = FXCollections.observableHashMap();
@@ -172,6 +180,38 @@ public class SourceInfo
 				sources.setAll( change.getList() );
 		} );
 		return sources;
+	}
+
+	public ObjectProperty< Source< ? > > currentSourceProperty()
+	{
+		return this.currentSource;
+	}
+
+	public IntegerProperty currentSourceIndexProperty()
+	{
+		return this.currentSourceIndex;
+	}
+
+	public void moveSourceTo( final Source< ? > source, final int index )
+	{
+		if ( index >= 0 && index < sources.size() && sources.contains( source ) && sources.indexOf( source ) != index )
+		{
+			final ArrayList< Source< ? > > copy = new ArrayList<>( this.sources );
+			copy.remove( source );
+			copy.add( index, source );
+			final Source< ? > currentSource = this.currentSource.get();
+			final int currentSourceIndex = copy.indexOf( currentSource );
+			this.sources.clear();
+			this.sources.setAll( copy );
+			this.currentSource.set( currentSource );
+			this.currentSourceIndex.set( currentSourceIndex );
+		}
+	}
+
+	public void moveSourceTo( final int from, final int to )
+	{
+		if ( from >= 0 && from < sources.size() )
+			moveSourceTo( sources.get( from ), to );
 	}
 
 }
