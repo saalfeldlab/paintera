@@ -55,6 +55,7 @@ public abstract class EventFX< E extends Event > implements EventHandler< E >, I
 			actOn( e );
 	}
 
+	@SafeVarargs
 	public static EventFX< KeyEvent > KEY_PRESSED( final String name, final Consumer< KeyEvent > eventHandler, final Predicate< KeyEvent >... eventFilter )
 	{
 		return new EventFXWithConsumer<>( name, KeyEvent.KEY_PRESSED, eventHandler, eventFilter );

@@ -204,6 +204,7 @@ public class SourceInfo
 			this.sources.clear();
 			this.sources.setAll( copy );
 			this.currentSource.set( currentSource );
+			System.out.println( "SETTING " + currentSource + " " + currentSourceIndex );
 			this.currentSourceIndex.set( currentSourceIndex );
 		}
 	}
@@ -212,6 +213,27 @@ public class SourceInfo
 	{
 		if ( from >= 0 && from < sources.size() )
 			moveSourceTo( sources.get( from ), to );
+	}
+
+	private void modifyCurrentSourceIndex( final int amount )
+	{
+		if ( this.sources.size() == 0 )
+			this.currentSourceIndex.set( -1 );
+		else
+		{
+			final int newIndex = ( this.currentSourceIndex.get() + amount ) % this.sources.size();
+			this.currentSourceIndex.set( newIndex < 0 ? this.sources.size() + newIndex : newIndex );
+		}
+	}
+
+	public void incrementCurrentSourceIndex()
+	{
+		modifyCurrentSourceIndex( 1 );
+	}
+
+	public void decrementCurrentSourceIndex()
+	{
+		modifyCurrentSourceIndex( -1 );
 	}
 
 }

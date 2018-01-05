@@ -1,7 +1,6 @@
 package bdv.bigcat.viewer;
 
 import java.util.HashMap;
-import java.util.List;
 import java.util.Optional;
 import java.util.function.Consumer;
 
@@ -9,8 +8,10 @@ import bdv.bigcat.viewer.atlas.data.DataSource;
 import bdv.bigcat.viewer.bdvfx.ViewerPanelFX;
 import bdv.viewer.Interpolation;
 import bdv.viewer.Source;
-import bdv.viewer.state.SourceState;
 import bdv.viewer.state.ViewerState;
+import javafx.beans.property.ObjectProperty;
+import javafx.beans.property.SimpleObjectProperty;
+import javafx.beans.value.ObservableValue;
 import javafx.event.EventHandler;
 import javafx.scene.input.MouseEvent;
 import net.imglib2.RealRandomAccess;
@@ -21,21 +22,28 @@ import net.imglib2.ui.TransformListener;
 public class ValueDisplayListener implements EventHandler< javafx.scene.input.MouseEvent >, TransformListener< AffineTransform3D >
 {
 
+	@SuppressWarnings( "rawtypes" )
 	private final HashMap< DataSource< ?, ? >, Consumer > valueHandlers;
 
 	private final ViewerPanelFX viewer;
 
 	private final AffineTransform3D viewerTransform = new AffineTransform3D();
 
+	private final ObjectProperty< Source< ? > > currentSource = new SimpleObjectProperty<>( null );
+
 	private double x = -1;
 
 	private double y = -1;
 
-	public ValueDisplayListener( final HashMap< DataSource< ?, ? >, Consumer > valueHandlers, final ViewerPanelFX viewer )
+	public ValueDisplayListener(
+			@SuppressWarnings( "rawtypes" ) final HashMap< DataSource< ?, ? >, Consumer > valueHandlers,
+			final ViewerPanelFX viewer,
+			final ObservableValue< Source< ? > > currentSource )
 	{
 		super();
 		this.valueHandlers = valueHandlers;
 		this.viewer = viewer;
+		this.currentSource.bind( currentSource );
 	}
 
 	@Override
@@ -76,14 +84,10 @@ public class ValueDisplayListener implements EventHandler< javafx.scene.input.Mo
 
 	private Optional< Source< ? > > getSource()
 	{
-		final int currentSource = viewer.getState().getCurrentSource();
-		final List< SourceState< ? > > sources = viewer.getState().getSources();
-		if ( sources.size() <= currentSource || currentSource < 0 )
-			return Optional.empty();
-		final Source< ? > activeSource = sources.get( currentSource ).getSpimSource();
-		return Optional.of( activeSource );
+		return Optional.ofNullable( this.currentSource.get() );
 	}
 
+	@SuppressWarnings( "unchecked" )
 	private void getInfo()
 	{
 		final Optional< Source< ? > > optionalSource = getSource();

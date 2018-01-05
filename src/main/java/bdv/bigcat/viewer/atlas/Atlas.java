@@ -189,6 +189,20 @@ public class Atlas
 		this.sourceTabs.setOrientation( Orientation.VERTICAL );
 		toggleSourcesTabs();
 
+		this.root.addEventHandler( KeyEvent.KEY_PRESSED, event -> {
+			if ( keyTracker.areOnlyTheseKeysDown( KeyCode.CONTROL, KeyCode.TAB ) )
+			{
+				System.out.println( "INCREMEINTING? " );
+				sourceInfo.incrementCurrentSourceIndex();
+				event.consume();
+			}
+			else if ( keyTracker.areOnlyTheseKeysDown( KeyCode.CONTROL, KeyCode.SHIFT, KeyCode.TAB ) )
+			{
+				sourceInfo.decrementCurrentSourceIndex();
+				event.consume();
+			}
+		} );
+
 		this.time.visibleProperty().bind( this.time.minProperty().isEqualTo( this.time.maxProperty() ).not().and( this.showTime ) );
 		this.view.addEventHandler( KeyEvent.KEY_PRESSED, event -> {
 			if ( this.keyTracker.areOnlyTheseKeysDown( KeyCode.N ) )
@@ -230,7 +244,7 @@ public class Atlas
 		addOnEnterOnExit( coordinatePrinter.onEnter(), coordinatePrinter.onExit(), true );
 
 		final Label label = new Label();
-		valueDisplayListener = new AtlasValueDisplayListener( label );
+		valueDisplayListener = new AtlasValueDisplayListener( label, sourceInfo.currentSourceProperty() );
 		this.status.getChildren().add( label );
 
 		addOnEnterOnExit( valueDisplayListener.onEnter(), valueDisplayListener.onExit(), true );
