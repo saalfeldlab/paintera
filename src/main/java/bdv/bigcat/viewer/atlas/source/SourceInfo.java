@@ -49,7 +49,7 @@ public class SourceInfo
 
 	}
 
-	public < D, T extends RealType< T > > void addRawSource(
+	public < D, T extends RealType< T > > RawSourceState< T, D > addRawSource(
 			final DataSource< D, T > source,
 			final double min,
 			final double max,
@@ -58,6 +58,7 @@ public class SourceInfo
 		final RawSourceState< T, D > state = new AtlasSourceState.RawSourceState<>( source, min, max );
 		state.colorProperty().set( color );
 		addState( source, state );
+		return state;
 	}
 
 	public < D, T, F extends FragmentSegmentAssignmentState< F > > void addLabelSource(

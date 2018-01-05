@@ -35,6 +35,7 @@ import bdv.bigcat.viewer.atlas.mode.Merges;
 import bdv.bigcat.viewer.atlas.mode.Mode;
 import bdv.bigcat.viewer.atlas.mode.ModeUtil;
 import bdv.bigcat.viewer.atlas.mode.NavigationOnly;
+import bdv.bigcat.viewer.atlas.source.AtlasSourceState.RawSourceState;
 import bdv.bigcat.viewer.atlas.source.SourceInfo;
 import bdv.bigcat.viewer.atlas.source.SourceTabs;
 import bdv.bigcat.viewer.bdvfx.KeyTracker;
@@ -594,10 +595,11 @@ public class Atlas
 		addSource( src, comp, spec.tMin(), spec.tMax() );
 
 		final Color colorFX = Color.rgb( ARGBType.red( color.get() ), ARGBType.green( color.get() ), ARGBType.blue( color.get() ), ARGBType.alpha( color.get() ) / 255.0 );
-		sourceInfo.addRawSource( spec, min, max, colorFX );
+		final RawSourceState< U, T > state = sourceInfo.addRawSource( spec, min, max, colorFX );
 		final T t = spec.getDataType();
 		final Function< T, String > valueToString = valueToString( t );
 		this.valueDisplayListener.addSource( spec, Optional.of( valueToString ) );
+		state.colorProperty().addListener( ( obs, oldv, newv ) -> baseView().requestRepaint() );
 	}
 
 	public OrthoView baseView()

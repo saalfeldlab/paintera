@@ -2,12 +2,9 @@ package bdv.bigcat.viewer.atlas.source;
 
 import java.util.HashMap;
 import java.util.List;
-import java.util.Optional;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
-
-import com.sun.javafx.scene.control.skin.CustomColorDialog;
 
 import bdv.bigcat.viewer.atlas.source.AtlasSourceState.RawSourceState;
 import bdv.bigcat.viewer.util.InvokeOnJavaFXApplicationThread;
@@ -17,11 +14,11 @@ import javafx.collections.ListChangeListener;
 import javafx.geometry.Orientation;
 import javafx.scene.Node;
 import javafx.scene.control.CheckBox;
+import javafx.scene.control.ColorPicker;
 import javafx.scene.control.ContextMenu;
 import javafx.scene.control.MenuItem;
 import javafx.scene.control.TitledPane;
 import javafx.scene.layout.TilePane;
-import javafx.scene.shape.Rectangle;
 
 public class SourceTabs
 {
@@ -106,26 +103,23 @@ public class SourceTabs
 		return menu;
 	}
 
-	@SuppressWarnings( "restriction" )
 	private static Node getPaneGraphics( final AtlasSourceState< ?, ? > state )
 	{
 		final CheckBox cb = new CheckBox();
+		cb.setMaxWidth( 20 );
 		cb.selectedProperty().bindBidirectional( state.visibleProperty() );
 		cb.selectedProperty().set( state.visibleProperty().get() );
 		final TilePane tp = new TilePane( cb );
 		if ( state instanceof RawSourceState< ?, ? > )
 		{
 			final RawSourceState< ?, ? > rawState = ( RawSourceState< ?, ? > ) state;
-			final Rectangle rect = new Rectangle( 15.0, 15.0 );
-			rect.fillProperty().bind( rawState.colorProperty() );
-			rect.setOnMouseClicked( event -> {
-				final CustomColorDialog ccd = new CustomColorDialog( rect.getScene().getWindow() );
-				ccd.setCurrentColor( rawState.colorProperty().get() );
-				ccd.show();
-				Optional.ofNullable( ccd.getCustomColor() ).ifPresent( c -> rawState.colorProperty().set( c ) );
-			} );
-			tp.getChildren().add( rect );
-//			System.out.println( "ADDING RECTANGLE " + rect.getFill() + " " + rect );
+			final ColorPicker picker = new ColorPicker( rawState.colorProperty().get() );
+			picker.setStyle( "-fx-color-label-visible: false;" );
+			// TODO with max width of 30, this magically hides the arrow button.
+			// Hacky but works for now.
+			picker.setMaxWidth( 30 );
+			picker.valueProperty().bindBidirectional( rawState.colorProperty() );
+			tp.getChildren().add( picker );
 		}
 		return tp;
 	}
