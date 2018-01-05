@@ -2,7 +2,6 @@ package bdv.bigcat.viewer.atlas.mode;
 
 import java.lang.invoke.MethodHandles;
 import java.util.Arrays;
-import java.util.List;
 import java.util.Optional;
 import java.util.function.Function;
 
@@ -21,7 +20,6 @@ import bdv.bigcat.viewer.viewer3d.Viewer3DControllerFX;
 import bdv.labels.labelset.Label;
 import bdv.viewer.Interpolation;
 import bdv.viewer.Source;
-import bdv.viewer.state.SourceState;
 import bdv.viewer.state.ViewerState;
 import javafx.scene.input.MouseEvent;
 import net.imglib2.Interval;
@@ -79,15 +77,13 @@ public class RenderNeuron
 		synchronized ( viewer )
 		{
 			final ViewerState state = viewer.getState();
-			final List< SourceState< ? > > sources = state.getSources();
-			final int sourceIndex = state.getCurrentSource();
-			if ( sourceIndex > 0 && sources.size() > sourceIndex )
+			final Source< ? > source = sourceInfo.currentSourceProperty().get();
+			if ( source != null )
 			{
-				final SourceState< ? > sourceState = sources.get( sourceIndex );
-				final Source< ? > source = sourceState.getSpimSource();
+				final int sourceIndex = sourceInfo.currentSourceIndexProperty().get();
 				if ( source instanceof DataSource< ?, ? > )
 				{
-					final DataSource< ?, ? > dataSource = ( DataSource< ?, ? > ) source;
+					final DataSource< ?, ? > dataSource = sourceInfo.getState( source ).dataSourceProperty().get();
 					final Optional< Function< ?, Converter< ?, BoolType > > > toBoolConverter = sourceInfo.toBoolConverter( source );
 					final Optional< ToIdConverter > idConverter = sourceInfo.toIdConverter( source );
 					final Optional< SelectedIds > selectedIds = sourceInfo.selectedIds( source, mode );
