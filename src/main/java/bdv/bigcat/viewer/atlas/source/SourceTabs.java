@@ -2,32 +2,55 @@ package bdv.bigcat.viewer.atlas.source;
 
 import java.util.HashMap;
 import java.util.List;
+import java.util.Optional;
 import java.util.function.Consumer;
+import java.util.function.UnaryOperator;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
-import java.util.stream.IntStream;
 
+import bdv.bigcat.viewer.atlas.source.AtlasSourceState.LabelSourceState;
 import bdv.bigcat.viewer.atlas.source.AtlasSourceState.RawSourceState;
 import bdv.bigcat.viewer.util.InvokeOnJavaFXApplicationThread;
 import bdv.viewer.Source;
+import javafx.beans.binding.StringBinding;
+import javafx.beans.property.DoubleProperty;
+import javafx.beans.property.SimpleDoubleProperty;
 import javafx.beans.value.ObservableIntegerValue;
 import javafx.collections.ListChangeListener;
-import javafx.geometry.Orientation;
 import javafx.scene.Node;
+import javafx.scene.control.Alert;
+import javafx.scene.control.Button;
+import javafx.scene.control.ButtonType;
 import javafx.scene.control.CheckBox;
 import javafx.scene.control.ColorPicker;
-import javafx.scene.control.ContextMenu;
-import javafx.scene.control.MenuItem;
+import javafx.scene.control.ContentDisplay;
+import javafx.scene.control.Label;
+import javafx.scene.control.ScrollPane;
+import javafx.scene.control.ScrollPane.ScrollBarPolicy;
+import javafx.scene.control.TextField;
+import javafx.scene.control.TextFormatter;
 import javafx.scene.control.TitledPane;
-import javafx.scene.layout.TilePane;
+import javafx.scene.layout.GridPane;
+import javafx.scene.layout.HBox;
+import javafx.scene.layout.Priority;
+import javafx.scene.layout.VBox;
+import javafx.stage.Modality;
 
 public class SourceTabs
 {
 
-	private static final double DEFAULT_SCALE = 1.0;
+	private final VBox contents = new VBox();
+	{
+		contents.setSpacing( 0 );
+		contents.setMaxHeight( Double.MAX_VALUE );
+	}
 
-	private static final double CURRENT_SOURCE_SCALE = 1.2;
-
-	private final TilePane fp = new TilePane();
+	private final ScrollPane sp = new ScrollPane( contents );
+	{
+		sp.setMaxWidth( Double.MAX_VALUE );
+		sp.setHbarPolicy( ScrollBarPolicy.NEVER );
+		sp.setVbarPolicy( ScrollBarPolicy.AS_NEEDED );
+	}
 
 	private final Consumer< Source< ? > > remove;
 
@@ -35,96 +58,143 @@ public class SourceTabs
 
 	private final HashMap< Source< ? >, Boolean > expanded = new HashMap<>();
 
+	private final DoubleProperty width = new SimpleDoubleProperty();
+
 	public SourceTabs(
 			final ObservableIntegerValue currentSourceIndex,
 			final Consumer< Source< ? > > remove,
 			final SourceInfo info )
 	{
-		this.remove = remove;
+		this.remove = source -> {
+			remove.accept( source );
+			expanded.remove( source );
+		};
 		this.info = info;
+		width.set( 200 );
 		this.info.trackSources().addListener( ( ListChangeListener< Source< ? > > ) change -> {
 			while ( change.next() )
 			{
-				final List< TitledPane > tabs = change
+				final List< Node > tabs = change
 						.getList()
 						.stream()
 						.map( source -> {
 							final String name = source.getName();
-							final TitledPane p = new TitledPane();
-							p.setText( name );
-							// p.setContent( new Label( "expanded (source info
-							// will go here)" ) );
+							final TitledPane sourceElement = new TitledPane();
+							sourceElement.setText( null );
 							if ( !expanded.containsKey( source ) )
 								expanded.put( source, false );
-							p.setExpanded( expanded.get( source ) );
-							final ContextMenu m = createMenu( source, this.remove );
-							p.setContextMenu( m );
-							p.setGraphic( getPaneGraphics( info.getState( source ) ) );
-							addDragAndDropListener( p, this.info, fp.getChildren() );
-							return p;
+							sourceElement.setExpanded( expanded.get( source ) );
+							sourceElement.expandedProperty().addListener( ( obs, oldv, newv ) -> expanded.put( source, newv ) );
+
+							final Node closeButton = CloseButton.create( 8 );
+							closeButton.setOnMousePressed( event -> removeDialog( this.remove, source ) );
+							final Label sourceElementLabel = new Label( name, closeButton );
+							sourceElementLabel.setContentDisplay( ContentDisplay.RIGHT );
+							sourceElementLabel.underlineProperty().bind( info.isCurrentSource( source ) );
+
+							final HBox sourceElementButtons = getPaneGraphics( info.getState( source ) );
+							sourceElementButtons.setMaxWidth( Double.MAX_VALUE );
+							HBox.setHgrow( sourceElementButtons, Priority.ALWAYS );
+							final HBox graphic = new HBox( sourceElementButtons, sourceElementLabel );
+							graphic.setSpacing( 20 );
+							graphic.prefWidthProperty().bind( this.width.multiply( 0.8 ) );
+							sourceElement.setGraphic( graphic );
+							addDragAndDropListener( sourceElement, this.info, contents.getChildren() );
+
+							sourceElement.setContent( getPaneContents( info.getState( source ) ) );
+							sourceElement.maxWidthProperty().bind( width );
+
+							return sourceElement;
 						} )
-//						.map( Label::new )
 						.collect( Collectors.toList() );
 				InvokeOnJavaFXApplicationThread.invoke( () -> {
-					fp.getChildren().clear();
-					fp.getChildren().addAll( tabs );
-					underlineActive( fp, currentSourceIndex.intValue() );
+					contents.getChildren().clear();
+					contents.getChildren().addAll( tabs );
 				} );
 			}
 		} );
-
-		currentSourceIndex.addListener( ( obs, oldv, newv ) -> underlineActive( fp, newv.intValue() ) );
-
-	}
-
-	private static void underlineActive( final TilePane pane, final int index )
-	{
-		final List< TitledPane > children = pane.getChildren().stream().filter( p -> p instanceof TitledPane ).map( p -> ( TitledPane ) p ).collect( Collectors.toList() );
-		IntStream.range( 0, children.size() ).forEach( i -> children.get( i ).setUnderline( i == index ) );
 	}
 
 	public Node getTabs()
 	{
-		return fp;
+		return sp;
 	}
 
-	public void setOrientation( final Orientation orientation )
+	public DoubleProperty widthProperty()
 	{
-		this.fp.setOrientation( orientation );
+		return this.width;
 	}
 
-	private static ContextMenu createMenu( final Source< ? > source, final Consumer< Source< ? > > remove )
-	{
-		final ContextMenu menu = new ContextMenu();
-		final MenuItem removeItem = new MenuItem();
-		removeItem.setText( "Remove" );
-		removeItem.setOnAction( a -> remove.accept( source ) );
-		menu.getItems().add( removeItem );
-		return menu;
-	}
-
-	private static Node getPaneGraphics( final AtlasSourceState< ?, ? > state )
+	private static HBox getPaneGraphics( final AtlasSourceState< ?, ? > state )
 	{
 		final CheckBox cb = new CheckBox();
 		cb.setMaxWidth( 20 );
 		cb.selectedProperty().bindBidirectional( state.visibleProperty() );
 		cb.selectedProperty().set( state.visibleProperty().get() );
-		final TilePane tp = new TilePane( cb );
+		final HBox tp = new HBox( cb );
 		if ( state instanceof RawSourceState< ?, ? > )
 		{
 			final RawSourceState< ?, ? > rawState = ( RawSourceState< ?, ? > ) state;
 			final ColorPicker picker = new ColorPicker( rawState.colorProperty().get() );
-			picker.setStyle( "-fx-color-label-visible: false;" );
 			// TODO with max width of 30, this magically hides the arrow button.
 			// Hacky but works for now.
-			picker.setMaxWidth( 30 );
+			picker.setMinWidth( 50 );
+			picker.setMaxWidth( 50 );
+			picker.setMaxHeight( 20 );
 			picker.valueProperty().bindBidirectional( rawState.colorProperty() );
 			tp.getChildren().add( picker );
 		}
 		return tp;
 	}
 
-	private static void addDragAndDropListener( final TitledPane p, final SourceInfo info, final List< Node > children )
+	private static Node getPaneContents( final AtlasSourceState< ?, ? > state )
+	{
+		if ( state instanceof LabelSourceState< ?, ? > )
+			return null;
+		else if ( state instanceof RawSourceState< ?, ? > )
+		{
+			final RawSourceState< ?, ? > rss = ( RawSourceState< ?, ? > ) state;
+			final GridPane gp = new GridPane();
+			final StringBinding min = rss.minProperty().asString();
+			final StringBinding max = rss.maxProperty().asString();
+			final TextField minInput = new TextField( min.get() );
+			final TextField maxInput = new TextField( max.get() );
+			minInput.promptTextProperty().bind( rss.minProperty().asString( "min=%f" ) );
+			minInput.promptTextProperty().bind( rss.maxProperty().asString( "max=%f" ) );
+
+			min.addListener( ( obs, oldv, newv ) -> minInput.setText( newv ) );
+			max.addListener( ( obs, oldv, newv ) -> maxInput.setText( newv ) );
+
+			final Pattern pattern = Pattern.compile( "\\d*|\\d+\\.\\d*|\\d*\\.\\d+" );
+			final TextFormatter< Double > minFormatter = new TextFormatter<>( ( UnaryOperator< TextFormatter.Change > ) change -> {
+				return pattern.matcher( change.getControlNewText() ).matches() ? change : null;
+			} );
+			final TextFormatter< Double > maxFormatter = new TextFormatter<>( ( UnaryOperator< TextFormatter.Change > ) change -> {
+				return pattern.matcher( change.getControlNewText() ).matches() ? change : null;
+			} );
+
+			minInput.setTextFormatter( minFormatter );
+			maxInput.setTextFormatter( maxFormatter );
+
+			final Button requestSettingMinMax = new Button( "set contrast" );
+			requestSettingMinMax.setOnAction( event -> {
+				Optional.ofNullable( minInput.getText() ).map( Double::parseDouble ).ifPresent( d -> rss.minProperty().set( d ) );
+				Optional.ofNullable( maxInput.getText() ).map( Double::parseDouble ).ifPresent( d -> rss.maxProperty().set( d ) );
+			} );
+
+			GridPane.setHgrow( requestSettingMinMax, Priority.ALWAYS );
+
+			gp.add( minInput, 0, 0 );
+			gp.add( maxInput, 1, 0 );
+			gp.add( requestSettingMinMax, 2, 0 );
+
+			return gp;
+		}
+		else
+			return null;
+	}
+
+	private static void addDragAndDropListener( final Node p, final SourceInfo info, final List< Node > children )
 	{
 		p.setOnDragDetected( event -> {
 			p.startFullDrag();
@@ -140,6 +210,22 @@ public class SourceTabs
 				info.moveSourceTo( sourceIndex, targetIndex );
 			}
 		} );
+	}
+
+	private static void removeDialog( final Consumer< Source< ? > > onRemove, final Source< ? > source )
+	{
+		final Alert confirmRemoval = new Alert(
+				Alert.AlertType.CONFIRMATION,
+				String.format( "Remove source '%s'?", source.getName() ) );
+		final Button removeButton = ( Button ) confirmRemoval.getDialogPane().lookupButton(
+				ButtonType.OK );
+		removeButton.setText( "Remove" );
+		confirmRemoval.setHeaderText( null );
+		confirmRemoval.setTitle( null );
+		confirmRemoval.initModality( Modality.APPLICATION_MODAL );
+		final Optional< ButtonType > buttonClicked = confirmRemoval.showAndWait();
+		if ( buttonClicked.orElse( ButtonType.CANCEL ).equals( ButtonType.OK ) )
+			onRemove.accept( source );
 	}
 
 }

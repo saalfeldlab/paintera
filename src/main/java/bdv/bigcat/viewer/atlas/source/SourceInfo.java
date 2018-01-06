@@ -17,11 +17,13 @@ import bdv.bigcat.viewer.atlas.source.AtlasSourceState.RawSourceState;
 import bdv.bigcat.viewer.state.FragmentSegmentAssignmentState;
 import bdv.bigcat.viewer.state.SelectedIds;
 import bdv.viewer.Source;
+import javafx.beans.binding.Bindings;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.IntegerProperty;
 import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.SimpleIntegerProperty;
 import javafx.beans.property.SimpleObjectProperty;
+import javafx.beans.value.ObservableBooleanValue;
 import javafx.collections.FXCollections;
 import javafx.collections.ListChangeListener;
 import javafx.collections.MapChangeListener;
@@ -120,6 +122,7 @@ public class SourceInfo
 		return state == null || !( state instanceof LabelSourceState< ?, ? > ) ? Optional.empty() : Optional.ofNullable( ( ( LabelSourceState< ?, ? > ) state ).toIdConverterProperty().get() );
 	}
 
+	@SuppressWarnings( { "unchecked", "rawtypes" } )
 	public synchronized Optional< Function< ?, Converter< ?, BoolType > > > toBoolConverter( final Source< ? > source )
 	{
 		final AtlasSourceState< ?, ? > state = states.get( source );
@@ -205,7 +208,6 @@ public class SourceInfo
 			this.sources.clear();
 			this.sources.setAll( copy );
 			this.currentSource.set( currentSource );
-			System.out.println( "SETTING " + currentSource + " " + currentSourceIndex );
 			this.currentSourceIndex.set( currentSourceIndex );
 		}
 	}
@@ -235,6 +237,13 @@ public class SourceInfo
 	public void decrementCurrentSourceIndex()
 	{
 		modifyCurrentSourceIndex( -1 );
+	}
+
+	public ObservableBooleanValue isCurrentSource( final Source< ? > source )
+	{
+		return Bindings.createBooleanBinding(
+				() -> Optional.ofNullable( currentSource.get() ).map( source::equals ).orElse( false ),
+				currentSource );
 	}
 
 }

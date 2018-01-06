@@ -141,8 +141,12 @@ public abstract class AtlasSourceState< T, D >
 			final RealARGBColorConverter.Imp0< T > conv = new RealARGBColorConverter.Imp0<>( min, max );
 			this.selectionMin.addListener( ( obs, oldv, newv ) -> this.min.set( this.min.get() < newv.doubleValue() ? newv.doubleValue() : this.min.get() ) );
 			this.selectionMax.addListener( ( obs, oldv, newv ) -> this.max.set( this.max.get() > newv.doubleValue() ? newv.doubleValue() : this.max.get() ) );
+			this.selectionMin.set( min );
+			this.selectionMax.set( max );
 			this.minProperty().addListener( ( obs, oldv, newv ) -> conv.setMin( newv.doubleValue() ) );
 			this.maxProperty().addListener( ( obs, oldv, newv ) -> conv.setMax( newv.doubleValue() ) );
+			this.minProperty().set( min );
+			this.maxProperty().set( max );
 			this.colorProperty().addListener( ( obs, oldv, newv ) -> conv.setColor( toARGBType( newv ) ) );
 			setConverter( conv );
 			super.dataSource.set( dataSource );
