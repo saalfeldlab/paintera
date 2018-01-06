@@ -7,7 +7,7 @@ import java.util.List;
 import java.util.function.Consumer;
 
 import bdv.bigcat.viewer.IdSelector;
-import bdv.bigcat.viewer.atlas.SourceInfo;
+import bdv.bigcat.viewer.atlas.source.SourceInfo;
 import bdv.bigcat.viewer.bdvfx.InstallAndRemove;
 import bdv.bigcat.viewer.bdvfx.ViewerPanelFX;
 import javafx.scene.input.KeyEvent;

@@ -3,7 +3,6 @@ package bdv.bigcat.viewer.ortho;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
-import java.util.Optional;
 import java.util.stream.Collectors;
 
 import bdv.bigcat.viewer.state.GlobalTransformManager;
@@ -11,14 +10,14 @@ import bdv.viewer.Interpolation;
 import bdv.viewer.Source;
 import bdv.viewer.SourceAndConverter;
 import bdv.viewer.ViewerOptions;
+import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.IntegerProperty;
-import javafx.beans.property.ReadOnlyIntegerProperty;
+import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.SimpleIntegerProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.value.ChangeListener;
 import javafx.collections.FXCollections;
 import javafx.collections.ListChangeListener;
-import javafx.collections.MapChangeListener;
 import javafx.collections.ObservableList;
 import javafx.collections.ObservableMap;
 import net.imglib2.converter.Converter;
@@ -39,20 +38,18 @@ public class OrthoViewState
 
 	protected final SimpleObjectProperty< Interpolation > interpolation = new SimpleObjectProperty<>( Interpolation.NEARESTNEIGHBOR );
 
-	protected final SimpleObjectProperty< Optional< Source< ? > > > currentSource = new SimpleObjectProperty<>( Optional.empty() );
+	protected final SimpleObjectProperty< Source< ? > > currentSource = new SimpleObjectProperty<>( null );
 
-	protected final SimpleIntegerProperty currentSourceIndex = new SimpleIntegerProperty( -1 );
-
-	protected final ObservableMap< Source< ? >, Boolean > visibility;
+	protected final ObservableMap< Source< ? >, BooleanProperty > visibility;
 
 	private final IntegerProperty time = new SimpleIntegerProperty();
 
-	public OrthoViewState( final ObservableMap< Source< ? >, Boolean > visibility )
+	public OrthoViewState( final ObservableMap< Source< ? >, BooleanProperty > visibility )
 	{
 		this( ViewerOptions.options(), visibility );
 	}
 
-	public OrthoViewState( final ViewerOptions viewerOptions, final ObservableMap< Source< ? >, Boolean > visibility )
+	public OrthoViewState( final ViewerOptions viewerOptions, final ObservableMap< Source< ? >, BooleanProperty > visibility )
 	{
 		this( viewerOptions, new GlobalTransformManager(), new GridConstraintsManager(), new ArrayList<>(), visibility );
 	}
@@ -62,7 +59,7 @@ public class OrthoViewState
 			final GlobalTransformManager globalTransform,
 			final GridConstraintsManager constraintsManager,
 			final List< Converter< ?, ARGBType > > converters,
-			final ObservableMap< Source< ? >, Boolean > visibility )
+			final ObservableMap< Source< ? >, BooleanProperty > visibility )
 	{
 		this.viewerOptions = viewerOptions;
 		this.globalTransform = globalTransform;
@@ -70,15 +67,6 @@ public class OrthoViewState
 		this.converters = new ArrayList<>();
 		this.converters.addAll( converters );
 		this.visibility = visibility;
-		this.currentSource.addListener( ( obs, oldv, newv ) -> {
-			if ( newv.isPresent() )
-				for ( int i = 0; i < sacs.size(); ++i )
-					if ( sacs.get( i ).getSpimSource() == newv.get() )
-					{
-						this.currentSourceIndex.set( i );
-						break;
-					}
-		} );
 	}
 
 	protected void trackConverters( final ObservableList< SourceAndConverter< ? > > list )
@@ -113,17 +101,12 @@ public class OrthoViewState
 
 	public synchronized void setVisible( final Source< ? > source, final boolean isVisible )
 	{
-		this.visibility.put( source, isVisible );
+		this.visibility.get( source ).set( isVisible );
 	}
 
-	public void addVisibilityListener( final MapChangeListener< Source< ? >, Boolean > listener )
+	public void addVisibilityListener( final Source< ? > source, final ChangeListener< Boolean > listener )
 	{
-		this.visibility.addListener( listener );
-	}
-
-	public void addCurrentSourceListener( final ChangeListener< Optional< Source< ? > > > listener )
-	{
-		this.currentSource.addListener( listener );
+		this.visibility.get( source ).addListener( listener );
 	}
 
 	public synchronized void removeSource( final Source< ? > source )
@@ -167,19 +150,14 @@ public class OrthoViewState
 		}
 	}
 
-	public void setCurrentSource( final Optional< Source< ? > > source )
+	public ObjectProperty< Source< ? > > currentSourceProperty()
 	{
-		this.currentSource.set( source );
+		return this.currentSource;
 	}
 
 	public GlobalTransformManager transformManager()
 	{
 		return this.globalTransform;
-	}
-
-	public ReadOnlyIntegerProperty currentSourceIndexProperty()
-	{
-		return this.currentSourceIndex;
 	}
 
 	public IntegerProperty timeProperty()

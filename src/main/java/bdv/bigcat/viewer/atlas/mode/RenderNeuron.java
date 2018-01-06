@@ -2,7 +2,6 @@ package bdv.bigcat.viewer.atlas.mode;
 
 import java.lang.invoke.MethodHandles;
 import java.util.Arrays;
-import java.util.List;
 import java.util.Optional;
 import java.util.function.Function;
 
@@ -11,8 +10,8 @@ import org.slf4j.LoggerFactory;
 
 import bdv.bigcat.ui.ARGBStream;
 import bdv.bigcat.viewer.ToIdConverter;
-import bdv.bigcat.viewer.atlas.SourceInfo;
 import bdv.bigcat.viewer.atlas.data.DataSource;
+import bdv.bigcat.viewer.atlas.source.SourceInfo;
 import bdv.bigcat.viewer.bdvfx.ViewerPanelFX;
 import bdv.bigcat.viewer.state.FragmentSegmentAssignmentState;
 import bdv.bigcat.viewer.state.GlobalTransformManager;
@@ -21,7 +20,6 @@ import bdv.bigcat.viewer.viewer3d.Viewer3DControllerFX;
 import bdv.labels.labelset.Label;
 import bdv.viewer.Interpolation;
 import bdv.viewer.Source;
-import bdv.viewer.state.SourceState;
 import bdv.viewer.state.ViewerState;
 import javafx.scene.input.MouseEvent;
 import net.imglib2.Interval;
@@ -79,19 +77,17 @@ public class RenderNeuron
 		synchronized ( viewer )
 		{
 			final ViewerState state = viewer.getState();
-			final List< SourceState< ? > > sources = state.getSources();
-			final int sourceIndex = state.getCurrentSource();
-			if ( sourceIndex > 0 && sources.size() > sourceIndex )
+			final Source< ? > source = sourceInfo.currentSourceProperty().get();
+			if ( source != null )
 			{
-				final SourceState< ? > sourceState = sources.get( sourceIndex );
-				final Source< ? > source = sourceState.getSpimSource();
+				final int sourceIndex = sourceInfo.currentSourceIndexProperty().get();
 				if ( source instanceof DataSource< ?, ? > )
 				{
-					final DataSource< ?, ? > dataSource = ( DataSource< ?, ? > ) source;
+					final DataSource< ?, ? > dataSource = sourceInfo.getState( source ).dataSourceProperty().get();
 					final Optional< Function< ?, Converter< ?, BoolType > > > toBoolConverter = sourceInfo.toBoolConverter( source );
 					final Optional< ToIdConverter > idConverter = sourceInfo.toIdConverter( source );
 					final Optional< SelectedIds > selectedIds = sourceInfo.selectedIds( source, mode );
-					final Optional< FragmentSegmentAssignmentState > assignment = sourceInfo.assignment( source );
+					final Optional< ? extends FragmentSegmentAssignmentState< ? > > assignment = sourceInfo.assignment( source );
 					final Optional< ARGBStream > stream = sourceInfo.stream( source, mode );
 					if ( toBoolConverter.isPresent() && idConverter.isPresent() && selectedIds.isPresent() && assignment.isPresent() && stream.isPresent() )
 					{
@@ -133,27 +129,27 @@ public class RenderNeuron
 								final double[] a = transforms[ 0 ].getRowPackedCopy();
 								final double scaleX = Math.sqrt(
 										a[ 0 ] * a[ 0 ] +
-										a[ 4 ] * a[ 4 ] +
-										a[ 8 ] * a[ 8 ] );
+												a[ 4 ] * a[ 4 ] +
+												a[ 8 ] * a[ 8 ] );
 								final double scaleY = Math.sqrt(
 										a[ 1 ] * a[ 1 ] +
-										a[ 5 ] * a[ 5 ] +
-										a[ 9 ] * a[ 9 ] );
+												a[ 5 ] * a[ 5 ] +
+												a[ 9 ] * a[ 9 ] );
 								final double scaleZ = Math.sqrt(
 										a[ 2 ] * a[ 2 ] +
-										a[ 6 ] * a[ 6 ] +
-										a[ 10 ] * a[ 10 ] );
+												a[ 6 ] * a[ 6 ] +
+												a[ 10 ] * a[ 10 ] );
 
 								final double scaleMax = Math.max( Math.max( scaleX, scaleY ), scaleZ );
-								final int stepSizeX = ( int )Math.round( scaleMax / scaleX );
-								final int stepSizeY = ( int )Math.round( scaleMax / scaleY );
-								final int stepSizeZ = ( int )Math.round( scaleMax / scaleZ );
+								final int stepSizeX = ( int ) Math.round( scaleMax / scaleX );
+								final int stepSizeY = ( int ) Math.round( scaleMax / scaleY );
+								final int stepSizeZ = ( int ) Math.round( scaleMax / scaleZ );
 								final double maxBlockScale = 64.0 / Math.max( Math.max( stepSizeX, stepSizeY ), stepSizeZ );
 
 								final int[] partitionSize = {
-										( int )Math.round( maxBlockScale * stepSizeX ),
-										( int )Math.round( maxBlockScale * stepSizeY ),
-										( int )Math.round( maxBlockScale * stepSizeZ ) };
+										( int ) Math.round( maxBlockScale * stepSizeX ),
+										( int ) Math.round( maxBlockScale * stepSizeY ),
+										( int ) Math.round( maxBlockScale * stepSizeZ ) };
 
 								final int[] cubeSize = { stepSizeX, stepSizeY, stepSizeZ };
 
@@ -168,7 +164,7 @@ public class RenderNeuron
 											cubeSize,
 											getForegroundCheck,
 											selectedId,
-											assignment.get(),
+											( FragmentSegmentAssignmentState ) assignment.get(),
 											stream.get(),
 											append,
 											selIds,

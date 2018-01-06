@@ -4,7 +4,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
-import bdv.bigcat.viewer.atlas.SourceInfo;
+import bdv.bigcat.viewer.atlas.source.SourceInfo;
 import bdv.bigcat.viewer.bdvfx.ViewerPanelFX;
 import bdv.bigcat.viewer.util.InvokeOnJavaFXApplicationThread;
 import bdv.viewer.Source;

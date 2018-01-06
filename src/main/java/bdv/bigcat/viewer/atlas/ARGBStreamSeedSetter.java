@@ -8,6 +8,7 @@ import java.util.function.LongUnaryOperator;
 
 import bdv.bigcat.ui.ARGBStream;
 import bdv.bigcat.viewer.atlas.mode.Mode;
+import bdv.bigcat.viewer.atlas.source.SourceInfo;
 import bdv.bigcat.viewer.bdvfx.KeyTracker;
 import bdv.bigcat.viewer.bdvfx.ViewerPanelFX;
 import bdv.bigcat.viewer.stream.AbstractHighlightingARGBStream;

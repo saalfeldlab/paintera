@@ -29,6 +29,7 @@ class TranslateZ
 
 	private final Object synchronizeObject;
 
+	@SafeVarargs
 	public TranslateZ(
 			final ObservableDoubleValue rotationSpeed,
 			final ObservableValue< GlobalTransformManager > manager,

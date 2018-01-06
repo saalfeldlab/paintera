@@ -2,7 +2,6 @@ package bdv.bigcat.viewer;
 
 import java.lang.invoke.MethodHandles;
 import java.util.Arrays;
-import java.util.List;
 import java.util.Optional;
 import java.util.function.Consumer;
 import java.util.function.Function;
@@ -13,10 +12,10 @@ import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import bdv.bigcat.viewer.atlas.SourceInfo;
 import bdv.bigcat.viewer.atlas.data.DataSource;
 import bdv.bigcat.viewer.atlas.mode.HandleMultipleIds;
 import bdv.bigcat.viewer.atlas.mode.Mode;
+import bdv.bigcat.viewer.atlas.source.SourceInfo;
 import bdv.bigcat.viewer.bdvfx.InstallAndRemove;
 import bdv.bigcat.viewer.bdvfx.MouseClickFX;
 import bdv.bigcat.viewer.bdvfx.ViewerPanelFX;
@@ -26,7 +25,6 @@ import bdv.bigcat.viewer.state.SelectedIds;
 import bdv.labels.labelset.Label;
 import bdv.viewer.Interpolation;
 import bdv.viewer.Source;
-import bdv.viewer.state.SourceState;
 import bdv.viewer.state.ViewerState;
 import gnu.trove.map.hash.TLongObjectHashMap;
 import gnu.trove.set.hash.TLongHashSet;
@@ -67,25 +65,25 @@ public class IdSelector
 		this.mode = mode;
 	}
 
-	public InstallAndRemove< Node > selectSingle( final String name, final HandleMultipleIds handleMultipleEntries, final Predicate< MouseEvent >... eventFilter )
+	public InstallAndRemove< Node > selectSingle( final String name, final HandleMultipleIds handleMultipleEntries, @SuppressWarnings( "unchecked" ) final Predicate< MouseEvent >... eventFilter )
 	{
 		final SelectSingle selectSingle = new SelectSingle( handleMultipleEntries );
 		return new MouseClickFX( name, selectSingle::click, eventFilter );
 	}
 
-	public InstallAndRemove< Node > append( final String name, final HandleMultipleIds handleMultipleEntries, final Predicate< MouseEvent >... eventFilter )
+	public InstallAndRemove< Node > append( final String name, final HandleMultipleIds handleMultipleEntries, @SuppressWarnings( "unchecked" ) final Predicate< MouseEvent >... eventFilter )
 	{
 		final Append append = new Append( handleMultipleEntries );
 		return new MouseClickFX( name, append::click, eventFilter );
 	}
 
-	public InstallAndRemove< Node > selectFragmentWithMaximumCount( final String name, final Predicate< MouseEvent >... eventFilter )
+	public InstallAndRemove< Node > selectFragmentWithMaximumCount( final String name, @SuppressWarnings( "unchecked" ) final Predicate< MouseEvent >... eventFilter )
 	{
 		final SelectFragmentWithMaximumCount selectFragment = new SelectFragmentWithMaximumCount();
 		return new MouseClickFX( name, selectFragment::click, eventFilter );
 	}
 
-	public InstallAndRemove< Node > selectFragmentWithMaximumCount( final String name, final Consumer< MouseEvent > otherAction, final Predicate< MouseEvent >... eventFilter )
+	public InstallAndRemove< Node > selectFragmentWithMaximumCount( final String name, final Consumer< MouseEvent > otherAction, @SuppressWarnings( "unchecked" ) final Predicate< MouseEvent >... eventFilter )
 	{
 		final SelectFragmentWithMaximumCount selectFragment = new SelectFragmentWithMaximumCount();
 		final Consumer< MouseEvent > handler = event -> {
@@ -95,13 +93,13 @@ public class IdSelector
 		return new MouseClickFX( name, handler, eventFilter );
 	}
 
-	public InstallAndRemove< Node > appendFragmentWithMaximumCount( final String name, final Predicate< MouseEvent >... eventFilter )
+	public InstallAndRemove< Node > appendFragmentWithMaximumCount( final String name, @SuppressWarnings( "unchecked" ) final Predicate< MouseEvent >... eventFilter )
 	{
 		final AppendFragmentWithMaximumCount appendFragment = new AppendFragmentWithMaximumCount();
 		return new MouseClickFX( name, appendFragment::click, eventFilter );
 	}
 
-	public InstallAndRemove< Node > appendFragmentWithMaximumCount( final String name, final Consumer< MouseEvent > otherAction, final Predicate< MouseEvent >... eventFilter )
+	public InstallAndRemove< Node > appendFragmentWithMaximumCount( final String name, final Consumer< MouseEvent > otherAction, @SuppressWarnings( "unchecked" ) final Predicate< MouseEvent >... eventFilter )
 	{
 		final AppendFragmentWithMaximumCount appendFragment = new AppendFragmentWithMaximumCount();
 		final Consumer< MouseEvent > handler = event -> {
@@ -111,7 +109,7 @@ public class IdSelector
 		return new MouseClickFX( name, handler, eventFilter );
 	}
 
-	public InstallAndRemove< Node > merge( final String name, final Predicate< MouseEvent >... eventFilter )
+	public InstallAndRemove< Node > merge( final String name, @SuppressWarnings( "unchecked" ) final Predicate< MouseEvent >... eventFilter )
 	{
 		final MergeFragments merge = new MergeFragments();
 		return new MouseClickFX( name, merge::click, eventFilter );
@@ -122,13 +120,13 @@ public class IdSelector
 //		return new MergeSegments( assignments );
 //	}
 
-	public InstallAndRemove< Node > detach( final String name, final Predicate< MouseEvent >... eventFilter )
+	public InstallAndRemove< Node > detach( final String name, @SuppressWarnings( "unchecked" ) final Predicate< MouseEvent >... eventFilter )
 	{
 		final DetachFragment detach = new DetachFragment();
 		return new MouseClickFX( name, detach::click, eventFilter );
 	}
 
-	public InstallAndRemove< Node > confirm( final String name, final Predicate< MouseEvent >... eventFilter )
+	public InstallAndRemove< Node > confirm( final String name, @SuppressWarnings( "unchecked" ) final Predicate< MouseEvent >... eventFilter )
 	{
 		final ConfirmSelection confirmSelection = new ConfirmSelection();
 		return new MouseClickFX( name, confirmSelection::click, eventFilter );
@@ -154,7 +152,7 @@ public class IdSelector
 						final AffineTransform3D affine = new AffineTransform3D();
 						final ViewerState state = viewer.getState();
 						state.getViewerTransform( affine );
-						final int level = state.getBestMipMapLevel( affine, state.getSources().stream().map( src -> src.getSpimSource() ).collect( Collectors.toList() ).indexOf( source ) );
+						final int level = state.getBestMipMapLevel( affine, getIndexOf( source, state ) );
 						dataSource.getSourceTransform( 0, level, affine );
 						final RealTransformRealRandomAccessible< ?, InverseRealTransform >.RealTransformRealRandomAccess access = RealViews.transformReal( dataSource.getInterpolatedDataSource( 0, level, Interpolation.NEARESTNEIGHBOR ), affine ).realRandomAccess();
 						viewer.getMouseCoordinates( access );
@@ -190,7 +188,7 @@ public class IdSelector
 						final AffineTransform3D affine = new AffineTransform3D();
 						final ViewerState state = viewer.getState();
 						state.getViewerTransform( affine );
-						final int level = state.getBestMipMapLevel( affine, state.getSources().stream().map( src -> src.getSpimSource() ).collect( Collectors.toList() ).indexOf( source ) );
+						final int level = state.getBestMipMapLevel( affine, getIndexOf( dataSource, state ) );
 						dataSource.getSourceTransform( 0, level, affine );
 						final RealTransformRealRandomAccessible< ?, InverseRealTransform >.RealTransformRealRandomAccess access = RealViews.transformReal( dataSource.getInterpolatedDataSource( 0, level, Interpolation.NEARESTNEIGHBOR ), affine ).realRandomAccess();
 						viewer.getMouseCoordinates( access );
@@ -331,11 +329,11 @@ public class IdSelector
 				final DataSource< ?, ? > dataSource = ( DataSource< ?, ? > ) source;
 				final Optional< SelectedIds > selectedIds = sourceInfo.selectedIds( source, mode );
 				final Optional< ToIdConverter > toIdConverter = sourceInfo.toIdConverter( source );
-				final Optional< FragmentSegmentAssignmentState > assignmentOptional = sourceInfo.assignment( source );
+				final Optional< ? extends FragmentSegmentAssignmentState< ? > > assignmentOptional = sourceInfo.assignment( source );
 				if ( toIdConverter.isPresent() && selectedIds.isPresent() && assignmentOptional.isPresent() )
 					synchronized ( viewer )
 					{
-						final FragmentSegmentAssignmentState assignment = assignmentOptional.get();
+						final FragmentSegmentAssignmentState< ? > assignment = assignmentOptional.get();
 						final long[] selIds = selectedIds.get().getActiveIds();
 
 						if ( selIds.length < 1 )
@@ -354,7 +352,7 @@ public class IdSelector
 						final AffineTransform3D affine = new AffineTransform3D();
 						final ViewerState state = viewer.getState();
 						state.getViewerTransform( viewerTransform );
-						final int level = state.getBestMipMapLevel( viewerTransform, state.getSources().stream().map( src -> src.getSpimSource() ).collect( Collectors.toList() ).indexOf( source ) );
+						final int level = state.getBestMipMapLevel( viewerTransform, getIndexOf( source, state ) );
 						dataSource.getSourceTransform( 0, level, affine );
 						final RealRandomAccessible< ? > interpolatedSource = dataSource.getInterpolatedDataSource( 0, level, Interpolation.NEARESTNEIGHBOR );
 						final RealTransformRealRandomAccessible< ?, InverseRealTransform > transformedSource = RealViews.transformReal( interpolatedSource, affine );
@@ -475,11 +473,11 @@ public class IdSelector
 				final DataSource< ?, ? > dataSource = ( DataSource< ?, ? > ) source;
 				final Optional< SelectedIds > selectedIds = sourceInfo.selectedIds( source, mode );
 				final Optional< ToIdConverter > toIdConverter = sourceInfo.toIdConverter( source );
-				final Optional< FragmentSegmentAssignmentState > assignmentOptional = sourceInfo.assignment( source );
+				final Optional< ? extends FragmentSegmentAssignmentState< ? > > assignmentOptional = sourceInfo.assignment( source );
 				if ( toIdConverter.isPresent() && selectedIds.isPresent() && assignmentOptional.isPresent() )
 					synchronized ( viewer )
 					{
-						final FragmentSegmentAssignmentState assignments = assignmentOptional.get();
+						final FragmentSegmentAssignmentState< ? > assignments = assignmentOptional.get();
 
 						final long[] selIds = selectedIds.get().getActiveIds();
 
@@ -489,7 +487,7 @@ public class IdSelector
 						final AffineTransform3D viewerTransform = new AffineTransform3D();
 						final ViewerState state = viewer.getState();
 						state.getViewerTransform( viewerTransform );
-						final int level = state.getBestMipMapLevel( viewerTransform, state.getSources().stream().map( src -> src.getSpimSource() ).collect( Collectors.toList() ).indexOf( source ) );
+						final int level = state.getBestMipMapLevel( viewerTransform, getIndexOf( source, state ) );
 						final AffineTransform3D affine = new AffineTransform3D();
 						dataSource.getSourceTransform( 0, level, affine );
 						final RealRandomAccess< ? > access = RealViews.transformReal( dataSource.getInterpolatedDataSource( 0, level, Interpolation.NEARESTNEIGHBOR ), affine ).realRandomAccess();
@@ -523,12 +521,12 @@ public class IdSelector
 				final DataSource< ?, ? > dataSource = ( DataSource< ?, ? > ) source;
 				final Optional< SelectedIds > selectedIds = sourceInfo.selectedIds( source, mode );
 				final Optional< ToIdConverter > toIdConverter = sourceInfo.toIdConverter( source );
-				final Optional< FragmentSegmentAssignmentState > assignmentOptional = sourceInfo.assignment( source );
+				final Optional< ? extends FragmentSegmentAssignmentState< ? > > assignmentOptional = sourceInfo.assignment( source );
 				if ( toIdConverter.isPresent() && selectedIds.isPresent() && assignmentOptional.isPresent() )
 					synchronized ( viewer )
 					{
 
-						final FragmentSegmentAssignmentState assignment = assignmentOptional.get();
+						final FragmentSegmentAssignmentState< ? > assignment = assignmentOptional.get();
 
 						final long[] selIds = selectedIds.get().getActiveIds();
 
@@ -538,7 +536,7 @@ public class IdSelector
 						final AffineTransform3D viewerTransform = new AffineTransform3D();
 						final ViewerState state = viewer.getState();
 						state.getViewerTransform( viewerTransform );
-						final int level = state.getBestMipMapLevel( viewerTransform, state.getSources().stream().map( src -> src.getSpimSource() ).collect( Collectors.toList() ).indexOf( source ) );
+						final int level = state.getBestMipMapLevel( viewerTransform, getIndexOf( source, state ) );
 						final AffineTransform3D affine = new AffineTransform3D();
 						dataSource.getSourceTransform( 0, level, affine );
 						final RealTransformRealRandomAccessible< ?, InverseRealTransform > transformedSource = RealViews.transformReal( dataSource.getInterpolatedDataSource( 0, level, Interpolation.NEARESTNEIGHBOR ), affine );
@@ -586,11 +584,11 @@ public class IdSelector
 				final DataSource< ?, ? > dataSource = ( DataSource< ?, ? > ) source;
 				final Optional< SelectedIds > selectedIds = sourceInfo.selectedIds( source, mode );
 				final Optional< ToIdConverter > toIdConverter = sourceInfo.toIdConverter( source );
-				final Optional< FragmentSegmentAssignmentState > assignmentOptional = sourceInfo.assignment( source );
+				final Optional< ? extends FragmentSegmentAssignmentState< ? > > assignmentOptional = sourceInfo.assignment( source );
 				if ( toIdConverter.isPresent() && selectedIds.isPresent() && assignmentOptional.isPresent() )
 					synchronized ( viewer )
 					{
-						final FragmentSegmentAssignmentState assignment = assignmentOptional.get();
+						final FragmentSegmentAssignmentState< ? > assignment = assignmentOptional.get();
 
 						final long[] activeFragments = selectedIds.get().getActiveIds();
 						final long[] activeSegments = Arrays.stream( activeFragments ).map( id -> assignment.getSegment( id ) ).toArray();
@@ -610,7 +608,7 @@ public class IdSelector
 						final AffineTransform3D viewerTransform = new AffineTransform3D();
 						final ViewerState state = viewer.getState();
 						state.getViewerTransform( viewerTransform );
-						final int level = state.getBestMipMapLevel( viewerTransform, state.getSources().stream().map( src -> src.getSpimSource() ).collect( Collectors.toList() ).indexOf( source ) );
+						final int level = state.getBestMipMapLevel( viewerTransform, getIndexOf( source, state ) );
 						final AffineTransform3D affine = new AffineTransform3D();
 						dataSource.getSourceTransform( 0, level, affine );
 						final RealTransformRealRandomAccessible< ?, InverseRealTransform > transformedSource = RealViews.transformReal( dataSource.getInterpolatedDataSource( 0, level, Interpolation.NEARESTNEIGHBOR ), affine );
@@ -659,12 +657,17 @@ public class IdSelector
 
 	private Optional< Source< ? > > getSource()
 	{
-		final int currentSource = viewer.getState().getCurrentSource();
-		final List< SourceState< ? > > sources = viewer.getState().getSources();
-		if ( sources.size() <= currentSource || currentSource < 0 )
-			return Optional.empty();
-		final Source< ? > activeSource = sources.get( currentSource ).getSpimSource();
-		return Optional.of( activeSource );
+		return Optional.ofNullable( sourceInfo.currentSourceProperty().get() );
+	}
+
+	private static int getIndexOf( final Source< ? > source, final ViewerState state )
+	{
+		return state
+				.getSources()
+				.stream()
+				.map( src -> src.getSpimSource() )
+				.collect( Collectors.toList() )
+				.indexOf( source );
 	}
 
 	private static void detachFragments(
@@ -711,7 +714,7 @@ public class IdSelector
 		final AffineTransform3D sourceTransform = new AffineTransform3D();
 		final ViewerState state = viewer.getState();
 		state.getViewerTransform( viewerTransform );
-		final int level = state.getBestMipMapLevel( viewerTransform, state.getSources().stream().map( src -> src.getSpimSource() ).collect( Collectors.toList() ).indexOf( dataSource ) );
+		final int level = state.getBestMipMapLevel( viewerTransform, getIndexOf( dataSource, state ) );
 		dataSource.getSourceTransform( 0, level, sourceTransform );
 
 		final RealRandomAccessible< ? > interpolatedSource = dataSource.getInterpolatedDataSource( 0, level, Interpolation.NEARESTNEIGHBOR );

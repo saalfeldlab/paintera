@@ -11,6 +11,7 @@ import bdv.viewer.DisplayMode;
 import bdv.viewer.Source;
 import bdv.viewer.SourceAndConverter;
 import bdv.viewer.ViewerOptions;
+import javafx.beans.property.BooleanProperty;
 import javafx.beans.value.ChangeListener;
 import javafx.collections.ListChangeListener;
 import javafx.collections.MapChangeListener;
@@ -54,7 +55,7 @@ public class ViewerNode extends Pane implements ListChangeListener< SourceAndCon
 			final ViewerAxis viewerAxis,
 			final ViewerOptions viewerOptions,
 			final KeyTracker keyTracker,
-			final ObservableMap< Source< ? >, Boolean > visibilityMap )
+			final ObservableMap< Source< ? >, BooleanProperty > visibilityMap )
 	{
 		super();
 		this.viewer = new ViewerPanelFX( new ArrayList<>(), 1, cacheControl, viewerOptions );
@@ -81,9 +82,9 @@ public class ViewerNode extends Pane implements ListChangeListener< SourceAndCon
 			if ( !this.isFocused() )
 				this.viewer.requestFocus();
 		} );
-		visibilityMap.addListener( ( MapChangeListener< Source< ? >, Boolean > ) change -> {
+		visibilityMap.addListener( ( MapChangeListener< Source< ? >, BooleanProperty > ) change -> {
 			if ( change.wasAdded() )
-				getViewer().getVisibilityAndGrouping().setSourceActive( change.getKey(), change.getValueAdded() );
+				getViewer().getVisibilityAndGrouping().setSourceActive( change.getKey(), change.getValueAdded().get() );
 		} );
 	}
 
