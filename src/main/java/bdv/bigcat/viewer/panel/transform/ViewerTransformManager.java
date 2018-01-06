@@ -2,7 +2,6 @@ package bdv.bigcat.viewer.panel.transform;
 
 import java.awt.event.ActionEvent;
 import java.util.Arrays;
-import java.util.List;
 import java.util.Optional;
 import java.util.function.Predicate;
 
@@ -18,7 +17,6 @@ import bdv.bigcat.viewer.panel.ViewerNode.ViewerAxis;
 import bdv.bigcat.viewer.panel.ViewerState;
 import bdv.bigcat.viewer.state.GlobalTransformManager;
 import bdv.viewer.Source;
-import bdv.viewer.state.SourceState;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.DoubleProperty;
 import javafx.beans.property.Property;
@@ -213,8 +211,6 @@ public class ViewerTransformManager implements TransformListener< AffineTransfor
 
 		final EventFX< KeyEvent > removeRotation = EventFX.KEY_PRESSED( "remove rotation", new RemoveRotation()::handle, event -> Merges.shiftOnly( event ) && event.getCode().equals( KeyCode.Z ) );
 
-//		addActiveKey.installInto( viewer );
-//		removeActiveKey.installInto( viewer );
 		translateXY.installInto( this.viewer );
 		Arrays.stream( rotations ).forEach( r -> r.installInto( viewer ) );
 		viewer.addEventHandler( ScrollEvent.SCROLL, zoom );
@@ -225,7 +221,6 @@ public class ViewerTransformManager implements TransformListener< AffineTransfor
 		viewer.addEventHandler( ScrollEvent.SCROLL, new TranslateZ( zoomSpeed, manager, global, axis, factors[ 0 ], viewer, event -> keyTracker.noKeysActive() )::scroll );
 		viewer.addEventHandler( ScrollEvent.SCROLL, new TranslateZ( zoomSpeed, manager, global, axis, factors[ 1 ], viewer, event -> keyTracker.areOnlyTheseKeysDown( KeyCode.SHIFT ) )::scroll );
 		viewer.addEventHandler( ScrollEvent.SCROLL, new TranslateZ( zoomSpeed, manager, global, axis, factors[ 2 ], viewer, event -> keyTracker.areOnlyTheseKeysDown( KeyCode.CONTROL ) )::scroll );
-		viewer.addEventHandler( KeyEvent.KEY_PRESSED, EventFX.KEY_PRESSED( "toggle visibility", new ToggleVisibility()::handle, event -> keyTracker.areOnlyTheseKeysDown( KeyCode.V ) ) );
 
 	}
 
@@ -522,19 +517,6 @@ public class ViewerTransformManager implements TransformListener< AffineTransfor
 			}
 		}
 
-	}
-
-	private class ToggleVisibility implements EventHandler< KeyEvent >
-	{
-		// TODO track state and show in status bar
-		@Override
-		public void handle( final KeyEvent event )
-		{
-			final bdv.viewer.state.ViewerState state = viewer.getState();
-			final int currentSource = state.getCurrentSource();
-			final List< SourceState< ? > > sources = state.getSources();
-			visibilityMap.get( sources.get( currentSource ).getSpimSource() ).set( !state.isSourceVisible( currentSource ) );
-		}
 	}
 
 	private void listen( final GlobalTransformManager m )

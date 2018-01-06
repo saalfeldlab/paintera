@@ -224,6 +224,18 @@ public class Atlas
 			}
 		} );
 
+		this.root.addEventHandler( KeyEvent.KEY_PRESSED, event -> {
+			if ( this.keyTracker.areOnlyTheseKeysDown( KeyCode.V ) )
+			{
+				final Source< ? > currentSource = this.sourceInfo.currentSourceProperty().get();
+				if ( currentSource != null )
+				{
+					final BooleanProperty visibleProperty = this.sourceInfo.getState( currentSource ).visibleProperty();
+					visibleProperty.set( !visibleProperty.get() );
+				}
+			}
+		} );
+
 		this.cellCache = cellCache;
 
 		this.renderView = new Viewer3DFX( 100, 100 );
