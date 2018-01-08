@@ -160,7 +160,7 @@ public class Atlas
 		this.viewerOptions = viewerOptions
 				.accumulateProjectorFactory( new ClearingCompositeProjectorFactory<>( composites, new ARGBType() ) )
 				.numRenderingThreads( Math.min( 3, Math.max( 1, Runtime.getRuntime().availableProcessors() / 3 ) ) );
-		this.view = new OrthoView( focusHandler.onEnter(), focusHandler.onExit(), new OrthoViewState( this.viewerOptions, sourceInfo.visibility() ), cellCache, keyTracker );
+		this.view = new OrthoView( focusHandler.onEnter(), focusHandler.onExit(), new OrthoViewState( this.viewerOptions ), cellCache, keyTracker );
 		this.view.setMinWidth( 100 );
 		this.view.setMinHeight( 100 );
 		this.sourceTabs = new SourceTabs(
@@ -174,18 +174,9 @@ public class Atlas
 		this.sourceTabsResizer = new ResizeOnLeftSide( sourceTabs.getTabs(), sourceTabs.widthProperty(), ( diff ) -> diff > 0 && diff < 10 );
 		this.view.getState().currentSourceProperty().bindBidirectional( this.sourceInfo.currentSourceProperty() );
 
-		this.sourceInfo.trackSources().addListener( ( ListChangeListener< Source< ? > > ) change -> {
-			while ( change.next() )
-			{
-				final List< SourceAndConverter< ? > > sacs = change
-						.getList()
-						.stream()
-						// TODO better management of converters
-						.map( s -> new SourceAndConverter( s, sourceInfo.getState( s ).getConverter() == null ? identity() : sourceInfo.getState( s ).getConverter() ) )
-						.collect( Collectors.toList() );
-				this.view.getState().removeAllSources();
-				this.view.getState().addSources( sacs );
-			}
+		this.sourceInfo.trackVisibleSourcesAndConverters().addListener( ( ListChangeListener< SourceAndConverter< ? > > ) change -> {
+			this.view.getState().removeAllSources();
+			this.view.getState().addSources( sourceInfo.trackVisibleSourcesAndConverters() );
 		} );
 		this.root = new BorderPane( this.view );
 		this.root.setBottom( statusRoot );
@@ -261,7 +252,7 @@ public class Atlas
 		addOnEnterOnExit( coordinatePrinter.onEnter(), coordinatePrinter.onExit(), true );
 
 		final Label label = new Label();
-		valueDisplayListener = new AtlasValueDisplayListener( label, sourceInfo.currentSourceProperty() );
+		valueDisplayListener = new AtlasValueDisplayListener( label, sourceInfo.currentSourceProperty(), sourceInfo.currentSourceIndexInVisibleSources() );
 		this.status.getChildren().add( label );
 
 		addOnEnterOnExit( valueDisplayListener.onEnter(), valueDisplayListener.onExit(), true );
@@ -439,7 +430,8 @@ public class Atlas
 				( Function< LabelMultisetType, Converter< LabelMultisetType, BoolType > > ) sel -> createBoolConverter( sel, assignment ),
 				( FragmentSegmentAssignmentState ) assignment,
 				streamsMap,
-				selIdsMap );
+				selIdsMap,
+				( s, t ) -> t.set( s.get() ) );
 		Optional.ofNullable( currentMode.get() ).ifPresent( setConverter::accept );
 
 		final LabelMultisetType t = vsource.getDataType();
@@ -526,7 +518,10 @@ public class Atlas
 				( Function< I, Converter< I, BoolType > > ) sel -> createBoolConverter( sel, assignment ),
 				( FragmentSegmentAssignmentState ) assignment,
 				streamsMap,
-				selIdsMap );
+				selIdsMap,
+				( s, t ) -> {
+					t.set( s.get() );
+				} );
 		Optional.ofNullable( currentMode.get() ).ifPresent( setConverter::accept );
 
 		final I t = vsource.getDataType();

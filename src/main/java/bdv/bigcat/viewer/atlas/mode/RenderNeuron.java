@@ -78,11 +78,10 @@ public class RenderNeuron
 		{
 			final ViewerState state = viewer.getState();
 			final Source< ? > source = sourceInfo.currentSourceProperty().get();
-			if ( source != null )
-			{
-				final int sourceIndex = sourceInfo.currentSourceIndexProperty().get();
+			if ( source != null && sourceInfo.getState( source ).visibleProperty().get() )
 				if ( source instanceof DataSource< ?, ? > )
 				{
+					final int sourceIndex = sourceInfo.trackVisibleSources().indexOf( source );
 					final DataSource< ?, ? > dataSource = sourceInfo.getState( source ).dataSourceProperty().get();
 					final Optional< Function< ?, Converter< ?, BoolType > > > toBoolConverter = sourceInfo.toBoolConverter( source );
 					final Optional< ToIdConverter > idConverter = sourceInfo.toIdConverter( source );
@@ -178,7 +177,6 @@ public class RenderNeuron
 							LOG.warn( "Selected irregular label: {}. Will not render.", selectedId );
 					}
 				}
-			}
 		}
 	}
 

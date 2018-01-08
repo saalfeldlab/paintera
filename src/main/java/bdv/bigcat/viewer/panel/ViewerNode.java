@@ -1,21 +1,16 @@
 package bdv.bigcat.viewer.panel;
 
 import java.util.ArrayList;
-import java.util.HashMap;
 
 import bdv.bigcat.viewer.bdvfx.KeyTracker;
 import bdv.bigcat.viewer.bdvfx.ViewerPanelFX;
 import bdv.bigcat.viewer.panel.transform.ViewerTransformManager;
 import bdv.cache.CacheControl;
 import bdv.viewer.DisplayMode;
-import bdv.viewer.Source;
 import bdv.viewer.SourceAndConverter;
 import bdv.viewer.ViewerOptions;
-import javafx.beans.property.BooleanProperty;
 import javafx.beans.value.ChangeListener;
 import javafx.collections.ListChangeListener;
-import javafx.collections.MapChangeListener;
-import javafx.collections.ObservableMap;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.Pane;
 import javafx.scene.paint.Color;
@@ -37,8 +32,6 @@ public class ViewerNode extends Pane implements ListChangeListener< SourceAndCon
 
 	private ViewerAxis viewerAxis;
 
-	private final HashMap< Source< ? >, Boolean > visibility = new HashMap<>();
-
 	private boolean managesOwnLayerVisibility = false;
 
 	private final CrossHair crosshair = new CrossHair();
@@ -54,8 +47,7 @@ public class ViewerNode extends Pane implements ListChangeListener< SourceAndCon
 			final CacheControl cacheControl,
 			final ViewerAxis viewerAxis,
 			final ViewerOptions viewerOptions,
-			final KeyTracker keyTracker,
-			final ObservableMap< Source< ? >, BooleanProperty > visibilityMap )
+			final KeyTracker keyTracker )
 	{
 		super();
 		this.viewer = new ViewerPanelFX( new ArrayList<>(), 1, cacheControl, viewerOptions );
@@ -69,7 +61,7 @@ public class ViewerNode extends Pane implements ListChangeListener< SourceAndCon
 //		this.viewer.showMultibox( false );
 		this.viewerAxis = viewerAxis;
 		this.state = new ViewerState( this.viewer );
-		this.manager = new ViewerTransformManager( this.viewer, viewerAxis, state, globalToViewer( viewerAxis ), keyTracker, visibilityMap );
+		this.manager = new ViewerTransformManager( this.viewer, viewerAxis, state, globalToViewer( viewerAxis ), keyTracker );
 		initializeViewer();
 		addCrosshair();
 //		https://stackoverflow.com/questions/21657034/javafx-keyevent-propagation-order
@@ -81,10 +73,6 @@ public class ViewerNode extends Pane implements ListChangeListener< SourceAndCon
 		this.viewer.addEventFilter( MouseEvent.MOUSE_PRESSED, event -> {
 			if ( !this.isFocused() )
 				this.viewer.requestFocus();
-		} );
-		visibilityMap.addListener( ( MapChangeListener< Source< ? >, BooleanProperty > ) change -> {
-			if ( change.wasAdded() )
-				getViewer().getVisibilityAndGrouping().setSourceActive( change.getKey(), change.getValueAdded().get() );
 		} );
 	}
 
@@ -152,19 +140,15 @@ public class ViewerNode extends Pane implements ListChangeListener< SourceAndCon
 	@Override
 	public void onChanged( final javafx.collections.ListChangeListener.Change< ? extends SourceAndConverter< ? > > c )
 	{
+
 		c.next();
 		if ( c.wasRemoved() )
 			c.getRemoved().forEach( removed -> {
-				visibility.remove( removed );
 				viewer.removeSource( removed.getSpimSource() );
 			} );
 		else if ( c.wasAdded() )
 			c.getAddedSubList().forEach( added -> {
-				visibility.put( added.getSpimSource(), true );
 				viewer.addSource( added );
-				final int numSources = viewer.getState().numSources();
-				if ( numSources > 1 )
-					viewer.getVisibilityAndGrouping().setCurrentSource( 1 );
 			} );
 	}
 

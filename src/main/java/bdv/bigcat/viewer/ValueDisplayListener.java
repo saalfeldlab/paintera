@@ -9,8 +9,7 @@ import bdv.bigcat.viewer.bdvfx.ViewerPanelFX;
 import bdv.viewer.Interpolation;
 import bdv.viewer.Source;
 import bdv.viewer.state.ViewerState;
-import javafx.beans.property.ObjectProperty;
-import javafx.beans.property.SimpleObjectProperty;
+import javafx.beans.value.ObservableIntegerValue;
 import javafx.beans.value.ObservableValue;
 import javafx.event.EventHandler;
 import javafx.scene.input.MouseEvent;
@@ -29,7 +28,9 @@ public class ValueDisplayListener implements EventHandler< javafx.scene.input.Mo
 
 	private final AffineTransform3D viewerTransform = new AffineTransform3D();
 
-	private final ObjectProperty< Source< ? > > currentSource = new SimpleObjectProperty<>( null );
+	private final ObservableValue< Source< ? > > currentSource;
+
+	private final ObservableIntegerValue currentSourceIndexInVisibleSources;
 
 	private double x = -1;
 
@@ -38,12 +39,14 @@ public class ValueDisplayListener implements EventHandler< javafx.scene.input.Mo
 	public ValueDisplayListener(
 			@SuppressWarnings( "rawtypes" ) final HashMap< DataSource< ?, ? >, Consumer > valueHandlers,
 			final ViewerPanelFX viewer,
-			final ObservableValue< Source< ? > > currentSource )
+			final ObservableValue< Source< ? > > currentSource,
+			final ObservableIntegerValue currentSourceIndedxInVisibleSources )
 	{
 		super();
 		this.valueHandlers = valueHandlers;
 		this.viewer = viewer;
-		this.currentSource.bind( currentSource );
+		this.currentSource = currentSource;
+		this.currentSourceIndexInVisibleSources = currentSourceIndedxInVisibleSources;
 	}
 
 	@Override
@@ -82,24 +85,18 @@ public class ValueDisplayListener implements EventHandler< javafx.scene.input.Mo
 		return access.get();
 	}
 
-	private Optional< Source< ? > > getSource()
-	{
-		return Optional.ofNullable( this.currentSource.get() );
-	}
-
 	@SuppressWarnings( "unchecked" )
 	private void getInfo()
 	{
-		final Optional< Source< ? > > optionalSource = getSource();
+		final Optional< Source< ? > > optionalSource = Optional.ofNullable( currentSource.getValue() );
 		if ( optionalSource.isPresent() && optionalSource.get() instanceof DataSource< ?, ? > )
 		{
 			final DataSource< ?, ? > source = ( DataSource< ?, ? > ) optionalSource.get();
 			if ( valueHandlers.containsKey( source ) )
 			{
 				final ViewerState state = viewer.getState();
-				final int currentSource = state.getCurrentSource();
 				final Interpolation interpolation = state.getInterpolation();
-				final int level = state.getBestMipMapLevel( this.viewerTransform, currentSource );
+				final int level = state.getBestMipMapLevel( this.viewerTransform, currentSourceIndexInVisibleSources.get() );
 				final AffineTransform3D affine = new AffineTransform3D();
 				source.getSourceTransform( 0, level, affine );
 				final RealRandomAccess< ? > access = RealViews.transformReal( source.getInterpolatedDataSource( 0, level, interpolation ), affine ).realRandomAccess();
