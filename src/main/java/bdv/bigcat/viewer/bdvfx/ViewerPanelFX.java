@@ -325,7 +325,7 @@ public class ViewerPanelFX
 		requestRepaint();
 	}
 
-	public void addSources( final Collection< SourceAndConverter< ? > > sourceAndConverter )
+	public void addSources( final Collection< ? extends SourceAndConverter< ? > > sourceAndConverter )
 	{
 		synchronized ( visibilityAndGrouping )
 		{
@@ -360,6 +360,15 @@ public class ViewerPanelFX
 		synchronized ( visibilityAndGrouping )
 		{
 			removeSources( getState().getSources().stream().map( SourceAndConverter::getSpimSource ).collect( Collectors.toList() ) );
+		}
+	}
+
+	public void setAllSources( final Collection< ? extends SourceAndConverter< ? > > sources )
+	{
+		synchronized ( visibilityAndGrouping )
+		{
+			getState().getSources().stream().map( SourceAndConverter::getSpimSource ).forEach( state::removeSource );
+			addSources( sources );
 		}
 	}
 

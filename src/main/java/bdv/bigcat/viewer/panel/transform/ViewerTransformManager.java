@@ -16,13 +16,10 @@ import bdv.bigcat.viewer.bdvfx.ViewerPanelFX;
 import bdv.bigcat.viewer.panel.ViewerNode.ViewerAxis;
 import bdv.bigcat.viewer.panel.ViewerState;
 import bdv.bigcat.viewer.state.GlobalTransformManager;
-import bdv.viewer.Source;
-import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.DoubleProperty;
 import javafx.beans.property.Property;
 import javafx.beans.property.SimpleDoubleProperty;
 import javafx.beans.property.SimpleObjectProperty;
-import javafx.collections.ObservableMap;
 import javafx.event.EventHandler;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyEvent;
@@ -72,8 +69,6 @@ public class ViewerTransformManager implements TransformListener< AffineTransfor
 
 	private int centerX = 0, centerY = 0;
 
-	private final ObservableMap< Source< ? >, BooleanProperty > visibilityMap;
-
 	public void rotationSpeed( final double speed )
 	{
 		this.rotationSpeed.set( speed );
@@ -89,8 +84,7 @@ public class ViewerTransformManager implements TransformListener< AffineTransfor
 			final ViewerAxis axis,
 			final ViewerState state,
 			final AffineTransform3D globalToViewer,
-			final KeyTracker keyTracker,
-			final ObservableMap< Source< ? >, BooleanProperty > visibilityMap )
+			final KeyTracker keyTracker )
 	{
 		super();
 		this.viewer = viewer;
@@ -101,7 +95,6 @@ public class ViewerTransformManager implements TransformListener< AffineTransfor
 		this.canvasW = 1;
 		this.centerX = this.canvasW / 2;
 		this.centerY = this.canvasH / 2;
-		this.visibilityMap = visibilityMap;
 
 		setTransformListener( viewer );
 		manager.addListener( ( obs, oldv, newv ) -> {

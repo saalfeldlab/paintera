@@ -10,6 +10,7 @@ import bdv.bigcat.viewer.atlas.data.DataSource;
 import bdv.bigcat.viewer.bdvfx.ViewerPanelFX;
 import bdv.viewer.Source;
 import javafx.application.Platform;
+import javafx.beans.value.ObservableIntegerValue;
 import javafx.beans.value.ObservableValue;
 import javafx.scene.control.Label;
 import javafx.scene.input.MouseEvent;
@@ -26,11 +27,14 @@ public class AtlasValueDisplayListener
 
 	private final ObservableValue< Source< ? > > currentSource;
 
-	public AtlasValueDisplayListener( final Label statusBar, final ObservableValue< Source< ? > > currentSource )
+	private final ObservableIntegerValue currentSourceIndexInVisibleSources;
+
+	public AtlasValueDisplayListener( final Label statusBar, final ObservableValue< Source< ? > > currentSource, final ObservableIntegerValue currentSourceIndexInVisibleSources )
 	{
 		super();
 		this.statusBar = statusBar;
 		this.currentSource = currentSource;
+		this.currentSourceIndexInVisibleSources = currentSourceIndexInVisibleSources;
 	}
 
 	public < D, T > void addSource( final DataSource< D, T > dataSource, final Optional< Function< D, String > > valueToString )
@@ -46,7 +50,7 @@ public class AtlasValueDisplayListener
 	{
 		return t -> {
 			if ( !this.listeners.containsKey( t ) )
-				this.listeners.put( t, new ValueDisplayListener( handlerMap, t, currentSource ) );
+				this.listeners.put( t, new ValueDisplayListener( handlerMap, t, currentSource, currentSourceIndexInVisibleSources ) );
 			t.getDisplay().addEventHandler( MouseEvent.MOUSE_MOVED, this.listeners.get( t ) );
 			t.addTransformListener( this.listeners.get( t ) );
 		};

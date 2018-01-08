@@ -2,11 +2,13 @@ package bdv.bigcat.viewer.atlas.source;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Optional;
 import java.util.function.Consumer;
 import java.util.function.Function;
+import java.util.stream.Collectors;
 
 import bdv.bigcat.ui.ARGBStream;
 import bdv.bigcat.viewer.ToIdConverter;
@@ -17,21 +19,22 @@ import bdv.bigcat.viewer.atlas.source.AtlasSourceState.RawSourceState;
 import bdv.bigcat.viewer.state.FragmentSegmentAssignmentState;
 import bdv.bigcat.viewer.state.SelectedIds;
 import bdv.viewer.Source;
+import bdv.viewer.SourceAndConverter;
 import javafx.beans.binding.Bindings;
-import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.IntegerProperty;
 import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.SimpleIntegerProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.value.ObservableBooleanValue;
+import javafx.beans.value.ObservableIntegerValue;
 import javafx.collections.FXCollections;
 import javafx.collections.ListChangeListener;
-import javafx.collections.MapChangeListener;
 import javafx.collections.ObservableList;
 import javafx.collections.ObservableMap;
 import javafx.scene.paint.Color;
 import net.imglib2.converter.Converter;
 import net.imglib2.type.logic.BoolType;
+import net.imglib2.type.numeric.ARGBType;
 import net.imglib2.type.numeric.RealType;
 
 public class SourceInfo
@@ -41,14 +44,35 @@ public class SourceInfo
 
 	private final ObservableList< Source< ? > > sources = FXCollections.observableArrayList();
 
+	private final ObservableList< Source< ? > > sourcesReadOnly = FXCollections.unmodifiableObservableList( sources );
+
 	private final ObjectProperty< Source< ? > > currentSource = new SimpleObjectProperty<>( null );
 
-	private final IntegerProperty currentSourceIndex = new SimpleIntegerProperty( -1 );
+	private final ObservableList< Source< ? > > visibleSources = FXCollections.observableArrayList();
 
+	private final ObservableList< Source< ? > > visibleSourcesReadOnly = FXCollections.unmodifiableObservableList( visibleSources );
+	{
+		sources.addListener( ( ListChangeListener< Source< ? > > ) change -> updateVisibleSources() );
+	}
+
+	private final ObservableList< SourceAndConverter< ? > > visibleSourcesAndConverter = FXCollections.observableArrayList();
+
+	private final ObservableList< SourceAndConverter< ? > > visibleSourcesAndConverterReadOnly = FXCollections.unmodifiableObservableList( visibleSourcesAndConverter );
+	{
+		visibleSources.addListener( ( ListChangeListener< Source< ? > > ) change -> updateVisibleSourcesAndConverters() );
+	}
+
+	private final IntegerProperty currentSourceIndex = new SimpleIntegerProperty( -1 );
 	{
 		this.currentSource.addListener( ( oldv, obs, newv ) -> this.currentSourceIndex.set( this.sources.indexOf( newv ) ) );
 		this.currentSourceIndex.addListener( ( oldv, obs, newv ) -> this.currentSource.set( newv.intValue() < 0 || newv.intValue() >= this.sources.size() ? null : this.sources.get( newv.intValue() ) ) );
+	}
 
+	private final IntegerProperty currentSourceIndexInVisibleSources = new SimpleIntegerProperty();
+	{
+		this.currentSource.addListener( ( oldv, obs, newv ) -> updateCurrentSourceIndexInVisibleSources() );
+		this.visibleSources.addListener( ( ListChangeListener< Source< ? > > ) ( change ) -> updateCurrentSourceIndexInVisibleSources() );
+		updateCurrentSourceIndexInVisibleSources();
 	}
 
 	public < D, T extends RealType< T > > RawSourceState< T, D > addRawSource(
@@ -69,9 +93,10 @@ public class SourceInfo
 			final Function< D, Converter< D, BoolType > > toBoolConverter,
 			final F frag,
 			final HashMap< Mode, ARGBStream > stream,
-			final HashMap< Mode, SelectedIds > selectedId )
+			final HashMap< Mode, SelectedIds > selectedId,
+			final Converter< T, ARGBType > converter )
 	{
-		final LabelSourceState< T, D > state = new AtlasSourceState.LabelSourceState<>( source );
+		final LabelSourceState< T, D > state = new AtlasSourceState.LabelSourceState<>( source, converter );
 		state.toIdConverterProperty().set( idConverter );
 		state.maskGeneratorProperty().set( toBoolConverter );
 		state.assignmentProperty().set( frag );
@@ -86,6 +111,8 @@ public class SourceInfo
 	{
 		this.states.put( source, state );
 		this.sources.add( source );
+		state.visibleProperty().addListener( ( obs, oldv, newv ) -> updateVisibleSources() );
+		state.converterProperty().addListener( ( obs, oldv, newv ) -> updateVisibleSourcesAndConverters() );
 		state.visibleProperty().set( true );
 		if ( this.currentSource.get() == null )
 			this.currentSource.set( source );
@@ -156,16 +183,6 @@ public class SourceInfo
 				.map( Map::values ).orElseGet( () -> new ArrayList<>() ).stream().forEach( actor );
 	}
 
-	public ObservableMap< Source< ? >, BooleanProperty > visibility()
-	{
-		final ObservableMap< Source< ? >, BooleanProperty > visibility = FXCollections.observableHashMap();
-		this.states.addListener( ( MapChangeListener< Source< ? >, AtlasSourceState< ?, ? > > ) change -> {
-			visibility.clear();
-			change.getMap().forEach( ( k, v ) -> visibility.put( k, v.visibleProperty() ) );
-		} );
-		return visibility;
-	}
-
 	public int numSources()
 	{
 		return this.states.size();
@@ -178,12 +195,17 @@ public class SourceInfo
 
 	public ObservableList< Source< ? > > trackSources()
 	{
-		final ObservableList< Source< ? > > sources = FXCollections.observableArrayList();
-		this.sources.addListener( ( ListChangeListener< Source< ? > > ) change -> {
-			while ( change.next() )
-				sources.setAll( change.getList() );
-		} );
-		return sources;
+		return this.sourcesReadOnly;
+	}
+
+	public ObservableList< Source< ? > > trackVisibleSources()
+	{
+		return this.visibleSourcesReadOnly;
+	}
+
+	public ObservableList< SourceAndConverter< ? > > trackVisibleSourcesAndConverters()
+	{
+		return this.visibleSourcesAndConverterReadOnly;
 	}
 
 	public ObjectProperty< Source< ? > > currentSourceProperty()
@@ -244,6 +266,35 @@ public class SourceInfo
 		return Bindings.createBooleanBinding(
 				() -> Optional.ofNullable( currentSource.get() ).map( source::equals ).orElse( false ),
 				currentSource );
+	}
+
+	public ObservableIntegerValue currentSourceIndexInVisibleSources()
+	{
+		return this.currentSourceIndexInVisibleSources;
+	}
+
+	private void updateVisibleSources()
+	{
+
+		final List< Source< ? > > visibleSources = this.sources
+				.stream()
+				.filter( s -> states.get( s ).visibleProperty().get() )
+				.collect( Collectors.toList() );
+		this.visibleSources.setAll( visibleSources );
+	}
+
+	private void updateVisibleSourcesAndConverters()
+	{
+		this.visibleSourcesAndConverter.setAll( this.visibleSources
+				.stream()
+				.map( states::get )
+				.map( AtlasSourceState::getSourceAndConverter )
+				.collect( Collectors.toList() ) );
+	}
+
+	private void updateCurrentSourceIndexInVisibleSources()
+	{
+		this.currentSourceIndexInVisibleSources.set( this.visibleSources.indexOf( currentSource.get() ) );
 	}
 
 }

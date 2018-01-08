@@ -9,6 +9,7 @@ import bdv.bigcat.viewer.atlas.data.DataSource;
 import bdv.bigcat.viewer.atlas.mode.Mode;
 import bdv.bigcat.viewer.state.FragmentSegmentAssignmentState;
 import bdv.bigcat.viewer.state.SelectedIds;
+import bdv.viewer.SourceAndConverter;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.DoubleProperty;
 import javafx.beans.property.ObjectProperty;
@@ -55,6 +56,11 @@ public abstract class AtlasSourceState< T, D >
 		return converter.get();
 	}
 
+	public SourceAndConverter< T > getSourceAndConverter()
+	{
+		return new SourceAndConverter<>( dataSource.get(), converter.get() );
+	}
+
 	public ReadOnlyObjectProperty< Converter< T, ARGBType > > converterProperty()
 	{
 		return this.converter;
@@ -88,10 +94,11 @@ public abstract class AtlasSourceState< T, D >
 	public static class LabelSourceState< T, D > extends AtlasSourceState< T, D >
 	{
 
-		public LabelSourceState( final DataSource< D, T > dataSource )
+		public LabelSourceState( final DataSource< D, T > dataSource, final Converter< T, ARGBType > converter )
 		{
 			super.dataSource.set( dataSource );
 			typeProperty().set( TYPE.RAW );
+			setConverter( converter );
 		}
 
 		private final ObjectProperty< FragmentSegmentAssignmentState< ? > > assignment = new SimpleObjectProperty<>();
