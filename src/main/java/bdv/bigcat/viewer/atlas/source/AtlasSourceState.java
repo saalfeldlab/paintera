@@ -4,6 +4,7 @@ import java.util.function.Function;
 
 import bdv.bigcat.composite.Composite;
 import bdv.bigcat.ui.ARGBStream;
+import bdv.bigcat.viewer.InvertingARGBColorConverter;
 import bdv.bigcat.viewer.ToIdConverter;
 import bdv.bigcat.viewer.atlas.data.DataSource;
 import bdv.bigcat.viewer.atlas.mode.Mode;
@@ -145,7 +146,7 @@ public abstract class AtlasSourceState< T, D >
 
 		public RawSourceState( final DataSource< D, T > dataSource, final double min, final double max )
 		{
-			final RealARGBColorConverter.Imp0< T > conv = new RealARGBColorConverter.Imp0<>( min, max );
+			final RealARGBColorConverter< T > conv = new InvertingARGBColorConverter<>( min, max );
 			this.selectionMin.addListener( ( obs, oldv, newv ) -> this.min.set( this.min.get() < newv.doubleValue() ? newv.doubleValue() : this.min.get() ) );
 			this.selectionMax.addListener( ( obs, oldv, newv ) -> this.max.set( this.max.get() > newv.doubleValue() ? newv.doubleValue() : this.max.get() ) );
 			this.selectionMin.set( min );

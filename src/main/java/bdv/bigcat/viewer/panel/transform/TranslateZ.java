@@ -58,7 +58,6 @@ class TranslateZ
 				final AffineTransform3D rotationAndScalingOnly = affine.copy();
 				rotationAndScalingOnly.setTranslation( 0, 0, 0 );
 				final double[] delta = new double[ 3 ];
-				System.out.println( "SETTING FOR AXIS " + axis );
 				delta[ axis ] = 1.0;
 				rotationAndScalingOnly.applyInverse( delta, delta );
 				final double norm = delta[ 0 ] * delta[ 0 ] + delta[ 1 ] * delta[ 1 ] + delta[ 2 ] * delta[ 2 ];

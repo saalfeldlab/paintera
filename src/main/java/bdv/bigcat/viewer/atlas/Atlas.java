@@ -87,8 +87,6 @@ import javafx.stage.WindowEvent;
 import net.imglib2.FinalInterval;
 import net.imglib2.Interval;
 import net.imglib2.converter.Converter;
-import net.imglib2.display.RealARGBColorConverter;
-import net.imglib2.display.RealARGBColorConverter.Imp1;
 import net.imglib2.interpolation.randomaccess.ClampingNLinearInterpolatorFactory;
 import net.imglib2.interpolation.randomaccess.NearestNeighborInterpolatorFactory;
 import net.imglib2.realtransform.AffineTransform3D;
@@ -605,9 +603,6 @@ public class Atlas
 
 	public < T extends RealType< T >, U extends RealType< U > > void addRawSource( final DataSource< T, U > spec, final double min, final double max, final ARGBType color )
 	{
-//		final RealARGBConverter< U > realARGBConv = new RealARGBConverter<>( min, max );
-		final Imp1< U > realARGBColorConv = new RealARGBColorConverter.Imp1<>( min, max );
-		realARGBColorConv.setColor( color );
 		final Composite< ARGBType, ARGBType > comp = new ARGBCompositeAlphaAdd();
 		addSource( spec, comp, spec.tMin(), spec.tMax() );
 
