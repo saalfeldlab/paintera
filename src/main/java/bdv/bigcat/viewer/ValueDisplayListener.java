@@ -92,11 +92,12 @@ public class ValueDisplayListener implements EventHandler< javafx.scene.input.Mo
 		if ( optionalSource.isPresent() && optionalSource.get() instanceof DataSource< ?, ? > )
 		{
 			final DataSource< ?, ? > source = ( DataSource< ?, ? > ) optionalSource.get();
-			if ( valueHandlers.containsKey( source ) )
+			final int currentSourceIndex = currentSourceIndexInVisibleSources.get();
+			if ( valueHandlers.containsKey( source ) && currentSourceIndex != -1 )
 			{
 				final ViewerState state = viewer.getState();
 				final Interpolation interpolation = state.getInterpolation();
-				final int level = state.getBestMipMapLevel( this.viewerTransform, currentSourceIndexInVisibleSources.get() );
+				final int level = state.getBestMipMapLevel( this.viewerTransform, currentSourceIndex );
 				final AffineTransform3D affine = new AffineTransform3D();
 				source.getSourceTransform( 0, level, affine );
 				final RealRandomAccess< ? > access = RealViews.transformReal( source.getInterpolatedDataSource( 0, level, interpolation ), affine ).realRandomAccess();
