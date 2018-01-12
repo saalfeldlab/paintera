@@ -1,7 +1,6 @@
 package bdv.bigcat.viewer.atlas;
 
 import java.util.HashMap;
-import java.util.List;
 import java.util.Optional;
 import java.util.function.Consumer;
 import java.util.function.LongUnaryOperator;
@@ -13,8 +12,6 @@ import bdv.bigcat.viewer.bdvfx.KeyTracker;
 import bdv.bigcat.viewer.bdvfx.ViewerPanelFX;
 import bdv.bigcat.viewer.stream.AbstractHighlightingARGBStream;
 import bdv.viewer.Source;
-import bdv.viewer.state.SourceState;
-import bdv.viewer.state.ViewerState;
 import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.value.ObservableValue;
@@ -50,18 +47,18 @@ public class ARGBStreamSeedSetter
 			if ( !this.handlers.containsKey( t ) )
 			{
 				final EventHandler< KeyEvent > handler = event -> {
-					final Optional< Source< ? > > source = getSource( t );
-					if ( source.isPresent() )
+					final Source< ? > source = sourceInfo.currentSourceProperty().get();
+					if ( source != null && sourceInfo.getState( source ).visibleProperty().get() )
 					{
-						final Optional< ARGBStream > currentStream = sourceInfo.stream( source.get(), currentMode.get() );
+						final Optional< ARGBStream > currentStream = sourceInfo.stream( source, currentMode.get() );
 						if ( keyTracker.areOnlyTheseKeysDown( KeyCode.C ) )
 						{
-							changeStream( currentStream, seed -> seed + 1, sourceInfo, source.get() );
+							changeStream( currentStream, seed -> seed + 1, sourceInfo, source );
 							event.consume();
 						}
 						else if ( keyTracker.areOnlyTheseKeysDown( KeyCode.C, KeyCode.SHIFT ) )
 						{
-							changeStream( currentStream, seed -> seed - 1, sourceInfo, source.get() );
+							changeStream( currentStream, seed -> seed - 1, sourceInfo, source );
 							event.consume();
 						}
 						else if ( keyTracker.areOnlyTheseKeysDown( KeyCode.C, KeyCode.SHIFT, KeyCode.CONTROL ) )
@@ -76,7 +73,7 @@ public class ARGBStreamSeedSetter
 								final long newSeed = dialog.showAndWait().orElse( seed );
 								return newSeed;
 							};
-							changeStream( currentStream, op, sourceInfo, source.get() );
+							changeStream( currentStream, op, sourceInfo, source );
 							event.consume();
 						}
 					}
@@ -93,19 +90,6 @@ public class ARGBStreamSeedSetter
 		return t -> {
 			t.removeEventHandler( KeyEvent.KEY_PRESSED, this.handlers.get( t ) );
 		};
-	}
-
-	private static Optional< Source< ? > > getSource( final ViewerPanelFX viewer )
-	{
-		final ViewerState state = viewer.getState();
-		final List< SourceState< ? > > sources = state.getSources();
-		if ( state.getCurrentSource() >= 0 )
-		{
-			final SourceState< ? > source = sources.get( state.getCurrentSource() );
-			return Optional.of( source.getSpimSource() );
-		}
-		else
-			return Optional.empty();
 	}
 
 	private static boolean changeStream( final Optional< ARGBStream > currentStream, final LongUnaryOperator seedUpdate, final SourceInfo sourceInfo, final Source< ? > source )
