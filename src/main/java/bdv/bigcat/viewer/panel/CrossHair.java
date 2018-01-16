@@ -9,6 +9,8 @@ public class CrossHair implements OverlayRendererGeneric< GraphicsContext >
 
 	private int w, h;
 
+	private final int strokeWidth = 1;
+
 	private Color color = new Color( Color.WHITE.getRed(), Color.WHITE.getGreen(), Color.WHITE.getBlue(), 0.5 );
 
 	public void setColor( final int r, final int g, final int b )
@@ -45,6 +47,7 @@ public class CrossHair implements OverlayRendererGeneric< GraphicsContext >
 		if ( color.getOpacity() > 0 )
 		{
 			g.setStroke( color );
+			g.setLineWidth( strokeWidth );
 			g.strokeLine( 0, h / 2, w, h / 2 );
 			g.strokeLine( w / 2, 0, w / 2, h );
 		}

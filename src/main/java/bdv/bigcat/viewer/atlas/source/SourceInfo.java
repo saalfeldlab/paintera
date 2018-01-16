@@ -33,6 +33,7 @@ import javafx.collections.ObservableList;
 import javafx.collections.ObservableMap;
 import javafx.scene.paint.Color;
 import net.imglib2.converter.Converter;
+import net.imglib2.type.Type;
 import net.imglib2.type.logic.BoolType;
 import net.imglib2.type.numeric.ARGBType;
 import net.imglib2.type.numeric.RealType;
@@ -75,7 +76,7 @@ public class SourceInfo
 		updateCurrentSourceIndexInVisibleSources();
 	}
 
-	public < D, T extends RealType< T > > RawSourceState< T, D > addRawSource(
+	public < D extends Type< D >, T extends RealType< T > > RawSourceState< T, D > addRawSource(
 			final DataSource< D, T > source,
 			final double min,
 			final double max,
@@ -87,7 +88,7 @@ public class SourceInfo
 		return state;
 	}
 
-	public < D, T, F extends FragmentSegmentAssignmentState< F > > void addLabelSource(
+	public < D extends Type< D >, T extends Type< T >, F extends FragmentSegmentAssignmentState< F > > LabelSourceState< T, D > addLabelSource(
 			final DataSource< D, T > source,
 			final ToIdConverter idConverter,
 			final Function< D, Converter< D, BoolType > > toBoolConverter,
@@ -105,9 +106,10 @@ public class SourceInfo
 		state.selectedIds().clear();
 		state.selectedIds().putAll( selectedId );
 		addState( source, state );
+		return state;
 	}
 
-	private synchronized < D, T > void addState( final Source< T > source, final AtlasSourceState< T, D > state )
+	private synchronized < D extends Type< D >, T extends Type< T > > void addState( final Source< T > source, final AtlasSourceState< T, D > state )
 	{
 		this.states.put( source, state );
 		this.sources.add( source );

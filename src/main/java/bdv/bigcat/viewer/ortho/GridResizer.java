@@ -1,5 +1,6 @@
 package bdv.bigcat.viewer.ortho;
 
+import bdv.bigcat.viewer.bdvfx.KeyTracker;
 import javafx.animation.KeyFrame;
 import javafx.animation.KeyValue;
 import javafx.animation.Timeline;
@@ -26,12 +27,15 @@ public class GridResizer
 
 	private boolean isOnMargin;
 
-	public GridResizer( final GridConstraintsManager manager, final double tolerance, final GridPane grid )
+	private final KeyTracker keyTracker;
+
+	public GridResizer( final GridConstraintsManager manager, final double tolerance, final GridPane grid, final KeyTracker keyTracker )
 	{
 		super();
 		this.manager = manager;
 		this.tolerance = tolerance;
 		this.grid = grid;
+		this.keyTracker = keyTracker;
 	}
 
 	public EventHandler< MouseEvent > onMouseMovedHandler()
@@ -69,6 +73,8 @@ public class GridResizer
 		@Override
 		public void handle( final MouseEvent event )
 		{
+			if ( !keyTracker.noKeysActive() )
+				return;
 			synchronized ( manager )
 			{
 				synchronized ( grid )

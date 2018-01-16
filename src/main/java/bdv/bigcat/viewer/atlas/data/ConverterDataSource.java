@@ -14,7 +14,7 @@ import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.type.Type;
 import net.imglib2.view.Views;
 
-public class ConverterDataSource< D extends Type< D >, T extends Type< T >, U extends Type< U > > implements DataSource< D, U >
+public class ConverterDataSource< D, T, U extends Type< U > > implements DataSource< D, U >
 {
 
 	private final DataSource< D, T > dataSource;

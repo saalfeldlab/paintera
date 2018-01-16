@@ -6,6 +6,7 @@ import java.util.Collection;
 import bdv.bigcat.viewer.atlas.data.DataSource;
 import bdv.bigcat.viewer.atlas.data.LabelDataSource;
 import bdv.bigcat.viewer.atlas.opendialog.OpenSourceDialog.TYPE;
+import bdv.util.IdService;
 import bdv.util.volatiles.SharedQueue;
 import javafx.beans.property.DoubleProperty;
 import javafx.beans.property.IntegerProperty;
@@ -95,6 +96,11 @@ public interface BackendDialog
 		return new SimpleIntegerProperty( 3 );
 	}
 
+	public default Runnable commitCanvas()
+	{
+		return () -> {};
+	}
+
 	public default ObjectProperty< AxisOrder > defaultAxisOrder()
 	{
 		return new SimpleObjectProperty<>( AxisOrder.defaultOrder( numDimensions().get() ).orElse( null ) );
@@ -103,6 +109,11 @@ public interface BackendDialog
 	public default ObjectProperty< AxisOrder > axisOrder()
 	{
 		return new SimpleObjectProperty<>( AxisOrder.defaultOrder( numDimensions().get() ).orElse( null ) );
+	}
+
+	public default IdService idService()
+	{
+		return null;
 	}
 
 }

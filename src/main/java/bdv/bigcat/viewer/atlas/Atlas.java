@@ -1,5 +1,6 @@
 package bdv.bigcat.viewer.atlas;
 
+import java.io.File;
 import java.lang.invoke.MethodHandles;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -29,12 +30,16 @@ import bdv.bigcat.viewer.atlas.AtlasFocusHandler.OnEnterOnExit;
 import bdv.bigcat.viewer.atlas.data.ConverterDataSource;
 import bdv.bigcat.viewer.atlas.data.DataSource;
 import bdv.bigcat.viewer.atlas.data.HDF5LabelMultisetDataSource;
-import bdv.bigcat.viewer.atlas.data.LabelDataSource;
+import bdv.bigcat.viewer.atlas.data.mask.MaskedSource;
+import bdv.bigcat.viewer.atlas.data.mask.PickOneAllIntegerTypes;
+import bdv.bigcat.viewer.atlas.data.mask.PickOneAllIntegerTypesVolatile;
 import bdv.bigcat.viewer.atlas.mode.Highlights;
 import bdv.bigcat.viewer.atlas.mode.Merges;
 import bdv.bigcat.viewer.atlas.mode.Mode;
 import bdv.bigcat.viewer.atlas.mode.ModeUtil;
 import bdv.bigcat.viewer.atlas.mode.NavigationOnly;
+import bdv.bigcat.viewer.atlas.mode.paint.PaintMode;
+import bdv.bigcat.viewer.atlas.source.AtlasSourceState.LabelSourceState;
 import bdv.bigcat.viewer.atlas.source.AtlasSourceState.RawSourceState;
 import bdv.bigcat.viewer.atlas.source.ResizeOnLeftSide;
 import bdv.bigcat.viewer.atlas.source.SourceInfo;
@@ -55,6 +60,7 @@ import bdv.bigcat.viewer.viewer3d.Viewer3DFX;
 import bdv.labels.labelset.LabelMultisetType;
 import bdv.labels.labelset.Multiset.Entry;
 import bdv.labels.labelset.VolatileLabelMultisetType;
+import bdv.util.IdService;
 import bdv.util.volatiles.SharedQueue;
 import bdv.viewer.Interpolation;
 import bdv.viewer.Source;
@@ -86,17 +92,23 @@ import javafx.stage.Stage;
 import javafx.stage.WindowEvent;
 import net.imglib2.FinalInterval;
 import net.imglib2.Interval;
+import net.imglib2.cache.img.DiskCachedCellImgOptions;
+import net.imglib2.cache.img.DiskCachedCellImgOptions.CacheType;
 import net.imglib2.converter.Converter;
 import net.imglib2.interpolation.randomaccess.ClampingNLinearInterpolatorFactory;
 import net.imglib2.interpolation.randomaccess.NearestNeighborInterpolatorFactory;
 import net.imglib2.realtransform.AffineTransform3D;
+import net.imglib2.type.NativeType;
 import net.imglib2.type.logic.BoolType;
 import net.imglib2.type.numeric.ARGBType;
 import net.imglib2.type.numeric.IntegerType;
 import net.imglib2.type.numeric.RealType;
+import net.imglib2.type.numeric.integer.UnsignedLongType;
 import net.imglib2.type.volatiles.AbstractVolatileRealType;
 import net.imglib2.type.volatiles.VolatileARGBType;
+import net.imglib2.type.volatiles.VolatileUnsignedLongType;
 import net.imglib2.util.Intervals;
+import net.imglib2.util.Pair;
 
 public class Atlas
 {
@@ -232,7 +244,11 @@ public class Atlas
 		this.view.setInfoNode( renderView );
 		this.renderView.scene().addEventHandler( MouseEvent.MOUSE_CLICKED, event -> renderView.scene().requestFocus() );
 
-		final Mode[] initialModes = { new NavigationOnly(), new Highlights( controller, baseView().getState().transformManager(), sourceInfo, keyTracker ), new Merges( sourceInfo ) };
+		final Mode[] initialModes = {
+				new NavigationOnly(),
+				new Highlights( controller, baseView().getState().transformManager(), sourceInfo, keyTracker ),
+				new Merges( sourceInfo ),
+				new PaintMode( baseView().viewerAxes(), sourceInfo, keyTracker, baseView().getState().transformManager() ) };
 		Arrays.stream( initialModes ).forEach( modes::add );
 
 		for ( final Mode mode : modes )
@@ -390,9 +406,11 @@ public class Atlas
 		this.sourceInfo.removeSource( spec );
 	}
 
-	public void addLabelSource( final LabelDataSource< LabelMultisetType, VolatileLabelMultisetType > spec )
+	public void addLabelSource(
+			final DataSource< LabelMultisetType, VolatileLabelMultisetType > spec,
+			final FragmentSegmentAssignmentState< ? > assignment,
+			final IdService idService )
 	{
-		final FragmentSegmentAssignmentState< ? > assignment = spec.getAssignment();
 		final CurrentModeConverter< VolatileLabelMultisetType > converter = new CurrentModeConverter<>();
 		final HashMap< Mode, SelectedIds > selIdsMap = new HashMap<>();
 		final HashMap< Mode, ARGBStream > streamsMap = new HashMap<>();
@@ -422,7 +440,7 @@ public class Atlas
 		} );
 
 		addSource( vsource, comp, spec.tMin(), spec.tMax() );
-		sourceInfo.addLabelSource(
+		final LabelSourceState< VolatileARGBType, LabelMultisetType > state = sourceInfo.addLabelSource(
 				vsource,
 				ToIdConverter.fromLabelMultisetType(),
 				( Function< LabelMultisetType, Converter< LabelMultisetType, BoolType > > ) sel -> createBoolConverter( sel, assignment ),
@@ -431,6 +449,12 @@ public class Atlas
 				selIdsMap,
 				( s, t ) -> t.set( s.get() ) );
 		Optional.ofNullable( currentMode.get() ).ifPresent( setConverter::accept );
+		state.idServiceProperty().set( idService );
+//		if ( spec instanceof MaskedSource< ?, ?, ? > )
+//		{
+//			final MaskedSource< LabelMultisetType, VolatileLabelMultisetType, ? extends BooleanType< ? > > mspec =
+//					( MaskedSource< LabelMultisetType, VolatileLabelMultisetType, ? extends BooleanType< ? > > ) spec;
+//		}
 
 		final LabelMultisetType t = vsource.getDataType();
 		final Function< LabelMultisetType, String > valueToString = valueToString( t );
@@ -476,9 +500,12 @@ public class Atlas
 	// TODO Is there a better bound for V than AbstractVolatileRealType? V
 	// extends Volatile< I > & IntegerType< V > did not work with
 	// VolatileUnsignedLongType
-	public < I extends IntegerType< I >, V extends AbstractVolatileRealType< I, V > > void addLabelSource( final LabelDataSource< I, V > spec, final ToLongFunction< V > toLong )
+	public < I extends IntegerType< I >, V extends AbstractVolatileRealType< I, V > > void addLabelSource(
+			final DataSource< I, V > spec,
+			final FragmentSegmentAssignmentState< ? > assignment,
+			final ToLongFunction< V > toLong,
+			final IdService idService )
 	{
-		final FragmentSegmentAssignmentState< ? > assignment = spec.getAssignment();
 		final CurrentModeConverter< V > converter = new CurrentModeConverter<>();
 		final HashMap< Mode, SelectedIds > selIdsMap = new HashMap<>();
 		final HashMap< Mode, ARGBStream > streamsMap = new HashMap<>();
@@ -510,7 +537,7 @@ public class Atlas
 			Optional.ofNullable( newv ).ifPresent( setConverter::accept );
 		} );
 		addSource( vsource, comp, spec.tMin(), spec.tMax() );
-		sourceInfo.addLabelSource(
+		final LabelSourceState< VolatileARGBType, I > state = sourceInfo.addLabelSource(
 				vsource,
 				spec.getDataType() instanceof IntegerType ? ToIdConverter.fromIntegerType() : ToIdConverter.fromRealType(),
 				( Function< I, Converter< I, BoolType > > ) sel -> createBoolConverter( sel, assignment ),
@@ -521,6 +548,9 @@ public class Atlas
 					t.set( s.get() );
 				} );
 		Optional.ofNullable( currentMode.get() ).ifPresent( setConverter::accept );
+		state.idServiceProperty().set( idService );
+		if ( spec instanceof MaskedSource< ?, ? > )
+			state.maskedSourceProperty().set( ( MaskedSource< ?, ? > ) spec );
 
 		final I t = vsource.getDataType();
 		final Function< I, String > valueToString = valueToString( t );
@@ -652,9 +682,24 @@ public class Atlas
 				sb.append( "}" );
 				return sb.toString();
 			};
+		else if ( t instanceof Pair< ?, ? > )
+		{
+			final Pair< ?, ? > p = ( Pair< ?, ? > ) t;
+			if ( p.getB() instanceof IntegerType< ? > )
+				valueToString = ( Function< T, String > ) ( Function< Pair< ?, IntegerType< ? > >, String > ) valueToStringForPair( p.getA(), ( IntegerType ) p.getB() );
+			else
+				valueToString = rt -> "Do not understand type!";
+		}
 		else
 			valueToString = rt -> "Do not understand type!";
 		return valueToString;
+	}
+
+	public static < T, I extends IntegerType< I > > Function< Pair< T, I >, String > valueToStringForPair( final T t, final I i )
+	{
+		final Function< T, String > valueToStringT = valueToString( t );
+		final Function< I, String > valueToStringI = valueToString( i );
+		return p -> bdv.labels.labelset.Label.regular( p.getB().getIntegerLong() ) ? valueToStringI.apply( p.getB() ) : valueToStringT.apply( p.getA() );
 	}
 
 	public void setTransform( final AffineTransform3D transform )
@@ -669,12 +714,28 @@ public class Atlas
 		return ( s, t ) -> t.set( assignment.getSegment( maxCountId( s ) ) == segmentId );
 	}
 
+	@SuppressWarnings( "unchecked" )
 	public static < T extends RealType< T > > Converter< T, BoolType > createBoolConverter( final T selection, final FragmentSegmentAssignmentState< ? > assignment )
 	{
 		final boolean isInteger = selection instanceof IntegerType< ? >;
 		final long id = isInteger ? ( ( IntegerType< ? > ) selection ).getIntegerLong() : ( long ) selection.getRealDouble();
 		final long segmentId = assignment.getSegment( id );
-		return isInteger ? ( Converter< T, BoolType > ) ( Converter< IntegerType< ? >, BoolType > ) ( s, t ) -> t.set( assignment.getSegment( s.getIntegerLong() ) == segmentId ) : ( s, t ) -> t.set( assignment.getSegment( ( long ) s.getRealDouble() ) == segmentId );
+		if ( selection instanceof IntegerType< ? > )
+			return ( Converter< T, BoolType > ) ( Converter< IntegerType< ? >, BoolType > ) ( s, t ) -> t.set( assignment.getSegment( s.getIntegerLong() ) == segmentId );
+		else
+			return ( s, t ) -> t.set( assignment.getSegment( ( long ) s.getRealDouble() ) == segmentId );
+
+	}
+
+	public static < I extends IntegerType< I >, K extends IntegerType< K > > Converter< Pair< I, K >, BoolType > createBoolConverter( final Pair< I, K > selection, final FragmentSegmentAssignmentState< ? > assignment )
+	{
+		final long paintedLabel = selection.getB().getIntegerLong();
+		final long id = bdv.labels.labelset.Label.regular( paintedLabel ) ? paintedLabel : selection.getA().getIntegerLong();
+		final long segmentId = assignment.getSegment( id );
+		return ( s, t ) -> {
+			final long k = s.getB().getIntegerLong();
+			t.set( assignment.getSegment( bdv.labels.labelset.Label.regular( k ) ? k : s.getA().getIntegerLong() ) == segmentId );
+		};
 
 	}
 
@@ -728,6 +789,67 @@ public class Atlas
 		else if ( t instanceof AbstractVolatileRealType< ?, ? > && ( ( AbstractVolatileRealType< ?, ? > ) t ).get() instanceof IntegerType< ? > )
 			return t.getMaxValue();
 		return 1.0;
+	}
+
+	public static < I extends IntegerType< I > & NativeType< I >, V extends AbstractVolatileRealType< I, V > > MaskedSource< I, V >
+
+			addCanvas(
+					final DataSource< I, V > source,
+					final int[] cellSize,
+					final String path )
+	{
+
+		final DiskCachedCellImgOptions cacheOptions = DiskCachedCellImgOptions
+				.options()
+				.dirtyAccesses( true )
+				.cacheDirectory( new File( path ).toPath() )
+				.cacheType( CacheType.BOUNDED )
+				.cellDimensions( cellSize )
+				.deleteCacheDirectoryOnExit( false )
+				.maxCacheSize( 100 );
+
+		final I defaultValue = source.getDataType().createVariable();
+		defaultValue.setInteger( bdv.labels.labelset.Label.INVALID );
+
+		final I type = source.getDataType();
+		type.setInteger( bdv.labels.labelset.Label.OUTSIDE );
+		final V vtype = source.getType();
+		vtype.setValid( true );
+		vtype.get().setInteger( bdv.labels.labelset.Label.OUTSIDE );
+
+		final PickOneAllIntegerTypes< I, UnsignedLongType > pacD = new PickOneAllIntegerTypes<>(
+				l -> bdv.labels.labelset.Label.regular( l.getIntegerLong() ),
+				l -> bdv.labels.labelset.Label.regular( l.getIntegerLong() ),
+				type.createVariable() );
+
+		final PickOneAllIntegerTypesVolatile< I, UnsignedLongType, V, VolatileUnsignedLongType > pacT = new PickOneAllIntegerTypesVolatile<>(
+				l -> bdv.labels.labelset.Label.regular( l.getIntegerLong() ),
+				l -> bdv.labels.labelset.Label.regular( l.getIntegerLong() ),
+				vtype.createVariable() );
+
+		final MaskedSource< I, V > ms = new MaskedSource<>(
+				source,
+				cacheOptions,
+				level -> String.format( "%s/%d", path, level ),
+				pacD,
+				pacT,
+				type,
+				vtype );
+		// opts, mipmapCanvasCacheDirs, pacD, pacT, writeMaskToCanvas,
+		// extensionD, extensionT );
+
+//		ms = new MaskedSource<>(
+//				null,//source,
+//				null,//cacheOptions,
+//				null,//path + "/%d",
+//				null, // pacD,
+//				null, // pacT,
+//				null, // writeMaskToCanvas,
+//				null,//type,
+//				null,//vtype );
+
+		return ms;
+
 	}
 
 	private static ARGBType toARGBType( final Color color )
