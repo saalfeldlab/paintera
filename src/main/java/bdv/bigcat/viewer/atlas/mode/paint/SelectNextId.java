@@ -60,7 +60,7 @@ public class SelectNextId
 			return;
 		}
 
-		if ( !state.typeProperty().equals( TYPE.LABEL ) )
+		if ( !state.typeProperty().get().equals( TYPE.LABEL ) )
 		{
 			LOG.warn( "Source {} is not a label source -- cannot create new id.", currentSource );
 			return;
