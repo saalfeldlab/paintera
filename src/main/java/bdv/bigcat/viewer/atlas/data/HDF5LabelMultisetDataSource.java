@@ -1,7 +1,6 @@
 package bdv.bigcat.viewer.atlas.data;
 
 import java.io.IOException;
-import java.util.Iterator;
 import java.util.Optional;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
@@ -14,9 +13,7 @@ import bdv.bigcat.viewer.stream.AbstractHighlightingARGBStream;
 import bdv.bigcat.viewer.stream.ModalGoldenAngleSaturatedHighlightingARGBStream;
 import bdv.img.cache.VolatileGlobalCellCache;
 import bdv.img.h5.H5LabelMultisetSetupImageLoader;
-import bdv.labels.labelset.Label;
 import bdv.labels.labelset.LabelMultisetType;
-import bdv.labels.labelset.Multiset.Entry;
 import bdv.labels.labelset.VolatileLabelMultisetType;
 import bdv.viewer.Interpolation;
 import ch.systemsx.cisd.hdf5.HDF5Factory;
@@ -25,10 +22,8 @@ import gnu.trove.map.hash.TLongLongHashMap;
 import mpicbg.spim.data.sequence.VoxelDimensions;
 import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.RealRandomAccessible;
-import net.imglib2.converter.Converter;
 import net.imglib2.interpolation.randomaccess.NearestNeighborInterpolatorFactory;
 import net.imglib2.realtransform.AffineTransform3D;
-import net.imglib2.type.numeric.ARGBType;
 import net.imglib2.view.Views;
 
 public class HDF5LabelMultisetDataSource implements LabelDataSource< LabelMultisetType, VolatileLabelMultisetType >
@@ -141,63 +136,6 @@ public class HDF5LabelMultisetDataSource implements LabelDataSource< LabelMultis
 	public SelectedIds getSelectedIds()
 	{
 		return selectedIds;
-	}
-
-	public static class HighlightingStreamConverter implements Converter< VolatileLabelMultisetType, ARGBType >
-	{
-
-		private final AbstractHighlightingARGBStream stream;
-
-		public HighlightingStreamConverter( final AbstractHighlightingARGBStream stream )
-		{
-			super();
-			this.stream = stream;
-		}
-
-		@Override
-		public void convert( final VolatileLabelMultisetType input, final ARGBType output )
-		{
-			// TODO this needs to use all LabelMultisetType, not just first
-			// entry
-			final Iterator< Entry< Label > > it = input.get().entrySet().iterator();
-			output.set( stream.argb( it.hasNext() ? considerMaxUnsignedInt( it.next().getElement().id() ) : Label.INVALID ) );
-		}
-
-		public void setAlpha( final int alpha )
-		{
-			stream.setAlpha( alpha );
-		}
-
-		public void setHighlightAlpha( final int alpha )
-		{
-			stream.setActiveSegmentAlpha( alpha );
-		}
-
-		public void setInvalidSegmentAlpha( final int alpha )
-		{
-			stream.setInvalidSegmentAlpha( alpha );
-		}
-
-		public int getAlpha()
-		{
-			return stream.getAlpha();
-		}
-
-		public int getHighlightAlpha()
-		{
-			return stream.getActiveSegmentAlpha();
-		}
-
-		public int getInvalidSegmentAlpha()
-		{
-			return stream.getInvalidSegmentAlpha();
-		}
-
-		private static long considerMaxUnsignedInt( final long val )
-		{
-			return val >= Integer.MAX_VALUE ? Label.INVALID : val;
-		}
-
 	}
 
 	@Override

@@ -1,29 +1,18 @@
 package bdv.bigcat.viewer.stream;
 
-import java.util.function.ToLongFunction;
-
+import bdv.labels.labelset.Label;
 import net.imglib2.converter.Converter;
 import net.imglib2.type.numeric.ARGBType;
-import net.imglib2.type.numeric.RealType;
 
-public class HighlightincConverterIntegerType< I extends RealType< I > > implements Converter< I, ARGBType >
+public abstract class HighlightingStreamConverter< T > implements Converter< T, ARGBType >, SetSeed
 {
 
-	private final AbstractHighlightingARGBStream stream;
+	protected final AbstractHighlightingARGBStream stream;
 
-	private final ToLongFunction< I > toLong;
-
-	public HighlightincConverterIntegerType( final AbstractHighlightingARGBStream stream, final ToLongFunction< I > toLong )
+	public HighlightingStreamConverter( final AbstractHighlightingARGBStream stream )
 	{
 		super();
 		this.stream = stream;
-		this.toLong = toLong;
-	}
-
-	@Override
-	public void convert( final I input, final ARGBType output )
-	{
-		output.set( stream.argb( toLong.applyAsLong( input ) ) );
 	}
 
 	public void setAlpha( final int alpha )
@@ -54,6 +43,17 @@ public class HighlightincConverterIntegerType< I extends RealType< I > > impleme
 	public int getInvalidSegmentAlpha()
 	{
 		return stream.getInvalidSegmentAlpha();
+	}
+
+	private static long considerMaxUnsignedInt( final long val )
+	{
+		return val >= Integer.MAX_VALUE ? Label.INVALID : val;
+	}
+
+	@Override
+	public void setSeed( final long seed )
+	{
+		this.stream.setSeed( seed );
 	}
 
 }

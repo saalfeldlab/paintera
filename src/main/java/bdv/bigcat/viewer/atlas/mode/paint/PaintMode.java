@@ -15,7 +15,6 @@ import org.slf4j.LoggerFactory;
 
 import bdv.bigcat.viewer.IdSelector;
 import bdv.bigcat.viewer.atlas.mode.AbstractStateMode;
-import bdv.bigcat.viewer.atlas.source.AtlasSourceState.LabelSourceState;
 import bdv.bigcat.viewer.atlas.source.SourceInfo;
 import bdv.bigcat.viewer.bdvfx.EventFX;
 import bdv.bigcat.viewer.bdvfx.InstallAndRemove;
@@ -83,16 +82,9 @@ public class PaintMode extends AbstractStateMode
 					paint.brushRadiusIncrementProperty().set( this.brushRadiusIncrement.get() );
 					paint.brushRadiusIncrementProperty().bindBidirectional( this.brushRadiusIncrement );
 					final ObjectProperty< Source< ? > > currentSource = sourceInfo.currentSourceProperty();
-					final ObjectBinding< SelectedIds > currentSelectedIds = Bindings.createObjectBinding( () -> {
-						final Source< ? > cs = currentSource.get();
-						if ( cs == null || !( sourceInfo.getState( cs ) instanceof LabelSourceState< ?, ? > ) )
-							return null;
-						else
-						{
-							final LabelSourceState< ?, ? > ls = ( LabelSourceState< ?, ? > ) sourceInfo.getState( cs );
-							return ls.selectedIds().get( this );
-						}
-					}, currentSource );
+					final ObjectBinding< SelectedIds > currentSelectedIds = Bindings.createObjectBinding(
+							() -> sourceInfo.getState( currentSource.get() ).selectedIds().get( this ),
+							currentSource );
 
 					final Supplier< Long > paintSelection = () -> {
 						final SelectedIds csi = currentSelectedIds.get();

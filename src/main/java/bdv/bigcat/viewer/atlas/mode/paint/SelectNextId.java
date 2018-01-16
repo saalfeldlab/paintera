@@ -8,7 +8,7 @@ import org.slf4j.LoggerFactory;
 
 import bdv.bigcat.viewer.atlas.mode.Mode;
 import bdv.bigcat.viewer.atlas.source.AtlasSourceState;
-import bdv.bigcat.viewer.atlas.source.AtlasSourceState.LabelSourceState;
+import bdv.bigcat.viewer.atlas.source.AtlasSourceState.TYPE;
 import bdv.bigcat.viewer.atlas.source.SourceInfo;
 import bdv.bigcat.viewer.state.SelectedIds;
 import bdv.util.IdService;
@@ -60,22 +60,20 @@ public class SelectNextId
 			return;
 		}
 
-		if ( !( state instanceof LabelSourceState< ?, ? > ) )
+		if ( !state.typeProperty().equals( TYPE.LABEL ) )
 		{
 			LOG.warn( "Source {} is not a label source -- cannot create new id.", currentSource );
 			return;
 		}
 
-		final LabelSourceState< ?, ? > labelState = ( LabelSourceState< ?, ? > ) state;
-
-		final IdService idService = labelState.idServiceProperty().get();
+		final IdService idService = state.idServiceProperty().get();
 		if ( idService == null )
 		{
 			LOG.warn( "Source {} does not provide id-service -- cannot create new id.", currentSource );
 			return;
 		}
 
-		final SelectedIds selectedIds = labelState.selectedIds().get( mode );
+		final SelectedIds selectedIds = state.selectedIds().get( mode );
 		action.accept( selectedIds, idService );
 	}
 

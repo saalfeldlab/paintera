@@ -10,12 +10,13 @@ import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
+import bdv.bigcat.composite.Composite;
 import bdv.bigcat.ui.ARGBStream;
+import bdv.bigcat.viewer.ARGBColorConverter;
 import bdv.bigcat.viewer.ToIdConverter;
 import bdv.bigcat.viewer.atlas.data.DataSource;
 import bdv.bigcat.viewer.atlas.mode.Mode;
-import bdv.bigcat.viewer.atlas.source.AtlasSourceState.LabelSourceState;
-import bdv.bigcat.viewer.atlas.source.AtlasSourceState.RawSourceState;
+import bdv.bigcat.viewer.atlas.source.AtlasSourceState.TYPE;
 import bdv.bigcat.viewer.state.FragmentSegmentAssignmentState;
 import bdv.bigcat.viewer.state.SelectedIds;
 import bdv.viewer.Source;
@@ -31,7 +32,6 @@ import javafx.collections.FXCollections;
 import javafx.collections.ListChangeListener;
 import javafx.collections.ObservableList;
 import javafx.collections.ObservableMap;
-import javafx.scene.paint.Color;
 import net.imglib2.converter.Converter;
 import net.imglib2.type.Type;
 import net.imglib2.type.logic.BoolType;
@@ -76,28 +76,31 @@ public class SourceInfo
 		updateCurrentSourceIndexInVisibleSources();
 	}
 
-	public < D extends Type< D >, T extends RealType< T > > RawSourceState< T, D > addRawSource(
+	public < D extends Type< D >, T extends RealType< T > > AtlasSourceState< T, D > addRawSource(
 			final DataSource< D, T > source,
 			final double min,
 			final double max,
-			final Color color )
+			final ARGBType color,
+			final Composite< ARGBType, ARGBType > composite )
 	{
-		final RawSourceState< T, D > state = new AtlasSourceState.RawSourceState<>( source, min, max );
-		state.colorProperty().set( color );
+		final ARGBColorConverter< T > converter = new ARGBColorConverter.InvertingImp1<>( min, max );
+		converter.colorProperty().set( color );
+		final AtlasSourceState< T, D > state = new AtlasSourceState<>( source, converter, composite, AtlasSourceState.TYPE.RAW );
 		addState( source, state );
 		return state;
 	}
 
-	public < D extends Type< D >, T extends Type< T >, F extends FragmentSegmentAssignmentState< F > > LabelSourceState< T, D > addLabelSource(
+	public < D extends Type< D >, T extends Type< T >, F extends FragmentSegmentAssignmentState< F > > AtlasSourceState< T, D > addLabelSource(
 			final DataSource< D, T > source,
 			final ToIdConverter idConverter,
 			final Function< D, Converter< D, BoolType > > toBoolConverter,
 			final F frag,
 			final HashMap< Mode, ARGBStream > stream,
 			final HashMap< Mode, SelectedIds > selectedId,
-			final Converter< T, ARGBType > converter )
+			final Converter< T, ARGBType > converter,
+			final Composite< ARGBType, ARGBType > composite )
 	{
-		final LabelSourceState< T, D > state = new AtlasSourceState.LabelSourceState<>( source, converter );
+		final AtlasSourceState< T, D > state = new AtlasSourceState<>( source, converter, composite, TYPE.LABEL );
 		state.toIdConverterProperty().set( idConverter );
 		state.maskGeneratorProperty().set( toBoolConverter );
 		state.assignmentProperty().set( frag );
@@ -131,24 +134,28 @@ public class SourceInfo
 	public synchronized void addMode( final Mode mode, final Function< Source< ? >, Optional< ARGBStream > > makeStream, final Function< Source< ? >, Optional< SelectedIds > > makeSelection )
 	{
 		for ( final Entry< Source< ? >, AtlasSourceState< ?, ? > > sourceAndState : states.entrySet() )
-			if ( sourceAndState.getValue() instanceof LabelSourceState< ?, ? > )
+		{
+			final AtlasSourceState< ?, ? > state = sourceAndState.getValue();
+			if ( state.typeProperty().get().equals( TYPE.LABEL ) )
 			{
-				final LabelSourceState< ?, ? > lstate = ( LabelSourceState< ?, ? > ) sourceAndState.getValue();
-				makeStream.apply( sourceAndState.getKey() ).ifPresent( s -> lstate.streams().put( mode, s ) );
-				makeSelection.apply( sourceAndState.getKey() ).ifPresent( s -> lstate.selectedIds().put( mode, s ) );
+				if ( state.streams() != null )
+					makeStream.apply( sourceAndState.getKey() ).ifPresent( s -> state.streams().put( mode, s ) );
+				if ( state.selectedIds() != null )
+					makeSelection.apply( sourceAndState.getKey() ).ifPresent( s -> state.selectedIds().put( mode, s ) );
 			}
+		}
 	}
 
 	public synchronized void removeMode( final Mode mode )
 	{
-		this.states.values().stream().filter( s -> s instanceof LabelSourceState< ?, ? > ).map( s -> ( LabelSourceState< ?, ? > ) s ).forEach( s -> s.streams().remove( mode ) );
-		this.states.values().stream().filter( s -> s instanceof LabelSourceState< ?, ? > ).map( s -> ( LabelSourceState< ?, ? > ) s ).forEach( s -> s.selectedIds().remove( mode ) );
+		this.states.values().stream().map( s -> s.streams() ).filter( s -> s != null ).forEach( s -> s.remove( mode ) );
+		this.states.values().stream().map( s -> s.selectedIds() ).filter( s -> s != null ).forEach( s -> s.remove( mode ) );
 	}
 
 	public synchronized Optional< ToIdConverter > toIdConverter( final Source< ? > source )
 	{
 		final AtlasSourceState< ?, ? > state = states.get( source );
-		return state == null || !( state instanceof LabelSourceState< ?, ? > ) ? Optional.empty() : Optional.ofNullable( ( ( LabelSourceState< ?, ? > ) state ).toIdConverterProperty().get() );
+		return state == null ? Optional.empty() : Optional.ofNullable( state.toIdConverterProperty().get() );
 	}
 
 	@SuppressWarnings( { "unchecked", "rawtypes" } )
@@ -161,27 +168,27 @@ public class SourceInfo
 	public synchronized Optional< ? extends FragmentSegmentAssignmentState< ? > > assignment( final Source< ? > source )
 	{
 		final AtlasSourceState< ?, ? > state = states.get( source );
-		return state != null && state instanceof LabelSourceState< ?, ? > ? Optional.of( ( ( LabelSourceState< ?, ? > ) state ).assignmentProperty().get() ) : Optional.empty();
+		return state != null ? Optional.ofNullable( state.assignmentProperty().get() ) : Optional.empty();
 	}
 
 	public synchronized Optional< ARGBStream > stream( final Source< ? > source, final Mode mode )
 	{
 		final AtlasSourceState< ?, ? > state = states.get( source );
-		return state == null || !( state instanceof LabelSourceState< ?, ? > ) ? Optional.empty() : Optional.ofNullable( ( ( LabelSourceState< ?, ? > ) state ).streams().get( mode ) );
+		return state == null ? Optional.empty() : Optional.ofNullable( state.streams().get( mode ) );
 	}
 
 	public synchronized Optional< SelectedIds > selectedIds( final Source< ? > source, final Mode mode )
 	{
 		final AtlasSourceState< ?, ? > state = states.get( source );
-		return state == null || !( state instanceof LabelSourceState< ?, ? > ) ? Optional.empty() : Optional.ofNullable( ( ( LabelSourceState< ?, ? > ) state ).selectedIds().get( mode ) );
+		return state == null ? Optional.empty() : Optional.ofNullable( state.selectedIds().get( mode ) );
 	}
 
 	public synchronized void forEachStream( final Source< ? > source, final Consumer< ARGBStream > actor )
 	{
 		Optional
 				.ofNullable( states.get( source ) )
-				.filter( LabelSourceState.class::isInstance )
-				.map( s -> ( ( LabelSourceState< ?, ? > ) s ).streams() )
+				.map( s -> s.streams() )
+				.filter( s -> s != null )
 				.map( Map::values ).orElseGet( () -> new ArrayList<>() ).stream().forEach( actor );
 	}
 
