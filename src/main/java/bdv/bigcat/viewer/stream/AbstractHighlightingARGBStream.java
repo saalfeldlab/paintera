@@ -180,6 +180,12 @@ abstract public class AbstractHighlightingARGBStream extends AbstractState< Abst
 		stateChanged();
 	}
 
+	public void setActiveFragmentAlpha( final int alpha )
+	{
+		this.activeFragmentAlpha = ( alpha & 0xff ) << 24;
+		stateChanged();
+	}
+
 	public int getAlpha()
 	{
 		return this.alpha >>> 24;
@@ -193,6 +199,11 @@ abstract public class AbstractHighlightingARGBStream extends AbstractState< Abst
 	public int getInvalidSegmentAlpha()
 	{
 		return invalidSegmentAlpha >>> 24;
+	}
+
+	public int getActiveFragmentAlpha()
+	{
+		return this.activeFragmentAlpha >>> 24;
 	}
 
 	public void clearCache()

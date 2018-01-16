@@ -1,48 +1,38 @@
 package bdv.bigcat.viewer.stream;
 
 import bdv.labels.labelset.Label;
+import javafx.beans.property.IntegerProperty;
+import javafx.beans.property.LongProperty;
+import javafx.beans.property.SimpleIntegerProperty;
+import javafx.beans.property.SimpleLongProperty;
 import net.imglib2.converter.Converter;
 import net.imglib2.type.numeric.ARGBType;
 
-public abstract class HighlightingStreamConverter< T > implements Converter< T, ARGBType >, SetSeed
+public abstract class HighlightingStreamConverter< T > implements Converter< T, ARGBType >, SeedProperty, WithAlpha
 {
 
 	protected final AbstractHighlightingARGBStream stream;
+
+	private final LongProperty seed = new SimpleLongProperty( 1 );
+
+	private final IntegerProperty alpha = new SimpleIntegerProperty();
+
+	private final IntegerProperty activeFragmentAlpha = new SimpleIntegerProperty();
+
+	private final IntegerProperty activeSegmentAlpha = new SimpleIntegerProperty();
 
 	public HighlightingStreamConverter( final AbstractHighlightingARGBStream stream )
 	{
 		super();
 		this.stream = stream;
-	}
-
-	public void setAlpha( final int alpha )
-	{
-		stream.setAlpha( alpha );
-	}
-
-	public void setHighlightAlpha( final int alpha )
-	{
-		stream.setActiveSegmentAlpha( alpha );
-	}
-
-	public void setInvalidSegmentAlpha( final int alpha )
-	{
-		stream.setInvalidSegmentAlpha( alpha );
-	}
-
-	public int getAlpha()
-	{
-		return stream.getAlpha();
-	}
-
-	public int getHighlightAlpha()
-	{
-		return stream.getActiveSegmentAlpha();
-	}
-
-	public int getInvalidSegmentAlpha()
-	{
-		return stream.getInvalidSegmentAlpha();
+		seed.addListener( ( obs, oldv, newv ) -> stream.setSeed( newv.longValue() ) );
+		alpha.addListener( ( obs, oldv, newv ) -> stream.setAlpha( newv.intValue() ) );
+		activeFragmentAlpha.addListener( ( obs, oldv, newv ) -> stream.setActiveFragmentAlpha( newv.intValue() ) );
+		activeSegmentAlpha.addListener( ( obs, oldv, newv ) -> stream.setActiveSegmentAlpha( newv.intValue() ) );
+		stream.setSeed( seed.get() );
+		alpha.set( stream.getAlpha() );
+		activeFragmentAlpha.set( stream.getActiveFragmentAlpha() );
+		activeSegmentAlpha.set( stream.getActiveSegmentAlpha() );
 	}
 
 	private static long considerMaxUnsignedInt( final long val )
@@ -51,9 +41,27 @@ public abstract class HighlightingStreamConverter< T > implements Converter< T, 
 	}
 
 	@Override
-	public void setSeed( final long seed )
+	public LongProperty seedProperty()
 	{
-		this.stream.setSeed( seed );
+		return this.seed;
+	}
+
+	@Override
+	public IntegerProperty alphaProperty()
+	{
+		return this.alpha;
+	}
+
+	@Override
+	public IntegerProperty activeFragmentAlphaProperty()
+	{
+		return this.activeFragmentAlpha;
+	}
+
+	@Override
+	public IntegerProperty activeSegmentAlphaProperty()
+	{
+		return this.activeSegmentAlpha;
 	}
 
 }

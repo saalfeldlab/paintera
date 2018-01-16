@@ -9,6 +9,7 @@ import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 import bdv.bigcat.viewer.ARGBColorConverter;
+import bdv.bigcat.viewer.atlas.CurrentModeConverter;
 import bdv.bigcat.viewer.util.InvokeOnJavaFXApplicationThread;
 import bdv.viewer.Source;
 import javafx.beans.binding.StringBinding;
@@ -27,15 +28,19 @@ import javafx.scene.control.ContentDisplay;
 import javafx.scene.control.Label;
 import javafx.scene.control.ScrollPane;
 import javafx.scene.control.ScrollPane.ScrollBarPolicy;
+import javafx.scene.control.Slider;
 import javafx.scene.control.TextField;
 import javafx.scene.control.TextFormatter;
 import javafx.scene.control.TitledPane;
+import javafx.scene.control.Tooltip;
+import javafx.scene.layout.ColumnConstraints;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
 import javafx.stage.Modality;
+import javafx.util.converter.NumberStringConverter;
 import net.imglib2.converter.Converter;
 import net.imglib2.type.numeric.ARGBType;
 
@@ -135,82 +140,63 @@ public class SourceTabs
 		cb.selectedProperty().bindBidirectional( state.visibleProperty() );
 		cb.selectedProperty().set( state.visibleProperty().get() );
 		final HBox tp = new HBox( cb );
-		switch ( state.typeProperty().get() )
-		{
-		case RAW:
-			final Converter< ?, ARGBType > conv = state.converterProperty().get();
-			if ( conv instanceof ARGBColorConverter< ? > )
-			{
-				final ARGBColorConverter< ? > cconv = ( ARGBColorConverter< ? > ) conv;
-				final ObjectProperty< ARGBType > cProp = cconv.colorProperty();
-				final int c = cProp.get().get();
-				final ColorPicker picker = new ColorPicker( Color.rgb( ARGBType.red( c ), ARGBType.green( c ), ARGBType.blue( c ), ARGBType.alpha( c ) / 255.0 ) );
-				// TODO with max width of 30, this magically hides the arrow
-				// button.
-				// Hacky but works for now.
-				picker.setMinWidth( 50 );
-				picker.setMaxWidth( 50 );
-				picker.setMaxHeight( 20 );
-				picker.valueProperty().addListener( ( obs, oldv, newv ) -> cProp.set( toARGBType( newv ) ) );
-				tp.getChildren().add( picker );
-			}
-			break;
-		default:
-			break;
-		}
 		return tp;
 	}
 
 	private static Node getPaneContents( final AtlasSourceState< ?, ? > state )
 	{
-		switch ( state.typeProperty().get() )
-		{
-		case LABEL:
-			return null;
-		case RAW:
-			final GridPane gp = new GridPane();
-			final Converter< ?, ARGBType > conv = state.converterProperty().get();
-			if ( conv instanceof ARGBColorConverter< ? > )
-			{
-				final ARGBColorConverter< ? > cconv = ( ARGBColorConverter< ? > ) conv;
-				final StringBinding min = cconv.minProperty().asString();
-				final StringBinding max = cconv.maxProperty().asString();
-				final TextField minInput = new TextField( min.get() );
-				final TextField maxInput = new TextField( max.get() );
-				minInput.promptTextProperty().bind( cconv.minProperty().asString( "min=%f" ) );
-				minInput.promptTextProperty().bind( cconv.maxProperty().asString( "max=%f" ) );
+		final Converter< ?, ARGBType > conv = state.converterProperty().get();
+		final VBox info = new VBox();
 
-				min.addListener( ( obs, oldv, newv ) -> minInput.setText( newv ) );
-				max.addListener( ( obs, oldv, newv ) -> maxInput.setText( newv ) );
-
-				final Pattern pattern = Pattern.compile( "\\d*|\\d+\\.\\d*|\\d*\\.\\d+" );
-				final TextFormatter< Double > minFormatter = new TextFormatter<>( ( UnaryOperator< TextFormatter.Change > ) change -> {
-					return pattern.matcher( change.getControlNewText() ).matches() ? change : null;
-				} );
-				final TextFormatter< Double > maxFormatter = new TextFormatter<>( ( UnaryOperator< TextFormatter.Change > ) change -> {
-					return pattern.matcher( change.getControlNewText() ).matches() ? change : null;
-				} );
-
-				minInput.setTextFormatter( minFormatter );
-				maxInput.setTextFormatter( maxFormatter );
-
-				final Button requestSettingMinMax = new Button( "set contrast" );
-				requestSettingMinMax.setOnAction( event -> {
-					Optional.ofNullable( minInput.getText() ).map( Double::parseDouble ).ifPresent( d -> cconv.minProperty().set( d ) );
-					Optional.ofNullable( maxInput.getText() ).map( Double::parseDouble ).ifPresent( d -> cconv.maxProperty().set( d ) );
-				} );
-
-				GridPane.setHgrow( requestSettingMinMax, Priority.ALWAYS );
-
-				gp.add( minInput, 0, 0 );
-				gp.add( maxInput, 1, 0 );
-				gp.add( requestSettingMinMax, 2, 0 );
-			}
-
-			return gp;
-		default:
-			return null;
-		}
+		Optional.ofNullable( converterInfo( conv ) ).ifPresent( node -> info.getChildren().add( node ) );
+//		switch ( state.typeProperty().get() )
+//		{
+//		case LABEL:
+//			return null;
+//		case RAW:
+//			final GridPane gp = new GridPane();
+//			if ( conv instanceof ARGBColorConverter< ? > )
+//			{
+//				final ARGBColorConverter< ? > cconv = ( ARGBColorConverter< ? > ) conv;
+//				final StringBinding min = cconv.minProperty().asString();
+//				final StringBinding max = cconv.maxProperty().asString();
+//				final TextField minInput = new TextField( min.get() );
+//				final TextField maxInput = new TextField( max.get() );
+//				minInput.promptTextProperty().bind( cconv.minProperty().asString( "min=%f" ) );
+//				minInput.promptTextProperty().bind( cconv.maxProperty().asString( "max=%f" ) );
+//
+//				min.addListener( ( obs, oldv, newv ) -> minInput.setText( newv ) );
+//				max.addListener( ( obs, oldv, newv ) -> maxInput.setText( newv ) );
+//
+//				final Pattern pattern = Pattern.compile( "\\d*|\\d+\\.\\d*|\\d*\\.\\d+" );
+//				final TextFormatter< Double > minFormatter = new TextFormatter<>( ( UnaryOperator< TextFormatter.Change > ) change -> {
+//					return pattern.matcher( change.getControlNewText() ).matches() ? change : null;
+//				} );
+//				final TextFormatter< Double > maxFormatter = new TextFormatter<>( ( UnaryOperator< TextFormatter.Change > ) change -> {
+//					return pattern.matcher( change.getControlNewText() ).matches() ? change : null;
+//				} );
+//
+//				minInput.setTextFormatter( minFormatter );
+//				maxInput.setTextFormatter( maxFormatter );
+//
+//				final Button requestSettingMinMax = new Button( "set contrast" );
+//				requestSettingMinMax.setOnAction( event -> {
+//					Optional.ofNullable( minInput.getText() ).map( Double::parseDouble ).ifPresent( d -> cconv.minProperty().set( d ) );
+//					Optional.ofNullable( maxInput.getText() ).map( Double::parseDouble ).ifPresent( d -> cconv.maxProperty().set( d ) );
+//				} );
+//
+//				GridPane.setHgrow( requestSettingMinMax, Priority.ALWAYS );
+//
+//				gp.add( minInput, 0, 0 );
+//				gp.add( maxInput, 1, 0 );
+//				gp.add( requestSettingMinMax, 2, 0 );
+//			}
+//
+//			return gp;
+//		default:
+//			return null;
+//		}
+		return info;
 	}
 
 	private static void addDragAndDropListener( final Node p, final SourceInfo info, final List< Node > children )
@@ -254,6 +240,115 @@ public class SourceTabs
 						( int ) ( color.getRed() * 255 + 0.5 ) << 16 |
 						( int ) ( color.getGreen() * 255 + 0.5 ) << 8 |
 						( int ) ( color.getBlue() * 255 + 0.5 ) << 0 );
+	}
+
+	private static Node converterInfo( final Converter< ?, ? > converter )
+	{
+		if ( converter instanceof ARGBColorConverter< ? > )
+		{
+
+			final ARGBColorConverter< ? > conv = ( ARGBColorConverter< ? > ) converter;
+
+			final GridPane gp = new GridPane();
+
+			final ObjectProperty< ARGBType > cProp = conv.colorProperty();
+			final int c = cProp.get().get();
+			final ColorPicker picker = new ColorPicker( Color.rgb( ARGBType.red( c ), ARGBType.green( c ), ARGBType.blue( c ), ARGBType.alpha( c ) / 255.0 ) );
+			picker.valueProperty().addListener( ( obs, oldv, newv ) -> cProp.set( toARGBType( newv ) ) );
+			gp.add( picker, 2, 0 );
+
+			final StringBinding min = conv.minProperty().asString();
+			final StringBinding max = conv.maxProperty().asString();
+			final TextField minInput = new TextField( min.get() );
+			final TextField maxInput = new TextField( max.get() );
+			minInput.promptTextProperty().bind( conv.minProperty().asString( "min=%f" ) );
+			minInput.promptTextProperty().bind( conv.maxProperty().asString( "max=%f" ) );
+
+			min.addListener( ( obs, oldv, newv ) -> minInput.setText( newv ) );
+			max.addListener( ( obs, oldv, newv ) -> maxInput.setText( newv ) );
+
+			final Pattern pattern = Pattern.compile( "\\d*|\\d+\\.\\d*|\\d*\\.\\d+" );
+			final TextFormatter< Double > minFormatter = new TextFormatter<>( ( UnaryOperator< TextFormatter.Change > ) change -> {
+				return pattern.matcher( change.getControlNewText() ).matches() ? change : null;
+			} );
+			final TextFormatter< Double > maxFormatter = new TextFormatter<>( ( UnaryOperator< TextFormatter.Change > ) change -> {
+				return pattern.matcher( change.getControlNewText() ).matches() ? change : null;
+			} );
+
+			minInput.setTextFormatter( minFormatter );
+			maxInput.setTextFormatter( maxFormatter );
+
+			final Button requestSettingMinMax = new Button( "set contrast" );
+			requestSettingMinMax.setOnAction( event -> {
+				Optional.ofNullable( minInput.getText() ).map( Double::parseDouble ).ifPresent( d -> conv.minProperty().set( d ) );
+				Optional.ofNullable( maxInput.getText() ).map( Double::parseDouble ).ifPresent( d -> conv.maxProperty().set( d ) );
+			} );
+
+			GridPane.setHgrow( requestSettingMinMax, Priority.ALWAYS );
+
+			gp.add( minInput, 0, 1 );
+			gp.add( maxInput, 1, 1 );
+			gp.add( requestSettingMinMax, 2, 1 );
+			return gp;
+		}
+
+		if ( converter instanceof CurrentModeConverter< ?, ? > )
+		{
+			final CurrentModeConverter< ?, ? > conv = ( CurrentModeConverter< ?, ? > ) converter;
+			final GridPane gp = new GridPane();
+			final ColumnConstraints secondColumnConstraints = new ColumnConstraints();
+			secondColumnConstraints.setMaxWidth( Double.MAX_VALUE );
+			secondColumnConstraints.setHgrow( Priority.ALWAYS );
+			gp.getColumnConstraints().addAll( new ColumnConstraints(), secondColumnConstraints );
+
+			final int textFieldWidth = 60;
+
+			{
+				final Slider alphaSlider = new Slider( 0, 1, conv.alphaProperty().get() );
+				alphaSlider.valueProperty().bindBidirectional( conv.alphaProperty() );
+				alphaSlider.setShowTickLabels( true );
+				alphaSlider.setTooltip( new Tooltip( "Alpha for inactive fragments." ) );
+				final TextField alphaField = new TextField();
+				alphaField.textProperty().bindBidirectional( alphaSlider.valueProperty(), new NumberStringConverter() );
+				alphaField.setMinWidth( textFieldWidth );
+				alphaField.setMaxWidth( textFieldWidth );
+				gp.add( new Label( "alpha" ), 0, 0 );
+				gp.add( alphaSlider, 1, 0 );
+				gp.add( alphaField, 2, 0 );
+			}
+
+			{
+				final Slider selectedFragmentAlphaSlider = new Slider( 0, 1, conv.activeFragmentAlphaProperty().get() );
+				selectedFragmentAlphaSlider.valueProperty().bindBidirectional( conv.activeFragmentAlphaProperty() );
+				selectedFragmentAlphaSlider.setShowTickLabels( true );
+				selectedFragmentAlphaSlider.setTooltip( new Tooltip( "Alpha for selected fragments." ) );
+				final TextField selectedFragmentAlphaField = new TextField();
+				selectedFragmentAlphaField.textProperty().bindBidirectional( selectedFragmentAlphaSlider.valueProperty(), new NumberStringConverter() );
+				selectedFragmentAlphaField.setMinWidth( textFieldWidth );
+				selectedFragmentAlphaField.setMaxWidth( textFieldWidth );
+				gp.add( new Label( "selected fragment alpha" ), 0, 1 );
+				gp.add( selectedFragmentAlphaSlider, 1, 1 );
+				gp.add( selectedFragmentAlphaField, 2, 1 );
+			}
+
+			{
+				final Slider selectedSegmentAlphaSlider = new Slider( 0, 1, conv.activeSegmentAlphaProperty().get() );
+				selectedSegmentAlphaSlider.valueProperty().bindBidirectional( conv.activeSegmentAlphaProperty() );
+				selectedSegmentAlphaSlider.setShowTickLabels( true );
+				selectedSegmentAlphaSlider.setTooltip( new Tooltip( "Alpha for active segments." ) );
+				final TextField selectedSegmentAlphaField = new TextField();
+				selectedSegmentAlphaField.textProperty().bindBidirectional( selectedSegmentAlphaSlider.valueProperty(), new NumberStringConverter() );
+				selectedSegmentAlphaField.setMinWidth( textFieldWidth );
+				selectedSegmentAlphaField.setMaxWidth( textFieldWidth );
+				gp.add( new Label( "selected segment alpha" ), 0, 2 );
+				gp.add( selectedSegmentAlphaSlider, 1, 2 );
+				gp.add( selectedSegmentAlphaField, 2, 2 );
+			}
+
+			return gp;
+		}
+
+		return null;
 	}
 
 }
