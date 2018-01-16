@@ -8,6 +8,7 @@ import bdv.labels.labelset.Multiset.Entry;
 import net.imglib2.type.numeric.ARGBType;
 import net.imglib2.type.numeric.IntegerType;
 import net.imglib2.type.numeric.RealType;
+import net.imglib2.util.Pair;
 
 public interface ToIdConverter
 {
@@ -34,6 +35,11 @@ public interface ToIdConverter
 	public static FromRealType fromRealType()
 	{
 		return new FromRealType();
+	}
+
+	public static < I extends IntegerType< I >, K extends IntegerType< K > > FromPair< I, K > fromPair()
+	{
+		return new FromPair<>();
 	}
 
 	public static class FromLabelMultisetType implements ToIdConverter
@@ -125,6 +131,24 @@ public interface ToIdConverter
 		public long biggestFragment( final Object o )
 		{
 			return ( long ) ( ( RealType< ? > ) o ).getRealDouble();
+		}
+	}
+
+	public static class FromPair< I extends IntegerType< I >, K extends IntegerType< K > > implements ToIdConverter
+	{
+
+		@Override
+		public long[] allIds( final Object o )
+		{
+			return new long[] { biggestFragment( o ) };
+		}
+
+		@Override
+		public long biggestFragment( final Object o )
+		{
+			final Pair< I, K > p = ( Pair< I, K > ) o;
+			final long k = p.getB().getIntegerLong();
+			return Label.regular( k ) ? k : p.getA().getIntegerLong();
 		}
 
 	}

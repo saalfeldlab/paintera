@@ -7,9 +7,11 @@ import bdv.bigcat.ui.ARGBStream;
 import bdv.bigcat.viewer.InvertingARGBColorConverter;
 import bdv.bigcat.viewer.ToIdConverter;
 import bdv.bigcat.viewer.atlas.data.DataSource;
+import bdv.bigcat.viewer.atlas.data.mask.MaskedSource;
 import bdv.bigcat.viewer.atlas.mode.Mode;
 import bdv.bigcat.viewer.state.FragmentSegmentAssignmentState;
 import bdv.bigcat.viewer.state.SelectedIds;
+import bdv.util.IdService;
 import bdv.viewer.SourceAndConverter;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.DoubleProperty;
@@ -23,11 +25,12 @@ import javafx.collections.ObservableMap;
 import javafx.scene.paint.Color;
 import net.imglib2.converter.Converter;
 import net.imglib2.display.RealARGBColorConverter;
+import net.imglib2.type.Type;
 import net.imglib2.type.logic.BoolType;
 import net.imglib2.type.numeric.ARGBType;
 import net.imglib2.type.numeric.RealType;
 
-public abstract class AtlasSourceState< T, D >
+public abstract class AtlasSourceState< T extends Type< T >, D extends Type< D > >
 {
 
 	public enum TYPE
@@ -46,6 +49,8 @@ public abstract class AtlasSourceState< T, D >
 	private final ObjectProperty< DataSource< D, T > > dataSource = new SimpleObjectProperty<>();
 
 	private final ObjectProperty< TYPE > type = new SimpleObjectProperty<>();
+
+	private final ObjectProperty< MaskedSource< ?, ? > > maskedSource = new SimpleObjectProperty<>();
 
 	protected void setConverter( final Converter< T, ARGBType > converter )
 	{
@@ -92,7 +97,12 @@ public abstract class AtlasSourceState< T, D >
 		return this.type;
 	}
 
-	public static class LabelSourceState< T, D > extends AtlasSourceState< T, D >
+	public ObjectProperty< MaskedSource< ?, ? > > maskedSourceProperty()
+	{
+		return this.maskedSource;
+	}
+
+	public static class LabelSourceState< T extends Type< T >, D extends Type< D > > extends AtlasSourceState< T, D >
 	{
 
 		public LabelSourceState( final DataSource< D, T > dataSource, final Converter< T, ARGBType > converter )
@@ -109,6 +119,8 @@ public abstract class AtlasSourceState< T, D >
 		private final ObservableMap< Mode, ARGBStream > streams = FXCollections.observableHashMap();
 
 		private final ObservableMap< Mode, SelectedIds > selectedIds = FXCollections.observableHashMap();
+
+		private final ObjectProperty< IdService > idService = new SimpleObjectProperty<>();
 
 		public ObjectProperty< FragmentSegmentAssignmentState< ? > > assignmentProperty()
 		{
@@ -129,9 +141,14 @@ public abstract class AtlasSourceState< T, D >
 		{
 			return this.selectedIds;
 		}
+
+		public ObjectProperty< IdService > idServiceProperty()
+		{
+			return this.idService;
+		}
 	}
 
-	public static class RawSourceState< T extends RealType< T >, D > extends AtlasSourceState< T, D >
+	public static class RawSourceState< T extends RealType< T >, D extends Type< D > > extends AtlasSourceState< T, D >
 	{
 
 		private final DoubleProperty min = new SimpleDoubleProperty( 0.0 );

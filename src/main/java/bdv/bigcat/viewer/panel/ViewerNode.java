@@ -162,6 +162,11 @@ public class ViewerNode extends Pane implements ListChangeListener< SourceAndCon
 		return managesOwnLayerVisibility;
 	}
 
+	public ViewerAxis getViewerAxis()
+	{
+		return this.viewerAxis;
+	}
+
 	public void setViewerAxis( final ViewerAxis axis )
 	{
 		this.viewerAxis = axis;

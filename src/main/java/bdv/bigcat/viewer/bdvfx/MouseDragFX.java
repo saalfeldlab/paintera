@@ -29,6 +29,8 @@ public abstract class MouseDragFX implements InstallAndRemove< Node >
 
 	protected final Object transformLock;
 
+	protected final boolean consume;
+
 	public MouseDragFX( final String name, final Predicate< MouseEvent >[] eventFilter, final Object transformLock )
 	{
 		this( name, eventFilter, false, transformLock );
@@ -40,6 +42,7 @@ public abstract class MouseDragFX implements InstallAndRemove< Node >
 		this.name = name;
 		this.eventFilter = eventFilter;
 		this.transformLock = transformLock;
+		this.consume = consume;
 	}
 
 	public abstract void initDrag( MouseEvent event );

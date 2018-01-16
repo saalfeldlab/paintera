@@ -101,13 +101,13 @@ public class ExampleApplication2
 		viewer.addRawSource( rawSource, 0., 255. );
 
 		final HDF5LabelMultisetDataSource labelSpec2 = new HDF5LabelMultisetDataSource( labelsFile, labelsDataset, cellSize, "labels", cellCache, 1 );
-		viewer.addLabelSource( labelSpec2 );
+		viewer.addLabelSource( labelSpec2, labelSpec2.getAssignment(), null );
 
 		final boolean demonstrateRemove = false;
 		if ( demonstrateRemove )
 		{
 			final HDF5LabelMultisetDataSource labelSpec3 = new HDF5LabelMultisetDataSource( labelsFile, labelsDataset, cellSize, "labels2", cellCache, 2 );
-			viewer.addLabelSource( labelSpec3 );
+			viewer.addLabelSource( labelSpec3, labelSpec3.getAssignment(), null );
 
 			Platform.runLater( () -> {
 				final Dialog< Boolean > d = new Dialog<>();

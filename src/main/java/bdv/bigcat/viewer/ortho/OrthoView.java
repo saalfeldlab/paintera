@@ -94,7 +94,7 @@ public class OrthoView extends GridPane
 		this.onFocusExit = onFocusExit;
 //		this.setInfoNode( new Label( "Place your node here!" ) );
 
-		this.resizer = new GridResizer( this.state.constraintsManager, 10, this );
+		this.resizer = new GridResizer( this.state.constraintsManager, 10, this, keyTracker );
 		this.keyTracker = keyTracker;
 		this.setOnMouseMoved( resizer.onMouseMovedHandler() );
 		this.setOnMouseDragged( resizer.onMouseDraggedHandler() );
@@ -342,6 +342,13 @@ public class OrthoView extends GridPane
 	public void requestRepaint()
 	{
 		viewerNodes.stream().map( ViewerNode::getViewer ).forEach( ViewerPanelFX::requestRepaint );
+	}
+
+	public HashMap< ViewerPanelFX, ViewerAxis > viewerAxes()
+	{
+		final HashMap< ViewerPanelFX, ViewerAxis > axes = new HashMap<>();
+		this.viewerNodes.forEach( vn -> axes.put( vn.getViewer(), vn.getViewerAxis() ) );
+		return axes;
 	}
 
 //	@Override

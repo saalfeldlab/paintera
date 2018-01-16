@@ -1,5 +1,7 @@
 package bdv.bigcat.viewer.atlas.opendialog;
 
+import java.io.File;
+import java.nio.file.FileSystems;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Optional;
@@ -10,22 +12,28 @@ import bdv.bigcat.viewer.util.InvokeOnJavaFXApplicationThread;
 import javafx.beans.binding.Bindings;
 import javafx.beans.binding.BooleanBinding;
 import javafx.beans.property.SimpleObjectProperty;
+import javafx.beans.value.ObservableBooleanValue;
 import javafx.beans.value.ObservableValue;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.collections.ObservableMap;
 import javafx.geometry.Insets;
+import javafx.scene.control.Button;
 import javafx.scene.control.ButtonType;
+import javafx.scene.control.CheckBox;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.Dialog;
 import javafx.scene.control.Label;
+import javafx.scene.control.TextField;
 import javafx.scene.control.TitledPane;
 import javafx.scene.effect.InnerShadow;
 import javafx.scene.layout.GridPane;
+import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
+import javafx.stage.DirectoryChooser;
 
 public class OpenSourceDialog extends Dialog< BackendDialog > implements CombinesErrorMessages
 {
@@ -56,6 +64,8 @@ public class OpenSourceDialog extends Dialog< BackendDialog > implements Combine
 
 	private final TitledPane errorInfo;
 
+	private final ObservableBooleanValue isLabelType;
+
 	private final ObservableList< BACKEND > backendChoices = FXCollections.observableArrayList( BACKEND.values() );
 
 	private final ObservableList< TYPE > typeChoices = FXCollections.observableArrayList( TYPE.values() );
@@ -74,6 +84,18 @@ public class OpenSourceDialog extends Dialog< BackendDialog > implements Combine
 
 	private final MetaPanel metaPanel = new MetaPanel();
 
+	private final CheckBox usePaintingLayer = new CheckBox();
+
+	private final TextField paintingCacheDirectory = new TextField( "" );
+
+	private final Button paintingCacheDirectoryChooserButton = new Button( "Browse" );
+
+	private final HBox paintingCacheDirectoryBox = new HBox( paintingCacheDirectory, paintingCacheDirectoryChooserButton );
+
+	private final TitledPane paintingInfoPane = new TitledPane( "Painting Layer", paintingCacheDirectoryBox );
+
+	private final HBox paintingLayerPane = new HBox( paintingInfoPane );
+
 	public OpenSourceDialog()
 	{
 		super();
@@ -90,7 +112,7 @@ public class OpenSourceDialog extends Dialog< BackendDialog > implements Combine
 		this.grid = new GridPane();
 		this.backendDialog = new StackPane();
 		this.nameField.errorMessageProperty().addListener( ( obs, oldv, newv ) -> combineErrorMessages() );
-		this.dialogContent = new VBox( 10, nameField.textField(), grid, metaPanel.getPane(), errorInfo );
+		this.dialogContent = new VBox( 10, nameField.textField(), grid, metaPanel.getPane(), paintingLayerPane, errorInfo );
 		this.setResizable( true );
 
 		GridPane.setMargin( this.backendDialog, new Insets( 0, 0, 0, 30 ) );
@@ -102,6 +124,7 @@ public class OpenSourceDialog extends Dialog< BackendDialog > implements Combine
 		this.backendChoice = new ComboBox<>( backendChoices );
 		this.typeChoice = new ComboBox<>( typeChoices );
 		this.metaPanel.bindDataTypeTo( this.typeChoice.valueProperty() );
+		isLabelType = Bindings.createBooleanBinding( () -> Optional.ofNullable( typeChoice.getValue() ).map( b -> b.equals( TYPE.LABEL ) ).orElse( false ), this.typeChoice.valueProperty() );
 
 		this.backendChoice.valueProperty().addListener( ( obs, oldv, newv ) -> {
 			if ( this.currentBackend.get() != null )
@@ -124,6 +147,30 @@ public class OpenSourceDialog extends Dialog< BackendDialog > implements Combine
 				combineErrorMessages();
 			} );
 		} );
+
+		this.paintingLayerPane.visibleProperty().bind( isLabelType );
+		this.usePaintingLayer.selectedProperty().addListener( ( obs, oldv, newv ) -> {
+			if ( newv )
+			{
+				this.paintingInfoPane.setCollapsible( newv );
+				this.paintingInfoPane.setExpanded( newv );
+			}
+			else
+			{
+				this.paintingInfoPane.setExpanded( newv );
+				this.paintingInfoPane.setCollapsible( newv );
+			}
+		} );
+
+		this.paintingCacheDirectoryChooserButton.setOnAction( event -> {
+			final DirectoryChooser directoryChooser = new DirectoryChooser();
+			final File initDir = new File( paintingCacheDirectory.getText() );
+			directoryChooser.setInitialDirectory( initDir.exists() && initDir.isDirectory() ? initDir : FileSystems.getDefault().getPath( "." ).toFile() );
+			final File directory = directoryChooser.showDialog( grid.getScene().getWindow() );
+			Optional.ofNullable( directory ).map( File::getAbsolutePath ).ifPresent( paintingCacheDirectory::setText );
+		} );
+		HBox.setHgrow( paintingInfoPane, Priority.ALWAYS );
+		paintingInfoPane.setGraphic( this.usePaintingLayer );
 
 		this.backendChoice.setValue( backendChoices.get( 0 ) );
 		this.typeChoice.setValue( typeChoices.get( 0 ) );
@@ -165,6 +212,16 @@ public class OpenSourceDialog extends Dialog< BackendDialog > implements Combine
 	public Consumer< Collection< String > > combiner()
 	{
 		return strings -> InvokeOnJavaFXApplicationThread.invoke( () -> this.errorMessage.setText( String.join( "\n", strings ) ) );
+	}
+
+	public boolean paint()
+	{
+		return this.usePaintingLayer.selectedProperty().get();
+	}
+
+	public String canvasCacheDirectory()
+	{
+		return this.paintingCacheDirectory.getText();
 	}
 
 }

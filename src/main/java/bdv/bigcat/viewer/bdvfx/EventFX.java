@@ -10,6 +10,7 @@ import javafx.event.EventType;
 import javafx.scene.Node;
 import javafx.scene.input.KeyEvent;
 import javafx.scene.input.MouseEvent;
+import javafx.scene.input.ScrollEvent;
 
 public abstract class EventFX< E extends Event > implements EventHandler< E >, InstallAndRemove< Node >
 {
@@ -89,6 +90,11 @@ public abstract class EventFX< E extends Event > implements EventHandler< E >, I
 	public static EventFX< MouseEvent > MOUSE_DRAGGED( final String name, final Consumer< MouseEvent > eventHandler, final Predicate< MouseEvent >... eventFilter )
 	{
 		return new EventFXWithConsumer<>( name, MouseEvent.MOUSE_DRAGGED, eventHandler, eventFilter );
+	}
+
+	public static EventFX< ScrollEvent > SCROLL( final String name, final Consumer< ScrollEvent > eventHandler, final Predicate< ScrollEvent >... eventFilter )
+	{
+		return new EventFXWithConsumer<>( name, ScrollEvent.SCROLL, eventHandler, eventFilter );
 	}
 
 	public static class EventFXWithConsumer< E extends Event > extends EventFX< E >

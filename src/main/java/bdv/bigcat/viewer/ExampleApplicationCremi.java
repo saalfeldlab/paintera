@@ -107,7 +107,7 @@ public class ExampleApplicationCremi
 		viewer.addRawSource( rawSource, 0., ( 1 << 8 ) - 1. );
 
 		final HDF5LabelMultisetDataSource labelSpec2 = new HDF5LabelMultisetDataSource( labelsFile, labelsDataset, labelCellSize, "labels", cellCache, 1 );
-		viewer.addLabelSource( labelSpec2 );
+		viewer.addLabelSource( labelSpec2, labelSpec2.getAssignment(), null );
 
 	}
 

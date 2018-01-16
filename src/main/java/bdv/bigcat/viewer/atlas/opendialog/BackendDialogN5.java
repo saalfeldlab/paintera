@@ -18,13 +18,17 @@ import java.util.stream.Stream;
 import org.janelia.saalfeldlab.n5.DataType;
 import org.janelia.saalfeldlab.n5.DatasetAttributes;
 import org.janelia.saalfeldlab.n5.N5FSReader;
+import org.janelia.saalfeldlab.n5.N5FSWriter;
 import org.janelia.saalfeldlab.n5.N5Reader;
+import org.janelia.saalfeldlab.n5.N5Writer;
 import org.janelia.saalfeldlab.n5.imglib2.N5Utils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.google.gson.JsonElement;
 
+import bdv.util.IdService;
+import bdv.util.N5IdService;
 import bdv.util.volatiles.SharedQueue;
 import bdv.util.volatiles.VolatileViews;
 import javafx.stage.DirectoryChooser;
@@ -33,8 +37,10 @@ import net.imglib2.Volatile;
 import net.imglib2.cache.volatiles.CacheHints;
 import net.imglib2.cache.volatiles.LoadingStrategy;
 import net.imglib2.type.NativeType;
+import net.imglib2.type.numeric.IntegerType;
 import net.imglib2.util.Pair;
 import net.imglib2.util.ValuePair;
+import net.imglib2.view.Views;
 
 public class BackendDialogN5 extends BackendDialogGroupAndDataset implements CombinesErrorMessages
 {
@@ -319,6 +325,47 @@ public class BackendDialogN5 extends BackendDialogGroupAndDataset implements Com
 		sortScaleDirs( scaleDirs );
 		LOG.debug( "Got the following scale dirs: {}", Arrays.toString( scaleDirs ) );
 		return scaleDirs[ 0 ].getPath();
+	}
+
+	@Override
+	public IdService idService()
+	{
+
+		final String group = groupProperty.get();
+		final N5Writer n5 = new N5FSWriter( group );
+		final String dataset = this.dataset.get();
+		try
+		{
+
+			Long maxId;
+			maxId = n5.getAttribute( dataset, "maxId", Long.class );
+			final long actualMaxId;
+			if ( maxId == null )
+			{
+				if ( isIntegerType() )
+					actualMaxId = maxId( n5, dataset );
+				else
+					// TODO deal with LabelMultisetType here
+					return null;
+			}
+			else
+				actualMaxId = maxId;
+			return new N5IdService( n5, dataset, actualMaxId );
+
+		}
+		catch ( final IOException e1 )
+		{
+			return null;
+		}
+	}
+
+	private static < T extends IntegerType< T > & NativeType< T > > long maxId( final N5Reader n5, final String dataset ) throws IOException
+	{
+		final RandomAccessibleInterval< T > data = N5Utils.open( n5, dataset );
+		long maxId = 0;
+		for ( final T label : Views.flatIterable( data ) )
+			maxId = IdService.max( label.getIntegerLong(), maxId );
+		return maxId;
 	}
 
 }
