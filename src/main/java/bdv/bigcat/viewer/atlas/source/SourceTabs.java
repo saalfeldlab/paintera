@@ -8,12 +8,12 @@ import java.util.function.UnaryOperator;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
-import bdv.bigcat.viewer.atlas.source.AtlasSourceState.LabelSourceState;
-import bdv.bigcat.viewer.atlas.source.AtlasSourceState.RawSourceState;
+import bdv.bigcat.viewer.ARGBColorConverter;
 import bdv.bigcat.viewer.util.InvokeOnJavaFXApplicationThread;
 import bdv.viewer.Source;
 import javafx.beans.binding.StringBinding;
 import javafx.beans.property.DoubleProperty;
+import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.SimpleDoubleProperty;
 import javafx.beans.value.ObservableIntegerValue;
 import javafx.collections.ListChangeListener;
@@ -34,7 +34,10 @@ import javafx.scene.layout.GridPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
+import javafx.scene.paint.Color;
 import javafx.stage.Modality;
+import net.imglib2.converter.Converter;
+import net.imglib2.type.numeric.ARGBType;
 
 public class SourceTabs
 {
@@ -132,66 +135,82 @@ public class SourceTabs
 		cb.selectedProperty().bindBidirectional( state.visibleProperty() );
 		cb.selectedProperty().set( state.visibleProperty().get() );
 		final HBox tp = new HBox( cb );
-		if ( state instanceof RawSourceState< ?, ? > )
+		switch ( state.typeProperty().get() )
 		{
-			final RawSourceState< ?, ? > rawState = ( RawSourceState< ?, ? > ) state;
-			final ColorPicker picker = new ColorPicker( rawState.colorProperty().get() );
-			// TODO with max width of 30, this magically hides the arrow button.
-			// Hacky but works for now.
-			picker.setMinWidth( 50 );
-			picker.setMaxWidth( 50 );
-			picker.setMaxHeight( 20 );
-			picker.valueProperty().bindBidirectional( rawState.colorProperty() );
-			tp.getChildren().add( picker );
+		case RAW:
+			final Converter< ?, ARGBType > conv = state.converterProperty().get();
+			if ( conv instanceof ARGBColorConverter< ? > )
+			{
+				final ARGBColorConverter< ? > cconv = ( ARGBColorConverter< ? > ) conv;
+				final ObjectProperty< ARGBType > cProp = cconv.colorProperty();
+				final int c = cProp.get().get();
+				final ColorPicker picker = new ColorPicker( Color.rgb( ARGBType.red( c ), ARGBType.green( c ), ARGBType.blue( c ), ARGBType.alpha( c ) / 255.0 ) );
+				// TODO with max width of 30, this magically hides the arrow
+				// button.
+				// Hacky but works for now.
+				picker.setMinWidth( 50 );
+				picker.setMaxWidth( 50 );
+				picker.setMaxHeight( 20 );
+				picker.valueProperty().addListener( ( obs, oldv, newv ) -> cProp.set( toARGBType( newv ) ) );
+				tp.getChildren().add( picker );
+			}
+			break;
+		default:
+			break;
 		}
 		return tp;
 	}
 
 	private static Node getPaneContents( final AtlasSourceState< ?, ? > state )
 	{
-		if ( state instanceof LabelSourceState< ?, ? > )
-			return null;
-		else if ( state instanceof RawSourceState< ?, ? > )
+		switch ( state.typeProperty().get() )
 		{
-			final RawSourceState< ?, ? > rss = ( RawSourceState< ?, ? > ) state;
+		case LABEL:
+			return null;
+		case RAW:
 			final GridPane gp = new GridPane();
-			final StringBinding min = rss.minProperty().asString();
-			final StringBinding max = rss.maxProperty().asString();
-			final TextField minInput = new TextField( min.get() );
-			final TextField maxInput = new TextField( max.get() );
-			minInput.promptTextProperty().bind( rss.minProperty().asString( "min=%f" ) );
-			minInput.promptTextProperty().bind( rss.maxProperty().asString( "max=%f" ) );
+			final Converter< ?, ARGBType > conv = state.converterProperty().get();
+			if ( conv instanceof ARGBColorConverter< ? > )
+			{
+				final ARGBColorConverter< ? > cconv = ( ARGBColorConverter< ? > ) conv;
+				final StringBinding min = cconv.minProperty().asString();
+				final StringBinding max = cconv.maxProperty().asString();
+				final TextField minInput = new TextField( min.get() );
+				final TextField maxInput = new TextField( max.get() );
+				minInput.promptTextProperty().bind( cconv.minProperty().asString( "min=%f" ) );
+				minInput.promptTextProperty().bind( cconv.maxProperty().asString( "max=%f" ) );
 
-			min.addListener( ( obs, oldv, newv ) -> minInput.setText( newv ) );
-			max.addListener( ( obs, oldv, newv ) -> maxInput.setText( newv ) );
+				min.addListener( ( obs, oldv, newv ) -> minInput.setText( newv ) );
+				max.addListener( ( obs, oldv, newv ) -> maxInput.setText( newv ) );
 
-			final Pattern pattern = Pattern.compile( "\\d*|\\d+\\.\\d*|\\d*\\.\\d+" );
-			final TextFormatter< Double > minFormatter = new TextFormatter<>( ( UnaryOperator< TextFormatter.Change > ) change -> {
-				return pattern.matcher( change.getControlNewText() ).matches() ? change : null;
-			} );
-			final TextFormatter< Double > maxFormatter = new TextFormatter<>( ( UnaryOperator< TextFormatter.Change > ) change -> {
-				return pattern.matcher( change.getControlNewText() ).matches() ? change : null;
-			} );
+				final Pattern pattern = Pattern.compile( "\\d*|\\d+\\.\\d*|\\d*\\.\\d+" );
+				final TextFormatter< Double > minFormatter = new TextFormatter<>( ( UnaryOperator< TextFormatter.Change > ) change -> {
+					return pattern.matcher( change.getControlNewText() ).matches() ? change : null;
+				} );
+				final TextFormatter< Double > maxFormatter = new TextFormatter<>( ( UnaryOperator< TextFormatter.Change > ) change -> {
+					return pattern.matcher( change.getControlNewText() ).matches() ? change : null;
+				} );
 
-			minInput.setTextFormatter( minFormatter );
-			maxInput.setTextFormatter( maxFormatter );
+				minInput.setTextFormatter( minFormatter );
+				maxInput.setTextFormatter( maxFormatter );
 
-			final Button requestSettingMinMax = new Button( "set contrast" );
-			requestSettingMinMax.setOnAction( event -> {
-				Optional.ofNullable( minInput.getText() ).map( Double::parseDouble ).ifPresent( d -> rss.minProperty().set( d ) );
-				Optional.ofNullable( maxInput.getText() ).map( Double::parseDouble ).ifPresent( d -> rss.maxProperty().set( d ) );
-			} );
+				final Button requestSettingMinMax = new Button( "set contrast" );
+				requestSettingMinMax.setOnAction( event -> {
+					Optional.ofNullable( minInput.getText() ).map( Double::parseDouble ).ifPresent( d -> cconv.minProperty().set( d ) );
+					Optional.ofNullable( maxInput.getText() ).map( Double::parseDouble ).ifPresent( d -> cconv.maxProperty().set( d ) );
+				} );
 
-			GridPane.setHgrow( requestSettingMinMax, Priority.ALWAYS );
+				GridPane.setHgrow( requestSettingMinMax, Priority.ALWAYS );
 
-			gp.add( minInput, 0, 0 );
-			gp.add( maxInput, 1, 0 );
-			gp.add( requestSettingMinMax, 2, 0 );
+				gp.add( minInput, 0, 0 );
+				gp.add( maxInput, 1, 0 );
+				gp.add( requestSettingMinMax, 2, 0 );
+			}
 
 			return gp;
-		}
-		else
+		default:
 			return null;
+		}
 	}
 
 	private static void addDragAndDropListener( final Node p, final SourceInfo info, final List< Node > children )
@@ -226,6 +245,15 @@ public class SourceTabs
 		final Optional< ButtonType > buttonClicked = confirmRemoval.showAndWait();
 		if ( buttonClicked.orElse( ButtonType.CANCEL ).equals( ButtonType.OK ) )
 			onRemove.accept( source );
+	}
+
+	private static ARGBType toARGBType( final Color color )
+	{
+		return new ARGBType(
+				( int ) ( color.getOpacity() * 255 + 0.5 ) << 24 |
+						( int ) ( color.getRed() * 255 + 0.5 ) << 16 |
+						( int ) ( color.getGreen() * 255 + 0.5 ) << 8 |
+						( int ) ( color.getBlue() * 255 + 0.5 ) << 0 );
 	}
 
 }

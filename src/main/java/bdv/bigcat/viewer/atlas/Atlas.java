@@ -24,12 +24,11 @@ import bdv.bigcat.composite.ARGBCompositeAlphaYCbCr;
 import bdv.bigcat.composite.ClearingCompositeProjector.ClearingCompositeProjectorFactory;
 import bdv.bigcat.composite.Composite;
 import bdv.bigcat.ui.ARGBStream;
+import bdv.bigcat.viewer.ARGBColorConverter;
 import bdv.bigcat.viewer.ToIdConverter;
 import bdv.bigcat.viewer.ViewerActor;
 import bdv.bigcat.viewer.atlas.AtlasFocusHandler.OnEnterOnExit;
-import bdv.bigcat.viewer.atlas.data.ConverterDataSource;
 import bdv.bigcat.viewer.atlas.data.DataSource;
-import bdv.bigcat.viewer.atlas.data.HDF5LabelMultisetDataSource;
 import bdv.bigcat.viewer.atlas.data.mask.MaskedSource;
 import bdv.bigcat.viewer.atlas.data.mask.PickOneAllIntegerTypes;
 import bdv.bigcat.viewer.atlas.data.mask.PickOneAllIntegerTypesVolatile;
@@ -39,8 +38,7 @@ import bdv.bigcat.viewer.atlas.mode.Mode;
 import bdv.bigcat.viewer.atlas.mode.ModeUtil;
 import bdv.bigcat.viewer.atlas.mode.NavigationOnly;
 import bdv.bigcat.viewer.atlas.mode.paint.PaintMode;
-import bdv.bigcat.viewer.atlas.source.AtlasSourceState.LabelSourceState;
-import bdv.bigcat.viewer.atlas.source.AtlasSourceState.RawSourceState;
+import bdv.bigcat.viewer.atlas.source.AtlasSourceState;
 import bdv.bigcat.viewer.atlas.source.ResizeOnLeftSide;
 import bdv.bigcat.viewer.atlas.source.SourceInfo;
 import bdv.bigcat.viewer.atlas.source.SourceTabs;
@@ -52,7 +50,8 @@ import bdv.bigcat.viewer.panel.ViewerNode;
 import bdv.bigcat.viewer.state.FragmentSegmentAssignmentState;
 import bdv.bigcat.viewer.state.SelectedIds;
 import bdv.bigcat.viewer.stream.AbstractHighlightingARGBStream;
-import bdv.bigcat.viewer.stream.HighlightincConverterIntegerType;
+import bdv.bigcat.viewer.stream.HighlightingStreamConverterIntegerType;
+import bdv.bigcat.viewer.stream.HighlightingStreamConverterLabelMultisetType;
 import bdv.bigcat.viewer.stream.ModalGoldenAngleSaturatedHighlightingARGBStream;
 import bdv.bigcat.viewer.viewer3d.OrthoSliceFX;
 import bdv.bigcat.viewer.viewer3d.Viewer3DControllerFX;
@@ -62,7 +61,6 @@ import bdv.labels.labelset.Multiset.Entry;
 import bdv.labels.labelset.VolatileLabelMultisetType;
 import bdv.util.IdService;
 import bdv.util.volatiles.SharedQueue;
-import bdv.viewer.Interpolation;
 import bdv.viewer.Source;
 import bdv.viewer.SourceAndConverter;
 import bdv.viewer.ViewerOptions;
@@ -95,8 +93,6 @@ import net.imglib2.Interval;
 import net.imglib2.cache.img.DiskCachedCellImgOptions;
 import net.imglib2.cache.img.DiskCachedCellImgOptions.CacheType;
 import net.imglib2.converter.Converter;
-import net.imglib2.interpolation.randomaccess.ClampingNLinearInterpolatorFactory;
-import net.imglib2.interpolation.randomaccess.NearestNeighborInterpolatorFactory;
 import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.type.NativeType;
 import net.imglib2.type.logic.BoolType;
@@ -411,7 +407,8 @@ public class Atlas
 			final FragmentSegmentAssignmentState< ? > assignment,
 			final IdService idService )
 	{
-		final CurrentModeConverter< VolatileLabelMultisetType > converter = new CurrentModeConverter<>();
+		final CurrentModeConverter< VolatileLabelMultisetType, HighlightingStreamConverterLabelMultisetType > converter = new CurrentModeConverter<>();
+		final Converter< VolatileLabelMultisetType, ARGBType > condafsdf = converter;
 		final HashMap< Mode, SelectedIds > selIdsMap = new HashMap<>();
 		final HashMap< Mode, ARGBStream > streamsMap = new HashMap<>();
 		for ( final Mode mode : this.modes )
@@ -422,16 +419,12 @@ public class Atlas
 			stream.addListener( () -> baseView().requestRepaint() );
 			streamsMap.put( mode, stream );
 		}
-		final DataSource< LabelMultisetType, VolatileARGBType > vsource = new ConverterDataSource<>(
-				spec,
-				converter,
-				method -> method.equals( Interpolation.NLINEAR ) ? new ClampingNLinearInterpolatorFactory<>() : new NearestNeighborInterpolatorFactory<>(),
-				new VolatileARGBType( 0 ) );
+
 		final ARGBCompositeAlphaYCbCr comp = new ARGBCompositeAlphaYCbCr();
 
 		final Consumer< Mode > setConverter = mode -> {
-			final AbstractHighlightingARGBStream argbStream = ( AbstractHighlightingARGBStream ) sourceInfo.stream( vsource, mode ).get();
-			converter.setConverter( new HDF5LabelMultisetDataSource.HighlightingStreamConverter( argbStream ) );
+			final AbstractHighlightingARGBStream argbStream = ( AbstractHighlightingARGBStream ) sourceInfo.stream( spec, mode ).get();
+			converter.setConverter( new HighlightingStreamConverterLabelMultisetType( argbStream ) );
 			baseView().requestRepaint();
 		};
 
@@ -439,15 +432,16 @@ public class Atlas
 			Optional.ofNullable( newv ).ifPresent( setConverter::accept );
 		} );
 
-		addSource( vsource, comp, spec.tMin(), spec.tMax() );
-		final LabelSourceState< VolatileARGBType, LabelMultisetType > state = sourceInfo.addLabelSource(
-				vsource,
+		addSource( spec, comp, spec.tMin(), spec.tMax() );
+		final AtlasSourceState< VolatileLabelMultisetType, LabelMultisetType > state = sourceInfo.addLabelSource(
+				spec,
 				ToIdConverter.fromLabelMultisetType(),
 				( Function< LabelMultisetType, Converter< LabelMultisetType, BoolType > > ) sel -> createBoolConverter( sel, assignment ),
 				( FragmentSegmentAssignmentState ) assignment,
 				streamsMap,
 				selIdsMap,
-				( s, t ) -> t.set( s.get() ) );
+				converter,
+				comp );// converter );
 		Optional.ofNullable( currentMode.get() ).ifPresent( setConverter::accept );
 		state.idServiceProperty().set( idService );
 //		if ( spec instanceof MaskedSource< ?, ?, ? > )
@@ -456,11 +450,11 @@ public class Atlas
 //					( MaskedSource< LabelMultisetType, VolatileLabelMultisetType, ? extends BooleanType< ? > > ) spec;
 //		}
 
-		final LabelMultisetType t = vsource.getDataType();
+		final LabelMultisetType t = spec.getDataType();
 		final Function< LabelMultisetType, String > valueToString = valueToString( t );
 		final AffineTransform3D affine = new AffineTransform3D();
-		vsource.getSourceTransform( 0, 0, affine );
-		this.valueDisplayListener.addSource( vsource, Optional.of( valueToString ) );
+		spec.getSourceTransform( 0, 0, affine );
+		this.valueDisplayListener.addSource( spec, Optional.of( valueToString ) );
 
 		view.addActor( new ViewerActor()
 		{
@@ -506,7 +500,7 @@ public class Atlas
 			final ToLongFunction< V > toLong,
 			final IdService idService )
 	{
-		final CurrentModeConverter< V > converter = new CurrentModeConverter<>();
+		final CurrentModeConverter< V, HighlightingStreamConverterIntegerType< V > > converter = new CurrentModeConverter<>();
 		final HashMap< Mode, SelectedIds > selIdsMap = new HashMap<>();
 		final HashMap< Mode, ARGBStream > streamsMap = new HashMap<>();
 		for ( final Mode mode : this.modes )
@@ -517,17 +511,13 @@ public class Atlas
 			stream.addListener( () -> baseView().requestRepaint() );
 			streamsMap.put( mode, stream );
 		}
-		final DataSource< I, VolatileARGBType > vsource = new ConverterDataSource<>(
-				spec,
-				converter,
-				method -> method.equals( Interpolation.NLINEAR ) ? new ClampingNLinearInterpolatorFactory<>() : new NearestNeighborInterpolatorFactory<>(),
-				new VolatileARGBType( 0 ) );
+
 		final ARGBCompositeAlphaYCbCr comp = new ARGBCompositeAlphaYCbCr();
 
 		final Consumer< Mode > setConverter = mode -> {
-			sourceInfo.stream( vsource, mode ).ifPresent( stream -> {
+			sourceInfo.stream( spec, mode ).ifPresent( stream -> {
 				final AbstractHighlightingARGBStream argbStream = ( AbstractHighlightingARGBStream ) stream;
-				final HighlightincConverterIntegerType< V > conv = new HighlightincConverterIntegerType<>( argbStream, toLong );
+				final HighlightingStreamConverterIntegerType< V > conv = new HighlightingStreamConverterIntegerType<>( argbStream, toLong );
 				converter.setConverter( conv );
 				baseView().requestRepaint();
 			} );
@@ -536,27 +526,26 @@ public class Atlas
 		currentMode.addListener( ( obs, oldv, newv ) -> {
 			Optional.ofNullable( newv ).ifPresent( setConverter::accept );
 		} );
-		addSource( vsource, comp, spec.tMin(), spec.tMax() );
-		final LabelSourceState< VolatileARGBType, I > state = sourceInfo.addLabelSource(
-				vsource,
+		addSource( spec, comp, spec.tMin(), spec.tMax() );
+		final AtlasSourceState< V, I > state = sourceInfo.addLabelSource(
+				spec,
 				spec.getDataType() instanceof IntegerType ? ToIdConverter.fromIntegerType() : ToIdConverter.fromRealType(),
 				( Function< I, Converter< I, BoolType > > ) sel -> createBoolConverter( sel, assignment ),
 				( FragmentSegmentAssignmentState ) assignment,
 				streamsMap,
 				selIdsMap,
-				( s, t ) -> {
-					t.set( s.get() );
-				} );
+				converter,
+				comp );
 		Optional.ofNullable( currentMode.get() ).ifPresent( setConverter::accept );
 		state.idServiceProperty().set( idService );
 		if ( spec instanceof MaskedSource< ?, ? > )
 			state.maskedSourceProperty().set( ( MaskedSource< ?, ? > ) spec );
 
-		final I t = vsource.getDataType();
+		final I t = spec.getDataType();
 		final Function< I, String > valueToString = valueToString( t );
 		final AffineTransform3D affine = new AffineTransform3D();
-		vsource.getSourceTransform( 0, 0, affine );
-		this.valueDisplayListener.addSource( vsource, Optional.of( valueToString ) );
+		spec.getSourceTransform( 0, 0, affine );
+		this.valueDisplayListener.addSource( spec, Optional.of( valueToString ) );
 
 		view.addActor( new ViewerActor()
 		{
@@ -636,14 +625,18 @@ public class Atlas
 		final Composite< ARGBType, ARGBType > comp = new ARGBCompositeAlphaAdd();
 		addSource( spec, comp, spec.tMin(), spec.tMax() );
 
-		final Color colorFX = Color.rgb( ARGBType.red( color.get() ), ARGBType.green( color.get() ), ARGBType.blue( color.get() ), ARGBType.alpha( color.get() ) / 255.0 );
-		final RawSourceState< U, T > state = sourceInfo.addRawSource( spec, min, max, colorFX );
+		final AtlasSourceState< U, T > state = sourceInfo.addRawSource( spec, min, max, color, comp );
 		final T t = spec.getDataType();
 		final Function< T, String > valueToString = valueToString( t );
 		this.valueDisplayListener.addSource( spec, Optional.of( valueToString ) );
-		state.colorProperty().addListener( ( obs, oldv, newv ) -> baseView().requestRepaint() );
-		state.minProperty().addListener( ( obs, oldv, newv ) -> baseView().requestRepaint() );
-		state.maxProperty().addListener( ( obs, oldv, newv ) -> baseView().requestRepaint() );
+		final Converter< U, ARGBType > conv = state.converterProperty().get();
+		if ( conv instanceof ARGBColorConverter< ? > )
+		{
+			final ARGBColorConverter< U > colorConv = ( ARGBColorConverter< U > ) conv;
+			colorConv.colorProperty().addListener( ( obs, oldv, newv ) -> baseView().requestRepaint() );
+			colorConv.minProperty().addListener( ( obs, oldv, newv ) -> baseView().requestRepaint() );
+			colorConv.maxProperty().addListener( ( obs, oldv, newv ) -> baseView().requestRepaint() );
+		}
 	}
 
 	public OrthoView baseView()
