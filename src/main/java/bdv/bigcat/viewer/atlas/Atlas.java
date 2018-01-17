@@ -816,12 +816,12 @@ public class Atlas
 
 		final PickOneAllIntegerTypes< I, UnsignedLongType > pacD = new PickOneAllIntegerTypes<>(
 				l -> bdv.labels.labelset.Label.regular( l.getIntegerLong() ),
-				l -> bdv.labels.labelset.Label.regular( l.getIntegerLong() ),
+				( l1, l2 ) -> l2.getIntegerLong() != bdv.labels.labelset.Label.TRANSPARENT && bdv.labels.labelset.Label.regular( l1.getIntegerLong() ),
 				type.createVariable() );
 
 		final PickOneAllIntegerTypesVolatile< I, UnsignedLongType, V, VolatileUnsignedLongType > pacT = new PickOneAllIntegerTypesVolatile<>(
 				l -> bdv.labels.labelset.Label.regular( l.getIntegerLong() ),
-				l -> bdv.labels.labelset.Label.regular( l.getIntegerLong() ),
+				( l1, l2 ) -> l2.getIntegerLong() != bdv.labels.labelset.Label.TRANSPARENT && bdv.labels.labelset.Label.regular( l1.getIntegerLong() ),
 				vtype.createVariable() );
 
 		final MaskedSource< I, V > ms = new MaskedSource<>(

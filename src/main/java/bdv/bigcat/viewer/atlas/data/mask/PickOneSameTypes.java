@@ -1,5 +1,6 @@
 package bdv.bigcat.viewer.atlas.data.mask;
 
+import java.util.function.BiPredicate;
 import java.util.function.Predicate;
 
 import bdv.bigcat.viewer.atlas.data.mask.PickOne.PickAndConvert;
@@ -10,9 +11,9 @@ public class PickOneSameTypes< T > implements PickOne.PickAndConvert< T, T, T, T
 
 	private final Predicate< T > pickThird;
 
-	private final Predicate< T > pickSecond;
+	private final BiPredicate< T, T > pickSecond;
 
-	public PickOneSameTypes( final Predicate< T > pickThird, final Predicate< T > pickSecond )
+	public PickOneSameTypes( final Predicate< T > pickThird, final BiPredicate< T, T > pickSecond )
 	{
 		super();
 		this.pickThird = pickThird;
@@ -22,7 +23,7 @@ public class PickOneSameTypes< T > implements PickOne.PickAndConvert< T, T, T, T
 	@Override
 	public T apply( final Triple< T, T, T > t )
 	{
-		return pickThird.test( t.getC() ) ? t.getC() : pickSecond.test( t.getB() ) ? t.getB() : t.getA();
+		return pickThird.test( t.getC() ) ? t.getC() : pickSecond.test( t.getB(), t.getC() ) ? t.getB() : t.getA();
 	}
 
 	@Override

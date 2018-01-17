@@ -1,5 +1,6 @@
 package bdv.bigcat.viewer.atlas.data.mask;
 
+import java.util.function.BiPredicate;
 import java.util.function.Predicate;
 
 import bdv.bigcat.viewer.atlas.data.mask.PickOne.PickAndConvert;
@@ -11,11 +12,11 @@ public class PickOneAllIntegerTypes< I extends IntegerType< I >, M extends Integ
 
 	private final Predicate< M > pickThird;
 
-	private final Predicate< M > pickSecond;
+	private final BiPredicate< M, M > pickSecond;
 
 	private final I i;
 
-	public PickOneAllIntegerTypes( final Predicate< M > pickThird, final Predicate< M > pickSecond, final I i )
+	public PickOneAllIntegerTypes( final Predicate< M > pickThird, final BiPredicate< M, M > pickSecond, final I i )
 	{
 		super();
 		this.pickThird = pickThird;
@@ -29,7 +30,7 @@ public class PickOneAllIntegerTypes< I extends IntegerType< I >, M extends Integ
 		final I a = t.getA();
 		final M b = t.getB();
 		final M c = t.getC();
-		i.setInteger( pickThird.test( c ) ? c.getIntegerLong() : pickSecond.test( b ) ? b.getIntegerLong() : a.getIntegerLong() );
+		i.setInteger( pickThird.test( c ) ? c.getIntegerLong() : pickSecond.test( b, c ) ? b.getIntegerLong() : a.getIntegerLong() );
 		return i;
 	}
 
