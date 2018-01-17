@@ -639,6 +639,7 @@ public class Atlas
 			colorConv.colorProperty().addListener( ( obs, oldv, newv ) -> baseView().requestRepaint() );
 			colorConv.minProperty().addListener( ( obs, oldv, newv ) -> baseView().requestRepaint() );
 			colorConv.maxProperty().addListener( ( obs, oldv, newv ) -> baseView().requestRepaint() );
+			colorConv.alphaProperty().addListener( ( obs, oldv, newv ) -> baseView().requestRepaint() );
 		}
 	}
 

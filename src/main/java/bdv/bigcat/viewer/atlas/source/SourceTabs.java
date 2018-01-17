@@ -4,8 +4,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Optional;
 import java.util.function.Consumer;
-import java.util.function.UnaryOperator;
-import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 import bdv.bigcat.composite.ARGBCompositeAlphaAdd;
@@ -25,6 +23,7 @@ import javafx.beans.value.ObservableIntegerValue;
 import javafx.collections.FXCollections;
 import javafx.collections.ListChangeListener;
 import javafx.collections.ObservableList;
+import javafx.geometry.Orientation;
 import javafx.scene.Node;
 import javafx.scene.control.Alert;
 import javafx.scene.control.Button;
@@ -41,10 +40,12 @@ import javafx.scene.control.TextField;
 import javafx.scene.control.TextFormatter;
 import javafx.scene.control.TitledPane;
 import javafx.scene.control.Tooltip;
+import javafx.scene.input.KeyCode;
 import javafx.scene.layout.ColumnConstraints;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
+import javafx.scene.layout.TilePane;
 import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
 import javafx.stage.Modality;
@@ -257,19 +258,22 @@ public class SourceTabs
 	private static Node converterInfo( final Converter< ?, ? > converter )
 	{
 		final TitledPane tp = new TitledPane( "Converter", null );
+//		tp.setExpanded( false );
 		if ( converter instanceof ARGBColorConverter< ? > )
 		{
 
 			final ARGBColorConverter< ? > conv = ( ARGBColorConverter< ? > ) converter;
 
-			final GridPane gp = new GridPane();
-			tp.setExpanded( true );
+			final TilePane tilePane = new TilePane( Orientation.VERTICAL );
+			tilePane.setMinWidth( 0 );
 
 			final ObjectProperty< ARGBType > cProp = conv.colorProperty();
 			final int c = cProp.get().get();
 			final ColorPicker picker = new ColorPicker( Color.rgb( ARGBType.red( c ), ARGBType.green( c ), ARGBType.blue( c ), ARGBType.alpha( c ) / 255.0 ) );
 			picker.valueProperty().addListener( ( obs, oldv, newv ) -> cProp.set( toARGBType( newv ) ) );
-			gp.add( picker, 2, 0 );
+			final HBox colorPickerBox = new HBox( picker );
+			HBox.setHgrow( picker, Priority.ALWAYS );
+			tilePane.getChildren().add( colorPickerBox );
 
 			final StringBinding min = conv.minProperty().asString();
 			final StringBinding max = conv.maxProperty().asString();
@@ -281,29 +285,48 @@ public class SourceTabs
 			min.addListener( ( obs, oldv, newv ) -> minInput.setText( newv ) );
 			max.addListener( ( obs, oldv, newv ) -> maxInput.setText( newv ) );
 
-			final Pattern pattern = Pattern.compile( "\\d*|\\d+\\.\\d*|\\d*\\.\\d+" );
-			final TextFormatter< Double > minFormatter = new TextFormatter<>( ( UnaryOperator< TextFormatter.Change > ) change -> {
-				return pattern.matcher( change.getControlNewText() ).matches() ? change : null;
-			} );
-			final TextFormatter< Double > maxFormatter = new TextFormatter<>( ( UnaryOperator< TextFormatter.Change > ) change -> {
-				return pattern.matcher( change.getControlNewText() ).matches() ? change : null;
-			} );
+			final TextFormatter< Double > minFormatter = DoubleStringFormatter.createFormatter( conv.minProperty().get(), 2 );
+			final TextFormatter< Double > maxFormatter = DoubleStringFormatter.createFormatter( conv.maxProperty().get(), 2 );
 
 			minInput.setTextFormatter( minFormatter );
 			maxInput.setTextFormatter( maxFormatter );
-
-			final Button requestSettingMinMax = new Button( "set contrast" );
-			requestSettingMinMax.setOnAction( event -> {
-				Optional.ofNullable( minInput.getText() ).map( Double::parseDouble ).ifPresent( d -> conv.minProperty().set( d ) );
-				Optional.ofNullable( maxInput.getText() ).map( Double::parseDouble ).ifPresent( d -> conv.maxProperty().set( d ) );
+			minInput.setOnKeyPressed( event -> {
+				if ( event.getCode().equals( KeyCode.ENTER ) )
+				{
+					minInput.commitValue();
+					event.consume();
+				}
+			} );
+			maxInput.setOnKeyPressed( event -> {
+				if ( event.getCode().equals( KeyCode.ENTER ) )
+				{
+					maxInput.commitValue();
+					event.consume();
+				}
 			} );
 
-			GridPane.setHgrow( requestSettingMinMax, Priority.ALWAYS );
+			minInput.setTooltip( new Tooltip( "min" ) );
+			maxInput.setTooltip( new Tooltip( "max" ) );
 
-			gp.add( minInput, 0, 1 );
-			gp.add( maxInput, 1, 1 );
-			gp.add( requestSettingMinMax, 2, 1 );
-			tp.setContent( gp );
+			minFormatter.valueProperty().addListener( ( obs, oldv, newv ) -> conv.minProperty().set( newv ) );
+			maxFormatter.valueProperty().addListener( ( obs, oldv, newv ) -> conv.maxProperty().set( newv ) );
+
+			conv.minProperty().addListener( ( obs, oldv, newv ) -> minFormatter.setValue( newv.doubleValue() ) );
+			conv.maxProperty().addListener( ( obs, oldv, newv ) -> maxFormatter.setValue( newv.doubleValue() ) );
+
+			final HBox minMaxBox = new HBox( minInput, maxInput );
+			tilePane.getChildren().add( minMaxBox );
+
+			final NumericSliderWithField alphaSliderWithField = new NumericSliderWithField( 0, 1, conv.alphaProperty().get() );
+			alphaSliderWithField.slider().valueProperty().bindBidirectional( conv.alphaProperty() );
+			alphaSliderWithField.textField().setMinWidth( 48 );
+			alphaSliderWithField.textField().setMaxWidth( 48 );
+			final HBox alphaBox = new HBox( alphaSliderWithField.slider(), alphaSliderWithField.textField() );
+			Tooltip.install( alphaSliderWithField.slider(), new Tooltip( "alpha" ) );
+			HBox.setHgrow( alphaSliderWithField.slider(), Priority.ALWAYS );
+			tilePane.getChildren().add( alphaBox );
+
+			tp.setContent( tilePane );
 		}
 
 		else if ( converter instanceof CurrentModeConverter< ?, ? > )
@@ -313,7 +336,7 @@ public class SourceTabs
 			final ColumnConstraints secondColumnConstraints = new ColumnConstraints();
 			secondColumnConstraints.setMaxWidth( Double.MAX_VALUE );
 			secondColumnConstraints.setHgrow( Priority.ALWAYS );
-			gp.getColumnConstraints().addAll( new ColumnConstraints(), secondColumnConstraints );
+			gp.getColumnConstraints().addAll( secondColumnConstraints );
 
 			final int textFieldWidth = 60;
 
@@ -326,9 +349,8 @@ public class SourceTabs
 				alphaField.textProperty().bindBidirectional( alphaSlider.valueProperty(), new NumberStringConverter() );
 				alphaField.setMinWidth( textFieldWidth );
 				alphaField.setMaxWidth( textFieldWidth );
-				gp.add( new Label( "alpha" ), 0, 0 );
-				gp.add( alphaSlider, 1, 0 );
-				gp.add( alphaField, 2, 0 );
+				gp.add( alphaSlider, 0, 0 );
+				gp.add( alphaField, 1, 0 );
 			}
 
 			{
@@ -340,9 +362,8 @@ public class SourceTabs
 				selectedFragmentAlphaField.textProperty().bindBidirectional( selectedFragmentAlphaSlider.valueProperty(), new NumberStringConverter() );
 				selectedFragmentAlphaField.setMinWidth( textFieldWidth );
 				selectedFragmentAlphaField.setMaxWidth( textFieldWidth );
-				gp.add( new Label( "selected fragment alpha" ), 0, 1 );
-				gp.add( selectedFragmentAlphaSlider, 1, 1 );
-				gp.add( selectedFragmentAlphaField, 2, 1 );
+				gp.add( selectedFragmentAlphaSlider, 0, 1 );
+				gp.add( selectedFragmentAlphaField, 1, 1 );
 			}
 
 			{
@@ -354,9 +375,8 @@ public class SourceTabs
 				selectedSegmentAlphaField.textProperty().bindBidirectional( selectedSegmentAlphaSlider.valueProperty(), new NumberStringConverter() );
 				selectedSegmentAlphaField.setMinWidth( textFieldWidth );
 				selectedSegmentAlphaField.setMaxWidth( textFieldWidth );
-				gp.add( new Label( "selected segment alpha" ), 0, 2 );
-				gp.add( selectedSegmentAlphaSlider, 1, 2 );
-				gp.add( selectedSegmentAlphaField, 2, 2 );
+				gp.add( selectedSegmentAlphaSlider, 0, 2 );
+				gp.add( selectedSegmentAlphaField, 1, 2 );
 			}
 
 			tp.setContent( gp );
