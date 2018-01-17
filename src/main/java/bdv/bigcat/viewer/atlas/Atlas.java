@@ -69,6 +69,7 @@ import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.collections.ListChangeListener;
+import javafx.collections.MapChangeListener;
 import javafx.event.EventHandler;
 import javafx.scene.Node;
 import javafx.scene.Scene;
@@ -129,8 +130,6 @@ public class Atlas
 
 	private final SourceInfo sourceInfo = new SourceInfo();
 
-	private final HashMap< Source< ? >, Composite< ARGBType, ARGBType > > composites = new HashMap<>();
-
 	private final ViewerOptions viewerOptions;
 
 	private final ArrayList< Mode > modes = new ArrayList<>();
@@ -164,7 +163,7 @@ public class Atlas
 	{
 		super();
 		this.viewerOptions = viewerOptions
-				.accumulateProjectorFactory( new ClearingCompositeProjectorFactory<>( composites, new ARGBType() ) )
+				.accumulateProjectorFactory( new ClearingCompositeProjectorFactory<>( sourceInfo.composites(), new ARGBType() ) )
 				.numRenderingThreads( Math.min( 3, Math.max( 1, Runtime.getRuntime().availableProcessors() / 3 ) ) );
 		this.view = new OrthoView( focusHandler.onEnter(), focusHandler.onExit(), new OrthoViewState( this.viewerOptions ), cellCache, keyTracker );
 		this.view.setMinWidth( 100 );
@@ -301,6 +300,8 @@ public class Atlas
 			}
 		} );
 
+		this.sourceInfo.composites().addListener( ( MapChangeListener< Source< ? >, Composite< ARGBType, ARGBType > > ) change -> baseView().requestRepaint() );
+
 	}
 
 	public void toggleSourcesTabs()
@@ -376,7 +377,11 @@ public class Atlas
 		this.focusHandler.add( onEnterOnExit, onExitRemovable );
 	}
 
-	private < T, U, V > void addSource( final Source< ? > src, final Composite< ARGBType, ARGBType > comp, final int tMin, final int tMax )
+	private < T, U, V > void addSource(
+			final Source< ? > src,
+			final Composite< ARGBType, ARGBType > comp,
+			final int tMin,
+			final int tMax )
 	{
 		if ( sourceInfo.numSources() == 0 )
 		{
@@ -390,7 +395,6 @@ public class Atlas
 			centerForInterval( interval );
 			this.time.setValue( tMin );
 		}
-		this.composites.put( src, comp );
 //		this.baseView().getState().addSource( src );
 		this.time.setMin( Math.min( tMin, this.time.getMin() ) );
 		this.time.setMax( Math.max( tMax, this.time.getMax() ) );
@@ -398,7 +402,6 @@ public class Atlas
 
 	public < T, VT > void removeSource( final DataSource< T, VT > spec )
 	{
-		this.composites.remove( spec );
 		this.sourceInfo.removeSource( spec );
 	}
 
