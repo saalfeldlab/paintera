@@ -8,22 +8,30 @@ import java.util.function.UnaryOperator;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
+import bdv.bigcat.composite.ARGBCompositeAlphaAdd;
+import bdv.bigcat.composite.ARGBCompositeAlphaYCbCr;
+import bdv.bigcat.composite.Composite;
+import bdv.bigcat.composite.CompositeCopy;
 import bdv.bigcat.viewer.ARGBColorConverter;
 import bdv.bigcat.viewer.atlas.CurrentModeConverter;
 import bdv.bigcat.viewer.util.InvokeOnJavaFXApplicationThread;
 import bdv.viewer.Source;
+import javafx.beans.binding.Bindings;
 import javafx.beans.binding.StringBinding;
 import javafx.beans.property.DoubleProperty;
 import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.SimpleDoubleProperty;
 import javafx.beans.value.ObservableIntegerValue;
+import javafx.collections.FXCollections;
 import javafx.collections.ListChangeListener;
+import javafx.collections.ObservableList;
 import javafx.scene.Node;
 import javafx.scene.control.Alert;
 import javafx.scene.control.Button;
 import javafx.scene.control.ButtonType;
 import javafx.scene.control.CheckBox;
 import javafx.scene.control.ColorPicker;
+import javafx.scene.control.ComboBox;
 import javafx.scene.control.ContentDisplay;
 import javafx.scene.control.Label;
 import javafx.scene.control.ScrollPane;
@@ -40,6 +48,7 @@ import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
 import javafx.stage.Modality;
+import javafx.util.StringConverter;
 import javafx.util.converter.NumberStringConverter;
 import net.imglib2.converter.Converter;
 import net.imglib2.type.numeric.ARGBType;
@@ -146,56 +155,12 @@ public class SourceTabs
 	private static Node getPaneContents( final AtlasSourceState< ?, ? > state )
 	{
 		final Converter< ?, ARGBType > conv = state.converterProperty().get();
+
 		final VBox info = new VBox();
 
+		Optional.ofNullable( compositeInfo( state.compositeProperty() ) ).ifPresent( node -> info.getChildren().add( node ) );
 		Optional.ofNullable( converterInfo( conv ) ).ifPresent( node -> info.getChildren().add( node ) );
-//		switch ( state.typeProperty().get() )
-//		{
-//		case LABEL:
-//			return null;
-//		case RAW:
-//			final GridPane gp = new GridPane();
-//			if ( conv instanceof ARGBColorConverter< ? > )
-//			{
-//				final ARGBColorConverter< ? > cconv = ( ARGBColorConverter< ? > ) conv;
-//				final StringBinding min = cconv.minProperty().asString();
-//				final StringBinding max = cconv.maxProperty().asString();
-//				final TextField minInput = new TextField( min.get() );
-//				final TextField maxInput = new TextField( max.get() );
-//				minInput.promptTextProperty().bind( cconv.minProperty().asString( "min=%f" ) );
-//				minInput.promptTextProperty().bind( cconv.maxProperty().asString( "max=%f" ) );
-//
-//				min.addListener( ( obs, oldv, newv ) -> minInput.setText( newv ) );
-//				max.addListener( ( obs, oldv, newv ) -> maxInput.setText( newv ) );
-//
-//				final Pattern pattern = Pattern.compile( "\\d*|\\d+\\.\\d*|\\d*\\.\\d+" );
-//				final TextFormatter< Double > minFormatter = new TextFormatter<>( ( UnaryOperator< TextFormatter.Change > ) change -> {
-//					return pattern.matcher( change.getControlNewText() ).matches() ? change : null;
-//				} );
-//				final TextFormatter< Double > maxFormatter = new TextFormatter<>( ( UnaryOperator< TextFormatter.Change > ) change -> {
-//					return pattern.matcher( change.getControlNewText() ).matches() ? change : null;
-//				} );
-//
-//				minInput.setTextFormatter( minFormatter );
-//				maxInput.setTextFormatter( maxFormatter );
-//
-//				final Button requestSettingMinMax = new Button( "set contrast" );
-//				requestSettingMinMax.setOnAction( event -> {
-//					Optional.ofNullable( minInput.getText() ).map( Double::parseDouble ).ifPresent( d -> cconv.minProperty().set( d ) );
-//					Optional.ofNullable( maxInput.getText() ).map( Double::parseDouble ).ifPresent( d -> cconv.maxProperty().set( d ) );
-//				} );
-//
-//				GridPane.setHgrow( requestSettingMinMax, Priority.ALWAYS );
-//
-//				gp.add( minInput, 0, 0 );
-//				gp.add( maxInput, 1, 0 );
-//				gp.add( requestSettingMinMax, 2, 0 );
-//			}
-//
-//			return gp;
-//		default:
-//			return null;
-//		}
+
 		return info;
 	}
 
@@ -242,14 +207,63 @@ public class SourceTabs
 						( int ) ( color.getBlue() * 255 + 0.5 ) << 0 );
 	}
 
+	private static Node compositeInfo(
+			final ObjectProperty< Composite< ARGBType, ARGBType > > composite )
+	{
+		final String ALPHA_ADD = "alpha add";
+		final String ALPHA_YCBCR = "alpha YCbCr";
+		final String COPY = "copy";
+		final ObservableList< String > availableComposites = FXCollections.observableArrayList( ALPHA_YCBCR, ALPHA_ADD, COPY );
+		final StringConverter< Composite< ARGBType, ARGBType > > converter = new StringConverter< Composite< ARGBType, ARGBType > >()
+		{
+
+			@Override
+			public String toString( final Composite< ARGBType, ARGBType > object )
+			{
+				return object instanceof ARGBCompositeAlphaAdd ? ALPHA_ADD : object instanceof CompositeCopy ? COPY : ALPHA_YCBCR;
+			}
+
+			@Override
+			public Composite< ARGBType, ARGBType > fromString( final String string )
+			{
+				switch ( string )
+				{
+				case ALPHA_ADD:
+					return new ARGBCompositeAlphaAdd();
+				case ALPHA_YCBCR:
+					return new ARGBCompositeAlphaYCbCr();
+				case COPY:
+					return new CompositeCopy<>();
+				default:
+					return null;
+				}
+			}
+		};
+		return compositeInfo( composite, availableComposites, converter );
+	}
+
+	private static Node compositeInfo(
+			final ObjectProperty< Composite< ARGBType, ARGBType > > composite,
+			final ObservableList< String > availableComposites,
+			final StringConverter< Composite< ARGBType, ARGBType > > converter )
+	{
+		final ComboBox< String > combo = new ComboBox<>( availableComposites );
+		combo.setValue( converter.toString( composite.get() ) );
+		Bindings.bindBidirectional( combo.valueProperty(), composite, converter );
+		final TitledPane tp = new TitledPane( "Composite", combo );
+		return tp;
+	}
+
 	private static Node converterInfo( final Converter< ?, ? > converter )
 	{
+		final TitledPane tp = new TitledPane( "Converter", null );
 		if ( converter instanceof ARGBColorConverter< ? > )
 		{
 
 			final ARGBColorConverter< ? > conv = ( ARGBColorConverter< ? > ) converter;
 
 			final GridPane gp = new GridPane();
+			tp.setExpanded( true );
 
 			final ObjectProperty< ARGBType > cProp = conv.colorProperty();
 			final int c = cProp.get().get();
@@ -289,10 +303,10 @@ public class SourceTabs
 			gp.add( minInput, 0, 1 );
 			gp.add( maxInput, 1, 1 );
 			gp.add( requestSettingMinMax, 2, 1 );
-			return gp;
+			tp.setContent( gp );
 		}
 
-		if ( converter instanceof CurrentModeConverter< ?, ? > )
+		else if ( converter instanceof CurrentModeConverter< ?, ? > )
 		{
 			final CurrentModeConverter< ?, ? > conv = ( CurrentModeConverter< ?, ? > ) converter;
 			final GridPane gp = new GridPane();
@@ -345,10 +359,10 @@ public class SourceTabs
 				gp.add( selectedSegmentAlphaField, 2, 2 );
 			}
 
-			return gp;
+			tp.setContent( gp );
 		}
 
-		return null;
+		return tp;
 	}
 
 }
