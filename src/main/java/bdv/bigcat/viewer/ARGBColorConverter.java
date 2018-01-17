@@ -11,6 +11,8 @@ import net.imglib2.type.numeric.RealType;
 
 public abstract class ARGBColorConverter< R extends RealType< R > > implements ColorConverter, Converter< R, ARGBType >
 {
+	protected final DoubleProperty alpha = new SimpleDoubleProperty( 1.0 );
+
 	protected final DoubleProperty min = new SimpleDoubleProperty( 0.0 );
 
 	protected final DoubleProperty max = new SimpleDoubleProperty( 1.0 );
@@ -35,6 +37,7 @@ public abstract class ARGBColorConverter< R extends RealType< R > > implements C
 		this.min.addListener( ( obs, oldv, newv ) -> update() );
 		this.max.addListener( ( obs, oldv, newv ) -> update() );
 		this.color.addListener( ( obs, oldv, newv ) -> update() );
+		this.alpha.addListener( ( obs, oldv, newv ) -> update() );
 
 		update();
 	}
@@ -52,6 +55,11 @@ public abstract class ARGBColorConverter< R extends RealType< R > > implements C
 	public ObjectProperty< ARGBType > colorProperty()
 	{
 		return color;
+	}
+
+	public DoubleProperty alphaProperty()
+	{
+		return this.alpha;
 	}
 
 	@Override
@@ -100,7 +108,7 @@ public abstract class ARGBColorConverter< R extends RealType< R > > implements C
 	{
 		final double scale = 1.0 / ( max.get() - min.get() );
 		final int value = color.get().get();
-		A = ARGBType.alpha( value );
+		A = ( int ) Math.min( Math.max( Math.round( 255 * alphaProperty().get() ), 0 ), 255 );
 		scaleR = ARGBType.red( value ) * scale;
 		scaleG = ARGBType.green( value ) * scale;
 		scaleB = ARGBType.blue( value ) * scale;

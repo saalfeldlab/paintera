@@ -76,6 +76,10 @@ public class SourceInfo
 		updateCurrentSourceIndexInVisibleSources();
 	}
 
+	private final ObservableMap< Source< ? >, Composite< ARGBType, ARGBType > > composites = FXCollections.observableHashMap();
+
+	private final ObservableMap< Source< ? >, Composite< ARGBType, ARGBType > > compositesReadOnly = FXCollections.unmodifiableObservableMap( composites );
+
 	public < D extends Type< D >, T extends RealType< T > > AtlasSourceState< T, D > addRawSource(
 			final DataSource< D, T > source,
 			final double min,
@@ -115,12 +119,16 @@ public class SourceInfo
 	private synchronized < D extends Type< D >, T extends Type< T > > void addState( final Source< T > source, final AtlasSourceState< T, D > state )
 	{
 		this.states.put( source, state );
+		// composites needs to hold a valid (!=null) value for source whenever
+		// viewer is updated
+		this.composites.put( source, state.compositeProperty().get() );
 		this.sources.add( source );
 		state.visibleProperty().addListener( ( obs, oldv, newv ) -> updateVisibleSources() );
 		state.converterProperty().addListener( ( obs, oldv, newv ) -> updateVisibleSourcesAndConverters() );
 		state.visibleProperty().set( true );
 		if ( this.currentSource.get() == null )
 			this.currentSource.set( source );
+		state.compositeProperty().addListener( ( obs, oldv, newv ) -> this.composites.put( source, newv ) );
 	}
 
 	public synchronized < T > void removeSource( final Source< T > source )
@@ -129,6 +137,7 @@ public class SourceInfo
 		this.states.remove( source );
 		this.sources.remove( source );
 		this.currentSource.set( this.sources.size() == 0 ? null : this.sources.get( Math.max( currentSourceIndex - 1, 0 ) ) );
+		this.composites.remove( source );
 	}
 
 	public synchronized void addMode( final Mode mode, final Function< Source< ? >, Optional< ARGBStream > > makeStream, final Function< Source< ? >, Optional< SelectedIds > > makeSelection )
@@ -304,6 +313,11 @@ public class SourceInfo
 	private void updateCurrentSourceIndexInVisibleSources()
 	{
 		this.currentSourceIndexInVisibleSources.set( this.visibleSources.indexOf( currentSource.get() ) );
+	}
+
+	public ObservableMap< Source< ? >, Composite< ARGBType, ARGBType > > composites()
+	{
+		return this.compositesReadOnly;
 	}
 
 }
