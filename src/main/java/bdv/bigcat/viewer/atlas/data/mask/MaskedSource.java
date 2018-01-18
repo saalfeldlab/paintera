@@ -131,12 +131,12 @@ public class MaskedSource< D extends Type< D >, T extends Type< T > > implements
 		final RandomAccessibleInterval< UnsignedByteType > store = maskFactory.create( source.getSource( 0, mask.level ), new UnsignedByteType() );
 		final RandomAccessibleInterval< VolatileUnsignedByteType > vstore = VolatileViews.wrapAsVolatile( store );
 		final UnsignedLongType INVALID = new UnsignedLongType( Label.INVALID );
-		this.dMasks[ mask.level ] = Converters.convert( Views.extendZero( store ), ( input, output ) -> output.set( input.get() > 0 ? mask.value : INVALID ), new UnsignedLongType() );
+		this.dMasks[ mask.level ] = Converters.convert( Views.extendZero( store ), ( input, output ) -> output.set( input.get() == 1 ? mask.value : INVALID ), new UnsignedLongType() );
 		this.tMasks[ mask.level ] = Converters.convert( Views.extendZero( vstore ), ( input, output ) -> {
 			final boolean isValid = input.isValid();
 			output.setValid( isValid );
 			if ( isValid )
-				output.get().set( input.get().get() > 0 ? mask.value : INVALID );
+				output.get().set( input.get().get() == 1 ? mask.value : INVALID );
 		}, new VolatileUnsignedLongType() );
 		this.masks.put( store, mask );
 		return store;
@@ -144,57 +144,66 @@ public class MaskedSource< D extends Type< D >, T extends Type< T > > implements
 
 	public void applyMask( final RandomAccessibleInterval< UnsignedByteType > mask, final Interval paintedInterval )
 	{
-		final MaskInfo< UnsignedLongType > maskInfo = this.masks.get( mask );
-		if ( maskInfo == null )
+		synchronized ( this.masks )
 		{
-			LOG.debug( "Did not pass valid mask {}", mask );
-			return;
-		}
-		final RandomAccessibleInterval< UnsignedLongType > canvas = dataCanvases[ maskInfo.level ];
-		final long[] min = Intervals.minAsLongArray( canvas );
-		final long[] max = Intervals.maxAsLongArray( canvas );
-		for ( int d = 0; d < min.length; ++d )
-		{
-			min[ d ] = Math.max( paintedInterval.min( d ), min[ d ] );
-			max[ d ] = Math.min( paintedInterval.max( d ), max[ d ] );
-		}
-
-		final FinalInterval interval = new FinalInterval( min, max );
-
-		LOG.debug( "For mask info {} and interval {}, painting into canvas {}", maskInfo, interval, dataCanvases );
-		final Cursor< UnsignedLongType > canvasCursor = Views.flatIterable( Views.interval( canvas, interval ) ).cursor();
-		final Cursor< UnsignedByteType > maskCursor = Views.flatIterable( Views.interval( mask, interval ) ).cursor();
-		while ( canvasCursor.hasNext() )
-		{
-			canvasCursor.fwd();
-			if ( maskCursor.next().get() > 0 )
-				canvasCursor.get().set( maskInfo.value );
-		}
-
-		this.dMasks[ maskInfo.level ] = ConstantUtils.constantRandomAccessible( new UnsignedLongType( Label.INVALID ), NUM_DIMENSIONS );
-		this.dMasks[ maskInfo.level ] = ConstantUtils.constantRandomAccessible( new UnsignedLongType( Label.INVALID ), NUM_DIMENSIONS );
-
-		forgetMask( mask );
-
-		if ( this.paintedBoundingBox == null )
-			this.paintedBoundingBox = interval;
-		else
-		{
-			final long[] m = min.clone();
-			final long[] M = max.clone();
-			for ( int d = 0; d < this.paintedBoundingBox.numDimensions(); ++d )
+			final MaskInfo< UnsignedLongType > maskInfo = this.masks.get( mask );
+			if ( maskInfo == null )
 			{
-				m[ d ] = Math.min( this.paintedBoundingBox.min( d ), m[ d ] );
-				M[ d ] = Math.max( this.paintedBoundingBox.max( d ), M[ d ] );
+				LOG.debug( "Did not pass valid mask {}", mask );
+				return;
 			}
-			this.paintedBoundingBox = new FinalInterval( m, M );
+			final RandomAccessibleInterval< UnsignedLongType > canvas = dataCanvases[ maskInfo.level ];
+			final long[] min = Intervals.minAsLongArray( canvas );
+			final long[] max = Intervals.maxAsLongArray( canvas );
+			for ( int d = 0; d < min.length; ++d )
+			{
+				min[ d ] = Math.max( paintedInterval.min( d ), min[ d ] );
+				max[ d ] = Math.min( paintedInterval.max( d ), max[ d ] );
+			}
+
+			final FinalInterval interval = new FinalInterval( min, max );
+
+			LOG.debug( "For mask info {} and interval {}, painting into canvas {}", maskInfo, interval, dataCanvases );
+			final Cursor< UnsignedLongType > canvasCursor = Views.flatIterable( Views.interval( canvas, interval ) ).cursor();
+			final Cursor< UnsignedByteType > maskCursor = Views.flatIterable( Views.interval( mask, interval ) ).cursor();
+			while ( canvasCursor.hasNext() )
+			{
+				canvasCursor.fwd();
+				maskCursor.fwd();
+				if ( maskCursor.get().get() == 1 )
+					canvasCursor.get().set( maskInfo.value );
+			}
+
+			this.dMasks[ maskInfo.level ] = ConstantUtils.constantRandomAccessible( new UnsignedLongType( Label.INVALID ), NUM_DIMENSIONS );
+			this.dMasks[ maskInfo.level ] = ConstantUtils.constantRandomAccessible( new UnsignedLongType( Label.INVALID ), NUM_DIMENSIONS );
+
+			forgetMasks();
+
+			// TODO make correct painted bounding box for multi scale
+			// TODO update canvases in other scale levels
+			if ( this.paintedBoundingBox == null )
+				this.paintedBoundingBox = interval;
+			else
+			{
+				final long[] m = min.clone();
+				final long[] M = max.clone();
+				for ( int d = 0; d < this.paintedBoundingBox.numDimensions(); ++d )
+				{
+					m[ d ] = Math.min( this.paintedBoundingBox.min( d ), m[ d ] );
+					M[ d ] = Math.max( this.paintedBoundingBox.max( d ), M[ d ] );
+				}
+				this.paintedBoundingBox = new FinalInterval( m, M );
+			}
 		}
 
 	}
 
-	public MaskInfo< UnsignedLongType > forgetMask( final RandomAccessibleInterval< UnsignedByteType > mask )
+	public void forgetMasks()
 	{
-		return this.masks.remove( mask );
+		synchronized ( this.masks )
+		{
+			this.masks.clear();
+		}
 	}
 
 	public void mergeCanvasIntoBackground()
