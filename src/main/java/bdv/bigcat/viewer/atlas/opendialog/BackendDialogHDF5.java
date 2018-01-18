@@ -48,7 +48,6 @@ public class BackendDialogHDF5 extends BackendDialogGroupAndDataset implements C
 
 	private static < T > boolean isLabelType( final Class< T > clazz, final boolean signed )
 	{
-		System.out.println( "IS LABEL TYPE ? " + clazz + " " + signed + " " + isIntegerType( clazz, signed ) + clazz.isAssignableFrom( long.class ) );
 		return isLabelMultisetType( clazz ) || isIntegerType( clazz, signed );
 	}
 

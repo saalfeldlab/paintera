@@ -27,18 +27,26 @@ import org.slf4j.LoggerFactory;
 
 import com.google.gson.JsonElement;
 
+import bdv.labels.labelset.Label;
 import bdv.util.IdService;
 import bdv.util.N5IdService;
 import bdv.util.volatiles.SharedQueue;
 import bdv.util.volatiles.VolatileViews;
 import javafx.stage.DirectoryChooser;
+import net.imglib2.Cursor;
+import net.imglib2.FinalInterval;
 import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.Volatile;
 import net.imglib2.cache.volatiles.CacheHints;
 import net.imglib2.cache.volatiles.LoadingStrategy;
+import net.imglib2.img.array.ArrayImg;
+import net.imglib2.img.array.ArrayImgFactory;
 import net.imglib2.type.NativeType;
 import net.imglib2.type.numeric.IntegerType;
+import net.imglib2.type.numeric.integer.UnsignedLongType;
+import net.imglib2.util.Intervals;
 import net.imglib2.util.Pair;
+import net.imglib2.util.Util;
 import net.imglib2.util.ValuePair;
 import net.imglib2.view.Views;
 
@@ -366,6 +374,75 @@ public class BackendDialogN5 extends BackendDialogGroupAndDataset implements Com
 		for ( final T label : Views.flatIterable( data ) )
 			maxId = IdService.max( label.getIntegerLong(), maxId );
 		return maxId;
+	}
+
+	@Override
+	public Consumer< RandomAccessibleInterval< UnsignedLongType > > commitCanvas()
+	{
+		final N5FSWriter n5 = new N5FSWriter( this.groupProperty.get() );
+		final String dataset = this.dataset.get();
+		// TODO do multi scale!
+
+		return canvas -> {
+			try
+			{
+				if ( isIntegerType() )
+					commitForIntegerType( n5, dataset, canvas );
+			}
+			catch ( final IOException e )
+			{
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+		};
+	}
+
+	private static < T extends IntegerType< T > & NativeType< T > > void commitForIntegerType(
+			final N5Writer n5,
+			final String dataset,
+			final RandomAccessibleInterval< UnsignedLongType > canvas ) throws IOException
+	{
+
+		// TODO DO MULTISCALE!
+		// TODO DO TIME?
+		LOG.debug( "Commiting canvas for interval {} {}", Arrays.toString( Intervals.minAsLongArray( canvas ) ), Arrays.toString( Intervals.maxAsDoubleArray( canvas ) ) );
+		final RandomAccessibleInterval< T > labels = N5Utils.open( n5, dataset );
+		final DatasetAttributes attributes = n5.getDatasetAttributes( dataset );
+		final int[] blockSize = attributes.getBlockSize();
+		final long[] dims = attributes.getDimensions();
+
+		final long[] blockAlignedMin = new long[ labels.numDimensions() ];
+		final long[] blockAlignedMax = new long[ labels.numDimensions() ];
+
+		for ( int d = 0; d < blockAlignedMin.length; ++d )
+		{
+			blockAlignedMin[ d ] = canvas.min( d ) / blockSize[ d ] * blockSize[ d ];
+			blockAlignedMax[ d ] = Math.min( ( canvas.max( d ) / blockSize[ d ] + 1 ) * blockSize[ d ], dims[ d ] ) - 1;
+		}
+
+		final FinalInterval blockAlignedInterval = new FinalInterval( blockAlignedMin, blockAlignedMax );
+
+		final ArrayImg< T, ? > intervalCopy = new ArrayImgFactory< T >().create( Intervals.dimensionsAsLongArray( blockAlignedInterval ), Util.getTypeFromInterval( labels ).createVariable() );
+
+		for ( Cursor< T > s = Views.flatIterable( Views.interval( labels, blockAlignedInterval ) ).cursor(), t = Views.flatIterable( intervalCopy ).cursor(); s.hasNext(); )
+			t.next().set( s.next() );
+
+		final Cursor< UnsignedLongType > s = Views.flatIterable( canvas ).cursor();
+		final Cursor< T > t = Views.flatIterable( Views.interval( Views.translate( intervalCopy, blockAlignedMin ), canvas ) ).cursor();
+		while ( s.hasNext() )
+		{
+			final long label = s.next().get();
+			t.fwd();
+			if ( Label.regular( label ) )
+				t.get().setInteger( label );
+		}
+
+		final long[] gridOffset = new long[ intervalCopy.numDimensions() ];
+		for ( int d = 0; d < gridOffset.length; ++d )
+			gridOffset[ d ] = blockAlignedMin[ d ] / blockSize[ d ];
+
+		N5Utils.saveBlock( Views.translate( intervalCopy, blockAlignedMin ), n5, dataset, gridOffset );
+
 	}
 
 }

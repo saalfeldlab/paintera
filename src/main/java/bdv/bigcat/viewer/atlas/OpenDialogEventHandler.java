@@ -18,9 +18,11 @@ import bdv.util.IdService;
 import bdv.util.volatiles.SharedQueue;
 import javafx.event.Event;
 import javafx.event.EventHandler;
+import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.type.NativeType;
 import net.imglib2.type.numeric.IntegerType;
 import net.imglib2.type.numeric.RealType;
+import net.imglib2.type.numeric.integer.UnsignedLongType;
 import net.imglib2.type.volatiles.AbstractVolatileRealType;
 
 public class OpenDialogEventHandler implements EventHandler< Event >
@@ -121,20 +123,21 @@ public class OpenDialogEventHandler implements EventHandler< Event >
 				cellCache,
 				cellCache.getNumPriorities() );
 		for ( final LabelDataSource< I, V > source : optionalSource )
-			addLabelSource( viewer, source, openDialog.paint() ? openDialog.canvasCacheDirectory() : null, dataset.idService() );
+			addLabelSource( viewer, source, openDialog.paint() ? openDialog.canvasCacheDirectory() : null, dataset.idService(), dataset.commitCanvas() );
 	}
 
 	private static < I extends IntegerType< I > & NativeType< I >, V extends AbstractVolatileRealType< I, V > > void addLabelSource(
 			final Atlas viewer,
 			final LabelDataSource< I, V > lsource,
 			final String cacheDir,
-			final IdService idService )
+			final IdService idService,
+			final Consumer< RandomAccessibleInterval< UnsignedLongType > > mergeCanvasIntoBackground )
 	{
 		if ( cacheDir != null )
 		{
 			final int[] blockSize = { 64, 64, 64 };
 			LOG.debug( "Adding canvas source with cache dir={}", cacheDir );
-			viewer.addLabelSource( Atlas.addCanvas( lsource, blockSize, cacheDir ), lsource.getAssignment(), dt -> dt.get().getIntegerLong(), idService );
+			viewer.addLabelSource( Atlas.addCanvas( lsource, blockSize, cacheDir, mergeCanvasIntoBackground ), lsource.getAssignment(), dt -> dt.get().getIntegerLong(), idService );
 		}
 		else
 			viewer.addLabelSource( lsource, lsource.getAssignment(), dt -> dt.get().getIntegerLong(), idService );

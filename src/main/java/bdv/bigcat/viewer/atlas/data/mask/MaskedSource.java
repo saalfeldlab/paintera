@@ -3,6 +3,7 @@ package bdv.bigcat.viewer.atlas.data.mask;
 import java.lang.invoke.MethodHandles;
 import java.nio.file.Paths;
 import java.util.HashMap;
+import java.util.function.Consumer;
 import java.util.function.IntFunction;
 
 import org.slf4j.Logger;
@@ -22,6 +23,7 @@ import net.imglib2.RandomAccessible;
 import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.RealRandomAccessible;
 import net.imglib2.cache.img.CellLoader;
+import net.imglib2.cache.img.DiskCachedCellImg;
 import net.imglib2.cache.img.DiskCachedCellImgFactory;
 import net.imglib2.cache.img.DiskCachedCellImgOptions;
 import net.imglib2.converter.Converters;
@@ -35,6 +37,7 @@ import net.imglib2.type.volatiles.VolatileUnsignedByteType;
 import net.imglib2.type.volatiles.VolatileUnsignedLongType;
 import net.imglib2.util.ConstantUtils;
 import net.imglib2.util.Intervals;
+import net.imglib2.view.IntervalView;
 import net.imglib2.view.Views;
 
 public class MaskedSource< D extends Type< D >, T extends Type< T > > implements DataSource< D, T >
@@ -66,6 +69,11 @@ public class MaskedSource< D extends Type< D >, T extends Type< T > > implements
 
 	private final T extensionT;
 
+	// TODO make sure that BB is handled properly in multi scale case!!!
+	private Interval paintedBoundingBox = null;
+
+	private final Consumer< RandomAccessibleInterval< UnsignedLongType > > mergeCanvasToBackground;
+
 	@SuppressWarnings( "unchecked" )
 	public MaskedSource(
 			final DataSource< D, T > source,
@@ -74,7 +82,8 @@ public class MaskedSource< D extends Type< D >, T extends Type< T > > implements
 			final PickAndConvert< D, UnsignedLongType, UnsignedLongType, D > pacD,
 			final PickAndConvert< T, VolatileUnsignedLongType, VolatileUnsignedLongType, T > pacT,
 			final D extensionD,
-			final T extensionT )
+			final T extensionT,
+			final Consumer< RandomAccessibleInterval< UnsignedLongType > > mergeCanvasToBackground )
 	{
 		super();
 		this.source = source;
@@ -106,6 +115,7 @@ public class MaskedSource< D extends Type< D >, T extends Type< T > > implements
 		this.pacT = pacT;
 		this.extensionT = extensionT;
 		this.extensionD = extensionD;
+		this.mergeCanvasToBackground = mergeCanvasToBackground;
 	}
 
 	public RandomAccessible< UnsignedByteType > generateMask( final int t, final int level, final UnsignedLongType value )
@@ -156,6 +166,45 @@ public class MaskedSource< D extends Type< D >, T extends Type< T > > implements
 		this.masks.put( mask, null );
 		this.dMasks[ maskInfo.level ] = ConstantUtils.constantRandomAccessible( new UnsignedLongType( Label.INVALID ), NUM_DIMENSIONS );
 		this.dMasks[ maskInfo.level ] = ConstantUtils.constantRandomAccessible( new UnsignedLongType( Label.INVALID ), NUM_DIMENSIONS );
+
+		if ( this.paintedBoundingBox == null )
+			this.paintedBoundingBox = interval;
+		else
+		{
+			final long[] m = min.clone();
+			final long[] M = max.clone();
+			for ( int d = 0; d < this.paintedBoundingBox.numDimensions(); ++d )
+			{
+				m[ d ] = Math.min( this.paintedBoundingBox.min( d ), m[ d ] );
+				M[ d ] = Math.max( this.paintedBoundingBox.max( d ), M[ d ] );
+			}
+			this.paintedBoundingBox = new FinalInterval( m, M );
+		}
+
+	}
+
+	public void mergeCanvasIntoBackground()
+	{
+		if ( this.paintedBoundingBox != null && this.mergeCanvasToBackground != null )
+		{
+			LOG.debug( "Merging canvas into background for interval {}", this.paintedBoundingBox );
+			final IntervalView< UnsignedLongType > rai = Views.interval( this.dataCanvases[ 0 ], this.paintedBoundingBox );
+			this.paintedBoundingBox = null;
+			this.mergeCanvasToBackground.accept( rai );
+			for ( int i = 0; i < dataCanvases.length; ++i )
+			{
+				final RandomAccessibleInterval< UnsignedLongType > canvas = dataCanvases[ i ];
+				if ( canvas instanceof DiskCachedCellImg< ?, ? > )
+				{
+					final DiskCachedCellImg< ?, ? > cachedImg = ( DiskCachedCellImg< ?, ? > ) canvas;
+					LOG.debug( "Invalidating all for canvas {}", cachedImg );
+					// TODO invalidate and delete everything!
+//					cachedImg.getCache().invalidateAll();
+				}
+			}
+		}
+		else
+			LOG.debug( "No canvas painted -- won't merge into background." );
 	}
 
 	@Override

@@ -91,6 +91,7 @@ import javafx.stage.Stage;
 import javafx.stage.WindowEvent;
 import net.imglib2.FinalInterval;
 import net.imglib2.Interval;
+import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.cache.img.DiskCachedCellImgOptions;
 import net.imglib2.cache.img.DiskCachedCellImgOptions.CacheType;
 import net.imglib2.converter.Converter;
@@ -788,12 +789,11 @@ public class Atlas
 		return 1.0;
 	}
 
-	public static < I extends IntegerType< I > & NativeType< I >, V extends AbstractVolatileRealType< I, V > > MaskedSource< I, V >
-
-			addCanvas(
-					final DataSource< I, V > source,
-					final int[] cellSize,
-					final String path )
+	public static < I extends IntegerType< I > & NativeType< I >, V extends AbstractVolatileRealType< I, V > > MaskedSource< I, V > addCanvas(
+			final DataSource< I, V > source,
+			final int[] cellSize,
+			final String path,
+			final Consumer< RandomAccessibleInterval< UnsignedLongType > > mergeCanvasIntoBackground )
 	{
 
 		final DiskCachedCellImgOptions cacheOptions = DiskCachedCellImgOptions
@@ -831,7 +831,8 @@ public class Atlas
 				pacD,
 				pacT,
 				type,
-				vtype );
+				vtype,
+				mergeCanvasIntoBackground );
 		// opts, mipmapCanvasCacheDirs, pacD, pacT, writeMaskToCanvas,
 		// extensionD, extensionT );
 
