@@ -244,7 +244,7 @@ public class Atlas
 				new NavigationOnly(),
 				new Highlights( controller, baseView().getState().transformManager(), sourceInfo, keyTracker ),
 				new Merges( sourceInfo ),
-				new PaintMode( baseView().viewerAxes(), sourceInfo, keyTracker, baseView().getState().transformManager() ) };
+				new PaintMode( baseView().viewerAxes(), sourceInfo, keyTracker, baseView().getState().transformManager(), () -> baseView().requestRepaint() ) };
 		Arrays.stream( initialModes ).forEach( modes::add );
 
 		for ( final Mode mode : modes )
