@@ -27,6 +27,7 @@ import net.imglib2.cache.img.DiskCachedCellImg;
 import net.imglib2.cache.img.DiskCachedCellImgFactory;
 import net.imglib2.cache.img.DiskCachedCellImgOptions;
 import net.imglib2.converter.Converters;
+import net.imglib2.converter.TypeIdentity;
 import net.imglib2.img.ImgFactory;
 import net.imglib2.interpolation.randomaccess.NearestNeighborInterpolatorFactory;
 import net.imglib2.realtransform.AffineTransform3D;
@@ -118,13 +119,15 @@ public class MaskedSource< D extends Type< D >, T extends Type< T > > implements
 		this.mergeCanvasToBackground = mergeCanvasToBackground;
 	}
 
-	public RandomAccessibleInterval< UnsignedByteType > generateMask( final int t, final int level, final UnsignedLongType value )
+	public RandomAccessibleInterval< UnsignedByteType > generateMask( final int t, final int level, final UnsignedLongType value ) throws MaskInUse
 	{
 		return generateMask( new MaskInfo<>( t, level, value ) );
 	}
 
-	public RandomAccessibleInterval< UnsignedByteType > generateMask( final MaskInfo< UnsignedLongType > mask )
+	public RandomAccessibleInterval< UnsignedByteType > generateMask( final MaskInfo< UnsignedLongType > mask ) throws MaskInUse
 	{
+		if ( this.masks.size() > 0 )
+			throw new MaskInUse( "Cannot generate new mask: current mask has not been submitted yet." );
 		final RandomAccessibleInterval< UnsignedByteType > store = maskFactory.create( source.getSource( 0, mask.level ), new UnsignedByteType() );
 		final RandomAccessibleInterval< VolatileUnsignedByteType > vstore = VolatileViews.wrapAsVolatile( store );
 		final UnsignedLongType INVALID = new UnsignedLongType( Label.INVALID );
@@ -141,7 +144,12 @@ public class MaskedSource< D extends Type< D >, T extends Type< T > > implements
 
 	public void applyMask( final RandomAccessibleInterval< UnsignedByteType > mask, final Interval paintedInterval )
 	{
-		final MaskInfo< UnsignedLongType > maskInfo = masks.get( mask );
+		final MaskInfo< UnsignedLongType > maskInfo = this.masks.get( mask );
+		if ( maskInfo == null )
+		{
+			LOG.debug( "Did not pass valid mask {}", mask );
+			return;
+		}
 		final RandomAccessibleInterval< UnsignedLongType > canvas = dataCanvases[ maskInfo.level ];
 		final long[] min = Intervals.minAsLongArray( canvas );
 		final long[] max = Intervals.maxAsLongArray( canvas );
@@ -163,9 +171,10 @@ public class MaskedSource< D extends Type< D >, T extends Type< T > > implements
 				canvasCursor.get().set( maskInfo.value );
 		}
 
-		this.masks.put( mask, null );
 		this.dMasks[ maskInfo.level ] = ConstantUtils.constantRandomAccessible( new UnsignedLongType( Label.INVALID ), NUM_DIMENSIONS );
 		this.dMasks[ maskInfo.level ] = ConstantUtils.constantRandomAccessible( new UnsignedLongType( Label.INVALID ), NUM_DIMENSIONS );
+
+		forgetMask( mask );
 
 		if ( this.paintedBoundingBox == null )
 			this.paintedBoundingBox = interval;
@@ -181,6 +190,11 @@ public class MaskedSource< D extends Type< D >, T extends Type< T > > implements
 			this.paintedBoundingBox = new FinalInterval( m, M );
 		}
 
+	}
+
+	public MaskInfo< UnsignedLongType > forgetMask( final RandomAccessibleInterval< UnsignedByteType > mask )
+	{
+		return this.masks.remove( mask );
 	}
 
 	public void mergeCanvasIntoBackground()
@@ -281,6 +295,16 @@ public class MaskedSource< D extends Type< D >, T extends Type< T > > implements
 	public D getDataType()
 	{
 		return source.getDataType();
+	}
+
+	public RandomAccessibleInterval< UnsignedLongType > getReadOnlyDataCanvas( final int t, final int level )
+	{
+		return Converters.convert( this.dataCanvases[ level ], new TypeIdentity<>(), new UnsignedLongType() );
+	}
+
+	public RandomAccessibleInterval< D > getReadOnlyDataBackground( final int t, final int level )
+	{
+		return Converters.convert( this.source.getDataSource( t, level ), new TypeIdentity<>(), this.source.getDataType().createVariable() );
 	}
 
 }

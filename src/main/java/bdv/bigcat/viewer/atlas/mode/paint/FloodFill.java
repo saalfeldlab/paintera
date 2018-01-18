@@ -1,13 +1,17 @@
 package bdv.bigcat.viewer.atlas.mode.paint;
 
 import java.lang.invoke.MethodHandles;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
+import java.util.List;
 import java.util.function.Function;
 import java.util.function.Supplier;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import bdv.bigcat.viewer.atlas.data.mask.MaskInUse;
 import bdv.bigcat.viewer.atlas.data.mask.MaskInfo;
 import bdv.bigcat.viewer.atlas.data.mask.MaskedSource;
 import bdv.bigcat.viewer.atlas.source.AtlasSourceState;
@@ -16,6 +20,8 @@ import bdv.bigcat.viewer.bdvfx.ViewerPanelFX;
 import bdv.img.AccessBoxRandomAccessible;
 import bdv.viewer.Source;
 import bdv.viewer.state.ViewerState;
+import javafx.scene.Cursor;
+import javafx.scene.Scene;
 import net.imglib2.Interval;
 import net.imglib2.Localizable;
 import net.imglib2.Point;
@@ -123,7 +129,24 @@ public class FloodFill
 			p.setPosition( Math.round( rp.getDoublePosition( d ) ), d );
 
 		LOG.debug( "Filling source {} with label {} at {}", source, fill, p );
-		fill( ( MaskedSource ) source, time, level, fill, p, requestRepaint );
+		final Scene scene = viewer.getScene();
+		final Cursor previousCursor = scene.getCursor();
+		try
+		{
+			fill(
+					( MaskedSource ) source,
+					time,
+					level,
+					fill,
+					p,
+					new RunAll( requestRepaint, () -> scene.setCursor( Cursor.WAIT ) ),
+					new RunAll( requestRepaint, () -> scene.setCursor( previousCursor ) ) );
+		}
+		catch ( final MaskInUse e )
+		{
+			LOG.warn( e.getMessage() );
+			return;
+		}
 
 	}
 
@@ -159,22 +182,43 @@ public class FloodFill
 			final int level,
 			final long fill,
 			final Localizable seed,
-			final Runnable requestRepaint )
+			final Runnable doWhileFilling,
+			final Runnable doWhenDone ) throws MaskInUse
 	{
 		final MaskInfo< UnsignedLongType > maskInfo = new MaskInfo<>( time, level, new UnsignedLongType( fill ) );
 		final RandomAccessibleInterval< UnsignedByteType > mask = source.generateMask( maskInfo );
 		final AccessBoxRandomAccessible< UnsignedByteType > accessTracker = new AccessBoxRandomAccessible<>( Views.extendValue( mask, new UnsignedByteType( 1 ) ) );
-		net.imglib2.algorithm.fill.FloodFill.fill(
-				source.getDataSource( time, level ),
-				accessTracker,
-				seed,
-				new UnsignedByteType( 1 ),
-				new DiamondShape( 1 ),
-				makeFilter() );
-		requestRepaint.run();
-		final Interval interval = accessTracker.createAccessInterval();
-		LOG.debug( "Applying mask for interval {} {}", Arrays.toString( Intervals.minAsLongArray( interval ) ), Arrays.toString( Intervals.maxAsLongArray( interval ) ) );
-		source.applyMask( mask, accessTracker.createAccessInterval() );
+		final Thread t = new Thread( () -> {
+			net.imglib2.algorithm.fill.FloodFill.fill(
+					source.getDataSource( time, level ),
+					accessTracker,
+					seed,
+					new UnsignedByteType( 1 ),
+					new DiamondShape( 1 ),
+					makeFilter() );
+			final Interval interval = accessTracker.createAccessInterval();
+			LOG.debug( "Applying mask for interval {} {}", Arrays.toString( Intervals.minAsLongArray( interval ) ), Arrays.toString( Intervals.maxAsLongArray( interval ) ) );
+		} );
+		t.start();
+		new Thread( () -> {
+			while ( t.isAlive() && !Thread.interrupted() )
+			{
+				try
+				{
+					Thread.sleep( 100 );
+				}
+				catch ( final InterruptedException e )
+				{
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				}
+				LOG.debug( "Updating current view!" );
+				doWhileFilling.run();
+			}
+			doWhenDone.run();
+			if ( !Thread.interrupted() )
+				source.applyMask( mask, accessTracker.createAccessInterval() );
+		} ).start();
 	}
 
 	private static < T extends Type< T > > Filter< Pair< T, UnsignedByteType >, Pair< T, UnsignedByteType > > makeFilter()
@@ -182,6 +226,30 @@ public class FloodFill
 		final UnsignedByteType zero = new UnsignedByteType( 0 );
 		// first element in pair is current pixel, second element is reference
 		return ( p1, p2 ) -> p1.getB().valueEquals( zero ) && p1.getA().valueEquals( p2.getA() );
+	}
+
+	public static class RunAll implements Runnable
+	{
+
+		private final List< Runnable > runnables;
+
+		public RunAll( final Runnable... runnables )
+		{
+			this( Arrays.asList( runnables ) );
+		}
+
+		public RunAll( final Collection< Runnable > runnables )
+		{
+			super();
+			this.runnables = new ArrayList<>( runnables );
+		}
+
+		@Override
+		public void run()
+		{
+			this.runnables.forEach( Runnable::run );
+		}
+
 	}
 
 }

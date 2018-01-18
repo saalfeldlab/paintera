@@ -10,6 +10,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import bdv.bigcat.viewer.atlas.data.DataSource;
+import bdv.bigcat.viewer.atlas.data.mask.MaskInUse;
 import bdv.bigcat.viewer.atlas.data.mask.MaskInfo;
 import bdv.bigcat.viewer.atlas.data.mask.MaskedSource;
 import bdv.bigcat.viewer.atlas.mode.paint.neighborhood.HyperEllipsoidNeighborhood;
@@ -164,7 +165,7 @@ public class Paint
 
 	}
 
-	private void prepareForPainting( final Long id )
+	private void prepareForPainting( final Long id ) throws MaskInUse
 	{
 		final ViewerState state = viewer.getState();
 		final Source< ? > viewerSource = sourceInfo.currentSourceProperty().get();
@@ -316,7 +317,15 @@ public class Paint
 		@Override
 		public void initDrag( final MouseEvent event )
 		{
-			prepareForPainting( id.get() );
+			try
+			{
+				prepareForPainting( id.get() );
+			}
+			catch ( final MaskInUse e )
+			{
+				LOG.info( "{} -- will not paint.", e.getMessage() );
+				return;
+			}
 			paint( event, consume );
 		}
 
