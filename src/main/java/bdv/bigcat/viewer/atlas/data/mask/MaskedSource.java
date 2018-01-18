@@ -118,7 +118,7 @@ public class MaskedSource< D extends Type< D >, T extends Type< T > > implements
 		this.mergeCanvasToBackground = mergeCanvasToBackground;
 	}
 
-	public RandomAccessible< UnsignedByteType > generateMask( final int t, final int level, final UnsignedLongType value )
+	public RandomAccessibleInterval< UnsignedByteType > generateMask( final int t, final int level, final UnsignedLongType value )
 	{
 		return generateMask( new MaskInfo<>( t, level, value ) );
 	}
