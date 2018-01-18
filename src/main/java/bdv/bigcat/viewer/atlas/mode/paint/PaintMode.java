@@ -14,6 +14,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import bdv.bigcat.viewer.IdSelector;
+import bdv.bigcat.viewer.atlas.data.mask.MaskedSource;
 import bdv.bigcat.viewer.atlas.mode.AbstractStateMode;
 import bdv.bigcat.viewer.atlas.source.SourceInfo;
 import bdv.bigcat.viewer.bdvfx.EventFX;
@@ -121,6 +122,17 @@ public class PaintMode extends AbstractStateMode
 
 					final SelectNextId nextId = new SelectNextId( sourceInfo, this );
 					iars.add( EventFX.KEY_PRESSED( "next id", event -> nextId.getNextId(), event -> keyTracker.areOnlyTheseKeysDown( KeyCode.N ) ) );
+
+					iars.add( EventFX.KEY_PRESSED( "merge canvas", event -> {
+						final Source< ? > cs = currentSource.get();
+						if ( cs instanceof MaskedSource< ?, ? > )
+						{
+							LOG.debug( "Merging canvas for source {}", cs );
+							final MaskedSource< ?, ? > mcs = ( MaskedSource< ?, ? > ) cs;
+							mcs.mergeCanvasIntoBackground();
+						}
+						event.consume();
+					}, event -> keyTracker.areOnlyTheseKeysDown( KeyCode.SHIFT, KeyCode.M ) ) );
 
 					this.mouseAndKeyHandlers.put( t, iars );
 				}

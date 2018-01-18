@@ -2,6 +2,7 @@ package bdv.bigcat.viewer.atlas.opendialog;
 
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.function.Consumer;
 
 import bdv.bigcat.viewer.atlas.data.DataSource;
 import bdv.bigcat.viewer.atlas.data.LabelDataSource;
@@ -15,8 +16,10 @@ import javafx.beans.property.SimpleDoubleProperty;
 import javafx.beans.property.SimpleIntegerProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.scene.Node;
+import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.type.NativeType;
 import net.imglib2.type.numeric.RealType;
+import net.imglib2.type.numeric.integer.UnsignedLongType;
 import net.imglib2.type.volatiles.AbstractVolatileRealType;
 
 public interface BackendDialog
@@ -96,9 +99,9 @@ public interface BackendDialog
 		return new SimpleIntegerProperty( 3 );
 	}
 
-	public default Runnable commitCanvas()
+	public default Consumer< RandomAccessibleInterval< UnsignedLongType > > commitCanvas()
 	{
-		return () -> {};
+		return null;
 	}
 
 	public default ObjectProperty< AxisOrder > defaultAxisOrder()
