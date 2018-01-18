@@ -1,12 +1,14 @@
 package bdv.bigcat.viewer.atlas.mode.paint;
 
 import java.lang.invoke.MethodHandles;
+import java.util.Arrays;
 import java.util.function.Function;
 import java.util.function.Supplier;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import bdv.bigcat.viewer.atlas.data.mask.MaskInfo;
 import bdv.bigcat.viewer.atlas.data.mask.MaskedSource;
 import bdv.bigcat.viewer.atlas.source.AtlasSourceState;
 import bdv.bigcat.viewer.atlas.source.SourceInfo;
@@ -14,6 +16,7 @@ import bdv.bigcat.viewer.bdvfx.ViewerPanelFX;
 import bdv.img.AccessBoxRandomAccessible;
 import bdv.viewer.Source;
 import bdv.viewer.state.ViewerState;
+import net.imglib2.Interval;
 import net.imglib2.Localizable;
 import net.imglib2.Point;
 import net.imglib2.RandomAccessibleInterval;
@@ -27,13 +30,14 @@ import net.imglib2.type.Type;
 import net.imglib2.type.numeric.RealType;
 import net.imglib2.type.numeric.integer.UnsignedByteType;
 import net.imglib2.type.numeric.integer.UnsignedLongType;
+import net.imglib2.util.Intervals;
 import net.imglib2.util.Pair;
 import net.imglib2.view.Views;
 
 public class FloodFill
 {
 
-	private final Logger LOG = LoggerFactory.getLogger( MethodHandles.lookup().lookupClass() );
+	private static final Logger LOG = LoggerFactory.getLogger( MethodHandles.lookup().lookupClass() );
 
 	private final ViewerPanelFX viewer;
 
@@ -41,15 +45,16 @@ public class FloodFill
 
 	private final Runnable requestRepaint;
 
+	private final AffineTransform3D viewerTransform = new AffineTransform3D();
+
 	public FloodFill( final ViewerPanelFX viewer, final SourceInfo sourceInfo, final Runnable requestRepaint )
 	{
 		super();
 		this.viewer = viewer;
 		this.sourceInfo = sourceInfo;
 		this.requestRepaint = requestRepaint;
+		viewer.addTransformListener( t -> viewerTransform.set( t ) );
 	}
-
-	private final AffineTransform3D viewerTransform = new AffineTransform3D();
 
 	public void fillAt( final double x, final double y, final Supplier< Long > fillSupplier )
 	{
@@ -117,7 +122,7 @@ public class FloodFill
 		for ( int d = 0; d < p.numDimensions(); ++d )
 			p.setPosition( Math.round( rp.getDoublePosition( d ) ), d );
 
-		LOG.warn( "Filling source {} with label {} at {}", source, fill, p );
+		LOG.debug( "Filling source {} with label {} at {}", source, fill, p );
 		fill( ( MaskedSource ) source, time, level, fill, p, requestRepaint );
 
 	}
@@ -156,7 +161,8 @@ public class FloodFill
 			final Localizable seed,
 			final Runnable requestRepaint )
 	{
-		final RandomAccessibleInterval< UnsignedByteType > mask = source.generateMask( time, level, new UnsignedLongType( fill ) );
+		final MaskInfo< UnsignedLongType > maskInfo = new MaskInfo<>( time, level, new UnsignedLongType( fill ) );
+		final RandomAccessibleInterval< UnsignedByteType > mask = source.generateMask( maskInfo );
 		final AccessBoxRandomAccessible< UnsignedByteType > accessTracker = new AccessBoxRandomAccessible<>( Views.extendValue( mask, new UnsignedByteType( 1 ) ) );
 		net.imglib2.algorithm.fill.FloodFill.fill(
 				source.getDataSource( time, level ),
@@ -166,6 +172,8 @@ public class FloodFill
 				new DiamondShape( 1 ),
 				makeFilter() );
 		requestRepaint.run();
+		final Interval interval = accessTracker.createAccessInterval();
+		LOG.debug( "Applying mask for interval {} {}", Arrays.toString( Intervals.minAsLongArray( interval ) ), Arrays.toString( Intervals.maxAsLongArray( interval ) ) );
 		source.applyMask( mask, accessTracker.createAccessInterval() );
 	}
 
