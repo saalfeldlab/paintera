@@ -160,6 +160,8 @@ public class BackendDialogN5 extends BackendDialogGroupAndDataset implements Com
 				final RandomAccessibleInterval< V > vraw = VolatileViews.wrapAsVolatile( raw, sharedQueue, new CacheHints( LoadingStrategy.VOLATILE, priority, true ) );
 				final double[] resolution = resolution();
 				final double[] offset = offset();
+				final AxisOrder axisOrder = axisOrder().get().spatialOnly();
+				LOG.debug( "Resolution={}, axis order={}, inverse spatial permutation={}", Arrays.toString( resolution ), axisOrder, Arrays.toString( axisOrder.inversePermutation() ) );
 				final AffineTransform3D transform = SourceFromRAI.permutedSourceTransform( resolution, offset, axisOrder().get().spatialOnly().inversePermutation() );
 				return new ValueTriple<>( new RandomAccessibleInterval[] { raw }, new RandomAccessibleInterval[] { vraw }, new AffineTransform3D[] { transform } );
 			}
@@ -179,6 +181,7 @@ public class BackendDialogN5 extends BackendDialogGroupAndDataset implements Com
 		final double[] initialResolution = resolution();
 		final double[] initialDonwsamplingFactors = Optional.ofNullable( reader.getAttribute( dataset + "/" + scaleDatasets[ 0 ], "downsamplingFactors", double[].class ) ).orElse( new double[] { 1, 1, 1 } );
 		final double[] offset = offset();
+		LOG.warn( "Initial resolution={}, permutation={}", Arrays.toString( initialResolution ), axisOrder().get() );
 		for ( int scale = 0; scale < scaleDatasets.length; ++scale )
 		{
 			LOG.debug( "Populating scale level {}", scale );
@@ -196,6 +199,8 @@ public class BackendDialogN5 extends BackendDialogGroupAndDataset implements Com
 				scaledResolution[ d ] = downsamplingFactors[ d ] * initialResolution[ d ];
 				shift[ d ] = 0.5 / initialDonwsamplingFactors[ d ] - 0.5 / downsamplingFactors[ d ];
 			}
+
+			LOG.warn( "Downsampling factors={}, scaled resolution={}", Arrays.toString( downsamplingFactors ), Arrays.toString( scaledResolution ) );
 
 			final AffineTransform3D transform = SourceFromRAI.permutedSourceTransform( scaledResolution, offset, axisOrder().get().spatialOnly().inversePermutation() );
 			transforms[ scale ] = transform.concatenate( new Translation3D( shift ) );

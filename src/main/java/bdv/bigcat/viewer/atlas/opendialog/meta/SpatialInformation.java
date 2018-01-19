@@ -95,14 +95,18 @@ public class SpatialInformation
 		final int[] p = invertPermutation( Optional.ofNullable( axisOrder ).orElse( AxisOrder.XYZ ).permutation() );
 		this.bindings.forEach( ( prop1, prop2 ) -> prop1.unbindBidirectional( prop2 ) );
 
-		System.out.println( "UPDATING BINDINGS! " + xPermuted + " " + yPermuted + " " + zPermuted );
-		xPermuted.bindBidirectional( xyz[ p[ 0 ] ] );
-		yPermuted.bindBidirectional( xyz[ p[ 1 ] ] );
-		zPermuted.bindBidirectional( xyz[ p[ 2 ] ] );
+		System.out.println( "UPDATING BINDINGS! " + axisOrder + " " + xPermuted + " " + yPermuted + " " + zPermuted );
+//		xPermuted.bindBidirectional( xyz[ p[ 0 ] ] );
+//		yPermuted.bindBidirectional( xyz[ p[ 1 ] ] );
+//		zPermuted.bindBidirectional( xyz[ p[ 2 ] ] );
+//		xyz[ p[ 0 ] ].bindBidirectional( xPermuted );
+//		xyz[ p[ 1 ] ].bindBidirectional( yPermuted );
+//		xyz[ p[ 2 ] ].bindBidirectional( zPermuted );
 		this.bindings.put( xPermuted, xyz[ p[ 0 ] ] );
 		this.bindings.put( yPermuted, xyz[ p[ 1 ] ] );
 		this.bindings.put( zPermuted, xyz[ p[ 2 ] ] );
-		System.out.println( "UPDATING BINDINGS! " + xPermuted + " " + yPermuted + " " + zPermuted );
+		this.bindings.forEach( ( permuted, inWorldAxes ) -> inWorldAxes.bindBidirectional( permuted ) );
+		System.out.println( "UPDATED BINDINGS! " + axisOrder + " " + xPermuted + " " + yPermuted + " " + zPermuted );
 	}
 
 	private static double parseDouble( final String s )

@@ -183,22 +183,36 @@ public interface SourceFromRAI extends BackendDialog
 	{
 		final AffineTransform3D rawTransform = new AffineTransform3D();
 		final double[] matrixContent = new double[ 12 ];
+		LOG.warn( "component mapping={}", Arrays.toString( componentMapping ) );
 		for ( int i = 0, contentOffset = 0; i < offset.length; ++i, contentOffset += 4 )
 		{
-			matrixContent[ contentOffset + componentMapping[ i ] ] = resolution[ i ];
+			matrixContent[ 4 * componentMapping[ i ] + i ] = resolution[ i ];
 			matrixContent[ contentOffset + 3 ] = offset[ i ];
 		}
 		rawTransform.set( matrixContent );
+		LOG.warn( "permuted transform={}", rawTransform );
 		return rawTransform;
 	}
 
 	public default double[] resolution()
 	{
+//		final double[] resolution = new double[ 3 ];
+//		final int[] permutation = axisOrder().get().spatialOnly().permutation();
+//		resolution[ permutation[ 0 ] ] = resolutionX().get();
+//		resolution[ permutation[ 1 ] ] = resolutionY().get();
+//		resolution[ permutation[ 2 ] ] = resolutionZ().get();
+//		return resolution;
 		return new double[] { resolutionX().get(), resolutionY().get(), resolutionZ().get() };
 	}
 
 	public default double[] offset()
 	{
+//		final double[] offset = new double[ 3 ];
+//		final int[] permutation = axisOrder().get().spatialOnly().permutation();
+//		offset[ permutation[ 0 ] ] = offsetX().get();
+//		offset[ permutation[ 1 ] ] = offsetY().get();
+//		offset[ permutation[ 2 ] ] = offsetZ().get();
+//		return offset;
 		return new double[] { offsetX().get(), offsetY().get(), offsetZ().get() };
 	}
 
