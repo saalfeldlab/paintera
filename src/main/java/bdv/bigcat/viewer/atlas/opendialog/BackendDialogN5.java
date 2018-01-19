@@ -25,6 +25,8 @@ import org.slf4j.LoggerFactory;
 import com.google.gson.JsonElement;
 
 import bdv.labels.labelset.Label;
+import bdv.net.imglib2.util.Triple;
+import bdv.net.imglib2.util.ValueTriple;
 import bdv.util.IdService;
 import bdv.util.N5IdService;
 import bdv.util.volatiles.SharedQueue;
@@ -38,13 +40,13 @@ import net.imglib2.cache.volatiles.CacheHints;
 import net.imglib2.cache.volatiles.LoadingStrategy;
 import net.imglib2.img.array.ArrayImg;
 import net.imglib2.img.array.ArrayImgFactory;
+import net.imglib2.realtransform.AffineTransform3D;
+import net.imglib2.realtransform.Translation3D;
 import net.imglib2.type.NativeType;
 import net.imglib2.type.numeric.IntegerType;
 import net.imglib2.type.numeric.integer.UnsignedLongType;
 import net.imglib2.util.Intervals;
-import net.imglib2.util.Pair;
 import net.imglib2.util.Util;
-import net.imglib2.util.ValuePair;
 import net.imglib2.view.Views;
 
 public class BackendDialogN5 extends BackendDialogGroupAndDataset implements CombinesErrorMessages
@@ -143,12 +145,12 @@ public class BackendDialogN5 extends BackendDialogGroupAndDataset implements Com
 
 	@SuppressWarnings( "unchecked" )
 	@Override
-	public < T extends NativeType< T >, V extends Volatile< T > > Pair< RandomAccessibleInterval< T >[], RandomAccessibleInterval< V >[] > getDataAndVolatile(
+	public < T extends NativeType< T >, V extends Volatile< T > > Triple< RandomAccessibleInterval< T >[], RandomAccessibleInterval< V >[], AffineTransform3D[] > getDataAndVolatile(
 			final SharedQueue sharedQueue,
 			final int priority ) throws IOException
 	{
 		final String group = groupProperty.get();
-		final N5FSReader reader = new N5FSReader( group );
+		final N5Reader reader = new N5FSReader( group );
 		final String dataset = this.dataset.get();
 		try
 		{
@@ -156,7 +158,10 @@ public class BackendDialogN5 extends BackendDialogGroupAndDataset implements Com
 			{
 				final RandomAccessibleInterval< T > raw = N5Utils.openVolatile( reader, dataset );
 				final RandomAccessibleInterval< V > vraw = VolatileViews.wrapAsVolatile( raw, sharedQueue, new CacheHints( LoadingStrategy.VOLATILE, priority, true ) );
-				return new ValuePair<>( new RandomAccessibleInterval[] { raw }, new RandomAccessibleInterval[] { vraw } );
+				final double[] resolution = resolution();
+				final double[] offset = offset();
+				final AffineTransform3D transform = SourceFromRAI.permutedSourceTransform( resolution, offset, axisOrder().get().spatialOnly().inversePermutation() );
+				return new ValueTriple<>( new RandomAccessibleInterval[] { raw }, new RandomAccessibleInterval[] { vraw }, new AffineTransform3D[] { transform } );
 			}
 		}
 		catch ( final IOException e )
@@ -166,18 +171,37 @@ public class BackendDialogN5 extends BackendDialogGroupAndDataset implements Com
 		final String[] scaleDatasets = listScaleDatasets( reader, dataset );
 		sortScaleDatasets( scaleDatasets );
 
-		LOG.info( "Opening directories {} as multi-scale in {}: ", Arrays.toString( scaleDatasets ), dataset );
+		LOG.debug( "Opening directories {} as multi-scale in {}: ", Arrays.toString( scaleDatasets ), dataset );
 
 		final RandomAccessibleInterval< T >[] raw = new RandomAccessibleInterval[ scaleDatasets.length ];
 		final RandomAccessibleInterval< V >[] vraw = new RandomAccessibleInterval[ scaleDatasets.length ];
+		final AffineTransform3D[] transforms = new AffineTransform3D[ scaleDatasets.length ];
+		final double[] initialResolution = resolution();
+		final double[] initialDonwsamplingFactors = Optional.ofNullable( reader.getAttribute( dataset + "/" + scaleDatasets[ 0 ], "downsamplingFactors", double[].class ) ).orElse( new double[] { 1, 1, 1 } );
+		final double[] offset = offset();
 		for ( int scale = 0; scale < scaleDatasets.length; ++scale )
 		{
 			LOG.debug( "Populating scale level {}", scale );
-			raw[ scale ] = N5Utils.openVolatile( reader, dataset + "/" + scaleDatasets[ scale ] );
+			final String scaleDataset = dataset + "/" + scaleDatasets[ scale ];
+			raw[ scale ] = N5Utils.openVolatile( reader, scaleDataset );
 			vraw[ scale ] = VolatileViews.wrapAsVolatile( raw[ scale ], sharedQueue, new CacheHints( LoadingStrategy.VOLATILE, priority, true ) );
+
+			final double[] downsamplingFactors = Optional.ofNullable( reader.getAttribute( scaleDataset, "downsamplingFactors", double[].class ) ).orElse( new double[] { 1, 1, 1 } );
+
+			final double[] scaledResolution = new double[ downsamplingFactors.length ];
+			final double[] shift = new double[ downsamplingFactors.length ];
+
+			for ( int d = 0; d < downsamplingFactors.length; ++d )
+			{
+				scaledResolution[ d ] = downsamplingFactors[ d ] * initialResolution[ d ];
+				shift[ d ] = 0.5 / initialDonwsamplingFactors[ d ] - 0.5 / downsamplingFactors[ d ];
+			}
+
+			final AffineTransform3D transform = SourceFromRAI.permutedSourceTransform( scaledResolution, offset, axisOrder().get().spatialOnly().inversePermutation() );
+			transforms[ scale ] = transform.concatenate( new Translation3D( shift ) );
 			LOG.debug( "Populated scale level {}", scale );
 		}
-		return new ValuePair<>( raw, vraw );
+		return new ValueTriple<>( raw, vraw, transforms );
 	}
 
 	@Override
@@ -252,7 +276,8 @@ public class BackendDialogN5 extends BackendDialogGroupAndDataset implements Com
 			final N5FSReader n5 = new N5FSReader( at );
 			discoverSubdirectories( n5, "", datasets, () -> this.isTraversingDirectories.set( false ) );
 		}
-		catch ( final IOException e ) {}
+		catch ( final IOException e )
+		{}
 
 		return datasets;
 	}
@@ -260,27 +285,26 @@ public class BackendDialogN5 extends BackendDialogGroupAndDataset implements Com
 	public static void discoverSubdirectories( final N5Reader n5, final String pathName, final Collection< String > datasets, final Runnable onInterruption )
 	{
 		if ( !Thread.currentThread().isInterrupted() )
-		{
 			try
 			{
 				final String[] groups = n5.list( pathName );
 				Arrays.sort( groups );
-				for ( final String group : groups ) {
+				for ( final String group : groups )
+				{
 					final String absolutePathName = pathName + "/" + group;
 					if ( n5.datasetExists( absolutePathName ) )
 						datasets.add( absolutePathName );
-					else {
+					else
+					{
 						final String[] scales = n5.list( absolutePathName );
 						boolean isMipmapGroup = scales.length > 0;
 						for ( final String scale : scales )
-						{
 							if ( !( scale.matches( "^s[0-9]+$" ) && n5.datasetExists( absolutePathName + "/" + scale ) ) )
 							{
 								isMipmapGroup = false;
 								break;
 							}
-						}
-						if (isMipmapGroup)
+						if ( isMipmapGroup )
 							datasets.add( absolutePathName );
 						else
 							discoverSubdirectories( n5, absolutePathName, datasets, onInterruption );
@@ -291,7 +315,6 @@ public class BackendDialogN5 extends BackendDialogGroupAndDataset implements Com
 			{
 				e.printStackTrace();
 			}
-		}
 		else
 			onInterruption.run();
 	}
@@ -301,7 +324,16 @@ public class BackendDialogN5 extends BackendDialogGroupAndDataset implements Com
 		return Arrays
 				.stream( n5.list( group ) )
 				.filter( s -> s.matches( "^s\\d+$" ) )
-				.filter( s -> { try { return n5.datasetExists( group + "/" + s ); } catch ( final IOException e ) { return false; } } )
+				.filter( s -> {
+					try
+					{
+						return n5.datasetExists( group + "/" + s );
+					}
+					catch ( final IOException e )
+					{
+						return false;
+					}
+				} )
 				.toArray( String[]::new );
 	}
 

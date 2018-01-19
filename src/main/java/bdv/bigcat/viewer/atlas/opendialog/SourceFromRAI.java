@@ -17,6 +17,7 @@ import bdv.bigcat.viewer.atlas.data.LabelDataSourceFromDelegates;
 import bdv.bigcat.viewer.atlas.data.RandomAccessibleIntervalDataSource;
 import bdv.bigcat.viewer.atlas.data.RandomAccessibleIntervalDataSourceWithTime;
 import bdv.bigcat.viewer.state.FragmentSegmentAssignmentState;
+import bdv.net.imglib2.util.Triple;
 import bdv.util.volatiles.SharedQueue;
 import bdv.viewer.Interpolation;
 import net.imglib2.RandomAccessible;
@@ -33,7 +34,6 @@ import net.imglib2.type.numeric.NumericType;
 import net.imglib2.type.numeric.RealType;
 import net.imglib2.type.volatiles.AbstractVolatileRealType;
 import net.imglib2.util.Intervals;
-import net.imglib2.util.Pair;
 import net.imglib2.view.Views;
 
 public interface SourceFromRAI extends BackendDialog
@@ -41,7 +41,7 @@ public interface SourceFromRAI extends BackendDialog
 
 	public static final Logger LOG = LoggerFactory.getLogger( MethodHandles.lookup().lookupClass() );
 
-	public < T extends NativeType< T >, V extends Volatile< T > > Pair< RandomAccessibleInterval< T >[], RandomAccessibleInterval< V >[] > getDataAndVolatile(
+	public < T extends NativeType< T >, V extends Volatile< T > > Triple< RandomAccessibleInterval< T >[], RandomAccessibleInterval< V >[], AffineTransform3D[] > getDataAndVolatile(
 			final SharedQueue sharedQueue,
 			final int priority ) throws IOException;
 
@@ -56,81 +56,60 @@ public interface SourceFromRAI extends BackendDialog
 	@Override
 	public default < T extends RealType< T > & NativeType< T >, V extends AbstractVolatileRealType< T, V > & NativeType< V > > Collection< DataSource< T, V > > getRaw(
 			final String name,
-			final double[] resolution,
-			final double[] offset,
-			final AxisOrder axisOrder,
 			final SharedQueue sharedQueue,
 			final int priority ) throws IOException
 	{
-		final Pair< RandomAccessibleInterval< T >[], RandomAccessibleInterval< V >[] > dataAndVolatile = getDataAndVolatile( sharedQueue, priority );
-		return getCached( dataAndVolatile.getA(), dataAndVolatile.getB(), name, resolution, offset, axisOrder, sharedQueue, priority );
+		final Triple< RandomAccessibleInterval< T >[], RandomAccessibleInterval< V >[], AffineTransform3D[] > dataAndVolatile = getDataAndVolatile( sharedQueue, priority );
+		return getCached( dataAndVolatile.getA(), dataAndVolatile.getB(), dataAndVolatile.getC(), name, sharedQueue, priority );
 	}
 
 	@Override
 	public default Collection< ? extends LabelDataSource< ?, ? > > getLabels(
 			final String name,
-			final double[] resolution,
-			final double[] offset,
-			final AxisOrder axisOrder,
 			final SharedQueue sharedQueue,
 			final int priority ) throws Exception
 	{
 		if ( isLabelType() )
 			if ( isIntegerType() )
-				return getIntegerTypeSource( name, resolution, offset, axisOrder, sharedQueue, priority, assignments() );
+				return getIntegerTypeSource( name, sharedQueue, priority, assignments() );
 			else if ( isLabelMultisetType() )
 				return new ArrayList<>();
 		return new ArrayList<>();
 	}
 
-	public static < T extends NumericType< T >, V extends NumericType< V > > Collection< DataSource< T, V > > getCached(
+	public default < T extends NumericType< T >, V extends NumericType< V > > Collection< DataSource< T, V > > getCached(
 			final RandomAccessibleInterval< T >[] rai,
 			final RandomAccessibleInterval< V >[] vrai,
+			final AffineTransform3D[] transforms,
 			final String nameOrPattern,
-			final double[] resolution,
-			final double[] offset,
-			final AxisOrder axisOrder,
 			final SharedQueue sharedQueue,
 			final int priority ) throws IOException
 	{
 		return getCached(
 				rai,
 				vrai,
+				transforms,
 				interpolation -> interpolation.equals( Interpolation.NLINEAR ) ? new NLinearInterpolatorFactory<>() : new NearestNeighborInterpolatorFactory<>(),
 				interpolation -> interpolation.equals( Interpolation.NLINEAR ) ? new NLinearInterpolatorFactory<>() : new NearestNeighborInterpolatorFactory<>(),
 				nameOrPattern,
-				resolution,
-				offset,
-				axisOrder,
 				sharedQueue,
 				priority );
 	}
 
-	public static < T extends Type< T >, V extends Type< V > > Collection< DataSource< T, V > > getCached(
+	public default < T extends Type< T >, V extends Type< V > > Collection< DataSource< T, V > > getCached(
 			final RandomAccessibleInterval< T >[] rai,
 			final RandomAccessibleInterval< V >[] vrai,
+			final AffineTransform3D[] transforms,
 			final Function< Interpolation, InterpolatorFactory< T, RandomAccessible< T > > > interpolation,
 			final Function< Interpolation, InterpolatorFactory< V, RandomAccessible< V > > > vinterpolation,
 			final String nameOrPattern,
-			final double[] resolution,
-			final double[] offset,
-			final AxisOrder axisOrder,
 			final SharedQueue sharedQueue,
 			final int priority ) throws IOException
 	{
 		final long[] dimensionsAtHighestRes = Intervals.dimensionsAsLongArray( rai[ 0 ] );
-		final int[] componentMapping = axisOrder.spatialOnly().inversePermutation();
-		final AffineTransform3D sourceTransform = permutedSourceTransform( resolution, offset, componentMapping );
-		final AffineTransform3D[] transforms = new AffineTransform3D[ rai.length ];
-		for ( int scale = 0, factor = 1; scale < transforms.length; ++scale, factor *= 2 )
-		{
-			final AffineTransform3D copy = sourceTransform.copy();
-			for ( int i = 0; i < 3; ++i )
-				for ( int k = 0; k < 3; ++k )
-					copy.set( copy.get( i, k ) * factor, i, k );
-			transforms[ scale ] = copy;
-		}
 		LOG.info( "Using source transforms {} for {} sources", Arrays.toString( transforms ), rai.length );
+
+		final AxisOrder axisOrder = this.axisOrder().get();
 
 		if ( axisOrder.hasChannels() )
 		{
@@ -155,20 +134,23 @@ public interface SourceFromRAI extends BackendDialog
 
 	public default < T extends IntegerType< T > & NativeType< T >, V extends AbstractVolatileRealType< T, V > > Collection< ? extends LabelDataSource< T, V > > getIntegerTypeSource(
 			final String name,
-			final double[] resolution,
-			final double[] offset,
-			final AxisOrder axisOrder,
 			final SharedQueue sharedQueue,
 			final int priority,
 			final Iterator< ? extends FragmentSegmentAssignmentState< ? > > assignment ) throws IOException
 	{
-		final Pair< RandomAccessibleInterval< T >[], RandomAccessibleInterval< V >[] > dataAndVolatile = getDataAndVolatile( sharedQueue, priority );
-		final Collection< DataSource< T, V > > sources = SourceFromRAI.getCached(
+
+		final AxisOrder axisOrder = this.axisOrder().get();
+
+		final Triple< RandomAccessibleInterval< T >[], RandomAccessibleInterval< V >[], AffineTransform3D[] > dataAndVolatile = getDataAndVolatile( sharedQueue, priority );
+		final Collection< DataSource< T, V > > sources = getCached(
 				dataAndVolatile.getA(),
 				dataAndVolatile.getB(),
+				dataAndVolatile.getC(),
 				i -> new NearestNeighborInterpolatorFactory<>(),
 				i -> new NearestNeighborInterpolatorFactory<>(),
-				axisOrder.hasChannels() ? name + " (%d)" : name, resolution, offset, axisOrder, sharedQueue, priority );
+				axisOrder.hasChannels() ? name + " (%d)" : name,
+				sharedQueue,
+				priority );
 		final ArrayList< LabelDataSource< T, V > > delegated = new ArrayList<>();
 		for ( final DataSource< T, V > source : sources )
 			delegated.add( new LabelDataSourceFromDelegates<>( source, assignment.next() ) );
@@ -208,6 +190,16 @@ public interface SourceFromRAI extends BackendDialog
 		}
 		rawTransform.set( matrixContent );
 		return rawTransform;
+	}
+
+	public default double[] resolution()
+	{
+		return new double[] { resolutionX().get(), resolutionY().get(), resolutionZ().get() };
+	}
+
+	public default double[] offset()
+	{
+		return new double[] { offsetX().get(), offsetY().get(), offsetZ().get() };
 	}
 
 }

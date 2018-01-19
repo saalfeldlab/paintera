@@ -77,9 +77,6 @@ public class OpenDialogEventHandler implements EventHandler< Event >
 					{
 						final Collection< ? extends DataSource< ? extends RealType< ? >, ? extends RealType< ? > > > raws = dataset.get().getRaw(
 								openDialog.getName(),
-								meta.getResolution(),
-								meta.getOffset(),
-								meta.getAxisOrder(),
 								cellCache,
 								cellCache.getNumPriorities() - 1 );
 						viewer.addRawSources( ( Collection ) raws, min, max );
@@ -117,9 +114,6 @@ public class OpenDialogEventHandler implements EventHandler< Event >
 		// TODO handle this better!
 		final Collection< ? extends LabelDataSource< I, V > > optionalSource = ( Collection< ? extends LabelDataSource< I, V > > ) dataset.getLabels(
 				openDialog.getName(),
-				meta.getResolution(),
-				meta.getOffset(),
-				meta.getAxisOrder(),
 				cellCache,
 				cellCache.getNumPriorities() );
 		for ( final LabelDataSource< I, V > source : optionalSource )

@@ -31,9 +31,6 @@ public interface BackendDialog
 
 	public default < T extends RealType< T > & NativeType< T >, V extends AbstractVolatileRealType< T, V > & NativeType< V > > Collection< DataSource< T, V > > getRaw(
 			final String name,
-			final double[] resolution,
-			final double[] offset,
-			final AxisOrder axisOrder,
 			final SharedQueue sharedQueue,
 			final int priority ) throws Exception
 	{
@@ -42,9 +39,6 @@ public interface BackendDialog
 
 	public default Collection< ? extends LabelDataSource< ?, ? > > getLabels(
 			final String name,
-			final double[] resolution,
-			final double[] offset,
-			final AxisOrder axisOrder,
 			final SharedQueue sharedQueue,
 			final int priority ) throws Exception
 	{

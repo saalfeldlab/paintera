@@ -94,13 +94,15 @@ public class SpatialInformation
 		final DoubleProperty[] xyz = new DoubleProperty[] { x, y, z };
 		final int[] p = invertPermutation( Optional.ofNullable( axisOrder ).orElse( AxisOrder.XYZ ).permutation() );
 		this.bindings.forEach( ( prop1, prop2 ) -> prop1.unbindBidirectional( prop2 ) );
+
+		System.out.println( "UPDATING BINDINGS! " + xPermuted + " " + yPermuted + " " + zPermuted );
 		xPermuted.bindBidirectional( xyz[ p[ 0 ] ] );
 		yPermuted.bindBidirectional( xyz[ p[ 1 ] ] );
 		zPermuted.bindBidirectional( xyz[ p[ 2 ] ] );
-
 		this.bindings.put( xPermuted, xyz[ p[ 0 ] ] );
 		this.bindings.put( yPermuted, xyz[ p[ 1 ] ] );
 		this.bindings.put( zPermuted, xyz[ p[ 2 ] ] );
+		System.out.println( "UPDATING BINDINGS! " + xPermuted + " " + yPermuted + " " + zPermuted );
 	}
 
 	private static double parseDouble( final String s )

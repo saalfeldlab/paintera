@@ -8,6 +8,8 @@ import java.util.Optional;
 import java.util.stream.DoubleStream;
 
 import bdv.img.h5.H5Utils;
+import bdv.net.imglib2.util.Triple;
+import bdv.net.imglib2.util.ValueTriple;
 import bdv.util.volatiles.SharedQueue;
 import bdv.util.volatiles.VolatileViews;
 import ch.systemsx.cisd.hdf5.HDF5Factory;
@@ -18,9 +20,8 @@ import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.Volatile;
 import net.imglib2.cache.volatiles.CacheHints;
 import net.imglib2.cache.volatiles.LoadingStrategy;
+import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.type.NativeType;
-import net.imglib2.util.Pair;
-import net.imglib2.util.ValuePair;
 
 public class BackendDialogHDF5 extends BackendDialogGroupAndDataset implements CombinesErrorMessages
 {
@@ -84,7 +85,7 @@ public class BackendDialogHDF5 extends BackendDialogGroupAndDataset implements C
 	}
 
 	@Override
-	public < T extends NativeType< T >, V extends Volatile< T > > Pair< RandomAccessibleInterval< T >[], RandomAccessibleInterval< V >[] > getDataAndVolatile(
+	public < T extends NativeType< T >, V extends Volatile< T > > Triple< RandomAccessibleInterval< T >[], RandomAccessibleInterval< V >[], AffineTransform3D[] > getDataAndVolatile(
 			final SharedQueue sharedQueue,
 			final int priority ) throws IOException
 	{
@@ -92,9 +93,14 @@ public class BackendDialogHDF5 extends BackendDialogGroupAndDataset implements C
 		final IHDF5Reader reader = HDF5Factory.openForReading( group );
 		final String dataset = this.dataset.get();
 		// TODO optimize block size
+		// TODO do multiscale
 		final RandomAccessibleInterval< T > raw = H5Utils.open( reader, dataset );
 		final RandomAccessibleInterval< V > vraw = VolatileViews.wrapAsVolatile( raw, sharedQueue, new CacheHints( LoadingStrategy.VOLATILE, priority, true ) );
-		return new ValuePair<>( new RandomAccessibleInterval[] { raw }, new RandomAccessibleInterval[] { vraw } );
+		final AffineTransform3D transform = SourceFromRAI.permutedSourceTransform(
+				resolution(),
+				offset(),
+				axisOrder().get().spatialOnly().inversePermutation() );
+		return new ValueTriple<>( new RandomAccessibleInterval[] { raw }, new RandomAccessibleInterval[] { vraw }, new AffineTransform3D[] { transform } );
 	}
 
 	@Override
