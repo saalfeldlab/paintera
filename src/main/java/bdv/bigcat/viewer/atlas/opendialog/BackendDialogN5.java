@@ -247,8 +247,13 @@ public class BackendDialogN5 extends BackendDialogGroupAndDataset implements Com
 	public List< String > discoverDatasetAt( final String at )
 	{
 		final ArrayList< String > datasets = new ArrayList<>();
-		final N5FSReader n5 = new N5FSReader( at );
-		discoverSubdirectories( n5, "", datasets, () -> this.isTraversingDirectories.set( false ) );
+		try
+		{
+			final N5FSReader n5 = new N5FSReader( at );
+			discoverSubdirectories( n5, "", datasets, () -> this.isTraversingDirectories.set( false ) );
+		}
+		catch ( final IOException e ) {}
+
 		return datasets;
 	}
 
@@ -322,12 +327,11 @@ public class BackendDialogN5 extends BackendDialogGroupAndDataset implements Com
 	@Override
 	public IdService idService()
 	{
-
-		final String group = groupProperty.get();
-		final N5Writer n5 = new N5FSWriter( group );
-		final String dataset = this.dataset.get();
 		try
 		{
+			final String group = groupProperty.get();
+			final N5Writer n5 = new N5FSWriter( group );
+			final String dataset = this.dataset.get();
 
 			Long maxId;
 			maxId = n5.getAttribute( dataset, "maxId", Long.class );
@@ -345,7 +349,7 @@ public class BackendDialogN5 extends BackendDialogGroupAndDataset implements Com
 			return new N5IdService( n5, dataset, actualMaxId );
 
 		}
-		catch ( final IOException e1 )
+		catch ( final IOException e )
 		{
 			return null;
 		}
@@ -363,13 +367,13 @@ public class BackendDialogN5 extends BackendDialogGroupAndDataset implements Com
 	@Override
 	public Consumer< RandomAccessibleInterval< UnsignedLongType > > commitCanvas()
 	{
-		final N5FSWriter n5 = new N5FSWriter( this.groupProperty.get() );
-		final String dataset = this.dataset.get();
-		// TODO do multi scale!
-
 		return canvas -> {
 			try
 			{
+				final N5FSWriter n5 = new N5FSWriter( this.groupProperty.get() );
+				final String dataset = this.dataset.get();
+				// TODO do multi scale!
+
 				if ( isIntegerType() )
 					commitForIntegerType( n5, dataset, canvas );
 			}
