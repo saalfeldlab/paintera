@@ -192,4 +192,11 @@ public class BackendDialogHDF5 extends BackendDialogGroupAndDataset implements C
 			ret[ k ] = array[ i ];
 		return ret;
 	}
+
+	@Override
+	public String identifier()
+	{
+		return "HDF5";
+	}
+
 }

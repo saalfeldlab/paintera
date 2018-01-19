@@ -113,4 +113,6 @@ public interface BackendDialog
 		return null;
 	}
 
+	public String identifier();
+
 }

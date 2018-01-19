@@ -470,4 +470,10 @@ public class BackendDialogN5 extends BackendDialogGroupAndDataset implements Com
 
 	}
 
+	@Override
+	public String identifier()
+	{
+		return "N5";
+	}
+
 }

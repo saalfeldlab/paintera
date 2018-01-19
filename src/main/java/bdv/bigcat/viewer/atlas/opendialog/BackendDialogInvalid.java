@@ -29,4 +29,10 @@ public class BackendDialogInvalid implements BackendDialog
 		return new SimpleObjectProperty<>( "Loader for " + backend + " backend not implemented yet." );
 	}
 
+	@Override
+	public String identifier()
+	{
+		return "INVALID";
+	}
+
 }
