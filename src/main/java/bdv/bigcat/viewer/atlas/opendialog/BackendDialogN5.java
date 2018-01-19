@@ -3,17 +3,14 @@ package bdv.bigcat.viewer.atlas.opendialog;
 import java.io.File;
 import java.io.IOException;
 import java.lang.invoke.MethodHandles;
-import java.net.URI;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Optional;
 import java.util.function.Consumer;
-import java.util.function.Predicate;
-import java.util.stream.Collectors;
 import java.util.stream.DoubleStream;
-import java.util.stream.Stream;
 
 import org.janelia.saalfeldlab.n5.DataType;
 import org.janelia.saalfeldlab.n5.DatasetAttributes;
@@ -155,7 +152,7 @@ public class BackendDialogN5 extends BackendDialogGroupAndDataset implements Com
 		final String dataset = this.dataset.get();
 		try
 		{
-			if ( reader.getDatasetAttributes( dataset ) != null )
+			if ( reader.datasetExists( dataset ) )
 			{
 				final RandomAccessibleInterval< T > raw = N5Utils.openVolatile( reader, dataset );
 				final RandomAccessibleInterval< V > vraw = VolatileViews.wrapAsVolatile( raw, sharedQueue, new CacheHints( LoadingStrategy.VOLATILE, priority, true ) );
@@ -166,23 +163,17 @@ public class BackendDialogN5 extends BackendDialogGroupAndDataset implements Com
 		{
 
 		}
-		// TODO for now only scales allowed?
-		final URI groupURI = URI.create( group );
-		final File[] scaleDirs = filterTime( new File( group, dataset ) )
-				.map( File::getPath )
-				.map( f -> f.replace( group, "" ) )
-				.map( f -> f.replaceFirst( "^/", "" ) )
-				.map( File::new )
-				.toArray( File[]::new );
-		sortScaleDirs( scaleDirs );
-		LOG.info( "Opening directories {} as multi-scale in {}: ", Arrays.toString( scaleDirs ), groupURI );
+		final String[] scaleDatasets = listScaleDatasets( reader, dataset );
+		sortScaleDatasets( scaleDatasets );
 
-		final RandomAccessibleInterval< T >[] raw = new RandomAccessibleInterval[ scaleDirs.length ];
-		final RandomAccessibleInterval< V >[] vraw = new RandomAccessibleInterval[ scaleDirs.length ];
-		for ( int scale = 0; scale < scaleDirs.length; ++scale )
+		LOG.info( "Opening directories {} as multi-scale in {}: ", Arrays.toString( scaleDatasets ), dataset );
+
+		final RandomAccessibleInterval< T >[] raw = new RandomAccessibleInterval[ scaleDatasets.length ];
+		final RandomAccessibleInterval< V >[] vraw = new RandomAccessibleInterval[ scaleDatasets.length ];
+		for ( int scale = 0; scale < scaleDatasets.length; ++scale )
 		{
 			LOG.debug( "Populating scale level {}", scale );
-			raw[ scale ] = N5Utils.openVolatile( reader, scaleDirs[ scale ].getPath() );
+			raw[ scale ] = N5Utils.openVolatile( reader, dataset + "/" + scaleDatasets[ scale ] );
 			vraw[ scale ] = VolatileViews.wrapAsVolatile( raw[ scale ], sharedQueue, new CacheHints( LoadingStrategy.VOLATILE, priority, true ) );
 			LOG.debug( "Populated scale level {}", scale );
 		}
@@ -212,12 +203,12 @@ public class BackendDialogN5 extends BackendDialogGroupAndDataset implements Com
 	{
 		try
 		{
-			final String group = groupProperty.get();
-			final N5FSReader reader = new N5FSReader( group );
+			final String n5Path = groupProperty.get();
+			final N5FSReader reader = new N5FSReader( n5Path );
 
-			final String dataset = getAttributesContainingPath( reader, group, basePath );
+			final String dataset = getAttributesContainingPath( reader, basePath );
 
-			LOG.debug( "Got dataset {} for base path {} in {}", dataset, basePath, group );
+			LOG.debug( "Got dataset {} for base path {} in {}", dataset, basePath, n5Path );
 
 			final DatasetAttributes dsAttrs = reader.getDatasetAttributes( dataset );
 			final int nDim = dsAttrs.getNumDimensions();
@@ -255,84 +246,77 @@ public class BackendDialogN5 extends BackendDialogGroupAndDataset implements Com
 	@Override
 	public List< String > discoverDatasetAt( final String at )
 	{
-		final ArrayList< File > files = new ArrayList<>();
-		final URI baseURI = new File( at ).toURI();
-		discoverSubdirectories( new File( at ), dir -> isDatasetOrCollection( dir ), files::add, () -> this.isTraversingDirectories.set( false ) );
-		return files.stream().map( File::toURI ).map( baseURI::relativize ).map( URI::getPath ).collect( Collectors.toList() );
+		final ArrayList< String > datasets = new ArrayList<>();
+		final N5FSReader n5 = new N5FSReader( at );
+		discoverSubdirectories( n5, "", datasets, () -> this.isTraversingDirectories.set( false ) );
+		return datasets;
 	}
 
-	public static void discoverSubdirectories( final File file, final Predicate< File > check, final Consumer< File > action, final Runnable onInterruption )
+	public static void discoverSubdirectories( final N5Reader n5, final String pathName, final Collection< String > datasets, final Runnable onInterruption )
 	{
-
 		if ( !Thread.currentThread().isInterrupted() )
 		{
-			if ( check.test( file ) )
-				action.accept( file );
-			else if ( file.exists() )
-				// TODO come up with better filter than File::canWrite
-				Optional.ofNullable( file.listFiles() ).ifPresent( files -> Arrays.stream( files ).filter( File::isDirectory ).filter( File::canRead ).forEach( f -> discoverSubdirectories( f, check, action, onInterruption ) ) );
+			try
+			{
+				final String[] groups = n5.list( pathName );
+				Arrays.sort( groups );
+				for ( final String group : groups ) {
+					final String absolutePathName = pathName + "/" + group;
+					if ( n5.datasetExists( absolutePathName ) )
+						datasets.add( absolutePathName );
+					else {
+						final String[] scales = n5.list( absolutePathName );
+						boolean isMipmapGroup = scales.length > 0;
+						for ( final String scale : scales )
+						{
+							if ( !( scale.matches( "^s[0-9]+$" ) && n5.datasetExists( absolutePathName + "/" + scale ) ) )
+							{
+								isMipmapGroup = false;
+								break;
+							}
+						}
+						if (isMipmapGroup)
+							datasets.add( absolutePathName );
+						else
+							discoverSubdirectories( n5, absolutePathName, datasets, onInterruption );
+					}
+				}
+			}
+			catch ( final IOException e )
+			{
+				e.printStackTrace();
+			}
 		}
 		else
 			onInterruption.run();
 	}
 
-	public static boolean isDataset( final File file )
+	public static String[] listScaleDatasets( final N5Reader n5, final String group ) throws IOException
 	{
-		final N5FSReader reader = new N5FSReader( file.toString() );
-		DatasetAttributes attrs;
-		try
-		{
-			attrs = reader.getDatasetAttributes( "." );
-		}
-		catch ( final IOException e )
-		{
-			return false;
-		}
-		if ( attrs != null )
-			return true;
-		return false;
-	}
-
-	public static boolean isDatasetOrCollection( final File file )
-	{
-
-		return isDataset( file ) || filterTime( file ).count() > 0;
-	}
-
-	public static Stream< File > filterTime( final File file )
-	{
-//		System.out.println( "FILTERING FOR TIME " + file );
 		return Arrays
-				.stream( file.list() )
-				.filter( s -> s.matches( "^s[0-9]+$" ) )
-				.map( s -> new File( file, s ) )
-				.filter( File::isDirectory )
-				.filter( BackendDialogN5::isDataset );
+				.stream( n5.list( group ) )
+				.filter( s -> s.matches( "^s\\d+$" ) )
+				.filter( s -> { try { return n5.datasetExists( group + "/" + s ); } catch ( final IOException e ) { return false; } } )
+				.toArray( String[]::new );
 	}
 
-	public static void sortScaleDirs( final File[] scaleDirs )
+	public static void sortScaleDatasets( final String[] scaleDatasets )
 	{
-		Arrays.sort( scaleDirs, ( f1, f2 ) -> {
+		Arrays.sort( scaleDatasets, ( f1, f2 ) -> {
 			return Integer.compare(
-					Integer.parseInt( f1.getPath().replaceAll( "[^\\d]", "" ) ),
-					Integer.parseInt( f2.getPath().replaceAll( "[^\\d]", "" ) ) );
+					Integer.parseInt( f1.replaceAll( "[^\\d]", "" ) ),
+					Integer.parseInt( f2.replaceAll( "[^\\d]", "" ) ) );
 		} );
 	}
 
-	public String getAttributesContainingPath( final N5Reader reader, final String group, final String basePath ) throws IOException
+	public String getAttributesContainingPath( final N5Reader reader, final String basePath ) throws IOException
 	{
-		if ( reader.getDatasetAttributes( basePath ) != null )
+		if ( reader.datasetExists( basePath ) )
 			return basePath;
-		final URI groupURI = new File( group ).toURI();
-		final File[] scaleDirs = filterTime( new File( new File( group ), basePath ) )
-				.map( File::toURI )
-				.map( groupURI::relativize )
-				.map( URI::getPath )
-				.map( File::new )
-				.toArray( File[]::new );
-		sortScaleDirs( scaleDirs );
+		final String[] scaleDirs = listScaleDatasets( reader, basePath );
+		sortScaleDatasets( scaleDirs );
 		LOG.debug( "Got the following scale dirs: {}", Arrays.toString( scaleDirs ) );
-		return scaleDirs[ 0 ].getPath();
+		return basePath + "/" + scaleDirs[ 0 ];
 	}
 
 	@Override
