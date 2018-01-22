@@ -297,9 +297,9 @@ public interface DataSource< D, T > extends Source< T >
 			final AffineTransform3D mipmapTransform = rawTransform.copy();
 			if ( downsampleFactors != null )
 				mipmapTransform.set(
-						resolution[ 0 ] * downsampleFactors[ 0 ], 0, 0, 0.5 * ( downsampleFactors[ 0 ] - 1 ),
-						0, resolution[ 1 ] * downsampleFactors[ 1 ], 0, 0.5 * ( downsampleFactors[ 1 ] - 1 ),
-						0, 0, resolution[ 2 ] * downsampleFactors[ 2 ], 0.5 * ( downsampleFactors[ 2 ] - 1 ) );
+						resolution[ 0 ] * downsampleFactors[ 0 ], 0, 0, resolution[ 0 ] * ( 0.5 * ( downsampleFactors[ 0 ] - 1 ) ),
+						0, resolution[ 1 ] * downsampleFactors[ 1 ], 0, resolution[ 1 ] * ( 0.5 * ( downsampleFactors[ 1 ] - 1 ) ),
+						0, 0, resolution[ 2 ] * downsampleFactors[ 2 ], resolution[ 2 ] * ( 0.5 * ( downsampleFactors[ 2 ] - 1 ) ) );
 			mipmapTransforms.add( mipmapTransform );
 		}
 
