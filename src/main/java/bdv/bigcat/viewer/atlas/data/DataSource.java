@@ -195,7 +195,7 @@ public interface DataSource< D, T > extends Source< T >
 		final AffineTransform3D rawTransform = new AffineTransform3D();
 		rawTransform.set(
 				resolution[ 0 ], 0, 0, offset[ 0 ],
-				0, resolution[ 1 ], 0, 0, offset[ 1 ],
+				0, resolution[ 1 ], 0, offset[ 1 ],
 				0, 0, resolution[ 2 ], offset[ 2 ] );
 		return createN5RawSource( name, n5, dataset, rawTransform, sharedQueue, priority );
 	}
