@@ -1,6 +1,7 @@
 package bdv.bigcat.viewer;
 
 import java.lang.invoke.MethodHandles;
+import java.util.Arrays;
 import java.util.concurrent.CountDownLatch;
 
 import org.janelia.saalfeldlab.n5.N5;
@@ -13,9 +14,12 @@ import com.sun.javafx.application.PlatformImpl;
 import bdv.AbstractViewerSetupImgLoader;
 import bdv.bigcat.viewer.atlas.Atlas;
 import bdv.bigcat.viewer.atlas.data.DataSource;
-import bdv.bigcat.viewer.atlas.data.HDF5LabelMultisetDataSource;
+import bdv.bigcat.viewer.atlas.data.LabelDataSource;
 import bdv.bigcat.viewer.atlas.data.RandomAccessibleIntervalDataSource;
+import bdv.bigcat.viewer.state.FragmentSegmentAssignmentOnlyLocal;
 import bdv.img.cache.VolatileGlobalCellCache;
+import bdv.util.IdService;
+import bdv.util.LocalIdService;
 import bdv.util.volatiles.SharedQueue;
 import bdv.viewer.Interpolation;
 import bdv.viewer.Source;
@@ -53,12 +57,10 @@ public class ExampleApplicationSampleE
 
 		String n5Path = "/nrs/saalfeld/sample_E/sample_E.n5";
 		String rawGroup = "/volumes/raw";
-		String labelsFile = "/groups/saalfeld/home/saalfelds/cremi/sample_B+_padded_20170424.aligned.hdf";
-		String labelsDataset = "volumes/labels/neuron_ids";
+		String labelsN5Path = "/groups/saalfeld/saalfeldlab/sampleE/multicut_segmentation.n5";
+		String labelsDataset = "/multicut";
 
 		double[] resolution = { 4, 4, 40 };
-		int[] rawCellSize = { 192, 96, 7 };
-		int[] labelCellSize = { 79, 79, 4 };
 
 		final Parameters params = getParameters( args );
 		if ( params != null )
@@ -66,11 +68,11 @@ public class ExampleApplicationSampleE
 			LOG.info( "parameters are not null" );
 			n5Path = params.filePath;
 			rawGroup = params.rawDatasetPath;
-			labelsFile = n5Path;
+			labelsN5Path = n5Path;
 			labelsDataset = params.labelDatasetPath;
 			resolution = new double[] { params.resolution.get( 0 ), params.resolution.get( 1 ), params.resolution.get( 2 ) };
-			rawCellSize = new int[] { params.rawCellSize.get( 0 ), params.rawCellSize.get( 1 ), params.rawCellSize.get( 2 ) };
-			labelCellSize = new int[] { params.labelCellSize.get( 0 ), params.labelCellSize.get( 1 ), params.labelCellSize.get( 2 ) };
+
+			System.out.println( Arrays.toString( resolution ) );
 		}
 
 		final int numPriorities = 20;
@@ -82,11 +84,16 @@ public class ExampleApplicationSampleE
 		final RandomAccessibleIntervalDataSource< UnsignedByteType, VolatileUnsignedByteType > rawSource =
 				DataSource.createN5MipmapRawSource( "raw", N5.openFSReader( n5Path ), rawGroup, resolution, sharedQueue, UnsignedByteType::new, VolatileUnsignedByteType::new );
 
-//		final HDF5UnsignedByteDataSource rawSource = new HDF5UnsignedByteDataSource( rawFile, rawDataset, rawCellSize, resolution, "raw", cellCache, 0 );
+		final LabelDataSource labelSource =
+				LabelDataSource.createN5LabelSource( "labels", N5.openFSReader( labelsN5Path ), labelsDataset, resolution, sharedQueue, 0, new FragmentSegmentAssignmentOnlyLocal() );
+
+		final IdService idService = new LocalIdService();
 
 		final Atlas viewer = new Atlas( sharedQueue );
 
-		final CountDownLatch latch = new CountDownLatch( 1 );
+
+
+		final CountDownLatch latch = new CountDownLatch( 3 );
 		Platform.runLater( () -> {
 			final Stage stage = new Stage();
 			try
@@ -98,16 +105,17 @@ public class ExampleApplicationSampleE
 				e.printStackTrace();
 			}
 
+			viewer.addRawSource( rawSource, 0., ( 1 << 8 ) - 1. );
+			latch.countDown();
+
+			viewer.addLabelSource( labelSource, labelSource.getAssignment(), v -> v.get().getIntegerLong(), idService );
+			latch.countDown();
+
 			stage.show();
 			latch.countDown();
 		} );
 
 		latch.await();
-		viewer.addRawSource( rawSource, 0., ( 1 << 8 ) - 1. );
-
-		final HDF5LabelMultisetDataSource labelSpec2 = new HDF5LabelMultisetDataSource( labelsFile, labelsDataset, labelCellSize, "labels", cellCache, 1 );
-		viewer.addLabelSource( labelSpec2, labelSpec2.getAssignment(), null );
-
 	}
 
 	private static Parameters getParameters( final String[] args )
