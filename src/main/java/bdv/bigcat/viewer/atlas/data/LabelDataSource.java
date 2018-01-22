@@ -116,7 +116,7 @@ public interface LabelDataSource< D, T > extends DataSource< D, T >
 			final FragmentSegmentAssignmentState< ? > assignment ) throws IOException
 	{
 		return new LabelDataSourceFromDelegates< T, V >(
-				DataSource.createN5RawSource( name, n5, dataset, sourceTransform, sharedQueue, priority ),
+				DataSource.createN5Source( name, n5, dataset, sourceTransform, sharedQueue, priority ),
 				assignment );
 	}
 
@@ -147,7 +147,7 @@ public interface LabelDataSource< D, T > extends DataSource< D, T >
 			final FragmentSegmentAssignmentState< ? > assignment ) throws IOException
 	{
 		return new LabelDataSourceFromDelegates< T, V >(
-				DataSource.createN5RawSource( name, n5, dataset, resolution, offset, sharedQueue, priority ),
+				DataSource.createN5Source( name, n5, dataset, resolution, offset, sharedQueue, priority ),
 				assignment );
 	}
 

@@ -82,7 +82,7 @@ public class ExampleApplicationSampleE
 		final VolatileGlobalCellCache cellCache = new VolatileGlobalCellCache( 1, 12 );
 
 		final RandomAccessibleIntervalDataSource< UnsignedByteType, VolatileUnsignedByteType > rawSource =
-				DataSource.createN5MipmapRawSource( "raw", N5.openFSReader( n5Path ), rawGroup, resolution, sharedQueue, UnsignedByteType::new, VolatileUnsignedByteType::new );
+				DataSource.createN5MipmapSource( "raw", N5.openFSReader( n5Path ), rawGroup, resolution, sharedQueue, UnsignedByteType::new, VolatileUnsignedByteType::new );
 
 		final LabelDataSource labelSource =
 				LabelDataSource.createN5LabelSource( "labels", N5.openFSReader( labelsN5Path ), labelsDataset, resolution, sharedQueue, 0, new FragmentSegmentAssignmentOnlyLocal() );

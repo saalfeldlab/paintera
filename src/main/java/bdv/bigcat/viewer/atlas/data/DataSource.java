@@ -156,7 +156,7 @@ public interface DataSource< D, T > extends Source< T >
 	 * @return
 	 * @throws IOException
 	 */
-	public static < T extends NativeType< T > & NumericType< T >, V extends NumericType< V > > RandomAccessibleIntervalDataSource< T, V > createN5RawSource(
+	public static < T extends NativeType< T > & NumericType< T >, V extends NumericType< V > > RandomAccessibleIntervalDataSource< T, V > createN5Source(
 			final String name,
 			final N5Reader n5,
 			final String dataset,
@@ -164,7 +164,7 @@ public interface DataSource< D, T > extends Source< T >
 			final SharedQueue sharedQueue,
 			final int priority ) throws IOException
 	{
-		return createN5RawSource( name, n5, dataset, resolution, new double[ resolution.length ], sharedQueue, priority );
+		return createN5Source( name, n5, dataset, resolution, new double[ resolution.length ], sharedQueue, priority );
 	}
 
 	/**
@@ -183,7 +183,7 @@ public interface DataSource< D, T > extends Source< T >
 	 * @return
 	 * @throws IOException
 	 */
-	public static < T extends NativeType< T > & NumericType< T >, V extends NumericType< V > > RandomAccessibleIntervalDataSource< T, V > createN5RawSource(
+	public static < T extends NativeType< T > & NumericType< T >, V extends NumericType< V > > RandomAccessibleIntervalDataSource< T, V > createN5Source(
 			final String name,
 			final N5Reader n5,
 			final String dataset,
@@ -197,10 +197,10 @@ public interface DataSource< D, T > extends Source< T >
 				resolution[ 0 ], 0, 0, offset[ 0 ],
 				0, resolution[ 1 ], 0, offset[ 1 ],
 				0, 0, resolution[ 2 ], offset[ 2 ] );
-		return createN5RawSource( name, n5, dataset, rawTransform, sharedQueue, priority );
+		return createN5Source( name, n5, dataset, rawTransform, sharedQueue, priority );
 	}
 
-	public static < T extends NativeType< T > & NumericType< T >, V extends NumericType< V > > RandomAccessibleIntervalDataSource< T, V > createN5RawSource(
+	public static < T extends NativeType< T > & NumericType< T >, V extends NumericType< V > > RandomAccessibleIntervalDataSource< T, V > createN5Source(
 			final String name,
 			final N5Reader n5,
 			final String dataset,
@@ -255,6 +255,7 @@ public interface DataSource< D, T > extends Source< T >
 	 * @param n5
 	 * @param group
 	 * @param resolution
+	 * @param offset
 	 * @param sharedQueue
 	 * @param priority
 	 * @param typeSupplier
@@ -263,11 +264,12 @@ public interface DataSource< D, T > extends Source< T >
 	 * @throws IOException
 	 */
 	@SuppressWarnings( "unchecked" )
-	public static < T extends NativeType< T > & NumericType< T >, V extends Volatile< T > & NumericType< V > > RandomAccessibleIntervalDataSource< T, V > createN5MipmapRawSource(
+	public static < T extends NativeType< T > & NumericType< T >, V extends Volatile< T > & NumericType< V > > RandomAccessibleIntervalDataSource< T, V > createN5MipmapSource(
 			final String name,
 			final N5Reader n5,
 			final String group,
 			final double[] resolution,
+			final double[] offset,
 			final SharedQueue sharedQueue,
 			final Supplier< T > typeSupplier,
 			final Supplier< V > volatileTypeSupplier ) throws IOException
@@ -297,13 +299,13 @@ public interface DataSource< D, T > extends Source< T >
 			final AffineTransform3D mipmapTransform = rawTransform.copy();
 			if ( downsampleFactors != null )
 				mipmapTransform.set(
-						resolution[ 0 ] * downsampleFactors[ 0 ], 0, 0, resolution[ 0 ] * ( 0.5 * ( downsampleFactors[ 0 ] - 1 ) ),
-						0, resolution[ 1 ] * downsampleFactors[ 1 ], 0, resolution[ 1 ] * ( 0.5 * ( downsampleFactors[ 1 ] - 1 ) ),
-						0, 0, resolution[ 2 ] * downsampleFactors[ 2 ], resolution[ 2 ] * ( 0.5 * ( downsampleFactors[ 2 ] - 1 ) ) );
+						resolution[ 0 ] * downsampleFactors[ 0 ], 0, 0, ( 0.5 * ( downsampleFactors[ 0 ] - 1 + offset[ 0 ] ) * resolution[ 0 ] ),
+						0, resolution[ 1 ] * downsampleFactors[ 1 ], 0, ( 0.5 * ( downsampleFactors[ 1 ] - 1 + offset[ 1 ] ) * resolution[ 1 ] ),
+						0, 0, resolution[ 2 ] * downsampleFactors[ 2 ], ( 0.5 * ( downsampleFactors[ 2 ] - 1 + offset[ 2 ] ) * resolution[ 2 ] ) );
 			mipmapTransforms.add( mipmapTransform );
 		}
 
-		final RandomAccessibleIntervalDataSource< T, V > rawSource =
+		final RandomAccessibleIntervalDataSource< T, V > source =
 				new RandomAccessibleIntervalDataSource<>(
 						mipmaps.toArray( new RandomAccessibleInterval[ 0 ] ),
 						volatileMipmaps.toArray( new RandomAccessibleInterval[ 0 ] ),
@@ -329,7 +331,35 @@ public interface DataSource< D, T > extends Source< T >
 						typeSupplier,
 						volatileTypeSupplier,
 						name );
-		return rawSource;
+		return source;
+	}
+
+	/**
+	 * Create a primitive multi scale level source without visualization
+	 * conversion from an N5 multi scale group.
+	 *
+	 * @param name
+	 * @param n5
+	 * @param group
+	 * @param resolution
+	 * @param sharedQueue
+	 * @param priority
+	 * @param typeSupplier
+	 * @param volatileTypeSupplier
+	 * @return
+	 * @throws IOException
+	 */
+	@SuppressWarnings( "unchecked" )
+	public static < T extends NativeType< T > & NumericType< T >, V extends Volatile< T > & NumericType< V > > RandomAccessibleIntervalDataSource< T, V > createN5MipmapSource(
+			final String name,
+			final N5Reader n5,
+			final String group,
+			final double[] resolution,
+			final SharedQueue sharedQueue,
+			final Supplier< T > typeSupplier,
+			final Supplier< V > volatileTypeSupplier ) throws IOException
+	{
+		return createN5MipmapSource( name, n5, group, resolution, new double[resolution.length], sharedQueue, typeSupplier, volatileTypeSupplier );
 	}
 
 	default public int tMin()
