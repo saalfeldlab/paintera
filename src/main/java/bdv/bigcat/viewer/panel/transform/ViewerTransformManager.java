@@ -16,8 +16,10 @@ import bdv.bigcat.viewer.bdvfx.ViewerPanelFX;
 import bdv.bigcat.viewer.panel.ViewerNode.ViewerAxis;
 import bdv.bigcat.viewer.panel.ViewerState;
 import bdv.bigcat.viewer.state.GlobalTransformManager;
+import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.DoubleProperty;
 import javafx.beans.property.Property;
+import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleDoubleProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.event.EventHandler;
@@ -68,6 +70,8 @@ public class ViewerTransformManager implements TransformListener< AffineTransfor
 	private int canvasW = 1, canvasH = 1;
 
 	private int centerX = 0, centerY = 0;
+
+	private final BooleanProperty allowRotations = new SimpleBooleanProperty( true );
 
 	public void rotationSpeed( final double speed )
 	{
@@ -379,15 +383,20 @@ public class ViewerTransformManager implements TransformListener< AffineTransfor
 		@Override
 		public void initDrag( final javafx.scene.input.MouseEvent event )
 		{
-			synchronized ( transformLock )
-			{
-				affineDragStart.set( global );
-			}
+			if ( allowRotations.get() )
+				synchronized ( transformLock )
+				{
+					affineDragStart.set( global );
+				}
+			else
+				abortDrag();
 		}
 
 		@Override
 		public void drag( final javafx.scene.input.MouseEvent event )
 		{
+			if ( allowRotations.not().get() )
+				return;
 			final AffineTransform3D affine = new AffineTransform3D();
 			synchronized ( transformLock )
 			{
@@ -454,6 +463,10 @@ public class ViewerTransformManager implements TransformListener< AffineTransfor
 
 		public void handle( final KeyEvent event )
 		{
+
+			if ( allowRotations.not().get() )
+				return;
+
 			synchronized ( viewer )
 			{
 				if ( viewer.isMouseInside() )
@@ -520,6 +533,11 @@ public class ViewerTransformManager implements TransformListener< AffineTransfor
 	private void hangUp( final GlobalTransformManager m )
 	{
 		m.removeListener( this );
+	}
+
+	public BooleanProperty allowRotationsProperty()
+	{
+		return this.allowRotations;
 	}
 
 }

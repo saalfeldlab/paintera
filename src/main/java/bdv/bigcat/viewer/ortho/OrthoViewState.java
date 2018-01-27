@@ -8,8 +8,10 @@ import bdv.viewer.Interpolation;
 import bdv.viewer.Source;
 import bdv.viewer.SourceAndConverter;
 import bdv.viewer.ViewerOptions;
+import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.IntegerProperty;
 import javafx.beans.property.ObjectProperty;
+import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleIntegerProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.collections.FXCollections;
@@ -31,6 +33,8 @@ public class OrthoViewState
 	protected final SimpleObjectProperty< Source< ? > > currentSource = new SimpleObjectProperty<>( null );
 
 	private final IntegerProperty time = new SimpleIntegerProperty();
+
+	private final BooleanProperty allowRotations = new SimpleBooleanProperty();
 
 	public OrthoViewState()
 	{
@@ -90,6 +94,11 @@ public class OrthoViewState
 	public IntegerProperty timeProperty()
 	{
 		return this.time;
+	}
+
+	public BooleanProperty allowRotationsProperty()
+	{
+		return this.allowRotations;
 	}
 
 }
