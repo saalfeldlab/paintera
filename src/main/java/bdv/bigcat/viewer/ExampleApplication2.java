@@ -1,6 +1,7 @@
 package bdv.bigcat.viewer;
 
 import java.lang.invoke.MethodHandles;
+import java.util.Optional;
 import java.util.concurrent.CountDownLatch;
 
 import org.slf4j.Logger;
@@ -13,6 +14,8 @@ import bdv.bigcat.viewer.atlas.Atlas;
 import bdv.bigcat.viewer.atlas.data.DataSource;
 import bdv.bigcat.viewer.atlas.data.HDF5LabelMultisetDataSource;
 import bdv.bigcat.viewer.atlas.data.RandomAccessibleIntervalDataSource;
+import bdv.bigcat.viewer.atlas.mode.Highlights;
+import bdv.bigcat.viewer.state.SelectedIds;
 import bdv.img.cache.VolatileGlobalCellCache;
 import bdv.util.volatiles.SharedQueue;
 import bdv.viewer.Interpolation;
@@ -102,6 +105,30 @@ public class ExampleApplication2
 
 		final HDF5LabelMultisetDataSource labelSpec2 = new HDF5LabelMultisetDataSource( labelsFile, labelsDataset, cellSize, "labels", cellCache, 1 );
 		viewer.addLabelSource( labelSpec2, labelSpec2.getAssignment(), null );
+		final Optional< Highlights > highlightsMode = viewer.getHighlightsMode();
+		highlightsMode.ifPresent( mode -> {
+			viewer.getSettings().currentModeProperty().set( mode );
+			final Optional< SelectedIds > selectedIds = viewer.getSelectedIds( labelSpec2, mode );
+			selectedIds.ifPresent( selIds -> {
+				new Thread( () -> {
+					System.out.println( "Selected ids before? " + selIds );
+					try
+					{
+						Thread.sleep( 2000 );
+					}
+					catch ( final InterruptedException e )
+					{
+						e.printStackTrace();
+					}
+					finally
+					{
+						selIds.activate( 1, 2, 3, 7, 8, 9, 10, 12, 14, 16, 17, 24 );
+						System.out.println( "Selected ids after? " + selIds );
+					}
+
+				} ).start();
+			} );
+		} );
 
 		final boolean demonstrateRemove = false;
 		if ( demonstrateRemove )
