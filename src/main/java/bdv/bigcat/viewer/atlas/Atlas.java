@@ -244,11 +244,7 @@ public class Atlas
 		this.view.setInfoNode( renderView );
 		this.renderView.scene().addEventHandler( MouseEvent.MOUSE_CLICKED, event -> renderView.scene().requestFocus() );
 
-		final Mode[] initialModes = {
-				new NavigationOnly(),
-				new Highlights( controller, baseView().getState().transformManager(), sourceInfo, keyTracker ),
-				new Merges( sourceInfo ),
-				new PaintMode( baseView().viewerAxes(), sourceInfo, keyTracker, baseView().getState().transformManager(), () -> baseView().requestRepaint() ) };
+		final Mode[] initialModes = defaultModes( this );
 		this.settings.availableModes().setAll( initialModes );
 
 		for ( final Mode mode : this.settings.availableModes() )
@@ -869,4 +865,74 @@ public class Atlas
 	{
 		return ( s, t ) -> t.set( s.get() );
 	}
+
+	public Optional< SelectedIds > getSelectedIds( final Source< ? > source, final Mode mode )
+	{
+		return sourceInfo.selectedIds( source, mode );
+	}
+
+	public Viewer3DControllerFX get3DController()
+	{
+		return this.controller;
+	}
+
+	public GlobalTransformManager transformManager()
+	{
+		return this.baseView().getState().transformManager();
+	}
+
+	public SourceInfo sourceInfo()
+	{
+		return this.sourceInfo;
+	}
+
+	public KeyTracker keyTracker()
+	{
+		return this.keyTracker;
+	}
+
+	public Optional< NavigationOnly > getNavigationOnlyMode()
+	{
+		return getMode( NavigationOnly.class );
+	}
+
+	public Optional< Highlights > getHighlightsMode()
+	{
+		return getMode( Highlights.class );
+	}
+
+	public Optional< Merges > getMergesMode()
+	{
+		return getMode( Merges.class );
+	}
+
+	public Optional< PaintMode > getPaintMode()
+	{
+		return getMode( PaintMode.class );
+	}
+
+	public < M extends Mode > Optional< M > getMode( final M mode )
+	{
+		return this.settings.availableModes().stream().filter( m -> m.equals( mode ) ).map( m -> ( M ) m ).findFirst();
+	}
+
+	public < M extends Mode > Optional< M > getMode( final Class< M > mode )
+	{
+		return this.settings.availableModes().stream().filter( m -> m.getClass().equals( mode ) ).map( m -> ( M ) m ).findFirst();
+	}
+
+	public AtlasSettings getSettings()
+	{
+		return this.settings;
+	}
+
+	private static Mode[] defaultModes( final Atlas viewer )
+	{
+		return new Mode[] {
+				new NavigationOnly(),
+				new Highlights( viewer.get3DController(), viewer.transformManager(), viewer.sourceInfo(), viewer.keyTracker() ),
+				new Merges( viewer.sourceInfo() ),
+				new PaintMode( viewer.baseView().viewerAxes(), viewer.sourceInfo(), viewer.keyTracker(), viewer.transformManager(), () -> viewer.baseView().requestRepaint() ) };
+	}
+
 }

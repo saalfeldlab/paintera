@@ -37,4 +37,16 @@ public class NavigationOnly implements Mode
 		return "navigation only";
 	}
 
+	@Override
+	public int hashCode()
+	{
+		return getClass().hashCode();
+	}
+
+	@Override
+	public boolean equals( final Object other )
+	{
+		return getClass().isInstance( other );
+	}
+
 }
