@@ -408,7 +408,6 @@ public class Atlas
 			final IdService idService )
 	{
 		final CurrentModeConverter< VolatileLabelMultisetType, HighlightingStreamConverterLabelMultisetType > converter = new CurrentModeConverter<>();
-		final Converter< VolatileLabelMultisetType, ARGBType > condafsdf = converter;
 		final HashMap< Mode, SelectedIds > selIdsMap = new HashMap<>();
 		final HashMap< Mode, ARGBStream > streamsMap = new HashMap<>();
 		for ( final Mode mode : this.settings.availableModes() )

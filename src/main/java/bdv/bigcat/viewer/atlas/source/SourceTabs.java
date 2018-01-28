@@ -332,6 +332,7 @@ public class SourceTabs
 		else if ( converter instanceof CurrentModeConverter< ?, ? > )
 		{
 			final CurrentModeConverter< ?, ? > conv = ( CurrentModeConverter< ?, ? > ) converter;
+			final VBox contents = new VBox();
 			final GridPane gp = new GridPane();
 			final ColumnConstraints secondColumnConstraints = new ColumnConstraints();
 			secondColumnConstraints.setMaxWidth( Double.MAX_VALUE );
@@ -339,6 +340,9 @@ public class SourceTabs
 			gp.getColumnConstraints().addAll( secondColumnConstraints );
 
 			final int textFieldWidth = 60;
+			int row = 0;
+
+			contents.getChildren().add( gp );
 
 			{
 				final Slider alphaSlider = new Slider( 0, 1, conv.alphaProperty().get() );
@@ -349,8 +353,9 @@ public class SourceTabs
 				alphaField.textProperty().bindBidirectional( alphaSlider.valueProperty(), new NumberStringConverter() );
 				alphaField.setMinWidth( textFieldWidth );
 				alphaField.setMaxWidth( textFieldWidth );
-				gp.add( alphaSlider, 0, 0 );
-				gp.add( alphaField, 1, 0 );
+				gp.add( alphaSlider, 0, row );
+				gp.add( alphaField, 1, row );
+				++row;
 			}
 
 			{
@@ -362,8 +367,9 @@ public class SourceTabs
 				selectedFragmentAlphaField.textProperty().bindBidirectional( selectedFragmentAlphaSlider.valueProperty(), new NumberStringConverter() );
 				selectedFragmentAlphaField.setMinWidth( textFieldWidth );
 				selectedFragmentAlphaField.setMaxWidth( textFieldWidth );
-				gp.add( selectedFragmentAlphaSlider, 0, 1 );
-				gp.add( selectedFragmentAlphaField, 1, 1 );
+				gp.add( selectedFragmentAlphaSlider, 0, row );
+				gp.add( selectedFragmentAlphaField, 1, row );
+				++row;
 			}
 
 			{
@@ -375,11 +381,22 @@ public class SourceTabs
 				selectedSegmentAlphaField.textProperty().bindBidirectional( selectedSegmentAlphaSlider.valueProperty(), new NumberStringConverter() );
 				selectedSegmentAlphaField.setMinWidth( textFieldWidth );
 				selectedSegmentAlphaField.setMaxWidth( textFieldWidth );
-				gp.add( selectedSegmentAlphaSlider, 0, 2 );
-				gp.add( selectedSegmentAlphaField, 1, 2 );
+				gp.add( selectedSegmentAlphaSlider, 0, row );
+				gp.add( selectedSegmentAlphaField, 1, row );
+				++row;
 			}
 
-			tp.setContent( gp );
+			{
+				final CheckBox colorFromSegmentId = new CheckBox( "Color From segment Id." );
+				colorFromSegmentId.setTooltip( new Tooltip( "Generate fragment color from segment id (on) or fragment id (off)" ) );
+				colorFromSegmentId.selectedProperty().bindBidirectional( conv.colorFromSegmentIdProperty() );
+				contents.getChildren().add( colorFromSegmentId );
+//				gp.add( colorFromSegmentId, 0, row );
+//				gp.add( new Label( "Color From segment Id." ), 1, row );
+//				++row;
+			}
+
+			tp.setContent( contents );
 		}
 
 		return tp;
