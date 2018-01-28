@@ -40,9 +40,10 @@ abstract public class AbstractSaturatedHighlightingARGBStream extends AbstractHi
 	}
 
 	@Override
-	protected int argbImpl( final long fragmentId )
+	protected int argbImpl( final long fragmentId, final boolean colorFromSegmentId )
 	{
-		final long assigned = assignment.getSegment( fragmentId );
+		final boolean isActiveSegment = isActiveSegment( fragmentId );
+		final long assigned = colorFromSegmentId || !isActiveSegment ? assignment.getSegment( fragmentId ) : fragmentId;
 		if ( !argbCache.contains( assigned ) )
 		{
 			double x = getDouble( seed + assigned );
@@ -68,7 +69,7 @@ abstract public class AbstractSaturatedHighlightingARGBStream extends AbstractHi
 		if ( Label.INVALID == fragmentId )
 			argb = argb & 0x00ffffff | invalidSegmentAlpha;
 		else
-			argb = argb & 0x00ffffff | ( isActiveSegment( fragmentId ) ? isActiveFragment( fragmentId ) ? activeFragmentAlpha : activeSegmentAlpha : alpha );
+			argb = argb & 0x00ffffff | ( isActiveSegment ? isActiveFragment( fragmentId ) ? activeFragmentAlpha : activeSegmentAlpha : alpha );
 
 		return argb;
 	}
