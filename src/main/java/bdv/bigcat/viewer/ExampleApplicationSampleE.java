@@ -5,6 +5,7 @@ import java.util.Arrays;
 import java.util.concurrent.CountDownLatch;
 
 import org.janelia.saalfeldlab.n5.N5FSReader;
+import org.janelia.saalfeldlab.n5.imglib2.N5Utils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -22,8 +23,15 @@ import bdv.util.LocalIdService;
 import bdv.util.volatiles.SharedQueue;
 import javafx.application.Platform;
 import javafx.stage.Stage;
+import net.imglib2.Cursor;
+import net.imglib2.RandomAccessible;
+import net.imglib2.RandomAccessibleInterval;
+import net.imglib2.cache.img.CellLoader;
+import net.imglib2.cache.img.SingleCellArrayImg;
 import net.imglib2.type.numeric.integer.UnsignedByteType;
+import net.imglib2.type.numeric.integer.UnsignedLongType;
 import net.imglib2.type.volatiles.VolatileUnsignedByteType;
+import net.imglib2.view.Views;
 
 public class ExampleApplicationSampleE
 {
@@ -66,7 +74,15 @@ public class ExampleApplicationSampleE
 				DataSource.createN5MipmapSource( "raw", new N5FSReader( n5Path ), rawGroup, resolution, sharedQueue, UnsignedByteType::new, VolatileUnsignedByteType::new );
 
 		final LabelDataSource labelSource =
-				LabelDataSource.createN5LabelSource( "labels", new N5FSReader( labelsN5Path ), labelsDataset, resolution, sharedQueue, 0, new FragmentSegmentAssignmentOnlyLocal() );
+				LabelDataSource.createLabelSource(
+						"labels",
+						( RandomAccessibleInterval )N5Utils.openVolatile(
+								new N5FSReader( labelsN5Path ),
+								labelsDataset ),
+						resolution,
+						sharedQueue,
+						0,
+						new FragmentSegmentAssignmentOnlyLocal() );
 
 		final IdService idService = new LocalIdService();
 
@@ -118,5 +134,37 @@ public class ExampleApplicationSampleE
 	private static boolean validateParameters( final Parameters params )
 	{
 		return params.filePath != "";
+	}
+
+	public static class LabelIntersectionCellLoader implements CellLoader<UnsignedLongType> {
+
+		private final RandomAccessible<UnsignedLongType> label1;
+		private final RandomAccessible<UnsignedLongType> label2;
+
+		public LabelIntersectionCellLoader(
+				final RandomAccessible<UnsignedLongType> label1,
+				final RandomAccessible<UnsignedLongType> label2) {
+
+			this.label1 = label1;
+			this.label2 = label2;
+		}
+
+		@Override
+		public void load(final SingleCellArrayImg<UnsignedLongType, ?> cell) throws Exception {
+
+			final Cursor<UnsignedLongType> label1Cursor = Views.flatIterable(Views.interval(label1, cell)).localizingCursor();
+			final Cursor<UnsignedLongType> label2Cursor = Views.flatIterable(Views.interval(label2, cell)).localizingCursor();
+
+//			while (label1Cursor.hasNext())
+
+//			FloodFill.fill(
+//					source.getDataSource( time, level ),
+//					accessTracker,
+//					seed,
+//					new UnsignedByteType( 1 ),
+//					new DiamondShape( 1 ),
+//					makeFilter() );
+		}
+
 	}
 }
