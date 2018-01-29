@@ -48,6 +48,7 @@ import bdv.bigcat.viewer.ortho.OrthoView;
 import bdv.bigcat.viewer.ortho.OrthoViewState;
 import bdv.bigcat.viewer.panel.ViewerNode;
 import bdv.bigcat.viewer.state.FragmentSegmentAssignmentState;
+import bdv.bigcat.viewer.state.GlobalTransformManager;
 import bdv.bigcat.viewer.state.SelectedIds;
 import bdv.bigcat.viewer.stream.AbstractHighlightingARGBStream;
 import bdv.bigcat.viewer.stream.HighlightingStreamConverterIntegerType;
@@ -79,6 +80,7 @@ import javafx.scene.control.ButtonType;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.Label;
 import javafx.scene.control.Slider;
+import javafx.scene.control.TitledPane;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyEvent;
 import javafx.scene.input.MouseEvent;
@@ -133,8 +135,6 @@ public class Atlas
 
 	private final ViewerOptions viewerOptions;
 
-	private final ArrayList< Mode > modes = new ArrayList<>();
-
 	private final Viewer3DFX renderView;
 
 	private final Viewer3DControllerFX controller;
@@ -145,8 +145,6 @@ public class Atlas
 
 	private final KeyTracker keyTracker = new KeyTracker();
 
-	private final SimpleObjectProperty< Mode > currentMode = new SimpleObjectProperty<>();
-
 	private final ARGBStreamSeedSetter seedSetter;
 
 	private final SharedQueue cellCache;
@@ -154,6 +152,12 @@ public class Atlas
 	private final SourceTabs sourceTabs;
 
 	private final ResizeOnLeftSide sourceTabsResizer;
+
+	private final AtlasSettings settings = new AtlasSettings();
+
+	private final Node settingsNode = AtlasSettingsNode.getNode( settings );
+
+	private final VBox sourcesAndSettings;
 
 	public Atlas( final SharedQueue cellCache )
 	{
@@ -169,6 +173,7 @@ public class Atlas
 		this.view = new OrthoView( focusHandler.onEnter(), focusHandler.onExit(), new OrthoViewState( this.viewerOptions ), cellCache, keyTracker );
 		this.view.setMinWidth( 100 );
 		this.view.setMinHeight( 100 );
+		this.view.getState().allowRotationsProperty().bind( settings.allowRotationsProperty() );
 		this.sourceTabs = new SourceTabs(
 				this.sourceInfo.currentSourceIndexProperty(),
 				source -> {
@@ -177,7 +182,9 @@ public class Atlas
 				},
 				// this.view.getState().removeSource( source ),
 				this.sourceInfo );
-		this.sourceTabsResizer = new ResizeOnLeftSide( sourceTabs.getTabs(), sourceTabs.widthProperty(), ( diff ) -> diff > 0 && diff < 10 );
+
+		sourcesAndSettings = new VBox( sourceTabs.getTabs(), new TitledPane( "Settings", settingsNode ) );
+		this.sourceTabsResizer = new ResizeOnLeftSide( sourcesAndSettings, sourceTabs.widthProperty(), ( diff ) -> diff > 0 && diff < 10 );
 		this.view.getState().currentSourceProperty().bindBidirectional( this.sourceInfo.currentSourceProperty() );
 
 		this.sourceInfo.trackVisibleSourcesAndConverters().addListener( ( ListChangeListener< SourceAndConverter< ? > > ) change -> {
@@ -240,21 +247,13 @@ public class Atlas
 		this.view.setInfoNode( renderView );
 		this.renderView.scene().addEventHandler( MouseEvent.MOUSE_CLICKED, event -> renderView.scene().requestFocus() );
 
-		final Mode[] initialModes = {
-				new NavigationOnly(),
-				new Highlights( controller, baseView().getState().transformManager(), sourceInfo, keyTracker ),
-				new Merges( sourceInfo ),
-				new PaintMode( baseView().viewerAxes(), sourceInfo, keyTracker, baseView().getState().transformManager(), () -> baseView().requestRepaint() ) };
-		Arrays.stream( initialModes ).forEach( modes::add );
+		final Mode[] initialModes = defaultModes( this );
+		this.settings.availableModes().setAll( initialModes );
 
-		for ( final Mode mode : modes )
+		for ( final Mode mode : this.settings.availableModes() )
 			addOnEnterOnExit( mode.onEnter(), mode.onExit(), true );
 
-		final ComboBox< Mode > modeSelector = ModeUtil.comboBox( modes );
-		this.currentMode.bind( modeSelector.valueProperty() );
-		modeSelector.setPromptText( "Mode" );
-		this.status.getChildren().add( modeSelector );
-		modeSelector.getSelectionModel().select( initialModes[ 2 ] );
+		this.settings.currentModeProperty().set( initialModes[ 0 ] );
 
 		final Label coordinates = new Label();
 		final AtlasMouseCoordinatePrinter coordinatePrinter = new AtlasMouseCoordinatePrinter( coordinates );
@@ -267,7 +266,7 @@ public class Atlas
 
 		addOnEnterOnExit( valueDisplayListener.onEnter(), valueDisplayListener.onExit(), true );
 
-		this.seedSetter = new ARGBStreamSeedSetter( sourceInfo, keyTracker, currentMode );
+		this.seedSetter = new ARGBStreamSeedSetter( sourceInfo, keyTracker, settings.currentModeProperty() );
 		addOnEnterOnExit( this.seedSetter.onEnter(), this.seedSetter.onEnter(), true );
 
 		for ( final Node child : this.baseView().getChildren() )
@@ -309,7 +308,7 @@ public class Atlas
 	{
 		if ( this.root.getRight() == null )
 		{
-			this.root.setRight( this.sourceTabs.getTabs() );
+			this.root.setRight( this.sourcesAndSettings );
 			this.sourceTabsResizer.install();
 		}
 		else
@@ -412,10 +411,9 @@ public class Atlas
 			final IdService idService )
 	{
 		final CurrentModeConverter< VolatileLabelMultisetType, HighlightingStreamConverterLabelMultisetType > converter = new CurrentModeConverter<>();
-		final Converter< VolatileLabelMultisetType, ARGBType > condafsdf = converter;
 		final HashMap< Mode, SelectedIds > selIdsMap = new HashMap<>();
 		final HashMap< Mode, ARGBStream > streamsMap = new HashMap<>();
-		for ( final Mode mode : this.modes )
+		for ( final Mode mode : this.settings.availableModes() )
 		{
 			final SelectedIds selId = new SelectedIds();
 			selIdsMap.put( mode, selId );
@@ -432,7 +430,7 @@ public class Atlas
 			baseView().requestRepaint();
 		};
 
-		currentMode.addListener( ( obs, oldv, newv ) -> {
+		settings.currentModeProperty().addListener( ( obs, oldv, newv ) -> {
 			Optional.ofNullable( newv ).ifPresent( setConverter::accept );
 		} );
 
@@ -446,7 +444,7 @@ public class Atlas
 				selIdsMap,
 				converter,
 				comp );// converter );
-		Optional.ofNullable( currentMode.get() ).ifPresent( setConverter::accept );
+		Optional.ofNullable( settings.currentModeProperty().get() ).ifPresent( setConverter::accept );
 		state.idServiceProperty().set( idService );
 //		if ( spec instanceof MaskedSource< ?, ?, ? > )
 //		{
@@ -507,7 +505,7 @@ public class Atlas
 		final CurrentModeConverter< V, HighlightingStreamConverterIntegerType< V > > converter = new CurrentModeConverter<>();
 		final HashMap< Mode, SelectedIds > selIdsMap = new HashMap<>();
 		final HashMap< Mode, ARGBStream > streamsMap = new HashMap<>();
-		for ( final Mode mode : this.modes )
+		for ( final Mode mode : this.settings.availableModes() )
 		{
 			final SelectedIds selId = new SelectedIds();
 			selIdsMap.put( mode, selId );
@@ -527,7 +525,7 @@ public class Atlas
 			} );
 		};
 
-		currentMode.addListener( ( obs, oldv, newv ) -> {
+		settings.currentModeProperty().addListener( ( obs, oldv, newv ) -> {
 			Optional.ofNullable( newv ).ifPresent( setConverter::accept );
 		} );
 		addSource( spec, comp, spec.tMin(), spec.tMax() );
@@ -540,7 +538,7 @@ public class Atlas
 				selIdsMap,
 				converter,
 				comp );
-		Optional.ofNullable( currentMode.get() ).ifPresent( setConverter::accept );
+		Optional.ofNullable( settings.currentModeProperty().get() ).ifPresent( setConverter::accept );
 		state.idServiceProperty().set( idService );
 		if ( spec instanceof MaskedSource< ?, ? > )
 			state.maskedSourceProperty().set( ( MaskedSource< ?, ? > ) spec );
@@ -870,19 +868,73 @@ public class Atlas
 		return ( s, t ) -> t.set( s.get() );
 	}
 
-	/**
-	 * @return the sourceInfo
-	 */
-	public SourceInfo getSourceInfo()
+	public Optional< SelectedIds > getSelectedIds( final Source< ? > source, final Mode mode )
 	{
-		return sourceInfo;
+		return sourceInfo.selectedIds( source, mode );
 	}
 
-	/**
-	 * @return the modes
-	 */
-	public ArrayList< Mode > getModes()
+	public Viewer3DControllerFX get3DController()
 	{
-		return modes;
+		return this.controller;
 	}
+
+	public GlobalTransformManager transformManager()
+	{
+		return this.baseView().getState().transformManager();
+	}
+
+	public SourceInfo sourceInfo()
+	{
+		return this.sourceInfo;
+	}
+
+	public KeyTracker keyTracker()
+	{
+		return this.keyTracker;
+	}
+
+	public Optional< NavigationOnly > getNavigationOnlyMode()
+	{
+		return getMode( NavigationOnly.class );
+	}
+
+	public Optional< Highlights > getHighlightsMode()
+	{
+		return getMode( Highlights.class );
+	}
+
+	public Optional< Merges > getMergesMode()
+	{
+		return getMode( Merges.class );
+	}
+
+	public Optional< PaintMode > getPaintMode()
+	{
+		return getMode( PaintMode.class );
+	}
+
+	public < M extends Mode > Optional< M > getMode( final M mode )
+	{
+		return this.settings.availableModes().stream().filter( m -> m.equals( mode ) ).map( m -> ( M ) m ).findFirst();
+	}
+
+	public < M extends Mode > Optional< M > getMode( final Class< M > mode )
+	{
+		return this.settings.availableModes().stream().filter( m -> m.getClass().equals( mode ) ).map( m -> ( M ) m ).findFirst();
+	}
+
+	public AtlasSettings getSettings()
+	{
+		return this.settings;
+	}
+
+	private static Mode[] defaultModes( final Atlas viewer )
+	{
+		return new Mode[] {
+				new NavigationOnly(),
+				new Highlights( viewer.get3DController(), viewer.transformManager(), viewer.sourceInfo(), viewer.keyTracker() ),
+				new Merges( viewer.sourceInfo() ),
+				new PaintMode( viewer.baseView().viewerAxes(), viewer.sourceInfo(), viewer.keyTracker(), viewer.transformManager(), () -> viewer.baseView().requestRepaint() ) };
+	}
+
 }

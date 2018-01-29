@@ -52,4 +52,16 @@ public abstract class AbstractStateMode implements Mode
 
 	protected abstract Consumer< ViewerPanelFX > getOnEnter();
 
+	@Override
+	public int hashCode()
+	{
+		return getClass().hashCode();
+	}
+
+	@Override
+	public boolean equals( final Object other )
+	{
+		return getClass().isInstance( other ) && ( ( AbstractStateMode ) other ).getName().equals( getName() );
+	}
+
 }

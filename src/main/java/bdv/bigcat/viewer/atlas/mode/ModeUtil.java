@@ -54,4 +54,24 @@ public class ModeUtil
 		return comboBox;
 	}
 
+	public static StringConverter< Mode > getStringConverter( final ObservableList< Mode > availableModes )
+	{
+		return new StringConverter< Mode >()
+		{
+
+			@Override
+			public String toString( final Mode object )
+			{
+				return object == null ? null : object.getName();
+			}
+
+			@Override
+			public Mode fromString( final String string )
+			{
+				return availableModes.stream().filter( mode -> mode.getName().equals( string ) ).findAny().orElse( null );
+			}
+		};
+
+	}
+
 }
