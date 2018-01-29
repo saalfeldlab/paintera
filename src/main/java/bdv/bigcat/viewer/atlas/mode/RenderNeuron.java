@@ -143,7 +143,7 @@ public class RenderNeuron
 								final int stepSizeX = ( int ) Math.round( scaleMax / scaleX );
 								final int stepSizeY = ( int ) Math.round( scaleMax / scaleY );
 								final int stepSizeZ = ( int ) Math.round( scaleMax / scaleZ );
-								final int maxBlockScale = ( int )Math.ceil( 64.0 / Math.max( Math.max( stepSizeX, stepSizeY ), stepSizeZ ) );
+								final int maxBlockScale = ( int )Math.ceil( 256.0 / Math.max( Math.max( stepSizeX, stepSizeY ), stepSizeZ ) );
 
 								final int[] partitionSize = {
 										maxBlockScale * stepSizeX,

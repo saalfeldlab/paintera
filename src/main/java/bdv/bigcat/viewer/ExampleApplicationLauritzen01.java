@@ -20,7 +20,6 @@ import bdv.bigcat.viewer.atlas.Atlas;
 import bdv.bigcat.viewer.atlas.data.DataSource;
 import bdv.bigcat.viewer.atlas.data.LabelDataSource;
 import bdv.bigcat.viewer.atlas.data.RandomAccessibleIntervalDataSource;
-import bdv.bigcat.viewer.atlas.source.AtlasSourceState;
 import bdv.bigcat.viewer.state.FragmentSegmentAssignmentOnlyLocal;
 import bdv.bigcat.viewer.state.SelectedIds;
 import bdv.labels.labelset.Label;
@@ -46,6 +45,7 @@ import net.imglib2.img.basictypeaccess.array.LongArray;
 import net.imglib2.img.basictypeaccess.volatiles.array.VolatileLongArray;
 import net.imglib2.img.cell.Cell;
 import net.imglib2.img.cell.CellGrid;
+import net.imglib2.type.numeric.ARGBType;
 import net.imglib2.type.numeric.IntegerType;
 import net.imglib2.type.numeric.integer.UnsignedByteType;
 import net.imglib2.type.numeric.integer.UnsignedLongType;
@@ -75,8 +75,7 @@ public class ExampleApplicationLauritzen01
 		final String cleftsN5Path = "/nrs/saalfeld/lauritzen/03/workspace.n5";
 		final String cleftsDataset = "/syncleft_dist_160000";
 
-
-		double[] resolution = { 4, 4, 40 };
+		final double[] resolution = { 4, 4, 40 };
 
 		final Parameters params = getParameters( args );
 		if ( params != null )
@@ -86,7 +85,9 @@ public class ExampleApplicationLauritzen01
 			rawGroup = params.rawDatasetPath;
 			labelsN5Path = n5Path;
 			labelsDataset = params.labelDatasetPath;
-			resolution = new double[] { params.resolution.get( 0 ), params.resolution.get( 1 ), params.resolution.get( 2 ) };
+			resolution[ 0 ] = params.resolution.get( 0 );
+			resolution[ 1 ] = params.resolution.get( 1 );
+			resolution[ 2 ] = params.resolution.get( 2 );
 
 			System.out.println( Arrays.toString( resolution ) );
 		}
@@ -110,28 +111,6 @@ public class ExampleApplicationLauritzen01
 						sharedQueue,
 						0,
 						new FragmentSegmentAssignmentOnlyLocal() );
-
-		final RandomAccessibleInterval< UnsignedLongType > thresholdedClefts = Converters.convert(
-				cleftSource.getDataSource( 0, 0 ),
-				(a, b) -> b.set(a.getRealDouble() > 0.15 ? 1L : Label.TRANSPARENT),
-				new UnsignedLongType());
-
-		final CachedCellImg< UnsignedLongType, VolatileLongArray > cleftSelection = volatileCleftSelection(
-				Converters.convert(
-						(RandomAccessibleInterval<IntegerType<?>>)labelSource.getDataSource( 0, 0 ),
-						(a, b) -> b.set(a.getIntegerLong()),
-						new UnsignedLongType()),
-				thresholdedClefts,
-				new N5FSReader( cleftsN5Path ).getDatasetAttributes( cleftsDataset ).getBlockSize(),
-				// TODO add selectedIds here
-				null );
-
-		final RandomAccessibleIntervalDataSource< UnsignedLongType, VolatileUnsignedLongType > cleftSelectionSource =
-				DataSource.createDataSource(
-						"thresholded clefts",
-						cleftSelection,
-						resolution,
-						sharedQueue, 0 );
 
 //		final RandomAccessibleIntervalDataSource< UnsignedLongType, VolatileUnsignedLongType > cleftSelectionSource =
 //				DataSource.createDataSource(
@@ -158,20 +137,54 @@ public class ExampleApplicationLauritzen01
 			}
 
 			viewer.addRawSource( rawSource, 0., ( 1 << 8 ) - 1. );
-			latch.countDown();
-
 			viewer.addLabelSource( labelSource, labelSource.getAssignment(), v -> v.get().getIntegerLong(), idService );
-			latch.countDown();
-
 			viewer.addRawSource( cleftSource, 0., ( 1 << 8 ) - 1. );
-			latch.countDown();
+			final ARGBColorConverter converter = ( ARGBColorConverter< ? > )viewer.sourceInfo().getState( cleftSource ).converterProperty().get();
+			converter.colorProperty().set( new ARGBType( 0xffff0080 ) );
+			converter.minProperty().set( 0.0 );
+			converter.maxProperty().set( 0.2 );
 
-			viewer.addLabelSource( cleftSelectionSource, labelSource.getAssignment(), v -> v.get().getIntegerLong(), idService );
-			latch.countDown();
+			final RandomAccessibleInterval< UnsignedLongType > thresholdedClefts = Converters.convert(
+					cleftSource.getDataSource( 0, 0 ),
+					(a, b) -> b.set(a.getRealDouble() > converter.minProperty().get() ? 1L : Label.TRANSPARENT),
+					new UnsignedLongType());
 
-			viewer.getSourceInfo().getState( cleftSource ).selectionMinProperty().set( 0.15 );
-			viewer.getSourceInfo().getState( cleftSource ).selectionMaxProperty().set( 0.2 );
+			try
+			{
+				final SelectedIds selectedIds = viewer.getSelectedIds( labelSource, viewer.getHighlightsMode().get() ).get();
+				final CachedCellImg< UnsignedLongType, VolatileLongArray > cleftSelection = volatileCleftSelection(
+						Converters.convert(
+								(RandomAccessibleInterval<IntegerType<?>>)labelSource.getDataSource( 0, 0 ),
+								(a, b) -> b.set(a.getIntegerLong()),
+								new UnsignedLongType()),
+						thresholdedClefts,
+						new N5FSReader( cleftsN5Path ).getDatasetAttributes( cleftsDataset ).getBlockSize(),
+						// TODO add selectedIds here
+						selectedIds );
+				selectedIds.addListener( () -> {
+					cleftSelection.getCache().invalidateAll();
+				} );
+				converter.minProperty().addListener( (self, oldValue, newValue) -> {
+					cleftSelection.getCache().invalidateAll();
+				} );
 
+
+
+				final RandomAccessibleIntervalDataSource< UnsignedLongType, VolatileUnsignedLongType > cleftSelectionSource =
+						DataSource.createDataSource(
+								"thresholded clefts",
+								cleftSelection,
+								resolution,
+								sharedQueue, 0 );
+
+				viewer.addLabelSource( cleftSelectionSource, labelSource.getAssignment(), v -> v.get().getIntegerLong(), idService );
+
+			}
+			catch ( final IOException e )
+			{
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
 
 			stage.show();
 			latch.countDown();
@@ -218,18 +231,6 @@ public class ExampleApplicationLauritzen01
 			this.selectedIds = selectedIds;
 		}
 
-		public LabelIntersectionCellLoader(
-				final AtlasSourceState< ?, UnsignedLongType > label1State,
-				final AtlasSourceState< ?, UnsignedLongType > label2State) {
-
-			this(
-					label1State.dataSourceProperty().get().getDataSource( 0, 0 ),
-					label2State.dataSourceProperty().get().getDataSource( 0, 0 ),
-//					label1State.selectedIds() );
-					null );
-
-		}
-
 		@Override
 		public void load(final SingleCellArrayImg<UnsignedLongType, ?> cell) throws Exception {
 
@@ -244,8 +245,8 @@ public class ExampleApplicationLauritzen01
 				final UnsignedLongType label1Type = label1Cursor.next();
 				final UnsignedLongType label2Type = label2Cursor.next();
 				if (targetType.get() == Label.TRANSPARENT) {
-//					if (selectedIds.isActive( label1Cursor.next().get() ) && label2Cursor.next().get() == 1 ) {
-					if (label2Type.get() == 1 ) {
+					if (selectedIds.isActive( label1Type.get() ) && label2Type.get() == 1 ) {
+//					if (label2Type.get() == 1 ) {
 						FloodFill.<UnsignedLongType, UnsignedLongType>fill(
 							Views.extendValue(label2Interval, new UnsignedLongType( Label.TRANSPARENT ) ),
 							Views.extendValue(cell, new UnsignedLongType() ),
@@ -286,7 +287,7 @@ public class ExampleApplicationLauritzen01
 			final RandomAccessibleInterval< UnsignedLongType > segments,
 			final RandomAccessibleInterval< UnsignedLongType > clefts,
 			final int[] blockSize,
-			final SelectedIds selectedIds ) throws IOException
+			final SelectedIds selectedIds )
 	{
 		final long[] dimensions = Intervals.dimensionsAsLongArray( clefts );
 
