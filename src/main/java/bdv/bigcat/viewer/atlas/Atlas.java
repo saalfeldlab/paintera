@@ -294,7 +294,7 @@ public class Atlas
 		this.root.addEventHandler( KeyEvent.KEY_PRESSED, new OpenDialogEventHandler( this, cellCache, e -> keyTracker.areOnlyTheseKeysDown( KeyCode.CONTROL, KeyCode.O ) ) );
 
 		this.root.addEventHandler( KeyEvent.KEY_PRESSED, event -> {
-			if ( keyTracker.areOnlyTheseKeysDown( KeyCode.ALT, KeyCode.S ) )
+			if ( keyTracker.areOnlyTheseKeysDown( KeyCode.ALT, KeyCode.S ) || keyTracker.areOnlyTheseKeysDown( KeyCode.P ) )
 			{
 				toggleSourcesTabs();
 				event.consume();
@@ -322,7 +322,7 @@ public class Atlas
 	public void start( final Stage primaryStage ) throws InterruptedException
 	{
 		this.primaryStage = primaryStage;
-		start( primaryStage, "ATLAS" );
+		start( primaryStage, "BigCAT" );
 	}
 
 	public void start( final Stage primaryStage, final String title ) throws InterruptedException
@@ -868,5 +868,21 @@ public class Atlas
 	private static Converter< VolatileARGBType, ARGBType > identity()
 	{
 		return ( s, t ) -> t.set( s.get() );
+	}
+
+	/**
+	 * @return the sourceInfo
+	 */
+	public SourceInfo getSourceInfo()
+	{
+		return sourceInfo;
+	}
+
+	/**
+	 * @return the modes
+	 */
+	public ArrayList< Mode > getModes()
+	{
+		return modes;
 	}
 }
