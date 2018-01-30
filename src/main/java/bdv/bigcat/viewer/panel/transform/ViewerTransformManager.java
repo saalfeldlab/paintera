@@ -350,7 +350,6 @@ public class ViewerTransformManager implements TransformListener< AffineTransfor
 		@SafeVarargs
 		public Zoom( final DoubleProperty speed, final Predicate< ScrollEvent >... check )
 		{
-			this.speed.set( speed.get() );
 			this.speed.bind( speed );
 			this.check = check;
 		}
@@ -374,7 +373,7 @@ public class ViewerTransformManager implements TransformListener< AffineTransfor
 			final double wheelRotation = -event.getDeltaY();
 
 			final double s = wheelRotation;
-			final double dScale = 1.0 + 0.05;
+			final double dScale = zoomSpeed.get();
 			final double scale = s > 0 ? 1.0 / dScale : dScale;
 
 			for ( int d = 0; d < location.length; ++d )
@@ -577,6 +576,21 @@ public class ViewerTransformManager implements TransformListener< AffineTransfor
 	public BooleanProperty allowRotationsProperty()
 	{
 		return this.allowRotations;
+	}
+
+	public DoubleProperty zoomSpeedProperty()
+	{
+		return this.zoomSpeed;
+	}
+
+	public DoubleProperty translationSpeedProperty()
+	{
+		return this.translationSpeed;
+	}
+
+	public DoubleProperty rotationSpeedProperty()
+	{
+		return this.rotationSpeed;
 	}
 
 }

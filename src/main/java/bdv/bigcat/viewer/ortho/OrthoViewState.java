@@ -9,9 +9,11 @@ import bdv.viewer.Source;
 import bdv.viewer.SourceAndConverter;
 import bdv.viewer.ViewerOptions;
 import javafx.beans.property.BooleanProperty;
+import javafx.beans.property.DoubleProperty;
 import javafx.beans.property.IntegerProperty;
 import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.SimpleBooleanProperty;
+import javafx.beans.property.SimpleDoubleProperty;
 import javafx.beans.property.SimpleIntegerProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.collections.FXCollections;
@@ -35,6 +37,12 @@ public class OrthoViewState
 	private final IntegerProperty time = new SimpleIntegerProperty();
 
 	private final BooleanProperty allowRotations = new SimpleBooleanProperty();
+
+	private final DoubleProperty zoomSpeed = new SimpleDoubleProperty( 1.05 );
+
+	private final DoubleProperty rotationSpeed = new SimpleDoubleProperty( 1 );
+
+	private final DoubleProperty translationSpeed = new SimpleDoubleProperty( 1 );
 
 	public OrthoViewState()
 	{
@@ -121,6 +129,21 @@ public class OrthoViewState
 		final Interpolation interpolation = getInterpolation().equals( Interpolation.NLINEAR ) ? Interpolation.NEARESTNEIGHBOR : Interpolation.NLINEAR;
 		setInterpolation( interpolation );
 		return interpolation;
+	}
+
+	public DoubleProperty zoomSpeedProperty()
+	{
+		return this.zoomSpeed;
+	}
+
+	public DoubleProperty rotationSpeedProperty()
+	{
+		return this.rotationSpeed;
+	}
+
+	public DoubleProperty translationSpeedProperty()
+	{
+		return this.translationSpeed;
 	}
 
 }

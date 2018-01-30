@@ -176,6 +176,9 @@ public class OrthoView extends GridPane
 		this.managers.put( viewerNode, viewerNode.manager() );
 		viewerNode.getViewerState().setSources( state.sacs, state.interpolation );
 		viewerNode.getViewerState().setGlobalTransform( this.state.globalTransform );
+		viewerNode.manager().zoomSpeedProperty().bind( state.zoomSpeedProperty() );
+		viewerNode.manager().rotationSpeedProperty().bind( state.rotationSpeedProperty() );
+		viewerNode.manager().translationSpeedProperty().bind( state.translationSpeedProperty() );
 		viewerNode.manager().allowRotationsProperty().bind( this.state.allowRotationsProperty() );
 		viewerActors.forEach( actor -> actor.onAdd().accept( viewerNode.getViewer() ) );
 		addViewerNodesHandler( viewerNode, FOCUS_KEEPERS );
