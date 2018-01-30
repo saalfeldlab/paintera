@@ -153,7 +153,7 @@ public class Atlas
 
 	private final AtlasSettings settings = new AtlasSettings();
 
-	private final Node settingsNode = AtlasSettingsNode.getNode( settings );
+	private final Node settingsNode;
 
 	private final VBox sourcesAndSettings;
 
@@ -181,6 +181,7 @@ public class Atlas
 				// this.view.getState().removeSource( source ),
 				this.sourceInfo );
 
+		settingsNode = AtlasSettingsNode.getNode( settings, sourceTabs.widthProperty() );
 		sourcesAndSettings = new VBox( sourceTabs.getTabs(), new TitledPane( "Settings", settingsNode ) );
 		this.sourceTabsResizer = new ResizeOnLeftSide( sourcesAndSettings, sourceTabs.widthProperty(), ( diff ) -> diff > 0 && diff < 10 );
 		this.view.getState().currentSourceProperty().bindBidirectional( this.sourceInfo.currentSourceProperty() );
@@ -301,6 +302,10 @@ public class Atlas
 		this.sourceInfo.composites().addListener( ( MapChangeListener< Source< ? >, Composite< ARGBType, ARGBType > > ) change -> baseView().requestRepaint() );
 
 		this.root.addEventHandler( KeyEvent.KEY_PRESSED, EventFX.KEY_PRESSED( "toggle interpolation", e -> toggleInterpolation(), e -> keyTracker.areOnlyTheseKeysDown( KeyCode.I ) ) );
+
+		this.baseView().getState().zoomSpeedProperty().bind( settings.zoomSpeedProperty() );
+		this.baseView().getState().translationSpeedProperty().bind( settings.translationSpeedProperty() );
+		this.baseView().getState().rotationSpeedProperty().bind( settings.rotationSpeedProperty() );
 
 	}
 
