@@ -339,7 +339,7 @@ public class Atlas
 	public void start( final Stage primaryStage, final String title ) throws InterruptedException
 	{
 
-		final Scene scene = new Scene( this.root, 800, 600 );
+		final Scene scene = new Scene( this.root, 1280 - 32, 720 - 48 );
 
 		primaryStage.setTitle( title );
 		primaryStage.setScene( scene );
