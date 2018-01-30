@@ -104,7 +104,6 @@ import net.imglib2.type.numeric.IntegerType;
 import net.imglib2.type.numeric.RealType;
 import net.imglib2.type.numeric.integer.UnsignedLongType;
 import net.imglib2.type.volatiles.AbstractVolatileRealType;
-import net.imglib2.type.volatiles.VolatileARGBType;
 import net.imglib2.type.volatiles.VolatileUnsignedLongType;
 import net.imglib2.util.Intervals;
 import net.imglib2.util.Pair;
@@ -869,11 +868,6 @@ public class Atlas
 		final int a = ( int ) ( 255 * color.getOpacity() + 0.5 );
 		argb.set( a << 24 | r << 16 | g << 8 | b << 0 );
 		return argb;
-	}
-
-	private static Converter< VolatileARGBType, ARGBType > identity()
-	{
-		return ( s, t ) -> t.set( s.get() );
 	}
 
 	public Optional< SelectedIds > getSelectedIds( final Source< ? > source, final Mode mode )
