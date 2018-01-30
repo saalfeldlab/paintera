@@ -202,11 +202,9 @@ public class ViewerTransformManager implements TransformListener< AffineTransfor
 		viewer.addEventHandler( ScrollEvent.SCROLL, zoom );
 		removeRotation.installInto( this.viewer );
 
-//		behaviours.behaviour( new ButtonZoom( 1.05 ), "zoom", "UP" );
-//		behaviours.behaviour( new ButtonZoom( 1.0 / 1.05 ), "zoom", "DOWN" );
-		viewer.addEventHandler( ScrollEvent.SCROLL, new TranslateZ( zoomSpeed, manager, global, axis, factors[ 0 ], viewer, event -> keyTracker.noKeysActive() )::scroll );
-		viewer.addEventHandler( ScrollEvent.SCROLL, new TranslateZ( zoomSpeed, manager, global, axis, factors[ 1 ], viewer, event -> keyTracker.areOnlyTheseKeysDown( KeyCode.SHIFT ) )::scroll );
-		viewer.addEventHandler( ScrollEvent.SCROLL, new TranslateZ( zoomSpeed, manager, global, axis, factors[ 2 ], viewer, event -> keyTracker.areOnlyTheseKeysDown( KeyCode.CONTROL ) )::scroll );
+		viewer.addEventHandler( ScrollEvent.SCROLL, new TranslateZScroll( translationSpeed.multiply( factors[ 0 ] ), manager, global, axis, viewer, event -> keyTracker.noKeysActive() )::scroll );
+		viewer.addEventHandler( ScrollEvent.SCROLL, new TranslateZScroll( translationSpeed.multiply( factors[ 1 ] ), manager, global, axis, viewer, event -> keyTracker.areOnlyTheseKeysDown( KeyCode.SHIFT ) )::scroll );
+		viewer.addEventHandler( ScrollEvent.SCROLL, new TranslateZScroll( translationSpeed.multiply( factors[ 2 ] ), manager, global, axis, viewer, event -> keyTracker.areOnlyTheseKeysDown( KeyCode.CONTROL ) )::scroll );
 
 		final ButtonZoom zoomIn = new ButtonZoom( zoomSpeed );
 		final ButtonZoom zoomOut = new ButtonZoom( new SimpleDoubleProperty( 1.0 ).divide( zoomSpeed ) );
@@ -224,6 +222,57 @@ public class ViewerTransformManager implements TransformListener< AffineTransfor
 						event -> keyTracker.areOnlyTheseKeysDown( KeyCode.MINUS ),
 						event -> keyTracker.areOnlyTheseKeysDown( KeyCode.SHIFT, KeyCode.MINUS ),
 						event -> keyTracker.areOnlyTheseKeysDown( KeyCode.DOWN ) ) );
+
+		{
+			final TranslateZButton translateForward = new TranslateZButton( translationSpeed.multiply( -factors[ 0 ] ), manager, global, axis, viewer );
+			final TranslateZButton translateBackward = new TranslateZButton( translationSpeed.multiply( +factors[ 0 ] ), manager, global, axis, viewer );
+			viewer.addEventHandler(
+					KeyEvent.KEY_PRESSED,
+					EventFX.KEY_PRESSED(
+							"translate z advance",
+							e -> translateForward.translate(),
+							e -> keyTracker.areOnlyTheseKeysDown( KeyCode.COMMA ) ) );
+			viewer.addEventHandler(
+					KeyEvent.KEY_PRESSED,
+					EventFX.KEY_PRESSED(
+							"translate z retract",
+							e -> translateBackward.translate(),
+							e -> keyTracker.areOnlyTheseKeysDown( KeyCode.PERIOD ) ) );
+		}
+
+		{
+			final TranslateZButton translateForward = new TranslateZButton( translationSpeed.multiply( -factors[ 1 ] ), manager, global, axis, viewer );
+			final TranslateZButton translateBackward = new TranslateZButton( translationSpeed.multiply( +factors[ 1 ] ), manager, global, axis, viewer );
+			viewer.addEventHandler(
+					KeyEvent.KEY_PRESSED,
+					EventFX.KEY_PRESSED(
+							"translate z advance",
+							e -> translateForward.translate(),
+							e -> keyTracker.areOnlyTheseKeysDown( KeyCode.COMMA, KeyCode.SHIFT ) ) );
+			viewer.addEventHandler(
+					KeyEvent.KEY_PRESSED,
+					EventFX.KEY_PRESSED(
+							"translate z retract",
+							e -> translateBackward.translate(),
+							e -> keyTracker.areOnlyTheseKeysDown( KeyCode.PERIOD, KeyCode.SHIFT ) ) );
+		}
+
+		{
+			final TranslateZButton translateForward = new TranslateZButton( translationSpeed.multiply( -factors[ 2 ] ), manager, global, axis, viewer );
+			final TranslateZButton translateBackward = new TranslateZButton( translationSpeed.multiply( +factors[ 2 ] ), manager, global, axis, viewer );
+			viewer.addEventHandler(
+					KeyEvent.KEY_PRESSED,
+					EventFX.KEY_PRESSED(
+							"translate z advance",
+							e -> translateForward.translate(),
+							e -> keyTracker.areOnlyTheseKeysDown( KeyCode.COMMA, KeyCode.CONTROL ) ) );
+			viewer.addEventHandler(
+					KeyEvent.KEY_PRESSED,
+					EventFX.KEY_PRESSED(
+							"translate z retract",
+							e -> translateBackward.translate(),
+							e -> keyTracker.areOnlyTheseKeysDown( KeyCode.PERIOD, KeyCode.CONTROL ) ) );
+		}
 
 	}
 
