@@ -101,4 +101,26 @@ public class OrthoViewState
 		return this.allowRotations;
 	}
 
+	ObjectProperty< Interpolation > interpolationProperty()
+	{
+		return this.interpolation;
+	}
+
+	public Interpolation getInterpolation()
+	{
+		return interpolationProperty().get();
+	}
+
+	public void setInterpolation( final Interpolation interpolation )
+	{
+		interpolationProperty().set( interpolation );
+	}
+
+	public Interpolation toggleInterpolation()
+	{
+		final Interpolation interpolation = getInterpolation().equals( Interpolation.NLINEAR ) ? Interpolation.NEARESTNEIGHBOR : Interpolation.NLINEAR;
+		setInterpolation( interpolation );
+		return interpolation;
+	}
+
 }

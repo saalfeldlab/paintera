@@ -35,13 +35,13 @@ import bdv.bigcat.viewer.atlas.data.mask.PickOneAllIntegerTypesVolatile;
 import bdv.bigcat.viewer.atlas.mode.Highlights;
 import bdv.bigcat.viewer.atlas.mode.Merges;
 import bdv.bigcat.viewer.atlas.mode.Mode;
-import bdv.bigcat.viewer.atlas.mode.ModeUtil;
 import bdv.bigcat.viewer.atlas.mode.NavigationOnly;
 import bdv.bigcat.viewer.atlas.mode.paint.PaintMode;
 import bdv.bigcat.viewer.atlas.source.AtlasSourceState;
 import bdv.bigcat.viewer.atlas.source.ResizeOnLeftSide;
 import bdv.bigcat.viewer.atlas.source.SourceInfo;
 import bdv.bigcat.viewer.atlas.source.SourceTabs;
+import bdv.bigcat.viewer.bdvfx.EventFX;
 import bdv.bigcat.viewer.bdvfx.KeyTracker;
 import bdv.bigcat.viewer.bdvfx.ViewerPanelFX;
 import bdv.bigcat.viewer.ortho.OrthoView;
@@ -62,13 +62,13 @@ import bdv.labels.labelset.Multiset.Entry;
 import bdv.labels.labelset.VolatileLabelMultisetType;
 import bdv.util.IdService;
 import bdv.util.volatiles.SharedQueue;
+import bdv.viewer.Interpolation;
 import bdv.viewer.Source;
 import bdv.viewer.SourceAndConverter;
 import bdv.viewer.ViewerOptions;
 import javafx.beans.binding.Bindings;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.SimpleBooleanProperty;
-import javafx.beans.property.SimpleObjectProperty;
 import javafx.collections.ListChangeListener;
 import javafx.collections.MapChangeListener;
 import javafx.event.EventHandler;
@@ -77,7 +77,6 @@ import javafx.scene.Scene;
 import javafx.scene.control.Alert;
 import javafx.scene.control.Button;
 import javafx.scene.control.ButtonType;
-import javafx.scene.control.ComboBox;
 import javafx.scene.control.Label;
 import javafx.scene.control.Slider;
 import javafx.scene.control.TitledPane;
@@ -302,6 +301,8 @@ public class Atlas
 
 		this.sourceInfo.composites().addListener( ( MapChangeListener< Source< ? >, Composite< ARGBType, ARGBType > > ) change -> baseView().requestRepaint() );
 
+		this.root.addEventHandler( KeyEvent.KEY_PRESSED, EventFX.KEY_PRESSED( "toggle interpolation", e -> toggleInterpolation(), e -> keyTracker.areOnlyTheseKeysDown( KeyCode.I ) ) );
+
 	}
 
 	public void toggleSourcesTabs()
@@ -316,6 +317,13 @@ public class Atlas
 			this.sourceTabsResizer.remove();
 			this.root.setRight( null );
 		}
+	}
+
+	public Interpolation toggleInterpolation()
+	{
+		final Interpolation interpolation = this.baseView().getState().toggleInterpolation();
+		LOG.debug( "Toggled interpolation to: {}", interpolation );
+		return interpolation;
 	}
 
 	public void start( final Stage primaryStage ) throws InterruptedException
