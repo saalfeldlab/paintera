@@ -11,6 +11,7 @@ import bdv.bigcat.viewer.atlas.opendialog.meta.MetaPanel;
 import bdv.bigcat.viewer.util.InvokeOnJavaFXApplicationThread;
 import javafx.beans.binding.Bindings;
 import javafx.beans.binding.BooleanBinding;
+import javafx.beans.property.DoubleProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.value.ObservableBooleanValue;
 import javafx.beans.value.ObservableValue;
@@ -70,7 +71,7 @@ public class OpenSourceDialog extends Dialog< BackendDialog > implements Combine
 
 	private final ObservableList< TYPE > typeChoices = FXCollections.observableArrayList( TYPE.values() );
 
-	private final SimpleObjectProperty< BackendDialog > currentBackend = new SimpleObjectProperty<>( new BackendDialogInvalid( BACKEND.N5 ) );
+	private final SimpleObjectProperty< BackendDialog > currentBackend = new SimpleObjectProperty<>( new BackendDialogN5() );
 
 	private final NameField nameField = new NameField( "Source name", "Specify source name (required)", new InnerShadow( 10, Color.ORANGE ) );
 
@@ -128,24 +129,20 @@ public class OpenSourceDialog extends Dialog< BackendDialog > implements Combine
 
 		this.backendChoice.valueProperty().addListener( ( obs, oldv, newv ) -> {
 			if ( this.currentBackend.get() != null )
-				Bindings.unbindBidirectional(
-						this.currentBackend.get().axisOrder(),
-						this.metaPanel.axisOrderProperty() );
-			InvokeOnJavaFXApplicationThread.invoke( () -> {
-				final BackendDialog backendDialog = Optional.ofNullable( backendInfoDialogs.get( newv ) ).orElse( new BackendDialogInvalid( newv ) );
-				this.backendDialog.getChildren().setAll( backendDialog.getDialogNode() );
-//				this.errorMessage.bind( backendDialog.errorMessage() );
-				this.currentBackend.set( backendDialog );
+				InvokeOnJavaFXApplicationThread.invoke( () -> {
+					final BackendDialog backendDialog = backendInfoDialogs.get( newv );
+					this.backendDialog.getChildren().setAll( backendDialog.getDialogNode() );
+					this.currentBackend.set( backendDialog );
 
-				this.metaPanel.axisOrderProperty().bindBidirectional( backendDialog.axisOrder() );
-				this.metaPanel.defaultAxisOrderProperty().bind( backendDialog.axisOrder() );
-				this.metaPanel.listenOnResolution( backendDialog.resolutionX(), backendDialog.resolutionY(), backendDialog.resolutionZ() );
-				this.metaPanel.listenOnOffset( backendDialog.offsetX(), backendDialog.offsetY(), backendDialog.offsetZ() );
-				this.metaPanel.listenOnMinMax( backendDialog.min(), backendDialog.max() );
+					final DoubleProperty[] res = backendDialog.resolution();
+					final DoubleProperty[] off = backendDialog.offset();
+					this.metaPanel.listenOnResolution( res[ 0 ], res[ 1 ], res[ 2 ] );
+					this.metaPanel.listenOnOffset( off[ 0 ], off[ 1 ], off[ 2 ] );
+					this.metaPanel.listenOnMinMax( backendDialog.min(), backendDialog.max() );
 
-				backendDialog.errorMessage().addListener( ( obsErr, oldErr, newErr ) -> combineErrorMessages() );
-				combineErrorMessages();
-			} );
+					backendDialog.errorMessage().addListener( ( obsErr, oldErr, newErr ) -> combineErrorMessages() );
+					combineErrorMessages();
+				} );
 		} );
 
 		this.paintingLayerPane.visibleProperty().bind( isLabelType );
@@ -178,13 +175,9 @@ public class OpenSourceDialog extends Dialog< BackendDialog > implements Combine
 		this.typeChoice.setMinWidth( 100 );
 		choices.getChildren().addAll( this.backendChoice, this.typeChoice );
 		this.grid.add( choices, 0, 0 );
-		this.setResultConverter( button -> button.equals( ButtonType.OK ) ? currentBackend.get() : new BackendDialogInvalid( backendChoice.getValue() ) );
+		this.setResultConverter( button -> button.equals( ButtonType.OK ) ? currentBackend.get() : null );
 		combineErrorMessages();
 
-		this.typeChoice.valueProperty().addListener( ( obs, oldv, newv ) -> {
-			final BackendDialog backendDialog = backendInfoDialogs.get( backendChoice.getValue() );
-			backendDialog.typeChanged( newv );
-		} );
 	}
 
 	public TYPE getType()

@@ -3,24 +3,26 @@ package bdv.bigcat.viewer.atlas.opendialog;
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
-import java.util.Optional;
 import java.util.stream.DoubleStream;
 
 import bdv.img.h5.H5Utils;
+import bdv.net.imglib2.util.Triple;
+import bdv.net.imglib2.util.ValueTriple;
 import bdv.util.volatiles.SharedQueue;
 import bdv.util.volatiles.VolatileViews;
 import ch.systemsx.cisd.hdf5.HDF5Factory;
 import ch.systemsx.cisd.hdf5.IHDF5Reader;
+import javafx.beans.property.DoubleProperty;
 import javafx.stage.FileChooser;
 import javafx.stage.FileChooser.ExtensionFilter;
 import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.Volatile;
 import net.imglib2.cache.volatiles.CacheHints;
 import net.imglib2.cache.volatiles.LoadingStrategy;
+import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.type.NativeType;
-import net.imglib2.util.Pair;
-import net.imglib2.util.ValuePair;
 
 public class BackendDialogHDF5 extends BackendDialogGroupAndDataset implements CombinesErrorMessages
 {
@@ -84,7 +86,7 @@ public class BackendDialogHDF5 extends BackendDialogGroupAndDataset implements C
 	}
 
 	@Override
-	public < T extends NativeType< T >, V extends Volatile< T > > Pair< RandomAccessibleInterval< T >[], RandomAccessibleInterval< V >[] > getDataAndVolatile(
+	public < T extends NativeType< T >, V extends Volatile< T > > Triple< RandomAccessibleInterval< T >[], RandomAccessibleInterval< V >[], AffineTransform3D[] > getDataAndVolatile(
 			final SharedQueue sharedQueue,
 			final int priority ) throws IOException
 	{
@@ -92,9 +94,17 @@ public class BackendDialogHDF5 extends BackendDialogGroupAndDataset implements C
 		final IHDF5Reader reader = HDF5Factory.openForReading( group );
 		final String dataset = this.dataset.get();
 		// TODO optimize block size
+		// TODO do multiscale
 		final RandomAccessibleInterval< T > raw = H5Utils.open( reader, dataset );
 		final RandomAccessibleInterval< V > vraw = VolatileViews.wrapAsVolatile( raw, sharedQueue, new CacheHints( LoadingStrategy.VOLATILE, priority, true ) );
-		return new ValuePair<>( new RandomAccessibleInterval[] { raw }, new RandomAccessibleInterval[] { vraw } );
+		final AffineTransform3D transform = new AffineTransform3D();
+		final double[] resolution = Arrays.stream( resolution() ).mapToDouble( DoubleProperty::get ).toArray();
+		final double[] offset = Arrays.stream( offset() ).mapToDouble( DoubleProperty::get ).toArray();
+		transform.set(
+				resolution[ 0 ], 0, 0, offset[ 0 ],
+				resolution[ 1 ], 0, 0, offset[ 1 ],
+				resolution[ 2 ], 0, 0, offset[ 2 ] );
+		return new ValueTriple<>( new RandomAccessibleInterval[] { raw }, new RandomAccessibleInterval[] { vraw }, new AffineTransform3D[] { transform } );
 	}
 
 	@Override
@@ -137,21 +147,6 @@ public class BackendDialogHDF5 extends BackendDialogGroupAndDataset implements C
 
 			final int nDim = reader.object().getDimensions( dataset ).length;
 
-			if ( reader.object().hasAttribute( dataset, AXIS_ORDER_KEY ) )
-			{
-				final AxisOrder ao = AxisOrder.valueOf( reader.string().getAttr( dataset, AXIS_ORDER_KEY ) );
-				datasetInfo.defaultAxisOrderProperty().set( ao );
-				datasetInfo.selectedAxisOrderProperty().set( ao );
-			}
-			else
-			{
-				final Optional< AxisOrder > ao = AxisOrder.defaultOrder( nDim );
-				if ( ao.isPresent() )
-					this.datasetInfo.defaultAxisOrderProperty().set( ao.get() );
-				if ( this.datasetInfo.selectedAxisOrderProperty().isNull().get() || this.datasetInfo.selectedAxisOrderProperty().get().numDimensions() != nDim )
-					this.axisOrder().set( ao.get() );
-			}
-
 			final Class< ? > type = reader.getDataSetInformation( dataset ).getTypeInformation().tryGetJavaType();
 			final boolean signed = reader.getDataSetInformation( dataset ).getTypeInformation().isSigned();
 
@@ -160,8 +155,8 @@ public class BackendDialogHDF5 extends BackendDialogGroupAndDataset implements C
 			final boolean hasMin = reader.object().hasAttribute( dataset, MIN_KEY );
 			final boolean hasMax = reader.object().hasAttribute( dataset, MAX_KEY );
 
-			this.datasetInfo.setResolution( hasResolution ? invert( reader.float64().getArrayAttr( dataset, RESOLUTION_KEY ) ) : DoubleStream.generate( () -> 1.0 ).limit( nDim ).toArray() );
-			this.datasetInfo.setOffset( hasOffset ? invert( reader.float64().getArrayAttr( dataset, OFFSET_KEY ) ) : new double[ nDim ] );
+			setResolution( hasResolution ? invert( reader.float64().getArrayAttr( dataset, RESOLUTION_KEY ) ) : DoubleStream.generate( () -> 1.0 ).limit( nDim ).toArray() );
+			setOffset( hasOffset ? invert( reader.float64().getArrayAttr( dataset, OFFSET_KEY ) ) : new double[ nDim ] );
 			this.datasetInfo.minProperty().set( hasMin ? reader.float64().getAttr( dataset, MIN_KEY ) : minForType( type, signed ) );
 			this.datasetInfo.maxProperty().set( hasMax ? reader.float64().getAttr( dataset, MAX_KEY ) : maxForType( type, signed ) );
 		}
@@ -186,4 +181,11 @@ public class BackendDialogHDF5 extends BackendDialogGroupAndDataset implements C
 			ret[ k ] = array[ i ];
 		return ret;
 	}
+
+	@Override
+	public String identifier()
+	{
+		return "HDF5";
+	}
+
 }

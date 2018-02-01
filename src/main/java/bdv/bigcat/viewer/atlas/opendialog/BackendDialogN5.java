@@ -3,10 +3,10 @@ package bdv.bigcat.viewer.atlas.opendialog;
 import java.io.File;
 import java.io.IOException;
 import java.lang.invoke.MethodHandles;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Optional;
 import java.util.function.Consumer;
@@ -22,13 +22,14 @@ import org.janelia.saalfeldlab.n5.imglib2.N5Utils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.google.gson.JsonElement;
-
 import bdv.labels.labelset.Label;
+import bdv.net.imglib2.util.Triple;
+import bdv.net.imglib2.util.ValueTriple;
 import bdv.util.IdService;
 import bdv.util.N5IdService;
 import bdv.util.volatiles.SharedQueue;
 import bdv.util.volatiles.VolatileViews;
+import javafx.beans.property.DoubleProperty;
 import javafx.stage.DirectoryChooser;
 import net.imglib2.Cursor;
 import net.imglib2.FinalInterval;
@@ -38,13 +39,13 @@ import net.imglib2.cache.volatiles.CacheHints;
 import net.imglib2.cache.volatiles.LoadingStrategy;
 import net.imglib2.img.array.ArrayImg;
 import net.imglib2.img.array.ArrayImgFactory;
+import net.imglib2.realtransform.AffineTransform3D;
+import net.imglib2.realtransform.Translation3D;
 import net.imglib2.type.NativeType;
 import net.imglib2.type.numeric.IntegerType;
 import net.imglib2.type.numeric.integer.UnsignedLongType;
 import net.imglib2.util.Intervals;
-import net.imglib2.util.Pair;
 import net.imglib2.util.Util;
-import net.imglib2.util.ValuePair;
 import net.imglib2.view.Views;
 
 public class BackendDialogN5 extends BackendDialogGroupAndDataset implements CombinesErrorMessages
@@ -143,12 +144,12 @@ public class BackendDialogN5 extends BackendDialogGroupAndDataset implements Com
 
 	@SuppressWarnings( "unchecked" )
 	@Override
-	public < T extends NativeType< T >, V extends Volatile< T > > Pair< RandomAccessibleInterval< T >[], RandomAccessibleInterval< V >[] > getDataAndVolatile(
+	public < T extends NativeType< T >, V extends Volatile< T > > Triple< RandomAccessibleInterval< T >[], RandomAccessibleInterval< V >[], AffineTransform3D[] > getDataAndVolatile(
 			final SharedQueue sharedQueue,
 			final int priority ) throws IOException
 	{
 		final String group = groupProperty.get();
-		final N5FSReader reader = new N5FSReader( group );
+		final N5Reader reader = new N5FSReader( group );
 		final String dataset = this.dataset.get();
 		try
 		{
@@ -156,7 +157,15 @@ public class BackendDialogN5 extends BackendDialogGroupAndDataset implements Com
 			{
 				final RandomAccessibleInterval< T > raw = N5Utils.openVolatile( reader, dataset );
 				final RandomAccessibleInterval< V > vraw = VolatileViews.wrapAsVolatile( raw, sharedQueue, new CacheHints( LoadingStrategy.VOLATILE, priority, true ) );
-				return new ValuePair<>( new RandomAccessibleInterval[] { raw }, new RandomAccessibleInterval[] { vraw } );
+				final double[] resolution = Arrays.stream( resolution() ).mapToDouble( DoubleProperty::get ).toArray();
+				final double[] offset = Arrays.stream( offset() ).mapToDouble( DoubleProperty::get ).toArray();
+				final AffineTransform3D transform = new AffineTransform3D();
+				transform.set(
+						resolution[ 0 ], 0, 0, offset[ 0 ],
+						0, resolution[ 1 ], 0, offset[ 1 ],
+						0, 0, resolution[ 2 ], offset[ 2 ] );
+				LOG.debug( "Resolution={}", Arrays.toString( resolution ) );
+				return new ValueTriple<>( new RandomAccessibleInterval[] { raw }, new RandomAccessibleInterval[] { vraw }, new AffineTransform3D[] { transform } );
 			}
 		}
 		catch ( final IOException e )
@@ -166,36 +175,62 @@ public class BackendDialogN5 extends BackendDialogGroupAndDataset implements Com
 		final String[] scaleDatasets = listScaleDatasets( reader, dataset );
 		sortScaleDatasets( scaleDatasets );
 
-		LOG.info( "Opening directories {} as multi-scale in {}: ", Arrays.toString( scaleDatasets ), dataset );
+		LOG.debug( "Opening directories {} as multi-scale in {}: ", Arrays.toString( scaleDatasets ), dataset );
 
 		final RandomAccessibleInterval< T >[] raw = new RandomAccessibleInterval[ scaleDatasets.length ];
 		final RandomAccessibleInterval< V >[] vraw = new RandomAccessibleInterval[ scaleDatasets.length ];
+		final AffineTransform3D[] transforms = new AffineTransform3D[ scaleDatasets.length ];
+		final double[] initialResolution = Arrays.stream( resolution() ).mapToDouble( DoubleProperty::get ).toArray();
+		final double[] initialDonwsamplingFactors = Optional.ofNullable( reader.getAttribute( dataset + "/" + scaleDatasets[ 0 ], "downsamplingFactors", double[].class ) ).orElse( new double[] { 1, 1, 1 } );
+		final double[] offset = Arrays.stream( offset() ).mapToDouble( DoubleProperty::get ).toArray();
+		LOG.debug( "Initial resolution={}", Arrays.toString( initialResolution ) );
 		for ( int scale = 0; scale < scaleDatasets.length; ++scale )
 		{
 			LOG.debug( "Populating scale level {}", scale );
-			raw[ scale ] = N5Utils.openVolatile( reader, dataset + "/" + scaleDatasets[ scale ] );
+			final String scaleDataset = dataset + "/" + scaleDatasets[ scale ];
+			raw[ scale ] = N5Utils.openVolatile( reader, scaleDataset );
 			vraw[ scale ] = VolatileViews.wrapAsVolatile( raw[ scale ], sharedQueue, new CacheHints( LoadingStrategy.VOLATILE, priority, true ) );
+
+			final double[] downsamplingFactors = Optional.ofNullable( reader.getAttribute( scaleDataset, "downsamplingFactors", double[].class ) ).orElse( new double[] { 1, 1, 1 } );
+
+			final double[] scaledResolution = new double[ downsamplingFactors.length ];
+			final double[] shift = new double[ downsamplingFactors.length ];
+
+			for ( int d = 0; d < downsamplingFactors.length; ++d )
+			{
+				scaledResolution[ d ] = downsamplingFactors[ d ] * initialResolution[ d ];
+				shift[ d ] = 0.5 / initialDonwsamplingFactors[ d ] - 0.5 / downsamplingFactors[ d ];
+			}
+
+			LOG.debug( "Downsampling factors={}, scaled resolution={}", Arrays.toString( downsamplingFactors ), Arrays.toString( scaledResolution ) );
+
+			final AffineTransform3D transform = new AffineTransform3D();
+			transform.set(
+					scaledResolution[ 0 ], 0, 0, offset[ 0 ],
+					0, scaledResolution[ 1 ], 0, offset[ 1 ],
+					0, 0, scaledResolution[ 2 ], offset[ 2 ] );
+			transforms[ scale ] = transform.concatenate( new Translation3D( shift ) );
 			LOG.debug( "Populated scale level {}", scale );
 		}
-		return new ValuePair<>( raw, vraw );
+		return new ValueTriple<>( raw, vraw, transforms );
 	}
 
 	@Override
 	public boolean isLabelType() throws IOException
 	{
-		return isLabelType( new N5FSReader( groupProperty.get() ).getDatasetAttributes( dataset.get() ).getDataType() );
+		return isLabelType( getDataType() );
 	}
 
 	@Override
 	public boolean isLabelMultisetType() throws IOException
 	{
-		return isLabelMultisetType( new N5FSReader( groupProperty.get() ).getDatasetAttributes( dataset.get() ).getDataType() );
+		return isLabelMultisetType( getDataType() );
 	}
 
 	@Override
 	public boolean isIntegerType() throws IOException
 	{
-		return isIntegerType( new N5FSReader( groupProperty.get() ).getDatasetAttributes( dataset.get() ).getDataType() );
+		return isIntegerType( getDataType() );
 	}
 
 	@Override
@@ -213,25 +248,8 @@ public class BackendDialogN5 extends BackendDialogGroupAndDataset implements Com
 			final DatasetAttributes dsAttrs = reader.getDatasetAttributes( dataset );
 			final int nDim = dsAttrs.getNumDimensions();
 
-			final HashMap< String, JsonElement > attributes = reader.getAttributes( dataset );
-
-			if ( attributes.containsKey( AXIS_ORDER_KEY ) )
-			{
-				final AxisOrder ao = reader.getAttribute( dataset, AXIS_ORDER_KEY, AxisOrder.class );
-				datasetInfo.defaultAxisOrderProperty().set( ao );
-				datasetInfo.selectedAxisOrderProperty().set( ao );
-			}
-			else
-			{
-				final Optional< AxisOrder > ao = AxisOrder.defaultOrder( nDim );
-				if ( ao.isPresent() )
-					this.datasetInfo.defaultAxisOrderProperty().set( ao.get() );
-				if ( this.datasetInfo.selectedAxisOrderProperty().isNull().get() || this.datasetInfo.selectedAxisOrderProperty().get().numDimensions() != nDim )
-					this.axisOrder().set( ao.get() );
-			}
-
-			this.datasetInfo.setResolution( Optional.ofNullable( reader.getAttribute( dataset, RESOLUTION_KEY, double[].class ) ).orElse( DoubleStream.generate( () -> 1.0 ).limit( nDim ).toArray() ) );
-			this.datasetInfo.setOffset( Optional.ofNullable( reader.getAttribute( dataset, OFFSET_KEY, double[].class ) ).orElse( new double[ nDim ] ) );
+			setResolution( Optional.ofNullable( reader.getAttribute( dataset, RESOLUTION_KEY, double[].class ) ).orElse( DoubleStream.generate( () -> 1.0 ).limit( nDim ).toArray() ) );
+			setOffset( Optional.ofNullable( reader.getAttribute( dataset, OFFSET_KEY, double[].class ) ).orElse( new double[ nDim ] ) );
 			this.datasetInfo.minProperty().set( Optional.ofNullable( reader.getAttribute( dataset, MIN_KEY, Double.class ) ).orElse( minForType( dsAttrs.getDataType() ) ) );
 			this.datasetInfo.maxProperty().set( Optional.ofNullable( reader.getAttribute( dataset, MAX_KEY, Double.class ) ).orElse( maxForType( dsAttrs.getDataType() ) ) );
 
@@ -252,7 +270,8 @@ public class BackendDialogN5 extends BackendDialogGroupAndDataset implements Com
 			final N5FSReader n5 = new N5FSReader( at );
 			discoverSubdirectories( n5, "", datasets, () -> this.isTraversingDirectories.set( false ) );
 		}
-		catch ( final IOException e ) {}
+		catch ( final IOException e )
+		{}
 
 		return datasets;
 	}
@@ -260,27 +279,26 @@ public class BackendDialogN5 extends BackendDialogGroupAndDataset implements Com
 	public static void discoverSubdirectories( final N5Reader n5, final String pathName, final Collection< String > datasets, final Runnable onInterruption )
 	{
 		if ( !Thread.currentThread().isInterrupted() )
-		{
 			try
 			{
 				final String[] groups = n5.list( pathName );
 				Arrays.sort( groups );
-				for ( final String group : groups ) {
+				for ( final String group : groups )
+				{
 					final String absolutePathName = pathName + "/" + group;
 					if ( n5.datasetExists( absolutePathName ) )
 						datasets.add( absolutePathName );
-					else {
+					else
+					{
 						final String[] scales = n5.list( absolutePathName );
 						boolean isMipmapGroup = scales.length > 0;
 						for ( final String scale : scales )
-						{
 							if ( !( scale.matches( "^s[0-9]+$" ) && n5.datasetExists( absolutePathName + "/" + scale ) ) )
 							{
 								isMipmapGroup = false;
 								break;
 							}
-						}
-						if (isMipmapGroup)
+						if ( isMipmapGroup )
 							datasets.add( absolutePathName );
 						else
 							discoverSubdirectories( n5, absolutePathName, datasets, onInterruption );
@@ -291,7 +309,6 @@ public class BackendDialogN5 extends BackendDialogGroupAndDataset implements Com
 			{
 				e.printStackTrace();
 			}
-		}
 		else
 			onInterruption.run();
 	}
@@ -301,7 +318,16 @@ public class BackendDialogN5 extends BackendDialogGroupAndDataset implements Com
 		return Arrays
 				.stream( n5.list( group ) )
 				.filter( s -> s.matches( "^s\\d+$" ) )
-				.filter( s -> { try { return n5.datasetExists( group + "/" + s ); } catch ( final IOException e ) { return false; } } )
+				.filter( s -> {
+					try
+					{
+						return n5.datasetExists( group + "/" + s );
+					}
+					catch ( final IOException e )
+					{
+						return false;
+					}
+				} )
 				.toArray( String[]::new );
 	}
 
@@ -333,8 +359,7 @@ public class BackendDialogN5 extends BackendDialogGroupAndDataset implements Com
 			final N5Writer n5 = new N5FSWriter( group );
 			final String dataset = this.dataset.get();
 
-			Long maxId;
-			maxId = n5.getAttribute( dataset, "maxId", Long.class );
+			final Long maxId = n5.getAttribute( dataset, "maxId", Long.class );
 			final long actualMaxId;
 			if ( maxId == null )
 			{
@@ -357,7 +382,16 @@ public class BackendDialogN5 extends BackendDialogGroupAndDataset implements Com
 
 	private static < T extends IntegerType< T > & NativeType< T > > long maxId( final N5Reader n5, final String dataset ) throws IOException
 	{
-		final RandomAccessibleInterval< T > data = N5Utils.open( n5, dataset );
+		final String ds;
+		if ( n5.datasetExists( dataset ) )
+			ds = dataset;
+		else
+		{
+			final String[] scaleDirs = listScaleDatasets( n5, dataset );
+			sortScaleDatasets( scaleDirs );
+			ds = Paths.get( dataset, scaleDirs ).toString();
+		}
+		final RandomAccessibleInterval< T > data = N5Utils.open( n5, ds );
 		long maxId = 0;
 		for ( final T label : Views.flatIterable( data ) )
 			maxId = IdService.max( label.getIntegerLong(), maxId );
@@ -430,6 +464,41 @@ public class BackendDialogN5 extends BackendDialogGroupAndDataset implements Com
 			gridOffset[ d ] = blockAlignedMin[ d ] / blockSize[ d ];
 
 		N5Utils.saveBlock( Views.translate( intervalCopy, blockAlignedMin ), n5, dataset, gridOffset );
+
+	}
+
+	@Override
+	public String identifier()
+	{
+		return "N5";
+	}
+
+	public DataType getDataType() throws IOException
+	{
+		return getAttributes().getDataType();
+	}
+
+	public DatasetAttributes getAttributes() throws IOException
+	{
+		final String ds = dataset.get();
+		final String group = groupProperty.get();
+		final N5FSReader reader = new N5FSReader( group );
+
+		if ( reader.datasetExists( ds ) )
+		{
+			LOG.debug( "Getting attributes for {} and {}", group, ds );
+			return reader.getDatasetAttributes( ds );
+		}
+
+		final String[] scaleDirs = listScaleDatasets( reader, ds );
+
+		if ( scaleDirs.length > 0 )
+		{
+			LOG.debug( "Getting attributes for {} and {}", group, scaleDirs[ 0 ] );
+			return reader.getDatasetAttributes( Paths.get( ds, scaleDirs[ 0 ] ).toString() );
+		}
+
+		throw new RuntimeException( String.format( "Cannot read dataset attributes for group %s and dataset %s.", group, ds ) );
 
 	}
 
