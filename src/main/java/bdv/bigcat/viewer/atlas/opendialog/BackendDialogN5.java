@@ -3,10 +3,10 @@ package bdv.bigcat.viewer.atlas.opendialog;
 import java.io.File;
 import java.io.IOException;
 import java.lang.invoke.MethodHandles;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Optional;
 import java.util.function.Consumer;
@@ -22,8 +22,6 @@ import org.janelia.saalfeldlab.n5.imglib2.N5Utils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.google.gson.JsonElement;
-
 import bdv.labels.labelset.Label;
 import bdv.net.imglib2.util.Triple;
 import bdv.net.imglib2.util.ValueTriple;
@@ -31,6 +29,7 @@ import bdv.util.IdService;
 import bdv.util.N5IdService;
 import bdv.util.volatiles.SharedQueue;
 import bdv.util.volatiles.VolatileViews;
+import javafx.beans.property.DoubleProperty;
 import javafx.stage.DirectoryChooser;
 import net.imglib2.Cursor;
 import net.imglib2.FinalInterval;
@@ -158,11 +157,14 @@ public class BackendDialogN5 extends BackendDialogGroupAndDataset implements Com
 			{
 				final RandomAccessibleInterval< T > raw = N5Utils.openVolatile( reader, dataset );
 				final RandomAccessibleInterval< V > vraw = VolatileViews.wrapAsVolatile( raw, sharedQueue, new CacheHints( LoadingStrategy.VOLATILE, priority, true ) );
-				final double[] resolution = resolution();
-				final double[] offset = offset();
-				final AxisOrder axisOrder = axisOrder().get().spatialOnly();
-				LOG.debug( "Resolution={}, axis order={}, inverse spatial permutation={}", Arrays.toString( resolution ), axisOrder, Arrays.toString( axisOrder.inversePermutation() ) );
-				final AffineTransform3D transform = SourceFromRAI.permutedSourceTransform( resolution, offset, axisOrder().get().spatialOnly().inversePermutation() );
+				final double[] resolution = Arrays.stream( resolution() ).mapToDouble( DoubleProperty::get ).toArray();
+				final double[] offset = Arrays.stream( offset() ).mapToDouble( DoubleProperty::get ).toArray();
+				final AffineTransform3D transform = new AffineTransform3D();
+				transform.set(
+						resolution[ 0 ], 0, 0, offset[ 0 ],
+						0, resolution[ 1 ], 0, offset[ 1 ],
+						0, 0, resolution[ 2 ], offset[ 2 ] );
+				LOG.debug( "Resolution={}", Arrays.toString( resolution ) );
 				return new ValueTriple<>( new RandomAccessibleInterval[] { raw }, new RandomAccessibleInterval[] { vraw }, new AffineTransform3D[] { transform } );
 			}
 		}
@@ -178,10 +180,10 @@ public class BackendDialogN5 extends BackendDialogGroupAndDataset implements Com
 		final RandomAccessibleInterval< T >[] raw = new RandomAccessibleInterval[ scaleDatasets.length ];
 		final RandomAccessibleInterval< V >[] vraw = new RandomAccessibleInterval[ scaleDatasets.length ];
 		final AffineTransform3D[] transforms = new AffineTransform3D[ scaleDatasets.length ];
-		final double[] initialResolution = resolution();
+		final double[] initialResolution = Arrays.stream( resolution() ).mapToDouble( DoubleProperty::get ).toArray();
 		final double[] initialDonwsamplingFactors = Optional.ofNullable( reader.getAttribute( dataset + "/" + scaleDatasets[ 0 ], "downsamplingFactors", double[].class ) ).orElse( new double[] { 1, 1, 1 } );
-		final double[] offset = offset();
-		LOG.warn( "Initial resolution={}, permutation={}", Arrays.toString( initialResolution ), axisOrder().get() );
+		final double[] offset = Arrays.stream( offset() ).mapToDouble( DoubleProperty::get ).toArray();
+		LOG.debug( "Initial resolution={}", Arrays.toString( initialResolution ) );
 		for ( int scale = 0; scale < scaleDatasets.length; ++scale )
 		{
 			LOG.debug( "Populating scale level {}", scale );
@@ -200,9 +202,13 @@ public class BackendDialogN5 extends BackendDialogGroupAndDataset implements Com
 				shift[ d ] = 0.5 / initialDonwsamplingFactors[ d ] - 0.5 / downsamplingFactors[ d ];
 			}
 
-			LOG.warn( "Downsampling factors={}, scaled resolution={}", Arrays.toString( downsamplingFactors ), Arrays.toString( scaledResolution ) );
+			LOG.debug( "Downsampling factors={}, scaled resolution={}", Arrays.toString( downsamplingFactors ), Arrays.toString( scaledResolution ) );
 
-			final AffineTransform3D transform = SourceFromRAI.permutedSourceTransform( scaledResolution, offset, axisOrder().get().spatialOnly().inversePermutation() );
+			final AffineTransform3D transform = new AffineTransform3D();
+			transform.set(
+					scaledResolution[ 0 ], 0, 0, offset[ 0 ],
+					0, scaledResolution[ 1 ], 0, offset[ 1 ],
+					0, 0, scaledResolution[ 2 ], offset[ 2 ] );
 			transforms[ scale ] = transform.concatenate( new Translation3D( shift ) );
 			LOG.debug( "Populated scale level {}", scale );
 		}
@@ -212,19 +218,19 @@ public class BackendDialogN5 extends BackendDialogGroupAndDataset implements Com
 	@Override
 	public boolean isLabelType() throws IOException
 	{
-		return isLabelType( new N5FSReader( groupProperty.get() ).getDatasetAttributes( dataset.get() ).getDataType() );
+		return isLabelType( getDataType() );
 	}
 
 	@Override
 	public boolean isLabelMultisetType() throws IOException
 	{
-		return isLabelMultisetType( new N5FSReader( groupProperty.get() ).getDatasetAttributes( dataset.get() ).getDataType() );
+		return isLabelMultisetType( getDataType() );
 	}
 
 	@Override
 	public boolean isIntegerType() throws IOException
 	{
-		return isIntegerType( new N5FSReader( groupProperty.get() ).getDatasetAttributes( dataset.get() ).getDataType() );
+		return isIntegerType( getDataType() );
 	}
 
 	@Override
@@ -242,25 +248,8 @@ public class BackendDialogN5 extends BackendDialogGroupAndDataset implements Com
 			final DatasetAttributes dsAttrs = reader.getDatasetAttributes( dataset );
 			final int nDim = dsAttrs.getNumDimensions();
 
-			final HashMap< String, JsonElement > attributes = reader.getAttributes( dataset );
-
-			if ( attributes.containsKey( AXIS_ORDER_KEY ) )
-			{
-				final AxisOrder ao = reader.getAttribute( dataset, AXIS_ORDER_KEY, AxisOrder.class );
-				datasetInfo.defaultAxisOrderProperty().set( ao );
-				datasetInfo.selectedAxisOrderProperty().set( ao );
-			}
-			else
-			{
-				final Optional< AxisOrder > ao = AxisOrder.defaultOrder( nDim );
-				if ( ao.isPresent() )
-					this.datasetInfo.defaultAxisOrderProperty().set( ao.get() );
-				if ( this.datasetInfo.selectedAxisOrderProperty().isNull().get() || this.datasetInfo.selectedAxisOrderProperty().get().numDimensions() != nDim )
-					this.axisOrder().set( ao.get() );
-			}
-
-			this.datasetInfo.setResolution( Optional.ofNullable( reader.getAttribute( dataset, RESOLUTION_KEY, double[].class ) ).orElse( DoubleStream.generate( () -> 1.0 ).limit( nDim ).toArray() ) );
-			this.datasetInfo.setOffset( Optional.ofNullable( reader.getAttribute( dataset, OFFSET_KEY, double[].class ) ).orElse( new double[ nDim ] ) );
+			setResolution( Optional.ofNullable( reader.getAttribute( dataset, RESOLUTION_KEY, double[].class ) ).orElse( DoubleStream.generate( () -> 1.0 ).limit( nDim ).toArray() ) );
+			setOffset( Optional.ofNullable( reader.getAttribute( dataset, OFFSET_KEY, double[].class ) ).orElse( new double[ nDim ] ) );
 			this.datasetInfo.minProperty().set( Optional.ofNullable( reader.getAttribute( dataset, MIN_KEY, Double.class ) ).orElse( minForType( dsAttrs.getDataType() ) ) );
 			this.datasetInfo.maxProperty().set( Optional.ofNullable( reader.getAttribute( dataset, MAX_KEY, Double.class ) ).orElse( maxForType( dsAttrs.getDataType() ) ) );
 
@@ -370,8 +359,7 @@ public class BackendDialogN5 extends BackendDialogGroupAndDataset implements Com
 			final N5Writer n5 = new N5FSWriter( group );
 			final String dataset = this.dataset.get();
 
-			Long maxId;
-			maxId = n5.getAttribute( dataset, "maxId", Long.class );
+			final Long maxId = n5.getAttribute( dataset, "maxId", Long.class );
 			final long actualMaxId;
 			if ( maxId == null )
 			{
@@ -394,7 +382,16 @@ public class BackendDialogN5 extends BackendDialogGroupAndDataset implements Com
 
 	private static < T extends IntegerType< T > & NativeType< T > > long maxId( final N5Reader n5, final String dataset ) throws IOException
 	{
-		final RandomAccessibleInterval< T > data = N5Utils.open( n5, dataset );
+		final String ds;
+		if ( n5.datasetExists( dataset ) )
+			ds = dataset;
+		else
+		{
+			final String[] scaleDirs = listScaleDatasets( n5, dataset );
+			sortScaleDatasets( scaleDirs );
+			ds = Paths.get( dataset, scaleDirs ).toString();
+		}
+		final RandomAccessibleInterval< T > data = N5Utils.open( n5, ds );
 		long maxId = 0;
 		for ( final T label : Views.flatIterable( data ) )
 			maxId = IdService.max( label.getIntegerLong(), maxId );
@@ -474,6 +471,35 @@ public class BackendDialogN5 extends BackendDialogGroupAndDataset implements Com
 	public String identifier()
 	{
 		return "N5";
+	}
+
+	public DataType getDataType() throws IOException
+	{
+		return getAttributes().getDataType();
+	}
+
+	public DatasetAttributes getAttributes() throws IOException
+	{
+		final String ds = dataset.get();
+		final String group = groupProperty.get();
+		final N5FSReader reader = new N5FSReader( group );
+
+		if ( reader.datasetExists( ds ) )
+		{
+			LOG.debug( "Getting attributes for {} and {}", group, ds );
+			return reader.getDatasetAttributes( ds );
+		}
+
+		final String[] scaleDirs = listScaleDatasets( reader, ds );
+
+		if ( scaleDirs.length > 0 )
+		{
+			LOG.debug( "Getting attributes for {} and {}", group, scaleDirs[ 0 ] );
+			return reader.getDatasetAttributes( Paths.get( ds, scaleDirs[ 0 ] ).toString() );
+		}
+
+		throw new RuntimeException( String.format( "Cannot read dataset attributes for group %s and dataset %s.", group, ds ) );
+
 	}
 
 }

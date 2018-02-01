@@ -15,7 +15,6 @@ import bdv.bigcat.viewer.atlas.data.DataSource;
 import bdv.bigcat.viewer.atlas.data.LabelDataSource;
 import bdv.bigcat.viewer.atlas.data.LabelDataSourceFromDelegates;
 import bdv.bigcat.viewer.atlas.data.RandomAccessibleIntervalDataSource;
-import bdv.bigcat.viewer.atlas.data.RandomAccessibleIntervalDataSourceWithTime;
 import bdv.bigcat.viewer.state.FragmentSegmentAssignmentState;
 import bdv.net.imglib2.util.Triple;
 import bdv.util.volatiles.SharedQueue;
@@ -33,8 +32,6 @@ import net.imglib2.type.numeric.IntegerType;
 import net.imglib2.type.numeric.NumericType;
 import net.imglib2.type.numeric.RealType;
 import net.imglib2.type.volatiles.AbstractVolatileRealType;
-import net.imglib2.util.Intervals;
-import net.imglib2.view.Views;
 
 public interface SourceFromRAI extends BackendDialog
 {
@@ -106,30 +103,9 @@ public interface SourceFromRAI extends BackendDialog
 			final SharedQueue sharedQueue,
 			final int priority ) throws IOException
 	{
-		final long[] dimensionsAtHighestRes = Intervals.dimensionsAsLongArray( rai[ 0 ] );
-		LOG.info( "Using source transforms {} for {} sources", Arrays.toString( transforms ), rai.length );
+		LOG.debug( "Using source transforms {} for {} sources", Arrays.toString( transforms ), rai.length );
 
-		final AxisOrder axisOrder = this.axisOrder().get();
-
-		if ( axisOrder.hasChannels() )
-		{
-			final int channelAxis = axisOrder.channelAxis();
-			final long numChannels = dimensionsAtHighestRes[ channelAxis ];
-
-			final ArrayList< DataSource< T, V > > sources = new ArrayList<>();
-			for ( long channel = 0; channel < numChannels; ++channel )
-			{
-				final long fChannel = channel;
-				@SuppressWarnings( "unchecked" )
-				final RandomAccessibleInterval< T >[] hs = Arrays.stream( rai ).map( r -> Views.hyperSlice( r, channelAxis, fChannel ) ).toArray( RandomAccessibleInterval[]::new );
-				@SuppressWarnings( "unchecked" )
-				final RandomAccessibleInterval< V >[] vhs = Arrays.stream( vrai ).map( r -> Views.hyperSlice( r, channelAxis, fChannel ) ).toArray( RandomAccessibleInterval[]::new );
-				sources.add( getAsSource( hs, vhs, axisOrder, transforms, interpolation, vinterpolation, String.format( nameOrPattern, channel ) ) );
-			}
-			return sources;
-		}
-		else
-			return Arrays.asList( getAsSource( rai, vrai, axisOrder, transforms, interpolation, vinterpolation, nameOrPattern ) );
+		return Arrays.asList( getAsSource( rai, vrai, transforms, interpolation, vinterpolation, nameOrPattern ) );
 	}
 
 	public default < T extends IntegerType< T > & NativeType< T >, V extends AbstractVolatileRealType< T, V > > Collection< ? extends LabelDataSource< T, V > > getIntegerTypeSource(
@@ -139,8 +115,6 @@ public interface SourceFromRAI extends BackendDialog
 			final Iterator< ? extends FragmentSegmentAssignmentState< ? > > assignment ) throws IOException
 	{
 
-		final AxisOrder axisOrder = this.axisOrder().get();
-
 		final Triple< RandomAccessibleInterval< T >[], RandomAccessibleInterval< V >[], AffineTransform3D[] > dataAndVolatile = getDataAndVolatile( sharedQueue, priority );
 		final Collection< DataSource< T, V > > sources = getCached(
 				dataAndVolatile.getA(),
@@ -148,7 +122,7 @@ public interface SourceFromRAI extends BackendDialog
 				dataAndVolatile.getC(),
 				i -> new NearestNeighborInterpolatorFactory<>(),
 				i -> new NearestNeighborInterpolatorFactory<>(),
-				axisOrder.hasChannels() ? name + " (%d)" : name,
+				name,
 				sharedQueue,
 				priority );
 		final ArrayList< LabelDataSource< T, V > > delegated = new ArrayList<>();
@@ -160,7 +134,6 @@ public interface SourceFromRAI extends BackendDialog
 	public static < T extends Type< T >, V extends Type< V > > DataSource< T, V > getAsSource(
 			final RandomAccessibleInterval< T >[] rais,
 			final RandomAccessibleInterval< V >[] vrais,
-			final AxisOrder axisOrder,
 			final AffineTransform3D[] transforms,
 			final Function< Interpolation, InterpolatorFactory< T, RandomAccessible< T > > > interpolation,
 			final Function< Interpolation, InterpolatorFactory< V, RandomAccessible< V > > > vinterpolation,
@@ -170,50 +143,22 @@ public interface SourceFromRAI extends BackendDialog
 		assert rais.length == vrais.length;
 		assert rais.length == transforms.length;
 
-		if ( axisOrder.hasTime() )
-		{
-			final int timeAxis = axisOrder.withoutChannel().timeAxis();
-			return RandomAccessibleIntervalDataSourceWithTime.< T, V >fromRandomAccessibleInterval( rais, vrais, transforms, timeAxis, interpolation, vinterpolation, name );
-		}
-		else
-			return new RandomAccessibleIntervalDataSource<>( rais, vrais, transforms, interpolation, vinterpolation, name );
+		return new RandomAccessibleIntervalDataSource<>( rais, vrais, transforms, interpolation, vinterpolation, name );
 	}
 
 	public static AffineTransform3D permutedSourceTransform( final double[] resolution, final double[] offset, final int[] componentMapping )
 	{
 		final AffineTransform3D rawTransform = new AffineTransform3D();
 		final double[] matrixContent = new double[ 12 ];
-		LOG.warn( "component mapping={}", Arrays.toString( componentMapping ) );
+		LOG.debug( "component mapping={}", Arrays.toString( componentMapping ) );
 		for ( int i = 0, contentOffset = 0; i < offset.length; ++i, contentOffset += 4 )
 		{
 			matrixContent[ 4 * componentMapping[ i ] + i ] = resolution[ i ];
 			matrixContent[ contentOffset + 3 ] = offset[ i ];
 		}
 		rawTransform.set( matrixContent );
-		LOG.warn( "permuted transform={}", rawTransform );
+		LOG.debug( "permuted transform={}", rawTransform );
 		return rawTransform;
-	}
-
-	public default double[] resolution()
-	{
-//		final double[] resolution = new double[ 3 ];
-//		final int[] permutation = axisOrder().get().spatialOnly().permutation();
-//		resolution[ permutation[ 0 ] ] = resolutionX().get();
-//		resolution[ permutation[ 1 ] ] = resolutionY().get();
-//		resolution[ permutation[ 2 ] ] = resolutionZ().get();
-//		return resolution;
-		return new double[] { resolutionX().get(), resolutionY().get(), resolutionZ().get() };
-	}
-
-	public default double[] offset()
-	{
-//		final double[] offset = new double[ 3 ];
-//		final int[] permutation = axisOrder().get().spatialOnly().permutation();
-//		offset[ permutation[ 0 ] ] = offsetX().get();
-//		offset[ permutation[ 1 ] ] = offsetY().get();
-//		offset[ permutation[ 2 ] ] = offsetZ().get();
-//		return offset;
-		return new double[] { offsetX().get(), offsetY().get(), offsetZ().get() };
 	}
 
 }
