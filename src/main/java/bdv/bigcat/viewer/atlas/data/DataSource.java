@@ -43,6 +43,107 @@ public interface DataSource< D, T > extends Source< T >
 
 	public D getDataType();
 
+	public static < T extends NativeType< T > & NumericType< T >, V extends NumericType< V > > RandomAccessibleIntervalDataSource< T, V > createDataSource(
+			final String name,
+			final RandomAccessibleInterval< T > data,
+			final AffineGet rawTransform,
+			final SharedQueue sharedQueue,
+			final int priority ) throws IOException
+	{
+		final T t = Util.getTypeFromInterval( data );
+		@SuppressWarnings( "unchecked" )
+		final V v = ( V ) VolatileTypeMatcher.getVolatileTypeForType( t );
+
+		final AffineTransform3D transform = new AffineTransform3D();
+		transform.set( rawTransform.getRowPackedCopy() );
+
+		@SuppressWarnings( "unchecked" )
+		final RandomAccessibleIntervalDataSource< T, V > source =
+				new RandomAccessibleIntervalDataSource< T, V >(
+						new RandomAccessibleInterval[] { data },
+						new RandomAccessibleInterval[] {
+								VolatileViews.wrapAsVolatile( data, sharedQueue, new CacheHints( LoadingStrategy.VOLATILE, priority, true ) ) },
+						new AffineTransform3D[] { transform },
+						( interpolation ) -> {
+							switch ( interpolation )
+							{
+							case NLINEAR:
+								return new NLinearInterpolatorFactory<>();
+							default:
+								return new NearestNeighborInterpolatorFactory<>();
+							}
+						},
+						( interpolation ) -> {
+							switch ( interpolation )
+							{
+							case NLINEAR:
+								return new NLinearInterpolatorFactory<>();
+							default:
+								return new NearestNeighborInterpolatorFactory<>();
+							}
+						},
+						t::createVariable,
+						v::createVariable,
+						name );
+		return source;
+	}
+
+	/**
+	 * Create a primitive single scale level source without visualization
+	 * conversion from a {@link RandomAccessibleInterval}
+	 *
+	 * @param name
+	 * @param data
+	 * @param resolution
+	 * @param offset
+	 * @param sharedQueue
+	 * @param priority
+	 * @param typeSupplier
+	 * @param volatileTypeSupplier
+	 * @return
+	 * @throws IOException
+	 */
+	public static < T extends NativeType< T > & NumericType< T >, V extends NumericType< V > > RandomAccessibleIntervalDataSource< T, V > createDataSource(
+			final String name,
+			final RandomAccessibleInterval< T > data,
+			final double[] resolution,
+			final double[] offset,
+			final SharedQueue sharedQueue,
+			final int priority ) throws IOException
+	{
+		final AffineTransform3D rawTransform = new AffineTransform3D();
+		rawTransform.set(
+				resolution[ 0 ], 0, 0, offset[ 0 ],
+				0, resolution[ 1 ], 0, offset[ 1 ],
+				0, 0, resolution[ 2 ], offset[ 2 ] );
+		return createDataSource( name, data, rawTransform, sharedQueue, priority );
+	}
+
+	/**
+	 * Create a primitive single scale level source without visualization
+	 * conversion from a {@link RandomAccessibleInterval}
+	 *
+	 * @param name
+	 * @param data
+	 * @param resolution
+	 * @param offset
+	 * @param sharedQueue
+	 * @param priority
+	 * @param typeSupplier
+	 * @param volatileTypeSupplier
+	 * @return
+	 * @throws IOException
+	 */
+	public static < T extends NativeType< T > & NumericType< T >, V extends NumericType< V > > RandomAccessibleIntervalDataSource< T, V > createDataSource(
+			final String name,
+			final RandomAccessibleInterval< T > data,
+			final double[] resolution,
+			final SharedQueue sharedQueue,
+			final int priority ) throws IOException
+	{
+		return createDataSource( name, data, resolution, new double[ resolution.length ], sharedQueue, priority );
+	}
+
 	/**
 	 * Create a primitive single scale level source without visualization
 	 * conversion from an H5 dataset.
@@ -98,46 +199,12 @@ public interface DataSource< D, T > extends Source< T >
 			final SharedQueue sharedQueue,
 			final int priority ) throws IOException
 	{
-		final RandomAccessibleInterval< T > raw = H5Utils.open( HDF5Factory.openForReading( rawFile ), rawDataset, rawCellSize );
-		final T t = Util.getTypeFromInterval( raw );
-		@SuppressWarnings( "unchecked" )
-		final V v = ( V ) VolatileTypeMatcher.getVolatileTypeForType( t );
-
-		final AffineTransform3D rawTransform = new AffineTransform3D();
-		rawTransform.set(
-				resolution[ 0 ], 0, 0, offset[ 0 ],
-				0, resolution[ 1 ], 0, offset[ 1 ],
-				0, 0, resolution[ 2 ], offset[ 2 ] );
-
-		@SuppressWarnings( "unchecked" )
-		final RandomAccessibleIntervalDataSource< T, V > rawSource =
-				new RandomAccessibleIntervalDataSource< T, V >(
-						new RandomAccessibleInterval[] { raw },
-						new RandomAccessibleInterval[] {
-								VolatileViews.wrapAsVolatile( raw, sharedQueue, new CacheHints( LoadingStrategy.VOLATILE, priority, true ) ) },
-						new AffineTransform3D[] { rawTransform },
-						( interpolation ) -> {
-							switch ( interpolation )
-							{
-							case NLINEAR:
-								return new NLinearInterpolatorFactory<>();
-							default:
-								return new NearestNeighborInterpolatorFactory<>();
-							}
-						},
-						( interpolation ) -> {
-							switch ( interpolation )
-							{
-							case NLINEAR:
-								return new NLinearInterpolatorFactory<>();
-							default:
-								return new NearestNeighborInterpolatorFactory<>();
-							}
-						},
-						t::createVariable,
-						v::createVariable,
-						name );
-		return rawSource;
+		return createDataSource(
+				name,
+				( RandomAccessibleInterval< T > )H5Utils.open( HDF5Factory.openForReading( rawFile ), rawDataset, rawCellSize ),
+				resolution,
+				offset,
+				sharedQueue, priority );
 	}
 
 	/**
@@ -156,7 +223,7 @@ public interface DataSource< D, T > extends Source< T >
 	 * @return
 	 * @throws IOException
 	 */
-	public static < T extends NativeType< T > & NumericType< T >, V extends NumericType< V > > RandomAccessibleIntervalDataSource< T, V > createN5RawSource(
+	public static < T extends NativeType< T > & NumericType< T >, V extends NumericType< V > > RandomAccessibleIntervalDataSource< T, V > createN5Source(
 			final String name,
 			final N5Reader n5,
 			final String dataset,
@@ -164,7 +231,7 @@ public interface DataSource< D, T > extends Source< T >
 			final SharedQueue sharedQueue,
 			final int priority ) throws IOException
 	{
-		return createN5RawSource( name, n5, dataset, resolution, new double[ resolution.length ], sharedQueue, priority );
+		return createN5Source( name, n5, dataset, resolution, new double[ resolution.length ], sharedQueue, priority );
 	}
 
 	/**
@@ -183,7 +250,7 @@ public interface DataSource< D, T > extends Source< T >
 	 * @return
 	 * @throws IOException
 	 */
-	public static < T extends NativeType< T > & NumericType< T >, V extends NumericType< V > > RandomAccessibleIntervalDataSource< T, V > createN5RawSource(
+	public static < T extends NativeType< T > & NumericType< T >, V extends NumericType< V > > RandomAccessibleIntervalDataSource< T, V > createN5Source(
 			final String name,
 			final N5Reader n5,
 			final String dataset,
@@ -195,12 +262,12 @@ public interface DataSource< D, T > extends Source< T >
 		final AffineTransform3D rawTransform = new AffineTransform3D();
 		rawTransform.set(
 				resolution[ 0 ], 0, 0, offset[ 0 ],
-				0, resolution[ 1 ], 0, 0, offset[ 1 ],
+				0, resolution[ 1 ], 0, offset[ 1 ],
 				0, 0, resolution[ 2 ], offset[ 2 ] );
-		return createN5RawSource( name, n5, dataset, rawTransform, sharedQueue, priority );
+		return createN5Source( name, n5, dataset, rawTransform, sharedQueue, priority );
 	}
 
-	public static < T extends NativeType< T > & NumericType< T >, V extends NumericType< V > > RandomAccessibleIntervalDataSource< T, V > createN5RawSource(
+	public static < T extends NativeType< T > & NumericType< T >, V extends NumericType< V > > RandomAccessibleIntervalDataSource< T, V > createN5Source(
 			final String name,
 			final N5Reader n5,
 			final String dataset,
@@ -208,43 +275,12 @@ public interface DataSource< D, T > extends Source< T >
 			final SharedQueue sharedQueue,
 			final int priority ) throws IOException
 	{
-		final RandomAccessibleInterval< T > raw = N5Utils.openVolatile( n5, dataset );
-		final T t = Util.getTypeFromInterval( raw );
-		@SuppressWarnings( "unchecked" )
-		final V v = ( V ) VolatileTypeMatcher.getVolatileTypeForType( t );
-
-		final AffineTransform3D transform = new AffineTransform3D();
-		transform.set( rawTransform.getRowPackedCopy() );
-
-		@SuppressWarnings( "unchecked" )
-		final RandomAccessibleIntervalDataSource< T, V > rawSource =
-				new RandomAccessibleIntervalDataSource< T, V >(
-						new RandomAccessibleInterval[] { raw },
-						new RandomAccessibleInterval[] {
-								VolatileViews.wrapAsVolatile( raw, sharedQueue, new CacheHints( LoadingStrategy.VOLATILE, priority, true ) ) },
-						new AffineTransform3D[] { transform },
-						( interpolation ) -> {
-							switch ( interpolation )
-							{
-							case NLINEAR:
-								return new NLinearInterpolatorFactory<>();
-							default:
-								return new NearestNeighborInterpolatorFactory<>();
-							}
-						},
-						( interpolation ) -> {
-							switch ( interpolation )
-							{
-							case NLINEAR:
-								return new NLinearInterpolatorFactory<>();
-							default:
-								return new NearestNeighborInterpolatorFactory<>();
-							}
-						},
-						t::createVariable,
-						v::createVariable,
-						name );
-		return rawSource;
+		return createDataSource(
+				name,
+				( RandomAccessibleInterval< T > )N5Utils.openVolatile( n5, dataset ),
+				rawTransform,
+				sharedQueue,
+				priority );
 	}
 
 	/**
@@ -255,6 +291,7 @@ public interface DataSource< D, T > extends Source< T >
 	 * @param n5
 	 * @param group
 	 * @param resolution
+	 * @param offset
 	 * @param sharedQueue
 	 * @param priority
 	 * @param typeSupplier
@@ -263,11 +300,12 @@ public interface DataSource< D, T > extends Source< T >
 	 * @throws IOException
 	 */
 	@SuppressWarnings( "unchecked" )
-	public static < T extends NativeType< T > & NumericType< T >, V extends Volatile< T > & NumericType< V > > RandomAccessibleIntervalDataSource< T, V > createN5MipmapRawSource(
+	public static < T extends NativeType< T > & NumericType< T >, V extends Volatile< T > & NumericType< V > > RandomAccessibleIntervalDataSource< T, V > createN5MipmapSource(
 			final String name,
 			final N5Reader n5,
 			final String group,
 			final double[] resolution,
+			final double[] offset,
 			final SharedQueue sharedQueue,
 			final Supplier< T > typeSupplier,
 			final Supplier< V > volatileTypeSupplier ) throws IOException
@@ -297,13 +335,13 @@ public interface DataSource< D, T > extends Source< T >
 			final AffineTransform3D mipmapTransform = rawTransform.copy();
 			if ( downsampleFactors != null )
 				mipmapTransform.set(
-						resolution[ 0 ] * downsampleFactors[ 0 ], 0, 0, 0.5 * ( downsampleFactors[ 0 ] - 1 ),
-						0, resolution[ 1 ] * downsampleFactors[ 1 ], 0, 0.5 * ( downsampleFactors[ 1 ] - 1 ),
-						0, 0, resolution[ 2 ] * downsampleFactors[ 2 ], 0.5 * ( downsampleFactors[ 2 ] - 1 ) );
+						resolution[ 0 ] * downsampleFactors[ 0 ], 0, 0, ( 0.5 * ( downsampleFactors[ 0 ] - 1 + offset[ 0 ] ) * resolution[ 0 ] ),
+						0, resolution[ 1 ] * downsampleFactors[ 1 ], 0, ( 0.5 * ( downsampleFactors[ 1 ] - 1 + offset[ 1 ] ) * resolution[ 1 ] ),
+						0, 0, resolution[ 2 ] * downsampleFactors[ 2 ], ( 0.5 * ( downsampleFactors[ 2 ] - 1 + offset[ 2 ] ) * resolution[ 2 ] ) );
 			mipmapTransforms.add( mipmapTransform );
 		}
 
-		final RandomAccessibleIntervalDataSource< T, V > rawSource =
+		final RandomAccessibleIntervalDataSource< T, V > source =
 				new RandomAccessibleIntervalDataSource<>(
 						mipmaps.toArray( new RandomAccessibleInterval[ 0 ] ),
 						volatileMipmaps.toArray( new RandomAccessibleInterval[ 0 ] ),
@@ -329,7 +367,35 @@ public interface DataSource< D, T > extends Source< T >
 						typeSupplier,
 						volatileTypeSupplier,
 						name );
-		return rawSource;
+		return source;
+	}
+
+	/**
+	 * Create a primitive multi scale level source without visualization
+	 * conversion from an N5 multi scale group.
+	 *
+	 * @param name
+	 * @param n5
+	 * @param group
+	 * @param resolution
+	 * @param sharedQueue
+	 * @param priority
+	 * @param typeSupplier
+	 * @param volatileTypeSupplier
+	 * @return
+	 * @throws IOException
+	 */
+	@SuppressWarnings( "unchecked" )
+	public static < T extends NativeType< T > & NumericType< T >, V extends Volatile< T > & NumericType< V > > RandomAccessibleIntervalDataSource< T, V > createN5MipmapSource(
+			final String name,
+			final N5Reader n5,
+			final String group,
+			final double[] resolution,
+			final SharedQueue sharedQueue,
+			final Supplier< T > typeSupplier,
+			final Supplier< V > volatileTypeSupplier ) throws IOException
+	{
+		return createN5MipmapSource( name, n5, group, resolution, new double[resolution.length], sharedQueue, typeSupplier, volatileTypeSupplier );
 	}
 
 	default public int tMin()

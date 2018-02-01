@@ -1,14 +1,16 @@
 package bdv.bigcat.viewer.stream;
 
 import bdv.labels.labelset.Label;
+import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.IntegerProperty;
 import javafx.beans.property.LongProperty;
+import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleIntegerProperty;
 import javafx.beans.property.SimpleLongProperty;
 import net.imglib2.converter.Converter;
 import net.imglib2.type.numeric.ARGBType;
 
-public abstract class HighlightingStreamConverter< T > implements Converter< T, ARGBType >, SeedProperty, WithAlpha
+public abstract class HighlightingStreamConverter< T > implements Converter< T, ARGBType >, SeedProperty, WithAlpha, ColorFromSegmentId
 {
 
 	protected final AbstractHighlightingARGBStream stream;
@@ -20,6 +22,8 @@ public abstract class HighlightingStreamConverter< T > implements Converter< T, 
 	private final IntegerProperty activeFragmentAlpha = new SimpleIntegerProperty();
 
 	private final IntegerProperty activeSegmentAlpha = new SimpleIntegerProperty();
+
+	private final BooleanProperty colorFromSegmentId = new SimpleBooleanProperty();
 
 	public HighlightingStreamConverter( final AbstractHighlightingARGBStream stream )
 	{
@@ -33,6 +37,7 @@ public abstract class HighlightingStreamConverter< T > implements Converter< T, 
 		alpha.set( stream.getAlpha() );
 		activeFragmentAlpha.set( stream.getActiveFragmentAlpha() );
 		activeSegmentAlpha.set( stream.getActiveSegmentAlpha() );
+		stream.colorFromSegmentIdProperty().bind( this.colorFromSegmentId );
 	}
 
 	private static long considerMaxUnsignedInt( final long val )
@@ -62,6 +67,12 @@ public abstract class HighlightingStreamConverter< T > implements Converter< T, 
 	public IntegerProperty activeSegmentAlphaProperty()
 	{
 		return this.activeSegmentAlpha;
+	}
+
+	@Override
+	public BooleanProperty colorFromSegmentIdProperty()
+	{
+		return this.colorFromSegmentId;
 	}
 
 }

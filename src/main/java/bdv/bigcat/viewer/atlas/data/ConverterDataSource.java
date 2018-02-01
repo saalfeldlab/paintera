@@ -16,7 +16,6 @@ import net.imglib2.view.Views;
 
 public class ConverterDataSource< D, T, U extends Type< U > > implements DataSource< D, U >
 {
-
 	private final DataSource< D, T > dataSource;
 
 	private final Converter< T, U > converter;
