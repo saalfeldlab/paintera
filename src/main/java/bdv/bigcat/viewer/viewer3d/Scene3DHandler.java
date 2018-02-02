@@ -52,7 +52,7 @@ public class Scene3DHandler
 
 	private static final Point3D zNormal = new Point3D( 0, 0, 1 );
 
-	public Scene3DHandler( Viewer3DFX viewer )
+	public Scene3DHandler( final Viewer3DFX viewer )
 	{
 		this.viewer = viewer;
 		this.viewer.meshesGroup().getTransforms().addAll( affine );
@@ -129,7 +129,7 @@ public class Scene3DHandler
 		private final SimpleDoubleProperty factor = new SimpleDoubleProperty();
 
 
-		private final static double SLOW_FACTOR = 0.5;
+		private final static double SLOW_FACTOR = 0.1;
 
 		private final static double NORMAL_FACTOR = 1;
 
@@ -228,7 +228,7 @@ public class Scene3DHandler
 
 	private void saveAsPng()
 	{
-		WritableImage image = viewer.scene().snapshot( new SnapshotParameters(), null );
+		final WritableImage image = viewer.scene().snapshot( new SnapshotParameters(), null );
 
 		final FileChooser fileChooser = new FileChooser();
 		fileChooser.setTitle( "Save 3d snapshot " );
@@ -257,7 +257,7 @@ public class Scene3DHandler
 			{
 				ImageIO.write( SwingFXUtils.fromFXImage( image, null ), "png", file );
 			}
-			catch ( IOException e )
+			catch ( final IOException e )
 			{
 				// TODO: handle exception here
 			}
