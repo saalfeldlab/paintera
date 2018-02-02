@@ -68,18 +68,18 @@ public class ExampleApplicationLauritzen01
 
 		final String USER_HOME = System.getProperty( "user.home" );
 
-		String n5Path = "/nrs/saalfeld/lauritzen/03/workspace.n5";
-		String rawGroup = "/filtered/volumes/raw";
-//		String n5Path = "/nrs/saalfeld/sample_E/sample_E.n5";
-//		String rawGroup = "/volumes/raw";
-		String labelsN5Path = "/nrs/saalfeld/lauritzen/03/workspace.n5";
-		String labelsDataset = "/filtered/volumes/labels/neuron_ids";
-//		String labelsN5Path = "/groups/saalfeld/saalfeldlab/sampleE/multicut_segmentation.n5";
-//		String labelsDataset = "/multicut";
-		final String cleftsN5Path = "/nrs/saalfeld/lauritzen/03/workspace.n5";
-		final String cleftsDataset = "/syncleft_dist_160000";
-//		final String cleftsN5Path = "/groups/saalfeld/saalfeldlab/sampleE/synapse_predictions.n5";
+//		String n5Path = "/nrs/saalfeld/lauritzen/03/workspace.n5";
+//		String rawGroup = "/filtered/volumes/raw";
+		String n5Path = "/nrs/saalfeld/sample_E/sample_E.n5";
+		String rawGroup = "/volumes/raw";
+//		String labelsN5Path = "/nrs/saalfeld/lauritzen/03/workspace.n5";
+//		String labelsDataset = "/filtered/volumes/labels/neuron_ids";
+		String labelsN5Path = "/groups/saalfeld/saalfeldlab/sampleE/multicut_segmentation.n5";
+		String labelsDataset = "/multicut";
+//		final String cleftsN5Path = "/nrs/saalfeld/lauritzen/03/workspace.n5";
 //		final String cleftsDataset = "/syncleft_dist_160000";
+		final String cleftsN5Path = "/nrs/saalfeld/sample_E/sample_E.n5";
+		final String cleftsDataset = "/syncleft_dist_160000";
 
 		final double[] resolution = { 4, 4, 40 };
 
