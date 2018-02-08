@@ -16,7 +16,6 @@
  */
 package bdv.bigcat.viewer.stream;
 
-import bdv.bigcat.control.Wheel;
 import bdv.bigcat.viewer.state.FragmentSegmentAssignment;
 import bdv.bigcat.viewer.state.SelectedIds;
 import bdv.labels.labelset.Label;
@@ -30,7 +29,7 @@ import bdv.labels.labelset.Label;
  *
  * @author Stephan Saalfeld &lt;saalfelds@janelia.hhmi.org&gt;
  */
-public class ModalGoldenAngleSaturatedHighlightingARGBStream extends GoldenAngleSaturatedHighlightingARGBStream implements Wheel
+public class ModalGoldenAngleSaturatedHighlightingARGBStream extends GoldenAngleSaturatedHighlightingARGBStream
 {
 	final static public int NORMAL = 0;
 
@@ -38,40 +37,10 @@ public class ModalGoldenAngleSaturatedHighlightingARGBStream extends GoldenAngle
 
 	final static public int SELECTED_ONLY = 2;
 
-	protected int mode = 0;
-
 	public ModalGoldenAngleSaturatedHighlightingARGBStream( final SelectedIds highlights, final FragmentSegmentAssignment assignment )
 	{
 		super( highlights, assignment );
 		seed = 1;
-	}
-
-	@Override
-	public synchronized void advance()
-	{
-		++mode;
-		if ( mode == 3 )
-			mode = 0;
-	}
-
-	@Override
-	public synchronized void regress()
-	{
-		--mode;
-		if ( mode == -1 )
-			mode = 2;
-	}
-
-	@Override
-	public void setMode( final int value )
-	{
-		mode = value % 3;
-	}
-
-	@Override
-	public int getMode()
-	{
-		return mode;
 	}
 
 	@Override
