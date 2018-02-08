@@ -38,6 +38,8 @@ abstract public class AbstractHighlightingARGBStream extends AbstractState< Abst
 
 	final static protected double[] bs = new double[] { 0, 0, 0, 1, 1, 1, 0 };
 
+	private static final int ZERO = 0x00000000;
+
 	protected long seed = 0;
 
 	protected int alpha = 0x20000000;
@@ -114,7 +116,7 @@ abstract public class AbstractHighlightingARGBStream extends AbstractState< Abst
 	@Override
 	public int argb( final long id )
 	{
-		return argbImpl( id, colorFromSegmentId.get() );
+		return id == Label.BACKGROUND ? ZERO : argbImpl( id, colorFromSegmentId.get() );
 	}
 
 	protected abstract int argbImpl( long id, boolean colorFromSegmentId );
