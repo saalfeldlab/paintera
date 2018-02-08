@@ -8,7 +8,6 @@ import java.util.function.Function;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import bdv.bigcat.ui.ARGBStream;
 import bdv.bigcat.viewer.ToIdConverter;
 import bdv.bigcat.viewer.atlas.data.DataSource;
 import bdv.bigcat.viewer.atlas.source.SourceInfo;
@@ -16,6 +15,7 @@ import bdv.bigcat.viewer.bdvfx.ViewerPanelFX;
 import bdv.bigcat.viewer.state.FragmentSegmentAssignmentState;
 import bdv.bigcat.viewer.state.GlobalTransformManager;
 import bdv.bigcat.viewer.state.SelectedIds;
+import bdv.bigcat.viewer.stream.ARGBStream;
 import bdv.bigcat.viewer.viewer3d.Viewer3DControllerFX;
 import bdv.labels.labelset.Label;
 import bdv.viewer.Interpolation;
