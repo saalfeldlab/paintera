@@ -16,7 +16,6 @@
  */
 package bdv.bigcat.viewer.stream;
 
-import bdv.bigcat.ui.ARGBStream;
 import bdv.bigcat.viewer.state.AbstractState;
 import bdv.bigcat.viewer.state.FragmentSegmentAssignment;
 import bdv.bigcat.viewer.state.SelectedIds;

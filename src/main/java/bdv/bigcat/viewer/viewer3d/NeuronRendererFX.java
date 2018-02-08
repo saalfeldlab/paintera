@@ -7,11 +7,11 @@ import java.util.Optional;
 import java.util.concurrent.ExecutorService;
 import java.util.function.Function;
 
-import bdv.bigcat.ui.ARGBStream;
 import bdv.bigcat.viewer.state.FragmentSegmentAssignmentState;
 import bdv.bigcat.viewer.state.GlobalTransformManager;
 import bdv.bigcat.viewer.state.SelectedIds;
 import bdv.bigcat.viewer.state.StateListener;
+import bdv.bigcat.viewer.stream.ARGBStream;
 import bdv.bigcat.viewer.stream.AbstractHighlightingARGBStream;
 import bdv.bigcat.viewer.util.InvokeOnJavaFXApplicationThread;
 import bdv.bigcat.viewer.viewer3d.NeuronFX.ShapeKey;

@@ -3,13 +3,13 @@ package bdv.bigcat.viewer.atlas.source;
 import java.util.function.Function;
 
 import bdv.bigcat.composite.Composite;
-import bdv.bigcat.ui.ARGBStream;
 import bdv.bigcat.viewer.ToIdConverter;
 import bdv.bigcat.viewer.atlas.data.DataSource;
 import bdv.bigcat.viewer.atlas.data.mask.MaskedSource;
 import bdv.bigcat.viewer.atlas.mode.Mode;
 import bdv.bigcat.viewer.state.FragmentSegmentAssignmentState;
 import bdv.bigcat.viewer.state.SelectedIds;
+import bdv.bigcat.viewer.stream.ARGBStream;
 import bdv.util.IdService;
 import bdv.viewer.SourceAndConverter;
 import javafx.beans.property.BooleanProperty;

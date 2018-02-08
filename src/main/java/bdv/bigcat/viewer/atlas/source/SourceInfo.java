@@ -11,7 +11,6 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 
 import bdv.bigcat.composite.Composite;
-import bdv.bigcat.ui.ARGBStream;
 import bdv.bigcat.viewer.ARGBColorConverter;
 import bdv.bigcat.viewer.ToIdConverter;
 import bdv.bigcat.viewer.atlas.data.DataSource;
@@ -19,6 +18,7 @@ import bdv.bigcat.viewer.atlas.mode.Mode;
 import bdv.bigcat.viewer.atlas.source.AtlasSourceState.TYPE;
 import bdv.bigcat.viewer.state.FragmentSegmentAssignmentState;
 import bdv.bigcat.viewer.state.SelectedIds;
+import bdv.bigcat.viewer.stream.ARGBStream;
 import bdv.viewer.Source;
 import bdv.viewer.SourceAndConverter;
 import javafx.beans.binding.Bindings;
