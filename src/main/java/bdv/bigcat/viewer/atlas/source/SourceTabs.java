@@ -32,6 +32,7 @@ import javafx.scene.control.CheckBox;
 import javafx.scene.control.ColorPicker;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.ContentDisplay;
+import javafx.scene.control.Dialog;
 import javafx.scene.control.Label;
 import javafx.scene.control.ScrollPane;
 import javafx.scene.control.ScrollPane.ScrollBarPolicy;
@@ -96,7 +97,8 @@ public class SourceTabs
 						.getList()
 						.stream()
 						.map( source -> {
-							final String name = source.getName();
+							final AtlasSourceState< ?, ? > state = info.getState( source );
+							final String name = state.nameProperty().get();
 							final TitledPane sourceElement = new TitledPane();
 							sourceElement.setText( null );
 							if ( !expanded.containsKey( source ) )
@@ -107,10 +109,27 @@ public class SourceTabs
 							final Node closeButton = CloseButton.create( 8 );
 							closeButton.setOnMousePressed( event -> removeDialog( this.remove, source ) );
 							final Label sourceElementLabel = new Label( name, closeButton );
+							sourceElementLabel.textProperty().bind( state.nameProperty() );
+							sourceElementLabel.setOnMouseClicked( event -> {
+								if ( event.getClickCount() != 2 )
+									return;
+								event.consume();
+								final Dialog< Boolean > d = new Dialog<>();
+								d.setTitle( "Set source name" );
+								final TextField tf = new TextField( state.nameProperty().get() );
+								tf.setPromptText( "source name" );
+								d.getDialogPane().getButtonTypes().addAll( ButtonType.OK, ButtonType.CANCEL );
+								d.getDialogPane().lookupButton( ButtonType.OK ).disableProperty().bind( tf.textProperty().isNull().or( tf.textProperty().length().isEqualTo( 0 ) ) );
+								d.setGraphic( tf );
+								d.setResultConverter( ButtonType.OK::equals );
+								final Optional< Boolean > result = d.showAndWait();
+								if ( result.isPresent() && result.get() )
+									state.nameProperty().set( tf.getText() );
+							} );
 							sourceElementLabel.setContentDisplay( ContentDisplay.RIGHT );
 							sourceElementLabel.underlineProperty().bind( info.isCurrentSource( source ) );
 
-							final HBox sourceElementButtons = getPaneGraphics( info.getState( source ) );
+							final HBox sourceElementButtons = getPaneGraphics( state );
 							sourceElementButtons.setMaxWidth( Double.MAX_VALUE );
 							HBox.setHgrow( sourceElementButtons, Priority.ALWAYS );
 							final HBox graphic = new HBox( sourceElementButtons, sourceElementLabel );
@@ -119,7 +138,7 @@ public class SourceTabs
 							sourceElement.setGraphic( graphic );
 							addDragAndDropListener( sourceElement, this.info, contents.getChildren() );
 
-							sourceElement.setContent( getPaneContents( info.getState( source ) ) );
+							sourceElement.setContent( getPaneContents( state ) );
 							sourceElement.maxWidthProperty().bind( width );
 
 							return sourceElement;
@@ -332,6 +351,7 @@ public class SourceTabs
 		else if ( converter instanceof CurrentModeConverter< ?, ? > )
 		{
 			final CurrentModeConverter< ?, ? > conv = ( CurrentModeConverter< ?, ? > ) converter;
+			final VBox contents = new VBox();
 			final GridPane gp = new GridPane();
 			final ColumnConstraints secondColumnConstraints = new ColumnConstraints();
 			secondColumnConstraints.setMaxWidth( Double.MAX_VALUE );
@@ -339,6 +359,9 @@ public class SourceTabs
 			gp.getColumnConstraints().addAll( secondColumnConstraints );
 
 			final int textFieldWidth = 60;
+			int row = 0;
+
+			contents.getChildren().add( gp );
 
 			{
 				final Slider alphaSlider = new Slider( 0, 1, conv.alphaProperty().get() );
@@ -349,8 +372,9 @@ public class SourceTabs
 				alphaField.textProperty().bindBidirectional( alphaSlider.valueProperty(), new NumberStringConverter() );
 				alphaField.setMinWidth( textFieldWidth );
 				alphaField.setMaxWidth( textFieldWidth );
-				gp.add( alphaSlider, 0, 0 );
-				gp.add( alphaField, 1, 0 );
+				gp.add( alphaSlider, 0, row );
+				gp.add( alphaField, 1, row );
+				++row;
 			}
 
 			{
@@ -362,8 +386,9 @@ public class SourceTabs
 				selectedFragmentAlphaField.textProperty().bindBidirectional( selectedFragmentAlphaSlider.valueProperty(), new NumberStringConverter() );
 				selectedFragmentAlphaField.setMinWidth( textFieldWidth );
 				selectedFragmentAlphaField.setMaxWidth( textFieldWidth );
-				gp.add( selectedFragmentAlphaSlider, 0, 1 );
-				gp.add( selectedFragmentAlphaField, 1, 1 );
+				gp.add( selectedFragmentAlphaSlider, 0, row );
+				gp.add( selectedFragmentAlphaField, 1, row );
+				++row;
 			}
 
 			{
@@ -375,11 +400,22 @@ public class SourceTabs
 				selectedSegmentAlphaField.textProperty().bindBidirectional( selectedSegmentAlphaSlider.valueProperty(), new NumberStringConverter() );
 				selectedSegmentAlphaField.setMinWidth( textFieldWidth );
 				selectedSegmentAlphaField.setMaxWidth( textFieldWidth );
-				gp.add( selectedSegmentAlphaSlider, 0, 2 );
-				gp.add( selectedSegmentAlphaField, 1, 2 );
+				gp.add( selectedSegmentAlphaSlider, 0, row );
+				gp.add( selectedSegmentAlphaField, 1, row );
+				++row;
 			}
 
-			tp.setContent( gp );
+			{
+				final CheckBox colorFromSegmentId = new CheckBox( "Color From segment Id." );
+				colorFromSegmentId.setTooltip( new Tooltip( "Generate fragment color from segment id (on) or fragment id (off)" ) );
+				colorFromSegmentId.selectedProperty().bindBidirectional( conv.colorFromSegmentIdProperty() );
+				contents.getChildren().add( colorFromSegmentId );
+//				gp.add( colorFromSegmentId, 0, row );
+//				gp.add( new Label( "Color From segment Id." ), 1, row );
+//				++row;
+			}
+
+			tp.setContent( contents );
 		}
 
 		return tp;

@@ -16,13 +16,14 @@
  */
 package bdv.bigcat.viewer.stream;
 
-import bdv.bigcat.ui.ARGBStream;
 import bdv.bigcat.viewer.state.AbstractState;
 import bdv.bigcat.viewer.state.FragmentSegmentAssignment;
 import bdv.bigcat.viewer.state.SelectedIds;
 import bdv.labels.labelset.Label;
 import gnu.trove.impl.Constants;
 import gnu.trove.map.hash.TLongIntHashMap;
+import javafx.beans.property.BooleanProperty;
+import javafx.beans.property.SimpleBooleanProperty;
 
 /**
  * Generates and caches a stream of colors.
@@ -51,10 +52,13 @@ abstract public class AbstractHighlightingARGBStream extends AbstractState< Abst
 
 	protected final FragmentSegmentAssignment assignment;
 
+	private final BooleanProperty colorFromSegmentId = new SimpleBooleanProperty();
+
 	public AbstractHighlightingARGBStream( final SelectedIds highlights, final FragmentSegmentAssignment assignment )
 	{
 		this.highlights = highlights;
 		this.assignment = assignment;
+		this.colorFromSegmentId.addListener( ( obs, oldv, newv ) -> stateChanged() );
 	}
 
 	protected TLongIntHashMap argbCache = new TLongIntHashMap(
@@ -102,18 +106,18 @@ abstract public class AbstractHighlightingARGBStream extends AbstractState< Abst
 
 	protected double getDouble( final long id )
 	{
-		return getDoubleImpl( id );
+		return getDoubleImpl( id, colorFromSegmentId.get() );
 	}
 
-	protected abstract double getDoubleImpl( final long id );
+	protected abstract double getDoubleImpl( final long id, boolean colorFromSegmentId );
 
 	@Override
 	public int argb( final long id )
 	{
-		return argbImpl( id );
+		return argbImpl( id, colorFromSegmentId.get() );
 	}
 
-	protected abstract int argbImpl( long id );
+	protected abstract int argbImpl( long id, boolean colorFromSegmentId );
 
 	/**
 	 * Change the seed.
@@ -210,5 +214,20 @@ abstract public class AbstractHighlightingARGBStream extends AbstractState< Abst
 	{
 		argbCache.clear();
 		stateChanged();
+	}
+
+	public void setColorFromSegmentId( final boolean fromSegmentId )
+	{
+		this.colorFromSegmentId.set( fromSegmentId );
+	}
+
+	public boolean getColorFromSegmentId()
+	{
+		return this.colorFromSegmentId.get();
+	}
+
+	public BooleanProperty colorFromSegmentIdProperty()
+	{
+		return this.colorFromSegmentId;
 	}
 }

@@ -77,9 +77,6 @@ public class OpenDialogEventHandler implements EventHandler< Event >
 					{
 						final Collection< ? extends DataSource< ? extends RealType< ? >, ? extends RealType< ? > > > raws = dataset.get().getRaw(
 								openDialog.getName(),
-								meta.getResolution(),
-								meta.getOffset(),
-								meta.getAxisOrder(),
 								cellCache,
 								cellCache.getNumPriorities() - 1 );
 						viewer.addRawSources( ( Collection ) raws, min, max );
@@ -115,15 +112,20 @@ public class OpenDialogEventHandler implements EventHandler< Event >
 			final SharedQueue cellCache ) throws Exception
 	{
 		// TODO handle this better!
-		final Collection< ? extends LabelDataSource< I, V > > optionalSource = ( Collection< ? extends LabelDataSource< I, V > > ) dataset.getLabels(
-				openDialog.getName(),
-				meta.getResolution(),
-				meta.getOffset(),
-				meta.getAxisOrder(),
-				cellCache,
-				cellCache.getNumPriorities() );
-		for ( final LabelDataSource< I, V > source : optionalSource )
-			addLabelSource( viewer, source, openDialog.paint() ? openDialog.canvasCacheDirectory() : null, dataset.idService(), dataset.commitCanvas() );
+		try
+		{
+			final Collection< ? extends LabelDataSource< I, V > > optionalSource = ( Collection< ? extends LabelDataSource< I, V > > ) dataset.getLabels(
+					openDialog.getName(),
+					cellCache,
+					cellCache.getNumPriorities() );
+			for ( final LabelDataSource< I, V > source : optionalSource )
+				addLabelSource( viewer, source, openDialog.paint() ? openDialog.canvasCacheDirectory() : null, dataset.idService(), dataset.commitCanvas() );
+		}
+		catch ( final Exception e )
+		{
+			LOG.warn( "Could not add label source: " + e.getMessage() );
+			e.printStackTrace();
+		}
 	}
 
 	private static < I extends IntegerType< I > & NativeType< I >, V extends AbstractVolatileRealType< I, V > > void addLabelSource(

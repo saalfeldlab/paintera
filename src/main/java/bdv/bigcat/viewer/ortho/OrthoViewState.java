@@ -8,8 +8,12 @@ import bdv.viewer.Interpolation;
 import bdv.viewer.Source;
 import bdv.viewer.SourceAndConverter;
 import bdv.viewer.ViewerOptions;
+import javafx.beans.property.BooleanProperty;
+import javafx.beans.property.DoubleProperty;
 import javafx.beans.property.IntegerProperty;
 import javafx.beans.property.ObjectProperty;
+import javafx.beans.property.SimpleBooleanProperty;
+import javafx.beans.property.SimpleDoubleProperty;
 import javafx.beans.property.SimpleIntegerProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.collections.FXCollections;
@@ -31,6 +35,14 @@ public class OrthoViewState
 	protected final SimpleObjectProperty< Source< ? > > currentSource = new SimpleObjectProperty<>( null );
 
 	private final IntegerProperty time = new SimpleIntegerProperty();
+
+	private final BooleanProperty allowRotations = new SimpleBooleanProperty();
+
+	private final DoubleProperty zoomSpeed = new SimpleDoubleProperty( 1.05 );
+
+	private final DoubleProperty rotationSpeed = new SimpleDoubleProperty( 1 );
+
+	private final DoubleProperty translationSpeed = new SimpleDoubleProperty( 1 );
 
 	public OrthoViewState()
 	{
@@ -90,6 +102,48 @@ public class OrthoViewState
 	public IntegerProperty timeProperty()
 	{
 		return this.time;
+	}
+
+	public BooleanProperty allowRotationsProperty()
+	{
+		return this.allowRotations;
+	}
+
+	ObjectProperty< Interpolation > interpolationProperty()
+	{
+		return this.interpolation;
+	}
+
+	public Interpolation getInterpolation()
+	{
+		return interpolationProperty().get();
+	}
+
+	public void setInterpolation( final Interpolation interpolation )
+	{
+		interpolationProperty().set( interpolation );
+	}
+
+	public Interpolation toggleInterpolation()
+	{
+		final Interpolation interpolation = getInterpolation().equals( Interpolation.NLINEAR ) ? Interpolation.NEARESTNEIGHBOR : Interpolation.NLINEAR;
+		setInterpolation( interpolation );
+		return interpolation;
+	}
+
+	public DoubleProperty zoomSpeedProperty()
+	{
+		return this.zoomSpeed;
+	}
+
+	public DoubleProperty rotationSpeedProperty()
+	{
+		return this.rotationSpeed;
+	}
+
+	public DoubleProperty translationSpeedProperty()
+	{
+		return this.translationSpeed;
 	}
 
 }

@@ -3,9 +3,7 @@ package bdv.bigcat.viewer.atlas.opendialog.meta;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.function.UnaryOperator;
-import java.util.stream.Collectors;
 
-import bdv.bigcat.viewer.atlas.opendialog.AxisOrder;
 import bdv.bigcat.viewer.atlas.opendialog.OpenSourceDialog;
 import bdv.bigcat.viewer.util.InvokeOnJavaFXApplicationThread;
 import javafx.beans.property.DoubleProperty;
@@ -13,10 +11,8 @@ import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.value.ObservableStringValue;
 import javafx.beans.value.ObservableValue;
-import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.scene.Node;
-import javafx.scene.control.ComboBox;
 import javafx.scene.control.Label;
 import javafx.scene.control.ScrollPane;
 import javafx.scene.control.TextField;
@@ -39,12 +35,6 @@ public class MetaPanel
 	private static final String Y_STRING = "Y";
 
 	private static final String Z_STRING = "Z";
-
-	private final ObjectProperty< AxisOrder > defaultAxisOrder = new SimpleObjectProperty<>();
-
-	private final ObservableList< AxisOrder > compatibleOrders = FXCollections.observableArrayList();
-
-	private final ComboBox< AxisOrder > axisOrderChoice = new ComboBox<>( compatibleOrders );
 
 	private final SpatialInformation resolution = new SpatialInformation( TEXTFIELD_WIDTH, X_STRING, Y_STRING, Z_STRING );
 
@@ -79,22 +69,6 @@ public class MetaPanel
 		final ColumnConstraints cc = new ColumnConstraints();
 		cc.setHgrow( Priority.ALWAYS );
 		spatialInfo.getColumnConstraints().addAll( cc );
-
-		this.axisOrderChoice.setPrefWidth( TEXTFIELD_WIDTH );
-		this.defaultAxisOrder.addListener( ( obs, oldv, newv ) -> {
-			if ( newv != null )
-			{
-				this.compatibleOrders.setAll(
-						Arrays
-								.stream( AxisOrder.values() )
-								.filter( ao -> ao.numDimensions() == newv.numDimensions() )
-								.collect( Collectors.toList() ) );
-				this.axisOrderChoice.setValue( newv );
-			}
-		} );
-		this.axisOrderChoice.setPromptText( "Axis Order" );
-		addToGrid( spatialInfo, 0, 2, new Label( "Axis Order" ) );
-		addToGrid( spatialInfo, 3, 2, this.axisOrderChoice );
 
 		content.getChildren().add( spatialInfo );
 
@@ -133,29 +107,14 @@ public class MetaPanel
 
 	}
 
-	public ObjectProperty< AxisOrder > axisOrderProperty()
-	{
-		return this.axisOrderChoice.valueProperty();
-	}
-
-	public ObjectProperty< AxisOrder > defaultAxisOrderProperty()
-	{
-		return this.defaultAxisOrder;
-	}
-
-	public AxisOrder getAxisOrder()
-	{
-		return this.axisOrderChoice.valueProperty().get();
-	}
-
 	public void listenOnResolution( final DoubleProperty x, final DoubleProperty y, final DoubleProperty z )
 	{
-		this.resolution.bindTo( this.axisOrderChoice.valueProperty(), x, y, z );
+		this.resolution.bindTo( x, y, z );
 	}
 
 	public void listenOnOffset( final DoubleProperty x, final DoubleProperty y, final DoubleProperty z )
 	{
-		this.offset.bindTo( this.axisOrderChoice.valueProperty(), x, y, z );
+		this.offset.bindTo( x, y, z );
 	}
 
 	public void listenOnMinMax( final DoubleProperty min, final DoubleProperty max )

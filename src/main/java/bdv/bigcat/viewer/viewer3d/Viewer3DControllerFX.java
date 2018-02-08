@@ -13,10 +13,10 @@ import java.util.stream.IntStream;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import bdv.bigcat.ui.ARGBStream;
 import bdv.bigcat.viewer.state.FragmentSegmentAssignmentState;
 import bdv.bigcat.viewer.state.GlobalTransformManager;
 import bdv.bigcat.viewer.state.SelectedIds;
+import bdv.bigcat.viewer.stream.ARGBStream;
 import net.imglib2.Interval;
 import net.imglib2.Point;
 import net.imglib2.RandomAccessible;
@@ -52,6 +52,25 @@ public class Viewer3DControllerFX
 		this.viewer3D = viewer;
 	}
 
+	public void init()
+	{}
+
+	/**
+	 *
+	 * @param volumeLabels
+	 * @param interval
+	 * @param transform
+	 * @param worldLocation
+	 * @param partitionSize
+	 * @param cubeSize
+	 * @param createMaskConverterForType
+	 * @param fragmentId
+	 * @param fragmentSegmentAssignment
+	 * @param stream
+	 * @param append
+	 * @param selectedIds
+	 * @param transformManager
+	 */
 	public synchronized < T extends Type< T >, F extends FragmentSegmentAssignmentState< F > > void generateMesh(
 			final RandomAccessible< T > volumeLabels,
 			final Interval interval,

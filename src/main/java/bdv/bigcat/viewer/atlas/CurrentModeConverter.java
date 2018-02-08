@@ -2,17 +2,20 @@ package bdv.bigcat.viewer.atlas;
 
 import java.util.Optional;
 
+import bdv.bigcat.viewer.stream.ColorFromSegmentId;
 import bdv.bigcat.viewer.stream.SeedProperty;
 import bdv.bigcat.viewer.stream.WithAlpha;
 import javafx.beans.binding.Bindings;
+import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.DoubleProperty;
 import javafx.beans.property.LongProperty;
+import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleDoubleProperty;
 import javafx.beans.property.SimpleLongProperty;
 import net.imglib2.converter.Converter;
 import net.imglib2.type.numeric.ARGBType;
 
-public class CurrentModeConverter< T, C extends Converter< T, ARGBType > & SeedProperty & WithAlpha > implements Converter< T, ARGBType >, SeedProperty
+public class CurrentModeConverter< T, C extends Converter< T, ARGBType > & SeedProperty & WithAlpha & ColorFromSegmentId > implements Converter< T, ARGBType >, SeedProperty
 {
 
 	private C streamConverter;
@@ -24,6 +27,8 @@ public class CurrentModeConverter< T, C extends Converter< T, ARGBType > & SeedP
 	private final DoubleProperty activeFragmentAlpha = new SimpleDoubleProperty( 0xd0 * 1.0 / 0xff );
 
 	private final DoubleProperty activeSegmentAlpha = new SimpleDoubleProperty( 0x80 * 1.0 / 0xff );
+
+	private final BooleanProperty colorFromSegmentId = new SimpleBooleanProperty( true );
 
 	public CurrentModeConverter()
 	{
@@ -68,6 +73,11 @@ public class CurrentModeConverter< T, C extends Converter< T, ARGBType > & SeedP
 		return this.activeSegmentAlpha;
 	}
 
+	public BooleanProperty colorFromSegmentIdProperty()
+	{
+		return this.colorFromSegmentId;
+	}
+
 	private static int toIntegerBased( final double opacity )
 	{
 		return ( int ) Math.round( 255 * opacity );
@@ -78,6 +88,7 @@ public class CurrentModeConverter< T, C extends Converter< T, ARGBType > & SeedP
 		conv.alphaProperty().unbind();
 		conv.activeFragmentAlphaProperty().unbind();
 		conv.activeSegmentAlphaProperty().unbind();
+		conv.colorFromSegmentIdProperty().unbind();
 	}
 
 	private void bindConverter( final C conv )
@@ -85,6 +96,7 @@ public class CurrentModeConverter< T, C extends Converter< T, ARGBType > & SeedP
 		conv.alphaProperty().bind( Bindings.createIntegerBinding( () -> toIntegerBased( alpha.get() ), alpha ) );
 		conv.activeFragmentAlphaProperty().bind( Bindings.createIntegerBinding( () -> toIntegerBased( activeFragmentAlpha.get() ), activeFragmentAlpha ) );
 		conv.activeSegmentAlphaProperty().bind( Bindings.createIntegerBinding( () -> toIntegerBased( activeSegmentAlpha.get() ), activeSegmentAlpha ) );
+		conv.colorFromSegmentIdProperty().bind( colorFromSegmentId );
 	}
 
 }

@@ -154,6 +154,12 @@ public enum AxisOrder
 		return AxisOrder.valueOf( name().replaceAll( AXIS.C.name(), "" ) );
 	}
 
+	public int[] spatialIndices()
+	{
+		final String name = name();
+		return new int[] { name.indexOf( AXIS.X.name() ), name.indexOf( AXIS.Y.name() ), name.indexOf( AXIS.Z.name() ) };
+	}
+
 	private static int getIndexFor( final AXIS identifier, final boolean hasTime, final int numSpaceDimensions )
 	{
 		switch ( identifier )

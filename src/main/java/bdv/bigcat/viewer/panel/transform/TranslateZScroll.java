@@ -12,10 +12,10 @@ import javafx.beans.value.ObservableValue;
 import javafx.scene.input.ScrollEvent;
 import net.imglib2.realtransform.AffineTransform3D;
 
-class TranslateZ
+class TranslateZScroll
 {
 
-	private final ObservableDoubleValue rotationSpeed;
+	private final ObservableDoubleValue translationSpeed;
 
 	ObjectProperty< GlobalTransformManager > manager = new SimpleObjectProperty<>();
 
@@ -23,26 +23,22 @@ class TranslateZ
 
 	private final int axis;
 
-	private final double speedFactor;
-
 	private final Predicate< ScrollEvent >[] eventFilter;
 
 	private final Object synchronizeObject;
 
 	@SafeVarargs
-	public TranslateZ(
-			final ObservableDoubleValue rotationSpeed,
+	public TranslateZScroll(
+			final ObservableDoubleValue translationSpeed,
 			final ObservableValue< GlobalTransformManager > manager,
 			final AffineTransform3D worldToSharedViewerSpace,
 			final ViewerAxis axis,
-			final double speedFactor,
 			final Object synchronizeObject,
 			final Predicate< ScrollEvent >... eventFilter )
 	{
-		this.rotationSpeed = rotationSpeed;
+		this.translationSpeed = translationSpeed;
 		this.manager.bind( manager );
 		this.worldToSharedViewerSpace = worldToSharedViewerSpace;
-		this.speedFactor = speedFactor;
 		this.eventFilter = eventFilter;
 		this.axis = axis.equals( ViewerAxis.X ) ? 0 : axis.equals( ViewerAxis.Y ) ? 1 : 2;
 		this.synchronizeObject = synchronizeObject;
@@ -61,7 +57,7 @@ class TranslateZ
 				delta[ axis ] = 1.0;
 				rotationAndScalingOnly.applyInverse( delta, delta );
 				final double norm = delta[ 0 ] * delta[ 0 ] + delta[ 1 ] * delta[ 1 ] + delta[ 2 ] * delta[ 2 ];
-				final double factor = rotationSpeed.get() * speedFactor * -wheelRotation / Math.sqrt( norm );
+				final double factor = translationSpeed.get() * -wheelRotation / Math.sqrt( norm );
 				for ( int d = 0; d < delta.length; ++d )
 					delta[ d ] *= factor;
 				final AffineTransform3D shift = new AffineTransform3D();

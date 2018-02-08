@@ -22,6 +22,8 @@ public class BrushOverlay implements OverlayRendererGeneric< GraphicsContext >
 
 	protected boolean visible = false;
 
+	protected boolean wasVisible = false;
+
 	final AffineTransform3D viewerTransform = new AffineTransform3D();
 
 	public BrushOverlay( final ViewerPanelFX viewer, final GlobalTransformManager manager )
@@ -32,12 +34,15 @@ public class BrushOverlay implements OverlayRendererGeneric< GraphicsContext >
 		this.viewer.addEventFilter( MouseEvent.MOUSE_DRAGGED, this::setPosition );
 		manager.addListener( tf -> viewerTransform.set( tf ) );
 		this.radius.addListener( ( obs, oldv, newv ) -> this.viewer.getDisplay().drawOverlays() );
+
 	}
 
 	public void setVisible( final boolean visible )
 	{
 		if ( visible != this.visible )
 		{
+			if ( this.visible )
+				this.wasVisible = true;
 			this.visible = visible;
 			this.viewer.getDisplay().drawOverlays();
 		}
@@ -78,7 +83,11 @@ public class BrushOverlay implements OverlayRendererGeneric< GraphicsContext >
 				return;
 			}
 		}
-		this.viewer.getScene().setCursor( Cursor.DEFAULT );
+		if ( wasVisible )
+		{
+			this.viewer.getScene().setCursor( Cursor.DEFAULT );
+			wasVisible = false;
+		}
 	}
 
 	@Override

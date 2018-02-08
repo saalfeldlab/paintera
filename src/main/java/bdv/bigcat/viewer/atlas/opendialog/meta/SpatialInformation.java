@@ -1,15 +1,8 @@
 package bdv.bigcat.viewer.atlas.opendialog.meta;
 
-import java.util.HashMap;
-import java.util.Optional;
-
-import bdv.bigcat.viewer.atlas.opendialog.AxisOrder;
 import bdv.bigcat.viewer.atlas.opendialog.meta.MetaPanel.DoubleFilter;
-import javafx.beans.binding.Bindings;
 import javafx.beans.property.DoubleProperty;
 import javafx.beans.property.SimpleDoubleProperty;
-import javafx.beans.property.SimpleObjectProperty;
-import javafx.beans.value.ObservableValue;
 import javafx.scene.control.TextField;
 import javafx.scene.control.TextFormatter;
 import javafx.util.StringConverter;
@@ -17,27 +10,17 @@ import javafx.util.StringConverter;
 public class SpatialInformation
 {
 
-	private DoubleProperty x = new SimpleDoubleProperty();
+	private final DoubleProperty x = new SimpleDoubleProperty();
 
-	private DoubleProperty y = new SimpleDoubleProperty();
+	private final DoubleProperty y = new SimpleDoubleProperty();
 
-	private DoubleProperty z = new SimpleDoubleProperty();
-
-	private final DoubleProperty xPermuted = new SimpleDoubleProperty();
-
-	private final DoubleProperty yPermuted = new SimpleDoubleProperty();
-
-	private final DoubleProperty zPermuted = new SimpleDoubleProperty();
+	private final DoubleProperty z = new SimpleDoubleProperty();
 
 	private final TextField textX = new TextField( "" );
 
 	private final TextField textY = new TextField( "" );
 
 	private final TextField textZ = new TextField( "" );
-
-	private final SimpleObjectProperty< AxisOrder > axisOrder = new SimpleObjectProperty<>();
-
-	private final HashMap< DoubleProperty, DoubleProperty > bindings = new HashMap<>();
 
 	public SpatialInformation( final double textFieldWidth, final String promptTextX, final String promptTextY, final String promptTextZ )
 	{
@@ -53,14 +36,9 @@ public class SpatialInformation
 		textY.setTextFormatter( new TextFormatter<>( new DoubleFilter() ) );
 		textZ.setTextFormatter( new TextFormatter<>( new DoubleFilter() ) );
 
-		this.textX.textProperty().bindBidirectional( xPermuted, new Converter() );
-		this.textY.textProperty().bindBidirectional( yPermuted, new Converter() );
-		this.textZ.textProperty().bindBidirectional( zPermuted, new Converter() );
-
-		this.axisOrder.addListener( ( obs, oldv, newv ) -> {
-			if ( newv != null )
-				updateBindings( newv );
-		} );
+		this.textX.textProperty().bindBidirectional( x, new Converter() );
+		this.textY.textProperty().bindBidirectional( y, new Converter() );
+		this.textZ.textProperty().bindBidirectional( z, new Converter() );
 
 	}
 
@@ -79,28 +57,12 @@ public class SpatialInformation
 		return this.textZ;
 	}
 
-	public void bindTo( final ObservableValue< AxisOrder > axisOrder, final DoubleProperty x, final DoubleProperty y, final DoubleProperty z )
+	public void bindTo( final DoubleProperty x, final DoubleProperty y, final DoubleProperty z )
 	{
-		this.x = x;
-		this.y = y;
-		this.z = z;
-		updateBindings( Optional.ofNullable( axisOrder.getValue() ).map( AxisOrder::spatialOnly ).orElse( AxisOrder.XYZ ) );
-		this.axisOrder.bind( Bindings.createObjectBinding( () -> Optional.ofNullable( axisOrder.getValue() ).map( AxisOrder::spatialOnly ).orElse( AxisOrder.XYZ ), axisOrder ) );
+		this.x.bindBidirectional( x );
+		this.y.bindBidirectional( y );
+		this.z.bindBidirectional( z );
 
-	}
-
-	private void updateBindings( final AxisOrder axisOrder )
-	{
-		final DoubleProperty[] xyz = new DoubleProperty[] { x, y, z };
-		final int[] p = invertPermutation( Optional.ofNullable( axisOrder ).orElse( AxisOrder.XYZ ).permutation() );
-		this.bindings.forEach( ( prop1, prop2 ) -> prop1.unbindBidirectional( prop2 ) );
-		xPermuted.bindBidirectional( xyz[ p[ 0 ] ] );
-		yPermuted.bindBidirectional( xyz[ p[ 1 ] ] );
-		zPermuted.bindBidirectional( xyz[ p[ 2 ] ] );
-
-		this.bindings.put( xPermuted, xyz[ p[ 0 ] ] );
-		this.bindings.put( yPermuted, xyz[ p[ 1 ] ] );
-		this.bindings.put( zPermuted, xyz[ p[ 2 ] ] );
 	}
 
 	private static double parseDouble( final String s )
@@ -128,14 +90,6 @@ public class SpatialInformation
 			return parseDouble( string );
 		}
 
-	}
-
-	private static int[] invertPermutation( final int[] permutation )
-	{
-		final int[] inverse = new int[ permutation.length ];
-		for ( int i = 0; i < inverse.length; ++i )
-			inverse[ permutation[ i ] ] = i;
-		return inverse;
 	}
 
 }

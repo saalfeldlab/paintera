@@ -1,12 +1,8 @@
 package bdv.bigcat.viewer.panel.transform;
 
-import java.awt.event.ActionEvent;
 import java.util.Arrays;
 import java.util.Optional;
 import java.util.function.Predicate;
-
-import org.scijava.ui.behaviour.ClickBehaviour;
-import org.scijava.ui.behaviour.util.AbstractNamedAction;
 
 import bdv.bigcat.viewer.atlas.mode.Merges;
 import bdv.bigcat.viewer.bdvfx.EventFX;
@@ -16,10 +12,13 @@ import bdv.bigcat.viewer.bdvfx.ViewerPanelFX;
 import bdv.bigcat.viewer.panel.ViewerNode.ViewerAxis;
 import bdv.bigcat.viewer.panel.ViewerState;
 import bdv.bigcat.viewer.state.GlobalTransformManager;
+import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.DoubleProperty;
 import javafx.beans.property.Property;
+import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleDoubleProperty;
 import javafx.beans.property.SimpleObjectProperty;
+import javafx.beans.value.ObservableDoubleValue;
 import javafx.event.EventHandler;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyEvent;
@@ -43,9 +42,11 @@ public class ViewerTransformManager implements TransformListener< AffineTransfor
 
 	private final KeyTracker keyTracker;
 
-	final SimpleDoubleProperty rotationSpeed = new SimpleDoubleProperty( 1.0 );
+	private final SimpleDoubleProperty translationSpeed = new SimpleDoubleProperty( 1.0 );
 
-	private final SimpleDoubleProperty zoomSpeed = new SimpleDoubleProperty( 1.0 );
+	private final SimpleDoubleProperty rotationSpeed = new SimpleDoubleProperty( 1.0 );
+
+	private final SimpleDoubleProperty zoomSpeed = new SimpleDoubleProperty( 1.05 );
 
 	private final Property< GlobalTransformManager > manager = new SimpleObjectProperty<>();
 
@@ -69,15 +70,7 @@ public class ViewerTransformManager implements TransformListener< AffineTransfor
 
 	private int centerX = 0, centerY = 0;
 
-	public void rotationSpeed( final double speed )
-	{
-		this.rotationSpeed.set( speed );
-	}
-
-	public void zoomSpeed( final double speed )
-	{
-		this.zoomSpeed.set( speed );
-	}
+	private final BooleanProperty allowRotations = new SimpleBooleanProperty( true );
 
 	public ViewerTransformManager(
 			final ViewerPanelFX viewer,
@@ -209,11 +202,77 @@ public class ViewerTransformManager implements TransformListener< AffineTransfor
 		viewer.addEventHandler( ScrollEvent.SCROLL, zoom );
 		removeRotation.installInto( this.viewer );
 
-//		behaviours.behaviour( new ButtonZoom( 1.05 ), "zoom", "UP" );
-//		behaviours.behaviour( new ButtonZoom( 1.0 / 1.05 ), "zoom", "DOWN" );
-		viewer.addEventHandler( ScrollEvent.SCROLL, new TranslateZ( zoomSpeed, manager, global, axis, factors[ 0 ], viewer, event -> keyTracker.noKeysActive() )::scroll );
-		viewer.addEventHandler( ScrollEvent.SCROLL, new TranslateZ( zoomSpeed, manager, global, axis, factors[ 1 ], viewer, event -> keyTracker.areOnlyTheseKeysDown( KeyCode.SHIFT ) )::scroll );
-		viewer.addEventHandler( ScrollEvent.SCROLL, new TranslateZ( zoomSpeed, manager, global, axis, factors[ 2 ], viewer, event -> keyTracker.areOnlyTheseKeysDown( KeyCode.CONTROL ) )::scroll );
+		viewer.addEventHandler( ScrollEvent.SCROLL, new TranslateZScroll( translationSpeed.multiply( factors[ 0 ] ), manager, global, axis, viewer, event -> keyTracker.noKeysActive() )::scroll );
+		viewer.addEventHandler( ScrollEvent.SCROLL, new TranslateZScroll( translationSpeed.multiply( factors[ 1 ] ), manager, global, axis, viewer, event -> keyTracker.areOnlyTheseKeysDown( KeyCode.SHIFT ) )::scroll );
+		viewer.addEventHandler( ScrollEvent.SCROLL, new TranslateZScroll( translationSpeed.multiply( factors[ 2 ] ), manager, global, axis, viewer, event -> keyTracker.areOnlyTheseKeysDown( KeyCode.CONTROL ) )::scroll );
+
+		final ButtonZoom zoomIn = new ButtonZoom( zoomSpeed );
+		final ButtonZoom zoomOut = new ButtonZoom( new SimpleDoubleProperty( 1.0 ).divide( zoomSpeed ) );
+		viewer.addEventHandler(
+				KeyEvent.KEY_PRESSED, EventFX.KEY_PRESSED(
+						"button zoom +",
+						event -> zoomIn.zoom(),
+						event -> keyTracker.areOnlyTheseKeysDown( KeyCode.EQUALS ),
+						event -> keyTracker.areOnlyTheseKeysDown( KeyCode.SHIFT, KeyCode.EQUALS ),
+						event -> keyTracker.areOnlyTheseKeysDown( KeyCode.UP ) ) );
+		viewer.addEventHandler(
+				KeyEvent.KEY_PRESSED, EventFX.KEY_PRESSED(
+						"button zoom -",
+						event -> zoomOut.zoom(),
+						event -> keyTracker.areOnlyTheseKeysDown( KeyCode.MINUS ),
+						event -> keyTracker.areOnlyTheseKeysDown( KeyCode.SHIFT, KeyCode.MINUS ),
+						event -> keyTracker.areOnlyTheseKeysDown( KeyCode.DOWN ) ) );
+
+		{
+			final TranslateZButton translateForward = new TranslateZButton( translationSpeed.multiply( -factors[ 0 ] ), manager, global, axis, viewer );
+			final TranslateZButton translateBackward = new TranslateZButton( translationSpeed.multiply( +factors[ 0 ] ), manager, global, axis, viewer );
+			viewer.addEventHandler(
+					KeyEvent.KEY_PRESSED,
+					EventFX.KEY_PRESSED(
+							"translate z advance",
+							e -> translateForward.translate(),
+							e -> keyTracker.areOnlyTheseKeysDown( KeyCode.COMMA ) ) );
+			viewer.addEventHandler(
+					KeyEvent.KEY_PRESSED,
+					EventFX.KEY_PRESSED(
+							"translate z retract",
+							e -> translateBackward.translate(),
+							e -> keyTracker.areOnlyTheseKeysDown( KeyCode.PERIOD ) ) );
+		}
+
+		{
+			final TranslateZButton translateForward = new TranslateZButton( translationSpeed.multiply( -factors[ 1 ] ), manager, global, axis, viewer );
+			final TranslateZButton translateBackward = new TranslateZButton( translationSpeed.multiply( +factors[ 1 ] ), manager, global, axis, viewer );
+			viewer.addEventHandler(
+					KeyEvent.KEY_PRESSED,
+					EventFX.KEY_PRESSED(
+							"translate z advance",
+							e -> translateForward.translate(),
+							e -> keyTracker.areOnlyTheseKeysDown( KeyCode.COMMA, KeyCode.SHIFT ) ) );
+			viewer.addEventHandler(
+					KeyEvent.KEY_PRESSED,
+					EventFX.KEY_PRESSED(
+							"translate z retract",
+							e -> translateBackward.translate(),
+							e -> keyTracker.areOnlyTheseKeysDown( KeyCode.PERIOD, KeyCode.SHIFT ) ) );
+		}
+
+		{
+			final TranslateZButton translateForward = new TranslateZButton( translationSpeed.multiply( -factors[ 2 ] ), manager, global, axis, viewer );
+			final TranslateZButton translateBackward = new TranslateZButton( translationSpeed.multiply( +factors[ 2 ] ), manager, global, axis, viewer );
+			viewer.addEventHandler(
+					KeyEvent.KEY_PRESSED,
+					EventFX.KEY_PRESSED(
+							"translate z advance",
+							e -> translateForward.translate(),
+							e -> keyTracker.areOnlyTheseKeysDown( KeyCode.COMMA, KeyCode.CONTROL ) ) );
+			viewer.addEventHandler(
+					KeyEvent.KEY_PRESSED,
+					EventFX.KEY_PRESSED(
+							"translate z retract",
+							e -> translateBackward.translate(),
+							e -> keyTracker.areOnlyTheseKeysDown( KeyCode.PERIOD, KeyCode.CONTROL ) ) );
+		}
 
 	}
 
@@ -291,7 +350,6 @@ public class ViewerTransformManager implements TransformListener< AffineTransfor
 		@SafeVarargs
 		public Zoom( final DoubleProperty speed, final Predicate< ScrollEvent >... check )
 		{
-			this.speed.set( speed.get() );
 			this.speed.bind( speed );
 			this.check = check;
 		}
@@ -314,8 +372,8 @@ public class ViewerTransformManager implements TransformListener< AffineTransfor
 
 			final double wheelRotation = -event.getDeltaY();
 
-			final double s = speed.get() * wheelRotation;
-			final double dScale = 1.0 + 0.05;
+			final double s = wheelRotation;
+			final double dScale = zoomSpeed.get();
 			final double scale = s > 0 ? 1.0 / dScale : dScale;
 
 			for ( int d = 0; d < location.length; ++d )
@@ -328,30 +386,32 @@ public class ViewerTransformManager implements TransformListener< AffineTransfor
 		}
 	}
 
-	private class ButtonZoom extends GetOuter implements ClickBehaviour
+	private class ButtonZoom extends GetOuter
 	{
-		private final double factor;
+		private final ObservableDoubleValue zoomSpeed;
 
-		public ButtonZoom( final double factor )
+		public ButtonZoom( final ObservableDoubleValue zoomSpeed )
 		{
-			this.factor = factor;
+			this.zoomSpeed = zoomSpeed;
 		}
 
-		@Override
-		public void click( final int x, final int y )
+		public void zoom()
 		{
 			final AffineTransform3D global;
 			synchronized ( getOuter().global )
 			{
 				global = getOuter().global.copy();
 			}
-			final double[] location = new double[] { x, y, 0 };
+
+			final double[] location = new double[] { canvasW / 2, canvasH / 2, 0 };
+			if ( viewer.isMouseInside() )
+				viewer.getMouseCoordinates( RealPoint.wrap( location ) );
 			concatenated.applyInverse( location, location );
 			global.apply( location, location );
 
 			for ( int d = 0; d < location.length; ++d )
 				global.set( global.get( d, 3 ) - location[ d ], d, 3 );
-			global.scale( factor );
+			global.scale( zoomSpeed.get() );
 			for ( int d = 0; d < location.length; ++d )
 				global.set( global.get( d, 3 ) + location[ d ], d, 3 );
 
@@ -379,15 +439,20 @@ public class ViewerTransformManager implements TransformListener< AffineTransfor
 		@Override
 		public void initDrag( final javafx.scene.input.MouseEvent event )
 		{
-			synchronized ( transformLock )
-			{
-				affineDragStart.set( global );
-			}
+			if ( allowRotations.get() )
+				synchronized ( transformLock )
+				{
+					affineDragStart.set( global );
+				}
+			else
+				abortDrag();
 		}
 
 		@Override
 		public void drag( final javafx.scene.input.MouseEvent event )
 		{
+			if ( allowRotations.not().get() )
+				return;
 			final AffineTransform3D affine = new AffineTransform3D();
 			synchronized ( transformLock )
 			{
@@ -454,6 +519,10 @@ public class ViewerTransformManager implements TransformListener< AffineTransfor
 
 		public void handle( final KeyEvent event )
 		{
+
+			if ( allowRotations.not().get() )
+				return;
+
 			synchronized ( viewer )
 			{
 				if ( viewer.isMouseInside() )
@@ -494,24 +563,6 @@ public class ViewerTransformManager implements TransformListener< AffineTransfor
 
 	}
 
-	private class ToggleInterpolation extends AbstractNamedAction
-	{
-		public ToggleInterpolation()
-		{
-			super( "toggle interpolation" );
-		}
-
-		@Override
-		public void actionPerformed( final ActionEvent e )
-		{
-			synchronized ( state )
-			{
-				state.toggleInterpolation();
-			}
-		}
-
-	}
-
 	private void listen( final GlobalTransformManager m )
 	{
 		m.addListener( this );
@@ -520,6 +571,26 @@ public class ViewerTransformManager implements TransformListener< AffineTransfor
 	private void hangUp( final GlobalTransformManager m )
 	{
 		m.removeListener( this );
+	}
+
+	public BooleanProperty allowRotationsProperty()
+	{
+		return this.allowRotations;
+	}
+
+	public DoubleProperty zoomSpeedProperty()
+	{
+		return this.zoomSpeed;
+	}
+
+	public DoubleProperty translationSpeedProperty()
+	{
+		return this.translationSpeed;
+	}
+
+	public DoubleProperty rotationSpeedProperty()
+	{
+		return this.rotationSpeed;
 	}
 
 }

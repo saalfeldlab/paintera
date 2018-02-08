@@ -3,13 +3,13 @@ package bdv.bigcat.viewer.atlas.source;
 import java.util.function.Function;
 
 import bdv.bigcat.composite.Composite;
-import bdv.bigcat.ui.ARGBStream;
 import bdv.bigcat.viewer.ToIdConverter;
 import bdv.bigcat.viewer.atlas.data.DataSource;
 import bdv.bigcat.viewer.atlas.data.mask.MaskedSource;
 import bdv.bigcat.viewer.atlas.mode.Mode;
 import bdv.bigcat.viewer.state.FragmentSegmentAssignmentState;
 import bdv.bigcat.viewer.state.SelectedIds;
+import bdv.bigcat.viewer.stream.ARGBStream;
 import bdv.util.IdService;
 import bdv.viewer.SourceAndConverter;
 import javafx.beans.property.BooleanProperty;
@@ -19,6 +19,8 @@ import javafx.beans.property.ReadOnlyObjectProperty;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleDoubleProperty;
 import javafx.beans.property.SimpleObjectProperty;
+import javafx.beans.property.SimpleStringProperty;
+import javafx.beans.property.StringProperty;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableMap;
 import javafx.scene.paint.Color;
@@ -46,6 +48,7 @@ public class AtlasSourceState< T extends Type< T >, D extends Type< D > >
 		this.composite.set( composite );
 		this.visible.set( true );
 		this.type.set( type );
+		this.name.set( dataSource.getName() );
 	}
 
 	private final ObjectProperty< DataSource< D, T > > dataSource = new SimpleObjectProperty<>();
@@ -75,6 +78,8 @@ public class AtlasSourceState< T extends Type< T >, D extends Type< D > >
 	private final DoubleProperty selectionMin = new SimpleDoubleProperty( Double.NaN );
 
 	private final DoubleProperty selectionMax = new SimpleDoubleProperty( Double.NaN );
+
+	private final StringProperty name = new SimpleStringProperty();
 
 	public SourceAndConverter< T > getSourceAndConverter()
 	{
@@ -180,6 +185,11 @@ public class AtlasSourceState< T extends Type< T >, D extends Type< D > >
 	public DoubleProperty selectionMaxProperty()
 	{
 		return this.selectionMax;
+	}
+
+	public StringProperty nameProperty()
+	{
+		return this.name;
 	}
 
 	private static ARGBType toARGBType( final Color color )

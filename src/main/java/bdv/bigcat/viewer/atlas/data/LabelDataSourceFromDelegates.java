@@ -1,5 +1,10 @@
 package bdv.bigcat.viewer.atlas.data;
 
+import java.lang.invoke.MethodHandles;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import bdv.bigcat.viewer.state.FragmentSegmentAssignmentState;
 import bdv.viewer.Interpolation;
 import mpicbg.spim.data.sequence.VoxelDimensions;
@@ -9,6 +14,8 @@ import net.imglib2.realtransform.AffineTransform3D;
 
 public class LabelDataSourceFromDelegates< D, T > implements LabelDataSource< D, T >
 {
+
+	private static final Logger LOG = LoggerFactory.getLogger( MethodHandles.lookup().lookupClass() );
 
 	private final DataSource< D, T > source;
 
@@ -24,12 +31,14 @@ public class LabelDataSourceFromDelegates< D, T > implements LabelDataSource< D,
 	@Override
 	public RandomAccessibleInterval< D > getDataSource( final int t, final int level )
 	{
+		LOG.debug( "Delegating data source request for t={}, level={}", t, level );
 		return source.getDataSource( t, level );
 	}
 
 	@Override
 	public RealRandomAccessible< D > getInterpolatedDataSource( final int t, final int level, final Interpolation method )
 	{
+		LOG.debug( "Delegating data source request for t={}, level={}, and interpolation: {}", t, level, method );
 		return source.getInterpolatedDataSource( t, level, method );
 	}
 
@@ -48,12 +57,14 @@ public class LabelDataSourceFromDelegates< D, T > implements LabelDataSource< D,
 	@Override
 	public RandomAccessibleInterval< T > getSource( final int t, final int level )
 	{
+		LOG.debug( "Delegating source request for t={}, level={}", t, level );
 		return source.getSource( t, level );
 	}
 
 	@Override
 	public RealRandomAccessible< T > getInterpolatedSource( final int t, final int level, final Interpolation method )
 	{
+		LOG.debug( "Delegating source request for t={}, level={}, and interpolation: {}", t, level, method );
 		return source.getInterpolatedSource( t, level, method );
 	}
 
