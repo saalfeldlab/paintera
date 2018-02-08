@@ -11,6 +11,7 @@ import bdv.util.volatiles.SharedQueue;
 import javafx.beans.property.DoubleProperty;
 import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.SimpleDoubleProperty;
+import javafx.beans.value.ObservableStringValue;
 import javafx.scene.Node;
 import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.type.NativeType;
@@ -78,6 +79,8 @@ public interface BackendDialog
 	{
 		return null;
 	}
+
+	public ObservableStringValue nameProperty();
 
 	public String identifier();
 

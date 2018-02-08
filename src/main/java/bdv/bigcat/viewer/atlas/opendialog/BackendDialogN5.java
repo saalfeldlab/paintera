@@ -29,7 +29,10 @@ import bdv.util.IdService;
 import bdv.util.N5IdService;
 import bdv.util.volatiles.SharedQueue;
 import bdv.util.volatiles.VolatileViews;
+import javafx.beans.binding.Bindings;
+import javafx.beans.binding.StringBinding;
 import javafx.beans.property.DoubleProperty;
+import javafx.beans.value.ObservableStringValue;
 import javafx.stage.DirectoryChooser;
 import net.imglib2.Cursor;
 import net.imglib2.FinalInterval;
@@ -64,6 +67,15 @@ public class BackendDialogN5 extends BackendDialogGroupAndDataset implements Com
 	private static final String AXIS_ORDER_KEY = "axisOrder";
 
 	private static final String ATTRIBUTES_JSON = "attributes.json";
+
+	private final StringBinding name = Bindings.createStringBinding( () -> {
+		final String[] entries = Optional
+				.ofNullable( dataset )
+				.map( d -> d.get().split( "/" ) )
+				.map( a -> a.length > 0 ? a : new String[] { null } )
+				.orElse( new String[] { null } );
+		return entries[ entries.length - 1 ];
+	}, dataset );
 
 	public BackendDialogN5()
 	{
@@ -500,6 +512,12 @@ public class BackendDialogN5 extends BackendDialogGroupAndDataset implements Com
 
 		throw new RuntimeException( String.format( "Cannot read dataset attributes for group %s and dataset %s.", group, ds ) );
 
+	}
+
+	@Override
+	public ObservableStringValue nameProperty()
+	{
+		return this.name;
 	}
 
 }

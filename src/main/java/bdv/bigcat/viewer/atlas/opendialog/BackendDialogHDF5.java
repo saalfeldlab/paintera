@@ -5,6 +5,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.DoubleStream;
 
 import bdv.img.h5.H5Utils;
@@ -14,7 +15,10 @@ import bdv.util.volatiles.SharedQueue;
 import bdv.util.volatiles.VolatileViews;
 import ch.systemsx.cisd.hdf5.HDF5Factory;
 import ch.systemsx.cisd.hdf5.IHDF5Reader;
+import javafx.beans.binding.Bindings;
+import javafx.beans.binding.StringBinding;
 import javafx.beans.property.DoubleProperty;
+import javafx.beans.value.ObservableStringValue;
 import javafx.stage.FileChooser;
 import javafx.stage.FileChooser.ExtensionFilter;
 import net.imglib2.RandomAccessibleInterval;
@@ -36,6 +40,15 @@ public class BackendDialogHDF5 extends BackendDialogGroupAndDataset implements C
 	private static final String MAX_KEY = "max";
 
 	private static final String AXIS_ORDER_KEY = "axisOrder";
+
+	private final StringBinding name = Bindings.createStringBinding( () -> {
+		final String[] entries = Optional
+				.ofNullable( dataset )
+				.map( d -> d.get().split( "/" ) )
+				.map( a -> a.length > 0 ? a : new String[] { null } )
+				.orElse( new String[] { null } );
+		return entries[ entries.length - 1 ];
+	}, dataset );
 
 	public BackendDialogHDF5()
 	{
@@ -186,6 +199,12 @@ public class BackendDialogHDF5 extends BackendDialogGroupAndDataset implements C
 	public String identifier()
 	{
 		return "HDF5";
+	}
+
+	@Override
+	public ObservableStringValue nameProperty()
+	{
+		return this.name;
 	}
 
 }
