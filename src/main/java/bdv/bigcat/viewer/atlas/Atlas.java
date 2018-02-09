@@ -292,7 +292,7 @@ public class Atlas
 		this.root.addEventHandler( KeyEvent.KEY_PRESSED, new OpenDialogEventHandler( this, cellCache, e -> keyTracker.areOnlyTheseKeysDown( KeyCode.CONTROL, KeyCode.O ) ) );
 
 		this.root.addEventHandler( KeyEvent.KEY_PRESSED, event -> {
-			if ( keyTracker.areOnlyTheseKeysDown( KeyCode.ALT, KeyCode.S ) || keyTracker.areOnlyTheseKeysDown( KeyCode.P ) )
+			if ( keyTracker.areOnlyTheseKeysDown( KeyCode.P ) )
 			{
 				toggleSourcesTabs();
 				event.consume();
