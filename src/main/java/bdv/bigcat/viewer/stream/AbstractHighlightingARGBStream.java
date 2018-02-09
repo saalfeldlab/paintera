@@ -116,7 +116,7 @@ abstract public class AbstractHighlightingARGBStream extends AbstractState< Abst
 	@Override
 	public int argb( final long id )
 	{
-		return id == Label.BACKGROUND ? ZERO : argbImpl( id, colorFromSegmentId.get() );
+		return id == Label.TRANSPARENT ? ZERO : argbImpl( id, colorFromSegmentId.get() );
 	}
 
 	protected abstract int argbImpl( long id, boolean colorFromSegmentId );
