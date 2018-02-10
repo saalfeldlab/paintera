@@ -12,19 +12,17 @@ import com.sun.javafx.application.PlatformImpl;
 import bdv.AbstractViewerSetupImgLoader;
 import bdv.bigcat.viewer.atlas.Atlas;
 import bdv.bigcat.viewer.atlas.data.DataSource;
-import bdv.bigcat.viewer.atlas.data.HDF5LabelMultisetDataSource;
+import bdv.bigcat.viewer.atlas.data.LabelDataSourceFromDelegates;
 import bdv.bigcat.viewer.atlas.data.RandomAccessibleIntervalDataSource;
 import bdv.bigcat.viewer.atlas.mode.Highlights;
+import bdv.bigcat.viewer.state.FragmentSegmentAssignmentOnlyLocal;
+import bdv.bigcat.viewer.state.FragmentSegmentAssignmentState;
 import bdv.bigcat.viewer.state.SelectedIds;
 import bdv.img.cache.VolatileGlobalCellCache;
 import bdv.util.volatiles.SharedQueue;
 import bdv.viewer.Interpolation;
 import bdv.viewer.Source;
 import javafx.application.Platform;
-import javafx.scene.control.Button;
-import javafx.scene.control.ButtonBar.ButtonData;
-import javafx.scene.control.ButtonType;
-import javafx.scene.control.Dialog;
 import javafx.stage.Stage;
 import mpicbg.spim.data.sequence.VoxelDimensions;
 import net.imglib2.RandomAccessible;
@@ -40,11 +38,14 @@ import net.imglib2.interpolation.randomaccess.NearestNeighborInterpolatorFactory
 import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.type.numeric.RealType;
 import net.imglib2.type.numeric.integer.UnsignedByteType;
+import net.imglib2.type.numeric.integer.UnsignedLongType;
 import net.imglib2.type.volatiles.VolatileARGBType;
 import net.imglib2.type.volatiles.VolatileUnsignedByteType;
+import net.imglib2.type.volatiles.VolatileUnsignedLongType;
 import net.imglib2.view.ExtendedRandomAccessibleInterval;
 import net.imglib2.view.Views;
 
+@Deprecated
 public class ExampleApplication2
 {
 	private static final Logger LOG = LoggerFactory.getLogger( MethodHandles.lookup().lookupClass() );
@@ -103,8 +104,25 @@ public class ExampleApplication2
 
 		viewer.addRawSource( rawSource, 0., 255. );
 
-		final HDF5LabelMultisetDataSource labelSpec2 = new HDF5LabelMultisetDataSource( labelsFile, labelsDataset, cellSize, "labels", cellCache, 1 );
-		viewer.addLabelSource( labelSpec2, labelSpec2.getAssignment(), null );
+		LOG.warn(
+				"This will throw a null pointer exception because the data is stored as int64 instead of uint64."
+						+ " No volatile type present for that. "
+						+ "This class is deprecated now and will be deleted in the future." );
+
+		final DataSource< UnsignedLongType, VolatileUnsignedLongType > labelData = DataSource.createH5RawSource(
+				"labels",
+				labelsFile,
+				labelsDataset,
+				cellSize,
+				resolution,
+				offset,
+				sharedQueue,
+				1 );
+
+		final FragmentSegmentAssignmentState< ? > assignment = new FragmentSegmentAssignmentOnlyLocal();
+		final LabelDataSourceFromDelegates< UnsignedLongType, VolatileUnsignedLongType > labelSpec2 = new LabelDataSourceFromDelegates<>( labelData, assignment );
+
+		viewer.addLabelSource( labelSpec2, labelSpec2.getAssignment(), v -> v.get().getIntegerLong(), null );
 		final Optional< Highlights > highlightsMode = viewer.getHighlightsMode();
 		highlightsMode.ifPresent( mode -> {
 			viewer.getSettings().currentModeProperty().set( mode );
@@ -129,27 +147,6 @@ public class ExampleApplication2
 				} ).start();
 			} );
 		} );
-
-		final boolean demonstrateRemove = false;
-		if ( demonstrateRemove )
-		{
-			final HDF5LabelMultisetDataSource labelSpec3 = new HDF5LabelMultisetDataSource( labelsFile, labelsDataset, cellSize, "labels2", cellCache, 2 );
-			viewer.addLabelSource( labelSpec3, labelSpec3.getAssignment(), null );
-
-			Platform.runLater( () -> {
-				final Dialog< Boolean > d = new Dialog<>();
-				final ButtonType removeType = new ButtonType( "Remove extra source", ButtonData.OK_DONE );
-				d.getDialogPane().getButtonTypes().add( removeType );
-				final Button b = ( Button ) d.getDialogPane().lookupButton( removeType );
-				d.show();
-				d.setOnHiding( event -> {
-					LOG.info( "Removing source!" );
-					viewer.baseView().requestFocus();
-					viewer.removeSource( labelSpec3 );
-				} );
-				viewer.baseView().requestFocus();
-			} );
-		}
 
 	}
 
