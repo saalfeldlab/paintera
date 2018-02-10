@@ -17,11 +17,12 @@
 package bdv.bigcat.viewer.stream;
 
 import bdv.bigcat.viewer.state.AbstractState;
-import bdv.bigcat.viewer.state.FragmentSegmentAssignment;
+import bdv.bigcat.viewer.state.FragmentSegmentAssignmentState;
 import bdv.bigcat.viewer.state.SelectedIds;
 import bdv.labels.labelset.Label;
 import gnu.trove.impl.Constants;
 import gnu.trove.map.hash.TLongIntHashMap;
+import gnu.trove.set.hash.TLongHashSet;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.SimpleBooleanProperty;
 
@@ -52,15 +53,22 @@ abstract public class AbstractHighlightingARGBStream extends AbstractState< Abst
 
 	protected final SelectedIds highlights;
 
-	protected final FragmentSegmentAssignment assignment;
+	protected final FragmentSegmentAssignmentState< ? > assignment;
 
 	private final BooleanProperty colorFromSegmentId = new SimpleBooleanProperty();
 
-	public AbstractHighlightingARGBStream( final SelectedIds highlights, final FragmentSegmentAssignment assignment )
+	private TLongHashSet activeFragments;
+
+	private TLongHashSet activeSegments;
+
+	public AbstractHighlightingARGBStream( final SelectedIds highlights, final FragmentSegmentAssignmentState< ? > assignment )
 	{
 		this.highlights = highlights;
 		this.assignment = assignment;
 		this.colorFromSegmentId.addListener( ( obs, oldv, newv ) -> stateChanged() );
+		this.assignment.addListener( this::setActiveFragmentsAndSegments );
+		this.highlights.addListener( this::setActiveFragmentsAndSegments );
+		setActiveFragmentsAndSegments();
 	}
 
 	protected TLongIntHashMap argbCache = new TLongIntHashMap(
@@ -232,4 +240,17 @@ abstract public class AbstractHighlightingARGBStream extends AbstractState< Abst
 	{
 		return this.colorFromSegmentId;
 	}
+
+	private final void setActiveFragmentsAndSegments()
+	{
+		final TLongHashSet activeFragments = new TLongHashSet( this.highlights.getActiveIds() );
+		final TLongHashSet activeSegments = new TLongHashSet();
+		activeFragments.forEach( id -> {
+			activeSegments.add( this.assignment.getSegment( id ) );
+			return true;
+		} );
+		this.activeFragments = activeFragments;
+		this.activeSegments = activeSegments;
+	}
+
 }

@@ -16,7 +16,7 @@
  */
 package bdv.bigcat.viewer.stream;
 
-import bdv.bigcat.viewer.state.FragmentSegmentAssignment;
+import bdv.bigcat.viewer.state.FragmentSegmentAssignmentState;
 import bdv.bigcat.viewer.state.SelectedIds;
 import bdv.labels.labelset.Label;
 
@@ -29,7 +29,7 @@ import bdv.labels.labelset.Label;
  */
 abstract public class AbstractSaturatedHighlightingARGBStream extends AbstractHighlightingARGBStream
 {
-	public AbstractSaturatedHighlightingARGBStream( final SelectedIds highlights, final FragmentSegmentAssignment assignment )
+	public AbstractSaturatedHighlightingARGBStream( final SelectedIds highlights, final FragmentSegmentAssignmentState< ? > assignment )
 	{
 		super( highlights, assignment );
 	}
