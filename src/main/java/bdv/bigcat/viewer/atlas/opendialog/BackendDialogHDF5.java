@@ -49,6 +49,8 @@ public class BackendDialogHDF5 extends BackendDialogGroupAndDataset implements C
 
 	private static final String AXIS_ORDER_KEY = "axisOrder";
 
+	private static final int MAX_DEFAULT_BLOCK_SIZE = 64;
+
 	private final StringBinding name = Bindings.createStringBinding( () -> {
 		final String[] entries = Optional
 				.ofNullable( dataset )
@@ -76,16 +78,16 @@ public class BackendDialogHDF5 extends BackendDialogGroupAndDataset implements C
 	{
 		final String group = groupProperty.get();
 		final String dataset = this.dataset.get();
-		LOG.warn( "Opening dataset: {}/{}", group, dataset );
+		LOG.debug( "Opening dataset: {}/{}", group, dataset );
 		final double[] resolution = Arrays.stream( resolution() ).mapToDouble( DoubleProperty::get ).toArray();
-		final N5HDF5Reader n5 = new N5HDF5Reader( group, defaultBlockSize( 64, resolution ) );
+		final N5HDF5Reader n5 = getDefaultChunksizeReader( group, dataset, defaultBlockSize( MAX_DEFAULT_BLOCK_SIZE, resolution ) );
 		// TODO optimize block size
 		// TODO do multiscale
 		final RandomAccessibleInterval< T > raw = N5Utils.openVolatile( n5, dataset );
 		final RandomAccessibleInterval< V > vraw = VolatileViews.wrapAsVolatile( raw, sharedQueue, new CacheHints( LoadingStrategy.VOLATILE, priority, true ) );
 		final AffineTransform3D transform = new AffineTransform3D();
 		final double[] offset = Arrays.stream( offset() ).mapToDouble( DoubleProperty::get ).toArray();
-		LOG.warn( "Setting resolution {} and offset {}", Arrays.toString( resolution ), Arrays.toString( offset ) );
+		LOG.debug( "Setting resolution {} and offset {}", Arrays.toString( resolution ), Arrays.toString( offset ) );
 		transform.set(
 				resolution[ 0 ], 0, 0, offset[ 0 ],
 				0, resolution[ 1 ], 0, offset[ 1 ],
@@ -187,11 +189,13 @@ public class BackendDialogHDF5 extends BackendDialogGroupAndDataset implements C
 	private static int[] defaultBlockSize( final int maxBlockSize, final double[] scales )
 	{
 		final double scaleMin = Arrays.stream( scales ).min().getAsDouble();
-		return Arrays
+		final int[] blockSize = Arrays
 				.stream( scales )
 				.map( r -> scaleMin / r )
 				.mapToInt( factor -> Math.max( ( int ) Math.round( factor * maxBlockSize ), 1 ) )
 				.toArray();
+		LOG.debug( "Setting default block size to {}", Arrays.toString( blockSize ) );
+		return blockSize;
 	}
 
 	private static final double[] revert( final double[] array )
@@ -205,6 +209,32 @@ public class BackendDialogHDF5 extends BackendDialogGroupAndDataset implements C
 		for ( int i = 0; i < array.length; ++i )
 			reverted[ i ] = array[ array.length - 1 - i ];
 		return reverted;
+	}
+
+	private static N5HDF5Reader getDefaultChunksizeReader(
+			final String group,
+			final String dataset,
+			final int[] defaultBlockSize ) throws IOException
+	{
+		final N5HDF5Reader reader = new N5HDF5Reader( group );
+		final DatasetAttributes attrs = reader.getDatasetAttributes( dataset );
+		final int[] blockSize = attrs.getBlockSize().clone();
+
+		boolean overrideBlockSize = false;
+		for ( int d = 0; d < blockSize.length; ++d )
+			if ( blockSize[ d ] > 2 * defaultBlockSize[ d ] || defaultBlockSize[ d ] > 2 * blockSize[ d ] )
+			{
+				blockSize[ d ] = defaultBlockSize[ d ];
+				overrideBlockSize = true;
+			}
+
+		if ( overrideBlockSize )
+			LOG.warn(
+					"Block size {} not optimized for viewing -- using {} instead. Consider re-chunking data.",
+					Arrays.toString( attrs.getBlockSize() ),
+					Arrays.toString( blockSize ) );
+
+		return new N5HDF5Reader( group, overrideBlockSize, blockSize );
 	}
 
 }
