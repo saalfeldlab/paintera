@@ -16,7 +16,7 @@
  */
 package bdv.bigcat.viewer.stream;
 
-import bdv.bigcat.viewer.state.FragmentSegmentAssignment;
+import bdv.bigcat.viewer.state.FragmentSegmentAssignmentState;
 import bdv.bigcat.viewer.state.SelectedIds;
 
 /**
@@ -30,7 +30,7 @@ import bdv.bigcat.viewer.state.SelectedIds;
  */
 public class GoldenAngleSaturatedHighlightingARGBStream extends AbstractSaturatedHighlightingARGBStream
 {
-	public GoldenAngleSaturatedHighlightingARGBStream( final SelectedIds highlights, final FragmentSegmentAssignment assignment )
+	public GoldenAngleSaturatedHighlightingARGBStream( final SelectedIds highlights, final FragmentSegmentAssignmentState< ? > assignment )
 	{
 		super( highlights, assignment );
 		seed = 1;
