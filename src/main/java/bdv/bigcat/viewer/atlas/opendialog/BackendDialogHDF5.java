@@ -2,19 +2,25 @@ package bdv.bigcat.viewer.atlas.opendialog;
 
 import java.io.File;
 import java.io.IOException;
+import java.lang.invoke.MethodHandles;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
+import java.util.Stack;
 import java.util.stream.DoubleStream;
 
-import bdv.img.h5.H5Utils;
+import org.janelia.saalfeldlab.n5.DatasetAttributes;
+import org.janelia.saalfeldlab.n5.N5Reader;
+import org.janelia.saalfeldlab.n5.hdf5.N5HDF5Reader;
+import org.janelia.saalfeldlab.n5.imglib2.N5Utils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import bdv.net.imglib2.util.Triple;
 import bdv.net.imglib2.util.ValueTriple;
 import bdv.util.volatiles.SharedQueue;
 import bdv.util.volatiles.VolatileViews;
-import ch.systemsx.cisd.hdf5.HDF5Factory;
-import ch.systemsx.cisd.hdf5.IHDF5Reader;
 import javafx.beans.binding.Bindings;
 import javafx.beans.binding.StringBinding;
 import javafx.beans.property.DoubleProperty;
@@ -31,6 +37,8 @@ import net.imglib2.type.NativeType;
 public class BackendDialogHDF5 extends BackendDialogGroupAndDataset implements CombinesErrorMessages
 {
 
+	private static final Logger LOG = LoggerFactory.getLogger( MethodHandles.lookup().lookupClass() );
+
 	private static final String RESOLUTION_KEY = "resolution";
 
 	private static final String OFFSET_KEY = "offset";
@@ -40,6 +48,8 @@ public class BackendDialogHDF5 extends BackendDialogGroupAndDataset implements C
 	private static final String MAX_KEY = "max";
 
 	private static final String AXIS_ORDER_KEY = "axisOrder";
+
+	private static final int MAX_DEFAULT_BLOCK_SIZE = 64;
 
 	private final StringBinding name = Bindings.createStringBinding( () -> {
 		final String[] entries = Optional
@@ -61,129 +71,98 @@ public class BackendDialogHDF5 extends BackendDialogGroupAndDataset implements C
 		} );
 	}
 
-	private static < T > boolean isLabelType( final Class< T > clazz, final boolean signed )
-	{
-		return isLabelMultisetType( clazz ) || isIntegerType( clazz, signed );
-	}
-
-	private static < T > boolean isLabelMultisetType( final Class< T > clazz )
-	{
-		return false;
-	}
-
-	private static < T > boolean isIntegerType( final Class< T > clazz, final boolean signed )
-	{
-		if ( clazz.isAssignableFrom( byte.class ) || clazz.isAssignableFrom( short.class ) || clazz.isAssignableFrom( int.class ) || clazz.isAssignableFrom( long.class ) )
-			return true;
-		return false;
-
-	}
-
-	private static < T > double minForType( final Class< T > clazz, final boolean signed )
-	{
-		// TODO ever return non-zero here?
-		return 0.0;
-	}
-
-	private static < T > double maxForType( final Class< T > clazz, final boolean signed )
-	{
-		if ( clazz.isAssignableFrom( byte.class ) )
-			return signed ? Byte.MAX_VALUE : 0xff;
-		if ( clazz.isAssignableFrom( short.class ) )
-			return signed ? Short.MAX_VALUE : 0xffff;
-		if ( clazz.isAssignableFrom( int.class ) )
-			return signed ? Integer.MAX_VALUE : 0xffffffffl;
-		if ( clazz.isAssignableFrom( long.class ) )
-			return signed ? Long.MAX_VALUE : 2.0 * Long.MAX_VALUE;
-		return 1.0;
-	}
-
 	@Override
 	public < T extends NativeType< T >, V extends Volatile< T > > Triple< RandomAccessibleInterval< T >[], RandomAccessibleInterval< V >[], AffineTransform3D[] > getDataAndVolatile(
 			final SharedQueue sharedQueue,
 			final int priority ) throws IOException
 	{
 		final String group = groupProperty.get();
-		final IHDF5Reader reader = HDF5Factory.openForReading( group );
 		final String dataset = this.dataset.get();
+		LOG.debug( "Opening dataset: {}/{}", group, dataset );
+		final double[] resolution = Arrays.stream( resolution() ).mapToDouble( DoubleProperty::get ).toArray();
+		final N5HDF5Reader n5 = getDefaultChunksizeReader( group, dataset, defaultBlockSize( MAX_DEFAULT_BLOCK_SIZE, resolution ) );
 		// TODO optimize block size
 		// TODO do multiscale
-		final RandomAccessibleInterval< T > raw = H5Utils.open( reader, dataset );
+		final RandomAccessibleInterval< T > raw = N5Utils.openVolatile( n5, dataset );
 		final RandomAccessibleInterval< V > vraw = VolatileViews.wrapAsVolatile( raw, sharedQueue, new CacheHints( LoadingStrategy.VOLATILE, priority, true ) );
 		final AffineTransform3D transform = new AffineTransform3D();
-		final double[] resolution = Arrays.stream( resolution() ).mapToDouble( DoubleProperty::get ).toArray();
 		final double[] offset = Arrays.stream( offset() ).mapToDouble( DoubleProperty::get ).toArray();
+		LOG.debug( "Setting resolution {} and offset {}", Arrays.toString( resolution ), Arrays.toString( offset ) );
 		transform.set(
 				resolution[ 0 ], 0, 0, offset[ 0 ],
-				resolution[ 1 ], 0, 0, offset[ 1 ],
-				resolution[ 2 ], 0, 0, offset[ 2 ] );
+				0, resolution[ 1 ], 0, offset[ 1 ],
+				0, 0, resolution[ 2 ], offset[ 2 ] );
 		return new ValueTriple<>( new RandomAccessibleInterval[] { raw }, new RandomAccessibleInterval[] { vraw }, new AffineTransform3D[] { transform } );
 	}
 
 	@Override
 	public boolean isLabelType() throws IOException
 	{
-		try (final IHDF5Reader reader = HDF5Factory.openForReading( groupProperty.get() ))
-		{
-			final Class< ? > dataType = reader.getDataSetInformation( dataset.get() ).getTypeInformation().tryGetJavaType();
-			final boolean signed = reader.getDataSetInformation( dataset.get() ).getTypeInformation().isSigned();
-			return isLabelType( dataType, signed );
-		}
+		final N5Reader reader = new N5HDF5Reader( groupProperty.get() );
+		final DatasetAttributes attributes = reader.getDatasetAttributes( dataset.get() );
+		return N5Helpers.isLabelType( attributes.getDataType() );
 	}
 
 	@Override
 	public boolean isLabelMultisetType() throws IOException
 	{
-		try (final IHDF5Reader reader = HDF5Factory.openForReading( groupProperty.get() ))
-		{
-			final Class< ? > dataType = reader.getDataSetInformation( dataset.get() ).getTypeInformation().tryGetJavaType();
-			return isLabelMultisetType( dataType );
-		}
+		final N5Reader reader = new N5HDF5Reader( groupProperty.get() );
+		final DatasetAttributes attributes = reader.getDatasetAttributes( dataset.get() );
+		return N5Helpers.isLabelMultisetType( attributes.getDataType() );
 	}
 
 	@Override
 	public boolean isIntegerType() throws IOException
 	{
-		try (final IHDF5Reader reader = HDF5Factory.openForReading( groupProperty.get() ))
-		{
-			final Class< ? > dataType = reader.getDataSetInformation( dataset.get() ).getTypeInformation().tryGetJavaType();
-			final boolean signed = reader.getDataSetInformation( dataset.get() ).getTypeInformation().isSigned();
-			return isIntegerType( dataType, signed );
-		}
+		final N5Reader reader = new N5HDF5Reader( groupProperty.get() );
+		final DatasetAttributes attributes = reader.getDatasetAttributes( dataset.get() );
+		return N5Helpers.isIntegerType( attributes.getDataType() );
 	}
 
 	@Override
 	public void updateDatasetInfo( final String dataset, final DatasetInfo info )
 	{
-		try (final IHDF5Reader reader = HDF5Factory.openForReading( this.groupProperty.get() ))
+		try
+		{
+			final N5Reader reader = new N5HDF5Reader( groupProperty.get() );
+			final DatasetAttributes dsAttrs = reader.getDatasetAttributes( dataset );
+			final int nDim = dsAttrs.getNumDimensions();
+
+			setResolution( Optional.ofNullable( reader.getAttribute( dataset, RESOLUTION_KEY, double[].class ) ).map( BackendDialogHDF5::revert ).orElse( DoubleStream.generate( () -> 1.0 ).limit( nDim ).toArray() ) );
+			setOffset( Optional.ofNullable( reader.getAttribute( dataset, OFFSET_KEY, double[].class ) ).orElse( new double[ nDim ] ) );
+			this.datasetInfo.minProperty().set( Optional.ofNullable( reader.getAttribute( dataset, MIN_KEY, Double.class ) ).orElse( N5Helpers.minForType( dsAttrs.getDataType() ) ) );
+			this.datasetInfo.maxProperty().set( Optional.ofNullable( reader.getAttribute( dataset, MAX_KEY, Double.class ) ).orElse( N5Helpers.maxForType( dsAttrs.getDataType() ) ) );
+
+		}
+		catch ( final IOException e )
 		{
 
-			final int nDim = reader.object().getDimensions( dataset ).length;
-
-			final Class< ? > type = reader.getDataSetInformation( dataset ).getTypeInformation().tryGetJavaType();
-			final boolean signed = reader.getDataSetInformation( dataset ).getTypeInformation().isSigned();
-
-			final boolean hasResolution = reader.object().hasAttribute( dataset, RESOLUTION_KEY );
-			final boolean hasOffset = reader.object().hasAttribute( dataset, OFFSET_KEY );
-			final boolean hasMin = reader.object().hasAttribute( dataset, MIN_KEY );
-			final boolean hasMax = reader.object().hasAttribute( dataset, MAX_KEY );
-
-			setResolution( hasResolution ? invert( reader.float64().getArrayAttr( dataset, RESOLUTION_KEY ) ) : DoubleStream.generate( () -> 1.0 ).limit( nDim ).toArray() );
-			setOffset( hasOffset ? invert( reader.float64().getArrayAttr( dataset, OFFSET_KEY ) ) : new double[ nDim ] );
-			this.datasetInfo.minProperty().set( hasMin ? reader.float64().getAttr( dataset, MIN_KEY ) : minForType( type, signed ) );
-			this.datasetInfo.maxProperty().set( hasMax ? reader.float64().getAttr( dataset, MAX_KEY ) : maxForType( type, signed ) );
 		}
-
 	}
 
 	@Override
 	public List< String > discoverDatasetAt( final String at )
 	{
-		try (IHDF5Reader reader = HDF5Factory.openForReading( new File( at ) ))
+		N5HDF5Reader reader;
+		try
 		{
-			final ArrayList< String > datasets = new ArrayList<>();
-			H5Utils.getAllDatasetPaths( reader, "/", datasets );
+			reader = new N5HDF5Reader( at );
+			final List< String > datasets = new ArrayList<>();
+			final Stack< String > candidates = new Stack<>();
+			candidates.push( "" );
+			while ( !candidates.isEmpty() )
+			{
+				final String candidate = candidates.pop();
+				if ( reader.datasetExists( candidate ) )
+					datasets.add( candidate );
+				else
+					Arrays.stream( reader.list( candidate ) ).forEach( c -> candidates.add( candidate + "/" + c ) );
+			}
 			return datasets;
+		}
+		catch ( final IOException e )
+		{
+			throw new RuntimeException( e );
 		}
 	}
 
@@ -205,6 +184,57 @@ public class BackendDialogHDF5 extends BackendDialogGroupAndDataset implements C
 	public ObservableStringValue nameProperty()
 	{
 		return this.name;
+	}
+
+	private static int[] defaultBlockSize( final int maxBlockSize, final double[] scales )
+	{
+		final double scaleMin = Arrays.stream( scales ).min().getAsDouble();
+		final int[] blockSize = Arrays
+				.stream( scales )
+				.map( r -> scaleMin / r )
+				.mapToInt( factor -> Math.max( ( int ) Math.round( factor * maxBlockSize ), 1 ) )
+				.toArray();
+		LOG.debug( "Setting default block size to {}", Arrays.toString( blockSize ) );
+		return blockSize;
+	}
+
+	private static final double[] revert( final double[] array )
+	{
+		final double[] reverted = new double[ array.length ];
+		return revert( array, reverted );
+	}
+
+	private static final double[] revert( final double[] array, final double[] reverted )
+	{
+		for ( int i = 0; i < array.length; ++i )
+			reverted[ i ] = array[ array.length - 1 - i ];
+		return reverted;
+	}
+
+	private static N5HDF5Reader getDefaultChunksizeReader(
+			final String group,
+			final String dataset,
+			final int[] defaultBlockSize ) throws IOException
+	{
+		final N5HDF5Reader reader = new N5HDF5Reader( group );
+		final DatasetAttributes attrs = reader.getDatasetAttributes( dataset );
+		final int[] blockSize = attrs.getBlockSize().clone();
+
+		boolean overrideBlockSize = false;
+		for ( int d = 0; d < blockSize.length; ++d )
+			if ( blockSize[ d ] > 2 * defaultBlockSize[ d ] || defaultBlockSize[ d ] > 2 * blockSize[ d ] )
+			{
+				blockSize[ d ] = defaultBlockSize[ d ];
+				overrideBlockSize = true;
+			}
+
+		if ( overrideBlockSize )
+			LOG.warn(
+					"Block size {} not optimized for viewing -- using {} instead. Consider re-chunking data.",
+					Arrays.toString( attrs.getBlockSize() ),
+					Arrays.toString( blockSize ) );
+
+		return new N5HDF5Reader( group, overrideBlockSize, blockSize );
 	}
 
 }
