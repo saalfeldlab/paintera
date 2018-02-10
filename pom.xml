@@ -73,7 +73,7 @@
 		<dependency>
 			<groupId>sc.fiji</groupId>
 			<artifactId>bigdataviewer-vistools</artifactId>
-			<version>1.0.0-beta-8-SNAPSHOT</version>
+			<version>1.0.0-beta-8</version>
 		</dependency>
 		<dependency>
 			<groupId>net.imagej</groupId>
