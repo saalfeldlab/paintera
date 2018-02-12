@@ -1,4 +1,4 @@
-package bdv.bigcat.viewer.viewer3d.marchingCubes;
+package bdv.bigcat.viewer.meshes.marchingcubes;
 
 import java.util.Arrays;
 import java.util.HashMap;
@@ -6,7 +6,7 @@ import java.util.HashMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import bdv.bigcat.viewer.viewer3d.util.HashWrapper;
+import bdv.bigcat.viewer.util.HashWrapper;
 import gnu.trove.list.array.TFloatArrayList;
 import net.imglib2.Cursor;
 import net.imglib2.FinalInterval;
@@ -16,6 +16,8 @@ import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.realtransform.Translation;
 import net.imglib2.type.BooleanType;
 import net.imglib2.util.Intervals;
+import net.imglib2.util.Pair;
+import net.imglib2.util.ValuePair;
 import net.imglib2.view.SubsampleIntervalView;
 import net.imglib2.view.Views;
 
@@ -116,13 +118,13 @@ public class MarchingCubes< B extends BooleanType< B > >
 			// @formatter:on
 			final int vertexValues =
 					( cursor5.next().get() ? 0b00000001 : 0 ) |
-					( cursor7.next().get() ? 0b00000010 : 0 ) |
-					( cursor3.next().get() ? 0b00000100 : 0 ) |
-					( cursor1.next().get() ? 0b00001000 : 0 ) |
-					( cursor4.next().get() ? 0b00010000 : 0 ) |
-					( cursor6.next().get() ? 0b00100000 : 0 ) |
-					( cursor2.next().get() ? 0b01000000 : 0 ) |
-					( cursor0.next().get() ? 0b10000000 : 0 );
+							( cursor7.next().get() ? 0b00000010 : 0 ) |
+							( cursor3.next().get() ? 0b00000100 : 0 ) |
+							( cursor1.next().get() ? 0b00001000 : 0 ) |
+							( cursor4.next().get() ? 0b00010000 : 0 ) |
+							( cursor6.next().get() ? 0b00100000 : 0 ) |
+							( cursor2.next().get() ? 0b01000000 : 0 ) |
+							( cursor0.next().get() ? 0b10000000 : 0 );
 
 			triangulation(
 					vertexValues,
@@ -537,5 +539,10 @@ public class MarchingCubes< B extends BooleanType< B > >
 			normals[ vertex + 1 ] = ( float ) n[ 1 ];
 			normals[ vertex + 2 ] = ( float ) n[ 2 ];
 		}
+	}
+
+	public static Pair< float[], float[] > simplify( final float[] vertices, final float[] normals ) {
+		// TODO do actual simplification
+		return new ValuePair<>( vertices, normals );
 	}
 }

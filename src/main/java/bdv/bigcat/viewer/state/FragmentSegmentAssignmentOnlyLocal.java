@@ -45,13 +45,7 @@ public class FragmentSegmentAssignmentOnlyLocal extends FragmentSegmentAssignmen
 		final long id;
 		final long segmentId = fragmentToSegmentMap.get( fragmentId );
 		if ( segmentId == fragmentToSegmentMap.getNoEntryValue() )
-		{
 			id = fragmentId;
-			fragmentToSegmentMap.put( fragmentId, id );
-			final TLongHashSet set = new TLongHashSet();
-			set.add( fragmentId );
-			segmentToFragmentsMap.put( id, set );
-		}
 		else
 			id = segmentId;
 		return id;
@@ -60,13 +54,8 @@ public class FragmentSegmentAssignmentOnlyLocal extends FragmentSegmentAssignmen
 	@Override
 	public synchronized TLongHashSet getFragments( final long segmentId )
 	{
-		if ( !segmentToFragmentsMap.contains( segmentId ) )
-		{
-			segmentToFragmentsMap.put( segmentId, new TLongHashSet( new long[] { segmentId } ) );
-			fragmentToSegmentMap.put( segmentId, segmentId );
-		}
 		final TLongHashSet fragments = segmentToFragmentsMap.get( segmentId );
-		return fragments;
+		return fragments == null ? new TLongHashSet( new long[] { segmentId } ) : fragments;
 	}
 
 	@Override
@@ -79,15 +68,20 @@ public class FragmentSegmentAssignmentOnlyLocal extends FragmentSegmentAssignmen
 		final TLongHashSet fragments2 = getFragments( assignTo );
 		final TLongHashSet fragments = new TLongHashSet();
 
+		LOG.debug( "Assigning {} from {} to {} ({}}", fragments1, assignFrom, assignTo, fragments2 );
 		fragments.addAll( fragments1 );
 		fragments.addAll( fragments2 );
 
+		LOG.debug( "Maps before: {} {}", fragmentToSegmentMap, segmentToFragmentsMap );
 		fragments1.forEach( fragmentId -> {
 			fragmentToSegmentMap.put( fragmentId, assignTo );
 			return true;
 		} );
 		segmentToFragmentsMap.put( assignTo, fragments );
 		segmentToFragmentsMap.remove( assignFrom );
+
+		LOG.debug( "Maps after: {} {}", fragmentToSegmentMap, segmentToFragmentsMap );
+
 	}
 
 	@Override
@@ -96,6 +90,7 @@ public class FragmentSegmentAssignmentOnlyLocal extends FragmentSegmentAssignmen
 		if ( segmentId1 == segmentId2 )
 			return;
 
+		LOG.debug( "Merging segments {} and {}", segmentId1, segmentId2 );
 		assignFragmentsImpl( Math.max( segmentId1, segmentId2 ), Math.min( segmentId1, segmentId2 ) );
 	}
 
@@ -129,16 +124,15 @@ public class FragmentSegmentAssignmentOnlyLocal extends FragmentSegmentAssignmen
 	@Override
 	protected void mergeFragmentsImpl( final long... fragments )
 	{
-		for ( int i = 0; i < fragments.length; ++i )
+		if ( fragments.length < 2 )
+			return;
+		final long id1 = fragments[ 0 ];
+		for ( int k = 1; k < fragments.length; ++k )
 		{
-			final long id1 = fragments[ i ];
-			for ( int k = i + 1; k < fragments.length; ++k )
-			{
-				final long id2 = fragments[ k ];
-				final long seg1 = getSegment( id1 );
-				final long seg2 = getSegment( id2 );
-				mergeSegmentsImpl( seg1, seg2 );
-			}
+			final long id2 = fragments[ k ];
+			final long seg1 = getSegment( id1 );
+			final long seg2 = getSegment( id2 );
+			mergeSegmentsImpl( seg1, seg2 );
 		}
 	}
 

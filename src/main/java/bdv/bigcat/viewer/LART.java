@@ -179,7 +179,7 @@ public class LART
 		final FragmentSegmentAssignmentWithHistory assignment = new FragmentSegmentAssignmentWithHistory( initialSolutionHashMap, actionBroadcast, solutionReceiver );
 		final LabelDataSourceFromDelegates< UnsignedLongType, VolatileUnsignedLongType > labelSpec2 = new LabelDataSourceFromDelegates<>( labelData, assignment );
 
-		viewer.addLabelSource( labelSpec2, labelSpec2.getAssignment(), v -> v.get().getIntegerLong(), null );
+		viewer.addLabelSource( labelSpec2, labelSpec2.getAssignment(), v -> v.get().getIntegerLong(), null, null, null );
 
 		initialSolutionSocket.send( "" );
 		initialSolutionSocket.recv();

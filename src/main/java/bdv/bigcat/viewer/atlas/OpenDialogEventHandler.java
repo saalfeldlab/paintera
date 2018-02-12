@@ -139,10 +139,16 @@ public class OpenDialogEventHandler implements EventHandler< Event >
 		{
 			final int[] blockSize = { 64, 64, 64 };
 			LOG.debug( "Adding canvas source with cache dir={}", cacheDir );
-			viewer.addLabelSource( Atlas.addCanvas( lsource, blockSize, cacheDir, mergeCanvasIntoBackground ), lsource.getAssignment(), dt -> dt.get().getIntegerLong(), idService );
+			viewer.addLabelSource(
+					Atlas.addCanvas( lsource, blockSize, cacheDir, mergeCanvasIntoBackground ),
+					lsource.getAssignment(),
+					dt -> dt.get().getIntegerLong(),
+					idService,
+					null,
+					null );
 		}
 		else
-			viewer.addLabelSource( lsource, lsource.getAssignment(), dt -> dt.get().getIntegerLong(), idService );
+			viewer.addLabelSource( lsource, lsource.getAssignment(), dt -> dt.get().getIntegerLong(), idService, null, null );
 	}
 
 }

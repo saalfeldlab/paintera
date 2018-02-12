@@ -1,4 +1,4 @@
-package bdv.bigcat.viewer.atlas.source;
+package bdv.bigcat.viewer.atlas.ui;
 
 import javafx.beans.property.DoubleProperty;
 import javafx.beans.property.SimpleDoubleProperty;

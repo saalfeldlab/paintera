@@ -5,16 +5,12 @@ import java.util.Optional;
 import java.util.function.Consumer;
 import java.util.function.LongUnaryOperator;
 
-import bdv.bigcat.viewer.atlas.mode.Mode;
 import bdv.bigcat.viewer.atlas.source.SourceInfo;
 import bdv.bigcat.viewer.bdvfx.KeyTracker;
 import bdv.bigcat.viewer.bdvfx.ViewerPanelFX;
 import bdv.bigcat.viewer.stream.ARGBStream;
 import bdv.bigcat.viewer.stream.AbstractHighlightingARGBStream;
 import bdv.viewer.Source;
-import javafx.beans.property.ObjectProperty;
-import javafx.beans.property.SimpleObjectProperty;
-import javafx.beans.value.ObservableValue;
 import javafx.event.EventHandler;
 import javafx.scene.control.ButtonType;
 import javafx.scene.control.Dialog;
@@ -31,14 +27,11 @@ public class ARGBStreamSeedSetter
 
 	private final KeyTracker keyTracker;
 
-	private final ObjectProperty< Mode > currentMode = new SimpleObjectProperty<>( null );
-
-	public ARGBStreamSeedSetter( final SourceInfo sourceInfo, final KeyTracker keyTracker, final ObservableValue< Mode > currentMode )
+	public ARGBStreamSeedSetter( final SourceInfo sourceInfo, final KeyTracker keyTracker )
 	{
 		super();
 		this.sourceInfo = sourceInfo;
 		this.keyTracker = keyTracker;
-		this.currentMode.bind( currentMode );
 	}
 
 	public Consumer< ViewerPanelFX > onEnter()
@@ -50,7 +43,7 @@ public class ARGBStreamSeedSetter
 					final Source< ? > source = sourceInfo.currentSourceProperty().get();
 					if ( source != null && sourceInfo.getState( source ).visibleProperty().get() )
 					{
-						final Optional< ARGBStream > currentStream = sourceInfo.stream( source, currentMode.get() );
+						final Optional< ARGBStream > currentStream = Optional.ofNullable( sourceInfo.getState( source ).streamProperty().get() );
 						if ( keyTracker.areOnlyTheseKeysDown( KeyCode.C ) )
 						{
 							changeStream( currentStream, seed -> seed + 1, sourceInfo, source );
@@ -96,17 +89,13 @@ public class ARGBStreamSeedSetter
 	{
 		if ( currentStream.isPresent() && currentStream.get() instanceof AbstractHighlightingARGBStream )
 		{
-			final long seed = ( ( AbstractHighlightingARGBStream ) currentStream.get() ).getSeed();
+			final AbstractHighlightingARGBStream stream = ( AbstractHighlightingARGBStream ) currentStream.get();
+			final long seed = stream.getSeed();
 			final long currentSeed = seedUpdate.applyAsLong( seed );
 			if ( currentSeed != seed )
 			{
-				sourceInfo.forEachStream( source, stream -> {
-					if ( stream instanceof AbstractHighlightingARGBStream )
-					{
-						( ( AbstractHighlightingARGBStream ) stream ).setSeed( currentSeed );
-						( ( AbstractHighlightingARGBStream ) stream ).clearCache();
-					}
-				} );
+				stream.setSeed( currentSeed );;
+				stream.clearCache();
 				return true;
 			}
 		}

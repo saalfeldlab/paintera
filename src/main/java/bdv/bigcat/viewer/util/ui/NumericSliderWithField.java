@@ -1,5 +1,6 @@
-package bdv.bigcat.viewer.atlas.source;
+package bdv.bigcat.viewer.util.ui;
 
+import bdv.bigcat.viewer.atlas.ui.DoubleStringFormatter;
 import javafx.scene.control.Slider;
 import javafx.scene.control.TextField;
 import javafx.scene.control.TextFormatter;
@@ -12,13 +13,27 @@ public class NumericSliderWithField
 	private final TextField field;
 
 	public NumericSliderWithField(
-			final double min, final double max, final double initialValue )
+			final int min,
+			final int max,
+			final int initialValue )
 	{
-		this( min, max, initialValue, 2 );
+		this( min, max, initialValue, 0, true );
 	}
 
 	public NumericSliderWithField(
-			final double min, final double max, final double initialValue, final int numDecimals )
+			final double min,
+			final double max,
+			final double initialValue )
+	{
+		this( min, max, initialValue, 2, false );
+	}
+
+	public NumericSliderWithField(
+			final double min,
+			final double max,
+			final double initialValue,
+			final int numDecimals,
+			final boolean isInteger )
 	{
 
 		assert initialValue >= min;
@@ -37,7 +52,8 @@ public class NumericSliderWithField
 		this.field.setTextFormatter( formatter );
 		formatter.valueProperty().addListener( ( obs, oldv, newv ) -> this.slider.setValue( newv ) );
 		this.slider.valueProperty().addListener( ( obs, oldv, newv ) -> formatter.setValue( newv.doubleValue() ) );
-//		this.field.textProperty().bindBidirectional( slider.valueProperty(), new NumberStringConverter() );
+		if ( isInteger )
+			this.slider.valueProperty().addListener( ( obs, oldv, newv ) -> this.slider.setValue( Math.round( newv.doubleValue() ) ) );
 
 	}
 
