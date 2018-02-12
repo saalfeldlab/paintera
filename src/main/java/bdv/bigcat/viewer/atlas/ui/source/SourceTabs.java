@@ -72,7 +72,7 @@ public class SourceTabs implements Supplier< Node >
 		this.info.trackSources().addListener( ( ListChangeListener< Source< ? > > ) change -> {
 			final ArrayList< Source< ? > > copy = new ArrayList<>( this.info.trackSources() );
 			LOG.debug( "Current sources: {}", copy );
-			final List< StatePane > show = copy.stream().map( source -> Maps.getOrDefault( statePaneCache, source, () -> new StatePane(
+			final List< StatePane > show = copy.stream().map( source -> Maps.getOrDefaultFromSupplier( statePaneCache, source, () -> new StatePane(
 					info.getState( source ),
 					info,
 					s -> removeDialog( remove, s ),
