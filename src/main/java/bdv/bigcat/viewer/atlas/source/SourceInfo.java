@@ -1,12 +1,9 @@
 package bdv.bigcat.viewer.atlas.source;
 
 import java.util.ArrayList;
-import java.util.HashMap;
+import java.util.Arrays;
 import java.util.List;
-import java.util.Map;
-import java.util.Map.Entry;
 import java.util.Optional;
-import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -14,7 +11,6 @@ import bdv.bigcat.composite.Composite;
 import bdv.bigcat.viewer.ARGBColorConverter;
 import bdv.bigcat.viewer.ToIdConverter;
 import bdv.bigcat.viewer.atlas.data.DataSource;
-import bdv.bigcat.viewer.atlas.mode.Mode;
 import bdv.bigcat.viewer.atlas.source.AtlasSourceState.TYPE;
 import bdv.bigcat.viewer.state.FragmentSegmentAssignmentState;
 import bdv.bigcat.viewer.state.SelectedIds;
@@ -22,14 +18,17 @@ import bdv.bigcat.viewer.stream.ARGBStream;
 import bdv.viewer.Source;
 import bdv.viewer.SourceAndConverter;
 import javafx.beans.binding.Bindings;
+import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.IntegerProperty;
 import javafx.beans.property.ObjectProperty;
+import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleIntegerProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.value.ObservableBooleanValue;
 import javafx.beans.value.ObservableIntegerValue;
 import javafx.collections.FXCollections;
 import javafx.collections.ListChangeListener;
+import javafx.collections.MapChangeListener;
 import javafx.collections.ObservableList;
 import javafx.collections.ObservableMap;
 import net.imglib2.converter.Converter;
@@ -80,7 +79,24 @@ public class SourceInfo
 
 	private final ObservableMap< Source< ? >, Composite< ARGBType, ARGBType > > compositesReadOnly = FXCollections.unmodifiableObservableMap( composites );
 
-	public < D extends Type< D >, T extends RealType< T > > AtlasSourceState< T, D > addRawSource(
+	private final ObservableList< Source< ? > > removedSources = FXCollections.observableArrayList();
+
+	private final ObservableList< Source< ? > > unmodifiableRemovedSources = FXCollections.unmodifiableObservableList( removedSources );
+	{
+		removedSources.addListener( ( ListChangeListener< Source< ? > > ) change -> removedSources.clear() );
+	}
+
+	private final BooleanProperty anyStateChanged = new SimpleBooleanProperty();
+	{
+		this.states.addListener( ( MapChangeListener< Source< ? >, AtlasSourceState< ?, ? > > ) change -> {
+			anyStateChanged.unbind();
+			anyStateChanged.set( true );
+			final BooleanProperty[] stateChanged = this.states.values().stream().map( AtlasSourceState::stateChanged ).toArray( BooleanProperty[]::new );
+			anyStateChanged.bind( Bindings.createBooleanBinding( () -> ( Arrays.stream( stateChanged ).filter( abc -> abc.get() ).count() > 0 ), stateChanged ) );
+		} );
+	}
+
+	public < D extends Type< D >, T extends RealType< T > > AtlasSourceState< T, D > makeRawSourceState(
 			final DataSource< D, T > source,
 			final double min,
 			final double max,
@@ -90,7 +106,37 @@ public class SourceInfo
 		final ARGBColorConverter< T > converter = new ARGBColorConverter.InvertingImp1<>( min, max );
 		converter.colorProperty().set( color );
 		final AtlasSourceState< T, D > state = new AtlasSourceState<>( source, converter, composite, AtlasSourceState.TYPE.RAW );
+		return state;
+	}
+
+	public < D extends Type< D >, T extends RealType< T > > AtlasSourceState< T, D > addRawSource(
+			final DataSource< D, T > source,
+			final double min,
+			final double max,
+			final ARGBType color,
+			final Composite< ARGBType, ARGBType > composite )
+	{
+		final AtlasSourceState< T, D > state = makeRawSourceState( source, min, max, color, composite );
 		addState( source, state );
+		return state;
+	}
+
+	public < D extends Type< D >, T extends Type< T >, F extends FragmentSegmentAssignmentState< F > > AtlasSourceState< T, D > makeLabelSourceState(
+			final DataSource< D, T > source,
+			final ToIdConverter idConverter,
+			final Function< D, Converter< D, BoolType > > toBoolConverter,
+			final F frag,
+			final ARGBStream stream,
+			final SelectedIds selectedIds,
+			final Converter< T, ARGBType > converter,
+			final Composite< ARGBType, ARGBType > composite )
+	{
+		final AtlasSourceState< T, D > state = new AtlasSourceState<>( source, converter, composite, TYPE.LABEL );
+		state.toIdConverterProperty().set( idConverter );
+		state.maskGeneratorProperty().set( toBoolConverter );
+		state.assignmentProperty().set( frag );
+		state.streamProperty().set( stream );
+		state.selectedIdsProperty().set( selectedIds );
 		return state;
 	}
 
@@ -99,24 +145,17 @@ public class SourceInfo
 			final ToIdConverter idConverter,
 			final Function< D, Converter< D, BoolType > > toBoolConverter,
 			final F frag,
-			final HashMap< Mode, ARGBStream > stream,
-			final HashMap< Mode, SelectedIds > selectedId,
+			final ARGBStream stream,
+			final SelectedIds selectedIds,
 			final Converter< T, ARGBType > converter,
 			final Composite< ARGBType, ARGBType > composite )
 	{
-		final AtlasSourceState< T, D > state = new AtlasSourceState<>( source, converter, composite, TYPE.LABEL );
-		state.toIdConverterProperty().set( idConverter );
-		state.maskGeneratorProperty().set( toBoolConverter );
-		state.assignmentProperty().set( frag );
-		state.streams().clear();
-		state.streams().putAll( stream );
-		state.selectedIds().clear();
-		state.selectedIds().putAll( selectedId );
+		final AtlasSourceState< T, D > state = makeLabelSourceState( source, idConverter, toBoolConverter, frag, stream, selectedIds, converter, composite );
 		addState( source, state );
 		return state;
 	}
 
-	private synchronized < D extends Type< D >, T extends Type< T > > void addState( final Source< T > source, final AtlasSourceState< T, D > state )
+	public synchronized < D extends Type< D >, T extends Type< T > > void addState( final Source< T > source, final AtlasSourceState< T, D > state )
 	{
 		this.states.put( source, state );
 		// composites needs to hold a valid (!=null) value for source whenever
@@ -138,27 +177,7 @@ public class SourceInfo
 		this.sources.remove( source );
 		this.currentSource.set( this.sources.size() == 0 ? null : this.sources.get( Math.max( currentSourceIndex - 1, 0 ) ) );
 		this.composites.remove( source );
-	}
-
-	public synchronized void addMode( final Mode mode, final Function< Source< ? >, Optional< ARGBStream > > makeStream, final Function< Source< ? >, Optional< SelectedIds > > makeSelection )
-	{
-		for ( final Entry< Source< ? >, AtlasSourceState< ?, ? > > sourceAndState : states.entrySet() )
-		{
-			final AtlasSourceState< ?, ? > state = sourceAndState.getValue();
-			if ( state.typeProperty().get().equals( TYPE.LABEL ) )
-			{
-				if ( state.streams() != null )
-					makeStream.apply( sourceAndState.getKey() ).ifPresent( s -> state.streams().put( mode, s ) );
-				if ( state.selectedIds() != null )
-					makeSelection.apply( sourceAndState.getKey() ).ifPresent( s -> state.selectedIds().put( mode, s ) );
-			}
-		}
-	}
-
-	public synchronized void removeMode( final Mode mode )
-	{
-		this.states.values().stream().map( s -> s.streams() ).filter( s -> s != null ).forEach( s -> s.remove( mode ) );
-		this.states.values().stream().map( s -> s.selectedIds() ).filter( s -> s != null ).forEach( s -> s.remove( mode ) );
+		this.removedSources.add( source );
 	}
 
 	public synchronized Optional< ToIdConverter > toIdConverter( final Source< ? > source )
@@ -178,27 +197,6 @@ public class SourceInfo
 	{
 		final AtlasSourceState< ?, ? > state = states.get( source );
 		return state != null ? Optional.ofNullable( state.assignmentProperty().get() ) : Optional.empty();
-	}
-
-	public synchronized Optional< ARGBStream > stream( final Source< ? > source, final Mode mode )
-	{
-		final AtlasSourceState< ?, ? > state = states.get( source );
-		return state == null ? Optional.empty() : Optional.ofNullable( state.streams().get( mode ) );
-	}
-
-	public synchronized Optional< SelectedIds > selectedIds( final Source< ? > source, final Mode mode )
-	{
-		final AtlasSourceState< ?, ? > state = states.get( source );
-		return state == null ? Optional.empty() : Optional.ofNullable( state.selectedIds().get( mode ) );
-	}
-
-	public synchronized void forEachStream( final Source< ? > source, final Consumer< ARGBStream > actor )
-	{
-		Optional
-				.ofNullable( states.get( source ) )
-				.map( s -> s.streams() )
-				.filter( s -> s != null )
-				.map( Map::values ).orElseGet( () -> new ArrayList<>() ).stream().forEach( actor );
 	}
 
 	public int numSources()
@@ -318,6 +316,16 @@ public class SourceInfo
 	public ObservableMap< Source< ? >, Composite< ARGBType, ARGBType > > composites()
 	{
 		return this.compositesReadOnly;
+	}
+
+	public ObservableList< Source< ? > > removedSourcesTracker()
+	{
+		return this.removedSources;
+	}
+
+	public ObservableBooleanValue anyStateChanged()
+	{
+		return this.anyStateChanged;
 	}
 
 }

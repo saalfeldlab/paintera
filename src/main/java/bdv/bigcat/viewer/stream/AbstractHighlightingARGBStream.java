@@ -16,6 +16,11 @@
  */
 package bdv.bigcat.viewer.stream;
 
+import java.lang.invoke.MethodHandles;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import bdv.bigcat.viewer.state.AbstractState;
 import bdv.bigcat.viewer.state.FragmentSegmentAssignmentState;
 import bdv.bigcat.viewer.state.SelectedIds;
@@ -29,10 +34,15 @@ import javafx.beans.property.SimpleBooleanProperty;
 /**
  * Generates and caches a stream of colors.
  *
- * @author Stephan Saalfeld &lt;saalfelds@janelia.hhmi.org&gt;
+ * @author Stephan Saalfeld
+ * @author Philipp Hanslovsky
+ *
  */
-abstract public class AbstractHighlightingARGBStream extends AbstractState< AbstractHighlightingARGBStream > implements ARGBStream
+public abstract class AbstractHighlightingARGBStream extends AbstractState< AbstractHighlightingARGBStream > implements ARGBStream
 {
+
+	private static final Logger LOG = LoggerFactory.getLogger( MethodHandles.lookup().lookupClass() );
+
 	final static protected double[] rs = new double[] { 1, 1, 0, 0, 0, 1, 1 };
 
 	final static protected double[] gs = new double[] { 0, 1, 1, 1, 0, 0, 0 };
@@ -222,7 +232,9 @@ abstract public class AbstractHighlightingARGBStream extends AbstractState< Abst
 
 	public void clearCache()
 	{
+		LOG.debug( "Before clearing cache: {}", argbCache );
 		argbCache.clear();
+		LOG.debug( "After clearing cache: {}", argbCache );
 		stateChanged();
 	}
 

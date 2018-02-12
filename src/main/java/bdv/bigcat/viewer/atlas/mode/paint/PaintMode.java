@@ -88,7 +88,7 @@ public class PaintMode extends AbstractStateMode
 					paint.brushRadiusIncrementProperty().bindBidirectional( this.brushRadiusIncrement );
 					final ObjectProperty< Source< ? > > currentSource = sourceInfo.currentSourceProperty();
 					final ObjectBinding< SelectedIds > currentSelectedIds = Bindings.createObjectBinding(
-							() -> sourceInfo.getState( currentSource.get() ).selectedIds().get( this ),
+							() -> sourceInfo.getState( currentSource.get() ).selectedIdsProperty().get(),
 							currentSource );
 
 					final Supplier< Long > paintSelection = () -> {
@@ -131,7 +131,7 @@ public class PaintMode extends AbstractStateMode
 //					iars.add( EventFX.MOUSE_PRESSED( "paint click", event -> paint.paint( event, 100 ), event -> event.isPrimaryButtonDown() && keyTracker.areOnlyTheseKeysDown( KeyCode.SPACE ) ) );
 //					iars.add( EventFX.MOUSE_PRESSED( "paint erase", event -> paint.paint( event, Label.INVALID ), event -> event.isSecondaryButtonDown() && keyTracker.areOnlyTheseKeysDown( KeyCode.SPACE ) ) );
 
-					final SelectNextId nextId = new SelectNextId( sourceInfo, this );
+					final SelectNextId nextId = new SelectNextId( sourceInfo );
 					iars.add( EventFX.KEY_PRESSED( "next id", event -> nextId.getNextId(), event -> keyTracker.areOnlyTheseKeysDown( KeyCode.N ) ) );
 
 					iars.add( EventFX.KEY_PRESSED( "merge canvas", event -> {

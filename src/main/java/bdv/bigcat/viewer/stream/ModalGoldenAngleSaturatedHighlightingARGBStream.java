@@ -48,7 +48,7 @@ public class ModalGoldenAngleSaturatedHighlightingARGBStream extends GoldenAngle
 	{
 
 		final boolean isActiveSegment = isActiveSegment( fragmentId );
-		final long assigned = colorFromSegmentId || !isActiveSegment ? assignment.getSegment( fragmentId ) : fragmentId;
+		final long assigned = colorFromSegmentId ? assignment.getSegment( fragmentId ) : fragmentId;
 
 		if ( !argbCache.contains( assigned ) )
 		{

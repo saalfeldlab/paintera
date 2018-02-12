@@ -1,4 +1,4 @@
-package bdv.bigcat.viewer.viewer3d.marchingCubes;
+package bdv.bigcat.viewer.meshes.marchingcubes;
 
 /**
  * Lookup tables used in the construction of the isosurface.

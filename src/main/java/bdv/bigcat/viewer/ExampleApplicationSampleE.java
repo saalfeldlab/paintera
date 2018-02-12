@@ -88,8 +88,6 @@ public class ExampleApplicationSampleE
 
 		final Atlas viewer = new Atlas( sharedQueue );
 
-
-
 		final CountDownLatch latch = new CountDownLatch( 3 );
 		Platform.runLater( () -> {
 			final Stage stage = new Stage();
@@ -105,7 +103,7 @@ public class ExampleApplicationSampleE
 			viewer.addRawSource( rawSource, 0., ( 1 << 8 ) - 1. );
 			latch.countDown();
 
-			viewer.addLabelSource( labelSource, labelSource.getAssignment(), v -> v.get().getIntegerLong(), idService );
+			viewer.addLabelSource( labelSource, labelSource.getAssignment(), v -> v.get().getIntegerLong(), idService, null, null );
 			latch.countDown();
 
 			stage.show();

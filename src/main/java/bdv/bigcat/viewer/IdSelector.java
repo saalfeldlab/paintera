@@ -4,8 +4,6 @@ import java.lang.invoke.MethodHandles;
 import java.util.Arrays;
 import java.util.Optional;
 import java.util.function.Consumer;
-import java.util.function.Function;
-import java.util.function.LongBinaryOperator;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
@@ -13,13 +11,11 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import bdv.bigcat.viewer.atlas.data.DataSource;
-import bdv.bigcat.viewer.atlas.mode.HandleMultipleIds;
 import bdv.bigcat.viewer.atlas.mode.Mode;
 import bdv.bigcat.viewer.atlas.source.SourceInfo;
 import bdv.bigcat.viewer.bdvfx.InstallAndRemove;
 import bdv.bigcat.viewer.bdvfx.MouseClickFX;
 import bdv.bigcat.viewer.bdvfx.ViewerPanelFX;
-import bdv.bigcat.viewer.state.FragmentSegmentAssignment;
 import bdv.bigcat.viewer.state.FragmentSegmentAssignmentState;
 import bdv.bigcat.viewer.state.SelectedIds;
 import bdv.labels.labelset.Label;
@@ -32,7 +28,6 @@ import javafx.scene.Node;
 import javafx.scene.input.MouseEvent;
 import net.imglib2.Cursor;
 import net.imglib2.FinalInterval;
-import net.imglib2.RandomAccess;
 import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.RealRandomAccess;
 import net.imglib2.RealRandomAccessible;
@@ -65,32 +60,10 @@ public class IdSelector
 		this.mode = mode;
 	}
 
-	public InstallAndRemove< Node > selectSingle( final String name, final HandleMultipleIds handleMultipleEntries, @SuppressWarnings( "unchecked" ) final Predicate< MouseEvent >... eventFilter )
-	{
-		final SelectSingle selectSingle = new SelectSingle( handleMultipleEntries );
-		return new MouseClickFX( name, selectSingle::click, eventFilter );
-	}
-
-	public InstallAndRemove< Node > append( final String name, final HandleMultipleIds handleMultipleEntries, @SuppressWarnings( "unchecked" ) final Predicate< MouseEvent >... eventFilter )
-	{
-		final Append append = new Append( handleMultipleEntries );
-		return new MouseClickFX( name, append::click, eventFilter );
-	}
-
 	public InstallAndRemove< Node > selectFragmentWithMaximumCount( final String name, @SuppressWarnings( "unchecked" ) final Predicate< MouseEvent >... eventFilter )
 	{
 		final SelectFragmentWithMaximumCount selectFragment = new SelectFragmentWithMaximumCount();
 		return new MouseClickFX( name, selectFragment::click, eventFilter );
-	}
-
-	public InstallAndRemove< Node > selectFragmentWithMaximumCount( final String name, final Consumer< MouseEvent > otherAction, @SuppressWarnings( "unchecked" ) final Predicate< MouseEvent >... eventFilter )
-	{
-		final SelectFragmentWithMaximumCount selectFragment = new SelectFragmentWithMaximumCount();
-		final Consumer< MouseEvent > handler = event -> {
-			selectFragment.click( event );
-			otherAction.accept( event );
-		};
-		return new MouseClickFX( name, handler, eventFilter );
 	}
 
 	public InstallAndRemove< Node > appendFragmentWithMaximumCount( final String name, @SuppressWarnings( "unchecked" ) final Predicate< MouseEvent >... eventFilter )
@@ -99,26 +72,11 @@ public class IdSelector
 		return new MouseClickFX( name, appendFragment::click, eventFilter );
 	}
 
-	public InstallAndRemove< Node > appendFragmentWithMaximumCount( final String name, final Consumer< MouseEvent > otherAction, @SuppressWarnings( "unchecked" ) final Predicate< MouseEvent >... eventFilter )
-	{
-		final AppendFragmentWithMaximumCount appendFragment = new AppendFragmentWithMaximumCount();
-		final Consumer< MouseEvent > handler = event -> {
-			appendFragment.click( event );
-			otherAction.accept( event );
-		};
-		return new MouseClickFX( name, handler, eventFilter );
-	}
-
 	public InstallAndRemove< Node > merge( final String name, @SuppressWarnings( "unchecked" ) final Predicate< MouseEvent >... eventFilter )
 	{
 		final MergeFragments merge = new MergeFragments();
 		return new MouseClickFX( name, merge::click, eventFilter );
 	}
-
-//	public MergeSegments merge( final HashMap< Source< ? >, ? extends FragmentSegmentAssignment > assignments )
-//	{
-//		return new MergeSegments( assignments );
-//	}
 
 	public InstallAndRemove< Node > detach( final String name, @SuppressWarnings( "unchecked" ) final Predicate< MouseEvent >... eventFilter )
 	{
@@ -132,55 +90,19 @@ public class IdSelector
 		return new MouseClickFX( name, confirmSelection::click, eventFilter );
 	}
 
-	private abstract class Select
-	{
-
-		public void click( final MouseEvent e )
-		{
-			final Optional< Source< ? > > optionalSource = getSource();
-			if ( !optionalSource.isPresent() )
-				return;
-			final Source< ? > source = optionalSource.get();
-			if ( source instanceof DataSource< ?, ? > )
-			{
-				final DataSource< ?, ? > dataSource = ( DataSource< ?, ? > ) source;
-				final Optional< SelectedIds > selectedIds = sourceInfo.selectedIds( source, mode );
-				final Optional< ToIdConverter > toIdConverter = sourceInfo.toIdConverter( source );
-				if ( selectedIds.isPresent() && toIdConverter.isPresent() )
-					synchronized ( viewer )
-					{
-						final AffineTransform3D affine = new AffineTransform3D();
-						final ViewerState state = viewer.getState();
-						state.getViewerTransform( affine );
-						final int level = state.getBestMipMapLevel( affine, getIndexOf( source, state ) );
-						dataSource.getSourceTransform( 0, level, affine );
-						final RealTransformRealRandomAccessible< ?, InverseRealTransform >.RealTransformRealRandomAccess access = RealViews.transformReal( dataSource.getInterpolatedDataSource( 0, level, Interpolation.NEARESTNEIGHBOR ), affine ).realRandomAccess();
-						viewer.getMouseCoordinates( access );
-						access.setPosition( 0l, 2 );
-						viewer.displayToGlobalCoordinates( access );
-						final Object val = access.get();
-						final long[] id = toIdConverter.get().allIds( val );
-						actOn( id, selectedIds.get() );
-					}
-			}
-		}
-
-		protected abstract void actOn( final long[] id, SelectedIds selectedIds );
-	}
-
 	private abstract class SelectMaximumCount
 	{
 
 		public void click( final MouseEvent e )
 		{
-			final Optional< Source< ? > > optionalSource = getSource();
+			final Optional< Source< ? > > optionalSource = getCurrentSource();
 			if ( !optionalSource.isPresent() )
 				return;
 			final Source< ? > source = optionalSource.get();
 			if ( source instanceof DataSource< ?, ? > )
 			{
 				final DataSource< ?, ? > dataSource = ( DataSource< ?, ? > ) source;
-				final Optional< SelectedIds > selectedIds = sourceInfo.selectedIds( source, mode );
+				final Optional< SelectedIds > selectedIds = Optional.ofNullable( sourceInfo.getState( source ).selectedIdsProperty().get() );
 				final Optional< ToIdConverter > toIdConverter = sourceInfo.toIdConverter( source );
 				if ( selectedIds.isPresent() && toIdConverter.isPresent() )
 					synchronized ( viewer )
@@ -202,50 +124,6 @@ public class IdSelector
 		}
 
 		protected abstract void actOn( final long id, SelectedIds selectedIds );
-	}
-
-	private class SelectSingle extends Select
-	{
-
-		private final HandleMultipleIds handleMultipleEntries;
-
-		public SelectSingle( final HandleMultipleIds handleMultipleEntries )
-		{
-			this.handleMultipleEntries = handleMultipleEntries;
-		}
-
-		@Override
-		protected void actOn( final long[] ids, final SelectedIds selectedIds )
-		{
-			switch ( ids.length )
-			{
-			case 0:
-				return;
-			case 1:
-				final long id = ids[ 0 ];
-				if ( selectedIds.isOnlyActiveId( id ) )
-					selectedIds.deactivate( id );
-				else
-					selectedIds.activate( id );
-				break;
-			default:
-				final boolean[] isActive = new boolean[ ids.length ];
-				final boolean requiresAction = handleMultipleEntries.handle( ids, selectedIds, isActive );
-				if ( requiresAction )
-				{
-					selectedIds.deactivateAll();
-					for ( int i = 0; i < ids.length; ++i )
-					{
-						LOG.debug( "ACTIVATE? {} {}", isActive[ i ], ids[ i ] );
-						if ( isActive[ i ] )
-							selectedIds.activateAlso( ids[ i ] );
-						else
-							selectedIds.deactivate( ids[ i ] );
-					}
-				}
-				break;
-			}
-		}
 	}
 
 	private class SelectFragmentWithMaximumCount extends SelectMaximumCount
@@ -276,202 +154,19 @@ public class IdSelector
 		}
 	}
 
-	private class Append extends Select
-	{
-
-		private final HandleMultipleIds handleMultipleEntries;
-
-		public Append( final HandleMultipleIds handleMultipleEntries )
-		{
-			this.handleMultipleEntries = handleMultipleEntries;
-		}
-
-		@Override
-		protected void actOn( final long[] ids, final SelectedIds selectedIds )
-		{
-			switch ( ids.length )
-			{
-			case 0:
-				return;
-			case 1:
-				final long id = ids[ 0 ];
-				if ( selectedIds.isActive( id ) )
-					selectedIds.deactivate( id );
-				else
-					selectedIds.activateAlso( id );
-				break;
-			default:
-				final boolean[] isActive = new boolean[ ids.length ];
-				final boolean requiresAction = handleMultipleEntries.handle( ids, selectedIds, isActive );
-				if ( requiresAction )
-					for ( int i = 0; i < ids.length; ++i )
-						if ( isActive[ i ] )
-							selectedIds.activateAlso( ids[ i ] );
-						else
-							selectedIds.deactivate( ids[ i ] );
-				break;
-			}
-		}
-
-	}
-
-	private class MergeSegments
-	{
-
-		public void click( final int x, final int y )
-		{
-			final Optional< Source< ? > > optionalSource = getSource();
-			if ( !optionalSource.isPresent() )
-				return;
-			final Source< ? > source = optionalSource.get();
-			if ( source instanceof DataSource< ?, ? > )
-			{
-				final DataSource< ?, ? > dataSource = ( DataSource< ?, ? > ) source;
-				final Optional< SelectedIds > selectedIds = sourceInfo.selectedIds( source, mode );
-				final Optional< ToIdConverter > toIdConverter = sourceInfo.toIdConverter( source );
-				final Optional< ? extends FragmentSegmentAssignmentState< ? > > assignmentOptional = sourceInfo.assignment( source );
-				if ( toIdConverter.isPresent() && selectedIds.isPresent() && assignmentOptional.isPresent() )
-					synchronized ( viewer )
-					{
-						final FragmentSegmentAssignmentState< ? > assignment = assignmentOptional.get();
-						final long[] selIds = selectedIds.get().getActiveIds();
-
-						if ( selIds.length < 1 )
-							return;
-
-						final long selectedId = assignment.getSegment( selIds[ 0 ] );
-
-						for ( int i = 1; i < selIds.length; ++i )
-							if ( assignment.getSegment( selIds[ i ] ) != selectedId )
-							{
-								LOG.warn( "Ambiguity: Selected multiple active segments -- will not apply merge!" );
-								return;
-							}
-
-						final AffineTransform3D viewerTransform = new AffineTransform3D();
-						final AffineTransform3D affine = new AffineTransform3D();
-						final ViewerState state = viewer.getState();
-						state.getViewerTransform( viewerTransform );
-						final int level = state.getBestMipMapLevel( viewerTransform, getIndexOf( source, state ) );
-						dataSource.getSourceTransform( 0, level, affine );
-						final RealRandomAccessible< ? > interpolatedSource = dataSource.getInterpolatedDataSource( 0, level, Interpolation.NEARESTNEIGHBOR );
-						final RealTransformRealRandomAccessible< ?, InverseRealTransform > transformedSource = RealViews.transformReal( interpolatedSource, affine );
-						final RealRandomAccess< ? > access = transformedSource.realRandomAccess();
-						viewer.getMouseCoordinates( access );
-						access.setPosition( 0l, 2 );
-						viewer.displayToGlobalCoordinates( access );
-						final Object val = access.get();
-						final long[] ids = toIdConverter.get().allIds( val );
-
-						final TLongHashSet segments = new TLongHashSet();
-						Arrays.stream( ids ).map( id -> assignment.getSegment( id ) ).forEach( segments::add );
-						Arrays.stream( selIds ).map( id -> assignment.getSegment( id ) ).forEach( segments::add );
-
-						final int w = ( int ) viewer.getWidth();
-						final int h = ( int ) viewer.getHeight();
-						final IntervalView< ? > screenLabels =
-								Views.interval(
-										Views.hyperSlice(
-												RealViews.affine( transformedSource, viewerTransform ), 2, 0 ),
-										new FinalInterval( w - 1, h - 1 ) );
-
-						final Cursor< ? > cursor = screenLabels.cursor();
-						final RandomAccess< ? > ra1 = screenLabels.randomAccess();
-						final RandomAccess< ? > ra2 = screenLabels.randomAccess();
-
-						final TLongHashSet fragments = new TLongHashSet();
-
-						final double[] min = new double[] { 0, 0, 0 };
-						final double[] max = new double[] { w - 1, h - 1, 0 };
-						viewerTransform.applyInverse( min, min );
-						viewerTransform.applyInverse( max, max );
-
-						while ( cursor.hasNext() )
-						{
-							cursor.fwd();
-							ra1.setPosition( cursor );
-							ra2.setPosition( cursor );
-							ra1.fwd( 0 );
-							ra2.fwd( 1 );
-
-							final long[] ids1 = toIdConverter.get().allIds( cursor.get() );
-							final long[] ids2 = toIdConverter.get().allIds( ra1.get() );
-							final long[] ids3 = toIdConverter.get().allIds( ra2.get() );
-
-							for ( final long id1 : ids1 )
-							{
-								final long s1 = assignment.getSegment( id1 );
-								if ( !segments.contains( s1 ) )
-									continue;
-
-								for ( final long id2 : ids2 )
-								{
-									final long s2 = assignment.getSegment( id2 );
-									if ( !segments.contains( s2 ) || s1 == s2 )
-										continue;
-									fragments.add( id1 );
-									fragments.add( id2 );
-								}
-
-								for ( final long id2 : ids3 )
-								{
-									final long s2 = assignment.getSegment( id2 );
-									if ( !segments.contains( s2 ) || s1 == s2 )
-										continue;
-									fragments.add( id1 );
-									fragments.add( id2 );
-								}
-
-							}
-
-						}
-
-						assignment.mergeFragments( fragments.toArray() );
-					}
-			}
-		}
-
-	}
-
-//	public static TLongHashSet getMergableFragmentIdsFromVisibilityOnScreen(
-//			final ViewerPanel viewer,
-//			final FragmentSegmentAssignment assignment, final long[] segments )
-//	{
-//		final TLongHashSet fragments = new TLongHashSet();
-//
-//		synchronized ( viewer )
-//		{
-//			final int w = viewer.getWidth();
-//			final int h = viewer.getHeight();
-//			final AffineTransform3D viewerTransform = new AffineTransform3D();
-//			viewer.getState().getViewerTransform( viewerTransform );
-//			final IntervalView< LabelMultisetType > screenLabels =
-//					Views.interval(
-//							Views.hyperSlice(
-//									RealViews.affine( labels, viewerTransform ), 2, 0 ),
-//							new FinalInterval( w, h ) );
-//
-//			for ( final LabelMultisetType pixel : Views.iterable( screenLabels ) )
-//				for ( final Entry< Label > entry : pixel.entrySet() )
-//					visibleIds.add( entry.getElement().id() );
-//		}
-//
-//		return fragments;
-//	}
-
 	private class MergeFragments
 	{
 
 		public void click( final MouseEvent e )
 		{
-			final Optional< Source< ? > > optionalSource = getSource();
+			final Optional< Source< ? > > optionalSource = getCurrentSource();
 			if ( !optionalSource.isPresent() )
 				return;
 			final Source< ? > source = optionalSource.get();
 			if ( source instanceof DataSource< ?, ? > )
 			{
 				final DataSource< ?, ? > dataSource = ( DataSource< ?, ? > ) source;
-				final Optional< SelectedIds > selectedIds = sourceInfo.selectedIds( source, mode );
+				final Optional< SelectedIds > selectedIds = Optional.ofNullable( sourceInfo.getState( source ).selectedIdsProperty().get() );
 				final Optional< ToIdConverter > toIdConverter = sourceInfo.toIdConverter( source );
 				final Optional< ? extends FragmentSegmentAssignmentState< ? > > assignmentOptional = sourceInfo.assignment( source );
 				if ( toIdConverter.isPresent() && selectedIds.isPresent() && assignmentOptional.isPresent() )
@@ -500,6 +195,7 @@ public class IdSelector
 						final TLongHashSet fragments = new TLongHashSet();
 						fragments.add( id );
 						fragments.add( selIds[ 0 ] );
+						LOG.warn( "Merging fragments: {} -- selected ids: {}", fragments, Arrays.toString( selIds ) );
 						assignments.mergeFragments( fragments.toArray() );
 					}
 			}
@@ -512,14 +208,14 @@ public class IdSelector
 
 		public void click( final MouseEvent e )
 		{
-			final Optional< Source< ? > > optionalSource = getSource();
+			final Optional< Source< ? > > optionalSource = getCurrentSource();
 			if ( !optionalSource.isPresent() )
 				return;
 			final Source< ? > source = optionalSource.get();
 			if ( source instanceof DataSource< ?, ? > )
 			{
 				final DataSource< ?, ? > dataSource = ( DataSource< ?, ? > ) source;
-				final Optional< SelectedIds > selectedIds = sourceInfo.selectedIds( source, mode );
+				final Optional< SelectedIds > selectedIds = Optional.ofNullable( sourceInfo.getState( source ).selectedIdsProperty().get() );
 				final Optional< ToIdConverter > toIdConverter = sourceInfo.toIdConverter( source );
 				final Optional< ? extends FragmentSegmentAssignmentState< ? > > assignmentOptional = sourceInfo.assignment( source );
 				if ( toIdConverter.isPresent() && selectedIds.isPresent() && assignmentOptional.isPresent() )
@@ -549,18 +245,6 @@ public class IdSelector
 
 						assignment.detachFragment( id, selIds[ 0 ] );
 
-//					final TLongObjectHashMap< TLongHashSet > detaches = new TLongObjectHashMap<>();
-//					Arrays.stream( ids ).forEach( id -> {
-//						final TLongHashSet from = new TLongHashSet();
-//						Arrays.stream( selIds ).filter( sId -> sId != id ).forEach( from::add );
-//						detaches.put( id, from );
-//					} );
-//
-//					detaches.forEachEntry( ( k, v ) -> {
-//						assignment.detachFragment( k, v.toArray() );
-//						return true;
-//					} );
-
 					}
 			}
 		}
@@ -572,7 +256,7 @@ public class IdSelector
 		public void click( final MouseEvent e )
 		{
 			LOG.debug( "Clicked confirm selection!" );
-			final Optional< Source< ? > > optionalSource = getSource();
+			final Optional< Source< ? > > optionalSource = getCurrentSource();
 			if ( !optionalSource.isPresent() )
 			{
 				LOG.debug( "No source present!" );
@@ -582,7 +266,7 @@ public class IdSelector
 			if ( source instanceof DataSource< ?, ? > )
 			{
 				final DataSource< ?, ? > dataSource = ( DataSource< ?, ? > ) source;
-				final Optional< SelectedIds > selectedIds = sourceInfo.selectedIds( source, mode );
+				final Optional< SelectedIds > selectedIds = Optional.ofNullable( sourceInfo.getState( source ).selectedIdsProperty().get() );
 				final Optional< ToIdConverter > toIdConverter = sourceInfo.toIdConverter( source );
 				final Optional< ? extends FragmentSegmentAssignmentState< ? > > assignmentOptional = sourceInfo.assignment( source );
 				if ( toIdConverter.isPresent() && selectedIds.isPresent() && assignmentOptional.isPresent() )
@@ -655,7 +339,7 @@ public class IdSelector
 		}
 	}
 
-	private Optional< Source< ? > > getSource()
+	private Optional< Source< ? > > getCurrentSource()
 	{
 		return Optional.ofNullable( sourceInfo.currentSourceProperty().get() );
 	}
@@ -668,41 +352,6 @@ public class IdSelector
 				.map( src -> src.getSpimSource() )
 				.collect( Collectors.toList() )
 				.indexOf( source );
-	}
-
-	private static void detachFragments(
-			final RandomAccessibleInterval< ? > img,
-			final Function< Object, long[] > toIdConverter,
-			final FragmentSegmentAssignment assignment,
-			final TLongHashSet fromSegments,
-			final TLongHashSet detachFragments,
-			final LongBinaryOperator fragmentIdHandler )
-	{
-		final Cursor< ? > cursor = Views.flatIterable( img ).cursor();
-
-		final TLongHashSet fragments = new TLongHashSet();
-
-		while ( cursor.hasNext() )
-		{
-			cursor.fwd();
-
-			final long[] ids = toIdConverter.apply( cursor.get() );
-
-			for ( final long id : ids )
-			{
-				final long segment = assignment.getSegment( id );
-				if ( fromSegments.contains( segment ) )
-					detachFragments.forEach( frag -> {
-						fragmentIdHandler.applyAsLong( frag, id );
-						return true;
-					} );
-
-			}
-
-		}
-
-		assignment.mergeFragments( fragments.toArray() );
-
 	}
 
 	private static void visitEveryDisplayPixel(

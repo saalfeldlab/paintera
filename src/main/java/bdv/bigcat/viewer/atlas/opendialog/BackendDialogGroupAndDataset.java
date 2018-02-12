@@ -51,7 +51,11 @@ public abstract class BackendDialogGroupAndDataset implements SourceFromRAI, Com
 
 	protected final DatasetInfo datasetInfo = new DatasetInfo();
 
-	protected final ExecutorService singleThreadExecutorService = Executors.newFixedThreadPool( 1 );
+	protected final ExecutorService singleThreadExecutorService = Executors.newFixedThreadPool( 1, r -> {
+		final Thread thread = Executors.defaultThreadFactory().newThread( r );
+		thread.setName( BackendDialogGroupAndDataset.class.getSimpleName() + "-single-thread-pool" );
+		return thread;
+	} );
 
 	protected final ArrayList< Future< Void > > directoryTraversalTasks = new ArrayList<>();
 

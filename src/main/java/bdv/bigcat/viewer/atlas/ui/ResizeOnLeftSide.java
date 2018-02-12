@@ -1,4 +1,4 @@
-package bdv.bigcat.viewer.atlas.source;
+package bdv.bigcat.viewer.atlas.ui;
 
 import java.util.Optional;
 import java.util.function.DoublePredicate;
@@ -29,11 +29,30 @@ public class ResizeOnLeftSide
 
 	private final MouseDragFX mouseDragged;
 
-	public ResizeOnLeftSide( final Node node, final DoubleProperty width, final DoublePredicate isWithinMarginOfBorder )
+	private final double minWidth;
+
+	private final double maxWidth;
+
+	public ResizeOnLeftSide(
+			final Node node,
+			final DoubleProperty width,
+			final DoublePredicate isWithinMarginOfBorder )
+	{
+		this( node, width, 50, 500, isWithinMarginOfBorder );
+	}
+
+	public ResizeOnLeftSide(
+			final Node node,
+			final DoubleProperty width,
+			final double minWidth,
+			final double maxWidth,
+			final DoublePredicate isWithinMarginOfBorder )
 	{
 		super();
 		this.node = node;
 		this.width = width;
+		this.minWidth = minWidth;
+		this.maxWidth = maxWidth;
 		this.isWithinMarginOfBorder = isWithinMarginOfBorder;
 
 		this.mouseDragged = new MouseDragFX( "resize", new Predicate[] { event -> isCurrentlyWithinMarginOfBorder.get() }, true, this )
@@ -50,7 +69,7 @@ public class ResizeOnLeftSide
 			{
 				final Bounds bounds = node.localToScene( node.getBoundsInLocal() );
 				final double dx = event.getSceneX() - bounds.getMinX();
-				width.set( width.get() - dx );
+				width.set( Math.min( Math.max( width.get() - dx, ResizeOnLeftSide.this.minWidth ), ResizeOnLeftSide.this.maxWidth ) );
 			}
 
 			@Override

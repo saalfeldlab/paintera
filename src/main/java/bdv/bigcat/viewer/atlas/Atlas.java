@@ -5,16 +5,23 @@ import java.lang.invoke.MethodHandles;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
-import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ThreadFactory;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import java.util.function.Function;
+import java.util.function.LongFunction;
 import java.util.function.ToLongFunction;
 import java.util.stream.Collectors;
 import java.util.stream.DoubleStream;
 import java.util.stream.IntStream;
+import java.util.stream.Stream;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -28,6 +35,7 @@ import bdv.bigcat.viewer.ToIdConverter;
 import bdv.bigcat.viewer.ViewerActor;
 import bdv.bigcat.viewer.atlas.AtlasFocusHandler.OnEnterOnExit;
 import bdv.bigcat.viewer.atlas.data.DataSource;
+import bdv.bigcat.viewer.atlas.data.RandomAccessibleIntervalDataSource;
 import bdv.bigcat.viewer.atlas.data.mask.MaskedSource;
 import bdv.bigcat.viewer.atlas.data.mask.PickOneAllIntegerTypes;
 import bdv.bigcat.viewer.atlas.data.mask.PickOneAllIntegerTypesVolatile;
@@ -37,35 +45,44 @@ import bdv.bigcat.viewer.atlas.mode.Mode;
 import bdv.bigcat.viewer.atlas.mode.NavigationOnly;
 import bdv.bigcat.viewer.atlas.mode.paint.PaintMode;
 import bdv.bigcat.viewer.atlas.source.AtlasSourceState;
-import bdv.bigcat.viewer.atlas.source.ResizeOnLeftSide;
 import bdv.bigcat.viewer.atlas.source.SourceInfo;
-import bdv.bigcat.viewer.atlas.source.SourceTabs;
+import bdv.bigcat.viewer.atlas.ui.ResizeOnLeftSide;
+import bdv.bigcat.viewer.atlas.ui.source.SourceTabs;
 import bdv.bigcat.viewer.bdvfx.EventFX;
 import bdv.bigcat.viewer.bdvfx.KeyTracker;
 import bdv.bigcat.viewer.bdvfx.ViewerPanelFX;
+import bdv.bigcat.viewer.meshes.MeshGenerator.ShapeKey;
+import bdv.bigcat.viewer.meshes.MeshInfos;
+import bdv.bigcat.viewer.meshes.MeshManager;
+import bdv.bigcat.viewer.meshes.cache.CacheUtils;
 import bdv.bigcat.viewer.ortho.OrthoView;
 import bdv.bigcat.viewer.ortho.OrthoViewState;
 import bdv.bigcat.viewer.panel.ViewerNode;
+import bdv.bigcat.viewer.state.FragmentSegmentAssignmentOnlyLocal;
 import bdv.bigcat.viewer.state.FragmentSegmentAssignmentState;
+import bdv.bigcat.viewer.state.FragmentsInSelectedSegments;
 import bdv.bigcat.viewer.state.GlobalTransformManager;
 import bdv.bigcat.viewer.state.SelectedIds;
-import bdv.bigcat.viewer.stream.ARGBStream;
-import bdv.bigcat.viewer.stream.AbstractHighlightingARGBStream;
+import bdv.bigcat.viewer.state.SelectedSegments;
 import bdv.bigcat.viewer.stream.HighlightingStreamConverterIntegerType;
 import bdv.bigcat.viewer.stream.HighlightingStreamConverterLabelMultisetType;
 import bdv.bigcat.viewer.stream.ModalGoldenAngleSaturatedHighlightingARGBStream;
+import bdv.bigcat.viewer.util.Colors;
+import bdv.bigcat.viewer.util.HashWrapper;
 import bdv.bigcat.viewer.viewer3d.OrthoSliceFX;
-import bdv.bigcat.viewer.viewer3d.Viewer3DControllerFX;
 import bdv.bigcat.viewer.viewer3d.Viewer3DFX;
 import bdv.labels.labelset.LabelMultisetType;
 import bdv.labels.labelset.Multiset.Entry;
 import bdv.labels.labelset.VolatileLabelMultisetType;
 import bdv.util.IdService;
+import bdv.util.LocalIdService;
 import bdv.util.volatiles.SharedQueue;
+import bdv.util.volatiles.VolatileTypeMatcher;
 import bdv.viewer.Interpolation;
 import bdv.viewer.Source;
 import bdv.viewer.SourceAndConverter;
 import bdv.viewer.ViewerOptions;
+import gnu.trove.set.hash.TLongHashSet;
 import javafx.beans.binding.Bindings;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.SimpleBooleanProperty;
@@ -93,11 +110,16 @@ import javafx.stage.WindowEvent;
 import net.imglib2.FinalInterval;
 import net.imglib2.Interval;
 import net.imglib2.RandomAccessibleInterval;
+import net.imglib2.cache.Cache;
 import net.imglib2.cache.img.DiskCachedCellImgOptions;
 import net.imglib2.cache.img.DiskCachedCellImgOptions.CacheType;
 import net.imglib2.converter.Converter;
+import net.imglib2.converter.Converters;
+import net.imglib2.interpolation.randomaccess.NLinearInterpolatorFactory;
+import net.imglib2.interpolation.randomaccess.NearestNeighborInterpolatorFactory;
 import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.type.NativeType;
+import net.imglib2.type.Type;
 import net.imglib2.type.logic.BoolType;
 import net.imglib2.type.numeric.ARGBType;
 import net.imglib2.type.numeric.IntegerType;
@@ -107,6 +129,7 @@ import net.imglib2.type.volatiles.AbstractVolatileRealType;
 import net.imglib2.type.volatiles.VolatileUnsignedLongType;
 import net.imglib2.util.Intervals;
 import net.imglib2.util.Pair;
+import net.imglib2.util.Util;
 
 public class Atlas
 {
@@ -135,8 +158,6 @@ public class Atlas
 
 	private final Viewer3DFX renderView;
 
-	private final Viewer3DControllerFX controller;
-
 	private final List< OrthoSliceFX > orthoSlices = new ArrayList<>();
 
 	private Stage primaryStage;
@@ -156,6 +177,32 @@ public class Atlas
 	private final Node settingsNode;
 
 	private final VBox sourcesAndSettings;
+
+	private final ExecutorService generalPurposeExecutorService = Executors.newFixedThreadPool( 3, new ThreadFactory()
+	{
+		final AtomicInteger i = new AtomicInteger();
+
+		@Override
+		public Thread newThread( final Runnable r )
+		{
+			final Thread thread = Executors.defaultThreadFactory().newThread( r );
+			thread.setName( Atlas.class.getSimpleName() + "-general-purpose-thread-" + i.getAndIncrement() );
+			return thread;
+		}
+	} );
+	{
+		try
+		{
+			generalPurposeExecutorService.invokeAll( Stream.generate( () -> ( Callable< Void > ) () -> null ).limit( 100 ).collect( Collectors.toList() ) );
+		}
+		catch (
+
+		final InterruptedException e )
+		{
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+	}
 
 	public Atlas( final SharedQueue cellCache )
 	{
@@ -182,7 +229,8 @@ public class Atlas
 				this.sourceInfo );
 
 		settingsNode = AtlasSettingsNode.getNode( settings, sourceTabs.widthProperty() );
-		sourcesAndSettings = new VBox( sourceTabs.getTabs(), new TitledPane( "Settings", settingsNode ) );
+
+		sourcesAndSettings = new VBox( sourceTabs.get(), new TitledPane( "Settings", settingsNode ) );
 		this.sourceTabsResizer = new ResizeOnLeftSide( sourcesAndSettings, sourceTabs.widthProperty(), ( diff ) -> diff > 0 && diff < 10 );
 		this.view.getState().currentSourceProperty().bindBidirectional( this.sourceInfo.currentSourceProperty() );
 
@@ -242,7 +290,6 @@ public class Atlas
 		this.cellCache = cellCache;
 
 		this.renderView = new Viewer3DFX( 100, 100 );
-		this.controller = new Viewer3DControllerFX( renderView );
 		this.view.setInfoNode( renderView );
 		this.renderView.scene().addEventHandler( MouseEvent.MOUSE_CLICKED, event -> renderView.scene().requestFocus() );
 
@@ -265,7 +312,7 @@ public class Atlas
 
 		addOnEnterOnExit( valueDisplayListener.onEnter(), valueDisplayListener.onExit(), true );
 
-		this.seedSetter = new ARGBStreamSeedSetter( sourceInfo, keyTracker, settings.currentModeProperty() );
+		this.seedSetter = new ARGBStreamSeedSetter( sourceInfo, keyTracker );
 		addOnEnterOnExit( this.seedSetter.onEnter(), this.seedSetter.onEnter(), true );
 
 		for ( final Node child : this.baseView().getChildren() )
@@ -420,43 +467,28 @@ public class Atlas
 	public void addLabelSource(
 			final DataSource< LabelMultisetType, VolatileLabelMultisetType > spec,
 			final FragmentSegmentAssignmentState< ? > assignment,
-			final IdService idService )
+			final IdService idService,
+			final Cache< Long, Interval[] >[] blocksThatContainId,
+			final Cache< ShapeKey, Pair< float[], float[] > >[] meshCache )
 	{
 		final CurrentModeConverter< VolatileLabelMultisetType, HighlightingStreamConverterLabelMultisetType > converter = new CurrentModeConverter<>();
-		final HashMap< Mode, SelectedIds > selIdsMap = new HashMap<>();
-		final HashMap< Mode, ARGBStream > streamsMap = new HashMap<>();
-		for ( final Mode mode : this.settings.availableModes() )
-		{
-			final SelectedIds selId = new SelectedIds();
-			selIdsMap.put( mode, selId );
-			final ModalGoldenAngleSaturatedHighlightingARGBStream stream = new ModalGoldenAngleSaturatedHighlightingARGBStream( selId, assignment );
-			stream.addListener( () -> baseView().requestRepaint() );
-			streamsMap.put( mode, stream );
-		}
+		final SelectedIds selId = new SelectedIds();
+		final ModalGoldenAngleSaturatedHighlightingARGBStream stream = new ModalGoldenAngleSaturatedHighlightingARGBStream( selId, assignment );
+		stream.addListener( () -> baseView().requestRepaint() );
+		converter.setConverter( new HighlightingStreamConverterLabelMultisetType( stream ) );
 
 		final ARGBCompositeAlphaYCbCr comp = new ARGBCompositeAlphaYCbCr();
 
-		final Consumer< Mode > setConverter = mode -> {
-			final AbstractHighlightingARGBStream argbStream = ( AbstractHighlightingARGBStream ) sourceInfo.stream( spec, mode ).get();
-			converter.setConverter( new HighlightingStreamConverterLabelMultisetType( argbStream ) );
-			baseView().requestRepaint();
-		};
-
-		settings.currentModeProperty().addListener( ( obs, oldv, newv ) -> {
-			Optional.ofNullable( newv ).ifPresent( setConverter::accept );
-		} );
-
 		addSource( spec, comp, spec.tMin(), spec.tMax() );
-		final AtlasSourceState< VolatileLabelMultisetType, LabelMultisetType > state = sourceInfo.addLabelSource(
+		final AtlasSourceState< VolatileLabelMultisetType, LabelMultisetType > state = sourceInfo.makeLabelSourceState(
 				spec,
 				ToIdConverter.fromLabelMultisetType(),
 				( Function< LabelMultisetType, Converter< LabelMultisetType, BoolType > > ) sel -> createBoolConverter( sel, assignment ),
 				( FragmentSegmentAssignmentState ) assignment,
-				streamsMap,
-				selIdsMap,
+				stream,
+				selId,
 				converter,
 				comp );// converter );
-		Optional.ofNullable( settings.currentModeProperty().get() ).ifPresent( setConverter::accept );
 		state.idServiceProperty().set( idService );
 //		if ( spec instanceof MaskedSource< ?, ?, ? > )
 //		{
@@ -470,6 +502,21 @@ public class Atlas
 		spec.getSourceTransform( 0, 0, affine );
 		this.valueDisplayListener.addSource( spec, Optional.of( valueToString ) );
 
+		final SelectedSegments selectedSegments = new SelectedSegments( selId, assignment );
+		final FragmentsInSelectedSegments fragmentsInSelection = new FragmentsInSelectedSegments( selectedSegments, assignment );
+
+		final MeshManager meshManager = new MeshManager(
+				spec,
+				state,
+				renderView.meshesGroup(),
+				fragmentsInSelection,
+				settings.meshSimplificationIterationsProperty(),
+				this.generalPurposeExecutorService );
+
+		final MeshInfos meshInfos = new MeshInfos( selectedSegments, assignment, meshManager, spec.getNumMipmapLevels() );
+		state.meshManagerProperty().set( meshManager );
+		state.meshInfosProperty().set( meshInfos );
+
 		view.addActor( new ViewerActor()
 		{
 
@@ -498,11 +545,82 @@ public class Atlas
 			public Consumer< ViewerPanelFX > onAdd()
 			{
 				return vp -> {
-					selIdsMap.values().forEach( ids -> ids.addListener( () -> vp.requestRepaint() ) );
+					selId.addListener( () -> vp.requestRepaint() );
 				};
 			}
 		} );
 
+		if ( meshCache != null && blocksThatContainId != null )
+		{
+			state.meshesCacheProperty().set( meshCache );
+			state.blocklistCacheProperty().set( blocksThatContainId );
+		}
+		else // TODO get to the scale factors somehow (affine transform might be
+				// off-diagonal in case of permutations)
+			generateMeshCaches(
+					spec,
+					state,
+					scaleFactorsFromAffineTransforms( spec ),
+					( lbl, set ) -> lbl.entrySet().forEach( entry -> set.add( entry.getElement().id() ) ),
+					lbl -> ( src, tgt ) -> tgt.set( src.contains( lbl ) ),
+					generalPurposeExecutorService );
+
+		sourceInfo.addState( spec, state );
+
+	}
+
+	public < I extends IntegerType< I > & NativeType< I > > void addLabelSource(
+			final RandomAccessibleInterval< I > data,
+			final double[] resolution,
+			final double[] offset,
+			final long maxId )
+	{
+
+		final AffineTransform3D transform = new AffineTransform3D();
+		transform.set(
+				resolution[ 0 ], 0, 0, offset[ 0 ],
+				0, resolution[ 1 ], 0, offset[ 1 ],
+				0, 0, resolution[ 2 ], offset[ 2 ] );
+		addLabelSource( data, transform, maxId, "labels" );
+	}
+
+	public < I extends IntegerType< I > & NativeType< I > > void addLabelSource(
+			final RandomAccessibleInterval< I > data,
+			final long maxId )
+	{
+		addLabelSource( data, new AffineTransform3D(), maxId, "labels" );
+	}
+
+	public < I extends NativeType< I > & IntegerType< I >, V extends AbstractVolatileRealType< I, V > > void addLabelSource(
+			final RandomAccessibleInterval< I > data,
+			final AffineTransform3D sourceTransform,
+			final long maxId,
+			final String name )
+	{
+		final I i = Util.getTypeFromInterval( data );
+		final V v = ( V ) VolatileTypeMatcher.getVolatileTypeForType( i );
+		if ( v == null )
+			throw new RuntimeException( "Was not able to get volatile type for type: " + i.getClass() );
+		v.setValid( true );
+		final RandomAccessibleInterval< V > convertedData = Converters.convert( data, ( s, t ) -> t.get().set( s ), v );
+		final RandomAccessibleInterval< I >[] sources = new RandomAccessibleInterval[] { data };
+		final RandomAccessibleInterval< V >[] converted = new RandomAccessibleInterval[] { convertedData };
+		final DataSource< I, V > source = new RandomAccessibleIntervalDataSource<>(
+				sources,
+				converted,
+				new AffineTransform3D[] { sourceTransform },
+				interpolation -> new NearestNeighborInterpolatorFactory<>(),
+				interpolation -> new NearestNeighborInterpolatorFactory<>(),
+				name );
+		final LocalIdService idService = new LocalIdService();
+		idService.invalidate( maxId );
+		addLabelSource(
+				source,
+				new FragmentSegmentAssignmentOnlyLocal(),
+				p -> p.get().getIntegerLong(),
+				null,
+				null,
+				null );
 	}
 
 	// TODO Is there a better bound for V than AbstractVolatileRealType? V
@@ -512,45 +630,28 @@ public class Atlas
 			final DataSource< I, V > spec,
 			final FragmentSegmentAssignmentState< ? > assignment,
 			final ToLongFunction< V > toLong,
-			final IdService idService )
+			final IdService idService,
+			final Cache< Long, Interval[] >[] blocksThatContainId,
+			final Cache< ShapeKey, Pair< float[], float[] > >[] meshCache )
 	{
 		final CurrentModeConverter< V, HighlightingStreamConverterIntegerType< V > > converter = new CurrentModeConverter<>();
-		final HashMap< Mode, SelectedIds > selIdsMap = new HashMap<>();
-		final HashMap< Mode, ARGBStream > streamsMap = new HashMap<>();
-		for ( final Mode mode : this.settings.availableModes() )
-		{
-			final SelectedIds selId = new SelectedIds();
-			selIdsMap.put( mode, selId );
-			final ModalGoldenAngleSaturatedHighlightingARGBStream stream = new ModalGoldenAngleSaturatedHighlightingARGBStream( selId, assignment );
-			stream.addListener( () -> baseView().requestRepaint() );
-			streamsMap.put( mode, stream );
-		}
+		final SelectedIds selId = new SelectedIds();
+		final ModalGoldenAngleSaturatedHighlightingARGBStream stream = new ModalGoldenAngleSaturatedHighlightingARGBStream( selId, assignment );
+		stream.addListener( () -> baseView().requestRepaint() );
+		converter.setConverter( new HighlightingStreamConverterIntegerType<>( stream, toLong ) );
 
 		final ARGBCompositeAlphaYCbCr comp = new ARGBCompositeAlphaYCbCr();
 
-		final Consumer< Mode > setConverter = mode -> {
-			sourceInfo.stream( spec, mode ).ifPresent( stream -> {
-				final AbstractHighlightingARGBStream argbStream = ( AbstractHighlightingARGBStream ) stream;
-				final HighlightingStreamConverterIntegerType< V > conv = new HighlightingStreamConverterIntegerType<>( argbStream, toLong );
-				converter.setConverter( conv );
-				baseView().requestRepaint();
-			} );
-		};
-
-		settings.currentModeProperty().addListener( ( obs, oldv, newv ) -> {
-			Optional.ofNullable( newv ).ifPresent( setConverter::accept );
-		} );
 		addSource( spec, comp, spec.tMin(), spec.tMax() );
-		final AtlasSourceState< V, I > state = sourceInfo.addLabelSource(
+		final AtlasSourceState< V, I > state = sourceInfo.makeLabelSourceState(
 				spec,
 				spec.getDataType() instanceof IntegerType ? ToIdConverter.fromIntegerType() : ToIdConverter.fromRealType(),
-				( Function< I, Converter< I, BoolType > > ) sel -> createBoolConverter( sel, assignment ),
+				sel -> createBoolConverter( sel, assignment ),
 				( FragmentSegmentAssignmentState ) assignment,
-				streamsMap,
-				selIdsMap,
+				stream,
+				selId,
 				converter,
 				comp );
-		Optional.ofNullable( settings.currentModeProperty().get() ).ifPresent( setConverter::accept );
 		state.idServiceProperty().set( idService );
 		if ( spec instanceof MaskedSource< ?, ? > )
 			state.maskedSourceProperty().set( ( MaskedSource< ?, ? > ) spec );
@@ -561,6 +662,21 @@ public class Atlas
 		spec.getSourceTransform( 0, 0, affine );
 		this.valueDisplayListener.addSource( spec, Optional.of( valueToString ) );
 
+		final SelectedSegments selectedSegments = new SelectedSegments( selId, assignment );
+		final FragmentsInSelectedSegments fragmentsInSelection = new FragmentsInSelectedSegments( selectedSegments, assignment );
+
+		final MeshManager meshManager = new MeshManager(
+				spec,
+				state,
+				renderView.meshesGroup(),
+				fragmentsInSelection,
+				settings.meshSimplificationIterationsProperty(),
+				this.generalPurposeExecutorService );
+
+		final MeshInfos meshInfos = new MeshInfos( selectedSegments, assignment, meshManager, spec.getNumMipmapLevels() );
+		state.meshManagerProperty().set( meshManager );
+		state.meshInfosProperty().set( meshInfos );
+
 		view.addActor( new ViewerActor()
 		{
 
@@ -589,11 +705,78 @@ public class Atlas
 			public Consumer< ViewerPanelFX > onAdd()
 			{
 				return vp -> {
-					selIdsMap.values().forEach( ids -> ids.addListener( () -> vp.requestRepaint() ) );
+					selId.addListener( () -> vp.requestRepaint() );
 				};
 			}
 		} );
 
+		if ( meshCache != null && blocksThatContainId != null )
+		{
+			state.meshesCacheProperty().set( meshCache );
+			state.blocklistCacheProperty().set( blocksThatContainId );
+		}
+		else
+			generateMeshCaches(
+					spec,
+					state,
+					scaleFactorsFromAffineTransforms( spec ),
+					( lbl, set ) -> set.add( lbl.getIntegerLong() ),
+					lbl -> ( src, tgt ) -> tgt.set( src.getIntegerLong() == lbl ),
+					generalPurposeExecutorService );
+
+//		private static < D extends Type< D >, T extends Type< T > > void generateMeshCaches(
+//			final DataSource< D, T > spec,
+//			final AtlasSourceState< T, D > state,
+//			final double[][] scalingFactors,
+//			final BiConsumer< D, TLongHashSet > collectLabels,
+//			final LongFunction< Converter< D, BoolType > > getMaskGenerator,
+//			final ExecutorService es )
+
+		sourceInfo.addState( spec, state );
+
+	}
+
+	public < T extends RealType< T > > void addRawSource(
+			final RandomAccessibleInterval< T > data,
+			final double[] resolution,
+			final double[] offset,
+			final double min,
+			final double max )
+	{
+		final AffineTransform3D transform = new AffineTransform3D();
+		transform.set(
+				resolution[ 0 ], 0, 0, offset[ 0 ],
+				0, resolution[ 1 ], 0, offset[ 1 ],
+				0, 0, resolution[ 2 ], offset[ 2 ] );
+		System.out.println( "ADDING RAW SOURCE WITH TRANSFORM " + transform );
+		addRawSource( data, transform, min, max, Color.WHITE, "raw" );
+	}
+
+	public < T extends RealType< T > > void addRawSource(
+			final RandomAccessibleInterval< T > data,
+			final double min,
+			final double max )
+	{
+		addRawSource( data, new AffineTransform3D(), min, max, Color.WHITE, "raw" );
+	}
+
+	public < T extends RealType< T > > void addRawSource(
+			final RandomAccessibleInterval< T > data,
+			final AffineTransform3D sourceTransform,
+			final double min,
+			final double max,
+			final Color color,
+			final String name )
+	{
+		final RandomAccessibleInterval< T >[] sources = new RandomAccessibleInterval[] { data };
+		final DataSource< T, T > source = new RandomAccessibleIntervalDataSource<>(
+				sources,
+				sources,
+				new AffineTransform3D[] { sourceTransform },
+				i -> i.equals( Interpolation.NLINEAR ) ? new NLinearInterpolatorFactory() : new NearestNeighborInterpolatorFactory(),
+				i -> i.equals( Interpolation.NLINEAR ) ? new NLinearInterpolatorFactory() : new NearestNeighborInterpolatorFactory(),
+				name );
+		addRawSource( source, min, max, Colors.toARGBType( color ) );
 	}
 
 	public < T extends RealType< T >, U extends RealType< U > > void addRawSources(
@@ -875,14 +1058,9 @@ public class Atlas
 		return argb;
 	}
 
-	public Optional< SelectedIds > getSelectedIds( final Source< ? > source, final Mode mode )
+	public Optional< SelectedIds > getSelectedIds( final Source< ? > source )
 	{
-		return sourceInfo.selectedIds( source, mode );
-	}
-
-	public Viewer3DControllerFX get3DController()
-	{
-		return this.controller;
+		return Optional.ofNullable( sourceInfo.getState( source ).selectedIdsProperty().get() );
 	}
 
 	public GlobalTransformManager transformManager()
@@ -939,9 +1117,69 @@ public class Atlas
 	{
 		return new Mode[] {
 				new NavigationOnly(),
-				new Highlights( viewer.get3DController(), viewer.transformManager(), viewer.sourceInfo(), viewer.keyTracker() ),
+				new Highlights( viewer.transformManager(), viewer.renderView.meshesGroup(), viewer.sourceInfo(), viewer.keyTracker(), viewer.generalPurposeExecutorService ),
 				new Merges( viewer.sourceInfo() ),
 				new PaintMode( viewer.baseView().viewerAxes(), viewer.sourceInfo(), viewer.keyTracker(), viewer.transformManager(), () -> viewer.baseView().requestRepaint() ) };
+	}
+
+	private static < D extends Type< D >, T extends Type< T > > void generateMeshCaches(
+			final DataSource< D, T > spec,
+			final AtlasSourceState< T, D > state,
+			final double[][] scalingFactors,
+			final BiConsumer< D, TLongHashSet > collectLabels,
+			final LongFunction< Converter< D, BoolType > > getMaskGenerator,
+			final ExecutorService es )
+	{
+
+		final int[][] blockSizes = Stream.generate( () -> new int[] { 64, 64, 64 } ).limit( spec.getNumMipmapLevels() ).toArray( int[][]::new );
+		final int[][] cubeSizes = Stream.generate( () -> new int[] { 1, 1, 1 } ).limit( spec.getNumMipmapLevels() ).toArray( int[][]::new );
+
+		final Cache< HashWrapper< long[] >, long[] >[] uniqueLabelLoaders = CacheUtils.uniqueLabelCaches(
+				spec,
+				blockSizes,
+				collectLabels,
+				CacheUtils::toCacheSoftRefLoaderCache );
+
+		final Cache< Long, Interval[] >[] blocksForLabelCache = CacheUtils.blocksForLabelCaches(
+				spec,
+				uniqueLabelLoaders,
+				blockSizes,
+				scalingFactors,
+				CacheUtils::toCacheSoftRefLoaderCache,
+				es );
+
+		final Cache< ShapeKey, Pair< float[], float[] > >[] meshCaches = CacheUtils.meshCacheLoaders(
+				spec,
+				cubeSizes,
+				getMaskGenerator,
+				CacheUtils::toCacheSoftRefLoaderCache );
+
+		state.blocklistCacheProperty().set( blocksForLabelCache );
+		state.meshesCacheProperty().set( meshCaches );
+	}
+
+	public static double[][] scaleFactorsFromAffineTransforms( final Source< ? > source )
+	{
+		final double[][] scaleFactors = new double[ source.getNumMipmapLevels() ][ 3 ];
+		final AffineTransform3D reference = new AffineTransform3D();
+		source.getSourceTransform( 0, 0, reference );
+		for ( int level = 0; level < scaleFactors.length; ++level )
+		{
+			final double[] factors = scaleFactors[ level ];
+			final AffineTransform3D transform = new AffineTransform3D();
+			source.getSourceTransform( 0, level, transform );
+			factors[ 0 ] = transform.get( 0, 0 ) / reference.get( 0, 0 );
+			factors[ 1 ] = transform.get( 1, 1 ) / reference.get( 1, 1 );
+			factors[ 2 ] = transform.get( 2, 2 ) / reference.get( 2, 2 );
+		}
+
+		if ( LOG.isDebugEnabled() )
+		{
+			LOG.debug( "Generated scaling factors:" );
+			Arrays.stream( scaleFactors ).map( Arrays::toString ).forEach( LOG::debug );
+		}
+
+		return scaleFactors;
 	}
 
 }

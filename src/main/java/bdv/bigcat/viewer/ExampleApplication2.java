@@ -122,11 +122,11 @@ public class ExampleApplication2
 		final FragmentSegmentAssignmentState< ? > assignment = new FragmentSegmentAssignmentOnlyLocal();
 		final LabelDataSourceFromDelegates< UnsignedLongType, VolatileUnsignedLongType > labelSpec2 = new LabelDataSourceFromDelegates<>( labelData, assignment );
 
-		viewer.addLabelSource( labelSpec2, labelSpec2.getAssignment(), v -> v.get().getIntegerLong(), null );
+		viewer.addLabelSource( labelSpec2, labelSpec2.getAssignment(), v -> v.get().getIntegerLong(), null, null, null );
 		final Optional< Highlights > highlightsMode = viewer.getHighlightsMode();
 		highlightsMode.ifPresent( mode -> {
 			viewer.getSettings().currentModeProperty().set( mode );
-			final Optional< SelectedIds > selectedIds = viewer.getSelectedIds( labelSpec2, mode );
+			final Optional< SelectedIds > selectedIds = viewer.getSelectedIds( labelSpec2 );
 			selectedIds.ifPresent( selIds -> {
 				new Thread( () -> {
 					System.out.println( "Selected ids before? " + selIds );
