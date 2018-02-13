@@ -71,9 +71,6 @@ import bdv.bigcat.viewer.util.Colors;
 import bdv.bigcat.viewer.util.HashWrapper;
 import bdv.bigcat.viewer.viewer3d.OrthoSliceFX;
 import bdv.bigcat.viewer.viewer3d.Viewer3DFX;
-import bdv.labels.labelset.LabelMultisetType;
-import bdv.labels.labelset.Multiset.Entry;
-import bdv.labels.labelset.VolatileLabelMultisetType;
 import bdv.util.IdService;
 import bdv.util.LocalIdService;
 import bdv.util.volatiles.SharedQueue;
@@ -107,6 +104,9 @@ import javafx.scene.paint.Color;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
 import javafx.stage.WindowEvent;
+import net.imglib.type.label.LabelMultiset;
+import net.imglib.type.label.LabelMultisetType;
+import net.imglib.type.label.VolatileLabelMultisetType;
 import net.imglib2.FinalInterval;
 import net.imglib2.Interval;
 import net.imglib2.RandomAccessibleInterval;
@@ -859,15 +859,15 @@ public class Atlas
 		else if ( t instanceof LabelMultisetType )
 			valueToString = ( Function< T, String > ) rt -> {
 				final StringBuilder sb = new StringBuilder( "{" );
-				final Iterator< Entry< bdv.labels.labelset.Label > > it = ( ( LabelMultisetType ) rt ).entrySet().iterator();
+				final Iterator< LabelMultiset.Entry< net.imglib.type.label.Label > > it = ( ( LabelMultisetType ) rt ).entrySet().iterator();
 				if ( it.hasNext() )
 				{
-					final Entry< bdv.labels.labelset.Label > entry = it.next();
+					final LabelMultiset.Entry< net.imglib.type.label.Label > entry = it.next();
 					sb.append( entry.getElement().id() ).append( ":" ).append( entry.getCount() );
 				}
 				while ( it.hasNext() )
 				{
-					final Entry< bdv.labels.labelset.Label > entry = it.next();
+					final LabelMultiset.Entry< net.imglib.type.label.Label > entry = it.next();
 					sb.append( " " ).append( entry.getElement().id() ).append( ":" ).append( entry.getCount() );
 				}
 				sb.append( "}" );
@@ -890,7 +890,7 @@ public class Atlas
 	{
 		final Function< T, String > valueToStringT = valueToString( t );
 		final Function< I, String > valueToStringI = valueToString( i );
-		return p -> bdv.labels.labelset.Label.regular( p.getB().getIntegerLong() ) ? valueToStringI.apply( p.getB() ) : valueToStringT.apply( p.getA() );
+		return p -> bdv.bigcat.label.Label.regular( p.getB().getIntegerLong() ) ? valueToStringI.apply( p.getB() ) : valueToStringT.apply( p.getA() );
 	}
 
 	public void setTransform( final AffineTransform3D transform )
@@ -921,20 +921,20 @@ public class Atlas
 	public static < I extends IntegerType< I >, K extends IntegerType< K > > Converter< Pair< I, K >, BoolType > createBoolConverter( final Pair< I, K > selection, final FragmentSegmentAssignmentState< ? > assignment )
 	{
 		final long paintedLabel = selection.getB().getIntegerLong();
-		final long id = bdv.labels.labelset.Label.regular( paintedLabel ) ? paintedLabel : selection.getA().getIntegerLong();
+		final long id = bdv.bigcat.label.Label.regular( paintedLabel ) ? paintedLabel : selection.getA().getIntegerLong();
 		final long segmentId = assignment.getSegment( id );
 		return ( s, t ) -> {
 			final long k = s.getB().getIntegerLong();
-			t.set( assignment.getSegment( bdv.labels.labelset.Label.regular( k ) ? k : s.getA().getIntegerLong() ) == segmentId );
+			t.set( assignment.getSegment( bdv.bigcat.label.Label.regular( k ) ? k : s.getA().getIntegerLong() ) == segmentId );
 		};
 
 	}
 
 	public static long maxCountId( final LabelMultisetType t )
 	{
-		long argMaxLabel = bdv.labels.labelset.Label.INVALID;
+		long argMaxLabel = bdv.bigcat.label.Label.INVALID;
 		long argMaxCount = 0;
-		for ( final Entry< bdv.labels.labelset.Label > entry : t.entrySet() )
+		for ( final LabelMultiset.Entry< net.imglib.type.label.Label > entry : t.entrySet() )
 		{
 			final int count = entry.getCount();
 			if ( count > argMaxCount )
@@ -999,22 +999,22 @@ public class Atlas
 				.maxCacheSize( 100 );
 
 		final I defaultValue = source.getDataType().createVariable();
-		defaultValue.setInteger( bdv.labels.labelset.Label.INVALID );
+		defaultValue.setInteger( bdv.bigcat.label.Label.INVALID );
 
 		final I type = source.getDataType();
-		type.setInteger( bdv.labels.labelset.Label.OUTSIDE );
+		type.setInteger( bdv.bigcat.label.Label.OUTSIDE );
 		final V vtype = source.getType();
 		vtype.setValid( true );
-		vtype.get().setInteger( bdv.labels.labelset.Label.OUTSIDE );
+		vtype.get().setInteger( bdv.bigcat.label.Label.OUTSIDE );
 
 		final PickOneAllIntegerTypes< I, UnsignedLongType > pacD = new PickOneAllIntegerTypes<>(
-				l -> bdv.labels.labelset.Label.regular( l.getIntegerLong() ),
-				( l1, l2 ) -> l2.getIntegerLong() != bdv.labels.labelset.Label.TRANSPARENT && bdv.labels.labelset.Label.regular( l1.getIntegerLong() ),
+				l -> bdv.bigcat.label.Label.regular( l.getIntegerLong() ),
+				( l1, l2 ) -> l2.getIntegerLong() != bdv.bigcat.label.Label.TRANSPARENT && bdv.bigcat.label.Label.regular( l1.getIntegerLong() ),
 				type.createVariable() );
 
 		final PickOneAllIntegerTypesVolatile< I, UnsignedLongType, V, VolatileUnsignedLongType > pacT = new PickOneAllIntegerTypesVolatile<>(
-				l -> bdv.labels.labelset.Label.regular( l.getIntegerLong() ),
-				( l1, l2 ) -> l2.getIntegerLong() != bdv.labels.labelset.Label.TRANSPARENT && bdv.labels.labelset.Label.regular( l1.getIntegerLong() ),
+				l -> bdv.bigcat.label.Label.regular( l.getIntegerLong() ),
+				( l1, l2 ) -> l2.getIntegerLong() != bdv.bigcat.label.Label.TRANSPARENT && bdv.bigcat.label.Label.regular( l1.getIntegerLong() ),
 				vtype.createVariable() );
 
 		final MaskedSource< I, V > ms = new MaskedSource<>(

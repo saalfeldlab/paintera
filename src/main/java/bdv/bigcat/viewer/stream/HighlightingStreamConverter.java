@@ -1,6 +1,6 @@
 package bdv.bigcat.viewer.stream;
 
-import bdv.labels.labelset.Label;
+import bdv.bigcat.label.Label;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.IntegerProperty;
 import javafx.beans.property.LongProperty;

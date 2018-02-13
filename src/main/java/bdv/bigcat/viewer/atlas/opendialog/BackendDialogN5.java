@@ -22,7 +22,7 @@ import org.janelia.saalfeldlab.n5.imglib2.N5Utils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import bdv.labels.labelset.Label;
+import bdv.bigcat.label.Label;
 import bdv.net.imglib2.util.Triple;
 import bdv.net.imglib2.util.ValueTriple;
 import bdv.util.IdService;
