@@ -3,8 +3,8 @@ package bdv.bigcat.viewer;
 import java.util.Set;
 
 import bdv.bigcat.label.Label;
-import net.imglib.type.label.LabelMultiset;
-import net.imglib.type.label.LabelMultisetType;
+import net.imglib2.type.label.LabelMultiset;
+import net.imglib2.type.label.LabelMultisetType;
 import net.imglib2.type.numeric.ARGBType;
 import net.imglib2.type.numeric.IntegerType;
 import net.imglib2.type.numeric.RealType;
@@ -49,10 +49,10 @@ public interface ToIdConverter
 		public long[] allIds( final Object o )
 		{
 			final LabelMultisetType t = ( LabelMultisetType ) o;
-			final Set< LabelMultiset.Entry< net.imglib.type.label.Label > > entries = t.entrySet();
+			final Set< LabelMultiset.Entry< net.imglib2.type.label.Label > > entries = t.entrySet();
 			final long[] ids = new long[ entries.size() ];
 			int index = 0;
-			for ( final LabelMultiset.Entry< net.imglib.type.label.Label > entry : entries )
+			for ( final LabelMultiset.Entry< net.imglib2.type.label.Label > entry : entries )
 			{
 				ids[ index ] = entry.getElement().id();
 				++index;
@@ -66,7 +66,7 @@ public interface ToIdConverter
 			final LabelMultisetType t = ( LabelMultisetType ) o;
 			long argMaxId = Label.INVALID;
 			long maxCount = 0;
-			for ( final LabelMultiset.Entry< net.imglib.type.label.Label > entry : t.entrySet() )
+			for ( final LabelMultiset.Entry< net.imglib2.type.label.Label > entry : t.entrySet() )
 			{
 				final long id = entry.getElement().id();
 				if ( Label.regular( id ) )

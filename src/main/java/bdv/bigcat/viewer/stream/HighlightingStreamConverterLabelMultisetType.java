@@ -2,9 +2,9 @@ package bdv.bigcat.viewer.stream;
 
 import java.util.Iterator;
 
-import net.imglib.type.label.Label;
-import net.imglib.type.label.LabelMultiset;
-import net.imglib.type.label.VolatileLabelMultisetType;
+import net.imglib2.type.label.Label;
+import net.imglib2.type.label.LabelMultiset;
+import net.imglib2.type.label.VolatileLabelMultisetType;
 import net.imglib2.type.numeric.ARGBType;
 
 public class HighlightingStreamConverterLabelMultisetType extends HighlightingStreamConverter< VolatileLabelMultisetType >

@@ -104,9 +104,6 @@ import javafx.scene.paint.Color;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
 import javafx.stage.WindowEvent;
-import net.imglib.type.label.LabelMultiset;
-import net.imglib.type.label.LabelMultisetType;
-import net.imglib.type.label.VolatileLabelMultisetType;
 import net.imglib2.FinalInterval;
 import net.imglib2.Interval;
 import net.imglib2.RandomAccessibleInterval;
@@ -120,6 +117,9 @@ import net.imglib2.interpolation.randomaccess.NearestNeighborInterpolatorFactory
 import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.type.NativeType;
 import net.imglib2.type.Type;
+import net.imglib2.type.label.LabelMultiset;
+import net.imglib2.type.label.LabelMultisetType;
+import net.imglib2.type.label.VolatileLabelMultisetType;
 import net.imglib2.type.logic.BoolType;
 import net.imglib2.type.numeric.ARGBType;
 import net.imglib2.type.numeric.IntegerType;
@@ -859,15 +859,15 @@ public class Atlas
 		else if ( t instanceof LabelMultisetType )
 			valueToString = ( Function< T, String > ) rt -> {
 				final StringBuilder sb = new StringBuilder( "{" );
-				final Iterator< LabelMultiset.Entry< net.imglib.type.label.Label > > it = ( ( LabelMultisetType ) rt ).entrySet().iterator();
+				final Iterator< LabelMultiset.Entry< net.imglib2.type.label.Label > > it = ( ( LabelMultisetType ) rt ).entrySet().iterator();
 				if ( it.hasNext() )
 				{
-					final LabelMultiset.Entry< net.imglib.type.label.Label > entry = it.next();
+					final LabelMultiset.Entry< net.imglib2.type.label.Label > entry = it.next();
 					sb.append( entry.getElement().id() ).append( ":" ).append( entry.getCount() );
 				}
 				while ( it.hasNext() )
 				{
-					final LabelMultiset.Entry< net.imglib.type.label.Label > entry = it.next();
+					final LabelMultiset.Entry< net.imglib2.type.label.Label > entry = it.next();
 					sb.append( " " ).append( entry.getElement().id() ).append( ":" ).append( entry.getCount() );
 				}
 				sb.append( "}" );
@@ -934,7 +934,7 @@ public class Atlas
 	{
 		long argMaxLabel = bdv.bigcat.label.Label.INVALID;
 		long argMaxCount = 0;
-		for ( final LabelMultiset.Entry< net.imglib.type.label.Label > entry : t.entrySet() )
+		for ( final LabelMultiset.Entry< net.imglib2.type.label.Label > entry : t.entrySet() )
 		{
 			final int count = entry.getCount();
 			if ( count > argMaxCount )
