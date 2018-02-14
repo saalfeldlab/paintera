@@ -117,6 +117,7 @@ import net.imglib2.interpolation.randomaccess.NearestNeighborInterpolatorFactory
 import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.type.NativeType;
 import net.imglib2.type.Type;
+import net.imglib2.type.label.FromIntegerTypeConverter;
 import net.imglib2.type.label.LabelMultiset;
 import net.imglib2.type.label.LabelMultisetType;
 import net.imglib2.type.label.VolatileLabelMultisetType;
@@ -1023,6 +1024,67 @@ public class Atlas
 				level -> String.format( "%s/%d", path, level ),
 				pacD,
 				pacT,
+				type,
+				vtype,
+				mergeCanvasIntoBackground );
+		// opts, mipmapCanvasCacheDirs, pacD, pacT, writeMaskToCanvas,
+		// extensionD, extensionT );
+
+//		ms = new MaskedSource<>(
+//				null,//source,
+//				null,//cacheOptions,
+//				null,//path + "/%d",
+//				null, // pacD,
+//				null, // pacT,
+//				null, // writeMaskToCanvas,
+//				null,//type,
+//				null,//vtype );
+
+		return ms;
+
+	}
+
+	public static MaskedSource< LabelMultisetType, VolatileLabelMultisetType > addCanvasLabelMultiset(
+			final DataSource< LabelMultisetType, VolatileLabelMultisetType > source,
+			final int[] cellSize,
+			final String path,
+			final Consumer< RandomAccessibleInterval< UnsignedLongType > > mergeCanvasIntoBackground )
+	{
+
+		final DiskCachedCellImgOptions cacheOptions = DiskCachedCellImgOptions
+				.options()
+				.dirtyAccesses( true )
+				.cacheDirectory( new File( path ).toPath() )
+				.cacheType( CacheType.BOUNDED )
+				.cellDimensions( cellSize )
+				.deleteCacheDirectoryOnExit( false )
+				.maxCacheSize( 100 );
+
+		final LabelMultisetType defaultValue = FromIntegerTypeConverter.geAppropriateType();
+		new FromIntegerTypeConverter< UnsignedLongType >().convert( new UnsignedLongType( bdv.bigcat.label.Label.INVALID ), defaultValue );
+
+		final LabelMultisetType type = FromIntegerTypeConverter.geAppropriateType();
+		new FromIntegerTypeConverter< UnsignedLongType >().convert( new UnsignedLongType( bdv.bigcat.label.Label.OUTSIDE ), defaultValue );
+		final VolatileLabelMultisetType vtype = FromIntegerTypeConverter.geAppropriateVolatileType();
+		new FromIntegerTypeConverter< UnsignedLongType >().convert( new UnsignedLongType( bdv.bigcat.label.Label.OUTSIDE ), defaultValue );
+		vtype.setValid( true );
+
+//		final PickOneAllIntegerTypes< I, UnsignedLongType > pacD = new PickOneAllIntegerTypes<>(
+//				l -> bdv.bigcat.label.Label.regular( l.getIntegerLong() ),
+//				( l1, l2 ) -> l2.getIntegerLong() != bdv.bigcat.label.Label.TRANSPARENT && bdv.bigcat.label.Label.regular( l1.getIntegerLong() ),
+//				type.createVariable() );
+//
+//		final PickOneAllIntegerTypesVolatile< I, UnsignedLongType, V, VolatileUnsignedLongType > pacT = new PickOneAllIntegerTypesVolatile<>(
+//				l -> bdv.bigcat.label.Label.regular( l.getIntegerLong() ),
+//				( l1, l2 ) -> l2.getIntegerLong() != bdv.bigcat.label.Label.TRANSPARENT && bdv.bigcat.label.Label.regular( l1.getIntegerLong() ),
+//				vtype.createVariable() );
+
+		final MaskedSource< LabelMultisetType, VolatileLabelMultisetType > ms = new MaskedSource<>(
+				source,
+				cacheOptions,
+				level -> String.format( "%s/%d", path, level ),
+				null, // pacD,
+				null, // pacT,
 				type,
 				vtype,
 				mergeCanvasIntoBackground );

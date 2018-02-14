@@ -28,6 +28,8 @@ import net.imglib2.interpolation.randomaccess.NearestNeighborInterpolatorFactory
 import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.type.NativeType;
 import net.imglib2.type.Type;
+import net.imglib2.type.label.LabelMultisetType;
+import net.imglib2.type.label.VolatileLabelMultisetType;
 import net.imglib2.type.numeric.IntegerType;
 import net.imglib2.type.numeric.NumericType;
 import net.imglib2.type.numeric.RealType;
@@ -67,10 +69,10 @@ public interface SourceFromRAI extends BackendDialog
 			final int priority ) throws Exception
 	{
 		if ( isLabelType() )
-			if ( isIntegerType() )
+			if ( isLabelMultisetType() )
+				return getLabelMultisetTypeSource( name, sharedQueue, priority, assignments() );
+			else if ( isIntegerType() )
 				return getIntegerTypeSource( name, sharedQueue, priority, assignments() );
-			else if ( isLabelMultisetType() )
-				return new ArrayList<>();
 		return new ArrayList<>();
 	}
 
@@ -127,6 +129,30 @@ public interface SourceFromRAI extends BackendDialog
 				priority );
 		final ArrayList< LabelDataSource< T, V > > delegated = new ArrayList<>();
 		for ( final DataSource< T, V > source : sources )
+			delegated.add( new LabelDataSourceFromDelegates<>( source, assignment.next() ) );
+		return delegated;
+	}
+
+	public default Collection< ? extends LabelDataSource< LabelMultisetType, VolatileLabelMultisetType > > getLabelMultisetTypeSource(
+			final String name,
+			final SharedQueue sharedQueue,
+			final int priority,
+			final Iterator< ? extends FragmentSegmentAssignmentState< ? > > assignment ) throws IOException
+	{
+
+		final Triple< RandomAccessibleInterval< LabelMultisetType >[], RandomAccessibleInterval< VolatileLabelMultisetType >[], AffineTransform3D[] > dataAndVolatile =
+				getDataAndVolatile( sharedQueue, priority );
+		final Collection< DataSource< LabelMultisetType, VolatileLabelMultisetType > > sources = getCached(
+				dataAndVolatile.getA(),
+				dataAndVolatile.getB(),
+				dataAndVolatile.getC(),
+				i -> new NearestNeighborInterpolatorFactory<>(),
+				i -> new NearestNeighborInterpolatorFactory<>(),
+				name,
+				sharedQueue,
+				priority );
+		final ArrayList< LabelDataSource< LabelMultisetType, VolatileLabelMultisetType > > delegated = new ArrayList<>();
+		for ( final DataSource< LabelMultisetType, VolatileLabelMultisetType > source : sources )
 			delegated.add( new LabelDataSourceFromDelegates<>( source, assignment.next() ) );
 		return delegated;
 	}
