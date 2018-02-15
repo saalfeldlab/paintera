@@ -40,6 +40,7 @@ import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.Volatile;
 import net.imglib2.cache.img.CachedCellImg;
 import net.imglib2.cache.ref.BoundedSoftRefLoaderCache;
+import net.imglib2.cache.ref.SoftRefLoaderCache;
 import net.imglib2.cache.util.LoaderCacheAsCacheAdapter;
 import net.imglib2.cache.volatiles.CacheHints;
 import net.imglib2.cache.volatiles.LoadingStrategy;
@@ -119,7 +120,7 @@ public class BackendDialogN5 extends BackendDialogGroupAndDataset implements Com
 				{
 					final DatasetAttributes attrs = reader.getDatasetAttributes( dataset );
 					final N5CacheLoader loader = new N5CacheLoader( reader, dataset );
-					final BoundedSoftRefLoaderCache< Long, Cell< VolatileLabelMultisetArray > > cache = new BoundedSoftRefLoaderCache<>( 1 );
+					final SoftRefLoaderCache< Long, Cell< VolatileLabelMultisetArray > > cache = new SoftRefLoaderCache<>();
 					final LoaderCacheAsCacheAdapter< Long, Cell< VolatileLabelMultisetArray > > wrappedCache = new LoaderCacheAsCacheAdapter<>( cache, loader );
 					final RandomAccessibleInterval< T > raw = ( RandomAccessibleInterval< T > ) new CachedCellImg<>(
 							new CellGrid( attrs.getDimensions(), attrs.getBlockSize() ),
@@ -172,21 +173,21 @@ public class BackendDialogN5 extends BackendDialogGroupAndDataset implements Com
 
 				final DatasetAttributes attrs = reader.getDatasetAttributes( scaleDataset );
 				final N5CacheLoader loader = new N5CacheLoader( reader, scaleDataset );
-				final BoundedSoftRefLoaderCache< Long, Cell< VolatileLabelMultisetArray > > cache = new BoundedSoftRefLoaderCache<>( 1 );
+				final SoftRefLoaderCache< Long, Cell< VolatileLabelMultisetArray > > cache = new SoftRefLoaderCache<>();
 				final LoaderCacheAsCacheAdapter< Long, Cell< VolatileLabelMultisetArray > > wrappedCache = new LoaderCacheAsCacheAdapter<>( cache, loader );
 				raw[ scale ] = ( RandomAccessibleInterval< T > ) new CachedCellImg<>(
 						new CellGrid( attrs.getDimensions(), attrs.getBlockSize() ),
 						new LabelMultisetType(),
 						wrappedCache,
 						new VolatileLabelMultisetArray( 0, true ) );
-//							N5Utils.openVolatile( reader, dataset );
+				// TODO cannot use VolatileViews because VolatileTypeMatches
+				// does not know LabelMultisetType
+//				vraw[ scale ] = VolatileViews.wrapAsVolatile( raw[ scale ], sharedQueue, new CacheHints( LoadingStrategy.VOLATILE, priority, true ) );
 				vraw[ scale ] = ( RandomAccessibleInterval< V > ) new CachedCellImg<>(
 						new CellGrid( attrs.getDimensions(), attrs.getBlockSize() ),
 						new VolatileLabelMultisetType(),
 						wrappedCache,
 						new VolatileLabelMultisetArray( 0, true ) );
-//				raw[ scale ] = N5Utils.openVolatile( reader, scaleDataset );
-//				vraw[ scale ] = VolatileViews.wrapAsVolatile( raw[ scale ], sharedQueue, new CacheHints( LoadingStrategy.VOLATILE, priority, true ) );
 
 				final double[] downsamplingFactors = Optional
 						.ofNullable( reader.getAttribute( scaleDataset, "downsamplingFactors", double[].class ) )
