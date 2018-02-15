@@ -152,8 +152,7 @@ public class BackendDialogN5 extends BackendDialogGroupAndDataset implements Com
 			}
 
 			// do multiscale instead
-			final String[] scaleDatasets = listScaleDatasets( reader, dataset );
-			sortScaleDatasets( scaleDatasets );
+			final String[] scaleDatasets = listAndSortScaleDatasets( reader, dataset );
 
 			LOG.debug( "Opening directories {} as multi-scale in {}: ", Arrays.toString( scaleDatasets ), dataset );
 
@@ -242,8 +241,7 @@ public class BackendDialogN5 extends BackendDialogGroupAndDataset implements Com
 			{
 
 			}
-			final String[] scaleDatasets = listScaleDatasets( reader, dataset );
-			sortScaleDatasets( scaleDatasets );
+			final String[] scaleDatasets = listAndSortScaleDatasets( reader, dataset );
 
 			LOG.debug( "Opening directories {} as multi-scale in {}: ", Arrays.toString( scaleDatasets ), dataset );
 
@@ -409,21 +407,7 @@ public class BackendDialogN5 extends BackendDialogGroupAndDataset implements Com
 
 	public static String[] listAndSortScaleDatasets( final N5Reader n5, final String group ) throws IOException
 	{
-		final String[] scaleDirs = Arrays
-				.stream( n5.list( group ) )
-				.filter( s -> s.matches( "^s\\d+$" ) )
-				.filter( s -> {
-					try
-					{
-						return n5.datasetExists( group + "/" + s );
-					}
-					catch ( final IOException e )
-					{
-						return false;
-					}
-				} )
-				.toArray( String[]::new );
-
+		final String[] scaleDirs = listScaleDatasets( n5, group );
 		sortScaleDatasets( scaleDirs );
 
 		LOG.warn( "Sorted scale dirs: {}", Arrays.toString( scaleDirs ) );
@@ -443,8 +427,7 @@ public class BackendDialogN5 extends BackendDialogGroupAndDataset implements Com
 	{
 		if ( reader.datasetExists( basePath ) )
 			return basePath;
-		final String[] scaleDirs = listScaleDatasets( reader, basePath );
-		sortScaleDatasets( scaleDirs );
+		final String[] scaleDirs = listAndSortScaleDatasets( reader, basePath );
 		LOG.debug( "Got the following scale dirs: {}", Arrays.toString( scaleDirs ) );
 		return basePath + "/" + scaleDirs[ 0 ];
 	}
@@ -490,8 +473,7 @@ public class BackendDialogN5 extends BackendDialogGroupAndDataset implements Com
 			ds = dataset;
 		else
 		{
-			final String[] scaleDirs = listScaleDatasets( n5, dataset );
-			sortScaleDatasets( scaleDirs );
+			final String[] scaleDirs = listAndSortScaleDatasets( n5, dataset );
 			ds = Paths.get( dataset, scaleDirs ).toString();
 		}
 		final RandomAccessibleInterval< T > data = N5Utils.open( n5, ds );
