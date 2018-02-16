@@ -28,6 +28,7 @@ import bdv.net.imglib2.util.ValueTriple;
 import bdv.util.IdService;
 import bdv.util.N5IdService;
 import bdv.util.volatiles.SharedQueue;
+import bdv.util.volatiles.VolatileRandomAccessibleIntervalView;
 import bdv.util.volatiles.VolatileViews;
 import javafx.beans.binding.Bindings;
 import javafx.beans.binding.StringBinding;
@@ -122,17 +123,20 @@ public class BackendDialogN5 extends BackendDialogGroupAndDataset implements Com
 					final N5CacheLoader loader = new N5CacheLoader( reader, dataset );
 					final SoftRefLoaderCache< Long, Cell< VolatileLabelMultisetArray > > cache = new SoftRefLoaderCache<>();
 					final LoaderCacheAsCacheAdapter< Long, Cell< VolatileLabelMultisetArray > > wrappedCache = new LoaderCacheAsCacheAdapter<>( cache, loader );
-					final RandomAccessibleInterval< T > raw = ( RandomAccessibleInterval< T > ) new CachedCellImg<>(
+					final CachedCellImg< LabelMultisetType, VolatileLabelMultisetArray > cachedImg = new CachedCellImg<>(
 							new CellGrid( attrs.getDimensions(), attrs.getBlockSize() ),
 							new LabelMultisetType(),
 							wrappedCache,
 							new VolatileLabelMultisetArray( 0, true ) );
+					final RandomAccessibleInterval< T > raw = ( RandomAccessibleInterval< T > ) cachedImg;
 //							N5Utils.openVolatile( reader, dataset );
-					final RandomAccessibleInterval< V > vraw = ( RandomAccessibleInterval< V > ) new CachedCellImg<>(
-							new CellGrid( attrs.getDimensions(), attrs.getBlockSize() ),
-							new VolatileLabelMultisetType(),
-							wrappedCache,
-							new VolatileLabelMultisetArray( 0, true ) );
+					final VolatileRandomAccessibleIntervalView< LabelMultisetType, VolatileLabelMultisetType > volatileCachedImg = VolatileHelpers.wrapCachedCellImg(
+							cachedImg,
+							new VolatileHelpers.CreateInvalidVolatileLabelMultisetArray( cachedImg.getCellGrid() ),
+							sharedQueue,
+							new CacheHints( LoadingStrategy.VOLATILE, priority, false ),
+							new VolatileLabelMultisetType() );
+					final RandomAccessibleInterval< V > vraw = ( RandomAccessibleInterval< V > ) volatileCachedImg;
 //							VolatileViews.wrapAsVolatile( raw, sharedQueue, new CacheHints( LoadingStrategy.VOLATILE, priority, true ) );
 					final double[] resolution = Arrays.stream( resolution() ).mapToDouble( DoubleProperty::get ).toArray();
 					final double[] offset = Arrays.stream( offset() ).mapToDouble( DoubleProperty::get ).toArray();
@@ -174,19 +178,22 @@ public class BackendDialogN5 extends BackendDialogGroupAndDataset implements Com
 				final N5CacheLoader loader = new N5CacheLoader( reader, scaleDataset );
 				final SoftRefLoaderCache< Long, Cell< VolatileLabelMultisetArray > > cache = new SoftRefLoaderCache<>();
 				final LoaderCacheAsCacheAdapter< Long, Cell< VolatileLabelMultisetArray > > wrappedCache = new LoaderCacheAsCacheAdapter<>( cache, loader );
-				raw[ scale ] = ( RandomAccessibleInterval< T > ) new CachedCellImg<>(
+				final CachedCellImg< LabelMultisetType, VolatileLabelMultisetArray > cachedImg = new CachedCellImg<>(
 						new CellGrid( attrs.getDimensions(), attrs.getBlockSize() ),
 						new LabelMultisetType(),
 						wrappedCache,
 						new VolatileLabelMultisetArray( 0, true ) );
+				raw[ scale ] = ( RandomAccessibleInterval< T > ) cachedImg;
 				// TODO cannot use VolatileViews because VolatileTypeMatches
 				// does not know LabelMultisetType
 //				vraw[ scale ] = VolatileViews.wrapAsVolatile( raw[ scale ], sharedQueue, new CacheHints( LoadingStrategy.VOLATILE, priority, true ) );
-				vraw[ scale ] = ( RandomAccessibleInterval< V > ) new CachedCellImg<>(
-						new CellGrid( attrs.getDimensions(), attrs.getBlockSize() ),
-						new VolatileLabelMultisetType(),
-						wrappedCache,
-						new VolatileLabelMultisetArray( 0, true ) );
+				final VolatileRandomAccessibleIntervalView< LabelMultisetType, VolatileLabelMultisetType > volatileCachedImg = VolatileHelpers.wrapCachedCellImg(
+						cachedImg,
+						new VolatileHelpers.CreateInvalidVolatileLabelMultisetArray( cachedImg.getCellGrid() ),
+						sharedQueue,
+						new CacheHints( LoadingStrategy.VOLATILE, priority, false ),
+						new VolatileLabelMultisetType() );
+				vraw[ scale ] = ( RandomAccessibleInterval< V > ) volatileCachedImg;
 
 				final double[] downsamplingFactors = Optional
 						.ofNullable( reader.getAttribute( scaleDataset, "downsamplingFactors", double[].class ) )
