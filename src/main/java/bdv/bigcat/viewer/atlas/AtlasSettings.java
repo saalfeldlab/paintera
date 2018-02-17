@@ -5,10 +5,12 @@ import java.util.Optional;
 import bdv.bigcat.viewer.atlas.mode.Mode;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.DoubleProperty;
+import javafx.beans.property.IntegerProperty;
 import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.ReadOnlyBooleanProperty;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleDoubleProperty;
+import javafx.beans.property.SimpleIntegerProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.value.ObservableBooleanValue;
 import javafx.collections.FXCollections;
@@ -55,6 +57,12 @@ public class AtlasSettings
 		translationSpeed.addListener( c -> changed.set( true ) );
 	}
 
+	private final IntegerProperty meshSimplificationIterations = new SimpleIntegerProperty( 0 );
+	{
+		meshSimplificationIterations.addListener( ( obs, oldv, newv ) -> meshSimplificationIterations.set( Math.max( newv.intValue(), 0 ) ) );
+		meshSimplificationIterations.addListener( ( obs, oldv, newv ) -> System.out.println( "CHANGING! " + oldv + " " + newv ) );
+	}
+
 	public ObservableBooleanValue changedProperty()
 	{
 		return ReadOnlyBooleanProperty.readOnlyBooleanProperty( changed );
@@ -88,6 +96,11 @@ public class AtlasSettings
 	public DoubleProperty translationSpeedProperty()
 	{
 		return this.translationSpeed;
+	}
+
+	public IntegerProperty meshSimplificationIterationsProperty()
+	{
+		return this.meshSimplificationIterations;
 	}
 
 }

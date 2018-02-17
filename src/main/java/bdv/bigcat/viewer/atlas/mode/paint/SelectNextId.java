@@ -6,7 +6,6 @@ import java.util.function.BiConsumer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import bdv.bigcat.viewer.atlas.mode.Mode;
 import bdv.bigcat.viewer.atlas.source.AtlasSourceState;
 import bdv.bigcat.viewer.atlas.source.AtlasSourceState.TYPE;
 import bdv.bigcat.viewer.atlas.source.SourceInfo;
@@ -21,13 +20,10 @@ public class SelectNextId
 
 	private final SourceInfo sourceInfo;
 
-	private final Mode mode;
-
-	public SelectNextId( final SourceInfo sourceInfo, final Mode mode )
+	public SelectNextId( final SourceInfo sourceInfo )
 	{
 		super();
 		this.sourceInfo = sourceInfo;
-		this.mode = mode;
 	}
 
 	public void getNextIds( final int count )
@@ -73,7 +69,7 @@ public class SelectNextId
 			return;
 		}
 
-		final SelectedIds selectedIds = state.selectedIds().get( mode );
+		final SelectedIds selectedIds = state.selectedIdsProperty().get();
 		action.accept( selectedIds, idService );
 	}
 

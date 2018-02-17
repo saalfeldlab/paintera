@@ -141,6 +141,8 @@ public class OpenSourceDialog extends Dialog< BackendDialog > implements Combine
 					this.metaPanel.listenOnMinMax( backendDialog.min(), backendDialog.max() );
 
 					backendDialog.errorMessage().addListener( ( obsErr, oldErr, newErr ) -> combineErrorMessages() );
+					backendDialog.nameProperty().addListener( ( obsName, oldName, newName ) -> Optional.ofNullable( newName ).ifPresent( nameField.textField().textProperty()::set ) );
+					Optional.ofNullable( backendDialog.nameProperty().get() ).ifPresent( nameField.textField().textProperty()::set );
 					combineErrorMessages();
 				} );
 		} );

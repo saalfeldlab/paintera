@@ -6,15 +6,14 @@ import java.util.Arrays;
 import java.util.function.Supplier;
 
 import org.janelia.saalfeldlab.n5.N5Reader;
+import org.janelia.saalfeldlab.n5.hdf5.N5HDF5Reader;
 import org.janelia.saalfeldlab.n5.imglib2.N5Utils;
 
-import bdv.img.h5.H5Utils;
 import bdv.util.volatiles.SharedQueue;
 import bdv.util.volatiles.VolatileTypeMatcher;
 import bdv.util.volatiles.VolatileViews;
 import bdv.viewer.Interpolation;
 import bdv.viewer.Source;
-import ch.systemsx.cisd.hdf5.HDF5Factory;
 import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.RealRandomAccessible;
 import net.imglib2.Volatile;
@@ -199,9 +198,10 @@ public interface DataSource< D, T > extends Source< T >
 			final SharedQueue sharedQueue,
 			final int priority ) throws IOException
 	{
+		// we pass a cell size, so we want to override
 		return createDataSource(
 				name,
-				( RandomAccessibleInterval< T > )H5Utils.open( HDF5Factory.openForReading( rawFile ), rawDataset, rawCellSize ),
+				( RandomAccessibleInterval< T > ) N5Utils.openVolatile( new N5HDF5Reader( rawFile, true, rawCellSize ), rawDataset ),
 				resolution,
 				offset,
 				sharedQueue, priority );
@@ -277,7 +277,7 @@ public interface DataSource< D, T > extends Source< T >
 	{
 		return createDataSource(
 				name,
-				( RandomAccessibleInterval< T > )N5Utils.openVolatile( n5, dataset ),
+				( RandomAccessibleInterval< T > ) N5Utils.openVolatile( n5, dataset ),
 				rawTransform,
 				sharedQueue,
 				priority );
@@ -335,9 +335,9 @@ public interface DataSource< D, T > extends Source< T >
 			final AffineTransform3D mipmapTransform = rawTransform.copy();
 			if ( downsampleFactors != null )
 				mipmapTransform.set(
-						resolution[ 0 ] * downsampleFactors[ 0 ], 0, 0, ( 0.5 * ( downsampleFactors[ 0 ] - 1 + offset[ 0 ] ) * resolution[ 0 ] ),
-						0, resolution[ 1 ] * downsampleFactors[ 1 ], 0, ( 0.5 * ( downsampleFactors[ 1 ] - 1 + offset[ 1 ] ) * resolution[ 1 ] ),
-						0, 0, resolution[ 2 ] * downsampleFactors[ 2 ], ( 0.5 * ( downsampleFactors[ 2 ] - 1 + offset[ 2 ] ) * resolution[ 2 ] ) );
+						resolution[ 0 ] * downsampleFactors[ 0 ], 0, 0, 0.5 * ( downsampleFactors[ 0 ] - 1 + offset[ 0 ] ) * resolution[ 0 ],
+						0, resolution[ 1 ] * downsampleFactors[ 1 ], 0, 0.5 * ( downsampleFactors[ 1 ] - 1 + offset[ 1 ] ) * resolution[ 1 ],
+						0, 0, resolution[ 2 ] * downsampleFactors[ 2 ], 0.5 * ( downsampleFactors[ 2 ] - 1 + offset[ 2 ] ) * resolution[ 2 ] );
 			mipmapTransforms.add( mipmapTransform );
 		}
 
@@ -395,7 +395,7 @@ public interface DataSource< D, T > extends Source< T >
 			final Supplier< T > typeSupplier,
 			final Supplier< V > volatileTypeSupplier ) throws IOException
 	{
-		return createN5MipmapSource( name, n5, group, resolution, new double[resolution.length], sharedQueue, typeSupplier, volatileTypeSupplier );
+		return createN5MipmapSource( name, n5, group, resolution, new double[ resolution.length ], sharedQueue, typeSupplier, volatileTypeSupplier );
 	}
 
 	default public int tMin()

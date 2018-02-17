@@ -33,11 +33,9 @@ public class SelectedIds extends AbstractState< SelectedIds >
 
 	public void activate( final long... ids )
 	{
-		deactivateAll();
-		for ( final long id : ids )
-			activateAlso( id );
+		deactivateAll( false );
+		activateAlso( ids );
 		LOG.debug( "Activated " + Arrays.toString( ids ) + " " + selectedIds );
-		stateChanged();
 	}
 
 	public void activateAlso( final long... ids )
@@ -49,8 +47,14 @@ public class SelectedIds extends AbstractState< SelectedIds >
 
 	public void deactivateAll()
 	{
+		deactivateAll( true );
+	}
+
+	private void deactivateAll( final boolean notify )
+	{
 		selectedIds.clear();
-		stateChanged();
+		if ( notify )
+			stateChanged();
 	}
 
 	public void deactivate( final long... ids )

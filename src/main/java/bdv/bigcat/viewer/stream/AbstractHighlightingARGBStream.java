@@ -16,28 +16,40 @@
  */
 package bdv.bigcat.viewer.stream;
 
-import bdv.bigcat.ui.ARGBStream;
+import java.lang.invoke.MethodHandles;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import bdv.bigcat.viewer.state.AbstractState;
-import bdv.bigcat.viewer.state.FragmentSegmentAssignment;
+import bdv.bigcat.viewer.state.FragmentSegmentAssignmentState;
 import bdv.bigcat.viewer.state.SelectedIds;
 import bdv.labels.labelset.Label;
 import gnu.trove.impl.Constants;
 import gnu.trove.map.hash.TLongIntHashMap;
+import gnu.trove.set.hash.TLongHashSet;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.SimpleBooleanProperty;
 
 /**
  * Generates and caches a stream of colors.
  *
- * @author Stephan Saalfeld &lt;saalfelds@janelia.hhmi.org&gt;
+ * @author Stephan Saalfeld
+ * @author Philipp Hanslovsky
+ *
  */
-abstract public class AbstractHighlightingARGBStream extends AbstractState< AbstractHighlightingARGBStream > implements ARGBStream
+public abstract class AbstractHighlightingARGBStream extends AbstractState< AbstractHighlightingARGBStream > implements ARGBStream
 {
+
+	private static final Logger LOG = LoggerFactory.getLogger( MethodHandles.lookup().lookupClass() );
+
 	final static protected double[] rs = new double[] { 1, 1, 0, 0, 0, 1, 1 };
 
 	final static protected double[] gs = new double[] { 0, 1, 1, 1, 0, 0, 0 };
 
 	final static protected double[] bs = new double[] { 0, 0, 0, 1, 1, 1, 0 };
+
+	private static final int ZERO = 0x00000000;
 
 	protected long seed = 0;
 
@@ -51,15 +63,22 @@ abstract public class AbstractHighlightingARGBStream extends AbstractState< Abst
 
 	protected final SelectedIds highlights;
 
-	protected final FragmentSegmentAssignment assignment;
+	protected final FragmentSegmentAssignmentState< ? > assignment;
 
 	private final BooleanProperty colorFromSegmentId = new SimpleBooleanProperty();
 
-	public AbstractHighlightingARGBStream( final SelectedIds highlights, final FragmentSegmentAssignment assignment )
+	private TLongHashSet activeFragments;
+
+	private TLongHashSet activeSegments;
+
+	public AbstractHighlightingARGBStream( final SelectedIds highlights, final FragmentSegmentAssignmentState< ? > assignment )
 	{
 		this.highlights = highlights;
 		this.assignment = assignment;
 		this.colorFromSegmentId.addListener( ( obs, oldv, newv ) -> stateChanged() );
+		this.assignment.addListener( this::setActiveFragmentsAndSegments );
+		this.highlights.addListener( this::setActiveFragmentsAndSegments );
+		setActiveFragmentsAndSegments();
 	}
 
 	protected TLongIntHashMap argbCache = new TLongIntHashMap(
@@ -115,7 +134,7 @@ abstract public class AbstractHighlightingARGBStream extends AbstractState< Abst
 	@Override
 	public int argb( final long id )
 	{
-		return argbImpl( id, colorFromSegmentId.get() );
+		return id == Label.TRANSPARENT ? ZERO : argbImpl( id, colorFromSegmentId.get() );
 	}
 
 	protected abstract int argbImpl( long id, boolean colorFromSegmentId );
@@ -213,7 +232,9 @@ abstract public class AbstractHighlightingARGBStream extends AbstractState< Abst
 
 	public void clearCache()
 	{
+		LOG.debug( "Before clearing cache: {}", argbCache );
 		argbCache.clear();
+		LOG.debug( "After clearing cache: {}", argbCache );
 		stateChanged();
 	}
 
@@ -231,4 +252,17 @@ abstract public class AbstractHighlightingARGBStream extends AbstractState< Abst
 	{
 		return this.colorFromSegmentId;
 	}
+
+	private final void setActiveFragmentsAndSegments()
+	{
+		final TLongHashSet activeFragments = new TLongHashSet( this.highlights.getActiveIds() );
+		final TLongHashSet activeSegments = new TLongHashSet();
+		activeFragments.forEach( id -> {
+			activeSegments.add( this.assignment.getSegment( id ) );
+			return true;
+		} );
+		this.activeFragments = activeFragments;
+		this.activeSegments = activeSegments;
+	}
+
 }

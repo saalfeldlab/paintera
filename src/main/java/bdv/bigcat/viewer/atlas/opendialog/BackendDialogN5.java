@@ -29,7 +29,10 @@ import bdv.util.IdService;
 import bdv.util.N5IdService;
 import bdv.util.volatiles.SharedQueue;
 import bdv.util.volatiles.VolatileViews;
+import javafx.beans.binding.Bindings;
+import javafx.beans.binding.StringBinding;
 import javafx.beans.property.DoubleProperty;
+import javafx.beans.value.ObservableStringValue;
 import javafx.stage.DirectoryChooser;
 import net.imglib2.Cursor;
 import net.imglib2.FinalInterval;
@@ -65,6 +68,15 @@ public class BackendDialogN5 extends BackendDialogGroupAndDataset implements Com
 
 	private static final String ATTRIBUTES_JSON = "attributes.json";
 
+	private final StringBinding name = Bindings.createStringBinding( () -> {
+		final String[] entries = Optional
+				.ofNullable( dataset )
+				.map( d -> d.get().split( "/" ) )
+				.map( a -> a.length > 0 ? a : new String[] { null } )
+				.orElse( new String[] { null } );
+		return entries[ entries.length - 1 ];
+	}, dataset );
+
 	public BackendDialogN5()
 	{
 		super( "N5 group", "Dataset", ( group, scene ) -> {
@@ -74,72 +86,6 @@ public class BackendDialogN5 extends BackendDialogGroupAndDataset implements Com
 			final File directory = directoryChooser.showDialog( scene.getWindow() );
 			return directory == null ? null : directory.getAbsolutePath();
 		} );
-	}
-
-	private static boolean isLabelType( final DataType type )
-	{
-		return isLabelMultisetType( type ) || isIntegerType( type );
-	}
-
-	private static boolean isLabelMultisetType( final DataType type )
-	{
-		return false;
-	}
-
-	private static boolean isIntegerType( final DataType type )
-	{
-		switch ( type )
-		{
-		case INT8:
-		case INT16:
-		case INT32:
-		case INT64:
-		case UINT8:
-		case UINT16:
-		case UINT32:
-		case UINT64:
-			return true;
-		default:
-			return false;
-		}
-	}
-
-	private static double minForType( final DataType t )
-	{
-		// TODO ever return non-zero here?
-		switch ( t )
-		{
-		default:
-			return 0.0;
-		}
-	}
-
-	private static double maxForType( final DataType t )
-	{
-		switch ( t )
-		{
-		case UINT8:
-			return 0xff;
-		case UINT16:
-			return 0xffff;
-		case UINT32:
-			return 0xffffffffl;
-		case UINT64:
-			return 2.0 * Long.MAX_VALUE;
-		case INT8:
-			return Byte.MAX_VALUE;
-		case INT16:
-			return Short.MAX_VALUE;
-		case INT32:
-			return Integer.MAX_VALUE;
-		case INT64:
-			return Long.MAX_VALUE;
-		case FLOAT32:
-		case FLOAT64:
-			return 1.0;
-		default:
-			return 1.0;
-		}
 	}
 
 	@SuppressWarnings( "unchecked" )
@@ -218,19 +164,19 @@ public class BackendDialogN5 extends BackendDialogGroupAndDataset implements Com
 	@Override
 	public boolean isLabelType() throws IOException
 	{
-		return isLabelType( getDataType() );
+		return N5Helpers.isLabelType( getDataType() );
 	}
 
 	@Override
 	public boolean isLabelMultisetType() throws IOException
 	{
-		return isLabelMultisetType( getDataType() );
+		return N5Helpers.isLabelMultisetType( getDataType() );
 	}
 
 	@Override
 	public boolean isIntegerType() throws IOException
 	{
-		return isIntegerType( getDataType() );
+		return N5Helpers.isIntegerType( getDataType() );
 	}
 
 	@Override
@@ -250,8 +196,8 @@ public class BackendDialogN5 extends BackendDialogGroupAndDataset implements Com
 
 			setResolution( Optional.ofNullable( reader.getAttribute( dataset, RESOLUTION_KEY, double[].class ) ).orElse( DoubleStream.generate( () -> 1.0 ).limit( nDim ).toArray() ) );
 			setOffset( Optional.ofNullable( reader.getAttribute( dataset, OFFSET_KEY, double[].class ) ).orElse( new double[ nDim ] ) );
-			this.datasetInfo.minProperty().set( Optional.ofNullable( reader.getAttribute( dataset, MIN_KEY, Double.class ) ).orElse( minForType( dsAttrs.getDataType() ) ) );
-			this.datasetInfo.maxProperty().set( Optional.ofNullable( reader.getAttribute( dataset, MAX_KEY, Double.class ) ).orElse( maxForType( dsAttrs.getDataType() ) ) );
+			this.datasetInfo.minProperty().set( Optional.ofNullable( reader.getAttribute( dataset, MIN_KEY, Double.class ) ).orElse( N5Helpers.minForType( dsAttrs.getDataType() ) ) );
+			this.datasetInfo.maxProperty().set( Optional.ofNullable( reader.getAttribute( dataset, MAX_KEY, Double.class ) ).orElse( N5Helpers.maxForType( dsAttrs.getDataType() ) ) );
 
 		}
 		catch ( final IOException e )
@@ -500,6 +446,12 @@ public class BackendDialogN5 extends BackendDialogGroupAndDataset implements Com
 
 		throw new RuntimeException( String.format( "Cannot read dataset attributes for group %s and dataset %s.", group, ds ) );
 
+	}
+
+	@Override
+	public ObservableStringValue nameProperty()
+	{
+		return this.name;
 	}
 
 }

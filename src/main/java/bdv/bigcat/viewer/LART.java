@@ -18,10 +18,11 @@ import com.sun.javafx.application.PlatformImpl;
 import bdv.AbstractViewerSetupImgLoader;
 import bdv.bigcat.viewer.atlas.Atlas;
 import bdv.bigcat.viewer.atlas.data.DataSource;
-import bdv.bigcat.viewer.atlas.data.HDF5LabelMultisetDataSource;
+import bdv.bigcat.viewer.atlas.data.LabelDataSourceFromDelegates;
 import bdv.bigcat.viewer.atlas.data.RandomAccessibleIntervalDataSource;
 import bdv.bigcat.viewer.atlas.solver.SolverQueueServerZMQ;
 import bdv.bigcat.viewer.atlas.solver.action.Action;
+import bdv.bigcat.viewer.state.FragmentSegmentAssignmentWithHistory;
 import bdv.img.cache.VolatileGlobalCellCache;
 import bdv.util.Prefs;
 import bdv.util.volatiles.SharedQueue;
@@ -44,8 +45,10 @@ import net.imglib2.interpolation.randomaccess.NearestNeighborInterpolatorFactory
 import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.type.numeric.RealType;
 import net.imglib2.type.numeric.integer.UnsignedByteType;
+import net.imglib2.type.numeric.integer.UnsignedLongType;
 import net.imglib2.type.volatiles.VolatileARGBType;
 import net.imglib2.type.volatiles.VolatileUnsignedByteType;
+import net.imglib2.type.volatiles.VolatileUnsignedLongType;
 import net.imglib2.view.ExtendedRandomAccessibleInterval;
 import net.imglib2.view.Views;
 
@@ -163,16 +166,20 @@ public class LART
 			return result;
 		};
 
-		final HDF5LabelMultisetDataSource labelSpec2 = new HDF5LabelMultisetDataSource(
+		final DataSource< UnsignedLongType, VolatileUnsignedLongType > labelData = DataSource.createH5RawSource(
+				"labels",
 				labelsFile,
 				labelsDataset,
 				cellSize,
-				actionBroadcast,
-				solutionReceiver, () -> initialSolutionHashMap,
-				"labels",
-				cellCache,
+				resolution,
+				offset,
+				sharedQueue,
 				1 );
-		viewer.addLabelSource( labelSpec2, labelSpec2.getAssignment(), null );
+
+		final FragmentSegmentAssignmentWithHistory assignment = new FragmentSegmentAssignmentWithHistory( initialSolutionHashMap, actionBroadcast, solutionReceiver );
+		final LabelDataSourceFromDelegates< UnsignedLongType, VolatileUnsignedLongType > labelSpec2 = new LabelDataSourceFromDelegates<>( labelData, assignment );
+
+		viewer.addLabelSource( labelSpec2, labelSpec2.getAssignment(), v -> v.get().getIntegerLong(), null, null, null );
 
 		initialSolutionSocket.send( "" );
 		initialSolutionSocket.recv();
