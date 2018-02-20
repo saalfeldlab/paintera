@@ -738,6 +738,16 @@ public class Atlas
 
 	}
 
+	public < D extends Type< D >, T extends Type< T > > void addGenericSource(
+			final DataSource< D, T > src,
+			final Converter< T, ARGBType > converter,
+			final Composite< ARGBType, ARGBType > composite )
+	{
+		final AtlasSourceState< T, D > state = sourceInfo.makeGenericSourceState( src, converter, composite );
+		addSource( src, composite, src.tMin(), src.tMax() );
+		sourceInfo.addState( src, state );
+	}
+
 	public < T extends RealType< T > > void addRawSource(
 			final RandomAccessibleInterval< T > data,
 			final double[] resolution,

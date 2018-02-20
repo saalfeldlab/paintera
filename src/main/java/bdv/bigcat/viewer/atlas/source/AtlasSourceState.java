@@ -40,7 +40,7 @@ public class AtlasSourceState< T extends Type< T >, D extends Type< D > >
 
 	public enum TYPE
 	{
-		RAW, LABEL
+		RAW, LABEL, GENERIC
 	};
 
 	public AtlasSourceState(

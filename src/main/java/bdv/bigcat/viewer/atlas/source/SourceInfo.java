@@ -122,6 +122,15 @@ public class SourceInfo
 		return state;
 	}
 
+	public < D extends Type< D >, T extends Type< T > > AtlasSourceState< T, D > makeGenericSourceState(
+			final DataSource< D, T > source,
+			final Converter< T, ARGBType > converter,
+			final Composite< ARGBType, ARGBType > composite )
+	{
+
+		return new AtlasSourceState<>( source, converter, composite, TYPE.GENERIC );
+	}
+
 	public < D extends Type< D >, T extends Type< T >, F extends FragmentSegmentAssignmentState< F > > AtlasSourceState< T, D > makeLabelSourceState(
 			final DataSource< D, T > source,
 			final ToIdConverter idConverter,
