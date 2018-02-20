@@ -100,7 +100,7 @@ public class ExampleApplicationLauritzen01
 		}
 
 		final int numPriorities = 20;
-		final SharedQueue sharedQueue = new SharedQueue( 12, 20 );
+		final SharedQueue sharedQueue = new SharedQueue( 8, 20 );
 
 		final RandomAccessibleIntervalDataSource< UnsignedByteType, VolatileUnsignedByteType > rawSource =
 				DataSource.createN5MipmapSource( "raw", new N5FSReader( n5Path ), rawGroup, resolution, sharedQueue, UnsignedByteType::new, VolatileUnsignedByteType::new );
