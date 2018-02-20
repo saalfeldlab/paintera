@@ -12,6 +12,7 @@ import bdv.bigcat.viewer.ARGBColorConverter;
 import bdv.bigcat.viewer.ToIdConverter;
 import bdv.bigcat.viewer.atlas.data.DataSource;
 import bdv.bigcat.viewer.atlas.source.AtlasSourceState.TYPE;
+import bdv.bigcat.viewer.meshes.MeshManager;
 import bdv.bigcat.viewer.state.FragmentSegmentAssignmentState;
 import bdv.bigcat.viewer.state.SelectedIds;
 import bdv.bigcat.viewer.stream.ARGBStream;
@@ -173,6 +174,7 @@ public class SourceInfo
 	public synchronized < T > void removeSource( final Source< T > source )
 	{
 		final int currentSourceIndex = this.sources.indexOf( source );
+		Optional.ofNullable( this.states.get( source ).meshManagerProperty().get() ).ifPresent( MeshManager::removeAllNeurons );
 		this.states.remove( source );
 		this.sources.remove( source );
 		this.currentSource.set( this.sources.size() == 0 ? null : this.sources.get( Math.max( currentSourceIndex - 1, 0 ) ) );
