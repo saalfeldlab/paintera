@@ -47,9 +47,8 @@ import net.imglib2.util.Pair;
  *
  * @author Philipp Hanslovsky
  *
- * @param <T>
  */
-public class MeshGenerator< T >
+public class MeshGenerator
 {
 
 	private static final Logger LOG = LoggerFactory.getLogger( MethodHandles.lookup().lookupClass() );
@@ -201,8 +200,6 @@ public class MeshGenerator< T >
 
 	private final long id;
 
-	private final T source;
-
 	private final Cache< Long, Interval[] >[] blockListCache;
 
 	private final Cache< ShapeKey, Pair< float[], float[] > >[] meshCache;
@@ -236,7 +233,6 @@ public class MeshGenerator< T >
 	//
 	public MeshGenerator(
 			final long segmentId,
-			final T source,
 			final Cache< Long, Interval[] >[] blockListCache,
 			final Cache< ShapeKey, Pair< float[], float[] > >[] meshCache,
 			final ObservableIntegerValue color,
@@ -246,7 +242,6 @@ public class MeshGenerator< T >
 	{
 		super();
 		this.id = segmentId;
-		this.source = source;
 		this.blockListCache = blockListCache;
 		this.meshCache = meshCache;
 		this.color = Bindings.createObjectBinding( () -> fromInt( color.get() ), color );
@@ -292,35 +287,42 @@ public class MeshGenerator< T >
 
 	private void updateMeshes( final boolean doUpdate )
 	{
+		System.out.println( 0 );
 		LOG.debug( "Updating mesh? {}", doUpdate );
 		if ( !doUpdate )
 			return;
+		System.out.println( 1 );
 		synchronized ( meshes )
 		{
 			this.meshes.clear();
 		}
+		System.out.println( 2 );
 
 		synchronized ( activeTasks )
 		{
 			this.activeTasks.forEach( f -> f.cancel( true ) );
 			this.activeTasks.clear();
 		}
+		System.out.println( 3 );
 
 		final int scaleIndex = this.scaleIndex.get();
 		final List< Interval > blockList = new ArrayList<>();
 		try
 		{
+			System.out.println( 3.5 );
 			blockList.addAll( Arrays.asList( blockListCache[ scaleIndex ].get( id ) ) );
+			System.out.println( 4 );
 		}
 		catch ( final ExecutionException e )
 		{
 			LOG.warn( "Could not get mesh block list for id {}: {}", id, e.getMessage() );
 			return;
 		}
-
+		System.out.println( 5 );
 		LOG.debug( "Generating mesh with {} blocks for fragment {}.", blockList.size(), this.id );
 
 		final List< ShapeKey > keys = new ArrayList<>();
+		System.out.println( 6 );
 		for ( final Interval block : blockList )
 			keys.add( new ShapeKey( id, scaleIndex, meshSimplificationIterations.get(), Intervals.minAsLongArray( block ), Intervals.maxAsLongArray( block ) ) );
 		final ArrayList< Callable< Void > > tasks = new ArrayList<>();
@@ -414,11 +416,6 @@ public class MeshGenerator< T >
 	private static final Color fromInt( final int argb )
 	{
 		return Color.rgb( ARGBType.red( argb ), ARGBType.green( argb ), ARGBType.blue( argb ), 1.0 );
-	}
-
-	public T getSource()
-	{
-		return source;
 	}
 
 	public long getId()

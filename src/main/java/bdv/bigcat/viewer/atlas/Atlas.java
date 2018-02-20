@@ -54,6 +54,7 @@ import bdv.bigcat.viewer.bdvfx.ViewerPanelFX;
 import bdv.bigcat.viewer.meshes.MeshGenerator.ShapeKey;
 import bdv.bigcat.viewer.meshes.MeshInfos;
 import bdv.bigcat.viewer.meshes.MeshManager;
+import bdv.bigcat.viewer.meshes.MeshManagerWithAssignment;
 import bdv.bigcat.viewer.meshes.cache.CacheUtils;
 import bdv.bigcat.viewer.ortho.OrthoView;
 import bdv.bigcat.viewer.ortho.OrthoViewState;
@@ -506,7 +507,7 @@ public class Atlas
 		final SelectedSegments selectedSegments = new SelectedSegments( selId, assignment );
 		final FragmentsInSelectedSegments fragmentsInSelection = new FragmentsInSelectedSegments( selectedSegments, assignment );
 
-		final MeshManager meshManager = new MeshManager(
+		final MeshManager meshManager = new MeshManagerWithAssignment(
 				spec,
 				state,
 				renderView.meshesGroup(),
@@ -666,7 +667,7 @@ public class Atlas
 		final SelectedSegments selectedSegments = new SelectedSegments( selId, assignment );
 		final FragmentsInSelectedSegments fragmentsInSelection = new FragmentsInSelectedSegments( selectedSegments, assignment );
 
-		final MeshManager meshManager = new MeshManager(
+		final MeshManager meshManager = new MeshManagerWithAssignment(
 				spec,
 				state,
 				renderView.meshesGroup(),
@@ -1242,6 +1243,16 @@ public class Atlas
 		}
 
 		return scaleFactors;
+	}
+
+	public ExecutorService generalPurposeExecutorService()
+	{
+		return this.generalPurposeExecutorService;
+	}
+
+	public Viewer3DFX get3DViewer()
+	{
+		return this.renderView;
 	}
 
 }
