@@ -80,6 +80,11 @@ public interface BackendDialog
 		return null;
 	}
 
+	public default boolean isLabelMultiset()
+	{
+		return false;
+	}
+
 	public ObservableStringValue nameProperty();
 
 	public String identifier();

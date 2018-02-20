@@ -10,12 +10,12 @@ import java.util.function.Supplier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import bdv.bigcat.label.Label;
 import bdv.bigcat.viewer.atlas.solver.action.Action;
 import bdv.bigcat.viewer.atlas.solver.action.ConfirmGroupings;
 import bdv.bigcat.viewer.atlas.solver.action.ConfirmSingleSegment;
 import bdv.bigcat.viewer.atlas.solver.action.Detach;
 import bdv.bigcat.viewer.atlas.solver.action.Merge;
-import bdv.labels.labelset.Label;
 import gnu.trove.impl.Constants;
 import gnu.trove.iterator.TLongIterator;
 import gnu.trove.iterator.TLongLongIterator;

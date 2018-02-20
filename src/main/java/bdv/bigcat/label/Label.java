@@ -1,4 +1,4 @@
-package bdv.labels.labelset;
+package bdv.bigcat.label;
 
 import bdv.util.IdService;
 

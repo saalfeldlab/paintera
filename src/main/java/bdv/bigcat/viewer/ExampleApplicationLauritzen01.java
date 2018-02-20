@@ -16,13 +16,13 @@ import org.slf4j.LoggerFactory;
 import com.beust.jcommander.JCommander;
 import com.sun.javafx.application.PlatformImpl;
 
+import bdv.bigcat.label.Label;
 import bdv.bigcat.viewer.atlas.Atlas;
 import bdv.bigcat.viewer.atlas.data.DataSource;
 import bdv.bigcat.viewer.atlas.data.LabelDataSource;
 import bdv.bigcat.viewer.atlas.data.RandomAccessibleIntervalDataSource;
 import bdv.bigcat.viewer.state.FragmentSegmentAssignmentOnlyLocal;
 import bdv.bigcat.viewer.state.SelectedIds;
-import bdv.labels.labelset.Label;
 import bdv.util.IdService;
 import bdv.util.LocalIdService;
 import bdv.util.volatiles.SharedQueue;

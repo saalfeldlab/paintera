@@ -69,6 +69,7 @@ public class MeshManager
 		this.root = root;
 		this.fragmentsInSelectedSegments = fragmentsInSelectedSegments;
 		this.meshSimplificationIterations.set( Math.max( meshSimplificationIterations.get(), 0 ) );
+		this.scaleLevel.set( this.source.getNumMipmapLevels() - 1 );
 		meshSimplificationIterations.addListener( ( obs, oldv, newv ) -> {
 			System.out.println( "ADDED MESH SIMPLIFICATION ITERATIONS" );
 			this.meshSimplificationIterations.set( Math.max( newv.intValue(), 0 ) );

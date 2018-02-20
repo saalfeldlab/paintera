@@ -219,4 +219,9 @@ public class OpenSourceDialog extends Dialog< BackendDialog > implements Combine
 		return this.paintingCacheDirectory.getText();
 	}
 
+	public boolean isLabelMultiset()
+	{
+		return Optional.of( currentBackend.get() ).map( BackendDialog::isLabelMultiset ).orElse( false );
+	}
+
 }

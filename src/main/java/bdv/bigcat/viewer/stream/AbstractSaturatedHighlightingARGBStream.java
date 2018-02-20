@@ -16,9 +16,9 @@
  */
 package bdv.bigcat.viewer.stream;
 
+import bdv.bigcat.label.Label;
 import bdv.bigcat.viewer.state.FragmentSegmentAssignmentState;
 import bdv.bigcat.viewer.state.SelectedIds;
-import bdv.labels.labelset.Label;
 
 /**
  * Generates and caches a stream of saturated colors. Colors are picked from a

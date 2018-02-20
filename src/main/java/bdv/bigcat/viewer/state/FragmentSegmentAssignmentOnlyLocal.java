@@ -5,7 +5,7 @@ import java.lang.invoke.MethodHandles;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import bdv.labels.labelset.Label;
+import bdv.bigcat.label.Label;
 import gnu.trove.impl.Constants;
 import gnu.trove.iterator.TLongIterator;
 import gnu.trove.iterator.TLongLongIterator;

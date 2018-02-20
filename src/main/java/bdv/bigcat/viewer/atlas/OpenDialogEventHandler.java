@@ -20,6 +20,8 @@ import javafx.event.Event;
 import javafx.event.EventHandler;
 import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.type.NativeType;
+import net.imglib2.type.label.LabelMultisetType;
+import net.imglib2.type.label.VolatileLabelMultisetType;
 import net.imglib2.type.numeric.IntegerType;
 import net.imglib2.type.numeric.RealType;
 import net.imglib2.type.numeric.integer.UnsignedLongType;
@@ -89,8 +91,13 @@ public class OpenDialogEventHandler implements EventHandler< Event >
 				case LABEL:
 					try
 					{
-						// TODO also handle multisets!
-						addLabelSource( viewer, dataset.get(), openDialog, meta, cellCache );
+						if ( openDialog.isLabelMultiset() )
+						{
+							LOG.warn( "Loading multiset dataset!" );
+							addLabelMultisetSource( viewer, dataset.get(), openDialog, meta, cellCache );
+						}
+						else
+							addLabelSource( viewer, dataset.get(), openDialog, meta, cellCache );
 					}
 					catch ( final Exception e )
 					{
@@ -149,6 +156,55 @@ public class OpenDialogEventHandler implements EventHandler< Event >
 		}
 		else
 			viewer.addLabelSource( lsource, lsource.getAssignment(), dt -> dt.get().getIntegerLong(), idService, null, null );
+	}
+
+	private static void addLabelMultisetSource(
+			final Atlas viewer,
+			final BackendDialog dataset,
+			final OpenSourceDialog openDialog,
+			final MetaPanel meta,
+			final SharedQueue cellCache ) throws Exception
+	{
+		LOG.warn( "Adding label multiset source" );
+		// TODO handle this better!
+		try
+		{
+			final Collection< ? extends LabelDataSource< LabelMultisetType, VolatileLabelMultisetType > > optionalSource =
+					( Collection< ? extends LabelDataSource< LabelMultisetType, VolatileLabelMultisetType > > ) dataset.getLabels(
+							openDialog.getName(),
+							cellCache,
+							cellCache.getNumPriorities() );
+			for ( final LabelDataSource< LabelMultisetType, VolatileLabelMultisetType > source : optionalSource )
+				addLabelMultisetSource( viewer, source, openDialog.paint() ? openDialog.canvasCacheDirectory() : null, dataset.idService(), dataset.commitCanvas() );
+		}
+		catch ( final Exception e )
+		{
+			LOG.warn( "Could not add label multiset source: " + e.getMessage() );
+			e.printStackTrace();
+		}
+	}
+
+	private static void addLabelMultisetSource(
+			final Atlas viewer,
+			final LabelDataSource< LabelMultisetType, VolatileLabelMultisetType > lsource,
+			final String cacheDir,
+			final IdService idService,
+			final Consumer< RandomAccessibleInterval< UnsignedLongType > > mergeCanvasIntoBackground )
+	{
+		LOG.warn( "Adding label multiset source, maybe masked" );
+		if ( cacheDir != null )
+		{
+			final int[] blockSize = { 64, 64, 64 };
+			LOG.debug( "Adding canvas source with cache dir={}", cacheDir );
+			viewer.addLabelSource(
+					Atlas.addCanvasLabelMultiset( lsource, blockSize, cacheDir, mergeCanvasIntoBackground ),
+					lsource.getAssignment(),
+					idService,
+					null,
+					null );
+		}
+		else
+			viewer.addLabelSource( lsource, lsource.getAssignment(), idService, null, null );
 	}
 
 }

@@ -9,9 +9,9 @@ import java.util.function.IntFunction;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import bdv.bigcat.label.Label;
 import bdv.bigcat.viewer.atlas.data.DataSource;
 import bdv.bigcat.viewer.atlas.data.mask.PickOne.PickAndConvert;
-import bdv.labels.labelset.Label;
 import bdv.net.imglib2.view.RandomAccessibleTriple;
 import bdv.util.volatiles.VolatileViews;
 import bdv.viewer.Interpolation;

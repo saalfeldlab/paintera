@@ -36,7 +36,6 @@ import com.google.gson.JsonPrimitive;
 import com.google.gson.JsonSerializationContext;
 import com.google.gson.JsonSerializer;
 
-import bdv.labels.labelset.Label;
 import bdv.util.IdService;
 import bdv.util.LocalIdService;
 import gnu.trove.impl.Constants;

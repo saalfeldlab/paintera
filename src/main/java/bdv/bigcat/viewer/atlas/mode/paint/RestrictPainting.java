@@ -7,6 +7,7 @@ import java.util.function.Predicate;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import bdv.bigcat.label.Label;
 import bdv.bigcat.viewer.atlas.data.mask.MaskInUse;
 import bdv.bigcat.viewer.atlas.data.mask.MaskInfo;
 import bdv.bigcat.viewer.atlas.data.mask.MaskedSource;
@@ -14,7 +15,6 @@ import bdv.bigcat.viewer.atlas.source.AtlasSourceState;
 import bdv.bigcat.viewer.atlas.source.SourceInfo;
 import bdv.bigcat.viewer.bdvfx.ViewerPanelFX;
 import bdv.img.AccessBoxRandomAccessible;
-import bdv.labels.labelset.Label;
 import bdv.viewer.Source;
 import bdv.viewer.state.ViewerState;
 import gnu.trove.list.TLongList;
