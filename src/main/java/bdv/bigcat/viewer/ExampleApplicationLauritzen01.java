@@ -6,9 +6,7 @@ import static net.imglib2.cache.img.PrimitiveType.LONG;
 import java.io.IOException;
 import java.lang.invoke.MethodHandles;
 import java.util.Arrays;
-import java.util.Optional;
 import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.ExecutionException;
 
 import org.janelia.saalfeldlab.n5.N5FSReader;
 import org.slf4j.Logger;
@@ -17,16 +15,13 @@ import org.slf4j.LoggerFactory;
 import com.beust.jcommander.JCommander;
 import com.sun.javafx.application.PlatformImpl;
 
+import bdv.bigcat.composite.ARGBCompositeAlphaYCbCr;
 import bdv.bigcat.label.Label;
 import bdv.bigcat.viewer.atlas.Atlas;
 import bdv.bigcat.viewer.atlas.data.DataSource;
 import bdv.bigcat.viewer.atlas.data.LabelDataSourceFromDelegates;
 import bdv.bigcat.viewer.atlas.data.RandomAccessibleIntervalDataSource;
 import bdv.bigcat.viewer.atlas.opendialog.VolatileHelpers;
-import bdv.bigcat.viewer.atlas.source.AtlasSourceState;
-import bdv.bigcat.viewer.meshes.MeshGenerator.ShapeKey;
-import bdv.bigcat.viewer.meshes.MeshManagerSimple;
-import bdv.bigcat.viewer.meshes.cache.CacheUtils;
 import bdv.bigcat.viewer.state.FragmentSegmentAssignmentOnlyLocal;
 import bdv.bigcat.viewer.state.SelectedIds;
 import bdv.net.imglib2.util.ValueTriple;
@@ -34,12 +29,8 @@ import bdv.util.IdService;
 import bdv.util.LocalIdService;
 import bdv.util.volatiles.SharedQueue;
 import javafx.application.Platform;
-import javafx.beans.property.ObjectProperty;
-import javafx.beans.property.SimpleIntegerProperty;
-import javafx.beans.property.SimpleObjectProperty;
 import javafx.stage.Stage;
 import net.imglib2.Cursor;
-import net.imglib2.Interval;
 import net.imglib2.RandomAccessible;
 import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.algorithm.fill.FloodFill;
@@ -68,7 +59,6 @@ import net.imglib2.type.volatiles.VolatileFloatType;
 import net.imglib2.type.volatiles.VolatileUnsignedByteType;
 import net.imglib2.type.volatiles.VolatileUnsignedLongType;
 import net.imglib2.util.Intervals;
-import net.imglib2.util.Pair;
 import net.imglib2.view.IntervalView;
 import net.imglib2.view.Views;
 
@@ -136,24 +126,6 @@ public class ExampleApplicationLauritzen01
 		final LabelDataSourceFromDelegates< LabelMultisetType, VolatileLabelMultisetType > labelSource =
 				new LabelDataSourceFromDelegates<>( labelsDataSource, new FragmentSegmentAssignmentOnlyLocal() );
 
-//		final LabelDataSource labelSource =
-//				LabelDataSource.createLabelSource(
-//						"labels",
-//						( RandomAccessibleInterval ) N5Utils.openVolatile(
-//								new N5FSReader( labelsN5Path ),
-//								labelsDataset ),
-//						resolution,
-//						sharedQueue,
-//						0,
-//						new FragmentSegmentAssignmentOnlyLocal() );
-
-//		final RandomAccessibleIntervalDataSource< UnsignedLongType, VolatileUnsignedLongType > cleftSelectionSource =
-//				DataSource.createDataSource(
-//						"thresholded clefts",
-//						cleftSelection,
-//						resolution,
-//						sharedQueue, 0 );
-
 		final IdService idService = new LocalIdService();
 
 		final Atlas viewer = new Atlas( sharedQueue );
@@ -173,7 +145,7 @@ public class ExampleApplicationLauritzen01
 			viewer.addRawSource( rawSource, 0., ( 1 << 8 ) - 1. );
 			viewer.addLabelSource( labelSource, labelSource.getAssignment(), idService, null, null );
 			viewer.addRawSource( cleftSource, 0., ( 1 << 8 ) - 1. );
-			final ARGBColorConverter converter = ( ARGBColorConverter< ? > ) viewer.sourceInfo().getState( cleftSource ).converterProperty().get();
+			final ARGBColorConverter< ? > converter = ( ARGBColorConverter< ? > ) viewer.sourceInfo().getState( cleftSource ).converterProperty().get();
 			converter.colorProperty().set( new ARGBType( 0xffff0080 ) );
 			converter.minProperty().set( 0.0 );
 			converter.maxProperty().set( 0.2 );
@@ -209,88 +181,88 @@ public class ExampleApplicationLauritzen01
 								resolution,
 								sharedQueue, 0 );
 
-				final AtlasSourceState< ?, ? > labelState = viewer.sourceInfo().getState( labelSource );
+//				final AtlasSourceState< ?, ? > labelState = viewer.sourceInfo().getState( labelSource );
 
-				final Cache< Long, Interval[] > labelLocations = labelState.blocklistCacheProperty().get()[ 0 ];
+//				final Cache< Long, Interval[] > labelLocations = labelState.blocklistCacheProperty().get()[ 0 ];
 				// labelState.blocklistCacheProperty().get().length - 1 ];
 
-				final SelectedIds labelSelection = labelState.selectedIdsProperty().get();
-				final ObjectProperty< long[] > currentLabelSelection = new SimpleObjectProperty<>();
-				labelSelection.addListener( () -> currentLabelSelection.set( labelSelection.getActiveIds() ) );
-				currentLabelSelection.set( labelSelection.getActiveIds() );
+//				final SelectedIds labelSelection = labelState.selectedIdsProperty().get();
+//				final ObjectProperty< long[] > currentLabelSelection = new SimpleObjectProperty<>();
+//				labelSelection.addListener( () -> currentLabelSelection.set( labelSelection.getActiveIds() ) );
+//				currentLabelSelection.set( labelSelection.getActiveIds() );
 
-				@SuppressWarnings( "unchecked" )
-				final Cache< Long, Interval[] >[] cleftsLocations = new Cache[] { new Cache< Long, Interval[] >()
-				{
-
-					@Override
-					public Interval[] getIfPresent( final Long key )
-					{
-						try
-						{
-							return get( key );
-						}
-						catch ( final ExecutionException e )
-						{
-							throw new RuntimeException( e );
-						}
-					}
-
-					@Override
-					public void invalidateAll()
-					{
-						// TODO Auto-generated method stub
-
-					}
-
-					@Override
-					public Interval[] get( final Long key ) throws ExecutionException
-					{
-						// TODO id is just hard coded for test purposes
-						final long[] sel = { 106947 };// currentLabelSelection.get();
-						if ( sel == null )
-							throw new ExecutionException( "Current selection is null: " + sel, null );
-						if ( sel.length == 0 )
-							throw new ExecutionException( "No ids selected currently!", null );
-
-						final long relevantId = sel[ 0 ];
-						final Interval[] locations = labelLocations.get( relevantId );
-						System.out.println( "Relevant id: " + relevantId + " locations: " + Arrays.toString( locations ) );
-						return locations;
-
-					}
-				}
-				};
-
-				// block size is hard coded to 64 cubed. Will have to adapt to
-				// variable block sizes later on.
-				final Cache< ShapeKey, Pair< float[], float[] > >[] meshCaches = CacheUtils.meshCacheLoaders(
-						cleftSelectionSource,
-						new int[][] { { 64, 64, 64 } },
-						cleftLabel -> ( s, t ) -> t.set( s.get() > 0 ),
-						CacheUtils::toCacheSoftRefLoaderCache );
-
-				viewer.addLabelSource( cleftSelectionSource, labelSource.getAssignment(), v -> v.get().getIntegerLong(), idService, cleftsLocations, meshCaches );
-
-				final AtlasSourceState< ?, ? > cleftState = viewer.sourceInfo().getState( cleftSelectionSource );
-
-				final MeshManagerSimple cleftMeshManager = new MeshManagerSimple(
-						cleftsLocations,
-						meshCaches,
-						viewer.get3DViewer().meshesGroup(),
-						new SimpleIntegerProperty( 1 ),
-						viewer.generalPurposeExecutorService() );
-				cleftMeshManager.generateMesh( 1 );
-				currentLabelSelection.addListener( ( obs, oldv, newv ) -> {
-					if ( Optional.ofNullable( newv ).orElse( new long[ 0 ] ).length == 0 )
-						cleftMeshManager.removeAllMeshes();
-					else
-					{
-						System.out.println( "Generating mesh: OK OK!" );
-						cleftMeshManager.generateMesh( 1 );
-					}
-				} );
-				cleftState.meshManagerProperty().set( cleftMeshManager );
+//				@SuppressWarnings( "unchecked" )
+//				final Cache< Long, Interval[] >[] cleftsLocations = new Cache[] { new Cache< Long, Interval[] >()
+//				{
+//
+//					@Override
+//					public Interval[] getIfPresent( final Long key )
+//					{
+//						try
+//						{
+//							return get( key );
+//						}
+//						catch ( final ExecutionException e )
+//						{
+//							throw new RuntimeException( e );
+//						}
+//					}
+//
+//					@Override
+//					public void invalidateAll()
+//					{
+//						// TODO Auto-generated method stub
+//
+//					}
+//
+//					@Override
+//					public Interval[] get( final Long key ) throws ExecutionException
+//					{
+//						// TODO id is just hard coded for test purposes
+//						final long[] sel = { 106947 };// currentLabelSelection.get();
+//						if ( sel == null )
+//							throw new ExecutionException( "Current selection is null: " + sel, null );
+//						if ( sel.length == 0 )
+//							throw new ExecutionException( "No ids selected currently!", null );
+//
+//						final long relevantId = sel[ 0 ];
+//						final Interval[] locations = labelLocations.get( relevantId );
+//						System.out.println( "Relevant id: " + relevantId + " locations: " + Arrays.toString( locations ) );
+//						return locations;
+//
+//					}
+//				}
+//				};
+//
+//				// block size is hard coded to 64 cubed. Will have to adapt to
+//				// variable block sizes later on.
+//				final Cache< ShapeKey, Pair< float[], float[] > >[] meshCaches = CacheUtils.meshCacheLoaders(
+//						cleftSelectionSource,
+//						new int[][] { { 64, 64, 64 } },
+//						cleftLabel -> ( s, t ) -> t.set( s.get() > 0 ),
+//						CacheUtils::toCacheSoftRefLoaderCache );
+//
+				viewer.addGenericSource( cleftSelectionSource, ( s, t ) -> t.set( s.get().get() > 0 ? 0xffffffff : 0 ), new ARGBCompositeAlphaYCbCr() );
+//
+//				final AtlasSourceState< ?, ? > cleftState = viewer.sourceInfo().getState( cleftSelectionSource );
+//
+//				final MeshManagerSimple cleftMeshManager = new MeshManagerSimple(
+//						cleftsLocations,
+//						meshCaches,
+//						viewer.get3DViewer().meshesGroup(),
+//						new SimpleIntegerProperty( 1 ),
+//						viewer.generalPurposeExecutorService() );
+//				cleftMeshManager.generateMesh( 1 );
+//				currentLabelSelection.addListener( ( obs, oldv, newv ) -> {
+//					if ( Optional.ofNullable( newv ).orElse( new long[ 0 ] ).length == 0 )
+//						cleftMeshManager.removeAllMeshes();
+//					else
+//					{
+//						System.out.println( "Generating mesh: OK OK!" );
+//						cleftMeshManager.generateMesh( 1 );
+//					}
+//				} );
+//				cleftState.meshManagerProperty().set( cleftMeshManager );
 			}
 			catch ( final IOException e )
 			{
