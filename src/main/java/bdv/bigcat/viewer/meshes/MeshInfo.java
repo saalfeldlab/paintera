@@ -5,7 +5,6 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.function.BiConsumer;
 
-import bdv.bigcat.viewer.atlas.data.DataSource;
 import bdv.bigcat.viewer.state.FragmentSegmentAssignment;
 import bdv.bigcat.viewer.state.FragmentSegmentAssignmentState;
 import javafx.beans.binding.Bindings;
@@ -62,7 +61,7 @@ public class MeshInfo
 	private void updateTasksCountBindings()
 	{
 		final long[] fragments = assignment.getFragments( segmentId ).toArray();
-		final Map< Long, MeshGenerator< DataSource< ?, ? > > > meshes = new HashMap<>( meshManager.unmodifiableMeshMap() );
+		final Map< Long, MeshGenerator > meshes = new HashMap<>( meshManager.unmodifiableMeshMap() );
 		final ObservableIntegerValue[] submittedTasks = Arrays.stream( fragments ).mapToObj( meshes::get ).filter( mesh -> mesh != null ).map( MeshGenerator::submittedTasksProperty ).toArray( ObservableIntegerValue[]::new );
 		final ObservableIntegerValue[] completedTasks = Arrays.stream( fragments ).mapToObj( meshes::get ).filter( mesh -> mesh != null ).map( MeshGenerator::completedTasksProperty ).toArray( ObservableIntegerValue[]::new );
 		final ObservableIntegerValue[] successfulTasks = Arrays.stream( fragments ).mapToObj( meshes::get ).filter( mesh -> mesh != null ).map( MeshGenerator::successfulTasksProperty ).toArray( ObservableIntegerValue[]::new );
@@ -101,9 +100,9 @@ public class MeshInfo
 	private class PropagateChanges< T > implements ChangeListener< T >
 	{
 
-		final BiConsumer< MeshGenerator< DataSource< ?, ? > >, T > apply;
+		final BiConsumer< MeshGenerator, T > apply;
 
-		public PropagateChanges( final BiConsumer< MeshGenerator< DataSource< ?, ? > >, T > apply )
+		public PropagateChanges( final BiConsumer< MeshGenerator, T > apply )
 		{
 			super();
 			this.apply = apply;
@@ -113,7 +112,7 @@ public class MeshInfo
 		public void changed( final ObservableValue< ? extends T > observable, final T oldValue, final T newValue )
 		{
 			final long[] fragments = assignment.getFragments( segmentId ).toArray();
-			final Map< Long, MeshGenerator< DataSource< ?, ? > > > meshes = meshManager.unmodifiableMeshMap();
+			final Map< Long, MeshGenerator > meshes = meshManager.unmodifiableMeshMap();
 			Arrays.stream( fragments ).mapToObj( meshes::get ).filter( m -> m != null ).forEach( n -> apply.accept( n, newValue ) );
 		}
 

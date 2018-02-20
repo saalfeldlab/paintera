@@ -1,9 +1,18 @@
 package bdv.bigcat.viewer.atlas.opendialog;
 
+import java.io.IOException;
+import java.lang.invoke.MethodHandles;
+import java.util.Arrays;
+
 import org.janelia.saalfeldlab.n5.DataType;
+import org.janelia.saalfeldlab.n5.N5Reader;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class N5Helpers
 {
+
+	private static final Logger LOG = LoggerFactory.getLogger( MethodHandles.lookup().lookupClass() );
 
 	public static boolean isLabelType( final DataType type )
 	{
@@ -69,6 +78,45 @@ public class N5Helpers
 		default:
 			return 1.0;
 		}
+	}
+
+	public static String[] listScaleDatasets( final N5Reader n5, final String group ) throws IOException
+	{
+		final String[] scaleDirs = Arrays
+				.stream( n5.list( group ) )
+				.filter( s -> s.matches( "^s\\d+$" ) )
+				.filter( s -> {
+					try
+					{
+						return n5.datasetExists( group + "/" + s );
+					}
+					catch ( final IOException e )
+					{
+						return false;
+					}
+				} )
+				.toArray( String[]::new );
+
+		LOG.warn( "Found these scale dirs: {}", Arrays.toString( scaleDirs ) );
+		return scaleDirs;
+	}
+
+	public static String[] listAndSortScaleDatasets( final N5Reader n5, final String group ) throws IOException
+	{
+		final String[] scaleDirs = listScaleDatasets( n5, group );
+		sortScaleDatasets( scaleDirs );
+
+		LOG.warn( "Sorted scale dirs: {}", Arrays.toString( scaleDirs ) );
+		return scaleDirs;
+	}
+
+	public static void sortScaleDatasets( final String[] scaleDatasets )
+	{
+		Arrays.sort( scaleDatasets, ( f1, f2 ) -> {
+			return Integer.compare(
+					Integer.parseInt( f1.replaceAll( "[^\\d]", "" ) ),
+					Integer.parseInt( f2.replaceAll( "[^\\d]", "" ) ) );
+		} );
 	}
 
 }
