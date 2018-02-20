@@ -140,6 +140,15 @@ public class MeshManager
 		this.neurons.remove( mesh.getId() );
 	}
 
+	public void removeAllNeurons()
+	{
+		synchronized ( neurons )
+		{
+			final List< Entry< Long, MeshGenerator< DataSource< ?, ? > > > > toBeRemoved = neurons.entrySet().stream().collect( Collectors.toList() );
+			toBeRemoved.stream().map( e -> e.getValue() ).forEach( this::removeNeuron );
+		}
+	}
+
 	public Map< Long, MeshGenerator< DataSource< ?, ? > > > unmodifiableMeshMap()
 	{
 		return Collections.unmodifiableMap( neurons );
