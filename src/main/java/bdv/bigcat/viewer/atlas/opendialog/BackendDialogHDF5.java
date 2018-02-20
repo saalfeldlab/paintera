@@ -129,7 +129,7 @@ public class BackendDialogHDF5 extends BackendDialogGroupAndDataset implements C
 			final int nDim = dsAttrs.getNumDimensions();
 
 			setResolution( Optional.ofNullable( reader.getAttribute( dataset, RESOLUTION_KEY, double[].class ) ).map( BackendDialogHDF5::revert ).orElse( DoubleStream.generate( () -> 1.0 ).limit( nDim ).toArray() ) );
-			setOffset( Optional.ofNullable( reader.getAttribute( dataset, OFFSET_KEY, double[].class ) ).orElse( new double[ nDim ] ) );
+			setOffset( Optional.ofNullable( reader.getAttribute( dataset, OFFSET_KEY, double[].class ) ).map( BackendDialogHDF5::revert ).orElse( new double[ nDim ] ) );
 			this.datasetInfo.minProperty().set( Optional.ofNullable( reader.getAttribute( dataset, MIN_KEY, Double.class ) ).orElse( N5Helpers.minForType( dsAttrs.getDataType() ) ) );
 			this.datasetInfo.maxProperty().set( Optional.ofNullable( reader.getAttribute( dataset, MAX_KEY, Double.class ) ).orElse( N5Helpers.maxForType( dsAttrs.getDataType() ) ) );
 
