@@ -2,9 +2,12 @@ package bdv.bigcat.viewer.atlas.data.mask;
 
 import java.lang.invoke.MethodHandles;
 import java.nio.file.Paths;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.function.Consumer;
 import java.util.function.IntFunction;
+import java.util.stream.DoubleStream;
+import java.util.stream.LongStream;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -15,10 +18,14 @@ import bdv.bigcat.viewer.atlas.data.mask.PickOne.PickAndConvert;
 import bdv.net.imglib2.view.RandomAccessibleTriple;
 import bdv.util.volatiles.VolatileViews;
 import bdv.viewer.Interpolation;
+import gnu.trove.iterator.TLongLongIterator;
+import gnu.trove.map.hash.TLongLongHashMap;
 import mpicbg.spim.data.sequence.VoxelDimensions;
 import net.imglib2.Cursor;
 import net.imglib2.FinalInterval;
+import net.imglib2.FinalRealInterval;
 import net.imglib2.Interval;
+import net.imglib2.RandomAccess;
 import net.imglib2.RandomAccessible;
 import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.RealRandomAccessible;
@@ -31,7 +38,9 @@ import net.imglib2.converter.TypeIdentity;
 import net.imglib2.img.ImgFactory;
 import net.imglib2.interpolation.randomaccess.NearestNeighborInterpolatorFactory;
 import net.imglib2.realtransform.AffineTransform3D;
+import net.imglib2.realtransform.Scale3D;
 import net.imglib2.type.Type;
+import net.imglib2.type.numeric.IntegerType;
 import net.imglib2.type.numeric.integer.UnsignedByteType;
 import net.imglib2.type.numeric.integer.UnsignedLongType;
 import net.imglib2.type.volatiles.VolatileUnsignedByteType;
@@ -161,11 +170,11 @@ public class MaskedSource< D extends Type< D >, T extends Type< T > > implements
 				max[ d ] = Math.min( paintedInterval.max( d ), max[ d ] );
 			}
 
-			final FinalInterval interval = new FinalInterval( min, max );
+			final FinalInterval paintedIntervalAtPaintedScale = new FinalInterval( min, max );
 
-			LOG.debug( "For mask info {} and interval {}, painting into canvas {}", maskInfo, interval, dataCanvases );
-			final Cursor< UnsignedLongType > canvasCursor = Views.flatIterable( Views.interval( canvas, interval ) ).cursor();
-			final Cursor< UnsignedByteType > maskCursor = Views.flatIterable( Views.interval( mask, interval ) ).cursor();
+			LOG.debug( "For mask info {} and interval {}, painting into canvas {}", maskInfo, paintedIntervalAtPaintedScale, dataCanvases );
+			final Cursor< UnsignedLongType > canvasCursor = Views.flatIterable( Views.interval( canvas, paintedIntervalAtPaintedScale ) ).cursor();
+			final Cursor< UnsignedByteType > maskCursor = Views.flatIterable( Views.interval( mask, paintedIntervalAtPaintedScale ) ).cursor();
 			while ( canvasCursor.hasNext() )
 			{
 				canvasCursor.fwd();
@@ -179,14 +188,43 @@ public class MaskedSource< D extends Type< D >, T extends Type< T > > implements
 
 			forgetMasks();
 
+			for ( int level = maskInfo.level + 1; level < getNumMipmapLevels(); ++level )
+			{
+				final RandomAccessibleInterval< UnsignedLongType > atLowerLevel = dataCanvases[ level - 1 ];
+				final RandomAccessibleInterval< UnsignedLongType > atHigherLevel = dataCanvases[ level ];
+				final double[] relativeScales = DataSource.getRelativeScales( this, 0, level - 1, level );
+
+				if ( DoubleStream.of( relativeScales ).filter( d -> Math.round( d ) != d ).count() > 0 )
+				{
+					LOG.warn(
+							"Non-integer relative scales found for levels {} and {}: {} -- this does not make sense for label data -- aborting.",
+							level - 1,
+							level,
+							relativeScales );
+					throw new RuntimeException( "Non-integer relative scales: " + Arrays.toString( relativeScales ) );
+				}
+				final Interval intervalAtHigherLevel = this.scaleIntervalToLevel( paintedIntervalAtPaintedScale, maskInfo.level, level );
+
+				// downsample
+				final int[] steps = DoubleStream.of( relativeScales ).mapToInt( d -> ( int ) d ).toArray();
+				downsample( Views.extendValue( atLowerLevel, new UnsignedLongType( Label.INVALID ) ), Views.interval( atHigherLevel, intervalAtHigherLevel ), steps );
+			}
+
+			for ( int level = maskInfo.level - 1; level > 0; --level )
+			{
+				// upsample
+			}
+
+			final Interval paintedIntervalAtHighestResolutionScale = scaleIntervalToLevel( paintedIntervalAtPaintedScale, maskInfo.level, 0 );
+
 			// TODO make correct painted bounding box for multi scale
 			// TODO update canvases in other scale levels
 			if ( this.paintedBoundingBox == null )
-				this.paintedBoundingBox = interval;
+				this.paintedBoundingBox = paintedIntervalAtHighestResolutionScale;
 			else
 			{
-				final long[] m = min.clone();
-				final long[] M = max.clone();
+				final long[] m = Intervals.minAsLongArray( paintedIntervalAtHighestResolutionScale );
+				final long[] M = Intervals.maxAsLongArray( paintedIntervalAtHighestResolutionScale );
 				for ( int d = 0; d < this.paintedBoundingBox.numDimensions(); ++d )
 				{
 					m[ d ] = Math.min( this.paintedBoundingBox.min( d ), m[ d ] );
@@ -195,6 +233,23 @@ public class MaskedSource< D extends Type< D >, T extends Type< T > > implements
 				this.paintedBoundingBox = new FinalInterval( m, M );
 			}
 		}
+
+	}
+
+	private Interval scaleIntervalToLevel( final Interval interval, final int intervalLevel, final int targetLevel )
+	{
+		if ( intervalLevel == targetLevel )
+			return interval;
+
+		final double[] min = LongStream.of( Intervals.minAsLongArray( interval ) ).asDoubleStream().toArray();
+		final double[] max = LongStream.of( Intervals.maxAsLongArray( interval ) ).asDoubleStream().toArray();
+
+		final Scale3D toTargetScale = new Scale3D( DataSource.getRelativeScales( this, 0, intervalLevel, targetLevel ) );
+
+		toTargetScale.apply( min, min );
+		toTargetScale.apply( max, max );
+
+		return Intervals.smallestContainingInterval( new FinalRealInterval( min, max ) );
 
 	}
 
@@ -314,6 +369,53 @@ public class MaskedSource< D extends Type< D >, T extends Type< T > > implements
 	public RandomAccessibleInterval< D > getReadOnlyDataBackground( final int t, final int level )
 	{
 		return Converters.convert( this.source.getDataSource( t, level ), new TypeIdentity<>(), this.source.getDataType().createVariable() );
+	}
+
+	public static < T extends IntegerType< T > > void downsample( final RandomAccessible< T > source, final RandomAccessibleInterval< T > target, final int[] steps )
+	{
+		LOG.warn( "Downsamling!" );
+		final TLongLongHashMap counts = new TLongLongHashMap();
+		final long[] start = new long[ source.numDimensions() ];
+		final long[] stop = new long[ source.numDimensions() ];
+		final RandomAccess< T > sourceAccess = source.randomAccess();
+		for ( final Cursor< T > targetCursor = Views.flatIterable( target ).cursor(); targetCursor.hasNext(); )
+		{
+			final T t = targetCursor.next();
+			counts.clear();
+
+			Arrays.setAll( start, d -> targetCursor.getLongPosition( d ) * steps[ d ] );
+			Arrays.setAll( stop, d -> start[ d ] + steps[ d ] );
+			sourceAccess.setPosition( start );
+
+			for ( int dim = 0; dim < start.length; )
+			{
+				final long id = sourceAccess.get().getIntegerLong();
+				counts.put( id, counts.get( id ) + 1 );
+
+				for ( dim = 0; dim < start.length; ++dim )
+				{
+					sourceAccess.fwd( dim );
+					if ( sourceAccess.getLongPosition( dim ) < stop[ dim ] )
+						break;
+					else
+						sourceAccess.setPosition( start[ dim ], dim );
+				}
+			}
+
+			long maxCount = 0;
+			for ( final TLongLongIterator countIt = counts.iterator(); countIt.hasNext(); )
+			{
+				countIt.advance();
+				final long count = countIt.value();
+				final long id = countIt.key();
+				if ( count > maxCount && id != Label.INVALID )
+				{
+					maxCount = count;
+					t.setInteger( id );
+				}
+			}
+
+		}
 	}
 
 }
