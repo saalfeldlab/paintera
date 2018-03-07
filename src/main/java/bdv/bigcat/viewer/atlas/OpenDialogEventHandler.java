@@ -192,7 +192,7 @@ public class OpenDialogEventHandler implements EventHandler< Event >
 			final IdService idService,
 			final Consumer< RandomAccessibleInterval< UnsignedLongType > > mergeCanvasIntoBackground )
 	{
-		LOG.warn( "Adding label multiset source, maybe masked" );
+		LOG.warn( "Adding label multiset source, maybe masked: {} {}", cacheDir, idService );
 		if ( cacheDir != null )
 		{
 			final int[] blockSize = { 64, 64, 64 };
