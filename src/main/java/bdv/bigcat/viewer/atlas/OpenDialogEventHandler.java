@@ -15,6 +15,7 @@ import bdv.bigcat.viewer.atlas.opendialog.BackendDialog;
 import bdv.bigcat.viewer.atlas.opendialog.OpenSourceDialog;
 import bdv.bigcat.viewer.atlas.opendialog.meta.MetaPanel;
 import bdv.util.IdService;
+import bdv.util.LocalIdService;
 import bdv.util.volatiles.SharedQueue;
 import javafx.event.Event;
 import javafx.event.EventHandler;
@@ -175,7 +176,7 @@ public class OpenDialogEventHandler implements EventHandler< Event >
 							cellCache,
 							cellCache.getNumPriorities() );
 			for ( final LabelDataSource< LabelMultisetType, VolatileLabelMultisetType > source : optionalSource )
-				addLabelMultisetSource( viewer, source, openDialog.paint() ? openDialog.canvasCacheDirectory() : null, dataset.idService(), dataset.commitCanvas() );
+				addLabelMultisetSource( viewer, source, openDialog.paint() ? openDialog.canvasCacheDirectory() : null, openDialog.paint() ? dataset.idService() : new LocalIdService(), dataset.commitCanvas() );
 		}
 		catch ( final Exception e )
 		{
@@ -191,7 +192,7 @@ public class OpenDialogEventHandler implements EventHandler< Event >
 			final IdService idService,
 			final Consumer< RandomAccessibleInterval< UnsignedLongType > > mergeCanvasIntoBackground )
 	{
-		LOG.warn( "Adding label multiset source, maybe masked" );
+		LOG.warn( "Adding label multiset source, maybe masked: {} {}", cacheDir, idService );
 		if ( cacheDir != null )
 		{
 			final int[] blockSize = { 64, 64, 64 };
