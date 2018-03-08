@@ -4,6 +4,8 @@ import java.lang.invoke.MethodHandles;
 import java.nio.file.Paths;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.function.Consumer;
 import java.util.function.IntFunction;
 import java.util.stream.DoubleStream;
@@ -81,6 +83,8 @@ public class MaskedSource< D extends Type< D >, T extends Type< T > > implements
 	private final D extensionD;
 
 	private final T extensionT;
+
+	private final ExecutorService propagationExecutor = Executors.newFixedThreadPool( 1 );
 
 	// TODO make sure that BB is handled properly in multi scale case!!!
 	private Interval paintedBoundingBox = null;
@@ -191,56 +195,9 @@ public class MaskedSource< D extends Type< D >, T extends Type< T > > implements
 
 			forgetMasks();
 
-			for ( int level = maskInfo.level + 1; level < getNumMipmapLevels(); ++level )
-			{
-				final RandomAccessibleInterval< UnsignedLongType > atLowerLevel = dataCanvases[ level - 1 ];
-				final RandomAccessibleInterval< UnsignedLongType > atHigherLevel = dataCanvases[ level ];
-				final double[] relativeScales = DataSource.getRelativeScales( this, 0, level - 1, level );
-
-				if ( DoubleStream.of( relativeScales ).filter( d -> Math.round( d ) != d ).count() > 0 )
-				{
-					LOG.warn(
-							"Non-integer relative scales found for levels {} and {}: {} -- this does not make sense for label data -- aborting.",
-							level - 1,
-							level,
-							relativeScales );
-					throw new RuntimeException( "Non-integer relative scales: " + Arrays.toString( relativeScales ) );
-				}
-				final Interval intervalAtHigherLevel = this.scaleIntervalToLevel( paintedIntervalAtPaintedScale, maskInfo.level, level );
-				LOG.debug(
-						"Downsampling: Interval at painted level {}: ({} {}) -- at target level {}: ({} {})",
-						maskInfo.level,
-						Intervals.minAsLongArray( paintedIntervalAtPaintedScale ),
-						Intervals.maxAsLongArray( paintedIntervalAtPaintedScale ),
-						level,
-						Intervals.minAsLongArray( intervalAtHigherLevel ),
-						Intervals.maxAsLongArray( intervalAtHigherLevel ) );
-
-				// downsample
-				final int[] steps = DoubleStream.of( relativeScales ).mapToInt( d -> ( int ) d ).toArray();
-				downsample( Views.extendValue( atLowerLevel, new UnsignedLongType( Label.INVALID ) ), Views.interval( atHigherLevel, intervalAtHigherLevel ), steps );
-			}
-
-			for ( int level = maskInfo.level - 1; level >= 0; --level )
-			{
-				final Interval intervalAtTargetLevel = this.scaleIntervalToLevel( paintedIntervalAtPaintedScale, maskInfo.level, level );
-				final RandomAccessibleInterval< UnsignedLongType > atTargetLevel = dataCanvases[ level ];
-				final double[] scale = DataSource.getRelativeScales( this, 0, level, maskInfo.level );
-
-				LOG.debug(
-						"Upsampling: Interval at painted level {}: ({} {}) -- at target level {}: ({} {})",
-						maskInfo.level,
-						Intervals.minAsLongArray( paintedIntervalAtPaintedScale ),
-						Intervals.maxAsLongArray( paintedIntervalAtPaintedScale ),
-						level,
-						Intervals.minAsLongArray( intervalAtTargetLevel ),
-						Intervals.maxAsLongArray( intervalAtTargetLevel ) );
-
-				// upsample
-				upsample( Converters.convert( Views.extendZero( mask ), ( s, t ) -> t.set( s.get() == 1 ), new BitType() ), Views.interval( atTargetLevel, intervalAtTargetLevel ), scale, maskInfo.value );
-			}
-
 			final Interval paintedIntervalAtHighestResolutionScale = scaleIntervalToLevel( paintedIntervalAtPaintedScale, maskInfo.level, 0 );
+
+			propagationExecutor.submit( () -> propagateMask( mask, paintedIntervalAtPaintedScale, maskInfo.level, maskInfo.value ) );
 
 			// TODO make correct painted bounding box for multi scale
 			// TODO update canvases in other scale levels
@@ -456,6 +413,63 @@ public class MaskedSource< D extends Type< D >, T extends Type< T > > implements
 			final BooleanType< ? > s = sourceCursor.next();
 			if ( s.get() )
 				targetCursor.get().set( value );
+		}
+	}
+
+	private void propagateMask(
+			final RandomAccessibleInterval< UnsignedByteType > mask,
+			final Interval paintedIntervalAtPaintedScale,
+			final int paintedLevel,
+			final UnsignedLongType label )
+	{
+
+		for ( int level = paintedLevel + 1; level < getNumMipmapLevels(); ++level )
+		{
+			final RandomAccessibleInterval< UnsignedLongType > atLowerLevel = dataCanvases[ level - 1 ];
+			final RandomAccessibleInterval< UnsignedLongType > atHigherLevel = dataCanvases[ level ];
+			final double[] relativeScales = DataSource.getRelativeScales( this, 0, level - 1, level );
+
+			if ( DoubleStream.of( relativeScales ).filter( d -> Math.round( d ) != d ).count() > 0 )
+			{
+				LOG.warn(
+						"Non-integer relative scales found for levels {} and {}: {} -- this does not make sense for label data -- aborting.",
+						level - 1,
+						level,
+						relativeScales );
+				throw new RuntimeException( "Non-integer relative scales: " + Arrays.toString( relativeScales ) );
+			}
+			final Interval intervalAtHigherLevel = this.scaleIntervalToLevel( paintedIntervalAtPaintedScale, paintedLevel, level );
+			LOG.debug(
+					"Downsampling: Interval at painted level {}: ({} {}) -- at target level {}: ({} {})",
+					paintedLevel,
+					Intervals.minAsLongArray( paintedIntervalAtPaintedScale ),
+					Intervals.maxAsLongArray( paintedIntervalAtPaintedScale ),
+					level,
+					Intervals.minAsLongArray( intervalAtHigherLevel ),
+					Intervals.maxAsLongArray( intervalAtHigherLevel ) );
+
+			// downsample
+			final int[] steps = DoubleStream.of( relativeScales ).mapToInt( d -> ( int ) d ).toArray();
+			downsample( Views.extendValue( atLowerLevel, new UnsignedLongType( Label.INVALID ) ), Views.interval( atHigherLevel, intervalAtHigherLevel ), steps );
+		}
+
+		for ( int level = paintedLevel - 1; level >= 0; --level )
+		{
+			final Interval intervalAtTargetLevel = this.scaleIntervalToLevel( paintedIntervalAtPaintedScale, paintedLevel, level );
+			final RandomAccessibleInterval< UnsignedLongType > atTargetLevel = dataCanvases[ level ];
+			final double[] scale = DataSource.getRelativeScales( this, 0, level, paintedLevel );
+
+			LOG.debug(
+					"Upsampling: Interval at painted level {}: ({} {}) -- at target level {}: ({} {})",
+					paintedLevel,
+					Intervals.minAsLongArray( paintedIntervalAtPaintedScale ),
+					Intervals.maxAsLongArray( paintedIntervalAtPaintedScale ),
+					level,
+					Intervals.minAsLongArray( intervalAtTargetLevel ),
+					Intervals.maxAsLongArray( intervalAtTargetLevel ) );
+
+			// upsample
+			upsample( Converters.convert( Views.extendZero( mask ), ( s, t ) -> t.set( s.get() == 1 ), new BitType() ), Views.interval( atTargetLevel, intervalAtTargetLevel ), scale, label );
 		}
 	}
 
