@@ -415,7 +415,8 @@ public class MaskedSource< D extends Type< D >, T extends Type< T > > implements
 			for ( int dim = 0; dim < start.length; )
 			{
 				final long id = sourceAccess.get().getIntegerLong();
-				counts.put( id, counts.get( id ) + 1 );
+				if ( id != Label.INVALID )
+					counts.put( id, counts.get( id ) + 1 );
 
 				for ( dim = 0; dim < start.length; ++dim )
 				{
@@ -433,7 +434,7 @@ public class MaskedSource< D extends Type< D >, T extends Type< T > > implements
 				countIt.advance();
 				final long count = countIt.value();
 				final long id = countIt.key();
-				if ( count > maxCount && id != Label.INVALID )
+				if ( count > maxCount )
 				{
 					maxCount = count;
 					t.setInteger( id );
