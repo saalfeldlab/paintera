@@ -204,6 +204,14 @@ public class MaskedSource< D extends Type< D >, T extends Type< T > > implements
 					throw new RuntimeException( "Non-integer relative scales: " + Arrays.toString( relativeScales ) );
 				}
 				final Interval intervalAtHigherLevel = this.scaleIntervalToLevel( paintedIntervalAtPaintedScale, maskInfo.level, level );
+				LOG.debug(
+						"Interval at painted level {}: ({} {}) -- at level {}: ({} {})",
+						maskInfo.level,
+						Intervals.minAsLongArray( paintedIntervalAtPaintedScale ),
+						Intervals.maxAsLongArray( paintedIntervalAtPaintedScale ),
+						level,
+						Intervals.minAsLongArray( intervalAtHigherLevel ),
+						Intervals.maxAsLongArray( intervalAtHigherLevel ) );
 
 				// downsample
 				final int[] steps = DoubleStream.of( relativeScales ).mapToInt( d -> ( int ) d ).toArray();
@@ -373,7 +381,7 @@ public class MaskedSource< D extends Type< D >, T extends Type< T > > implements
 
 	public static < T extends IntegerType< T > > void downsample( final RandomAccessible< T > source, final RandomAccessibleInterval< T > target, final int[] steps )
 	{
-		LOG.warn( "Downsamling!" );
+		LOG.debug( "Downsampling ({} {}) with steps {}", Intervals.minAsLongArray( target ), Intervals.maxAsLongArray( target ), steps );
 		final TLongLongHashMap counts = new TLongLongHashMap();
 		final long[] start = new long[ source.numDimensions() ];
 		final long[] stop = new long[ source.numDimensions() ];
