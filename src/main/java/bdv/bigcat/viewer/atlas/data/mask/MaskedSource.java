@@ -38,8 +38,11 @@ import net.imglib2.converter.TypeIdentity;
 import net.imglib2.img.ImgFactory;
 import net.imglib2.interpolation.randomaccess.NearestNeighborInterpolatorFactory;
 import net.imglib2.realtransform.AffineTransform3D;
+import net.imglib2.realtransform.RealViews;
 import net.imglib2.realtransform.Scale3D;
+import net.imglib2.type.BooleanType;
 import net.imglib2.type.Type;
+import net.imglib2.type.logic.BitType;
 import net.imglib2.type.numeric.IntegerType;
 import net.imglib2.type.numeric.integer.UnsignedByteType;
 import net.imglib2.type.numeric.integer.UnsignedLongType;
@@ -205,7 +208,7 @@ public class MaskedSource< D extends Type< D >, T extends Type< T > > implements
 				}
 				final Interval intervalAtHigherLevel = this.scaleIntervalToLevel( paintedIntervalAtPaintedScale, maskInfo.level, level );
 				LOG.debug(
-						"Interval at painted level {}: ({} {}) -- at level {}: ({} {})",
+						"Downsampling: Interval at painted level {}: ({} {}) -- at target level {}: ({} {})",
 						maskInfo.level,
 						Intervals.minAsLongArray( paintedIntervalAtPaintedScale ),
 						Intervals.maxAsLongArray( paintedIntervalAtPaintedScale ),
@@ -218,9 +221,23 @@ public class MaskedSource< D extends Type< D >, T extends Type< T > > implements
 				downsample( Views.extendValue( atLowerLevel, new UnsignedLongType( Label.INVALID ) ), Views.interval( atHigherLevel, intervalAtHigherLevel ), steps );
 			}
 
-			for ( int level = maskInfo.level - 1; level > 0; --level )
+			for ( int level = maskInfo.level - 1; level >= 0; --level )
 			{
+				final Interval intervalAtTargetLevel = this.scaleIntervalToLevel( paintedIntervalAtPaintedScale, maskInfo.level, level );
+				final RandomAccessibleInterval< UnsignedLongType > atTargetLevel = dataCanvases[ level ];
+				final double[] scale = DataSource.getRelativeScales( this, 0, level, maskInfo.level );
+
+				LOG.debug(
+						"Upsampling: Interval at painted level {}: ({} {}) -- at target level {}: ({} {})",
+						maskInfo.level,
+						Intervals.minAsLongArray( paintedIntervalAtPaintedScale ),
+						Intervals.maxAsLongArray( paintedIntervalAtPaintedScale ),
+						level,
+						Intervals.minAsLongArray( intervalAtTargetLevel ),
+						Intervals.maxAsLongArray( intervalAtTargetLevel ) );
+
 				// upsample
+				upsample( Converters.convert( Views.extendZero( mask ), ( s, t ) -> t.set( s.get() == 1 ), new BitType() ), Views.interval( atTargetLevel, intervalAtTargetLevel ), scale, maskInfo.value );
 			}
 
 			final Interval paintedIntervalAtHighestResolutionScale = scaleIntervalToLevel( paintedIntervalAtPaintedScale, maskInfo.level, 0 );
@@ -423,6 +440,21 @@ public class MaskedSource< D extends Type< D >, T extends Type< T > > implements
 				}
 			}
 
+		}
+	}
+
+	public static < T extends IntegerType< T > > void upsample( final RandomAccessible< ? extends BooleanType< ? > > source, final RandomAccessibleInterval< T > target, final double[] scaleSourceToTarget, final T value )
+	{
+		LOG.debug( "Upsampling ({} {}) with scale from source to target {}", Intervals.minAsLongArray( target ), Intervals.maxAsLongArray( target ), scaleSourceToTarget );
+		final RandomAccessibleInterval< ? extends BooleanType< ? > > scaledSource = Views.interval( Views.raster( RealViews.transform( Views.interpolate( source, new NearestNeighborInterpolatorFactory<>() ), new Scale3D( scaleSourceToTarget ) ) ), target );
+		final Cursor< T > targetCursor = Views.flatIterable( target ).cursor();
+		final Cursor< ? extends BooleanType< ? > > sourceCursor = Views.flatIterable( scaledSource ).cursor();
+		for ( ; targetCursor.hasNext(); )
+		{
+			targetCursor.fwd();
+			final BooleanType< ? > s = sourceCursor.next();
+			if ( s.get() )
+				targetCursor.get().set( value );
 		}
 	}
 
