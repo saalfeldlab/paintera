@@ -89,8 +89,7 @@ public class Paint
 		this.viewerAxisDimension = viewerAxisToDimensionIndex( this.viewerAxis );
 		this.sourceInfo = sourceInfo;
 		this.brushOverlay = new BrushOverlay( this.viewer, manager );
-		this.brushOverlay.radiusProperty().set( brushRadius.get() );
-		this.brushOverlay.radiusProperty().bind( brushRadius );
+		this.brushOverlay.physicalRadiusProperty().bind( brushRadius );
 		this.repaintRequest = repaintRequest;
 	}
 
@@ -223,25 +222,32 @@ public class Paint
 		LOG.debug( "Painting on canvas {} at {}", labels, coords );
 		if ( labels == null )
 			return;
-		final AffineTransform3D labelTransform = this.labelToViewerTransform;
+		final AffineTransform3D labelTransform = this.labelToViewerTransform.copy();
 		final RandomAccessible< UnsignedByteType > labelSource = Views.extendZero( labels );
 
 		final double brushRadius = this.brushRadius.get();
 
-		final double[] scales = new double[] {
+		final double[] labelToViewerscales = new double[] {
 				Affine3DHelpers.extractScale( labelTransform, 0 ),
 				Affine3DHelpers.extractScale( labelTransform, 1 ),
 				Affine3DHelpers.extractScale( labelTransform, 2 )
 		};
+
+		final double[] labelToGlobalScales = new double[] {
+				Affine3DHelpers.extractScale( labelToGlobalTransform, 0 ),
+				Affine3DHelpers.extractScale( labelToGlobalTransform, 1 ),
+				Affine3DHelpers.extractScale( labelToGlobalTransform, 2 )
+		};
+
 		final long[] pos = new long[] {
 				Math.round( coords.getDoublePosition( 0 ) ),
 				Math.round( coords.getDoublePosition( 1 ) ),
 				Math.round( coords.getDoublePosition( 2 ) ) };
 
 		final long[] radii = new long[] {
-				Math.round( brushRadius / scales[ 0 ] ),
-				Math.round( brushRadius / scales[ 1 ] ),
-				Math.round( brushRadius / scales[ 2 ] ) };
+				Math.round( brushRadius / labelToGlobalScales[ 0 ] ),
+				Math.round( brushRadius / labelToGlobalScales[ 1 ] ),
+				Math.round( brushRadius / labelToGlobalScales[ 2 ] ) };
 
 		// TODO this check is necessary because we would paint into the border
 		// pixel if we painted outside the defined interval as we use
