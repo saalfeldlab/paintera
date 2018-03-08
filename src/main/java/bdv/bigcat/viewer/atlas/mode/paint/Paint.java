@@ -222,6 +222,7 @@ public class Paint
 		LOG.debug( "Painting on canvas {} at {}", labels, coords );
 		if ( labels == null )
 			return;
+		final AffineTransform3D labelToGlobalTransform = this.labelToGlobalTransform.copy();
 		final AffineTransform3D labelTransform = this.labelToViewerTransform.copy();
 		final RandomAccessible< UnsignedByteType > labelSource = Views.extendZero( labels );
 
@@ -245,9 +246,9 @@ public class Paint
 				Math.round( coords.getDoublePosition( 2 ) ) };
 
 		final long[] radii = new long[] {
-				Math.round( brushRadius / labelToGlobalScales[ 0 ] ),
-				Math.round( brushRadius / labelToGlobalScales[ 1 ] ),
-				Math.round( brushRadius / labelToGlobalScales[ 2 ] ) };
+				Math.max( Math.round( brushRadius / labelToGlobalScales[ 0 ] ), 1 ),
+				Math.max( Math.round( brushRadius / labelToGlobalScales[ 1 ] ), 1 ),
+				Math.max( Math.round( brushRadius / labelToGlobalScales[ 2 ] ), 1 ) };
 
 		// TODO this check is necessary because we would paint into the border
 		// pixel if we painted outside the defined interval as we use
