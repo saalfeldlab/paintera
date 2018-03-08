@@ -252,7 +252,7 @@ public class MaskedSource< D extends Type< D >, T extends Type< T > > implements
 		final double[] min = LongStream.of( Intervals.minAsLongArray( interval ) ).asDoubleStream().toArray();
 		final double[] max = LongStream.of( Intervals.maxAsLongArray( interval ) ).asDoubleStream().toArray();
 
-		final Scale3D toTargetScale = new Scale3D( DataSource.getRelativeScales( this, 0, intervalLevel, targetLevel ) );
+		final Scale3D toTargetScale = new Scale3D( DataSource.getRelativeScales( this, 0, intervalLevel, targetLevel ) ).inverse();
 
 		toTargetScale.apply( min, min );
 		toTargetScale.apply( max, max );
