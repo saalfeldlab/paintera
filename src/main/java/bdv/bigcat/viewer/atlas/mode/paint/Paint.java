@@ -1,7 +1,6 @@
 package bdv.bigcat.viewer.atlas.mode.paint;
 
 import java.lang.invoke.MethodHandles;
-import java.util.Arrays;
 import java.util.Optional;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
@@ -223,16 +222,9 @@ public class Paint
 		if ( labels == null )
 			return;
 		final AffineTransform3D labelToGlobalTransform = this.labelToGlobalTransform.copy();
-		final AffineTransform3D labelTransform = this.labelToViewerTransform.copy();
 		final RandomAccessible< UnsignedByteType > labelSource = Views.extendZero( labels );
 
 		final double brushRadius = this.brushRadius.get();
-
-		final double[] labelToViewerscales = new double[] {
-				Affine3DHelpers.extractScale( labelTransform, 0 ),
-				Affine3DHelpers.extractScale( labelTransform, 1 ),
-				Affine3DHelpers.extractScale( labelTransform, 2 )
-		};
 
 		final double[] labelToGlobalScales = new double[] {
 				Affine3DHelpers.extractScale( labelToGlobalTransform, 0 ),
@@ -258,9 +250,10 @@ public class Paint
 //		if ( !Intervals.contains( labelSource, new Point( pos ) ) )
 //			return;
 
-		LOG.debug( "Painting with radius={} position={} brush-radius={} active-viewer-axis={}",
-				Arrays.toString( radii ),
-				Arrays.toString( pos ),
+		LOG.debug(
+				"Painting with radius={} position={} brush-radius={} active-viewer-axis={}",
+				radii,
+				pos,
 				brushRadius,
 				viewerAxisDimension );
 
