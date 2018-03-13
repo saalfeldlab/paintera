@@ -327,7 +327,7 @@ public class ExampleApplicationLauritzen01
 			final Cursor< UnsignedLongType > label2Cursor = Views.flatIterable( label2Interval ).cursor();
 			final Cursor< UnsignedLongType > targetCursor = cell.localizingCursor();
 
-			Arrays.fill( ( long[] ) cell.getStorageArray(), Label.TRANSPARENT );
+			cell.forEach( px -> px.setInteger( Label.TRANSPARENT ) );
 			while ( targetCursor.hasNext() )
 			{
 				final UnsignedLongType targetType = targetCursor.next();
