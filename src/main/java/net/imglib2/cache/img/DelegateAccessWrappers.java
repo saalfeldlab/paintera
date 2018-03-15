@@ -21,7 +21,7 @@ public class DelegateAccessWrappers< A, W >
 {
 
 	@SuppressWarnings( "unchecked" )
-	static < A > AccessWrapper< A, ? > getWrapper(
+	public static < A > AccessWrapper< A, ? > getWrapper(
 			final PrimitiveType primitiveType,
 			final AccessFlags... flags )
 	{
