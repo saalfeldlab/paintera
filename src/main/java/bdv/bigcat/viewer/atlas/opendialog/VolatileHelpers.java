@@ -15,6 +15,7 @@ import bdv.net.imglib2.util.ValueTriple;
 import bdv.util.volatiles.SharedQueue;
 import bdv.util.volatiles.VolatileRandomAccessibleIntervalView;
 import bdv.util.volatiles.VolatileViewData;
+import gnu.trove.set.hash.TLongHashSet;
 import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.Volatile;
 import net.imglib2.cache.Cache;
@@ -110,7 +111,7 @@ public class VolatileHelpers
 			list.createListAt( listData, 0 );
 			list.add( e );
 			final int[] data = new int[ numEntities ];
-			final VolatileLabelMultisetArray array = new VolatileLabelMultisetArray( data, listData, false );
+			final VolatileLabelMultisetArray array = new VolatileLabelMultisetArray( data, listData, false, new TLongHashSet( new long[] { Label.INVALID } ) );
 			return new Cell<>( cellDims, cellMin, array );
 		}
 
