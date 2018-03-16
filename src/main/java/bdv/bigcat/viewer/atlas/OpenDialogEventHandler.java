@@ -272,14 +272,11 @@ public class OpenDialogEventHandler implements EventHandler< Event >
 					final AbstractCellImg< LabelMultisetType, VolatileLabelMultisetArray, C, I > img )
 	{
 		final I cells = img.getCells();
-		final int[] blockSize = blockSize( img.getCellGrid() );
 		return location -> {
 			final RandomAccess< C > access = cells.randomAccess();
-			final long[] position = location.getData().clone();
-//			Arrays.setAll( position, d -> position[ d ] / blockSize[ d ] );
-			access.setPosition( position );
+			access.setPosition( location.getData() );
 			final long[] labels = access.get().getData().containedLabels();
-			LOG.warn( "Position={}: labels={}", position, labels );
+			LOG.debug( "Position={}: labels={}", location.getData(), labels );
 			return labels;
 		};
 	}
