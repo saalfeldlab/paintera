@@ -108,7 +108,6 @@ import javafx.stage.WindowEvent;
 import net.imglib2.FinalInterval;
 import net.imglib2.Interval;
 import net.imglib2.RandomAccessibleInterval;
-import net.imglib2.cache.Cache;
 import net.imglib2.cache.img.DiskCachedCellImgOptions;
 import net.imglib2.cache.img.DiskCachedCellImgOptions.CacheType;
 import net.imglib2.converter.Converter;
@@ -470,8 +469,8 @@ public class Atlas
 			final DataSource< LabelMultisetType, VolatileLabelMultisetType > spec,
 			final FragmentSegmentAssignmentState< ? > assignment,
 			final IdService idService,
-			final Cache< Long, Interval[] >[] blocksThatContainId,
-			final Cache< ShapeKey, Pair< float[], float[] > >[] meshCache )
+			final Function< Long, Interval[] >[] blocksThatContainId,
+			final Function< ShapeKey, Pair< float[], float[] > >[] meshCache )
 	{
 		final CurrentModeConverter< VolatileLabelMultisetType, HighlightingStreamConverterLabelMultisetType > converter = new CurrentModeConverter<>();
 		final SelectedIds selId = new SelectedIds();
@@ -552,6 +551,7 @@ public class Atlas
 			}
 		} );
 
+		LOG.debug( "Adding mesh and block list caches: {} {}", meshCache, blocksThatContainId );
 		if ( meshCache != null && blocksThatContainId != null )
 		{
 			state.meshesCacheProperty().set( meshCache );
@@ -633,8 +633,8 @@ public class Atlas
 			final FragmentSegmentAssignmentState< ? > assignment,
 			final ToLongFunction< V > toLong,
 			final IdService idService,
-			final Cache< Long, Interval[] >[] blocksThatContainId,
-			final Cache< ShapeKey, Pair< float[], float[] > >[] meshCache )
+			final Function< Long, Interval[] >[] blocksThatContainId,
+			final Function< ShapeKey, Pair< float[], float[] > >[] meshCache )
 	{
 		final CurrentModeConverter< V, HighlightingStreamConverterIntegerType< V > > converter = new CurrentModeConverter<>();
 		final SelectedIds selId = new SelectedIds();
@@ -1207,13 +1207,13 @@ public class Atlas
 		final int[][] blockSizes = Stream.generate( () -> new int[] { 64, 64, 64 } ).limit( spec.getNumMipmapLevels() ).toArray( int[][]::new );
 		final int[][] cubeSizes = Stream.generate( () -> new int[] { 1, 1, 1 } ).limit( spec.getNumMipmapLevels() ).toArray( int[][]::new );
 
-		final Cache< HashWrapper< long[] >, long[] >[] uniqueLabelLoaders = CacheUtils.uniqueLabelCaches(
+		final Function< HashWrapper< long[] >, long[] >[] uniqueLabelLoaders = CacheUtils.uniqueLabelCaches(
 				spec,
 				blockSizes,
 				collectLabels,
 				CacheUtils::toCacheSoftRefLoaderCache );
 
-		final Cache< Long, Interval[] >[] blocksForLabelCache = CacheUtils.blocksForLabelCaches(
+		final Function< Long, Interval[] >[] blocksForLabelCache = CacheUtils.blocksForLabelCaches(
 				spec,
 				uniqueLabelLoaders,
 				blockSizes,
@@ -1221,7 +1221,7 @@ public class Atlas
 				CacheUtils::toCacheSoftRefLoaderCache,
 				es );
 
-		final Cache< ShapeKey, Pair< float[], float[] > >[] meshCaches = CacheUtils.meshCacheLoaders(
+		final Function< ShapeKey, Pair< float[], float[] > >[] meshCaches = CacheUtils.meshCacheLoaders(
 				spec,
 				cubeSizes,
 				getMaskGenerator,

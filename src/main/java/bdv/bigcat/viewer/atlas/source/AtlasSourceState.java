@@ -26,7 +26,6 @@ import javafx.beans.property.StringProperty;
 import javafx.beans.value.ObservableBooleanValue;
 import net.imglib2.Interval;
 import net.imglib2.RandomAccessibleInterval;
-import net.imglib2.cache.Cache;
 import net.imglib2.converter.Converter;
 import net.imglib2.converter.Converters;
 import net.imglib2.type.Type;
@@ -92,9 +91,9 @@ public class AtlasSourceState< T extends Type< T >, D extends Type< D > >
 
 	private final StringProperty name = stateChangingStringProperty( stateChanged );
 
-	private final ObjectProperty< Cache< Long, Interval[] >[] > blockListCache = stateChangingObjectProperty( stateChanged );
+	private final ObjectProperty< Function< Long, Interval[] >[] > blockListCache = stateChangingObjectProperty( stateChanged );
 
-	private final ObjectProperty< Cache< ShapeKey, Pair< float[], float[] > >[] > meshesCache = stateChangingObjectProperty( stateChanged );
+	private final ObjectProperty< Function< ShapeKey, Pair< float[], float[] > >[] > meshesCache = stateChangingObjectProperty( stateChanged );
 
 	private final ObjectProperty< MeshManager > meshManager = stateChangingObjectProperty( stateChanged );
 
@@ -199,7 +198,7 @@ public class AtlasSourceState< T extends Type< T >, D extends Type< D > >
 		return this.selectionMax;
 	}
 
-	public ObjectProperty< Cache< Long, Interval[] >[] > blocklistCacheProperty()
+	public ObjectProperty< Function< Long, Interval[] >[] > blocklistCacheProperty()
 	{
 		return this.blockListCache;
 	}
@@ -209,7 +208,7 @@ public class AtlasSourceState< T extends Type< T >, D extends Type< D > >
 		return this.name;
 	}
 
-	public ObjectProperty< Cache< ShapeKey, Pair< float[], float[] > >[] > meshesCacheProperty()
+	public ObjectProperty< Function< ShapeKey, Pair< float[], float[] > >[] > meshesCacheProperty()
 	{
 		return this.meshesCache;
 	}

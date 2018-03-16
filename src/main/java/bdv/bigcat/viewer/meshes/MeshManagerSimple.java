@@ -7,6 +7,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ExecutorService;
+import java.util.function.Function;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -17,7 +18,6 @@ import javafx.beans.property.SimpleIntegerProperty;
 import javafx.beans.value.ObservableIntegerValue;
 import javafx.scene.Group;
 import net.imglib2.Interval;
-import net.imglib2.cache.Cache;
 import net.imglib2.util.Pair;
 
 /**
@@ -30,9 +30,9 @@ public class MeshManagerSimple implements MeshManager
 
 	private static final Logger LOG = LoggerFactory.getLogger( MethodHandles.lookup().lookupClass() );
 
-	private final Cache< Long, Interval[] >[] blockListCache;
+	private final Function< Long, Interval[] >[] blockListCache;
 
-	private final Cache< ShapeKey, Pair< float[], float[] > >[] meshCache;
+	private final Function< ShapeKey, Pair< float[], float[] > >[] meshCache;
 
 	private final Map< Long, MeshGenerator > neurons = Collections.synchronizedMap( new HashMap<>() );
 
@@ -45,8 +45,8 @@ public class MeshManagerSimple implements MeshManager
 	private final ExecutorService es;
 
 	public MeshManagerSimple(
-			final Cache< Long, Interval[] >[] blockListCache,
-			final Cache< ShapeKey, Pair< float[], float[] > >[] meshCache,
+			final Function< Long, Interval[] >[] blockListCache,
+			final Function< ShapeKey, Pair< float[], float[] > >[] meshCache,
 			final Group root,
 			final ObservableIntegerValue meshSimplificationIterations,
 			final ExecutorService es )

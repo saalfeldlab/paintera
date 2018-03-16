@@ -10,6 +10,7 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Optional;
 import java.util.concurrent.ExecutorService;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 import org.slf4j.Logger;
@@ -28,7 +29,6 @@ import javafx.beans.property.SimpleIntegerProperty;
 import javafx.beans.value.ObservableIntegerValue;
 import javafx.scene.Group;
 import net.imglib2.Interval;
-import net.imglib2.cache.Cache;
 import net.imglib2.util.Pair;
 
 /**
@@ -112,8 +112,8 @@ public class MeshManagerWithAssignment implements MeshManager
 		stream.addListener( () -> color.set( stream.argb( id ) ) );
 		assignment.addListener( () -> color.set( stream.argb( id ) ) );
 
-		final Cache< Long, Interval[] >[] blockListCache = state.blocklistCacheProperty().get();
-		final Cache< ShapeKey, Pair< float[], float[] > >[] meshCache = state.meshesCacheProperty().get();
+		final Function< Long, Interval[] >[] blockListCache = state.blocklistCacheProperty().get();
+		final Function< ShapeKey, Pair< float[], float[] > >[] meshCache = state.meshesCacheProperty().get();
 		if ( meshCache == null || blockListCache == null )
 			return;
 

@@ -55,7 +55,7 @@ public class CacheUtils
 	 * @return cascade of {@link CacheLoader} that produce a list of unique
 	 *         labels in a specified block (key) at each scale level.
 	 */
-	public static < D, T > Cache< HashWrapper< long[] >, long[] >[] uniqueLabelCaches(
+	public static < D, T > Function< HashWrapper< long[] >, long[] >[] uniqueLabelCaches(
 			final DataSource< D, T > source,
 			final int[][] blockSizes,
 			final BiConsumer< D, TLongHashSet > collectLabels,
@@ -65,14 +65,14 @@ public class CacheUtils
 		assert blockSizes.length == numMipmapLevels;
 
 		@SuppressWarnings( "unchecked" )
-		final Cache< HashWrapper< long[] >, long[] >[] caches = new Cache[ numMipmapLevels ];
+		final Function< HashWrapper< long[] >, long[] >[] caches = new Function[ numMipmapLevels ];
 
 		for ( int level = 0; level < numMipmapLevels; ++level )
 		{
 			final RandomAccessibleInterval< D > data = source.getDataSource( 0, level );
 			final boolean isZeroMin = Arrays.stream( Intervals.minAsLongArray( data ) ).filter( m -> m != 0 ).count() == 0;
 			final CellGrid grid = new CellGrid( Intervals.dimensionsAsLongArray( data ), blockSizes[ level ] );
-			caches[ level ] = makeCache.apply( new UniqueLabelListCacheLoader<>( isZeroMin ? data : Views.zeroMin( data ), grid, collectLabels ) );
+			caches[ level ] = makeCache.apply( new UniqueLabelListCacheLoader<>( isZeroMin ? data : Views.zeroMin( data ), grid, collectLabels ) ).unchecked()::get;
 		}
 		return caches;
 	}
@@ -101,9 +101,9 @@ public class CacheUtils
 	 * @return Cascade of {@link Cache} that produce list of containing blocks
 	 *         for a label (key) at each scale level.
 	 */
-	public static < D, T > Cache< Long, Interval[] >[] blocksForLabelCaches(
+	public static < D, T > Function< Long, Interval[] >[] blocksForLabelCaches(
 			final DataSource< D, T > source,
-			final Cache< HashWrapper< long[] >, long[] >[] uniqueLabelLoaders,
+			final Function< HashWrapper< long[] >, long[] >[] uniqueLabelLoaders,
 			final int[][] blockSizes,
 			final double[][] scalingFactors,
 			final Function< CacheLoader< Long, Interval[] >, Cache< Long, Interval[] > > makeCache,
@@ -113,7 +113,7 @@ public class CacheUtils
 		assert uniqueLabelLoaders.length == numMipmapLevels;
 
 		@SuppressWarnings( "unchecked" )
-		final Cache< Long, Interval[] >[] caches = new Cache[ numMipmapLevels ];
+		final Function< Long, Interval[] >[] caches = new Function[ numMipmapLevels ];
 
 		LOG.debug( "Number of mipmap levels for source {}: {}", source.getName(), source.getNumMipmapLevels() );
 		LOG.debug( "Provided {} block sizes and {} scaling factors", blockSizes.length, scalingFactors.length );
@@ -129,11 +129,11 @@ public class CacheUtils
 			final int finalLevel = level;
 			final CacheLoader< Long, Interval[] > loader = new BlocksForLabelCacheLoader(
 					grid,
-					level == numMipmapLevels - 1 ? l -> new Interval[] { new FinalInterval( dims.clone() ) } : wrapAsFunction( caches[ level + 1 ] ),
+					level == numMipmapLevels - 1 ? l -> new Interval[] { new FinalInterval( dims.clone() ) } : caches[ level + 1 ],
 					level == numMipmapLevels - 1 ? l -> collectAllOffsets( dims, bs, b -> fromMin( b, max, bs ) ) : relevantBlocksFromLowResInterval( grid, scalingFactors[ level + 1 ], scalingFactors[ level ] ),
-					wrapAsFunction( key -> uniqueLabelLoaders[ finalLevel ].get( HashWrapper.longArray( key ) ) ),
+					key -> uniqueLabelLoaders[ finalLevel ].apply( HashWrapper.longArray( key ) ),
 					es );
-			caches[ level ] = makeCache.apply( loader );
+			caches[ level ] = makeCache.apply( loader ).unchecked()::get;
 		}
 
 		return caches;
@@ -208,7 +208,7 @@ public class CacheUtils
 	 * @return Cascade of {@link Cache} for retrieval of mesh queried by label
 	 *         id.
 	 */
-	public static < D, T > Cache< ShapeKey, Pair< float[], float[] > >[] meshCacheLoaders(
+	public static < D, T > Function< ShapeKey, Pair< float[], float[] > >[] meshCacheLoaders(
 			final DataSource< D, T > source,
 			final int[][] cubeSizes,
 			final LongFunction< Converter< D, BoolType > > getMaskGenerator,
@@ -216,7 +216,7 @@ public class CacheUtils
 	{
 		final int numMipmapLevels = source.getNumMipmapLevels();
 		@SuppressWarnings( "unchecked" )
-		final Cache< ShapeKey, Pair< float[], float[] > >[] caches = new Cache[ numMipmapLevels ];
+		final Function< ShapeKey, Pair< float[], float[] > >[] caches = new Function[ numMipmapLevels ];
 
 		for ( int i = 0; i < numMipmapLevels; ++i )
 		{
@@ -229,7 +229,7 @@ public class CacheUtils
 					transform );
 			final Cache< ShapeKey, Pair< float[], float[] > > cache = makeCache.apply( loader );
 			loader.setGetHigherResMesh( wrapAsFunction( cache ) );
-			caches[ i ] = cache;
+			caches[ i ] = cache.unchecked()::get;
 		}
 
 		return caches;

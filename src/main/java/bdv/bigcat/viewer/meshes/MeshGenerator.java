@@ -6,9 +6,9 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.Callable;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
+import java.util.function.Function;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -38,7 +38,6 @@ import javafx.scene.shape.TriangleMesh;
 import javafx.scene.shape.VertexFormat;
 import net.imglib2.FinalInterval;
 import net.imglib2.Interval;
-import net.imglib2.cache.Cache;
 import net.imglib2.type.numeric.ARGBType;
 import net.imglib2.util.Intervals;
 import net.imglib2.util.Pair;
@@ -200,9 +199,9 @@ public class MeshGenerator
 
 	private final long id;
 
-	private final Cache< Long, Interval[] >[] blockListCache;
+	private final Function< Long, Interval[] >[] blockListCache;
 
-	private final Cache< ShapeKey, Pair< float[], float[] > >[] meshCache;
+	private final Function< ShapeKey, Pair< float[], float[] > >[] meshCache;
 
 	private final BooleanProperty isVisible = new SimpleBooleanProperty( true );
 
@@ -233,8 +232,8 @@ public class MeshGenerator
 	//
 	public MeshGenerator(
 			final long segmentId,
-			final Cache< Long, Interval[] >[] blockListCache,
-			final Cache< ShapeKey, Pair< float[], float[] > >[] meshCache,
+			final Function< Long, Interval[] >[] blockListCache,
+			final Function< ShapeKey, Pair< float[], float[] > >[] meshCache,
 			final ObservableIntegerValue color,
 			final int scaleIndex,
 			final int meshSimplificationIterations,
@@ -287,42 +286,34 @@ public class MeshGenerator
 
 	private void updateMeshes( final boolean doUpdate )
 	{
-		System.out.println( 0 );
 		LOG.debug( "Updating mesh? {}", doUpdate );
 		if ( !doUpdate )
 			return;
-		System.out.println( 1 );
 		synchronized ( meshes )
 		{
 			this.meshes.clear();
 		}
-		System.out.println( 2 );
 
 		synchronized ( activeTasks )
 		{
 			this.activeTasks.forEach( f -> f.cancel( true ) );
 			this.activeTasks.clear();
 		}
-		System.out.println( 3 );
 
 		final int scaleIndex = this.scaleIndex.get();
 		final List< Interval > blockList = new ArrayList<>();
 		try
 		{
-			System.out.println( 3.5 );
-			blockList.addAll( Arrays.asList( blockListCache[ scaleIndex ].get( id ) ) );
-			System.out.println( 4 );
+			blockList.addAll( Arrays.asList( blockListCache[ scaleIndex ].apply( id ) ) );
 		}
-		catch ( final ExecutionException e )
+		catch ( final RuntimeException e )
 		{
 			LOG.warn( "Could not get mesh block list for id {}: {}", id, e.getMessage() );
 			return;
 		}
-		System.out.println( 5 );
 		LOG.debug( "Generating mesh with {} blocks for fragment {}.", blockList.size(), this.id );
 
 		final List< ShapeKey > keys = new ArrayList<>();
-		System.out.println( 6 );
 		for ( final Interval block : blockList )
 			keys.add( new ShapeKey( id, scaleIndex, meshSimplificationIterations.get(), Intervals.minAsLongArray( block ), Intervals.maxAsLongArray( block ) ) );
 		final ArrayList< Callable< Void > > tasks = new ArrayList<>();
@@ -334,7 +325,7 @@ public class MeshGenerator
 				{
 					Thread.currentThread().setName( initialName + " -- generating mesh: " + key );
 					LOG.trace( "Set name of current thread to {} ( was {})", Thread.currentThread().getName(), initialName );
-					final Pair< float[], float[] > verticesAndNormals = meshCache[ scaleIndex ].get( key );
+					final Pair< float[], float[] > verticesAndNormals = meshCache[ scaleIndex ].apply( key );
 					final float[] vertices = verticesAndNormals.getA();
 					final float[] normals = verticesAndNormals.getB();
 					final TriangleMesh mesh = new TriangleMesh();
@@ -369,15 +360,9 @@ public class MeshGenerator
 							meshes.put( key, mv );
 						}
 				}
-				catch ( final ExecutionException e )
-				{
-					LOG.warn( "Was not able to retrieve mesh for {}: {}", key, e.getMessage() );
-				}
 				catch ( final RuntimeException e )
 				{
-					LOG.warn( "{} : {}", e.getClass(), e.getMessage() );
-					e.printStackTrace();
-					throw e;
+					LOG.warn( "Was not able to retrieve mesh for {}: {}", key, e.getMessage() );
 				}
 				finally
 				{
