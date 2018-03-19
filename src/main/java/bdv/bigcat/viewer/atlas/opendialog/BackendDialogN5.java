@@ -53,7 +53,6 @@ import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.realtransform.Translation3D;
 import net.imglib2.type.NativeType;
 import net.imglib2.type.label.LabelMultisetType;
-import net.imglib2.type.label.Multiset.Entry;
 import net.imglib2.type.label.N5CacheLoader;
 import net.imglib2.type.label.VolatileLabelMultisetArray;
 import net.imglib2.type.label.VolatileLabelMultisetType;
@@ -510,9 +509,10 @@ public class BackendDialogN5 extends BackendDialogGroupAndDataset implements Com
 				wrappedCache,
 				new VolatileLabelMultisetArray( 0, true ) );
 		long maxId = 0;
-		for ( final LabelMultisetType label : Views.flatIterable( data ) )
-			for ( final Entry< net.imglib2.type.label.Label > entry : label.entrySet() )
-				maxId = IdService.max( entry.getElement().id(), maxId );
+		for ( final Cell< VolatileLabelMultisetArray > cell : Views.iterable( data.getCells() ) )
+			for ( final long id : cell.getData().containedLabels() )
+				if ( id > maxId )
+					maxId = id;
 		return maxId;
 	}
 

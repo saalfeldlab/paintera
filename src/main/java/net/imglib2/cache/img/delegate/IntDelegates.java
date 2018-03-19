@@ -32,6 +32,12 @@ public class IntDelegates
 	{
 
 		@Override
+		public long getNumBytes( final long numElements )
+		{
+			return getBytesPerElement() * numElements + 1;
+		}
+
+		@Override
 		public int getBytesPerElement()
 		{
 			return Integer.BYTES;

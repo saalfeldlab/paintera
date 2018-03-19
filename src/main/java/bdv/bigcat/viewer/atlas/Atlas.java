@@ -39,6 +39,8 @@ import bdv.bigcat.viewer.atlas.data.RandomAccessibleIntervalDataSource;
 import bdv.bigcat.viewer.atlas.data.mask.MaskedSource;
 import bdv.bigcat.viewer.atlas.data.mask.PickOneAllIntegerTypes;
 import bdv.bigcat.viewer.atlas.data.mask.PickOneAllIntegerTypesVolatile;
+import bdv.bigcat.viewer.atlas.data.mask.PickOneLabelMultisetType;
+import bdv.bigcat.viewer.atlas.data.mask.PickOneVolatileLabelMultisetType;
 import bdv.bigcat.viewer.atlas.mode.Highlights;
 import bdv.bigcat.viewer.atlas.mode.Merges;
 import bdv.bigcat.viewer.atlas.mode.Mode;
@@ -491,11 +493,8 @@ public class Atlas
 				converter,
 				comp );// converter );
 		state.idServiceProperty().set( idService );
-//		if ( spec instanceof MaskedSource< ?, ?, ? > )
-//		{
-//			final MaskedSource< LabelMultisetType, VolatileLabelMultisetType, ? extends BooleanType< ? > > mspec =
-//					( MaskedSource< LabelMultisetType, VolatileLabelMultisetType, ? extends BooleanType< ? > > ) spec;
-//		}
+		if ( spec instanceof MaskedSource< ?, ? > )
+			state.maskedSourceProperty().set( ( MaskedSource< ?, ? > ) spec );
 
 		final LabelMultisetType t = spec.getDataType();
 		final Function< LabelMultisetType, String > valueToString = valueToString( t );
@@ -1080,22 +1079,20 @@ public class Atlas
 		new FromIntegerTypeConverter< UnsignedLongType >().convert( new UnsignedLongType( bdv.bigcat.label.Label.OUTSIDE ), defaultValue );
 		vtype.setValid( true );
 
-//		final PickOneAllIntegerTypes< I, UnsignedLongType > pacD = new PickOneAllIntegerTypes<>(
-//				l -> bdv.bigcat.label.Label.regular( l.getIntegerLong() ),
-//				( l1, l2 ) -> l2.getIntegerLong() != bdv.bigcat.label.Label.TRANSPARENT && bdv.bigcat.label.Label.regular( l1.getIntegerLong() ),
-//				type.createVariable() );
-//
-//		final PickOneAllIntegerTypesVolatile< I, UnsignedLongType, V, VolatileUnsignedLongType > pacT = new PickOneAllIntegerTypesVolatile<>(
-//				l -> bdv.bigcat.label.Label.regular( l.getIntegerLong() ),
-//				( l1, l2 ) -> l2.getIntegerLong() != bdv.bigcat.label.Label.TRANSPARENT && bdv.bigcat.label.Label.regular( l1.getIntegerLong() ),
-//				vtype.createVariable() );
+		final PickOneLabelMultisetType< UnsignedLongType > pacD = new PickOneLabelMultisetType<>(
+				l -> bdv.bigcat.label.Label.regular( l.getIntegerLong() ),
+				( l1, l2 ) -> l2.getIntegerLong() != bdv.bigcat.label.Label.TRANSPARENT && bdv.bigcat.label.Label.regular( l1.getIntegerLong() ) );
+
+		final PickOneVolatileLabelMultisetType< UnsignedLongType, VolatileUnsignedLongType > pacT = new PickOneVolatileLabelMultisetType<>(
+				l -> bdv.bigcat.label.Label.regular( l.getIntegerLong() ),
+				( l1, l2 ) -> l2.getIntegerLong() != bdv.bigcat.label.Label.TRANSPARENT && bdv.bigcat.label.Label.regular( l1.getIntegerLong() ) );
 
 		final MaskedSource< LabelMultisetType, VolatileLabelMultisetType > ms = new MaskedSource<>(
 				source,
 				cacheOptions,
 				level -> String.format( "%s/%d", path, level ),
-				null, // pacD,
-				null, // pacT,
+				pacD,
+				pacT,
 				type,
 				vtype,
 				mergeCanvasIntoBackground );

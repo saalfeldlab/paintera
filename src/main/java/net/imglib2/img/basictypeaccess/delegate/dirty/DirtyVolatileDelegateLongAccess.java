@@ -6,7 +6,7 @@ import net.imglib2.img.basictypeaccess.volatiles.VolatileLongAccess;
 public class DirtyVolatileDelegateLongAccess extends DirtyDelegateLongAccess implements VolatileLongAccess
 {
 
-	private final boolean isValid;
+	private boolean isValid;
 
 	public DirtyVolatileDelegateLongAccess( final LongAccess access, final boolean isValid )
 	{
@@ -18,6 +18,11 @@ public class DirtyVolatileDelegateLongAccess extends DirtyDelegateLongAccess imp
 	public boolean isValid()
 	{
 		return this.isValid;
+	}
+
+	public void setValid( final boolean isValid )
+	{
+		this.isValid = isValid;
 	}
 
 }
