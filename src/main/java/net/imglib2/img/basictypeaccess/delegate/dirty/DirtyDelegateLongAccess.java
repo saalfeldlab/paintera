@@ -29,15 +29,15 @@ public class DirtyDelegateLongAccess extends DelegateLongAccess implements Dirty
 	@Override
 	public void setValue( final int index, final long value )
 	{
-		setDirty();
 		super.setValue( index, value );
+		setDirty();
 	}
 
 	@Override
 	public void setDelegate( final LongAccess access )
 	{
-		setDirty();
 		super.setDelegate( access );
+		setDirty();
 	}
 
 }
