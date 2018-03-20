@@ -2,7 +2,7 @@ package bdv.bigcat.viewer.atlas.opendialog;
 
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.function.Consumer;
+import java.util.function.BiConsumer;
 
 import bdv.bigcat.viewer.atlas.data.DataSource;
 import bdv.bigcat.viewer.atlas.data.LabelDataSource;
@@ -13,7 +13,7 @@ import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.SimpleDoubleProperty;
 import javafx.beans.value.ObservableStringValue;
 import javafx.scene.Node;
-import net.imglib2.RandomAccessibleInterval;
+import net.imglib2.cache.img.CachedCellImg;
 import net.imglib2.type.NativeType;
 import net.imglib2.type.numeric.RealType;
 import net.imglib2.type.numeric.integer.UnsignedLongType;
@@ -70,7 +70,7 @@ public interface BackendDialog
 		return new SimpleDoubleProperty( Double.NaN );
 	}
 
-	public default Consumer< RandomAccessibleInterval< UnsignedLongType > > commitCanvas()
+	public default BiConsumer< CachedCellImg< UnsignedLongType, ? >, long[] > commitCanvas()
 	{
 		return null;
 	}

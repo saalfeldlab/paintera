@@ -6,7 +6,7 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.function.Consumer;
+import java.util.function.BiConsumer;
 import java.util.function.IntFunction;
 import java.util.stream.DoubleStream;
 import java.util.stream.IntStream;
@@ -105,9 +105,9 @@ public class MaskedSource< D extends Type< D >, T extends Type< T > > implements
 	private final ExecutorService propagationExecutor = Executors.newFixedThreadPool( 1 );
 
 	// TODO make sure that BB is handled properly in multi scale case!!!
-	private Interval paintedBoundingBox = null;
+	private final TLongSet affectedBlocks = new TLongHashSet();
 
-	private final Consumer< RandomAccessibleInterval< UnsignedLongType > > mergeCanvasToBackground;
+	private final BiConsumer< CachedCellImg< UnsignedLongType, ? >, long[] > mergeCanvasToBackground;
 
 	@SuppressWarnings( "unchecked" )
 	public MaskedSource(
@@ -118,7 +118,7 @@ public class MaskedSource< D extends Type< D >, T extends Type< T > > implements
 			final PickAndConvert< T, VolatileUnsignedLongType, VolatileUnsignedLongType, T > pacT,
 			final D extensionD,
 			final T extensionT,
-			final Consumer< RandomAccessibleInterval< UnsignedLongType > > mergeCanvasToBackground )
+			final BiConsumer< CachedCellImg< UnsignedLongType, ? >, long[] > mergeCanvasToBackground )
 	{
 		super();
 		this.source = source;
@@ -184,39 +184,30 @@ public class MaskedSource< D extends Type< D >, T extends Type< T > > implements
 		return store;
 	}
 
-	public void applyMask( final RandomAccessibleInterval< UnsignedByteType > mask, final Interval paintedInterval )
+	public void applyMask( final RandomAccessibleInterval< UnsignedByteType > mask, final Interval... paintedIntervals )
 	{
 		synchronized ( this.masks )
 		{
-			LOG.debug( "Applying mask: {}", mask, paintedInterval );
+			LOG.debug( "Applying mask: {}", mask, paintedIntervals );
 			final MaskInfo< UnsignedLongType > maskInfo = this.masks.get( mask );
 			if ( maskInfo == null )
 			{
 				LOG.warn( "Did not pass valid mask {}", mask );
 				return;
 			}
-			final RandomAccessibleInterval< UnsignedLongType > canvas = dataCanvases[ maskInfo.level ];
-			final long[] min = Intervals.minAsLongArray( canvas );
-			final long[] max = Intervals.maxAsLongArray( canvas );
-			for ( int d = 0; d < min.length; ++d )
-			{
-				min[ d ] = Math.max( paintedInterval.min( d ), min[ d ] );
-				max[ d ] = Math.min( paintedInterval.max( d ), max[ d ] );
-			}
+			final CachedCellImg< UnsignedLongType, ? > canvas = dataCanvases[ maskInfo.level ];
+			final CellGrid grid = canvas.getCellGrid();
+			final TLongSet affectedBlocks = MaskedSource.affectedBlocks( grid, paintedIntervals );
 
-			final FinalInterval paintedIntervalAtPaintedScale = new FinalInterval( min, max );
-
-			final CellGrid grid = dataCanvases[ maskInfo.level ].getCellGrid();
 			final long[] gridDimensions = grid.getGridDimensions();
 			final int[] blockSize = new int[ grid.numDimensions() ];
 			grid.cellDimensions( blockSize );
-			final TLongSet affectedBlocksAtPaintedScale = affectedBlocks( gridDimensions, blockSize, paintedIntervalAtPaintedScale );
 			final TLongSet completelyPaintedBlocks = new TLongHashSet();
 			final long[] gridPosition = new long[ grid.numDimensions() ];
 			final RandomAccess< Cell< DirtyVolatileDelegateLongAccess > > cellsAccess = dataCanvases[ maskInfo.level ].getCells().randomAccess();
 			final long[] blockMin = new long[ grid.numDimensions() ];
 			final long[] blockMax = new long[ grid.numDimensions() ];
-			for ( final TLongIterator blockIterator = affectedBlocksAtPaintedScale.iterator(); blockIterator.hasNext(); )
+			for ( final TLongIterator blockIterator = affectedBlocks.iterator(); blockIterator.hasNext(); )
 			{
 				final long blockId = blockIterator.next();
 				grid.getCellGridPositionFlat( blockId, gridPosition );
@@ -257,25 +248,13 @@ public class MaskedSource< D extends Type< D >, T extends Type< T > > implements
 
 			forgetMasks();
 
-			final Interval paintedIntervalAtHighestResolutionScale = scaleIntervalToLevel( paintedIntervalAtPaintedScale, maskInfo.level, 0 );
+			final TLongSet paintedBlocksAtHighestResolution = this.scaleBlocksToLevel( affectedBlocks, maskInfo.level, 0 );
 
-			propagationExecutor.submit( () -> propagateMask( mask, paintedIntervalAtPaintedScale, maskInfo.level, maskInfo.value ) );
+			propagationExecutor.submit( () -> propagateMask( mask, affectedBlocks, maskInfo.level, maskInfo.value ) );
 
 			// TODO make correct painted bounding box for multi scale
 			// TODO update canvases in other scale levels
-			if ( this.paintedBoundingBox == null )
-				this.paintedBoundingBox = paintedIntervalAtHighestResolutionScale;
-			else
-			{
-				final long[] m = Intervals.minAsLongArray( paintedIntervalAtHighestResolutionScale );
-				final long[] M = Intervals.maxAsLongArray( paintedIntervalAtHighestResolutionScale );
-				for ( int d = 0; d < this.paintedBoundingBox.numDimensions(); ++d )
-				{
-					m[ d ] = Math.min( this.paintedBoundingBox.min( d ), m[ d ] );
-					M[ d ] = Math.max( this.paintedBoundingBox.max( d ), M[ d ] );
-				}
-				this.paintedBoundingBox = new FinalInterval( m, M );
-			}
+			this.affectedBlocks.addAll( paintedBlocksAtHighestResolution );
 		}
 
 	}
@@ -295,6 +274,46 @@ public class MaskedSource< D extends Type< D >, T extends Type< T > > implements
 
 		return Intervals.smallestContainingInterval( new FinalRealInterval( min, max ) );
 
+	}
+
+	private TLongSet scaleBlocksToLevel( final TLongSet blocks, final int blocksLevel, final int targetLevel )
+	{
+		if ( blocksLevel == targetLevel )
+			return blocks;
+
+		final CellGrid grid = this.dataCanvases[ blocksLevel ].getCellGrid();
+		final CellGrid targetGrid = this.dataCanvases[ targetLevel ].getCellGrid();
+
+		final long[] blockPos = new long[ grid.numDimensions() ];
+		final int[] blockSize = new int[ grid.numDimensions() ];
+		final double[] blockMin = new double[ grid.numDimensions() ];
+		final double[] blockMax = new double[ grid.numDimensions() ];
+		final long[] blockMinLong = new long[ grid.numDimensions() ];
+		final long[] blockMaxLong = new long[ grid.numDimensions() ];
+		grid.cellDimensions( blockSize );
+
+		final int[] targetBlockSize = new int[ targetGrid.numDimensions() ];
+		targetGrid.cellDimensions( targetBlockSize );
+		final int[] ones = IntStream.generate( () -> 1 ).limit( targetGrid.numDimensions() ).toArray();
+		final long[] targetGridDimensions = targetGrid.getGridDimensions();
+
+		final Scale3D toTargetScale = new Scale3D( DataSource.getRelativeScales( this, 0, blocksLevel, targetLevel ) ).inverse();
+
+		final TLongSet targetBlocks = new TLongHashSet();
+		for ( final TLongIterator blockIt = blocks.iterator(); blockIt.hasNext(); )
+		{
+			final long blockId = blockIt.next();
+			grid.getCellGridPositionFlat( blockId, blockPos );
+			Arrays.setAll( blockMin, d -> blockPos[ d ] * blockSize[ d ] );
+			Arrays.setAll( blockMax, d -> Math.min( blockMin[ d ] + blockSize[ d ], targetGrid.imgDimension( d ) ) );
+			toTargetScale.apply( blockMin, blockMin );
+			toTargetScale.apply( blockMax, blockMax );
+			Arrays.setAll( blockMinLong, d -> ( long ) blockMin[ d ] / targetBlockSize[ d ] );
+			Arrays.setAll( blockMaxLong, d -> ( long ) ( blockMax[ d ] - 1 ) / targetBlockSize[ d ] );
+			Grids.forEachOffset( blockMinLong, blockMaxLong, ones, block -> targetBlocks.add( IntervalIndexer.positionToIndex( block, targetGridDimensions ) ) );
+		}
+
+		return targetBlocks;
 	}
 
 	private void scalePositionToLevel( final long[] position, final int intervalLevel, final int targetLevel, final long[] targetPosition )
@@ -323,12 +342,16 @@ public class MaskedSource< D extends Type< D >, T extends Type< T > > implements
 
 	public void mergeCanvasIntoBackground()
 	{
-		if ( this.paintedBoundingBox != null && this.mergeCanvasToBackground != null )
+		if ( this.mergeCanvasToBackground != null )
 		{
-			LOG.debug( "Merging canvas into background for interval {}", this.paintedBoundingBox );
-			final IntervalView< UnsignedLongType > rai = Views.interval( this.dataCanvases[ 0 ], this.paintedBoundingBox );
-			this.paintedBoundingBox = null;
-			this.mergeCanvasToBackground.accept( rai );
+			LOG.debug( "Merging canvas into background for blocks {}", this.affectedBlocks );
+			{
+				final CachedCellImg< UnsignedLongType, DirtyVolatileDelegateLongAccess > canvas = this.dataCanvases[ 0 ];
+				final long[] affectedBlocks = this.affectedBlocks.toArray();
+				this.affectedBlocks.clear();
+				this.mergeCanvasToBackground.accept( canvas, affectedBlocks );
+			}
+
 			for ( int i = 0; i < dataCanvases.length; ++i )
 			{
 				final RandomAccessibleInterval< UnsignedLongType > canvas = dataCanvases[ i ];
@@ -434,16 +457,13 @@ public class MaskedSource< D extends Type< D >, T extends Type< T > > implements
 	public static < A extends DirtyVolatileDelegateLongAccess > void downsampleBlocks(
 			final RandomAccessible< UnsignedLongType > source,
 			final CachedCellImg< UnsignedLongType, A > img,
-			final Interval interval,
+			final TLongSet affectedBlocks,
 			final int[] steps )
 	{
-		LOG.debug( "Initializing for {} ({} {})", img, Intervals.minAsLongArray( interval ), Intervals.maxAsLongArray( interval ) );
 		final LazyCells< Cell< A > > cells = img.getCells();
 		final CellGrid grid = img.getCellGrid();
 		final int[] blockSize = new int[ grid.numDimensions() ];
 		grid.cellDimensions( blockSize );
-		final long[] gridDimensions = grid.getGridDimensions();
-		final TLongSet affectedBlocks = affectedBlocks( gridDimensions, blockSize, interval );
 
 		final RandomAccess< Cell< A > > cellsAccess = cells.randomAccess();
 		final long[] cellPosition = new long[ grid.numDimensions() ];
@@ -542,7 +562,7 @@ public class MaskedSource< D extends Type< D >, T extends Type< T > > implements
 
 	private void propagateMask(
 			final RandomAccessibleInterval< UnsignedByteType > mask,
-			final Interval paintedIntervalAtPaintedScale,
+			final TLongSet paintedBlocksAtPaintedScale,
 			final int paintedLevel,
 			final UnsignedLongType label )
 	{
@@ -562,49 +582,29 @@ public class MaskedSource< D extends Type< D >, T extends Type< T > > implements
 						relativeScales );
 				throw new RuntimeException( "Non-integer relative scales: " + Arrays.toString( relativeScales ) );
 			}
-			final Interval intervalAtHigherLevel = this.scaleIntervalToLevel( paintedIntervalAtPaintedScale, paintedLevel, level );
-			LOG.debug(
-					"Downsampling: Interval at painted level {}: ({} {}) -- at target level {}: ({} {})",
-					paintedLevel,
-					Intervals.minAsLongArray( paintedIntervalAtPaintedScale ),
-					Intervals.maxAsLongArray( paintedIntervalAtPaintedScale ),
-					level,
-					Intervals.minAsLongArray( intervalAtHigherLevel ),
-					Intervals.maxAsLongArray( intervalAtHigherLevel ) );
+			final TLongSet affectedBlocksAtHigherLevel = this.scaleBlocksToLevel( paintedBlocksAtPaintedScale, paintedLevel, level );
 
 			// downsample
 			final int[] steps = DoubleStream.of( relativeScales ).mapToInt( d -> ( int ) d ).toArray();
 			downsampleBlocks(
 					Views.extendValue( atLowerLevel, new UnsignedLongType( Label.INVALID ) ),
 					atHigherLevel,
-					intervalAtHigherLevel,
+					affectedBlocksAtHigherLevel,
 					steps );
 //			downsample( Views.extendValue( atLowerLevel, new UnsignedLongType( Label.INVALID ) ), Views.interval( atHigherLevel, intervalAtHigherLevel ), steps );
 		}
 
 		final RealRandomAccessible< UnsignedByteType > interpolatedMask = Views.interpolate( Views.extendZero( mask ), new NearestNeighborInterpolatorFactory<>() );
 
-		final CellGrid gridAtPaintedLevel = dataCanvases[ paintedLevel ].getCellGrid();
 		for ( int level = paintedLevel - 1; level >= 0; --level )
 		{
-			final Interval intervalAtTargetLevel = this.scaleIntervalToLevel( paintedIntervalAtPaintedScale, paintedLevel, level );
+			final TLongSet affectedBlocksAtLowerLevel = this.scaleBlocksToLevel( paintedBlocksAtPaintedScale, paintedLevel, level );
 			final double[] currentRelativeScaleFromTargetToPainted = DataSource.getRelativeScales( this, 0, level, paintedLevel );
 
 			// upsample
-			LOG.debug(
-					"Upsampling: Interval at painted level {}: ({} {}) -- at target level {}: ({} {}) with relative scale: {}",
-					paintedLevel,
-					Intervals.minAsLongArray( paintedIntervalAtPaintedScale ),
-					Intervals.maxAsLongArray( paintedIntervalAtPaintedScale ),
-					level,
-					Intervals.minAsLongArray( intervalAtTargetLevel ),
-					Intervals.maxAsLongArray( intervalAtTargetLevel ),
-					currentRelativeScaleFromTargetToPainted );
 			final CellGrid gridAtTargetLevel = dataCanvases[ level ].getCellGrid();
-			final long[] gridDimensions = gridAtTargetLevel.getGridDimensions();
 			final int[] blockSize = new int[ gridAtTargetLevel.numDimensions() ];
 			gridAtTargetLevel.cellDimensions( blockSize );
-			final TLongSet affectedBlocks = affectedBlocks( gridDimensions, blockSize, intervalAtTargetLevel );
 
 			final long[] cellPosTarget = new long[ gridAtTargetLevel.numDimensions() ];
 			final long[] minTarget = new long[ gridAtTargetLevel.numDimensions() ];
@@ -615,7 +615,7 @@ public class MaskedSource< D extends Type< D >, T extends Type< T > > implements
 			final RandomAccess< Cell< DirtyVolatileDelegateLongAccess > > targetCellsAccess = dataCanvases[ level ].getCells().randomAccess();
 			final Scale3D scaleTransform = new Scale3D( currentRelativeScaleFromTargetToPainted );
 			final RealRandomAccessible< UnsignedByteType > scaledMask = RealViews.transformReal( interpolatedMask, scaleTransform );
-			for ( final TLongIterator blockIterator = affectedBlocks.iterator(); blockIterator.hasNext(); )
+			for ( final TLongIterator blockIterator = affectedBlocksAtLowerLevel.iterator(); blockIterator.hasNext(); )
 			{
 				final long blockId = blockIterator.next();
 				gridAtTargetLevel.getCellGridPositionFlat( blockId, cellPosTarget );
@@ -661,6 +661,14 @@ public class MaskedSource< D extends Type< D >, T extends Type< T > > implements
 			}
 
 		}
+	}
+
+	public static TLongSet affectedBlocks( final CellGrid grid, final Interval... intervals )
+	{
+		final long[] gridDimensions = grid.getGridDimensions();
+		final int[] blockSize = new int[ grid.numDimensions() ];
+		grid.cellDimensions( blockSize );
+		return affectedBlocks( gridDimensions, blockSize, intervals );
 	}
 
 	public static TLongSet affectedBlocks( final long[] gridDimensions, final int[] blockSize, final Interval... intervals )

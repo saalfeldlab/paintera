@@ -5,6 +5,7 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Optional;
 import java.util.concurrent.ExecutorService;
+import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Predicate;
@@ -31,7 +32,7 @@ import net.imglib2.Interval;
 import net.imglib2.IterableInterval;
 import net.imglib2.RandomAccess;
 import net.imglib2.RandomAccessible;
-import net.imglib2.RandomAccessibleInterval;
+import net.imglib2.cache.img.CachedCellImg;
 import net.imglib2.img.cell.AbstractCellImg;
 import net.imglib2.img.cell.Cell;
 import net.imglib2.img.cell.CellGrid;
@@ -158,7 +159,7 @@ public class OpenDialogEventHandler implements EventHandler< Event >
 			final LabelDataSource< I, V > lsource,
 			final String cacheDir,
 			final IdService idService,
-			final Consumer< RandomAccessibleInterval< UnsignedLongType > > mergeCanvasIntoBackground )
+			final BiConsumer< CachedCellImg< UnsignedLongType, ? >, long[] > mergeCanvasIntoBackground )
 	{
 		if ( cacheDir != null )
 		{
@@ -193,7 +194,11 @@ public class OpenDialogEventHandler implements EventHandler< Event >
 							cellCache,
 							cellCache.getNumPriorities() );
 			for ( final LabelDataSource< LabelMultisetType, VolatileLabelMultisetType > source : optionalSource )
-				addLabelMultisetSource( viewer, source, openDialog.paint() ? openDialog.canvasCacheDirectory() : null, openDialog.paint() ? dataset.idService() : new LocalIdService(), dataset.commitCanvas() );
+				addLabelMultisetSource(
+						viewer,
+						source,
+						openDialog.paint() ? openDialog.canvasCacheDirectory() : null,
+						openDialog.paint() ? dataset.idService() : new LocalIdService(), dataset.commitCanvas() );
 		}
 		catch ( final Exception e )
 		{
@@ -207,7 +212,7 @@ public class OpenDialogEventHandler implements EventHandler< Event >
 			final LabelDataSource< LabelMultisetType, VolatileLabelMultisetType > lsource,
 			final String cacheDir,
 			final IdService idService,
-			final Consumer< RandomAccessibleInterval< UnsignedLongType > > mergeCanvasIntoBackground )
+			final BiConsumer< CachedCellImg< UnsignedLongType, ? >, long[] > mergeCanvasIntoBackground )
 	{
 		LOG.warn( "Adding label multiset source, maybe masked: {} {}", cacheDir, idService );
 		final Function< Long, Interval[] >[] blockListCaches = getBlockListCaches( lsource, viewer.generalPurposeExecutorService() );
@@ -252,7 +257,7 @@ public class OpenDialogEventHandler implements EventHandler< Event >
 		{
 			@SuppressWarnings( "unchecked" )
 			final AbstractCellImg< LabelMultisetType, VolatileLabelMultisetArray, C, I > img =
-					( AbstractCellImg< LabelMultisetType, VolatileLabelMultisetArray, C, I > ) source.getDataSource( 0, level );
+			( AbstractCellImg< LabelMultisetType, VolatileLabelMultisetArray, C, I > ) source.getDataSource( 0, level );
 			uniqueIdCaches[ level ] = uniqueLabelLoaders( img );
 		}
 
@@ -268,8 +273,8 @@ public class OpenDialogEventHandler implements EventHandler< Event >
 	}
 
 	public static < C extends Cell< VolatileLabelMultisetArray >, I extends RandomAccessible< C > & IterableInterval< C > >
-			Function< HashWrapper< long[] >, long[] > uniqueLabelLoaders(
-					final AbstractCellImg< LabelMultisetType, VolatileLabelMultisetArray, C, I > img )
+	Function< HashWrapper< long[] >, long[] > uniqueLabelLoaders(
+			final AbstractCellImg< LabelMultisetType, VolatileLabelMultisetArray, C, I > img )
 	{
 		final I cells = img.getCells();
 		return location -> {

@@ -9,7 +9,7 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
-import java.util.function.Consumer;
+import java.util.function.BiConsumer;
 import java.util.stream.DoubleStream;
 
 import org.janelia.saalfeldlab.n5.DataType;
@@ -357,7 +357,7 @@ public class BackendDialogN5 extends BackendDialogGroupAndDataset implements Com
 	{
 		if ( !Thread.currentThread().isInterrupted() )
 			try
-			{
+		{
 				final String[] groups = n5.list( pathName );
 				Arrays.sort( groups );
 				for ( final String group : groups )
@@ -381,11 +381,11 @@ public class BackendDialogN5 extends BackendDialogGroupAndDataset implements Com
 							discoverSubdirectories( n5, absolutePathName, datasets, onInterruption );
 					}
 				}
-			}
-			catch ( final IOException e )
-			{
-				e.printStackTrace();
-			}
+		}
+		catch ( final IOException e )
+		{
+			e.printStackTrace();
+		}
 		else
 			onInterruption.run();
 	}
@@ -517,17 +517,19 @@ public class BackendDialogN5 extends BackendDialogGroupAndDataset implements Com
 	}
 
 	@Override
-	public Consumer< RandomAccessibleInterval< UnsignedLongType > > commitCanvas()
+	public BiConsumer< CachedCellImg< UnsignedLongType, ? >, long[] > commitCanvas()
 	{
-		return canvas -> {
+		return ( canvas, blocks ) -> {
 			try
 			{
 				final N5FSWriter n5 = new N5FSWriter( this.groupProperty.get() );
 				final String dataset = this.dataset.get();
 				// TODO do multi scale!
 
-				if ( isIntegerType() )
-					commitForIntegerType( n5, dataset, canvas );
+				throw new RuntimeException( "not implemented yet!" );
+
+//				if ( isIntegerType() )
+//					commitForIntegerType( n5, dataset, canvas );
 			}
 			catch ( final IOException e )
 			{

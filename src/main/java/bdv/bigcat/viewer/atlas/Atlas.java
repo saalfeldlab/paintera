@@ -110,6 +110,7 @@ import javafx.stage.WindowEvent;
 import net.imglib2.FinalInterval;
 import net.imglib2.Interval;
 import net.imglib2.RandomAccessibleInterval;
+import net.imglib2.cache.img.CachedCellImg;
 import net.imglib2.cache.img.DiskCachedCellImgOptions;
 import net.imglib2.cache.img.DiskCachedCellImgOptions.CacheType;
 import net.imglib2.converter.Converter;
@@ -200,7 +201,7 @@ public class Atlas
 		}
 		catch (
 
-		final InterruptedException e )
+				final InterruptedException e )
 		{
 			// TODO Auto-generated catch block
 			e.printStackTrace();
@@ -557,7 +558,7 @@ public class Atlas
 			state.blocklistCacheProperty().set( blocksThatContainId );
 		}
 		else // TODO get to the scale factors somehow (affine transform might be
-				// off-diagonal in case of permutations)
+			// off-diagonal in case of permutations)
 			generateMeshCaches(
 					spec,
 					state,
@@ -647,12 +648,12 @@ public class Atlas
 		final AtlasSourceState< V, I > state = sourceInfo.makeLabelSourceState(
 				spec,
 				spec.getDataType() instanceof IntegerType ? ToIdConverter.fromIntegerType() : ToIdConverter.fromRealType(),
-				sel -> createBoolConverter( sel, assignment ),
-				( FragmentSegmentAssignmentState ) assignment,
-				stream,
-				selId,
-				converter,
-				comp );
+						sel -> createBoolConverter( sel, assignment ),
+						( FragmentSegmentAssignmentState ) assignment,
+						stream,
+						selId,
+						converter,
+						comp );
 		state.idServiceProperty().set( idService );
 		if ( spec instanceof MaskedSource< ?, ? > )
 			state.maskedSourceProperty().set( ( MaskedSource< ?, ? > ) spec );
@@ -785,15 +786,15 @@ public class Atlas
 				sources,
 				new AffineTransform3D[] { sourceTransform },
 				i -> i.equals( Interpolation.NLINEAR ) ? new NLinearInterpolatorFactory() : new NearestNeighborInterpolatorFactory(),
-				i -> i.equals( Interpolation.NLINEAR ) ? new NLinearInterpolatorFactory() : new NearestNeighborInterpolatorFactory(),
-				name );
+						i -> i.equals( Interpolation.NLINEAR ) ? new NLinearInterpolatorFactory() : new NearestNeighborInterpolatorFactory(),
+								name );
 		addRawSource( source, min, max, Colors.toARGBType( color ) );
 	}
 
 	public < T extends RealType< T >, U extends RealType< U > > void addRawSources(
 			final Collection< ? extends DataSource< T, U > > specs,
-			final double min,
-			final double max )
+					final double min,
+					final double max )
 	{
 		final int numSources = specs.size();
 		final double factor = 360.0 / numSources;
@@ -813,9 +814,9 @@ public class Atlas
 
 	public < T extends RealType< T >, U extends RealType< U > > void addRawSources(
 			final Collection< ? extends DataSource< T, U > > specs,
-			final Collection< ARGBType > colors,
-			final double[] min,
-			final double[] max )
+					final Collection< ARGBType > colors,
+					final double[] min,
+					final double[] max )
 	{
 		final Iterator< ? extends DataSource< T, U > > specIt = specs.iterator();
 		final Iterator< ARGBType > colorIt = colors.iterator();
@@ -865,36 +866,36 @@ public class Atlas
 			valueToString = ( Function< T, String > ) Object::toString;
 		else if ( t instanceof IntegerType< ? > )
 			valueToString = ( Function< T, String > ) rt -> String.format( "%d", ( ( IntegerType< ? > ) rt ).getIntegerLong() );
-		else if ( t instanceof RealType< ? > )
-			valueToString = ( Function< T, String > ) rt -> String.format( "%.3f", ( ( RealType< ? > ) rt ).getRealDouble() );
-		else if ( t instanceof LabelMultisetType )
-			valueToString = ( Function< T, String > ) rt -> {
-				final StringBuilder sb = new StringBuilder( "{" );
-				final Iterator< LabelMultiset.Entry< net.imglib2.type.label.Label > > it = ( ( LabelMultisetType ) rt ).entrySet().iterator();
-				if ( it.hasNext() )
-				{
-					final LabelMultiset.Entry< net.imglib2.type.label.Label > entry = it.next();
-					sb.append( entry.getElement().id() ).append( ":" ).append( entry.getCount() );
-				}
-				while ( it.hasNext() )
-				{
-					final LabelMultiset.Entry< net.imglib2.type.label.Label > entry = it.next();
-					sb.append( " " ).append( entry.getElement().id() ).append( ":" ).append( entry.getCount() );
-				}
-				sb.append( "}" );
-				return sb.toString();
-			};
-		else if ( t instanceof Pair< ?, ? > )
-		{
-			final Pair< ?, ? > p = ( Pair< ?, ? > ) t;
-			if ( p.getB() instanceof IntegerType< ? > )
-				valueToString = ( Function< T, String > ) ( Function< Pair< ?, IntegerType< ? > >, String > ) valueToStringForPair( p.getA(), ( IntegerType ) p.getB() );
-			else
-				valueToString = rt -> "Do not understand type!";
-		}
-		else
-			valueToString = rt -> "Do not understand type!";
-		return valueToString;
+			else if ( t instanceof RealType< ? > )
+				valueToString = ( Function< T, String > ) rt -> String.format( "%.3f", ( ( RealType< ? > ) rt ).getRealDouble() );
+				else if ( t instanceof LabelMultisetType )
+					valueToString = ( Function< T, String > ) rt -> {
+						final StringBuilder sb = new StringBuilder( "{" );
+						final Iterator< LabelMultiset.Entry< net.imglib2.type.label.Label > > it = ( ( LabelMultisetType ) rt ).entrySet().iterator();
+						if ( it.hasNext() )
+						{
+							final LabelMultiset.Entry< net.imglib2.type.label.Label > entry = it.next();
+							sb.append( entry.getElement().id() ).append( ":" ).append( entry.getCount() );
+						}
+						while ( it.hasNext() )
+						{
+							final LabelMultiset.Entry< net.imglib2.type.label.Label > entry = it.next();
+							sb.append( " " ).append( entry.getElement().id() ).append( ":" ).append( entry.getCount() );
+						}
+						sb.append( "}" );
+						return sb.toString();
+					};
+					else if ( t instanceof Pair< ?, ? > )
+					{
+						final Pair< ?, ? > p = ( Pair< ?, ? > ) t;
+						if ( p.getB() instanceof IntegerType< ? > )
+							valueToString = ( Function< T, String > ) ( Function< Pair< ?, IntegerType< ? > >, String > ) valueToStringForPair( p.getA(), ( IntegerType ) p.getB() );
+						else
+							valueToString = rt -> "Do not understand type!";
+					}
+					else
+						valueToString = rt -> "Do not understand type!";
+						return valueToString;
 	}
 
 	public static < T, I extends IntegerType< I > > Function< Pair< T, I >, String > valueToStringForPair( final T t, final I i )
@@ -924,8 +925,8 @@ public class Atlas
 		final long segmentId = assignment.getSegment( id );
 		if ( selection instanceof IntegerType< ? > )
 			return ( Converter< T, BoolType > ) ( Converter< IntegerType< ? >, BoolType > ) ( s, t ) -> t.set( assignment.getSegment( s.getIntegerLong() ) == segmentId );
-		else
-			return ( s, t ) -> t.set( assignment.getSegment( ( long ) s.getRealDouble() ) == segmentId );
+			else
+				return ( s, t ) -> t.set( assignment.getSegment( ( long ) s.getRealDouble() ) == segmentId );
 
 	}
 
@@ -997,7 +998,7 @@ public class Atlas
 			final DataSource< I, V > source,
 			final int[] cellSize,
 			final String path,
-			final Consumer< RandomAccessibleInterval< UnsignedLongType > > mergeCanvasIntoBackground )
+			final BiConsumer< CachedCellImg< UnsignedLongType, ? >, long[] > mergeCanvasIntoBackground )
 	{
 
 		final DiskCachedCellImgOptions cacheOptions = DiskCachedCellImgOptions
@@ -1058,7 +1059,7 @@ public class Atlas
 			final DataSource< LabelMultisetType, VolatileLabelMultisetType > source,
 			final int[] cellSize,
 			final String path,
-			final Consumer< RandomAccessibleInterval< UnsignedLongType > > mergeCanvasIntoBackground )
+			final BiConsumer< CachedCellImg< UnsignedLongType, ? >, long[] > mergeCanvasIntoBackground )
 	{
 
 		final DiskCachedCellImgOptions cacheOptions = DiskCachedCellImgOptions
