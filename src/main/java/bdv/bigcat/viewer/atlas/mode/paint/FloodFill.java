@@ -122,7 +122,9 @@ public class FloodFill
 			return;
 		}
 
-		final int level = viewerState.getBestMipMapLevel( viewerTransform, sourceInfo.currentSourceIndexInVisibleSources().get() );
+		// TODO always fill at highest resolution?
+//		final int level = viewerState.getBestMipMapLevel( viewerTransform, sourceInfo.currentSourceIndexInVisibleSources().get() );
+		final int level = 0;
 		final AffineTransform3D labelTransform = new AffineTransform3D();
 		final int time = viewerState.getCurrentTimepoint();
 		source.getSourceTransform( time, level, labelTransform );
