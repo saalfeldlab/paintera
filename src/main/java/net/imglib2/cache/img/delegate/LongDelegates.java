@@ -43,7 +43,7 @@ public class LongDelegates
 			return Long.BYTES;
 		}
 
-		private boolean isSingleValue( final byte b )
+		private static boolean isSingleValue( final byte b )
 		{
 			return ( b & SINGLE_VALUE_FLAG ) != 0;
 		}
