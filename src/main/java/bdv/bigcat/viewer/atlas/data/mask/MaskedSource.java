@@ -47,6 +47,7 @@ import net.imglib2.cache.img.DiskCachedCellImgOptions;
 import net.imglib2.converter.Converters;
 import net.imglib2.converter.TypeIdentity;
 import net.imglib2.img.ImgFactory;
+import net.imglib2.img.array.ArrayImgs;
 import net.imglib2.img.basictypeaccess.LongAccess;
 import net.imglib2.img.basictypeaccess.array.LongArray;
 import net.imglib2.img.basictypeaccess.constant.ConstantLongAccess;
@@ -430,9 +431,11 @@ public class MaskedSource< D extends Type< D >, T extends Type< T > > implements
 		return Converters.convert( this.source.getDataSource( t, level ), new TypeIdentity<>(), this.source.getDataType().createVariable() );
 	}
 
-	public static < A extends DirtyVolatileDelegateLongAccess > void initializeCells(
+	public static < A extends DirtyVolatileDelegateLongAccess > void downsampleBlocks(
+			final RandomAccessible< UnsignedLongType > source,
 			final CachedCellImg< UnsignedLongType, A > img,
-			final Interval interval )
+			final Interval interval,
+			final int[] steps )
 	{
 		LOG.warn( "Initializing for {} ({} {})", img, Intervals.minAsLongArray( interval ), Intervals.maxAsLongArray( interval ) );
 		final LazyCells< Cell< A > > cells = img.getCells();
@@ -444,24 +447,30 @@ public class MaskedSource< D extends Type< D >, T extends Type< T > > implements
 
 		final RandomAccess< Cell< A > > cellsAccess = cells.randomAccess();
 		final long[] cellPosition = new long[ grid.numDimensions() ];
+		final long[] cellMin = new long[ grid.numDimensions() ];
+		final long[] cellMax = new long[ grid.numDimensions() ];
+		final long[] cellDim = new long[ grid.numDimensions() ];
 
+		final TLongLongHashMap counts = new TLongLongHashMap();
 		LOG.warn( "Initializing affected blocks: {}", affectedBlocks );
 		for ( final TLongIterator it = affectedBlocks.iterator(); it.hasNext(); )
 		{
+			counts.clear();
 			final long blockId = it.next();
 			grid.getCellGridPositionFlat( blockId, cellPosition );
 			cellsAccess.setPosition( cellPosition );
 			final Cell< A > cell = cellsAccess.get();
+			cell.min( cellMin );
+			Arrays.setAll( cellMax, d -> cellMin[ d ] + cell.dimension( d ) - 1 );
+			Arrays.setAll( cellDim, cell::dimension );
 			final A access = cell.getData();
+			final int size = ( int ) cell.size();
 			final LongAccess currentAccess = access.getDelegate();
-			if ( currentAccess instanceof ConstantLongAccess )
-			{
-				final int size = ( int ) cell.size();
-				final LongArray updatedAccess = new LongArray( size );
-				Arrays.fill( updatedAccess.getCurrentStorageArray(), currentAccess.getValue( 0 ) );
-				access.setDelegate( updatedAccess );
-//				access.setValid( true );
-			}
+			final LongAccess updatedAccess = currentAccess instanceof ConstantLongAccess ? new LongArray( size ) : currentAccess;
+			final IntervalView< UnsignedLongType > currentView = Views.translate( ArrayImgs.unsignedLongs( currentAccess, cellDim ), cellMin );
+			final IntervalView< UnsignedLongType > updatedView = Views.translate( ArrayImgs.unsignedLongs( updatedAccess, cellDim ), cellMin );
+			downsample( source, updatedView, steps );
+			access.setDelegate( updatedAccess );
 		}
 	}
 
@@ -484,8 +493,8 @@ public class MaskedSource< D extends Type< D >, T extends Type< T > > implements
 			for ( int dim = 0; dim < start.length; )
 			{
 				final long id = sourceAccess.get().getIntegerLong();
-				if ( id != Label.INVALID )
-					counts.put( id, counts.get( id ) + 1 );
+//				if ( id != Label.INVALID )
+				counts.put( id, counts.get( id ) + 1 );
 
 				for ( dim = 0; dim < start.length; ++dim )
 				{
@@ -515,8 +524,8 @@ public class MaskedSource< D extends Type< D >, T extends Type< T > > implements
 
 	public static < T extends IntegerType< T > > void upsample(
 			final RandomAccessible< ? extends BooleanType< ? > > source,
-			final RandomAccessibleInterval< T > target,
-			final double[] scaleSourceToTarget, final T value )
+					final RandomAccessibleInterval< T > target,
+					final double[] scaleSourceToTarget, final T value )
 	{
 		LOG.debug( "Upsampling ({} {}) with scale from source to target {}", Intervals.minAsLongArray( target ), Intervals.maxAsLongArray( target ), scaleSourceToTarget );
 		final RandomAccessibleInterval< ? extends BooleanType< ? > > scaledSource = Views.interval( Views.raster( RealViews.transform( Views.interpolate( source, new NearestNeighborInterpolatorFactory<>() ), new Scale3D( scaleSourceToTarget ) ) ), target );
@@ -565,8 +574,12 @@ public class MaskedSource< D extends Type< D >, T extends Type< T > > implements
 
 			// downsample
 			final int[] steps = DoubleStream.of( relativeScales ).mapToInt( d -> ( int ) d ).toArray();
-			initializeCells( atHigherLevel, intervalAtHigherLevel );
-			downsample( Views.extendValue( atLowerLevel, new UnsignedLongType( Label.INVALID ) ), Views.interval( atHigherLevel, intervalAtHigherLevel ), steps );
+			downsampleBlocks(
+					Views.extendValue( atLowerLevel, new UnsignedLongType( Label.INVALID ) ),
+					atHigherLevel,
+					intervalAtHigherLevel,
+					steps );
+//			downsample( Views.extendValue( atLowerLevel, new UnsignedLongType( Label.INVALID ) ), Views.interval( atHigherLevel, intervalAtHigherLevel ), steps );
 		}
 
 		final RealRandomAccessible< UnsignedByteType > interpolatedMask = Views.interpolate( Views.extendZero( mask ), new NearestNeighborInterpolatorFactory<>() );
@@ -701,9 +714,9 @@ public class MaskedSource< D extends Type< D >, T extends Type< T > > implements
 
 	public static boolean blockWasAllPainted(
 			final RandomAccessible< ? extends BooleanType< ? > > mask,
-			final long[] min,
-			final long[] max,
-			final int[] scaleFactors )
+					final long[] min,
+					final long[] max,
+					final int[] scaleFactors )
 	{
 		final long[] scaledMin = min.clone();
 		final long[] scaledMax = max.clone();
