@@ -11,6 +11,7 @@ import java.util.function.Supplier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import bdv.bigcat.label.Label;
 import bdv.bigcat.viewer.atlas.data.mask.MaskInUse;
 import bdv.bigcat.viewer.atlas.data.mask.MaskInfo;
 import bdv.bigcat.viewer.atlas.data.mask.MaskedSource;
@@ -25,6 +26,7 @@ import javafx.scene.Scene;
 import net.imglib2.Interval;
 import net.imglib2.Localizable;
 import net.imglib2.Point;
+import net.imglib2.RandomAccess;
 import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.RealLocalizable;
 import net.imglib2.RealPoint;
@@ -33,6 +35,8 @@ import net.imglib2.algorithm.fill.Filter;
 import net.imglib2.algorithm.neighborhood.DiamondShape;
 import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.type.Type;
+import net.imglib2.type.label.LabelMultisetType;
+import net.imglib2.type.label.Multiset.Entry;
 import net.imglib2.type.numeric.RealType;
 import net.imglib2.type.numeric.integer.UnsignedByteType;
 import net.imglib2.type.numeric.integer.UnsignedLongType;
@@ -112,9 +116,9 @@ public class FloodFill
 
 		final Type< ? > t = source.getDataType();
 
-		if ( !( t instanceof RealType< ? > ) )
+		if ( !( t instanceof RealType< ? > ) && !( t instanceof LabelMultisetType ) )
 		{
-			LOG.warn( "Data type is not integer type -- will not fill" );
+			LOG.warn( "Data type is not real or LabelMultisetType type -- will not fill" );
 			return;
 		}
 
@@ -133,14 +137,24 @@ public class FloodFill
 		final Cursor previousCursor = scene.getCursor();
 		try
 		{
-			fill(
-					( MaskedSource ) source,
-					time,
-					level,
-					fill,
-					p,
-					new RunAll( requestRepaint, () -> scene.setCursor( Cursor.WAIT ) ),
-					new RunAll( requestRepaint, () -> scene.setCursor( previousCursor ) ) );
+			if ( t instanceof LabelMultisetType )
+				fillMultiset(
+						( MaskedSource ) source,
+						time,
+						level,
+						fill,
+						p,
+						new RunAll( requestRepaint, () -> scene.setCursor( Cursor.WAIT ) ),
+						new RunAll( requestRepaint, () -> scene.setCursor( previousCursor ) ) );
+			else
+				fill(
+						( MaskedSource ) source,
+						time,
+						level,
+						fill,
+						p,
+						new RunAll( requestRepaint, () -> scene.setCursor( Cursor.WAIT ) ),
+						new RunAll( requestRepaint, () -> scene.setCursor( previousCursor ) ) );
 		}
 		catch ( final MaskInUse e )
 		{
@@ -221,11 +235,74 @@ public class FloodFill
 		} ).start();
 	}
 
+	private static void fillMultiset(
+			final MaskedSource< LabelMultisetType, ? > source,
+			final int time,
+			final int level,
+			final long fill,
+			final Localizable seed,
+			final Runnable doWhileFilling,
+			final Runnable doWhenDone ) throws MaskInUse
+	{
+
+		final RandomAccessibleInterval< LabelMultisetType > data = source.getDataSource( time, level );
+		final RandomAccess< LabelMultisetType > dataAccess = data.randomAccess();
+		dataAccess.setPosition( seed );
+		final long seedLabel = getArgMaxLabel( dataAccess.get() );
+		if ( !Label.regular( seedLabel ) )
+		{
+			LOG.warn( "Trying to fill at irregular label: {} ({})", seedLabel, new Point( seed ) );
+			return;
+		}
+
+		final MaskInfo< UnsignedLongType > maskInfo = new MaskInfo<>( time, level, new UnsignedLongType( fill ) );
+		final RandomAccessibleInterval< UnsignedByteType > mask = source.generateMask( maskInfo );
+		final AccessBoxRandomAccessible< UnsignedByteType > accessTracker = new AccessBoxRandomAccessible<>( Views.extendValue( mask, new UnsignedByteType( 1 ) ) );
+		final Thread t = new Thread( () -> {
+			net.imglib2.algorithm.fill.FloodFill.fill(
+					data,
+					accessTracker,
+					seed,
+					new UnsignedByteType( 1 ),
+					new DiamondShape( 1 ),
+					makeFilterMultiset( seedLabel ) );
+			final Interval interval = accessTracker.createAccessInterval();
+			LOG.debug( "Applying mask for interval {} {}", Arrays.toString( Intervals.minAsLongArray( interval ) ), Arrays.toString( Intervals.maxAsLongArray( interval ) ) );
+		} );
+		t.start();
+		new Thread( () -> {
+			while ( t.isAlive() && !Thread.interrupted() )
+			{
+				try
+				{
+					Thread.sleep( 100 );
+				}
+				catch ( final InterruptedException e )
+				{
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				}
+				LOG.debug( "Updating current view!" );
+				doWhileFilling.run();
+			}
+			doWhenDone.run();
+			if ( !Thread.interrupted() )
+				source.applyMask( mask, accessTracker.createAccessInterval() );
+		} ).start();
+	}
+
 	private static < T extends Type< T > > Filter< Pair< T, UnsignedByteType >, Pair< T, UnsignedByteType > > makeFilter()
 	{
 		final UnsignedByteType zero = new UnsignedByteType( 0 );
 		// first element in pair is current pixel, second element is reference
 		return ( p1, p2 ) -> p1.getB().valueEquals( zero ) && p1.getA().valueEquals( p2.getA() );
+	}
+
+	private static Filter< Pair< LabelMultisetType, UnsignedByteType >, Pair< LabelMultisetType, UnsignedByteType > > makeFilterMultiset( final long id )
+	{
+		final UnsignedByteType zero = new UnsignedByteType( 0 );
+		// first element in pair is current pixel, second element is reference
+		return ( p1, p2 ) -> p1.getB().valueEquals( zero ) && p1.getA().contains( id );
 	}
 
 	public static class RunAll implements Runnable
@@ -250,6 +327,22 @@ public class FloodFill
 			this.runnables.forEach( Runnable::run );
 		}
 
+	}
+
+	public static long getArgMaxLabel( final LabelMultisetType t )
+	{
+		long argmax = Label.INVALID;
+		long max = 0;
+		for ( final Entry< net.imglib2.type.label.Label > e : t.entrySet() )
+		{
+			final int count = e.getCount();
+			if ( count > max )
+			{
+				max = count;
+				argmax = e.getElement().id();
+			}
+		}
+		return argmax;
 	}
 
 }
