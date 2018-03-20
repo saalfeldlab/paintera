@@ -218,7 +218,7 @@ public class MaskedSource< D extends Type< D >, T extends Type< T > > implements
 				final LongArray updatedAccess = new LongArray( ( int ) cell.size() );
 				cell.min( blockMin );
 				Arrays.setAll( blockMax, d -> blockMin[ d ] + cell.dimension( d ) - 1 );
-				LOG.warn( "Painting: level={}, min={}, max={}", maskInfo.level, blockMin, blockMax );
+				LOG.debug( "Painting: level={}, min={}, max={}", maskInfo.level, blockMin, blockMax );
 				final Cursor< UnsignedByteType > cursor = Views.flatIterable( Views.interval( mask, blockMin, blockMax ) ).cursor();
 				boolean paintedAllPixelsInBlock = true;
 				for ( int i = 0; cursor.hasNext(); ++i )
@@ -567,6 +567,8 @@ public class MaskedSource< D extends Type< D >, T extends Type< T > > implements
 			final UnsignedLongType label )
 	{
 
+		final CellGrid gridAtPaintedLevel = this.dataCanvases[ paintedLevel ].getCellGrid();
+
 		for ( int level = paintedLevel + 1; level < getNumMipmapLevels(); ++level )
 		{
 			final RandomAccessibleInterval< UnsignedLongType > atLowerLevel = dataCanvases[ level - 1 ];
@@ -598,6 +600,7 @@ public class MaskedSource< D extends Type< D >, T extends Type< T > > implements
 
 		for ( int level = paintedLevel - 1; level >= 0; --level )
 		{
+			LOG.debug( "Upsampling for level={}", level );
 			final TLongSet affectedBlocksAtLowerLevel = this.scaleBlocksToLevel( paintedBlocksAtPaintedScale, paintedLevel, level );
 			final double[] currentRelativeScaleFromTargetToPainted = DataSource.getRelativeScales( this, 0, level, paintedLevel );
 
@@ -619,34 +622,48 @@ public class MaskedSource< D extends Type< D >, T extends Type< T > > implements
 			{
 				final long blockId = blockIterator.next();
 				gridAtTargetLevel.getCellGridPositionFlat( blockId, cellPosTarget );
-				Arrays.setAll( minTarget, d -> cellPosTarget[ d ] * blockSize[ d ] );
+				Arrays.setAll( minTarget, d -> Math.min( cellPosTarget[ d ] * blockSize[ d ], gridAtTargetLevel.imgDimension( d ) - 1 ) );
 				Arrays.setAll( maxTarget, d -> Math.min( minTarget[ d ] + blockSize[ d ], gridAtTargetLevel.imgDimension( d ) ) - 1 );
 				Arrays.setAll( stopTarget, d -> maxTarget[ d ] + 1 );
 				this.scalePositionToLevel( minTarget, level, paintedLevel, minPainted );
 				this.scalePositionToLevel( stopTarget, level, paintedLevel, maxPainted );
-				Arrays.setAll( maxPainted, d -> maxPainted[ d ] - 1 );
-				final IntervalView< BoolType > relevantBlockAtPaintedResolution = Views.interval( Converters.convert( mask, ( s, t ) -> t.set( s.get() > 0 ), new BoolType() ), minPainted, maxPainted );
-				final boolean isConstantValueBlock = isAllTrue( relevantBlockAtPaintedResolution );
+				Arrays.setAll( minPainted, d -> Math.min( Math.max( minPainted[ d ], mask.min( d ) ), mask.max( d ) ) );
+				Arrays.setAll( maxPainted, d -> Math.min( Math.max( maxPainted[ d ] - 1, mask.min( d ) ), mask.max( d ) ) );
 
 				LOG.trace(
-						"Upsampling block: level={}, block min (target)={}, block max (target)={}, block min={}, block max={}, scale={}",
-						paintedLevel,
+						"Upsampling block: level={}, block min (target)={}, block max (target)={}, block min={}, block max={}, scale={}, mask min={}, mask max={}",
+						level,
 						minTarget,
 						maxTarget,
 						minPainted,
 						maxPainted,
-						currentRelativeScaleFromTargetToPainted );
+						currentRelativeScaleFromTargetToPainted,
+						Intervals.minAsLongArray( mask ),
+						Intervals.maxAsLongArray( mask ) );
+
+				final IntervalView< BoolType > relevantBlockAtPaintedResolution = Views.interval(
+						Converters.convert( mask, ( s, t ) -> t.set( s.get() > 0 ), new BoolType() ),
+						minPainted,
+						maxPainted );
+
+				if ( Intervals.numElements( relevantBlockAtPaintedResolution ) == 0 )
+					continue;
+
+				final boolean isConstantValueBlock = isAllTrue( relevantBlockAtPaintedResolution );
 
 				final LongAccess updatedAccess;
 				targetCellsAccess.setPosition( cellPosTarget );
-				final DirtyVolatileDelegateLongAccess currentAccess = targetCellsAccess.get().getData();
+				final Cell< DirtyVolatileDelegateLongAccess > cell = targetCellsAccess.get();
+				final DirtyVolatileDelegateLongAccess currentAccess = cell.getData();
 				if ( isConstantValueBlock )
 					updatedAccess = new ConstantLongAccess( label.getIntegerLong() );
 				else
 				{
 					final Interval targetInterval = new FinalInterval( minTarget, maxTarget );
 					final int numElements = ( int ) Intervals.numElements( targetInterval );
-					updatedAccess = new LongArray( numElements );
+					// TODO is targetInterval wrong? investigate here!
+					updatedAccess = new LongArray( ( int ) cell.size() );
+//						updatedAccess = new LongArray( numElements );
 					final Cursor< UnsignedByteType > maskCursor = Views.flatIterable( Views.interval( Views.raster( scaledMask ), targetInterval ) ).cursor();
 					for ( int i = 0; maskCursor.hasNext(); ++i )
 					{
