@@ -43,8 +43,6 @@ public class PaintMode extends AbstractStateMode
 
 	private final HashSet< ViewerNode.ViewerAxis > paintableViews = new HashSet<>( Arrays.asList( ViewerNode.ViewerAxis.Z ) );
 
-	private final HashMap< ViewerPanelFX, ViewerNode.ViewerAxis > viewerAxes;
-
 	private final SourceInfo sourceInfo;
 
 	private final KeyTracker keyTracker;
@@ -58,14 +56,12 @@ public class PaintMode extends AbstractStateMode
 	private final Runnable requestRepaint;
 
 	public PaintMode(
-			final HashMap< ViewerPanelFX, ViewerNode.ViewerAxis > viewerAxes,
 			final SourceInfo sourceInfo,
 			final KeyTracker keyTracker,
 			final GlobalTransformManager manager,
 			final Runnable requestRepaint )
 	{
 		super();
-		this.viewerAxes = viewerAxes;
 		this.sourceInfo = sourceInfo;
 		this.keyTracker = keyTracker;
 		this.manager = manager;
@@ -81,7 +77,7 @@ public class PaintMode extends AbstractStateMode
 				if ( !this.mouseAndKeyHandlers.containsKey( t ) )
 				{
 					final IdSelector selector = new IdSelector( t, sourceInfo, this );
-					final Paint paint = new Paint( t, viewerAxes.get( t ), sourceInfo, manager, () -> viewerAxes.keySet().forEach( ViewerPanelFX::requestRepaint ) );
+					final Paint paint = new Paint( t, sourceInfo, manager, requestRepaint );
 					paint.brushRadiusProperty().set( this.brushRadius.get() );
 					paint.brushRadiusProperty().bindBidirectional( this.brushRadius );
 					paint.brushRadiusIncrementProperty().set( this.brushRadiusIncrement.get() );

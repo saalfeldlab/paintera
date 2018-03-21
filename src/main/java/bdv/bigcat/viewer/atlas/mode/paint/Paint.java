@@ -17,7 +17,6 @@ import bdv.bigcat.viewer.atlas.source.SourceInfo;
 import bdv.bigcat.viewer.bdvfx.MouseDragFX;
 import bdv.bigcat.viewer.bdvfx.ViewerPanelFX;
 import bdv.bigcat.viewer.panel.ViewerNode;
-import bdv.bigcat.viewer.panel.ViewerNode.ViewerAxis;
 import bdv.bigcat.viewer.state.GlobalTransformManager;
 import bdv.util.Affine3DHelpers;
 import bdv.viewer.Source;
@@ -49,10 +48,6 @@ public class Paint
 
 	private final ViewerPanelFX viewer;
 
-	private final ViewerNode.ViewerAxis viewerAxis;
-
-	private final int viewerAxisDimension;
-
 	private final SourceInfo sourceInfo;
 
 	private final BrushOverlay brushOverlay;
@@ -77,15 +72,12 @@ public class Paint
 
 	public Paint(
 			final ViewerPanelFX viewer,
-			final ViewerAxis viewerAxis,
 			final SourceInfo sourceInfo,
 			final GlobalTransformManager manager,
 			final Runnable repaintRequest )
 	{
 		super();
 		this.viewer = viewer;
-		this.viewerAxis = viewerAxis;
-		this.viewerAxisDimension = viewerAxisToDimensionIndex( this.viewerAxis );
 		this.sourceInfo = sourceInfo;
 		this.brushOverlay = new BrushOverlay( this.viewer, manager );
 		this.brushOverlay.physicalRadiusProperty().bind( brushRadius );
@@ -251,11 +243,10 @@ public class Paint
 //			return;
 
 		LOG.debug(
-				"Painting with radius={} position={} brush-radius={} active-viewer-axis={}",
+				"Painting with radius={} position={} brush-radius={}",
 				radii,
 				pos,
-				brushRadius,
-				viewerAxisDimension );
+				brushRadius );
 
 		// TODO use Views.extendValue once it accepts arbitrary types (instead
 		// of Views..extendBorder)
