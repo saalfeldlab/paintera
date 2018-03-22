@@ -46,8 +46,6 @@ public class MeshExporterDialog extends Dialog< ExportResult >
 		setResultConverter( button -> {
 			if ( button.getButtonData().isCancelButton() )
 				return null;
-			// here you can also check what button was pressed
-			// and return things accordingly
 			return new ExportResult( meshExporter, segmentId, Integer.parseInt( scale.getText() ), filePath.getText() );
 		} );
 
