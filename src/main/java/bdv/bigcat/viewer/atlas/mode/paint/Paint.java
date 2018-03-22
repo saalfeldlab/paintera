@@ -177,7 +177,7 @@ public class Paint
 
 		final AffineTransform3D viewerTransform = new AffineTransform3D();
 		state.getViewerTransform( viewerTransform );
-		final int level = state.getBestMipMapLevel( viewerTransform, currentSource );
+		final int level = state.getBestMipMapLevel( new AffineTransform3D(), currentSource );
 		maskedSource.getSourceTransform( state.getCurrentGroup(), level, labelToGlobalTransform );
 		this.labelToViewerTransform.set( viewerTransform.copy().concatenate( labelToGlobalTransform ) );
 

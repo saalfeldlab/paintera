@@ -105,7 +105,7 @@ public class RestrictPainting
 			return;
 		}
 
-		final int level = viewerState.getBestMipMapLevel( viewerTransform, sourceInfo.currentSourceIndexInVisibleSources().get() );
+		final int level = viewerState.getBestMipMapLevel( new AffineTransform3D(), sourceInfo.currentSourceIndexInVisibleSources().get() );
 		final AffineTransform3D labelTransform = new AffineTransform3D();
 		final int time = viewerState.getCurrentTimepoint();
 		source.getSourceTransform( time, level, labelTransform );

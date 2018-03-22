@@ -110,7 +110,8 @@ public class IdSelector
 						final AffineTransform3D affine = new AffineTransform3D();
 						final ViewerState state = viewer.getState();
 						state.getViewerTransform( affine );
-						final int level = state.getBestMipMapLevel( affine, getIndexOf( dataSource, state ) );
+						final AffineTransform3D screenScaleTransforms = new AffineTransform3D();
+						final int level = state.getBestMipMapLevel( screenScaleTransforms, getIndexOf( dataSource, state ) );
 						dataSource.getSourceTransform( 0, level, affine );
 						final RealTransformRealRandomAccessible< ?, InverseRealTransform >.RealTransformRealRandomAccess access = RealViews.transformReal( dataSource.getInterpolatedDataSource( 0, level, Interpolation.NEARESTNEIGHBOR ), affine ).realRandomAccess();
 						viewer.getMouseCoordinates( access );

@@ -182,7 +182,8 @@ public class Paint2D
 
 		final AffineTransform3D viewerTransform = new AffineTransform3D();
 		state.getViewerTransform( viewerTransform );
-		final int level = state.getBestMipMapLevel( viewerTransform, currentSource );
+		final AffineTransform3D screenScaleTransform = new AffineTransform3D();
+		final int level = state.getBestMipMapLevel( screenScaleTransform, currentSource );
 		maskedSource.getSourceTransform( 0, level, labelToGlobalTransform );
 		this.labelToViewerTransform.set( viewerTransform.copy().concatenate( labelToGlobalTransform ) );
 
