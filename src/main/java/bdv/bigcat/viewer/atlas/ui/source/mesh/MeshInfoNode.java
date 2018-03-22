@@ -1,9 +1,11 @@
 package bdv.bigcat.viewer.atlas.ui.source.mesh;
 
 import java.util.Arrays;
+import java.util.Optional;
 
 import org.controlsfx.control.StatusBar;
 
+import bdv.bigcat.viewer.atlas.source.AtlasSourceState;
 import bdv.bigcat.viewer.atlas.ui.BindUnbindAndNodeSupplier;
 import bdv.bigcat.viewer.meshes.MeshInfo;
 import bdv.bigcat.viewer.meshes.MeshManager;
@@ -15,6 +17,7 @@ import javafx.beans.property.IntegerProperty;
 import javafx.beans.property.SimpleDoubleProperty;
 import javafx.beans.property.SimpleIntegerProperty;
 import javafx.scene.Node;
+import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.control.TitledPane;
 import javafx.scene.control.Tooltip;
@@ -45,9 +48,9 @@ public class MeshInfoNode implements BindUnbindAndNodeSupplier
 		this.contents = createContents();
 	}
 
-	public MeshInfoNode( final long segmentId, final FragmentSegmentAssignment assignment, final MeshManager meshManager, final int numScaleLevels )
+	public MeshInfoNode( final AtlasSourceState< ?, ? > state, final long segmentId, final FragmentSegmentAssignment assignment, final MeshManager meshManager, final int numScaleLevels )
 	{
-		this( new MeshInfo( segmentId, assignment, meshManager, numScaleLevels ) );
+		this( new MeshInfo( state, segmentId, assignment, meshManager, numScaleLevels ) );
 	}
 
 	@Override
@@ -116,6 +119,20 @@ public class MeshInfoNode implements BindUnbindAndNodeSupplier
 		contents.add( simplificationSlider.textField(), 2, row );
 		simplificationSlider.slider().setShowTickLabels( true );
 		simplificationSlider.slider().setTooltip( new Tooltip( "Simplify meshes n times." ) );
+		++row;
+
+		final Button exportMeshButton = new Button( "Export" );
+		exportMeshButton.setOnAction( event -> {
+			System.out.println( "pressed button" );
+			MeshExporterDialog exportDialog = new MeshExporterDialog( meshInfo );
+			final Optional< ExportResult > result = exportDialog.showAndWait();
+			if ( result.isPresent() )
+			{
+				ExportResult parameters = result.get();
+				parameters.getMeshExporter().exportMesh( meshInfo.state(), parameters.getSegmentId(), parameters.getScale(), parameters.getFilePath() );
+			}
+		} );
+		contents.add( exportMeshButton, 2, row );
 		++row;
 
 		vbox.getChildren().add( contents );
