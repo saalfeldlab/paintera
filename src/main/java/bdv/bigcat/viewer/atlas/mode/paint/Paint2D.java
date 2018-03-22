@@ -32,6 +32,7 @@ import net.imglib2.RandomAccessible;
 import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.RealLocalizable;
 import net.imglib2.RealPoint;
+import net.imglib2.RealPositionable;
 import net.imglib2.algorithm.fill.FloodFill;
 import net.imglib2.algorithm.neighborhood.DiamondShape;
 import net.imglib2.realtransform.AffineTransform3D;
@@ -86,6 +87,24 @@ public class Paint2D
 	}
 
 	private void setCoordinates( final double x, final double y, final AffineTransform3D labelTransform )
+	{
+		labelLocation.setPosition( x, 0 );
+		labelLocation.setPosition( y, 1 );
+		labelLocation.setPosition( 0, 2 );
+
+		final RealPoint copy = new RealPoint( labelLocation );
+
+		viewer.displayToGlobalCoordinates( labelLocation );
+
+		labelTransform.applyInverse( labelLocation, labelLocation );
+		this.labelToViewerTransform.applyInverse( copy, copy );
+	}
+
+	private < T extends RealLocalizable & RealPositionable > void setCoordinates(
+			final double x,
+			final double y,
+			final AffineTransform3D labelTransform,
+			final T labelLocation )
 	{
 		labelLocation.setPosition( x, 0 );
 		labelLocation.setPosition( y, 1 );
@@ -203,16 +222,22 @@ public class Paint2D
 		this.maskedSource.set( maskedSource );
 	}
 
-	private void paint( final double x, final double y )
+//	private void paint( final double x, final double y )
+//	{
+//
+//		setCoordinates( x, y, labelToGlobalTransform );
+//		paint( this.labelLocation, x, y );
+//
+//	}
+
+	private void paint( final double viewerX, final double viewerY )
 	{
 
-		setCoordinates( x, y, labelToGlobalTransform );
-		paint( this.labelLocation, x, y );
+		final AffineTransform3D labelToGlobalTransform = this.labelToGlobalTransform.copy();
+		final AffineTransform3D labelToViewerTransform = this.labelToViewerTransform.copy();
 
-	}
-
-	private void paint( final RealLocalizable coords, final double viewerX, final double viewerY )
-	{
+		final RealPoint coords = new RealPoint( 3 );
+		this.setCoordinates( viewerX, viewerY, labelToGlobalTransform, coords );
 		System.out.println( "PAINTING 2D!" );
 		// TODO currently, this paints in 3D. Maybe we should paint 2D only so
 		// we see every pixel that we paint into.
@@ -220,8 +245,7 @@ public class Paint2D
 		LOG.debug( "Painting on canvas {} at {}", labels, coords );
 		if ( labels == null )
 			return;
-		final AffineTransform3D labelToGlobalTransform = this.labelToGlobalTransform.copy();
-		final AffineTransform3D labelToViewerTransform = this.labelToViewerTransform.copy();
+
 		final RandomAccessible< UnsignedByteType > labelSource = Views.extendZero( labels );
 
 		final AffineTransform3D viewerTransform = new AffineTransform3D();
@@ -272,8 +296,8 @@ public class Paint2D
 				final double x = p.getDoublePosition( 0 );
 				final double y = p.getDoublePosition( 1 );
 				final double z = p.getDoublePosition( 2 );
-//				if ( z >= -0.5 && z <= 0.5 )
-				if ( z >= -oneOverSqrt2 && z <= oneOverSqrt2 )
+				if ( z >= -0.5 && z <= 0.5 )
+//				if ( z >= -oneOverSqrt2 && z <= oneOverSqrt2 )
 				{
 					final double dX = x - viewerX;
 					final double dY = y - viewerY;
@@ -399,15 +423,12 @@ public class Paint2D
 			// transform can happen during this drag.
 			final double x = event.getX();
 			final double y = event.getY();
-			setCoordinates( startX, startY, labelToGlobalTransform );
-			LOG.debug( "Drag: paint at screen=({},{}) / world={}", x, y, labelLocation );
-			final double[] p1 = new double[ 3 ];
-			final RealPoint rp1 = RealPoint.wrap( p1 );
-			labelLocation.localize( p1 );
 
-			setCoordinates( x, y, labelToGlobalTransform );
-			final double[] d = new double[ 3 ];
-			labelLocation.localize( d );
+			final double[] p1 = new double[] { startX, startY };
+
+			LOG.warn( "Drag: paint at screen=({},{}) / start=({},{})", x, y, startX, startY );
+
+			final double[] d = new double[] { x, y };
 
 			LinAlgHelpers.subtract( d, p1, d );
 
@@ -416,10 +437,10 @@ public class Paint2D
 
 			for ( int i = 0; i < l; ++i )
 			{
-				paint( rp1, startX + ( x - startX ) * 1.0 * i / l, startY + ( y - startY ) * 1.0 * i / l );
+				paint( p1[ 0 ], p1[ 1 ] );
 				LinAlgHelpers.add( p1, d, p1 );
 			}
-			paint( labelLocation, x, y );
+			paint( x, y );
 			startX = x;
 			startY = y;
 			repaintRequest.run();
