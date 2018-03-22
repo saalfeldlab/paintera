@@ -11,6 +11,7 @@ import bdv.bigcat.viewer.bdvfx.ViewerPanelFX;
 import bdv.bigcat.viewer.state.GlobalTransformManager;
 import javafx.beans.property.DoubleProperty;
 import javafx.beans.property.SimpleDoubleProperty;
+import javafx.beans.value.ObservableDoubleValue;
 import javafx.scene.Cursor;
 import javafx.scene.canvas.GraphicsContext;
 import javafx.scene.input.MouseEvent;
@@ -117,6 +118,11 @@ public class BrushOverlay implements OverlayRendererGeneric< GraphicsContext >
 	public DoubleProperty physicalRadiusProperty()
 	{
 		return this.physicalRadius;
+	}
+
+	public ObservableDoubleValue viewerRadiusProperty()
+	{
+		return this.viewerRadius;
 	}
 
 	private void updateViewerRadius( final AffineTransform3D transform )
