@@ -164,7 +164,7 @@ public class OpenSourceDialog extends Dialog< BackendDialog > implements Combine
 		this.paintingCacheDirectoryChooserButton.setOnAction( event -> {
 			final DirectoryChooser directoryChooser = new DirectoryChooser();
 			final File initDir = new File( paintingCacheDirectory.getText() );
-			directoryChooser.setInitialDirectory( initDir.exists() && initDir.isDirectory() ? initDir : FileSystems.getDefault().getPath( "." ).toFile() );
+			directoryChooser.setInitialDirectory( initDir.exists() && initDir.isDirectory() ? initDir : FileSystems.getDefault().getPath( System.getProperty( "user.home" ), "local", "tmp", "cache" ).toFile() );
 			final File directory = directoryChooser.showDialog( grid.getScene().getWindow() );
 			Optional.ofNullable( directory ).map( File::getAbsolutePath ).ifPresent( paintingCacheDirectory::setText );
 		} );
