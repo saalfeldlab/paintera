@@ -55,6 +55,8 @@ public class PaintMode extends AbstractStateMode
 
 	private final Runnable requestRepaint;
 
+	private final boolean paint3D = false;
+
 	public PaintMode(
 			final SourceInfo sourceInfo,
 			final KeyTracker keyTracker,
@@ -78,10 +80,13 @@ public class PaintMode extends AbstractStateMode
 				{
 					final IdSelector selector = new IdSelector( t, sourceInfo, this );
 					final Paint paint = new Paint( t, sourceInfo, manager, requestRepaint );
+					final Paint2D paint2D = new Paint2D( t, sourceInfo, manager, requestRepaint );
 					paint.brushRadiusProperty().set( this.brushRadius.get() );
 					paint.brushRadiusProperty().bindBidirectional( this.brushRadius );
 					paint.brushRadiusIncrementProperty().set( this.brushRadiusIncrement.get() );
 					paint.brushRadiusIncrementProperty().bindBidirectional( this.brushRadiusIncrement );
+					paint2D.brushRadiusProperty().bindBidirectional( this.brushRadius );
+					paint2D.brushRadiusIncrementProperty().bindBidirectional( this.brushRadiusIncrement );
 					final ObjectProperty< Source< ? > > currentSource = sourceInfo.currentSourceProperty();
 					final ObjectBinding< SelectedIds > currentSelectedIds = Bindings.createObjectBinding(
 							() -> sourceInfo.getState( currentSource.get() ).selectedIdsProperty().get(),
@@ -119,7 +124,8 @@ public class PaintMode extends AbstractStateMode
 					iars.add( EventFX.KEY_PRESSED( "show brush overlay", event -> paint.showBrushOverlay(), event -> keyTracker.areKeysDown( KeyCode.SPACE ) ) );
 					iars.add( EventFX.KEY_RELEASED( "show brush overlay", event -> paint.hideBrushOverlay(), event -> event.getCode().equals( KeyCode.SPACE ) && !keyTracker.areKeysDown( KeyCode.SPACE ) ) );
 					iars.add( EventFX.SCROLL( "change brush size", event -> paint.changeBrushRadius( event.getDeltaY() ), event -> keyTracker.areOnlyTheseKeysDown( KeyCode.SPACE ) ) );
-					iars.add( paint.paintLabel( "paint", paintSelection::get, event -> event.isPrimaryButtonDown() && keyTracker.areOnlyTheseKeysDown( KeyCode.SPACE ) ) );
+					iars.add( paint.paintLabel( "paint", paintSelection::get, event -> event.isPrimaryButtonDown() && keyTracker.areOnlyTheseKeysDown( KeyCode.SPACE ) && paint3D ) );
+					iars.add( paint2D.paintLabel( "paint", paintSelection::get, event -> event.isPrimaryButtonDown() && keyTracker.areOnlyTheseKeysDown( KeyCode.SPACE ) && !paint3D ) );
 					iars.add( paint.paintLabel( "erase canvas", () -> Label.TRANSPARENT, event -> event.isSecondaryButtonDown() && keyTracker.areOnlyTheseKeysDown( KeyCode.SPACE ) ) );
 					iars.add( paint.paintLabel( "erase background", () -> Label.BACKGROUND, event -> event.isSecondaryButtonDown() && keyTracker.areOnlyTheseKeysDown( KeyCode.SPACE, KeyCode.SHIFT ) ) );
 					iars.add( EventFX.MOUSE_PRESSED( "fill", event -> fill.fillAt( event.getX(), event.getY(), paintSelection::get ), event -> event.isPrimaryButtonDown() && keyTracker.areOnlyTheseKeysDown( KeyCode.SHIFT, KeyCode.F ) ) );
