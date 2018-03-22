@@ -25,11 +25,11 @@ public abstract class MeshExporter
 		assert ids.length == scales.length;
 		for ( int i = 0; i < ids.length; i++ )
 		{
-			exportMesh( state, ids[ i ], scales[ i ], simplificationIterations[ i ], paths[ i ] );
+			exportMesh( state, ids[ i ], scales[ i ], paths[ i ] );
 		}
 	}
 
-	public void exportMesh( final AtlasSourceState< ?, ? > state, final long id, final int scaleIndex, final int simplificationIterations, String path )
+	public void exportMesh( final AtlasSourceState< ?, ? > state, final long id, final int scaleIndex, String path )
 	{
 		final Cache< Long, Interval[] >[] blockListCache = state.blocklistCacheProperty().get();
 		final Cache< ShapeKey, Pair< float[], float[] > >[] meshCache = state.meshesCacheProperty().get();
@@ -48,7 +48,8 @@ public abstract class MeshExporter
 		// generate keys from blocks, scaleIndex, and id
 		final List< ShapeKey > keys = new ArrayList<>();
 		for ( final Interval block : blocks )
-			keys.add( new ShapeKey( id, scaleIndex, simplificationIterations, Intervals.minAsLongArray( block ), Intervals.maxAsLongArray( block ) ) );
+			// ignoring simplification iterations parameter
+			keys.add( new ShapeKey( id, scaleIndex, 0, Intervals.minAsLongArray( block ), Intervals.maxAsLongArray( block ) ) );
 
 		float[] allVertices = null;
 		float[] allNormals = null;
