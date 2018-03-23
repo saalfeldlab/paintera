@@ -20,12 +20,12 @@ public abstract class MeshExporter
 {
 	private static final Logger LOG = LoggerFactory.getLogger( MethodHandles.lookup().lookupClass() );
 
-	public void exportMeshes( final AtlasSourceState< ?, ? > state, final long[] ids, final int[] scales, final int[] simplificationIterations, String[] paths )
+	public void exportMesh( final AtlasSourceState< ?, ? >[] state, final long[] ids, final int scale, String[] paths )
 	{
-		assert ids.length == scales.length;
+		assert ids.length == paths.length;
 		for ( int i = 0; i < ids.length; i++ )
 		{
-			exportMesh( state, ids[ i ], scales[ i ], paths[ i ] );
+			exportMesh( state[ i ], ids[ i ], scale, paths[ i ] );
 		}
 	}
 
