@@ -9,6 +9,7 @@ import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import bdv.bigcat.viewer.atlas.source.AtlasSourceState;
 import bdv.bigcat.viewer.atlas.ui.BindUnbindAndNodeSupplier;
 import bdv.bigcat.viewer.meshes.MeshInfo;
 import bdv.bigcat.viewer.meshes.MeshInfos;
@@ -21,6 +22,7 @@ import javafx.collections.ListChangeListener;
 import javafx.collections.ObservableList;
 import javafx.collections.ObservableMap;
 import javafx.scene.Node;
+import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.control.TitledPane;
 import javafx.scene.control.Tooltip;
@@ -114,8 +116,23 @@ public class MeshPane implements BindUnbindAndNodeSupplier, ListChangeListener< 
 		final List< MeshInfoNode > infoNodes = new ArrayList<>( infos ).stream().map( this::fromMeshInfo ).collect( Collectors.toList() );
 		LOG.debug( "Setting info nodes: {}: ", infoNodes );
 		this.infoNodes.setAll( infoNodes );
+		final Button exportMeshButton = new Button( "Export all" );
+		exportMeshButton.setOnAction( event -> {
+			MeshExporterDialog exportDialog = new MeshExporterDialog( meshInfos );
+			final Optional< ExportResult > result = exportDialog.showAndWait();
+			if ( result.isPresent() )
+			{
+				ExportResult parameters = result.get();
+
+				final AtlasSourceState< ?, ? >[] states = new AtlasSourceState< ?, ? >[ meshInfos.readOnlyInfos().size() ];
+				for ( int i = 0; i < meshInfos.readOnlyInfos().size(); i++ )
+					states[ i ] = meshInfos.readOnlyInfos().get( i ).state();
+				parameters.getMeshExporter().exportMesh( states, parameters.getSegmentId(), parameters.getScale(), parameters.getFilePaths() );
+			}
+		} );
 		InvokeOnJavaFXApplicationThread.invoke( () -> {
 			this.meshesBox.getChildren().setAll( infoNodes.stream().map( MeshInfoNode::get ).collect( Collectors.toList() ) );
+			this.meshesBox.getChildren().add( exportMeshButton );
 		} );
 	}
 
