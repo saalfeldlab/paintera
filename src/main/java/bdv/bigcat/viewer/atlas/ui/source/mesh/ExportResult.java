@@ -6,17 +6,19 @@ public class ExportResult
 {
 	private final MeshExporter meshExporter;
 
-	private final long segmentId;
+	private final long[] segmentId;
 
-	private final String filePath;
+	private final String[] filePaths;
 
 	private final int scale;
 
-	public ExportResult( final MeshExporter meshExporter, final long segmentId, final int scale, final String filePath )
+	// TODO: change scale parameter when the interface allows to export
+	// different scales for different meshes at the same time
+	public ExportResult( final MeshExporter meshExporter, final long[] segmentId, final int scale, final String[] filePaths )
 	{
 		this.meshExporter = meshExporter;
 		this.segmentId = segmentId;
-		this.filePath = filePath;
+		this.filePaths = filePaths;
 		this.scale = scale;
 	}
 
@@ -25,14 +27,14 @@ public class ExportResult
 		return meshExporter;
 	}
 
-	public long getSegmentId()
+	public long[] getSegmentId()
 	{
 		return segmentId;
 	}
 
-	public String getFilePath()
+	public String[] getFilePaths()
 	{
-		return filePath;
+		return filePaths;
 	}
 
 	public int getScale()
