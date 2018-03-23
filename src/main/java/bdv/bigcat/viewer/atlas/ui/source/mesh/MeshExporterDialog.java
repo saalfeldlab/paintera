@@ -1,14 +1,21 @@
 package bdv.bigcat.viewer.atlas.ui.source.mesh;
 
 import java.io.File;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Optional;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
-import org.controlsfx.control.StatusBar;
+import org.controlsfx.control.CheckListView;
 
 import bdv.bigcat.viewer.meshes.MeshExporter;
 import bdv.bigcat.viewer.meshes.MeshExporterBinary;
 import bdv.bigcat.viewer.meshes.MeshExporterObj;
 import bdv.bigcat.viewer.meshes.MeshInfo;
+import bdv.bigcat.viewer.meshes.MeshInfos;
+import javafx.beans.binding.Bindings;
+import javafx.beans.binding.BooleanBinding;
 import javafx.beans.value.ChangeListener;
 import javafx.beans.value.ObservableValue;
 import javafx.collections.FXCollections;
@@ -19,102 +26,231 @@ import javafx.scene.control.ComboBox;
 import javafx.scene.control.Dialog;
 import javafx.scene.control.Label;
 import javafx.scene.control.TextField;
-import javafx.scene.control.TitledPane;
 import javafx.scene.layout.GridPane;
+import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
 import javafx.stage.DirectoryChooser;
 
 public class MeshExporterDialog extends Dialog< ExportResult >
 {
+
+	public static enum FILETYPE
+	{
+		obj, binary
+	};
+
+	final int LIST_CELL_HEIGHT = 25;
+
 	private final TextField scale;
+
+	private final TextField filePath;
+
+	private final String[] filePaths;
 
 	private MeshExporter meshExporter;
 
-	private final long segmentId;
+	private long[] segmentIds;
 
-	private final TextField filePath;
+	private ComboBox< String > fileFormats;
+
+	private CheckListView< String > checkListView;
+
+	private final BooleanBinding isError;
 
 	public MeshExporterDialog( final MeshInfo meshInfo )
 	{
 		super();
-		this.setTitle( "Export mesh..." );
-		this.segmentId = meshInfo.segmentId();
+		this.segmentIds = new long[] { meshInfo.segmentId() };
 		this.filePath = new TextField();
+		this.filePaths = new String[] { "" };
+		this.setTitle( "Export mesh " + this.segmentIds[ 0 ] );
+		this.isError = ( Bindings.createBooleanBinding( () -> filePath.getText().isEmpty(), filePath.textProperty() ) );
 		scale = new TextField( Integer.toString( meshInfo.scaleLevelProperty().get() ) );
 
 		setNumericTextField( scale, meshInfo.numScaleLevels() - 1 );
 		setResultConverter( button -> {
 			if ( button.getButtonData().isCancelButton() )
 				return null;
-			return new ExportResult( meshExporter, segmentId, Integer.parseInt( scale.getText() ), filePath.getText() );
+			return new ExportResult( meshExporter, segmentIds, Integer.parseInt( scale.getText() ), filePaths );
 		} );
 
 		createDialog();
 
 	}
 
+	public MeshExporterDialog( final MeshInfos meshInfos )
+	{
+		super();
+		ObservableList< MeshInfo > meshInfoList = meshInfos.readOnlyInfos();
+		this.filePath = new TextField();
+		this.setTitle( "Export mesh " );
+		this.segmentIds = new long[ meshInfoList.size() ];
+		this.filePaths = new String[ meshInfoList.size() ];
+		this.checkListView = new CheckListView<>();
+		this.isError = ( Bindings.createBooleanBinding( () -> filePath.getText().isEmpty() || checkListView.getItems().isEmpty(), filePath.textProperty(),
+				checkListView.itemsProperty() ) );
+
+		int minCommonScaleLevels = Integer.MAX_VALUE;
+		int minCommonScale = Integer.MAX_VALUE;
+		final ObservableList< String > ids = FXCollections.observableArrayList();
+		for ( int i = 0; i < meshInfoList.size(); i++ )
+		{
+			MeshInfo info = meshInfoList.get( i );
+			this.segmentIds[ i ] = info.segmentId();
+			ids.add( Long.toString( info.segmentId() ) );
+
+			if ( minCommonScaleLevels > info.numScaleLevels() )
+				minCommonScaleLevels = info.numScaleLevels();
+
+			if ( minCommonScale > info.scaleLevelProperty().get() )
+				minCommonScale = info.scaleLevelProperty().get();
+		}
+
+		scale = new TextField( Integer.toString( minCommonScale ) );
+		setNumericTextField( scale, minCommonScaleLevels - 1 );
+
+		setResultConverter( button -> {
+			if ( button.getButtonData().isCancelButton() )
+				return null;
+			return new ExportResult( meshExporter, segmentIds, Integer.parseInt( scale.getText() ), filePaths );
+		} );
+
+		createMultiIdsDialog( ids );
+	}
+
 	private void createDialog()
 	{
 		final VBox vbox = new VBox();
-		final TitledPane pane = new TitledPane( null, vbox );
-
-		final StatusBar statusBar = new StatusBar();
-		// TODO come up with better way to ensure proper size of this!
-		statusBar.setMinWidth( 200 );
-		statusBar.setMaxWidth( 200 );
-		statusBar.setPrefWidth( 200 );
-		statusBar.setText( "Export mesh" );
-		pane.setGraphic( statusBar );
-
 		final GridPane contents = new GridPane();
 
-		int row = 0;
+		int row = createCommonDialog( contents );
 
-		contents.add( new Label( "Scale" ), 0, row );
-		contents.add( scale, 1, row );
-		++row;
-
-		contents.add( new Label( "Format" ), 0, row );
-
-		ObservableList< String > options = FXCollections.observableArrayList( ".obj", "binary" );
-		final ComboBox< String > formats = new ComboBox<>(options);
-		formats.getSelectionModel().select( 0 );
-		contents.add( formats, 1, row );
-		++row;
-		
-		contents.add( new Label( "Directory" ), 0, row );
-		contents.add( filePath, 1, row );
-
-		final Button button = new Button( "Save to..." );
+		final Button button = new Button( "Browse" );
 		button.setOnAction( event -> {
 			final DirectoryChooser directoryChooser = new DirectoryChooser();
 			final File directory = directoryChooser.showDialog( contents.getScene().getWindow() );
 			Optional.ofNullable( directory ).map( File::getAbsolutePath );
+			filePath.setText( directory.getPath() );
 
-			String filename = directory + "/neuron" + segmentId;
-			if ( formats.getSelectionModel().getSelectedIndex() == 0 )
+			String extension = getExtension( fileFormats );
+
+			for ( int i = 0; i < segmentIds.length; i++ )
 			{
-				filename = filename.concat( ".obj" );
-				meshExporter = new MeshExporterObj();
-			}
-			else
-			{
-				filename = filename.concat( ".bin" );
-				meshExporter = new MeshExporterBinary();
+				filePaths[ i ] = directory + "/neuron" + segmentIds[ i ] + extension;
 			}
 
-			filePath.setText( filename );
-
+			createMeshExporter( extension );
 		} );
 
 		contents.add( button, 2, row );
 		++row;
 
 		vbox.getChildren().add( contents );
-
 		this.getDialogPane().setContent( vbox );
-		this.getDialogPane().getButtonTypes().addAll( ButtonType.CANCEL, ButtonType.OK );
+	}
 
+	private void createMultiIdsDialog( ObservableList< String > ids )
+	{
+		final VBox vbox = new VBox();
+		final GridPane contents = new GridPane();
+		int row = createCommonDialog( contents );
+
+		checkListView.setItems( ids );
+		checkListView.prefHeightProperty().bind( Bindings.size( checkListView.itemsProperty().get() ).multiply( LIST_CELL_HEIGHT ) );
+
+		final Button button = new Button( "Browse" );
+		button.setOnAction( event -> {
+			final DirectoryChooser directoryChooser = new DirectoryChooser();
+			final File directory = directoryChooser.showDialog( contents.getScene().getWindow() );
+			Optional.ofNullable( directory ).map( File::getAbsolutePath );
+			filePath.setText( directory.getPath() );
+
+			// recover selected ids
+			final List< Long > selectedIds = new ArrayList<>();
+
+			if ( checkListView.getItems().size() == 0 )
+				return;
+
+			for ( int i = 0; i < checkListView.getItems().size(); i++ )
+			{
+				if ( checkListView.getItemBooleanProperty( i ).get() == true )
+				{
+					selectedIds.add( Long.parseLong( checkListView.getItems().get( i ) ) );
+				}
+			}
+
+			segmentIds = selectedIds.stream().mapToLong( l -> l ).toArray();
+
+			String extension = getExtension( fileFormats );
+
+			for ( int i = 0; i < selectedIds.size(); i++ )
+			{
+				filePaths[ i ] = directory + "/neuron" + selectedIds.get( i ) + extension;
+			}
+
+			createMeshExporter( extension );
+		} );
+
+		contents.add( button, 2, row );
+		++row;
+
+		vbox.getChildren().add( checkListView );
+		vbox.getChildren().add( contents );
+		this.getDialogPane().setContent( vbox );
+	}
+
+	private int createCommonDialog( GridPane contents )
+	{
+		int row = 0;
+
+		contents.add( new Label( "Scale" ), 0, row );
+		contents.add( scale, 1, row );
+		GridPane.setFillWidth( scale, true );
+		++row;
+
+		contents.add( new Label( "Format" ), 0, row );
+
+		List< String > typeNames = Stream.of( FILETYPE.values() ).map( FILETYPE::name ).collect( Collectors.toList() );
+		ObservableList< String > options = FXCollections.observableArrayList( typeNames );
+		fileFormats = new ComboBox<>( options );
+		fileFormats.getSelectionModel().select( 0 );
+		fileFormats.setMinWidth( 0 );
+		fileFormats.setMaxWidth( Double.POSITIVE_INFINITY );
+		contents.add( fileFormats, 1, row );
+		fileFormats.maxWidth( 300 );
+		GridPane.setFillWidth( fileFormats, true );
+		GridPane.setHgrow( fileFormats, Priority.ALWAYS );
+
+		++row;
+
+		contents.add( new Label( "Save to:" ), 0, row );
+		contents.add( filePath, 1, row );
+
+		this.getDialogPane().getButtonTypes().addAll( ButtonType.CANCEL, ButtonType.OK );
+		this.getDialogPane().lookupButton( ButtonType.OK ).disableProperty().bind( this.isError );
+
+		return row;
+	}
+
+	private String getExtension( ComboBox< String > fileFormats )
+	{
+		if ( fileFormats.getSelectionModel().getSelectedIndex() == 0 ) { return ".obj"; }
+
+		return ".bin";
+	}
+
+	private void createMeshExporter( String extension )
+	{
+		switch ( extension )
+		{
+		case ".bin":
+			meshExporter = new MeshExporterBinary();
+			break;
+		case ".obj":
+		default:
+			meshExporter = new MeshExporterObj();
+			break;
+		}
 	}
 
 	private void setNumericTextField( final TextField textField, final int max )
@@ -137,6 +273,5 @@ public class MeshExporterDialog extends Dialog< ExportResult >
 				}
 			}
 		} );
-
 	}
 }
