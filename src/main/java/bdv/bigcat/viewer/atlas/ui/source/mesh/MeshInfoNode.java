@@ -123,13 +123,13 @@ public class MeshInfoNode implements BindUnbindAndNodeSupplier
 
 		final Button exportMeshButton = new Button( "Export" );
 		exportMeshButton.setOnAction( event -> {
-			System.out.println( "pressed button" );
 			MeshExporterDialog exportDialog = new MeshExporterDialog( meshInfo );
 			final Optional< ExportResult > result = exportDialog.showAndWait();
 			if ( result.isPresent() )
 			{
 				ExportResult parameters = result.get();
-				parameters.getMeshExporter().exportMesh( meshInfo.state(), parameters.getSegmentId(), parameters.getScale(), parameters.getFilePath() );
+				assert ( parameters.getSegmentId().length == 1 );
+				parameters.getMeshExporter().exportMesh( meshInfo.state(), parameters.getSegmentId()[ 0 ], parameters.getScale(), parameters.getFilePaths()[ 0 ] );
 			}
 		} );
 		contents.add( exportMeshButton, 2, row );
