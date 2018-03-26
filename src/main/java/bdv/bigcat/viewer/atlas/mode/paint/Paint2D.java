@@ -17,6 +17,7 @@ import bdv.bigcat.viewer.bdvfx.MouseDragFX;
 import bdv.bigcat.viewer.bdvfx.ViewerPanelFX;
 import bdv.bigcat.viewer.panel.ViewerNode;
 import bdv.bigcat.viewer.state.GlobalTransformManager;
+import bdv.img.AccessBoxRandomAccessibleOnGet;
 import bdv.viewer.Source;
 import bdv.viewer.state.ViewerState;
 import javafx.beans.property.DoubleProperty;
@@ -38,12 +39,11 @@ import net.imglib2.algorithm.neighborhood.HyperSphereShape;
 import net.imglib2.algorithm.neighborhood.Neighborhood;
 import net.imglib2.interpolation.randomaccess.NearestNeighborInterpolatorFactory;
 import net.imglib2.realtransform.AffineTransform3D;
-import net.imglib2.realtransform.RealViews;
 import net.imglib2.realtransform.Translation3D;
 import net.imglib2.type.numeric.integer.UnsignedByteType;
 import net.imglib2.type.numeric.integer.UnsignedLongType;
+import net.imglib2.util.ConstantUtils;
 import net.imglib2.util.LinAlgHelpers;
-import net.imglib2.view.MixedTransformView;
 import net.imglib2.view.Views;
 
 public class Paint2D
@@ -243,13 +243,28 @@ public class Paint2D
 			return;
 
 		final RandomAccessible< UnsignedByteType > labelSource = Views.extendZero( labels );
+		final AccessBoxRandomAccessibleOnGet< UnsignedByteType > trackingLabelSource = new AccessBoxRandomAccessibleOnGet<>( labelSource );
 
-		final RealRandomAccessible< UnsignedByteType > interpolatedLabels = Views.interpolate( labelSource, new NearestNeighborInterpolatorFactory<>() );
+		final RealRandomAccessible< UnsignedByteType > interpolatedLabels = Views.interpolate( trackingLabelSource, new NearestNeighborInterpolatorFactory<>() );
 		final RealRandomAccess< UnsignedByteType > labelSourceAccess = interpolatedLabels.realRandomAccess();
-		final AffineTransform3D tfFront = labelToViewerTransform.copy().preConcatenate( new Translation3D( 0, 0, 1.0 / 2.0 ) );
-		final AffineTransform3D tfBack = labelToViewerTransform.copy().preConcatenate( new Translation3D( 0, 0, -1.0 / 2.0 ) );
-		final MixedTransformView< UnsignedByteType > labelsFront = Views.hyperSlice( RealViews.affine( interpolatedLabels, tfFront ), 2, 0l );
-		final MixedTransformView< UnsignedByteType > labelsBack = Views.hyperSlice( RealViews.affine( interpolatedLabels, tfBack ), 2, 0l );
+
+		final double[] voxelDiagonal = { 1.0, 1.0, 1.0 };
+		this.labelToViewerTransform.apply( voxelDiagonal, voxelDiagonal );
+		final double length = Math.pow( LinAlgHelpers.length( voxelDiagonal ), 1.0 / 3.0 );
+
+
+//		final double[] unitVectorZ = { 0.0, 0.0, 1.0 };
+//		final AffineTransform3D noTranslation = labelToViewerTransform.copy();
+//		noTranslation.setTranslation( 0, 0, 0 );
+//		noTranslation.applyInverse( unitVectorZ, unitVectorZ );
+//		LOG.warn( "Unit transformed to label space: {}", unitVectorZ );
+//		LinAlgHelpers.normalize( unitVectorZ );
+//		noTranslation.apply( unitVectorZ, unitVectorZ );
+//		LOG.warn( "Normalized unit vector in viewr space: {}", unitVectorZ );
+//		LinAlgHelpers.scale( unitVectorZ, 0.5, unitVectorZ );
+		final AffineTransform3D tfFront = labelToViewerTransform.copy().preConcatenate( new Translation3D( 0, 0, 0.5 ) );
+//		LinAlgHelpers.scale( unitVectorZ, -1, unitVectorZ );
+		final AffineTransform3D tfBack = labelToViewerTransform.copy().preConcatenate( new Translation3D( 0, 0, -0.5 ) );
 
 		final AffineTransform3D viewerTransform = new AffineTransform3D();
 		this.viewer.getState().getViewerTransform( viewerTransform );
@@ -261,51 +276,35 @@ public class Paint2D
 		final long longY = ( long ) viewerY;
 
 		final HyperSphereShape sphere = new HyperSphereShape( longRadius );
-		final RandomAccess< Neighborhood< UnsignedByteType > > accessFront = sphere.neighborhoodsRandomAccessible( labelsFront ).randomAccess();
-		final RandomAccess< Neighborhood< UnsignedByteType > > accessBack = sphere.neighborhoodsRandomAccessible( labelsBack ).randomAccess();
+		final RandomAccess< Neighborhood< Object > > accessFront = sphere.neighborhoodsRandomAccessible( ConstantUtils.constantRandomAccessible( null, 2 ) ).randomAccess();
+		final RandomAccess< Neighborhood< Object > > accessBack = sphere.neighborhoodsRandomAccessible( ConstantUtils.constantRandomAccessible( null, 2 ) ).randomAccess();
 		accessFront.setPosition( longX, 0 );
 		accessFront.setPosition( longY, 1 );
 		accessBack.setPosition( accessFront );
-		final Cursor< UnsignedByteType > front = accessFront.get().cursor();
-		final Cursor< UnsignedByteType > back = accessBack.get().cursor();
-		// This is necessary because
-		// sphere.neighborhoodsRandomAccessible.randomAccess() sets the position
-		// of the source randomAccess
-//		accessTrackingSource.randomAccess();
-		final long[] min = new long[] { Long.MAX_VALUE, Long.MAX_VALUE, Long.MAX_VALUE };
-		final long[] max = new long[] { Long.MIN_VALUE, Long.MIN_VALUE, Long.MIN_VALUE };
+		final Cursor< Object > front = accessFront.get().cursor();
+		final Cursor< Object > back = accessBack.get().cursor();
 		for ( ; front.hasNext(); )
 		{
+			front.fwd();
+			back.fwd();
 //			LOG.warn( "BEFORE {} {}", accessTrackingSource.getMin(), accessTrackingSource.getMax() );
-			front.next().set( 1 );
-			back.next().set( 1 );
 			labelSourceAccess.setPosition( front.getDoublePosition( 0 ), 0 );
 			labelSourceAccess.setPosition( front.getDoublePosition( 1 ), 1 );
 			labelSourceAccess.setPosition( 0, 2 );
 			tfFront.applyInverse( labelSourceAccess, labelSourceAccess );
-			for ( int d = 0; d < min.length; ++d )
-			{
-				min[ d ] = Math.min( ( long ) Math.floor( labelSourceAccess.getDoublePosition( d ) ), min[ d ] );
-				max[ d ] = Math.max( ( long ) Math.ceil( labelSourceAccess.getDoublePosition( d ) ), min[ d ] );
-			}
 			labelSourceAccess.get().set( 1 );
 			labelSourceAccess.setPosition( back.getDoublePosition( 0 ), 0 );
 			labelSourceAccess.setPosition( back.getDoublePosition( 1 ), 1 );
 			labelSourceAccess.setPosition( 0, 2 );
 			tfBack.applyInverse( labelSourceAccess, labelSourceAccess );
-			for ( int d = 0; d < min.length; ++d )
-			{
-				min[ d ] = Math.min( ( long ) Math.floor( labelSourceAccess.getDoublePosition( d ) ), min[ d ] );
-				max[ d ] = Math.max( ( long ) Math.ceil( labelSourceAccess.getDoublePosition( d ) ), min[ d ] );
-			}
 			labelSourceAccess.get().set( 1 );
 //			LOG.warn( "AFTER  {} {}", accessTrackingSource.getMin(), accessTrackingSource.getMax() );
 		}
 
 //		LOG.warn( "longRadius={} numDimensions={}", longRadius, accessFront.numDimensions() );
 
-//		final long[] min = accessTrackingSource.getMin().clone();
-//		final long[] max = accessTrackingSource.getMax().clone();
+		final long[] min = trackingLabelSource.getMin().clone();
+		final long[] max = trackingLabelSource.getMax().clone();
 //		LOG.warn( "Touched min={} and max={} while painting", min, max );
 		if ( this.interval.get() != null )
 		{
@@ -315,7 +314,7 @@ public class Paint2D
 				max[ d ] = Math.max( this.interval.get().max( d ), max[ d ] );
 			}
 		}
-//		LOG.warn( "Combined min={} and max={} after painting", min, max );
+		LOG.warn( "Combined min={} and max={} after painting", min, max );
 		final double[] minReal = new double[] { min[ 0 ], min[ 1 ], min[ 2 ] };
 		final double[] maxReal = new double[] { max[ 0 ], max[ 1 ], max[ 2 ] };
 		this.labelToGlobalTransform.apply( minReal, minReal );
