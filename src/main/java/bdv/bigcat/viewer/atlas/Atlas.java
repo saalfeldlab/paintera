@@ -512,7 +512,7 @@ public class Atlas
 				settings.meshSimplificationIterationsProperty(),
 				this.generalPurposeExecutorService );
 
-		final MeshInfos meshInfos = new MeshInfos( selectedSegments, assignment, meshManager, spec.getNumMipmapLevels() );
+		final MeshInfos meshInfos = new MeshInfos( state, selectedSegments, assignment, meshManager, spec.getNumMipmapLevels() );
 		state.meshManagerProperty().set( meshManager );
 		state.meshInfosProperty().set( meshInfos );
 
@@ -673,7 +673,7 @@ public class Atlas
 				settings.meshSimplificationIterationsProperty(),
 				this.generalPurposeExecutorService );
 
-		final MeshInfos meshInfos = new MeshInfos( selectedSegments, assignment, meshManager, spec.getNumMipmapLevels() );
+		final MeshInfos meshInfos = new MeshInfos( state, selectedSegments, assignment, meshManager, spec.getNumMipmapLevels() );
 		state.meshManagerProperty().set( meshManager );
 		state.meshInfosProperty().set( meshInfos );
 
