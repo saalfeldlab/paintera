@@ -2,8 +2,10 @@ package bdv.bigcat.viewer.atlas.mode.paint;
 
 import java.lang.invoke.MethodHandles;
 import java.util.Optional;
+import java.util.function.BiConsumer;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
+import java.util.stream.IntStream;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -24,23 +26,23 @@ import javafx.beans.property.DoubleProperty;
 import javafx.beans.property.SimpleDoubleProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.scene.input.MouseEvent;
-import net.imglib2.Cursor;
 import net.imglib2.FinalInterval;
 import net.imglib2.Interval;
-import net.imglib2.RandomAccess;
+import net.imglib2.Point;
 import net.imglib2.RandomAccessible;
 import net.imglib2.RandomAccessibleInterval;
+import net.imglib2.RealLocalizable;
 import net.imglib2.RealPoint;
-import net.imglib2.RealRandomAccess;
-import net.imglib2.RealRandomAccessible;
-import net.imglib2.algorithm.neighborhood.HyperSphereShape;
-import net.imglib2.algorithm.neighborhood.Neighborhood;
-import net.imglib2.interpolation.randomaccess.NearestNeighborInterpolatorFactory;
+import net.imglib2.algorithm.fill.FloodFill;
+import net.imglib2.algorithm.neighborhood.DiamondShape;
+import net.imglib2.realtransform.AffineGet;
+import net.imglib2.realtransform.AffineRandomAccessible;
 import net.imglib2.realtransform.AffineTransform3D;
-import net.imglib2.realtransform.Translation3D;
+import net.imglib2.realtransform.RealViews;
+import net.imglib2.tmp.BiConsumerRealRandomAccessible;
+import net.imglib2.type.logic.BitType;
 import net.imglib2.type.numeric.integer.UnsignedByteType;
 import net.imglib2.type.numeric.integer.UnsignedLongType;
-import net.imglib2.util.ConstantUtils;
 import net.imglib2.util.LinAlgHelpers;
 import net.imglib2.view.Views;
 
@@ -215,59 +217,63 @@ public class Paint2D
 	private void paint( final double viewerX, final double viewerY )
 	{
 
-		final AffineTransform3D labelToViewerTransform = this.labelToViewerTransform.copy();
-
 		final RandomAccessibleInterval< UnsignedByteType > labels = this.canvas.get();
 		if ( labels == null )
 			return;
 
-		final RandomAccessible< UnsignedByteType > labelSource = Views.extendZero( labels );
-		final AccessBoxRandomAccessibleOnGet< UnsignedByteType > trackingLabelSource = new AccessBoxRandomAccessibleOnGet<>( labelSource );
+		final AffineTransform3D labelToViewerTransform = this.labelToViewerTransform.copy();
+		final AffineTransform3D labelToGlobalTransform = this.labelToGlobalTransform.copy();
 
-		final RealRandomAccessible< UnsignedByteType > interpolatedLabels = Views.interpolate( trackingLabelSource, new NearestNeighborInterpolatorFactory<>() );
-		final RealRandomAccess< UnsignedByteType > labelSourceAccess = interpolatedLabels.realRandomAccess();
+		final AffineTransform3D viewerTransformWithoutTranslation = new AffineTransform3D();
+		viewer.getState().getViewerTransform( viewerTransformWithoutTranslation );
+		viewerTransformWithoutTranslation.setTranslation( 0, 0, 0 );
+		final AffineTransform3D labelToGlobalTransformWithoutTranslation = labelToGlobalTransform.copy();
+		labelToGlobalTransform.setTranslation( 0, 0, 0 );
 
-		final double[] voxelDiagonal = { 1.0, 1.0, 1.0 };
-		this.labelToViewerTransform.apply( voxelDiagonal, voxelDiagonal );
-		final AffineTransform3D tfFront = labelToViewerTransform.copy().preConcatenate( new Translation3D( 0, 0, 0.5 ) );
-		final AffineTransform3D tfBack = labelToViewerTransform.copy().preConcatenate( new Translation3D( 0, 0, -0.5 ) );
+		final AffineTransform3D relevantTransform = labelToGlobalTransformWithoutTranslation
+				.copy()
+				.inverse()
+				.concatenate( viewerTransformWithoutTranslation.inverse() );
 
-		final AffineTransform3D viewerTransform = new AffineTransform3D();
-		this.viewer.getState().getViewerTransform( viewerTransform );
-//		LOG.warn( "ltv={} ltg={} gtv={}", labelToViewerTransform, labelToGlobalTransform, viewerTransform );
+		final double[] ones = { 1.0, 1.0, 1.0 };
+		labelToGlobalTransformWithoutTranslation.apply( ones, ones );
+		viewerTransformWithoutTranslation.apply( ones, ones );
+
+		// TODO is division by 2 save?
+		final double range = LinAlgHelpers.length( ones ) / 2;
 
 		final double radius = this.brushOverlay.viewerRadiusProperty().get();
-		final long longRadius = ( long ) Math.ceil( radius );
-		final long longX = ( long ) viewerX;
-		final long longY = ( long ) viewerY;
 
-		final HyperSphereShape sphere = new HyperSphereShape( longRadius );
-		final RandomAccess< Neighborhood< Object > > accessFront = sphere.neighborhoodsRandomAccessible( ConstantUtils.constantRandomAccessible( null, 2 ) ).randomAccess();
-		final RandomAccess< Neighborhood< Object > > accessBack = sphere.neighborhoodsRandomAccessible( ConstantUtils.constantRandomAccessible( null, 2 ) ).randomAccess();
-		accessFront.setPosition( longX, 0 );
-		accessFront.setPosition( longY, 1 );
-		accessBack.setPosition( accessFront );
-		final Cursor< Object > front = accessFront.get().cursor();
-		final Cursor< Object > back = accessBack.get().cursor();
-		for ( ; front.hasNext(); )
-		{
-			front.fwd();
-			back.fwd();
-//			LOG.warn( "BEFORE {} {}", accessTrackingSource.getMin(), accessTrackingSource.getMax() );
-			labelSourceAccess.setPosition( front.getDoublePosition( 0 ), 0 );
-			labelSourceAccess.setPosition( front.getDoublePosition( 1 ), 1 );
-			labelSourceAccess.setPosition( 0, 2 );
-			tfFront.applyInverse( labelSourceAccess, labelSourceAccess );
-			labelSourceAccess.get().set( 1 );
-			labelSourceAccess.setPosition( back.getDoublePosition( 0 ), 0 );
-			labelSourceAccess.setPosition( back.getDoublePosition( 1 ), 1 );
-			labelSourceAccess.setPosition( 0, 2 );
-			tfBack.applyInverse( labelSourceAccess, labelSourceAccess );
-			labelSourceAccess.get().set( 1 );
-//			LOG.warn( "AFTER  {} {}", accessTrackingSource.getMin(), accessTrackingSource.getMax() );
-		}
+		final RandomAccessible< UnsignedByteType > labelSource = Views.extendValue( labels, new UnsignedByteType( 1 ) );
+		final AccessBoxRandomAccessibleOnGet< UnsignedByteType > trackingLabelSource = new AccessBoxRandomAccessibleOnGet<>( labelSource );
 
-//		LOG.warn( "longRadius={} numDimensions={}", longRadius, accessFront.numDimensions() );
+		LOG.debug( "r={} center=({}, )", radius, viewerX, viewerY );
+
+		final Supplier< BiConsumer< RealLocalizable, BitType > > function = () -> {
+			final double radiusSquared = radius * radius;
+			return ( loc, t ) -> {
+				final double z = loc.getDoublePosition( 2 );
+				boolean isValid = false;
+				if ( z <= range && z >= -range )
+				{
+					final double x = loc.getDoublePosition( 0 );
+					final double y = loc.getDoublePosition( 1 );
+					final double dx = x - viewerX;
+					final double dy = y - viewerY;
+					if ( dx * dx + dy * dy < radiusSquared )
+						isValid = true;
+				}
+				t.set( isValid );
+			};
+		};
+		final AffineRandomAccessible< BitType, AffineGet > containsCheck =
+				RealViews.affine( new BiConsumerRealRandomAccessible<>( 3, function, () -> new BitType( true ) ), labelToViewerTransform.inverse() );
+
+		final RealPoint seedReal = new RealPoint( viewerX, viewerY, 0 );
+		labelToViewerTransform.applyInverse( seedReal, seedReal );
+		final Point seed = new Point( IntStream.range( 0, 3 ).mapToDouble( seedReal::getDoublePosition ).mapToLong( Math::round ).toArray() );
+		FloodFill.fill( containsCheck, trackingLabelSource, seed, new UnsignedByteType( 1 ), new DiamondShape( 1 ), ( comp, ref ) -> comp.getA().get() && comp.getB().get() == 0 );
+
 
 		final long[] min = trackingLabelSource.getMin().clone();
 		final long[] max = trackingLabelSource.getMax().clone();
