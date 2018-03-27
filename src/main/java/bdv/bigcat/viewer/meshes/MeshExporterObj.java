@@ -14,7 +14,7 @@ public class MeshExporterObj extends MeshExporter
 	@Override
 	protected void save( String path, long id, float[] vertices, float[] normals, boolean append )
 	{
-
+		path = path + ".obj";
 		try
 		{
 			FileWriter writer = new FileWriter( path, append );
