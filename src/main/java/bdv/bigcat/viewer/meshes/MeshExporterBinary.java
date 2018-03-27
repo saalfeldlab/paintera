@@ -1,9 +1,10 @@
 package bdv.bigcat.viewer.meshes;
 
+import java.io.BufferedOutputStream;
+import java.io.DataOutputStream;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
-import java.io.OutputStream;
 import java.lang.invoke.MethodHandles;
 
 import org.slf4j.Logger;
@@ -16,32 +17,27 @@ public class MeshExporterBinary extends MeshExporter
 	@Override
 	protected void save( String path, long id, float[] vertices, float[] normals, boolean append )
 	{
+		save( path + ".vertices", vertices, append );
+		save( path + ".normals", normals, append );
+	}
+
+	private void save( String path, float[] info, boolean append )
+	{
 		try
 		{
-			OutputStream outputStream = new FileOutputStream( path, append );
-
-			final StringBuilder sb = new StringBuilder();
-			for ( int i = 0; i < vertices.length; i += 3 )
-			{
-				sb.append( "\nv " ).append( vertices[ i ] ).append( " " ).append( vertices[ i + 1 ] ).append( " " ).append( vertices[ i + 2 ] );
-			}
-
-			sb.append( "\n" );
-			for ( int i = 0; i < normals.length; i += 3 )
-			{
-				sb.append( "\nvn " ).append( normals[ i ] ).append( " " ).append( normals[ i + 1 ] ).append( " " ).append( normals[ i + 2 ] );
-			}
-
+			DataOutputStream stream = new DataOutputStream( new BufferedOutputStream( new FileOutputStream( path, append ) ) );
 			try
 			{
-				outputStream.write( sb.toString().getBytes() );
-				outputStream.close();
+				for ( int i = 0; i < info.length; i++ )
+				{
+					stream.writeFloat( info[ i ] );
+				}
+				stream.close();
 			}
 			catch ( IOException e )
 			{
 				LOG.warn( "Couldn't write data to the file {}: {}", path, e.getMessage() );
 			}
-
 		}
 		catch ( FileNotFoundException e )
 		{
