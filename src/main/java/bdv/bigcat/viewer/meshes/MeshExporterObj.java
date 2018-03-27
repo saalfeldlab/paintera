@@ -1,6 +1,5 @@
 package bdv.bigcat.viewer.meshes;
 
-import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.lang.invoke.MethodHandles;
@@ -13,16 +12,18 @@ public class MeshExporterObj extends MeshExporter
 	private static final Logger LOG = LoggerFactory.getLogger( MethodHandles.lookup().lookupClass() );
 
 	@Override
-	protected void save( String path, long id, float[] vertices, float[] normals )
+	protected void save( String path, long id, float[] vertices, float[] normals, boolean append )
 	{
-		final File file = new File( path );
+
 		try
 		{
-			FileWriter writer = new FileWriter( file );
+			FileWriter writer = new FileWriter( path, append );
 			float[] texCoords = new float[] { 0.0f, 0.0f };
-			final StringBuilder sb = new StringBuilder().append( "# id: " ).append( id ).append( "\n" );
+			final StringBuilder sb = new StringBuilder();
 
-			sb.append( "\n" );
+			if ( !append )
+				sb.append( "# id: " ).append( id ).append( "\n" );
+
 			final int numVertices = vertices.length;
 			for ( int k = 0; k < numVertices; k += 3 )
 				sb.append( "\nv " ).append( vertices[ k + 0 ] ).append( " " ).append( vertices[ k + 1 ] ).append( " " ).append( vertices[ k + 2 ] );
@@ -40,26 +41,25 @@ public class MeshExporterObj extends MeshExporter
 			sb.append( "\n" );
 			for ( int k = 0; k < numVertices / 3; k += 3 )
 			{
-				sb
-						.append( "\nf " ).append( k + 1 ).append( "/" ).append( 1 ).append( "/" ).append( k + 1 )
-						.append( " " ).append( k + 2 ).append( "/" ).append( 1 ).append( "/" ).append( k + 2 )
-						.append( " " ).append( k + 3 ).append( "/" ).append( 1 ).append( "/" ).append( k + 3 );
+				sb.append( "\nf " ).append( k + numberOfFaces + 1 ).append( "/" ).append( 1 ).append( "/" ).append( k + numberOfFaces + 1 )
+						.append( " " ).append( k + numberOfFaces + 2 ).append( "/" ).append( 1 ).append( "/" ).append( k + numberOfFaces + 2 )
+						.append( " " ).append( k + numberOfFaces + 3 ).append( "/" ).append( 1 ).append( "/" ).append( k + numberOfFaces + 3 );
 			}
 
 			try
 			{
-				writer.write( sb.toString() );
+				writer.append( sb.toString() );
 				writer.close();
 			}
 			catch ( final IOException e )
 			{
-				LOG.warn( "Couldn't write data to the file {}: {}", file.toPath(), e.getMessage() );
+				LOG.warn( "Couldn't write data to the file {}: {}", path, e.getMessage() );
 			}
 
 		}
 		catch ( IOException e )
 		{
-			LOG.warn( "Couldn't open the file {}: {}", file.toPath(), e.getMessage() );
+			LOG.warn( "Couldn't open the file {}: {}", path, e.getMessage() );
 		}
 	}
 }

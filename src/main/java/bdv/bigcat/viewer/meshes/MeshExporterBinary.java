@@ -14,22 +14,22 @@ public class MeshExporterBinary extends MeshExporter
 	private static final Logger LOG = LoggerFactory.getLogger( MethodHandles.lookup().lookupClass() );
 
 	@Override
-	protected void save( String path, long id, float[] vertices, float[] normals )
+	protected void save( String path, long id, float[] vertices, float[] normals, boolean append )
 	{
 		try
 		{
-			OutputStream outputStream = new FileOutputStream( path );
+			OutputStream outputStream = new FileOutputStream( path, append );
 
 			final StringBuilder sb = new StringBuilder();
 			for ( int i = 0; i < vertices.length; i += 3 )
 			{
-				sb.append( "\n " ).append( vertices[ i ] ).append( " " ).append( vertices[ i + 1 ] ).append( " " ).append( vertices[ i + 2 ] );
+				sb.append( "\nv " ).append( vertices[ i ] ).append( " " ).append( vertices[ i + 1 ] ).append( " " ).append( vertices[ i + 2 ] );
 			}
 
 			sb.append( "\n" );
 			for ( int i = 0; i < normals.length; i += 3 )
 			{
-				sb.append( "\n " ).append( normals[ i ] ).append( " " ).append( normals[ i + 1 ] ).append( " " ).append( normals[ i + 2 ] );
+				sb.append( "\nvn " ).append( normals[ i ] ).append( " " ).append( normals[ i + 1 ] ).append( " " ).append( normals[ i + 2 ] );
 			}
 
 			try

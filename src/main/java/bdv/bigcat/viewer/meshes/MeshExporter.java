@@ -5,7 +5,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
 
-import org.apache.commons.lang.ArrayUtils;
+import org.apache.commons.lang.BooleanUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -20,11 +20,14 @@ public abstract class MeshExporter
 {
 	private static final Logger LOG = LoggerFactory.getLogger( MethodHandles.lookup().lookupClass() );
 
+	protected int numberOfFaces = 0;
+
 	public void exportMesh( final AtlasSourceState< ?, ? >[] state, final long[] ids, final int scale, String[] paths )
 	{
 		assert ids.length == paths.length;
 		for ( int i = 0; i < ids.length; i++ )
 		{
+			numberOfFaces = 0;
 			exportMesh( state[ i ], ids[ i ], scale, paths[ i ] );
 		}
 	}
@@ -51,16 +54,15 @@ public abstract class MeshExporter
 			// ignoring simplification iterations parameter
 			keys.add( new ShapeKey( id, scaleIndex, 0, Intervals.minAsLongArray( block ), Intervals.maxAsLongArray( block ) ) );
 
-		float[] allVertices = null;
-		float[] allNormals = null;
 		for ( final ShapeKey key : keys )
 		{
 			Pair< float[], float[] > verticesAndNormals;
 			try
 			{
 				verticesAndNormals = meshCache[ scaleIndex ].get( key );
-				allVertices = ArrayUtils.addAll( allVertices, verticesAndNormals.getA() );
-				allNormals = ArrayUtils.addAll( allNormals, verticesAndNormals.getB() );
+				assert verticesAndNormals.getA().length == verticesAndNormals.getB().length: "Vertices and normals must have the same size.";
+				save( path, id, verticesAndNormals.getA(), verticesAndNormals.getB(), BooleanUtils.toBoolean( numberOfFaces ) );
+				numberOfFaces += verticesAndNormals.getA().length / 3;
 			}
 			catch ( final ExecutionException e )
 			{
@@ -74,10 +76,8 @@ public abstract class MeshExporter
 			}
 		}
 
-		assert allVertices.length == allNormals.length: "Vertices and normals must have the same size.";
-		save( path, id, allVertices, allNormals );
 	}
 
-	protected abstract void save( String path, long id, float[] vertices, float[] normals );
+	protected abstract void save( String path, long id, float[] vertices, float[] normals, boolean append );
 
 }
