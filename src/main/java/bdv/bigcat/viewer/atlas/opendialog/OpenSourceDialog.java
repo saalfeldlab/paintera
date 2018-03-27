@@ -209,11 +209,6 @@ public class OpenSourceDialog extends Dialog< BackendDialog > implements Combine
 		return strings -> InvokeOnJavaFXApplicationThread.invoke( () -> this.errorMessage.setText( String.join( "\n", strings ) ) );
 	}
 
-	public boolean paint()
-	{
-		return this.usePaintingLayer.selectedProperty().get();
-	}
-
 	public String canvasCacheDirectory()
 	{
 		return this.paintingCacheDirectory.getText();

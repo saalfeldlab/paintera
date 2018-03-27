@@ -24,7 +24,6 @@ import bdv.bigcat.viewer.meshes.MeshGenerator.ShapeKey;
 import bdv.bigcat.viewer.meshes.cache.CacheUtils;
 import bdv.bigcat.viewer.util.HashWrapper;
 import bdv.util.IdService;
-import bdv.util.LocalIdService;
 import bdv.util.volatiles.SharedQueue;
 import javafx.event.Event;
 import javafx.event.EventHandler;
@@ -145,7 +144,7 @@ public class OpenDialogEventHandler implements EventHandler< Event >
 					cellCache,
 					cellCache.getNumPriorities() );
 			for ( final LabelDataSource< I, V > source : optionalSource )
-				addLabelSource( viewer, source, openDialog.paint() ? openDialog.canvasCacheDirectory() : null, dataset.idService(), dataset.commitCanvas() );
+				addLabelSource( viewer, source, openDialog.canvasCacheDirectory(), dataset.idService(), dataset.commitCanvas() );
 		}
 		catch ( final Exception e )
 		{
@@ -166,7 +165,7 @@ public class OpenDialogEventHandler implements EventHandler< Event >
 			final int[] blockSize = { 64, 64, 64 };
 			LOG.debug( "Adding canvas source with cache dir={}", cacheDir );
 			viewer.addLabelSource(
-					Atlas.addCanvas( lsource, blockSize, cacheDir, mergeCanvasIntoBackground ),
+					Atlas.addCanvas( lsource, blockSize, cacheDir == null || cacheDir.length() == 0 ? null : cacheDir, mergeCanvasIntoBackground ),
 					lsource.getAssignment(),
 					dt -> dt.get().getIntegerLong(),
 					idService,
@@ -197,8 +196,9 @@ public class OpenDialogEventHandler implements EventHandler< Event >
 				addLabelMultisetSource(
 						viewer,
 						source,
-						openDialog.paint() ? openDialog.canvasCacheDirectory() : null,
-						openDialog.paint() ? dataset.idService() : new LocalIdService(), dataset.commitCanvas() );
+						openDialog.canvasCacheDirectory(),
+						dataset.idService(),
+						dataset.commitCanvas() );
 		}
 		catch ( final Exception e )
 		{
@@ -223,7 +223,7 @@ public class OpenDialogEventHandler implements EventHandler< Event >
 			final int[] blockSize = { 64, 64, 64 };
 			LOG.debug( "Adding canvas source with cache dir={}", cacheDir );
 			viewer.addLabelSource(
-					Atlas.addCanvasLabelMultiset( lsource, blockSize, cacheDir, mergeCanvasIntoBackground ),
+					Atlas.addCanvasLabelMultiset( lsource, blockSize, cacheDir == null || cacheDir.length() == 0 ? null : cacheDir, mergeCanvasIntoBackground ),
 					lsource.getAssignment(),
 					idService,
 					null,

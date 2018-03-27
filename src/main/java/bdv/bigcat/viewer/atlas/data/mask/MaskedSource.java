@@ -4,11 +4,12 @@ import java.lang.invoke.MethodHandles;
 import java.nio.file.Paths;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.Optional;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
-import java.util.function.IntFunction;
+import java.util.function.Supplier;
 import java.util.stream.DoubleStream;
 import java.util.stream.IntStream;
 import java.util.stream.LongStream;
@@ -30,6 +31,10 @@ import gnu.trove.map.TLongLongMap;
 import gnu.trove.map.hash.TLongLongHashMap;
 import gnu.trove.set.TLongSet;
 import gnu.trove.set.hash.TLongHashSet;
+import javafx.beans.property.SimpleStringProperty;
+import javafx.beans.property.StringProperty;
+import javafx.beans.value.ChangeListener;
+import javafx.beans.value.ObservableValue;
 import mpicbg.spim.data.sequence.VoxelDimensions;
 import net.imglib2.Cursor;
 import net.imglib2.FinalInterval;
@@ -45,12 +50,11 @@ import net.imglib2.cache.img.CellLoader;
 import net.imglib2.cache.img.DelegateAccessIo;
 import net.imglib2.cache.img.DelegateAccessWrappers;
 import net.imglib2.cache.img.DelegateAccesses;
-import net.imglib2.cache.img.DiskCachedCellImg;
 import net.imglib2.cache.img.DiskCachedCellImgFactory;
 import net.imglib2.cache.img.DiskCachedCellImgOptions;
+import net.imglib2.cache.img.DiskCellCache;
 import net.imglib2.converter.Converters;
 import net.imglib2.converter.TypeIdentity;
-import net.imglib2.img.ImgFactory;
 import net.imglib2.img.array.ArrayImgs;
 import net.imglib2.img.basictypeaccess.LongAccess;
 import net.imglib2.img.basictypeaccess.array.LongArray;
@@ -98,8 +102,6 @@ public class MaskedSource< D extends Type< D >, T extends Type< T > > implements
 
 	private final RandomAccessible< VolatileUnsignedLongType >[] tMasks;
 
-	private final ImgFactory< UnsignedByteType > maskFactory;
-
 	private final PickAndConvert< D, UnsignedLongType, UnsignedLongType, D > pacD;
 
 	private final PickAndConvert< T, VolatileUnsignedLongType, VolatileUnsignedLongType, T > pacT;
@@ -115,11 +117,33 @@ public class MaskedSource< D extends Type< D >, T extends Type< T > > implements
 
 	private final BiConsumer< CachedCellImg< UnsignedLongType, ? >, long[] > mergeCanvasToBackground;
 
+	private final StringProperty cacheDirectory = new SimpleStringProperty();
+
+	private final Supplier< String > nextCacheDirectory;
+
+	private final long[][] dimensions;
+
+	private final int[][] blockSizes;
+
+	public MaskedSource(
+			final DataSource< D, T > source,
+			final int[][] blockSizes,
+			final Supplier< String > nextCacheDirectory,
+			final PickAndConvert< D, UnsignedLongType, UnsignedLongType, D > pacD,
+			final PickAndConvert< T, VolatileUnsignedLongType, VolatileUnsignedLongType, T > pacT,
+			final D extensionD,
+			final T extensionT,
+			final BiConsumer< CachedCellImg< UnsignedLongType, ? >, long[] > mergeCanvasToBackground )
+	{
+		this( source, blockSizes, nextCacheDirectory, nextCacheDirectory.get(), pacD, pacT, extensionD, extensionT, mergeCanvasToBackground );
+	}
+
 	@SuppressWarnings( "unchecked" )
 	public MaskedSource(
 			final DataSource< D, T > source,
-			final DiskCachedCellImgOptions opts,
-			final IntFunction< String > mipmapCanvasCacheDirs,
+			final int[][] blockSizes,
+			final Supplier< String > nextCacheDirectory,
+			final String initialCacheDirectory,
 			final PickAndConvert< D, UnsignedLongType, UnsignedLongType, D > pacD,
 			final PickAndConvert< T, VolatileUnsignedLongType, VolatileUnsignedLongType, T > pacT,
 			final D extensionD,
@@ -128,43 +152,37 @@ public class MaskedSource< D extends Type< D >, T extends Type< T > > implements
 	{
 		super();
 		this.source = source;
+		this.dimensions = IntStream
+				.range( 0, source.getNumMipmapLevels() )
+				.mapToObj( level -> Intervals.dimensionsAsLongArray( this.source.getSource( 0, level ) ) )
+				.toArray( long[][]::new );
+		this.blockSizes = blockSizes;
 		this.dataCanvases = new CachedCellImg[ source.getNumMipmapLevels() ];
 		this.canvases = new RandomAccessibleInterval[ source.getNumMipmapLevels() ];
 		this.dMasks = new RandomAccessible[ this.canvases.length ];
 		this.tMasks = new RandomAccessible[ this.canvases.length ];
+		this.nextCacheDirectory = nextCacheDirectory;
 
-		for ( int i = 0; i < canvases.length; ++i )
+		for ( int level = 0; level < canvases.length; ++level )
 		{
-			final DiskCachedCellImgOptions o = opts
-					.volatileAccesses( true )
-					.dirtyAccesses( true )
-					.cacheDirectory( Paths.get( mipmapCanvasCacheDirs.apply( i ) ) );
-			final DiskCachedCellImgFactory< UnsignedLongType > f = new DiskCachedCellImgFactory<>(
-					o,
-					( pt, af ) -> DelegateAccessIo.get( pt, af ),
-					( pt, af ) -> n -> DelegateAccesses.getSingleValue( pt, af ),
-					DelegateAccessWrappers::getWrapper );
-			final CellLoader< UnsignedLongType > loader = img -> img.forEach( t -> t.set( Label.INVALID ) );
-			final CachedCellImg< UnsignedLongType, DirtyVolatileDelegateLongAccess > store =
-					( CachedCellImg< UnsignedLongType, DirtyVolatileDelegateLongAccess > ) f.create( Intervals.dimensionsAsLongArray( source.getDataSource( 0, i ) ), new UnsignedLongType(), loader, o );
-			final RandomAccessibleInterval< VolatileUnsignedLongType > vstore = VolatileViews.wrapAsVolatile( store );
-			this.dataCanvases[ i ] = store;
-			this.canvases[ i ] = vstore;
-			this.dMasks[ i ] = ConstantUtils.constantRandomAccessible( new UnsignedLongType( Label.INVALID ), NUM_DIMENSIONS );
+			this.dMasks[ level ] = ConstantUtils.constantRandomAccessible( new UnsignedLongType( Label.INVALID ), NUM_DIMENSIONS );
 			final VolatileUnsignedLongType vult = new VolatileUnsignedLongType();
 			vult.get().set( Label.INVALID );
-			this.tMasks[ i ] = ConstantUtils.constantRandomAccessible( vult, NUM_DIMENSIONS );
+			this.tMasks[ level ] = ConstantUtils.constantRandomAccessible( vult, NUM_DIMENSIONS );
 		}
 
-		final DiskCachedCellImgOptions maskOpts = opts.cacheDirectory( null ).deleteCacheDirectoryOnExit( true );
+
 
 		this.masks = new HashMap<>();
-		this.maskFactory = new DiskCachedCellImgFactory<>( maskOpts );
 		this.pacD = pacD;
 		this.pacT = pacT;
 		this.extensionT = extensionT;
 		this.extensionD = extensionD;
 		this.mergeCanvasToBackground = mergeCanvasToBackground;
+
+		this.cacheDirectory.addListener( new CanvasBaseDirChangeListener( dataCanvases, canvases, this.dimensions, this.blockSizes ) );
+		this.cacheDirectory.set( initialCacheDirectory );
+
 	}
 
 	public RandomAccessibleInterval< UnsignedByteType > generateMask( final int t, final int level, final UnsignedLongType value ) throws MaskInUse
@@ -174,9 +192,19 @@ public class MaskedSource< D extends Type< D >, T extends Type< T > > implements
 
 	public RandomAccessibleInterval< UnsignedByteType > generateMask( final MaskInfo< UnsignedLongType > mask ) throws MaskInUse
 	{
+
+		final DiskCachedCellImgOptions maskOpts = DiskCachedCellImgOptions
+				.options()
+				.cacheDirectory( null )
+				.deleteCacheDirectoryOnExit( true )
+				.volatileAccesses( true )
+				.dirtyAccesses( true )
+				.cellDimensions( this.blockSizes[ mask.level ] );
+
 		if ( this.masks.size() > 0 )
 			throw new MaskInUse( "Cannot generate new mask: current mask has not been submitted yet." );
-		final RandomAccessibleInterval< UnsignedByteType > store = maskFactory.create( source.getSource( 0, mask.level ), new UnsignedByteType() );
+		final RandomAccessibleInterval< UnsignedByteType > store =
+				new DiskCachedCellImgFactory< UnsignedByteType >( maskOpts ).create( source.getSource( 0, mask.level ), new UnsignedByteType() );
 		final RandomAccessibleInterval< VolatileUnsignedByteType > vstore = VolatileViews.wrapAsVolatile( store );
 		final UnsignedLongType INVALID = new UnsignedLongType( Label.INVALID );
 		this.dMasks[ mask.level ] = Converters.convert( Views.extendZero( store ), ( input, output ) -> output.set( input.get() == 1 ? mask.value : INVALID ), new UnsignedLongType() );
@@ -328,30 +356,12 @@ public class MaskedSource< D extends Type< D >, T extends Type< T > > implements
 
 	public void mergeCanvasIntoBackground()
 	{
-		if ( this.mergeCanvasToBackground != null )
-		{
-			LOG.debug( "Merging canvas into background for blocks {}", this.affectedBlocks );
-			{
-				final CachedCellImg< UnsignedLongType, DirtyVolatileDelegateLongAccess > canvas = this.dataCanvases[ 0 ];
-				final long[] affectedBlocks = this.affectedBlocks.toArray();
-				this.affectedBlocks.clear();
-				this.mergeCanvasToBackground.accept( canvas, affectedBlocks );
-			}
-
-			for ( int i = 0; i < dataCanvases.length; ++i )
-			{
-				final RandomAccessibleInterval< UnsignedLongType > canvas = dataCanvases[ i ];
-				if ( canvas instanceof DiskCachedCellImg< ?, ? > )
-				{
-					final DiskCachedCellImg< ?, ? > cachedImg = ( DiskCachedCellImg< ?, ? > ) canvas;
-					LOG.debug( "Invalidating all for canvas {}", cachedImg );
-					// TODO invalidate and delete everything!
-//					cachedImg.getCache().invalidateAll();
-				}
-			}
-		}
-		else
-			LOG.debug( "No canvas painted -- won't merge into background." );
+		LOG.debug( "Merging canvas into background for blocks {}", this.affectedBlocks );
+		final CachedCellImg< UnsignedLongType, DirtyVolatileDelegateLongAccess > canvas = this.dataCanvases[ 0 ];
+		final long[] affectedBlocks = this.affectedBlocks.toArray();
+		this.affectedBlocks.clear();
+		this.mergeCanvasToBackground.accept( canvas, affectedBlocks );
+		clearCanvases();
 	}
 
 	@Override
@@ -905,4 +915,79 @@ public class MaskedSource< D extends Type< D >, T extends Type< T > > implements
 		return true;
 	}
 
+	private void clearCanvases()
+	{
+		this.cacheDirectory.set( this.nextCacheDirectory.get() );
+	}
+
+	private static class CanvasBaseDirChangeListener implements ChangeListener< String >
+	{
+
+		private final CachedCellImg< UnsignedLongType, DirtyVolatileDelegateLongAccess >[] dataCanvases;
+
+		private final RandomAccessibleInterval< VolatileUnsignedLongType >[] canvases;
+
+		private final long[][] dimensions;
+
+		private final int[][] blockSizes;
+
+		public CanvasBaseDirChangeListener(
+				final CachedCellImg< UnsignedLongType, DirtyVolatileDelegateLongAccess >[] dataCanvases,
+				final RandomAccessibleInterval< VolatileUnsignedLongType >[] canvases,
+				final long[][] dimensions,
+				final int[][] blockSizes )
+		{
+			super();
+			this.dataCanvases = dataCanvases;
+			this.canvases = canvases;
+			this.dimensions = dimensions;
+			this.blockSizes = blockSizes;
+		}
+
+		@Override
+		public void changed( final ObservableValue< ? extends String > observable, final String oldValue, final String newValue )
+		{
+
+			Optional.ofNullable( oldValue ).map( Paths::get ).ifPresent( DiskCellCache::addDeleteHook );
+
+			LOG.info( "Updating cache directory: observable={} oldValue={} newValue={}", observable, oldValue, newValue );
+
+			final DiskCachedCellImgOptions opts = DiskCachedCellImgOptions
+					.options()
+					.volatileAccesses( true )
+					.dirtyAccesses( true );
+
+			for ( int level = 0; level < canvases.length; ++level )
+			{
+
+				if ( newValue != null )
+				{
+					final DiskCachedCellImgOptions o = opts
+							.volatileAccesses( true )
+							.dirtyAccesses( true )
+							.cacheDirectory( Paths.get( newValue, String.format( "%d", level ) ) )
+							.deleteCacheDirectoryOnExit( false )
+							.cellDimensions( blockSizes[ level ] );
+					final DiskCachedCellImgFactory< UnsignedLongType > f = new DiskCachedCellImgFactory<>(
+							o,
+							( pt, af ) -> DelegateAccessIo.get( pt, af ),
+							( pt, af ) -> n -> DelegateAccesses.getSingleValue( pt, af ),
+							DelegateAccessWrappers::getWrapper );
+					final CellLoader< UnsignedLongType > loader = img -> img.forEach( t -> t.set( Label.INVALID ) );
+					@SuppressWarnings( "unchecked" )
+					final CachedCellImg< UnsignedLongType, DirtyVolatileDelegateLongAccess > store =
+					( CachedCellImg< UnsignedLongType, DirtyVolatileDelegateLongAccess > ) f.create(
+							dimensions[ level ],
+							new UnsignedLongType(),
+							loader,
+							o );
+					final RandomAccessibleInterval< VolatileUnsignedLongType > vstore = VolatileViews.wrapAsVolatile( store );
+
+					this.dataCanvases[ level ] = store;
+					this.canvases[ level ] = vstore;
+				}
+			}
+		}
+
+	}
 }
