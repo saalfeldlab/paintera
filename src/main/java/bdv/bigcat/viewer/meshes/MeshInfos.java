@@ -4,6 +4,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
 
+import bdv.bigcat.viewer.atlas.source.AtlasSourceState;
 import bdv.bigcat.viewer.state.FragmentSegmentAssignment;
 import bdv.bigcat.viewer.state.SelectedSegments;
 import javafx.collections.FXCollections;
@@ -17,6 +18,7 @@ public class MeshInfos
 	private final ObservableList< MeshInfo > readOnlyInfos = FXCollections.unmodifiableObservableList( infos );
 
 	public MeshInfos(
+			final AtlasSourceState< ?, ? > state,
 			final SelectedSegments< ? > selectedSegments,
 			final FragmentSegmentAssignment assignment,
 			final MeshManager meshManager,
@@ -28,7 +30,7 @@ public class MeshInfos
 			final long[] segments = selectedSegments.getSelectedSegments();
 			final List< MeshInfo > infos = Arrays
 					.stream( segments )
-					.mapToObj( id -> new MeshInfo( id, assignment, meshManager, numScaleLevels ) )
+					.mapToObj( id -> new MeshInfo( state, id, assignment, meshManager, numScaleLevels ) )
 					.collect( Collectors.toList() );
 
 			this.infos.setAll( infos );
