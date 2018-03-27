@@ -30,9 +30,7 @@ import net.imglib2.Interval;
 import net.imglib2.RandomAccess;
 import net.imglib2.RandomAccessible;
 import net.imglib2.RandomAccessibleInterval;
-import net.imglib2.RealLocalizable;
 import net.imglib2.RealPoint;
-import net.imglib2.RealPositionable;
 import net.imglib2.RealRandomAccess;
 import net.imglib2.RealRandomAccessible;
 import net.imglib2.algorithm.neighborhood.HyperSphereShape;
@@ -101,25 +99,6 @@ public class Paint2D
 
 		labelTransform.applyInverse( labelLocation, labelLocation );
 		this.labelToViewerTransform.applyInverse( copy, copy );
-	}
-
-	private < T extends RealLocalizable & RealPositionable > void setCoordinates(
-			final double x,
-			final double y,
-			final AffineTransform3D labelTransform,
-			final T labelLocation )
-	{
-		labelLocation.setPosition( x, 0 );
-		labelLocation.setPosition( y, 1 );
-		labelLocation.setPosition( 0, 2 );
-
-		final RealPoint copy = new RealPoint( labelLocation );
-
-		viewer.displayToGlobalCoordinates( labelLocation );
-
-		labelTransform.applyInverse( labelLocation, labelLocation );
-		this.labelToViewerTransform.applyInverse( copy, copy );
-//		LOG.warn( "WAS DA LOS ? {} {}", copy, labelLocation );
 	}
 
 	public void hideBrushOverlay()
@@ -250,20 +229,7 @@ public class Paint2D
 
 		final double[] voxelDiagonal = { 1.0, 1.0, 1.0 };
 		this.labelToViewerTransform.apply( voxelDiagonal, voxelDiagonal );
-		final double length = Math.pow( LinAlgHelpers.length( voxelDiagonal ), 1.0 / 3.0 );
-
-
-//		final double[] unitVectorZ = { 0.0, 0.0, 1.0 };
-//		final AffineTransform3D noTranslation = labelToViewerTransform.copy();
-//		noTranslation.setTranslation( 0, 0, 0 );
-//		noTranslation.applyInverse( unitVectorZ, unitVectorZ );
-//		LOG.warn( "Unit transformed to label space: {}", unitVectorZ );
-//		LinAlgHelpers.normalize( unitVectorZ );
-//		noTranslation.apply( unitVectorZ, unitVectorZ );
-//		LOG.warn( "Normalized unit vector in viewr space: {}", unitVectorZ );
-//		LinAlgHelpers.scale( unitVectorZ, 0.5, unitVectorZ );
 		final AffineTransform3D tfFront = labelToViewerTransform.copy().preConcatenate( new Translation3D( 0, 0, 0.5 ) );
-//		LinAlgHelpers.scale( unitVectorZ, -1, unitVectorZ );
 		final AffineTransform3D tfBack = labelToViewerTransform.copy().preConcatenate( new Translation3D( 0, 0, -0.5 ) );
 
 		final AffineTransform3D viewerTransform = new AffineTransform3D();
@@ -314,7 +280,7 @@ public class Paint2D
 				max[ d ] = Math.max( this.interval.get().max( d ), max[ d ] );
 			}
 		}
-		LOG.warn( "Combined min={} and max={} after painting", min, max );
+		LOG.debug( "Combined min={} and max={} after painting", min, max );
 		final double[] minReal = new double[] { min[ 0 ], min[ 1 ], min[ 2 ] };
 		final double[] maxReal = new double[] { max[ 0 ], max[ 1 ], max[ 2 ] };
 		this.labelToGlobalTransform.apply( minReal, minReal );
