@@ -58,7 +58,7 @@ public class DelegateLongAccess implements LongAccess, Delegate< LongAccess >
 	@Override
 	public void setValue( final int index, final long value )
 	{
-		this.access.setValue( 0, value );
+		this.access.setValue( index, value );
 	}
 
 	@Override
