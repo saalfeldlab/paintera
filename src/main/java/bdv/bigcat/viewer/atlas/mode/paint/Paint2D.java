@@ -2,6 +2,8 @@ package bdv.bigcat.viewer.atlas.mode.paint;
 
 import java.lang.invoke.MethodHandles;
 import java.util.Optional;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.function.BiConsumer;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
@@ -74,6 +76,8 @@ public class Paint2D
 	private final RealPoint labelLocation = new RealPoint( 3 );
 
 	private final Runnable repaintRequest;
+
+	private final ExecutorService paintQueue = Executors.newFixedThreadPool( 1 );
 
 	public Paint2D(
 			final ViewerPanelFX viewer,
@@ -341,7 +345,7 @@ public class Paint2D
 				LOG.info( "{} -- will not paint.", e.getMessage() );
 				return;
 			}
-			paint( event, consume );
+			paintQueue.submit( () -> paint( event, consume ) );
 		}
 
 		@Override
@@ -363,21 +367,24 @@ public class Paint2D
 			final double l = LinAlgHelpers.length( d );
 			LinAlgHelpers.normalize( d );
 
-			for ( int i = 0; i < l; ++i )
-			{
-				paint( p1[ 0 ], p1[ 1 ] );
-				LinAlgHelpers.add( p1, d, p1 );
-			}
-			paint( x, y );
-			startX = x;
-			startY = y;
-			repaintRequest.run();
+			paintQueue.submit( () -> {
+
+				for ( int i = 0; i < l; ++i )
+				{
+					paint( p1[ 0 ], p1[ 1 ] );
+					LinAlgHelpers.add( p1, d, p1 );
+				}
+				paint( x, y );
+				startX = x;
+				startY = y;
+				repaintRequest.run();
+			} );
 		}
 
 		@Override
 		public void endDrag( final MouseEvent event )
 		{
-			applyMask();
+			paintQueue.submit( () -> applyMask() );
 		}
 
 	}
