@@ -132,14 +132,12 @@ public class MeshExporterDialog extends Dialog< ExportResult >
 			Optional.ofNullable( directory ).map( File::getAbsolutePath );
 			filePath.setText( directory.getPath() );
 
-			String extension = getExtension( fileFormats );
-
 			for ( int i = 0; i < segmentIds.length; i++ )
 			{
-				filePaths[ i ] = directory + "/neuron" + segmentIds[ i ] + extension;
+				filePaths[ i ] = directory + "/neuron" + segmentIds[ i ];
 			}
 
-			createMeshExporter( extension );
+			createMeshExporter( fileFormats.getSelectionModel().getSelectedItem() );
 		} );
 
 		contents.add( button, 2, row );
@@ -181,14 +179,12 @@ public class MeshExporterDialog extends Dialog< ExportResult >
 
 			segmentIds = selectedIds.stream().mapToLong( l -> l ).toArray();
 
-			String extension = getExtension( fileFormats );
-
 			for ( int i = 0; i < selectedIds.size(); i++ )
 			{
-				filePaths[ i ] = directory + "/neuron" + selectedIds.get( i ) + extension;
+				filePaths[ i ] = directory + "/neuron" + selectedIds.get( i );
 			}
 
-			createMeshExporter( extension );
+			createMeshExporter( fileFormats.getSelectionModel().getSelectedItem() );
 		} );
 
 		contents.add( button, 2, row );
@@ -232,18 +228,11 @@ public class MeshExporterDialog extends Dialog< ExportResult >
 		return row;
 	}
 
-	private String getExtension( ComboBox< String > fileFormats )
+	private void createMeshExporter( String filetype )
 	{
-		if ( fileFormats.getSelectionModel().getSelectedIndex() == 0 ) { return ".obj"; }
-
-		return ".bin";
-	}
-
-	private void createMeshExporter( String extension )
-	{
-		switch ( extension )
+		switch ( filetype )
 		{
-		case ".bin":
+		case "binary":
 			meshExporter = new MeshExporterBinary();
 			break;
 		case ".obj":
