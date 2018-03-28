@@ -21,6 +21,7 @@ import org.slf4j.LoggerFactory;
 import bdv.bigcat.label.Label;
 import bdv.bigcat.viewer.atlas.data.DataSource;
 import bdv.bigcat.viewer.atlas.data.mask.PickOne.PickAndConvert;
+import bdv.img.AccessedBlocksRandomAccessible;
 import bdv.net.imglib2.view.RandomAccessibleTriple;
 import bdv.util.volatiles.VolatileViews;
 import bdv.viewer.Interpolation;
@@ -195,8 +196,9 @@ public class MaskedSource< D extends Type< D >, T extends Type< T > > implements
 
 		if ( this.masks.size() > 0 )
 			throw new MaskInUse( "Cannot generate new mask: current mask has not been submitted yet." );
-		final RandomAccessibleInterval< UnsignedByteType > store =
-				new DiskCachedCellImgFactory< UnsignedByteType >( maskOpts ).create( source.getSource( 0, mask.level ), new UnsignedByteType() );
+		@SuppressWarnings( "unchecked" )
+		final CachedCellImg< UnsignedByteType, ? > store = (CachedCellImg< UnsignedByteType, ? >)new DiskCachedCellImgFactory< UnsignedByteType >( maskOpts )
+		.create( source.getSource( 0, mask.level ), new UnsignedByteType() );
 		final RandomAccessibleInterval< VolatileUnsignedByteType > vstore = VolatileViews.wrapAsVolatile( store );
 		final UnsignedLongType INVALID = new UnsignedLongType( Label.INVALID );
 		this.dMasks[ mask.level ] = Converters.convert( Views.extendZero( store ), ( input, output ) -> output.set( input.get() == 1 ? mask.value : INVALID ), new UnsignedLongType() );
@@ -206,16 +208,17 @@ public class MaskedSource< D extends Type< D >, T extends Type< T > > implements
 			if ( isValid )
 				output.get().set( input.get().get() == 1 ? mask.value : INVALID );
 		}, new VolatileUnsignedLongType() );
-		this.masks.put( store, mask );
-		return store;
+		final AccessedBlocksRandomAccessible< UnsignedByteType > trackingStore = new AccessedBlocksRandomAccessible<>( store, store.getCellGrid() );
+		this.masks.put( trackingStore, mask );
+		return trackingStore;
 	}
 
-	public void applyMask( final RandomAccessibleInterval< UnsignedByteType > mask, final Interval... paintedIntervals )
+	public void applyMask( final RandomAccessibleInterval< UnsignedByteType > mask, final Interval paintedInterval )
 	{
 		new Thread( () -> {
 			synchronized ( this.masks )
 			{
-				LOG.debug( "Applying mask: {}", mask, paintedIntervals );
+				LOG.debug( "Applying mask: {}", mask, paintedInterval );
 				final MaskInfo< UnsignedLongType > maskInfo = this.masks.get( mask );
 				if ( maskInfo == null )
 				{
@@ -228,12 +231,15 @@ public class MaskedSource< D extends Type< D >, T extends Type< T > > implements
 				final int[] blockSize = new int[ grid.numDimensions() ];
 				grid.cellDimensions( blockSize );
 
+				final TLongSet affectedBlocks = affectedBlocks( mask, canvas.getCellGrid(), paintedInterval );
+
 				final TLongLongHashMap paintedPixelCountPerBlock = paintAffectedPixelsAndReturnPixelCountsPerBlock(
+						affectedBlocks,
 						Converters.convert( Views.extendZero( mask ), ( s, t ) -> t.set( s.get() == 1 ), new BitType() ),
 						canvas,
 						maskInfo.value,
 						canvas.getCellGrid(),
-						paintedIntervals );
+						paintedInterval );
 
 				final TLongSet completelyPaintedBlocks = getCompletelyPaintedBlocks( paintedPixelCountPerBlock, ( int ) Intervals.numElements( blockSize ) );
 
@@ -250,7 +256,7 @@ public class MaskedSource< D extends Type< D >, T extends Type< T > > implements
 						completelyPaintedBlocks,
 						maskInfo.level,
 						maskInfo.value,
-						paintedIntervals ) );
+						paintedInterval ) );
 
 				// TODO make correct painted bounding box for multi scale
 				// TODO update canvases in other scale levels
@@ -450,7 +456,7 @@ public class MaskedSource< D extends Type< D >, T extends Type< T > > implements
 			final CachedCellImg< UnsignedLongType, LongAccess > img,
 			final TLongSet affectedBlocks,
 			final int[] steps,
-			final Interval[] intervals )
+			final Interval interval )
 	{
 		final LazyCells< Cell< LongAccess > > cells = img.getCells();
 		final CellGrid grid = img.getCellGrid();
@@ -477,18 +483,15 @@ public class MaskedSource< D extends Type< D >, T extends Type< T > > implements
 			Arrays.setAll( cellMax, d -> cellMin[ d ] + cell.dimension( d ) - 1 );
 			Arrays.setAll( cellDim, cell::dimension );
 
-			for ( final Interval interval : intervals )
+			Arrays.setAll( intersectedCellMin, d -> cellMin[ d ] );
+			Arrays.setAll( intersectedCellMax, d -> cellMax[ d ] );
+
+			intersect( intersectedCellMin, intersectedCellMax, interval );
+
+			if ( isNonEmpty( cellMin, cellMax ) )
 			{
-				Arrays.setAll( intersectedCellMin, d -> cellMin[ d ] );
-				Arrays.setAll( intersectedCellMax, d -> cellMax[ d ] );
-
-				intersect( intersectedCellMin, intersectedCellMax, interval );
-
-				if ( isNonEmpty( cellMin, cellMax ) )
-				{
-					LOG.debug( "Downsampling for intersected min/max: {} {}", intersectedCellMin, intersectedCellMax );
-					downsample( source, Views.interval( img, intersectedCellMin, intersectedCellMax ), steps );
-				}
+				LOG.debug( "Downsampling for intersected min/max: {} {}", intersectedCellMin, intersectedCellMax );
+				downsample( source, Views.interval( img, intersectedCellMin, intersectedCellMax ), steps );
 			}
 		}
 	}
@@ -575,7 +578,7 @@ public class MaskedSource< D extends Type< D >, T extends Type< T > > implements
 			final TLongSet completelyPaintedBlocksAtPaintedScale,
 			final int paintedLevel,
 			final UnsignedLongType label,
-			final Interval... intervalsAtPaintedScale )
+			final Interval intervalAtPaintedScale )
 	{
 
 		final CellGrid gridAtPaintedLevel = this.dataCanvases[ paintedLevel ].getCellGrid();
@@ -586,8 +589,7 @@ public class MaskedSource< D extends Type< D >, T extends Type< T > > implements
 			final RandomAccessibleInterval< UnsignedLongType > atLowerLevel = dataCanvases[ level - 1 ];
 			final CachedCellImg< UnsignedLongType, LongAccess > atHigherLevel = dataCanvases[ level ];
 			final double[] relativeScales = DataSource.getRelativeScales( this, 0, level - 1, level );
-			final Interval[] intervalsAtHigherLevel =
-					Stream.of( intervalsAtPaintedScale ).map( interval -> scaleIntervalToLevel( interval, paintedLevel, levelAsFinal ) ).toArray( Interval[]::new );
+			final Interval intervalAtHigherLevel = scaleIntervalToLevel( intervalAtPaintedScale, paintedLevel, levelAsFinal );
 
 			if ( DoubleStream.of( relativeScales ).filter( d -> Math.round( d ) != d ).count() > 0 )
 			{
@@ -607,7 +609,7 @@ public class MaskedSource< D extends Type< D >, T extends Type< T > > implements
 					atHigherLevel,
 					affectedBlocksAtHigherLevel,
 					steps,
-					intervalsAtHigherLevel );
+					intervalAtHigherLevel );
 		}
 
 		final RealRandomAccessible< UnsignedByteType > interpolatedMask = Views.interpolate( Views.extendZero( mask ), new NearestNeighborInterpolatorFactory<>() );
@@ -618,7 +620,7 @@ public class MaskedSource< D extends Type< D >, T extends Type< T > > implements
 			final TLongSet affectedBlocksAtLowerLevel = this.scaleBlocksToLevel( paintedBlocksAtPaintedScale, paintedLevel, level );
 			final double[] currentRelativeScaleFromTargetToPainted = DataSource.getRelativeScales( this, 0, level, paintedLevel );
 
-			final Interval[] paintedIntervalsAtTargetLevel = scaleIntervalsToLevel( paintedLevel, level, intervalsAtPaintedScale );
+			final Interval paintedIntervalAtTargetLevel = scaleIntervalToLevel( intervalAtPaintedScale, paintedLevel, level );
 
 			// upsample
 			final CachedCellImg< UnsignedLongType, LongAccess > canvasAtTargetLevel = dataCanvases[ level ];
@@ -646,29 +648,12 @@ public class MaskedSource< D extends Type< D >, T extends Type< T > > implements
 				Arrays.setAll( minPainted, d -> Math.min( Math.max( minPainted[ d ], mask.min( d ) ), mask.max( d ) ) );
 				Arrays.setAll( maxPainted, d -> Math.min( Math.max( maxPainted[ d ] - 1, mask.min( d ) ), mask.max( d ) ) );
 
-				final long[][] intersectionMins = new long[ paintedIntervalsAtTargetLevel.length ][];
-				final long[][] intersectionMaxs = new long[ paintedIntervalsAtTargetLevel.length ][];
-				final long[] intersectionMinsUnion = { Long.MAX_VALUE, Long.MAX_VALUE, Long.MAX_VALUE };
-				final long[] intersectionMaxsUnion = { Long.MIN_VALUE, Long.MIN_VALUE, Long.MIN_VALUE };
-				for ( int i = 0; i < intersectionMins.length; ++i )
-				{
-					final long[] min = minTarget.clone();
-					final long[] max = maxTarget.clone();
+				final long[] intersectionMin = minTarget.clone();
+				final long[] intersectionMax = maxTarget.clone();
 
-					intersect( min, max, paintedIntervalsAtTargetLevel[ i ] );
+				intersect( intersectionMin, intersectionMax, paintedIntervalAtTargetLevel );
 
-					intersectionMins[ i ] = min;
-					intersectionMaxs[ i ] = max;
-					LOG.trace( "Intersected min={} max={}", min, max );
-
-					intersectionMinsUnion[ 0 ] = Math.min( min[ 0 ], intersectionMinsUnion[ 0 ] );
-					intersectionMinsUnion[ 1 ] = Math.min( min[ 1 ], intersectionMinsUnion[ 1 ] );
-					intersectionMinsUnion[ 2 ] = Math.min( min[ 2 ], intersectionMinsUnion[ 2 ] );
-
-					intersectionMaxsUnion[ 0 ] = Math.max( max[ 0 ], intersectionMaxsUnion[ 0 ] );
-					intersectionMaxsUnion[ 1 ] = Math.max( max[ 1 ], intersectionMaxsUnion[ 1 ] );
-					intersectionMaxsUnion[ 2 ] = Math.max( max[ 2 ], intersectionMaxsUnion[ 2 ] );
-				}
+				LOG.trace( "Intersected min={} max={}", intersectionMin, intersectionMax );
 
 				LOG.trace(
 						"Upsampling block: level={}, block min (target)={}, block max (target)={}, block min={}, block max={}, scale={}, mask min={}, mask max={}",
@@ -689,22 +674,17 @@ public class MaskedSource< D extends Type< D >, T extends Type< T > > implements
 				if ( Intervals.numElements( relevantBlockAtPaintedResolution ) == 0 )
 					continue;
 
-				for ( int i = 0; i < intersectionMins.length; ++i )
+				LOG.trace( "Upsampling for level {} and intersected intervals ({} {})", level, intersectionMin, intersectionMax );
+				final Interval interval = new FinalInterval( intersectionMin, intersectionMax );
+				final Cursor< UnsignedLongType > canvasCursor = Views.flatIterable( Views.interval( canvasAtTargetLevel, interval ) ).cursor();
+				final Cursor< UnsignedByteType > maskCursor = Views.flatIterable( Views.interval( Views.raster( scaledMask ), interval ) ).cursor();
+				while ( maskCursor.hasNext() )
 				{
-					final long[] min = intersectionMins[ i ];
-					final long[] max = intersectionMaxs[ i ];
-					LOG.trace( "Upsampling for level {} and intersected intervals ({} {})", level, min, max );
-					final Interval interval = new FinalInterval( min, max );
-					final Cursor< UnsignedLongType > canvasCursor = Views.flatIterable( Views.interval( canvasAtTargetLevel, interval ) ).cursor();
-					final Cursor< UnsignedByteType > maskCursor = Views.flatIterable( Views.interval( Views.raster( scaledMask ), interval ) ).cursor();
-					while ( maskCursor.hasNext() )
+					canvasCursor.fwd();
+					final boolean wasPainted = maskCursor.next().get() == 1;
+					if ( wasPainted )
 					{
-						canvasCursor.fwd();
-						final boolean wasPainted = maskCursor.next().get() == 1;
-						if ( wasPainted )
-						{
-							canvasCursor.get().set( label );
-						}
+						canvasCursor.get().set( label );
 					}
 				}
 			}
@@ -730,7 +710,44 @@ public class MaskedSource< D extends Type< D >, T extends Type< T > > implements
 		}
 
 		return blocks;
+	}
 
+	public static TLongSet affectedBlocks( final RandomAccessibleInterval< ? > input, final CellGrid grid, final Interval interval )
+	{
+		if ( input instanceof AccessedBlocksRandomAccessible< ? > )
+		{
+			final AccessedBlocksRandomAccessible< ? > tracker = ( AccessedBlocksRandomAccessible< ? > ) input;
+			if ( grid.equals( tracker.getGrid() ) )
+			{
+				final long[] blocks = tracker.listBlocks();
+				LOG.debug( "Got these blocks from tracker: {}", blocks );
+				return new TLongHashSet( blocks );
+			}
+		}
+		return affectedBlocks( grid, interval );
+	}
+
+	public static TLongSet affectedBlocks( final CellGrid grid, final Interval interval )
+	{
+		final int[] blockSize = IntStream.range( 0, grid.numDimensions() ).map( grid::cellDimension ).toArray();
+		return affectedBlocks( grid.getGridDimensions(), blockSize, interval );
+	}
+
+	public static TLongSet affectedBlocks( final long[] gridDimensions, final int[] blockSize, final Interval interval )
+	{
+		final TLongHashSet blocks = new TLongHashSet();
+		final int[] ones = IntStream.generate( () -> 1 ).limit( blockSize.length ).toArray();
+		final long[] relevantIntervalMin = new long[ blockSize.length ];
+		final long[] relevantIntervalMax = new long[ blockSize.length ];
+		Arrays.setAll( relevantIntervalMin, d -> ( interval.min( d ) / blockSize[ d ] ) );
+		Arrays.setAll( relevantIntervalMax, d -> ( interval.max( d ) / blockSize[ d ] ) );
+		Grids.forEachOffset(
+				relevantIntervalMin,
+				relevantIntervalMax,
+				ones,
+				offset -> blocks.add( IntervalIndexer.positionToIndex( offset, gridDimensions ) ) );
+
+		return blocks;
 	}
 
 	public static TLongSet affectedBlocksInHigherResolution(
@@ -813,11 +830,12 @@ public class MaskedSource< D extends Type< D >, T extends Type< T > > implements
 	}
 
 	public static < M extends BooleanType< M >, C extends IntegerType< C > > TLongLongHashMap paintAffectedPixelsAndReturnPixelCountsPerBlock(
+			final TLongSet relevantBlocks,
 			final RandomAccessible< M > mask,
 			final RandomAccessibleInterval< C > canvas,
 			final C paintLabel,
 			final CellGrid grid,
-			final Interval... paintedIntervals )
+			final Interval paintedInterval )
 	{
 
 		final long[] currentMin = new long[ grid.numDimensions() ];
@@ -829,12 +847,23 @@ public class MaskedSource< D extends Type< D >, T extends Type< T > > implements
 
 		final TLongLongHashMap paintedPixelCountPerBlock = new TLongLongHashMap();
 
-		for ( final Interval interval : paintedIntervals )
-		{
-			Arrays.setAll( currentMin, d -> Math.max( interval.min( d ), canvas.min( d ) ) );
-			Arrays.setAll( currentMax, d -> Math.min( interval.max( d ), canvas.max( d ) ) );
+		final long[] intervalMin = Intervals.minAsLongArray( paintedInterval );
+		final long[] intervalMax = Intervals.maxAsLongArray( paintedInterval );
 
-			LOG.trace( "Painting affected pixels for: {} {}", currentMin, currentMax );
+		for ( final TLongIterator blockIt = relevantBlocks.iterator(); blockIt.hasNext(); )
+		{
+
+			final long blockId = blockIt.next();
+			IntervalIndexer.indexToPosition( blockId, gridDimensions, gridPosition );
+
+			for ( int d = 0; d < currentMin.length; ++d ) {
+				final long m = gridPosition[ d ] * blockSize[ d ];
+				final long M = Math.min( m + blockSize[ d ] - 1, canvas.max( d ) );
+				currentMin[ d ] = Math.max( m, intervalMin[ d ] );
+				currentMax[ d ] = Math.min( M, intervalMax[ d ] );
+			}
+
+			LOG.trace( "Painting affected pixels for: {} {} {}", blockId, currentMin, currentMax );
 
 			final Interval restrictedInterval = new FinalInterval( currentMin, currentMax );
 			final Cursor< M > sourceCursor = Views.flatIterable( Views.interval( mask, restrictedInterval ) ).cursor();
@@ -845,11 +874,10 @@ public class MaskedSource< D extends Type< D >, T extends Type< T > > implements
 				if ( sourceCursor.next().get() )
 				{
 					targetCursor.get().set( paintLabel );
-					Arrays.setAll( gridPosition, d -> targetCursor.getLongPosition( d ) / blockSize[ d ] );
-					final long blockId = IntervalIndexer.positionToIndex( gridPosition, gridDimensions );
 					paintedPixelCountPerBlock.put( blockId, paintedPixelCountPerBlock.get( blockId ) + 1 );
 				}
 			}
+
 		}
 
 		return paintedPixelCountPerBlock;
@@ -963,4 +991,5 @@ public class MaskedSource< D extends Type< D >, T extends Type< T > > implements
 		}
 
 	}
+
 }
