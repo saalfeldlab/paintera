@@ -7,11 +7,13 @@ import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Optional;
 import java.util.function.BiConsumer;
 import java.util.stream.DoubleStream;
 
+import org.janelia.saalfeldlab.n5.ByteArrayDataBlock;
 import org.janelia.saalfeldlab.n5.DataType;
 import org.janelia.saalfeldlab.n5.DatasetAttributes;
 import org.janelia.saalfeldlab.n5.N5FSReader;
@@ -45,6 +47,7 @@ import net.imglib2.cache.ref.SoftRefLoaderCache;
 import net.imglib2.cache.util.LoaderCacheAsCacheAdapter;
 import net.imglib2.cache.volatiles.CacheHints;
 import net.imglib2.cache.volatiles.LoadingStrategy;
+import net.imglib2.converter.Converters;
 import net.imglib2.img.array.ArrayImg;
 import net.imglib2.img.array.ArrayImgFactory;
 import net.imglib2.img.cell.Cell;
@@ -52,14 +55,18 @@ import net.imglib2.img.cell.CellGrid;
 import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.realtransform.Translation3D;
 import net.imglib2.type.NativeType;
+import net.imglib2.type.label.FromIntegerTypeConverter;
 import net.imglib2.type.label.LabelMultisetType;
+import net.imglib2.type.label.LabelUtils;
 import net.imglib2.type.label.N5CacheLoader;
 import net.imglib2.type.label.VolatileLabelMultisetArray;
 import net.imglib2.type.label.VolatileLabelMultisetType;
 import net.imglib2.type.numeric.IntegerType;
 import net.imglib2.type.numeric.integer.UnsignedLongType;
 import net.imglib2.util.Intervals;
+import net.imglib2.util.Pair;
 import net.imglib2.util.Util;
+import net.imglib2.view.IntervalView;
 import net.imglib2.view.Views;
 
 public class BackendDialogN5 extends BackendDialogGroupAndDataset implements CombinesErrorMessages
@@ -524,9 +531,89 @@ public class BackendDialogN5 extends BackendDialogGroupAndDataset implements Com
 			{
 				final N5FSWriter n5 = new N5FSWriter( this.groupProperty.get() );
 				final String dataset = this.dataset.get();
-				// TODO do multi scale!
 
-				throw new RuntimeException( "not implemented yet!" );
+				final boolean isMultiscale = !n5.datasetExists( dataset );
+
+				final CellGrid canvasGrid = canvas.getCellGrid();
+
+				final String highestResolutionDataset = isMultiscale ? Paths.get( dataset, listAndSortScaleDatasets( n5, dataset )[ 0 ] ).toString() : dataset;
+
+				final DatasetAttributes highestResolutionAttributes = n5.getDatasetAttributes( highestResolutionDataset );
+				final CellGrid highestResolutionGrid = new CellGrid( highestResolutionAttributes.getDimensions(), highestResolutionAttributes.getBlockSize() );
+
+				if ( !highestResolutionGrid.equals( canvasGrid ) )
+				{
+					LOG.error( "Canvas grid {} and highest resolution dataset grid {} incompatible!", canvasGrid, highestResolutionGrid );
+					throw new RuntimeException( String.format( "Canvas grid %s and highest resolution dataset grid %s incompatible!", canvasGrid, highestResolutionGrid ) );
+				}
+
+				final int[] highestResolutionBlockSize = highestResolutionAttributes.getBlockSize();
+				final long[] highestResolutionDimensions = highestResolutionAttributes.getDimensions();
+
+				final long[] gridPosition = new long[ highestResolutionBlockSize.length ];
+				final long[] min = new long[ highestResolutionBlockSize.length ];
+				final long[] max = new long[ highestResolutionBlockSize.length ];
+
+				final RandomAccessibleInterval< LabelMultisetType > highestResolutionData = LabelUtils.openVolatile( n5, highestResolutionDataset );
+
+				for ( final long blockId : blocks )
+				{
+					highestResolutionGrid.getCellGridPositionFlat( blockId, gridPosition );
+					Arrays.setAll( min, d -> gridPosition[ d ] * highestResolutionBlockSize[ d ] );
+					Arrays.setAll( max, d -> Math.min( min[ d ] + highestResolutionBlockSize[ d ], highestResolutionDimensions[ d ] ) - 1 );
+
+					final RandomAccessibleInterval< LabelMultisetType > convertedToMultisets = Converters.convert(
+							( RandomAccessibleInterval< UnsignedLongType > ) canvas,
+							new FromIntegerTypeConverter<>(),
+							FromIntegerTypeConverter.geAppropriateType() );
+
+
+
+					final IntervalView< Pair< LabelMultisetType, LabelMultisetType > > blockWithBackground = Views.interval( Views.pair( convertedToMultisets, highestResolutionData ), min, max );
+
+					final int numElements = ( int ) Intervals.numElements( blockWithBackground );
+
+					final Iterable< LabelMultisetType > pairIterable = () -> new Iterator< LabelMultisetType >()
+					{
+
+						Iterator< Pair< LabelMultisetType, LabelMultisetType > > iterator = Views.flatIterable( blockWithBackground ).iterator();
+
+						@Override
+						public boolean hasNext()
+						{
+							return iterator.hasNext();
+						}
+
+						@Override
+						public LabelMultisetType next()
+						{
+							final Pair< LabelMultisetType, LabelMultisetType > p = iterator.next();
+							final LabelMultisetType a = p.getA();
+							if ( a.entrySet().iterator().next().getElement().id() == Label.INVALID )
+							{
+								return p.getB();
+							}
+							else
+								return a;
+						}
+
+					};
+
+
+
+
+					final byte[] byteData = LabelUtils.serializeLabelMultisetTypes( pairIterable, numElements );
+					final ByteArrayDataBlock dataBlock = new ByteArrayDataBlock( Intervals.dimensionsAsIntArray( blockWithBackground ), gridPosition, byteData );
+					n5.writeBlock( highestResolutionDataset, highestResolutionAttributes, dataBlock );
+
+				}
+
+				if ( isMultiscale )
+				{
+					// TODO do multi scale!
+
+					throw new RuntimeException( "multi-scale export not implemented yet!" );
+				}
 
 //				if ( isIntegerType() )
 //					commitForIntegerType( n5, dataset, canvas );
