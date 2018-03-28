@@ -273,6 +273,14 @@ public class MaskedSource< D extends Type< D >, T extends Type< T > > implements
 
 	}
 
+	private Interval[] scaleIntervalsToLevel( final int intervalLevel, final int targetLevel, final Interval... intervals )
+	{
+		return Stream
+				.of( intervals )
+				.map( interval -> scaleIntervalToLevel( interval, intervalLevel, targetLevel ) )
+				.toArray( Interval[]::new );
+	}
+
 	private Interval scaleIntervalToLevel( final Interval interval, final int intervalLevel, final int targetLevel )
 	{
 		if ( intervalLevel == targetLevel )
@@ -628,8 +636,11 @@ public class MaskedSource< D extends Type< D >, T extends Type< T > > implements
 			final TLongSet affectedBlocksAtLowerLevel = this.scaleBlocksToLevel( paintedBlocksAtPaintedScale, paintedLevel, level );
 			final double[] currentRelativeScaleFromTargetToPainted = DataSource.getRelativeScales( this, 0, level, paintedLevel );
 
+			final Interval[] paintedIntervalsAtTargetLevel = scaleIntervalsToLevel( paintedLevel, level, intervalsAtPaintedScale );
+
 			// upsample
-			final CellGrid gridAtTargetLevel = dataCanvases[ level ].getCellGrid();
+			final CachedCellImg< UnsignedLongType, DirtyVolatileDelegateLongAccess > canvasAtTargetLevel = dataCanvases[ level ];
+			final CellGrid gridAtTargetLevel = canvasAtTargetLevel.getCellGrid();
 			final int[] blockSize = new int[ gridAtTargetLevel.numDimensions() ];
 			gridAtTargetLevel.cellDimensions( blockSize );
 
@@ -639,7 +650,7 @@ public class MaskedSource< D extends Type< D >, T extends Type< T > > implements
 			final long[] stopTarget = new long[ gridAtTargetLevel.numDimensions() ];
 			final long[] minPainted = new long[ minTarget.length ];
 			final long[] maxPainted = new long[ minTarget.length ];
-			final RandomAccess< Cell< DirtyVolatileDelegateLongAccess > > targetCellsAccess = dataCanvases[ level ].getCells().randomAccess();
+			final RandomAccess< Cell< DirtyVolatileDelegateLongAccess > > targetCellsAccess = canvasAtTargetLevel.getCells().randomAccess();
 			final Scale3D scaleTransform = new Scale3D( currentRelativeScaleFromTargetToPainted );
 			final RealRandomAccessible< UnsignedByteType > scaledMask = RealViews.transformReal( interpolatedMask, scaleTransform );
 			for ( final TLongIterator blockIterator = affectedBlocksAtLowerLevel.iterator(); blockIterator.hasNext(); )
@@ -653,6 +664,30 @@ public class MaskedSource< D extends Type< D >, T extends Type< T > > implements
 				this.scalePositionToLevel( stopTarget, level, paintedLevel, maxPainted );
 				Arrays.setAll( minPainted, d -> Math.min( Math.max( minPainted[ d ], mask.min( d ) ), mask.max( d ) ) );
 				Arrays.setAll( maxPainted, d -> Math.min( Math.max( maxPainted[ d ] - 1, mask.min( d ) ), mask.max( d ) ) );
+
+				final long[][] intersectionMins = new long[ paintedIntervalsAtTargetLevel.length ][];
+				final long[][] intersectionMaxs = new long[ paintedIntervalsAtTargetLevel.length ][];
+				final long[] intersectionMinsUnion = { Long.MAX_VALUE, Long.MAX_VALUE, Long.MAX_VALUE };
+				final long[] intersectionMaxsUnion = { Long.MIN_VALUE, Long.MIN_VALUE, Long.MIN_VALUE };
+				for ( int i = 0; i < intersectionMins.length; ++i )
+				{
+					final long[] min = minTarget.clone();
+					final long[] max = maxTarget.clone();
+
+					intersect( min, max, paintedIntervalsAtTargetLevel[ i ] );
+
+					intersectionMins[ i ] = min;
+					intersectionMaxs[ i ] = max;
+					LOG.trace( "Intersected min={} max={}", min, max );
+
+					intersectionMinsUnion[ 0 ] = Math.min( min[ 0 ], intersectionMinsUnion[ 0 ] );
+					intersectionMinsUnion[ 1 ] = Math.min( min[ 1 ], intersectionMinsUnion[ 1 ] );
+					intersectionMinsUnion[ 2 ] = Math.min( min[ 2 ], intersectionMinsUnion[ 2 ] );
+
+					intersectionMaxsUnion[ 0 ] = Math.max( max[ 0 ], intersectionMaxsUnion[ 0 ] );
+					intersectionMaxsUnion[ 1 ] = Math.max( max[ 1 ], intersectionMaxsUnion[ 1 ] );
+					intersectionMaxsUnion[ 2 ] = Math.max( max[ 2 ], intersectionMaxsUnion[ 2 ] );
+				}
 
 				LOG.trace(
 						"Upsampling block: level={}, block min (target)={}, block max (target)={}, block min={}, block max={}, scale={}, mask min={}, mask max={}",
@@ -673,33 +708,72 @@ public class MaskedSource< D extends Type< D >, T extends Type< T > > implements
 				if ( Intervals.numElements( relevantBlockAtPaintedResolution ) == 0 )
 					continue;
 
-				final boolean isConstantValueBlock = isAllTrue( relevantBlockAtPaintedResolution );
+				// if complete block may be affected check if it is a constant
+				// block first
+				if ( Arrays.equals( minTarget, intersectionMinsUnion ) && Arrays.equals( maxTarget, intersectionMaxsUnion ) )
+				{
 
-				final LongAccess updatedAccess;
-				targetCellsAccess.setPosition( cellPosTarget );
-				final Cell< DirtyVolatileDelegateLongAccess > cell = targetCellsAccess.get();
-				final DirtyVolatileDelegateLongAccess currentAccess = cell.getData();
-				LOG.warn( "Upsampling: Painting block with min={} max={}", minTarget, maxTarget );
-				if ( isConstantValueBlock )
-					updatedAccess = new ConstantLongAccess( label.getIntegerLong() );
+					final boolean isConstantValueBlock = isAllTrue( relevantBlockAtPaintedResolution );
+
+					final LongAccess updatedAccess;
+					targetCellsAccess.setPosition( cellPosTarget );
+					final Cell< DirtyVolatileDelegateLongAccess > cell = targetCellsAccess.get();
+					final DirtyVolatileDelegateLongAccess currentAccess = cell.getData();
+					LOG.trace( "Upsampling: Painting block with min={} max={}", minTarget, maxTarget );
+					if ( isConstantValueBlock )
+						updatedAccess = new ConstantLongAccess( label.getIntegerLong() );
+					else
+					{
+						final Interval targetInterval = new FinalInterval( minTarget, maxTarget );
+						final int numElements = ( int ) Intervals.numElements( targetInterval );
+						// TODO is targetInterval wrong? investigate here!
+						updatedAccess = new LongArray( ( int ) cell.size() );
+//						updatedAccess = new LongArray( numElements );
+						final Cursor< UnsignedByteType > maskCursor = Views.flatIterable( Views.interval( Views.raster( scaledMask ), targetInterval ) ).cursor();
+						for ( int i = 0; maskCursor.hasNext(); ++i )
+						{
+							final boolean wasPainted = maskCursor.next().get() > 0;
+							updatedAccess.setValue( i, wasPainted ? label.getIntegerLong() : currentAccess.getValue( i ) );
+						}
+
+					}
+//				targetCellsAccess.get().getData().setDelegate( updatedAccess );
+					currentAccess.setDelegate( updatedAccess );
+//				currentAccess.setValid( true );
+				}
 				else
 				{
-					final Interval targetInterval = new FinalInterval( minTarget, maxTarget );
-					final int numElements = ( int ) Intervals.numElements( targetInterval );
-					// TODO is targetInterval wrong? investigate here!
-					updatedAccess = new LongArray( ( int ) cell.size() );
-//						updatedAccess = new LongArray( numElements );
-					final Cursor< UnsignedByteType > maskCursor = Views.flatIterable( Views.interval( Views.raster( scaledMask ), targetInterval ) ).cursor();
-					for ( int i = 0; maskCursor.hasNext(); ++i )
+
+					targetCellsAccess.setPosition( cellPosTarget );
+					final Cell< DirtyVolatileDelegateLongAccess > cell = targetCellsAccess.get();
+					final DirtyVolatileDelegateLongAccess currentAccess = cell.getData();
+					if ( currentAccess.getDelegate() instanceof ConstantLongAccess )
 					{
-						final boolean wasPainted = maskCursor.next().get() > 0;
-						updatedAccess.setValue( i, wasPainted ? label.getIntegerLong() : currentAccess.getValue( i ) );
+						final LongArray otherAccess = new LongArray( ( int ) cell.size() );
+						final long v = currentAccess.getValue( 0 );
+						Arrays.fill( otherAccess.getCurrentStorageArray(), v );
+						currentAccess.setDelegate( otherAccess );
 					}
 
+					for ( int i = 0; i < intersectionMins.length; ++i )
+					{
+						final long[] min = intersectionMins[ i ];
+						final long[] max = intersectionMaxs[ i ];
+						LOG.trace( "Upsampling for level {} and intersected intervals ({} {})", level, min, max );
+						final Interval interval = new FinalInterval( min, max );
+						final Cursor< UnsignedLongType > canvasCursor = Views.flatIterable( Views.interval( canvasAtTargetLevel, interval ) ).cursor();
+						final Cursor< UnsignedByteType > maskCursor = Views.flatIterable( Views.interval( Views.raster( scaledMask ), interval ) ).cursor();
+						while ( maskCursor.hasNext() )
+						{
+							canvasCursor.fwd();
+							final boolean wasPainted = maskCursor.next().get() == 1;
+							if ( wasPainted )
+							{
+								canvasCursor.get().set( label );
+							}
+						}
+					}
 				}
-//				targetCellsAccess.get().getData().setDelegate( updatedAccess );
-				currentAccess.setDelegate( updatedAccess );
-//				currentAccess.setValid( true );
 			}
 
 		}
