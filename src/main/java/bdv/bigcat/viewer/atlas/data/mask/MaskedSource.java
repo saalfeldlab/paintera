@@ -47,20 +47,12 @@ import net.imglib2.RealRandomAccessible;
 import net.imglib2.algorithm.util.Grids;
 import net.imglib2.cache.img.CachedCellImg;
 import net.imglib2.cache.img.CellLoader;
-import net.imglib2.cache.img.DelegateAccessIo;
-import net.imglib2.cache.img.DelegateAccessWrappers;
-import net.imglib2.cache.img.DelegateAccesses;
 import net.imglib2.cache.img.DiskCachedCellImgFactory;
 import net.imglib2.cache.img.DiskCachedCellImgOptions;
 import net.imglib2.cache.img.DiskCellCache;
 import net.imglib2.converter.Converters;
 import net.imglib2.converter.TypeIdentity;
-import net.imglib2.img.array.ArrayImgs;
 import net.imglib2.img.basictypeaccess.LongAccess;
-import net.imglib2.img.basictypeaccess.array.LongArray;
-import net.imglib2.img.basictypeaccess.constant.ConstantLongAccess;
-import net.imglib2.img.basictypeaccess.delegate.DelegateLongAccess;
-import net.imglib2.img.basictypeaccess.delegate.dirty.DirtyVolatileDelegateLongAccess;
 import net.imglib2.img.cell.Cell;
 import net.imglib2.img.cell.CellGrid;
 import net.imglib2.img.cell.LazyCellImg.LazyCells;
@@ -92,7 +84,7 @@ public class MaskedSource< D extends Type< D >, T extends Type< T > > implements
 
 	private final DataSource< D, T > source;
 
-	private final CachedCellImg< UnsignedLongType, DirtyVolatileDelegateLongAccess >[] dataCanvases;
+	private final CachedCellImg< UnsignedLongType, LongAccess >[] dataCanvases;
 
 	private final RandomAccessibleInterval< VolatileUnsignedLongType >[] canvases;
 
@@ -232,14 +224,9 @@ public class MaskedSource< D extends Type< D >, T extends Type< T > > implements
 				}
 				final CachedCellImg< UnsignedLongType, ? > canvas = dataCanvases[ maskInfo.level ];
 				final CellGrid grid = canvas.getCellGrid();
-				final TLongSet potentiallyAffectedBlocks = MaskedSource.affectedBlocks( grid, paintedIntervals );
 
 				final int[] blockSize = new int[ grid.numDimensions() ];
 				grid.cellDimensions( blockSize );
-				final RandomAccess< Cell< DirtyVolatileDelegateLongAccess > > cellsAccess = dataCanvases[ maskInfo.level ].getCells().randomAccess();
-
-				// set each affected block to array if previously constant
-				forEachBlock( potentiallyAffectedBlocks, grid, cellsAccess, MaskedSource::replaceConstantLongAccessDelegate );
 
 				final TLongLongHashMap paintedPixelCountPerBlock = paintAffectedPixelsAndReturnPixelCountsPerBlock(
 						Converters.convert( Views.extendZero( mask ), ( s, t ) -> t.set( s.get() == 1 ), new BitType() ),
@@ -365,7 +352,7 @@ public class MaskedSource< D extends Type< D >, T extends Type< T > > implements
 	public void mergeCanvasIntoBackground()
 	{
 		LOG.debug( "Merging canvas into background for blocks {}", this.affectedBlocks );
-		final CachedCellImg< UnsignedLongType, DirtyVolatileDelegateLongAccess > canvas = this.dataCanvases[ 0 ];
+		final CachedCellImg< UnsignedLongType, ? > canvas = this.dataCanvases[ 0 ];
 		final long[] affectedBlocks = this.affectedBlocks.toArray();
 		this.affectedBlocks.clear();
 		this.mergeCanvasToBackground.accept( canvas, affectedBlocks );
@@ -458,19 +445,19 @@ public class MaskedSource< D extends Type< D >, T extends Type< T > > implements
 		return Converters.convert( this.source.getDataSource( t, level ), new TypeIdentity<>(), this.source.getDataType().createVariable() );
 	}
 
-	public static < A extends DirtyVolatileDelegateLongAccess > void downsampleBlocks(
+	public static void downsampleBlocks(
 			final RandomAccessible< UnsignedLongType > source,
-			final CachedCellImg< UnsignedLongType, A > img,
+			final CachedCellImg< UnsignedLongType, LongAccess > img,
 			final TLongSet affectedBlocks,
 			final int[] steps,
 			final Interval[] intervals )
 	{
-		final LazyCells< Cell< A > > cells = img.getCells();
+		final LazyCells< Cell< LongAccess > > cells = img.getCells();
 		final CellGrid grid = img.getCellGrid();
 		final int[] blockSize = new int[ grid.numDimensions() ];
 		grid.cellDimensions( blockSize );
 
-		final RandomAccess< Cell< A > > cellsAccess = cells.randomAccess();
+		final RandomAccess< Cell< LongAccess > > cellsAccess = cells.randomAccess();
 		final long[] cellPosition = new long[ grid.numDimensions() ];
 		final long[] cellMin = new long[ grid.numDimensions() ];
 		final long[] cellMax = new long[ grid.numDimensions() ];
@@ -484,29 +471,24 @@ public class MaskedSource< D extends Type< D >, T extends Type< T > > implements
 			final long blockId = it.next();
 			grid.getCellGridPositionFlat( blockId, cellPosition );
 			cellsAccess.setPosition( cellPosition );
-			final Cell< A > cell = cellsAccess.get();
+			final Cell< LongAccess > cell = cellsAccess.get();
 			cell.min( cellMin );
 
 			Arrays.setAll( cellMax, d -> cellMin[ d ] + cell.dimension( d ) - 1 );
 			Arrays.setAll( cellDim, cell::dimension );
-			Arrays.setAll( intersectedCellMin, d -> cellMin[ d ] );
-			Arrays.setAll( intersectedCellMax, d -> cellMax[ d ] );
 
 			for ( final Interval interval : intervals )
 			{
+				Arrays.setAll( intersectedCellMin, d -> cellMin[ d ] );
+				Arrays.setAll( intersectedCellMax, d -> cellMax[ d ] );
+
 				intersect( intersectedCellMin, intersectedCellMax, interval );
-			}
 
-			if ( isNonEmpty( cellMin, cellMax ) )
-			{
-				replaceConstantLongAccessDelegate( cell );
-
-				final A access = cell.getData();
-				final LongAccess currentAccess = access.getDelegate();
-				final IntervalView< UnsignedLongType > updatedView = Views.translate( ArrayImgs.unsignedLongs( currentAccess, cellDim ), cellMin );
-				LOG.debug( "Downsampling for intersected min/max: {} {}", intersectedCellMin, intersectedCellMax );
-				downsample( source, Views.interval( updatedView, intersectedCellMin, intersectedCellMax ), steps );
-				access.setDelegate( currentAccess );
+				if ( isNonEmpty( cellMin, cellMax ) )
+				{
+					LOG.debug( "Downsampling for intersected min/max: {} {}", intersectedCellMin, intersectedCellMax );
+					downsample( source, Views.interval( img, intersectedCellMin, intersectedCellMax ), steps );
+				}
 			}
 		}
 	}
@@ -602,7 +584,7 @@ public class MaskedSource< D extends Type< D >, T extends Type< T > > implements
 		{
 			final int levelAsFinal = level;
 			final RandomAccessibleInterval< UnsignedLongType > atLowerLevel = dataCanvases[ level - 1 ];
-			final CachedCellImg< UnsignedLongType, DirtyVolatileDelegateLongAccess > atHigherLevel = dataCanvases[ level ];
+			final CachedCellImg< UnsignedLongType, LongAccess > atHigherLevel = dataCanvases[ level ];
 			final double[] relativeScales = DataSource.getRelativeScales( this, 0, level - 1, level );
 			final Interval[] intervalsAtHigherLevel =
 					Stream.of( intervalsAtPaintedScale ).map( interval -> scaleIntervalToLevel( interval, paintedLevel, levelAsFinal ) ).toArray( Interval[]::new );
@@ -639,7 +621,7 @@ public class MaskedSource< D extends Type< D >, T extends Type< T > > implements
 			final Interval[] paintedIntervalsAtTargetLevel = scaleIntervalsToLevel( paintedLevel, level, intervalsAtPaintedScale );
 
 			// upsample
-			final CachedCellImg< UnsignedLongType, DirtyVolatileDelegateLongAccess > canvasAtTargetLevel = dataCanvases[ level ];
+			final CachedCellImg< UnsignedLongType, LongAccess > canvasAtTargetLevel = dataCanvases[ level ];
 			final CellGrid gridAtTargetLevel = canvasAtTargetLevel.getCellGrid();
 			final int[] blockSize = new int[ gridAtTargetLevel.numDimensions() ];
 			gridAtTargetLevel.cellDimensions( blockSize );
@@ -650,7 +632,6 @@ public class MaskedSource< D extends Type< D >, T extends Type< T > > implements
 			final long[] stopTarget = new long[ gridAtTargetLevel.numDimensions() ];
 			final long[] minPainted = new long[ minTarget.length ];
 			final long[] maxPainted = new long[ minTarget.length ];
-			final RandomAccess< Cell< DirtyVolatileDelegateLongAccess > > targetCellsAccess = canvasAtTargetLevel.getCells().randomAccess();
 			final Scale3D scaleTransform = new Scale3D( currentRelativeScaleFromTargetToPainted );
 			final RealRandomAccessible< UnsignedByteType > scaledMask = RealViews.transformReal( interpolatedMask, scaleTransform );
 			for ( final TLongIterator blockIterator = affectedBlocksAtLowerLevel.iterator(); blockIterator.hasNext(); )
@@ -708,83 +689,27 @@ public class MaskedSource< D extends Type< D >, T extends Type< T > > implements
 				if ( Intervals.numElements( relevantBlockAtPaintedResolution ) == 0 )
 					continue;
 
-				// if complete block may be affected check if it is a constant
-				// block first
-				if ( Arrays.equals( minTarget, intersectionMinsUnion ) && Arrays.equals( maxTarget, intersectionMaxsUnion ) )
+				for ( int i = 0; i < intersectionMins.length; ++i )
 				{
-
-					final boolean isConstantValueBlock = isAllTrue( relevantBlockAtPaintedResolution );
-
-					final LongAccess updatedAccess;
-					targetCellsAccess.setPosition( cellPosTarget );
-					final Cell< DirtyVolatileDelegateLongAccess > cell = targetCellsAccess.get();
-					final DirtyVolatileDelegateLongAccess currentAccess = cell.getData();
-					LOG.trace( "Upsampling: Painting block with min={} max={}", minTarget, maxTarget );
-					if ( isConstantValueBlock )
-						updatedAccess = new ConstantLongAccess( label.getIntegerLong() );
-					else
+					final long[] min = intersectionMins[ i ];
+					final long[] max = intersectionMaxs[ i ];
+					LOG.trace( "Upsampling for level {} and intersected intervals ({} {})", level, min, max );
+					final Interval interval = new FinalInterval( min, max );
+					final Cursor< UnsignedLongType > canvasCursor = Views.flatIterable( Views.interval( canvasAtTargetLevel, interval ) ).cursor();
+					final Cursor< UnsignedByteType > maskCursor = Views.flatIterable( Views.interval( Views.raster( scaledMask ), interval ) ).cursor();
+					while ( maskCursor.hasNext() )
 					{
-						final Interval targetInterval = new FinalInterval( minTarget, maxTarget );
-						final int numElements = ( int ) Intervals.numElements( targetInterval );
-						// TODO is targetInterval wrong? investigate here!
-						updatedAccess = new LongArray( ( int ) cell.size() );
-//						updatedAccess = new LongArray( numElements );
-						final Cursor< UnsignedByteType > maskCursor = Views.flatIterable( Views.interval( Views.raster( scaledMask ), targetInterval ) ).cursor();
-						for ( int i = 0; maskCursor.hasNext(); ++i )
+						canvasCursor.fwd();
+						final boolean wasPainted = maskCursor.next().get() == 1;
+						if ( wasPainted )
 						{
-							final boolean wasPainted = maskCursor.next().get() > 0;
-							updatedAccess.setValue( i, wasPainted ? label.getIntegerLong() : currentAccess.getValue( i ) );
-						}
-
-					}
-//				targetCellsAccess.get().getData().setDelegate( updatedAccess );
-					currentAccess.setDelegate( updatedAccess );
-//				currentAccess.setValid( true );
-				}
-				else
-				{
-
-					targetCellsAccess.setPosition( cellPosTarget );
-					final Cell< DirtyVolatileDelegateLongAccess > cell = targetCellsAccess.get();
-					final DirtyVolatileDelegateLongAccess currentAccess = cell.getData();
-					if ( currentAccess.getDelegate() instanceof ConstantLongAccess )
-					{
-						final LongArray otherAccess = new LongArray( ( int ) cell.size() );
-						final long v = currentAccess.getValue( 0 );
-						Arrays.fill( otherAccess.getCurrentStorageArray(), v );
-						currentAccess.setDelegate( otherAccess );
-					}
-
-					for ( int i = 0; i < intersectionMins.length; ++i )
-					{
-						final long[] min = intersectionMins[ i ];
-						final long[] max = intersectionMaxs[ i ];
-						LOG.trace( "Upsampling for level {} and intersected intervals ({} {})", level, min, max );
-						final Interval interval = new FinalInterval( min, max );
-						final Cursor< UnsignedLongType > canvasCursor = Views.flatIterable( Views.interval( canvasAtTargetLevel, interval ) ).cursor();
-						final Cursor< UnsignedByteType > maskCursor = Views.flatIterable( Views.interval( Views.raster( scaledMask ), interval ) ).cursor();
-						while ( maskCursor.hasNext() )
-						{
-							canvasCursor.fwd();
-							final boolean wasPainted = maskCursor.next().get() == 1;
-							if ( wasPainted )
-							{
-								canvasCursor.get().set( label );
-							}
+							canvasCursor.get().set( label );
 						}
 					}
 				}
 			}
 
 		}
-	}
-
-	public static TLongSet affectedBlocks( final CellGrid grid, final Interval... intervals )
-	{
-		final long[] gridDimensions = grid.getGridDimensions();
-		final int[] blockSize = new int[ grid.numDimensions() ];
-		grid.cellDimensions( blockSize );
-		return affectedBlocks( gridDimensions, blockSize, intervals );
 	}
 
 	public static TLongSet affectedBlocks( final long[] gridDimensions, final int[] blockSize, final Interval... intervals )
@@ -887,23 +812,6 @@ public class MaskedSource< D extends Type< D >, T extends Type< T > > implements
 		}
 	}
 
-	public static < D extends DelegateLongAccess > void replaceConstantLongAccessDelegate( final Cell< D > cell )
-	{
-		final D access = cell.getData();
-		final LongAccess currentDelegate = access.getDelegate();
-		if ( currentDelegate instanceof ConstantLongAccess )
-		{
-			final int size = ( int ) cell.size();
-			final LongArray updatedAccess = new LongArray( size );
-			final long value = currentDelegate.getValue( 0 );
-			LOG.debug( "Replacing constant long access for cell: {} {} {}, size={}, current value={}", cell.min( 0 ), cell.min( 1 ), cell.min( 2 ), size, value );
-			for ( int i = 0; i < size; ++i )
-				updatedAccess.setValue( i, value );
-			access.setDelegate( updatedAccess );
-			LOG.debug( "Access first 3 values: {} {} {}", access.getValue( 0 ), access.getValue( 1 ), access.getValue( 2 ) );
-		}
-	}
-
 	public static < M extends BooleanType< M >, C extends IntegerType< C > > TLongLongHashMap paintAffectedPixelsAndReturnPixelCountsPerBlock(
 			final RandomAccessible< M > mask,
 			final RandomAccessibleInterval< C > canvas,
@@ -997,7 +905,7 @@ public class MaskedSource< D extends Type< D >, T extends Type< T > > implements
 	private static class CanvasBaseDirChangeListener implements ChangeListener< String >
 	{
 
-		private final CachedCellImg< UnsignedLongType, DirtyVolatileDelegateLongAccess >[] dataCanvases;
+		private final CachedCellImg< UnsignedLongType, ? >[] dataCanvases;
 
 		private final RandomAccessibleInterval< VolatileUnsignedLongType >[] canvases;
 
@@ -1006,7 +914,7 @@ public class MaskedSource< D extends Type< D >, T extends Type< T > > implements
 		private final int[][] blockSizes;
 
 		public CanvasBaseDirChangeListener(
-				final CachedCellImg< UnsignedLongType, DirtyVolatileDelegateLongAccess >[] dataCanvases,
+				final CachedCellImg< UnsignedLongType, ? >[] dataCanvases,
 				final RandomAccessibleInterval< VolatileUnsignedLongType >[] canvases,
 				final long[][] dimensions,
 				final int[][] blockSizes )
@@ -1042,19 +950,10 @@ public class MaskedSource< D extends Type< D >, T extends Type< T > > implements
 							.cacheDirectory( Paths.get( newValue, String.format( "%d", level ) ) )
 							.deleteCacheDirectoryOnExit( false )
 							.cellDimensions( blockSizes[ level ] );
-					final DiskCachedCellImgFactory< UnsignedLongType > f = new DiskCachedCellImgFactory<>(
-							o,
-							( pt, af ) -> DelegateAccessIo.get( pt, af ),
-							( pt, af ) -> n -> DelegateAccesses.getSingleValue( pt, af ),
-							DelegateAccessWrappers::getWrapper );
+					final DiskCachedCellImgFactory< UnsignedLongType > f = new DiskCachedCellImgFactory<>( o );
 					final CellLoader< UnsignedLongType > loader = img -> img.forEach( t -> t.set( Label.INVALID ) );
 					@SuppressWarnings( "unchecked" )
-					final CachedCellImg< UnsignedLongType, DirtyVolatileDelegateLongAccess > store =
-					( CachedCellImg< UnsignedLongType, DirtyVolatileDelegateLongAccess > ) f.create(
-							dimensions[ level ],
-							new UnsignedLongType(),
-							loader,
-							o );
+					final CachedCellImg< UnsignedLongType, ? > store = f.create( dimensions[ level ], new UnsignedLongType(), loader, o );
 					final RandomAccessibleInterval< VolatileUnsignedLongType > vstore = VolatileViews.wrapAsVolatile( store );
 
 					this.dataCanvases[ level ] = store;
