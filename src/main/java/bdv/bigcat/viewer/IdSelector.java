@@ -60,31 +60,31 @@ public class IdSelector
 		this.mode = mode;
 	}
 
-	public InstallAndRemove< Node > selectFragmentWithMaximumCount( final String name, @SuppressWarnings( "unchecked" ) final Predicate< MouseEvent >... eventFilter )
+	public InstallAndRemove< Node > selectFragmentWithMaximumCount( final String name, final Predicate< MouseEvent > eventFilter )
 	{
 		final SelectFragmentWithMaximumCount selectFragment = new SelectFragmentWithMaximumCount();
 		return new MouseClickFX( name, selectFragment::click, eventFilter );
 	}
 
-	public InstallAndRemove< Node > appendFragmentWithMaximumCount( final String name, @SuppressWarnings( "unchecked" ) final Predicate< MouseEvent >... eventFilter )
+	public InstallAndRemove< Node > appendFragmentWithMaximumCount( final String name, final Predicate< MouseEvent > eventFilter )
 	{
 		final AppendFragmentWithMaximumCount appendFragment = new AppendFragmentWithMaximumCount();
 		return new MouseClickFX( name, appendFragment::click, eventFilter );
 	}
 
-	public InstallAndRemove< Node > merge( final String name, @SuppressWarnings( "unchecked" ) final Predicate< MouseEvent >... eventFilter )
+	public InstallAndRemove< Node > merge( final String name, final Predicate< MouseEvent > eventFilter )
 	{
 		final MergeFragments merge = new MergeFragments();
 		return new MouseClickFX( name, merge::click, eventFilter );
 	}
 
-	public InstallAndRemove< Node > detach( final String name, @SuppressWarnings( "unchecked" ) final Predicate< MouseEvent >... eventFilter )
+	public InstallAndRemove< Node > detach( final String name, final Predicate< MouseEvent > eventFilter )
 	{
 		final DetachFragment detach = new DetachFragment();
 		return new MouseClickFX( name, detach::click, eventFilter );
 	}
 
-	public InstallAndRemove< Node > confirm( final String name, @SuppressWarnings( "unchecked" ) final Predicate< MouseEvent >... eventFilter )
+	public InstallAndRemove< Node > confirm( final String name, final Predicate< MouseEvent > eventFilter )
 	{
 		final ConfirmSelection confirmSelection = new ConfirmSelection();
 		return new MouseClickFX( name, confirmSelection::click, eventFilter );

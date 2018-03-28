@@ -46,6 +46,7 @@ import javax.swing.JComponent;
 import javafx.application.Platform;
 import javafx.beans.value.ChangeListener;
 import javafx.geometry.Insets;
+import javafx.scene.Node;
 import javafx.scene.canvas.Canvas;
 import javafx.scene.canvas.GraphicsContext;
 import javafx.scene.image.Image;
@@ -69,7 +70,7 @@ import net.imglib2.ui.TransformListener;
  *
  * @author Tobias Pietzsch
  */
-public class InteractiveDisplayPaneComponent< A > extends StackPane implements InteractiveDisplayCanvasGeneric< A, GraphicsContext, Collection< InstallAndRemove > >
+public class InteractiveDisplayPaneComponent< A > extends StackPane implements InteractiveDisplayCanvasGeneric< A, GraphicsContext, Collection< InstallAndRemove< Node > > >
 {
 
 	private static final long serialVersionUID = -5546719724928785878L;
@@ -232,7 +233,7 @@ public class InteractiveDisplayPaneComponent< A > extends StackPane implements I
 	 *            handler to remove
 	 */
 	@Override
-	public void addHandler( final Collection< InstallAndRemove > h )
+	public void addHandler( final Collection< InstallAndRemove< Node > > h )
 	{
 		h.forEach( i -> i.installInto( this ) );
 	}
@@ -249,7 +250,7 @@ public class InteractiveDisplayPaneComponent< A > extends StackPane implements I
 	 *            handler to remove
 	 */
 	@Override
-	public void removeHandler( final Collection< InstallAndRemove > h )
+	public void removeHandler( final Collection< InstallAndRemove< Node > > h )
 	{
 		h.forEach( i -> i.removeFrom( this ) );
 	}

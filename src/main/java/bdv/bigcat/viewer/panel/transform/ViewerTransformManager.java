@@ -175,8 +175,8 @@ public class ViewerTransformManager implements TransformListener< AffineTransfor
 
 		final TranslateXY translateXY = new TranslateXY(
 				"drag translate",
-				event -> keyTracker.noKeysActive() && event.getButton().equals( MouseButton.SECONDARY ),
-				event -> keyTracker.noKeysActive() && event.getButton().equals( MouseButton.MIDDLE ) );
+				event -> keyTracker.noKeysActive() && event.getButton().equals( MouseButton.SECONDARY )
+						|| keyTracker.noKeysActive() && event.getButton().equals( MouseButton.MIDDLE ) );
 
 		final Rotate[] rotations = {
 				new Rotate( "rotate", rotationSpeed, factors[ 0 ], event -> {
@@ -212,16 +212,16 @@ public class ViewerTransformManager implements TransformListener< AffineTransfor
 				KeyEvent.KEY_PRESSED, EventFX.KEY_PRESSED(
 						"button zoom +",
 						event -> zoomIn.zoom(),
-						event -> keyTracker.areOnlyTheseKeysDown( KeyCode.EQUALS ),
-						event -> keyTracker.areOnlyTheseKeysDown( KeyCode.SHIFT, KeyCode.EQUALS ),
-						event -> keyTracker.areOnlyTheseKeysDown( KeyCode.UP ) ) );
+						event -> keyTracker.areOnlyTheseKeysDown( KeyCode.EQUALS )
+						|| keyTracker.areOnlyTheseKeysDown( KeyCode.SHIFT, KeyCode.EQUALS )
+						|| keyTracker.areOnlyTheseKeysDown( KeyCode.UP ) ) );
 		viewer.addEventHandler(
 				KeyEvent.KEY_PRESSED, EventFX.KEY_PRESSED(
 						"button zoom -",
 						event -> zoomOut.zoom(),
-						event -> keyTracker.areOnlyTheseKeysDown( KeyCode.MINUS ),
-						event -> keyTracker.areOnlyTheseKeysDown( KeyCode.SHIFT, KeyCode.MINUS ),
-						event -> keyTracker.areOnlyTheseKeysDown( KeyCode.DOWN ) ) );
+						event -> keyTracker.areOnlyTheseKeysDown( KeyCode.MINUS )
+						|| keyTracker.areOnlyTheseKeysDown( KeyCode.SHIFT, KeyCode.MINUS )
+						|| keyTracker.areOnlyTheseKeysDown( KeyCode.DOWN ) ) );
 
 		{
 			final TranslateZButton translateForward = new TranslateZButton( translationSpeed.multiply( -factors[ 0 ] ), manager, global, axis, viewer );
@@ -298,8 +298,7 @@ public class ViewerTransformManager implements TransformListener< AffineTransfor
 	private class TranslateXY extends MouseDragFX
 	{
 
-		@SafeVarargs
-		public TranslateXY( final String name, final Predicate< MouseEvent >... eventFilter )
+		public TranslateXY( final String name, final Predicate< MouseEvent > eventFilter )
 		{
 			super( name, eventFilter, global );
 		}
@@ -427,8 +426,7 @@ public class ViewerTransformManager implements TransformListener< AffineTransfor
 
 		private final double factor;
 
-		@SafeVarargs
-		public Rotate( final String name, final DoubleProperty speed, final double factor, final Predicate< MouseEvent >... eventFilter )
+		public Rotate( final String name, final DoubleProperty speed, final double factor, final Predicate< MouseEvent > eventFilter )
 		{
 			super( name, eventFilter, global );
 			this.factor = factor;

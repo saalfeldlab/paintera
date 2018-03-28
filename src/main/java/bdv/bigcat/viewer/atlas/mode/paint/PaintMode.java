@@ -27,9 +27,13 @@ import bdv.bigcat.viewer.state.GlobalTransformManager;
 import bdv.bigcat.viewer.state.SelectedIds;
 import bdv.viewer.Source;
 import javafx.beans.binding.Bindings;
+import javafx.beans.binding.BooleanBinding;
 import javafx.beans.binding.ObjectBinding;
+import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.ObjectProperty;
+import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleDoubleProperty;
+import javafx.scene.Node;
 import javafx.scene.input.KeyCode;
 
 public class PaintMode extends AbstractStateMode
@@ -37,7 +41,7 @@ public class PaintMode extends AbstractStateMode
 
 	private static final Logger LOG = LoggerFactory.getLogger( MethodHandles.lookup().lookupClass() );
 
-	private final HashMap< ViewerPanelFX, Collection< InstallAndRemove > > mouseAndKeyHandlers = new HashMap<>();
+	private final HashMap< ViewerPanelFX, Collection< InstallAndRemove< Node > > > mouseAndKeyHandlers = new HashMap<>();
 
 	private final HashMap< ViewerPanelFX, Paint > painters = new HashMap<>();
 
@@ -55,7 +59,9 @@ public class PaintMode extends AbstractStateMode
 
 	private final Runnable requestRepaint;
 
-	private final boolean paint3D = false;
+	private final BooleanProperty paint3D = new SimpleBooleanProperty( false );
+
+	private final BooleanBinding paint2D = paint3D.not();
 
 	public PaintMode(
 			final SourceInfo sourceInfo,
@@ -118,14 +124,14 @@ public class PaintMode extends AbstractStateMode
 
 					final RestrictPainting restrictor = new RestrictPainting( t, sourceInfo, requestRepaint );
 
-					final List< InstallAndRemove > iars = new ArrayList<>();
+					final List< InstallAndRemove< Node > > iars = new ArrayList<>();
 					iars.add( selector.selectFragmentWithMaximumCount( "toggle single id", event -> event.isPrimaryButtonDown() && keyTracker.activeKeyCount() == 0 ) );
 //					iars.add( EventFX.MOUSE_PRESSED( "paint test", paint::paintTest, event -> event.isPrimaryButtonDown() && keyTracker.areOnlyTheseKeysDown( KeyCode.SPACE ) ) );
 					iars.add( EventFX.KEY_PRESSED( "show brush overlay", event -> paint.showBrushOverlay(), event -> keyTracker.areKeysDown( KeyCode.SPACE ) ) );
 					iars.add( EventFX.KEY_RELEASED( "show brush overlay", event -> paint.hideBrushOverlay(), event -> event.getCode().equals( KeyCode.SPACE ) && !keyTracker.areKeysDown( KeyCode.SPACE ) ) );
 					iars.add( EventFX.SCROLL( "change brush size", event -> paint.changeBrushRadius( event.getDeltaY() ), event -> keyTracker.areOnlyTheseKeysDown( KeyCode.SPACE ) ) );
-					iars.add( paint.paintLabel( "paint", paintSelection::get, event -> event.isPrimaryButtonDown() && keyTracker.areOnlyTheseKeysDown( KeyCode.SPACE ) && paint3D ) );
-					iars.add( paint2D.paintLabel( "paint", paintSelection::get, event -> event.isPrimaryButtonDown() && keyTracker.areOnlyTheseKeysDown( KeyCode.SPACE ) && !paint3D ) );
+					iars.add( paint.paintLabel( "paint", paintSelection::get, event -> event.isPrimaryButtonDown() && keyTracker.areOnlyTheseKeysDown( KeyCode.SPACE ) && this.paint3D.get() ) );
+					iars.add( paint2D.paintLabel( "paint", paintSelection::get, event -> event.isPrimaryButtonDown() && keyTracker.areOnlyTheseKeysDown( KeyCode.SPACE ) && this.paint2D.get() ) );
 					iars.add( paint.paintLabel( "erase canvas", () -> Label.TRANSPARENT, event -> event.isSecondaryButtonDown() && keyTracker.areOnlyTheseKeysDown( KeyCode.SPACE ) ) );
 					iars.add( paint.paintLabel( "erase background", () -> Label.BACKGROUND, event -> event.isSecondaryButtonDown() && keyTracker.areOnlyTheseKeysDown( KeyCode.SPACE, KeyCode.SHIFT ) ) );
 					iars.add( EventFX.MOUSE_PRESSED( "fill", event -> fill.fillAt( event.getX(), event.getY(), paintSelection::get ), event -> event.isPrimaryButtonDown() && keyTracker.areOnlyTheseKeysDown( KeyCode.SHIFT, KeyCode.F ) ) );

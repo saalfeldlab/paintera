@@ -1,6 +1,5 @@
 package bdv.bigcat.viewer.bdvfx;
 
-import java.util.Arrays;
 import java.util.function.Predicate;
 
 import javafx.beans.property.SimpleBooleanProperty;
@@ -25,18 +24,18 @@ public abstract class MouseDragFX implements InstallAndRemove< Node >
 
 	private final String name;
 
-	private final Predicate< MouseEvent >[] eventFilter;
+	private final Predicate< MouseEvent > eventFilter;
 
 	protected final Object transformLock;
 
 	protected final boolean consume;
 
-	public MouseDragFX( final String name, final Predicate< MouseEvent >[] eventFilter, final Object transformLock )
+	public MouseDragFX( final String name, final Predicate< MouseEvent > eventFilter, final Object transformLock )
 	{
 		this( name, eventFilter, false, transformLock );
 	}
 
-	public MouseDragFX( final String name, final Predicate< MouseEvent >[] eventFilter, final boolean consume, final Object transformLock )
+	public MouseDragFX( final String name, final Predicate< MouseEvent > eventFilter, final boolean consume, final Object transformLock )
 	{
 		super();
 		this.name = name;
@@ -93,7 +92,7 @@ public abstract class MouseDragFX implements InstallAndRemove< Node >
 		@Override
 		public void handle( final MouseEvent event )
 		{
-			if ( Arrays.stream( eventFilter ).filter( filter -> filter.test( event ) ).count() > 0 )
+			if ( eventFilter.test( event ) )
 			{
 				startX = event.getX();
 				startY = event.getY();

@@ -1,6 +1,5 @@
 package bdv.bigcat.viewer.bdvfx;
 
-import java.util.Arrays;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
 
@@ -18,20 +17,20 @@ public class MouseClickFX implements InstallAndRemove< Node >
 
 	private final Consumer< MouseEvent > onReleaseConsumer;
 
-	private final Predicate< MouseEvent >[] eventFilters;
+	private final Predicate< MouseEvent > eventFilter;
 
-	public MouseClickFX( final String name, final Consumer< MouseEvent > onReleaseConsumer, final Predicate< MouseEvent >... eventFilters )
+	public MouseClickFX( final String name, final Consumer< MouseEvent > onReleaseConsumer, final Predicate< MouseEvent > eventFilter )
 	{
-		this( name, event -> {}, onReleaseConsumer, eventFilters );
+		this( name, event -> {}, onReleaseConsumer, eventFilter );
 	}
 
-	public MouseClickFX( final String name, final Consumer< MouseEvent > onPressConsumer, final Consumer< MouseEvent > onReleaseConsumer, final Predicate< MouseEvent >... eventFilters )
+	public MouseClickFX( final String name, final Consumer< MouseEvent > onPressConsumer, final Consumer< MouseEvent > onReleaseConsumer, final Predicate< MouseEvent > eventFilters )
 	{
 		super();
 		this.onPressConsumer = onPressConsumer;
 		this.onReleaseConsumer = onReleaseConsumer;
-		this.eventFilters = eventFilters;
-		this.onPress = EventFX.MOUSE_PRESSED( name, this::press, this.eventFilters );
+		this.eventFilter = eventFilters;
+		this.onPress = EventFX.MOUSE_PRESSED( name, this::press, this.eventFilter );
 		this.onRelease = EventFX.MOUSE_RELEASED( name, this::release, event -> true );
 	}
 
@@ -45,7 +44,7 @@ public class MouseClickFX implements InstallAndRemove< Node >
 
 	private boolean testEvent( final MouseEvent event )
 	{
-		return Arrays.stream( eventFilters ).filter( filter -> filter.test( event ) ).count() > 0;
+		return eventFilter.test( event );
 	}
 
 	private void press( final MouseEvent event )

@@ -135,7 +135,7 @@ public class Paint
 			this.brushRadius.set( radius );
 	}
 
-	public MouseDragFX paintLabel( final String name, final Supplier< Long > id, @SuppressWarnings( "unchecked" ) final Predicate< MouseEvent >... eventFilter )
+	public MouseDragFX paintLabel( final String name, final Supplier< Long > id, @SuppressWarnings( "unchecked" ) final Predicate< MouseEvent > eventFilter )
 	{
 		return new PaintDrag( name, eventFilter, true, this, id );
 	}
@@ -296,7 +296,7 @@ public class Paint
 
 		public PaintDrag(
 				final String name,
-				final Predicate< MouseEvent >[] eventFilter,
+				final Predicate< MouseEvent > eventFilter,
 				final boolean consume,
 				final Object transformLock,
 				final Supplier< Long > id )

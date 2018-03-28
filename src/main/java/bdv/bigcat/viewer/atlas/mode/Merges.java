@@ -10,6 +10,7 @@ import bdv.bigcat.viewer.IdSelector;
 import bdv.bigcat.viewer.atlas.source.SourceInfo;
 import bdv.bigcat.viewer.bdvfx.InstallAndRemove;
 import bdv.bigcat.viewer.bdvfx.ViewerPanelFX;
+import javafx.scene.Node;
 import javafx.scene.input.KeyEvent;
 import javafx.scene.input.MouseEvent;
 
@@ -18,7 +19,7 @@ public class Merges extends AbstractStateMode
 
 	private final SourceInfo sourceInfo;
 
-	private final HashMap< ViewerPanelFX, Collection< InstallAndRemove > > mouseAndKeyHandlers = new HashMap<>();
+	private final HashMap< ViewerPanelFX, Collection< InstallAndRemove< Node > > > mouseAndKeyHandlers = new HashMap<>();
 
 	public static String AMBIGUOUS_SELECTION_MESSAGE = "";
 
@@ -40,7 +41,7 @@ public class Merges extends AbstractStateMode
 			if ( !this.mouseAndKeyHandlers.containsKey( t ) )
 			{
 				final IdSelector selector = new IdSelector( t, sourceInfo, this );
-				final List< InstallAndRemove > iars = new ArrayList<>();
+				final List< InstallAndRemove< Node > > iars = new ArrayList<>();
 				iars.add( selector.selectFragmentWithMaximumCount( "toggle single id", event -> event.isPrimaryButtonDown() && noSpecialKeys( event ) ) );
 				iars.add( selector.merge( "merge fragments", event -> event.isPrimaryButtonDown() && shiftOnly( event ) ) );
 				iars.add( selector.detach( "detach", event -> event.isSecondaryButtonDown() && shiftOnly( event ) ) );

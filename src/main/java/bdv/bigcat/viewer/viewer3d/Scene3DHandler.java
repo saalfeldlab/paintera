@@ -34,9 +34,9 @@ public class Scene3DHandler
 
 	private final Viewer3DFX viewer;
 
-	private double centerX = 0;
+	private final double centerX = 0;
 
-	private double centerY = 0;
+	private final double centerY = 0;
 
 	private final Affine initialTransform = new Affine();
 
@@ -88,14 +88,14 @@ public class Scene3DHandler
 			{
 				if ( event.isControlDown() )
 					scrollFactor = scroll > 0 ? 1.01 : 1 / 1.01;
-				else
-					scrollFactor = scroll > 0 ? 2.05 : 1 / 2.05;
+					else
+						scrollFactor = scroll > 0 ? 2.05 : 1 / 2.05;
 			}
 
 			if ( Math.abs( event.getDeltaY() ) > Math.abs( event.getDeltaX() ) )
 			{
 				InvokeOnJavaFXApplicationThread.invoke( () -> {
-						affine.prependScale( scrollFactor, scrollFactor, scrollFactor );
+					affine.prependScale( scrollFactor, scrollFactor, scrollFactor );
 				} );
 
 				event.consume();
@@ -137,8 +137,7 @@ public class Scene3DHandler
 
 		private final Affine affineDragStart = new Affine();
 
-		@SafeVarargs
-		public Rotate( final String name, final DoubleProperty speed, final double factor, final Predicate< MouseEvent >... eventFilter )
+		public Rotate( final String name, final DoubleProperty speed, final double factor, final Predicate< MouseEvent > eventFilter )
 		{
 			super( name, eventFilter, affine );
 			LOG.trace( "rotation" );
@@ -195,8 +194,7 @@ public class Scene3DHandler
 
 	private class TranslateXY extends MouseDragFX
 	{
-		@SafeVarargs
-		public TranslateXY( final String name, final Predicate< MouseEvent >... eventFilter )
+		public TranslateXY( final String name, final Predicate< MouseEvent > eventFilter )
 		{
 			super( name, eventFilter, affine );
 			LOG.trace( "translate" );

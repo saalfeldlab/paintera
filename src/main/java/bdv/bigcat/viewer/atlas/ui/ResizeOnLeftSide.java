@@ -2,7 +2,6 @@ package bdv.bigcat.viewer.atlas.ui;
 
 import java.util.Optional;
 import java.util.function.DoublePredicate;
-import java.util.function.Predicate;
 
 import bdv.bigcat.viewer.bdvfx.MouseDragFX;
 import javafx.beans.property.BooleanProperty;
@@ -55,7 +54,7 @@ public class ResizeOnLeftSide
 		this.maxWidth = maxWidth;
 		this.isWithinMarginOfBorder = isWithinMarginOfBorder;
 
-		this.mouseDragged = new MouseDragFX( "resize", new Predicate[] { event -> isCurrentlyWithinMarginOfBorder.get() }, true, this )
+		this.mouseDragged = new MouseDragFX( "resize", event -> isCurrentlyWithinMarginOfBorder.get(), true, this )
 		{
 
 			@Override
