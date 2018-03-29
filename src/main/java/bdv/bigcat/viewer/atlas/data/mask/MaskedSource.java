@@ -424,16 +424,23 @@ public class MaskedSource< D extends Type< D >, T extends Type< T > > implements
 		{
 			if ( this.canBePersited.get() )
 			{
+				this.isPersisting.set( true );
 				LOG.debug( "Merging canvas into background for blocks {}", this.affectedBlocks );
 				final CachedCellImg< UnsignedLongType, ? > canvas = this.dataCanvases[ 0 ];
 				final long[] affectedBlocks = this.affectedBlocks.toArray();
 				this.affectedBlocks.clear();
 				new Thread( () ->
 				{
-					this.persistCanvas.accept( canvas, affectedBlocks );
-					clearCanvases();
-					synchronized( this ) {
-						this.isPersisting.set( false );
+					try
+					{
+						this.persistCanvas.accept( canvas, affectedBlocks );
+					}
+					finally
+					{
+						clearCanvases();
+						synchronized( this ) {
+							this.isPersisting.set( false );
+						}
 					}
 				} ).start();
 			}
