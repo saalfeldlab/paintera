@@ -298,6 +298,22 @@ public class MaskedSource< D extends Type< D >, T extends Type< T > > implements
 
 		final CellGrid grid = this.dataCanvases[ blocksLevel ].getCellGrid();
 		final CellGrid targetGrid = this.dataCanvases[ targetLevel ].getCellGrid();
+		final double[] toTargetScale = DataSource.getRelativeScales( this, 0, blocksLevel, targetLevel );
+
+		return scaleBlocksToHigherLevel( blocks.toArray(), grid, targetGrid, toTargetScale );
+
+	}
+
+	public static TLongSet scaleBlocksToHigherLevel(
+			final long[] blocks,
+			final CellGrid grid,
+			final CellGrid targetGrid,
+			final double[] relativeFromBlocksToTarget )
+	{
+
+		assert DoubleStream.of( relativeFromBlocksToTarget ).filter( d -> Math.round( d ) != d ).count() == 0;
+		assert DoubleStream.of( relativeFromBlocksToTarget ).filter( d -> d <= 0 ).count() == 0;
+		assert DoubleStream.of( relativeFromBlocksToTarget ).filter( d -> d > 1 ).count() > 0;
 
 		final long[] blockPos = new long[ grid.numDimensions() ];
 		final int[] blockSize = new int[ grid.numDimensions() ];
@@ -312,12 +328,11 @@ public class MaskedSource< D extends Type< D >, T extends Type< T > > implements
 		final int[] ones = IntStream.generate( () -> 1 ).limit( targetGrid.numDimensions() ).toArray();
 		final long[] targetGridDimensions = targetGrid.getGridDimensions();
 
-		final Scale3D toTargetScale = new Scale3D( DataSource.getRelativeScales( this, 0, blocksLevel, targetLevel ) ).inverse();
+		final Scale3D toTargetScale = new Scale3D( relativeFromBlocksToTarget ).inverse();
 
 		final TLongSet targetBlocks = new TLongHashSet();
-		for ( final TLongIterator blockIt = blocks.iterator(); blockIt.hasNext(); )
+		for ( final long blockId : blocks )
 		{
-			final long blockId = blockIt.next();
 			grid.getCellGridPositionFlat( blockId, blockPos );
 			Arrays.setAll( blockMin, d -> blockPos[ d ] * blockSize[ d ] );
 			Arrays.setAll( blockMax, d -> Math.min( blockMin[ d ] + blockSize[ d ], targetGrid.imgDimension( d ) ) );
