@@ -202,8 +202,20 @@ public class MaskedSource< D extends Type< D >, T extends Type< T > > implements
 			final boolean isValid = input.isValid();
 			output.setValid( isValid );
 			if ( isValid )
+			{
 				output.get().set( input.get().get() == 1 ? mask.value : INVALID );
+			}
 		}, new VolatileUnsignedLongType() );
+		final RealRandomAccessible< UnsignedLongType > dMaskInterpolated = Views.interpolate( this.dMasks[ mask.level ], new NearestNeighborInterpolatorFactory<>() );
+		final RealRandomAccessible< VolatileUnsignedLongType > tMaskInterpolated = Views.interpolate( this.tMasks[ mask.level ], new NearestNeighborInterpolatorFactory<>() );
+		for ( int level = 0; level < getNumMipmapLevels(); ++level ) {
+			if ( level != mask.level ) {
+				final double[] scale = DataSource.getRelativeScales( this, 0, mask.level, level );
+				final Scale3D scale3D = new Scale3D( scale );
+				this.dMasks[ level ] = RealViews.affine( dMaskInterpolated, scale3D.inverse() );
+				this.tMasks[ level ] = RealViews.affine( tMaskInterpolated, scale3D.inverse() );
+			}
+		}
 		final AccessedBlocksRandomAccessible< UnsignedByteType > trackingStore = new AccessedBlocksRandomAccessible<>( store, store.getCellGrid() );
 		this.masks.put( trackingStore, mask );
 		return trackingStore;
@@ -237,8 +249,10 @@ public class MaskedSource< D extends Type< D >, T extends Type< T > > implements
 						canvas.getCellGrid(),
 						paintedInterval );
 
-				this.dMasks[ maskInfo.level ] = ConstantUtils.constantRandomAccessible( new UnsignedLongType( Label.INVALID ), NUM_DIMENSIONS );
-				this.dMasks[ maskInfo.level ] = ConstantUtils.constantRandomAccessible( new UnsignedLongType( Label.INVALID ), NUM_DIMENSIONS );
+				for ( int level = 0; level < getNumMipmapLevels(); ++level ) {
+					this.dMasks[ level ] = ConstantUtils.constantRandomAccessible( new UnsignedLongType( Label.INVALID ), NUM_DIMENSIONS );
+					this.tMasks[ level ] = ConstantUtils.constantRandomAccessible( new VolatileUnsignedLongType( Label.INVALID ), NUM_DIMENSIONS );
+				}
 
 				forgetMasks();
 
