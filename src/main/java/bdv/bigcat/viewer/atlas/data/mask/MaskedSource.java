@@ -186,16 +186,6 @@ public class MaskedSource< D extends Type< D >, T extends Type< T > > implements
 		this.tMasks = new RandomAccessible[ this.canvases.length ];
 		this.nextCacheDirectory = nextCacheDirectory;
 
-		for ( int level = 0; level < canvases.length; ++level )
-		{
-			this.dMasks[ level ] = ConstantUtils.constantRandomAccessible( new UnsignedLongType( Label.INVALID ), NUM_DIMENSIONS );
-			final VolatileUnsignedLongType vult = new VolatileUnsignedLongType();
-			vult.get().set( Label.INVALID );
-			this.tMasks[ level ] = ConstantUtils.constantRandomAccessible( vult, NUM_DIMENSIONS );
-		}
-
-
-
 		this.masks = new HashMap<>();
 		this.pacD = pacD;
 		this.pacT = pacT;
@@ -205,6 +195,8 @@ public class MaskedSource< D extends Type< D >, T extends Type< T > > implements
 
 		this.cacheDirectory.addListener( new CanvasBaseDirChangeListener( dataCanvases, canvases, this.dimensions, this.blockSizes ) );
 		this.cacheDirectory.set( initialCacheDirectory );
+
+		setMasksConstant();
 
 	}
 
@@ -236,7 +228,7 @@ public class MaskedSource< D extends Type< D >, T extends Type< T > > implements
 				.cellDimensions( this.blockSizes[ mask.level ] );
 
 		@SuppressWarnings( "unchecked" )
-		final CachedCellImg< UnsignedByteType, ? > store = (CachedCellImg< UnsignedByteType, ? >)new DiskCachedCellImgFactory< UnsignedByteType >( maskOpts )
+		final CachedCellImg< UnsignedByteType, ? > store = ( CachedCellImg< UnsignedByteType, ? > ) new DiskCachedCellImgFactory< UnsignedByteType >( maskOpts )
 		.create( source.getSource( 0, mask.level ), new UnsignedByteType() );
 		final RandomAccessibleInterval< VolatileUnsignedByteType > vstore = VolatileViews.wrapAsVolatile( store );
 		final UnsignedLongType INVALID = new UnsignedLongType( Label.INVALID );
@@ -251,8 +243,10 @@ public class MaskedSource< D extends Type< D >, T extends Type< T > > implements
 		}, new VolatileUnsignedLongType() );
 		final RealRandomAccessible< UnsignedLongType > dMaskInterpolated = Views.interpolate( this.dMasks[ mask.level ], new NearestNeighborInterpolatorFactory<>() );
 		final RealRandomAccessible< VolatileUnsignedLongType > tMaskInterpolated = Views.interpolate( this.tMasks[ mask.level ], new NearestNeighborInterpolatorFactory<>() );
-		for ( int level = 0; level < getNumMipmapLevels(); ++level ) {
-			if ( level != mask.level ) {
+		for ( int level = 0; level < getNumMipmapLevels(); ++level )
+		{
+			if ( level != mask.level )
+			{
 				final double[] scale = DataSource.getRelativeScales( this, 0, mask.level, level );
 				final Scale3D scale3D = new Scale3D( scale );
 				this.dMasks[ level ] = RealViews.affine( dMaskInterpolated, scale3D.inverse() );
@@ -292,11 +286,6 @@ public class MaskedSource< D extends Type< D >, T extends Type< T > > implements
 						canvas.getCellGrid(),
 						paintedInterval );
 
-				for ( int level = 0; level < getNumMipmapLevels(); ++level ) {
-					this.dMasks[ level ] = ConstantUtils.constantRandomAccessible( new UnsignedLongType( Label.INVALID ), NUM_DIMENSIONS );
-					this.tMasks[ level ] = ConstantUtils.constantRandomAccessible( new VolatileUnsignedLongType( Label.INVALID ), NUM_DIMENSIONS );
-				}
-
 				forgetMasks();
 
 				final TLongSet paintedBlocksAtHighestResolution = this.scaleBlocksToLevel( affectedBlocks, maskInfo.level, 0 );
@@ -305,23 +294,33 @@ public class MaskedSource< D extends Type< D >, T extends Type< T > > implements
 
 				this.maskApplyCount.set( this.maskApplyCount.get() + 1 );
 
-				propagationExecutor.submit( () -> propagateMask(
-						mask,
-						affectedBlocks,
-						maskInfo.level,
-						maskInfo.value,
-						paintedInterval ) );
+				propagationExecutor.submit( () -> {
+					propagateMask(
+							mask,
+							affectedBlocks,
+							maskInfo.level,
+							maskInfo.value,
+							paintedInterval );
+					setMasksConstant();
+				} );
 
 			}
 		} ).start();
 
 	}
 
+	private void setMasksConstant()
+	{
+		for ( int level = 0; level < getNumMipmapLevels(); ++level )
+		{
+			this.dMasks[ level ] = ConstantUtils.constantRandomAccessible( new UnsignedLongType( Label.INVALID ), NUM_DIMENSIONS );
+			this.tMasks[ level ] = ConstantUtils.constantRandomAccessible( new VolatileUnsignedLongType( Label.INVALID ), NUM_DIMENSIONS );
+		}
+	}
+
 	private Interval scaleIntervalToLevel( final Interval interval, final int intervalLevel, final int targetLevel )
 	{
-		if ( intervalLevel == targetLevel ) {
-			return interval;
-		}
+		if ( intervalLevel == targetLevel ) { return interval; }
 
 		final double[] min = LongStream.of( Intervals.minAsLongArray( interval ) ).asDoubleStream().toArray();
 		final double[] max = LongStream.of( Intervals.maxAsLongArray( interval ) ).asDoubleStream().map( d -> d + 1 ).toArray();
@@ -338,9 +337,7 @@ public class MaskedSource< D extends Type< D >, T extends Type< T > > implements
 
 	private TLongSet scaleBlocksToLevel( final TLongSet blocks, final int blocksLevel, final int targetLevel )
 	{
-		if ( blocksLevel == targetLevel ) {
-			return blocks;
-		}
+		if ( blocksLevel == targetLevel ) { return blocks; }
 
 		final CellGrid grid = this.dataCanvases[ blocksLevel ].getCellGrid();
 		final CellGrid targetGrid = this.dataCanvases[ targetLevel ].getCellGrid();
@@ -395,9 +392,7 @@ public class MaskedSource< D extends Type< D >, T extends Type< T > > implements
 	private void scalePositionToLevel( final long[] position, final int intervalLevel, final int targetLevel, final long[] targetPosition )
 	{
 		Arrays.setAll( targetPosition, d -> position[ d ] );
-		if ( intervalLevel == targetLevel ) {
-			return;
-		}
+		if ( intervalLevel == targetLevel ) { return; }
 
 		final double[] positionDouble = LongStream.of( position ).asDoubleStream().toArray();
 
@@ -429,8 +424,7 @@ public class MaskedSource< D extends Type< D >, T extends Type< T > > implements
 				final CachedCellImg< UnsignedLongType, ? > canvas = this.dataCanvases[ 0 ];
 				final long[] affectedBlocks = this.affectedBlocks.toArray();
 				this.affectedBlocks.clear();
-				new Thread( () ->
-				{
+				new Thread( () -> {
 					try
 					{
 						this.persistCanvas.accept( canvas, affectedBlocks );
@@ -438,7 +432,8 @@ public class MaskedSource< D extends Type< D >, T extends Type< T > > implements
 					finally
 					{
 						clearCanvases();
-						synchronized( this ) {
+						synchronized ( this )
+						{
 							this.isPersisting.set( false );
 						}
 					}
@@ -902,7 +897,8 @@ public class MaskedSource< D extends Type< D >, T extends Type< T > > implements
 			final long blockId = blockIt.next();
 			IntervalIndexer.indexToPosition( blockId, gridDimensions, gridPosition );
 
-			for ( int d = 0; d < currentMin.length; ++d ) {
+			for ( int d = 0; d < currentMin.length; ++d )
+			{
 				final long m = gridPosition[ d ] * blockSize[ d ];
 				final long M = Math.min( m + blockSize[ d ] - 1, canvas.max( d ) );
 				currentMin[ d ] = Math.max( m, intervalMin[ d ] );
@@ -924,7 +920,6 @@ public class MaskedSource< D extends Type< D >, T extends Type< T > > implements
 			}
 
 		}
-
 
 	}
 
@@ -949,9 +944,7 @@ public class MaskedSource< D extends Type< D >, T extends Type< T > > implements
 	{
 		for ( int d = 0; d < min.length; ++d )
 		{
-			if ( max[ d ] < min[ d ] ) {
-				return false;
-			}
+			if ( max[ d ] < min[ d ] ) { return false; }
 		}
 		return true;
 	}
