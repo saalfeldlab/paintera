@@ -265,12 +265,13 @@ public class MaskedSource< D extends Type< D >, T extends Type< T > > implements
 			return interval;
 
 		final double[] min = LongStream.of( Intervals.minAsLongArray( interval ) ).asDoubleStream().toArray();
-		final double[] max = LongStream.of( Intervals.maxAsLongArray( interval ) ).asDoubleStream().toArray();
+		final double[] max = LongStream.of( Intervals.maxAsLongArray( interval ) ).asDoubleStream().map( d -> d + 1 ).toArray();
 
 		final Scale3D toTargetScale = new Scale3D( DataSource.getRelativeScales( this, 0, intervalLevel, targetLevel ) ).inverse();
 
 		toTargetScale.apply( min, min );
 		toTargetScale.apply( max, max );
+		Arrays.setAll( max, d -> Math.ceil( max[ d ] ) - 1 );
 
 		return Intervals.smallestContainingInterval( new FinalRealInterval( min, max ) );
 
