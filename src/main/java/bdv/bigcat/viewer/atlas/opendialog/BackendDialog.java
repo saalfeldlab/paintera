@@ -48,7 +48,9 @@ public interface BackendDialog
 	{
 		final DoubleProperty[] res = resolution();
 		for ( int i = 0; i < res.length; ++i )
+		{
 			res[ i ].set( resolution[ i ] );
+		}
 	}
 
 	public DoubleProperty[] offset();
@@ -57,7 +59,9 @@ public interface BackendDialog
 	{
 		final DoubleProperty[] off = offset();
 		for ( int i = 0; i < off.length; ++i )
+		{
 			off[ i ].set( offset[ i ] );
+		}
 	}
 
 	public default DoubleProperty min()

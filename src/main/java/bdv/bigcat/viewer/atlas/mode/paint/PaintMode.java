@@ -15,6 +15,7 @@ import org.slf4j.LoggerFactory;
 
 import bdv.bigcat.label.Label;
 import bdv.bigcat.viewer.IdSelector;
+import bdv.bigcat.viewer.atlas.data.mask.CannotPersist;
 import bdv.bigcat.viewer.atlas.data.mask.MaskedSource;
 import bdv.bigcat.viewer.atlas.mode.AbstractStateMode;
 import bdv.bigcat.viewer.atlas.source.SourceInfo;
@@ -156,7 +157,14 @@ public class PaintMode extends AbstractStateMode
 						{
 							LOG.debug( "Merging canvas for source {}", cs );
 							final MaskedSource< ?, ? > mcs = ( MaskedSource< ?, ? > ) cs;
-							mcs.mergeCanvasIntoBackground();
+							try
+							{
+								mcs.persistCanvas();
+							}
+							catch ( final CannotPersist e )
+							{
+								LOG.warn( "Could not persist canvas. Try again later." );
+							}
 						}
 						event.consume();
 					}, event -> keyTracker.areOnlyTheseKeysDown( KeyCode.SHIFT, KeyCode.M ) ) );

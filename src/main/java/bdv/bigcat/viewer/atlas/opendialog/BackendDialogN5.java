@@ -373,6 +373,7 @@ public class BackendDialogN5 extends BackendDialogGroupAndDataset implements Com
 	public static void discoverSubdirectories( final N5Reader n5, final String pathName, final Collection< String > datasets, final Runnable onInterruption )
 	{
 		if ( !Thread.currentThread().isInterrupted() )
+		{
 			try
 		{
 				final String[] groups = n5.list( pathName );
@@ -381,21 +382,29 @@ public class BackendDialogN5 extends BackendDialogGroupAndDataset implements Com
 				{
 					final String absolutePathName = pathName + "/" + group;
 					if ( n5.datasetExists( absolutePathName ) )
+					{
 						datasets.add( absolutePathName );
+					}
 					else
 					{
 						final String[] scales = n5.list( absolutePathName );
 						boolean isMipmapGroup = scales.length > 0;
 						for ( final String scale : scales )
+						{
 							if ( !( scale.matches( "^s[0-9]+$" ) && n5.datasetExists( absolutePathName + "/" + scale ) ) )
 							{
 								isMipmapGroup = false;
 								break;
 							}
+						}
 						if ( isMipmapGroup )
+						{
 							datasets.add( absolutePathName );
+						}
 						else
+						{
 							discoverSubdirectories( n5, absolutePathName, datasets, onInterruption );
+						}
 					}
 				}
 		}
@@ -403,8 +412,11 @@ public class BackendDialogN5 extends BackendDialogGroupAndDataset implements Com
 		{
 			e.printStackTrace();
 		}
+		}
 		else
+		{
 			onInterruption.run();
+		}
 	}
 
 	public static String[] listScaleDatasets( final N5Reader n5, final String group ) throws IOException
@@ -448,8 +460,9 @@ public class BackendDialogN5 extends BackendDialogGroupAndDataset implements Com
 
 	public String getAttributesContainingPath( final N5Reader reader, final String basePath ) throws IOException
 	{
-		if ( reader.datasetExists( basePath ) )
+		if ( reader.datasetExists( basePath ) ) {
 			return basePath;
+		}
 		final String[] scaleDirs = listAndSortScaleDatasets( reader, basePath );
 		LOG.debug( "Got the following scale dirs: {}", Arrays.toString( scaleDirs ) );
 		return basePath + "/" + scaleDirs[ 0 ];
@@ -474,12 +487,18 @@ public class BackendDialogN5 extends BackendDialogGroupAndDataset implements Com
 					actualMaxId = maxIdLabelMultiset( n5, dataset );
 				}
 				else if ( isIntegerType() )
+				{
 					actualMaxId = maxId( n5, dataset );
-				else// TODO deal with LabelMultisetType here
+				}
+				else
+				{
 					return null;
+				}
 			}
 			else
+			{
 				actualMaxId = maxId;
+			}
 			return new N5IdService( n5, dataset, actualMaxId );
 
 		}
@@ -493,7 +512,9 @@ public class BackendDialogN5 extends BackendDialogGroupAndDataset implements Com
 	{
 		final String ds;
 		if ( n5.datasetExists( dataset ) )
+		{
 			ds = dataset;
+		}
 		else
 		{
 			final String[] scaleDirs = listAndSortScaleDatasets( n5, dataset );
@@ -502,7 +523,9 @@ public class BackendDialogN5 extends BackendDialogGroupAndDataset implements Com
 		final RandomAccessibleInterval< T > data = N5Utils.open( n5, ds );
 		long maxId = 0;
 		for ( final T label : Views.flatIterable( data ) )
+		{
 			maxId = IdService.max( label.getIntegerLong(), maxId );
+		}
 		return maxId;
 	}
 
@@ -510,7 +533,9 @@ public class BackendDialogN5 extends BackendDialogGroupAndDataset implements Com
 	{
 		final String ds;
 		if ( n5.datasetExists( dataset ) )
+		{
 			ds = dataset;
+		}
 		else
 		{
 			final String[] scaleDirs = listAndSortScaleDatasets( n5, dataset );
@@ -527,9 +552,15 @@ public class BackendDialogN5 extends BackendDialogGroupAndDataset implements Com
 				new VolatileLabelMultisetArray( 0, true ) );
 		long maxId = 0;
 		for ( final Cell< VolatileLabelMultisetArray > cell : Views.iterable( data.getCells() ) )
+		{
 			for ( final long id : cell.getData().containedLabels() )
+			{
 				if ( id > maxId )
+				{
 					maxId = id;
+				}
+			}
+		}
 		return maxId;
 	}
 
@@ -549,6 +580,11 @@ public class BackendDialogN5 extends BackendDialogGroupAndDataset implements Com
 
 				final String highestResolutionDataset = isMultiscale ? Paths.get( dataset, listAndSortScaleDatasets( n5, dataset )[ 0 ] ).toString() : dataset;
 
+				if ( !Optional.ofNullable( n5.getAttribute( highestResolutionDataset, LABEL_MULTISETTYPE_KEY, Boolean.class ) ).orElse( false ) ) 
+				{
+					throw new RuntimeException( "Only label multiset type accepted currently!" );
+				}
+
 				final DatasetAttributes highestResolutionAttributes = n5.getDatasetAttributes( highestResolutionDataset );
 				final CellGrid highestResolutionGrid = new CellGrid( highestResolutionAttributes.getDimensions(), highestResolutionAttributes.getBlockSize() );
 
@@ -567,7 +603,7 @@ public class BackendDialogN5 extends BackendDialogGroupAndDataset implements Com
 
 				final RandomAccessibleInterval< LabelMultisetType > highestResolutionData = LabelUtils.openVolatile( n5, highestResolutionDataset );
 
-				LOG.debug( "Persisting cavnas with grid={} into background with grid={}", canvasGrid, highestResolutionGrid );
+				LOG.debug( "Persisting canvas with grid={} into background with grid={}", canvasGrid, highestResolutionGrid );
 
 				for ( final long blockId : blocks )
 				{
@@ -607,7 +643,9 @@ public class BackendDialogN5 extends BackendDialogGroupAndDataset implements Com
 								return p.getB();
 							}
 							else
+							{
 								return a;
+							}
 						}
 
 					};
@@ -793,7 +831,9 @@ public class BackendDialogN5 extends BackendDialogGroupAndDataset implements Com
 		final ArrayImg< T, ? > intervalCopy = new ArrayImgFactory< T >().create( Intervals.dimensionsAsLongArray( blockAlignedInterval ), Util.getTypeFromInterval( labels ).createVariable() );
 
 		for ( Cursor< T > s = Views.flatIterable( Views.interval( labels, blockAlignedInterval ) ).cursor(), t = Views.flatIterable( intervalCopy ).cursor(); s.hasNext(); )
+		{
 			t.next().set( s.next() );
+		}
 
 		final Cursor< UnsignedLongType > s = Views.flatIterable( canvas ).cursor();
 		final Cursor< T > t = Views.flatIterable( Views.interval( Views.translate( intervalCopy, blockAlignedMin ), canvas ) ).cursor();
@@ -802,12 +842,16 @@ public class BackendDialogN5 extends BackendDialogGroupAndDataset implements Com
 			final long label = s.next().get();
 			t.fwd();
 			if ( Label.regular( label ) )
+			{
 				t.get().setInteger( label );
+			}
 		}
 
 		final long[] gridOffset = new long[ intervalCopy.numDimensions() ];
 		for ( int d = 0; d < gridOffset.length; ++d )
+		{
 			gridOffset[ d ] = blockAlignedMin[ d ] / blockSize[ d ];
+		}
 
 		N5Utils.saveBlock( Views.translate( intervalCopy, blockAlignedMin ), n5, dataset, gridOffset );
 

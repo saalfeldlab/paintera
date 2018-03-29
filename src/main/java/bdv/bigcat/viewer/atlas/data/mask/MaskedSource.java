@@ -28,9 +28,16 @@ import gnu.trove.iterator.TLongLongIterator;
 import gnu.trove.map.hash.TLongLongHashMap;
 import gnu.trove.set.TLongSet;
 import gnu.trove.set.hash.TLongHashSet;
+import javafx.beans.binding.Bindings;
+import javafx.beans.binding.BooleanBinding;
+import javafx.beans.property.BooleanProperty;
+import javafx.beans.property.IntegerProperty;
+import javafx.beans.property.SimpleBooleanProperty;
+import javafx.beans.property.SimpleIntegerProperty;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.beans.property.StringProperty;
 import javafx.beans.value.ChangeListener;
+import javafx.beans.value.ObservableBooleanValue;
 import javafx.beans.value.ObservableValue;
 import mpicbg.spim.data.sequence.VoxelDimensions;
 import net.imglib2.Cursor;
@@ -104,7 +111,7 @@ public class MaskedSource< D extends Type< D >, T extends Type< T > > implements
 	// TODO make sure that BB is handled properly in multi scale case!!!
 	private final TLongSet affectedBlocks = new TLongHashSet();
 
-	private final BiConsumer< CachedCellImg< UnsignedLongType, ? >, long[] > mergeCanvasToBackground;
+	private final BiConsumer< CachedCellImg< UnsignedLongType, ? >, long[] > persistCanvas;
 
 	private final StringProperty cacheDirectory = new SimpleStringProperty();
 
@@ -114,6 +121,33 @@ public class MaskedSource< D extends Type< D >, T extends Type< T > > implements
 
 	private final int[][] blockSizes;
 
+	private final BooleanProperty isMaskDeployed = new SimpleBooleanProperty( false );
+
+	private final IntegerProperty maskApplyCount = new SimpleIntegerProperty( 0 );
+
+	private final BooleanBinding noMasksCurrentlyApplied = maskApplyCount.isEqualTo( 0 );
+
+	private final BooleanBinding atLeastOnMaskeIsCurrentlyApplied = noMasksCurrentlyApplied.not();
+
+	private final BooleanBinding maskApplyCountIsInconsistent = maskApplyCount.lessThan( 0 );
+
+	private final BooleanProperty isPersisting = new SimpleBooleanProperty( false );
+
+	private final ObservableBooleanValue isMaskNotDeployed = isMaskDeployed.not();
+
+	private final ObservableBooleanValue isNotPersisting = isPersisting.not();
+
+	private final ObservableBooleanValue canBePersited = Bindings.createBooleanBinding(
+			() -> isMaskNotDeployed.get() && isNotPersisting.get() && noMasksCurrentlyApplied.get(),
+			isNotPersisting,
+			isMaskNotDeployed,
+			maskApplyCount );
+
+	private final ObservableBooleanValue canGenerateMask = Bindings.createBooleanBinding(
+			() -> isNotPersisting.get() && isMaskNotDeployed.get(),
+			isNotPersisting,
+			isMaskNotDeployed );
+
 	public MaskedSource(
 			final DataSource< D, T > source,
 			final int[][] blockSizes,
@@ -122,9 +156,9 @@ public class MaskedSource< D extends Type< D >, T extends Type< T > > implements
 			final PickAndConvert< T, VolatileUnsignedLongType, VolatileUnsignedLongType, T > pacT,
 			final D extensionD,
 			final T extensionT,
-			final BiConsumer< CachedCellImg< UnsignedLongType, ? >, long[] > mergeCanvasToBackground )
+			final BiConsumer< CachedCellImg< UnsignedLongType, ? >, long[] > persistCanvas )
 	{
-		this( source, blockSizes, nextCacheDirectory, nextCacheDirectory.get(), pacD, pacT, extensionD, extensionT, mergeCanvasToBackground );
+		this( source, blockSizes, nextCacheDirectory, nextCacheDirectory.get(), pacD, pacT, extensionD, extensionT, persistCanvas );
 	}
 
 	@SuppressWarnings( "unchecked" )
@@ -137,7 +171,7 @@ public class MaskedSource< D extends Type< D >, T extends Type< T > > implements
 			final PickAndConvert< T, VolatileUnsignedLongType, VolatileUnsignedLongType, T > pacT,
 			final D extensionD,
 			final T extensionT,
-			final BiConsumer< CachedCellImg< UnsignedLongType, ? >, long[] > mergeCanvasToBackground )
+			final BiConsumer< CachedCellImg< UnsignedLongType, ? >, long[] > persistCanvas )
 	{
 		super();
 		this.source = source;
@@ -167,7 +201,7 @@ public class MaskedSource< D extends Type< D >, T extends Type< T > > implements
 		this.pacT = pacT;
 		this.extensionT = extensionT;
 		this.extensionD = extensionD;
-		this.mergeCanvasToBackground = mergeCanvasToBackground;
+		this.persistCanvas = persistCanvas;
 
 		this.cacheDirectory.addListener( new CanvasBaseDirChangeListener( dataCanvases, canvases, this.dimensions, this.blockSizes ) );
 		this.cacheDirectory.set( initialCacheDirectory );
@@ -182,6 +216,17 @@ public class MaskedSource< D extends Type< D >, T extends Type< T > > implements
 	public RandomAccessibleInterval< UnsignedByteType > generateMask( final MaskInfo< UnsignedLongType > mask ) throws MaskInUse
 	{
 
+		synchronized ( this )
+		{
+
+			if ( !canGenerateMask.get() )
+			{
+				LOG.error( "Currently processing, cannot generate new mask: persisting? {} mask in use? {}", isPersisting.get(), isMaskDeployed.get() );
+				throw new MaskInUse( "Busy, cannot generate new mask." );
+			}
+			this.isMaskDeployed.set( true );
+		}
+
 		final DiskCachedCellImgOptions maskOpts = DiskCachedCellImgOptions
 				.options()
 				.cacheDirectory( null )
@@ -190,8 +235,6 @@ public class MaskedSource< D extends Type< D >, T extends Type< T > > implements
 				.dirtyAccesses( true )
 				.cellDimensions( this.blockSizes[ mask.level ] );
 
-		if ( this.masks.size() > 0 )
-			throw new MaskInUse( "Cannot generate new mask: current mask has not been submitted yet." );
 		@SuppressWarnings( "unchecked" )
 		final CachedCellImg< UnsignedByteType, ? > store = (CachedCellImg< UnsignedByteType, ? >)new DiskCachedCellImgFactory< UnsignedByteType >( maskOpts )
 		.create( source.getSource( 0, mask.level ), new UnsignedByteType() );
@@ -224,13 +267,13 @@ public class MaskedSource< D extends Type< D >, T extends Type< T > > implements
 	public void applyMask( final RandomAccessibleInterval< UnsignedByteType > mask, final Interval paintedInterval )
 	{
 		new Thread( () -> {
-			synchronized ( this.masks )
+			synchronized ( this )
 			{
 				LOG.debug( "Applying mask: {}", mask, paintedInterval );
 				final MaskInfo< UnsignedLongType > maskInfo = this.masks.get( mask );
 				if ( maskInfo == null )
 				{
-					LOG.warn( "Did not pass valid mask {}", mask );
+					LOG.warn( "Did not pass valid mask {}, will not do anything", mask );
 					return;
 				}
 				final CachedCellImg< UnsignedLongType, ? > canvas = dataCanvases[ maskInfo.level ];
@@ -258,6 +301,10 @@ public class MaskedSource< D extends Type< D >, T extends Type< T > > implements
 
 				final TLongSet paintedBlocksAtHighestResolution = this.scaleBlocksToLevel( affectedBlocks, maskInfo.level, 0 );
 
+				this.affectedBlocks.addAll( paintedBlocksAtHighestResolution );
+
+				this.maskApplyCount.set( this.maskApplyCount.get() + 1 );
+
 				propagationExecutor.submit( () -> propagateMask(
 						mask,
 						affectedBlocks,
@@ -265,9 +312,6 @@ public class MaskedSource< D extends Type< D >, T extends Type< T > > implements
 						maskInfo.value,
 						paintedInterval ) );
 
-				// TODO make correct painted bounding box for multi scale
-				// TODO update canvases in other scale levels
-				this.affectedBlocks.addAll( paintedBlocksAtHighestResolution );
 			}
 		} ).start();
 
@@ -275,8 +319,9 @@ public class MaskedSource< D extends Type< D >, T extends Type< T > > implements
 
 	private Interval scaleIntervalToLevel( final Interval interval, final int intervalLevel, final int targetLevel )
 	{
-		if ( intervalLevel == targetLevel )
+		if ( intervalLevel == targetLevel ) {
 			return interval;
+		}
 
 		final double[] min = LongStream.of( Intervals.minAsLongArray( interval ) ).asDoubleStream().toArray();
 		final double[] max = LongStream.of( Intervals.maxAsLongArray( interval ) ).asDoubleStream().map( d -> d + 1 ).toArray();
@@ -293,8 +338,9 @@ public class MaskedSource< D extends Type< D >, T extends Type< T > > implements
 
 	private TLongSet scaleBlocksToLevel( final TLongSet blocks, final int blocksLevel, final int targetLevel )
 	{
-		if ( blocksLevel == targetLevel )
+		if ( blocksLevel == targetLevel ) {
 			return blocks;
+		}
 
 		final CellGrid grid = this.dataCanvases[ blocksLevel ].getCellGrid();
 		final CellGrid targetGrid = this.dataCanvases[ targetLevel ].getCellGrid();
@@ -349,8 +395,9 @@ public class MaskedSource< D extends Type< D >, T extends Type< T > > implements
 	private void scalePositionToLevel( final long[] position, final int intervalLevel, final int targetLevel, final long[] targetPosition )
 	{
 		Arrays.setAll( targetPosition, d -> position[ d ] );
-		if ( intervalLevel == targetLevel )
+		if ( intervalLevel == targetLevel ) {
 			return;
+		}
 
 		final double[] positionDouble = LongStream.of( position ).asDoubleStream().toArray();
 
@@ -364,20 +411,42 @@ public class MaskedSource< D extends Type< D >, T extends Type< T > > implements
 
 	public void forgetMasks()
 	{
-		synchronized ( this.masks )
+		synchronized ( this )
 		{
 			this.masks.clear();
+			this.isMaskDeployed.set( false );
 		}
 	}
 
-	public void mergeCanvasIntoBackground()
+	public void persistCanvas() throws CannotPersist
 	{
-		LOG.debug( "Merging canvas into background for blocks {}", this.affectedBlocks );
-		final CachedCellImg< UnsignedLongType, ? > canvas = this.dataCanvases[ 0 ];
-		final long[] affectedBlocks = this.affectedBlocks.toArray();
-		this.affectedBlocks.clear();
-		this.mergeCanvasToBackground.accept( canvas, affectedBlocks );
-		clearCanvases();
+		synchronized ( this )
+		{
+			if ( this.canBePersited.get() )
+			{
+				LOG.debug( "Merging canvas into background for blocks {}", this.affectedBlocks );
+				final CachedCellImg< UnsignedLongType, ? > canvas = this.dataCanvases[ 0 ];
+				final long[] affectedBlocks = this.affectedBlocks.toArray();
+				this.affectedBlocks.clear();
+				new Thread( () ->
+				{
+					this.persistCanvas.accept( canvas, affectedBlocks );
+					clearCanvases();
+					synchronized( this ) {
+						this.isPersisting.set( false );
+					}
+				} ).start();
+			}
+			else
+			{
+				LOG.error(
+						"Cannot persist canvas: is persiting? {} has mask? {} applying {} masks",
+						isPersisting.get(),
+						this.isMaskDeployed.get(),
+						this.maskApplyCount.get() );
+				throw new CannotPersist( "Can not persist canvas!" );
+			}
+		}
 	}
 
 	@Override
@@ -547,9 +616,13 @@ public class MaskedSource< D extends Type< D >, T extends Type< T > > implements
 				{
 					sourceAccess.fwd( dim );
 					if ( sourceAccess.getLongPosition( dim ) < stop[ dim ] )
+					{
 						break;
+					}
 					else
+					{
 						sourceAccess.setPosition( start[ dim ], dim );
+					}
 				}
 			}
 
@@ -671,7 +744,9 @@ public class MaskedSource< D extends Type< D >, T extends Type< T > > implements
 							maxPainted );
 
 					if ( Intervals.numElements( relevantBlockAtPaintedResolution ) == 0 )
+					{
 						continue;
+					}
 
 					LOG.debug( "Upsampling for level {} and intersected intervals ({} {})", level, intersectionMin, intersectionMax );
 					final Interval interval = new FinalInterval( intersectionMin, intersectionMax );
@@ -689,6 +764,11 @@ public class MaskedSource< D extends Type< D >, T extends Type< T > > implements
 				}
 			}
 
+		}
+
+		synchronized ( this )
+		{
+			this.maskApplyCount.set( Math.max( this.maskApplyCount.get() - 1, 0 ) );
 		}
 	}
 
@@ -862,8 +942,9 @@ public class MaskedSource< D extends Type< D >, T extends Type< T > > implements
 	{
 		for ( int d = 0; d < min.length; ++d )
 		{
-			if ( max[ d ] < min[ d ] )
+			if ( max[ d ] < min[ d ] ) {
 				return false;
+			}
 		}
 		return true;
 	}
@@ -923,7 +1004,6 @@ public class MaskedSource< D extends Type< D >, T extends Type< T > > implements
 							.cellDimensions( blockSizes[ level ] );
 					final DiskCachedCellImgFactory< UnsignedLongType > f = new DiskCachedCellImgFactory<>( o );
 					final CellLoader< UnsignedLongType > loader = img -> img.forEach( t -> t.set( Label.INVALID ) );
-					@SuppressWarnings( "unchecked" )
 					final CachedCellImg< UnsignedLongType, ? > store = f.create( dimensions[ level ], new UnsignedLongType(), loader, o );
 					final RandomAccessibleInterval< VolatileUnsignedLongType > vstore = VolatileViews.wrapAsVolatile( store );
 
