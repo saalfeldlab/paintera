@@ -8,12 +8,10 @@ import java.util.Optional;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.function.BiConsumer;
-import java.util.function.Consumer;
 import java.util.function.Supplier;
 import java.util.stream.DoubleStream;
 import java.util.stream.IntStream;
 import java.util.stream.LongStream;
-import java.util.stream.Stream;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -25,10 +23,8 @@ import bdv.img.AccessedBlocksRandomAccessible;
 import bdv.net.imglib2.view.RandomAccessibleTriple;
 import bdv.util.volatiles.VolatileViews;
 import bdv.viewer.Interpolation;
-import gnu.trove.TLongCollection;
 import gnu.trove.iterator.TLongIterator;
 import gnu.trove.iterator.TLongLongIterator;
-import gnu.trove.map.TLongLongMap;
 import gnu.trove.map.hash.TLongLongHashMap;
 import gnu.trove.set.TLongSet;
 import gnu.trove.set.hash.TLongHashSet;
@@ -233,7 +229,7 @@ public class MaskedSource< D extends Type< D >, T extends Type< T > > implements
 
 				final TLongSet affectedBlocks = affectedBlocks( mask, canvas.getCellGrid(), paintedInterval );
 
-				final TLongLongHashMap paintedPixelCountPerBlock = paintAffectedPixelsAndReturnPixelCountsPerBlock(
+				paintAffectedPixels(
 						affectedBlocks,
 						Converters.convert( Views.extendZero( mask ), ( s, t ) -> t.set( s.get() == 1 ), new BitType() ),
 						canvas,
@@ -241,19 +237,16 @@ public class MaskedSource< D extends Type< D >, T extends Type< T > > implements
 						canvas.getCellGrid(),
 						paintedInterval );
 
-				final TLongSet completelyPaintedBlocks = getCompletelyPaintedBlocks( paintedPixelCountPerBlock, ( int ) Intervals.numElements( blockSize ) );
-
 				this.dMasks[ maskInfo.level ] = ConstantUtils.constantRandomAccessible( new UnsignedLongType( Label.INVALID ), NUM_DIMENSIONS );
 				this.dMasks[ maskInfo.level ] = ConstantUtils.constantRandomAccessible( new UnsignedLongType( Label.INVALID ), NUM_DIMENSIONS );
 
 				forgetMasks();
 
-				final TLongSet paintedBlocksAtHighestResolution = this.scaleBlocksToLevel( paintedPixelCountPerBlock.keySet(), maskInfo.level, 0 );
+				final TLongSet paintedBlocksAtHighestResolution = this.scaleBlocksToLevel( affectedBlocks, maskInfo.level, 0 );
 
 				propagationExecutor.submit( () -> propagateMask(
 						mask,
-						paintedPixelCountPerBlock.keySet(),
-						completelyPaintedBlocks,
+						affectedBlocks,
 						maskInfo.level,
 						maskInfo.value,
 						paintedInterval ) );
@@ -264,14 +257,6 @@ public class MaskedSource< D extends Type< D >, T extends Type< T > > implements
 			}
 		} ).start();
 
-	}
-
-	private Interval[] scaleIntervalsToLevel( final int intervalLevel, final int targetLevel, final Interval... intervals )
-	{
-		return Stream
-				.of( intervals )
-				.map( interval -> scaleIntervalToLevel( interval, intervalLevel, targetLevel ) )
-				.toArray( Interval[]::new );
 	}
 
 	private Interval scaleIntervalToLevel( final Interval interval, final int intervalLevel, final int targetLevel )
@@ -569,28 +554,9 @@ public class MaskedSource< D extends Type< D >, T extends Type< T > > implements
 		}
 	}
 
-	public static < T extends IntegerType< T > > void upsample(
-			final RandomAccessible< ? extends BooleanType< ? > > source,
-					final RandomAccessibleInterval< T > target,
-					final double[] scaleSourceToTarget, final T value )
-	{
-		LOG.debug( "Upsampling ({} {}) with scale from source to target {}", Intervals.minAsLongArray( target ), Intervals.maxAsLongArray( target ), scaleSourceToTarget );
-		final RandomAccessibleInterval< ? extends BooleanType< ? > > scaledSource = Views.interval( Views.raster( RealViews.transform( Views.interpolate( source, new NearestNeighborInterpolatorFactory<>() ), new Scale3D( scaleSourceToTarget ) ) ), target );
-		final Cursor< T > targetCursor = Views.flatIterable( target ).cursor();
-		final Cursor< ? extends BooleanType< ? > > sourceCursor = Views.flatIterable( scaledSource ).cursor();
-		for ( ; targetCursor.hasNext(); )
-		{
-			targetCursor.fwd();
-			final BooleanType< ? > s = sourceCursor.next();
-			if ( s.get() )
-				targetCursor.get().set( value );
-		}
-	}
-
 	private void propagateMask(
 			final RandomAccessibleInterval< UnsignedByteType > mask,
 			final TLongSet paintedBlocksAtPaintedScale,
-			final TLongSet completelyPaintedBlocksAtPaintedScale,
 			final int paintedLevel,
 			final UnsignedLongType label,
 			final Interval intervalAtPaintedScale )
@@ -805,46 +771,7 @@ public class MaskedSource< D extends Type< D >, T extends Type< T > > implements
 		return blocksInHighRes;
 	}
 
-	public static boolean blockWasAllPainted(
-			final RandomAccessible< ? extends BooleanType< ? > > mask,
-					final long[] min,
-					final long[] max,
-					final int[] scaleFactors )
-	{
-		final long[] scaledMin = min.clone();
-		final long[] scaledMax = max.clone();
-		Arrays.setAll( scaledMin, d -> min[ d ] * scaleFactors[ d ] );
-		Arrays.setAll( scaledMax, d -> ( max[ d ] + 1 ) * scaleFactors[ d ] - 1 );
-		return isAllTrue( Views.interval( mask, scaledMin, scaledMax ) );
-	}
-
-	public static boolean isAllTrue(
-			final RandomAccessibleInterval< ? extends BooleanType< ? > > interval )
-	{
-		for ( final BooleanType< ? > val : Views.iterable( interval ) )
-			if ( !val.get() )
-				return false;
-		return true;
-	}
-
-	public static < A > void forEachBlock(
-			final TLongCollection affectedBlocks,
-			final CellGrid grid,
-			final RandomAccess< Cell< A > > cellsAccess,
-			final Consumer< Cell< A > > action )
-	{
-		final long[] gridPosition = new long[ grid.numDimensions() ];
-		for ( final TLongIterator blockIterator = affectedBlocks.iterator(); blockIterator.hasNext(); )
-		{
-			final long blockId = blockIterator.next();
-			grid.getCellGridPositionFlat( blockId, gridPosition );
-			cellsAccess.setPosition( gridPosition );
-			final Cell< A > cell = cellsAccess.get();
-			action.accept( cell );
-		}
-	}
-
-	public static < M extends BooleanType< M >, C extends IntegerType< C > > TLongLongHashMap paintAffectedPixelsAndReturnPixelCountsPerBlock(
+	public static < M extends BooleanType< M >, C extends IntegerType< C > > void paintAffectedPixels(
 			final TLongSet relevantBlocks,
 			final RandomAccessible< M > mask,
 			final RandomAccessibleInterval< C > canvas,
@@ -859,8 +786,6 @@ public class MaskedSource< D extends Type< D >, T extends Type< T > > implements
 		final long[] gridDimensions = grid.getGridDimensions();
 		final int[] blockSize = new int[ grid.numDimensions() ];
 		grid.cellDimensions( blockSize );
-
-		final TLongLongHashMap paintedPixelCountPerBlock = new TLongLongHashMap();
 
 		final long[] intervalMin = Intervals.minAsLongArray( paintedInterval );
 		final long[] intervalMax = Intervals.maxAsLongArray( paintedInterval );
@@ -889,28 +814,12 @@ public class MaskedSource< D extends Type< D >, T extends Type< T > > implements
 				if ( sourceCursor.next().get() )
 				{
 					targetCursor.get().set( paintLabel );
-					paintedPixelCountPerBlock.put( blockId, paintedPixelCountPerBlock.get( blockId ) + 1 );
 				}
 			}
 
 		}
 
-		return paintedPixelCountPerBlock;
 
-	}
-
-	public static TLongSet getCompletelyPaintedBlocks(
-			final TLongLongMap paintedBlocksToCountsMap,
-			final int blockSize )
-	{
-		final TLongHashSet completelyPaintedBlocks = new TLongHashSet();
-		for ( final TLongLongIterator it = paintedBlocksToCountsMap.iterator(); it.hasNext(); )
-		{
-			it.advance();
-			if ( it.value() == blockSize )
-				completelyPaintedBlocks.add( it.key() );
-		}
-		return completelyPaintedBlocks;
 	}
 
 	/**
