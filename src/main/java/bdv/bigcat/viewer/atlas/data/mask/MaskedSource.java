@@ -634,38 +634,42 @@ public class MaskedSource< D extends Type< D >, T extends Type< T > > implements
 
 				intersect( intersectionMin, intersectionMax, paintedIntervalAtTargetLevel );
 
-				LOG.trace( "Intersected min={} max={}", intersectionMin, intersectionMax );
-
-				LOG.trace(
-						"Upsampling block: level={}, block min (target)={}, block max (target)={}, block min={}, block max={}, scale={}, mask min={}, mask max={}",
-						level,
-						minTarget,
-						maxTarget,
-						minPainted,
-						maxPainted,
-						currentRelativeScaleFromTargetToPainted,
-						Intervals.minAsLongArray( mask ),
-						Intervals.maxAsLongArray( mask ) );
-
-				final IntervalView< BoolType > relevantBlockAtPaintedResolution = Views.interval(
-						Converters.convert( mask, ( s, t ) -> t.set( s.get() > 0 ), new BoolType() ),
-						minPainted,
-						maxPainted );
-
-				if ( Intervals.numElements( relevantBlockAtPaintedResolution ) == 0 )
-					continue;
-
-				LOG.trace( "Upsampling for level {} and intersected intervals ({} {})", level, intersectionMin, intersectionMax );
-				final Interval interval = new FinalInterval( intersectionMin, intersectionMax );
-				final Cursor< UnsignedLongType > canvasCursor = Views.flatIterable( Views.interval( canvasAtTargetLevel, interval ) ).cursor();
-				final Cursor< UnsignedByteType > maskCursor = Views.flatIterable( Views.interval( Views.raster( scaledMask ), interval ) ).cursor();
-				while ( maskCursor.hasNext() )
+				if ( isNonEmpty( intersectionMin, intersectionMax ) )
 				{
-					canvasCursor.fwd();
-					final boolean wasPainted = maskCursor.next().get() == 1;
-					if ( wasPainted )
+
+					LOG.debug( "Intersected min={} max={}", intersectionMin, intersectionMax );
+
+					LOG.debug(
+							"Upsampling block: level={}, block min (target)={}, block max (target)={}, block min={}, block max={}, scale={}, mask min={}, mask max={}",
+							level,
+							minTarget,
+							maxTarget,
+							minPainted,
+							maxPainted,
+							currentRelativeScaleFromTargetToPainted,
+							Intervals.minAsLongArray( mask ),
+							Intervals.maxAsLongArray( mask ) );
+
+					final IntervalView< BoolType > relevantBlockAtPaintedResolution = Views.interval(
+							Converters.convert( mask, ( s, t ) -> t.set( s.get() > 0 ), new BoolType() ),
+							minPainted,
+							maxPainted );
+
+					if ( Intervals.numElements( relevantBlockAtPaintedResolution ) == 0 )
+						continue;
+
+					LOG.debug( "Upsampling for level {} and intersected intervals ({} {})", level, intersectionMin, intersectionMax );
+					final Interval interval = new FinalInterval( intersectionMin, intersectionMax );
+					final Cursor< UnsignedLongType > canvasCursor = Views.flatIterable( Views.interval( canvasAtTargetLevel, interval ) ).cursor();
+					final Cursor< UnsignedByteType > maskCursor = Views.flatIterable( Views.interval( Views.raster( scaledMask ), interval ) ).cursor();
+					while ( maskCursor.hasNext() )
 					{
-						canvasCursor.get().set( label );
+						canvasCursor.fwd();
+						final boolean wasPainted = maskCursor.next().get() == 1;
+						if ( wasPainted )
+						{
+							canvasCursor.get().set( label );
+						}
 					}
 				}
 			}
