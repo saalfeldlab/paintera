@@ -58,7 +58,7 @@ public class VolatileHelpers
 			final CacheHints hints )
 	{
 		final VolatileCache< Long, Cell< A > > volatileCache = new WeakRefVolatileCache<>( cache, queue, createInvalid );
-		final VolatileCachedCellImg< T, A > volatileImg = new VolatileCachedCellImg<>( grid, type, hints, volatileCache.unchecked()::get );
+		final VolatileCachedCellImg< T, A > volatileImg = new VolatileCachedCellImg<>( grid, type, hints, volatileCache.unchecked()::get, volatileCache::invalidateAll );
 		return volatileImg;
 	}
 
@@ -74,8 +74,9 @@ public class VolatileHelpers
 		final Cache< Long, Cell< A > > cache = cachedCellImg.getCache();
 
 		final AccessFlags[] flags = AccessFlags.of( cachedCellImg.getAccessType() );
-		if ( !AccessFlags.isVolatile( flags ) )
+		if ( !AccessFlags.isVolatile( flags ) ) {
 			throw new IllegalArgumentException( "underlying " + CachedCellImg.class.getSimpleName() + " must have volatile access type" );
+		}
 		@SuppressWarnings( "rawtypes" )
 		final VolatileCachedCellImg< V, ? > img = createVolatileCachedCellImg( grid, vtype, flags, ( Cache ) cache, createInvalid, queue, hints );
 

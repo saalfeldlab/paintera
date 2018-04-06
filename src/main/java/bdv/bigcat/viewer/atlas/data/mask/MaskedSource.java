@@ -20,7 +20,9 @@ import bdv.bigcat.label.Label;
 import bdv.bigcat.viewer.atlas.data.DataSource;
 import bdv.bigcat.viewer.atlas.data.mask.PickOne.PickAndConvert;
 import bdv.img.AccessedBlocksRandomAccessible;
+import bdv.img.cache.VolatileCachedCellImg;
 import bdv.net.imglib2.view.RandomAccessibleTriple;
+import bdv.util.volatiles.VolatileRandomAccessibleIntervalView;
 import bdv.util.volatiles.VolatileViews;
 import bdv.viewer.Interpolation;
 import gnu.trove.iterator.TLongIterator;
@@ -49,6 +51,7 @@ import net.imglib2.RandomAccessible;
 import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.RealRandomAccessible;
 import net.imglib2.algorithm.util.Grids;
+import net.imglib2.cache.Cache;
 import net.imglib2.cache.img.CachedCellImg;
 import net.imglib2.cache.img.CellLoader;
 import net.imglib2.cache.img.DiskCachedCellImgFactory;
@@ -432,6 +435,13 @@ public class MaskedSource< D extends Type< D >, T extends Type< T > > implements
 					finally
 					{
 						clearCanvases();
+						for ( int level = 0; level < this.getNumMipmapLevels(); ++level )
+						{
+							LOG.debug( "Invalidating all for data source for level={}", level );
+							invalidateAllIfCachedImg( this.source.getDataSource( 0, level ) );
+							LOG.debug( "Invalidating all for viewer source for level={}", level );
+							invalidateAllIfCachedImg( this.source.getSource( 0, level ) );
+						}
 						synchronized ( this )
 						{
 							this.isPersisting.set( false );
@@ -1013,6 +1023,25 @@ public class MaskedSource< D extends Type< D >, T extends Type< T > > implements
 			}
 		}
 
+	}
+
+	public static void invalidateAllIfCachedImg( final RandomAccessibleInterval< ? > img )
+	{
+		if ( img instanceof CachedCellImg< ?, ? > )
+		{
+			LOG.debug( "{} is instance of {} -- invalidating all", img, img.getClass().getSimpleName() );
+			final Cache< Long, ? > cache = ( ( CachedCellImg< ?, ? > ) img ).getCache();
+			cache.invalidateAll();
+		}
+
+		else if ( img instanceof VolatileRandomAccessibleIntervalView< ?, ? > )
+		{
+			final RandomAccessibleInterval< ? > vimg = ( ( VolatileRandomAccessibleIntervalView< ?, ? > ) img ).getSource();
+			if ( vimg instanceof VolatileCachedCellImg< ?, ? > )
+			{
+				( ( VolatileCachedCellImg< ?, ? > ) vimg ).clearCache();
+			}
+		}
 	}
 
 }
