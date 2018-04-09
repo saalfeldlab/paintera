@@ -1,6 +1,7 @@
 package bdv.bigcat.viewer.state;
 
 import java.lang.invoke.MethodHandles;
+import java.util.function.BiConsumer;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -22,21 +23,33 @@ public class FragmentSegmentAssignmentOnlyLocal extends FragmentSegmentAssignmen
 
 	private final TLongObjectHashMap< TLongHashSet > segmentToFragmentsMap = new TLongObjectHashMap<>( Constants.DEFAULT_CAPACITY, Constants.DEFAULT_LOAD_FACTOR, Label.TRANSPARENT );
 
-	public FragmentSegmentAssignmentOnlyLocal()
+	private final BiConsumer< long[], long[] > persister;
+
+	public FragmentSegmentAssignmentOnlyLocal( final BiConsumer< long[], long[] > persister )
 	{
-		this( new long[] {}, new long[] {} );
+		this( new long[] {}, new long[] {}, persister );
 	}
 
-	public FragmentSegmentAssignmentOnlyLocal( final long[] fragments, final long[] segments )
+	public FragmentSegmentAssignmentOnlyLocal( final long[] fragments, final long[] segments, final BiConsumer< long[], long[] > persister )
 	{
 
 		super();
 
 		assert fragments.length == segments.length: "segments and bodies must be of same length";
 		for ( int i = 0; i < fragments.length; ++i )
+		{
 			fragmentToSegmentMap.put( fragments[ i ], segments[ i ] );
+		}
+
+		this.persister = persister;
 
 		syncILut();
+	}
+
+	@Override
+	public synchronized void persist()
+	{
+		this.persister.accept( fragmentToSegmentMap.keys(), fragmentToSegmentMap.values() );
 	}
 
 	@Override
@@ -45,9 +58,13 @@ public class FragmentSegmentAssignmentOnlyLocal extends FragmentSegmentAssignmen
 		final long id;
 		final long segmentId = fragmentToSegmentMap.get( fragmentId );
 		if ( segmentId == fragmentToSegmentMap.getNoEntryValue() )
+		{
 			id = fragmentId;
+		}
 		else
+		{
 			id = segmentId;
+		}
 		return id;
 	}
 
@@ -61,8 +78,9 @@ public class FragmentSegmentAssignmentOnlyLocal extends FragmentSegmentAssignmen
 	@Override
 	protected synchronized void assignFragmentsImpl( final long assignFrom, final long assignTo )
 	{
-		if ( assignFrom == assignTo )
+		if ( assignFrom == assignTo ) {
 			return;
+		}
 
 		final TLongHashSet fragments1 = getFragments( assignFrom );
 		final TLongHashSet fragments2 = getFragments( assignTo );
@@ -87,8 +105,9 @@ public class FragmentSegmentAssignmentOnlyLocal extends FragmentSegmentAssignmen
 	@Override
 	protected synchronized void mergeSegmentsImpl( final long segmentId1, final long segmentId2 )
 	{
-		if ( segmentId1 == segmentId2 )
+		if ( segmentId1 == segmentId2 ) {
 			return;
+		}
 
 		LOG.debug( "Merging segments {} and {}", segmentId1, segmentId2 );
 		assignFragmentsImpl( Math.max( segmentId1, segmentId2 ), Math.min( segmentId1, segmentId2 ) );
@@ -109,11 +128,15 @@ public class FragmentSegmentAssignmentOnlyLocal extends FragmentSegmentAssignmen
 			{
 				final long actualSegmentId = fragmentsCopy.iterator().next();
 				for ( final TLongIterator fragmentIt = fragmentsCopy.iterator(); fragmentIt.hasNext(); )
+				{
 					this.fragmentToSegmentMap.put( fragmentIt.next(), actualSegmentId );
+				}
 				this.segmentToFragmentsMap.put( actualSegmentId, fragmentsCopy );
 			}
 			else
+			{
 				this.segmentToFragmentsMap.put( segmentId, fragmentsCopy );
+			}
 
 			final long newSegmentId = fragmentId;
 			fragmentToSegmentMap.put( fragmentId, newSegmentId );
@@ -124,8 +147,9 @@ public class FragmentSegmentAssignmentOnlyLocal extends FragmentSegmentAssignmen
 	@Override
 	protected void mergeFragmentsImpl( final long... fragments )
 	{
-		if ( fragments.length < 2 )
+		if ( fragments.length < 2 ) {
 			return;
+		}
 		final long id1 = fragments[ 0 ];
 		for ( int k = 1; k < fragments.length; ++k )
 		{

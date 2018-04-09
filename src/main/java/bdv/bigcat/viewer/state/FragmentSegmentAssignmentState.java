@@ -3,6 +3,11 @@ package bdv.bigcat.viewer.state;
 public abstract class FragmentSegmentAssignmentState< T extends FragmentSegmentAssignmentState< T > > extends AbstractState< T > implements FragmentSegmentAssignment
 {
 
+	public void persist()
+	{
+		throw new UnsupportedOperationException( "Not implemented yet!" );
+	}
+
 	protected abstract void assignFragmentsImpl( final long segmentId1, final long segmentId2 );
 
 	protected abstract void mergeSegmentsImpl( final long segmentId1, final long segmentId2 );

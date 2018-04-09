@@ -119,7 +119,7 @@ public class ExampleApplication2
 				sharedQueue,
 				1 );
 
-		final FragmentSegmentAssignmentState< ? > assignment = new FragmentSegmentAssignmentOnlyLocal();
+		final FragmentSegmentAssignmentState< ? > assignment = new FragmentSegmentAssignmentOnlyLocal( ( k, v ) -> {} );
 		final LabelDataSourceFromDelegates< UnsignedLongType, VolatileUnsignedLongType > labelSpec2 = new LabelDataSourceFromDelegates<>( labelData, assignment );
 
 		viewer.addLabelSource( labelSpec2, labelSpec2.getAssignment(), v -> v.get().getIntegerLong(), null, null, null );
@@ -193,7 +193,7 @@ public class ExampleApplication2
 		public ARGBConvertedSource(
 				final int setupId,
 				final AbstractViewerSetupImgLoader< T, ? extends Volatile< T > > loader,
-				final Converter< Volatile< T >, VolatileARGBType > converter )
+						final Converter< Volatile< T >, VolatileARGBType > converter )
 		{
 			this.setupId = setupId;
 			this.loader = loader;

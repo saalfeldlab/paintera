@@ -124,7 +124,7 @@ public class ExampleApplicationLauritzen01
 				i -> new NearestNeighborInterpolatorFactory<>(),
 				"labels" );
 		final LabelDataSourceFromDelegates< LabelMultisetType, VolatileLabelMultisetType > labelSource =
-				new LabelDataSourceFromDelegates<>( labelsDataSource, new FragmentSegmentAssignmentOnlyLocal() );
+				new LabelDataSourceFromDelegates<>( labelsDataSource, new FragmentSegmentAssignmentOnlyLocal( ( k, v ) -> {} ) );
 
 		final IdService idService = new LocalIdService();
 
@@ -282,13 +282,14 @@ public class ExampleApplicationLauritzen01
 		// get the parameters
 		final Parameters params = new Parameters();
 		JCommander.newBuilder()
-				.addObject( params )
-				.build()
-				.parse( args );
+		.addObject( params )
+		.build()
+		.parse( args );
 
 		final boolean success = validateParameters( params );
-		if ( !success )
+		if ( !success ) {
 			return null;
+		}
 
 		return params;
 	}
@@ -334,7 +335,9 @@ public class ExampleApplicationLauritzen01
 				final UnsignedLongType label1Type = label1Cursor.next();
 				final UnsignedLongType label2Type = label2Cursor.next();
 				if ( targetType.get() == Label.TRANSPARENT )
+				{
 					if ( selectedIds.isActive( label1Type.get() ) && label2Type.get() == 1 )
+					{
 						// if (label2Type.get() == 1 ) {
 						FloodFill.< UnsignedLongType, UnsignedLongType >fill(
 								Views.extendValue( label2Interval, new UnsignedLongType( Label.TRANSPARENT ) ),
@@ -345,6 +348,8 @@ public class ExampleApplicationLauritzen01
 								// first element in pair is current pixel,
 								// second element is reference
 								( p1, p2 ) -> p1.getB().get() == Label.TRANSPARENT && p1.getA().get() == 1 );
+					}
+				}
 			}
 		}
 	}
@@ -364,7 +369,7 @@ public class ExampleApplicationLauritzen01
 		final UnsignedLongType type = new UnsignedLongType();
 		final Cache< Long, Cell< LongArray > > cache =
 				new SoftRefLoaderCache< Long, Cell< LongArray > >()
-						.withLoader( LoadedCellCacheLoader.get( grid, loader, type ) );
+				.withLoader( LoadedCellCacheLoader.get( grid, loader, type ) );
 
 		final CachedCellImg< UnsignedLongType, LongArray > img = new CachedCellImg<>( grid, type, cache, ArrayDataAccessFactory.get( LONG ) );
 
@@ -386,7 +391,7 @@ public class ExampleApplicationLauritzen01
 		final UnsignedLongType type = new UnsignedLongType();
 		final Cache< Long, Cell< VolatileLongArray > > cache =
 				new SoftRefLoaderCache< Long, Cell< VolatileLongArray > >()
-						.withLoader( LoadedCellCacheLoader.get( grid, loader, type, VOLATILE ) );
+				.withLoader( LoadedCellCacheLoader.get( grid, loader, type, VOLATILE ) );
 
 		final CachedCellImg< UnsignedLongType, VolatileLongArray > img = new CachedCellImg<>( grid, type, cache, ArrayDataAccessFactory.get( LONG, VOLATILE ) );
 

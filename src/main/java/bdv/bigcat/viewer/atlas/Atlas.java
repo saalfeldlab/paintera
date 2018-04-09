@@ -299,7 +299,9 @@ public class Atlas
 		this.settings.availableModes().setAll( initialModes );
 
 		for ( final Mode mode : this.settings.availableModes() )
+		{
 			addOnEnterOnExit( mode.onEnter(), mode.onExit(), true );
+		}
 
 		this.settings.currentModeProperty().set( initialModes[ 0 ] );
 
@@ -318,6 +320,7 @@ public class Atlas
 		addOnEnterOnExit( this.seedSetter.onEnter(), this.seedSetter.onEnter(), true );
 
 		for ( final Node child : this.baseView().getChildren() )
+		{
 			if ( child instanceof ViewerNode )
 			{
 				final ViewerNode vn = ( ViewerNode ) child;
@@ -325,17 +328,24 @@ public class Atlas
 				orthoSlices.add( orthoSlice );
 				orthoSlice.toggleVisibility();
 			}
+		}
 
 		this.baseView().addEventHandler( KeyEvent.KEY_PRESSED, event -> {
 			if ( event.getCode().equals( KeyCode.O ) && event.isShiftDown() && !event.isAltDown() && !event.isControlDown() )
+			{
 				orthoSlices.forEach( OrthoSliceFX::toggleVisibility );
+			}
 		} );
 
 		this.root.sceneProperty().addListener( ( obs, oldv, newv ) -> {
 			if ( oldv != null )
+			{
 				this.keyTracker.removeFrom( oldv );
+			}
 			if ( newv != null )
+			{
 				this.keyTracker.installInto( newv );
+			}
 		} );
 
 		this.root.addEventHandler( KeyEvent.KEY_PRESSED, new OpenDialogEventHandler( this, cellCache, e -> keyTracker.areOnlyTheseKeysDown( KeyCode.CONTROL, KeyCode.O ) ) );
@@ -419,13 +429,17 @@ public class Atlas
 
 		final Optional< ButtonType > closeResponse = closeConfirmation.showAndWait();
 		if ( !ButtonType.OK.equals( closeResponse.get() ) )
+		{
 			event.consume();
+		}
 		else
+		{
 			exitButton.setOnAction(
 					e -> primaryStage.fireEvent(
 							new WindowEvent(
 									primaryStage,
 									WindowEvent.WINDOW_CLOSE_REQUEST ) ) );
+		}
 	};
 
 	public void addOnEnterOnExit( final Consumer< ViewerPanelFX > onEnter, final Consumer< ViewerPanelFX > onExit, final boolean onExitRemovable )
@@ -493,7 +507,9 @@ public class Atlas
 				comp );// converter );
 		state.idServiceProperty().set( idService );
 		if ( spec instanceof MaskedSource< ?, ? > )
+		{
 			state.maskedSourceProperty().set( ( MaskedSource< ?, ? > ) spec );
+		}
 
 		final LabelMultisetType t = spec.getDataType();
 		final Function< LabelMultisetType, String > valueToString = valueToString( t );
@@ -555,7 +571,8 @@ public class Atlas
 			state.meshesCacheProperty().set( meshCache );
 			state.blocklistCacheProperty().set( blocksThatContainId );
 		}
-		else // TODO get to the scale factors somehow (affine transform might be
+		else
+		{
 			// off-diagonal in case of permutations)
 			generateMeshCaches(
 					spec,
@@ -564,6 +581,7 @@ public class Atlas
 					( lbl, set ) -> lbl.entrySet().forEach( entry -> set.add( entry.getElement().id() ) ),
 					lbl -> ( src, tgt ) -> tgt.set( src.contains( lbl ) ),
 					generalPurposeExecutorService );
+		}
 
 		sourceInfo.addState( spec, state );
 
@@ -599,8 +617,9 @@ public class Atlas
 	{
 		final I i = Util.getTypeFromInterval( data );
 		final V v = ( V ) VolatileTypeMatcher.getVolatileTypeForType( i );
-		if ( v == null )
+		if ( v == null ) {
 			throw new RuntimeException( "Was not able to get volatile type for type: " + i.getClass() );
+		}
 		v.setValid( true );
 		final RandomAccessibleInterval< V > convertedData = Converters.convert( data, ( s, t ) -> t.get().set( s ), v );
 		final RandomAccessibleInterval< I >[] sources = new RandomAccessibleInterval[] { data };
@@ -616,7 +635,7 @@ public class Atlas
 		idService.invalidate( maxId );
 		addLabelSource(
 				source,
-				new FragmentSegmentAssignmentOnlyLocal(),
+				new FragmentSegmentAssignmentOnlyLocal( ( key, value ) -> {} ),
 				p -> p.get().getIntegerLong(),
 				null,
 				null,
@@ -654,7 +673,9 @@ public class Atlas
 						comp );
 		state.idServiceProperty().set( idService );
 		if ( spec instanceof MaskedSource< ?, ? > )
+		{
 			state.maskedSourceProperty().set( ( MaskedSource< ?, ? > ) spec );
+		}
 
 		final I t = spec.getDataType();
 		final Function< I, String > valueToString = valueToString( t );
@@ -716,6 +737,7 @@ public class Atlas
 			state.blocklistCacheProperty().set( blocksThatContainId );
 		}
 		else
+		{
 			generateMeshCaches(
 					spec,
 					state,
@@ -723,6 +745,7 @@ public class Atlas
 					( lbl, set ) -> set.add( lbl.getIntegerLong() ),
 					lbl -> ( src, tgt ) -> tgt.set( src.getIntegerLong() == lbl ),
 					generalPurposeExecutorService );
+		}
 
 //		private static < D extends Type< D >, T extends Type< T > > void generateMeshCaches(
 //			final DataSource< D, T > spec,
@@ -797,7 +820,9 @@ public class Atlas
 		final int numSources = specs.size();
 		final double factor = 360.0 / numSources;
 		if ( numSources == 1 )
+		{
 			addRawSource( specs.iterator().next(), min, max );
+		}
 		else
 		{
 			final List< ARGBType > colors = IntStream
@@ -819,7 +844,9 @@ public class Atlas
 		final Iterator< ? extends DataSource< T, U > > specIt = specs.iterator();
 		final Iterator< ARGBType > colorIt = colors.iterator();
 		for ( int i = 0; specIt.hasNext(); ++i )
+		{
 			addRawSource( specIt.next(), min[ i ], max[ i ], colorIt.next() );
+		}
 	}
 
 	public < T extends RealType< T >, U extends RealType< U > > void addRawSource( final DataSource< T, U > spec, final double min, final double max )
@@ -861,39 +888,53 @@ public class Atlas
 	{
 		final Function< T, String > valueToString;
 		if ( t instanceof ARGBType )
+		{
 			valueToString = ( Function< T, String > ) Object::toString;
+		}
 		else if ( t instanceof IntegerType< ? > )
+		{
 			valueToString = ( Function< T, String > ) rt -> String.format( "%d", ( ( IntegerType< ? > ) rt ).getIntegerLong() );
-			else if ( t instanceof RealType< ? > )
-				valueToString = ( Function< T, String > ) rt -> String.format( "%.3f", ( ( RealType< ? > ) rt ).getRealDouble() );
-				else if ( t instanceof LabelMultisetType )
-					valueToString = ( Function< T, String > ) rt -> {
-						final StringBuilder sb = new StringBuilder( "{" );
-						final Iterator< LabelMultiset.Entry< net.imglib2.type.label.Label > > it = ( ( LabelMultisetType ) rt ).entrySet().iterator();
-						if ( it.hasNext() )
-						{
-							final LabelMultiset.Entry< net.imglib2.type.label.Label > entry = it.next();
-							sb.append( entry.getElement().id() ).append( ":" ).append( entry.getCount() );
-						}
-						while ( it.hasNext() )
-						{
-							final LabelMultiset.Entry< net.imglib2.type.label.Label > entry = it.next();
-							sb.append( " " ).append( entry.getElement().id() ).append( ":" ).append( entry.getCount() );
-						}
-						sb.append( "}" );
-						return sb.toString();
-					};
-					else if ( t instanceof Pair< ?, ? > )
-					{
-						final Pair< ?, ? > p = ( Pair< ?, ? > ) t;
-						if ( p.getB() instanceof IntegerType< ? > )
-							valueToString = ( Function< T, String > ) ( Function< Pair< ?, IntegerType< ? > >, String > ) valueToStringForPair( p.getA(), ( IntegerType ) p.getB() );
-						else
-							valueToString = rt -> "Do not understand type!";
-					}
-					else
-						valueToString = rt -> "Do not understand type!";
-						return valueToString;
+		}
+		else if ( t instanceof RealType< ? > )
+		{
+			valueToString = ( Function< T, String > ) rt -> String.format( "%.3f", ( ( RealType< ? > ) rt ).getRealDouble() );
+		}
+		else if ( t instanceof LabelMultisetType )
+		{
+			valueToString = ( Function< T, String > ) rt -> {
+				final StringBuilder sb = new StringBuilder( "{" );
+				final Iterator< LabelMultiset.Entry< net.imglib2.type.label.Label > > it = ( ( LabelMultisetType ) rt ).entrySet().iterator();
+				if ( it.hasNext() )
+				{
+					final LabelMultiset.Entry< net.imglib2.type.label.Label > entry = it.next();
+					sb.append( entry.getElement().id() ).append( ":" ).append( entry.getCount() );
+				}
+				while ( it.hasNext() )
+				{
+					final LabelMultiset.Entry< net.imglib2.type.label.Label > entry = it.next();
+					sb.append( " " ).append( entry.getElement().id() ).append( ":" ).append( entry.getCount() );
+				}
+				sb.append( "}" );
+				return sb.toString();
+			};
+		}
+		else if ( t instanceof Pair< ?, ? > )
+		{
+			final Pair< ?, ? > p = ( Pair< ?, ? > ) t;
+			if ( p.getB() instanceof IntegerType< ? > )
+			{
+				valueToString = ( Function< T, String > ) ( Function< Pair< ?, IntegerType< ? > >, String > ) valueToStringForPair( p.getA(), ( IntegerType ) p.getB() );
+			}
+			else
+			{
+				valueToString = rt -> "Do not understand type!";
+			}
+		}
+		else
+		{
+			valueToString = rt -> "Do not understand type!";
+		}
+		return valueToString;
 	}
 
 	public static < T, I extends IntegerType< I > > Function< Pair< T, I >, String > valueToStringForPair( final T t, final I i )
@@ -921,10 +962,13 @@ public class Atlas
 		final boolean isInteger = selection instanceof IntegerType< ? >;
 		final long id = isInteger ? ( ( IntegerType< ? > ) selection ).getIntegerLong() : ( long ) selection.getRealDouble();
 		final long segmentId = assignment.getSegment( id );
-		if ( selection instanceof IntegerType< ? > )
+		if ( selection instanceof IntegerType< ? > ) {
 			return ( Converter< T, BoolType > ) ( Converter< IntegerType< ? >, BoolType > ) ( s, t ) -> t.set( assignment.getSegment( s.getIntegerLong() ) == segmentId );
-			else
-				return ( s, t ) -> t.set( assignment.getSegment( ( long ) s.getRealDouble() ) == segmentId );
+		}
+		else
+		{
+			return ( s, t ) -> t.set( assignment.getSegment( ( long ) s.getRealDouble() ) == segmentId );
+		}
 
 	}
 
@@ -977,18 +1021,24 @@ public class Atlas
 	private static < T extends RealType< T > > double getTypeMin( final T t )
 	{
 		if ( t instanceof IntegerType< ? > )
+		{
 			return t.getMinValue();
-		else if ( t instanceof AbstractVolatileRealType< ?, ? > && ( ( AbstractVolatileRealType< ?, ? > ) t ).get() instanceof IntegerType< ? > )
+		}
+		else if ( t instanceof AbstractVolatileRealType< ?, ? > && ( ( AbstractVolatileRealType< ?, ? > ) t ).get() instanceof IntegerType< ? > ) {
 			return t.getMinValue();
+		}
 		return 0.0;
 	}
 
 	private static < T extends RealType< T > > double getTypeMax( final T t )
 	{
 		if ( t instanceof IntegerType< ? > )
+		{
 			return t.getMaxValue();
-		else if ( t instanceof AbstractVolatileRealType< ?, ? > && ( ( AbstractVolatileRealType< ?, ? > ) t ).get() instanceof IntegerType< ? > )
+		}
+		else if ( t instanceof AbstractVolatileRealType< ?, ? > && ( ( AbstractVolatileRealType< ?, ? > ) t ).get() instanceof IntegerType< ? > ) {
 			return t.getMaxValue();
+		}
 		return 1.0;
 	}
 
@@ -1009,7 +1059,9 @@ public class Atlas
 				blockSizes[ level ] = blockSize;
 			}
 			else
+			{
 				blockSizes[ level ] = level == 0 ? new int[] { 64, 64, 64 } : blockSizes[ level - 1 ];
+			}
 		}
 
 		final I defaultValue = source.getDataType().createVariable();
@@ -1075,7 +1127,9 @@ public class Atlas
 				blockSizes[ level ] = blockSize;
 			}
 			else
+			{
 				blockSizes[ level ] = level == 0 ? new int[] { 64, 64, 64 } : blockSizes[ level - 1 ];
+			}
 		}
 
 		final LabelMultisetType defaultValue = FromIntegerTypeConverter.geAppropriateType();

@@ -82,7 +82,7 @@ public class ExampleApplicationSampleE
 						resolution,
 						sharedQueue,
 						0,
-						new FragmentSegmentAssignmentOnlyLocal() );
+						new FragmentSegmentAssignmentOnlyLocal( ( k, v ) -> {} ) );
 
 		final IdService idService = new LocalIdService();
 
@@ -118,13 +118,14 @@ public class ExampleApplicationSampleE
 		// get the parameters
 		final Parameters params = new Parameters();
 		JCommander.newBuilder()
-				.addObject( params )
-				.build()
-				.parse( args );
+		.addObject( params )
+		.build()
+		.parse( args );
 
 		final boolean success = validateParameters( params );
-		if ( !success )
+		if ( !success ) {
 			return null;
+		}
 
 		return params;
 	}

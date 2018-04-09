@@ -1,6 +1,7 @@
 package bdv.bigcat.viewer.atlas.opendialog;
 
 import java.io.File;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -10,9 +11,18 @@ import java.util.Optional;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.function.BiConsumer;
 import java.util.function.BiFunction;
 import java.util.function.Consumer;
 import java.util.stream.Stream;
+
+import org.janelia.saalfeldlab.n5.DataBlock;
+import org.janelia.saalfeldlab.n5.DataType;
+import org.janelia.saalfeldlab.n5.DatasetAttributes;
+import org.janelia.saalfeldlab.n5.GzipCompression;
+import org.janelia.saalfeldlab.n5.LongArrayDataBlock;
+import org.janelia.saalfeldlab.n5.N5Writer;
+import org.janelia.saalfeldlab.n5.imglib2.N5Utils;
 
 import bdv.bigcat.viewer.state.FragmentSegmentAssignmentOnlyLocal;
 import bdv.bigcat.viewer.state.FragmentSegmentAssignmentState;
@@ -33,6 +43,10 @@ import javafx.scene.control.TextField;
 import javafx.scene.effect.Effect;
 import javafx.scene.effect.InnerShadow;
 import javafx.scene.paint.Color;
+import net.imglib2.Cursor;
+import net.imglib2.RandomAccessibleInterval;
+import net.imglib2.type.numeric.integer.UnsignedLongType;
+import net.imglib2.view.Views;
 
 public abstract class BackendDialogGroupAndDataset implements SourceFromRAI, CombinesErrorMessages
 {
@@ -100,7 +114,9 @@ public abstract class BackendDialogGroupAndDataset implements SourceFromRAI, Com
 							{
 								InvokeOnJavaFXApplicationThread.invoke( () -> datasetChoices.setAll( files ) );
 								if ( !oldv.equals( newv ) )
+								{
 									InvokeOnJavaFXApplicationThread.invoke( () -> this.dataset.set( null ) );
+								}
 							}
 						}
 						finally
@@ -124,7 +140,9 @@ public abstract class BackendDialogGroupAndDataset implements SourceFromRAI, Com
 				updateDatasetInfo( newv, this.datasetInfo );
 			}
 			else
+			{
 				datasetError.set( "No dataset selected" );
+			}
 		} );
 
 		groupError.addListener( ( obs, oldv, newv ) -> this.groupErrorEffect.set( newv != null && newv.length() > 0 ? textFieldErrorEffect : textFieldNoErrorEffect ) );
@@ -198,7 +216,70 @@ public abstract class BackendDialogGroupAndDataset implements SourceFromRAI, Com
 	@Override
 	public Iterator< ? extends FragmentSegmentAssignmentState< ? > > assignments()
 	{
-		return Stream.generate( FragmentSegmentAssignmentOnlyLocal::new ).iterator();
+		final String root = groupProperty.get();
+		final String dataset = this.dataset.get() + ".fragment-segment-assignment";
+
+		try
+		{
+			final N5Writer writer = N5Helpers.n5Writer( root, 2, 1 );
+
+			final BiConsumer< long[], long[] > persister = ( keys, values ) -> {
+				if ( keys.length == 0 )
+				{
+					LOG.warn( "Zero length data, will not persist fragment-segment-assignment." );
+					return;
+				}
+				try
+				{
+					final DatasetAttributes attrs = new DatasetAttributes( new long[] { 2, keys.length }, new int[] { 1, keys.length }, DataType.UINT64, new GzipCompression() );
+					writer.createDataset( dataset, attrs );
+					final DataBlock< long[] > keyBlock = new LongArrayDataBlock( new int[] { 1, keys.length }, new long[] { 0, 0 }, keys );
+					final DataBlock< long[] > valueBlock = new LongArrayDataBlock( new int[] { 1, values.length }, new long[] { 1, 0 }, values );
+					writer.writeBlock( dataset, attrs, keyBlock );
+					writer.writeBlock( dataset, attrs, valueBlock );
+				}
+				catch ( final IOException e )
+				{
+					throw new RuntimeException( e );
+				}
+			};
+
+			final long[] keys;
+			final long[] values;
+			if ( writer.datasetExists( dataset ) )
+			{
+				final DatasetAttributes attrs = writer.getDatasetAttributes( dataset );
+				final int numEntries = ( int ) attrs.getDimensions()[ 1 ];
+				keys = new long[ numEntries ];
+				values = new long[ numEntries ];
+				final RandomAccessibleInterval< UnsignedLongType > data = N5Utils.open( writer, dataset );
+
+				final Cursor< UnsignedLongType > keysCursor = Views.flatIterable( Views.hyperSlice( data, 0, 0l ) ).cursor();
+				for ( int i = 0; keysCursor.hasNext(); ++i )
+				{
+					keys[ i ] = keysCursor.next().get();
+				}
+
+				final Cursor< UnsignedLongType > valuesCursor = Views.flatIterable( Views.hyperSlice( data, 0, 1l ) ).cursor();
+				for ( int i = 0; valuesCursor.hasNext(); ++i )
+				{
+					values[ i ] = valuesCursor.next().get();
+				}
+			}
+			else
+			{
+				keys = new long[] {};
+				values = new long[] {};
+			}
+
+			final FragmentSegmentAssignmentOnlyLocal assignment = new FragmentSegmentAssignmentOnlyLocal( keys, values, persister );
+
+			return Stream.generate( () -> assignment ).iterator();
+		}
+		catch ( final IOException e )
+		{
+			throw new RuntimeException( e );
+		}
 	}
 
 }
