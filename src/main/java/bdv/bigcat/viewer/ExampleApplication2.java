@@ -14,7 +14,6 @@ import bdv.bigcat.viewer.atlas.Atlas;
 import bdv.bigcat.viewer.atlas.data.DataSource;
 import bdv.bigcat.viewer.atlas.data.LabelDataSourceFromDelegates;
 import bdv.bigcat.viewer.atlas.data.RandomAccessibleIntervalDataSource;
-import bdv.bigcat.viewer.atlas.mode.Highlights;
 import bdv.bigcat.viewer.state.FragmentSegmentAssignmentOnlyLocal;
 import bdv.bigcat.viewer.state.FragmentSegmentAssignmentState;
 import bdv.bigcat.viewer.state.SelectedIds;
@@ -123,29 +122,25 @@ public class ExampleApplication2
 		final LabelDataSourceFromDelegates< UnsignedLongType, VolatileUnsignedLongType > labelSpec2 = new LabelDataSourceFromDelegates<>( labelData, assignment );
 
 		viewer.addLabelSource( labelSpec2, labelSpec2.getAssignment(), v -> v.get().getIntegerLong(), null, null, null );
-		final Optional< Highlights > highlightsMode = viewer.getHighlightsMode();
-		highlightsMode.ifPresent( mode -> {
-			viewer.getSettings().currentModeProperty().set( mode );
-			final Optional< SelectedIds > selectedIds = viewer.getSelectedIds( labelSpec2 );
-			selectedIds.ifPresent( selIds -> {
-				new Thread( () -> {
-					System.out.println( "Selected ids before? " + selIds );
-					try
-					{
-						Thread.sleep( 2000 );
-					}
-					catch ( final InterruptedException e )
-					{
-						e.printStackTrace();
-					}
-					finally
-					{
-						selIds.activate( 1, 2, 3, 7, 8, 9, 10, 12, 14, 16, 17, 24 );
-						System.out.println( "Selected ids after? " + selIds );
-					}
+		final Optional< SelectedIds > selectedIds = viewer.getSelectedIds( labelSpec2 );
+		selectedIds.ifPresent( selIds -> {
+			new Thread( () -> {
+				System.out.println( "Selected ids before? " + selIds );
+				try
+				{
+					Thread.sleep( 2000 );
+				}
+				catch ( final InterruptedException e )
+				{
+					e.printStackTrace();
+				}
+				finally
+				{
+					selIds.activate( 1, 2, 3, 7, 8, 9, 10, 12, 14, 16, 17, 24 );
+					System.out.println( "Selected ids after? " + selIds );
+				}
 
-				} ).start();
-			} );
+			} ).start();
 		} );
 
 	}
@@ -193,7 +188,7 @@ public class ExampleApplication2
 		public ARGBConvertedSource(
 				final int setupId,
 				final AbstractViewerSetupImgLoader< T, ? extends Volatile< T > > loader,
-						final Converter< Volatile< T >, VolatileARGBType > converter )
+				final Converter< Volatile< T >, VolatileARGBType > converter )
 		{
 			this.setupId = setupId;
 			this.loader = loader;

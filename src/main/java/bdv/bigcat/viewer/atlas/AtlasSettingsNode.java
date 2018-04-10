@@ -2,7 +2,6 @@ package bdv.bigcat.viewer.atlas;
 
 import java.util.Optional;
 
-import bdv.bigcat.viewer.atlas.mode.ModeUtil;
 import javafx.beans.binding.BooleanBinding;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.DoubleProperty;
@@ -55,12 +54,6 @@ public class AtlasSettingsNode
 			addBooleanProperty( settings.allowRotationsProperty(), "Rotations", checkBoxGrid );
 		}
 
-		final GridPane choicesGrid = new GridPane();
-		{
-			int row = 0;
-			addSelection( settings.availableModes(), settings.currentModeProperty(), "Mode", choicesGrid, row++, Optional.of( ModeUtil.getStringConverter( settings.availableModes() ) ) );
-		}
-
 		final TitledPane navigationSpeeds = new TitledPane( "Navigation Speed", null );
 		{
 			int speedRow = 0;
@@ -71,16 +64,12 @@ public class AtlasSettingsNode
 			navigationSpeeds.setContent( speedGrid );
 		}
 
-		contents.getChildren().addAll( checkBoxGrid, choicesGrid, navigationSpeeds );
+		contents.getChildren().addAll( checkBoxGrid, navigationSpeeds );
 		contents.maxWidthProperty().bind( width );
 
 		checkBoxGrid.prefWidthProperty().bind( width );
 		checkBoxGrid.maxWidthProperty().set( Double.MAX_VALUE );
 		checkBoxGrid.minWidthProperty().set( 30 );
-
-		choicesGrid.prefWidthProperty().bind( width );
-		choicesGrid.maxWidthProperty().set( Double.MAX_VALUE );
-		choicesGrid.minWidthProperty().set( 30 );
 
 		navigationSpeeds.prefWidthProperty().bind( width );
 		navigationSpeeds.maxWidthProperty().set( Double.MAX_VALUE );

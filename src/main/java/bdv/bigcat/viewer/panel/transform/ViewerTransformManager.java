@@ -4,7 +4,6 @@ import java.util.Arrays;
 import java.util.Optional;
 import java.util.function.Predicate;
 
-import bdv.bigcat.viewer.atlas.mode.Merges;
 import bdv.bigcat.viewer.bdvfx.EventFX;
 import bdv.bigcat.viewer.bdvfx.KeyTracker;
 import bdv.bigcat.viewer.bdvfx.MouseDragFX;
@@ -195,7 +194,7 @@ public class ViewerTransformManager implements TransformListener< AffineTransfor
 				event -> keyTracker.areOnlyTheseKeysDown( KeyCode.META ),
 				event -> keyTracker.areOnlyTheseKeysDown( KeyCode.CONTROL, KeyCode.SHIFT ) );
 
-		final EventFX< KeyEvent > removeRotation = EventFX.KEY_PRESSED( "remove rotation", new RemoveRotation()::handle, event -> Merges.shiftOnly( event ) && event.getCode().equals( KeyCode.Z ) );
+		final EventFX< KeyEvent > removeRotation = EventFX.KEY_PRESSED( "remove rotation", new RemoveRotation()::handle, event -> keyTracker.areOnlyTheseKeysDown( KeyCode.SHIFT, KeyCode.Z ) );
 
 		translateXY.installInto( this.viewer );
 		Arrays.stream( rotations ).forEach( r -> r.installInto( viewer ) );
@@ -213,15 +212,15 @@ public class ViewerTransformManager implements TransformListener< AffineTransfor
 						"button zoom +",
 						event -> zoomIn.zoom(),
 						event -> keyTracker.areOnlyTheseKeysDown( KeyCode.EQUALS )
-						|| keyTracker.areOnlyTheseKeysDown( KeyCode.SHIFT, KeyCode.EQUALS )
-						|| keyTracker.areOnlyTheseKeysDown( KeyCode.UP ) ) );
+								|| keyTracker.areOnlyTheseKeysDown( KeyCode.SHIFT, KeyCode.EQUALS )
+								|| keyTracker.areOnlyTheseKeysDown( KeyCode.UP ) ) );
 		viewer.addEventHandler(
 				KeyEvent.KEY_PRESSED, EventFX.KEY_PRESSED(
 						"button zoom -",
 						event -> zoomOut.zoom(),
 						event -> keyTracker.areOnlyTheseKeysDown( KeyCode.MINUS )
-						|| keyTracker.areOnlyTheseKeysDown( KeyCode.SHIFT, KeyCode.MINUS )
-						|| keyTracker.areOnlyTheseKeysDown( KeyCode.DOWN ) ) );
+								|| keyTracker.areOnlyTheseKeysDown( KeyCode.SHIFT, KeyCode.MINUS )
+								|| keyTracker.areOnlyTheseKeysDown( KeyCode.DOWN ) ) );
 
 		{
 			final TranslateZButton translateForward = new TranslateZButton( translationSpeed.multiply( -factors[ 0 ] ), manager, global, axis, viewer );

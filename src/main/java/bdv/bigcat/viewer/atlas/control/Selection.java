@@ -1,10 +1,9 @@
-package bdv.bigcat.viewer.atlas.mode;
+package bdv.bigcat.viewer.atlas.control;
 
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
-import java.util.concurrent.ExecutorService;
 import java.util.function.Consumer;
 
 import bdv.bigcat.viewer.IdSelector;
@@ -12,17 +11,10 @@ import bdv.bigcat.viewer.atlas.source.SourceInfo;
 import bdv.bigcat.viewer.bdvfx.InstallAndRemove;
 import bdv.bigcat.viewer.bdvfx.KeyTracker;
 import bdv.bigcat.viewer.bdvfx.ViewerPanelFX;
-import bdv.bigcat.viewer.state.GlobalTransformManager;
-import javafx.scene.Group;
 import javafx.scene.Node;
-import javafx.scene.input.KeyCode;
 
-public class Highlights extends AbstractStateMode
+public class Selection implements ToOnEnterOnExit
 {
-
-	private final GlobalTransformManager transformManager;
-
-	private final Group meshesGroup;
 
 	private final SourceInfo sourceInfo;
 
@@ -30,38 +22,24 @@ public class Highlights extends AbstractStateMode
 
 	private final KeyTracker keyTracker;
 
-	private final ExecutorService es;
-
-	public Highlights(
-			final GlobalTransformManager transformManager,
-			final Group meshesGroup,
+	public Selection(
 			final SourceInfo sourceInfo,
-			final KeyTracker keyTracker,
-			final ExecutorService es )
+			final KeyTracker keyTracker )
 	{
-		this.transformManager = transformManager;
-		this.meshesGroup = meshesGroup;
 		this.sourceInfo = sourceInfo;
 		this.keyTracker = keyTracker;
-		this.es = es;
 	}
 
 	@Override
-	public String getName()
-	{
-		return "highlights";
-	}
-
-	@Override
-	protected Consumer< ViewerPanelFX > getOnEnter()
+	public Consumer< ViewerPanelFX > getOnEnter()
 	{
 		return t -> {
 			if ( !this.mouseAndKeyHandlers.containsKey( t ) )
 			{
-				final IdSelector selector = new IdSelector( t, sourceInfo, this );
+				final IdSelector selector = new IdSelector( t, sourceInfo );
 				final List< InstallAndRemove< Node > > iars = new ArrayList<>();
 				iars.add( selector.selectFragmentWithMaximumCount( "toggle single id", event -> event.isPrimaryButtonDown() && keyTracker.noKeysActive() ) );
-				iars.add( selector.appendFragmentWithMaximumCount( "append id", event -> event.isPrimaryButtonDown() && keyTracker.areOnlyTheseKeysDown( KeyCode.SHIFT ) ) );
+				iars.add( selector.appendFragmentWithMaximumCount( "append id", event -> event.isSecondaryButtonDown() && keyTracker.noKeysActive() ) );
 				this.mouseAndKeyHandlers.put( t, iars );
 			}
 //			t.getDisplay().addHandler( this.mouseAndKeyHandlers.get( t ) );
@@ -70,7 +48,7 @@ public class Highlights extends AbstractStateMode
 	}
 
 	@Override
-	public Consumer< ViewerPanelFX > onExit()
+	public Consumer< ViewerPanelFX > getOnExit()
 	{
 		return t -> {
 //			t.getDisplay().removeHandler( this.mouseAndKeyHandlers.get( t ) );

@@ -1,4 +1,4 @@
-package bdv.bigcat.viewer.atlas.mode.paint;
+package bdv.bigcat.viewer.atlas.control.paint;
 
 import java.lang.invoke.MethodHandles;
 import java.util.ArrayList;

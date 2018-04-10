@@ -7,6 +7,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import gnu.trove.set.hash.TLongHashSet;
+import net.imglib2.type.label.Label;
 
 public class SelectedIds extends AbstractState< SelectedIds >
 {
@@ -14,6 +15,8 @@ public class SelectedIds extends AbstractState< SelectedIds >
 	private static final Logger LOG = LoggerFactory.getLogger( MethodHandles.lookup().lookupClass() );
 
 	private final TLongHashSet selectedIds;
+
+	private long lastSelection = Label.INVALID;
 
 	public SelectedIds()
 	{
@@ -24,6 +27,7 @@ public class SelectedIds extends AbstractState< SelectedIds >
 	{
 		super();
 		this.selectedIds = selectedIds;
+		updateLastSelection();
 	}
 
 	public boolean isActive( final long id )
@@ -42,6 +46,8 @@ public class SelectedIds extends AbstractState< SelectedIds >
 	{
 		for ( final long id : ids )
 			selectedIds.add( id );
+		if ( ids.length > 0 )
+			this.lastSelection = ids[ 0 ];
 		stateChanged();
 	}
 
@@ -53,6 +59,7 @@ public class SelectedIds extends AbstractState< SelectedIds >
 	private void deactivateAll( final boolean notify )
 	{
 		selectedIds.clear();
+		lastSelection = Label.INVALID;
 		if ( notify )
 			stateChanged();
 	}
@@ -60,7 +67,11 @@ public class SelectedIds extends AbstractState< SelectedIds >
 	public void deactivate( final long... ids )
 	{
 		for ( final long id : ids )
+		{
 			selectedIds.remove( id );
+			if ( id == lastSelection )
+				lastSelection = Label.INVALID;
+		}
 		LOG.debug( "Deactivated {}, {}", Arrays.toString( ids ), selectedIds );
 		stateChanged();
 	}
@@ -75,10 +86,28 @@ public class SelectedIds extends AbstractState< SelectedIds >
 		return this.selectedIds.toArray();
 	}
 
+	public long getLastSelection()
+	{
+		return this.lastSelection;
+	}
+
+	public boolean isLastSelection( final long id )
+	{
+		return this.lastSelection == id;
+	}
+
 	@Override
 	public String toString()
 	{
 		return selectedIds.toString();
+	}
+
+	private void updateLastSelection()
+	{
+		if ( selectedIds.size() > 0 )
+		{
+			lastSelection = selectedIds.iterator().next();
+		}
 	}
 
 }

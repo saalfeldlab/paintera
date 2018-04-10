@@ -40,11 +40,6 @@ import bdv.bigcat.viewer.atlas.data.mask.PickOneAllIntegerTypes;
 import bdv.bigcat.viewer.atlas.data.mask.PickOneAllIntegerTypesVolatile;
 import bdv.bigcat.viewer.atlas.data.mask.PickOneLabelMultisetType;
 import bdv.bigcat.viewer.atlas.data.mask.PickOneVolatileLabelMultisetType;
-import bdv.bigcat.viewer.atlas.mode.Highlights;
-import bdv.bigcat.viewer.atlas.mode.Merges;
-import bdv.bigcat.viewer.atlas.mode.Mode;
-import bdv.bigcat.viewer.atlas.mode.NavigationOnly;
-import bdv.bigcat.viewer.atlas.mode.paint.PaintMode;
 import bdv.bigcat.viewer.atlas.source.AtlasSourceState;
 import bdv.bigcat.viewer.atlas.source.SourceInfo;
 import bdv.bigcat.viewer.atlas.ui.ResizeOnLeftSide;
@@ -199,7 +194,7 @@ public class Atlas
 		}
 		catch (
 
-				final InterruptedException e )
+		final InterruptedException e )
 		{
 			// TODO Auto-generated catch block
 			e.printStackTrace();
@@ -294,16 +289,6 @@ public class Atlas
 		this.renderView = new Viewer3DFX( 100, 100 );
 		this.view.setInfoNode( renderView );
 		this.renderView.scene().addEventHandler( MouseEvent.MOUSE_CLICKED, event -> renderView.scene().requestFocus() );
-
-		final Mode[] initialModes = defaultModes( this );
-		this.settings.availableModes().setAll( initialModes );
-
-		for ( final Mode mode : this.settings.availableModes() )
-		{
-			addOnEnterOnExit( mode.onEnter(), mode.onExit(), true );
-		}
-
-		this.settings.currentModeProperty().set( initialModes[ 0 ] );
 
 		final Label coordinates = new Label();
 		final AtlasMouseCoordinatePrinter coordinatePrinter = new AtlasMouseCoordinatePrinter( coordinates );
@@ -617,9 +602,7 @@ public class Atlas
 	{
 		final I i = Util.getTypeFromInterval( data );
 		final V v = ( V ) VolatileTypeMatcher.getVolatileTypeForType( i );
-		if ( v == null ) {
-			throw new RuntimeException( "Was not able to get volatile type for type: " + i.getClass() );
-		}
+		if ( v == null ) { throw new RuntimeException( "Was not able to get volatile type for type: " + i.getClass() ); }
 		v.setValid( true );
 		final RandomAccessibleInterval< V > convertedData = Converters.convert( data, ( s, t ) -> t.get().set( s ), v );
 		final RandomAccessibleInterval< I >[] sources = new RandomAccessibleInterval[] { data };
@@ -665,12 +648,12 @@ public class Atlas
 		final AtlasSourceState< V, I > state = sourceInfo.makeLabelSourceState(
 				spec,
 				spec.getDataType() instanceof IntegerType ? ToIdConverter.fromIntegerType() : ToIdConverter.fromRealType(),
-						sel -> createBoolConverter( sel, assignment ),
-						( FragmentSegmentAssignmentState ) assignment,
-						stream,
-						selId,
-						converter,
-						comp );
+				sel -> createBoolConverter( sel, assignment ),
+				( FragmentSegmentAssignmentState ) assignment,
+				stream,
+				selId,
+				converter,
+				comp );
 		state.idServiceProperty().set( idService );
 		if ( spec instanceof MaskedSource< ?, ? > )
 		{
@@ -807,15 +790,15 @@ public class Atlas
 				sources,
 				new AffineTransform3D[] { sourceTransform },
 				i -> i.equals( Interpolation.NLINEAR ) ? new NLinearInterpolatorFactory() : new NearestNeighborInterpolatorFactory(),
-						i -> i.equals( Interpolation.NLINEAR ) ? new NLinearInterpolatorFactory() : new NearestNeighborInterpolatorFactory(),
-								name );
+				i -> i.equals( Interpolation.NLINEAR ) ? new NLinearInterpolatorFactory() : new NearestNeighborInterpolatorFactory(),
+				name );
 		addRawSource( source, min, max, Colors.toARGBType( color ) );
 	}
 
 	public < T extends RealType< T >, U extends RealType< U > > void addRawSources(
 			final Collection< ? extends DataSource< T, U > > specs,
-					final double min,
-					final double max )
+			final double min,
+			final double max )
 	{
 		final int numSources = specs.size();
 		final double factor = 360.0 / numSources;
@@ -837,9 +820,9 @@ public class Atlas
 
 	public < T extends RealType< T >, U extends RealType< U > > void addRawSources(
 			final Collection< ? extends DataSource< T, U > > specs,
-					final Collection< ARGBType > colors,
-					final double[] min,
-					final double[] max )
+			final Collection< ARGBType > colors,
+			final double[] min,
+			final double[] max )
 	{
 		final Iterator< ? extends DataSource< T, U > > specIt = specs.iterator();
 		final Iterator< ARGBType > colorIt = colors.iterator();
@@ -962,7 +945,8 @@ public class Atlas
 		final boolean isInteger = selection instanceof IntegerType< ? >;
 		final long id = isInteger ? ( ( IntegerType< ? > ) selection ).getIntegerLong() : ( long ) selection.getRealDouble();
 		final long segmentId = assignment.getSegment( id );
-		if ( selection instanceof IntegerType< ? > ) {
+		if ( selection instanceof IntegerType< ? > )
+		{
 			return ( Converter< T, BoolType > ) ( Converter< IntegerType< ? >, BoolType > ) ( s, t ) -> t.set( assignment.getSegment( s.getIntegerLong() ) == segmentId );
 		}
 		else
@@ -1024,9 +1008,7 @@ public class Atlas
 		{
 			return t.getMinValue();
 		}
-		else if ( t instanceof AbstractVolatileRealType< ?, ? > && ( ( AbstractVolatileRealType< ?, ? > ) t ).get() instanceof IntegerType< ? > ) {
-			return t.getMinValue();
-		}
+		else if ( t instanceof AbstractVolatileRealType< ?, ? > && ( ( AbstractVolatileRealType< ?, ? > ) t ).get() instanceof IntegerType< ? > ) { return t.getMinValue(); }
 		return 0.0;
 	}
 
@@ -1036,9 +1018,7 @@ public class Atlas
 		{
 			return t.getMaxValue();
 		}
-		else if ( t instanceof AbstractVolatileRealType< ?, ? > && ( ( AbstractVolatileRealType< ?, ? > ) t ).get() instanceof IntegerType< ? > ) {
-			return t.getMaxValue();
-		}
+		else if ( t instanceof AbstractVolatileRealType< ?, ? > && ( ( AbstractVolatileRealType< ?, ? > ) t ).get() instanceof IntegerType< ? > ) { return t.getMaxValue(); }
 		return 1.0;
 	}
 
@@ -1199,52 +1179,9 @@ public class Atlas
 		return this.keyTracker;
 	}
 
-	public Optional< NavigationOnly > getNavigationOnlyMode()
-	{
-		return getMode( NavigationOnly.class );
-	}
-
-	public Optional< Highlights > getHighlightsMode()
-	{
-		return getMode( Highlights.class );
-	}
-
-	public Optional< Merges > getMergesMode()
-	{
-		return getMode( Merges.class );
-	}
-
-	public Optional< PaintMode > getPaintMode()
-	{
-		return getMode( PaintMode.class );
-	}
-
-	public < M extends Mode > Optional< M > getMode( final M mode )
-	{
-		return this.settings.availableModes().stream().filter( m -> m.equals( mode ) ).map( m -> ( M ) m ).findFirst();
-	}
-
-	public < M extends Mode > Optional< M > getMode( final Class< M > mode )
-	{
-		return this.settings.availableModes().stream().filter( m -> m.getClass().equals( mode ) ).map( m -> ( M ) m ).findFirst();
-	}
-
 	public AtlasSettings getSettings()
 	{
 		return this.settings;
-	}
-
-	private static Mode[] defaultModes( final Atlas viewer )
-	{
-		return new Mode[] {
-				new NavigationOnly(),
-				new Highlights( viewer.transformManager(), viewer.renderView.meshesGroup(), viewer.sourceInfo(), viewer.keyTracker(), viewer.generalPurposeExecutorService ),
-				new Merges( viewer.sourceInfo() ),
-				new PaintMode(
-						viewer.sourceInfo(),
-						viewer.keyTracker(),
-						viewer.transformManager(),
-						() -> viewer.baseView().requestRepaint() ) };
 	}
 
 	private static < D extends Type< D >, T extends Type< T > > void generateMeshCaches(

@@ -1,4 +1,4 @@
-package bdv.bigcat.viewer.atlas.mode.paint;
+package bdv.bigcat.viewer.atlas.control.paint;
 
 import net.imglib2.Localizable;
 import net.imglib2.RandomAccess;

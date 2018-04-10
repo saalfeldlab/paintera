@@ -12,7 +12,6 @@ import org.slf4j.LoggerFactory;
 
 import bdv.bigcat.label.Label;
 import bdv.bigcat.viewer.atlas.data.DataSource;
-import bdv.bigcat.viewer.atlas.mode.Mode;
 import bdv.bigcat.viewer.atlas.source.SourceInfo;
 import bdv.bigcat.viewer.bdvfx.InstallAndRemove;
 import bdv.bigcat.viewer.bdvfx.MouseClickFX;
@@ -47,17 +46,13 @@ public class IdSelector
 
 	private final SourceInfo sourceInfo;
 
-	private final Mode mode;
-
 	public IdSelector(
 			final ViewerPanelFX viewer,
-			final SourceInfo sourceInfo,
-			final Mode mode )
+			final SourceInfo sourceInfo )
 	{
 		super();
 		this.viewer = viewer;
 		this.sourceInfo = sourceInfo;
-		this.mode = mode;
 	}
 
 	public InstallAndRemove< Node > selectFragmentWithMaximumCount( final String name, final Predicate< MouseEvent > eventFilter )
@@ -175,9 +170,9 @@ public class IdSelector
 					{
 						final FragmentSegmentAssignmentState< ? > assignments = assignmentOptional.get();
 
-						final long[] selIds = selectedIds.get().getActiveIds();
+						final long lastSelection = selectedIds.get().getLastSelection();
 
-						if ( selIds.length != 1 )
+						if ( lastSelection == Label.INVALID )
 							return;
 
 						final AffineTransform3D viewerTransform = new AffineTransform3D();
@@ -195,8 +190,8 @@ public class IdSelector
 
 						final TLongHashSet fragments = new TLongHashSet();
 						fragments.add( id );
-						fragments.add( selIds[ 0 ] );
-						LOG.warn( "Merging fragments: {} -- selected ids: {}", fragments, Arrays.toString( selIds ) );
+						fragments.add( lastSelection );
+						LOG.warn( "Merging fragments: {} -- last selection: {}", fragments, lastSelection );
 						assignments.mergeFragments( fragments.toArray() );
 					}
 			}
@@ -225,9 +220,9 @@ public class IdSelector
 
 						final FragmentSegmentAssignmentState< ? > assignment = assignmentOptional.get();
 
-						final long[] selIds = selectedIds.get().getActiveIds();
+						final long lastSelection = selectedIds.get().getLastSelection();
 
-						if ( selIds.length != 1 )
+						if ( lastSelection == Label.INVALID )
 							return;
 
 						final AffineTransform3D viewerTransform = new AffineTransform3D();
@@ -244,7 +239,7 @@ public class IdSelector
 						final Object val = access.get();
 						final long id = toIdConverter.get().biggestFragment( val );
 
-						assignment.detachFragment( id, selIds[ 0 ] );
+						assignment.detachFragment( id, lastSelection );
 
 					}
 			}
