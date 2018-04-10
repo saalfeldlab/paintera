@@ -152,6 +152,25 @@ public class Paint2D
 		return new PaintDrag( name, eventFilter, true, this, id );
 	}
 
+	public void prepareAndPaint( final MouseEvent event, final Long id ) throws MaskInUse
+	{
+		prepareForPainting( id );
+		paintQueue.submit( () -> paint( event ) );
+		paintQueue.submit( () -> applyMask() );
+	}
+
+	public void prepareAndPaintUnchecked( final MouseEvent event, final Long id )
+	{
+		try
+		{
+			prepareAndPaint( event, id );
+		}
+		catch ( final MaskInUse e )
+		{
+			throw new RuntimeException( e );
+		}
+	}
+
 	public void paint( final MouseEvent event )
 	{
 		paint( event, true );
@@ -277,7 +296,6 @@ public class Paint2D
 		labelToViewerTransform.applyInverse( seedReal, seedReal );
 		final Point seed = new Point( IntStream.range( 0, 3 ).mapToDouble( seedReal::getDoublePosition ).mapToLong( Math::round ).toArray() );
 		FloodFill.fill( containsCheck, trackingLabelSource, seed, new UnsignedByteType( 1 ), new DiamondShape( 1 ), ( comp, ref ) -> comp.getA().get() && comp.getB().get() == 0 );
-
 
 		final long[] min = trackingLabelSource.getMin().clone();
 		final long[] max = trackingLabelSource.getMax().clone();
