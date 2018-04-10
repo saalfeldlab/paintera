@@ -77,9 +77,7 @@ import bdv.viewer.Source;
 import bdv.viewer.SourceAndConverter;
 import bdv.viewer.ViewerOptions;
 import gnu.trove.set.hash.TLongHashSet;
-import javafx.beans.binding.Bindings;
 import javafx.beans.property.BooleanProperty;
-import javafx.beans.property.SimpleBooleanProperty;
 import javafx.collections.ListChangeListener;
 import javafx.collections.MapChangeListener;
 import javafx.event.EventHandler;
@@ -89,7 +87,6 @@ import javafx.scene.control.Alert;
 import javafx.scene.control.Button;
 import javafx.scene.control.ButtonType;
 import javafx.scene.control.Label;
-import javafx.scene.control.Slider;
 import javafx.scene.control.TitledPane;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyEvent;
@@ -140,10 +137,6 @@ public class Atlas
 	VBox statusRoot = new VBox();
 
 	private final HBox status = new HBox();
-
-	private final Slider time = new Slider( 0, 0, 0 );
-
-	private final BooleanProperty showTime = new SimpleBooleanProperty( true );
 
 	private final AtlasFocusHandler focusHandler = new AtlasFocusHandler();
 
@@ -237,9 +230,7 @@ public class Atlas
 		} );
 		this.root = new BorderPane( this.view );
 		this.root.setBottom( statusRoot );
-		this.statusRoot.getChildren().addAll( status, this.time );
-		this.time.valueProperty().addListener( ( obs, oldv, newv ) -> this.time.setValue( ( int ) ( newv.doubleValue() + 0.5 ) ) );
-		this.view.getState().timeProperty().bind( Bindings.createIntegerBinding( () -> ( int ) ( time.getValue() + 0.5 ), time.valueProperty() ) );
+		this.statusRoot.getChildren().addAll( status );
 //		this.sourceTabs.setOrientation( Orientation.VERTICAL );
 //		toggleSourcesTabs();
 
@@ -252,22 +243,6 @@ public class Atlas
 			else if ( keyTracker.areOnlyTheseKeysDown( KeyCode.CONTROL, KeyCode.SHIFT, KeyCode.TAB ) )
 			{
 				sourceInfo.decrementCurrentSourceIndex();
-				event.consume();
-			}
-		} );
-
-		this.time.visibleProperty().bind( this.time.minProperty().isEqualTo( this.time.maxProperty() ).not().and( this.showTime ) );
-		this.view.addEventHandler( KeyEvent.KEY_PRESSED, event -> {
-			if ( this.keyTracker.areOnlyTheseKeysDown( KeyCode.N ) )
-			{
-				this.time.setValue( this.time.getValue() - 1 );
-				event.consume();
-			}
-		} );
-		this.view.addEventHandler( KeyEvent.KEY_PRESSED, event -> {
-			if ( this.keyTracker.areOnlyTheseKeysDown( KeyCode.M ) )
-			{
-				this.time.setValue( this.time.getValue() + 1 );
 				event.consume();
 			}
 		} );
@@ -453,11 +428,8 @@ public class Atlas
 			affine.apply( max, max );
 			final FinalInterval interval = new FinalInterval( Arrays.stream( min ).mapToLong( Math::round ).toArray(), Arrays.stream( max ).mapToLong( Math::round ).toArray() );
 			centerForInterval( interval );
-			this.time.setValue( tMin );
 		}
 //		this.baseView().getState().addSource( src );
-		this.time.setMin( Math.min( tMin, this.time.getMin() ) );
-		this.time.setMax( Math.max( tMax, this.time.getMax() ) );
 	}
 
 	public < T, VT > void removeSource( final DataSource< T, VT > spec )
