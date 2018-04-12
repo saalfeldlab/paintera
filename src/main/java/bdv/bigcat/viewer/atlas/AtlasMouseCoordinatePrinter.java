@@ -1,8 +1,12 @@
 package bdv.bigcat.viewer.atlas;
 
+import java.lang.invoke.MethodHandles;
 import java.util.HashMap;
 import java.util.function.Consumer;
 import java.util.function.Function;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import bdv.bigcat.viewer.bdvfx.ViewerPanelFX;
 import javafx.application.Platform;
@@ -15,6 +19,8 @@ import net.imglib2.ui.TransformListener;
 
 public class AtlasMouseCoordinatePrinter
 {
+
+	private static final Logger LOG = LoggerFactory.getLogger( MethodHandles.lookup().lookupClass() );
 
 	private class Listener implements EventHandler< javafx.scene.input.MouseEvent >, TransformListener< AffineTransform3D >
 	{
@@ -35,6 +41,7 @@ public class AtlasMouseCoordinatePrinter
 		private final void updateStatusBar()
 		{
 			viewer.displayToGlobalCoordinates( x, y, p );
+			LOG.trace( "display-coordinates=({} {}), world-coordinates={}", x, y, p );
 			Platform.runLater( () -> statusBar.setText( String.format( "(%.3f, %.3f) (%.3f, %.3f, %.3f)", x, y, pos[ 0 ], pos[ 1 ], pos[ 2 ] ) ) );
 		}
 
