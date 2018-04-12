@@ -43,10 +43,15 @@ public class DisplayTransformUpdateOnResize
 		this.lock = lock;
 
 		this.onResize = ( obs, oldv, newv ) -> {
-			setCanvasSize( this.width.doubleValue(), this.height.doubleValue(), true );
+			synchronized ( lock )
+			{
+				setCanvasSize( this.width.doubleValue(), this.height.doubleValue(), true );
+			}
 		};
 
 		listen();
+
+		setCanvasSize( width.get(), height.get(), false );
 
 	}
 
@@ -64,7 +69,7 @@ public class DisplayTransformUpdateOnResize
 		this.displayTransformUpdater.removeListener( displayTransformListener );
 	}
 
-	public void setCanvasSize( final double width, final double height, final boolean updateTransform )
+	private void setCanvasSize( final double width, final double height, final boolean updateTransform )
 	{
 		if ( width == 0 || height == 0 )
 			return;
@@ -73,11 +78,11 @@ public class DisplayTransformUpdateOnResize
 			synchronized ( lock )
 			{
 				final AffineTransform3D transform = this.displayTransform;
-				transform.set( transform.get( 0, 3 ) - canvasW / 2, 0, 3 );
-				transform.set( transform.get( 1, 3 ) - canvasH / 2, 1, 3 );
+				transform.set( 0, 0, 3 );
+				transform.set( 0, 1, 3 );
 				transform.scale( width / canvasW );
-				transform.set( transform.get( 0, 3 ) + width / 2, 0, 3 );
-				transform.set( transform.get( 1, 3 ) + height / 2, 1, 3 );
+				transform.set( width / 2, 0, 3 );
+				transform.set( height / 2, 1, 3 );
 				displayTransformUpdater.setTransform( transform );
 			}
 		}

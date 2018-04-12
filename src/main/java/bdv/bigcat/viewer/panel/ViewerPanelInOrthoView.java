@@ -60,7 +60,7 @@ public class ViewerPanelInOrthoView implements ListChangeListener< SourceAndConv
 		this.viewer = viewer;
 		this.globalToViewerTransformWithListeners = new AffineTransformWithListeners( globalToViewer( viewerAxis ) );
 		LOG.warn( "Making viewer with axis={} and transform={}", viewerAxis, globalToViewerTransformWithListeners );
-		this.displayTransformWithListeners = new AffineTransformWithListeners();
+		this.displayTransformWithListeners = new AffineTransformWithListeners( makeInitialDisplayTransform( viewer.getWidth(), viewer.getHeight() ) );
 		this.concatenator = new TransformConcatenator(
 				manager,
 				this.displayTransformWithListeners,
@@ -71,14 +71,16 @@ public class ViewerPanelInOrthoView implements ListChangeListener< SourceAndConv
 				viewer.widthProperty(),
 				viewer.heightProperty(),
 				manager );
-		this.displayTransformUpdate.setCanvasSize( viewer.getWidth(), viewer.getHeight(), false );
 		this.displayTransformUpdate.listen();
-		this.concatenator.setTransformListener( tf -> viewer.setCurrentViewerTransform( tf ) );
+		this.concatenator.setTransformListener( viewer::setCurrentViewerTransform );
+		this.concatenator.forceUpdate();
 		this.viewer.setMinSize( 0, 0 );
+
 //		this.viewer.showMultibox( false );
 		this.state = new ViewerState( this.viewer );
 		initializeViewer();
 		addCrosshair();
+//		this.displayTransformWithListeners.setTransform( makeInitialDisplayTransform( viewer.getWidth(), viewer.getHeight() ) );
 
 //		https://stackoverflow.com/questions/21657034/javafx-keyevent-propagation-order
 //		https://stackoverflow.com/questions/32802664/setonkeypressed-event-not-working-properly
@@ -186,8 +188,13 @@ public class ViewerPanelInOrthoView implements ListChangeListener< SourceAndConv
 		this.displayTransformWithListeners.setTransform( affine );
 	}
 
-	public void setCanvasSize( final double width, final double height, final boolean updateTransform )
+	public static AffineTransform3D makeInitialDisplayTransform( final double w, final double h )
 	{
-		this.displayTransformUpdate.setCanvasSize( width, height, updateTransform );
+		final AffineTransform3D transform = new AffineTransform3D();
+		transform.set(
+				1, 0, 0, 0.5 * w,
+				0, 1, 0, 0.5 * h,
+				0, 0, 1, 0.0 );
+		return transform;
 	}
 }

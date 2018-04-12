@@ -53,7 +53,6 @@ public class OrthogonalViews< BR extends Node >
 			this.concatenator = new TransformConcatenator( this.manager, displayTransform, globalToViewerTransform, manager );
 			this.concatenator.setTransformListener( viewer );
 
-			this.displayTransformUpdate.setCanvasSize( viewer.getWidth(), viewer.getHeight(), false );
 		}
 	}
 
