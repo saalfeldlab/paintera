@@ -59,7 +59,6 @@ import javafx.scene.paint.Color;
 import net.imglib2.ui.InteractiveDisplayCanvas;
 import net.imglib2.ui.OverlayRenderer;
 import net.imglib2.ui.TransformEventHandler;
-import net.imglib2.ui.TransformEventHandlerFactory;
 import net.imglib2.ui.TransformListener;
 
 /**
@@ -70,15 +69,10 @@ import net.imglib2.ui.TransformListener;
  *
  * @author Tobias Pietzsch
  */
-public class InteractiveDisplayPaneComponent< A > extends StackPane implements InteractiveDisplayCanvasGeneric< A, GraphicsContext, Collection< InstallAndRemove< Node > > >
+public class InteractiveDisplayPaneComponent< A > extends StackPane
 {
 
 	private static final long serialVersionUID = -5546719724928785878L;
-
-	/**
-	 * Mouse/Keyboard handler that manipulates the view transformation.
-	 */
-	protected TransformEventHandler< A > handler;
 
 	/**
 	 * Listeners that we have to notify about view transformation changes.
@@ -126,7 +120,6 @@ public class InteractiveDisplayPaneComponent< A > extends StackPane implements I
 	public InteractiveDisplayPaneComponent(
 			final int width,
 			final int height,
-			final TransformEventHandlerFactory< A > transformEventHandlerFactory,
 			final ImageOverlayRendererFX renderTarget )
 	{
 		super();
@@ -144,8 +137,6 @@ public class InteractiveDisplayPaneComponent< A > extends StackPane implements I
 			final int h = ( int ) hd;
 			if ( w <= 0 || h <= 0 )
 				return;
-			if ( handler != null )
-				handler.setCanvasSize( w, h, true );
 			overlayRenderers.forEach( or -> or.setCanvasSize( w, h ) );
 			renderTarget.setCanvasSize( w, h );
 		};
@@ -153,8 +144,6 @@ public class InteractiveDisplayPaneComponent< A > extends StackPane implements I
 		widthProperty().addListener( sizeChangeListener );
 		heightProperty().addListener( sizeChangeListener );
 
-		handler = transformEventHandlerFactory.create( this );
-		handler.setCanvasSize( width, height, false );
 	}
 
 	public void drawOverlays()
@@ -178,7 +167,6 @@ public class InteractiveDisplayPaneComponent< A > extends StackPane implements I
 	 * @param renderer
 	 *            overlay renderer to add.
 	 */
-	@Override
 	public void addOverlayRenderer( final OverlayRendererGeneric< GraphicsContext > renderer )
 	{
 		overlayRenderers.add( renderer );
@@ -191,7 +179,6 @@ public class InteractiveDisplayPaneComponent< A > extends StackPane implements I
 	 * @param renderer
 	 *            overlay renderer to remove.
 	 */
-	@Override
 	public void removeOverlayRenderer( final OverlayRendererGeneric< GraphicsContext > renderer )
 	{
 		overlayRenderers.remove( renderer );
@@ -204,7 +191,6 @@ public class InteractiveDisplayPaneComponent< A > extends StackPane implements I
 	 * @param listener
 	 *            the transform listener to add.
 	 */
-	@Override
 	public void addTransformListener( final TransformListener< A > listener )
 	{
 		transformListeners.add( listener );
@@ -216,7 +202,6 @@ public class InteractiveDisplayPaneComponent< A > extends StackPane implements I
 	 * @param listener
 	 *            the transform listener to remove.
 	 */
-	@Override
 	public void removeTransformListener( final TransformListener< A > listener )
 	{
 		transformListeners.remove( listener );
@@ -232,7 +217,6 @@ public class InteractiveDisplayPaneComponent< A > extends StackPane implements I
 	 * @param h
 	 *            handler to remove
 	 */
-	@Override
 	public void addHandler( final Collection< InstallAndRemove< Node > > h )
 	{
 		h.forEach( i -> i.installInto( this ) );
@@ -249,36 +233,9 @@ public class InteractiveDisplayPaneComponent< A > extends StackPane implements I
 	 * @param h
 	 *            handler to remove
 	 */
-	@Override
 	public void removeHandler( final Collection< InstallAndRemove< Node > > h )
 	{
 		h.forEach( i -> i.removeFrom( this ) );
-	}
-
-	/**
-	 * Get the {@link TransformEventHandler} that handles mouse and key events
-	 * to update our view transform.
-	 *
-	 * @return handles mouse and key events to update the view transform.
-	 */
-	@Override
-	public TransformEventHandler< A > getTransformEventHandler()
-	{
-		return handler;
-	}
-
-	/**
-	 * Set the {@link TransformEventHandler} that handles mouse and key events
-	 * to update our view transform.
-	 *
-	 * @param transformEventHandler
-	 *            handler to use
-	 */
-	@Override
-	public synchronized void setTransformEventHandler( final TransformEventHandler< A > transformEventHandler )
-	{
-		handler = transformEventHandler;
-		handler.setCanvasSize( ( int ) getWidth(), ( int ) getHeight(), false );
 	}
 
 	public void repaint()
@@ -294,7 +251,6 @@ public class InteractiveDisplayPaneComponent< A > extends StackPane implements I
 	 * {@link TransformListener TransformListeners} that the view transform has
 	 * changed.
 	 */
-	@Override
 	public void transformChanged( final A transform )
 	{
 		for ( final TransformListener< A > l : transformListeners )

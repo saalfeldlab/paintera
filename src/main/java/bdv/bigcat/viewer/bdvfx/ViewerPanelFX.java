@@ -242,7 +242,10 @@ public class ViewerPanelFX
 		painterThread = new PainterThread( threadGroup, this );
 		viewerTransform = new AffineTransform3D();
 		renderTarget = new TransformAwareBufferedImageOverlayRendererFX();
-		display = new InteractiveDisplayPaneComponent<>( options.getWidth(), options.getHeight(), options.getTransformEventHandlerFactory(), renderTarget );
+		display = new InteractiveDisplayPaneComponent<>(
+				options.getWidth(),
+				options.getHeight(),
+				renderTarget );
 		display.addTransformListener( this );
 		renderTarget.setCanvasSize( options.getWidth(), options.getHeight() );
 		display.addOverlayRenderer( this );
@@ -495,54 +498,6 @@ public class ViewerPanelFX
 		imageRenderer.requestRepaint();
 	}
 
-//	@Override
-//	public void layoutChildren()
-//	{
-//		super.layoutChildren();
-//		final boolean requiresRepaint = false;
-////		if ( Prefs.showMultibox() )
-////		{
-////			multiBoxOverlayRenderer.setViewerState( state );
-////			multiBoxOverlayRenderer.updateVirtualScreenSize( ( int ) display.getWidth(), ( int ) display.getHeight() );
-////			multiBoxOverlayRenderer.paint( display.canvas() );
-////			requiresRepaint = multiBoxOverlayRenderer.isHighlightInProgress();
-////		}
-//
-////		if ( Prefs.showTextOverlay() )
-////		{
-////			sourceInfoOverlayRenderer.setViewerState( state );
-////			sourceInfoOverlayRenderer.paint( ( Graphics2D ) g );
-////
-////			final RealPoint gPos = new RealPoint( 3 );
-////			getGlobalMouseCoordinates( gPos );
-////			final String mousePosGlobalString = String.format( "(%6.1f,%6.1f,%6.1f)", gPos.getDoublePosition( 0 ), gPos.getDoublePosition( 1 ), gPos.getDoublePosition( 2 ) );
-////
-////			g.setFont( new Font( "Monospaced", Font.PLAIN, 12 ) );
-////			g.setColor( Color.white );
-////			g.drawString( mousePosGlobalString, ( int ) g.getClipBounds().getWidth() - 170, 25 );
-////		}
-//
-////		if ( Prefs.showScaleBar() )
-////		{
-////			scaleBarOverlayRenderer.setViewerState( state );
-////			scaleBarOverlayRenderer.paint( ( Graphics2D ) g );
-////		}
-//
-////		final long currentTimeMillis = System.currentTimeMillis();
-////		final ArrayList< OverlayAnimator > overlayAnimatorsToRemove = new ArrayList<>();
-////		for ( final OverlayAnimator animator : overlayAnimators )
-////		{
-////			animator.paint( ( Graphics2D ) g, currentTimeMillis );
-////			requiresRepaint |= animator.requiresRepaint();
-////			if ( animator.isComplete() )
-////				overlayAnimatorsToRemove.add( animator );
-////		}
-////		overlayAnimators.removeAll( overlayAnimatorsToRemove );
-//
-//		if ( requiresRepaint )
-//			display.requestLayout();
-//	}
-
 	@Override
 	public synchronized void transformChanged( final AffineTransform3D transform )
 	{
@@ -622,7 +577,6 @@ public class ViewerPanelFX
 	 */
 	public synchronized void setCurrentViewerTransform( final AffineTransform3D viewerTransform )
 	{
-		display.getTransformEventHandler().setTransform( viewerTransform );
 		transformChanged( viewerTransform );
 	}
 
