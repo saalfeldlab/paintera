@@ -68,16 +68,12 @@ import net.imglib2.ui.TransformListener;
  *            transform type
  *
  * @author Tobias Pietzsch
+ * @author Philipp Hanslovsky
  */
 public class InteractiveDisplayPaneComponent< A > extends StackPane
 {
 
 	private static final long serialVersionUID = -5546719724928785878L;
-
-	/**
-	 * Listeners that we have to notify about view transformation changes.
-	 */
-	final protected CopyOnWriteArrayList< TransformListener< A > > transformListeners;
 
 	/**
 	 * The {@link OverlayRenderer} that draws on top of the current buffered
@@ -127,7 +123,6 @@ public class InteractiveDisplayPaneComponent< A > extends StackPane
 		setHeight( height );
 
 		this.overlayRenderers = new CopyOnWriteArrayList<>();
-		this.transformListeners = new CopyOnWriteArrayList<>();
 		this.renderTarget = renderTarget;
 
 		final ChangeListener< Number > sizeChangeListener = ( ChangeListener< Number > ) ( observable, oldValue, newValue ) -> {
@@ -185,29 +180,6 @@ public class InteractiveDisplayPaneComponent< A > extends StackPane
 	}
 
 	/**
-	 * Add a {@link TransformListener} to notify about view transformation
-	 * changes.
-	 *
-	 * @param listener
-	 *            the transform listener to add.
-	 */
-	public void addTransformListener( final TransformListener< A > listener )
-	{
-		transformListeners.add( listener );
-	}
-
-	/**
-	 * Remove a {@link TransformListener}.
-	 *
-	 * @param listener
-	 *            the transform listener to remove.
-	 */
-	public void removeTransformListener( final TransformListener< A > listener )
-	{
-		transformListeners.remove( listener );
-	}
-
-	/**
 	 * Add new event handler. Depending on the interfaces implemented by
 	 * <code>handler</code> calls {@link Component#addKeyListener(KeyListener)},
 	 * {@link Component#addMouseListener(MouseListener)},
@@ -243,18 +215,6 @@ public class InteractiveDisplayPaneComponent< A > extends StackPane
 		this.renderTarget.drawOverlays( this.imageView );
 		drawOverlays();
 		layout();
-	}
-
-	/**
-	 * This is called by our {@link #getTransformEventHandler() transform event
-	 * handler} when the transform is changed. In turn, we notify all our
-	 * {@link TransformListener TransformListeners} that the view transform has
-	 * changed.
-	 */
-	public void transformChanged( final A transform )
-	{
-		for ( final TransformListener< A > l : transformListeners )
-			l.transformChanged( transform );
 	}
 
 	public void addImageChangeListener( final ChangeListener< Image > listener )

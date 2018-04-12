@@ -246,7 +246,6 @@ public class ViewerPanelFX
 				options.getWidth(),
 				options.getHeight(),
 				renderTarget );
-		display.addTransformListener( this );
 		renderTarget.setCanvasSize( options.getWidth(), options.getHeight() );
 		display.addOverlayRenderer( this );
 
