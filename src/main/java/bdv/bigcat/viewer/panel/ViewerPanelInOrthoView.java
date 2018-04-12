@@ -1,23 +1,28 @@
 package bdv.bigcat.viewer.panel;
 
-import java.util.ArrayList;
+import java.lang.invoke.MethodHandles;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import bdv.bigcat.viewer.atlas.control.navigation.AffineTransformWithListeners;
+import bdv.bigcat.viewer.atlas.control.navigation.DisplayTransformUpdateOnResize;
+import bdv.bigcat.viewer.atlas.control.navigation.TransformConcatenator;
 import bdv.bigcat.viewer.bdvfx.KeyTracker;
 import bdv.bigcat.viewer.bdvfx.ViewerPanelFX;
-import bdv.bigcat.viewer.panel.transform.ViewerTransformManager;
-import bdv.cache.CacheControl;
+import bdv.bigcat.viewer.state.GlobalTransformManager;
 import bdv.viewer.DisplayMode;
 import bdv.viewer.SourceAndConverter;
-import bdv.viewer.ViewerOptions;
 import javafx.beans.value.ChangeListener;
 import javafx.collections.ListChangeListener;
 import javafx.scene.input.MouseEvent;
-import javafx.scene.layout.Pane;
 import javafx.scene.paint.Color;
 import net.imglib2.realtransform.AffineTransform3D;
 
-public class ViewerNode extends Pane implements ListChangeListener< SourceAndConverter< ? > >
+public class ViewerPanelInOrthoView implements ListChangeListener< SourceAndConverter< ? > >
 {
+
+	public static Logger LOG = LoggerFactory.getLogger( MethodHandles.lookup().lookupClass() );
 
 	public enum ViewerAxis
 	{
@@ -28,11 +33,13 @@ public class ViewerNode extends Pane implements ListChangeListener< SourceAndCon
 
 	private final ViewerState state;
 
-	private final ViewerTransformManager manager;
+	private final AffineTransformWithListeners globalToViewerTransformWithListeners;
 
-	private ViewerAxis viewerAxis;
+	private final AffineTransformWithListeners displayTransformWithListeners;
 
-	private boolean managesOwnLayerVisibility = false;
+	private final TransformConcatenator concatenator;
+
+	private final DisplayTransformUpdateOnResize displayTransformUpdate;
 
 	private final CrossHair crosshair = new CrossHair();
 
@@ -43,27 +50,36 @@ public class ViewerNode extends Pane implements ListChangeListener< SourceAndCon
 		crosshair.setColor( outOfFocusColor );
 	}
 
-	public ViewerNode(
-			final CacheControl cacheControl,
+	public ViewerPanelInOrthoView(
+			final ViewerPanelFX viewer,
+			final GlobalTransformManager manager,
 			final ViewerAxis viewerAxis,
-			final ViewerOptions viewerOptions,
 			final KeyTracker keyTracker )
 	{
 		super();
-		this.viewer = new ViewerPanelFX( new ArrayList<>(), 1, cacheControl, viewerOptions );
-		this.getChildren().add( this.viewer );
-		this.setWidth( this.viewer.getWidth() );
-		this.setHeight( this.viewer.getHeight() );
-		this.setMinSize( 0, 0 );
-		this.heightProperty().addListener( ( obs, oldv, newv ) -> viewer.setPrefHeight( getHeight() ) );
-		this.widthProperty().addListener( ( obs, oldv, newv ) -> viewer.setPrefWidth( getWidth() ) );
+		this.viewer = viewer;
+		this.globalToViewerTransformWithListeners = new AffineTransformWithListeners( globalToViewer( viewerAxis ) );
+		LOG.warn( "Making viewer with axis={} and transform={}", viewerAxis, globalToViewerTransformWithListeners );
+		this.displayTransformWithListeners = new AffineTransformWithListeners();
+		this.concatenator = new TransformConcatenator(
+				manager,
+				this.displayTransformWithListeners,
+				this.globalToViewerTransformWithListeners,
+				manager );
+		this.displayTransformUpdate = new DisplayTransformUpdateOnResize(
+				this.displayTransformWithListeners,
+				viewer.widthProperty(),
+				viewer.heightProperty(),
+				manager );
+		this.displayTransformUpdate.setCanvasSize( viewer.getWidth(), viewer.getHeight(), false );
+		this.displayTransformUpdate.listen();
+		this.concatenator.setTransformListener( tf -> viewer.setCurrentViewerTransform( tf ) );
 		this.viewer.setMinSize( 0, 0 );
 //		this.viewer.showMultibox( false );
-		this.viewerAxis = viewerAxis;
 		this.state = new ViewerState( this.viewer );
-		this.manager = new ViewerTransformManager( this.viewer, viewerAxis, state, globalToViewer( viewerAxis ), keyTracker );
 		initializeViewer();
 		addCrosshair();
+
 //		https://stackoverflow.com/questions/21657034/javafx-keyevent-propagation-order
 //		https://stackoverflow.com/questions/32802664/setonkeypressed-event-not-working-properly
 //		Node only reacts to key events when focused!
@@ -71,8 +87,11 @@ public class ViewerNode extends Pane implements ListChangeListener< SourceAndCon
 			this.viewer.requestFocus();
 		} );
 		this.viewer.addEventFilter( MouseEvent.MOUSE_PRESSED, event -> {
-			if ( !this.isFocused() )
+			if ( !this.viewer.isFocused() )
+			{
 				this.viewer.requestFocus();
+				event.consume();
+			}
 		} );
 	}
 
@@ -93,11 +112,6 @@ public class ViewerNode extends Pane implements ListChangeListener< SourceAndCon
 		this.crosshair.setColor( r, g, b, a );
 	}
 
-	public ViewerTransformManager manager()
-	{
-		return manager;
-	}
-
 	public void setViewerPanelState( final ViewerState state )
 	{
 		this.state.set( state );
@@ -106,16 +120,6 @@ public class ViewerNode extends Pane implements ListChangeListener< SourceAndCon
 	private void initializeViewer()
 	{
 		viewer.setDisplayMode( DisplayMode.FUSED );
-		this.manager.setCanvasSize( ( int ) viewer.getDisplay().getWidth(), ( int ) viewer.getDisplay().getHeight(), true );
-		viewer.getDisplay().setTransformEventHandler( this.manager );
-//		this.manager.install( triggerbindings, keybindings );
-//		triggerbindings.addBehaviourMap( "default", behaviours.getBehaviourMap() );
-//		triggerbindings.addInputTriggerMap( "default", behaviours.getInputTriggerMap() );
-//		keybindings.addActionMap( "default", actions.getActionMap() );
-//		keybindings.addInputMap( "default", actions.getInputMap() );
-//		mouseAndKeyHandler.setInputMap( triggerbindings.getConcatenatedInputTriggerMap() );
-//		mouseAndKeyHandler.setBehaviourMap( triggerbindings.getConcatenatedBehaviourMap() );
-//		viewer.getDisplay().addHandler( mouseAndKeyHandler );
 		viewer.getDisplay().addOverlayRenderer( crosshair );
 	}
 
@@ -152,32 +156,6 @@ public class ViewerNode extends Pane implements ListChangeListener< SourceAndCon
 			} );
 	}
 
-	public void manageOwnLayerVisibility( final boolean manageVisibility )
-	{
-		this.managesOwnLayerVisibility = manageVisibility;
-	}
-
-	public boolean manageOwnLayerVisibility()
-	{
-		return managesOwnLayerVisibility;
-	}
-
-	public ViewerAxis getViewerAxis()
-	{
-		return this.viewerAxis;
-	}
-
-	public void setViewerAxis( final ViewerAxis axis )
-	{
-		this.viewerAxis = axis;
-		this.manager.setGlobalToViewer( globalToViewer( axis ) );
-	}
-
-	public AffineTransform3D getTransformCopy()
-	{
-		return this.manager.getTransform();
-	}
-
 	public ViewerState getViewerState()
 	{
 		return state;
@@ -188,4 +166,28 @@ public class ViewerNode extends Pane implements ListChangeListener< SourceAndCon
 		return this.viewer;
 	}
 
+	public AffineTransformWithListeners getGlobalToViewerTransform()
+	{
+		return this.globalToViewerTransformWithListeners;
+	}
+
+	public AffineTransformWithListeners getDisplayTransform()
+	{
+		return this.displayTransformWithListeners;
+	}
+
+	public AffineTransform3D getDisplayTransformCopy()
+	{
+		return this.displayTransformWithListeners.getTransformCopy();
+	}
+
+	public void setDisplayTransform( final AffineTransform3D affine )
+	{
+		this.displayTransformWithListeners.setTransform( affine );
+	}
+
+	public void setCanvasSize( final double width, final double height, final boolean updateTransform )
+	{
+		this.displayTransformUpdate.setCanvasSize( width, height, updateTransform );
+	}
 }

@@ -195,6 +195,19 @@ public class ViewerPanelFX
 	}
 
 	/**
+	 * @param numTimepoints
+	 *            number of available timepoints.
+	 * @param cacheControl
+	 *            to control IO budgeting and fetcher queue.
+	 * @param optional
+	 *            optional parameters. See {@link ViewerOptions#options()}.
+	 */
+	public ViewerPanelFX( final int numTimepoints, final CacheControl cacheControl, final ViewerOptions optional )
+	{
+		this( new ArrayList<>(), numTimepoints, cacheControl, optional );
+	}
+
+	/**
 	 * @param sources
 	 *            the {@link SourceAndConverter sources} to display.
 	 * @param numTimepoints

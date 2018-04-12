@@ -1,6 +1,6 @@
 package bdv.bigcat.viewer.panel.transform;
 
-import bdv.bigcat.viewer.panel.ViewerNode.ViewerAxis;
+import bdv.bigcat.viewer.panel.ViewerPanelInOrthoView.ViewerAxis;
 import bdv.bigcat.viewer.state.GlobalTransformManager;
 import javafx.beans.binding.Bindings;
 import javafx.beans.property.ObjectProperty;

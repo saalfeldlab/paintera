@@ -8,7 +8,7 @@ import javafx.event.EventHandler;
 import javafx.scene.Cursor;
 import javafx.scene.Scene;
 import javafx.scene.input.MouseEvent;
-import javafx.scene.layout.GridPane;
+import javafx.scene.layout.Pane;
 import javafx.util.Duration;
 
 public class GridResizer
@@ -17,7 +17,7 @@ public class GridResizer
 
 	private final double tolerance;
 
-	private final GridPane grid;
+	private final Pane grid;
 
 	private boolean mouseWithinResizableRangeX = false;
 
@@ -29,7 +29,7 @@ public class GridResizer
 
 	private final KeyTracker keyTracker;
 
-	public GridResizer( final GridConstraintsManager manager, final double tolerance, final GridPane grid, final KeyTracker keyTracker )
+	public GridResizer( final GridConstraintsManager manager, final double tolerance, final Pane grid, final KeyTracker keyTracker )
 	{
 		super();
 		this.manager = manager;

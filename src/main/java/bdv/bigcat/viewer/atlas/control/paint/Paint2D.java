@@ -19,7 +19,7 @@ import bdv.bigcat.viewer.atlas.data.mask.MaskedSource;
 import bdv.bigcat.viewer.atlas.source.SourceInfo;
 import bdv.bigcat.viewer.bdvfx.MouseDragFX;
 import bdv.bigcat.viewer.bdvfx.ViewerPanelFX;
-import bdv.bigcat.viewer.panel.ViewerNode;
+import bdv.bigcat.viewer.panel.ViewerPanelInOrthoView;
 import bdv.bigcat.viewer.state.GlobalTransformManager;
 import bdv.img.AccessBoxRandomAccessibleOnGet;
 import bdv.viewer.Source;
@@ -320,7 +320,7 @@ public class Paint2D
 
 	}
 
-	private static int viewerAxisToDimensionIndex( final ViewerNode.ViewerAxis axis )
+	private static int viewerAxisToDimensionIndex( final ViewerPanelInOrthoView.ViewerAxis axis )
 	{
 		switch ( axis )
 		{
@@ -347,7 +347,7 @@ public class Paint2D
 				final Object transformLock,
 				final Supplier< Long > id )
 		{
-			super( name, eventFilter, consume, transformLock );
+			super( name, eventFilter, consume, transformLock, false );
 			this.id = id;
 		}
 

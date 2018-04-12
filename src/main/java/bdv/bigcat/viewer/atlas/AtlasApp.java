@@ -3,12 +3,15 @@ package bdv.bigcat.viewer.atlas;
 import java.util.Optional;
 
 import bdv.bigcat.viewer.atlas.control.Merges;
+import bdv.bigcat.viewer.atlas.control.Navigation;
 import bdv.bigcat.viewer.atlas.control.Paint;
 import bdv.bigcat.viewer.atlas.control.Selection;
 import bdv.bigcat.viewer.atlas.source.AtlasSourceState;
 import bdv.bigcat.viewer.atlas.source.SourceInfo;
 import bdv.bigcat.viewer.bdvfx.KeyTracker;
+import bdv.bigcat.viewer.ortho.OrthoView;
 import bdv.bigcat.viewer.state.FragmentSegmentAssignmentState;
+import bdv.bigcat.viewer.state.GlobalTransformManager;
 import bdv.util.volatiles.SharedQueue;
 import bdv.viewer.Source;
 import javafx.application.Application;
@@ -26,13 +29,21 @@ public class AtlasApp extends Application
 		final SharedQueue sharedQueue = new SharedQueue( 1, 20 );
 		final Atlas atlas = new Atlas( sharedQueue );
 
+		final OrthoView orthoView = atlas.baseView();
 		final SourceInfo sourceInfo = atlas.sourceInfo();
 		final KeyTracker keyTracker = atlas.keyTracker();
+		final GlobalTransformManager manager = orthoView.getState().transformManager();
 
+		final Navigation navigation = new Navigation(
+				manager,
+				vp -> orthoView.getInOrthoViewManager( vp ).getDisplayTransform(),
+				vp -> orthoView.getInOrthoViewManager( vp ).getGlobalToViewerTransform(),
+				keyTracker );
 		final Selection selection = new Selection( sourceInfo, keyTracker );
 		final Merges merges = new Merges( sourceInfo, keyTracker );
 		final Paint paint = new Paint( sourceInfo, keyTracker, atlas.baseView().getState().transformManager(), atlas.baseView()::requestRepaint );
 
+		atlas.addOnEnterOnExit( navigation.onEnterOnExit(), false );
 		atlas.addOnEnterOnExit( selection.onEnterOnExit(), true );
 		atlas.addOnEnterOnExit( merges.onEnterOnExit(), true );
 		atlas.addOnEnterOnExit( paint.onEnterOnExit(), true );

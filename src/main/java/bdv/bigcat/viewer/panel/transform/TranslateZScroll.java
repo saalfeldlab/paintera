@@ -3,7 +3,7 @@ package bdv.bigcat.viewer.panel.transform;
 import java.util.Arrays;
 import java.util.function.Predicate;
 
-import bdv.bigcat.viewer.panel.ViewerNode.ViewerAxis;
+import bdv.bigcat.viewer.panel.ViewerPanelInOrthoView.ViewerAxis;
 import bdv.bigcat.viewer.state.GlobalTransformManager;
 import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.SimpleObjectProperty;

@@ -1,5 +1,7 @@
 package bdv.bigcat.viewer.bdvfx;
 
+import java.util.function.BiConsumer;
+import java.util.function.Consumer;
 import java.util.function.Predicate;
 
 import javafx.beans.property.SimpleBooleanProperty;
@@ -30,18 +32,30 @@ public abstract class MouseDragFX implements InstallAndRemove< Node >
 
 	protected final boolean consume;
 
-	public MouseDragFX( final String name, final Predicate< MouseEvent > eventFilter, final Object transformLock )
+	protected final boolean updateXY;
+
+	public MouseDragFX(
+			final String name,
+			final Predicate< MouseEvent > eventFilter,
+			final Object transformLock,
+			final boolean updateXY )
 	{
-		this( name, eventFilter, false, transformLock );
+		this( name, eventFilter, false, transformLock, updateXY );
 	}
 
-	public MouseDragFX( final String name, final Predicate< MouseEvent > eventFilter, final boolean consume, final Object transformLock )
+	public MouseDragFX(
+			final String name,
+			final Predicate< MouseEvent > eventFilter,
+			final boolean consume,
+			final Object transformLock,
+			final boolean updateXY )
 	{
 		super();
 		this.name = name;
 		this.eventFilter = eventFilter;
 		this.transformLock = transformLock;
 		this.consume = consume;
+		this.updateXY = updateXY;
 	}
 
 	public abstract void initDrag( MouseEvent event );
@@ -98,6 +112,8 @@ public abstract class MouseDragFX implements InstallAndRemove< Node >
 				startY = event.getY();
 				isDragging.set( true );
 				initDrag( event );
+				if ( consume )
+					event.consume();
 			}
 		}
 	}
@@ -109,7 +125,17 @@ public abstract class MouseDragFX implements InstallAndRemove< Node >
 		public void handle( final MouseEvent event )
 		{
 			if ( isDragging.get() )
+			{
 				drag( event );
+				if ( consume )
+					event.consume();
+				if ( updateXY )
+				{
+					startX = event.getX();
+					startY = event.getY();
+				}
+			}
+
 		}
 	}
 
@@ -122,7 +148,11 @@ public abstract class MouseDragFX implements InstallAndRemove< Node >
 			final boolean wasDragging = isDragging.get();
 			isDragging.set( false );
 			if ( wasDragging )
+			{
 				endDrag( event );
+				if ( consume )
+					event.consume();
+			}
 		}
 
 	}
@@ -135,6 +165,32 @@ public abstract class MouseDragFX implements InstallAndRemove< Node >
 	public void abortDrag()
 	{
 		this.isDragging.set( false );
+	}
+
+	public static MouseDragFX createDrag(
+			final String name,
+			final Predicate< MouseEvent > eventFilter,
+			final boolean consume,
+			final Object transformLock,
+			final Consumer< MouseEvent > initDrag,
+			final BiConsumer< Double, Double > drag,
+			final boolean updateXY )
+	{
+		return new MouseDragFX( name, eventFilter, consume, transformLock, updateXY )
+		{
+
+			@Override
+			public void initDrag( final MouseEvent event )
+			{
+				initDrag.accept( event );
+			}
+
+			@Override
+			public void drag( final MouseEvent event )
+			{
+				drag.accept( event.getX() - startX, event.getY() - startY );
+			}
+		};
 	}
 
 }

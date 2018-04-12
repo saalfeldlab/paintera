@@ -8,7 +8,7 @@ import bdv.bigcat.viewer.bdvfx.EventFX;
 import bdv.bigcat.viewer.bdvfx.KeyTracker;
 import bdv.bigcat.viewer.bdvfx.MouseDragFX;
 import bdv.bigcat.viewer.bdvfx.ViewerPanelFX;
-import bdv.bigcat.viewer.panel.ViewerNode.ViewerAxis;
+import bdv.bigcat.viewer.panel.ViewerPanelInOrthoView.ViewerAxis;
 import bdv.bigcat.viewer.panel.ViewerState;
 import bdv.bigcat.viewer.state.GlobalTransformManager;
 import javafx.beans.property.BooleanProperty;
@@ -299,7 +299,7 @@ public class ViewerTransformManager implements TransformListener< AffineTransfor
 
 		public TranslateXY( final String name, final Predicate< MouseEvent > eventFilter )
 		{
-			super( name, eventFilter, global );
+			super( name, eventFilter, global, false );
 		}
 
 		private final double[] delta = new double[ 3 ];
@@ -427,7 +427,7 @@ public class ViewerTransformManager implements TransformListener< AffineTransfor
 
 		public Rotate( final String name, final DoubleProperty speed, final double factor, final Predicate< MouseEvent > eventFilter )
 		{
-			super( name, eventFilter, global );
+			super( name, eventFilter, global, false );
 			this.factor = factor;
 			this.speed.set( speed.get() * this.factor );
 			speed.addListener( ( obs, old, newv ) -> this.speed.set( this.factor * speed.get() ) );

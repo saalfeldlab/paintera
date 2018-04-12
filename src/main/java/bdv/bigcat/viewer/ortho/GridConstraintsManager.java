@@ -33,10 +33,18 @@ public class GridConstraintsManager
 
 	private boolean isFullScreen = false;
 
+	@Deprecated
 	public GridConstraintsManager()
 	{
 		resetToDefault();
 		storeCurrent();
+	}
+
+	public GridConstraintsManager( final GridPane grid )
+	{
+		resetToDefault();
+		storeCurrent();
+		attachToGrid( grid );
 	}
 
 	private synchronized final void resetToDefault()
@@ -96,7 +104,21 @@ public class GridConstraintsManager
 
 	}
 
+	@Deprecated
 	public void manageGrid( final GridPane grid )
+	{
+
+		grid.getColumnConstraints().clear();
+		grid.getColumnConstraints().add( this.column1 );
+		grid.getColumnConstraints().add( this.column2 );
+
+		grid.getRowConstraints().clear();
+		grid.getRowConstraints().add( this.row1 );
+		grid.getRowConstraints().add( this.row2 );
+
+	}
+
+	private void attachToGrid( final GridPane grid )
 	{
 
 		grid.getColumnConstraints().clear();

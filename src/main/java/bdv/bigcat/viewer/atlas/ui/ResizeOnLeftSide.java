@@ -54,7 +54,7 @@ public class ResizeOnLeftSide
 		this.maxWidth = maxWidth;
 		this.isWithinMarginOfBorder = isWithinMarginOfBorder;
 
-		this.mouseDragged = new MouseDragFX( "resize", event -> isCurrentlyWithinMarginOfBorder.get(), true, this )
+		this.mouseDragged = new MouseDragFX( "resize", event -> isCurrentlyWithinMarginOfBorder.get(), true, this, false )
 		{
 
 			@Override

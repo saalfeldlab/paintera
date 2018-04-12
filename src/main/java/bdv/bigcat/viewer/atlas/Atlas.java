@@ -54,7 +54,7 @@ import bdv.bigcat.viewer.meshes.MeshManagerWithAssignment;
 import bdv.bigcat.viewer.meshes.cache.CacheUtils;
 import bdv.bigcat.viewer.ortho.OrthoView;
 import bdv.bigcat.viewer.ortho.OrthoViewState;
-import bdv.bigcat.viewer.panel.ViewerNode;
+import bdv.bigcat.viewer.panel.ViewerPanelInOrthoView;
 import bdv.bigcat.viewer.state.FragmentSegmentAssignmentOnlyLocal;
 import bdv.bigcat.viewer.state.FragmentSegmentAssignmentState;
 import bdv.bigcat.viewer.state.FragmentsInSelectedSegments;
@@ -281,10 +281,10 @@ public class Atlas
 
 		for ( final Node child : this.baseView().getChildren() )
 		{
-			if ( child instanceof ViewerNode )
+			if ( child instanceof ViewerPanelFX )
 			{
-				final ViewerNode vn = ( ViewerNode ) child;
-				final OrthoSliceFX orthoSlice = new OrthoSliceFX( renderView.meshesGroup(), vn.getViewer(), sourceInfo );
+				final ViewerPanelFX vn = ( ViewerPanelFX ) child;
+				final OrthoSliceFX orthoSlice = new OrthoSliceFX( renderView.meshesGroup(), vn, sourceInfo );
 				orthoSlices.add( orthoSlice );
 				orthoSlice.toggleVisibility();
 			}
@@ -966,10 +966,13 @@ public class Atlas
 				interval.max( 2 ) + interval.min( 2 )
 		};
 		tf.translate( Arrays.stream( sums ).mapToDouble( sum -> -0.5 * sum ).toArray() );
-		final ViewerNode vn = this.baseView().getChildren().stream().filter( child -> child instanceof ViewerNode ).map( n -> ( ViewerNode ) n ).findFirst().get();
-		vn.manager().setCanvasSize( 1, 1, true );
-		tf.scale( 1.0 / interval.dimension( 0 ) );
-		vn.manager().setCanvasSize( ( int ) vn.getWidth(), ( int ) vn.getHeight(), true );
+
+		final ViewerPanelFX viewer = this.baseView().viewerTopLeft();
+		final ViewerPanelInOrthoView handler = this.baseView().getInOrthoViewManager( viewer );
+
+//		handler.setCanvasSize( 1, 1, true );
+		tf.scale( viewer.getWidth() / interval.dimension( 0 ) );
+//		handler.setCanvasSize( viewer.getWidth(), viewer.getHeight(), true );
 		this.baseView().setTransform( tf );
 		this.renderView.setInitialTransformToInterval( interval );
 	}
