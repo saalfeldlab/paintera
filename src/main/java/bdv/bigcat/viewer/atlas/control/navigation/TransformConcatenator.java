@@ -63,10 +63,12 @@ public class TransformConcatenator
 		synchronized ( lock )
 		{
 			final AffineTransform3D concatenated = new AffineTransform3D();
-			LOG.warn( "Concatenating: {} {} {}", displayTransform, globalToViewer, globalTransform );
+			LOG.debug( "Concatenating: {} {} {}", displayTransform, globalToViewer, globalTransform ); //
+			LOG.debug( "Concatening with global-to-viewer={} this={}", globalToViewer, this );
 			concatenated.set( globalTransform );
 			concatenated.preConcatenate( globalToViewer.getTransformCopy() );
 			concatenated.preConcatenate( displayTransform.getTransformCopy() );
+			LOG.debug( "Concatenated transform: {}", concatenated );
 			this.concatenated.setTransform( concatenated );
 		}
 	}
@@ -80,6 +82,11 @@ public class TransformConcatenator
 	{
 		this.listener = transformListener;
 		notifyListener();
+	}
+
+	public void forceUpdate()
+	{
+		update();
 	}
 
 }
