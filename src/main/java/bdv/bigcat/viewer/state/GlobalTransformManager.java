@@ -14,11 +14,13 @@ public class GlobalTransformManager
 
 	private final AffineTransform3D affine;
 
+	@SafeVarargs
 	public GlobalTransformManager( final TransformListener< AffineTransform3D >... listeners )
 	{
 		this( new AffineTransform3D(), listeners );
 	}
 
+	@SafeVarargs
 	public GlobalTransformManager( final AffineTransform3D affine, final TransformListener< AffineTransform3D >... listeners )
 	{
 		this( affine, Arrays.asList( listeners ) );
