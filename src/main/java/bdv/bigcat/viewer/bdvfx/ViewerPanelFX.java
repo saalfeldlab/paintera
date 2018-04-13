@@ -64,6 +64,8 @@ import bdv.viewer.ViewerOptions;
 import bdv.viewer.state.SourceGroup;
 import bdv.viewer.state.ViewerState;
 import bdv.viewer.state.XmlIoViewerState;
+import javafx.beans.property.ReadOnlyBooleanProperty;
+import javafx.beans.property.ReadOnlyDoubleProperty;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleDoubleProperty;
 import javafx.beans.value.ChangeListener;
@@ -949,6 +951,11 @@ public class ViewerPanelFX
 		return this.isInside.get();
 	}
 
+	public ReadOnlyBooleanProperty isMouseInsideProperty()
+	{
+		return ReadOnlyBooleanProperty.readOnlyBooleanProperty( this.isInside );
+	}
+
 	public void showTimeSlider( final boolean show )
 	{
 		this.showSlider.set( show );
@@ -962,6 +969,16 @@ public class ViewerPanelFX
 	public double getMouseY()
 	{
 		return mouseY.doubleValue();
+	}
+
+	public ReadOnlyDoubleProperty mouseXProperty()
+	{
+		return ReadOnlyDoubleProperty.readOnlyDoubleProperty( mouseX );
+	}
+
+	public ReadOnlyDoubleProperty mouseYProperty()
+	{
+		return ReadOnlyDoubleProperty.readOnlyDoubleProperty( mouseY );
 	}
 
 }

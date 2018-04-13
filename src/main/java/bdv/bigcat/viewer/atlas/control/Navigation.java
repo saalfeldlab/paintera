@@ -18,7 +18,11 @@ import bdv.bigcat.viewer.bdvfx.KeyTracker;
 import bdv.bigcat.viewer.bdvfx.MouseDragFX;
 import bdv.bigcat.viewer.bdvfx.ViewerPanelFX;
 import bdv.bigcat.viewer.state.GlobalTransformManager;
+import javafx.beans.binding.Bindings;
+import javafx.beans.binding.DoubleBinding;
 import javafx.beans.property.DoubleProperty;
+import javafx.beans.property.ReadOnlyBooleanProperty;
+import javafx.beans.property.ReadOnlyDoubleProperty;
 import javafx.beans.property.SimpleDoubleProperty;
 import javafx.scene.Node;
 import javafx.scene.input.KeyCode;
@@ -66,6 +70,13 @@ public class Navigation implements ToOnEnterOnExit
 				final AffineTransform3D viewerTransform = new AffineTransform3D();
 				t.addTransformListener( viewerTransform::set );
 
+				final ReadOnlyDoubleProperty mouseX = t.mouseXProperty();
+				final ReadOnlyDoubleProperty mouseY = t.mouseYProperty();
+				final ReadOnlyBooleanProperty isInside = t.isMouseInsideProperty();
+
+				final DoubleBinding mouseXIfInsideElseCenterX = Bindings.createDoubleBinding( () -> isInside.get() ? mouseX.get() : t.getWidth() / 2, isInside, mouseX );
+				final DoubleBinding mouseYIfInsideElseCenterY = Bindings.createDoubleBinding( () -> isInside.get() ? mouseY.get() : t.getHeight() / 2, isInside, mouseY );
+
 				final AffineTransform3D worldToSharedViewerSpace = new AffineTransform3D();
 
 				this.displayTransform.apply( t ).addListener( tf -> {
@@ -112,14 +123,14 @@ public class Navigation implements ToOnEnterOnExit
 
 				iars.add( EventFX.KEY_PRESSED(
 						"button zoom out",
-						event -> zoom.zoomCenteredAt( 1.0, t.isMouseInside() ? t.getMouseX() : t.getWidth() / 2, t.isMouseInside() ? t.getMouseY() : t.getHeight() / 2 ),
+						event -> zoom.zoomCenteredAt( 1.0, mouseXIfInsideElseCenterX.get(), mouseYIfInsideElseCenterY.get() ),
 						event -> keyTracker.areOnlyTheseKeysDown( KeyCode.MINUS )
 								|| keyTracker.areOnlyTheseKeysDown( KeyCode.SHIFT, KeyCode.MINUS )
 								|| keyTracker.areOnlyTheseKeysDown( KeyCode.DOWN ) ) );
 
 				iars.add( EventFX.KEY_PRESSED(
 						"button zoom out",
-						event -> zoom.zoomCenteredAt( -1.0, t.isMouseInside() ? t.getMouseX() : t.getWidth() / 2, t.isMouseInside() ? t.getMouseY() : t.getHeight() / 2 ),
+						event -> zoom.zoomCenteredAt( -1.0, mouseXIfInsideElseCenterX.get(), mouseYIfInsideElseCenterY.get() ),
 						event -> keyTracker.areOnlyTheseKeysDown( KeyCode.EQUALS )
 								|| keyTracker.areOnlyTheseKeysDown( KeyCode.SHIFT, KeyCode.EQUALS )
 								|| keyTracker.areOnlyTheseKeysDown( KeyCode.UP ) ) );
@@ -127,7 +138,6 @@ public class Navigation implements ToOnEnterOnExit
 				this.mouseAndKeyHandlers.put( t, iars );
 
 			}
-//			t.getDisplay().addHandler( this.mouseAndKeyHandlers.get( t ) );
 			this.mouseAndKeyHandlers.get( t ).forEach( iar -> iar.installInto( t ) );
 		};
 	}
