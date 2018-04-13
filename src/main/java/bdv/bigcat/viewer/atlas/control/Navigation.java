@@ -5,10 +5,14 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Optional;
+import java.util.function.BooleanSupplier;
 import java.util.function.Consumer;
+import java.util.function.DoubleSupplier;
 import java.util.function.Function;
+import java.util.function.Predicate;
 
 import bdv.bigcat.viewer.atlas.control.navigation.AffineTransformWithListeners;
+import bdv.bigcat.viewer.atlas.control.navigation.Rotate;
 import bdv.bigcat.viewer.atlas.control.navigation.TranslateAlongNormal;
 import bdv.bigcat.viewer.atlas.control.navigation.TranslateWithinPlane;
 import bdv.bigcat.viewer.atlas.control.navigation.Zoom;
@@ -20,22 +24,30 @@ import bdv.bigcat.viewer.bdvfx.ViewerPanelFX;
 import bdv.bigcat.viewer.state.GlobalTransformManager;
 import javafx.beans.binding.Bindings;
 import javafx.beans.binding.DoubleBinding;
+import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.DoubleProperty;
 import javafx.beans.property.ReadOnlyBooleanProperty;
 import javafx.beans.property.ReadOnlyDoubleProperty;
+import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleDoubleProperty;
 import javafx.scene.Node;
 import javafx.scene.input.KeyCode;
+import javafx.scene.input.MouseButton;
+import javafx.scene.input.MouseEvent;
 import net.imglib2.realtransform.AffineTransform3D;
 
 public class Navigation implements ToOnEnterOnExit
 {
 
-	private static final double[] factors = { 1.0, 10.0, 0.1 };
+	private static final double[] FACTORS = { 1.0, 10.0, 0.1 };
 
 	private final DoubleProperty zoomSpeed = new SimpleDoubleProperty( 1.05 );
 
 	private final DoubleProperty translationSpeed = new SimpleDoubleProperty( 1.0 );
+
+	private final DoubleProperty rotationSpeed = new SimpleDoubleProperty( 1.0 );
+
+	private final BooleanProperty allowRotations = new SimpleBooleanProperty( true );
 
 	private final GlobalTransformManager manager;
 
@@ -78,14 +90,21 @@ public class Navigation implements ToOnEnterOnExit
 				final DoubleBinding mouseYIfInsideElseCenterY = Bindings.createDoubleBinding( () -> isInside.get() ? mouseY.get() : t.getHeight() / 2, isInside, mouseY );
 
 				final AffineTransform3D worldToSharedViewerSpace = new AffineTransform3D();
+				final AffineTransform3D globalTransform = new AffineTransform3D();
+				final AffineTransform3D displayTransform = new AffineTransform3D();
+				final AffineTransform3D globalToViewerTransform = new AffineTransform3D();
+
+				manager.addListener( globalTransform::set );
 
 				this.displayTransform.apply( t ).addListener( tf -> {
-					globalToViewerTransform.apply( t ).getTransformCopy( worldToSharedViewerSpace );
+					displayTransform.set( tf );
+					this.globalToViewerTransform.apply( t ).getTransformCopy( worldToSharedViewerSpace );
 					worldToSharedViewerSpace.preConcatenate( tf );
 				} );
 
 				this.globalToViewerTransform.apply( t ).addListener( tf -> {
-					displayTransform.apply( t ).getTransformCopy( worldToSharedViewerSpace );
+					globalToViewerTransform.set( tf );
+					this.displayTransform.apply( t ).getTransformCopy( worldToSharedViewerSpace );
 					worldToSharedViewerSpace.concatenate( tf );
 				} );
 
@@ -97,9 +116,9 @@ public class Navigation implements ToOnEnterOnExit
 
 				final List< InstallAndRemove< Node > > iars = new ArrayList<>();
 
-				final TranslateAlongNormal scrollDefault = new TranslateAlongNormal( translationSpeed.multiply( factors[ 0 ] )::get, manager, worldToSharedViewerSpace, manager );
-				final TranslateAlongNormal scrollFast = new TranslateAlongNormal( translationSpeed.multiply( factors[ 1 ] )::get, manager, worldToSharedViewerSpace, manager );
-				final TranslateAlongNormal scrollSlow = new TranslateAlongNormal( translationSpeed.multiply( factors[ 2 ] )::get, manager, worldToSharedViewerSpace, manager );
+				final TranslateAlongNormal scrollDefault = new TranslateAlongNormal( translationSpeed.multiply( FACTORS[ 0 ] )::get, manager, worldToSharedViewerSpace, manager );
+				final TranslateAlongNormal scrollFast = new TranslateAlongNormal( translationSpeed.multiply( FACTORS[ 1 ] )::get, manager, worldToSharedViewerSpace, manager );
+				final TranslateAlongNormal scrollSlow = new TranslateAlongNormal( translationSpeed.multiply( FACTORS[ 2 ] )::get, manager, worldToSharedViewerSpace, manager );
 
 				iars.add( EventFX.SCROLL( "translate along normal", e -> scrollDefault.scroll( -e.getDeltaY() ), event -> keyTracker.noKeysActive() ) );
 				iars.add( EventFX.SCROLL( "translate along normal fast", e -> scrollFast.scroll( -e.getDeltaY() ), event -> keyTracker.areOnlyTheseKeysDown( KeyCode.SHIFT ) ) );
@@ -144,6 +163,39 @@ public class Navigation implements ToOnEnterOnExit
 								|| keyTracker.areOnlyTheseKeysDown( KeyCode.SHIFT, KeyCode.EQUALS )
 								|| keyTracker.areOnlyTheseKeysDown( KeyCode.UP ) ) );
 
+				iars.add( rotationHandler(
+						"rotate",
+						allowRotations::get,
+						rotationSpeed.multiply( FACTORS[ 0 ] )::get,
+						globalTransform,
+						displayTransform,
+						globalToViewerTransform,
+						manager::setTransform,
+						manager,
+						event -> keyTracker.noKeysActive() && event.getButton().equals( MouseButton.PRIMARY ) ) );
+
+				iars.add( rotationHandler(
+						"rotate fast",
+						allowRotations::get,
+						rotationSpeed.multiply( FACTORS[ 1 ] )::get,
+						globalTransform,
+						displayTransform,
+						globalToViewerTransform,
+						manager::setTransform,
+						manager,
+						event -> keyTracker.areOnlyTheseKeysDown( KeyCode.SHIFT ) && event.getButton().equals( MouseButton.PRIMARY ) ) );
+
+				iars.add( rotationHandler(
+						"rotate slow",
+						allowRotations::get,
+						rotationSpeed.multiply( FACTORS[ 2 ] )::get,
+						globalTransform,
+						displayTransform,
+						globalToViewerTransform,
+						manager::setTransform,
+						manager,
+						event -> keyTracker.areOnlyTheseKeysDown( KeyCode.CONTROL ) && event.getButton().equals( MouseButton.PRIMARY ) ) );
+
 				this.mouseAndKeyHandlers.put( t, iars );
 
 			}
@@ -158,6 +210,47 @@ public class Navigation implements ToOnEnterOnExit
 			Optional
 					.ofNullable( this.mouseAndKeyHandlers.get( t ) )
 					.ifPresent( hs -> hs.forEach( h -> h.removeFrom( t ) ) );
+		};
+	}
+
+	private static final MouseDragFX rotationHandler(
+			final String name,
+			final BooleanSupplier allowRotations,
+			final DoubleSupplier speed,
+			final AffineTransform3D globalTransform,
+			final AffineTransform3D displayTransform,
+			final AffineTransform3D globalToViewerTransform,
+			final Consumer< AffineTransform3D > submitTransform,
+			final Object lock,
+			final Predicate< MouseEvent > predicate )
+	{
+		final Rotate rotate = new Rotate(
+				speed,
+				globalTransform,
+				displayTransform,
+				globalToViewerTransform,
+				submitTransform,
+				lock );
+
+		return new MouseDragFX( name, predicate, true, lock, false )
+		{
+
+			@Override
+			public void initDrag( final MouseEvent event )
+			{
+				if ( allowRotations.getAsBoolean() )
+				{
+					rotate.initialize();
+				}
+				else
+					abortDrag();
+			}
+
+			@Override
+			public void drag( final MouseEvent event )
+			{
+				rotate.rotate( event.getX(), event.getY(), startX, startY );
+			}
 		};
 	}
 
