@@ -101,9 +101,18 @@ public class Navigation implements ToOnEnterOnExit
 				final TranslateAlongNormal scrollFast = new TranslateAlongNormal( translationSpeed.multiply( factors[ 1 ] )::get, manager, worldToSharedViewerSpace, manager );
 				final TranslateAlongNormal scrollSlow = new TranslateAlongNormal( translationSpeed.multiply( factors[ 2 ] )::get, manager, worldToSharedViewerSpace, manager );
 
-				iars.add( EventFX.SCROLL( "translate along normal", e -> scrollDefault.scroll( e.getDeltaY() ), event -> keyTracker.noKeysActive() ) );
-				iars.add( EventFX.SCROLL( "translate along normal fast", e -> scrollFast.scroll( e.getDeltaY() ), event -> keyTracker.areOnlyTheseKeysDown( KeyCode.SHIFT ) ) );
-				iars.add( EventFX.SCROLL( "translate along normal slow", e -> scrollSlow.scroll( e.getDeltaY() ), event -> keyTracker.areOnlyTheseKeysDown( KeyCode.CONTROL ) ) );
+				iars.add( EventFX.SCROLL( "translate along normal", e -> scrollDefault.scroll( -e.getDeltaY() ), event -> keyTracker.noKeysActive() ) );
+				iars.add( EventFX.SCROLL( "translate along normal fast", e -> scrollFast.scroll( -e.getDeltaY() ), event -> keyTracker.areOnlyTheseKeysDown( KeyCode.SHIFT ) ) );
+				iars.add( EventFX.SCROLL( "translate along normal slow", e -> scrollSlow.scroll( -e.getDeltaY() ), event -> keyTracker.areOnlyTheseKeysDown( KeyCode.CONTROL ) ) );
+
+				iars.add( EventFX.KEY_PRESSED( "button translate along normal bck", e -> scrollDefault.scroll( +1 ), event -> keyTracker.areOnlyTheseKeysDown( KeyCode.COMMA ) ) );
+				iars.add( EventFX.KEY_PRESSED( "button translate along normal fwd", e -> scrollDefault.scroll( -1 ), event -> keyTracker.areOnlyTheseKeysDown( KeyCode.PERIOD ) ) );
+
+				iars.add( EventFX.KEY_PRESSED( "button translate along normal fast bck", e -> scrollFast.scroll( +1 ), event -> keyTracker.areOnlyTheseKeysDown( KeyCode.COMMA, KeyCode.SHIFT ) ) );
+				iars.add( EventFX.KEY_PRESSED( "button translate along normal fast fwd", e -> scrollFast.scroll( -1 ), event -> keyTracker.areOnlyTheseKeysDown( KeyCode.PERIOD, KeyCode.SHIFT ) ) );
+
+				iars.add( EventFX.KEY_PRESSED( "button translate along normal slow bck", e -> scrollSlow.scroll( +1 ), event -> keyTracker.areOnlyTheseKeysDown( KeyCode.COMMA, KeyCode.CONTROL ) ) );
+				iars.add( EventFX.KEY_PRESSED( "button translate along normal slow fwd", e -> scrollSlow.scroll( -1 ), event -> keyTracker.areOnlyTheseKeysDown( KeyCode.PERIOD, KeyCode.CONTROL ) ) );
 
 				iars.add( MouseDragFX.createDrag(
 						"translate xy",
