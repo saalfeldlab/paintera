@@ -9,7 +9,7 @@ import bdv.bigcat.viewer.state.GlobalTransformManager;
 import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.ui.TransformListener;
 
-public class TranslateXY
+public class TranslateWithinPlane
 {
 
 	private static final Logger LOG = LoggerFactory.getLogger( MethodHandles.lookup().lookupClass() );
@@ -44,7 +44,7 @@ public class TranslateXY
 
 	private final AffineTransform3D tmp = new AffineTransform3D();
 
-	public TranslateXY(
+	public TranslateWithinPlane(
 			final GlobalTransformManager manager,
 			final AffineTransformWithListeners displayTransformUpdater,
 			final AffineTransformWithListeners globalToViewerTransformUpdater,

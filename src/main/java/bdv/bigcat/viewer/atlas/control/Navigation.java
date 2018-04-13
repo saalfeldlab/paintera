@@ -9,7 +9,8 @@ import java.util.function.Consumer;
 import java.util.function.Function;
 
 import bdv.bigcat.viewer.atlas.control.navigation.AffineTransformWithListeners;
-import bdv.bigcat.viewer.atlas.control.navigation.TranslateXY;
+import bdv.bigcat.viewer.atlas.control.navigation.TranslateAlongNormal;
+import bdv.bigcat.viewer.atlas.control.navigation.TranslateWithinPlane;
 import bdv.bigcat.viewer.atlas.control.navigation.Zoom;
 import bdv.bigcat.viewer.bdvfx.EventFX;
 import bdv.bigcat.viewer.bdvfx.InstallAndRemove;
@@ -26,7 +27,11 @@ import net.imglib2.realtransform.AffineTransform3D;
 public class Navigation implements ToOnEnterOnExit
 {
 
+	private static final double[] factors = { 1.0, 10.0, 0.1 };
+
 	private final DoubleProperty zoomSpeed = new SimpleDoubleProperty( 1.05 );
+
+	private final DoubleProperty translationSpeed = new SimpleDoubleProperty( 1.0 );
 
 	private final GlobalTransformManager manager;
 
@@ -57,12 +62,38 @@ public class Navigation implements ToOnEnterOnExit
 		return t -> {
 			if ( !this.mouseAndKeyHandlers.containsKey( t ) )
 			{
-				final TranslateXY translateXY = new TranslateXY(
+
+				final AffineTransform3D viewerTransform = new AffineTransform3D();
+				t.addTransformListener( viewerTransform::set );
+
+				final AffineTransform3D worldToSharedViewerSpace = new AffineTransform3D();
+
+				this.displayTransform.apply( t ).addListener( tf -> {
+					globalToViewerTransform.apply( t ).getTransformCopy( worldToSharedViewerSpace );
+					worldToSharedViewerSpace.preConcatenate( tf );
+				} );
+
+				this.globalToViewerTransform.apply( t ).addListener( tf -> {
+					displayTransform.apply( t ).getTransformCopy( worldToSharedViewerSpace );
+					worldToSharedViewerSpace.concatenate( tf );
+				} );
+
+				final TranslateWithinPlane translateXY = new TranslateWithinPlane(
 						manager,
 						this.displayTransform.apply( t ),
 						this.globalToViewerTransform.apply( t ),
 						manager );
+
 				final List< InstallAndRemove< Node > > iars = new ArrayList<>();
+
+				final TranslateAlongNormal scrollDefault = new TranslateAlongNormal( translationSpeed.multiply( factors[ 0 ] )::get, manager, worldToSharedViewerSpace, manager );
+				final TranslateAlongNormal scrollFast = new TranslateAlongNormal( translationSpeed.multiply( factors[ 1 ] )::get, manager, worldToSharedViewerSpace, manager );
+				final TranslateAlongNormal scrollSlow = new TranslateAlongNormal( translationSpeed.multiply( factors[ 2 ] )::get, manager, worldToSharedViewerSpace, manager );
+
+				iars.add( EventFX.SCROLL( "translate along normal", e -> scrollDefault.scroll( e.getDeltaY() ), event -> keyTracker.noKeysActive() ) );
+				iars.add( EventFX.SCROLL( "translate along normal fast", e -> scrollFast.scroll( e.getDeltaY() ), event -> keyTracker.areOnlyTheseKeysDown( KeyCode.SHIFT ) ) );
+				iars.add( EventFX.SCROLL( "translate along normal slow", e -> scrollSlow.scroll( e.getDeltaY() ), event -> keyTracker.areOnlyTheseKeysDown( KeyCode.CONTROL ) ) );
+
 				iars.add( MouseDragFX.createDrag(
 						"translate xy",
 						e -> e.isSecondaryButtonDown() && keyTracker.noKeysActive(),
@@ -71,9 +102,6 @@ public class Navigation implements ToOnEnterOnExit
 						e -> translateXY.init(),
 						( dX, dY ) -> translateXY.drag( dX, dY ),
 						false ) );
-
-				final AffineTransform3D viewerTransform = new AffineTransform3D();
-				t.addTransformListener( viewerTransform::set );
 
 				final Zoom zoom = new Zoom( zoomSpeed, manager, viewerTransform, manager );
 				iars.add( EventFX.SCROLL(
