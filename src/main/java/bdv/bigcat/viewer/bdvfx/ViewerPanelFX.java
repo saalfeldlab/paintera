@@ -954,4 +954,14 @@ public class ViewerPanelFX
 		this.showSlider.set( show );
 	}
 
+	public double getMouseX()
+	{
+		return mouseX.doubleValue();
+	}
+
+	public double getMouseY()
+	{
+		return mouseY.doubleValue();
+	}
+
 }
