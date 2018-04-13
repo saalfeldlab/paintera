@@ -22,6 +22,7 @@ import bdv.bigcat.viewer.bdvfx.ViewerPanelFX;
 import bdv.bigcat.viewer.ortho.OrthogonalViews;
 import bdv.bigcat.viewer.ortho.OrthogonalViews.ViewerAndTransforms;
 import bdv.bigcat.viewer.ortho.PainteraBaseView;
+import bdv.bigcat.viewer.panel.CrossHair;
 import bdv.util.RandomAccessibleIntervalSource;
 import bdv.viewer.SourceAndConverter;
 import javafx.application.Application;
@@ -32,6 +33,7 @@ import javafx.beans.value.ObservableObjectValue;
 import javafx.scene.Node;
 import javafx.scene.Scene;
 import javafx.scene.input.MouseEvent;
+import javafx.scene.paint.Color;
 import javafx.stage.Stage;
 import net.imglib2.converter.TypeIdentity;
 import net.imglib2.img.array.ArrayImg;
@@ -64,6 +66,8 @@ public class Paintera extends Application
 	private final ObservableObjectValue< ViewerAndTransforms > currentFocusHolderWithState = currentFocusHolder( baseView.orthogonalViews() );
 
 	private final Consumer< OnEnterOnExit > onEnterOnExit = createOnEnterOnExit( currentFocusHolderWithState );
+
+	private final Map< ViewerAndTransforms, CrossHair > crossHairs = makeCrosshairs( baseView.orthogonalViews(), Color.ORANGE, Color.WHITE );
 
 	@Override
 	public void start( final Stage primaryStage ) throws Exception
@@ -163,6 +167,30 @@ public class Paintera extends Application
 	public static void grabFocusOnMouseOver( final Node node )
 	{
 		node.addEventFilter( MouseEvent.MOUSE_ENTERED, e -> node.requestFocus() );
+	}
+
+	public static Map< ViewerAndTransforms, CrossHair > makeCrosshairs(
+			final OrthogonalViews< ? > views,
+			final Color onFocusColor,
+			final Color offFocusColor )
+	{
+		final Map< ViewerAndTransforms, CrossHair > map = new HashMap<>();
+		map.put( views.topLeft(), makeCrossHairForViewer( views.topLeft().viewer(), onFocusColor, offFocusColor ) );
+		map.put( views.topRight(), makeCrossHairForViewer( views.topRight().viewer(), onFocusColor, offFocusColor ) );
+		map.put( views.bottomLeft(), makeCrossHairForViewer( views.bottomLeft().viewer(), onFocusColor, offFocusColor ) );
+		return map;
+	}
+
+	public static CrossHair makeCrossHairForViewer(
+			final ViewerPanelFX viewer,
+			final Color onFocusColor,
+			final Color offFocusColor )
+	{
+		final CrossHair ch = new CrossHair();
+		viewer.getDisplay().addOverlayRenderer( ch );
+		viewer.focusedProperty().addListener( ( obs, oldv, newv ) -> ch.setColor( newv ? onFocusColor : offFocusColor ) );
+		ch.wasChangedProperty().addListener( ( obs, oldv, newv ) -> viewer.getDisplay().drawOverlays() );
+		return ch;
 	}
 
 }

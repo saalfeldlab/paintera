@@ -34,6 +34,8 @@ public class ResizableGridPane2x2< TL extends Node, TR extends Node, BL extends 
 			final BR bottomRight )
 	{
 		super();
+		grid.setHgap( 1 );
+		grid.setVgap( 1 );
 		this.topLeft.set( topLeft );
 		this.topRight.set( topRight );
 		this.bottomLeft.set( bottomLeft );

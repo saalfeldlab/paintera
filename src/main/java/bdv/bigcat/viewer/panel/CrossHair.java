@@ -1,17 +1,33 @@
 package bdv.bigcat.viewer.panel;
 
 import bdv.bigcat.viewer.bdvfx.OverlayRendererGeneric;
+import javafx.beans.property.BooleanProperty;
+import javafx.beans.property.ObjectProperty;
+import javafx.beans.property.ReadOnlyBooleanProperty;
+import javafx.beans.property.SimpleBooleanProperty;
+import javafx.beans.property.SimpleObjectProperty;
 import javafx.scene.canvas.GraphicsContext;
 import javafx.scene.paint.Color;
 
 public class CrossHair implements OverlayRendererGeneric< GraphicsContext >
 {
 
+	public static final Color DEFAULT_COLOR = Color.rgb( 255, 255, 255, 0.5 );
+
 	private int w, h;
 
 	private final int strokeWidth = 1;
 
-	private Color color = new Color( Color.WHITE.getRed(), Color.WHITE.getGreen(), Color.WHITE.getBlue(), 0.5 );
+	private final ObjectProperty< Color > color = new SimpleObjectProperty<>( DEFAULT_COLOR );
+
+	private final BooleanProperty isVisible = new SimpleBooleanProperty( true );
+
+	private final BooleanProperty wasChanged = new SimpleBooleanProperty( false );
+	{
+		color.addListener( ( obs, oldv, newv ) -> wasChanged.set( true ) );
+		isVisible.addListener( ( obs, oldv, newv ) -> wasChanged.set( true ) );
+		wasChanged.addListener( ( obs, oldv, newv ) -> wasChanged.set( false ) );
+	}
 
 	public void setColor( final int r, final int g, final int b )
 	{
@@ -30,7 +46,22 @@ public class CrossHair implements OverlayRendererGeneric< GraphicsContext >
 
 	public void setColor( final Color color )
 	{
-		this.color = color;
+		this.color.set( color );
+	}
+
+	public ObjectProperty< Color > colorProperty()
+	{
+		return this.color;
+	}
+
+	public BooleanProperty isVisibleProperty()
+	{
+		return this.isVisible;
+	}
+
+	public ReadOnlyBooleanProperty wasChangedProperty()
+	{
+		return this.wasChanged;
 	}
 
 	@Override
@@ -44,7 +75,8 @@ public class CrossHair implements OverlayRendererGeneric< GraphicsContext >
 	public void drawOverlays( final GraphicsContext g )
 	{
 
-		if ( color.getOpacity() > 0 )
+		final Color color = this.color.get();
+		if ( color != null && color.getOpacity() > 0 && isVisible.get() )
 		{
 			g.setStroke( color );
 			g.setLineWidth( strokeWidth );
