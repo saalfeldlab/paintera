@@ -103,7 +103,7 @@ public class Navigation implements ToOnEnterOnExit
 						( dX, dY ) -> translateXY.drag( dX, dY ),
 						false ) );
 
-				final Zoom zoom = new Zoom( zoomSpeed, manager, viewerTransform, manager );
+				final Zoom zoom = new Zoom( zoomSpeed::get, manager, viewerTransform, manager );
 				iars.add( EventFX.SCROLL(
 						"zoom",
 						event -> zoom.zoomCenteredAt( -event.getDeltaY(), event.getX(), event.getY() ),

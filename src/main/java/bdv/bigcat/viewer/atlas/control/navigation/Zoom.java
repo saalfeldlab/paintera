@@ -1,13 +1,14 @@
 package bdv.bigcat.viewer.atlas.control.navigation;
 
+import java.util.function.DoubleSupplier;
+
 import bdv.bigcat.viewer.state.GlobalTransformManager;
-import javafx.beans.value.ObservableDoubleValue;
 import net.imglib2.realtransform.AffineTransform3D;
 
 public class Zoom
 {
 
-	private final ObservableDoubleValue speed;
+	private final DoubleSupplier speed;
 
 	private final AffineTransform3D global = new AffineTransform3D();
 
@@ -18,7 +19,7 @@ public class Zoom
 	private final Object lock;
 
 	public Zoom(
-			final ObservableDoubleValue speed,
+			final DoubleSupplier speed,
 			final GlobalTransformManager manager,
 			final AffineTransform3D concatenated,
 			final Object lock )
@@ -42,7 +43,7 @@ public class Zoom
 		concatenated.applyInverse( location, location );
 		global.apply( location, location );
 
-		final double dScale = speed.get();
+		final double dScale = speed.getAsDouble();
 		final double scale = delta > 0 ? 1.0 / dScale : dScale;
 
 		for ( int d = 0; d < location.length; ++d )
