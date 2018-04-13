@@ -29,6 +29,16 @@ public class AtlasFocusHandler
 			this.onExit = onExit;
 		}
 
+		public Consumer< ViewerPanelFX > onEnter()
+		{
+			return this.onEnter;
+		}
+
+		public Consumer< ViewerPanelFX > onExit()
+		{
+			return this.onExit;
+		}
+
 	}
 
 	private final HashSet< OnEnterOnExit > installOnExitRemovables;
