@@ -67,4 +67,9 @@ public class GlobalTransformManager
 			l.transformChanged( this.affine.copy() );
 	}
 
+	public void getTransform( final AffineTransform3D target )
+	{
+		target.set( this.affine );
+	}
+
 }

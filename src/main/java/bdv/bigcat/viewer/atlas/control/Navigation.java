@@ -12,6 +12,7 @@ import java.util.function.Function;
 import java.util.function.Predicate;
 
 import bdv.bigcat.viewer.atlas.control.navigation.AffineTransformWithListeners;
+import bdv.bigcat.viewer.atlas.control.navigation.RemoveRotation;
 import bdv.bigcat.viewer.atlas.control.navigation.Rotate;
 import bdv.bigcat.viewer.atlas.control.navigation.TranslateAlongNormal;
 import bdv.bigcat.viewer.atlas.control.navigation.TranslateWithinPlane;
@@ -195,6 +196,12 @@ public class Navigation implements ToOnEnterOnExit
 						manager::setTransform,
 						manager,
 						event -> keyTracker.areOnlyTheseKeysDown( KeyCode.CONTROL ) && event.getButton().equals( MouseButton.PRIMARY ) ) );
+
+				final RemoveRotation removeRotation = new RemoveRotation( viewerTransform, globalTransform, manager::setTransform, manager );
+				iars.add( EventFX.KEY_PRESSED(
+						"remove rotation",
+						e -> removeRotation.removeRotationCenteredAt( mouseXIfInsideElseCenterX.get(), mouseYIfInsideElseCenterY.get() ),
+						e -> keyTracker.areOnlyTheseKeysDown( KeyCode.SHIFT, KeyCode.Z ) ) );
 
 				this.mouseAndKeyHandlers.put( t, iars );
 
