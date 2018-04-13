@@ -1,10 +1,13 @@
 package bdv.bigcat.viewer.ortho;
 
+import java.lang.invoke.MethodHandles;
 import java.util.Collection;
 import java.util.function.Consumer;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import bdv.bigcat.viewer.atlas.control.navigation.AffineTransformWithListeners;
-import bdv.bigcat.viewer.atlas.control.navigation.DisplayTransformUpdateOnResize;
 import bdv.bigcat.viewer.atlas.control.navigation.TransformConcatenator;
 import bdv.bigcat.viewer.bdvfx.ViewerPanelFX;
 import bdv.bigcat.viewer.panel.ViewerPanelInOrthoView;
@@ -17,9 +20,13 @@ import javafx.event.Event;
 import javafx.event.EventHandler;
 import javafx.event.EventType;
 import javafx.scene.Node;
+import javafx.scene.layout.Pane;
+import net.imglib2.realtransform.AffineTransform3D;
 
 public class OrthogonalViews< BR extends Node >
 {
+
+	private static final Logger LOG = LoggerFactory.getLogger( MethodHandles.lookup().lookupClass() );
 
 	public static class ViewerAndTransforms
 	{
@@ -30,8 +37,6 @@ public class OrthogonalViews< BR extends Node >
 		private final AffineTransformWithListeners displayTransform;
 
 		private final AffineTransformWithListeners globalToViewerTransform;
-
-		private final DisplayTransformUpdateOnResize displayTransformUpdate;
 
 		private final TransformConcatenator concatenator;
 
@@ -47,12 +52,23 @@ public class OrthogonalViews< BR extends Node >
 			this.displayTransform = displayTransform;
 			this.globalToViewerTransform = globalToViewerTransform;
 
-			this.displayTransformUpdate = new DisplayTransformUpdateOnResize( displayTransform, viewer.widthProperty(), viewer.heightProperty(), manager );
-			this.displayTransformUpdate.listen();
-
 			this.concatenator = new TransformConcatenator( this.manager, displayTransform, globalToViewerTransform, manager );
 			this.concatenator.setTransformListener( viewer );
+		}
 
+		public AffineTransformWithListeners displayTransform()
+		{
+			return this.displayTransform;
+		}
+
+		public AffineTransformWithListeners globalToViewerTransform()
+		{
+			return this.globalToViewerTransform;
+		}
+
+		public ViewerPanelFX viewer()
+		{
+			return viewer;
 		}
 	}
 
@@ -74,8 +90,8 @@ public class OrthogonalViews< BR extends Node >
 	{
 		this.manager = manager;
 		this.topLeft = create( this.manager, cacheControl, optional, ViewerAxis.Z );
-		this.topRight = create( this.manager, cacheControl, optional, ViewerAxis.Y );
-		this.bottomLeft = create( this.manager, cacheControl, optional, ViewerAxis.X );
+		this.topRight = create( this.manager, cacheControl, optional, ViewerAxis.X );
+		this.bottomLeft = create( this.manager, cacheControl, optional, ViewerAxis.Y );
 		this.grid = new ResizableGridPane2x2<>( topLeft.viewer, topRight.viewer, bottomLeft.viewer, bottomRight );
 	}
 
@@ -84,15 +100,22 @@ public class OrthogonalViews< BR extends Node >
 		return this.grid;
 	}
 
+	public Pane pane()
+	{
+		return grid().pane();
+	}
+
 	private static ViewerAndTransforms create(
 			final GlobalTransformManager manager,
 			final CacheControl cacheControl,
 			final ViewerOptions optional,
 			final ViewerAxis axis )
 	{
+		final AffineTransform3D globalToViewer = ViewerPanelInOrthoView.globalToViewer( axis );
+		LOG.warn( "Generating viewer, axis={}, globalToViewer={}", axis, globalToViewer );
 		final ViewerPanelFX viewer = new ViewerPanelFX( 1, cacheControl, optional );
 		final AffineTransformWithListeners displayTransform = new AffineTransformWithListeners();
-		final AffineTransformWithListeners globalToViewerTransform = new AffineTransformWithListeners( ViewerPanelInOrthoView.globalToViewer( axis ) );
+		final AffineTransformWithListeners globalToViewerTransform = new AffineTransformWithListeners( globalToViewer );
 
 		return new ViewerAndTransforms( viewer, manager, displayTransform, globalToViewerTransform );
 	}
@@ -132,6 +155,21 @@ public class OrthogonalViews< BR extends Node >
 	public < E extends Event > void removeEventFilter( final EventType< E > eventType, final EventHandler< E > handler )
 	{
 		applyToAll( viewer -> viewer.removeEventFilter( eventType, handler ) );
+	}
+
+	public ViewerAndTransforms topLeft()
+	{
+		return this.topLeft;
+	}
+
+	public ViewerAndTransforms topRight()
+	{
+		return this.topRight;
+	}
+
+	public ViewerAndTransforms bottomLeft()
+	{
+		return this.bottomLeft;
 	}
 
 }
