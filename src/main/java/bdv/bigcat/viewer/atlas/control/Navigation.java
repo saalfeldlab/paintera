@@ -110,6 +110,20 @@ public class Navigation implements ToOnEnterOnExit
 						event -> keyTracker.areOnlyTheseKeysDown( KeyCode.META ) ||
 								keyTracker.areOnlyTheseKeysDown( KeyCode.CONTROL, KeyCode.SHIFT ) ) );
 
+				iars.add( EventFX.KEY_PRESSED(
+						"button zoom out",
+						event -> zoom.zoomCenteredAt( 1.0, t.isMouseInside() ? t.getMouseX() : t.getWidth() / 2, t.isMouseInside() ? t.getMouseY() : t.getHeight() / 2 ),
+						event -> keyTracker.areOnlyTheseKeysDown( KeyCode.MINUS )
+								|| keyTracker.areOnlyTheseKeysDown( KeyCode.SHIFT, KeyCode.MINUS )
+								|| keyTracker.areOnlyTheseKeysDown( KeyCode.DOWN ) ) );
+
+				iars.add( EventFX.KEY_PRESSED(
+						"button zoom out",
+						event -> zoom.zoomCenteredAt( -1.0, t.isMouseInside() ? t.getMouseX() : t.getWidth() / 2, t.isMouseInside() ? t.getMouseY() : t.getHeight() / 2 ),
+						event -> keyTracker.areOnlyTheseKeysDown( KeyCode.EQUALS )
+								|| keyTracker.areOnlyTheseKeysDown( KeyCode.SHIFT, KeyCode.EQUALS )
+								|| keyTracker.areOnlyTheseKeysDown( KeyCode.UP ) ) );
+
 				this.mouseAndKeyHandlers.put( t, iars );
 
 			}
