@@ -430,7 +430,6 @@ public class ViewerPanelFX
 				state::getSources,
 				state.timepoint::get,
 				state::getViewerTransform,
-				state::getBestMipMapLevel,
 				interpolation,
 				state );
 

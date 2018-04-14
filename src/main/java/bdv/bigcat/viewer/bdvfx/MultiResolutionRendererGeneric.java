@@ -30,6 +30,7 @@
 package bdv.bigcat.viewer.bdvfx;
 
 import java.awt.image.BufferedImage;
+import java.lang.invoke.MethodHandles;
 import java.lang.reflect.Array;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
@@ -42,10 +43,13 @@ import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.IntSupplier;
 import java.util.function.Supplier;
-import java.util.function.ToIntBiFunction;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import bdv.cache.CacheControl;
 import bdv.img.cache.VolatileCachedCellImg;
+import bdv.util.MipmapTransforms;
 import bdv.viewer.Interpolation;
 import bdv.viewer.Source;
 import bdv.viewer.SourceAndConverter;
@@ -138,9 +142,12 @@ import net.imglib2.util.Intervals;
  * etc.
  *
  * @author Tobias Pietzsch &lt;tobias.pietzsch@gmail.com&gt;
+ * @author Philipp Hanslovsky
  */
 public class MultiResolutionRendererGeneric< T >
 {
+
+	private static final Logger LOG = LoggerFactory.getLogger( MethodHandles.class );
 
 	public static interface ImageGenerator< T >
 	{
@@ -486,7 +493,6 @@ public class MultiResolutionRendererGeneric< T >
 			final Supplier< List< SourceAndConverter< ? > > > sources,
 			final IntSupplier timepoint,
 			final Consumer< AffineTransform3D > getViewerTransform,
-			final ToIntBiFunction< AffineTransform3D, Source< ? > > getBestMipMapLevel,
 			final Function< Source< ? >, Interpolation > interpolationForSource,
 			final Object synchronizationLock )
 	{
@@ -531,7 +537,7 @@ public class MultiResolutionRendererGeneric< T >
 					checkRenewRenderImages( numSources );
 					checkRenewMaskArrays( numSources );
 					final int t = timepoint.getAsInt();
-					p = createProjector( sacs, t, getViewerTransform, getBestMipMapLevel, currentScreenScaleIndex, screenImage, interpolationForSource );
+					p = createProjector( sacs, t, getViewerTransform, currentScreenScaleIndex, screenImage, interpolationForSource );
 				}
 				projector = p;
 			}
@@ -648,7 +654,6 @@ public class MultiResolutionRendererGeneric< T >
 			final List< SourceAndConverter< ? > > sacs,
 			final int timepoint,
 			final Consumer< AffineTransform3D > getViewerTransform,
-			final ToIntBiFunction< AffineTransform3D, Source< ? > > getBestMipMapLevel,
 			final int screenScaleIndex,
 			final ArrayImg< ARGBType, IntArray > screenImage,
 			final Function< Source< ? >, Interpolation > interpolationForSource )
@@ -665,7 +670,7 @@ public class MultiResolutionRendererGeneric< T >
 		{
 			final SourceAndConverter< ? > sac = sacs.get( 0 );
 			final Interpolation interpolation = interpolationForSource.apply( sac.getSpimSource() );
-			projector = createSingleSourceProjector( sac, timepoint, getViewerTransform, getBestMipMapLevel, currentScreenScaleIndex, screenImage, renderMaskArrays[ 0 ], interpolation );
+			projector = createSingleSourceProjector( sac, timepoint, getViewerTransform, currentScreenScaleIndex, screenImage, renderMaskArrays[ 0 ], interpolation );
 		}
 		else
 		{
@@ -683,7 +688,6 @@ public class MultiResolutionRendererGeneric< T >
 						sac,
 						timepoint,
 						getViewerTransform,
-						getBestMipMapLevel,
 						currentScreenScaleIndex,
 						renderImage,
 						maskArray,
@@ -733,7 +737,6 @@ public class MultiResolutionRendererGeneric< T >
 			final SourceAndConverter< U > source,
 			final int timepoint,
 			final Consumer< AffineTransform3D > getViewerTransform,
-			final ToIntBiFunction< AffineTransform3D, Source< ? > > getBestMipMapLevel,
 			final int screenScaleIndex,
 			final ArrayImg< ARGBType, IntArray > screenImage,
 			final byte[] maskArray,
@@ -750,7 +753,11 @@ public class MultiResolutionRendererGeneric< T >
 			}
 
 		final AffineTransform3D screenScaleTransform = screenScaleTransforms[ currentScreenScaleIndex ];
-		final int bestLevel = getBestMipMapLevel.applyAsInt( screenScaleTransform, source.getSpimSource() );
+		final AffineTransform3D screenTransform = new AffineTransform3D();
+		getViewerTransform.accept( screenTransform );
+		screenTransform.preConcatenate( screenScaleTransform );
+		final int bestLevel = MipmapTransforms.getBestMipMapLevel( screenTransform, source.getSpimSource(), timepoint );
+		LOG.debug( "Using bestLevel={}", bestLevel );
 		return new SimpleVolatileProjector<>(
 				getTransformedSource( source.getSpimSource(), timepoint, getViewerTransform, screenScaleTransform, bestLevel, null, interpolation ),
 				source.getConverter(), screenImage, numRenderingThreads, renderingExecutorService );

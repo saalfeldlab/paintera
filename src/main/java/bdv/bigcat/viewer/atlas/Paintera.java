@@ -12,6 +12,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
+import java.util.function.Function;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -21,7 +22,7 @@ import bdv.bigcat.viewer.atlas.AtlasFocusHandler.OnEnterOnExit;
 import bdv.bigcat.viewer.atlas.control.Navigation;
 import bdv.bigcat.viewer.atlas.control.navigation.AffineTransformWithListeners;
 import bdv.bigcat.viewer.atlas.control.navigation.DisplayTransformUpdateOnResize;
-import bdv.bigcat.viewer.atlas.data.DataSource;
+import bdv.bigcat.viewer.atlas.data.RandomAccessibleIntervalDataSource;
 import bdv.bigcat.viewer.atlas.source.AtlasSourceState;
 import bdv.bigcat.viewer.atlas.source.SourceInfo;
 import bdv.bigcat.viewer.bdvfx.KeyTracker;
@@ -32,7 +33,6 @@ import bdv.bigcat.viewer.ortho.OrthogonalViews.ViewerAndTransforms;
 import bdv.bigcat.viewer.ortho.PainteraBaseView;
 import bdv.bigcat.viewer.panel.CrossHair;
 import bdv.bigcat.viewer.viewer3d.OrthoSliceFX;
-import bdv.util.RandomAccessibleIntervalSource;
 import bdv.viewer.Interpolation;
 import bdv.viewer.Source;
 import javafx.application.Application;
@@ -50,11 +50,19 @@ import javafx.scene.input.MouseEvent;
 import javafx.scene.paint.Color;
 import javafx.stage.Stage;
 import javafx.stage.WindowEvent;
+import net.imglib2.RandomAccessible;
+import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.converter.TypeIdentity;
 import net.imglib2.img.array.ArrayImg;
 import net.imglib2.img.array.ArrayImgs;
 import net.imglib2.img.basictypeaccess.array.IntArray;
+import net.imglib2.interpolation.InterpolatorFactory;
+import net.imglib2.interpolation.randomaccess.NLinearInterpolatorFactory;
+import net.imglib2.interpolation.randomaccess.NearestNeighborInterpolatorFactory;
+import net.imglib2.realtransform.AffineTransform3D;
+import net.imglib2.realtransform.Scale3D;
 import net.imglib2.type.numeric.ARGBType;
+import net.imglib2.view.Views;
 
 public class Paintera extends Application
 {
@@ -96,7 +104,23 @@ public class Paintera extends Application
 		final ArrayImg< ARGBType, IntArray > data = ArrayImgs.argbs( 100, 200, 300 );
 		final Random rng = new Random();
 		data.forEach( d -> d.set( rng.nextInt() ) );
-		final DataSource< ARGBType, ARGBType > source = DataSource.fromSource( new RandomAccessibleIntervalSource<>( data, data.createLinkedType(), "data" ) );
+
+		@SuppressWarnings( "unchecked" )
+		final RandomAccessibleInterval< ARGBType >[] srcs = new RandomAccessibleInterval[] {
+				data,
+				Views.subsample( data, 2 )
+		};
+
+		final Function< Interpolation, InterpolatorFactory< ARGBType, RandomAccessible< ARGBType > > > ipol = i -> i.equals( Interpolation.NLINEAR )
+				? new NLinearInterpolatorFactory<>()
+				: new NearestNeighborInterpolatorFactory<>();
+
+		final AffineTransform3D[] mipmapTransforms = {
+				new AffineTransform3D(),
+				new AffineTransform3D().concatenate( new Scale3D( 2.0, 2.0, 2.0 ) )
+		};
+
+		final RandomAccessibleIntervalDataSource< ARGBType, ARGBType > source = new RandomAccessibleIntervalDataSource<>( srcs, srcs, mipmapTransforms, ipol, ipol, "data" );
 		final AtlasSourceState< ARGBType, ARGBType > rngState = sourceInfo.makeGenericSourceState( source, new TypeIdentity< ARGBType >(), new CompositeCopy<>() );
 		sourceInfo.addState( source, rngState );
 		baseView.viewer3D().setInitialTransformToInterval( data );
