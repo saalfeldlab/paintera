@@ -8,6 +8,9 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 
 import org.slf4j.Logger;
@@ -131,6 +134,10 @@ public class Paintera extends Application
 
 		Platform.setImplicitExit( true );
 
+		final ScheduledExecutorService t = Executors.newScheduledThreadPool( 1 );
+		t.scheduleAtFixedRate( this::toggleInterpolation, 0, 1000, TimeUnit.MILLISECONDS );
+		this.interpolation.addListener( ( obs, oldv, newv ) -> baseView.orthogonalViews().requestRepaint() );
+
 		keyTracker.installInto( scene );
 		stage.setScene( scene );
 		stage.show();
@@ -246,6 +253,11 @@ public class Paintera extends Application
 		map.put( views.bottomLeft(), new OrthoSliceFX( scene, views.bottomLeft().viewer(), sourceInfo ) );
 		map.values().forEach( OrthoSliceFX::toggleVisibility );
 		return map;
+	}
+
+	private void toggleInterpolation()
+	{
+		this.interpolation.set( this.interpolation.get().equals( Interpolation.NLINEAR ) ? Interpolation.NEARESTNEIGHBOR : Interpolation.NLINEAR );
 	}
 
 }
