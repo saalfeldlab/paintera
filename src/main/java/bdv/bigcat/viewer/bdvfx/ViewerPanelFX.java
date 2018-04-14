@@ -52,7 +52,6 @@ import org.jdom2.Element;
 
 import bdv.bigcat.viewer.util.InvokeOnJavaFXApplicationThread;
 import bdv.cache.CacheControl;
-import bdv.util.Prefs;
 import bdv.viewer.DisplayMode;
 import bdv.viewer.Interpolation;
 import bdv.viewer.InterpolationModeListener;
@@ -71,7 +70,6 @@ import javafx.beans.property.SimpleDoubleProperty;
 import javafx.beans.value.ChangeListener;
 import javafx.beans.value.ObservableValue;
 import javafx.scene.canvas.GraphicsContext;
-import javafx.scene.control.Slider;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.BorderPane;
 import net.imglib2.Positionable;
@@ -92,6 +90,7 @@ import net.imglib2.ui.TransformListener;
  * {@link #stop() to stop the PainterThread}.
  *
  * @author Tobias Pietzsch &lt;tobias.pietzsch@gmail.com&gt;
+ * @author Philipp Hanslovsky
  */
 public class ViewerPanelFX
 		extends BorderPane
@@ -125,10 +124,6 @@ public class ViewerPanelFX
 	 * overlays.
 	 */
 	protected final InteractiveDisplayPaneComponent< AffineTransform3D > display;
-
-	protected final Slider sliderTime;
-
-	protected final SimpleBooleanProperty showSlider = new SimpleBooleanProperty( true );
 
 	/**
 	 * A {@link ThreadGroup} for (only) the threads used by this
@@ -186,10 +181,6 @@ public class ViewerPanelFX
 	protected final SimpleDoubleProperty mouseY = new SimpleDoubleProperty();
 
 	protected final SimpleBooleanProperty isInside = new SimpleBooleanProperty();
-
-	protected final MultiBoxOverlayRendererFX multiBoxOverlayRenderer = new MultiBoxOverlayRendererFX( 1, 1 );
-
-	protected final SimpleBooleanProperty showMultibox = new SimpleBooleanProperty( false );
 
 	public ViewerPanelFX( final List< SourceAndConverter< ? > > sources, final int numTimePoints, final CacheControl cacheControl )
 	{
@@ -266,13 +257,8 @@ public class ViewerPanelFX
 				options.getAccumulateProjectorFactory(),
 				cacheControl );
 
-		sliderTime = new Slider( 0, numTimepoints - 1, 0 );
-		sliderTime.valueProperty().addListener( ( observable, oldValue, newValue ) -> setTimepoint( ( int ) sliderTime.getValue() ) );
-
 		display.setMinSize( 0, 0 );
 		setCenter( display );
-		if ( numTimepoints > 1 && this.showSlider.get() )
-			setBottom( sliderTime );
 
 		visibilityAndGrouping = new VisibilityAndGrouping( state );
 		visibilityAndGrouping.addUpdateListener( this );
@@ -281,8 +267,6 @@ public class ViewerPanelFX
 		lastRenderTransformListeners = new CopyOnWriteArrayList<>();
 		timePointListeners = new CopyOnWriteArrayList<>();
 		interpolationModeListeners = new CopyOnWriteArrayList<>();
-
-		showMultibox( Prefs.showMultibox() );
 
 		addEventHandler( MouseEvent.MOUSE_MOVED, event -> {
 			synchronized ( isInside )
@@ -592,29 +576,10 @@ public class ViewerPanelFX
 		if ( state.getCurrentTimepoint() != timepoint )
 		{
 			state.setCurrentTimepoint( timepoint );
-			sliderTime.setValue( timepoint );
 			for ( final TimePointListener l : timePointListeners )
 				l.timePointChanged( timepoint );
 			requestRepaint();
 		}
-	}
-
-	/**
-	 * Show the next time-point.
-	 */
-	public synchronized void nextTimePoint()
-	{
-		if ( state.getNumTimepoints() > 1 )
-			sliderTime.setValue( sliderTime.getValue() + 1 );
-	}
-
-	/**
-	 * Show the previous time-point.
-	 */
-	public synchronized void previousTimePoint()
-	{
-		if ( state.getNumTimepoints() > 1 )
-			sliderTime.setValue( sliderTime.getValue() - 1 );
 	}
 
 	/**
@@ -641,16 +606,8 @@ public class ViewerPanelFX
 	private synchronized void setNumTimepointsSynchronized( final int numTimepoints )
 	{
 
-		if ( !showSlider.get() )
-			setBottom( null );
-
 		if ( numTimepoints < 1 || state.getNumTimepoints() == numTimepoints )
 			return;
-		else if ( numTimepoints == 1 && state.getNumTimepoints() > 1 )
-			setBottom( null );
-		else if ( numTimepoints > 1 && state.getNumTimepoints() == 1 && showSlider.get() )
-			setBottom( sliderTime );
-
 		state.setNumTimepoints( numTimepoints );
 		if ( state.getCurrentTimepoint() >= numTimepoints )
 		{
@@ -659,9 +616,6 @@ public class ViewerPanelFX
 			for ( final TimePointListener l : timePointListeners )
 				l.timePointChanged( timepoint );
 		}
-		sliderTime.setMin( 0 );
-		sliderTime.setMax( numTimepoints - 1 );
-		sliderTime.setValue( state.getCurrentTimepoint() );
 		requestRepaint();
 	}
 
@@ -928,22 +882,7 @@ public class ViewerPanelFX
 	@Override
 	public void drawOverlays( final GraphicsContext g )
 	{
-		boolean requiresRepaint = false;
-		if ( this.showMultibox.get() )
-		{
-			multiBoxOverlayRenderer.setViewerState( state );
-			multiBoxOverlayRenderer.updateVirtualScreenSize( ( int ) display.getWidth(), ( int ) display.getHeight() );
-			multiBoxOverlayRenderer.paint( g );
-			requiresRepaint = multiBoxOverlayRenderer.isHighlightInProgress();
-		}
-
-		if ( requiresRepaint )
-			display.requestLayout();
-	}
-
-	public void showMultibox( final boolean show )
-	{
-		this.showMultibox.set( show );
+		display.requestLayout();
 	}
 
 	public boolean isMouseInside()
@@ -954,11 +893,6 @@ public class ViewerPanelFX
 	public ReadOnlyBooleanProperty isMouseInsideProperty()
 	{
 		return ReadOnlyBooleanProperty.readOnlyBooleanProperty( this.isInside );
-	}
-
-	public void showTimeSlider( final boolean show )
-	{
-		this.showSlider.set( show );
 	}
 
 	public double getMouseX()
