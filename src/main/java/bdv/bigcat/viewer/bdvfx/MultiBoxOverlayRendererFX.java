@@ -31,9 +31,11 @@ package bdv.bigcat.viewer.bdvfx;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.Supplier;
 
-import bdv.viewer.state.SourceState;
-import bdv.viewer.state.ViewerState;
+import bdv.viewer.Source;
+import javafx.beans.property.BooleanProperty;
+import javafx.beans.property.SimpleBooleanProperty;
 import javafx.scene.canvas.GraphicsContext;
 import net.imglib2.Interval;
 import net.imglib2.realtransform.AffineTransform3D;
@@ -45,8 +47,9 @@ import net.imglib2.util.Intervals;
  *
  * @author Tobias Pietzsch &lt;tobias.pietzsch@gmail.com&gt;
  */
-public class MultiBoxOverlayRendererFX
+public class MultiBoxOverlayRendererFX implements OverlayRendererGeneric< GraphicsContext >
 {
+
 	/**
 	 * Navigation wire-frame cube.
 	 */
@@ -64,13 +67,32 @@ public class MultiBoxOverlayRendererFX
 
 	protected final ArrayList< IntervalAndTransform > boxSources;
 
-	public MultiBoxOverlayRendererFX()
+	private final Supplier< ViewerState > viewerState;
+
+	private final List< Source< ? > > allSources;
+
+	private final List< Source< ? > > visibleSources;
+
+	private final BooleanProperty isVisible = new SimpleBooleanProperty( true );
+
+	public MultiBoxOverlayRendererFX(
+			final Supplier< ViewerState > viewerState,
+			final List< Source< ? > > allSources,
+			final List< Source< ? > > visibleSources )
 	{
-		this( 800, 600 );
+		this( viewerState, allSources, visibleSources, 800, 600 );
 	}
 
-	public MultiBoxOverlayRendererFX( final int screenWidth, final int screenHeight )
+	public MultiBoxOverlayRendererFX(
+			final Supplier< ViewerState > viewerState,
+			final List< Source< ? > > allSources,
+			final List< Source< ? > > visibleSources,
+			final int screenWidth,
+			final int screenHeight )
 	{
+		this.viewerState = viewerState;
+		this.allSources = allSources;
+		this.visibleSources = visibleSources;
 		box = new MultiBoxOverlayFX();
 		boxInterval = Intervals.createMinSize( 10, 10, 160, 120 );
 		virtualScreenInterval = Intervals.createMinSize( 0, 0, screenWidth, screenHeight );
@@ -123,15 +145,10 @@ public class MultiBoxOverlayRendererFX
 	{
 		synchronized ( viewerState )
 		{
-			final List< SourceState< ? > > sources = viewerState.getSources();
-			final List< Integer > visible = viewerState.getVisibleSourceIndices();
-			final int timepoint = viewerState.getCurrentTimepoint();
+			final int timepoint = viewerState.timepointProperty().get();
 
-			final int numSources = sources.size();
-			int numPresentSources = 0;
-			for ( final SourceState< ? > source : sources )
-				if ( source.getSpimSource().isPresent( timepoint ) )
-					numPresentSources++;
+			final int numSources = this.allSources.size();
+			final int numPresentSources = this.visibleSources.size();
 			if ( boxSources.size() != numPresentSources )
 			{
 				while ( boxSources.size() < numPresentSources )
@@ -144,18 +161,39 @@ public class MultiBoxOverlayRendererFX
 			final AffineTransform3D sourceTransform = new AffineTransform3D();
 			for ( int i = 0, j = 0; i < numSources; ++i )
 			{
-				final SourceState< ? > source = sources.get( i );
-				if ( source.getSpimSource().isPresent( timepoint ) )
+				final Source< ? > source = this.allSources.get( i );
+				if ( source.isPresent( timepoint ) )
 				{
 					final IntervalAndTransform boxsource = boxSources.get( j++ );
 					viewerState.getViewerTransform( sourceToViewer );
-					source.getSpimSource().getSourceTransform( timepoint, 0, sourceTransform );
+					source.getSourceTransform( timepoint, 0, sourceTransform );
 					sourceToViewer.concatenate( sourceTransform );
 					boxsource.setSourceToViewer( sourceToViewer );
-					boxsource.setSourceInterval( source.getSpimSource().getSource( timepoint, 0 ) );
-					boxsource.setVisible( visible.contains( i ) );
+					boxsource.setSourceInterval( source.getSource( timepoint, 0 ) );
+					boxsource.setVisible( this.visibleSources.contains( source ) );
 				}
 			}
 		}
+	}
+
+	public BooleanProperty isVisibleProperty()
+	{
+		return this.isVisible;
+	}
+
+	@Override
+	public void drawOverlays( final GraphicsContext g )
+	{
+		if ( this.isVisible.get() )
+		{
+			this.setViewerState( viewerState.get() );
+			this.paint( g );
+		}
+	}
+
+	@Override
+	public void setCanvasSize( final int width, final int height )
+	{
+		this.updateVirtualScreenSize( width, height );
 	}
 }

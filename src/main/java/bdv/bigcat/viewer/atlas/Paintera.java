@@ -22,6 +22,7 @@ import bdv.bigcat.viewer.atlas.data.DataSource;
 import bdv.bigcat.viewer.atlas.source.AtlasSourceState;
 import bdv.bigcat.viewer.atlas.source.SourceInfo;
 import bdv.bigcat.viewer.bdvfx.KeyTracker;
+import bdv.bigcat.viewer.bdvfx.MultiBoxOverlayRendererFX;
 import bdv.bigcat.viewer.bdvfx.ViewerPanelFX;
 import bdv.bigcat.viewer.ortho.OrthogonalViews;
 import bdv.bigcat.viewer.ortho.OrthogonalViews.ViewerAndTransforms;
@@ -30,18 +31,22 @@ import bdv.bigcat.viewer.panel.CrossHair;
 import bdv.bigcat.viewer.viewer3d.OrthoSliceFX;
 import bdv.util.RandomAccessibleIntervalSource;
 import bdv.viewer.Interpolation;
+import bdv.viewer.Source;
 import javafx.application.Application;
+import javafx.application.Platform;
 import javafx.beans.binding.Bindings;
 import javafx.beans.property.ReadOnlyBooleanProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.value.ChangeListener;
 import javafx.beans.value.ObservableObjectValue;
+import javafx.collections.ObservableList;
 import javafx.scene.Group;
 import javafx.scene.Node;
 import javafx.scene.Scene;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.paint.Color;
 import javafx.stage.Stage;
+import javafx.stage.WindowEvent;
 import net.imglib2.converter.TypeIdentity;
 import net.imglib2.img.array.ArrayImg;
 import net.imglib2.img.array.ArrayImgs;
@@ -102,8 +107,29 @@ public class Paintera extends Application
 				baseView.orthogonalViews().topRight().viewer(),
 				baseView.orthogonalViews().bottomLeft().viewer() );
 
+		final ObservableList< Source< ? > > sources = sourceInfo.trackSources();
+		final ObservableList< Source< ? > > visibleSources = sourceInfo.trackSources();
+
+		final MultiBoxOverlayRendererFX[] multiBoxes = {
+				new MultiBoxOverlayRendererFX( baseView.orthogonalViews().topLeft().viewer()::getState, sources, visibleSources ),
+				new MultiBoxOverlayRendererFX( baseView.orthogonalViews().topRight().viewer()::getState, sources, visibleSources ),
+				new MultiBoxOverlayRendererFX( baseView.orthogonalViews().bottomLeft().viewer()::getState, sources, visibleSources )
+		};
+
+		baseView.orthogonalViews().topLeft().viewer().getDisplay().addOverlayRenderer( multiBoxes[ 0 ] );
+		baseView.orthogonalViews().topRight().viewer().getDisplay().addOverlayRenderer( multiBoxes[ 1 ] );
+		baseView.orthogonalViews().bottomLeft().viewer().getDisplay().addOverlayRenderer( multiBoxes[ 2 ] );
+
+		multiBoxes[ 0 ].isVisibleProperty().bind( baseView.orthogonalViews().topLeft().viewer().focusedProperty() );
+		multiBoxes[ 1 ].isVisibleProperty().bind( baseView.orthogonalViews().topRight().viewer().focusedProperty() );
+		multiBoxes[ 2 ].isVisibleProperty().bind( baseView.orthogonalViews().bottomLeft().viewer().focusedProperty() );
+
 		final Stage stage = new Stage();
 		final Scene scene = new Scene( baseView.pane() );
+
+		stage.addEventFilter( WindowEvent.WINDOW_CLOSE_REQUEST, event -> viewerToTransforms.keySet().forEach( ViewerPanelFX::stop ) );
+
+		Platform.setImplicitExit( true );
 
 		keyTracker.installInto( scene );
 		stage.setScene( scene );
@@ -221,111 +247,5 @@ public class Paintera extends Application
 		map.values().forEach( OrthoSliceFX::toggleVisibility );
 		return map;
 	}
-
-//	public < T, VT > void addLabelSource(
-//			final DataSource< T, VT > spec,
-//			final FragmentSegmentAssignmentState< ? > assignment,
-//			final IdService idService,
-//			final Function< Long, Interval[] >[] blocksThatContainId,
-//			final Function< ShapeKey, Pair< float[], float[] > >[] meshCache )
-//	{
-//		final CurrentModeConverter< VolatileLabelMultisetType, HighlightingStreamConverterLabelMultisetType > converter = new CurrentModeConverter<>();
-//		final SelectedIds selId = new SelectedIds();
-//		final ModalGoldenAngleSaturatedHighlightingARGBStream stream = new ModalGoldenAngleSaturatedHighlightingARGBStream( selId, assignment );
-//		stream.addListener( () -> baseView().requestRepaint() );
-//		converter.setConverter( new HighlightingStreamConverterLabelMultisetType( stream ) );
-//
-//		final ARGBCompositeAlphaYCbCr comp = new ARGBCompositeAlphaYCbCr();
-//
-//		addSource( spec, comp, spec.tMin(), spec.tMax() );
-//		final AtlasSourceState< VolatileLabelMultisetType, LabelMultisetType > state = sourceInfo.makeLabelSourceState(
-//				spec,
-//				ToIdConverter.fromLabelMultisetType(),
-//				( Function< LabelMultisetType, Converter< LabelMultisetType, BoolType > > ) sel -> createBoolConverter( sel, assignment ),
-//				( FragmentSegmentAssignmentState ) assignment,
-//				stream,
-//				selId,
-//				converter,
-//				comp );// converter );
-//		state.idServiceProperty().set( idService );
-//		if ( spec instanceof MaskedSource< ?, ? > )
-//		{
-//			state.maskedSourceProperty().set( ( MaskedSource< ?, ? > ) spec );
-//		}
-//
-//		final LabelMultisetType t = spec.getDataType();
-//		final Function< LabelMultisetType, String > valueToString = valueToString( t );
-//		final AffineTransform3D affine = new AffineTransform3D();
-//		spec.getSourceTransform( 0, 0, affine );
-//		this.valueDisplayListener.addSource( spec, Optional.of( valueToString ) );
-//
-//		final SelectedSegments selectedSegments = new SelectedSegments( selId, assignment );
-//		final FragmentsInSelectedSegments fragmentsInSelection = new FragmentsInSelectedSegments( selectedSegments, assignment );
-//
-//		final MeshManager meshManager = new MeshManagerWithAssignment(
-//				spec,
-//				state,
-//				renderView.meshesGroup(),
-//				fragmentsInSelection,
-//				settings.meshSimplificationIterationsProperty(),
-//				this.generalPurposeExecutorService );
-//
-//		final MeshInfos meshInfos = new MeshInfos( state, selectedSegments, assignment, meshManager, spec.getNumMipmapLevels() );
-//		state.meshManagerProperty().set( meshManager );
-//		state.meshInfosProperty().set( meshInfos );
-//
-//		view.addActor( new ViewerActor()
-//		{
-//
-//			@Override
-//			public Consumer< ViewerPanelFX > onRemove()
-//			{
-//				return vp -> {};
-//			}
-//
-//			@Override
-//			public Consumer< ViewerPanelFX > onAdd()
-//			{
-//				return vp -> assignment.addListener( () -> vp.requestRepaint() );
-//			}
-//		} );
-//
-//		view.addActor( new ViewerActor()
-//		{
-//			@Override
-//			public Consumer< ViewerPanelFX > onRemove()
-//			{
-//				return vp -> {};
-//			}
-//
-//			@Override
-//			public Consumer< ViewerPanelFX > onAdd()
-//			{
-//				return vp -> {
-//					selId.addListener( () -> vp.requestRepaint() );
-//				};
-//			}
-//		} );
-//
-//		LOG.debug( "Adding mesh and block list caches: {} {}", meshCache, blocksThatContainId );
-//		if ( meshCache != null && blocksThatContainId != null )
-//		{
-//			state.meshesCacheProperty().set( meshCache );
-//			state.blocklistCacheProperty().set( blocksThatContainId );
-//		}
-//		else
-//		{
-//			// off-diagonal in case of permutations)
-//			generateMeshCaches(
-//					spec,
-//					state,
-//					scaleFactorsFromAffineTransforms( spec ),
-//					( lbl, set ) -> lbl.entrySet().forEach( entry -> set.add( entry.getElement().id() ) ),
-//					lbl -> ( src, tgt ) -> tgt.set( src.contains( lbl ) ),
-//					generalPurposeExecutorService );
-//		}
-//
-//		sourceInfo.addState( spec, state );
-//	}
 
 }
