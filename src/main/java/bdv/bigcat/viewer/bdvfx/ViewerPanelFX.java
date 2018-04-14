@@ -426,7 +426,13 @@ public class ViewerPanelFX
 	@Override
 	public void paint()
 	{
-		imageRenderer.paint( state, interpolation );
+		imageRenderer.paint(
+				state::getSources,
+				state.timepoint::get,
+				state::getViewerTransform,
+				state::getBestMipMapLevel,
+				interpolation,
+				state );
 
 		display.repaint();
 	}

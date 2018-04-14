@@ -52,13 +52,18 @@ public class ViewerState
 		return Collections.unmodifiableList( sourcesAndConverters );
 	}
 
-	public synchronized int getBestMipMapLevel( final AffineTransform3D screenScaleTransform, final Source< ? > source )
+	public synchronized int getBestMipMapLevel( final AffineTransform3D screenScaleTransform, final Source< ? > source, final int timepoint )
 	{
 		final AffineTransform3D screenTransform = new AffineTransform3D();
 		getViewerTransform( screenTransform );
 		screenTransform.preConcatenate( screenScaleTransform );
 
-		return MipmapTransforms.getBestMipMapLevel( screenTransform, source, timepoint.get() );
+		return MipmapTransforms.getBestMipMapLevel( screenTransform, source, timepoint );
+	}
+
+	public synchronized int getBestMipMapLevel( final AffineTransform3D screenScaleTransform, final Source< ? > source )
+	{
+		return getBestMipMapLevel( screenScaleTransform, source, timepoint.get() );
 	}
 
 	public synchronized int getBestMipMapLevel( final AffineTransform3D screenScaleTransform, final int sourceIndex )
