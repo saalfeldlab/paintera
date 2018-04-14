@@ -5,7 +5,10 @@ import bdv.bigcat.viewer.atlas.source.SourceInfo;
 import bdv.bigcat.viewer.state.GlobalTransformManager;
 import bdv.bigcat.viewer.viewer3d.Viewer3DFX;
 import bdv.util.volatiles.SharedQueue;
+import bdv.viewer.SourceAndConverter;
 import bdv.viewer.ViewerOptions;
+import javafx.collections.ListChangeListener;
+import javafx.collections.ObservableList;
 import javafx.scene.layout.Pane;
 import net.imglib2.type.numeric.ARGBType;
 
@@ -23,6 +26,10 @@ public class PainteraBaseView
 
 	private final OrthogonalViews< Viewer3DFX > views;
 
+	private final ObservableList< SourceAndConverter< ? > > visibleSourcesAndConverters = sourceInfo.trackVisibleSourcesAndConverters();
+
+	private final ListChangeListener< SourceAndConverter< ? > > vsacUpdate;
+
 	public PainteraBaseView( final int numFetcherThreads )
 	{
 		this( numFetcherThreads, ViewerOptions.options() );
@@ -38,6 +45,8 @@ public class PainteraBaseView
 				.accumulateProjectorFactory( new ClearingCompositeProjector.ClearingCompositeProjectorFactory<>( sourceInfo.composites(), new ARGBType() ) )
 				.numRenderingThreads( Math.min( 3, Math.max( 1, Runtime.getRuntime().availableProcessors() / 3 ) ) );
 		this.views = new OrthogonalViews<>( manager, cacheControl, this.viewerOptions, viewer3D );
+		this.vsacUpdate = change -> views.setAllSources( visibleSourcesAndConverters );
+		visibleSourcesAndConverters.addListener( vsacUpdate );
 	}
 
 	public OrthogonalViews< Viewer3DFX > orthogonalViews()

@@ -13,10 +13,14 @@ import java.util.function.Consumer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import bdv.bigcat.composite.CompositeCopy;
 import bdv.bigcat.viewer.atlas.AtlasFocusHandler.OnEnterOnExit;
 import bdv.bigcat.viewer.atlas.control.Navigation;
 import bdv.bigcat.viewer.atlas.control.navigation.AffineTransformWithListeners;
 import bdv.bigcat.viewer.atlas.control.navigation.DisplayTransformUpdateOnResize;
+import bdv.bigcat.viewer.atlas.data.DataSource;
+import bdv.bigcat.viewer.atlas.source.AtlasSourceState;
+import bdv.bigcat.viewer.atlas.source.SourceInfo;
 import bdv.bigcat.viewer.bdvfx.KeyTracker;
 import bdv.bigcat.viewer.bdvfx.ViewerPanelFX;
 import bdv.bigcat.viewer.ortho.OrthogonalViews;
@@ -24,7 +28,6 @@ import bdv.bigcat.viewer.ortho.OrthogonalViews.ViewerAndTransforms;
 import bdv.bigcat.viewer.ortho.PainteraBaseView;
 import bdv.bigcat.viewer.panel.CrossHair;
 import bdv.util.RandomAccessibleIntervalSource;
-import bdv.viewer.SourceAndConverter;
 import javafx.application.Application;
 import javafx.beans.binding.Bindings;
 import javafx.beans.property.ReadOnlyBooleanProperty;
@@ -69,14 +72,17 @@ public class Paintera extends Application
 
 	private final Map< ViewerAndTransforms, CrossHair > crossHairs = makeCrosshairs( baseView.orthogonalViews(), Color.ORANGE, Color.WHITE );
 
+	private final SourceInfo sourceInfo = baseView.sourceInfo();
+
 	@Override
 	public void start( final Stage primaryStage ) throws Exception
 	{
 		final ArrayImg< ARGBType, IntArray > data = ArrayImgs.argbs( 100, 200, 300 );
 		final Random rng = new Random();
 		data.forEach( d -> d.set( rng.nextInt() ) );
-		final RandomAccessibleIntervalSource< ARGBType > source = new RandomAccessibleIntervalSource<>( data, data.createLinkedType(), "data" );
-		baseView.orthogonalViews().setAllSources( Arrays.asList( new SourceAndConverter<>( source, new TypeIdentity<>() ) ) );
+		final DataSource< ARGBType, ARGBType > source = DataSource.fromSource( new RandomAccessibleIntervalSource<>( data, data.createLinkedType(), "data" ) );
+		final AtlasSourceState< ARGBType, ARGBType > rngState = sourceInfo.makeGenericSourceState( source, new TypeIdentity< ARGBType >(), new CompositeCopy<>() );
+		sourceInfo.addState( source, rngState );
 
 		updateDisplayTransformOnResize( baseView.orthogonalViews(), baseView.manager() );
 
