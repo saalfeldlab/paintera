@@ -27,12 +27,14 @@ import bdv.bigcat.viewer.ortho.OrthogonalViews;
 import bdv.bigcat.viewer.ortho.OrthogonalViews.ViewerAndTransforms;
 import bdv.bigcat.viewer.ortho.PainteraBaseView;
 import bdv.bigcat.viewer.panel.CrossHair;
+import bdv.bigcat.viewer.viewer3d.OrthoSliceFX;
 import bdv.util.RandomAccessibleIntervalSource;
 import javafx.application.Application;
 import javafx.beans.binding.Bindings;
 import javafx.beans.property.ReadOnlyBooleanProperty;
 import javafx.beans.value.ChangeListener;
 import javafx.beans.value.ObservableObjectValue;
+import javafx.scene.Group;
 import javafx.scene.Node;
 import javafx.scene.Scene;
 import javafx.scene.input.MouseEvent;
@@ -50,6 +52,8 @@ public class Paintera extends Application
 	private static final Logger LOG = LoggerFactory.getLogger( MethodHandles.lookup().lookupClass() );
 
 	private final PainteraBaseView baseView = new PainteraBaseView( 8 );
+
+	private final SourceInfo sourceInfo = baseView.sourceInfo();
 
 	private final KeyTracker keyTracker = new KeyTracker();
 
@@ -72,7 +76,7 @@ public class Paintera extends Application
 
 	private final Map< ViewerAndTransforms, CrossHair > crossHairs = makeCrosshairs( baseView.orthogonalViews(), Color.ORANGE, Color.WHITE );
 
-	private final SourceInfo sourceInfo = baseView.sourceInfo();
+	private final Map< ViewerAndTransforms, OrthoSliceFX > orthoSlices = makeOrthoSlices( baseView.orthogonalViews(), baseView.viewer3D().meshesGroup(), sourceInfo );
 
 	@Override
 	public void start( final Stage primaryStage ) throws Exception
@@ -83,6 +87,7 @@ public class Paintera extends Application
 		final DataSource< ARGBType, ARGBType > source = DataSource.fromSource( new RandomAccessibleIntervalSource<>( data, data.createLinkedType(), "data" ) );
 		final AtlasSourceState< ARGBType, ARGBType > rngState = sourceInfo.makeGenericSourceState( source, new TypeIdentity< ARGBType >(), new CompositeCopy<>() );
 		sourceInfo.addState( source, rngState );
+		baseView.viewer3D().setInitialTransformToInterval( data );
 
 		updateDisplayTransformOnResize( baseView.orthogonalViews(), baseView.manager() );
 
@@ -95,6 +100,7 @@ public class Paintera extends Application
 
 		final Stage stage = new Stage();
 		final Scene scene = new Scene( baseView.pane() );
+
 		keyTracker.installInto( scene );
 		stage.setScene( scene );
 		stage.show();
@@ -197,6 +203,19 @@ public class Paintera extends Application
 		viewer.focusedProperty().addListener( ( obs, oldv, newv ) -> ch.setColor( newv ? onFocusColor : offFocusColor ) );
 		ch.wasChangedProperty().addListener( ( obs, oldv, newv ) -> viewer.getDisplay().drawOverlays() );
 		return ch;
+	}
+
+	public static Map< ViewerAndTransforms, OrthoSliceFX > makeOrthoSlices(
+			final OrthogonalViews< ? > views,
+			final Group scene,
+			final SourceInfo sourceInfo )
+	{
+		final Map< ViewerAndTransforms, OrthoSliceFX > map = new HashMap<>();
+		map.put( views.topLeft(), new OrthoSliceFX( scene, views.topLeft().viewer(), sourceInfo ) );
+		map.put( views.topRight(), new OrthoSliceFX( scene, views.topRight().viewer(), sourceInfo ) );
+		map.put( views.bottomLeft(), new OrthoSliceFX( scene, views.bottomLeft().viewer(), sourceInfo ) );
+		map.values().forEach( OrthoSliceFX::toggleVisibility );
+		return map;
 	}
 
 }
