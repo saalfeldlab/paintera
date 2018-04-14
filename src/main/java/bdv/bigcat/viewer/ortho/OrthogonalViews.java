@@ -3,6 +3,7 @@ package bdv.bigcat.viewer.ortho;
 import java.lang.invoke.MethodHandles;
 import java.util.Collection;
 import java.util.function.Consumer;
+import java.util.function.Function;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -14,6 +15,8 @@ import bdv.bigcat.viewer.panel.ViewerPanelInOrthoView;
 import bdv.bigcat.viewer.panel.ViewerPanelInOrthoView.ViewerAxis;
 import bdv.bigcat.viewer.state.GlobalTransformManager;
 import bdv.cache.CacheControl;
+import bdv.viewer.Interpolation;
+import bdv.viewer.Source;
 import bdv.viewer.SourceAndConverter;
 import bdv.viewer.ViewerOptions;
 import javafx.event.Event;
@@ -86,12 +89,13 @@ public class OrthogonalViews< BR extends Node >
 			final GlobalTransformManager manager,
 			final CacheControl cacheControl,
 			final ViewerOptions optional,
-			final BR bottomRight )
+			final BR bottomRight,
+			final Function< Source< ? >, Interpolation > interpolation )
 	{
 		this.manager = manager;
-		this.topLeft = create( this.manager, cacheControl, optional, ViewerAxis.Z );
-		this.topRight = create( this.manager, cacheControl, optional, ViewerAxis.X );
-		this.bottomLeft = create( this.manager, cacheControl, optional, ViewerAxis.Y );
+		this.topLeft = create( this.manager, cacheControl, optional, ViewerAxis.Z, interpolation );
+		this.topRight = create( this.manager, cacheControl, optional, ViewerAxis.X, interpolation );
+		this.bottomLeft = create( this.manager, cacheControl, optional, ViewerAxis.Y, interpolation );
 		this.grid = new ResizableGridPane2x2<>( topLeft.viewer, topRight.viewer, bottomLeft.viewer, bottomRight );
 	}
 
@@ -109,11 +113,12 @@ public class OrthogonalViews< BR extends Node >
 			final GlobalTransformManager manager,
 			final CacheControl cacheControl,
 			final ViewerOptions optional,
-			final ViewerAxis axis )
+			final ViewerAxis axis,
+			final Function< Source< ? >, Interpolation > interpolation )
 	{
 		final AffineTransform3D globalToViewer = ViewerPanelInOrthoView.globalToViewer( axis );
 		LOG.warn( "Generating viewer, axis={}, globalToViewer={}", axis, globalToViewer );
-		final ViewerPanelFX viewer = new ViewerPanelFX( 1, cacheControl, optional );
+		final ViewerPanelFX viewer = new ViewerPanelFX( 1, cacheControl, optional, interpolation );
 		final AffineTransformWithListeners displayTransform = new AffineTransformWithListeners();
 		final AffineTransformWithListeners globalToViewerTransform = new AffineTransformWithListeners( globalToViewer );
 

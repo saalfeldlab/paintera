@@ -18,9 +18,9 @@ import bdv.bigcat.viewer.atlas.data.mask.MaskedSource;
 import bdv.bigcat.viewer.atlas.source.AtlasSourceState;
 import bdv.bigcat.viewer.atlas.source.SourceInfo;
 import bdv.bigcat.viewer.bdvfx.ViewerPanelFX;
+import bdv.bigcat.viewer.bdvfx.ViewerState;
 import bdv.img.AccessBoxRandomAccessible;
 import bdv.viewer.Source;
-import bdv.viewer.state.ViewerState;
 import javafx.scene.Cursor;
 import javafx.scene.Scene;
 import net.imglib2.Interval;
@@ -126,7 +126,7 @@ public class FloodFill
 //		final int level = viewerState.getBestMipMapLevel( new AffineTransform3D(), sourceInfo.currentSourceIndexInVisibleSources().get() );
 		final int level = 0;
 		final AffineTransform3D labelTransform = new AffineTransform3D();
-		final int time = viewerState.getCurrentTimepoint();
+		final int time = viewerState.timepointProperty().get();
 		source.getSourceTransform( time, level, labelTransform );
 
 		final RealPoint rp = setCoordinates( x, y, viewer, labelTransform );

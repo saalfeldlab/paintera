@@ -14,9 +14,9 @@ import bdv.bigcat.viewer.atlas.data.mask.MaskedSource;
 import bdv.bigcat.viewer.atlas.source.AtlasSourceState;
 import bdv.bigcat.viewer.atlas.source.SourceInfo;
 import bdv.bigcat.viewer.bdvfx.ViewerPanelFX;
+import bdv.bigcat.viewer.bdvfx.ViewerState;
 import bdv.img.AccessBoxRandomAccessible;
 import bdv.viewer.Source;
-import bdv.viewer.state.ViewerState;
 import gnu.trove.list.TLongList;
 import gnu.trove.list.array.TLongArrayList;
 import net.imglib2.Cursor;
@@ -107,7 +107,7 @@ public class RestrictPainting
 
 		final int level = viewerState.getBestMipMapLevel( new AffineTransform3D(), sourceInfo.currentSourceIndexInVisibleSources().get() );
 		final AffineTransform3D labelTransform = new AffineTransform3D();
-		final int time = viewerState.getCurrentTimepoint();
+		final int time = viewerState.timepointProperty().get();
 		source.getSourceTransform( time, level, labelTransform );
 
 		final RealPoint rp = setCoordinates( x, y, viewer, labelTransform );

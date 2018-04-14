@@ -1,10 +1,14 @@
 package bdv.bigcat.viewer.ortho;
 
+import java.util.function.Function;
+
 import bdv.bigcat.composite.ClearingCompositeProjector;
 import bdv.bigcat.viewer.atlas.source.SourceInfo;
 import bdv.bigcat.viewer.state.GlobalTransformManager;
 import bdv.bigcat.viewer.viewer3d.Viewer3DFX;
 import bdv.util.volatiles.SharedQueue;
+import bdv.viewer.Interpolation;
+import bdv.viewer.Source;
 import bdv.viewer.SourceAndConverter;
 import bdv.viewer.ViewerOptions;
 import javafx.collections.ListChangeListener;
@@ -30,21 +34,22 @@ public class PainteraBaseView
 
 	private final ListChangeListener< SourceAndConverter< ? > > vsacUpdate;
 
-	public PainteraBaseView( final int numFetcherThreads )
+	public PainteraBaseView( final int numFetcherThreads, final Function< Source< ? >, Interpolation > interpolation )
 	{
-		this( numFetcherThreads, ViewerOptions.options() );
+		this( numFetcherThreads, ViewerOptions.options(), interpolation );
 	}
 
 	public PainteraBaseView(
 			final int numFetcherThreads,
-			final ViewerOptions viewerOptions )
+			final ViewerOptions viewerOptions,
+			final Function< Source< ? >, Interpolation > interpolation )
 	{
 		super();
 		this.cacheControl = new SharedQueue( numFetcherThreads );
 		this.viewerOptions = viewerOptions
 				.accumulateProjectorFactory( new ClearingCompositeProjector.ClearingCompositeProjectorFactory<>( sourceInfo.composites(), new ARGBType() ) )
 				.numRenderingThreads( Math.min( 3, Math.max( 1, Runtime.getRuntime().availableProcessors() / 3 ) ) );
-		this.views = new OrthogonalViews<>( manager, cacheControl, this.viewerOptions, viewer3D );
+		this.views = new OrthogonalViews<>( manager, cacheControl, this.viewerOptions, viewer3D, interpolation );
 		this.vsacUpdate = change -> views.setAllSources( visibleSourcesAndConverters );
 		visibleSourcesAndConverters.addListener( vsacUpdate );
 	}

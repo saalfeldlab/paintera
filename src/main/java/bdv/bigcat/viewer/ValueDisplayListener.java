@@ -3,12 +3,13 @@ package bdv.bigcat.viewer;
 import java.util.HashMap;
 import java.util.Optional;
 import java.util.function.Consumer;
+import java.util.function.Function;
 
 import bdv.bigcat.viewer.atlas.data.DataSource;
 import bdv.bigcat.viewer.bdvfx.ViewerPanelFX;
+import bdv.bigcat.viewer.bdvfx.ViewerState;
 import bdv.viewer.Interpolation;
 import bdv.viewer.Source;
-import bdv.viewer.state.ViewerState;
 import javafx.beans.value.ObservableIntegerValue;
 import javafx.beans.value.ObservableValue;
 import javafx.event.EventHandler;
@@ -36,17 +37,21 @@ public class ValueDisplayListener implements EventHandler< javafx.scene.input.Mo
 
 	private double y = -1;
 
+	private final Function< Source< ? >, Interpolation > interpolation;
+
 	public ValueDisplayListener(
 			@SuppressWarnings( "rawtypes" ) final HashMap< DataSource< ?, ? >, Consumer > valueHandlers,
 			final ViewerPanelFX viewer,
 			final ObservableValue< Source< ? > > currentSource,
-			final ObservableIntegerValue currentSourceIndedxInVisibleSources )
+			final ObservableIntegerValue currentSourceIndedxInVisibleSources,
+			final Function< Source< ? >, Interpolation > interpolation )
 	{
 		super();
 		this.valueHandlers = valueHandlers;
 		this.viewer = viewer;
 		this.currentSource = currentSource;
 		this.currentSourceIndexInVisibleSources = currentSourceIndedxInVisibleSources;
+		this.interpolation = interpolation;
 	}
 
 	@Override
@@ -96,7 +101,7 @@ public class ValueDisplayListener implements EventHandler< javafx.scene.input.Mo
 			if ( valueHandlers.containsKey( source ) && currentSourceIndex != -1 )
 			{
 				final ViewerState state = viewer.getState();
-				final Interpolation interpolation = state.getInterpolation();
+				final Interpolation interpolation = this.interpolation.apply( source );
 				final AffineTransform3D screenScaleTransform = new AffineTransform3D();
 				final int level = state.getBestMipMapLevel( screenScaleTransform, currentSourceIndex );
 				final AffineTransform3D affine = new AffineTransform3D();

@@ -13,6 +13,7 @@ import bdv.bigcat.viewer.bdvfx.ViewerPanelFX;
 import bdv.bigcat.viewer.panel.ViewerPanelInOrthoView;
 import bdv.bigcat.viewer.panel.ViewerPanelInOrthoView.ViewerAxis;
 import bdv.util.volatiles.SharedQueue;
+import bdv.viewer.Interpolation;
 import bdv.viewer.SourceAndConverter;
 import bdv.viewer.ViewerOptions;
 import javafx.beans.value.ChangeListener;
@@ -90,9 +91,9 @@ public class OrthoView extends GridPane
 	{
 		super();
 
-		this.viewerTopLeft = new ViewerPanelFX( 1, cellCache, state.viewerOptions );
-		this.viewerTopRight = new ViewerPanelFX( 1, cellCache, state.viewerOptions );
-		this.viewerBottomLeft = new ViewerPanelFX( 1, cellCache, state.viewerOptions );
+		this.viewerTopLeft = new ViewerPanelFX( 1, cellCache, state.viewerOptions, s -> Interpolation.NEARESTNEIGHBOR );
+		this.viewerTopRight = new ViewerPanelFX( 1, cellCache, state.viewerOptions, s -> Interpolation.NEARESTNEIGHBOR );
+		this.viewerBottomLeft = new ViewerPanelFX( 1, cellCache, state.viewerOptions, s -> Interpolation.NEARESTNEIGHBOR );
 
 		this.state = state;
 

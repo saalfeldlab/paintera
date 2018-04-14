@@ -78,6 +78,8 @@ import bdv.viewer.SourceAndConverter;
 import bdv.viewer.ViewerOptions;
 import gnu.trove.set.hash.TLongHashSet;
 import javafx.beans.property.BooleanProperty;
+import javafx.beans.property.ObjectProperty;
+import javafx.beans.property.SimpleObjectProperty;
 import javafx.collections.ListChangeListener;
 import javafx.collections.MapChangeListener;
 import javafx.event.EventHandler;
@@ -167,6 +169,11 @@ public class Atlas
 	private final Node settingsNode;
 
 	private final VBox sourcesAndSettings;
+
+	private final ObjectProperty< Interpolation > interpolation = new SimpleObjectProperty<>( Interpolation.NEARESTNEIGHBOR );
+	{
+		interpolation.addListener( ( obs, oldv, newv ) -> baseView().requestRepaint() );
+	}
 
 	private final ExecutorService generalPurposeExecutorService = Executors.newFixedThreadPool( 3, new ThreadFactory()
 	{
@@ -271,7 +278,11 @@ public class Atlas
 		addOnEnterOnExit( coordinatePrinter.onEnter(), coordinatePrinter.onExit(), true );
 
 		final Label label = new Label();
-		valueDisplayListener = new AtlasValueDisplayListener( label, sourceInfo.currentSourceProperty(), sourceInfo.currentSourceIndexInVisibleSources() );
+		valueDisplayListener = new AtlasValueDisplayListener(
+				label,
+				sourceInfo.currentSourceProperty(),
+				sourceInfo.currentSourceIndexInVisibleSources(),
+				s -> interpolation.get() );
 		this.status.getChildren().add( label );
 
 		addOnEnterOnExit( valueDisplayListener.onEnter(), valueDisplayListener.onExit(), true );

@@ -98,7 +98,7 @@ public class ViewerState
 		@Override
 		public void changed( final ObservableValue< ? extends Interpolation > observable, final Interpolation oldValue, final Interpolation newValue )
 		{
-			viewer.setInterpolation( newValue );
+//			viewer.setInterpolation( newValue );
 		}
 
 	}

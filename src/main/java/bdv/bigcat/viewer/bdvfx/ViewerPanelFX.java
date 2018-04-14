@@ -29,15 +29,6 @@
  */
 package bdv.bigcat.viewer.bdvfx;
 
-import static bdv.viewer.VisibilityAndGrouping.Event.CURRENT_SOURCE_CHANGED;
-import static bdv.viewer.VisibilityAndGrouping.Event.DISPLAY_MODE_CHANGED;
-import static bdv.viewer.VisibilityAndGrouping.Event.GROUP_ACTIVITY_CHANGED;
-import static bdv.viewer.VisibilityAndGrouping.Event.GROUP_NAME_CHANGED;
-import static bdv.viewer.VisibilityAndGrouping.Event.NUM_GROUPS_CHANGED;
-import static bdv.viewer.VisibilityAndGrouping.Event.NUM_SOURCES_CHANGED;
-import static bdv.viewer.VisibilityAndGrouping.Event.SOURCE_ACTVITY_CHANGED;
-import static bdv.viewer.VisibilityAndGrouping.Event.VISIBILITY_CHANGED;
-
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
@@ -46,29 +37,22 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
-import org.jdom2.Element;
-
-import bdv.bigcat.viewer.util.InvokeOnJavaFXApplicationThread;
 import bdv.cache.CacheControl;
-import bdv.viewer.DisplayMode;
 import bdv.viewer.Interpolation;
-import bdv.viewer.InterpolationModeListener;
 import bdv.viewer.RequestRepaint;
 import bdv.viewer.Source;
 import bdv.viewer.SourceAndConverter;
-import bdv.viewer.TimePointListener;
 import bdv.viewer.ViewerOptions;
-import bdv.viewer.state.SourceGroup;
-import bdv.viewer.state.ViewerState;
-import bdv.viewer.state.XmlIoViewerState;
 import javafx.beans.property.ReadOnlyBooleanProperty;
 import javafx.beans.property.ReadOnlyDoubleProperty;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleDoubleProperty;
 import javafx.beans.value.ChangeListener;
 import javafx.beans.value.ObservableValue;
+import javafx.collections.ListChangeListener;
 import javafx.scene.canvas.GraphicsContext;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.BorderPane;
@@ -94,7 +78,10 @@ import net.imglib2.ui.TransformListener;
  */
 public class ViewerPanelFX
 		extends BorderPane
-		implements OverlayRendererGeneric< GraphicsContext >, TransformListener< AffineTransform3D >, PainterThread.Paintable, VisibilityAndGrouping.UpdateListener, RequestRepaint
+		implements OverlayRendererGeneric< GraphicsContext >,
+		TransformListener< AffineTransform3D >,
+		PainterThread.Paintable,
+		RequestRepaint
 {
 	private static final long serialVersionUID = 1L;
 
@@ -102,7 +89,7 @@ public class ViewerPanelFX
 	 * Currently rendered state (visible sources, transformation, timepoint,
 	 * etc.) A copy can be obtained by {@link #getState()}.
 	 */
-	protected final ViewerState state;
+	protected final ViewerState state = new ViewerState();
 
 	/**
 	 * Renders the current state for the {@link #display}.
@@ -143,12 +130,6 @@ public class ViewerPanelFX
 	protected final ExecutorService renderingExecutorService;
 
 	/**
-	 * Manages visibility and currentness of sources and groups, as well as
-	 * grouping of sources, and display mode.
-	 */
-	protected final VisibilityAndGrouping visibilityAndGrouping;
-
-	/**
 	 * These listeners will be notified about changes to the
 	 * {@link #viewerTransform}. This is done <em>before</em> calling
 	 * {@link #requestRepaint()} so listeners have the chance to interfere.
@@ -170,10 +151,6 @@ public class ViewerPanelFX
 	 * calling {@link #requestRepaint()} so listeners have the chance to
 	 * interfere.
 	 */
-	protected final CopyOnWriteArrayList< TimePointListener > timePointListeners;
-
-	protected final CopyOnWriteArrayList< InterpolationModeListener > interpolationModeListeners;
-
 	protected final ViewerOptions.Values options;
 
 	protected final SimpleDoubleProperty mouseX = new SimpleDoubleProperty();
@@ -182,9 +159,26 @@ public class ViewerPanelFX
 
 	protected final SimpleBooleanProperty isInside = new SimpleBooleanProperty();
 
-	public ViewerPanelFX( final List< SourceAndConverter< ? > > sources, final int numTimePoints, final CacheControl cacheControl )
+	private final Function< Source< ? >, Interpolation > interpolation;
+
+	public ViewerPanelFX(
+			final List< SourceAndConverter< ? > > sources,
+			final int numTimePoints,
+			final CacheControl cacheControl,
+			final Function< Source< ? >, Interpolation > interpolation )
 	{
-		this( sources, numTimePoints, cacheControl, ViewerOptions.options() );
+		this( sources, numTimePoints, cacheControl, ViewerOptions.options(), interpolation );
+	}
+
+	/**
+	 * @param cacheControl
+	 *            to control IO budgeting and fetcher queue.
+	 * @param optional
+	 *            optional parameters. See {@link ViewerOptions#options()}.
+	 */
+	public ViewerPanelFX( final CacheControl cacheControl, final ViewerOptions optional, final Function< Source< ? >, Interpolation > interpolation )
+	{
+		this( 1, cacheControl, optional, interpolation );
 	}
 
 	/**
@@ -195,9 +189,9 @@ public class ViewerPanelFX
 	 * @param optional
 	 *            optional parameters. See {@link ViewerOptions#options()}.
 	 */
-	public ViewerPanelFX( final int numTimepoints, final CacheControl cacheControl, final ViewerOptions optional )
+	public ViewerPanelFX( final int numTimepoints, final CacheControl cacheControl, final ViewerOptions optional, final Function< Source< ? >, Interpolation > interpolation )
 	{
-		this( new ArrayList<>(), numTimepoints, cacheControl, optional );
+		this( new ArrayList<>(), numTimepoints, cacheControl, optional, interpolation );
 	}
 
 	/**
@@ -210,26 +204,19 @@ public class ViewerPanelFX
 	 * @param optional
 	 *            optional parameters. See {@link ViewerOptions#options()}.
 	 */
-	public ViewerPanelFX( final List< SourceAndConverter< ? > > sources, final int numTimepoints, final CacheControl cacheControl, final ViewerOptions optional )
+	public ViewerPanelFX(
+			final List< SourceAndConverter< ? > > sources,
+			final int numTimepoints,
+			final CacheControl cacheControl,
+			final ViewerOptions optional,
+			final Function< Source< ? >, Interpolation > interpolation )
 	{
 		super();
 		options = optional.values;
 		setWidth( options.getWidth() );
 		setHeight( options.getHeight() );
 
-		final int numGroups = options.getNumSourceGroups();
-		final ArrayList< SourceGroup > groups = new ArrayList<>( numGroups );
-		for ( int i = 0; i < numGroups; ++i )
-			groups.add( new SourceGroup( "group " + Integer.toString( i + 1 ) ) );
-		state = new ViewerState( sources, groups, numTimepoints );
-		for ( int i = Math.min( numGroups, sources.size() ) - 1; i >= 0; --i )
-			state.getSourceGroups().get( i ).addSource( i );
-
-		if ( !sources.isEmpty() )
-			state.setCurrentSource( 0 );
-//		multiBoxOverlayRenderer = new MultiBoxOverlayRenderer();
-//		sourceInfoOverlayRenderer = new SourceInfoOverlayRenderer();
-//		scaleBarOverlayRenderer = Prefs.showScaleBar() ? new ScaleBarOverlayRenderer() : null;
+		state.numTimepoints.set( numTimepoints );
 
 		threadGroup = new ThreadGroup( this.toString() );
 		painterThread = new PainterThread( threadGroup, this );
@@ -260,15 +247,14 @@ public class ViewerPanelFX
 		display.setMinSize( 0, 0 );
 		setCenter( display );
 
-		visibilityAndGrouping = new VisibilityAndGrouping( state );
-		visibilityAndGrouping.addUpdateListener( this );
-
 		transformListeners = new CopyOnWriteArrayList<>();
 		lastRenderTransformListeners = new CopyOnWriteArrayList<>();
-		timePointListeners = new CopyOnWriteArrayList<>();
-		interpolationModeListeners = new CopyOnWriteArrayList<>();
 
-		addEventHandler( MouseEvent.MOUSE_MOVED, event -> {
+		this.interpolation = interpolation;
+
+		state.sourcesAndConverters.addListener( ( ListChangeListener< SourceAndConverter< ? > > ) c -> requestRepaint() );
+
+		addEventFilter( MouseEvent.MOUSE_MOVED, event -> {
 			synchronized ( isInside )
 			{
 				if ( isInside.get() )
@@ -278,13 +264,13 @@ public class ViewerPanelFX
 				}
 			}
 		} );
-		addEventHandler( MouseEvent.MOUSE_ENTERED, event -> {
+		addEventFilter( MouseEvent.MOUSE_ENTERED, event -> {
 			synchronized ( isInside )
 			{
 				isInside.set( true );
 			}
 		} );
-		addEventHandler( MouseEvent.MOUSE_EXITED, event -> {
+		addEventFilter( MouseEvent.MOUSE_EXITED, event -> {
 			synchronized ( isInside )
 			{
 				isInside.set( false );
@@ -318,79 +304,50 @@ public class ViewerPanelFX
 
 	public void addSource( final SourceAndConverter< ? > sourceAndConverter )
 	{
-		synchronized ( visibilityAndGrouping )
+		synchronized ( state )
 		{
-			state.addSource( sourceAndConverter );
-			visibilityAndGrouping.update( NUM_SOURCES_CHANGED );
+			state.sourcesAndConverters.add( sourceAndConverter );
 		}
-		requestRepaint();
 	}
 
 	public void addSources( final Collection< ? extends SourceAndConverter< ? > > sourceAndConverter )
 	{
-		synchronized ( visibilityAndGrouping )
+		synchronized ( state )
 		{
-			sourceAndConverter.forEach( state::addSource );
-			visibilityAndGrouping.update( NUM_SOURCES_CHANGED );
+			state.sourcesAndConverters.addAll( sourceAndConverter );
 		}
-		requestRepaint();
 	}
 
 	public void removeSource( final Source< ? > source )
 	{
-		synchronized ( visibilityAndGrouping )
+		synchronized ( state )
 		{
-			state.removeSource( source );
-			visibilityAndGrouping.update( NUM_SOURCES_CHANGED );
+			state.sourcesAndConverters.remove( state.sources.get( source ) );
 		}
-		requestRepaint();
 	}
 
 	public void removeSources( final Collection< Source< ? > > sources )
 	{
-		synchronized ( visibilityAndGrouping )
+		synchronized ( state )
 		{
-			sources.forEach( state::removeSource );
-			visibilityAndGrouping.update( NUM_SOURCES_CHANGED );
+			state.sourcesAndConverters.removeAll( sources.stream().map( state.sources::get ).collect( Collectors.toList() ) );
 		}
-		requestRepaint();
 	}
 
 	public void removeAllSources()
 	{
-		synchronized ( visibilityAndGrouping )
+		synchronized ( state )
 		{
-			removeSources( getState().getSources().stream().map( SourceAndConverter::getSpimSource ).collect( Collectors.toList() ) );
+			this.state.sourcesAndConverters.clear();
 		}
 	}
 
 	public void setAllSources( final Collection< ? extends SourceAndConverter< ? > > sources )
 	{
-		synchronized ( visibilityAndGrouping )
+		synchronized ( state )
 		{
-			getState().getSources().stream().map( SourceAndConverter::getSpimSource ).forEach( state::removeSource );
-			addSources( sources );
+			this.state.sourcesAndConverters.setAll( sources );
 		}
-	}
-
-	public void addGroup( final SourceGroup group )
-	{
-		synchronized ( visibilityAndGrouping )
-		{
-			state.addGroup( group );
-			visibilityAndGrouping.update( NUM_GROUPS_CHANGED );
-		}
-		requestRepaint();
-	}
-
-	public void removeGroup( final SourceGroup group )
-	{
-		synchronized ( visibilityAndGrouping )
-		{
-			state.removeGroup( group );
-			visibilityAndGrouping.update( NUM_GROUPS_CHANGED );
-		}
-		requestRepaint();
 	}
 
 	/**
@@ -469,7 +426,7 @@ public class ViewerPanelFX
 	@Override
 	public void paint()
 	{
-		imageRenderer.paint( state );
+		imageRenderer.paint( state, interpolation );
 
 		display.repaint();
 	}
@@ -493,70 +450,6 @@ public class ViewerPanelFX
 		requestRepaint();
 	}
 
-	@Override
-	public void visibilityChanged( final VisibilityAndGrouping.Event e )
-	{
-		switch ( e.id )
-		{
-		case CURRENT_SOURCE_CHANGED:
-//			multiBoxOverlayRenderer.highlight( visibilityAndGrouping.getCurrentSource() );
-			display.repaint();
-			break;
-		case DISPLAY_MODE_CHANGED:
-			display.repaint();
-			break;
-		case GROUP_NAME_CHANGED:
-			display.repaint();
-			break;
-		case SOURCE_ACTVITY_CHANGED:
-			// TODO multiBoxOverlayRenderer.highlight() all sources that became
-			// visible
-			break;
-		case GROUP_ACTIVITY_CHANGED:
-			// TODO multiBoxOverlayRenderer.highlight() all sources that became
-			// visible
-			break;
-		case VISIBILITY_CHANGED:
-			requestRepaint();
-			break;
-		}
-	}
-
-	/**
-	 * Switch to next interpolation mode. (Currently, there are two
-	 * interpolation modes: nearest-neighbor and N-linear.)
-	 */
-	public synchronized void toggleInterpolation()
-	{
-		final int i = state.getInterpolation().ordinal();
-		final int n = Interpolation.values().length;
-		final Interpolation mode = Interpolation.values()[ ( i + 1 ) % n ];
-		setInterpolation( mode );
-	}
-
-	/**
-	 * Set the {@link Interpolation} mode.
-	 */
-	public synchronized void setInterpolation( final Interpolation mode )
-	{
-		final Interpolation interpolation = state.getInterpolation();
-		if ( mode != interpolation )
-		{
-			state.setInterpolation( mode );
-			for ( final InterpolationModeListener l : interpolationModeListeners )
-				l.interpolationModeChanged( state.getInterpolation() );
-			requestRepaint();
-		}
-	}
-
-	/**
-	 * Set the {@link DisplayMode}.
-	 */
-	public synchronized void setDisplayMode( final DisplayMode displayMode )
-	{
-		visibilityAndGrouping.setDisplayMode( displayMode );
-	}
-
 	/**
 	 * Set the viewer transform.
 	 */
@@ -573,48 +466,19 @@ public class ViewerPanelFX
 	 */
 	public synchronized void setTimepoint( final int timepoint )
 	{
-		if ( state.getCurrentTimepoint() != timepoint )
-		{
-			state.setCurrentTimepoint( timepoint );
-			for ( final TimePointListener l : timePointListeners )
-				l.timePointChanged( timepoint );
-			requestRepaint();
-		}
+		state.timepoint.set( timepoint );
 	}
 
-	/**
-	 * Set the number of available timepoints. If {@code numTimepoints == 1}
-	 * this will hide the time slider, otherwise show it. If the currently
-	 * displayed timepoint would be out of range with the new number of
-	 * timepoints, the current timepoint is set to {@code numTimepoints - 1}.
-	 *
-	 * @param numTimepoints
-	 *            number of available timepoints. Must be {@code >= 1}.
-	 */
 	public void setNumTimepoints( final int numTimepoints )
 	{
-		try
-		{
-			InvokeOnJavaFXApplicationThread.invokeAndWait( () -> setNumTimepointsSynchronized( numTimepoints ) );
-		}
-		catch ( final InterruptedException e )
-		{
-			e.printStackTrace();
-		}
-	}
 
-	private synchronized void setNumTimepointsSynchronized( final int numTimepoints )
-	{
-
-		if ( numTimepoints < 1 || state.getNumTimepoints() == numTimepoints )
+		if ( numTimepoints < 1 || state.numTimepoints.get() == numTimepoints )
 			return;
-		state.setNumTimepoints( numTimepoints );
-		if ( state.getCurrentTimepoint() >= numTimepoints )
+		state.numTimepoints.set( numTimepoints );
+		if ( state.numTimepoints.get() >= numTimepoints )
 		{
 			final int timepoint = numTimepoints - 1;
-			state.setCurrentTimepoint( timepoint );
-			for ( final TimePointListener l : timePointListeners )
-				l.timePointChanged( timepoint );
+			state.timepoint.set( timepoint );
 		}
 		requestRepaint();
 	}
@@ -637,30 +501,6 @@ public class ViewerPanelFX
 	public InteractiveDisplayPaneComponent< AffineTransform3D > getDisplay()
 	{
 		return display;
-	}
-
-	/**
-	 * Add a {@link InterpolationModeListener} to notify when the interpolation
-	 * mode is changed. Listeners will be notified <em>before</em> calling
-	 * {@link #requestRepaint()} so they have the chance to interfere.
-	 *
-	 * @param listener
-	 *            the interpolation mode listener to add.
-	 */
-	public void addInterpolationModeListener( final InterpolationModeListener listener )
-	{
-		interpolationModeListeners.add( listener );
-	}
-
-	/**
-	 * Remove a {@link InterpolationModeListener}.
-	 *
-	 * @param listener
-	 *            the interpolation mode listener to remove.
-	 */
-	public void removeInterpolationModeListener( final InterpolationModeListener listener )
-	{
-		interpolationModeListeners.remove( listener );
 	}
 
 	/**
@@ -746,79 +586,11 @@ public class ViewerPanelFX
 	}
 
 	/**
-	 * Add a {@link TimePointListener} to notify about time-point changes.
-	 * Listeners will be notified <em>before</em> calling
-	 * {@link #requestRepaint()} so they have the chance to interfere.
-	 *
-	 * @param listener
-	 *            the listener to add.
-	 */
-	public void addTimePointListener( final TimePointListener listener )
-	{
-		addTimePointListener( listener, Integer.MAX_VALUE );
-	}
-
-	/**
-	 * Add a {@link TimePointListener} to notify about time-point changes.
-	 * Listeners will be notified <em>before</em> calling
-	 * {@link #requestRepaint()} so they have the chance to interfere.
-	 *
-	 * @param listener
-	 *            the listener to add.
-	 * @param index
-	 *            position in the list of listeners at which to insert this one.
-	 */
-	public void addTimePointListener( final TimePointListener listener, final int index )
-	{
-		synchronized ( timePointListeners )
-		{
-			final int s = timePointListeners.size();
-			timePointListeners.add( index < 0 ? 0 : index > s ? s : index, listener );
-			listener.timePointChanged( state.getCurrentTimepoint() );
-		}
-	}
-
-	/**
-	 * Remove a {@link TimePointListener}.
-	 *
-	 * @param listener
-	 *            the listener to remove.
-	 */
-	public void removeTimePointListener( final TimePointListener listener )
-	{
-		synchronized ( timePointListeners )
-		{
-			timePointListeners.remove( listener );
-		}
-	}
-
-	public synchronized Element stateToXml()
-	{
-		return new XmlIoViewerState().toXml( state );
-	}
-
-	public synchronized void stateFromXml( final Element parent )
-	{
-		final XmlIoViewerState io = new XmlIoViewerState();
-		io.restoreFromXml( parent.getChild( io.getTagName() ), state );
-	}
-
-	/**
 	 * does nothing.
 	 */
 	@Override
 	public void setCanvasSize( final int width, final int height )
 	{}
-
-	/**
-	 * Returns the {@link VisibilityAndGrouping} that can be used to modify
-	 * visibility and currentness of sources and groups, as well as grouping of
-	 * sources, and display mode.
-	 */
-	public VisibilityAndGrouping getVisibilityAndGrouping()
-	{
-		return visibilityAndGrouping;
-	}
 
 	public ViewerOptions.Values getOptionValues()
 	{
@@ -846,7 +618,7 @@ public class ViewerPanelFX
 			e.printStackTrace();
 		}
 		renderingExecutorService.shutdown();
-		state.kill();
+//		state.kill();
 		imageRenderer.kill();
 	}
 

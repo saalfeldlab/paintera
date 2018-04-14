@@ -2,13 +2,10 @@ package bdv.bigcat.viewer.viewer3d;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Optional;
 
 import bdv.bigcat.viewer.atlas.source.SourceInfo;
 import bdv.bigcat.viewer.bdvfx.ViewerPanelFX;
 import bdv.bigcat.viewer.util.InvokeOnJavaFXApplicationThread;
-import bdv.viewer.Source;
-import bdv.viewer.state.SourceState;
 import javafx.beans.value.ChangeListener;
 import javafx.beans.value.ObservableValue;
 import javafx.scene.Group;
@@ -155,15 +152,5 @@ public class OrthoSliceFX
 				InvokeOnJavaFXApplicationThread.invoke( () -> this.scene.getChildren().add( mv ) );
 			isVisible = !isVisible;
 		}
-	}
-
-	private Optional< Source< ? > > getSource()
-	{
-		final int currentSource = viewer.getState().getCurrentSource();
-		final List< SourceState< ? > > sources = viewer.getState().getSources();
-		if ( sources.size() <= currentSource || currentSource < 0 )
-			return Optional.empty();
-		final Source< ? > activeSource = sources.get( currentSource ).getSpimSource();
-		return Optional.of( activeSource );
 	}
 }

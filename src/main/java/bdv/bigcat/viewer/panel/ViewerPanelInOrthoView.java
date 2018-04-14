@@ -11,7 +11,6 @@ import bdv.bigcat.viewer.atlas.control.navigation.TransformConcatenator;
 import bdv.bigcat.viewer.bdvfx.KeyTracker;
 import bdv.bigcat.viewer.bdvfx.ViewerPanelFX;
 import bdv.bigcat.viewer.state.GlobalTransformManager;
-import bdv.viewer.DisplayMode;
 import bdv.viewer.SourceAndConverter;
 import javafx.beans.value.ChangeListener;
 import javafx.collections.ListChangeListener;
@@ -121,7 +120,7 @@ public class ViewerPanelInOrthoView implements ListChangeListener< SourceAndConv
 
 	private void initializeViewer()
 	{
-		viewer.setDisplayMode( DisplayMode.FUSED );
+//		viewer.setDisplayMode( DisplayMode.FUSED );
 		viewer.getDisplay().addOverlayRenderer( crosshair );
 	}
 
