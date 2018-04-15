@@ -6,8 +6,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import bdv.bigcat.viewer.ARGBColorConverter;
-import bdv.bigcat.viewer.atlas.CurrentModeConverter;
 import bdv.bigcat.viewer.atlas.ui.BindUnbindAndNodeSupplier;
+import bdv.bigcat.viewer.stream.HighlightingStreamConverter;
 import javafx.scene.Node;
 import net.imglib2.converter.Converter;
 import net.imglib2.type.numeric.ARGBType;
@@ -58,8 +58,8 @@ public class ConverterPane implements BindUnbindAndNodeSupplier
 			return BindUnbindAndNodeSupplier.empty();
 		if ( converter instanceof ARGBColorConverter< ? > )
 			return new ARGBColorConverterNode( ( ARGBColorConverter< ? > ) converter );
-		else if ( converter instanceof CurrentModeConverter< ?, ? > )
-			return new CurrentModeConverterNode( ( CurrentModeConverter< ?, ? > ) converter );
+		else if ( converter instanceof HighlightingStreamConverter< ? > )
+			return new HighlightingStreamConverterNode<>( ( HighlightingStreamConverter< ? > ) converter );
 		return BindUnbindAndNodeSupplier.empty();
 	}
 

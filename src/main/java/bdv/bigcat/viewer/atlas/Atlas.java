@@ -455,11 +455,10 @@ public class Atlas
 			final Function< Long, Interval[] >[] blocksThatContainId,
 			final Function< ShapeKey, Pair< float[], float[] > >[] meshCache )
 	{
-		final CurrentModeConverter< VolatileLabelMultisetType, HighlightingStreamConverterLabelMultisetType > converter = new CurrentModeConverter<>();
 		final SelectedIds selId = new SelectedIds();
 		final ModalGoldenAngleSaturatedHighlightingARGBStream stream = new ModalGoldenAngleSaturatedHighlightingARGBStream( selId, assignment );
 		stream.addListener( () -> baseView().requestRepaint() );
-		converter.setConverter( new HighlightingStreamConverterLabelMultisetType( stream ) );
+		final Converter< VolatileLabelMultisetType, ARGBType > converter = new HighlightingStreamConverterLabelMultisetType( stream );
 
 		final ARGBCompositeAlphaYCbCr comp = new ARGBCompositeAlphaYCbCr();
 
@@ -619,11 +618,10 @@ public class Atlas
 			final Function< Long, Interval[] >[] blocksThatContainId,
 			final Function< ShapeKey, Pair< float[], float[] > >[] meshCache )
 	{
-		final CurrentModeConverter< V, HighlightingStreamConverterIntegerType< V > > converter = new CurrentModeConverter<>();
 		final SelectedIds selId = new SelectedIds();
 		final ModalGoldenAngleSaturatedHighlightingARGBStream stream = new ModalGoldenAngleSaturatedHighlightingARGBStream( selId, assignment );
 		stream.addListener( () -> baseView().requestRepaint() );
-		converter.setConverter( new HighlightingStreamConverterIntegerType<>( stream, toLong ) );
+		final Converter< V, ARGBType > converter = new HighlightingStreamConverterIntegerType<>( stream, toLong );
 
 		final ARGBCompositeAlphaYCbCr comp = new ARGBCompositeAlphaYCbCr();
 

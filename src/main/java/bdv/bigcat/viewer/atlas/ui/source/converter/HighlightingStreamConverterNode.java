@@ -1,11 +1,15 @@
 package bdv.bigcat.viewer.atlas.ui.source.converter;
 
-import bdv.bigcat.viewer.atlas.CurrentModeConverter;
 import bdv.bigcat.viewer.atlas.ui.BindUnbindAndNodeSupplier;
+import bdv.bigcat.viewer.stream.ColorFromSegmentId;
+import bdv.bigcat.viewer.stream.SeedProperty;
+import bdv.bigcat.viewer.stream.WithAlpha;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.DoubleProperty;
+import javafx.beans.property.IntegerProperty;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleDoubleProperty;
+import javafx.beans.property.SimpleIntegerProperty;
 import javafx.scene.Node;
 import javafx.scene.control.CheckBox;
 import javafx.scene.control.Slider;
@@ -16,11 +20,12 @@ import javafx.scene.layout.GridPane;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
 import javafx.util.converter.NumberStringConverter;
+import net.imglib2.converter.Converter;
 
-public class CurrentModeConverterNode implements BindUnbindAndNodeSupplier
+public class HighlightingStreamConverterNode< C extends Converter< ?, ? > & SeedProperty & WithAlpha & ColorFromSegmentId > implements BindUnbindAndNodeSupplier
 {
 
-	private final CurrentModeConverter< ?, ? > converter;
+	private final C converter;
 
 	private final DoubleProperty alpha = new SimpleDoubleProperty();
 
@@ -30,10 +35,24 @@ public class CurrentModeConverterNode implements BindUnbindAndNodeSupplier
 
 	private final BooleanProperty colorFromSegment = new SimpleBooleanProperty();
 
-	public CurrentModeConverterNode( final CurrentModeConverter< ?, ? > converter )
+	private final IntegerProperty alphaInt = new SimpleIntegerProperty();
+
+	private final IntegerProperty activeFragmentAlphaInt = new SimpleIntegerProperty();
+
+	private final IntegerProperty activeSegmentAlphaInt = new SimpleIntegerProperty();
+
+	public HighlightingStreamConverterNode( final C converter )
 	{
 		super();
 		this.converter = converter;
+
+		alpha.addListener( ( obs, oldv, newv ) -> alphaInt.set( toIntegerBased( newv.doubleValue() ) ) );
+		activeFragmentAlpha.addListener( ( obs, oldv, newv ) -> activeFragmentAlphaInt.set( toIntegerBased( newv.doubleValue() ) ) );
+		activeSegmentAlpha.addListener( ( obs, oldv, newv ) -> activeSegmentAlphaInt.set( toIntegerBased( newv.doubleValue() ) ) );
+
+		alphaInt.addListener( ( obs, oldv, newv ) -> alpha.set( toDoubleBased( newv.intValue() ) ) );
+		activeFragmentAlphaInt.addListener( ( obs, oldv, newv ) -> activeFragmentAlpha.set( toDoubleBased( newv.intValue() ) ) );
+		activeSegmentAlphaInt.addListener( ( obs, oldv, newv ) -> activeSegmentAlpha.set( toDoubleBased( newv.intValue() ) ) );
 	}
 
 	@Override
@@ -45,18 +64,18 @@ public class CurrentModeConverterNode implements BindUnbindAndNodeSupplier
 	@Override
 	public void bind()
 	{
-		alpha.bindBidirectional( converter.alphaProperty() );
-		activeFragmentAlpha.bindBidirectional( converter.activeFragmentAlphaProperty() );
-		activeSegmentAlpha.bindBidirectional( converter.activeSegmentAlphaProperty() );
+		alphaInt.bindBidirectional( converter.alphaProperty() );
+		activeFragmentAlphaInt.bindBidirectional( converter.activeFragmentAlphaProperty() );
+		activeSegmentAlphaInt.bindBidirectional( converter.activeSegmentAlphaProperty() );
 		colorFromSegment.bindBidirectional( converter.colorFromSegmentIdProperty() );
 	}
 
 	@Override
 	public void unbind()
 	{
-		alpha.unbindBidirectional( converter.alphaProperty() );
-		activeFragmentAlpha.unbindBidirectional( converter.activeFragmentAlphaProperty() );
-		activeSegmentAlpha.unbindBidirectional( converter.activeSegmentAlphaProperty() );
+		alphaInt.unbindBidirectional( converter.alphaProperty() );
+		activeFragmentAlphaInt.unbindBidirectional( converter.activeFragmentAlphaProperty() );
+		activeSegmentAlphaInt.unbindBidirectional( converter.activeSegmentAlphaProperty() );
 		colorFromSegment.unbindBidirectional( converter.colorFromSegmentIdProperty() );
 	}
 
@@ -89,6 +108,7 @@ public class CurrentModeConverterNode implements BindUnbindAndNodeSupplier
 		}
 
 		{
+			System.out.println( "ACTIVE FRAGMENT ALPHA " + activeFragmentAlpha );
 			final Slider selectedFragmentAlphaSlider = new Slider( 0, 1, activeFragmentAlpha.get() );
 			selectedFragmentAlphaSlider.valueProperty().bindBidirectional( activeFragmentAlpha );
 			selectedFragmentAlphaSlider.setShowTickLabels( true );
@@ -132,6 +152,16 @@ public class CurrentModeConverterNode implements BindUnbindAndNodeSupplier
 //		}
 
 		return contents;
+	}
+
+	private static int toIntegerBased( final double opacity )
+	{
+		return ( int ) Math.round( 255 * opacity );
+	}
+
+	private static double toDoubleBased( final int opacity )
+	{
+		return opacity / 255.0;
 	}
 
 }
