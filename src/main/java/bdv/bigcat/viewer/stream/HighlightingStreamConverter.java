@@ -8,7 +8,11 @@ import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleIntegerProperty;
 import javafx.beans.property.SimpleLongProperty;
 import net.imglib2.converter.Converter;
+import net.imglib2.type.label.LabelMultisetType;
+import net.imglib2.type.label.VolatileLabelMultisetType;
 import net.imglib2.type.numeric.ARGBType;
+import net.imglib2.type.numeric.IntegerType;
+import net.imglib2.type.numeric.RealType;
 
 public abstract class HighlightingStreamConverter< T > implements Converter< T, ARGBType >, SeedProperty, WithAlpha, ColorFromSegmentId
 {
@@ -73,6 +77,22 @@ public abstract class HighlightingStreamConverter< T > implements Converter< T, 
 	public BooleanProperty colorFromSegmentIdProperty()
 	{
 		return this.colorFromSegmentId;
+	}
+
+	@SuppressWarnings( "unchecked" )
+	public static < T > HighlightingStreamConverter< T > forType(
+			final AbstractHighlightingARGBStream stream,
+			final T t )
+	{
+		if ( t instanceof IntegerType< ? > )
+			return ( HighlightingStreamConverter< T > ) HighlightingStreamConverterIntegerType.forInteger( stream );
+		if ( t instanceof RealType< ? > )
+			return ( HighlightingStreamConverter< T > ) HighlightingStreamConverterIntegerType.forRealType( stream );
+		if ( t instanceof LabelMultisetType || t instanceof VolatileLabelMultisetType )
+			return ( HighlightingStreamConverter< T > ) new HighlightingStreamConverterLabelMultisetType( stream );
+
+		return null;
+
 	}
 
 }

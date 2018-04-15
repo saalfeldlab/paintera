@@ -18,12 +18,15 @@ import java.util.function.Function;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import bdv.bigcat.viewer.ToIdConverter;
 import bdv.bigcat.viewer.atlas.AtlasFocusHandler.OnEnterOnExit;
 import bdv.bigcat.viewer.atlas.control.Navigation;
+import bdv.bigcat.viewer.atlas.control.Selection;
 import bdv.bigcat.viewer.atlas.control.navigation.AffineTransformWithListeners;
 import bdv.bigcat.viewer.atlas.control.navigation.DisplayTransformUpdateOnResize;
 import bdv.bigcat.viewer.atlas.data.RandomAccessibleIntervalDataSource;
 import bdv.bigcat.viewer.atlas.source.SourceInfo;
+import bdv.bigcat.viewer.atlas.ui.source.SourceTabs;
 import bdv.bigcat.viewer.bdvfx.KeyTracker;
 import bdv.bigcat.viewer.bdvfx.MultiBoxOverlayRendererFX;
 import bdv.bigcat.viewer.bdvfx.ViewerPanelFX;
@@ -32,6 +35,7 @@ import bdv.bigcat.viewer.ortho.OrthogonalViews.ViewerAndTransforms;
 import bdv.bigcat.viewer.ortho.OrthogonalViewsValueDisplayListener;
 import bdv.bigcat.viewer.ortho.PainteraBaseView;
 import bdv.bigcat.viewer.panel.CrossHair;
+import bdv.bigcat.viewer.state.FragmentSegmentAssignmentOnlyLocal;
 import bdv.bigcat.viewer.viewer3d.OrthoSliceFX;
 import bdv.viewer.Interpolation;
 import bdv.viewer.Source;
@@ -53,6 +57,8 @@ import javafx.scene.Scene;
 import javafx.scene.control.CheckBox;
 import javafx.scene.control.Label;
 import javafx.scene.control.Tooltip;
+import javafx.scene.input.KeyCode;
+import javafx.scene.input.KeyEvent;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.AnchorPane;
 import javafx.scene.layout.BorderPane;
@@ -64,6 +70,7 @@ import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.img.array.ArrayImg;
 import net.imglib2.img.array.ArrayImgs;
 import net.imglib2.img.basictypeaccess.array.ByteArray;
+import net.imglib2.img.basictypeaccess.array.LongArray;
 import net.imglib2.interpolation.InterpolatorFactory;
 import net.imglib2.interpolation.randomaccess.NLinearInterpolatorFactory;
 import net.imglib2.interpolation.randomaccess.NearestNeighborInterpolatorFactory;
@@ -71,6 +78,8 @@ import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.realtransform.Scale3D;
 import net.imglib2.type.numeric.ARGBType;
 import net.imglib2.type.numeric.integer.UnsignedByteType;
+import net.imglib2.type.numeric.integer.UnsignedLongType;
+import net.imglib2.util.Intervals;
 import net.imglib2.view.Views;
 
 public class Paintera extends Application
@@ -99,6 +108,8 @@ public class Paintera extends Application
 			v -> viewerToTransforms.get( v ).globalToViewerTransform(),
 			keyTracker );
 
+	private final Selection selection = new Selection( sourceInfo, keyTracker );
+
 	private final ObservableObjectValue< ViewerAndTransforms > currentFocusHolderWithState = currentFocusHolder( baseView.orthogonalViews() );
 
 	private final Consumer< OnEnterOnExit > onEnterOnExit = createOnEnterOnExit( currentFocusHolderWithState );
@@ -114,6 +125,9 @@ public class Paintera extends Application
 		final Random rng = new Random();
 		final ArrayImg< UnsignedByteType, ByteArray > data = ArrayImgs.unsignedBytes( 100, 200, 300 );
 		rng.nextBytes( data.update( null ).getCurrentStorageArray() );
+
+		final ArrayImg< UnsignedLongType, LongArray > labels = ArrayImgs.unsignedLongs( Intervals.dimensionsAsLongArray( data ) );
+		Arrays.setAll( labels.update( null ).getCurrentStorageArray(), d -> d );
 
 		@SuppressWarnings( "unchecked" )
 		final RandomAccessibleInterval< UnsignedByteType >[] srcs = new RandomAccessibleInterval[] {
@@ -132,12 +146,24 @@ public class Paintera extends Application
 
 		final RandomAccessibleIntervalDataSource< UnsignedByteType, UnsignedByteType > source =
 				new RandomAccessibleIntervalDataSource<>( srcs, srcs, mipmapTransforms, ipol, ipol, "data" );
-		baseView.addRawSource( source, 0, 255, toARGBType( Color.TEAL ) );
-		baseView.viewer3D().setInitialTransformToInterval( data );
+
+		@SuppressWarnings( "unchecked" )
+		final RandomAccessibleInterval< UnsignedLongType >[] lsrcs = new RandomAccessibleInterval[] {
+				labels
+		};
+
+		final RandomAccessibleIntervalDataSource< UnsignedLongType, UnsignedLongType > labelSource = new RandomAccessibleIntervalDataSource<>(
+				lsrcs,
+				lsrcs,
+				new AffineTransform3D[] { new AffineTransform3D() },
+				i -> new NearestNeighborInterpolatorFactory<>(),
+				i -> new NearestNeighborInterpolatorFactory<>(),
+				"labels" );
 
 		updateDisplayTransformOnResize( baseView.orthogonalViews(), baseView.manager() );
 
 		onEnterOnExit.accept( navigation.onEnterOnExit() );
+		onEnterOnExit.accept( selection.onEnterOnExit() );
 
 		grabFocusOnMouseOver(
 				baseView.orthogonalViews().topLeft().viewer(),
@@ -195,6 +221,27 @@ public class Paintera extends Application
 		final ScheduledExecutorService t = Executors.newScheduledThreadPool( 1 );
 		t.scheduleAtFixedRate( this::toggleInterpolation, 0, 1000, TimeUnit.MILLISECONDS );
 		this.interpolation.addListener( ( obs, oldv, newv ) -> baseView.orthogonalViews().requestRepaint() );
+
+		final SourceTabs sideBar = new SourceTabs(
+				sourceInfo.currentSourceIndexProperty(),
+				sourceInfo::removeSource,
+				sourceInfo );
+		sideBar.widthProperty().set( 200 );
+		sideBar.get().setVisible( true );
+
+		scene.addEventHandler( KeyEvent.KEY_PRESSED, event -> {
+			if ( keyTracker.areOnlyTheseKeysDown( KeyCode.P ) )
+			{
+				borderPane.setRight( borderPane.getRight() == null ? sideBar.get() : null );
+				event.consume();
+			}
+		} );
+
+		baseView.addRawSource( source, 0, 255, toARGBType( Color.TEAL ) );
+		baseView.addLabelSource( labelSource, new FragmentSegmentAssignmentOnlyLocal( ( a, b ) -> {} ), ToIdConverter.fromIntegerType() );
+		baseView.viewer3D().setInitialTransformToInterval( data );
+
+		sourceInfo.currentSourceProperty().set( labelSource );
 
 		keyTracker.installInto( scene );
 		stage.setScene( scene );

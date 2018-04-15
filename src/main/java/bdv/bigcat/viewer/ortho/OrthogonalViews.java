@@ -125,7 +125,7 @@ public class OrthogonalViews< BR extends Node >
 		return new ViewerAndTransforms( viewer, manager, displayTransform, globalToViewerTransform );
 	}
 
-	private void applyToAll( final Consumer< ViewerPanelFX > apply )
+	public void applyToAll( final Consumer< ViewerPanelFX > apply )
 	{
 		apply.accept( topLeft.viewer );
 		apply.accept( topRight.viewer );
