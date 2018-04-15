@@ -39,8 +39,10 @@ import javafx.application.Application;
 import javafx.application.Platform;
 import javafx.beans.binding.Bindings;
 import javafx.beans.binding.StringBinding;
+import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.ReadOnlyBooleanProperty;
+import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.value.ChangeListener;
 import javafx.beans.value.ObservableObjectValue;
@@ -48,10 +50,12 @@ import javafx.collections.ObservableList;
 import javafx.scene.Group;
 import javafx.scene.Node;
 import javafx.scene.Scene;
+import javafx.scene.control.CheckBox;
 import javafx.scene.control.Label;
+import javafx.scene.control.Tooltip;
 import javafx.scene.input.MouseEvent;
+import javafx.scene.layout.AnchorPane;
 import javafx.scene.layout.BorderPane;
-import javafx.scene.layout.HBox;
 import javafx.scene.paint.Color;
 import javafx.stage.Stage;
 import javafx.stage.WindowEvent;
@@ -126,7 +130,8 @@ public class Paintera extends Application
 				new AffineTransform3D().concatenate( new Scale3D( 2.0, 2.0, 2.0 ) )
 		};
 
-		final RandomAccessibleIntervalDataSource< UnsignedByteType, UnsignedByteType > source = new RandomAccessibleIntervalDataSource<>( srcs, srcs, mipmapTransforms, ipol, ipol, "data" );
+		final RandomAccessibleIntervalDataSource< UnsignedByteType, UnsignedByteType > source =
+				new RandomAccessibleIntervalDataSource<>( srcs, srcs, mipmapTransforms, ipol, ipol, "data" );
 		baseView.addRawSource( source, 0, 255, toARGBType( Color.TEAL ) );
 		baseView.viewer3D().setInitialTransformToInterval( data );
 
@@ -156,21 +161,32 @@ public class Paintera extends Application
 		multiBoxes[ 1 ].isVisibleProperty().bind( baseView.orthogonalViews().topRight().viewer().focusedProperty() );
 		multiBoxes[ 2 ].isVisibleProperty().bind( baseView.orthogonalViews().bottomLeft().viewer().focusedProperty() );
 
-		final BorderPane root = new BorderPane( baseView.pane() );
+		final BorderPane borderPane = new BorderPane( baseView.pane() );
 		final Label currentSourceStatus = new Label();
 		final Label valueStatus = new Label();
+		final CheckBox showStatusBar = new CheckBox();
 		final ObjectProperty< Source< ? > > cs = sourceInfo.currentSourceProperty();
 		final StringBinding csName = Bindings.createStringBinding( () -> Optional.ofNullable( cs.get() ).map( s -> s.getName() ).orElse( "<null>" ), cs );
 		currentSourceStatus.textProperty().bind( csName );
+		showStatusBar.setTooltip( new Tooltip( "If not selected, status bar will only show on mouse-over" ) );
 		final OrthogonalViewsValueDisplayListener vdl = new OrthogonalViewsValueDisplayListener( valueStatus::setText, cs, s -> interpolation.get() );
-		final HBox statusBar = new HBox( currentSourceStatus, valueStatus );
-		statusBar.setSpacing( 5 );
-		root.setBottom( statusBar );
+		final AnchorPane statusBar = new AnchorPane( currentSourceStatus, valueStatus, showStatusBar );
+		AnchorPane.setLeftAnchor( currentSourceStatus, 0.0 );
+		AnchorPane.setLeftAnchor( valueStatus, 50.0 );
+		AnchorPane.setRightAnchor( showStatusBar, 0.0 );
+
+		final BooleanProperty isWithinMarginOfBorder = new SimpleBooleanProperty();
+		borderPane.addEventFilter( MouseEvent.MOUSE_MOVED, e -> isWithinMarginOfBorder.set( e.getY() < borderPane.getHeight() && borderPane.getHeight() - e.getY() <= statusBar.getHeight() ) );
+		statusBar.visibleProperty().addListener( ( obs, oldv, newv ) -> borderPane.setBottom( newv ? statusBar : null ) );
+		statusBar.visibleProperty().bind( isWithinMarginOfBorder.or( showStatusBar.selectedProperty() ) );
+		showStatusBar.setSelected( true );
+
+		currentSourceStatus.setMaxWidth( 45 );
 
 		onEnterOnExit.accept( new OnEnterOnExit( vdl.onEnter(), vdl.onExit() ) );
 
 		final Stage stage = new Stage();
-		final Scene scene = new Scene( root );
+		final Scene scene = new Scene( borderPane );
 
 		stage.addEventFilter( WindowEvent.WINDOW_CLOSE_REQUEST, event -> viewerToTransforms.keySet().forEach( ViewerPanelFX::stop ) );
 
@@ -182,9 +198,9 @@ public class Paintera extends Application
 
 		keyTracker.installInto( scene );
 		stage.setScene( scene );
-		stage.show();
 		stage.setWidth( 800 );
 		stage.setHeight( 600 );
+		stage.show();
 	}
 
 	public static void main( final String[] args )
