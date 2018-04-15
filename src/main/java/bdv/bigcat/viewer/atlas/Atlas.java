@@ -54,6 +54,7 @@ import bdv.bigcat.viewer.meshes.MeshManagerWithAssignment;
 import bdv.bigcat.viewer.meshes.cache.CacheUtils;
 import bdv.bigcat.viewer.ortho.OrthoView;
 import bdv.bigcat.viewer.ortho.OrthoViewState;
+import bdv.bigcat.viewer.ortho.OrthogonalViewsValueDisplayListener;
 import bdv.bigcat.viewer.panel.ViewerPanelInOrthoView;
 import bdv.bigcat.viewer.state.FragmentSegmentAssignmentOnlyLocal;
 import bdv.bigcat.viewer.state.FragmentSegmentAssignmentState;
@@ -142,7 +143,7 @@ public class Atlas
 
 	private final AtlasFocusHandler focusHandler = new AtlasFocusHandler();
 
-	private final AtlasValueDisplayListener valueDisplayListener;
+	private final OrthogonalViewsValueDisplayListener valueDisplayListener;
 
 	private final SourceInfo sourceInfo = new SourceInfo();
 
@@ -278,10 +279,9 @@ public class Atlas
 		addOnEnterOnExit( coordinatePrinter.onEnter(), coordinatePrinter.onExit(), true );
 
 		final Label label = new Label();
-		valueDisplayListener = new AtlasValueDisplayListener(
-				label,
+		valueDisplayListener = new OrthogonalViewsValueDisplayListener(
+				label::setText,
 				sourceInfo.currentSourceProperty(),
-				sourceInfo.currentSourceIndexInVisibleSources(),
 				s -> interpolation.get() );
 		this.status.getChildren().add( label );
 
@@ -482,7 +482,6 @@ public class Atlas
 		final Function< LabelMultisetType, String > valueToString = valueToString( t );
 		final AffineTransform3D affine = new AffineTransform3D();
 		spec.getSourceTransform( 0, 0, affine );
-		this.valueDisplayListener.addSource( spec, Optional.of( valueToString ) );
 
 		final SelectedSegments selectedSegments = new SelectedSegments( selId, assignment );
 		final FragmentsInSelectedSegments fragmentsInSelection = new FragmentsInSelectedSegments( selectedSegments, assignment );
@@ -645,7 +644,6 @@ public class Atlas
 		final Function< I, String > valueToString = valueToString( t );
 		final AffineTransform3D affine = new AffineTransform3D();
 		spec.getSourceTransform( 0, 0, affine );
-		this.valueDisplayListener.addSource( spec, Optional.of( valueToString ) );
 
 		final SelectedSegments selectedSegments = new SelectedSegments( selId, assignment );
 		final FragmentsInSelectedSegments fragmentsInSelection = new FragmentsInSelectedSegments( selectedSegments, assignment );
@@ -826,7 +824,6 @@ public class Atlas
 		final AtlasSourceState< U, T > state = sourceInfo.addRawSource( spec, min, max, color, comp );
 		final T t = spec.getDataType();
 		final Function< T, String > valueToString = valueToString( t );
-		this.valueDisplayListener.addSource( spec, Optional.of( valueToString ) );
 		final Converter< U, ARGBType > conv = state.converterProperty().get();
 		if ( conv instanceof ARGBColorConverter< ? > )
 		{

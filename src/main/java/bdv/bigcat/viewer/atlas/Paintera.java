@@ -7,6 +7,7 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Random;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -17,19 +18,18 @@ import java.util.function.Function;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import bdv.bigcat.composite.CompositeCopy;
 import bdv.bigcat.viewer.atlas.AtlasFocusHandler.OnEnterOnExit;
 import bdv.bigcat.viewer.atlas.control.Navigation;
 import bdv.bigcat.viewer.atlas.control.navigation.AffineTransformWithListeners;
 import bdv.bigcat.viewer.atlas.control.navigation.DisplayTransformUpdateOnResize;
 import bdv.bigcat.viewer.atlas.data.RandomAccessibleIntervalDataSource;
-import bdv.bigcat.viewer.atlas.source.AtlasSourceState;
 import bdv.bigcat.viewer.atlas.source.SourceInfo;
 import bdv.bigcat.viewer.bdvfx.KeyTracker;
 import bdv.bigcat.viewer.bdvfx.MultiBoxOverlayRendererFX;
 import bdv.bigcat.viewer.bdvfx.ViewerPanelFX;
 import bdv.bigcat.viewer.ortho.OrthogonalViews;
 import bdv.bigcat.viewer.ortho.OrthogonalViews.ViewerAndTransforms;
+import bdv.bigcat.viewer.ortho.OrthogonalViewsValueDisplayListener;
 import bdv.bigcat.viewer.ortho.PainteraBaseView;
 import bdv.bigcat.viewer.panel.CrossHair;
 import bdv.bigcat.viewer.viewer3d.OrthoSliceFX;
@@ -38,6 +38,8 @@ import bdv.viewer.Source;
 import javafx.application.Application;
 import javafx.application.Platform;
 import javafx.beans.binding.Bindings;
+import javafx.beans.binding.StringBinding;
+import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.ReadOnlyBooleanProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.value.ChangeListener;
@@ -46,22 +48,25 @@ import javafx.collections.ObservableList;
 import javafx.scene.Group;
 import javafx.scene.Node;
 import javafx.scene.Scene;
+import javafx.scene.control.Label;
 import javafx.scene.input.MouseEvent;
+import javafx.scene.layout.BorderPane;
+import javafx.scene.layout.HBox;
 import javafx.scene.paint.Color;
 import javafx.stage.Stage;
 import javafx.stage.WindowEvent;
 import net.imglib2.RandomAccessible;
 import net.imglib2.RandomAccessibleInterval;
-import net.imglib2.converter.TypeIdentity;
 import net.imglib2.img.array.ArrayImg;
 import net.imglib2.img.array.ArrayImgs;
-import net.imglib2.img.basictypeaccess.array.IntArray;
+import net.imglib2.img.basictypeaccess.array.ByteArray;
 import net.imglib2.interpolation.InterpolatorFactory;
 import net.imglib2.interpolation.randomaccess.NLinearInterpolatorFactory;
 import net.imglib2.interpolation.randomaccess.NearestNeighborInterpolatorFactory;
 import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.realtransform.Scale3D;
 import net.imglib2.type.numeric.ARGBType;
+import net.imglib2.type.numeric.integer.UnsignedByteType;
 import net.imglib2.view.Views;
 
 public class Paintera extends Application
@@ -101,17 +106,18 @@ public class Paintera extends Application
 	@Override
 	public void start( final Stage primaryStage ) throws Exception
 	{
-		final ArrayImg< ARGBType, IntArray > data = ArrayImgs.argbs( 100, 200, 300 );
+
 		final Random rng = new Random();
-		data.forEach( d -> d.set( rng.nextInt() ) );
+		final ArrayImg< UnsignedByteType, ByteArray > data = ArrayImgs.unsignedBytes( 100, 200, 300 );
+		rng.nextBytes( data.update( null ).getCurrentStorageArray() );
 
 		@SuppressWarnings( "unchecked" )
-		final RandomAccessibleInterval< ARGBType >[] srcs = new RandomAccessibleInterval[] {
+		final RandomAccessibleInterval< UnsignedByteType >[] srcs = new RandomAccessibleInterval[] {
 				data,
 				Views.subsample( data, 2 )
 		};
 
-		final Function< Interpolation, InterpolatorFactory< ARGBType, RandomAccessible< ARGBType > > > ipol = i -> i.equals( Interpolation.NLINEAR )
+		final Function< Interpolation, InterpolatorFactory< UnsignedByteType, RandomAccessible< UnsignedByteType > > > ipol = i -> i.equals( Interpolation.NLINEAR )
 				? new NLinearInterpolatorFactory<>()
 				: new NearestNeighborInterpolatorFactory<>();
 
@@ -120,9 +126,8 @@ public class Paintera extends Application
 				new AffineTransform3D().concatenate( new Scale3D( 2.0, 2.0, 2.0 ) )
 		};
 
-		final RandomAccessibleIntervalDataSource< ARGBType, ARGBType > source = new RandomAccessibleIntervalDataSource<>( srcs, srcs, mipmapTransforms, ipol, ipol, "data" );
-		final AtlasSourceState< ARGBType, ARGBType > rngState = sourceInfo.makeGenericSourceState( source, new TypeIdentity< ARGBType >(), new CompositeCopy<>() );
-		sourceInfo.addState( source, rngState );
+		final RandomAccessibleIntervalDataSource< UnsignedByteType, UnsignedByteType > source = new RandomAccessibleIntervalDataSource<>( srcs, srcs, mipmapTransforms, ipol, ipol, "data" );
+		baseView.addRawSource( source, 0, 255, toARGBType( Color.TEAL ) );
 		baseView.viewer3D().setInitialTransformToInterval( data );
 
 		updateDisplayTransformOnResize( baseView.orthogonalViews(), baseView.manager() );
@@ -151,8 +156,21 @@ public class Paintera extends Application
 		multiBoxes[ 1 ].isVisibleProperty().bind( baseView.orthogonalViews().topRight().viewer().focusedProperty() );
 		multiBoxes[ 2 ].isVisibleProperty().bind( baseView.orthogonalViews().bottomLeft().viewer().focusedProperty() );
 
+		final BorderPane root = new BorderPane( baseView.pane() );
+		final Label currentSourceStatus = new Label();
+		final Label valueStatus = new Label();
+		final ObjectProperty< Source< ? > > cs = sourceInfo.currentSourceProperty();
+		final StringBinding csName = Bindings.createStringBinding( () -> Optional.ofNullable( cs.get() ).map( s -> s.getName() ).orElse( "<null>" ), cs );
+		currentSourceStatus.textProperty().bind( csName );
+		final OrthogonalViewsValueDisplayListener vdl = new OrthogonalViewsValueDisplayListener( valueStatus::setText, cs, s -> interpolation.get() );
+		final HBox statusBar = new HBox( currentSourceStatus, valueStatus );
+		statusBar.setSpacing( 5 );
+		root.setBottom( statusBar );
+
+		onEnterOnExit.accept( new OnEnterOnExit( vdl.onEnter(), vdl.onExit() ) );
+
 		final Stage stage = new Stage();
-		final Scene scene = new Scene( baseView.pane() );
+		final Scene scene = new Scene( root );
 
 		stage.addEventFilter( WindowEvent.WINDOW_CLOSE_REQUEST, event -> viewerToTransforms.keySet().forEach( ViewerPanelFX::stop ) );
 
@@ -282,6 +300,21 @@ public class Paintera extends Application
 	private void toggleInterpolation()
 	{
 		this.interpolation.set( this.interpolation.get().equals( Interpolation.NLINEAR ) ? Interpolation.NEARESTNEIGHBOR : Interpolation.NLINEAR );
+	}
+
+	private static ARGBType toARGBType( final Color color )
+	{
+		return toARGBType( color, new ARGBType() );
+	}
+
+	private static ARGBType toARGBType( final Color color, final ARGBType argb )
+	{
+		final int r = ( int ) ( 255 * color.getRed() + 0.5 );
+		final int g = ( int ) ( 255 * color.getGreen() + 0.5 );
+		final int b = ( int ) ( 255 * color.getBlue() + 0.5 );
+		final int a = ( int ) ( 255 * color.getOpacity() + 0.5 );
+		argb.set( a << 24 | r << 16 | g << 8 | b << 0 );
+		return argb;
 	}
 
 }

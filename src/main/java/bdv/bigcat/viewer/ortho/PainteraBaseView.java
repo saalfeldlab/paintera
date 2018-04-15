@@ -2,7 +2,12 @@ package bdv.bigcat.viewer.ortho;
 
 import java.util.function.Function;
 
+import bdv.bigcat.composite.ARGBCompositeAlphaAdd;
 import bdv.bigcat.composite.ClearingCompositeProjector;
+import bdv.bigcat.composite.Composite;
+import bdv.bigcat.viewer.ARGBColorConverter;
+import bdv.bigcat.viewer.atlas.data.DataSource;
+import bdv.bigcat.viewer.atlas.source.AtlasSourceState;
 import bdv.bigcat.viewer.atlas.source.SourceInfo;
 import bdv.bigcat.viewer.state.GlobalTransformManager;
 import bdv.bigcat.viewer.viewer3d.Viewer3DFX;
@@ -14,7 +19,9 @@ import bdv.viewer.ViewerOptions;
 import javafx.collections.ListChangeListener;
 import javafx.collections.ObservableList;
 import javafx.scene.layout.Pane;
+import net.imglib2.converter.Converter;
 import net.imglib2.type.numeric.ARGBType;
+import net.imglib2.type.numeric.RealType;
 
 public class PainteraBaseView
 {
@@ -77,6 +84,26 @@ public class PainteraBaseView
 	public GlobalTransformManager manager()
 	{
 		return this.manager;
+	}
+
+	public < T extends RealType< T >, U extends RealType< U > > void addRawSource(
+			final DataSource< T, U > spec,
+			final double min,
+			final double max,
+			final ARGBType color )
+	{
+		final Composite< ARGBType, ARGBType > comp = new ARGBCompositeAlphaAdd();
+		final AtlasSourceState< U, T > state = sourceInfo.addRawSource( spec, min, max, color, comp );
+		final Function< T, String > valueToString = T::toString;
+		final Converter< U, ARGBType > conv = state.converterProperty().get();
+		if ( conv instanceof ARGBColorConverter< ? > )
+		{
+			final ARGBColorConverter< U > colorConv = ( ARGBColorConverter< U > ) conv;
+			colorConv.colorProperty().addListener( ( obs, oldv, newv ) -> orthogonalViews().requestRepaint() );
+			colorConv.minProperty().addListener( ( obs, oldv, newv ) -> orthogonalViews().requestRepaint() );
+			colorConv.maxProperty().addListener( ( obs, oldv, newv ) -> orthogonalViews().requestRepaint() );
+			colorConv.alphaProperty().addListener( ( obs, oldv, newv ) -> orthogonalViews().requestRepaint() );
+		}
 	}
 
 }
