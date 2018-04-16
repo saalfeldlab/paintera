@@ -14,6 +14,7 @@ import bdv.bigcat.viewer.state.FragmentSegmentAssignmentState;
 import bdv.bigcat.viewer.state.SelectedIds;
 import bdv.bigcat.viewer.stream.ARGBStream;
 import bdv.util.IdService;
+import bdv.viewer.Interpolation;
 import bdv.viewer.SourceAndConverter;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.DoubleProperty;
@@ -100,6 +101,8 @@ public class AtlasSourceState< T extends Type< T >, D extends Type< D > >
 
 	private final ObjectProperty< MeshInfos > meshInfos = stateChangingObjectProperty( stateChanged );
 
+	private final ObjectProperty< Interpolation > interpolation = stateChangingObjectProperty( stateChanged, Interpolation.NEARESTNEIGHBOR );
+
 	public ObservableBooleanValue stateChanged()
 	{
 		return this.stateChanged;
@@ -143,6 +146,11 @@ public class AtlasSourceState< T extends Type< T >, D extends Type< D > >
 	public ObjectProperty< MaskedSource< ?, ? > > maskedSourceProperty()
 	{
 		return this.maskedSource;
+	}
+
+	public ObjectProperty< Interpolation > interpolationProperty()
+	{
+		return this.interpolation;
 	}
 
 	public RandomAccessibleInterval< UnsignedLongType > getUnsignedLongSource( final int t, final int level )
@@ -228,7 +236,12 @@ public class AtlasSourceState< T extends Type< T >, D extends Type< D > >
 
 	private static < T > ObjectProperty< T > stateChangingObjectProperty( final BooleanProperty stateChanged )
 	{
-		final ObjectProperty< T > property = new SimpleObjectProperty<>();
+		return stateChangingObjectProperty( stateChanged, null );
+	}
+
+	private static < T > ObjectProperty< T > stateChangingObjectProperty( final BooleanProperty stateChanged, final T initialValue )
+	{
+		final ObjectProperty< T > property = new SimpleObjectProperty<>( initialValue );
 		property.addListener( ( obs, oldv, newv ) -> stateChanged.set( true ) );
 		return property;
 	}

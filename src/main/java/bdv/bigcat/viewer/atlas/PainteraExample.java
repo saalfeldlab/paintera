@@ -94,7 +94,7 @@ public class PainteraExample extends Application
 
 	private final SimpleObjectProperty< Interpolation > interpolation = new SimpleObjectProperty<>( Interpolation.NEARESTNEIGHBOR );
 
-	private final PainteraBaseView baseView = new PainteraBaseView( 8, s -> interpolation.get() );
+	private final PainteraBaseView baseView = new PainteraBaseView( 8, si -> s -> interpolation.get() );
 
 	private final SourceInfo sourceInfo = baseView.sourceInfo();
 
@@ -252,7 +252,7 @@ public class PainteraExample extends Application
 
 				sourceInfo.trackSources().addListener( FitToInterval.fitToIntervalWhenSourceAddedListener( baseView.manager(), baseView.orthogonalViews().topLeft().viewer().widthProperty()::get ) );
 
-		baseView.addRawSource( source, 0, 255, Colors.toARGBType( Color.TEAL ) );
+				baseView.addRawSource( source, 0, 255, Colors.toARGBType( Color.TEAL ) );
 				baseView.addLabelSource( maskedSource, new FragmentSegmentAssignmentOnlyLocal( ( a, b ) -> {} ), ToIdConverter.fromIntegerType() );
 				baseView.viewer3D().setInitialTransformToInterval( data );
 

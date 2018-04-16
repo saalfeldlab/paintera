@@ -44,7 +44,6 @@ import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.ReadOnlyBooleanProperty;
 import javafx.beans.property.SimpleBooleanProperty;
-import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.value.ChangeListener;
 import javafx.beans.value.ObservableObjectValue;
 import javafx.collections.ObservableList;
@@ -72,9 +71,7 @@ public class Paintera extends Application
 
 	private static final Logger LOG = LoggerFactory.getLogger( MethodHandles.lookup().lookupClass() );
 
-	private final SimpleObjectProperty< Interpolation > interpolation = new SimpleObjectProperty<>( Interpolation.NEARESTNEIGHBOR );
-
-	private final PainteraBaseView baseView = new PainteraBaseView( 8, s -> interpolation.get() );
+	private final PainteraBaseView baseView = new PainteraBaseView( 8, si -> s -> si.getState( s ).interpolationProperty().get() );
 
 	private final SourceInfo sourceInfo = baseView.sourceInfo();
 
@@ -153,7 +150,7 @@ public class Paintera extends Application
 		final StringBinding csName = Bindings.createStringBinding( () -> Optional.ofNullable( cs.get() ).map( s -> s.getName() ).orElse( "<null>" ), cs );
 		currentSourceStatus.textProperty().bind( csName );
 		showStatusBar.setTooltip( new Tooltip( "If not selected, status bar will only show on mouse-over" ) );
-		final OrthogonalViewsValueDisplayListener vdl = new OrthogonalViewsValueDisplayListener( valueStatus::setText, cs, s -> interpolation.get() );
+		final OrthogonalViewsValueDisplayListener vdl = new OrthogonalViewsValueDisplayListener( valueStatus::setText, cs, s -> sourceInfo.getState( s ).interpolationProperty().get() );
 		final AnchorPane statusBar = new AnchorPane( currentSourceStatus, valueStatus, showStatusBar );
 		AnchorPane.setLeftAnchor( currentSourceStatus, 0.0 );
 		AnchorPane.setLeftAnchor( valueStatus, 50.0 );
@@ -194,8 +191,7 @@ public class Paintera extends Application
 		sourceInfo.trackSources().addListener( FitToInterval.fitToIntervalWhenSourceAddedListener( baseView.manager(), baseView.orthogonalViews().topLeft().viewer().widthProperty()::get ) );
 		sourceInfo.trackSources().addListener( new RunWhenFirstElementIsAdded<>( c -> baseView.viewer3D().setInitialTransformToInterval( sourceIntervalInWorldSpace( c.getAddedSubList().get( 0 ) ) ) ) );
 
-		EventFX.KEY_PRESSED( "interpolation", e -> toggleInterpolation(), e -> keyTracker.areOnlyTheseKeysDown( KeyCode.I ) ).installInto( borderPane );
-		interpolation.addListener( ( obs, oldv, newv ) -> baseView.orthogonalViews().requestRepaint() );
+		EventFX.KEY_PRESSED( "toggle interpolation", e -> toggleInterpolation(), e -> keyTracker.areOnlyTheseKeysDown( KeyCode.I ) ).installInto( borderPane );
 		EventFX.KEY_PRESSED( "cycle current source", e -> sourceInfo.incrementCurrentSourceIndex(), e -> keyTracker.areOnlyTheseKeysDown( KeyCode.CONTROL, KeyCode.TAB ) ).installInto( borderPane );
 		EventFX.KEY_PRESSED( "backwards cycle current source", e -> sourceInfo.decrementCurrentSourceIndex(), e -> keyTracker.areOnlyTheseKeysDown( KeyCode.CONTROL, KeyCode.SHIFT, KeyCode.TAB ) ).installInto( borderPane );
 
@@ -324,7 +320,11 @@ public class Paintera extends Application
 
 	private void toggleInterpolation()
 	{
-		this.interpolation.set( this.interpolation.get().equals( Interpolation.NLINEAR ) ? Interpolation.NEARESTNEIGHBOR : Interpolation.NLINEAR );
+		final Source< ? > source = sourceInfo.currentSourceProperty().get();
+		if ( source == null ) { return; }
+		final ObjectProperty< Interpolation > ip = sourceInfo.getState( source ).interpolationProperty();
+		ip.set( ip.get().equals( Interpolation.NLINEAR ) ? Interpolation.NEARESTNEIGHBOR : Interpolation.NLINEAR );
+		baseView.orthogonalViews().requestRepaint();
 	}
 
 	private static Interval sourceIntervalInWorldSpace( final Source< ? > source )

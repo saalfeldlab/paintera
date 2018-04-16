@@ -83,7 +83,7 @@ public class PainteraBaseView
 
 	private final ExecutorService generalPurposeExecutorService = Executors.newFixedThreadPool( 3, new NamedThreadFactory( "paintera-thread-%d" ) );
 
-	public PainteraBaseView( final int numFetcherThreads, final Function< Source< ? >, Interpolation > interpolation )
+	public PainteraBaseView( final int numFetcherThreads, final Function< SourceInfo, Function< Source< ? >, Interpolation > > interpolation )
 	{
 		this( numFetcherThreads, ViewerOptions.options(), interpolation );
 	}
@@ -91,14 +91,14 @@ public class PainteraBaseView
 	public PainteraBaseView(
 			final int numFetcherThreads,
 			final ViewerOptions viewerOptions,
-			final Function< Source< ? >, Interpolation > interpolation )
+			final Function< SourceInfo, Function< Source< ? >, Interpolation > > interpolation )
 	{
 		super();
 		this.cacheControl = new SharedQueue( numFetcherThreads );
 		this.viewerOptions = viewerOptions
 				.accumulateProjectorFactory( new ClearingCompositeProjector.ClearingCompositeProjectorFactory<>( sourceInfo.composites(), new ARGBType() ) )
 				.numRenderingThreads( Math.min( 3, Math.max( 1, Runtime.getRuntime().availableProcessors() / 3 ) ) );
-		this.views = new OrthogonalViews<>( manager, cacheControl, this.viewerOptions, viewer3D, interpolation );
+		this.views = new OrthogonalViews<>( manager, cacheControl, this.viewerOptions, viewer3D, interpolation.apply( sourceInfo ) );
 		this.vsacUpdate = change -> views.setAllSources( visibleSourcesAndConverters );
 		visibleSourcesAndConverters.addListener( vsacUpdate );
 	}
