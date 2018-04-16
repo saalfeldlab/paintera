@@ -16,7 +16,6 @@ import org.janelia.saalfeldlab.paintera.ui.BindUnbindAndNodeSupplier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import deprecated.Maps;
 import javafx.collections.FXCollections;
 import javafx.collections.ListChangeListener;
 import javafx.collections.ObservableList;
@@ -106,8 +105,12 @@ public class MeshPane implements BindUnbindAndNodeSupplier, ListChangeListener< 
 	public void onChanged( final Change< ? extends MeshInfo > change )
 	{
 		while ( change.next() )
+		{
 			if ( change.wasRemoved() )
+			{
 				change.getRemoved().forEach( info -> Optional.ofNullable( infoNodesCache.remove( info ) ).ifPresent( MeshInfoNode::unbind ) );
+			}
+		}
 		populateInfoNodes( this.meshInfos.readOnlyInfos() );
 	}
 
@@ -118,15 +121,17 @@ public class MeshPane implements BindUnbindAndNodeSupplier, ListChangeListener< 
 		this.infoNodes.setAll( infoNodes );
 		final Button exportMeshButton = new Button( "Export all" );
 		exportMeshButton.setOnAction( event -> {
-			MeshExporterDialog exportDialog = new MeshExporterDialog( meshInfos );
+			final MeshExporterDialog exportDialog = new MeshExporterDialog( meshInfos );
 			final Optional< ExportResult > result = exportDialog.showAndWait();
 			if ( result.isPresent() )
 			{
-				ExportResult parameters = result.get();
+				final ExportResult parameters = result.get();
 
 				final SourceState< ?, ? >[] states = new SourceState< ?, ? >[ meshInfos.readOnlyInfos().size() ];
 				for ( int i = 0; i < meshInfos.readOnlyInfos().size(); i++ )
+				{
 					states[ i ] = meshInfos.readOnlyInfos().get( i ).state();
+				}
 				parameters.getMeshExporter().exportMesh( states, parameters.getSegmentId(), parameters.getScale(), parameters.getFilePaths() );
 			}
 		} );
@@ -161,9 +166,11 @@ public class MeshPane implements BindUnbindAndNodeSupplier, ListChangeListener< 
 
 	private MeshInfoNode fromMeshInfo( final MeshInfo info )
 	{
-		final MeshInfoNode node = Maps.getOrDefault( infoNodesCache, info, new MeshInfoNode( info ) );
+		final MeshInfoNode node = infoNodesCache.computeIfAbsent( info, MeshInfoNode::new );
 		if ( this.isBound )
+		{
 			node.bind();
+		}
 		return node;
 	}
 

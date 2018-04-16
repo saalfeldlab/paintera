@@ -16,7 +16,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import bdv.viewer.Source;
-import deprecated.Maps;
 import javafx.beans.property.DoubleProperty;
 import javafx.beans.property.SimpleDoubleProperty;
 import javafx.beans.value.ObservableIntegerValue;
@@ -71,9 +70,8 @@ public class SourceTabs implements Supplier< Node >
 		width.set( 200 );
 		this.info.trackSources().addListener( ( ListChangeListener< Source< ? > > ) change -> {
 			final ArrayList< Source< ? > > copy = new ArrayList<>( this.info.trackSources() );
-			LOG.debug( "Current sources: {}", copy );
-			final List< StatePane > show = copy.stream().map( source -> Maps.getOrDefaultFromSupplier( statePaneCache, source, () -> new StatePane(
-					info.getState( source ),
+			final List< StatePane > show = copy.stream().map( source -> statePaneCache.computeIfAbsent( source, src -> new StatePane(
+					info.getState( src ),
 					info,
 					s -> removeDialog( remove, s ),
 					width ) ) ).collect( Collectors.toList() );
@@ -85,10 +83,10 @@ public class SourceTabs implements Supplier< Node >
 		this.info.removedSourcesTracker().addListener( ( ListChangeListener< Source< ? > > ) change -> {
 			final ArrayList< ? extends Source< ? > > list = new ArrayList<>( change.getList() );
 			list
-					.stream()
-					.map( statePaneCache::remove )
-					.map( Optional::ofNullable )
-					.forEach( o -> o.ifPresent( StatePane::unbind ) );
+			.stream()
+			.map( statePaneCache::remove )
+			.map( Optional::ofNullable )
+			.forEach( o -> o.ifPresent( StatePane::unbind ) );
 		} );
 
 	}
@@ -112,7 +110,9 @@ public class SourceTabs implements Supplier< Node >
 		confirmRemoval.initModality( Modality.APPLICATION_MODAL );
 		final Optional< ButtonType > buttonClicked = confirmRemoval.showAndWait();
 		if ( buttonClicked.orElse( ButtonType.CANCEL ).equals( ButtonType.OK ) )
+		{
 			onRemove.accept( source );
+		}
 	}
 
 	public DoubleProperty widthProperty()
