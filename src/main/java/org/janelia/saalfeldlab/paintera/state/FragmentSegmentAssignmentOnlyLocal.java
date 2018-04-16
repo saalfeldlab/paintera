@@ -6,13 +6,13 @@ import java.util.function.BiConsumer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import deprecated.label.Label;
 import gnu.trove.impl.Constants;
 import gnu.trove.iterator.TLongIterator;
 import gnu.trove.iterator.TLongLongIterator;
 import gnu.trove.map.hash.TLongLongHashMap;
 import gnu.trove.map.hash.TLongObjectHashMap;
 import gnu.trove.set.hash.TLongHashSet;
+import net.imglib2.type.label.Label;
 
 public class FragmentSegmentAssignmentOnlyLocal extends FragmentSegmentAssignmentState< FragmentSegmentAssignmentOnlyLocal >
 {

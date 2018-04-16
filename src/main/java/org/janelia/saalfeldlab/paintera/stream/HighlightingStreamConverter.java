@@ -1,6 +1,5 @@
 package org.janelia.saalfeldlab.paintera.stream;
 
-import deprecated.label.Label;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.IntegerProperty;
 import javafx.beans.property.LongProperty;
@@ -8,6 +7,7 @@ import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleIntegerProperty;
 import javafx.beans.property.SimpleLongProperty;
 import net.imglib2.converter.Converter;
+import net.imglib2.type.label.Label;
 import net.imglib2.type.label.LabelMultisetType;
 import net.imglib2.type.label.VolatileLabelMultisetType;
 import net.imglib2.type.numeric.ARGBType;
@@ -84,12 +84,15 @@ public abstract class HighlightingStreamConverter< T > implements Converter< T, 
 			final AbstractHighlightingARGBStream stream,
 			final T t )
 	{
-		if ( t instanceof IntegerType< ? > )
+		if ( t instanceof IntegerType< ? > ) {
 			return (org.janelia.saalfeldlab.paintera.stream.HighlightingStreamConverter< T > ) HighlightingStreamConverterIntegerType.forInteger( stream );
-		if ( t instanceof RealType< ? > )
+		}
+		if ( t instanceof RealType< ? > ) {
 			return (org.janelia.saalfeldlab.paintera.stream.HighlightingStreamConverter< T > ) HighlightingStreamConverterIntegerType.forRealType( stream );
-		if ( t instanceof LabelMultisetType || t instanceof VolatileLabelMultisetType )
+		}
+		if ( t instanceof LabelMultisetType || t instanceof VolatileLabelMultisetType ) {
 			return (org.janelia.saalfeldlab.paintera.stream.HighlightingStreamConverter< T > ) new HighlightingStreamConverterLabelMultisetType( stream );
+		}
 
 		return null;
 

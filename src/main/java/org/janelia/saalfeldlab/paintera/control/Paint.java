@@ -25,7 +25,6 @@ import org.slf4j.LoggerFactory;
 
 import bdv.fx.viewer.ViewerPanelFX;
 import bdv.viewer.Source;
-import deprecated.label.Label;
 import javafx.beans.binding.Bindings;
 import javafx.beans.binding.BooleanBinding;
 import javafx.beans.binding.ObjectBinding;
@@ -35,6 +34,7 @@ import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleDoubleProperty;
 import javafx.scene.Node;
 import javafx.scene.input.KeyCode;
+import net.imglib2.type.label.Label;
 
 public class Paint implements ToOnEnterOnExit
 {

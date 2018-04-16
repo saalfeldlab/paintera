@@ -19,7 +19,7 @@ package org.janelia.saalfeldlab.paintera.stream;
 import org.janelia.saalfeldlab.paintera.state.FragmentSegmentAssignmentState;
 import org.janelia.saalfeldlab.paintera.state.SelectedIds;
 
-import deprecated.label.Label;
+import net.imglib2.type.label.Label;
 
 /**
  * Generates and caches a stream of saturated colors. Colors are picked from a
@@ -68,9 +68,13 @@ abstract public class AbstractSaturatedHighlightingARGBStream extends AbstractHi
 
 		int argb = argbCache.get( assigned );
 		if ( Label.INVALID == fragmentId )
+		{
 			argb = argb & 0x00ffffff | invalidSegmentAlpha;
+		}
 		else
+		{
 			argb = argb & 0x00ffffff | ( isActiveSegment ? isActiveFragment( fragmentId ) ? activeFragmentAlpha : activeSegmentAlpha : alpha );
+		}
 
 		return argb;
 	}

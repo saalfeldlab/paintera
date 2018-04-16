@@ -24,12 +24,12 @@ import org.janelia.saalfeldlab.paintera.state.SelectedIds;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import deprecated.label.Label;
 import gnu.trove.impl.Constants;
 import gnu.trove.map.hash.TLongIntHashMap;
 import gnu.trove.set.hash.TLongHashSet;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.SimpleBooleanProperty;
+import net.imglib2.type.label.Label;
 
 /**
  * Generates and caches a stream of colors.
@@ -103,8 +103,11 @@ public abstract class AbstractHighlightingARGBStream extends AbstractState< Abst
 	{
 		// TODO FIX THIS THING HERE!
 		for ( final long i : highlights.getActiveIds() )
-			if ( id == i )
+		{
+			if ( id == i ) {
 				return true;
+			}
+		}
 
 		return false;
 	}
@@ -114,8 +117,11 @@ public abstract class AbstractHighlightingARGBStream extends AbstractState< Abst
 		// TODO FIX THIS THING HERE!
 		final long segment = this.assignment.getSegment( id );
 		for ( final long i : highlights.getActiveIds() )
-			if ( this.assignment.getSegment( i ) == segment )
+		{
+			if ( this.assignment.getSegment( i ) == segment ) {
 				return true;
+			}
+		}
 		return false;
 	}
 

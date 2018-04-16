@@ -15,13 +15,13 @@ import org.janelia.saalfeldlab.paintera.solver.action.Merge;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import deprecated.label.Label;
 import gnu.trove.impl.Constants;
 import gnu.trove.iterator.TLongIterator;
 import gnu.trove.iterator.TLongLongIterator;
 import gnu.trove.map.hash.TLongLongHashMap;
 import gnu.trove.map.hash.TLongObjectHashMap;
 import gnu.trove.set.hash.TLongHashSet;
+import net.imglib2.type.label.Label;
 
 public class FragmentSegmentAssignmentWithHistory extends FragmentSegmentAssignmentState< FragmentSegmentAssignmentWithHistory >
 {
@@ -59,7 +59,9 @@ public class FragmentSegmentAssignmentWithHistory extends FragmentSegmentAssignm
 			assert fragments.length == segments.length: "segments and bodies must be of same length";
 
 			for ( int i = 0; i < fragments.length; ++i )
+			{
 				fragmentToSegmentMap.put( fragments[ i ], segments[ i ] );
+			}
 
 			syncILut();
 			this.broadcaster = broadcaster;
@@ -70,7 +72,9 @@ public class FragmentSegmentAssignmentWithHistory extends FragmentSegmentAssignm
 				{
 					final TLongLongHashMap solution = solutionFetcher.get();
 					if ( solution == null )
+					{
 						continue;
+					}
 					synchronized ( this )
 					{
 						synchronized ( history )
@@ -82,13 +86,18 @@ public class FragmentSegmentAssignmentWithHistory extends FragmentSegmentAssignm
 							history.removeAll( submittedActions );
 							submittedActions.clear();
 							for ( final Action action : history )
+							{
 								if ( action instanceof Merge )
 								{
 									final Merge merge = ( Merge ) action;
 									final long[] ids = merge.ids();
 									for ( int i = 0; i < ids.length; ++i )
+									{
 										for ( int k = i; k < ids.length; ++k )
+										{
 											this.mergeSegmentsImpl( this.fragmentToSegmentMap.get( ids[ i ] ), this.fragmentToSegmentMap.get( ids[ k ] ), false );
+										}
+									}
 								}
 								else if ( action instanceof Detach )
 								{
@@ -108,6 +117,7 @@ public class FragmentSegmentAssignmentWithHistory extends FragmentSegmentAssignm
 									this.confirmTwoSegmentsImpl( confirmation.fragmentsBySegment()[ 0 ], confirmation.fragmentsBySegment()[ 1 ], false );
 								}
 //							this.history.clear();
+							}
 						}
 
 					}
@@ -135,7 +145,9 @@ public class FragmentSegmentAssignmentWithHistory extends FragmentSegmentAssignm
 			segmentToFragmentsMap.put( id, set );
 		}
 		else
+		{
 			id = segmentId;
+		}
 		return id;
 	}
 
@@ -159,8 +171,9 @@ public class FragmentSegmentAssignmentWithHistory extends FragmentSegmentAssignm
 
 	protected synchronized void assignFragmentsImpl( final long assignFrom, final long assignTo, final boolean broadcastEvents )
 	{
-		if ( assignFrom == assignTo )
+		if ( assignFrom == assignTo ) {
 			return;
+		}
 
 		final TLongHashSet fragments1 = getFragments( assignFrom );
 		final TLongHashSet fragments2 = getFragments( assignTo );
@@ -197,8 +210,9 @@ public class FragmentSegmentAssignmentWithHistory extends FragmentSegmentAssignm
 
 	protected synchronized void mergeSegmentsImpl( final long segmentId1, final long segmentId2, final boolean broadcastEvents )
 	{
-		if ( segmentId1 == segmentId2 )
+		if ( segmentId1 == segmentId2 ) {
 			return;
+		}
 
 		assignFragmentsImpl( Math.max( segmentId1, segmentId2 ), Math.min( segmentId1, segmentId2 ), broadcastEvents );
 	}
@@ -220,12 +234,14 @@ public class FragmentSegmentAssignmentWithHistory extends FragmentSegmentAssignm
 
 			final Detach detach = new Detach( fragmentId, from );
 			if ( broadcastEvent )
+			{
 				synchronized ( history )
 				{
 					history.add( detach );
 					broadcaster.accept( detach );
 					submittedActions.add( detach );
 				}
+			}
 			final long segmentId = getSegment( fragmentId );
 			final TLongHashSet fragments = getFragments( segmentId );
 			if ( fragments != null && fragments.size() > 1 )
@@ -237,11 +253,15 @@ public class FragmentSegmentAssignmentWithHistory extends FragmentSegmentAssignm
 				{
 					final long actualSegmentId = fragmentsCopy.iterator().next();
 					for ( final TLongIterator fragmentIt = fragmentsCopy.iterator(); fragmentIt.hasNext(); )
+					{
 						this.fragmentToSegmentMap.put( fragmentIt.next(), actualSegmentId );
+					}
 					this.segmentToFragmentsMap.put( actualSegmentId, fragmentsCopy );
 				}
 				else
+				{
 					this.segmentToFragmentsMap.put( segmentId, fragmentsCopy );
+				}
 
 				final long newSegmentId = fragmentId;
 				fragmentToSegmentMap.put( fragmentId, newSegmentId );

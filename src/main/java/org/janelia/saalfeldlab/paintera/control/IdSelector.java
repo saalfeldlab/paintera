@@ -21,7 +21,6 @@ import bdv.fx.viewer.ViewerPanelFX;
 import bdv.fx.viewer.ViewerState;
 import bdv.viewer.Interpolation;
 import bdv.viewer.Source;
-import deprecated.label.Label;
 import gnu.trove.map.hash.TLongObjectHashMap;
 import gnu.trove.set.hash.TLongHashSet;
 import javafx.scene.Node;
@@ -35,6 +34,7 @@ import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.realtransform.InverseRealTransform;
 import net.imglib2.realtransform.RealTransformRealRandomAccessible;
 import net.imglib2.realtransform.RealViews;
+import net.imglib2.type.label.Label;
 import net.imglib2.view.IntervalView;
 import net.imglib2.view.Views;
 
@@ -92,8 +92,9 @@ public class IdSelector
 		public void click( final MouseEvent e )
 		{
 			final Optional< Source< ? > > optionalSource = getCurrentSource();
-			if ( !optionalSource.isPresent() )
+			if ( !optionalSource.isPresent() ) {
 				return;
+			}
 			final Source< ? > source = optionalSource.get();
 			if ( source instanceof DataSource< ?, ? > )
 			{
@@ -101,6 +102,7 @@ public class IdSelector
 				final Optional< SelectedIds > selectedIds = Optional.ofNullable( sourceInfo.getState( source ).selectedIdsProperty().get() );
 				final Optional< ToIdConverter > toIdConverter = sourceInfo.toIdConverter( source );
 				if ( selectedIds.isPresent() && toIdConverter.isPresent() )
+				{
 					synchronized ( viewer )
 					{
 						final AffineTransform3D affine = new AffineTransform3D();
@@ -117,6 +119,7 @@ public class IdSelector
 						final long id = toIdConverter.get().biggestFragment( val );
 						actOn( id, selectedIds.get() );
 					}
+				}
 			}
 		}
 
@@ -130,10 +133,16 @@ public class IdSelector
 		protected void actOn( final long id, final SelectedIds selectedIds )
 		{
 			if ( Label.regular( id ) )
+			{
 				if ( selectedIds.isOnlyActiveId( id ) )
+				{
 					selectedIds.deactivate( id );
+				}
 				else
+				{
 					selectedIds.activate( id );
+				}
+			}
 		}
 	}
 
@@ -144,10 +153,16 @@ public class IdSelector
 		protected void actOn( final long id, final SelectedIds selectedIds )
 		{
 			if ( Label.regular( id ) )
+			{
 				if ( selectedIds.isActive( id ) )
+				{
 					selectedIds.deactivate( id );
+				}
 				else
+				{
 					selectedIds.activateAlso( id );
+				}
+			}
 		}
 	}
 
@@ -157,8 +172,9 @@ public class IdSelector
 		public void click( final MouseEvent e )
 		{
 			final Optional< Source< ? > > optionalSource = getCurrentSource();
-			if ( !optionalSource.isPresent() )
+			if ( !optionalSource.isPresent() ) {
 				return;
+			}
 			final Source< ? > source = optionalSource.get();
 			if ( source instanceof DataSource< ?, ? > )
 			{
@@ -167,14 +183,16 @@ public class IdSelector
 				final Optional< ToIdConverter > toIdConverter = sourceInfo.toIdConverter( source );
 				final Optional< ? extends FragmentSegmentAssignmentState< ? > > assignmentOptional = sourceInfo.assignment( source );
 				if ( toIdConverter.isPresent() && selectedIds.isPresent() && assignmentOptional.isPresent() )
+				{
 					synchronized ( viewer )
 					{
 						final FragmentSegmentAssignmentState< ? > assignments = assignmentOptional.get();
 
 						final long lastSelection = selectedIds.get().getLastSelection();
 
-						if ( lastSelection == Label.INVALID )
+						if ( lastSelection == Label.INVALID ) {
 							return;
+						}
 
 						final AffineTransform3D viewerTransform = new AffineTransform3D();
 						final ViewerState state = viewer.getState();
@@ -195,6 +213,7 @@ public class IdSelector
 						LOG.warn( "Merging fragments: {} -- last selection: {}", fragments, lastSelection );
 						assignments.mergeFragments( fragments.toArray() );
 					}
+				}
 			}
 		}
 
@@ -206,8 +225,9 @@ public class IdSelector
 		public void click( final MouseEvent e )
 		{
 			final Optional< Source< ? > > optionalSource = getCurrentSource();
-			if ( !optionalSource.isPresent() )
+			if ( !optionalSource.isPresent() ) {
 				return;
+			}
 			final Source< ? > source = optionalSource.get();
 			if ( source instanceof DataSource< ?, ? > )
 			{
@@ -216,6 +236,7 @@ public class IdSelector
 				final Optional< ToIdConverter > toIdConverter = sourceInfo.toIdConverter( source );
 				final Optional< ? extends FragmentSegmentAssignmentState< ? > > assignmentOptional = sourceInfo.assignment( source );
 				if ( toIdConverter.isPresent() && selectedIds.isPresent() && assignmentOptional.isPresent() )
+				{
 					synchronized ( viewer )
 					{
 
@@ -223,8 +244,9 @@ public class IdSelector
 
 						final long lastSelection = selectedIds.get().getLastSelection();
 
-						if ( lastSelection == Label.INVALID )
+						if ( lastSelection == Label.INVALID ) {
 							return;
+						}
 
 						final AffineTransform3D viewerTransform = new AffineTransform3D();
 						final ViewerState state = viewer.getState();
@@ -243,6 +265,7 @@ public class IdSelector
 						assignment.detachFragment( id, lastSelection );
 
 					}
+				}
 			}
 		}
 
@@ -267,6 +290,7 @@ public class IdSelector
 				final Optional< ToIdConverter > toIdConverter = sourceInfo.toIdConverter( source );
 				final Optional< ? extends FragmentSegmentAssignmentState< ? > > assignmentOptional = sourceInfo.assignment( source );
 				if ( toIdConverter.isPresent() && selectedIds.isPresent() && assignmentOptional.isPresent() )
+				{
 					synchronized ( viewer )
 					{
 						final FragmentSegmentAssignmentState< ? > assignment = assignmentOptional.get();
@@ -325,13 +349,16 @@ public class IdSelector
 								{
 									final TLongHashSet frags = fragmentsBySegment.get( assignment.getSegment( frag ) );
 									if ( frags != null )
+									{
 										frags.add( frag );
+									}
 								}
 							} );
 							assignment.confirmTwoSegments( fragmentsBySegment.get( relevantSegments[ 0 ] ).toArray(), fragmentsBySegment.get( relevantSegments[ 1 ] ).toArray() );
 						}
 
 					}
+				}
 			}
 		}
 	}
@@ -384,7 +411,9 @@ public class IdSelector
 		final Cursor< ? > cursor = Views.flatIterable( img ).cursor();
 
 		while ( cursor.hasNext() )
+		{
 			doAtPixel.accept( cursor.next() );
+		}
 	}
 
 }

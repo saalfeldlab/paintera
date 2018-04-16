@@ -30,7 +30,6 @@ import org.slf4j.LoggerFactory;
 import bdv.util.volatiles.SharedQueue;
 import bdv.util.volatiles.VolatileRandomAccessibleIntervalView;
 import bdv.util.volatiles.VolatileViews;
-import deprecated.label.Label;
 import gnu.trove.set.hash.TLongHashSet;
 import javafx.beans.binding.Bindings;
 import javafx.beans.binding.StringBinding;
@@ -59,6 +58,7 @@ import net.imglib2.realtransform.Scale3D;
 import net.imglib2.realtransform.Translation3D;
 import net.imglib2.type.NativeType;
 import net.imglib2.type.label.FromIntegerTypeConverter;
+import net.imglib2.type.label.Label;
 import net.imglib2.type.label.LabelMultisetType;
 import net.imglib2.type.label.LabelMultisetTypeDownscaler;
 import net.imglib2.type.label.LabelUtils;
@@ -375,7 +375,7 @@ public class BackendDialogN5 extends BackendDialogGroupAndDataset implements Com
 		if ( !Thread.currentThread().isInterrupted() )
 		{
 			try
-		{
+			{
 				final String[] groups = n5.list( pathName );
 				Arrays.sort( groups );
 				for ( final String group : groups )
@@ -407,11 +407,11 @@ public class BackendDialogN5 extends BackendDialogGroupAndDataset implements Com
 						}
 					}
 				}
-		}
-		catch ( final IOException e )
-		{
-			e.printStackTrace();
-		}
+			}
+			catch ( final IOException e )
+			{
+				e.printStackTrace();
+			}
 		}
 		else
 		{
@@ -580,7 +580,7 @@ public class BackendDialogN5 extends BackendDialogGroupAndDataset implements Com
 
 				final String highestResolutionDataset = isMultiscale ? Paths.get( dataset, listAndSortScaleDatasets( n5, dataset )[ 0 ] ).toString() : dataset;
 
-				if ( !Optional.ofNullable( n5.getAttribute( highestResolutionDataset, LABEL_MULTISETTYPE_KEY, Boolean.class ) ).orElse( false ) ) 
+				if ( !Optional.ofNullable( n5.getAttribute( highestResolutionDataset, LABEL_MULTISETTYPE_KEY, Boolean.class ) ).orElse( false ) )
 				{
 					throw new RuntimeException( "Only label multiset type accepted currently!" );
 				}

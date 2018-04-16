@@ -9,6 +9,7 @@ import net.imglib2.cache.img.CachedCellImg;
 import net.imglib2.img.cell.AbstractCellImg;
 import net.imglib2.type.NativeType;
 import net.imglib2.type.label.FromIntegerTypeConverter;
+import net.imglib2.type.label.Label;
 import net.imglib2.type.label.LabelMultisetType;
 import net.imglib2.type.label.VolatileLabelMultisetType;
 import net.imglib2.type.numeric.IntegerType;
@@ -48,22 +49,22 @@ public class Masks
 		}
 
 		final I defaultValue = source.getDataType().createVariable();
-		defaultValue.setInteger( deprecated.label.Label.INVALID );
+		defaultValue.setInteger( Label.INVALID );
 
 		final I type = source.getDataType();
-		type.setInteger( deprecated.label.Label.OUTSIDE );
+		type.setInteger( Label.OUTSIDE );
 		final V vtype = source.getType();
 		vtype.setValid( true );
-		vtype.get().setInteger( deprecated.label.Label.OUTSIDE );
+		vtype.get().setInteger( Label.OUTSIDE );
 
 		final PickOneAllIntegerTypes< I, UnsignedLongType > pacD = new PickOneAllIntegerTypes<>(
-				l -> deprecated.label.Label.regular( l.getIntegerLong() ),
-				( l1, l2 ) -> l2.getIntegerLong() != deprecated.label.Label.TRANSPARENT && deprecated.label.Label.regular( l1.getIntegerLong() ),
+				l -> Label.regular( l.getIntegerLong() ),
+				( l1, l2 ) -> l2.getIntegerLong() != Label.TRANSPARENT && Label.regular( l1.getIntegerLong() ),
 				type.createVariable() );
 
 		final PickOneAllIntegerTypesVolatile< I, UnsignedLongType, V, VolatileUnsignedLongType > pacT = new PickOneAllIntegerTypesVolatile<>(
-				l -> deprecated.label.Label.regular( l.getIntegerLong() ),
-				( l1, l2 ) -> l2.getIntegerLong() != deprecated.label.Label.TRANSPARENT && deprecated.label.Label.regular( l1.getIntegerLong() ),
+				l -> Label.regular( l.getIntegerLong() ),
+				( l1, l2 ) -> l2.getIntegerLong() != Label.TRANSPARENT && Label.regular( l1.getIntegerLong() ),
 				vtype.createVariable() );
 
 		final MaskedSource< I, V > ms = new MaskedSource<>(
@@ -109,21 +110,21 @@ public class Masks
 		}
 
 		final LabelMultisetType defaultValue = FromIntegerTypeConverter.geAppropriateType();
-		new FromIntegerTypeConverter< UnsignedLongType >().convert( new UnsignedLongType( deprecated.label.Label.INVALID ), defaultValue );
+		new FromIntegerTypeConverter< UnsignedLongType >().convert( new UnsignedLongType( Label.INVALID ), defaultValue );
 
 		final LabelMultisetType type = FromIntegerTypeConverter.geAppropriateType();
-		new FromIntegerTypeConverter< UnsignedLongType >().convert( new UnsignedLongType( deprecated.label.Label.OUTSIDE ), defaultValue );
+		new FromIntegerTypeConverter< UnsignedLongType >().convert( new UnsignedLongType( Label.OUTSIDE ), defaultValue );
 		final VolatileLabelMultisetType vtype = FromIntegerTypeConverter.geAppropriateVolatileType();
-		new FromIntegerTypeConverter< UnsignedLongType >().convert( new UnsignedLongType( deprecated.label.Label.OUTSIDE ), defaultValue );
+		new FromIntegerTypeConverter< UnsignedLongType >().convert( new UnsignedLongType( Label.OUTSIDE ), defaultValue );
 		vtype.setValid( true );
 
 		final PickOneLabelMultisetType< UnsignedLongType > pacD = new PickOneLabelMultisetType<>(
-				l -> deprecated.label.Label.regular( l.getIntegerLong() ),
-				( l1, l2 ) -> l2.getIntegerLong() != deprecated.label.Label.TRANSPARENT && deprecated.label.Label.regular( l1.getIntegerLong() ) );
+				l -> Label.regular( l.getIntegerLong() ),
+				( l1, l2 ) -> l2.getIntegerLong() != Label.TRANSPARENT && Label.regular( l1.getIntegerLong() ) );
 
 		final PickOneVolatileLabelMultisetType< UnsignedLongType, VolatileUnsignedLongType > pacT = new PickOneVolatileLabelMultisetType<>(
-				l -> deprecated.label.Label.regular( l.getIntegerLong() ),
-				( l1, l2 ) -> l2.getIntegerLong() != deprecated.label.Label.TRANSPARENT && deprecated.label.Label.regular( l1.getIntegerLong() ) );
+				l -> Label.regular( l.getIntegerLong() ),
+				( l1, l2 ) -> l2.getIntegerLong() != Label.TRANSPARENT && Label.regular( l1.getIntegerLong() ) );
 
 		final MaskedSource< LabelMultisetType, VolatileLabelMultisetType > ms = new MaskedSource<>(
 				source,

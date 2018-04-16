@@ -2,7 +2,7 @@ package org.janelia.saalfeldlab.paintera.id;
 
 import java.util.Set;
 
-import deprecated.label.Label;
+import net.imglib2.type.label.Label;
 import net.imglib2.type.label.LabelMultiset;
 import net.imglib2.type.label.LabelMultisetType;
 import net.imglib2.type.numeric.ARGBType;
