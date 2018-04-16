@@ -20,6 +20,7 @@ import org.slf4j.LoggerFactory;
 
 import bdv.bigcat.viewer.ToIdConverter;
 import bdv.bigcat.viewer.atlas.AtlasFocusHandler.OnEnterOnExit;
+import bdv.bigcat.viewer.atlas.control.FitToInterval;
 import bdv.bigcat.viewer.atlas.control.Navigation;
 import bdv.bigcat.viewer.atlas.control.Selection;
 import bdv.bigcat.viewer.atlas.control.navigation.AffineTransformWithListeners;
@@ -237,11 +238,13 @@ public class Paintera extends Application
 			}
 		} );
 
+		sourceInfo.currentSourceProperty().set( labelSource );
+
+		sourceInfo.trackSources().addListener( FitToInterval.fitToIntervalWhenSourceAddedListener( baseView.manager(), baseView.orthogonalViews().topLeft().viewer().widthProperty()::get ) );
+
 		baseView.addRawSource( source, 0, 255, toARGBType( Color.TEAL ) );
 		baseView.addLabelSource( labelSource, new FragmentSegmentAssignmentOnlyLocal( ( a, b ) -> {} ), ToIdConverter.fromIntegerType() );
 		baseView.viewer3D().setInitialTransformToInterval( data );
-
-		sourceInfo.currentSourceProperty().set( labelSource );
 
 		keyTracker.installInto( scene );
 		stage.setScene( scene );
