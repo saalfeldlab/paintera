@@ -1,6 +1,7 @@
 package bdv.bigcat.viewer.atlas.source;
 
 import java.util.function.Function;
+import java.util.function.LongFunction;
 
 import bdv.bigcat.composite.Composite;
 import bdv.bigcat.viewer.ToIdConverter;
@@ -71,7 +72,7 @@ public class AtlasSourceState< T extends Type< T >, D extends Type< D > >
 
 	private final ObjectProperty< TYPE > type = stateChangingObjectProperty( stateChanged );
 
-	private final ObjectProperty< Function< D, Converter< D, BoolType > > > maskGenerator = stateChangingObjectProperty( stateChanged );
+	private final ObjectProperty< LongFunction< Converter< D, BoolType > > > maskGenerator = stateChangingObjectProperty( stateChanged );
 
 	private final ObjectProperty< MaskedSource< ?, ? > > maskedSource = stateChangingObjectProperty( stateChanged );
 
@@ -129,7 +130,7 @@ public class AtlasSourceState< T extends Type< T >, D extends Type< D > >
 		return this.dataSource;
 	}
 
-	public ObjectProperty< Function< D, Converter< D, BoolType > > > maskGeneratorProperty()
+	public ObjectProperty< LongFunction< Converter< D, BoolType > > > maskGeneratorProperty()
 	{
 		return this.maskGenerator;
 	}
@@ -148,13 +149,15 @@ public class AtlasSourceState< T extends Type< T >, D extends Type< D > >
 	{
 		final ToIdConverter toIdConverter = toIdConverterProperty().get();
 
-		if ( toIdConverter == null )
+		if ( toIdConverter == null ) {
 			return null;
+		}
 
 		final DataSource< D, T > dataSource = dataSourceProperty().get();
 
-		if ( dataSource == null )
+		if ( dataSource == null ) {
 			return null;
+		}
 
 		return Converters.convert(
 				dataSource.getDataSource( t, level ),

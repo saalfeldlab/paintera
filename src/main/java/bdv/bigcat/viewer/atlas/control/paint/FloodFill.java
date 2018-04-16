@@ -5,7 +5,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
-import java.util.function.Function;
+import java.util.function.LongFunction;
 import java.util.function.Supplier;
 
 import org.slf4j.Logger;
@@ -105,7 +105,7 @@ public class FloodFill
 			return;
 		}
 
-		final Function< ?, ? > maskGenerator = state.maskGeneratorProperty().get();
+		final LongFunction< ? > maskGenerator = state.maskGeneratorProperty().get();
 		if ( maskGenerator == null )
 		{
 			LOG.warn( "Cannot generate boolean mask for this source -- will not fill" );
@@ -132,7 +132,9 @@ public class FloodFill
 		final RealPoint rp = setCoordinates( x, y, viewer, labelTransform );
 		final Point p = new Point( rp.numDimensions() );
 		for ( int d = 0; d < p.numDimensions(); ++d )
+		{
 			p.setPosition( Math.round( rp.getDoublePosition( d ) ), d );
+		}
 
 		LOG.debug( "Filling source {} with label {} at {}", source, fill, p );
 		final Scene scene = viewer.getScene();
@@ -140,6 +142,7 @@ public class FloodFill
 		try
 		{
 			if ( t instanceof LabelMultisetType )
+			{
 				fillMultiset(
 						( MaskedSource ) source,
 						time,
@@ -148,7 +151,9 @@ public class FloodFill
 						p,
 						new RunAll( requestRepaint, () -> scene.setCursor( Cursor.WAIT ) ),
 						new RunAll( requestRepaint, () -> scene.setCursor( previousCursor ) ) );
+			}
 			else
+			{
 				fill(
 						( MaskedSource ) source,
 						time,
@@ -157,6 +162,7 @@ public class FloodFill
 						p,
 						new RunAll( requestRepaint, () -> scene.setCursor( Cursor.WAIT ) ),
 						new RunAll( requestRepaint, () -> scene.setCursor( previousCursor ) ) );
+			}
 		}
 		catch ( final MaskInUse e )
 		{
@@ -233,7 +239,9 @@ public class FloodFill
 			}
 			doWhenDone.run();
 			if ( !Thread.interrupted() )
+			{
 				source.applyMask( mask, accessTracker.createAccessInterval() );
+			}
 		} ).start();
 	}
 
@@ -289,7 +297,9 @@ public class FloodFill
 			}
 			doWhenDone.run();
 			if ( !Thread.interrupted() )
+			{
 				source.applyMask( mask, accessTracker.createAccessInterval() );
+			}
 		} ).start();
 	}
 

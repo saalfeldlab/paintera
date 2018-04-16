@@ -195,7 +195,7 @@ public class Atlas
 		}
 		catch (
 
-		final InterruptedException e )
+				final InterruptedException e )
 		{
 			// TODO Auto-generated catch block
 			e.printStackTrace();
@@ -466,7 +466,7 @@ public class Atlas
 		final AtlasSourceState< VolatileLabelMultisetType, LabelMultisetType > state = sourceInfo.makeLabelSourceState(
 				spec,
 				ToIdConverter.fromLabelMultisetType(),
-				( Function< LabelMultisetType, Converter< LabelMultisetType, BoolType > > ) sel -> createBoolConverter( sel, assignment ),
+				( LongFunction< Converter< LabelMultisetType, BoolType > > ) id -> createBoolConverter( id, assignment ),
 				( FragmentSegmentAssignmentState ) assignment,
 				stream,
 				selId,
@@ -628,12 +628,12 @@ public class Atlas
 		final AtlasSourceState< V, I > state = sourceInfo.makeLabelSourceState(
 				spec,
 				spec.getDataType() instanceof IntegerType ? ToIdConverter.fromIntegerType() : ToIdConverter.fromRealType(),
-				sel -> createBoolConverter( sel, assignment ),
-				( FragmentSegmentAssignmentState ) assignment,
-				stream,
-				selId,
-				converter,
-				comp );
+						sel -> createBoolConverter( sel, assignment ),
+						( FragmentSegmentAssignmentState ) assignment,
+						stream,
+						selId,
+						converter,
+						comp );
 		state.idServiceProperty().set( idService );
 		if ( spec instanceof MaskedSource< ?, ? > )
 		{
@@ -769,15 +769,15 @@ public class Atlas
 				sources,
 				new AffineTransform3D[] { sourceTransform },
 				i -> i.equals( Interpolation.NLINEAR ) ? new NLinearInterpolatorFactory() : new NearestNeighborInterpolatorFactory(),
-				i -> i.equals( Interpolation.NLINEAR ) ? new NLinearInterpolatorFactory() : new NearestNeighborInterpolatorFactory(),
-				name );
+						i -> i.equals( Interpolation.NLINEAR ) ? new NLinearInterpolatorFactory() : new NearestNeighborInterpolatorFactory(),
+								name );
 		addRawSource( source, min, max, Colors.toARGBType( color ) );
 	}
 
 	public < T extends RealType< T >, U extends RealType< U > > void addRawSources(
 			final Collection< ? extends DataSource< T, U > > specs,
-			final double min,
-			final double max )
+					final double min,
+					final double max )
 	{
 		final int numSources = specs.size();
 		final double factor = 360.0 / numSources;
@@ -799,9 +799,9 @@ public class Atlas
 
 	public < T extends RealType< T >, U extends RealType< U > > void addRawSources(
 			final Collection< ? extends DataSource< T, U > > specs,
-			final Collection< ARGBType > colors,
-			final double[] min,
-			final double[] max )
+					final Collection< ARGBType > colors,
+					final double[] min,
+					final double[] max )
 	{
 		final Iterator< ? extends DataSource< T, U > > specIt = specs.iterator();
 		final Iterator< ARGBType > colorIt = colors.iterator();
@@ -910,10 +910,10 @@ public class Atlas
 		this.baseView().setTransform( transform );
 	}
 
-	public static Converter< LabelMultisetType, BoolType > createBoolConverter( final LabelMultisetType selection, final FragmentSegmentAssignmentState< ? > assignment )
+	public static Converter< LabelMultisetType, BoolType > createBoolConverter( final long id, final FragmentSegmentAssignmentState< ? > assignment )
 	{
-		final long id = maxCountId( selection );
 		final long segmentId = assignment.getSegment( id );
+		// TODO should probably do contains here
 		return ( s, t ) -> t.set( assignment.getSegment( maxCountId( s ) ) == segmentId );
 	}
 

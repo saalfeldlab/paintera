@@ -138,119 +138,119 @@ public class Paintera extends Application
 
 		final Function< Interpolation, InterpolatorFactory< UnsignedByteType, RandomAccessible< UnsignedByteType > > > ipol = i -> i.equals( Interpolation.NLINEAR )
 				? new NLinearInterpolatorFactory<>()
-				: new NearestNeighborInterpolatorFactory<>();
+						: new NearestNeighborInterpolatorFactory<>();
 
-		final AffineTransform3D[] mipmapTransforms = {
-				new AffineTransform3D(),
-				new AffineTransform3D().concatenate( new Scale3D( 2.0, 2.0, 2.0 ) )
-		};
+				final AffineTransform3D[] mipmapTransforms = {
+						new AffineTransform3D(),
+						new AffineTransform3D().concatenate( new Scale3D( 2.0, 2.0, 2.0 ) )
+				};
 
-		final RandomAccessibleIntervalDataSource< UnsignedByteType, UnsignedByteType > source =
-				new RandomAccessibleIntervalDataSource<>( srcs, srcs, mipmapTransforms, ipol, ipol, "data" );
+				final RandomAccessibleIntervalDataSource< UnsignedByteType, UnsignedByteType > source =
+						new RandomAccessibleIntervalDataSource<>( srcs, srcs, mipmapTransforms, ipol, ipol, "data" );
 
-		@SuppressWarnings( "unchecked" )
-		final RandomAccessibleInterval< UnsignedLongType >[] lsrcs = new RandomAccessibleInterval[] {
-				labels
-		};
+				@SuppressWarnings( "unchecked" )
+				final RandomAccessibleInterval< UnsignedLongType >[] lsrcs = new RandomAccessibleInterval[] {
+						labels
+				};
 
-		final RandomAccessibleIntervalDataSource< UnsignedLongType, UnsignedLongType > labelSource = new RandomAccessibleIntervalDataSource<>(
-				lsrcs,
-				lsrcs,
-				new AffineTransform3D[] { new AffineTransform3D() },
-				i -> new NearestNeighborInterpolatorFactory<>(),
-				i -> new NearestNeighborInterpolatorFactory<>(),
-				"labels" );
+				final RandomAccessibleIntervalDataSource< UnsignedLongType, UnsignedLongType > labelSource = new RandomAccessibleIntervalDataSource<>(
+						lsrcs,
+						lsrcs,
+						new AffineTransform3D[] { new AffineTransform3D() },
+						i -> new NearestNeighborInterpolatorFactory<>(),
+						i -> new NearestNeighborInterpolatorFactory<>(),
+						"labels" );
 
-		updateDisplayTransformOnResize( baseView.orthogonalViews(), baseView.manager() );
+				updateDisplayTransformOnResize( baseView.orthogonalViews(), baseView.manager() );
 
-		onEnterOnExit.accept( navigation.onEnterOnExit() );
-		onEnterOnExit.accept( selection.onEnterOnExit() );
+				onEnterOnExit.accept( navigation.onEnterOnExit() );
+				onEnterOnExit.accept( selection.onEnterOnExit() );
 
-		grabFocusOnMouseOver(
-				baseView.orthogonalViews().topLeft().viewer(),
-				baseView.orthogonalViews().topRight().viewer(),
-				baseView.orthogonalViews().bottomLeft().viewer() );
+				grabFocusOnMouseOver(
+						baseView.orthogonalViews().topLeft().viewer(),
+						baseView.orthogonalViews().topRight().viewer(),
+						baseView.orthogonalViews().bottomLeft().viewer() );
 
-		final ObservableList< Source< ? > > sources = sourceInfo.trackSources();
-		final ObservableList< Source< ? > > visibleSources = sourceInfo.trackSources();
+				final ObservableList< Source< ? > > sources = sourceInfo.trackSources();
+				final ObservableList< Source< ? > > visibleSources = sourceInfo.trackSources();
 
-		final MultiBoxOverlayRendererFX[] multiBoxes = {
-				new MultiBoxOverlayRendererFX( baseView.orthogonalViews().topLeft().viewer()::getState, sources, visibleSources ),
-				new MultiBoxOverlayRendererFX( baseView.orthogonalViews().topRight().viewer()::getState, sources, visibleSources ),
-				new MultiBoxOverlayRendererFX( baseView.orthogonalViews().bottomLeft().viewer()::getState, sources, visibleSources )
-		};
+				final MultiBoxOverlayRendererFX[] multiBoxes = {
+						new MultiBoxOverlayRendererFX( baseView.orthogonalViews().topLeft().viewer()::getState, sources, visibleSources ),
+						new MultiBoxOverlayRendererFX( baseView.orthogonalViews().topRight().viewer()::getState, sources, visibleSources ),
+						new MultiBoxOverlayRendererFX( baseView.orthogonalViews().bottomLeft().viewer()::getState, sources, visibleSources )
+				};
 
-		baseView.orthogonalViews().topLeft().viewer().getDisplay().addOverlayRenderer( multiBoxes[ 0 ] );
-		baseView.orthogonalViews().topRight().viewer().getDisplay().addOverlayRenderer( multiBoxes[ 1 ] );
-		baseView.orthogonalViews().bottomLeft().viewer().getDisplay().addOverlayRenderer( multiBoxes[ 2 ] );
+				baseView.orthogonalViews().topLeft().viewer().getDisplay().addOverlayRenderer( multiBoxes[ 0 ] );
+				baseView.orthogonalViews().topRight().viewer().getDisplay().addOverlayRenderer( multiBoxes[ 1 ] );
+				baseView.orthogonalViews().bottomLeft().viewer().getDisplay().addOverlayRenderer( multiBoxes[ 2 ] );
 
-		multiBoxes[ 0 ].isVisibleProperty().bind( baseView.orthogonalViews().topLeft().viewer().focusedProperty() );
-		multiBoxes[ 1 ].isVisibleProperty().bind( baseView.orthogonalViews().topRight().viewer().focusedProperty() );
-		multiBoxes[ 2 ].isVisibleProperty().bind( baseView.orthogonalViews().bottomLeft().viewer().focusedProperty() );
+				multiBoxes[ 0 ].isVisibleProperty().bind( baseView.orthogonalViews().topLeft().viewer().focusedProperty() );
+				multiBoxes[ 1 ].isVisibleProperty().bind( baseView.orthogonalViews().topRight().viewer().focusedProperty() );
+				multiBoxes[ 2 ].isVisibleProperty().bind( baseView.orthogonalViews().bottomLeft().viewer().focusedProperty() );
 
-		final BorderPane borderPane = new BorderPane( baseView.pane() );
-		final Label currentSourceStatus = new Label();
-		final Label valueStatus = new Label();
-		final CheckBox showStatusBar = new CheckBox();
-		final ObjectProperty< Source< ? > > cs = sourceInfo.currentSourceProperty();
-		final StringBinding csName = Bindings.createStringBinding( () -> Optional.ofNullable( cs.get() ).map( s -> s.getName() ).orElse( "<null>" ), cs );
-		currentSourceStatus.textProperty().bind( csName );
-		showStatusBar.setTooltip( new Tooltip( "If not selected, status bar will only show on mouse-over" ) );
-		final OrthogonalViewsValueDisplayListener vdl = new OrthogonalViewsValueDisplayListener( valueStatus::setText, cs, s -> interpolation.get() );
-		final AnchorPane statusBar = new AnchorPane( currentSourceStatus, valueStatus, showStatusBar );
-		AnchorPane.setLeftAnchor( currentSourceStatus, 0.0 );
-		AnchorPane.setLeftAnchor( valueStatus, 50.0 );
-		AnchorPane.setRightAnchor( showStatusBar, 0.0 );
+				final BorderPane borderPane = new BorderPane( baseView.pane() );
+				final Label currentSourceStatus = new Label();
+				final Label valueStatus = new Label();
+				final CheckBox showStatusBar = new CheckBox();
+				final ObjectProperty< Source< ? > > cs = sourceInfo.currentSourceProperty();
+				final StringBinding csName = Bindings.createStringBinding( () -> Optional.ofNullable( cs.get() ).map( s -> s.getName() ).orElse( "<null>" ), cs );
+				currentSourceStatus.textProperty().bind( csName );
+				showStatusBar.setTooltip( new Tooltip( "If not selected, status bar will only show on mouse-over" ) );
+				final OrthogonalViewsValueDisplayListener vdl = new OrthogonalViewsValueDisplayListener( valueStatus::setText, cs, s -> interpolation.get() );
+				final AnchorPane statusBar = new AnchorPane( currentSourceStatus, valueStatus, showStatusBar );
+				AnchorPane.setLeftAnchor( currentSourceStatus, 0.0 );
+				AnchorPane.setLeftAnchor( valueStatus, 50.0 );
+				AnchorPane.setRightAnchor( showStatusBar, 0.0 );
 
-		final BooleanProperty isWithinMarginOfBorder = new SimpleBooleanProperty();
-		borderPane.addEventFilter( MouseEvent.MOUSE_MOVED, e -> isWithinMarginOfBorder.set( e.getY() < borderPane.getHeight() && borderPane.getHeight() - e.getY() <= statusBar.getHeight() ) );
-		statusBar.visibleProperty().addListener( ( obs, oldv, newv ) -> borderPane.setBottom( newv ? statusBar : null ) );
-		statusBar.visibleProperty().bind( isWithinMarginOfBorder.or( showStatusBar.selectedProperty() ) );
-		showStatusBar.setSelected( true );
+				final BooleanProperty isWithinMarginOfBorder = new SimpleBooleanProperty();
+				borderPane.addEventFilter( MouseEvent.MOUSE_MOVED, e -> isWithinMarginOfBorder.set( e.getY() < borderPane.getHeight() && borderPane.getHeight() - e.getY() <= statusBar.getHeight() ) );
+				statusBar.visibleProperty().addListener( ( obs, oldv, newv ) -> borderPane.setBottom( newv ? statusBar : null ) );
+				statusBar.visibleProperty().bind( isWithinMarginOfBorder.or( showStatusBar.selectedProperty() ) );
+				showStatusBar.setSelected( true );
 
-		currentSourceStatus.setMaxWidth( 45 );
+				currentSourceStatus.setMaxWidth( 45 );
 
-		onEnterOnExit.accept( new OnEnterOnExit( vdl.onEnter(), vdl.onExit() ) );
+				onEnterOnExit.accept( new OnEnterOnExit( vdl.onEnter(), vdl.onExit() ) );
 
-		final Stage stage = new Stage();
-		final Scene scene = new Scene( borderPane );
+				final Stage stage = new Stage();
+				final Scene scene = new Scene( borderPane );
 
-		stage.addEventFilter( WindowEvent.WINDOW_CLOSE_REQUEST, event -> viewerToTransforms.keySet().forEach( ViewerPanelFX::stop ) );
+				stage.addEventFilter( WindowEvent.WINDOW_CLOSE_REQUEST, event -> viewerToTransforms.keySet().forEach( ViewerPanelFX::stop ) );
 
-		Platform.setImplicitExit( true );
+				Platform.setImplicitExit( true );
 
-		final ScheduledExecutorService t = Executors.newScheduledThreadPool( 1 );
-		t.scheduleAtFixedRate( this::toggleInterpolation, 0, 1000, TimeUnit.MILLISECONDS );
-		this.interpolation.addListener( ( obs, oldv, newv ) -> baseView.orthogonalViews().requestRepaint() );
+				final ScheduledExecutorService t = Executors.newScheduledThreadPool( 1 );
+				t.scheduleAtFixedRate( this::toggleInterpolation, 0, 1000, TimeUnit.MILLISECONDS );
+				this.interpolation.addListener( ( obs, oldv, newv ) -> baseView.orthogonalViews().requestRepaint() );
 
-		final SourceTabs sideBar = new SourceTabs(
-				sourceInfo.currentSourceIndexProperty(),
-				sourceInfo::removeSource,
-				sourceInfo );
-		sideBar.widthProperty().set( 200 );
-		sideBar.get().setVisible( true );
+				final SourceTabs sideBar = new SourceTabs(
+						sourceInfo.currentSourceIndexProperty(),
+						sourceInfo::removeSource,
+						sourceInfo );
+				sideBar.widthProperty().set( 200 );
+				sideBar.get().setVisible( true );
 
-		scene.addEventHandler( KeyEvent.KEY_PRESSED, event -> {
-			if ( keyTracker.areOnlyTheseKeysDown( KeyCode.P ) )
-			{
-				borderPane.setRight( borderPane.getRight() == null ? sideBar.get() : null );
-				event.consume();
-			}
-		} );
+				scene.addEventHandler( KeyEvent.KEY_PRESSED, event -> {
+					if ( keyTracker.areOnlyTheseKeysDown( KeyCode.P ) )
+					{
+						borderPane.setRight( borderPane.getRight() == null ? sideBar.get() : null );
+						event.consume();
+					}
+				} );
 
-		sourceInfo.currentSourceProperty().set( labelSource );
+				sourceInfo.currentSourceProperty().set( labelSource );
 
-		sourceInfo.trackSources().addListener( FitToInterval.fitToIntervalWhenSourceAddedListener( baseView.manager(), baseView.orthogonalViews().topLeft().viewer().widthProperty()::get ) );
+				sourceInfo.trackSources().addListener( FitToInterval.fitToIntervalWhenSourceAddedListener( baseView.manager(), baseView.orthogonalViews().topLeft().viewer().widthProperty()::get ) );
 
-		baseView.addRawSource( source, 0, 255, toARGBType( Color.TEAL ) );
-		baseView.addLabelSource( labelSource, new FragmentSegmentAssignmentOnlyLocal( ( a, b ) -> {} ), ToIdConverter.fromIntegerType() );
-		baseView.viewer3D().setInitialTransformToInterval( data );
+				baseView.addRawSource( source, 0, 255, toARGBType( Color.TEAL ) );
+				baseView.addLabelSource( labelSource, new FragmentSegmentAssignmentOnlyLocal( ( a, b ) -> {} ), ToIdConverter.fromIntegerType() );
+				baseView.viewer3D().setInitialTransformToInterval( data );
 
-		keyTracker.installInto( scene );
-		stage.setScene( scene );
-		stage.setWidth( 800 );
-		stage.setHeight( 600 );
-		stage.show();
+				keyTracker.installInto( scene );
+				stage.setScene( scene );
+				stage.setWidth( 800 );
+				stage.setHeight( 600 );
+				stage.show();
 	}
 
 	public static void main( final String[] args )
@@ -301,9 +301,13 @@ public class Paintera extends Application
 
 		final ChangeListener< ViewerAndTransforms > onEnterOnExit = ( obs, oldv, newv ) -> {
 			if ( oldv != null )
+			{
 				onEnterOnExits.stream().map( OnEnterOnExit::onExit ).forEach( e -> e.accept( oldv.viewer() ) );
+			}
 			if ( newv != null )
+			{
 				onEnterOnExits.stream().map( OnEnterOnExit::onEnter ).forEach( e -> e.accept( newv.viewer() ) );
+			}
 		};
 
 		currentFocusHolder.addListener( onEnterOnExit );

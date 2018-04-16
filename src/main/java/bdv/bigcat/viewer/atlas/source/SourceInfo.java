@@ -5,6 +5,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 import java.util.function.Function;
+import java.util.function.LongFunction;
 import java.util.stream.Collectors;
 
 import bdv.bigcat.composite.Composite;
@@ -134,7 +135,7 @@ public class SourceInfo
 	public < D extends Type< D >, T extends Type< T >, F extends FragmentSegmentAssignmentState< F > > AtlasSourceState< T, D > makeLabelSourceState(
 			final DataSource< D, T > source,
 			final ToIdConverter idConverter,
-			final Function< D, Converter< D, BoolType > > toBoolConverter,
+			final LongFunction< Converter< D, BoolType > > toBoolConverter,
 			final F frag,
 			final ARGBStream stream,
 			final SelectedIds selectedIds,
@@ -153,7 +154,7 @@ public class SourceInfo
 	public < D extends Type< D >, T extends Type< T >, F extends FragmentSegmentAssignmentState< F > > AtlasSourceState< T, D > addLabelSource(
 			final DataSource< D, T > source,
 			final ToIdConverter idConverter,
-			final Function< D, Converter< D, BoolType > > toBoolConverter,
+			final LongFunction< Converter< D, BoolType > > toBoolConverter,
 			final F frag,
 			final ARGBStream stream,
 			final SelectedIds selectedIds,
@@ -176,7 +177,9 @@ public class SourceInfo
 		state.converterProperty().addListener( ( obs, oldv, newv ) -> updateVisibleSourcesAndConverters() );
 		state.visibleProperty().set( true );
 		if ( this.currentSource.get() == null )
+		{
 			this.currentSource.set( source );
+		}
 		state.compositeProperty().addListener( ( obs, oldv, newv ) -> this.composites.put( source, newv ) );
 	}
 
@@ -264,13 +267,17 @@ public class SourceInfo
 	public void moveSourceTo( final int from, final int to )
 	{
 		if ( from >= 0 && from < sources.size() )
+		{
 			moveSourceTo( sources.get( from ), to );
+		}
 	}
 
 	private void modifyCurrentSourceIndex( final int amount )
 	{
 		if ( this.sources.size() == 0 )
+		{
 			this.currentSourceIndex.set( -1 );
+		}
 		else
 		{
 			final int newIndex = ( this.currentSourceIndex.get() + amount ) % this.sources.size();

@@ -1,7 +1,7 @@
 package bdv.bigcat.viewer.atlas.control.paint;
 
 import java.lang.invoke.MethodHandles;
-import java.util.function.Function;
+import java.util.function.LongFunction;
 import java.util.function.Predicate;
 
 import org.slf4j.Logger;
@@ -88,7 +88,7 @@ public class RestrictPainting
 			return;
 		}
 
-		final Function< ?, ? > maskGenerator = state.maskGeneratorProperty().get();
+		final LongFunction< ? > maskGenerator = state.maskGeneratorProperty().get();
 		if ( maskGenerator == null )
 		{
 			LOG.warn( "Cannot generate boolean mask for this source -- will not fill" );
@@ -113,7 +113,9 @@ public class RestrictPainting
 		final RealPoint rp = setCoordinates( x, y, viewer, labelTransform );
 		final Point p = new Point( rp.numDimensions() );
 		for ( int d = 0; d < p.numDimensions(); ++d )
+		{
 			p.setPosition( Math.round( rp.getDoublePosition( d ) ), d );
+		}
 
 		try
 		{
@@ -215,7 +217,9 @@ public class RestrictPainting
 		for ( int i = 0; i < coordinates[ 0 ].size(); ++i )
 		{
 			for ( int d = 0; d < n; ++d )
+			{
 				neighborhoodAccess.setPosition( coordinates[ d ].get( i ), d );
+			}
 
 			final Cursor< Pair< Pair< T, U >, UnsignedByteType > > neighborhoodCursor = neighborhoodAccess.get().cursor();
 
@@ -230,7 +234,9 @@ public class RestrictPainting
 					// (==not active), else with one (==active).
 					m.set( backgroundFilter.test( backgroundAndCanvas.getA() ) ? two : one );
 					for ( int d = 0; d < n; ++d )
+					{
 						coordinates[ d ].add( neighborhoodCursor.getLongPosition( d ) );
+					}
 				}
 
 			}

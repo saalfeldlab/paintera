@@ -1,8 +1,13 @@
 package bdv.bigcat.viewer.ortho;
 
 import java.lang.invoke.MethodHandles;
+import java.util.Arrays;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.function.BiConsumer;
 import java.util.function.Function;
+import java.util.function.LongFunction;
+import java.util.stream.Stream;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -11,7 +16,6 @@ import bdv.bigcat.composite.ARGBCompositeAlphaAdd;
 import bdv.bigcat.composite.ARGBCompositeAlphaYCbCr;
 import bdv.bigcat.composite.ClearingCompositeProjector;
 import bdv.bigcat.composite.Composite;
-import bdv.bigcat.label.Label;
 import bdv.bigcat.viewer.ARGBColorConverter;
 import bdv.bigcat.viewer.ToIdConverter;
 import bdv.bigcat.viewer.atlas.data.DataSource;
@@ -22,6 +26,7 @@ import bdv.bigcat.viewer.meshes.MeshGenerator.ShapeKey;
 import bdv.bigcat.viewer.meshes.MeshInfos;
 import bdv.bigcat.viewer.meshes.MeshManager;
 import bdv.bigcat.viewer.meshes.MeshManagerWithAssignment;
+import bdv.bigcat.viewer.meshes.cache.CacheUtils;
 import bdv.bigcat.viewer.state.FragmentSegmentAssignmentState;
 import bdv.bigcat.viewer.state.FragmentsInSelectedSegments;
 import bdv.bigcat.viewer.state.GlobalTransformManager;
@@ -29,6 +34,7 @@ import bdv.bigcat.viewer.state.SelectedIds;
 import bdv.bigcat.viewer.state.SelectedSegments;
 import bdv.bigcat.viewer.stream.HighlightingStreamConverter;
 import bdv.bigcat.viewer.stream.ModalGoldenAngleSaturatedHighlightingARGBStream;
+import bdv.bigcat.viewer.util.HashWrapper;
 import bdv.bigcat.viewer.viewer3d.Viewer3DFX;
 import bdv.util.IdService;
 import bdv.util.volatiles.SharedQueue;
@@ -36,6 +42,7 @@ import bdv.viewer.Interpolation;
 import bdv.viewer.Source;
 import bdv.viewer.SourceAndConverter;
 import bdv.viewer.ViewerOptions;
+import gnu.trove.set.hash.TLongHashSet;
 import javafx.beans.property.SimpleIntegerProperty;
 import javafx.collections.ListChangeListener;
 import javafx.collections.ObservableList;
@@ -45,9 +52,9 @@ import net.imglib2.converter.Converter;
 import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.type.Type;
 import net.imglib2.type.label.LabelMultisetType;
-import net.imglib2.type.label.Multiset.Entry;
 import net.imglib2.type.logic.BoolType;
 import net.imglib2.type.numeric.ARGBType;
+import net.imglib2.type.numeric.IntegerType;
 import net.imglib2.type.numeric.RealType;
 import net.imglib2.util.Pair;
 
@@ -71,6 +78,8 @@ public class PainteraBaseView
 	private final ObservableList< SourceAndConverter< ? > > visibleSourcesAndConverters = sourceInfo.trackVisibleSourcesAndConverters();
 
 	private final ListChangeListener< SourceAndConverter< ? > > vsacUpdate;
+
+	private final ExecutorService generalPurposeExecutorService = Executors.newFixedThreadPool( 3, new NamedThreadFactory( "paintera-thread-%d" ) );
 
 	public PainteraBaseView( final int numFetcherThreads, final Function< Source< ? >, Interpolation > interpolation )
 	{
@@ -148,7 +157,7 @@ public class PainteraBaseView
 			final DataSource< D, T > source,
 			final F assignment,
 			final ToIdConverter toIdConverter,
-			final Function< D, Converter< D, BoolType > > equalsMask )
+			final LongFunction< Converter< D, BoolType > > equalsMask )
 	{
 		addLabelSource( source, assignment, null, toIdConverter, null, null, equalsMask );
 	}
@@ -171,7 +180,7 @@ public class PainteraBaseView
 			final ToIdConverter toIdConverter,
 			final Function< Long, Interval[] >[] blocksThatContainId,
 			final Function< ShapeKey, Pair< float[], float[] > >[] meshCache,
-			final Function< D, Converter< D, BoolType > > equalsMask )
+			final LongFunction< Converter< D, BoolType > > equalsMask )
 	{
 		final SelectedIds selId = new SelectedIds();
 		final ModalGoldenAngleSaturatedHighlightingARGBStream stream = new ModalGoldenAngleSaturatedHighlightingARGBStream( selId, assignment );
@@ -225,13 +234,13 @@ public class PainteraBaseView
 		else
 		{
 			// off-diagonal in case of permutations)
-//			generateMeshCaches(
-//					spec,
-//					state,
-//					scaleFactorsFromAffineTransforms( spec ),
-//					( lbl, set ) -> lbl.entrySet().forEach( entry -> set.add( entry.getElement().id() ) ),
-//					lbl -> ( src, tgt ) -> tgt.set( src.contains( lbl ) ),
-//					generalPurposeExecutorService );
+			generateMeshCaches(
+					source,
+					state,
+					scaleFactorsFromAffineTransforms( source ),
+					collectLabels( source.getDataType() ),
+					equalsMask,
+					generalPurposeExecutorService );
 		}
 
 		sourceInfo.addState( source, state );
@@ -239,41 +248,130 @@ public class PainteraBaseView
 	}
 
 	@SuppressWarnings( { "unchecked", "rawtypes" } )
-	public static < D > Function< D, Converter< D, BoolType > > equalsMaskForType( final D d )
+	public static < D > LongFunction< Converter< D, BoolType > > equalsMaskForType( final D d )
 	{
-		if ( d instanceof LabelMultisetType )
-			return ( Function ) equalMaskForLabelMultisetType();
+		if ( d instanceof LabelMultisetType ) {
+			return ( LongFunction ) equalMaskForLabelMultisetType();
+		}
 
-		if ( d instanceof Type< ? > )
-			return ( Function ) equalMaskForType();
+		if ( d instanceof IntegerType< ? > ) {
+			return ( LongFunction ) equalMaskForIntegerType();
+		}
+
+		if ( d instanceof RealType< ? > ) {
+			return ( LongFunction ) equalMaskForRealType();
+		}
+
 		return null;
 	}
 
-	public static < D extends Type< D > > Function< D, Converter< D, BoolType > > equalMaskForType()
+	public static LongFunction< Converter< LabelMultisetType, BoolType > > equalMaskForLabelMultisetType()
 	{
-		return initial -> ( s, t ) -> t.set( s.valueEquals( initial ) );
+		return id -> ( s, t ) -> t.set( s.contains( id ) );
 	}
 
-	public static Function< LabelMultisetType, Converter< LabelMultisetType, BoolType > > equalMaskForLabelMultisetType()
+	public static < D extends IntegerType< D > > LongFunction< Converter< D, BoolType > > equalMaskForIntegerType()
 	{
-		return initial -> {
-			long argMax = Label.INVALID;
-			int maxCount = 0;
-			for ( final Entry< net.imglib2.type.label.Label > entry : initial.entrySet() )
-			{
-				if ( entry.getCount() > maxCount )
-				{
-					argMax = entry.getElement().id();
-					maxCount = entry.getCount();
-				}
-			}
-
-			final long finalArgMax = argMax;
-			if ( Label.regular( argMax ) )
-				return ( s, t ) -> t.set( s.contains( finalArgMax ) );
-
-			return ( s, t ) -> t.set( false );
-		};
+		return id -> ( s, t ) -> t.set( s.getIntegerLong() == id );
 	}
+
+	public static < D extends RealType< D > > LongFunction< Converter< D, BoolType > > equalMaskForRealType()
+	{
+		return id -> ( s, t ) -> t.set( s.getRealDouble() == id );
+	}
+
+	private static < D extends Type< D >, T extends Type< T > > void generateMeshCaches(
+			final DataSource< D, T > spec,
+			final AtlasSourceState< T, D > state,
+			final double[][] scalingFactors,
+			final BiConsumer< D, TLongHashSet > collectLabels,
+			final LongFunction< Converter< D, BoolType > > getMaskGenerator,
+			final ExecutorService es )
+	{
+
+		final int[][] blockSizes = Stream.generate( () -> new int[] { 64, 64, 64 } ).limit( spec.getNumMipmapLevels() ).toArray( int[][]::new );
+		final int[][] cubeSizes = Stream.generate( () -> new int[] { 1, 1, 1 } ).limit( spec.getNumMipmapLevels() ).toArray( int[][]::new );
+
+		final Function< HashWrapper< long[] >, long[] >[] uniqueLabelLoaders = CacheUtils.uniqueLabelCaches(
+				spec,
+				blockSizes,
+				collectLabels,
+				CacheUtils::toCacheSoftRefLoaderCache );
+
+		final Function< Long, Interval[] >[] blocksForLabelCache = CacheUtils.blocksForLabelCaches(
+				spec,
+				uniqueLabelLoaders,
+				blockSizes,
+				scalingFactors,
+				CacheUtils::toCacheSoftRefLoaderCache,
+				es );
+
+		final Function< ShapeKey, Pair< float[], float[] > >[] meshCaches = CacheUtils.meshCacheLoaders(
+				spec,
+				cubeSizes,
+				getMaskGenerator,
+				CacheUtils::toCacheSoftRefLoaderCache );
+
+		state.blocklistCacheProperty().set( blocksForLabelCache );
+		state.meshesCacheProperty().set( meshCaches );
+	}
+
+	public static double[][] scaleFactorsFromAffineTransforms( final Source< ? > source )
+	{
+		final double[][] scaleFactors = new double[ source.getNumMipmapLevels() ][ 3 ];
+		final AffineTransform3D reference = new AffineTransform3D();
+		source.getSourceTransform( 0, 0, reference );
+		for ( int level = 0; level < scaleFactors.length; ++level )
+		{
+			final double[] factors = scaleFactors[ level ];
+			final AffineTransform3D transform = new AffineTransform3D();
+			source.getSourceTransform( 0, level, transform );
+			factors[ 0 ] = transform.get( 0, 0 ) / reference.get( 0, 0 );
+			factors[ 1 ] = transform.get( 1, 1 ) / reference.get( 1, 1 );
+			factors[ 2 ] = transform.get( 2, 2 ) / reference.get( 2, 2 );
+		}
+
+		if ( LOG.isDebugEnabled() )
+		{
+			LOG.debug( "Generated scaling factors:" );
+			Arrays.stream( scaleFactors ).map( Arrays::toString ).forEach( LOG::debug );
+		}
+
+		return scaleFactors;
+	}
+
+	@SuppressWarnings( "unchecked" )
+	public static < T > BiConsumer< T, TLongHashSet > collectLabels( final T type )
+	{
+		if ( type instanceof LabelMultisetType )
+		{
+			return ( BiConsumer< T, TLongHashSet > ) collectLabelsFromLabelMultisetType();
+		}
+		if ( type instanceof IntegerType< ? > )
+		{
+			return ( BiConsumer< T, TLongHashSet > ) collectLabelsFromIntegerType();
+		}
+		if ( type instanceof RealType< ? > )
+		{
+			return ( BiConsumer< T, TLongHashSet > ) collectLabelsFromRealType();
+		}
+		return null;
+	}
+
+	private static BiConsumer< LabelMultisetType, TLongHashSet > collectLabelsFromLabelMultisetType()
+	{
+		return ( lbl, set ) -> lbl.entrySet().forEach( entry -> set.add( entry.getElement().id() ) );
+	}
+
+	private static < I extends IntegerType< I > > BiConsumer< I, TLongHashSet > collectLabelsFromIntegerType()
+	{
+		return ( lbl, set ) -> set.add( lbl.getIntegerLong() );
+	}
+
+	private static < R extends RealType< R > > BiConsumer< R, TLongHashSet > collectLabelsFromRealType()
+	{
+		return ( lbl, set ) -> set.add( ( long ) lbl.getRealDouble() );
+	}
+
 
 }
