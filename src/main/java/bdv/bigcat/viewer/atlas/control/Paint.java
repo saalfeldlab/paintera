@@ -171,7 +171,9 @@ public class Paint implements ToOnEnterOnExit
 			if ( this.mouseAndKeyHandlers.containsKey( t ) )
 			{
 				if ( painters.containsKey( t ) )
+				{
 					painters.get( t ).setBrushOverlayVisible( false );
+				}
 				this.mouseAndKeyHandlers.get( t ).forEach( handler -> {
 					handler.removeFrom( t );
 				} );

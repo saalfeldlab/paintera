@@ -9,7 +9,7 @@ import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import bdv.bigcat.viewer.atlas.source.AtlasSourceState;
+import bdv.bigcat.viewer.atlas.source.SourceState;
 import bdv.bigcat.viewer.atlas.ui.BindUnbindAndNodeSupplier;
 import bdv.bigcat.viewer.meshes.MeshInfo;
 import bdv.bigcat.viewer.meshes.MeshInfos;
@@ -124,7 +124,7 @@ public class MeshPane implements BindUnbindAndNodeSupplier, ListChangeListener< 
 			{
 				ExportResult parameters = result.get();
 
-				final AtlasSourceState< ?, ? >[] states = new AtlasSourceState< ?, ? >[ meshInfos.readOnlyInfos().size() ];
+				final SourceState< ?, ? >[] states = new SourceState< ?, ? >[ meshInfos.readOnlyInfos().size() ];
 				for ( int i = 0; i < meshInfos.readOnlyInfos().size(); i++ )
 					states[ i ] = meshInfos.readOnlyInfos().get( i ).state();
 				parameters.getMeshExporter().exportMesh( states, parameters.getSegmentId(), parameters.getScale(), parameters.getFilePaths() );

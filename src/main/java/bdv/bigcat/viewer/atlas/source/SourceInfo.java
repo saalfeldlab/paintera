@@ -12,7 +12,7 @@ import bdv.bigcat.composite.Composite;
 import bdv.bigcat.viewer.ARGBColorConverter;
 import bdv.bigcat.viewer.ToIdConverter;
 import bdv.bigcat.viewer.atlas.data.DataSource;
-import bdv.bigcat.viewer.atlas.source.AtlasSourceState.TYPE;
+import bdv.bigcat.viewer.atlas.source.SourceState.TYPE;
 import bdv.bigcat.viewer.meshes.MeshManager;
 import bdv.bigcat.viewer.state.FragmentSegmentAssignmentState;
 import bdv.bigcat.viewer.state.SelectedIds;
@@ -42,7 +42,7 @@ import net.imglib2.type.numeric.RealType;
 public class SourceInfo
 {
 
-	private final ObservableMap< Source< ? >, AtlasSourceState< ?, ? > > states = FXCollections.observableHashMap();
+	private final ObservableMap< Source< ? >, SourceState< ?, ? > > states = FXCollections.observableHashMap();
 
 	private final ObservableList< Source< ? > > sources = FXCollections.observableArrayList();
 
@@ -90,15 +90,15 @@ public class SourceInfo
 
 	private final BooleanProperty anyStateChanged = new SimpleBooleanProperty();
 	{
-		this.states.addListener( ( MapChangeListener< Source< ? >, AtlasSourceState< ?, ? > > ) change -> {
+		this.states.addListener( ( MapChangeListener< Source< ? >, SourceState< ?, ? > > ) change -> {
 			anyStateChanged.unbind();
 			anyStateChanged.set( true );
-			final BooleanProperty[] stateChanged = this.states.values().stream().map( AtlasSourceState::stateChanged ).toArray( BooleanProperty[]::new );
+			final BooleanProperty[] stateChanged = this.states.values().stream().map( SourceState::stateChanged ).toArray( BooleanProperty[]::new );
 			anyStateChanged.bind( Bindings.createBooleanBinding( () -> ( Arrays.stream( stateChanged ).filter( abc -> abc.get() ).count() > 0 ), stateChanged ) );
 		} );
 	}
 
-	public < D extends Type< D >, T extends RealType< T > > AtlasSourceState< T, D > makeRawSourceState(
+	public < D extends Type< D >, T extends RealType< T > > SourceState< T, D > makeRawSourceState(
 			final DataSource< D, T > source,
 			final double min,
 			final double max,
@@ -107,32 +107,32 @@ public class SourceInfo
 	{
 		final ARGBColorConverter< T > converter = new ARGBColorConverter.InvertingImp1<>( min, max );
 		converter.colorProperty().set( color );
-		final AtlasSourceState< T, D > state = new AtlasSourceState<>( source, converter, composite, AtlasSourceState.TYPE.RAW );
+		final SourceState< T, D > state = new SourceState<>( source, converter, composite, SourceState.TYPE.RAW );
 		return state;
 	}
 
-	public < D extends Type< D >, T extends RealType< T > > AtlasSourceState< T, D > addRawSource(
+	public < D extends Type< D >, T extends RealType< T > > SourceState< T, D > addRawSource(
 			final DataSource< D, T > source,
 			final double min,
 			final double max,
 			final ARGBType color,
 			final Composite< ARGBType, ARGBType > composite )
 	{
-		final AtlasSourceState< T, D > state = makeRawSourceState( source, min, max, color, composite );
+		final SourceState< T, D > state = makeRawSourceState( source, min, max, color, composite );
 		addState( source, state );
 		return state;
 	}
 
-	public < D extends Type< D >, T extends Type< T > > AtlasSourceState< T, D > makeGenericSourceState(
+	public < D extends Type< D >, T extends Type< T > > SourceState< T, D > makeGenericSourceState(
 			final DataSource< D, T > source,
 			final Converter< T, ARGBType > converter,
 			final Composite< ARGBType, ARGBType > composite )
 	{
 
-		return new AtlasSourceState<>( source, converter, composite, TYPE.GENERIC );
+		return new SourceState<>( source, converter, composite, TYPE.GENERIC );
 	}
 
-	public < D extends Type< D >, T extends Type< T >, F extends FragmentSegmentAssignmentState< F > > AtlasSourceState< T, D > makeLabelSourceState(
+	public < D extends Type< D >, T extends Type< T >, F extends FragmentSegmentAssignmentState< F > > SourceState< T, D > makeLabelSourceState(
 			final DataSource< D, T > source,
 			final ToIdConverter idConverter,
 			final LongFunction< Converter< D, BoolType > > toBoolConverter,
@@ -142,7 +142,7 @@ public class SourceInfo
 			final Converter< T, ARGBType > converter,
 			final Composite< ARGBType, ARGBType > composite )
 	{
-		final AtlasSourceState< T, D > state = new AtlasSourceState<>( source, converter, composite, TYPE.LABEL );
+		final SourceState< T, D > state = new SourceState<>( source, converter, composite, TYPE.LABEL );
 		state.toIdConverterProperty().set( idConverter );
 		state.maskGeneratorProperty().set( toBoolConverter );
 		state.assignmentProperty().set( frag );
@@ -151,7 +151,7 @@ public class SourceInfo
 		return state;
 	}
 
-	public < D extends Type< D >, T extends Type< T >, F extends FragmentSegmentAssignmentState< F > > AtlasSourceState< T, D > addLabelSource(
+	public < D extends Type< D >, T extends Type< T >, F extends FragmentSegmentAssignmentState< F > > SourceState< T, D > addLabelSource(
 			final DataSource< D, T > source,
 			final ToIdConverter idConverter,
 			final LongFunction< Converter< D, BoolType > > toBoolConverter,
@@ -161,12 +161,12 @@ public class SourceInfo
 			final Converter< T, ARGBType > converter,
 			final Composite< ARGBType, ARGBType > composite )
 	{
-		final AtlasSourceState< T, D > state = makeLabelSourceState( source, idConverter, toBoolConverter, frag, stream, selectedIds, converter, composite );
+		final SourceState< T, D > state = makeLabelSourceState( source, idConverter, toBoolConverter, frag, stream, selectedIds, converter, composite );
 		addState( source, state );
 		return state;
 	}
 
-	public synchronized < D extends Type< D >, T extends Type< T > > void addState( final Source< T > source, final AtlasSourceState< T, D > state )
+	public synchronized < D extends Type< D >, T extends Type< T > > void addState( final Source< T > source, final SourceState< T, D > state )
 	{
 		this.states.put( source, state );
 		// composites needs to hold a valid (!=null) value for source whenever
@@ -196,20 +196,20 @@ public class SourceInfo
 
 	public synchronized Optional< ToIdConverter > toIdConverter( final Source< ? > source )
 	{
-		final AtlasSourceState< ?, ? > state = states.get( source );
+		final SourceState< ?, ? > state = states.get( source );
 		return state == null ? Optional.empty() : Optional.ofNullable( state.toIdConverterProperty().get() );
 	}
 
 	@SuppressWarnings( { "unchecked", "rawtypes" } )
 	public synchronized Optional< Function< ?, Converter< ?, BoolType > > > toBoolConverter( final Source< ? > source )
 	{
-		final AtlasSourceState< ?, ? > state = states.get( source );
+		final SourceState< ?, ? > state = states.get( source );
 		return state == null ? Optional.empty() : Optional.ofNullable( ( Function< ?, Converter< ?, BoolType > > ) ( Function ) state.maskGeneratorProperty().get() );
 	}
 
 	public synchronized Optional< ? extends FragmentSegmentAssignmentState< ? > > assignment( final Source< ? > source )
 	{
-		final AtlasSourceState< ?, ? > state = states.get( source );
+		final SourceState< ?, ? > state = states.get( source );
 		return state != null ? Optional.ofNullable( state.assignmentProperty().get() ) : Optional.empty();
 	}
 
@@ -218,7 +218,7 @@ public class SourceInfo
 		return this.states.size();
 	}
 
-	public AtlasSourceState< ?, ? > getState( final Source< ? > source )
+	public SourceState< ?, ? > getState( final Source< ? > source )
 	{
 		return states.get( source );
 	}
@@ -322,7 +322,7 @@ public class SourceInfo
 		this.visibleSourcesAndConverter.setAll( this.visibleSources
 				.stream()
 				.map( states::get )
-				.map( AtlasSourceState::getSourceAndConverter )
+				.map( SourceState::getSourceAndConverter )
 				.collect( Collectors.toList() ) );
 	}
 

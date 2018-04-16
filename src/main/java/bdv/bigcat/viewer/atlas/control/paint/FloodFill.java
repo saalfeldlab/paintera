@@ -15,7 +15,7 @@ import bdv.bigcat.label.Label;
 import bdv.bigcat.viewer.atlas.data.mask.MaskInUse;
 import bdv.bigcat.viewer.atlas.data.mask.MaskInfo;
 import bdv.bigcat.viewer.atlas.data.mask.MaskedSource;
-import bdv.bigcat.viewer.atlas.source.AtlasSourceState;
+import bdv.bigcat.viewer.atlas.source.SourceState;
 import bdv.bigcat.viewer.atlas.source.SourceInfo;
 import bdv.bigcat.viewer.bdvfx.ViewerPanelFX;
 import bdv.bigcat.viewer.bdvfx.ViewerState;
@@ -92,7 +92,7 @@ public class FloodFill
 			return;
 		}
 
-		final AtlasSourceState< ?, ? > state = sourceInfo.getState( currentSource );
+		final SourceState< ?, ? > state = sourceInfo.getState( currentSource );
 		if ( !state.visibleProperty().get() )
 		{
 			LOG.warn( "Selected source is not visible -- will not fill" );

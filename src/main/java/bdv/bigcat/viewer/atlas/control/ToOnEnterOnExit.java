@@ -2,7 +2,7 @@ package bdv.bigcat.viewer.atlas.control;
 
 import java.util.function.Consumer;
 
-import bdv.bigcat.viewer.atlas.AtlasFocusHandler.OnEnterOnExit;
+import bdv.bigcat.viewer.atlas.OnEnterOnExit;
 import bdv.bigcat.viewer.bdvfx.ViewerPanelFX;
 
 public interface ToOnEnterOnExit

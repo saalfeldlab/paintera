@@ -20,7 +20,6 @@ import bdv.bigcat.viewer.atlas.source.SourceInfo;
 import bdv.bigcat.viewer.bdvfx.MouseDragFX;
 import bdv.bigcat.viewer.bdvfx.ViewerPanelFX;
 import bdv.bigcat.viewer.bdvfx.ViewerState;
-import bdv.bigcat.viewer.panel.ViewerPanelInOrthoView;
 import bdv.bigcat.viewer.state.GlobalTransformManager;
 import bdv.img.AccessBoxRandomAccessibleOnGet;
 import bdv.viewer.Source;
@@ -126,9 +125,13 @@ public class Paint2D
 	public void changeBrushRadius( final double sign )
 	{
 		if ( sign > 0 )
+		{
 			decreaseBrushRadius();
+		}
 		else if ( sign < 0 )
+		{
 			increaseBrushRadius();
+		}
 	}
 
 	public void decreaseBrushRadius()
@@ -144,7 +147,9 @@ public class Paint2D
 	public void setBrushRadius( final double radius )
 	{
 		if ( radius > 0 && radius < Math.min( viewer.getWidth(), viewer.getHeight() ) )
+		{
 			this.brushRadius.set( radius );
+		}
 	}
 
 	public MouseDragFX dragPaintLabel( final String name, final Supplier< Long > id, final Predicate< MouseEvent > eventFilter )
@@ -180,7 +185,9 @@ public class Paint2D
 	{
 		paint( event.getX(), event.getY() );
 		if ( consume )
+		{
 			event.consume();
+		}
 		repaintRequest.run();
 //		applyMask();
 
@@ -197,14 +204,16 @@ public class Paint2D
 
 		LOG.debug( "Prepare for painting with source {}", viewerSource );
 
-		if ( viewerSource == null || !( viewerSource instanceof DataSource< ?, ? > ) || !sourceInfo.getState( viewerSource ).visibleProperty().get() )
+		if ( viewerSource == null || !( viewerSource instanceof DataSource< ?, ? > ) || !sourceInfo.getState( viewerSource ).visibleProperty().get() ) {
 			return;
+		}
 
 		final DataSource< ?, ? > source = ( DataSource< ?, ? > ) viewerSource;
 		final MaskedSource< ?, ? > maskedSource = sourceInfo.getState( source ).maskedSourceProperty().get();
 
-		if ( maskedSource == null )
+		if ( maskedSource == null ) {
 			return;
+		}
 
 		final AffineTransform3D viewerTransform = new AffineTransform3D();
 		state.getViewerTransform( viewerTransform );
@@ -241,8 +250,9 @@ public class Paint2D
 	{
 
 		final RandomAccessibleInterval< UnsignedByteType > labels = this.canvas.get();
-		if ( labels == null )
+		if ( labels == null ) {
 			return;
+		}
 
 		final AffineTransform3D labelToViewerTransform = this.labelToViewerTransform.copy();
 		final AffineTransform3D labelToGlobalTransform = this.labelToGlobalTransform.copy();
@@ -284,7 +294,9 @@ public class Paint2D
 					final double dx = x - viewerX;
 					final double dy = y - viewerY;
 					if ( dx * dx + dy * dy < radiusSquared )
+					{
 						isValid = true;
+					}
 				}
 				t.set( isValid );
 			};
@@ -318,21 +330,6 @@ public class Paint2D
 
 		this.interval.set( new FinalInterval( min, max ) );
 
-	}
-
-	private static int viewerAxisToDimensionIndex( final ViewerPanelInOrthoView.ViewerAxis axis )
-	{
-		switch ( axis )
-		{
-		case X:
-			return 0;
-		case Y:
-			return 1;
-		case Z:
-			return 2;
-		default:
-			return -1;
-		}
 	}
 
 	private class PaintDrag extends MouseDragFX

@@ -5,7 +5,7 @@ import java.util.Optional;
 
 import org.controlsfx.control.StatusBar;
 
-import bdv.bigcat.viewer.atlas.source.AtlasSourceState;
+import bdv.bigcat.viewer.atlas.source.SourceState;
 import bdv.bigcat.viewer.atlas.ui.BindUnbindAndNodeSupplier;
 import bdv.bigcat.viewer.meshes.MeshInfo;
 import bdv.bigcat.viewer.meshes.MeshManager;
@@ -48,7 +48,7 @@ public class MeshInfoNode implements BindUnbindAndNodeSupplier
 		this.contents = createContents();
 	}
 
-	public MeshInfoNode( final AtlasSourceState< ?, ? > state, final long segmentId, final FragmentSegmentAssignment assignment, final MeshManager meshManager, final int numScaleLevels )
+	public MeshInfoNode( final SourceState< ?, ? > state, final long segmentId, final FragmentSegmentAssignment assignment, final MeshManager meshManager, final int numScaleLevels )
 	{
 		this( new MeshInfo( state, segmentId, assignment, meshManager, numScaleLevels ) );
 	}

@@ -1,4 +1,4 @@
-package bdv.bigcat.viewer.ortho;
+package bdv.util;
 
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.atomic.AtomicInteger;

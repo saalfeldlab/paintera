@@ -17,7 +17,7 @@ import net.imglib2.RealPoint;
 import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.ui.TransformListener;
 
-public class AtlasMouseCoordinatePrinter
+public class MouseCoordinatePrinter
 {
 
 	private static final Logger LOG = LoggerFactory.getLogger( MethodHandles.lookup().lookupClass() );
@@ -63,7 +63,7 @@ public class AtlasMouseCoordinatePrinter
 
 	private final Label statusBar;
 
-	public AtlasMouseCoordinatePrinter( final Label statusBar )
+	public MouseCoordinatePrinter( final Label statusBar )
 	{
 		super();
 		this.statusBar = statusBar;

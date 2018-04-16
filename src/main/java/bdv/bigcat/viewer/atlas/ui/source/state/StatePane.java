@@ -8,7 +8,7 @@ import java.util.function.Consumer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import bdv.bigcat.viewer.atlas.source.AtlasSourceState;
+import bdv.bigcat.viewer.atlas.source.SourceState;
 import bdv.bigcat.viewer.atlas.source.SourceInfo;
 import bdv.bigcat.viewer.atlas.ui.BindUnbindAndNodeSupplier;
 import bdv.bigcat.viewer.atlas.ui.CloseButton;
@@ -38,7 +38,7 @@ public class StatePane implements BindUnbindAndNodeSupplier
 
 	private static final Logger LOG = LoggerFactory.getLogger( MethodHandles.lookup().lookupClass() );
 
-	private final AtlasSourceState< ?, ? > state;
+	private final SourceState< ?, ? > state;
 
 	private final SourceInfo sourceInfo;
 
@@ -53,7 +53,7 @@ public class StatePane implements BindUnbindAndNodeSupplier
 	private final BooleanProperty isVisible = new SimpleBooleanProperty();
 
 	public StatePane(
-			final AtlasSourceState< ?, ? > state,
+			final SourceState< ?, ? > state,
 			final SourceInfo sourceInfo,
 			final Consumer< Source< ? > > remove,
 			final ObservableDoubleValue width )
@@ -142,7 +142,7 @@ public class StatePane implements BindUnbindAndNodeSupplier
 		return tp;
 	}
 
-	private static BindUnbindAndNodeSupplier meshPane( final AtlasSourceState< ?, ? > state )
+	private static BindUnbindAndNodeSupplier meshPane( final SourceState< ?, ? > state )
 	{
 		LOG.debug( "Creating mesh pane for source {} from {} and {}: ", state.nameProperty().get(), state.meshManagerProperty(), state.meshInfosProperty() );
 		if ( state.meshManagerProperty().get() != null && state.meshInfosProperty().get() != null )

@@ -11,8 +11,6 @@ import org.slf4j.LoggerFactory;
 import bdv.bigcat.viewer.atlas.control.navigation.AffineTransformWithListeners;
 import bdv.bigcat.viewer.atlas.control.navigation.TransformConcatenator;
 import bdv.bigcat.viewer.bdvfx.ViewerPanelFX;
-import bdv.bigcat.viewer.panel.ViewerPanelInOrthoView;
-import bdv.bigcat.viewer.panel.ViewerPanelInOrthoView.ViewerAxis;
 import bdv.bigcat.viewer.state.GlobalTransformManager;
 import bdv.cache.CacheControl;
 import bdv.util.volatiles.SharedQueue;
@@ -120,7 +118,7 @@ public class OrthogonalViews< BR extends Node >
 			final ViewerAxis axis,
 			final Function< Source< ? >, Interpolation > interpolation )
 	{
-		final AffineTransform3D globalToViewer = ViewerPanelInOrthoView.globalToViewer( axis );
+		final AffineTransform3D globalToViewer = ViewerAxis.globalToViewer( axis );
 		LOG.warn( "Generating viewer, axis={}, globalToViewer={}", axis, globalToViewer );
 		final ViewerPanelFX viewer = new ViewerPanelFX( 1, cacheControl, optional, interpolation );
 		final AffineTransformWithListeners displayTransform = new AffineTransformWithListeners();

@@ -6,8 +6,8 @@ import java.util.function.BiConsumer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import bdv.bigcat.viewer.atlas.source.AtlasSourceState;
-import bdv.bigcat.viewer.atlas.source.AtlasSourceState.TYPE;
+import bdv.bigcat.viewer.atlas.source.SourceState;
+import bdv.bigcat.viewer.atlas.source.SourceState.TYPE;
 import bdv.bigcat.viewer.atlas.source.SourceInfo;
 import bdv.bigcat.viewer.state.SelectedIds;
 import bdv.util.IdService;
@@ -47,7 +47,7 @@ public class SelectNextId
 			return;
 		}
 
-		final AtlasSourceState< ?, ? > state = sourceInfo.getState( currentSource );
+		final SourceState< ?, ? > state = sourceInfo.getState( currentSource );
 
 		// TODO should we create ids also for invisible sources?
 		if ( !state.visibleProperty().get() )

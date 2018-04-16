@@ -4,7 +4,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
 
-import bdv.bigcat.viewer.atlas.source.AtlasSourceState;
+import bdv.bigcat.viewer.atlas.source.SourceState;
 import bdv.bigcat.viewer.state.FragmentSegmentAssignment;
 import bdv.bigcat.viewer.state.SelectedSegments;
 import javafx.collections.FXCollections;
@@ -18,7 +18,7 @@ public class MeshInfos
 	private final ObservableList< MeshInfo > readOnlyInfos = FXCollections.unmodifiableObservableList( infos );
 
 	public MeshInfos(
-			final AtlasSourceState< ?, ? > state,
+			final SourceState< ?, ? > state,
 			final SelectedSegments< ? > selectedSegments,
 			final FragmentSegmentAssignment assignment,
 			final MeshManager meshManager,

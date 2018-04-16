@@ -36,7 +36,7 @@ import net.imglib2.type.numeric.ARGBType;
 import net.imglib2.type.numeric.integer.UnsignedLongType;
 import net.imglib2.util.Pair;
 
-public class AtlasSourceState< T extends Type< T >, D extends Type< D > >
+public class SourceState< T extends Type< T >, D extends Type< D > >
 {
 
 	public enum TYPE
@@ -44,7 +44,7 @@ public class AtlasSourceState< T extends Type< T >, D extends Type< D > >
 		RAW, LABEL, GENERIC
 	};
 
-	public AtlasSourceState(
+	public SourceState(
 			final DataSource< D, T > dataSource,
 			final Converter< T, ARGBType > converter,
 			final Composite< ARGBType, ARGBType > composite,

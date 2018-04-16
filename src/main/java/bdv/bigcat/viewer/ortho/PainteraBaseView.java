@@ -20,7 +20,7 @@ import bdv.bigcat.viewer.ARGBColorConverter;
 import bdv.bigcat.viewer.ToIdConverter;
 import bdv.bigcat.viewer.atlas.data.DataSource;
 import bdv.bigcat.viewer.atlas.data.mask.MaskedSource;
-import bdv.bigcat.viewer.atlas.source.AtlasSourceState;
+import bdv.bigcat.viewer.atlas.source.SourceState;
 import bdv.bigcat.viewer.atlas.source.SourceInfo;
 import bdv.bigcat.viewer.meshes.MeshGenerator.ShapeKey;
 import bdv.bigcat.viewer.meshes.MeshInfos;
@@ -38,6 +38,7 @@ import bdv.bigcat.viewer.util.Colors;
 import bdv.bigcat.viewer.util.HashWrapper;
 import bdv.bigcat.viewer.viewer3d.Viewer3DFX;
 import bdv.util.IdService;
+import bdv.util.NamedThreadFactory;
 import bdv.util.volatiles.SharedQueue;
 import bdv.viewer.Interpolation;
 import bdv.viewer.Source;
@@ -144,7 +145,7 @@ public class PainteraBaseView
 			final ARGBType color )
 	{
 		final Composite< ARGBType, ARGBType > comp = new ARGBCompositeAlphaAdd();
-		final AtlasSourceState< U, T > state = sourceInfo.addRawSource( spec, min, max, color, comp );
+		final SourceState< U, T > state = sourceInfo.addRawSource( spec, min, max, color, comp );
 		final Converter< U, ARGBType > conv = state.converterProperty().get();
 		if ( conv instanceof ARGBColorConverter< ? > )
 		{
@@ -200,7 +201,7 @@ public class PainteraBaseView
 
 		final ARGBCompositeAlphaYCbCr comp = new ARGBCompositeAlphaYCbCr();
 
-		final AtlasSourceState< T, D > state = sourceInfo.makeLabelSourceState(
+		final SourceState< T, D > state = sourceInfo.makeLabelSourceState(
 				source,
 				toIdConverter,
 				equalsMask,
@@ -298,7 +299,7 @@ public class PainteraBaseView
 
 	private static < D extends Type< D >, T extends Type< T > > void generateMeshCaches(
 			final DataSource< D, T > spec,
-			final AtlasSourceState< T, D > state,
+			final SourceState< T, D > state,
 			final double[][] scalingFactors,
 			final BiConsumer< D, TLongHashSet > collectLabels,
 			final LongFunction< Converter< D, BoolType > > getMaskGenerator,

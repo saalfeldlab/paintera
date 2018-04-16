@@ -1,4 +1,4 @@
-package bdv.bigcat.viewer.panel;
+package bdv.bigcat.viewer.atlas.ui;
 
 import bdv.bigcat.viewer.bdvfx.OverlayRendererGeneric;
 import javafx.beans.property.BooleanProperty;

@@ -9,7 +9,7 @@ import org.apache.commons.lang.BooleanUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import bdv.bigcat.viewer.atlas.source.AtlasSourceState;
+import bdv.bigcat.viewer.atlas.source.SourceState;
 import bdv.bigcat.viewer.meshes.MeshGenerator.ShapeKey;
 import net.imglib2.Interval;
 import net.imglib2.util.Intervals;
@@ -21,7 +21,7 @@ public abstract class MeshExporter
 
 	protected int numberOfFaces = 0;
 
-	public void exportMesh( final AtlasSourceState< ?, ? >[] state, final long[] ids, final int scale, final String[] paths )
+	public void exportMesh( final SourceState< ?, ? >[] state, final long[] ids, final int scale, final String[] paths )
 	{
 		assert ids.length == paths.length;
 		for ( int i = 0; i < ids.length; i++ )
@@ -31,7 +31,7 @@ public abstract class MeshExporter
 		}
 	}
 
-	public void exportMesh( final AtlasSourceState< ?, ? > state, final long id, final int scaleIndex, final String path )
+	public void exportMesh( final SourceState< ?, ? > state, final long id, final int scaleIndex, final String path )
 	{
 		final Function< Long, Interval[] >[] blockListCache = state.blocklistCacheProperty().get();
 		final Function< ShapeKey, Pair< float[], float[] > >[] meshCache = state.meshesCacheProperty().get();

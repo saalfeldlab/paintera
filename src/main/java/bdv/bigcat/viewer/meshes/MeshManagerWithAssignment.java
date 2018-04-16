@@ -17,7 +17,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import bdv.bigcat.viewer.atlas.data.DataSource;
-import bdv.bigcat.viewer.atlas.source.AtlasSourceState;
+import bdv.bigcat.viewer.atlas.source.SourceState;
 import bdv.bigcat.viewer.meshes.MeshGenerator.ShapeKey;
 import bdv.bigcat.viewer.state.FragmentSegmentAssignmentState;
 import bdv.bigcat.viewer.state.FragmentsInSelectedSegments;
@@ -43,7 +43,7 @@ public class MeshManagerWithAssignment implements MeshManager
 
 	private final DataSource< ?, ? > source;
 
-	private final AtlasSourceState< ?, ? > state;
+	private final SourceState< ?, ? > state;
 
 	private final Map< Long, MeshGenerator > neurons = Collections.synchronizedMap( new HashMap<>() );
 
@@ -59,7 +59,7 @@ public class MeshManagerWithAssignment implements MeshManager
 
 	public MeshManagerWithAssignment(
 			final DataSource< ?, ? > source,
-			final AtlasSourceState< ?, ? > state,
+			final SourceState< ?, ? > state,
 			final Group root,
 			final FragmentsInSelectedSegments< ? > fragmentsInSelectedSegments,
 			final ObservableIntegerValue meshSimplificationIterations,

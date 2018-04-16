@@ -3,7 +3,7 @@ package bdv.bigcat.viewer.bdvfx;
 import java.util.Arrays;
 import java.util.HashSet;
 
-import bdv.bigcat.viewer.panel.OnWindowInitListener;
+import bdv.util.OnWindowInitListener;
 import javafx.beans.value.ChangeListener;
 import javafx.beans.value.ObservableValue;
 import javafx.event.EventHandler;

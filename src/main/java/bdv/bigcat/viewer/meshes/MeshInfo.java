@@ -5,7 +5,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.function.BiConsumer;
 
-import bdv.bigcat.viewer.atlas.source.AtlasSourceState;
+import bdv.bigcat.viewer.atlas.source.SourceState;
 import bdv.bigcat.viewer.state.FragmentSegmentAssignment;
 import bdv.bigcat.viewer.state.FragmentSegmentAssignmentState;
 import javafx.beans.binding.Bindings;
@@ -22,7 +22,7 @@ public class MeshInfo
 
 	private final IntegerProperty simplificationIterations = new SimpleIntegerProperty();
 
-	private final AtlasSourceState< ?, ? > state;
+	private final SourceState< ?, ? > state;
 
 	private final long segmentId;
 
@@ -38,7 +38,7 @@ public class MeshInfo
 
 	private final IntegerProperty successfulTasks = new SimpleIntegerProperty( 0 );
 
-	public MeshInfo( final AtlasSourceState< ?, ? > state, final long segmentId, final FragmentSegmentAssignment assignment, final MeshManager meshManager, final int numScaleLevels )
+	public MeshInfo( final SourceState< ?, ? > state, final long segmentId, final FragmentSegmentAssignment assignment, final MeshManager meshManager, final int numScaleLevels )
 	{
 		super();
 		this.state = state;
@@ -76,7 +76,7 @@ public class MeshInfo
 
 	}
 
-	public AtlasSourceState< ?, ? > state()
+	public SourceState< ?, ? > state()
 	{
 		return this.state;
 	}

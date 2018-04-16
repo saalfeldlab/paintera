@@ -174,10 +174,9 @@ public class PainteraOpenDialogEventHandler implements EventHandler< Event >
 	{
 		if ( cacheDir != null )
 		{
-			final int[] blockSize = { 64, 64, 64 };
 			LOG.debug( "Adding canvas source with cache dir={}", cacheDir );
 			viewer.addLabelSource(
-					Atlas.addCanvas( lsource, blockSize, cacheDir == null || cacheDir.length() == 0 ? null : cacheDir, mergeCanvasIntoBackground ),
+					Masks.fromIntegerType( lsource, cacheDir == null || cacheDir.length() == 0 ? null : cacheDir, mergeCanvasIntoBackground ),
 					( FragmentSegmentAssignmentState ) lsource.getAssignment(),
 					idService,
 					ToIdConverter.fromIntegerType(),
@@ -264,7 +263,7 @@ public class PainteraOpenDialogEventHandler implements EventHandler< Event >
 				.map( PainteraOpenDialogEventHandler::blockSize )
 				.toArray( int[][]::new );
 
-		final double[][] scalingFactors = Atlas.scaleFactorsFromAffineTransforms( source );
+		final double[][] scalingFactors = PainteraBaseView.scaleFactorsFromAffineTransforms( source );
 
 		@SuppressWarnings( "unchecked" )
 		final Function< HashWrapper< long[] >, long[] >[] uniqueIdCaches = new Function[ numLevels ];
