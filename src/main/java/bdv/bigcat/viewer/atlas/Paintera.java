@@ -29,6 +29,7 @@ import bdv.bigcat.viewer.atlas.data.mask.MaskedSource;
 import bdv.bigcat.viewer.atlas.data.mask.Masks;
 import bdv.bigcat.viewer.atlas.source.SourceInfo;
 import bdv.bigcat.viewer.atlas.ui.source.SourceTabs;
+import bdv.bigcat.viewer.bdvfx.EventFX;
 import bdv.bigcat.viewer.bdvfx.KeyTracker;
 import bdv.bigcat.viewer.bdvfx.MultiBoxOverlayRendererFX;
 import bdv.bigcat.viewer.bdvfx.ViewerPanelFX;
@@ -247,13 +248,16 @@ public class Paintera extends Application
 					}
 				} );
 
-		sourceInfo.currentSourceProperty().set( maskedSource );
+				sourceInfo.currentSourceProperty().set( maskedSource );
 
 				sourceInfo.trackSources().addListener( FitToInterval.fitToIntervalWhenSourceAddedListener( baseView.manager(), baseView.orthogonalViews().topLeft().viewer().widthProperty()::get ) );
 
 				baseView.addRawSource( source, 0, 255, toARGBType( Color.TEAL ) );
 				baseView.addLabelSource( maskedSource, new FragmentSegmentAssignmentOnlyLocal( ( a, b ) -> {} ), ToIdConverter.fromIntegerType() );
 				baseView.viewer3D().setInitialTransformToInterval( data );
+
+				EventFX.KEY_PRESSED( "interpolation", e -> toggleInterpolation(), e -> keyTracker.areOnlyTheseKeysDown( KeyCode.I ) ).installInto( borderPane );
+				interpolation.addListener( ( obs, oldv, newv ) -> baseView.orthogonalViews().requestRepaint() );
 
 				keyTracker.installInto( scene );
 				stage.setScene( scene );
