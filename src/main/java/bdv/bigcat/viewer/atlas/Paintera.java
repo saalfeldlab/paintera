@@ -28,6 +28,7 @@ import bdv.bigcat.viewer.bdvfx.EventFX;
 import bdv.bigcat.viewer.bdvfx.KeyTracker;
 import bdv.bigcat.viewer.bdvfx.MultiBoxOverlayRendererFX;
 import bdv.bigcat.viewer.bdvfx.ViewerPanelFX;
+import bdv.bigcat.viewer.ortho.GridResizer;
 import bdv.bigcat.viewer.ortho.OrthogonalViews;
 import bdv.bigcat.viewer.ortho.OrthogonalViews.ViewerAndTransforms;
 import bdv.bigcat.viewer.ortho.OrthogonalViewsValueDisplayListener;
@@ -195,6 +196,13 @@ public class Paintera extends Application
 		EventFX.KEY_PRESSED( "backwards cycle current source", e -> sourceInfo.decrementCurrentSourceIndex(), e -> keyTracker.areOnlyTheseKeysDown( KeyCode.CONTROL, KeyCode.SHIFT, KeyCode.TAB ) ).installInto( borderPane );
 
 		scene.addEventHandler( KeyEvent.KEY_PRESSED, openDialogHandler );
+
+		final GridResizer resizer = new GridResizer( baseView.orthogonalViews().grid().constraintsManager(), 5, baseView.pane(), keyTracker );
+		baseView.pane().addEventFilter( MouseEvent.MOUSE_MOVED, resizer.onMouseMovedHandler() );
+		baseView.pane().addEventFilter( MouseEvent.MOUSE_CLICKED, resizer.onMouseDoubleClickedHandler() );
+		baseView.pane().addEventFilter( MouseEvent.MOUSE_DRAGGED, resizer.onMouseDraggedHandler() );
+		baseView.pane().addEventFilter( MouseEvent.MOUSE_PRESSED, resizer.onMousePressedHandler() );
+		baseView.pane().addEventFilter( MouseEvent.MOUSE_RELEASED, resizer.onMouseReleased() );
 
 		keyTracker.installInto( scene );
 		stage.setScene( scene );
