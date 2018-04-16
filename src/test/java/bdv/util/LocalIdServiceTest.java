@@ -2,6 +2,7 @@ package bdv.util;
 
 import java.util.stream.LongStream;
 
+import org.janelia.saalfeldlab.paintera.id.LocalIdService;
 import org.junit.Assert;
 import org.junit.Test;
 

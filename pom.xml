@@ -236,7 +236,7 @@
 				<configuration>
 					<archive>
 						<manifest>
-							<mainClass>bdv.bigcat.viewer.atlas.AtlasApp</mainClass>
+							<mainClass>org.janelia.saalfeldlab.paintera.Paintera</mainClass>
 						</manifest>
 					</archive>
 					<descriptorRefs>
