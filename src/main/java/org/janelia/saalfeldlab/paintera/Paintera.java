@@ -25,6 +25,7 @@ import org.janelia.saalfeldlab.paintera.control.RunWhenFirstElementIsAdded;
 import org.janelia.saalfeldlab.paintera.control.Selection;
 import org.janelia.saalfeldlab.paintera.control.navigation.AffineTransformWithListeners;
 import org.janelia.saalfeldlab.paintera.control.navigation.DisplayTransformUpdateOnResize;
+import org.janelia.saalfeldlab.paintera.ui.ARGBStreamSeedSetter;
 import org.janelia.saalfeldlab.paintera.ui.CrossHair;
 import org.janelia.saalfeldlab.paintera.ui.opendialog.PainteraOpenDialogEventHandler;
 import org.janelia.saalfeldlab.paintera.ui.source.SourceTabs;
@@ -165,6 +166,8 @@ public class Paintera extends Application
 		currentSourceStatus.setMaxWidth( 45 );
 
 		onEnterOnExit.accept( new OnEnterOnExit( vdl.onEnter(), vdl.onExit() ) );
+
+		onEnterOnExit.accept( new ARGBStreamSeedSetter( sourceInfo, keyTracker ).onEnterOnExit() );
 
 		final Stage stage = new Stage();
 		final Scene scene = new Scene( borderPane );

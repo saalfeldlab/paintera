@@ -6,6 +6,7 @@ import java.util.function.Consumer;
 import java.util.function.LongUnaryOperator;
 
 import org.janelia.saalfeldlab.fx.event.KeyTracker;
+import org.janelia.saalfeldlab.fx.ortho.OnEnterOnExit;
 import org.janelia.saalfeldlab.paintera.SourceInfo;
 import org.janelia.saalfeldlab.paintera.stream.ARGBStream;
 import org.janelia.saalfeldlab.paintera.stream.AbstractHighlightingARGBStream;
@@ -84,6 +85,11 @@ public class ARGBStreamSeedSetter
 		return t -> {
 			t.removeEventHandler( KeyEvent.KEY_PRESSED, this.handlers.get( t ) );
 		};
+	}
+
+	public OnEnterOnExit onEnterOnExit()
+	{
+		return new OnEnterOnExit( onEnter(), onExit() );
 	}
 
 	private static boolean changeStream( final Optional< ARGBStream > currentStream, final LongUnaryOperator seedUpdate, final SourceInfo sourceInfo, final Source< ? > source )
