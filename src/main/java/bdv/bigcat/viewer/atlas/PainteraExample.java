@@ -8,20 +8,25 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Random;
 import java.util.function.Consumer;
+import java.util.function.Function;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import bdv.bigcat.viewer.ToIdConverter;
 import bdv.bigcat.viewer.atlas.AtlasFocusHandler.OnEnterOnExit;
 import bdv.bigcat.viewer.atlas.control.FitToInterval;
 import bdv.bigcat.viewer.atlas.control.Merges;
 import bdv.bigcat.viewer.atlas.control.Navigation;
 import bdv.bigcat.viewer.atlas.control.Paint;
-import bdv.bigcat.viewer.atlas.control.RunWhenFirstElementIsAdded;
 import bdv.bigcat.viewer.atlas.control.Selection;
 import bdv.bigcat.viewer.atlas.control.navigation.AffineTransformWithListeners;
 import bdv.bigcat.viewer.atlas.control.navigation.DisplayTransformUpdateOnResize;
+import bdv.bigcat.viewer.atlas.data.RandomAccessibleIntervalDataSource;
+import bdv.bigcat.viewer.atlas.data.mask.MaskedSource;
+import bdv.bigcat.viewer.atlas.data.mask.Masks;
 import bdv.bigcat.viewer.atlas.source.SourceInfo;
 import bdv.bigcat.viewer.atlas.ui.source.SourceTabs;
 import bdv.bigcat.viewer.bdvfx.EventFX;
@@ -33,6 +38,8 @@ import bdv.bigcat.viewer.ortho.OrthogonalViews.ViewerAndTransforms;
 import bdv.bigcat.viewer.ortho.OrthogonalViewsValueDisplayListener;
 import bdv.bigcat.viewer.ortho.PainteraBaseView;
 import bdv.bigcat.viewer.panel.CrossHair;
+import bdv.bigcat.viewer.state.FragmentSegmentAssignmentOnlyLocal;
+import bdv.bigcat.viewer.util.Colors;
 import bdv.bigcat.viewer.viewer3d.OrthoSliceFX;
 import bdv.viewer.Interpolation;
 import bdv.viewer.Source;
@@ -62,12 +69,25 @@ import javafx.scene.layout.BorderPane;
 import javafx.scene.paint.Color;
 import javafx.stage.Stage;
 import javafx.stage.WindowEvent;
-import net.imglib2.FinalRealInterval;
-import net.imglib2.Interval;
+import net.imglib2.RandomAccessible;
+import net.imglib2.RandomAccessibleInterval;
+import net.imglib2.converter.Converters;
+import net.imglib2.img.array.ArrayImg;
+import net.imglib2.img.array.ArrayImgs;
+import net.imglib2.img.basictypeaccess.array.ByteArray;
+import net.imglib2.img.basictypeaccess.array.LongArray;
+import net.imglib2.interpolation.InterpolatorFactory;
+import net.imglib2.interpolation.randomaccess.NLinearInterpolatorFactory;
+import net.imglib2.interpolation.randomaccess.NearestNeighborInterpolatorFactory;
 import net.imglib2.realtransform.AffineTransform3D;
+import net.imglib2.realtransform.Scale3D;
+import net.imglib2.type.numeric.integer.UnsignedByteType;
+import net.imglib2.type.numeric.integer.UnsignedLongType;
+import net.imglib2.type.volatiles.VolatileUnsignedLongType;
 import net.imglib2.util.Intervals;
+import net.imglib2.view.Views;
 
-public class Paintera extends Application
+public class PainteraExample extends Application
 {
 
 	private static final Logger LOG = LoggerFactory.getLogger( MethodHandles.lookup().lookupClass() );
@@ -92,11 +112,8 @@ public class Paintera extends Application
 			v -> viewerToTransforms.get( v ).displayTransform(),
 			v -> viewerToTransforms.get( v ).globalToViewerTransform(),
 			keyTracker );
-
 	private final Merges merges = new Merges( sourceInfo, keyTracker );
-
 	private final Paint paint = new Paint( sourceInfo, keyTracker, baseView.manager(), baseView.orthogonalViews()::requestRepaint );
-
 	private final Selection selection = new Selection( sourceInfo, keyTracker );
 
 	private final ObservableObjectValue< ViewerAndTransforms > currentFocusHolderWithState = currentFocusHolder( baseView.orthogonalViews() );
@@ -107,105 +124,146 @@ public class Paintera extends Application
 
 	private final Map< ViewerAndTransforms, OrthoSliceFX > orthoSlices = makeOrthoSlices( baseView.orthogonalViews(), baseView.viewer3D().meshesGroup(), sourceInfo );
 
-	private final PainteraOpenDialogEventHandler openDialogHandler = new PainteraOpenDialogEventHandler(
-			baseView,
-			baseView.orthogonalViews().sharedQueue(),
-			e -> keyTracker.areOnlyTheseKeysDown( KeyCode.CONTROL, KeyCode.O ) );
-
 	@Override
 	public void start( final Stage primaryStage ) throws Exception
 	{
 
-		updateDisplayTransformOnResize( baseView.orthogonalViews(), baseView.manager() );
+		final Random rng = new Random();
+		final ArrayImg< UnsignedByteType, ByteArray > data = ArrayImgs.unsignedBytes( 100, 200, 300 );
+		rng.nextBytes( data.update( null ).getCurrentStorageArray() );
 
-		onEnterOnExit.accept( navigation.onEnterOnExit() );
-		onEnterOnExit.accept( selection.onEnterOnExit() );
-		onEnterOnExit.accept( merges.onEnterOnExit() );
-		onEnterOnExit.accept( paint.onEnterOnExit() );
+		final ArrayImg< UnsignedLongType, LongArray > labels = ArrayImgs.unsignedLongs( Intervals.dimensionsAsLongArray( data ) );
+		Arrays.setAll( labels.update( null ).getCurrentStorageArray(), d -> d );
 
-		grabFocusOnMouseOver(
-				baseView.orthogonalViews().topLeft().viewer(),
-				baseView.orthogonalViews().topRight().viewer(),
-				baseView.orthogonalViews().bottomLeft().viewer() );
-
-		final ObservableList< Source< ? > > sources = sourceInfo.trackSources();
-		final ObservableList< Source< ? > > visibleSources = sourceInfo.trackSources();
-
-		final MultiBoxOverlayRendererFX[] multiBoxes = {
-				new MultiBoxOverlayRendererFX( baseView.orthogonalViews().topLeft().viewer()::getState, sources, visibleSources ),
-				new MultiBoxOverlayRendererFX( baseView.orthogonalViews().topRight().viewer()::getState, sources, visibleSources ),
-				new MultiBoxOverlayRendererFX( baseView.orthogonalViews().bottomLeft().viewer()::getState, sources, visibleSources )
+		@SuppressWarnings( "unchecked" )
+		final RandomAccessibleInterval< UnsignedByteType >[] srcs = new RandomAccessibleInterval[] {
+				data,
+				Views.subsample( data, 2 )
 		};
 
-		baseView.orthogonalViews().topLeft().viewer().getDisplay().addOverlayRenderer( multiBoxes[ 0 ] );
-		baseView.orthogonalViews().topRight().viewer().getDisplay().addOverlayRenderer( multiBoxes[ 1 ] );
-		baseView.orthogonalViews().bottomLeft().viewer().getDisplay().addOverlayRenderer( multiBoxes[ 2 ] );
+		final Function< Interpolation, InterpolatorFactory< UnsignedByteType, RandomAccessible< UnsignedByteType > > > ipol = i -> i.equals( Interpolation.NLINEAR )
+				? new NLinearInterpolatorFactory<>()
+						: new NearestNeighborInterpolatorFactory<>();
 
-		multiBoxes[ 0 ].isVisibleProperty().bind( baseView.orthogonalViews().topLeft().viewer().focusedProperty() );
-		multiBoxes[ 1 ].isVisibleProperty().bind( baseView.orthogonalViews().topRight().viewer().focusedProperty() );
-		multiBoxes[ 2 ].isVisibleProperty().bind( baseView.orthogonalViews().bottomLeft().viewer().focusedProperty() );
+				final AffineTransform3D[] mipmapTransforms = {
+						new AffineTransform3D(),
+						new AffineTransform3D().concatenate( new Scale3D( 2.0, 2.0, 2.0 ) )
+				};
 
-		final BorderPane borderPane = new BorderPane( baseView.pane() );
-		final Label currentSourceStatus = new Label();
-		final Label valueStatus = new Label();
-		final CheckBox showStatusBar = new CheckBox();
-		final ObjectProperty< Source< ? > > cs = sourceInfo.currentSourceProperty();
-		final StringBinding csName = Bindings.createStringBinding( () -> Optional.ofNullable( cs.get() ).map( s -> s.getName() ).orElse( "<null>" ), cs );
-		currentSourceStatus.textProperty().bind( csName );
-		showStatusBar.setTooltip( new Tooltip( "If not selected, status bar will only show on mouse-over" ) );
-		final OrthogonalViewsValueDisplayListener vdl = new OrthogonalViewsValueDisplayListener( valueStatus::setText, cs, s -> interpolation.get() );
-		final AnchorPane statusBar = new AnchorPane( currentSourceStatus, valueStatus, showStatusBar );
-		AnchorPane.setLeftAnchor( currentSourceStatus, 0.0 );
-		AnchorPane.setLeftAnchor( valueStatus, 50.0 );
-		AnchorPane.setRightAnchor( showStatusBar, 0.0 );
+				final RandomAccessibleIntervalDataSource< UnsignedByteType, UnsignedByteType > source =
+						new RandomAccessibleIntervalDataSource<>( srcs, srcs, mipmapTransforms, ipol, ipol, "data" );
 
-		final BooleanProperty isWithinMarginOfBorder = new SimpleBooleanProperty();
-		borderPane.addEventFilter( MouseEvent.MOUSE_MOVED, e -> isWithinMarginOfBorder.set( e.getY() < borderPane.getHeight() && borderPane.getHeight() - e.getY() <= statusBar.getHeight() ) );
-		statusBar.visibleProperty().addListener( ( obs, oldv, newv ) -> borderPane.setBottom( newv ? statusBar : null ) );
-		statusBar.visibleProperty().bind( isWithinMarginOfBorder.or( showStatusBar.selectedProperty() ) );
-		showStatusBar.setSelected( true );
+				@SuppressWarnings( "unchecked" )
+				final RandomAccessibleInterval< UnsignedLongType >[] lsrcs = new RandomAccessibleInterval[] {
+						labels
+				};
 
-		currentSourceStatus.setMaxWidth( 45 );
+				@SuppressWarnings( "unchecked" )
+				final RandomAccessibleInterval< VolatileUnsignedLongType >[] vlsrcs = new RandomAccessibleInterval[] {
+						Converters.convert( lsrcs[ 0 ], ( s, t ) -> t.get().set( s ), new VolatileUnsignedLongType() )
+				};
 
-		onEnterOnExit.accept( new OnEnterOnExit( vdl.onEnter(), vdl.onExit() ) );
+				final RandomAccessibleIntervalDataSource< UnsignedLongType, VolatileUnsignedLongType > labelSource = new RandomAccessibleIntervalDataSource<>(
+						lsrcs,
+						vlsrcs,
+						new AffineTransform3D[] { new AffineTransform3D() },
+						i -> new NearestNeighborInterpolatorFactory<>(),
+						i -> new NearestNeighborInterpolatorFactory<>(),
+						"labels" );
 
-		final Stage stage = new Stage();
-		final Scene scene = new Scene( borderPane );
+				final MaskedSource< UnsignedLongType, VolatileUnsignedLongType > maskedSource = Masks.fromIntegerType( labelSource, ( canvas, blocks ) -> {} );
 
-		stage.addEventFilter( WindowEvent.WINDOW_CLOSE_REQUEST, event -> viewerToTransforms.keySet().forEach( ViewerPanelFX::stop ) );
+				updateDisplayTransformOnResize( baseView.orthogonalViews(), baseView.manager() );
 
-		Platform.setImplicitExit( true );
+				onEnterOnExit.accept( navigation.onEnterOnExit() );
+				onEnterOnExit.accept( selection.onEnterOnExit() );
+				onEnterOnExit.accept( merges.onEnterOnExit() );
+				onEnterOnExit.accept( paint.onEnterOnExit() );
 
-		final SourceTabs sideBar = new SourceTabs(
-				sourceInfo.currentSourceIndexProperty(),
-				sourceInfo::removeSource,
-				sourceInfo );
-		sideBar.widthProperty().set( 200 );
-		sideBar.get().setVisible( true );
+				grabFocusOnMouseOver(
+						baseView.orthogonalViews().topLeft().viewer(),
+						baseView.orthogonalViews().topRight().viewer(),
+						baseView.orthogonalViews().bottomLeft().viewer() );
 
-		scene.addEventHandler( KeyEvent.KEY_PRESSED, event -> {
-			if ( keyTracker.areOnlyTheseKeysDown( KeyCode.P ) )
-			{
-				borderPane.setRight( borderPane.getRight() == null ? sideBar.get() : null );
-				event.consume();
-			}
-		} );
+				final ObservableList< Source< ? > > sources = sourceInfo.trackSources();
+				final ObservableList< Source< ? > > visibleSources = sourceInfo.trackSources();
 
-		sourceInfo.trackSources().addListener( FitToInterval.fitToIntervalWhenSourceAddedListener( baseView.manager(), baseView.orthogonalViews().topLeft().viewer().widthProperty()::get ) );
-		sourceInfo.trackSources().addListener( new RunWhenFirstElementIsAdded<>( c -> baseView.viewer3D().setInitialTransformToInterval( sourceIntervalInWorldSpace( c.getAddedSubList().get( 0 ) ) ) ) );
+				final MultiBoxOverlayRendererFX[] multiBoxes = {
+						new MultiBoxOverlayRendererFX( baseView.orthogonalViews().topLeft().viewer()::getState, sources, visibleSources ),
+						new MultiBoxOverlayRendererFX( baseView.orthogonalViews().topRight().viewer()::getState, sources, visibleSources ),
+						new MultiBoxOverlayRendererFX( baseView.orthogonalViews().bottomLeft().viewer()::getState, sources, visibleSources )
+				};
 
-		EventFX.KEY_PRESSED( "interpolation", e -> toggleInterpolation(), e -> keyTracker.areOnlyTheseKeysDown( KeyCode.I ) ).installInto( borderPane );
-		interpolation.addListener( ( obs, oldv, newv ) -> baseView.orthogonalViews().requestRepaint() );
-		EventFX.KEY_PRESSED( "cycle current source", e -> sourceInfo.incrementCurrentSourceIndex(), e -> keyTracker.areOnlyTheseKeysDown( KeyCode.CONTROL, KeyCode.TAB ) ).installInto( borderPane );
-		EventFX.KEY_PRESSED( "backwards cycle current source", e -> sourceInfo.decrementCurrentSourceIndex(), e -> keyTracker.areOnlyTheseKeysDown( KeyCode.CONTROL, KeyCode.SHIFT, KeyCode.TAB ) ).installInto( borderPane );
+				baseView.orthogonalViews().topLeft().viewer().getDisplay().addOverlayRenderer( multiBoxes[ 0 ] );
+				baseView.orthogonalViews().topRight().viewer().getDisplay().addOverlayRenderer( multiBoxes[ 1 ] );
+				baseView.orthogonalViews().bottomLeft().viewer().getDisplay().addOverlayRenderer( multiBoxes[ 2 ] );
 
-		scene.addEventHandler( KeyEvent.KEY_PRESSED, openDialogHandler );
+				multiBoxes[ 0 ].isVisibleProperty().bind( baseView.orthogonalViews().topLeft().viewer().focusedProperty() );
+				multiBoxes[ 1 ].isVisibleProperty().bind( baseView.orthogonalViews().topRight().viewer().focusedProperty() );
+				multiBoxes[ 2 ].isVisibleProperty().bind( baseView.orthogonalViews().bottomLeft().viewer().focusedProperty() );
 
-		keyTracker.installInto( scene );
-		stage.setScene( scene );
-		stage.setWidth( 800 );
-		stage.setHeight( 600 );
-		stage.show();
+				final BorderPane borderPane = new BorderPane( baseView.pane() );
+				final Label currentSourceStatus = new Label();
+				final Label valueStatus = new Label();
+				final CheckBox showStatusBar = new CheckBox();
+				final ObjectProperty< Source< ? > > cs = sourceInfo.currentSourceProperty();
+				final StringBinding csName = Bindings.createStringBinding( () -> Optional.ofNullable( cs.get() ).map( s -> s.getName() ).orElse( "<null>" ), cs );
+				currentSourceStatus.textProperty().bind( csName );
+				showStatusBar.setTooltip( new Tooltip( "If not selected, status bar will only show on mouse-over" ) );
+				final OrthogonalViewsValueDisplayListener vdl = new OrthogonalViewsValueDisplayListener( valueStatus::setText, cs, s -> interpolation.get() );
+				final AnchorPane statusBar = new AnchorPane( currentSourceStatus, valueStatus, showStatusBar );
+				AnchorPane.setLeftAnchor( currentSourceStatus, 0.0 );
+				AnchorPane.setLeftAnchor( valueStatus, 50.0 );
+				AnchorPane.setRightAnchor( showStatusBar, 0.0 );
+
+				final BooleanProperty isWithinMarginOfBorder = new SimpleBooleanProperty();
+				borderPane.addEventFilter( MouseEvent.MOUSE_MOVED, e -> isWithinMarginOfBorder.set( e.getY() < borderPane.getHeight() && borderPane.getHeight() - e.getY() <= statusBar.getHeight() ) );
+				statusBar.visibleProperty().addListener( ( obs, oldv, newv ) -> borderPane.setBottom( newv ? statusBar : null ) );
+				statusBar.visibleProperty().bind( isWithinMarginOfBorder.or( showStatusBar.selectedProperty() ) );
+				showStatusBar.setSelected( true );
+
+				currentSourceStatus.setMaxWidth( 45 );
+
+				onEnterOnExit.accept( new OnEnterOnExit( vdl.onEnter(), vdl.onExit() ) );
+
+				final Stage stage = new Stage();
+				final Scene scene = new Scene( borderPane );
+
+				stage.addEventFilter( WindowEvent.WINDOW_CLOSE_REQUEST, event -> viewerToTransforms.keySet().forEach( ViewerPanelFX::stop ) );
+
+				Platform.setImplicitExit( true );
+
+				final SourceTabs sideBar = new SourceTabs(
+						sourceInfo.currentSourceIndexProperty(),
+						sourceInfo::removeSource,
+						sourceInfo );
+				sideBar.widthProperty().set( 200 );
+				sideBar.get().setVisible( true );
+
+				scene.addEventHandler( KeyEvent.KEY_PRESSED, event -> {
+					if ( keyTracker.areOnlyTheseKeysDown( KeyCode.P ) )
+					{
+						borderPane.setRight( borderPane.getRight() == null ? sideBar.get() : null );
+						event.consume();
+					}
+				} );
+
+				sourceInfo.currentSourceProperty().set( maskedSource );
+
+				sourceInfo.trackSources().addListener( FitToInterval.fitToIntervalWhenSourceAddedListener( baseView.manager(), baseView.orthogonalViews().topLeft().viewer().widthProperty()::get ) );
+
+		baseView.addRawSource( source, 0, 255, Colors.toARGBType( Color.TEAL ) );
+				baseView.addLabelSource( maskedSource, new FragmentSegmentAssignmentOnlyLocal( ( a, b ) -> {} ), ToIdConverter.fromIntegerType() );
+				baseView.viewer3D().setInitialTransformToInterval( data );
+
+				EventFX.KEY_PRESSED( "interpolation", e -> toggleInterpolation(), e -> keyTracker.areOnlyTheseKeysDown( KeyCode.I ) ).installInto( borderPane );
+				interpolation.addListener( ( obs, oldv, newv ) -> baseView.orthogonalViews().requestRepaint() );
+
+				keyTracker.installInto( scene );
+				stage.setScene( scene );
+				stage.setWidth( 800 );
+				stage.setHeight( 600 );
+				stage.show();
 	}
 
 	public static void main( final String[] args )
@@ -277,7 +335,7 @@ public class Paintera extends Application
 
 	public static void grabFocusOnMouseOver( final Collection< Node > nodes )
 	{
-		nodes.forEach( Paintera::grabFocusOnMouseOver );
+		nodes.forEach( PainteraExample::grabFocusOnMouseOver );
 	}
 
 	public static void grabFocusOnMouseOver( final Node node )
@@ -325,17 +383,6 @@ public class Paintera extends Application
 	private void toggleInterpolation()
 	{
 		this.interpolation.set( this.interpolation.get().equals( Interpolation.NLINEAR ) ? Interpolation.NEARESTNEIGHBOR : Interpolation.NLINEAR );
-	}
-
-	private static Interval sourceIntervalInWorldSpace( final Source< ? > source )
-	{
-		final double[] min = Arrays.stream( Intervals.minAsLongArray( source.getSource( 0, 0 ) ) ).asDoubleStream().toArray();
-		final double[] max = Arrays.stream( Intervals.maxAsLongArray( source.getSource( 0, 0 ) ) ).asDoubleStream().toArray();
-		final AffineTransform3D tf = new AffineTransform3D();
-		source.getSourceTransform( 0, 0, tf );
-		tf.apply( min, min );
-		tf.apply( max, max );
-		return Intervals.smallestContainingInterval( new FinalRealInterval( min, max ) );
 	}
 
 }

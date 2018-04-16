@@ -34,6 +34,7 @@ import bdv.bigcat.viewer.state.SelectedIds;
 import bdv.bigcat.viewer.state.SelectedSegments;
 import bdv.bigcat.viewer.stream.HighlightingStreamConverter;
 import bdv.bigcat.viewer.stream.ModalGoldenAngleSaturatedHighlightingARGBStream;
+import bdv.bigcat.viewer.util.Colors;
 import bdv.bigcat.viewer.util.HashWrapper;
 import bdv.bigcat.viewer.viewer3d.Viewer3DFX;
 import bdv.util.IdService;
@@ -47,6 +48,7 @@ import javafx.beans.property.SimpleIntegerProperty;
 import javafx.collections.ListChangeListener;
 import javafx.collections.ObservableList;
 import javafx.scene.layout.Pane;
+import javafx.scene.paint.Color;
 import net.imglib2.Interval;
 import net.imglib2.converter.Converter;
 import net.imglib2.realtransform.AffineTransform3D;
@@ -124,6 +126,15 @@ public class PainteraBaseView
 	public GlobalTransformManager manager()
 	{
 		return this.manager;
+	}
+
+	public < T extends RealType< T >, U extends RealType< U > > void addRawSource(
+			final DataSource< T, U > spec,
+			final double min,
+			final double max,
+			final Color color )
+	{
+		addRawSource( spec, min, max, Colors.toARGBType( color ) );
 	}
 
 	public < T extends RealType< T >, U extends RealType< U > > void addRawSource(
@@ -278,6 +289,11 @@ public class PainteraBaseView
 	public static < D extends RealType< D > > LongFunction< Converter< D, BoolType > > equalMaskForRealType()
 	{
 		return id -> ( s, t ) -> t.set( s.getRealDouble() == id );
+	}
+
+	public ExecutorService generalPurposeExecutorService()
+	{
+		return this.generalPurposeExecutorService;
 	}
 
 	private static < D extends Type< D >, T extends Type< T > > void generateMeshCaches(

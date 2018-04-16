@@ -15,6 +15,7 @@ import bdv.bigcat.viewer.panel.ViewerPanelInOrthoView;
 import bdv.bigcat.viewer.panel.ViewerPanelInOrthoView.ViewerAxis;
 import bdv.bigcat.viewer.state.GlobalTransformManager;
 import bdv.cache.CacheControl;
+import bdv.util.volatiles.SharedQueue;
 import bdv.viewer.Interpolation;
 import bdv.viewer.Source;
 import bdv.viewer.SourceAndConverter;
@@ -85,18 +86,21 @@ public class OrthogonalViews< BR extends Node >
 
 	private final ViewerAndTransforms bottomLeft;
 
+	private final SharedQueue queue;
+
 	public OrthogonalViews(
 			final GlobalTransformManager manager,
-			final CacheControl cacheControl,
+			final SharedQueue queue,
 			final ViewerOptions optional,
 			final BR bottomRight,
 			final Function< Source< ? >, Interpolation > interpolation )
 	{
 		this.manager = manager;
-		this.topLeft = create( this.manager, cacheControl, optional, ViewerAxis.Z, interpolation );
-		this.topRight = create( this.manager, cacheControl, optional, ViewerAxis.X, interpolation );
-		this.bottomLeft = create( this.manager, cacheControl, optional, ViewerAxis.Y, interpolation );
+		this.topLeft = create( this.manager, queue, optional, ViewerAxis.Z, interpolation );
+		this.topRight = create( this.manager, queue, optional, ViewerAxis.X, interpolation );
+		this.bottomLeft = create( this.manager, queue, optional, ViewerAxis.Y, interpolation );
 		this.grid = new ResizableGridPane2x2<>( topLeft.viewer, topRight.viewer, bottomLeft.viewer, bottomRight );
+		this.queue = queue;
 	}
 
 	public ResizableGridPane2x2< ViewerPanelFX, ViewerPanelFX, ViewerPanelFX, BR > grid()
@@ -175,6 +179,11 @@ public class OrthogonalViews< BR extends Node >
 	public ViewerAndTransforms bottomLeft()
 	{
 		return this.bottomLeft;
+	}
+
+	public SharedQueue sharedQueue()
+	{
+		return this.queue;
 	}
 
 }
