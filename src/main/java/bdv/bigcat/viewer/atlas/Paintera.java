@@ -9,9 +9,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Random;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 import java.util.function.Function;
 
@@ -21,11 +18,15 @@ import org.slf4j.LoggerFactory;
 import bdv.bigcat.viewer.ToIdConverter;
 import bdv.bigcat.viewer.atlas.AtlasFocusHandler.OnEnterOnExit;
 import bdv.bigcat.viewer.atlas.control.FitToInterval;
+import bdv.bigcat.viewer.atlas.control.Merges;
 import bdv.bigcat.viewer.atlas.control.Navigation;
+import bdv.bigcat.viewer.atlas.control.Paint;
 import bdv.bigcat.viewer.atlas.control.Selection;
 import bdv.bigcat.viewer.atlas.control.navigation.AffineTransformWithListeners;
 import bdv.bigcat.viewer.atlas.control.navigation.DisplayTransformUpdateOnResize;
 import bdv.bigcat.viewer.atlas.data.RandomAccessibleIntervalDataSource;
+import bdv.bigcat.viewer.atlas.data.mask.MaskedSource;
+import bdv.bigcat.viewer.atlas.data.mask.Masks;
 import bdv.bigcat.viewer.atlas.source.SourceInfo;
 import bdv.bigcat.viewer.atlas.ui.source.SourceTabs;
 import bdv.bigcat.viewer.bdvfx.KeyTracker;
@@ -68,6 +69,7 @@ import javafx.stage.Stage;
 import javafx.stage.WindowEvent;
 import net.imglib2.RandomAccessible;
 import net.imglib2.RandomAccessibleInterval;
+import net.imglib2.converter.Converters;
 import net.imglib2.img.array.ArrayImg;
 import net.imglib2.img.array.ArrayImgs;
 import net.imglib2.img.basictypeaccess.array.ByteArray;
@@ -80,6 +82,7 @@ import net.imglib2.realtransform.Scale3D;
 import net.imglib2.type.numeric.ARGBType;
 import net.imglib2.type.numeric.integer.UnsignedByteType;
 import net.imglib2.type.numeric.integer.UnsignedLongType;
+import net.imglib2.type.volatiles.VolatileUnsignedLongType;
 import net.imglib2.util.Intervals;
 import net.imglib2.view.Views;
 
@@ -108,7 +111,8 @@ public class Paintera extends Application
 			v -> viewerToTransforms.get( v ).displayTransform(),
 			v -> viewerToTransforms.get( v ).globalToViewerTransform(),
 			keyTracker );
-
+	private final Merges merges = new Merges( sourceInfo, keyTracker );
+	private final Paint paint = new Paint( sourceInfo, keyTracker, baseView.manager(), baseView.orthogonalViews()::requestRepaint );
 	private final Selection selection = new Selection( sourceInfo, keyTracker );
 
 	private final ObservableObjectValue< ViewerAndTransforms > currentFocusHolderWithState = currentFocusHolder( baseView.orthogonalViews() );
@@ -153,18 +157,27 @@ public class Paintera extends Application
 						labels
 				};
 
-				final RandomAccessibleIntervalDataSource< UnsignedLongType, UnsignedLongType > labelSource = new RandomAccessibleIntervalDataSource<>(
+				@SuppressWarnings( "unchecked" )
+				final RandomAccessibleInterval< VolatileUnsignedLongType >[] vlsrcs = new RandomAccessibleInterval[] {
+						Converters.convert( lsrcs[ 0 ], ( s, t ) -> t.get().set( s ), new VolatileUnsignedLongType() )
+				};
+
+				final RandomAccessibleIntervalDataSource< UnsignedLongType, VolatileUnsignedLongType > labelSource = new RandomAccessibleIntervalDataSource<>(
 						lsrcs,
-						lsrcs,
+						vlsrcs,
 						new AffineTransform3D[] { new AffineTransform3D() },
 						i -> new NearestNeighborInterpolatorFactory<>(),
 						i -> new NearestNeighborInterpolatorFactory<>(),
 						"labels" );
 
+				final MaskedSource< UnsignedLongType, VolatileUnsignedLongType > maskedSource = Masks.fromIntegerType( labelSource, ( canvas, blocks ) -> {} );
+
 				updateDisplayTransformOnResize( baseView.orthogonalViews(), baseView.manager() );
 
 				onEnterOnExit.accept( navigation.onEnterOnExit() );
 				onEnterOnExit.accept( selection.onEnterOnExit() );
+				onEnterOnExit.accept( merges.onEnterOnExit() );
+				onEnterOnExit.accept( paint.onEnterOnExit() );
 
 				grabFocusOnMouseOver(
 						baseView.orthogonalViews().topLeft().viewer(),
@@ -219,10 +232,6 @@ public class Paintera extends Application
 
 				Platform.setImplicitExit( true );
 
-				final ScheduledExecutorService t = Executors.newScheduledThreadPool( 1 );
-				t.scheduleAtFixedRate( this::toggleInterpolation, 0, 1000, TimeUnit.MILLISECONDS );
-				this.interpolation.addListener( ( obs, oldv, newv ) -> baseView.orthogonalViews().requestRepaint() );
-
 				final SourceTabs sideBar = new SourceTabs(
 						sourceInfo.currentSourceIndexProperty(),
 						sourceInfo::removeSource,
@@ -238,12 +247,12 @@ public class Paintera extends Application
 					}
 				} );
 
-				sourceInfo.currentSourceProperty().set( labelSource );
+		sourceInfo.currentSourceProperty().set( maskedSource );
 
 				sourceInfo.trackSources().addListener( FitToInterval.fitToIntervalWhenSourceAddedListener( baseView.manager(), baseView.orthogonalViews().topLeft().viewer().widthProperty()::get ) );
 
 				baseView.addRawSource( source, 0, 255, toARGBType( Color.TEAL ) );
-				baseView.addLabelSource( labelSource, new FragmentSegmentAssignmentOnlyLocal( ( a, b ) -> {} ), ToIdConverter.fromIntegerType() );
+				baseView.addLabelSource( maskedSource, new FragmentSegmentAssignmentOnlyLocal( ( a, b ) -> {} ), ToIdConverter.fromIntegerType() );
 				baseView.viewer3D().setInitialTransformToInterval( data );
 
 				keyTracker.installInto( scene );
