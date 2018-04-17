@@ -5,6 +5,14 @@ import net.imglib2.type.numeric.ARGBType;
 
 public class Colors
 {
+	// #ff0088
+	public static final Color CREMI = Color.rgb( 0xff, 0x00, 0x88, 1.0 );
+
+	public static Color cremi( final double opacity )
+	{
+		final double factor = opacity / CREMI.getOpacity();
+		return CREMI.deriveColor( 0, 1, 1, factor );
+	}
 
 	public static ARGBType toARGBType( final Color color )
 	{
