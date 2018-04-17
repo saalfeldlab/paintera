@@ -32,6 +32,7 @@ import org.janelia.saalfeldlab.paintera.ui.Crosshair;
 import org.janelia.saalfeldlab.paintera.ui.opendialog.PainteraOpenDialogEventHandler;
 import org.janelia.saalfeldlab.paintera.ui.source.SourceTabs;
 import org.janelia.saalfeldlab.paintera.viewer3d.OrthoSliceFX;
+import org.janelia.saalfeldlab.util.Colors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -55,6 +56,7 @@ import javafx.scene.Node;
 import javafx.scene.Scene;
 import javafx.scene.control.CheckBox;
 import javafx.scene.control.Label;
+import javafx.scene.control.TitledPane;
 import javafx.scene.control.Tooltip;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyEvent;
@@ -106,7 +108,11 @@ public class Paintera extends Application
 
 	private final CrosshairConfig crosshairConfig = new CrosshairConfig();
 
-	private final Map< ViewerAndTransforms, Crosshair > crossHairs = makeCrosshairs( baseView.orthogonalViews(), crosshairConfig, Color.ORANGE, Color.WHITE );
+	private final Map< ViewerAndTransforms, Crosshair > crossHairs = makeCrosshairs(
+			baseView.orthogonalViews(),
+			crosshairConfig,
+			Colors.CREMI,
+			Color.WHITE.deriveColor( 0, 1, 1, 0.5 ) );
 
 	private final Map< ViewerAndTransforms, OrthoSliceFX > orthoSlices = makeOrthoSlices( baseView.orthogonalViews(), baseView.viewer3D().meshesGroup(), sourceInfo );
 
@@ -186,7 +192,15 @@ public class Paintera extends Application
 				sourceInfo::removeSource,
 				sourceInfo );
 
-		final VBox sideBar = new VBox( sourceTabs.get(), new CrossHairConfigNode( crosshairConfig ).getContents() );
+		final TitledPane sourcesContents = new TitledPane( "sources", sourceTabs.get() );
+		sourcesContents.setExpanded( false );
+
+		final VBox settingsContents = new VBox(
+				new CrossHairConfigNode( crosshairConfig ).getContents() );
+		final TitledPane settings = new TitledPane( "settings", settingsContents );
+		settings.setExpanded( false );
+
+		final VBox sideBar = new VBox( sourcesContents, settings );
 		sideBar.setPrefWidth( 200 );
 		sideBar.setVisible( true );
 

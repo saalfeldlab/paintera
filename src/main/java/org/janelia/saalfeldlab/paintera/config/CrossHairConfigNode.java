@@ -1,17 +1,19 @@
 package org.janelia.saalfeldlab.paintera.config;
 
+import org.janelia.saalfeldlab.util.Colors;
+
 import javafx.scene.Node;
 import javafx.scene.control.CheckBox;
 import javafx.scene.control.ColorPicker;
 import javafx.scene.control.Label;
+import javafx.scene.control.TitledPane;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.Priority;
-import javafx.scene.layout.VBox;
 
 public class CrossHairConfigNode
 {
 
-	private final VBox contents;
+	private final TitledPane contents;
 
 	public CrossHairConfigNode( final CrosshairConfig config )
 	{
@@ -22,16 +24,15 @@ public class CrossHairConfigNode
 
 		final GridPane grid = new GridPane();
 
-		grid.add( new Label( "show crosshairs" ), 0, 0 );
-		grid.add( showCrosshairs, 1, 0 );
-
 		final ColorPicker onFocusColorPicker = new ColorPicker();
 		onFocusColorPicker.valueProperty().bindBidirectional( config.onFocusColorProperty() );
 		onFocusColorPicker.setMaxWidth( 40 );
+		onFocusColorPicker.getCustomColors().addAll( Colors.cremi( 1.0 ), Colors.cremi( 0.5 ) );
 
 		final ColorPicker outOfFocusColorPicker = new ColorPicker();
 		outOfFocusColorPicker.valueProperty().bindBidirectional( config.outOfFocusColorProperty() );
 		outOfFocusColorPicker.setMaxWidth( 40 );
+		outOfFocusColorPicker.getCustomColors().addAll( Colors.cremi( 1.0 ), Colors.cremi( 0.5 ) );
 
 		final Label onFocusLabel = new Label( "on focus" );
 		final Label offFocusLabel = new Label( "off focus" );
@@ -44,7 +45,10 @@ public class CrossHairConfigNode
 		GridPane.setHgrow( onFocusLabel, Priority.ALWAYS );
 		GridPane.setHgrow( offFocusLabel, Priority.ALWAYS );
 
-		contents = new VBox( grid );
+		contents = new TitledPane( "crosshair", grid );
+		contents.setGraphic( showCrosshairs );
+		contents.setExpanded( false );
+
 	}
 
 	public Node getContents()
