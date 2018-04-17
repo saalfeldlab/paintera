@@ -16,6 +16,8 @@ import org.janelia.saalfeldlab.fx.ortho.GridResizer;
 import org.janelia.saalfeldlab.fx.ortho.OnEnterOnExit;
 import org.janelia.saalfeldlab.fx.ortho.OrthogonalViews;
 import org.janelia.saalfeldlab.fx.ortho.OrthogonalViews.ViewerAndTransforms;
+import org.janelia.saalfeldlab.paintera.config.CrossHairConfigNode;
+import org.janelia.saalfeldlab.paintera.config.CrosshairConfig;
 import org.janelia.saalfeldlab.paintera.control.FitToInterval;
 import org.janelia.saalfeldlab.paintera.control.Merges;
 import org.janelia.saalfeldlab.paintera.control.Navigation;
@@ -26,7 +28,7 @@ import org.janelia.saalfeldlab.paintera.control.Selection;
 import org.janelia.saalfeldlab.paintera.control.navigation.AffineTransformWithListeners;
 import org.janelia.saalfeldlab.paintera.control.navigation.DisplayTransformUpdateOnResize;
 import org.janelia.saalfeldlab.paintera.ui.ARGBStreamSeedSetter;
-import org.janelia.saalfeldlab.paintera.ui.CrossHair;
+import org.janelia.saalfeldlab.paintera.ui.Crosshair;
 import org.janelia.saalfeldlab.paintera.ui.opendialog.PainteraOpenDialogEventHandler;
 import org.janelia.saalfeldlab.paintera.ui.source.SourceTabs;
 import org.janelia.saalfeldlab.paintera.viewer3d.OrthoSliceFX;
@@ -59,6 +61,7 @@ import javafx.scene.input.KeyEvent;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.AnchorPane;
 import javafx.scene.layout.BorderPane;
+import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
 import javafx.stage.Stage;
 import javafx.stage.WindowEvent;
@@ -101,7 +104,9 @@ public class Paintera extends Application
 
 	private final Consumer< OnEnterOnExit > onEnterOnExit = createOnEnterOnExit( currentFocusHolderWithState );
 
-	private final Map< ViewerAndTransforms, CrossHair > crossHairs = makeCrosshairs( baseView.orthogonalViews(), Color.ORANGE, Color.WHITE );
+	private final CrosshairConfig crosshairConfig = new CrosshairConfig();
+
+	private final Map< ViewerAndTransforms, Crosshair > crossHairs = makeCrosshairs( baseView.orthogonalViews(), crosshairConfig, Color.ORANGE, Color.WHITE );
 
 	private final Map< ViewerAndTransforms, OrthoSliceFX > orthoSlices = makeOrthoSlices( baseView.orthogonalViews(), baseView.viewer3D().meshesGroup(), sourceInfo );
 
@@ -176,17 +181,19 @@ public class Paintera extends Application
 
 		Platform.setImplicitExit( true );
 
-		final SourceTabs sideBar = new SourceTabs(
+		final SourceTabs sourceTabs = new SourceTabs(
 				sourceInfo.currentSourceIndexProperty(),
 				sourceInfo::removeSource,
 				sourceInfo );
-		sideBar.widthProperty().set( 200 );
-		sideBar.get().setVisible( true );
+
+		final VBox sideBar = new VBox( sourceTabs.get(), new CrossHairConfigNode( crosshairConfig ).getContents() );
+		sideBar.setPrefWidth( 200 );
+		sideBar.setVisible( true );
 
 		scene.addEventHandler( KeyEvent.KEY_PRESSED, event -> {
 			if ( keyTracker.areOnlyTheseKeysDown( KeyCode.P ) )
 			{
-				borderPane.setRight( borderPane.getRight() == null ? sideBar.get() : null );
+				borderPane.setRight( borderPane.getRight() == null ? sideBar : null );
 				event.consume();
 			}
 		} );
@@ -291,27 +298,34 @@ public class Paintera extends Application
 		node.addEventFilter( MouseEvent.MOUSE_ENTERED, e -> node.requestFocus() );
 	}
 
-	public static Map< ViewerAndTransforms, CrossHair > makeCrosshairs(
+	public static Map< ViewerAndTransforms, Crosshair > makeCrosshairs(
 			final OrthogonalViews< ? > views,
+			final CrosshairConfig config,
 			final Color onFocusColor,
 			final Color offFocusColor )
 	{
-		final Map< ViewerAndTransforms, CrossHair > map = new HashMap<>();
-		map.put( views.topLeft(), makeCrossHairForViewer( views.topLeft().viewer(), onFocusColor, offFocusColor ) );
-		map.put( views.topRight(), makeCrossHairForViewer( views.topRight().viewer(), onFocusColor, offFocusColor ) );
-		map.put( views.bottomLeft(), makeCrossHairForViewer( views.bottomLeft().viewer(), onFocusColor, offFocusColor ) );
+		final Map< ViewerAndTransforms, Crosshair > map = new HashMap<>();
+		map.put( views.topLeft(), makeCrossHairForViewer( views.topLeft().viewer(), config, onFocusColor, offFocusColor ) );
+		map.put( views.topRight(), makeCrossHairForViewer( views.topRight().viewer(), config, onFocusColor, offFocusColor ) );
+		map.put( views.bottomLeft(), makeCrossHairForViewer( views.bottomLeft().viewer(), config, onFocusColor, offFocusColor ) );
+		config.setOnFocusColor( onFocusColor );
+		config.setOutOfFocusColor( offFocusColor );
 		return map;
 	}
 
-	public static CrossHair makeCrossHairForViewer(
+	public static Crosshair makeCrossHairForViewer(
 			final ViewerPanelFX viewer,
+			final CrosshairConfig config,
 			final Color onFocusColor,
 			final Color offFocusColor )
 	{
-		final CrossHair ch = new CrossHair();
+		final Crosshair ch = new Crosshair();
 		viewer.getDisplay().addOverlayRenderer( ch );
-		viewer.focusedProperty().addListener( ( obs, oldv, newv ) -> ch.setColor( newv ? onFocusColor : offFocusColor ) );
+		ch.regularColorProperty().bind( config.outOfFocusColorProperty() );
+		ch.highlightColorProperty().bind( config.onFocusColorProperty() );
 		ch.wasChangedProperty().addListener( ( obs, oldv, newv ) -> viewer.getDisplay().drawOverlays() );
+		ch.isVisibleProperty().bind( config.showCrosshairsProperty() );
+		ch.isHighlightProperty().bind( viewer.focusedProperty() );
 		return ch;
 	}
 
