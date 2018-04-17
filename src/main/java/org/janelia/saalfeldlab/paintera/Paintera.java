@@ -16,6 +16,7 @@ import org.janelia.saalfeldlab.fx.ortho.GridResizer;
 import org.janelia.saalfeldlab.fx.ortho.OnEnterOnExit;
 import org.janelia.saalfeldlab.fx.ortho.OrthogonalViews;
 import org.janelia.saalfeldlab.fx.ortho.OrthogonalViews.ViewerAndTransforms;
+import org.janelia.saalfeldlab.fx.ui.ResizeOnLeftSide;
 import org.janelia.saalfeldlab.paintera.config.CrossHairConfigNode;
 import org.janelia.saalfeldlab.paintera.config.CrosshairConfig;
 import org.janelia.saalfeldlab.paintera.control.FitToInterval;
@@ -201,13 +202,26 @@ public class Paintera extends Application
 		settings.setExpanded( false );
 
 		final VBox sideBar = new VBox( sourcesContents, settings );
-		sideBar.setPrefWidth( 200 );
 		sideBar.setVisible( true );
+		sideBar.prefWidthProperty().set( 250 );
+		sourceTabs.widthProperty().bind( sideBar.prefWidthProperty() );
+		settingsContents.prefWidthProperty().bind( sideBar.prefWidthProperty() );
+
+		final ResizeOnLeftSide resizeSideBar = new ResizeOnLeftSide( sideBar, sideBar.prefWidthProperty(), dist -> Math.abs( dist ) < 5 );
 
 		scene.addEventHandler( KeyEvent.KEY_PRESSED, event -> {
 			if ( keyTracker.areOnlyTheseKeysDown( KeyCode.P ) )
 			{
-				borderPane.setRight( borderPane.getRight() == null ? sideBar : null );
+				if ( borderPane.getRight() == null )
+				{
+					borderPane.setRight( sideBar );
+					resizeSideBar.install();
+				}
+				else
+				{
+					resizeSideBar.remove();
+					borderPane.setRight( null );
+				}
 				event.consume();
 			}
 		} );
