@@ -117,9 +117,9 @@ public class GenericBackendDialogN5 implements SourceFromRAI
 
 	private final DatasetInfo datasetInfo = new DatasetInfo();
 
-	private final SimpleObjectProperty< Supplier< N5Writer > > n5Supplier = new SimpleObjectProperty<>();
+	private final SimpleObjectProperty< Supplier< N5Writer > > n5Supplier = new SimpleObjectProperty<>( () -> null );
 
-	private final ObjectBinding< N5Writer > n5 = Bindings.createObjectBinding( () -> n5Supplier.get().get(), n5Supplier );
+	private final ObjectBinding< N5Writer > n5 = Bindings.createObjectBinding( () -> Optional.ofNullable( n5Supplier.get() ).map( Supplier::get ).orElse( null ), n5Supplier );
 
 	private final StringProperty dataset = new SimpleStringProperty();
 
