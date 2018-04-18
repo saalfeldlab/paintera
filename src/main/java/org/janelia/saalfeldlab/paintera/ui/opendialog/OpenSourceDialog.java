@@ -80,7 +80,7 @@ public class OpenSourceDialog extends Dialog< BackendDialog > implements Combine
 	{
 		backendInfoDialogs.put( BACKEND.N5, N5BackendDialogs.fileSystem() );
 		backendInfoDialogs.put( BACKEND.HDF5, N5BackendDialogs.hdf5() );
-//		backendInfoDialogs.put( BACKEND.GOOGLE, new BackendDialogGoogleCloud() );
+		backendInfoDialogs.put( BACKEND.GOOGLE, N5BackendDialogs.googleCloud() );
 	}
 
 	private final SimpleObjectProperty< BackendDialog > currentBackend = new SimpleObjectProperty<>( backendInfoDialogs.get( BACKEND.N5 ) );

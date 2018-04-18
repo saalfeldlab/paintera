@@ -681,7 +681,7 @@ public class GenericBackendDialogN5 implements SourceFromRAI
 	public boolean isLabelMultisetType() throws Exception
 	{
 		final Boolean attribute = getAttribute( LABEL_MULTISETTYPE_KEY, Boolean.class );
-		LOG.warn( "Getting label multiset attribute: {}", attribute );
+		LOG.debug( "Getting label multiset attribute: {}", attribute );
 		return Optional.ofNullable( attribute ).orElse( false );
 	}
 
