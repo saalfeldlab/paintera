@@ -127,7 +127,7 @@ public interface SourceFromRAI extends BackendDialog
 			final int priority ) throws IOException
 	{
 		final Triple< RandomAccessibleInterval< T >[], RandomAccessibleInterval< V >[], AffineTransform3D[] > dataAndVolatile = getDataAndVolatile( sharedQueue, priority );
-		LOG.warn( "Got data: {}", dataAndVolatile );
+		LOG.debug( "Got data: {}", dataAndVolatile );
 		return getCached( dataAndVolatile.getA(), dataAndVolatile.getB(), dataAndVolatile.getC(), name, sharedQueue, priority );
 	}
 
@@ -200,7 +200,7 @@ public interface SourceFromRAI extends BackendDialog
 			final SharedQueue sharedQueue,
 			final int priority ) throws IOException
 	{
-		LOG.warn( "Using source transforms {} for {} sources", Arrays.toString( transforms ), rai.length );
+		LOG.debug( "Using source transforms {} for {} sources", Arrays.toString( transforms ), rai.length );
 
 		return getAsSource( rai, vrai, transforms, interpolation, vinterpolation, nameOrPattern );
 	}
@@ -256,7 +256,7 @@ public interface SourceFromRAI extends BackendDialog
 		assert rais.length == vrais.length;
 		assert rais.length == transforms.length;
 
-		LOG.warn( "Getting RandomAccessibleIntervalDataSource" );
+		LOG.debug( "Getting RandomAccessibleIntervalDataSource" );
 
 		return new RandomAccessibleIntervalDataSource<>( rais, vrais, transforms, interpolation, vinterpolation, name );
 	}

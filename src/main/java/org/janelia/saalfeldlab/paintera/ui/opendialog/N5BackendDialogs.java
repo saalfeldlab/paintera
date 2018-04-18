@@ -33,12 +33,17 @@ import javafx.scene.control.TextField;
 import javafx.scene.layout.GridPane;
 import javafx.stage.DirectoryChooser;
 import javafx.stage.FileChooser;
+import javafx.stage.FileChooser.ExtensionFilter;
 import net.imglib2.util.Pair;
 
 public class N5BackendDialogs
 {
 
 	private static Logger LOG = LoggerFactory.getLogger( MethodHandles.lookup().lookupClass() );
+
+	private static File USER_HOME = new File( System.getProperty( "user.home" ) );
+
+	private static final String[] H5_EXTENSIONS = { "*.h5", "*.hdf", "*.hdf5" };
 
 	public static GenericBackendDialogN5 fileSystem()
 	{
@@ -53,16 +58,23 @@ public class N5BackendDialogs
 		final DirectoryChooser directoryChooser = new DirectoryChooser();
 
 		final Consumer< Event > onClick = event -> {
+
+			directoryChooser.setInitialDirectory( Optional
+					.ofNullable( root.get() )
+					.map( File::new )
+					.filter( File::exists )
+					.filter( File::isDirectory )
+					.orElse( USER_HOME ) );
 			final File updatedRoot = directoryChooser.showDialog( rootField.getScene().getWindow() );
 
-			LOG.warn( "Updated root to {}", updatedRoot );
+			LOG.debug( "Updated root to {}", updatedRoot );
 
 			if ( updatedRoot != null && updatedRoot.exists() && updatedRoot.isDirectory() )
 			{
 				final String path = updatedRoot.getAbsolutePath();
 				root.set( path );
 				writerSupplier.set( MakeUnchecked.unchecked( () -> new N5FSWriter( path ) ) );
-				LOG.warn( "Updated root={} and writer supplier={}", root, writerSupplier );
+				LOG.debug( "Updated root={} and writer supplier={}", root, writerSupplier );
 			}
 			Optional
 					.ofNullable( updatedRoot )
@@ -85,14 +97,21 @@ public class N5BackendDialogs
 		rootField.textProperty().bindBidirectional( root );
 
 		final FileChooser fileChooser = new FileChooser();
+		fileChooser.getExtensionFilters().setAll( new ExtensionFilter( "h5", H5_EXTENSIONS ) );
 
 		final Consumer< Event > onClick = event -> {
+			fileChooser.setInitialDirectory( Optional
+					.ofNullable( root.get() )
+					.map( File::new )
+					.filter( File::exists )
+					.filter( File::isDirectory )
+					.orElse( USER_HOME ) );
 			final File updatedRoot = fileChooser.showOpenDialog( rootField.getScene().getWindow() );
-			if ( updatedRoot != null && updatedRoot.exists() && updatedRoot.isDirectory() )
+			if ( updatedRoot != null && updatedRoot.exists() && updatedRoot.isFile() )
 			{
 				root.set( updatedRoot.getAbsolutePath() );
 				// TODO what to do with block size?
-				writerSupplier.set( MakeUnchecked.unchecked( () -> new N5HDF5Writer( root.get(), 64, 64, 64 ) ) );
+				writerSupplier.set( MakeUnchecked.unchecked( () -> new N5HDF5Writer( root.get(), 16, 16, 16 ) ) );
 			}
 			Optional
 					.ofNullable( updatedRoot )

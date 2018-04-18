@@ -122,11 +122,11 @@ public class PainteraOpenDialogEventHandler implements EventHandler< Event >
 					final BackendDialog dataset = datasetOptional.get();
 					final MetaPanel meta = openDialog.getMeta();
 					final TYPE type = openDialog.getType();
-					LOG.warn( "Type={}", type );
+					LOG.debug( "Type={}", type );
 					switch ( type )
 					{
 					case RAW:
-						LOG.warn( "adding raw!" );
+						LOG.trace( "Adding raw data" );
 						addRaw( openDialog.getName(), dataset, meta.min(), meta.max() );
 						break;
 					case LABEL:

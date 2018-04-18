@@ -232,17 +232,19 @@ public class GenericBackendDialogN5 implements SourceFromRAI
 	public void updateDatasetInfo( final String dataset, final DatasetInfo info )
 	{
 
+		LOG.debug( "Updating dataset info for dataset {}", dataset );
 		try
 		{
 			final N5Reader n5 = this.n5.get();
-			LOG.debug( "Got dataset {}", dataset );
+			final String ds = n5.datasetExists( dataset ) ? dataset : Paths.get( dataset, N5Helpers.listAndSortScaleDatasets( n5, dataset )[ 0 ] ).toFile().getAbsolutePath();
+			LOG.debug( "Got dataset {}", ds );
 
-			final DatasetAttributes dsAttrs = n5.getDatasetAttributes( dataset );
+			final DatasetAttributes dsAttrs = n5.getDatasetAttributes( ds );
 			final int nDim = dsAttrs.getNumDimensions();
-			setResolution( Optional.ofNullable( n5.getAttribute( dataset, RESOLUTION_KEY, double[].class ) ).orElse( DoubleStream.generate( () -> 1.0 ).limit( nDim ).toArray() ) );
-			setOffset( Optional.ofNullable( n5.getAttribute( dataset, OFFSET_KEY, double[].class ) ).orElse( new double[ nDim ] ) );
-			this.datasetInfo.minProperty().set( Optional.ofNullable( n5.getAttribute( dataset, MIN_KEY, Double.class ) ).orElse( N5Helpers.minForType( dsAttrs.getDataType() ) ) );
-			this.datasetInfo.maxProperty().set( Optional.ofNullable( n5.getAttribute( dataset, MAX_KEY, Double.class ) ).orElse( N5Helpers.maxForType( dsAttrs.getDataType() ) ) );
+			setResolution( Optional.ofNullable( n5.getAttribute( ds, RESOLUTION_KEY, double[].class ) ).orElse( DoubleStream.generate( () -> 1.0 ).limit( nDim ).toArray() ) );
+			setOffset( Optional.ofNullable( n5.getAttribute( ds, OFFSET_KEY, double[].class ) ).orElse( new double[ nDim ] ) );
+			this.datasetInfo.minProperty().set( Optional.ofNullable( n5.getAttribute( ds, MIN_KEY, Double.class ) ).orElse( N5Helpers.minForType( dsAttrs.getDataType() ) ) );
+			this.datasetInfo.maxProperty().set( Optional.ofNullable( n5.getAttribute( ds, MAX_KEY, Double.class ) ).orElse( N5Helpers.maxForType( dsAttrs.getDataType() ) ) );
 		}
 		catch ( final IOException e )
 		{
@@ -955,7 +957,7 @@ public class GenericBackendDialogN5 implements SourceFromRAI
 
 		if ( n5.datasetExists( ds ) )
 		{
-			LOG.warn( "Getting attributes for {} and {}", n5, ds );
+			LOG.debug( "Getting attributes for {} and {}", n5, ds );
 			return n5.getAttribute( ds, key, clazz );
 		}
 
