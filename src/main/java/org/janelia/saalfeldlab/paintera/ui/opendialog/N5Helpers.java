@@ -149,7 +149,7 @@ public class N5Helpers
 	public static List< String > discoverDatasets( final N5Reader n5, final Runnable onInterruption )
 	{
 		final List< String > datasets = new ArrayList<>();
-		discoverSubdirectories( n5, ".", datasets, onInterruption );
+		discoverSubdirectories( n5, "", datasets, onInterruption );
 		return datasets;
 	}
 
