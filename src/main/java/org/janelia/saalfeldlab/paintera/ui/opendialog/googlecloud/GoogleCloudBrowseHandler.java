@@ -58,7 +58,7 @@ public class GoogleCloudBrowseHandler
 
 	private final ObservableList< Bucket > buckets = FXCollections.observableArrayList();
 
-	public Optional< Pair< Storage, String > > select( final Scene scene )
+	public Optional< Pair< Storage, Bucket > > select( final Scene scene )
 	{
 		try
 		{
@@ -84,7 +84,7 @@ public class GoogleCloudBrowseHandler
 
 		// add project names as list items
 
-		final Dialog< String > dialog = new Dialog<>();
+		final Dialog< Bucket > dialog = new Dialog<>();
 		dialog.setTitle( "Google Cloud" );
 		final GridPane contents = new GridPane();
 
@@ -121,7 +121,7 @@ public class GoogleCloudBrowseHandler
 
 		dialog.setResultConverter( bt -> {
 			if ( ButtonType.OK.equals( bt ) )
-				return bucketChoices.getValue().getName();
+				return bucketChoices.getValue();
 			return null;
 		} );
 
@@ -145,7 +145,7 @@ public class GoogleCloudBrowseHandler
 		} );
 
 		dialog.getDialogPane().getButtonTypes().addAll( ButtonType.OK, ButtonType.CANCEL );
-		final String selectedBucketName = dialog.showAndWait().orElse( null );
+		final Bucket selectedBucketName = dialog.showAndWait().orElse( null );
 
 		if ( selectedBucketName == null )
 			return Optional.empty();
@@ -162,7 +162,7 @@ public class GoogleCloudBrowseHandler
 		PlatformImpl.startup( () -> {} );
 		InvokeOnJavaFXApplicationThread.invoke( () -> {
 			final Scene scene = new Scene( new StackPane( new Label( "test" ) ) );
-			final Pair< Storage, String > sab = handler.select( scene ).orElse( new ValuePair<>( null, "<NO VALUE>" ) );
+			final Pair< Storage, Bucket > sab = handler.select( scene ).orElse( new ValuePair<>( null, null ) );
 			LOG.warn( "storage={} bucket={}", sab.getA(), sab.getB() );
 		} );
 

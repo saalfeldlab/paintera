@@ -2,25 +2,31 @@ package org.janelia.saalfeldlab.paintera.ui.opendialog;
 
 import java.io.IOException;
 import java.lang.invoke.MethodHandles;
-import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collection;
-import java.util.Iterator;
+import java.util.function.BiConsumer;
 import java.util.function.Function;
+import java.util.function.LongFunction;
+import java.util.function.Supplier;
 
 import org.janelia.saalfeldlab.paintera.data.DataSource;
-import org.janelia.saalfeldlab.paintera.data.LabelDataSource;
-import org.janelia.saalfeldlab.paintera.data.LabelDataSourceFromDelegates;
 import org.janelia.saalfeldlab.paintera.data.RandomAccessibleIntervalDataSource;
+import org.janelia.saalfeldlab.paintera.data.mask.Masks;
+import org.janelia.saalfeldlab.paintera.data.mask.TmpDirectoryCreator;
+import org.janelia.saalfeldlab.paintera.id.IdService;
+import org.janelia.saalfeldlab.paintera.id.ToIdConverter;
+import org.janelia.saalfeldlab.paintera.meshes.MeshGenerator.ShapeKey;
 import org.janelia.saalfeldlab.paintera.state.FragmentSegmentAssignmentState;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import bdv.util.volatiles.SharedQueue;
 import bdv.viewer.Interpolation;
+import net.imglib2.Interval;
 import net.imglib2.RandomAccessible;
 import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.Volatile;
+import net.imglib2.cache.img.CachedCellImg;
+import net.imglib2.converter.Converter;
 import net.imglib2.interpolation.InterpolatorFactory;
 import net.imglib2.interpolation.randomaccess.NLinearInterpolatorFactory;
 import net.imglib2.interpolation.randomaccess.NearestNeighborInterpolatorFactory;
@@ -29,10 +35,13 @@ import net.imglib2.type.NativeType;
 import net.imglib2.type.Type;
 import net.imglib2.type.label.LabelMultisetType;
 import net.imglib2.type.label.VolatileLabelMultisetType;
+import net.imglib2.type.logic.BoolType;
 import net.imglib2.type.numeric.IntegerType;
 import net.imglib2.type.numeric.NumericType;
 import net.imglib2.type.numeric.RealType;
+import net.imglib2.type.numeric.integer.UnsignedLongType;
 import net.imglib2.type.volatiles.AbstractVolatileRealType;
+import net.imglib2.util.Pair;
 import net.imglib2.util.Triple;
 
 public interface SourceFromRAI extends BackendDialog
@@ -50,33 +59,119 @@ public interface SourceFromRAI extends BackendDialog
 
 	public boolean isIntegerType() throws Exception;
 
-	public Iterator< ? extends FragmentSegmentAssignmentState< ? > > assignments();
+	public < F extends FragmentSegmentAssignmentState< F > > F assignments();
+
+	public IdService idService();
+
+	public default ToIdConverter toIdConverter() throws Exception
+	{
+		if ( isLabelType() )
+		{
+			if ( isLabelMultisetType() )
+				return ToIdConverter.fromLabelMultisetType();
+
+			if ( isIntegerType() )
+				return ToIdConverter.fromIntegerType();
+		}
+		return null;
+	}
+
+	public BiConsumer< CachedCellImg< UnsignedLongType, ? >, long[] > commitCanvas();
+
+	public default Function< Long, Interval[] >[] blocksThatContainId()
+	{
+		return null;
+	}
+
+	public default Function< ShapeKey, Pair< float[], float[] > >[] meshCache()
+	{
+		return null;
+	}
+
+	public default String initialCanvasPath()
+	{
+		return new TmpDirectoryCreator( null, null ).get();
+	}
+
+	public default Supplier< String > canvasCacheDirUpdate()
+	{
+		return new TmpDirectoryCreator( null, null );
+	}
+
+	@SuppressWarnings( "unchecked" )
+	public default < D > LongFunction< Converter< D, BoolType > > maskForId() throws Exception
+	{
+		if ( isLabelMultisetType() )
+			return id -> ( Converter< D, BoolType > ) maskForIdLabelMultisetType( id );
+
+		if ( isIntegerType() )
+			return id -> ( Converter< D, BoolType > ) maskForIdIntegerType( id );
+
+		return null;
+	}
+
+	public static Converter< LabelMultisetType, BoolType > maskForIdLabelMultisetType( final long id )
+	{
+		return ( s, t ) -> t.set( s.contains( id ) );
+	}
+
+	public static < I extends IntegerType< I > > Converter< I, BoolType > maskForIdIntegerType( final long id )
+	{
+		return ( s, t ) -> t.set( s.getIntegerLong() == id );
+	}
 
 	@Override
-	public default < T extends RealType< T > & NativeType< T >, V extends AbstractVolatileRealType< T, V > & NativeType< V > > Collection< DataSource< T, V > > getRaw(
+	public default < T extends RealType< T > & NativeType< T >, V extends AbstractVolatileRealType< T, V > & NativeType< V > > DataSource< T, V > getRaw(
 			final String name,
 			final SharedQueue sharedQueue,
 			final int priority ) throws IOException
 	{
 		final Triple< RandomAccessibleInterval< T >[], RandomAccessibleInterval< V >[], AffineTransform3D[] > dataAndVolatile = getDataAndVolatile( sharedQueue, priority );
+		LOG.warn( "Got data: {}", dataAndVolatile );
 		return getCached( dataAndVolatile.getA(), dataAndVolatile.getB(), dataAndVolatile.getC(), name, sharedQueue, priority );
 	}
 
+	default < T extends NativeType< T >, V extends Volatile< T > & Type< V > > DataSource< T, V > getSourceNearestNeighborInterpolationOnly(
+			final String name,
+			final SharedQueue sharedQueue,
+			final int priority ) throws IOException
+	{
+		final Triple< RandomAccessibleInterval< T >[], RandomAccessibleInterval< V >[], AffineTransform3D[] > dataAndVolatile = getDataAndVolatile( sharedQueue, priority );
+		return getCached(
+				dataAndVolatile.getA(),
+				dataAndVolatile.getB(),
+				dataAndVolatile.getC(),
+				interpolation -> new NearestNeighborInterpolatorFactory<>(),
+				interpolation -> new NearestNeighborInterpolatorFactory<>(),
+				name,
+				sharedQueue,
+				priority );
+	}
+
 	@Override
-	public default Collection< ? extends LabelDataSource< ?, ? > > getLabels(
+	public default < D extends NativeType< D >, T extends Volatile< D > & Type< T >, F extends FragmentSegmentAssignmentState< F > > LabelDataSourceRepresentation< D, T, F > getLabels(
 			final String name,
 			final SharedQueue sharedQueue,
 			final int priority ) throws Exception
+
 	{
-		if ( isLabelType() )
-			if ( isLabelMultisetType() )
-				return getLabelMultisetTypeSource( name, sharedQueue, priority, assignments() );
-			else if ( isIntegerType() )
-				return getIntegerTypeSource( name, sharedQueue, priority, assignments() );
-		return new ArrayList<>();
+		final DataSource< D, T > source = Masks.mask(
+				this.< D, T >getSourceNearestNeighborInterpolationOnly( name, sharedQueue, priority ),
+				null,
+				null,
+				commitCanvas() );
+
+		return new LabelDataSourceRepresentation< D, T, F >(
+				source,
+				assignments(),
+				idService(),
+				toIdConverter(),
+				blocksThatContainId(),
+				meshCache(),
+				maskForId() );
 	}
 
-	public default < T extends NumericType< T >, V extends NumericType< V > > Collection< DataSource< T, V > > getCached(
+	public default < T extends NumericType< T >, V extends NumericType< V > > DataSource< T, V > getCached(
 			final RandomAccessibleInterval< T >[] rai,
 			final RandomAccessibleInterval< V >[] vrai,
 			final AffineTransform3D[] transforms,
@@ -95,7 +190,7 @@ public interface SourceFromRAI extends BackendDialog
 				priority );
 	}
 
-	public default < T extends Type< T >, V extends Type< V > > Collection< DataSource< T, V > > getCached(
+	public default < T extends Type< T >, V extends Type< V > > DataSource< T, V > getCached(
 			final RandomAccessibleInterval< T >[] rai,
 			final RandomAccessibleInterval< V >[] vrai,
 			final AffineTransform3D[] transforms,
@@ -105,20 +200,19 @@ public interface SourceFromRAI extends BackendDialog
 			final SharedQueue sharedQueue,
 			final int priority ) throws IOException
 	{
-		LOG.debug( "Using source transforms {} for {} sources", Arrays.toString( transforms ), rai.length );
+		LOG.warn( "Using source transforms {} for {} sources", Arrays.toString( transforms ), rai.length );
 
-		return Arrays.asList( getAsSource( rai, vrai, transforms, interpolation, vinterpolation, nameOrPattern ) );
+		return getAsSource( rai, vrai, transforms, interpolation, vinterpolation, nameOrPattern );
 	}
 
-	public default < T extends IntegerType< T > & NativeType< T >, V extends AbstractVolatileRealType< T, V > > Collection< ? extends LabelDataSource< T, V > > getIntegerTypeSource(
+	public default < T extends IntegerType< T > & NativeType< T >, V extends AbstractVolatileRealType< T, V > > DataSource< T, V > getIntegerTypeSource(
 			final String name,
 			final SharedQueue sharedQueue,
-			final int priority,
-			final Iterator< ? extends FragmentSegmentAssignmentState< ? > > assignment ) throws IOException
+			final int priority ) throws IOException
 	{
 
 		final Triple< RandomAccessibleInterval< T >[], RandomAccessibleInterval< V >[], AffineTransform3D[] > dataAndVolatile = getDataAndVolatile( sharedQueue, priority );
-		final Collection< DataSource< T, V > > sources = getCached(
+		final DataSource< T, V > source = getCached(
 				dataAndVolatile.getA(),
 				dataAndVolatile.getB(),
 				dataAndVolatile.getC(),
@@ -127,22 +221,18 @@ public interface SourceFromRAI extends BackendDialog
 				name,
 				sharedQueue,
 				priority );
-		final ArrayList< LabelDataSource< T, V > > delegated = new ArrayList<>();
-		for ( final DataSource< T, V > source : sources )
-			delegated.add( new LabelDataSourceFromDelegates<>( source, assignment.next() ) );
-		return delegated;
+		return source;
 	}
 
-	public default Collection< ? extends LabelDataSource< LabelMultisetType, VolatileLabelMultisetType > > getLabelMultisetTypeSource(
+	public default DataSource< LabelMultisetType, VolatileLabelMultisetType > getLabelMultisetTypeSource(
 			final String name,
 			final SharedQueue sharedQueue,
-			final int priority,
-			final Iterator< ? extends FragmentSegmentAssignmentState< ? > > assignment ) throws IOException
+			final int priority ) throws IOException
 	{
 
 		final Triple< RandomAccessibleInterval< LabelMultisetType >[], RandomAccessibleInterval< VolatileLabelMultisetType >[], AffineTransform3D[] > dataAndVolatile =
 				getDataAndVolatile( sharedQueue, priority );
-		final Collection< DataSource< LabelMultisetType, VolatileLabelMultisetType > > sources = getCached(
+		final DataSource< LabelMultisetType, VolatileLabelMultisetType > source = getCached(
 				dataAndVolatile.getA(),
 				dataAndVolatile.getB(),
 				dataAndVolatile.getC(),
@@ -151,10 +241,7 @@ public interface SourceFromRAI extends BackendDialog
 				name,
 				sharedQueue,
 				priority );
-		final ArrayList< LabelDataSource< LabelMultisetType, VolatileLabelMultisetType > > delegated = new ArrayList<>();
-		for ( final DataSource< LabelMultisetType, VolatileLabelMultisetType > source : sources )
-			delegated.add( new LabelDataSourceFromDelegates<>( source, assignment.next() ) );
-		return delegated;
+		return source;
 	}
 
 	public static < T extends Type< T >, V extends Type< V > > DataSource< T, V > getAsSource(
@@ -168,6 +255,8 @@ public interface SourceFromRAI extends BackendDialog
 
 		assert rais.length == vrais.length;
 		assert rais.length == transforms.length;
+
+		LOG.warn( "Getting RandomAccessibleIntervalDataSource" );
 
 		return new RandomAccessibleIntervalDataSource<>( rais, vrais, transforms, interpolation, vinterpolation, name );
 	}

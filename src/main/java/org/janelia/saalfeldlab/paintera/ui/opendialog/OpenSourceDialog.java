@@ -44,7 +44,7 @@ public class OpenSourceDialog extends Dialog< BackendDialog > implements Combine
 
 	public static enum BACKEND
 	{
-		N5, HDF5, DVID
+		N5, HDF5, GOOGLE
 	};
 
 	public static enum TYPE
@@ -72,17 +72,18 @@ public class OpenSourceDialog extends Dialog< BackendDialog > implements Combine
 
 	private final ObservableList< TYPE > typeChoices = FXCollections.observableArrayList( TYPE.values() );
 
-	private final SimpleObjectProperty< BackendDialog > currentBackend = new SimpleObjectProperty<>( new BackendDialogN5() );
-
 	private final NameField nameField = new NameField( "Source name", "Specify source name (required)", new InnerShadow( 10, Color.ORANGE ) );
 
 	private final BooleanBinding isError;
 
 	private final ObservableMap< BACKEND, BackendDialog > backendInfoDialogs = FXCollections.observableHashMap();
 	{
-		backendInfoDialogs.put( BACKEND.N5, new BackendDialogN5() );
-		backendInfoDialogs.put( BACKEND.HDF5, new BackendDialogHDF5() );
+		backendInfoDialogs.put( BACKEND.N5, N5BackendDialogs.fileSystem() );
+		backendInfoDialogs.put( BACKEND.HDF5, N5BackendDialogs.hdf5() );
+//		backendInfoDialogs.put( BACKEND.GOOGLE, new BackendDialogGoogleCloud() );
 	}
+
+	private final SimpleObjectProperty< BackendDialog > currentBackend = new SimpleObjectProperty<>( backendInfoDialogs.get( BACKEND.N5 ) );
 
 	private final MetaPanel metaPanel = new MetaPanel();
 
@@ -214,10 +215,4 @@ public class OpenSourceDialog extends Dialog< BackendDialog > implements Combine
 	{
 		return this.paintingCacheDirectory.getText();
 	}
-
-	public boolean isLabelMultiset()
-	{
-		return Optional.of( currentBackend.get() ).map( BackendDialog::isLabelMultiset ).orElse( false );
-	}
-
 }

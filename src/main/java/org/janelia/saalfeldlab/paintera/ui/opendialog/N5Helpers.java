@@ -2,7 +2,10 @@ package org.janelia.saalfeldlab.paintera.ui.opendialog;
 
 import java.io.IOException;
 import java.lang.invoke.MethodHandles;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
+import java.util.List;
 import java.util.regex.Pattern;
 
 import org.janelia.saalfeldlab.n5.DataType;
@@ -103,7 +106,7 @@ public class N5Helpers
 				} )
 				.toArray( String[]::new );
 
-		LOG.warn( "Found these scale dirs: {}", Arrays.toString( scaleDirs ) );
+		LOG.debug( "Found these scale dirs: {}", Arrays.toString( scaleDirs ) );
 		return scaleDirs;
 	}
 
@@ -112,7 +115,7 @@ public class N5Helpers
 		final String[] scaleDirs = listScaleDatasets( n5, group );
 		sortScaleDatasets( scaleDirs );
 
-		LOG.warn( "Sorted scale dirs: {}", Arrays.toString( scaleDirs ) );
+		LOG.debug( "Sorted scale dirs: {}", Arrays.toString( scaleDirs ) );
 		return scaleDirs;
 	}
 
@@ -141,6 +144,63 @@ public class N5Helpers
 		final boolean isHDF = Pattern.matches( "^h5://", base ) || Pattern.matches( "^.*\\.(hdf|h5)$", base );
 		LOG.debug( "{} is hdf5? {}", base, isHDF );
 		return isHDF;
+	}
+
+	public static List< String > discoverDatasets( final N5Reader n5, final Runnable onInterruption )
+	{
+		final List< String > datasets = new ArrayList<>();
+		discoverSubdirectories( n5, ".", datasets, onInterruption );
+		return datasets;
+	}
+
+	public static void discoverSubdirectories( final N5Reader n5, final String pathName, final Collection< String > datasets, final Runnable onInterruption )
+	{
+		if ( !Thread.currentThread().isInterrupted() )
+		{
+			try
+			{
+				final String[] groups = n5.list( pathName );
+				Arrays.sort( groups );
+				LOG.debug( "Found these sub-groups for {} : {}", pathName, groups );
+				for ( final String group : groups )
+				{
+					final String absolutePathName = pathName + "/" + group;
+					if ( n5.datasetExists( absolutePathName ) )
+					{
+						datasets.add( absolutePathName );
+					}
+					else
+					{
+						final String[] scales = n5.list( absolutePathName );
+						boolean isMipmapGroup = scales.length > 0;
+						for ( final String scale : scales )
+						{
+							if ( !( scale.matches( "^s[0-9]+$" ) && n5.datasetExists( absolutePathName + "/" + scale ) ) )
+							{
+								isMipmapGroup = false;
+								break;
+							}
+						}
+						if ( isMipmapGroup )
+						{
+							datasets.add( absolutePathName );
+						}
+						else
+						{
+							discoverSubdirectories( n5, absolutePathName, datasets, onInterruption );
+						}
+					}
+				}
+			}
+			catch ( final IOException e )
+			{
+				e.printStackTrace();
+			}
+		}
+		else
+		{
+			onInterruption.run();
+		}
 	}
 
 }

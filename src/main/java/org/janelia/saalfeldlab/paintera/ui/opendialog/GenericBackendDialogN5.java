@@ -1,29 +1,36 @@
 package org.janelia.saalfeldlab.paintera.ui.opendialog;
 
-import java.io.File;
 import java.io.IOException;
 import java.lang.invoke.MethodHandles;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.BiConsumer;
+import java.util.function.Consumer;
+import java.util.function.Supplier;
 import java.util.stream.DoubleStream;
 
+import org.janelia.saalfeldlab.fx.ui.ExceptionNode;
+import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread;
 import org.janelia.saalfeldlab.n5.ByteArrayDataBlock;
+import org.janelia.saalfeldlab.n5.DataBlock;
 import org.janelia.saalfeldlab.n5.DataType;
 import org.janelia.saalfeldlab.n5.DatasetAttributes;
-import org.janelia.saalfeldlab.n5.N5FSReader;
-import org.janelia.saalfeldlab.n5.N5FSWriter;
+import org.janelia.saalfeldlab.n5.GzipCompression;
+import org.janelia.saalfeldlab.n5.LongArrayDataBlock;
 import org.janelia.saalfeldlab.n5.N5Reader;
 import org.janelia.saalfeldlab.n5.N5Writer;
 import org.janelia.saalfeldlab.n5.imglib2.N5Utils;
 import org.janelia.saalfeldlab.paintera.data.mask.MaskedSource;
 import org.janelia.saalfeldlab.paintera.id.IdService;
 import org.janelia.saalfeldlab.paintera.id.N5IdService;
+import org.janelia.saalfeldlab.paintera.state.FragmentSegmentAssignmentOnlyLocal;
+import org.janelia.saalfeldlab.paintera.state.FragmentSegmentAssignmentState;
+import org.janelia.saalfeldlab.util.MakeUnchecked;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -32,12 +39,25 @@ import bdv.util.volatiles.VolatileRandomAccessibleIntervalView;
 import bdv.util.volatiles.VolatileViews;
 import gnu.trove.set.hash.TLongHashSet;
 import javafx.beans.binding.Bindings;
+import javafx.beans.binding.BooleanBinding;
+import javafx.beans.binding.ObjectBinding;
 import javafx.beans.binding.StringBinding;
 import javafx.beans.property.DoubleProperty;
+import javafx.beans.property.SimpleBooleanProperty;
+import javafx.beans.property.SimpleObjectProperty;
+import javafx.beans.property.SimpleStringProperty;
+import javafx.beans.property.StringProperty;
 import javafx.beans.value.ObservableStringValue;
-import javafx.stage.DirectoryChooser;
+import javafx.beans.value.ObservableValue;
+import javafx.collections.FXCollections;
+import javafx.collections.ObservableList;
+import javafx.event.Event;
+import javafx.scene.Node;
+import javafx.scene.control.Button;
+import javafx.scene.control.ComboBox;
+import javafx.scene.layout.GridPane;
+import javafx.scene.layout.Priority;
 import net.imglib2.Cursor;
-import net.imglib2.FinalInterval;
 import net.imglib2.RandomAccess;
 import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.Volatile;
@@ -49,8 +69,6 @@ import net.imglib2.cache.util.LoaderCacheAsCacheAdapter;
 import net.imglib2.cache.volatiles.CacheHints;
 import net.imglib2.cache.volatiles.LoadingStrategy;
 import net.imglib2.converter.Converters;
-import net.imglib2.img.array.ArrayImg;
-import net.imglib2.img.array.ArrayImgFactory;
 import net.imglib2.img.cell.Cell;
 import net.imglib2.img.cell.CellGrid;
 import net.imglib2.realtransform.AffineTransform3D;
@@ -70,13 +88,14 @@ import net.imglib2.type.numeric.integer.UnsignedLongType;
 import net.imglib2.util.Intervals;
 import net.imglib2.util.Pair;
 import net.imglib2.util.Triple;
-import net.imglib2.util.Util;
 import net.imglib2.util.ValueTriple;
 import net.imglib2.view.IntervalView;
 import net.imglib2.view.Views;
 
-public class BackendDialogN5 extends BackendDialogGroupAndDataset implements CombinesErrorMessages
+public class GenericBackendDialogN5 implements SourceFromRAI
 {
+
+	private static final String EMPTY_STRING = "";
 
 	private static final String LABEL_MULTISETTYPE_KEY = "isLabelMultiset";
 
@@ -90,46 +109,392 @@ public class BackendDialogN5 extends BackendDialogGroupAndDataset implements Com
 
 	private static final String MAX_KEY = "max";
 
-	private static final String AXIS_ORDER_KEY = "axisOrder";
-
-	private static final String ATTRIBUTES_JSON = "attributes.json";
-
 	private static final String DOWNSAMPLING_FACTORS_KEY = "downsamplingFactors";
 
 	private static final String MAX_NUM_ENTRIES_KEY = "maxNumEntries";
 
+	private static final String ERROR_MESSAGE_PATTERN = "n5? %s -- dataset? %s -- update? %s";
+
+	private final DatasetInfo datasetInfo = new DatasetInfo();
+
+	private final SimpleObjectProperty< Supplier< N5Writer > > n5Supplier = new SimpleObjectProperty<>();
+
+	private final ObjectBinding< N5Writer > n5 = Bindings.createObjectBinding( () -> n5Supplier.get().get(), n5Supplier );
+
+	private final StringProperty dataset = new SimpleStringProperty();
+
+	private final ArrayList< Thread > directoryTraversalThreads = new ArrayList<>();
+
+	private final SimpleBooleanProperty isTraversingDirectories = new SimpleBooleanProperty();
+
+	private final BooleanBinding isN5Valid = n5.isNotNull();
+
+	private final BooleanBinding isDatasetValid = dataset.isNotNull().and( dataset.isNotEqualTo( EMPTY_STRING ) );
+
+	private final SimpleBooleanProperty datasetUpdateFailed = new SimpleBooleanProperty( false );
+
+	private final BooleanBinding isReady = isN5Valid
+			.and( isDatasetValid )
+			.and( datasetUpdateFailed.not() );
+
+	{
+		isN5Valid.addListener( ( obs, oldv, newv ) -> datasetUpdateFailed.set( false ) );
+	}
+
+	private final StringBinding errorMessage = Bindings.createStringBinding(
+			() -> isReady.get() ? null : String.format( ERROR_MESSAGE_PATTERN, isN5Valid.get(), isDatasetValid.get(), datasetUpdateFailed.not().get() ),
+			isReady );
+
 	private final StringBinding name = Bindings.createStringBinding( () -> {
 		final String[] entries = Optional
-				.ofNullable( dataset )
-				.map( d -> d.get().split( "/" ) )
+				.ofNullable( dataset.get() )
+				.map( d -> d.split( "/" ) )
 				.map( a -> a.length > 0 ? a : new String[] { null } )
 				.orElse( new String[] { null } );
 		return entries[ entries.length - 1 ];
 	}, dataset );
 
-	public BackendDialogN5()
+	private final ObservableList< String > datasetChoices = FXCollections.observableArrayList();
+
+	private final String identifier;
+
+	private final Node node;
+
+	public GenericBackendDialogN5(
+			final Node n5RootNode,
+			final Consumer< Event > onBrowseClicked,
+			final String identifier,
+			final ObservableValue< Supplier< N5Writer > > writerSupplier )
 	{
-		super( "N5 group", "Dataset", ( group, scene ) -> {
-			final DirectoryChooser directoryChooser = new DirectoryChooser();
-			final File initDir = new File( group );
-			directoryChooser.setInitialDirectory( initDir.exists() && initDir.isDirectory() ? initDir : new File( System.getProperty( "user.home" ) ) );
-			final File directory = directoryChooser.showDialog( scene.getWindow() );
-			return directory == null ? null : directory.getAbsolutePath();
-		} );
+		this( "dataset", n5RootNode, onBrowseClicked, identifier, writerSupplier );
 	}
 
-	@SuppressWarnings( "unchecked" )
-	@Override
-	public < T extends NativeType< T >, V extends Volatile< T > > Triple< RandomAccessibleInterval< T >[], RandomAccessibleInterval< V >[], AffineTransform3D[] > getDataAndVolatile(
-			final SharedQueue sharedQueue,
-			final int priority ) throws IOException
+	public GenericBackendDialogN5(
+			final String datasetPrompt,
+			final Node n5RootNode,
+			final Consumer< Event > onBrowseClicked,
+			final String identifier,
+			final ObservableValue< Supplier< N5Writer > > writerSupplier )
 	{
-		final boolean isLabelMultisetType = isLabelMultisetType();
-		LOG.warn( "Source is label multiset? {}", isLabelMultisetType );
+		this.identifier = identifier;
+		this.node = initializeNode( n5RootNode, datasetPrompt, onBrowseClicked );
+		n5Supplier.bind( writerSupplier );
+		n5.addListener( ( obs, oldv, newv ) -> {
+			LOG.debug( "Updated n5: obs={} oldv={} newv={}", obs, oldv, newv );
+			if ( newv == null )
+			{
+				datasetChoices.clear();
+				return;
+			}
+
+			LOG.debug( "Updating dataset choices!" );
+			synchronized ( directoryTraversalThreads )
+			{
+				this.isTraversingDirectories.set( false );
+				directoryTraversalThreads.forEach( Thread::interrupt );
+				directoryTraversalThreads.clear();
+				final Thread t = new Thread( () -> {
+					this.isTraversingDirectories.set( true );
+					final AtomicBoolean discardDatasetList = new AtomicBoolean( false );
+					try
+					{
+						final List< String > datasets = N5Helpers.discoverDatasets( newv, () -> discardDatasetList.set( true ) );
+						if ( !Thread.currentThread().isInterrupted() && !discardDatasetList.get() )
+						{
+							LOG.debug( "Found these datasets: {}", datasets );
+							InvokeOnJavaFXApplicationThread.invoke( () -> datasetChoices.setAll( datasets ) );
+							if ( !newv.equals( oldv ) )
+								InvokeOnJavaFXApplicationThread.invoke( () -> this.dataset.set( null ) );
+						}
+					}
+					finally
+					{
+						this.isTraversingDirectories.set( false );
+					}
+				} );
+				directoryTraversalThreads.add( t );
+				t.start();
+			}
+		} );
+		dataset.addListener( ( obs, oldv, newv ) -> Optional.ofNullable( newv ).filter( v -> v.length() > 0 ).ifPresent( v -> updateDatasetInfo( v, this.datasetInfo ) ) );
+
+		this.isN5Valid.addListener( ( obs, oldv, newv ) -> {
+			synchronized ( directoryTraversalThreads )
+			{
+				directoryTraversalThreads.forEach( Thread::interrupt );
+				directoryTraversalThreads.clear();
+			}
+		} );
+
+		dataset.set( "" );
+	}
+
+	public void updateDatasetInfo( final String dataset, final DatasetInfo info )
+	{
+
+		try
+		{
+			final N5Reader n5 = this.n5.get();
+			LOG.debug( "Got dataset {}", dataset );
+
+			final DatasetAttributes dsAttrs = n5.getDatasetAttributes( dataset );
+			final int nDim = dsAttrs.getNumDimensions();
+			setResolution( Optional.ofNullable( n5.getAttribute( dataset, RESOLUTION_KEY, double[].class ) ).orElse( DoubleStream.generate( () -> 1.0 ).limit( nDim ).toArray() ) );
+			setOffset( Optional.ofNullable( n5.getAttribute( dataset, OFFSET_KEY, double[].class ) ).orElse( new double[ nDim ] ) );
+			this.datasetInfo.minProperty().set( Optional.ofNullable( n5.getAttribute( dataset, MIN_KEY, Double.class ) ).orElse( N5Helpers.minForType( dsAttrs.getDataType() ) ) );
+			this.datasetInfo.maxProperty().set( Optional.ofNullable( n5.getAttribute( dataset, MAX_KEY, Double.class ) ).orElse( N5Helpers.maxForType( dsAttrs.getDataType() ) ) );
+		}
+		catch ( final IOException e )
+		{
+			ExceptionNode.exceptionDialog( e ).show();
+		}
+	}
+
+	@Override
+	public Node getDialogNode()
+	{
+		return node;
+	}
+
+	@Override
+	public StringBinding errorMessage()
+	{
+		return errorMessage;
+	}
+
+	@Override
+	public DoubleProperty[] resolution()
+	{
+		return this.datasetInfo.spatialResolutionProperties();
+	}
+
+	@Override
+	public DoubleProperty[] offset()
+	{
+		return this.datasetInfo.spatialOffsetProperties();
+	}
+
+	@Override
+	public DoubleProperty min()
+	{
+		return this.datasetInfo.minProperty();
+	}
+
+	@Override
+	public DoubleProperty max()
+	{
+		return this.datasetInfo.maxProperty();
+	}
+
+	@Override
+	public < F extends FragmentSegmentAssignmentState< F > > F assignments()
+	{
+		final String dataset = this.dataset.get() + ".fragment-segment-assignment";
+
+		try
+		{
+			final N5Writer writer = n5.get();
+
+			final BiConsumer< long[], long[] > persister = ( keys, values ) -> {
+				if ( keys.length == 0 )
+				{
+					LOG.warn( "Zero length data, will not persist fragment-segment-assignment." );
+					return;
+				}
+				try
+				{
+					final DatasetAttributes attrs = new DatasetAttributes( new long[] { 2, keys.length }, new int[] { 1, keys.length }, DataType.UINT64, new GzipCompression() );
+					writer.createDataset( dataset, attrs );
+					final DataBlock< long[] > keyBlock = new LongArrayDataBlock( new int[] { 1, keys.length }, new long[] { 0, 0 }, keys );
+					final DataBlock< long[] > valueBlock = new LongArrayDataBlock( new int[] { 1, values.length }, new long[] { 1, 0 }, values );
+					writer.writeBlock( dataset, attrs, keyBlock );
+					writer.writeBlock( dataset, attrs, valueBlock );
+				}
+				catch ( final IOException e )
+				{
+					throw new RuntimeException( e );
+				}
+			};
+
+			final long[] keys;
+			final long[] values;
+			if ( writer.datasetExists( dataset ) )
+			{
+				final DatasetAttributes attrs = writer.getDatasetAttributes( dataset );
+				final int numEntries = ( int ) attrs.getDimensions()[ 1 ];
+				keys = new long[ numEntries ];
+				values = new long[ numEntries ];
+				final RandomAccessibleInterval< UnsignedLongType > data = N5Utils.open( writer, dataset );
+
+				final Cursor< UnsignedLongType > keysCursor = Views.flatIterable( Views.hyperSlice( data, 0, 0l ) ).cursor();
+				for ( int i = 0; keysCursor.hasNext(); ++i )
+				{
+					keys[ i ] = keysCursor.next().get();
+				}
+
+				final Cursor< UnsignedLongType > valuesCursor = Views.flatIterable( Views.hyperSlice( data, 0, 1l ) ).cursor();
+				for ( int i = 0; valuesCursor.hasNext(); ++i )
+				{
+					values[ i ] = valuesCursor.next().get();
+				}
+			}
+			else
+			{
+				keys = new long[] {};
+				values = new long[] {};
+			}
+
+			@SuppressWarnings( "unchecked" )
+			final F assignment = ( F ) new FragmentSegmentAssignmentOnlyLocal( keys, values, persister );
+
+			return assignment;
+		}
+		catch ( final IOException e )
+		{
+			throw new RuntimeException( e );
+		}
+	}
+
+	@Override
+	public IdService idService()
+	{
+		try
+		{
+			final N5Writer n5 = this.n5.get();
+			final String dataset = this.dataset.get();
+
+			final Long maxId = n5.getAttribute( dataset, "maxId", Long.class );
+			final long actualMaxId;
+			if ( maxId == null )
+			{
+				if ( isLabelMultisetType() )
+				{
+					LOG.debug( "Getting id service for label multisets" );
+					actualMaxId = maxIdLabelMultiset( n5, dataset );
+				}
+				else if ( isIntegerType() )
+				{
+					actualMaxId = maxId( n5, dataset );
+				}
+				else
+				{
+					return null;
+				}
+			}
+			else
+			{
+				actualMaxId = maxId;
+			}
+			return new N5IdService( n5, dataset, actualMaxId );
+
+		}
+		catch ( final Exception e )
+		{
+			LOG.warn( "Unable to generate id-service: {}", e );
+			e.printStackTrace();
+			return null;
+		}
+	}
+
+	private static < T extends IntegerType< T > & NativeType< T > > long maxId( final N5Reader n5, final String dataset ) throws IOException
+	{
+		final String ds;
+		if ( n5.datasetExists( dataset ) )
+		{
+			ds = dataset;
+		}
+		else
+		{
+			final String[] scaleDirs = N5Helpers.listAndSortScaleDatasets( n5, dataset );
+			ds = Paths.get( dataset, scaleDirs ).toString();
+		}
+		final RandomAccessibleInterval< T > data = N5Utils.open( n5, ds );
+		long maxId = 0;
+		for ( final T label : Views.flatIterable( data ) )
+		{
+			maxId = IdService.max( label.getIntegerLong(), maxId );
+		}
+		return maxId;
+	}
+
+	private static long maxIdLabelMultiset( final N5Reader n5, final String dataset ) throws IOException
+	{
+		final String ds;
+		if ( n5.datasetExists( dataset ) )
+		{
+			ds = dataset;
+		}
+		else
+		{
+			final String[] scaleDirs = N5Helpers.listAndSortScaleDatasets( n5, dataset );
+			ds = Paths.get( dataset, scaleDirs[ scaleDirs.length - 1 ] ).toString();
+		}
+		final DatasetAttributes attrs = n5.getDatasetAttributes( ds );
+		final N5CacheLoader loader = new N5CacheLoader( n5, ds );
+		final BoundedSoftRefLoaderCache< Long, Cell< VolatileLabelMultisetArray > > cache = new BoundedSoftRefLoaderCache<>( 1 );
+		final LoaderCacheAsCacheAdapter< Long, Cell< VolatileLabelMultisetArray > > wrappedCache = new LoaderCacheAsCacheAdapter<>( cache, loader );
+		final CachedCellImg< LabelMultisetType, VolatileLabelMultisetArray > data = new CachedCellImg<>(
+				new CellGrid( attrs.getDimensions(), attrs.getBlockSize() ),
+				new LabelMultisetType(),
+				wrappedCache,
+				new VolatileLabelMultisetArray( 0, true ) );
+		long maxId = 0;
+		for ( final Cell< VolatileLabelMultisetArray > cell : Views.iterable( data.getCells() ) )
+		{
+			for ( final long id : cell.getData().containedLabels() )
+			{
+				if ( id > maxId )
+				{
+					maxId = id;
+				}
+			}
+		}
+		return maxId;
+	}
+
+	private Node initializeNode(
+			final Node rootNode,
+			final String datasetPromptText,
+			final Consumer< Event > onBrowseClicked )
+	{
+		final ComboBox< String > datasetDropDown = new ComboBox<>( datasetChoices );
+		datasetDropDown.setPromptText( datasetPromptText );
+		datasetDropDown.setEditable( false );
+		datasetDropDown.valueProperty().bindBidirectional( dataset );
+		datasetDropDown.disableProperty().bind( this.isN5Valid.not() );
+		final GridPane grid = new GridPane();
+		grid.add( rootNode, 0, 0 );
+		grid.add( datasetDropDown, 0, 1 );
+		GridPane.setHgrow( rootNode, Priority.ALWAYS );
+		GridPane.setHgrow( datasetDropDown, Priority.ALWAYS );
+		final Button button = new Button( "Browse" );
+		button.setOnAction( onBrowseClicked::accept );
+		grid.add( button, 1, 0 );
+
+		return grid;
+	}
+
+	@Override
+	public ObservableStringValue nameProperty()
+	{
+		return name;
+	}
+
+	@Override
+	public String identifier()
+	{
+		return identifier;
+	}
+
+	@Override
+	public < T extends NativeType< T >, V extends Volatile< T > > Triple< RandomAccessibleInterval< T >[], RandomAccessibleInterval< V >[], AffineTransform3D[] > getDataAndVolatile( final SharedQueue sharedQueue, final int priority ) throws IOException
+	{
+
+		final boolean isLabelMultisetType = MakeUnchecked.unchecked( this::isLabelMultisetType ).get();
+		LOG.debug( "Source is label multiset? {}", isLabelMultisetType );
 		if ( isLabelMultisetType )
 		{
-			final String group = groupProperty.get();
-			final N5Reader reader = new N5FSReader( group );
+			final N5Reader reader = this.n5.get();
 			final String dataset = this.dataset.get();
 			try
 			{
@@ -172,7 +537,7 @@ public class BackendDialogN5 extends BackendDialogGroupAndDataset implements Com
 			}
 
 			// do multiscale instead
-			final String[] scaleDatasets = listAndSortScaleDatasets( reader, dataset );
+			final String[] scaleDatasets = N5Helpers.listAndSortScaleDatasets( reader, dataset );
 
 			LOG.debug( "Opening directories {} as multi-scale in {}: ", Arrays.toString( scaleDatasets ), dataset );
 
@@ -184,10 +549,10 @@ public class BackendDialogN5 extends BackendDialogGroupAndDataset implements Com
 					.ofNullable( reader.getAttribute( dataset + "/" + scaleDatasets[ 0 ], "downsamplingFactors", double[].class ) )
 					.orElse( new double[] { 1, 1, 1 } );
 			final double[] offset = Arrays.stream( offset() ).mapToDouble( DoubleProperty::get ).toArray();
-			LOG.warn( "Initial resolution={}", Arrays.toString( initialResolution ) );
+			LOG.debug( "Initial resolution={}", Arrays.toString( initialResolution ) );
 			for ( int scale = 0; scale < scaleDatasets.length; ++scale )
 			{
-				LOG.warn( "Populating scale level {}", scale );
+				LOG.debug( "Populating scale level {}", scale );
 				final String scaleDataset = dataset + "/" + scaleDatasets[ scale ];
 
 				final DatasetAttributes attrs = reader.getDatasetAttributes( scaleDataset );
@@ -214,7 +579,7 @@ public class BackendDialogN5 extends BackendDialogGroupAndDataset implements Com
 				final double[] downsamplingFactors = Optional
 						.ofNullable( reader.getAttribute( scaleDataset, "downsamplingFactors", double[].class ) )
 						.orElse( new double[] { 1, 1, 1 } );
-				LOG.warn( "Read downsampling factors: {}", Arrays.toString( downsamplingFactors ) );
+				LOG.debug( "Read downsampling factors: {}", Arrays.toString( downsamplingFactors ) );
 
 				final double[] scaledResolution = new double[ downsamplingFactors.length ];
 				final double[] shift = new double[ downsamplingFactors.length ];
@@ -225,7 +590,7 @@ public class BackendDialogN5 extends BackendDialogGroupAndDataset implements Com
 					shift[ d ] = 0.5 / initialDonwsamplingFactors[ d ] - 0.5 / downsamplingFactors[ d ];
 				}
 
-				LOG.warn( "Downsampling factors={}, scaled resolution={}", Arrays.toString( downsamplingFactors ), Arrays.toString( scaledResolution ) );
+				LOG.debug( "Downsampling factors={}, scaled resolution={}", Arrays.toString( downsamplingFactors ), Arrays.toString( scaledResolution ) );
 
 				final AffineTransform3D transform = new AffineTransform3D();
 				transform.set(
@@ -240,8 +605,7 @@ public class BackendDialogN5 extends BackendDialogGroupAndDataset implements Com
 		}
 		else
 		{
-			final String group = groupProperty.get();
-			final N5Reader reader = new N5FSReader( group );
+			final N5Reader reader = this.n5.get();
 			final String dataset = this.dataset.get();
 			try
 			{
@@ -264,7 +628,7 @@ public class BackendDialogN5 extends BackendDialogGroupAndDataset implements Com
 			{
 
 			}
-			final String[] scaleDatasets = listAndSortScaleDatasets( reader, dataset );
+			final String[] scaleDatasets = N5Helpers.listAndSortScaleDatasets( reader, dataset );
 
 			LOG.debug( "Opening directories {} as multi-scale in {}: ", Arrays.toString( scaleDatasets ), dataset );
 
@@ -308,282 +672,70 @@ public class BackendDialogN5 extends BackendDialogGroupAndDataset implements Com
 	}
 
 	@Override
-	public boolean isLabelType() throws IOException
+	public boolean isLabelType() throws Exception
 	{
-		return isLabelMultisetType() || N5Helpers.isLabelType( getDataType() );
+		return isIntegerType() || isLabelMultisetType();
 	}
 
 	@Override
-	public boolean isLabelMultisetType() throws IOException
+	public boolean isLabelMultisetType() throws Exception
 	{
 		final Boolean attribute = getAttribute( LABEL_MULTISETTYPE_KEY, Boolean.class );
 		LOG.warn( "Getting label multiset attribute: {}", attribute );
 		return Optional.ofNullable( attribute ).orElse( false );
 	}
 
+	public DatasetAttributes getAttributes() throws IOException
+	{
+		final N5Reader n5 = this.n5.get();
+		final String ds = this.dataset.get();
+
+		if ( n5.datasetExists( ds ) )
+		{
+			LOG.debug( "Getting attributes for {} and {}", n5, ds );
+			return n5.getDatasetAttributes( ds );
+		}
+
+		final String[] scaleDirs = N5Helpers.listAndSortScaleDatasets( n5, ds );
+
+		if ( scaleDirs.length > 0 )
+		{
+			LOG.debug( "Getting attributes for {} and {}", n5, scaleDirs[ 0 ] );
+			return n5.getDatasetAttributes( Paths.get( ds, scaleDirs[ 0 ] ).toString() );
+		}
+
+		throw new RuntimeException( String.format( "Cannot read dataset attributes for group %s and dataset %s.", n5, ds ) );
+
+	}
+
+	public DataType getDataType() throws IOException
+	{
+		return getAttributes().getDataType();
+	}
+
 	@Override
-	public boolean isIntegerType() throws IOException
+	public boolean isIntegerType() throws Exception
 	{
 		return N5Helpers.isIntegerType( getDataType() );
-	}
-
-	@Override
-	public void updateDatasetInfo( final String basePath, final DatasetInfo info )
-	{
-		try
-		{
-			final String n5Path = groupProperty.get();
-			final N5FSReader reader = new N5FSReader( n5Path );
-
-			final String dataset = getAttributesContainingPath( reader, basePath );
-
-			LOG.debug( "Got dataset {} for base path {} in {}", dataset, basePath, n5Path );
-
-			final DatasetAttributes dsAttrs = reader.getDatasetAttributes( dataset );
-			final int nDim = dsAttrs.getNumDimensions();
-
-			setResolution( Optional.ofNullable( reader.getAttribute( dataset, RESOLUTION_KEY, double[].class ) ).orElse( DoubleStream.generate( () -> 1.0 ).limit( nDim ).toArray() ) );
-			setOffset( Optional.ofNullable( reader.getAttribute( dataset, OFFSET_KEY, double[].class ) ).orElse( new double[ nDim ] ) );
-			this.datasetInfo.minProperty().set( Optional.ofNullable( reader.getAttribute( dataset, MIN_KEY, Double.class ) ).orElse( N5Helpers.minForType( dsAttrs.getDataType() ) ) );
-			this.datasetInfo.maxProperty().set( Optional.ofNullable( reader.getAttribute( dataset, MAX_KEY, Double.class ) ).orElse( N5Helpers.maxForType( dsAttrs.getDataType() ) ) );
-
-		}
-		catch ( final IOException e )
-		{
-
-		}
-
-	}
-
-	@Override
-	public List< String > discoverDatasetAt( final String at )
-	{
-		final ArrayList< String > datasets = new ArrayList<>();
-		try
-		{
-			final N5FSReader n5 = new N5FSReader( at );
-			discoverSubdirectories( n5, "", datasets, () -> this.isTraversingDirectories.set( false ) );
-		}
-		catch ( final IOException e )
-		{}
-
-		return datasets;
-	}
-
-	public static void discoverSubdirectories( final N5Reader n5, final String pathName, final Collection< String > datasets, final Runnable onInterruption )
-	{
-		if ( !Thread.currentThread().isInterrupted() )
-		{
-			try
-			{
-				final String[] groups = n5.list( pathName );
-				Arrays.sort( groups );
-				for ( final String group : groups )
-				{
-					final String absolutePathName = pathName + "/" + group;
-					if ( n5.datasetExists( absolutePathName ) )
-					{
-						datasets.add( absolutePathName );
-					}
-					else
-					{
-						final String[] scales = n5.list( absolutePathName );
-						boolean isMipmapGroup = scales.length > 0;
-						for ( final String scale : scales )
-						{
-							if ( !( scale.matches( "^s[0-9]+$" ) && n5.datasetExists( absolutePathName + "/" + scale ) ) )
-							{
-								isMipmapGroup = false;
-								break;
-							}
-						}
-						if ( isMipmapGroup )
-						{
-							datasets.add( absolutePathName );
-						}
-						else
-						{
-							discoverSubdirectories( n5, absolutePathName, datasets, onInterruption );
-						}
-					}
-				}
-			}
-			catch ( final IOException e )
-			{
-				e.printStackTrace();
-			}
-		}
-		else
-		{
-			onInterruption.run();
-		}
-	}
-
-	public static String[] listScaleDatasets( final N5Reader n5, final String group ) throws IOException
-	{
-		final String[] scaleDirs = Arrays
-				.stream( n5.list( group ) )
-				.filter( s -> s.matches( "^s\\d+$" ) )
-				.filter( s -> {
-					try
-					{
-						return n5.datasetExists( group + "/" + s );
-					}
-					catch ( final IOException e )
-					{
-						return false;
-					}
-				} )
-				.toArray( String[]::new );
-
-		LOG.warn( "Found these scale dirs: {}", Arrays.toString( scaleDirs ) );
-		return scaleDirs;
-	}
-
-	public static String[] listAndSortScaleDatasets( final N5Reader n5, final String group ) throws IOException
-	{
-		final String[] scaleDirs = listScaleDatasets( n5, group );
-		sortScaleDatasets( scaleDirs );
-
-		LOG.warn( "Sorted scale dirs: {}", Arrays.toString( scaleDirs ) );
-		return scaleDirs;
-	}
-
-	public static void sortScaleDatasets( final String[] scaleDatasets )
-	{
-		Arrays.sort( scaleDatasets, ( f1, f2 ) -> {
-			return Integer.compare(
-					Integer.parseInt( f1.replaceAll( "[^\\d]", "" ) ),
-					Integer.parseInt( f2.replaceAll( "[^\\d]", "" ) ) );
-		} );
-	}
-
-	public String getAttributesContainingPath( final N5Reader reader, final String basePath ) throws IOException
-	{
-		if ( reader.datasetExists( basePath ) ) {
-			return basePath;
-		}
-		final String[] scaleDirs = listAndSortScaleDatasets( reader, basePath );
-		LOG.debug( "Got the following scale dirs: {}", Arrays.toString( scaleDirs ) );
-		return basePath + "/" + scaleDirs[ 0 ];
-	}
-
-	@Override
-	public IdService idService()
-	{
-		try
-		{
-			final String group = groupProperty.get();
-			final N5Writer n5 = new N5FSWriter( group );
-			final String dataset = this.dataset.get();
-
-			final Long maxId = n5.getAttribute( dataset, "maxId", Long.class );
-			final long actualMaxId;
-			if ( maxId == null )
-			{
-				if ( isLabelMultisetType() )
-				{
-					LOG.warn( "Getting id service for label multisets" );
-					actualMaxId = maxIdLabelMultiset( n5, dataset );
-				}
-				else if ( isIntegerType() )
-				{
-					actualMaxId = maxId( n5, dataset );
-				}
-				else
-				{
-					return null;
-				}
-			}
-			else
-			{
-				actualMaxId = maxId;
-			}
-			return new N5IdService( n5, dataset, actualMaxId );
-
-		}
-		catch ( final IOException e )
-		{
-			return null;
-		}
-	}
-
-	private static < T extends IntegerType< T > & NativeType< T > > long maxId( final N5Reader n5, final String dataset ) throws IOException
-	{
-		final String ds;
-		if ( n5.datasetExists( dataset ) )
-		{
-			ds = dataset;
-		}
-		else
-		{
-			final String[] scaleDirs = listAndSortScaleDatasets( n5, dataset );
-			ds = Paths.get( dataset, scaleDirs ).toString();
-		}
-		final RandomAccessibleInterval< T > data = N5Utils.open( n5, ds );
-		long maxId = 0;
-		for ( final T label : Views.flatIterable( data ) )
-		{
-			maxId = IdService.max( label.getIntegerLong(), maxId );
-		}
-		return maxId;
-	}
-
-	private static long maxIdLabelMultiset( final N5Reader n5, final String dataset ) throws IOException
-	{
-		final String ds;
-		if ( n5.datasetExists( dataset ) )
-		{
-			ds = dataset;
-		}
-		else
-		{
-			final String[] scaleDirs = listAndSortScaleDatasets( n5, dataset );
-			ds = Paths.get( dataset, scaleDirs[ scaleDirs.length - 1 ] ).toString();
-		}
-		final DatasetAttributes attrs = n5.getDatasetAttributes( ds );
-		final N5CacheLoader loader = new N5CacheLoader( n5, ds );
-		final BoundedSoftRefLoaderCache< Long, Cell< VolatileLabelMultisetArray > > cache = new BoundedSoftRefLoaderCache<>( 1 );
-		final LoaderCacheAsCacheAdapter< Long, Cell< VolatileLabelMultisetArray > > wrappedCache = new LoaderCacheAsCacheAdapter<>( cache, loader );
-		final CachedCellImg< LabelMultisetType, VolatileLabelMultisetArray > data = new CachedCellImg<>(
-				new CellGrid( attrs.getDimensions(), attrs.getBlockSize() ),
-				new LabelMultisetType(),
-				wrappedCache,
-				new VolatileLabelMultisetArray( 0, true ) );
-		long maxId = 0;
-		for ( final Cell< VolatileLabelMultisetArray > cell : Views.iterable( data.getCells() ) )
-		{
-			for ( final long id : cell.getData().containedLabels() )
-			{
-				if ( id > maxId )
-				{
-					maxId = id;
-				}
-			}
-		}
-		return maxId;
 	}
 
 	@Override
 	public BiConsumer< CachedCellImg< UnsignedLongType, ? >, long[] > commitCanvas()
 	{
 		final String dataset = this.dataset.get();
-		final String root = this.groupProperty.get();
+		final N5Writer writer = this.n5.get();
 		return ( canvas, blocks ) -> {
 			try
 			{
-				final N5FSWriter n5 = new N5FSWriter( root );
+				final N5Writer n5 = writer;
 
 				final boolean isMultiscale = !n5.datasetExists( dataset );
 
 				final CellGrid canvasGrid = canvas.getCellGrid();
 
-				final String highestResolutionDataset = isMultiscale ? Paths.get( dataset, listAndSortScaleDatasets( n5, dataset )[ 0 ] ).toString() : dataset;
+				final String highestResolutionDataset = isMultiscale ? Paths.get( dataset, N5Helpers.listAndSortScaleDatasets( n5, dataset )[ 0 ] ).toString() : dataset;
 
-				if ( !Optional.ofNullable( n5.getAttribute( highestResolutionDataset, LABEL_MULTISETTYPE_KEY, Boolean.class ) ).orElse( false ) )
-				{
-					throw new RuntimeException( "Only label multiset type accepted currently!" );
-				}
+				if ( !Optional.ofNullable( n5.getAttribute( highestResolutionDataset, LABEL_MULTISETTYPE_KEY, Boolean.class ) ).orElse( false ) ) { throw new RuntimeException( "Only label multiset type accepted currently!" ); }
 
 				final DatasetAttributes highestResolutionAttributes = n5.getDatasetAttributes( highestResolutionDataset );
 				final CellGrid highestResolutionGrid = new CellGrid( highestResolutionAttributes.getDimensions(), highestResolutionAttributes.getBlockSize() );
@@ -616,9 +768,8 @@ public class BackendDialogN5 extends BackendDialogGroupAndDataset implements Com
 							new FromIntegerTypeConverter<>(),
 							FromIntegerTypeConverter.geAppropriateType() );
 
-
-
-					final IntervalView< Pair< LabelMultisetType, LabelMultisetType > > blockWithBackground = Views.interval( Views.pair( convertedToMultisets, highestResolutionData ), min, max );
+					final IntervalView< Pair< LabelMultisetType, LabelMultisetType > > blockWithBackground =
+							Views.interval( Views.pair( convertedToMultisets, highestResolutionData ), min, max );
 
 					final int numElements = ( int ) Intervals.numElements( blockWithBackground );
 
@@ -650,9 +801,6 @@ public class BackendDialogN5 extends BackendDialogGroupAndDataset implements Com
 
 					};
 
-
-
-
 					final byte[] byteData = LabelUtils.serializeLabelMultisetTypes( pairIterable, numElements );
 					final ByteArrayDataBlock dataBlock = new ByteArrayDataBlock( Intervals.dimensionsAsIntArray( blockWithBackground ), gridPosition, byteData );
 					n5.writeBlock( highestResolutionDataset, highestResolutionAttributes, dataBlock );
@@ -661,7 +809,7 @@ public class BackendDialogN5 extends BackendDialogGroupAndDataset implements Com
 
 				if ( isMultiscale )
 				{
-					final String[] scaleDatasets = listAndSortScaleDatasets( n5, dataset );
+					final String[] scaleDatasets = N5Helpers.listAndSortScaleDatasets( n5, dataset );
 					for ( int level = 1; level < scaleDatasets.length; ++level )
 					{
 						final String targetDataset = Paths.get( dataset, scaleDatasets[ level ] ).toString();
@@ -702,7 +850,7 @@ public class BackendDialogN5 extends BackendDialogGroupAndDataset implements Com
 
 						final int targetMaxNumEntries = Optional.ofNullable( n5.getAttribute( targetDataset, MAX_NUM_ENTRIES_KEY, Integer.class ) ).orElse( -1 );
 
-						final int[] relativeFactors = DoubleStream.of( relativeDownsamplingFactors ).mapToInt( d -> (int)d ).toArray();
+						final int[] relativeFactors = DoubleStream.of( relativeDownsamplingFactors ).mapToInt( d -> ( int ) d ).toArray();
 
 						final int[] ones = { 1, 1, 1 };
 
@@ -782,10 +930,7 @@ public class BackendDialogN5 extends BackendDialogGroupAndDataset implements Com
 
 							n5.writeBlock( targetDataset, targetAttributes, new ByteArrayDataBlock( size, blockPosition, serializedAccess ) );
 
-
-
 						}
-
 
 					}
 
@@ -803,138 +948,26 @@ public class BackendDialogN5 extends BackendDialogGroupAndDataset implements Com
 		};
 	}
 
-	private static < T extends IntegerType< T > & NativeType< T > > void commitForIntegerType(
-			final N5Writer n5,
-			final String dataset,
-			final RandomAccessibleInterval< UnsignedLongType > canvas ) throws IOException
-	{
-
-		// TODO DO MULTISCALE!
-		// TODO DO TIME?
-		LOG.debug( "Commiting canvas for interval {} {}", Arrays.toString( Intervals.minAsLongArray( canvas ) ), Arrays.toString( Intervals.maxAsDoubleArray( canvas ) ) );
-		final RandomAccessibleInterval< T > labels = N5Utils.open( n5, dataset );
-		final DatasetAttributes attributes = n5.getDatasetAttributes( dataset );
-		final int[] blockSize = attributes.getBlockSize();
-		final long[] dims = attributes.getDimensions();
-
-		final long[] blockAlignedMin = new long[ labels.numDimensions() ];
-		final long[] blockAlignedMax = new long[ labels.numDimensions() ];
-
-		for ( int d = 0; d < blockAlignedMin.length; ++d )
-		{
-			blockAlignedMin[ d ] = canvas.min( d ) / blockSize[ d ] * blockSize[ d ];
-			blockAlignedMax[ d ] = Math.min( ( canvas.max( d ) / blockSize[ d ] + 1 ) * blockSize[ d ], dims[ d ] ) - 1;
-		}
-
-		final FinalInterval blockAlignedInterval = new FinalInterval( blockAlignedMin, blockAlignedMax );
-
-		final ArrayImg< T, ? > intervalCopy = new ArrayImgFactory< T >().create( Intervals.dimensionsAsLongArray( blockAlignedInterval ), Util.getTypeFromInterval( labels ).createVariable() );
-
-		for ( Cursor< T > s = Views.flatIterable( Views.interval( labels, blockAlignedInterval ) ).cursor(), t = Views.flatIterable( intervalCopy ).cursor(); s.hasNext(); )
-		{
-			t.next().set( s.next() );
-		}
-
-		final Cursor< UnsignedLongType > s = Views.flatIterable( canvas ).cursor();
-		final Cursor< T > t = Views.flatIterable( Views.interval( Views.translate( intervalCopy, blockAlignedMin ), canvas ) ).cursor();
-		while ( s.hasNext() )
-		{
-			final long label = s.next().get();
-			t.fwd();
-			if ( Label.regular( label ) )
-			{
-				t.get().setInteger( label );
-			}
-		}
-
-		final long[] gridOffset = new long[ intervalCopy.numDimensions() ];
-		for ( int d = 0; d < gridOffset.length; ++d )
-		{
-			gridOffset[ d ] = blockAlignedMin[ d ] / blockSize[ d ];
-		}
-
-		N5Utils.saveBlock( Views.translate( intervalCopy, blockAlignedMin ), n5, dataset, gridOffset );
-
-	}
-
-	@Override
-	public String identifier()
-	{
-		return "N5";
-	}
-
-	public DataType getDataType() throws IOException
-	{
-		return getAttributes().getDataType();
-	}
-
 	public < T > T getAttribute( final String key, final Class< T > clazz ) throws IOException
 	{
-		final String ds = dataset.get();
-		final String group = groupProperty.get();
-		final N5FSReader reader = new N5FSReader( group );
+		final N5Reader n5 = this.n5.get();
+		final String ds = this.dataset.get();
 
-		if ( reader.datasetExists( ds ) )
+		if ( n5.datasetExists( ds ) )
 		{
-			LOG.warn( "Getting attributes for {} and {}", group, ds );
-			return reader.getAttribute( ds, key, clazz );
+			LOG.warn( "Getting attributes for {} and {}", n5, ds );
+			return n5.getAttribute( ds, key, clazz );
 		}
 
-		final String[] scaleDirs = listAndSortScaleDatasets( reader, ds );
+		final String[] scaleDirs = N5Helpers.listAndSortScaleDatasets( n5, ds );
 
 		if ( scaleDirs.length > 0 )
 		{
-			LOG.warn( "Getting attributes for mipmap dataset: {} and {}", group, scaleDirs[ 0 ] );
-			return reader.getAttribute( Paths.get( ds, scaleDirs[ 0 ] ).toString(), key, clazz );
+			LOG.warn( "Getting attributes for mipmap dataset: {} and {}", n5, scaleDirs[ 0 ] );
+			return n5.getAttribute( Paths.get( ds, scaleDirs[ 0 ] ).toString(), key, clazz );
 		}
 
-		throw new RuntimeException( String.format( "Cannot read dataset attributes for group %s and dataset %s.", group, ds ) );
-	}
-
-	public DatasetAttributes getAttributes() throws IOException
-	{
-		final String ds = dataset.get();
-		final String group = groupProperty.get();
-		final N5FSReader reader = new N5FSReader( group );
-
-		if ( reader.datasetExists( ds ) )
-		{
-			LOG.debug( "Getting attributes for {} and {}", group, ds );
-			return reader.getDatasetAttributes( ds );
-		}
-
-		final String[] scaleDirs = listAndSortScaleDatasets( reader, ds );
-
-		if ( scaleDirs.length > 0 )
-		{
-			LOG.debug( "Getting attributes for {} and {}", group, scaleDirs[ 0 ] );
-			return reader.getDatasetAttributes( Paths.get( ds, scaleDirs[ 0 ] ).toString() );
-		}
-
-		throw new RuntimeException( String.format( "Cannot read dataset attributes for group %s and dataset %s.", group, ds ) );
-
-	}
-
-	@Override
-	public ObservableStringValue nameProperty()
-	{
-		return this.name;
-	}
-
-	@Override
-	public boolean isLabelMultiset()
-	{
-		try
-		{
-			final boolean isLabelMultiset = this.isLabelMultisetType();
-			LOG.warn( "Is label multiset? {}", isLabelMultiset );
-			return isLabelMultiset;
-		}
-		catch ( final IOException e )
-		{
-			throw new RuntimeException( e );
-			// return false;
-		}
+		throw new RuntimeException( String.format( "Cannot read dataset attributes for group %s and dataset %s.", n5, ds ) );
 	}
 
 }

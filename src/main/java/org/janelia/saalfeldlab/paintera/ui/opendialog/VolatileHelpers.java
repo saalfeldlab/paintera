@@ -74,9 +74,7 @@ public class VolatileHelpers
 		final Cache< Long, Cell< A > > cache = cachedCellImg.getCache();
 
 		final AccessFlags[] flags = AccessFlags.of( cachedCellImg.getAccessType() );
-		if ( !AccessFlags.isVolatile( flags ) ) {
-			throw new IllegalArgumentException( "underlying " + CachedCellImg.class.getSimpleName() + " must have volatile access type" );
-		}
+		if ( !AccessFlags.isVolatile( flags ) ) { throw new IllegalArgumentException( "underlying " + CachedCellImg.class.getSimpleName() + " must have volatile access type" ); }
 		@SuppressWarnings( "rawtypes" )
 		final VolatileCachedCellImg< V, ? > img = createVolatileCachedCellImg( grid, vtype, flags, ( Cache ) cache, createInvalid, queue, hints );
 
@@ -137,10 +135,10 @@ public class VolatileHelpers
 		final double[] initialDonwsamplingFactors = Optional
 				.ofNullable( reader.getAttribute( dataset + "/" + scaleDatasets[ 0 ], "downsamplingFactors", double[].class ) )
 				.orElse( new double[] { 1, 1, 1 } );
-		LOG.warn( "Initial resolution={}", Arrays.toString( initialResolution ) );
+		LOG.debug( "Initial resolution={}", Arrays.toString( initialResolution ) );
 		for ( int scale = 0; scale < scaleDatasets.length; ++scale )
 		{
-			LOG.warn( "Populating scale level {}", scale );
+			LOG.debug( "Populating scale level {}", scale );
 			final String scaleDataset = dataset + "/" + scaleDatasets[ scale ];
 
 			final DatasetAttributes attrs = reader.getDatasetAttributes( scaleDataset );
@@ -167,7 +165,7 @@ public class VolatileHelpers
 			final double[] downsamplingFactors = Optional
 					.ofNullable( reader.getAttribute( scaleDataset, "downsamplingFactors", double[].class ) )
 					.orElse( new double[] { 1, 1, 1 } );
-			LOG.warn( "Read downsampling factors: {}", Arrays.toString( downsamplingFactors ) );
+			LOG.debug( "Read downsampling factors: {}", Arrays.toString( downsamplingFactors ) );
 
 			final double[] scaledResolution = new double[ downsamplingFactors.length ];
 			final double[] shift = new double[ downsamplingFactors.length ];
@@ -178,7 +176,7 @@ public class VolatileHelpers
 				shift[ d ] = 0.5 / initialDonwsamplingFactors[ d ] - 0.5 / downsamplingFactors[ d ];
 			}
 
-			LOG.warn( "Downsampling factors={}, scaled resolution={}", Arrays.toString( downsamplingFactors ), Arrays.toString( scaledResolution ) );
+			LOG.debug( "Downsampling factors={}, scaled resolution={}", Arrays.toString( downsamplingFactors ), Arrays.toString( scaledResolution ) );
 
 			final AffineTransform3D transform = new AffineTransform3D();
 			transform.set(

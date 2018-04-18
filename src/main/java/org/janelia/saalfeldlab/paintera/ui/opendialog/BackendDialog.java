@@ -1,23 +1,17 @@
 package org.janelia.saalfeldlab.paintera.ui.opendialog;
 
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.function.BiConsumer;
-
 import org.janelia.saalfeldlab.paintera.data.DataSource;
-import org.janelia.saalfeldlab.paintera.data.LabelDataSource;
-import org.janelia.saalfeldlab.paintera.id.IdService;
+import org.janelia.saalfeldlab.paintera.state.FragmentSegmentAssignmentState;
 
 import bdv.util.volatiles.SharedQueue;
 import javafx.beans.property.DoubleProperty;
-import javafx.beans.property.ObjectProperty;
-import javafx.beans.property.SimpleDoubleProperty;
 import javafx.beans.value.ObservableStringValue;
+import javafx.beans.value.ObservableValue;
 import javafx.scene.Node;
-import net.imglib2.cache.img.CachedCellImg;
+import net.imglib2.Volatile;
 import net.imglib2.type.NativeType;
+import net.imglib2.type.Type;
 import net.imglib2.type.numeric.RealType;
-import net.imglib2.type.numeric.integer.UnsignedLongType;
 import net.imglib2.type.volatiles.AbstractVolatileRealType;
 
 public interface BackendDialog
@@ -25,23 +19,17 @@ public interface BackendDialog
 
 	public Node getDialogNode();
 
-	public ObjectProperty< String > errorMessage();
+	public ObservableValue< String > errorMessage();
 
-	public default < T extends RealType< T > & NativeType< T >, V extends AbstractVolatileRealType< T, V > & NativeType< V > > Collection< DataSource< T, V > > getRaw(
+	public < T extends RealType< T > & NativeType< T >, V extends AbstractVolatileRealType< T, V > & NativeType< V > > DataSource< T, V > getRaw(
 			final String name,
 			final SharedQueue sharedQueue,
-			final int priority ) throws Exception
-	{
-		return new ArrayList<>();
-	}
+			final int priority ) throws Exception;
 
-	public default Collection< ? extends LabelDataSource< ?, ? > > getLabels(
+	public < D extends NativeType< D >, T extends Volatile< D > & Type< T >, F extends FragmentSegmentAssignmentState< F > > LabelDataSourceRepresentation< D, T, F > getLabels(
 			final String name,
 			final SharedQueue sharedQueue,
-			final int priority ) throws Exception
-	{
-		return new ArrayList<>();
-	}
+			final int priority ) throws Exception;
 
 	public DoubleProperty[] resolution();
 
@@ -65,30 +53,9 @@ public interface BackendDialog
 		}
 	}
 
-	public default DoubleProperty min()
-	{
-		return new SimpleDoubleProperty( Double.NaN );
-	}
+	public DoubleProperty min();
 
-	public default DoubleProperty max()
-	{
-		return new SimpleDoubleProperty( Double.NaN );
-	}
-
-	public default BiConsumer< CachedCellImg< UnsignedLongType, ? >, long[] > commitCanvas()
-	{
-		return null;
-	}
-
-	public default IdService idService()
-	{
-		return null;
-	}
-
-	public default boolean isLabelMultiset()
-	{
-		return false;
-	}
+	public DoubleProperty max();
 
 	public ObservableStringValue nameProperty();
 

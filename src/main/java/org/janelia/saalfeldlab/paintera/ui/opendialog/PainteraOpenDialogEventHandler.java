@@ -2,26 +2,18 @@ package org.janelia.saalfeldlab.paintera.ui.opendialog;
 
 import java.lang.invoke.MethodHandles;
 import java.util.Arrays;
-import java.util.Collection;
 import java.util.Optional;
 import java.util.concurrent.ExecutorService;
-import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.stream.IntStream;
-import java.util.stream.Stream;
 
 import org.janelia.saalfeldlab.paintera.PainteraBaseView;
 import org.janelia.saalfeldlab.paintera.data.DataSource;
-import org.janelia.saalfeldlab.paintera.data.LabelDataSource;
-import org.janelia.saalfeldlab.paintera.data.mask.MaskedSource;
-import org.janelia.saalfeldlab.paintera.data.mask.Masks;
-import org.janelia.saalfeldlab.paintera.id.IdService;
-import org.janelia.saalfeldlab.paintera.id.ToIdConverter;
-import org.janelia.saalfeldlab.paintera.meshes.MeshGenerator.ShapeKey;
 import org.janelia.saalfeldlab.paintera.meshes.cache.CacheUtils;
 import org.janelia.saalfeldlab.paintera.state.FragmentSegmentAssignmentState;
+import org.janelia.saalfeldlab.paintera.ui.opendialog.OpenSourceDialog.TYPE;
 import org.janelia.saalfeldlab.paintera.ui.opendialog.meta.MetaPanel;
 import org.janelia.saalfeldlab.util.HashWrapper;
 import org.slf4j.Logger;
@@ -35,19 +27,16 @@ import net.imglib2.Interval;
 import net.imglib2.IterableInterval;
 import net.imglib2.RandomAccess;
 import net.imglib2.RandomAccessible;
-import net.imglib2.cache.img.CachedCellImg;
+import net.imglib2.Volatile;
 import net.imglib2.img.cell.AbstractCellImg;
 import net.imglib2.img.cell.Cell;
 import net.imglib2.img.cell.CellGrid;
 import net.imglib2.type.NativeType;
+import net.imglib2.type.Type;
 import net.imglib2.type.label.LabelMultisetType;
 import net.imglib2.type.label.VolatileLabelMultisetArray;
-import net.imglib2.type.label.VolatileLabelMultisetType;
-import net.imglib2.type.numeric.IntegerType;
 import net.imglib2.type.numeric.RealType;
-import net.imglib2.type.numeric.integer.UnsignedLongType;
 import net.imglib2.type.volatiles.AbstractVolatileRealType;
-import net.imglib2.util.Pair;
 
 public class PainteraOpenDialogEventHandler implements EventHandler< Event >
 {
@@ -79,6 +68,41 @@ public class PainteraOpenDialogEventHandler implements EventHandler< Event >
 		this.exceptionHandler = exceptionHandler;
 	}
 
+	private < T extends RealType< T > & NativeType< T >, V extends AbstractVolatileRealType< T, V > & NativeType< V > > void addRaw(
+			final String name,
+			final BackendDialog dataset,
+			final double min,
+			final double max ) throws Exception
+	{
+		final DataSource< T, V > raw = dataset.getRaw( name, cellCache, cellCache.getNumPriorities() - 1 );
+		LOG.debug( "Got raw: {}", raw );
+		viewer.addRawSource( raw, min, max, Color.WHITE );
+	}
+
+	private < D extends NativeType< D >, T extends Volatile< D > & Type< T >, F extends FragmentSegmentAssignmentState< F > > void addLabel(
+			final String name,
+			final BackendDialog dataset ) throws Exception
+	{
+		try
+		{
+			final LabelDataSourceRepresentation< D, T, F > rep = dataset.getLabels( name, cellCache, cellCache.getNumPriorities() - 1 );
+			viewer.addLabelSource(
+					rep.source,
+					rep.assignment,
+					rep.idService,
+					rep.toIdConverter,
+					rep.blocksThatContainId,
+					rep.meshCache,
+					rep.maskForId );
+		}
+		catch ( final Exception e )
+		{
+			System.out.println( "WTF" );
+			System.out.println( e.getMessage() );
+			e.printStackTrace();
+		}
+	}
+
 	@Override
 	public void handle( final Event event )
 	{
@@ -88,160 +112,35 @@ public class PainteraOpenDialogEventHandler implements EventHandler< Event >
 			{
 				event.consume();
 			}
-			final OpenSourceDialog openDialog = new OpenSourceDialog();
-			final Optional< BackendDialog > dataset = openDialog.showAndWait();
-			if ( dataset.isPresent() )
-			{
-				final MetaPanel meta = openDialog.getMeta();
-				switch ( openDialog.getType() )
-				{
-				case RAW:
 
-					final double min = meta.min();
-					final double max = meta.max();
-					try
+			try
+			{
+				final OpenSourceDialog openDialog = new OpenSourceDialog();
+				final Optional< BackendDialog > datasetOptional = openDialog.showAndWait();
+				if ( datasetOptional.isPresent() )
+				{
+					final BackendDialog dataset = datasetOptional.get();
+					final MetaPanel meta = openDialog.getMeta();
+					final TYPE type = openDialog.getType();
+					LOG.warn( "Type={}", type );
+					switch ( type )
 					{
-						final Collection< ? extends DataSource< ? extends RealType< ? >, ? extends RealType< ? > > > raws = dataset.get().getRaw(
-								openDialog.getName(),
-								cellCache,
-								cellCache.getNumPriorities() - 1 );
-						raws.forEach( source -> viewer.addRawSource( ( DataSource ) source, min, max, Color.WHITE ) );
+					case RAW:
+						LOG.warn( "adding raw!" );
+						addRaw( openDialog.getName(), dataset, meta.min(), meta.max() );
+						break;
+					case LABEL:
+						addLabel( openDialog.getName(), dataset );
+						break;
+					default:
+						break;
 					}
-					catch ( final Exception e )
-					{
-						exceptionHandler.accept( e );
-					}
-					break;
-				case LABEL:
-					try
-					{
-						if ( openDialog.isLabelMultiset() )
-						{
-							LOG.warn( "Loading multiset dataset!" );
-							addLabelMultisetSource( viewer, dataset.get(), openDialog, meta, cellCache );
-						}
-						else
-						{
-							addLabelSource( viewer, dataset.get(), openDialog, meta, cellCache );
-						}
-					}
-					catch ( final Exception e )
-					{
-						exceptionHandler.accept( e );
-					}
-					break;
-				default:
-					break;
 				}
 			}
-		}
-	}
-
-	private static < I extends IntegerType< I > & NativeType< I >, V extends AbstractVolatileRealType< I, V > > void addLabelSource(
-			final PainteraBaseView viewer,
-			final BackendDialog dataset,
-			final OpenSourceDialog openDialog,
-			final MetaPanel meta,
-			final SharedQueue cellCache ) throws Exception
-	{
-		// TODO handle this better!
-		try
-		{
-			final Collection< ? extends LabelDataSource< I, V > > optionalSource = ( Collection< ? extends LabelDataSource< I, V > > ) dataset.getLabels(
-					openDialog.getName(),
-					cellCache,
-					cellCache.getNumPriorities() );
-			for ( final LabelDataSource< I, V > source : optionalSource )
+			catch ( final Exception e )
 			{
-				addLabelSource( viewer, source, openDialog.canvasCacheDirectory(), dataset.idService(), dataset.commitCanvas() );
+				exceptionHandler.accept( e );
 			}
-		}
-		catch ( final Exception e )
-		{
-			LOG.warn( "Could not add label source: " + e.getMessage() );
-			e.printStackTrace();
-		}
-	}
-
-	private static < I extends IntegerType< I > & NativeType< I >, V extends AbstractVolatileRealType< I, V > > void addLabelSource(
-			final PainteraBaseView viewer,
-			final LabelDataSource< I, V > lsource,
-			final String cacheDir,
-			final IdService idService,
-			final BiConsumer< CachedCellImg< UnsignedLongType, ? >, long[] > mergeCanvasIntoBackground )
-	{
-		if ( cacheDir != null )
-		{
-			LOG.debug( "Adding canvas source with cache dir={}", cacheDir );
-			viewer.addLabelSource(
-					Masks.fromIntegerType( lsource, cacheDir == null || cacheDir.length() == 0 ? null : cacheDir, mergeCanvasIntoBackground ),
-					( FragmentSegmentAssignmentState ) lsource.getAssignment(),
-					idService,
-					ToIdConverter.fromIntegerType(),
-					null,
-					null );
-		}
-		else
-		{
-			viewer.addLabelSource( lsource, ( FragmentSegmentAssignmentState ) lsource.getAssignment(), idService, ToIdConverter.fromIntegerType(), null, null );
-		}
-	}
-
-	private static void addLabelMultisetSource(
-			final PainteraBaseView viewer,
-			final BackendDialog dataset,
-			final OpenSourceDialog openDialog,
-			final MetaPanel meta,
-			final SharedQueue cellCache ) throws Exception
-	{
-		LOG.warn( "Adding label multiset source" );
-		// TODO handle this better!
-		try
-		{
-			final Collection< ? extends LabelDataSource< LabelMultisetType, VolatileLabelMultisetType > > optionalSource =
-					( Collection< ? extends LabelDataSource< LabelMultisetType, VolatileLabelMultisetType > > ) dataset.getLabels(
-							openDialog.getName(),
-							cellCache,
-							cellCache.getNumPriorities() );
-			for ( final LabelDataSource< LabelMultisetType, VolatileLabelMultisetType > source : optionalSource )
-			{
-				addLabelMultisetSource(
-						viewer,
-						source,
-						openDialog.canvasCacheDirectory(),
-						dataset.idService(),
-						dataset.commitCanvas() );
-			}
-		}
-		catch ( final Exception e )
-		{
-			LOG.warn( "Could not add label multiset source: " + e.getMessage() );
-			e.printStackTrace();
-		}
-	}
-
-	private static void addLabelMultisetSource(
-			final PainteraBaseView viewer,
-			final LabelDataSource< LabelMultisetType, VolatileLabelMultisetType > lsource,
-			final String cacheDir,
-			final IdService idService,
-			final BiConsumer< CachedCellImg< UnsignedLongType, ? >, long[] > mergeCanvasIntoBackground )
-	{
-		LOG.warn( "Adding label multiset source, maybe masked: {} {}", cacheDir, idService );
-		final Function< Long, Interval[] >[] blockListCaches = getBlockListCaches( lsource, viewer.generalPurposeExecutorService() );
-		final int[][] cubeSizes = Stream.generate( () -> new int[] { 1, 1, 1 } ).limit( blockListCaches.length ).toArray( int[][]::new );
-		final Function< ShapeKey, Pair< float[], float[] > >[] meshCaches = blockListCaches == null ? null : CacheUtils.meshCacheLoaders( lsource, cubeSizes, lbl -> ( src, tgt ) -> tgt.set( src.contains( lbl ) ), CacheUtils::toCacheSoftRefLoaderCache );
-		if ( cacheDir != null )
-		{
-			final int[] blockSize = { 64, 64, 64 };
-			LOG.debug( "Adding canvas source with cache dir={}", cacheDir );
-			final MaskedSource< LabelMultisetType, VolatileLabelMultisetType > maskedSource =
-					Masks.fromLabelMultisetType( lsource, cacheDir == null || cacheDir.length() == 0 ? null : cacheDir, mergeCanvasIntoBackground );
-			viewer.addLabelSource( maskedSource, ( FragmentSegmentAssignmentState ) lsource.getAssignment(), idService, ToIdConverter.fromLabelMultisetType(), blockListCaches, meshCaches );
-		}
-		else
-		{
-			viewer.addLabelSource( lsource, ( FragmentSegmentAssignmentState ) lsource.getAssignment(), idService, ToIdConverter.fromLabelMultisetType(), blockListCaches, meshCaches );
 		}
 	}
 
@@ -250,9 +149,7 @@ public class PainteraOpenDialogEventHandler implements EventHandler< Event >
 			final ExecutorService es )
 	{
 		final int numLevels = source.getNumMipmapLevels();
-		if ( IntStream.range( 0, numLevels ).mapToObj( lvl -> source.getDataSource( 0, lvl ) ).filter( src -> !( src instanceof AbstractCellImg< ?, ?, ?, ? > ) ).count() > 0 ) {
-			return null;
-		}
+		if ( IntStream.range( 0, numLevels ).mapToObj( lvl -> source.getDataSource( 0, lvl ) ).filter( src -> !( src instanceof AbstractCellImg< ?, ?, ?, ? > ) ).count() > 0 ) { return null; }
 
 		final int[][] blockSizes = IntStream
 				.range( 0, numLevels )
@@ -270,7 +167,7 @@ public class PainteraOpenDialogEventHandler implements EventHandler< Event >
 		{
 			@SuppressWarnings( "unchecked" )
 			final AbstractCellImg< LabelMultisetType, VolatileLabelMultisetArray, C, I > img =
-			( AbstractCellImg< LabelMultisetType, VolatileLabelMultisetArray, C, I > ) source.getDataSource( 0, level );
+					( AbstractCellImg< LabelMultisetType, VolatileLabelMultisetArray, C, I > ) source.getDataSource( 0, level );
 			uniqueIdCaches[ level ] = uniqueLabelLoaders( img );
 		}
 
@@ -286,8 +183,8 @@ public class PainteraOpenDialogEventHandler implements EventHandler< Event >
 	}
 
 	public static < C extends Cell< VolatileLabelMultisetArray >, I extends RandomAccessible< C > & IterableInterval< C > >
-	Function< HashWrapper< long[] >, long[] > uniqueLabelLoaders(
-			final AbstractCellImg< LabelMultisetType, VolatileLabelMultisetArray, C, I > img )
+			Function< HashWrapper< long[] >, long[] > uniqueLabelLoaders(
+					final AbstractCellImg< LabelMultisetType, VolatileLabelMultisetArray, C, I > img )
 	{
 		final I cells = img.getCells();
 		return location -> {

@@ -1,9 +1,13 @@
 package org.janelia.saalfeldlab.paintera.data.mask;
 
+import java.lang.invoke.MethodHandles;
 import java.util.Optional;
 import java.util.function.BiConsumer;
+import java.util.function.Supplier;
 
 import org.janelia.saalfeldlab.paintera.data.DataSource;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import net.imglib2.cache.img.CachedCellImg;
 import net.imglib2.img.cell.AbstractCellImg;
@@ -13,12 +17,45 @@ import net.imglib2.type.label.Label;
 import net.imglib2.type.label.LabelMultisetType;
 import net.imglib2.type.label.VolatileLabelMultisetType;
 import net.imglib2.type.numeric.IntegerType;
+import net.imglib2.type.numeric.RealType;
 import net.imglib2.type.numeric.integer.UnsignedLongType;
 import net.imglib2.type.volatiles.AbstractVolatileRealType;
 import net.imglib2.type.volatiles.VolatileUnsignedLongType;
 
 public class Masks
 {
+
+	private static final Logger LOG = LoggerFactory.getLogger( MethodHandles.lookup().lookupClass() );
+
+	@SuppressWarnings( "unchecked" )
+	public static < D, T > DataSource< D, T > mask(
+			final DataSource< D, T > source,
+			final String initialCanvasPath,
+			final Supplier< String > canvasCacheDirUpdate,
+			final BiConsumer< CachedCellImg< UnsignedLongType, ? >, long[] > mergeCanvasIntoBackground )
+	{
+		final D d = source.getDataType();
+		final T t = source.getType();
+
+		if ( d instanceof IntegerType< ? > && t instanceof AbstractVolatileRealType< ?, ? > )
+		{
+			final RealType< ? > i = ( ( AbstractVolatileRealType< ?, ? > ) t ).get();
+			if ( d.getClass().isAssignableFrom( i.getClass() ) )
+				return fromIntegerType(
+						( DataSource ) source,
+						initialCanvasPath,
+						canvasCacheDirUpdate,
+						mergeCanvasIntoBackground );
+		}
+		else if ( d instanceof LabelMultisetType && t instanceof VolatileLabelMultisetType )
+			return ( DataSource< D, T > ) fromLabelMultisetType(
+					( DataSource< LabelMultisetType, VolatileLabelMultisetType > ) source,
+					initialCanvasPath,
+					canvasCacheDirUpdate,
+					mergeCanvasIntoBackground );
+		LOG.warn( "Do not know how to convert to masked canvas for d={} t={} -- just returning source.", d, t );
+		return source;
+	}
 
 	public static < I extends IntegerType< I > & NativeType< I >, V extends AbstractVolatileRealType< I, V > > MaskedSource< I, V > fromIntegerType(
 			final DataSource< I, V > source,
@@ -30,6 +67,15 @@ public class Masks
 	public static < I extends IntegerType< I > & NativeType< I >, V extends AbstractVolatileRealType< I, V > > MaskedSource< I, V > fromIntegerType(
 			final DataSource< I, V > source,
 			final String initialCanvasPath,
+			final BiConsumer< CachedCellImg< UnsignedLongType, ? >, long[] > mergeCanvasIntoBackground )
+	{
+		return fromIntegerType( source, initialCanvasPath, new TmpDirectoryCreator( null, null ), mergeCanvasIntoBackground );
+	}
+
+	public static < I extends IntegerType< I > & NativeType< I >, V extends AbstractVolatileRealType< I, V > > MaskedSource< I, V > fromIntegerType(
+			final DataSource< I, V > source,
+			final String initialCanvasPath,
+			final Supplier< String > canvasCacheDirUpdate,
 			final BiConsumer< CachedCellImg< UnsignedLongType, ? >, long[] > mergeCanvasIntoBackground )
 	{
 
@@ -70,7 +116,7 @@ public class Masks
 		final MaskedSource< I, V > ms = new MaskedSource<>(
 				source,
 				blockSizes,
-				new TmpDirectoryCreator( null, null ),
+				canvasCacheDirUpdate,
 				Optional.ofNullable( initialCanvasPath ).orElse( new TmpDirectoryCreator( null, null ).get() ),
 				pacD,
 				pacT,
@@ -91,6 +137,15 @@ public class Masks
 	public static MaskedSource< LabelMultisetType, VolatileLabelMultisetType > fromLabelMultisetType(
 			final DataSource< LabelMultisetType, VolatileLabelMultisetType > source,
 			final String initialCanvasPath,
+			final BiConsumer< CachedCellImg< UnsignedLongType, ? >, long[] > mergeCanvasIntoBackground )
+	{
+		return fromLabelMultisetType( source, initialCanvasPath, new TmpDirectoryCreator( null, null ), mergeCanvasIntoBackground );
+	}
+
+	public static MaskedSource< LabelMultisetType, VolatileLabelMultisetType > fromLabelMultisetType(
+			final DataSource< LabelMultisetType, VolatileLabelMultisetType > source,
+			final String initialCanvasPath,
+			final Supplier< String > canvasCacheDirUpdate,
 			final BiConsumer< CachedCellImg< UnsignedLongType, ? >, long[] > mergeCanvasIntoBackground )
 	{
 
@@ -129,7 +184,7 @@ public class Masks
 		final MaskedSource< LabelMultisetType, VolatileLabelMultisetType > ms = new MaskedSource<>(
 				source,
 				blockSizes,
-				new TmpDirectoryCreator( null, null ),
+				canvasCacheDirUpdate,
 				Optional.ofNullable( initialCanvasPath ).orElse( new TmpDirectoryCreator( null, null ).get() ),
 				pacD,
 				pacT,
