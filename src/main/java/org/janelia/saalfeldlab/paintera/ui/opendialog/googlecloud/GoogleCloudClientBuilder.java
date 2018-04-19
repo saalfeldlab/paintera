@@ -1,33 +1,34 @@
 package org.janelia.saalfeldlab.paintera.ui.opendialog.googlecloud;
 
-import java.io.IOException;
 import java.io.InputStream;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Optional;
+import java.util.concurrent.CountDownLatch;
 import java.util.function.Supplier;
 
 import org.janelia.saalfeldlab.googlecloud.GoogleCloudOAuth;
 import org.janelia.saalfeldlab.googlecloud.GoogleCloudOAuth.Scope;
 import org.janelia.saalfeldlab.googlecloud.GoogleCloudResourceManagerClient;
 import org.janelia.saalfeldlab.googlecloud.GoogleCloudStorageClient;
+import org.janelia.saalfeldlab.util.MakeUnchecked;
 
 import com.google.cloud.resourcemanager.ResourceManager;
 import com.google.cloud.storage.Storage;
 
 public class GoogleCloudClientBuilder
 {
-	public static Storage createStorage( final Supplier< InputStream > clientSecretsIfNotFound ) throws IOException
+	public static Storage createStorage( final Supplier< InputStream > clientSecretsIfNotFound ) throws Exception
 	{
 		return createStorage( createOAuth( clientSecretsIfNotFound ), null );
 	}
 
-	public static Storage createStorage( final String projectId, final Supplier< InputStream > clientSecretsIfNotFound ) throws IOException
+	public static Storage createStorage( final String projectId, final Supplier< InputStream > clientSecretsIfNotFound ) throws Exception
 	{
 		return createStorage( createOAuth( clientSecretsIfNotFound ), projectId );
 	}
 
-	public static Storage createStorage( final GoogleCloudOAuth oauth ) throws IOException
+	public static Storage createStorage( final GoogleCloudOAuth oauth ) throws Exception
 	{
 		return createStorage( oauth, null );
 	}
@@ -41,7 +42,7 @@ public class GoogleCloudClientBuilder
 		return projectId == null ? storageClient.create() : storageClient.create( projectId );
 	}
 
-	public static ResourceManager createResourceManager( final Supplier< InputStream > clientSecretsIfNotFound ) throws IOException
+	public static ResourceManager createResourceManager( final Supplier< InputStream > clientSecretsIfNotFound ) throws Exception
 	{
 		return createResourceManager( createOAuth( clientSecretsIfNotFound ) );
 	}
@@ -54,17 +55,27 @@ public class GoogleCloudClientBuilder
 				oauth.getRefreshToken() ).create();
 	}
 
-	public static GoogleCloudOAuth createOAuth( final Supplier< InputStream > clientSecretsIfNotFound ) throws IOException
+	public static GoogleCloudOAuth createOAuth( final Supplier< InputStream > clientSecretsIfNotFound ) throws Exception
 	{
 		return createOAuth( createScopes(), clientSecretsIfNotFound );
 	}
 
-	public static GoogleCloudOAuth createOAuth( final Collection< Scope > scopes, final Supplier< InputStream > clientSecretsIfNotFound ) throws IOException
+	public static GoogleCloudOAuth createOAuth( final Collection< Scope > scopes, final Supplier< InputStream > clientSecretsIfNotFound ) throws Exception
 	{
-		return new GoogleCloudOAuth(
-				scopes,
-				"n5-viewer-google-cloud-oauth2",
-				Optional.ofNullable( GoogleCloudClientBuilder.class.getResourceAsStream( "/googlecloud_client_secrets.json" ) ).orElse( clientSecretsIfNotFound.get() ) );
+		final InputStream stream = Optional.ofNullable( GoogleCloudClientBuilder.class.getResourceAsStream( "/googlecloud_client_secrets.json" ) ).orElse( clientSecretsIfNotFound.get() );
+		final GoogleCloudOAuth[] oauth = { null };
+		final CountDownLatch latch = new CountDownLatch( 1 );
+		new Thread( MakeUnchecked.unchecked( () -> {
+			Thread.currentThread().setName( "google-cloud-oauth" );
+			oauth[ 0 ] = new GoogleCloudOAuth(
+					scopes,
+					"n5-viewer-google-cloud-oauth2",
+					stream );
+			latch.countDown();
+		} )
+				).start();
+		latch.await();
+		return oauth[ 0 ];
 	}
 
 	private static Collection< Scope > createScopes()

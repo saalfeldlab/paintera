@@ -12,7 +12,6 @@ import java.util.List;
 import java.util.Optional;
 import java.util.function.Supplier;
 
-import org.janelia.saalfeldlab.fx.ui.ExceptionNode;
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread;
 import org.janelia.saalfeldlab.googlecloud.GoogleCloudOAuth;
 import org.slf4j.Logger;
@@ -66,7 +65,8 @@ public class GoogleCloudBrowseHandler
 		}
 		catch ( final Exception e )
 		{
-			ExceptionNode.exceptionDialog( e ).show();
+//			ExceptionNode.exceptionDialog( e ).show();
+			e.printStackTrace();
 			return Optional.empty();
 		}
 
@@ -80,7 +80,9 @@ public class GoogleCloudBrowseHandler
 			return null;
 		}
 		while ( projectIterator.hasNext() )
+		{
 			projects.add( projectIterator.next() );
+		}
 
 		// add project names as list items
 

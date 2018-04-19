@@ -25,11 +25,17 @@ public class MakeUnchecked
 			}
 			catch ( final Exception e )
 			{
-				if ( e instanceof RuntimeException )
+				if ( e instanceof RuntimeException ) {
 					throw ( RuntimeException ) e;
+				}
 				throw new RuntimeException( e );
 			}
 		};
+	}
+
+	public static interface CheckedRunnable
+	{
+		public void run() throws Exception;
 	}
 
 	public static < T > Supplier< T > unchecked( final CheckedSupplier< T > supplier )
@@ -41,8 +47,24 @@ public class MakeUnchecked
 			}
 			catch ( final Exception e )
 			{
-				if ( e instanceof RuntimeException )
+				if ( e instanceof RuntimeException ) { throw ( RuntimeException ) e; }
+				throw new RuntimeException( e );
+			}
+		};
+	}
+
+	public static Runnable unchecked( final CheckedRunnable runnable )
+	{
+		return () -> {
+			try
+			{
+				runnable.run();
+			}
+			catch ( final Exception e )
+			{
+				if ( e instanceof RuntimeException ) {
 					throw ( RuntimeException ) e;
+				}
 				throw new RuntimeException( e );
 			}
 		};
