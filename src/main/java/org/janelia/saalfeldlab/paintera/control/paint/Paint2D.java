@@ -261,19 +261,20 @@ public class Paint2D
 		viewer.getState().getViewerTransform( viewerTransformWithoutTranslation );
 		viewerTransformWithoutTranslation.setTranslation( 0, 0, 0 );
 		final AffineTransform3D labelToGlobalTransformWithoutTranslation = labelToGlobalTransform.copy();
-		labelToGlobalTransform.setTranslation( 0, 0, 0 );
+		labelToGlobalTransformWithoutTranslation.setTranslation( 0, 0, 0 );
 
-		final AffineTransform3D relevantTransform = labelToGlobalTransformWithoutTranslation
-				.copy()
-				.inverse()
-				.concatenate( viewerTransformWithoutTranslation.inverse() );
-
-		final double[] ones = { 1.0, 1.0, 1.0 };
-		labelToGlobalTransformWithoutTranslation.apply( ones, ones );
-		viewerTransformWithoutTranslation.apply( ones, ones );
-
-		// TODO is division by 2 save?
-		final double range = LinAlgHelpers.length( ones ) / 2;
+		final double[] unitX = { 1.0, 0.0, 0.0 };
+		final double[] unitY = { 0.0, 1.0, 0.0 };
+		final double[] unitZ = { 0.0, 0.0, 1.0 };
+		labelToGlobalTransformWithoutTranslation.apply( unitX, unitX );
+		labelToGlobalTransformWithoutTranslation.apply( unitY, unitY );
+		labelToGlobalTransformWithoutTranslation.apply( unitZ, unitZ );
+		viewerTransformWithoutTranslation.apply( unitX, unitX );
+		viewerTransformWithoutTranslation.apply( unitY, unitY );
+		viewerTransformWithoutTranslation.apply( unitZ, unitZ );
+		LOG.debug( "Transformed unit vectors x={} y={} z={}", unitX, unitY, unitZ );
+		final double range = 0.5 * ( Math.abs( unitX[ 2 ] ) + Math.abs( unitY[ 2 ] ) + Math.abs( unitZ[ 2 ] ) );
+		LOG.debug( "range is {}", range );
 
 		final double radius = this.brushOverlay.viewerRadiusProperty().get();
 
@@ -284,10 +285,12 @@ public class Paint2D
 
 		final Supplier< BiConsumer< RealLocalizable, BitType > > function = () -> {
 			final double radiusSquared = radius * radius;
+			final double upperBound = +range;
+			final double lowerBound = -range;
 			return ( loc, t ) -> {
 				final double z = loc.getDoublePosition( 2 );
 				boolean isValid = false;
-				if ( z <= range && z >= -range )
+				if ( z < upperBound && z > lowerBound )
 				{
 					final double x = loc.getDoublePosition( 0 );
 					final double y = loc.getDoublePosition( 1 );
