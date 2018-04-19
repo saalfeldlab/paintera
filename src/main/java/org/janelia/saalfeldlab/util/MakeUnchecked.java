@@ -16,6 +16,20 @@ public class MakeUnchecked
 		public T get() throws Exception;
 	}
 
+	public static < T, U > Function< T, U > orElse( final CheckedFunction< T, U > func, final Function< T, U > onExcept )
+	{
+		return t -> {
+			try
+			{
+				return func.apply( t );
+			}
+			catch ( final Exception e )
+			{
+				return onExcept.apply( t );
+			}
+		};
+	}
+
 	public static < T, U > Function< T, U > unchecked( final CheckedFunction< T, U > func )
 	{
 		return t -> {

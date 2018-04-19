@@ -1,6 +1,9 @@
 package org.janelia.saalfeldlab.paintera.ui.opendialog.googlecloud;
 
+import java.io.FileInputStream;
 import java.io.InputStream;
+import java.lang.invoke.MethodHandles;
+import java.nio.file.Paths;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Optional;
@@ -12,12 +15,21 @@ import org.janelia.saalfeldlab.googlecloud.GoogleCloudOAuth.Scope;
 import org.janelia.saalfeldlab.googlecloud.GoogleCloudResourceManagerClient;
 import org.janelia.saalfeldlab.googlecloud.GoogleCloudStorageClient;
 import org.janelia.saalfeldlab.util.MakeUnchecked;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.google.cloud.resourcemanager.ResourceManager;
 import com.google.cloud.storage.Storage;
 
 public class GoogleCloudClientBuilder
 {
+
+	public static final Logger LOG = LoggerFactory.getLogger( MethodHandles.lookup().lookupClass() );
+
+	public static final String USER_HOME = System.getProperty( "user.home" );
+
+	public static final String CLIENT_SECRETS_FILE = Paths.get( USER_HOME, ".google", "n5-google-cloud" ).toString();
+
 	public static Storage createStorage( final Supplier< InputStream > clientSecretsIfNotFound ) throws Exception
 	{
 		return createStorage( createOAuth( clientSecretsIfNotFound ), null );
@@ -62,7 +74,11 @@ public class GoogleCloudClientBuilder
 
 	public static GoogleCloudOAuth createOAuth( final Collection< Scope > scopes, final Supplier< InputStream > clientSecretsIfNotFound ) throws Exception
 	{
-		final InputStream stream = Optional.ofNullable( GoogleCloudClientBuilder.class.getResourceAsStream( "/googlecloud_client_secrets.json" ) ).orElse( clientSecretsIfNotFound.get() );
+		final InputStream stream = Optional
+				.of( CLIENT_SECRETS_FILE )
+				.map( MakeUnchecked.orElse( FileInputStream::new, fn -> ( InputStream ) null ) )
+				.orElseGet( clientSecretsIfNotFound::get );
+
 		final GoogleCloudOAuth[] oauth = { null };
 		final CountDownLatch latch = new CountDownLatch( 1 );
 		new Thread( MakeUnchecked.unchecked( () -> {
