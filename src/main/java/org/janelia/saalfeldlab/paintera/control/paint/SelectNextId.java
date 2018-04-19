@@ -6,8 +6,8 @@ import java.util.function.BiConsumer;
 import org.janelia.saalfeldlab.paintera.SourceInfo;
 import org.janelia.saalfeldlab.paintera.SourceState;
 import org.janelia.saalfeldlab.paintera.SourceState.TYPE;
+import org.janelia.saalfeldlab.paintera.control.selection.SelectedIds;
 import org.janelia.saalfeldlab.paintera.id.IdService;
-import org.janelia.saalfeldlab.paintera.state.SelectedIds;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

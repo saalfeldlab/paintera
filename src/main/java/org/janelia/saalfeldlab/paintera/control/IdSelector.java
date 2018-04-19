@@ -10,10 +10,10 @@ import java.util.stream.Collectors;
 import org.janelia.saalfeldlab.fx.event.InstallAndRemove;
 import org.janelia.saalfeldlab.fx.event.MouseClickFX;
 import org.janelia.saalfeldlab.paintera.SourceInfo;
+import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignmentState;
+import org.janelia.saalfeldlab.paintera.control.selection.SelectedIds;
 import org.janelia.saalfeldlab.paintera.data.DataSource;
 import org.janelia.saalfeldlab.paintera.id.ToIdConverter;
-import org.janelia.saalfeldlab.paintera.state.FragmentSegmentAssignmentState;
-import org.janelia.saalfeldlab.paintera.state.SelectedIds;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -92,9 +92,7 @@ public class IdSelector
 		public void click( final MouseEvent e )
 		{
 			final Optional< Source< ? > > optionalSource = getCurrentSource();
-			if ( !optionalSource.isPresent() ) {
-				return;
-			}
+			if ( !optionalSource.isPresent() ) { return; }
 			final Source< ? > source = optionalSource.get();
 			if ( source instanceof DataSource< ?, ? > )
 			{
@@ -172,27 +170,23 @@ public class IdSelector
 		public void click( final MouseEvent e )
 		{
 			final Optional< Source< ? > > optionalSource = getCurrentSource();
-			if ( !optionalSource.isPresent() ) {
-				return;
-			}
+			if ( !optionalSource.isPresent() ) { return; }
 			final Source< ? > source = optionalSource.get();
 			if ( source instanceof DataSource< ?, ? > )
 			{
 				final DataSource< ?, ? > dataSource = ( DataSource< ?, ? > ) source;
 				final Optional< SelectedIds > selectedIds = Optional.ofNullable( sourceInfo.getState( source ).selectedIdsProperty().get() );
 				final Optional< ToIdConverter > toIdConverter = sourceInfo.toIdConverter( source );
-				final Optional< ? extends FragmentSegmentAssignmentState< ? > > assignmentOptional = sourceInfo.assignment( source );
+				final Optional< FragmentSegmentAssignmentState > assignmentOptional = sourceInfo.assignment( source );
 				if ( toIdConverter.isPresent() && selectedIds.isPresent() && assignmentOptional.isPresent() )
 				{
 					synchronized ( viewer )
 					{
-						final FragmentSegmentAssignmentState< ? > assignments = assignmentOptional.get();
+						final FragmentSegmentAssignmentState assignments = assignmentOptional.get();
 
 						final long lastSelection = selectedIds.get().getLastSelection();
 
-						if ( lastSelection == Label.INVALID ) {
-							return;
-						}
+						if ( lastSelection == Label.INVALID ) { return; }
 
 						final AffineTransform3D viewerTransform = new AffineTransform3D();
 						final ViewerState state = viewer.getState();
@@ -225,28 +219,24 @@ public class IdSelector
 		public void click( final MouseEvent e )
 		{
 			final Optional< Source< ? > > optionalSource = getCurrentSource();
-			if ( !optionalSource.isPresent() ) {
-				return;
-			}
+			if ( !optionalSource.isPresent() ) { return; }
 			final Source< ? > source = optionalSource.get();
 			if ( source instanceof DataSource< ?, ? > )
 			{
 				final DataSource< ?, ? > dataSource = ( DataSource< ?, ? > ) source;
 				final Optional< SelectedIds > selectedIds = Optional.ofNullable( sourceInfo.getState( source ).selectedIdsProperty().get() );
 				final Optional< ToIdConverter > toIdConverter = sourceInfo.toIdConverter( source );
-				final Optional< ? extends FragmentSegmentAssignmentState< ? > > assignmentOptional = sourceInfo.assignment( source );
+				final Optional< ? extends FragmentSegmentAssignmentState > assignmentOptional = sourceInfo.assignment( source );
 				if ( toIdConverter.isPresent() && selectedIds.isPresent() && assignmentOptional.isPresent() )
 				{
 					synchronized ( viewer )
 					{
 
-						final FragmentSegmentAssignmentState< ? > assignment = assignmentOptional.get();
+						final FragmentSegmentAssignmentState assignment = assignmentOptional.get();
 
 						final long lastSelection = selectedIds.get().getLastSelection();
 
-						if ( lastSelection == Label.INVALID ) {
-							return;
-						}
+						if ( lastSelection == Label.INVALID ) { return; }
 
 						final AffineTransform3D viewerTransform = new AffineTransform3D();
 						final ViewerState state = viewer.getState();
@@ -288,12 +278,12 @@ public class IdSelector
 				final DataSource< ?, ? > dataSource = ( DataSource< ?, ? > ) source;
 				final Optional< SelectedIds > selectedIds = Optional.ofNullable( sourceInfo.getState( source ).selectedIdsProperty().get() );
 				final Optional< ToIdConverter > toIdConverter = sourceInfo.toIdConverter( source );
-				final Optional< ? extends FragmentSegmentAssignmentState< ? > > assignmentOptional = sourceInfo.assignment( source );
+				final Optional< ? extends FragmentSegmentAssignmentState > assignmentOptional = sourceInfo.assignment( source );
 				if ( toIdConverter.isPresent() && selectedIds.isPresent() && assignmentOptional.isPresent() )
 				{
 					synchronized ( viewer )
 					{
-						final FragmentSegmentAssignmentState< ? > assignment = assignmentOptional.get();
+						final FragmentSegmentAssignmentState assignment = assignmentOptional.get();
 
 						final long[] activeFragments = selectedIds.get().getActiveIds();
 						final long[] activeSegments = Arrays.stream( activeFragments ).map( id -> assignment.getSegment( id ) ).toArray();

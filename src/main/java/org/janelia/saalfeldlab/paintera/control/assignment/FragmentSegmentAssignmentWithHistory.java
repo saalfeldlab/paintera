@@ -1,4 +1,4 @@
-package org.janelia.saalfeldlab.paintera.state;
+package org.janelia.saalfeldlab.paintera.control.assignment;
 
 import java.lang.invoke.MethodHandles;
 import java.util.ArrayList;
@@ -23,7 +23,7 @@ import gnu.trove.map.hash.TLongObjectHashMap;
 import gnu.trove.set.hash.TLongHashSet;
 import net.imglib2.type.label.Label;
 
-public class FragmentSegmentAssignmentWithHistory extends FragmentSegmentAssignmentState< FragmentSegmentAssignmentWithHistory >
+public class FragmentSegmentAssignmentWithHistory extends FragmentSegmentAssignmentState
 {
 
 	private static final Logger LOG = LoggerFactory.getLogger( MethodHandles.lookup().lookupClass() );
@@ -171,9 +171,7 @@ public class FragmentSegmentAssignmentWithHistory extends FragmentSegmentAssignm
 
 	protected synchronized void assignFragmentsImpl( final long assignFrom, final long assignTo, final boolean broadcastEvents )
 	{
-		if ( assignFrom == assignTo ) {
-			return;
-		}
+		if ( assignFrom == assignTo ) { return; }
 
 		final TLongHashSet fragments1 = getFragments( assignFrom );
 		final TLongHashSet fragments2 = getFragments( assignTo );
@@ -210,9 +208,7 @@ public class FragmentSegmentAssignmentWithHistory extends FragmentSegmentAssignm
 
 	protected synchronized void mergeSegmentsImpl( final long segmentId1, final long segmentId2, final boolean broadcastEvents )
 	{
-		if ( segmentId1 == segmentId2 ) {
-			return;
-		}
+		if ( segmentId1 == segmentId2 ) { return; }
 
 		assignFragmentsImpl( Math.max( segmentId1, segmentId2 ), Math.min( segmentId1, segmentId2 ), broadcastEvents );
 	}

@@ -1,4 +1,4 @@
-package org.janelia.saalfeldlab.paintera.state;
+package org.janelia.saalfeldlab.paintera.control.assignment;
 
 import gnu.trove.set.hash.TLongHashSet;
 

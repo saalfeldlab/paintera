@@ -7,9 +7,9 @@ import org.controlsfx.control.StatusBar;
 import org.janelia.saalfeldlab.fx.ui.NumericSliderWithField;
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread;
 import org.janelia.saalfeldlab.paintera.SourceState;
+import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignment;
 import org.janelia.saalfeldlab.paintera.meshes.MeshInfo;
 import org.janelia.saalfeldlab.paintera.meshes.MeshManager;
-import org.janelia.saalfeldlab.paintera.state.FragmentSegmentAssignment;
 import org.janelia.saalfeldlab.paintera.ui.BindUnbindAndNodeSupplier;
 
 import javafx.beans.property.DoubleProperty;

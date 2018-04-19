@@ -8,6 +8,7 @@ import java.util.function.Function;
 import java.util.function.LongFunction;
 import java.util.function.Supplier;
 
+import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignmentState;
 import org.janelia.saalfeldlab.paintera.data.DataSource;
 import org.janelia.saalfeldlab.paintera.data.RandomAccessibleIntervalDataSource;
 import org.janelia.saalfeldlab.paintera.data.mask.Masks;
@@ -15,7 +16,6 @@ import org.janelia.saalfeldlab.paintera.data.mask.TmpDirectoryCreator;
 import org.janelia.saalfeldlab.paintera.id.IdService;
 import org.janelia.saalfeldlab.paintera.id.ToIdConverter;
 import org.janelia.saalfeldlab.paintera.meshes.MeshGenerator.ShapeKey;
-import org.janelia.saalfeldlab.paintera.state.FragmentSegmentAssignmentState;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -59,7 +59,7 @@ public interface SourceFromRAI extends BackendDialog
 
 	public boolean isIntegerType() throws Exception;
 
-	public < F extends FragmentSegmentAssignmentState< F > > F assignments();
+	public FragmentSegmentAssignmentState assignments();
 
 	public IdService idService();
 
@@ -149,7 +149,7 @@ public interface SourceFromRAI extends BackendDialog
 	}
 
 	@Override
-	public default < D extends NativeType< D >, T extends Volatile< D > & Type< T >, F extends FragmentSegmentAssignmentState< F > > LabelDataSourceRepresentation< D, T, F > getLabels(
+	public default < D extends NativeType< D >, T extends Volatile< D > & Type< T > > LabelDataSourceRepresentation< D, T > getLabels(
 			final String name,
 			final SharedQueue sharedQueue,
 			final int priority ) throws Exception
@@ -161,7 +161,7 @@ public interface SourceFromRAI extends BackendDialog
 				null,
 				commitCanvas() );
 
-		return new LabelDataSourceRepresentation< D, T, F >(
+		return new LabelDataSourceRepresentation< D, T >(
 				source,
 				assignments(),
 				idService(),

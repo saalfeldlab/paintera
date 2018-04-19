@@ -16,8 +16,8 @@
  */
 package org.janelia.saalfeldlab.paintera.stream;
 
-import org.janelia.saalfeldlab.paintera.state.FragmentSegmentAssignmentState;
-import org.janelia.saalfeldlab.paintera.state.SelectedIds;
+import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignmentState;
+import org.janelia.saalfeldlab.paintera.control.selection.SelectedIds;
 
 import net.imglib2.type.label.Label;
 
@@ -38,7 +38,7 @@ public class ModalGoldenAngleSaturatedHighlightingARGBStream extends GoldenAngle
 
 	final static public int SELECTED_ONLY = 2;
 
-	public ModalGoldenAngleSaturatedHighlightingARGBStream( final SelectedIds highlights, final FragmentSegmentAssignmentState< ? > assignment )
+	public ModalGoldenAngleSaturatedHighlightingARGBStream( final SelectedIds highlights, final FragmentSegmentAssignmentState assignment )
 	{
 		super( highlights, assignment );
 		seed = 1;

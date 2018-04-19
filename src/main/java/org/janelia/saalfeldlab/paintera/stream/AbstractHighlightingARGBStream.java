@@ -18,9 +18,9 @@ package org.janelia.saalfeldlab.paintera.stream;
 
 import java.lang.invoke.MethodHandles;
 
-import org.janelia.saalfeldlab.paintera.state.AbstractState;
-import org.janelia.saalfeldlab.paintera.state.FragmentSegmentAssignmentState;
-import org.janelia.saalfeldlab.paintera.state.SelectedIds;
+import org.janelia.saalfeldlab.fx.ObservableWithListenersList;
+import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignmentState;
+import org.janelia.saalfeldlab.paintera.control.selection.SelectedIds;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -38,7 +38,7 @@ import net.imglib2.type.label.Label;
  * @author Philipp Hanslovsky
  *
  */
-public abstract class AbstractHighlightingARGBStream extends AbstractState< AbstractHighlightingARGBStream > implements ARGBStream
+public abstract class AbstractHighlightingARGBStream extends ObservableWithListenersList implements ARGBStream
 {
 
 	private static final Logger LOG = LoggerFactory.getLogger( MethodHandles.lookup().lookupClass() );
@@ -63,7 +63,7 @@ public abstract class AbstractHighlightingARGBStream extends AbstractState< Abst
 
 	protected final SelectedIds highlights;
 
-	protected final FragmentSegmentAssignmentState< ? > assignment;
+	protected final FragmentSegmentAssignmentState assignment;
 
 	private final BooleanProperty colorFromSegmentId = new SimpleBooleanProperty();
 
@@ -71,13 +71,13 @@ public abstract class AbstractHighlightingARGBStream extends AbstractState< Abst
 
 	private TLongHashSet activeSegments;
 
-	public AbstractHighlightingARGBStream( final SelectedIds highlights, final FragmentSegmentAssignmentState< ? > assignment )
+	public AbstractHighlightingARGBStream( final SelectedIds highlights, final FragmentSegmentAssignmentState assignment )
 	{
 		this.highlights = highlights;
 		this.assignment = assignment;
 		this.colorFromSegmentId.addListener( ( obs, oldv, newv ) -> stateChanged() );
-		this.assignment.addListener( this::setActiveFragmentsAndSegments );
-		this.highlights.addListener( this::setActiveFragmentsAndSegments );
+		this.assignment.addListener( obs -> this.setActiveFragmentsAndSegments() );
+		this.highlights.addListener( obs -> this.setActiveFragmentsAndSegments() );
 		setActiveFragmentsAndSegments();
 	}
 
@@ -104,9 +104,7 @@ public abstract class AbstractHighlightingARGBStream extends AbstractState< Abst
 		// TODO FIX THIS THING HERE!
 		for ( final long i : highlights.getActiveIds() )
 		{
-			if ( id == i ) {
-				return true;
-			}
+			if ( id == i ) { return true; }
 		}
 
 		return false;
@@ -118,9 +116,7 @@ public abstract class AbstractHighlightingARGBStream extends AbstractState< Abst
 		final long segment = this.assignment.getSegment( id );
 		for ( final long i : highlights.getActiveIds() )
 		{
-			if ( this.assignment.getSegment( i ) == segment ) {
-				return true;
-			}
+			if ( this.assignment.getSegment( i ) == segment ) { return true; }
 		}
 		return false;
 	}

@@ -2,7 +2,7 @@ package org.janelia.saalfeldlab.paintera.data;
 
 import java.io.IOException;
 
-import org.janelia.saalfeldlab.paintera.state.FragmentSegmentAssignmentState;
+import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignmentState;
 
 import bdv.util.volatiles.SharedQueue;
 import net.imglib2.RandomAccessibleInterval;
@@ -13,7 +13,7 @@ import net.imglib2.type.numeric.NumericType;
 public interface LabelDataSource< D, T > extends DataSource< D, T >
 {
 
-	public FragmentSegmentAssignmentState< ? > getAssignment();
+	public FragmentSegmentAssignmentState getAssignment();
 
 	/**
 	 * Create a primitive single scale level label source with an assignment
@@ -34,7 +34,7 @@ public interface LabelDataSource< D, T > extends DataSource< D, T >
 			final AffineGet sourceTransform,
 			final SharedQueue sharedQueue,
 			final int priority,
-			final FragmentSegmentAssignmentState< ? > assignment ) throws IOException
+			final FragmentSegmentAssignmentState assignment ) throws IOException
 	{
 		return new LabelDataSourceFromDelegates< T, V >(
 				DataSource.createDataSource( name, data, sourceTransform, sharedQueue, priority ),
@@ -62,7 +62,7 @@ public interface LabelDataSource< D, T > extends DataSource< D, T >
 			final double[] offset,
 			final SharedQueue sharedQueue,
 			final int priority,
-			final FragmentSegmentAssignmentState< ? > assignment ) throws IOException
+			final FragmentSegmentAssignmentState assignment ) throws IOException
 	{
 		return new LabelDataSourceFromDelegates< T, V >(
 				DataSource.createDataSource( name, data, resolution, offset, sharedQueue, priority ),
@@ -88,7 +88,7 @@ public interface LabelDataSource< D, T > extends DataSource< D, T >
 			final double[] resolution,
 			final SharedQueue sharedQueue,
 			final int priority,
-			final FragmentSegmentAssignmentState< ? > assignment ) throws IOException
+			final FragmentSegmentAssignmentState assignment ) throws IOException
 	{
 		return createLabelSource( name, data, resolution, new double[ resolution.length ], sharedQueue, priority, assignment );
 	}

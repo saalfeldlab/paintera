@@ -25,11 +25,11 @@ import org.janelia.saalfeldlab.n5.LongArrayDataBlock;
 import org.janelia.saalfeldlab.n5.N5Reader;
 import org.janelia.saalfeldlab.n5.N5Writer;
 import org.janelia.saalfeldlab.n5.imglib2.N5Utils;
+import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignmentOnlyLocal;
+import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignmentState;
 import org.janelia.saalfeldlab.paintera.data.mask.MaskedSource;
 import org.janelia.saalfeldlab.paintera.id.IdService;
 import org.janelia.saalfeldlab.paintera.id.N5IdService;
-import org.janelia.saalfeldlab.paintera.state.FragmentSegmentAssignmentOnlyLocal;
-import org.janelia.saalfeldlab.paintera.state.FragmentSegmentAssignmentState;
 import org.janelia.saalfeldlab.util.MakeUnchecked;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -289,7 +289,7 @@ public class GenericBackendDialogN5 implements SourceFromRAI
 	}
 
 	@Override
-	public < F extends FragmentSegmentAssignmentState< F > > F assignments()
+	public FragmentSegmentAssignmentState assignments()
 	{
 		final String dataset = this.dataset.get() + ".fragment-segment-assignment";
 
@@ -346,10 +346,7 @@ public class GenericBackendDialogN5 implements SourceFromRAI
 				values = new long[] {};
 			}
 
-			@SuppressWarnings( "unchecked" )
-			final F assignment = ( F ) new FragmentSegmentAssignmentOnlyLocal( keys, values, persister );
-
-			return assignment;
+			return new FragmentSegmentAssignmentOnlyLocal( keys, values, persister );
 		}
 		catch ( final IOException e )
 		{

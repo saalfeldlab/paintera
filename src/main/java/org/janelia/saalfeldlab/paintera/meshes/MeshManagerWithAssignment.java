@@ -14,10 +14,10 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 
 import org.janelia.saalfeldlab.paintera.SourceState;
+import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignmentState;
+import org.janelia.saalfeldlab.paintera.control.assignment.FragmentsInSelectedSegments;
 import org.janelia.saalfeldlab.paintera.data.DataSource;
 import org.janelia.saalfeldlab.paintera.meshes.MeshGenerator.ShapeKey;
-import org.janelia.saalfeldlab.paintera.state.FragmentSegmentAssignmentState;
-import org.janelia.saalfeldlab.paintera.state.FragmentsInSelectedSegments;
 import org.janelia.saalfeldlab.paintera.stream.ARGBStream;
 import org.janelia.saalfeldlab.paintera.stream.AbstractHighlightingARGBStream;
 import org.slf4j.Logger;
@@ -49,7 +49,7 @@ public class MeshManagerWithAssignment implements MeshManager
 
 	private final Group root;
 
-	private final FragmentsInSelectedSegments< ? > fragmentsInSelectedSegments;
+	private final FragmentsInSelectedSegments fragmentsInSelectedSegments;
 
 	private final IntegerProperty meshSimplificationIterations = new SimpleIntegerProperty();
 
@@ -61,7 +61,7 @@ public class MeshManagerWithAssignment implements MeshManager
 			final DataSource< ?, ? > source,
 			final SourceState< ?, ? > state,
 			final Group root,
-			final FragmentsInSelectedSegments< ? > fragmentsInSelectedSegments,
+			final FragmentsInSelectedSegments fragmentsInSelectedSegments,
 			final ObservableIntegerValue meshSimplificationIterations,
 			final ExecutorService es )
 	{
@@ -79,7 +79,7 @@ public class MeshManagerWithAssignment implements MeshManager
 
 		this.es = es;
 
-		this.fragmentsInSelectedSegments.addListener( this::update );
+		this.fragmentsInSelectedSegments.addListener( obs -> this.update() );
 
 	}
 
@@ -98,7 +98,7 @@ public class MeshManagerWithAssignment implements MeshManager
 
 	private void generateMesh( final DataSource< ?, ? > source, final long id )
 	{
-		final FragmentSegmentAssignmentState< ? > assignment = state.assignmentProperty().get();
+		final FragmentSegmentAssignmentState assignment = state.assignmentProperty().get();
 		if ( assignment == null )
 			return;
 
@@ -109,8 +109,8 @@ public class MeshManagerWithAssignment implements MeshManager
 
 		final AbstractHighlightingARGBStream stream = ( AbstractHighlightingARGBStream ) streams;
 		final IntegerProperty color = new SimpleIntegerProperty( stream.argb( id ) );
-		stream.addListener( () -> color.set( stream.argb( id ) ) );
-		assignment.addListener( () -> color.set( stream.argb( id ) ) );
+		stream.addListener( obs -> color.set( stream.argb( id ) ) );
+		assignment.addListener( obs -> color.set( stream.argb( id ) ) );
 
 		final Function< Long, Interval[] >[] blockListCache = state.blocklistCacheProperty().get();
 		final Function< ShapeKey, Pair< float[], float[] > >[] meshCache = state.meshesCacheProperty().get();

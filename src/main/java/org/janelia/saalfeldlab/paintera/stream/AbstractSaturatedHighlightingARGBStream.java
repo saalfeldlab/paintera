@@ -16,8 +16,8 @@
  */
 package org.janelia.saalfeldlab.paintera.stream;
 
-import org.janelia.saalfeldlab.paintera.state.FragmentSegmentAssignmentState;
-import org.janelia.saalfeldlab.paintera.state.SelectedIds;
+import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignmentState;
+import org.janelia.saalfeldlab.paintera.control.selection.SelectedIds;
 
 import net.imglib2.type.label.Label;
 
@@ -30,7 +30,7 @@ import net.imglib2.type.label.Label;
  */
 abstract public class AbstractSaturatedHighlightingARGBStream extends AbstractHighlightingARGBStream
 {
-	public AbstractSaturatedHighlightingARGBStream( final SelectedIds highlights, final FragmentSegmentAssignmentState< ? > assignment )
+	public AbstractSaturatedHighlightingARGBStream( final SelectedIds highlights, final FragmentSegmentAssignmentState assignment )
 	{
 		super( highlights, assignment );
 	}

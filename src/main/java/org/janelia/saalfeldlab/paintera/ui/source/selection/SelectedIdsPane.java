@@ -2,10 +2,11 @@ package org.janelia.saalfeldlab.paintera.ui.source.selection;
 
 import java.util.Arrays;
 
-import org.janelia.saalfeldlab.paintera.state.SelectedIds;
-import org.janelia.saalfeldlab.paintera.state.StateListener;
+import org.janelia.saalfeldlab.paintera.control.selection.SelectedIds;
 import org.janelia.saalfeldlab.paintera.ui.BindUnbindAndNodeSupplier;
 
+import javafx.beans.InvalidationListener;
+import javafx.beans.Observable;
 import javafx.collections.FXCollections;
 import javafx.collections.ListChangeListener;
 import javafx.collections.ObservableList;
@@ -44,11 +45,11 @@ public class SelectedIdsPane implements BindUnbindAndNodeSupplier
 		selectedIds.removeListener( selectionListener );
 	}
 
-	private class SelectionListener implements StateListener< SelectedIds >, ListChangeListener< Long >
+	private class SelectionListener implements InvalidationListener, ListChangeListener< Long >
 	{
 
 		@Override
-		public void stateChanged()
+		public void invalidated( final Observable obs )
 		{
 			selection.setAll( Arrays.stream( selectedIds.getActiveIds() ).mapToObj( id -> id ).toArray( Long[]::new ) );
 		}

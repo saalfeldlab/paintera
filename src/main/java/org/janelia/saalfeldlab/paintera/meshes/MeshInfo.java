@@ -6,8 +6,8 @@ import java.util.Map;
 import java.util.function.BiConsumer;
 
 import org.janelia.saalfeldlab.paintera.SourceState;
-import org.janelia.saalfeldlab.paintera.state.FragmentSegmentAssignment;
-import org.janelia.saalfeldlab.paintera.state.FragmentSegmentAssignmentState;
+import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignment;
+import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignmentState;
 
 import javafx.beans.binding.Bindings;
 import javafx.beans.property.IntegerProperty;
@@ -58,8 +58,8 @@ public class MeshInfo
 		this.numScaleLevels = numScaleLevels;
 
 		updateTasksCountBindings();
-		if ( assignment instanceof FragmentSegmentAssignmentState< ? > )
-			( ( FragmentSegmentAssignmentState< ? > ) assignment ).addListener( () -> updateTasksCountBindings() );
+		if ( assignment instanceof FragmentSegmentAssignmentState )
+			( ( FragmentSegmentAssignmentState ) assignment ).addListener( obs -> updateTasksCountBindings() );
 
 	}
 

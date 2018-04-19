@@ -1,15 +1,20 @@
-package org.janelia.saalfeldlab.paintera.state;
+package org.janelia.saalfeldlab.paintera.control.selection;
 
 import java.util.Arrays;
 
-import gnu.trove.set.hash.TLongHashSet;
+import org.janelia.saalfeldlab.fx.ObservableWithListenersList;
+import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignmentState;
 
-public class SelectedSegments< F extends FragmentSegmentAssignmentState< F > > extends AbstractState< SelectedSegments< F > >
+import gnu.trove.set.hash.TLongHashSet;
+import javafx.beans.InvalidationListener;
+import javafx.beans.Observable;
+
+public class SelectedSegments extends ObservableWithListenersList
 {
 
 	private final SelectedIds selectedIds;
 
-	private final F assignment;
+	private final FragmentSegmentAssignmentState assignment;
 
 	private final TLongHashSet selectedSegments = new TLongHashSet();
 
@@ -17,7 +22,7 @@ public class SelectedSegments< F extends FragmentSegmentAssignmentState< F > > e
 
 	private final AssignmentListener assignmentListener = new AssignmentListener();
 
-	public SelectedSegments( final SelectedIds selectedIds, final F assignment )
+	public SelectedSegments( final SelectedIds selectedIds, final FragmentSegmentAssignmentState assignment )
 	{
 		super();
 		this.selectedIds = selectedIds;
@@ -44,22 +49,22 @@ public class SelectedSegments< F extends FragmentSegmentAssignmentState< F > > e
 		stateChanged();
 	}
 
-	private class SelectionListener implements StateListener< SelectedIds >
+	private class SelectionListener implements InvalidationListener
 	{
 
 		@Override
-		public void stateChanged()
+		public void invalidated( final Observable obs )
 		{
 			update();
 		}
 
 	}
 
-	private class AssignmentListener implements StateListener< F >
+	private class AssignmentListener implements InvalidationListener
 	{
 
 		@Override
-		public void stateChanged()
+		public void invalidated( final Observable obs )
 		{
 			update();
 		}

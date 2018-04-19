@@ -16,8 +16,8 @@
  */
 package org.janelia.saalfeldlab.paintera.stream;
 
-import org.janelia.saalfeldlab.paintera.state.FragmentSegmentAssignmentState;
-import org.janelia.saalfeldlab.paintera.state.SelectedIds;
+import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignmentState;
+import org.janelia.saalfeldlab.paintera.control.selection.SelectedIds;
 
 /**
  * Generates a stream of saturated colors. Colors are picked from a radial
@@ -30,7 +30,7 @@ import org.janelia.saalfeldlab.paintera.state.SelectedIds;
  */
 public class GoldenAngleSaturatedHighlightingARGBStream extends AbstractSaturatedHighlightingARGBStream
 {
-	public GoldenAngleSaturatedHighlightingARGBStream( final SelectedIds highlights, final FragmentSegmentAssignmentState< ? > assignment )
+	public GoldenAngleSaturatedHighlightingARGBStream( final SelectedIds highlights, final FragmentSegmentAssignmentState assignment )
 	{
 		super( highlights, assignment );
 		seed = 1;

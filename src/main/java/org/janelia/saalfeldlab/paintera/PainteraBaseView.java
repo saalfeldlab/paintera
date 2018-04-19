@@ -14,20 +14,20 @@ import org.janelia.saalfeldlab.paintera.composition.ARGBCompositeAlphaAdd;
 import org.janelia.saalfeldlab.paintera.composition.ARGBCompositeAlphaYCbCr;
 import org.janelia.saalfeldlab.paintera.composition.ClearingCompositeProjector;
 import org.janelia.saalfeldlab.paintera.composition.Composite;
+import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignmentState;
+import org.janelia.saalfeldlab.paintera.control.assignment.FragmentsInSelectedSegments;
+import org.janelia.saalfeldlab.paintera.control.selection.SelectedIds;
+import org.janelia.saalfeldlab.paintera.control.selection.SelectedSegments;
 import org.janelia.saalfeldlab.paintera.data.DataSource;
 import org.janelia.saalfeldlab.paintera.data.mask.MaskedSource;
 import org.janelia.saalfeldlab.paintera.id.IdService;
 import org.janelia.saalfeldlab.paintera.id.ToIdConverter;
+import org.janelia.saalfeldlab.paintera.meshes.MeshGenerator.ShapeKey;
 import org.janelia.saalfeldlab.paintera.meshes.MeshInfos;
 import org.janelia.saalfeldlab.paintera.meshes.MeshManager;
 import org.janelia.saalfeldlab.paintera.meshes.MeshManagerWithAssignment;
-import org.janelia.saalfeldlab.paintera.meshes.MeshGenerator.ShapeKey;
 import org.janelia.saalfeldlab.paintera.meshes.cache.CacheUtils;
-import org.janelia.saalfeldlab.paintera.state.FragmentSegmentAssignmentState;
-import org.janelia.saalfeldlab.paintera.state.FragmentsInSelectedSegments;
 import org.janelia.saalfeldlab.paintera.state.GlobalTransformManager;
-import org.janelia.saalfeldlab.paintera.state.SelectedIds;
-import org.janelia.saalfeldlab.paintera.state.SelectedSegments;
 import org.janelia.saalfeldlab.paintera.stream.HighlightingStreamConverter;
 import org.janelia.saalfeldlab.paintera.stream.ModalGoldenAngleSaturatedHighlightingARGBStream;
 import org.janelia.saalfeldlab.paintera.viewer3d.Viewer3DFX;
@@ -148,7 +148,7 @@ public class PainteraBaseView
 		final Converter< U, ARGBType > conv = state.converterProperty().get();
 		if ( conv instanceof ARGBColorConverter< ? > )
 		{
-			final ARGBColorConverter< U > colorConv = (net.imglib2.converter.ARGBColorConverter< U > ) conv;
+			final ARGBColorConverter< U > colorConv = ( net.imglib2.converter.ARGBColorConverter< U > ) conv;
 			colorConv.colorProperty().addListener( ( obs, oldv, newv ) -> orthogonalViews().requestRepaint() );
 			colorConv.minProperty().addListener( ( obs, oldv, newv ) -> orthogonalViews().requestRepaint() );
 			colorConv.maxProperty().addListener( ( obs, oldv, newv ) -> orthogonalViews().requestRepaint() );
@@ -156,26 +156,26 @@ public class PainteraBaseView
 		}
 	}
 
-	public < D extends Type< D >, T extends Type< T >, F extends FragmentSegmentAssignmentState< F > > void addLabelSource(
+	public < D extends Type< D >, T extends Type< T > > void addLabelSource(
 			final DataSource< D, T > source,
-			final F assignment,
+			final FragmentSegmentAssignmentState assignment,
 			final ToIdConverter toIdConverter )
 	{
 		addLabelSource( source, assignment, null, toIdConverter, null, null, equalsMaskForType( source.getDataType() ) );
 	}
 
-	public < D extends Type< D >, T extends Type< T >, F extends FragmentSegmentAssignmentState< F > > void addLabelSource(
+	public < D extends Type< D >, T extends Type< T > > void addLabelSource(
 			final DataSource< D, T > source,
-			final F assignment,
+			final FragmentSegmentAssignmentState assignment,
 			final ToIdConverter toIdConverter,
 			final LongFunction< Converter< D, BoolType > > equalsMask )
 	{
 		addLabelSource( source, assignment, null, toIdConverter, null, null, equalsMask );
 	}
 
-	public < D extends Type< D >, T extends Type< T >, F extends FragmentSegmentAssignmentState< F > > void addLabelSource(
+	public < D extends Type< D >, T extends Type< T > > void addLabelSource(
 			final DataSource< D, T > source,
-			final F assignment,
+			final FragmentSegmentAssignmentState assignment,
 			final IdService idService,
 			final ToIdConverter toIdConverter,
 			final Function< Long, Interval[] >[] blocksThatContainId,
@@ -184,9 +184,9 @@ public class PainteraBaseView
 		addLabelSource( source, assignment, idService, toIdConverter, blocksThatContainId, meshCache, equalsMaskForType( source.getDataType() ) );
 	}
 
-	public < D extends Type< D >, T extends Type< T >, F extends FragmentSegmentAssignmentState< F > > void addLabelSource(
+	public < D extends Type< D >, T extends Type< T > > void addLabelSource(
 			final DataSource< D, T > source,
-			final F assignment,
+			final FragmentSegmentAssignmentState assignment,
 			final IdService idService,
 			final ToIdConverter toIdConverter,
 			final Function< Long, Interval[] >[] blocksThatContainId,
@@ -195,7 +195,7 @@ public class PainteraBaseView
 	{
 		final SelectedIds selId = new SelectedIds();
 		final ModalGoldenAngleSaturatedHighlightingARGBStream stream = new ModalGoldenAngleSaturatedHighlightingARGBStream( selId, assignment );
-		stream.addListener( () -> orthogonalViews().requestRepaint() );
+		stream.addListener( obs -> orthogonalViews().requestRepaint() );
 		final Converter< T, ARGBType > converter = HighlightingStreamConverter.forType( stream, source.getType() );
 
 		final ARGBCompositeAlphaYCbCr comp = new ARGBCompositeAlphaYCbCr();
@@ -218,8 +218,8 @@ public class PainteraBaseView
 		final AffineTransform3D affine = new AffineTransform3D();
 		source.getSourceTransform( 0, 0, affine );
 
-		final SelectedSegments< F > selectedSegments = new SelectedSegments<>( selId, assignment );
-		final FragmentsInSelectedSegments< F > fragmentsInSelection = new FragmentsInSelectedSegments<>( selectedSegments, assignment );
+		final SelectedSegments selectedSegments = new SelectedSegments( selId, assignment );
+		final FragmentsInSelectedSegments fragmentsInSelection = new FragmentsInSelectedSegments( selectedSegments, assignment );
 
 		final MeshManager meshManager = new MeshManagerWithAssignment(
 				source,
@@ -233,8 +233,8 @@ public class PainteraBaseView
 		state.meshManagerProperty().set( meshManager );
 		state.meshInfosProperty().set( meshInfos );
 
-		orthogonalViews().applyToAll( vp -> assignment.addListener( vp::requestRepaint ) );
-		orthogonalViews().applyToAll( vp -> selId.addListener( vp::requestRepaint ) );
+		orthogonalViews().applyToAll( vp -> assignment.addListener( obs -> vp.requestRepaint() ) );
+		orthogonalViews().applyToAll( vp -> selId.addListener( obs -> vp.requestRepaint() ) );
 
 		LOG.debug( "Adding mesh and block list caches: {} {}", meshCache, blocksThatContainId );
 		if ( meshCache != null && blocksThatContainId != null )
@@ -261,17 +261,11 @@ public class PainteraBaseView
 	@SuppressWarnings( { "unchecked", "rawtypes" } )
 	public static < D > LongFunction< Converter< D, BoolType > > equalsMaskForType( final D d )
 	{
-		if ( d instanceof LabelMultisetType ) {
-			return ( LongFunction ) equalMaskForLabelMultisetType();
-		}
+		if ( d instanceof LabelMultisetType ) { return ( LongFunction ) equalMaskForLabelMultisetType(); }
 
-		if ( d instanceof IntegerType< ? > ) {
-			return ( LongFunction ) equalMaskForIntegerType();
-		}
+		if ( d instanceof IntegerType< ? > ) { return ( LongFunction ) equalMaskForIntegerType(); }
 
-		if ( d instanceof RealType< ? > ) {
-			return ( LongFunction ) equalMaskForRealType();
-		}
+		if ( d instanceof RealType< ? > ) { return ( LongFunction ) equalMaskForRealType(); }
 
 		return null;
 	}
@@ -359,18 +353,9 @@ public class PainteraBaseView
 	@SuppressWarnings( "unchecked" )
 	public static < T > BiConsumer< T, TLongHashSet > collectLabels( final T type )
 	{
-		if ( type instanceof LabelMultisetType )
-		{
-			return ( BiConsumer< T, TLongHashSet > ) collectLabelsFromLabelMultisetType();
-		}
-		if ( type instanceof IntegerType< ? > )
-		{
-			return ( BiConsumer< T, TLongHashSet > ) collectLabelsFromIntegerType();
-		}
-		if ( type instanceof RealType< ? > )
-		{
-			return ( BiConsumer< T, TLongHashSet > ) collectLabelsFromRealType();
-		}
+		if ( type instanceof LabelMultisetType ) { return ( BiConsumer< T, TLongHashSet > ) collectLabelsFromLabelMultisetType(); }
+		if ( type instanceof IntegerType< ? > ) { return ( BiConsumer< T, TLongHashSet > ) collectLabelsFromIntegerType(); }
+		if ( type instanceof RealType< ? > ) { return ( BiConsumer< T, TLongHashSet > ) collectLabelsFromRealType(); }
 		return null;
 	}
 
@@ -388,6 +373,5 @@ public class PainteraBaseView
 	{
 		return ( lbl, set ) -> set.add( ( long ) lbl.getRealDouble() );
 	}
-
 
 }

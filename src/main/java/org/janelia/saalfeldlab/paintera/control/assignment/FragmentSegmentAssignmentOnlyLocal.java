@@ -1,4 +1,4 @@
-package org.janelia.saalfeldlab.paintera.state;
+package org.janelia.saalfeldlab.paintera.control.assignment;
 
 import java.lang.invoke.MethodHandles;
 import java.util.function.BiConsumer;
@@ -14,7 +14,7 @@ import gnu.trove.map.hash.TLongObjectHashMap;
 import gnu.trove.set.hash.TLongHashSet;
 import net.imglib2.type.label.Label;
 
-public class FragmentSegmentAssignmentOnlyLocal extends FragmentSegmentAssignmentState< FragmentSegmentAssignmentOnlyLocal >
+public class FragmentSegmentAssignmentOnlyLocal extends FragmentSegmentAssignmentState
 {
 
 	private static final Logger LOG = LoggerFactory.getLogger( MethodHandles.lookup().lookupClass() );
@@ -78,9 +78,7 @@ public class FragmentSegmentAssignmentOnlyLocal extends FragmentSegmentAssignmen
 	@Override
 	protected synchronized void assignFragmentsImpl( final long assignFrom, final long assignTo )
 	{
-		if ( assignFrom == assignTo ) {
-			return;
-		}
+		if ( assignFrom == assignTo ) { return; }
 
 		final TLongHashSet fragments1 = getFragments( assignFrom );
 		final TLongHashSet fragments2 = getFragments( assignTo );
@@ -105,9 +103,7 @@ public class FragmentSegmentAssignmentOnlyLocal extends FragmentSegmentAssignmen
 	@Override
 	protected synchronized void mergeSegmentsImpl( final long segmentId1, final long segmentId2 )
 	{
-		if ( segmentId1 == segmentId2 ) {
-			return;
-		}
+		if ( segmentId1 == segmentId2 ) { return; }
 
 		LOG.debug( "Merging segments {} and {}", segmentId1, segmentId2 );
 		assignFragmentsImpl( Math.max( segmentId1, segmentId2 ), Math.min( segmentId1, segmentId2 ) );
@@ -147,9 +143,7 @@ public class FragmentSegmentAssignmentOnlyLocal extends FragmentSegmentAssignmen
 	@Override
 	protected void mergeFragmentsImpl( final long... fragments )
 	{
-		if ( fragments.length < 2 ) {
-			return;
-		}
+		if ( fragments.length < 2 ) { return; }
 		final long id1 = fragments[ 0 ];
 		for ( int k = 1; k < fragments.length; ++k )
 		{

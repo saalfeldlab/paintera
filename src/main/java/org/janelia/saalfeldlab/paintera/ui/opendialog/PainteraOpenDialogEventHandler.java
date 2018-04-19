@@ -12,7 +12,6 @@ import java.util.stream.IntStream;
 import org.janelia.saalfeldlab.paintera.PainteraBaseView;
 import org.janelia.saalfeldlab.paintera.data.DataSource;
 import org.janelia.saalfeldlab.paintera.meshes.cache.CacheUtils;
-import org.janelia.saalfeldlab.paintera.state.FragmentSegmentAssignmentState;
 import org.janelia.saalfeldlab.paintera.ui.opendialog.OpenSourceDialog.TYPE;
 import org.janelia.saalfeldlab.paintera.ui.opendialog.meta.MetaPanel;
 import org.janelia.saalfeldlab.util.HashWrapper;
@@ -79,13 +78,13 @@ public class PainteraOpenDialogEventHandler implements EventHandler< Event >
 		viewer.addRawSource( raw, min, max, Color.WHITE );
 	}
 
-	private < D extends NativeType< D >, T extends Volatile< D > & Type< T >, F extends FragmentSegmentAssignmentState< F > > void addLabel(
+	private < D extends NativeType< D >, T extends Volatile< D > & Type< T > > void addLabel(
 			final String name,
 			final BackendDialog dataset ) throws Exception
 	{
 		try
 		{
-			final LabelDataSourceRepresentation< D, T, F > rep = dataset.getLabels( name, cellCache, cellCache.getNumPriorities() - 1 );
+			final LabelDataSourceRepresentation< D, T > rep = dataset.getLabels( name, cellCache, cellCache.getNumPriorities() - 1 );
 			viewer.addLabelSource(
 					rep.source,
 					rep.assignment,

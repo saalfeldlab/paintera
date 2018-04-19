@@ -1,6 +1,8 @@
-package org.janelia.saalfeldlab.paintera.state;
+package org.janelia.saalfeldlab.paintera.control.assignment;
 
-public abstract class FragmentSegmentAssignmentState< T extends FragmentSegmentAssignmentState< T > > extends AbstractState< T > implements FragmentSegmentAssignment
+import org.janelia.saalfeldlab.fx.ObservableWithListenersList;
+
+public abstract class FragmentSegmentAssignmentState extends ObservableWithListenersList implements FragmentSegmentAssignment
 {
 
 	public void persist()

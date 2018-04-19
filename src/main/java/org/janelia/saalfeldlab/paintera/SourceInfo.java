@@ -10,11 +10,11 @@ import java.util.stream.Collectors;
 
 import org.janelia.saalfeldlab.paintera.SourceState.TYPE;
 import org.janelia.saalfeldlab.paintera.composition.Composite;
+import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignmentState;
+import org.janelia.saalfeldlab.paintera.control.selection.SelectedIds;
 import org.janelia.saalfeldlab.paintera.data.DataSource;
 import org.janelia.saalfeldlab.paintera.id.ToIdConverter;
 import org.janelia.saalfeldlab.paintera.meshes.MeshManager;
-import org.janelia.saalfeldlab.paintera.state.FragmentSegmentAssignmentState;
-import org.janelia.saalfeldlab.paintera.state.SelectedIds;
 import org.janelia.saalfeldlab.paintera.stream.ARGBStream;
 
 import bdv.viewer.Source;
@@ -133,11 +133,11 @@ public class SourceInfo
 		return new SourceState<>( source, converter, composite, TYPE.GENERIC );
 	}
 
-	public < D extends Type< D >, T extends Type< T >, F extends FragmentSegmentAssignmentState< F > > SourceState< T, D > makeLabelSourceState(
+	public < D extends Type< D >, T extends Type< T > > SourceState< T, D > makeLabelSourceState(
 			final DataSource< D, T > source,
 			final ToIdConverter idConverter,
 			final LongFunction< Converter< D, BoolType > > toBoolConverter,
-			final F frag,
+			final FragmentSegmentAssignmentState frag,
 			final ARGBStream stream,
 			final SelectedIds selectedIds,
 			final Converter< T, ARGBType > converter,
@@ -152,11 +152,11 @@ public class SourceInfo
 		return state;
 	}
 
-	public < D extends Type< D >, T extends Type< T >, F extends FragmentSegmentAssignmentState< F > > SourceState< T, D > addLabelSource(
+	public < D extends Type< D >, T extends Type< T > > SourceState< T, D > addLabelSource(
 			final DataSource< D, T > source,
 			final ToIdConverter idConverter,
 			final LongFunction< Converter< D, BoolType > > toBoolConverter,
-			final F frag,
+			final FragmentSegmentAssignmentState frag,
 			final ARGBStream stream,
 			final SelectedIds selectedIds,
 			final Converter< T, ARGBType > converter,
@@ -208,7 +208,7 @@ public class SourceInfo
 		return state == null ? Optional.empty() : Optional.ofNullable( ( Function< ?, Converter< ?, BoolType > > ) ( Function ) state.maskGeneratorProperty().get() );
 	}
 
-	public synchronized Optional< ? extends FragmentSegmentAssignmentState< ? > > assignment( final Source< ? > source )
+	public synchronized Optional< FragmentSegmentAssignmentState > assignment( final Source< ? > source )
 	{
 		final SourceState< ?, ? > state = states.get( source );
 		return state != null ? Optional.ofNullable( state.assignmentProperty().get() ) : Optional.empty();

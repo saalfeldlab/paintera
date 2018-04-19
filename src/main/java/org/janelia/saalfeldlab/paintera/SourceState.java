@@ -4,15 +4,15 @@ import java.util.function.Function;
 import java.util.function.LongFunction;
 
 import org.janelia.saalfeldlab.paintera.composition.Composite;
+import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignmentState;
+import org.janelia.saalfeldlab.paintera.control.selection.SelectedIds;
 import org.janelia.saalfeldlab.paintera.data.DataSource;
 import org.janelia.saalfeldlab.paintera.data.mask.MaskedSource;
 import org.janelia.saalfeldlab.paintera.id.IdService;
 import org.janelia.saalfeldlab.paintera.id.ToIdConverter;
+import org.janelia.saalfeldlab.paintera.meshes.MeshGenerator.ShapeKey;
 import org.janelia.saalfeldlab.paintera.meshes.MeshInfos;
 import org.janelia.saalfeldlab.paintera.meshes.MeshManager;
-import org.janelia.saalfeldlab.paintera.meshes.MeshGenerator.ShapeKey;
-import org.janelia.saalfeldlab.paintera.state.FragmentSegmentAssignmentState;
-import org.janelia.saalfeldlab.paintera.state.SelectedIds;
 import org.janelia.saalfeldlab.paintera.stream.ARGBStream;
 
 import bdv.viewer.Interpolation;
@@ -78,7 +78,7 @@ public class SourceState< T extends Type< T >, D extends Type< D > >
 
 	private final ObjectProperty< MaskedSource< ?, ? > > maskedSource = stateChangingObjectProperty( stateChanged );
 
-	private final ObjectProperty< FragmentSegmentAssignmentState< ? > > assignment = stateChangingObjectProperty( stateChanged );
+	private final ObjectProperty< FragmentSegmentAssignmentState > assignment = stateChangingObjectProperty( stateChanged );
 
 	private final ObjectProperty< ToIdConverter > toIdConverter = stateChangingObjectProperty( stateChanged );
 
@@ -158,15 +158,11 @@ public class SourceState< T extends Type< T >, D extends Type< D > >
 	{
 		final ToIdConverter toIdConverter = toIdConverterProperty().get();
 
-		if ( toIdConverter == null ) {
-			return null;
-		}
+		if ( toIdConverter == null ) { return null; }
 
 		final DataSource< D, T > dataSource = dataSourceProperty().get();
 
-		if ( dataSource == null ) {
-			return null;
-		}
+		if ( dataSource == null ) { return null; }
 
 		return Converters.convert(
 				dataSource.getDataSource( t, level ),
@@ -175,7 +171,7 @@ public class SourceState< T extends Type< T >, D extends Type< D > >
 
 	}
 
-	public ObjectProperty< FragmentSegmentAssignmentState< ? > > assignmentProperty()
+	public ObjectProperty< FragmentSegmentAssignmentState > assignmentProperty()
 	{
 		return this.assignment;
 	}

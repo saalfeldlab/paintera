@@ -5,8 +5,8 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 import org.janelia.saalfeldlab.paintera.SourceState;
-import org.janelia.saalfeldlab.paintera.state.FragmentSegmentAssignment;
-import org.janelia.saalfeldlab.paintera.state.SelectedSegments;
+import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignment;
+import org.janelia.saalfeldlab.paintera.control.selection.SelectedSegments;
 
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
@@ -20,14 +20,14 @@ public class MeshInfos
 
 	public MeshInfos(
 			final SourceState< ?, ? > state,
-			final SelectedSegments< ? > selectedSegments,
+			final SelectedSegments selectedSegments,
 			final FragmentSegmentAssignment assignment,
 			final MeshManager meshManager,
 			final int numScaleLevels )
 	{
 		super();
 
-		selectedSegments.addListener( () -> {
+		selectedSegments.addListener( obs -> {
 			final long[] segments = selectedSegments.getSelectedSegments();
 			final List< MeshInfo > infos = Arrays
 					.stream( segments )

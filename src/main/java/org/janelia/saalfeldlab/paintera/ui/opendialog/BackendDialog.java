@@ -1,7 +1,6 @@
 package org.janelia.saalfeldlab.paintera.ui.opendialog;
 
 import org.janelia.saalfeldlab.paintera.data.DataSource;
-import org.janelia.saalfeldlab.paintera.state.FragmentSegmentAssignmentState;
 
 import bdv.util.volatiles.SharedQueue;
 import javafx.beans.property.DoubleProperty;
@@ -26,7 +25,7 @@ public interface BackendDialog
 			final SharedQueue sharedQueue,
 			final int priority ) throws Exception;
 
-	public < D extends NativeType< D >, T extends Volatile< D > & Type< T >, F extends FragmentSegmentAssignmentState< F > > LabelDataSourceRepresentation< D, T, F > getLabels(
+	public < D extends NativeType< D >, T extends Volatile< D > & Type< T > > LabelDataSourceRepresentation< D, T > getLabels(
 			final String name,
 			final SharedQueue sharedQueue,
 			final int priority ) throws Exception;

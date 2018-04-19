@@ -1,15 +1,20 @@
-package org.janelia.saalfeldlab.paintera.state;
+package org.janelia.saalfeldlab.paintera.control.assignment;
 
 import java.util.Arrays;
 
-import gnu.trove.set.hash.TLongHashSet;
+import org.janelia.saalfeldlab.fx.ObservableWithListenersList;
+import org.janelia.saalfeldlab.paintera.control.selection.SelectedSegments;
 
-public class FragmentsInSelectedSegments< F extends FragmentSegmentAssignmentState< F > > extends AbstractState< FragmentsInSelectedSegments< F > >
+import gnu.trove.set.hash.TLongHashSet;
+import javafx.beans.InvalidationListener;
+import javafx.beans.Observable;
+
+public class FragmentsInSelectedSegments extends ObservableWithListenersList
 {
 
-	private final SelectedSegments< F > activeSegments;
+	private final SelectedSegments activeSegments;
 
-	private final F assignment;
+	private final FragmentSegmentAssignmentState assignment;
 
 	private final TLongHashSet selectedFragments = new TLongHashSet();
 
@@ -17,7 +22,7 @@ public class FragmentsInSelectedSegments< F extends FragmentSegmentAssignmentSta
 
 	private final AssignmentListener assignmentListener = new AssignmentListener();
 
-	public FragmentsInSelectedSegments( final SelectedSegments< F > activeSegments, final F assignment )
+	public FragmentsInSelectedSegments( final SelectedSegments activeSegments, final FragmentSegmentAssignmentState assignment )
 	{
 		super();
 		this.activeSegments = activeSegments;
@@ -45,22 +50,22 @@ public class FragmentsInSelectedSegments< F extends FragmentSegmentAssignmentSta
 		stateChanged();
 	}
 
-	private class AssignmentListener implements StateListener< F >
+	private class AssignmentListener implements InvalidationListener
 	{
 
 		@Override
-		public void stateChanged()
+		public void invalidated( final Observable obs )
 		{
 			update();
 		}
 
 	}
 
-	private class SelectionListener implements StateListener< SelectedSegments< F > >
+	private class SelectionListener implements InvalidationListener
 	{
 
 		@Override
-		public void stateChanged()
+		public void invalidated( final Observable obs )
 		{
 			update();
 		}

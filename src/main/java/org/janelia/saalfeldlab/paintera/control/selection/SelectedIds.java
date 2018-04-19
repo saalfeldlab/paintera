@@ -1,15 +1,16 @@
-package org.janelia.saalfeldlab.paintera.state;
+package org.janelia.saalfeldlab.paintera.control.selection;
 
 import java.lang.invoke.MethodHandles;
 import java.util.Arrays;
 
+import org.janelia.saalfeldlab.fx.ObservableWithListenersList;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import gnu.trove.set.hash.TLongHashSet;
 import net.imglib2.type.label.Label;
 
-public class SelectedIds extends AbstractState< SelectedIds >
+public class SelectedIds extends ObservableWithListenersList
 {
 
 	private static final Logger LOG = LoggerFactory.getLogger( MethodHandles.lookup().lookupClass() );

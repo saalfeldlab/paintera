@@ -2,7 +2,7 @@ package org.janelia.saalfeldlab.paintera.data;
 
 import java.lang.invoke.MethodHandles;
 
-import org.janelia.saalfeldlab.paintera.state.FragmentSegmentAssignmentState;
+import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignmentState;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -19,9 +19,9 @@ public class LabelDataSourceFromDelegates< D, T > implements LabelDataSource< D,
 
 	private final DataSource< D, T > source;
 
-	private final FragmentSegmentAssignmentState< ? > assignment;
+	private final FragmentSegmentAssignmentState assignment;
 
-	public LabelDataSourceFromDelegates( final DataSource< D, T > source, final FragmentSegmentAssignmentState< ? > assignment )
+	public LabelDataSourceFromDelegates( final DataSource< D, T > source, final FragmentSegmentAssignmentState assignment )
 	{
 		super();
 		this.source = source;
@@ -99,7 +99,7 @@ public class LabelDataSourceFromDelegates< D, T > implements LabelDataSource< D,
 	}
 
 	@Override
-	public FragmentSegmentAssignmentState< ? > getAssignment()
+	public FragmentSegmentAssignmentState getAssignment()
 	{
 		return assignment;
 	}
