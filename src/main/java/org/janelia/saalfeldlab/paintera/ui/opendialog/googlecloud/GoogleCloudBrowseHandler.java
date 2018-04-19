@@ -1,11 +1,14 @@
 package org.janelia.saalfeldlab.paintera.ui.opendialog.googlecloud;
 
+import java.io.ByteArrayInputStream;
 import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileNotFoundException;
+import java.io.FileReader;
 import java.io.IOException;
 import java.io.InputStream;
 import java.lang.invoke.MethodHandles;
+import java.nio.charset.Charset;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
@@ -21,12 +24,17 @@ import com.google.cloud.resourcemanager.Project;
 import com.google.cloud.resourcemanager.ResourceManager;
 import com.google.cloud.storage.Bucket;
 import com.google.cloud.storage.Storage;
+import com.google.gson.Gson;
+import com.google.gson.JsonObject;
+import com.google.gson.stream.JsonReader;
 import com.sun.javafx.application.PlatformImpl;
 
 import javafx.beans.binding.Bindings;
+import javafx.beans.binding.BooleanBinding;
 import javafx.beans.binding.ObjectBinding;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
+import javafx.scene.Node;
 import javafx.scene.Scene;
 import javafx.scene.control.Button;
 import javafx.scene.control.ButtonType;
@@ -36,8 +44,8 @@ import javafx.scene.control.Label;
 import javafx.scene.control.ListCell;
 import javafx.scene.control.ListView;
 import javafx.scene.control.TextField;
+import javafx.scene.control.Tooltip;
 import javafx.scene.layout.GridPane;
-import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.StackPane;
 import javafx.stage.FileChooser;
@@ -50,6 +58,12 @@ public class GoogleCloudBrowseHandler
 {
 
 	private static final Logger LOG = LoggerFactory.getLogger( MethodHandles.lookup().lookupClass() );
+
+	public static final String CLIENT_ID_KEY = "client_id";
+
+	public static final String CLIENT_SECRET_KEY = "client_secret";
+
+	public static final String INSTALLED_KEY = "installed";
 
 	private GoogleCloudOAuth oauth;
 
@@ -122,8 +136,9 @@ public class GoogleCloudBrowseHandler
 		dialog.getDialogPane().setContent( contents );
 
 		dialog.setResultConverter( bt -> {
-			if ( ButtonType.OK.equals( bt ) )
+			if ( ButtonType.OK.equals( bt ) ) {
 				return bucketChoices.getValue();
+			}
 			return null;
 		} );
 
@@ -133,14 +148,15 @@ public class GoogleCloudBrowseHandler
 
 		final ObjectBinding< Storage > storage = Bindings.createObjectBinding(
 				() -> Optional
-						.ofNullable( projectChoices.valueProperty().get() )
-						.map( s -> GoogleCloudClientBuilder.createStorage( oauth, s.getProjectId() ) )
-						.orElse( null ),
+				.ofNullable( projectChoices.valueProperty().get() )
+				.map( s -> GoogleCloudClientBuilder.createStorage( oauth, s.getProjectId() ) )
+				.orElse( null ),
 				projectChoices.valueProperty() );
 
 		storage.addListener( ( obs, oldv, newv ) -> {
-			if ( newv == null || newv.equals( oldv ) )
+			if ( newv == null || newv.equals( oldv ) ) {
 				return;
+			}
 			final List< Bucket > buckets = new ArrayList<>();
 			newv.list().iterateAll().forEach( buckets::add );
 			this.buckets.setAll( buckets );
@@ -149,8 +165,9 @@ public class GoogleCloudBrowseHandler
 		dialog.getDialogPane().getButtonTypes().addAll( ButtonType.OK, ButtonType.CANCEL );
 		final Bucket selectedBucketName = dialog.showAndWait().orElse( null );
 
-		if ( selectedBucketName == null )
+		if ( selectedBucketName == null ) {
 			return Optional.empty();
+		}
 
 		return Optional.of( new ValuePair<>( storage.get(), selectedBucketName ) );
 		// String.format( "gs://%s/", selectedBucketName ) ) );
@@ -172,52 +189,118 @@ public class GoogleCloudBrowseHandler
 
 	public static Supplier< InputStream > googleCloudClientSecretsFromFileDialog( final Scene scene )
 	{
-		final Dialog< InputStream > dialog = new Dialog<>();
+		final Dialog< String > dialog = new Dialog<>();
 
 		dialog.setTitle( "Google Cloud Client Secrets" );
 		dialog.setResizable( true );
 		dialog.getDialogPane().getButtonTypes().addAll( ButtonType.OK, ButtonType.CANCEL );
-		dialog.setHeaderText( "Please specify path to google cloud client secrets file (json)" );
+		dialog.setHeaderText( "Please provide your google cloud storage credentials." );
+		// Credentials will be written into " +
+		// GoogleCloudClientBuilder.CLIENT_SECRETS_FILE );
+
+		final GridPane grid = new GridPane();
+
+		final Label idLabel = new Label( "Client ID" );
+		final Label secretLabel = new Label( "Client secret" );
+
+		final TextField idField = new TextField();
+		final TextField secretField = new TextField();
+
+		grid.add( idLabel, 0, 0 );
+		grid.add( idField, 1, 0 );
+		grid.add( secretLabel, 0, 1 );
+		grid.add( secretField, 1, 1 );
+
+		GridPane.setHgrow( idField, Priority.ALWAYS );
+		GridPane.setHgrow( secretField, Priority.ALWAYS );
+
 		final TextField tf = new TextField();
+		tf.setPromptText( "Populate from file" );
 		final Button browseButton = new Button( "Browse" );
-		dialog.getDialogPane().setContent( new HBox( tf, browseButton ) );
-		HBox.setHgrow( tf, Priority.ALWAYS );
+		browseButton.setTooltip( new Tooltip( "Populate from file" ) );
+		tf.setEditable( false );
+
+		grid.add( browseButton, 0, 3 );
+		grid.add( tf, 1, 3 );
+		grid.setHgap( 10 );
+
+		GridPane.setHgrow( tf, Priority.ALWAYS );
+
+		dialog.getDialogPane().setContent( grid );
 
 		final FileChooser chooser = new FileChooser();
 		chooser.getExtensionFilters().addAll( new ExtensionFilter( "json files", "*.json" ) );
 
+		final Node OKButton = dialog.getDialogPane().lookupButton( ButtonType.OK );
+		final BooleanBinding isValidId = idField.textProperty().isNotEmpty();
+		final BooleanBinding isValidSecret = secretField.textProperty().isNotEmpty();
+		final BooleanBinding isValid = isValidId.and( isValidSecret );
+		isValid.addListener( ( obs, oldv, newv ) -> OKButton.setDisable( !newv ) );
+
+		dialog.setWidth( 300 );
+
 		dialog.setResultConverter( ( bt ) -> {
-			if ( ButtonType.CANCEL.equals( bt ) )
+			if ( ButtonType.CANCEL.equals( bt ) ) {
 				return null;
-			final File f = new File( Optional.ofNullable( tf.getText() ).orElse( "" ) );
-
-			if ( !f.exists() )
-				throw new RuntimeException( String.format( "File %s does not exist!", f ) );
-
-			if ( !f.isFile() )
-				throw new RuntimeException( String.format( "File %s is not a regular file!", f ) );
-
-			try
-			{
-				return new FileInputStream( f.getAbsolutePath() );
 			}
-			catch ( final FileNotFoundException e )
+			final String id = idField.getText();
+			final String secret = secretField.getText();
+
+			final JsonObject root = new JsonObject();
+			final JsonObject contents = new JsonObject();
+			contents.addProperty( CLIENT_ID_KEY, id );
+			contents.addProperty( CLIENT_SECRET_KEY, secret );
+			root.add( INSTALLED_KEY, contents );
+
+			LOG.debug( "Returning json: {}", root );
+
+			final String rootAsString = root.toString();
+
+			final File secretsFile = new File( GoogleCloudClientBuilder.CLIENT_SECRETS_FILE );
+			if ( !secretsFile.exists() )
 			{
-				throw new RuntimeException( e );
+				try
+				{
+					Files.write( secretsFile.toPath(), rootAsString.getBytes( Charset.defaultCharset() ) );
+				}
+				catch ( final IOException e )
+				{
+					LOG.debug( "Unable to write secrets file at {}", secretsFile.getAbsolutePath() );
+				}
 			}
+
+			return rootAsString;
+
 		} );
 
-		tf.setPromptText( "google cloud client secrets file" );
 		browseButton.setOnAction( event -> {
 			final File currentSelection = new File( Optional.ofNullable( tf.getText() ).orElse( "" ) );
 			chooser.setInitialDirectory( currentSelection.isFile()
 					? currentSelection.getParentFile()
-					: new File( System.getProperty( "user.home" ) ) );
+							: new File( System.getProperty( "user.home" ) ) );
 			final File selection = chooser.showOpenDialog( scene.getWindow() );
-			Optional.ofNullable( selection ).map( File::getAbsolutePath ).ifPresent( tf::setText );
+			if ( selection != null )
+			{
+				final String absPath = selection.getAbsolutePath();
+				tf.setText( absPath );
+				try (FileReader freader = new FileReader( selection ))
+				{
+					final JsonReader reader = new JsonReader( freader );
+					final JsonObject root = new Gson().fromJson( reader, JsonObject.class );
+					LOG.debug( "Read json: {}", root );
+					final JsonObject contents = root.get( INSTALLED_KEY ).getAsJsonObject();
+					idField.setText( contents.get( CLIENT_ID_KEY ).getAsString() );
+					secretField.setText( contents.get( CLIENT_SECRET_KEY ).getAsString() );
+					Files.write( Paths.get( GoogleCloudClientBuilder.CLIENT_SECRETS_FILE ), contents.toString().getBytes( Charset.defaultCharset() ) );
+				}
+				catch ( final IOException e )
+				{
+					LOG.debug( "Unable to read json file at {} -- not auto-populating client id or secret." );
+				}
+			}
 		} );
 
-		return () -> dialog.showAndWait().orElse( null );
+		return () -> dialog.showAndWait().map( s -> new ByteArrayInputStream( s.getBytes( Charset.defaultCharset() ) ) ).orElse( null );
 	}
 
 }

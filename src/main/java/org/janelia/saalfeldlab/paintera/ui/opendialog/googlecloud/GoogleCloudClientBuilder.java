@@ -91,6 +91,10 @@ public class GoogleCloudClientBuilder
 		} )
 				).start();
 		latch.await();
+		if ( oauth[ 0 ] != null )
+		{
+			LOG.debug( "Created oauth with secrets={}", oauth[ 0 ].getClientSecrets() );
+		}
 		return oauth[ 0 ];
 	}
 
