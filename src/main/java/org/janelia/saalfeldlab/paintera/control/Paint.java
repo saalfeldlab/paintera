@@ -102,7 +102,8 @@ public class Paint implements ToOnEnterOnExit
 						}
 
 						final long lastSelection = csi.getLastSelection();
-						return lastSelection == Label.INVALID ? null : lastSelection;
+						LOG.debug( "Last selection is {}", lastSelection );
+						return Label.regular( lastSelection ) ? lastSelection : null;
 					};
 
 					painters.put( t, paint2D );
@@ -113,18 +114,22 @@ public class Paint implements ToOnEnterOnExit
 
 					final List< InstallAndRemove< Node > > iars = new ArrayList<>();
 
+					// brush
 					iars.add( EventFX.KEY_PRESSED( "show brush overlay", event -> paint2D.showBrushOverlay(), event -> keyTracker.areKeysDown( KeyCode.SPACE ) ) );
 					iars.add( EventFX.KEY_RELEASED( "show brush overlay", event -> paint2D.hideBrushOverlay(), event -> event.getCode().equals( KeyCode.SPACE ) && !keyTracker.areKeysDown( KeyCode.SPACE ) ) );
 					iars.add( EventFX.SCROLL( "change brush size", event -> paint2D.changeBrushRadius( event.getDeltaY() ), event -> keyTracker.areOnlyTheseKeysDown( KeyCode.SPACE ) ) );
 
-//					iars.add( EventFX.MOUSE_PRESSED( "paint click 2D", e -> paint2D.prepareAndPaintUnchecked( e, paintSelection.get() ), event -> keyTracker.areOnlyTheseKeysDown( KeyCode.SPACE ) && this.paint2D.get() ) );
+					// click paint
+					iars.add( EventFX.MOUSE_PRESSED( "paint click 2D", e -> paint2D.prepareAndPaintUnchecked( e, paintSelection.get() ), e -> e.isPrimaryButtonDown() && keyTracker.areOnlyTheseKeysDown( KeyCode.SPACE ) && this.paint2D.get() ) );
+					iars.add( EventFX.MOUSE_PRESSED( "erase canvas click 2D", e -> paint2D.prepareAndPaintUnchecked( e, Label.TRANSPARENT ), e -> e.isSecondaryButtonDown() && keyTracker.areOnlyTheseKeysDown( KeyCode.SPACE ) && this.paint2D.get() ) );
+					iars.add( EventFX.MOUSE_PRESSED( "to background click 2D", e -> paint2D.prepareAndPaintUnchecked( e, Label.BACKGROUND ), e -> e.isSecondaryButtonDown() && keyTracker.areOnlyTheseKeysDown( KeyCode.SPACE, KeyCode.SHIFT ) && this.paint2D.get() ) );
 
+					// drag paint
 					iars.add( paint2D.dragPaintLabel( "paint 2D", paintSelection::get, event -> event.isPrimaryButtonDown() && keyTracker.areOnlyTheseKeysDown( KeyCode.SPACE ) && this.paint2D.get() ) );
-
 					iars.add( paint2D.dragPaintLabel( "erase canvas 2D", () -> Label.TRANSPARENT, event -> event.isSecondaryButtonDown() && keyTracker.areOnlyTheseKeysDown( KeyCode.SPACE ) && this.paint2D.get() ) );
-
 					iars.add( paint2D.dragPaintLabel( "to background 2D", () -> Label.BACKGROUND, event -> event.isSecondaryButtonDown() && keyTracker.areOnlyTheseKeysDown( KeyCode.SPACE, KeyCode.SHIFT ) && this.paint2D.get() ) );
 
+					// advanced paint stuff
 					iars.add( EventFX.MOUSE_PRESSED( "fill", event -> fill.fillAt( event.getX(), event.getY(), paintSelection::get ), event -> event.isPrimaryButtonDown() && keyTracker.areOnlyTheseKeysDown( KeyCode.SHIFT, KeyCode.F ) ) );
 					iars.add( EventFX.MOUSE_PRESSED( "restrict", event -> restrictor.restrictTo( event.getX(), event.getY() ), event -> event.isPrimaryButtonDown() && keyTracker.areOnlyTheseKeysDown( KeyCode.SHIFT, KeyCode.R ) ) );
 

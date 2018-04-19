@@ -166,6 +166,11 @@ public class Paint2D
 
 	public void prepareAndPaintUnchecked( final MouseEvent event, final Long id )
 	{
+		if ( id == null )
+		{
+			LOG.debug( "Id is nullpointer: {}", id );
+			return;
+		}
 		try
 		{
 			prepareAndPaint( event, id );
@@ -195,6 +200,11 @@ public class Paint2D
 
 	private void prepareForPainting( final Long id ) throws MaskInUse
 	{
+		if ( id == null )
+		{
+			LOG.debug( "Do not a valid id to paint: {} -- will not paint.", id );
+			return;
+		}
 		final ViewerState state = viewer.getState();
 		final Source< ? > viewerSource = sourceInfo.currentSourceProperty().get();
 		final int currentSource = sourceInfo.currentSourceIndexInVisibleSources().get();
@@ -204,16 +214,12 @@ public class Paint2D
 
 		LOG.debug( "Prepare for painting with source {}", viewerSource );
 
-		if ( viewerSource == null || !( viewerSource instanceof DataSource< ?, ? > ) || !sourceInfo.getState( viewerSource ).visibleProperty().get() ) {
-			return;
-		}
+		if ( viewerSource == null || !( viewerSource instanceof DataSource< ?, ? > ) || !sourceInfo.getState( viewerSource ).visibleProperty().get() ) { return; }
 
 		final DataSource< ?, ? > source = ( DataSource< ?, ? > ) viewerSource;
 		final MaskedSource< ?, ? > maskedSource = sourceInfo.getState( source ).maskedSourceProperty().get();
 
-		if ( maskedSource == null ) {
-			return;
-		}
+		if ( maskedSource == null ) { return; }
 
 		final AffineTransform3D viewerTransform = new AffineTransform3D();
 		state.getViewerTransform( viewerTransform );
@@ -221,12 +227,6 @@ public class Paint2D
 		final int level = state.getBestMipMapLevel( screenScaleTransform, currentSource );
 		maskedSource.getSourceTransform( 0, level, labelToGlobalTransform );
 		this.labelToViewerTransform.set( viewerTransform.copy().concatenate( labelToGlobalTransform ) );
-
-		if ( id == null )
-		{
-			LOG.debug( "Do not a valid id to paint: {} -- will not paint.", id );
-			return;
-		}
 
 		final UnsignedLongType value = new UnsignedLongType( id );
 
@@ -250,9 +250,7 @@ public class Paint2D
 	{
 
 		final RandomAccessibleInterval< UnsignedByteType > labels = this.canvas.get();
-		if ( labels == null ) {
-			return;
-		}
+		if ( labels == null ) { return; }
 
 		final AffineTransform3D labelToViewerTransform = this.labelToViewerTransform.copy();
 		final AffineTransform3D labelToGlobalTransform = this.labelToGlobalTransform.copy();
