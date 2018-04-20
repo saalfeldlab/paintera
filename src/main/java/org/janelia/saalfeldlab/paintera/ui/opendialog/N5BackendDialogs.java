@@ -77,11 +77,11 @@ public class N5BackendDialogs
 				LOG.debug( "Updated root={} and writer supplier={}", root, writerSupplier );
 			}
 			Optional
-					.ofNullable( updatedRoot )
-					.filter( File::exists )
-					.filter( File::isFile )
-					.map( File::getAbsolutePath )
-					.ifPresent( root::set );
+			.ofNullable( updatedRoot )
+			.filter( File::exists )
+			.filter( File::isFile )
+			.map( File::getAbsolutePath )
+			.ifPresent( root::set );
 		};
 		return new GenericBackendDialogN5( rootField, onClick, "N5", writerSupplier );
 	}
@@ -114,11 +114,11 @@ public class N5BackendDialogs
 				writerSupplier.set( MakeUnchecked.unchecked( () -> new N5HDF5Writer( root.get(), 16, 16, 16 ) ) );
 			}
 			Optional
-					.ofNullable( updatedRoot )
-					.filter( File::exists )
-					.filter( File::isFile )
-					.map( File::getAbsolutePath )
-					.ifPresent( root::set );
+			.ofNullable( updatedRoot )
+			.filter( File::exists )
+			.filter( File::isFile )
+			.map( File::getAbsolutePath )
+			.ifPresent( root::set );
 		};
 		return new GenericBackendDialogN5( rootField, onClick, "HDF5", writerSupplier );
 	}
@@ -139,11 +139,11 @@ public class N5BackendDialogs
 
 		final ObservableValue< Supplier< N5Writer > > writerSupplier = Bindings.createObjectBinding(
 				() -> isValid.get()
-						? MakeUnchecked.unchecked( () -> new N5GoogleCloudStorageWriter( storage.get(), bucket.get().getName() ) )
+				? MakeUnchecked.unchecked( () -> new N5GoogleCloudStorageWriter( storage.get(), bucket.get().getName() ) )
 						: ( Supplier< N5Writer > ) () -> null,
-				isValid,
-				storage,
-				bucket );
+						isValid,
+						storage,
+						bucket );
 
 		final StringBinding storageAsString = Bindings.createStringBinding(
 				() -> Optional.ofNullable( storage.getValue() ).map( Storage::toString ).orElse( "" ),
@@ -162,6 +162,8 @@ public class N5BackendDialogs
 
 		grid.add( new Label( "storage" ), 0, 0 );
 		grid.add( new Label( "bucket" ), 0, 1 );
+
+		grid.setHgap( 10 );
 
 		final Consumer< Event > onClick = event -> {
 			{

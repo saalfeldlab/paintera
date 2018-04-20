@@ -4,9 +4,10 @@ import java.util.ArrayList;
 import java.util.List;
 
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread;
-import org.janelia.saalfeldlab.paintera.SourceInfo;
 
 import bdv.fx.viewer.ViewerPanelFX;
+import javafx.beans.property.BooleanProperty;
+import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.value.ChangeListener;
 import javafx.beans.value.ObservableValue;
 import javafx.scene.Group;
@@ -37,19 +38,32 @@ public class OrthoSliceFX
 
 	private final PhongMaterial material;
 
-	private boolean isVisible = false;
+	private final BooleanProperty isVisible = new SimpleBooleanProperty( false );
+	{
+		this.isVisible.addListener( (oldv, obs, newv ) -> {
+			synchronized ( this )
+			{
+				if ( newv )
+				{
+					InvokeOnJavaFXApplicationThread.invoke( () -> this.getScene().getChildren().add( mv ) );
+				}
+				else
+				{
+					InvokeOnJavaFXApplicationThread.invoke( () -> this.getScene().getChildren().remove( mv ) );
+				}
+			}
+		} );
+	}
 
-	private final SourceInfo sourceInfo;
-
+	// TODO re-think/reduce this delay
 	// 500ms delay
 	LatestTaskExecutor es = new LatestTaskExecutor( 500 * 1000 * 1000 );
 
-	public OrthoSliceFX( final Group scene, final ViewerPanelFX viewer, final SourceInfo sourceInfo )
+	public OrthoSliceFX( final Group scene, final ViewerPanelFX viewer )
 	{
 		super();
 		this.scene = scene;
 		this.viewer = viewer;
-		this.sourceInfo = sourceInfo;
 		this.viewer.getDisplay().addImageChangeListener( this.renderTransformListener );
 		this.planes.add( mv );
 
@@ -60,36 +74,6 @@ public class OrthoSliceFX
 
 		material.setDiffuseColor( Color.BLACK );
 		material.setSpecularColor( Color.BLACK );
-
-//		mv.addEventHandler( MouseEvent.MOUSE_CLICKED, e -> {
-//			final Optional< Source< ? > > optionalSource = getSource();
-//			if ( !optionalSource.isPresent() )
-//				return;
-//			final Source< ? > source = optionalSource.get();
-//			Optional< ToIdConverter > toIdConverter = sourceInfo.toIdConverter( source );
-//			selectedIds = sourceInfo.selectedIds( source, mode )
-//			if ( toIdConverter.isPresent() && selectedIds.containsKey( source ) && dataSources.containsKey( source ) )
-//			{
-//				final Source< ? > dataSource = dataSources.get( source );
-//				synchronized ( viewer )
-//				{
-//					final AffineTransform3D affine = new AffineTransform3D();
-//					final ViewerState state = viewer.getState();
-//					state.getViewerTransform( affine );
-//					final int level = state.getBestMipMapLevel( affine, state.getSources().stream().map( src -> src.getSpimSource() ).collect( Collectors.toList() ).indexOf( source ) );
-//					dataSource.getSourceTransform( 0, level, affine );
-//					final RealRandomAccess< ? > access = RealViews.transformReal( dataSource.getInterpolatedSource( 0, level, Interpolation.NEARESTNEIGHBOR ), affine ).realRandomAccess();
-//					access.setPosition( new double[] { e.getX(), e.getY(), e.getZ() } );
-//					final Object val = access.get();
-//					final long id = toIdConverters.get( source ).biggestFragment( val );
-//					if ( Label.regular( id ) )
-//						if ( selectedIds.get( source ).isOnlyActiveId( id ) )
-//							selectedIds.get( source ).deactivate( id );
-//						else
-//							selectedIds.get( source ).activate( id );
-//				}
-//			}
-//		} );
 	}
 
 	private void paint( final Image image )
@@ -103,8 +87,9 @@ public class OrthoSliceFX
 			h = viewer.getHeight();
 			this.viewer.getState().getViewerTransform( viewerTransform );
 		}
-		if ( w <= 0 || h <= 0 )
+		if ( w <= 0 || h <= 0 ) {
 			return;
+		}
 		InvokeOnJavaFXApplicationThread.invoke( () -> {
 			mesh.update( new RealPoint( 0, 0 ), new RealPoint( w, 0 ), new RealPoint( w, h ), new RealPoint( 0, h ), viewerTransform.inverse() );
 		} );
@@ -138,20 +123,30 @@ public class OrthoSliceFX
 		public void changed( final ObservableValue< ? extends Image > observable, final Image oldValue, final Image newValue )
 		{
 			if ( newValue != null )
+			{
 				paint( newValue );
+			}
 		}
 
 	}
 
-	public void toggleVisibility()
+	public Group getScene()
 	{
-		synchronized ( this )
-		{
-			if ( isVisible )
-				InvokeOnJavaFXApplicationThread.invoke( () -> this.scene.getChildren().remove( mv ) );
-			else
-				InvokeOnJavaFXApplicationThread.invoke( () -> this.scene.getChildren().add( mv ) );
-			isVisible = !isVisible;
-		}
+		return this.scene;
+	}
+
+	public boolean getIsVisible()
+	{
+		return this.isVisible.get();
+	}
+
+	public void setIsVisible( final boolean isVisible )
+	{
+		this.isVisible.set( isVisible );
+	}
+
+	public BooleanProperty isVisibleProperty()
+	{
+		return this.isVisible;
 	}
 }

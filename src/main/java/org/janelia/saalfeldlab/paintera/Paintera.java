@@ -19,6 +19,8 @@ import org.janelia.saalfeldlab.fx.ortho.OrthogonalViews.ViewerAndTransforms;
 import org.janelia.saalfeldlab.fx.ui.ResizeOnLeftSide;
 import org.janelia.saalfeldlab.paintera.config.CrossHairConfigNode;
 import org.janelia.saalfeldlab.paintera.config.CrosshairConfig;
+import org.janelia.saalfeldlab.paintera.config.OrthoSliceConfig;
+import org.janelia.saalfeldlab.paintera.config.OrthoSliceConfigNode;
 import org.janelia.saalfeldlab.paintera.control.FitToInterval;
 import org.janelia.saalfeldlab.paintera.control.Merges;
 import org.janelia.saalfeldlab.paintera.control.Navigation;
@@ -44,6 +46,8 @@ import bdv.viewer.Source;
 import javafx.application.Application;
 import javafx.application.Platform;
 import javafx.beans.binding.Bindings;
+import javafx.beans.binding.BooleanBinding;
+import javafx.beans.binding.IntegerBinding;
 import javafx.beans.binding.StringBinding;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.ObjectProperty;
@@ -84,6 +88,10 @@ public class Paintera extends Application
 
 	private final KeyTracker keyTracker = new KeyTracker();
 
+	private final IntegerBinding numSources = Bindings.size( sourceInfo.trackSources() );
+
+	private final BooleanBinding hasSources = numSources.greaterThan( 0 );
+
 	private final Map< ViewerPanelFX, ViewerAndTransforms > viewerToTransforms = new HashMap<>();
 	{
 		viewerToTransforms.put( baseView.orthogonalViews().topLeft().viewer(), baseView.orthogonalViews().topLeft() );
@@ -116,6 +124,12 @@ public class Paintera extends Application
 			Color.WHITE.deriveColor( 0, 1, 1, 0.5 ) );
 
 	private final Map< ViewerAndTransforms, OrthoSliceFX > orthoSlices = makeOrthoSlices( baseView.orthogonalViews(), baseView.viewer3D().meshesGroup(), sourceInfo );
+
+	private final OrthoSliceConfig orthoSliceConfig = new OrthoSliceConfig(
+			orthoSlices.get( baseView.orthogonalViews().topLeft() ),
+			orthoSlices.get( baseView.orthogonalViews().topRight() ),
+			orthoSlices.get( baseView.orthogonalViews().bottomLeft() ),
+			hasSources );
 
 	private final PainteraOpenDialogEventHandler openDialogHandler = new PainteraOpenDialogEventHandler(
 			baseView,
@@ -197,7 +211,8 @@ public class Paintera extends Application
 		sourcesContents.setExpanded( false );
 
 		final VBox settingsContents = new VBox(
-				new CrossHairConfigNode( crosshairConfig ).getContents() );
+				new CrossHairConfigNode( crosshairConfig ).getContents(),
+				new OrthoSliceConfigNode( orthoSliceConfig ).getContents() );
 		final TitledPane settings = new TitledPane( "settings", settingsContents );
 		settings.setExpanded( false );
 
@@ -363,10 +378,9 @@ public class Paintera extends Application
 			final SourceInfo sourceInfo )
 	{
 		final Map< ViewerAndTransforms, OrthoSliceFX > map = new HashMap<>();
-		map.put( views.topLeft(), new OrthoSliceFX( scene, views.topLeft().viewer(), sourceInfo ) );
-		map.put( views.topRight(), new OrthoSliceFX( scene, views.topRight().viewer(), sourceInfo ) );
-		map.put( views.bottomLeft(), new OrthoSliceFX( scene, views.bottomLeft().viewer(), sourceInfo ) );
-		map.values().forEach( OrthoSliceFX::toggleVisibility );
+		map.put( views.topLeft(), new OrthoSliceFX( scene, views.topLeft().viewer() ) );
+		map.put( views.topRight(), new OrthoSliceFX( scene, views.topRight().viewer() ) );
+		map.put( views.bottomLeft(), new OrthoSliceFX( scene, views.bottomLeft().viewer() ) );
 		return map;
 	}
 
