@@ -292,7 +292,7 @@ public class GoogleCloudBrowseHandler
 					final JsonObject contents = root.get( INSTALLED_KEY ).getAsJsonObject();
 					idField.setText( contents.get( CLIENT_ID_KEY ).getAsString() );
 					secretField.setText( contents.get( CLIENT_SECRET_KEY ).getAsString() );
-					Files.write( Paths.get( GoogleCloudClientBuilder.CLIENT_SECRETS_FILE ), contents.toString().getBytes( Charset.defaultCharset() ) );
+					Files.write( Paths.get( GoogleCloudClientBuilder.CLIENT_SECRETS_FILE ), root.toString().getBytes( Charset.defaultCharset() ) );
 				}
 				catch ( final IOException e )
 				{
