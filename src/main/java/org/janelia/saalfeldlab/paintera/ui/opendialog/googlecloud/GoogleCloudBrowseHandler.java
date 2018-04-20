@@ -261,6 +261,7 @@ public class GoogleCloudBrowseHandler
 			{
 				try
 				{
+					secretsFile.getParentFile().mkdirs();
 					Files.write( secretsFile.toPath(), rootAsString.getBytes( Charset.defaultCharset() ) );
 				}
 				catch ( final IOException e )
