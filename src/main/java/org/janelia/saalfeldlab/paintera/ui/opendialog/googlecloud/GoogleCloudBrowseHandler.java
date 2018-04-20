@@ -50,6 +50,7 @@ import javafx.scene.layout.Priority;
 import javafx.scene.layout.StackPane;
 import javafx.stage.FileChooser;
 import javafx.stage.FileChooser.ExtensionFilter;
+import javafx.stage.Window;
 import javafx.util.Callback;
 import net.imglib2.util.Pair;
 import net.imglib2.util.ValuePair;
@@ -73,9 +74,14 @@ public class GoogleCloudBrowseHandler
 
 	public Optional< Pair< Storage, Bucket > > select( final Scene scene )
 	{
+		return select( scene.getWindow() );
+	}
+
+	public Optional< Pair< Storage, Bucket > > select( final Window window )
+	{
 		try
 		{
-			oauth = GoogleCloudClientBuilder.createOAuth( googleCloudClientSecretsFromFileDialog( scene ) );
+			oauth = GoogleCloudClientBuilder.createOAuth( googleCloudClientSecretsFromFileDialog( window ) );
 		}
 		catch ( final Exception e )
 		{
@@ -187,7 +193,7 @@ public class GoogleCloudBrowseHandler
 
 	}
 
-	public static Supplier< InputStream > googleCloudClientSecretsFromFileDialog( final Scene scene )
+	public static Supplier< InputStream > googleCloudClientSecretsFromFileDialog( final Window window )
 	{
 		final Dialog< String > dialog = new Dialog<>();
 
@@ -279,7 +285,7 @@ public class GoogleCloudBrowseHandler
 			chooser.setInitialDirectory( currentSelection.isFile()
 					? currentSelection.getParentFile()
 							: new File( System.getProperty( "user.home" ) ) );
-			final File selection = chooser.showOpenDialog( scene.getWindow() );
+			final File selection = chooser.showOpenDialog( window );
 			if ( selection != null )
 			{
 				final String absPath = selection.getAbsolutePath();
