@@ -10,12 +10,12 @@ import javafx.scene.control.TitledPane;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.Priority;
 
-public class CrossHairConfigNode
+public class CrosshairConfigNode
 {
 
 	private final TitledPane contents;
 
-	public CrossHairConfigNode( final CrosshairConfig config )
+	public CrosshairConfigNode( final CrosshairConfig config )
 	{
 		super();
 

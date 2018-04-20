@@ -17,7 +17,7 @@ import org.janelia.saalfeldlab.fx.ortho.OnEnterOnExit;
 import org.janelia.saalfeldlab.fx.ortho.OrthogonalViews;
 import org.janelia.saalfeldlab.fx.ortho.OrthogonalViews.ViewerAndTransforms;
 import org.janelia.saalfeldlab.fx.ui.ResizeOnLeftSide;
-import org.janelia.saalfeldlab.paintera.config.CrossHairConfigNode;
+import org.janelia.saalfeldlab.paintera.config.CrosshairConfigNode;
 import org.janelia.saalfeldlab.paintera.config.CrosshairConfig;
 import org.janelia.saalfeldlab.paintera.config.OrthoSliceConfig;
 import org.janelia.saalfeldlab.paintera.config.OrthoSliceConfigNode;
@@ -211,7 +211,7 @@ public class Paintera extends Application
 		sourcesContents.setExpanded( false );
 
 		final VBox settingsContents = new VBox(
-				new CrossHairConfigNode( crosshairConfig ).getContents(),
+				new CrosshairConfigNode( crosshairConfig ).getContents(),
 				new OrthoSliceConfigNode( orthoSliceConfig ).getContents() );
 		final TitledPane settings = new TitledPane( "settings", settingsContents );
 		settings.setExpanded( false );
