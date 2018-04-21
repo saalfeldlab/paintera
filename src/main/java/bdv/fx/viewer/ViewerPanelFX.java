@@ -442,7 +442,8 @@ public class ViewerPanelFX
 	@Override
 	public void requestRepaint()
 	{
-		imageRenderer.requestRepaint();
+		if ( isVisible() )
+			imageRenderer.requestRepaint();
 	}
 
 	@Override
