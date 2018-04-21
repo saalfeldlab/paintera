@@ -57,7 +57,7 @@ public class GridConstraintsManager
 		isFullScreen = false;
 	}
 
-	synchronized final void resetToLast()
+	public void resetToLast()
 	{
 		column1.setPercentWidth( columnWidth1 );
 		column2.setPercentWidth( columnWidth2 );

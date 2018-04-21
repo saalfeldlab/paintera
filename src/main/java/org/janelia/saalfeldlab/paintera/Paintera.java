@@ -32,9 +32,11 @@ import org.janelia.saalfeldlab.paintera.control.navigation.AffineTransformWithLi
 import org.janelia.saalfeldlab.paintera.control.navigation.DisplayTransformUpdateOnResize;
 import org.janelia.saalfeldlab.paintera.ui.ARGBStreamSeedSetter;
 import org.janelia.saalfeldlab.paintera.ui.Crosshair;
+import org.janelia.saalfeldlab.paintera.ui.ToggleMaximize;
 import org.janelia.saalfeldlab.paintera.ui.opendialog.PainteraOpenDialogEventHandler;
 import org.janelia.saalfeldlab.paintera.ui.source.SourceTabs;
 import org.janelia.saalfeldlab.paintera.viewer3d.OrthoSliceFX;
+import org.janelia.saalfeldlab.paintera.viewer3d.Viewer3DFX;
 import org.janelia.saalfeldlab.util.Colors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -88,6 +90,8 @@ public class Paintera extends Application
 			Math.min( 8, Math.max( 1, Runtime.getRuntime().availableProcessors() / 2 ) ),
 			si -> s -> si.getState( s ).interpolationProperty().get() );
 
+	private final OrthogonalViews< Viewer3DFX > orthoViews = baseView.orthogonalViews();
+
 	private final SourceInfo sourceInfo = baseView.sourceInfo();
 
 	private final KeyTracker keyTracker = new KeyTracker();
@@ -139,6 +143,34 @@ public class Paintera extends Application
 			baseView,
 			baseView.orthogonalViews().sharedQueue(),
 			e -> keyTracker.areOnlyTheseKeysDown( KeyCode.CONTROL, KeyCode.O ) );
+
+	private final ToggleMaximize toggleMaximizeTopLeft = new ToggleMaximize(
+			orthoViews.topLeft().viewer(),
+			orthoViews.pane().getChildren(),
+			orthoViews.grid().constraintsManager(),
+			0,
+			0 );
+
+	private final ToggleMaximize toggleMaximizeTopRight = new ToggleMaximize(
+			orthoViews.topRight().viewer(),
+			orthoViews.pane().getChildren(),
+			orthoViews.grid().constraintsManager(),
+			1,
+			0 );
+
+	private final ToggleMaximize toggleMaximizeBottomLeft = new ToggleMaximize(
+			orthoViews.bottomLeft().viewer(),
+			orthoViews.pane().getChildren(),
+			orthoViews.grid().constraintsManager(),
+			0,
+			1 );
+
+	private final ToggleMaximize toggleMaximizeBottomRight = new ToggleMaximize(
+			baseView.viewer3D(),
+			orthoViews.pane().getChildren(),
+			orthoViews.grid().constraintsManager(),
+			1,
+			1 );
 
 	@Override
 	public void start( final Stage primaryStage ) throws Exception
@@ -262,6 +294,11 @@ public class Paintera extends Application
 		baseView.pane().addEventFilter( MouseEvent.MOUSE_DRAGGED, resizer.onMouseDraggedHandler() );
 		baseView.pane().addEventFilter( MouseEvent.MOUSE_PRESSED, resizer.onMousePressedHandler() );
 		baseView.pane().addEventFilter( MouseEvent.MOUSE_RELEASED, resizer.onMouseReleased() );
+
+		EventFX.KEY_PRESSED( "maximize", e -> toggleMaximizeTopLeft.toggleFullScreen(), e -> keyTracker.areOnlyTheseKeysDown( KeyCode.F ) ).installInto( orthoViews.topLeft().viewer() );
+		EventFX.KEY_PRESSED( "maximize", e -> toggleMaximizeTopRight.toggleFullScreen(), e -> keyTracker.areOnlyTheseKeysDown( KeyCode.F ) ).installInto( orthoViews.topRight().viewer() );
+		EventFX.KEY_PRESSED( "maximize", e -> toggleMaximizeBottomLeft.toggleFullScreen(), e -> keyTracker.areOnlyTheseKeysDown( KeyCode.F ) ).installInto( orthoViews.bottomLeft().viewer() );
+		EventFX.KEY_PRESSED( "maximize", e -> toggleMaximizeBottomRight.toggleFullScreen(), e -> keyTracker.areOnlyTheseKeysDown( KeyCode.F ) ).installInto( baseView.viewer3D() );
 
 		keyTracker.installInto( scene );
 		stage.setScene( scene );
