@@ -27,7 +27,7 @@ public abstract class HighlightingStreamConverter< T > implements Converter< T, 
 
 	private final IntegerProperty activeSegmentAlpha = new SimpleIntegerProperty();
 
-	private final BooleanProperty colorFromSegmentId = new SimpleBooleanProperty();
+	private final BooleanProperty colorFromSegmentId = new SimpleBooleanProperty( true );
 
 	public HighlightingStreamConverter( final AbstractHighlightingARGBStream stream )
 	{
