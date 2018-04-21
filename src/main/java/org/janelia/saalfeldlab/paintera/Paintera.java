@@ -84,7 +84,9 @@ public class Paintera extends Application
 
 	private static final Logger LOG = LoggerFactory.getLogger( MethodHandles.lookup().lookupClass() );
 
-	private final PainteraBaseView baseView = new PainteraBaseView( 8, si -> s -> si.getState( s ).interpolationProperty().get() );
+	private final PainteraBaseView baseView = new PainteraBaseView(
+			Math.min(8, Math.max(1, Runtime.getRuntime().availableProcessors() / 2)),
+			si -> s -> si.getState( s ).interpolationProperty().get() );
 
 	private final SourceInfo sourceInfo = baseView.sourceInfo();
 
