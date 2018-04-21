@@ -44,6 +44,7 @@ public class FragmentSegmentAssignmentOnlyLocal extends FragmentSegmentAssignmen
 		this.persister = persister;
 
 		syncILut();
+		LOG.debug( "Assignment map: {}", fragmentToSegmentMap );
 	}
 
 	@Override
@@ -65,6 +66,7 @@ public class FragmentSegmentAssignmentOnlyLocal extends FragmentSegmentAssignmen
 		{
 			id = segmentId;
 		}
+		LOG.debug( "Returning {} for fragment {}: ", id, fragmentId );
 		return id;
 	}
 
