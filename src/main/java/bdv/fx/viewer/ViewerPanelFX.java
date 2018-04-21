@@ -221,7 +221,8 @@ public class ViewerPanelFX
 		threadGroup = new ThreadGroup( this.toString() );
 		painterThread = new PainterThread( threadGroup, this );
 		viewerTransform = new AffineTransform3D();
-		renderTarget = new TransformAwareBufferedImageOverlayRendererFX();
+		final ExecutorService renderTargetExecutorService = Executors.newFixedThreadPool( 3 );
+		renderTarget = new TransformAwareBufferedImageOverlayRendererFX( renderTargetExecutorService );
 		display = new InteractiveDisplayPaneComponent<>(
 				options.getWidth(),
 				options.getHeight(),

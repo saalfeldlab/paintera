@@ -31,9 +31,9 @@ package bdv.fx.viewer;
 
 import java.lang.invoke.MethodHandles;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.ExecutorService;
 
 import org.apache.commons.collections.Buffer;
-import org.apache.commons.collections.buffer.CircularFifoBuffer;
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -55,6 +55,8 @@ public class TransformAwareBufferedImageOverlayRendererFX
 
 	private static Logger LOG = LoggerFactory.getLogger( MethodHandles.lookup().lookupClass() );
 
+	private final ExecutorService es;
+
 	protected AffineTransform3D pendingTransform;
 
 	protected AffineTransform3D paintedTransform;
@@ -67,9 +69,11 @@ public class TransformAwareBufferedImageOverlayRendererFX
 	 */
 	protected final CopyOnWriteArrayList< TransformListener< AffineTransform3D > > paintedTransformListeners;
 
-	public TransformAwareBufferedImageOverlayRendererFX()
+	public TransformAwareBufferedImageOverlayRendererFX(
+			final ExecutorService es )
 	{
 		super();
+		this.es = es;
 		pendingTransform = new AffineTransform3D();
 		paintedTransform = new AffineTransform3D();
 		paintedTransformListeners = new CopyOnWriteArrayList<>();
@@ -103,13 +107,13 @@ public class TransformAwareBufferedImageOverlayRendererFX
 		{
 			final int w = ( int ) sourceImage.dimension( 0 );
 			final int h = ( int ) sourceImage.dimension( 1 );
-			new Thread( () -> {
+			es.submit( () -> {
 				final WritableImage wimg;
 				wimg = new WritableImage( w, h );
 				final int[] data = sourceImage.update( null ).getCurrentStorageArray();
 				wimg.getPixelWriter().setPixels( 0, 0, w, h, PixelFormat.getIntArgbInstance(), data, 0, w );
 				InvokeOnJavaFXApplicationThread.invoke( () -> imgView.setImage( wimg ) );
-			} ).start();
+			} );
 			if ( notifyTransformListeners )
 				for ( final TransformListener< AffineTransform3D > listener : paintedTransformListeners )
 					listener.transformChanged( paintedTransform );
