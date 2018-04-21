@@ -96,7 +96,6 @@ public class PainteraOpenDialogEventHandler implements EventHandler< Event >
 		}
 		catch ( final Exception e )
 		{
-			System.out.println( "WTF" );
 			System.out.println( e.getMessage() );
 			e.printStackTrace();
 		}
@@ -112,34 +111,38 @@ public class PainteraOpenDialogEventHandler implements EventHandler< Event >
 				event.consume();
 			}
 
-			try
+			final OpenSourceDialog openDialog = new OpenSourceDialog();
+			final Optional< BackendDialog > datasetOptional = openDialog.showAndWait();
+			if ( datasetOptional.isPresent() )
 			{
-				final OpenSourceDialog openDialog = new OpenSourceDialog();
-				final Optional< BackendDialog > datasetOptional = openDialog.showAndWait();
-				if ( datasetOptional.isPresent() )
-				{
-					final BackendDialog dataset = datasetOptional.get();
-					final MetaPanel meta = openDialog.getMeta();
-					final TYPE type = openDialog.getType();
-					LOG.debug( "Type={}", type );
-					switch ( type )
+				final Thread t = new Thread( () -> {
+					try
 					{
-					case RAW:
-						LOG.trace( "Adding raw data" );
-						addRaw( openDialog.getName(), dataset, meta.min(), meta.max() );
-						break;
-					case LABEL:
-						addLabel( openDialog.getName(), dataset );
-						break;
-					default:
-						break;
+						final BackendDialog dataset = datasetOptional.get();
+						final MetaPanel meta = openDialog.getMeta();
+						final TYPE type = openDialog.getType();
+						LOG.debug( "Type={}", type );
+						switch ( type )
+						{
+						case RAW:
+							LOG.trace( "Adding raw data" );
+							addRaw( openDialog.getName(), dataset, meta.min(), meta.max() );
+							break;
+						case LABEL:
+							addLabel( openDialog.getName(), dataset );
+							break;
+						default:
+							break;
+						}
 					}
-				}
+					catch ( final Exception e )
+					{
+						exceptionHandler.accept( e );
+					}
+				} );
+				t.start();
 			}
-			catch ( final Exception e )
-			{
-				exceptionHandler.accept( e );
-			}
+
 		}
 	}
 
