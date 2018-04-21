@@ -305,10 +305,10 @@ public class GenericBackendDialogN5 implements SourceFromRAI
 				}
 				try
 				{
-					final DatasetAttributes attrs = new DatasetAttributes( new long[] { 2, keys.length }, new int[] { 1, keys.length }, DataType.UINT64, new GzipCompression() );
+					final DatasetAttributes attrs = new DatasetAttributes( new long[] { keys.length, 2 }, new int[] { keys.length, 1 }, DataType.UINT64, new GzipCompression() );
 					writer.createDataset( dataset, attrs );
-					final DataBlock< long[] > keyBlock = new LongArrayDataBlock( new int[] { 1, keys.length }, new long[] { 0, 0 }, keys );
-					final DataBlock< long[] > valueBlock = new LongArrayDataBlock( new int[] { 1, values.length }, new long[] { 1, 0 }, values );
+					final DataBlock< long[] > keyBlock = new LongArrayDataBlock( new int[] { keys.length, 1 }, new long[] { 0, 0 }, keys );
+					final DataBlock< long[] > valueBlock = new LongArrayDataBlock( new int[] { values.length, 1 }, new long[] { 0, 1 }, values );
 					writer.writeBlock( dataset, attrs, keyBlock );
 					writer.writeBlock( dataset, attrs, valueBlock );
 				}
@@ -320,25 +320,28 @@ public class GenericBackendDialogN5 implements SourceFromRAI
 
 			final long[] keys;
 			final long[] values;
+			LOG.debug( "Found fragment segment assingment dataset? {}", writer.datasetExists( dataset ) );
 			if ( writer.datasetExists( dataset ) )
 			{
 				final DatasetAttributes attrs = writer.getDatasetAttributes( dataset );
-				final int numEntries = ( int ) attrs.getDimensions()[ 1 ];
+				final int numEntries = ( int ) attrs.getDimensions()[ 0 ];
 				keys = new long[ numEntries ];
 				values = new long[ numEntries ];
+				LOG.debug( "Found {} assignments", numEntries );
 				final RandomAccessibleInterval< UnsignedLongType > data = N5Utils.open( writer, dataset );
 
-				final Cursor< UnsignedLongType > keysCursor = Views.flatIterable( Views.hyperSlice( data, 0, 0l ) ).cursor();
+				final Cursor< UnsignedLongType > keysCursor = Views.flatIterable( Views.hyperSlice( data, 1, 0l ) ).cursor();
 				for ( int i = 0; keysCursor.hasNext(); ++i )
 				{
 					keys[ i ] = keysCursor.next().get();
 				}
 
-				final Cursor< UnsignedLongType > valuesCursor = Views.flatIterable( Views.hyperSlice( data, 0, 1l ) ).cursor();
+				final Cursor< UnsignedLongType > valuesCursor = Views.flatIterable( Views.hyperSlice( data, 1, 1l ) ).cursor();
 				for ( int i = 0; valuesCursor.hasNext(); ++i )
 				{
 					values[ i ] = valuesCursor.next().get();
 				}
+				LOG.debug( "First three assignments: {}:{} {}:{} {}:{}", keys[ 0 ], values[ 0 ], keys[ 1 ], values[ 1 ], keys[ 2 ], values[ 2 ] );
 			}
 			else
 			{
