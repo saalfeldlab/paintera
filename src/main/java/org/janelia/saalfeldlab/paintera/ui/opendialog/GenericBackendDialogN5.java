@@ -320,7 +320,7 @@ public class GenericBackendDialogN5 implements SourceFromRAI
 
 			final long[] keys;
 			final long[] values;
-			LOG.debug( "Found fragment segment assingment dataset? {}", writer.datasetExists( dataset ) );
+			LOG.debug( "Found fragment segment assingment dataset {}? {}", dataset, writer.datasetExists( dataset ) );
 			if ( writer.datasetExists( dataset ) )
 			{
 				final DatasetAttributes attrs = writer.getDatasetAttributes( dataset );
@@ -341,7 +341,6 @@ public class GenericBackendDialogN5 implements SourceFromRAI
 				{
 					values[ i ] = valuesCursor.next().get();
 				}
-				LOG.debug( "First three assignments: {}:{} {}:{} {}:{}", keys[ 0 ], values[ 0 ], keys[ 1 ], values[ 1 ], keys[ 2 ], values[ 2 ] );
 			}
 			else
 			{
