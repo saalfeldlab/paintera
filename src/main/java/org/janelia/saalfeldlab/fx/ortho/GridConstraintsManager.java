@@ -77,6 +77,9 @@ public class GridConstraintsManager
 
 	public synchronized void maximize( final int r, final int c, final int steps )
 	{
+		if ( isFullScreen )
+			resetToLast();
+
 		storeCurrent();
 		final ColumnConstraints increaseColumn = c == 0 ? column1 : column2;
 		final ColumnConstraints decreaseColumn = c == 0 ? column2 : column1;
@@ -102,6 +105,29 @@ public class GridConstraintsManager
 
 		isFullScreen = true;
 
+	}
+
+	public synchronized void maximize( final int row, final int steps )
+	{
+		if ( isFullScreen )
+			resetToLast();
+
+		storeCurrent();
+		final RowConstraints increaseRow = row == 0 ? row1 : row2;
+		final RowConstraints decreaseRow = row == 0 ? row2 : row1;
+		final double increaseRowStep = ( 100 - increaseRow.getPercentHeight() ) / steps;
+		final double decreaseRowStep = ( decreaseRow.getPercentHeight() - 0 ) / steps;
+
+		for ( int i = 0; i < steps; ++i )
+		{
+			increaseRow.setPercentHeight( increaseRow.getPercentHeight() + increaseRowStep );
+			decreaseRow.setPercentHeight( decreaseRow.getPercentHeight() - decreaseRowStep );
+		}
+
+		increaseRow.setPercentHeight( 100 );
+		decreaseRow.setPercentHeight( 0 );
+
+		isFullScreen = true;
 	}
 
 	@Deprecated

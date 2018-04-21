@@ -27,6 +27,9 @@ public class OrthoSliceConfig
 			final OrthoSliceFX topLeft,
 			final OrthoSliceFX topRight,
 			final OrthoSliceFX bottomLeft,
+			final ObservableBooleanValue isTopLeftVisible,
+			final ObservableBooleanValue isTopRightVisible,
+			final ObservableBooleanValue isBottomLeftVisible,
 			final ObservableBooleanValue hasSources )
 	{
 		super();
@@ -34,9 +37,9 @@ public class OrthoSliceConfig
 		this.topRight = topRight;
 		this.bottomLeft = bottomLeft;
 
-		this.topLeft.isVisibleProperty().bind( showTopLeft.and( enable ).and( hasSources ) );
-		this.topRight.isVisibleProperty().bind( showTopRight.and( enable ).and( hasSources ) );
-		this.bottomLeft.isVisibleProperty().bind( showBottomLeft.and( enable ).and( hasSources ) );
+		this.topLeft.isVisibleProperty().bind( showTopLeft.and( enable ).and( hasSources ).and( isTopLeftVisible ) );
+		this.topRight.isVisibleProperty().bind( showTopRight.and( enable ).and( hasSources ).and( isTopRightVisible ) );
+		this.bottomLeft.isVisibleProperty().bind( showBottomLeft.and( enable ).and( hasSources ).and( isBottomLeftVisible ) );
 	}
 
 	public BooleanProperty enableProperty()

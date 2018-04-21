@@ -16,6 +16,7 @@ import org.janelia.saalfeldlab.fx.ortho.GridResizer;
 import org.janelia.saalfeldlab.fx.ortho.OnEnterOnExit;
 import org.janelia.saalfeldlab.fx.ortho.OrthogonalViews;
 import org.janelia.saalfeldlab.fx.ortho.OrthogonalViews.ViewerAndTransforms;
+import org.janelia.saalfeldlab.fx.ortho.ViewerAxis;
 import org.janelia.saalfeldlab.fx.ui.ResizeOnLeftSide;
 import org.janelia.saalfeldlab.paintera.config.CrosshairConfig;
 import org.janelia.saalfeldlab.paintera.config.CrosshairConfigNode;
@@ -137,6 +138,9 @@ public class Paintera extends Application
 			orthoSlices.get( baseView.orthogonalViews().topLeft() ),
 			orthoSlices.get( baseView.orthogonalViews().topRight() ),
 			orthoSlices.get( baseView.orthogonalViews().bottomLeft() ),
+			orthoViews.topLeft().viewer().visibleProperty(),
+			orthoViews.topRight().viewer().visibleProperty(),
+			orthoViews.bottomLeft().viewer().visibleProperty(),
 			hasSources );
 
 	private final PainteraOpenDialogEventHandler openDialogHandler = new PainteraOpenDialogEventHandler(
@@ -299,6 +303,25 @@ public class Paintera extends Application
 		EventFX.KEY_PRESSED( "maximize", e -> toggleMaximizeTopRight.toggleFullScreen(), e -> keyTracker.areOnlyTheseKeysDown( KeyCode.F ) ).installInto( orthoViews.topRight().viewer() );
 		EventFX.KEY_PRESSED( "maximize", e -> toggleMaximizeBottomLeft.toggleFullScreen(), e -> keyTracker.areOnlyTheseKeysDown( KeyCode.F ) ).installInto( orthoViews.bottomLeft().viewer() );
 		EventFX.KEY_PRESSED( "maximize", e -> toggleMaximizeBottomRight.toggleFullScreen(), e -> keyTracker.areOnlyTheseKeysDown( KeyCode.F ) ).installInto( baseView.viewer3D() );
+
+		final BooleanProperty isRowMaximized = new SimpleBooleanProperty( false );
+		isRowMaximized.addListener( ( obs, oldv, newv ) -> {
+			if ( newv )
+			{
+				orthoViews.bottomLeft().globalToViewerTransform().setTransform( ViewerAxis.globalToViewer( ViewerAxis.Z ) );
+				orthoViews.topLeft().viewer().setVisible( false );
+				orthoViews.topRight().viewer().setVisible( false );
+				orthoViews.grid().constraintsManager().maximize( 1, 0 );
+			}
+			else
+			{
+				orthoViews.bottomLeft().globalToViewerTransform().setTransform( ViewerAxis.globalToViewer( ViewerAxis.Y ) );
+				orthoViews.topLeft().viewer().setVisible( true );
+				orthoViews.topRight().viewer().setVisible( true );
+				orthoViews.grid().constraintsManager().resetToLast();
+			}
+		} );
+		EventFX.KEY_PRESSED( "maximize bottom row", e -> isRowMaximized.set( !isRowMaximized.get() ), e -> keyTracker.areOnlyTheseKeysDown( KeyCode.F, KeyCode.SHIFT ) ).installInto( borderPane );
 
 		keyTracker.installInto( scene );
 		stage.setScene( scene );
