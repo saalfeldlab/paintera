@@ -1,14 +1,9 @@
 package org.janelia.saalfeldlab.paintera.ui.opendialog.googlecloud;
 
-import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
-import java.io.InputStream;
 import java.lang.invoke.MethodHandles;
-import java.nio.charset.Charset;
-import java.nio.file.Files;
-import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
@@ -16,10 +11,12 @@ import java.util.Optional;
 import java.util.function.Supplier;
 
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread;
+import org.janelia.saalfeldlab.googlecloud.GoogleCloudClientSecretsPrompt;
 import org.janelia.saalfeldlab.googlecloud.GoogleCloudOAuth;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.google.api.client.googleapis.auth.oauth2.GoogleClientSecrets;
 import com.google.cloud.resourcemanager.Project;
 import com.google.cloud.resourcemanager.ResourceManager;
 import com.google.cloud.storage.Bucket;
@@ -142,9 +139,7 @@ public class GoogleCloudBrowseHandler
 		dialog.getDialogPane().setContent( contents );
 
 		dialog.setResultConverter( bt -> {
-			if ( ButtonType.OK.equals( bt ) ) {
-				return bucketChoices.getValue();
-			}
+			if ( ButtonType.OK.equals( bt ) ) { return bucketChoices.getValue(); }
 			return null;
 		} );
 
@@ -154,15 +149,13 @@ public class GoogleCloudBrowseHandler
 
 		final ObjectBinding< Storage > storage = Bindings.createObjectBinding(
 				() -> Optional
-				.ofNullable( projectChoices.valueProperty().get() )
-				.map( s -> GoogleCloudClientBuilder.createStorage( oauth, s.getProjectId() ) )
-				.orElse( null ),
+						.ofNullable( projectChoices.valueProperty().get() )
+						.map( s -> GoogleCloudClientBuilder.createStorage( oauth, s.getProjectId() ) )
+						.orElse( null ),
 				projectChoices.valueProperty() );
 
 		storage.addListener( ( obs, oldv, newv ) -> {
-			if ( newv == null || newv.equals( oldv ) ) {
-				return;
-			}
+			if ( newv == null || newv.equals( oldv ) ) { return; }
 			final List< Bucket > buckets = new ArrayList<>();
 			newv.list().iterateAll().forEach( buckets::add );
 			this.buckets.setAll( buckets );
@@ -171,9 +164,7 @@ public class GoogleCloudBrowseHandler
 		dialog.getDialogPane().getButtonTypes().addAll( ButtonType.OK, ButtonType.CANCEL );
 		final Bucket selectedBucketName = dialog.showAndWait().orElse( null );
 
-		if ( selectedBucketName == null ) {
-			return Optional.empty();
-		}
+		if ( selectedBucketName == null ) { return Optional.empty(); }
 
 		return Optional.of( new ValuePair<>( storage.get(), selectedBucketName ) );
 		// String.format( "gs://%s/", selectedBucketName ) ) );
@@ -193,9 +184,9 @@ public class GoogleCloudBrowseHandler
 
 	}
 
-	public static Supplier< InputStream > googleCloudClientSecretsFromFileDialog( final Window window )
+	public static Supplier< GoogleClientSecrets > googleCloudClientSecretsFromFileDialog( final Window window )
 	{
-		final Dialog< String > dialog = new Dialog<>();
+		final Dialog< GoogleClientSecrets > dialog = new Dialog<>();
 
 		dialog.setTitle( "Google Cloud Client Secrets" );
 		dialog.setResizable( true );
@@ -246,9 +237,7 @@ public class GoogleCloudBrowseHandler
 		dialog.setWidth( 300 );
 
 		dialog.setResultConverter( ( bt ) -> {
-			if ( ButtonType.CANCEL.equals( bt ) ) {
-				return null;
-			}
+			if ( ButtonType.CANCEL.equals( bt ) ) { return null; }
 			final String id = idField.getText();
 			final String secret = secretField.getText();
 
@@ -262,21 +251,7 @@ public class GoogleCloudBrowseHandler
 
 			final String rootAsString = root.toString();
 
-			final File secretsFile = new File( GoogleCloudClientBuilder.CLIENT_SECRETS_FILE );
-			if ( !secretsFile.exists() )
-			{
-				try
-				{
-					secretsFile.getParentFile().mkdirs();
-					Files.write( secretsFile.toPath(), rootAsString.getBytes( Charset.defaultCharset() ) );
-				}
-				catch ( final IOException e )
-				{
-					LOG.debug( "Unable to write secrets file at {}", secretsFile.getAbsolutePath() );
-				}
-			}
-
-			return rootAsString;
+			return GoogleCloudClientSecretsPrompt.create( contents.get( CLIENT_ID_KEY ).getAsString(), contents.get( CLIENT_SECRET_KEY ).getAsString() );
 
 		} );
 
@@ -284,7 +259,7 @@ public class GoogleCloudBrowseHandler
 			final File currentSelection = new File( Optional.ofNullable( tf.getText() ).orElse( "" ) );
 			chooser.setInitialDirectory( currentSelection.isFile()
 					? currentSelection.getParentFile()
-							: new File( System.getProperty( "user.home" ) ) );
+					: new File( System.getProperty( "user.home" ) ) );
 			final File selection = chooser.showOpenDialog( window );
 			if ( selection != null )
 			{
@@ -298,7 +273,6 @@ public class GoogleCloudBrowseHandler
 					final JsonObject contents = root.get( INSTALLED_KEY ).getAsJsonObject();
 					idField.setText( contents.get( CLIENT_ID_KEY ).getAsString() );
 					secretField.setText( contents.get( CLIENT_SECRET_KEY ).getAsString() );
-					Files.write( Paths.get( GoogleCloudClientBuilder.CLIENT_SECRETS_FILE ), root.toString().getBytes( Charset.defaultCharset() ) );
 				}
 				catch ( final IOException e )
 				{
@@ -307,7 +281,7 @@ public class GoogleCloudBrowseHandler
 			}
 		} );
 
-		return () -> dialog.showAndWait().map( s -> new ByteArrayInputStream( s.getBytes( Charset.defaultCharset() ) ) ).orElse( null );
+		return () -> dialog.showAndWait().orElse( null );
 	}
 
 }
