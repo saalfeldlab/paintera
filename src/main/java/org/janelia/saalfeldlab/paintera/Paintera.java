@@ -213,6 +213,7 @@ public class Paintera extends Application
 		final Label currentSourceStatus = new Label();
 		final Label valueStatus = new Label();
 		final CheckBox showStatusBar = new CheckBox();
+		showStatusBar.setFocusTraversable( false );
 		final ObjectProperty< Source< ? > > cs = sourceInfo.currentSourceProperty();
 		cs.addListener( ( obs, oldv, newv ) -> InvokeOnJavaFXApplicationThread.invoke( () -> currentSourceStatus.textProperty().set( Optional.ofNullable( newv ).map( s -> s.getName() ).orElse( "<null>" ) ) ) );
 		showStatusBar.setTooltip( new Tooltip( "If not selected, status bar will only show on mouse-over" ) );
@@ -236,6 +237,7 @@ public class Paintera extends Application
 
 		final Stage stage = new Stage();
 		final Scene scene = new Scene( borderPane );
+		scene.focusOwnerProperty().addListener( ( obs, oldv, newv ) -> LOG.warn( "Focus changed: old={} new={}", oldv, newv ) );
 
 		stage.addEventFilter( WindowEvent.WINDOW_CLOSE_REQUEST, event -> viewerToTransforms.keySet().forEach( ViewerPanelFX::stop ) );
 
@@ -321,6 +323,8 @@ public class Paintera extends Application
 			}
 		} );
 		EventFX.KEY_PRESSED( "maximize bottom row", e -> isRowMaximized.set( !isRowMaximized.get() ), e -> keyTracker.areOnlyTheseKeysDown( KeyCode.F, KeyCode.SHIFT ) ).installInto( borderPane );
+
+		setFocusTraversable( orthoViews, false );
 
 		keyTracker.installInto( scene );
 		stage.setScene( scene );
@@ -467,6 +471,16 @@ public class Paintera extends Application
 		tf.apply( min, min );
 		tf.apply( max, max );
 		return Intervals.smallestContainingInterval( new FinalRealInterval( min, max ) );
+	}
+
+	private static void setFocusTraversable(
+			final OrthogonalViews< ? > view,
+			final boolean isTraversable )
+	{
+		view.topLeft().viewer().setFocusTraversable( isTraversable );
+		view.topRight().viewer().setFocusTraversable( isTraversable );
+		view.bottomLeft().viewer().setFocusTraversable( isTraversable );
+		view.grid().getBottomRight().setFocusTraversable( isTraversable );
 	}
 
 }
