@@ -109,6 +109,7 @@ public class RandomAccessibleIntervalDataSourceWithTime< D extends Type< D >, T 
 		return name;
 	}
 
+	// TODO VoxelDimensions is the only class pulled in by spim_data
 	@Override
 	public VoxelDimensions getVoxelDimensions()
 	{

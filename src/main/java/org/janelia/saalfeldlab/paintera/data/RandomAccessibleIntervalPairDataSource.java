@@ -92,6 +92,7 @@ public class RandomAccessibleIntervalPairDataSource< A extends Type< A >, B exte
 		return name;
 	}
 
+	// TODO VoxelDimensions is the only class pulled in by spim_data
 	@Override
 	public VoxelDimensions getVoxelDimensions()
 	{

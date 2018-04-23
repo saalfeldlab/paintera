@@ -232,7 +232,7 @@ public class MaskedSource< D extends Type< D >, T extends Type< T > > implements
 
 		@SuppressWarnings( "unchecked" )
 		final CachedCellImg< UnsignedByteType, ? > store = ( CachedCellImg< UnsignedByteType, ? > ) new DiskCachedCellImgFactory< UnsignedByteType >( maskOpts )
-		.create( source.getSource( 0, mask.level ), new UnsignedByteType() );
+				.create( source.getSource( 0, mask.level ), new UnsignedByteType() );
 		final RandomAccessibleInterval< VolatileUnsignedByteType > vstore = VolatileViews.wrapAsVolatile( store );
 		final UnsignedLongType INVALID = new UnsignedLongType( Label.INVALID );
 		this.dMasks[ mask.level ] = Converters.convert( Views.extendZero( store ), ( input, output ) -> output.set( input.get() == 1 ? mask.value : INVALID ), new UnsignedLongType() );
@@ -502,6 +502,7 @@ public class MaskedSource< D extends Type< D >, T extends Type< T > > implements
 		return source.getName();
 	}
 
+	// TODO VoxelDimensions is the only class pulled in by spim_data
 	@Override
 	public VoxelDimensions getVoxelDimensions()
 	{
@@ -808,7 +809,7 @@ public class MaskedSource< D extends Type< D >, T extends Type< T > > implements
 	{
 		if ( input instanceof AccessedBlocksRandomAccessible< ? > )
 		{
-			final AccessedBlocksRandomAccessible< ? > tracker = (net.imglib2.util.AccessedBlocksRandomAccessible< ? > ) input;
+			final AccessedBlocksRandomAccessible< ? > tracker = ( net.imglib2.util.AccessedBlocksRandomAccessible< ? > ) input;
 			if ( grid.equals( tracker.getGrid() ) )
 			{
 				final long[] blocks = tracker.listBlocks();
