@@ -159,6 +159,12 @@ public class N5Helpers
 		{
 			try
 			{
+				if ( n5.datasetExists( pathName ) )
+				{
+					datasets.add( pathName );
+					return;
+				}
+
 				final String[] groups = n5.list( pathName );
 				Arrays.sort( groups );
 				LOG.debug( "Found these sub-groups for {} : {}", pathName, groups );
