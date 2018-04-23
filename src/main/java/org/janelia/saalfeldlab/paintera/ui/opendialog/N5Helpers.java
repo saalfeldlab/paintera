@@ -2,6 +2,7 @@ package org.janelia.saalfeldlab.paintera.ui.opendialog;
 
 import java.io.IOException;
 import java.lang.invoke.MethodHandles;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -170,7 +171,7 @@ public class N5Helpers
 				LOG.debug( "Found these sub-groups for {} : {}", pathName, groups );
 				for ( final String group : groups )
 				{
-					final String absolutePathName = pathName + "/" + group;
+					final String absolutePathName = Paths.get( pathName, group ).toString();
 					if ( n5.datasetExists( absolutePathName ) )
 					{
 						datasets.add( absolutePathName );
