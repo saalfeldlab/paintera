@@ -10,12 +10,14 @@ import java.util.function.Consumer;
 import java.util.function.DoubleSupplier;
 import java.util.function.Function;
 import java.util.function.Predicate;
+import java.util.function.Supplier;
 
 import org.janelia.saalfeldlab.fx.event.EventFX;
 import org.janelia.saalfeldlab.fx.event.InstallAndRemove;
 import org.janelia.saalfeldlab.fx.event.KeyTracker;
 import org.janelia.saalfeldlab.fx.event.MouseDragFX;
 import org.janelia.saalfeldlab.paintera.control.navigation.AffineTransformWithListeners;
+import org.janelia.saalfeldlab.paintera.control.navigation.KeyRotate;
 import org.janelia.saalfeldlab.paintera.control.navigation.RemoveRotation;
 import org.janelia.saalfeldlab.paintera.control.navigation.Rotate;
 import org.janelia.saalfeldlab.paintera.control.navigation.TranslateAlongNormal;
@@ -28,12 +30,15 @@ import javafx.beans.binding.Bindings;
 import javafx.beans.binding.DoubleBinding;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.DoubleProperty;
+import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.ReadOnlyBooleanProperty;
 import javafx.beans.property.ReadOnlyDoubleProperty;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleDoubleProperty;
+import javafx.beans.property.SimpleObjectProperty;
 import javafx.scene.Node;
 import javafx.scene.input.KeyCode;
+import javafx.scene.input.KeyEvent;
 import javafx.scene.input.MouseButton;
 import javafx.scene.input.MouseEvent;
 import net.imglib2.realtransform.AffineTransform3D;
@@ -198,6 +203,67 @@ public class Navigation implements ToOnEnterOnExit
 						manager,
 						event -> keyTracker.areOnlyTheseKeysDown( KeyCode.CONTROL ) && event.getButton().equals( MouseButton.PRIMARY ) ) );
 
+				final ObjectProperty< KeyRotate.Axis > keyRotationAxis = new SimpleObjectProperty<>( KeyRotate.Axis.Z );
+				iars.add( EventFX.KEY_PRESSED( "set key rotation axis x", e -> keyRotationAxis.set( KeyRotate.Axis.X ), e -> keyTracker.areOnlyTheseKeysDown( KeyCode.X ) ) );
+				iars.add( EventFX.KEY_PRESSED( "set key rotation axis y", e -> keyRotationAxis.set( KeyRotate.Axis.Y ), e -> keyTracker.areOnlyTheseKeysDown( KeyCode.Y ) ) );
+				iars.add( EventFX.KEY_PRESSED( "set key rotation axis z", e -> keyRotationAxis.set( KeyRotate.Axis.Z ), e -> keyTracker.areOnlyTheseKeysDown( KeyCode.Z ) ) );
+
+				iars.add( keyRotationHandler(
+						"key rotate left 5",
+						mouseXIfInsideElseCenterX::get,
+						mouseYIfInsideElseCenterY::get,
+						allowRotations::get,
+						keyRotationAxis::get,
+						-5.0 / 180.0 * Math.PI,
+						displayTransform,
+						globalToViewerTransform,
+						globalTransform,
+						manager::setTransform,
+						manager,
+						event -> keyTracker.areOnlyTheseKeysDown( KeyCode.LEFT ) ) );
+
+				iars.add( keyRotationHandler(
+						"key rotate left 45",
+						mouseXIfInsideElseCenterX::get,
+						mouseYIfInsideElseCenterY::get,
+						allowRotations::get,
+						keyRotationAxis::get,
+						-45.0 / 180.0 * Math.PI,
+						displayTransform,
+						globalToViewerTransform,
+						globalTransform,
+						manager::setTransform,
+						manager,
+						event -> keyTracker.areOnlyTheseKeysDown( KeyCode.SHIFT, KeyCode.LEFT ) ) );
+
+				iars.add( keyRotationHandler(
+						"key rotate right 5",
+						mouseXIfInsideElseCenterX::get,
+						mouseYIfInsideElseCenterY::get,
+						allowRotations::get,
+						keyRotationAxis::get,
+						5.0 / 180.0 * Math.PI,
+						displayTransform,
+						globalToViewerTransform,
+						globalTransform,
+						manager::setTransform,
+						manager,
+						event -> keyTracker.areOnlyTheseKeysDown( KeyCode.RIGHT ) ) );
+
+				iars.add( keyRotationHandler(
+						"key rotate right 45",
+						mouseXIfInsideElseCenterX::get,
+						mouseYIfInsideElseCenterY::get,
+						allowRotations::get,
+						keyRotationAxis::get,
+						45.0 / 180.0 * Math.PI,
+						displayTransform,
+						globalToViewerTransform,
+						globalTransform,
+						manager::setTransform,
+						manager,
+						event -> keyTracker.areOnlyTheseKeysDown( KeyCode.SHIFT, KeyCode.RIGHT ) ) );
+
 				final RemoveRotation removeRotation = new RemoveRotation( viewerTransform, globalTransform, manager::setTransform, manager );
 				iars.add( EventFX.KEY_PRESSED(
 						"remove rotation",
@@ -260,6 +326,40 @@ public class Navigation implements ToOnEnterOnExit
 				rotate.rotate( event.getX(), event.getY(), startX, startY );
 			}
 		};
+
+	}
+
+	private static final EventFX< KeyEvent > keyRotationHandler(
+			final String name,
+			final DoubleSupplier rotationCenterX,
+			final DoubleSupplier rotationCenterY,
+			final BooleanSupplier allowRotations,
+			final Supplier< KeyRotate.Axis > axis,
+			final double step,
+			final AffineTransform3D displayTransform,
+			final AffineTransform3D globalToViewerTransform,
+			final AffineTransform3D globalTransform,
+			final Consumer< AffineTransform3D > submitTransform,
+			final Object lock,
+			final Predicate< KeyEvent > predicate )
+	{
+		final KeyRotate rotate = new KeyRotate(
+				axis,
+				step,
+				displayTransform,
+				globalToViewerTransform,
+				globalTransform,
+				submitTransform,
+				lock );
+
+		return EventFX.KEY_PRESSED(
+				name,
+				event -> {
+					if ( allowRotations.getAsBoolean() )
+						rotate.rotate( rotationCenterX.getAsDouble(), rotationCenterY.getAsDouble() );
+				},
+				predicate );
+
 	}
 
 }
