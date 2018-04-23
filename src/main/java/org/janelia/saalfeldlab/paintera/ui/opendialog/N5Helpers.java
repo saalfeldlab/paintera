@@ -7,6 +7,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
+import java.util.Optional;
 import java.util.regex.Pattern;
 
 import org.janelia.saalfeldlab.n5.DataType;
@@ -21,6 +22,8 @@ import org.slf4j.LoggerFactory;
 
 public class N5Helpers
 {
+
+	private static final String MULTI_SCALE_KEY = "multiScale";
 
 	private static final Logger LOG = LoggerFactory.getLogger( MethodHandles.lookup().lookupClass() );
 
@@ -160,44 +163,13 @@ public class N5Helpers
 		{
 			try
 			{
-				if ( n5.datasetExists( pathName ) )
-				{
+				if ( isDataset( n5, pathName ) )
 					datasets.add( pathName );
-					return;
-				}
-
-				final String[] groups = n5.list( pathName );
-				Arrays.sort( groups );
-				LOG.debug( "Found these sub-groups for {} : {}", pathName, groups );
-				for ( final String group : groups )
-				{
-					final String absolutePathName = Paths.get( pathName, group ).toString();
-					if ( n5.datasetExists( absolutePathName ) )
-					{
-						datasets.add( absolutePathName );
-					}
-					else
-					{
-						final String[] scales = n5.list( absolutePathName );
-						boolean isMipmapGroup = scales.length > 0;
-						for ( final String scale : scales )
-						{
-							if ( !( scale.matches( "^s[0-9]+$" ) && n5.datasetExists( absolutePathName + "/" + scale ) ) )
-							{
-								isMipmapGroup = false;
-								break;
-							}
-						}
-						if ( isMipmapGroup )
-						{
-							datasets.add( absolutePathName );
-						}
-						else
-						{
-							discoverSubdirectories( n5, absolutePathName, datasets, onInterruption );
-						}
-					}
-				}
+				else
+					Arrays
+							.stream( n5.list( pathName ) )
+							.map( subGroup -> Paths.get( pathName, subGroup ).toString() )
+							.forEach( g -> discoverSubdirectories( n5, g, datasets, onInterruption ) );
 			}
 			catch ( final IOException e )
 			{
@@ -208,6 +180,16 @@ public class N5Helpers
 		{
 			onInterruption.run();
 		}
+	}
+
+	public static boolean isDataset( final N5Reader n5, final String path ) throws IOException
+	{
+		return n5.datasetExists( path ) || isMultiScale( n5, path );
+	}
+
+	public static boolean isMultiScale( final N5Reader n5, final String path ) throws IOException
+	{
+		return Optional.ofNullable( n5.getAttribute( path, MULTI_SCALE_KEY, Boolean.class ) ).orElse( false );
 	}
 
 }
