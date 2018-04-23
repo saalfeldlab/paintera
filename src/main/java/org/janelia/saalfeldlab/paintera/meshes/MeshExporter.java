@@ -5,7 +5,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Function;
 
-import org.apache.commons.lang.BooleanUtils;
 import org.janelia.saalfeldlab.paintera.SourceState;
 import org.janelia.saalfeldlab.paintera.meshes.MeshGenerator.ShapeKey;
 import org.slf4j.Logger;
@@ -51,7 +50,7 @@ public abstract class MeshExporter
 			{
 				verticesAndNormals = meshCache[ scaleIndex ].apply( key );
 				assert verticesAndNormals.getA().length == verticesAndNormals.getB().length: "Vertices and normals must have the same size.";
-				save( path, id, verticesAndNormals.getA(), verticesAndNormals.getB(), BooleanUtils.toBoolean( numberOfFaces ) );
+				save( path, id, verticesAndNormals.getA(), verticesAndNormals.getB(), hasFaces( numberOfFaces ) );
 				numberOfFaces += verticesAndNormals.getA().length / 3;
 			}
 			catch ( final RuntimeException e )
@@ -65,5 +64,10 @@ public abstract class MeshExporter
 	}
 
 	protected abstract void save( String path, long id, float[] vertices, float[] normals, boolean append );
+
+	public static boolean hasFaces( final int numberOfFaces )
+	{
+		return numberOfFaces > 0;
+	}
 
 }

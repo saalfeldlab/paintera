@@ -4,7 +4,6 @@ import java.lang.invoke.MethodHandles;
 import java.util.Arrays;
 import java.util.regex.Pattern;
 
-import org.apache.commons.lang.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -74,11 +73,26 @@ public class SelectedIdsTextField
 
 	private static long[] toLongArray( final String text )
 	{
-		final String stripped = StringUtils.strip( text, "," );
+		final String stripped = strip( text, "," );
 		final String[] split = stripped.replaceAll( "\\s+", "" ).split( "," );
 		final long[] textFieldSelection = text.length() == 0 || split.length == 0 ? new long[ 0 ] : Arrays.stream( split ).mapToLong( Long::parseLong ).toArray();
 		final long[] uniqueSelection = new TLongHashSet( textFieldSelection ).toArray();
 		return uniqueSelection;
+	}
+
+	public static String stripFront( final String str, final String pattern )
+	{
+		return str.replaceAll( String.format( "^(%s)+", pattern ), "" );
+	}
+
+	public static String stripEnd( final String str, final String pattern )
+	{
+		return str.replaceAll( String.format( "(%s)+$", pattern ), "" );
+	}
+
+	public static String strip( final String str, final String pattern )
+	{
+		return stripEnd( stripFront( str, pattern ), pattern );
 	}
 
 }
