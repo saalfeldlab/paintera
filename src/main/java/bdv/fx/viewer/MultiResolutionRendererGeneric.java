@@ -607,7 +607,7 @@ public class MultiResolutionRendererGeneric< T >
 	 * Request a repaint of the display from the painter thread, with maximum
 	 * screen scale index and mipmap level.
 	 */
-	public synchronized void requestRepaint()
+	public void requestRepaint()
 	{
 		newFrameRequest = true;
 		requestRepaint( maxScreenScaleIndex );
