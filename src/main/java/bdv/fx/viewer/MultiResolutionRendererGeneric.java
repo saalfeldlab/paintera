@@ -744,9 +744,13 @@ public class MultiResolutionRendererGeneric< T >
 	{
 		if ( useVolatileIfAvailable )
 			if ( source.asVolatile() != null )
+			{
+				LOG.debug( "Volatile is available for source={} (name={})", source.getSpimSource(), source.getSpimSource().getName() );
 				return createSingleSourceVolatileProjector( source.asVolatile(), timepoint, screenScaleIndex, getViewerTransform, screenImage, maskArray, interpolation );
+			}
 			else if ( source.getSpimSource().getType() instanceof Volatile )
 			{
+				LOG.debug( "Casting to volatile source:{} (name={})", source.getSpimSource(), source.getSpimSource().getName() );
 				@SuppressWarnings( "unchecked" )
 				final SourceAndConverter< ? extends Volatile< ? > > vsource = ( SourceAndConverter< ? extends Volatile< ? > > ) source;
 				return createSingleSourceVolatileProjector( vsource, timepoint, screenScaleIndex, getViewerTransform, screenImage, maskArray, interpolation );
@@ -772,9 +776,11 @@ public class MultiResolutionRendererGeneric< T >
 			final byte[] maskArray,
 			final Interpolation interpolation )
 	{
+		LOG.debug( "Creating single source volatile projector for source={} (name={})", source.getSpimSource(), source.getSpimSource().getName() );
 		final AffineTransform3D screenScaleTransform = screenScaleTransforms[ currentScreenScaleIndex ];
 		final ArrayList< RandomAccessible< V > > renderList = new ArrayList<>();
 		final Source< V > spimSource = source.getSpimSource();
+		LOG.debug( "Creating single source volatile projector for type={}", spimSource.getType() );
 
 		final MipmapOrdering ordering = MipmapOrdering.class.isInstance( spimSource ) ? ( MipmapOrdering ) spimSource : new DefaultMipmapOrdering( spimSource );
 
@@ -814,6 +820,7 @@ public class MultiResolutionRendererGeneric< T >
 			final CacheHints cacheHints,
 			final Interpolation interpolation )
 	{
+
 		final RandomAccessibleInterval< T > img = source.getSource( timepoint, mipmapIndex );
 		if ( VolatileCachedCellImg.class.isInstance( img ) )
 			( ( VolatileCachedCellImg< ?, ? > ) img ).setCacheHints( cacheHints );
@@ -826,6 +833,17 @@ public class MultiResolutionRendererGeneric< T >
 		source.getSourceTransform( timepoint, mipmapIndex, sourceTransform );
 		sourceToScreen.concatenate( sourceTransform );
 		sourceToScreen.preConcatenate( screenScaleTransform );
+
+		LOG.debug(
+				"Getting transformed source {} (name={}) for t={} level={} transform={} screen-scale={} hints={} interpolation={}",
+				source,
+				source.getName(),
+				timepoint,
+				mipmapIndex,
+				sourceToScreen,
+				screenScaleTransform,
+				cacheHints,
+				interpolation );
 
 		return RealViews.affine( ipimg, sourceToScreen );
 	}
