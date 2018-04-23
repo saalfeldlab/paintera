@@ -237,7 +237,8 @@ public class Paintera extends Application
 
 		final Stage stage = new Stage();
 		final Scene scene = new Scene( borderPane );
-		scene.focusOwnerProperty().addListener( ( obs, oldv, newv ) -> LOG.warn( "Focus changed: old={} new={}", oldv, newv ) );
+		if ( LOG.isDebugEnabled() )
+			scene.focusOwnerProperty().addListener( ( obs, oldv, newv ) -> LOG.debug( "Focus changed: old={} new={}", oldv, newv ) );
 
 		stage.addEventFilter( WindowEvent.WINDOW_CLOSE_REQUEST, event -> viewerToTransforms.keySet().forEach( ViewerPanelFX::stop ) );
 
