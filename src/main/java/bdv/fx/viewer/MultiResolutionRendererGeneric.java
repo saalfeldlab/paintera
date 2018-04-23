@@ -29,7 +29,6 @@
  */
 package bdv.fx.viewer;
 
-import java.awt.image.BufferedImage;
 import java.lang.invoke.MethodHandles;
 import java.lang.reflect.Array;
 import java.util.ArrayDeque;
@@ -79,30 +78,27 @@ import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.realtransform.RealViews;
 import net.imglib2.type.numeric.ARGBType;
 import net.imglib2.ui.PainterThread;
-import net.imglib2.ui.RenderTarget;
 import net.imglib2.ui.Renderer;
 import net.imglib2.ui.SimpleInterruptibleProjector;
-import net.imglib2.ui.TransformListener;
 import net.imglib2.util.Intervals;
 
 /**
  * A {@link Renderer} that uses a coarse-to-fine rendering scheme. First, a
- * small {@link BufferedImage} at a fraction of the canvas resolution is
- * rendered. Then, increasingly larger images are rendered, until the full
- * canvas resolution is reached.
+ * small data store at a fraction of the canvas resolution is rendered. Then,
+ * increasingly larger images are rendered, until the full canvas resolution is
+ * reached.
  * <p>
- * When drawing the low-resolution {@link BufferedImage} to the screen, they
- * will be scaled up by Java2D to the full canvas size, which is relatively
- * fast. Rendering the small, low-resolution images is usually very fast, such
- * that the display is very interactive while the user changes the viewing
- * transformation for example. When the transformation remains fixed for a
- * longer period, higher-resolution details are filled in successively.
+ * When drawing the low-resolution data store to the screen, they will be scaled
+ * up by Java2D to the full canvas size, which is relatively fast. Rendering the
+ * small, low-resolution images is usually very fast, such that the display is
+ * very interactive while the user changes the viewing transformation for
+ * example. When the transformation remains fixed for a longer period,
+ * higher-resolution details are filled in successively.
  * <p>
- * The renderer allocates a {@link BufferedImage} for each of a predefined set
- * of <em>screen scales</em> (a screen scale of 1 means that 1 pixel in the
- * screen image is displayed as 1 pixel on the canvas, a screen scale of 0.5
- * means 1 pixel in the screen image is displayed as 2 pixel on the canvas,
- * etc.)
+ * The renderer allocates a data store for each of a predefined set of
+ * <em>screen scales</em> (a screen scale of 1 means that 1 pixel in the screen
+ * image is displayed as 1 pixel on the canvas, a screen scale of 0.5 means 1
+ * pixel in the screen image is displayed as 2 pixel on the canvas, etc.)
  * <p>
  * At any time, one of these screen scales is selected as the <em>highest screen
  * scale</em>. Rendering starts with this highest screen scale and then proceeds
@@ -121,15 +117,15 @@ import net.imglib2.util.Intervals;
  * The renderer uses multiple threads (if desired) and double-buffering (if
  * desired).
  * <p>
- * Double buffering means that three {@link BufferedImage BufferedImages} are
- * created for every screen scale. After rendering the first one of them and
- * setting it to the {@link RenderTarget}, next time, rendering goes to the
- * second one, then to the third. The {@link RenderTarget} will always have a
+ * Double buffering means that three render stores are created for every screen
+ * scale. After rendering the first one of them and setting it to the
+ * {@link RenderTargetGeneric}, next time, rendering goes to the second one,
+ * then to the third. The {@link RenderTargetGeneric} will always have a
  * complete image, which is not rendered to while it is potentially drawn to the
- * screen. When setting an image to the {@link RenderTarget}, the
- * {@link RenderTarget} will release one of the previously set images to be
- * rendered again. Thus, rendering will not interfere with painting the
- * {@link BufferedImage} to the canvas.
+ * screen. When setting an image to the {@link RenderTargetGeneric}, the
+ * {@link RenderTargetGeneric} will release one of the previously set images to
+ * be rendered again. Thus, rendering will not interfere with painting the data
+ * to the canvas.
  * <p>
  * The renderer supports rendering of {@link Volatile} sources. In each
  * rendering pass, all currently valid data for the best fitting mipmap level
@@ -159,7 +155,7 @@ public class MultiResolutionRendererGeneric< T >
 	}
 
 	/**
-	 * Receiver for the {@link BufferedImage BufferedImages} that we render.
+	 * Receiver for the data store that we render.
 	 */
 	protected final TransformAwareRenderTargetGeneric< T > display;
 
@@ -192,8 +188,7 @@ public class MultiResolutionRendererGeneric< T >
 	protected final ArrayDeque< Integer > renderIdQueue;
 
 	/**
-	 * Maps from {@link BufferedImage} to double-buffer index. Needed for
-	 * double-buffering.
+	 * Maps from data store to double-buffer index. Needed for double-buffering.
 	 */
 	protected final HashMap< T, Integer > bufferedImageToRenderId;
 
@@ -218,8 +213,8 @@ public class MultiResolutionRendererGeneric< T >
 	protected ArrayImg< ARGBType, IntArray >[][] screenImages;
 
 	/**
-	 * {@link BufferedImage}s wrapping the data in the {@link #screenImages}.
-	 * First index is screen scale, second index is double-buffer.
+	 * data store wrapping the data in the {@link #screenImages}. First index is
+	 * screen scale, second index is double-buffer.
 	 */
 	protected T[][] bufferedImages;
 
@@ -887,48 +882,4 @@ public class MultiResolutionRendererGeneric< T >
 		}
 	}
 
-	private static TransformAwareRenderTarget wrapTransformAwareRenderTarget( final RenderTarget t )
-	{
-		if ( t instanceof TransformAwareRenderTarget )
-			return ( TransformAwareRenderTarget ) t;
-		else
-			return new TransformAwareRenderTarget()
-			{
-				@Override
-				public BufferedImage setBufferedImage( final BufferedImage img )
-				{
-					return t.setBufferedImage( img );
-				}
-
-				@Override
-				public int getWidth()
-				{
-					return t.getWidth();
-				}
-
-				@Override
-				public int getHeight()
-				{
-					return t.getHeight();
-				}
-
-				@Override
-				public BufferedImage setBufferedImageAndTransform( final BufferedImage img, final AffineTransform3D transform )
-				{
-					return t.setBufferedImage( img );
-				}
-
-				@Override
-				public void removeTransformListener( final TransformListener< AffineTransform3D > listener )
-				{}
-
-				@Override
-				public void addTransformListener( final TransformListener< AffineTransform3D > listener, final int index )
-				{}
-
-				@Override
-				public void addTransformListener( final TransformListener< AffineTransform3D > listener )
-				{}
-			};
-	}
 }

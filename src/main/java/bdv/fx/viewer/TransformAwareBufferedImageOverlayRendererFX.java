@@ -45,7 +45,6 @@ import net.imglib2.img.array.ArrayImg;
 import net.imglib2.img.basictypeaccess.array.IntArray;
 import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.type.numeric.ARGBType;
-import net.imglib2.ui.OverlayRenderer;
 import net.imglib2.ui.TransformListener;
 
 public class TransformAwareBufferedImageOverlayRendererFX
@@ -64,8 +63,9 @@ public class TransformAwareBufferedImageOverlayRendererFX
 	/**
 	 * These listeners will be notified about the transform that is associated
 	 * to the currently rendered image. This is intended for example for
-	 * {@link OverlayRenderer}s that need to exactly match the transform of
-	 * their overlaid content to the transform of the image.
+	 * {@link OverlayRendererGeneric OverlayRendererGenerics} that need to
+	 * exactly match the transform of their overlaid content to the transform of
+	 * the image.
 	 */
 	protected final CopyOnWriteArrayList< TransformListener< AffineTransform3D > > paintedTransformListeners;
 

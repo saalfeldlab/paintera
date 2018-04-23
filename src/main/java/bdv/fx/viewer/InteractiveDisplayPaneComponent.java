@@ -33,15 +33,8 @@
  */
 package bdv.fx.viewer;
 
-import java.awt.Component;
-import java.awt.event.KeyListener;
-import java.awt.event.MouseListener;
-import java.awt.event.MouseMotionListener;
-import java.awt.event.MouseWheelListener;
 import java.util.Collection;
 import java.util.concurrent.CopyOnWriteArrayList;
-
-import javax.swing.JComponent;
 
 import org.janelia.saalfeldlab.fx.event.InstallAndRemove;
 
@@ -56,15 +49,13 @@ import javafx.scene.image.ImageView;
 import javafx.scene.layout.Background;
 import javafx.scene.layout.BackgroundFill;
 import javafx.scene.layout.CornerRadii;
+import javafx.scene.layout.Pane;
 import javafx.scene.layout.StackPane;
 import javafx.scene.paint.Color;
-import net.imglib2.ui.InteractiveDisplayCanvas;
-import net.imglib2.ui.OverlayRenderer;
-import net.imglib2.ui.TransformEventHandler;
 import net.imglib2.ui.TransformListener;
 
 /**
- * A {@link JComponent} that is a {@link InteractiveDisplayCanvas}.
+ * A {@link Pane} that acts like {@link InteractiveDisplayCanvasGeneric}.
  *
  * @param <A>
  *            transform type
@@ -78,8 +69,8 @@ public class InteractiveDisplayPaneComponent< A > extends StackPane
 	private static final long serialVersionUID = -5546719724928785878L;
 
 	/**
-	 * The {@link OverlayRenderer} that draws on top of the current buffered
-	 * image.
+	 * The {@link OverlayRendererGeneric} that draws on top of the current
+	 * buffered image.
 	 */
 	final protected CopyOnWriteArrayList< OverlayRendererGeneric< GraphicsContext > > overlayRenderers;
 
@@ -101,19 +92,15 @@ public class InteractiveDisplayPaneComponent< A > extends StackPane
 //	private final Canvas canvas;
 
 	/**
-	 * Create a new {@link InteractiveDisplayCanvas} with initially no
-	 * {@link OverlayRenderer OverlayRenderers} and no {@link TransformListener
-	 * TransformListeners}. A {@link TransformEventHandler} is instantiated
-	 * using the given factory, and registered for mouse and key events if it
-	 * implements the appropriate interfaces ({@link MouseListener} etc.)
+	 * Create a new {@link InteractiveDisplayCanvasGeneric} with initially no
+	 * {@link OverlayRendererGeneric OverlayRenderers} and no
+	 * {@link TransformListener TransformListeners}.
 	 *
 	 * @param width
 	 *            preferred component width.
 	 * @param height
 	 *            preferred component height.
-	 * @param transformEventHandlerFactory
-	 *            factory to create a {@link TransformEventHandler} appropriate
-	 *            for our transform type A.
+	 * @param ImageOverlayRendererFX
 	 */
 	public InteractiveDisplayPaneComponent(
 			final int width,
@@ -158,8 +145,8 @@ public class InteractiveDisplayPaneComponent< A > extends StackPane
 	}
 
 	/**
-	 * Add an {@link OverlayRenderer} that draws on top of the current buffered
-	 * image.
+	 * Add an {@link OverlayRendererGeneric} that draws on top of the current
+	 * buffered image.
 	 *
 	 * @param renderer
 	 *            overlay renderer to add.
@@ -171,7 +158,7 @@ public class InteractiveDisplayPaneComponent< A > extends StackPane
 	}
 
 	/**
-	 * Remove an {@link OverlayRenderer}.
+	 * Remove an {@link OverlayRendererGeneric}.
 	 *
 	 * @param renderer
 	 *            overlay renderer to remove.
@@ -182,11 +169,7 @@ public class InteractiveDisplayPaneComponent< A > extends StackPane
 	}
 
 	/**
-	 * Add new event handler. Depending on the interfaces implemented by
-	 * <code>handler</code> calls {@link Component#addKeyListener(KeyListener)},
-	 * {@link Component#addMouseListener(MouseListener)},
-	 * {@link Component#addMouseMotionListener(MouseMotionListener)},
-	 * {@link Component#addMouseWheelListener(MouseWheelListener)}.
+	 * Add handler that installs itself into the pane.
 	 *
 	 * @param h
 	 *            handler to remove
@@ -197,12 +180,7 @@ public class InteractiveDisplayPaneComponent< A > extends StackPane
 	}
 
 	/**
-	 * Remove an event handler. Add new event handler. Depending on the
-	 * interfaces implemented by <code>handler</code> calls
-	 * {@link Component#removeKeyListener(KeyListener)},
-	 * {@link Component#removeMouseListener(MouseListener)},
-	 * {@link Component#removeMouseMotionListener(MouseMotionListener)},
-	 * {@link Component#removeMouseWheelListener(MouseWheelListener)}.
+	 * Add handler that removes itself from the pane.
 	 *
 	 * @param h
 	 *            handler to remove

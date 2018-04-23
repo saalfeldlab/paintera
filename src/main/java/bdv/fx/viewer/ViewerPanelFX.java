@@ -61,7 +61,6 @@ import net.imglib2.RealLocalizable;
 import net.imglib2.RealPoint;
 import net.imglib2.RealPositionable;
 import net.imglib2.realtransform.AffineTransform3D;
-import net.imglib2.ui.OverlayRenderer;
 import net.imglib2.ui.PainterThread;
 import net.imglib2.ui.TransformListener;
 
@@ -139,9 +138,9 @@ public class ViewerPanelFX
 	/**
 	 * These listeners will be notified about changes to the
 	 * {@link #viewerTransform} that was used to render the current image. This
-	 * is intended for example for {@link OverlayRenderer}s that need to exactly
-	 * match the transform of their overlaid content to the transform of the
-	 * image.
+	 * is intended for example for {@link OverlayRendererGeneric}s that need to
+	 * exactly match the transform of their overlaid content to the transform of
+	 * the image.
 	 */
 	protected final CopyOnWriteArrayList< TransformListener< AffineTransform3D > > lastRenderTransformListeners;
 

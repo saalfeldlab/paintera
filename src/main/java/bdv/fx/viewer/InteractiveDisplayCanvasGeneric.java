@@ -33,43 +33,28 @@
  */
 package bdv.fx.viewer;
 
-import java.awt.Component;
-import java.awt.event.KeyListener;
-import java.awt.event.MouseListener;
-import java.awt.event.MouseMotionListener;
-import java.awt.event.MouseWheelListener;
-
-import javax.swing.JComponent;
-
-import net.imglib2.ui.OverlayRenderer;
-import net.imglib2.ui.TransformEventHandler;
 import net.imglib2.ui.TransformListener;
 
 /**
- * A component that uses one or several {@link OverlayRenderer OverlayRenderers}
- * to render a canvas displayed on screen. Current implementations derive from
- * {@link JComponent}.
- * <p>
- * {@link InteractiveDisplayCanvasGeneric} also owns a
- * {@link TransformEventHandler}, which is registered to listen to mouse and
- * keyboard events if it implements {@link MouseListener}, etc.
+ * A component that uses one or several {@link OverlayRendererGeneric
+ * OverlayRendererGenerics} to render a canvas displayed on screen.
  * <p>
  * Moreover, {@link InteractiveDisplayCanvasGeneric} is a transform event
  * multi-caster. It receives {@link TransformListener#transformChanged(Object)
- * transformChanged} events (usually from its {@link TransformEventHandler}) and
- * propagates them to all registered listeners.
+ * transformChanged} events and propagates them to all registered listeners.
  *
  * @param <A>
  *            transform type
  *
  * @author Tobias Pietzsch
+ * @author Philipp Hanslovsky
  */
 public interface InteractiveDisplayCanvasGeneric< A, G, H > extends TransformListener< A >
 {
 
 	/**
-	 * Add an {@link OverlayRenderer} that draws on top of the current buffered
-	 * image.
+	 * Add an {@link OverlayRendererGeneric} that draws on top of the current
+	 * buffered image.
 	 *
 	 * @param renderer
 	 *            overlay renderer to add.
@@ -77,7 +62,7 @@ public interface InteractiveDisplayCanvasGeneric< A, G, H > extends TransformLis
 	public void addOverlayRenderer( final OverlayRendererGeneric< G > renderer );
 
 	/**
-	 * Remove an {@link OverlayRenderer}.
+	 * Remove an {@link OverlayRendererGeneric}.
 	 *
 	 * @param renderer
 	 *            overlay renderer to remove.
@@ -102,40 +87,13 @@ public interface InteractiveDisplayCanvasGeneric< A, G, H > extends TransformLis
 	public void removeTransformListener( final TransformListener< A > listener );
 
 	/**
-	 * Add new event handler. Depending on the interfaces implemented by
-	 * <code>handler</code> calls {@link Component#addKeyListener(KeyListener)},
-	 * {@link Component#addMouseListener(MouseListener)},
-	 * {@link Component#addMouseMotionListener(MouseMotionListener)},
-	 * {@link Component#addMouseWheelListener(MouseWheelListener)}.
+	 * Add new event handler.
 	 */
 	public void addHandler( final H handler );
 
 	/**
-	 * Remove an event handler. Add new event handler. Depending on the
-	 * interfaces implemented by <code>handler</code> calls
-	 * {@link Component#removeKeyListener(KeyListener)},
-	 * {@link Component#removeMouseListener(MouseListener)},
-	 * {@link Component#removeMouseMotionListener(MouseMotionListener)},
-	 * {@link Component#removeMouseWheelListener(MouseWheelListener)}.
+	 * Remove an event handler.
 	 */
 	public void removeHandler( final H handler );
 
-	/**
-	 * Get the {@link TransformEventHandler} that handles mouse and key events
-	 * to update our view transform.
-	 *
-	 * @return handles mouse and key events to update the view transform.
-	 */
-	public TransformEventHandler< A > getTransformEventHandler();
-
-	/**
-	 * Set the {@link TransformEventHandler} that handles mouse and key events
-	 * to update our view transform.
-	 *
-	 * @param transformEventHandler
-	 *            handler to use
-	 */
-	public void setTransformEventHandler( final TransformEventHandler< A > transformEventHandler );
-
-//	public void repaint();
 }
