@@ -85,11 +85,6 @@
 			<artifactId>jzmq</artifactId>
 			<version>3.1.0</version>
 		</dependency>
-		<!-- https://mvnrepository.com/artifact/org.scijava/script-editor -->
-		<dependency>
-			<groupId>org.scijava</groupId>
-			<artifactId>script-editor</artifactId>
-		</dependency>
 		<!-- https://mvnrepository.com/artifact/org.slf4j/slf4j-api -->
 		<dependency>
 			<groupId>org.slf4j</groupId>
