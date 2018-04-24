@@ -157,11 +157,11 @@ public interface SourceFromRAI extends BackendDialog
 	{
 		final DataSource< D, T > source = Masks.mask(
 				this.< D, T >getSourceNearestNeighborInterpolationOnly( name, sharedQueue, priority ),
-				null,
-				null,
+				initialCanvasDirectory(),
+				nextCanvasDirectory(),
 				commitCanvas() );
 
-		return new LabelDataSourceRepresentation< D, T >(
+		return new LabelDataSourceRepresentation<>(
 				source,
 				assignments(),
 				idService(),
@@ -169,6 +169,16 @@ public interface SourceFromRAI extends BackendDialog
 				blocksThatContainId(),
 				meshCache(),
 				maskForId() );
+	}
+
+	public default String initialCanvasDirectory()
+	{
+		return null;
+	}
+
+	public default Supplier< String > nextCanvasDirectory()
+	{
+		return new TmpDirectoryCreator( null, null );
 	}
 
 	public default < T extends NumericType< T >, V extends NumericType< V > > DataSource< T, V > getCached(
