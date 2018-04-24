@@ -5,6 +5,7 @@ import java.util.Optional;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.function.BiConsumer;
+import java.util.function.BiPredicate;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
 import java.util.stream.IntStream;
@@ -308,7 +309,13 @@ public class Paint2D
 		final RealPoint seedReal = new RealPoint( viewerX, viewerY, 0 );
 		labelToViewerTransform.applyInverse( seedReal, seedReal );
 		final Point seed = new Point( IntStream.range( 0, 3 ).mapToDouble( seedReal::getDoublePosition ).mapToLong( Math::round ).toArray() );
-		FloodFill.fill( containsCheck, trackingLabelSource, seed, new UnsignedByteType( 1 ), new DiamondShape( 1 ), ( comp, ref ) -> comp.getA().get() && comp.getB().get() == 0 );
+		FloodFill.fill(
+				containsCheck,
+				trackingLabelSource,
+				seed,
+				new UnsignedByteType( 1 ),
+				new DiamondShape( 1 ),
+				( BiPredicate< BitType, UnsignedByteType > ) ( mask, canvas ) -> mask.get() && canvas.get() == 0 );
 
 		final long[] min = trackingLabelSource.getMin().clone();
 		final long[] max = trackingLabelSource.getMax().clone();
