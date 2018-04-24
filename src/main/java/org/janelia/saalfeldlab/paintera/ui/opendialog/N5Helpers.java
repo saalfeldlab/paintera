@@ -5,7 +5,11 @@ import java.lang.invoke.MethodHandles;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.regex.Pattern;
 
 import org.janelia.saalfeldlab.n5.DataType;
@@ -149,58 +153,73 @@ public class N5Helpers
 	public static List< String > discoverDatasets( final N5Reader n5, final Runnable onInterruption )
 	{
 		final List< String > datasets = new ArrayList<>();
-		discoverSubdirectories( n5, "", datasets, onInterruption );
+		final ExecutorService exec = Executors.newFixedThreadPool(12);
+		final AtomicInteger counter = new AtomicInteger(1);
+		exec.submit(() -> discoverSubdirectories( n5, "", datasets, onInterruption, exec, counter ));
+		while (counter.get() > 0)
+			try {
+					Thread.sleep(20);
+			} catch (InterruptedException e) {
+				exec.shutdownNow();
+			}
+		exec.shutdown();
+		Collections.sort(datasets);
 		return datasets;
 	}
 
-	public static void discoverSubdirectories( final N5Reader n5, final String pathName, final Collection< String > datasets, final Runnable onInterruption )
+	public static void discoverSubdirectories(
+			final N5Reader n5,
+			final String pathName,
+			final Collection< String > datasets,
+			final Runnable onInterruption,
+			final ExecutorService exec,
+			final AtomicInteger counter )
 	{
-		if ( !Thread.currentThread().isInterrupted() )
+		try
 		{
-			try
+			if ( n5.datasetExists( pathName ) )
+			{
+				synchronized (datasets)
+				{
+					datasets.add( pathName );
+				}
+			}
+			else
 			{
 				final String[] groups = n5.list( pathName );
-				Arrays.sort( groups );
-				LOG.debug( "Found these sub-groups for {} : {}", pathName, groups );
+				boolean isMipmapGroup = groups.length > 0;
 				for ( final String group : groups )
 				{
-					final String absolutePathName = pathName + "/" + group;
-					if ( n5.datasetExists( absolutePathName ) )
+					if ( !( group.matches( "^s[0-9]+$" ) && n5.datasetExists( pathName + "/" + group ) ) )
 					{
-						datasets.add( absolutePathName );
+						isMipmapGroup = false;
+						break;
 					}
-					else
+				}
+				if ( isMipmapGroup )
+				{
+					synchronized ( datasets )
 					{
-						final String[] scales = n5.list( absolutePathName );
-						boolean isMipmapGroup = scales.length > 0;
-						for ( final String scale : scales )
-						{
-							if ( !( scale.matches( "^s[0-9]+$" ) && n5.datasetExists( absolutePathName + "/" + scale ) ) )
-							{
-								isMipmapGroup = false;
-								break;
-							}
-						}
-						if ( isMipmapGroup )
-						{
-							datasets.add( absolutePathName );
-						}
-						else
-						{
-							discoverSubdirectories( n5, absolutePathName, datasets, onInterruption );
-						}
+						datasets.add( pathName );
+					}
+				}
+				else
+				{
+					for ( final String group : groups )
+					{
+						final String groupPathName = pathName + "/" + group;
+						final int numThreads = counter.incrementAndGet();
+						LOG.debug( "entering {}, {} threads created", groupPathName, numThreads );
+						exec.submit( () -> discoverSubdirectories( n5, groupPathName, datasets, onInterruption, exec, counter ) );
 					}
 				}
 			}
-			catch ( final IOException e )
-			{
-				e.printStackTrace();
-			}
 		}
-		else
+		catch ( IOException e )
 		{
-			onInterruption.run();
+			e.printStackTrace();
 		}
+		final int numThreads = counter.decrementAndGet();
+		LOG.debug( "leaving {}, {} threads remaining", pathName, numThreads );
 	}
-
 }
