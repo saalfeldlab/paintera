@@ -42,6 +42,7 @@ import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.IntSupplier;
 import java.util.function.Supplier;
+import java.util.function.ToIntFunction;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -73,6 +74,7 @@ import net.imglib2.cache.volatiles.LoadingStrategy;
 import net.imglib2.converter.Converter;
 import net.imglib2.img.array.ArrayImg;
 import net.imglib2.img.array.ArrayImgs;
+import net.imglib2.img.basictypeaccess.IntAccess;
 import net.imglib2.img.basictypeaccess.array.IntArray;
 import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.realtransform.RealViews;
@@ -80,7 +82,6 @@ import net.imglib2.type.numeric.ARGBType;
 import net.imglib2.ui.PainterThread;
 import net.imglib2.ui.Renderer;
 import net.imglib2.ui.SimpleInterruptibleProjector;
-import net.imglib2.util.Intervals;
 
 /**
  * A {@link Renderer} that uses a coarse-to-fine rendering scheme. First, a
@@ -210,7 +211,7 @@ public class MultiResolutionRendererGeneric< T >
 	 * if double buffering is enabled. First index is screen scale, second index
 	 * is double-buffer.
 	 */
-	protected ArrayImg< ARGBType, IntArray >[][] screenImages;
+	protected T[][] screenImages;
 
 	/**
 	 * data store wrapping the data in the {@link #screenImages}. First index is
@@ -310,9 +311,15 @@ public class MultiResolutionRendererGeneric< T >
 	// TODO: should be settable
 	protected boolean prefetchCells = true;
 
-	private final Function< ArrayImg< ARGBType, IntArray >, T > getBufferedImage;
+	private final Function< T, ArrayImg< ARGBType, ? extends IntAccess > > wrapAsArrayImg;
 
 	private final Class< ? extends T > cls2;
+
+	private final ToIntFunction< T > width;
+
+	private final ToIntFunction< T > height;
+
+	private final ImageGenerator< T > makeImage;
 
 	/**
 	 * @param display
@@ -357,8 +364,11 @@ public class MultiResolutionRendererGeneric< T >
 			final boolean useVolatileIfAvailable,
 			final AccumulateProjectorFactory< ARGBType > accumulateProjectorFactory,
 			final CacheControl cacheControl,
-			final Function< ArrayImg< ARGBType, IntArray >, T > getBufferedImage,
-			final Class< ? extends T > cls )
+			final Function< T, ArrayImg< ARGBType, ? extends IntAccess > > wrapAsArrayImg,
+			final ImageGenerator< T > makeImage,
+			final Class< ? extends T > cls,
+			final ToIntFunction< T > width,
+			final ToIntFunction< T > height )
 	{
 		this.display = display;
 		this.painterThread = painterThread;
@@ -371,14 +381,20 @@ public class MultiResolutionRendererGeneric< T >
 		renderImages = new ArrayImg[ screenScales.length ][ 0 ];
 		// new ARGBScreenImage[ screenScales.length ][ 0 ];
 		renderMaskArrays = new byte[ 0 ][];
-		screenImages = new ArrayImg[ screenScales.length ][ 3 ];
+		screenImages = ( T[][] ) Array.newInstance( cls, screenScales.length, 3 );
 		// )new ARGBScreenImage[ screenScales.length ][ 3 ];
 		this.bufferedImages = ( T[][] ) Array.newInstance( cls, screenScales.length, 3 );
 		screenScaleTransforms = new AffineTransform3D[ screenScales.length ];
 
 		this.cls2 = cls;
 
-		this.getBufferedImage = getBufferedImage;
+		this.makeImage = makeImage;
+
+		this.width = width;
+
+		this.height = height;
+
+		this.wrapAsArrayImg = wrapAsArrayImg;
 
 		this.targetRenderNanos = targetRenderNanos;
 
@@ -404,7 +420,10 @@ public class MultiResolutionRendererGeneric< T >
 	{
 		final int componentW = display.getWidth();
 		final int componentH = display.getHeight();
-		if ( screenImages[ 0 ][ 0 ] == null || screenImages[ 0 ][ 0 ].dimension( 0 ) * screenScales[ 0 ] != componentW || screenImages[ 0 ][ 0 ].dimension( 1 ) * screenScales[ 0 ] != componentH )
+		if ( screenImages[ 0 ][ 0 ] == null
+				|| width.applyAsInt( screenImages[ 0 ][ 0 ] ) * screenScales[ 0 ] != componentW
+				|| height.applyAsInt( screenImages[ 0 ][ 0 ] ) * screenScales[ 0 ] != componentH
+				|| true )
 		{
 			renderIdQueue.clear();
 			renderIdQueue.addAll( Arrays.asList( 0, 1, 2 ) );
@@ -418,15 +437,17 @@ public class MultiResolutionRendererGeneric< T >
 					for ( int b = 0; b < 3; ++b )
 					{
 						// reuse storage arrays of level 0 (highest resolution)
-						screenImages[ i ][ b ] = i == 0 ? ArrayImgs.argbs( w, h ) : ArrayImgs.argbs( screenImages[ 0 ][ b ].update( null ), w, h );
-						final T bi = getBufferedImage.apply( screenImages[ i ][ b ] );
+						screenImages[ i ][ b ] = i == 0 ? makeImage.create( w, h ) : makeImage.create( w, h, screenImages[ 0 ][ b ] );
+						final T bi = screenImages[ i ][ b ];
+						// getBufferedImage.apply( screenImages[ i ][ b ] );
 						bufferedImages[ i ][ b ] = bi;
 						bufferedImageToRenderId.put( bi, b );
 					}
 				else
 				{
-					screenImages[ i ][ 0 ] = ArrayImgs.argbs( w, h );
-					bufferedImages[ i ][ 0 ] = getBufferedImage.apply( screenImages[ i ][ 0 ] );
+					screenImages[ i ][ 0 ] = makeImage.create( w, h );
+					bufferedImages[ i ][ 0 ] = screenImages[ i ][ 0 ];
+					// getBufferedImage.apply( screenImages[ i ][ 0 ] );
 				}
 				final AffineTransform3D scale = new AffineTransform3D();
 				final double xScale = ( double ) w / componentW;
@@ -448,14 +469,14 @@ public class MultiResolutionRendererGeneric< T >
 		final int n = numVisibleSources > 1 ? numVisibleSources : 0;
 		if ( n != renderImages[ 0 ].length ||
 				n != 0 &&
-						( renderImages[ 0 ][ 0 ].dimension( 0 ) != screenImages[ 0 ][ 0 ].dimension( 0 ) ||
-								renderImages[ 0 ][ 0 ].dimension( 1 ) != screenImages[ 0 ][ 0 ].dimension( 1 ) ) )
+						( renderImages[ 0 ][ 0 ].dimension( 0 ) != width.applyAsInt( screenImages[ 0 ][ 0 ] ) ||
+								renderImages[ 0 ][ 0 ].dimension( 1 ) != height.applyAsInt( screenImages[ 0 ][ 0 ] ) ) )
 		{
 			renderImages = new ArrayImg[ screenScales.length ][ n ];
 			for ( int i = 0; i < screenScales.length; ++i )
 			{
-				final int w = ( int ) screenImages[ i ][ 0 ].dimension( 0 );
-				final int h = ( int ) screenImages[ i ][ 0 ].dimension( 1 );
+				final int w = width.applyAsInt( screenImages[ i ][ 0 ] );
+				final int h = height.applyAsInt( screenImages[ i ][ 0 ] );
 				for ( int j = 0; j < n; ++j )
 					renderImages[ i ][ j ] = i == 0 ? ArrayImgs.argbs( w, h ) : ArrayImgs.argbs( renderImages[ 0 ][ j ].update( null ), w, h );
 			}
@@ -466,10 +487,10 @@ public class MultiResolutionRendererGeneric< T >
 
 	protected boolean checkRenewMaskArrays( final int numVisibleSources )
 	{
+		final int size = width.applyAsInt( screenImages[ 0 ][ 0 ] ) * height.applyAsInt( screenImages[ 0 ][ 0 ] );
 		if ( numVisibleSources != renderMaskArrays.length ||
-				numVisibleSources != 0 && renderMaskArrays[ 0 ].length < Intervals.numElements( screenImages[ 0 ][ 0 ] ) )
+				numVisibleSources != 0 && renderMaskArrays[ 0 ].length < size )
 		{
-			final int size = ( int ) Intervals.numElements( screenImages[ 0 ][ 0 ] );
 			renderMaskArrays = new byte[ numVisibleSources ][];
 			for ( int j = 0; j < numVisibleSources; ++j )
 				renderMaskArrays[ j ] = new byte[ size ];
@@ -525,14 +546,14 @@ public class MultiResolutionRendererGeneric< T >
 				final int renderId = renderIdQueue.peek();
 				currentScreenScaleIndex = requestedScreenScaleIndex;
 				bufferedImage = bufferedImages[ currentScreenScaleIndex ][ renderId ];
-				final ArrayImg< ARGBType, IntArray > screenImage = screenImages[ currentScreenScaleIndex ][ renderId ];
+				final T screenImage = screenImages[ currentScreenScaleIndex ][ renderId ];
 				synchronized ( synchronizationLock )
 				{
 					final int numSources = sacs.size();
 					checkRenewRenderImages( numSources );
 					checkRenewMaskArrays( numSources );
 					final int t = timepoint.getAsInt();
-					p = createProjector( sacs, t, getViewerTransform, currentScreenScaleIndex, screenImage, interpolationForSource );
+					p = createProjector( sacs, t, getViewerTransform, currentScreenScaleIndex, wrapAsArrayImg.apply( screenImage ), interpolationForSource );
 				}
 				projector = p;
 			}
@@ -650,7 +671,7 @@ public class MultiResolutionRendererGeneric< T >
 			final int timepoint,
 			final Consumer< AffineTransform3D > getViewerTransform,
 			final int screenScaleIndex,
-			final ArrayImg< ARGBType, IntArray > screenImage,
+			final ArrayImg< ARGBType, ? extends IntAccess > screenImage,
 			final Function< Source< ? >, Interpolation > interpolationForSource )
 	{
 		/*
@@ -733,7 +754,7 @@ public class MultiResolutionRendererGeneric< T >
 			final int timepoint,
 			final Consumer< AffineTransform3D > getViewerTransform,
 			final int screenScaleIndex,
-			final ArrayImg< ARGBType, IntArray > screenImage,
+			final ArrayImg< ARGBType, ? extends IntAccess > screenImage,
 			final byte[] maskArray,
 			final Interpolation interpolation )
 	{
@@ -767,7 +788,7 @@ public class MultiResolutionRendererGeneric< T >
 			final int t,
 			final int screenScaleIndex,
 			final Consumer< AffineTransform3D > getViewerTransform,
-			final ArrayImg< ARGBType, IntArray > screenImage,
+			final ArrayImg< ARGBType, ? extends IntAccess > screenImage,
 			final byte[] maskArray,
 			final Interpolation interpolation )
 	{

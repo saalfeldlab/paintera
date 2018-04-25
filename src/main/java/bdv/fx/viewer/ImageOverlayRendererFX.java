@@ -34,12 +34,8 @@
 package bdv.fx.viewer;
 
 import javafx.scene.image.ImageView;
-import javafx.scene.image.PixelFormat;
-import javafx.scene.image.WritableImage;
 import net.imglib2.img.ImgView;
 import net.imglib2.img.array.ArrayImg;
-import net.imglib2.img.basictypeaccess.array.IntArray;
-import net.imglib2.type.numeric.ARGBType;
 import net.imglib2.ui.Renderer;
 
 /**
@@ -50,10 +46,10 @@ import net.imglib2.ui.Renderer;
  * @author Tobias Pietzsch
  * @author Philipp Hanslovsky
  */
-public class ImageOverlayRendererFX implements OverlayRendererGeneric< ImageView >, RenderTargetGeneric< ArrayImg< ARGBType, IntArray > >
+public class ImageOverlayRendererFX implements OverlayRendererGeneric< ImageView >, RenderTargetGeneric< BufferExposingWritableImage >
 {
 
-	protected ArrayImg< ARGBType, IntArray > bufferedImage;
+	protected BufferExposingWritableImage bufferedImage;
 
 	/**
 	 * An {@link ArrayImg} that has been previously
@@ -63,7 +59,7 @@ public class ImageOverlayRendererFX implements OverlayRendererGeneric< ImageView
 	 * to the screen. Before doing this, the image previously used for painting
 	 * is swapped into {@link #pendingImage}. This is used for double-buffering.
 	 */
-	protected ArrayImg< ARGBType, IntArray > pendingImage;
+	protected BufferExposingWritableImage pendingImage;
 
 	/**
 	 * Whether an image is pending.
@@ -96,9 +92,9 @@ public class ImageOverlayRendererFX implements OverlayRendererGeneric< ImageView
 	 *            image to draw (may be null).
 	 */
 	@Override
-	public synchronized ArrayImg< ARGBType, IntArray > setBufferedImage( final ArrayImg< ARGBType, IntArray > img )
+	public synchronized BufferExposingWritableImage setBufferedImage( final BufferExposingWritableImage img )
 	{
-		final ArrayImg< ARGBType, IntArray > tmp = pendingImage;
+		final BufferExposingWritableImage tmp = pendingImage;
 		pendingImage = img;
 		pending = true;
 		return tmp;
@@ -123,7 +119,7 @@ public class ImageOverlayRendererFX implements OverlayRendererGeneric< ImageView
 		{
 			if ( pending )
 			{
-				final ArrayImg< ARGBType, IntArray > tmp = bufferedImage;
+				final BufferExposingWritableImage tmp = bufferedImage;
 				bufferedImage = pendingImage;
 				pendingImage = tmp;
 				pending = false;
@@ -131,11 +127,7 @@ public class ImageOverlayRendererFX implements OverlayRendererGeneric< ImageView
 		}
 		if ( bufferedImage != null )
 		{
-			final int w = ( int ) bufferedImage.dimension( 0 );
-			final int h = ( int ) bufferedImage.dimension( 1 );
-			final WritableImage wimg = new WritableImage( w, h );
-			wimg.getPixelWriter().setPixels( 0, 0, w, h, PixelFormat.getIntArgbInstance(), bufferedImage.update( null ).getCurrentStorageArray(), 0, w );
-			g.setImage( wimg );
+			g.setImage( bufferedImage );
 		}
 	}
 

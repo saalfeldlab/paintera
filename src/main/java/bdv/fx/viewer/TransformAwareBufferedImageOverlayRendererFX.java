@@ -39,17 +39,13 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javafx.scene.image.ImageView;
-import javafx.scene.image.PixelFormat;
 import javafx.scene.image.WritableImage;
-import net.imglib2.img.array.ArrayImg;
-import net.imglib2.img.basictypeaccess.array.IntArray;
 import net.imglib2.realtransform.AffineTransform3D;
-import net.imglib2.type.numeric.ARGBType;
 import net.imglib2.ui.TransformListener;
 
 public class TransformAwareBufferedImageOverlayRendererFX
 		extends ImageOverlayRendererFX
-		implements TransformAwareBufferedImageOverlayRendererGeneric< ImageView, ArrayImg< ARGBType, IntArray > >
+		implements TransformAwareBufferedImageOverlayRendererGeneric< ImageView, BufferExposingWritableImage >
 {
 
 	private static Logger LOG = LoggerFactory.getLogger( MethodHandles.lookup().lookupClass() );
@@ -80,7 +76,7 @@ public class TransformAwareBufferedImageOverlayRendererFX
 	}
 
 	@Override
-	public synchronized ArrayImg< ARGBType, IntArray > setBufferedImageAndTransform( final ArrayImg< ARGBType, IntArray > img, final AffineTransform3D transform )
+	public synchronized BufferExposingWritableImage setBufferedImageAndTransform( final BufferExposingWritableImage img, final AffineTransform3D transform )
 	{
 		pendingTransform.set( transform );
 		return super.setBufferedImage( img );
@@ -94,7 +90,7 @@ public class TransformAwareBufferedImageOverlayRendererFX
 		{
 			if ( pending )
 			{
-				final ArrayImg< ARGBType, IntArray > tmp = bufferedImage;
+				final BufferExposingWritableImage tmp = bufferedImage;
 				bufferedImage = pendingImage;
 				paintedTransform.set( pendingTransform );
 				pendingImage = tmp;
@@ -102,21 +98,31 @@ public class TransformAwareBufferedImageOverlayRendererFX
 				notifyTransformListeners = true;
 			}
 		}
-		final ArrayImg< ARGBType, IntArray > sourceImage = this.bufferedImage;
+		final BufferExposingWritableImage sourceImage = this.bufferedImage;
 		if ( sourceImage != null )
 		{
-			final int w = ( int ) sourceImage.dimension( 0 );
-			final int h = ( int ) sourceImage.dimension( 1 );
-			es.submit( () -> {
-				final WritableImage wimg;
-				wimg = new WritableImage( w, h );
-				final int[] data = sourceImage.update( null ).getCurrentStorageArray();
-				wimg.getPixelWriter().setPixels( 0, 0, w, h, PixelFormat.getIntArgbInstance(), data, 0, w );
-				InvokeOnJavaFXApplicationThread.invoke( () -> imgView.setImage( wimg ) );
+			final boolean notify = notifyTransformListeners;
+			InvokeOnJavaFXApplicationThread.invoke( () -> {
+
+				try
+				{
+					imgView.setImage( null );
+					sourceImage.setPixelsDirty();
+					imgView.setImage( sourceImage );
+				}
+				catch ( final Exception e )
+				{
+					System.err.println( "Caught exception: " + e );
+					e.printStackTrace( System.err );
+					System.exit( 123 );
+				}
+				// TODO add countdown latch to wait for setImage to return
+				// before
+				// notifying listeners
+				if ( notify )
+					for ( final TransformListener< AffineTransform3D > listener : paintedTransformListeners )
+						listener.transformChanged( paintedTransform );
 			} );
-			if ( notifyTransformListeners )
-				for ( final TransformListener< AffineTransform3D > listener : paintedTransformListeners )
-					listener.transformChanged( paintedTransform );
 //			LOG.debug( String.format( "g.drawImage() :%4d ms", watch.nanoTime() / 1000000 ) );
 		}
 	}
