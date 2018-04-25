@@ -47,6 +47,7 @@ import bdv.fx.viewer.MultiBoxOverlayRendererFX;
 import bdv.fx.viewer.ViewerPanelFX;
 import bdv.viewer.Interpolation;
 import bdv.viewer.Source;
+import bdv.viewer.ViewerOptions;
 import javafx.application.Application;
 import javafx.application.Platform;
 import javafx.beans.binding.Bindings;
@@ -89,6 +90,7 @@ public class Paintera extends Application
 
 	private final PainteraBaseView baseView = new PainteraBaseView(
 			Math.min( 8, Math.max( 1, Runtime.getRuntime().availableProcessors() / 2 ) ),
+			ViewerOptions.options().screenScales( new double[] { 1.0, 0.5, 0.25 } ),
 			si -> s -> si.getState( s ).interpolationProperty().get() );
 
 	private final OrthogonalViews< Viewer3DFX > orthoViews = baseView.orthogonalViews();

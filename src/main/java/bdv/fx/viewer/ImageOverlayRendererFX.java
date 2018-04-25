@@ -33,40 +33,31 @@
  */
 package bdv.fx.viewer;
 
-import java.awt.image.BufferedImage;
-
 import javafx.scene.image.ImageView;
 import javafx.scene.image.PixelFormat;
 import javafx.scene.image.WritableImage;
+import net.imglib2.img.ImgView;
 import net.imglib2.img.array.ArrayImg;
 import net.imglib2.img.basictypeaccess.array.IntArray;
 import net.imglib2.type.numeric.ARGBType;
-import net.imglib2.ui.OverlayRenderer;
-import net.imglib2.ui.RenderTarget;
 import net.imglib2.ui.Renderer;
-import net.imglib2.ui.util.Defaults;
 
 /**
- * {@link OverlayRenderer} drawing a {@link BufferedImage}, scaled to fill the
- * canvas. It can be used as a {@link RenderTarget}, such that the
- * {@link BufferedImage} to draw is set by a {@link Renderer}.
+ * {@link OverlayRendererGeneric} drawing an {@link ArrayImg}, scaled to fill an
+ * {@link ImgView}. It can be used as a {@link RenderTargetGeneric}, such that
+ * the {@link ArrayImg} to draw is set by a {@link Renderer}.
  *
  * @author Tobias Pietzsch
+ * @author Philipp Hanslovsky
  */
 public class ImageOverlayRendererFX implements OverlayRendererGeneric< ImageView >, RenderTargetGeneric< ArrayImg< ARGBType, IntArray > >
 {
 
-	/**
-	 * The {@link BufferedImage} that is actually drawn on the canvas. Depending
-	 * on {@link Defaults#discardAlpha} this is either the {@link BufferedImage}
-	 * obtained from screen image, or screen image's buffer re-wrapped using a
-	 * RGB color model.
-	 */
 	protected ArrayImg< ARGBType, IntArray > bufferedImage;
 
 	/**
-	 * A {@link BufferedImage} that has been previously
-	 * {@link #setBufferedImage(BufferedImage) set} for painting. Whenever a new
+	 * An {@link ArrayImg} that has been previously
+	 * {@link #setBufferedImage(ArrayImage) set} for painting. Whenever a new
 	 * image is set, this is stored here and marked {@link #pending}. Whenever
 	 * an image is painted and a new image is pending, the new image is painted
 	 * to the screen. Before doing this, the image previously used for painting
@@ -99,7 +90,7 @@ public class ImageOverlayRendererFX implements OverlayRendererGeneric< ImageView
 	}
 
 	/**
-	 * Set the {@link BufferedImage} that is to be drawn on the canvas.
+	 * Set the {@link ArrayImage} that is to be drawn on the canvas.
 	 *
 	 * @param img
 	 *            image to draw (may be null).

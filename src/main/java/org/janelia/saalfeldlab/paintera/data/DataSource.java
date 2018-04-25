@@ -465,6 +465,7 @@ public interface DataSource< D, T > extends Source< T >
 				return source.getName();
 			}
 
+			// TODO VoxelDimensions is the only class pulled in by spim_data
 			@Override
 			public VoxelDimensions getVoxelDimensions()
 			{

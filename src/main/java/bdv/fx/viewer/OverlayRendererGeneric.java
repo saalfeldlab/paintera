@@ -33,11 +33,9 @@
  */
 package bdv.fx.viewer;
 
-import java.awt.Graphics;
-
 /**
- * Draw something to a {@link Graphics} canvas and receive notifications about
- * changes of the canvas size.
+ * Draw something to a canvas and receive notifications about changes of the
+ * canvas size.
  *
  * @author Tobias Pietzsch
  */

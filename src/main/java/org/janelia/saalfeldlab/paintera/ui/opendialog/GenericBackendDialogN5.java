@@ -236,7 +236,7 @@ public class GenericBackendDialogN5 implements SourceFromRAI
 		try
 		{
 			final N5Reader n5 = this.n5.get();
-			final String ds = n5.datasetExists( dataset ) ? dataset : Paths.get( dataset, N5Helpers.listAndSortScaleDatasets( n5, dataset )[ 0 ] ).toFile().getAbsolutePath();
+			final String ds = n5.datasetExists( dataset ) ? dataset : Paths.get( dataset, N5Helpers.listAndSortScaleDatasets( n5, dataset )[ 0 ] ).toString();
 			LOG.debug( "Got dataset {}", ds );
 
 			final DatasetAttributes dsAttrs = n5.getDatasetAttributes( ds );

@@ -7,6 +7,7 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -24,6 +25,8 @@ import org.slf4j.LoggerFactory;
 
 public class N5Helpers
 {
+
+	private static final String MULTI_SCALE_KEY = "multiScale";
 
 	private static final Logger LOG = LoggerFactory.getLogger( MethodHandles.lookup().lookupClass() );
 
@@ -186,14 +189,22 @@ public class N5Helpers
 			}
 			else
 			{
-				final String[] groups = n5.list( pathName );
-				boolean isMipmapGroup = groups.length > 0;
-				for ( final String group : groups )
+				String[] groups = null;
+				/* based on attribute */
+				boolean isMipmapGroup = Optional.ofNullable( n5.getAttribute( pathName, MULTI_SCALE_KEY, Boolean.class ) ).orElse( false );
+
+				/* based on groupd content (the old way) */
+				if ( !isMipmapGroup )
 				{
-					if ( !( group.matches( "^s[0-9]+$" ) && n5.datasetExists( pathName + "/" + group ) ) )
+					groups = n5.list( pathName );
+					isMipmapGroup = groups.length > 0;
+					for ( final String group : groups )
 					{
-						isMipmapGroup = false;
-						break;
+						if ( !( group.matches( "^s[0-9]+$" ) && n5.datasetExists( pathName + "/" + group ) ) )
+						{
+							isMipmapGroup = false;
+							break;
+						}
 					}
 				}
 				if ( isMipmapGroup )
@@ -203,7 +214,7 @@ public class N5Helpers
 						datasets.add( pathName );
 					}
 				}
-				else
+				else if ( groups != null )
 				{
 					for ( final String group : groups )
 					{

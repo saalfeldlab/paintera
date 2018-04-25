@@ -33,31 +33,27 @@
  */
 package bdv.fx.viewer;
 
-import java.awt.image.BufferedImage;
-
-import net.imglib2.ui.overlay.BufferedImageOverlayRenderer;
-
 /**
- * Receiver for a {@link BufferedImage} (to be drawn onto a canvas later).
+ * Receiver for rendered data (to be drawn onto a canvas later).
  * <p>
- * A {@link Renderer} will render source data into a {@link BufferedImage} and
- * provide this to a {@link RenderTargetGeneric}.
+ * A {@link Renderer} will render source data into some storage and provide this
+ * to a {@link RenderTargetGeneric}.
  * <p>
- * See {@link BufferedImageOverlayRenderer}, which is a
- * {@link RenderTargetGeneric} and also an {@link OverlayRenderer} that draws
- * the {@link BufferedImage}.
+ * See {@link ImageOverlayRendererFX}, which is a {@link RenderTargetGeneric}
+ * and also an {@link OverlayRendererGeneric} that draws the data.
  *
  * @author Tobias Pietzsch
+ * @author Philipp Hanslovsky
  */
 public interface RenderTargetGeneric< T >
 {
 	/**
-	 * Set the {@link BufferedImage} that is to be drawn on the canvas.
+	 * Set the data that is to be drawn on the canvas.
 	 *
 	 * @param bufferedImage
 	 *            image to draw (may be null).
-	 * @return a previously set {@link BufferedImage} that is currently not
-	 *         being painted or null. Used for double-buffering.
+	 * @return previous data that is currently not being painted or null. Used
+	 *         for double-buffering.
 	 */
 	public T setBufferedImage( final T bufferedImage );
 

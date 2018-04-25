@@ -43,16 +43,8 @@
 			<version>4.4.1-SNAPSHOT</version>
 		</dependency>
 		<dependency>
-			<groupId>sc.fiji</groupId>
-			<artifactId>spim_data</artifactId>
-		</dependency>
-		<dependency>
 			<groupId>com.google.code.gson</groupId>
 			<artifactId>gson</artifactId>
-		</dependency>
-		<dependency>
-			<groupId>cisd</groupId>
-			<artifactId>jhdf5</artifactId>
 		</dependency>
 		<dependency>
 			<groupId>net.sf.trove4j</groupId>
@@ -61,7 +53,6 @@
 		<dependency>
 			<groupId>net.imglib2</groupId>
 			<artifactId>imglib2</artifactId>
-			<version>4.6.1</version>
 		</dependency>
 		<dependency>
 			<groupId>net.imglib2</groupId>
@@ -74,7 +65,7 @@
 		</dependency>
 		<dependency>
 			<groupId>net.imglib2</groupId>
-			<artifactId>imglib2-ij</artifactId>
+			<artifactId>imglib2-realtransform</artifactId>
 		</dependency>
 		<dependency>
 			<groupId>sc.fiji</groupId>
@@ -82,24 +73,9 @@
 			<version>1.0.0-beta-9</version>
 		</dependency>
 		<dependency>
-			<groupId>net.imagej</groupId>
-			<artifactId>ij</artifactId>
-		</dependency>
-		<dependency>
-			<groupId>org.scijava</groupId>
-			<artifactId>ui-behaviour</artifactId>
-			<version>1.3.0</version>
-		</dependency>
-		<dependency>
 			<groupId>junit</groupId>
 			<artifactId>junit</artifactId>
 			<scope>test</scope>
-		</dependency>
-		<!-- https://mvnrepository.com/artifact/com.beust/jcommander -->
-		<dependency>
-			<groupId>com.beust</groupId>
-			<artifactId>jcommander</artifactId>
-			<version>1.72</version>
 		</dependency>
 		<dependency>
 			<groupId>commons-collections</groupId>
@@ -117,17 +93,6 @@
 			<artifactId>jzmq</artifactId>
 			<version>3.1.0</version>
 		</dependency>
-		<!-- https://mvnrepository.com/artifact/org.scijava/script-editor -->
-		<dependency>
-			<groupId>org.scijava</groupId>
-			<artifactId>script-editor</artifactId>
-		</dependency>
-		<!-- https://mvnrepository.com/artifact/graphics.scenery/scenery -->
-		<dependency>
-			<groupId>graphics.scenery</groupId>
-			<artifactId>scenery</artifactId>
-			<version>0.2.0</version>
-		</dependency>
 		<!-- https://mvnrepository.com/artifact/org.slf4j/slf4j-api -->
 		<dependency>
 			<groupId>org.slf4j</groupId>
@@ -136,7 +101,6 @@
 		<dependency>
 			<groupId>org.slf4j</groupId>
 			<artifactId>slf4j-simple</artifactId>
-			<version>1.8.0-alpha2</version>
 		</dependency>
 		<dependency>
 			<groupId>net.imglib2</groupId>
