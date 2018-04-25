@@ -9,8 +9,6 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import com.sun.javafx.image.PixelUtils;
-
 import bdv.viewer.render.VolatileProjector;
 import net.imglib2.Cursor;
 import net.imglib2.FinalInterval;
@@ -278,14 +276,14 @@ public class VolatileHierarchyProjectorPreMultiply< A extends Volatile< ? > > ex
 								{
 									final ARGBType argb = targetRandomAccess.get();
 									converter.convert( a, argb );
-//									final int nopre = argb.get();
+									final int nopre = argb.get();
 //									final int alpha = nopre >>> 24;
 //									final double alphaD = alpha / 255.0;
 //									final int red = ( int ) ( ( nopre >> 16 | 0xff ) * alphaD );
 //									final int green = ( int ) ( ( nopre >> 8 | 0xff ) * alphaD );
 //									final int blue = ( int ) ( ( nopre >> 0 | 0xff ) * alphaD );
 //									argb.set( alpha << 24 | red << 16 | green << 8 | blue << 0 );
-									argb.set( PixelUtils.NonPretoPre( argb.get() ) );
+//									argb.set( PixelUtils.NonPretoPre( argb.get() ) );
 									m.set( iFinal );
 								}
 								else

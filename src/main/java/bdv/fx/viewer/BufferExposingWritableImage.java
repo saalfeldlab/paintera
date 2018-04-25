@@ -1,5 +1,6 @@
 package bdv.fx.viewer;
 
+import java.lang.invoke.MethodHandles;
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
@@ -7,6 +8,8 @@ import java.nio.Buffer;
 import java.nio.ByteBuffer;
 
 import org.janelia.saalfeldlab.util.MakeUnchecked;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import javafx.scene.image.Image;
 import javafx.scene.image.WritableImage;
@@ -17,6 +20,8 @@ import net.imglib2.type.numeric.ARGBType;
 
 public class BufferExposingWritableImage extends WritableImage
 {
+
+	private static final Logger LOG = LoggerFactory.getLogger( MethodHandles.lookup().lookupClass() );
 
 	private final Method getWritablePlatformImage;
 
@@ -56,6 +61,7 @@ public class BufferExposingWritableImage extends WritableImage
 		} );
 
 		final com.sun.prism.Image platformImage = ( com.sun.prism.Image ) getWritablePlatformImage.invoke( this );
+		LOG.warn( "Got pixelformat={} and platform pixel format={}", platformImage.getPixelFormat(), platformImage.getPlatformPixelFormat() );
 	}
 
 	public Buffer getBuffer()

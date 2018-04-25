@@ -33,19 +33,23 @@
  */
 package bdv.fx.viewer;
 
+import java.lang.invoke.MethodHandles;
 import java.util.Collection;
 import java.util.concurrent.CopyOnWriteArrayList;
 
 import org.janelia.saalfeldlab.fx.event.InstallAndRemove;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import javafx.application.Platform;
+import javafx.beans.property.ObjectProperty;
+import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.value.ChangeListener;
 import javafx.geometry.Insets;
 import javafx.scene.Node;
 import javafx.scene.canvas.Canvas;
 import javafx.scene.canvas.GraphicsContext;
 import javafx.scene.image.Image;
-import javafx.scene.image.ImageView;
 import javafx.scene.layout.Background;
 import javafx.scene.layout.BackgroundFill;
 import javafx.scene.layout.CornerRadii;
@@ -63,8 +67,10 @@ import net.imglib2.ui.TransformListener;
  * @author Tobias Pietzsch
  * @author Philipp Hanslovsky
  */
-public class InteractiveDisplayPaneComponent< A > extends StackPane
+public class InteractiveDisplayPaneComponentCanvas< A > extends StackPane
 {
+
+	private static final Logger LOG = LoggerFactory.getLogger( MethodHandles.lookup().lookupClass() );
 
 	private static final long serialVersionUID = -5546719724928785878L;
 
@@ -76,15 +82,16 @@ public class InteractiveDisplayPaneComponent< A > extends StackPane
 
 	protected final ImageOverlayRendererFX renderTarget;
 
+	private final ResizableCanvas canvas = new ResizableCanvas();
+
 	private final CanvasPane canvasPane = new CanvasPane( 1, 1 );
 
-	protected final ImageView imageView = new ImageView();
+	private final ObjectProperty< Image > currentImage = new SimpleObjectProperty<>();
+
 	{
-		this.imageView.setPreserveRatio( false );
-		this.imageView.setSmooth( false );
-		this.imageView.fitWidthProperty().bind( this.widthProperty() );
-		this.imageView.fitHeightProperty().bind( this.heightProperty() );
-		this.getChildren().add( imageView );
+		this.canvas.widthProperty().bind( this.widthProperty() );
+		this.canvas.heightProperty().bind( this.heightProperty() );
+		this.getChildren().add( canvas );
 		this.getChildren().add( canvasPane );
 		this.setBackground( new Background( new BackgroundFill( Color.BLACK, CornerRadii.EMPTY, Insets.EMPTY ) ) );
 	}
@@ -102,7 +109,7 @@ public class InteractiveDisplayPaneComponent< A > extends StackPane
 	 *            preferred component height.
 	 * @param ImageOverlayRendererFX
 	 */
-	public InteractiveDisplayPaneComponent(
+	public InteractiveDisplayPaneComponentCanvas(
 			final int width,
 			final int height,
 			final ImageOverlayRendererFX renderTarget )
@@ -133,7 +140,7 @@ public class InteractiveDisplayPaneComponent< A > extends StackPane
 	public void drawOverlays()
 	{
 		final Runnable r = () -> {
-			final Canvas canvas = canvasPane.getCanvas();
+			final Canvas canvas = this.canvasPane.getCanvas();
 			final GraphicsContext gc = canvas.getGraphicsContext2D();
 			gc.clearRect( 0, 0, canvas.getWidth(), canvas.getHeight() );
 			overlayRenderers.forEach( or -> or.drawOverlays( gc ) );
@@ -192,18 +199,36 @@ public class InteractiveDisplayPaneComponent< A > extends StackPane
 
 	public void repaint()
 	{
-		this.renderTarget.drawOverlays( this.imageView::setImage );
+		this.renderTarget.drawOverlays( img -> {
+			this.currentImage.set( img );
+			imageToCanvas( img, canvas );
+		} );
 		drawOverlays();
 		layout();
 	}
 
 	public void addImageChangeListener( final ChangeListener< Image > listener )
 	{
-		this.imageView.imageProperty().addListener( listener );
+		this.currentImage.addListener( listener );
 	}
 
 	public void removeImageChangeListener( final ChangeListener< Image > listener )
 	{
-		this.imageView.imageProperty().removeListener( listener );
+		this.currentImage.removeListener( listener );
+	}
+
+	private static void imageToCanvas( final Image img, final Canvas canvas )
+	{
+		if ( img == null )
+		{
+			LOG.debug( "Got null-pointer image, returning" );
+			return;
+		}
+		final double w = canvas.getWidth();
+		final double h = canvas.getHeight();
+		LOG.debug( "Drawing img {} into canvas of size ({}x{})", img, w, h );
+		final GraphicsContext gc = canvas.getGraphicsContext2D();
+		gc.clearRect( 0, 0, w, h );
+		gc.drawImage( img, 0, 0, w, h );
 	}
 }

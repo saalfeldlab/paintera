@@ -33,7 +33,9 @@
  */
 package bdv.fx.viewer;
 
-import javafx.scene.image.ImageView;
+import java.util.function.Consumer;
+
+import javafx.scene.image.Image;
 import net.imglib2.img.ImgView;
 import net.imglib2.img.array.ArrayImg;
 import net.imglib2.ui.Renderer;
@@ -46,7 +48,7 @@ import net.imglib2.ui.Renderer;
  * @author Tobias Pietzsch
  * @author Philipp Hanslovsky
  */
-public class ImageOverlayRendererFX implements OverlayRendererGeneric< ImageView >, RenderTargetGeneric< BufferExposingWritableImage >
+public class ImageOverlayRendererFX implements OverlayRendererGeneric< Consumer< Image > >, RenderTargetGeneric< BufferExposingWritableImage >
 {
 
 	protected BufferExposingWritableImage bufferedImage;
@@ -113,7 +115,7 @@ public class ImageOverlayRendererFX implements OverlayRendererGeneric< ImageView
 	}
 
 	@Override
-	public void drawOverlays( final ImageView g )
+	public void drawOverlays( final Consumer< Image > g )
 	{
 		synchronized ( this )
 		{
@@ -127,7 +129,7 @@ public class ImageOverlayRendererFX implements OverlayRendererGeneric< ImageView
 		}
 		if ( bufferedImage != null )
 		{
-			g.setImage( bufferedImage );
+			g.accept( bufferedImage );
 		}
 	}
 

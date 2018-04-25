@@ -32,20 +32,21 @@ package bdv.fx.viewer;
 import java.lang.invoke.MethodHandles;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ExecutorService;
+import java.util.function.Consumer;
 
 import org.apache.commons.collections.Buffer;
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javafx.scene.image.ImageView;
+import javafx.scene.image.Image;
 import javafx.scene.image.WritableImage;
 import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.ui.TransformListener;
 
 public class TransformAwareBufferedImageOverlayRendererFX
 		extends ImageOverlayRendererFX
-		implements TransformAwareBufferedImageOverlayRendererGeneric< ImageView, BufferExposingWritableImage >
+		implements TransformAwareBufferedImageOverlayRendererGeneric< Consumer< Image >, BufferExposingWritableImage >
 {
 
 	private static Logger LOG = LoggerFactory.getLogger( MethodHandles.lookup().lookupClass() );
@@ -83,7 +84,7 @@ public class TransformAwareBufferedImageOverlayRendererFX
 	}
 
 	@Override
-	public void drawOverlays( final ImageView imgView )
+	public void drawOverlays( final Consumer< Image > g )
 	{
 		boolean notifyTransformListeners = false;
 		synchronized ( this )
@@ -106,9 +107,10 @@ public class TransformAwareBufferedImageOverlayRendererFX
 
 				try
 				{
-					imgView.setImage( null );
-					sourceImage.setPixelsDirty();
-					imgView.setImage( sourceImage );
+					g.accept( null );
+					sourceImage.getPixelWriter().setPixels( 0, 0, ( int ) sourceImage.getWidth(), ( int ) sourceImage.getHeight(), sourceImage.getPixelReader(), 0, 0 );
+//					sourceImage.setPixelsDirty();
+					g.accept( sourceImage );
 				}
 				catch ( final Exception e )
 				{
