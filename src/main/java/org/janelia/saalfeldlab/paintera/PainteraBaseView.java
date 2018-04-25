@@ -12,8 +12,8 @@ import java.util.stream.Stream;
 import org.janelia.saalfeldlab.fx.ortho.OrthogonalViews;
 import org.janelia.saalfeldlab.paintera.composition.ARGBCompositeAlphaAdd;
 import org.janelia.saalfeldlab.paintera.composition.ARGBCompositeAlphaYCbCr;
-import org.janelia.saalfeldlab.paintera.composition.ClearingCompositeProjector;
 import org.janelia.saalfeldlab.paintera.composition.Composite;
+import org.janelia.saalfeldlab.paintera.composition.CompositeProjectorPreMultiply;
 import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignmentState;
 import org.janelia.saalfeldlab.paintera.control.assignment.FragmentsInSelectedSegments;
 import org.janelia.saalfeldlab.paintera.control.selection.SelectedIds;
@@ -96,7 +96,10 @@ public class PainteraBaseView
 		super();
 		this.cacheControl = new SharedQueue( numFetcherThreads );
 		this.viewerOptions = viewerOptions
-				.accumulateProjectorFactory( new ClearingCompositeProjector.ClearingCompositeProjectorFactory<>( sourceInfo.composites(), new ARGBType() ) )
+				.accumulateProjectorFactory( new CompositeProjectorPreMultiply.CompositeProjectorFactory( sourceInfo.composites() ) )
+				// .accumulateProjectorFactory( new
+				// ClearingCompositeProjector.ClearingCompositeProjectorFactory<>(
+				// sourceInfo.composites(), new ARGBType() ) )
 				.numRenderingThreads( Math.min( 3, Math.max( 1, Runtime.getRuntime().availableProcessors() / 3 ) ) );
 		this.views = new OrthogonalViews<>( manager, cacheControl, this.viewerOptions, viewer3D, interpolation.apply( sourceInfo ) );
 		this.vsacUpdate = change -> views.setAllSources( visibleSourcesAndConverters );

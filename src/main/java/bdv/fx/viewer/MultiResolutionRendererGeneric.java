@@ -81,7 +81,6 @@ import net.imglib2.realtransform.RealViews;
 import net.imglib2.type.numeric.ARGBType;
 import net.imglib2.ui.PainterThread;
 import net.imglib2.ui.Renderer;
-import net.imglib2.ui.SimpleInterruptibleProjector;
 
 /**
  * A {@link Renderer} that uses a coarse-to-fine rendering scheme. First, a
@@ -720,14 +719,14 @@ public class MultiResolutionRendererGeneric< T >
 		return projector;
 	}
 
-	private static class SimpleVolatileProjector< A, B > extends SimpleInterruptibleProjector< A, B > implements VolatileProjector
+	private static class SimpleVolatileProjector< A > extends SimpleInterruptibleProjectorPreMultiply< A > implements VolatileProjector
 	{
 		private boolean valid = false;
 
 		public SimpleVolatileProjector(
 				final RandomAccessible< A > source,
-				final Converter< ? super A, B > converter,
-				final RandomAccessibleInterval< B > target,
+				final Converter< ? super A, ARGBType > converter,
+				final RandomAccessibleInterval< ARGBType > target,
 				final int numThreads,
 				final ExecutorService executorService )
 		{
@@ -824,7 +823,8 @@ public class MultiResolutionRendererGeneric< T >
 		if ( hints.renewHintsAfterPaintingOnce() )
 			newFrameRequest = true;
 
-		return new VolatileHierarchyProjector<>( renderList, source.getConverter(), screenImage, maskArray, numRenderingThreads, renderingExecutorService );
+//		return new VolatileHierarchyProjector<>( renderList, source.getConverter(), screenImage, maskArray, numRenderingThreads, renderingExecutorService );
+		return new VolatileHierarchyProjectorPreMultiply<>( renderList, source.getConverter(), screenImage, maskArray, numRenderingThreads, renderingExecutorService );
 	}
 
 	private static < T > RandomAccessible< T > getTransformedSource(

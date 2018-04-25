@@ -54,6 +54,8 @@ public class BufferExposingWritableImage extends WritableImage
 			serial[ 0 ]++;
 			this.pixelsDirty.invoke( this );
 		} );
+
+		final com.sun.prism.Image platformImage = ( com.sun.prism.Image ) getWritablePlatformImage.invoke( this );
 	}
 
 	public Buffer getBuffer()
