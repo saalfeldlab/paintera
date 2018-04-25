@@ -26,11 +26,13 @@ import org.janelia.saalfeldlab.paintera.config.OrthoSliceConfigNode;
 import org.janelia.saalfeldlab.paintera.control.FitToInterval;
 import org.janelia.saalfeldlab.paintera.control.Merges;
 import org.janelia.saalfeldlab.paintera.control.Navigation;
+import org.janelia.saalfeldlab.paintera.control.OrthoViewCoordinateDisplayListener;
 import org.janelia.saalfeldlab.paintera.control.OrthogonalViewsValueDisplayListener;
 import org.janelia.saalfeldlab.paintera.control.Paint;
 import org.janelia.saalfeldlab.paintera.control.RunWhenFirstElementIsAdded;
 import org.janelia.saalfeldlab.paintera.control.Selection;
 import org.janelia.saalfeldlab.paintera.control.navigation.AffineTransformWithListeners;
+import org.janelia.saalfeldlab.paintera.control.navigation.CoordinateDisplayListener;
 import org.janelia.saalfeldlab.paintera.control.navigation.DisplayTransformUpdateOnResize;
 import org.janelia.saalfeldlab.paintera.ui.ARGBStreamSeedSetter;
 import org.janelia.saalfeldlab.paintera.ui.Crosshair;
@@ -74,8 +76,10 @@ import javafx.scene.input.KeyEvent;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.AnchorPane;
 import javafx.scene.layout.BorderPane;
+import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
+import javafx.scene.text.Font;
 import javafx.stage.Stage;
 import javafx.stage.WindowEvent;
 import net.imglib2.FinalRealInterval;
@@ -212,7 +216,10 @@ public class Paintera extends Application
 		multiBoxes[ 2 ].isVisibleProperty().bind( baseView.orthogonalViews().bottomLeft().viewer().focusedProperty() );
 
 		final BorderPane borderPane = new BorderPane( baseView.pane() );
+
 		final Label currentSourceStatus = new Label();
+		final Label viewerCoordinateStatus = new Label();
+		final Label worldCoordinateStatus = new Label();
 		final Label valueStatus = new Label();
 		final CheckBox showStatusBar = new CheckBox();
 		showStatusBar.setFocusTraversable( false );
@@ -220,9 +227,31 @@ public class Paintera extends Application
 		cs.addListener( ( obs, oldv, newv ) -> InvokeOnJavaFXApplicationThread.invoke( () -> currentSourceStatus.textProperty().set( Optional.ofNullable( newv ).map( s -> s.getName() ).orElse( "<null>" ) ) ) );
 		showStatusBar.setTooltip( new Tooltip( "If not selected, status bar will only show on mouse-over" ) );
 		final OrthogonalViewsValueDisplayListener vdl = new OrthogonalViewsValueDisplayListener( valueStatus::setText, cs, s -> sourceInfo.getState( s ).interpolationProperty().get() );
-		final AnchorPane statusBar = new AnchorPane( currentSourceStatus, valueStatus, showStatusBar );
+
+		final OrthoViewCoordinateDisplayListener cdl = new OrthoViewCoordinateDisplayListener(
+				p -> viewerCoordinateStatus.setText( p == null ? "N/A" : String.format( "(% 4d, % 4d)", ( int ) p.getDoublePosition( 0 ), ( int ) p.getDoublePosition( 1 ) ) ),
+				p -> worldCoordinateStatus.setText( p == null ? "N/A" : CoordinateDisplayListener.worldToString( p ) ) );
+
+		final HBox statusDisplays = new HBox( 5, viewerCoordinateStatus, worldCoordinateStatus, valueStatus );
+
+		final AnchorPane statusBar = new AnchorPane(
+				currentSourceStatus,
+				statusDisplays,
+				showStatusBar );
+
+		final Tooltip currentSourceStatusToolTip = new Tooltip();
+		currentSourceStatusToolTip.textProperty().bind( currentSourceStatus.textProperty() );
+		currentSourceStatus.setTooltip( currentSourceStatusToolTip );
+
+		currentSourceStatus.setMaxWidth( 95.0 );
+		viewerCoordinateStatus.setMaxWidth( 115.0 );
+		worldCoordinateStatus.setMaxWidth( 245.0 );
+
+		viewerCoordinateStatus.setFont( Font.font( "Monospaced" ) );
+		worldCoordinateStatus.setFont( Font.font( "Monospaced" ) );
+
 		AnchorPane.setLeftAnchor( currentSourceStatus, 0.0 );
-		AnchorPane.setLeftAnchor( valueStatus, 50.0 );
+		AnchorPane.setLeftAnchor( statusDisplays, 100.0 );
 		AnchorPane.setRightAnchor( showStatusBar, 0.0 );
 
 		final BooleanProperty isWithinMarginOfBorder = new SimpleBooleanProperty();
@@ -234,6 +263,7 @@ public class Paintera extends Application
 		currentSourceStatus.setMaxWidth( 45 );
 
 		onEnterOnExit.accept( new OnEnterOnExit( vdl.onEnter(), vdl.onExit() ) );
+		onEnterOnExit.accept( new OnEnterOnExit( cdl.onEnter(), cdl.onExit() ) );
 
 		onEnterOnExit.accept( new ARGBStreamSeedSetter( sourceInfo, keyTracker ).onEnterOnExit() );
 

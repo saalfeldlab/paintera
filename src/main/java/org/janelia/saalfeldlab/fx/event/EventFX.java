@@ -90,6 +90,11 @@ public abstract class EventFX< E extends Event > implements EventHandler< E >, I
 		return new EventFXWithConsumer<>( name, MouseEvent.MOUSE_DRAGGED, eventHandler, eventFilter );
 	}
 
+	public static EventFX< MouseEvent > MOUSE_MOVED( final String name, final Consumer< MouseEvent > eventHandler, final Predicate< MouseEvent > eventFilter )
+	{
+		return new EventFXWithConsumer<>( name, MouseEvent.MOUSE_MOVED, eventHandler, eventFilter );
+	}
+
 	public static EventFX< ScrollEvent > SCROLL( final String name, final Consumer< ScrollEvent > eventHandler, final Predicate< ScrollEvent > eventFilter )
 	{
 		return new EventFXWithConsumer<>( name, ScrollEvent.SCROLL, eventHandler, eventFilter );
