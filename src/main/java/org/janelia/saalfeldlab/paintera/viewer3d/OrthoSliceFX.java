@@ -40,7 +40,7 @@ public class OrthoSliceFX
 
 	private final BooleanProperty isVisible = new SimpleBooleanProperty( false );
 	{
-		this.isVisible.addListener( (oldv, obs, newv ) -> {
+		this.isVisible.addListener( ( oldv, obs, newv ) -> {
 			synchronized ( this )
 			{
 				if ( newv )
@@ -58,6 +58,9 @@ public class OrthoSliceFX
 	// TODO re-think/reduce this delay
 	// 500ms delay
 	LatestTaskExecutor es = new LatestTaskExecutor( 500 * 1000 * 1000 );
+	{
+		es.execute( () -> Thread.currentThread().setName( "ortho-slice-executor" ) );
+	}
 
 	public OrthoSliceFX( final Group scene, final ViewerPanelFX viewer )
 	{
@@ -87,13 +90,12 @@ public class OrthoSliceFX
 			h = viewer.getHeight();
 			this.viewer.getState().getViewerTransform( viewerTransform );
 		}
-		if ( w <= 0 || h <= 0 ) {
-			return;
-		}
+		if ( w <= 0 || h <= 0 ) { return; }
 		InvokeOnJavaFXApplicationThread.invoke( () -> {
 			mesh.update( new RealPoint( 0, 0 ), new RealPoint( w, 0 ), new RealPoint( w, h ), new RealPoint( 0, h ), viewerTransform.inverse() );
 		} );
 		es.execute( () -> {
+			Thread.currentThread().setName( "ortho-slice-executor" );
 			final double scale = 512.0 / Math.max( w, h );
 			final int fitWidth = ( int ) Math.round( w * scale );
 			final int fitHeight = ( int ) Math.round( h * scale );
@@ -148,5 +150,10 @@ public class OrthoSliceFX
 	public BooleanProperty isVisibleProperty()
 	{
 		return this.isVisible;
+	}
+
+	public void stop()
+	{
+		this.es.shutDown();
 	}
 }

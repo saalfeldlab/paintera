@@ -8,6 +8,7 @@ import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
@@ -133,6 +134,8 @@ public class GenericBackendDialogN5 implements SourceFromRAI
 
 	private final SimpleBooleanProperty datasetUpdateFailed = new SimpleBooleanProperty( false );
 
+	private final ExecutorService propagationExecutor;
+
 	private final BooleanBinding isReady = isN5Valid
 			.and( isDatasetValid )
 			.and( datasetUpdateFailed.not() );
@@ -164,9 +167,10 @@ public class GenericBackendDialogN5 implements SourceFromRAI
 			final Node n5RootNode,
 			final Consumer< Event > onBrowseClicked,
 			final String identifier,
-			final ObservableValue< Supplier< N5Writer > > writerSupplier )
+			final ObservableValue< Supplier< N5Writer > > writerSupplier,
+			final ExecutorService propagationExecutor )
 	{
-		this( "dataset", n5RootNode, onBrowseClicked, identifier, writerSupplier );
+		this( "dataset", n5RootNode, onBrowseClicked, identifier, writerSupplier, propagationExecutor );
 	}
 
 	public GenericBackendDialogN5(
@@ -174,10 +178,12 @@ public class GenericBackendDialogN5 implements SourceFromRAI
 			final Node n5RootNode,
 			final Consumer< Event > onBrowseClicked,
 			final String identifier,
-			final ObservableValue< Supplier< N5Writer > > writerSupplier )
+			final ObservableValue< Supplier< N5Writer > > writerSupplier,
+			final ExecutorService propagationExecutor )
 	{
 		this.identifier = identifier;
 		this.node = initializeNode( n5RootNode, datasetPrompt, onBrowseClicked );
+		this.propagationExecutor = propagationExecutor;
 		n5Supplier.bind( writerSupplier );
 		n5.addListener( ( obs, oldv, newv ) -> {
 			LOG.debug( "Updated n5: obs={} oldv={} newv={}", obs, oldv, newv );
@@ -969,6 +975,12 @@ public class GenericBackendDialogN5 implements SourceFromRAI
 		}
 
 		throw new RuntimeException( String.format( "Cannot read dataset attributes for group %s and dataset %s.", n5, ds ) );
+	}
+
+	@Override
+	public ExecutorService propagationExecutor()
+	{
+		return this.propagationExecutor;
 	}
 
 }

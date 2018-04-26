@@ -5,9 +5,11 @@ import java.nio.file.FileSystems;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Optional;
+import java.util.concurrent.ExecutorService;
 import java.util.function.Consumer;
 
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread;
+import org.janelia.saalfeldlab.paintera.PainteraBaseView;
 import org.janelia.saalfeldlab.paintera.ui.opendialog.meta.MetaPanel;
 
 import javafx.beans.binding.Bindings;
@@ -76,14 +78,12 @@ public class OpenSourceDialog extends Dialog< BackendDialog > implements Combine
 
 	private final BooleanBinding isError;
 
-	private final ObservableMap< BACKEND, BackendDialog > backendInfoDialogs = FXCollections.observableHashMap();
-	{
-		backendInfoDialogs.put( BACKEND.N5, N5BackendDialogs.fileSystem() );
-		backendInfoDialogs.put( BACKEND.HDF5, N5BackendDialogs.hdf5() );
-		backendInfoDialogs.put( BACKEND.GOOGLE, N5BackendDialogs.googleCloud() );
-	}
+	private final ExecutorService propagationExecutor;
 
-	private final SimpleObjectProperty< BackendDialog > currentBackend = new SimpleObjectProperty<>( backendInfoDialogs.get( BACKEND.N5 ) );
+	private final ObservableMap< BACKEND, BackendDialog > backendInfoDialogs = FXCollections.observableHashMap();
+	{}
+
+	private final SimpleObjectProperty< BackendDialog > currentBackend;
 
 	private final MetaPanel metaPanel = new MetaPanel();
 
@@ -99,9 +99,17 @@ public class OpenSourceDialog extends Dialog< BackendDialog > implements Combine
 
 	private final HBox paintingLayerPane = new HBox( paintingInfoPane );
 
-	public OpenSourceDialog()
+	public OpenSourceDialog( final PainteraBaseView viewer )
 	{
 		super();
+
+		this.propagationExecutor = viewer.getPropagationQueue();
+
+		backendInfoDialogs.put( BACKEND.N5, N5BackendDialogs.fileSystem( propagationExecutor ) );
+		backendInfoDialogs.put( BACKEND.HDF5, N5BackendDialogs.hdf5( propagationExecutor ) );
+		backendInfoDialogs.put( BACKEND.GOOGLE, N5BackendDialogs.googleCloud( propagationExecutor ) );
+		currentBackend = new SimpleObjectProperty<>( backendInfoDialogs.get( BACKEND.N5 ) );
+
 		this.setTitle( "Open data set" );
 		this.getDialogPane().getButtonTypes().addAll( ButtonType.CANCEL, ButtonType.OK );
 		this.errorMessage = new Label( "" );

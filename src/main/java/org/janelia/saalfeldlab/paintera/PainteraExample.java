@@ -113,7 +113,7 @@ public class PainteraExample extends Application
 
 	private final Merges merges = new Merges( sourceInfo, keyTracker );
 
-	private final Paint paint = new Paint( sourceInfo, keyTracker, baseView.manager(), baseView.orthogonalViews()::requestRepaint );
+	private final Paint paint = new Paint( sourceInfo, keyTracker, baseView.manager(), baseView.orthogonalViews()::requestRepaint, baseView.getPaintQueue() );
 
 	private final Selection selection = new Selection( sourceInfo, keyTracker );
 
@@ -174,7 +174,7 @@ public class PainteraExample extends Application
 				i -> new NearestNeighborInterpolatorFactory<>(),
 				"labels" );
 
-		final MaskedSource< UnsignedLongType, VolatileUnsignedLongType > maskedSource = Masks.fromIntegerType( labelSource, ( canvas, blocks ) -> {} );
+		final MaskedSource< UnsignedLongType, VolatileUnsignedLongType > maskedSource = Masks.fromIntegerType( labelSource, ( canvas, blocks ) -> {}, baseView.getPropagationQueue() );
 
 		updateDisplayTransformOnResize( baseView.orthogonalViews(), baseView.manager() );
 

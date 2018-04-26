@@ -3,6 +3,7 @@ package org.janelia.saalfeldlab.paintera.ui.opendialog;
 import java.io.IOException;
 import java.lang.invoke.MethodHandles;
 import java.util.Arrays;
+import java.util.concurrent.ExecutorService;
 import java.util.function.BiConsumer;
 import java.util.function.Function;
 import java.util.function.LongFunction;
@@ -149,6 +150,8 @@ public interface SourceFromRAI extends BackendDialog
 				priority );
 	}
 
+	public ExecutorService propagationExecutor();
+
 	@Override
 	public default < D extends NativeType< D >, T extends Volatile< D > & Type< T > > LabelDataSourceRepresentation< D, T > getLabels(
 			final String name,
@@ -160,7 +163,8 @@ public interface SourceFromRAI extends BackendDialog
 				this.< D, T >getSourceNearestNeighborInterpolationOnly( name, sharedQueue, priority ),
 				initialCanvasDirectory(),
 				nextCanvasDirectory(),
-				commitCanvas() );
+				commitCanvas(),
+				propagationExecutor() );
 
 		return new LabelDataSourceRepresentation<>(
 				source,

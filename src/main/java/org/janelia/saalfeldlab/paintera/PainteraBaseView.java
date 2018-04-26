@@ -88,6 +88,10 @@ public class PainteraBaseView
 
 	private final ExecutorService meshWorkerExecutorService = Executors.newFixedThreadPool( 3, new NamedThreadFactory( "paintera-mesh-worker-%d" ) );
 
+	private final ExecutorService paintQueue = Executors.newFixedThreadPool( 1 );
+
+	private final ExecutorService propagationQueue = Executors.newFixedThreadPool( 1 );
+
 	public PainteraBaseView( final int numFetcherThreads, final Function< SourceInfo, Function< Source< ? >, Interpolation > > interpolation )
 	{
 		this( numFetcherThreads, ViewerOptions.options(), interpolation );
@@ -378,6 +382,31 @@ public class PainteraBaseView
 	private static < R extends RealType< R > > BiConsumer< R, TLongHashSet > collectLabelsFromRealType()
 	{
 		return ( lbl, set ) -> set.add( ( long ) lbl.getRealDouble() );
+	}
+
+	public ExecutorService getPaintQueue()
+	{
+		return this.paintQueue;
+	}
+
+	public ExecutorService getPropagationQueue()
+	{
+		return this.propagationQueue;
+	}
+
+	public void stop()
+	{
+		LOG.warn( "Stopping everything" );
+		this.generalPurposeExecutorService.shutdownNow();
+		this.meshManagerExecutorService.shutdown();
+		this.meshWorkerExecutorService.shutdownNow();
+		this.paintQueue.shutdownNow();
+		this.propagationQueue.shutdownNow();
+		this.orthogonalViews().topLeft().viewer().stop();
+		this.orthogonalViews().topRight().viewer().stop();
+		this.orthogonalViews().bottomLeft().viewer().stop();
+		this.cacheControl.shutdown();
+		LOG.warn( "Sent stop requests everywhere" );
 	}
 
 }

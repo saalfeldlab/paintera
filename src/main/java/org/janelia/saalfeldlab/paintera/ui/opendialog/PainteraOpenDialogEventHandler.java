@@ -112,7 +112,7 @@ public class PainteraOpenDialogEventHandler implements EventHandler< Event >
 				event.consume();
 			}
 
-			final OpenSourceDialog openDialog = new OpenSourceDialog();
+			final OpenSourceDialog openDialog = new OpenSourceDialog( viewer );
 			final Optional< BackendDialog > datasetOptional = openDialog.showAndWait();
 			if ( datasetOptional.isPresent() )
 			{
