@@ -270,7 +270,9 @@ public class Paintera extends Application
 		final Stage stage = new Stage();
 		final Scene scene = new Scene( borderPane );
 		if ( LOG.isDebugEnabled() )
+		{
 			scene.focusOwnerProperty().addListener( ( obs, oldv, newv ) -> LOG.debug( "Focus changed: old={} new={}", oldv, newv ) );
+		}
 
 		stage.addEventFilter( WindowEvent.WINDOW_CLOSE_REQUEST, event -> viewerToTransforms.keySet().forEach( ViewerPanelFX::stop ) );
 
@@ -333,10 +335,10 @@ public class Paintera extends Application
 		baseView.pane().addEventFilter( MouseEvent.MOUSE_PRESSED, resizer.onMousePressedHandler() );
 		baseView.pane().addEventFilter( MouseEvent.MOUSE_RELEASED, resizer.onMouseReleased() );
 
-		EventFX.KEY_PRESSED( "maximize", e -> toggleMaximizeTopLeft.toggleFullScreen(), e -> keyTracker.areOnlyTheseKeysDown( KeyCode.F ) ).installInto( orthoViews.topLeft().viewer() );
-		EventFX.KEY_PRESSED( "maximize", e -> toggleMaximizeTopRight.toggleFullScreen(), e -> keyTracker.areOnlyTheseKeysDown( KeyCode.F ) ).installInto( orthoViews.topRight().viewer() );
-		EventFX.KEY_PRESSED( "maximize", e -> toggleMaximizeBottomLeft.toggleFullScreen(), e -> keyTracker.areOnlyTheseKeysDown( KeyCode.F ) ).installInto( orthoViews.bottomLeft().viewer() );
-		EventFX.KEY_PRESSED( "maximize", e -> toggleMaximizeBottomRight.toggleFullScreen(), e -> keyTracker.areOnlyTheseKeysDown( KeyCode.F ) ).installInto( baseView.viewer3D() );
+		EventFX.KEY_PRESSED( "maximize", e -> toggleMaximizeTopLeft.toggleFullScreen(), e -> keyTracker.areOnlyTheseKeysDown( KeyCode.M ) ).installInto( orthoViews.topLeft().viewer() );
+		EventFX.KEY_PRESSED( "maximize", e -> toggleMaximizeTopRight.toggleFullScreen(), e -> keyTracker.areOnlyTheseKeysDown( KeyCode.M ) ).installInto( orthoViews.topRight().viewer() );
+		EventFX.KEY_PRESSED( "maximize", e -> toggleMaximizeBottomLeft.toggleFullScreen(), e -> keyTracker.areOnlyTheseKeysDown( KeyCode.M ) ).installInto( orthoViews.bottomLeft().viewer() );
+		EventFX.KEY_PRESSED( "maximize", e -> toggleMaximizeBottomRight.toggleFullScreen(), e -> keyTracker.areOnlyTheseKeysDown( KeyCode.M ) ).installInto( baseView.viewer3D() );
 
 		final BooleanProperty isRowMaximized = new SimpleBooleanProperty( false );
 		isRowMaximized.addListener( ( obs, oldv, newv ) -> {
@@ -355,7 +357,7 @@ public class Paintera extends Application
 				orthoViews.grid().constraintsManager().resetToLast();
 			}
 		} );
-		EventFX.KEY_PRESSED( "maximize bottom row", e -> isRowMaximized.set( !isRowMaximized.get() ), e -> keyTracker.areOnlyTheseKeysDown( KeyCode.F, KeyCode.SHIFT ) ).installInto( borderPane );
+		EventFX.KEY_PRESSED( "maximize bottom row", e -> isRowMaximized.set( !isRowMaximized.get() ), e -> keyTracker.areOnlyTheseKeysDown( KeyCode.M, KeyCode.SHIFT ) ).installInto( borderPane );
 
 		setFocusTraversable( orthoViews, false );
 
