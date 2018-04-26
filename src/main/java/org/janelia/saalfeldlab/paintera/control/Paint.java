@@ -157,7 +157,7 @@ public class Paint implements ToOnEnterOnExit
 							}
 						}
 						event.consume();
-					}, event -> keyTracker.areOnlyTheseKeysDown( KeyCode.SHIFT, KeyCode.M ) ) );
+					}, event -> keyTracker.areOnlyTheseKeysDown( KeyCode.SHIFT, KeyCode.C ) ) );
 
 					this.mouseAndKeyHandlers.put( t, iars );
 				}
