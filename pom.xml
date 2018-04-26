@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
 	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
 	<modelVersion>4.0.0</modelVersion>
 
@@ -20,6 +21,52 @@
 	</properties>
 
 	<profiles>
+		<profile>
+			<id>fat</id>
+			<build>
+				<plugins>
+					<plugin>
+						<groupId>org.apache.maven.plugins</groupId>
+						<artifactId>maven-shade-plugin</artifactId>
+						<version>3.1.0</version>
+						<configuration>
+							<filters>
+								<filter>
+									<artifact>*:*</artifact>
+									<excludes>
+										<exclude>META-INF/*.SF</exclude>
+										<exclude>META-INF/*.DSA</exclude>
+										<exclude>META-INF/*.RSA</exclude>
+									</excludes>
+								</filter>
+							</filters>
+							<shadedArtifactId>${project.artifactId}</shadedArtifactId>
+							<shadedArtifactAttached>true</shadedArtifactAttached>
+							<!-- Do not minimize for now to speed up packaging. -->
+							<!-- <minimzeJar>true</minimzeJar> -->
+						</configuration>
+						<executions>
+							<execution>
+								<phase>package</phase>
+								<goals>
+									<goal>shade</goal>
+								</goals>
+								<configuration>
+									<transformers>
+										<transformer
+											implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
+											<mainClass>org.janelia.saalfeldlab.paintera.Paintera</mainClass>
+										</transformer>
+									</transformers>
+								</configuration>
+							</execution>
+						</executions>
+					</plugin>
+				</plugins>
+			</build>
+		</profile>
+
+
 		<profile>
 			<id>disable-java8-doclint</id>
 			<activation>
@@ -174,6 +221,7 @@
 	<build>
 		<plugins>
 			<plugin>
+<!-- 			This should be removed once project gets more mature -->
 				<artifactId>maven-enforcer-plugin</artifactId>
 				<executions>
 					<execution>
@@ -190,39 +238,6 @@
 					<target>1.8</target>
 				</configuration>
 			</plugin>
-			<plugin>
-				<artifactId>maven-assembly-plugin</artifactId>
-				<configuration>
-					<archive>
-						<manifest>
-							<mainClass>org.janelia.saalfeldlab.paintera.Paintera</mainClass>
-						</manifest>
-					</archive>
-					<descriptorRefs>
-						<descriptorRef>jar-with-dependencies</descriptorRef>
-					</descriptorRefs>
-				</configuration>
-			</plugin>
-<!-- 			<plugin>
-			    <groupid>org.dstovall</groupid>
-    <artifactid>onejar-maven-plugin</artifactid>
-    <version>1.4.4</version>
-    <executions>
-        <execution>
-            <configuration>
-                <onejarversion>0.97</onejarversion>
-                <classifier>onejar</classifier>
-            </configuration>
-            <goals>
-                <goal>one-jar</goal>
-            </goals>
-        </execution>
-   </executions>
-</plugin>
- -->			<!-- <plugin> <groupId>org.codehaus.mojo</groupId> <artifactId>exec-maven-plugin</artifactId> 
-				<configuration> <executable>java</executable> <arguments> <argument>-Xmx7g</argument> 
-				<argument>-classpath</argument> <classpath /> <argument>${mainclass}</argument> 
-				<argument>${h5file}</argument> </arguments> </configuration> </plugin> -->
 		</plugins>
 	</build>
 </project>

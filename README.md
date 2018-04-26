@@ -31,13 +31,13 @@ mvn clean install
 or, to generate a "fat jar" with all dependencies added, run:
 
 ```shell
-mvn clean compile assembly:single
+mvn -Pfat clean package
 ```
 
 ## Run
 
 ```shell
-java -Xmx16G -XX:+UseConcMarkSweepGC -jar target/paintera-0.1.0-SNAPSHOT-jar-with-dependencies.jar
+java -Xmx16G -XX:+UseConcMarkSweepGC -jar target/paintera-0.1.0-SNAPSHOT-shaded.jar
 ```
 Replace `16G` with the maximum amount of memory that Paintera should use.
 
