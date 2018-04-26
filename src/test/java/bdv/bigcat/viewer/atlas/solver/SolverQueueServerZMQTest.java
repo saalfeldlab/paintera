@@ -7,6 +7,10 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.function.Supplier;
 
+import org.janelia.saalfeldlab.paintera.solver.SolverQueueServerZMQ;
+import org.janelia.saalfeldlab.paintera.solver.action.Action;
+import org.janelia.saalfeldlab.paintera.solver.action.Detach;
+import org.janelia.saalfeldlab.paintera.solver.action.Merge;
 import org.junit.Assert;
 import org.junit.Test;
 import org.zeromq.ZMQ;
@@ -16,9 +20,6 @@ import org.zeromq.ZMQ.Socket;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 
-import bdv.bigcat.viewer.atlas.solver.action.Action;
-import bdv.bigcat.viewer.atlas.solver.action.Detach;
-import bdv.bigcat.viewer.atlas.solver.action.Merge;
 import gnu.trove.list.array.TLongArrayList;
 import gnu.trove.map.hash.TLongLongHashMap;
 

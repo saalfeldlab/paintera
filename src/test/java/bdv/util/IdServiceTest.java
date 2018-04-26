@@ -1,5 +1,6 @@
 package bdv.util;
 
+import org.janelia.saalfeldlab.paintera.id.IdService;
 import org.junit.Assert;
 import org.junit.Test;
 
