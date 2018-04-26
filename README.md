@@ -37,8 +37,9 @@ mvn clean compile assembly:single
 ## Run
 
 ```shell
-java -Xmx16G -XX:+UseConcMarkSweepGC -jar target/bigcat-0.0.3-SNAPSHOT-jar-with-dependencies.jar
+java -Xmx16G -XX:+UseConcMarkSweepGC -jar target/paintera-0.1.0-SNAPSHOT-jar-with-dependencies.jar
 ```
+Replace `16G` with the maximum amount of memory that Paintera should use.
 
 ## Usage
 
