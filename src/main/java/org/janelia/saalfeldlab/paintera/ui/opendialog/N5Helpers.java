@@ -156,14 +156,15 @@ public class N5Helpers
 	public static List< String > discoverDatasets( final N5Reader n5, final Runnable onInterruption )
 	{
 		final List< String > datasets = new ArrayList<>();
-		final ExecutorService exec = Executors.newFixedThreadPool(12);
+		final ExecutorService exec = Executors.newFixedThreadPool(n5 instanceof N5HDF5Reader ? 1 : 12);
 		final AtomicInteger counter = new AtomicInteger(1);
-		exec.submit(() -> discoverSubdirectories( n5, "", datasets, onInterruption, exec, counter ));
-		while (counter.get() > 0)
+		exec.submit(() -> discoverSubdirectories( n5, "", datasets, exec, counter ));
+		while (counter.get() > 0 && !Thread.currentThread().isInterrupted())
 			try {
 					Thread.sleep(20);
 			} catch (InterruptedException e) {
 				exec.shutdownNow();
+				onInterruption.run();
 			}
 		exec.shutdown();
 		Collections.sort(datasets);
@@ -174,7 +175,6 @@ public class N5Helpers
 			final N5Reader n5,
 			final String pathName,
 			final Collection< String > datasets,
-			final Runnable onInterruption,
 			final ExecutorService exec,
 			final AtomicInteger counter )
 	{
@@ -221,14 +221,14 @@ public class N5Helpers
 						final String groupPathName = pathName + "/" + group;
 						final int numThreads = counter.incrementAndGet();
 						LOG.debug( "entering {}, {} threads created", groupPathName, numThreads );
-						exec.submit( () -> discoverSubdirectories( n5, groupPathName, datasets, onInterruption, exec, counter ) );
+						exec.submit( () -> discoverSubdirectories( n5, groupPathName, datasets, exec, counter ) );
 					}
 				}
 			}
 		}
 		catch ( IOException e )
 		{
-			e.printStackTrace();
+			LOG.debug(e.toString(), e);
 		}
 		final int numThreads = counter.decrementAndGet();
 		LOG.debug( "leaving {}, {} threads remaining", pathName, numThreads );
