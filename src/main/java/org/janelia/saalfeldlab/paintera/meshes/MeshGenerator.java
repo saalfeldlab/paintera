@@ -1,14 +1,10 @@
 package org.janelia.saalfeldlab.paintera.meshes;
 
 import java.lang.invoke.MethodHandles;
-import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.List;
 import java.util.Optional;
-import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
-import java.util.function.Function;
 
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread;
 import org.slf4j.Logger;
@@ -31,15 +27,10 @@ import javafx.scene.Group;
 import javafx.scene.Node;
 import javafx.scene.paint.Color;
 import javafx.scene.paint.PhongMaterial;
-import javafx.scene.shape.CullFace;
-import javafx.scene.shape.DrawMode;
 import javafx.scene.shape.MeshView;
-import javafx.scene.shape.TriangleMesh;
-import javafx.scene.shape.VertexFormat;
 import net.imglib2.FinalInterval;
 import net.imglib2.Interval;
 import net.imglib2.type.numeric.ARGBType;
-import net.imglib2.util.Intervals;
 import net.imglib2.util.Pair;
 
 /**
@@ -103,7 +94,8 @@ public class MeshGenerator
 				final ShapeKey otherShapeKey = ( ShapeKey ) other;
 				return shapeId == otherShapeKey.shapeId &&
 						otherShapeKey.scaleIndex == scaleIndex &&
-						otherShapeKey.meshSimplificationIterations == this.meshSimplificationIterations &&
+						// otherShapeKey.meshSimplificationIterations ==
+						// this.meshSimplificationIterations &&
 						Arrays.equals( otherShapeKey.min, min ) &&
 						Arrays.equals( otherShapeKey.max, max );
 			}
@@ -199,9 +191,9 @@ public class MeshGenerator
 
 	private final long id;
 
-	private final Function< Long, Interval[] >[] blockListCache;
+	private final InterruptibleFunction< Long, Interval[] >[] blockListCache;
 
-	private final Function< ShapeKey, Pair< float[], float[] > >[] meshCache;
+	private final InterruptibleFunction< ShapeKey, Pair< float[], float[] > >[] meshCache;
 
 	private final BooleanProperty isVisible = new SimpleBooleanProperty( true );
 
@@ -219,9 +211,11 @@ public class MeshGenerator
 
 	private final BooleanProperty isReady = new SimpleBooleanProperty( true );
 
-	private final ExecutorService es;
+	private final ExecutorService managers;
 
-	private final List< Future< ? > > activeTasks = new ArrayList<>();
+	private final ExecutorService workers;
+
+	private final ObjectProperty< Future< Void > > activeTask = new SimpleObjectProperty<>();
 
 	private final IntegerProperty submittedTasks = new SimpleIntegerProperty( 0 );
 
@@ -229,22 +223,27 @@ public class MeshGenerator
 
 	private final IntegerProperty successfulTasks = new SimpleIntegerProperty( 0 );
 
+	private final MeshGeneratorJobManager manager;
+
 	//
 	public MeshGenerator(
 			final long segmentId,
-			final Function< Long, Interval[] >[] blockListCache,
-			final Function< ShapeKey, Pair< float[], float[] > >[] meshCache,
+			final InterruptibleFunction< Long, Interval[] >[] blockListCache,
+			final InterruptibleFunction< ShapeKey, Pair< float[], float[] > >[] meshCache,
 			final ObservableIntegerValue color,
 			final int scaleIndex,
 			final int meshSimplificationIterations,
-			final ExecutorService es )
+			final ExecutorService managers,
+			final ExecutorService workers )
 	{
 		super();
 		this.id = segmentId;
 		this.blockListCache = blockListCache;
 		this.meshCache = meshCache;
 		this.color = Bindings.createObjectBinding( () -> fromInt( color.get() ), color );
-		this.es = es;
+		this.managers = managers;
+		this.workers = workers;
+		this.manager = new MeshGeneratorJobManager( this.meshes, managers, workers );
 
 		this.changed.addListener( ( obs, oldv, newv ) -> new Thread( () -> this.updateMeshes( newv ) ).start() );
 		this.changed.addListener( ( obs, oldv, newv ) -> changed.set( false ) );
@@ -261,10 +260,29 @@ public class MeshGenerator
 					Optional.ofNullable( oldv ).ifPresent( g -> this.meshes.forEach( ( id, mesh ) -> g.getChildren().remove( mesh ) ) );
 					Optional.ofNullable( newv ).ifPresent( g -> this.meshes.forEach( ( id, mesh ) -> g.getChildren().add( mesh ) ) );
 				}
+				if ( newv == null )
+				{
+					synchronized ( this.activeTask )
+					{
+						Optional.ofNullable( this.activeTask.get() ).ifPresent( f -> f.cancel( true ) );
+						this.activeTask.set( null );
+					}
+				}
 			} );
 		} );
 
 		this.meshes.addListener( ( MapChangeListener< ShapeKey, MeshView > ) change -> {
+			if ( change.wasRemoved() )
+			{
+				( ( PhongMaterial ) change.getValueRemoved().getMaterial() ).diffuseColorProperty().unbind();
+				change.getValueRemoved().visibleProperty().unbind();
+			}
+			else
+			{
+				( ( PhongMaterial ) change.getValueAdded().getMaterial() ).diffuseColorProperty().bind( this.color );
+				change.getValueAdded().visibleProperty().bind( this.isVisible );
+			}
+
 			Optional.ofNullable( this.root.get() ).ifPresent( group -> {
 				if ( change.wasRemoved() )
 					InvokeOnJavaFXApplicationThread.invoke( synchronize( () -> group.getChildren().remove( change.getValueRemoved() ), group ) );
@@ -289,112 +307,23 @@ public class MeshGenerator
 		LOG.debug( "Updating mesh? {}", doUpdate );
 		if ( !doUpdate )
 			return;
-		synchronized ( meshes )
-		{
-			this.meshes.clear();
-		}
 
-		synchronized ( activeTasks )
+		synchronized ( this.activeTask )
 		{
-			this.activeTasks.forEach( f -> f.cancel( true ) );
-			this.activeTasks.clear();
-		}
-
-		final int scaleIndex = this.scaleIndex.get();
-		final List< Interval > blockList = new ArrayList<>();
-		try
-		{
-			blockList.addAll( Arrays.asList( blockListCache[ scaleIndex ].apply( id ) ) );
-		}
-		catch ( final RuntimeException e )
-		{
-			LOG.warn( "Could not get mesh block list for id {}: {}", id, e.getMessage() );
-			return;
-		}
-		LOG.debug( "Generating mesh with {} blocks for fragment {}.", blockList.size(), this.id );
-
-		final List< ShapeKey > keys = new ArrayList<>();
-		for ( final Interval block : blockList )
-			keys.add( new ShapeKey( id, scaleIndex, meshSimplificationIterations.get(), Intervals.minAsLongArray( block ), Intervals.maxAsLongArray( block ) ) );
-		final ArrayList< Callable< Void > > tasks = new ArrayList<>();
-		final ArrayList< Future< Void > > futures = new ArrayList<>();
-		for ( final ShapeKey key : keys )
-			tasks.add( () -> {
-				final String initialName = Thread.currentThread().getName();
-				try
+			LOG.warn( "Canceling task: {}", this.activeTask );
+			Optional.ofNullable( activeTask.get() ).ifPresent( f -> f.cancel( true ) );
+			activeTask.set( null );
+			final int scaleIndex = this.scaleIndex.get();
+			final Runnable onFinish = () -> {
+				synchronized ( activeTask )
 				{
-					Thread.currentThread().setName( initialName + " -- generating mesh: " + key );
-					LOG.trace( "Set name of current thread to {} ( was {})", Thread.currentThread().getName(), initialName );
-					final Pair< float[], float[] > verticesAndNormals = meshCache[ scaleIndex ].apply( key );
-					final float[] vertices = verticesAndNormals.getA();
-					final float[] normals = verticesAndNormals.getB();
-					final TriangleMesh mesh = new TriangleMesh();
-					mesh.getPoints().addAll( vertices );
-					mesh.getNormals().addAll( normals );
-					mesh.getTexCoords().addAll( 0, 0 );
-					mesh.setVertexFormat( VertexFormat.POINT_NORMAL_TEXCOORD );
-					final int[] faceIndices = new int[ vertices.length ];
-					for ( int i = 0, k = 0; i < faceIndices.length; i += 3, ++k )
-					{
-						faceIndices[ i + 0 ] = k;
-						faceIndices[ i + 1 ] = k;
-						faceIndices[ i + 2 ] = 0;
-					}
-					mesh.getFaces().addAll( faceIndices );
-					final PhongMaterial material = new PhongMaterial();
-					material.setSpecularColor( new Color( 1, 1, 1, 1.0 ) );
-					material.setSpecularPower( 50 );
-					material.diffuseColorProperty().bind( color );
-					final MeshView mv = new MeshView( mesh );
-					mv.setOpacity( 1.0 );
-					synchronized ( this.isVisible )
-					{
-						mv.visibleProperty().bind( this.isVisible );
-					}
-					mv.setCullFace( CullFace.NONE );
-					mv.setMaterial( material );
-					mv.setDrawMode( DrawMode.FILL );
-					if ( !Thread.interrupted() )
-						synchronized ( meshes )
-						{
-							meshes.put( key, mv );
-						}
+					activeTask.set( null );
 				}
-				catch ( final RuntimeException e )
-				{
-					LOG.warn( "Was not able to retrieve mesh for {}: {}", key, e.getMessage() );
-				}
-				finally
-				{
-					Thread.currentThread().setName( initialName );
-					synchronized ( this.completedTasks )
-					{
-						this.successfulTasks.set( this.successfulTasks.get() + 1 );
-					}
-				}
-				this.completedTasks.set( this.completedTasks.get() + 1 );
-				return null;
-
-			} );
-
-		this.submittedTasks.set( tasks.size() );
-		this.successfulTasks.set( 0 );
-		this.completedTasks.set( 0 );
-		synchronized ( this.activeTasks )
-		{
-			tasks.stream().map( this.es::submit ).forEach( futures::add );
-			this.activeTasks.addAll( futures );
+			};
+			final Future< Void > task = manager.submit( id, scaleIndex, this.blockListCache[ scaleIndex ], this.meshCache[ scaleIndex ], onFinish );
+			LOG.warn( "Submitting new task {}", task );
+			this.activeTask.set( task );
 		}
-		for ( final Future< Void > future : futures )
-			try
-			{
-				future.get();
-			}
-			catch ( final Exception e )
-			{
-				LOG.warn( "{} in neuron mesh generation: {}", e.getClass(), e.getMessage() );
-				e.printStackTrace();
-			}
 
 	}
 

@@ -22,6 +22,7 @@ import org.janelia.saalfeldlab.paintera.data.DataSource;
 import org.janelia.saalfeldlab.paintera.data.mask.MaskedSource;
 import org.janelia.saalfeldlab.paintera.id.IdService;
 import org.janelia.saalfeldlab.paintera.id.ToIdConverter;
+import org.janelia.saalfeldlab.paintera.meshes.InterruptibleFunction;
 import org.janelia.saalfeldlab.paintera.meshes.MeshGenerator.ShapeKey;
 import org.janelia.saalfeldlab.paintera.meshes.MeshInfos;
 import org.janelia.saalfeldlab.paintera.meshes.MeshManager;
@@ -82,6 +83,10 @@ public class PainteraBaseView
 	private final ListChangeListener< SourceAndConverter< ? > > vsacUpdate;
 
 	private final ExecutorService generalPurposeExecutorService = Executors.newFixedThreadPool( 3, new NamedThreadFactory( "paintera-thread-%d" ) );
+
+	private final ExecutorService meshManagerExecutorService = Executors.newFixedThreadPool( 1, new NamedThreadFactory( "paintera-mesh-manager-%d" ) );
+
+	private final ExecutorService meshWorkerExecutorService = Executors.newFixedThreadPool( 3, new NamedThreadFactory( "paintera-mesh-worker-%d" ) );
 
 	public PainteraBaseView( final int numFetcherThreads, final Function< SourceInfo, Function< Source< ? >, Interpolation > > interpolation )
 	{
@@ -178,8 +183,8 @@ public class PainteraBaseView
 			final FragmentSegmentAssignmentState assignment,
 			final IdService idService,
 			final ToIdConverter toIdConverter,
-			final Function< Long, Interval[] >[] blocksThatContainId,
-			final Function< ShapeKey, Pair< float[], float[] > >[] meshCache )
+			final InterruptibleFunction< Long, Interval[] >[] blocksThatContainId,
+			final InterruptibleFunction< ShapeKey, Pair< float[], float[] > >[] meshCache )
 	{
 		addLabelSource( source, assignment, idService, toIdConverter, blocksThatContainId, meshCache, equalsMaskForType( source.getDataType() ) );
 	}
@@ -189,8 +194,8 @@ public class PainteraBaseView
 			final FragmentSegmentAssignmentState assignment,
 			final IdService idService,
 			final ToIdConverter toIdConverter,
-			final Function< Long, Interval[] >[] blocksThatContainId,
-			final Function< ShapeKey, Pair< float[], float[] > >[] meshCache,
+			final InterruptibleFunction< Long, Interval[] >[] blocksThatContainId,
+			final InterruptibleFunction< ShapeKey, Pair< float[], float[] > >[] meshCache,
 			final LongFunction< Converter< D, BoolType > > equalsMask )
 	{
 		final SelectedIds selId = new SelectedIds();
@@ -227,7 +232,8 @@ public class PainteraBaseView
 				viewer3D.meshesGroup(),
 				fragmentsInSelection,
 				new SimpleIntegerProperty(),
-				Executors.newFixedThreadPool( 1 ) );
+				meshManagerExecutorService,
+				meshWorkerExecutorService );
 
 		final MeshInfos meshInfos = new MeshInfos( state, selectedSegments, assignment, meshManager, source.getNumMipmapLevels() );
 		state.meshManagerProperty().set( meshManager );
@@ -302,13 +308,13 @@ public class PainteraBaseView
 		final int[][] blockSizes = Stream.generate( () -> new int[] { 64, 64, 64 } ).limit( spec.getNumMipmapLevels() ).toArray( int[][]::new );
 		final int[][] cubeSizes = Stream.generate( () -> new int[] { 1, 1, 1 } ).limit( spec.getNumMipmapLevels() ).toArray( int[][]::new );
 
-		final Function< HashWrapper< long[] >, long[] >[] uniqueLabelLoaders = CacheUtils.uniqueLabelCaches(
+		final InterruptibleFunction< HashWrapper< long[] >, long[] >[] uniqueLabelLoaders = CacheUtils.uniqueLabelCaches(
 				spec,
 				blockSizes,
 				collectLabels,
 				CacheUtils::toCacheSoftRefLoaderCache );
 
-		final Function< Long, Interval[] >[] blocksForLabelCache = CacheUtils.blocksForLabelCaches(
+		final InterruptibleFunction< Long, Interval[] >[] blocksForLabelCache = CacheUtils.blocksForLabelCaches(
 				spec,
 				uniqueLabelLoaders,
 				blockSizes,
@@ -316,7 +322,7 @@ public class PainteraBaseView
 				CacheUtils::toCacheSoftRefLoaderCache,
 				es );
 
-		final Function< ShapeKey, Pair< float[], float[] > >[] meshCaches = CacheUtils.meshCacheLoaders(
+		final InterruptibleFunction< ShapeKey, Pair< float[], float[] > >[] meshCaches = CacheUtils.meshCacheLoaders(
 				spec,
 				cubeSizes,
 				getMaskGenerator,

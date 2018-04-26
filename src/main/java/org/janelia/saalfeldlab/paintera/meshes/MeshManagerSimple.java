@@ -7,7 +7,6 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ExecutorService;
-import java.util.function.Function;
 
 import org.janelia.saalfeldlab.paintera.meshes.MeshGenerator.ShapeKey;
 import org.slf4j.Logger;
@@ -30,9 +29,9 @@ public class MeshManagerSimple implements MeshManager
 
 	private static final Logger LOG = LoggerFactory.getLogger( MethodHandles.lookup().lookupClass() );
 
-	private final Function< Long, Interval[] >[] blockListCache;
+	private final InterruptibleFunction< Long, Interval[] >[] blockListCache;
 
-	private final Function< ShapeKey, Pair< float[], float[] > >[] meshCache;
+	private final InterruptibleFunction< ShapeKey, Pair< float[], float[] > >[] meshCache;
 
 	private final Map< Long, MeshGenerator > neurons = Collections.synchronizedMap( new HashMap<>() );
 
@@ -42,14 +41,17 @@ public class MeshManagerSimple implements MeshManager
 
 	private final IntegerProperty scaleLevel = new SimpleIntegerProperty();
 
-	private final ExecutorService es;
+	private final ExecutorService managers;
+
+	private final ExecutorService workers;
 
 	public MeshManagerSimple(
-			final Function< Long, Interval[] >[] blockListCache,
-			final Function< ShapeKey, Pair< float[], float[] > >[] meshCache,
+			final InterruptibleFunction< Long, Interval[] >[] blockListCache,
+			final InterruptibleFunction< ShapeKey, Pair< float[], float[] > >[] meshCache,
 			final Group root,
 			final ObservableIntegerValue meshSimplificationIterations,
-			final ExecutorService es )
+			final ExecutorService managers,
+			final ExecutorService workers )
 	{
 		super();
 		this.blockListCache = blockListCache;
@@ -62,7 +64,8 @@ public class MeshManagerSimple implements MeshManager
 			this.meshSimplificationIterations.set( Math.max( newv.intValue(), 0 ) );
 		} );
 
-		this.es = es;
+		this.managers = managers;
+		this.workers = workers;
 
 	}
 
@@ -83,7 +86,8 @@ public class MeshManagerSimple implements MeshManager
 				color,
 				scaleLevel.get(),
 				meshSimplificationIterations.get(),
-				es );
+				managers,
+				workers );
 		nfx.rootProperty().set( this.root );
 
 		neurons.put( id, nfx );

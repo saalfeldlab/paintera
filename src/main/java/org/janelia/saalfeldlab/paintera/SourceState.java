@@ -1,6 +1,5 @@
 package org.janelia.saalfeldlab.paintera;
 
-import java.util.function.Function;
 import java.util.function.LongFunction;
 
 import org.janelia.saalfeldlab.paintera.composition.Composite;
@@ -10,6 +9,7 @@ import org.janelia.saalfeldlab.paintera.data.DataSource;
 import org.janelia.saalfeldlab.paintera.data.mask.MaskedSource;
 import org.janelia.saalfeldlab.paintera.id.IdService;
 import org.janelia.saalfeldlab.paintera.id.ToIdConverter;
+import org.janelia.saalfeldlab.paintera.meshes.InterruptibleFunction;
 import org.janelia.saalfeldlab.paintera.meshes.MeshGenerator.ShapeKey;
 import org.janelia.saalfeldlab.paintera.meshes.MeshInfos;
 import org.janelia.saalfeldlab.paintera.meshes.MeshManager;
@@ -94,9 +94,9 @@ public class SourceState< T extends Type< T >, D extends Type< D > >
 
 	private final StringProperty name = stateChangingStringProperty( stateChanged );
 
-	private final ObjectProperty< Function< Long, Interval[] >[] > blockListCache = stateChangingObjectProperty( stateChanged );
+	private final ObjectProperty< InterruptibleFunction< Long, Interval[] >[] > blockListCache = stateChangingObjectProperty( stateChanged );
 
-	private final ObjectProperty< Function< ShapeKey, Pair< float[], float[] > >[] > meshesCache = stateChangingObjectProperty( stateChanged );
+	private final ObjectProperty< InterruptibleFunction< ShapeKey, Pair< float[], float[] > >[] > meshesCache = stateChangingObjectProperty( stateChanged );
 
 	private final ObjectProperty< MeshManager > meshManager = stateChangingObjectProperty( stateChanged );
 
@@ -206,7 +206,7 @@ public class SourceState< T extends Type< T >, D extends Type< D > >
 		return this.selectionMax;
 	}
 
-	public ObjectProperty< Function< Long, Interval[] >[] > blocklistCacheProperty()
+	public ObjectProperty< InterruptibleFunction< Long, Interval[] >[] > blocklistCacheProperty()
 	{
 		return this.blockListCache;
 	}
@@ -216,7 +216,7 @@ public class SourceState< T extends Type< T >, D extends Type< D > >
 		return this.name;
 	}
 
-	public ObjectProperty< Function< ShapeKey, Pair< float[], float[] > >[] > meshesCacheProperty()
+	public ObjectProperty< InterruptibleFunction< ShapeKey, Pair< float[], float[] > >[] > meshesCacheProperty()
 	{
 		return this.meshesCache;
 	}

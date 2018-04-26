@@ -1,10 +1,13 @@
 package org.janelia.saalfeldlab.paintera.meshes.cache;
 
 import java.lang.invoke.MethodHandles;
+import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.function.Function;
+import java.util.List;
+import java.util.function.Consumer;
 import java.util.function.LongFunction;
 
+import org.janelia.saalfeldlab.paintera.meshes.Interruptible;
 import org.janelia.saalfeldlab.paintera.meshes.MeshGenerator.ShapeKey;
 import org.janelia.saalfeldlab.paintera.meshes.marchingcubes.MarchingCubes;
 import org.slf4j.Logger;
@@ -21,7 +24,7 @@ import net.imglib2.util.Pair;
 import net.imglib2.util.ValuePair;
 import net.imglib2.view.Views;
 
-public class MeshCacheLoader< T > implements CacheLoader< ShapeKey, Pair< float[], float[] > >
+public class MeshCacheLoader< T > implements CacheLoader< ShapeKey, Pair< float[], float[] > >, Interruptible< ShapeKey >
 {
 
 	private static final Logger LOG = LoggerFactory.getLogger( MethodHandles.lookup().lookupClass() );
@@ -30,11 +33,11 @@ public class MeshCacheLoader< T > implements CacheLoader< ShapeKey, Pair< float[
 
 	private final RandomAccessibleInterval< T > data;
 
-	private Function< ShapeKey, Pair< float[], float[] > > getHigherResMesh;
-
 	private final LongFunction< Converter< T, BoolType > > getMaskGenerator;
 
 	private final AffineTransform3D transform;
+
+	private final List< Consumer< ShapeKey > > interruptListeners = new ArrayList<>();
 
 	public MeshCacheLoader(
 			final int[] cubeSize,
@@ -45,39 +48,61 @@ public class MeshCacheLoader< T > implements CacheLoader< ShapeKey, Pair< float[
 		super();
 		this.cubeSize = cubeSize;
 		this.data = data;
-		this.getHigherResMesh = key -> new ValuePair<>( new float[ 0 ], new float[ 0 ] );
 		this.getMaskGenerator = getMaskGenerator;
 		this.transform = transform;
 	}
 
-	public void setGetHigherResMesh( final Function< ShapeKey, Pair< float[], float[] > > getHigherResMesh )
+	@Override
+	public void interruptFor( final ShapeKey key )
 	{
-		this.getHigherResMesh = getHigherResMesh;
+		synchronized ( interruptListeners )
+		{
+			interruptListeners.forEach( l -> l.accept( key ) );
+		}
 	}
 
 	@Override
 	public Pair< float[], float[] > get( final ShapeKey key ) throws Exception
 	{
 
-		if ( key.meshSimplificationIterations() > 0 )
-		{
-			final ShapeKey k = new ShapeKey( key.shapeId(), key.scaleIndex(), key.meshSimplificationIterations() - 1, key.min(), key.max() );
-			final Pair< float[], float[] > highResMesh = getHigherResMesh.apply( k );
-			return simplifyMesh( highResMesh.getA(), highResMesh.getB() );
-		}
+//		if ( key.meshSimplificationIterations() > 0 )
+//		{
+		// TODO deal with mesh simplification
+//		}
 
 		final RandomAccessibleInterval< BoolType > mask = Converters.convert( data, getMaskGenerator.apply( key.shapeId() ), new BoolType( false ) );
 
-		final float[] mesh = new MarchingCubes<>(
-				Views.extendZero( mask ),
-				Intervals.expand( key.interval(), Arrays.stream( cubeSize ).mapToLong( size -> size ).toArray() ),
-				transform,
-				cubeSize ).generateMesh();
-		final float[] normals = new float[ mesh.length ];
-		MarchingCubes.averagedSurfaceNormals( mesh, normals );
-		for ( int i = 0; i < normals.length; ++i )
-			normals[ i ] *= -1;
-		return new ValuePair<>( mesh, normals );
+		final boolean[] isInterrupted = new boolean[] { false };
+		final Consumer< ShapeKey > listener = interruptedKey -> {
+			if ( interruptedKey.equals( key ) )
+				isInterrupted[ 0 ] = true;
+		};
+		synchronized ( interruptListeners )
+		{
+			interruptListeners.add( listener );
+		}
+
+		try
+		{
+			final float[] mesh = new MarchingCubes<>(
+					Views.extendZero( mask ),
+					Intervals.expand( key.interval(), Arrays.stream( cubeSize ).mapToLong( size -> size ).toArray() ),
+					transform,
+					cubeSize,
+					() -> isInterrupted[ 0 ] ).generateMesh();
+			final float[] normals = new float[ mesh.length ];
+			MarchingCubes.averagedSurfaceNormals( mesh, normals );
+			for ( int i = 0; i < normals.length; ++i )
+				normals[ i ] *= -1;
+			return new ValuePair<>( mesh, normals );
+		}
+		finally
+		{
+			synchronized ( interruptListeners )
+			{
+				interruptListeners.remove( listener );
+			}
+		}
 	}
 
 	public static Pair< float[], float[] > simplifyMesh( final float[] vertices, final float[] normals )
