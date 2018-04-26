@@ -101,7 +101,7 @@ public class BlocksForLabelCacheLoader implements CacheLoader< Long, Interval[] 
 					.flatMap( List::stream )
 					.map( HashWrapper::interval )
 					.forEach( blocks::add );
-			LOG.debug( "{} -- got {} block candidates: {}", grid, blocks.size(), toString( blocks ) );
+			LOG.debug( "key={} grid={} -- got {} block candidates", key, grid, blocks.size() );
 
 			final List< Interval > results = new ArrayList<>();
 			for ( final Iterator< HashWrapper< Interval > > blockIt = blocks.iterator(); blockIt.hasNext() && !isInterrupted[ 0 ]; )
@@ -110,10 +110,12 @@ public class BlocksForLabelCacheLoader implements CacheLoader< Long, Interval[] 
 				final long[] cellPos = new long[ grid.numDimensions() ];
 				grid.getCellPosition( Intervals.minAsLongArray( block.getData() ), cellPos );
 				final long[] uniqueLabels = getUniqueLabelListForBlock.apply( cellPos );
+				LOG.trace( "key={} grid ={} -- Unique labels: {}", key, grid, uniqueLabels );
 				final long unboxedKey = key;
 				if ( Arrays.stream( uniqueLabels ).filter( l -> l == unboxedKey ).count() > 0 )
 					results.add( block.getData() );
 			}
+			LOG.debug( "key={} grid={} -- still {} blocks after filtering", key, grid, results.size() );
 			return isInterrupted[ 0 ] ? null : results.toArray( new Interval[ results.size() ] );
 		}
 		finally

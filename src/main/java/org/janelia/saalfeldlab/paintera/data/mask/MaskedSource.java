@@ -1058,4 +1058,9 @@ public class MaskedSource< D extends Type< D >, T extends Type< T > > implements
 		}
 	}
 
+	public DataSource< D, T > underlyingSource()
+	{
+		return this.source;
+	}
+
 }
