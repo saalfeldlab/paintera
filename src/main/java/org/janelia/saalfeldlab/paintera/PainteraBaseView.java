@@ -7,6 +7,7 @@ import java.util.concurrent.Executors;
 import java.util.function.BiConsumer;
 import java.util.function.Function;
 import java.util.function.LongFunction;
+import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
 import org.janelia.saalfeldlab.fx.ortho.OrthogonalViews;
@@ -22,11 +23,13 @@ import org.janelia.saalfeldlab.paintera.data.DataSource;
 import org.janelia.saalfeldlab.paintera.data.mask.MaskedSource;
 import org.janelia.saalfeldlab.paintera.id.IdService;
 import org.janelia.saalfeldlab.paintera.id.ToIdConverter;
+import org.janelia.saalfeldlab.paintera.meshes.InterruptibleFunction;
 import org.janelia.saalfeldlab.paintera.meshes.MeshGenerator.ShapeKey;
 import org.janelia.saalfeldlab.paintera.meshes.MeshInfos;
 import org.janelia.saalfeldlab.paintera.meshes.MeshManager;
 import org.janelia.saalfeldlab.paintera.meshes.MeshManagerWithAssignment;
 import org.janelia.saalfeldlab.paintera.meshes.cache.CacheUtils;
+import org.janelia.saalfeldlab.paintera.meshes.cache.UniqueLabelListLabelMultisetCacheLoader;
 import org.janelia.saalfeldlab.paintera.state.GlobalTransformManager;
 import org.janelia.saalfeldlab.paintera.stream.HighlightingStreamConverter;
 import org.janelia.saalfeldlab.paintera.stream.ModalGoldenAngleSaturatedHighlightingARGBStream;
@@ -49,11 +52,18 @@ import javafx.collections.ObservableList;
 import javafx.scene.layout.Pane;
 import javafx.scene.paint.Color;
 import net.imglib2.Interval;
+import net.imglib2.RandomAccessibleInterval;
+import net.imglib2.cache.Cache;
+import net.imglib2.cache.img.CachedCellImg;
 import net.imglib2.converter.ARGBColorConverter;
 import net.imglib2.converter.Converter;
+import net.imglib2.img.cell.Cell;
+import net.imglib2.img.cell.CellGrid;
+import net.imglib2.img.cell.LazyCellImg.LazyCells;
 import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.type.Type;
 import net.imglib2.type.label.LabelMultisetType;
+import net.imglib2.type.label.VolatileLabelMultisetArray;
 import net.imglib2.type.logic.BoolType;
 import net.imglib2.type.numeric.ARGBType;
 import net.imglib2.type.numeric.IntegerType;
@@ -82,6 +92,14 @@ public class PainteraBaseView
 	private final ListChangeListener< SourceAndConverter< ? > > vsacUpdate;
 
 	private final ExecutorService generalPurposeExecutorService = Executors.newFixedThreadPool( 3, new NamedThreadFactory( "paintera-thread-%d" ) );
+
+	private final ExecutorService meshManagerExecutorService = Executors.newFixedThreadPool( 1, new NamedThreadFactory( "paintera-mesh-manager-%d" ) );
+
+	private final ExecutorService meshWorkerExecutorService = Executors.newFixedThreadPool( 3, new NamedThreadFactory( "paintera-mesh-worker-%d" ) );
+
+	private final ExecutorService paintQueue = Executors.newFixedThreadPool( 1 );
+
+	private final ExecutorService propagationQueue = Executors.newFixedThreadPool( 1 );
 
 	public PainteraBaseView( final int numFetcherThreads, final Function< SourceInfo, Function< Source< ? >, Interpolation > > interpolation )
 	{
@@ -178,8 +196,8 @@ public class PainteraBaseView
 			final FragmentSegmentAssignmentState assignment,
 			final IdService idService,
 			final ToIdConverter toIdConverter,
-			final Function< Long, Interval[] >[] blocksThatContainId,
-			final Function< ShapeKey, Pair< float[], float[] > >[] meshCache )
+			final InterruptibleFunction< Long, Interval[] >[] blocksThatContainId,
+			final InterruptibleFunction< ShapeKey, Pair< float[], float[] > >[] meshCache )
 	{
 		addLabelSource( source, assignment, idService, toIdConverter, blocksThatContainId, meshCache, equalsMaskForType( source.getDataType() ) );
 	}
@@ -189,8 +207,8 @@ public class PainteraBaseView
 			final FragmentSegmentAssignmentState assignment,
 			final IdService idService,
 			final ToIdConverter toIdConverter,
-			final Function< Long, Interval[] >[] blocksThatContainId,
-			final Function< ShapeKey, Pair< float[], float[] > >[] meshCache,
+			final InterruptibleFunction< Long, Interval[] >[] blocksThatContainId,
+			final InterruptibleFunction< ShapeKey, Pair< float[], float[] > >[] meshCache,
 			final LongFunction< Converter< D, BoolType > > equalsMask )
 	{
 		final SelectedIds selId = new SelectedIds();
@@ -227,7 +245,8 @@ public class PainteraBaseView
 				viewer3D.meshesGroup(),
 				fragmentsInSelection,
 				new SimpleIntegerProperty(),
-				Executors.newFixedThreadPool( 1 ) );
+				meshManagerExecutorService,
+				meshWorkerExecutorService );
 
 		final MeshInfos meshInfos = new MeshInfos( state, selectedSegments, assignment, meshManager, source.getNumMipmapLevels() );
 		state.meshManagerProperty().set( meshManager );
@@ -244,14 +263,30 @@ public class PainteraBaseView
 		}
 		else
 		{
-			// off-diagonal in case of permutations)
-			generateMeshCaches(
-					source,
-					state,
-					scaleFactorsFromAffineTransforms( source ),
-					collectLabels( source.getDataType() ),
-					equalsMask,
-					generalPurposeExecutorService );
+			LOG.debug( "Creating default mesh caches (create block lists by iterating over all blocks and filtering)" );
+
+			final boolean isMaskedSource = source instanceof MaskedSource< ?, ? >;
+			final boolean isLabelMultisetType = source.getDataType() instanceof LabelMultisetType;
+			final boolean isCachedCellImg = ( isMaskedSource ? ( ( MaskedSource< ?, ? > ) source ).underlyingSource().getDataSource( 0, 0 ) : source.getDataSource( 0, 0 ) ) instanceof CachedCellImg< ?, ? >;
+			LOG.debug( "Is LabelMultisetType? {} -- Is cachedCellImg? {}", isLabelMultisetType, isCachedCellImg );
+			LOG.debug( "data type={} source type={}", source.getDataType(), source.getDataSource( 0, 0 ) );
+			if ( isLabelMultisetType && isCachedCellImg )
+			{
+				generateMeshCachesForLabelMultisetTypeCachedImg(
+						( DataSource< LabelMultisetType, T > ) ( isMaskedSource ? ( ( MaskedSource< ?, ? > ) source ).underlyingSource() : source ),
+						( SourceState< T, LabelMultisetType > ) state,
+						scaleFactorsFromAffineTransforms( source ),
+						( LongFunction< Converter< LabelMultisetType, BoolType > > ) ( LongFunction< ? > ) equalsMask,
+						generalPurposeExecutorService );
+			}
+			else
+				generateMeshCaches(
+						source,
+						state,
+						scaleFactorsFromAffineTransforms( source ),
+						collectLabels( source.getDataType() ),
+						equalsMask,
+						generalPurposeExecutorService );
 		}
 
 		sourceInfo.addState( source, state );
@@ -302,13 +337,27 @@ public class PainteraBaseView
 		final int[][] blockSizes = Stream.generate( () -> new int[] { 64, 64, 64 } ).limit( spec.getNumMipmapLevels() ).toArray( int[][]::new );
 		final int[][] cubeSizes = Stream.generate( () -> new int[] { 1, 1, 1 } ).limit( spec.getNumMipmapLevels() ).toArray( int[][]::new );
 
-		final Function< HashWrapper< long[] >, long[] >[] uniqueLabelLoaders = CacheUtils.uniqueLabelCaches(
+		final InterruptibleFunction< HashWrapper< long[] >, long[] >[] uniqueLabelLoaders = CacheUtils.uniqueLabelCaches(
 				spec,
 				blockSizes,
 				collectLabels,
 				CacheUtils::toCacheSoftRefLoaderCache );
 
-		final Function< Long, Interval[] >[] blocksForLabelCache = CacheUtils.blocksForLabelCaches(
+		generateMeshCaches( spec, state, uniqueLabelLoaders, blockSizes, cubeSizes, scalingFactors, getMaskGenerator, es );
+	}
+
+	private static < D extends Type< D >, T extends Type< T > > void generateMeshCaches(
+			final DataSource< D, T > spec,
+			final SourceState< T, D > state,
+			final InterruptibleFunction< HashWrapper< long[] >, long[] >[] uniqueLabelLoaders,
+			final int[][] blockSizes,
+			final int[][] cubeSizes,
+			final double[][] scalingFactors,
+			final LongFunction< Converter< D, BoolType > > getMaskGenerator,
+			final ExecutorService es )
+	{
+
+		final InterruptibleFunction< Long, Interval[] >[] blocksForLabelCache = CacheUtils.blocksForLabelCaches(
 				spec,
 				uniqueLabelLoaders,
 				blockSizes,
@@ -316,7 +365,7 @@ public class PainteraBaseView
 				CacheUtils::toCacheSoftRefLoaderCache,
 				es );
 
-		final Function< ShapeKey, Pair< float[], float[] > >[] meshCaches = CacheUtils.meshCacheLoaders(
+		final InterruptibleFunction< ShapeKey, Pair< float[], float[] > >[] meshCaches = CacheUtils.meshCacheLoaders(
 				spec,
 				cubeSizes,
 				getMaskGenerator,
@@ -324,6 +373,37 @@ public class PainteraBaseView
 
 		state.blocklistCacheProperty().set( blocksForLabelCache );
 		state.meshesCacheProperty().set( meshCaches );
+	}
+
+	private static < T extends Type< T > > void generateMeshCachesForLabelMultisetTypeCachedImg(
+			final DataSource< LabelMultisetType, T > spec,
+			final SourceState< T, LabelMultisetType > state,
+			final double[][] scalingFactors,
+			final LongFunction< Converter< LabelMultisetType, BoolType > > getMaskGenerator,
+			final ExecutorService es )
+	{
+		@SuppressWarnings( "unchecked" )
+		final InterruptibleFunction< HashWrapper< long[] >, long[] >[] uniqueLabelLoaders = new InterruptibleFunction[ spec.getNumMipmapLevels() ];
+		final int[][] blockSizes = new int[ spec.getNumMipmapLevels() ][];
+		final int[][] cubeSizes = new int[ spec.getNumMipmapLevels() ][];
+		for ( int level = 0; level < spec.getNumMipmapLevels(); ++level )
+		{
+			LOG.warn( "Generating unique label list loaders at level {} for LabelMultisetType source: {}", level, spec );
+			final RandomAccessibleInterval< LabelMultisetType > img = spec.getDataSource( 0, level );
+			if ( !( img instanceof CachedCellImg ) )
+				throw new RuntimeException( "Source at level " + level + " is not a CachedCellImg for " + spec );
+			@SuppressWarnings( "unchecked" )
+			final CachedCellImg< LabelMultisetType, VolatileLabelMultisetArray > cachedImg = ( CachedCellImg< LabelMultisetType, VolatileLabelMultisetArray > ) img;
+			final LazyCells< Cell< VolatileLabelMultisetArray > > cells = cachedImg.getCells();
+			final CellGrid grid = cachedImg.getCellGrid();
+			final UniqueLabelListLabelMultisetCacheLoader loader = new UniqueLabelListLabelMultisetCacheLoader( cells );
+			final Cache< HashWrapper< long[] >, long[] > cache = CacheUtils.toCacheSoftRefLoaderCache( loader );
+			uniqueLabelLoaders[ level ] = CacheUtils.fromCache( cache, loader );
+			blockSizes[ level ] = IntStream.range( 0, grid.numDimensions() ).map( grid::cellDimension ).toArray();
+			cubeSizes[ level ] = IntStream.generate( () -> 1 ).limit( grid.numDimensions() ).toArray();
+		}
+
+		generateMeshCaches( spec, state, uniqueLabelLoaders, blockSizes, cubeSizes, scalingFactors, getMaskGenerator, es );
 	}
 
 	public static double[][] scaleFactorsFromAffineTransforms( final Source< ? > source )
@@ -372,6 +452,31 @@ public class PainteraBaseView
 	private static < R extends RealType< R > > BiConsumer< R, TLongHashSet > collectLabelsFromRealType()
 	{
 		return ( lbl, set ) -> set.add( ( long ) lbl.getRealDouble() );
+	}
+
+	public ExecutorService getPaintQueue()
+	{
+		return this.paintQueue;
+	}
+
+	public ExecutorService getPropagationQueue()
+	{
+		return this.propagationQueue;
+	}
+
+	public void stop()
+	{
+		LOG.warn( "Stopping everything" );
+		this.generalPurposeExecutorService.shutdownNow();
+		this.meshManagerExecutorService.shutdown();
+		this.meshWorkerExecutorService.shutdownNow();
+		this.paintQueue.shutdownNow();
+		this.propagationQueue.shutdownNow();
+		this.orthogonalViews().topLeft().viewer().stop();
+		this.orthogonalViews().topRight().viewer().stop();
+		this.orthogonalViews().bottomLeft().viewer().stop();
+		this.cacheControl.shutdown();
+		LOG.warn( "Sent stop requests everywhere" );
 	}
 
 }

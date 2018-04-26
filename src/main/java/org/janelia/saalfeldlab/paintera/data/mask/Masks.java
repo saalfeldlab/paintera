@@ -2,6 +2,7 @@ package org.janelia.saalfeldlab.paintera.data.mask;
 
 import java.lang.invoke.MethodHandles;
 import java.util.Optional;
+import java.util.concurrent.ExecutorService;
 import java.util.function.BiConsumer;
 import java.util.function.Supplier;
 
@@ -32,7 +33,8 @@ public class Masks
 			final DataSource< D, T > source,
 			final String initialCanvasPath,
 			final Supplier< String > canvasCacheDirUpdate,
-			final BiConsumer< CachedCellImg< UnsignedLongType, ? >, long[] > mergeCanvasIntoBackground )
+			final BiConsumer< CachedCellImg< UnsignedLongType, ? >, long[] > mergeCanvasIntoBackground,
+			final ExecutorService propagationExecutor )
 	{
 		final D d = source.getDataType();
 		final T t = source.getType();
@@ -45,38 +47,43 @@ public class Masks
 						( DataSource ) source,
 						initialCanvasPath,
 						canvasCacheDirUpdate,
-						mergeCanvasIntoBackground );
+						mergeCanvasIntoBackground,
+						propagationExecutor );
 		}
 		else if ( d instanceof LabelMultisetType && t instanceof VolatileLabelMultisetType )
 			return ( DataSource< D, T > ) fromLabelMultisetType(
 					( DataSource< LabelMultisetType, VolatileLabelMultisetType > ) source,
 					initialCanvasPath,
 					canvasCacheDirUpdate,
-					mergeCanvasIntoBackground );
+					mergeCanvasIntoBackground,
+					propagationExecutor );
 		LOG.warn( "Do not know how to convert to masked canvas for d={} t={} -- just returning source.", d, t );
 		return source;
 	}
 
 	public static < I extends IntegerType< I > & NativeType< I >, V extends AbstractVolatileRealType< I, V > > MaskedSource< I, V > fromIntegerType(
 			final DataSource< I, V > source,
-			final BiConsumer< CachedCellImg< UnsignedLongType, ? >, long[] > mergeCanvasIntoBackground )
+			final BiConsumer< CachedCellImg< UnsignedLongType, ? >, long[] > mergeCanvasIntoBackground,
+			final ExecutorService propagationExecutor )
 	{
-		return fromIntegerType( source, null, mergeCanvasIntoBackground );
+		return fromIntegerType( source, null, mergeCanvasIntoBackground, propagationExecutor );
 	}
 
 	public static < I extends IntegerType< I > & NativeType< I >, V extends AbstractVolatileRealType< I, V > > MaskedSource< I, V > fromIntegerType(
 			final DataSource< I, V > source,
 			final String initialCanvasPath,
-			final BiConsumer< CachedCellImg< UnsignedLongType, ? >, long[] > mergeCanvasIntoBackground )
+			final BiConsumer< CachedCellImg< UnsignedLongType, ? >, long[] > mergeCanvasIntoBackground,
+			final ExecutorService propagationExecutor )
 	{
-		return fromIntegerType( source, initialCanvasPath, new TmpDirectoryCreator( null, null ), mergeCanvasIntoBackground );
+		return fromIntegerType( source, initialCanvasPath, new TmpDirectoryCreator( null, null ), mergeCanvasIntoBackground, propagationExecutor );
 	}
 
 	public static < I extends IntegerType< I > & NativeType< I >, V extends AbstractVolatileRealType< I, V > > MaskedSource< I, V > fromIntegerType(
 			final DataSource< I, V > source,
 			final String initialCanvasPath,
 			final Supplier< String > canvasCacheDirUpdate,
-			final BiConsumer< CachedCellImg< UnsignedLongType, ? >, long[] > mergeCanvasIntoBackground )
+			final BiConsumer< CachedCellImg< UnsignedLongType, ? >, long[] > mergeCanvasIntoBackground,
+			final ExecutorService propagationExecutor )
 	{
 
 		final int[][] blockSizes = new int[ source.getNumMipmapLevels() ][];
@@ -122,31 +129,40 @@ public class Masks
 				pacT,
 				type,
 				vtype,
-				mergeCanvasIntoBackground );
+				mergeCanvasIntoBackground,
+				propagationExecutor );
 		return ms;
 
 	}
 
 	public static MaskedSource< LabelMultisetType, VolatileLabelMultisetType > fromLabelMultisetType(
 			final DataSource< LabelMultisetType, VolatileLabelMultisetType > source,
-			final BiConsumer< CachedCellImg< UnsignedLongType, ? >, long[] > mergeCanvasIntoBackground )
+			final BiConsumer< CachedCellImg< UnsignedLongType, ? >, long[] > mergeCanvasIntoBackground,
+			final ExecutorService propagationExecutor )
 	{
-		return fromLabelMultisetType( source, null, mergeCanvasIntoBackground );
+		return fromLabelMultisetType( source, null, mergeCanvasIntoBackground, propagationExecutor );
 	}
 
 	public static MaskedSource< LabelMultisetType, VolatileLabelMultisetType > fromLabelMultisetType(
 			final DataSource< LabelMultisetType, VolatileLabelMultisetType > source,
 			final String initialCanvasPath,
-			final BiConsumer< CachedCellImg< UnsignedLongType, ? >, long[] > mergeCanvasIntoBackground )
+			final BiConsumer< CachedCellImg< UnsignedLongType, ? >, long[] > mergeCanvasIntoBackground,
+			final ExecutorService propagationExecutor )
 	{
-		return fromLabelMultisetType( source, initialCanvasPath, new TmpDirectoryCreator( null, null ), mergeCanvasIntoBackground );
+		return fromLabelMultisetType(
+				source,
+				initialCanvasPath,
+				new TmpDirectoryCreator( null, null ),
+				mergeCanvasIntoBackground,
+				propagationExecutor );
 	}
 
 	public static MaskedSource< LabelMultisetType, VolatileLabelMultisetType > fromLabelMultisetType(
 			final DataSource< LabelMultisetType, VolatileLabelMultisetType > source,
 			final String initialCanvasPath,
 			final Supplier< String > canvasCacheDirUpdate,
-			final BiConsumer< CachedCellImg< UnsignedLongType, ? >, long[] > mergeCanvasIntoBackground )
+			final BiConsumer< CachedCellImg< UnsignedLongType, ? >, long[] > mergeCanvasIntoBackground,
+			final ExecutorService propagationExecutor )
 	{
 
 		final int[][] blockSizes = new int[ source.getNumMipmapLevels() ][];
@@ -190,7 +206,8 @@ public class Masks
 				pacT,
 				type,
 				vtype,
-				mergeCanvasIntoBackground );
+				mergeCanvasIntoBackground,
+				propagationExecutor );
 
 		return ms;
 	}

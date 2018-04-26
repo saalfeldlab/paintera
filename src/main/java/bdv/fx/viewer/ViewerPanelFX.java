@@ -128,6 +128,8 @@ public class ViewerPanelFX
 	 */
 	protected final ExecutorService renderingExecutorService;
 
+	protected final ExecutorService renderTargetExecutorService;
+
 	/**
 	 * These listeners will be notified about changes to the
 	 * {@link #viewerTransform}. This is done <em>before</em> calling
@@ -220,7 +222,7 @@ public class ViewerPanelFX
 		threadGroup = new ThreadGroup( this.toString() );
 		painterThread = new PainterThread( threadGroup, this );
 		viewerTransform = new AffineTransform3D();
-		final ExecutorService renderTargetExecutorService = Executors.newFixedThreadPool( 3 );
+		renderTargetExecutorService = Executors.newFixedThreadPool( 3 );
 		renderTarget = new TransformAwareBufferedImageOverlayRendererFX( renderTargetExecutorService );
 		display = new InteractiveDisplayPaneComponent<>(
 				options.getWidth(),
@@ -624,6 +626,7 @@ public class ViewerPanelFX
 			e.printStackTrace();
 		}
 		renderingExecutorService.shutdown();
+		renderTargetExecutorService.shutdown();
 //		state.kill();
 		imageRenderer.kill();
 	}

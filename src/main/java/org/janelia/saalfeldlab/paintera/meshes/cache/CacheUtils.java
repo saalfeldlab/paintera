@@ -14,8 +14,11 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 import org.janelia.saalfeldlab.paintera.data.DataSource;
+import org.janelia.saalfeldlab.paintera.meshes.Interruptible;
+import org.janelia.saalfeldlab.paintera.meshes.InterruptibleFunction;
 import org.janelia.saalfeldlab.paintera.meshes.MeshGenerator.ShapeKey;
 import org.janelia.saalfeldlab.util.HashWrapper;
+import org.janelia.saalfeldlab.util.MakeUnchecked;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -26,6 +29,7 @@ import net.imglib2.Point;
 import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.cache.Cache;
 import net.imglib2.cache.CacheLoader;
+import net.imglib2.cache.UncheckedCache;
 import net.imglib2.cache.ref.SoftRefLoaderCache;
 import net.imglib2.converter.Converter;
 import net.imglib2.img.cell.CellGrid;
@@ -55,7 +59,7 @@ public class CacheUtils
 	 * @return cascade of {@link CacheLoader} that produce a list of unique
 	 *         labels in a specified block (key) at each scale level.
 	 */
-	public static < D, T > Function< HashWrapper< long[] >, long[] >[] uniqueLabelCaches(
+	public static < D, T > InterruptibleFunction< HashWrapper< long[] >, long[] >[] uniqueLabelCaches(
 			final DataSource< D, T > source,
 			final int[][] blockSizes,
 			final BiConsumer< D, TLongHashSet > collectLabels,
@@ -65,14 +69,15 @@ public class CacheUtils
 		assert blockSizes.length == numMipmapLevels;
 
 		@SuppressWarnings( "unchecked" )
-		final Function< HashWrapper< long[] >, long[] >[] caches = new Function[ numMipmapLevels ];
+		final InterruptibleFunction< HashWrapper< long[] >, long[] >[] caches = new InterruptibleFunction[ numMipmapLevels ];
 
 		for ( int level = 0; level < numMipmapLevels; ++level )
 		{
 			final RandomAccessibleInterval< D > data = source.getDataSource( 0, level );
 			final boolean isZeroMin = Arrays.stream( Intervals.minAsLongArray( data ) ).filter( m -> m != 0 ).count() == 0;
 			final CellGrid grid = new CellGrid( Intervals.dimensionsAsLongArray( data ), blockSizes[ level ] );
-			caches[ level ] = makeCache.apply( new UniqueLabelListCacheLoader<>( isZeroMin ? data : Views.zeroMin( data ), grid, collectLabels ) ).unchecked()::get;
+			final UniqueLabelListCacheLoader< D > loader = new UniqueLabelListCacheLoader<>( isZeroMin ? data : Views.zeroMin( data ), grid, collectLabels );
+			caches[ level ] = fromCache( makeCache.apply( loader ).unchecked(), loader );
 		}
 		return caches;
 	}
@@ -101,9 +106,9 @@ public class CacheUtils
 	 * @return Cascade of {@link Cache} that produce list of containing blocks
 	 *         for a label (key) at each scale level.
 	 */
-	public static < D, T > Function< Long, Interval[] >[] blocksForLabelCaches(
+	public static < D, T > InterruptibleFunction< Long, Interval[] >[] blocksForLabelCaches(
 			final DataSource< D, T > source,
-			final Function< HashWrapper< long[] >, long[] >[] uniqueLabelLoaders,
+			final InterruptibleFunction< HashWrapper< long[] >, long[] >[] uniqueLabelLoaders,
 			final int[][] blockSizes,
 			final double[][] scalingFactors,
 			final Function< CacheLoader< Long, Interval[] >, Cache< Long, Interval[] > > makeCache,
@@ -113,7 +118,7 @@ public class CacheUtils
 		assert uniqueLabelLoaders.length == numMipmapLevels;
 
 		@SuppressWarnings( "unchecked" )
-		final Function< Long, Interval[] >[] caches = new Function[ numMipmapLevels ];
+		final InterruptibleFunction< Long, Interval[] >[] caches = new InterruptibleFunction[ numMipmapLevels ];
 
 		LOG.debug( "Number of mipmap levels for source {}: {}", source.getName(), source.getNumMipmapLevels() );
 		LOG.debug( "Provided {} block sizes and {} scaling factors", blockSizes.length, scalingFactors.length );
@@ -127,13 +132,12 @@ public class CacheUtils
 			final int[] bs = blockSizes[ level ];
 			final CellGrid grid = new CellGrid( dims, bs );
 			final int finalLevel = level;
-			final CacheLoader< Long, Interval[] > loader = new BlocksForLabelCacheLoader(
+			final BlocksForLabelCacheLoader loader = new BlocksForLabelCacheLoader(
 					grid,
-					level == numMipmapLevels - 1 ? l -> new Interval[] { new FinalInterval( dims.clone() ) } : caches[ level + 1 ],
+					level == numMipmapLevels - 1 ? InterruptibleFunction.fromFunction( l -> new Interval[] { new FinalInterval( dims.clone() ) } ) : caches[ level + 1 ],
 					level == numMipmapLevels - 1 ? l -> collectAllOffsets( dims, bs, b -> fromMin( b, max, bs ) ) : relevantBlocksFromLowResInterval( grid, scalingFactors[ level + 1 ], scalingFactors[ level ] ),
-					key -> uniqueLabelLoaders[ finalLevel ].apply( HashWrapper.longArray( key ) ),
-					es );
-			caches[ level ] = makeCache.apply( loader ).unchecked()::get;
+					key -> uniqueLabelLoaders[ finalLevel ].apply( HashWrapper.longArray( key ) ) );
+			caches[ level ] = fromCache( makeCache.apply( loader ).unchecked(), ( Interruptible< Long > ) loader );
 		}
 
 		return caches;
@@ -208,7 +212,7 @@ public class CacheUtils
 	 * @return Cascade of {@link Cache} for retrieval of mesh queried by label
 	 *         id.
 	 */
-	public static < D, T > Function< ShapeKey, Pair< float[], float[] > >[] meshCacheLoaders(
+	public static < D, T > InterruptibleFunction< ShapeKey, Pair< float[], float[] > >[] meshCacheLoaders(
 			final DataSource< D, T > source,
 			final int[][] cubeSizes,
 			final LongFunction< Converter< D, BoolType > > getMaskGenerator,
@@ -216,7 +220,7 @@ public class CacheUtils
 	{
 		final int numMipmapLevels = source.getNumMipmapLevels();
 		@SuppressWarnings( "unchecked" )
-		final Function< ShapeKey, Pair< float[], float[] > >[] caches = new Function[ numMipmapLevels ];
+		final InterruptibleFunction< ShapeKey, Pair< float[], float[] > >[] caches = new InterruptibleFunction[ numMipmapLevels ];
 
 		for ( int i = 0; i < numMipmapLevels; ++i )
 		{
@@ -228,8 +232,7 @@ public class CacheUtils
 					getMaskGenerator,
 					transform );
 			final Cache< ShapeKey, Pair< float[], float[] > > cache = makeCache.apply( loader );
-			loader.setGetHigherResMesh( wrapAsFunction( cache ) );
-			caches[ i ] = cache.unchecked()::get;
+			caches[ i ] = fromCache( cache.unchecked(), loader );
 		}
 
 		return caches;
@@ -390,6 +393,16 @@ public class CacheUtils
 	public static < K, V > Cache< K, V > toCacheSoftRefLoaderCache( final CacheLoader< K, V > loader )
 	{
 		return new SoftRefLoaderCache< K, V >().withLoader( loader );
+	}
+
+	public static < T, R > InterruptibleFunction< T, R > fromCache( final UncheckedCache< T, R > cache, final Interruptible< T > interruptible )
+	{
+		return InterruptibleFunction.fromFunctionAndInterruptible( cache::get, interruptible );
+	}
+
+	public static < T, R > InterruptibleFunction< T, R > fromCache( final Cache< T, R > cache, final Interruptible< T > interruptible )
+	{
+		return InterruptibleFunction.fromFunctionAndInterruptible( MakeUnchecked.unchecked( cache::get ), interruptible );
 	}
 
 }

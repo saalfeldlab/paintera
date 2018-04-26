@@ -122,7 +122,7 @@ public class Paintera extends Application
 
 	private final Merges merges = new Merges( sourceInfo, keyTracker );
 
-	private final Paint paint = new Paint( sourceInfo, keyTracker, baseView.manager(), baseView.orthogonalViews()::requestRepaint );
+	private final Paint paint = new Paint( sourceInfo, keyTracker, baseView.manager(), baseView.orthogonalViews()::requestRepaint, baseView.getPaintQueue() );
 
 	private final Selection selection = new Selection( sourceInfo, keyTracker );
 
@@ -358,6 +358,11 @@ public class Paintera extends Application
 		EventFX.KEY_PRESSED( "maximize bottom row", e -> isRowMaximized.set( !isRowMaximized.get() ), e -> keyTracker.areOnlyTheseKeysDown( KeyCode.F, KeyCode.SHIFT ) ).installInto( borderPane );
 
 		setFocusTraversable( orthoViews, false );
+
+		stage.setOnCloseRequest( event -> {
+			baseView.stop();
+			orthoSlices.values().forEach( OrthoSliceFX::stop );
+		} );
 
 		keyTracker.installInto( scene );
 		stage.setScene( scene );

@@ -3,6 +3,7 @@ package org.janelia.saalfeldlab.paintera.ui.opendialog;
 import java.io.File;
 import java.lang.invoke.MethodHandles;
 import java.util.Optional;
+import java.util.concurrent.ExecutorService;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 
@@ -45,7 +46,8 @@ public class N5BackendDialogs
 
 	private static final String[] H5_EXTENSIONS = { "*.h5", "*.hdf", "*.hdf5" };
 
-	public static GenericBackendDialogN5 fileSystem()
+	public static GenericBackendDialogN5 fileSystem(
+			final ExecutorService propagationExecutor )
 	{
 		final StringProperty root = new SimpleStringProperty();
 		final ObjectProperty< Supplier< N5Writer > > writerSupplier = new SimpleObjectProperty<>( () -> null );
@@ -77,16 +79,17 @@ public class N5BackendDialogs
 				LOG.debug( "Updated root={} and writer supplier={}", root, writerSupplier );
 			}
 			Optional
-			.ofNullable( updatedRoot )
-			.filter( File::exists )
-			.filter( File::isFile )
-			.map( File::getAbsolutePath )
-			.ifPresent( root::set );
+					.ofNullable( updatedRoot )
+					.filter( File::exists )
+					.filter( File::isFile )
+					.map( File::getAbsolutePath )
+					.ifPresent( root::set );
 		};
-		return new GenericBackendDialogN5( rootField, onClick, "N5", writerSupplier );
+		return new GenericBackendDialogN5( rootField, onClick, "N5", writerSupplier, propagationExecutor );
 	}
 
-	public static GenericBackendDialogN5 hdf5()
+	public static GenericBackendDialogN5 hdf5(
+			final ExecutorService propagationExecutor )
 	{
 		final StringProperty root = new SimpleStringProperty();
 		final ObjectProperty< Supplier< N5Writer > > writerSupplier = new SimpleObjectProperty<>( () -> null );
@@ -114,16 +117,17 @@ public class N5BackendDialogs
 				writerSupplier.set( MakeUnchecked.unchecked( () -> new N5HDF5Writer( root.get(), 16, 16, 16 ) ) );
 			}
 			Optional
-			.ofNullable( updatedRoot )
-			.filter( File::exists )
-			.filter( File::isFile )
-			.map( File::getAbsolutePath )
-			.ifPresent( root::set );
+					.ofNullable( updatedRoot )
+					.filter( File::exists )
+					.filter( File::isFile )
+					.map( File::getAbsolutePath )
+					.ifPresent( root::set );
 		};
-		return new GenericBackendDialogN5( rootField, onClick, "HDF5", writerSupplier );
+		return new GenericBackendDialogN5( rootField, onClick, "HDF5", writerSupplier, propagationExecutor );
 	}
 
-	public static GenericBackendDialogN5 googleCloud()
+	public static GenericBackendDialogN5 googleCloud(
+			final ExecutorService propagationExecutor )
 	{
 
 		final ObjectProperty< Storage > storage = new SimpleObjectProperty<>();
@@ -139,11 +143,11 @@ public class N5BackendDialogs
 
 		final ObservableValue< Supplier< N5Writer > > writerSupplier = Bindings.createObjectBinding(
 				() -> isValid.get()
-				? MakeUnchecked.unchecked( () -> new N5GoogleCloudStorageWriter( storage.get(), bucket.get().getName() ) )
+						? MakeUnchecked.unchecked( () -> new N5GoogleCloudStorageWriter( storage.get(), bucket.get().getName() ) )
 						: ( Supplier< N5Writer > ) () -> null,
-						isValid,
-						storage,
-						bucket );
+				isValid,
+				storage,
+				bucket );
 
 		final StringBinding storageAsString = Bindings.createStringBinding(
 				() -> Optional.ofNullable( storage.getValue() ).map( Storage::toString ).orElse( "" ),
@@ -179,7 +183,7 @@ public class N5BackendDialogs
 			}
 		};
 
-		return new GenericBackendDialogN5( grid, onClick, "google", writerSupplier );
+		return new GenericBackendDialogN5( grid, onClick, "google", writerSupplier, propagationExecutor );
 	}
 
 }

@@ -1,12 +1,12 @@
 package org.janelia.saalfeldlab.paintera.ui.opendialog;
 
-import java.util.function.Function;
 import java.util.function.LongFunction;
 
 import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignmentState;
 import org.janelia.saalfeldlab.paintera.data.DataSource;
 import org.janelia.saalfeldlab.paintera.id.IdService;
 import org.janelia.saalfeldlab.paintera.id.ToIdConverter;
+import org.janelia.saalfeldlab.paintera.meshes.InterruptibleFunction;
 import org.janelia.saalfeldlab.paintera.meshes.MeshGenerator.ShapeKey;
 
 import net.imglib2.Interval;
@@ -25,13 +25,20 @@ public class LabelDataSourceRepresentation< D, T >
 
 	final ToIdConverter toIdConverter;
 
-	final Function< Long, Interval[] >[] blocksThatContainId;
+	final InterruptibleFunction< Long, Interval[] >[] blocksThatContainId;
 
-	final Function< ShapeKey, Pair< float[], float[] > >[] meshCache;
+	final InterruptibleFunction< ShapeKey, Pair< float[], float[] > >[] meshCache;
 
 	final LongFunction< Converter< D, BoolType > > maskForId;
 
-	public LabelDataSourceRepresentation( final DataSource< D, T > source, final FragmentSegmentAssignmentState assignment, final IdService idService, final ToIdConverter toIdConverter, final Function< Long, Interval[] >[] blocksThatContainId, final Function< ShapeKey, Pair< float[], float[] > >[] meshCache, final LongFunction< Converter< D, BoolType > > maskForId )
+	public LabelDataSourceRepresentation(
+			final DataSource< D, T > source,
+			final FragmentSegmentAssignmentState assignment,
+			final IdService idService,
+			final ToIdConverter toIdConverter,
+			final InterruptibleFunction< Long, Interval[] >[] blocksThatContainId,
+			final InterruptibleFunction< ShapeKey, Pair< float[], float[] > >[] meshCache,
+			final LongFunction< Converter< D, BoolType > > maskForId )
 	{
 		super();
 		this.source = source;

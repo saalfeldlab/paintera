@@ -5,6 +5,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
+import java.util.concurrent.ExecutorService;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 
@@ -61,17 +62,21 @@ public class Paint implements ToOnEnterOnExit
 
 	private final BooleanBinding paint2D = paint3D.not();
 
+	private final ExecutorService paintQueue;
+
 	public Paint(
 			final SourceInfo sourceInfo,
 			final KeyTracker keyTracker,
 			final GlobalTransformManager manager,
-			final Runnable requestRepaint )
+			final Runnable requestRepaint,
+			final ExecutorService paintQueue )
 	{
 		super();
 		this.sourceInfo = sourceInfo;
 		this.keyTracker = keyTracker;
 		this.manager = manager;
 		this.requestRepaint = requestRepaint;
+		this.paintQueue = paintQueue;
 	}
 
 	@Override
@@ -82,7 +87,7 @@ public class Paint implements ToOnEnterOnExit
 			{
 				if ( !this.mouseAndKeyHandlers.containsKey( t ) )
 				{
-					final Paint2D paint2D = new Paint2D( t, sourceInfo, manager, requestRepaint );
+					final Paint2D paint2D = new Paint2D( t, sourceInfo, manager, requestRepaint, paintQueue );
 					paint2D.brushRadiusProperty().set( this.brushRadius.get() );
 					paint2D.brushRadiusProperty().bindBidirectional( this.brushRadius );
 					paint2D.brushRadiusIncrementProperty().set( this.brushRadiusIncrement.get() );
