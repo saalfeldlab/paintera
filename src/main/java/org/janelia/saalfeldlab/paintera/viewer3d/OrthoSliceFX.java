@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread;
+import org.janelia.saalfeldlab.util.NamedThreadFactory;
 
 import bdv.fx.viewer.ViewerPanelFX;
 import javafx.beans.property.BooleanProperty;
@@ -57,10 +58,7 @@ public class OrthoSliceFX
 
 	// TODO re-think/reduce this delay
 	// 500ms delay
-	LatestTaskExecutor es = new LatestTaskExecutor( 500 * 1000 * 1000 );
-	{
-		es.execute( () -> Thread.currentThread().setName( "ortho-slice-executor" ) );
-	}
+	LatestTaskExecutor es = new LatestTaskExecutor( 500 * 1000 * 1000, new NamedThreadFactory( "ortho-slice-executor", true ) );
 
 	public OrthoSliceFX( final Group scene, final ViewerPanelFX viewer )
 	{
