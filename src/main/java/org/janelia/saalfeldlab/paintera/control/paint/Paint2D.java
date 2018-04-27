@@ -3,7 +3,6 @@ package org.janelia.saalfeldlab.paintera.control.paint;
 import java.lang.invoke.MethodHandles;
 import java.util.Optional;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import java.util.function.BiConsumer;
 import java.util.function.BiPredicate;
 import java.util.function.Predicate;
@@ -77,13 +76,14 @@ public class Paint2D
 
 	private final Runnable repaintRequest;
 
-	private final ExecutorService paintQueue = Executors.newFixedThreadPool( 1 );
+	private final ExecutorService paintQueue;
 
 	public Paint2D(
 			final ViewerPanelFX viewer,
 			final SourceInfo sourceInfo,
 			final GlobalTransformManager manager,
-			final Runnable repaintRequest )
+			final Runnable repaintRequest,
+			final ExecutorService paintQueue )
 	{
 		super();
 		this.viewer = viewer;
@@ -91,6 +91,7 @@ public class Paint2D
 		this.brushOverlay = new BrushOverlay( this.viewer, manager );
 		this.brushOverlay.physicalRadiusProperty().bind( brushRadius );
 		this.repaintRequest = repaintRequest;
+		this.paintQueue = paintQueue;
 	}
 
 	private void setCoordinates( final double x, final double y, final AffineTransform3D labelTransform )

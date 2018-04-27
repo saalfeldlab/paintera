@@ -5,14 +5,16 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
+import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
+import org.janelia.saalfeldlab.paintera.meshes.Interruptible;
+import org.janelia.saalfeldlab.paintera.meshes.InterruptibleFunction;
 import org.janelia.saalfeldlab.util.HashWrapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -28,20 +30,20 @@ import net.imglib2.img.cell.CellGrid;
 import net.imglib2.type.numeric.integer.LongType;
 import net.imglib2.util.Intervals;
 
-public class BlocksForLabelCacheLoader implements CacheLoader< Long, Interval[] >
+public class BlocksForLabelCacheLoader implements CacheLoader< Long, Interval[] >, Interruptible< Long >
 {
 
 	private static final Logger LOG = LoggerFactory.getLogger( MethodHandles.lookup().lookupClass() );
 
 	private final CellGrid grid;
 
-	private final Function< Long, Interval[] > getRelevantIntervalsFromLowerResolution;
+	private final InterruptibleFunction< Long, Interval[] > getRelevantIntervalsFromLowerResolution;
 
 	private final Function< Interval, List< Interval > > getRelevantBlocksIntersectingWithLowResInterval;
 
 	private final Function< long[], long[] > getUniqueLabelListForBlock;
 
-	private final ExecutorService es;
+	private final List< Consumer< Long > > interruptionListeners = new ArrayList<>();
 
 	/**
 	 *
@@ -64,58 +66,62 @@ public class BlocksForLabelCacheLoader implements CacheLoader< Long, Interval[] 
 	 */
 	public BlocksForLabelCacheLoader(
 			final CellGrid grid,
-			final Function< Long, Interval[] > getRelevantIntervalsFromLowerResolution,
+			final InterruptibleFunction< Long, Interval[] > getRelevantIntervalsFromLowerResolution,
 			final Function< Interval, List< Interval > > getRelevantBlocksIntersectingWithLowResInterval,
-			final Function< long[], long[] > getUniqueLabelListForBlock,
-			final ExecutorService es )
+			final Function< long[], long[] > getUniqueLabelListForBlock )
 	{
 		super();
 		this.grid = grid;
 		this.getRelevantIntervalsFromLowerResolution = getRelevantIntervalsFromLowerResolution;
 		this.getRelevantBlocksIntersectingWithLowResInterval = getRelevantBlocksIntersectingWithLowResInterval;
 		this.getUniqueLabelListForBlock = getUniqueLabelListForBlock;
-		this.es = es;
 	}
 
 	@Override
 	public Interval[] get( final Long key ) throws Exception
 	{
-		final Interval[] relevantLowResBlocks = getRelevantIntervalsFromLowerResolution.apply( key );
-		final HashSet< HashWrapper< Interval > > blocks = new HashSet<>();
-		Arrays
-				.stream( relevantLowResBlocks )
-				.map( getRelevantBlocksIntersectingWithLowResInterval::apply )
-				.flatMap( List::stream )
-				.map( HashWrapper::interval )
-				.forEach( blocks::add );
-		LOG.debug( "{} -- got {} block candidates: {}", grid, blocks.size(), toString( blocks ) );
 
-		final List< Future< Interval > > futures = new ArrayList<>();
-		blocks.forEach( block -> {
-			final Future< Interval > future = es.submit( () -> {
+		final boolean[] isInterrupted = { false };
+		final Consumer< Long > listener = interruptedKey -> {
+			if ( interruptedKey.equals( key ) )
+			{
+				isInterrupted[ 0 ] = true;
+				this.getRelevantIntervalsFromLowerResolution.interruptFor( key );
+			}
+		};
+		this.interruptionListeners.add( listener );
+
+		try
+		{
+			final Interval[] relevantLowResBlocks = getRelevantIntervalsFromLowerResolution.apply( key );
+			final HashSet< HashWrapper< Interval > > blocks = new HashSet<>();
+			Arrays
+					.stream( relevantLowResBlocks )
+					.map( getRelevantBlocksIntersectingWithLowResInterval::apply )
+					.flatMap( List::stream )
+					.map( HashWrapper::interval )
+					.forEach( blocks::add );
+			LOG.debug( "key={} grid={} -- got {} block candidates", key, grid, blocks.size() );
+
+			final List< Interval > results = new ArrayList<>();
+			for ( final Iterator< HashWrapper< Interval > > blockIt = blocks.iterator(); blockIt.hasNext() && !isInterrupted[ 0 ]; )
+			{
+				final HashWrapper< Interval > block = blockIt.next();
 				final long[] cellPos = new long[ grid.numDimensions() ];
 				grid.getCellPosition( Intervals.minAsLongArray( block.getData() ), cellPos );
 				final long[] uniqueLabels = getUniqueLabelListForBlock.apply( cellPos );
+				LOG.trace( "key={} grid ={} -- Unique labels: {}", key, grid, uniqueLabels );
 				final long unboxedKey = key;
-				return Arrays.stream( uniqueLabels ).filter( l -> l == unboxedKey ).count() > 0 ? block.getData() : null;
-			} );
-			futures.add( future );
-		} );
-
-		final List< Interval > results = new ArrayList<>();
-		for ( int i = 0; i < futures.size(); ++i )
-		{
-			final Interval result = futures.get( i ).get();
-			if ( result != null )
-			{
-				LOG.trace( "Adding interval: " + Point.wrap( Intervals.minAsLongArray( result ) ) + " " + Point.wrap( Intervals.maxAsLongArray( result ) ) );
-				results.add( result );
+				if ( Arrays.stream( uniqueLabels ).filter( l -> l == unboxedKey ).count() > 0 )
+					results.add( block.getData() );
 			}
+			LOG.debug( "key={} grid={} -- still {} blocks after filtering", key, grid, results.size() );
+			return isInterrupted[ 0 ] ? null : results.toArray( new Interval[ results.size() ] );
 		}
-
-		LOG.debug( "Found a total of {} blocks", results.size() );
-
-		return results.toArray( new Interval[ results.size() ] );
+		finally
+		{
+			this.interruptionListeners.remove( listener );
+		}
 	}
 
 	public static void main( final String[] args ) throws Exception
@@ -159,14 +165,11 @@ public class BlocksForLabelCacheLoader implements CacheLoader< Long, Interval[] 
 			}
 		};
 
-		final ExecutorService es = Executors.newFixedThreadPool( 3 );
-
 		final BlocksForLabelCacheLoader blocksForLabelLoader2 = new BlocksForLabelCacheLoader(
 				grid2,
-				val -> new Interval[] { new FinalInterval( 3 ) },
+				InterruptibleFunction.fromFunction( val -> new Interval[] { new FinalInterval( 3 ) } ),
 				i -> IntStream.range( 0, res2.length / 2 ).mapToObj( pos -> Intervals.translate( new FinalInterval( 2 ), pos * 2, 0 ) ).collect( Collectors.toList() ),
-				uncheckedGet2,
-				es );
+				uncheckedGet2 );
 
 		System.out.println( toString( blocksForLabelLoader2.get( 0l ) ) );
 		System.out.println( toString( blocksForLabelLoader2.get( 1l ) ) );
@@ -188,10 +191,9 @@ public class BlocksForLabelCacheLoader implements CacheLoader< Long, Interval[] 
 
 		final BlocksForLabelCacheLoader blocksForLabelLoader1 = new BlocksForLabelCacheLoader(
 				grid1,
-				val -> uncheckedGetIntervals2.apply( val ),
+				InterruptibleFunction.fromFunction( val -> uncheckedGetIntervals2.apply( val ) ),
 				i -> doubleStep( i ),
-				uncheckedGet1,
-				es );
+				uncheckedGet1 );
 
 		System.out.println();
 
@@ -201,7 +203,6 @@ public class BlocksForLabelCacheLoader implements CacheLoader< Long, Interval[] 
 		System.out.println( toString( blocksForLabelLoader1.get( 3l ) ) );
 		System.out.println( toString( blocksForLabelLoader1.get( 4l ) ) );
 		System.out.println( toString( blocksForLabelLoader1.get( 5l ) ) );
-		es.shutdown();
 
 	}
 
@@ -230,6 +231,12 @@ public class BlocksForLabelCacheLoader implements CacheLoader< Long, Interval[] 
 				.map( HashWrapper::getData )
 				.map( i -> "(" + Point.wrap( Intervals.minAsLongArray( i ) ) + " " + Point.wrap( Intervals.maxAsLongArray( i ) ) + ")" )
 				.collect( Collectors.toList() ).toString();
+	}
+
+	@Override
+	public void interruptFor( final Long t )
+	{
+		this.interruptionListeners.forEach( l -> l.accept( t ) );
 	}
 
 }

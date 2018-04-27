@@ -1,5 +1,6 @@
 package org.janelia.saalfeldlab.paintera.viewer3d;
 
+import java.util.List;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -51,5 +52,15 @@ public class LatestTaskExecutor implements Executor
 	public boolean busy()
 	{
 		return task == null;
+	}
+
+	public void shutDown()
+	{
+		this.executor.shutdown();
+	}
+
+	public List< Runnable > shutdownNow()
+	{
+		return this.executor.shutdownNow();
 	}
 }

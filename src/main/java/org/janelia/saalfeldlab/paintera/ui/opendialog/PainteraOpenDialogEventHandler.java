@@ -11,6 +11,7 @@ import java.util.stream.IntStream;
 
 import org.janelia.saalfeldlab.paintera.PainteraBaseView;
 import org.janelia.saalfeldlab.paintera.data.DataSource;
+import org.janelia.saalfeldlab.paintera.meshes.InterruptibleFunction;
 import org.janelia.saalfeldlab.paintera.meshes.cache.CacheUtils;
 import org.janelia.saalfeldlab.paintera.ui.opendialog.OpenSourceDialog.TYPE;
 import org.janelia.saalfeldlab.paintera.ui.opendialog.meta.MetaPanel;
@@ -111,7 +112,7 @@ public class PainteraOpenDialogEventHandler implements EventHandler< Event >
 				event.consume();
 			}
 
-			final OpenSourceDialog openDialog = new OpenSourceDialog();
+			final OpenSourceDialog openDialog = new OpenSourceDialog( viewer );
 			final Optional< BackendDialog > datasetOptional = openDialog.showAndWait();
 			if ( datasetOptional.isPresent() )
 			{
@@ -163,7 +164,7 @@ public class PainteraOpenDialogEventHandler implements EventHandler< Event >
 		final double[][] scalingFactors = PainteraBaseView.scaleFactorsFromAffineTransforms( source );
 
 		@SuppressWarnings( "unchecked" )
-		final Function< HashWrapper< long[] >, long[] >[] uniqueIdCaches = new Function[ numLevels ];
+		final InterruptibleFunction< HashWrapper< long[] >, long[] >[] uniqueIdCaches = new InterruptibleFunction[ numLevels ];
 
 		for ( int level = 0; level < numLevels; ++level )
 		{
@@ -185,17 +186,17 @@ public class PainteraOpenDialogEventHandler implements EventHandler< Event >
 	}
 
 	public static < C extends Cell< VolatileLabelMultisetArray >, I extends RandomAccessible< C > & IterableInterval< C > >
-			Function< HashWrapper< long[] >, long[] > uniqueLabelLoaders(
+			InterruptibleFunction< HashWrapper< long[] >, long[] > uniqueLabelLoaders(
 					final AbstractCellImg< LabelMultisetType, VolatileLabelMultisetArray, C, I > img )
 	{
 		final I cells = img.getCells();
-		return location -> {
+		return InterruptibleFunction.fromFunction( location -> {
 			final RandomAccess< C > access = cells.randomAccess();
 			access.setPosition( location.getData() );
 			final long[] labels = access.get().getData().containedLabels();
 			LOG.debug( "Position={}: labels={}", location.getData(), labels );
 			return labels;
-		};
+		} );
 	}
 
 }

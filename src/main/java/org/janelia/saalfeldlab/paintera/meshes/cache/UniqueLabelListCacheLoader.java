@@ -1,10 +1,14 @@
 package org.janelia.saalfeldlab.paintera.meshes.cache;
 
 import java.lang.invoke.MethodHandles;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.List;
 import java.util.function.BiConsumer;
+import java.util.function.Consumer;
 import java.util.stream.IntStream;
 
+import org.janelia.saalfeldlab.paintera.meshes.Interruptible;
 import org.janelia.saalfeldlab.util.HashWrapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -22,7 +26,7 @@ import net.imglib2.type.numeric.integer.LongType;
 import net.imglib2.util.Intervals;
 import net.imglib2.view.Views;
 
-public class UniqueLabelListCacheLoader< T > implements CacheLoader< HashWrapper< long[] >, long[] >
+public class UniqueLabelListCacheLoader< T > implements CacheLoader< HashWrapper< long[] >, long[] >, Interruptible< HashWrapper< long[] > >
 {
 
 	private final Logger LOG = LoggerFactory.getLogger( MethodHandles.lookup().lookupClass() );
@@ -32,6 +36,8 @@ public class UniqueLabelListCacheLoader< T > implements CacheLoader< HashWrapper
 	private final CellGrid grid;
 
 	private final BiConsumer< T, TLongHashSet > collectLabels;
+
+	private final List< Consumer< HashWrapper< long[] > > > interruptListeners = new ArrayList<>();
 
 	public UniqueLabelListCacheLoader( final RandomAccessibleInterval< T > data, final CellGrid grid, final BiConsumer< T, TLongHashSet > collectLabels )
 	{
@@ -49,28 +55,49 @@ public class UniqueLabelListCacheLoader< T > implements CacheLoader< HashWrapper
 	@Override
 	public long[] get( final HashWrapper< long[] > key ) throws Exception
 	{
-		final long[] cellGridPosition = key.getData();
 
-		if ( !Intervals.contains( new FinalInterval( grid.getGridDimensions() ), Point.wrap( cellGridPosition ) ) )
+		final boolean[] interrupted = { false };
+		final Consumer< HashWrapper< long[] > > listener = interrupedKey -> {
+			if ( interrupedKey.equals( key ) )
+				interrupted[ 0 ] = true;
+		};
+		this.interruptListeners.add( listener );
+
+		try
 		{
-			LOG.error( "Trying to retrieve unique labels at invalid position {} for cell grid dimensions: {}", Point.wrap( cellGridPosition ), Point.wrap( grid.getGridDimensions() ) );
-			throw new IllegalArgumentException( String.format( "%s does not contain position: %s", grid.toString(), Point.wrap( cellGridPosition ).toString() ) );
-		}
+			final long[] cellGridPosition = key.getData();
 
-		final long[] min = new long[ grid.numDimensions() ];
-		final long[] max = new long[ grid.numDimensions() ];
-		for ( int d = 0; d < min.length; ++d )
+			if ( !Intervals.contains( new FinalInterval( grid.getGridDimensions() ), Point.wrap( cellGridPosition ) ) )
+			{
+				LOG.error( "Trying to retrieve unique labels at invalid position {} for cell grid dimensions: {}", Point.wrap( cellGridPosition ), Point.wrap( grid.getGridDimensions() ) );
+				throw new IllegalArgumentException( String.format( "%s does not contain position: %s", grid.toString(), Point.wrap( cellGridPosition ).toString() ) );
+			}
+
+			final long[] min = new long[ grid.numDimensions() ];
+			final long[] max = new long[ grid.numDimensions() ];
+			for ( int d = 0; d < min.length; ++d )
+			{
+				final int s = grid.cellDimension( d );
+				final long m = cellGridPosition[ d ] * s;
+				min[ d ] = m;
+				max[ d ] = Math.min( m + s, grid.imgDimension( d ) ) - 1;
+			}
+			final TLongHashSet containedLabels = new TLongHashSet();
+			for ( final T t : Views.interval( data, new FinalInterval( min, max ) ) )
+			{
+				collectLabels.accept( t, containedLabels );
+				if ( interrupted[ 0 ] )
+				{
+					break;
+				}
+			}
+
+			return interrupted[ 0 ] ? null : containedLabels.toArray();
+		}
+		finally
 		{
-			final int s = grid.cellDimension( d );
-			final long m = cellGridPosition[ d ] * s;
-			min[ d ] = m;
-			max[ d ] = Math.min( m + s, grid.imgDimension( d ) ) - 1;
+			this.interruptListeners.remove( listener );
 		}
-		final TLongHashSet containedLabels = new TLongHashSet();
-		for ( final T t : Views.interval( data, new FinalInterval( min, max ) ) )
-			collectLabels.accept( t, containedLabels );
-
-		return containedLabels.toArray();
 	}
 
 	public static void main( final String[] args ) throws Exception
@@ -102,6 +129,12 @@ public class UniqueLabelListCacheLoader< T > implements CacheLoader< HashWrapper
 		// will throw IllegalArgumentException:
 //		System.out.println( Arrays.toString( uniqueLabelsLoader2.get( HashWrapper.longArray( 2 ) ) ) );
 
+	}
+
+	@Override
+	public void interruptFor( final HashWrapper< long[] > t )
+	{
+		this.interruptListeners.forEach( l -> l.accept( t ) );
 	}
 
 }

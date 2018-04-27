@@ -2,6 +2,7 @@ package org.janelia.saalfeldlab.paintera.meshes.marchingcubes;
 
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.function.BooleanSupplier;
 
 import org.janelia.saalfeldlab.util.HashWrapper;
 import org.slf4j.Logger;
@@ -43,15 +44,23 @@ public class MarchingCubes< B extends BooleanType< B > >
 	/** size of the cube */
 	private final int[] cubeSize;
 
+	private final BooleanSupplier wasInterrupted;
+
 	/**
 	 * Initialize the class parameters with default values
 	 */
-	public MarchingCubes( final RandomAccessible< B > input, final Interval interval, final AffineTransform3D transform, final int[] cubeSize )
+	public MarchingCubes(
+			final RandomAccessible< B > input,
+			final Interval interval,
+			final AffineTransform3D transform,
+			final int[] cubeSize,
+			final BooleanSupplier wasInterrupted )
 	{
 		this.input = input;
 		this.interval = interval;
 		this.cubeSize = cubeSize;
 		this.transform = transform;
+		this.wasInterrupted = wasInterrupted;
 	}
 
 	/**
@@ -85,7 +94,7 @@ public class MarchingCubes< B extends BooleanType< B > >
 
 		final float[][] interpolationPoints = new float[ 12 ][ 3 ];
 
-		while ( cursor0.hasNext() )
+		while ( cursor0.hasNext() && !wasInterrupted.getAsBoolean() )
 		{
 
 			// Remap the vertices of the cube (8 positions) obtained from a RAI

@@ -3,6 +3,7 @@ package org.janelia.saalfeldlab.paintera.ui.opendialog;
 import java.io.IOException;
 import java.lang.invoke.MethodHandles;
 import java.util.Arrays;
+import java.util.concurrent.ExecutorService;
 import java.util.function.BiConsumer;
 import java.util.function.Function;
 import java.util.function.LongFunction;
@@ -15,6 +16,7 @@ import org.janelia.saalfeldlab.paintera.data.mask.Masks;
 import org.janelia.saalfeldlab.paintera.data.mask.TmpDirectoryCreator;
 import org.janelia.saalfeldlab.paintera.id.IdService;
 import org.janelia.saalfeldlab.paintera.id.ToIdConverter;
+import org.janelia.saalfeldlab.paintera.meshes.InterruptibleFunction;
 import org.janelia.saalfeldlab.paintera.meshes.MeshGenerator.ShapeKey;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -78,12 +80,12 @@ public interface SourceFromRAI extends BackendDialog
 
 	public BiConsumer< CachedCellImg< UnsignedLongType, ? >, long[] > commitCanvas();
 
-	public default Function< Long, Interval[] >[] blocksThatContainId()
+	public default InterruptibleFunction< Long, Interval[] >[] blocksThatContainId()
 	{
 		return null;
 	}
 
-	public default Function< ShapeKey, Pair< float[], float[] > >[] meshCache()
+	public default InterruptibleFunction< ShapeKey, Pair< float[], float[] > >[] meshCache()
 	{
 		return null;
 	}
@@ -148,6 +150,8 @@ public interface SourceFromRAI extends BackendDialog
 				priority );
 	}
 
+	public ExecutorService propagationExecutor();
+
 	@Override
 	public default < D extends NativeType< D >, T extends Volatile< D > & Type< T > > LabelDataSourceRepresentation< D, T > getLabels(
 			final String name,
@@ -159,7 +163,8 @@ public interface SourceFromRAI extends BackendDialog
 				this.< D, T >getSourceNearestNeighborInterpolationOnly( name, sharedQueue, priority ),
 				initialCanvasDirectory(),
 				nextCanvasDirectory(),
-				commitCanvas() );
+				commitCanvas(),
+				propagationExecutor() );
 
 		return new LabelDataSourceRepresentation<>(
 				source,

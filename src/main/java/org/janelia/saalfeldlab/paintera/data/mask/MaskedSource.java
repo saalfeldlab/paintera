@@ -6,7 +6,6 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Optional;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import java.util.function.BiConsumer;
 import java.util.function.Supplier;
 import java.util.stream.DoubleStream;
@@ -109,7 +108,7 @@ public class MaskedSource< D extends Type< D >, T extends Type< T > > implements
 
 	private final T extensionT;
 
-	private final ExecutorService propagationExecutor = Executors.newFixedThreadPool( 1 );
+	private final ExecutorService propagationExecutor;
 
 	// TODO make sure that BB is handled properly in multi scale case!!!
 	private final TLongSet affectedBlocks = new TLongHashSet();
@@ -159,9 +158,20 @@ public class MaskedSource< D extends Type< D >, T extends Type< T > > implements
 			final PickAndConvert< T, VolatileUnsignedLongType, VolatileUnsignedLongType, T > pacT,
 			final D extensionD,
 			final T extensionT,
-			final BiConsumer< CachedCellImg< UnsignedLongType, ? >, long[] > persistCanvas )
+			final BiConsumer< CachedCellImg< UnsignedLongType, ? >, long[] > persistCanvas,
+			final ExecutorService propagationExecutor )
 	{
-		this( source, blockSizes, nextCacheDirectory, nextCacheDirectory.get(), pacD, pacT, extensionD, extensionT, persistCanvas );
+		this(
+				source,
+				blockSizes,
+				nextCacheDirectory,
+				nextCacheDirectory.get(),
+				pacD,
+				pacT,
+				extensionD,
+				extensionT,
+				persistCanvas,
+				propagationExecutor );
 	}
 
 	@SuppressWarnings( "unchecked" )
@@ -174,7 +184,8 @@ public class MaskedSource< D extends Type< D >, T extends Type< T > > implements
 			final PickAndConvert< T, VolatileUnsignedLongType, VolatileUnsignedLongType, T > pacT,
 			final D extensionD,
 			final T extensionT,
-			final BiConsumer< CachedCellImg< UnsignedLongType, ? >, long[] > persistCanvas )
+			final BiConsumer< CachedCellImg< UnsignedLongType, ? >, long[] > persistCanvas,
+			final ExecutorService propagationExecutor )
 	{
 		super();
 		this.source = source;
@@ -195,6 +206,8 @@ public class MaskedSource< D extends Type< D >, T extends Type< T > > implements
 		this.extensionT = extensionT;
 		this.extensionD = extensionD;
 		this.persistCanvas = persistCanvas;
+
+		this.propagationExecutor = propagationExecutor;
 
 		this.cacheDirectory.addListener( new CanvasBaseDirChangeListener( dataCanvases, canvases, this.dimensions, this.blockSizes ) );
 		this.cacheDirectory.set( initialCacheDirectory );
@@ -1043,6 +1056,11 @@ public class MaskedSource< D extends Type< D >, T extends Type< T > > implements
 				( ( VolatileCachedCellImg< ?, ? > ) vimg ).clearCache();
 			}
 		}
+	}
+
+	public DataSource< D, T > underlyingSource()
+	{
+		return this.source;
 	}
 
 }

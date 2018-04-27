@@ -10,7 +10,6 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Optional;
 import java.util.concurrent.ExecutorService;
-import java.util.function.Function;
 import java.util.stream.Collectors;
 
 import org.janelia.saalfeldlab.paintera.SourceState;
@@ -55,7 +54,9 @@ public class MeshManagerWithAssignment implements MeshManager
 
 	private final IntegerProperty scaleLevel = new SimpleIntegerProperty();
 
-	private final ExecutorService es;
+	private final ExecutorService managers;
+
+	private final ExecutorService workers;
 
 	public MeshManagerWithAssignment(
 			final DataSource< ?, ? > source,
@@ -63,7 +64,8 @@ public class MeshManagerWithAssignment implements MeshManager
 			final Group root,
 			final FragmentsInSelectedSegments fragmentsInSelectedSegments,
 			final ObservableIntegerValue meshSimplificationIterations,
-			final ExecutorService es )
+			final ExecutorService managers,
+			final ExecutorService workers )
 	{
 		super();
 		this.source = source;
@@ -77,7 +79,8 @@ public class MeshManagerWithAssignment implements MeshManager
 			this.meshSimplificationIterations.set( Math.max( newv.intValue(), 0 ) );
 		} );
 
-		this.es = es;
+		this.managers = managers;
+		this.workers = workers;
 
 		this.fragmentsInSelectedSegments.addListener( obs -> this.update() );
 
@@ -112,8 +115,8 @@ public class MeshManagerWithAssignment implements MeshManager
 		stream.addListener( obs -> color.set( stream.argb( id ) ) );
 		assignment.addListener( obs -> color.set( stream.argb( id ) ) );
 
-		final Function< Long, Interval[] >[] blockListCache = state.blocklistCacheProperty().get();
-		final Function< ShapeKey, Pair< float[], float[] > >[] meshCache = state.meshesCacheProperty().get();
+		final InterruptibleFunction< Long, Interval[] >[] blockListCache = state.blocklistCacheProperty().get();
+		final InterruptibleFunction< ShapeKey, Pair< float[], float[] > >[] meshCache = state.meshesCacheProperty().get();
 		if ( meshCache == null || blockListCache == null )
 			return;
 
@@ -129,7 +132,8 @@ public class MeshManagerWithAssignment implements MeshManager
 				color,
 				scaleLevel.get(),
 				meshSimplificationIterations.get(),
-				es );
+				managers,
+				workers );
 		nfx.rootProperty().set( this.root );
 
 		neurons.put( id, nfx );
