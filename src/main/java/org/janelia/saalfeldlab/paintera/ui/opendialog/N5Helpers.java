@@ -2,12 +2,15 @@ package org.janelia.saalfeldlab.paintera.ui.opendialog;
 
 import java.io.IOException;
 import java.lang.invoke.MethodHandles;
-import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.regex.Pattern;
 
 import org.janelia.saalfeldlab.n5.DataType;
@@ -17,6 +20,7 @@ import org.janelia.saalfeldlab.n5.N5Reader;
 import org.janelia.saalfeldlab.n5.N5Writer;
 import org.janelia.saalfeldlab.n5.hdf5.N5HDF5Reader;
 import org.janelia.saalfeldlab.n5.hdf5.N5HDF5Writer;
+import org.janelia.saalfeldlab.util.NamedThreadFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -153,43 +157,84 @@ public class N5Helpers
 	public static List< String > discoverDatasets( final N5Reader n5, final Runnable onInterruption )
 	{
 		final List< String > datasets = new ArrayList<>();
-		discoverSubdirectories( n5, "", datasets, onInterruption );
+		final ExecutorService exec = Executors.newFixedThreadPool( n5 instanceof N5HDF5Reader ? 1 : 12, new NamedThreadFactory( "dataset-discovery-%d", true ) );
+		final AtomicInteger counter = new AtomicInteger( 1 );
+		exec.submit( () -> discoverSubdirectories( n5, "", datasets, exec, counter ) );
+		while ( counter.get() > 0 && !Thread.currentThread().isInterrupted() )
+			try
+			{
+				Thread.sleep( 20 );
+			}
+			catch ( final InterruptedException e )
+			{
+				exec.shutdownNow();
+				onInterruption.run();
+			}
+		exec.shutdown();
+		Collections.sort( datasets );
 		return datasets;
 	}
 
-	public static void discoverSubdirectories( final N5Reader n5, final String pathName, final Collection< String > datasets, final Runnable onInterruption )
+	public static void discoverSubdirectories(
+			final N5Reader n5,
+			final String pathName,
+			final Collection< String > datasets,
+			final ExecutorService exec,
+			final AtomicInteger counter )
 	{
-		if ( !Thread.currentThread().isInterrupted() )
+		try
 		{
-			try
+			if ( n5.datasetExists( pathName ) )
 			{
-				if ( isDataset( n5, pathName ) )
+				synchronized ( datasets )
+				{
 					datasets.add( pathName );
-				else
-					Arrays
-							.stream( n5.list( pathName ) )
-							.map( subGroup -> Paths.get( pathName, subGroup ).toString() )
-							.forEach( g -> discoverSubdirectories( n5, g, datasets, onInterruption ) );
+				}
 			}
-			catch ( final IOException e )
+			else
 			{
-				e.printStackTrace();
+				String[] groups = null;
+				/* based on attribute */
+				boolean isMipmapGroup = Optional.ofNullable( n5.getAttribute( pathName, MULTI_SCALE_KEY, Boolean.class ) ).orElse( false );
+
+				/* based on groupd content (the old way) */
+				if ( !isMipmapGroup )
+				{
+					groups = n5.list( pathName );
+					isMipmapGroup = groups.length > 0;
+					for ( final String group : groups )
+					{
+						if ( !( group.matches( "^s[0-9]+$" ) && n5.datasetExists( pathName + "/" + group ) ) )
+						{
+							isMipmapGroup = false;
+							break;
+						}
+					}
+				}
+				if ( isMipmapGroup )
+				{
+					synchronized ( datasets )
+					{
+						datasets.add( pathName );
+					}
+				}
+				else if ( groups != null )
+				{
+					for ( final String group : groups )
+					{
+						final String groupPathName = pathName + "/" + group;
+						final int numThreads = counter.incrementAndGet();
+						LOG.debug( "entering {}, {} threads created", groupPathName, numThreads );
+						exec.submit( () -> discoverSubdirectories( n5, groupPathName, datasets, exec, counter ) );
+					}
+				}
 			}
 		}
-		else
+		catch ( final IOException e )
 		{
-			onInterruption.run();
+			LOG.debug( e.toString(), e );
 		}
+		final int numThreads = counter.decrementAndGet();
+		LOG.debug( "leaving {}, {} threads remaining", pathName, numThreads );
 	}
-
-	public static boolean isDataset( final N5Reader n5, final String path ) throws IOException
-	{
-		return n5.datasetExists( path ) || isMultiScale( n5, path );
-	}
-
-	public static boolean isMultiScale( final N5Reader n5, final String path ) throws IOException
-	{
-		return Optional.ofNullable( n5.getAttribute( path, MULTI_SCALE_KEY, Boolean.class ) ).orElse( false );
-	}
-
 }
