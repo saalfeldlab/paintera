@@ -29,9 +29,14 @@
  */
 package bdv.fx.viewer;
 
+import java.lang.invoke.MethodHandles;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Supplier;
+import java.util.stream.IntStream;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import bdv.viewer.Source;
 import javafx.beans.property.BooleanProperty;
@@ -49,6 +54,8 @@ import net.imglib2.util.Intervals;
  */
 public class MultiBoxOverlayRendererFX implements OverlayRendererGeneric< GraphicsContext >
 {
+
+	private static final Logger LOG = LoggerFactory.getLogger( MethodHandles.lookup().lookupClass() );
 
 	/**
 	 * Navigation wire-frame cube.
@@ -126,7 +133,9 @@ public class MultiBoxOverlayRendererFX implements OverlayRendererGeneric< Graphi
 		final long oldW = virtualScreenInterval.dimension( 0 );
 		final long oldH = virtualScreenInterval.dimension( 1 );
 		if ( screenWidth != oldW || screenHeight != oldH )
+		{
 			virtualScreenInterval = Intervals.createMinSize( 0, 0, screenWidth, screenHeight );
+		}
 	}
 
 	/**
@@ -148,13 +157,20 @@ public class MultiBoxOverlayRendererFX implements OverlayRendererGeneric< Graphi
 			final int timepoint = viewerState.timepointProperty().get();
 
 			final int numSources = this.allSources.size();
-			final int numPresentSources = this.visibleSources.size();
+			final int numPresentSources = ( int ) IntStream.range( 0, numSources ).mapToObj( allSources::get ).filter( s -> s.isPresent( timepoint ) ).count();
+
+			LOG.debug( "numSources={} numPresentSources={} boxSources.size={}", numSources, numPresentSources, boxSources.size() );
+
 			if ( boxSources.size() != numPresentSources )
 			{
 				while ( boxSources.size() < numPresentSources )
+				{
 					boxSources.add( new IntervalAndTransform() );
+				}
 				while ( boxSources.size() > numPresentSources )
+				{
 					boxSources.remove( boxSources.size() - 1 );
+				}
 			}
 
 			final AffineTransform3D sourceToViewer = new AffineTransform3D();
@@ -164,6 +180,7 @@ public class MultiBoxOverlayRendererFX implements OverlayRendererGeneric< Graphi
 				final Source< ? > source = this.allSources.get( i );
 				if ( source.isPresent( timepoint ) )
 				{
+					LOG.debug( "Setting box for source i={}, j={} boxSources.size={}", i, j, boxSources.size() );
 					final IntervalAndTransform boxsource = boxSources.get( j++ );
 					viewerState.getViewerTransform( sourceToViewer );
 					source.getSourceTransform( timepoint, 0, sourceTransform );
