@@ -555,8 +555,8 @@ public class GenericBackendDialogN5 implements SourceFromRAI
 					.orElse( new double[] { 1, 1, 1 } );
 			final double[] offset = Arrays.stream( offset() ).mapToDouble( DoubleProperty::get ).toArray();
 			LOG.debug( "Initial resolution={}", Arrays.toString( initialResolution ) );
-			final ExecutorService exec = Executors.newFixedThreadPool(scaleDatasets.length);
-			ArrayList< Future< Boolean > > futures = new ArrayList<>();
+			final ExecutorService exec = Executors.newFixedThreadPool( scaleDatasets.length );
+			final ArrayList< Future< Boolean > > futures = new ArrayList<>();
 			for ( int scale = 0; scale < scaleDatasets.length; ++scale )
 			{
 				final int fScale = scale;
@@ -614,7 +614,7 @@ public class GenericBackendDialogN5 implements SourceFromRAI
 					}
 					catch ( final IOException e )
 					{
-						LOG.debug(e.toString(), e);
+						LOG.debug( e.toString(), e );
 						return false;
 					}
 				} ) );
@@ -625,7 +625,8 @@ public class GenericBackendDialogN5 implements SourceFromRAI
 					if ( !future.get() )
 						throw new IOException( "Failed populating " );
 				}
-				catch ( final ExecutionException | InterruptedException e ) {
+				catch ( final ExecutionException | InterruptedException e )
+				{
 					throw new IOException( "Failed populating " );
 				}
 			exec.shutdown();
@@ -667,8 +668,8 @@ public class GenericBackendDialogN5 implements SourceFromRAI
 			final double[] initialDonwsamplingFactors = Optional.ofNullable( reader.getAttribute( dataset + "/" + scaleDatasets[ 0 ], "downsamplingFactors", double[].class ) ).orElse( new double[] { 1, 1, 1 } );
 			final double[] offset = Arrays.stream( offset() ).mapToDouble( DoubleProperty::get ).toArray();
 			LOG.debug( "Initial resolution={}", Arrays.toString( initialResolution ) );
-			final ExecutorService exec = Executors.newFixedThreadPool(scaleDatasets.length);
-			ArrayList< Future< Boolean > > futures = new ArrayList<>();
+			final ExecutorService exec = Executors.newFixedThreadPool( scaleDatasets.length );
+			final ArrayList< Future< Boolean > > futures = new ArrayList<>();
 			for ( int scale = 0; scale < scaleDatasets.length; ++scale )
 			{
 				final int fScale = scale;
@@ -704,7 +705,7 @@ public class GenericBackendDialogN5 implements SourceFromRAI
 					}
 					catch ( final IOException e )
 					{
-						LOG.debug(e.toString(), e);
+						LOG.debug( e.toString(), e );
 						return false;
 					}
 				} ) );
@@ -715,7 +716,8 @@ public class GenericBackendDialogN5 implements SourceFromRAI
 					if ( !future.get() )
 						throw new IOException( "Failed populating " );
 				}
-				catch ( final ExecutionException | InterruptedException e ) {
+				catch ( final ExecutionException | InterruptedException e )
+				{
 					throw new IOException( "Failed populating " );
 				}
 			exec.shutdown();
