@@ -20,6 +20,7 @@ import org.janelia.saalfeldlab.n5.N5Reader;
 import org.janelia.saalfeldlab.n5.N5Writer;
 import org.janelia.saalfeldlab.n5.hdf5.N5HDF5Reader;
 import org.janelia.saalfeldlab.n5.hdf5.N5HDF5Writer;
+import org.janelia.saalfeldlab.util.NamedThreadFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -156,18 +157,21 @@ public class N5Helpers
 	public static List< String > discoverDatasets( final N5Reader n5, final Runnable onInterruption )
 	{
 		final List< String > datasets = new ArrayList<>();
-		final ExecutorService exec = Executors.newFixedThreadPool(n5 instanceof N5HDF5Reader ? 1 : 12);
-		final AtomicInteger counter = new AtomicInteger(1);
-		exec.submit(() -> discoverSubdirectories( n5, "", datasets, exec, counter ));
-		while (counter.get() > 0 && !Thread.currentThread().isInterrupted())
-			try {
-					Thread.sleep(20);
-			} catch (InterruptedException e) {
+		final ExecutorService exec = Executors.newFixedThreadPool( n5 instanceof N5HDF5Reader ? 1 : 12, new NamedThreadFactory( "dataset-discovery-%d", true ) );
+		final AtomicInteger counter = new AtomicInteger( 1 );
+		exec.submit( () -> discoverSubdirectories( n5, "", datasets, exec, counter ) );
+		while ( counter.get() > 0 && !Thread.currentThread().isInterrupted() )
+			try
+			{
+				Thread.sleep( 20 );
+			}
+			catch ( final InterruptedException e )
+			{
 				exec.shutdownNow();
 				onInterruption.run();
 			}
 		exec.shutdown();
-		Collections.sort(datasets);
+		Collections.sort( datasets );
 		return datasets;
 	}
 
@@ -182,7 +186,7 @@ public class N5Helpers
 		{
 			if ( n5.datasetExists( pathName ) )
 			{
-				synchronized (datasets)
+				synchronized ( datasets )
 				{
 					datasets.add( pathName );
 				}
@@ -226,9 +230,9 @@ public class N5Helpers
 				}
 			}
 		}
-		catch ( IOException e )
+		catch ( final IOException e )
 		{
-			LOG.debug(e.toString(), e);
+			LOG.debug( e.toString(), e );
 		}
 		final int numThreads = counter.decrementAndGet();
 		LOG.debug( "leaving {}, {} threads remaining", pathName, numThreads );

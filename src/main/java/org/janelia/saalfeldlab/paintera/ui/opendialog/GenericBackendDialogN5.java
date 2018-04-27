@@ -35,6 +35,7 @@ import org.janelia.saalfeldlab.paintera.data.mask.MaskedSource;
 import org.janelia.saalfeldlab.paintera.id.IdService;
 import org.janelia.saalfeldlab.paintera.id.N5IdService;
 import org.janelia.saalfeldlab.util.MakeUnchecked;
+import org.janelia.saalfeldlab.util.NamedThreadFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -555,7 +556,7 @@ public class GenericBackendDialogN5 implements SourceFromRAI
 					.orElse( new double[] { 1, 1, 1 } );
 			final double[] offset = Arrays.stream( offset() ).mapToDouble( DoubleProperty::get ).toArray();
 			LOG.debug( "Initial resolution={}", Arrays.toString( initialResolution ) );
-			final ExecutorService exec = Executors.newFixedThreadPool( scaleDatasets.length );
+			final ExecutorService exec = Executors.newFixedThreadPool( scaleDatasets.length, new NamedThreadFactory( "populate-mipmap-scales-%d", true ) );
 			final ArrayList< Future< Boolean > > futures = new ArrayList<>();
 			for ( int scale = 0; scale < scaleDatasets.length; ++scale )
 			{
