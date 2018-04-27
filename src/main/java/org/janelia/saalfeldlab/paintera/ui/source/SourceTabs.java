@@ -53,7 +53,7 @@ public class SourceTabs implements Supplier< Node >
 
 	private final ObservableList< StatePane > statePanes = FXCollections.observableArrayList();
 	{
-		InvokeOnJavaFXApplicationThread.invoke( () -> statePanes.addListener( ( ListChangeListener< StatePane > ) change -> this.contents.getChildren().setAll(
+		statePanes.addListener( ( ListChangeListener< StatePane > ) change -> InvokeOnJavaFXApplicationThread.invoke( () -> this.contents.getChildren().setAll(
 				statePanes.stream().map( StatePane::get ).collect( Collectors.toList() ) ) ) );
 	}
 
