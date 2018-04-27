@@ -98,4 +98,14 @@ public class ResizableGridPane2x2< TL extends Node, TR extends Node, BL extends 
 		grid.add( newValue, col, row );
 	}
 
+	public Node getChildAt( final int column, final int row )
+	{
+		if ( column == 0 && row == 0 ) { return topLeft.get(); }
+		if ( column == 1 && row == 0 ) { return topRight.get(); }
+		if ( column == 0 && row == 1 ) { return bottomLeft.get(); }
+		if ( column == 1 && row == 1 ) { return bottomRight.get(); }
+
+		return null;
+	}
+
 }
