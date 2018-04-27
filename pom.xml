@@ -125,7 +125,7 @@
 		<dependency>
 			<groupId>org.janelia.saalfeldlab</groupId>
 			<artifactId>n5-google-cloud</artifactId>
-			<version>2.3.1</version>
+			<version>2.3.2-SNAPSHOT</version>
 		</dependency>
 		<dependency>
 			<groupId>org.controlsfx</groupId>
