@@ -1,6 +1,7 @@
 package org.janelia.saalfeldlab.paintera;
 
 import java.lang.invoke.MethodHandles;
+import java.util.Optional;
 
 import org.janelia.saalfeldlab.fx.event.KeyTracker;
 import org.janelia.saalfeldlab.fx.ortho.OrthogonalViews;
@@ -13,6 +14,7 @@ import javafx.application.Application;
 import javafx.application.Platform;
 import javafx.scene.Scene;
 import javafx.stage.Stage;
+import picocli.CommandLine;
 
 public class Paintera extends Application
 {
@@ -36,16 +38,27 @@ public class Paintera extends Application
 
 
 	@Override
-	public void start( final Stage primaryStage ) throws Exception
+	public void start( final Stage stage ) throws Exception
 	{
 
-		final Stage stage = new Stage();
+		final Parameters parameters = getParameters();
+		final String[] args = parameters.getRaw().stream().toArray( String[]::new );
+		final PainteraCommandLineArgs painteraArgs = new PainteraCommandLineArgs();
+		final boolean parsedSuccessfully = Optional.ofNullable( CommandLine.call( painteraArgs, System.err, args ) ).orElse( false );
+		Platform.setImplicitExit( true );
+
+		if ( !parsedSuccessfully )
+		{
+			baseView.stop();
+			Platform.exit();
+			return;
+		}
+
 		final Scene scene = new Scene( paneWithStatus.getPane() );
 		if ( LOG.isDebugEnabled() )
 		{
 			scene.focusOwnerProperty().addListener( ( obs, oldv, newv ) -> LOG.debug( "Focus changed: old={} new={}", oldv, newv ) );
 		}
-		Platform.setImplicitExit( true );
 
 		setFocusTraversable( orthoViews, false );
 
@@ -53,8 +66,8 @@ public class Paintera extends Application
 
 		keyTracker.installInto( scene );
 		stage.setScene( scene );
-		stage.setWidth( 800 );
-		stage.setHeight( 600 );
+		stage.setWidth( painteraArgs.width() );
+		stage.setHeight( painteraArgs.height() );
 		stage.show();
 	}
 

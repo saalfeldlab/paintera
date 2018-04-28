@@ -119,7 +119,7 @@ public class OrthogonalViews< BR extends Node >
 			final Function< Source< ? >, Interpolation > interpolation )
 	{
 		final AffineTransform3D globalToViewer = ViewerAxis.globalToViewer( axis );
-		LOG.warn( "Generating viewer, axis={}, globalToViewer={}", axis, globalToViewer );
+		LOG.debug( "Generating viewer, axis={}, globalToViewer={}", axis, globalToViewer );
 		final ViewerPanelFX viewer = new ViewerPanelFX( 1, cacheControl, optional, interpolation );
 		final AffineTransformWithListeners displayTransform = new AffineTransformWithListeners();
 		final AffineTransformWithListeners globalToViewerTransform = new AffineTransformWithListeners( globalToViewer );
