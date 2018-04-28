@@ -61,7 +61,10 @@ Replace `16G` with the maximum amount of memory that Paintera should use.
 | `Space` wheel | change brush size |
 | `F` | Flood-fill with id that was last toggled active (if any) |
 | `N` | Select new, previously unused id |
-| `Shift` + `C` | Commit current canvas into background |
+| `Ctrl` + `C` | Commit current canvas into background |
+| `C` | Increment ARGB stream seed by one |
+| `Shift` + `C` | Decrement ARGB stream seed by one |
+| `Ctrl` + `Shift` + `C` | Show ARGB stream seed spinner |
 
 
 

@@ -280,6 +280,7 @@ public class PainteraBaseView
 						generalPurposeExecutorService );
 			}
 			else
+			{
 				generateMeshCaches(
 						source,
 						state,
@@ -287,6 +288,7 @@ public class PainteraBaseView
 						collectLabels( source.getDataType() ),
 						equalsMask,
 						generalPurposeExecutorService );
+			}
 		}
 
 		sourceInfo.addState( source, state );
@@ -390,8 +392,9 @@ public class PainteraBaseView
 		{
 			LOG.warn( "Generating unique label list loaders at level {} for LabelMultisetType source: {}", level, spec );
 			final RandomAccessibleInterval< LabelMultisetType > img = spec.getDataSource( 0, level );
-			if ( !( img instanceof CachedCellImg ) )
+			if ( !( img instanceof CachedCellImg ) ) {
 				throw new RuntimeException( "Source at level " + level + " is not a CachedCellImg for " + spec );
+			}
 			@SuppressWarnings( "unchecked" )
 			final CachedCellImg< LabelMultisetType, VolatileLabelMultisetArray > cachedImg = ( CachedCellImg< LabelMultisetType, VolatileLabelMultisetArray > ) img;
 			final LazyCells< Cell< VolatileLabelMultisetArray > > cells = cachedImg.getCells();
@@ -466,7 +469,7 @@ public class PainteraBaseView
 
 	public void stop()
 	{
-		LOG.warn( "Stopping everything" );
+		LOG.debug( "Stopping everything" );
 		this.generalPurposeExecutorService.shutdownNow();
 		this.meshManagerExecutorService.shutdown();
 		this.meshWorkerExecutorService.shutdownNow();
@@ -476,7 +479,7 @@ public class PainteraBaseView
 		this.orthogonalViews().topRight().viewer().stop();
 		this.orthogonalViews().bottomLeft().viewer().stop();
 		this.cacheControl.shutdown();
-		LOG.warn( "Sent stop requests everywhere" );
+		LOG.debug( "Sent stop requests everywhere" );
 	}
 
 }

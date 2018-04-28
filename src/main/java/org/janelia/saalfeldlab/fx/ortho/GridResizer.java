@@ -1,5 +1,6 @@
 package org.janelia.saalfeldlab.fx.ortho;
 
+import org.janelia.saalfeldlab.fx.event.InstallAndRemove;
 import org.janelia.saalfeldlab.fx.event.KeyTracker;
 
 import javafx.animation.KeyFrame;
@@ -7,12 +8,13 @@ import javafx.animation.KeyValue;
 import javafx.animation.Timeline;
 import javafx.event.EventHandler;
 import javafx.scene.Cursor;
+import javafx.scene.Node;
 import javafx.scene.Scene;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.Pane;
 import javafx.util.Duration;
 
-public class GridResizer
+public class GridResizer implements InstallAndRemove< Node >
 {
 	private final GridConstraintsManager manager;
 
@@ -74,8 +76,9 @@ public class GridResizer
 		@Override
 		public void handle( final MouseEvent event )
 		{
-			if ( !keyTracker.noKeysActive() )
+			if ( !keyTracker.noKeysActive() ) {
 				return;
+			}
 			synchronized ( manager )
 			{
 				synchronized ( grid )
@@ -92,16 +95,21 @@ public class GridResizer
 					if ( mouseWithinResizableRangeX && mouseWithinResizableRangeY )
 					{
 						if ( Double.compare( x - gridBorderX, 0.0 ) < 0 && Double.compare( y - gridBorderY, 0.0 ) < 0 )
+						{
 							scene.setCursor( Cursor.SE_RESIZE );
-
+						}
 						else if ( Double.compare( x - gridBorderX, 0.0 ) > 0 && Double.compare( y - gridBorderY, 0.0 ) < 0 )
+						{
 							scene.setCursor( Cursor.SW_RESIZE );
-
+						}
 						else if ( Double.compare( x - gridBorderX, 0.0 ) < 0 && Double.compare( y - gridBorderY, 0.0 ) > 0 )
+						{
 							scene.setCursor( Cursor.NE_RESIZE );
-
+						}
 						else
+						{
 							scene.setCursor( Cursor.NW_RESIZE );
+						}
 						isOnMargin = true;
 					}
 
@@ -141,7 +149,9 @@ public class GridResizer
 
 			dragging = mouseWithinResizableRangeX || mouseWithinResizableRangeY;
 			if ( dragging )
+			{
 				event.consume();
+			}
 		}
 	}
 
@@ -212,6 +222,7 @@ public class GridResizer
 					final Timeline timeline = new Timeline();
 
 					if ( mouseWithinResizableRangeX && mouseWithinResizableRangeY )
+					{
 						timeline.getKeyFrames().addAll(
 								new KeyFrame( Duration.ZERO,
 										new KeyValue( manager.column1.percentWidthProperty(), manager.column1.getPercentWidth() ),
@@ -223,7 +234,9 @@ public class GridResizer
 										new KeyValue( manager.column2.percentWidthProperty(), 50 ),
 										new KeyValue( manager.row1.percentHeightProperty(), 50 ),
 										new KeyValue( manager.row2.percentHeightProperty(), 50 ) ) );
+					}
 					else if ( mouseWithinResizableRangeX )
+					{
 						timeline.getKeyFrames().addAll(
 								new KeyFrame( Duration.ZERO,
 										new KeyValue( manager.column1.percentWidthProperty(), manager.column1.getPercentWidth() ),
@@ -231,7 +244,9 @@ public class GridResizer
 								new KeyFrame( new Duration( time ),
 										new KeyValue( manager.column1.percentWidthProperty(), 50 ),
 										new KeyValue( manager.column2.percentWidthProperty(), 50 ) ) );
+					}
 					else if ( mouseWithinResizableRangeY )
+					{
 						timeline.getKeyFrames().addAll(
 								new KeyFrame( Duration.ZERO,
 										new KeyValue( manager.row1.percentHeightProperty(), manager.row1.getPercentHeight() ),
@@ -239,9 +254,30 @@ public class GridResizer
 								new KeyFrame( new Duration( time ),
 										new KeyValue( manager.row1.percentHeightProperty(), 50 ),
 										new KeyValue( manager.row2.percentHeightProperty(), 50 ) ) );
+					}
 					timeline.play();
 				}
 			}
 		}
+	}
+
+	@Override
+	public void installInto( final Node node )
+	{
+		node.addEventFilter( MouseEvent.MOUSE_MOVED, onMouseMovedHandler() );
+		node.addEventFilter( MouseEvent.MOUSE_CLICKED, onMouseDoubleClickedHandler() );
+		node.addEventFilter( MouseEvent.MOUSE_DRAGGED, onMouseDraggedHandler() );
+		node.addEventFilter( MouseEvent.MOUSE_PRESSED, onMousePressedHandler() );
+		node.addEventFilter( MouseEvent.MOUSE_RELEASED, onMouseReleased() );
+	}
+
+	@Override
+	public void removeFrom( final Node node )
+	{
+		node.removeEventFilter( MouseEvent.MOUSE_MOVED, onMouseMovedHandler() );
+		node.removeEventFilter( MouseEvent.MOUSE_CLICKED, onMouseDoubleClickedHandler() );
+		node.removeEventFilter( MouseEvent.MOUSE_DRAGGED, onMouseDraggedHandler() );
+		node.removeEventFilter( MouseEvent.MOUSE_PRESSED, onMousePressedHandler() );
+		node.removeEventFilter( MouseEvent.MOUSE_RELEASED, onMouseReleased() );
 	}
 }

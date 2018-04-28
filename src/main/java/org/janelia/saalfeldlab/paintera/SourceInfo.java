@@ -20,6 +20,7 @@ import org.janelia.saalfeldlab.paintera.stream.ARGBStream;
 import bdv.viewer.Source;
 import bdv.viewer.SourceAndConverter;
 import javafx.beans.binding.Bindings;
+import javafx.beans.binding.IntegerBinding;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.IntegerProperty;
 import javafx.beans.property.ObjectProperty;
@@ -52,6 +53,14 @@ public class SourceInfo
 	private final ObjectProperty< Source< ? > > currentSource = new SimpleObjectProperty<>( null );
 
 	private final ObservableList< Source< ? > > visibleSources = FXCollections.observableArrayList();
+
+	private final IntegerBinding numSources = Bindings.size( sources );
+
+	private final IntegerBinding numVisibleSources = Bindings.size( visibleSources );
+
+	private final ObservableBooleanValue hasSources = numSources.greaterThan( 0 );
+
+	private final ObservableBooleanValue hasVisibleSources = numSources.greaterThan( 0 );
 
 	private final ObservableList< Source< ? > > visibleSourcesReadOnly = FXCollections.unmodifiableObservableList( visibleSources );
 	{
@@ -214,11 +223,6 @@ public class SourceInfo
 		return state != null ? Optional.ofNullable( state.assignmentProperty().get() ) : Optional.empty();
 	}
 
-	public int numSources()
-	{
-		return this.states.size();
-	}
-
 	public SourceState< ?, ? > getState( final Source< ? > source )
 	{
 		return states.get( source );
@@ -345,6 +349,26 @@ public class SourceInfo
 	public ObservableBooleanValue anyStateChanged()
 	{
 		return this.anyStateChanged;
+	}
+
+	public ObservableIntegerValue numSources()
+	{
+		return this.numSources;
+	}
+
+	public ObservableIntegerValue numVisibleSources()
+	{
+		return this.numVisibleSources;
+	}
+
+	public ObservableBooleanValue hasSources()
+	{
+		return this.hasSources;
+	}
+
+	public ObservableBooleanValue hasVisibleSources()
+	{
+		return this.hasVisibleSources;
 	}
 
 }

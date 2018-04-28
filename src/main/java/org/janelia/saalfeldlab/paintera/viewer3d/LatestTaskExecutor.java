@@ -4,6 +4,7 @@ import java.util.List;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
 
 public class LatestTaskExecutor implements Executor
@@ -14,15 +15,15 @@ public class LatestTaskExecutor implements Executor
 
 	private final long delayInNanoSeconds;
 
-	public LatestTaskExecutor()
+	public LatestTaskExecutor( final ThreadFactory factory )
 	{
-		this( 0 );
+		this( 0, factory );
 	}
 
-	public LatestTaskExecutor( final long delayInNanoSeconds )
+	public LatestTaskExecutor( final long delayInNanoSeconds, final ThreadFactory factory )
 	{
 		super();
-		this.executor = Executors.newSingleThreadScheduledExecutor();
+		this.executor = Executors.newSingleThreadScheduledExecutor( factory );
 		this.delayInNanoSeconds = delayInNanoSeconds;
 	}
 
