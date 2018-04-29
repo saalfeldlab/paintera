@@ -27,9 +27,12 @@ public class CanvasPane extends Pane
 		final double y = snappedTopInset();
 		final double w = snapSize( getWidth() ) - x - snappedRightInset();
 		final double h = snapSize( getHeight() ) - y - snappedBottomInset();
-		canvas.setLayoutX( x );
-		canvas.setLayoutY( y );
-		canvas.setWidth( w );
-		canvas.setHeight( h );
+		if ( x != canvas.getLayoutX() || y != canvas.getLayoutY() || w != canvas.getWidth() || h != canvas.getHeight() )
+		{
+			canvas.setLayoutX( x );
+			canvas.setLayoutY( y );
+			canvas.setWidth( w );
+			canvas.setHeight( h );
+		}
 	}
 }
