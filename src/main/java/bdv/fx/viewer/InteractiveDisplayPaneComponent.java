@@ -192,7 +192,7 @@ public class InteractiveDisplayPaneComponent< A > extends StackPane
 
 	public void repaint()
 	{
-		this.renderTarget.drawOverlays( this.imageView );
+		this.renderTarget.drawOverlays( this.imageView::setImage );
 		drawOverlays();
 		layout();
 	}
