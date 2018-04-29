@@ -2,6 +2,7 @@ package org.janelia.saalfeldlab.paintera.ui.opendialog;
 
 import java.io.IOException;
 import java.lang.invoke.MethodHandles;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -10,31 +11,71 @@ import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.BiConsumer;
 import java.util.regex.Pattern;
 
+import org.janelia.saalfeldlab.n5.DataBlock;
 import org.janelia.saalfeldlab.n5.DataType;
+import org.janelia.saalfeldlab.n5.DatasetAttributes;
+import org.janelia.saalfeldlab.n5.GzipCompression;
+import org.janelia.saalfeldlab.n5.LongArrayDataBlock;
 import org.janelia.saalfeldlab.n5.N5FSReader;
 import org.janelia.saalfeldlab.n5.N5FSWriter;
 import org.janelia.saalfeldlab.n5.N5Reader;
 import org.janelia.saalfeldlab.n5.N5Writer;
 import org.janelia.saalfeldlab.n5.hdf5.N5HDF5Reader;
 import org.janelia.saalfeldlab.n5.hdf5.N5HDF5Writer;
+import org.janelia.saalfeldlab.n5.imglib2.N5Utils;
+import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignmentOnlyLocal;
+import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignmentState;
+import org.janelia.saalfeldlab.paintera.id.IdService;
+import org.janelia.saalfeldlab.paintera.id.N5IdService;
+import org.janelia.saalfeldlab.util.MakeUnchecked;
+import org.janelia.saalfeldlab.util.MakeUnchecked.CheckedConsumer;
 import org.janelia.saalfeldlab.util.NamedThreadFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import bdv.util.volatiles.SharedQueue;
+import bdv.util.volatiles.VolatileRandomAccessibleIntervalView;
+import bdv.util.volatiles.VolatileViews;
+import net.imglib2.Cursor;
+import net.imglib2.RandomAccessibleInterval;
+import net.imglib2.Volatile;
+import net.imglib2.cache.img.CachedCellImg;
+import net.imglib2.cache.ref.BoundedSoftRefLoaderCache;
+import net.imglib2.cache.ref.SoftRefLoaderCache;
+import net.imglib2.cache.util.LoaderCacheAsCacheAdapter;
+import net.imglib2.cache.volatiles.CacheHints;
+import net.imglib2.cache.volatiles.LoadingStrategy;
+import net.imglib2.img.cell.Cell;
+import net.imglib2.img.cell.CellGrid;
+import net.imglib2.realtransform.AffineTransform3D;
+import net.imglib2.realtransform.Translation3D;
+import net.imglib2.type.NativeType;
+import net.imglib2.type.label.LabelMultisetType;
+import net.imglib2.type.label.N5CacheLoader;
+import net.imglib2.type.label.VolatileLabelMultisetArray;
+import net.imglib2.type.label.VolatileLabelMultisetType;
+import net.imglib2.type.numeric.IntegerType;
+import net.imglib2.type.numeric.RealType;
+import net.imglib2.type.numeric.integer.UnsignedLongType;
+import net.imglib2.util.ValuePair;
+import net.imglib2.util.ValueTriple;
+import net.imglib2.view.Views;
 
 public class N5Helpers
 {
 
 	private static final String MULTI_SCALE_KEY = "multiScale";
 
-	private static final Logger LOG = LoggerFactory.getLogger( MethodHandles.lookup().lookupClass() );
+	private static final String IS_LABEL_MULTISET_KEY = "isLabelMultiset";
 
-	public static boolean isLabelType( final DataType type )
-	{
-		return N5Helpers.isLabelMultisetType( type ) || N5Helpers.isIntegerType( type );
-	}
+	private static final String MAX_ID_KEY = "maxId";
+
+	private static final Logger LOG = LoggerFactory.getLogger( MethodHandles.lookup().lookupClass() );
 
 	public static boolean isIntegerType( final DataType type )
 	{
@@ -54,9 +95,20 @@ public class N5Helpers
 		}
 	}
 
-	public static boolean isLabelMultisetType( final DataType type )
+	public static boolean isMultiScale( final N5Reader n5, final String dataset ) throws IOException
 	{
-		return false;
+		return Optional.ofNullable( n5.getAttribute( dataset, MULTI_SCALE_KEY, Boolean.class ) ).orElse( false );
+	}
+
+	public static boolean isLabelMultisetType( final N5Reader n5, final String dataset, final boolean isMultiscale ) throws IOException
+	{
+		return isMultiscale && isLabelMultisetType( n5, Paths.get( dataset, getFinestLevel( n5, dataset ) ).toString() )
+				|| Optional.ofNullable( n5.getAttribute( dataset, IS_LABEL_MULTISET_KEY, Boolean.class ) ).orElse( false );
+	}
+
+	public static boolean isLabelMultisetType( final N5Reader n5, final String dataset ) throws IOException
+	{
+		return Optional.ofNullable( n5.getAttribute( dataset, IS_LABEL_MULTISET_KEY, Boolean.class ) ).orElse( false );
 	}
 
 	public static double minForType( final DataType t )
@@ -237,4 +289,335 @@ public class N5Helpers
 		final int numThreads = counter.decrementAndGet();
 		LOG.debug( "leaving {}, {} threads remaining", pathName, numThreads );
 	}
+
+	public static < T extends RealType< T > & NativeType< T >, V extends Volatile< T > > ValuePair< RandomAccessibleInterval< T >, RandomAccessibleInterval< V > >
+			openRaw(
+					final N5Reader reader,
+					final String dataset,
+					final SharedQueue sharedQueue,
+					final int priority ) throws IOException
+	{
+		final RandomAccessibleInterval< T > raw = N5Utils.openVolatile( reader, dataset );
+		final RandomAccessibleInterval< V > vraw = VolatileViews.wrapAsVolatile( raw, sharedQueue, new CacheHints( LoadingStrategy.VOLATILE, priority, true ) );
+		return new ValuePair<>( raw, vraw );
+	}
+
+	public static < T extends RealType< T > & NativeType< T >, V extends Volatile< T > > ValueTriple< RandomAccessibleInterval< T >[], RandomAccessibleInterval< V >[], AffineTransform3D[] >
+			openRawMultiscale(
+					final N5Reader reader,
+					final String dataset,
+					final double[] resolution,
+					final double[] offset,
+					final SharedQueue sharedQueue,
+					final int priority ) throws IOException
+	{
+		final String[] scaleDatasets = N5Helpers.listAndSortScaleDatasets( reader, dataset );
+
+		LOG.debug( "Opening directories {} as multi-scale in {}: ", Arrays.toString( scaleDatasets ), dataset );
+
+		@SuppressWarnings( "unchecked" )
+		final RandomAccessibleInterval< T >[] raw = new RandomAccessibleInterval[ scaleDatasets.length ];
+		@SuppressWarnings( "unchecked" )
+		final RandomAccessibleInterval< V >[] vraw = new RandomAccessibleInterval[ scaleDatasets.length ];
+		final AffineTransform3D[] transforms = new AffineTransform3D[ scaleDatasets.length ];
+		final double[] initialResolution = resolution.clone();
+		final double[] initialDonwsamplingFactors = Optional
+				.ofNullable( reader.getAttribute( Paths.get( dataset, scaleDatasets[ 0 ] ).toString(), "downsamplingFactors", double[].class ) )
+				.orElse( new double[] { 1, 1, 1 } );
+		LOG.debug( "Initial resolution={}", Arrays.toString( initialResolution ) );
+		final ExecutorService es = Executors.newFixedThreadPool( scaleDatasets.length, new NamedThreadFactory( "populate-mipmap-scales-%d", true ) );
+		final ArrayList< Future< Boolean > > futures = new ArrayList<>();
+		for ( int scale = 0; scale < scaleDatasets.length; ++scale )
+		{
+			final int fScale = scale;
+			futures.add( es.submit( MakeUnchecked.unchecked( () -> {
+				LOG.debug( "Populating scale level {}", fScale );
+				final String scaleDataset = Paths.get( dataset, scaleDatasets[ fScale ] ).toString();
+				final ValuePair< RandomAccessibleInterval< T >, RandomAccessibleInterval< V > > cachedAndVolatile =
+						openRaw( reader, scaleDataset, sharedQueue, priority );
+				raw[ fScale ] = cachedAndVolatile.getA();
+				vraw[ fScale ] = cachedAndVolatile.getB();
+				final double[] downsamplingFactors = Optional
+						.ofNullable( reader.getAttribute( scaleDataset, "downsamplingFactors", double[].class ) )
+						.orElse( new double[] { 1, 1, 1 } );
+				LOG.debug( "Read downsampling factors: {}", Arrays.toString( downsamplingFactors ) );
+				transforms[ fScale ] = considerDownsampling( initialResolution, offset, downsamplingFactors, initialDonwsamplingFactors );
+				LOG.debug( "Populated scale level {}", fScale );
+				return true;
+			} )::get ) );
+		}
+		futures.forEach( MakeUnchecked.unchecked( ( CheckedConsumer< Future< Boolean > > ) Future::get ) );
+		es.shutdown();
+		return new ValueTriple<>( raw, vraw, transforms );
+	}
+
+	public static ValuePair< RandomAccessibleInterval< LabelMultisetType >, RandomAccessibleInterval< VolatileLabelMultisetType > >
+			openLabelMutliset(
+					final N5Reader reader,
+					final String dataset,
+					final SharedQueue sharedQueue,
+					final int priority ) throws IOException
+	{
+		final DatasetAttributes attrs = reader.getDatasetAttributes( dataset );
+		final N5CacheLoader loader = new N5CacheLoader( reader, dataset );
+		final SoftRefLoaderCache< Long, Cell< VolatileLabelMultisetArray > > cache = new SoftRefLoaderCache<>();
+		final LoaderCacheAsCacheAdapter< Long, Cell< VolatileLabelMultisetArray > > wrappedCache = new LoaderCacheAsCacheAdapter<>( cache, loader );
+		final CachedCellImg< LabelMultisetType, VolatileLabelMultisetArray > cachedImg = new CachedCellImg<>(
+				new CellGrid( attrs.getDimensions(), attrs.getBlockSize() ),
+				new LabelMultisetType(),
+				wrappedCache,
+				new VolatileLabelMultisetArray( 0, true ) );
+		final VolatileRandomAccessibleIntervalView< LabelMultisetType, VolatileLabelMultisetType > volatileCachedImg = VolatileHelpers.wrapCachedCellImg(
+				cachedImg,
+				new VolatileHelpers.CreateInvalidVolatileLabelMultisetArray( cachedImg.getCellGrid() ),
+				sharedQueue,
+				new CacheHints( LoadingStrategy.VOLATILE, priority, false ),
+				new VolatileLabelMultisetType() );
+
+		return new ValuePair<>( cachedImg, volatileCachedImg );
+
+	}
+
+	public static ValueTriple< RandomAccessibleInterval< LabelMultisetType >[], RandomAccessibleInterval< VolatileLabelMultisetType >[], AffineTransform3D[] >
+			openLabelMultisetMultiscale(
+					final N5Reader reader,
+					final String dataset,
+					final double[] resolution,
+					final double[] offset,
+					final SharedQueue sharedQueue,
+					final int priority ) throws IOException
+	{
+		final String[] scaleDatasets = N5Helpers.listAndSortScaleDatasets( reader, dataset );
+
+		LOG.debug( "Opening directories {} as multi-scale in {}: ", Arrays.toString( scaleDatasets ), dataset );
+
+		@SuppressWarnings( "unchecked" )
+		final RandomAccessibleInterval< LabelMultisetType >[] raw = new RandomAccessibleInterval[ scaleDatasets.length ];
+		@SuppressWarnings( "unchecked" )
+		final RandomAccessibleInterval< VolatileLabelMultisetType >[] vraw = new RandomAccessibleInterval[ scaleDatasets.length ];
+		final AffineTransform3D[] transforms = new AffineTransform3D[ scaleDatasets.length ];
+		final double[] initialResolution = resolution.clone();
+		final double[] initialDonwsamplingFactors = Optional
+				.ofNullable( reader.getAttribute( Paths.get( dataset, scaleDatasets[ 0 ] ).toString(), "downsamplingFactors", double[].class ) )
+				.orElse( new double[] { 1, 1, 1 } );
+		LOG.debug( "Initial resolution={}", Arrays.toString( initialResolution ) );
+		final ExecutorService es = Executors.newFixedThreadPool( scaleDatasets.length, new NamedThreadFactory( "populate-mipmap-scales-%d", true ) );
+		final ArrayList< Future< Boolean > > futures = new ArrayList<>();
+		for ( int scale = 0; scale < scaleDatasets.length; ++scale )
+		{
+			final int fScale = scale;
+			futures.add( es.submit( MakeUnchecked.unchecked( () -> {
+				LOG.debug( "Populating scale level {}", fScale );
+				final String scaleDataset = Paths.get( dataset, scaleDatasets[ fScale ] ).toString();
+				final ValuePair< RandomAccessibleInterval< LabelMultisetType >, RandomAccessibleInterval< VolatileLabelMultisetType > > cachedAndVolatile =
+						openLabelMutliset( reader, scaleDataset, sharedQueue, priority );
+				raw[ fScale ] = cachedAndVolatile.getA();
+				vraw[ fScale ] = cachedAndVolatile.getB();
+				final double[] downsamplingFactors = Optional
+						.ofNullable( reader.getAttribute( scaleDataset, "downsamplingFactors", double[].class ) )
+						.orElse( new double[] { 1, 1, 1 } );
+				LOG.debug( "Read downsampling factors: {}", Arrays.toString( downsamplingFactors ) );
+				transforms[ fScale ] = considerDownsampling( initialResolution, offset, downsamplingFactors, initialDonwsamplingFactors );
+				LOG.debug( "Populated scale level {}", fScale );
+				return true;
+			} )::get ) );
+		}
+		futures.forEach( MakeUnchecked.unchecked( ( CheckedConsumer< Future< Boolean > > ) Future::get ) );
+		es.shutdown();
+		return new ValueTriple<>( raw, vraw, transforms );
+	}
+
+	public static AffineTransform3D considerDownsampling(
+			final double[] initialResolution,
+			final double[] offset,
+			final double[] downsamplingFactors,
+			final double[] initialDownsamplingFactors )
+	{
+		final double[] scaledResolution = new double[ downsamplingFactors.length ];
+		final double[] shift = new double[ downsamplingFactors.length ];
+
+		for ( int d = 0; d < downsamplingFactors.length; ++d )
+		{
+			scaledResolution[ d ] = downsamplingFactors[ d ] * initialResolution[ d ];
+			shift[ d ] = 0.5 / initialDownsamplingFactors[ d ] - 0.5 / downsamplingFactors[ d ];
+		}
+
+		LOG.debug( "Downsampling factors={}, scaled resolution={}", Arrays.toString( downsamplingFactors ), Arrays.toString( scaledResolution ) );
+
+		final AffineTransform3D transform = new AffineTransform3D();
+		transform.set(
+				scaledResolution[ 0 ], 0, 0, offset[ 0 ],
+				0, scaledResolution[ 1 ], 0, offset[ 1 ],
+				0, 0, scaledResolution[ 2 ], offset[ 2 ] );
+		return transform.concatenate( new Translation3D( shift ) );
+	}
+
+	public static FragmentSegmentAssignmentState assignments( final N5Writer writer, final String ds ) throws IOException
+	{
+		final String dataset = ds + ".fragment-segment-assignment";
+
+		final BiConsumer< long[], long[] > persister = ( keys, values ) -> {
+			if ( keys.length == 0 )
+			{
+				LOG.info( "Zero length data, will not persist fragment-segment-assignment." );
+				return;
+			}
+			try
+			{
+				final DatasetAttributes attrs = new DatasetAttributes( new long[] { keys.length, 2 }, new int[] { keys.length, 1 }, DataType.UINT64, new GzipCompression() );
+				writer.createDataset( dataset, attrs );
+				final DataBlock< long[] > keyBlock = new LongArrayDataBlock( new int[] { keys.length, 1 }, new long[] { 0, 0 }, keys );
+				final DataBlock< long[] > valueBlock = new LongArrayDataBlock( new int[] { values.length, 1 }, new long[] { 0, 1 }, values );
+				writer.writeBlock( dataset, attrs, keyBlock );
+				writer.writeBlock( dataset, attrs, valueBlock );
+			}
+			catch ( final IOException e )
+			{
+				throw new RuntimeException( e );
+			}
+		};
+
+		final long[] keys;
+		final long[] values;
+		LOG.debug( "Found fragment segment assingment dataset {}? {}", dataset, writer.datasetExists( dataset ) );
+		if ( writer.datasetExists( dataset ) )
+		{
+			final DatasetAttributes attrs = writer.getDatasetAttributes( dataset );
+			final int numEntries = ( int ) attrs.getDimensions()[ 0 ];
+			keys = new long[ numEntries ];
+			values = new long[ numEntries ];
+			LOG.debug( "Found {} assignments", numEntries );
+			final RandomAccessibleInterval< UnsignedLongType > data = N5Utils.open( writer, dataset );
+
+			final Cursor< UnsignedLongType > keysCursor = Views.flatIterable( Views.hyperSlice( data, 1, 0l ) ).cursor();
+			for ( int i = 0; keysCursor.hasNext(); ++i )
+			{
+				keys[ i ] = keysCursor.next().get();
+			}
+
+			final Cursor< UnsignedLongType > valuesCursor = Views.flatIterable( Views.hyperSlice( data, 1, 1l ) ).cursor();
+			for ( int i = 0; valuesCursor.hasNext(); ++i )
+			{
+				values[ i ] = valuesCursor.next().get();
+			}
+		}
+		else
+		{
+			keys = new long[] {};
+			values = new long[] {};
+		}
+
+		return new FragmentSegmentAssignmentOnlyLocal( keys, values, persister );
+	}
+
+	public static IdService idService( final N5Writer n5, final String dataset ) throws IOException
+	{
+		final Long maxId = n5.getAttribute( dataset, MAX_ID_KEY, Long.class );
+		final long actualMaxId;
+		if ( maxId == null )
+		{
+			final boolean isMultiscale = isMultiScale( n5, dataset );
+			final String dsPath = dataset;
+			// isMultiscale ? Paths.get( dataset, getCoarsestLevel( n5, dataset
+			// ) ).toString() : dataset;
+			final DatasetAttributes attributes = n5.getDatasetAttributes( dsPath );
+			LOG.debug( "is multiscale? {} dsPath={}", isMultiscale, dsPath );
+			if ( isLabelMultisetType( n5, dsPath, isMultiscale ) )
+			{
+				LOG.debug( "Getting id service for label multisets" );
+				actualMaxId = maxIdLabelMultiset( n5, dsPath );
+				LOG.debug( "Got max id={}", actualMaxId );
+			}
+			else if ( isIntegerType( attributes.getDataType() ) )
+			{
+				actualMaxId = maxId( n5, dsPath );
+			}
+			else
+			{
+				return null;
+			}
+		}
+		else
+		{
+			actualMaxId = maxId;
+		}
+		return new N5IdService( n5, dataset, actualMaxId );
+
+	}
+
+	private static < T extends IntegerType< T > & NativeType< T > > long maxId( final N5Reader n5, final String dataset ) throws IOException
+	{
+		final String ds;
+		if ( n5.datasetExists( dataset ) )
+		{
+			ds = dataset;
+		}
+		else
+		{
+			final String[] scaleDirs = N5Helpers.listAndSortScaleDatasets( n5, dataset );
+			ds = Paths.get( dataset, scaleDirs ).toString();
+		}
+		final RandomAccessibleInterval< T > data = N5Utils.open( n5, ds );
+		long maxId = 0;
+		for ( final T label : Views.flatIterable( data ) )
+		{
+			maxId = IdService.max( label.getIntegerLong(), maxId );
+		}
+		return maxId;
+	}
+
+	private static long maxIdLabelMultiset( final N5Reader n5, final String dataset ) throws IOException
+	{
+		final String ds;
+		if ( n5.datasetExists( dataset ) )
+		{
+			ds = dataset;
+		}
+		else
+		{
+			final String[] scaleDirs = N5Helpers.listAndSortScaleDatasets( n5, dataset );
+			ds = Paths.get( dataset, scaleDirs[ scaleDirs.length - 1 ] ).toString();
+		}
+
+		LOG.debug( "Looking for max id at n5={} dataset={}", n5, dataset );
+
+		final DatasetAttributes attrs = n5.getDatasetAttributes( ds );
+		final N5CacheLoader loader = new N5CacheLoader( n5, ds );
+		final BoundedSoftRefLoaderCache< Long, Cell< VolatileLabelMultisetArray > > cache = new BoundedSoftRefLoaderCache<>( 1 );
+		final LoaderCacheAsCacheAdapter< Long, Cell< VolatileLabelMultisetArray > > wrappedCache = new LoaderCacheAsCacheAdapter<>( cache, loader );
+		final CachedCellImg< LabelMultisetType, VolatileLabelMultisetArray > data = new CachedCellImg<>(
+				new CellGrid( attrs.getDimensions(), attrs.getBlockSize() ),
+				new LabelMultisetType(),
+				wrappedCache,
+				new VolatileLabelMultisetArray( 0, true ) );
+		long maxId = 0;
+		for ( final Cell< VolatileLabelMultisetArray > cell : Views.iterable( data.getCells() ) )
+		{
+			for ( final long id : cell.getData().containedLabels() )
+			{
+				if ( id > maxId )
+				{
+					maxId = id;
+				}
+			}
+		}
+		return maxId;
+	}
+
+	public static String getFinestLevel(
+			final N5Reader n5,
+			final String dataset ) throws IOException
+	{
+		final String[] scaleDirs = listAndSortScaleDatasets( n5, dataset );
+		return scaleDirs[ 0 ];
+	}
+
+	public static String getCoarsestLevel(
+			final N5Reader n5,
+			final String dataset ) throws IOException
+	{
+		final String[] scaleDirs = listAndSortScaleDatasets( n5, dataset );
+		return scaleDirs[ scaleDirs.length - 1 ];
+	}
+
 }

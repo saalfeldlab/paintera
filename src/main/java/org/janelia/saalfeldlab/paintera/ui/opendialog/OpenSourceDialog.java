@@ -223,4 +223,9 @@ public class OpenSourceDialog extends Dialog< BackendDialog > implements Combine
 	{
 		return this.paintingCacheDirectory.getText();
 	}
+
+	public BackendDialog getBackend()
+	{
+		return this.currentBackend.get();
+	}
 }
