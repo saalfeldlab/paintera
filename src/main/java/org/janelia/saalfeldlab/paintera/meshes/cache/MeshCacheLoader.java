@@ -11,6 +11,7 @@ import org.janelia.saalfeldlab.paintera.meshes.AverageNormals;
 import org.janelia.saalfeldlab.paintera.meshes.Interruptible;
 import org.janelia.saalfeldlab.paintera.meshes.MarchingCubes;
 import org.janelia.saalfeldlab.paintera.meshes.MeshGenerator.ShapeKey;
+import org.janelia.saalfeldlab.paintera.meshes.Normals;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -92,6 +93,7 @@ public class MeshCacheLoader< T > implements CacheLoader< ShapeKey, Pair< float[
 					cubeSize,
 					() -> isInterrupted[ 0 ] ).generateMesh();
 			final float[] normals = new float[ mesh.length ];
+			Normals.normals( mesh, normals );
 			AverageNormals.averagedNormals( mesh, normals );
 			for ( int i = 0; i < normals.length; ++i )
 				normals[ i ] *= -1;
