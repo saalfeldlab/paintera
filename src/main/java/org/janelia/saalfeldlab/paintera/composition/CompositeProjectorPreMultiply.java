@@ -92,6 +92,7 @@ public class CompositeProjectorPreMultiply extends AccumulateProjector< ARGBType
 	@Override
 	protected void accumulate( final Cursor< ? extends ARGBType >[] accesses, final ARGBType t )
 	{
+		t.set( 0 );
 		for ( int i = 0; i < composites.size(); ++i )
 			composites.get( i ).compose( t, accesses[ i ].get() );
 		final int nonpre = t.get();
