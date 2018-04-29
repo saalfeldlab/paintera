@@ -1,7 +1,10 @@
 package org.janelia.saalfeldlab.paintera;
 
+import java.io.IOException;
 import java.lang.invoke.MethodHandles;
+import java.nio.file.Paths;
 import java.util.Arrays;
+import java.util.Optional;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.function.BiConsumer;
@@ -11,6 +14,8 @@ import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
 import org.janelia.saalfeldlab.fx.ortho.OrthogonalViews;
+import org.janelia.saalfeldlab.n5.N5Reader;
+import org.janelia.saalfeldlab.n5.N5Writer;
 import org.janelia.saalfeldlab.paintera.composition.ARGBCompositeAlphaAdd;
 import org.janelia.saalfeldlab.paintera.composition.ARGBCompositeAlphaYCbCr;
 import org.janelia.saalfeldlab.paintera.composition.Composite;
@@ -20,6 +25,7 @@ import org.janelia.saalfeldlab.paintera.control.assignment.FragmentsInSelectedSe
 import org.janelia.saalfeldlab.paintera.control.selection.SelectedIds;
 import org.janelia.saalfeldlab.paintera.control.selection.SelectedSegments;
 import org.janelia.saalfeldlab.paintera.data.DataSource;
+import org.janelia.saalfeldlab.paintera.data.RandomAccessibleIntervalDataSource;
 import org.janelia.saalfeldlab.paintera.data.mask.MaskedSource;
 import org.janelia.saalfeldlab.paintera.id.IdService;
 import org.janelia.saalfeldlab.paintera.id.ToIdConverter;
@@ -33,6 +39,7 @@ import org.janelia.saalfeldlab.paintera.meshes.cache.UniqueLabelListLabelMultise
 import org.janelia.saalfeldlab.paintera.state.GlobalTransformManager;
 import org.janelia.saalfeldlab.paintera.stream.HighlightingStreamConverter;
 import org.janelia.saalfeldlab.paintera.stream.ModalGoldenAngleSaturatedHighlightingARGBStream;
+import org.janelia.saalfeldlab.paintera.ui.opendialog.N5Helpers;
 import org.janelia.saalfeldlab.paintera.viewer3d.Viewer3DFX;
 import org.janelia.saalfeldlab.util.Colors;
 import org.janelia.saalfeldlab.util.HashWrapper;
@@ -53,6 +60,7 @@ import javafx.scene.layout.Pane;
 import javafx.scene.paint.Color;
 import net.imglib2.Interval;
 import net.imglib2.RandomAccessibleInterval;
+import net.imglib2.Volatile;
 import net.imglib2.cache.Cache;
 import net.imglib2.cache.img.CachedCellImg;
 import net.imglib2.converter.ARGBColorConverter;
@@ -60,15 +68,20 @@ import net.imglib2.converter.Converter;
 import net.imglib2.img.cell.Cell;
 import net.imglib2.img.cell.CellGrid;
 import net.imglib2.img.cell.LazyCellImg.LazyCells;
+import net.imglib2.interpolation.randomaccess.NLinearInterpolatorFactory;
+import net.imglib2.interpolation.randomaccess.NearestNeighborInterpolatorFactory;
 import net.imglib2.realtransform.AffineTransform3D;
+import net.imglib2.type.NativeType;
 import net.imglib2.type.Type;
 import net.imglib2.type.label.LabelMultisetType;
 import net.imglib2.type.label.VolatileLabelMultisetArray;
+import net.imglib2.type.label.VolatileLabelMultisetType;
 import net.imglib2.type.logic.BoolType;
 import net.imglib2.type.numeric.ARGBType;
 import net.imglib2.type.numeric.IntegerType;
 import net.imglib2.type.numeric.RealType;
 import net.imglib2.util.Pair;
+import net.imglib2.util.ValueTriple;
 
 public class PainteraBaseView
 {
@@ -149,6 +162,43 @@ public class PainteraBaseView
 		return this.manager;
 	}
 
+	public < T extends RealType< T > & NativeType< T >, U extends Volatile< T > & RealType< U > > Optional< DataSource< T, U > > addRawSource(
+			final N5Reader n5,
+			final String dataset,
+			final double[] resolution,
+			final double[] offset,
+			final Color color,
+			final double min,
+			final double max ) throws IOException
+	{
+		final boolean isMultiScale = N5Helpers.isMultiScale( n5, dataset );
+		final String name = dataset;
+		final RandomAccessibleIntervalDataSource< T, U > source;
+		if ( isMultiScale )
+		{
+			final ValueTriple< RandomAccessibleInterval< T >[], RandomAccessibleInterval< U >[], AffineTransform3D[] > data = N5Helpers.openRawMultiscale(
+					n5,
+					dataset,
+					resolution,
+					offset,
+					getQueue(),
+					0 );
+			source = new RandomAccessibleIntervalDataSource<>(
+					data.getA(),
+					data.getB(),
+					data.getC(),
+					i -> Interpolation.NLINEAR.equals( i ) ? new NLinearInterpolatorFactory<>() : new NearestNeighborInterpolatorFactory<>(),
+					i -> Interpolation.NLINEAR.equals( i ) ? new NLinearInterpolatorFactory<>() : new NearestNeighborInterpolatorFactory<>(),
+					name );
+		}
+		else
+		{
+			source = DataSource.createN5Source( name, n5, dataset, resolution, offset, getQueue(), 0 );
+		}
+		addRawSource( source, min, max, color );
+		return Optional.of( source );
+	}
+
 	public < T extends RealType< T >, U extends RealType< U > > void addRawSource(
 			final DataSource< T, U > spec,
 			final double min,
@@ -175,6 +225,45 @@ public class PainteraBaseView
 			colorConv.maxProperty().addListener( ( obs, oldv, newv ) -> orthogonalViews().requestRepaint() );
 			colorConv.alphaProperty().addListener( ( obs, oldv, newv ) -> orthogonalViews().requestRepaint() );
 		}
+	}
+
+	public < D extends Type< D >, T extends Type< T > > Optional< DataSource< D, T > > addLabelSource(
+			final N5Writer n5,
+			final String dataset,
+			final double[] resolution,
+			final double[] offset ) throws IOException
+	{
+
+		LOG.debug( "Adding label source n5={} dataset={} resolution={} offset={}", n5, dataset, resolution, offset );
+
+		if ( !N5Helpers.isMultiScale( n5, dataset ) && !N5Helpers.isLabelMultisetType( n5, Paths.get( dataset, N5Helpers.listAndSortScaleDatasets( n5, dataset )[ 0 ] ).toString() ) )
+		{
+			LOG.debug( "Only multiscale label multisets supported at the moment. Not adding any data set" );
+			return Optional.empty();
+		}
+
+		final ValueTriple< RandomAccessibleInterval< LabelMultisetType >[], RandomAccessibleInterval< VolatileLabelMultisetType >[], AffineTransform3D[] > labels =
+				N5Helpers.openLabelMultisetMultiscale( n5, dataset, resolution, offset, getQueue(), 1 );
+
+		final RandomAccessibleIntervalDataSource< LabelMultisetType, VolatileLabelMultisetType > labelSource = new RandomAccessibleIntervalDataSource<>(
+				labels.getA(),
+				labels.getB(),
+				labels.getC(),
+				i -> new NearestNeighborInterpolatorFactory<>(),
+				i -> new NearestNeighborInterpolatorFactory<>(),
+				dataset );
+
+		addLabelSource(
+				labelSource,
+				N5Helpers.assignments( n5, dataset ),
+				N5Helpers.idService( n5, dataset ),
+				ToIdConverter.fromLabelMultisetType(),
+				null,
+				null );
+
+		@SuppressWarnings( "unchecked" )
+		final DataSource< D, T > returnedSource = ( DataSource< D, T > ) labelSource;
+		return Optional.of( returnedSource );
 	}
 
 	public < D extends Type< D >, T extends Type< T > > void addLabelSource(
@@ -393,11 +482,9 @@ public class PainteraBaseView
 		final int[][] cubeSizes = new int[ spec.getNumMipmapLevels() ][];
 		for ( int level = 0; level < spec.getNumMipmapLevels(); ++level )
 		{
-			LOG.warn( "Generating unique label list loaders at level {} for LabelMultisetType source: {}", level, spec );
+			LOG.debug( "Generating unique label list loaders at level {} for LabelMultisetType source: {}", level, spec );
 			final RandomAccessibleInterval< LabelMultisetType > img = spec.getDataSource( 0, level );
-			if ( !( img instanceof CachedCellImg ) ) {
-				throw new RuntimeException( "Source at level " + level + " is not a CachedCellImg for " + spec );
-			}
+			if ( !( img instanceof CachedCellImg ) ) { throw new RuntimeException( "Source at level " + level + " is not a CachedCellImg for " + spec ); }
 			@SuppressWarnings( "unchecked" )
 			final CachedCellImg< LabelMultisetType, VolatileLabelMultisetArray > cachedImg = ( CachedCellImg< LabelMultisetType, VolatileLabelMultisetArray > ) img;
 			final LazyCells< Cell< VolatileLabelMultisetArray > > cells = cachedImg.getCells();
@@ -483,6 +570,16 @@ public class PainteraBaseView
 		this.orthogonalViews().bottomLeft().viewer().stop();
 		this.cacheControl.shutdown();
 		LOG.debug( "Sent stop requests everywhere" );
+	}
+
+	public static int reasonableNumFetcherThreads()
+	{
+		return Math.min( 8, Math.max( 1, Runtime.getRuntime().availableProcessors() / 2 ) );
+	}
+
+	public SharedQueue getQueue()
+	{
+		return this.cacheControl;
 	}
 
 }
