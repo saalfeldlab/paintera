@@ -34,8 +34,6 @@ import java.util.concurrent.ExecutorService;
 import bdv.cache.CacheControl;
 import bdv.viewer.render.AccumulateProjectorFactory;
 import net.imglib2.Volatile;
-import net.imglib2.img.array.ArrayImg;
-import net.imglib2.img.basictypeaccess.array.IntArray;
 import net.imglib2.type.numeric.ARGBType;
 import net.imglib2.ui.PainterThread;
 import net.imglib2.ui.RenderTarget;
@@ -98,11 +96,36 @@ import net.imglib2.ui.Renderer;
  *
  * @author Tobias Pietzsch &lt;tobias.pietzsch@gmail.com&gt;
  */
-public class MultiResolutionRendererFX extends MultiResolutionRendererGeneric< ArrayImg< ARGBType, IntArray > >
+public class MultiResolutionRendererFX extends MultiResolutionRendererGeneric< BufferExposingWritableImage >
 {
 
+	public static class MakeWritableImage implements MultiResolutionRendererGeneric.ImageGenerator< BufferExposingWritableImage >
+	{
+
+		@Override
+		public BufferExposingWritableImage create( final int width, final int height )
+		{
+			try
+			{
+				return new BufferExposingWritableImage( width, height );
+			}
+			catch ( final Exception e )
+			{
+				throw e instanceof RuntimeException ? ( RuntimeException ) e : new RuntimeException( e );
+			}
+		}
+
+		@Override
+		public BufferExposingWritableImage create( final int width, final int height, final BufferExposingWritableImage other )
+		{
+			// TODO can we somehow re-use smaller image?
+			return create( width, height );
+		}
+
+	}
+
 	public MultiResolutionRendererFX(
-			final TransformAwareRenderTargetGeneric< ArrayImg< ARGBType, IntArray > > display,
+			final TransformAwareRenderTargetGeneric< BufferExposingWritableImage > display,
 			final PainterThread painterThread,
 			final double[] screenScales,
 			final long targetRenderNanos,
@@ -124,8 +147,11 @@ public class MultiResolutionRendererFX extends MultiResolutionRendererGeneric< A
 				useVolatileIfAvailable,
 				accumulateProjectorFactory,
 				cacheControl,
-				image -> image,
-				( Class< ArrayImg< ARGBType, IntArray > > ) ( Class< ? > ) ArrayImg.class );
+				image -> image.asArrayImg(),
+				new MakeWritableImage(),
+				( Class< BufferExposingWritableImage > ) ( Class< ? > ) BufferExposingWritableImage.class,
+				img -> ( int ) img.getWidth(),
+				img -> ( int ) img.getHeight() );
 	}
 
 }

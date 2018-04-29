@@ -92,7 +92,6 @@ public class MeshCacheLoader< T > implements CacheLoader< ShapeKey, Pair< float[
 					cubeSize,
 					() -> isInterrupted[ 0 ] ).generateMesh();
 			final float[] normals = new float[ mesh.length ];
-
 			AverageNormals.averagedNormals( mesh, normals );
 			for ( int i = 0; i < normals.length; ++i )
 				normals[ i ] *= -1;
