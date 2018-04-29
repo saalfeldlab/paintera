@@ -222,8 +222,6 @@ public class ViewerPanelFX
 		viewerTransform = new AffineTransform3D();
 		final ExecutorService renderTargetExecutorService = Executors.newFixedThreadPool( 3 );
 		renderTarget = new TransformAwareBufferedImageOverlayRendererFX( renderTargetExecutorService );
-		new InteractiveDisplayPaneComponent<>( options.getWidth(), options.getHeight(), renderTarget );
-		new InteractiveDisplayPaneComponentCanvas<>( options.getWidth(), options.getHeight(), renderTarget );
 		display = new InteractiveDisplayPaneComponent<>(
 				options.getWidth(),
 				options.getHeight(),
