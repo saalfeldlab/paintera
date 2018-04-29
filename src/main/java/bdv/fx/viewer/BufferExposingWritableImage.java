@@ -61,7 +61,7 @@ public class BufferExposingWritableImage extends WritableImage
 		} );
 
 		final com.sun.prism.Image platformImage = ( com.sun.prism.Image ) getWritablePlatformImage.invoke( this );
-		LOG.warn( "Got pixelformat={} and platform pixel format={}", platformImage.getPixelFormat(), platformImage.getPlatformPixelFormat() );
+		LOG.debug( "Got pixelformat={} and platform pixel format={}", platformImage.getPixelFormat(), platformImage.getPlatformPixelFormat() );
 	}
 
 	public Buffer getBuffer()
