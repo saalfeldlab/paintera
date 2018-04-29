@@ -7,9 +7,10 @@ import java.util.List;
 import java.util.function.Consumer;
 import java.util.function.LongFunction;
 
+import org.janelia.saalfeldlab.paintera.meshes.AverageNormals;
 import org.janelia.saalfeldlab.paintera.meshes.Interruptible;
+import org.janelia.saalfeldlab.paintera.meshes.MarchingCubes;
 import org.janelia.saalfeldlab.paintera.meshes.MeshGenerator.ShapeKey;
-import org.janelia.saalfeldlab.paintera.meshes.marchingcubes.MarchingCubes;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -91,7 +92,8 @@ public class MeshCacheLoader< T > implements CacheLoader< ShapeKey, Pair< float[
 					cubeSize,
 					() -> isInterrupted[ 0 ] ).generateMesh();
 			final float[] normals = new float[ mesh.length ];
-			MarchingCubes.averagedSurfaceNormals( mesh, normals );
+
+			AverageNormals.averagedNormals( mesh, normals );
 			for ( int i = 0; i < normals.length; ++i )
 				normals[ i ] *= -1;
 			return new ValuePair<>( mesh, normals );
