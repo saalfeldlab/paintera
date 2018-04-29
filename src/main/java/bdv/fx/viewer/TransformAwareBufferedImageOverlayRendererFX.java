@@ -108,8 +108,7 @@ public class TransformAwareBufferedImageOverlayRendererFX
 				try
 				{
 					g.accept( null );
-					sourceImage.getPixelWriter().setPixels( 0, 0, ( int ) sourceImage.getWidth(), ( int ) sourceImage.getHeight(), sourceImage.getPixelReader(), 0, 0 );
-//					sourceImage.setPixelsDirty();
+					sourceImage.setPixelsDirty();
 					g.accept( sourceImage );
 				}
 				catch ( final Exception e )

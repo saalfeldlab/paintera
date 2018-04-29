@@ -109,7 +109,7 @@ public class ViewerPanelFX
 	 * Canvas used for displaying the rendered {@link #renderTarget image} and
 	 * overlays.
 	 */
-	protected final InteractiveDisplayPaneComponentCanvas< AffineTransform3D > display;
+	protected final InteractiveDisplayPaneComponent< AffineTransform3D > display;
 
 	/**
 	 * A {@link ThreadGroup} for (only) the threads used by this
@@ -224,7 +224,7 @@ public class ViewerPanelFX
 		renderTarget = new TransformAwareBufferedImageOverlayRendererFX( renderTargetExecutorService );
 		new InteractiveDisplayPaneComponent<>( options.getWidth(), options.getHeight(), renderTarget );
 		new InteractiveDisplayPaneComponentCanvas<>( options.getWidth(), options.getHeight(), renderTarget );
-		display = new InteractiveDisplayPaneComponentCanvas<>(
+		display = new InteractiveDisplayPaneComponent<>(
 				options.getWidth(),
 				options.getHeight(),
 				renderTarget );
@@ -506,7 +506,7 @@ public class ViewerPanelFX
 	 *
 	 * @return the viewer canvas.
 	 */
-	public InteractiveDisplayPaneComponentCanvas< AffineTransform3D > getDisplay()
+	public InteractiveDisplayPaneComponent< AffineTransform3D > getDisplay()
 	{
 		return display;
 	}

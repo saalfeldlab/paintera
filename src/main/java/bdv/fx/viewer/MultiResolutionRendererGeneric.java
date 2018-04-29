@@ -682,12 +682,14 @@ public class MultiResolutionRendererGeneric< T >
 			projector = new EmptyProjector<>( screenImage );
 		else if ( sacs.size() == 1 )
 		{
+			LOG.debug( "Got only one source, creating pre-multiplying single source projector" );
 			final SourceAndConverter< ? > sac = sacs.get( 0 );
 			final Interpolation interpolation = interpolationForSource.apply( sac.getSpimSource() );
-			projector = createSingleSourceProjector( sac, timepoint, getViewerTransform, currentScreenScaleIndex, screenImage, renderMaskArrays[ 0 ], interpolation );
+			projector = createSingleSourceProjector( sac, timepoint, getViewerTransform, currentScreenScaleIndex, screenImage, renderMaskArrays[ 0 ], interpolation, true );
 		}
 		else
 		{
+			LOG.debug( "Got {} sources, creating {} non-pre-multiplying single source projectors", sacs.size() );
 			final ArrayList< VolatileProjector > sourceProjectors = new ArrayList<>();
 			final ArrayList< ArrayImg< ARGBType, IntArray > > sourceImages = new ArrayList<>();
 			final ArrayList< Source< ? > > sources = new ArrayList<>();
@@ -705,7 +707,8 @@ public class MultiResolutionRendererGeneric< T >
 						currentScreenScaleIndex,
 						renderImage,
 						maskArray,
-						interpolation );
+						interpolation,
+						false );
 				sourceProjectors.add( p );
 				sources.add( sac.getSpimSource() );
 				sourceImages.add( renderImage );
@@ -754,20 +757,21 @@ public class MultiResolutionRendererGeneric< T >
 			final int screenScaleIndex,
 			final ArrayImg< ARGBType, ? extends IntAccess > screenImage,
 			final byte[] maskArray,
-			final Interpolation interpolation )
+			final Interpolation interpolation,
+			final boolean preMultiply )
 	{
 		if ( useVolatileIfAvailable )
 			if ( source.asVolatile() != null )
 			{
 				LOG.debug( "Volatile is available for source={} (name={})", source.getSpimSource(), source.getSpimSource().getName() );
-				return createSingleSourceVolatileProjector( source.asVolatile(), timepoint, screenScaleIndex, getViewerTransform, screenImage, maskArray, interpolation );
+				return createSingleSourceVolatileProjector( source.asVolatile(), timepoint, screenScaleIndex, getViewerTransform, screenImage, maskArray, interpolation, preMultiply );
 			}
 			else if ( source.getSpimSource().getType() instanceof Volatile )
 			{
 				LOG.debug( "Casting to volatile source:{} (name={})", source.getSpimSource(), source.getSpimSource().getName() );
 				@SuppressWarnings( "unchecked" )
 				final SourceAndConverter< ? extends Volatile< ? > > vsource = ( SourceAndConverter< ? extends Volatile< ? > > ) source;
-				return createSingleSourceVolatileProjector( vsource, timepoint, screenScaleIndex, getViewerTransform, screenImage, maskArray, interpolation );
+				return createSingleSourceVolatileProjector( vsource, timepoint, screenScaleIndex, getViewerTransform, screenImage, maskArray, interpolation, preMultiply );
 			}
 
 		final AffineTransform3D screenScaleTransform = screenScaleTransforms[ currentScreenScaleIndex ];
@@ -788,7 +792,8 @@ public class MultiResolutionRendererGeneric< T >
 			final Consumer< AffineTransform3D > getViewerTransform,
 			final ArrayImg< ARGBType, ? extends IntAccess > screenImage,
 			final byte[] maskArray,
-			final Interpolation interpolation )
+			final Interpolation interpolation,
+			final boolean preMultiply )
 	{
 		LOG.debug( "Creating single source volatile projector for source={} (name={})", source.getSpimSource(), source.getSpimSource().getName() );
 		final AffineTransform3D screenScaleTransform = screenScaleTransforms[ currentScreenScaleIndex ];
@@ -822,8 +827,12 @@ public class MultiResolutionRendererGeneric< T >
 		if ( hints.renewHintsAfterPaintingOnce() )
 			newFrameRequest = true;
 
-//		return new VolatileHierarchyProjector<>( renderList, source.getConverter(), screenImage, maskArray, numRenderingThreads, renderingExecutorService );
-		return new VolatileHierarchyProjectorPreMultiply<>( renderList, source.getConverter(), screenImage, maskArray, numRenderingThreads, renderingExecutorService );
+		LOG.debug( "Creating projector. Pre-multiply? {}", preMultiply );
+
+		if ( preMultiply )
+			return new VolatileHierarchyProjectorPreMultiply<>( renderList, source.getConverter(), screenImage, maskArray, numRenderingThreads, renderingExecutorService );
+		else
+			return new VolatileHierarchyProjector<>( renderList, source.getConverter(), screenImage, maskArray, numRenderingThreads, renderingExecutorService );
 	}
 
 	private static < T > RandomAccessible< T > getTransformedSource(
