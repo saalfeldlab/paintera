@@ -113,36 +113,39 @@ public class PainteraOpenDialogEventHandler implements EventHandler< Event >
 			}
 
 			final OpenSourceDialog openDialog = new OpenSourceDialog( viewer );
-			final Optional< BackendDialog > datasetOptional = openDialog.showAndWait();
-			if ( datasetOptional.isPresent() )
-			{
-				final Thread t = new Thread( () -> {
-					try
-					{
-						final BackendDialog dataset = datasetOptional.get();
-						final MetaPanel meta = openDialog.getMeta();
-						final TYPE type = openDialog.getType();
-						LOG.debug( "Type={}", type );
-						switch ( type )
+			openDialog.setOnHidden( e -> {
+				final Optional< BackendDialog > datasetOptional = Optional.ofNullable( openDialog.getBackend() );
+				if ( datasetOptional.isPresent() )
+				{
+					final Thread t = new Thread( () -> {
+						try
 						{
-						case RAW:
-							LOG.trace( "Adding raw data" );
-							addRaw( openDialog.getName(), dataset, meta.min(), meta.max() );
-							break;
-						case LABEL:
-							addLabel( openDialog.getName(), dataset );
-							break;
-						default:
-							break;
+							final BackendDialog dataset = datasetOptional.get();
+							final MetaPanel meta = openDialog.getMeta();
+							final TYPE type = openDialog.getType();
+							LOG.debug( "Type={}", type );
+							switch ( type )
+							{
+							case RAW:
+								LOG.trace( "Adding raw data" );
+								addRaw( openDialog.getName(), dataset, meta.min(), meta.max() );
+								break;
+							case LABEL:
+								addLabel( openDialog.getName(), dataset );
+								break;
+							default:
+								break;
+							}
 						}
-					}
-					catch ( final Exception e )
-					{
-						exceptionHandler.accept( e );
-					}
-				} );
-				t.start();
-			}
+						catch ( final Exception ex )
+						{
+							exceptionHandler.accept( ex );
+						}
+					} );
+					t.start();
+				}
+			} );
+			openDialog.show();
 
 		}
 	}
