@@ -16,7 +16,7 @@ public class ByteArrayAccessARGB implements IntAccess
 
 	public ByteArrayAccessARGB( final byte[] array )
 	{
-		LOG.warn( "Creating {} with {} entries", this.getClass().getName(), array.length );
+		LOG.debug( "Creating {} with {} entries", this.getClass().getName(), array.length );
 		this.array = array;
 	}
 
@@ -25,10 +25,10 @@ public class ByteArrayAccessARGB implements IntAccess
 	{
 		final int byteIndex = index * Integer.BYTES;
 		final int argb =
-				( array[ byteIndex + 0 ] & 0xff ) << 0
-						| ( array[ byteIndex + 1 ] & 0xff ) << 8
-						| ( array[ byteIndex + 2 ] & 0xff ) << 16
-						| ( array[ byteIndex + 3 ] & 0xff ) << 24;
+	   			( array[ byteIndex + 0 ] & 0xff ) << 0
+    		  | ( array[ byteIndex + 1 ] & 0xff ) << 8
+    		  | ( array[ byteIndex + 2 ] & 0xff ) << 16
+    		  | ( array[ byteIndex + 3 ] & 0xff ) << 24;
 		return argb;
 	}
 
