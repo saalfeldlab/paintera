@@ -4,14 +4,15 @@ import java.nio.ByteBuffer;
 
 import net.imglib2.img.basictypeaccess.IntAccess;
 
-public class ByteBufferAccessARGBtoRGBA implements IntAccess
+public class ByteBufferAccessARGB implements IntAccess
 {
 
 	private final ByteBuffer buffer;
 
-	public ByteBufferAccessARGBtoRGBA( final ByteBuffer buffer )
+	public ByteBufferAccessARGB( final ByteBuffer buffer )
 	{
 		this.buffer = buffer;
+		buffer.array();
 	}
 
 	@Override

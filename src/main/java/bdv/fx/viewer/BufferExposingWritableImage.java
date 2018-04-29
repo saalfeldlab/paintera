@@ -77,8 +77,11 @@ public class BufferExposingWritableImage extends WritableImage
 	public ArrayImg< ARGBType, IntAccess > asArrayImg()
 	{
 		final ByteBuffer buffer = ( ByteBuffer ) getBuffer();
-		return ArrayImgs.argbs( new ByteBufferAccessARGBtoRGBA( buffer ), ( long ) getWidth(), ( long ) getHeight() );
-//		return ArrayImgs.argbs( new IntBufferAccess( buffer ), ( long ) getWidth(), ( long ) getHeight() );
+		final byte[] array = buffer.array();
+		return ArrayImgs.argbs(
+				array == null ? new ByteBufferAccessARGB( buffer ) : new ByteArrayAccessARGB( array ),
+				( long ) getWidth(),
+				( long ) getHeight() );
 	}
 
 }
