@@ -41,6 +41,11 @@ java -Xmx16G -XX:+UseConcMarkSweepGC -jar target/paintera-0.1.0-SNAPSHOT-shaded.
 ```
 Replace `16G` with the maximum amount of memory that Paintera should use.
 
+#### Display help message and command line parameters
+```shell
+java -jar target/paintera-0.1.0-SNAPSHOT-shaded.jar --help
+```
+
 ## Usage
 
 | Action | Description |
