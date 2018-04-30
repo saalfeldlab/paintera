@@ -14,6 +14,8 @@ import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
 import org.janelia.saalfeldlab.fx.ortho.OrthogonalViews;
+import org.janelia.saalfeldlab.n5.DataType;
+import org.janelia.saalfeldlab.n5.DatasetAttributes;
 import org.janelia.saalfeldlab.n5.N5Reader;
 import org.janelia.saalfeldlab.n5.N5Writer;
 import org.janelia.saalfeldlab.paintera.composition.ARGBCompositeAlphaAdd;
@@ -39,7 +41,6 @@ import org.janelia.saalfeldlab.paintera.meshes.cache.UniqueLabelListLabelMultise
 import org.janelia.saalfeldlab.paintera.state.GlobalTransformManager;
 import org.janelia.saalfeldlab.paintera.stream.HighlightingStreamConverter;
 import org.janelia.saalfeldlab.paintera.stream.ModalGoldenAngleSaturatedHighlightingARGBStream;
-import org.janelia.saalfeldlab.paintera.ui.opendialog.N5Helpers;
 import org.janelia.saalfeldlab.paintera.viewer3d.Viewer3DFX;
 import org.janelia.saalfeldlab.util.Colors;
 import org.janelia.saalfeldlab.util.HashWrapper;
@@ -160,6 +161,17 @@ public class PainteraBaseView
 	public GlobalTransformManager manager()
 	{
 		return this.manager;
+	}
+
+	public < T extends RealType< T > & NativeType< T >, U extends Volatile< T > & RealType< U > > Optional< DataSource< T, U > > addRawSource(
+			final N5Reader n5,
+			final String dataset ) throws IOException
+	{
+		final DatasetAttributes attributes = n5.getDatasetAttributes( dataset );
+		final DataType type = attributes.getDataType();
+		final double[] resolution = Optional.ofNullable( n5.getAttribute( dataset, N5Helpers.RESOLUTION_KEY, double[].class ) ).orElse( new double[] { 1.0, 1.0, 1.0 } );
+		final double[] offset = Optional.ofNullable( n5.getAttribute( dataset, N5Helpers.OFFSET_KEY, double[].class ) ).orElse( new double[] { 0.0, 0.0, 0.0 } );
+		return addRawSource( n5, dataset, resolution, offset, Color.WHITE, N5Helpers.minForType( type ), N5Helpers.maxForType( type ) );
 	}
 
 	public < T extends RealType< T > & NativeType< T >, U extends Volatile< T > & RealType< U > > Optional< DataSource< T, U > > addRawSource(

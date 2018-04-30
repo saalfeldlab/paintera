@@ -1,4 +1,4 @@
-package org.janelia.saalfeldlab.paintera.ui.opendialog;
+package org.janelia.saalfeldlab.paintera;
 
 import java.io.IOException;
 import java.lang.invoke.MethodHandles;
@@ -32,6 +32,7 @@ import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssign
 import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignmentState;
 import org.janelia.saalfeldlab.paintera.id.IdService;
 import org.janelia.saalfeldlab.paintera.id.N5IdService;
+import org.janelia.saalfeldlab.paintera.ui.opendialog.VolatileHelpers;
 import org.janelia.saalfeldlab.util.MakeUnchecked;
 import org.janelia.saalfeldlab.util.MakeUnchecked.CheckedConsumer;
 import org.janelia.saalfeldlab.util.NamedThreadFactory;
@@ -69,11 +70,15 @@ import net.imglib2.view.Views;
 public class N5Helpers
 {
 
-	private static final String MULTI_SCALE_KEY = "multiScale";
+	public static final String MULTI_SCALE_KEY = "multiScale";
 
-	private static final String IS_LABEL_MULTISET_KEY = "isLabelMultiset";
+	public static final String IS_LABEL_MULTISET_KEY = "isLabelMultiset";
 
-	private static final String MAX_ID_KEY = "maxId";
+	public static final String MAX_ID_KEY = "maxId";
+
+	public static final String RESOLUTION_KEY = "resolution";
+
+	public static final String OFFSET_KEY = "offset";
 
 	private static final Logger LOG = LoggerFactory.getLogger( MethodHandles.lookup().lookupClass() );
 

@@ -7,6 +7,7 @@ import java.util.Optional;
 
 import org.janelia.saalfeldlab.n5.DatasetAttributes;
 import org.janelia.saalfeldlab.n5.N5Reader;
+import org.janelia.saalfeldlab.paintera.N5Helpers;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
