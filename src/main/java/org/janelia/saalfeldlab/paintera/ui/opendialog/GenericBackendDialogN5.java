@@ -8,10 +8,7 @@ import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Optional;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
@@ -36,13 +33,10 @@ import org.janelia.saalfeldlab.paintera.data.mask.MaskedSource;
 import org.janelia.saalfeldlab.paintera.id.IdService;
 import org.janelia.saalfeldlab.paintera.id.N5IdService;
 import org.janelia.saalfeldlab.util.MakeUnchecked;
-import org.janelia.saalfeldlab.util.NamedThreadFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import bdv.util.volatiles.SharedQueue;
-import bdv.util.volatiles.VolatileRandomAccessibleIntervalView;
-import bdv.util.volatiles.VolatileViews;
 import gnu.trove.set.hash.TLongHashSet;
 import javafx.beans.binding.Bindings;
 import javafx.beans.binding.BooleanBinding;
@@ -70,16 +64,12 @@ import net.imglib2.Volatile;
 import net.imglib2.algorithm.util.Grids;
 import net.imglib2.cache.img.CachedCellImg;
 import net.imglib2.cache.ref.BoundedSoftRefLoaderCache;
-import net.imglib2.cache.ref.SoftRefLoaderCache;
 import net.imglib2.cache.util.LoaderCacheAsCacheAdapter;
-import net.imglib2.cache.volatiles.CacheHints;
-import net.imglib2.cache.volatiles.LoadingStrategy;
 import net.imglib2.converter.Converters;
 import net.imglib2.img.cell.Cell;
 import net.imglib2.img.cell.CellGrid;
 import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.realtransform.Scale3D;
-import net.imglib2.realtransform.Translation3D;
 import net.imglib2.type.NativeType;
 import net.imglib2.type.label.FromIntegerTypeConverter;
 import net.imglib2.type.label.Label;
@@ -247,15 +237,14 @@ public class GenericBackendDialogN5 implements SourceFromRAI
 		try
 		{
 			final N5Reader n5 = this.n5.get();
-			final String ds = n5.datasetExists( dataset ) ? dataset : Paths.get( dataset, N5Helpers.listAndSortScaleDatasets( n5, dataset )[ 0 ] ).toString();
-			LOG.debug( "Got dataset {}", ds );
+			final String ds = N5Helpers.isMultiScale( n5, dataset ) ? N5Helpers.getFinestLevel( n5, dataset ) : dataset;
+			LOG.debug( "Got dataset={}, ds={}", dataset, ds );
 
+			setResolution( N5Helpers.getResolution( n5, dataset ) );
+			setOffset( N5Helpers.getOffset( n5, dataset ) );
 			final DatasetAttributes dsAttrs = n5.getDatasetAttributes( ds );
-			final int nDim = dsAttrs.getNumDimensions();
-			setResolution( Optional.ofNullable( n5.getAttribute( ds, RESOLUTION_KEY, double[].class ) ).orElse( DoubleStream.generate( () -> 1.0 ).limit( nDim ).toArray() ) );
-			setOffset( Optional.ofNullable( n5.getAttribute( ds, OFFSET_KEY, double[].class ) ).orElse( new double[ nDim ] ) );
-			this.datasetInfo.minProperty().set( Optional.ofNullable( n5.getAttribute( ds, MIN_KEY, Double.class ) ).orElse( N5Helpers.minForType( dsAttrs.getDataType() ) ) );
-			this.datasetInfo.maxProperty().set( Optional.ofNullable( n5.getAttribute( ds, MAX_KEY, Double.class ) ).orElse( N5Helpers.maxForType( dsAttrs.getDataType() ) ) );
+			this.datasetInfo.minProperty().set( Optional.ofNullable( n5.getAttribute( dataset, MIN_KEY, Double.class ) ).orElse( N5Helpers.minForType( dsAttrs.getDataType() ) ) );
+			this.datasetInfo.maxProperty().set( Optional.ofNullable( n5.getAttribute( dataset, MAX_KEY, Double.class ) ).orElse( N5Helpers.maxForType( dsAttrs.getDataType() ) ) );
 		}
 		catch ( final IOException e )
 		{
@@ -498,237 +487,53 @@ public class GenericBackendDialogN5 implements SourceFromRAI
 		return identifier;
 	}
 
+	@SuppressWarnings( { "unchecked", "rawtypes" } )
 	@Override
-	public < T extends NativeType< T >, V extends Volatile< T > > Triple< RandomAccessibleInterval< T >[], RandomAccessibleInterval< V >[], AffineTransform3D[] > getDataAndVolatile( final SharedQueue sharedQueue, final int priority ) throws IOException
+	public < T extends NativeType< T >, V extends Volatile< T > > Triple< RandomAccessibleInterval< T >[], RandomAccessibleInterval< V >[], AffineTransform3D[] > getDataAndVolatile(
+			final SharedQueue sharedQueue,
+			final int priority ) throws IOException
 	{
 
 		final boolean isLabelMultisetType = MakeUnchecked.unchecked( this::isLabelMultisetType ).get();
 		LOG.debug( "Source is label multiset? {}", isLabelMultisetType );
+		final N5Reader reader = this.n5.get();
+		final String dataset = this.dataset.get();
+		final double[] resolution = asPrimitiveArray( resolution() );
+		final double[] offset = asPrimitiveArray( offset() );
+		final boolean isMultiScale = N5Helpers.isMultiScale( reader, dataset );
 		if ( isLabelMultisetType )
 		{
-			final N5Reader reader = this.n5.get();
-			final String dataset = this.dataset.get();
-			try
+			if ( isMultiScale )
 			{
-				if ( reader.datasetExists( dataset ) )
-				{
-					final DatasetAttributes attrs = reader.getDatasetAttributes( dataset );
-					final N5CacheLoader loader = new N5CacheLoader( reader, dataset );
-					final SoftRefLoaderCache< Long, Cell< VolatileLabelMultisetArray > > cache = new SoftRefLoaderCache<>();
-					final LoaderCacheAsCacheAdapter< Long, Cell< VolatileLabelMultisetArray > > wrappedCache = new LoaderCacheAsCacheAdapter<>( cache, loader );
-					final CachedCellImg< LabelMultisetType, VolatileLabelMultisetArray > cachedImg = new CachedCellImg<>(
-							new CellGrid( attrs.getDimensions(), attrs.getBlockSize() ),
-							new LabelMultisetType(),
-							wrappedCache,
-							new VolatileLabelMultisetArray( 0, true ) );
-					final RandomAccessibleInterval< T > raw = ( RandomAccessibleInterval< T > ) cachedImg;
-//							N5Utils.openVolatile( reader, dataset );
-					final VolatileRandomAccessibleIntervalView< LabelMultisetType, VolatileLabelMultisetType > volatileCachedImg = VolatileHelpers.wrapCachedCellImg(
-							cachedImg,
-							new VolatileHelpers.CreateInvalidVolatileLabelMultisetArray( cachedImg.getCellGrid() ),
-							sharedQueue,
-							new CacheHints( LoadingStrategy.VOLATILE, priority, false ),
-							new VolatileLabelMultisetType() );
-					final RandomAccessibleInterval< V > vraw = ( RandomAccessibleInterval< V > ) volatileCachedImg;
-//							VolatileViews.wrapAsVolatile( raw, sharedQueue, new CacheHints( LoadingStrategy.VOLATILE, priority, true ) );
-					final double[] resolution = Arrays.stream( resolution() ).mapToDouble( DoubleProperty::get ).toArray();
-					final double[] offset = Arrays.stream( offset() ).mapToDouble( DoubleProperty::get ).toArray();
-					final AffineTransform3D transform = new AffineTransform3D();
-					transform.set(
-							resolution[ 0 ], 0, 0, offset[ 0 ],
-							0, resolution[ 1 ], 0, offset[ 1 ],
-							0, 0, resolution[ 2 ], offset[ 2 ] );
-					LOG.debug( "Resolution={}", Arrays.toString( resolution ) );
-					return new ValueTriple<>( new RandomAccessibleInterval[] { raw }, new RandomAccessibleInterval[] { vraw }, new AffineTransform3D[] { transform } );
-				}
-
+				return ( Triple ) N5Helpers.openLabelMultisetMultiscale( reader, dataset, resolution, offset, sharedQueue, priority );
 			}
-			catch ( final IOException e )
+			else
 			{
-
+				final ValueTriple< RandomAccessibleInterval< LabelMultisetType >, RandomAccessibleInterval< VolatileLabelMultisetType >, AffineTransform3D > triple =
+						N5Helpers.openLabelMutliset( reader, dataset, resolution, offset, sharedQueue, priority );
+				return new ValueTriple<>(
+						new RandomAccessibleInterval[] { triple.getA() },
+						new RandomAccessibleInterval[] { triple.getB() },
+						new AffineTransform3D[] { triple.getC() } );
 			}
-
-			// do multiscale instead
-			final String[] scaleDatasets = N5Helpers.listAndSortScaleDatasets( reader, dataset );
-
-			LOG.debug( "Opening directories {} as multi-scale in {}: ", Arrays.toString( scaleDatasets ), dataset );
-
-			final RandomAccessibleInterval< T >[] raw = new RandomAccessibleInterval[ scaleDatasets.length ];
-			final RandomAccessibleInterval< V >[] vraw = new RandomAccessibleInterval[ scaleDatasets.length ];
-			final AffineTransform3D[] transforms = new AffineTransform3D[ scaleDatasets.length ];
-			final double[] initialResolution = Arrays.stream( resolution() ).mapToDouble( DoubleProperty::get ).toArray();
-			final double[] initialDonwsamplingFactors = Optional
-					.ofNullable( reader.getAttribute( dataset + "/" + scaleDatasets[ 0 ], "downsamplingFactors", double[].class ) )
-					.orElse( new double[] { 1, 1, 1 } );
-			final double[] offset = Arrays.stream( offset() ).mapToDouble( DoubleProperty::get ).toArray();
-			LOG.debug( "Initial resolution={}", Arrays.toString( initialResolution ) );
-			final ExecutorService exec = Executors.newFixedThreadPool( scaleDatasets.length, new NamedThreadFactory( "populate-mipmap-scales-%d", true ) );
-			final ArrayList< Future< Boolean > > futures = new ArrayList<>();
-			for ( int scale = 0; scale < scaleDatasets.length; ++scale )
-			{
-				final int fScale = scale;
-				futures.add( exec.submit( () -> {
-					LOG.debug( "Populating scale level {}", fScale );
-					try
-					{
-						final String scaleDataset = dataset + "/" + scaleDatasets[ fScale ];
-
-						final DatasetAttributes attrs = reader.getDatasetAttributes( scaleDataset );
-						final N5CacheLoader loader = new N5CacheLoader( reader, scaleDataset );
-						final SoftRefLoaderCache< Long, Cell< VolatileLabelMultisetArray > > cache = new SoftRefLoaderCache<>();
-						final LoaderCacheAsCacheAdapter< Long, Cell< VolatileLabelMultisetArray > > wrappedCache = new LoaderCacheAsCacheAdapter<>( cache, loader );
-						final CachedCellImg< LabelMultisetType, VolatileLabelMultisetArray > cachedImg = new CachedCellImg<>(
-								new CellGrid( attrs.getDimensions(), attrs.getBlockSize() ),
-								new LabelMultisetType(),
-								wrappedCache,
-								new VolatileLabelMultisetArray( 0, true ) );
-						raw[ fScale ] = ( RandomAccessibleInterval< T > ) cachedImg;
-						// TODO cannot use VolatileViews because VolatileTypeMatches
-						// does not know LabelMultisetType
-		//				vraw[ scale ] = VolatileViews.wrapAsVolatile( raw[ scale ], sharedQueue, new CacheHints( LoadingStrategy.VOLATILE, priority, true ) );
-						final VolatileRandomAccessibleIntervalView< LabelMultisetType, VolatileLabelMultisetType > volatileCachedImg = VolatileHelpers.wrapCachedCellImg(
-								cachedImg,
-								new VolatileHelpers.CreateInvalidVolatileLabelMultisetArray( cachedImg.getCellGrid() ),
-								sharedQueue,
-								new CacheHints( LoadingStrategy.VOLATILE, priority, false ),
-								new VolatileLabelMultisetType() );
-						vraw[ fScale ] = ( RandomAccessibleInterval< V > ) volatileCachedImg;
-
-						final double[] downsamplingFactors = Optional
-								.ofNullable( reader.getAttribute( scaleDataset, "downsamplingFactors", double[].class ) )
-								.orElse( new double[] { 1, 1, 1 } );
-						LOG.debug( "Read downsampling factors: {}", Arrays.toString( downsamplingFactors ) );
-
-						final double[] scaledResolution = new double[ downsamplingFactors.length ];
-						final double[] shift = new double[ downsamplingFactors.length ];
-
-						for ( int d = 0; d < downsamplingFactors.length; ++d )
-						{
-							scaledResolution[ d ] = downsamplingFactors[ d ] * initialResolution[ d ];
-							shift[ d ] = 0.5 / initialDonwsamplingFactors[ d ] - 0.5 / downsamplingFactors[ d ];
-						}
-
-						LOG.debug( "Downsampling factors={}, scaled resolution={}", Arrays.toString( downsamplingFactors ), Arrays.toString( scaledResolution ) );
-
-						final AffineTransform3D transform = new AffineTransform3D();
-						transform.set(
-								scaledResolution[ 0 ], 0, 0, offset[ 0 ],
-								0, scaledResolution[ 1 ], 0, offset[ 1 ],
-								0, 0, scaledResolution[ 2 ], offset[ 2 ] );
-						transforms[ fScale ] = transform.concatenate( new Translation3D( shift ) );
-						LOG.debug( "Populated scale level {}", fScale );
-						return true;
-					}
-					catch ( final IOException e )
-					{
-						LOG.debug( e.toString(), e );
-						return false;
-					}
-				} ) );
-			}
-			for ( final Future< Boolean > future : futures )
-				try
-				{
-					if ( !future.get() )
-						throw new IOException( "Failed populating " );
-				}
-				catch ( final ExecutionException | InterruptedException e )
-				{
-					throw new IOException( "Failed populating " );
-				}
-			exec.shutdown();
-			return new ValueTriple<>( raw, vraw, transforms );
 		}
 		else
 		{
-			final N5Reader reader = this.n5.get();
-			final String dataset = this.dataset.get();
-			try
+
+			if ( isMultiScale )
 			{
-				if ( reader.datasetExists( dataset ) )
-				{
-					final RandomAccessibleInterval< T > raw = N5Utils.openVolatile( reader, dataset );
-					final RandomAccessibleInterval< V > vraw = VolatileViews.wrapAsVolatile( raw, sharedQueue, new CacheHints( LoadingStrategy.VOLATILE, priority, true ) );
-					final double[] resolution = Arrays.stream( resolution() ).mapToDouble( DoubleProperty::get ).toArray();
-					final double[] offset = Arrays.stream( offset() ).mapToDouble( DoubleProperty::get ).toArray();
-					final AffineTransform3D transform = new AffineTransform3D();
-					transform.set(
-							resolution[ 0 ], 0, 0, offset[ 0 ],
-							0, resolution[ 1 ], 0, offset[ 1 ],
-							0, 0, resolution[ 2 ], offset[ 2 ] );
-					LOG.debug( "Resolution={}", Arrays.toString( resolution ) );
-					return new ValueTriple<>( new RandomAccessibleInterval[] { raw }, new RandomAccessibleInterval[] { vraw }, new AffineTransform3D[] { transform } );
-				}
+				return N5Helpers.openRawMultiscale( reader, dataset, resolution, offset, sharedQueue, priority );
 			}
-			catch ( final IOException e )
+			else
 			{
-
+				final Triple< RandomAccessibleInterval< T >, RandomAccessibleInterval< V >, AffineTransform3D > triple =
+						N5Helpers.openRaw( reader, dataset, resolution, offset, sharedQueue, priority );
+				return new ValueTriple<>(
+						new RandomAccessibleInterval[] { triple.getA() },
+						new RandomAccessibleInterval[] { triple.getB() },
+						new AffineTransform3D[] { triple.getC() } );
 			}
-			final String[] scaleDatasets = N5Helpers.listAndSortScaleDatasets( reader, dataset );
 
-			LOG.debug( "Opening directories {} as multi-scale in {}: ", Arrays.toString( scaleDatasets ), dataset );
-
-			final RandomAccessibleInterval< T >[] raw = new RandomAccessibleInterval[ scaleDatasets.length ];
-			final RandomAccessibleInterval< V >[] vraw = new RandomAccessibleInterval[ scaleDatasets.length ];
-			final AffineTransform3D[] transforms = new AffineTransform3D[ scaleDatasets.length ];
-			final double[] initialResolution = Arrays.stream( resolution() ).mapToDouble( DoubleProperty::get ).toArray();
-			final double[] initialDonwsamplingFactors = Optional.ofNullable( reader.getAttribute( dataset + "/" + scaleDatasets[ 0 ], "downsamplingFactors", double[].class ) ).orElse( new double[] { 1, 1, 1 } );
-			final double[] offset = Arrays.stream( offset() ).mapToDouble( DoubleProperty::get ).toArray();
-			LOG.debug( "Initial resolution={}", Arrays.toString( initialResolution ) );
-			final ExecutorService exec = Executors.newFixedThreadPool( scaleDatasets.length );
-			final ArrayList< Future< Boolean > > futures = new ArrayList<>();
-			for ( int scale = 0; scale < scaleDatasets.length; ++scale )
-			{
-				final int fScale = scale;
-				futures.add( exec.submit( () -> {
-					try
-					{
-						LOG.debug( "Populating scale level {}", fScale );
-						final String scaleDataset = dataset + "/" + scaleDatasets[ fScale ];
-						raw[ fScale ] = N5Utils.openVolatile( reader, scaleDataset );
-						vraw[ fScale ] = VolatileViews.wrapAsVolatile( raw[ fScale ], sharedQueue, new CacheHints( LoadingStrategy.VOLATILE, priority, true ) );
-
-						final double[] downsamplingFactors = Optional.ofNullable( reader.getAttribute( scaleDataset, "downsamplingFactors", double[].class ) ).orElse( new double[] { 1, 1, 1 } );
-
-						final double[] scaledResolution = new double[ downsamplingFactors.length ];
-						final double[] shift = new double[ downsamplingFactors.length ];
-
-						for ( int d = 0; d < downsamplingFactors.length; ++d )
-						{
-							scaledResolution[ d ] = downsamplingFactors[ d ] * initialResolution[ d ];
-							shift[ d ] = 0.5 / initialDonwsamplingFactors[ d ] - 0.5 / downsamplingFactors[ d ];
-						}
-
-						LOG.debug( "Downsampling factors={}, scaled resolution={}", Arrays.toString( downsamplingFactors ), Arrays.toString( scaledResolution ) );
-
-						final AffineTransform3D transform = new AffineTransform3D();
-						transform.set(
-								scaledResolution[ 0 ], 0, 0, offset[ 0 ],
-								0, scaledResolution[ 1 ], 0, offset[ 1 ],
-								0, 0, scaledResolution[ 2 ], offset[ 2 ] );
-						transforms[ fScale ] = transform.concatenate( new Translation3D( shift ) );
-						LOG.debug( "Populated scale level {}", fScale );
-						return true;
-					}
-					catch ( final IOException e )
-					{
-						LOG.debug( e.toString(), e );
-						return false;
-					}
-				} ) );
-			}
-			for ( final Future< Boolean > future : futures )
-				try
-				{
-					if ( !future.get() )
-						throw new IOException( "Failed populating " );
-				}
-				catch ( final ExecutionException | InterruptedException e )
-				{
-					throw new IOException( "Failed populating " );
-				}
-			exec.shutdown();
-			return new ValueTriple<>( raw, vraw, transforms );
 		}
 	}
 
@@ -1035,6 +840,11 @@ public class GenericBackendDialogN5 implements SourceFromRAI
 	public ExecutorService propagationExecutor()
 	{
 		return this.propagationExecutor;
+	}
+
+	public double[] asPrimitiveArray( final DoubleProperty[] data )
+	{
+		return Arrays.stream( data ).mapToDouble( DoubleProperty::get ).toArray();
 	}
 
 }

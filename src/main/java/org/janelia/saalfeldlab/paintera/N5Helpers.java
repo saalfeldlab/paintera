@@ -62,7 +62,6 @@ import net.imglib2.type.label.N5CacheLoader;
 import net.imglib2.type.label.VolatileLabelMultisetArray;
 import net.imglib2.type.label.VolatileLabelMultisetType;
 import net.imglib2.type.numeric.IntegerType;
-import net.imglib2.type.numeric.RealType;
 import net.imglib2.type.numeric.integer.UnsignedLongType;
 import net.imglib2.util.ValueTriple;
 import net.imglib2.view.Views;
@@ -315,7 +314,7 @@ public class N5Helpers
 		LOG.debug( "leaving {}, {} threads remaining", pathName, numThreads );
 	}
 
-	public static < T extends RealType< T > & NativeType< T >, V extends Volatile< T > > ValueTriple< RandomAccessibleInterval< T >, RandomAccessibleInterval< V >, AffineTransform3D >
+	public static < T extends NativeType< T >, V extends Volatile< T > > ValueTriple< RandomAccessibleInterval< T >, RandomAccessibleInterval< V >, AffineTransform3D >
 			openRaw(
 					final N5Reader reader,
 					final String dataset,
@@ -325,7 +324,7 @@ public class N5Helpers
 		return openRaw( reader, dataset, getResolution( reader, dataset ), getOffset( reader, dataset ), sharedQueue, priority );
 	}
 
-	public static < T extends RealType< T > & NativeType< T >, V extends Volatile< T > > ValueTriple< RandomAccessibleInterval< T >, RandomAccessibleInterval< V >, AffineTransform3D >
+	public static < T extends NativeType< T >, V extends Volatile< T > > ValueTriple< RandomAccessibleInterval< T >, RandomAccessibleInterval< V >, AffineTransform3D >
 			openRaw(
 					final N5Reader reader,
 					final String dataset,
@@ -344,7 +343,7 @@ public class N5Helpers
 		return new ValueTriple<>( raw, vraw, transform );
 	}
 
-	public static < T extends RealType< T > & NativeType< T >, V extends Volatile< T > > ValueTriple< RandomAccessibleInterval< T >[], RandomAccessibleInterval< V >[], AffineTransform3D[] >
+	public static < T extends NativeType< T >, V extends Volatile< T > > ValueTriple< RandomAccessibleInterval< T >[], RandomAccessibleInterval< V >[], AffineTransform3D[] >
 			openRawMultiscale(
 					final N5Reader reader,
 					final String dataset,
@@ -361,7 +360,7 @@ public class N5Helpers
 
 	}
 
-	public static < T extends RealType< T > & NativeType< T >, V extends Volatile< T > > ValueTriple< RandomAccessibleInterval< T >[], RandomAccessibleInterval< V >[], AffineTransform3D[] >
+	public static < T extends NativeType< T >, V extends Volatile< T > > ValueTriple< RandomAccessibleInterval< T >[], RandomAccessibleInterval< V >[], AffineTransform3D[] >
 			openRawMultiscale(
 					final N5Reader reader,
 					final String dataset,
