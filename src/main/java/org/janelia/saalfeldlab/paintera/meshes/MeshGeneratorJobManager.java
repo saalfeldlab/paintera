@@ -28,7 +28,6 @@ import net.imglib2.util.Pair;
 
 public class MeshGeneratorJobManager
 {
-
 	private static final Logger LOG = LoggerFactory.getLogger( MethodHandles.lookup().lookupClass() );
 
 	private final ObservableMap< ShapeKey, MeshView > meshes;
@@ -48,19 +47,36 @@ public class MeshGeneratorJobManager
 	public Future< Void > submit(
 			final long id,
 			final int scaleIndex,
+			final int simplificationIterations,
+			final double smoothingLambda,
+			final int smoothingIterations,
 			final InterruptibleFunction< Long, Interval[] > getBlockList,
 			final InterruptibleFunction< ShapeKey, Pair< float[], float[] > > getMesh,
 			final Runnable onFinish )
 	{
-		return manager.submit( new ManagementTask( id, scaleIndex, getBlockList, getMesh, onFinish ) );
+		return manager.submit(
+				new ManagementTask(
+						id,
+						scaleIndex,
+						simplificationIterations,
+						smoothingLambda,
+						smoothingIterations,
+						getBlockList,
+						getMesh,
+						onFinish ) );
 	}
 
 	public class ManagementTask implements Callable< Void >
 	{
-
 		private final long id;
 
 		private final int scaleIndex;
+
+		private final int simplificationIterations;
+
+		private final double smoothingLambda;
+
+		private final int smoothingIterations;
 
 		private final InterruptibleFunction< Long, Interval[] > getBlockList;
 
@@ -73,6 +89,9 @@ public class MeshGeneratorJobManager
 		public ManagementTask(
 				final long id,
 				final int scaleIndex,
+				final int simplificationIterations,
+				final double smoothingLambda,
+				final int smoothingIterations,
 				final InterruptibleFunction< Long, Interval[] > getBlockList,
 				final InterruptibleFunction< ShapeKey, Pair< float[], float[] > > getMesh,
 				final Runnable onFinish )
@@ -80,6 +99,9 @@ public class MeshGeneratorJobManager
 			super();
 			this.id = id;
 			this.scaleIndex = scaleIndex;
+			this.simplificationIterations = simplificationIterations;
+			this.smoothingLambda = smoothingLambda;
+			this.smoothingIterations = smoothingIterations;
 			this.getBlockList = getBlockList;
 			this.getMesh = getMesh;
 			this.onFinish = onFinish;
@@ -132,7 +154,15 @@ public class MeshGeneratorJobManager
 
 				final List< ShapeKey > keys = new ArrayList<>();
 				for ( final Interval block : blockList )
-					keys.add( new ShapeKey( id, scaleIndex, 0, Intervals.minAsLongArray( block ), Intervals.maxAsLongArray( block ) ) );
+					keys.add(
+							new ShapeKey(
+									id,
+									scaleIndex,
+									simplificationIterations,
+									smoothingLambda,
+									smoothingIterations,
+									Intervals.minAsLongArray( block ),
+									Intervals.maxAsLongArray( block ) ) );
 
 				final int numTasks = keys.size();
 				final CountDownLatch countDownOnMeshes = new CountDownLatch( numTasks );

@@ -7,6 +7,7 @@ import org.slf4j.LoggerFactory;
  * Calculate and assign surface normals of a triangle mesh.
  *
  * @author Philipp Hanslovsky
+ * @author Stephan Saalfeld
  */
 public class Normals
 {
@@ -54,7 +55,6 @@ public class Normals
 			normals[ triangle + 6 ] = (float)n1;
 			normals[ triangle + 7 ] = (float)n2;
 			normals[ triangle + 8 ] = (float)n3;
-
 		}
 	}
 }

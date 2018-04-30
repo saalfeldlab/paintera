@@ -49,7 +49,11 @@ public class MeshGenerator
 
 		private final int scaleIndex;
 
-		private final int meshSimplificationIterations;
+		private final int simplificationIterations;
+
+		private final double smoothingLambda;
+
+		private final int smoothingIterations;
 
 		private final long[] min;
 
@@ -58,13 +62,17 @@ public class MeshGenerator
 		public ShapeKey(
 				final long shapeId,
 				final int scaleIndex,
-				final int meshSimplificationIterations,
+				final int simplificationIterations,
+				final double smoothingLambda,
+				final int smoothingIterations,
 				final long[] min,
 				final long[] max )
 		{
 			this.shapeId = shapeId;
 			this.scaleIndex = scaleIndex;
-			this.meshSimplificationIterations = meshSimplificationIterations;
+			this.simplificationIterations = simplificationIterations;
+			this.smoothingLambda = smoothingLambda;
+			this.smoothingIterations = smoothingIterations;
 			this.min = min;
 			this.max = max;
 		}
@@ -72,7 +80,14 @@ public class MeshGenerator
 		@Override
 		public String toString()
 		{
-			return String.format( "{shapeId=%d, scaleIndex=%d, simplifications=%d, min=%s, max=%s}", shapeId, scaleIndex, meshSimplificationIterations, Arrays.toString( min ), Arrays.toString( max ) );
+			return String.format(
+					"{shapeId=%d, scaleIndex=%d, simplifications=%d, smoothingLambda=%f, smoothings=%d, min=%s, max=%s}",
+					shapeId,
+					scaleIndex,
+					simplificationIterations,
+					smoothingLambda,
+					smoothingIterations,
+					Arrays.toString( min ), Arrays.toString( max ) );
 		}
 
 		@Override
@@ -80,7 +95,9 @@ public class MeshGenerator
 		{
 			int result = scaleIndex;
 			result = 31 * result + ( int ) ( shapeId ^ shapeId >>> 32 );
-			result = 31 * result + meshSimplificationIterations;
+			result = 31 * result + simplificationIterations;
+			result = 31 * result + Double.hashCode(smoothingLambda);
+			result = 31 * result + smoothingIterations;
 			result = 31 * result + Arrays.hashCode( this.min );
 			result = 31 * result + Arrays.hashCode( this.max );
 			return result;
@@ -94,8 +111,9 @@ public class MeshGenerator
 				final ShapeKey otherShapeKey = ( ShapeKey ) other;
 				return shapeId == otherShapeKey.shapeId &&
 						otherShapeKey.scaleIndex == scaleIndex &&
-						// otherShapeKey.meshSimplificationIterations ==
-						// this.meshSimplificationIterations &&
+						otherShapeKey.simplificationIterations == this.simplificationIterations &&
+						otherShapeKey.smoothingLambda == this.smoothingLambda &&
+						otherShapeKey.smoothingIterations == this.smoothingIterations &&
 						Arrays.equals( otherShapeKey.min, min ) &&
 						Arrays.equals( otherShapeKey.max, max );
 			}
@@ -104,17 +122,27 @@ public class MeshGenerator
 
 		public long shapeId()
 		{
-			return this.shapeId;
+			return shapeId;
 		}
 
 		public int scaleIndex()
 		{
-			return this.scaleIndex;
+			return scaleIndex;
 		}
 
-		public int meshSimplificationIterations()
+		public int simplificationIterations()
 		{
-			return this.meshSimplificationIterations;
+			return simplificationIterations;
+		}
+
+		public double smoothingLambda()
+		{
+			return smoothingLambda;
+		}
+
+		public int smoothingIterations()
+		{
+			return smoothingIterations;
 		}
 
 		public long[] min()
@@ -320,7 +348,8 @@ public class MeshGenerator
 					activeTask.set( null );
 				}
 			};
-			final Future< Void > task = manager.submit( id, scaleIndex, this.blockListCache[ scaleIndex ], this.meshCache[ scaleIndex ], onFinish );
+			// TODO use smoothing lambda and iterations as perameters
+			final Future< Void > task = manager.submit( id, scaleIndex, meshSimplificationIterations.getValue().intValue(), 0.5, 10, this.blockListCache[ scaleIndex ], this.meshCache[ scaleIndex ], onFinish );
 			LOG.warn( "Submitting new task {}", task );
 			this.activeTask.set( task );
 		}
