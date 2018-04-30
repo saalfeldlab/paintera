@@ -167,11 +167,29 @@ public class PainteraBaseView
 			final N5Reader n5,
 			final String dataset ) throws IOException
 	{
-		final DatasetAttributes attributes = n5.getDatasetAttributes( dataset );
+		final DatasetAttributes attributes = n5.getDatasetAttributes(
+				N5Helpers.isMultiScale( n5, dataset )
+						? Paths.get( dataset, N5Helpers.listAndSortScaleDatasets( n5, dataset )[ 0 ] ).toString()
+						: dataset );
 		final DataType type = attributes.getDataType();
-		final double[] resolution = Optional.ofNullable( n5.getAttribute( dataset, N5Helpers.RESOLUTION_KEY, double[].class ) ).orElse( new double[] { 1.0, 1.0, 1.0 } );
-		final double[] offset = Optional.ofNullable( n5.getAttribute( dataset, N5Helpers.OFFSET_KEY, double[].class ) ).orElse( new double[] { 0.0, 0.0, 0.0 } );
-		return addRawSource( n5, dataset, resolution, offset, Color.WHITE, N5Helpers.minForType( type ), N5Helpers.maxForType( type ) );
+		return addRawSource( n5, dataset, Color.WHITE, N5Helpers.minForType( type ), N5Helpers.maxForType( type ) );
+	}
+
+	public < T extends RealType< T > & NativeType< T >, U extends Volatile< T > & RealType< U > > Optional< DataSource< T, U > > addRawSource(
+			final N5Reader n5,
+			final String dataset,
+			final Color color,
+			final double min,
+			final double max ) throws IOException
+	{
+		return addRawSource(
+				n5,
+				dataset,
+				N5Helpers.getResolution( n5, dataset ),
+				N5Helpers.getOffset( n5, dataset ),
+				color,
+				min,
+				max );
 	}
 
 	public < T extends RealType< T > & NativeType< T >, U extends Volatile< T > & RealType< U > > Optional< DataSource< T, U > > addRawSource(
@@ -241,6 +259,17 @@ public class PainteraBaseView
 
 	public < D extends Type< D >, T extends Type< T > > Optional< DataSource< D, T > > addLabelSource(
 			final N5Writer n5,
+			final String dataset ) throws IOException
+	{
+		return addLabelSource(
+				n5,
+				dataset,
+				N5Helpers.getResolution( n5, dataset ),
+				N5Helpers.getOffset( n5, dataset ) );
+	}
+
+	public < D extends Type< D >, T extends Type< T > > Optional< DataSource< D, T > > addLabelSource(
+			final N5Writer n5,
 			final String dataset,
 			final double[] resolution,
 			final double[] offset ) throws IOException
@@ -250,7 +279,7 @@ public class PainteraBaseView
 
 		if ( !N5Helpers.isMultiScale( n5, dataset ) && !N5Helpers.isLabelMultisetType( n5, Paths.get( dataset, N5Helpers.listAndSortScaleDatasets( n5, dataset )[ 0 ] ).toString() ) )
 		{
-			LOG.debug( "Only multiscale label multisets supported at the moment. Not adding any data set" );
+			LOG.warn( "Only multiscale label multisets supported at the moment. Not adding any data set" );
 			return Optional.empty();
 		}
 
