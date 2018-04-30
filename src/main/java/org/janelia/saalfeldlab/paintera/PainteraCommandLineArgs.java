@@ -27,6 +27,8 @@ public class PainteraCommandLineArgs implements Callable< Boolean >
 	{
 		width = width <= 0 ? 800 : width;
 		height = height <= 0 ? 600 : height;
+		rawSources = rawSources == null ? new String[] {} : rawSources;
+		labelSources = labelSources == null ? new String[] {} : labelSources;
 		return true;
 	}
 
