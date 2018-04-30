@@ -98,7 +98,7 @@ public class Smooth
 
 				setVertex( vertexCoordinates2, vertexRef, vertexIndex );
 
-				System.out.println( "count = " + count.get() );
+//				System.out.println( "count = " + count.get() );
 			}
 			vertexCoordinates1 = vertexCoordinates2;
 		}

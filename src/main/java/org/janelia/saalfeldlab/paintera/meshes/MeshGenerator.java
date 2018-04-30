@@ -349,7 +349,7 @@ public class MeshGenerator
 				}
 			};
 			// TODO use smoothing lambda and iterations as perameters
-			final Future< Void > task = manager.submit( id, scaleIndex, meshSimplificationIterations.getValue().intValue(), 0.5, 10, this.blockListCache[ scaleIndex ], this.meshCache[ scaleIndex ], onFinish );
+			final Future< Void > task = manager.submit( id, scaleIndex, meshSimplificationIterations.getValue().intValue(), 0.5, 5, this.blockListCache[ scaleIndex ], this.meshCache[ scaleIndex ], onFinish );
 			LOG.warn( "Submitting new task {}", task );
 			this.activeTask.set( task );
 		}
