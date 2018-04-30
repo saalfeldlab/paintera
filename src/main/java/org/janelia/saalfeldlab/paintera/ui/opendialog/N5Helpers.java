@@ -97,7 +97,25 @@ public class N5Helpers
 
 	public static boolean isMultiScale( final N5Reader n5, final String dataset ) throws IOException
 	{
-		return Optional.ofNullable( n5.getAttribute( dataset, MULTI_SCALE_KEY, Boolean.class ) ).orElse( false );
+		/* based on attribute */
+		boolean isMultiScale = Optional.ofNullable( n5.getAttribute( dataset, MULTI_SCALE_KEY, Boolean.class ) ).orElse( false );
+
+		/* based on groupd content (the old way)
+		 * TODO conider removing as multi-scale declaration by attribute
+		 * becomes part of the N5 spec.
+		 */
+		if ( !isMultiScale )
+		{
+			String[] groups = n5.list( dataset );
+			isMultiScale = groups.length > 0;
+			for ( final String group : groups )
+				if ( !( group.matches( "^s[0-9]+$" ) && n5.datasetExists( dataset + "/" + group ) ) )
+				{
+					isMultiScale = false;
+					break;
+				}
+		}
+		return isMultiScale;
 	}
 
 	public static boolean isLabelMultisetType( final N5Reader n5, final String dataset, final boolean isMultiscale ) throws IOException
