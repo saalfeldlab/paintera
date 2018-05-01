@@ -1,9 +1,13 @@
 package org.janelia.saalfeldlab.paintera.ui.source.converter;
 
+import java.lang.invoke.MethodHandles;
+
 import org.janelia.saalfeldlab.paintera.stream.ColorFromSegmentId;
 import org.janelia.saalfeldlab.paintera.stream.SeedProperty;
 import org.janelia.saalfeldlab.paintera.stream.WithAlpha;
 import org.janelia.saalfeldlab.paintera.ui.BindUnbindAndNodeSupplier;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.DoubleProperty;
@@ -25,6 +29,8 @@ import net.imglib2.converter.Converter;
 
 public class HighlightingStreamConverterNode< C extends Converter< ?, ? > & SeedProperty & WithAlpha & ColorFromSegmentId > implements BindUnbindAndNodeSupplier
 {
+
+	private static final Logger LOG = LoggerFactory.getLogger( MethodHandles.lookup().lookupClass() );
 
 	private final C converter;
 
@@ -109,7 +115,7 @@ public class HighlightingStreamConverterNode< C extends Converter< ?, ? > & Seed
 		}
 
 		{
-			System.out.println( "ACTIVE FRAGMENT ALPHA " + activeFragmentAlpha );
+			LOG.debug( "Active fragment alpha={}", activeFragmentAlpha );
 			final Slider selectedFragmentAlphaSlider = new Slider( 0, 1, activeFragmentAlpha.get() );
 			selectedFragmentAlphaSlider.valueProperty().bindBidirectional( activeFragmentAlpha );
 			selectedFragmentAlphaSlider.setShowTickLabels( true );
