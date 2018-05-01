@@ -120,6 +120,14 @@ public class N5Helpers
 					isMultiScale = false;
 					break;
 				}
+			if ( isMultiScale )
+			{
+				LOG.warn(
+						"Found multi-scale group without {} tag. Implicit multi-scale detection will be removed in the future. Please add \"{}\":{} to attributes.json.",
+						MULTI_SCALE_KEY,
+						MULTI_SCALE_KEY,
+						true );
+			}
 		}
 		return isMultiScale;
 	}
@@ -285,6 +293,14 @@ public class N5Helpers
 							isMipmapGroup = false;
 							break;
 						}
+					}
+					if ( isMipmapGroup )
+					{
+						LOG.warn(
+								"Found multi-scale group without {} tag. Implicit multi-scale detection will be removed in the future. Please add \"{}\":{} to attributes.json.",
+								MULTI_SCALE_KEY,
+								MULTI_SCALE_KEY,
+								true );
 					}
 				}
 				if ( isMipmapGroup )
