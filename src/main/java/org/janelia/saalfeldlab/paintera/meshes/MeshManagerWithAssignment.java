@@ -84,19 +84,19 @@ public class MeshManagerWithAssignment implements MeshManager
 
 		this.meshSimplificationIterations.set( Math.max( meshSimplificationIterations.get(), 0 ) );
 		meshSimplificationIterations.addListener( ( obs, oldv, newv ) -> {
-			System.out.println( "ADDED MESH SIMPLIFICATION ITERATIONS" );
+			LOG.debug( "Added mesh simplification iterations" );
 			this.meshSimplificationIterations.set( Math.max( newv.intValue(), 0 ) );
 		} );
 
 		this.smoothingLambda.set( Math.min( Math.max( smoothingLambda.get(), 0 ), 1.0 ) );
 		smoothingLambda.addListener( ( obs, oldv, newv ) -> {
-			System.out.println( "ADDED SMOOTHING LAMBDA" );
+			LOG.debug( "Added smoothing lambda" );
 			this.smoothingLambda.set( Math.min( Math.max( newv.doubleValue(), 0 ), 1.0 ) );
 		} );
 
 		this.smoothingIterations.set( Math.max( smoothingIterations.get(), 0 ) );
 		smoothingIterations.addListener( ( obs, oldv, newv ) -> {
-			System.out.println( "ADDED SMOOTHING ITERATIONS" );
+			LOG.debug( "Added smoothing iterations" );
 			this.smoothingIterations.set( Math.max( newv.intValue(), 0 ) );
 		} );
 
@@ -211,13 +211,15 @@ public class MeshManagerWithAssignment implements MeshManager
 	}
 
 	@Override
-	public DoubleProperty smoothingLambdaProperty() {
+	public DoubleProperty smoothingLambdaProperty()
+	{
 
 		return smoothingLambda;
 	}
 
 	@Override
-	public IntegerProperty smoothingIterationsProperty() {
+	public IntegerProperty smoothingIterationsProperty()
+	{
 
 		return smoothingIterations;
 	}
