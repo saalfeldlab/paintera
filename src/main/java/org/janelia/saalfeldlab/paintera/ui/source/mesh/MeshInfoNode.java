@@ -31,7 +31,9 @@ public class MeshInfoNode implements BindUnbindAndNodeSupplier
 
 	private final NumericSliderWithField scaleSlider;
 
-	private final NumericSliderWithField simplificationSlider;
+	private final NumericSliderWithField smoothingLambdaSlider;
+
+	private final NumericSliderWithField smoothingIterationsSlider;
 
 	private final IntegerProperty submittedTasks = new SimpleIntegerProperty( 0 );
 
@@ -44,7 +46,8 @@ public class MeshInfoNode implements BindUnbindAndNodeSupplier
 		super();
 		this.meshInfo = meshInfo;
 		scaleSlider = new NumericSliderWithField( 0, meshInfo.numScaleLevels() - 1, meshInfo.scaleLevelProperty().get() );
-		simplificationSlider = new NumericSliderWithField( 0, 10, meshInfo.simplificationIterationsProperty().get() );
+		smoothingLambdaSlider = new NumericSliderWithField( 0.0, 1.0, meshInfo.smoothingLambdaProperty().get() );
+		smoothingIterationsSlider = new NumericSliderWithField( 0, 10, meshInfo.smoothingIterationsProperty().get() );
 		this.contents = createContents();
 	}
 
@@ -57,7 +60,8 @@ public class MeshInfoNode implements BindUnbindAndNodeSupplier
 	public void bind()
 	{
 		scaleSlider.slider().valueProperty().bindBidirectional( meshInfo.scaleLevelProperty() );
-		simplificationSlider.slider().valueProperty().bindBidirectional( meshInfo.simplificationIterationsProperty() );
+		smoothingLambdaSlider.slider().valueProperty().bindBidirectional( meshInfo.smoothingLambdaProperty() );
+		smoothingIterationsSlider.slider().valueProperty().bindBidirectional( meshInfo.smoothingIterationsProperty() );
 		this.submittedTasks.bind( meshInfo.submittedTasksProperty() );
 		this.completedTasks.bind( meshInfo.completedTasksProperty() );
 	}
@@ -66,7 +70,8 @@ public class MeshInfoNode implements BindUnbindAndNodeSupplier
 	public void unbind()
 	{
 		scaleSlider.slider().valueProperty().unbindBidirectional( meshInfo.scaleLevelProperty() );
-		simplificationSlider.slider().valueProperty().unbindBidirectional( meshInfo.simplificationIterationsProperty() );
+		smoothingLambdaSlider.slider().valueProperty().unbindBidirectional( meshInfo.smoothingLambdaProperty() );
+		smoothingIterationsSlider.slider().valueProperty().unbindBidirectional( meshInfo.smoothingIterationsProperty() );
 		this.submittedTasks.unbind();
 		this.completedTasks.unbind();
 	}
@@ -114,11 +119,18 @@ public class MeshInfoNode implements BindUnbindAndNodeSupplier
 		scaleSlider.slider().setTooltip( new Tooltip( "Render meshes at scale level" ) );
 		++row;
 
+		contents.add( new Label( "Lambda" ), 0, row );
+		contents.add( smoothingLambdaSlider.slider(), 1, row );
+		contents.add( smoothingLambdaSlider.textField(), 2, row );
+		smoothingLambdaSlider.slider().setShowTickLabels( true );
+		smoothingLambdaSlider.slider().setTooltip( new Tooltip( "Default for smoothing lambda." ) );
+		++row;
+
 		contents.add( new Label( "Iterations" ), 0, row );
-		contents.add( simplificationSlider.slider(), 1, row );
-		contents.add( simplificationSlider.textField(), 2, row );
-		simplificationSlider.slider().setShowTickLabels( true );
-		simplificationSlider.slider().setTooltip( new Tooltip( "Simplify meshes n times." ) );
+		contents.add( smoothingIterationsSlider.slider(), 1, row );
+		contents.add( smoothingIterationsSlider.textField(), 2, row );
+		smoothingIterationsSlider.slider().setShowTickLabels( true );
+		smoothingIterationsSlider.slider().setTooltip( new Tooltip( "Smooth meshes n times." ) );
 		++row;
 
 		final Button exportMeshButton = new Button( "Export" );

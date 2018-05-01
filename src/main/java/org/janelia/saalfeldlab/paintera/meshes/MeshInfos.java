@@ -13,7 +13,6 @@ import javafx.collections.ObservableList;
 
 public class MeshInfos
 {
-
 	private final ObservableList< MeshInfo > infos = FXCollections.observableArrayList();
 
 	private final ObservableList< MeshInfo > readOnlyInfos = FXCollections.unmodifiableObservableList( infos );
@@ -42,5 +41,4 @@ public class MeshInfos
 	{
 		return this.readOnlyInfos;
 	}
-
 }

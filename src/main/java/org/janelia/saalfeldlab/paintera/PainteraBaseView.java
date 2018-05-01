@@ -54,6 +54,7 @@ import bdv.viewer.Source;
 import bdv.viewer.SourceAndConverter;
 import bdv.viewer.ViewerOptions;
 import gnu.trove.set.hash.TLongHashSet;
+import javafx.beans.property.SimpleDoubleProperty;
 import javafx.beans.property.SimpleIntegerProperty;
 import javafx.collections.ListChangeListener;
 import javafx.collections.ObservableList;
@@ -378,6 +379,8 @@ public class PainteraBaseView
 				viewer3D.meshesGroup(),
 				fragmentsInSelection,
 				new SimpleIntegerProperty(),
+				new SimpleDoubleProperty(),
+				new SimpleIntegerProperty(),
 				meshManagerExecutorService,
 				meshWorkerExecutorService );
 
@@ -555,7 +558,6 @@ public class PainteraBaseView
 			factors[ 2 ] = transform.get( 2, 2 ) / reference.get( 2, 2 );
 		}
 
-		if ( LOG.isDebugEnabled() )
 		{
 			LOG.debug( "Generated scaling factors:" );
 			Arrays.stream( scaleFactors ).map( Arrays::toString ).forEach( LOG::debug );

@@ -16,7 +16,9 @@ import org.slf4j.LoggerFactory;
 import bdv.viewer.ViewerOptions;
 import javafx.application.Application;
 import javafx.application.Platform;
+import javafx.geometry.Rectangle2D;
 import javafx.scene.Scene;
+import javafx.stage.Screen;
 import javafx.stage.Stage;
 import net.imglib2.Volatile;
 import net.imglib2.type.NativeType;
@@ -44,9 +46,23 @@ public class Paintera extends Application
 			return;
 		}
 
+		int maxSize = 0;
+		for ( final Screen screen : Screen.getScreens() )
+		{
+			Rectangle2D bounds = screen.getVisualBounds();
+			maxSize = Math.max( ( int )bounds.getWidth(), maxSize );
+			maxSize = Math.max( ( int )bounds.getHeight(), maxSize );
+		}
+
+		LOG.debug( "max screen size = {}", maxSize );
+
+		final double[] screenScales = maxSize < 2500 ?
+				new double [] { 1.0 / 1.0, 1.0 / 2.0, 1.0 / 4.0, 1.0 / 8.0}:
+				new double [] { 1.0 / 2.0, 1.0 / 4.0, 1.0 / 8.0, 1.0 / 16.0};
+
 		final PainteraBaseView baseView = new PainteraBaseView(
 				Math.min( 8, Math.max( 1, Runtime.getRuntime().availableProcessors() / 2 ) ),
-				ViewerOptions.options().screenScales( new double[] { 1.0, 0.5, 0.25 } ),
+				ViewerOptions.options().screenScales( screenScales ),
 				si -> s -> si.getState( s ).interpolationProperty().get() );
 
 		final OrthogonalViews< Viewer3DFX > orthoViews = baseView.orthogonalViews();

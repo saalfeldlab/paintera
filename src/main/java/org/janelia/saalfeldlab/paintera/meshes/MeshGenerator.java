@@ -12,9 +12,11 @@ import org.slf4j.LoggerFactory;
 
 import javafx.beans.binding.Bindings;
 import javafx.beans.property.BooleanProperty;
+import javafx.beans.property.DoubleProperty;
 import javafx.beans.property.IntegerProperty;
 import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.SimpleBooleanProperty;
+import javafx.beans.property.SimpleDoubleProperty;
 import javafx.beans.property.SimpleIntegerProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.value.ObservableIntegerValue;
@@ -40,7 +42,6 @@ import net.imglib2.util.Pair;
  */
 public class MeshGenerator
 {
-
 	private static final Logger LOG = LoggerFactory.getLogger( MethodHandles.lookup().lookupClass() );
 
 	public static class ShapeKey
@@ -49,7 +50,11 @@ public class MeshGenerator
 
 		private final int scaleIndex;
 
-		private final int meshSimplificationIterations;
+		private final int simplificationIterations;
+
+		private final double smoothingLambda;
+
+		private final int smoothingIterations;
 
 		private final long[] min;
 
@@ -58,13 +63,17 @@ public class MeshGenerator
 		public ShapeKey(
 				final long shapeId,
 				final int scaleIndex,
-				final int meshSimplificationIterations,
+				final int simplificationIterations,
+				final double smoothingLambda,
+				final int smoothingIterations,
 				final long[] min,
 				final long[] max )
 		{
 			this.shapeId = shapeId;
 			this.scaleIndex = scaleIndex;
-			this.meshSimplificationIterations = meshSimplificationIterations;
+			this.simplificationIterations = simplificationIterations;
+			this.smoothingLambda = smoothingLambda;
+			this.smoothingIterations = smoothingIterations;
 			this.min = min;
 			this.max = max;
 		}
@@ -72,7 +81,14 @@ public class MeshGenerator
 		@Override
 		public String toString()
 		{
-			return String.format( "{shapeId=%d, scaleIndex=%d, simplifications=%d, min=%s, max=%s}", shapeId, scaleIndex, meshSimplificationIterations, Arrays.toString( min ), Arrays.toString( max ) );
+			return String.format(
+					"{shapeId=%d, scaleIndex=%d, simplifications=%d, smoothingLambda=%f, smoothings=%d, min=%s, max=%s}",
+					shapeId,
+					scaleIndex,
+					simplificationIterations,
+					smoothingLambda,
+					smoothingIterations,
+					Arrays.toString( min ), Arrays.toString( max ) );
 		}
 
 		@Override
@@ -80,7 +96,9 @@ public class MeshGenerator
 		{
 			int result = scaleIndex;
 			result = 31 * result + ( int ) ( shapeId ^ shapeId >>> 32 );
-			result = 31 * result + meshSimplificationIterations;
+			result = 31 * result + simplificationIterations;
+			result = 31 * result + Double.hashCode(smoothingLambda);
+			result = 31 * result + smoothingIterations;
 			result = 31 * result + Arrays.hashCode( this.min );
 			result = 31 * result + Arrays.hashCode( this.max );
 			return result;
@@ -94,8 +112,9 @@ public class MeshGenerator
 				final ShapeKey otherShapeKey = ( ShapeKey ) other;
 				return shapeId == otherShapeKey.shapeId &&
 						otherShapeKey.scaleIndex == scaleIndex &&
-						// otherShapeKey.meshSimplificationIterations ==
-						// this.meshSimplificationIterations &&
+						otherShapeKey.simplificationIterations == this.simplificationIterations &&
+						otherShapeKey.smoothingLambda == this.smoothingLambda &&
+						otherShapeKey.smoothingIterations == this.smoothingIterations &&
 						Arrays.equals( otherShapeKey.min, min ) &&
 						Arrays.equals( otherShapeKey.max, max );
 			}
@@ -104,17 +123,27 @@ public class MeshGenerator
 
 		public long shapeId()
 		{
-			return this.shapeId;
+			return shapeId;
 		}
 
 		public int scaleIndex()
 		{
-			return this.scaleIndex;
+			return scaleIndex;
 		}
 
-		public int meshSimplificationIterations()
+		public int simplificationIterations()
 		{
-			return this.meshSimplificationIterations;
+			return simplificationIterations;
+		}
+
+		public double smoothingLambda()
+		{
+			return smoothingLambda;
+		}
+
+		public int smoothingIterations()
+		{
+			return smoothingIterations;
 		}
 
 		public long[] min()
@@ -225,6 +254,10 @@ public class MeshGenerator
 
 	private final MeshGeneratorJobManager manager;
 
+	private final DoubleProperty smoothingLambda = new SimpleDoubleProperty( 0.5 );
+
+	private final IntegerProperty smoothingIterations = new SimpleIntegerProperty( 5 );
+
 	//
 	public MeshGenerator(
 			final long segmentId,
@@ -233,6 +266,8 @@ public class MeshGenerator
 			final ObservableIntegerValue color,
 			final int scaleIndex,
 			final int meshSimplificationIterations,
+			final double smoothingLambda,
+			final int smoothingIterations,
 			final ExecutorService managers,
 			final ExecutorService workers )
 	{
@@ -247,11 +282,18 @@ public class MeshGenerator
 
 		this.changed.addListener( ( obs, oldv, newv ) -> new Thread( () -> this.updateMeshes( newv ) ).start() );
 		this.changed.addListener( ( obs, oldv, newv ) -> changed.set( false ) );
-		this.scaleIndex.set( scaleIndex );
-		this.meshSimplificationIterations.set( meshSimplificationIterations );
 
-		this.meshSimplificationIterations.addListener( ( obs, oldv, newv ) -> changed.set( true ) );
+		this.scaleIndex.set( scaleIndex );
 		this.scaleIndex.addListener( ( obs, oldv, newv ) -> changed.set( true ) );
+
+		this.meshSimplificationIterations.set( meshSimplificationIterations );
+		this.meshSimplificationIterations.addListener( ( obs, oldv, newv ) -> changed.set( true ) );
+
+		this.smoothingLambda.set( smoothingLambda );
+		this.smoothingLambda.addListener( ( obs, oldv, newv ) -> changed.set( true ) );
+
+		this.smoothingIterations.set( smoothingIterations );
+		this.smoothingIterations.addListener( ( obs, oldv, newv ) -> changed.set( true ) );
 
 		this.root.addListener( ( obs, oldv, newv ) -> {
 			InvokeOnJavaFXApplicationThread.invoke( () -> {
@@ -299,7 +341,6 @@ public class MeshGenerator
 		} );
 
 		this.changed.set( true );
-
 	}
 
 	private void updateMeshes( final boolean doUpdate )
@@ -320,11 +361,17 @@ public class MeshGenerator
 					activeTask.set( null );
 				}
 			};
-			final Future< Void > task = manager.submit( id, scaleIndex, this.blockListCache[ scaleIndex ], this.meshCache[ scaleIndex ], onFinish );
+			final Future< Void > task = manager.submit(
+					id,
+					scaleIndex,
+					meshSimplificationIterations.intValue(),
+					smoothingLambda.doubleValue(),
+					smoothingIterations.intValue(),
+					blockListCache[ scaleIndex ],
+					meshCache[ scaleIndex ], onFinish );
 			LOG.warn( "Submitting new task {}", task );
 			this.activeTask.set( task );
 		}
-
 	}
 
 	private static final Color fromInt( final int argb )
@@ -355,6 +402,16 @@ public class MeshGenerator
 	public IntegerProperty meshSimplificationIterationsProperty()
 	{
 		return this.meshSimplificationIterations;
+	}
+
+	public IntegerProperty smoothingIterationsProperty()
+	{
+		return smoothingIterations;
+	}
+
+	public DoubleProperty smoothingLambdaProperty()
+	{
+		return smoothingLambda;
 	}
 
 	public IntegerProperty scaleIndexProperty()

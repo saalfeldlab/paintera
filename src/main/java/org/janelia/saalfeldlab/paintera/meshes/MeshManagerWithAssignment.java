@@ -23,8 +23,11 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import gnu.trove.set.hash.TLongHashSet;
+import javafx.beans.property.DoubleProperty;
 import javafx.beans.property.IntegerProperty;
+import javafx.beans.property.SimpleDoubleProperty;
 import javafx.beans.property.SimpleIntegerProperty;
+import javafx.beans.value.ObservableDoubleValue;
 import javafx.beans.value.ObservableIntegerValue;
 import javafx.scene.Group;
 import net.imglib2.Interval;
@@ -52,6 +55,10 @@ public class MeshManagerWithAssignment implements MeshManager
 
 	private final IntegerProperty meshSimplificationIterations = new SimpleIntegerProperty();
 
+	private final DoubleProperty smoothingLambda = new SimpleDoubleProperty();
+
+	private final IntegerProperty smoothingIterations = new SimpleIntegerProperty();
+
 	private final IntegerProperty scaleLevel = new SimpleIntegerProperty();
 
 	private final ExecutorService managers;
@@ -64,6 +71,8 @@ public class MeshManagerWithAssignment implements MeshManager
 			final Group root,
 			final FragmentsInSelectedSegments fragmentsInSelectedSegments,
 			final ObservableIntegerValue meshSimplificationIterations,
+			final ObservableDoubleValue smoothingLambda,
+			final ObservableIntegerValue smooothingIterations,
 			final ExecutorService managers,
 			final ExecutorService workers )
 	{
@@ -72,12 +81,28 @@ public class MeshManagerWithAssignment implements MeshManager
 		this.state = state;
 		this.root = root;
 		this.fragmentsInSelectedSegments = fragmentsInSelectedSegments;
+
 		this.meshSimplificationIterations.set( Math.max( meshSimplificationIterations.get(), 0 ) );
-		this.scaleLevel.set( this.source.getNumMipmapLevels() - 1 );
 		meshSimplificationIterations.addListener( ( obs, oldv, newv ) -> {
 			System.out.println( "ADDED MESH SIMPLIFICATION ITERATIONS" );
 			this.meshSimplificationIterations.set( Math.max( newv.intValue(), 0 ) );
 		} );
+
+		this.smoothingLambda.set( Math.min( Math.max( smoothingLambda.get(), 0 ), 1.0 ) );
+		smoothingLambda.addListener( ( obs, oldv, newv ) -> {
+			System.out.println( "ADDED SMOOTHING LAMBDA" );
+			this.smoothingLambda.set( Math.min( Math.max( newv.doubleValue(), 0 ), 1.0 ) );
+		} );
+
+		this.smoothingIterations.set( Math.max( smoothingIterations.get(), 0 ) );
+		smoothingIterations.addListener( ( obs, oldv, newv ) -> {
+			System.out.println( "ADDED SMOOTHING ITERATIONS" );
+			this.smoothingIterations.set( Math.max( newv.intValue(), 0 ) );
+		} );
+
+		this.scaleLevel.set( this.source.getNumMipmapLevels() - 1 );
+		this.smoothingLambda.set( Smooth.DEFAULT_LAMBDA );
+		this.smoothingIterations.set( Smooth.DEFAULT_ITERATIONS );
 
 		this.managers = managers;
 		this.workers = workers;
@@ -132,6 +157,8 @@ public class MeshManagerWithAssignment implements MeshManager
 				color,
 				scaleLevel.get(),
 				meshSimplificationIterations.get(),
+				smoothingLambda.get(),
+				smoothingIterations.get(),
 				managers,
 				workers );
 		nfx.rootProperty().set( this.root );
@@ -161,13 +188,13 @@ public class MeshManagerWithAssignment implements MeshManager
 	@Override
 	public IntegerProperty scaleLevelProperty()
 	{
-		return this.scaleLevel;
+		return scaleLevel;
 	}
 
 	@Override
 	public IntegerProperty meshSimplificationIterationsProperty()
 	{
-		return this.meshSimplificationIterations;
+		return meshSimplificationIterations;
 	}
 
 	@Override
@@ -181,6 +208,18 @@ public class MeshManagerWithAssignment implements MeshManager
 	{
 		final ArrayList< MeshGenerator > generatorsCopy = new ArrayList<>( unmodifiableMeshMap().values() );
 		generatorsCopy.forEach( this::removeMesh );
+	}
+
+	@Override
+	public DoubleProperty smoothingLambdaProperty() {
+
+		return smoothingLambda;
+	}
+
+	@Override
+	public IntegerProperty smoothingIterationsProperty() {
+
+		return smoothingIterations;
 	}
 
 }
