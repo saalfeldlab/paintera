@@ -2,8 +2,10 @@ package org.janelia.saalfeldlab.paintera;
 
 import java.util.concurrent.Callable;
 
+import picocli.CommandLine.Command;
 import picocli.CommandLine.Option;
 
+@Command( name = "Paintera" )
 public class PainteraCommandLineArgs implements Callable< Boolean >
 {
 
@@ -27,6 +29,8 @@ public class PainteraCommandLineArgs implements Callable< Boolean >
 	{
 		width = width <= 0 ? 800 : width;
 		height = height <= 0 ? 600 : height;
+		rawSources = rawSources == null ? new String[] {} : rawSources;
+		labelSources = labelSources == null ? new String[] {} : labelSources;
 		return true;
 	}
 

@@ -28,21 +28,6 @@ public class Paintera extends Application
 
 	private static final Logger LOG = LoggerFactory.getLogger( MethodHandles.lookup().lookupClass() );
 
-	private final PainteraBaseView baseView = new PainteraBaseView(
-			Math.min( 8, Math.max( 1, Runtime.getRuntime().availableProcessors() / 2 ) ),
-			ViewerOptions.options().screenScales( new double[] { 1.0, 0.5, 0.25 } ),
-			si -> s -> si.getState( s ).interpolationProperty().get() );
-
-	private final OrthogonalViews< Viewer3DFX > orthoViews = baseView.orthogonalViews();
-
-	private final KeyTracker keyTracker = new KeyTracker();
-
-	final BorderPaneWithStatusBars paneWithStatus = new BorderPaneWithStatusBars(
-			baseView,
-			keyTracker );
-
-	final PainteraDefaultHandlers defaultHandlers = new PainteraDefaultHandlers( baseView, keyTracker, paneWithStatus );
-
 	@Override
 	public void start( final Stage stage ) throws Exception
 	{
@@ -55,10 +40,24 @@ public class Paintera extends Application
 
 		if ( !parsedSuccessfully )
 		{
-			baseView.stop();
 			Platform.exit();
 			return;
 		}
+
+		final PainteraBaseView baseView = new PainteraBaseView(
+				Math.min( 8, Math.max( 1, Runtime.getRuntime().availableProcessors() / 2 ) ),
+				ViewerOptions.options().screenScales( new double[] { 1.0, 0.5, 0.25 } ),
+				si -> s -> si.getState( s ).interpolationProperty().get() );
+
+		final OrthogonalViews< Viewer3DFX > orthoViews = baseView.orthogonalViews();
+
+		final KeyTracker keyTracker = new KeyTracker();
+
+		final BorderPaneWithStatusBars paneWithStatus = new BorderPaneWithStatusBars(
+				baseView,
+				keyTracker );
+
+		final PainteraDefaultHandlers defaultHandlers = new PainteraDefaultHandlers( baseView, keyTracker, paneWithStatus );
 
 		final Scene scene = new Scene( paneWithStatus.getPane() );
 		if ( LOG.isDebugEnabled() )
