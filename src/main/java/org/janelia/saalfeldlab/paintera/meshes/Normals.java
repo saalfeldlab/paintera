@@ -4,7 +4,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Calculate and assign surface normals of a triangle mesh.
+ * Calculate and assign orthogonal surface normals to of a triangle mesh.
  *
  * @author Philipp Hanslovsky
  * @author Stephan Saalfeld

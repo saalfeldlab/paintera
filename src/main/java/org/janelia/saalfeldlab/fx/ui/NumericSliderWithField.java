@@ -8,7 +8,6 @@ import javafx.scene.control.TextFormatter;
 
 public class NumericSliderWithField
 {
-
 	private final Slider slider;
 
 	private final TextField field;

@@ -113,15 +113,4 @@ public class MeshCacheLoader< T > implements CacheLoader< ShapeKey, Pair< float[
 			}
 		}
 	}
-
-	public static Pair< float[], float[] > simplifyMesh( final float[] vertices, final float[] normals )
-	{
-		LOG.warn( "This is just a mock mesh simplification currently!" );
-		final float[] newVertices = new float[ vertices.length / 2 / 9 * 9 ];
-		final float[] newNormals = new float[ vertices.length / 2 / 9 * 9 ];
-		System.arraycopy( vertices, 0, newVertices, 0, newVertices.length );
-		System.arraycopy( normals, 0, newNormals, 0, newNormals.length );
-		return new ValuePair<>( newVertices, newNormals );
-	}
-
 }

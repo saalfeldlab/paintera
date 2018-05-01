@@ -14,6 +14,7 @@ import org.junit.Test;
 
 import gnu.trove.list.array.TFloatArrayList;
 import gnu.trove.list.array.TIntArrayList;
+import gnu.trove.set.hash.TIntHashSet;
 import net.imglib2.util.Triple;
 
 
@@ -40,21 +41,21 @@ public class ConvertTest {
 	@Test
 	public void test()
 	{
-		Triple< TFloatArrayList, ArrayList< TIntArrayList >, ArrayList< TIntArrayList > > luts = Convert.convertToLUT( triangles );
+		Triple< TFloatArrayList, ArrayList< TIntHashSet >, ArrayList< TIntArrayList > > luts = Convert.convertToLUT( triangles );
 
-		ArrayList< TIntArrayList > vertexTriangleLUT = luts.getB();
+		ArrayList< TIntHashSet > vertexTriangleLUT = luts.getB();
 		ArrayList< TIntArrayList > triangleVertexLUT = luts.getC();
 
 		for ( int i = 0; i < vertexTriangleLUT.size(); ++i ) {
-			TIntArrayList triangleIndices = vertexTriangleLUT.get( i );
-			for ( int j = 0; j < triangleIndices.size(); ++j )
-				assertTrue( triangleVertexLUT.get( triangleIndices.get( j ) ).contains( i ) );
+			final int[] triangleIndices = vertexTriangleLUT.get( i ).toArray();
+			for ( int j = 0; j < triangleIndices.length; ++j )
+				assertTrue( triangleVertexLUT.get( triangleIndices[ j ] ).contains( i ) );
 		}
 
 		for ( int i = 0; i < triangleVertexLUT.size(); ++i ) {
-			TIntArrayList vertexIndices = triangleVertexLUT.get( i );
-			for ( int j = 0; j < vertexIndices.size(); ++j )
-				assertTrue( vertexTriangleLUT.get( vertexIndices.get( j ) ).contains( i ) );
+			int[] vertexIndices = triangleVertexLUT.get( i ).toArray();
+			for ( int j = 0; j < vertexIndices.length; ++j )
+				assertTrue( vertexTriangleLUT.get( vertexIndices[ j ] ).contains( i ) );
 		}
 
 		float[] test = Convert.convertFromLUT( luts.getA(), luts.getC() );

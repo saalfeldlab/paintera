@@ -8,14 +8,15 @@ import org.slf4j.LoggerFactory;
 import gnu.trove.list.array.TFloatArrayList;
 import gnu.trove.list.array.TIntArrayList;
 import gnu.trove.map.hash.TObjectIntHashMap;
+import gnu.trove.set.hash.TIntHashSet;
 import javafx.geometry.Point3D;
 import net.imglib2.util.Triple;
 import net.imglib2.util.ValueTriple;
 
 /**
- * Calculate and assign surface normals of a triangle mesh.
+ * Convert flat mesh data into indexed representations and back.
  *
- * @author Philipp Hanslovsky
+ * @author Stephan Saalfeld
  */
 public class Convert
 {
@@ -24,20 +25,20 @@ public class Convert
 
 	/**
 	 * Convert a set of triangles defined by three vertices each into a reduced
-	 * list of vertices and a LUT from vertex index to triangle indnex and
-	 * from triangle index to vertex index.
+	 * list of vertices and a LUT from vertex index to triangle index and from
+	 * triangle index to vertex index.
 	 *
 	 * @param triangles
 	 * @return
 	 */
-	public static Triple< TFloatArrayList, ArrayList< TIntArrayList >, ArrayList< TIntArrayList > > convertToLUT(
+	public static Triple< TFloatArrayList, ArrayList< TIntHashSet >, ArrayList< TIntArrayList > > convertToLUT(
 			final float[] triangles ) {
 
 		assert triangles.length % 9 == 0;
 
 		final TFloatArrayList vertices = new TFloatArrayList(); // stride 3
 		final TObjectIntHashMap< Point3D > vertexIndexMap = new TObjectIntHashMap<>();
-		final ArrayList< TIntArrayList > vertexTriangleLUT = new ArrayList<>();
+		final ArrayList< TIntHashSet > vertexTriangleLUT = new ArrayList<>();
 		final ArrayList< TIntArrayList > triangleVertexLUT = new ArrayList<>();
 
 		for ( int triangle = 0; triangle < triangles.length; triangle += 9 )
@@ -68,20 +69,20 @@ public class Convert
 				}
 				vertexIndices.add(vertexIndex);
 
-				final TIntArrayList triangleIndices;
+				final TIntHashSet triangleIndices;
 				if ( vertexTriangleLUT.size() > vertexIndex )
 				{
 					triangleIndices =  vertexTriangleLUT.get( vertexIndex );
 				}
 				else
 				{
-					triangleIndices = new TIntArrayList();
+					triangleIndices = new TIntHashSet();
 					vertexTriangleLUT.add(triangleIndices);
 				}
 				triangleIndices.add(triangleIndex);
 			}
 		}
-		return new ValueTriple< TFloatArrayList, ArrayList< TIntArrayList >, ArrayList< TIntArrayList > >(
+		return new ValueTriple< TFloatArrayList, ArrayList< TIntHashSet >, ArrayList< TIntArrayList > >(
 				vertices,
 				vertexTriangleLUT,
 				triangleVertexLUT );
@@ -93,20 +94,54 @@ public class Convert
 	 */
 	public static float[] convertFromLUT(
 			final TFloatArrayList vertices,
-			ArrayList< TIntArrayList > triangleVertexLUT) {
+			final ArrayList< TIntArrayList > triangleVertexLUT)
+	{
 
 		final float[] export = new float[ triangleVertexLUT.size() * 9 ];
 		int t = -1;
 		for ( final TIntArrayList triangleVertices : triangleVertexLUT )
 		{
-			for ( int i = 0; i < triangleVertices.size(); ++i )
+			final TIntArrayList vertexIndices = triangleVertices;
+			for ( int i = 0; i < vertexIndices.size(); ++i )
 			{
-				int vertexIndex = triangleVertices.get( i ) * 3;
+				int vertexIndex = vertexIndices.get( i ) * 3;
 				export[ ++t ] = vertices.get( vertexIndex );
 				export[ ++t ] = vertices.get( ++vertexIndex );
 				export[ ++t ] = vertices.get( ++vertexIndex );
 			}
 		}
 		return export;
+	}
+
+	/**
+	 * Convert vertex to triangle and triangel to vertex lookups into a vertex
+	 * to vertex lookup of all edges.
+	 *
+	 * @param vertexTriangleLUT
+	 * @param triangleVertexLUT
+	 * @return
+	 */
+	public static ArrayList< TIntHashSet > convertToEdgeSets(
+			final ArrayList< TIntHashSet > vertexTriangleLUT,
+			final ArrayList< TIntArrayList > triangleVertexLUT )
+	{
+		final ArrayList< TIntHashSet > vertexEdgeLUT = new ArrayList<>();
+		for ( int vertexIndex = 0; vertexIndex < vertexTriangleLUT.size(); ++vertexIndex )
+		{
+			final int fVertexIndex = vertexIndex;
+			final TIntHashSet edges = new TIntHashSet();
+			vertexEdgeLUT.add( edges );
+			final int[] triangles = vertexTriangleLUT.get( vertexIndex ).toArray();
+			for ( int i = 0; i < triangles.length; ++i )
+			{
+				final TIntArrayList vertices = triangleVertexLUT.get( triangles[ i ] );
+				vertices.forEach( vertex -> {
+					if ( vertex != fVertexIndex )
+						edges.add( vertex );
+						return true;
+				} );
+			}
+		}
+		return vertexEdgeLUT;
 	}
 }

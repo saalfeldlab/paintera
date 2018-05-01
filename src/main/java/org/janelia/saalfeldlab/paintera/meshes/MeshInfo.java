@@ -10,7 +10,9 @@ import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssign
 import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignmentState;
 
 import javafx.beans.binding.Bindings;
+import javafx.beans.property.DoubleProperty;
 import javafx.beans.property.IntegerProperty;
+import javafx.beans.property.SimpleDoubleProperty;
 import javafx.beans.property.SimpleIntegerProperty;
 import javafx.beans.value.ChangeListener;
 import javafx.beans.value.ObservableIntegerValue;
@@ -22,6 +24,10 @@ public class MeshInfo
 	private final IntegerProperty scaleLevel = new SimpleIntegerProperty();
 
 	private final IntegerProperty simplificationIterations = new SimpleIntegerProperty();
+
+	private final DoubleProperty smoothingLambda = new SimpleDoubleProperty();
+
+	private final IntegerProperty smoothingIterations = new SimpleIntegerProperty();
 
 	private final SourceState< ?, ? > state;
 
@@ -39,7 +45,12 @@ public class MeshInfo
 
 	private final IntegerProperty successfulTasks = new SimpleIntegerProperty( 0 );
 
-	public MeshInfo( final SourceState< ?, ? > state, final long segmentId, final FragmentSegmentAssignment assignment, final MeshManager meshManager, final int numScaleLevels )
+	public MeshInfo(
+			final SourceState< ?, ? > state,
+			final long segmentId,
+			final FragmentSegmentAssignment assignment,
+			final MeshManager meshManager,
+			final int numScaleLevels )
 	{
 		super();
 		this.state = state;
@@ -47,13 +58,17 @@ public class MeshInfo
 		this.assignment = assignment;
 		this.meshManager = meshManager;
 
-		this.scaleLevel.set( meshManager.scaleLevelProperty().get() );
+		scaleLevel.set( meshManager.scaleLevelProperty().get() );
+		scaleLevel.addListener( new PropagateChanges<>( ( mesh, newv ) -> mesh.scaleIndexProperty().set( newv.intValue() ) ) );
 
-		this.simplificationIterations.set( meshManager.meshSimplificationIterationsProperty().get() );
+		simplificationIterations.set( meshManager.meshSimplificationIterationsProperty().get() );
+		simplificationIterations.addListener( new PropagateChanges<>( ( mesh, newv ) -> mesh.meshSimplificationIterationsProperty().set( newv.intValue() ) ) );
 
-		this.scaleLevel.addListener( new PropagateChanges<>( ( mesh, newv ) -> mesh.scaleIndexProperty().set( newv.intValue() ) ) );
+		smoothingLambda.set( meshManager.smoothingLambdaProperty().get() );
+		smoothingLambda.addListener( new PropagateChanges<>( ( mesh, newv ) -> mesh.smoothingLambdaProperty().set( newv.doubleValue() ) ) );
 
-		this.simplificationIterations.addListener( new PropagateChanges<>( ( mesh, newv ) -> mesh.meshSimplificationIterationsProperty().set( newv.intValue() ) ) );
+		smoothingIterations.set( meshManager.smoothingIterationsProperty().get() );
+		smoothingIterations.addListener( new PropagateChanges<>( ( mesh, newv ) -> mesh.smoothingIterationsProperty().set( newv.intValue() ) ) );
 
 		this.numScaleLevels = numScaleLevels;
 
@@ -95,6 +110,16 @@ public class MeshInfo
 	public IntegerProperty simplificationIterationsProperty()
 	{
 		return this.simplificationIterations;
+	}
+
+	public DoubleProperty smoothingLambdaProperty()
+	{
+		return this.smoothingLambda;
+	}
+
+	public IntegerProperty smoothingIterationsProperty()
+	{
+		return this.smoothingIterations;
 	}
 
 	public FragmentSegmentAssignment assignment()

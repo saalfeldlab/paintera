@@ -8,9 +8,11 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Calculate and assign surface normals of a triangle mesh.
+ * Average precalculated vertex normals of a triangle mesh, i.e. make the
+ * mesh appear smooth.
  *
  * @author Philipp Hanslovsky
+ * @author Stephan Saalfeld
  */
 public class AverageNormals
 {
