@@ -39,6 +39,8 @@ import org.janelia.saalfeldlab.util.NamedThreadFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.google.gson.GsonBuilder;
+
 import bdv.util.volatiles.SharedQueue;
 import bdv.util.volatiles.VolatileRandomAccessibleIntervalView;
 import bdv.util.volatiles.VolatileViews;
@@ -225,9 +227,19 @@ public class N5Helpers
 		return isHDF( base ) ? new N5HDF5Reader( base, defaultCellDimensions ) : new N5FSReader( base );
 	}
 
+	public static N5Reader n5Reader( final String base, final GsonBuilder gsonBuilder, final int... defaultCellDimensions ) throws IOException
+	{
+		return isHDF( base ) ? new N5HDF5Reader( base, defaultCellDimensions ) : new N5FSReader( base, gsonBuilder );
+	}
+
 	public static N5Writer n5Writer( final String base, final int... defaultCellDimensions ) throws IOException
 	{
 		return isHDF( base ) ? new N5HDF5Writer( base, defaultCellDimensions ) : new N5FSWriter( base );
+	}
+
+	public static N5Writer n5Writer( final String base, final GsonBuilder gsonBuilder, final int... defaultCellDimensions ) throws IOException
+	{
+		return isHDF( base ) ? new N5HDF5Writer( base, defaultCellDimensions ) : new N5FSWriter( base, gsonBuilder );
 	}
 
 	public static boolean isHDF( final String base )
