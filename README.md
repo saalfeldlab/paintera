@@ -41,6 +41,22 @@ java -Xmx16G -XX:+UseConcMarkSweepGC -jar target/paintera-0.1.0-SNAPSHOT-shaded.
 ```
 Replace `16G` with the maximum amount of memory that Paintera should use.
 
+#### Display help message and command line parameters
+```shell
+$ java -jar target/paintera-0.1.0-SNAPSHOT-shaded.jar --help
+Usage: Paintera [-h] [--height=HEIGHT] [--width=WIDTH]
+                [--label-source=LABEL_SOURCE]... [--raw-source=RAW_SOURCE]...
+      --height=HEIGHT   Initial height of viewer. Defaults to 600.
+      --label-source=LABEL_SOURCE
+                        Open label source at start-up. Has to be [file://]
+                          /path/to/<n5-or-hdf5>:path/to/dataset
+      --raw-source=RAW_SOURCE
+                        Open raw source at start-up. Has to be [file://]
+                          /path/to/<n5-or-hdf5>:path/to/dataset
+      --width=WIDTH     Initial width of viewer. Defaults to 800.
+  -h, --help            Display this help message.
+```
+
 ## Usage
 
 | Action | Description |
