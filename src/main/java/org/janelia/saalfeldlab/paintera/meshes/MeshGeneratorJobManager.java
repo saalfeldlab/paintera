@@ -8,6 +8,7 @@ import java.util.concurrent.Callable;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
+import java.util.function.IntConsumer;
 
 import org.janelia.saalfeldlab.paintera.meshes.MeshGenerator.ShapeKey;
 import org.mortbay.log.Log;
@@ -36,7 +37,10 @@ public class MeshGeneratorJobManager
 
 	private final ExecutorService workers;
 
-	public MeshGeneratorJobManager( final ObservableMap< ShapeKey, MeshView > meshes, final ExecutorService manager, final ExecutorService workers )
+	public MeshGeneratorJobManager(
+			final ObservableMap< ShapeKey, MeshView > meshes,
+			final ExecutorService manager,
+			final ExecutorService workers )
 	{
 		super();
 		this.meshes = meshes;
@@ -52,6 +56,8 @@ public class MeshGeneratorJobManager
 			final int smoothingIterations,
 			final InterruptibleFunction< Long, Interval[] > getBlockList,
 			final InterruptibleFunction< ShapeKey, Pair< float[], float[] > > getMesh,
+			final IntConsumer setNumberOfTasks,
+			final IntConsumer setNumberOfCompletedTasks,
 			final Runnable onFinish )
 	{
 		return manager.submit(
@@ -63,6 +69,8 @@ public class MeshGeneratorJobManager
 						smoothingIterations,
 						getBlockList,
 						getMesh,
+						setNumberOfTasks,
+						setNumberOfCompletedTasks,
 						onFinish ) );
 	}
 
@@ -84,6 +92,10 @@ public class MeshGeneratorJobManager
 
 		private boolean isInterrupted = false;
 
+		private final IntConsumer setNumberOfTasks;
+
+		private final IntConsumer setNumberOfCompletedTasks;
+
 		private final Runnable onFinish;
 
 		public ManagementTask(
@@ -94,6 +106,8 @@ public class MeshGeneratorJobManager
 				final int smoothingIterations,
 				final InterruptibleFunction< Long, Interval[] > getBlockList,
 				final InterruptibleFunction< ShapeKey, Pair< float[], float[] > > getMesh,
+				final IntConsumer setNumberOfTasks,
+				final IntConsumer setNumberOfCompletedTasks,
 				final Runnable onFinish )
 		{
 			super();
@@ -104,6 +118,8 @@ public class MeshGeneratorJobManager
 			this.smoothingIterations = smoothingIterations;
 			this.getBlockList = getBlockList;
 			this.getMesh = getMesh;
+			this.setNumberOfTasks = setNumberOfTasks;
+			this.setNumberOfCompletedTasks = setNumberOfCompletedTasks;
 			this.onFinish = onFinish;
 		}
 
@@ -120,6 +136,12 @@ public class MeshGeneratorJobManager
 				final List< Interval > blockList = new ArrayList<>();
 
 				final CountDownLatch countDownOnBlockList = new CountDownLatch( 1 );
+
+				synchronized ( setNumberOfTasks )
+				{
+					setNumberOfTasks.accept( 0 );
+					setNumberOfCompletedTasks.accept( 0 );
+				}
 
 				workers.submit( () -> {
 					try
@@ -140,6 +162,12 @@ public class MeshGeneratorJobManager
 					Log.warn( "Interrupted while waiting for block lists for label {}", id );
 					getBlockList.interruptFor( id );
 					this.isInterrupted = true;
+				}
+
+				synchronized ( setNumberOfTasks )
+				{
+					setNumberOfTasks.accept( blockList.size() );
+					setNumberOfCompletedTasks.accept( 0 );
 				}
 
 				LOG.warn( "Found {} blocks", blockList.size() );
@@ -197,7 +225,11 @@ public class MeshGeneratorJobManager
 						}
 						finally
 						{
-							countDownOnMeshes.countDown();
+							synchronized ( setNumberOfTasks )
+							{
+								countDownOnMeshes.countDown();
+								setNumberOfCompletedTasks.accept( numTasks - ( int ) countDownOnMeshes.getCount() );
+							}
 							LOG.warn( "Counted down latch. {} remaining", countDownOnMeshes.getCount() );
 						}
 
