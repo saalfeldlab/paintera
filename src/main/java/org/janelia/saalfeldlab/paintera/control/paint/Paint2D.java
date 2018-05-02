@@ -14,7 +14,7 @@ import org.janelia.saalfeldlab.paintera.data.DataSource;
 import org.janelia.saalfeldlab.paintera.data.mask.MaskInUse;
 import org.janelia.saalfeldlab.paintera.data.mask.MaskInfo;
 import org.janelia.saalfeldlab.paintera.data.mask.MaskedSource;
-import org.janelia.saalfeldlab.paintera.state.AbstractSourceState;
+import org.janelia.saalfeldlab.paintera.state.SourceState;
 import org.janelia.saalfeldlab.paintera.state.GlobalTransformManager;
 import org.janelia.saalfeldlab.paintera.state.SourceInfo;
 import org.slf4j.Logger;
@@ -219,7 +219,7 @@ public class Paint2D
 
 		if ( viewerSource == null || !( viewerSource instanceof DataSource< ?, ? > ) || !sourceInfo.getState( viewerSource ).isVisibleProperty().get() ) { return; }
 
-		final AbstractSourceState< ?, ? > currentSourceState = sourceInfo.getState( viewerSource );
+		final SourceState< ?, ? > currentSourceState = sourceInfo.getState( viewerSource );
 		final DataSource< ?, ? > source = currentSourceState.dataSource();
 
 		if ( !( source instanceof MaskedSource< ?, ? > ) )

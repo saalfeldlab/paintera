@@ -38,7 +38,7 @@ import org.janelia.saalfeldlab.paintera.meshes.MeshManager;
 import org.janelia.saalfeldlab.paintera.meshes.MeshManagerWithAssignment;
 import org.janelia.saalfeldlab.paintera.meshes.cache.CacheUtils;
 import org.janelia.saalfeldlab.paintera.meshes.cache.UniqueLabelListLabelMultisetCacheLoader;
-import org.janelia.saalfeldlab.paintera.state.AbstractSourceState;
+import org.janelia.saalfeldlab.paintera.state.SourceState;
 import org.janelia.saalfeldlab.paintera.state.GlobalTransformManager;
 import org.janelia.saalfeldlab.paintera.state.LabelSourceState;
 import org.janelia.saalfeldlab.paintera.state.SourceInfo;
@@ -269,7 +269,7 @@ public class PainteraBaseView
 			final Object metaData )
 	{
 		final Composite< ARGBType, ARGBType > comp = new ARGBCompositeAlphaAdd();
-		final AbstractSourceState< T, U > state = sourceInfo.addRawSource( spec, min, max, color, comp, metaData );
+		final SourceState< T, U > state = sourceInfo.addRawSource( spec, min, max, color, comp, metaData );
 		final Converter< U, ARGBType > conv = state.converter();
 		if ( conv instanceof ARGBColorConverter< ? > )
 		{

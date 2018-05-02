@@ -39,7 +39,7 @@ import net.imglib2.type.numeric.RealType;
 public class SourceInfo
 {
 
-	private final ObservableMap< Source< ? >, AbstractSourceState< ?, ? > > states = FXCollections.observableHashMap();
+	private final ObservableMap< Source< ? >, SourceState< ?, ? > > states = FXCollections.observableHashMap();
 
 	private final ObservableList< Source< ? > > sources = FXCollections.observableArrayList();
 
@@ -93,7 +93,7 @@ public class SourceInfo
 		removedSources.addListener( ( ListChangeListener< Source< ? > > ) change -> removedSources.clear() );
 	}
 
-	public < D extends Type< D >, T extends RealType< T > > AbstractSourceState< D, T > makeRawSourceState(
+	public < D extends Type< D >, T extends RealType< T > > SourceState< D, T > makeRawSourceState(
 			final DataSource< D, T > source,
 			final double min,
 			final double max,
@@ -103,11 +103,11 @@ public class SourceInfo
 	{
 		final ARGBColorConverter< T > converter = new ARGBColorConverter.InvertingImp1<>( min, max );
 		converter.colorProperty().set( color );
-		final AbstractSourceState< D, T > state = new AbstractSourceState<>( source, converter, composite, source.getName(), metaData );
+		final SourceState< D, T > state = new SourceState<>( source, converter, composite, source.getName(), metaData );
 		return state;
 	}
 
-	public < D extends Type< D >, T extends RealType< T > > AbstractSourceState< D, T > addRawSource(
+	public < D extends Type< D >, T extends RealType< T > > SourceState< D, T > addRawSource(
 			final DataSource< D, T > source,
 			final double min,
 			final double max,
@@ -115,18 +115,18 @@ public class SourceInfo
 			final Composite< ARGBType, ARGBType > composite,
 			final Object metaData )
 	{
-		final AbstractSourceState< D, T > state = makeRawSourceState( source, min, max, color, composite, metaData );
+		final SourceState< D, T > state = makeRawSourceState( source, min, max, color, composite, metaData );
 		addState( source, state );
 		return state;
 	}
 
-	public < D extends Type< D >, T extends Type< T > > AbstractSourceState< D, T > makeGenericSourceState(
+	public < D extends Type< D >, T extends Type< T > > SourceState< D, T > makeGenericSourceState(
 			final DataSource< D, T > source,
 			final Converter< T, ARGBType > converter,
 			final Composite< ARGBType, ARGBType > composite )
 	{
 
-		return new AbstractSourceState<>( source, converter, composite, source.getName(), null );
+		return new SourceState<>( source, converter, composite, source.getName(), null );
 	}
 
 	public < D extends Type< D >, T extends Type< T > > LabelSourceState< D, T > makeLabelSourceState(
@@ -189,7 +189,7 @@ public class SourceInfo
 
 	public synchronized < D extends Type< D >, T extends Type< T > > void addState(
 			final Source< T > source,
-			final AbstractSourceState< D, T > state )
+			final SourceState< D, T > state )
 	{
 		this.states.put( source, state );
 		// composites needs to hold a valid (!=null) value for source whenever
@@ -208,7 +208,7 @@ public class SourceInfo
 	public synchronized < T > void removeSource( final Source< T > source )
 	{
 		final int currentSourceIndex = this.sources.indexOf( source );
-		final AbstractSourceState< ?, ? > state = this.states.remove( source );
+		final SourceState< ?, ? > state = this.states.remove( source );
 		if ( state != null && state instanceof LabelSourceState< ?, ? > )
 		{
 			( ( LabelSourceState< ?, ? > ) state ).meshManager().removeAllMeshes();
@@ -221,7 +221,7 @@ public class SourceInfo
 
 	public synchronized Optional< ToIdConverter > toIdConverter( final Source< ? > source )
 	{
-		final AbstractSourceState< ?, ? > state = states.get( source );
+		final SourceState< ?, ? > state = states.get( source );
 		return state instanceof LabelSourceState< ?, ? >
 				? Optional.of( ( ( LabelSourceState< ?, ? > ) state ).toIdConverter() )
 				: Optional.empty();
@@ -229,13 +229,13 @@ public class SourceInfo
 
 	public synchronized Optional< FragmentSegmentAssignmentState > assignment( final Source< ? > source )
 	{
-		final AbstractSourceState< ?, ? > state = states.get( source );
+		final SourceState< ?, ? > state = states.get( source );
 		return state instanceof LabelSourceState< ?, ? >
 				? Optional.of( ( ( LabelSourceState< ?, ? > ) state ).assignment() )
 				: Optional.empty();
 	}
 
-	public AbstractSourceState< ?, ? > getState( final Source< ? > source )
+	public SourceState< ?, ? > getState( final Source< ? > source )
 	{
 		return states.get( source );
 	}
@@ -339,7 +339,7 @@ public class SourceInfo
 		this.visibleSourcesAndConverter.setAll( this.visibleSources
 				.stream()
 				.map( states::get )
-				.map( AbstractSourceState::getSourceAndConverter )
+				.map( SourceState::getSourceAndConverter )
 				.collect( Collectors.toList() ) );
 	}
 

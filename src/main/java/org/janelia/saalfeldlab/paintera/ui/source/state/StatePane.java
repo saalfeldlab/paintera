@@ -5,7 +5,7 @@ import java.util.Arrays;
 import java.util.Optional;
 import java.util.function.Consumer;
 
-import org.janelia.saalfeldlab.paintera.state.AbstractSourceState;
+import org.janelia.saalfeldlab.paintera.state.SourceState;
 import org.janelia.saalfeldlab.paintera.state.LabelSourceState;
 import org.janelia.saalfeldlab.paintera.state.SourceInfo;
 import org.janelia.saalfeldlab.paintera.ui.BindUnbindAndNodeSupplier;
@@ -39,7 +39,7 @@ public class StatePane implements BindUnbindAndNodeSupplier
 
 	private static final Logger LOG = LoggerFactory.getLogger( MethodHandles.lookup().lookupClass() );
 
-	private final AbstractSourceState< ?, ? > state;
+	private final SourceState< ?, ? > state;
 
 	private final SourceInfo sourceInfo;
 
@@ -54,7 +54,7 @@ public class StatePane implements BindUnbindAndNodeSupplier
 	private final BooleanProperty isVisible = new SimpleBooleanProperty();
 
 	public StatePane(
-			final AbstractSourceState< ?, ? > state,
+			final SourceState< ?, ? > state,
 			final SourceInfo sourceInfo,
 			final Consumer< Source< ? > > remove,
 			final ObservableDoubleValue width )

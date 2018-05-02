@@ -13,7 +13,7 @@ import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssign
 import org.janelia.saalfeldlab.paintera.control.selection.SelectedIds;
 import org.janelia.saalfeldlab.paintera.data.DataSource;
 import org.janelia.saalfeldlab.paintera.id.ToIdConverter;
-import org.janelia.saalfeldlab.paintera.state.AbstractSourceState;
+import org.janelia.saalfeldlab.paintera.state.SourceState;
 import org.janelia.saalfeldlab.paintera.state.LabelSourceState;
 import org.janelia.saalfeldlab.paintera.state.SourceInfo;
 import org.slf4j.Logger;
@@ -99,7 +99,7 @@ public class IdSelector
 			if ( source instanceof DataSource< ?, ? > )
 			{
 				final DataSource< ?, ? > dataSource = ( DataSource< ?, ? > ) source;
-				final AbstractSourceState< ?, ? > currentSourceState = sourceInfo.getState( source );
+				final SourceState< ?, ? > currentSourceState = sourceInfo.getState( source );
 				if ( !( currentSourceState instanceof LabelSourceState< ?, ? > ) )
 				{
 					LOG.warn( "Not a label source -- cannot select  id." );
@@ -184,7 +184,7 @@ public class IdSelector
 			if ( source instanceof DataSource< ?, ? > )
 			{
 				final DataSource< ?, ? > dataSource = ( DataSource< ?, ? > ) source;
-				final AbstractSourceState< ?, ? > currentSourceState = sourceInfo.getState( source );
+				final SourceState< ?, ? > currentSourceState = sourceInfo.getState( source );
 				if ( !( currentSourceState instanceof LabelSourceState< ?, ? > ) )
 				{
 					LOG.warn( "Not a label source -- cannot select  id." );
@@ -240,7 +240,7 @@ public class IdSelector
 			if ( source instanceof DataSource< ?, ? > )
 			{
 				final DataSource< ?, ? > dataSource = ( DataSource< ?, ? > ) source;
-				final AbstractSourceState< ?, ? > currentSourceState = sourceInfo.getState( source );
+				final SourceState< ?, ? > currentSourceState = sourceInfo.getState( source );
 				if ( !( currentSourceState instanceof LabelSourceState< ?, ? > ) )
 				{
 					LOG.warn( "Not a label source -- cannot select  id." );
@@ -299,7 +299,7 @@ public class IdSelector
 			if ( source instanceof DataSource< ?, ? > )
 			{
 				final DataSource< ?, ? > dataSource = ( DataSource< ?, ? > ) source;
-				final AbstractSourceState< ?, ? > currentSourceState = sourceInfo.getState( source );
+				final SourceState< ?, ? > currentSourceState = sourceInfo.getState( source );
 				if ( !( currentSourceState instanceof LabelSourceState< ?, ? > ) )
 				{
 					LOG.warn( "Not a label source -- cannot select  id." );

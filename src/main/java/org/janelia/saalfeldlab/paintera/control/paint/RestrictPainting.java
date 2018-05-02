@@ -7,7 +7,7 @@ import java.util.function.Predicate;
 import org.janelia.saalfeldlab.paintera.data.mask.MaskInUse;
 import org.janelia.saalfeldlab.paintera.data.mask.MaskInfo;
 import org.janelia.saalfeldlab.paintera.data.mask.MaskedSource;
-import org.janelia.saalfeldlab.paintera.state.AbstractSourceState;
+import org.janelia.saalfeldlab.paintera.state.SourceState;
 import org.janelia.saalfeldlab.paintera.state.LabelSourceState;
 import org.janelia.saalfeldlab.paintera.state.SourceInfo;
 import org.slf4j.Logger;
@@ -76,7 +76,7 @@ public class RestrictPainting
 			return;
 		}
 
-		final AbstractSourceState< ?, ? > currentSourceState = sourceInfo.getState( currentSource );
+		final SourceState< ?, ? > currentSourceState = sourceInfo.getState( currentSource );
 
 		if ( !( currentSourceState instanceof LabelSourceState< ?, ? > ) )
 		{

@@ -15,7 +15,7 @@ import net.imglib2.converter.Converter;
 import net.imglib2.type.logic.BoolType;
 import net.imglib2.type.numeric.ARGBType;
 
-public class LabelSourceState< D, T > extends AbstractSourceState< D, T >
+public class LabelSourceState< D, T > extends SourceState< D, T >
 {
 
 	private final LongFunction< Converter< D, BoolType > > maskForLabel;
