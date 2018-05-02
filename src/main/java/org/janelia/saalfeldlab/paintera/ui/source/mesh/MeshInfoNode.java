@@ -90,8 +90,8 @@ public class MeshInfoNode implements BindUnbindAndNodeSupplier
 		final long[] fragments = meshInfo.assignment().getFragments( meshInfo.segmentId() ).toArray();
 
 		final DoubleProperty progress = new SimpleDoubleProperty( 0 );
-		submittedTasks.addListener( ( obs, oldv, newv ) -> progress.set( completedTasks.doubleValue() / submittedTasks.doubleValue() ) );
-		completedTasks.addListener( ( obs, oldv, newv ) -> progress.set( completedTasks.doubleValue() / submittedTasks.doubleValue() ) );
+		submittedTasks.addListener( ( obs, oldv, newv ) -> progress.set( submittedTasks.intValue() == 0 ? 0 : completedTasks.doubleValue() / submittedTasks.doubleValue() ) );
+		completedTasks.addListener( ( obs, oldv, newv ) -> progress.set( submittedTasks.intValue() == 0 ? 0 : completedTasks.doubleValue() / submittedTasks.doubleValue() ) );
 		final StatusBar statusBar = new StatusBar();
 		// TODO come up with better way to ensure proper size of this!
 		statusBar.setMinWidth( 200 );
@@ -135,12 +135,12 @@ public class MeshInfoNode implements BindUnbindAndNodeSupplier
 
 		final Button exportMeshButton = new Button( "Export" );
 		exportMeshButton.setOnAction( event -> {
-			MeshExporterDialog exportDialog = new MeshExporterDialog( meshInfo );
+			final MeshExporterDialog exportDialog = new MeshExporterDialog( meshInfo );
 			final Optional< ExportResult > result = exportDialog.showAndWait();
 			if ( result.isPresent() )
 			{
-				ExportResult parameters = result.get();
-				assert ( parameters.getSegmentId().length == 1 );
+				final ExportResult parameters = result.get();
+				assert parameters.getSegmentId().length == 1;
 				parameters.getMeshExporter().exportMesh( meshInfo.state(), parameters.getSegmentId()[ 0 ], parameters.getScale(), parameters.getFilePaths()[ 0 ] );
 			}
 		} );
