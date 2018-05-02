@@ -97,7 +97,7 @@ public class MeshGenerator
 			int result = scaleIndex;
 			result = 31 * result + ( int ) ( shapeId ^ shapeId >>> 32 );
 			result = 31 * result + simplificationIterations;
-			result = 31 * result + Double.hashCode(smoothingLambda);
+			result = 31 * result + Double.hashCode( smoothingLambda );
 			result = 31 * result + smoothingIterations;
 			result = 31 * result + Arrays.hashCode( this.min );
 			result = 31 * result + Arrays.hashCode( this.max );
@@ -368,7 +368,10 @@ public class MeshGenerator
 					smoothingLambda.doubleValue(),
 					smoothingIterations.intValue(),
 					blockListCache[ scaleIndex ],
-					meshCache[ scaleIndex ], onFinish );
+					meshCache[ scaleIndex ],
+					submittedTasks::set,
+					completedTasks::set,
+					onFinish );
 			LOG.warn( "Submitting new task {}", task );
 			this.activeTask.set( task );
 		}
