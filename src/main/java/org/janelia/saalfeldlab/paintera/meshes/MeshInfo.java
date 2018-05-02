@@ -5,7 +5,6 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.function.BiConsumer;
 
-import org.janelia.saalfeldlab.paintera.SourceState;
 import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignment;
 import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignmentState;
 
@@ -29,8 +28,6 @@ public class MeshInfo
 
 	private final IntegerProperty smoothingIterations = new SimpleIntegerProperty();
 
-	private final SourceState< ?, ? > state;
-
 	private final long segmentId;
 
 	private final FragmentSegmentAssignment assignment;
@@ -46,14 +43,12 @@ public class MeshInfo
 	private final IntegerProperty successfulTasks = new SimpleIntegerProperty( 0 );
 
 	public MeshInfo(
-			final SourceState< ?, ? > state,
 			final long segmentId,
 			final FragmentSegmentAssignment assignment,
 			final MeshManager meshManager,
 			final int numScaleLevels )
 	{
 		super();
-		this.state = state;
 		this.segmentId = segmentId;
 		this.assignment = assignment;
 		this.meshManager = meshManager;
@@ -90,11 +85,6 @@ public class MeshInfo
 		this.completedTasks.bind( Bindings.createIntegerBinding( () -> Arrays.stream( completedTasks ).mapToInt( ObservableIntegerValue::get ).sum(), completedTasks ) );
 		this.successfulTasks.bind( Bindings.createIntegerBinding( () -> Arrays.stream( submittedTasks ).mapToInt( ObservableIntegerValue::get ).sum(), successfulTasks ) );
 
-	}
-
-	public SourceState< ?, ? > state()
-	{
-		return this.state;
 	}
 
 	public long segmentId()
@@ -178,6 +168,11 @@ public class MeshInfo
 	public ObservableIntegerValue successfulTasksProperty()
 	{
 		return this.successfulTasks;
+	}
+
+	public MeshManager meshManager()
+	{
+		return this.meshManager;
 	}
 
 }

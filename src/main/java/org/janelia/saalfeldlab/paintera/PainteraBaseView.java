@@ -38,7 +38,10 @@ import org.janelia.saalfeldlab.paintera.meshes.MeshManager;
 import org.janelia.saalfeldlab.paintera.meshes.MeshManagerWithAssignment;
 import org.janelia.saalfeldlab.paintera.meshes.cache.CacheUtils;
 import org.janelia.saalfeldlab.paintera.meshes.cache.UniqueLabelListLabelMultisetCacheLoader;
+import org.janelia.saalfeldlab.paintera.state.AbstractSourceState;
 import org.janelia.saalfeldlab.paintera.state.GlobalTransformManager;
+import org.janelia.saalfeldlab.paintera.state.LabelSourceState;
+import org.janelia.saalfeldlab.paintera.state.SourceInfo;
 import org.janelia.saalfeldlab.paintera.stream.HighlightingStreamConverter;
 import org.janelia.saalfeldlab.paintera.stream.ModalGoldenAngleSaturatedHighlightingARGBStream;
 import org.janelia.saalfeldlab.paintera.viewer3d.Viewer3DFX;
@@ -236,7 +239,17 @@ public class PainteraBaseView
 			final double max,
 			final Color color )
 	{
-		addRawSource( spec, min, max, Colors.toARGBType( color ) );
+		addRawSource( spec, min, max, color, null );
+	}
+
+	public < T extends RealType< T >, U extends RealType< U > > void addRawSource(
+			final DataSource< T, U > spec,
+			final double min,
+			final double max,
+			final Color color,
+			final Object metaData )
+	{
+		addRawSource( spec, min, max, Colors.toARGBType( color ), metaData );
 	}
 
 	public < T extends RealType< T >, U extends RealType< U > > void addRawSource(
@@ -245,9 +258,19 @@ public class PainteraBaseView
 			final double max,
 			final ARGBType color )
 	{
+		addRawSource( spec, min, max, color, null );
+	}
+
+	public < T extends RealType< T >, U extends RealType< U > > void addRawSource(
+			final DataSource< T, U > spec,
+			final double min,
+			final double max,
+			final ARGBType color,
+			final Object metaData )
+	{
 		final Composite< ARGBType, ARGBType > comp = new ARGBCompositeAlphaAdd();
-		final SourceState< U, T > state = sourceInfo.addRawSource( spec, min, max, color, comp );
-		final Converter< U, ARGBType > conv = state.converterProperty().get();
+		final AbstractSourceState< T, U > state = sourceInfo.addRawSource( spec, min, max, color, comp, metaData );
+		final Converter< U, ARGBType > conv = state.converter();
 		if ( conv instanceof ARGBColorConverter< ? > )
 		{
 			final ARGBColorConverter< U > colorConv = ( net.imglib2.converter.ARGBColorConverter< U > ) conv;
@@ -341,8 +364,8 @@ public class PainteraBaseView
 			final FragmentSegmentAssignmentState assignment,
 			final IdService idService,
 			final ToIdConverter toIdConverter,
-			final InterruptibleFunction< Long, Interval[] >[] blocksThatContainId,
-			final InterruptibleFunction< ShapeKey, Pair< float[], float[] > >[] meshCache,
+			InterruptibleFunction< Long, Interval[] >[] blocksThatContainId,
+			InterruptibleFunction< ShapeKey, Pair< float[], float[] > >[] meshCache,
 			final LongFunction< Converter< D, BoolType > > equalsMask )
 	{
 		final SelectedIds selId = new SelectedIds();
@@ -351,81 +374,55 @@ public class PainteraBaseView
 		final Converter< T, ARGBType > converter = HighlightingStreamConverter.forType( stream, source.getType() );
 
 		final ARGBCompositeAlphaYCbCr comp = new ARGBCompositeAlphaYCbCr();
-
-		final SourceState< T, D > state = sourceInfo.makeLabelSourceState(
-				source,
-				toIdConverter,
-				equalsMask,
-				assignment,
-				stream,
-				selId,
-				converter,
-				comp );// converter );
-		state.idServiceProperty().set( idService );
-		if ( source instanceof MaskedSource< ?, ? > )
-		{
-			state.maskedSourceProperty().set( ( MaskedSource< ?, ? > ) source );
-		}
-
 		final AffineTransform3D affine = new AffineTransform3D();
 		source.getSourceTransform( 0, 0, affine );
 
 		final SelectedSegments selectedSegments = new SelectedSegments( selId, assignment );
 		final FragmentsInSelectedSegments fragmentsInSelection = new FragmentsInSelectedSegments( selectedSegments, assignment );
 
+		blocksThatContainId = blocksThatContainId == null
+				? generateLabelBlocksForLabelCache( source, scaleFactorsFromAffineTransforms( source ), generalPurposeExecutorService )
+				: blocksThatContainId;
+
+		meshCache = meshCache == null
+				? CacheUtils.meshCacheLoaders(
+						source,
+						Stream.generate( () -> new int[] { 1, 1, 1 } ).limit( source.getNumMipmapLevels() ).toArray( int[][]::new ),
+						equalsMask,
+						CacheUtils::toCacheSoftRefLoaderCache )
+				: meshCache;
+
 		final MeshManager meshManager = new MeshManagerWithAssignment(
 				source,
-				state,
+				blocksThatContainId,
+				meshCache,
 				viewer3D.meshesGroup(),
+				assignment,
 				fragmentsInSelection,
+				stream,
 				new SimpleIntegerProperty(),
 				new SimpleDoubleProperty(),
 				new SimpleIntegerProperty(),
 				meshManagerExecutorService,
 				meshWorkerExecutorService );
 
-		final MeshInfos meshInfos = new MeshInfos( state, selectedSegments, assignment, meshManager, source.getNumMipmapLevels() );
-		state.meshManagerProperty().set( meshManager );
-		state.meshInfosProperty().set( meshInfos );
+		final MeshInfos meshInfos = new MeshInfos( selectedSegments, assignment, meshManager, source.getNumMipmapLevels() );
+
+		final LabelSourceState< D, T > state = sourceInfo.makeLabelSourceState(
+				source,
+				converter,
+				comp,
+				null,
+				equalsMask,
+				assignment,
+				toIdConverter,
+				selId,
+				idService,
+				meshManager,
+				meshInfos );// converter );
 
 		orthogonalViews().applyToAll( vp -> assignment.addListener( obs -> vp.requestRepaint() ) );
 		orthogonalViews().applyToAll( vp -> selId.addListener( obs -> vp.requestRepaint() ) );
-
-		LOG.debug( "Adding mesh and block list caches: {} {}", meshCache, blocksThatContainId );
-		if ( meshCache != null && blocksThatContainId != null )
-		{
-			state.meshesCacheProperty().set( meshCache );
-			state.blocklistCacheProperty().set( blocksThatContainId );
-		}
-		else
-		{
-			LOG.debug( "Creating default mesh caches (create block lists by iterating over all blocks and filtering)" );
-
-			final boolean isMaskedSource = source instanceof MaskedSource< ?, ? >;
-			final boolean isLabelMultisetType = source.getDataType() instanceof LabelMultisetType;
-			final boolean isCachedCellImg = ( isMaskedSource ? ( ( MaskedSource< ?, ? > ) source ).underlyingSource().getDataSource( 0, 0 ) : source.getDataSource( 0, 0 ) ) instanceof CachedCellImg< ?, ? >;
-			LOG.debug( "Is LabelMultisetType? {} -- Is cachedCellImg? {}", isLabelMultisetType, isCachedCellImg );
-			LOG.debug( "data type={} source type={}", source.getDataType(), source.getDataSource( 0, 0 ) );
-			if ( isLabelMultisetType && isCachedCellImg )
-			{
-				generateMeshCachesForLabelMultisetTypeCachedImg(
-						( DataSource< LabelMultisetType, T > ) ( isMaskedSource ? ( ( MaskedSource< ?, ? > ) source ).underlyingSource() : source ),
-						( SourceState< T, LabelMultisetType > ) state,
-						scaleFactorsFromAffineTransforms( source ),
-						( LongFunction< Converter< LabelMultisetType, BoolType > > ) ( LongFunction< ? > ) equalsMask,
-						generalPurposeExecutorService );
-			}
-			else
-			{
-				generateMeshCaches(
-						source,
-						state,
-						scaleFactorsFromAffineTransforms( source ),
-						collectLabels( source.getDataType() ),
-						equalsMask,
-						generalPurposeExecutorService );
-			}
-		}
 
 		sourceInfo.addState( source, state );
 
@@ -463,37 +460,42 @@ public class PainteraBaseView
 		return this.generalPurposeExecutorService;
 	}
 
-	private static < D extends Type< D >, T extends Type< T > > void generateMeshCaches(
+	private static < D extends Type< D >, T extends Type< T > > InterruptibleFunction< Long, Interval[] >[] generateLabelBlocksForLabelCache(
 			final DataSource< D, T > spec,
-			final SourceState< T, D > state,
+			final double[][] scalingFactors,
+			final ExecutorService es )
+	{
+		final boolean isMaskedSource = spec instanceof MaskedSource< ?, ? >;
+		final boolean isLabelMultisetType = spec.getDataType() instanceof LabelMultisetType;
+		final boolean isCachedCellImg = ( isMaskedSource
+				? ( ( MaskedSource< ?, ? > ) spec ).underlyingSource().getDataSource( 0, 0 )
+				: spec.getDataSource( 0, 0 ) ) instanceof CachedCellImg< ?, ? >;
+
+		if ( isLabelMultisetType && isCachedCellImg )
+		{
+			@SuppressWarnings( "unchecked" )
+			final DataSource< LabelMultisetType, T > source =
+					( DataSource< LabelMultisetType, T > ) ( isMaskedSource ? ( ( MaskedSource< ?, ? > ) spec ).underlyingSource() : spec );
+			return generateBlocksForLabelCacheLabelMultisetTypeCachedImg( source, scalingFactors, es );
+		}
+
+		return generateLabelBlocksForLabelCacheGeneric( spec, scalingFactors, collectLabels( spec.getDataType() ), es );
+	}
+
+	private static < D extends Type< D >, T extends Type< T > > InterruptibleFunction< Long, Interval[] >[] generateLabelBlocksForLabelCacheGeneric(
+			final DataSource< D, T > spec,
 			final double[][] scalingFactors,
 			final BiConsumer< D, TLongHashSet > collectLabels,
-			final LongFunction< Converter< D, BoolType > > getMaskGenerator,
 			final ExecutorService es )
 	{
 
 		final int[][] blockSizes = Stream.generate( () -> new int[] { 64, 64, 64 } ).limit( spec.getNumMipmapLevels() ).toArray( int[][]::new );
-		final int[][] cubeSizes = Stream.generate( () -> new int[] { 1, 1, 1 } ).limit( spec.getNumMipmapLevels() ).toArray( int[][]::new );
 
 		final InterruptibleFunction< HashWrapper< long[] >, long[] >[] uniqueLabelLoaders = CacheUtils.uniqueLabelCaches(
 				spec,
 				blockSizes,
 				collectLabels,
 				CacheUtils::toCacheSoftRefLoaderCache );
-
-		generateMeshCaches( spec, state, uniqueLabelLoaders, blockSizes, cubeSizes, scalingFactors, getMaskGenerator, es );
-	}
-
-	private static < D extends Type< D >, T extends Type< T > > void generateMeshCaches(
-			final DataSource< D, T > spec,
-			final SourceState< T, D > state,
-			final InterruptibleFunction< HashWrapper< long[] >, long[] >[] uniqueLabelLoaders,
-			final int[][] blockSizes,
-			final int[][] cubeSizes,
-			final double[][] scalingFactors,
-			final LongFunction< Converter< D, BoolType > > getMaskGenerator,
-			final ExecutorService es )
-	{
 
 		final InterruptibleFunction< Long, Interval[] >[] blocksForLabelCache = CacheUtils.blocksForLabelCaches(
 				spec,
@@ -503,27 +505,18 @@ public class PainteraBaseView
 				CacheUtils::toCacheSoftRefLoaderCache,
 				es );
 
-		final InterruptibleFunction< ShapeKey, Pair< float[], float[] > >[] meshCaches = CacheUtils.meshCacheLoaders(
-				spec,
-				cubeSizes,
-				getMaskGenerator,
-				CacheUtils::toCacheSoftRefLoaderCache );
+		return blocksForLabelCache;
 
-		state.blocklistCacheProperty().set( blocksForLabelCache );
-		state.meshesCacheProperty().set( meshCaches );
 	}
 
-	private static < T extends Type< T > > void generateMeshCachesForLabelMultisetTypeCachedImg(
+	private static < T extends Type< T > > InterruptibleFunction< Long, Interval[] >[] generateBlocksForLabelCacheLabelMultisetTypeCachedImg(
 			final DataSource< LabelMultisetType, T > spec,
-			final SourceState< T, LabelMultisetType > state,
 			final double[][] scalingFactors,
-			final LongFunction< Converter< LabelMultisetType, BoolType > > getMaskGenerator,
 			final ExecutorService es )
 	{
 		@SuppressWarnings( "unchecked" )
 		final InterruptibleFunction< HashWrapper< long[] >, long[] >[] uniqueLabelLoaders = new InterruptibleFunction[ spec.getNumMipmapLevels() ];
 		final int[][] blockSizes = new int[ spec.getNumMipmapLevels() ][];
-		final int[][] cubeSizes = new int[ spec.getNumMipmapLevels() ][];
 		for ( int level = 0; level < spec.getNumMipmapLevels(); ++level )
 		{
 			LOG.debug( "Generating unique label list loaders at level {} for LabelMultisetType source: {}", level, spec );
@@ -537,10 +530,17 @@ public class PainteraBaseView
 			final Cache< HashWrapper< long[] >, long[] > cache = CacheUtils.toCacheSoftRefLoaderCache( loader );
 			uniqueLabelLoaders[ level ] = CacheUtils.fromCache( cache, loader );
 			blockSizes[ level ] = IntStream.range( 0, grid.numDimensions() ).map( grid::cellDimension ).toArray();
-			cubeSizes[ level ] = IntStream.generate( () -> 1 ).limit( grid.numDimensions() ).toArray();
 		}
 
-		generateMeshCaches( spec, state, uniqueLabelLoaders, blockSizes, cubeSizes, scalingFactors, getMaskGenerator, es );
+		final InterruptibleFunction< Long, Interval[] >[] blocksForLabelCache = CacheUtils.blocksForLabelCaches(
+				spec,
+				uniqueLabelLoaders,
+				blockSizes,
+				scalingFactors,
+				CacheUtils::toCacheSoftRefLoaderCache,
+				es );
+
+		return blocksForLabelCache;
 	}
 
 	public static double[][] scaleFactorsFromAffineTransforms( final Source< ? > source )

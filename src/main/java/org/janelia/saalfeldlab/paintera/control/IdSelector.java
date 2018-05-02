@@ -9,11 +9,13 @@ import java.util.stream.Collectors;
 
 import org.janelia.saalfeldlab.fx.event.InstallAndRemove;
 import org.janelia.saalfeldlab.fx.event.MouseClickFX;
-import org.janelia.saalfeldlab.paintera.SourceInfo;
 import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignmentState;
 import org.janelia.saalfeldlab.paintera.control.selection.SelectedIds;
 import org.janelia.saalfeldlab.paintera.data.DataSource;
 import org.janelia.saalfeldlab.paintera.id.ToIdConverter;
+import org.janelia.saalfeldlab.paintera.state.AbstractSourceState;
+import org.janelia.saalfeldlab.paintera.state.LabelSourceState;
+import org.janelia.saalfeldlab.paintera.state.SourceInfo;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -97,17 +99,24 @@ public class IdSelector
 			if ( source instanceof DataSource< ?, ? > )
 			{
 				final DataSource< ?, ? > dataSource = ( DataSource< ?, ? > ) source;
-				final Optional< SelectedIds > selectedIds = Optional.ofNullable( sourceInfo.getState( source ).selectedIdsProperty().get() );
-				final Optional< ToIdConverter > toIdConverter = sourceInfo.toIdConverter( source );
+				final AbstractSourceState< ?, ? > currentSourceState = sourceInfo.getState( source );
+				if ( !( currentSourceState instanceof LabelSourceState< ?, ? > ) )
+				{
+					LOG.warn( "Not a label source -- cannot select  id." );
+					return;
+				}
+				final LabelSourceState< ?, ? > state = ( LabelSourceState< ?, ? > ) currentSourceState;
+				final Optional< SelectedIds > selectedIds = Optional.ofNullable( state.selectedIds() );
+				final Optional< ToIdConverter > toIdConverter = Optional.ofNullable( state.toIdConverter() );
 				if ( selectedIds.isPresent() && toIdConverter.isPresent() )
 				{
 					synchronized ( viewer )
 					{
 						final AffineTransform3D affine = new AffineTransform3D();
-						final ViewerState state = viewer.getState();
-						state.getViewerTransform( affine );
+						final ViewerState viewerState = viewer.getState();
+						viewerState.getViewerTransform( affine );
 						final AffineTransform3D screenScaleTransforms = new AffineTransform3D();
-						final int level = state.getBestMipMapLevel( screenScaleTransforms, getIndexOf( dataSource, state ) );
+						final int level = viewerState.getBestMipMapLevel( screenScaleTransforms, getIndexOf( dataSource, viewerState ) );
 						dataSource.getSourceTransform( 0, level, affine );
 						final RealTransformRealRandomAccessible< ?, InverseRealTransform >.RealTransformRealRandomAccess access = RealViews.transformReal( dataSource.getInterpolatedDataSource( 0, level, Interpolation.NEARESTNEIGHBOR ), affine ).realRandomAccess();
 						viewer.getMouseCoordinates( access );
@@ -175,9 +184,16 @@ public class IdSelector
 			if ( source instanceof DataSource< ?, ? > )
 			{
 				final DataSource< ?, ? > dataSource = ( DataSource< ?, ? > ) source;
-				final Optional< SelectedIds > selectedIds = Optional.ofNullable( sourceInfo.getState( source ).selectedIdsProperty().get() );
-				final Optional< ToIdConverter > toIdConverter = sourceInfo.toIdConverter( source );
-				final Optional< FragmentSegmentAssignmentState > assignmentOptional = sourceInfo.assignment( source );
+				final AbstractSourceState< ?, ? > currentSourceState = sourceInfo.getState( source );
+				if ( !( currentSourceState instanceof LabelSourceState< ?, ? > ) )
+				{
+					LOG.warn( "Not a label source -- cannot select  id." );
+					return;
+				}
+				final LabelSourceState< ?, ? > state = ( LabelSourceState< ?, ? > ) currentSourceState;
+				final Optional< SelectedIds > selectedIds = Optional.ofNullable( state.selectedIds() );
+				final Optional< ToIdConverter > toIdConverter = Optional.ofNullable( state.toIdConverter() );
+				final Optional< FragmentSegmentAssignmentState > assignmentOptional = Optional.ofNullable( state.assignment() );
 				if ( toIdConverter.isPresent() && selectedIds.isPresent() && assignmentOptional.isPresent() )
 				{
 					synchronized ( viewer )
@@ -189,9 +205,9 @@ public class IdSelector
 						if ( lastSelection == Label.INVALID ) { return; }
 
 						final AffineTransform3D viewerTransform = new AffineTransform3D();
-						final ViewerState state = viewer.getState();
-						state.getViewerTransform( viewerTransform );
-						final int level = state.getBestMipMapLevel( viewerTransform, getIndexOf( source, state ) );
+						final ViewerState viewerState = viewer.getState();
+						viewerState.getViewerTransform( viewerTransform );
+						final int level = viewerState.getBestMipMapLevel( viewerTransform, getIndexOf( source, viewerState ) );
 						final AffineTransform3D affine = new AffineTransform3D();
 						dataSource.getSourceTransform( 0, level, affine );
 						final RealRandomAccess< ? > access = RealViews.transformReal( dataSource.getInterpolatedDataSource( 0, level, Interpolation.NEARESTNEIGHBOR ), affine ).realRandomAccess();
@@ -224,9 +240,16 @@ public class IdSelector
 			if ( source instanceof DataSource< ?, ? > )
 			{
 				final DataSource< ?, ? > dataSource = ( DataSource< ?, ? > ) source;
-				final Optional< SelectedIds > selectedIds = Optional.ofNullable( sourceInfo.getState( source ).selectedIdsProperty().get() );
-				final Optional< ToIdConverter > toIdConverter = sourceInfo.toIdConverter( source );
-				final Optional< ? extends FragmentSegmentAssignmentState > assignmentOptional = sourceInfo.assignment( source );
+				final AbstractSourceState< ?, ? > currentSourceState = sourceInfo.getState( source );
+				if ( !( currentSourceState instanceof LabelSourceState< ?, ? > ) )
+				{
+					LOG.warn( "Not a label source -- cannot select  id." );
+					return;
+				}
+				final LabelSourceState< ?, ? > state = ( LabelSourceState< ?, ? > ) currentSourceState;
+				final Optional< SelectedIds > selectedIds = Optional.ofNullable( state.selectedIds() );
+				final Optional< ToIdConverter > toIdConverter = Optional.ofNullable( state.toIdConverter() );
+				final Optional< FragmentSegmentAssignmentState > assignmentOptional = Optional.ofNullable( state.assignment() );
 				if ( toIdConverter.isPresent() && selectedIds.isPresent() && assignmentOptional.isPresent() )
 				{
 					synchronized ( viewer )
@@ -239,9 +262,9 @@ public class IdSelector
 						if ( lastSelection == Label.INVALID ) { return; }
 
 						final AffineTransform3D viewerTransform = new AffineTransform3D();
-						final ViewerState state = viewer.getState();
-						state.getViewerTransform( viewerTransform );
-						final int level = state.getBestMipMapLevel( viewerTransform, getIndexOf( source, state ) );
+						final ViewerState viewerState = viewer.getState();
+						viewerState.getViewerTransform( viewerTransform );
+						final int level = viewerState.getBestMipMapLevel( viewerTransform, getIndexOf( source, viewerState ) );
 						final AffineTransform3D affine = new AffineTransform3D();
 						dataSource.getSourceTransform( 0, level, affine );
 						final RealTransformRealRandomAccessible< ?, InverseRealTransform > transformedSource = RealViews.transformReal( dataSource.getInterpolatedDataSource( 0, level, Interpolation.NEARESTNEIGHBOR ), affine );
@@ -276,9 +299,16 @@ public class IdSelector
 			if ( source instanceof DataSource< ?, ? > )
 			{
 				final DataSource< ?, ? > dataSource = ( DataSource< ?, ? > ) source;
-				final Optional< SelectedIds > selectedIds = Optional.ofNullable( sourceInfo.getState( source ).selectedIdsProperty().get() );
-				final Optional< ToIdConverter > toIdConverter = sourceInfo.toIdConverter( source );
-				final Optional< ? extends FragmentSegmentAssignmentState > assignmentOptional = sourceInfo.assignment( source );
+				final AbstractSourceState< ?, ? > currentSourceState = sourceInfo.getState( source );
+				if ( !( currentSourceState instanceof LabelSourceState< ?, ? > ) )
+				{
+					LOG.warn( "Not a label source -- cannot select  id." );
+					return;
+				}
+				final LabelSourceState< ?, ? > state = ( LabelSourceState< ?, ? > ) currentSourceState;
+				final Optional< SelectedIds > selectedIds = Optional.ofNullable( state.selectedIds() );
+				final Optional< ToIdConverter > toIdConverter = Optional.ofNullable( state.toIdConverter() );
+				final Optional< FragmentSegmentAssignmentState > assignmentOptional = Optional.ofNullable( state.assignment() );
 				if ( toIdConverter.isPresent() && selectedIds.isPresent() && assignmentOptional.isPresent() )
 				{
 					synchronized ( viewer )
@@ -301,9 +331,9 @@ public class IdSelector
 						}
 
 						final AffineTransform3D viewerTransform = new AffineTransform3D();
-						final ViewerState state = viewer.getState();
-						state.getViewerTransform( viewerTransform );
-						final int level = state.getBestMipMapLevel( viewerTransform, getIndexOf( source, state ) );
+						final ViewerState viewerState = viewer.getState();
+						viewerState.getViewerTransform( viewerTransform );
+						final int level = viewerState.getBestMipMapLevel( viewerTransform, getIndexOf( source, viewerState ) );
 						final AffineTransform3D affine = new AffineTransform3D();
 						dataSource.getSourceTransform( 0, level, affine );
 						final RealTransformRealRandomAccessible< ?, InverseRealTransform > transformedSource = RealViews.transformReal( dataSource.getInterpolatedDataSource( 0, level, Interpolation.NEARESTNEIGHBOR ), affine );

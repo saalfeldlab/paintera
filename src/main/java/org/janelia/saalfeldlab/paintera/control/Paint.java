@@ -12,7 +12,6 @@ import java.util.function.Supplier;
 import org.janelia.saalfeldlab.fx.event.EventFX;
 import org.janelia.saalfeldlab.fx.event.InstallAndRemove;
 import org.janelia.saalfeldlab.fx.event.KeyTracker;
-import org.janelia.saalfeldlab.paintera.SourceInfo;
 import org.janelia.saalfeldlab.paintera.control.paint.FloodFill;
 import org.janelia.saalfeldlab.paintera.control.paint.Paint2D;
 import org.janelia.saalfeldlab.paintera.control.paint.RestrictPainting;
@@ -20,7 +19,10 @@ import org.janelia.saalfeldlab.paintera.control.paint.SelectNextId;
 import org.janelia.saalfeldlab.paintera.control.selection.SelectedIds;
 import org.janelia.saalfeldlab.paintera.data.mask.CannotPersist;
 import org.janelia.saalfeldlab.paintera.data.mask.MaskedSource;
+import org.janelia.saalfeldlab.paintera.state.AbstractSourceState;
 import org.janelia.saalfeldlab.paintera.state.GlobalTransformManager;
+import org.janelia.saalfeldlab.paintera.state.LabelSourceState;
+import org.janelia.saalfeldlab.paintera.state.SourceInfo;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -94,7 +96,7 @@ public class Paint implements ToOnEnterOnExit
 					paint2D.brushRadiusIncrementProperty().bindBidirectional( this.brushRadiusIncrement );
 					final ObjectProperty< Source< ? > > currentSource = sourceInfo.currentSourceProperty();
 					final ObjectBinding< SelectedIds > currentSelectedIds = Bindings.createObjectBinding(
-							() -> sourceInfo.getState( currentSource.get() ).selectedIdsProperty().get(),
+							() -> selectedIdsFromState( sourceInfo.getState( currentSource.get() ) ),
 							currentSource );
 
 					final Supplier< Long > paintSelection = () -> {
@@ -189,6 +191,13 @@ public class Paint implements ToOnEnterOnExit
 				} );
 			}
 		};
+	}
+
+	public SelectedIds selectedIdsFromState( final AbstractSourceState< ?, ? > state )
+	{
+		return state instanceof LabelSourceState< ?, ? >
+				? ( ( LabelSourceState< ?, ? > ) state ).selectedIds()
+				: null;
 	}
 
 }

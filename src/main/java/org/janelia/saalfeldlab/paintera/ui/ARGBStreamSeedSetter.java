@@ -7,9 +7,10 @@ import java.util.function.LongUnaryOperator;
 
 import org.janelia.saalfeldlab.fx.event.KeyTracker;
 import org.janelia.saalfeldlab.fx.ortho.OnEnterOnExit;
-import org.janelia.saalfeldlab.paintera.SourceInfo;
-import org.janelia.saalfeldlab.paintera.stream.ARGBStream;
+import org.janelia.saalfeldlab.paintera.state.LabelSourceState;
+import org.janelia.saalfeldlab.paintera.state.SourceInfo;
 import org.janelia.saalfeldlab.paintera.stream.AbstractHighlightingARGBStream;
+import org.janelia.saalfeldlab.paintera.stream.HighlightingStreamConverter;
 
 import bdv.fx.viewer.ViewerPanelFX;
 import bdv.viewer.Source;
@@ -19,6 +20,8 @@ import javafx.scene.control.Dialog;
 import javafx.scene.control.Spinner;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyEvent;
+import net.imglib2.converter.Converter;
+import net.imglib2.type.numeric.ARGBType;
 
 public class ARGBStreamSeedSetter
 {
@@ -43,9 +46,15 @@ public class ARGBStreamSeedSetter
 			{
 				final EventHandler< KeyEvent > handler = event -> {
 					final Source< ? > source = sourceInfo.currentSourceProperty().get();
-					if ( source != null && sourceInfo.getState( source ).visibleProperty().get() )
+					if ( source != null && sourceInfo.getState( source ).isVisibleProperty().get() && sourceInfo.getState( source ) instanceof LabelSourceState< ?, ? > )
 					{
-						final Optional< ARGBStream > currentStream = Optional.ofNullable( sourceInfo.getState( source ).streamProperty().get() );
+						final LabelSourceState< ?, ? > state = ( LabelSourceState< ?, ? > ) sourceInfo.getState( source );
+						final Converter< ?, ARGBType > converter = state.getSourceAndConverter().getConverter();
+						final Optional< AbstractHighlightingARGBStream > currentStream = Optional.ofNullable(
+								converter instanceof HighlightingStreamConverter< ? >
+										? ( ( HighlightingStreamConverter< ? > ) converter ).getStream()
+										: null );
+
 						if ( keyTracker.areOnlyTheseKeysDown( KeyCode.C ) )
 						{
 							changeStream( currentStream, seed -> seed + 1, sourceInfo, source );
@@ -92,11 +101,11 @@ public class ARGBStreamSeedSetter
 		return new OnEnterOnExit( onEnter(), onExit() );
 	}
 
-	private static boolean changeStream( final Optional< ARGBStream > currentStream, final LongUnaryOperator seedUpdate, final SourceInfo sourceInfo, final Source< ? > source )
+	private static boolean changeStream( final Optional< AbstractHighlightingARGBStream > currentStream, final LongUnaryOperator seedUpdate, final SourceInfo sourceInfo, final Source< ? > source )
 	{
-		if ( currentStream.isPresent() && currentStream.get() instanceof AbstractHighlightingARGBStream )
+		if ( currentStream.isPresent() )
 		{
-			final AbstractHighlightingARGBStream stream = ( AbstractHighlightingARGBStream ) currentStream.get();
+			final AbstractHighlightingARGBStream stream = currentStream.get();
 			final long seed = stream.getSeed();
 			final long currentSeed = seedUpdate.applyAsLong( seed );
 			if ( currentSeed != seed )

@@ -12,12 +12,10 @@ import java.util.Optional;
 import java.util.concurrent.ExecutorService;
 import java.util.stream.Collectors;
 
-import org.janelia.saalfeldlab.paintera.SourceState;
 import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignmentState;
 import org.janelia.saalfeldlab.paintera.control.assignment.FragmentsInSelectedSegments;
 import org.janelia.saalfeldlab.paintera.data.DataSource;
 import org.janelia.saalfeldlab.paintera.meshes.MeshGenerator.ShapeKey;
-import org.janelia.saalfeldlab.paintera.stream.ARGBStream;
 import org.janelia.saalfeldlab.paintera.stream.AbstractHighlightingARGBStream;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -45,7 +43,13 @@ public class MeshManagerWithAssignment implements MeshManager
 
 	private final DataSource< ?, ? > source;
 
-	private final SourceState< ?, ? > state;
+	private final InterruptibleFunction< Long, Interval[] >[] blockListCache;
+
+	private final InterruptibleFunction< ShapeKey, Pair< float[], float[] > >[] meshCache;
+
+	private final FragmentSegmentAssignmentState assignment;
+
+	private final AbstractHighlightingARGBStream stream;
 
 	private final Map< Long, MeshGenerator > neurons = Collections.synchronizedMap( new HashMap<>() );
 
@@ -67,9 +71,12 @@ public class MeshManagerWithAssignment implements MeshManager
 
 	public MeshManagerWithAssignment(
 			final DataSource< ?, ? > source,
-			final SourceState< ?, ? > state,
+			final InterruptibleFunction< Long, Interval[] >[] blockListCache,
+			final InterruptibleFunction< ShapeKey, Pair< float[], float[] > >[] meshCache,
 			final Group root,
+			final FragmentSegmentAssignmentState assignment,
 			final FragmentsInSelectedSegments fragmentsInSelectedSegments,
+			final AbstractHighlightingARGBStream stream,
 			final ObservableIntegerValue meshSimplificationIterations,
 			final ObservableDoubleValue smoothingLambda,
 			final ObservableIntegerValue smooothingIterations,
@@ -78,9 +85,12 @@ public class MeshManagerWithAssignment implements MeshManager
 	{
 		super();
 		this.source = source;
-		this.state = state;
+		this.blockListCache = blockListCache;
+		this.meshCache = meshCache;
 		this.root = root;
+		this.assignment = assignment;
 		this.fragmentsInSelectedSegments = fragmentsInSelectedSegments;
+		this.stream = stream;
 
 		this.meshSimplificationIterations.set( Math.max( meshSimplificationIterations.get(), 0 ) );
 		meshSimplificationIterations.addListener( ( obs, oldv, newv ) -> {
@@ -126,24 +136,9 @@ public class MeshManagerWithAssignment implements MeshManager
 
 	private void generateMesh( final DataSource< ?, ? > source, final long id )
 	{
-		final FragmentSegmentAssignmentState assignment = state.assignmentProperty().get();
-		if ( assignment == null )
-			return;
-
-		final ARGBStream streams = state.streamProperty().get();
-
-		if ( streams == null || !( streams instanceof AbstractHighlightingARGBStream ) )
-			return;
-
-		final AbstractHighlightingARGBStream stream = ( AbstractHighlightingARGBStream ) streams;
 		final IntegerProperty color = new SimpleIntegerProperty( stream.argb( id ) );
 		stream.addListener( obs -> color.set( stream.argb( id ) ) );
 		assignment.addListener( obs -> color.set( stream.argb( id ) ) );
-
-		final InterruptibleFunction< Long, Interval[] >[] blockListCache = state.blocklistCacheProperty().get();
-		final InterruptibleFunction< ShapeKey, Pair< float[], float[] > >[] meshCache = state.meshesCacheProperty().get();
-		if ( meshCache == null || blockListCache == null )
-			return;
 
 		for ( final MeshGenerator neuron : neurons.values() )
 			if ( neuron.getId() == id )
@@ -222,6 +217,18 @@ public class MeshManagerWithAssignment implements MeshManager
 	{
 
 		return smoothingIterations;
+	}
+
+	@Override
+	public InterruptibleFunction< Long, Interval[] >[] blockListCache()
+	{
+		return this.blockListCache;
+	}
+
+	@Override
+	public InterruptibleFunction< ShapeKey, Pair< float[], float[] > >[] meshCache()
+	{
+		return this.meshCache;
 	}
 
 }

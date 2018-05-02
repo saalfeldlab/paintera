@@ -1,4 +1,4 @@
-package org.janelia.saalfeldlab.paintera;
+package org.janelia.saalfeldlab.paintera.state;
 
 import java.util.function.LongFunction;
 

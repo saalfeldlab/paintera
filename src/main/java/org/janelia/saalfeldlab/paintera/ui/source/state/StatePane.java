@@ -5,8 +5,9 @@ import java.util.Arrays;
 import java.util.Optional;
 import java.util.function.Consumer;
 
-import org.janelia.saalfeldlab.paintera.SourceInfo;
-import org.janelia.saalfeldlab.paintera.SourceState;
+import org.janelia.saalfeldlab.paintera.state.AbstractSourceState;
+import org.janelia.saalfeldlab.paintera.state.LabelSourceState;
+import org.janelia.saalfeldlab.paintera.state.SourceInfo;
 import org.janelia.saalfeldlab.paintera.ui.BindUnbindAndNodeSupplier;
 import org.janelia.saalfeldlab.paintera.ui.CloseButton;
 import org.janelia.saalfeldlab.paintera.ui.source.composite.CompositePane;
@@ -38,7 +39,7 @@ public class StatePane implements BindUnbindAndNodeSupplier
 
 	private static final Logger LOG = LoggerFactory.getLogger( MethodHandles.lookup().lookupClass() );
 
-	private final SourceState< ?, ? > state;
+	private final AbstractSourceState< ?, ? > state;
 
 	private final SourceInfo sourceInfo;
 
@@ -53,7 +54,7 @@ public class StatePane implements BindUnbindAndNodeSupplier
 	private final BooleanProperty isVisible = new SimpleBooleanProperty();
 
 	public StatePane(
-			final SourceState< ?, ? > state,
+			final AbstractSourceState< ?, ? > state,
 			final SourceInfo sourceInfo,
 			final Consumer< Source< ? > > remove,
 			final ObservableDoubleValue width )
@@ -63,8 +64,8 @@ public class StatePane implements BindUnbindAndNodeSupplier
 		this.sourceInfo = sourceInfo;
 		this.children = new BindUnbindAndNodeSupplier[] {
 				new CompositePane( state.compositeProperty() ),
-				new ConverterPane( state.converterProperty().get() ),
-				meshPane( state )
+				new ConverterPane( state.getConverter() ),
+				state instanceof LabelSourceState< ?, ? > ? meshPane( ( LabelSourceState< ?, ? > ) state ) : BindUnbindAndNodeSupplier.empty()
 		};
 
 		final VBox contents = new VBox( Arrays.stream( this.children ).map( c -> c.get() ).toArray( Node[]::new ) );
@@ -76,7 +77,7 @@ public class StatePane implements BindUnbindAndNodeSupplier
 
 		// create graphics for titled pane
 		final Node closeButton = CloseButton.create( 8 );
-		closeButton.setOnMousePressed( event -> remove.accept( state.dataSourceProperty().get() ) );
+		closeButton.setOnMousePressed( event -> remove.accept( state.getDataSource() ) );
 		final Label sourceElementLabel = new Label( state.nameProperty().get(), closeButton );
 		sourceElementLabel.textProperty().bind( this.name );
 		sourceElementLabel.setOnMouseClicked( event -> {
@@ -118,8 +119,8 @@ public class StatePane implements BindUnbindAndNodeSupplier
 	public void bind()
 	{
 		this.name.bindBidirectional( state.nameProperty() );
-		this.isVisible.bindBidirectional( state.visibleProperty() );
-		this.isCurrentSource.bind( sourceInfo.isCurrentSource( state.dataSourceProperty().get() ) );
+		this.isVisible.bindBidirectional( state.isVisibleProperty() );
+		this.isCurrentSource.bind( sourceInfo.isCurrentSource( state.getDataSource() ) );
 		Arrays.stream( children ).forEach( BindUnbindAndNodeSupplier::bind );
 	}
 
@@ -127,7 +128,7 @@ public class StatePane implements BindUnbindAndNodeSupplier
 	public void unbind()
 	{
 		this.name.unbindBidirectional( state.nameProperty() );
-		this.isVisible.unbindBidirectional( state.visibleProperty() );
+		this.isVisible.unbindBidirectional( state.isVisibleProperty() );
 		this.isCurrentSource.unbind();
 		Arrays.stream( children ).forEach( BindUnbindAndNodeSupplier::unbind );
 	}
@@ -142,14 +143,14 @@ public class StatePane implements BindUnbindAndNodeSupplier
 		return tp;
 	}
 
-	private static BindUnbindAndNodeSupplier meshPane( final SourceState< ?, ? > state )
+	private static BindUnbindAndNodeSupplier meshPane( final LabelSourceState< ?, ? > state )
 	{
-		LOG.debug( "Creating mesh pane for source {} from {} and {}: ", state.nameProperty().get(), state.meshManagerProperty(), state.meshInfosProperty() );
-		if ( state.meshManagerProperty().get() != null && state.meshInfosProperty().get() != null )
+		LOG.debug( "Creating mesh pane for source {} from {} and {}: ", state.nameProperty().get(), state.meshManager(), state.meshInfos() );
+		if ( state.meshManager() != null && state.meshInfos() != null )
 			return new MeshPane(
-					state.meshManagerProperty().get(),
-					state.meshInfosProperty().get(),
-					state.dataSourceProperty().get().getNumMipmapLevels() );
+					state.meshManager(),
+					state.meshInfos(),
+					state.getDataSource().getNumMipmapLevels() );
 		return BindUnbindAndNodeSupplier.empty();
 	}
 

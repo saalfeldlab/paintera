@@ -5,10 +5,12 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import org.janelia.saalfeldlab.fx.ui.NumericSliderWithField;
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread;
-import org.janelia.saalfeldlab.paintera.SourceState;
+import org.janelia.saalfeldlab.paintera.meshes.InterruptibleFunction;
+import org.janelia.saalfeldlab.paintera.meshes.MeshGenerator.ShapeKey;
 import org.janelia.saalfeldlab.paintera.meshes.MeshInfo;
 import org.janelia.saalfeldlab.paintera.meshes.MeshInfos;
 import org.janelia.saalfeldlab.paintera.meshes.MeshManager;
@@ -27,6 +29,8 @@ import javafx.scene.control.TitledPane;
 import javafx.scene.control.Tooltip;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.VBox;
+import net.imglib2.Interval;
+import net.imglib2.util.Pair;
 
 public class MeshPane implements BindUnbindAndNodeSupplier, ListChangeListener< MeshInfo >
 {
@@ -132,12 +136,18 @@ public class MeshPane implements BindUnbindAndNodeSupplier, ListChangeListener< 
 			{
 				final ExportResult parameters = result.get();
 
-				final SourceState< ?, ? >[] states = new SourceState< ?, ? >[ meshInfos.readOnlyInfos().size() ];
-				for ( int i = 0; i < meshInfos.readOnlyInfos().size(); i++ )
-				{
-					states[ i ] = meshInfos.readOnlyInfos().get( i ).state();
-				}
-				parameters.getMeshExporter().exportMesh( states, parameters.getSegmentId(), parameters.getScale(), parameters.getFilePaths() );
+				@SuppressWarnings( "unchecked" )
+				final InterruptibleFunction< Long, Interval[] >[][] blockListCaches = Stream
+						.generate( manager::blockListCache )
+						.limit( meshInfos.readOnlyInfos().size() )
+						.toArray( InterruptibleFunction[][]::new );
+
+				final InterruptibleFunction< ShapeKey, Pair< float[], float[] > >[][] meshCaches = Stream
+						.generate( manager::meshCache )
+						.limit( meshInfos.readOnlyInfos().size() )
+						.toArray( InterruptibleFunction[][]::new );
+
+				parameters.getMeshExporter().exportMesh( blockListCaches, meshCaches, parameters.getSegmentId(), parameters.getScale(), parameters.getFilePaths() );
 			}
 		} );
 		InvokeOnJavaFXApplicationThread.invoke( () -> {
