@@ -11,6 +11,8 @@ import org.janelia.saalfeldlab.n5.N5FSWriter;
 import org.janelia.saalfeldlab.n5.N5Writer;
 import org.janelia.saalfeldlab.n5.googlecloud.N5GoogleCloudStorageWriter;
 import org.janelia.saalfeldlab.n5.hdf5.N5HDF5Writer;
+import org.janelia.saalfeldlab.paintera.n5.N5FSMeta;
+import org.janelia.saalfeldlab.paintera.n5.N5HDF5Meta;
 import org.janelia.saalfeldlab.paintera.ui.opendialog.googlecloud.GoogleCloudBrowseHandler;
 import org.janelia.saalfeldlab.paintera.ui.opendialog.googlecloud.StorageAndBucket;
 import org.janelia.saalfeldlab.util.MakeUnchecked;
@@ -85,7 +87,7 @@ public class N5BackendDialogs
 					.map( File::getAbsolutePath )
 					.ifPresent( root::set );
 		};
-		return new GenericBackendDialogN5( rootField, onClick, "N5", writerSupplier, propagationExecutor );
+		return new GenericBackendDialogN5( rootField, onClick, "N5", writerSupplier, propagationExecutor, dataset -> new N5FSMeta( root.get(), dataset ) );
 	}
 
 	public static GenericBackendDialogN5 hdf5(
@@ -102,6 +104,10 @@ public class N5BackendDialogs
 		final FileChooser fileChooser = new FileChooser();
 		fileChooser.getExtensionFilters().setAll( new ExtensionFilter( "h5", H5_EXTENSIONS ) );
 
+		final int[] defaultBlockSize = { 16, 16, 16 };
+
+		final boolean overrideBlockSize = false;
+
 		final Consumer< Event > onClick = event -> {
 			fileChooser.setInitialDirectory( Optional
 					.ofNullable( root.get() )
@@ -114,7 +120,7 @@ public class N5BackendDialogs
 			{
 				root.set( updatedRoot.getAbsolutePath() );
 				// TODO what to do with block size?
-				writerSupplier.set( MakeUnchecked.unchecked( () -> new N5HDF5Writer( root.get(), 16, 16, 16 ) ) );
+				writerSupplier.set( MakeUnchecked.unchecked( () -> new N5HDF5Writer( root.get(), defaultBlockSize ) ) );
 			}
 			Optional
 					.ofNullable( updatedRoot )
@@ -123,7 +129,7 @@ public class N5BackendDialogs
 					.map( File::getAbsolutePath )
 					.ifPresent( root::set );
 		};
-		return new GenericBackendDialogN5( rootField, onClick, "HDF5", writerSupplier, propagationExecutor );
+		return new GenericBackendDialogN5( rootField, onClick, "HDF5", writerSupplier, propagationExecutor, ds -> new N5HDF5Meta( root.get(), ds, defaultBlockSize, overrideBlockSize ) );
 	}
 
 	public static GenericBackendDialogN5 googleCloud(
@@ -183,7 +189,7 @@ public class N5BackendDialogs
 			}
 		};
 
-		return new GenericBackendDialogN5( grid, onClick, "google", writerSupplier, propagationExecutor );
+		return new GenericBackendDialogN5( grid, onClick, "google", writerSupplier, propagationExecutor, ds -> null );
 	}
 
 }

@@ -188,6 +188,12 @@ public class SourceInfo
 	}
 
 	public synchronized < D extends Type< D >, T extends Type< T > > void addState(
+			final SourceState< D, T > state )
+	{
+		addState( state.getDataSource(), state );
+	}
+
+	public synchronized < D extends Type< D >, T extends Type< T > > void addState(
 			final Source< T > source,
 			final SourceState< D, T > state )
 	{

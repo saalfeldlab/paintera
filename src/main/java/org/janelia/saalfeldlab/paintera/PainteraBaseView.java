@@ -38,10 +38,11 @@ import org.janelia.saalfeldlab.paintera.meshes.MeshManager;
 import org.janelia.saalfeldlab.paintera.meshes.MeshManagerWithAssignment;
 import org.janelia.saalfeldlab.paintera.meshes.cache.CacheUtils;
 import org.janelia.saalfeldlab.paintera.meshes.cache.UniqueLabelListLabelMultisetCacheLoader;
-import org.janelia.saalfeldlab.paintera.state.SourceState;
 import org.janelia.saalfeldlab.paintera.state.GlobalTransformManager;
 import org.janelia.saalfeldlab.paintera.state.LabelSourceState;
 import org.janelia.saalfeldlab.paintera.state.SourceInfo;
+import org.janelia.saalfeldlab.paintera.state.SourceState;
+import org.janelia.saalfeldlab.paintera.stream.AbstractHighlightingARGBStream;
 import org.janelia.saalfeldlab.paintera.stream.HighlightingStreamConverter;
 import org.janelia.saalfeldlab.paintera.stream.ModalGoldenAngleSaturatedHighlightingARGBStream;
 import org.janelia.saalfeldlab.paintera.viewer3d.Viewer3DFX;
@@ -229,17 +230,10 @@ public class PainteraBaseView
 		{
 			source = DataSource.createN5Source( name, n5, dataset, resolution, offset, getQueue(), 0 );
 		}
-		addRawSource( source, min, max, color );
+		final Object meta = N5Helpers.metaData( n5, dataset ); // generate from
+																// n5
+		addRawSource( source, min, max, color, meta );
 		return Optional.of( source );
-	}
-
-	public < T extends RealType< T >, U extends RealType< U > > void addRawSource(
-			final DataSource< T, U > spec,
-			final double min,
-			final double max,
-			final Color color )
-	{
-		addRawSource( spec, min, max, color, null );
 	}
 
 	public < T extends RealType< T >, U extends RealType< U > > void addRawSource(
@@ -250,15 +244,6 @@ public class PainteraBaseView
 			final Object metaData )
 	{
 		addRawSource( spec, min, max, Colors.toARGBType( color ), metaData );
-	}
-
-	public < T extends RealType< T >, U extends RealType< U > > void addRawSource(
-			final DataSource< T, U > spec,
-			final double min,
-			final double max,
-			final ARGBType color )
-	{
-		addRawSource( spec, min, max, color, null );
 	}
 
 	public < T extends RealType< T >, U extends RealType< U > > void addRawSource(
@@ -318,13 +303,16 @@ public class PainteraBaseView
 				i -> new NearestNeighborInterpolatorFactory<>(),
 				dataset );
 
+		// create from n5
+		final Object meta = null;
 		addLabelSource(
 				labelSource,
 				N5Helpers.assignments( n5, dataset ),
 				N5Helpers.idService( n5, dataset ),
 				ToIdConverter.fromLabelMultisetType(),
 				null,
-				null );
+				null,
+				meta );
 
 		@SuppressWarnings( "unchecked" )
 		final DataSource< D, T > returnedSource = ( DataSource< D, T > ) labelSource;
@@ -334,18 +322,20 @@ public class PainteraBaseView
 	public < D extends Type< D >, T extends Type< T > > void addLabelSource(
 			final DataSource< D, T > source,
 			final FragmentSegmentAssignmentState assignment,
-			final ToIdConverter toIdConverter )
+			final ToIdConverter toIdConverter,
+			final Object meta )
 	{
-		addLabelSource( source, assignment, null, toIdConverter, null, null, equalsMaskForType( source.getDataType() ) );
+		addLabelSource( source, assignment, null, toIdConverter, null, null, equalsMaskForType( source.getDataType() ), meta );
 	}
 
 	public < D extends Type< D >, T extends Type< T > > void addLabelSource(
 			final DataSource< D, T > source,
 			final FragmentSegmentAssignmentState assignment,
 			final ToIdConverter toIdConverter,
-			final LongFunction< Converter< D, BoolType > > equalsMask )
+			final LongFunction< Converter< D, BoolType > > equalsMask,
+			final Object meta )
 	{
-		addLabelSource( source, assignment, null, toIdConverter, null, null, equalsMask );
+		addLabelSource( source, assignment, null, toIdConverter, null, null, equalsMask, meta );
 	}
 
 	public < D extends Type< D >, T extends Type< T > > void addLabelSource(
@@ -354,9 +344,10 @@ public class PainteraBaseView
 			final IdService idService,
 			final ToIdConverter toIdConverter,
 			final InterruptibleFunction< Long, Interval[] >[] blocksThatContainId,
-			final InterruptibleFunction< ShapeKey, Pair< float[], float[] > >[] meshCache )
+			final InterruptibleFunction< ShapeKey, Pair< float[], float[] > >[] meshCache,
+			final Object meta )
 	{
-		addLabelSource( source, assignment, idService, toIdConverter, blocksThatContainId, meshCache, equalsMaskForType( source.getDataType() ) );
+		addLabelSource( source, assignment, idService, toIdConverter, blocksThatContainId, meshCache, equalsMaskForType( source.getDataType() ), meta );
 	}
 
 	public < D extends Type< D >, T extends Type< T > > void addLabelSource(
@@ -366,7 +357,8 @@ public class PainteraBaseView
 			final ToIdConverter toIdConverter,
 			InterruptibleFunction< Long, Interval[] >[] blocksThatContainId,
 			InterruptibleFunction< ShapeKey, Pair< float[], float[] > >[] meshCache,
-			final LongFunction< Converter< D, BoolType > > equalsMask )
+			final LongFunction< Converter< D, BoolType > > equalsMask,
+			final Object meta )
 	{
 		final SelectedIds selId = new SelectedIds();
 		final ModalGoldenAngleSaturatedHighlightingARGBStream stream = new ModalGoldenAngleSaturatedHighlightingARGBStream( selId, assignment );
@@ -381,7 +373,7 @@ public class PainteraBaseView
 		final FragmentsInSelectedSegments fragmentsInSelection = new FragmentsInSelectedSegments( selectedSegments, assignment );
 
 		blocksThatContainId = blocksThatContainId == null
-				? generateLabelBlocksForLabelCache( source, scaleFactorsFromAffineTransforms( source ), generalPurposeExecutorService )
+				? generateLabelBlocksForLabelCache( source, scaleFactorsFromAffineTransforms( source ) )
 				: blocksThatContainId;
 
 		meshCache = meshCache == null
@@ -412,7 +404,7 @@ public class PainteraBaseView
 				source,
 				converter,
 				comp,
-				null,
+				meta,
 				equalsMask,
 				assignment,
 				toIdConverter,
@@ -424,8 +416,24 @@ public class PainteraBaseView
 		orthogonalViews().applyToAll( vp -> assignment.addListener( obs -> vp.requestRepaint() ) );
 		orthogonalViews().applyToAll( vp -> selId.addListener( obs -> vp.requestRepaint() ) );
 
-		sourceInfo.addState( source, state );
+		addLabelSource( state );
 
+	}
+
+	public < D extends Type< D >, T extends Type< T > > void addLabelSource(
+			final LabelSourceState< D, T > state )
+	{
+		final Converter< T, ARGBType > converter = state.converter();
+		if ( converter instanceof HighlightingStreamConverter< ? > )
+		{
+			final AbstractHighlightingARGBStream stream = ( ( HighlightingStreamConverter< ? > ) converter ).getStream();
+			stream.addListener( obs -> orthogonalViews().requestRepaint() );
+		}
+
+		orthogonalViews().applyToAll( vp -> state.assignment().addListener( obs -> vp.requestRepaint() ) );
+		orthogonalViews().applyToAll( vp -> state.selectedIds().addListener( obs -> vp.requestRepaint() ) );
+
+		sourceInfo.addState( state.getDataSource(), state );
 	}
 
 	@SuppressWarnings( { "unchecked", "rawtypes" } )
@@ -460,10 +468,9 @@ public class PainteraBaseView
 		return this.generalPurposeExecutorService;
 	}
 
-	private static < D extends Type< D >, T extends Type< T > > InterruptibleFunction< Long, Interval[] >[] generateLabelBlocksForLabelCache(
+	public static < D extends Type< D >, T extends Type< T > > InterruptibleFunction< Long, Interval[] >[] generateLabelBlocksForLabelCache(
 			final DataSource< D, T > spec,
-			final double[][] scalingFactors,
-			final ExecutorService es )
+			final double[][] scalingFactors )
 	{
 		final boolean isMaskedSource = spec instanceof MaskedSource< ?, ? >;
 		final boolean isLabelMultisetType = spec.getDataType() instanceof LabelMultisetType;
@@ -476,17 +483,16 @@ public class PainteraBaseView
 			@SuppressWarnings( "unchecked" )
 			final DataSource< LabelMultisetType, T > source =
 					( DataSource< LabelMultisetType, T > ) ( isMaskedSource ? ( ( MaskedSource< ?, ? > ) spec ).underlyingSource() : spec );
-			return generateBlocksForLabelCacheLabelMultisetTypeCachedImg( source, scalingFactors, es );
+			return generateBlocksForLabelCacheLabelMultisetTypeCachedImg( source, scalingFactors );
 		}
 
-		return generateLabelBlocksForLabelCacheGeneric( spec, scalingFactors, collectLabels( spec.getDataType() ), es );
+		return generateLabelBlocksForLabelCacheGeneric( spec, scalingFactors, collectLabels( spec.getDataType() ) );
 	}
 
 	private static < D extends Type< D >, T extends Type< T > > InterruptibleFunction< Long, Interval[] >[] generateLabelBlocksForLabelCacheGeneric(
 			final DataSource< D, T > spec,
 			final double[][] scalingFactors,
-			final BiConsumer< D, TLongHashSet > collectLabels,
-			final ExecutorService es )
+			final BiConsumer< D, TLongHashSet > collectLabels )
 	{
 
 		final int[][] blockSizes = Stream.generate( () -> new int[] { 64, 64, 64 } ).limit( spec.getNumMipmapLevels() ).toArray( int[][]::new );
@@ -502,8 +508,7 @@ public class PainteraBaseView
 				uniqueLabelLoaders,
 				blockSizes,
 				scalingFactors,
-				CacheUtils::toCacheSoftRefLoaderCache,
-				es );
+				CacheUtils::toCacheSoftRefLoaderCache );
 
 		return blocksForLabelCache;
 
@@ -511,8 +516,7 @@ public class PainteraBaseView
 
 	private static < T extends Type< T > > InterruptibleFunction< Long, Interval[] >[] generateBlocksForLabelCacheLabelMultisetTypeCachedImg(
 			final DataSource< LabelMultisetType, T > spec,
-			final double[][] scalingFactors,
-			final ExecutorService es )
+			final double[][] scalingFactors )
 	{
 		@SuppressWarnings( "unchecked" )
 		final InterruptibleFunction< HashWrapper< long[] >, long[] >[] uniqueLabelLoaders = new InterruptibleFunction[ spec.getNumMipmapLevels() ];
@@ -537,8 +541,7 @@ public class PainteraBaseView
 				uniqueLabelLoaders,
 				blockSizes,
 				scalingFactors,
-				CacheUtils::toCacheSoftRefLoaderCache,
-				es );
+				CacheUtils::toCacheSoftRefLoaderCache );
 
 		return blocksForLabelCache;
 	}

@@ -60,4 +60,9 @@ public interface BackendDialog
 
 	public String identifier();
 
+	public default Object metaData()
+	{
+		return null;
+	}
+
 }

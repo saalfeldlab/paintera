@@ -12,6 +12,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
+import java.util.function.Function;
 import java.util.function.Supplier;
 import java.util.stream.DoubleStream;
 
@@ -131,6 +132,8 @@ public class GenericBackendDialogN5 implements SourceFromRAI
 
 	private final ExecutorService propagationExecutor;
 
+	private final Function< String, Object > metaDataFromDataset;
+
 	private final BooleanBinding isReady = isN5Valid
 			.and( isDatasetValid )
 			.and( datasetUpdateFailed.not() );
@@ -163,9 +166,10 @@ public class GenericBackendDialogN5 implements SourceFromRAI
 			final Consumer< Event > onBrowseClicked,
 			final String identifier,
 			final ObservableValue< Supplier< N5Writer > > writerSupplier,
-			final ExecutorService propagationExecutor )
+			final ExecutorService propagationExecutor,
+			final Function< String, Object > metaDataFromDataset )
 	{
-		this( "dataset", n5RootNode, onBrowseClicked, identifier, writerSupplier, propagationExecutor );
+		this( "dataset", n5RootNode, onBrowseClicked, identifier, writerSupplier, propagationExecutor, metaDataFromDataset );
 	}
 
 	public GenericBackendDialogN5(
@@ -174,11 +178,13 @@ public class GenericBackendDialogN5 implements SourceFromRAI
 			final Consumer< Event > onBrowseClicked,
 			final String identifier,
 			final ObservableValue< Supplier< N5Writer > > writerSupplier,
-			final ExecutorService propagationExecutor )
+			final ExecutorService propagationExecutor,
+			final Function< String, Object > metaDataFromDataset )
 	{
 		this.identifier = identifier;
 		this.node = initializeNode( n5RootNode, datasetPrompt, onBrowseClicked );
 		this.propagationExecutor = propagationExecutor;
+		this.metaDataFromDataset = metaDataFromDataset;
 		n5Supplier.bind( writerSupplier );
 		n5.addListener( ( obs, oldv, newv ) -> {
 			LOG.debug( "Updated n5: obs={} oldv={} newv={}", obs, oldv, newv );
@@ -845,6 +851,12 @@ public class GenericBackendDialogN5 implements SourceFromRAI
 	public double[] asPrimitiveArray( final DoubleProperty[] data )
 	{
 		return Arrays.stream( data ).mapToDouble( DoubleProperty::get ).toArray();
+	}
+
+	@Override
+	public Object metaData()
+	{
+		return this.metaDataFromDataset.apply( dataset.get() );
 	}
 
 }

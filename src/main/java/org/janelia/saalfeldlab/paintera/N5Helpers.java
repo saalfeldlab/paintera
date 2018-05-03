@@ -32,6 +32,8 @@ import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssign
 import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignmentState;
 import org.janelia.saalfeldlab.paintera.id.IdService;
 import org.janelia.saalfeldlab.paintera.id.N5IdService;
+import org.janelia.saalfeldlab.paintera.n5.N5FSMeta;
+import org.janelia.saalfeldlab.paintera.n5.N5HDF5Meta;
 import org.janelia.saalfeldlab.paintera.ui.opendialog.VolatileHelpers;
 import org.janelia.saalfeldlab.util.MakeUnchecked;
 import org.janelia.saalfeldlab.util.MakeUnchecked.CheckedConsumer;
@@ -82,6 +84,10 @@ public class N5Helpers
 	public static final String OFFSET_KEY = "offset";
 
 	public static final String DOWNSAMPLING_FACTORS_KEY = "downsamplingFactors";
+
+	public static final String LABEL_MULTISETTYPE_KEY = "isLabelMultiset";
+
+	public static final String MAX_NUM_ENTRIES_KEY = "maxNumEntries";
 
 	private static final Logger LOG = LoggerFactory.getLogger( MethodHandles.lookup().lookupClass() );
 
@@ -242,6 +248,27 @@ public class N5Helpers
 		return isHDF( base ) ? new N5HDF5Writer( base, defaultCellDimensions ) : new N5FSWriter( base, gsonBuilder );
 	}
 
+	public static Object metaData( final String base, final String dataset, final int... defaultCellDimensions )
+	{
+		return isHDF( base ) ? new N5HDF5Meta( base, dataset, defaultCellDimensions, false ) : new N5FSMeta( base, dataset );
+	}
+
+	public static Object metaData( final N5Reader n5, final String dataset )
+	{
+		try
+		{
+			return n5 instanceof N5FSReader
+					? new N5FSMeta( ( N5FSReader ) n5, dataset )
+					: n5 instanceof N5HDF5Reader
+							? new N5HDF5Meta( ( N5HDF5Reader ) n5, dataset )
+							: null;
+		}
+		catch ( IllegalArgumentException | IllegalAccessException | NoSuchFieldException | SecurityException e )
+		{
+			throw new RuntimeException( e );
+		}
+	}
+
 	public static boolean isHDF( final String base )
 	{
 		LOG.debug( "Checking {} for HDF", base );
@@ -361,13 +388,26 @@ public class N5Helpers
 					final SharedQueue sharedQueue,
 					final int priority ) throws IOException
 	{
-		final RandomAccessibleInterval< T > raw = N5Utils.openVolatile( reader, dataset );
-		final RandomAccessibleInterval< V > vraw = VolatileViews.wrapAsVolatile( raw, sharedQueue, new CacheHints( LoadingStrategy.VOLATILE, priority, true ) );
 		final AffineTransform3D transform = new AffineTransform3D();
 		transform.set(
 				resolution[ 0 ], 0, 0, offset[ 0 ],
 				0, resolution[ 1 ], 0, offset[ 1 ],
 				0, 0, resolution[ 2 ], offset[ 2 ] );
+		return openRaw( reader, dataset, transform, sharedQueue, priority );
+
+	}
+
+	public static < T extends NativeType< T >, V extends Volatile< T > > ValueTriple< RandomAccessibleInterval< T >, RandomAccessibleInterval< V >, AffineTransform3D >
+			openRaw(
+					final N5Reader reader,
+					final String dataset,
+					final AffineTransform3D transform,
+					final SharedQueue sharedQueue,
+					final int priority ) throws IOException
+	{
+
+		final RandomAccessibleInterval< T > raw = N5Utils.openVolatile( reader, dataset );
+		final RandomAccessibleInterval< V > vraw = VolatileViews.wrapAsVolatile( raw, sharedQueue, new CacheHints( LoadingStrategy.VOLATILE, priority, true ) );
 		return new ValueTriple<>( raw, vraw, transform );
 	}
 
@@ -397,6 +437,22 @@ public class N5Helpers
 					final SharedQueue sharedQueue,
 					final int priority ) throws IOException
 	{
+		final AffineTransform3D transform = new AffineTransform3D();
+		transform.set(
+				resolution[ 0 ], 0, 0, offset[ 0 ],
+				0, resolution[ 1 ], 0, offset[ 1 ],
+				0, 0, resolution[ 2 ], offset[ 2 ] );
+		return openRawMultiscale( reader, dataset, transform, sharedQueue, priority );
+	}
+
+	public static < T extends NativeType< T >, V extends Volatile< T > > ValueTriple< RandomAccessibleInterval< T >[], RandomAccessibleInterval< V >[], AffineTransform3D[] >
+			openRawMultiscale(
+					final N5Reader reader,
+					final String dataset,
+					final AffineTransform3D transform,
+					final SharedQueue sharedQueue,
+					final int priority ) throws IOException
+	{
 		final String[] scaleDatasets = N5Helpers.listAndSortScaleDatasets( reader, dataset );
 
 		LOG.debug( "Opening directories {} as multi-scale in {}: ", Arrays.toString( scaleDatasets ), dataset );
@@ -407,7 +463,7 @@ public class N5Helpers
 		final RandomAccessibleInterval< V >[] vraw = new RandomAccessibleInterval[ scaleDatasets.length ];
 		final AffineTransform3D[] transforms = new AffineTransform3D[ scaleDatasets.length ];
 		final double[] initialDonwsamplingFactors = getDownsamplingFactors( reader, Paths.get( dataset, scaleDatasets[ 0 ] ).toString() );
-		LOG.debug( "Initial resolution={}", Arrays.toString( resolution ) );
+		LOG.debug( "Initial transform={}", transform );
 		final ExecutorService es = Executors.newFixedThreadPool( scaleDatasets.length, new NamedThreadFactory( "populate-mipmap-scales-%d", true ) );
 		final ArrayList< Future< Boolean > > futures = new ArrayList<>();
 		for ( int scale = 0; scale < scaleDatasets.length; ++scale )
@@ -417,7 +473,7 @@ public class N5Helpers
 				LOG.debug( "Populating scale level {}", fScale );
 				final String scaleDataset = Paths.get( dataset, scaleDatasets[ fScale ] ).toString();
 				final ValueTriple< RandomAccessibleInterval< T >, RandomAccessibleInterval< V >, AffineTransform3D > cachedAndVolatile =
-						openRaw( reader, scaleDataset, resolution, offset, sharedQueue, priority );
+						openRaw( reader, scaleDataset, transform.copy(), sharedQueue, priority );
 				raw[ fScale ] = cachedAndVolatile.getA();
 				vraw[ fScale ] = cachedAndVolatile.getB();
 				final double[] downsamplingFactors = getDownsamplingFactors( reader, scaleDataset );
@@ -442,15 +498,28 @@ public class N5Helpers
 		return openLabelMutliset( reader, dataset, getResolution( reader, dataset ), getOffset( reader, dataset ), sharedQueue, priority );
 	}
 
-	public static ValueTriple< RandomAccessibleInterval< LabelMultisetType >, RandomAccessibleInterval< VolatileLabelMultisetType >, AffineTransform3D >
+	public static ValueTriple< RandomAccessibleInterval< LabelMultisetType >, RandomAccessibleInterval< VolatileLabelMultisetType >, AffineTransform3D > openLabelMutliset(
+			final N5Reader reader,
+			final String dataset,
+			final double[] resolution,
+			final double[] offset,
+			final SharedQueue sharedQueue,
+			final int priority ) throws IOException
+	{
+		final AffineTransform3D transform = new AffineTransform3D();
+		transform.set(
+				resolution[ 0 ], 0, 0, offset[ 0 ],
+				0, resolution[ 1 ], 0, offset[ 1 ],
+				0, 0, resolution[ 2 ], offset[ 2 ] );
+		return openLabelMutliset( reader, dataset, transform, sharedQueue, priority );
+	}
 
-			openLabelMutliset(
-					final N5Reader reader,
-					final String dataset,
-					final double[] resolution,
-					final double[] offset,
-					final SharedQueue sharedQueue,
-					final int priority ) throws IOException
+	public static ValueTriple< RandomAccessibleInterval< LabelMultisetType >, RandomAccessibleInterval< VolatileLabelMultisetType >, AffineTransform3D > openLabelMutliset(
+			final N5Reader reader,
+			final String dataset,
+			final AffineTransform3D transform,
+			final SharedQueue sharedQueue,
+			final int priority ) throws IOException
 	{
 		final DatasetAttributes attrs = reader.getDatasetAttributes( dataset );
 		final N5CacheLoader loader = new N5CacheLoader( reader, dataset );
@@ -468,7 +537,7 @@ public class N5Helpers
 				new CacheHints( LoadingStrategy.VOLATILE, priority, false ),
 				new VolatileLabelMultisetType() );
 
-		return new ValueTriple<>( cachedImg, volatileCachedImg, fromResolutionAndOffset( resolution, offset ) );
+		return new ValueTriple<>( cachedImg, volatileCachedImg, transform );
 
 	}
 
@@ -497,9 +566,30 @@ public class N5Helpers
 					final SharedQueue sharedQueue,
 					final int priority ) throws IOException
 	{
+		final AffineTransform3D transform = new AffineTransform3D();
+		transform.set(
+				resolution[ 0 ], 0, 0, offset[ 0 ],
+				0, resolution[ 1 ], 0, offset[ 1 ],
+				0, 0, resolution[ 2 ], offset[ 2 ] );
+		return openLabelMultisetMultiscale(
+				reader,
+				dataset,
+				transform,
+				sharedQueue,
+				priority );
+	}
+
+	public static ValueTriple< RandomAccessibleInterval< LabelMultisetType >[], RandomAccessibleInterval< VolatileLabelMultisetType >[], AffineTransform3D[] >
+			openLabelMultisetMultiscale(
+					final N5Reader reader,
+					final String dataset,
+					final AffineTransform3D transform,
+					final SharedQueue sharedQueue,
+					final int priority ) throws IOException
+	{
 		final String[] scaleDatasets = N5Helpers.listAndSortScaleDatasets( reader, dataset );
 
-		LOG.debug( "Opening directories {} as multi-scale in {}: ", Arrays.toString( scaleDatasets ), dataset );
+		LOG.warn( "Opening directories {} as multi-scale in {} and transform={}: ", Arrays.toString( scaleDatasets ), dataset, transform );
 
 		@SuppressWarnings( "unchecked" )
 		final RandomAccessibleInterval< LabelMultisetType >[] raw = new RandomAccessibleInterval[ scaleDatasets.length ];
@@ -516,7 +606,7 @@ public class N5Helpers
 				LOG.debug( "Populating scale level {}", fScale );
 				final String scaleDataset = Paths.get( dataset, scaleDatasets[ fScale ] ).toString();
 				final ValueTriple< RandomAccessibleInterval< LabelMultisetType >, RandomAccessibleInterval< VolatileLabelMultisetType >, AffineTransform3D > cachedAndVolatile =
-						openLabelMutliset( reader, scaleDataset, resolution, offset, sharedQueue, priority );
+						openLabelMutliset( reader, scaleDataset, transform.copy(), sharedQueue, priority );
 				raw[ fScale ] = cachedAndVolatile.getA();
 				vraw[ fScale ] = cachedAndVolatile.getB();
 				final double[] downsamplingFactors = getDownsamplingFactors( reader, scaleDataset );
@@ -761,6 +851,15 @@ public class N5Helpers
 	public static AffineTransform3D fromResolutionAndOffset( final double[] resolution, final double[] offset )
 	{
 		return new AffineTransform3D().concatenate( new ScaleAndTranslation( resolution, offset ) );
+	}
+
+	public static < D, T > ValueTriple< RandomAccessibleInterval< D >[], RandomAccessibleInterval< T >[], AffineTransform3D[] > asArrayTriple(
+			final ValueTriple< RandomAccessibleInterval< D >, RandomAccessibleInterval< T >, AffineTransform3D > scalarTriple )
+	{
+		final RandomAccessibleInterval< D >[] a = new RandomAccessibleInterval[] { scalarTriple.getA() };
+		final RandomAccessibleInterval< T >[] b = new RandomAccessibleInterval[] { scalarTriple.getB() };
+		final AffineTransform3D[] c = { scalarTriple.getC() };
+		return new ValueTriple<>( a, b, c );
 	}
 
 }

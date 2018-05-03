@@ -76,7 +76,7 @@ public class PainteraOpenDialogEventHandler implements EventHandler< Event >
 	{
 		final DataSource< T, V > raw = dataset.getRaw( name, cellCache, cellCache.getNumPriorities() - 1 );
 		LOG.debug( "Got raw: {}", raw );
-		viewer.addRawSource( raw, min, max, Color.WHITE );
+		viewer.addRawSource( raw, min, max, Color.WHITE, dataset.metaData() );
 	}
 
 	private < D extends NativeType< D >, T extends Volatile< D > & Type< T > > void addLabel(
@@ -86,6 +86,8 @@ public class PainteraOpenDialogEventHandler implements EventHandler< Event >
 		try
 		{
 			final LabelDataSourceRepresentation< D, T > rep = dataset.getLabels( name, cellCache, cellCache.getNumPriorities() - 1 );
+			final Object meta = dataset.metaData();
+			LOG.warn( "Adding label source with meta={}", meta );
 			viewer.addLabelSource(
 					rep.source,
 					rep.assignment,
@@ -93,7 +95,8 @@ public class PainteraOpenDialogEventHandler implements EventHandler< Event >
 					rep.toIdConverter,
 					rep.blocksThatContainId,
 					rep.meshCache,
-					rep.maskForId );
+					rep.maskForId,
+					meta );
 		}
 		catch ( final Exception e )
 		{
@@ -177,7 +180,7 @@ public class PainteraOpenDialogEventHandler implements EventHandler< Event >
 			uniqueIdCaches[ level ] = uniqueLabelLoaders( img );
 		}
 
-		return CacheUtils.blocksForLabelCaches( source, uniqueIdCaches, blockSizes, scalingFactors, CacheUtils::toCacheSoftRefLoaderCache, es );
+		return CacheUtils.blocksForLabelCaches( source, uniqueIdCaches, blockSizes, scalingFactors, CacheUtils::toCacheSoftRefLoaderCache );
 
 	}
 

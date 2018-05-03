@@ -1,0 +1,61 @@
+package org.janelia.saalfeldlab.paintera.n5;
+
+import java.util.Arrays;
+
+import org.janelia.saalfeldlab.n5.hdf5.N5HDF5Reader;
+
+import ch.systemsx.cisd.hdf5.IHDF5Reader;
+
+public class N5HDF5Meta
+{
+
+	private static final String READER_FIELD_NAME = "reader";
+
+	private static final String DEFAULT_BLOCK_SIZE_FIELD_NAME = "defaultBlockSize";
+
+	private static final String OVERIDE_BLOCK_SIZE_FIELD_NAME = "overrideBlockSize";
+
+	public final String h5file;
+
+	public final String dataset;
+
+	public final int[] defaultBlockSize;
+
+	public final boolean overrideBlockSize;
+
+	public N5HDF5Meta( final N5HDF5Reader n5, final String dataset ) throws IllegalArgumentException, IllegalAccessException, NoSuchFieldException, SecurityException
+	{
+		this( getBasePath( n5 ), dataset, getDefaultBlockSize( n5 ), getOverrideBlockSize( n5 ) );
+	}
+
+	public N5HDF5Meta( final String h5file, final String dataset, final int[] defaultBlockSize, final boolean overrideBlockSize )
+	{
+		super();
+		this.h5file = h5file;
+		this.dataset = dataset;
+		this.defaultBlockSize = defaultBlockSize;
+		this.overrideBlockSize = true;
+	}
+
+	public static String getBasePath( final N5HDF5Reader n5 ) throws IllegalArgumentException, IllegalAccessException, NoSuchFieldException, SecurityException
+	{
+		return ( ( IHDF5Reader ) ReflectionHelpers.searchForField( n5.getClass(), READER_FIELD_NAME ).get( n5 ) ).getFile().getAbsolutePath();
+	}
+
+	public static int[] getDefaultBlockSize( final N5HDF5Reader n5 ) throws IllegalArgumentException, IllegalAccessException, NoSuchFieldException, SecurityException
+	{
+		return ( int[] ) ReflectionHelpers.searchForField( n5.getClass(), DEFAULT_BLOCK_SIZE_FIELD_NAME ).get( n5 );
+	}
+
+	public static boolean getOverrideBlockSize( final N5HDF5Reader n5 ) throws IllegalArgumentException, IllegalAccessException, NoSuchFieldException, SecurityException
+	{
+		return ( boolean ) ReflectionHelpers.searchForField( n5.getClass(), OVERIDE_BLOCK_SIZE_FIELD_NAME ).get( n5 );
+	}
+
+	@Override
+	public String toString()
+	{
+		return "{h5:" + h5file + " dataset:" + dataset + " defaultBlockSize:" + Arrays.toString( defaultBlockSize ) + " overrideBlockSize:" + overrideBlockSize + "}";
+	}
+
+}

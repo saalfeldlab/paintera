@@ -12,6 +12,7 @@ import java.util.function.IntFunction;
 import java.util.function.LongFunction;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
+import java.util.stream.Stream;
 
 import org.janelia.saalfeldlab.paintera.data.DataSource;
 import org.janelia.saalfeldlab.paintera.meshes.Interruptible;
@@ -111,8 +112,7 @@ public class CacheUtils
 			final InterruptibleFunction< HashWrapper< long[] >, long[] >[] uniqueLabelLoaders,
 			final int[][] blockSizes,
 			final double[][] scalingFactors,
-			final Function< CacheLoader< Long, Interval[] >, Cache< Long, Interval[] > > makeCache,
-			final ExecutorService es )
+			final Function< CacheLoader< Long, Interval[] >, Cache< Long, Interval[] > > makeCache )
 	{
 		final int numMipmapLevels = source.getNumMipmapLevels();
 		assert uniqueLabelLoaders.length == numMipmapLevels;
@@ -198,6 +198,28 @@ public class CacheUtils
 					.filter( i -> Intervals.contains( completeInterval, Point.wrap( Intervals.minAsLongArray( i ) ) ) )
 					.collect( Collectors.toList() );
 		};
+	}
+
+	/**
+	 *
+	 * @param source
+	 * @param getMaskGenerator
+	 *            Turn data into binary mask usable in marching cubes.
+	 * @param makeCache
+	 *            Build a {@link Cache} from a {@link CacheLoader}
+	 * @return Cascade of {@link Cache} for retrieval of mesh queried by label
+	 *         id.
+	 */
+	public static < D, T > InterruptibleFunction< ShapeKey, Pair< float[], float[] > >[] meshCacheLoaders(
+			final DataSource< D, T > source,
+			final LongFunction< Converter< D, BoolType > > getMaskGenerator,
+			final Function< CacheLoader< ShapeKey, Pair< float[], float[] > >, Cache< ShapeKey, Pair< float[], float[] > > > makeCache )
+	{
+		return meshCacheLoaders(
+				source,
+				Stream.generate( () -> new int[] { 1, 1, 1 } ).limit( source.getNumMipmapLevels() ).toArray( int[][]::new ),
+				getMaskGenerator,
+				makeCache );
 	}
 
 	/**
