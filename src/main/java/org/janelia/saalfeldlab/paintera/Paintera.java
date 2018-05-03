@@ -74,6 +74,8 @@ public class Paintera extends Application
 
 		final PainteraDefaultHandlers defaultHandlers = new PainteraDefaultHandlers( baseView, keyTracker, paneWithStatus );
 
+		// populate everything
+
 		final Optional< Properties > loadedProperties = loadPropertiesIfPresent(
 				painteraArgs.project(),
 				GsonHelpers.builderWithAllRequiredAdapters( baseView ).setPrettyPrinting() );
@@ -89,6 +91,7 @@ public class Paintera extends Application
 			for ( final Source< ? > source : loadedSourceInfo.trackSources() )
 			{
 				final SourceState< ?, ? > state = loadedSourceInfo.getState( source );
+				LOG.debug( "Adding source {} and state {}", source, state );
 				if ( state instanceof LabelSourceState< ?, ? > )
 				{
 					final LabelSourceState< ?, ? > lstate = ( LabelSourceState< ?, ? > ) state;
@@ -107,9 +110,11 @@ public class Paintera extends Application
 			baseView.sourceInfo().currentSourceIndexProperty().set( loadedProperties.get().sources.currentSourceIndexProperty().get() );
 		}
 
+		LOG.debug( "Adding {} raw sources: {}", painteraArgs.rawSources().length, painteraArgs.rawSources() );
 		for ( final String source : painteraArgs.rawSources() )
 			addRawFromString( baseView, source );
 
+		LOG.debug( "Adding {} label sources: {}", painteraArgs.labelSources().length, painteraArgs.labelSources() );
 		for ( final String source : painteraArgs.labelSources() )
 			addLabelFromString( baseView, source );
 
