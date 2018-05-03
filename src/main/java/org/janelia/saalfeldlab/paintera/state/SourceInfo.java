@@ -1,5 +1,6 @@
 package org.janelia.saalfeldlab.paintera.state;
 
+import java.lang.invoke.MethodHandles;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -14,6 +15,8 @@ import org.janelia.saalfeldlab.paintera.id.IdService;
 import org.janelia.saalfeldlab.paintera.id.ToIdConverter;
 import org.janelia.saalfeldlab.paintera.meshes.MeshInfos;
 import org.janelia.saalfeldlab.paintera.meshes.MeshManager;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import bdv.viewer.Source;
 import bdv.viewer.SourceAndConverter;
@@ -42,6 +45,8 @@ import net.imglib2.type.numeric.RealType;
 
 public class SourceInfo
 {
+
+	private static final Logger LOG = LoggerFactory.getLogger( MethodHandles.lookup().lookupClass() );
 
 	private final ObservableMap< Source< ? >, SourceState< ?, ? > > states = FXCollections.observableHashMap();
 
@@ -72,6 +77,7 @@ public class SourceInfo
 
 	private final BooleanProperty sourcesDirty = new SimpleBooleanProperty( false );
 	{
+		LOG.debug( "Adding listener to set sourcesDirty to true" );
 		sources.addListener( ( InvalidationListener ) observable -> sourcesDirty.set( true ) );
 		visibleSources.addListener( ( InvalidationListener ) observable -> sourcesDirty.set( true ) );
 		currentSource.addListener( ( obs, oldv, newv ) -> sourcesDirty.set( true ) );
