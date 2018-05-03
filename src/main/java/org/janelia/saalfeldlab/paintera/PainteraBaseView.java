@@ -264,7 +264,7 @@ public class PainteraBaseView
 	public < T extends RealType< T >, U extends RealType< U > > void addRawSource(
 			final SourceState< T, U > state )
 	{
-		LOG.warn( "Adding state={}", state );
+		LOG.debug( "Adding raw state={}", state );
 		sourceInfo.addState( state );
 		final Converter< U, ARGBType > conv = state.converter();
 		if ( conv instanceof ARGBColorConverter< ? > )
@@ -445,6 +445,7 @@ public class PainteraBaseView
 	public < D extends Type< D >, T extends Type< T > > void addLabelSource(
 			final LabelSourceState< D, T > state )
 	{
+		LOG.debug( "Adding label state={}", state );
 		final Converter< T, ARGBType > converter = state.converter();
 		if ( converter instanceof HighlightingStreamConverter< ? > )
 		{
