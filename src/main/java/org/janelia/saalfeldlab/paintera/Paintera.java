@@ -2,32 +2,25 @@ package org.janelia.saalfeldlab.paintera;
 
 import java.io.IOException;
 import java.lang.invoke.MethodHandles;
-import java.util.Arrays;
 import java.util.Optional;
 import java.util.regex.Pattern;
 
 import org.janelia.saalfeldlab.fx.event.KeyTracker;
 import org.janelia.saalfeldlab.fx.ortho.OrthogonalViews;
 import org.janelia.saalfeldlab.n5.N5Writer;
-import org.janelia.saalfeldlab.paintera.composition.Composite;
-import org.janelia.saalfeldlab.paintera.control.selection.SelectedIds;
 import org.janelia.saalfeldlab.paintera.data.DataSource;
-import org.janelia.saalfeldlab.paintera.serialization.AffineTransform3DJsonAdapter;
-import org.janelia.saalfeldlab.paintera.serialization.CompositeSerializer;
-import org.janelia.saalfeldlab.paintera.serialization.PainteraProject;
-import org.janelia.saalfeldlab.paintera.serialization.ProjectDirectoryNotSetException;
-import org.janelia.saalfeldlab.paintera.serialization.SelectedIdsSerializer;
-import org.janelia.saalfeldlab.paintera.serialization.SourceInfoSerializer;
-import org.janelia.saalfeldlab.paintera.serialization.SourceStateSerializer;
+import org.janelia.saalfeldlab.paintera.serialization.GsonHelpers;
+import org.janelia.saalfeldlab.paintera.serialization.Properties;
+import org.janelia.saalfeldlab.paintera.state.LabelSourceState;
 import org.janelia.saalfeldlab.paintera.state.SourceInfo;
 import org.janelia.saalfeldlab.paintera.state.SourceState;
 import org.janelia.saalfeldlab.paintera.viewer3d.Viewer3DFX;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 
+import bdv.viewer.Source;
 import bdv.viewer.ViewerOptions;
 import javafx.application.Application;
 import javafx.application.Platform;
@@ -39,7 +32,6 @@ import javafx.scene.control.Dialog;
 import javafx.stage.Screen;
 import javafx.stage.Stage;
 import net.imglib2.Volatile;
-import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.type.NativeType;
 import net.imglib2.type.numeric.RealType;
 import picocli.CommandLine;
@@ -48,6 +40,8 @@ public class Paintera extends Application
 {
 
 	private static final Logger LOG = LoggerFactory.getLogger( MethodHandles.lookup().lookupClass() );
+
+	private static final String PAINTERA_KEY = "paintera";
 
 	@Override
 	public void start( final Stage stage ) throws Exception
@@ -70,10 +64,6 @@ public class Paintera extends Application
 				ViewerOptions.options().screenScales( screenScales() ),
 				si -> s -> si.getState( s ).interpolationProperty().get() );
 
-		final PainteraProject project = loadOrInitProject( painteraArgs.project() );
-		final AffineTransform3D initialTransform = project.globalTransformCopy();
-		baseView.manager().setTransform( project.globalTransformCopy() );
-
 		final OrthogonalViews< Viewer3DFX > orthoViews = baseView.orthogonalViews();
 
 		final KeyTracker keyTracker = new KeyTracker();
@@ -84,18 +74,51 @@ public class Paintera extends Application
 
 		final PainteraDefaultHandlers defaultHandlers = new PainteraDefaultHandlers( baseView, keyTracker, paneWithStatus );
 
+		final Optional< Properties > loadedProperties = loadPropertiesIfPresent(
+				painteraArgs.project(),
+				GsonHelpers.builderWithAllRequiredAdapters( baseView ).setPrettyPrinting() );
+
+		final Properties properties = new Properties( baseView.sourceInfo() );
+		baseView.manager().addListener( properties );
+
+		if ( loadedProperties.isPresent() )
+		{
+
+			final SourceInfo loadedSourceInfo = loadedProperties.get().sources;
+
+			for ( final Source< ? > source : loadedSourceInfo.trackSources() )
+			{
+				final SourceState< ?, ? > state = loadedSourceInfo.getState( source );
+				if ( state instanceof LabelSourceState< ?, ? > )
+				{
+					final LabelSourceState< ?, ? > lstate = ( LabelSourceState< ?, ? > ) state;
+					baseView.addLabelSource( ( LabelSourceState ) lstate );
+					final long[] selIds = lstate.selectedIds().getActiveIds();
+					final long lastId = lstate.selectedIds().getLastSelection();
+					lstate.selectedIds().deactivateAll();
+					lstate.selectedIds().activate( selIds );
+					lstate.selectedIds().activateAlso( lastId );
+				}
+				else
+				{
+					baseView.addRawSource( ( SourceState ) state );
+				}
+			}
+			baseView.sourceInfo().currentSourceIndexProperty().set( loadedProperties.get().sources.currentSourceIndexProperty().get() );
+		}
+
 		for ( final String source : painteraArgs.rawSources() )
 			addRawFromString( baseView, source );
 
 		for ( final String source : painteraArgs.labelSources() )
 			addLabelFromString( baseView, source );
 
-		if ( !Arrays.equals( new AffineTransform3D().getRowPackedCopy(), initialTransform.getRowPackedCopy() ) )
-			baseView.manager().setTransform( initialTransform );
+		loadedProperties.map( Properties::globalTransformCopy ).ifPresent( baseView.manager()::setTransform );
 
-		project.setViewer( baseView );
-		project.setWidth( painteraArgs.width( project.width() ) );
-		project.setHeight( painteraArgs.width( project.height() ) );
+		properties.windowProperties.widthProperty.set( painteraArgs.width( properties.windowProperties.widthProperty.get() ) );
+		properties.windowProperties.heightProperty.set( painteraArgs.height( properties.windowProperties.heightProperty.get() ) );
+
+		properties.clean();
 
 		final Scene scene = new Scene( paneWithStatus.getPane() );
 		if ( LOG.isDebugEnabled() )
@@ -106,7 +129,7 @@ public class Paintera extends Application
 		setFocusTraversable( orthoViews, false );
 		stage.setOnCloseRequest( event -> {
 
-			if ( project.isDirty() )
+			if ( properties.isDirty() )
 			{
 				final Dialog< ButtonType > d = new Dialog<>();
 				d.setHeaderText( "Save before exit?" );
@@ -128,13 +151,7 @@ public class Paintera extends Application
 					LOG.debug( "Saving project before exit" );
 					try
 					{
-						project.persist();
-					}
-					catch ( final ProjectDirectoryNotSetException e )
-					{
-						LOG.error( "Project directory not set, prompt not implemented yet. Select NO in dialog." );
-						event.consume();
-						return;
+						persistProperties( painteraArgs.project(), properties, GsonHelpers.builderWithAllRequiredAdapters( baseView ).setPrettyPrinting() );
 					}
 					catch ( final IOException e )
 					{
@@ -153,66 +170,14 @@ public class Paintera extends Application
 			baseView.stop();
 		} );
 
-		final int initialWidth = project.width();
-		final int initialHeight = project.height();
-
 		keyTracker.installInto( scene );
 		stage.setScene( scene );
-		stage.setWidth( initialWidth );
-		stage.setHeight( initialHeight );
+		stage.setWidth( properties.windowProperties.widthProperty.get() );
+		stage.setHeight( properties.windowProperties.heightProperty.get() );
+		properties.windowProperties.widthProperty.bind( stage.widthProperty() );
+		properties.windowProperties.heightProperty.bind( stage.heightProperty() );
+		properties.setGlobalTransformClean();
 
-		new Thread( () -> {
-			try
-			{
-				final Gson gson = new GsonBuilder()
-						.registerTypeAdapter( SourceInfo.class, new SourceInfoSerializer() )
-						.registerTypeAdapter( SourceState.class, new SourceStateSerializer(
-								baseView.getPropagationQueue(),
-								baseView.getMeshManagerExecutorService(),
-								baseView.getMeshWorkerExecutorService(),
-								baseView.getQueue(),
-								0,
-								baseView.viewer3D().meshesGroup() ) )
-						.registerTypeAdapter( AffineTransform3D.class, new AffineTransform3DJsonAdapter() )
-						.registerTypeHierarchyAdapter( Composite.class, new CompositeSerializer() )
-						.registerTypeAdapter( SelectedIds.class, new SelectedIdsSerializer() )
-//						.setPrettyPrinting()
-						.create();
-//				System.out.println( "WAT" );
-//				final String json = gson.toJson( baseView.sourceInfo().getState( baseView.sourceInfo().currentSourceProperty().get() ), org.janelia.saalfeldlab.paintera.state.SourceState.class );
-//				System.out.println( "serialized:  " + json );
-//				final SourceState< ?, ? > state = gson.fromJson( json, SourceState.class );
-//				System.out.println( "state " + state + " " + ( state == null ) );
-//				System.out.println( "serialized2: " + gson.toJson( state ) );
-////				baseView.addRawSource( ( SourceState ) state );
-//				final LabelSourceState< ?, ? > labelState = ( LabelSourceState< ?, ? > ) baseView.sourceInfo().getState( baseView.sourceInfo().trackSources().get( 1 ) );
-//				labelState.selectedIds().activate( 1, 2, 3 );
-//				labelState.selectedIds().activateAlso( 8173 );
-//				final String jsonLabel = gson.toJson( labelState, SourceState.class );
-//				System.out.println( "serialized3: " + jsonLabel );
-//				final LabelSourceState< ?, ? > labelState2 = ( LabelSourceState< ?, ? > ) gson.fromJson( jsonLabel, SourceState.class );
-//				final String jsonLabel2 = gson.toJson( labelState2, SourceState.class );
-//				System.out.println( "serialized4: " + jsonLabel2 );
-//				final long lastSelection = labelState2.selectedIds().getLastSelection();
-//				final long[] selectedIds = labelState2.selectedIds().getActiveIds();
-//				baseView.addLabelSource( ( LabelSourceState ) labelState2 );
-//				labelState2.selectedIds().deactivateAll();
-//				labelState2.selectedIds().activate( selectedIds );
-//				labelState2.selectedIds().activateAlso( lastSelection );
-				final String infoJson = gson.toJson( baseView.sourceInfo(), SourceInfo.class );
-				System.out.println( "info1: " + infoJson );
-				final SourceInfo sourceInfo = gson.fromJson( infoJson, SourceInfo.class );
-				System.out.println( "info2: " + gson.toJson( sourceInfo, SourceInfo.class ) );
-			}
-			catch ( final Exception e )
-			{
-				System.out.println( e.getMessage() );
-				e.printStackTrace();
-			}
-		} ).start();
-
-		stage.widthProperty().addListener( ( obs, oldv, newv ) -> project.setWidth( newv.intValue() ) );
-		stage.heightProperty().addListener( ( obs, oldv, newv ) -> project.setHeight( newv.intValue() ) );
 		stage.show();
 	}
 
@@ -287,20 +252,22 @@ public class Paintera extends Application
 		return screenScales;
 	}
 
-	PainteraProject loadOrInitProject( final String root )
+	public static Optional< Properties > loadPropertiesIfPresent( final String root, final GsonBuilder builder )
 	{
 		try
 		{
-			final PainteraProject project = N5Helpers.n5Reader( root, PainteraProject.builder, 64, 64, 64 ).getAttribute( "", "paintera", PainteraProject.class );
-			project.setProjectDirectory( root, false );
-			return project;
+			final Properties properties = N5Helpers.n5Reader( root, builder, 64, 64, 64 ).getAttribute( "", "paintera", Properties.class );
+			return Optional.of( properties );
 		}
 		catch ( final IOException | NullPointerException e )
 		{
-			final PainteraProject project = new PainteraProject();
-			project.setProjectDirectory( root );
-			return project;
+			return Optional.empty();
 		}
+	}
+
+	public static void persistProperties( final String root, final Properties properties, final GsonBuilder builder ) throws IOException
+	{
+		N5Helpers.n5Writer( root, builder, 64, 64, 64 ).setAttribute( "", PAINTERA_KEY, properties );
 	}
 
 }

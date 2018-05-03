@@ -17,10 +17,14 @@ import org.janelia.saalfeldlab.paintera.meshes.MeshManager;
 
 import bdv.viewer.Source;
 import bdv.viewer.SourceAndConverter;
+import javafx.beans.InvalidationListener;
 import javafx.beans.binding.Bindings;
+import javafx.beans.binding.BooleanBinding;
 import javafx.beans.binding.IntegerBinding;
+import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.IntegerProperty;
 import javafx.beans.property.ObjectProperty;
+import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleIntegerProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.value.ObservableBooleanValue;
@@ -56,6 +60,24 @@ public class SourceInfo
 	private final ObservableBooleanValue hasSources = numSources.greaterThan( 0 );
 
 	private final ObservableBooleanValue hasVisibleSources = numSources.greaterThan( 0 );
+
+	private final BooleanProperty anyStateDirty = new SimpleBooleanProperty();
+	{
+		states.addListener( ( InvalidationListener ) observable -> anyStateDirty.bind( states
+				.values()
+				.stream()
+				.map( SourceState::isDirtyProperty )
+				.reduce( new SimpleBooleanProperty( false ), Bindings::or ) ) );
+	}
+
+	private final BooleanProperty sourcesDirty = new SimpleBooleanProperty( false );
+	{
+		sources.addListener( ( InvalidationListener ) observable -> sourcesDirty.set( true ) );
+		visibleSources.addListener( ( InvalidationListener ) observable -> sourcesDirty.set( true ) );
+		currentSource.addListener( ( obs, oldv, newv ) -> sourcesDirty.set( true ) );
+	}
+
+	private final BooleanBinding isDirty = anyStateDirty.or( sourcesDirty );
 
 	private final ObservableList< Source< ? > > visibleSourcesReadOnly = FXCollections.unmodifiableObservableList( visibleSources );
 	{
@@ -382,6 +404,22 @@ public class SourceInfo
 	public ObservableBooleanValue hasVisibleSources()
 	{
 		return this.hasVisibleSources;
+	}
+
+	public void cleanStates()
+	{
+		this.states.values().forEach( SourceState::clean );
+	}
+
+	public void clean()
+	{
+		cleanStates();
+		this.sourcesDirty.set( false );
+	}
+
+	public ObservableBooleanValue isDirtyProperty()
+	{
+		return this.isDirty;
 	}
 
 }

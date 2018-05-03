@@ -59,7 +59,6 @@ import net.imglib2.Interval;
 import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.Volatile;
 import net.imglib2.converter.ARGBColorConverter;
-import net.imglib2.converter.ARGBColorConverter.Imp1;
 import net.imglib2.converter.Converter;
 import net.imglib2.interpolation.randomaccess.NLinearInterpolatorFactory;
 import net.imglib2.interpolation.randomaccess.NearestNeighborInterpolatorFactory;
@@ -102,7 +101,7 @@ public class SourceStateSerializer implements JsonDeserializer< SourceState< ?, 
 
 	private static final String CONVERTER_MIN_KEY = "min";
 
-	private static final String CONVERTER_MAX_KEY = "min";
+	private static final String CONVERTER_MAX_KEY = "max";
 
 	private static final String CONVERTER_COLOR_KEY = "color";
 
@@ -244,7 +243,6 @@ public class SourceStateSerializer implements JsonDeserializer< SourceState< ?, 
 	private static JsonObject serializeRaw( final SourceState< ?, ? > src, final JsonSerializationContext context )
 	{
 		final JsonObject map = serialize( src, context );
-
 		final Converter< ?, ARGBType > converter = src.getConverter();
 		if ( converter instanceof ARGBColorConverter< ? > )
 		{
@@ -341,7 +339,7 @@ public class SourceStateSerializer implements JsonDeserializer< SourceState< ?, 
 						: dataset );
 		final DataType type = attributes.getDataType();
 
-		final Imp1< T > converter = new ARGBColorConverter.Imp1<>( N5Helpers.minForType( type ), N5Helpers.maxForType( type ) );
+		final ARGBColorConverter< T > converter = new ARGBColorConverter.InvertingImp1<>( N5Helpers.minForType( type ), N5Helpers.maxForType( type ) );
 		if ( map.has( CONVERTER_KEY ) )
 		{
 			final JsonObject converterSettings = map.get( CONVERTER_KEY ).getAsJsonObject();
