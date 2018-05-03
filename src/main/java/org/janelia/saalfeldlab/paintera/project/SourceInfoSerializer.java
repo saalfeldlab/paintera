@@ -5,13 +5,16 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 import org.janelia.saalfeldlab.paintera.state.SourceInfo;
 import org.janelia.saalfeldlab.paintera.state.SourceState;
 
+import com.google.gson.JsonArray;
 import com.google.gson.JsonDeserializationContext;
 import com.google.gson.JsonDeserializer;
 import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
 import com.google.gson.JsonParseException;
 import com.google.gson.JsonSerializationContext;
 import com.google.gson.JsonSerializer;
@@ -30,45 +33,39 @@ public class SourceInfoSerializer implements JsonSerializer< SourceInfo >, JsonD
 	@Override
 	public SourceInfo deserialize( final JsonElement json, final Type typeOfT, final JsonDeserializationContext context ) throws JsonParseException
 	{
-		final Map< String, Object > elements = context.deserialize( json, typeOfT );
-		final List< JsonElement > sources = ( List< JsonElement > ) elements.get( SOURCES_KEY );
-		final int currentSourceIndex = ( int ) elements.get( CURRENT_SOURCE_INDEX_KEY );
+
+		final SourceInfo sourceInfo = new SourceInfo();
+		final JsonObject elements = json.getAsJsonObject();
+		final JsonArray sources = elements.get( SOURCES_KEY ).getAsJsonArray();
+		final int currentSourceIndex = elements.get( CURRENT_SOURCE_INDEX_KEY ).getAsInt();
 
 		final List< SourceState< ?, ? > > sourceStates = new ArrayList<>();
 		for ( final JsonElement jsonSource : sources )
 		{
 			final SourceState< ?, ? > state = context.deserialize( jsonSource, SourceState.class );
-			sourceStates.add( state );
+			sourceInfo.addState( ( SourceState ) state );
 		}
-
-		final SourceInfo sourceInfo = new SourceInfo();
-		for ( final SourceState state : sourceStates )
-			sourceInfo.addState( state );
-
 		sourceInfo.currentSourceIndexProperty().set( currentSourceIndex );
-
 		return sourceInfo;
 	}
 
 	@Override
 	public JsonElement serialize( final SourceInfo src, final Type typeOfSrc, final JsonSerializationContext context )
 	{
-		System.out.println( 1 );
 		final Map< String, Object > elements = new HashMap<>();
-		System.out.println( 2 );
 		final List< Source< ? > > sources = new ArrayList<>( src.trackSources() );
-		System.out.println( 3 );
-		final List< JsonElement > serializedSources = new ArrayList<>();
 
-		System.out.println( 4 );
+		final List< JsonElement > serializedSources = src
+				.trackSources()
+				.stream()
+				.map( src::getState )
+				.map( s -> context.serialize( s, SourceState.class ) )
+				.collect( Collectors.toList() );
+
 		final int currentSourceIndex = src.currentSourceIndexProperty().get();
-		System.out.println( 5 );
 		elements.put( NUM_SOURCES_KEY, sources.size() );
-		System.out.println( 6 );
 		elements.put( CURRENT_SOURCE_INDEX_KEY, currentSourceIndex );
-		System.out.println( 7 );
 		elements.put( SOURCES_KEY, serializedSources );
-		System.out.println( 8 );
 		return context.serialize( elements );
 	}
 

@@ -19,13 +19,12 @@ import org.janelia.saalfeldlab.paintera.project.ProjectDirectoryNotSetException;
 import org.janelia.saalfeldlab.paintera.project.SelectedIdsSerializer;
 import org.janelia.saalfeldlab.paintera.project.SourceInfoSerializer;
 import org.janelia.saalfeldlab.paintera.project.SourceStateSerializer;
-import org.janelia.saalfeldlab.paintera.state.LabelSourceState;
+import org.janelia.saalfeldlab.paintera.state.SourceInfo;
 import org.janelia.saalfeldlab.paintera.state.SourceState;
 import org.janelia.saalfeldlab.paintera.viewer3d.Viewer3DFX;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.google.api.SourceInfo;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 
@@ -166,7 +165,7 @@ public class Paintera extends Application
 			try
 			{
 				final Gson gson = new GsonBuilder()
-						.registerTypeHierarchyAdapter( SourceInfo.class, new SourceInfoSerializer() )
+						.registerTypeAdapter( SourceInfo.class, new SourceInfoSerializer() )
 						.registerTypeAdapter( SourceState.class, new SourceStateSerializer(
 								baseView.getPropagationQueue(),
 								baseView.getMeshManagerExecutorService(),
@@ -179,27 +178,31 @@ public class Paintera extends Application
 						.registerTypeAdapter( SelectedIds.class, new SelectedIdsSerializer() )
 //						.setPrettyPrinting()
 						.create();
-				System.out.println( "WAT" );
-				final String json = gson.toJson( baseView.sourceInfo().getState( baseView.sourceInfo().currentSourceProperty().get() ), org.janelia.saalfeldlab.paintera.state.SourceState.class );
-				System.out.println( "serialized:  " + json );
-				final SourceState< ?, ? > state = gson.fromJson( json, SourceState.class );
-				System.out.println( "state " + state + " " + ( state == null ) );
-				System.out.println( "serialized2: " + gson.toJson( state ) );
-//				baseView.addRawSource( ( SourceState ) state );
-				final LabelSourceState< ?, ? > labelState = ( LabelSourceState< ?, ? > ) baseView.sourceInfo().getState( baseView.sourceInfo().trackSources().get( 1 ) );
-				labelState.selectedIds().activate( 1, 2, 3 );
-				labelState.selectedIds().activateAlso( 8173 );
-				final String jsonLabel = gson.toJson( labelState, SourceState.class );
-				System.out.println( "serialized3: " + jsonLabel );
-				final LabelSourceState< ?, ? > labelState2 = ( LabelSourceState< ?, ? > ) gson.fromJson( jsonLabel, SourceState.class );
-				final String jsonLabel2 = gson.toJson( labelState2, SourceState.class );
-				System.out.println( "serialized4: " + jsonLabel2 );
-				final long lastSelection = labelState2.selectedIds().getLastSelection();
-				final long[] selectedIds = labelState2.selectedIds().getActiveIds();
-				baseView.addLabelSource( ( LabelSourceState ) labelState2 );
-				labelState2.selectedIds().deactivateAll();
-				labelState2.selectedIds().activate( selectedIds );
-				labelState2.selectedIds().activateAlso( lastSelection );
+//				System.out.println( "WAT" );
+//				final String json = gson.toJson( baseView.sourceInfo().getState( baseView.sourceInfo().currentSourceProperty().get() ), org.janelia.saalfeldlab.paintera.state.SourceState.class );
+//				System.out.println( "serialized:  " + json );
+//				final SourceState< ?, ? > state = gson.fromJson( json, SourceState.class );
+//				System.out.println( "state " + state + " " + ( state == null ) );
+//				System.out.println( "serialized2: " + gson.toJson( state ) );
+////				baseView.addRawSource( ( SourceState ) state );
+//				final LabelSourceState< ?, ? > labelState = ( LabelSourceState< ?, ? > ) baseView.sourceInfo().getState( baseView.sourceInfo().trackSources().get( 1 ) );
+//				labelState.selectedIds().activate( 1, 2, 3 );
+//				labelState.selectedIds().activateAlso( 8173 );
+//				final String jsonLabel = gson.toJson( labelState, SourceState.class );
+//				System.out.println( "serialized3: " + jsonLabel );
+//				final LabelSourceState< ?, ? > labelState2 = ( LabelSourceState< ?, ? > ) gson.fromJson( jsonLabel, SourceState.class );
+//				final String jsonLabel2 = gson.toJson( labelState2, SourceState.class );
+//				System.out.println( "serialized4: " + jsonLabel2 );
+//				final long lastSelection = labelState2.selectedIds().getLastSelection();
+//				final long[] selectedIds = labelState2.selectedIds().getActiveIds();
+//				baseView.addLabelSource( ( LabelSourceState ) labelState2 );
+//				labelState2.selectedIds().deactivateAll();
+//				labelState2.selectedIds().activate( selectedIds );
+//				labelState2.selectedIds().activateAlso( lastSelection );
+				final String infoJson = gson.toJson( baseView.sourceInfo(), SourceInfo.class );
+				System.out.println( "info1: " + infoJson );
+				final SourceInfo sourceInfo = gson.fromJson( infoJson, SourceInfo.class );
+				System.out.println( "info2: " + gson.toJson( sourceInfo, SourceInfo.class ) );
 			}
 			catch ( final Exception e )
 			{
