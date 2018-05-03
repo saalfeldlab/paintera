@@ -1,4 +1,4 @@
-package org.janelia.saalfeldlab.paintera.project;
+package org.janelia.saalfeldlab.paintera.serialization;
 
 public class ProjectDirectoryNotSetException extends Exception
 {

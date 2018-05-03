@@ -1,4 +1,4 @@
-package org.janelia.saalfeldlab.paintera.project;
+package org.janelia.saalfeldlab.paintera.serialization;
 
 import java.io.IOException;
 import java.lang.invoke.MethodHandles;
