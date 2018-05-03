@@ -4,7 +4,6 @@ import java.io.IOException;
 import java.lang.invoke.MethodHandles;
 import java.lang.reflect.Type;
 import java.nio.file.Paths;
-import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ExecutorService;
 import java.util.function.LongFunction;
@@ -15,7 +14,6 @@ import org.janelia.saalfeldlab.n5.N5FSReader;
 import org.janelia.saalfeldlab.n5.N5FSWriter;
 import org.janelia.saalfeldlab.n5.N5Reader;
 import org.janelia.saalfeldlab.n5.N5Writer;
-import org.janelia.saalfeldlab.n5.hdf5.N5HDF5Writer;
 import org.janelia.saalfeldlab.paintera.N5Helpers;
 import org.janelia.saalfeldlab.paintera.PainteraBaseView;
 import org.janelia.saalfeldlab.paintera.composition.Composite;
@@ -35,7 +33,6 @@ import org.janelia.saalfeldlab.paintera.meshes.MeshManagerWithAssignment;
 import org.janelia.saalfeldlab.paintera.meshes.cache.CacheUtils;
 import org.janelia.saalfeldlab.paintera.n5.CommitCanvasN5;
 import org.janelia.saalfeldlab.paintera.n5.N5FSMeta;
-import org.janelia.saalfeldlab.paintera.n5.N5HDF5Meta;
 import org.janelia.saalfeldlab.paintera.state.LabelSourceState;
 import org.janelia.saalfeldlab.paintera.state.SourceState;
 import org.janelia.saalfeldlab.paintera.stream.HighlightingStreamConverter;
@@ -111,9 +108,9 @@ public class SourceStateSerializer implements JsonDeserializer< SourceState< ?, 
 
 	private static final String CONVERTER_ALPHA_KEY = "alpha";
 
-	private static final String CONVERTER_ACTIVE_FRAGMENT_ALPHA_KEY = "alpha";
+	private static final String CONVERTER_ACTIVE_FRAGMENT_ALPHA_KEY = "activeFragmentAlpha";
 
-	private static final String CONVERTER_ACTIVE_SEGMENT_ALPHA_KEY = "alpha";
+	private static final String CONVERTER_ACTIVE_SEGMENT_ALPHA_KEY = "activeSegmentAlpha";
 
 	private static final String CONVERTER_SEED_KEY = "seed";
 
@@ -146,12 +143,15 @@ public class SourceStateSerializer implements JsonDeserializer< SourceState< ?, 
 
 	private final int priority;
 
+	private final Group root;
+
 	public SourceStateSerializer(
 			final ExecutorService propagationExecutor,
 			final ExecutorService manager,
 			final ExecutorService workers,
 			final SharedQueue queue,
-			final int priority )
+			final int priority,
+			final Group root )
 	{
 		super();
 		this.propagationExecutor = propagationExecutor;
@@ -159,6 +159,7 @@ public class SourceStateSerializer implements JsonDeserializer< SourceState< ?, 
 		this.workers = workers;
 		this.queue = queue;
 		this.priority = priority;
+		this.root = root;
 	}
 
 	@Override
@@ -184,7 +185,15 @@ public class SourceStateSerializer implements JsonDeserializer< SourceState< ?, 
 				throw new JsonParseException( "Failed to generate raw state from map: " + stateMap, e );
 			}
 		case LABEL:
-			break;
+			try
+			{
+				LOG.debug( "Returning raw!" );
+				return labelFromMap( stateMap, queue, priority, root, propagationExecutor, manager, workers, context );
+			}
+			catch ( final IOException | ClassNotFoundException e )
+			{
+				throw new JsonParseException( "Failed to generate raw state from map: " + stateMap, e );
+			}
 		default:
 			break;
 		}
@@ -346,18 +355,22 @@ public class SourceStateSerializer implements JsonDeserializer< SourceState< ?, 
 	}
 
 	private static LabelSourceState< LabelMultisetType, VolatileLabelMultisetType > labelFromMap(
-			final Map< String, Object > map,
+			final JsonObject map,
 			final SharedQueue queue,
 			final int priority,
 			final Group root,
 			final ExecutorService propagationExecutor,
 			final ExecutorService manager,
-			final ExecutorService workers ) throws IOException
+			final ExecutorService workers,
+			final JsonDeserializationContext context ) throws IOException, JsonParseException, ClassNotFoundException
 	{
-		final Object meta = map.get( META_KEY );
-		final String name = ( String ) map.get( NAME_KEY );
-		final AffineTransform3D transform = ( AffineTransform3D ) map.get( TRANSFORM_KEY );
-		final Composite< ARGBType, ARGBType > composite = ( Composite< ARGBType, ARGBType > ) map.get( COMPOSITE_KEY );
+		final JsonObject metaData = map.get( META_KEY ).getAsJsonObject();
+		LOG.debug( "got meta data: {}", metaData );
+		final Object meta = context.deserialize( metaData.get( META_DATA_DATA_KEY ), Class.forName( metaData.get( META_DATA_CLASS_KEY ).getAsString() ) );
+		final String name = map.get( NAME_KEY ).getAsString();
+		LOG.debug( "Got name={}", name );
+		final AffineTransform3D transform = ( AffineTransform3D ) context.deserialize( map.get( TRANSFORM_KEY ), AffineTransform3D.class );
+		final Composite< ARGBType, ARGBType > composite = context.deserialize( map.get( COMPOSITE_KEY ), Composite.class );
 
 		final N5Writer n5;
 		final String dataset;
@@ -366,12 +379,6 @@ public class SourceStateSerializer implements JsonDeserializer< SourceState< ?, 
 			final N5FSMeta n5meta = ( N5FSMeta ) meta;
 			n5 = new N5FSWriter( n5meta.root );
 			dataset = n5meta.dataset;
-		}
-		else if ( meta instanceof N5HDF5Meta )
-		{
-			final N5HDF5Meta h5meta = ( N5HDF5Meta ) meta;
-			n5 = new N5HDF5Writer( h5meta.h5file, h5meta.defaultBlockSize );
-			dataset = h5meta.dataset;
 		}
 		else
 		{
@@ -399,10 +406,13 @@ public class SourceStateSerializer implements JsonDeserializer< SourceState< ?, 
 						: dataset );
 		final DataType type = attributes.getDataType();
 
-		final SelectedIds selectedIds = ( SelectedIds ) map.computeIfAbsent( SELECTED_IDS_KEY, k -> new SelectedIds() );
+		final SelectedIds selectedIds = Optional
+				.ofNullable( map.get( SELECTED_IDS_KEY ) )
+				.map( o -> ( SelectedIds ) context.deserialize( o, SelectedIds.class ) )
+				.orElse( new SelectedIds() );
 		final FragmentSegmentAssignmentState assignments = N5Helpers.assignments( n5, dataset );
 		final TmpDirectoryCreator nextCanvasDirectory = new TmpDirectoryCreator( null, null );
-		final String canvasDir = ( String ) map.computeIfAbsent( CANVAS_DIR_KEY, k -> nextCanvasDirectory.get() );
+		final String canvasDir = Optional.ofNullable( map.get( CANVAS_DIR_KEY ) ).map( JsonElement::getAsString ).orElseGet( nextCanvasDirectory );
 		final CommitCanvasN5 commitCanvas = new CommitCanvasN5( n5, dataset );
 
 		final DataSource< LabelMultisetType, VolatileLabelMultisetType > maskedSource = Masks.mask(
@@ -430,20 +440,20 @@ public class SourceStateSerializer implements JsonDeserializer< SourceState< ?, 
 		final ModalGoldenAngleSaturatedHighlightingARGBStream stream = new ModalGoldenAngleSaturatedHighlightingARGBStream( selectedIds, assignment );
 
 		final HighlightingStreamConverterLabelMultisetType converter = new HighlightingStreamConverterLabelMultisetType( stream );
-		if ( map.containsKey( CONVERTER_KEY ) )
+		if ( map.has( CONVERTER_KEY ) )
 		{
-			Optional.ofNullable( map.get( CONVERTER_ALPHA_KEY ) ).map( o -> ( Integer ) o ).ifPresent( converter.alphaProperty()::set );
-			Optional.ofNullable( map.get( CONVERTER_ACTIVE_FRAGMENT_ALPHA_KEY ) ).map( o -> ( Integer ) o ).ifPresent( converter.activeFragmentAlphaProperty()::set );
-			Optional.ofNullable( map.get( CONVERTER_ACTIVE_SEGMENT_ALPHA_KEY ) ).map( o -> ( Integer ) o ).ifPresent( converter.activeSegmentAlphaProperty()::set );
-			Optional.ofNullable( map.get( CONVERTER_SEED_KEY ) ).map( o -> ( Long ) o ).ifPresent( converter.seedProperty()::set );
-			Optional.ofNullable( map.get( CONVERTER_COLOR_FROM_SEGMENT_KEY ) ).map( o -> ( Boolean ) o ).ifPresent( converter.colorFromSegmentIdProperty()::set );
+			Optional.ofNullable( map.get( CONVERTER_ALPHA_KEY ) ).map( JsonElement::getAsInt ).ifPresent( converter.alphaProperty()::set );
+			Optional.ofNullable( map.get( CONVERTER_ACTIVE_FRAGMENT_ALPHA_KEY ) ).map( JsonElement::getAsInt ).ifPresent( converter.activeFragmentAlphaProperty()::set );
+			Optional.ofNullable( map.get( CONVERTER_ACTIVE_SEGMENT_ALPHA_KEY ) ).map( JsonElement::getAsInt ).ifPresent( converter.activeSegmentAlphaProperty()::set );
+			Optional.ofNullable( map.get( CONVERTER_SEED_KEY ) ).map( JsonElement::getAsLong ).ifPresent( converter.seedProperty()::set );
+			Optional.ofNullable( map.get( CONVERTER_COLOR_FROM_SEGMENT_KEY ) ).map( JsonElement::getAsBoolean ).ifPresent( converter.colorFromSegmentIdProperty()::set );
 		}
 
 		final MeshManagerWithAssignment meshManager = new MeshManagerWithAssignment(
 				maskedSource,
 				blockListCache,
 				meshCache,
-				null,
+				root,
 				assignment,
 				fragmentsInSelectedSegments,
 				stream,

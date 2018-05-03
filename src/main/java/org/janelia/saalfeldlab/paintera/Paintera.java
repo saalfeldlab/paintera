@@ -10,13 +10,16 @@ import org.janelia.saalfeldlab.fx.event.KeyTracker;
 import org.janelia.saalfeldlab.fx.ortho.OrthogonalViews;
 import org.janelia.saalfeldlab.n5.N5Writer;
 import org.janelia.saalfeldlab.paintera.composition.Composite;
+import org.janelia.saalfeldlab.paintera.control.selection.SelectedIds;
 import org.janelia.saalfeldlab.paintera.data.DataSource;
 import org.janelia.saalfeldlab.paintera.project.AffineTransform3DJsonAdapter;
 import org.janelia.saalfeldlab.paintera.project.CompositeSerializer;
 import org.janelia.saalfeldlab.paintera.project.PainteraProject;
 import org.janelia.saalfeldlab.paintera.project.ProjectDirectoryNotSetException;
+import org.janelia.saalfeldlab.paintera.project.SelectedIdsSerializer;
 import org.janelia.saalfeldlab.paintera.project.SourceInfoSerializer;
 import org.janelia.saalfeldlab.paintera.project.SourceStateSerializer;
+import org.janelia.saalfeldlab.paintera.state.LabelSourceState;
 import org.janelia.saalfeldlab.paintera.state.SourceState;
 import org.janelia.saalfeldlab.paintera.viewer3d.Viewer3DFX;
 import org.slf4j.Logger;
@@ -169,9 +172,11 @@ public class Paintera extends Application
 								baseView.getMeshManagerExecutorService(),
 								baseView.getMeshWorkerExecutorService(),
 								baseView.getQueue(),
-								0 ) )
+								0,
+								baseView.viewer3D().meshesGroup() ) )
 						.registerTypeAdapter( AffineTransform3D.class, new AffineTransform3DJsonAdapter() )
 						.registerTypeHierarchyAdapter( Composite.class, new CompositeSerializer() )
+						.registerTypeAdapter( SelectedIds.class, new SelectedIdsSerializer() )
 //						.setPrettyPrinting()
 						.create();
 				System.out.println( "WAT" );
@@ -180,7 +185,21 @@ public class Paintera extends Application
 				final SourceState< ?, ? > state = gson.fromJson( json, SourceState.class );
 				System.out.println( "state " + state + " " + ( state == null ) );
 				System.out.println( "serialized2: " + gson.toJson( state ) );
-				baseView.addRawSource( ( SourceState ) state );
+//				baseView.addRawSource( ( SourceState ) state );
+				final LabelSourceState< ?, ? > labelState = ( LabelSourceState< ?, ? > ) baseView.sourceInfo().getState( baseView.sourceInfo().trackSources().get( 1 ) );
+				labelState.selectedIds().activate( 1, 2, 3 );
+				labelState.selectedIds().activateAlso( 8173 );
+				final String jsonLabel = gson.toJson( labelState, SourceState.class );
+				System.out.println( "serialized3: " + jsonLabel );
+				final LabelSourceState< ?, ? > labelState2 = ( LabelSourceState< ?, ? > ) gson.fromJson( jsonLabel, SourceState.class );
+				final String jsonLabel2 = gson.toJson( labelState2, SourceState.class );
+				System.out.println( "serialized4: " + jsonLabel2 );
+				final long lastSelection = labelState2.selectedIds().getLastSelection();
+				final long[] selectedIds = labelState2.selectedIds().getActiveIds();
+				baseView.addLabelSource( ( LabelSourceState ) labelState2 );
+				labelState2.selectedIds().deactivateAll();
+				labelState2.selectedIds().activate( selectedIds );
+				labelState2.selectedIds().activateAlso( lastSelection );
 			}
 			catch ( final Exception e )
 			{
