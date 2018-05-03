@@ -9,12 +9,22 @@ import java.util.regex.Pattern;
 import org.janelia.saalfeldlab.fx.event.KeyTracker;
 import org.janelia.saalfeldlab.fx.ortho.OrthogonalViews;
 import org.janelia.saalfeldlab.n5.N5Writer;
+import org.janelia.saalfeldlab.paintera.composition.Composite;
 import org.janelia.saalfeldlab.paintera.data.DataSource;
+import org.janelia.saalfeldlab.paintera.project.AffineTransform3DJsonAdapter;
+import org.janelia.saalfeldlab.paintera.project.CompositeSerializer;
 import org.janelia.saalfeldlab.paintera.project.PainteraProject;
 import org.janelia.saalfeldlab.paintera.project.ProjectDirectoryNotSetException;
+import org.janelia.saalfeldlab.paintera.project.SourceInfoSerializer;
+import org.janelia.saalfeldlab.paintera.project.SourceStateSerializer;
+import org.janelia.saalfeldlab.paintera.state.SourceState;
 import org.janelia.saalfeldlab.paintera.viewer3d.Viewer3DFX;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import com.google.api.SourceInfo;
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
 
 import bdv.viewer.ViewerOptions;
 import javafx.application.Application;
@@ -148,6 +158,36 @@ public class Paintera extends Application
 		stage.setScene( scene );
 		stage.setWidth( initialWidth );
 		stage.setHeight( initialHeight );
+
+		new Thread( () -> {
+			try
+			{
+				final Gson gson = new GsonBuilder()
+						.registerTypeHierarchyAdapter( SourceInfo.class, new SourceInfoSerializer() )
+						.registerTypeAdapter( SourceState.class, new SourceStateSerializer(
+								baseView.getPropagationQueue(),
+								baseView.getMeshManagerExecutorService(),
+								baseView.getMeshWorkerExecutorService(),
+								baseView.getQueue(),
+								0 ) )
+						.registerTypeAdapter( AffineTransform3D.class, new AffineTransform3DJsonAdapter() )
+						.registerTypeHierarchyAdapter( Composite.class, new CompositeSerializer() )
+//						.setPrettyPrinting()
+						.create();
+				System.out.println( "WAT" );
+				final String json = gson.toJson( baseView.sourceInfo().getState( baseView.sourceInfo().currentSourceProperty().get() ), org.janelia.saalfeldlab.paintera.state.SourceState.class );
+				System.out.println( "serialized:  " + json );
+				final SourceState< ?, ? > state = gson.fromJson( json, SourceState.class );
+				System.out.println( "state " + state + " " + ( state == null ) );
+				System.out.println( "serialized2: " + gson.toJson( state ) );
+				baseView.addRawSource( ( SourceState ) state );
+			}
+			catch ( final Exception e )
+			{
+				System.out.println( e.getMessage() );
+				e.printStackTrace();
+			}
+		} ).start();
 
 		stage.widthProperty().addListener( ( obs, oldv, newv ) -> project.setWidth( newv.intValue() ) );
 		stage.heightProperty().addListener( ( obs, oldv, newv ) -> project.setHeight( newv.intValue() ) );

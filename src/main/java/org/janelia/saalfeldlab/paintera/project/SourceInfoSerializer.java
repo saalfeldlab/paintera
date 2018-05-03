@@ -53,14 +53,22 @@ public class SourceInfoSerializer implements JsonSerializer< SourceInfo >, JsonD
 	@Override
 	public JsonElement serialize( final SourceInfo src, final Type typeOfSrc, final JsonSerializationContext context )
 	{
+		System.out.println( 1 );
 		final Map< String, Object > elements = new HashMap<>();
+		System.out.println( 2 );
 		final List< Source< ? > > sources = new ArrayList<>( src.trackSources() );
+		System.out.println( 3 );
 		final List< JsonElement > serializedSources = new ArrayList<>();
 
+		System.out.println( 4 );
 		final int currentSourceIndex = src.currentSourceIndexProperty().get();
+		System.out.println( 5 );
 		elements.put( NUM_SOURCES_KEY, sources.size() );
+		System.out.println( 6 );
 		elements.put( CURRENT_SOURCE_INDEX_KEY, currentSourceIndex );
+		System.out.println( 7 );
 		elements.put( SOURCES_KEY, serializedSources );
+		System.out.println( 8 );
 		return context.serialize( elements );
 	}
 

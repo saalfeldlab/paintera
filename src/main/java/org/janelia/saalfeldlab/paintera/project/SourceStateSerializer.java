@@ -1,9 +1,9 @@
 package org.janelia.saalfeldlab.paintera.project;
 
 import java.io.IOException;
+import java.lang.invoke.MethodHandles;
 import java.lang.reflect.Type;
 import java.nio.file.Paths;
-import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ExecutorService;
@@ -41,11 +41,15 @@ import org.janelia.saalfeldlab.paintera.state.SourceState;
 import org.janelia.saalfeldlab.paintera.stream.HighlightingStreamConverter;
 import org.janelia.saalfeldlab.paintera.stream.HighlightingStreamConverterLabelMultisetType;
 import org.janelia.saalfeldlab.paintera.stream.ModalGoldenAngleSaturatedHighlightingARGBStream;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.google.gson.JsonDeserializationContext;
 import com.google.gson.JsonDeserializer;
 import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
 import com.google.gson.JsonParseException;
+import com.google.gson.JsonPrimitive;
 import com.google.gson.JsonSerializationContext;
 import com.google.gson.JsonSerializer;
 
@@ -72,8 +76,10 @@ import net.imglib2.type.numeric.RealType;
 import net.imglib2.util.Pair;
 import net.imglib2.util.ValueTriple;
 
-public class SourceStateSerializer implements JsonSerializer< SourceState< ?, ? > >, JsonDeserializer< SourceState< ?, ? > >
+public class SourceStateSerializer implements JsonDeserializer< SourceState< ?, ? > >, JsonSerializer< SourceState< ?, ? > >
 {
+
+	private static final Logger LOG = LoggerFactory.getLogger( MethodHandles.lookup().lookupClass() );
 
 	private static final String TYPE_KEY = "sourceType";
 
@@ -115,6 +121,10 @@ public class SourceStateSerializer implements JsonSerializer< SourceState< ?, ? 
 
 	private static final String CANVAS_DIR_KEY = "canvasDir";
 
+	private static final String META_DATA_CLASS_KEY = "class";
+
+	private static final String META_DATA_DATA_KEY = "data";
+
 	public enum StateType
 	{
 		RAW, LABEL;
@@ -132,30 +142,47 @@ public class SourceStateSerializer implements JsonSerializer< SourceState< ?, ? 
 
 	private final ExecutorService workers;
 
+	private final SharedQueue queue;
+
+	private final int priority;
+
 	public SourceStateSerializer(
 			final ExecutorService propagationExecutor,
 			final ExecutorService manager,
-			final ExecutorService workers )
+			final ExecutorService workers,
+			final SharedQueue queue,
+			final int priority )
 	{
 		super();
 		this.propagationExecutor = propagationExecutor;
 		this.manager = manager;
 		this.workers = workers;
+		this.queue = queue;
+		this.priority = priority;
 	}
 
 	@Override
 	public SourceState< ?, ? > deserialize( final JsonElement json, final Type typeOfT, final JsonDeserializationContext context ) throws JsonParseException
 	{
-		final Map< String, Object > map = context.deserialize( json, Map.class );
+		final JsonObject map = context.deserialize( json, JsonObject.class );
 
-		final StateType type = ( StateType ) map.get( TYPE_KEY );
+		final StateType type = context.deserialize( map.get( TYPE_KEY ), StateType.class );
 
-		final Map< String, Object > stateMap = ( Map< String, Object > ) map.get( STATE_KEY );
+		final JsonObject stateMap = context.deserialize( map.get( STATE_KEY ), JsonObject.class );
+		// ( Map< String, JsonElement > ) map.get( STATE_KEY );
 
 		switch ( type )
 		{
 		case RAW:
-			break;
+			try
+			{
+				LOG.debug( "Returning raw!" );
+				return rawFromMap( stateMap, queue, priority, context );
+			}
+			catch ( final IOException | ClassNotFoundException e )
+			{
+				throw new JsonParseException( "Failed to generate raw state from map: " + stateMap, e );
+			}
 		case LABEL:
 			break;
 		default:
@@ -168,63 +195,66 @@ public class SourceStateSerializer implements JsonSerializer< SourceState< ?, ? 
 	@Override
 	public JsonElement serialize( final SourceState< ?, ? > src, final Type typeOfSrc, final JsonSerializationContext context )
 	{
-		final Map< String, Object > state = new HashMap<>();
+		final JsonObject state = new JsonObject();
 		final StateType type = StateType.fromState( src );
-		state.put( TYPE_KEY, type );
+		state.add( TYPE_KEY, context.serialize( type ) );
 		switch ( type )
 		{
 		case RAW:
-			state.put( STATE_KEY, serializeRaw( src ) );
+			state.add( STATE_KEY, serializeRaw( src, context ) );
 			break;
 		case LABEL:
-			state.put( STATE_KEY, serializeLabel( ( LabelSourceState< ?, ? > ) src ) );
+			state.add( STATE_KEY, serializeLabel( ( LabelSourceState< ?, ? > ) src, context ) );
 			break;
 		default:
 			break;
 		}
-
 		return context.serialize( state );
 	}
 
-	private static Map< String, Object > serialize( final SourceState< ?, ? > src )
+	private static JsonObject serialize( final SourceState< ?, ? > src, final JsonSerializationContext context )
 	{
 		final AffineTransform3D transform = new AffineTransform3D();
 		src.dataSource().getSourceTransform( 0, 0, transform );
 
-		final Map< String, Object > map = new HashMap<>();
-		map.put( IS_VISIBLE_KEY, src.isVisibleProperty() );
-		map.put( COMPOSITE_KEY, src.compositeProperty().getValue() );
-		map.put( META_KEY, src.getMetaData() );
-		map.put( NAME_KEY, src.nameProperty().getValue() );
-		map.put( INTERPOLATION_KEY, src.interpolationProperty().get() );
-		map.put( TRANSFORM_KEY, transform );
+		final JsonObject metaData = new JsonObject();
+		metaData.addProperty( META_DATA_CLASS_KEY, src.getMetaData().getClass().getName() );
+		metaData.add( META_DATA_DATA_KEY, context.serialize( src.getMetaData() ) );
+
+		final JsonObject map = new JsonObject();
+		map.add( IS_VISIBLE_KEY, new JsonPrimitive( src.isVisibleProperty().get() ) );
+		map.add( COMPOSITE_KEY, context.serialize( src.compositeProperty().getValue() ) );
+		map.add( META_KEY, metaData );
+		map.add( NAME_KEY, new JsonPrimitive( src.nameProperty().get() ) );
+		map.add( INTERPOLATION_KEY, context.serialize( src.interpolationProperty().get() ) );
+		map.add( TRANSFORM_KEY, context.serialize( transform ) );
 
 		return map;
 	}
 
-	private static Map< String, Object > serializeRaw( final SourceState< ?, ? > src )
+	private static JsonObject serializeRaw( final SourceState< ?, ? > src, final JsonSerializationContext context )
 	{
-		final Map< String, Object > map = serialize( src );
+		final JsonObject map = serialize( src, context );
 
 		final Converter< ?, ARGBType > converter = src.getConverter();
 		if ( converter instanceof ARGBColorConverter< ? > )
 		{
 			final ARGBColorConverter< ? > c = ( ARGBColorConverter< ? > ) converter;
-			final Map< String, Object > converterMap = new HashMap<>();
-			converterMap.put( CONVERTER_MIN_KEY, c.getMin() );
-			converterMap.put( CONVERTER_MAX_KEY, c.getMax() );
-			converterMap.put( CONVERTER_ALPHA_KEY, c.alphaProperty().get() );
-			converterMap.put( CONVERTER_COLOR_KEY, c.getColor().get() );
-			map.put( CONVERTER_KEY, converterMap );
+			final JsonObject converterMap = new JsonObject();
+			converterMap.add( CONVERTER_MIN_KEY, new JsonPrimitive( c.getMin() ) );
+			converterMap.add( CONVERTER_MAX_KEY, new JsonPrimitive( c.getMax() ) );
+			converterMap.add( CONVERTER_ALPHA_KEY, new JsonPrimitive( c.alphaProperty().get() ) );
+			converterMap.add( CONVERTER_COLOR_KEY, new JsonPrimitive( c.getColor().get() ) );
+			map.add( CONVERTER_KEY, converterMap );
 		}
 
 		return map;
 	}
 
-	private static Map< String, Object > serializeLabel( final LabelSourceState< ?, ? > src )
+	private static JsonObject serializeLabel( final LabelSourceState< ?, ? > src, final JsonSerializationContext context )
 	{
-		final Map< String, Object > map = serialize( src );
-		map.put( SELECTED_IDS_KEY, src.selectedIds() );
+		final JsonObject map = serialize( src, context );
+		map.add( SELECTED_IDS_KEY, context.serialize( src.selectedIds() ) );
 		// TODO do assignment
 //		map.put( ASSIGNMENT_KEY, src.assignment() );
 
@@ -232,27 +262,32 @@ public class SourceStateSerializer implements JsonSerializer< SourceState< ?, ? 
 		if ( converter instanceof HighlightingStreamConverter< ? > )
 		{
 			final HighlightingStreamConverter< ? > c = ( HighlightingStreamConverter< ? > ) converter;
-			final Map< String, Object > converterMap = new HashMap<>();
-			map.put( CONVERTER_ALPHA_KEY, c.alphaProperty().get() );
-			map.put( CONVERTER_ACTIVE_FRAGMENT_ALPHA_KEY, c.activeFragmentAlphaProperty().get() );
-			map.put( CONVERTER_ACTIVE_SEGMENT_ALPHA_KEY, c.activeSegmentAlphaProperty().get() );
-			map.put( CONVERTER_SEED_KEY, c.seedProperty().get() );
-			map.put( CONVERTER_COLOR_FROM_SEGMENT_KEY, c.colorFromSegmentIdProperty().get() );
-			map.put( CONVERTER_KEY, converterMap );
+			final JsonObject converterMap = new JsonObject();
+			converterMap.add( CONVERTER_ALPHA_KEY, new JsonPrimitive( c.alphaProperty().get() ) );
+			converterMap.add( CONVERTER_ACTIVE_FRAGMENT_ALPHA_KEY, new JsonPrimitive( c.activeFragmentAlphaProperty().get() ) );
+			converterMap.add( CONVERTER_ACTIVE_SEGMENT_ALPHA_KEY, new JsonPrimitive( c.activeSegmentAlphaProperty().get() ) );
+			converterMap.add( CONVERTER_SEED_KEY, new JsonPrimitive( c.seedProperty().get() ) );
+			converterMap.add( CONVERTER_COLOR_FROM_SEGMENT_KEY, new JsonPrimitive( c.colorFromSegmentIdProperty().get() ) );
+			map.add( CONVERTER_KEY, converterMap );
 		}
 
 		return map;
 	}
 
 	private static < D extends NativeType< D > & RealType< D >, T extends Volatile< D > & RealType< T > > SourceState< D, T > rawFromMap(
-			final Map< String, Object > map,
+			final JsonObject map,
 			final SharedQueue queue,
-			final int priority ) throws IOException
+			final int priority,
+			final JsonDeserializationContext context ) throws IOException, JsonParseException, ClassNotFoundException
 	{
-		final Object meta = map.get( META_KEY );
-		final String name = ( String ) map.get( NAME_KEY );
-		final AffineTransform3D transform = ( AffineTransform3D ) map.get( TRANSFORM_KEY );
-		final Composite< ARGBType, ARGBType > composite = ( Composite< ARGBType, ARGBType > ) map.get( COMPOSITE_KEY );
+
+		final JsonObject metaData = map.get( META_KEY ).getAsJsonObject();
+		LOG.debug( "got meta data: {}", metaData );
+		final Object meta = context.deserialize( metaData.get( META_DATA_DATA_KEY ), Class.forName( metaData.get( META_DATA_CLASS_KEY ).getAsString() ) );
+		final String name = map.get( NAME_KEY ).getAsString();
+		LOG.debug( "Got name={}", name );
+		final AffineTransform3D transform = ( AffineTransform3D ) context.deserialize( map.get( TRANSFORM_KEY ), AffineTransform3D.class );
+		final Composite< ARGBType, ARGBType > composite = context.deserialize( map.get( COMPOSITE_KEY ), Composite.class );
 
 		final N5Reader n5;
 		final String dataset;
@@ -298,13 +333,13 @@ public class SourceStateSerializer implements JsonSerializer< SourceState< ?, ? 
 		final DataType type = attributes.getDataType();
 
 		final Imp1< T > converter = new ARGBColorConverter.Imp1<>( N5Helpers.minForType( type ), N5Helpers.maxForType( type ) );
-		if ( map.containsKey( CONVERTER_KEY ) )
+		if ( map.has( CONVERTER_KEY ) )
 		{
-			final Map< String, Object > converterSettings = ( Map< String, Object > ) map.get( CONVERTER_KEY );
-			Optional.ofNullable( converterSettings.get( CONVERTER_MIN_KEY ) ).map( o -> ( Double ) o ).ifPresent( converter::setMin );
-			Optional.ofNullable( converterSettings.get( CONVERTER_MAX_KEY ) ).map( o -> ( Double ) o ).ifPresent( converter::setMax );
-			Optional.ofNullable( converterSettings.get( CONVERTER_COLOR_KEY ) ).map( o -> new ARGBType( ( int ) o ) ).ifPresent( converter::setColor );
-			Optional.ofNullable( converterSettings.get( CONVERTER_ALPHA_KEY ) ).map( o -> ( Double ) o ).ifPresent( converter.alphaProperty()::set );
+			final JsonObject converterSettings = map.get( CONVERTER_KEY ).getAsJsonObject();
+			Optional.ofNullable( converterSettings.get( CONVERTER_MIN_KEY ) ).map( JsonElement::getAsDouble ).ifPresent( converter::setMin );
+			Optional.ofNullable( converterSettings.get( CONVERTER_MAX_KEY ) ).map( JsonElement::getAsDouble ).ifPresent( converter::setMax );
+			Optional.ofNullable( converterSettings.get( CONVERTER_COLOR_KEY ) ).map( JsonElement::getAsInt ).map( ARGBType::new ).ifPresent( converter::setColor );
+			Optional.ofNullable( converterSettings.get( CONVERTER_ALPHA_KEY ) ).map( JsonElement::getAsDouble ).ifPresent( converter.alphaProperty()::set );
 		}
 
 		return new SourceState<>( source, converter, composite, name, meta );

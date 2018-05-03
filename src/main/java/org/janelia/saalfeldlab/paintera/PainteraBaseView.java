@@ -257,7 +257,15 @@ public class PainteraBaseView
 			final Object metaData )
 	{
 		final Composite< ARGBType, ARGBType > comp = new ARGBCompositeAlphaAdd();
-		final SourceState< T, U > state = sourceInfo.addRawSource( spec, min, max, color, comp, metaData );
+		final SourceState< T, U > state = sourceInfo.makeRawSourceState( spec, min, max, color, comp, metaData );
+		addRawSource( state );
+	}
+
+	public < T extends RealType< T >, U extends RealType< U > > void addRawSource(
+			final SourceState< T, U > state )
+	{
+		LOG.warn( "Adding state={}", state );
+		sourceInfo.addState( state );
 		final Converter< U, ARGBType > conv = state.converter();
 		if ( conv instanceof ARGBColorConverter< ? > )
 		{
@@ -640,6 +648,16 @@ public class PainteraBaseView
 	public SharedQueue getQueue()
 	{
 		return this.cacheControl;
+	}
+
+	public ExecutorService getMeshManagerExecutorService()
+	{
+		return this.meshManagerExecutorService;
+	}
+
+	public ExecutorService getMeshWorkerExecutorService()
+	{
+		return this.meshWorkerExecutorService;
 	}
 
 }
