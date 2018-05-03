@@ -29,6 +29,8 @@ import org.janelia.saalfeldlab.paintera.control.selection.SelectedSegments;
 import org.janelia.saalfeldlab.paintera.data.DataSource;
 import org.janelia.saalfeldlab.paintera.data.RandomAccessibleIntervalDataSource;
 import org.janelia.saalfeldlab.paintera.data.mask.MaskedSource;
+import org.janelia.saalfeldlab.paintera.data.mask.Masks;
+import org.janelia.saalfeldlab.paintera.data.mask.TmpDirectoryCreator;
 import org.janelia.saalfeldlab.paintera.id.IdService;
 import org.janelia.saalfeldlab.paintera.id.ToIdConverter;
 import org.janelia.saalfeldlab.paintera.meshes.InterruptibleFunction;
@@ -38,6 +40,7 @@ import org.janelia.saalfeldlab.paintera.meshes.MeshManager;
 import org.janelia.saalfeldlab.paintera.meshes.MeshManagerWithAssignment;
 import org.janelia.saalfeldlab.paintera.meshes.cache.CacheUtils;
 import org.janelia.saalfeldlab.paintera.meshes.cache.UniqueLabelListLabelMultisetCacheLoader;
+import org.janelia.saalfeldlab.paintera.n5.CommitCanvasN5;
 import org.janelia.saalfeldlab.paintera.state.GlobalTransformManager;
 import org.janelia.saalfeldlab.paintera.state.LabelSourceState;
 import org.janelia.saalfeldlab.paintera.state.SourceInfo;
@@ -304,9 +307,20 @@ public class PainteraBaseView
 				dataset );
 
 		// create from n5
-		final Object meta = null;
+		final Object meta = N5Helpers.metaData( n5, dataset );
+
+		final TmpDirectoryCreator canvasCacheDirUpdate = new TmpDirectoryCreator( null, null );
+
+		final DataSource< LabelMultisetType, VolatileLabelMultisetType > maskedSource =
+				Masks.mask(
+						labelSource,
+						canvasCacheDirUpdate.get(),
+						canvasCacheDirUpdate,
+						new CommitCanvasN5( n5, dataset ),
+						propagationQueue );
+
 		addLabelSource(
-				labelSource,
+				maskedSource,
 				N5Helpers.assignments( n5, dataset ),
 				N5Helpers.idService( n5, dataset ),
 				ToIdConverter.fromLabelMultisetType(),
