@@ -2,6 +2,7 @@ package org.janelia.saalfeldlab.paintera.serialization;
 
 import org.janelia.saalfeldlab.paintera.PainteraBaseView;
 import org.janelia.saalfeldlab.paintera.composition.Composite;
+import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignmentOnlyLocal;
 import org.janelia.saalfeldlab.paintera.control.selection.SelectedIds;
 import org.janelia.saalfeldlab.paintera.state.LabelSourceState;
 import org.janelia.saalfeldlab.paintera.state.SourceInfo;
@@ -31,6 +32,7 @@ public class GsonHelpers
 				.registerTypeAdapter( AffineTransform3D.class, new AffineTransform3DJsonAdapter() )
 				.registerTypeHierarchyAdapter( Composite.class, new CompositeSerializer() )
 				.registerTypeAdapter( SelectedIds.class, new SelectedIdsSerializer() )
+				.registerTypeAdapter( FragmentSegmentAssignmentOnlyLocal.class, new FragmentSegmentAssignmentOnlyLocalSerializer() )
 				.registerTypeAdapter( WindowProperties.class, new WindowPropertiesSerializer() );
 	}
 

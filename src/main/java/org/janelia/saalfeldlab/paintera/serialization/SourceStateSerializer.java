@@ -17,6 +17,7 @@ import org.janelia.saalfeldlab.n5.N5Writer;
 import org.janelia.saalfeldlab.paintera.N5Helpers;
 import org.janelia.saalfeldlab.paintera.PainteraBaseView;
 import org.janelia.saalfeldlab.paintera.composition.Composite;
+import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignmentOnlyLocal;
 import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignmentState;
 import org.janelia.saalfeldlab.paintera.control.assignment.FragmentsInSelectedSegments;
 import org.janelia.saalfeldlab.paintera.control.selection.SelectedIds;
@@ -263,7 +264,7 @@ public class SourceStateSerializer implements JsonDeserializer< SourceState< ?, 
 		final JsonObject map = serialize( src, context );
 		map.add( SELECTED_IDS_KEY, context.serialize( src.selectedIds() ) );
 		// TODO do assignment
-//		map.put( ASSIGNMENT_KEY, src.assignment() );
+		map.add( ASSIGNMENT_KEY, context.serialize( src.assignment() ) );
 
 		final Converter< ?, ARGBType > converter = src.getConverter();
 		if ( converter instanceof HighlightingStreamConverter< ? > )
@@ -402,16 +403,21 @@ public class SourceStateSerializer implements JsonDeserializer< SourceState< ?, 
 				N5Helpers.isMultiScale( n5, dataset )
 						? Paths.get( dataset, N5Helpers.listAndSortScaleDatasets( n5, dataset )[ 0 ] ).toString()
 						: dataset );
-		final DataType type = attributes.getDataType();
 
 		final SelectedIds selectedIds = Optional
 				.ofNullable( map.get( SELECTED_IDS_KEY ) )
 				.map( o -> ( SelectedIds ) context.deserialize( o, SelectedIds.class ) )
 				.orElse( new SelectedIds() );
-		final FragmentSegmentAssignmentState assignments = N5Helpers.assignments( n5, dataset );
 		final TmpDirectoryCreator nextCanvasDirectory = new TmpDirectoryCreator( null, null );
 		final String canvasDir = Optional.ofNullable( map.get( CANVAS_DIR_KEY ) ).map( JsonElement::getAsString ).orElseGet( nextCanvasDirectory );
 		final CommitCanvasN5 commitCanvas = new CommitCanvasN5( n5, dataset );
+		final FragmentSegmentAssignmentOnlyLocal deserializedAssignment = context.deserialize(
+				map.get( ASSIGNMENT_KEY ),
+				FragmentSegmentAssignmentOnlyLocal.class );
+		final int size = deserializedAssignment.size();
+		final long[] fragments = new long[ size ];
+		final long[] segments = new long[ size ];
+		deserializedAssignment.persist( fragments, segments );
 
 		final DataSource< LabelMultisetType, VolatileLabelMultisetType > maskedSource = Masks.mask(
 				source,
@@ -429,7 +435,7 @@ public class SourceStateSerializer implements JsonDeserializer< SourceState< ?, 
 
 		final InterruptibleFunction< ShapeKey, Pair< float[], float[] > >[] meshCache = CacheUtils.meshCacheLoaders( maskedSource, getMaskGenerator, CacheUtils::toCacheSoftRefLoaderCache );
 
-		final FragmentSegmentAssignmentState assignment = N5Helpers.assignments( n5, dataset );
+		final FragmentSegmentAssignmentState assignment = N5Helpers.assignments( n5, dataset, fragments, segments );
 
 		final SelectedSegments activeSegments = new SelectedSegments( selectedIds, assignment );
 

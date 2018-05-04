@@ -660,6 +660,38 @@ public class N5Helpers
 		return transform.concatenate( new Translation3D( shift ) );
 	}
 
+	public static FragmentSegmentAssignmentState assignments(
+			final N5Writer writer,
+			final String ds,
+			final long[] fragments,
+			final long[] segments ) throws IOException
+	{
+		final String dataset = ds + ".fragment-segment-assignment";
+
+		final BiConsumer< long[], long[] > persister = ( keys, values ) -> {
+			if ( keys.length == 0 )
+			{
+				LOG.info( "Zero length data, will not persist fragment-segment-assignment." );
+				return;
+			}
+			try
+			{
+				final DatasetAttributes attrs = new DatasetAttributes( new long[] { keys.length, 2 }, new int[] { keys.length, 1 }, DataType.UINT64, new GzipCompression() );
+				writer.createDataset( dataset, attrs );
+				final DataBlock< long[] > keyBlock = new LongArrayDataBlock( new int[] { keys.length, 1 }, new long[] { 0, 0 }, keys );
+				final DataBlock< long[] > valueBlock = new LongArrayDataBlock( new int[] { values.length, 1 }, new long[] { 0, 1 }, values );
+				writer.writeBlock( dataset, attrs, keyBlock );
+				writer.writeBlock( dataset, attrs, valueBlock );
+			}
+			catch ( final IOException e )
+			{
+				throw new RuntimeException( e );
+			}
+		};
+
+		return new FragmentSegmentAssignmentOnlyLocal( fragments, segments, persister );
+	}
+
 	public static FragmentSegmentAssignmentState assignments( final N5Writer writer, final String ds ) throws IOException
 	{
 		final String dataset = ds + ".fragment-segment-assignment";
