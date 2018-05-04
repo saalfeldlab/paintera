@@ -350,7 +350,11 @@ public class SourceStateSerializer implements JsonDeserializer< SourceState< ?, 
 			Optional.ofNullable( converterSettings.get( CONVERTER_ALPHA_KEY ) ).map( JsonElement::getAsDouble ).ifPresent( converter.alphaProperty()::set );
 		}
 
-		return new SourceState<>( source, converter, composite, name, meta );
+		final SourceState< D, T > state = new SourceState<>( source, converter, composite, name, meta );
+		state.interpolationProperty().set( Optional
+				.ofNullable( ( Interpolation ) context.deserialize( map.get( INTERPOLATION_KEY ), Interpolation.class ) )
+				.orElse( Interpolation.NEARESTNEIGHBOR ) );
+		return state;
 	}
 
 	private static LabelSourceState< LabelMultisetType, VolatileLabelMultisetType > labelFromMap(
@@ -469,7 +473,7 @@ public class SourceStateSerializer implements JsonDeserializer< SourceState< ?, 
 
 		final MeshInfos meshInfos = new MeshInfos( activeSegments, assignment, meshManager, source.getNumMipmapLevels() );
 
-		return new LabelSourceState<>(
+		final LabelSourceState< LabelMultisetType, VolatileLabelMultisetType > state = new LabelSourceState<>(
 				maskedSource,
 				converter,
 				composite,
@@ -482,6 +486,10 @@ public class SourceStateSerializer implements JsonDeserializer< SourceState< ?, 
 				N5Helpers.idService( n5, dataset ),
 				meshManager,
 				meshInfos );
+		state.interpolationProperty().set( Optional
+				.ofNullable( ( Interpolation ) context.deserialize( map.get( INTERPOLATION_KEY ), Interpolation.class ) )
+				.orElse( Interpolation.NEARESTNEIGHBOR ) );
+		return state;
 
 	}
 
