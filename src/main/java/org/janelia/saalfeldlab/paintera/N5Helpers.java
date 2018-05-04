@@ -885,13 +885,24 @@ public class N5Helpers
 		return new AffineTransform3D().concatenate( new ScaleAndTranslation( resolution, offset ) );
 	}
 
-	public static < D, T > ValueTriple< RandomAccessibleInterval< D >[], RandomAccessibleInterval< T >[], AffineTransform3D[] > asArrayTriple(
-			final ValueTriple< RandomAccessibleInterval< D >, RandomAccessibleInterval< T >, AffineTransform3D > scalarTriple )
+	public static < A, B, C > ValueTriple< A[], B[], C[] > asArrayTriple( final ValueTriple< A, B, C > scalarTriple )
 	{
-		final RandomAccessibleInterval< D >[] a = new RandomAccessibleInterval[] { scalarTriple.getA() };
-		final RandomAccessibleInterval< T >[] b = new RandomAccessibleInterval[] { scalarTriple.getB() };
-		final AffineTransform3D[] c = { scalarTriple.getC() };
-		return new ValueTriple<>( a, b, c );
+		final A a = scalarTriple.getA();
+		final B b = scalarTriple.getB();
+		final C c = scalarTriple.getC();
+
+		@SuppressWarnings( "unchecked" )
+		final A[] aArray = ( A[] ) Array.newInstance( a.getClass(), 1 );
+		@SuppressWarnings( "unchecked" )
+		final B[] bArray = ( B[] ) Array.newInstance( b.getClass(), 1 );
+		@SuppressWarnings( "unchecked" )
+		final C[] cArray = ( C[] ) Array.newInstance( c.getClass(), 1 );
+
+		aArray[ 0 ] = a;
+		bArray[ 0 ] = b;
+		cArray[ 0 ] = c;
+
+		return new ValueTriple< >( aArray, bArray, cArray );
 	}
 
 }
