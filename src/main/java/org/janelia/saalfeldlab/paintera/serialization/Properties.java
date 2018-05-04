@@ -1,7 +1,12 @@
 package org.janelia.saalfeldlab.paintera.serialization;
 
+import java.util.Optional;
+
+import org.janelia.saalfeldlab.paintera.PainteraBaseView;
 import org.janelia.saalfeldlab.paintera.state.SourceInfo;
 
+import com.google.gson.Gson;
+import com.google.gson.JsonObject;
 import com.google.gson.annotations.Expose;
 
 import javafx.beans.property.BooleanProperty;
@@ -12,6 +17,12 @@ import net.imglib2.ui.TransformListener;
 
 public class Properties implements TransformListener< AffineTransform3D >
 {
+
+	private static final String SOURCES_KEY = "sources";
+
+	private static final String GLOBAL_TRANSFORM_KEY = "globalTransform";
+
+	private static final String WINDOW_PROPERTIES_KEY = "windowProperties";
 
 	@Expose
 	public final SourceInfo sources;
@@ -25,6 +36,12 @@ public class Properties implements TransformListener< AffineTransform3D >
 	private transient final BooleanProperty transformDirty = new SimpleBooleanProperty( false );
 
 	public transient final ObservableBooleanValue isDirty;
+
+	public Properties( PainteraBaseView viewer )
+	{
+		this( viewer.sourceInfo() );
+		viewer.manager().addListener( this );
+	}
 
 	public Properties( final SourceInfo sources )
 	{
@@ -60,6 +77,50 @@ public class Properties implements TransformListener< AffineTransform3D >
 		sources.clean();
 		setGlobalTransformClean();
 		windowProperties.clean();
+	}
+
+	public static Properties fromSerializedProperties(
+			JsonObject serializedProperties,
+			final PainteraBaseView viewer,
+			boolean removeExistingSources )
+	{
+		return fromSerializedProperties( serializedProperties, viewer, removeExistingSources, GsonHelpers.builderWithAllRequiredAdapters().create() );
+	}
+
+	public static Properties fromSerializedProperties(
+			JsonObject serializedProperties,
+			final PainteraBaseView viewer,
+			boolean removeExistingSources,
+			Gson gson )
+	{
+
+		Properties properties = new Properties( viewer );
+
+		if ( removeExistingSources )
+			properties.sources.trackSources().forEach( properties.sources::removeSource );
+
+		Optional
+				.ofNullable( serializedProperties.get( SOURCES_KEY ) )
+				.ifPresent( element -> SourceInfoSerializer.populate(
+						viewer::addState,
+						properties.sources.currentSourceIndexProperty()::set,
+						element.getAsJsonObject(),
+						viewer.getQueue(),
+						0,
+						viewer.viewer3D().meshesGroup(),
+						viewer.getPropagationQueue(),
+						viewer.getMeshManagerExecutorService(),
+						viewer.getMeshWorkerExecutorService(),
+						gson ) );
+
+		Optional
+				.ofNullable( serializedProperties.get( GLOBAL_TRANSFORM_KEY ) )
+				.map( element -> gson.fromJson( element, AffineTransform3D.class ) )
+				.ifPresent( viewer.manager()::setTransform );
+
+		properties.clean();
+
+		return properties;
 	}
 
 }

@@ -12,15 +12,13 @@ import org.janelia.saalfeldlab.paintera.data.DataSource;
 import org.janelia.saalfeldlab.paintera.serialization.GsonHelpers;
 import org.janelia.saalfeldlab.paintera.serialization.Properties;
 import org.janelia.saalfeldlab.paintera.state.LabelSourceState;
-import org.janelia.saalfeldlab.paintera.state.SourceInfo;
-import org.janelia.saalfeldlab.paintera.state.SourceState;
 import org.janelia.saalfeldlab.paintera.viewer3d.Viewer3DFX;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.google.gson.GsonBuilder;
+import com.google.gson.JsonObject;
 
-import bdv.viewer.Source;
 import bdv.viewer.ViewerOptions;
 import javafx.application.Application;
 import javafx.application.Platform;
@@ -76,39 +74,25 @@ public class Paintera extends Application
 
 		// populate everything
 
-		final Optional< Properties > loadedProperties = loadPropertiesIfPresent(
-				painteraArgs.project(),
-				GsonHelpers.builderWithAllRequiredAdapters( baseView ).setPrettyPrinting() );
+		final Optional< JsonObject > loadedProperties = loadPropertiesIfPresent( painteraArgs.project() );
 
-		final Properties properties = new Properties( baseView.sourceInfo() );
-		baseView.manager().addListener( properties );
+		final Properties properties = loadedProperties.map( lp -> Properties.fromSerializedProperties( lp, baseView, true ) ).orElse( new Properties( baseView ) );
 
-		if ( loadedProperties.isPresent() )
-		{
-
-			final SourceInfo loadedSourceInfo = loadedProperties.get().sources;
-
-			for ( final Source< ? > source : loadedSourceInfo.trackSources() )
-			{
-				final SourceState< ?, ? > state = loadedSourceInfo.getState( source );
-				LOG.debug( "Adding source {} and state {}", source, state );
-				if ( state instanceof LabelSourceState< ?, ? > )
-				{
-					final LabelSourceState< ?, ? > lstate = ( LabelSourceState< ?, ? > ) state;
-					baseView.addLabelSource( ( LabelSourceState ) lstate );
-					final long[] selIds = lstate.selectedIds().getActiveIds();
-					final long lastId = lstate.selectedIds().getLastSelection();
-					lstate.selectedIds().deactivateAll();
-					lstate.selectedIds().activate( selIds );
-					lstate.selectedIds().activateAlso( lastId );
-				}
-				else
-				{
-					baseView.addRawSource( ( SourceState ) state );
-				}
-			}
-			baseView.sourceInfo().currentSourceIndexProperty().set( loadedProperties.get().sources.currentSourceIndexProperty().get() );
-		}
+		// TODO this should probably happen in the properties.populate:
+		properties.sources
+				.trackSources()
+				.stream()
+				.map( properties.sources::getState )
+				.filter( state -> state instanceof LabelSourceState< ?, ? > )
+				.map( state -> ( LabelSourceState< ?, ? > ) state )
+				.forEach( state -> {
+					final long[] selIds = state.selectedIds().getActiveIds();
+					final long lastId = state.selectedIds().getLastSelection();
+					state.selectedIds().deactivateAll();
+					state.selectedIds().activate( selIds );
+					state.selectedIds().activateAlso( lastId );
+		} );
+		properties.clean();
 
 		LOG.debug( "Adding {} raw sources: {}", painteraArgs.rawSources().length, painteraArgs.rawSources() );
 		for ( final String source : painteraArgs.rawSources() )
@@ -117,8 +101,6 @@ public class Paintera extends Application
 		LOG.debug( "Adding {} label sources: {}", painteraArgs.labelSources().length, painteraArgs.labelSources() );
 		for ( final String source : painteraArgs.labelSources() )
 			addLabelFromString( baseView, source );
-
-		loadedProperties.map( Properties::globalTransformCopy ).ifPresent( baseView.manager()::setTransform );
 
 		properties.windowProperties.widthProperty.set( painteraArgs.width( properties.windowProperties.widthProperty.get() ) );
 		properties.windowProperties.heightProperty.set( painteraArgs.height( properties.windowProperties.heightProperty.get() ) );
@@ -156,7 +138,7 @@ public class Paintera extends Application
 					LOG.debug( "Saving project before exit" );
 					try
 					{
-						persistProperties( painteraArgs.project(), properties, GsonHelpers.builderWithAllRequiredAdapters( baseView ).setPrettyPrinting() );
+						persistProperties( painteraArgs.project(), properties, GsonHelpers.builderWithAllRequiredAdapters().setPrettyPrinting() );
 					}
 					catch ( final IOException e )
 					{
@@ -257,11 +239,16 @@ public class Paintera extends Application
 		return screenScales;
 	}
 
-	public static Optional< Properties > loadPropertiesIfPresent( final String root, final GsonBuilder builder )
+	public static Optional< JsonObject > loadPropertiesIfPresent( final String root )
+	{
+		return loadPropertiesIfPresent( root, new GsonBuilder() );
+	}
+
+	public static Optional< JsonObject > loadPropertiesIfPresent( final String root, final GsonBuilder builder )
 	{
 		try
 		{
-			final Properties properties = N5Helpers.n5Reader( root, builder, 64, 64, 64 ).getAttribute( "", "paintera", Properties.class );
+			final JsonObject properties = N5Helpers.n5Reader( root, builder, 64, 64, 64 ).getAttribute( "", "paintera", JsonObject.class );
 			return Optional.of( properties );
 		}
 		catch ( final IOException | NullPointerException e )

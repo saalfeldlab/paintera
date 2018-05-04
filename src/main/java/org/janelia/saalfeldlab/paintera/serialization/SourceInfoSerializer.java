@@ -5,23 +5,26 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ExecutorService;
+import java.util.function.Consumer;
+import java.util.function.IntConsumer;
 import java.util.stream.Collectors;
 
 import org.janelia.saalfeldlab.paintera.state.SourceInfo;
 import org.janelia.saalfeldlab.paintera.state.SourceState;
+import org.janelia.saalfeldlab.util.MakeUnchecked;
 
-import com.google.gson.JsonArray;
-import com.google.gson.JsonDeserializationContext;
-import com.google.gson.JsonDeserializer;
+import com.google.gson.Gson;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
-import com.google.gson.JsonParseException;
 import com.google.gson.JsonSerializationContext;
 import com.google.gson.JsonSerializer;
 
+import bdv.util.volatiles.SharedQueue;
 import bdv.viewer.Source;
+import javafx.scene.Group;
 
-public class SourceInfoSerializer implements JsonSerializer< SourceInfo >, JsonDeserializer< SourceInfo >
+public class SourceInfoSerializer implements JsonSerializer< SourceInfo >
 {
 
 	private static final String NUM_SOURCES_KEY = "numSources";
@@ -29,25 +32,6 @@ public class SourceInfoSerializer implements JsonSerializer< SourceInfo >, JsonD
 	private static final String SOURCES_KEY = "sources";
 
 	private static final String CURRENT_SOURCE_INDEX_KEY = "currentSourceIndex";
-
-	@Override
-	public SourceInfo deserialize( final JsonElement json, final Type typeOfT, final JsonDeserializationContext context ) throws JsonParseException
-	{
-
-		final SourceInfo sourceInfo = new SourceInfo();
-		final JsonObject elements = json.getAsJsonObject();
-		final JsonArray sources = elements.get( SOURCES_KEY ).getAsJsonArray();
-		final int currentSourceIndex = elements.get( CURRENT_SOURCE_INDEX_KEY ).getAsInt();
-
-		final List< SourceState< ?, ? > > sourceStates = new ArrayList<>();
-		for ( final JsonElement jsonSource : sources )
-		{
-			final SourceState< ?, ? > state = context.deserialize( jsonSource, SourceState.class );
-			sourceInfo.addState( ( SourceState ) state );
-		}
-		sourceInfo.currentSourceIndexProperty().set( currentSourceIndex );
-		return sourceInfo;
-	}
 
 	@Override
 	public JsonElement serialize( final SourceInfo src, final Type typeOfSrc, final JsonSerializationContext context )
@@ -67,6 +51,32 @@ public class SourceInfoSerializer implements JsonSerializer< SourceInfo >, JsonD
 		elements.put( CURRENT_SOURCE_INDEX_KEY, currentSourceIndex );
 		elements.put( SOURCES_KEY, serializedSources );
 		return context.serialize( elements );
+	}
+
+	public static void populate(
+			Consumer< SourceState< ?, ? > > addState,
+			final IntConsumer currentSourceIndex,
+			JsonObject serializedSourceInfo,
+			final SharedQueue queue,
+			final int priority,
+			final Group root,
+			final ExecutorService propagationExecutor,
+			final ExecutorService manager,
+			final ExecutorService workers,
+			Gson gson )
+	{
+		serializedSourceInfo.get( SOURCES_KEY )
+				.getAsJsonArray()
+				.forEach( MakeUnchecked.unchecked( ( MakeUnchecked.CheckedConsumer< JsonElement > ) element -> addState.accept( SourceStateSerializer.deserializeState(
+						element.getAsJsonObject(),
+						queue,
+						priority,
+						root,
+						propagationExecutor,
+						manager,
+						workers,
+						gson ) ) ) );
+		currentSourceIndex.accept( serializedSourceInfo.get( CURRENT_SOURCE_INDEX_KEY ).getAsInt() );
 	}
 
 }

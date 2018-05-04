@@ -171,6 +171,17 @@ public class PainteraBaseView
 		return this.manager;
 	}
 
+	@SuppressWarnings( "unchecked" )
+	public < D, T > void addState( SourceState< D, T > state )
+	{
+		if ( state instanceof LabelSourceState< ?, ? > )
+		{
+			addLabelSource( ( LabelSourceState ) state );
+		}
+		else
+			addRawSource( ( SourceState ) state );
+	}
+
 	public < T extends RealType< T > & NativeType< T >, U extends Volatile< T > & RealType< U > > Optional< DataSource< T, U > > addRawSource(
 			final N5Reader n5,
 			final String dataset ) throws IOException

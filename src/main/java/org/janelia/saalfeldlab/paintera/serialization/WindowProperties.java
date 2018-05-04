@@ -1,5 +1,10 @@
 package org.janelia.saalfeldlab.paintera.serialization;
 
+import java.util.Optional;
+
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
+
 import javafx.beans.property.IntegerProperty;
 import javafx.beans.property.SimpleIntegerProperty;
 import javafx.beans.value.ObservableBooleanValue;
@@ -22,6 +27,13 @@ public final class WindowProperties
 	{
 		initialWidth.set( widthProperty.get() );
 		initialHeight.set( heightProperty.get() );
+	}
+
+	public void populate( JsonObject serializedWindowProperties )
+	{
+		Optional.ofNullable( serializedWindowProperties.get( WindowPropertiesSerializer.WIDTH_KEY ) ).map( JsonElement::getAsInt ).ifPresent( widthProperty::set );
+		Optional.ofNullable( serializedWindowProperties.get( WindowPropertiesSerializer.HEIGHT_KEY ) ).map( JsonElement::getAsInt ).ifPresent( heightProperty::set );
+		clean();
 	}
 
 }

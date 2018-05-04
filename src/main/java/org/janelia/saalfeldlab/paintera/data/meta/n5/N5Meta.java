@@ -1,6 +1,7 @@
 package org.janelia.saalfeldlab.paintera.data.meta.n5;
 
 import java.io.IOException;
+import java.lang.invoke.MethodHandles;
 import java.util.function.Function;
 
 import org.janelia.saalfeldlab.n5.N5Reader;
@@ -11,6 +12,8 @@ import org.janelia.saalfeldlab.paintera.data.DataSource;
 import org.janelia.saalfeldlab.paintera.data.RandomAccessibleIntervalDataSource;
 import org.janelia.saalfeldlab.paintera.data.meta.Meta;
 import org.janelia.saalfeldlab.paintera.data.meta.exception.SourceCreationFailed;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import bdv.util.volatiles.SharedQueue;
 import bdv.viewer.Interpolation;
@@ -25,6 +28,8 @@ import net.imglib2.util.ValueTriple;
 
 public interface N5Meta extends Meta
 {
+	public static final Logger LOG = LoggerFactory.getLogger( MethodHandles.lookup().lookupClass() );
+
 	public N5Reader reader() throws IOException;
 
 	public N5Writer writer() throws IOException;
@@ -41,9 +46,9 @@ public interface N5Meta extends Meta
 		return N5Helpers.isMultiScale( reader(), dataset() );
 	}
 
-	public default boolean isLabelMultisetType() throws IOException
+	public default boolean isLabelMultisetType( boolean isMultiscale ) throws IOException
 	{
-		return N5Helpers.isLabelMultisetType( reader(), dataset() );
+		return N5Helpers.isLabelMultisetType( reader(), dataset(), isMultiscale );
 	}
 
 	@Override
@@ -57,8 +62,10 @@ public interface N5Meta extends Meta
 	{
 		try
 		{
-			final boolean isLabelMultisetType = isLabelMultisetType();
 			final boolean isMultiscale = isMultiscale();
+			final boolean isLabelMultisetType = isLabelMultisetType( isMultiscale );
+
+			LOG.warn( "{}: Is label multiset type? {} -- Is multi scale? {}", name, isLabelMultisetType, isMultiscale );
 
 			final ValueTriple< RandomAccessibleInterval< T >[], RandomAccessibleInterval< V >[], AffineTransform3D[] > data;
 			if ( isLabelMultisetType )

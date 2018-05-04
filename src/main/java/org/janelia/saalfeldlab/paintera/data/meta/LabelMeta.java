@@ -1,11 +1,13 @@
 package org.janelia.saalfeldlab.paintera.data.meta;
 
 import java.util.Arrays;
+import java.util.function.BiConsumer;
 import java.util.function.LongFunction;
 
 import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignmentState;
 import org.janelia.saalfeldlab.paintera.data.meta.exception.AssignmentCreationFailed;
 import org.janelia.saalfeldlab.paintera.data.meta.exception.BlocksForIdCacheCreationFailed;
+import org.janelia.saalfeldlab.paintera.data.meta.exception.CommitCanvasCreationFailed;
 import org.janelia.saalfeldlab.paintera.data.meta.exception.IdServiceCreationFailed;
 import org.janelia.saalfeldlab.paintera.data.meta.exception.MeshCacheCreationFailed;
 import org.janelia.saalfeldlab.paintera.id.IdService;
@@ -14,6 +16,7 @@ import org.janelia.saalfeldlab.paintera.meshes.InterruptibleFunction;
 import org.janelia.saalfeldlab.paintera.meshes.MeshGenerator.ShapeKey;
 
 import net.imglib2.Interval;
+import net.imglib2.cache.img.CachedCellImg;
 import net.imglib2.converter.Converter;
 import net.imglib2.exception.IncompatibleTypeException;
 import net.imglib2.type.label.LabelMultisetType;
@@ -21,6 +24,7 @@ import net.imglib2.type.logic.BoolType;
 import net.imglib2.type.numeric.ARGBType;
 import net.imglib2.type.numeric.IntegerType;
 import net.imglib2.type.numeric.RealType;
+import net.imglib2.type.numeric.integer.UnsignedLongType;
 import net.imglib2.util.Pair;
 
 public interface LabelMeta
@@ -39,6 +43,8 @@ public interface LabelMeta
 	{
 		return null;
 	}
+
+	public BiConsumer< CachedCellImg< UnsignedLongType, ? >, long[] > commitCanvas() throws CommitCanvasCreationFailed;
 
 	public default InterruptibleFunction< ShapeKey, Pair< float[], float[] > >[] meshCache() throws MeshCacheCreationFailed
 	{

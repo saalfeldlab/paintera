@@ -3,31 +3,25 @@ package org.janelia.saalfeldlab.paintera.serialization;
 import java.io.IOException;
 import java.lang.invoke.MethodHandles;
 import java.lang.reflect.Type;
-import java.nio.file.Paths;
+import java.util.Arrays;
 import java.util.Optional;
 import java.util.concurrent.ExecutorService;
+import java.util.function.BiConsumer;
 import java.util.function.LongFunction;
 
-import org.janelia.saalfeldlab.n5.DataType;
-import org.janelia.saalfeldlab.n5.DatasetAttributes;
-import org.janelia.saalfeldlab.n5.N5FSReader;
-import org.janelia.saalfeldlab.n5.N5FSWriter;
-import org.janelia.saalfeldlab.n5.N5Reader;
-import org.janelia.saalfeldlab.n5.N5Writer;
-import org.janelia.saalfeldlab.paintera.N5Helpers;
 import org.janelia.saalfeldlab.paintera.PainteraBaseView;
 import org.janelia.saalfeldlab.paintera.composition.Composite;
-import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignmentOnlyLocal;
 import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignmentState;
 import org.janelia.saalfeldlab.paintera.control.assignment.FragmentsInSelectedSegments;
 import org.janelia.saalfeldlab.paintera.control.selection.SelectedIds;
 import org.janelia.saalfeldlab.paintera.control.selection.SelectedSegments;
 import org.janelia.saalfeldlab.paintera.data.DataSource;
-import org.janelia.saalfeldlab.paintera.data.RandomAccessibleIntervalDataSource;
 import org.janelia.saalfeldlab.paintera.data.mask.Masks;
 import org.janelia.saalfeldlab.paintera.data.mask.TmpDirectoryCreator;
-import org.janelia.saalfeldlab.paintera.data.meta.n5.CommitCanvasN5;
-import org.janelia.saalfeldlab.paintera.data.meta.n5.N5FSMeta;
+import org.janelia.saalfeldlab.paintera.data.meta.LabelMeta;
+import org.janelia.saalfeldlab.paintera.data.meta.Meta;
+import org.janelia.saalfeldlab.paintera.data.meta.exception.MetaException;
+import org.janelia.saalfeldlab.paintera.data.meta.exception.SourceCreationFailed;
 import org.janelia.saalfeldlab.paintera.id.ToIdConverter;
 import org.janelia.saalfeldlab.paintera.meshes.InterruptibleFunction;
 import org.janelia.saalfeldlab.paintera.meshes.MeshGenerator.ShapeKey;
@@ -42,14 +36,14 @@ import org.janelia.saalfeldlab.paintera.stream.ModalGoldenAngleSaturatedHighligh
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.google.gson.JsonDeserializationContext;
-import com.google.gson.JsonDeserializer;
+import com.google.gson.Gson;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParseException;
 import com.google.gson.JsonPrimitive;
 import com.google.gson.JsonSerializationContext;
 import com.google.gson.JsonSerializer;
+import com.google.gson.JsonSyntaxException;
 
 import bdv.util.volatiles.SharedQueue;
 import bdv.viewer.Interpolation;
@@ -57,10 +51,11 @@ import javafx.beans.property.SimpleDoubleProperty;
 import javafx.beans.property.SimpleIntegerProperty;
 import javafx.scene.Group;
 import net.imglib2.Interval;
-import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.Volatile;
+import net.imglib2.cache.img.CachedCellImg;
 import net.imglib2.converter.ARGBColorConverter;
 import net.imglib2.converter.Converter;
+import net.imglib2.exception.IncompatibleTypeException;
 import net.imglib2.interpolation.randomaccess.NLinearInterpolatorFactory;
 import net.imglib2.interpolation.randomaccess.NearestNeighborInterpolatorFactory;
 import net.imglib2.realtransform.AffineTransform3D;
@@ -70,10 +65,10 @@ import net.imglib2.type.label.VolatileLabelMultisetType;
 import net.imglib2.type.logic.BoolType;
 import net.imglib2.type.numeric.ARGBType;
 import net.imglib2.type.numeric.RealType;
+import net.imglib2.type.numeric.integer.UnsignedLongType;
 import net.imglib2.util.Pair;
-import net.imglib2.util.ValueTriple;
 
-public class SourceStateSerializer implements JsonDeserializer< SourceState< ?, ? > >, JsonSerializer< SourceState< ?, ? > >
+public class SourceStateSerializer implements JsonSerializer< SourceState< ?, ? > >
 {
 
 	private static final Logger LOG = LoggerFactory.getLogger( MethodHandles.lookup().lookupClass() );
@@ -132,74 +127,6 @@ public class SourceStateSerializer implements JsonDeserializer< SourceState< ?, 
 		}
 
 	};
-
-	private final ExecutorService propagationExecutor;
-
-	private final ExecutorService manager;
-
-	private final ExecutorService workers;
-
-	private final SharedQueue queue;
-
-	private final int priority;
-
-	private final Group root;
-
-	public SourceStateSerializer(
-			final ExecutorService propagationExecutor,
-			final ExecutorService manager,
-			final ExecutorService workers,
-			final SharedQueue queue,
-			final int priority,
-			final Group root )
-	{
-		super();
-		this.propagationExecutor = propagationExecutor;
-		this.manager = manager;
-		this.workers = workers;
-		this.queue = queue;
-		this.priority = priority;
-		this.root = root;
-	}
-
-	@Override
-	public SourceState< ?, ? > deserialize( final JsonElement json, final Type typeOfT, final JsonDeserializationContext context ) throws JsonParseException
-	{
-		final JsonObject map = context.deserialize( json, JsonObject.class );
-
-		final StateType type = context.deserialize( map.get( TYPE_KEY ), StateType.class );
-
-		final JsonObject stateMap = context.deserialize( map.get( STATE_KEY ), JsonObject.class );
-		// ( Map< String, JsonElement > ) map.get( STATE_KEY );
-
-		switch ( type )
-		{
-		case RAW:
-			try
-			{
-				LOG.debug( "Returning raw!" );
-				return rawFromMap( stateMap, queue, priority, context );
-			}
-			catch ( final IOException | ClassNotFoundException e )
-			{
-				throw new JsonParseException( "Failed to generate raw state from map: " + stateMap, e );
-			}
-		case LABEL:
-			try
-			{
-				LOG.debug( "Returning raw!" );
-				return labelFromMap( stateMap, queue, priority, root, propagationExecutor, manager, workers, context );
-			}
-			catch ( final IOException | ClassNotFoundException e )
-			{
-				throw new JsonParseException( "Failed to generate raw state from map: " + stateMap, e );
-			}
-		default:
-			break;
-		}
-
-		return null;
-	}
 
 	@Override
 	public JsonElement serialize( final SourceState< ?, ? > src, final Type typeOfSrc, final JsonSerializationContext context )
@@ -286,61 +213,28 @@ public class SourceStateSerializer implements JsonDeserializer< SourceState< ?, 
 			final JsonObject map,
 			final SharedQueue queue,
 			final int priority,
-			final JsonDeserializationContext context ) throws IOException, JsonParseException, ClassNotFoundException
+			final Gson gson ) throws SourceCreationFailed, JsonSyntaxException, ClassNotFoundException
 	{
 
+		LOG.warn( "Getting raw from {}", map );
 		final JsonObject metaData = map.get( META_KEY ).getAsJsonObject();
 		LOG.debug( "got meta data: {}", metaData );
-		final Object meta = context.deserialize( metaData.get( META_DATA_DATA_KEY ), Class.forName( metaData.get( META_DATA_CLASS_KEY ).getAsString() ) );
+		final Meta meta = ( Meta ) gson.fromJson( metaData.get( META_DATA_DATA_KEY ), Class.forName( metaData.get( META_DATA_CLASS_KEY ).getAsString() ) );
 		final String name = map.get( NAME_KEY ).getAsString();
 		LOG.debug( "Got name={}", name );
-		final AffineTransform3D transform = ( AffineTransform3D ) context.deserialize( map.get( TRANSFORM_KEY ), AffineTransform3D.class );
-		final Composite< ARGBType, ARGBType > composite = context.deserialize( map.get( COMPOSITE_KEY ), Composite.class );
+		final AffineTransform3D transform = ( AffineTransform3D ) gson.fromJson( map.get( TRANSFORM_KEY ), AffineTransform3D.class );
+		@SuppressWarnings( "unchecked" )
+		final Composite< ARGBType, ARGBType > composite = gson.fromJson( map.get( COMPOSITE_KEY ), Composite.class );
 
-		final N5Reader n5;
-		final String dataset;
-		if ( meta instanceof N5FSMeta )
-		{
-			final N5FSMeta n5meta = ( N5FSMeta ) meta;
-			n5 = new N5FSReader( n5meta.root );
-			dataset = n5meta.dataset;
-		}
-		else
-		{
-			n5 = null;
-			dataset = null;
-		}
+		DataSource< D, T > source = meta.asSource(
+				queue,
+				priority,
+				i -> Interpolation.NLINEAR.equals( i ) ? new NLinearInterpolatorFactory<>() : new NearestNeighborInterpolatorFactory<>(),
+				i -> Interpolation.NLINEAR.equals( i ) ? new NLinearInterpolatorFactory<>() : new NearestNeighborInterpolatorFactory<>(),
+				transform,
+				name );
 
-		final boolean isMultiScale = N5Helpers.isMultiScale( n5, dataset );
-		final RandomAccessibleIntervalDataSource< D, T > source;
-		if ( isMultiScale )
-		{
-			final ValueTriple< RandomAccessibleInterval< D >[], RandomAccessibleInterval< T >[], AffineTransform3D[] > data = N5Helpers.openRawMultiscale(
-					n5,
-					dataset,
-					transform,
-					queue,
-					priority );
-			source = new RandomAccessibleIntervalDataSource<>(
-					data.getA(),
-					data.getB(),
-					data.getC(),
-					i -> Interpolation.NLINEAR.equals( i ) ? new NLinearInterpolatorFactory<>() : new NearestNeighborInterpolatorFactory<>(),
-					i -> Interpolation.NLINEAR.equals( i ) ? new NLinearInterpolatorFactory<>() : new NearestNeighborInterpolatorFactory<>(),
-					name );
-		}
-		else
-		{
-			source = DataSource.createN5Source( name, n5, dataset, transform, queue, priority );
-		}
-
-		final DatasetAttributes attributes = n5.getDatasetAttributes(
-				N5Helpers.isMultiScale( n5, dataset )
-						? Paths.get( dataset, N5Helpers.listAndSortScaleDatasets( n5, dataset )[ 0 ] ).toString()
-						: dataset );
-		final DataType type = attributes.getDataType();
-
-		final ARGBColorConverter< T > converter = new ARGBColorConverter.InvertingImp1<>( N5Helpers.minForType( type ), N5Helpers.maxForType( type ) );
+		final ARGBColorConverter< T > converter = new ARGBColorConverter.InvertingImp1<>( source.getType().getMinValue(), source.getType().getMaxValue() );
 		if ( map.has( CONVERTER_KEY ) )
 		{
 			final JsonObject converterSettings = map.get( CONVERTER_KEY ).getAsJsonObject();
@@ -352,7 +246,7 @@ public class SourceStateSerializer implements JsonDeserializer< SourceState< ?, 
 
 		final SourceState< D, T > state = new SourceState<>( source, converter, composite, name, meta );
 		state.interpolationProperty().set( Optional
-				.ofNullable( ( Interpolation ) context.deserialize( map.get( INTERPOLATION_KEY ), Interpolation.class ) )
+				.ofNullable( gson.fromJson( map.get( INTERPOLATION_KEY ), Interpolation.class ) )
 				.orElse( Interpolation.NEARESTNEIGHBOR ) );
 		return state;
 	}
@@ -365,63 +259,46 @@ public class SourceStateSerializer implements JsonDeserializer< SourceState< ?, 
 			final ExecutorService propagationExecutor,
 			final ExecutorService manager,
 			final ExecutorService workers,
-			final JsonDeserializationContext context ) throws IOException, JsonParseException, ClassNotFoundException
+			final Gson gson ) throws IOException, JsonParseException, ClassNotFoundException, MetaException
 	{
 		final JsonObject metaData = map.get( META_KEY ).getAsJsonObject();
 		LOG.debug( "got meta data: {}", metaData );
-		final Object meta = context.deserialize( metaData.get( META_DATA_DATA_KEY ), Class.forName( metaData.get( META_DATA_CLASS_KEY ).getAsString() ) );
+		final LabelMeta meta = ( LabelMeta ) gson.fromJson( metaData.get( META_DATA_DATA_KEY ), Class.forName( metaData.get( META_DATA_CLASS_KEY ).getAsString() ) );
 		final String name = map.get( NAME_KEY ).getAsString();
 		LOG.debug( "Got name={}", name );
-		final AffineTransform3D transform = ( AffineTransform3D ) context.deserialize( map.get( TRANSFORM_KEY ), AffineTransform3D.class );
-		final Composite< ARGBType, ARGBType > composite = context.deserialize( map.get( COMPOSITE_KEY ), Composite.class );
+		final AffineTransform3D transform = gson.fromJson( map.get( TRANSFORM_KEY ), AffineTransform3D.class );
+		@SuppressWarnings( "unchecked" )
+		final Composite< ARGBType, ARGBType > composite = gson.fromJson( map.get( COMPOSITE_KEY ), Composite.class );
 
-		final N5Writer n5;
-		final String dataset;
-		if ( meta instanceof N5FSMeta )
-		{
-			final N5FSMeta n5meta = ( N5FSMeta ) meta;
-			n5 = new N5FSWriter( n5meta.root );
-			dataset = n5meta.dataset;
-		}
-		else
-		{
-			n5 = null;
-			dataset = null;
-		}
 
-		final boolean isMultiScale = N5Helpers.isMultiScale( n5, dataset );
-		final ValueTriple< RandomAccessibleInterval< LabelMultisetType >[], RandomAccessibleInterval< VolatileLabelMultisetType >[], AffineTransform3D[] > data =
-				isMultiScale
-						? N5Helpers.openLabelMultisetMultiscale( n5, dataset, transform, queue, priority )
-						: N5Helpers.asArrayTriple( N5Helpers.openLabelMutliset( n5, dataset, transform, queue, priority ) );
-
-		final RandomAccessibleIntervalDataSource< LabelMultisetType, VolatileLabelMultisetType > source = new RandomAccessibleIntervalDataSource<>(
-				data.getA(),
-				data.getB(),
-				data.getC(),
+		DataSource< LabelMultisetType, VolatileLabelMultisetType > source = ( ( Meta ) meta ).asSource(
+				queue,
+				priority,
 				i -> new NearestNeighborInterpolatorFactory<>(),
 				i -> new NearestNeighborInterpolatorFactory<>(),
+				transform,
 				name );
-
-		final DatasetAttributes attributes = n5.getDatasetAttributes(
-				N5Helpers.isMultiScale( n5, dataset )
-						? Paths.get( dataset, N5Helpers.listAndSortScaleDatasets( n5, dataset )[ 0 ] ).toString()
-						: dataset );
 
 		final SelectedIds selectedIds = Optional
 				.ofNullable( map.get( SELECTED_IDS_KEY ) )
-				.map( o -> ( SelectedIds ) context.deserialize( o, SelectedIds.class ) )
+				.map( o -> gson.fromJson( o, SelectedIds.class ) )
 				.orElse( new SelectedIds() );
 		final TmpDirectoryCreator nextCanvasDirectory = new TmpDirectoryCreator( null, null );
 		final String canvasDir = Optional.ofNullable( map.get( CANVAS_DIR_KEY ) ).map( JsonElement::getAsString ).orElseGet( nextCanvasDirectory );
-		final CommitCanvasN5 commitCanvas = new CommitCanvasN5( n5, dataset );
-		final FragmentSegmentAssignmentOnlyLocal deserializedAssignment = context.deserialize(
-				map.get( ASSIGNMENT_KEY ),
-				FragmentSegmentAssignmentOnlyLocal.class );
-		final int size = deserializedAssignment.size();
-		final long[] fragments = new long[ size ];
-		final long[] segments = new long[ size ];
-		deserializedAssignment.persist( fragments, segments );
+
+		BiConsumer< CachedCellImg< UnsignedLongType, ? >, long[] > commitCanvas = meta.commitCanvas();
+		JsonObject serializedAssignment = map.get( ASSIGNMENT_KEY ).getAsJsonObject();
+		final FragmentSegmentAssignmentState assignment;
+		if ( serializedAssignment == null )
+		{
+			assignment = meta.assignment(
+					gson.fromJson( serializedAssignment.get( FragmentSegmentAssignmentOnlyLocalSerializer.FRAGMENTS_KEY ), long[].class ),
+					gson.fromJson( serializedAssignment.get( FragmentSegmentAssignmentOnlyLocalSerializer.SEGMENTS_KEY ), long[].class ) );
+		}
+		else
+		{
+			assignment = meta.assignment();
+		}
 
 		final DataSource< LabelMultisetType, VolatileLabelMultisetType > maskedSource = Masks.mask(
 				source,
@@ -429,7 +306,6 @@ public class SourceStateSerializer implements JsonDeserializer< SourceState< ?, 
 				nextCanvasDirectory,
 				commitCanvas,
 				propagationExecutor );
-//		masked = Masks.from
 
 		final InterruptibleFunction< Long, Interval[] >[] blockListCache = PainteraBaseView.generateLabelBlocksForLabelCache(
 				maskedSource,
@@ -438,8 +314,6 @@ public class SourceStateSerializer implements JsonDeserializer< SourceState< ?, 
 		final LongFunction< Converter< LabelMultisetType, BoolType > > getMaskGenerator = PainteraBaseView.equalMaskForLabelMultisetType();
 
 		final InterruptibleFunction< ShapeKey, Pair< float[], float[] > >[] meshCache = CacheUtils.meshCacheLoaders( maskedSource, getMaskGenerator, CacheUtils::toCacheSoftRefLoaderCache );
-
-		final FragmentSegmentAssignmentState assignment = N5Helpers.assignments( n5, dataset, fragments, segments );
 
 		final SelectedSegments activeSegments = new SelectedSegments( selectedIds, assignment );
 
@@ -483,14 +357,38 @@ public class SourceStateSerializer implements JsonDeserializer< SourceState< ?, 
 				assignment,
 				new ToIdConverter.FromLabelMultisetType(),
 				selectedIds,
-				N5Helpers.idService( n5, dataset ),
+				meta.idService(),
 				meshManager,
 				meshInfos );
 		state.interpolationProperty().set( Optional
-				.ofNullable( ( Interpolation ) context.deserialize( map.get( INTERPOLATION_KEY ), Interpolation.class ) )
+				.ofNullable( gson.fromJson( map.get( INTERPOLATION_KEY ), Interpolation.class ) )
 				.orElse( Interpolation.NEARESTNEIGHBOR ) );
 		return state;
 
+	}
+
+	@SuppressWarnings( { "rawtypes", "unchecked" } )
+	public static < D, T > SourceState< D, T > deserializeState(
+			JsonObject serializedSource,
+			final SharedQueue queue,
+			final int priority,
+			final Group root,
+			final ExecutorService propagationExecutor,
+			final ExecutorService manager,
+			final ExecutorService workers,
+			Gson gson ) throws IncompatibleTypeException, JsonParseException, ClassNotFoundException, IOException, MetaException
+	{
+		StateType type = gson.fromJson( serializedSource.get( TYPE_KEY ), StateType.class );
+		switch ( type )
+		{
+		case RAW:
+			return ( SourceState ) rawFromMap( serializedSource.get( STATE_KEY ).getAsJsonObject(), queue, priority, gson );
+		case LABEL:
+			return ( LabelSourceState ) labelFromMap( serializedSource.get( STATE_KEY ).getAsJsonObject(), queue, priority, root, propagationExecutor, manager, workers, gson );
+		default:
+			break;
+		}
+		throw new IncompatibleTypeException( type, "Supported types are: " + Arrays.asList( StateType.values() ) );
 	}
 
 }
