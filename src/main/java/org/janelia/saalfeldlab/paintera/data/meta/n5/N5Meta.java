@@ -1,4 +1,4 @@
-package org.janelia.saalfeldlab.paintera.n5;
+package org.janelia.saalfeldlab.paintera.data.meta.n5;
 
 import java.io.IOException;
 import java.util.function.Function;
@@ -9,6 +9,8 @@ import org.janelia.saalfeldlab.n5.imglib2.N5Utils;
 import org.janelia.saalfeldlab.paintera.N5Helpers;
 import org.janelia.saalfeldlab.paintera.data.DataSource;
 import org.janelia.saalfeldlab.paintera.data.RandomAccessibleIntervalDataSource;
+import org.janelia.saalfeldlab.paintera.data.meta.Meta;
+import org.janelia.saalfeldlab.paintera.data.meta.exception.SourceCreationFailed;
 
 import bdv.util.volatiles.SharedQueue;
 import bdv.viewer.Interpolation;
@@ -21,7 +23,7 @@ import net.imglib2.type.NativeType;
 import net.imglib2.type.Type;
 import net.imglib2.util.ValueTriple;
 
-public interface N5Meta
+public interface N5Meta extends Meta
 {
 	public N5Reader reader() throws IOException;
 
@@ -44,40 +46,48 @@ public interface N5Meta
 		return N5Helpers.isLabelMultisetType( reader(), dataset() );
 	}
 
+	@Override
 	public default < T extends NativeType< T >, V extends Volatile< T > & Type< V > > DataSource< T, V > asSource(
 			final SharedQueue sharedQueue,
 			final int priority,
 			final Function< Interpolation, InterpolatorFactory< T, RandomAccessible< T > > > dataInterpolation,
 			final Function< Interpolation, InterpolatorFactory< V, RandomAccessible< V > > > viewerInterpolation,
 			final AffineTransform3D transform,
-			final String name
-			) throws IOException
+			final String name ) throws SourceCreationFailed
 	{
-		final boolean isLabelMultisetType = isLabelMultisetType();
-		final boolean isMultiscale = isMultiscale();
-
-		final ValueTriple< RandomAccessibleInterval< T >[], RandomAccessibleInterval< V >[], AffineTransform3D[] > data;
-		if ( isLabelMultisetType )
+		try
 		{
-			data = isMultiscale
-					? ( ValueTriple ) N5Helpers.openLabelMultisetMultiscale( reader(), dataset(), transform, sharedQueue, priority )
-							: ( ValueTriple ) N5Helpers.asArrayTriple( N5Helpers.openLabelMutliset( reader(), dataset(), transform, sharedQueue, priority ) );
-		}
-		else
-		{
-			data = isMultiscale
-					? N5Helpers.openRawMultiscale( reader(), dataset(), transform, sharedQueue, priority )
-					: N5Helpers.asArrayTriple( N5Helpers.openRaw( reader(), dataset(), transform, sharedQueue, priority ) );
-		}
+			final boolean isLabelMultisetType = isLabelMultisetType();
+			final boolean isMultiscale = isMultiscale();
 
-		final DataSource< T, V > source = new RandomAccessibleIntervalDataSource<>(
-				data.getA(),
-				data.getB(),
-				data.getC(),
-				dataInterpolation,
-				viewerInterpolation,
-				name );
-		return source;
+			final ValueTriple< RandomAccessibleInterval< T >[], RandomAccessibleInterval< V >[], AffineTransform3D[] > data;
+			if ( isLabelMultisetType )
+			{
+				data = isMultiscale
+						? ( ValueTriple ) N5Helpers.openLabelMultisetMultiscale( reader(), dataset(), transform, sharedQueue, priority )
+						: ( ValueTriple ) N5Helpers.asArrayTriple( N5Helpers.openLabelMutliset( reader(), dataset(), transform, sharedQueue, priority ) );
+			}
+			else
+			{
+				data = isMultiscale
+						? N5Helpers.openRawMultiscale( reader(), dataset(), transform, sharedQueue, priority )
+						: N5Helpers.asArrayTriple( N5Helpers.openRaw( reader(), dataset(), transform, sharedQueue, priority ) );
+			}
+
+			final DataSource< T, V > source = new RandomAccessibleIntervalDataSource<>(
+					data.getA(),
+					data.getB(),
+					data.getC(),
+					dataInterpolation,
+					viewerInterpolation,
+					name );
+			return source;
+		}
+		catch ( final IOException e )
+		{
+			throw new SourceCreationFailed( "IOException in N5 access: " + e.getMessage(), e );
+		}
 
 	}
+
 }

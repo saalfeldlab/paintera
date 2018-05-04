@@ -545,7 +545,7 @@ public class MultiResolutionRendererGeneric< T >
 				currentScreenScaleIndex = requestedScreenScaleIndex;
 				bufferedImage = bufferedImages[ currentScreenScaleIndex ][ renderId ];
 				final T screenImage = screenImages[ currentScreenScaleIndex ][ renderId ];
-				synchronized ( synchronizationLock )
+//				synchronized ( synchronizationLock )
 				{
 					final int numSources = sacs.size();
 					checkRenewRenderImages( numSources );
