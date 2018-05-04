@@ -1,12 +1,16 @@
 package org.janelia.saalfeldlab.paintera.n5;
 
+import java.io.IOException;
 import java.util.Arrays;
 
+import org.janelia.saalfeldlab.n5.N5Reader;
+import org.janelia.saalfeldlab.n5.N5Writer;
 import org.janelia.saalfeldlab.n5.hdf5.N5HDF5Reader;
+import org.janelia.saalfeldlab.n5.hdf5.N5HDF5Writer;
 
 import ch.systemsx.cisd.hdf5.IHDF5Reader;
 
-public class N5HDF5Meta
+public class N5HDF5Meta implements N5Meta
 {
 
 	private static final String READER_FIELD_NAME = "reader";
@@ -56,6 +60,24 @@ public class N5HDF5Meta
 	public String toString()
 	{
 		return "{h5:" + h5file + " dataset:" + dataset + " defaultBlockSize:" + Arrays.toString( defaultBlockSize ) + " overrideBlockSize:" + overrideBlockSize + "}";
+	}
+
+	@Override
+	public N5Reader reader() throws IOException
+	{
+		return new N5HDF5Reader( h5file, overrideBlockSize, defaultBlockSize );
+	}
+
+	@Override
+	public N5Writer writer() throws IOException
+	{
+		return new N5HDF5Writer( h5file, defaultBlockSize );
+	}
+
+	@Override
+	public String dataset()
+	{
+		return dataset;
 	}
 
 }

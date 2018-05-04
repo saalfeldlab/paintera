@@ -1,8 +1,13 @@
 package org.janelia.saalfeldlab.paintera.n5;
 
-import org.janelia.saalfeldlab.n5.N5FSReader;
+import java.io.IOException;
 
-public class N5FSMeta
+import org.janelia.saalfeldlab.n5.N5FSReader;
+import org.janelia.saalfeldlab.n5.N5FSWriter;
+import org.janelia.saalfeldlab.n5.N5Reader;
+import org.janelia.saalfeldlab.n5.N5Writer;
+
+public class N5FSMeta implements N5Meta
 {
 
 	private static final String BASE_PATH_FIELD_NAME = "basePath";
@@ -32,6 +37,24 @@ public class N5FSMeta
 	public String toString()
 	{
 		return "{root:" + root + " dataset:" + dataset + "}";
+	}
+
+	@Override
+	public N5Reader reader() throws IOException
+	{
+		return new N5FSReader( root );
+	}
+
+	@Override
+	public N5Writer writer() throws IOException
+	{
+		return new N5FSWriter( root );
+	}
+
+	@Override
+	public String dataset()
+	{
+		return dataset;
 	}
 
 }
