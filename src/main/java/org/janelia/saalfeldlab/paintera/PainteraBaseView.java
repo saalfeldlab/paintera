@@ -14,6 +14,8 @@ import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
 import org.janelia.saalfeldlab.fx.ortho.OrthogonalViews;
+import org.janelia.saalfeldlab.n5.DataType;
+import org.janelia.saalfeldlab.n5.DatasetAttributes;
 import org.janelia.saalfeldlab.n5.N5Reader;
 import org.janelia.saalfeldlab.n5.N5Writer;
 import org.janelia.saalfeldlab.paintera.composition.ARGBCompositeAlphaAdd;
@@ -39,7 +41,6 @@ import org.janelia.saalfeldlab.paintera.meshes.cache.UniqueLabelListLabelMultise
 import org.janelia.saalfeldlab.paintera.state.GlobalTransformManager;
 import org.janelia.saalfeldlab.paintera.stream.HighlightingStreamConverter;
 import org.janelia.saalfeldlab.paintera.stream.ModalGoldenAngleSaturatedHighlightingARGBStream;
-import org.janelia.saalfeldlab.paintera.ui.opendialog.N5Helpers;
 import org.janelia.saalfeldlab.paintera.viewer3d.Viewer3DFX;
 import org.janelia.saalfeldlab.util.Colors;
 import org.janelia.saalfeldlab.util.HashWrapper;
@@ -53,6 +54,7 @@ import bdv.viewer.Source;
 import bdv.viewer.SourceAndConverter;
 import bdv.viewer.ViewerOptions;
 import gnu.trove.set.hash.TLongHashSet;
+import javafx.beans.property.SimpleDoubleProperty;
 import javafx.beans.property.SimpleIntegerProperty;
 import javafx.collections.ListChangeListener;
 import javafx.collections.ObservableList;
@@ -164,6 +166,35 @@ public class PainteraBaseView
 
 	public < T extends RealType< T > & NativeType< T >, U extends Volatile< T > & RealType< U > > Optional< DataSource< T, U > > addRawSource(
 			final N5Reader n5,
+			final String dataset ) throws IOException
+	{
+		final DatasetAttributes attributes = n5.getDatasetAttributes(
+				N5Helpers.isMultiScale( n5, dataset )
+						? Paths.get( dataset, N5Helpers.listAndSortScaleDatasets( n5, dataset )[ 0 ] ).toString()
+						: dataset );
+		final DataType type = attributes.getDataType();
+		return addRawSource( n5, dataset, Color.WHITE, N5Helpers.minForType( type ), N5Helpers.maxForType( type ) );
+	}
+
+	public < T extends RealType< T > & NativeType< T >, U extends Volatile< T > & RealType< U > > Optional< DataSource< T, U > > addRawSource(
+			final N5Reader n5,
+			final String dataset,
+			final Color color,
+			final double min,
+			final double max ) throws IOException
+	{
+		return addRawSource(
+				n5,
+				dataset,
+				N5Helpers.getResolution( n5, dataset ),
+				N5Helpers.getOffset( n5, dataset ),
+				color,
+				min,
+				max );
+	}
+
+	public < T extends RealType< T > & NativeType< T >, U extends Volatile< T > & RealType< U > > Optional< DataSource< T, U > > addRawSource(
+			final N5Reader n5,
 			final String dataset,
 			final double[] resolution,
 			final double[] offset,
@@ -229,6 +260,17 @@ public class PainteraBaseView
 
 	public < D extends Type< D >, T extends Type< T > > Optional< DataSource< D, T > > addLabelSource(
 			final N5Writer n5,
+			final String dataset ) throws IOException
+	{
+		return addLabelSource(
+				n5,
+				dataset,
+				N5Helpers.getResolution( n5, dataset ),
+				N5Helpers.getOffset( n5, dataset ) );
+	}
+
+	public < D extends Type< D >, T extends Type< T > > Optional< DataSource< D, T > > addLabelSource(
+			final N5Writer n5,
 			final String dataset,
 			final double[] resolution,
 			final double[] offset ) throws IOException
@@ -238,7 +280,7 @@ public class PainteraBaseView
 
 		if ( !N5Helpers.isMultiScale( n5, dataset ) && !N5Helpers.isLabelMultisetType( n5, Paths.get( dataset, N5Helpers.listAndSortScaleDatasets( n5, dataset )[ 0 ] ).toString() ) )
 		{
-			LOG.debug( "Only multiscale label multisets supported at the moment. Not adding any data set" );
+			LOG.warn( "Only multiscale label multisets supported at the moment. Not adding any data set" );
 			return Optional.empty();
 		}
 
@@ -336,6 +378,8 @@ public class PainteraBaseView
 				state,
 				viewer3D.meshesGroup(),
 				fragmentsInSelection,
+				new SimpleIntegerProperty(),
+				new SimpleDoubleProperty(),
 				new SimpleIntegerProperty(),
 				meshManagerExecutorService,
 				meshWorkerExecutorService );
@@ -514,7 +558,6 @@ public class PainteraBaseView
 			factors[ 2 ] = transform.get( 2, 2 ) / reference.get( 2, 2 );
 		}
 
-		if ( LOG.isDebugEnabled() )
 		{
 			LOG.debug( "Generated scaling factors:" );
 			Arrays.stream( scaleFactors ).map( Arrays::toString ).forEach( LOG::debug );

@@ -41,7 +41,9 @@ public class MeshPane implements BindUnbindAndNodeSupplier, ListChangeListener< 
 
 	private final NumericSliderWithField scaleSlider;
 
-	private final NumericSliderWithField simplificationSlider;
+	private final NumericSliderWithField smoothingLambdaSlider;
+
+	private final NumericSliderWithField smoothingIterationsSlider;
 
 	final ObservableMap< MeshInfo, MeshInfoNode > infoNodesCache = FXCollections.observableHashMap();
 
@@ -67,7 +69,8 @@ public class MeshPane implements BindUnbindAndNodeSupplier, ListChangeListener< 
 		this.numScaleLevels = numScaleLevels;
 
 		scaleSlider = new NumericSliderWithField( 0, this.numScaleLevels - 1, manager.scaleLevelProperty().get() );
-		simplificationSlider = new NumericSliderWithField( 0, 10, 0 );
+		smoothingLambdaSlider = new NumericSliderWithField( 0.0, 1.0, 0.5 );
+		smoothingIterationsSlider = new NumericSliderWithField( 0, 10, 5 );
 
 		managerSettingsPane = new VBox( new Label( "Defaults" ), setupManagerSliderGrid(), meshesPane );
 
@@ -87,7 +90,8 @@ public class MeshPane implements BindUnbindAndNodeSupplier, ListChangeListener< 
 		isBound = true;
 		this.meshInfos.readOnlyInfos().addListener( this );
 		scaleSlider.slider().valueProperty().bindBidirectional( manager.scaleLevelProperty() );
-		simplificationSlider.slider().valueProperty().bindBidirectional( manager.meshSimplificationIterationsProperty() );
+		smoothingLambdaSlider.slider().valueProperty().bindBidirectional( manager.smoothingLambdaProperty() );
+		smoothingIterationsSlider.slider().valueProperty().bindBidirectional( manager.smoothingIterationsProperty() );
 		new ArrayList<>( this.infoNodes ).forEach( MeshInfoNode::bind );
 	}
 
@@ -97,7 +101,8 @@ public class MeshPane implements BindUnbindAndNodeSupplier, ListChangeListener< 
 		isBound = false;
 		this.meshInfos.readOnlyInfos().removeListener( this );
 		scaleSlider.slider().valueProperty().unbindBidirectional( manager.scaleLevelProperty() );
-		simplificationSlider.slider().valueProperty().unbindBidirectional( manager.meshSimplificationIterationsProperty() );
+		smoothingLambdaSlider.slider().valueProperty().unbindBidirectional( manager.smoothingLambdaProperty() );
+		smoothingIterationsSlider.slider().valueProperty().unbindBidirectional( manager.smoothingIterationsProperty() );
 		new ArrayList<>( this.infoNodes ).forEach( MeshInfoNode::unbind );
 	}
 
@@ -154,11 +159,18 @@ public class MeshPane implements BindUnbindAndNodeSupplier, ListChangeListener< 
 		scaleSlider.slider().setTooltip( new Tooltip( "Default for scale level." ) );
 		++row;
 
+		contents.add( new Label( "Lambda" ), 0, row );
+		contents.add( smoothingLambdaSlider.slider(), 1, row );
+		contents.add( smoothingLambdaSlider.textField(), 2, row );
+		smoothingLambdaSlider.slider().setShowTickLabels( true );
+		smoothingLambdaSlider.slider().setTooltip( new Tooltip( "Default for smoothing lambda." ) );
+		++row;
+
 		contents.add( new Label( "Iterations" ), 0, row );
-		contents.add( simplificationSlider.slider(), 1, row );
-		contents.add( simplificationSlider.textField(), 2, row );
-		simplificationSlider.slider().setShowTickLabels( true );
-		simplificationSlider.slider().setTooltip( new Tooltip( "Default for simplification iterations." ) );
+		contents.add( smoothingIterationsSlider.slider(), 1, row );
+		contents.add( smoothingIterationsSlider.textField(), 2, row );
+		smoothingIterationsSlider.slider().setShowTickLabels( true );
+		smoothingIterationsSlider.slider().setTooltip( new Tooltip( "Default for smoothing iterations." ) );
 		++row;
 
 		return contents;
@@ -173,5 +185,4 @@ public class MeshPane implements BindUnbindAndNodeSupplier, ListChangeListener< 
 		}
 		return node;
 	}
-
 }

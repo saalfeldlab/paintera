@@ -7,9 +7,12 @@ import java.util.List;
 import java.util.function.Consumer;
 import java.util.function.LongFunction;
 
+import org.janelia.saalfeldlab.paintera.meshes.AverageNormals;
 import org.janelia.saalfeldlab.paintera.meshes.Interruptible;
+import org.janelia.saalfeldlab.paintera.meshes.MarchingCubes;
 import org.janelia.saalfeldlab.paintera.meshes.MeshGenerator.ShapeKey;
-import org.janelia.saalfeldlab.paintera.meshes.marchingcubes.MarchingCubes;
+import org.janelia.saalfeldlab.paintera.meshes.Normals;
+import org.janelia.saalfeldlab.paintera.meshes.Smooth;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -26,7 +29,6 @@ import net.imglib2.view.Views;
 
 public class MeshCacheLoader< T > implements CacheLoader< ShapeKey, Pair< float[], float[] > >, Interruptible< ShapeKey >
 {
-
 	private static final Logger LOG = LoggerFactory.getLogger( MethodHandles.lookup().lookupClass() );
 
 	private final int[] cubeSize;
@@ -91,7 +93,14 @@ public class MeshCacheLoader< T > implements CacheLoader< ShapeKey, Pair< float[
 					cubeSize,
 					() -> isInterrupted[ 0 ] ).generateMesh();
 			final float[] normals = new float[ mesh.length ];
-			MarchingCubes.averagedSurfaceNormals( mesh, normals );
+			if ( key.smoothingIterations() > 0 )
+			{
+				float[] smoothMesh = Smooth.smooth( mesh, key.smoothingLambda(), key.smoothingIterations() );
+				System.arraycopy( smoothMesh, 0, mesh, 0, mesh.length );
+			}
+			Normals.normals( mesh, normals );
+			AverageNormals.averagedNormals( mesh, normals );
+
 			for ( int i = 0; i < normals.length; ++i )
 				normals[ i ] *= -1;
 			return new ValuePair<>( mesh, normals );
@@ -104,15 +113,4 @@ public class MeshCacheLoader< T > implements CacheLoader< ShapeKey, Pair< float[
 			}
 		}
 	}
-
-	public static Pair< float[], float[] > simplifyMesh( final float[] vertices, final float[] normals )
-	{
-		LOG.warn( "This is just a mock mesh simplification currently!" );
-		final float[] newVertices = new float[ vertices.length / 2 / 9 * 9 ];
-		final float[] newNormals = new float[ vertices.length / 2 / 9 * 9 ];
-		System.arraycopy( vertices, 0, newVertices, 0, newVertices.length );
-		System.arraycopy( normals, 0, newNormals, 0, newNormals.length );
-		return new ValuePair<>( newVertices, newNormals );
-	}
-
 }

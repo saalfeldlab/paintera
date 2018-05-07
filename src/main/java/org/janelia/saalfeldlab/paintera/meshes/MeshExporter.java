@@ -41,7 +41,8 @@ public abstract class MeshExporter
 		final List< ShapeKey > keys = new ArrayList<>();
 		for ( final Interval block : blocks )
 			// ignoring simplification iterations parameter
-			keys.add( new ShapeKey( id, scaleIndex, 0, Intervals.minAsLongArray( block ), Intervals.maxAsLongArray( block ) ) );
+			// TODO consider smoothing parameters
+			keys.add( new ShapeKey( id, scaleIndex, 0, 0, 0, Intervals.minAsLongArray( block ), Intervals.maxAsLongArray( block ) ) );
 
 		for ( final ShapeKey key : keys )
 		{
