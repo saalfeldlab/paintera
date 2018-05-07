@@ -51,6 +51,7 @@ import net.imglib2.cache.ref.SoftRefLoaderCache;
 import net.imglib2.cache.util.LoaderCacheAsCacheAdapter;
 import net.imglib2.cache.volatiles.CacheHints;
 import net.imglib2.cache.volatiles.LoadingStrategy;
+import net.imglib2.img.NativeImg;
 import net.imglib2.img.cell.Cell;
 import net.imglib2.img.cell.CellGrid;
 import net.imglib2.realtransform.AffineTransform3D;
@@ -63,6 +64,7 @@ import net.imglib2.type.label.VolatileLabelMultisetArray;
 import net.imglib2.type.label.VolatileLabelMultisetType;
 import net.imglib2.type.numeric.IntegerType;
 import net.imglib2.type.numeric.integer.UnsignedLongType;
+import net.imglib2.util.Fraction;
 import net.imglib2.util.ValueTriple;
 import net.imglib2.view.Views;
 
@@ -446,15 +448,18 @@ public class N5Helpers
 		final LoaderCacheAsCacheAdapter< Long, Cell< VolatileLabelMultisetArray > > wrappedCache = new LoaderCacheAsCacheAdapter<>( cache, loader );
 		final CachedCellImg< LabelMultisetType, VolatileLabelMultisetArray > cachedImg = new CachedCellImg<>(
 				new CellGrid( attrs.getDimensions(), attrs.getBlockSize() ),
-				new LabelMultisetType(),
+				new Fraction(),
 				wrappedCache,
 				new VolatileLabelMultisetArray( 0, true ) );
+		cachedImg.setLinkedType( new LabelMultisetType( cachedImg ) );
+
 		final VolatileRandomAccessibleIntervalView< LabelMultisetType, VolatileLabelMultisetType > volatileCachedImg = VolatileHelpers.wrapCachedCellImg(
 				cachedImg,
 				new VolatileHelpers.CreateInvalidVolatileLabelMultisetArray( cachedImg.getCellGrid() ),
 				sharedQueue,
 				new CacheHints( LoadingStrategy.VOLATILE, priority, false ),
-				new VolatileLabelMultisetType() );
+				new VolatileLabelMultisetType().getEntitiesPerPixel(),
+				img -> new VolatileLabelMultisetType( ( NativeImg< ?, VolatileLabelMultisetArray > ) img ) );
 
 		return new ValueTriple<>( cachedImg, volatileCachedImg, fromResolutionAndOffset( resolution, offset ) );
 

@@ -17,7 +17,6 @@ import org.janelia.saalfeldlab.paintera.data.mask.PickOne.PickAndConvert;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import bdv.img.cache.VolatileCachedCellImg;
 import bdv.util.volatiles.VolatileRandomAccessibleIntervalView;
 import bdv.util.volatiles.VolatileViews;
 import bdv.viewer.Interpolation;
@@ -1050,11 +1049,10 @@ public class MaskedSource< D extends Type< D >, T extends Type< T > > implements
 
 		else if ( img instanceof VolatileRandomAccessibleIntervalView< ?, ? > )
 		{
-			final RandomAccessibleInterval< ? > vimg = ( ( VolatileRandomAccessibleIntervalView< ?, ? > ) img ).getSource();
-			if ( vimg instanceof VolatileCachedCellImg< ?, ? > )
-			{
-				( ( VolatileCachedCellImg< ?, ? > ) vimg ).clearCache();
-			}
+			( ( VolatileRandomAccessibleIntervalView< ?, ? > ) img )
+					.getVolatileViewData()
+					.getCacheControlUnsafe()
+					.invalidateAll();
 		}
 	}
 

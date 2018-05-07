@@ -4,6 +4,8 @@ import java.io.IOException;
 import java.lang.invoke.MethodHandles;
 import java.util.Arrays;
 import java.util.Optional;
+import java.util.Set;
+import java.util.function.Function;
 
 import org.janelia.saalfeldlab.n5.DatasetAttributes;
 import org.janelia.saalfeldlab.n5.N5Reader;
@@ -19,7 +21,6 @@ import gnu.trove.set.hash.TLongHashSet;
 import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.Volatile;
 import net.imglib2.cache.Cache;
-import net.imglib2.cache.img.AccessFlags;
 import net.imglib2.cache.img.CachedCellImg;
 import net.imglib2.cache.ref.SoftRefLoaderCache;
 import net.imglib2.cache.ref.WeakRefVolatileCache;
@@ -28,6 +29,8 @@ import net.imglib2.cache.volatiles.CacheHints;
 import net.imglib2.cache.volatiles.CreateInvalid;
 import net.imglib2.cache.volatiles.LoadingStrategy;
 import net.imglib2.cache.volatiles.VolatileCache;
+import net.imglib2.img.NativeImg;
+import net.imglib2.img.basictypeaccess.AccessFlags;
 import net.imglib2.img.cell.Cell;
 import net.imglib2.img.cell.CellGrid;
 import net.imglib2.realtransform.AffineTransform3D;
@@ -41,6 +44,7 @@ import net.imglib2.type.label.LongMappedAccessData;
 import net.imglib2.type.label.N5CacheLoader;
 import net.imglib2.type.label.VolatileLabelMultisetArray;
 import net.imglib2.type.label.VolatileLabelMultisetType;
+import net.imglib2.util.Fraction;
 import net.imglib2.util.Intervals;
 import net.imglib2.util.ValueTriple;
 
@@ -51,15 +55,16 @@ public class VolatileHelpers
 
 	public static < T extends NativeType< T >, A > VolatileCachedCellImg< T, A > createVolatileCachedCellImg(
 			final CellGrid grid,
-			final T type,
-			final AccessFlags[] accessFlags,
+			final Fraction entitiesPerPixel,
+			final Function< NativeImg< T, ? super A >, T > typeFactory,
+			final Set< AccessFlags > accessFlags,
 			final Cache< Long, Cell< A > > cache,
 			final CreateInvalid< Long, Cell< A > > createInvalid,
 			final SharedQueue queue,
 			final CacheHints hints )
 	{
 		final VolatileCache< Long, Cell< A > > volatileCache = new WeakRefVolatileCache<>( cache, queue, createInvalid );
-		final VolatileCachedCellImg< T, A > volatileImg = new VolatileCachedCellImg<>( grid, type, hints, volatileCache.unchecked()::get, volatileCache::invalidateAll );
+		final VolatileCachedCellImg< T, A > volatileImg = new VolatileCachedCellImg<>( grid, entitiesPerPixel, typeFactory, hints, volatileCache.unchecked()::get );
 		return volatileImg;
 	}
 
@@ -68,18 +73,21 @@ public class VolatileHelpers
 			final CreateInvalid< Long, Cell< A > > createInvalid,
 			final SharedQueue queue,
 			final CacheHints hints,
-			final V vtype )
+			final Fraction entitiesPerPixel,
+			final Function< NativeImg< V, ? super A >, V > typeFactory )
 	{
 		final T type = cachedCellImg.createLinkedType();
 		final CellGrid grid = cachedCellImg.getCellGrid();
 		final Cache< Long, Cell< A > > cache = cachedCellImg.getCache();
 
-		final AccessFlags[] flags = AccessFlags.of( cachedCellImg.getAccessType() );
-		if ( !AccessFlags.isVolatile( flags ) ) { throw new IllegalArgumentException( "underlying " + CachedCellImg.class.getSimpleName() + " must have volatile access type" ); }
+		final Set< AccessFlags > flags = AccessFlags.ofAccess( cachedCellImg.getAccessType() );
+		if ( !flags.contains( AccessFlags.VOLATILE ) ) { throw new IllegalArgumentException( "underlying " + CachedCellImg.class.getSimpleName() + " must have volatile access type" ); }
 		@SuppressWarnings( "rawtypes" )
-		final VolatileCachedCellImg< V, ? > img = createVolatileCachedCellImg( grid, vtype, flags, ( Cache ) cache, createInvalid, queue, hints );
+		final VolatileCachedCellImg< V, A > img = createVolatileCachedCellImg( grid, entitiesPerPixel, typeFactory, flags, cache, createInvalid, queue, hints );
 
-		final VolatileViewData< T, V > vvd = new VolatileViewData<>( img, queue, type, vtype );
+		new VolatileLabelMultisetType();
+
+		final VolatileViewData< T, V > vvd = new VolatileViewData<>( img, queue, cache::invalidateAll, type, typeFactory.apply( img ) );
 		return new VolatileRandomAccessibleIntervalView<>( vvd );
 	}
 
@@ -160,7 +168,8 @@ public class VolatileHelpers
 					new VolatileHelpers.CreateInvalidVolatileLabelMultisetArray( cachedImg.getCellGrid() ),
 					sharedQueue,
 					new CacheHints( LoadingStrategy.VOLATILE, priority, false ),
-					new VolatileLabelMultisetType() );
+					new VolatileLabelMultisetType().getEntitiesPerPixel(),
+					img -> new VolatileLabelMultisetType( ( NativeImg< ?, VolatileLabelMultisetArray > ) img ) );
 			vraw[ scale ] = volatileCachedImg;
 
 			final double[] downsamplingFactors = Optional
