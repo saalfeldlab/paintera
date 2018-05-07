@@ -436,9 +436,10 @@ public class GenericBackendDialogN5 implements SourceFromRAI
 		final LoaderCacheAsCacheAdapter< Long, Cell< VolatileLabelMultisetArray > > wrappedCache = new LoaderCacheAsCacheAdapter<>( cache, loader );
 		final CachedCellImg< LabelMultisetType, VolatileLabelMultisetArray > data = new CachedCellImg<>(
 				new CellGrid( attrs.getDimensions(), attrs.getBlockSize() ),
-				new LabelMultisetType(),
+				new LabelMultisetType().getEntitiesPerPixel(),
 				wrappedCache,
 				new VolatileLabelMultisetArray( 0, true ) );
+		data.setLinkedType( new LabelMultisetType( data ) );
 		long maxId = 0;
 		for ( final Cell< VolatileLabelMultisetArray > cell : Views.iterable( data.getCells() ) )
 		{
