@@ -110,7 +110,7 @@ public class N5Helpers
 		 * based on groupd content (the old way) TODO conider removing as
 		 * multi-scale declaration by attribute becomes part of the N5 spec.
 		 */
-		if ( !isMultiScale )
+		if ( !isMultiScale && !n5.datasetExists( dataset ) )
 		{
 			final String[] groups = n5.list( dataset );
 			isMultiScale = groups.length > 0;
