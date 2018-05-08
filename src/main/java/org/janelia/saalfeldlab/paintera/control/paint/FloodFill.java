@@ -269,7 +269,7 @@ public class FloodFill
 		final AccessBoxRandomAccessible< UnsignedByteType > accessTracker = new AccessBoxRandomAccessible<>( Views.extendValue( mask, new UnsignedByteType( 1 ) ) );
 		final Thread t = new Thread( () -> {
 			net.imglib2.algorithm.fill.FloodFill.fill(
-					data,
+					Views.extendValue( data, new LabelMultisetType() ),
 					accessTracker,
 					seed,
 					new UnsignedByteType( 1 ),
@@ -305,7 +305,7 @@ public class FloodFill
 	private static BiPredicate< LabelMultisetType, UnsignedByteType > makePredicateMultiset( final long id )
 	{
 		final UnsignedByteType zero = new UnsignedByteType( 0 );
-		return ( l, u ) -> l.contains( id ) && zero.valueEquals( u );
+		return ( l, u ) -> zero.valueEquals( u ) && l.contains( id );
 	}
 
 	public static class RunAll implements Runnable
