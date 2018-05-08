@@ -116,6 +116,7 @@ public class VolatileHelpers
 
 	}
 
+	@SuppressWarnings( "unchecked" )
 	public static ValueTriple< RandomAccessibleInterval< LabelMultisetType >[], RandomAccessibleInterval< VolatileLabelMultisetType >[], AffineTransform3D[] > loadMultiscaleMultisets(
 			final N5Reader reader,
 			final String dataset,

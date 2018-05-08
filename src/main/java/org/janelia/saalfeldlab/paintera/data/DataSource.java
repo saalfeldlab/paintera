@@ -189,6 +189,7 @@ public interface DataSource< D, T > extends Source< T >
 	 * @return
 	 * @throws IOException
 	 */
+	@SuppressWarnings( "unchecked" )
 	public static < T extends NativeType< T > & NumericType< T >, V extends NumericType< V > > RandomAccessibleIntervalDataSource< T, V > createH5RawSource(
 			final String name,
 			final String rawFile,
@@ -268,6 +269,7 @@ public interface DataSource< D, T > extends Source< T >
 		return createN5Source( name, n5, dataset, rawTransform, sharedQueue, priority );
 	}
 
+	@SuppressWarnings( "unchecked" )
 	public static < T extends NativeType< T > & NumericType< T >, V extends NumericType< V > > RandomAccessibleIntervalDataSource< T, V > createN5Source(
 			final String name,
 			final N5Reader n5,
@@ -386,7 +388,6 @@ public interface DataSource< D, T > extends Source< T >
 	 * @return
 	 * @throws IOException
 	 */
-	@SuppressWarnings( "unchecked" )
 	public static < T extends NativeType< T > & NumericType< T >, V extends Volatile< T > & NumericType< V > > RandomAccessibleIntervalDataSource< T, V > createN5MipmapSource(
 			final String name,
 			final N5Reader n5,
