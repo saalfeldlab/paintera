@@ -55,8 +55,6 @@ public class RestrictPainting
 
 	private final Runnable requestRepaint;
 
-	private final AffineTransform3D viewerTransform = new AffineTransform3D();
-
 	public RestrictPainting( final ViewerPanelFX viewer, final SourceInfo sourceInfo, final Runnable requestRepaint )
 	{
 		super();
@@ -65,6 +63,7 @@ public class RestrictPainting
 		this.requestRepaint = requestRepaint;
 	}
 
+	@SuppressWarnings( { "unchecked", "rawtypes" } )
 	public void restrictTo( final double x, final double y )
 	{
 		final Source< ? > currentSource = sourceInfo.currentSourceProperty().get();

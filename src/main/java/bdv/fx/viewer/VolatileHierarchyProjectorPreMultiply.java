@@ -37,7 +37,9 @@ import net.imglib2.view.Views;
  *
  * @author Stephan Saalfeld &lt;saalfeld@mpi-cbg.de&gt;
  * @author Tobias Pietzsch &lt;tobias.pietzsch@gmail.com&gt;
+ * @author Philipp Hanslovsky
  */
+@SuppressWarnings( "restriction" )
 public class VolatileHierarchyProjectorPreMultiply< A extends Volatile< ? > > extends AbstractInterruptibleProjector< A, ARGBType > implements VolatileProjector
 {
 	protected final ArrayList< RandomAccessible< A > > sources = new ArrayList<>();

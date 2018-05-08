@@ -32,7 +32,6 @@ import net.imglib2.img.cell.AbstractCellImg;
 import net.imglib2.img.cell.Cell;
 import net.imglib2.img.cell.CellGrid;
 import net.imglib2.type.NativeType;
-import net.imglib2.type.Type;
 import net.imglib2.type.label.LabelMultisetType;
 import net.imglib2.type.label.VolatileLabelMultisetArray;
 import net.imglib2.type.numeric.RealType;
@@ -79,7 +78,7 @@ public class PainteraOpenDialogEventHandler implements EventHandler< Event >
 		viewer.addRawSource( raw, min, max, Color.WHITE );
 	}
 
-	private < D extends NativeType< D >, T extends Volatile< D > & Type< T > > void addLabel(
+	private < D extends NativeType< D >, T extends Volatile< D > & NativeType< T > > void addLabel(
 			final String name,
 			final BackendDialog dataset ) throws Exception
 	{

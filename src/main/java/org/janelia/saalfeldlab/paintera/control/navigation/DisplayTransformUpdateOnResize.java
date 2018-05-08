@@ -10,12 +10,6 @@ public class DisplayTransformUpdateOnResize
 
 	private double canvasW = 1;
 
-	private double canvasH = 1;
-
-	private double centerX = 0;
-
-	private double centerY = 0;
-
 	private final ObservableDoubleValue width;
 
 	private final ObservableDoubleValue height;
@@ -87,9 +81,6 @@ public class DisplayTransformUpdateOnResize
 			}
 		}
 		canvasW = width;
-		canvasH = height;
-		centerX = width / 2;
-		centerY = height / 2;
 	}
 
 }

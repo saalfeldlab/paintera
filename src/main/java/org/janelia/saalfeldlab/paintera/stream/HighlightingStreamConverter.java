@@ -7,7 +7,6 @@ import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleIntegerProperty;
 import javafx.beans.property.SimpleLongProperty;
 import net.imglib2.converter.Converter;
-import net.imglib2.type.label.Label;
 import net.imglib2.type.label.LabelMultisetType;
 import net.imglib2.type.label.VolatileLabelMultisetType;
 import net.imglib2.type.numeric.ARGBType;
@@ -42,11 +41,6 @@ public abstract class HighlightingStreamConverter< T > implements Converter< T, 
 		activeFragmentAlpha.set( stream.getActiveFragmentAlpha() );
 		activeSegmentAlpha.set( stream.getActiveSegmentAlpha() );
 		stream.colorFromSegmentIdProperty().bind( this.colorFromSegmentId );
-	}
-
-	private static long considerMaxUnsignedInt( final long val )
-	{
-		return val >= Integer.MAX_VALUE ? Label.INVALID : val;
 	}
 
 	@Override

@@ -26,7 +26,6 @@ import org.slf4j.LoggerFactory;
 
 import gnu.trove.impl.Constants;
 import gnu.trove.map.hash.TLongIntHashMap;
-import gnu.trove.set.hash.TLongHashSet;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.SimpleBooleanProperty;
 import net.imglib2.type.label.Label;
@@ -67,18 +66,11 @@ public abstract class AbstractHighlightingARGBStream extends ObservableWithListe
 
 	private final BooleanProperty colorFromSegmentId = new SimpleBooleanProperty();
 
-	private TLongHashSet activeFragments;
-
-	private TLongHashSet activeSegments;
-
 	public AbstractHighlightingARGBStream( final SelectedIds highlights, final FragmentSegmentAssignmentState assignment )
 	{
 		this.highlights = highlights;
 		this.assignment = assignment;
 		this.colorFromSegmentId.addListener( ( obs, oldv, newv ) -> stateChanged() );
-		this.assignment.addListener( obs -> this.setActiveFragmentsAndSegments() );
-		this.highlights.addListener( obs -> this.setActiveFragmentsAndSegments() );
-		setActiveFragmentsAndSegments();
 	}
 
 	protected TLongIntHashMap argbCache = new TLongIntHashMap(
@@ -253,18 +245,6 @@ public abstract class AbstractHighlightingARGBStream extends ObservableWithListe
 	public BooleanProperty colorFromSegmentIdProperty()
 	{
 		return this.colorFromSegmentId;
-	}
-
-	private final void setActiveFragmentsAndSegments()
-	{
-		final TLongHashSet activeFragments = new TLongHashSet( this.highlights.getActiveIds() );
-		final TLongHashSet activeSegments = new TLongHashSet();
-		activeFragments.forEach( id -> {
-			activeSegments.add( this.assignment.getSegment( id ) );
-			return true;
-		} );
-		this.activeFragments = activeFragments;
-		this.activeSegments = activeSegments;
 	}
 
 }

@@ -66,8 +66,6 @@ import net.imglib2.ui.TransformListener;
 public class InteractiveDisplayPaneComponent< A > extends StackPane
 {
 
-	private static final long serialVersionUID = -5546719724928785878L;
-
 	/**
 	 * The {@link OverlayRendererGeneric} that draws on top of the current
 	 * buffered image.

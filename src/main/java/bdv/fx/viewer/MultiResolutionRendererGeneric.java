@@ -48,7 +48,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import bdv.cache.CacheControl;
-import bdv.img.cache.VolatileCachedCellImg;
 import bdv.util.MipmapTransforms;
 import bdv.viewer.Interpolation;
 import bdv.viewer.Source;
@@ -81,6 +80,7 @@ import net.imglib2.realtransform.RealViews;
 import net.imglib2.type.numeric.ARGBType;
 import net.imglib2.ui.PainterThread;
 import net.imglib2.ui.Renderer;
+import tmp.bdv.img.cache.VolatileCachedCellImg;
 
 /**
  * A {@link Renderer} that uses a coarse-to-fine rendering scheme. First, a
@@ -312,8 +312,6 @@ public class MultiResolutionRendererGeneric< T >
 
 	private final Function< T, ArrayImg< ARGBType, ? extends IntAccess > > wrapAsArrayImg;
 
-	private final Class< ? extends T > cls2;
-
 	private final ToIntFunction< T > width;
 
 	private final ToIntFunction< T > height;
@@ -352,6 +350,7 @@ public class MultiResolutionRendererGeneric< T >
 	 * @param cacheControl
 	 *            the cache controls IO budgeting and fetcher queue.
 	 */
+	@SuppressWarnings( "unchecked" )
 	public MultiResolutionRendererGeneric(
 			final TransformAwareRenderTargetGeneric< T > display,
 			final PainterThread painterThread,
@@ -384,8 +383,6 @@ public class MultiResolutionRendererGeneric< T >
 		// )new ARGBScreenImage[ screenScales.length ][ 3 ];
 		this.bufferedImages = ( T[][] ) Array.newInstance( cls, screenScales.length, 3 );
 		screenScaleTransforms = new AffineTransform3D[ screenScales.length ];
-
-		this.cls2 = cls;
 
 		this.makeImage = makeImage;
 
@@ -462,6 +459,7 @@ public class MultiResolutionRendererGeneric< T >
 		return false;
 	}
 
+	@SuppressWarnings( "unchecked" )
 	protected boolean checkRenewRenderImages( final int numVisibleSources )
 	{
 		final int n = numVisibleSources > 1 ? numVisibleSources : 0;
@@ -545,7 +543,7 @@ public class MultiResolutionRendererGeneric< T >
 				currentScreenScaleIndex = requestedScreenScaleIndex;
 				bufferedImage = bufferedImages[ currentScreenScaleIndex ][ renderId ];
 				final T screenImage = screenImages[ currentScreenScaleIndex ][ renderId ];
-				synchronized ( synchronizationLock )
+//				synchronized ( synchronizationLock )
 				{
 					final int numSources = sacs.size();
 					checkRenewRenderImages( numSources );

@@ -117,13 +117,6 @@ public class TranslateWithinPlane
 
 		private final Object lock;
 
-		public TransformTracker( final AffineTransform3D transform )
-		{
-			super();
-			this.transform = transform;
-			this.lock = this;
-		}
-
 		public TransformTracker( final AffineTransform3D transform, final Object lock )
 		{
 			super();

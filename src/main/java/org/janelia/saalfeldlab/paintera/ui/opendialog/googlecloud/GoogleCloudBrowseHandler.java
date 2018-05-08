@@ -52,6 +52,7 @@ import javafx.util.Callback;
 import net.imglib2.util.Pair;
 import net.imglib2.util.ValuePair;
 
+@SuppressWarnings( "restriction" )
 public class GoogleCloudBrowseHandler
 {
 
@@ -248,8 +249,6 @@ public class GoogleCloudBrowseHandler
 			root.add( INSTALLED_KEY, contents );
 
 			LOG.debug( "Returning json: {}", root );
-
-			final String rootAsString = root.toString();
 
 			return GoogleCloudClientSecretsPrompt.create( contents.get( CLIENT_ID_KEY ).getAsString(), contents.get( CLIENT_SECRET_KEY ).getAsString() );
 

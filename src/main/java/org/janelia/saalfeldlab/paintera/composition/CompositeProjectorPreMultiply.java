@@ -25,6 +25,7 @@ import net.imglib2.type.numeric.ARGBType;
  * @author Stephan Saalfeld <saalfelds@janelia.hhmi.org>
  * @author Philipp Hanslovsky
  */
+@SuppressWarnings( "restriction" )
 public class CompositeProjectorPreMultiply extends AccumulateProjector< ARGBType, ARGBType >
 {
 
@@ -81,6 +82,7 @@ public class CompositeProjectorPreMultiply extends AccumulateProjector< ARGBType
 			final ExecutorService executorService )
 	{
 		super( sourceProjectors, sources, target, numThreads, executorService );
+		LOG.debug( "Creating {}", this.getClass().getName() );
 	}
 
 	public void setComposites( final List< Composite< ARGBType, ARGBType > > composites )

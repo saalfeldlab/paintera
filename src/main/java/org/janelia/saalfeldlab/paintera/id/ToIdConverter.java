@@ -146,6 +146,7 @@ public interface ToIdConverter
 		@Override
 		public long biggestFragment( final Object o )
 		{
+			@SuppressWarnings( "unchecked" )
 			final Pair< I, K > p = ( Pair< I, K > ) o;
 			final long k = p.getB().getIntegerLong();
 			return Label.regular( k ) ? k : p.getA().getIntegerLong();
