@@ -35,11 +35,11 @@ import net.imglib2.RealLocalizable;
 import net.imglib2.RealPoint;
 import net.imglib2.algorithm.fill.FloodFill;
 import net.imglib2.algorithm.neighborhood.DiamondShape;
+import net.imglib2.position.FunctionRealRandomAccessible;
 import net.imglib2.realtransform.AffineGet;
 import net.imglib2.realtransform.AffineRandomAccessible;
 import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.realtransform.RealViews;
-import net.imglib2.tmp.BiConsumerRealRandomAccessible;
 import net.imglib2.type.logic.BitType;
 import net.imglib2.type.numeric.integer.UnsignedByteType;
 import net.imglib2.type.numeric.integer.UnsignedLongType;
@@ -305,7 +305,7 @@ public class Paint2D
 			};
 		};
 		final AffineRandomAccessible< BitType, AffineGet > containsCheck =
-				RealViews.affine( new BiConsumerRealRandomAccessible<>( 3, function, () -> new BitType( true ) ), labelToViewerTransform.inverse() );
+				RealViews.affine( new FunctionRealRandomAccessible<>( 3, function, () -> new BitType( true ) ), labelToViewerTransform.inverse() );
 
 		final RealPoint seedReal = new RealPoint( viewerX, viewerY, 0 );
 		labelToViewerTransform.applyInverse( seedReal, seedReal );
