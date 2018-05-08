@@ -31,16 +31,13 @@ package bdv.fx.viewer;
 
 import java.lang.invoke.MethodHandles;
 import java.util.concurrent.CopyOnWriteArrayList;
-import java.util.concurrent.ExecutorService;
 import java.util.function.Consumer;
 
-import org.apache.commons.collections.Buffer;
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javafx.scene.image.Image;
-import javafx.scene.image.WritableImage;
 import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.ui.TransformListener;
 
@@ -50,8 +47,6 @@ public class TransformAwareBufferedImageOverlayRendererFX
 {
 
 	private static Logger LOG = LoggerFactory.getLogger( MethodHandles.lookup().lookupClass() );
-
-	private final ExecutorService es;
 
 	protected AffineTransform3D pendingTransform;
 
@@ -66,11 +61,9 @@ public class TransformAwareBufferedImageOverlayRendererFX
 	 */
 	protected final CopyOnWriteArrayList< TransformListener< AffineTransform3D > > paintedTransformListeners;
 
-	public TransformAwareBufferedImageOverlayRendererFX(
-			final ExecutorService es )
+	public TransformAwareBufferedImageOverlayRendererFX()
 	{
 		super();
-		this.es = es;
 		pendingTransform = new AffineTransform3D();
 		paintedTransform = new AffineTransform3D();
 		paintedTransformListeners = new CopyOnWriteArrayList<>();
@@ -105,18 +98,10 @@ public class TransformAwareBufferedImageOverlayRendererFX
 			final boolean notify = notifyTransformListeners;
 			InvokeOnJavaFXApplicationThread.invoke( () -> {
 
-				try
-				{
-					g.accept( null );
-					sourceImage.setPixelsDirty();
-					g.accept( sourceImage );
-				}
-				catch ( final Exception e )
-				{
-					System.err.println( "Caught exception: " + e );
-					e.printStackTrace( System.err );
-					System.exit( 123 );
-				}
+				LOG.debug( "Setting image to {}", sourceImage );
+				g.accept( null );
+				sourceImage.setPixelsDirty();
+				g.accept( sourceImage );
 				// TODO add countdown latch to wait for setImage to return
 				// before
 				// notifying listeners
@@ -192,24 +177,5 @@ public class TransformAwareBufferedImageOverlayRendererFX
 	{
 		bufferedImage = null;
 		pendingImage = null;
-	}
-
-	private static WritableImage getOrCreateImage( final Buffer buffer, final int width, final int height )
-	{
-		for ( int i = 0; i < buffer.size(); ++i )
-		{
-			final Object obj = buffer.get();
-			if ( obj instanceof WritableImage )
-			{
-				final WritableImage img = ( WritableImage ) obj;
-				if ( img.getWidth() == width && img.getHeight() == height )
-				{
-					LOG.debug( "REUSING IMAGE OF SIZE " + width + " " + height );
-					return img;
-				}
-			}
-		}
-		final WritableImage img = new WritableImage( width, height );
-		return img;
 	}
 }

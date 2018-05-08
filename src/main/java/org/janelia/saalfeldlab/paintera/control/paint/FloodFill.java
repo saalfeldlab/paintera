@@ -5,6 +5,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
+import java.util.function.BiPredicate;
 import java.util.function.LongFunction;
 import java.util.function.Supplier;
 
@@ -30,7 +31,6 @@ import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.RealLocalizable;
 import net.imglib2.RealPoint;
 import net.imglib2.RealPositionable;
-import net.imglib2.algorithm.fill.Filter;
 import net.imglib2.algorithm.neighborhood.DiamondShape;
 import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.type.Type;
@@ -42,7 +42,6 @@ import net.imglib2.type.numeric.integer.UnsignedByteType;
 import net.imglib2.type.numeric.integer.UnsignedLongType;
 import net.imglib2.util.AccessBoxRandomAccessible;
 import net.imglib2.util.Intervals;
-import net.imglib2.util.Pair;
 import net.imglib2.view.Views;
 
 public class FloodFill
@@ -83,6 +82,7 @@ public class FloodFill
 		fillAt( x, y, fill );
 	}
 
+	@SuppressWarnings( { "rawtypes", "unchecked" } )
 	public void fillAt( final double x, final double y, final long fill )
 	{
 		final Source< ? > currentSource = sourceInfo.currentSourceProperty().get();
@@ -226,8 +226,7 @@ public class FloodFill
 					accessTracker,
 					seed,
 					new UnsignedByteType( 1 ),
-					new DiamondShape( 1 ),
-					makeFilter() );
+					new DiamondShape( 1 ) );
 			final Interval interval = accessTracker.createAccessInterval();
 			LOG.debug( "Applying mask for interval {} {}", Arrays.toString( Intervals.minAsLongArray( interval ) ), Arrays.toString( Intervals.maxAsLongArray( interval ) ) );
 		} );
@@ -280,12 +279,12 @@ public class FloodFill
 		final AccessBoxRandomAccessible< UnsignedByteType > accessTracker = new AccessBoxRandomAccessible<>( Views.extendValue( mask, new UnsignedByteType( 1 ) ) );
 		final Thread t = new Thread( () -> {
 			net.imglib2.algorithm.fill.FloodFill.fill(
-					data,
+					Views.extendValue( data, new LabelMultisetType() ),
 					accessTracker,
 					seed,
 					new UnsignedByteType( 1 ),
 					new DiamondShape( 1 ),
-					makeFilterMultiset( seedLabel ) );
+					makePredicateMultiset( seedLabel ) );
 			final Interval interval = accessTracker.createAccessInterval();
 			LOG.debug( "Applying mask for interval {} {}", Arrays.toString( Intervals.minAsLongArray( interval ) ), Arrays.toString( Intervals.maxAsLongArray( interval ) ) );
 		} );
@@ -313,18 +312,10 @@ public class FloodFill
 		} ).start();
 	}
 
-	private static < T extends Type< T > > Filter< Pair< T, UnsignedByteType >, Pair< T, UnsignedByteType > > makeFilter()
+	private static BiPredicate< LabelMultisetType, UnsignedByteType > makePredicateMultiset( final long id )
 	{
 		final UnsignedByteType zero = new UnsignedByteType( 0 );
-		// first element in pair is current pixel, second element is reference
-		return ( p1, p2 ) -> p1.getB().valueEquals( zero ) && p1.getA().valueEquals( p2.getA() );
-	}
-
-	private static Filter< Pair< LabelMultisetType, UnsignedByteType >, Pair< LabelMultisetType, UnsignedByteType > > makeFilterMultiset( final long id )
-	{
-		final UnsignedByteType zero = new UnsignedByteType( 0 );
-		// first element in pair is current pixel, second element is reference
-		return ( p1, p2 ) -> p1.getB().valueEquals( zero ) && p1.getA().contains( id );
+		return ( l, u ) -> zero.valueEquals( u ) && l.contains( id );
 	}
 
 	public static class RunAll implements Runnable

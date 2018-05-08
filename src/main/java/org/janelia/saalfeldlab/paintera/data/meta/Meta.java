@@ -12,12 +12,11 @@ import net.imglib2.Volatile;
 import net.imglib2.interpolation.InterpolatorFactory;
 import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.type.NativeType;
-import net.imglib2.type.Type;
 
 public interface Meta
 {
 
-	public < T extends NativeType< T >, V extends Volatile< T > & Type< V > > DataSource< T, V > asSource(
+	public < T extends NativeType< T >, V extends Volatile< T > & NativeType< V > > DataSource< T, V > asSource(
 			final SharedQueue sharedQueue,
 			final int priority,
 			final Function< Interpolation, InterpolatorFactory< T, RandomAccessible< T > > > dataInterpolation,

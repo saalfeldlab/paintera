@@ -70,6 +70,7 @@ public class BorderPaneWithStatusBars
 
 	private final CrosshairConfig crosshairConfig = new CrosshairConfig();
 
+	@SuppressWarnings( "unused" )
 	private final Map< ViewerAndTransforms, Crosshair > crossHairs;
 
 	private final OrthoSliceConfig orthoSliceConfig;
@@ -117,6 +118,7 @@ public class BorderPaneWithStatusBars
 			final PainteraBaseView center,
 			final KeyTracker keyTracker )
 	{
+		LOG.debug( "Construction {}", BorderPaneWithStatusBars.class.getName() );
 		this.pane = new BorderPane( center.orthogonalViews().pane() );
 
 		this.currentFocusHolderWithState = currentFocusHolder( center.orthogonalViews() );

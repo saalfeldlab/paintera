@@ -17,8 +17,6 @@ import org.janelia.saalfeldlab.paintera.data.mask.PickOne.PickAndConvert;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import bdv.img.cache.VolatileCachedCellImg;
-import bdv.util.volatiles.VolatileRandomAccessibleIntervalView;
 import bdv.util.volatiles.VolatileViews;
 import bdv.viewer.Interpolation;
 import gnu.trove.iterator.TLongIterator;
@@ -80,6 +78,7 @@ import net.imglib2.util.Intervals;
 import net.imglib2.view.IntervalView;
 import net.imglib2.view.RandomAccessibleTriple;
 import net.imglib2.view.Views;
+import tmp.bdv.img.cache.VolatileCachedCellImg;
 
 public class MaskedSource< D extends Type< D >, T extends Type< T > > implements DataSource< D, T >
 {
@@ -128,10 +127,6 @@ public class MaskedSource< D extends Type< D >, T extends Type< T > > implements
 	private final IntegerProperty maskApplyCount = new SimpleIntegerProperty( 0 );
 
 	private final BooleanBinding noMasksCurrentlyApplied = maskApplyCount.isEqualTo( 0 );
-
-	private final BooleanBinding atLeastOnMaskeIsCurrentlyApplied = noMasksCurrentlyApplied.not();
-
-	private final BooleanBinding maskApplyCountIsInconsistent = maskApplyCount.lessThan( 0 );
 
 	private final BooleanProperty isPersisting = new SimpleBooleanProperty( false );
 
@@ -243,9 +238,8 @@ public class MaskedSource< D extends Type< D >, T extends Type< T > > implements
 				.dirtyAccesses( true )
 				.cellDimensions( this.blockSizes[ mask.level ] );
 
-		@SuppressWarnings( "unchecked" )
-		final CachedCellImg< UnsignedByteType, ? > store = ( CachedCellImg< UnsignedByteType, ? > ) new DiskCachedCellImgFactory< UnsignedByteType >( maskOpts )
-				.create( source.getSource( 0, mask.level ), new UnsignedByteType() );
+		final CachedCellImg< UnsignedByteType, ? > store = ( CachedCellImg< UnsignedByteType, ? > ) new DiskCachedCellImgFactory< UnsignedByteType >( new UnsignedByteType(), maskOpts )
+				.create( source.getSource( 0, mask.level ) );
 		final RandomAccessibleInterval< VolatileUnsignedByteType > vstore = VolatileViews.wrapAsVolatile( store );
 		final UnsignedLongType INVALID = new UnsignedLongType( Label.INVALID );
 		this.dMasks[ mask.level ] = Converters.convert( Views.extendZero( store ), ( input, output ) -> output.set( input.get() == 1 ? mask.value : INVALID ), new UnsignedLongType() );
@@ -676,8 +670,6 @@ public class MaskedSource< D extends Type< D >, T extends Type< T > > implements
 			final Interval intervalAtPaintedScale )
 	{
 
-		final CellGrid gridAtPaintedLevel = this.dataCanvases[ paintedLevel ].getCellGrid();
-
 		for ( int level = paintedLevel + 1; level < getNumMipmapLevels(); ++level )
 		{
 			final int levelAsFinal = level;
@@ -1026,9 +1018,9 @@ public class MaskedSource< D extends Type< D >, T extends Type< T > > implements
 							.cacheDirectory( Paths.get( newValue, String.format( "%d", level ) ) )
 							.deleteCacheDirectoryOnExit( false )
 							.cellDimensions( blockSizes[ level ] );
-					final DiskCachedCellImgFactory< UnsignedLongType > f = new DiskCachedCellImgFactory<>( o );
+					final DiskCachedCellImgFactory< UnsignedLongType > f = new DiskCachedCellImgFactory<>( new UnsignedLongType(), o );
 					final CellLoader< UnsignedLongType > loader = img -> img.forEach( t -> t.set( Label.INVALID ) );
-					final CachedCellImg< UnsignedLongType, ? > store = f.create( dimensions[ level ], new UnsignedLongType(), loader, o );
+					final CachedCellImg< UnsignedLongType, ? > store = f.create( dimensions[ level ], loader, o );
 					final RandomAccessibleInterval< VolatileUnsignedLongType > vstore = VolatileViews.wrapAsVolatile( store );
 
 					this.dataCanvases[ level ] = store;
@@ -1041,20 +1033,16 @@ public class MaskedSource< D extends Type< D >, T extends Type< T > > implements
 
 	public static void invalidateAllIfCachedImg( final RandomAccessibleInterval< ? > img )
 	{
-		if ( img instanceof CachedCellImg< ?, ? > )
+		if ( img instanceof VolatileCachedCellImg< ?, ? > )
 		{
-			LOG.debug( "{} is instance of {} -- invalidating all", img, img.getClass().getSimpleName() );
+			LOG.debug( "{} is instance of {} ({}) -- invalidating all", img, VolatileCachedCellImg.class.getName(), img.getClass().getName() );
+			( ( VolatileCachedCellImg< ?, ? > ) img ).getInvalidateAll().run();
+		}
+		else if ( img instanceof CachedCellImg< ?, ? > )
+		{
+			LOG.debug( "{} is instance of {} ({}) -- invalidating all", img, CachedCellImg.class.getName(), img.getClass().getName() );
 			final Cache< Long, ? > cache = ( ( CachedCellImg< ?, ? > ) img ).getCache();
 			cache.invalidateAll();
-		}
-
-		else if ( img instanceof VolatileRandomAccessibleIntervalView< ?, ? > )
-		{
-			final RandomAccessibleInterval< ? > vimg = ( ( VolatileRandomAccessibleIntervalView< ?, ? > ) img ).getSource();
-			if ( vimg instanceof VolatileCachedCellImg< ?, ? > )
-			{
-				( ( VolatileCachedCellImg< ?, ? > ) vimg ).clearCache();
-			}
 		}
 	}
 

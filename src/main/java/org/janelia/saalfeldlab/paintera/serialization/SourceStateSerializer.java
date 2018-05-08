@@ -209,7 +209,7 @@ public class SourceStateSerializer implements JsonSerializer< SourceState< ?, ? 
 		return map;
 	}
 
-	private static < D extends NativeType< D > & RealType< D >, T extends Volatile< D > & RealType< T > > SourceState< D, T > rawFromMap(
+	private static < D extends NativeType< D > & RealType< D >, T extends Volatile< D > & RealType< T > & NativeType< T > > SourceState< D, T > rawFromMap(
 			final JsonObject map,
 			final SharedQueue queue,
 			final int priority,

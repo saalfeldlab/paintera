@@ -124,6 +124,7 @@ public class MultiResolutionRendererFX extends MultiResolutionRendererGeneric< B
 
 	}
 
+	@SuppressWarnings( "unchecked" )
 	public MultiResolutionRendererFX(
 			final TransformAwareRenderTargetGeneric< BufferExposingWritableImage > display,
 			final PainterThread painterThread,

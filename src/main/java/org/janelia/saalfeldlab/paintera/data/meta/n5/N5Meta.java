@@ -23,7 +23,6 @@ import net.imglib2.Volatile;
 import net.imglib2.interpolation.InterpolatorFactory;
 import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.type.NativeType;
-import net.imglib2.type.Type;
 import net.imglib2.util.ValueTriple;
 
 public interface N5Meta extends Meta
@@ -52,7 +51,7 @@ public interface N5Meta extends Meta
 	}
 
 	@Override
-	public default < T extends NativeType< T >, V extends Volatile< T > & Type< V > > DataSource< T, V > asSource(
+	public default < T extends NativeType< T >, V extends Volatile< T > & NativeType< V > > DataSource< T, V > asSource(
 			final SharedQueue sharedQueue,
 			final int priority,
 			final Function< Interpolation, InterpolatorFactory< T, RandomAccessible< T > > > dataInterpolation,

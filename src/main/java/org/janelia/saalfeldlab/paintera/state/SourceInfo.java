@@ -389,7 +389,7 @@ public class SourceInfo
 
 	public ObservableList< Source< ? > > removedSourcesTracker()
 	{
-		return this.removedSources;
+		return this.unmodifiableRemovedSources;
 	}
 
 	public ObservableIntegerValue numSources()

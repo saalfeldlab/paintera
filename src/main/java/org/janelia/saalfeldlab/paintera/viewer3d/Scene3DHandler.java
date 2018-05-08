@@ -50,8 +50,6 @@ public class Scene3DHandler
 
 	private static final Point3D yNormal = new Point3D( 0, 1, 0 );
 
-	private static final Point3D zNormal = new Point3D( 0, 0, 1 );
-
 	public Scene3DHandler( final Viewer3DFX viewer )
 	{
 		this.viewer = viewer;

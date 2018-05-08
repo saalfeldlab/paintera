@@ -83,10 +83,6 @@ public class GenericBackendDialogN5 implements SourceFromRAI
 
 	private static final Logger LOG = LoggerFactory.getLogger( MethodHandles.lookup().lookupClass() );
 
-	private static final String RESOLUTION_KEY = "resolution";
-
-	private static final String OFFSET_KEY = "offset";
-
 	private static final String MIN_KEY = "min";
 
 	private static final String MAX_KEY = "max";
@@ -427,9 +423,10 @@ public class GenericBackendDialogN5 implements SourceFromRAI
 		final LoaderCacheAsCacheAdapter< Long, Cell< VolatileLabelMultisetArray > > wrappedCache = new LoaderCacheAsCacheAdapter<>( cache, loader );
 		final CachedCellImg< LabelMultisetType, VolatileLabelMultisetArray > data = new CachedCellImg<>(
 				new CellGrid( attrs.getDimensions(), attrs.getBlockSize() ),
-				new LabelMultisetType(),
+				new LabelMultisetType().getEntitiesPerPixel(),
 				wrappedCache,
 				new VolatileLabelMultisetArray( 0, true ) );
+		data.setLinkedType( new LabelMultisetType( data ) );
 		long maxId = 0;
 		for ( final Cell< VolatileLabelMultisetArray > cell : Views.iterable( data.getCells() ) )
 		{
@@ -480,7 +477,7 @@ public class GenericBackendDialogN5 implements SourceFromRAI
 
 	@SuppressWarnings( { "unchecked", "rawtypes" } )
 	@Override
-	public < T extends NativeType< T >, V extends Volatile< T > > Triple< RandomAccessibleInterval< T >[], RandomAccessibleInterval< V >[], AffineTransform3D[] > getDataAndVolatile(
+	public < T extends NativeType< T >, V extends Volatile< T > & NativeType< V > > Triple< RandomAccessibleInterval< T >[], RandomAccessibleInterval< V >[], AffineTransform3D[] > getDataAndVolatile(
 			final SharedQueue sharedQueue,
 			final int priority ) throws IOException
 	{

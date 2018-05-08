@@ -70,6 +70,7 @@ public class Paintera extends Application
 				baseView,
 				keyTracker );
 
+		@SuppressWarnings( "unused" )
 		final PainteraDefaultHandlers defaultHandlers = new PainteraDefaultHandlers( baseView, keyTracker, paneWithStatus );
 
 		// populate everything
@@ -183,7 +184,7 @@ public class Paintera extends Application
 		view.grid().getBottomRight().setFocusTraversable( isTraversable );
 	}
 
-	private static < D extends RealType< D > & NativeType< D >, T extends Volatile< D > & RealType< T > > Optional< DataSource< D, T > > addRawFromString(
+	private static < D extends RealType< D > & NativeType< D >, T extends Volatile< D > & RealType< T > & NativeType< T > > Optional< DataSource< D, T > > addRawFromString(
 			final PainteraBaseView pbv,
 			final String identifier ) throws IOException
 	{

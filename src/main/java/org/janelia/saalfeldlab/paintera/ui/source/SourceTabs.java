@@ -66,6 +66,7 @@ public class SourceTabs implements Supplier< Node >
 			final Consumer< Source< ? > > remove,
 			final SourceInfo info )
 	{
+		LOG.debug( "Constructiong {}", SourceTabs.class.getName() );
 		this.info = info;
 		width.set( 200 );
 		this.info.trackSources().addListener( ( ListChangeListener< Source< ? > > ) change -> {
