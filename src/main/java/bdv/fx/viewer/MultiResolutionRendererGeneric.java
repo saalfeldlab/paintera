@@ -48,7 +48,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import bdv.cache.CacheControl;
-import bdv.img.cache.VolatileCachedCellImg;
 import bdv.util.MipmapTransforms;
 import bdv.viewer.Interpolation;
 import bdv.viewer.Source;
@@ -81,6 +80,7 @@ import net.imglib2.realtransform.RealViews;
 import net.imglib2.type.numeric.ARGBType;
 import net.imglib2.ui.PainterThread;
 import net.imglib2.ui.Renderer;
+import tmp.bdv.img.cache.VolatileCachedCellImg;
 
 /**
  * A {@link Renderer} that uses a coarse-to-fine rendering scheme. First, a
@@ -545,7 +545,7 @@ public class MultiResolutionRendererGeneric< T >
 				currentScreenScaleIndex = requestedScreenScaleIndex;
 				bufferedImage = bufferedImages[ currentScreenScaleIndex ][ renderId ];
 				final T screenImage = screenImages[ currentScreenScaleIndex ][ renderId ];
-				synchronized ( synchronizationLock )
+//				synchronized ( synchronizationLock )
 				{
 					final int numSources = sacs.size();
 					checkRenewRenderImages( numSources );

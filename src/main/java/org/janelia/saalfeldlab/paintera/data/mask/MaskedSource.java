@@ -17,7 +17,6 @@ import org.janelia.saalfeldlab.paintera.data.mask.PickOne.PickAndConvert;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import bdv.util.volatiles.VolatileRandomAccessibleIntervalView;
 import bdv.util.volatiles.VolatileViews;
 import bdv.viewer.Interpolation;
 import gnu.trove.iterator.TLongIterator;
@@ -79,6 +78,7 @@ import net.imglib2.util.Intervals;
 import net.imglib2.view.IntervalView;
 import net.imglib2.view.RandomAccessibleTriple;
 import net.imglib2.view.Views;
+import tmp.bdv.img.cache.VolatileCachedCellImg;
 
 public class MaskedSource< D extends Type< D >, T extends Type< T > > implements DataSource< D, T >
 {
@@ -1040,19 +1040,16 @@ public class MaskedSource< D extends Type< D >, T extends Type< T > > implements
 
 	public static void invalidateAllIfCachedImg( final RandomAccessibleInterval< ? > img )
 	{
-		if ( img instanceof CachedCellImg< ?, ? > )
+		if ( img instanceof VolatileCachedCellImg< ?, ? > )
 		{
-			LOG.debug( "{} is instance of {} -- invalidating all", img, img.getClass().getSimpleName() );
+			LOG.debug( "{} is instance of {} ({}) -- invalidating all", img, VolatileCachedCellImg.class.getName(), img.getClass().getName() );
+			( ( VolatileCachedCellImg< ?, ? > ) img ).getInvalidateAll().run();
+		}
+		else if ( img instanceof CachedCellImg< ?, ? > )
+		{
+			LOG.debug( "{} is instance of {} ({}) -- invalidating all", img, CachedCellImg.class.getName(), img.getClass().getName() );
 			final Cache< Long, ? > cache = ( ( CachedCellImg< ?, ? > ) img ).getCache();
 			cache.invalidateAll();
-		}
-
-		else if ( img instanceof VolatileRandomAccessibleIntervalView< ?, ? > )
-		{
-			( ( VolatileRandomAccessibleIntervalView< ?, ? > ) img )
-					.getVolatileViewData()
-					.getCacheControlUnsafe()
-					.invalidateAll();
 		}
 	}
 

@@ -9,7 +9,6 @@ import javafx.beans.value.ObservableValue;
 import javafx.scene.Node;
 import net.imglib2.Volatile;
 import net.imglib2.type.NativeType;
-import net.imglib2.type.Type;
 import net.imglib2.type.numeric.RealType;
 import net.imglib2.type.volatiles.AbstractVolatileRealType;
 
@@ -25,7 +24,7 @@ public interface BackendDialog
 			final SharedQueue sharedQueue,
 			final int priority ) throws Exception;
 
-	public < D extends NativeType< D >, T extends Volatile< D > & Type< T > > LabelDataSourceRepresentation< D, T > getLabels(
+	public < D extends NativeType< D >, T extends Volatile< D > & NativeType< T > > LabelDataSourceRepresentation< D, T > getLabels(
 			final String name,
 			final SharedQueue sharedQueue,
 			final int priority ) throws Exception;

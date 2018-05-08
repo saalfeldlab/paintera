@@ -164,7 +164,7 @@ public class PainteraBaseView
 		return this.manager;
 	}
 
-	public < T extends RealType< T > & NativeType< T >, U extends Volatile< T > & RealType< U > > Optional< DataSource< T, U > > addRawSource(
+	public < T extends RealType< T > & NativeType< T >, U extends Volatile< T > & RealType< U > & NativeType< U > > Optional< DataSource< T, U > > addRawSource(
 			final N5Reader n5,
 			final String dataset ) throws IOException
 	{
@@ -176,7 +176,7 @@ public class PainteraBaseView
 		return addRawSource( n5, dataset, Color.WHITE, N5Helpers.minForType( type ), N5Helpers.maxForType( type ) );
 	}
 
-	public < T extends RealType< T > & NativeType< T >, U extends Volatile< T > & RealType< U > > Optional< DataSource< T, U > > addRawSource(
+	public < T extends RealType< T > & NativeType< T >, U extends Volatile< T > & RealType< U > & NativeType< U > > Optional< DataSource< T, U > > addRawSource(
 			final N5Reader n5,
 			final String dataset,
 			final Color color,
@@ -193,7 +193,7 @@ public class PainteraBaseView
 				max );
 	}
 
-	public < T extends RealType< T > & NativeType< T >, U extends Volatile< T > & RealType< U > > Optional< DataSource< T, U > > addRawSource(
+	public < T extends RealType< T > & NativeType< T >, U extends Volatile< T > & RealType< U > & NativeType< U > > Optional< DataSource< T, U > > addRawSource(
 			final N5Reader n5,
 			final String dataset,
 			final double[] resolution,

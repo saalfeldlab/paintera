@@ -14,6 +14,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.BiConsumer;
+import java.util.function.Function;
 import java.util.regex.Pattern;
 
 import org.janelia.saalfeldlab.n5.DataBlock;
@@ -39,9 +40,9 @@ import org.janelia.saalfeldlab.util.NamedThreadFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import bdv.img.cache.CreateInvalidVolatileCell;
 import bdv.util.volatiles.SharedQueue;
-import bdv.util.volatiles.VolatileRandomAccessibleIntervalView;
-import bdv.util.volatiles.VolatileViews;
+import bdv.util.volatiles.VolatileTypeMatcher;
 import net.imglib2.Cursor;
 import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.Volatile;
@@ -50,8 +51,11 @@ import net.imglib2.cache.ref.BoundedSoftRefLoaderCache;
 import net.imglib2.cache.ref.SoftRefLoaderCache;
 import net.imglib2.cache.util.LoaderCacheAsCacheAdapter;
 import net.imglib2.cache.volatiles.CacheHints;
+import net.imglib2.cache.volatiles.CreateInvalid;
 import net.imglib2.cache.volatiles.LoadingStrategy;
+import net.imglib2.cache.volatiles.VolatileCache;
 import net.imglib2.img.NativeImg;
+import net.imglib2.img.basictypeaccess.AccessFlags;
 import net.imglib2.img.cell.Cell;
 import net.imglib2.img.cell.CellGrid;
 import net.imglib2.realtransform.AffineTransform3D;
@@ -65,8 +69,11 @@ import net.imglib2.type.label.VolatileLabelMultisetType;
 import net.imglib2.type.numeric.IntegerType;
 import net.imglib2.type.numeric.integer.UnsignedLongType;
 import net.imglib2.util.Fraction;
+import net.imglib2.util.Pair;
+import net.imglib2.util.Util;
 import net.imglib2.util.ValueTriple;
 import net.imglib2.view.Views;
+import tmp.bdv.img.cache.VolatileCachedCellImg;
 
 public class N5Helpers
 {
@@ -332,7 +339,7 @@ public class N5Helpers
 		LOG.debug( "leaving {}, {} threads remaining", pathName, numThreads );
 	}
 
-	public static < T extends NativeType< T >, V extends Volatile< T > > ValueTriple< RandomAccessibleInterval< T >, RandomAccessibleInterval< V >, AffineTransform3D >
+	public static < T extends NativeType< T >, V extends Volatile< T > & NativeType< V > > ValueTriple< RandomAccessibleInterval< T >, RandomAccessibleInterval< V >, AffineTransform3D >
 			openRaw(
 					final N5Reader reader,
 					final String dataset,
@@ -342,7 +349,12 @@ public class N5Helpers
 		return openRaw( reader, dataset, getResolution( reader, dataset ), getOffset( reader, dataset ), sharedQueue, priority );
 	}
 
-	public static < T extends NativeType< T >, V extends Volatile< T > > ValueTriple< RandomAccessibleInterval< T >, RandomAccessibleInterval< V >, AffineTransform3D >
+	public static < T extends NativeType< T >, A > Function< NativeImg< T, ? extends A >, T > linkedTypeFactory( T t )
+	{
+		return img -> ( T ) t.getNativeTypeFactory().createLinkedType( ( NativeImg ) img );
+	}
+
+	public static < T extends NativeType< T >, V extends Volatile< T > & NativeType< V >, A > ValueTriple< RandomAccessibleInterval< T >, RandomAccessibleInterval< V >, AffineTransform3D >
 			openRaw(
 					final N5Reader reader,
 					final String dataset,
@@ -350,18 +362,25 @@ public class N5Helpers
 					final double[] offset,
 					final SharedQueue sharedQueue,
 					final int priority ) throws IOException
-	{
-		final RandomAccessibleInterval< T > raw = N5Utils.openVolatile( reader, dataset );
-		final RandomAccessibleInterval< V > vraw = VolatileViews.wrapAsVolatile( raw, sharedQueue, new CacheHints( LoadingStrategy.VOLATILE, priority, true ) );
+	{ 
+		final CachedCellImg< T, A > raw = ( CachedCellImg< T, A > ) N5Utils.openVolatile( reader, dataset );
+		T type = Util.getTypeFromInterval( raw );
+		V vtype = (V)VolatileTypeMatcher.getVolatileTypeForType( type );
+		final Pair< VolatileCachedCellImg< V, A >, VolatileCache< Long, Cell< A > > > vraw = VolatileHelpers.createVolatileCachedCellImg(
+				raw, 
+				N5Helpers.< V, A >linkedTypeFactory( vtype ),
+				( CreateInvalid< Long, Cell< A > > ) ( CreateInvalid ) CreateInvalidVolatileCell.get( raw.getCellGrid(), type, AccessFlags.ofAccess( raw.getAccessType() ).contains( AccessFlags.DIRTY ) ),
+				sharedQueue,
+				new CacheHints( LoadingStrategy.VOLATILE, priority, true ) );
 		final AffineTransform3D transform = new AffineTransform3D();
 		transform.set(
 				resolution[ 0 ], 0, 0, offset[ 0 ],
 				0, resolution[ 1 ], 0, offset[ 1 ],
 				0, 0, resolution[ 2 ], offset[ 2 ] );
-		return new ValueTriple<>( raw, vraw, transform );
+		return new ValueTriple<>( raw, vraw.getA(), transform );
 	}
 
-	public static < T extends NativeType< T >, V extends Volatile< T > > ValueTriple< RandomAccessibleInterval< T >[], RandomAccessibleInterval< V >[], AffineTransform3D[] >
+	public static < T extends NativeType< T >, V extends Volatile< T > & NativeType< V > > ValueTriple< RandomAccessibleInterval< T >[], RandomAccessibleInterval< V >[], AffineTransform3D[] >
 			openRawMultiscale(
 					final N5Reader reader,
 					final String dataset,
@@ -378,7 +397,7 @@ public class N5Helpers
 
 	}
 
-	public static < T extends NativeType< T >, V extends Volatile< T > > ValueTriple< RandomAccessibleInterval< T >[], RandomAccessibleInterval< V >[], AffineTransform3D[] >
+	public static < T extends NativeType< T >, V extends Volatile< T > & NativeType< V > > ValueTriple< RandomAccessibleInterval< T >[], RandomAccessibleInterval< V >[], AffineTransform3D[] >
 			openRawMultiscale(
 					final N5Reader reader,
 					final String dataset,
@@ -452,16 +471,15 @@ public class N5Helpers
 				wrappedCache,
 				new VolatileLabelMultisetArray( 0, true ) );
 		cachedImg.setLinkedType( new LabelMultisetType( cachedImg ) );
-
-		final VolatileRandomAccessibleIntervalView< LabelMultisetType, VolatileLabelMultisetType > volatileCachedImg = VolatileHelpers.wrapCachedCellImg(
+		
+		Pair< VolatileCachedCellImg< VolatileLabelMultisetType, VolatileLabelMultisetArray >, VolatileCache< Long, Cell< VolatileLabelMultisetArray > > > volatileCachedImgAndCache = VolatileHelpers.createVolatileCachedCellImg(
 				cachedImg,
+				( Function< NativeImg< VolatileLabelMultisetType, ? extends VolatileLabelMultisetArray >, VolatileLabelMultisetType > ) img -> new VolatileLabelMultisetType( ( NativeImg< ?, VolatileLabelMultisetArray > ) img ),
 				new VolatileHelpers.CreateInvalidVolatileLabelMultisetArray( cachedImg.getCellGrid() ),
 				sharedQueue,
-				new CacheHints( LoadingStrategy.VOLATILE, priority, false ),
-				new VolatileLabelMultisetType().getEntitiesPerPixel(),
-				img -> new VolatileLabelMultisetType( ( NativeImg< ?, VolatileLabelMultisetArray > ) img ) );
+				new CacheHints( LoadingStrategy.VOLATILE, priority, false ) );
 
-		return new ValueTriple<>( cachedImg, volatileCachedImg, fromResolutionAndOffset( resolution, offset ) );
+		return new ValueTriple<>( cachedImg, volatileCachedImgAndCache.getA(), fromResolutionAndOffset( resolution, offset ) );
 
 	}
 

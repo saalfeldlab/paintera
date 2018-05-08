@@ -490,7 +490,7 @@ public class GenericBackendDialogN5 implements SourceFromRAI
 
 	@SuppressWarnings( { "unchecked", "rawtypes" } )
 	@Override
-	public < T extends NativeType< T >, V extends Volatile< T > > Triple< RandomAccessibleInterval< T >[], RandomAccessibleInterval< V >[], AffineTransform3D[] > getDataAndVolatile(
+	public < T extends NativeType< T >, V extends Volatile< T > & NativeType< V > > Triple< RandomAccessibleInterval< T >[], RandomAccessibleInterval< V >[], AffineTransform3D[] > getDataAndVolatile(
 			final SharedQueue sharedQueue,
 			final int priority ) throws IOException
 	{

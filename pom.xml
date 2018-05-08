@@ -18,9 +18,8 @@
 	<description>New Era Painting and annotation tool</description>
 	<properties>
 		<scijava.jvm.version>1.8</scijava.jvm.version>
-		<bigdataviewer-core.version>5.0.1-SNAPSHOT</bigdataviewer-core.version>
-		<bigdataviewer-vistools.version>1.0.0-beta-12-SNAPSHOT</bigdataviewer-vistools.version>
-		<imglib2-cache.version>1.0.0-beta-9-SNAPSHOT</imglib2-cache.version>
+		<bigdataviewer-core.version>5.0.0</bigdataviewer-core.version>
+		<bigdataviewer-vistools.version>1.0.0-beta-11</bigdataviewer-vistools.version>
 	</properties>
 
 	<profiles>
