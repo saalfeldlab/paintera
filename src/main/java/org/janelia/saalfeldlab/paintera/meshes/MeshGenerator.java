@@ -238,8 +238,6 @@ public class MeshGenerator
 
 	private final ObjectProperty< Group > root = new SimpleObjectProperty<>();
 
-	private final BooleanProperty isReady = new SimpleBooleanProperty( true );
-
 	private final ExecutorService managers;
 
 	private final ExecutorService workers;
@@ -278,7 +276,7 @@ public class MeshGenerator
 		this.color = Bindings.createObjectBinding( () -> fromInt( color.get() ), color );
 		this.managers = managers;
 		this.workers = workers;
-		this.manager = new MeshGeneratorJobManager( this.meshes, managers, workers );
+		this.manager = new MeshGeneratorJobManager( this.meshes, this.managers, this.workers );
 
 		this.changed.addListener( ( obs, oldv, newv ) -> new Thread( () -> this.updateMeshes( newv ) ).start() );
 		this.changed.addListener( ( obs, oldv, newv ) -> changed.set( false ) );

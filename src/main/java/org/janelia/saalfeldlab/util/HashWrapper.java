@@ -11,6 +11,11 @@ import net.imglib2.util.Intervals;
 public class HashWrapper< T > implements Serializable
 {
 
+	/**
+	 * 
+	 */
+	private static final long serialVersionUID = -2571523935606311437L;
+
 	private final T t;
 
 	private final ToIntFunction< T > hash;
@@ -59,10 +64,21 @@ public class HashWrapper< T > implements Serializable
 	{
 		if ( o instanceof HashWrapper )
 		{
-			final Object t = ( (org.janelia.saalfeldlab.util.HashWrapper< ? > ) o ).getData();
-			return this.t.getClass().isInstance( t ) && equals.test( this.t, ( T ) t );
+			HashWrapper< ? > hw = ( ( HashWrapper< ? > ) o );
+			final Object obj = hw.getData();
+			if ( this.t.getClass().isInstance( obj ) )
+			{
+				@SuppressWarnings( "unchecked" )
+				HashWrapper< T > that = ( HashWrapper< T > ) hw;
+				return this.dataEquals( that );
+			}
 		}
 		return false;
+	}
+
+	public boolean dataEquals( final HashWrapper< T > that )
+	{
+		return equals.test( this.t, that.t );
 	}
 
 	public static class LongArrayHash implements ToIntFunction< long[] >

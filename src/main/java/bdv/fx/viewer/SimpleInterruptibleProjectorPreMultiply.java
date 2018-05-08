@@ -33,7 +33,9 @@ import net.imglib2.ui.util.StopWatch;
  *
  * @author Tobias Pietzsch
  * @author Stephan Saalfeld
+ * @author Philipp Hanslovsky
  */
+@SuppressWarnings( "restriction" )
 public class SimpleInterruptibleProjectorPreMultiply< A > extends AbstractInterruptibleProjector< A, ARGBType >
 {
 	final protected RandomAccessible< A > source;

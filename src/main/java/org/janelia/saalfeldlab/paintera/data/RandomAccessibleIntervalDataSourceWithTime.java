@@ -153,9 +153,10 @@ public class RandomAccessibleIntervalDataSourceWithTime< D extends Type< D >, T 
 		final long tMin = dataSources[ 0 ].min( timeDimension );
 		final long tMax = dataSources[ 0 ].max( timeDimension );
 		final int numTimesteps = ( int ) dataSources[ 0 ].dimension( timeDimension );
-		final int numScales = dataSources.length;
 
+		@SuppressWarnings( "unchecked" )
 		final RandomAccessibleInterval< D >[][] dataSourcesArray = new RandomAccessibleInterval[ numTimesteps ][ dataSources.length ];
+		@SuppressWarnings( "unchecked" )
 		final RandomAccessibleInterval< T >[][] sourcesArray = new RandomAccessibleInterval[ numTimesteps ][ dataSources.length ];
 		final AffineTransform3D[][] transforms = new AffineTransform3D[ numTimesteps ][];
 

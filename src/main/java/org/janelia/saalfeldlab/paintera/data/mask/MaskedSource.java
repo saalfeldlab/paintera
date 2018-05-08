@@ -128,10 +128,6 @@ public class MaskedSource< D extends Type< D >, T extends Type< T > > implements
 
 	private final BooleanBinding noMasksCurrentlyApplied = maskApplyCount.isEqualTo( 0 );
 
-	private final BooleanBinding atLeastOnMaskeIsCurrentlyApplied = noMasksCurrentlyApplied.not();
-
-	private final BooleanBinding maskApplyCountIsInconsistent = maskApplyCount.lessThan( 0 );
-
 	private final BooleanProperty isPersisting = new SimpleBooleanProperty( false );
 
 	private final ObservableBooleanValue isMaskNotDeployed = isMaskDeployed.not();
@@ -673,8 +669,6 @@ public class MaskedSource< D extends Type< D >, T extends Type< T > > implements
 			final UnsignedLongType label,
 			final Interval intervalAtPaintedScale )
 	{
-
-		final CellGrid gridAtPaintedLevel = this.dataCanvases[ paintedLevel ].getCellGrid();
 
 		for ( int level = paintedLevel + 1; level < getNumMipmapLevels(); ++level )
 		{

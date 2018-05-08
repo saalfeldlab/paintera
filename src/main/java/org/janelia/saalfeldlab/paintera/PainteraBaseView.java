@@ -336,6 +336,7 @@ public class PainteraBaseView
 		addLabelSource( source, assignment, idService, toIdConverter, blocksThatContainId, meshCache, equalsMaskForType( source.getDataType() ) );
 	}
 
+	@SuppressWarnings( "unchecked" )
 	public < D extends Type< D >, T extends Type< T > > void addLabelSource(
 			final DataSource< D, T > source,
 			final FragmentSegmentAssignmentState assignment,

@@ -72,8 +72,6 @@ public class Paint2D
 
 	private final SimpleObjectProperty< Interval > interval = new SimpleObjectProperty<>();
 
-	private final RealPoint labelLocation = new RealPoint( 3 );
-
 	private final Runnable repaintRequest;
 
 	private final ExecutorService paintQueue;
@@ -92,20 +90,6 @@ public class Paint2D
 		this.brushOverlay.physicalRadiusProperty().bind( brushRadius );
 		this.repaintRequest = repaintRequest;
 		this.paintQueue = paintQueue;
-	}
-
-	private void setCoordinates( final double x, final double y, final AffineTransform3D labelTransform )
-	{
-		labelLocation.setPosition( x, 0 );
-		labelLocation.setPosition( y, 1 );
-		labelLocation.setPosition( 0, 2 );
-
-		final RealPoint copy = new RealPoint( labelLocation );
-
-		viewer.displayToGlobalCoordinates( labelLocation );
-
-		labelTransform.applyInverse( labelLocation, labelLocation );
-		this.labelToViewerTransform.applyInverse( copy, copy );
 	}
 
 	public void hideBrushOverlay()

@@ -349,11 +349,13 @@ public class N5Helpers
 		return openRaw( reader, dataset, getResolution( reader, dataset ), getOffset( reader, dataset ), sharedQueue, priority );
 	}
 
+	@SuppressWarnings( { "unchecked", "rawtypes" } )
 	public static < T extends NativeType< T >, A > Function< NativeImg< T, ? extends A >, T > linkedTypeFactory( T t )
 	{
 		return img -> ( T ) t.getNativeTypeFactory().createLinkedType( ( NativeImg ) img );
 	}
 
+	@SuppressWarnings( { "unchecked", "rawtypes" } )
 	public static < T extends NativeType< T >, V extends Volatile< T > & NativeType< V >, A > ValueTriple< RandomAccessibleInterval< T >, RandomAccessibleInterval< V >, AffineTransform3D >
 			openRaw(
 					final N5Reader reader,
@@ -472,6 +474,7 @@ public class N5Helpers
 				new VolatileLabelMultisetArray( 0, true ) );
 		cachedImg.setLinkedType( new LabelMultisetType( cachedImg ) );
 		
+		@SuppressWarnings( "unchecked" )
 		Pair< VolatileCachedCellImg< VolatileLabelMultisetType, VolatileLabelMultisetArray >, VolatileCache< Long, Cell< VolatileLabelMultisetArray > > > volatileCachedImgAndCache = VolatileHelpers.createVolatileCachedCellImg(
 				cachedImg,
 				( Function< NativeImg< VolatileLabelMultisetType, ? extends VolatileLabelMultisetArray >, VolatileLabelMultisetType > ) img -> new VolatileLabelMultisetType( ( NativeImg< ?, VolatileLabelMultisetArray > ) img ),

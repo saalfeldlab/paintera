@@ -312,8 +312,6 @@ public class MultiResolutionRendererGeneric< T >
 
 	private final Function< T, ArrayImg< ARGBType, ? extends IntAccess > > wrapAsArrayImg;
 
-	private final Class< ? extends T > cls2;
-
 	private final ToIntFunction< T > width;
 
 	private final ToIntFunction< T > height;
@@ -352,6 +350,7 @@ public class MultiResolutionRendererGeneric< T >
 	 * @param cacheControl
 	 *            the cache controls IO budgeting and fetcher queue.
 	 */
+	@SuppressWarnings( "unchecked" )
 	public MultiResolutionRendererGeneric(
 			final TransformAwareRenderTargetGeneric< T > display,
 			final PainterThread painterThread,
@@ -384,8 +383,6 @@ public class MultiResolutionRendererGeneric< T >
 		// )new ARGBScreenImage[ screenScales.length ][ 3 ];
 		this.bufferedImages = ( T[][] ) Array.newInstance( cls, screenScales.length, 3 );
 		screenScaleTransforms = new AffineTransform3D[ screenScales.length ];
-
-		this.cls2 = cls;
 
 		this.makeImage = makeImage;
 
@@ -462,6 +459,7 @@ public class MultiResolutionRendererGeneric< T >
 		return false;
 	}
 
+	@SuppressWarnings( "unchecked" )
 	protected boolean checkRenewRenderImages( final int numVisibleSources )
 	{
 		final int n = numVisibleSources > 1 ? numVisibleSources : 0;

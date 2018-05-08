@@ -59,6 +59,7 @@ public class PainteraDefaultHandlers
 
 	private final PainteraBaseView baseView;
 
+	@SuppressWarnings( "unused" )
 	private final KeyTracker keyTracker;
 
 	private final OrthogonalViews< Viewer3DFX > orthogonalViews;
@@ -67,6 +68,7 @@ public class PainteraDefaultHandlers
 
 	private final IntegerBinding numSources;
 
+	@SuppressWarnings( "unused" )
 	private final BooleanBinding hasSources;
 
 	private final Navigation navigation;
@@ -79,6 +81,7 @@ public class PainteraDefaultHandlers
 
 	private final Consumer< OnEnterOnExit > onEnterOnExit;
 
+	@SuppressWarnings( "unused" )
 	private final PainteraOpenDialogEventHandler openDialogHandler;
 
 	private final ToggleMaximize toggleMaximizeTopLeft;

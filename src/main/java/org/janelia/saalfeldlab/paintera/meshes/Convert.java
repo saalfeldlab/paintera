@@ -17,6 +17,7 @@ import net.imglib2.util.ValueTriple;
  * Convert flat mesh data into indexed representations and back.
  *
  * @author Stephan Saalfeld
+ * @author Philipp Hanslovsky
  */
 public class Convert
 {
@@ -33,6 +34,8 @@ public class Convert
 	 */
 	public static Triple< TFloatArrayList, ArrayList< TIntHashSet >, ArrayList< TIntArrayList > > convertToLUT(
 			final float[] triangles ) {
+
+		LOG.debug( "Converting {} triangles to lut", triangles.length );
 
 		assert triangles.length % 9 == 0;
 

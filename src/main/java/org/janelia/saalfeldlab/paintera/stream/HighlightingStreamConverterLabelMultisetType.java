@@ -56,9 +56,4 @@ public class HighlightingStreamConverterLabelMultisetType extends HighlightingSt
 //		output.set( stream.argb( it.hasNext() ? considerMaxUnsignedInt( it.next().getElement().id() ) : Label.INVALID ) );
 	}
 
-	private static long considerMaxUnsignedInt( final long val )
-	{
-		return val >= Integer.MAX_VALUE ? Label.INVALID : val;
-	}
-
 }

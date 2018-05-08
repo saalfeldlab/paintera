@@ -69,7 +69,7 @@ public class ResizeOnLeftSide
 			{
 				final Bounds bounds = node.localToScene( node.getBoundsInLocal() );
 				final double dx = event.getSceneX() - bounds.getMinX();
-				width.set( Math.min( Math.max( width.get() - dx, ResizeOnLeftSide.this.minWidth ), ResizeOnLeftSide.this.maxWidth ) );
+				ResizeOnLeftSide.this.width.set( Math.min( Math.max( width.get() - dx, ResizeOnLeftSide.this.minWidth ), ResizeOnLeftSide.this.maxWidth ) );
 			}
 
 			@Override

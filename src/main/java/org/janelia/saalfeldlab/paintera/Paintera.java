@@ -73,6 +73,7 @@ public class Paintera extends Application
 				baseView,
 				keyTracker );
 
+		@SuppressWarnings( "unused" )
 		final PainteraDefaultHandlers defaultHandlers = new PainteraDefaultHandlers( baseView, keyTracker, paneWithStatus );
 
 		final Scene scene = new Scene( paneWithStatus.getPane() );

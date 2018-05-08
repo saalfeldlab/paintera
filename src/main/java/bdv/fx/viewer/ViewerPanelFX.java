@@ -82,8 +82,6 @@ public class ViewerPanelFX
 		PainterThread.Paintable,
 		RequestRepaint
 {
-	private static final long serialVersionUID = 1L;
-
 	/**
 	 * Currently rendered state (visible sources, transformation, timepoint,
 	 * etc.) A copy can be obtained by {@link #getState()}.
@@ -223,7 +221,7 @@ public class ViewerPanelFX
 		painterThread = new PainterThread( threadGroup, this );
 		viewerTransform = new AffineTransform3D();
 		renderTargetExecutorService = Executors.newFixedThreadPool( 3 );
-		renderTarget = new TransformAwareBufferedImageOverlayRendererFX( renderTargetExecutorService );
+		renderTarget = new TransformAwareBufferedImageOverlayRendererFX();
 		display = new InteractiveDisplayPaneComponent<>(
 				options.getWidth(),
 				options.getHeight(),

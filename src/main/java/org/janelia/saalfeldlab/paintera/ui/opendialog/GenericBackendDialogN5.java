@@ -97,10 +97,6 @@ public class GenericBackendDialogN5 implements SourceFromRAI
 
 	private static final Logger LOG = LoggerFactory.getLogger( MethodHandles.lookup().lookupClass() );
 
-	private static final String RESOLUTION_KEY = "resolution";
-
-	private static final String OFFSET_KEY = "offset";
-
 	private static final String MIN_KEY = "min";
 
 	private static final String MAX_KEY = "max";
@@ -691,7 +687,6 @@ public class GenericBackendDialogN5 implements SourceFromRAI
 						Arrays.setAll( relativeDownsamplingFactors, d -> targetDownsamplingFactors[ d ] / previousDownsamplingFactors[ d ] );
 
 						final CellGrid targetGrid = new CellGrid( targetAttributes.getDimensions(), targetAttributes.getBlockSize() );
-						final CellGrid previousGrid = new CellGrid( previousAttributes.getDimensions(), previousAttributes.getBlockSize() );
 
 						final long[] affectedBlocks = MaskedSource.scaleBlocksToHigherLevel( blocks, highestResolutionGrid, targetGrid, targetDownsamplingFactors ).toArray();
 
