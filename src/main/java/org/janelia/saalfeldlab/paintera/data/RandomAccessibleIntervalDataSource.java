@@ -39,6 +39,24 @@ public class RandomAccessibleIntervalDataSource< D extends Type< D >, T extends 
 
 	private final String name;
 
+	@SuppressWarnings( "unchecked" )
+	public RandomAccessibleIntervalDataSource(
+			final RandomAccessibleInterval< D > dataSource,
+			final RandomAccessibleInterval< T > source,
+			final AffineTransform3D mipmapTransform,
+			final Function< Interpolation, InterpolatorFactory< D, RandomAccessible< D > > > dataInterpolation,
+			final Function< Interpolation, InterpolatorFactory< T, RandomAccessible< T > > > interpolation,
+			final String name )
+	{
+		this(
+				new RandomAccessibleInterval[] { dataSource },
+				new RandomAccessibleInterval[] { source },
+				new AffineTransform3D[] { mipmapTransform },
+				dataInterpolation,
+				interpolation,
+				name );
+	}
+
 	public RandomAccessibleIntervalDataSource(
 			final RandomAccessibleInterval< D >[] dataSources,
 			final RandomAccessibleInterval< T >[] sources,

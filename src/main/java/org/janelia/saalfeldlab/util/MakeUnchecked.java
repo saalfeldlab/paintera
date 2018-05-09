@@ -1,5 +1,6 @@
 package org.janelia.saalfeldlab.util;
 
+import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
@@ -45,10 +46,22 @@ public class MakeUnchecked
 			}
 			catch ( final Exception e )
 			{
-				if ( e instanceof RuntimeException ) {
-					throw ( RuntimeException ) e;
-				}
+				if ( e instanceof RuntimeException ) { throw ( RuntimeException ) e; }
 				throw new RuntimeException( e );
+			}
+		};
+	}
+
+	public static < T > Consumer< T > onException( final CheckedConsumer< T > consumer, final BiConsumer< T, Exception > onException )
+	{
+		return t -> {
+			try
+			{
+				consumer.accept( t );
+			}
+			catch ( final Exception e )
+			{
+				onException.accept( t, e );
 			}
 		};
 	}
@@ -96,9 +109,7 @@ public class MakeUnchecked
 			}
 			catch ( final Exception e )
 			{
-				if ( e instanceof RuntimeException ) {
-					throw ( RuntimeException ) e;
-				}
+				if ( e instanceof RuntimeException ) { throw ( RuntimeException ) e; }
 				throw new RuntimeException( e );
 			}
 		};

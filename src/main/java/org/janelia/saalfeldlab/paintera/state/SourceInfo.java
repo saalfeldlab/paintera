@@ -2,6 +2,7 @@ package org.janelia.saalfeldlab.paintera.state;
 
 import java.lang.invoke.MethodHandles;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 import java.util.function.LongFunction;
@@ -15,6 +16,8 @@ import org.janelia.saalfeldlab.paintera.id.IdService;
 import org.janelia.saalfeldlab.paintera.id.ToIdConverter;
 import org.janelia.saalfeldlab.paintera.meshes.MeshInfos;
 import org.janelia.saalfeldlab.paintera.meshes.MeshManager;
+import org.janelia.saalfeldlab.util.MakeUnchecked;
+import org.janelia.saalfeldlab.util.MakeUnchecked.CheckedConsumer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -239,10 +242,50 @@ public class SourceInfo
 		state.compositeProperty().addListener( ( obs, oldv, newv ) -> this.composites.put( source, newv ) );
 	}
 
-	public synchronized < T > void removeSource( final Source< T > source )
+	public synchronized void removeAllSources()
+	{
+		this.sources.forEach( MakeUnchecked.unchecked( ( CheckedConsumer< Source< ? > > ) s -> removeSource( s, true ) ) );
+	}
+
+	public synchronized < T > void removeSource( final Source< T > source ) throws HasDependents
+	{
+		removeSource( source, false );
+	}
+
+	public synchronized < T > void removeSource( final Source< T > source, final boolean force ) throws HasDependents
 	{
 		final int currentSourceIndex = this.sources.indexOf( source );
-		final SourceState< ?, ? > state = this.states.remove( source );
+
+		if ( currentSourceIndex == -1 )
+		{
+			LOG.warn( "Cannot remove source {}: not present", source );
+			return;
+		}
+
+		final SourceState< ?, ? > state = this.states.get( source );
+
+		if ( state != null )
+		{
+			final List< SourceState< ?, ? > > dependents = this.states
+					.values()
+					.stream()
+					.filter( s -> Arrays.asList( s.getDependsOn() ).contains( state ) )
+					.collect( Collectors.toList() );
+			if ( dependents.size() > 0 )
+			{
+				if ( force )
+				{
+					LOG.warn( "Forcing removal of state {} with dependents {}:", state, dependents );
+				}
+				else
+				{
+					LOG.warn( "Cannot remove state {} with dependents: {}. Run SourceInfo.removeSource( source, true ) to force removal.", state, dependents );
+					throw new HasDependents( state, dependents );
+				}
+			}
+		}
+
+		this.states.remove( source );
 		if ( state != null && state instanceof LabelSourceState< ?, ? > )
 		{
 			( ( LabelSourceState< ?, ? > ) state ).meshManager().removeAllMeshes();
@@ -426,6 +469,23 @@ public class SourceInfo
 	public ObservableBooleanValue isDirtyProperty()
 	{
 		return this.isDirty;
+	}
+
+	public List< SourceState< ?, ? > > getDependents( final Source< ? > source )
+	{
+		return Optional
+				.ofNullable( this.states.get( source ) )
+				.map( this::getDependents )
+				.orElseGet( ArrayList::new );
+	}
+
+	public List< SourceState< ?, ? > > getDependents( final SourceState< ?, ? > state )
+	{
+		final List< SourceState< ?, ? > > dependents = this.states
+				.values()
+				.stream()
+				.filter( s -> Arrays.asList( s.getDependsOn() ).contains( s ) ).collect( Collectors.toList() );
+		return dependents;
 	}
 
 }

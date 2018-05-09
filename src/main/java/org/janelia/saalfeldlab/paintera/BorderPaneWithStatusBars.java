@@ -5,6 +5,7 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
+import java.util.function.BiConsumer;
 
 import org.janelia.saalfeldlab.fx.event.KeyTracker;
 import org.janelia.saalfeldlab.fx.ortho.OrthogonalViews;
@@ -21,6 +22,7 @@ import org.janelia.saalfeldlab.paintera.ui.Crosshair;
 import org.janelia.saalfeldlab.paintera.ui.source.SourceTabs;
 import org.janelia.saalfeldlab.paintera.viewer3d.OrthoSliceFX;
 import org.janelia.saalfeldlab.util.Colors;
+import org.janelia.saalfeldlab.util.MakeUnchecked;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -173,9 +175,13 @@ public class BorderPaneWithStatusBars
 
 		currentSourceStatus.setMaxWidth( 45 );
 
+		final BiConsumer< Source< ? >, Exception > onRemoveException = ( s, e ) -> {
+			LOG.warn( "Unable to remove source: {}", e.getMessage() );
+		};
+
 		final SourceTabs sourceTabs = new SourceTabs(
 				center.sourceInfo().currentSourceIndexProperty(),
-				center.sourceInfo()::removeSource,
+				MakeUnchecked.onException( center.sourceInfo()::removeSource, onRemoveException ),
 				center.sourceInfo() );
 
 		final TitledPane sourcesContents = new TitledPane( "sources", sourceTabs.get() );

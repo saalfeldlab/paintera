@@ -37,7 +37,7 @@ public class Properties implements TransformListener< AffineTransform3D >
 
 	public transient final ObservableBooleanValue isDirty;
 
-	public Properties( PainteraBaseView viewer )
+	public Properties( final PainteraBaseView viewer )
 	{
 		this( viewer.sourceInfo() );
 		viewer.manager().addListener( this );
@@ -80,24 +80,26 @@ public class Properties implements TransformListener< AffineTransform3D >
 	}
 
 	public static Properties fromSerializedProperties(
-			JsonObject serializedProperties,
+			final JsonObject serializedProperties,
 			final PainteraBaseView viewer,
-			boolean removeExistingSources )
+			final boolean removeExistingSources )
 	{
 		return fromSerializedProperties( serializedProperties, viewer, removeExistingSources, GsonHelpers.builderWithAllRequiredAdapters().create() );
 	}
 
 	public static Properties fromSerializedProperties(
-			JsonObject serializedProperties,
+			final JsonObject serializedProperties,
 			final PainteraBaseView viewer,
-			boolean removeExistingSources,
-			Gson gson )
+			final boolean removeExistingSources,
+			final Gson gson )
 	{
 
-		Properties properties = new Properties( viewer );
+		final Properties properties = new Properties( viewer );
 
 		if ( removeExistingSources )
-			properties.sources.trackSources().forEach( properties.sources::removeSource );
+		{
+			properties.sources.removeAllSources();
+		}
 
 		Optional
 				.ofNullable( serializedProperties.get( SOURCES_KEY ) )

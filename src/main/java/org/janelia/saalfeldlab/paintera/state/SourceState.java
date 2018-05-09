@@ -1,5 +1,7 @@
 package org.janelia.saalfeldlab.paintera.state;
 
+import java.util.Arrays;
+
 import org.janelia.saalfeldlab.paintera.composition.Composite;
 import org.janelia.saalfeldlab.paintera.data.DataSource;
 
@@ -34,12 +36,15 @@ public class SourceState< D, T >
 
 	private final ObjectProperty< Interpolation > interpolation = new SimpleObjectProperty<>( Interpolation.NEARESTNEIGHBOR );
 
+	private final SourceState< ?, ? >[] dependsOn;
+
 	public SourceState(
 			final DataSource< D, T > dataSource,
 			final Converter< T, ARGBType > converter,
 			final Composite< ARGBType, ARGBType > composite,
 			final String name,
-			final Object info )
+			final Object info,
+			final SourceState< ?, ? >... dependsOn )
 	{
 		super();
 		this.dataSource = dataSource;
@@ -47,6 +52,10 @@ public class SourceState< D, T >
 		this.composite = new SimpleObjectProperty<>( composite );
 		this.name = new SimpleStringProperty( name );
 		this.metaData = info;
+		this.dependsOn = Arrays
+				.stream( dependsOn )
+				.filter( d -> !this.equals( d ) )
+				.toArray( SourceState[]::new );
 
 		this.composite.addListener( obs -> this.stain() );
 		this.name.addListener( obs -> this.stain() );
@@ -123,6 +132,11 @@ public class SourceState< D, T >
 	public DataSource< D, T > getDataSource()
 	{
 		return this.dataSource;
+	}
+
+	public SourceState< ?, ? >[] getDependsOn()
+	{
+		return this.dependsOn.clone();
 	}
 
 }
