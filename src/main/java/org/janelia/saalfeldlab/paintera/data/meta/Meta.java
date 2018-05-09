@@ -4,6 +4,7 @@ import java.util.function.Function;
 
 import org.janelia.saalfeldlab.paintera.data.DataSource;
 import org.janelia.saalfeldlab.paintera.data.meta.exception.SourceCreationFailed;
+import org.janelia.saalfeldlab.paintera.state.SourceState;
 
 import bdv.util.volatiles.SharedQueue;
 import bdv.viewer.Interpolation;
@@ -22,6 +23,12 @@ public interface Meta
 			final Function< Interpolation, InterpolatorFactory< T, RandomAccessible< T > > > dataInterpolation,
 			final Function< Interpolation, InterpolatorFactory< V, RandomAccessible< V > > > viewerInterpolation,
 			final AffineTransform3D transform,
-			final String name ) throws SourceCreationFailed;
+			final String name,
+			SourceState< ?, ? >... dependson ) throws SourceCreationFailed;
+
+	public default Meta[] dependsOn()
+	{
+		return new Meta[] {};
+	}
 
 }

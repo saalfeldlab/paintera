@@ -4,8 +4,11 @@ import java.util.Optional;
 
 import org.janelia.saalfeldlab.paintera.PainteraBaseView;
 import org.janelia.saalfeldlab.paintera.state.SourceInfo;
+import org.janelia.saalfeldlab.util.MakeUnchecked;
+import org.janelia.saalfeldlab.util.MakeUnchecked.CheckedConsumer;
 
 import com.google.gson.Gson;
+import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.annotations.Expose;
 
@@ -103,7 +106,7 @@ public class Properties implements TransformListener< AffineTransform3D >
 
 		Optional
 				.ofNullable( serializedProperties.get( SOURCES_KEY ) )
-				.ifPresent( element -> SourceInfoSerializer.populate(
+				.ifPresent( MakeUnchecked.unchecked( ( CheckedConsumer< JsonElement > ) element -> SourceInfoSerializer.populate(
 						viewer::addState,
 						properties.sources.currentSourceIndexProperty()::set,
 						element.getAsJsonObject(),
@@ -113,7 +116,7 @@ public class Properties implements TransformListener< AffineTransform3D >
 						viewer.getPropagationQueue(),
 						viewer.getMeshManagerExecutorService(),
 						viewer.getMeshWorkerExecutorService(),
-						gson ) );
+						gson ) ) );
 
 		Optional
 				.ofNullable( serializedProperties.get( GLOBAL_TRANSFORM_KEY ) )

@@ -34,12 +34,6 @@ public class N5FSMeta implements N5Meta
 	}
 
 	@Override
-	public String toString()
-	{
-		return "{root:" + root + " dataset:" + dataset + "}";
-	}
-
-	@Override
 	public N5Reader reader() throws IOException
 	{
 		return new N5FSReader( root );
@@ -55,6 +49,18 @@ public class N5FSMeta implements N5Meta
 	public String dataset()
 	{
 		return dataset;
+	}
+
+	@Override
+	public String toString()
+	{
+		return String.format( "{%s: {root:%s, dataset:%s} }", getClass().getName(), root, dataset );
+	}
+
+	@Override
+	public boolean equals( final Object other )
+	{
+		return other instanceof N5FSMeta && toString().equals( other.toString() );
 	}
 
 }

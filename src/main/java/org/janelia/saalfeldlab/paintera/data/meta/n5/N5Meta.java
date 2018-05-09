@@ -12,6 +12,7 @@ import org.janelia.saalfeldlab.paintera.data.DataSource;
 import org.janelia.saalfeldlab.paintera.data.RandomAccessibleIntervalDataSource;
 import org.janelia.saalfeldlab.paintera.data.meta.Meta;
 import org.janelia.saalfeldlab.paintera.data.meta.exception.SourceCreationFailed;
+import org.janelia.saalfeldlab.paintera.state.SourceState;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -45,7 +46,7 @@ public interface N5Meta extends Meta
 		return N5Helpers.isMultiScale( reader(), dataset() );
 	}
 
-	public default boolean isLabelMultisetType( boolean isMultiscale ) throws IOException
+	public default boolean isLabelMultisetType( final boolean isMultiscale ) throws IOException
 	{
 		return N5Helpers.isLabelMultisetType( reader(), dataset(), isMultiscale );
 	}
@@ -57,7 +58,8 @@ public interface N5Meta extends Meta
 			final Function< Interpolation, InterpolatorFactory< T, RandomAccessible< T > > > dataInterpolation,
 			final Function< Interpolation, InterpolatorFactory< V, RandomAccessible< V > > > viewerInterpolation,
 			final AffineTransform3D transform,
-			final String name ) throws SourceCreationFailed
+			final String name,
+			final SourceState< ?, ? >... dependsOn ) throws SourceCreationFailed
 	{
 		try
 		{

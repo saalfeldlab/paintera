@@ -1,7 +1,6 @@
 package org.janelia.saalfeldlab.paintera.data.meta.n5;
 
 import java.io.IOException;
-import java.util.Arrays;
 
 import org.janelia.saalfeldlab.n5.N5Reader;
 import org.janelia.saalfeldlab.n5.N5Writer;
@@ -57,12 +56,6 @@ public class N5HDF5Meta implements N5Meta
 	}
 
 	@Override
-	public String toString()
-	{
-		return "{h5:" + h5file + " dataset:" + dataset + " defaultBlockSize:" + Arrays.toString( defaultBlockSize ) + " overrideBlockSize:" + overrideBlockSize + "}";
-	}
-
-	@Override
 	public N5Reader reader() throws IOException
 	{
 		return new N5HDF5Reader( h5file, overrideBlockSize, defaultBlockSize );
@@ -78,6 +71,18 @@ public class N5HDF5Meta implements N5Meta
 	public String dataset()
 	{
 		return dataset;
+	}
+
+	@Override
+	public String toString()
+	{
+		return String.format( "{%s: {file:%s, dataset:%s} }", getClass().getName(), h5file, dataset );
+	}
+
+	@Override
+	public boolean equals( final Object other )
+	{
+		return other instanceof N5FSMeta && toString().equals( other.toString() );
 	}
 
 }

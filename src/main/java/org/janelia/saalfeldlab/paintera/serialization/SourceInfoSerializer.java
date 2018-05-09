@@ -1,7 +1,9 @@
 package org.janelia.saalfeldlab.paintera.serialization;
 
+import java.io.IOException;
 import java.lang.reflect.Type;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -10,19 +12,21 @@ import java.util.function.Consumer;
 import java.util.function.IntConsumer;
 import java.util.stream.Collectors;
 
+import org.janelia.saalfeldlab.paintera.data.meta.exception.MetaException;
 import org.janelia.saalfeldlab.paintera.state.SourceInfo;
 import org.janelia.saalfeldlab.paintera.state.SourceState;
-import org.janelia.saalfeldlab.util.MakeUnchecked;
 
 import com.google.gson.Gson;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
+import com.google.gson.JsonParseException;
 import com.google.gson.JsonSerializationContext;
 import com.google.gson.JsonSerializer;
 
 import bdv.util.volatiles.SharedQueue;
 import bdv.viewer.Source;
 import javafx.scene.Group;
+import net.imglib2.exception.IncompatibleTypeException;
 
 public class SourceInfoSerializer implements JsonSerializer< SourceInfo >
 {
@@ -54,28 +58,29 @@ public class SourceInfoSerializer implements JsonSerializer< SourceInfo >
 	}
 
 	public static void populate(
-			Consumer< SourceState< ?, ? > > addState,
+			final Consumer< SourceState< ?, ? > > addState,
 			final IntConsumer currentSourceIndex,
-			JsonObject serializedSourceInfo,
+			final JsonObject serializedSourceInfo,
 			final SharedQueue queue,
 			final int priority,
 			final Group root,
 			final ExecutorService propagationExecutor,
 			final ExecutorService manager,
 			final ExecutorService workers,
-			Gson gson )
+			final Gson gson ) throws IncompatibleTypeException, ClassNotFoundException, JsonParseException, UndefinedDependency, HasCyclicDependencies, IOException, MetaException
 	{
-		serializedSourceInfo.get( SOURCES_KEY )
-				.getAsJsonArray()
-				.forEach( MakeUnchecked.unchecked( ( MakeUnchecked.CheckedConsumer< JsonElement > ) element -> addState.accept( SourceStateSerializer.deserializeState(
-						element.getAsJsonObject(),
-						queue,
-						priority,
-						root,
-						propagationExecutor,
-						manager,
-						workers,
-						gson ) ) ) );
+		final SourceState< ?, ? >[] states = SourceStateSerializer.makeStates(
+				serializedSourceInfo.get( SOURCES_KEY ).getAsJsonArray(),
+				queue,
+				priority,
+				root,
+				propagationExecutor,
+				manager,
+				workers,
+				gson );
+		Arrays
+				.stream( states )
+				.forEach( addState::accept );
 		currentSourceIndex.accept( serializedSourceInfo.get( CURRENT_SOURCE_INDEX_KEY ).getAsInt() );
 	}
 

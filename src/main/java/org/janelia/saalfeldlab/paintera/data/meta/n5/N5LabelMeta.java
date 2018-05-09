@@ -10,6 +10,7 @@ import org.janelia.saalfeldlab.paintera.data.meta.exception.AssignmentCreationFa
 import org.janelia.saalfeldlab.paintera.data.meta.exception.CommitCanvasCreationFailed;
 import org.janelia.saalfeldlab.paintera.data.meta.exception.IdServiceCreationFailed;
 import org.janelia.saalfeldlab.paintera.id.IdService;
+import org.janelia.saalfeldlab.paintera.state.SourceState;
 
 import net.imglib2.cache.img.CachedCellImg;
 import net.imglib2.type.numeric.integer.UnsignedLongType;
@@ -17,49 +18,59 @@ import net.imglib2.type.numeric.integer.UnsignedLongType;
 public interface N5LabelMeta extends N5Meta, LabelMeta
 {
 
-	public default FragmentSegmentAssignmentState assignment() throws AssignmentCreationFailed
+	@Override
+	public default FragmentSegmentAssignmentState assignment(
+			final SourceState< ?, ? >... dependsOn ) throws AssignmentCreationFailed
 	{
 		try
 		{
 			return N5Helpers.assignments( writer(), dataset() );
 		}
-		catch ( IOException e )
+		catch ( final IOException e )
 		{
 			throw new AssignmentCreationFailed( "Unable to create to generate fragment-segment assignments: " + e.getMessage(), e );
 		}
 	}
 
-	public default FragmentSegmentAssignmentState assignment( long[] fragments, long[] segments ) throws AssignmentCreationFailed
+	@Override
+	public default FragmentSegmentAssignmentState assignment(
+			final long[] fragments,
+			final long[] segments,
+			final SourceState< ?, ? >... dependsOn ) throws AssignmentCreationFailed
 	{
 		try
 		{
 			return N5Helpers.assignments( writer(), dataset(), fragments, segments );
 		}
-		catch ( IOException e )
+		catch ( final IOException e )
 		{
 			throw new AssignmentCreationFailed( "Unable to create to generate fragment-segment assignments: " + e.getMessage(), e );
 		}
 	}
 
-	public default IdService idService() throws IdServiceCreationFailed
+	@Override
+	public default IdService idService(
+			final SourceState< ?, ? >... dependsOn ) throws IdServiceCreationFailed
 	{
 		try
 		{
 			return N5Helpers.idService( writer(), dataset() );
 		}
-		catch ( IOException e )
+		catch ( final IOException e )
 		{
 			throw new IdServiceCreationFailed( "Unable to create n5 id service: " + e.getMessage(), e );
 		}
 	}
 
-	public default BiConsumer< CachedCellImg< UnsignedLongType, ? >, long[] > commitCanvas() throws CommitCanvasCreationFailed
+	@Override
+	public default BiConsumer< CachedCellImg< UnsignedLongType, ? >, long[] > commitCanvas(
+			final SourceState< ?, ? >... dependsOn ) throws CommitCanvasCreationFailed
 	{
 		try
 		{
 			return new CommitCanvasN5( writer(), dataset() );
 		}
-		catch ( IOException e )
+		catch ( final IOException e )
 		{
 			throw new CommitCanvasCreationFailed( "Unable to create n5 canvas commiter: " + e.getMessage(), e );
 		}
