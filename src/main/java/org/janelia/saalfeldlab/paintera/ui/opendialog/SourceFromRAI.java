@@ -3,6 +3,7 @@ package org.janelia.saalfeldlab.paintera.ui.opendialog;
 import java.io.IOException;
 import java.lang.invoke.MethodHandles;
 import java.util.Arrays;
+import java.util.Optional;
 import java.util.concurrent.ExecutorService;
 import java.util.function.BiConsumer;
 import java.util.function.Function;
@@ -204,7 +205,9 @@ public interface SourceFromRAI extends BackendDialog
 		FragmentsInSelectedSegments fragmentsInSelectedSegments = new FragmentsInSelectedSegments( selectedSegments, assignments );
 		ModalGoldenAngleSaturatedHighlightingARGBStream stream = new ModalGoldenAngleSaturatedHighlightingARGBStream( selectedIds, assignments );
 		
-		InterruptibleFunction< Long, Interval[] >[] blocksCache = blocksThatContainId();
+		InterruptibleFunction< Long, Interval[] >[] blocksCache = Optional
+				.ofNullable( blocksThatContainId() )
+				.orElseGet( () -> PainteraBaseView.generateLabelBlocksForLabelCache( source, PainteraBaseView.scaleFactorsFromAffineTransforms( source ) ) );
 		InterruptibleFunction< ShapeKey, Pair< float[], float[] > >[] meshCache = CacheUtils.meshCacheLoaders( source, PainteraBaseView.equalsMaskForType( source.getDataType() ), CacheUtils::toCacheSoftRefLoaderCache );
 		MeshManagerWithAssignment meshManager = new MeshManagerWithAssignment(
 				source, 
