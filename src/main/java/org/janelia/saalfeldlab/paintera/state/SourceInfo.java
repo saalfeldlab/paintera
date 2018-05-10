@@ -238,7 +238,7 @@ public class SourceInfo
 
 	public synchronized void removeAllSources()
 	{
-		this.sources.forEach( MakeUnchecked.unchecked( ( CheckedConsumer< Source< ? > > ) s -> removeSource( s, true ) ) );
+		new ArrayList<>( this.sources ).forEach( MakeUnchecked.unchecked( ( CheckedConsumer< Source< ? > > ) s -> removeSource( s, true ) ) );
 	}
 
 	public synchronized < T > void removeSource( final Source< T > source ) throws HasDependents
