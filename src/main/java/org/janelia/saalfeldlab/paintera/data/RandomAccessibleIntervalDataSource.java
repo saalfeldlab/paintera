@@ -170,4 +170,9 @@ public class RandomAccessibleIntervalDataSource< D extends Type< D >, T extends 
 		return dataTypeSupplier.get();
 	}
 
+	public RandomAccessibleIntervalDataSource< D, T > copy()
+	{
+		return new RandomAccessibleIntervalDataSource<>( dataSources, sources, mipmapTransforms, dataInterpolation, interpolation, dataTypeSupplier, typeSupplier, name );
+	}
+
 }
