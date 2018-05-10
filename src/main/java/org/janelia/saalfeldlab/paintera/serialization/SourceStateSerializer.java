@@ -17,6 +17,7 @@ import org.janelia.saalfeldlab.paintera.data.meta.RawMeta;
 import org.janelia.saalfeldlab.paintera.data.meta.exception.MetaException;
 import org.janelia.saalfeldlab.paintera.data.meta.exception.SourceCreationFailed;
 import org.janelia.saalfeldlab.paintera.state.LabelSourceState;
+import org.janelia.saalfeldlab.paintera.state.RawSourceState;
 import org.janelia.saalfeldlab.paintera.state.SourceState;
 import org.janelia.saalfeldlab.paintera.stream.HighlightingStreamConverter;
 import org.slf4j.Logger;
@@ -105,11 +106,14 @@ public class SourceStateSerializer implements JsonSerializer< SourceStateWithInd
 
 	public enum StateType
 	{
-		RAW, LABEL;
+		RAW, LABEL, UNKNOWN;
 
 		public static StateType fromState( final SourceState< ?, ? > state )
 		{
-			return state instanceof LabelSourceState< ?, ? > ? LABEL : RAW;
+			return state instanceof LabelSourceState< ?, ? >
+					? LABEL
+					: state instanceof RawSourceState< ?, ? >
+							? RAW : UNKNOWN;
 		}
 
 	};
@@ -124,7 +128,7 @@ public class SourceStateSerializer implements JsonSerializer< SourceStateWithInd
 		switch ( type )
 		{
 		case RAW:
-			state.add( STATE_KEY, serializeRaw( src.state(), context ) );
+			state.add( STATE_KEY, serializeRaw( ( RawSourceState< ?, ? > ) src.state(), context ) );
 			break;
 		case LABEL:
 			state.add( STATE_KEY, serializeLabel( ( LabelSourceState< ?, ? > ) src.state(), context ) );
@@ -138,24 +142,24 @@ public class SourceStateSerializer implements JsonSerializer< SourceStateWithInd
 	private static JsonObject serialize( final SourceState< ?, ? > src, final JsonSerializationContext context )
 	{
 		final AffineTransform3D transform = new AffineTransform3D();
-		src.dataSource().getSourceTransform( 0, 0, transform );
+		src.getDataSource().getSourceTransform( 0, 0, transform );
 
 		final JsonObject metaData = new JsonObject();
-		metaData.addProperty( META_DATA_CLASS_KEY, src.getMetaData().getClass().getName() );
-		metaData.add( META_DATA_DATA_KEY, context.serialize( src.getMetaData() ) );
+		metaData.addProperty( META_DATA_CLASS_KEY, src.getMeta().getClass().getName() );
+		metaData.add( META_DATA_DATA_KEY, context.serialize( src.getMeta() ) );
 
 		final JsonObject map = new JsonObject();
 		map.add( IS_VISIBLE_KEY, new JsonPrimitive( src.isVisibleProperty().get() ) );
 		map.add( COMPOSITE_KEY, context.serialize( src.compositeProperty().getValue() ) );
 		map.add( META_KEY, metaData );
 		map.add( NAME_KEY, new JsonPrimitive( src.nameProperty().get() ) );
-		map.add( INTERPOLATION_KEY, context.serialize( src.interpolationProperty().get() ) );
+		map.add( INTERPOLATION_KEY, context.serialize( src.interpolationProperty().getValue() ) );
 		map.add( TRANSFORM_KEY, context.serialize( transform ) );
 
 		return map;
 	}
 
-	private static JsonObject serializeRaw( final SourceState< ?, ? > src, final JsonSerializationContext context )
+	private static JsonObject serializeRaw( final RawSourceState< ?, ? > src, final JsonSerializationContext context )
 	{
 		final JsonObject map = serialize( src, context );
 		final Converter< ?, ARGBType > converter = src.getConverter();
@@ -196,7 +200,7 @@ public class SourceStateSerializer implements JsonSerializer< SourceStateWithInd
 		return map;
 	}
 
-	private static < D extends NativeType< D > & RealType< D >, T extends Volatile< D > & RealType< T > & NativeType< T > > SourceState< D, T > rawFromMap(
+	private static < D extends NativeType< D > & RealType< D >, T extends Volatile< D > & RealType< T > & NativeType< T > > RawSourceState< D, T > rawFromMap(
 			final JsonObject map,
 			final SharedQueue queue,
 			final int priority,
@@ -215,7 +219,7 @@ public class SourceStateSerializer implements JsonSerializer< SourceStateWithInd
 		@SuppressWarnings( "unchecked" )
 		final Composite< ARGBType, ARGBType > composite = gson.fromJson( map.get( COMPOSITE_KEY ), Composite.class );
 
-		SourceState< D, T > state = meta.asSource(
+		RawSourceState< D, T > state = meta.asSource(
 				queue,
 				priority,
 				i -> Interpolation.NLINEAR.equals( i ) ? new NLinearInterpolatorFactory<>() : new NearestNeighborInterpolatorFactory<>(),
@@ -337,7 +341,7 @@ public class SourceStateSerializer implements JsonSerializer< SourceStateWithInd
 		switch ( type )
 		{
 		case RAW:
-			return ( SourceState ) rawFromMap(
+			return ( RawSourceState ) rawFromMap(
 					serializedSource.get( STATE_KEY ).getAsJsonObject(),
 					queue,
 					priority,

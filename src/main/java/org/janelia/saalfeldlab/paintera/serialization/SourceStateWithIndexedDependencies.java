@@ -38,11 +38,11 @@ public class SourceStateWithIndexedDependencies< D, T >
 
 	private static < D, T > int[] toIndices( SourceState< D, T > state, SourceInfo sourceInfo )
 	{
-		SourceState< ?, ? >[] dependsOn = state.getDependsOn();
+		SourceState< ?, ? >[] dependsOn = state.dependsOn();
 		int[] indices = new int[ dependsOn.length ];
 		for ( int i = 0; i < dependsOn.length; ++i )
 		{
-			indices[ i ] = sourceInfo.indexOf( dependsOn[ i ].dataSource() );
+			indices[ i ] = sourceInfo.indexOf( dependsOn[ i ].getDataSource() );
 		}
 		return indices;
 	}

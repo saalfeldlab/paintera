@@ -37,14 +37,14 @@ public class SourceInfoTest
 			i -> new NearestNeighborInterpolatorFactory<>(),
 			"source2" );
 
-	private final SourceState< DoubleType, DoubleType > state1 = new SourceState<>(
+	private final SourceState< DoubleType, DoubleType > state1 = new MinimalSourceState<>(
 			source1,
 			new ARGBColorConverter.InvertingImp0<>( 0, 1 ),
 			new CompositeCopy<>(),
 			source1.getName(),
 			null );
 
-	private final SourceState< DoubleType, DoubleType > state2 = new SourceState<>(
+	private final SourceState< DoubleType, DoubleType > state2 = new MinimalSourceState<>(
 			source2,
 			new ARGBColorConverter.InvertingImp0<>( 0, 1 ),
 			new CompositeCopy<>(),
@@ -59,7 +59,7 @@ public class SourceInfoTest
 		si.addState( state1 );
 		si.addState( state2 );
 		Assert.assertEquals( 2, si.numSources().get() );
-		si.removeSource( state1.dataSource() );
+		si.removeSource( state1.getDataSource() );
 	}
 
 	@Test( )
@@ -69,9 +69,9 @@ public class SourceInfoTest
 		si.addState( state1 );
 		si.addState( state2 );
 		Assert.assertEquals( 2, si.numSources().get() );
-		si.removeSource( state1.dataSource(), true );
+		si.removeSource( state1.getDataSource(), true );
 		Assert.assertEquals( 1, si.numSources().get() );
-		si.removeSource( state2.dataSource() );
+		si.removeSource( state2.getDataSource() );
 		Assert.assertEquals( 0, si.numSources().get() );
 	}
 
@@ -82,9 +82,9 @@ public class SourceInfoTest
 		si.addState( state1 );
 		si.addState( state2 );
 		Assert.assertEquals( 2, si.numSources().get() );
-		si.removeSource( state2.dataSource(), true );
+		si.removeSource( state2.getDataSource(), true );
 		Assert.assertEquals( 1, si.numSources().get() );
-		si.removeSource( state1.dataSource() );
+		si.removeSource( state1.getDataSource() );
 		Assert.assertEquals( 0, si.numSources().get() );
 	}
 

@@ -19,6 +19,7 @@ import org.janelia.saalfeldlab.paintera.meshes.cache.CacheUtils;
 import org.janelia.saalfeldlab.paintera.meshes.cache.UniqueLabelListLabelMultisetCacheLoader;
 import org.janelia.saalfeldlab.paintera.state.GlobalTransformManager;
 import org.janelia.saalfeldlab.paintera.state.LabelSourceState;
+import org.janelia.saalfeldlab.paintera.state.RawSourceState;
 import org.janelia.saalfeldlab.paintera.state.SourceInfo;
 import org.janelia.saalfeldlab.paintera.state.SourceState;
 import org.janelia.saalfeldlab.paintera.stream.AbstractHighlightingARGBStream;
@@ -139,16 +140,21 @@ public class PainteraBaseView
 	public < D, T > void addState( SourceState< D, T > state )
 	{
 		if ( state instanceof LabelSourceState< ?, ? > )
-		{
 			addLabelSource( ( LabelSourceState ) state );
-		}
+		else if ( state instanceof RawSourceState< ?, ? > )
+			addRawSource( ( RawSourceState ) state );
 		else
-			addRawSource( ( SourceState ) state );
+			addGenericState( state );
+	}
+
+	public < D, T > void addGenericState( SourceState< D, T > state )
+	{
+		sourceInfo.addState( state );
 	}
 
 
 	public < T extends RealType< T >, U extends RealType< U > > void addRawSource(
-			final SourceState< T, U > state )
+			final RawSourceState< T, U > state )
 	{
 		LOG.debug( "Adding raw state={}", state );
 		sourceInfo.addState( state );

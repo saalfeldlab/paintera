@@ -6,16 +6,18 @@ import org.janelia.saalfeldlab.paintera.composition.Composite;
 import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignmentState;
 import org.janelia.saalfeldlab.paintera.control.selection.SelectedIds;
 import org.janelia.saalfeldlab.paintera.data.DataSource;
+import org.janelia.saalfeldlab.paintera.data.meta.LabelMeta;
 import org.janelia.saalfeldlab.paintera.id.IdService;
 import org.janelia.saalfeldlab.paintera.id.ToIdConverter;
 import org.janelia.saalfeldlab.paintera.meshes.MeshInfos;
 import org.janelia.saalfeldlab.paintera.meshes.MeshManager;
+import org.janelia.saalfeldlab.paintera.stream.HighlightingStreamConverter;
 
 import net.imglib2.converter.Converter;
 import net.imglib2.type.logic.BoolType;
 import net.imglib2.type.numeric.ARGBType;
 
-public class LabelSourceState< D, T > extends SourceState< D, T >
+public class LabelSourceState< D, T > extends MinimalSourceState< D, T, HighlightingStreamConverter< T >, LabelMeta< D, T > >
 {
 
 	private final LongFunction< Converter< D, BoolType > > maskForLabel;
@@ -34,10 +36,10 @@ public class LabelSourceState< D, T > extends SourceState< D, T >
 
 	public LabelSourceState(
 			final DataSource< D, T > dataSource,
-			final Converter< T, ARGBType > converter,
+			final HighlightingStreamConverter< T > converter,
 			final Composite< ARGBType, ARGBType > composite,
 			final String name,
-			final Object info,
+			final LabelMeta< D, T > info,
 			final LongFunction< Converter< D, BoolType > > maskForLabel,
 			final FragmentSegmentAssignmentState assignment,
 			final ToIdConverter toIdConverter,

@@ -32,7 +32,7 @@ import org.janelia.saalfeldlab.paintera.meshes.MeshInfos;
 import org.janelia.saalfeldlab.paintera.meshes.MeshManagerWithAssignment;
 import org.janelia.saalfeldlab.paintera.meshes.cache.CacheUtils;
 import org.janelia.saalfeldlab.paintera.state.LabelSourceState;
-import org.janelia.saalfeldlab.paintera.state.SourceState;
+import org.janelia.saalfeldlab.paintera.state.RawSourceState;
 import org.janelia.saalfeldlab.paintera.stream.HighlightingStreamConverter;
 import org.janelia.saalfeldlab.paintera.stream.ModalGoldenAngleSaturatedHighlightingARGBStream;
 import org.slf4j.Logger;
@@ -148,14 +148,14 @@ public interface SourceFromRAI extends BackendDialog
 	public < D extends NativeType< D >, T extends Volatile< D > & NativeType< T > > LabelMeta< D, T > getLabelMeta() throws MetaInstantiationFailed;
 
 	@Override
-	public default < T extends RealType< T > & NativeType< T >, V extends AbstractVolatileRealType< T, V > & NativeType< V > > SourceState< T, V > getRaw(
+	public default < T extends RealType< T > & NativeType< T >, V extends AbstractVolatileRealType< T, V > & NativeType< V > > RawSourceState< T, V > getRaw(
 			final String name,
 			final SharedQueue sharedQueue,
 			final int priority ) throws IOException, MetaInstantiationFailed
 	{
 		final Triple< RandomAccessibleInterval< T >[], RandomAccessibleInterval< V >[], AffineTransform3D[] > dataAndVolatile = getDataAndVolatile( sharedQueue, priority );
 		LOG.debug( "Got data: {}", dataAndVolatile );
-		return new SourceState<>(
+		return new RawSourceState<>(
 				getCached( dataAndVolatile.getA(), dataAndVolatile.getB(), dataAndVolatile.getC(), name, sharedQueue, priority ),
 				new ARGBColorConverter.Imp1<>( 0, 255 ),
 				new CompositeCopy<>(),

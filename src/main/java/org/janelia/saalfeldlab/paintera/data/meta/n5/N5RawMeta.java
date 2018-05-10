@@ -13,6 +13,7 @@ import org.janelia.saalfeldlab.paintera.data.DataSource;
 import org.janelia.saalfeldlab.paintera.data.RandomAccessibleIntervalDataSource;
 import org.janelia.saalfeldlab.paintera.data.meta.RawMeta;
 import org.janelia.saalfeldlab.paintera.data.meta.exception.SourceCreationFailed;
+import org.janelia.saalfeldlab.paintera.state.RawSourceState;
 import org.janelia.saalfeldlab.paintera.state.SourceState;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -49,7 +50,7 @@ public interface N5RawMeta< T extends NativeType< T >, V extends Volatile< T > &
 	}
 
 	@Override
-	public default SourceState< T, V > asSource(
+	public default RawSourceState< T, V > asSource(
 			final SharedQueue sharedQueue,
 			final int priority,
 			final Function< Interpolation, InterpolatorFactory< T, RandomAccessible< T > > > dataInterpolation,
@@ -85,7 +86,7 @@ public interface N5RawMeta< T extends NativeType< T >, V extends Volatile< T > &
 					dataInterpolation,
 					viewerInterpolation,
 					dataset() );
-			return new SourceState< T, V >(
+			return new RawSourceState< T, V >(
 					source,
 					new ARGBColorConverter.Imp1<>( 0, 255 ),
 					new CompositeCopy<>(),

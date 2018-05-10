@@ -14,7 +14,7 @@ import org.janelia.saalfeldlab.paintera.data.DataSource;
 import org.janelia.saalfeldlab.paintera.meshes.InterruptibleFunction;
 import org.janelia.saalfeldlab.paintera.meshes.cache.CacheUtils;
 import org.janelia.saalfeldlab.paintera.state.LabelSourceState;
-import org.janelia.saalfeldlab.paintera.state.SourceState;
+import org.janelia.saalfeldlab.paintera.state.RawSourceState;
 import org.janelia.saalfeldlab.paintera.ui.opendialog.OpenSourceDialog.TYPE;
 import org.janelia.saalfeldlab.paintera.ui.opendialog.meta.MetaPanel;
 import org.janelia.saalfeldlab.util.HashWrapper;
@@ -74,7 +74,7 @@ public class PainteraOpenDialogEventHandler implements EventHandler< Event >
 			final double min,
 			final double max ) throws Exception
 	{
-		SourceState< T, V > raw = dataset.getRaw( name, cellCache, cellCache.getNumPriorities() - 1 );
+		RawSourceState< T, V > raw = dataset.getRaw( name, cellCache, cellCache.getNumPriorities() - 1 );
 		LOG.debug( "Got raw: {}", raw );
 		viewer.addRawSource( raw );
 	}

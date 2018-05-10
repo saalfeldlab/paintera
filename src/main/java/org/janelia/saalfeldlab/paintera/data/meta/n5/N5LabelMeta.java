@@ -35,6 +35,7 @@ import org.janelia.saalfeldlab.paintera.meshes.cache.CacheUtils;
 import org.janelia.saalfeldlab.paintera.state.LabelSourceState;
 import org.janelia.saalfeldlab.paintera.state.SourceState;
 import org.janelia.saalfeldlab.paintera.stream.AbstractHighlightingARGBStream;
+import org.janelia.saalfeldlab.paintera.stream.HighlightingStreamConverter;
 import org.janelia.saalfeldlab.paintera.stream.HighlightingStreamConverterIntegerType;
 import org.janelia.saalfeldlab.paintera.stream.HighlightingStreamConverterLabelMultisetType;
 import org.janelia.saalfeldlab.paintera.stream.ModalGoldenAngleSaturatedHighlightingARGBStream;
@@ -159,9 +160,9 @@ public interface N5LabelMeta< D extends NativeType< D >, T extends Volatile< D >
 					name );
 		}
 		
-		final Converter< T, ARGBType > converter = isLabelMultisetType
-				? ( Converter< T, ARGBType > ) new HighlightingStreamConverterLabelMultisetType( stream )
-				: ( Converter< T, ARGBType > ) highlightingStreamConverterIntegerType( stream );
+			final HighlightingStreamConverter< T > converter = isLabelMultisetType
+					? ( HighlightingStreamConverter< T > ) new HighlightingStreamConverterLabelMultisetType( stream )
+					: ( HighlightingStreamConverter< T > ) highlightingStreamConverterIntegerType( stream );
 			
 		IdService idService = idService();
 		
@@ -230,7 +231,7 @@ public interface N5LabelMeta< D extends NativeType< D >, T extends Volatile< D >
 		return i -> new NearestNeighborInterpolatorFactory<>();
 	}
 
-	public static < T extends IntegerType< T > > Converter< T, ARGBType > highlightingStreamConverterIntegerType( AbstractHighlightingARGBStream stream )
+	public static < T extends IntegerType< T > > HighlightingStreamConverter< T > highlightingStreamConverterIntegerType( AbstractHighlightingARGBStream stream )
 	{
 		return new HighlightingStreamConverterIntegerType<>( stream, IntegerType::getIntegerLong );
 	}

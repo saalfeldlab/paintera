@@ -12,10 +12,13 @@ import org.janelia.saalfeldlab.paintera.composition.Composite;
 import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignmentState;
 import org.janelia.saalfeldlab.paintera.control.selection.SelectedIds;
 import org.janelia.saalfeldlab.paintera.data.DataSource;
+import org.janelia.saalfeldlab.paintera.data.meta.LabelMeta;
+import org.janelia.saalfeldlab.paintera.data.meta.RawMeta;
 import org.janelia.saalfeldlab.paintera.id.IdService;
 import org.janelia.saalfeldlab.paintera.id.ToIdConverter;
 import org.janelia.saalfeldlab.paintera.meshes.MeshInfos;
 import org.janelia.saalfeldlab.paintera.meshes.MeshManager;
+import org.janelia.saalfeldlab.paintera.stream.HighlightingStreamConverter;
 import org.janelia.saalfeldlab.util.MakeUnchecked;
 import org.janelia.saalfeldlab.util.MakeUnchecked.CheckedConsumer;
 import org.slf4j.Logger;
@@ -124,47 +127,38 @@ public class SourceInfo
 		removedSources.addListener( ( ListChangeListener< Source< ? > > ) change -> removedSources.clear() );
 	}
 
-	public < D extends Type< D >, T extends RealType< T > > SourceState< D, T > makeRawSourceState(
+	public < D extends Type< D >, T extends RealType< T > > RawSourceState< D, T > makeRawSourceState(
 			final DataSource< D, T > source,
 			final double min,
 			final double max,
 			final ARGBType color,
 			final Composite< ARGBType, ARGBType > composite,
-			final Object metaData )
+			final RawMeta< D, T > metaData )
 	{
 		final ARGBColorConverter< T > converter = new ARGBColorConverter.InvertingImp1<>( min, max );
 		converter.colorProperty().set( color );
-		final SourceState< D, T > state = new SourceState<>( source, converter, composite, source.getName(), metaData );
+		final RawSourceState< D, T > state = new RawSourceState<>( source, converter, composite, source.getName(), metaData );
 		return state;
 	}
 
-	public < D extends Type< D >, T extends RealType< T > > SourceState< D, T > addRawSource(
+	public < D extends Type< D >, T extends RealType< T > > RawSourceState< D, T > addRawSource(
 			final DataSource< D, T > source,
 			final double min,
 			final double max,
 			final ARGBType color,
 			final Composite< ARGBType, ARGBType > composite,
-			final Object metaData )
+			final RawMeta< D, T > metaData )
 	{
-		final SourceState< D, T > state = makeRawSourceState( source, min, max, color, composite, metaData );
+		final RawSourceState< D, T > state = makeRawSourceState( source, min, max, color, composite, metaData );
 		addState( source, state );
 		return state;
 	}
 
-	public < D extends Type< D >, T extends Type< T > > SourceState< D, T > makeGenericSourceState(
-			final DataSource< D, T > source,
-			final Converter< T, ARGBType > converter,
-			final Composite< ARGBType, ARGBType > composite )
-	{
-
-		return new SourceState<>( source, converter, composite, source.getName(), null );
-	}
-
 	public < D extends Type< D >, T extends Type< T > > LabelSourceState< D, T > makeLabelSourceState(
 			final DataSource< D, T > source,
-			final Converter< T, ARGBType > converter,
+			final HighlightingStreamConverter< T > converter,
 			final Composite< ARGBType, ARGBType > composite,
-			final Object metaData,
+			final LabelMeta< D, T > metaData,
 			final LongFunction< Converter< D, BoolType > > maskForLabel,
 			final FragmentSegmentAssignmentState assignment,
 			final ToIdConverter toIdConverter,
@@ -191,9 +185,9 @@ public class SourceInfo
 
 	public < D extends Type< D >, T extends Type< T > > LabelSourceState< D, T > addLabelSource(
 			final DataSource< D, T > source,
-			final Converter< T, ARGBType > converter,
+			final HighlightingStreamConverter< T > converter,
 			final Composite< ARGBType, ARGBType > composite,
-			final Object metaData,
+			final LabelMeta< D, T > metaData,
 			final LongFunction< Converter< D, BoolType > > maskForLabel,
 			final FragmentSegmentAssignmentState assignment,
 			final ToIdConverter toIdConverter,
@@ -218,20 +212,20 @@ public class SourceInfo
 		return state;
 	}
 
-	public synchronized < D extends Type< D >, T extends Type< T > > void addState(
+	public synchronized < D, T > void addState(
 			final SourceState< D, T > state )
 	{
 		addState( state.getDataSource(), state );
 	}
 
-	public synchronized < D extends Type< D >, T extends Type< T > > void addState(
+	public synchronized < D, T > void addState(
 			final Source< T > source,
 			final SourceState< D, T > state )
 	{
 		this.states.put( source, state );
 		// composites needs to hold a valid (!=null) value for source whenever
 		// viewer is updated
-		this.composites.put( source, state.compositeProperty().get() );
+		this.composites.put( source, state.compositeProperty().getValue() );
 		this.sources.add( source );
 		state.isVisibleProperty().addListener( ( obs, oldv, newv ) -> updateVisibleSources() );
 		state.isVisibleProperty().set( true );
@@ -269,7 +263,7 @@ public class SourceInfo
 			final List< SourceState< ?, ? > > dependents = this.states
 					.values()
 					.stream()
-					.filter( s -> Arrays.asList( s.getDependsOn() ).contains( state ) )
+					.filter( s -> Arrays.asList( s.dependsOn() ).contains( state ) )
 					.collect( Collectors.toList() );
 			if ( dependents.size() > 0 )
 			{
@@ -484,7 +478,7 @@ public class SourceInfo
 		final List< SourceState< ?, ? > > dependents = this.states
 				.values()
 				.stream()
-				.filter( s -> Arrays.asList( s.getDependsOn() ).contains( s ) ).collect( Collectors.toList() );
+				.filter( s -> Arrays.asList( s.dependsOn() ).contains( s ) ).collect( Collectors.toList() );
 		return dependents;
 	}
 

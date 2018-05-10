@@ -3,7 +3,7 @@ package org.janelia.saalfeldlab.paintera.ui.opendialog;
 import java.util.concurrent.ExecutorService;
 
 import org.janelia.saalfeldlab.paintera.state.LabelSourceState;
-import org.janelia.saalfeldlab.paintera.state.SourceState;
+import org.janelia.saalfeldlab.paintera.state.RawSourceState;
 
 import bdv.util.volatiles.SharedQueue;
 import javafx.beans.property.DoubleProperty;
@@ -23,7 +23,7 @@ public interface BackendDialog
 
 	public ObservableValue< String > errorMessage();
 
-	public < T extends RealType< T > & NativeType< T >, V extends AbstractVolatileRealType< T, V > & NativeType< V > > SourceState< T, V > getRaw(
+	public < T extends RealType< T > & NativeType< T >, V extends AbstractVolatileRealType< T, V > & NativeType< V > > RawSourceState< T, V > getRaw(
 			final String name,
 			final SharedQueue sharedQueue,
 			final int priority ) throws Exception;

@@ -5,9 +5,9 @@ import java.util.Arrays;
 import java.util.Optional;
 import java.util.function.Consumer;
 
-import org.janelia.saalfeldlab.paintera.state.SourceState;
 import org.janelia.saalfeldlab.paintera.state.LabelSourceState;
 import org.janelia.saalfeldlab.paintera.state.SourceInfo;
+import org.janelia.saalfeldlab.paintera.state.SourceState;
 import org.janelia.saalfeldlab.paintera.ui.BindUnbindAndNodeSupplier;
 import org.janelia.saalfeldlab.paintera.ui.CloseButton;
 import org.janelia.saalfeldlab.paintera.ui.source.composite.CompositePane;
@@ -64,7 +64,7 @@ public class StatePane implements BindUnbindAndNodeSupplier
 		this.sourceInfo = sourceInfo;
 		this.children = new BindUnbindAndNodeSupplier[] {
 				new CompositePane( state.compositeProperty() ),
-				new ConverterPane( state.getConverter() ),
+				new ConverterPane( state.converter() ),
 				state instanceof LabelSourceState< ?, ? > ? meshPane( ( LabelSourceState< ?, ? > ) state ) : BindUnbindAndNodeSupplier.empty()
 		};
 

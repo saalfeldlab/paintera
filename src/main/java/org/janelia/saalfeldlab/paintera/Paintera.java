@@ -21,7 +21,7 @@ import org.janelia.saalfeldlab.paintera.data.meta.n5.N5RawMeta;
 import org.janelia.saalfeldlab.paintera.serialization.GsonHelpers;
 import org.janelia.saalfeldlab.paintera.serialization.Properties;
 import org.janelia.saalfeldlab.paintera.state.LabelSourceState;
-import org.janelia.saalfeldlab.paintera.state.SourceState;
+import org.janelia.saalfeldlab.paintera.state.RawSourceState;
 import org.janelia.saalfeldlab.paintera.viewer3d.Viewer3DFX;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -215,7 +215,7 @@ public class Paintera extends Application
 					? new N5HDF5RawMeta< D, T >( ( N5HDF5Reader ) N5Helpers.n5Reader( split[ 0 ], 64, 64, 64 ), split[ 1 ] )
 					: new N5FSRawMeta< D, T >( split[ 0 ], split[ 1 ] );
 
-			SourceState< D, T > state = meta.asSource(
+			RawSourceState< D, T > state = meta.asSource(
 					pbv.getQueue(),
 					0,
 					i -> i.equals( Interpolation.NLINEAR ) ? new NLinearInterpolatorFactory<>() : new NearestNeighborInterpolatorFactory<>(),

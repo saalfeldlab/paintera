@@ -19,10 +19,10 @@ import org.janelia.saalfeldlab.paintera.control.paint.SelectNextId;
 import org.janelia.saalfeldlab.paintera.control.selection.SelectedIds;
 import org.janelia.saalfeldlab.paintera.data.mask.CannotPersist;
 import org.janelia.saalfeldlab.paintera.data.mask.MaskedSource;
-import org.janelia.saalfeldlab.paintera.state.SourceState;
 import org.janelia.saalfeldlab.paintera.state.GlobalTransformManager;
 import org.janelia.saalfeldlab.paintera.state.LabelSourceState;
 import org.janelia.saalfeldlab.paintera.state.SourceInfo;
+import org.janelia.saalfeldlab.paintera.state.SourceState;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
