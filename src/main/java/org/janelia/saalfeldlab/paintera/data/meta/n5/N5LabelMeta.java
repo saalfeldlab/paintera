@@ -129,92 +129,89 @@ public interface N5LabelMeta< D extends NativeType< D >, T extends Volatile< D >
 	{
 		try
 		{
-		FragmentSegmentAssignmentState assignment = assignment( initialAssignment );
-		
-		ModalGoldenAngleSaturatedHighlightingARGBStream stream = new ModalGoldenAngleSaturatedHighlightingARGBStream( selectedIds, assignment );
-		
-		boolean isMultiscale = isMultiscale();
-		boolean isLabelMultisetType = isLabelMultisetType( isMultiscale );
-		
-		final DataSource< D, T > dataSource;
-		if ( isLabelMultisetType )
-		{
-				dataSource = ( DataSource< D, T > ) N5Helpers.openLabelMultisetAsSource(
+			FragmentSegmentAssignmentState assignment = assignment( initialAssignment );
+
+			ModalGoldenAngleSaturatedHighlightingARGBStream stream = new ModalGoldenAngleSaturatedHighlightingARGBStream( selectedIds, assignment );
+
+			boolean isMultiscale = isMultiscale();
+			boolean isLabelMultisetType = isLabelMultisetType( isMultiscale );
+
+			final DataSource< D, T > dataSource;
+			if ( isLabelMultisetType )
+			{
+				dataSource = ( DataSource< D, T > ) ( DataSource ) N5Helpers.openLabelMultisetAsSource(
 						reader(),
 						dataset(),
 						transform,
 						sharedQueue,
 						priority,
 						name );
-		}
-		else
-		{
-			dataSource = N5Helpers.openScalarAsSource( 
-					reader(), 
-					dataset(), 
-					transform, 
-					sharedQueue, 
-					priority, 
-					defaultInterpolations(), 
-					defaultInterpolations(), 
-					name );
-		}
-		
+			}
+			else
+			{
+				dataSource = getScalarSource(
+						reader(),
+						dataset(),
+						transform,
+						sharedQueue,
+						priority,
+						name );
+			}
+
 			final HighlightingStreamConverter< T > converter = isLabelMultisetType
 					? ( HighlightingStreamConverter< T > ) new HighlightingStreamConverterLabelMultisetType( stream )
 					: ( HighlightingStreamConverter< T > ) highlightingStreamConverterIntegerType( stream );
-			
-		IdService idService = idService();
-		
-		@SuppressWarnings( "rawtypes" )
-		LongFunction< Converter< D, BoolType > > maskForLabel = isLabelMultisetType 
-				? (LongFunction< Converter< D, BoolType > >) (LongFunction) PainteraBaseView.equalMaskForLabelMultisetType()
-				: (LongFunction< Converter< D, BoolType > >) (LongFunction) PainteraBaseView.equalMaskForIntegerType();
-		
-		DataSource< D, T > maskedSource = Masks.mask( 
-				dataSource, 
-				canvasDir, 
-				canvasCacheDirUpdate,
-				new CommitCanvasN5( writer(), dataset() ), 
-				propagationExecutor );
-		
-		SelectedSegments selectedSegments = new SelectedSegments( selectedIds, assignment );
-		FragmentsInSelectedSegments fragmentsInSelectedSegments = new FragmentsInSelectedSegments( selectedSegments, assignment );
-		
-		InterruptibleFunction< Long, Interval[] >[] blockListCache = PainteraBaseView.generateLabelBlocksForLabelCache( maskedSource, PainteraBaseView.scaleFactorsFromAffineTransforms( maskedSource ) );
-		
-		InterruptibleFunction< ShapeKey, Pair< float[], float[] > >[] meshCache = CacheUtils.meshCacheLoaders( maskedSource, maskForLabel, CacheUtils::toCacheSoftRefLoaderCache );
-		
-		
-		MeshManager meshManager = new MeshManagerWithAssignment( 
-				maskedSource, 
-				blockListCache, 
-				meshCache, 
-				meshesGroup, 
-				assignment, 
-				fragmentsInSelectedSegments, 
-				stream, 
-				new SimpleIntegerProperty(), 
-				new SimpleDoubleProperty(),
-				new SimpleIntegerProperty(),
-				manager, 
-				workers );
-		
-		MeshInfos meshInfos = new MeshInfos( selectedSegments, assignment, meshManager, maskedSource.getNumMipmapLevels() );
-		
-		return new LabelSourceState<>( 
-				maskedSource, 
-				converter, 
-				composite, 
-				name, 
-				this, 
-				maskForLabel, 
-				assignment, 
-				ToIdConverter.fromType( dataSource.getDataType() ), 
-				selectedIds, 
-				idService, 
-				meshManager, 
-				meshInfos );
+
+			IdService idService = idService();
+
+			@SuppressWarnings( "rawtypes" )
+			LongFunction< Converter< D, BoolType > > maskForLabel = isLabelMultisetType
+					? ( LongFunction< Converter< D, BoolType > > ) ( LongFunction ) PainteraBaseView.equalMaskForLabelMultisetType()
+					: ( LongFunction< Converter< D, BoolType > > ) ( LongFunction ) PainteraBaseView.equalMaskForIntegerType();
+
+			DataSource< D, T > maskedSource = Masks.mask(
+					dataSource,
+					canvasDir,
+					canvasCacheDirUpdate,
+					new CommitCanvasN5( writer(), dataset() ),
+					propagationExecutor );
+
+			SelectedSegments selectedSegments = new SelectedSegments( selectedIds, assignment );
+			FragmentsInSelectedSegments fragmentsInSelectedSegments = new FragmentsInSelectedSegments( selectedSegments, assignment );
+
+			InterruptibleFunction< Long, Interval[] >[] blockListCache = PainteraBaseView.generateLabelBlocksForLabelCache( maskedSource, PainteraBaseView.scaleFactorsFromAffineTransforms( maskedSource ) );
+
+			InterruptibleFunction< ShapeKey, Pair< float[], float[] > >[] meshCache = CacheUtils.meshCacheLoaders( maskedSource, maskForLabel, CacheUtils::toCacheSoftRefLoaderCache );
+
+			MeshManager meshManager = new MeshManagerWithAssignment(
+					maskedSource,
+					blockListCache,
+					meshCache,
+					meshesGroup,
+					assignment,
+					fragmentsInSelectedSegments,
+					stream,
+					new SimpleIntegerProperty(),
+					new SimpleDoubleProperty(),
+					new SimpleIntegerProperty(),
+					manager,
+					workers );
+
+			MeshInfos meshInfos = new MeshInfos( selectedSegments, assignment, meshManager, maskedSource.getNumMipmapLevels() );
+
+			return new LabelSourceState<>(
+					maskedSource,
+					converter,
+					composite,
+					name,
+					this,
+					maskForLabel,
+					assignment,
+					ToIdConverter.fromType( dataSource.getDataType() ),
+					selectedIds,
+					idService,
+					meshManager,
+					meshInfos );
 		}
 		catch ( RuntimeException e )
 		{
@@ -234,5 +231,25 @@ public interface N5LabelMeta< D extends NativeType< D >, T extends Volatile< D >
 	public static < T extends IntegerType< T > > HighlightingStreamConverter< T > highlightingStreamConverterIntegerType( AbstractHighlightingARGBStream stream )
 	{
 		return new HighlightingStreamConverterIntegerType<>( stream, IntegerType::getIntegerLong );
+	}
+
+	@SuppressWarnings( "unchecked" )
+	public static < D extends NativeType< D >, T extends Volatile< D > & NativeType< T > > DataSource< D, T > getScalarSource(
+			final N5Reader reader,
+			final String dataset,
+			final AffineTransform3D transform,
+			final SharedQueue sharedQueue,
+			final int priority,
+			final String name ) throws IOException
+	{
+		return N5Helpers.openScalarAsSource(
+				reader,
+				dataset,
+				transform,
+				sharedQueue,
+				priority,
+				( Function ) defaultInterpolations(),
+				( Function ) defaultInterpolations(),
+				name );
 	}
 }

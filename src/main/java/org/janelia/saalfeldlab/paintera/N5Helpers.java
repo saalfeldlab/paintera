@@ -78,6 +78,7 @@ import net.imglib2.type.label.N5CacheLoader;
 import net.imglib2.type.label.VolatileLabelMultisetArray;
 import net.imglib2.type.label.VolatileLabelMultisetType;
 import net.imglib2.type.numeric.IntegerType;
+import net.imglib2.type.numeric.RealType;
 import net.imglib2.type.numeric.integer.UnsignedLongType;
 import net.imglib2.util.Fraction;
 import net.imglib2.util.Pair;
@@ -393,6 +394,20 @@ public class N5Helpers
 					final int priority ) throws IOException
 	{
 		return openRaw( reader, dataset, getResolution( reader, dataset ), getOffset( reader, dataset ), sharedQueue, priority );
+	}
+
+	public static < T extends NativeType< T >, V extends Volatile< T > & NativeType< V > & RealType< V >, A >
+			DataSource< T, V > openRawAsSource(
+					final N5Reader reader,
+					final String dataset,
+					final AffineTransform3D transform,
+					final SharedQueue sharedQueue,
+					final int priority,
+					Function< Interpolation, InterpolatorFactory< T, RandomAccessible< T > > > dataInterpolation,
+					Function< Interpolation, InterpolatorFactory< V, RandomAccessible< V > > > interpolation,
+					final String name ) throws IOException
+	{
+		return openScalarAsSource( reader, dataset, transform, sharedQueue, priority, dataInterpolation, interpolation, name );
 	}
 
 	public static < T extends NativeType< T >, V extends Volatile< T > & NativeType< V >, A >
