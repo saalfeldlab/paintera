@@ -157,7 +157,7 @@ public interface SourceFromRAI extends BackendDialog
 		LOG.debug( "Got data: {}", dataAndVolatile );
 		return new RawSourceState<>(
 				getCached( dataAndVolatile.getA(), dataAndVolatile.getB(), dataAndVolatile.getC(), name, sharedQueue, priority ),
-				new ARGBColorConverter.Imp1<>( 0, 255 ),
+				new ARGBColorConverter.InvertingImp1<>( 0, 255 ),
 				new CompositeCopy<>(),
 				name,
 				getRawMeta() );

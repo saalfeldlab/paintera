@@ -88,7 +88,7 @@ public interface N5RawMeta< T extends NativeType< T >, V extends Volatile< T > &
 					dataset() );
 			return new RawSourceState< T, V >(
 					source,
-					new ARGBColorConverter.Imp1<>( 0, 255 ),
+					new ARGBColorConverter.InvertingImp1<>( 0, 255 ),
 					new CompositeCopy<>(),
 					source.getName(),
 					this,
