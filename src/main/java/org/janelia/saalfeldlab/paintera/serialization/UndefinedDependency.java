@@ -2,18 +2,20 @@ package org.janelia.saalfeldlab.paintera.serialization;
 
 import java.util.Arrays;
 
-import org.janelia.saalfeldlab.paintera.data.meta.Meta;
-
 public class UndefinedDependency extends Exception
 {
 
-	public UndefinedDependency( final Meta meta, final Meta dependency, final Meta[] availableMetas )
+	/**
+	 * 
+	 */
+	private static final long serialVersionUID = 1L;
+
+	public UndefinedDependency( int[] dependencies, int numberOfSources )
 	{
 		super( String.format(
-				"Dependency %s not defined for %s. Available dependencies: %s.",
-				dependency,
-				meta,
-				Arrays.toString( availableMetas ) ) );
+				"Dependency %s out of range [0,%d]",
+				Arrays.toString( dependencies ),
+				numberOfSources - 1 ) );
 	}
 
 }

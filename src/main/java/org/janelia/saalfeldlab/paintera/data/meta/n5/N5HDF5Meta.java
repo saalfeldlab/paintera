@@ -8,8 +8,9 @@ import org.janelia.saalfeldlab.n5.hdf5.N5HDF5Reader;
 import org.janelia.saalfeldlab.n5.hdf5.N5HDF5Writer;
 
 import ch.systemsx.cisd.hdf5.IHDF5Reader;
+import net.imglib2.type.NativeType;
 
-public class N5HDF5Meta implements N5Meta
+public class N5HDF5Meta< T extends NativeType< T > > implements N5Meta< T >
 {
 
 	private static final String READER_FIELD_NAME = "reader";

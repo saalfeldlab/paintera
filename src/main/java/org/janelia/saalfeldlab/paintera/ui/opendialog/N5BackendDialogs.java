@@ -77,7 +77,7 @@ public class N5BackendDialogs
 			{
 				final String path = updatedRoot.getAbsolutePath();
 				root.set( path );
-				writerSupplier.set( MakeUnchecked.unchecked( () -> new N5FSWriter( path ) ) );
+				writerSupplier.set( MakeUnchecked.supplier( () -> new N5FSWriter( path ) ) );
 				LOG.debug( "Updated root={} and writer supplier={}", root, writerSupplier );
 			}
 			Optional
@@ -120,7 +120,7 @@ public class N5BackendDialogs
 			{
 				root.set( updatedRoot.getAbsolutePath() );
 				// TODO what to do with block size?
-				writerSupplier.set( MakeUnchecked.unchecked( () -> new N5HDF5Writer( root.get(), defaultBlockSize ) ) );
+				writerSupplier.set( MakeUnchecked.supplier( () -> new N5HDF5Writer( root.get(), defaultBlockSize ) ) );
 			}
 			Optional
 					.ofNullable( updatedRoot )
@@ -149,7 +149,7 @@ public class N5BackendDialogs
 
 		final ObservableValue< Supplier< N5Writer > > writerSupplier = Bindings.createObjectBinding(
 				() -> isValid.get()
-						? MakeUnchecked.unchecked( () -> new N5GoogleCloudStorageWriter( storage.get(), bucket.get().getName() ) )
+						? MakeUnchecked.supplier( () -> new N5GoogleCloudStorageWriter( storage.get(), bucket.get().getName() ) )
 						: ( Supplier< N5Writer > ) () -> null,
 				isValid,
 				storage,

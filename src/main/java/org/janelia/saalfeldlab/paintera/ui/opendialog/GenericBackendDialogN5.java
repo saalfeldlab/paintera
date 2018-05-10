@@ -27,7 +27,12 @@ import org.janelia.saalfeldlab.n5.imglib2.N5Utils;
 import org.janelia.saalfeldlab.paintera.N5Helpers;
 import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignmentOnlyLocal;
 import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignmentState;
+import org.janelia.saalfeldlab.paintera.data.meta.LabelMeta;
+import org.janelia.saalfeldlab.paintera.data.meta.RawMeta;
 import org.janelia.saalfeldlab.paintera.data.meta.n5.CommitCanvasN5;
+import org.janelia.saalfeldlab.paintera.data.meta.n5.MetaInstantiationFailed;
+import org.janelia.saalfeldlab.paintera.data.meta.n5.N5LabelMeta;
+import org.janelia.saalfeldlab.paintera.data.meta.n5.N5RawMeta;
 import org.janelia.saalfeldlab.paintera.id.IdService;
 import org.janelia.saalfeldlab.paintera.id.N5IdService;
 import org.janelia.saalfeldlab.util.MakeUnchecked;
@@ -69,6 +74,7 @@ import net.imglib2.type.label.N5CacheLoader;
 import net.imglib2.type.label.VolatileLabelMultisetArray;
 import net.imglib2.type.label.VolatileLabelMultisetType;
 import net.imglib2.type.numeric.IntegerType;
+import net.imglib2.type.numeric.RealType;
 import net.imglib2.type.numeric.integer.UnsignedLongType;
 import net.imglib2.util.Triple;
 import net.imglib2.util.ValueTriple;
@@ -482,7 +488,7 @@ public class GenericBackendDialogN5 implements SourceFromRAI
 			final int priority ) throws IOException
 	{
 
-		final boolean isLabelMultisetType = MakeUnchecked.unchecked( this::isLabelMultisetType ).get();
+		final boolean isLabelMultisetType = MakeUnchecked.supplier( this::isLabelMultisetType ).get();
 		LOG.debug( "Source is label multiset? {}", isLabelMultisetType );
 		final N5Reader reader = this.n5.get();
 		final String dataset = this.dataset.get();
@@ -618,6 +624,32 @@ public class GenericBackendDialogN5 implements SourceFromRAI
 	public Object metaData()
 	{
 		return this.metaDataFromDataset.apply( dataset.get() );
+	}
+
+	@Override
+	public < D extends NativeType< D >, T extends Volatile< D > & NativeType< T > & RealType< T > > RawMeta< D, T > getRawMeta() throws MetaInstantiationFailed
+	{
+		try
+		{
+			return N5RawMeta.forReader( n5.get(), dataset.get() );
+		}
+		catch ( IllegalArgumentException | IllegalAccessException | NoSuchFieldException | SecurityException e )
+		{
+			throw new MetaInstantiationFailed( e );
+		}
+	}
+
+	@Override
+	public < D extends NativeType< D >, T extends Volatile< D > & NativeType< T > > LabelMeta< D, T > getLabelMeta() throws MetaInstantiationFailed
+	{
+		try
+		{
+			return N5LabelMeta.forReader( n5.get(), dataset.get() );
+		}
+		catch ( IllegalArgumentException | IllegalAccessException | NoSuchFieldException | SecurityException e )
+		{
+			throw new MetaInstantiationFailed( e );
+		}
 	}
 
 }

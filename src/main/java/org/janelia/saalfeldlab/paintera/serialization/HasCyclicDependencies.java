@@ -2,41 +2,19 @@ package org.janelia.saalfeldlab.paintera.serialization;
 
 import java.util.Arrays;
 
-import org.janelia.saalfeldlab.paintera.data.meta.Meta;
+import gnu.trove.set.hash.TIntHashSet;
 
 public class HasCyclicDependencies extends Exception
 {
 
-	public HasCyclicDependencies( final Meta[] metas )
+	/**
+	 * 
+	 */
+	private static final long serialVersionUID = 5763363058057863118L;
+
+	public HasCyclicDependencies( final TIntHashSet[] nodeEdgeMap )
 	{
-		super( String.format( "Cyclic dependencies: %s", makeString( metas ) ) );
-	}
-
-	private static String makeString( final Meta[] metas )
-	{
-		final StringBuilder sb = new StringBuilder( "{" );
-
-		if ( metas.length > 0 )
-		{
-			sb
-					.append( metas[ 0 ] )
-					.append( ":" )
-					.append( Arrays.toString( metas[ 0 ].dependsOn() ) );
-		}
-
-		for ( int i = 1; i < metas.length; ++i )
-		{
-			final Meta meta = metas[ i ];
-			sb
-					.append( ", " )
-					.append( meta )
-					.append( ":" )
-					.append( Arrays.toString( meta.dependsOn() ) );
-		}
-
-		sb.append( "}" );
-
-		return sb.toString();
+		super( String.format( "Cyclic dependencies: %s", Arrays.toString( nodeEdgeMap ) ) );
 	}
 
 }

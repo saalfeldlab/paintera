@@ -47,7 +47,7 @@ public class SourceInfoSerializer implements JsonSerializer< SourceInfo >
 				.trackSources()
 				.stream()
 				.map( src::getState )
-				.map( s -> context.serialize( s, SourceState.class ) )
+				.map( s -> context.serialize( new SourceStateWithIndexedDependencies<>( s, src ), SourceStateWithIndexedDependencies.class ) )
 				.collect( Collectors.toList() );
 
 		final int currentSourceIndex = src.currentSourceIndexProperty().get();

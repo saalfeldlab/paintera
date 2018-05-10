@@ -36,6 +36,7 @@ public class Masks
 			final BiConsumer< CachedCellImg< UnsignedLongType, ? >, long[] > mergeCanvasIntoBackground,
 			final ExecutorService propagationExecutor )
 	{
+		LOG.warn( "Masking source {}", source );
 		final D d = source.getDataType();
 		final T t = source.getType();
 

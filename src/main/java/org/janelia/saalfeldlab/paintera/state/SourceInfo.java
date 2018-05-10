@@ -488,4 +488,9 @@ public class SourceInfo
 		return dependents;
 	}
 
+	public int indexOf( Source< ? > source )
+	{
+		return this.trackSources().indexOf( source );
+	}
+
 }

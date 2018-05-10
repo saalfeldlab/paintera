@@ -1,10 +1,7 @@
 package org.janelia.saalfeldlab.paintera;
 
-import java.io.IOException;
 import java.lang.invoke.MethodHandles;
-import java.nio.file.Paths;
 import java.util.Arrays;
-import java.util.Optional;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.function.BiConsumer;
@@ -14,31 +11,10 @@ import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
 import org.janelia.saalfeldlab.fx.ortho.OrthogonalViews;
-import org.janelia.saalfeldlab.n5.DataType;
-import org.janelia.saalfeldlab.n5.DatasetAttributes;
-import org.janelia.saalfeldlab.n5.N5Reader;
-import org.janelia.saalfeldlab.n5.N5Writer;
-import org.janelia.saalfeldlab.paintera.composition.ARGBCompositeAlphaAdd;
-import org.janelia.saalfeldlab.paintera.composition.ARGBCompositeAlphaYCbCr;
-import org.janelia.saalfeldlab.paintera.composition.Composite;
 import org.janelia.saalfeldlab.paintera.composition.CompositeProjectorPreMultiply;
-import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignmentState;
-import org.janelia.saalfeldlab.paintera.control.assignment.FragmentsInSelectedSegments;
-import org.janelia.saalfeldlab.paintera.control.selection.SelectedIds;
-import org.janelia.saalfeldlab.paintera.control.selection.SelectedSegments;
 import org.janelia.saalfeldlab.paintera.data.DataSource;
-import org.janelia.saalfeldlab.paintera.data.RandomAccessibleIntervalDataSource;
 import org.janelia.saalfeldlab.paintera.data.mask.MaskedSource;
-import org.janelia.saalfeldlab.paintera.data.mask.Masks;
-import org.janelia.saalfeldlab.paintera.data.mask.TmpDirectoryCreator;
-import org.janelia.saalfeldlab.paintera.data.meta.n5.CommitCanvasN5;
-import org.janelia.saalfeldlab.paintera.id.IdService;
-import org.janelia.saalfeldlab.paintera.id.ToIdConverter;
 import org.janelia.saalfeldlab.paintera.meshes.InterruptibleFunction;
-import org.janelia.saalfeldlab.paintera.meshes.MeshGenerator.ShapeKey;
-import org.janelia.saalfeldlab.paintera.meshes.MeshInfos;
-import org.janelia.saalfeldlab.paintera.meshes.MeshManager;
-import org.janelia.saalfeldlab.paintera.meshes.MeshManagerWithAssignment;
 import org.janelia.saalfeldlab.paintera.meshes.cache.CacheUtils;
 import org.janelia.saalfeldlab.paintera.meshes.cache.UniqueLabelListLabelMultisetCacheLoader;
 import org.janelia.saalfeldlab.paintera.state.GlobalTransformManager;
@@ -47,9 +23,7 @@ import org.janelia.saalfeldlab.paintera.state.SourceInfo;
 import org.janelia.saalfeldlab.paintera.state.SourceState;
 import org.janelia.saalfeldlab.paintera.stream.AbstractHighlightingARGBStream;
 import org.janelia.saalfeldlab.paintera.stream.HighlightingStreamConverter;
-import org.janelia.saalfeldlab.paintera.stream.ModalGoldenAngleSaturatedHighlightingARGBStream;
 import org.janelia.saalfeldlab.paintera.viewer3d.Viewer3DFX;
-import org.janelia.saalfeldlab.util.Colors;
 import org.janelia.saalfeldlab.util.HashWrapper;
 import org.janelia.saalfeldlab.util.NamedThreadFactory;
 import org.slf4j.Logger;
@@ -61,15 +35,11 @@ import bdv.viewer.Source;
 import bdv.viewer.SourceAndConverter;
 import bdv.viewer.ViewerOptions;
 import gnu.trove.set.hash.TLongHashSet;
-import javafx.beans.property.SimpleDoubleProperty;
-import javafx.beans.property.SimpleIntegerProperty;
 import javafx.collections.ListChangeListener;
 import javafx.collections.ObservableList;
 import javafx.scene.layout.Pane;
-import javafx.scene.paint.Color;
 import net.imglib2.Interval;
 import net.imglib2.RandomAccessibleInterval;
-import net.imglib2.Volatile;
 import net.imglib2.cache.Cache;
 import net.imglib2.cache.img.CachedCellImg;
 import net.imglib2.converter.ARGBColorConverter;
@@ -77,20 +47,14 @@ import net.imglib2.converter.Converter;
 import net.imglib2.img.cell.Cell;
 import net.imglib2.img.cell.CellGrid;
 import net.imglib2.img.cell.LazyCellImg.LazyCells;
-import net.imglib2.interpolation.randomaccess.NLinearInterpolatorFactory;
-import net.imglib2.interpolation.randomaccess.NearestNeighborInterpolatorFactory;
 import net.imglib2.realtransform.AffineTransform3D;
-import net.imglib2.type.NativeType;
 import net.imglib2.type.Type;
 import net.imglib2.type.label.LabelMultisetType;
 import net.imglib2.type.label.VolatileLabelMultisetArray;
-import net.imglib2.type.label.VolatileLabelMultisetType;
 import net.imglib2.type.logic.BoolType;
 import net.imglib2.type.numeric.ARGBType;
 import net.imglib2.type.numeric.IntegerType;
 import net.imglib2.type.numeric.RealType;
-import net.imglib2.util.Pair;
-import net.imglib2.util.ValueTriple;
 
 public class PainteraBaseView
 {
@@ -182,95 +146,6 @@ public class PainteraBaseView
 			addRawSource( ( SourceState ) state );
 	}
 
-	public < T extends RealType< T > & NativeType< T >, U extends Volatile< T > & RealType< U > & NativeType< U > > Optional< DataSource< T, U > > addRawSource(
-			final N5Reader n5,
-			final String dataset ) throws IOException
-	{
-		final DatasetAttributes attributes = n5.getDatasetAttributes(
-				N5Helpers.isMultiScale( n5, dataset )
-						? Paths.get( dataset, N5Helpers.listAndSortScaleDatasets( n5, dataset )[ 0 ] ).toString()
-						: dataset );
-		final DataType type = attributes.getDataType();
-		return addRawSource( n5, dataset, Color.WHITE, N5Helpers.minForType( type ), N5Helpers.maxForType( type ) );
-	}
-
-	public < T extends RealType< T > & NativeType< T >, U extends Volatile< T > & RealType< U > & NativeType< U > > Optional< DataSource< T, U > > addRawSource(
-			final N5Reader n5,
-			final String dataset,
-			final Color color,
-			final double min,
-			final double max ) throws IOException
-	{
-		return addRawSource(
-				n5,
-				dataset,
-				N5Helpers.getResolution( n5, dataset ),
-				N5Helpers.getOffset( n5, dataset ),
-				color,
-				min,
-				max );
-	}
-
-	public < T extends RealType< T > & NativeType< T >, U extends Volatile< T > & RealType< U > & NativeType< U > > Optional< DataSource< T, U > > addRawSource(
-			final N5Reader n5,
-			final String dataset,
-			final double[] resolution,
-			final double[] offset,
-			final Color color,
-			final double min,
-			final double max ) throws IOException
-	{
-		final boolean isMultiScale = N5Helpers.isMultiScale( n5, dataset );
-		final String name = dataset;
-		final RandomAccessibleIntervalDataSource< T, U > source;
-		if ( isMultiScale )
-		{
-			final ValueTriple< RandomAccessibleInterval< T >[], RandomAccessibleInterval< U >[], AffineTransform3D[] > data = N5Helpers.openRawMultiscale(
-					n5,
-					dataset,
-					resolution,
-					offset,
-					getQueue(),
-					0 );
-			source = new RandomAccessibleIntervalDataSource<>(
-					data.getA(),
-					data.getB(),
-					data.getC(),
-					i -> Interpolation.NLINEAR.equals( i ) ? new NLinearInterpolatorFactory<>() : new NearestNeighborInterpolatorFactory<>(),
-					i -> Interpolation.NLINEAR.equals( i ) ? new NLinearInterpolatorFactory<>() : new NearestNeighborInterpolatorFactory<>(),
-					name );
-		}
-		else
-		{
-			source = DataSource.createN5Source( name, n5, dataset, resolution, offset, getQueue(), 0 );
-		}
-		final Object meta = N5Helpers.metaData( n5, dataset ); // generate from
-																// n5
-		addRawSource( source, min, max, color, meta );
-		return Optional.of( source );
-	}
-
-	public < T extends RealType< T >, U extends RealType< U > > void addRawSource(
-			final DataSource< T, U > spec,
-			final double min,
-			final double max,
-			final Color color,
-			final Object metaData )
-	{
-		addRawSource( spec, min, max, Colors.toARGBType( color ), metaData );
-	}
-
-	public < T extends RealType< T >, U extends RealType< U > > void addRawSource(
-			final DataSource< T, U > spec,
-			final double min,
-			final double max,
-			final ARGBType color,
-			final Object metaData )
-	{
-		final Composite< ARGBType, ARGBType > comp = new ARGBCompositeAlphaAdd();
-		final SourceState< T, U > state = sourceInfo.makeRawSourceState( spec, min, max, color, comp, metaData );
-		addRawSource( state );
-	}
 
 	public < T extends RealType< T >, U extends RealType< U > > void addRawSource(
 			final SourceState< T, U > state )
@@ -286,172 +161,6 @@ public class PainteraBaseView
 			colorConv.maxProperty().addListener( ( obs, oldv, newv ) -> orthogonalViews().requestRepaint() );
 			colorConv.alphaProperty().addListener( ( obs, oldv, newv ) -> orthogonalViews().requestRepaint() );
 		}
-	}
-
-	public < D extends Type< D >, T extends Type< T > > Optional< DataSource< D, T > > addLabelSource(
-			final N5Writer n5,
-			final String dataset ) throws IOException
-	{
-		return addLabelSource(
-				n5,
-				dataset,
-				N5Helpers.getResolution( n5, dataset ),
-				N5Helpers.getOffset( n5, dataset ) );
-	}
-
-	public < D extends Type< D >, T extends Type< T > > Optional< DataSource< D, T > > addLabelSource(
-			final N5Writer n5,
-			final String dataset,
-			final double[] resolution,
-			final double[] offset ) throws IOException
-	{
-
-		LOG.debug( "Adding label source n5={} dataset={} resolution={} offset={}", n5, dataset, resolution, offset );
-
-		if ( !N5Helpers.isMultiScale( n5, dataset ) && !N5Helpers.isLabelMultisetType( n5, Paths.get( dataset, N5Helpers.listAndSortScaleDatasets( n5, dataset )[ 0 ] ).toString() ) )
-		{
-			LOG.warn( "Only multiscale label multisets supported at the moment. Not adding any data set" );
-			return Optional.empty();
-		}
-
-		final ValueTriple< RandomAccessibleInterval< LabelMultisetType >[], RandomAccessibleInterval< VolatileLabelMultisetType >[], AffineTransform3D[] > labels =
-				N5Helpers.openLabelMultisetMultiscale( n5, dataset, resolution, offset, getQueue(), 1 );
-
-		final RandomAccessibleIntervalDataSource< LabelMultisetType, VolatileLabelMultisetType > labelSource = new RandomAccessibleIntervalDataSource<>(
-				labels.getA(),
-				labels.getB(),
-				labels.getC(),
-				i -> new NearestNeighborInterpolatorFactory<>(),
-				i -> new NearestNeighborInterpolatorFactory<>(),
-				dataset );
-
-		// create from n5
-		final Object meta = N5Helpers.metaData( n5, dataset );
-
-		final TmpDirectoryCreator canvasCacheDirUpdate = new TmpDirectoryCreator( null, null );
-
-		final DataSource< LabelMultisetType, VolatileLabelMultisetType > maskedSource =
-				Masks.mask(
-						labelSource,
-						canvasCacheDirUpdate.get(),
-						canvasCacheDirUpdate,
-						new CommitCanvasN5( n5, dataset ),
-						propagationQueue );
-
-		addLabelSource(
-				maskedSource,
-				N5Helpers.assignments( n5, dataset ),
-				N5Helpers.idService( n5, dataset ),
-				ToIdConverter.fromLabelMultisetType(),
-				null,
-				null,
-				meta );
-
-		@SuppressWarnings( "unchecked" )
-		final DataSource< D, T > returnedSource = ( DataSource< D, T > ) labelSource;
-		return Optional.of( returnedSource );
-	}
-
-	public < D extends Type< D >, T extends Type< T > > void addLabelSource(
-			final DataSource< D, T > source,
-			final FragmentSegmentAssignmentState assignment,
-			final ToIdConverter toIdConverter,
-			final Object meta )
-	{
-		addLabelSource( source, assignment, null, toIdConverter, null, null, equalsMaskForType( source.getDataType() ), meta );
-	}
-
-	public < D extends Type< D >, T extends Type< T > > void addLabelSource(
-			final DataSource< D, T > source,
-			final FragmentSegmentAssignmentState assignment,
-			final ToIdConverter toIdConverter,
-			final LongFunction< Converter< D, BoolType > > equalsMask,
-			final Object meta )
-	{
-		addLabelSource( source, assignment, null, toIdConverter, null, null, equalsMask, meta );
-	}
-
-	public < D extends Type< D >, T extends Type< T > > void addLabelSource(
-			final DataSource< D, T > source,
-			final FragmentSegmentAssignmentState assignment,
-			final IdService idService,
-			final ToIdConverter toIdConverter,
-			final InterruptibleFunction< Long, Interval[] >[] blocksThatContainId,
-			final InterruptibleFunction< ShapeKey, Pair< float[], float[] > >[] meshCache,
-			final Object meta )
-	{
-		addLabelSource( source, assignment, idService, toIdConverter, blocksThatContainId, meshCache, equalsMaskForType( source.getDataType() ), meta );
-	}
-
-	@SuppressWarnings( "unchecked" )
-	public < D extends Type< D >, T extends Type< T > > void addLabelSource(
-			final DataSource< D, T > source,
-			final FragmentSegmentAssignmentState assignment,
-			final IdService idService,
-			final ToIdConverter toIdConverter,
-			InterruptibleFunction< Long, Interval[] >[] blocksThatContainId,
-			InterruptibleFunction< ShapeKey, Pair< float[], float[] > >[] meshCache,
-			final LongFunction< Converter< D, BoolType > > equalsMask,
-			final Object meta )
-	{
-		final SelectedIds selId = new SelectedIds();
-		final ModalGoldenAngleSaturatedHighlightingARGBStream stream = new ModalGoldenAngleSaturatedHighlightingARGBStream( selId, assignment );
-		stream.addListener( obs -> orthogonalViews().requestRepaint() );
-		final Converter< T, ARGBType > converter = HighlightingStreamConverter.forType( stream, source.getType() );
-
-		final ARGBCompositeAlphaYCbCr comp = new ARGBCompositeAlphaYCbCr();
-		final AffineTransform3D affine = new AffineTransform3D();
-		source.getSourceTransform( 0, 0, affine );
-
-		final SelectedSegments selectedSegments = new SelectedSegments( selId, assignment );
-		final FragmentsInSelectedSegments fragmentsInSelection = new FragmentsInSelectedSegments( selectedSegments, assignment );
-
-		blocksThatContainId = blocksThatContainId == null
-				? generateLabelBlocksForLabelCache( source, scaleFactorsFromAffineTransforms( source ) )
-				: blocksThatContainId;
-
-		meshCache = meshCache == null
-				? CacheUtils.meshCacheLoaders(
-						source,
-						Stream.generate( () -> new int[] { 1, 1, 1 } ).limit( source.getNumMipmapLevels() ).toArray( int[][]::new ),
-						equalsMask,
-						CacheUtils::toCacheSoftRefLoaderCache )
-				: meshCache;
-
-		final MeshManager meshManager = new MeshManagerWithAssignment(
-				source,
-				blocksThatContainId,
-				meshCache,
-				viewer3D.meshesGroup(),
-				assignment,
-				fragmentsInSelection,
-				stream,
-				new SimpleIntegerProperty(),
-				new SimpleDoubleProperty(),
-				new SimpleIntegerProperty(),
-				meshManagerExecutorService,
-				meshWorkerExecutorService );
-
-		final MeshInfos meshInfos = new MeshInfos( selectedSegments, assignment, meshManager, source.getNumMipmapLevels() );
-
-		final LabelSourceState< D, T > state = sourceInfo.makeLabelSourceState(
-				source,
-				converter,
-				comp,
-				meta,
-				equalsMask,
-				assignment,
-				toIdConverter,
-				selId,
-				idService,
-				meshManager,
-				meshInfos );// converter );
-
-		orthogonalViews().applyToAll( vp -> assignment.addListener( obs -> vp.requestRepaint() ) );
-		orthogonalViews().applyToAll( vp -> selId.addListener( obs -> vp.requestRepaint() ) );
-
-		addLabelSource( state );
-
 	}
 
 	public < D extends Type< D >, T extends Type< T > > void addLabelSource(

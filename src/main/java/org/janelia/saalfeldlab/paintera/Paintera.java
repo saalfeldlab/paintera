@@ -7,11 +7,21 @@ import java.util.regex.Pattern;
 
 import org.janelia.saalfeldlab.fx.event.KeyTracker;
 import org.janelia.saalfeldlab.fx.ortho.OrthogonalViews;
+import org.janelia.saalfeldlab.n5.N5Reader;
 import org.janelia.saalfeldlab.n5.N5Writer;
+import org.janelia.saalfeldlab.n5.hdf5.N5HDF5Reader;
+import org.janelia.saalfeldlab.paintera.composition.ARGBCompositeAlphaYCbCr;
+import org.janelia.saalfeldlab.paintera.control.selection.SelectedIds;
 import org.janelia.saalfeldlab.paintera.data.DataSource;
+import org.janelia.saalfeldlab.paintera.data.mask.TmpDirectoryCreator;
+import org.janelia.saalfeldlab.paintera.data.meta.n5.N5FSRawMeta;
+import org.janelia.saalfeldlab.paintera.data.meta.n5.N5HDF5RawMeta;
+import org.janelia.saalfeldlab.paintera.data.meta.n5.N5LabelMeta;
+import org.janelia.saalfeldlab.paintera.data.meta.n5.N5RawMeta;
 import org.janelia.saalfeldlab.paintera.serialization.GsonHelpers;
 import org.janelia.saalfeldlab.paintera.serialization.Properties;
 import org.janelia.saalfeldlab.paintera.state.LabelSourceState;
+import org.janelia.saalfeldlab.paintera.state.SourceState;
 import org.janelia.saalfeldlab.paintera.viewer3d.Viewer3DFX;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -19,6 +29,7 @@ import org.slf4j.LoggerFactory;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
 
+import bdv.viewer.Interpolation;
 import bdv.viewer.ViewerOptions;
 import javafx.application.Application;
 import javafx.application.Platform;
@@ -30,6 +41,9 @@ import javafx.scene.control.Dialog;
 import javafx.stage.Screen;
 import javafx.stage.Stage;
 import net.imglib2.Volatile;
+import net.imglib2.interpolation.randomaccess.NLinearInterpolatorFactory;
+import net.imglib2.interpolation.randomaccess.NearestNeighborInterpolatorFactory;
+import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.type.NativeType;
 import net.imglib2.type.numeric.RealType;
 import picocli.CommandLine;
@@ -184,25 +198,43 @@ public class Paintera extends Application
 		view.grid().getBottomRight().setFocusTraversable( isTraversable );
 	}
 
-	private static < D extends RealType< D > & NativeType< D >, T extends Volatile< D > & RealType< T > & NativeType< T > > Optional< DataSource< D, T > > addRawFromString(
+	private static < D extends NativeType< D > & RealType< D >, T extends Volatile< D > & NativeType< T > & RealType< T > > Optional< DataSource< D, T > > addRawFromString(
 			final PainteraBaseView pbv,
-			final String identifier ) throws IOException
+			final String identifier ) throws UnableToAddSource
 	{
 		if ( !Pattern.matches( "^[a-z]+://.+", identifier ) )
 			return addRawFromString( pbv, "file://" + identifier );
 
 		if ( Pattern.matches( "^file://.+", identifier ) )
 		{
+			try
+			{
 			final String[] split = identifier.replaceFirst( "file://", "" ).split( ":" );
-			final N5Writer n5 = N5Helpers.n5Writer( split[ 0 ], 64, 64, 64 );
-			return pbv.addRawSource( n5, split[ 1 ] );
+			N5Reader reader = N5Helpers.n5Reader( split[ 0 ], 64, 64, 64 );
+			N5RawMeta< D, T > meta = N5Helpers.isHDF( split[ 0 ] )
+					? new N5HDF5RawMeta< D, T >( ( N5HDF5Reader ) N5Helpers.n5Reader( split[ 0 ], 64, 64, 64 ), split[ 1 ] )
+					: new N5FSRawMeta< D, T >( split[ 0 ], split[ 1 ] );
+
+			SourceState< D, T > state = meta.asSource(
+					pbv.getQueue(),
+					0,
+					i -> i.equals( Interpolation.NLINEAR ) ? new NLinearInterpolatorFactory<>() : new NearestNeighborInterpolatorFactory<>(),
+					i -> i.equals( Interpolation.NLINEAR ) ? new NLinearInterpolatorFactory<>() : new NearestNeighborInterpolatorFactory<>(),
+					N5Helpers.getTransform( reader, split[ 1 ] ) );
+			pbv.addRawSource( state );
+			return Optional.of( state.getDataSource() );
+			}
+			catch ( Exception e )
+			{
+				throw e instanceof UnableToAddSource ? ( UnableToAddSource ) e : new UnableToAddSource( e );
+			}
 		}
 
 		LOG.warn( "Unable to generate raw source from {}", identifier );
 		return Optional.empty();
 	}
 
-	private static void addLabelFromString( final PainteraBaseView pbv, final String identifier ) throws IOException
+	private static < D extends NativeType< D >, T extends Volatile< D > & NativeType< T > > void addLabelFromString( final PainteraBaseView pbv, final String identifier ) throws UnableToAddSource
 	{
 		if ( !Pattern.matches( "^[a-z]+://.+", identifier ) )
 		{
@@ -212,12 +244,38 @@ public class Paintera extends Application
 
 		if ( Pattern.matches( "^file://.+", identifier ) )
 		{
+			try
+			{
 			final String[] split = identifier.replaceFirst( "file://", "" ).split( ":" );
 			final N5Writer n5 = N5Helpers.n5Writer( split[ 0 ], 64, 64, 64 );
 			final String dataset = split[ 1 ];
 			final double[] resolution = Optional.ofNullable( n5.getAttribute( dataset, "resolution", double[].class ) ).orElse( new double[] { 1.0, 1.0, 1.0 } );
 			final double[] offset = Optional.ofNullable( n5.getAttribute( dataset, "offset", double[].class ) ).orElse( new double[] { 0.0, 0.0, 0.0 } );
-			pbv.addLabelSource( n5, dataset, resolution, offset );
+			AffineTransform3D transform = N5Helpers.fromResolutionAndOffset( resolution, offset );
+			N5LabelMeta< D, T > meta = N5LabelMeta.forReader( n5, dataset );
+			TmpDirectoryCreator nextCanvasDir = new TmpDirectoryCreator( null, null );
+			LabelSourceState< D, T > state = meta.asSource(
+					Optional.empty(), 
+					new SelectedIds(),
+					new ARGBCompositeAlphaYCbCr(),
+					pbv.getQueue(), 
+					0,
+					i -> new NearestNeighborInterpolatorFactory<>(),
+					i -> new NearestNeighborInterpolatorFactory<>(), 
+					transform, 
+					dataset,
+					nextCanvasDir.get(),
+					nextCanvasDir,
+					pbv.getPropagationQueue(),
+					pbv.getMeshManagerExecutorService(),
+					pbv.getMeshWorkerExecutorService(),
+					pbv.viewer3D().meshesGroup() );
+			pbv.addLabelSource( state );
+			}
+			catch ( Exception e )
+			{
+				throw e instanceof UnableToAddSource ? ( UnableToAddSource ) e : new UnableToAddSource( e );
+			}
 		}
 	}
 

@@ -3,9 +3,7 @@ package org.janelia.saalfeldlab.paintera.serialization;
 import org.janelia.saalfeldlab.paintera.composition.Composite;
 import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignmentOnlyLocal;
 import org.janelia.saalfeldlab.paintera.control.selection.SelectedIds;
-import org.janelia.saalfeldlab.paintera.state.LabelSourceState;
 import org.janelia.saalfeldlab.paintera.state.SourceInfo;
-import org.janelia.saalfeldlab.paintera.state.SourceState;
 
 import com.google.gson.GsonBuilder;
 
@@ -20,8 +18,7 @@ public class GsonHelpers
 
 		return new GsonBuilder()
 				.registerTypeHierarchyAdapter( SourceInfo.class, new SourceInfoSerializer() )
-				.registerTypeHierarchyAdapter( SourceState.class, sss )
-				.registerTypeHierarchyAdapter( LabelSourceState.class, sss )
+				.registerTypeHierarchyAdapter( SourceStateWithIndexedDependencies.class, sss )
 				.registerTypeAdapter( AffineTransform3D.class, new AffineTransform3DJsonAdapter() )
 				.registerTypeHierarchyAdapter( Composite.class, new CompositeSerializer() )
 				.registerTypeAdapter( SelectedIds.class, new SelectedIdsSerializer() )

@@ -37,7 +37,7 @@ public class MakeUnchecked
 		};
 	}
 
-	public static < T, U > Function< T, U > unchecked( final CheckedFunction< T, U > func )
+	public static < T, U > Function< T, U > function( final CheckedFunction< T, U > func )
 	{
 		return t -> {
 			try
@@ -85,7 +85,7 @@ public class MakeUnchecked
 		public void run() throws Exception;
 	}
 
-	public static < T > Supplier< T > unchecked( final CheckedSupplier< T > supplier )
+	public static < T > Supplier< T > supplier( final CheckedSupplier< T > supplier )
 	{
 		return () -> {
 			try
@@ -100,7 +100,7 @@ public class MakeUnchecked
 		};
 	}
 
-	public static Runnable unchecked( final CheckedRunnable runnable )
+	public static Runnable runnable( final CheckedRunnable runnable )
 	{
 		return () -> {
 			try

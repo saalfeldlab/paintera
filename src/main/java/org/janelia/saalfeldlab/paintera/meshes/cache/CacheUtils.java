@@ -424,7 +424,7 @@ public class CacheUtils
 
 	public static < T, R > InterruptibleFunction< T, R > fromCache( final Cache< T, R > cache, final Interruptible< T > interruptible )
 	{
-		return InterruptibleFunction.fromFunctionAndInterruptible( MakeUnchecked.unchecked( cache::get ), interruptible );
+		return InterruptibleFunction.fromFunctionAndInterruptible( MakeUnchecked.function( cache::get ), interruptible );
 	}
 
 }

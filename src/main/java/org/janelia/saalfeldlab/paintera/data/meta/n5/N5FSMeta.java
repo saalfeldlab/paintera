@@ -7,7 +7,9 @@ import org.janelia.saalfeldlab.n5.N5FSWriter;
 import org.janelia.saalfeldlab.n5.N5Reader;
 import org.janelia.saalfeldlab.n5.N5Writer;
 
-public class N5FSMeta implements N5Meta
+import net.imglib2.type.NativeType;
+
+public class N5FSMeta< T extends NativeType< T > > implements N5Meta< T >
 {
 
 	private static final String BASE_PATH_FIELD_NAME = "basePath";

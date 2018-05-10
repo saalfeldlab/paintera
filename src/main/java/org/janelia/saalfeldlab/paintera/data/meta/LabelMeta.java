@@ -1,115 +1,44 @@
 package org.janelia.saalfeldlab.paintera.data.meta;
 
-import java.util.Arrays;
-import java.util.function.BiConsumer;
-import java.util.function.LongFunction;
+import java.util.Optional;
+import java.util.concurrent.ExecutorService;
+import java.util.function.Function;
+import java.util.function.Supplier;
 
-import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignmentState;
-import org.janelia.saalfeldlab.paintera.data.meta.exception.AssignmentCreationFailed;
-import org.janelia.saalfeldlab.paintera.data.meta.exception.BlocksForIdCacheCreationFailed;
-import org.janelia.saalfeldlab.paintera.data.meta.exception.CommitCanvasCreationFailed;
-import org.janelia.saalfeldlab.paintera.data.meta.exception.IdServiceCreationFailed;
-import org.janelia.saalfeldlab.paintera.data.meta.exception.MeshCacheCreationFailed;
-import org.janelia.saalfeldlab.paintera.id.IdService;
-import org.janelia.saalfeldlab.paintera.id.ToIdConverter;
-import org.janelia.saalfeldlab.paintera.meshes.InterruptibleFunction;
-import org.janelia.saalfeldlab.paintera.meshes.MeshGenerator.ShapeKey;
+import org.janelia.saalfeldlab.paintera.composition.Composite;
+import org.janelia.saalfeldlab.paintera.control.selection.SelectedIds;
+import org.janelia.saalfeldlab.paintera.data.meta.exception.SourceCreationFailed;
+import org.janelia.saalfeldlab.paintera.state.LabelSourceState;
 import org.janelia.saalfeldlab.paintera.state.SourceState;
 
-import net.imglib2.Interval;
-import net.imglib2.cache.img.CachedCellImg;
-import net.imglib2.converter.Converter;
-import net.imglib2.exception.IncompatibleTypeException;
-import net.imglib2.type.label.LabelMultisetType;
-import net.imglib2.type.logic.BoolType;
+import bdv.util.volatiles.SharedQueue;
+import bdv.viewer.Interpolation;
+import javafx.scene.Group;
+import net.imglib2.RandomAccessible;
+import net.imglib2.interpolation.InterpolatorFactory;
+import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.type.numeric.ARGBType;
-import net.imglib2.type.numeric.IntegerType;
-import net.imglib2.type.numeric.RealType;
-import net.imglib2.type.numeric.integer.UnsignedLongType;
 import net.imglib2.util.Pair;
 
-public interface LabelMeta
+public interface LabelMeta< D, T > extends Meta
 {
 
-	public default FragmentSegmentAssignmentState assignment(
-			final SourceState< ?, ? >... dependsOn ) throws AssignmentCreationFailed
-	{
-		return assignment( new long[] {}, new long[] {}, dependsOn );
-	}
-
-	public FragmentSegmentAssignmentState assignment(
-			long[] fragments,
-			long[] segments,
-			SourceState< ?, ? >... dependsOn ) throws AssignmentCreationFailed;
-
-	public IdService idService(
-			SourceState< ?, ? >... dependsOn ) throws IdServiceCreationFailed;
-
-	public default InterruptibleFunction< Long, Interval[] >[] blocksThatContainId(
-			final SourceState< ?, ? >... dependsOn ) throws BlocksForIdCacheCreationFailed
-	{
-		return null;
-	}
-
-	public BiConsumer< CachedCellImg< UnsignedLongType, ? >, long[] > commitCanvas(
-			SourceState< ?, ? >... dependsOn ) throws CommitCanvasCreationFailed;
-
-	public default InterruptibleFunction< ShapeKey, Pair< float[], float[] > >[] meshCache(
-			final SourceState< ?, ? >... dependsOn ) throws MeshCacheCreationFailed
-	{
-		return null;
-	}
-
-	public default < T > ToIdConverter toIdConverter(
-			final T t,
-			final SourceState< ?, ? >... dependsOn ) throws IncompatibleTypeException
-	{
-		if ( t instanceof LabelMultisetType )
-		{
-			return ToIdConverter.fromLabelMultisetType();
-		}
-		else if ( t instanceof IntegerType< ? > )
-		{
-			return ToIdConverter.fromIntegerType();
-		}
-		else if ( t instanceof ARGBType )
-		{
-			return ToIdConverter.fromARGB();
-		}
-		else if ( t instanceof RealType< ? > ) { return ToIdConverter.fromRealType(); }
-
-		throw new IncompatibleTypeException( t, "Supported types are: " + Arrays.asList(
-				LabelMultisetType.class.getName(),
-				IntegerType.class.getName(),
-				ARGBType.class.getName(),
-				RealType.class.getName() ) );
-
-	}
-
-	@SuppressWarnings( "unchecked" )
-	public default < D > LongFunction< Converter< D, BoolType > > maskForId(
-			final D d,
-			final SourceState< ?, ? >... dependsOn ) throws IncompatibleTypeException
-	{
-		if ( d instanceof LabelMultisetType ) { return id -> ( Converter< D, BoolType > ) maskForIdLabelMultisetType( id ); }
-		if ( d instanceof IntegerType< ? > ) { return id -> ( Converter< D, BoolType > ) maskForIdIntegerType( id ); }
-		throw new IncompatibleTypeException( d, "Supported types are: " + Arrays.asList(
-				LabelMultisetType.class.getName(),
-				IntegerType.class.getName() ) );
-	}
-
-	public static Converter< LabelMultisetType, BoolType > maskForIdLabelMultisetType(
-			final long id,
-			final SourceState< ?, ? >... dependsOn )
-	{
-		return ( s, t ) -> t.set( s.contains( id ) );
-	}
-
-	public static < I extends IntegerType< I > > Converter< I, BoolType > maskForIdIntegerType(
-			final long id,
-			final SourceState< ?, ? >... dependsOn )
-	{
-		return ( s, t ) -> t.set( s.getIntegerLong() == id );
-	}
+	public LabelSourceState< D, T > asSource(
+			final Optional< Pair< long[], long[] > > initialAssignment,
+			final SelectedIds selectedIds,
+			final Composite< ARGBType, ARGBType > composite,
+			final SharedQueue sharedQueue,
+			final int priority,
+			final Function< Interpolation, InterpolatorFactory< D, RandomAccessible< D > > > dataInterpolation,
+			final Function< Interpolation, InterpolatorFactory< T, RandomAccessible< T > > > viewerInterpolation,
+			final AffineTransform3D transform,
+			final String name,
+			final String canvasDir,
+			final Supplier< String > canvasCacheDirUpdate,
+			final ExecutorService propagationExecutor,
+			final ExecutorService manager,
+			final ExecutorService workers,
+			final Group meshesGroup,
+			SourceState< ?, ? >... dependson ) throws SourceCreationFailed;
 
 }
