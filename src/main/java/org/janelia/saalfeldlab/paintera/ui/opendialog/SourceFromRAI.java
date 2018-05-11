@@ -21,9 +21,6 @@ import org.janelia.saalfeldlab.paintera.data.DataSource;
 import org.janelia.saalfeldlab.paintera.data.RandomAccessibleIntervalDataSource;
 import org.janelia.saalfeldlab.paintera.data.mask.Masks;
 import org.janelia.saalfeldlab.paintera.data.mask.TmpDirectoryCreator;
-import org.janelia.saalfeldlab.paintera.data.meta.LabelMeta;
-import org.janelia.saalfeldlab.paintera.data.meta.RawMeta;
-import org.janelia.saalfeldlab.paintera.data.meta.n5.MetaInstantiationFailed;
 import org.janelia.saalfeldlab.paintera.id.IdService;
 import org.janelia.saalfeldlab.paintera.id.ToIdConverter;
 import org.janelia.saalfeldlab.paintera.meshes.InterruptibleFunction;
@@ -90,11 +87,13 @@ public interface SourceFromRAI extends BackendDialog
 	{
 		if ( isLabelType() )
 		{
-			if ( isLabelMultisetType() )
+			if ( isLabelMultisetType() ) {
 				return ToIdConverter.fromLabelMultisetType();
+			}
 
-			if ( isIntegerType() )
+			if ( isIntegerType() ) {
 				return ToIdConverter.fromIntegerType();
+			}
 		}
 		return null;
 	}
@@ -124,11 +123,13 @@ public interface SourceFromRAI extends BackendDialog
 	@SuppressWarnings( "unchecked" )
 	public default < D > LongFunction< Converter< D, BoolType > > maskForId() throws Exception
 	{
-		if ( isLabelMultisetType() )
+		if ( isLabelMultisetType() ) {
 			return id -> ( Converter< D, BoolType > ) maskForIdLabelMultisetType( id );
+		}
 
-		if ( isIntegerType() )
+		if ( isIntegerType() ) {
 			return id -> ( Converter< D, BoolType > ) maskForIdIntegerType( id );
+		}
 
 		return null;
 	}
@@ -143,15 +144,11 @@ public interface SourceFromRAI extends BackendDialog
 		return ( s, t ) -> t.set( s.getIntegerLong() == id );
 	}
 
-	public < D extends NativeType< D >, T extends Volatile< D > & NativeType< T > & RealType< T > > RawMeta< D, T > getRawMeta() throws MetaInstantiationFailed;
-
-	public < D extends NativeType< D >, T extends Volatile< D > & NativeType< T > > LabelMeta< D, T > getLabelMeta() throws MetaInstantiationFailed;
-
 	@Override
 	public default < T extends RealType< T > & NativeType< T >, V extends AbstractVolatileRealType< T, V > & NativeType< V > > RawSourceState< T, V > getRaw(
 			final String name,
 			final SharedQueue sharedQueue,
-			final int priority ) throws IOException, MetaInstantiationFailed
+			final int priority ) throws IOException
 	{
 		final Triple< RandomAccessibleInterval< T >[], RandomAccessibleInterval< V >[], AffineTransform3D[] > dataAndVolatile = getDataAndVolatile( sharedQueue, priority );
 		LOG.debug( "Got data: {}", dataAndVolatile );
@@ -159,8 +156,7 @@ public interface SourceFromRAI extends BackendDialog
 				getCached( dataAndVolatile.getA(), dataAndVolatile.getB(), dataAndVolatile.getC(), name, sharedQueue, priority ),
 				new ARGBColorConverter.InvertingImp1<>( 0, 255 ),
 				new CompositeCopy<>(),
-				name,
-				getRawMeta() );
+				name );
 	}
 
 	default < T extends NativeType< T >, V extends Volatile< T > & NativeType< V > > DataSource< T, V > getSourceNearestNeighborInterpolationOnly(
@@ -199,38 +195,37 @@ public interface SourceFromRAI extends BackendDialog
 				commitCanvas(),
 				propagationExecutor() );
 
-		SelectedIds selectedIds = new SelectedIds();
-		FragmentSegmentAssignmentState assignments = assignments();
-		SelectedSegments selectedSegments = new SelectedSegments( selectedIds, assignments );
-		FragmentsInSelectedSegments fragmentsInSelectedSegments = new FragmentsInSelectedSegments( selectedSegments, assignments );
-		ModalGoldenAngleSaturatedHighlightingARGBStream stream = new ModalGoldenAngleSaturatedHighlightingARGBStream( selectedIds, assignments );
-		
-		InterruptibleFunction< Long, Interval[] >[] blocksCache = Optional
+		final SelectedIds selectedIds = new SelectedIds();
+		final FragmentSegmentAssignmentState assignments = assignments();
+		final SelectedSegments selectedSegments = new SelectedSegments( selectedIds, assignments );
+		final FragmentsInSelectedSegments fragmentsInSelectedSegments = new FragmentsInSelectedSegments( selectedSegments, assignments );
+		final ModalGoldenAngleSaturatedHighlightingARGBStream stream = new ModalGoldenAngleSaturatedHighlightingARGBStream( selectedIds, assignments );
+
+		final InterruptibleFunction< Long, Interval[] >[] blocksCache = Optional
 				.ofNullable( blocksThatContainId() )
 				.orElseGet( () -> PainteraBaseView.generateLabelBlocksForLabelCache( source, PainteraBaseView.scaleFactorsFromAffineTransforms( source ) ) );
-		InterruptibleFunction< ShapeKey, Pair< float[], float[] > >[] meshCache = CacheUtils.meshCacheLoaders( source, PainteraBaseView.equalsMaskForType( source.getDataType() ), CacheUtils::toCacheSoftRefLoaderCache );
-		MeshManagerWithAssignment meshManager = new MeshManagerWithAssignment(
-				source, 
+		final InterruptibleFunction< ShapeKey, Pair< float[], float[] > >[] meshCache = CacheUtils.meshCacheLoaders( source, PainteraBaseView.equalsMaskForType( source.getDataType() ), CacheUtils::toCacheSoftRefLoaderCache );
+		final MeshManagerWithAssignment meshManager = new MeshManagerWithAssignment(
+				source,
 				blocksCache,
 				meshCache,
 				meshesGroup,
 				assignments,
-				fragmentsInSelectedSegments, 
-				stream, 
-				new SimpleIntegerProperty(), 
+				fragmentsInSelectedSegments,
+				stream,
+				new SimpleIntegerProperty(),
 				new SimpleDoubleProperty(),
 				new SimpleIntegerProperty(),
 				manager,
 				workers );
 
-		MeshInfos meshInfos = new MeshInfos( selectedSegments, assignments, meshManager, source.getNumMipmapLevels() );
+		final MeshInfos meshInfos = new MeshInfos( selectedSegments, assignments, meshManager, source.getNumMipmapLevels() );
 
-		return new LabelSourceState< D, T >(
+		return new LabelSourceState< >(
 				source,
 				HighlightingStreamConverter.forType( stream, source.getType() ),
 				new ARGBCompositeAlphaYCbCr(),
 				name,
-				getLabelMeta(),
 				PainteraBaseView.equalsMaskForType( source.getDataType() ),
 				assignments,
 				toIdConverter(),
@@ -263,10 +258,10 @@ public interface SourceFromRAI extends BackendDialog
 				vrai,
 				transforms,
 				interpolation -> interpolation.equals( Interpolation.NLINEAR ) ? new NLinearInterpolatorFactory<>() : new NearestNeighborInterpolatorFactory<>(),
-				interpolation -> interpolation.equals( Interpolation.NLINEAR ) ? new NLinearInterpolatorFactory<>() : new NearestNeighborInterpolatorFactory<>(),
-				nameOrPattern,
-				sharedQueue,
-				priority );
+						interpolation -> interpolation.equals( Interpolation.NLINEAR ) ? new NLinearInterpolatorFactory<>() : new NearestNeighborInterpolatorFactory<>(),
+								nameOrPattern,
+								sharedQueue,
+								priority );
 	}
 
 	public default < T extends Type< T >, V extends Type< V > > DataSource< T, V > getCached(

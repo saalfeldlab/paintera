@@ -12,10 +12,6 @@ import java.util.stream.Stream;
 import org.janelia.saalfeldlab.paintera.composition.Composite;
 import org.janelia.saalfeldlab.paintera.control.selection.SelectedIds;
 import org.janelia.saalfeldlab.paintera.data.mask.TmpDirectoryCreator;
-import org.janelia.saalfeldlab.paintera.data.meta.LabelMeta;
-import org.janelia.saalfeldlab.paintera.data.meta.RawMeta;
-import org.janelia.saalfeldlab.paintera.data.meta.exception.MetaException;
-import org.janelia.saalfeldlab.paintera.data.meta.exception.SourceCreationFailed;
 import org.janelia.saalfeldlab.paintera.state.LabelSourceState;
 import org.janelia.saalfeldlab.paintera.state.RawSourceState;
 import org.janelia.saalfeldlab.paintera.state.SourceState;
@@ -42,8 +38,6 @@ import net.imglib2.Volatile;
 import net.imglib2.converter.ARGBColorConverter;
 import net.imglib2.converter.Converter;
 import net.imglib2.exception.IncompatibleTypeException;
-import net.imglib2.interpolation.randomaccess.NLinearInterpolatorFactory;
-import net.imglib2.interpolation.randomaccess.NearestNeighborInterpolatorFactory;
 import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.type.NativeType;
 import net.imglib2.type.label.LabelMultisetType;
@@ -111,9 +105,9 @@ public class SourceStateSerializer implements JsonSerializer< SourceStateWithInd
 		public static StateType fromState( final SourceState< ?, ? > state )
 		{
 			return state instanceof LabelSourceState< ?, ? >
-					? LABEL
+			? LABEL
 					: state instanceof RawSourceState< ?, ? >
-							? RAW : UNKNOWN;
+			? RAW : UNKNOWN;
 		}
 
 	};
@@ -144,14 +138,9 @@ public class SourceStateSerializer implements JsonSerializer< SourceStateWithInd
 		final AffineTransform3D transform = new AffineTransform3D();
 		src.getDataSource().getSourceTransform( 0, 0, transform );
 
-		final JsonObject metaData = new JsonObject();
-		metaData.addProperty( META_DATA_CLASS_KEY, src.getMeta().getClass().getName() );
-		metaData.add( META_DATA_DATA_KEY, context.serialize( src.getMeta() ) );
-
 		final JsonObject map = new JsonObject();
 		map.add( IS_VISIBLE_KEY, new JsonPrimitive( src.isVisibleProperty().get() ) );
 		map.add( COMPOSITE_KEY, context.serialize( src.compositeProperty().getValue() ) );
-		map.add( META_KEY, metaData );
 		map.add( NAME_KEY, new JsonPrimitive( src.nameProperty().get() ) );
 		map.add( INTERPOLATION_KEY, context.serialize( src.interpolationProperty().getValue() ) );
 		map.add( TRANSFORM_KEY, context.serialize( transform ) );
@@ -205,27 +194,20 @@ public class SourceStateSerializer implements JsonSerializer< SourceStateWithInd
 			final SharedQueue queue,
 			final int priority,
 			final Gson gson,
-			final SourceState< ?, ? >... dependencies ) throws SourceCreationFailed, JsonSyntaxException, ClassNotFoundException
+			final SourceState< ?, ? >... dependencies ) throws JsonSyntaxException, ClassNotFoundException
 	{
 
 		LOG.warn( "Getting raw from {}", map );
 		final JsonObject metaData = map.get( META_KEY ).getAsJsonObject();
 		LOG.debug( "got meta data: {}", metaData );
 		@SuppressWarnings( "unchecked" )
-		final RawMeta< D, T > meta = ( RawMeta< D, T > ) gson.fromJson( metaData.get( META_DATA_DATA_KEY ), Class.forName( metaData.get( META_DATA_CLASS_KEY ).getAsString() ) );
 		final String name = map.get( NAME_KEY ).getAsString();
 		LOG.debug( "Got name={}", name );
 		final AffineTransform3D transform = gson.fromJson( map.get( TRANSFORM_KEY ), AffineTransform3D.class );
 		@SuppressWarnings( "unchecked" )
 		final Composite< ARGBType, ARGBType > composite = gson.fromJson( map.get( COMPOSITE_KEY ), Composite.class );
 
-		RawSourceState< D, T > state = meta.asSource(
-				queue,
-				priority,
-				i -> Interpolation.NLINEAR.equals( i ) ? new NLinearInterpolatorFactory<>() : new NearestNeighborInterpolatorFactory<>(),
-				i -> Interpolation.NLINEAR.equals( i ) ? new NLinearInterpolatorFactory<>() : new NearestNeighborInterpolatorFactory<>(),
-				transform,
-				dependencies );
+		final RawSourceState< D, T > state = null;
 
 		state.compositeProperty().set( composite );
 
@@ -233,7 +215,7 @@ public class SourceStateSerializer implements JsonSerializer< SourceStateWithInd
 
 		if ( state.converter() instanceof ARGBColorConverter )
 		{
-			final ARGBColorConverter< ? > converter = ( ARGBColorConverter< ? > ) state.converter();
+			final ARGBColorConverter< ? > converter = state.converter();
 			if ( map.has( CONVERTER_KEY ) )
 			{
 				final JsonObject converterSettings = map.get( CONVERTER_KEY ).getAsJsonObject();
@@ -264,13 +246,11 @@ public class SourceStateSerializer implements JsonSerializer< SourceStateWithInd
 			final ExecutorService manager,
 			final ExecutorService workers,
 			final Gson gson,
-			final SourceState< ?, ? >... dependencies ) throws IOException, JsonParseException, ClassNotFoundException, MetaException
+			final SourceState< ?, ? >... dependencies ) throws IOException, JsonParseException, ClassNotFoundException
 	{
 		final JsonObject metaData = map.get( META_KEY ).getAsJsonObject();
 		LOG.warn( "got meta data: {}", metaData );
 		@SuppressWarnings( "unchecked" )
-		final LabelMeta< LabelMultisetType, VolatileLabelMultisetType > meta = ( LabelMeta< LabelMultisetType, VolatileLabelMultisetType > ) gson.fromJson( metaData.get( META_DATA_DATA_KEY ), Class.forName( metaData.get( META_DATA_CLASS_KEY ).getAsString() ) );
-		LOG.warn( "Got meta deserialized: {}", meta );
 		final String name = map.get( NAME_KEY ).getAsString();
 		LOG.debug( "Got name={}", name );
 		final AffineTransform3D transform = gson.fromJson( map.get( TRANSFORM_KEY ), AffineTransform3D.class );
@@ -285,43 +265,27 @@ public class SourceStateSerializer implements JsonSerializer< SourceStateWithInd
 		final String canvasDir = Optional.ofNullable( map.get( CANVAS_DIR_KEY ) ).map( JsonElement::getAsString ).orElseGet( nextCanvasDirectory );
 
 		final JsonObject serializedAssignment = map.get( ASSIGNMENT_KEY ).getAsJsonObject();
-		Optional< Pair< long[], long[] > > initialAssignment = serializedAssignment == null
+		final Optional< Pair< long[], long[] > > initialAssignment = serializedAssignment == null
 				? Optional.empty()
-				: Optional.of( new ValuePair<>(
-						gson.fromJson( serializedAssignment.get( FragmentSegmentAssignmentOnlyLocalSerializer.FRAGMENTS_KEY ), long[].class ),
-						gson.fromJson( serializedAssignment.get( FragmentSegmentAssignmentOnlyLocalSerializer.SEGMENTS_KEY ), long[].class ) ) );
+						: Optional.of( new ValuePair<>(
+								gson.fromJson( serializedAssignment.get( FragmentSegmentAssignmentOnlyLocalSerializer.FRAGMENTS_KEY ), long[].class ),
+								gson.fromJson( serializedAssignment.get( FragmentSegmentAssignmentOnlyLocalSerializer.SEGMENTS_KEY ), long[].class ) ) );
 
-		LabelSourceState< LabelMultisetType, VolatileLabelMultisetType > state = meta.asSource(
-				initialAssignment,
-				selectedIds,
-				composite,
-				queue,
-				priority,
-				i -> new NearestNeighborInterpolatorFactory<>(),
-				i -> new NearestNeighborInterpolatorFactory<>(),
-				transform,
-				name,
-				canvasDir,
-				nextCanvasDirectory,
-				propagationExecutor,
-				manager,
-				workers,
-				root,
-				dependencies );
+				final LabelSourceState< LabelMultisetType, VolatileLabelMultisetType > state = null;
 
-		if ( state.converter() instanceof HighlightingStreamConverter< ? > && map.has( CONVERTER_KEY ) )
-		{
-			HighlightingStreamConverter< ? > converter = ( HighlightingStreamConverter< ? > ) state.converter();
-			Optional.ofNullable( map.get( CONVERTER_ALPHA_KEY ) ).map( JsonElement::getAsInt ).ifPresent( converter.alphaProperty()::set );
-			Optional.ofNullable( map.get( CONVERTER_ACTIVE_FRAGMENT_ALPHA_KEY ) ).map( JsonElement::getAsInt ).ifPresent( converter.activeFragmentAlphaProperty()::set );
-			Optional.ofNullable( map.get( CONVERTER_ACTIVE_SEGMENT_ALPHA_KEY ) ).map( JsonElement::getAsInt ).ifPresent( converter.activeSegmentAlphaProperty()::set );
-			Optional.ofNullable( map.get( CONVERTER_SEED_KEY ) ).map( JsonElement::getAsLong ).ifPresent( converter.seedProperty()::set );
-			Optional.ofNullable( map.get( CONVERTER_COLOR_FROM_SEGMENT_KEY ) ).map( JsonElement::getAsBoolean ).ifPresent( converter.colorFromSegmentIdProperty()::set );
-		}
-		state.interpolationProperty().set( Optional
-				.ofNullable( gson.fromJson( map.get( INTERPOLATION_KEY ), Interpolation.class ) )
-				.orElse( Interpolation.NEARESTNEIGHBOR ) );
-		return state;
+				if ( state.converter() instanceof HighlightingStreamConverter< ? > && map.has( CONVERTER_KEY ) )
+				{
+					final HighlightingStreamConverter< ? > converter = state.converter();
+					Optional.ofNullable( map.get( CONVERTER_ALPHA_KEY ) ).map( JsonElement::getAsInt ).ifPresent( converter.alphaProperty()::set );
+					Optional.ofNullable( map.get( CONVERTER_ACTIVE_FRAGMENT_ALPHA_KEY ) ).map( JsonElement::getAsInt ).ifPresent( converter.activeFragmentAlphaProperty()::set );
+					Optional.ofNullable( map.get( CONVERTER_ACTIVE_SEGMENT_ALPHA_KEY ) ).map( JsonElement::getAsInt ).ifPresent( converter.activeSegmentAlphaProperty()::set );
+					Optional.ofNullable( map.get( CONVERTER_SEED_KEY ) ).map( JsonElement::getAsLong ).ifPresent( converter.seedProperty()::set );
+					Optional.ofNullable( map.get( CONVERTER_COLOR_FROM_SEGMENT_KEY ) ).map( JsonElement::getAsBoolean ).ifPresent( converter.colorFromSegmentIdProperty()::set );
+				}
+				state.interpolationProperty().set( Optional
+						.ofNullable( gson.fromJson( map.get( INTERPOLATION_KEY ), Interpolation.class ) )
+						.orElse( Interpolation.NEARESTNEIGHBOR ) );
+				return state;
 
 	}
 
@@ -335,7 +299,7 @@ public class SourceStateSerializer implements JsonSerializer< SourceStateWithInd
 			final ExecutorService manager,
 			final ExecutorService workers,
 			final Gson gson,
-			final SourceState< ?, ? >... dependencies ) throws IncompatibleTypeException, JsonParseException, ClassNotFoundException, IOException, MetaException
+			final SourceState< ?, ? >... dependencies ) throws IncompatibleTypeException, JsonParseException, ClassNotFoundException, IOException
 	{
 		final StateType type = gson.fromJson( serializedSource.get( TYPE_KEY ), StateType.class );
 		switch ( type )
@@ -371,11 +335,11 @@ public class SourceStateSerializer implements JsonSerializer< SourceStateWithInd
 			final ExecutorService propagationExecutor,
 			final ExecutorService manager,
 			final ExecutorService workers,
-			final Gson gson ) throws ClassNotFoundException, UndefinedDependency, HasCyclicDependencies, IncompatibleTypeException, JsonParseException, IOException, MetaException
+			final Gson gson ) throws ClassNotFoundException, UndefinedDependency, HasCyclicDependencies, IncompatibleTypeException, JsonParseException, IOException
 	{
 //		final Meta[] metas = new RawMeta[ serializedStates.size() ];
-		int numStates = serializedStates.size();
-		TIntHashSet[] dependsOn = new TIntHashSet[ numStates ];
+		final int numStates = serializedStates.size();
+		final TIntHashSet[] dependsOn = new TIntHashSet[ numStates ];
 		LOG.warn( "Deserializing {}", serializedStates );
 		for ( int i = 0; i < numStates; ++i )
 		{
@@ -388,7 +352,7 @@ public class SourceStateSerializer implements JsonSerializer< SourceStateWithInd
 //			metas[ i ] = ( Meta ) gson.fromJson(
 //					metaData.get( META_DATA_DATA_KEY ),
 //					Class.forName( metaData.get( META_DATA_CLASS_KEY ).getAsString() ) );
-			int[] depends = Optional
+			final int[] depends = Optional
 					.ofNullable( serializedStates.get( i ).getAsJsonObject().get( DEPENDS_ON_KEY ) )
 					.map( el -> gson.fromJson( el, int[].class ) )
 					.orElseGet( () -> new int[] {} );
@@ -426,7 +390,7 @@ public class SourceStateSerializer implements JsonSerializer< SourceStateWithInd
 
 		if ( Arrays.stream( sourceStates ).filter( s -> s == null ).count() > 0 )
 		{
-		throw new RuntimeException( "OOPS!" );
+			throw new RuntimeException( "OOPS!" );
 		}
 
 		return sourceStates;

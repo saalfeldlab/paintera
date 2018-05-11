@@ -1,4 +1,4 @@
-package org.janelia.saalfeldlab.paintera.data.meta.n5;
+package org.janelia.saalfeldlab.paintera.data.n5;
 
 import java.io.IOException;
 import java.lang.invoke.MethodHandles;

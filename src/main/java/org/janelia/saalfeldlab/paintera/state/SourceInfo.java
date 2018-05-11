@@ -12,8 +12,6 @@ import org.janelia.saalfeldlab.paintera.composition.Composite;
 import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignmentState;
 import org.janelia.saalfeldlab.paintera.control.selection.SelectedIds;
 import org.janelia.saalfeldlab.paintera.data.DataSource;
-import org.janelia.saalfeldlab.paintera.data.meta.LabelMeta;
-import org.janelia.saalfeldlab.paintera.data.meta.RawMeta;
 import org.janelia.saalfeldlab.paintera.id.IdService;
 import org.janelia.saalfeldlab.paintera.id.ToIdConverter;
 import org.janelia.saalfeldlab.paintera.meshes.MeshInfos;
@@ -132,12 +130,11 @@ public class SourceInfo
 			final double min,
 			final double max,
 			final ARGBType color,
-			final Composite< ARGBType, ARGBType > composite,
-			final RawMeta< D, T > metaData )
+			final Composite< ARGBType, ARGBType > composite )
 	{
 		final ARGBColorConverter< T > converter = new ARGBColorConverter.InvertingImp1<>( min, max );
 		converter.colorProperty().set( color );
-		final RawSourceState< D, T > state = new RawSourceState<>( source, converter, composite, source.getName(), metaData );
+		final RawSourceState< D, T > state = new RawSourceState<>( source, converter, composite, source.getName() );
 		return state;
 	}
 
@@ -146,10 +143,9 @@ public class SourceInfo
 			final double min,
 			final double max,
 			final ARGBType color,
-			final Composite< ARGBType, ARGBType > composite,
-			final RawMeta< D, T > metaData )
+			final Composite< ARGBType, ARGBType > composite )
 	{
-		final RawSourceState< D, T > state = makeRawSourceState( source, min, max, color, composite, metaData );
+		final RawSourceState< D, T > state = makeRawSourceState( source, min, max, color, composite );
 		addState( source, state );
 		return state;
 	}
@@ -158,7 +154,6 @@ public class SourceInfo
 			final DataSource< D, T > source,
 			final HighlightingStreamConverter< T > converter,
 			final Composite< ARGBType, ARGBType > composite,
-			final LabelMeta< D, T > metaData,
 			final LongFunction< Converter< D, BoolType > > maskForLabel,
 			final FragmentSegmentAssignmentState assignment,
 			final ToIdConverter toIdConverter,
@@ -172,7 +167,6 @@ public class SourceInfo
 				converter,
 				composite,
 				source.getName(),
-				metaData,
 				maskForLabel,
 				assignment,
 				toIdConverter,
@@ -187,7 +181,6 @@ public class SourceInfo
 			final DataSource< D, T > source,
 			final HighlightingStreamConverter< T > converter,
 			final Composite< ARGBType, ARGBType > composite,
-			final LabelMeta< D, T > metaData,
 			final LongFunction< Converter< D, BoolType > > maskForLabel,
 			final FragmentSegmentAssignmentState assignment,
 			final ToIdConverter toIdConverter,
@@ -200,7 +193,6 @@ public class SourceInfo
 				source,
 				converter,
 				composite,
-				metaData,
 				maskForLabel,
 				assignment,
 				toIdConverter,
@@ -294,7 +286,7 @@ public class SourceInfo
 	{
 		final SourceState< ?, ? > state = states.get( source );
 		return state instanceof LabelSourceState< ?, ? >
-				? Optional.of( ( ( LabelSourceState< ?, ? > ) state ).toIdConverter() )
+		? Optional.of( ( ( LabelSourceState< ?, ? > ) state ).toIdConverter() )
 				: Optional.empty();
 	}
 
@@ -302,7 +294,7 @@ public class SourceInfo
 	{
 		final SourceState< ?, ? > state = states.get( source );
 		return state instanceof LabelSourceState< ?, ? >
-				? Optional.of( ( ( LabelSourceState< ?, ? > ) state ).assignment() )
+		? Optional.of( ( ( LabelSourceState< ?, ? > ) state ).assignment() )
 				: Optional.empty();
 	}
 
@@ -482,7 +474,7 @@ public class SourceInfo
 		return dependents;
 	}
 
-	public int indexOf( Source< ? > source )
+	public int indexOf( final Source< ? > source )
 	{
 		return this.trackSources().indexOf( source );
 	}

@@ -4,7 +4,6 @@ import java.util.Arrays;
 
 import org.janelia.saalfeldlab.paintera.composition.Composite;
 import org.janelia.saalfeldlab.paintera.data.DataSource;
-import org.janelia.saalfeldlab.paintera.data.meta.Meta;
 
 import bdv.viewer.Interpolation;
 import bdv.viewer.SourceAndConverter;
@@ -17,7 +16,7 @@ import javafx.beans.property.StringProperty;
 import net.imglib2.converter.Converter;
 import net.imglib2.type.numeric.ARGBType;
 
-public class MinimalSourceState< D, T, C extends Converter< T, ARGBType >, M extends Meta > implements SourceState< D, T >
+public class MinimalSourceState< D, T, C extends Converter< T, ARGBType > > implements SourceState< D, T >
 {
 
 	private final DataSource< D, T > dataSource;
@@ -27,8 +26,6 @@ public class MinimalSourceState< D, T, C extends Converter< T, ARGBType >, M ext
 	private final ObjectProperty< Composite< ARGBType, ARGBType > > composite;
 
 	private final StringProperty name;
-
-	private final M metaData;
 
 	private final BooleanProperty isVisible = new SimpleBooleanProperty( true );
 
@@ -43,7 +40,6 @@ public class MinimalSourceState< D, T, C extends Converter< T, ARGBType >, M ext
 			final C converter,
 			final Composite< ARGBType, ARGBType > composite,
 			final String name,
-			final M info,
 			final SourceState< ?, ? >... dependsOn )
 	{
 		super();
@@ -51,7 +47,6 @@ public class MinimalSourceState< D, T, C extends Converter< T, ARGBType >, M ext
 		this.converter = converter;
 		this.composite = new SimpleObjectProperty<>( composite );
 		this.name = new SimpleStringProperty( name );
-		this.metaData = info;
 		this.dependsOn = Arrays
 				.stream( dependsOn )
 				.filter( d -> !this.equals( d ) )
@@ -68,31 +63,31 @@ public class MinimalSourceState< D, T, C extends Converter< T, ARGBType >, M ext
 		return this.dataSource;
 	}
 
+	@Override
 	public C converter()
 	{
 		return this.converter;
 	}
 
+	@Override
 	public ObjectProperty< Composite< ARGBType, ARGBType > > compositeProperty()
 	{
 		return this.composite;
 	}
 
+	@Override
 	public StringProperty nameProperty()
 	{
 		return this.name;
 	}
 
+	@Override
 	public BooleanProperty isVisibleProperty()
 	{
 		return this.isVisible;
 	}
 
-	public Object getMetaData()
-	{
-		return metaData;
-	}
-
+	@Override
 	public ObjectProperty< Interpolation > interpolationProperty()
 	{
 		return this.interpolation;
@@ -103,12 +98,14 @@ public class MinimalSourceState< D, T, C extends Converter< T, ARGBType >, M ext
 		return this.converter;
 	}
 
+	@Override
 	public SourceAndConverter< T > getSourceAndConverter()
 	{
 		final SourceAndConverter< T > sac = new SourceAndConverter<>( dataSource, converter );
 		return sac;
 	}
 
+	@Override
 	public DataSource< D, T > getDataSource()
 	{
 		return this.dataSource;
@@ -117,12 +114,6 @@ public class MinimalSourceState< D, T, C extends Converter< T, ARGBType >, M ext
 	public SourceState< ?, ? >[] getDependsOn()
 	{
 		return this.dependsOn.clone();
-	}
-
-	@Override
-	public M getMeta()
-	{
-		return this.metaData;
 	}
 
 	@Override
@@ -137,16 +128,19 @@ public class MinimalSourceState< D, T, C extends Converter< T, ARGBType >, M ext
 		return this.getDependsOn();
 	}
 
+	@Override
 	public void stain()
 	{
 		this.isDirtyProperty().set( true );
 	}
 
+	@Override
 	public void clean()
 	{
 		this.isDirtyProperty().set( false );
 	}
 
+	@Override
 	public boolean isDirty()
 	{
 		return this.isDirtyProperty().get();

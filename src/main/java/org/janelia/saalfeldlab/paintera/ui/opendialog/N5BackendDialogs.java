@@ -11,8 +11,6 @@ import org.janelia.saalfeldlab.n5.N5FSWriter;
 import org.janelia.saalfeldlab.n5.N5Writer;
 import org.janelia.saalfeldlab.n5.googlecloud.N5GoogleCloudStorageWriter;
 import org.janelia.saalfeldlab.n5.hdf5.N5HDF5Writer;
-import org.janelia.saalfeldlab.paintera.data.meta.n5.N5FSMeta;
-import org.janelia.saalfeldlab.paintera.data.meta.n5.N5HDF5Meta;
 import org.janelia.saalfeldlab.paintera.ui.opendialog.googlecloud.GoogleCloudBrowseHandler;
 import org.janelia.saalfeldlab.paintera.ui.opendialog.googlecloud.StorageAndBucket;
 import org.janelia.saalfeldlab.util.MakeUnchecked;
@@ -81,13 +79,13 @@ public class N5BackendDialogs
 				LOG.debug( "Updated root={} and writer supplier={}", root, writerSupplier );
 			}
 			Optional
-					.ofNullable( updatedRoot )
-					.filter( File::exists )
-					.filter( File::isFile )
-					.map( File::getAbsolutePath )
-					.ifPresent( root::set );
+			.ofNullable( updatedRoot )
+			.filter( File::exists )
+			.filter( File::isFile )
+			.map( File::getAbsolutePath )
+			.ifPresent( root::set );
 		};
-		return new GenericBackendDialogN5( rootField, onClick, "N5", writerSupplier, propagationExecutor, dataset -> new N5FSMeta( root.get(), dataset ) );
+		return new GenericBackendDialogN5( rootField, onClick, "N5", writerSupplier, propagationExecutor );
 	}
 
 	public static GenericBackendDialogN5 hdf5(
@@ -123,13 +121,13 @@ public class N5BackendDialogs
 				writerSupplier.set( MakeUnchecked.supplier( () -> new N5HDF5Writer( root.get(), defaultBlockSize ) ) );
 			}
 			Optional
-					.ofNullable( updatedRoot )
-					.filter( File::exists )
-					.filter( File::isFile )
-					.map( File::getAbsolutePath )
-					.ifPresent( root::set );
+			.ofNullable( updatedRoot )
+			.filter( File::exists )
+			.filter( File::isFile )
+			.map( File::getAbsolutePath )
+			.ifPresent( root::set );
 		};
-		return new GenericBackendDialogN5( rootField, onClick, "HDF5", writerSupplier, propagationExecutor, ds -> new N5HDF5Meta( root.get(), ds, defaultBlockSize, overrideBlockSize ) );
+		return new GenericBackendDialogN5( rootField, onClick, "HDF5", writerSupplier, propagationExecutor );
 	}
 
 	public static GenericBackendDialogN5 googleCloud(
@@ -149,11 +147,11 @@ public class N5BackendDialogs
 
 		final ObservableValue< Supplier< N5Writer > > writerSupplier = Bindings.createObjectBinding(
 				() -> isValid.get()
-						? MakeUnchecked.supplier( () -> new N5GoogleCloudStorageWriter( storage.get(), bucket.get().getName() ) )
+				? MakeUnchecked.supplier( () -> new N5GoogleCloudStorageWriter( storage.get(), bucket.get().getName() ) )
 						: ( Supplier< N5Writer > ) () -> null,
-				isValid,
-				storage,
-				bucket );
+						isValid,
+						storage,
+						bucket );
 
 		final StringBinding storageAsString = Bindings.createStringBinding(
 				() -> Optional.ofNullable( storage.getValue() ).map( Storage::toString ).orElse( "" ),
@@ -189,7 +187,7 @@ public class N5BackendDialogs
 			}
 		};
 
-		return new GenericBackendDialogN5( grid, onClick, "google", writerSupplier, propagationExecutor, ds -> null );
+		return new GenericBackendDialogN5( grid, onClick, "google", writerSupplier, propagationExecutor );
 	}
 
 }

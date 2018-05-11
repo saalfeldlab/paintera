@@ -6,7 +6,6 @@ import org.janelia.saalfeldlab.paintera.composition.Composite;
 import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignmentState;
 import org.janelia.saalfeldlab.paintera.control.selection.SelectedIds;
 import org.janelia.saalfeldlab.paintera.data.DataSource;
-import org.janelia.saalfeldlab.paintera.data.meta.LabelMeta;
 import org.janelia.saalfeldlab.paintera.id.IdService;
 import org.janelia.saalfeldlab.paintera.id.ToIdConverter;
 import org.janelia.saalfeldlab.paintera.meshes.MeshInfos;
@@ -17,7 +16,7 @@ import net.imglib2.converter.Converter;
 import net.imglib2.type.logic.BoolType;
 import net.imglib2.type.numeric.ARGBType;
 
-public class LabelSourceState< D, T > extends MinimalSourceState< D, T, HighlightingStreamConverter< T >, LabelMeta< D, T > >
+public class LabelSourceState< D, T > extends MinimalSourceState< D, T, HighlightingStreamConverter< T > >
 {
 
 	private final LongFunction< Converter< D, BoolType > > maskForLabel;
@@ -39,7 +38,6 @@ public class LabelSourceState< D, T > extends MinimalSourceState< D, T, Highligh
 			final HighlightingStreamConverter< T > converter,
 			final Composite< ARGBType, ARGBType > composite,
 			final String name,
-			final LabelMeta< D, T > info,
 			final LongFunction< Converter< D, BoolType > > maskForLabel,
 			final FragmentSegmentAssignmentState assignment,
 			final ToIdConverter toIdConverter,
@@ -48,7 +46,7 @@ public class LabelSourceState< D, T > extends MinimalSourceState< D, T, Highligh
 			final MeshManager meshManager,
 			final MeshInfos meshInfos )
 	{
-		super( dataSource, converter, composite, name, info );
+		super( dataSource, converter, composite, name );
 		this.maskForLabel = maskForLabel;
 		this.assignment = assignment;
 		this.toIdConverter = toIdConverter;

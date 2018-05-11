@@ -1051,4 +1051,14 @@ public class MaskedSource< D extends Type< D >, T extends Type< T > > implements
 		return this.source;
 	}
 
+	public String currentCanvasDirectory()
+	{
+		return this.cacheDirectory.get();
+	}
+
+	public BiConsumer< CachedCellImg< UnsignedLongType, ? >, long[] > getPersister()
+	{
+		return this.persistCanvas;
+	}
+
 }

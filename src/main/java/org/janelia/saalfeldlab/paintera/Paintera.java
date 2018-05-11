@@ -7,21 +7,10 @@ import java.util.regex.Pattern;
 
 import org.janelia.saalfeldlab.fx.event.KeyTracker;
 import org.janelia.saalfeldlab.fx.ortho.OrthogonalViews;
-import org.janelia.saalfeldlab.n5.N5Reader;
-import org.janelia.saalfeldlab.n5.N5Writer;
-import org.janelia.saalfeldlab.n5.hdf5.N5HDF5Reader;
-import org.janelia.saalfeldlab.paintera.composition.ARGBCompositeAlphaYCbCr;
-import org.janelia.saalfeldlab.paintera.control.selection.SelectedIds;
 import org.janelia.saalfeldlab.paintera.data.DataSource;
-import org.janelia.saalfeldlab.paintera.data.mask.TmpDirectoryCreator;
-import org.janelia.saalfeldlab.paintera.data.meta.n5.N5FSRawMeta;
-import org.janelia.saalfeldlab.paintera.data.meta.n5.N5HDF5RawMeta;
-import org.janelia.saalfeldlab.paintera.data.meta.n5.N5LabelMeta;
-import org.janelia.saalfeldlab.paintera.data.meta.n5.N5RawMeta;
 import org.janelia.saalfeldlab.paintera.serialization.GsonHelpers;
 import org.janelia.saalfeldlab.paintera.serialization.Properties;
 import org.janelia.saalfeldlab.paintera.state.LabelSourceState;
-import org.janelia.saalfeldlab.paintera.state.RawSourceState;
 import org.janelia.saalfeldlab.paintera.viewer3d.Viewer3DFX;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -29,7 +18,6 @@ import org.slf4j.LoggerFactory;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
 
-import bdv.viewer.Interpolation;
 import bdv.viewer.ViewerOptions;
 import javafx.application.Application;
 import javafx.application.Platform;
@@ -41,9 +29,6 @@ import javafx.scene.control.Dialog;
 import javafx.stage.Screen;
 import javafx.stage.Stage;
 import net.imglib2.Volatile;
-import net.imglib2.interpolation.randomaccess.NLinearInterpolatorFactory;
-import net.imglib2.interpolation.randomaccess.NearestNeighborInterpolatorFactory;
-import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.type.NativeType;
 import net.imglib2.type.numeric.RealType;
 import picocli.CommandLine;
@@ -95,27 +80,31 @@ public class Paintera extends Application
 
 		// TODO this should probably happen in the properties.populate:
 		properties.sources
-				.trackSources()
-				.stream()
-				.map( properties.sources::getState )
-				.filter( state -> state instanceof LabelSourceState< ?, ? > )
-				.map( state -> ( LabelSourceState< ?, ? > ) state )
-				.forEach( state -> {
-					final long[] selIds = state.selectedIds().getActiveIds();
-					final long lastId = state.selectedIds().getLastSelection();
-					state.selectedIds().deactivateAll();
-					state.selectedIds().activate( selIds );
-					state.selectedIds().activateAlso( lastId );
+		.trackSources()
+		.stream()
+		.map( properties.sources::getState )
+		.filter( state -> state instanceof LabelSourceState< ?, ? > )
+		.map( state -> ( LabelSourceState< ?, ? > ) state )
+		.forEach( state -> {
+			final long[] selIds = state.selectedIds().getActiveIds();
+			final long lastId = state.selectedIds().getLastSelection();
+			state.selectedIds().deactivateAll();
+			state.selectedIds().activate( selIds );
+			state.selectedIds().activateAlso( lastId );
 		} );
 		properties.clean();
 
 		LOG.debug( "Adding {} raw sources: {}", painteraArgs.rawSources().length, painteraArgs.rawSources() );
 		for ( final String source : painteraArgs.rawSources() )
+		{
 			addRawFromString( baseView, source );
+		}
 
 		LOG.debug( "Adding {} label sources: {}", painteraArgs.labelSources().length, painteraArgs.labelSources() );
 		for ( final String source : painteraArgs.labelSources() )
+		{
 			addLabelFromString( baseView, source );
+		}
 
 		properties.windowProperties.widthProperty.set( painteraArgs.width( properties.windowProperties.widthProperty.get() ) );
 		properties.windowProperties.heightProperty.set( painteraArgs.height( properties.windowProperties.heightProperty.get() ) );
@@ -202,32 +191,33 @@ public class Paintera extends Application
 			final PainteraBaseView pbv,
 			final String identifier ) throws UnableToAddSource
 	{
-		if ( !Pattern.matches( "^[a-z]+://.+", identifier ) )
+		if ( !Pattern.matches( "^[a-z]+://.+", identifier ) ) {
 			return addRawFromString( pbv, "file://" + identifier );
+		}
 
 		if ( Pattern.matches( "^file://.+", identifier ) )
 		{
-			try
-			{
-			final String[] split = identifier.replaceFirst( "file://", "" ).split( ":" );
-			N5Reader reader = N5Helpers.n5Reader( split[ 0 ], 64, 64, 64 );
-			N5RawMeta< D, T > meta = N5Helpers.isHDF( split[ 0 ] )
-					? new N5HDF5RawMeta< D, T >( ( N5HDF5Reader ) N5Helpers.n5Reader( split[ 0 ], 64, 64, 64 ), split[ 1 ] )
-					: new N5FSRawMeta< D, T >( split[ 0 ], split[ 1 ] );
-
-			RawSourceState< D, T > state = meta.asSource(
-					pbv.getQueue(),
-					0,
-					i -> i.equals( Interpolation.NLINEAR ) ? new NLinearInterpolatorFactory<>() : new NearestNeighborInterpolatorFactory<>(),
-					i -> i.equals( Interpolation.NLINEAR ) ? new NLinearInterpolatorFactory<>() : new NearestNeighborInterpolatorFactory<>(),
-					N5Helpers.getTransform( reader, split[ 1 ] ) );
-			pbv.addRawSource( state );
-			return Optional.of( state.getDataSource() );
-			}
-			catch ( Exception e )
-			{
-				throw e instanceof UnableToAddSource ? ( UnableToAddSource ) e : new UnableToAddSource( e );
-			}
+//			try
+//			{
+//				final String[] split = identifier.replaceFirst( "file://", "" ).split( ":" );
+//				final N5Reader reader = N5Helpers.n5Reader( split[ 0 ], 64, 64, 64 );
+//				final N5RawMeta< D, T > meta = N5Helpers.isHDF( split[ 0 ] )
+//						? new N5HDF5RawMeta< D, T >( ( N5HDF5Reader ) N5Helpers.n5Reader( split[ 0 ], 64, 64, 64 ), split[ 1 ] )
+//								: new N5FSRawMeta< D, T >( split[ 0 ], split[ 1 ] );
+//
+//						final RawSourceState< D, T > state = meta.asSource(
+//								pbv.getQueue(),
+//								0,
+//								i -> i.equals( Interpolation.NLINEAR ) ? new NLinearInterpolatorFactory<>() : new NearestNeighborInterpolatorFactory<>(),
+//										i -> i.equals( Interpolation.NLINEAR ) ? new NLinearInterpolatorFactory<>() : new NearestNeighborInterpolatorFactory<>(),
+//												N5Helpers.getTransform( reader, split[ 1 ] ) );
+//						pbv.addRawSource( state );
+//						return Optional.of( state.getDataSource() );
+//			}
+//			catch ( final Exception e )
+//			{
+//				throw e instanceof UnableToAddSource ? ( UnableToAddSource ) e : new UnableToAddSource( e );
+//			}
 		}
 
 		LOG.warn( "Unable to generate raw source from {}", identifier );
@@ -244,38 +234,38 @@ public class Paintera extends Application
 
 		if ( Pattern.matches( "^file://.+", identifier ) )
 		{
-			try
-			{
-			final String[] split = identifier.replaceFirst( "file://", "" ).split( ":" );
-			final N5Writer n5 = N5Helpers.n5Writer( split[ 0 ], 64, 64, 64 );
-			final String dataset = split[ 1 ];
-			final double[] resolution = Optional.ofNullable( n5.getAttribute( dataset, "resolution", double[].class ) ).orElse( new double[] { 1.0, 1.0, 1.0 } );
-			final double[] offset = Optional.ofNullable( n5.getAttribute( dataset, "offset", double[].class ) ).orElse( new double[] { 0.0, 0.0, 0.0 } );
-			AffineTransform3D transform = N5Helpers.fromResolutionAndOffset( resolution, offset );
-			N5LabelMeta< D, T > meta = N5LabelMeta.forReader( n5, dataset );
-			TmpDirectoryCreator nextCanvasDir = new TmpDirectoryCreator( null, null );
-			LabelSourceState< D, T > state = meta.asSource(
-					Optional.empty(), 
-					new SelectedIds(),
-					new ARGBCompositeAlphaYCbCr(),
-					pbv.getQueue(), 
-					0,
-					i -> new NearestNeighborInterpolatorFactory<>(),
-					i -> new NearestNeighborInterpolatorFactory<>(), 
-					transform, 
-					dataset,
-					nextCanvasDir.get(),
-					nextCanvasDir,
-					pbv.getPropagationQueue(),
-					pbv.getMeshManagerExecutorService(),
-					pbv.getMeshWorkerExecutorService(),
-					pbv.viewer3D().meshesGroup() );
-			pbv.addLabelSource( state );
-			}
-			catch ( Exception e )
-			{
-				throw e instanceof UnableToAddSource ? ( UnableToAddSource ) e : new UnableToAddSource( e );
-			}
+//			try
+//			{
+//				final String[] split = identifier.replaceFirst( "file://", "" ).split( ":" );
+//				final N5Writer n5 = N5Helpers.n5Writer( split[ 0 ], 64, 64, 64 );
+//				final String dataset = split[ 1 ];
+//				final double[] resolution = Optional.ofNullable( n5.getAttribute( dataset, "resolution", double[].class ) ).orElse( new double[] { 1.0, 1.0, 1.0 } );
+//				final double[] offset = Optional.ofNullable( n5.getAttribute( dataset, "offset", double[].class ) ).orElse( new double[] { 0.0, 0.0, 0.0 } );
+//				final AffineTransform3D transform = N5Helpers.fromResolutionAndOffset( resolution, offset );
+//				final N5LabelMeta< D, T > meta = N5LabelMeta.forReader( n5, dataset );
+//				final TmpDirectoryCreator nextCanvasDir = new TmpDirectoryCreator( null, null );
+//				final LabelSourceState< D, T > state = meta.asSource(
+//						Optional.empty(),
+//						new SelectedIds(),
+//						new ARGBCompositeAlphaYCbCr(),
+//						pbv.getQueue(),
+//						0,
+//						i -> new NearestNeighborInterpolatorFactory<>(),
+//						i -> new NearestNeighborInterpolatorFactory<>(),
+//						transform,
+//						dataset,
+//						nextCanvasDir.get(),
+//						nextCanvasDir,
+//						pbv.getPropagationQueue(),
+//						pbv.getMeshManagerExecutorService(),
+//						pbv.getMeshWorkerExecutorService(),
+//						pbv.viewer3D().meshesGroup() );
+//				pbv.addLabelSource( state );
+//			}
+//			catch ( final Exception e )
+//			{
+//				throw e instanceof UnableToAddSource ? ( UnableToAddSource ) e : new UnableToAddSource( e );
+//			}
 		}
 	}
 
@@ -294,8 +284,8 @@ public class Paintera extends Application
 
 		final double[] screenScales = maxSize < 2500
 				? new double[] { 1.0 / 1.0, 1.0 / 2.0, 1.0 / 4.0, 1.0 / 8.0 }
-				: new double[] { 1.0 / 2.0, 1.0 / 4.0, 1.0 / 8.0, 1.0 / 16.0 };
-		return screenScales;
+		: new double[] { 1.0 / 2.0, 1.0 / 4.0, 1.0 / 8.0, 1.0 / 16.0 };
+				return screenScales;
 	}
 
 	public static Optional< JsonObject > loadPropertiesIfPresent( final String root )

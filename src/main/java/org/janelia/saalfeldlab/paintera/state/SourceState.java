@@ -2,7 +2,6 @@ package org.janelia.saalfeldlab.paintera.state;
 
 import org.janelia.saalfeldlab.paintera.composition.Composite;
 import org.janelia.saalfeldlab.paintera.data.DataSource;
-import org.janelia.saalfeldlab.paintera.data.meta.Meta;
 
 import bdv.viewer.Interpolation;
 import bdv.viewer.SourceAndConverter;
@@ -23,8 +22,6 @@ public interface SourceState< D, T >
 	public ObjectProperty< Composite< ARGBType, ARGBType > > compositeProperty();
 
 	public StringProperty nameProperty();
-
-	public Meta getMeta();
 
 	public BooleanProperty isVisibleProperty();
 

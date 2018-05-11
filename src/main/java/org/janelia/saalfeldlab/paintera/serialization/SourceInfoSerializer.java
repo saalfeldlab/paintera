@@ -3,7 +3,6 @@ package org.janelia.saalfeldlab.paintera.serialization;
 import java.io.IOException;
 import java.lang.reflect.Type;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -12,7 +11,6 @@ import java.util.function.Consumer;
 import java.util.function.IntConsumer;
 import java.util.stream.Collectors;
 
-import org.janelia.saalfeldlab.paintera.data.meta.exception.MetaException;
 import org.janelia.saalfeldlab.paintera.state.SourceInfo;
 import org.janelia.saalfeldlab.paintera.state.SourceState;
 
@@ -67,21 +65,21 @@ public class SourceInfoSerializer implements JsonSerializer< SourceInfo >
 			final ExecutorService propagationExecutor,
 			final ExecutorService manager,
 			final ExecutorService workers,
-			final Gson gson ) throws IncompatibleTypeException, ClassNotFoundException, JsonParseException, UndefinedDependency, HasCyclicDependencies, IOException, MetaException
+			final Gson gson ) throws IncompatibleTypeException, ClassNotFoundException, JsonParseException, UndefinedDependency, HasCyclicDependencies, IOException
 	{
-		final SourceState< ?, ? >[] states = SourceStateSerializer.makeStates(
-				serializedSourceInfo.get( SOURCES_KEY ).getAsJsonArray(),
-				queue,
-				priority,
-				root,
-				propagationExecutor,
-				manager,
-				workers,
-				gson );
-		Arrays
-				.stream( states )
-				.forEach( addState::accept );
-		currentSourceIndex.accept( serializedSourceInfo.get( CURRENT_SOURCE_INDEX_KEY ).getAsInt() );
+//		final SourceState< ?, ? >[] states = SourceStateSerializer.makeStates(
+//				serializedSourceInfo.get( SOURCES_KEY ).getAsJsonArray(),
+//				queue,
+//				priority,
+//				root,
+//				propagationExecutor,
+//				manager,
+//				workers,
+//				gson );
+//		Arrays
+//		.stream( states )
+//		.forEach( addState::accept );
+//		currentSourceIndex.accept( serializedSourceInfo.get( CURRENT_SOURCE_INDEX_KEY ).getAsInt() );
 	}
 
 }
