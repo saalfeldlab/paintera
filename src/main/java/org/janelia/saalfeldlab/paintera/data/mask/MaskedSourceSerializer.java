@@ -4,11 +4,13 @@ import java.lang.reflect.Type;
 import java.nio.file.Paths;
 import java.util.concurrent.ExecutorService;
 import java.util.function.BiConsumer;
+import java.util.function.IntFunction;
 import java.util.function.Supplier;
 
-import org.janelia.saalfeldlab.paintera.PainteraBaseView;
 import org.janelia.saalfeldlab.paintera.data.DataSource;
 import org.janelia.saalfeldlab.paintera.serialization.StatefulSerializer;
+import org.janelia.saalfeldlab.paintera.serialization.StatefulSerializer.Arguments;
+import org.janelia.saalfeldlab.paintera.state.SourceState;
 
 import com.google.gson.JsonDeserializationContext;
 import com.google.gson.JsonDeserializer;
@@ -38,7 +40,7 @@ public class MaskedSourceSerializer implements JsonSerializer< MaskedSource< ?, 
 
 	private final ExecutorService propagationExecutor;
 
-	public MaskedSourceSerializer( Supplier< String > currentProjectDirectory, ExecutorService propagationExecutor )
+	public MaskedSourceSerializer( final Supplier< String > currentProjectDirectory, final ExecutorService propagationExecutor )
 	{
 		super();
 		this.currentProjectDirectory = currentProjectDirectory;
@@ -46,9 +48,9 @@ public class MaskedSourceSerializer implements JsonSerializer< MaskedSource< ?, 
 	}
 
 	@Override
-	public JsonElement serialize( MaskedSource< ?, ? > src, Type type, JsonSerializationContext context )
+	public JsonElement serialize( final MaskedSource< ?, ? > src, final Type type, final JsonSerializationContext context )
 	{
-		JsonObject map = new JsonObject();
+		final JsonObject map = new JsonObject();
 		map.add( UNDERLYING_SOURCE_KEY, context.serialize( src.underlyingSource() ) );
 		map.addProperty( UNDERLYING_SOURCE_CLASS_KEY, src.underlyingSource().getClass().getName() );
 		map.addProperty( CURRENT_CACHE_DIR_KEY, Paths.get( currentProjectDirectory.get() ).relativize( Paths.get( src.currentCanvasDirectory() ) ).toString() );
@@ -58,31 +60,31 @@ public class MaskedSourceSerializer implements JsonSerializer< MaskedSource< ?, 
 	}
 
 	@Override
-	public MaskedSource< ?, ? > deserialize( JsonElement el, Type type, JsonDeserializationContext context ) throws JsonParseException
+	public MaskedSource< ?, ? > deserialize( final JsonElement el, final Type type, final JsonDeserializationContext context ) throws JsonParseException
 	{
 		try
 		{
-		JsonObject map = el.getAsJsonObject();
-		TmpDirectoryCreator canvasCacheDirUpdate = new TmpDirectoryCreator( Paths.get( currentProjectDirectory.get() ), null );
+			final JsonObject map = el.getAsJsonObject();
+			final TmpDirectoryCreator canvasCacheDirUpdate = new TmpDirectoryCreator( Paths.get( currentProjectDirectory.get() ), null );
 
-		String sourceClass = map.get( UNDERLYING_SOURCE_CLASS_KEY ).getAsString();
-		DataSource< ?, ? > source = context.deserialize( map.get( UNDERLYING_SOURCE_KEY ), Class.forName( sourceClass ) );
+			final String sourceClass = map.get( UNDERLYING_SOURCE_CLASS_KEY ).getAsString();
+			final DataSource< ?, ? > source = context.deserialize( map.get( UNDERLYING_SOURCE_KEY ), Class.forName( sourceClass ) );
 
-		final String persisterClass = map.get( PERSIST_CANVAS_CLASS_KEY ).getAsString();
-		@SuppressWarnings( "unchecked" )
-		final BiConsumer< CachedCellImg< UnsignedLongType, ? >, long[] > mergeCanvasIntoBackground =
-				( BiConsumer< CachedCellImg< UnsignedLongType, ? >, long[] > ) context.deserialize(
-						map.get( PERSIST_CANVAS_KEY ),
-						Class.forName( persisterClass ) );
+			final String persisterClass = map.get( PERSIST_CANVAS_CLASS_KEY ).getAsString();
+			@SuppressWarnings( "unchecked" )
+			final BiConsumer< CachedCellImg< UnsignedLongType, ? >, long[] > mergeCanvasIntoBackground =
+			( BiConsumer< CachedCellImg< UnsignedLongType, ? >, long[] > ) context.deserialize(
+					map.get( PERSIST_CANVAS_KEY ),
+					Class.forName( persisterClass ) );
 
-		final String initialCanvasPath = map.get( CURRENT_CACHE_DIR_KEY ).getAsString();
+			final String initialCanvasPath = map.get( CURRENT_CACHE_DIR_KEY ).getAsString();
 
-		DataSource< ?, ? > masked = Masks.mask( source, initialCanvasPath, canvasCacheDirUpdate, mergeCanvasIntoBackground, propagationExecutor );
-		return masked instanceof MaskedSource< ?, ? >
-				? ( MaskedSource< ?, ? > ) masked
-				: null;
+			final DataSource< ?, ? > masked = Masks.mask( source, initialCanvasPath, canvasCacheDirUpdate, mergeCanvasIntoBackground, propagationExecutor );
+			return masked instanceof MaskedSource< ?, ? >
+			? ( MaskedSource< ?, ? > ) masked
+					: null;
 		}
-		catch ( ClassNotFoundException e )
+		catch ( final ClassNotFoundException e )
 		{
 			throw new JsonParseException( e );
 		}
@@ -92,9 +94,12 @@ public class MaskedSourceSerializer implements JsonSerializer< MaskedSource< ?, 
 	{
 
 		@Override
-		public MaskedSourceSerializer create( PainteraBaseView state, Supplier< String > projectDirectory )
+		public MaskedSourceSerializer create(
+				final Arguments arguments,
+				final Supplier< String > projectDirectory,
+				final IntFunction< SourceState< ?, ? > > dependencyFromIndex )
 		{
-			return new MaskedSourceSerializer( projectDirectory, state.getPropagationQueue() );
+			return new MaskedSourceSerializer( projectDirectory, arguments.propagationWorkers );
 		}
 
 	}

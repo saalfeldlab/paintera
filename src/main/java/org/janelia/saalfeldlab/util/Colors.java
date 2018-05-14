@@ -31,6 +31,20 @@ public class Colors
 		final int b = ARGBType.blue( value );
 		final int a = ARGBType.alpha( value );
 		return Color.rgb( r, g, b, a / 255.0 );
+	}
 
+	public static String toHTML( final ARGBType color )
+	{
+		final int c = color.get();
+		return String.format(
+				"#%02X%02X%02X",
+				ARGBType.red( c ),
+				ARGBType.green( c ),
+				ARGBType.blue( c ) );
+	}
+
+	public static ARGBType toARGBType( final String html )
+	{
+		return Colors.toARGBType( Color.web( html ) );
 	}
 }

@@ -1,9 +1,13 @@
 package org.janelia.saalfeldlab.paintera.serialization;
 
+import java.util.Map;
 import java.util.Optional;
+import java.util.function.Supplier;
 
 import org.janelia.saalfeldlab.paintera.PainteraBaseView;
+import org.janelia.saalfeldlab.paintera.serialization.StatefulSerializer.Arguments;
 import org.janelia.saalfeldlab.paintera.state.SourceInfo;
+import org.janelia.saalfeldlab.paintera.state.SourceState;
 import org.janelia.saalfeldlab.util.MakeUnchecked;
 import org.janelia.saalfeldlab.util.MakeUnchecked.CheckedConsumer;
 
@@ -85,15 +89,24 @@ public class Properties implements TransformListener< AffineTransform3D >
 	public static Properties fromSerializedProperties(
 			final JsonObject serializedProperties,
 			final PainteraBaseView viewer,
-			final boolean removeExistingSources )
+			final boolean removeExistingSources,
+			final Supplier< String > projectDirectory,
+			final Map< Integer, SourceState< ?, ? > > indexToState )
 	{
-		return fromSerializedProperties( serializedProperties, viewer, removeExistingSources, GsonHelpers.builderWithAllRequiredAdapters().create() );
+		final Arguments arguments = new StatefulSerializer.Arguments( viewer );
+		return fromSerializedProperties(
+				serializedProperties,
+				viewer,
+				removeExistingSources,
+				indexToState,
+				GsonHelpers.builderWithAllRequiredAdapters( arguments, projectDirectory, indexToState::get ).create() );
 	}
 
 	public static Properties fromSerializedProperties(
 			final JsonObject serializedProperties,
 			final PainteraBaseView viewer,
 			final boolean removeExistingSources,
+			final Map< Integer, SourceState< ?, ? > > indexToState,
 			final Gson gson )
 	{
 
@@ -105,23 +118,18 @@ public class Properties implements TransformListener< AffineTransform3D >
 		}
 
 		Optional
-				.ofNullable( serializedProperties.get( SOURCES_KEY ) )
-				.ifPresent( MakeUnchecked.unchecked( ( CheckedConsumer< JsonElement > ) element -> SourceInfoSerializer.populate(
-						viewer::addState,
-						properties.sources.currentSourceIndexProperty()::set,
-						element.getAsJsonObject(),
-						viewer.getQueue(),
-						0,
-						viewer.viewer3D().meshesGroup(),
-						viewer.getPropagationQueue(),
-						viewer.getMeshManagerExecutorService(),
-						viewer.getMeshWorkerExecutorService(),
-						gson ) ) );
+		.ofNullable( serializedProperties.get( SOURCES_KEY ) )
+		.ifPresent( MakeUnchecked.unchecked( ( CheckedConsumer< JsonElement > ) element -> SourceInfoSerializer.populate(
+				viewer::addState,
+				properties.sources.currentSourceIndexProperty()::set,
+				element.getAsJsonObject(),
+				indexToState::put,
+				gson ) ) );
 
 		Optional
-				.ofNullable( serializedProperties.get( GLOBAL_TRANSFORM_KEY ) )
-				.map( element -> gson.fromJson( element, AffineTransform3D.class ) )
-				.ifPresent( viewer.manager()::setTransform );
+		.ofNullable( serializedProperties.get( GLOBAL_TRANSFORM_KEY ) )
+		.map( element -> gson.fromJson( element, AffineTransform3D.class ) )
+		.ifPresent( viewer.manager()::setTransform );
 
 		properties.clean();
 

@@ -2,6 +2,8 @@ package org.janelia.saalfeldlab.paintera;
 
 import java.io.IOException;
 import java.lang.invoke.MethodHandles;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Optional;
 import java.util.regex.Pattern;
 
@@ -11,6 +13,7 @@ import org.janelia.saalfeldlab.paintera.data.DataSource;
 import org.janelia.saalfeldlab.paintera.serialization.GsonHelpers;
 import org.janelia.saalfeldlab.paintera.serialization.Properties;
 import org.janelia.saalfeldlab.paintera.state.LabelSourceState;
+import org.janelia.saalfeldlab.paintera.state.SourceState;
 import org.janelia.saalfeldlab.paintera.viewer3d.Viewer3DFX;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -76,7 +79,11 @@ public class Paintera extends Application
 
 		final Optional< JsonObject > loadedProperties = loadPropertiesIfPresent( painteraArgs.project() );
 
-		final Properties properties = loadedProperties.map( lp -> Properties.fromSerializedProperties( lp, baseView, true ) ).orElse( new Properties( baseView ) );
+
+		// TODO this can probably be hidden in Properties.fromSerializedProperties
+		final Map< Integer, SourceState< ?, ? > > indexToState = new HashMap<>();
+
+		final Properties properties = loadedProperties.map( lp -> Properties.fromSerializedProperties( lp, baseView, true, painteraArgs::project, indexToState ) ).orElse( new Properties( baseView ) );
 
 		// TODO this should probably happen in the properties.populate:
 		properties.sources
@@ -142,7 +149,7 @@ public class Paintera extends Application
 					LOG.debug( "Saving project before exit" );
 					try
 					{
-						persistProperties( painteraArgs.project(), properties, GsonHelpers.builderWithAllRequiredAdapters().setPrettyPrinting() );
+						persistProperties( painteraArgs.project(), properties, GsonHelpers.builderWithAllRequiredAdapters( baseView, painteraArgs::project ).setPrettyPrinting() );
 					}
 					catch ( final IOException e )
 					{

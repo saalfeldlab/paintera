@@ -137,17 +137,23 @@ public class PainteraBaseView
 	}
 
 	@SuppressWarnings( "unchecked" )
-	public < D, T > void addState( SourceState< D, T > state )
+	public < D, T > void addState( final SourceState< D, T > state )
 	{
 		if ( state instanceof LabelSourceState< ?, ? > )
+		{
 			addLabelSource( ( LabelSourceState ) state );
+		}
 		else if ( state instanceof RawSourceState< ?, ? > )
+		{
 			addRawSource( ( RawSourceState ) state );
+		}
 		else
+		{
 			addGenericState( state );
+		}
 	}
 
-	public < D, T > void addGenericState( SourceState< D, T > state )
+	public < D, T > void addGenericState( final SourceState< D, T > state )
 	{
 		sourceInfo.addState( state );
 	}
@@ -158,15 +164,12 @@ public class PainteraBaseView
 	{
 		LOG.debug( "Adding raw state={}", state );
 		sourceInfo.addState( state );
-		final Converter< U, ARGBType > conv = state.converter();
-		if ( conv instanceof ARGBColorConverter< ? > )
-		{
-			final ARGBColorConverter< U > colorConv = ( net.imglib2.converter.ARGBColorConverter< U > ) conv;
-			colorConv.colorProperty().addListener( ( obs, oldv, newv ) -> orthogonalViews().requestRepaint() );
-			colorConv.minProperty().addListener( ( obs, oldv, newv ) -> orthogonalViews().requestRepaint() );
-			colorConv.maxProperty().addListener( ( obs, oldv, newv ) -> orthogonalViews().requestRepaint() );
-			colorConv.alphaProperty().addListener( ( obs, oldv, newv ) -> orthogonalViews().requestRepaint() );
-		}
+		final ARGBColorConverter< U > conv = state.converter();
+		final ARGBColorConverter< U > colorConv = conv;
+		colorConv.colorProperty().addListener( ( obs, oldv, newv ) -> orthogonalViews().requestRepaint() );
+		colorConv.minProperty().addListener( ( obs, oldv, newv ) -> orthogonalViews().requestRepaint() );
+		colorConv.maxProperty().addListener( ( obs, oldv, newv ) -> orthogonalViews().requestRepaint() );
+		colorConv.alphaProperty().addListener( ( obs, oldv, newv ) -> orthogonalViews().requestRepaint() );
 	}
 
 	public < D extends Type< D >, T extends Type< T > > void addLabelSource(
@@ -226,13 +229,13 @@ public class PainteraBaseView
 		final boolean isLabelMultisetType = spec.getDataType() instanceof LabelMultisetType;
 		final boolean isCachedCellImg = ( isMaskedSource
 				? ( ( MaskedSource< ?, ? > ) spec ).underlyingSource().getDataSource( 0, 0 )
-				: spec.getDataSource( 0, 0 ) ) instanceof CachedCellImg< ?, ? >;
+						: spec.getDataSource( 0, 0 ) ) instanceof CachedCellImg< ?, ? >;
 
 		if ( isLabelMultisetType && isCachedCellImg )
 		{
 			@SuppressWarnings( "unchecked" )
 			final DataSource< LabelMultisetType, T > source =
-					( DataSource< LabelMultisetType, T > ) ( isMaskedSource ? ( ( MaskedSource< ?, ? > ) spec ).underlyingSource() : spec );
+			( DataSource< LabelMultisetType, T > ) ( isMaskedSource ? ( ( MaskedSource< ?, ? > ) spec ).underlyingSource() : spec );
 			return generateBlocksForLabelCacheLabelMultisetTypeCachedImg( source, scalingFactors );
 		}
 

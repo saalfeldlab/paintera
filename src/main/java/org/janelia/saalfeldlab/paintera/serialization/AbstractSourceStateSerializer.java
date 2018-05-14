@@ -5,6 +5,7 @@ import java.lang.reflect.Type;
 import org.janelia.saalfeldlab.paintera.composition.Composite;
 import org.janelia.saalfeldlab.paintera.data.DataSource;
 import org.janelia.saalfeldlab.paintera.state.SourceState;
+import org.mortbay.log.Log;
 
 import com.google.gson.JsonDeserializationContext;
 import com.google.gson.JsonDeserializer;
@@ -18,7 +19,7 @@ import bdv.viewer.Interpolation;
 import net.imglib2.converter.Converter;
 import net.imglib2.type.numeric.ARGBType;
 
-public abstract class SourceStateSerializerInterface< S extends SourceState< ?, ? >, C extends Converter< ?, ARGBType > > implements JsonSerializer< S >, JsonDeserializer< S >
+public abstract class AbstractSourceStateSerializer< S extends SourceState< ?, ? >, C extends Converter< ?, ARGBType > > implements JsonSerializer< S >, JsonDeserializer< S >
 {
 
 	public static final String COMPOSITE_TYPE_KEY = "compositeType";
@@ -61,20 +62,19 @@ public abstract class SourceStateSerializerInterface< S extends SourceState< ?, 
 	{
 		try
 		{
-			final JsonObject map = el.getAsJsonObject();
+			final JsonObject map = el.getAsJsonObject().get( SourceStateSerializer.STATE_KEY ).getAsJsonObject();
+			Log.warn( "composite class: {} (key={})", map.get( COMPOSITE_TYPE_KEY ), COMPOSITE_TYPE_KEY );
 			final Class< ? extends Composite< ARGBType, ARGBType > > compositeClass = ( Class< ? extends Composite< ARGBType, ARGBType > > ) Class.forName( map.get( COMPOSITE_TYPE_KEY ).getAsString() );
-			final Class< ? extends C > converterClass = ( Class< ? extends C > ) Class.forName( map.get( CONVERTER_TYPE_KEY ).getAsString() );
 			final Class< ? extends DataSource< ?, ? > > dataSourceClass = ( Class< ? extends DataSource< ?, ? > > ) Class.forName( map.get( SOURCE_TYPE_KEY ).getAsString() );
 
 			final Composite< ARGBType, ARGBType > composite = context.deserialize( map.get( COMPOSITE_KEY ), compositeClass );
-			final C converter = context.deserialize( map.get( CONVERTER_KEY ), converterClass );
 			final DataSource< ?, ? > dataSource = context.deserialize( map.get( SOURCE_KEY ), dataSourceClass );
 			final String name = map.get( NAME_KEY ).getAsString();
 			final boolean isVisible = map.get( IS_VISIBLE_KEY ).getAsBoolean();
 			final Interpolation interpolation = context.deserialize( map.get( INTERPOLATION_KEY ), Interpolation.class );
 
 			final SourceState< ?, ? >[] dependsOn = null;
-			final S state = makeState( map, dataSource, converter, composite, name, dependsOn );
+			final S state = makeState( map, dataSource, composite, name, dependsOn, context );
 			state.isVisibleProperty().set( isVisible );
 			state.interpolationProperty().set( interpolation );
 			return state;
@@ -85,12 +85,21 @@ public abstract class SourceStateSerializerInterface< S extends SourceState< ?, 
 		}
 	}
 
+	protected static <C extends Converter< ?, ARGBType >> C converterFromJsonObject( final JsonObject data, final JsonDeserializationContext context ) throws ClassNotFoundException
+	{
+
+		@SuppressWarnings( "unchecked" )
+		final Class< ? extends C > converterClass = ( Class< ? extends C > ) Class.forName( data.get( CONVERTER_TYPE_KEY ).getAsString() );
+		final C converter = context.deserialize( data.get( CONVERTER_KEY ), converterClass );
+		return converter;
+	}
+
 	protected abstract S makeState(
 			JsonObject map,
 			DataSource< ?, ? > source,
-			C converter,
 			Composite< ARGBType, ARGBType >composite,
 			String name,
-			SourceState< ?, ? >[] dependsOn );
+			SourceState< ?, ? >[] dependsOn,
+			JsonDeserializationContext context ) throws ClassNotFoundException;
 
 }

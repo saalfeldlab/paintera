@@ -220,7 +220,6 @@ public class SourceInfo
 		this.composites.put( source, state.compositeProperty().getValue() );
 		this.sources.add( source );
 		state.isVisibleProperty().addListener( ( obs, oldv, newv ) -> updateVisibleSources() );
-		state.isVisibleProperty().set( true );
 		if ( this.currentSource.get() == null )
 		{
 			this.currentSource.set( source );
