@@ -236,8 +236,8 @@ public class GenericBackendDialogN5 implements SourceFromRAI
 			final String ds = N5Helpers.isMultiScale( n5, dataset ) ? N5Helpers.getFinestLevel( n5, dataset ) : dataset;
 			LOG.debug( "Got dataset={}, ds={}", dataset, ds );
 
-			setResolution( N5Helpers.getResolution( n5, dataset ) );
-			setOffset( N5Helpers.getOffset( n5, dataset ) );
+			setResolution( identifier.equals( "HDF5" ) ? revert( N5Helpers.getResolution( n5, dataset ) ) : N5Helpers.getResolution( n5, dataset ) );
+			setOffset( identifier.equals( "HDF5" ) ? revert( N5Helpers.getOffset( n5, dataset ) ) : N5Helpers.getOffset( n5, dataset ) );
 			final DatasetAttributes dsAttrs = n5.getDatasetAttributes( ds );
 			this.datasetInfo.minProperty().set( Optional.ofNullable( n5.getAttribute( dataset, MIN_KEY, Double.class ) ).orElse( N5Helpers.minForType( dsAttrs.getDataType() ) ) );
 			this.datasetInfo.maxProperty().set( Optional.ofNullable( n5.getAttribute( dataset, MAX_KEY, Double.class ) ).orElse( N5Helpers.maxForType( dsAttrs.getDataType() ) ) );
@@ -841,6 +841,14 @@ public class GenericBackendDialogN5 implements SourceFromRAI
 	public double[] asPrimitiveArray( final DoubleProperty[] data )
 	{
 		return Arrays.stream( data ).mapToDouble( DoubleProperty::get ).toArray();
+	}
+
+	private static final double[] revert( final double[] array )
+	{
+		final double[] reverted = new double[ array.length ];
+		for ( int i = 0; i < array.length; ++i )
+			reverted[ i ] = array[ array.length - 1 - i ];
+		return reverted;
 	}
 
 }
