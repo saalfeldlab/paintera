@@ -1,11 +1,14 @@
 package org.janelia.saalfeldlab.paintera.serialization;
 
+import java.lang.invoke.MethodHandles;
 import java.lang.reflect.Type;
 
 import org.janelia.saalfeldlab.paintera.composition.Composite;
 import org.janelia.saalfeldlab.paintera.data.DataSource;
 import org.janelia.saalfeldlab.paintera.state.SourceState;
 import org.mortbay.log.Log;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.google.gson.JsonDeserializationContext;
 import com.google.gson.JsonDeserializer;
@@ -21,6 +24,8 @@ import net.imglib2.type.numeric.ARGBType;
 
 public abstract class AbstractSourceStateSerializer< S extends SourceState< ?, ? >, C extends Converter< ?, ARGBType > > implements JsonSerializer< S >, JsonDeserializer< S >
 {
+
+	private static final Logger LOG = LoggerFactory.getLogger( MethodHandles.lookup().lookupClass() );
 
 	public static final String COMPOSITE_TYPE_KEY = "compositeType";
 
@@ -63,7 +68,7 @@ public abstract class AbstractSourceStateSerializer< S extends SourceState< ?, ?
 		try
 		{
 			final JsonObject map = el.getAsJsonObject().get( SourceStateSerializer.STATE_KEY ).getAsJsonObject();
-			Log.warn( "composite class: {} (key={})", map.get( COMPOSITE_TYPE_KEY ), COMPOSITE_TYPE_KEY );
+			Log.debug( "composite class: {} (key={})", map.get( COMPOSITE_TYPE_KEY ), COMPOSITE_TYPE_KEY );
 			final Class< ? extends Composite< ARGBType, ARGBType > > compositeClass = ( Class< ? extends Composite< ARGBType, ARGBType > > ) Class.forName( map.get( COMPOSITE_TYPE_KEY ).getAsString() );
 			final Class< ? extends DataSource< ?, ? > > dataSourceClass = ( Class< ? extends DataSource< ?, ? > > ) Class.forName( map.get( SOURCE_TYPE_KEY ).getAsString() );
 
@@ -71,17 +76,22 @@ public abstract class AbstractSourceStateSerializer< S extends SourceState< ?, ?
 			final DataSource< ?, ? > dataSource = context.deserialize( map.get( SOURCE_KEY ), dataSourceClass );
 			final String name = map.get( NAME_KEY ).getAsString();
 			final boolean isVisible = map.get( IS_VISIBLE_KEY ).getAsBoolean();
+			LOG.debug( "Is visible? {}", isVisible );
 			final Interpolation interpolation = context.deserialize( map.get( INTERPOLATION_KEY ), Interpolation.class );
 
 			final SourceState< ?, ? >[] dependsOn = null;
 			final S state = makeState( map, dataSource, composite, name, dependsOn, context );
+			LOG.warn( "Got state {}", state );
 			state.isVisibleProperty().set( isVisible );
 			state.interpolationProperty().set( interpolation );
 			return state;
 		}
-		catch ( final ClassNotFoundException e )
+		catch ( final Exception e )
 		{
-			throw new JsonParseException( e );
+			LOG.debug( "Caught exception {}", e.getMessage() );
+			e.printStackTrace();
+			System.out.print( 123 );
+			throw e instanceof JsonParseException ? (JsonParseException) e : new JsonParseException( e );
 		}
 	}
 
@@ -100,6 +110,6 @@ public abstract class AbstractSourceStateSerializer< S extends SourceState< ?, ?
 			Composite< ARGBType, ARGBType >composite,
 			String name,
 			SourceState< ?, ? >[] dependsOn,
-			JsonDeserializationContext context ) throws ClassNotFoundException;
+			JsonDeserializationContext context ) throws Exception;
 
 }

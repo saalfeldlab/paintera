@@ -54,6 +54,16 @@ public class CommitCanvasN5 implements BiConsumer< CachedCellImg< UnsignedLongTy
 		this.dataset = dataset;
 	}
 
+	public final N5Writer n5()
+	{
+		return this.n5;
+	}
+
+	public final String dataset()
+	{
+		return this.dataset;
+	}
+
 	@Override
 	public void accept( final CachedCellImg< UnsignedLongType, ? > canvas, final long[] blocks )
 	{
@@ -65,8 +75,9 @@ public class CommitCanvasN5 implements BiConsumer< CachedCellImg< UnsignedLongTy
 
 			final String highestResolutionDataset = isMultiscale ? Paths.get( dataset, N5Helpers.listAndSortScaleDatasets( n5, dataset )[ 0 ] ).toString() : dataset;
 
-			if ( !Optional.ofNullable( n5.getAttribute( highestResolutionDataset, N5Helpers.LABEL_MULTISETTYPE_KEY, Boolean.class ) ).orElse( false ) )
+			if ( !Optional.ofNullable( n5.getAttribute( highestResolutionDataset, N5Helpers.LABEL_MULTISETTYPE_KEY, Boolean.class ) ).orElse( false ) ) {
 				throw new RuntimeException( "Only label multiset type accepted currently!" );
+			}
 
 			final DatasetAttributes highestResolutionAttributes = n5.getDatasetAttributes( highestResolutionDataset );
 			final CellGrid highestResolutionGrid = new CellGrid( highestResolutionAttributes.getDimensions(), highestResolutionAttributes.getBlockSize() );

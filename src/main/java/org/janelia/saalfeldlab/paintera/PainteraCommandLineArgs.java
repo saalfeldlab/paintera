@@ -1,5 +1,6 @@
 package org.janelia.saalfeldlab.paintera;
 
+import java.io.File;
 import java.lang.invoke.MethodHandles;
 import java.util.concurrent.Callable;
 
@@ -66,8 +67,9 @@ public class PainteraCommandLineArgs implements Callable< Boolean >
 
 	public String project()
 	{
-		LOG.debug( "Return project={}", this.project );
-		return this.project;
+		final String returnedProject = this.project == null ? this.project : new File( project ).getAbsolutePath();
+		LOG.debug( "Return project={}", returnedProject );
+		return returnedProject;
 	}
 
 }

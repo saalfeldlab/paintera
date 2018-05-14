@@ -1,5 +1,6 @@
 package org.janelia.saalfeldlab.paintera.data.mask;
 
+import java.lang.invoke.MethodHandles;
 import java.lang.reflect.Type;
 import java.nio.file.Paths;
 import java.util.concurrent.ExecutorService;
@@ -11,6 +12,8 @@ import org.janelia.saalfeldlab.paintera.data.DataSource;
 import org.janelia.saalfeldlab.paintera.serialization.StatefulSerializer;
 import org.janelia.saalfeldlab.paintera.serialization.StatefulSerializer.Arguments;
 import org.janelia.saalfeldlab.paintera.state.SourceState;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.google.gson.JsonDeserializationContext;
 import com.google.gson.JsonDeserializer;
@@ -25,6 +28,8 @@ import net.imglib2.type.numeric.integer.UnsignedLongType;
 
 public class MaskedSourceSerializer implements JsonSerializer< MaskedSource< ?, ? > >, JsonDeserializer< MaskedSource< ?, ? > >
 {
+
+	private static final Logger LOG = LoggerFactory.getLogger( MethodHandles.lookup().lookupClass() );
 
 	private static final String UNDERLYING_SOURCE_CLASS_KEY = "sourceClass";
 
@@ -53,7 +58,10 @@ public class MaskedSourceSerializer implements JsonSerializer< MaskedSource< ?, 
 		final JsonObject map = new JsonObject();
 		map.add( UNDERLYING_SOURCE_KEY, context.serialize( src.underlyingSource() ) );
 		map.addProperty( UNDERLYING_SOURCE_CLASS_KEY, src.underlyingSource().getClass().getName() );
-		map.addProperty( CURRENT_CACHE_DIR_KEY, Paths.get( currentProjectDirectory.get() ).relativize( Paths.get( src.currentCanvasDirectory() ) ).toString() );
+		LOG.warn( "Not using relative directory for canvas directory!" );
+		map.addProperty( CURRENT_CACHE_DIR_KEY, src.currentCanvasDirectory() );
+//		LOG.warn( "Trying to relativize '{}' and '{}'", currentProjectDirectory.get(), src.currentCanvasDirectory() );
+//		map.addProperty( CURRENT_CACHE_DIR_KEY, Paths.get( currentProjectDirectory.get() ).relativize( Paths.get( src.currentCanvasDirectory() ) ).toString() );
 		map.addProperty( PERSIST_CANVAS_CLASS_KEY, src.getPersister().getClass().getName() );
 		map.add( PERSIST_CANVAS_KEY, context.serialize( src.getPersister(), src.getPersister().getClass() ) );
 		return map;

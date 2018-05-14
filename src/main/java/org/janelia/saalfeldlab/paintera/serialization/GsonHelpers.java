@@ -9,13 +9,18 @@ import org.janelia.saalfeldlab.paintera.PainteraBaseView;
 import org.janelia.saalfeldlab.paintera.composition.Composite;
 import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignmentOnlyLocal;
 import org.janelia.saalfeldlab.paintera.control.selection.SelectedIds;
+import org.janelia.saalfeldlab.paintera.data.mask.MaskedSource;
+import org.janelia.saalfeldlab.paintera.data.mask.MaskedSourceSerializer;
+import org.janelia.saalfeldlab.paintera.data.n5.CommitCanvasN5;
 import org.janelia.saalfeldlab.paintera.data.n5.N5DataSource;
 import org.janelia.saalfeldlab.paintera.data.n5.N5DataSourceSerializer;
 import org.janelia.saalfeldlab.paintera.serialization.StatefulSerializer.Arguments;
 import org.janelia.saalfeldlab.paintera.state.InvertingRawSourceState;
+import org.janelia.saalfeldlab.paintera.state.LabelSourceState;
 import org.janelia.saalfeldlab.paintera.state.RawSourceState;
 import org.janelia.saalfeldlab.paintera.state.SourceInfo;
 import org.janelia.saalfeldlab.paintera.state.SourceState;
+import org.janelia.saalfeldlab.paintera.stream.HighlightingStreamConverter;
 
 import com.google.gson.GsonBuilder;
 
@@ -44,13 +49,17 @@ public class GsonHelpers
 				.registerTypeAdapter( SourceInfo.class, new SourceInfoSerializer() )
 				.registerTypeAdapter( SourceStateWithIndexedDependencies.class, new SourceStateSerializer() )
 				.registerTypeAdapter( N5DataSource.class, new N5DataSourceSerializer( arguments.sharedQueue, 0 ) )
+				.registerTypeAdapter( MaskedSource.class, new MaskedSourceSerializer( projectDirectory, arguments.propagationWorkers ) )
 				.registerTypeAdapter( RawSourceState.class, new RawSourceStateSerializer() )
 				.registerTypeAdapter( InvertingRawSourceState.class, new InvertingSourceStateSerializer( dependencyFromIndex ) )
+				.registerTypeAdapter( LabelSourceState.class, new LabelSourceStateSerializer<>( arguments ) )
 				.registerTypeHierarchyAdapter( ARGBColorConverter.class, new ARGBColorConverterSerializer<>() )
+				.registerTypeHierarchyAdapter( HighlightingStreamConverter.class, new HighlightingStreamConverterSerializer() )
 				.registerTypeAdapter( AffineTransform3D.class, new AffineTransform3DJsonAdapter() )
 				.registerTypeHierarchyAdapter( Composite.class, new CompositeSerializer() )
 				.registerTypeAdapter( SelectedIds.class, new SelectedIdsSerializer() )
 				.registerTypeAdapter( FragmentSegmentAssignmentOnlyLocal.class, new FragmentSegmentAssignmentOnlyLocalSerializer() )
+				.registerTypeAdapter( CommitCanvasN5.class, new CommitCanvasN5Serializer() )
 				.registerTypeAdapter( WindowProperties.class, new WindowPropertiesSerializer() );
 	}
 
