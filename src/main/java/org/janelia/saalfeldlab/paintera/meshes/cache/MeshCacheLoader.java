@@ -48,6 +48,7 @@ public class MeshCacheLoader< T > implements CacheLoader< ShapeKey, Pair< float[
 			final AffineTransform3D transform )
 	{
 		super();
+		LOG.debug( "Constructiong {}", getClass().getName() );
 		this.cubeSize = cubeSize;
 		this.data = data;
 		this.getMaskGenerator = getMaskGenerator;

@@ -21,13 +21,13 @@ public class AverageNormals
 
 	public static void averagedNormals( final float[] triangles, final float[] normals ) {
 
+		LOG.debug( "Averaging normals for {} triangles and {} normals", triangles.length, normals.length );
+
 		final HashMap< HashWrapper< float[] >, double[] > averages = new HashMap<>();
 
 		assert triangles.length % 9 == 0;
 		assert triangles.length == normals.length;
 
-		final double[] diff1 = new double[ 3 ];
-		final double[] diff2 = new double[ 3 ];
 		final double[] normal = new double[ 4 ];
 		normal[ 3 ] = 1.0;
 		final double[][] n = new double[ 3 ][ 3 ];

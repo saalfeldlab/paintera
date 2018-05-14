@@ -18,6 +18,7 @@ public class Simplify
 
 	public static Pair< float[], float[] > simplify( final float[] vertices, final float[] normals ) {
 
+		LOG.debug( "Simplifying {} vertices and {} normals", vertices.length, normals.length );
 		return new ValuePair<>( vertices, normals );
 	}
 }

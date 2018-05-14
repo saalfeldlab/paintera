@@ -49,6 +49,7 @@ public class CredentialProviderWithWebView implements CredentialProvider
 	public Credential fromFlow( final AuthorizationCodeFlow flow ) throws IOException
 	{
 
+		LOG.debug( "Creating credential from flow {}", flow );
 		try
 		{
 			final Credential credential = flow.loadCredential( USER_ID );

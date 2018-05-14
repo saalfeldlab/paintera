@@ -51,7 +51,7 @@ public interface SourceFromRAI extends BackendDialog
 
 	public static final Logger LOG = LoggerFactory.getLogger( MethodHandles.lookup().lookupClass() );
 
-	public < T extends NativeType< T >, V extends Volatile< T > > Triple< RandomAccessibleInterval< T >[], RandomAccessibleInterval< V >[], AffineTransform3D[] > getDataAndVolatile(
+	public < T extends NativeType< T >, V extends Volatile< T > & NativeType< V > > Triple< RandomAccessibleInterval< T >[], RandomAccessibleInterval< V >[], AffineTransform3D[] > getDataAndVolatile(
 			final SharedQueue sharedQueue,
 			final int priority ) throws IOException;
 
@@ -133,7 +133,7 @@ public interface SourceFromRAI extends BackendDialog
 		return getCached( dataAndVolatile.getA(), dataAndVolatile.getB(), dataAndVolatile.getC(), name, sharedQueue, priority );
 	}
 
-	default < T extends NativeType< T >, V extends Volatile< T > & Type< V > > DataSource< T, V > getSourceNearestNeighborInterpolationOnly(
+	default < T extends NativeType< T >, V extends Volatile< T > & NativeType< V > > DataSource< T, V > getSourceNearestNeighborInterpolationOnly(
 			final String name,
 			final SharedQueue sharedQueue,
 			final int priority ) throws IOException
@@ -153,7 +153,7 @@ public interface SourceFromRAI extends BackendDialog
 	public ExecutorService propagationExecutor();
 
 	@Override
-	public default < D extends NativeType< D >, T extends Volatile< D > & Type< T > > LabelDataSourceRepresentation< D, T > getLabels(
+	public default < D extends NativeType< D >, T extends Volatile< D > & NativeType< T > > LabelDataSourceRepresentation< D, T > getLabels(
 			final String name,
 			final SharedQueue sharedQueue,
 			final int priority ) throws Exception
@@ -220,7 +220,7 @@ public interface SourceFromRAI extends BackendDialog
 		return getAsSource( rai, vrai, transforms, interpolation, vinterpolation, nameOrPattern );
 	}
 
-	public default < T extends IntegerType< T > & NativeType< T >, V extends AbstractVolatileRealType< T, V > > DataSource< T, V > getIntegerTypeSource(
+	public default < T extends IntegerType< T > & NativeType< T >, V extends AbstractVolatileRealType< T, V > & NativeType< V > > DataSource< T, V > getIntegerTypeSource(
 			final String name,
 			final SharedQueue sharedQueue,
 			final int priority ) throws IOException
