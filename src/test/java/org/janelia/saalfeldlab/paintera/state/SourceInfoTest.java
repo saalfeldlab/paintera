@@ -41,15 +41,13 @@ public class SourceInfoTest
 			source1,
 			new ARGBColorConverter.InvertingImp0<>( 0, 1 ),
 			new CompositeCopy<>(),
-			source1.getName(),
-			null );
+			source1.getName() );
 
 	private final SourceState< DoubleType, DoubleType > state2 = new MinimalSourceState<>(
 			source2,
 			new ARGBColorConverter.InvertingImp0<>( 0, 1 ),
 			new CompositeCopy<>(),
 			source2.getName(),
-			null,
 			state1 );
 
 	@Test( expected = HasDependents.class )
