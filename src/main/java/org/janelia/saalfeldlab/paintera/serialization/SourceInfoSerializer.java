@@ -16,6 +16,7 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
+import org.janelia.saalfeldlab.paintera.serialization.sourcestate.SourceStateSerialization;
 import org.janelia.saalfeldlab.paintera.state.SourceInfo;
 import org.janelia.saalfeldlab.paintera.state.SourceState;
 import org.slf4j.Logger;
@@ -41,7 +42,7 @@ public class SourceInfoSerializer implements JsonSerializer< SourceInfo >
 
 	private static final String STATE_KEY = "state";
 
-	private static final String DEPENDS_ON_KEY = "dependsOn";
+	private static final String DEPENDS_ON_KEY = SourceStateSerialization.DEPENDS_ON_KEY;// "dependsOn";
 
 	private static final String NUM_SOURCES_KEY = "numSources";
 
@@ -49,17 +50,26 @@ public class SourceInfoSerializer implements JsonSerializer< SourceInfo >
 
 	private static final String CURRENT_SOURCE_INDEX_KEY = "currentSourceIndex";
 
+	private static final String STATE_TYPE_KEY = "type";
+
 	@Override
 	public JsonElement serialize( final SourceInfo src, final Type typeOfSrc, final JsonSerializationContext context )
 	{
 		final Map< String, Object > elements = new HashMap<>();
 		final List< Source< ? > > sources = new ArrayList<>( src.trackSources() );
 
+		LOG.warn( "Serializing sources: {}", sources );
+
 		final List< JsonElement > serializedSources = src
 				.trackSources()
 				.stream()
 				.map( src::getState )
-				.map( s -> context.serialize( new SourceStateWithIndexedDependencies<>( s, src ), SourceStateWithIndexedDependencies.class ) )
+				.map( s -> {
+					final JsonObject typeAndData = new JsonObject();
+					typeAndData.addProperty( STATE_TYPE_KEY, s.getClass().getName() );
+					typeAndData.add( STATE_KEY, context.serialize( s, s.getClass() ) );
+					return typeAndData;
+				} )
 				.collect( Collectors.toList() );
 		LOG.warn( "Serialized sources: {}", serializedSources );
 
@@ -82,8 +92,8 @@ public class SourceInfoSerializer implements JsonSerializer< SourceInfo >
 				logSourceForDependencies,
 				gson );
 		Arrays
-		.stream( states )
-		.forEach( addState::accept );
+				.stream( states )
+				.forEach( addState::accept );
 		currentSourceIndex.accept( serializedSourceInfo.get( CURRENT_SOURCE_INDEX_KEY ).getAsInt() );
 	}
 
@@ -121,20 +131,17 @@ public class SourceInfoSerializer implements JsonSerializer< SourceInfo >
 					if ( Stream.of( dependencies ).filter( s -> s == null ).count() == 0 )
 					{
 						final JsonObject state = serializedStates.get( k ).getAsJsonObject();
-						LOG.warn( "Deserializing state={}", state );
 						@SuppressWarnings( "unchecked" )
-						final Class< SourceState< ?, ? > > clazz = ( Class< SourceState< ?, ? > > ) Class.forName( state.get( SourceStateSerializer.STATE_TYPE_KEY ).getAsString() );
-						sourceStates[ k ] = gson.fromJson( state, clazz );
+						final Class< ? extends SourceState< ?, ? > > clazz = ( Class< ? extends SourceState< ?, ? > > ) Class.forName( state.get( STATE_TYPE_KEY ).getAsString() );
+						LOG.warn( "Deserializing state={}, class={}", state, clazz );
+						sourceStates[ k ] = gson.fromJson( state.get( STATE_KEY ), clazz );
 						logSourceForDependencies.accept( k, sourceStates[ k ] );
 					}
 				}
 			}
 		}
 
-		if ( Arrays.stream( sourceStates ).filter( s -> s == null ).count() > 0 )
-		{
-			throw new RuntimeException( "OOPS!" );
-		}
+		if ( Arrays.stream( sourceStates ).filter( s -> s == null ).count() > 0 ) { throw new RuntimeException( "OOPS!" ); }
 
 		return sourceStates;
 

@@ -1,4 +1,4 @@
-package org.janelia.saalfeldlab.paintera.serialization;
+package org.janelia.saalfeldlab.paintera.serialization.sourcestate;
 
 import java.lang.invoke.MethodHandles;
 
@@ -11,12 +11,12 @@ import org.slf4j.LoggerFactory;
 
 import com.google.gson.JsonDeserializationContext;
 import com.google.gson.JsonObject;
-import com.google.gson.JsonParseException;
 
 import net.imglib2.converter.ARGBColorConverter;
 import net.imglib2.type.numeric.ARGBType;
 
-public class RawSourceStateSerializer extends AbstractSourceStateSerializer< RawSourceState< ?, ? >, ARGBColorConverter< ? > >
+public class RawSourceStateDeserializer extends
+		SourceStateSerialization.SourceStateDeserializerWithoutDependencies< RawSourceState< ?, ? >, ARGBColorConverter< ? > >
 {
 
 	private static Logger LOG = LoggerFactory.getLogger( MethodHandles.lookup().lookupClass() );
@@ -27,16 +27,12 @@ public class RawSourceStateSerializer extends AbstractSourceStateSerializer< Raw
 			final JsonObject map,
 			final DataSource< ?, ? > source,
 			final Composite< ARGBType, ARGBType > composite,
+			final ARGBColorConverter< ? > converter,
 			final String name,
 			final SourceState< ?, ? >[] dependsOn,
 			final JsonDeserializationContext context ) throws ClassNotFoundException
 	{
-		final Class< ? > clazz = Class.forName( map.get( AbstractSourceStateSerializer.CONVERTER_TYPE_KEY ).getAsString() );
-		if ( !ARGBColorConverter.class.isAssignableFrom( clazz ) ) {
-			throw new JsonParseException( clazz.getName() + " is not a sub-class of " + ARGBColorConverter.class.getName() );
-		}
-		final ARGBColorConverter< ? > converter = context.deserialize( map.get( AbstractSourceStateSerializer.CONVERTER_KEY ), clazz );
-		LOG.warn( "Deserialized converter {}", converter );
+		LOG.warn( "Initializing raw source state with {} {} {} {}", source, converter, composite, name );
 		return new RawSourceState( source, converter, composite, name );
 	}
 

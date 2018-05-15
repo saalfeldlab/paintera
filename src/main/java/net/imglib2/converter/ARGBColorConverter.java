@@ -4,7 +4,6 @@ import javafx.beans.property.DoubleProperty;
 import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.SimpleDoubleProperty;
 import javafx.beans.property.SimpleObjectProperty;
-import net.imglib2.converter.Converter;
 import net.imglib2.display.ColorConverter;
 import net.imglib2.type.numeric.ARGBType;
 import net.imglib2.type.numeric.RealType;
@@ -28,6 +27,11 @@ public abstract class ARGBColorConverter< R extends RealType< R > > implements C
 	protected double scaleB;
 
 	protected int black;
+
+	public ARGBColorConverter()
+	{
+		this( 0, 255 );
+	}
 
 	public ARGBColorConverter( final double min, final double max )
 	{
@@ -117,6 +121,12 @@ public abstract class ARGBColorConverter< R extends RealType< R > > implements C
 
 	public static class Imp0< R extends RealType< R > > extends ARGBColorConverter< R >
 	{
+
+		public Imp0()
+		{
+			super();
+		}
+
 		public Imp0( final double min, final double max )
 		{
 			super( min, max );
@@ -127,7 +137,9 @@ public abstract class ARGBColorConverter< R extends RealType< R > > implements C
 		{
 			final double v = input.getRealDouble() - min.get();
 			if ( v < 0 )
+			{
 				output.set( black );
+			}
 			else
 			{
 				final int r0 = ( int ) ( scaleR * v + 0.5 );
@@ -143,6 +155,12 @@ public abstract class ARGBColorConverter< R extends RealType< R > > implements C
 
 	public static class Imp1< R extends RealType< R > > extends ARGBColorConverter< R >
 	{
+
+		public Imp1()
+		{
+			super();
+		}
+
 		public Imp1( final double min, final double max )
 		{
 			super( min, max );
@@ -153,7 +171,9 @@ public abstract class ARGBColorConverter< R extends RealType< R > > implements C
 		{
 			final double v = input.getRealDouble() - min.get();
 			if ( v < 0 )
+			{
 				output.set( black );
+			}
 			else
 			{
 				final int r0 = ( int ) ( scaleR * v + 0.5 );
@@ -169,6 +189,11 @@ public abstract class ARGBColorConverter< R extends RealType< R > > implements C
 
 	public static class InvertingImp0< R extends RealType< R > > extends ARGBColorConverter< R >
 	{
+
+		public InvertingImp0()
+		{
+			super();
+		}
 
 		public InvertingImp0( final double min, final double max )
 		{
@@ -192,6 +217,11 @@ public abstract class ARGBColorConverter< R extends RealType< R > > implements C
 
 	public static class InvertingImp1< R extends RealType< R > > extends ARGBColorConverter< R >
 	{
+
+		public InvertingImp1()
+		{
+			super();
+		}
 
 		public InvertingImp1( final double min, final double max )
 		{

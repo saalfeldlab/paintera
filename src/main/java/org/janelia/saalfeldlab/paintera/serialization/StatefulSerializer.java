@@ -3,6 +3,7 @@ package org.janelia.saalfeldlab.paintera.serialization;
 import java.util.concurrent.ExecutorService;
 import java.util.function.IntFunction;
 import java.util.function.Supplier;
+import java.util.function.ToIntFunction;
 
 import org.janelia.saalfeldlab.paintera.PainteraBaseView;
 import org.janelia.saalfeldlab.paintera.state.SourceState;
@@ -41,12 +42,25 @@ public class StatefulSerializer
 		}
 	}
 
-	public static interface SerializerAndDeserializer< T, S extends JsonDeserializer< T > & JsonSerializer< T > >
+	public static interface Serializer< T, S extends JsonSerializer< T > >
 	{
-		public S create(
+		public S createSerializer(
+				Supplier< String > projectDirectory,
+				ToIntFunction< SourceState< ?, ? > > stateToIndex );
+	}
+
+	public static interface Deserializer< T, S extends JsonDeserializer< T > >
+	{
+		public S createDeserializer(
 				Arguments arguments,
 				Supplier< String > projectDirectory,
 				IntFunction< SourceState< ?, ? > > dependencyFromIndex );
+	}
+
+	public static interface SerializerAndDeserializer< T, D extends JsonDeserializer< T >, S extends JsonSerializer< T > >
+			extends Serializer< T, S >, Deserializer< T, D >
+	{
+
 	}
 
 }

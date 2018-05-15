@@ -1,8 +1,9 @@
-package org.janelia.saalfeldlab.paintera.serialization;
+package org.janelia.saalfeldlab.paintera.serialization.sourcestate;
 
 import java.io.IOException;
 import java.lang.invoke.MethodHandles;
-import java.lang.reflect.Type;
+import java.util.function.IntFunction;
+import java.util.function.Supplier;
 
 import org.janelia.saalfeldlab.n5.N5Writer;
 import org.janelia.saalfeldlab.paintera.N5Helpers;
@@ -20,24 +21,26 @@ import org.janelia.saalfeldlab.paintera.meshes.InterruptibleFunction;
 import org.janelia.saalfeldlab.paintera.meshes.MeshInfos;
 import org.janelia.saalfeldlab.paintera.meshes.MeshManagerWithAssignment;
 import org.janelia.saalfeldlab.paintera.meshes.cache.CacheUtils;
+import org.janelia.saalfeldlab.paintera.serialization.FragmentSegmentAssignmentOnlyLocalSerializer;
+import org.janelia.saalfeldlab.paintera.serialization.StatefulSerializer;
 import org.janelia.saalfeldlab.paintera.serialization.StatefulSerializer.Arguments;
 import org.janelia.saalfeldlab.paintera.state.LabelSourceState;
 import org.janelia.saalfeldlab.paintera.state.SourceState;
+import org.janelia.saalfeldlab.paintera.stream.AbstractHighlightingARGBStream;
 import org.janelia.saalfeldlab.paintera.stream.HighlightingStreamConverter;
-import org.janelia.saalfeldlab.paintera.stream.ModalGoldenAngleSaturatedHighlightingARGBStream;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.google.gson.JsonDeserializationContext;
 import com.google.gson.JsonObject;
-import com.google.gson.JsonSerializationContext;
 
 import javafx.beans.property.SimpleDoubleProperty;
 import javafx.beans.property.SimpleIntegerProperty;
 import net.imglib2.Interval;
 import net.imglib2.type.numeric.ARGBType;
 
-public class LabelSourceStateSerializer< C extends HighlightingStreamConverter< ? > > extends AbstractSourceStateSerializer< LabelSourceState< ?, ? >, C >
+public class LabelSourceStateDeserializer< C extends HighlightingStreamConverter< ? > >
+		extends SourceStateSerialization.SourceStateDeserializerWithoutDependencies< LabelSourceState< ?, ? >, C >
 {
 
 	private static final Logger LOG = LoggerFactory.getLogger( MethodHandles.lookup().lookupClass() );
@@ -52,19 +55,21 @@ public class LabelSourceStateSerializer< C extends HighlightingStreamConverter< 
 
 	private final Arguments arguments;
 
-	public LabelSourceStateSerializer( final Arguments arguments )
+	public LabelSourceStateDeserializer( final Arguments arguments )
 	{
 		super();
 		this.arguments = arguments;
 	}
 
-	@Override
-	public JsonObject serialize( final LabelSourceState< ?, ? > state, final Type type, final JsonSerializationContext context )
+	public static class Factory< C extends HighlightingStreamConverter< ? > > implements StatefulSerializer.Deserializer< LabelSourceState< ?, ? >, LabelSourceStateDeserializer< C > >
 	{
-		final JsonObject map = super.serialize( state, type, context );
-		map.add( SELECTED_IDS_KEY, context.serialize( state.selectedIds(), state.selectedIds().getClass() ) );
-		map.add( ASSIGNMENT_KEY, context.serialize( state.assignment() ) );
-		return map;
+
+		@Override
+		public LabelSourceStateDeserializer< C > createDeserializer( final Arguments arguments, final Supplier< String > projectDirectory, final IntFunction< SourceState< ?, ? > > dependencyFromIndex )
+		{
+			return new LabelSourceStateDeserializer<>( arguments );
+		}
+
 	}
 
 	@SuppressWarnings( { "unchecked", "rawtypes" } )
@@ -73,6 +78,7 @@ public class LabelSourceStateSerializer< C extends HighlightingStreamConverter< 
 			final JsonObject map,
 			final DataSource< ?, ? > source,
 			final Composite< ARGBType, ARGBType > composite,
+			final C converter,
 			final String name,
 			final SourceState< ?, ? >[] dependsOn,
 			final JsonDeserializationContext context ) throws IOException
@@ -81,22 +87,20 @@ public class LabelSourceStateSerializer< C extends HighlightingStreamConverter< 
 		LOG.warn( "Is {} masked source? {}", source, isMaskedSource );
 		if ( isMaskedSource )
 		{
-			LOG.warn( "Underlying source: {}", ((MaskedSource<?,?>)source).underlyingSource() );
+			LOG.warn( "Underlying source: {}", ( ( MaskedSource< ?, ? > ) source ).underlyingSource() );
 		}
 
-		if ( isMaskedSource && !(((MaskedSource<?,?>)source).underlyingSource() instanceof N5DataSource< ?, ? >))
+		if ( isMaskedSource && !( ( ( MaskedSource< ?, ? > ) source ).underlyingSource() instanceof N5DataSource< ?, ? > ) )
 		{
 			LOG.warn( "Returning null pointer!" );
 			return null;
 		}
 
-		if ( !isMaskedSource && !(source instanceof N5DataSource< ?, ? >)) {
-			return null;
-		}
+		if ( !isMaskedSource && !( source instanceof N5DataSource< ?, ? > ) ) { return null; }
 
-		final N5DataSource< ?, ? > n5Source = (N5DataSource< ?, ? >) ( isMaskedSource
-				? ((MaskedSource<?,?>)source).underlyingSource()
-						: source );
+		final N5DataSource< ?, ? > n5Source = ( N5DataSource< ?, ? > ) ( isMaskedSource
+				? ( ( MaskedSource< ?, ? > ) source ).underlyingSource()
+				: source );
 
 		final N5Writer writer = n5Source.writer();
 		final String dataset = n5Source.dataset();
@@ -112,10 +116,11 @@ public class LabelSourceStateSerializer< C extends HighlightingStreamConverter< 
 		final SelectedSegments selectedSegments = new SelectedSegments( selectedIds, assignment );
 		final FragmentsInSelectedSegments fragmentsInSelectedSegments = new FragmentsInSelectedSegments( selectedSegments, assignment );
 
-		final ModalGoldenAngleSaturatedHighlightingARGBStream stream = new ModalGoldenAngleSaturatedHighlightingARGBStream( selectedIds, assignment );
+		final AbstractHighlightingARGBStream stream = converter.getStream();
+		stream.setHighlightsAndAssignment( selectedIds, assignment );
 
 		final InterruptibleFunction< Long, Interval[] >[] blockCaches = PainteraBaseView.generateLabelBlocksForLabelCache( n5Source, PainteraBaseView.scaleFactorsFromAffineTransforms( source ) );
-		final InterruptibleFunction[] meshCache = CacheUtils.meshCacheLoaders( (DataSource)source, PainteraBaseView.equalsMaskForType( source.getType() ), CacheUtils::toCacheSoftRefLoaderCache );
+		final InterruptibleFunction[] meshCache = CacheUtils.meshCacheLoaders( ( DataSource ) source, PainteraBaseView.equalsMaskForType( source.getType() ), CacheUtils::toCacheSoftRefLoaderCache );
 		final MeshManagerWithAssignment meshManager = new MeshManagerWithAssignment(
 				source,
 				blockCaches,
@@ -128,12 +133,12 @@ public class LabelSourceStateSerializer< C extends HighlightingStreamConverter< 
 				new SimpleDoubleProperty(),
 				new SimpleIntegerProperty(),
 				arguments.meshManagerExecutors,
-				arguments.meshWorkersExecutors);
+				arguments.meshWorkersExecutors );
 		final MeshInfos meshInfos = new MeshInfos( selectedSegments, assignment, meshManager, source.getNumMipmapLevels() );
 
 		return new LabelSourceState(
 				source,
-				HighlightingStreamConverter.forType( stream, source.getType() ),
+				converter,
 				composite,
 				name,
 				PainteraBaseView.equalsMaskForType( source.getType() ),

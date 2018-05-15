@@ -7,8 +7,8 @@ import org.janelia.saalfeldlab.paintera.composition.Composite;
 import com.google.gson.JsonDeserializationContext;
 import com.google.gson.JsonDeserializer;
 import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
 import com.google.gson.JsonParseException;
-import com.google.gson.JsonPrimitive;
 import com.google.gson.JsonSerializationContext;
 import com.google.gson.JsonSerializer;
 
@@ -31,7 +31,7 @@ public class CompositeSerializer implements JsonSerializer< Composite< ?, ? > >,
 	@Override
 	public JsonElement serialize( final Composite< ?, ? > src, final Type typeOfSrc, final JsonSerializationContext context )
 	{
-		return new JsonPrimitive( src.getClass().getName() );
+		return new JsonObject();
 	}
 
 }

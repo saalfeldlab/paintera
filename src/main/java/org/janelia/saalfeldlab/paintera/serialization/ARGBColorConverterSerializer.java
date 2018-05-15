@@ -28,8 +28,6 @@ public class ARGBColorConverterSerializer< T extends RealType< T > > implements 
 
 	private static final String MAX_KEY = "max";
 
-
-
 	@Override
 	public ARGBColorConverter< T > deserialize( final JsonElement json, final Type type, final JsonDeserializationContext context ) throws JsonParseException
 	{

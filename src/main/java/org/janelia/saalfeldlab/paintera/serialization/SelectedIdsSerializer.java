@@ -26,10 +26,14 @@ public class SelectedIdsSerializer implements JsonSerializer< SelectedIds >, Jso
 		final SelectedIds selectedIds = new SelectedIds();
 
 		if ( obj.has( ACTIVE_IDS ) )
+		{
 			selectedIds.activate( context.deserialize( obj.get( ACTIVE_IDS ), long[].class ) );
+		}
 
 		if ( obj.has( LAST_SELECTION ) )
+		{
 			selectedIds.activateAlso( obj.get( LAST_SELECTION ).getAsLong() );
+		}
 
 		return selectedIds;
 	}

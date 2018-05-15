@@ -13,6 +13,7 @@ import org.janelia.saalfeldlab.paintera.data.DataSource;
 import org.janelia.saalfeldlab.paintera.serialization.GsonHelpers;
 import org.janelia.saalfeldlab.paintera.serialization.Properties;
 import org.janelia.saalfeldlab.paintera.state.LabelSourceState;
+import org.janelia.saalfeldlab.paintera.state.SourceInfo;
 import org.janelia.saalfeldlab.paintera.state.SourceState;
 import org.janelia.saalfeldlab.paintera.viewer3d.Viewer3DFX;
 import org.slf4j.Logger;
@@ -79,26 +80,26 @@ public class Paintera extends Application
 
 		final Optional< JsonObject > loadedProperties = loadPropertiesIfPresent( painteraArgs.project() );
 
-
-		// TODO this can probably be hidden in Properties.fromSerializedProperties
+		// TODO this can probably be hidden in
+		// Properties.fromSerializedProperties
 		final Map< Integer, SourceState< ?, ? > > indexToState = new HashMap<>();
 
 		final Properties properties = loadedProperties.map( lp -> Properties.fromSerializedProperties( lp, baseView, true, painteraArgs::project, indexToState ) ).orElse( new Properties( baseView ) );
 
 		// TODO this should probably happen in the properties.populate:
-		properties.sources
-		.trackSources()
-		.stream()
-		.map( properties.sources::getState )
-		.filter( state -> state instanceof LabelSourceState< ?, ? > )
-		.map( state -> ( LabelSourceState< ?, ? > ) state )
-		.forEach( state -> {
-			final long[] selIds = state.selectedIds().getActiveIds();
-			final long lastId = state.selectedIds().getLastSelection();
-			state.selectedIds().deactivateAll();
-			state.selectedIds().activate( selIds );
-			state.selectedIds().activateAlso( lastId );
-		} );
+		properties.sourceInfo
+				.trackSources()
+				.stream()
+				.map( properties.sourceInfo::getState )
+				.filter( state -> state instanceof LabelSourceState< ?, ? > )
+				.map( state -> ( LabelSourceState< ?, ? > ) state )
+				.forEach( state -> {
+					final long[] selIds = state.selectedIds().getActiveIds();
+					final long lastId = state.selectedIds().getLastSelection();
+					state.selectedIds().deactivateAll();
+					state.selectedIds().activate( selIds );
+					state.selectedIds().activateAlso( lastId );
+				} );
 		properties.clean();
 
 		LOG.debug( "Adding {} raw sources: {}", painteraArgs.rawSources().length, painteraArgs.rawSources() );
@@ -149,7 +150,7 @@ public class Paintera extends Application
 					LOG.debug( "Saving project before exit" );
 					try
 					{
-						persistProperties( painteraArgs.project(), properties, GsonHelpers.builderWithAllRequiredAdapters( baseView, painteraArgs::project ).setPrettyPrinting() );
+						persistProperties( painteraArgs.project(), properties, GsonHelpers.builderWithAllRequiredSerializers( baseView, painteraArgs::project ).setPrettyPrinting() );
 					}
 					catch ( final IOException e )
 					{
@@ -198,9 +199,7 @@ public class Paintera extends Application
 			final PainteraBaseView pbv,
 			final String identifier ) throws UnableToAddSource
 	{
-		if ( !Pattern.matches( "^[a-z]+://.+", identifier ) ) {
-			return addRawFromString( pbv, "file://" + identifier );
-		}
+		if ( !Pattern.matches( "^[a-z]+://.+", identifier ) ) { return addRawFromString( pbv, "file://" + identifier ); }
 
 		if ( Pattern.matches( "^file://.+", identifier ) )
 		{
@@ -291,8 +290,8 @@ public class Paintera extends Application
 
 		final double[] screenScales = maxSize < 2500
 				? new double[] { 1.0 / 1.0, 1.0 / 2.0, 1.0 / 4.0, 1.0 / 8.0 }
-		: new double[] { 1.0 / 2.0, 1.0 / 4.0, 1.0 / 8.0, 1.0 / 16.0 };
-				return screenScales;
+				: new double[] { 1.0 / 2.0, 1.0 / 4.0, 1.0 / 8.0, 1.0 / 16.0 };
+		return screenScales;
 	}
 
 	public static Optional< JsonObject > loadPropertiesIfPresent( final String root )
@@ -315,6 +314,8 @@ public class Paintera extends Application
 
 	public static void persistProperties( final String root, final Properties properties, final GsonBuilder builder ) throws IOException
 	{
+		builder.create().getAdapter( SourceInfo.class );
+		LOG.warn( "Persisting properties {} into {}", properties, root );
 		N5Helpers.n5Writer( root, builder, 64, 64, 64 ).setAttribute( "", PAINTERA_KEY, properties );
 	}
 

@@ -19,6 +19,7 @@ package org.janelia.saalfeldlab.paintera.stream;
 import java.lang.invoke.MethodHandles;
 
 import org.janelia.saalfeldlab.fx.ObservableWithListenersList;
+import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignment;
 import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignmentState;
 import org.janelia.saalfeldlab.paintera.control.selection.SelectedIds;
 import org.slf4j.Logger;
@@ -60,9 +61,9 @@ public abstract class AbstractHighlightingARGBStream extends ObservableWithListe
 
 	protected int invalidSegmentAlpha = 0x00000000;
 
-	protected final SelectedIds highlights;
+	protected SelectedIds highlights;
 
-	protected final FragmentSegmentAssignmentState assignment;
+	protected FragmentSegmentAssignment assignment;
 
 	private final BooleanProperty colorFromSegmentId = new SimpleBooleanProperty();
 
@@ -245,6 +246,27 @@ public abstract class AbstractHighlightingARGBStream extends ObservableWithListe
 	public BooleanProperty colorFromSegmentIdProperty()
 	{
 		return this.colorFromSegmentId;
+	}
+
+	public void setHighlights( final SelectedIds highlights )
+	{
+		this.highlights = highlights;
+		clearCache();
+	}
+
+	public void setAssignment( final FragmentSegmentAssignment assignment )
+	{
+		this.assignment = assignment;
+		clearCache();
+	}
+
+	public void setHighlightsAndAssignment(
+			final SelectedIds highlights,
+			final FragmentSegmentAssignment assignment )
+	{
+		this.highlights = highlights;
+		this.assignment = assignment;
+		clearCache();
 	}
 
 }

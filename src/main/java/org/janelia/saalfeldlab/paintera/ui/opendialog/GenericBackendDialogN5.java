@@ -149,7 +149,7 @@ public class GenericBackendDialogN5 implements BackendDialog
 
 	private final StringBinding errorMessage = Bindings.createStringBinding(
 			() -> isReady.get() ? null : String.format( ERROR_MESSAGE_PATTERN, isN5Valid.get(), isDatasetValid.get(), datasetUpdateFailed.not().get() ),
-					isReady );
+			isReady );
 
 	private final StringBinding name = Bindings.createStringBinding( () -> {
 		final String[] entries = Optional
@@ -504,16 +504,15 @@ public class GenericBackendDialogN5 implements BackendDialog
 	{
 		final N5Reader reader = n5.get();
 		final String dataset = this.dataset.get();
-		final double[] resolution = asPrimitiveArray(resolution());
-		final double[] offset = asPrimitiveArray(offset());
+		final double[] resolution = asPrimitiveArray( resolution() );
+		final double[] offset = asPrimitiveArray( offset() );
 		final AffineTransform3D transform = N5Helpers.fromResolutionAndOffset( resolution, offset );
-		final DataSource< T, V >source =  N5Helpers.openRawAsSource( reader, dataset, transform, sharedQueue, priority, name );
+		final DataSource< T, V > source = N5Helpers.openRawAsSource( reader, dataset, transform, sharedQueue, priority, name );
 		final InvertingImp1< V > converter = new ARGBColorConverter.InvertingImp1<>( min().get(), max().get() );
 		final RawSourceState< T, V > state = new RawSourceState<>( source, converter, new CompositeCopy<>(), name );
 		LOG.debug( "Returning raw source state {} {}", name, state );
 		return state;
 	}
-
 
 	@Override
 	public < D extends NativeType< D >, T extends Volatile< D > & NativeType< T > > LabelSourceState< D, T > getLabels(
@@ -526,22 +525,22 @@ public class GenericBackendDialogN5 implements BackendDialog
 	{
 		final N5Writer reader = n5.get();
 		final String dataset = this.dataset.get();
-		final double[] resolution = asPrimitiveArray(resolution());
-		final double[] offset = asPrimitiveArray(offset());
+		final double[] resolution = asPrimitiveArray( resolution() );
+		final double[] offset = asPrimitiveArray( offset() );
 		final AffineTransform3D transform = N5Helpers.fromResolutionAndOffset( resolution, offset );
 		final DataSource< D, T > source;
 		if ( N5Helpers.isLabelMultisetType( reader, dataset ) )
 		{
-			source = ( DataSource< D, T > ) N5Helpers.openLabelMultisetAsSource( reader, dataset, transform, sharedQueue, priority, name );
+			source = ( DataSource ) N5Helpers.openLabelMultisetAsSource( reader, dataset, transform, sharedQueue, priority, name );
 		}
 		else
 		{
-			source = (DataSource<D,T>) N5Helpers.openScalarAsSource( reader, dataset, transform, sharedQueue, priority, name );
+			source = ( DataSource< D, T > ) N5Helpers.openScalarAsSource( reader, dataset, transform, sharedQueue, priority, name );
 		}
 
 		final TmpDirectoryCreator canvasCacheDirUpdate = new TmpDirectoryCreator( null, null );
 
-		final DataSource< D, T > masked =Masks.mask( source, canvasCacheDirUpdate.get(), canvasCacheDirUpdate, commitCanvas(), workers );
+		final DataSource< D, T > masked = Masks.mask( source, canvasCacheDirUpdate.get(), canvasCacheDirUpdate, commitCanvas(), workers );
 		final FragmentSegmentAssignmentState assignment = assignments();
 		final SelectedIds selectedIds = new SelectedIds();
 		final SelectedSegments selectedSegments = new SelectedSegments( selectedIds, assignment );
@@ -551,9 +550,6 @@ public class GenericBackendDialogN5 implements BackendDialog
 		final InterruptibleFunction< Long, Interval[] >[] blockListCache = PainteraBaseView.generateLabelBlocksForLabelCache( masked, PainteraBaseView.scaleFactorsFromAffineTransforms( masked ) );
 		final LongFunction< Converter< D, BoolType > > getMaskGenerator = PainteraBaseView.equalsMaskForType( source.getDataType() );
 		final InterruptibleFunction< ShapeKey, Pair< float[], float[] > >[] meshCache = CacheUtils.meshCacheLoaders( source, getMaskGenerator, CacheUtils::toCacheSoftRefLoaderCache );
-
-
-
 
 		final MeshManagerWithAssignment meshManager = new MeshManagerWithAssignment(
 				source,

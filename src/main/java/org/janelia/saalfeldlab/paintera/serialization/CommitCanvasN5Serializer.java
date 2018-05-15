@@ -19,6 +19,7 @@ public class CommitCanvasN5Serializer implements JsonSerializer< CommitCanvasN5 
 {
 
 	public static final String META_CLASS_KEY = "class";
+
 	public static final String META_DATA_KEY = "data";
 
 	@Override
