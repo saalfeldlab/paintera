@@ -34,8 +34,10 @@ import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleIntegerProperty;
 import javafx.beans.property.SimpleObjectProperty;
+import javafx.beans.property.StringProperty;
 import javafx.beans.value.ObservableBooleanValue;
 import javafx.beans.value.ObservableIntegerValue;
+import javafx.beans.value.ObservableObjectValue;
 import javafx.collections.FXCollections;
 import javafx.collections.ListChangeListener;
 import javafx.collections.ObservableList;
@@ -113,6 +115,14 @@ public class SourceInfo
 		this.visibleSources.addListener( ( ListChangeListener< Source< ? > > ) ( change ) -> updateCurrentSourceIndexInVisibleSources() );
 		updateCurrentSourceIndexInVisibleSources();
 	}
+
+	private final ObservableObjectValue< SourceState< ?, ? > > currentState = Bindings.createObjectBinding(
+			() -> Optional.ofNullable( currentSource.get() ).map( this::getState ).orElse( null ),
+			currentSource );
+
+	private final ObservableObjectValue< StringProperty > currentName = Bindings.createObjectBinding(
+			() -> Optional.ofNullable( currentState.get() ).map( SourceState::nameProperty ).orElse( null ),
+			currentState );
 
 	private final ObservableMap< Source< ? >, Composite< ARGBType, ARGBType > > composites = FXCollections.observableHashMap();
 
@@ -285,7 +295,7 @@ public class SourceInfo
 	{
 		final SourceState< ?, ? > state = states.get( source );
 		return state instanceof LabelSourceState< ?, ? >
-		? Optional.of( ( ( LabelSourceState< ?, ? > ) state ).toIdConverter() )
+				? Optional.of( ( ( LabelSourceState< ?, ? > ) state ).toIdConverter() )
 				: Optional.empty();
 	}
 
@@ -293,7 +303,7 @@ public class SourceInfo
 	{
 		final SourceState< ?, ? > state = states.get( source );
 		return state instanceof LabelSourceState< ?, ? >
-		? Optional.of( ( ( LabelSourceState< ?, ? > ) state ).assignment() )
+				? Optional.of( ( ( LabelSourceState< ?, ? > ) state ).assignment() )
 				: Optional.empty();
 	}
 
@@ -476,6 +486,16 @@ public class SourceInfo
 	public int indexOf( final Source< ? > source )
 	{
 		return this.trackSources().indexOf( source );
+	}
+
+	public ObservableObjectValue< SourceState< ?, ? > > currentState()
+	{
+		return this.currentState;
+	}
+
+	public ObservableObjectValue< StringProperty > currentNameProperty()
+	{
+		return this.currentName;
 	}
 
 }

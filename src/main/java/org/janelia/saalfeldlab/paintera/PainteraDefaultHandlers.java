@@ -168,8 +168,6 @@ public class PainteraDefaultHandlers
 		this.resizer.installInto( baseView.pane() );
 
 		final ObjectProperty< Source< ? > > currentSource = sourceInfo.currentSourceProperty();
-		currentSource.addListener( ( obs, oldv, newv ) -> paneWithStatus.setCurrentSourceStatus( newv ) );
-		paneWithStatus.setCurrentSourceStatus( currentSource.get() );
 
 		final OrthogonalViewsValueDisplayListener vdl = new OrthogonalViewsValueDisplayListener(
 				paneWithStatus::setCurrentValue,

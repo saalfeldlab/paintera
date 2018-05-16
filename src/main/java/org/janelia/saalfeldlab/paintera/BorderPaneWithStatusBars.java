@@ -101,11 +101,6 @@ public class BorderPaneWithStatusBars
 		InvokeOnJavaFXApplicationThread.invoke( () -> worldCoordinateStatus.setText( p == null ? "N/A" : CoordinateDisplayListener.worldToString( p ) ) );
 	}
 
-	public void setCurrentSourceStatus( final Source< ? > s )
-	{
-		InvokeOnJavaFXApplicationThread.invoke( () -> currentSourceStatus.setText( Optional.ofNullable( s ).map( Source::getName ).orElse( "<null>" ) ) );
-	}
-
 	public void setCurrentValue( final String s )
 	{
 		InvokeOnJavaFXApplicationThread.invoke( () -> valueStatus.setText( s ) );
@@ -146,6 +141,11 @@ public class BorderPaneWithStatusBars
 				center.orthogonalViews().topRight().viewer().visibleProperty(),
 				center.orthogonalViews().bottomLeft().viewer().visibleProperty(),
 				center.sourceInfo().hasVisibleSources() );
+
+		center.sourceInfo().currentNameProperty().addListener( ( obs, oldv, newv ) -> {
+			currentSourceStatus.textProperty().unbind();
+			Optional.ofNullable( newv ).ifPresent( currentSourceStatus.textProperty()::bind );
+		} );
 
 		this.statusBar = new AnchorPane(
 				currentSourceStatus,
