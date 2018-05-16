@@ -47,7 +47,6 @@ import javafx.application.Application;
 import javafx.application.Platform;
 import javafx.beans.property.SimpleDoubleProperty;
 import javafx.beans.property.SimpleIntegerProperty;
-import javafx.geometry.Rectangle2D;
 import javafx.scene.Scene;
 import javafx.scene.control.ButtonBar.ButtonData;
 import javafx.scene.control.ButtonType;
@@ -359,13 +358,13 @@ public class Paintera extends Application
 	private static double[] screenScales()
 	{
 
-		int maxSize = 0;
-		for ( final Screen screen : Screen.getScreens() )
-		{
-			final Rectangle2D bounds = screen.getVisualBounds();
-			maxSize = Math.max( ( int ) bounds.getWidth(), maxSize );
-			maxSize = Math.max( ( int ) bounds.getHeight(), maxSize );
-		}
+		final int maxSize = ( int ) Screen
+				.getScreens()
+				.stream()
+				.map( Screen::getVisualBounds )
+				.mapToDouble( b -> Math.max( b.getWidth(), b.getHeight() ) )
+				.max()
+				.orElse( 0.0 );
 
 		LOG.debug( "max screen size = {}", maxSize );
 
