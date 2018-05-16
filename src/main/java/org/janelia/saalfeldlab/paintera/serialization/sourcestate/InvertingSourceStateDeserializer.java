@@ -58,6 +58,7 @@ public class InvertingSourceStateDeserializer implements JsonDeserializer< Inver
 		if ( dependsOn.length != 1 ) { throw new JsonParseException( "Expected exactly one dependency, got: " + map.get( SourceStateSerialization.DEPENDS_ON_KEY ) ); }
 
 		final SourceState< ?, ? > dependsOnState = this.dependsOn.apply( dependsOn[ 0 ] );
+		if ( dependsOnState == null ) { return null; }
 
 		if ( !( dependsOnState instanceof RawSourceState< ?, ? > ) ) { throw new JsonParseException( "Expected " + RawSourceState.class.getName() + " as dependency but got " + dependsOnState.getClass().getName() + " instead." ); }
 
