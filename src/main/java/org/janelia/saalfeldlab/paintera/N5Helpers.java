@@ -378,23 +378,23 @@ public class N5Helpers
 	}
 
 	public static < T extends NativeType< T >, V extends Volatile< T > & NativeType< V > > ValueTriple< RandomAccessibleInterval< T >, RandomAccessibleInterval< V >, AffineTransform3D >
-	openRaw(
-			final N5Reader reader,
-			final String dataset,
-			final SharedQueue sharedQueue,
-			final int priority ) throws IOException
+			openRaw(
+					final N5Reader reader,
+					final String dataset,
+					final SharedQueue sharedQueue,
+					final int priority ) throws IOException
 	{
 		return openRaw( reader, dataset, getResolution( reader, dataset ), getOffset( reader, dataset ), sharedQueue, priority );
 	}
 
-	public static < T extends NativeType< T > & RealType< T >, V extends Volatile< T > & NativeType< V > & RealType< V>, A >
-	DataSource< T, V > openRawAsSource(
-			final N5Reader reader,
-			final String dataset,
-			final AffineTransform3D transform,
-			final SharedQueue sharedQueue,
-			final int priority,
-			final String name ) throws IOException, ReflectionException
+	public static < T extends NativeType< T > & RealType< T >, V extends Volatile< T > & NativeType< V > & RealType< V >, A >
+			DataSource< T, V > openRawAsSource(
+					final N5Reader reader,
+					final String dataset,
+					final AffineTransform3D transform,
+					final SharedQueue sharedQueue,
+					final int priority,
+					final String name ) throws IOException, ReflectionException
 	{
 		return openScalarAsSource(
 				reader,
@@ -403,18 +403,18 @@ public class N5Helpers
 				sharedQueue,
 				priority,
 				i -> i == Interpolation.NLINEAR ? new NLinearInterpolatorFactory<>() : new NearestNeighborInterpolatorFactory<>(),
-						i -> i == Interpolation.NLINEAR ? new NLinearInterpolatorFactory<>() : new NearestNeighborInterpolatorFactory<>(),
-								name );
+				i -> i == Interpolation.NLINEAR ? new NLinearInterpolatorFactory<>() : new NearestNeighborInterpolatorFactory<>(),
+				name );
 	}
 
 	public static < T extends NativeType< T >, V extends Volatile< T > & NativeType< V >, A >
-	DataSource< T, V > openScalarAsSource(
-			final N5Reader reader,
-			final String dataset,
-			final AffineTransform3D transform,
-			final SharedQueue sharedQueue,
-			final int priority,
-			final String name ) throws IOException, ReflectionException
+			DataSource< T, V > openScalarAsSource(
+					final N5Reader reader,
+					final String dataset,
+					final AffineTransform3D transform,
+					final SharedQueue sharedQueue,
+					final int priority,
+					final String name ) throws IOException, ReflectionException
 	{
 		return openScalarAsSource(
 				reader,
@@ -428,15 +428,15 @@ public class N5Helpers
 	}
 
 	public static < T extends NativeType< T >, V extends Volatile< T > & NativeType< V >, A >
-	DataSource< T, V > openScalarAsSource(
-			final N5Reader reader,
-			final String dataset,
-			final AffineTransform3D transform,
-			final SharedQueue sharedQueue,
-			final int priority,
-			final Function< Interpolation, InterpolatorFactory< T, RandomAccessible< T > > > dataInterpolation,
-			final Function< Interpolation, InterpolatorFactory< V, RandomAccessible< V > > > interpolation,
-			final String name ) throws IOException, ReflectionException
+			DataSource< T, V > openScalarAsSource(
+					final N5Reader reader,
+					final String dataset,
+					final AffineTransform3D transform,
+					final SharedQueue sharedQueue,
+					final int priority,
+					final Function< Interpolation, InterpolatorFactory< T, RandomAccessible< T > > > dataInterpolation,
+					final Function< Interpolation, InterpolatorFactory< V, RandomAccessible< V > > > interpolation,
+					final String name ) throws IOException, ReflectionException
 	{
 
 		LOG.debug( "Creating N5 Data source from {} {}", reader, dataset );
@@ -451,16 +451,16 @@ public class N5Helpers
 	}
 
 	public static < T extends NativeType< T >, V extends Volatile< T > & NativeType< V >, A >
-	ValueTriple< RandomAccessibleInterval< T >[], RandomAccessibleInterval< V >[], AffineTransform3D[] > openScalar(
-			final N5Reader reader,
-			final String dataset,
-			final AffineTransform3D transform,
-			final SharedQueue sharedQueue,
-			final int priority ) throws IOException
+			ValueTriple< RandomAccessibleInterval< T >[], RandomAccessibleInterval< V >[], AffineTransform3D[] > openScalar(
+					final N5Reader reader,
+					final String dataset,
+					final AffineTransform3D transform,
+					final SharedQueue sharedQueue,
+					final int priority ) throws IOException
 	{
 		return isMultiScale( reader, dataset )
 				? openRawMultiscale( reader, dataset, transform, sharedQueue, priority )
-						: asArrayTriple( openRaw( reader, dataset, transform, sharedQueue, priority ) );
+				: asArrayTriple( openRaw( reader, dataset, transform, sharedQueue, priority ) );
 
 	}
 
@@ -472,13 +472,13 @@ public class N5Helpers
 
 	@SuppressWarnings( { "unchecked", "rawtypes" } )
 	public static < T extends NativeType< T >, V extends Volatile< T > & NativeType< V >, A > ValueTriple< RandomAccessibleInterval< T >, RandomAccessibleInterval< V >, AffineTransform3D >
-	openRaw(
-			final N5Reader reader,
-			final String dataset,
-			final double[] resolution,
-			final double[] offset,
-			final SharedQueue sharedQueue,
-			final int priority ) throws IOException
+			openRaw(
+					final N5Reader reader,
+					final String dataset,
+					final double[] resolution,
+					final double[] offset,
+					final SharedQueue sharedQueue,
+					final int priority ) throws IOException
 	{
 		final AffineTransform3D transform = new AffineTransform3D();
 		transform.set(
@@ -489,12 +489,12 @@ public class N5Helpers
 	}
 
 	public static < T extends NativeType< T >, V extends Volatile< T > & NativeType< V >, A > ValueTriple< RandomAccessibleInterval< T >, RandomAccessibleInterval< V >, AffineTransform3D >
-	openRaw(
-			final N5Reader reader,
-			final String dataset,
-			final AffineTransform3D transform,
-			final SharedQueue sharedQueue,
-			final int priority ) throws IOException
+			openRaw(
+					final N5Reader reader,
+					final String dataset,
+					final AffineTransform3D transform,
+					final SharedQueue sharedQueue,
+					final int priority ) throws IOException
 	{
 
 		final CachedCellImg< T, A > raw = ( CachedCellImg< T, A > ) N5Utils.openVolatile( reader, dataset );
@@ -510,11 +510,11 @@ public class N5Helpers
 	}
 
 	public static < T extends NativeType< T >, V extends Volatile< T > & NativeType< V > > ValueTriple< RandomAccessibleInterval< T >[], RandomAccessibleInterval< V >[], AffineTransform3D[] >
-	openRawMultiscale(
-			final N5Reader reader,
-			final String dataset,
-			final SharedQueue sharedQueue,
-			final int priority ) throws IOException
+			openRawMultiscale(
+					final N5Reader reader,
+					final String dataset,
+					final SharedQueue sharedQueue,
+					final int priority ) throws IOException
 	{
 		return openRawMultiscale(
 				reader,
@@ -527,13 +527,13 @@ public class N5Helpers
 	}
 
 	public static < T extends NativeType< T >, V extends Volatile< T > & NativeType< V > > ValueTriple< RandomAccessibleInterval< T >[], RandomAccessibleInterval< V >[], AffineTransform3D[] >
-	openRawMultiscale(
-			final N5Reader reader,
-			final String dataset,
-			final double[] resolution,
-			final double[] offset,
-			final SharedQueue sharedQueue,
-			final int priority ) throws IOException
+			openRawMultiscale(
+					final N5Reader reader,
+					final String dataset,
+					final double[] resolution,
+					final double[] offset,
+					final SharedQueue sharedQueue,
+					final int priority ) throws IOException
 	{
 		final AffineTransform3D transform = new AffineTransform3D();
 		transform.set(
@@ -544,12 +544,12 @@ public class N5Helpers
 	}
 
 	public static < T extends NativeType< T >, V extends Volatile< T > & NativeType< V > > ValueTriple< RandomAccessibleInterval< T >[], RandomAccessibleInterval< V >[], AffineTransform3D[] >
-	openRawMultiscale(
-			final N5Reader reader,
-			final String dataset,
-			final AffineTransform3D transform,
-			final SharedQueue sharedQueue,
-			final int priority ) throws IOException
+			openRawMultiscale(
+					final N5Reader reader,
+					final String dataset,
+					final AffineTransform3D transform,
+					final SharedQueue sharedQueue,
+					final int priority ) throws IOException
 	{
 		final String[] scaleDatasets = N5Helpers.listAndSortScaleDatasets( reader, dataset );
 
@@ -587,33 +587,33 @@ public class N5Helpers
 	}
 
 	public static DataSource< LabelMultisetType, VolatileLabelMultisetType >
-	openLabelMultisetAsSource(
-			final N5Reader reader,
-			final String dataset,
-			final AffineTransform3D transform,
-			final SharedQueue sharedQueue,
-			final int priority,
-			final String name ) throws IOException, ReflectionException
+			openLabelMultisetAsSource(
+					final N5Reader reader,
+					final String dataset,
+					final AffineTransform3D transform,
+					final SharedQueue sharedQueue,
+					final int priority,
+					final String name ) throws IOException, ReflectionException
 	{
 		final ValueTriple< RandomAccessibleInterval< LabelMultisetType >[], RandomAccessibleInterval< VolatileLabelMultisetType >[], AffineTransform3D[] > data = isMultiScale( reader, dataset )
 				? openLabelMultisetMultiscale( reader, dataset, transform, sharedQueue, priority )
-						: asArrayTriple( openLabelMutliset( reader, dataset, transform, sharedQueue, priority ) );
-				return new N5DataSource<>(
-						N5Meta.fromReader( reader, dataset ),
-						transform,
-						sharedQueue,
-						name,
-						priority,
-						i -> new NearestNeighborInterpolatorFactory<>(),
-						i -> new NearestNeighborInterpolatorFactory<>() );
+				: asArrayTriple( openLabelMutliset( reader, dataset, transform, sharedQueue, priority ) );
+		return new N5DataSource<>(
+				N5Meta.fromReader( reader, dataset ),
+				transform,
+				sharedQueue,
+				name,
+				priority,
+				i -> new NearestNeighborInterpolatorFactory<>(),
+				i -> new NearestNeighborInterpolatorFactory<>() );
 	}
 
 	public static ValueTriple< RandomAccessibleInterval< LabelMultisetType >, RandomAccessibleInterval< VolatileLabelMultisetType >, AffineTransform3D >
-	openLabelMutliset(
-			final N5Reader reader,
-			final String dataset,
-			final SharedQueue sharedQueue,
-			final int priority ) throws IOException
+			openLabelMutliset(
+					final N5Reader reader,
+					final String dataset,
+					final SharedQueue sharedQueue,
+					final int priority ) throws IOException
 	{
 		return openLabelMutliset( reader, dataset, getResolution( reader, dataset ), getOffset( reader, dataset ), sharedQueue, priority );
 	}
@@ -653,8 +653,7 @@ public class N5Helpers
 		cachedImg.setLinkedType( new LabelMultisetType( cachedImg ) );
 
 		@SuppressWarnings( "unchecked" )
-		final
-		Pair< VolatileCachedCellImg< VolatileLabelMultisetType, VolatileLabelMultisetArray >, VolatileCache< Long, Cell< VolatileLabelMultisetArray > > > volatileCachedImgAndCache = VolatileHelpers.createVolatileCachedCellImg(
+		final Pair< VolatileCachedCellImg< VolatileLabelMultisetType, VolatileLabelMultisetArray >, VolatileCache< Long, Cell< VolatileLabelMultisetArray > > > volatileCachedImgAndCache = VolatileHelpers.createVolatileCachedCellImg(
 				cachedImg,
 				( Function< NativeImg< VolatileLabelMultisetType, ? extends VolatileLabelMultisetArray >, VolatileLabelMultisetType > ) img -> new VolatileLabelMultisetType( ( NativeImg< ?, VolatileLabelMultisetArray > ) img ),
 				new VolatileHelpers.CreateInvalidVolatileLabelMultisetArray( cachedImg.getCellGrid() ),
@@ -666,11 +665,11 @@ public class N5Helpers
 	}
 
 	public static ValueTriple< RandomAccessibleInterval< LabelMultisetType >[], RandomAccessibleInterval< VolatileLabelMultisetType >[], AffineTransform3D[] >
-	openLabelMultisetMultiscale(
-			final N5Reader reader,
-			final String dataset,
-			final SharedQueue sharedQueue,
-			final int priority ) throws IOException
+			openLabelMultisetMultiscale(
+					final N5Reader reader,
+					final String dataset,
+					final SharedQueue sharedQueue,
+					final int priority ) throws IOException
 	{
 		return openLabelMultisetMultiscale(
 				reader,
@@ -682,13 +681,13 @@ public class N5Helpers
 	}
 
 	public static ValueTriple< RandomAccessibleInterval< LabelMultisetType >[], RandomAccessibleInterval< VolatileLabelMultisetType >[], AffineTransform3D[] >
-	openLabelMultisetMultiscale(
-			final N5Reader reader,
-			final String dataset,
-			final double[] resolution,
-			final double[] offset,
-			final SharedQueue sharedQueue,
-			final int priority ) throws IOException
+			openLabelMultisetMultiscale(
+					final N5Reader reader,
+					final String dataset,
+					final double[] resolution,
+					final double[] offset,
+					final SharedQueue sharedQueue,
+					final int priority ) throws IOException
 	{
 		final AffineTransform3D transform = new AffineTransform3D();
 		transform.set(
@@ -704,12 +703,12 @@ public class N5Helpers
 	}
 
 	public static ValueTriple< RandomAccessibleInterval< LabelMultisetType >[], RandomAccessibleInterval< VolatileLabelMultisetType >[], AffineTransform3D[] >
-	openLabelMultisetMultiscale(
-			final N5Reader reader,
-			final String dataset,
-			final AffineTransform3D transform,
-			final SharedQueue sharedQueue,
-			final int priority ) throws IOException
+			openLabelMultisetMultiscale(
+					final N5Reader reader,
+					final String dataset,
+					final AffineTransform3D transform,
+					final SharedQueue sharedQueue,
+					final int priority ) throws IOException
 	{
 		final String[] scaleDatasets = N5Helpers.listAndSortScaleDatasets( reader, dataset );
 
@@ -743,6 +742,21 @@ public class N5Helpers
 		futures.forEach( MakeUnchecked.unchecked( ( CheckedConsumer< Future< Boolean > > ) Future::get ) );
 		es.shutdown();
 		return new ValueTriple<>( raw, vraw, transforms );
+	}
+
+	@SuppressWarnings( "unchecked" )
+	public static < D extends NativeType< D >, T extends NativeType< T > > DataSource< D, T >
+			openAsLabelSource(
+					final N5Reader reader,
+					final String dataset,
+					final AffineTransform3D transform,
+					final SharedQueue queue,
+					final int priority,
+					final String name ) throws IOException, ReflectionException
+	{
+		return isLabelMultisetType( reader, dataset )
+				? ( DataSource< D, T > ) openLabelMultisetAsSource( reader, dataset, transform, queue, priority, name )
+				: ( DataSource< D, T > ) openScalarAsSource( reader, dataset, transform, queue, priority, name );
 	}
 
 	public static AffineTransform3D considerDownsampling(
@@ -1033,6 +1047,11 @@ public class N5Helpers
 		cArray[ 0 ] = c;
 
 		return new ValueTriple<>( aArray, bArray, cArray );
+	}
+
+	public static String lastSegmentOfDatasetPath( final String dataset )
+	{
+		return Paths.get( dataset ).getFileName().toString();
 	}
 
 }

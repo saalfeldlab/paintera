@@ -222,6 +222,12 @@ public class PainteraBaseView
 	}
 
 	public static < D extends Type< D >, T extends Type< T > > InterruptibleFunction< Long, Interval[] >[] generateLabelBlocksForLabelCache(
+			final DataSource< D, T > spec )
+	{
+		return generateLabelBlocksForLabelCache( spec, scaleFactorsFromAffineTransforms( spec ) );
+	}
+
+	public static < D extends Type< D >, T extends Type< T > > InterruptibleFunction< Long, Interval[] >[] generateLabelBlocksForLabelCache(
 			final DataSource< D, T > spec,
 			final double[][] scalingFactors )
 	{
