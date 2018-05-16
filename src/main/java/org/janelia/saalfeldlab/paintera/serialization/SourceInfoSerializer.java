@@ -58,7 +58,7 @@ public class SourceInfoSerializer implements JsonSerializer< SourceInfo >
 		final Map< String, Object > elements = new HashMap<>();
 		final List< Source< ? > > sources = new ArrayList<>( src.trackSources() );
 
-		LOG.warn( "Serializing sources: {}", sources );
+		LOG.debug( "Serializing sources: {}", sources );
 
 		final List< JsonElement > serializedSources = src
 				.trackSources()
@@ -71,7 +71,7 @@ public class SourceInfoSerializer implements JsonSerializer< SourceInfo >
 					return typeAndData;
 				} )
 				.collect( Collectors.toList() );
-		LOG.warn( "Serialized sources: {}", serializedSources );
+		LOG.debug( "Serialized sources: {}", serializedSources );
 
 		final int currentSourceIndex = src.currentSourceIndexProperty().get();
 		elements.put( NUM_SOURCES_KEY, sources.size() );
@@ -104,11 +104,11 @@ public class SourceInfoSerializer implements JsonSerializer< SourceInfo >
 	{
 		final int numStates = serializedStates.size();
 		final TIntHashSet[] dependsOn = new TIntHashSet[ numStates ];
-		LOG.warn( "Deserializing {}", serializedStates );
+		LOG.debug( "Deserializing {}", serializedStates );
 		for ( int i = 0; i < numStates; ++i )
 		{
 			final JsonObject map = serializedStates.get( i ).getAsJsonObject().get( STATE_KEY ).getAsJsonObject();
-			LOG.warn( "Deserializing state {}: {}", i, map );
+			LOG.debug( "Deserializing state {}: {}", i, map );
 			final int[] depends = Optional
 					.ofNullable( serializedStates.get( i ).getAsJsonObject().get( DEPENDS_ON_KEY ) )
 					.map( el -> gson.fromJson( el, int[].class ) )
@@ -133,7 +133,7 @@ public class SourceInfoSerializer implements JsonSerializer< SourceInfo >
 						final JsonObject state = serializedStates.get( k ).getAsJsonObject();
 						@SuppressWarnings( "unchecked" )
 						final Class< ? extends SourceState< ?, ? > > clazz = ( Class< ? extends SourceState< ?, ? > > ) Class.forName( state.get( STATE_TYPE_KEY ).getAsString() );
-						LOG.warn( "Deserializing state={}, class={}", state, clazz );
+						LOG.debug( "Deserializing state={}, class={}", state, clazz );
 						sourceStates[ k ] = gson.fromJson( state.get( STATE_KEY ), clazz );
 						logSourceForDependencies.accept( k, sourceStates[ k ] );
 					}

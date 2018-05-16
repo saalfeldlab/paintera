@@ -10,7 +10,6 @@ import java.util.function.ToIntFunction;
 import org.janelia.saalfeldlab.paintera.composition.Composite;
 import org.janelia.saalfeldlab.paintera.data.DataSource;
 import org.janelia.saalfeldlab.paintera.state.SourceState;
-import org.mortbay.log.Log;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -115,7 +114,7 @@ public class SourceStateSerialization
 		{
 			try
 			{
-				LOG.warn( "Deserializing from {}", el );
+				LOG.debug( "Deserializing from {}", el );
 				final JsonObject map = el.getAsJsonObject();
 
 				final SourceState< ?, ? >[] dependsOn = Optional
@@ -130,7 +129,7 @@ public class SourceStateSerialization
 					return null;
 				}
 
-				Log.warn( "composite class: {} (key={})", map.get( COMPOSITE_TYPE_KEY ), COMPOSITE_TYPE_KEY );
+				LOG.debug( "composite class: {} (key={})", map.get( COMPOSITE_TYPE_KEY ), COMPOSITE_TYPE_KEY );
 				final Class< ? extends Composite< ARGBType, ARGBType > > compositeClass = ( Class< ? extends Composite< ARGBType, ARGBType > > ) Class.forName( map.get( COMPOSITE_TYPE_KEY ).getAsString() );
 				final Class< ? extends DataSource< ?, ? > > dataSourceClass = ( Class< ? extends DataSource< ?, ? > > ) Class.forName( map.get( SOURCE_TYPE_KEY ).getAsString() );
 
@@ -138,22 +137,20 @@ public class SourceStateSerialization
 				final DataSource< ?, ? > dataSource = context.deserialize( map.get( SOURCE_KEY ), dataSourceClass );
 				final String name = map.get( NAME_KEY ).getAsString();
 				final boolean isVisible = map.get( IS_VISIBLE_KEY ).getAsBoolean();
-				LOG.warn( "Is visible? {}", isVisible );
+				LOG.debug( "Is visible? {}", isVisible );
 				final Interpolation interpolation = context.deserialize( map.get( INTERPOLATION_KEY ), Interpolation.class );
 				final Class< ? extends C > converterClass = ( Class< ? extends C > ) Class.forName( map.get( CONVERTER_TYPE_KEY ).getAsString() );
-				LOG.warn( "Deserializing converter class {} from {}", converterClass, map.get( CONVERTER_KEY ) );
+				LOG.debug( "Deserializing converter class {} from {}", converterClass, map.get( CONVERTER_KEY ) );
 				final C converter = context.deserialize( map.get( CONVERTER_KEY ), converterClass );
 
 				final S state = makeState( map, dataSource, composite, converter, name, dependsOn, context );
-				LOG.warn( "Got state {}", state );
+				LOG.debug( "Got state {}", state );
 				state.isVisibleProperty().set( isVisible );
 				state.interpolationProperty().set( interpolation );
 				return state;
 			}
 			catch ( final Exception e )
 			{
-				e.printStackTrace();
-				System.out.println( "OKE" );
 				throw e instanceof JsonParseException ? ( JsonParseException ) e : new JsonParseException( e );
 			}
 		}

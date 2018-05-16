@@ -3,6 +3,7 @@ package org.janelia.saalfeldlab.paintera.serialization.sourcestate;
 import java.io.IOException;
 import java.lang.invoke.MethodHandles;
 import java.util.function.IntFunction;
+import java.util.function.LongFunction;
 import java.util.function.Supplier;
 
 import org.janelia.saalfeldlab.n5.N5Writer;
@@ -84,19 +85,23 @@ public class LabelSourceStateDeserializer< C extends HighlightingStreamConverter
 			final JsonDeserializationContext context ) throws IOException
 	{
 		final boolean isMaskedSource = source instanceof MaskedSource< ?, ? >;
-		LOG.warn( "Is {} masked source? {}", source, isMaskedSource );
+		LOG.debug( "Is {} masked source? {}", source, isMaskedSource );
 		if ( isMaskedSource )
 		{
-			LOG.warn( "Underlying source: {}", ( ( MaskedSource< ?, ? > ) source ).underlyingSource() );
+			LOG.debug( "Underlying source: {}", ( ( MaskedSource< ?, ? > ) source ).underlyingSource() );
 		}
 
 		if ( isMaskedSource && !( ( ( MaskedSource< ?, ? > ) source ).underlyingSource() instanceof N5DataSource< ?, ? > ) )
 		{
-			LOG.warn( "Returning null pointer!" );
+			LOG.error( "Underlying source is not n5! Returning null pointer!" );
 			return null;
 		}
 
-		if ( !isMaskedSource && !( source instanceof N5DataSource< ?, ? > ) ) { return null; }
+		if ( !isMaskedSource && !( source instanceof N5DataSource< ?, ? > ) )
+		{
+			LOG.error( "Source is not n5! Returning null pointer!" );
+			return null;
+		}
 
 		final N5DataSource< ?, ? > n5Source = ( N5DataSource< ?, ? > ) ( isMaskedSource
 				? ( ( MaskedSource< ?, ? > ) source ).underlyingSource()
@@ -118,9 +123,14 @@ public class LabelSourceStateDeserializer< C extends HighlightingStreamConverter
 
 		final AbstractHighlightingARGBStream stream = converter.getStream();
 		stream.setHighlightsAndAssignment( selectedIds, assignment );
+		final LongFunction< ? > maskGenerator = PainteraBaseView.equalsMaskForType( source.getDataType() );
 
 		final InterruptibleFunction< Long, Interval[] >[] blockCaches = PainteraBaseView.generateLabelBlocksForLabelCache( n5Source, PainteraBaseView.scaleFactorsFromAffineTransforms( source ) );
-		final InterruptibleFunction[] meshCache = CacheUtils.meshCacheLoaders( ( DataSource ) source, PainteraBaseView.equalsMaskForType( source.getType() ), CacheUtils::toCacheSoftRefLoaderCache );
+		final InterruptibleFunction[] meshCache = CacheUtils.meshCacheLoaders(
+				( DataSource ) source,
+				( LongFunction ) maskGenerator,
+				CacheUtils::toCacheSoftRefLoaderCache );
+		LOG.debug( "Meshses group: {}", arguments.meshesGroup );
 		final MeshManagerWithAssignment meshManager = new MeshManagerWithAssignment(
 				source,
 				blockCaches,
@@ -141,7 +151,7 @@ public class LabelSourceStateDeserializer< C extends HighlightingStreamConverter
 				converter,
 				composite,
 				name,
-				PainteraBaseView.equalsMaskForType( source.getType() ),
+				maskGenerator,
 				assignment,
 				ToIdConverter.fromType( source.getDataType() ),
 				selectedIds,

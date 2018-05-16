@@ -11,7 +11,6 @@ import java.util.concurrent.Future;
 import java.util.function.IntConsumer;
 
 import org.janelia.saalfeldlab.paintera.meshes.MeshGenerator.ShapeKey;
-import org.mortbay.log.Log;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -159,7 +158,7 @@ public class MeshGeneratorJobManager
 				}
 				catch ( final InterruptedException e )
 				{
-					Log.warn( "Interrupted while waiting for block lists for label {}", id );
+					LOG.debug( "Interrupted while waiting for block lists for label {}", id );
 					getBlockList.interruptFor( id );
 					this.isInterrupted = true;
 				}
@@ -170,18 +169,19 @@ public class MeshGeneratorJobManager
 					setNumberOfCompletedTasks.accept( 0 );
 				}
 
-				LOG.warn( "Found {} blocks", blockList.size() );
+				LOG.debug( "Found {} blocks", blockList.size() );
 
 				if ( this.isInterrupted )
 				{
-					LOG.warn( "Got interrupted before building meshes -- returning" );
+					LOG.debug( "Got interrupted before building meshes -- returning" );
 					return null;
 				}
 
-				LOG.warn( "Generating mesh with {} blocks for fragment {}.", blockList.size(), this.id );
+				LOG.debug( "Generating mesh with {} blocks for fragment {}.", blockList.size(), this.id );
 
 				final List< ShapeKey > keys = new ArrayList<>();
 				for ( final Interval block : blockList )
+				{
 					keys.add(
 							new ShapeKey(
 									id,
@@ -191,12 +191,14 @@ public class MeshGeneratorJobManager
 									smoothingIterations,
 									Intervals.minAsLongArray( block ),
 									Intervals.maxAsLongArray( block ) ) );
+				}
 
 				final int numTasks = keys.size();
 				final CountDownLatch countDownOnMeshes = new CountDownLatch( numTasks );
 
 				final ArrayList< Callable< Void > > tasks = new ArrayList<>();
 				for ( final ShapeKey key : keys )
+				{
 					tasks.add( () -> {
 						try
 						{
@@ -208,14 +210,16 @@ public class MeshGeneratorJobManager
 								final Pair< float[], float[] > verticesAndNormals = getMesh.apply( key );
 								final MeshView mv = makeMeshView( verticesAndNormals );
 								if ( !Thread.interrupted() )
+								{
 									synchronized ( meshes )
 									{
 										meshes.put( key, mv );
 									}
+								}
 							}
 							catch ( final RuntimeException e )
 							{
-								LOG.warn( "Was not able to retrieve mesh for {}: {}", key, e.getMessage() );
+								LOG.debug( "Was not able to retrieve mesh for {}: {}", key, e.getMessage() );
 							}
 							finally
 							{
@@ -230,10 +234,11 @@ public class MeshGeneratorJobManager
 								countDownOnMeshes.countDown();
 								setNumberOfCompletedTasks.accept( numTasks - ( int ) countDownOnMeshes.getCount() );
 							}
-							LOG.warn( "Counted down latch. {} remaining", countDownOnMeshes.getCount() );
+							LOG.debug( "Counted down latch. {} remaining", countDownOnMeshes.getCount() );
 						}
 
 					} );
+				}
 
 				try
 				{
@@ -258,7 +263,7 @@ public class MeshGeneratorJobManager
 				}
 				catch ( final InterruptedException e )
 				{
-					LOG.warn( "Current thread was interrupted while waiting for mesh count down latch ({} remaining)", countDownOnMeshes.getCount() );
+					LOG.debug( "Current thread was interrupted while waiting for mesh count down latch ({} remaining)", countDownOnMeshes.getCount() );
 					synchronized ( getMesh )
 					{
 						this.isInterrupted = true;
@@ -273,7 +278,7 @@ public class MeshGeneratorJobManager
 				{
 					if ( this.isInterrupted )
 					{
-						LOG.warn( "Was interrupted, removing all meshes" );
+						LOG.debug( "Was interrupted, removing all meshes" );
 						synchronized ( meshes )
 						{
 							meshes.clear();

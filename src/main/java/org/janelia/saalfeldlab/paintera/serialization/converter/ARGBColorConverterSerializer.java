@@ -1,4 +1,4 @@
-package org.janelia.saalfeldlab.paintera.serialization;
+package org.janelia.saalfeldlab.paintera.serialization.converter;
 
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Type;

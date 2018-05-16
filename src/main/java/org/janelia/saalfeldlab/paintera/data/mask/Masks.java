@@ -36,29 +36,27 @@ public class Masks
 			final BiConsumer< CachedCellImg< UnsignedLongType, ? >, long[] > mergeCanvasIntoBackground,
 			final ExecutorService propagationExecutor )
 	{
-		LOG.warn( "Masking source {}", source );
+		LOG.debug( "Masking source {}", source );
 		final D d = source.getDataType();
 		final T t = source.getType();
 
 		if ( d instanceof IntegerType< ? > && t instanceof AbstractVolatileRealType< ?, ? > )
 		{
 			final RealType< ? > i = ( ( AbstractVolatileRealType< ?, ? > ) t ).get();
-			if ( d.getClass().isAssignableFrom( i.getClass() ) )
-				return fromIntegerType(
-						( DataSource ) source,
-						initialCanvasPath,
-						canvasCacheDirUpdate,
-						mergeCanvasIntoBackground,
-						propagationExecutor );
-		}
-		else if ( d instanceof LabelMultisetType && t instanceof VolatileLabelMultisetType )
-			return ( DataSource< D, T > ) fromLabelMultisetType(
-					( DataSource< LabelMultisetType, VolatileLabelMultisetType > ) source,
+			if ( d.getClass().isAssignableFrom( i.getClass() ) ) { return fromIntegerType(
+					( DataSource ) source,
 					initialCanvasPath,
 					canvasCacheDirUpdate,
 					mergeCanvasIntoBackground,
-					propagationExecutor );
-		LOG.warn( "Do not know how to convert to masked canvas for d={} t={} -- just returning source.", d, t );
+					propagationExecutor ); }
+		}
+		else if ( d instanceof LabelMultisetType && t instanceof VolatileLabelMultisetType ) { return ( DataSource< D, T > ) fromLabelMultisetType(
+				( DataSource< LabelMultisetType, VolatileLabelMultisetType > ) source,
+				initialCanvasPath,
+				canvasCacheDirUpdate,
+				mergeCanvasIntoBackground,
+				propagationExecutor ); }
+		LOG.debug( "Do not know how to convert to masked canvas for d={} t={} -- just returning source.", d, t );
 		return source;
 	}
 

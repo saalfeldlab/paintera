@@ -109,6 +109,7 @@ public class PainteraBaseView
 		this.views = new OrthogonalViews<>( manager, cacheControl, this.viewerOptions, viewer3D, interpolation.apply( sourceInfo ) );
 		this.vsacUpdate = change -> views.setAllSources( visibleSourcesAndConverters );
 		visibleSourcesAndConverters.addListener( vsacUpdate );
+		LOG.debug( "Meshes group={}", viewer3D.meshesGroup() );
 	}
 
 	public OrthogonalViews< Viewer3DFX > orthogonalViews()
@@ -157,7 +158,6 @@ public class PainteraBaseView
 	{
 		sourceInfo.addState( state );
 	}
-
 
 	public < T extends RealType< T >, U extends RealType< U > > void addRawSource(
 			final RawSourceState< T, U > state )
@@ -229,13 +229,13 @@ public class PainteraBaseView
 		final boolean isLabelMultisetType = spec.getDataType() instanceof LabelMultisetType;
 		final boolean isCachedCellImg = ( isMaskedSource
 				? ( ( MaskedSource< ?, ? > ) spec ).underlyingSource().getDataSource( 0, 0 )
-						: spec.getDataSource( 0, 0 ) ) instanceof CachedCellImg< ?, ? >;
+				: spec.getDataSource( 0, 0 ) ) instanceof CachedCellImg< ?, ? >;
 
 		if ( isLabelMultisetType && isCachedCellImg )
 		{
 			@SuppressWarnings( "unchecked" )
 			final DataSource< LabelMultisetType, T > source =
-			( DataSource< LabelMultisetType, T > ) ( isMaskedSource ? ( ( MaskedSource< ?, ? > ) spec ).underlyingSource() : spec );
+					( DataSource< LabelMultisetType, T > ) ( isMaskedSource ? ( ( MaskedSource< ?, ? > ) spec ).underlyingSource() : spec );
 			return generateBlocksForLabelCacheLabelMultisetTypeCachedImg( source, scalingFactors );
 		}
 

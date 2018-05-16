@@ -47,11 +47,11 @@ public class N5DataSourceDeserializer implements JsonDeserializer< N5DataSource<
 	{
 		try
 		{
-			LOG.warn( "Deserializing from {}", el );
+			LOG.debug( "Deserializing from {}", el );
 			final String clazz = el.getAsJsonObject().get( META_CLASS_KEY ).getAsString();
 			final N5Meta meta = ( N5Meta ) context.deserialize( el.getAsJsonObject().get( META_KEY ), Class.forName( clazz ) );
 			final AffineTransform3D transform = context.deserialize( el.getAsJsonObject().get( TRANSFORM_KEY ), AffineTransform3D.class );
-			LOG.warn( "Deserialized transform: {}", transform );
+			LOG.debug( "Deserialized transform: {}", transform );
 			return new N5DataSource<>( meta, transform, sharedQueue, "", priority );
 		}
 		catch ( IOException | ClassNotFoundException e )

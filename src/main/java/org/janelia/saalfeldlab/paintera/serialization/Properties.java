@@ -1,5 +1,6 @@
 package org.janelia.saalfeldlab.paintera.serialization;
 
+import java.lang.invoke.MethodHandles;
 import java.util.Map;
 import java.util.Optional;
 import java.util.function.Supplier;
@@ -10,7 +11,8 @@ import org.janelia.saalfeldlab.paintera.state.SourceInfo;
 import org.janelia.saalfeldlab.paintera.state.SourceState;
 import org.janelia.saalfeldlab.util.MakeUnchecked;
 import org.janelia.saalfeldlab.util.MakeUnchecked.CheckedConsumer;
-import org.mortbay.log.Log;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.google.gson.Gson;
 import com.google.gson.JsonElement;
@@ -25,6 +27,8 @@ import net.imglib2.ui.TransformListener;
 
 public class Properties implements TransformListener< AffineTransform3D >
 {
+
+	private static final Logger LOG = LoggerFactory.getLogger( MethodHandles.lookup().lookupClass() );
 
 	private static final String SOURCES_KEY = "sourceInfo";
 
@@ -111,7 +115,7 @@ public class Properties implements TransformListener< AffineTransform3D >
 			final Gson gson )
 	{
 
-		Log.warn( "Populating with {}", serializedProperties );
+		LOG.debug( "Populating with {}", serializedProperties );
 
 		final Properties properties = new Properties( viewer );
 
@@ -129,7 +133,7 @@ public class Properties implements TransformListener< AffineTransform3D >
 						indexToState::put,
 						gson ) ) );
 
-		Log.warn( "De-serializing global transform {}", serializedProperties.get( GLOBAL_TRANSFORM_KEY ) );
+		LOG.debug( "De-serializing global transform {}", serializedProperties.get( GLOBAL_TRANSFORM_KEY ) );
 		Optional
 				.ofNullable( serializedProperties.get( GLOBAL_TRANSFORM_KEY ) )
 				.map( element -> gson.fromJson( element, AffineTransform3D.class ) )

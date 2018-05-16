@@ -52,7 +52,7 @@ public class InvertingSourceStateDeserializer implements JsonDeserializer< Inver
 	public InvertingRawSourceState< ?, ? > deserialize( final JsonElement el, final Type type, final JsonDeserializationContext context ) throws JsonParseException
 	{
 		final JsonObject map = el.getAsJsonObject();
-		LOG.warn( "Deserializing {}", map );
+		LOG.debug( "Deserializing {}", map );
 		final int[] dependsOn = context.deserialize( map.get( SourceStateSerialization.DEPENDS_ON_KEY ), int[].class );
 
 		if ( dependsOn.length != 1 ) { throw new JsonParseException( "Expected exactly one dependency, got: " + map.get( SourceStateSerialization.DEPENDS_ON_KEY ) ); }

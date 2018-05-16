@@ -315,7 +315,7 @@ public class Paintera extends Application
 	public static void persistProperties( final String root, final Properties properties, final GsonBuilder builder ) throws IOException
 	{
 		builder.create().getAdapter( SourceInfo.class );
-		LOG.warn( "Persisting properties {} into {}", properties, root );
+		LOG.debug( "Persisting properties {} into {}", properties, root );
 		N5Helpers.n5Writer( root, builder, 64, 64, 64 ).setAttribute( "", PAINTERA_KEY, properties );
 	}
 

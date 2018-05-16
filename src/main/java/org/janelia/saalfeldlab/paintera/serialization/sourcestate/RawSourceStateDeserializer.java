@@ -32,7 +32,7 @@ public class RawSourceStateDeserializer extends
 			final SourceState< ?, ? >[] dependsOn,
 			final JsonDeserializationContext context ) throws ClassNotFoundException
 	{
-		LOG.warn( "Initializing raw source state with {} {} {} {}", source, converter, composite, name );
+		LOG.debug( "Initializing raw source state with {} {} {} {}", source, converter, composite, name );
 		return new RawSourceState( source, converter, composite, name );
 	}
 
