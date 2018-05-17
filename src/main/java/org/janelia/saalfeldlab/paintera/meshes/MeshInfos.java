@@ -19,7 +19,7 @@ public class MeshInfos
 	public MeshInfos(
 			final SelectedSegments selectedSegments,
 			final FragmentSegmentAssignment assignment,
-			final MeshManager meshManager,
+			final MeshManager< Long > meshManager,
 			final int numScaleLevels )
 	{
 		super();

@@ -135,8 +135,8 @@ public class CacheUtils
 			final BlocksForLabelCacheLoader loader = new BlocksForLabelCacheLoader(
 					grid,
 					level == numMipmapLevels - 1 ? InterruptibleFunction.fromFunction( l -> new Interval[] { new FinalInterval( dims.clone() ) } ) : caches[ level + 1 ],
-					level == numMipmapLevels - 1 ? l -> collectAllOffsets( dims, bs, b -> fromMin( b, max, bs ) ) : relevantBlocksFromLowResInterval( grid, scalingFactors[ level + 1 ], scalingFactors[ level ] ),
-					key -> uniqueLabelLoaders[ finalLevel ].apply( HashWrapper.longArray( key ) ) );
+							level == numMipmapLevels - 1 ? l -> collectAllOffsets( dims, bs, b -> fromMin( b, max, bs ) ) : relevantBlocksFromLowResInterval( grid, scalingFactors[ level + 1 ], scalingFactors[ level ] ),
+									key -> uniqueLabelLoaders[ finalLevel ].apply( HashWrapper.longArray( key ) ) );
 			caches[ level ] = fromCache( makeCache.apply( loader ).unchecked(), ( Interruptible< Long > ) loader );
 		}
 
@@ -210,10 +210,10 @@ public class CacheUtils
 	 * @return Cascade of {@link Cache} for retrieval of mesh queried by label
 	 *         id.
 	 */
-	public static < D, T > InterruptibleFunction< ShapeKey, Pair< float[], float[] > >[] meshCacheLoaders(
+	public static < D, T > InterruptibleFunction< ShapeKey< Long >, Pair< float[], float[] > >[] meshCacheLoaders(
 			final DataSource< D, T > source,
 			final LongFunction< Converter< D, BoolType > > getMaskGenerator,
-			final Function< CacheLoader< ShapeKey, Pair< float[], float[] > >, Cache< ShapeKey, Pair< float[], float[] > > > makeCache )
+			final Function< CacheLoader< ShapeKey< Long >, Pair< float[], float[] > >, Cache< ShapeKey< Long >, Pair< float[], float[] > > > makeCache )
 	{
 		return meshCacheLoaders(
 				source,
@@ -234,15 +234,15 @@ public class CacheUtils
 	 * @return Cascade of {@link Cache} for retrieval of mesh queried by label
 	 *         id.
 	 */
-	public static < D, T > InterruptibleFunction< ShapeKey, Pair< float[], float[] > >[] meshCacheLoaders(
+	public static < D, T > InterruptibleFunction< ShapeKey< Long >, Pair< float[], float[] > >[] meshCacheLoaders(
 			final DataSource< D, T > source,
 			final int[][] cubeSizes,
 			final LongFunction< Converter< D, BoolType > > getMaskGenerator,
-			final Function< CacheLoader< ShapeKey, Pair< float[], float[] > >, Cache< ShapeKey, Pair< float[], float[] > > > makeCache )
+			final Function< CacheLoader< ShapeKey< Long >, Pair< float[], float[] > >, Cache< ShapeKey< Long >, Pair< float[], float[] > > > makeCache )
 	{
 		final int numMipmapLevels = source.getNumMipmapLevels();
 		@SuppressWarnings( "unchecked" )
-		final InterruptibleFunction< ShapeKey, Pair< float[], float[] > >[] caches = new InterruptibleFunction[ numMipmapLevels ];
+		final InterruptibleFunction< ShapeKey< Long >, Pair< float[], float[] > >[] caches = new InterruptibleFunction[ numMipmapLevels ];
 
 		for ( int i = 0; i < numMipmapLevels; ++i )
 		{
@@ -253,7 +253,7 @@ public class CacheUtils
 					source.getDataSource( 0, i ),
 					getMaskGenerator,
 					transform );
-			final Cache< ShapeKey, Pair< float[], float[] > > cache = makeCache.apply( loader );
+			final Cache< ShapeKey< Long >, Pair< float[], float[] > > cache = makeCache.apply( loader );
 			caches[ i ] = fromCache( cache.unchecked(), loader );
 		}
 
@@ -362,9 +362,13 @@ public class CacheUtils
 			{
 				offset[ d ] += blockSize[ d ];
 				if ( offset[ d ] <= max[ d ] )
+				{
 					break;
+				}
 				else
+				{
 					offset[ d ] = 0;
+				}
 			}
 		}
 		return blocks;
@@ -403,7 +407,9 @@ public class CacheUtils
 	{
 		final long[] max = new long[ min.length ];
 		for ( int d = 0; d < max.length; ++d )
+		{
 			max[ d ] = Math.min( min[ d ] + blockSize[ d ] - 1, intervalMax[ d ] );
+		}
 		return new FinalInterval( min, max );
 	}
 

@@ -66,7 +66,7 @@ public class MeshInfoNode implements BindUnbindAndNodeSupplier
 	public MeshInfoNode(
 			final long segmentId,
 			final FragmentSegmentAssignment assignment,
-			final MeshManager meshManager,
+			final MeshManager< Long > meshManager,
 			final int numScaleLevels )
 	{
 		this( new MeshInfo( segmentId, assignment, meshManager, numScaleLevels ) );

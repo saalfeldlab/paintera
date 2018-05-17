@@ -26,14 +26,14 @@ import net.imglib2.util.Pair;
  *
  * @author Philipp Hanslovsky
  */
-public class MeshManagerSimple implements MeshManager
+public class MeshManagerSimple implements MeshManager< Long >
 {
 
 	private static final Logger LOG = LoggerFactory.getLogger( MethodHandles.lookup().lookupClass() );
 
 	private final InterruptibleFunction< Long, Interval[] >[] blockListCache;
 
-	private final InterruptibleFunction< ShapeKey, Pair< float[], float[] > >[] meshCache;
+	private final InterruptibleFunction< ShapeKey< Long >, Pair< float[], float[] > >[] meshCache;
 
 	private final Map< Long, MeshGenerator > neurons = Collections.synchronizedMap( new HashMap<>() );
 
@@ -53,7 +53,7 @@ public class MeshManagerSimple implements MeshManager
 
 	public MeshManagerSimple(
 			final InterruptibleFunction< Long, Interval[] >[] blockListCache,
-			final InterruptibleFunction< ShapeKey, Pair< float[], float[] > >[] meshCache,
+			final InterruptibleFunction< ShapeKey< Long >, Pair< float[], float[] > >[] meshCache,
 			final Group root,
 			final ObservableIntegerValue meshSimplificationIterations,
 			final ObservableDoubleValue smoothingLambda,
@@ -96,8 +96,11 @@ public class MeshManagerSimple implements MeshManager
 		final IntegerProperty color = new SimpleIntegerProperty( 0xffffffff );
 
 		for ( final MeshGenerator neuron : neurons.values() )
-			if ( neuron.getId() == id )
+		{
+			if ( neuron.getId() == id ) {
 				return;
+			}
+		}
 
 		LOG.debug( "Adding mesh for segment {}.", id );
 		final MeshGenerator nfx = new MeshGenerator(
@@ -173,7 +176,7 @@ public class MeshManagerSimple implements MeshManager
 	}
 
 	@Override
-	public InterruptibleFunction< ShapeKey, Pair< float[], float[] > >[] meshCache()
+	public InterruptibleFunction< ShapeKey< Long >, Pair< float[], float[] > >[] meshCache()
 	{
 		return meshCache;
 	}

@@ -91,11 +91,11 @@ public class MeshGenerator
 
 	private final InterruptibleFunction< Long, Interval[] >[] blockListCache;
 
-	private final InterruptibleFunction< ShapeKey, Pair< float[], float[] > >[] meshCache;
+	private final InterruptibleFunction< ShapeKey< Long >, Pair< float[], float[] > >[] meshCache;
 
 	private final BooleanProperty isVisible = new SimpleBooleanProperty( true );
 
-	private final ObservableMap< ShapeKey, MeshView > meshes = FXCollections.observableHashMap();
+	private final ObservableMap< ShapeKey< Long >, MeshView > meshes = FXCollections.observableHashMap();
 
 	private final IntegerProperty scaleIndex = new SimpleIntegerProperty( 0 );
 
@@ -129,7 +129,7 @@ public class MeshGenerator
 	public MeshGenerator(
 			final long segmentId,
 			final InterruptibleFunction< Long, Interval[] >[] blockListCache,
-			final InterruptibleFunction< ShapeKey, Pair< float[], float[] > >[] meshCache,
+			final InterruptibleFunction< ShapeKey< Long >, Pair< float[], float[] > >[] meshCache,
 			final ObservableIntegerValue color,
 			final int scaleIndex,
 			final int meshSimplificationIterations,
@@ -180,7 +180,7 @@ public class MeshGenerator
 			} );
 		} );
 
-		this.meshes.addListener( ( MapChangeListener< ShapeKey, MeshView > ) change -> {
+		this.meshes.addListener( ( MapChangeListener< ShapeKey< Long >, MeshView > ) change -> {
 			if ( change.wasRemoved() )
 			{
 				( ( PhongMaterial ) change.getValueRemoved().getMaterial() ).diffuseColorProperty().unbind();

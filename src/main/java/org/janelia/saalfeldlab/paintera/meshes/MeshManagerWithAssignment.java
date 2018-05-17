@@ -35,7 +35,7 @@ import net.imglib2.util.Pair;
  *
  * @author Philipp Hanslovsky
  */
-public class MeshManagerWithAssignment implements MeshManager
+public class MeshManagerWithAssignment implements MeshManager< Long >
 {
 
 	private static final Logger LOG = LoggerFactory.getLogger( MethodHandles.lookup().lookupClass() );
@@ -44,7 +44,7 @@ public class MeshManagerWithAssignment implements MeshManager
 
 	private final InterruptibleFunction< Long, Interval[] >[] blockListCache;
 
-	private final InterruptibleFunction< ShapeKey, Pair< float[], float[] > >[] meshCache;
+	private final InterruptibleFunction< ShapeKey< Long >, Pair< float[], float[] > >[] meshCache;
 
 	private final FragmentSegmentAssignmentState assignment;
 
@@ -71,7 +71,7 @@ public class MeshManagerWithAssignment implements MeshManager
 	public MeshManagerWithAssignment(
 			final DataSource< ?, ? > source,
 			final InterruptibleFunction< Long, Interval[] >[] blockListCache,
-			final InterruptibleFunction< ShapeKey, Pair< float[], float[] > >[] meshCache,
+			final InterruptibleFunction< ShapeKey< Long >, Pair< float[], float[] > >[] meshCache,
 			final Group root,
 			final FragmentSegmentAssignmentState assignment,
 			final FragmentsInSelectedSegments fragmentsInSelectedSegments,
@@ -140,8 +140,11 @@ public class MeshManagerWithAssignment implements MeshManager
 		assignment.addListener( obs -> color.set( stream.argb( id ) ) );
 
 		for ( final MeshGenerator neuron : neurons.values() )
-			if ( neuron.getId() == id )
+		{
+			if ( neuron.getId() == id ) {
 				return;
+			}
+		}
 
 		LOG.debug( "Adding mesh for segment {}.", id );
 		final MeshGenerator nfx = new MeshGenerator(
@@ -225,7 +228,7 @@ public class MeshManagerWithAssignment implements MeshManager
 	}
 
 	@Override
-	public InterruptibleFunction< ShapeKey, Pair< float[], float[] > >[] meshCache()
+	public InterruptibleFunction< ShapeKey< Long >, Pair< float[], float[] > >[] meshCache()
 	{
 		return this.meshCache;
 	}

@@ -169,7 +169,7 @@ public class SourceInfo
 			final ToIdConverter toIdConverter,
 			final SelectedIds selectedIds,
 			final IdService idService,
-			final MeshManager meshManager,
+			final MeshManager< Long > meshManager,
 			final MeshInfos meshInfos )
 	{
 		final LabelSourceState< D, T > state = new LabelSourceState<>(
@@ -196,7 +196,7 @@ public class SourceInfo
 			final ToIdConverter toIdConverter,
 			final SelectedIds selectedIds,
 			final IdService idService,
-			final MeshManager meshManager,
+			final MeshManager< Long > meshManager,
 			final MeshInfos meshInfos )
 	{
 		final LabelSourceState< D, T > state = makeLabelSourceState(
@@ -295,7 +295,7 @@ public class SourceInfo
 	{
 		final SourceState< ?, ? > state = states.get( source );
 		return state instanceof LabelSourceState< ?, ? >
-				? Optional.of( ( ( LabelSourceState< ?, ? > ) state ).toIdConverter() )
+		? Optional.of( ( ( LabelSourceState< ?, ? > ) state ).toIdConverter() )
 				: Optional.empty();
 	}
 
@@ -303,7 +303,7 @@ public class SourceInfo
 	{
 		final SourceState< ?, ? > state = states.get( source );
 		return state instanceof LabelSourceState< ?, ? >
-				? Optional.of( ( ( LabelSourceState< ?, ? > ) state ).assignment() )
+		? Optional.of( ( ( LabelSourceState< ?, ? > ) state ).assignment() )
 				: Optional.empty();
 	}
 

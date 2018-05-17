@@ -37,7 +37,7 @@ public class MeshInfo
 
 	private final FragmentSegmentAssignment assignment;
 
-	private final MeshManager meshManager;
+	private final MeshManager< Long > meshManager;
 
 	private final int numScaleLevels;
 
@@ -50,7 +50,7 @@ public class MeshInfo
 	public MeshInfo(
 			final long segmentId,
 			final FragmentSegmentAssignment assignment,
-			final MeshManager meshManager,
+			final MeshManager< Long > meshManager,
 			final int numScaleLevels )
 	{
 		super();
@@ -180,7 +180,7 @@ public class MeshInfo
 		return this.successfulTasks;
 	}
 
-	public MeshManager meshManager()
+	public MeshManager< Long > meshManager()
 	{
 		return this.meshManager;
 	}

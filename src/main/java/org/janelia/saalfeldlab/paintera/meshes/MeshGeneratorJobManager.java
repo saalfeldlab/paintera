@@ -29,14 +29,14 @@ public class MeshGeneratorJobManager
 {
 	private static final Logger LOG = LoggerFactory.getLogger( MethodHandles.lookup().lookupClass() );
 
-	private final ObservableMap< ShapeKey, MeshView > meshes;
+	private final ObservableMap< ShapeKey< Long >, MeshView > meshes;
 
 	private final ExecutorService manager;
 
 	private final ExecutorService workers;
 
 	public MeshGeneratorJobManager(
-			final ObservableMap< ShapeKey, MeshView > meshes,
+			final ObservableMap< ShapeKey< Long >, MeshView > meshes,
 			final ExecutorService manager,
 			final ExecutorService workers )
 	{
@@ -53,7 +53,7 @@ public class MeshGeneratorJobManager
 			final double smoothingLambda,
 			final int smoothingIterations,
 			final InterruptibleFunction< Long, Interval[] > getBlockList,
-			final InterruptibleFunction< ShapeKey, Pair< float[], float[] > > getMesh,
+			final InterruptibleFunction< ShapeKey< Long >, Pair< float[], float[] > > getMesh,
 			final IntConsumer setNumberOfTasks,
 			final IntConsumer setNumberOfCompletedTasks,
 			final Runnable onFinish )
@@ -86,7 +86,7 @@ public class MeshGeneratorJobManager
 
 		private final InterruptibleFunction< Long, Interval[] > getBlockList;
 
-		private final InterruptibleFunction< ShapeKey, Pair< float[], float[] > > getMesh;
+		private final InterruptibleFunction< ShapeKey< Long >, Pair< float[], float[] > > getMesh;
 
 		private boolean isInterrupted = false;
 
@@ -103,7 +103,7 @@ public class MeshGeneratorJobManager
 				final double smoothingLambda,
 				final int smoothingIterations,
 				final InterruptibleFunction< Long, Interval[] > getBlockList,
-				final InterruptibleFunction< ShapeKey, Pair< float[], float[] > > getMesh,
+				final InterruptibleFunction< ShapeKey< Long >, Pair< float[], float[] > > getMesh,
 				final IntConsumer setNumberOfTasks,
 				final IntConsumer setNumberOfCompletedTasks,
 				final Runnable onFinish )
@@ -178,11 +178,11 @@ public class MeshGeneratorJobManager
 
 				LOG.debug( "Generating mesh with {} blocks for fragment {}.", blockList.size(), this.id );
 
-				final List< ShapeKey > keys = new ArrayList<>();
+				final List< ShapeKey< Long > > keys = new ArrayList<>();
 				for ( final Interval block : blockList )
 				{
 					keys.add(
-							new ShapeKey(
+							new ShapeKey<>(
 									id,
 									scaleIndex,
 									simplificationIterations,
@@ -196,7 +196,7 @@ public class MeshGeneratorJobManager
 				final CountDownLatch countDownOnMeshes = new CountDownLatch( numTasks );
 
 				final ArrayList< Callable< Void > > tasks = new ArrayList<>();
-				for ( final ShapeKey key : keys )
+				for ( final ShapeKey< Long > key : keys )
 				{
 					tasks.add( () -> {
 						try

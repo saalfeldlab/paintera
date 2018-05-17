@@ -113,18 +113,18 @@ public class Paintera extends Application
 
 		// TODO this should probably happen in the properties.populate:
 		properties.sourceInfo
-				.trackSources()
-				.stream()
-				.map( properties.sourceInfo::getState )
-				.filter( state -> state instanceof LabelSourceState< ?, ? > )
-				.map( state -> ( LabelSourceState< ?, ? > ) state )
-				.forEach( state -> {
-					final long[] selIds = state.selectedIds().getActiveIds();
-					final long lastId = state.selectedIds().getLastSelection();
-					state.selectedIds().deactivateAll();
-					state.selectedIds().activate( selIds );
-					state.selectedIds().activateAlso( lastId );
-				} );
+		.trackSources()
+		.stream()
+		.map( properties.sourceInfo::getState )
+		.filter( state -> state instanceof LabelSourceState< ?, ? > )
+		.map( state -> ( LabelSourceState< ?, ? > ) state )
+		.forEach( state -> {
+			final long[] selIds = state.selectedIds().getActiveIds();
+			final long lastId = state.selectedIds().getLastSelection();
+			state.selectedIds().deactivateAll();
+			state.selectedIds().activate( selIds );
+			state.selectedIds().activateAlso( lastId );
+		} );
 		properties.clean();
 
 		LOG.debug( "Adding {} raw sources: {}", painteraArgs.rawSources().length, painteraArgs.rawSources() );
@@ -303,7 +303,7 @@ public class Paintera extends Application
 				final InterruptibleFunction< Long, Interval[] >[] blockListCache =
 						PainteraBaseView.generateLabelBlocksForLabelCache( maskedSource );
 
-				final InterruptibleFunction< ShapeKey, Pair< float[], float[] > >[] meshCache =
+				final InterruptibleFunction< ShapeKey< Long >, Pair< float[], float[] > >[] meshCache =
 						CacheUtils.meshCacheLoaders(
 								maskedSource,
 								PainteraBaseView.equalsMaskForType( dataSource.getDataType() ),
@@ -370,8 +370,8 @@ public class Paintera extends Application
 
 		final double[] screenScales = maxSize < 2500
 				? new double[] { 1.0 / 1.0, 1.0 / 2.0, 1.0 / 4.0, 1.0 / 8.0 }
-				: new double[] { 1.0 / 2.0, 1.0 / 4.0, 1.0 / 8.0, 1.0 / 16.0 };
-		return screenScales;
+		: new double[] { 1.0 / 2.0, 1.0 / 4.0, 1.0 / 8.0, 1.0 / 16.0 };
+				return screenScales;
 	}
 
 	public static Optional< JsonObject > loadPropertiesIfPresent( final String root )

@@ -37,7 +37,7 @@ public class MeshPane implements BindUnbindAndNodeSupplier, ListChangeListener< 
 
 	private static final Logger LOG = LoggerFactory.getLogger( MethodHandles.lookup().lookupClass() );
 
-	private final MeshManager manager;
+	private final MeshManager< Long > manager;
 
 	private final MeshInfos meshInfos;
 
@@ -65,7 +65,7 @@ public class MeshPane implements BindUnbindAndNodeSupplier, ListChangeListener< 
 
 	private boolean isBound = false;
 
-	public MeshPane( final MeshManager manager, final MeshInfos meshInfos, final int numScaleLevels )
+	public MeshPane( final MeshManager< Long > manager, final MeshInfos meshInfos, final int numScaleLevels )
 	{
 		super();
 		this.manager = manager;
@@ -142,7 +142,7 @@ public class MeshPane implements BindUnbindAndNodeSupplier, ListChangeListener< 
 				.limit( meshInfos.readOnlyInfos().size() )
 				.toArray( InterruptibleFunction[][]::new );
 
-				final InterruptibleFunction< ShapeKey, Pair< float[], float[] > >[][] meshCaches = Stream
+				final InterruptibleFunction< ShapeKey< Long >, Pair< float[], float[] > >[][] meshCaches = Stream
 						.generate( manager::meshCache )
 						.limit( meshInfos.readOnlyInfos().size() )
 						.toArray( InterruptibleFunction[][]::new );

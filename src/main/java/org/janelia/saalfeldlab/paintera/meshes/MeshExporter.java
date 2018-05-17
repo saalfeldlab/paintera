@@ -20,7 +20,7 @@ public abstract class MeshExporter
 
 	public void exportMesh(
 			final Function< Long, Interval[] >[][] blockListCaches,
-			final Function< ShapeKey, Pair< float[], float[] > >[][] meshCaches,
+			final Function< ShapeKey< Long >, Pair< float[], float[] > >[][] meshCaches,
 			final long[] ids,
 			final int scale,
 			final String[] paths )
@@ -35,7 +35,7 @@ public abstract class MeshExporter
 
 	public void exportMesh(
 			final Function< Long, Interval[] >[] blockListCache,
-			final Function< ShapeKey, Pair< float[], float[] > >[] meshCache,
+			final Function< ShapeKey< Long >, Pair< float[], float[] > >[] meshCache,
 			final long id,
 			final int scaleIndex,
 			final String path )
@@ -44,13 +44,15 @@ public abstract class MeshExporter
 		final Interval[] blocks = blockListCache[ scaleIndex ].apply( id );
 
 		// generate keys from blocks, scaleIndex, and id
-		final List< ShapeKey > keys = new ArrayList<>();
+		final List< ShapeKey< Long > > keys = new ArrayList<>();
 		for ( final Interval block : blocks )
+		{
 			// ignoring simplification iterations parameter
 			// TODO consider smoothing parameters
-			keys.add( new ShapeKey( id, scaleIndex, 0, 0, 0, Intervals.minAsLongArray( block ), Intervals.maxAsLongArray( block ) ) );
+			keys.add( new ShapeKey<>( id, scaleIndex, 0, 0, 0, Intervals.minAsLongArray( block ), Intervals.maxAsLongArray( block ) ) );
+		}
 
-		for ( final ShapeKey key : keys )
+		for ( final ShapeKey< Long > key : keys )
 		{
 			Pair< float[], float[] > verticesAndNormals;
 			try

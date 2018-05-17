@@ -27,7 +27,7 @@ import net.imglib2.util.Pair;
 import net.imglib2.util.ValuePair;
 import net.imglib2.view.Views;
 
-public class MeshCacheLoader< T > implements CacheLoader< ShapeKey, Pair< float[], float[] > >, Interruptible< ShapeKey >
+public class MeshCacheLoader< T > implements CacheLoader< ShapeKey< Long >, Pair< float[], float[] > >, Interruptible< ShapeKey< Long > >
 {
 	private static final Logger LOG = LoggerFactory.getLogger( MethodHandles.lookup().lookupClass() );
 
@@ -39,7 +39,7 @@ public class MeshCacheLoader< T > implements CacheLoader< ShapeKey, Pair< float[
 
 	private final AffineTransform3D transform;
 
-	private final List< Consumer< ShapeKey > > interruptListeners = new ArrayList<>();
+	private final List< Consumer< ShapeKey< Long > > > interruptListeners = new ArrayList<>();
 
 	public MeshCacheLoader(
 			final int[] cubeSize,
@@ -56,7 +56,7 @@ public class MeshCacheLoader< T > implements CacheLoader< ShapeKey, Pair< float[
 	}
 
 	@Override
-	public void interruptFor( final ShapeKey key )
+	public void interruptFor( final ShapeKey< Long > key )
 	{
 		synchronized ( interruptListeners )
 		{
@@ -65,7 +65,7 @@ public class MeshCacheLoader< T > implements CacheLoader< ShapeKey, Pair< float[
 	}
 
 	@Override
-	public Pair< float[], float[] > get( final ShapeKey key ) throws Exception
+	public Pair< float[], float[] > get( final ShapeKey< Long > key ) throws Exception
 	{
 
 //		if ( key.meshSimplificationIterations() > 0 )
@@ -77,7 +77,7 @@ public class MeshCacheLoader< T > implements CacheLoader< ShapeKey, Pair< float[
 		final RandomAccessibleInterval< BoolType > mask = Converters.convert( data, getMaskGenerator.apply( key.shapeId() ), new BoolType( false ) );
 
 		final boolean[] isInterrupted = new boolean[] { false };
-		final Consumer< ShapeKey > listener = interruptedKey -> {
+		final Consumer< ShapeKey< Long > > listener = interruptedKey -> {
 			if ( interruptedKey.equals( key ) )
 			{
 				isInterrupted[ 0 ] = true;

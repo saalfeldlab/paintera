@@ -29,7 +29,7 @@ public class LabelSourceState< D, T > extends MinimalSourceState< D, T, Highligh
 
 	private final IdService idService;
 
-	private final MeshManager meshManager;
+	private final MeshManager< Long > meshManager;
 
 	private final MeshInfos meshInfos;
 
@@ -43,7 +43,7 @@ public class LabelSourceState< D, T > extends MinimalSourceState< D, T, Highligh
 			final ToIdConverter toIdConverter,
 			final SelectedIds selectedIds,
 			final IdService idService,
-			final MeshManager meshManager,
+			final MeshManager< Long > meshManager,
 			final MeshInfos meshInfos )
 	{
 		super( dataSource, converter, composite, name );
@@ -69,7 +69,7 @@ public class LabelSourceState< D, T > extends MinimalSourceState< D, T, Highligh
 		return this.maskForLabel;
 	}
 
-	public MeshManager meshManager()
+	public MeshManager< Long > meshManager()
 	{
 		return this.meshManager;
 	}

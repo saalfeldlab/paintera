@@ -105,7 +105,7 @@ public interface SourceFromRAI extends BackendDialog
 		return null;
 	}
 
-	public default InterruptibleFunction< ShapeKey, Pair< float[], float[] > >[] meshCache()
+	public default InterruptibleFunction< ShapeKey< Long >, Pair< float[], float[] > >[] meshCache()
 	{
 		return null;
 	}
@@ -204,7 +204,7 @@ public interface SourceFromRAI extends BackendDialog
 		final InterruptibleFunction< Long, Interval[] >[] blocksCache = Optional
 				.ofNullable( blocksThatContainId() )
 				.orElseGet( () -> PainteraBaseView.generateLabelBlocksForLabelCache( source, PainteraBaseView.scaleFactorsFromAffineTransforms( source ) ) );
-		final InterruptibleFunction< ShapeKey, Pair< float[], float[] > >[] meshCache = CacheUtils.meshCacheLoaders( source, PainteraBaseView.equalsMaskForType( source.getDataType() ), CacheUtils::toCacheSoftRefLoaderCache );
+		final InterruptibleFunction< ShapeKey< Long >, Pair< float[], float[] > >[] meshCache = CacheUtils.meshCacheLoaders( source, PainteraBaseView.equalsMaskForType( source.getDataType() ), CacheUtils::toCacheSoftRefLoaderCache );
 		final MeshManagerWithAssignment meshManager = new MeshManagerWithAssignment(
 				source,
 				blocksCache,

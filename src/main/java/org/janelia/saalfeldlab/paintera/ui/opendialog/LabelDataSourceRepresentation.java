@@ -27,7 +27,7 @@ public class LabelDataSourceRepresentation< D, T >
 
 	final InterruptibleFunction< Long, Interval[] >[] blocksThatContainId;
 
-	final InterruptibleFunction< ShapeKey, Pair< float[], float[] > >[] meshCache;
+	final InterruptibleFunction< ShapeKey< Long >, Pair< float[], float[] > >[] meshCache;
 
 	final LongFunction< Converter< D, BoolType > > maskForId;
 
@@ -37,7 +37,7 @@ public class LabelDataSourceRepresentation< D, T >
 			final IdService idService,
 			final ToIdConverter toIdConverter,
 			final InterruptibleFunction< Long, Interval[] >[] blocksThatContainId,
-			final InterruptibleFunction< ShapeKey, Pair< float[], float[] > >[] meshCache,
+			final InterruptibleFunction< ShapeKey< Long >, Pair< float[], float[] > >[] meshCache,
 			final LongFunction< Converter< D, BoolType > > maskForId )
 	{
 		super();

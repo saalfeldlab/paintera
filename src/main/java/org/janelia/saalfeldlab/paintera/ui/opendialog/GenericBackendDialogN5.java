@@ -149,7 +149,7 @@ public class GenericBackendDialogN5 implements BackendDialog
 
 	private final StringBinding errorMessage = Bindings.createStringBinding(
 			() -> isReady.get() ? null : String.format( ERROR_MESSAGE_PATTERN, isN5Valid.get(), isDatasetValid.get(), datasetUpdateFailed.not().get() ),
-			isReady );
+					isReady );
 
 	private final StringBinding name = Bindings.createStringBinding( () -> {
 		final String[] entries = Optional
@@ -549,7 +549,7 @@ public class GenericBackendDialogN5 implements BackendDialog
 		final HighlightingStreamConverter< T > converter = HighlightingStreamConverter.forType( stream, masked.getType() );
 		final InterruptibleFunction< Long, Interval[] >[] blockListCache = PainteraBaseView.generateLabelBlocksForLabelCache( masked, PainteraBaseView.scaleFactorsFromAffineTransforms( masked ) );
 		final LongFunction< Converter< D, BoolType > > getMaskGenerator = PainteraBaseView.equalsMaskForType( source.getDataType() );
-		final InterruptibleFunction< ShapeKey, Pair< float[], float[] > >[] meshCache = CacheUtils.meshCacheLoaders( source, getMaskGenerator, CacheUtils::toCacheSoftRefLoaderCache );
+		final InterruptibleFunction< ShapeKey< Long >, Pair< float[], float[] > >[] meshCache = CacheUtils.meshCacheLoaders( source, getMaskGenerator, CacheUtils::toCacheSoftRefLoaderCache );
 
 		final MeshManagerWithAssignment meshManager = new MeshManagerWithAssignment(
 				source,

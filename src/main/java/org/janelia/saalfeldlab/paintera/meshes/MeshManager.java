@@ -7,7 +7,7 @@ import javafx.beans.property.IntegerProperty;
 import net.imglib2.Interval;
 import net.imglib2.util.Pair;
 
-public interface MeshManager
+public interface MeshManager< T >
 {
 	public void generateMesh( final long id );
 
@@ -27,6 +27,6 @@ public interface MeshManager
 
 	public InterruptibleFunction< Long, Interval[] >[] blockListCache();
 
-	public InterruptibleFunction< ShapeKey, Pair< float[], float[] > >[] meshCache();
+	public InterruptibleFunction< ShapeKey< T >, Pair< float[], float[] > >[] meshCache();
 
 }

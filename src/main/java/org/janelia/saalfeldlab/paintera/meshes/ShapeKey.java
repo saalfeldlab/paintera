@@ -5,9 +5,9 @@ import java.util.Arrays;
 import net.imglib2.FinalInterval;
 import net.imglib2.Interval;
 
-public class ShapeKey
+public class ShapeKey< T >
 {
-	private final long shapeId;
+	private final T shapeId;
 
 	private final int scaleIndex;
 
@@ -22,7 +22,7 @@ public class ShapeKey
 	private final long[] max;
 
 	public ShapeKey(
-			final long shapeId,
+			final T shapeId,
 			final int scaleIndex,
 			final int simplificationIterations,
 			final double smoothingLambda,
@@ -43,7 +43,7 @@ public class ShapeKey
 	public String toString()
 	{
 		return String.format(
-				"{shapeId=%d, scaleIndex=%d, simplifications=%d, smoothingLambda=%f, smoothings=%d, min=%s, max=%s}",
+				"{shapeId=%s, scaleIndex=%d, simplifications=%d, smoothingLambda=%f, smoothings=%d, min=%s, max=%s}",
 				shapeId,
 				scaleIndex,
 				simplificationIterations,
@@ -56,7 +56,7 @@ public class ShapeKey
 	public int hashCode()
 	{
 		int result = scaleIndex;
-		result = 31 * result + ( int ) ( shapeId ^ shapeId >>> 32 );
+		result = 31 * result + shapeId.hashCode();
 		result = 31 * result + simplificationIterations;
 		result = 31 * result + Double.hashCode( smoothingLambda );
 		result = 31 * result + smoothingIterations;
@@ -68,10 +68,10 @@ public class ShapeKey
 	@Override
 	public boolean equals( final Object other )
 	{
-		if ( other instanceof ShapeKey )
+		if ( other instanceof ShapeKey< ? > )
 		{
-			final ShapeKey otherShapeKey = ( ShapeKey ) other;
-			return shapeId == otherShapeKey.shapeId &&
+			final ShapeKey< ? > otherShapeKey = ( ShapeKey< ? > ) other;
+			return shapeId.equals( otherShapeKey .shapeId ) &&
 					otherShapeKey.scaleIndex == scaleIndex &&
 					otherShapeKey.simplificationIterations == this.simplificationIterations &&
 					otherShapeKey.smoothingLambda == this.smoothingLambda &&
@@ -82,7 +82,7 @@ public class ShapeKey
 		return false;
 	}
 
-	public long shapeId()
+	public T shapeId()
 	{
 		return shapeId;
 	}
