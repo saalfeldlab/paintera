@@ -7,7 +7,7 @@ import org.janelia.saalfeldlab.paintera.data.DataSource;
 import org.janelia.saalfeldlab.paintera.id.IdService;
 import org.janelia.saalfeldlab.paintera.id.ToIdConverter;
 import org.janelia.saalfeldlab.paintera.meshes.InterruptibleFunction;
-import org.janelia.saalfeldlab.paintera.meshes.MeshGenerator.ShapeKey;
+import org.janelia.saalfeldlab.paintera.meshes.ShapeKey;
 
 import net.imglib2.Interval;
 import net.imglib2.converter.Converter;

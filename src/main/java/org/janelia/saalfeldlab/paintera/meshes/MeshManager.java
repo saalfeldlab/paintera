@@ -2,8 +2,6 @@ package org.janelia.saalfeldlab.paintera.meshes;
 
 import java.util.Map;
 
-import org.janelia.saalfeldlab.paintera.meshes.MeshGenerator.ShapeKey;
-
 import javafx.beans.property.DoubleProperty;
 import javafx.beans.property.IntegerProperty;
 import net.imglib2.Interval;

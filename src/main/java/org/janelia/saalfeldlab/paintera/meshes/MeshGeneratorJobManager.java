@@ -10,7 +10,6 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
 import java.util.function.IntConsumer;
 
-import org.janelia.saalfeldlab.paintera.meshes.MeshGenerator.ShapeKey;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
