@@ -13,6 +13,7 @@ import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.value.ObservableStringValue;
 import javafx.beans.value.ObservableValue;
 import javafx.collections.ObservableList;
+import javafx.geometry.Pos;
 import javafx.scene.Node;
 import javafx.scene.control.Label;
 import javafx.scene.control.ScrollPane;
@@ -65,8 +66,15 @@ public class MetaPanel
 
 		final GridPane spatialInfo = new GridPane();
 		spatialInfo.setHgap( GRID_HGAP );
-		addToGrid( spatialInfo, 0, 0, new Label( "Resolution " ), resolution.textX(), resolution.textY(), resolution.textZ() );
-		addToGrid( spatialInfo, 0, 1, new Label( "Offset" ), offset.textX(), offset.textY(), offset.textZ() );
+		final Label empty = new Label( "" );
+		final Label xLabel = new Label( X_STRING );
+		final Label yLabel = new Label( Y_STRING );
+		final Label zLabel = new Label( Z_STRING );
+
+		formatLabels( empty, xLabel, yLabel, zLabel );
+		addToGrid( spatialInfo, 0, 0, empty, xLabel, yLabel, zLabel );
+		addToGrid( spatialInfo, 0, 1, new Label( "Resolution " ), resolution.textX(), resolution.textY(), resolution.textZ() );
+		addToGrid( spatialInfo, 0, 2, new Label( "Offset" ), offset.textX(), offset.textY(), offset.textZ() );
 		final ColumnConstraints cc = new ColumnConstraints();
 		cc.setHgrow( Priority.ALWAYS );
 		spatialInfo.getColumnConstraints().addAll( cc );
@@ -183,6 +191,15 @@ public class MetaPanel
 	{
 		for ( int col = startCol, i = 0; i < nodes.length; ++i, ++col )
 			grid.add( nodes[ i ], col, row );
+	}
+
+	private static void formatLabels( final Label... labels )
+	{
+		for ( int i = 0; i < labels.length; ++i )
+		{
+			labels[ i ].setAlignment( Pos.BASELINE_CENTER );
+			labels[ i ].setPrefWidth( TEXTFIELD_WIDTH );
+		}
 	}
 
 }

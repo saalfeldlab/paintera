@@ -22,6 +22,7 @@ import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.collections.ObservableMap;
 import javafx.geometry.Insets;
+import javafx.geometry.Pos;
 import javafx.scene.control.Button;
 import javafx.scene.control.ButtonType;
 import javafx.scene.control.CheckBox;
@@ -30,6 +31,7 @@ import javafx.scene.control.Dialog;
 import javafx.scene.control.Label;
 import javafx.scene.control.TextField;
 import javafx.scene.control.TitledPane;
+import javafx.scene.control.Tooltip;
 import javafx.scene.effect.InnerShadow;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.HBox;
@@ -87,6 +89,10 @@ public class OpenSourceDialog extends Dialog< BackendDialog > implements Combine
 
 	private final MetaPanel metaPanel = new MetaPanel();
 
+	private final Button revertAxisOrder = new Button( " Revert axis" );
+
+	private final HBox revertAxisHBox = new HBox( revertAxisOrder );
+
 	private final CheckBox usePaintingLayer = new CheckBox();
 
 	private final TextField paintingCacheDirectory = new TextField( "" );
@@ -120,10 +126,13 @@ public class OpenSourceDialog extends Dialog< BackendDialog > implements Combine
 		this.getDialogPane().lookupButton( ButtonType.OK ).disableProperty().bind( this.isError );
 		this.errorInfo.visibleProperty().bind( this.isError );
 
+		Tooltip revertAxisTooltip = new Tooltip( "If you data is using `zyx` you should revert it." );
 		this.grid = new GridPane();
 		this.backendDialog = new StackPane();
 		this.nameField.errorMessageProperty().addListener( ( obs, oldv, newv ) -> combineErrorMessages() );
-		this.dialogContent = new VBox( 10, nameField.textField(), grid, metaPanel.getPane(), paintingLayerPane, errorInfo );
+		this.revertAxisOrder.setTooltip( revertAxisTooltip );
+		this.revertAxisHBox.setAlignment( Pos.BASELINE_RIGHT );
+		this.dialogContent = new VBox( 10, nameField.textField(), grid, metaPanel.getPane(), revertAxisHBox, paintingLayerPane, errorInfo );
 		this.setResizable( true );
 
 		GridPane.setMargin( this.backendDialog, new Insets( 0, 0, 0, 30 ) );
@@ -181,6 +190,13 @@ public class OpenSourceDialog extends Dialog< BackendDialog > implements Combine
 		HBox.setHgrow( paintingInfoPane, Priority.ALWAYS );
 		paintingInfoPane.setGraphic( this.usePaintingLayer );
 
+		this.revertAxisOrder.setOnAction( event -> {
+			final BackendDialog backendDialog = backendInfoDialogs.get( backendChoice.getValue() );
+			backendDialog.setResolution( revert( metaPanel.getResolution() ) );
+			backendDialog.setOffset( revert( metaPanel.getOffset() ) );
+		} );
+		HBox.setHgrow( revertAxisHBox, Priority.ALWAYS );
+
 		this.backendChoice.setValue( backendChoices.get( 0 ) );
 		this.typeChoice.setValue( typeChoices.get( 0 ) );
 		this.backendChoice.setMinWidth( 100 );
@@ -227,5 +243,13 @@ public class OpenSourceDialog extends Dialog< BackendDialog > implements Combine
 	public BackendDialog getBackend()
 	{
 		return this.currentBackend.get();
+	}
+
+	private static final double[] revert( final double[] array )
+	{
+		final double[] reverted = new double[ array.length ];
+		for ( int i = 0; i < array.length; ++i )
+			reverted[ i ] = array[ array.length - 1 - i ];
+		return reverted;
 	}
 }

@@ -842,5 +842,4 @@ public class GenericBackendDialogN5 implements SourceFromRAI
 	{
 		return Arrays.stream( data ).mapToDouble( DoubleProperty::get ).toArray();
 	}
-
 }
