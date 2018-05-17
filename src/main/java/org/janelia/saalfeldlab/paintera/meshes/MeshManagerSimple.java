@@ -91,7 +91,7 @@ public class MeshManagerSimple implements MeshManager< Long >
 	}
 
 	@Override
-	public void generateMesh( final Long id )
+	public void generateMesh( final long id )
 	{
 		final IntegerProperty color = new SimpleIntegerProperty( 0xffffffff );
 
@@ -121,7 +121,7 @@ public class MeshManagerSimple implements MeshManager< Long >
 	}
 
 	@Override
-	public void removeMesh( final Long id )
+	public void removeMesh( final long id )
 	{
 		Optional.ofNullable( unmodifiableMeshMap().get( id ) ).ifPresent( this::removeMesh );
 	}

@@ -60,6 +60,7 @@ public class MeshInfo
 
 		scaleLevel.set( meshManager.scaleLevelProperty().get() );
 		scaleLevel.addListener( new PropagateChanges<>( ( mesh, newv ) -> mesh.scaleIndexProperty().set( newv.intValue() ) ) );
+		scaleLevel.addListener( (obs, oldv, newv  ) -> LOG.warn( "Changing scale level from {} to {}", oldv, newv ) );
 
 		simplificationIterations.set( meshManager.meshSimplificationIterationsProperty().get() );
 		simplificationIterations.addListener( new PropagateChanges<>( ( mesh, newv ) -> mesh.meshSimplificationIterationsProperty().set( newv.intValue() ) ) );

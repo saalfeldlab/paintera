@@ -9,9 +9,9 @@ import net.imglib2.util.Pair;
 
 public interface MeshManager< T >
 {
-	public void generateMesh( final T id );
+	public void generateMesh( final long id );
 
-	public void removeMesh( final T id );
+	public void removeMesh( final long id );
 
 	public void removeAllMeshes();
 
