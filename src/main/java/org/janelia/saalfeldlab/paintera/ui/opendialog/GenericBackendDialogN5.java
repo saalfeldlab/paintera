@@ -664,5 +664,4 @@ public class GenericBackendDialogN5 implements BackendDialog
 	{
 		return Arrays.stream( data ).mapToDouble( DoubleProperty::get ).toArray();
 	}
-
 }
