@@ -165,7 +165,7 @@ public class MeshManagerWithAssignment implements MeshManager< Long >
 	}
 
 	@Override
-	public void removeMesh( final long id )
+	public void removeMesh( final Long id )
 	{
 		Optional.ofNullable( unmodifiableMeshMap().get( id ) ).ifPresent( this::removeMesh );
 	}
@@ -195,7 +195,7 @@ public class MeshManagerWithAssignment implements MeshManager< Long >
 	}
 
 	@Override
-	public void generateMesh( final long id )
+	public void generateMesh( final Long id )
 	{
 		generateMesh( this.source, id );
 	}
