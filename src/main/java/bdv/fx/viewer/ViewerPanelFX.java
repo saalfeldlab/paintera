@@ -426,12 +426,23 @@ public class ViewerPanelFX
 	@Override
 	public void paint()
 	{
+
+		ArrayList< SourceAndConverter< ? > > sources = new ArrayList<>();
+		int timepoint;
+		AffineTransform3D viewerTransform = new AffineTransform3D();
+		synchronized ( state )
+		{
+			sources.addAll( state.getSources() );
+			timepoint = state.timepoint.get();
+			state.getViewerTransform( viewerTransform );
+		}
+
 		imageRenderer.paint(
-				state::getSources,
-				state.timepoint::get,
-				state::getViewerTransform,
+				sources,
+				timepoint,
+				viewerTransform,
 				interpolation,
-				state );
+				null );
 
 		display.repaint();
 	}

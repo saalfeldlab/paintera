@@ -4,7 +4,6 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
 
-import org.janelia.saalfeldlab.paintera.SourceState;
 import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignment;
 import org.janelia.saalfeldlab.paintera.control.selection.SelectedSegments;
 
@@ -18,7 +17,6 @@ public class MeshInfos
 	private final ObservableList< MeshInfo > readOnlyInfos = FXCollections.unmodifiableObservableList( infos );
 
 	public MeshInfos(
-			final SourceState< ?, ? > state,
 			final SelectedSegments selectedSegments,
 			final FragmentSegmentAssignment assignment,
 			final MeshManager meshManager,
@@ -30,7 +28,7 @@ public class MeshInfos
 			final long[] segments = selectedSegments.getSelectedSegments();
 			final List< MeshInfo > infos = Arrays
 					.stream( segments )
-					.mapToObj( id -> new MeshInfo( state, id, assignment, meshManager, numScaleLevels ) )
+					.mapToObj( id -> new MeshInfo( id, assignment, meshManager, numScaleLevels ) )
 					.collect( Collectors.toList() );
 
 			this.infos.setAll( infos );

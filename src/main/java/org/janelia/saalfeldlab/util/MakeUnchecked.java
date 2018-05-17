@@ -1,5 +1,6 @@
 package org.janelia.saalfeldlab.util;
 
+import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
@@ -36,7 +37,7 @@ public class MakeUnchecked
 		};
 	}
 
-	public static < T, U > Function< T, U > unchecked( final CheckedFunction< T, U > func )
+	public static < T, U > Function< T, U > function( final CheckedFunction< T, U > func )
 	{
 		return t -> {
 			try
@@ -45,10 +46,22 @@ public class MakeUnchecked
 			}
 			catch ( final Exception e )
 			{
-				if ( e instanceof RuntimeException ) {
-					throw ( RuntimeException ) e;
-				}
+				if ( e instanceof RuntimeException ) { throw ( RuntimeException ) e; }
 				throw new RuntimeException( e );
+			}
+		};
+	}
+
+	public static < T > Consumer< T > onException( final CheckedConsumer< T > consumer, final BiConsumer< T, Exception > onException )
+	{
+		return t -> {
+			try
+			{
+				consumer.accept( t );
+			}
+			catch ( final Exception e )
+			{
+				onException.accept( t, e );
 			}
 		};
 	}
@@ -72,7 +85,7 @@ public class MakeUnchecked
 		public void run() throws Exception;
 	}
 
-	public static < T > Supplier< T > unchecked( final CheckedSupplier< T > supplier )
+	public static < T > Supplier< T > supplier( final CheckedSupplier< T > supplier )
 	{
 		return () -> {
 			try
@@ -87,7 +100,7 @@ public class MakeUnchecked
 		};
 	}
 
-	public static Runnable unchecked( final CheckedRunnable runnable )
+	public static Runnable runnable( final CheckedRunnable runnable )
 	{
 		return () -> {
 			try
@@ -96,9 +109,7 @@ public class MakeUnchecked
 			}
 			catch ( final Exception e )
 			{
-				if ( e instanceof RuntimeException ) {
-					throw ( RuntimeException ) e;
-				}
+				if ( e instanceof RuntimeException ) { throw ( RuntimeException ) e; }
 				throw new RuntimeException( e );
 			}
 		};

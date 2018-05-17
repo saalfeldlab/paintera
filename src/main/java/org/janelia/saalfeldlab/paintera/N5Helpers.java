@@ -2,6 +2,7 @@ package org.janelia.saalfeldlab.paintera;
 
 import java.io.IOException;
 import java.lang.invoke.MethodHandles;
+import java.lang.reflect.Array;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -31,6 +32,12 @@ import org.janelia.saalfeldlab.n5.hdf5.N5HDF5Writer;
 import org.janelia.saalfeldlab.n5.imglib2.N5Utils;
 import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignmentOnlyLocal;
 import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignmentState;
+import org.janelia.saalfeldlab.paintera.data.DataSource;
+import org.janelia.saalfeldlab.paintera.data.n5.N5DataSource;
+import org.janelia.saalfeldlab.paintera.data.n5.N5FSMeta;
+import org.janelia.saalfeldlab.paintera.data.n5.N5HDF5Meta;
+import org.janelia.saalfeldlab.paintera.data.n5.N5Meta;
+import org.janelia.saalfeldlab.paintera.data.n5.ReflectionException;
 import org.janelia.saalfeldlab.paintera.id.IdService;
 import org.janelia.saalfeldlab.paintera.id.N5IdService;
 import org.janelia.saalfeldlab.paintera.ui.opendialog.VolatileHelpers;
@@ -40,10 +47,14 @@ import org.janelia.saalfeldlab.util.NamedThreadFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.google.gson.GsonBuilder;
+
 import bdv.img.cache.CreateInvalidVolatileCell;
 import bdv.util.volatiles.SharedQueue;
 import bdv.util.volatiles.VolatileTypeMatcher;
+import bdv.viewer.Interpolation;
 import net.imglib2.Cursor;
+import net.imglib2.RandomAccessible;
 import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.Volatile;
 import net.imglib2.cache.img.CachedCellImg;
@@ -58,6 +69,9 @@ import net.imglib2.img.NativeImg;
 import net.imglib2.img.basictypeaccess.AccessFlags;
 import net.imglib2.img.cell.Cell;
 import net.imglib2.img.cell.CellGrid;
+import net.imglib2.interpolation.InterpolatorFactory;
+import net.imglib2.interpolation.randomaccess.NLinearInterpolatorFactory;
+import net.imglib2.interpolation.randomaccess.NearestNeighborInterpolatorFactory;
 import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.realtransform.ScaleAndTranslation;
 import net.imglib2.realtransform.Translation3D;
@@ -67,6 +81,7 @@ import net.imglib2.type.label.N5CacheLoader;
 import net.imglib2.type.label.VolatileLabelMultisetArray;
 import net.imglib2.type.label.VolatileLabelMultisetType;
 import net.imglib2.type.numeric.IntegerType;
+import net.imglib2.type.numeric.RealType;
 import net.imglib2.type.numeric.integer.UnsignedLongType;
 import net.imglib2.util.Fraction;
 import net.imglib2.util.Pair;
@@ -89,6 +104,10 @@ public class N5Helpers
 	public static final String OFFSET_KEY = "offset";
 
 	public static final String DOWNSAMPLING_FACTORS_KEY = "downsamplingFactors";
+
+	public static final String LABEL_MULTISETTYPE_KEY = "isLabelMultiset";
+
+	public static final String MAX_NUM_ENTRIES_KEY = "maxNumEntries";
 
 	private static final Logger LOG = LoggerFactory.getLogger( MethodHandles.lookup().lookupClass() );
 
@@ -124,11 +143,13 @@ public class N5Helpers
 			final String[] groups = n5.list( dataset );
 			isMultiScale = groups.length > 0;
 			for ( final String group : groups )
+			{
 				if ( !( group.matches( "^s[0-9]+$" ) && n5.datasetExists( dataset + "/" + group ) ) )
 				{
 					isMultiScale = false;
 					break;
 				}
+			}
 			if ( isMultiScale )
 			{
 				LOG.warn(
@@ -234,9 +255,24 @@ public class N5Helpers
 		return isHDF( base ) ? new N5HDF5Reader( base, defaultCellDimensions ) : new N5FSReader( base );
 	}
 
+	public static N5Reader n5Reader( final String base, final GsonBuilder gsonBuilder, final int... defaultCellDimensions ) throws IOException
+	{
+		return isHDF( base ) ? new N5HDF5Reader( base, defaultCellDimensions ) : new N5FSReader( base, gsonBuilder );
+	}
+
 	public static N5Writer n5Writer( final String base, final int... defaultCellDimensions ) throws IOException
 	{
 		return isHDF( base ) ? new N5HDF5Writer( base, defaultCellDimensions ) : new N5FSWriter( base );
+	}
+
+	public static N5Writer n5Writer( final String base, final GsonBuilder gsonBuilder, final int... defaultCellDimensions ) throws IOException
+	{
+		return isHDF( base ) ? new N5HDF5Writer( base, defaultCellDimensions ) : new N5FSWriter( base, gsonBuilder );
+	}
+
+	public static N5Meta metaData( final String base, final String dataset, final int... defaultCellDimensions )
+	{
+		return isHDF( base ) ? new N5HDF5Meta( base, dataset, defaultCellDimensions, false ) : new N5FSMeta( base, dataset );
 	}
 
 	public static boolean isHDF( final String base )
@@ -254,6 +290,7 @@ public class N5Helpers
 		final AtomicInteger counter = new AtomicInteger( 1 );
 		exec.submit( () -> discoverSubdirectories( n5, "", datasets, exec, counter ) );
 		while ( counter.get() > 0 && !Thread.currentThread().isInterrupted() )
+		{
 			try
 			{
 				Thread.sleep( 20 );
@@ -263,6 +300,7 @@ public class N5Helpers
 				exec.shutdownNow();
 				onInterruption.run();
 			}
+		}
 		exec.shutdown();
 		Collections.sort( datasets );
 		return datasets;
@@ -349,8 +387,85 @@ public class N5Helpers
 		return openRaw( reader, dataset, getResolution( reader, dataset ), getOffset( reader, dataset ), sharedQueue, priority );
 	}
 
+	public static < T extends NativeType< T > & RealType< T >, V extends Volatile< T > & NativeType< V > & RealType< V >, A >
+			DataSource< T, V > openRawAsSource(
+					final N5Reader reader,
+					final String dataset,
+					final AffineTransform3D transform,
+					final SharedQueue sharedQueue,
+					final int priority,
+					final String name ) throws IOException, ReflectionException
+	{
+		return openScalarAsSource(
+				reader,
+				dataset,
+				transform,
+				sharedQueue,
+				priority,
+				i -> i == Interpolation.NLINEAR ? new NLinearInterpolatorFactory<>() : new NearestNeighborInterpolatorFactory<>(),
+				i -> i == Interpolation.NLINEAR ? new NLinearInterpolatorFactory<>() : new NearestNeighborInterpolatorFactory<>(),
+				name );
+	}
+
+	public static < T extends NativeType< T >, V extends Volatile< T > & NativeType< V >, A >
+			DataSource< T, V > openScalarAsSource(
+					final N5Reader reader,
+					final String dataset,
+					final AffineTransform3D transform,
+					final SharedQueue sharedQueue,
+					final int priority,
+					final String name ) throws IOException, ReflectionException
+	{
+		return openScalarAsSource(
+				reader,
+				dataset,
+				transform,
+				sharedQueue,
+				priority,
+				i -> new NearestNeighborInterpolatorFactory<>(),
+				i -> new NearestNeighborInterpolatorFactory<>(),
+				name );
+	}
+
+	public static < T extends NativeType< T >, V extends Volatile< T > & NativeType< V >, A >
+			DataSource< T, V > openScalarAsSource(
+					final N5Reader reader,
+					final String dataset,
+					final AffineTransform3D transform,
+					final SharedQueue sharedQueue,
+					final int priority,
+					final Function< Interpolation, InterpolatorFactory< T, RandomAccessible< T > > > dataInterpolation,
+					final Function< Interpolation, InterpolatorFactory< V, RandomAccessible< V > > > interpolation,
+					final String name ) throws IOException, ReflectionException
+	{
+
+		LOG.debug( "Creating N5 Data source from {} {}", reader, dataset );
+		return new N5DataSource<>(
+				N5Meta.fromReader( reader, dataset ),
+				transform,
+				sharedQueue,
+				name,
+				priority,
+				dataInterpolation,
+				interpolation );
+	}
+
+	public static < T extends NativeType< T >, V extends Volatile< T > & NativeType< V >, A >
+			ValueTriple< RandomAccessibleInterval< T >[], RandomAccessibleInterval< V >[], AffineTransform3D[] > openScalar(
+					final N5Reader reader,
+					final String dataset,
+					final AffineTransform3D transform,
+					final SharedQueue sharedQueue,
+					final int priority ) throws IOException
+	{
+		return isMultiScale( reader, dataset )
+				? openRawMultiscale( reader, dataset, transform, sharedQueue, priority )
+				: asArrayTriple( openRaw( reader, dataset, transform, sharedQueue, priority ) );
+
+	}
+
 	@SuppressWarnings( { "unchecked", "rawtypes" } )
-	public static < T extends NativeType< T >, A > Function< NativeImg< T, ? extends A >, T > linkedTypeFactory( T t )
+	public static < T extends NativeType< T >, A > Function< NativeImg< T, ? extends A >, T > linkedTypeFactory( final T t )
 	{
 		return img -> ( T ) t.getNativeTypeFactory().createLinkedType( ( NativeImg ) img );
 	}
@@ -364,21 +479,33 @@ public class N5Helpers
 					final double[] offset,
 					final SharedQueue sharedQueue,
 					final int priority ) throws IOException
-	{ 
-		final CachedCellImg< T, A > raw = ( CachedCellImg< T, A > ) N5Utils.openVolatile( reader, dataset );
-		T type = Util.getTypeFromInterval( raw );
-		V vtype = (V)VolatileTypeMatcher.getVolatileTypeForType( type );
-		final Pair< VolatileCachedCellImg< V, A >, VolatileCache< Long, Cell< A > > > vraw = VolatileHelpers.createVolatileCachedCellImg(
-				raw, 
-				N5Helpers.< V, A >linkedTypeFactory( vtype ),
-				( CreateInvalid< Long, Cell< A > > ) ( CreateInvalid ) CreateInvalidVolatileCell.get( raw.getCellGrid(), type, AccessFlags.ofAccess( raw.getAccessType() ).contains( AccessFlags.DIRTY ) ),
-				sharedQueue,
-				new CacheHints( LoadingStrategy.VOLATILE, priority, true ) );
+	{
 		final AffineTransform3D transform = new AffineTransform3D();
 		transform.set(
 				resolution[ 0 ], 0, 0, offset[ 0 ],
 				0, resolution[ 1 ], 0, offset[ 1 ],
 				0, 0, resolution[ 2 ], offset[ 2 ] );
+		return openRaw( reader, dataset, transform, sharedQueue, priority );
+	}
+
+	public static < T extends NativeType< T >, V extends Volatile< T > & NativeType< V >, A > ValueTriple< RandomAccessibleInterval< T >, RandomAccessibleInterval< V >, AffineTransform3D >
+			openRaw(
+					final N5Reader reader,
+					final String dataset,
+					final AffineTransform3D transform,
+					final SharedQueue sharedQueue,
+					final int priority ) throws IOException
+	{
+
+		final CachedCellImg< T, A > raw = ( CachedCellImg< T, A > ) N5Utils.openVolatile( reader, dataset );
+		final T type = Util.getTypeFromInterval( raw ).copy();
+		final V vtype = ( V ) VolatileTypeMatcher.getVolatileTypeForType( type );
+		final Pair< VolatileCachedCellImg< V, A >, VolatileCache< Long, Cell< A > > > vraw = VolatileHelpers.createVolatileCachedCellImg(
+				raw,
+				N5Helpers.< V, A >linkedTypeFactory( vtype ),
+				( CreateInvalid< Long, Cell< A > > ) ( CreateInvalid ) CreateInvalidVolatileCell.get( raw.getCellGrid(), type, AccessFlags.ofAccess( raw.getAccessType() ).contains( AccessFlags.DIRTY ) ),
+				sharedQueue,
+				new CacheHints( LoadingStrategy.VOLATILE, priority, true ) );
 		return new ValueTriple<>( raw, vraw.getA(), transform );
 	}
 
@@ -408,6 +535,22 @@ public class N5Helpers
 					final SharedQueue sharedQueue,
 					final int priority ) throws IOException
 	{
+		final AffineTransform3D transform = new AffineTransform3D();
+		transform.set(
+				resolution[ 0 ], 0, 0, offset[ 0 ],
+				0, resolution[ 1 ], 0, offset[ 1 ],
+				0, 0, resolution[ 2 ], offset[ 2 ] );
+		return openRawMultiscale( reader, dataset, transform, sharedQueue, priority );
+	}
+
+	public static < T extends NativeType< T >, V extends Volatile< T > & NativeType< V > > ValueTriple< RandomAccessibleInterval< T >[], RandomAccessibleInterval< V >[], AffineTransform3D[] >
+			openRawMultiscale(
+					final N5Reader reader,
+					final String dataset,
+					final AffineTransform3D transform,
+					final SharedQueue sharedQueue,
+					final int priority ) throws IOException
+	{
 		final String[] scaleDatasets = N5Helpers.listAndSortScaleDatasets( reader, dataset );
 
 		LOG.debug( "Opening directories {} as multi-scale in {}: ", Arrays.toString( scaleDatasets ), dataset );
@@ -418,17 +561,17 @@ public class N5Helpers
 		final RandomAccessibleInterval< V >[] vraw = new RandomAccessibleInterval[ scaleDatasets.length ];
 		final AffineTransform3D[] transforms = new AffineTransform3D[ scaleDatasets.length ];
 		final double[] initialDonwsamplingFactors = getDownsamplingFactors( reader, Paths.get( dataset, scaleDatasets[ 0 ] ).toString() );
-		LOG.debug( "Initial resolution={}", Arrays.toString( resolution ) );
+		LOG.debug( "Initial transform={}", transform );
 		final ExecutorService es = Executors.newFixedThreadPool( scaleDatasets.length, new NamedThreadFactory( "populate-mipmap-scales-%d", true ) );
 		final ArrayList< Future< Boolean > > futures = new ArrayList<>();
 		for ( int scale = 0; scale < scaleDatasets.length; ++scale )
 		{
 			final int fScale = scale;
-			futures.add( es.submit( MakeUnchecked.unchecked( () -> {
+			futures.add( es.submit( MakeUnchecked.supplier( () -> {
 				LOG.debug( "Populating scale level {}", fScale );
 				final String scaleDataset = Paths.get( dataset, scaleDatasets[ fScale ] ).toString();
 				final ValueTriple< RandomAccessibleInterval< T >, RandomAccessibleInterval< V >, AffineTransform3D > cachedAndVolatile =
-						openRaw( reader, scaleDataset, resolution, offset, sharedQueue, priority );
+						openRaw( reader, scaleDataset, transform.copy(), sharedQueue, priority );
 				raw[ fScale ] = cachedAndVolatile.getA();
 				vraw[ fScale ] = cachedAndVolatile.getB();
 				final double[] downsamplingFactors = getDownsamplingFactors( reader, scaleDataset );
@@ -443,6 +586,28 @@ public class N5Helpers
 		return new ValueTriple<>( raw, vraw, transforms );
 	}
 
+	public static DataSource< LabelMultisetType, VolatileLabelMultisetType >
+			openLabelMultisetAsSource(
+					final N5Reader reader,
+					final String dataset,
+					final AffineTransform3D transform,
+					final SharedQueue sharedQueue,
+					final int priority,
+					final String name ) throws IOException, ReflectionException
+	{
+		final ValueTriple< RandomAccessibleInterval< LabelMultisetType >[], RandomAccessibleInterval< VolatileLabelMultisetType >[], AffineTransform3D[] > data = isMultiScale( reader, dataset )
+				? openLabelMultisetMultiscale( reader, dataset, transform, sharedQueue, priority )
+				: asArrayTriple( openLabelMutliset( reader, dataset, transform, sharedQueue, priority ) );
+		return new N5DataSource<>(
+				N5Meta.fromReader( reader, dataset ),
+				transform,
+				sharedQueue,
+				name,
+				priority,
+				i -> new NearestNeighborInterpolatorFactory<>(),
+				i -> new NearestNeighborInterpolatorFactory<>() );
+	}
+
 	public static ValueTriple< RandomAccessibleInterval< LabelMultisetType >, RandomAccessibleInterval< VolatileLabelMultisetType >, AffineTransform3D >
 			openLabelMutliset(
 					final N5Reader reader,
@@ -453,15 +618,28 @@ public class N5Helpers
 		return openLabelMutliset( reader, dataset, getResolution( reader, dataset ), getOffset( reader, dataset ), sharedQueue, priority );
 	}
 
-	public static ValueTriple< RandomAccessibleInterval< LabelMultisetType >, RandomAccessibleInterval< VolatileLabelMultisetType >, AffineTransform3D >
+	public static ValueTriple< RandomAccessibleInterval< LabelMultisetType >, RandomAccessibleInterval< VolatileLabelMultisetType >, AffineTransform3D > openLabelMutliset(
+			final N5Reader reader,
+			final String dataset,
+			final double[] resolution,
+			final double[] offset,
+			final SharedQueue sharedQueue,
+			final int priority ) throws IOException
+	{
+		final AffineTransform3D transform = new AffineTransform3D();
+		transform.set(
+				resolution[ 0 ], 0, 0, offset[ 0 ],
+				0, resolution[ 1 ], 0, offset[ 1 ],
+				0, 0, resolution[ 2 ], offset[ 2 ] );
+		return openLabelMutliset( reader, dataset, transform, sharedQueue, priority );
+	}
 
-			openLabelMutliset(
-					final N5Reader reader,
-					final String dataset,
-					final double[] resolution,
-					final double[] offset,
-					final SharedQueue sharedQueue,
-					final int priority ) throws IOException
+	public static ValueTriple< RandomAccessibleInterval< LabelMultisetType >, RandomAccessibleInterval< VolatileLabelMultisetType >, AffineTransform3D > openLabelMutliset(
+			final N5Reader reader,
+			final String dataset,
+			final AffineTransform3D transform,
+			final SharedQueue sharedQueue,
+			final int priority ) throws IOException
 	{
 		final DatasetAttributes attrs = reader.getDatasetAttributes( dataset );
 		final N5CacheLoader loader = new N5CacheLoader( reader, dataset );
@@ -473,16 +651,16 @@ public class N5Helpers
 				wrappedCache,
 				new VolatileLabelMultisetArray( 0, true ) );
 		cachedImg.setLinkedType( new LabelMultisetType( cachedImg ) );
-		
+
 		@SuppressWarnings( "unchecked" )
-		Pair< VolatileCachedCellImg< VolatileLabelMultisetType, VolatileLabelMultisetArray >, VolatileCache< Long, Cell< VolatileLabelMultisetArray > > > volatileCachedImgAndCache = VolatileHelpers.createVolatileCachedCellImg(
+		final Pair< VolatileCachedCellImg< VolatileLabelMultisetType, VolatileLabelMultisetArray >, VolatileCache< Long, Cell< VolatileLabelMultisetArray > > > volatileCachedImgAndCache = VolatileHelpers.createVolatileCachedCellImg(
 				cachedImg,
 				( Function< NativeImg< VolatileLabelMultisetType, ? extends VolatileLabelMultisetArray >, VolatileLabelMultisetType > ) img -> new VolatileLabelMultisetType( ( NativeImg< ?, VolatileLabelMultisetArray > ) img ),
 				new VolatileHelpers.CreateInvalidVolatileLabelMultisetArray( cachedImg.getCellGrid() ),
 				sharedQueue,
 				new CacheHints( LoadingStrategy.VOLATILE, priority, false ) );
 
-		return new ValueTriple<>( cachedImg, volatileCachedImgAndCache.getA(), fromResolutionAndOffset( resolution, offset ) );
+		return new ValueTriple<>( cachedImg, volatileCachedImgAndCache.getA(), transform );
 
 	}
 
@@ -511,9 +689,30 @@ public class N5Helpers
 					final SharedQueue sharedQueue,
 					final int priority ) throws IOException
 	{
+		final AffineTransform3D transform = new AffineTransform3D();
+		transform.set(
+				resolution[ 0 ], 0, 0, offset[ 0 ],
+				0, resolution[ 1 ], 0, offset[ 1 ],
+				0, 0, resolution[ 2 ], offset[ 2 ] );
+		return openLabelMultisetMultiscale(
+				reader,
+				dataset,
+				transform,
+				sharedQueue,
+				priority );
+	}
+
+	public static ValueTriple< RandomAccessibleInterval< LabelMultisetType >[], RandomAccessibleInterval< VolatileLabelMultisetType >[], AffineTransform3D[] >
+			openLabelMultisetMultiscale(
+					final N5Reader reader,
+					final String dataset,
+					final AffineTransform3D transform,
+					final SharedQueue sharedQueue,
+					final int priority ) throws IOException
+	{
 		final String[] scaleDatasets = N5Helpers.listAndSortScaleDatasets( reader, dataset );
 
-		LOG.debug( "Opening directories {} as multi-scale in {}: ", Arrays.toString( scaleDatasets ), dataset );
+		LOG.debug( "Opening directories {} as multi-scale in {} and transform={}: ", Arrays.toString( scaleDatasets ), dataset, transform );
 
 		@SuppressWarnings( "unchecked" )
 		final RandomAccessibleInterval< LabelMultisetType >[] raw = new RandomAccessibleInterval[ scaleDatasets.length ];
@@ -526,11 +725,11 @@ public class N5Helpers
 		for ( int scale = 0; scale < scaleDatasets.length; ++scale )
 		{
 			final int fScale = scale;
-			futures.add( es.submit( MakeUnchecked.unchecked( () -> {
+			futures.add( es.submit( MakeUnchecked.supplier( () -> {
 				LOG.debug( "Populating scale level {}", fScale );
 				final String scaleDataset = Paths.get( dataset, scaleDatasets[ fScale ] ).toString();
 				final ValueTriple< RandomAccessibleInterval< LabelMultisetType >, RandomAccessibleInterval< VolatileLabelMultisetType >, AffineTransform3D > cachedAndVolatile =
-						openLabelMutliset( reader, scaleDataset, resolution, offset, sharedQueue, priority );
+						openLabelMutliset( reader, scaleDataset, transform.copy(), sharedQueue, priority );
 				raw[ fScale ] = cachedAndVolatile.getA();
 				vraw[ fScale ] = cachedAndVolatile.getB();
 				final double[] downsamplingFactors = getDownsamplingFactors( reader, scaleDataset );
@@ -543,6 +742,21 @@ public class N5Helpers
 		futures.forEach( MakeUnchecked.unchecked( ( CheckedConsumer< Future< Boolean > > ) Future::get ) );
 		es.shutdown();
 		return new ValueTriple<>( raw, vraw, transforms );
+	}
+
+	@SuppressWarnings( "unchecked" )
+	public static < D extends NativeType< D >, T extends NativeType< T > > DataSource< D, T >
+			openAsLabelSource(
+					final N5Reader reader,
+					final String dataset,
+					final AffineTransform3D transform,
+					final SharedQueue queue,
+					final int priority,
+					final String name ) throws IOException, ReflectionException
+	{
+		return isLabelMultisetType( reader, dataset )
+				? ( DataSource< D, T > ) openLabelMultisetAsSource( reader, dataset, transform, queue, priority, name )
+				: ( DataSource< D, T > ) openScalarAsSource( reader, dataset, transform, queue, priority, name );
 	}
 
 	public static AffineTransform3D considerDownsampling(
@@ -582,6 +796,38 @@ public class N5Helpers
 			shift[ d ] = 0.5 / initialDownsamplingFactors[ d ] - 0.5 / downsamplingFactors[ d ];
 		}
 		return transform.concatenate( new Translation3D( shift ) );
+	}
+
+	public static FragmentSegmentAssignmentState assignments(
+			final N5Writer writer,
+			final String ds,
+			final long[] fragments,
+			final long[] segments ) throws IOException
+	{
+		final String dataset = ds + ".fragment-segment-assignment";
+
+		final BiConsumer< long[], long[] > persister = ( keys, values ) -> {
+			if ( keys.length == 0 )
+			{
+				LOG.info( "Zero length data, will not persist fragment-segment-assignment." );
+				return;
+			}
+			try
+			{
+				final DatasetAttributes attrs = new DatasetAttributes( new long[] { keys.length, 2 }, new int[] { keys.length, 1 }, DataType.UINT64, new GzipCompression() );
+				writer.createDataset( dataset, attrs );
+				final DataBlock< long[] > keyBlock = new LongArrayDataBlock( new int[] { keys.length, 1 }, new long[] { 0, 0 }, keys );
+				final DataBlock< long[] > valueBlock = new LongArrayDataBlock( new int[] { values.length, 1 }, new long[] { 0, 1 }, values );
+				writer.writeBlock( dataset, attrs, keyBlock );
+				writer.writeBlock( dataset, attrs, valueBlock );
+			}
+			catch ( final IOException e )
+			{
+				throw new RuntimeException( e );
+			}
+		};
+
+		return new FragmentSegmentAssignmentOnlyLocal( fragments, segments, persister );
 	}
 
 	public static FragmentSegmentAssignmentState assignments( final N5Writer writer, final String ds ) throws IOException
@@ -719,9 +965,10 @@ public class N5Helpers
 		final LoaderCacheAsCacheAdapter< Long, Cell< VolatileLabelMultisetArray > > wrappedCache = new LoaderCacheAsCacheAdapter<>( cache, loader );
 		final CachedCellImg< LabelMultisetType, VolatileLabelMultisetArray > data = new CachedCellImg<>(
 				new CellGrid( attrs.getDimensions(), attrs.getBlockSize() ),
-				new LabelMultisetType(),
+				new LabelMultisetType().getEntitiesPerPixel(),
 				wrappedCache,
 				new VolatileLabelMultisetArray( 0, true ) );
+		data.setLinkedType( new LabelMultisetType( data ) );
 		long maxId = 0;
 		for ( final Cell< VolatileLabelMultisetArray > cell : Views.iterable( data.getCells() ) )
 		{
@@ -775,6 +1022,36 @@ public class N5Helpers
 	public static AffineTransform3D fromResolutionAndOffset( final double[] resolution, final double[] offset )
 	{
 		return new AffineTransform3D().concatenate( new ScaleAndTranslation( resolution, offset ) );
+	}
+
+	public static AffineTransform3D getTransform( final N5Reader n5, final String dataset ) throws IOException
+	{
+		return fromResolutionAndOffset( getResolution( n5, dataset ), getOffset( n5, dataset ) );
+	}
+
+	public static < A, B, C > ValueTriple< A[], B[], C[] > asArrayTriple( final ValueTriple< A, B, C > scalarTriple )
+	{
+		final A a = scalarTriple.getA();
+		final B b = scalarTriple.getB();
+		final C c = scalarTriple.getC();
+
+		@SuppressWarnings( "unchecked" )
+		final A[] aArray = ( A[] ) Array.newInstance( a.getClass(), 1 );
+		@SuppressWarnings( "unchecked" )
+		final B[] bArray = ( B[] ) Array.newInstance( b.getClass(), 1 );
+		@SuppressWarnings( "unchecked" )
+		final C[] cArray = ( C[] ) Array.newInstance( c.getClass(), 1 );
+
+		aArray[ 0 ] = a;
+		bArray[ 0 ] = b;
+		cArray[ 0 ] = c;
+
+		return new ValueTriple<>( aArray, bArray, cArray );
+	}
+
+	public static String lastSegmentOfDatasetPath( final String dataset )
+	{
+		return Paths.get( dataset ).getFileName().toString();
 	}
 
 }

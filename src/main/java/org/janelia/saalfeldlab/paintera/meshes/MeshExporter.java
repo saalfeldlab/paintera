@@ -5,7 +5,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Function;
 
-import org.janelia.saalfeldlab.paintera.SourceState;
 import org.janelia.saalfeldlab.paintera.meshes.MeshGenerator.ShapeKey;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -20,20 +19,28 @@ public abstract class MeshExporter
 
 	protected int numberOfFaces = 0;
 
-	public void exportMesh( final SourceState< ?, ? >[] state, final long[] ids, final int scale, final String[] paths )
+	public void exportMesh(
+			final Function< Long, Interval[] >[][] blockListCaches,
+			final Function< ShapeKey, Pair< float[], float[] > >[][] meshCaches,
+			final long[] ids,
+			final int scale,
+			final String[] paths )
 	{
 		assert ids.length == paths.length;
 		for ( int i = 0; i < ids.length; i++ )
 		{
 			numberOfFaces = 0;
-			exportMesh( state[ i ], ids[ i ], scale, paths[ i ] );
+			exportMesh( blockListCaches[ i ], meshCaches[ i ], ids[ i ], scale, paths[ i ] );
 		}
 	}
 
-	public void exportMesh( final SourceState< ?, ? > state, final long id, final int scaleIndex, final String path )
+	public void exportMesh(
+			final Function< Long, Interval[] >[] blockListCache,
+			final Function< ShapeKey, Pair< float[], float[] > >[] meshCache,
+			final long id,
+			final int scaleIndex,
+			final String path )
 	{
-		final Function< Long, Interval[] >[] blockListCache = state.blocklistCacheProperty().get();
-		final Function< ShapeKey, Pair< float[], float[] > >[] meshCache = state.meshesCacheProperty().get();
 		// all blocks from id
 		final Interval[] blocks = blockListCache[ scaleIndex ].apply( id );
 

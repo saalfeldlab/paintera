@@ -325,16 +325,23 @@ public class MeshGenerator
 
 			Optional.ofNullable( this.root.get() ).ifPresent( group -> {
 				if ( change.wasRemoved() )
+				{
 					InvokeOnJavaFXApplicationThread.invoke( synchronize( () -> group.getChildren().remove( change.getValueRemoved() ), group ) );
+				}
 				else if ( change.wasAdded() && !group.getChildren().contains( change.getValueAdded() ) )
+				{
 					InvokeOnJavaFXApplicationThread.invoke( () -> {
 						synchronized ( group )
 						{
 							final ObservableList< Node > children = group.getChildren();
 							if ( !children.contains( change.getValueAdded() ) )
+							{
+								LOG.debug( "Adding children: {}", change.getValueAdded() );
 								children.add( change.getValueAdded() );
+							}
 						}
 					} );
+				}
 			} );
 		} );
 
@@ -344,12 +351,11 @@ public class MeshGenerator
 	private void updateMeshes( final boolean doUpdate )
 	{
 		LOG.debug( "Updating mesh? {}", doUpdate );
-		if ( !doUpdate )
-			return;
+		if ( !doUpdate ) { return; }
 
 		synchronized ( this.activeTask )
 		{
-			LOG.warn( "Canceling task: {}", this.activeTask );
+			LOG.debug( "Canceling task: {}", this.activeTask );
 			Optional.ofNullable( activeTask.get() ).ifPresent( f -> f.cancel( true ) );
 			activeTask.set( null );
 			final int scaleIndex = this.scaleIndex.get();
@@ -370,7 +376,7 @@ public class MeshGenerator
 					submittedTasks::set,
 					completedTasks::set,
 					onFinish );
-			LOG.warn( "Submitting new task {}", task );
+			LOG.debug( "Submitting new task {}", task );
 			this.activeTask.set( task );
 		}
 	}

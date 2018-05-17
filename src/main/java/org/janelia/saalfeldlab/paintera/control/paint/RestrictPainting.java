@@ -4,11 +4,12 @@ import java.lang.invoke.MethodHandles;
 import java.util.function.LongFunction;
 import java.util.function.Predicate;
 
-import org.janelia.saalfeldlab.paintera.SourceInfo;
-import org.janelia.saalfeldlab.paintera.SourceState;
 import org.janelia.saalfeldlab.paintera.data.mask.MaskInUse;
 import org.janelia.saalfeldlab.paintera.data.mask.MaskInfo;
 import org.janelia.saalfeldlab.paintera.data.mask.MaskedSource;
+import org.janelia.saalfeldlab.paintera.state.LabelSourceState;
+import org.janelia.saalfeldlab.paintera.state.SourceInfo;
+import org.janelia.saalfeldlab.paintera.state.SourceState;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -74,8 +75,16 @@ public class RestrictPainting
 			return;
 		}
 
-		final SourceState< ?, ? > state = sourceInfo.getState( currentSource );
-		if ( !state.visibleProperty().get() )
+		final SourceState< ?, ? > currentSourceState = sourceInfo.getState( currentSource );
+
+		if ( !( currentSourceState instanceof LabelSourceState< ?, ? > ) )
+		{
+			LOG.warn( "Not a label source -- will not restrict" );
+			return;
+		}
+		final LabelSourceState< ?, ? > state = ( LabelSourceState< ?, ? > ) currentSourceState;
+
+		if ( !currentSourceState.isVisibleProperty().get() )
 		{
 			LOG.warn( "Selected source is not visible -- will not fill" );
 			return;
@@ -87,7 +96,7 @@ public class RestrictPainting
 			return;
 		}
 
-		final LongFunction< ? > maskGenerator = state.maskGeneratorProperty().get();
+		final LongFunction< ? > maskGenerator = state.maskForLabel();
 		if ( maskGenerator == null )
 		{
 			LOG.warn( "Cannot generate boolean mask for this source -- will not fill" );

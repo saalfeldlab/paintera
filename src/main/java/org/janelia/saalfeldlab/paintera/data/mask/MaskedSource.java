@@ -238,7 +238,7 @@ public class MaskedSource< D extends Type< D >, T extends Type< T > > implements
 				.dirtyAccesses( true )
 				.cellDimensions( this.blockSizes[ mask.level ] );
 
-		final CachedCellImg< UnsignedByteType, ? > store = ( CachedCellImg< UnsignedByteType, ? > ) new DiskCachedCellImgFactory< UnsignedByteType >( new UnsignedByteType(), maskOpts )
+		final CachedCellImg< UnsignedByteType, ? > store = new DiskCachedCellImgFactory<>( new UnsignedByteType(), maskOpts )
 				.create( source.getSource( 0, mask.level ) );
 		final RandomAccessibleInterval< VolatileUnsignedByteType > vstore = VolatileViews.wrapAsVolatile( store );
 		final UnsignedLongType INVALID = new UnsignedLongType( Label.INVALID );
@@ -680,7 +680,7 @@ public class MaskedSource< D extends Type< D >, T extends Type< T > > implements
 
 			if ( DoubleStream.of( relativeScales ).filter( d -> Math.round( d ) != d ).count() > 0 )
 			{
-				LOG.warn(
+				LOG.error(
 						"Non-integer relative scales found for levels {} and {}: {} -- this does not make sense for label data -- aborting.",
 						level - 1,
 						level,
@@ -1049,6 +1049,16 @@ public class MaskedSource< D extends Type< D >, T extends Type< T > > implements
 	public DataSource< D, T > underlyingSource()
 	{
 		return this.source;
+	}
+
+	public String currentCanvasDirectory()
+	{
+		return this.cacheDirectory.get();
+	}
+
+	public BiConsumer< CachedCellImg< UnsignedLongType, ? >, long[] > getPersister()
+	{
+		return this.persistCanvas;
 	}
 
 }

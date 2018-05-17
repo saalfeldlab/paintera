@@ -8,7 +8,7 @@ import java.util.function.Consumer;
 
 import org.janelia.saalfeldlab.fx.event.InstallAndRemove;
 import org.janelia.saalfeldlab.fx.event.KeyTracker;
-import org.janelia.saalfeldlab.paintera.SourceInfo;
+import org.janelia.saalfeldlab.paintera.state.SourceInfo;
 
 import bdv.fx.viewer.ViewerPanelFX;
 import javafx.scene.Node;

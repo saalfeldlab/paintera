@@ -73,20 +73,19 @@ public abstract class HighlightingStreamConverter< T > implements Converter< T, 
 		return this.colorFromSegmentId;
 	}
 
+	public AbstractHighlightingARGBStream getStream()
+	{
+		return this.stream;
+	}
+
 	@SuppressWarnings( "unchecked" )
 	public static < T > HighlightingStreamConverter< T > forType(
 			final AbstractHighlightingARGBStream stream,
 			final T t )
 	{
-		if ( t instanceof IntegerType< ? > ) {
-			return (org.janelia.saalfeldlab.paintera.stream.HighlightingStreamConverter< T > ) HighlightingStreamConverterIntegerType.forInteger( stream );
-		}
-		if ( t instanceof RealType< ? > ) {
-			return (org.janelia.saalfeldlab.paintera.stream.HighlightingStreamConverter< T > ) HighlightingStreamConverterIntegerType.forRealType( stream );
-		}
-		if ( t instanceof LabelMultisetType || t instanceof VolatileLabelMultisetType ) {
-			return (org.janelia.saalfeldlab.paintera.stream.HighlightingStreamConverter< T > ) new HighlightingStreamConverterLabelMultisetType( stream );
-		}
+		if ( t instanceof IntegerType< ? > ) { return ( org.janelia.saalfeldlab.paintera.stream.HighlightingStreamConverter< T > ) HighlightingStreamConverterIntegerType.forInteger( stream ); }
+		if ( t instanceof RealType< ? > ) { return ( org.janelia.saalfeldlab.paintera.stream.HighlightingStreamConverter< T > ) HighlightingStreamConverterIntegerType.forRealType( stream ); }
+		if ( t instanceof LabelMultisetType || t instanceof VolatileLabelMultisetType ) { return ( org.janelia.saalfeldlab.paintera.stream.HighlightingStreamConverter< T > ) new HighlightingStreamConverterLabelMultisetType( stream ); }
 
 		return null;
 

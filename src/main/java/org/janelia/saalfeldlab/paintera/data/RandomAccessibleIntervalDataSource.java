@@ -15,6 +15,7 @@ import net.imglib2.RealRandomAccessible;
 import net.imglib2.interpolation.InterpolatorFactory;
 import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.type.Type;
+import net.imglib2.util.Triple;
 import net.imglib2.util.Util;
 import net.imglib2.view.Views;
 
@@ -38,6 +39,33 @@ public class RandomAccessibleIntervalDataSource< D extends Type< D >, T extends 
 	private final Supplier< T > typeSupplier;
 
 	private final String name;
+
+	public RandomAccessibleIntervalDataSource(
+			final Triple< RandomAccessibleInterval< D >[], RandomAccessibleInterval< T >[], AffineTransform3D[] > data,
+			final Function< Interpolation, InterpolatorFactory< D, RandomAccessible< D > > > dataInterpolation,
+			final Function< Interpolation, InterpolatorFactory< T, RandomAccessible< T > > > interpolation,
+			final String name )
+	{
+		this( data.getA(), data.getB(), data.getC(), dataInterpolation, interpolation, name );
+	}
+
+	@SuppressWarnings( "unchecked" )
+	public RandomAccessibleIntervalDataSource(
+			final RandomAccessibleInterval< D > dataSource,
+			final RandomAccessibleInterval< T > source,
+			final AffineTransform3D mipmapTransform,
+			final Function< Interpolation, InterpolatorFactory< D, RandomAccessible< D > > > dataInterpolation,
+			final Function< Interpolation, InterpolatorFactory< T, RandomAccessible< T > > > interpolation,
+			final String name )
+	{
+		this(
+				new RandomAccessibleInterval[] { dataSource },
+				new RandomAccessibleInterval[] { source },
+				new AffineTransform3D[] { mipmapTransform },
+				dataInterpolation,
+				interpolation,
+				name );
+	}
 
 	public RandomAccessibleIntervalDataSource(
 			final RandomAccessibleInterval< D >[] dataSources,
@@ -150,6 +178,11 @@ public class RandomAccessibleIntervalDataSource< D extends Type< D >, T extends 
 	public D getDataType()
 	{
 		return dataTypeSupplier.get();
+	}
+
+	public RandomAccessibleIntervalDataSource< D, T > copy()
+	{
+		return new RandomAccessibleIntervalDataSource<>( dataSources, sources, mipmapTransforms, dataInterpolation, interpolation, dataTypeSupplier, typeSupplier, name );
 	}
 
 }

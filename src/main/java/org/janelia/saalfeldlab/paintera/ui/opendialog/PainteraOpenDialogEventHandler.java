@@ -13,6 +13,8 @@ import org.janelia.saalfeldlab.paintera.PainteraBaseView;
 import org.janelia.saalfeldlab.paintera.data.DataSource;
 import org.janelia.saalfeldlab.paintera.meshes.InterruptibleFunction;
 import org.janelia.saalfeldlab.paintera.meshes.cache.CacheUtils;
+import org.janelia.saalfeldlab.paintera.state.LabelSourceState;
+import org.janelia.saalfeldlab.paintera.state.RawSourceState;
 import org.janelia.saalfeldlab.paintera.ui.opendialog.OpenSourceDialog.TYPE;
 import org.janelia.saalfeldlab.paintera.ui.opendialog.meta.MetaPanel;
 import org.janelia.saalfeldlab.util.HashWrapper;
@@ -22,7 +24,6 @@ import org.slf4j.LoggerFactory;
 import bdv.util.volatiles.SharedQueue;
 import javafx.event.Event;
 import javafx.event.EventHandler;
-import javafx.scene.paint.Color;
 import net.imglib2.Interval;
 import net.imglib2.IterableInterval;
 import net.imglib2.RandomAccess;
@@ -73,32 +74,25 @@ public class PainteraOpenDialogEventHandler implements EventHandler< Event >
 			final double min,
 			final double max ) throws Exception
 	{
-		final DataSource< T, V > raw = dataset.getRaw( name, cellCache, cellCache.getNumPriorities() - 1 );
+		RawSourceState< T, V > raw = dataset.getRaw( name, cellCache, cellCache.getNumPriorities() - 1 );
 		LOG.debug( "Got raw: {}", raw );
-		viewer.addRawSource( raw, min, max, Color.WHITE );
+		viewer.addRawSource( raw );
 	}
 
 	private < D extends NativeType< D >, T extends Volatile< D > & NativeType< T > > void addLabel(
 			final String name,
 			final BackendDialog dataset ) throws Exception
 	{
-		try
-		{
-			final LabelDataSourceRepresentation< D, T > rep = dataset.getLabels( name, cellCache, cellCache.getNumPriorities() - 1 );
-			viewer.addLabelSource(
-					rep.source,
-					rep.assignment,
-					rep.idService,
-					rep.toIdConverter,
-					rep.blocksThatContainId,
-					rep.meshCache,
-					rep.maskForId );
-		}
-		catch ( final Exception e )
-		{
-			System.out.println( e.getMessage() );
-			e.printStackTrace();
-		}
+		final LabelSourceState< D, T > rep = dataset.getLabels(
+				name,
+				cellCache,
+				cellCache.getNumPriorities() - 1,
+				viewer.viewer3D().meshesGroup(),
+				viewer.getMeshManagerExecutorService(),
+				viewer.getMeshWorkerExecutorService() );
+		final Object meta = dataset.metaData();
+		LOG.warn( "Adding label source with meta={}", meta );
+		viewer.addLabelSource( rep );
 	}
 
 	@Override
@@ -176,7 +170,7 @@ public class PainteraOpenDialogEventHandler implements EventHandler< Event >
 			uniqueIdCaches[ level ] = uniqueLabelLoaders( img );
 		}
 
-		return CacheUtils.blocksForLabelCaches( source, uniqueIdCaches, blockSizes, scalingFactors, CacheUtils::toCacheSoftRefLoaderCache, es );
+		return CacheUtils.blocksForLabelCaches( source, uniqueIdCaches, blockSizes, scalingFactors, CacheUtils::toCacheSoftRefLoaderCache );
 
 	}
 

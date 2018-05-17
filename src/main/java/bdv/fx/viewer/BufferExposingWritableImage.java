@@ -53,7 +53,7 @@ public class BufferExposingWritableImage extends WritableImage
 
 		this.buffer = ( Buffer ) this.pixelBuffer.get( getWritablePlatformImage.invoke( this ) );
 
-		this.callPixelsDirty = MakeUnchecked.unchecked( () -> {
+		this.callPixelsDirty = MakeUnchecked.runnable( () -> {
 			final com.sun.prism.Image prismImage = ( com.sun.prism.Image ) this.getWritablePlatformImage.invoke( this );
 			final int[] serial = ( int[] ) this.serial.get( prismImage );
 			serial[ 0 ]++;

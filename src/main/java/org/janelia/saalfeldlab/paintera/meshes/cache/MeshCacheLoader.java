@@ -73,12 +73,15 @@ public class MeshCacheLoader< T > implements CacheLoader< ShapeKey, Pair< float[
 		// TODO deal with mesh simplification
 //		}
 
+		LOG.debug( "key={}, getMaskGenerator={}", key, getMaskGenerator );
 		final RandomAccessibleInterval< BoolType > mask = Converters.convert( data, getMaskGenerator.apply( key.shapeId() ), new BoolType( false ) );
 
 		final boolean[] isInterrupted = new boolean[] { false };
 		final Consumer< ShapeKey > listener = interruptedKey -> {
 			if ( interruptedKey.equals( key ) )
+			{
 				isInterrupted[ 0 ] = true;
+			}
 		};
 		synchronized ( interruptListeners )
 		{
@@ -96,14 +99,16 @@ public class MeshCacheLoader< T > implements CacheLoader< ShapeKey, Pair< float[
 			final float[] normals = new float[ mesh.length ];
 			if ( key.smoothingIterations() > 0 )
 			{
-				float[] smoothMesh = Smooth.smooth( mesh, key.smoothingLambda(), key.smoothingIterations() );
+				final float[] smoothMesh = Smooth.smooth( mesh, key.smoothingLambda(), key.smoothingIterations() );
 				System.arraycopy( smoothMesh, 0, mesh, 0, mesh.length );
 			}
 			Normals.normals( mesh, normals );
 			AverageNormals.averagedNormals( mesh, normals );
 
 			for ( int i = 0; i < normals.length; ++i )
+			{
 				normals[ i ] *= -1;
+			}
 			return new ValuePair<>( mesh, normals );
 		}
 		finally

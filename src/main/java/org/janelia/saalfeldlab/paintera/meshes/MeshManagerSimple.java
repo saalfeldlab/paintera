@@ -167,4 +167,16 @@ public class MeshManagerSimple implements MeshManager
 		generatorsCopy.forEach( this::removeMesh );
 	}
 
+	@Override
+	public InterruptibleFunction< Long, Interval[] >[] blockListCache()
+	{
+		return blockListCache;
+	}
+
+	@Override
+	public InterruptibleFunction< ShapeKey, Pair< float[], float[] > >[] meshCache()
+	{
+		return meshCache;
+	}
+
 }

@@ -1,25 +1,32 @@
-package org.janelia.saalfeldlab.paintera;
+package org.janelia.saalfeldlab.paintera.state;
 
+import java.lang.invoke.MethodHandles;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
-import java.util.function.Function;
 import java.util.function.LongFunction;
 import java.util.stream.Collectors;
 
-import org.janelia.saalfeldlab.paintera.SourceState.TYPE;
 import org.janelia.saalfeldlab.paintera.composition.Composite;
 import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignmentState;
 import org.janelia.saalfeldlab.paintera.control.selection.SelectedIds;
 import org.janelia.saalfeldlab.paintera.data.DataSource;
+import org.janelia.saalfeldlab.paintera.id.IdService;
 import org.janelia.saalfeldlab.paintera.id.ToIdConverter;
+import org.janelia.saalfeldlab.paintera.meshes.MeshInfos;
 import org.janelia.saalfeldlab.paintera.meshes.MeshManager;
-import org.janelia.saalfeldlab.paintera.stream.ARGBStream;
+import org.janelia.saalfeldlab.paintera.stream.HighlightingStreamConverter;
+import org.janelia.saalfeldlab.util.MakeUnchecked;
+import org.janelia.saalfeldlab.util.MakeUnchecked.CheckedConsumer;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import bdv.viewer.Source;
 import bdv.viewer.SourceAndConverter;
+import javafx.beans.InvalidationListener;
 import javafx.beans.binding.Bindings;
+import javafx.beans.binding.BooleanBinding;
 import javafx.beans.binding.IntegerBinding;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.IntegerProperty;
@@ -27,11 +34,12 @@ import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleIntegerProperty;
 import javafx.beans.property.SimpleObjectProperty;
+import javafx.beans.property.StringProperty;
 import javafx.beans.value.ObservableBooleanValue;
 import javafx.beans.value.ObservableIntegerValue;
+import javafx.beans.value.ObservableObjectValue;
 import javafx.collections.FXCollections;
 import javafx.collections.ListChangeListener;
-import javafx.collections.MapChangeListener;
 import javafx.collections.ObservableList;
 import javafx.collections.ObservableMap;
 import net.imglib2.converter.ARGBColorConverter;
@@ -43,6 +51,8 @@ import net.imglib2.type.numeric.RealType;
 
 public class SourceInfo
 {
+
+	private static final Logger LOG = LoggerFactory.getLogger( MethodHandles.lookup().lookupClass() );
 
 	private final ObservableMap< Source< ? >, SourceState< ?, ? > > states = FXCollections.observableHashMap();
 
@@ -61,6 +71,25 @@ public class SourceInfo
 	private final ObservableBooleanValue hasSources = numSources.greaterThan( 0 );
 
 	private final ObservableBooleanValue hasVisibleSources = numSources.greaterThan( 0 );
+
+	private final BooleanProperty anyStateDirty = new SimpleBooleanProperty();
+	{
+		states.addListener( ( InvalidationListener ) observable -> anyStateDirty.bind( states
+				.values()
+				.stream()
+				.map( SourceState::isDirtyProperty )
+				.reduce( new SimpleBooleanProperty( false ), Bindings::or ) ) );
+	}
+
+	private final BooleanProperty sourcesDirty = new SimpleBooleanProperty( false );
+	{
+		LOG.debug( "Adding listener to set sourcesDirty to true" );
+		sources.addListener( ( InvalidationListener ) observable -> sourcesDirty.set( true ) );
+		visibleSources.addListener( ( InvalidationListener ) observable -> sourcesDirty.set( true ) );
+		currentSource.addListener( ( obs, oldv, newv ) -> sourcesDirty.set( true ) );
+	}
+
+	private final BooleanBinding isDirty = anyStateDirty.or( sourcesDirty );
 
 	private final ObservableList< Source< ? > > visibleSourcesReadOnly = FXCollections.unmodifiableObservableList( visibleSources );
 	{
@@ -87,6 +116,14 @@ public class SourceInfo
 		updateCurrentSourceIndexInVisibleSources();
 	}
 
+	private final ObservableObjectValue< SourceState< ?, ? > > currentState = Bindings.createObjectBinding(
+			() -> Optional.ofNullable( currentSource.get() ).map( this::getState ).orElse( null ),
+			currentSource );
+
+	private final ObservableObjectValue< StringProperty > currentName = Bindings.createObjectBinding(
+			() -> Optional.ofNullable( currentState.get() ).map( SourceState::nameProperty ).orElse( null ),
+			currentState );
+
 	private final ObservableMap< Source< ? >, Composite< ARGBType, ARGBType > > composites = FXCollections.observableHashMap();
 
 	private final ObservableMap< Source< ? >, Composite< ARGBType, ARGBType > > compositesReadOnly = FXCollections.unmodifiableObservableMap( composites );
@@ -98,17 +135,7 @@ public class SourceInfo
 		removedSources.addListener( ( ListChangeListener< Source< ? > > ) change -> removedSources.clear() );
 	}
 
-	private final BooleanProperty anyStateChanged = new SimpleBooleanProperty();
-	{
-		this.states.addListener( ( MapChangeListener< Source< ? >, SourceState< ?, ? > > ) change -> {
-			anyStateChanged.unbind();
-			anyStateChanged.set( true );
-			final BooleanProperty[] stateChanged = this.states.values().stream().map( SourceState::stateChanged ).toArray( BooleanProperty[]::new );
-			anyStateChanged.bind( Bindings.createBooleanBinding( () -> ( Arrays.stream( stateChanged ).filter( abc -> abc.get() ).count() > 0 ), stateChanged ) );
-		} );
-	}
-
-	public < D extends Type< D >, T extends RealType< T > > SourceState< T, D > makeRawSourceState(
+	public < D extends Type< D >, T extends RealType< T > > RawSourceState< D, T > makeRawSourceState(
 			final DataSource< D, T > source,
 			final double min,
 			final double max,
@@ -117,75 +144,92 @@ public class SourceInfo
 	{
 		final ARGBColorConverter< T > converter = new ARGBColorConverter.InvertingImp1<>( min, max );
 		converter.colorProperty().set( color );
-		final SourceState< T, D > state = new SourceState<>( source, converter, composite, SourceState.TYPE.RAW );
+		final RawSourceState< D, T > state = new RawSourceState<>( source, converter, composite, source.getName() );
 		return state;
 	}
 
-	public < D extends Type< D >, T extends RealType< T > > SourceState< T, D > addRawSource(
+	public < D extends Type< D >, T extends RealType< T > > RawSourceState< D, T > addRawSource(
 			final DataSource< D, T > source,
 			final double min,
 			final double max,
 			final ARGBType color,
 			final Composite< ARGBType, ARGBType > composite )
 	{
-		final SourceState< T, D > state = makeRawSourceState( source, min, max, color, composite );
+		final RawSourceState< D, T > state = makeRawSourceState( source, min, max, color, composite );
 		addState( source, state );
 		return state;
 	}
 
-	public < D extends Type< D >, T extends Type< T > > SourceState< T, D > makeGenericSourceState(
+	public < D extends Type< D >, T extends Type< T > > LabelSourceState< D, T > makeLabelSourceState(
 			final DataSource< D, T > source,
-			final Converter< T, ARGBType > converter,
-			final Composite< ARGBType, ARGBType > composite )
-	{
-
-		return new SourceState<>( source, converter, composite, TYPE.GENERIC );
-	}
-
-	public < D extends Type< D >, T extends Type< T > > SourceState< T, D > makeLabelSourceState(
-			final DataSource< D, T > source,
-			final ToIdConverter idConverter,
-			final LongFunction< Converter< D, BoolType > > toBoolConverter,
-			final FragmentSegmentAssignmentState frag,
-			final ARGBStream stream,
+			final HighlightingStreamConverter< T > converter,
+			final Composite< ARGBType, ARGBType > composite,
+			final LongFunction< Converter< D, BoolType > > maskForLabel,
+			final FragmentSegmentAssignmentState assignment,
+			final ToIdConverter toIdConverter,
 			final SelectedIds selectedIds,
-			final Converter< T, ARGBType > converter,
-			final Composite< ARGBType, ARGBType > composite )
+			final IdService idService,
+			final MeshManager meshManager,
+			final MeshInfos meshInfos )
 	{
-		final SourceState< T, D > state = new SourceState<>( source, converter, composite, TYPE.LABEL );
-		state.toIdConverterProperty().set( idConverter );
-		state.maskGeneratorProperty().set( toBoolConverter );
-		state.assignmentProperty().set( frag );
-		state.streamProperty().set( stream );
-		state.selectedIdsProperty().set( selectedIds );
+		final LabelSourceState< D, T > state = new LabelSourceState<>(
+				source,
+				converter,
+				composite,
+				source.getName(),
+				maskForLabel,
+				assignment,
+				toIdConverter,
+				selectedIds,
+				idService,
+				meshManager,
+				meshInfos );
 		return state;
 	}
 
-	public < D extends Type< D >, T extends Type< T > > SourceState< T, D > addLabelSource(
+	public < D extends Type< D >, T extends Type< T > > LabelSourceState< D, T > addLabelSource(
 			final DataSource< D, T > source,
-			final ToIdConverter idConverter,
-			final LongFunction< Converter< D, BoolType > > toBoolConverter,
-			final FragmentSegmentAssignmentState frag,
-			final ARGBStream stream,
+			final HighlightingStreamConverter< T > converter,
+			final Composite< ARGBType, ARGBType > composite,
+			final LongFunction< Converter< D, BoolType > > maskForLabel,
+			final FragmentSegmentAssignmentState assignment,
+			final ToIdConverter toIdConverter,
 			final SelectedIds selectedIds,
-			final Converter< T, ARGBType > converter,
-			final Composite< ARGBType, ARGBType > composite )
+			final IdService idService,
+			final MeshManager meshManager,
+			final MeshInfos meshInfos )
 	{
-		final SourceState< T, D > state = makeLabelSourceState( source, idConverter, toBoolConverter, frag, stream, selectedIds, converter, composite );
+		final LabelSourceState< D, T > state = makeLabelSourceState(
+				source,
+				converter,
+				composite,
+				maskForLabel,
+				assignment,
+				toIdConverter,
+				selectedIds,
+				idService,
+				meshManager,
+				meshInfos );
 		addState( source, state );
 		return state;
 	}
 
-	public synchronized < D extends Type< D >, T extends Type< T > > void addState( final Source< T > source, final SourceState< T, D > state )
+	public synchronized < D, T > void addState(
+			final SourceState< D, T > state )
+	{
+		addState( state.getDataSource(), state );
+	}
+
+	public synchronized < D, T > void addState(
+			final Source< T > source,
+			final SourceState< D, T > state )
 	{
 		this.states.put( source, state );
 		// composites needs to hold a valid (!=null) value for source whenever
 		// viewer is updated
-		this.composites.put( source, state.compositeProperty().get() );
+		this.composites.put( source, state.compositeProperty().getValue() );
 		this.sources.add( source );
-		state.visibleProperty().addListener( ( obs, oldv, newv ) -> updateVisibleSources() );
-		state.converterProperty().addListener( ( obs, oldv, newv ) -> updateVisibleSourcesAndConverters() );
-		state.visibleProperty().set( true );
+		state.isVisibleProperty().addListener( ( obs, oldv, newv ) -> updateVisibleSources() );
 		if ( this.currentSource.get() == null )
 		{
 			this.currentSource.set( source );
@@ -193,11 +237,54 @@ public class SourceInfo
 		state.compositeProperty().addListener( ( obs, oldv, newv ) -> this.composites.put( source, newv ) );
 	}
 
-	public synchronized < T > void removeSource( final Source< T > source )
+	public synchronized void removeAllSources()
+	{
+		new ArrayList<>( this.sources ).forEach( MakeUnchecked.unchecked( ( CheckedConsumer< Source< ? > > ) s -> removeSource( s, true ) ) );
+	}
+
+	public synchronized < T > void removeSource( final Source< T > source ) throws HasDependents
+	{
+		removeSource( source, false );
+	}
+
+	public synchronized < T > void removeSource( final Source< T > source, final boolean force ) throws HasDependents
 	{
 		final int currentSourceIndex = this.sources.indexOf( source );
-		Optional.ofNullable( this.states.get( source ).meshManagerProperty().get() ).ifPresent( MeshManager::removeAllMeshes );
+
+		if ( currentSourceIndex == -1 )
+		{
+			LOG.warn( "Cannot remove source {}: not present", source );
+			return;
+		}
+
+		final SourceState< ?, ? > state = this.states.get( source );
+
+		if ( state != null )
+		{
+			final List< SourceState< ?, ? > > dependents = this.states
+					.values()
+					.stream()
+					.filter( s -> Arrays.asList( s.dependsOn() ).contains( state ) )
+					.collect( Collectors.toList() );
+			if ( dependents.size() > 0 )
+			{
+				if ( force )
+				{
+					LOG.warn( "Forcing removal of state {} with dependents {}:", state, dependents );
+				}
+				else
+				{
+					LOG.warn( "Cannot remove state {} with dependents: {}. Run SourceInfo.removeSource( source, true ) to force removal.", state, dependents );
+					throw new HasDependents( state, dependents );
+				}
+			}
+		}
+
 		this.states.remove( source );
+		if ( state != null && state instanceof LabelSourceState< ?, ? > )
+		{
+			( ( LabelSourceState< ?, ? > ) state ).meshManager().removeAllMeshes();
+		}
 		this.sources.remove( source );
 		this.currentSource.set( this.sources.size() == 0 ? null : this.sources.get( Math.max( currentSourceIndex - 1, 0 ) ) );
 		this.composites.remove( source );
@@ -207,20 +294,17 @@ public class SourceInfo
 	public synchronized Optional< ToIdConverter > toIdConverter( final Source< ? > source )
 	{
 		final SourceState< ?, ? > state = states.get( source );
-		return state == null ? Optional.empty() : Optional.ofNullable( state.toIdConverterProperty().get() );
-	}
-
-	@SuppressWarnings( { "unchecked", "rawtypes" } )
-	public synchronized Optional< Function< ?, Converter< ?, BoolType > > > toBoolConverter( final Source< ? > source )
-	{
-		final SourceState< ?, ? > state = states.get( source );
-		return state == null ? Optional.empty() : Optional.ofNullable( ( Function< ?, Converter< ?, BoolType > > ) ( Function ) state.maskGeneratorProperty().get() );
+		return state instanceof LabelSourceState< ?, ? >
+				? Optional.of( ( ( LabelSourceState< ?, ? > ) state ).toIdConverter() )
+				: Optional.empty();
 	}
 
 	public synchronized Optional< FragmentSegmentAssignmentState > assignment( final Source< ? > source )
 	{
 		final SourceState< ?, ? > state = states.get( source );
-		return state != null ? Optional.ofNullable( state.assignmentProperty().get() ) : Optional.empty();
+		return state instanceof LabelSourceState< ?, ? >
+				? Optional.of( ( ( LabelSourceState< ?, ? > ) state ).assignment() )
+				: Optional.empty();
 	}
 
 	public SourceState< ?, ? > getState( final Source< ? > source )
@@ -317,7 +401,7 @@ public class SourceInfo
 
 		final List< Source< ? > > visibleSources = this.sources
 				.stream()
-				.filter( s -> states.get( s ).visibleProperty().get() )
+				.filter( s -> states.get( s ).isVisibleProperty().get() )
 				.collect( Collectors.toList() );
 		this.visibleSources.setAll( visibleSources );
 	}
@@ -346,11 +430,6 @@ public class SourceInfo
 		return this.unmodifiableRemovedSources;
 	}
 
-	public ObservableBooleanValue anyStateChanged()
-	{
-		return this.anyStateChanged;
-	}
-
 	public ObservableIntegerValue numSources()
 	{
 		return this.numSources;
@@ -369,6 +448,54 @@ public class SourceInfo
 	public ObservableBooleanValue hasVisibleSources()
 	{
 		return this.hasVisibleSources;
+	}
+
+	public void cleanStates()
+	{
+		this.states.values().forEach( SourceState::clean );
+	}
+
+	public void clean()
+	{
+		cleanStates();
+		this.sourcesDirty.set( false );
+	}
+
+	public ObservableBooleanValue isDirtyProperty()
+	{
+		return this.isDirty;
+	}
+
+	public List< SourceState< ?, ? > > getDependents( final Source< ? > source )
+	{
+		return Optional
+				.ofNullable( this.states.get( source ) )
+				.map( this::getDependents )
+				.orElseGet( ArrayList::new );
+	}
+
+	public List< SourceState< ?, ? > > getDependents( final SourceState< ?, ? > state )
+	{
+		final List< SourceState< ?, ? > > dependents = this.states
+				.values()
+				.stream()
+				.filter( s -> Arrays.asList( s.dependsOn() ).contains( s ) ).collect( Collectors.toList() );
+		return dependents;
+	}
+
+	public int indexOf( final Source< ? > source )
+	{
+		return this.trackSources().indexOf( source );
+	}
+
+	public ObservableObjectValue< SourceState< ?, ? > > currentState()
+	{
+		return this.currentState;
+	}
+
+	public ObservableObjectValue< StringProperty > currentNameProperty()
+	{
+		return this.currentName;
 	}
 
 }

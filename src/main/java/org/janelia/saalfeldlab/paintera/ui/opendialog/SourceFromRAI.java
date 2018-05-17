@@ -3,13 +3,20 @@ package org.janelia.saalfeldlab.paintera.ui.opendialog;
 import java.io.IOException;
 import java.lang.invoke.MethodHandles;
 import java.util.Arrays;
+import java.util.Optional;
 import java.util.concurrent.ExecutorService;
 import java.util.function.BiConsumer;
 import java.util.function.Function;
 import java.util.function.LongFunction;
 import java.util.function.Supplier;
 
+import org.janelia.saalfeldlab.paintera.PainteraBaseView;
+import org.janelia.saalfeldlab.paintera.composition.ARGBCompositeAlphaYCbCr;
+import org.janelia.saalfeldlab.paintera.composition.CompositeCopy;
 import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignmentState;
+import org.janelia.saalfeldlab.paintera.control.assignment.FragmentsInSelectedSegments;
+import org.janelia.saalfeldlab.paintera.control.selection.SelectedIds;
+import org.janelia.saalfeldlab.paintera.control.selection.SelectedSegments;
 import org.janelia.saalfeldlab.paintera.data.DataSource;
 import org.janelia.saalfeldlab.paintera.data.RandomAccessibleIntervalDataSource;
 import org.janelia.saalfeldlab.paintera.data.mask.Masks;
@@ -18,16 +25,27 @@ import org.janelia.saalfeldlab.paintera.id.IdService;
 import org.janelia.saalfeldlab.paintera.id.ToIdConverter;
 import org.janelia.saalfeldlab.paintera.meshes.InterruptibleFunction;
 import org.janelia.saalfeldlab.paintera.meshes.MeshGenerator.ShapeKey;
+import org.janelia.saalfeldlab.paintera.meshes.MeshInfos;
+import org.janelia.saalfeldlab.paintera.meshes.MeshManagerWithAssignment;
+import org.janelia.saalfeldlab.paintera.meshes.cache.CacheUtils;
+import org.janelia.saalfeldlab.paintera.state.LabelSourceState;
+import org.janelia.saalfeldlab.paintera.state.RawSourceState;
+import org.janelia.saalfeldlab.paintera.stream.HighlightingStreamConverter;
+import org.janelia.saalfeldlab.paintera.stream.ModalGoldenAngleSaturatedHighlightingARGBStream;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import bdv.util.volatiles.SharedQueue;
 import bdv.viewer.Interpolation;
+import javafx.beans.property.SimpleDoubleProperty;
+import javafx.beans.property.SimpleIntegerProperty;
+import javafx.scene.Group;
 import net.imglib2.Interval;
 import net.imglib2.RandomAccessible;
 import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.Volatile;
 import net.imglib2.cache.img.CachedCellImg;
+import net.imglib2.converter.ARGBColorConverter;
 import net.imglib2.converter.Converter;
 import net.imglib2.interpolation.InterpolatorFactory;
 import net.imglib2.interpolation.randomaccess.NLinearInterpolatorFactory;
@@ -69,11 +87,13 @@ public interface SourceFromRAI extends BackendDialog
 	{
 		if ( isLabelType() )
 		{
-			if ( isLabelMultisetType() )
+			if ( isLabelMultisetType() ) {
 				return ToIdConverter.fromLabelMultisetType();
+			}
 
-			if ( isIntegerType() )
+			if ( isIntegerType() ) {
 				return ToIdConverter.fromIntegerType();
+			}
 		}
 		return null;
 	}
@@ -103,11 +123,13 @@ public interface SourceFromRAI extends BackendDialog
 	@SuppressWarnings( "unchecked" )
 	public default < D > LongFunction< Converter< D, BoolType > > maskForId() throws Exception
 	{
-		if ( isLabelMultisetType() )
+		if ( isLabelMultisetType() ) {
 			return id -> ( Converter< D, BoolType > ) maskForIdLabelMultisetType( id );
+		}
 
-		if ( isIntegerType() )
+		if ( isIntegerType() ) {
 			return id -> ( Converter< D, BoolType > ) maskForIdIntegerType( id );
+		}
 
 		return null;
 	}
@@ -123,14 +145,18 @@ public interface SourceFromRAI extends BackendDialog
 	}
 
 	@Override
-	public default < T extends RealType< T > & NativeType< T >, V extends AbstractVolatileRealType< T, V > & NativeType< V > > DataSource< T, V > getRaw(
+	public default < T extends RealType< T > & NativeType< T >, V extends AbstractVolatileRealType< T, V > & NativeType< V > > RawSourceState< T, V > getRaw(
 			final String name,
 			final SharedQueue sharedQueue,
 			final int priority ) throws IOException
 	{
 		final Triple< RandomAccessibleInterval< T >[], RandomAccessibleInterval< V >[], AffineTransform3D[] > dataAndVolatile = getDataAndVolatile( sharedQueue, priority );
 		LOG.debug( "Got data: {}", dataAndVolatile );
-		return getCached( dataAndVolatile.getA(), dataAndVolatile.getB(), dataAndVolatile.getC(), name, sharedQueue, priority );
+		return new RawSourceState<>(
+				getCached( dataAndVolatile.getA(), dataAndVolatile.getB(), dataAndVolatile.getC(), name, sharedQueue, priority ),
+				new ARGBColorConverter.InvertingImp1<>( 0, 255 ),
+				new CompositeCopy<>(),
+				name );
 	}
 
 	default < T extends NativeType< T >, V extends Volatile< T > & NativeType< V > > DataSource< T, V > getSourceNearestNeighborInterpolationOnly(
@@ -153,10 +179,13 @@ public interface SourceFromRAI extends BackendDialog
 	public ExecutorService propagationExecutor();
 
 	@Override
-	public default < D extends NativeType< D >, T extends Volatile< D > & NativeType< T > > LabelDataSourceRepresentation< D, T > getLabels(
+	public default < D extends NativeType< D >, T extends Volatile< D > & NativeType< T > > LabelSourceState< D, T > getLabels(
 			final String name,
 			final SharedQueue sharedQueue,
-			final int priority ) throws Exception
+			final int priority,
+			final Group meshesGroup,
+			final ExecutorService manager,
+			final ExecutorService workers ) throws Exception
 
 	{
 		final DataSource< D, T > source = Masks.mask(
@@ -166,14 +195,44 @@ public interface SourceFromRAI extends BackendDialog
 				commitCanvas(),
 				propagationExecutor() );
 
-		return new LabelDataSourceRepresentation<>(
+		final SelectedIds selectedIds = new SelectedIds();
+		final FragmentSegmentAssignmentState assignments = assignments();
+		final SelectedSegments selectedSegments = new SelectedSegments( selectedIds, assignments );
+		final FragmentsInSelectedSegments fragmentsInSelectedSegments = new FragmentsInSelectedSegments( selectedSegments, assignments );
+		final ModalGoldenAngleSaturatedHighlightingARGBStream stream = new ModalGoldenAngleSaturatedHighlightingARGBStream( selectedIds, assignments );
+
+		final InterruptibleFunction< Long, Interval[] >[] blocksCache = Optional
+				.ofNullable( blocksThatContainId() )
+				.orElseGet( () -> PainteraBaseView.generateLabelBlocksForLabelCache( source, PainteraBaseView.scaleFactorsFromAffineTransforms( source ) ) );
+		final InterruptibleFunction< ShapeKey, Pair< float[], float[] > >[] meshCache = CacheUtils.meshCacheLoaders( source, PainteraBaseView.equalsMaskForType( source.getDataType() ), CacheUtils::toCacheSoftRefLoaderCache );
+		final MeshManagerWithAssignment meshManager = new MeshManagerWithAssignment(
 				source,
-				assignments(),
-				idService(),
+				blocksCache,
+				meshCache,
+				meshesGroup,
+				assignments,
+				fragmentsInSelectedSegments,
+				stream,
+				new SimpleIntegerProperty(),
+				new SimpleDoubleProperty(),
+				new SimpleIntegerProperty(),
+				manager,
+				workers );
+
+		final MeshInfos meshInfos = new MeshInfos( selectedSegments, assignments, meshManager, source.getNumMipmapLevels() );
+
+		return new LabelSourceState< >(
+				source,
+				HighlightingStreamConverter.forType( stream, source.getType() ),
+				new ARGBCompositeAlphaYCbCr(),
+				name,
+				PainteraBaseView.equalsMaskForType( source.getDataType() ),
+				assignments,
 				toIdConverter(),
-				blocksThatContainId(),
-				meshCache(),
-				maskForId() );
+				selectedIds,
+				idService(),
+				meshManager,
+				meshInfos );
 	}
 
 	public default String initialCanvasDirectory()
@@ -199,10 +258,10 @@ public interface SourceFromRAI extends BackendDialog
 				vrai,
 				transforms,
 				interpolation -> interpolation.equals( Interpolation.NLINEAR ) ? new NLinearInterpolatorFactory<>() : new NearestNeighborInterpolatorFactory<>(),
-				interpolation -> interpolation.equals( Interpolation.NLINEAR ) ? new NLinearInterpolatorFactory<>() : new NearestNeighborInterpolatorFactory<>(),
-				nameOrPattern,
-				sharedQueue,
-				priority );
+						interpolation -> interpolation.equals( Interpolation.NLINEAR ) ? new NLinearInterpolatorFactory<>() : new NearestNeighborInterpolatorFactory<>(),
+								nameOrPattern,
+								sharedQueue,
+								priority );
 	}
 
 	public default < T extends Type< T >, V extends Type< V > > DataSource< T, V > getCached(

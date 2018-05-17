@@ -169,6 +169,7 @@ public class FragmentSegmentAssignmentOnlyLocal extends FragmentSegmentAssignmen
 			if ( fragments == null )
 			{
 				fragments = new TLongHashSet();
+				fragments.add( segmentId );
 				segmentToFragmentsMap.put( segmentId, fragments );
 			}
 			fragments.add( fragmentId );
@@ -192,5 +193,16 @@ public class FragmentSegmentAssignmentOnlyLocal extends FragmentSegmentAssignmen
 
 	protected synchronized void confirmTwoSegmentsImpl( final long[] fragmentsInSegment1, final long[] fragmentsInSegment2, final boolean broadcast )
 	{}
+
+	public int size()
+	{
+		return this.fragmentToSegmentMap.size();
+	}
+
+	public void persist( final long[] keys, final long[] values )
+	{
+		this.fragmentToSegmentMap.keys( keys );
+		this.fragmentToSegmentMap.values( values );
+	}
 
 }

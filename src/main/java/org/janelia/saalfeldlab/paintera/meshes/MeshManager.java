@@ -2,8 +2,12 @@ package org.janelia.saalfeldlab.paintera.meshes;
 
 import java.util.Map;
 
+import org.janelia.saalfeldlab.paintera.meshes.MeshGenerator.ShapeKey;
+
 import javafx.beans.property.DoubleProperty;
 import javafx.beans.property.IntegerProperty;
+import net.imglib2.Interval;
+import net.imglib2.util.Pair;
 
 public interface MeshManager
 {
@@ -22,5 +26,9 @@ public interface MeshManager
 	public IntegerProperty smoothingIterationsProperty();
 
 	public Map< Long, MeshGenerator > unmodifiableMeshMap();
+
+	public InterruptibleFunction< Long, Interval[] >[] blockListCache();
+
+	public InterruptibleFunction< ShapeKey, Pair< float[], float[] > >[] meshCache();
 
 }

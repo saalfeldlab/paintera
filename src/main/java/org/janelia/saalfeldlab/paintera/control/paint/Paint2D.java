@@ -10,12 +10,13 @@ import java.util.function.Supplier;
 import java.util.stream.IntStream;
 
 import org.janelia.saalfeldlab.fx.event.MouseDragFX;
-import org.janelia.saalfeldlab.paintera.SourceInfo;
 import org.janelia.saalfeldlab.paintera.data.DataSource;
 import org.janelia.saalfeldlab.paintera.data.mask.MaskInUse;
 import org.janelia.saalfeldlab.paintera.data.mask.MaskInfo;
 import org.janelia.saalfeldlab.paintera.data.mask.MaskedSource;
 import org.janelia.saalfeldlab.paintera.state.GlobalTransformManager;
+import org.janelia.saalfeldlab.paintera.state.SourceInfo;
+import org.janelia.saalfeldlab.paintera.state.SourceState;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -200,12 +201,15 @@ public class Paint2D
 
 		LOG.debug( "Prepare for painting with source {}", viewerSource );
 
-		if ( viewerSource == null || !( viewerSource instanceof DataSource< ?, ? > ) || !sourceInfo.getState( viewerSource ).visibleProperty().get() ) { return; }
+		if ( viewerSource == null || !( viewerSource instanceof DataSource< ?, ? > ) || !sourceInfo.getState( viewerSource ).isVisibleProperty().get() ) { return; }
 
-		final DataSource< ?, ? > source = ( DataSource< ?, ? > ) viewerSource;
-		final MaskedSource< ?, ? > maskedSource = sourceInfo.getState( source ).maskedSourceProperty().get();
+		final SourceState< ?, ? > currentSourceState = sourceInfo.getState( viewerSource );
+		final DataSource< ?, ? > source = currentSourceState.getDataSource();
 
-		if ( maskedSource == null ) { return; }
+		if ( !( source instanceof MaskedSource< ?, ? > ) )
+			return;
+
+		final MaskedSource< ?, ? > maskedSource = ( MaskedSource< ?, ? > ) source;
 
 		final AffineTransform3D viewerTransform = new AffineTransform3D();
 		state.getViewerTransform( viewerTransform );

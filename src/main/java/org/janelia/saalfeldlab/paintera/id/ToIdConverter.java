@@ -17,6 +17,23 @@ public interface ToIdConverter
 
 	public long biggestFragment( Object o );
 
+	public static < T > ToIdConverter fromType( T t )
+	{
+		if ( t instanceof LabelMultisetType )
+			return fromLabelMultisetType();
+		
+		if ( t instanceof ARGBType )
+			return fromARGB();
+
+		if ( t instanceof IntegerType< ? > )
+			return fromIntegerType();
+
+		if ( t instanceof RealType< ? > )
+			return fromRealType();
+		
+		return null;
+	}
+
 	public static FromLabelMultisetType fromLabelMultisetType()
 	{
 		return new FromLabelMultisetType();

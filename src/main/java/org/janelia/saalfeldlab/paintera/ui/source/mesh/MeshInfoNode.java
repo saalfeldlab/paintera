@@ -6,7 +6,6 @@ import java.util.Optional;
 import org.controlsfx.control.StatusBar;
 import org.janelia.saalfeldlab.fx.ui.NumericSliderWithField;
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread;
-import org.janelia.saalfeldlab.paintera.SourceState;
 import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignment;
 import org.janelia.saalfeldlab.paintera.meshes.MeshInfo;
 import org.janelia.saalfeldlab.paintera.meshes.MeshManager;
@@ -51,9 +50,13 @@ public class MeshInfoNode implements BindUnbindAndNodeSupplier
 		this.contents = createContents();
 	}
 
-	public MeshInfoNode( final SourceState< ?, ? > state, final long segmentId, final FragmentSegmentAssignment assignment, final MeshManager meshManager, final int numScaleLevels )
+	public MeshInfoNode(
+			final long segmentId,
+			final FragmentSegmentAssignment assignment,
+			final MeshManager meshManager,
+			final int numScaleLevels )
 	{
-		this( new MeshInfo( state, segmentId, assignment, meshManager, numScaleLevels ) );
+		this( new MeshInfo( segmentId, assignment, meshManager, numScaleLevels ) );
 	}
 
 	@Override
@@ -141,7 +144,12 @@ public class MeshInfoNode implements BindUnbindAndNodeSupplier
 			{
 				final ExportResult parameters = result.get();
 				assert parameters.getSegmentId().length == 1;
-				parameters.getMeshExporter().exportMesh( meshInfo.state(), parameters.getSegmentId()[ 0 ], parameters.getScale(), parameters.getFilePaths()[ 0 ] );
+				parameters.getMeshExporter().exportMesh(
+						meshInfo.meshManager().blockListCache(),
+						meshInfo.meshManager().meshCache(),
+						parameters.getSegmentId()[ 0 ],
+						parameters.getScale(),
+						parameters.getFilePaths()[ 0 ] );
 			}
 		} );
 		contents.add( exportMeshButton, 2, row );

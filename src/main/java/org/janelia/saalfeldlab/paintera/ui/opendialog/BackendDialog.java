@@ -1,11 +1,15 @@
 package org.janelia.saalfeldlab.paintera.ui.opendialog;
 
-import org.janelia.saalfeldlab.paintera.data.DataSource;
+import java.util.concurrent.ExecutorService;
+
+import org.janelia.saalfeldlab.paintera.state.LabelSourceState;
+import org.janelia.saalfeldlab.paintera.state.RawSourceState;
 
 import bdv.util.volatiles.SharedQueue;
 import javafx.beans.property.DoubleProperty;
 import javafx.beans.value.ObservableStringValue;
 import javafx.beans.value.ObservableValue;
+import javafx.scene.Group;
 import javafx.scene.Node;
 import net.imglib2.Volatile;
 import net.imglib2.type.NativeType;
@@ -19,15 +23,18 @@ public interface BackendDialog
 
 	public ObservableValue< String > errorMessage();
 
-	public < T extends RealType< T > & NativeType< T >, V extends AbstractVolatileRealType< T, V > & NativeType< V > > DataSource< T, V > getRaw(
+	public < T extends RealType< T > & NativeType< T >, V extends AbstractVolatileRealType< T, V > & NativeType< V > > RawSourceState< T, V > getRaw(
 			final String name,
 			final SharedQueue sharedQueue,
 			final int priority ) throws Exception;
 
-	public < D extends NativeType< D >, T extends Volatile< D > & NativeType< T > > LabelDataSourceRepresentation< D, T > getLabels(
+	public < D extends NativeType< D >, T extends Volatile< D > & NativeType< T > > LabelSourceState< D, T > getLabels(
 			final String name,
 			final SharedQueue sharedQueue,
-			final int priority ) throws Exception;
+			final int priority,
+			final Group meshesGroup,
+			final ExecutorService manager,
+			final ExecutorService workers ) throws Exception;
 
 	public DoubleProperty[] resolution();
 
@@ -58,5 +65,10 @@ public interface BackendDialog
 	public ObservableStringValue nameProperty();
 
 	public String identifier();
+
+	public default Object metaData()
+	{
+		return null;
+	}
 
 }

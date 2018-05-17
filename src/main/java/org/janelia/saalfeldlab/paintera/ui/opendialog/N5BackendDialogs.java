@@ -75,15 +75,15 @@ public class N5BackendDialogs
 			{
 				final String path = updatedRoot.getAbsolutePath();
 				root.set( path );
-				writerSupplier.set( MakeUnchecked.unchecked( () -> new N5FSWriter( path ) ) );
+				writerSupplier.set( MakeUnchecked.supplier( () -> new N5FSWriter( path ) ) );
 				LOG.debug( "Updated root={} and writer supplier={}", root, writerSupplier );
 			}
 			Optional
-					.ofNullable( updatedRoot )
-					.filter( File::exists )
-					.filter( File::isFile )
-					.map( File::getAbsolutePath )
-					.ifPresent( root::set );
+			.ofNullable( updatedRoot )
+			.filter( File::exists )
+			.filter( File::isFile )
+			.map( File::getAbsolutePath )
+			.ifPresent( root::set );
 		};
 		return new GenericBackendDialogN5( rootField, onClick, "N5", writerSupplier, propagationExecutor );
 	}
@@ -102,6 +102,10 @@ public class N5BackendDialogs
 		final FileChooser fileChooser = new FileChooser();
 		fileChooser.getExtensionFilters().setAll( new ExtensionFilter( "h5", H5_EXTENSIONS ) );
 
+		final int[] defaultBlockSize = { 16, 16, 16 };
+
+		final boolean overrideBlockSize = false;
+
 		final Consumer< Event > onClick = event -> {
 			fileChooser.setInitialDirectory( Optional
 					.ofNullable( root.get() )
@@ -114,14 +118,14 @@ public class N5BackendDialogs
 			{
 				root.set( updatedRoot.getAbsolutePath() );
 				// TODO what to do with block size?
-				writerSupplier.set( MakeUnchecked.unchecked( () -> new N5HDF5Writer( root.get(), 16, 16, 16 ) ) );
+				writerSupplier.set( MakeUnchecked.supplier( () -> new N5HDF5Writer( root.get(), defaultBlockSize ) ) );
 			}
 			Optional
-					.ofNullable( updatedRoot )
-					.filter( File::exists )
-					.filter( File::isFile )
-					.map( File::getAbsolutePath )
-					.ifPresent( root::set );
+			.ofNullable( updatedRoot )
+			.filter( File::exists )
+			.filter( File::isFile )
+			.map( File::getAbsolutePath )
+			.ifPresent( root::set );
 		};
 		return new GenericBackendDialogN5( rootField, onClick, "HDF5", writerSupplier, propagationExecutor );
 	}
@@ -143,11 +147,11 @@ public class N5BackendDialogs
 
 		final ObservableValue< Supplier< N5Writer > > writerSupplier = Bindings.createObjectBinding(
 				() -> isValid.get()
-						? MakeUnchecked.unchecked( () -> new N5GoogleCloudStorageWriter( storage.get(), bucket.get().getName() ) )
+				? MakeUnchecked.supplier( () -> new N5GoogleCloudStorageWriter( storage.get(), bucket.get().getName() ) )
 						: ( Supplier< N5Writer > ) () -> null,
-				isValid,
-				storage,
-				bucket );
+						isValid,
+						storage,
+						bucket );
 
 		final StringBinding storageAsString = Bindings.createStringBinding(
 				() -> Optional.ofNullable( storage.getValue() ).map( Storage::toString ).orElse( "" ),
