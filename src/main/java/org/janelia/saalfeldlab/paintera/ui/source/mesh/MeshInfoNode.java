@@ -89,6 +89,7 @@ public class MeshInfoNode implements BindUnbindAndNodeSupplier
 	{
 		final VBox vbox = new VBox();
 		final TitledPane pane = new TitledPane( null, vbox );
+		pane.setExpanded( false );
 
 		final long[] fragments = meshInfo.assignment().getFragments( meshInfo.segmentId() ).toArray();
 
