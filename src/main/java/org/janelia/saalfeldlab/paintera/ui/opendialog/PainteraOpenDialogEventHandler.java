@@ -9,6 +9,7 @@ import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.stream.IntStream;
 
+import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread;
 import org.janelia.saalfeldlab.paintera.PainteraBaseView;
 import org.janelia.saalfeldlab.paintera.data.DataSource;
 import org.janelia.saalfeldlab.paintera.meshes.InterruptibleFunction;
@@ -74,9 +75,9 @@ public class PainteraOpenDialogEventHandler implements EventHandler< Event >
 			final double min,
 			final double max ) throws Exception
 	{
-		RawSourceState< T, V > raw = dataset.getRaw( name, cellCache, cellCache.getNumPriorities() - 1 );
+		final RawSourceState< T, V > raw = dataset.getRaw( name, cellCache, cellCache.getNumPriorities() - 1 );
 		LOG.debug( "Got raw: {}", raw );
-		viewer.addRawSource( raw );
+		InvokeOnJavaFXApplicationThread.invoke( () -> viewer.addRawSource( raw ) );
 	}
 
 	private < D extends NativeType< D >, T extends Volatile< D > & NativeType< T > > void addLabel(
@@ -91,8 +92,8 @@ public class PainteraOpenDialogEventHandler implements EventHandler< Event >
 				viewer.getMeshManagerExecutorService(),
 				viewer.getMeshWorkerExecutorService() );
 		final Object meta = dataset.metaData();
-		LOG.warn( "Adding label source with meta={}", meta );
-		viewer.addLabelSource( rep );
+		LOG.debug( "Adding label source with meta={}", meta );
+		InvokeOnJavaFXApplicationThread.invoke( () -> viewer.addLabelSource( rep ) );
 	}
 
 	@Override
@@ -106,40 +107,37 @@ public class PainteraOpenDialogEventHandler implements EventHandler< Event >
 			}
 
 			final OpenSourceDialog openDialog = new OpenSourceDialog( viewer );
-			openDialog.setOnHidden( e -> {
-				final Optional< BackendDialog > datasetOptional = Optional.ofNullable( openDialog.getBackend() );
-				if ( datasetOptional.isPresent() )
-				{
-					final Thread t = new Thread( () -> {
-						try
+			final Optional< BackendDialog > datasetOptional = openDialog.showAndWait();
+			LOG.debug( "Data set choice: {} (is present? {})", datasetOptional, datasetOptional.isPresent() );
+			if ( datasetOptional.isPresent() )
+			{
+				final Thread t = new Thread( () -> {
+					try
+					{
+						final BackendDialog dataset = datasetOptional.get();
+						final MetaPanel meta = openDialog.getMeta();
+						final TYPE type = openDialog.getType();
+						LOG.debug( "Type={}", type );
+						switch ( type )
 						{
-							final BackendDialog dataset = datasetOptional.get();
-							final MetaPanel meta = openDialog.getMeta();
-							final TYPE type = openDialog.getType();
-							LOG.debug( "Type={}", type );
-							switch ( type )
-							{
-							case RAW:
-								LOG.trace( "Adding raw data" );
-								addRaw( openDialog.getName(), dataset, meta.min(), meta.max() );
-								break;
-							case LABEL:
-								addLabel( openDialog.getName(), dataset );
-								break;
-							default:
-								break;
-							}
+						case RAW:
+							LOG.trace( "Adding raw data" );
+							addRaw( openDialog.getName(), dataset, meta.min(), meta.max() );
+							break;
+						case LABEL:
+							addLabel( openDialog.getName(), dataset );
+							break;
+						default:
+							break;
 						}
-						catch ( final Exception ex )
-						{
-							exceptionHandler.accept( ex );
-						}
-					} );
-					t.start();
-				}
-			} );
-			openDialog.show();
-
+					}
+					catch ( final Exception ex )
+					{
+						exceptionHandler.accept( ex );
+					}
+				} );
+				t.start();
+			}
 		}
 	}
 
@@ -166,7 +164,7 @@ public class PainteraOpenDialogEventHandler implements EventHandler< Event >
 		{
 			@SuppressWarnings( "unchecked" )
 			final AbstractCellImg< LabelMultisetType, VolatileLabelMultisetArray, C, I > img =
-					( AbstractCellImg< LabelMultisetType, VolatileLabelMultisetArray, C, I > ) source.getDataSource( 0, level );
+			( AbstractCellImg< LabelMultisetType, VolatileLabelMultisetArray, C, I > ) source.getDataSource( 0, level );
 			uniqueIdCaches[ level ] = uniqueLabelLoaders( img );
 		}
 
@@ -182,8 +180,8 @@ public class PainteraOpenDialogEventHandler implements EventHandler< Event >
 	}
 
 	public static < C extends Cell< VolatileLabelMultisetArray >, I extends RandomAccessible< C > & IterableInterval< C > >
-			InterruptibleFunction< HashWrapper< long[] >, long[] > uniqueLabelLoaders(
-					final AbstractCellImg< LabelMultisetType, VolatileLabelMultisetArray, C, I > img )
+	InterruptibleFunction< HashWrapper< long[] >, long[] > uniqueLabelLoaders(
+			final AbstractCellImg< LabelMultisetType, VolatileLabelMultisetArray, C, I > img )
 	{
 		final I cells = img.getCells();
 		return InterruptibleFunction.fromFunction( location -> {
