@@ -1,5 +1,6 @@
 package org.janelia.saalfeldlab.paintera.meshes;
 
+import java.lang.invoke.MethodHandles;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
@@ -7,6 +8,8 @@ import java.util.function.BiConsumer;
 
 import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignment;
 import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignmentState;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import javafx.beans.binding.Bindings;
 import javafx.beans.property.DoubleProperty;
@@ -19,6 +22,8 @@ import javafx.beans.value.ObservableValue;
 
 public class MeshInfo
 {
+
+	private static final Logger LOG = LoggerFactory.getLogger( MethodHandles.lookup().lookupClass() );
 
 	private final IntegerProperty scaleLevel = new SimpleIntegerProperty();
 
@@ -55,6 +60,7 @@ public class MeshInfo
 
 		scaleLevel.set( meshManager.scaleLevelProperty().get() );
 		scaleLevel.addListener( new PropagateChanges<>( ( mesh, newv ) -> mesh.scaleIndexProperty().set( newv.intValue() ) ) );
+		scaleLevel.addListener( (obs, oldv, newv  ) -> LOG.warn( "Changing scale level from {} to {}", oldv, newv ) );
 
 		simplificationIterations.set( meshManager.meshSimplificationIterationsProperty().get() );
 		simplificationIterations.addListener( new PropagateChanges<>( ( mesh, newv ) -> mesh.meshSimplificationIterationsProperty().set( newv.intValue() ) ) );
@@ -69,12 +75,15 @@ public class MeshInfo
 
 		updateTasksCountBindings();
 		if ( assignment instanceof FragmentSegmentAssignmentState )
+		{
 			( ( FragmentSegmentAssignmentState ) assignment ).addListener( obs -> updateTasksCountBindings() );
+		}
 
 	}
 
 	private void updateTasksCountBindings()
 	{
+		LOG.debug( "Updating task count bindings." );
 		final long[] fragments = assignment.getFragments( segmentId ).toArray();
 		final Map< Long, MeshGenerator > meshes = new HashMap<>( meshManager.unmodifiableMeshMap() );
 		final ObservableIntegerValue[] submittedTasks = Arrays.stream( fragments ).mapToObj( meshes::get ).filter( mesh -> mesh != null ).map( MeshGenerator::submittedTasksProperty ).toArray( ObservableIntegerValue[]::new );
@@ -137,6 +146,7 @@ public class MeshInfo
 		public void changed( final ObservableValue< ? extends T > observable, final T oldValue, final T newValue )
 		{
 			final long[] fragments = assignment.getFragments( segmentId ).toArray();
+			LOG.debug( "Propagating changes {} {}", segmentId, fragments );
 			final Map< Long, MeshGenerator > meshes = meshManager.unmodifiableMeshMap();
 			Arrays.stream( fragments ).mapToObj( meshes::get ).filter( m -> m != null ).forEach( n -> apply.accept( n, newValue ) );
 		}

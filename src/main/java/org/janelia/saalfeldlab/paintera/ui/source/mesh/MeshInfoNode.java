@@ -11,16 +11,24 @@ import org.janelia.saalfeldlab.paintera.meshes.MeshInfo;
 import org.janelia.saalfeldlab.paintera.meshes.MeshManager;
 import org.janelia.saalfeldlab.paintera.ui.BindUnbindAndNodeSupplier;
 
+import javafx.beans.binding.BooleanBinding;
+import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.DoubleProperty;
 import javafx.beans.property.IntegerProperty;
+import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleDoubleProperty;
 import javafx.beans.property.SimpleIntegerProperty;
+import javafx.beans.value.ObservableBooleanValue;
 import javafx.scene.Node;
 import javafx.scene.control.Button;
+import javafx.scene.control.CheckBox;
 import javafx.scene.control.Label;
 import javafx.scene.control.TitledPane;
 import javafx.scene.control.Tooltip;
 import javafx.scene.layout.GridPane;
+import javafx.scene.layout.HBox;
+import javafx.scene.layout.Priority;
+import javafx.scene.layout.Region;
 import javafx.scene.layout.VBox;
 
 public class MeshInfoNode implements BindUnbindAndNodeSupplier
@@ -40,6 +48,10 @@ public class MeshInfoNode implements BindUnbindAndNodeSupplier
 
 	private final Node contents;
 
+	private final BooleanProperty manageSettings = new SimpleBooleanProperty( false );
+
+	private final BooleanBinding isManagedExternally = manageSettings.not();
+
 	public MeshInfoNode( final MeshInfo meshInfo )
 	{
 		super();
@@ -48,6 +60,7 @@ public class MeshInfoNode implements BindUnbindAndNodeSupplier
 		smoothingLambdaSlider = new NumericSliderWithField( 0.0, 1.0, meshInfo.smoothingLambdaProperty().get() );
 		smoothingIterationsSlider = new NumericSliderWithField( 0, 10, meshInfo.smoothingIterationsProperty().get() );
 		this.contents = createContents();
+
 	}
 
 	public MeshInfoNode(
@@ -77,6 +90,45 @@ public class MeshInfoNode implements BindUnbindAndNodeSupplier
 		smoothingIterationsSlider.slider().valueProperty().unbindBidirectional( meshInfo.smoothingIterationsProperty() );
 		this.submittedTasks.unbind();
 		this.completedTasks.unbind();
+	}
+
+	public void bindToExternalSliders(
+			final DoubleProperty scaleLevel,
+			final DoubleProperty smoothingLambda,
+			final DoubleProperty smoothingIterations,
+			final boolean bind
+			)
+	{
+		if ( bind )
+		{
+			bindToExternalSliders( scaleLevel, smoothingLambda, smoothingIterations );
+		}
+		else
+		{
+			unbindExternalSliders( scaleLevel, smoothingLambda, smoothingIterations );
+		}
+	}
+
+	public void bindToExternalSliders(
+			final DoubleProperty scaleLevel,
+			final DoubleProperty smoothingLambda,
+			final DoubleProperty smoothingIterations
+			)
+	{
+		this.scaleSlider.slider().valueProperty().bindBidirectional( scaleLevel );
+		this.smoothingLambdaSlider.slider().valueProperty().bindBidirectional( smoothingLambda );
+		this.smoothingIterationsSlider.slider().valueProperty().bindBidirectional( smoothingIterations );
+	}
+
+	public void unbindExternalSliders(
+			final DoubleProperty scaleLevel,
+			final DoubleProperty smoothingLambda,
+			final DoubleProperty smoothingIterations
+			)
+	{
+		this.scaleSlider.slider().valueProperty().unbindBidirectional( scaleLevel );
+		this.smoothingLambdaSlider.slider().valueProperty().unbindBidirectional( smoothingLambda );
+		this.smoothingIterationsSlider.slider().valueProperty().unbindBidirectional( smoothingIterations );
 	}
 
 	@Override
@@ -112,9 +164,6 @@ public class MeshInfoNode implements BindUnbindAndNodeSupplier
 		final GridPane contents = new GridPane();
 
 		int row = 0;
-		contents.add( new Label( "Ids:" ), 0, row );
-		contents.add( new Label( Arrays.toString( fragments ) ), 1, row );
-		++row;
 
 		contents.add( new Label( "Scale" ), 0, row );
 		contents.add( scaleSlider.slider(), 1, row );
@@ -153,12 +202,45 @@ public class MeshInfoNode implements BindUnbindAndNodeSupplier
 						parameters.getFilePaths()[ 0 ] );
 			}
 		} );
-		contents.add( exportMeshButton, 2, row );
-		++row;
 
-		vbox.getChildren().add( contents );
+		final CheckBox individualSettingsSwitch = new CheckBox( "Individual settings" );
+		individualSettingsSwitch.setSelected( false );
+		this.manageSettings.bind( individualSettingsSwitch.selectedProperty() );
+		contents.visibleProperty().bind( this.manageSettings );
+
+
+		final Label ids = new Label( Arrays.toString( fragments ) );
+		final Label idsLabel = new Label( "ids: " );
+		final Tooltip idToolTip = new Tooltip();
+		ids.setTooltip( idToolTip );
+		idToolTip.textProperty().bind( ids.textProperty() );
+		idsLabel.setMinWidth( 30 );
+		idsLabel.setMaxWidth( 30 );
+		final Region spacer = new Region();
+		final HBox idsRow = new HBox ( idsLabel, spacer, ids );
+		HBox.setHgrow( ids, Priority.ALWAYS );
+		HBox.setHgrow( spacer, Priority.ALWAYS );
+
+
+		vbox.getChildren().addAll( idsRow, individualSettingsSwitch, exportMeshButton );
+
+		this.manageSettings.addListener( (obs, oldv, newv  ) -> {
+			if ( newv )
+			{
+				vbox.getChildren().setAll( idsRow, individualSettingsSwitch, contents, exportMeshButton );
+			}
+			else
+			{
+				vbox.getChildren().setAll( idsRow, individualSettingsSwitch, exportMeshButton );
+			}
+		} );
 
 		return pane;
+	}
+
+	public ObservableBooleanValue isManagedExternally()
+	{
+		return this.isManagedExternally;
 	}
 
 }

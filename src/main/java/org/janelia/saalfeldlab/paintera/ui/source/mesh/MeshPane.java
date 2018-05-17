@@ -138,9 +138,9 @@ public class MeshPane implements BindUnbindAndNodeSupplier, ListChangeListener< 
 
 				@SuppressWarnings( "unchecked" )
 				final InterruptibleFunction< Long, Interval[] >[][] blockListCaches = Stream
-						.generate( manager::blockListCache )
-						.limit( meshInfos.readOnlyInfos().size() )
-						.toArray( InterruptibleFunction[][]::new );
+				.generate( manager::blockListCache )
+				.limit( meshInfos.readOnlyInfos().size() )
+				.toArray( InterruptibleFunction[][]::new );
 
 				final InterruptibleFunction< ShapeKey, Pair< float[], float[] > >[][] meshCaches = Stream
 						.generate( manager::meshCache )
@@ -192,6 +192,16 @@ public class MeshPane implements BindUnbindAndNodeSupplier, ListChangeListener< 
 		if ( this.isBound )
 		{
 			node.bind();
+			node.isManagedExternally().addListener( (obs, oldv, newv) -> node.bindToExternalSliders(
+					scaleSlider.slider().valueProperty(),
+					smoothingLambdaSlider.slider().valueProperty(),
+					smoothingIterationsSlider.slider().valueProperty(),
+					newv ) );
+			node.bindToExternalSliders(
+					scaleSlider.slider().valueProperty(),
+					smoothingLambdaSlider.slider().valueProperty(),
+					smoothingIterationsSlider.slider().valueProperty(),
+					node.isManagedExternally().get() );
 		}
 		return node;
 	}
