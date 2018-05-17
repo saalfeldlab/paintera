@@ -119,7 +119,7 @@ public class MeshGenerator
 
 	private final IntegerProperty successfulTasks = new SimpleIntegerProperty( 0 );
 
-	private final MeshGeneratorJobManager manager;
+	private final MeshGeneratorJobManager< Long > manager;
 
 	private final DoubleProperty smoothingLambda = new SimpleDoubleProperty( 0.5 );
 
@@ -145,7 +145,7 @@ public class MeshGenerator
 		this.color = Bindings.createObjectBinding( () -> fromInt( color.get() ), color );
 		this.managers = managers;
 		this.workers = workers;
-		this.manager = new MeshGeneratorJobManager( this.meshes, this.managers, this.workers );
+		this.manager = new MeshGeneratorJobManager<>( this.meshes, this.managers, this.workers );
 
 		this.changed.addListener( ( obs, oldv, newv ) -> new Thread( () -> this.updateMeshes( newv ) ).start() );
 		this.changed.addListener( ( obs, oldv, newv ) -> changed.set( false ) );
@@ -235,6 +235,7 @@ public class MeshGenerator
 				}
 			};
 			final Future< Void > task = manager.submit(
+					new long[] { id },
 					id,
 					scaleIndex,
 					meshSimplificationIterations.intValue(),
