@@ -53,7 +53,7 @@ public class MeshGeneratorJobManager< T >
 			final int simplificationIterations,
 			final double smoothingLambda,
 			final int smoothingIterations,
-			final InterruptibleFunction< Long, Interval[] > getBlockList,
+			final InterruptibleFunction< T, Interval[] > getBlockList,
 			final InterruptibleFunction< ShapeKey< T >, Pair< float[], float[] > > getMesh,
 			final IntConsumer setNumberOfTasks,
 			final IntConsumer setNumberOfCompletedTasks,
@@ -88,7 +88,7 @@ public class MeshGeneratorJobManager< T >
 
 		private final int smoothingIterations;
 
-		private final InterruptibleFunction< Long, Interval[] > getBlockList;
+		private final InterruptibleFunction< T, Interval[] > getBlockList;
 
 		private final InterruptibleFunction< ShapeKey< T >, Pair< float[], float[] > > getMesh;
 
@@ -107,7 +107,7 @@ public class MeshGeneratorJobManager< T >
 				final int simplificationIterations,
 				final double smoothingLambda,
 				final int smoothingIterations,
-				final InterruptibleFunction< Long, Interval[] > getBlockList,
+				final InterruptibleFunction< T, Interval[] > getBlockList,
 				final InterruptibleFunction< ShapeKey< T >, Pair< float[], float[] > > getMesh,
 				final IntConsumer setNumberOfTasks,
 				final IntConsumer setNumberOfCompletedTasks,
@@ -150,11 +150,7 @@ public class MeshGeneratorJobManager< T >
 				workers.submit( () -> {
 					try
 					{
-						Arrays
-						.stream( ids )
-						.mapToObj( getBlockList::apply )
-						.map( Arrays::asList )
-						.forEach( blockList::addAll );
+						blockList.addAll( Arrays.asList( getBlockList.apply( identifier ) ) );
 					}
 					finally
 					{
@@ -168,7 +164,7 @@ public class MeshGeneratorJobManager< T >
 				catch ( final InterruptedException e )
 				{
 					LOG.debug( "Interrupted while waiting for block lists for labell {}", ids );
-					Arrays.stream( ids ).forEach( getBlockList::interruptFor );
+					getBlockList.interruptFor( identifier );
 					this.isInterrupted = true;
 				}
 

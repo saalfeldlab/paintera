@@ -18,6 +18,7 @@ import org.janelia.saalfeldlab.paintera.ui.BindUnbindAndNodeSupplier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import gnu.trove.set.hash.TLongHashSet;
 import javafx.collections.FXCollections;
 import javafx.collections.ListChangeListener;
 import javafx.collections.ObservableList;
@@ -32,14 +33,14 @@ import javafx.scene.layout.VBox;
 import net.imglib2.Interval;
 import net.imglib2.util.Pair;
 
-public class MeshPane implements BindUnbindAndNodeSupplier, ListChangeListener< MeshInfo >
+public class MeshPane implements BindUnbindAndNodeSupplier, ListChangeListener< MeshInfo< TLongHashSet > >
 {
 
 	private static final Logger LOG = LoggerFactory.getLogger( MethodHandles.lookup().lookupClass() );
 
-	private final MeshManager< Long > manager;
+	private final MeshManager< TLongHashSet > manager;
 
-	private final MeshInfos meshInfos;
+	private final MeshInfos< TLongHashSet > meshInfos;
 
 	private final int numScaleLevels;
 
@@ -49,7 +50,7 @@ public class MeshPane implements BindUnbindAndNodeSupplier, ListChangeListener< 
 
 	private final NumericSliderWithField smoothingIterationsSlider;
 
-	final ObservableMap< MeshInfo, MeshInfoNode > infoNodesCache = FXCollections.observableHashMap();
+	final ObservableMap< MeshInfo< TLongHashSet >, MeshInfoNode > infoNodesCache = FXCollections.observableHashMap();
 
 	final ObservableList< MeshInfoNode > infoNodes = FXCollections.observableArrayList();
 
@@ -65,7 +66,7 @@ public class MeshPane implements BindUnbindAndNodeSupplier, ListChangeListener< 
 
 	private boolean isBound = false;
 
-	public MeshPane( final MeshManager< Long > manager, final MeshInfos meshInfos, final int numScaleLevels )
+	public MeshPane( final MeshManager< TLongHashSet > manager, final MeshInfos< TLongHashSet > meshInfos, final int numScaleLevels )
 	{
 		super();
 		this.manager = manager;
@@ -111,7 +112,7 @@ public class MeshPane implements BindUnbindAndNodeSupplier, ListChangeListener< 
 	}
 
 	@Override
-	public void onChanged( final Change< ? extends MeshInfo > change )
+	public void onChanged( final Change< ? extends MeshInfo< TLongHashSet > > change )
 	{
 		while ( change.next() )
 		{
@@ -123,7 +124,7 @@ public class MeshPane implements BindUnbindAndNodeSupplier, ListChangeListener< 
 		populateInfoNodes( this.meshInfos.readOnlyInfos() );
 	}
 
-	private void populateInfoNodes( final List< MeshInfo > infos )
+	private void populateInfoNodes( final List< MeshInfo< TLongHashSet > > infos )
 	{
 		final List< MeshInfoNode > infoNodes = new ArrayList<>( infos ).stream().map( this::fromMeshInfo ).collect( Collectors.toList() );
 		LOG.debug( "Setting info nodes: {}: ", infoNodes );
@@ -186,7 +187,7 @@ public class MeshPane implements BindUnbindAndNodeSupplier, ListChangeListener< 
 		return contents;
 	}
 
-	private MeshInfoNode fromMeshInfo( final MeshInfo info )
+	private MeshInfoNode fromMeshInfo( final MeshInfo< TLongHashSet > info )
 	{
 		final MeshInfoNode node = infoNodesCache.computeIfAbsent( info, MeshInfoNode::new );
 		if ( this.isBound )

@@ -7,6 +7,7 @@ import net.imglib2.Interval;
 
 public class ShapeKey< T >
 {
+
 	private final T shapeId;
 
 	private final int scaleIndex;

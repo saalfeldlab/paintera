@@ -35,7 +35,7 @@ public class MeshManagerSimple implements MeshManager< Long >
 
 	private final InterruptibleFunction< ShapeKey< Long >, Pair< float[], float[] > >[] meshCache;
 
-	private final Map< Long, MeshGenerator > neurons = Collections.synchronizedMap( new HashMap<>() );
+	private final Map< Long, MeshGenerator< Long > > neurons = Collections.synchronizedMap( new HashMap<>() );
 
 	private final Group root;
 
@@ -95,7 +95,7 @@ public class MeshManagerSimple implements MeshManager< Long >
 	{
 		final IntegerProperty color = new SimpleIntegerProperty( 0xffffffff );
 
-		for ( final MeshGenerator neuron : neurons.values() )
+		for ( final MeshGenerator< Long > neuron : neurons.values() )
 		{
 			if ( neuron.getId() == id ) {
 				return;
@@ -103,7 +103,7 @@ public class MeshManagerSimple implements MeshManager< Long >
 		}
 
 		LOG.debug( "Adding mesh for segment {}.", id );
-		final MeshGenerator nfx = new MeshGenerator(
+		final MeshGenerator< Long > nfx = new MeshGenerator<>(
 				id,
 				blockListCache,
 				meshCache,
@@ -113,7 +113,8 @@ public class MeshManagerSimple implements MeshManager< Long >
 				smoothingLambda.get(),
 				smoothingIterations.get(),
 				managers,
-				workers );
+				workers,
+				val -> new long[] { val } );
 		nfx.rootProperty().set( this.root );
 
 		neurons.put( id, nfx );
@@ -126,14 +127,14 @@ public class MeshManagerSimple implements MeshManager< Long >
 		Optional.ofNullable( unmodifiableMeshMap().get( id ) ).ifPresent( this::removeMesh );
 	}
 
-	private void removeMesh( final MeshGenerator mesh )
+	private void removeMesh( final MeshGenerator< Long > mesh )
 	{
 		mesh.rootProperty().set( null );
 		this.neurons.remove( mesh.getId() );
 	}
 
 	@Override
-	public Map< Long, MeshGenerator > unmodifiableMeshMap()
+	public Map< Long, MeshGenerator< Long > > unmodifiableMeshMap()
 	{
 		return Collections.unmodifiableMap( neurons );
 	}

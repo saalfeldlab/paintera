@@ -8,6 +8,7 @@ import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
+import java.util.function.BiPredicate;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -19,6 +20,7 @@ import org.janelia.saalfeldlab.util.HashWrapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import gnu.trove.set.hash.TLongHashSet;
 import net.imglib2.FinalInterval;
 import net.imglib2.Interval;
 import net.imglib2.Point;
@@ -30,20 +32,22 @@ import net.imglib2.img.cell.CellGrid;
 import net.imglib2.type.numeric.integer.LongType;
 import net.imglib2.util.Intervals;
 
-public class BlocksForLabelCacheLoader implements CacheLoader< Long, Interval[] >, Interruptible< Long >
+public class BlocksForLabelCacheLoader< T > implements CacheLoader< T, Interval[] >, Interruptible< T >
 {
 
 	private static final Logger LOG = LoggerFactory.getLogger( MethodHandles.lookup().lookupClass() );
 
 	private final CellGrid grid;
 
-	private final InterruptibleFunction< Long, Interval[] > getRelevantIntervalsFromLowerResolution;
+	private final InterruptibleFunction< T, Interval[] > getRelevantIntervalsFromLowerResolution;
 
 	private final Function< Interval, List< Interval > > getRelevantBlocksIntersectingWithLowResInterval;
 
 	private final Function< long[], long[] > getUniqueLabelListForBlock;
 
-	private final List< Consumer< Long > > interruptionListeners = new ArrayList<>();
+	private final BiPredicate< T, long[] > checkIfLabelsAreContained;
+
+	private final List< Consumer< T > > interruptionListeners = new ArrayList<>();
 
 	/**
 	 *
@@ -66,23 +70,53 @@ public class BlocksForLabelCacheLoader implements CacheLoader< Long, Interval[] 
 	 */
 	public BlocksForLabelCacheLoader(
 			final CellGrid grid,
-			final InterruptibleFunction< Long, Interval[] > getRelevantIntervalsFromLowerResolution,
+			final InterruptibleFunction< T, Interval[] > getRelevantIntervalsFromLowerResolution,
 			final Function< Interval, List< Interval > > getRelevantBlocksIntersectingWithLowResInterval,
-			final Function< long[], long[] > getUniqueLabelListForBlock )
+			final Function< long[], long[] > getUniqueLabelListForBlock,
+			final BiPredicate< T, long[] > checkIfLabelsAreContained )
 	{
 		super();
 		this.grid = grid;
 		this.getRelevantIntervalsFromLowerResolution = getRelevantIntervalsFromLowerResolution;
 		this.getRelevantBlocksIntersectingWithLowResInterval = getRelevantBlocksIntersectingWithLowResInterval;
 		this.getUniqueLabelListForBlock = getUniqueLabelListForBlock;
+		this.checkIfLabelsAreContained = checkIfLabelsAreContained;
+	}
+
+	public static BlocksForLabelCacheLoader< Long > longKeys(
+			final CellGrid grid,
+			final InterruptibleFunction< Long, Interval[] > getRelevantIntervalsFromLowerResolution,
+			final Function< Interval, List< Interval > > getRelevantBlocksIntersectingWithLowResInterval,
+			final Function< long[], long[] > getUniqueLabelListForBlock )
+	{
+		return new BlocksForLabelCacheLoader<>(
+				grid,
+				getRelevantIntervalsFromLowerResolution,
+				getRelevantBlocksIntersectingWithLowResInterval,
+				getUniqueLabelListForBlock,
+				(id, block) -> Arrays.stream( block ).filter( b -> b == id ).count() > 0 );
+	}
+
+	public static BlocksForLabelCacheLoader< TLongHashSet > hashSetKeys(
+			final CellGrid grid,
+			final InterruptibleFunction< TLongHashSet, Interval[] > getRelevantIntervalsFromLowerResolution,
+			final Function< Interval, List< Interval > > getRelevantBlocksIntersectingWithLowResInterval,
+			final Function< long[], long[] > getUniqueLabelListForBlock )
+	{
+		return new BlocksForLabelCacheLoader<>(
+				grid,
+				getRelevantIntervalsFromLowerResolution,
+				getRelevantBlocksIntersectingWithLowResInterval,
+				getUniqueLabelListForBlock,
+				(ids, block) -> Arrays.stream( block ).filter( ids::contains ).count() > 0 );
 	}
 
 	@Override
-	public Interval[] get( final Long key ) throws Exception
+	public Interval[] get( final T key ) throws Exception
 	{
 
 		final boolean[] isInterrupted = { false };
-		final Consumer< Long > listener = interruptedKey -> {
+		final Consumer< T > listener = interruptedKey -> {
 			if ( interruptedKey.equals( key ) )
 			{
 				isInterrupted[ 0 ] = true;
@@ -96,11 +130,11 @@ public class BlocksForLabelCacheLoader implements CacheLoader< Long, Interval[] 
 			final Interval[] relevantLowResBlocks = getRelevantIntervalsFromLowerResolution.apply( key );
 			final HashSet< HashWrapper< Interval > > blocks = new HashSet<>();
 			Arrays
-					.stream( relevantLowResBlocks )
-					.map( getRelevantBlocksIntersectingWithLowResInterval::apply )
-					.flatMap( List::stream )
-					.map( HashWrapper::interval )
-					.forEach( blocks::add );
+			.stream( relevantLowResBlocks )
+			.map( getRelevantBlocksIntersectingWithLowResInterval::apply )
+			.flatMap( List::stream )
+			.map( HashWrapper::interval )
+			.forEach( blocks::add );
 			LOG.debug( "key={} grid={} -- got {} block candidates", key, grid, blocks.size() );
 
 			final List< Interval > results = new ArrayList<>();
@@ -111,9 +145,10 @@ public class BlocksForLabelCacheLoader implements CacheLoader< Long, Interval[] 
 				grid.getCellPosition( Intervals.minAsLongArray( block.getData() ), cellPos );
 				final long[] uniqueLabels = getUniqueLabelListForBlock.apply( cellPos );
 				LOG.trace( "key={} grid ={} -- Unique labels: {}", key, grid, uniqueLabels );
-				final long unboxedKey = key;
-				if ( Arrays.stream( uniqueLabels ).filter( l -> l == unboxedKey ).count() > 0 )
+				if ( checkIfLabelsAreContained.test( key, uniqueLabels ) )
+				{
 					results.add( block.getData() );
+				}
 			}
 			LOG.debug( "key={} grid={} -- still {} blocks after filtering", key, grid, results.size() );
 			return isInterrupted[ 0 ] ? null : results.toArray( new Interval[ results.size() ] );
@@ -165,7 +200,7 @@ public class BlocksForLabelCacheLoader implements CacheLoader< Long, Interval[] 
 			}
 		};
 
-		final BlocksForLabelCacheLoader blocksForLabelLoader2 = new BlocksForLabelCacheLoader(
+		final BlocksForLabelCacheLoader< Long > blocksForLabelLoader2 = longKeys(
 				grid2,
 				InterruptibleFunction.fromFunction( val -> new Interval[] { new FinalInterval( 3 ) } ),
 				i -> IntStream.range( 0, res2.length / 2 ).mapToObj( pos -> Intervals.translate( new FinalInterval( 2 ), pos * 2, 0 ) ).collect( Collectors.toList() ),
@@ -189,7 +224,7 @@ public class BlocksForLabelCacheLoader implements CacheLoader< Long, Interval[] 
 			}
 		};
 
-		final BlocksForLabelCacheLoader blocksForLabelLoader1 = new BlocksForLabelCacheLoader(
+		final BlocksForLabelCacheLoader< Long > blocksForLabelLoader1 = longKeys(
 				grid1,
 				InterruptibleFunction.fromFunction( val -> uncheckedGetIntervals2.apply( val ) ),
 				i -> doubleStep( i ),
@@ -234,7 +269,7 @@ public class BlocksForLabelCacheLoader implements CacheLoader< Long, Interval[] 
 	}
 
 	@Override
-	public void interruptFor( final Long t )
+	public void interruptFor( final T t )
 	{
 		this.interruptionListeners.forEach( l -> l.accept( t ) );
 	}

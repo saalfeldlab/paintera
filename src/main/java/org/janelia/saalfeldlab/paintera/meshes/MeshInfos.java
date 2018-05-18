@@ -10,32 +10,32 @@ import org.janelia.saalfeldlab.paintera.control.selection.SelectedSegments;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 
-public class MeshInfos
+public class MeshInfos< T >
 {
-	private final ObservableList< MeshInfo > infos = FXCollections.observableArrayList();
+	private final ObservableList< MeshInfo< T > > infos = FXCollections.observableArrayList();
 
-	private final ObservableList< MeshInfo > readOnlyInfos = FXCollections.unmodifiableObservableList( infos );
+	private final ObservableList< MeshInfo< T > > readOnlyInfos = FXCollections.unmodifiableObservableList( infos );
 
 	public MeshInfos(
 			final SelectedSegments selectedSegments,
 			final FragmentSegmentAssignment assignment,
-			final MeshManager< Long > meshManager,
+			final MeshManager< T > meshManager,
 			final int numScaleLevels )
 	{
 		super();
 
 		selectedSegments.addListener( obs -> {
 			final long[] segments = selectedSegments.getSelectedSegments();
-			final List< MeshInfo > infos = Arrays
+			final List< MeshInfo<T > > infos = Arrays
 					.stream( segments )
-					.mapToObj( id -> new MeshInfo( id, assignment, meshManager, numScaleLevels ) )
+					.mapToObj( id -> new MeshInfo< >( id, assignment, meshManager, numScaleLevels ) )
 					.collect( Collectors.toList() );
 
 			this.infos.setAll( infos );
 		} );
 	}
 
-	public ObservableList< MeshInfo > readOnlyInfos()
+	public ObservableList< MeshInfo< T > > readOnlyInfos()
 	{
 		return this.readOnlyInfos;
 	}

@@ -168,7 +168,7 @@ public class PainteraOpenDialogEventHandler implements EventHandler< Event >
 			uniqueIdCaches[ level ] = uniqueLabelLoaders( img );
 		}
 
-		return CacheUtils.blocksForLabelCaches( source, uniqueIdCaches, blockSizes, scalingFactors, CacheUtils::toCacheSoftRefLoaderCache );
+		return CacheUtils.blocksForLabelCachesLongKeys( source, uniqueIdCaches, blockSizes, scalingFactors, CacheUtils::toCacheSoftRefLoaderCache );
 
 	}
 
