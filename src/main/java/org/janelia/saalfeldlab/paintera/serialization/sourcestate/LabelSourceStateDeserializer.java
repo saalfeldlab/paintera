@@ -129,7 +129,7 @@ extends SourceStateSerialization.SourceStateDeserializerWithoutDependencies< Lab
 		final LongFunction< ? > maskGenerator = PainteraBaseView.equalsMaskForType( source.getDataType() );
 		final Function< TLongHashSet, ? > segmentMaskGenerator = SegmentMaskGenerators.forType( source.getDataType() );
 
-		final InterruptibleFunction< TLongHashSet, Interval[] >[] blockCaches = PainteraBaseView.generateLabelBlocksForLabelCache( n5Source, PainteraBaseView.scaleFactorsFromAffineTransforms( source ) );
+		final InterruptibleFunction< Long, Interval[] >[] blockCaches = PainteraBaseView.generateLabelBlocksForLabelCache( n5Source, PainteraBaseView.scaleFactorsFromAffineTransforms( source ) );
 		final InterruptibleFunction[] meshCache = CacheUtils.segmentMeshCacheLoaders(
 				( DataSource ) source,
 				(Function) segmentMaskGenerator,

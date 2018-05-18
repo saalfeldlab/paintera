@@ -301,7 +301,7 @@ public class Paintera extends Application
 						new CommitCanvasN5( n5, dataset ),
 						pbv.getPropagationQueue() );
 
-				final InterruptibleFunction< TLongHashSet, Interval[] >[] blockListCache =
+				final InterruptibleFunction< Long, Interval[] >[] blockListCache =
 						PainteraBaseView.generateLabelBlocksForLabelCache( maskedSource );
 
 				final InterruptibleFunction< ShapeKey< TLongHashSet >, Pair< float[], float[] > >[] meshCache =

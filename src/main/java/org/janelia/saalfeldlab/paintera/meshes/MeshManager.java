@@ -25,7 +25,7 @@ public interface MeshManager< T >
 
 	public Map< Long, MeshGenerator< T > > unmodifiableMeshMap();
 
-	public InterruptibleFunction< T, Interval[] >[] blockListCache();
+	public InterruptibleFunction< Long, Interval[] >[] blockListCache();
 
 	public InterruptibleFunction< ShapeKey< T >, Pair< float[], float[] > >[] meshCache();
 

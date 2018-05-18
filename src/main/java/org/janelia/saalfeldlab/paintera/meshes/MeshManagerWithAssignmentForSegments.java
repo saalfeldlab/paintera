@@ -42,7 +42,7 @@ public class MeshManagerWithAssignmentForSegments implements MeshManager< TLongH
 
 	private final DataSource< ?, ? > source;
 
-	private final InterruptibleFunction< TLongHashSet, Interval[] >[] blockListCache;
+	private final InterruptibleFunction< Long, Interval[] >[] blockListCache;
 
 	private final InterruptibleFunction< ShapeKey< TLongHashSet >, Pair< float[], float[] > >[] meshCache;
 
@@ -70,7 +70,7 @@ public class MeshManagerWithAssignmentForSegments implements MeshManager< TLongH
 
 	public MeshManagerWithAssignmentForSegments(
 			final DataSource< ?, ? > source,
-			final InterruptibleFunction< TLongHashSet, Interval[] >[] blockListCache,
+			final InterruptibleFunction< Long, Interval[] >[] blockListCache,
 			final InterruptibleFunction< ShapeKey< TLongHashSet >, Pair< float[], float[] > >[] meshCache,
 			final Group root,
 			final FragmentSegmentAssignmentState assignment,
@@ -249,7 +249,7 @@ public class MeshManagerWithAssignmentForSegments implements MeshManager< TLongH
 	}
 
 	@Override
-	public InterruptibleFunction< TLongHashSet, Interval[] >[] blockListCache()
+	public InterruptibleFunction< Long, Interval[] >[] blockListCache()
 	{
 		return this.blockListCache;
 	}

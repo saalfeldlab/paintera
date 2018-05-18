@@ -3,13 +3,17 @@ package org.janelia.saalfeldlab.paintera.meshes;
 import java.lang.invoke.MethodHandles;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
 import java.util.function.IntConsumer;
+import java.util.stream.Collectors;
 
+import org.janelia.saalfeldlab.util.HashWrapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -53,7 +57,7 @@ public class MeshGeneratorJobManager< T >
 			final int simplificationIterations,
 			final double smoothingLambda,
 			final int smoothingIterations,
-			final InterruptibleFunction< T, Interval[] > getBlockList,
+			final InterruptibleFunction< Long, Interval[] > getBlockList,
 			final InterruptibleFunction< ShapeKey< T >, Pair< float[], float[] > > getMesh,
 			final IntConsumer setNumberOfTasks,
 			final IntConsumer setNumberOfCompletedTasks,
@@ -88,7 +92,7 @@ public class MeshGeneratorJobManager< T >
 
 		private final int smoothingIterations;
 
-		private final InterruptibleFunction< T, Interval[] > getBlockList;
+		private final InterruptibleFunction< Long, Interval[] > getBlockList;
 
 		private final InterruptibleFunction< ShapeKey< T >, Pair< float[], float[] > > getMesh;
 
@@ -107,7 +111,7 @@ public class MeshGeneratorJobManager< T >
 				final int simplificationIterations,
 				final double smoothingLambda,
 				final int smoothingIterations,
-				final InterruptibleFunction< T, Interval[] > getBlockList,
+				final InterruptibleFunction< Long, Interval[] > getBlockList,
 				final InterruptibleFunction< ShapeKey< T >, Pair< float[], float[] > > getMesh,
 				final IntConsumer setNumberOfTasks,
 				final IntConsumer setNumberOfCompletedTasks,
@@ -137,7 +141,7 @@ public class MeshGeneratorJobManager< T >
 					meshes.clear();
 				}
 
-				final List< Interval > blockList = new ArrayList<>();
+				final Set< HashWrapper< Interval > > blockSet = new HashSet<>();
 
 				final CountDownLatch countDownOnBlockList = new CountDownLatch( 1 );
 
@@ -150,7 +154,14 @@ public class MeshGeneratorJobManager< T >
 				workers.submit( () -> {
 					try
 					{
-						blockList.addAll( Arrays.asList( getBlockList.apply( identifier ) ) );
+
+						for ( final long id : ids )
+						{
+							Arrays
+							.stream( getBlockList.apply( id ) )
+							.map( HashWrapper::interval )
+							.forEach( blockSet::add );
+						}
 					}
 					finally
 					{
@@ -164,9 +175,14 @@ public class MeshGeneratorJobManager< T >
 				catch ( final InterruptedException e )
 				{
 					LOG.debug( "Interrupted while waiting for block lists for labell {}", ids );
-					getBlockList.interruptFor( identifier );
+					Arrays.stream( ids ).forEach( getBlockList::interruptFor );
 					this.isInterrupted = true;
 				}
+
+				final List< Interval > blockList = blockSet
+						.stream()
+						.map( HashWrapper::getData )
+						.collect( Collectors.toList() );
 
 				synchronized ( setNumberOfTasks )
 				{

@@ -548,7 +548,7 @@ public class GenericBackendDialogN5 implements BackendDialog
 		final SelectedSegments selectedSegments = new SelectedSegments( selectedIds, assignment );
 		final ModalGoldenAngleSaturatedHighlightingARGBStream stream = new ModalGoldenAngleSaturatedHighlightingARGBStream( selectedIds, assignment );
 		final HighlightingStreamConverter< T > converter = HighlightingStreamConverter.forType( stream, masked.getType() );
-		final InterruptibleFunction< TLongHashSet, Interval[] >[] blockListCache = PainteraBaseView.generateLabelBlocksForLabelCache( masked, PainteraBaseView.scaleFactorsFromAffineTransforms( masked ) );
+		final InterruptibleFunction< Long, Interval[] >[] blockListCache = PainteraBaseView.generateLabelBlocksForLabelCache( masked, PainteraBaseView.scaleFactorsFromAffineTransforms( masked ) );
 		final LongFunction< Converter< D, BoolType > > getMaskGenerator = PainteraBaseView.equalsMaskForType( source.getDataType() );
 		final Function< TLongHashSet, Converter< D, BoolType > > segmentMaskGenerator = SegmentMaskGenerators.forType( source.getDataType() );
 		final InterruptibleFunction< ShapeKey< TLongHashSet >, Pair< float[], float[] > >[] meshCache = CacheUtils.segmentMeshCacheLoaders( source, segmentMaskGenerator, CacheUtils::toCacheSoftRefLoaderCache );

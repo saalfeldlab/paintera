@@ -90,7 +90,7 @@ public class MeshGenerator< T >
 
 	private final T id;
 
-	private final InterruptibleFunction< T, Interval[] >[] blockListCache;
+	private final InterruptibleFunction< Long, Interval[] >[] blockListCache;
 
 	private final InterruptibleFunction< ShapeKey< T >, Pair< float[], float[] > >[] meshCache;
 
@@ -131,7 +131,7 @@ public class MeshGenerator< T >
 	//
 	public MeshGenerator(
 			final T segmentId,
-			final InterruptibleFunction< T, Interval[] >[] blockListCache,
+			final InterruptibleFunction< Long, Interval[] >[] blockListCache,
 			final InterruptibleFunction< ShapeKey< T >, Pair< float[], float[] > >[] meshCache,
 			final ObservableIntegerValue color,
 			final int scaleIndex,
