@@ -26,7 +26,7 @@ import net.imglib2.type.numeric.RealType;
 import net.imglib2.type.volatiles.AbstractVolatileRealType;
 
 public class ThresholdingSourceState< D extends RealType< D >, T extends AbstractVolatileRealType< D, T > >
-		extends MinimalSourceState< BoolType, Volatile< BoolType >, VolatileMaskConverter< BoolType, Volatile< BoolType > > >
+		extends MinimalSourceState< BoolType, Volatile< BoolType >, PredicateDataSource< D, T >, VolatileMaskConverter< BoolType, Volatile< BoolType > > >
 {
 
 	private final ObjectProperty< Color > color = new SimpleObjectProperty<>( Color.WHITE );

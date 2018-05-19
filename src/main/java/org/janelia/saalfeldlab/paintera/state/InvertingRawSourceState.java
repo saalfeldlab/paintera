@@ -6,7 +6,7 @@ import org.janelia.saalfeldlab.paintera.data.DelegatingDataSource;
 import net.imglib2.converter.ARGBColorConverter;
 import net.imglib2.type.numeric.RealType;
 
-public class InvertingRawSourceState< D, T extends RealType< T > > extends MinimalSourceState< D, T, ARGBColorConverter< T > >
+public class InvertingRawSourceState< D, T extends RealType< T > > extends MinimalSourceState< D, T, DataSource< D, T >, ARGBColorConverter< T > >
 {
 
 	public InvertingRawSourceState(
@@ -18,8 +18,8 @@ public class InvertingRawSourceState< D, T extends RealType< T > > extends Minim
 		this.converter().maxProperty().bindBidirectional( dependsOn.converter().minProperty() );
 		this.converter().colorProperty().bindBidirectional( dependsOn.converter().colorProperty() );
 
-		this.isVisibleProperty().addListener( (obs, oldv, newv ) -> dependsOn.isVisibleProperty().set( !newv.booleanValue() ) );
-		dependsOn.isVisibleProperty().addListener( (obs, oldv, newv ) -> this.isVisibleProperty().set( !newv.booleanValue() ) );
+		this.isVisibleProperty().addListener( ( obs, oldv, newv ) -> dependsOn.isVisibleProperty().set( !newv.booleanValue() ) );
+		dependsOn.isVisibleProperty().addListener( ( obs, oldv, newv ) -> this.isVisibleProperty().set( !newv.booleanValue() ) );
 		this.isVisibleProperty().set( !dependsOn.isVisibleProperty().get() );
 
 		this.compositeProperty().bindBidirectional( dependsOn.compositeProperty() );

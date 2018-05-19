@@ -16,10 +16,10 @@ import javafx.beans.property.StringProperty;
 import net.imglib2.converter.Converter;
 import net.imglib2.type.numeric.ARGBType;
 
-public class MinimalSourceState< D, T, C extends Converter< T, ARGBType > > implements SourceState< D, T >
+public class MinimalSourceState< D, T, S extends DataSource< D, T >, C extends Converter< T, ARGBType > > implements SourceState< D, T >
 {
 
-	private final DataSource< D, T > dataSource;
+	private final S dataSource;
 
 	private final C converter;
 
@@ -36,7 +36,7 @@ public class MinimalSourceState< D, T, C extends Converter< T, ARGBType > > impl
 	private final SourceState< ?, ? >[] dependsOn;
 
 	public MinimalSourceState(
-			final DataSource< D, T > dataSource,
+			final S dataSource,
 			final C converter,
 			final Composite< ARGBType, ARGBType > composite,
 			final String name,
@@ -106,7 +106,7 @@ public class MinimalSourceState< D, T, C extends Converter< T, ARGBType > > impl
 	}
 
 	@Override
-	public DataSource< D, T > getDataSource()
+	public S getDataSource()
 	{
 		return this.dataSource;
 	}

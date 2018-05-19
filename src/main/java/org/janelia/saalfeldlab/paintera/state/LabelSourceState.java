@@ -20,7 +20,7 @@ import net.imglib2.converter.Converter;
 import net.imglib2.type.logic.BoolType;
 import net.imglib2.type.numeric.ARGBType;
 
-public class LabelSourceState< D, T > extends MinimalSourceState< D, T, HighlightingStreamConverter< T > >
+public class LabelSourceState< D, T > extends MinimalSourceState< D, T, DataSource< D, T >, HighlightingStreamConverter< T > >
 {
 
 	private final LongFunction< Converter< D, BoolType > > maskForLabel;
