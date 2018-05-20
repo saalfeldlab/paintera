@@ -17,7 +17,7 @@ public class Interpolations
 		return new NeaerestNeighborOrNLinear<>();
 	}
 
-	public static < T > Function< Interpolation, InterpolatorFactory< T, RandomAccessible< T > > > nearstNeighbor()
+	public static < T > Function< Interpolation, InterpolatorFactory< T, RandomAccessible< T > > > nearestNeighbor()
 	{
 		return new NearestNeighborOnly<>();
 	}

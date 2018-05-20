@@ -25,8 +25,8 @@ public class PredicateDataSource< D, T extends Volatile< D > > extends Converted
 				new VolatilePredicateConverter<>( predicate ),
 				() -> new BoolType( false ),
 				() -> new Volatile<>( new BoolType( false ), true ),
-				Interpolations.nearstNeighbor(),
-				Interpolations.nearstNeighbor(),
+				Interpolations.nearestNeighbor(),
+				Interpolations.nearestNeighbor(),
 				name );
 	}
 
