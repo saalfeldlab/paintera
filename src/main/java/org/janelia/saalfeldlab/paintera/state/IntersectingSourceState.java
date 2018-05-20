@@ -20,6 +20,7 @@ import org.janelia.saalfeldlab.paintera.meshes.MeshManagerSimple;
 import org.janelia.saalfeldlab.paintera.meshes.ShapeKey;
 import org.janelia.saalfeldlab.paintera.meshes.cache.CacheUtils;
 
+import bdv.img.cache.CreateInvalidVolatileCell;
 import bdv.util.volatiles.SharedQueue;
 import bdv.util.volatiles.VolatileViews;
 import gnu.trove.set.hash.TLongHashSet;
@@ -33,12 +34,14 @@ import net.imglib2.cache.img.CachedCellImg;
 import net.imglib2.cache.img.LoadedCellCacheLoader;
 import net.imglib2.cache.ref.SoftRefLoaderCache;
 import net.imglib2.cache.volatiles.CacheHints;
+import net.imglib2.cache.volatiles.CreateInvalid;
 import net.imglib2.cache.volatiles.LoadingStrategy;
+import net.imglib2.cache.volatiles.VolatileCache;
 import net.imglib2.converter.ARGBColorConverter;
 import net.imglib2.converter.Converter;
 import net.imglib2.img.basictypeaccess.AccessFlags;
 import net.imglib2.img.basictypeaccess.ArrayDataAccessFactory;
-import net.imglib2.img.basictypeaccess.array.ByteArray;
+import net.imglib2.img.basictypeaccess.volatiles.array.VolatileByteArray;
 import net.imglib2.img.cell.AbstractCellImg;
 import net.imglib2.img.cell.Cell;
 import net.imglib2.img.cell.CellGrid;
@@ -55,6 +58,8 @@ import net.imglib2.util.Intervals;
 import net.imglib2.util.Pair;
 import net.imglib2.util.Util;
 import net.imglib2.util.ValueTriple;
+import tmp.bdv.img.cache.VolatileCachedCellImg;
+import tmp.net.imglib2.cache.ref.WeakRefVolatileCache;
 
 public class IntersectingSourceState
 		extends MinimalSourceState< UnsignedByteType, VolatileUnsignedByteType, DataSource< UnsignedByteType, VolatileUnsignedByteType >, Converter< VolatileUnsignedByteType, ARGBType > >
@@ -86,9 +91,6 @@ public class IntersectingSourceState
 		final MeshManager< TLongHashSet > meshManager = labels.meshManager();
 
 		final SelectedIds selectedIds = labels.selectedIds();
-		final FragmentSegmentAssignmentState assignment = labels.assignment();
-		final SelectedSegments selectedSegments = new SelectedSegments( selectedIds, assignment );
-		final FragmentsInSelectedSegments fragmentsInSelectedSegments = new FragmentsInSelectedSegments( selectedSegments, assignment );
 		final InterruptibleFunction< ShapeKey< Long >, Pair< float[], float[] > >[] meshCaches = CacheUtils.meshCacheLoaders(
 				source,
 				l -> ( s, t ) -> t.set( s.get() > 0 ),
@@ -105,6 +107,21 @@ public class IntersectingSourceState
 				workers );
 
 		selectedIds.addListener( obs -> {
+			for ( int level = 0; level < source.getNumMipmapLevels(); ++level )
+			{
+				final RandomAccessibleInterval< UnsignedByteType > data = source.getDataSource( 0, level );
+				if ( data instanceof CachedCellImg< ?, ? > )
+				{
+					( ( CachedCellImg< ?, ? > ) data ).getCache().invalidateAll();
+				}
+
+				final RandomAccessibleInterval< VolatileUnsignedByteType > vdata = source.getSource( 0, level );
+				if ( data instanceof VolatileCachedCellImg< ?, ? > )
+				{
+					( ( VolatileCachedCellImg< ?, ? > ) vdata ).getInvalidateAll().run();
+				}
+
+			}
 			if ( Optional.ofNullable( selectedIds.getActiveIds() ).map( sel -> sel.length ).orElse( 0 ) > 0 )
 			{
 				this.meshManager.generateMesh( 1 );
@@ -165,10 +182,20 @@ public class IntersectingSourceState
 					extension::copy );
 
 			final Set< AccessFlags > accessFlags = AccessFlags.setOf( AccessFlags.VOLATILE );
-			final Cache< Long, Cell< ByteArray > > cache = new SoftRefLoaderCache< Long, Cell< ByteArray > >()
+			final Cache< Long, Cell< VolatileByteArray > > cache = new SoftRefLoaderCache< Long, Cell< VolatileByteArray > >()
 					.withLoader( LoadedCellCacheLoader.get( grid, loader, new UnsignedByteType(), accessFlags ) );
 
-			final CachedCellImg< UnsignedByteType, ByteArray > img = new CachedCellImg<>( grid, new UnsignedByteType(), cache, ArrayDataAccessFactory.get( PrimitiveType.BYTE, accessFlags ) );
+			final CachedCellImg< UnsignedByteType, VolatileByteArray > img = new CachedCellImg<>( grid, new UnsignedByteType(), cache, ArrayDataAccessFactory.get( PrimitiveType.BYTE, accessFlags ) );
+			final CreateInvalid< Long, Cell< VolatileByteArray > > createInvalid = CreateInvalidVolatileCell.get( grid, new VolatileUnsignedByteType(), false );
+			final VolatileCache< Long, Cell< VolatileByteArray > > volatileCache = new WeakRefVolatileCache<>( cache, queue, createInvalid );
+			final CacheHints hints = new CacheHints( LoadingStrategy.VOLATILE, priority, false );
+			final VolatileCachedCellImg< VolatileUnsignedByteType, VolatileByteArray > volatileImg =
+					new VolatileCachedCellImg<>(
+							grid,
+							new VolatileUnsignedByteType(),
+							hints,
+							volatileCache.unchecked()::get,
+							volatileCache::invalidateAll );
 			final RandomAccessibleInterval< VolatileUnsignedByteType > vimg = VolatileViews.wrapAsVolatile(
 					img,
 					queue,
