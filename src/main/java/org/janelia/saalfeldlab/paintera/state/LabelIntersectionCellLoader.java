@@ -1,7 +1,11 @@
 package org.janelia.saalfeldlab.paintera.state;
 
+import java.lang.invoke.MethodHandles;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import net.imglib2.Cursor;
 import net.imglib2.RandomAccessible;
@@ -10,12 +14,15 @@ import net.imglib2.algorithm.neighborhood.DiamondShape;
 import net.imglib2.cache.img.CellLoader;
 import net.imglib2.cache.img.SingleCellArrayImg;
 import net.imglib2.type.numeric.integer.UnsignedByteType;
+import net.imglib2.util.Intervals;
 import net.imglib2.view.IntervalView;
 import net.imglib2.view.Views;
 import tmp.net.imglib2.outofbounds.OutOfBoundsConstantValueFactory;
 
 public class LabelIntersectionCellLoader< T, U > implements CellLoader< UnsignedByteType >
 {
+
+	private static final Logger LOG = LoggerFactory.getLogger( MethodHandles.lookup().lookupClass() );
 
 	private final RandomAccessible< T > data1;
 
@@ -45,11 +52,13 @@ public class LabelIntersectionCellLoader< T, U > implements CellLoader< Unsigned
 	@Override
 	public void load( final SingleCellArrayImg< UnsignedByteType, ? > cell ) throws Exception
 	{
+		LOG.debug( "Populating cell {} {} {}", Intervals.minAsLongArray( cell ), Intervals.maxAsLongArray( cell ), cell.size() );
 		final IntervalView< U > label2Interval = Views.interval( data2, cell );
 		final Cursor< T > label1Cursor = Views.flatIterable( Views.interval( data1, cell ) ).cursor();
 		final Cursor< U > label2Cursor = Views.flatIterable( label2Interval ).cursor();
 		final Cursor< UnsignedByteType > targetCursor = cell.localizingCursor();
 
+//		cell.forEach( UnsignedByteType::setZero );
 		while ( targetCursor.hasNext() )
 		{
 			final UnsignedByteType targetType = targetCursor.next();

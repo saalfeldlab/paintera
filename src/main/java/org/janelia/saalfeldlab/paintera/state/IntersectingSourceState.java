@@ -1,5 +1,6 @@
 package org.janelia.saalfeldlab.paintera.state;
 
+import java.lang.invoke.MethodHandles;
 import java.util.Arrays;
 import java.util.Optional;
 import java.util.Set;
@@ -14,15 +15,17 @@ import org.janelia.saalfeldlab.paintera.control.selection.SelectedSegments;
 import org.janelia.saalfeldlab.paintera.data.DataSource;
 import org.janelia.saalfeldlab.paintera.data.Interpolations;
 import org.janelia.saalfeldlab.paintera.data.RandomAccessibleIntervalDataSource;
+import org.janelia.saalfeldlab.paintera.data.mask.MaskedSource;
 import org.janelia.saalfeldlab.paintera.meshes.InterruptibleFunction;
 import org.janelia.saalfeldlab.paintera.meshes.MeshManager;
 import org.janelia.saalfeldlab.paintera.meshes.MeshManagerSimple;
 import org.janelia.saalfeldlab.paintera.meshes.ShapeKey;
 import org.janelia.saalfeldlab.paintera.meshes.cache.CacheUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import bdv.img.cache.CreateInvalidVolatileCell;
 import bdv.util.volatiles.SharedQueue;
-import bdv.util.volatiles.VolatileViews;
 import gnu.trove.set.hash.TLongHashSet;
 import javafx.beans.property.SimpleDoubleProperty;
 import javafx.beans.property.SimpleIntegerProperty;
@@ -48,6 +51,7 @@ import net.imglib2.img.cell.CellGrid;
 import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.type.BooleanType;
 import net.imglib2.type.PrimitiveType;
+import net.imglib2.type.Type;
 import net.imglib2.type.label.Label;
 import net.imglib2.type.label.LabelMultisetType;
 import net.imglib2.type.label.Multiset.Entry;
@@ -58,18 +62,21 @@ import net.imglib2.util.Intervals;
 import net.imglib2.util.Pair;
 import net.imglib2.util.Util;
 import net.imglib2.util.ValueTriple;
+import net.imglib2.view.Views;
 import tmp.bdv.img.cache.VolatileCachedCellImg;
 import tmp.net.imglib2.cache.ref.WeakRefVolatileCache;
 
 public class IntersectingSourceState
-		extends MinimalSourceState< UnsignedByteType, VolatileUnsignedByteType, DataSource< UnsignedByteType, VolatileUnsignedByteType >, Converter< VolatileUnsignedByteType, ARGBType > >
+extends MinimalSourceState< UnsignedByteType, VolatileUnsignedByteType, DataSource< UnsignedByteType, VolatileUnsignedByteType >, Converter< VolatileUnsignedByteType, ARGBType > >
 {
+
+	private static final Logger LOG = LoggerFactory.getLogger( MethodHandles.lookup().lookupClass() );
 
 	private final MeshManagerSimple meshManager;
 
-	public < B extends BooleanType< B > > IntersectingSourceState(
+	public < D extends Type< D >, T extends Type< T >, B extends BooleanType< B > > IntersectingSourceState(
 			final SourceState< B, Volatile< B > > thresholded,
-			final LabelSourceState< ?, ? > labels,
+			final LabelSourceState< D, T > labels,
 			final Composite< ARGBType, ARGBType > composite,
 			final String name,
 			final SharedQueue queue,
@@ -109,14 +116,17 @@ public class IntersectingSourceState
 		selectedIds.addListener( obs -> {
 			for ( int level = 0; level < source.getNumMipmapLevels(); ++level )
 			{
-				final RandomAccessibleInterval< UnsignedByteType > data = source.getDataSource( 0, level );
+				final DataSource< ?, ? > dsource = source instanceof MaskedSource< ?, ? > ? ((MaskedSource<?,?>)source).underlyingSource() : source;
+				final RandomAccessibleInterval< ? > data = dsource.getDataSource( 0, level );
+				LOG.debug( "data type={}", data.getClass().getName() );
 				if ( data instanceof CachedCellImg< ?, ? > )
 				{
 					( ( CachedCellImg< ?, ? > ) data ).getCache().invalidateAll();
 				}
 
-				final RandomAccessibleInterval< VolatileUnsignedByteType > vdata = source.getSource( 0, level );
-				if ( data instanceof VolatileCachedCellImg< ?, ? > )
+				final RandomAccessibleInterval< ? > vdata = dsource.getSource( 0, level );
+				LOG.debug( "vdata type={}", vdata.getClass().getName() );
+				if ( vdata instanceof VolatileCachedCellImg )
 				{
 					( ( VolatileCachedCellImg< ?, ? > ) vdata ).getInvalidateAll().run();
 				}
@@ -139,13 +149,14 @@ public class IntersectingSourceState
 		return this.meshManager;
 	}
 
-	private static < D, T, B extends BooleanType< B > > DataSource< UnsignedByteType, VolatileUnsignedByteType > makeIntersect(
+	private static < D extends Type< D >, T extends Type< T >, B extends BooleanType< B > > DataSource< UnsignedByteType, VolatileUnsignedByteType > makeIntersect(
 			final SourceState< B, Volatile< B > > thresholded,
 			final LabelSourceState< D, T > labels,
 			final SharedQueue queue,
 			final int priority,
 			final String name )
 	{
+		LOG.warn( "Number of mipmap lebels: thresholded={} labels={}", thresholded.getDataSource().getNumMipmapLevels(), labels.getDataSource().getNumMipmapLevels() );
 		if ( thresholded.getDataSource().getNumMipmapLevels() != labels.getDataSource().getNumMipmapLevels() ) { throw new RuntimeException( "Incompatible sources (num mip map levels )" ); }
 
 		final AffineTransform3D[] transforms = new AffineTransform3D[ thresholded.getDataSource().getNumMipmapLevels() ];
@@ -159,25 +170,28 @@ public class IntersectingSourceState
 
 		for ( int level = 0; level < thresholded.getDataSource().getNumMipmapLevels(); ++level )
 		{
+			final DataSource< D, T > labelsSource = labels.getDataSource() instanceof MaskedSource< ?, ? >
+			? ( ( MaskedSource< D, T > ) labels.getDataSource() ).underlyingSource()
+					: labels.getDataSource();
 			final AffineTransform3D tf1 = new AffineTransform3D();
 			final AffineTransform3D tf2 = new AffineTransform3D();
 			thresholded.getDataSource().getSourceTransform( 0, level, tf1 );
-			labels.getDataSource().getSourceTransform( 0, level, tf2 );
+			labelsSource.getSourceTransform( 0, level, tf2 );
 			if ( !Arrays.equals( tf1.getRowPackedCopy(), tf2.getRowPackedCopy() ) ) { throw new RuntimeException( "Incompatible sources ( transforms )" ); }
 
 			final RandomAccessibleInterval< B > thresh = thresholded.getDataSource().getDataSource( 0, level );
-			final RandomAccessibleInterval< D > label = labels.getDataSource().getDataSource( 0, level );
+			final RandomAccessibleInterval< D > label = labelsSource.getDataSource( 0, level );
 
 			final CellGrid grid = label instanceof AbstractCellImg< ?, ?, ?, ? >
-					? ( ( AbstractCellImg< ?, ?, ?, ? > ) label ).getCellGrid()
+			? ( ( AbstractCellImg< ?, ?, ?, ? > ) label ).getCellGrid()
 					: new CellGrid( Intervals.dimensionsAsLongArray( label ), Arrays.stream( Intervals.dimensionsAsLongArray( label ) ).mapToInt( l -> ( int ) l ).toArray() );
 
 			final B extension = Util.getTypeFromInterval( thresh );
 			extension.set( false );
 			final LabelIntersectionCellLoader< D, B > loader = new LabelIntersectionCellLoader<>(
 					label,
-					thresh,
-					checkForType( labels.getDataSource().getDataType(), fragmentsInSelectedSegments ),
+					Views.extendValue( thresh, extension ),
+					checkForType( labelsSource.getDataType(), fragmentsInSelectedSegments ),
 					BooleanType::get,
 					extension::copy );
 
@@ -185,23 +199,26 @@ public class IntersectingSourceState
 			final Cache< Long, Cell< VolatileByteArray > > cache = new SoftRefLoaderCache< Long, Cell< VolatileByteArray > >()
 					.withLoader( LoadedCellCacheLoader.get( grid, loader, new UnsignedByteType(), accessFlags ) );
 
+			LOG.debug( "Making intersect for level={} with grid={}", level, grid );
+
 			final CachedCellImg< UnsignedByteType, VolatileByteArray > img = new CachedCellImg<>( grid, new UnsignedByteType(), cache, ArrayDataAccessFactory.get( PrimitiveType.BYTE, accessFlags ) );
 			final CreateInvalid< Long, Cell< VolatileByteArray > > createInvalid = CreateInvalidVolatileCell.get( grid, new VolatileUnsignedByteType(), false );
 			final VolatileCache< Long, Cell< VolatileByteArray > > volatileCache = new WeakRefVolatileCache<>( cache, queue, createInvalid );
 			final CacheHints hints = new CacheHints( LoadingStrategy.VOLATILE, priority, false );
-			final VolatileCachedCellImg< VolatileUnsignedByteType, VolatileByteArray > volatileImg =
+			final VolatileCachedCellImg< VolatileUnsignedByteType, VolatileByteArray > vimg =
 					new VolatileCachedCellImg<>(
 							grid,
 							new VolatileUnsignedByteType(),
 							hints,
 							volatileCache.unchecked()::get,
 							volatileCache::invalidateAll );
-			final RandomAccessibleInterval< VolatileUnsignedByteType > vimg = VolatileViews.wrapAsVolatile(
-					img,
-					queue,
-					new CacheHints( LoadingStrategy.VOLATILE, priority, false ) );
+//			final RandomAccessibleInterval< VolatileUnsignedByteType > vimg = VolatileViews.wrapAsVolatile(
+//					img,
+//					queue,
+//					new CacheHints( LoadingStrategy.VOLATILE, priority, false ) );
 			data[ level ] = img;
 			vdata[ level ] = vimg;
+			transforms[ level ] = tf1;
 
 		}
 
