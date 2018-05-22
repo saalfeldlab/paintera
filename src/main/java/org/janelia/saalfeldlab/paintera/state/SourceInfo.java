@@ -5,18 +5,12 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
-import java.util.function.LongFunction;
 import java.util.stream.Collectors;
 
 import org.janelia.saalfeldlab.paintera.composition.Composite;
 import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignmentState;
-import org.janelia.saalfeldlab.paintera.control.selection.SelectedIds;
 import org.janelia.saalfeldlab.paintera.data.DataSource;
-import org.janelia.saalfeldlab.paintera.id.IdService;
 import org.janelia.saalfeldlab.paintera.id.ToIdConverter;
-import org.janelia.saalfeldlab.paintera.meshes.MeshInfos;
-import org.janelia.saalfeldlab.paintera.meshes.MeshManager;
-import org.janelia.saalfeldlab.paintera.stream.HighlightingStreamConverter;
 import org.janelia.saalfeldlab.util.MakeUnchecked;
 import org.janelia.saalfeldlab.util.MakeUnchecked.CheckedConsumer;
 import org.slf4j.Logger;
@@ -43,9 +37,7 @@ import javafx.collections.ListChangeListener;
 import javafx.collections.ObservableList;
 import javafx.collections.ObservableMap;
 import net.imglib2.converter.ARGBColorConverter;
-import net.imglib2.converter.Converter;
 import net.imglib2.type.Type;
-import net.imglib2.type.logic.BoolType;
 import net.imglib2.type.numeric.ARGBType;
 import net.imglib2.type.numeric.RealType;
 
@@ -156,60 +148,6 @@ public class SourceInfo
 			final Composite< ARGBType, ARGBType > composite )
 	{
 		final RawSourceState< D, T > state = makeRawSourceState( source, min, max, color, composite );
-		addState( source, state );
-		return state;
-	}
-
-	public < D extends Type< D >, T extends Type< T > > LabelSourceState< D, T > makeLabelSourceState(
-			final DataSource< D, T > source,
-			final HighlightingStreamConverter< T > converter,
-			final Composite< ARGBType, ARGBType > composite,
-			final LongFunction< Converter< D, BoolType > > maskForLabel,
-			final FragmentSegmentAssignmentState assignment,
-			final ToIdConverter toIdConverter,
-			final SelectedIds selectedIds,
-			final IdService idService,
-			final MeshManager< Long > meshManager,
-			final MeshInfos meshInfos )
-	{
-		final LabelSourceState< D, T > state = new LabelSourceState<>(
-				source,
-				converter,
-				composite,
-				source.getName(),
-				maskForLabel,
-				assignment,
-				toIdConverter,
-				selectedIds,
-				idService,
-				meshManager,
-				meshInfos );
-		return state;
-	}
-
-	public < D extends Type< D >, T extends Type< T > > LabelSourceState< D, T > addLabelSource(
-			final DataSource< D, T > source,
-			final HighlightingStreamConverter< T > converter,
-			final Composite< ARGBType, ARGBType > composite,
-			final LongFunction< Converter< D, BoolType > > maskForLabel,
-			final FragmentSegmentAssignmentState assignment,
-			final ToIdConverter toIdConverter,
-			final SelectedIds selectedIds,
-			final IdService idService,
-			final MeshManager< Long > meshManager,
-			final MeshInfos meshInfos )
-	{
-		final LabelSourceState< D, T > state = makeLabelSourceState(
-				source,
-				converter,
-				composite,
-				maskForLabel,
-				assignment,
-				toIdConverter,
-				selectedIds,
-				idService,
-				meshManager,
-				meshInfos );
 		addState( source, state );
 		return state;
 	}

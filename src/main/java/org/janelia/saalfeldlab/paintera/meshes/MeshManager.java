@@ -23,7 +23,7 @@ public interface MeshManager< T >
 
 	public IntegerProperty smoothingIterationsProperty();
 
-	public Map< Long, MeshGenerator > unmodifiableMeshMap();
+	public Map< Long, MeshGenerator< T > > unmodifiableMeshMap();
 
 	public InterruptibleFunction< Long, Interval[] >[] blockListCache();
 

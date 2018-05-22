@@ -82,8 +82,9 @@ public class StatePane implements BindUnbindAndNodeSupplier
 		sourceElementLabel.textProperty().bind( this.name );
 		sourceElementLabel.setOnMouseClicked( event -> {
 			event.consume();
-			if ( event.getClickCount() != 2 )
+			if ( event.getClickCount() != 2 ) {
 				return;
+			}
 			final Dialog< Boolean > d = new Dialog<>();
 			d.setTitle( "Set source name" );
 			final TextField tf = new TextField( name.get() );
@@ -94,7 +95,9 @@ public class StatePane implements BindUnbindAndNodeSupplier
 			d.setResultConverter( ButtonType.OK::equals );
 			final Optional< Boolean > result = d.showAndWait();
 			if ( result.isPresent() && result.get() )
+			{
 				name.set( tf.getText() );
+			}
 		} );
 		sourceElementLabel.setContentDisplay( ContentDisplay.RIGHT );
 		sourceElementLabel.underlineProperty().bind( isCurrentSource );
@@ -146,11 +149,12 @@ public class StatePane implements BindUnbindAndNodeSupplier
 	private static BindUnbindAndNodeSupplier meshPane( final LabelSourceState< ?, ? > state )
 	{
 		LOG.debug( "Creating mesh pane for source {} from {} and {}: ", state.nameProperty().get(), state.meshManager(), state.meshInfos() );
-		if ( state.meshManager() != null && state.meshInfos() != null )
+		if ( state.meshManager() != null && state.meshInfos() != null ) {
 			return new MeshPane(
 					state.meshManager(),
 					state.meshInfos(),
 					state.getDataSource().getNumMipmapLevels() );
+		}
 		return BindUnbindAndNodeSupplier.empty();
 	}
 

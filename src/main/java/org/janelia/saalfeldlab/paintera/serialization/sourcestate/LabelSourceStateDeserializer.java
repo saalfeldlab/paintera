@@ -2,6 +2,7 @@ package org.janelia.saalfeldlab.paintera.serialization.sourcestate;
 
 import java.io.IOException;
 import java.lang.invoke.MethodHandles;
+import java.util.function.Function;
 import java.util.function.IntFunction;
 import java.util.function.LongFunction;
 import java.util.function.Supplier;
@@ -20,8 +21,9 @@ import org.janelia.saalfeldlab.paintera.data.n5.N5DataSource;
 import org.janelia.saalfeldlab.paintera.id.ToIdConverter;
 import org.janelia.saalfeldlab.paintera.meshes.InterruptibleFunction;
 import org.janelia.saalfeldlab.paintera.meshes.MeshInfos;
-import org.janelia.saalfeldlab.paintera.meshes.MeshManagerWithAssignment;
+import org.janelia.saalfeldlab.paintera.meshes.MeshManagerWithAssignmentForSegments;
 import org.janelia.saalfeldlab.paintera.meshes.cache.CacheUtils;
+import org.janelia.saalfeldlab.paintera.meshes.cache.SegmentMaskGenerators;
 import org.janelia.saalfeldlab.paintera.serialization.FragmentSegmentAssignmentOnlyLocalSerializer;
 import org.janelia.saalfeldlab.paintera.serialization.StatefulSerializer;
 import org.janelia.saalfeldlab.paintera.serialization.StatefulSerializer.Arguments;
@@ -35,13 +37,14 @@ import org.slf4j.LoggerFactory;
 import com.google.gson.JsonDeserializationContext;
 import com.google.gson.JsonObject;
 
+import gnu.trove.set.hash.TLongHashSet;
 import javafx.beans.property.SimpleDoubleProperty;
 import javafx.beans.property.SimpleIntegerProperty;
 import net.imglib2.Interval;
 import net.imglib2.type.numeric.ARGBType;
 
 public class LabelSourceStateDeserializer< C extends HighlightingStreamConverter< ? > >
-		extends SourceStateSerialization.SourceStateDeserializerWithoutDependencies< LabelSourceState< ?, ? >, C >
+extends SourceStateSerialization.SourceStateDeserializerWithoutDependencies< LabelSourceState< ?, ? >, C >
 {
 
 	private static final Logger LOG = LoggerFactory.getLogger( MethodHandles.lookup().lookupClass() );
@@ -105,7 +108,7 @@ public class LabelSourceStateDeserializer< C extends HighlightingStreamConverter
 
 		final N5DataSource< ?, ? > n5Source = ( N5DataSource< ?, ? > ) ( isMaskedSource
 				? ( ( MaskedSource< ?, ? > ) source ).underlyingSource()
-				: source );
+						: source );
 
 		final N5Writer writer = n5Source.writer();
 		final String dataset = n5Source.dataset();
@@ -124,20 +127,21 @@ public class LabelSourceStateDeserializer< C extends HighlightingStreamConverter
 		final AbstractHighlightingARGBStream stream = converter.getStream();
 		stream.setHighlightsAndAssignment( selectedIds, assignment );
 		final LongFunction< ? > maskGenerator = PainteraBaseView.equalsMaskForType( source.getDataType() );
+		final Function< TLongHashSet, ? > segmentMaskGenerator = SegmentMaskGenerators.forType( source.getDataType() );
 
 		final InterruptibleFunction< Long, Interval[] >[] blockCaches = PainteraBaseView.generateLabelBlocksForLabelCache( n5Source, PainteraBaseView.scaleFactorsFromAffineTransforms( source ) );
-		final InterruptibleFunction[] meshCache = CacheUtils.meshCacheLoaders(
+		final InterruptibleFunction[] meshCache = CacheUtils.segmentMeshCacheLoaders(
 				( DataSource ) source,
-				( LongFunction ) maskGenerator,
+				(Function) segmentMaskGenerator,
 				CacheUtils::toCacheSoftRefLoaderCache );
 		LOG.debug( "Meshses group: {}", arguments.meshesGroup );
-		final MeshManagerWithAssignment meshManager = new MeshManagerWithAssignment(
+		final MeshManagerWithAssignmentForSegments meshManager = new MeshManagerWithAssignmentForSegments(
 				source,
 				blockCaches,
 				meshCache,
 				arguments.meshesGroup,
 				assignment,
-				fragmentsInSelectedSegments,
+				selectedSegments,
 				stream,
 				new SimpleIntegerProperty(),
 				new SimpleDoubleProperty(),
@@ -152,6 +156,7 @@ public class LabelSourceStateDeserializer< C extends HighlightingStreamConverter
 				composite,
 				name,
 				maskGenerator,
+				segmentMaskGenerator,
 				assignment,
 				ToIdConverter.fromType( source.getDataType() ),
 				selectedIds,

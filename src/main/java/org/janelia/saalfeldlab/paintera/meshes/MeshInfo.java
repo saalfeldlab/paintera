@@ -20,7 +20,7 @@ import javafx.beans.value.ChangeListener;
 import javafx.beans.value.ObservableIntegerValue;
 import javafx.beans.value.ObservableValue;
 
-public class MeshInfo
+public class MeshInfo< T >
 {
 
 	private static final Logger LOG = LoggerFactory.getLogger( MethodHandles.lookup().lookupClass() );
@@ -37,7 +37,7 @@ public class MeshInfo
 
 	private final FragmentSegmentAssignment assignment;
 
-	private final MeshManager< Long > meshManager;
+	private final MeshManager< T > meshManager;
 
 	private final int numScaleLevels;
 
@@ -50,7 +50,7 @@ public class MeshInfo
 	public MeshInfo(
 			final long segmentId,
 			final FragmentSegmentAssignment assignment,
-			final MeshManager< Long > meshManager,
+			final MeshManager< T > meshManager,
 			final int numScaleLevels )
 	{
 		super();
@@ -85,7 +85,7 @@ public class MeshInfo
 	{
 		LOG.debug( "Updating task count bindings." );
 		final long[] fragments = assignment.getFragments( segmentId ).toArray();
-		final Map< Long, MeshGenerator > meshes = new HashMap<>( meshManager.unmodifiableMeshMap() );
+		final Map< Long, MeshGenerator< T > > meshes = new HashMap<>( meshManager.unmodifiableMeshMap() );
 		final ObservableIntegerValue[] submittedTasks = Arrays.stream( fragments ).mapToObj( meshes::get ).filter( mesh -> mesh != null ).map( MeshGenerator::submittedTasksProperty ).toArray( ObservableIntegerValue[]::new );
 		final ObservableIntegerValue[] completedTasks = Arrays.stream( fragments ).mapToObj( meshes::get ).filter( mesh -> mesh != null ).map( MeshGenerator::completedTasksProperty ).toArray( ObservableIntegerValue[]::new );
 		final ObservableIntegerValue[] successfulTasks = Arrays.stream( fragments ).mapToObj( meshes::get ).filter( mesh -> mesh != null ).map( MeshGenerator::successfulTasksProperty ).toArray( ObservableIntegerValue[]::new );
@@ -131,23 +131,23 @@ public class MeshInfo
 		return this.numScaleLevels;
 	}
 
-	private class PropagateChanges< T > implements ChangeListener< T >
+	private class PropagateChanges< U > implements ChangeListener< U >
 	{
 
-		final BiConsumer< MeshGenerator, T > apply;
+		final BiConsumer< MeshGenerator< T >, U > apply;
 
-		public PropagateChanges( final BiConsumer< MeshGenerator, T > apply )
+		public PropagateChanges( final BiConsumer< MeshGenerator< T >, U > apply )
 		{
 			super();
 			this.apply = apply;
 		}
 
 		@Override
-		public void changed( final ObservableValue< ? extends T > observable, final T oldValue, final T newValue )
+		public void changed( final ObservableValue< ? extends U > observable, final U oldValue, final U newValue )
 		{
 			final long[] fragments = assignment.getFragments( segmentId ).toArray();
 			LOG.debug( "Propagating changes {} {}", segmentId, fragments );
-			final Map< Long, MeshGenerator > meshes = meshManager.unmodifiableMeshMap();
+			final Map< Long, MeshGenerator< T > > meshes = meshManager.unmodifiableMeshMap();
 			Arrays.stream( fragments ).mapToObj( meshes::get ).filter( m -> m != null ).forEach( n -> apply.accept( n, newValue ) );
 		}
 
@@ -162,7 +162,7 @@ public class MeshInfo
 	@Override
 	public boolean equals( final Object o )
 	{
-		return o instanceof MeshInfo && ( ( MeshInfo ) o ).segmentId == segmentId;
+		return o instanceof MeshInfo< ? > && ( ( MeshInfo< ? > ) o ).segmentId == segmentId;
 	}
 
 	public ObservableIntegerValue submittedTasksProperty()
@@ -180,7 +180,7 @@ public class MeshInfo
 		return this.successfulTasks;
 	}
 
-	public MeshManager< Long > meshManager()
+	public MeshManager< T > meshManager()
 	{
 		return this.meshManager;
 	}

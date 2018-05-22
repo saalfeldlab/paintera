@@ -107,7 +107,7 @@ public class CacheUtils
 	 * @return Cascade of {@link Cache} that produce list of containing blocks
 	 *         for a label (key) at each scale level.
 	 */
-	public static < D, T > InterruptibleFunction< Long, Interval[] >[] blocksForLabelCaches(
+	public static < D, T > InterruptibleFunction< Long, Interval[] >[] blocksForLabelCachesLongKeys(
 			final DataSource< D, T > source,
 			final InterruptibleFunction< HashWrapper< long[] >, long[] >[] uniqueLabelLoaders,
 			final int[][] blockSizes,
@@ -132,12 +132,74 @@ public class CacheUtils
 			final int[] bs = blockSizes[ level ];
 			final CellGrid grid = new CellGrid( dims, bs );
 			final int finalLevel = level;
-			final BlocksForLabelCacheLoader loader = new BlocksForLabelCacheLoader(
+			final BlocksForLabelCacheLoader< Long > loader = BlocksForLabelCacheLoader.longKeys(
 					grid,
 					level == numMipmapLevels - 1 ? InterruptibleFunction.fromFunction( l -> new Interval[] { new FinalInterval( dims.clone() ) } ) : caches[ level + 1 ],
 							level == numMipmapLevels - 1 ? l -> collectAllOffsets( dims, bs, b -> fromMin( b, max, bs ) ) : relevantBlocksFromLowResInterval( grid, scalingFactors[ level + 1 ], scalingFactors[ level ] ),
 									key -> uniqueLabelLoaders[ finalLevel ].apply( HashWrapper.longArray( key ) ) );
 			caches[ level ] = fromCache( makeCache.apply( loader ).unchecked(), ( Interruptible< Long > ) loader );
+		}
+
+		return caches;
+	}
+
+
+
+	/**
+	 *
+	 * Create cascade of caches that produce list of containing blocks for a
+	 * label at each scale level.
+	 *
+	 * @param source
+	 * @param uniqueLabelLoaders
+	 *            A cascade of cache loaders that produce a unique list of
+	 *            contained labels at each scale level.
+	 * @param blockSizes
+	 *            block size per dimension. Note that this need not be the same
+	 *            as a potential blocking for {@code source}.
+	 * @param scalingFactors
+	 *            scaling factors for each scale level, relative to a common
+	 *            baseline. Usually, {@link scalingFactors[ 0 ] == 1} should be
+	 *            the case.
+	 * @param makeCache
+	 *            Build a {@link Cache} from a {@link CacheLoader}
+	 * @param es
+	 *            {@link ExecutorService} for parallel execution of retrieval of
+	 *            lists of unique labels. The task is parallelized over blocks.
+	 * @return Cascade of {@link Cache} that produce list of containing blocks
+	 *         for a label (key) at each scale level.
+	 */
+	public static < D, T > InterruptibleFunction< TLongHashSet, Interval[] >[] blocksForLabelCachesHashSetKeys(
+			final DataSource< D, T > source,
+			final InterruptibleFunction< HashWrapper< long[] >, long[] >[] uniqueLabelLoaders,
+			final int[][] blockSizes,
+			final double[][] scalingFactors,
+			final Function< CacheLoader< TLongHashSet, Interval[] >, Cache< TLongHashSet, Interval[] > > makeCache )
+	{
+		final int numMipmapLevels = source.getNumMipmapLevels();
+		assert uniqueLabelLoaders.length == numMipmapLevels;
+
+		@SuppressWarnings( "unchecked" )
+		final InterruptibleFunction< TLongHashSet, Interval[] >[] caches = new InterruptibleFunction[ numMipmapLevels ];
+
+		LOG.debug( "Number of mipmap levels for source {}: {}", source.getName(), source.getNumMipmapLevels() );
+		LOG.debug( "Provided {} block sizes and {} scaling factors", blockSizes.length, scalingFactors.length );
+
+		for ( int level = numMipmapLevels - 1; level >= 0; --level )
+		{
+			LOG.debug( "Adding loader for level {} (out of {} total)", level, numMipmapLevels );
+			final Interval interval = source.getDataSource( 0, level );
+			final long[] dims = Intervals.dimensionsAsLongArray( interval );
+			final long[] max = Arrays.stream( dims ).map( v -> v - 1 ).toArray();
+			final int[] bs = blockSizes[ level ];
+			final CellGrid grid = new CellGrid( dims, bs );
+			final int finalLevel = level;
+			final BlocksForLabelCacheLoader< TLongHashSet > loader = BlocksForLabelCacheLoader.hashSetKeys(
+					grid,
+					level == numMipmapLevels - 1 ? InterruptibleFunction.fromFunction( l -> new Interval[] { new FinalInterval( dims.clone() ) } ) : caches[ level + 1 ],
+							level == numMipmapLevels - 1 ? l -> collectAllOffsets( dims, bs, b -> fromMin( b, max, bs ) ) : relevantBlocksFromLowResInterval( grid, scalingFactors[ level + 1 ], scalingFactors[ level ] ),
+									key -> uniqueLabelLoaders[ finalLevel ].apply( HashWrapper.longArray( key ) ) );
+			caches[ level ] = fromCache( makeCache.apply( loader ).unchecked(), ( Interruptible< TLongHashSet > ) loader );
 		}
 
 		return caches;
@@ -254,6 +316,69 @@ public class CacheUtils
 					getMaskGenerator,
 					transform );
 			final Cache< ShapeKey< Long >, Pair< float[], float[] > > cache = makeCache.apply( loader );
+			caches[ i ] = fromCache( cache.unchecked(), loader );
+		}
+
+		return caches;
+
+	}
+
+	/**
+	 *
+	 * @param source
+	 * @param cubeSizes
+	 *            cube sizes for marching cubes
+	 * @param getMaskGenerator
+	 *            Turn data into binary mask usable in marching cubes.
+	 * @param makeCache
+	 *            Build a {@link Cache} from a {@link CacheLoader}
+	 * @return Cascade of {@link Cache} for retrieval of mesh queried by label
+	 *         id.
+	 */
+	public static < D, T > InterruptibleFunction< ShapeKey< TLongHashSet >, Pair< float[], float[] > >[] segmentMeshCacheLoaders(
+			final DataSource< D, T > source,
+			final Function< TLongHashSet, Converter< D, BoolType > > getMaskGenerator,
+			final Function< CacheLoader< ShapeKey< TLongHashSet >, Pair< float[], float[] > >, Cache< ShapeKey< TLongHashSet >, Pair< float[], float[] > > > makeCache )
+	{
+		return segmentMeshCacheLoaders(
+				source,
+				Stream.generate( () -> new int[] { 1, 1, 1 } ).limit( source.getNumMipmapLevels() ).toArray( int[][]::new ),
+				getMaskGenerator,
+				makeCache );
+	}
+
+	/**
+	 *
+	 * @param source
+	 * @param cubeSizes
+	 *            cube sizes for marching cubes
+	 * @param getMaskGenerator
+	 *            Turn data into binary mask usable in marching cubes.
+	 * @param makeCache
+	 *            Build a {@link Cache} from a {@link CacheLoader}
+	 * @return Cascade of {@link Cache} for retrieval of mesh queried by label
+	 *         id.
+	 */
+	public static < D, T > InterruptibleFunction< ShapeKey< TLongHashSet >, Pair< float[], float[] > >[] segmentMeshCacheLoaders(
+			final DataSource< D, T > source,
+			final int[][] cubeSizes,
+			final Function< TLongHashSet, Converter< D, BoolType > > getMaskGenerator,
+			final Function< CacheLoader< ShapeKey< TLongHashSet >, Pair< float[], float[] > >, Cache< ShapeKey< TLongHashSet >, Pair< float[], float[] > > > makeCache )
+	{
+		final int numMipmapLevels = source.getNumMipmapLevels();
+		@SuppressWarnings( "unchecked" )
+		final InterruptibleFunction< ShapeKey< TLongHashSet >, Pair< float[], float[] > >[] caches = new InterruptibleFunction[ numMipmapLevels ];
+
+		for ( int i = 0; i < numMipmapLevels; ++i )
+		{
+			final AffineTransform3D transform = new AffineTransform3D();
+			source.getSourceTransform( 0, i, transform );
+			final SegmentMeshCacheLoader< D > loader = new SegmentMeshCacheLoader<>(
+					cubeSizes[ i ],
+					source.getDataSource( 0, i ),
+					getMaskGenerator,
+					transform );
+			final Cache< ShapeKey< TLongHashSet >, Pair< float[], float[] > > cache = makeCache.apply( loader );
 			caches[ i ] = fromCache( cache.unchecked(), loader );
 		}
 

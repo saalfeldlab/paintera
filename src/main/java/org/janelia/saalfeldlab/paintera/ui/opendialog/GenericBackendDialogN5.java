@@ -11,6 +11,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
+import java.util.function.Function;
 import java.util.function.LongFunction;
 import java.util.function.Supplier;
 
@@ -30,7 +31,6 @@ import org.janelia.saalfeldlab.paintera.composition.ARGBCompositeAlphaYCbCr;
 import org.janelia.saalfeldlab.paintera.composition.CompositeCopy;
 import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignmentOnlyLocal;
 import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignmentState;
-import org.janelia.saalfeldlab.paintera.control.assignment.FragmentsInSelectedSegments;
 import org.janelia.saalfeldlab.paintera.control.selection.SelectedIds;
 import org.janelia.saalfeldlab.paintera.control.selection.SelectedSegments;
 import org.janelia.saalfeldlab.paintera.data.DataSource;
@@ -42,9 +42,10 @@ import org.janelia.saalfeldlab.paintera.id.N5IdService;
 import org.janelia.saalfeldlab.paintera.id.ToIdConverter;
 import org.janelia.saalfeldlab.paintera.meshes.InterruptibleFunction;
 import org.janelia.saalfeldlab.paintera.meshes.MeshInfos;
-import org.janelia.saalfeldlab.paintera.meshes.MeshManagerWithAssignment;
+import org.janelia.saalfeldlab.paintera.meshes.MeshManagerWithAssignmentForSegments;
 import org.janelia.saalfeldlab.paintera.meshes.ShapeKey;
 import org.janelia.saalfeldlab.paintera.meshes.cache.CacheUtils;
+import org.janelia.saalfeldlab.paintera.meshes.cache.SegmentMaskGenerators;
 import org.janelia.saalfeldlab.paintera.state.LabelSourceState;
 import org.janelia.saalfeldlab.paintera.state.RawSourceState;
 import org.janelia.saalfeldlab.paintera.stream.HighlightingStreamConverter;
@@ -53,6 +54,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import bdv.util.volatiles.SharedQueue;
+import gnu.trove.set.hash.TLongHashSet;
 import javafx.beans.binding.Bindings;
 import javafx.beans.binding.BooleanBinding;
 import javafx.beans.binding.ObjectBinding;
@@ -544,20 +546,20 @@ public class GenericBackendDialogN5 implements BackendDialog
 		final FragmentSegmentAssignmentState assignment = assignments();
 		final SelectedIds selectedIds = new SelectedIds();
 		final SelectedSegments selectedSegments = new SelectedSegments( selectedIds, assignment );
-		final FragmentsInSelectedSegments fragmentsInSelectedSegments = new FragmentsInSelectedSegments( selectedSegments, assignment );
 		final ModalGoldenAngleSaturatedHighlightingARGBStream stream = new ModalGoldenAngleSaturatedHighlightingARGBStream( selectedIds, assignment );
 		final HighlightingStreamConverter< T > converter = HighlightingStreamConverter.forType( stream, masked.getType() );
 		final InterruptibleFunction< Long, Interval[] >[] blockListCache = PainteraBaseView.generateLabelBlocksForLabelCache( masked, PainteraBaseView.scaleFactorsFromAffineTransforms( masked ) );
 		final LongFunction< Converter< D, BoolType > > getMaskGenerator = PainteraBaseView.equalsMaskForType( source.getDataType() );
-		final InterruptibleFunction< ShapeKey< Long >, Pair< float[], float[] > >[] meshCache = CacheUtils.meshCacheLoaders( source, getMaskGenerator, CacheUtils::toCacheSoftRefLoaderCache );
+		final Function< TLongHashSet, Converter< D, BoolType > > segmentMaskGenerator = SegmentMaskGenerators.forType( source.getDataType() );
+		final InterruptibleFunction< ShapeKey< TLongHashSet >, Pair< float[], float[] > >[] meshCache = CacheUtils.segmentMeshCacheLoaders( source, segmentMaskGenerator, CacheUtils::toCacheSoftRefLoaderCache );
 
-		final MeshManagerWithAssignment meshManager = new MeshManagerWithAssignment(
+		final MeshManagerWithAssignmentForSegments meshManager = new MeshManagerWithAssignmentForSegments(
 				source,
 				blockListCache,
 				meshCache,
 				meshesGroup,
 				assignment,
-				fragmentsInSelectedSegments,
+				selectedSegments,
 				stream,
 				new SimpleIntegerProperty(),
 				new SimpleDoubleProperty(),
@@ -565,7 +567,7 @@ public class GenericBackendDialogN5 implements BackendDialog
 				manager,
 				workers );
 
-		final MeshInfos meshInfos = new MeshInfos( selectedSegments, assignment, meshManager, masked.getNumMipmapLevels() );
+		final MeshInfos< TLongHashSet > meshInfos = new MeshInfos<>( selectedSegments, assignment, meshManager, masked.getNumMipmapLevels() );
 
 		return new LabelSourceState<>(
 				masked,
@@ -573,6 +575,7 @@ public class GenericBackendDialogN5 implements BackendDialog
 				new ARGBCompositeAlphaYCbCr(),
 				name,
 				getMaskGenerator,
+				segmentMaskGenerator,
 				assignment,
 				ToIdConverter.fromType( masked.getDataType() ),
 				selectedIds,

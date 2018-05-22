@@ -4,6 +4,7 @@ import java.lang.invoke.MethodHandles;
 import java.util.Optional;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
+import java.util.function.Function;
 
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread;
 import org.slf4j.Logger;
@@ -38,7 +39,7 @@ import net.imglib2.util.Pair;
  * @author Philipp Hanslovsky
  *
  */
-public class MeshGenerator
+public class MeshGenerator< T >
 {
 	private static final Logger LOG = LoggerFactory.getLogger( MethodHandles.lookup().lookupClass() );
 
@@ -87,15 +88,15 @@ public class MeshGenerator
 
 	}
 
-	private final long id;
+	private final T id;
 
 	private final InterruptibleFunction< Long, Interval[] >[] blockListCache;
 
-	private final InterruptibleFunction< ShapeKey< Long >, Pair< float[], float[] > >[] meshCache;
+	private final InterruptibleFunction< ShapeKey< T >, Pair< float[], float[] > >[] meshCache;
 
 	private final BooleanProperty isVisible = new SimpleBooleanProperty( true );
 
-	private final ObservableMap< ShapeKey< Long >, MeshView > meshes = FXCollections.observableHashMap();
+	private final ObservableMap< ShapeKey< T >, MeshView > meshes = FXCollections.observableHashMap();
 
 	private final IntegerProperty scaleIndex = new SimpleIntegerProperty( 0 );
 
@@ -111,6 +112,8 @@ public class MeshGenerator
 
 	private final ExecutorService workers;
 
+	private final Function< T, long[] > getIds;
+
 	private final ObjectProperty< Future< Void > > activeTask = new SimpleObjectProperty<>();
 
 	private final IntegerProperty submittedTasks = new SimpleIntegerProperty( 0 );
@@ -119,7 +122,7 @@ public class MeshGenerator
 
 	private final IntegerProperty successfulTasks = new SimpleIntegerProperty( 0 );
 
-	private final MeshGeneratorJobManager manager;
+	private final MeshGeneratorJobManager< T > manager;
 
 	private final DoubleProperty smoothingLambda = new SimpleDoubleProperty( 0.5 );
 
@@ -127,16 +130,17 @@ public class MeshGenerator
 
 	//
 	public MeshGenerator(
-			final long segmentId,
+			final T segmentId,
 			final InterruptibleFunction< Long, Interval[] >[] blockListCache,
-			final InterruptibleFunction< ShapeKey< Long >, Pair< float[], float[] > >[] meshCache,
+			final InterruptibleFunction< ShapeKey< T >, Pair< float[], float[] > >[] meshCache,
 			final ObservableIntegerValue color,
 			final int scaleIndex,
 			final int meshSimplificationIterations,
 			final double smoothingLambda,
 			final int smoothingIterations,
 			final ExecutorService managers,
-			final ExecutorService workers )
+			final ExecutorService workers,
+			final Function< T, long[] > getIds )
 	{
 		super();
 		this.id = segmentId;
@@ -145,7 +149,8 @@ public class MeshGenerator
 		this.color = Bindings.createObjectBinding( () -> fromInt( color.get() ), color );
 		this.managers = managers;
 		this.workers = workers;
-		this.manager = new MeshGeneratorJobManager( this.meshes, this.managers, this.workers );
+		this.manager = new MeshGeneratorJobManager<>( this.meshes, this.managers, this.workers );
+		this.getIds = getIds;
 
 		this.changed.addListener( ( obs, oldv, newv ) -> new Thread( () -> this.updateMeshes( newv ) ).start() );
 		this.changed.addListener( ( obs, oldv, newv ) -> changed.set( false ) );
@@ -180,7 +185,7 @@ public class MeshGenerator
 			} );
 		} );
 
-		this.meshes.addListener( ( MapChangeListener< ShapeKey< Long >, MeshView > ) change -> {
+		this.meshes.addListener( ( MapChangeListener< ShapeKey< T >, MeshView > ) change -> {
 			if ( change.wasRemoved() )
 			{
 				( ( PhongMaterial ) change.getValueRemoved().getMaterial() ).diffuseColorProperty().unbind();
@@ -219,7 +224,7 @@ public class MeshGenerator
 
 	private void updateMeshes( final boolean doUpdate )
 	{
-		LOG.debug( "Updating mesh? {}", doUpdate );
+		LOG.warn( "Updating mesh? {}", doUpdate );
 		if ( !doUpdate ) { return; }
 
 		synchronized ( this.activeTask )
@@ -235,6 +240,7 @@ public class MeshGenerator
 				}
 			};
 			final Future< Void > task = manager.submit(
+					getIds.apply( id ),
 					id,
 					scaleIndex,
 					meshSimplificationIterations.intValue(),
@@ -255,7 +261,7 @@ public class MeshGenerator
 		return Color.rgb( ARGBType.red( argb ), ARGBType.green( argb ), ARGBType.blue( argb ), 1.0 );
 	}
 
-	public long getId()
+	public T getId()
 	{
 		return id;
 	}
