@@ -221,13 +221,13 @@ public class PainteraBaseView
 		return this.generalPurposeExecutorService;
 	}
 
-	public static < D extends Type< D >, T extends Type< T > > InterruptibleFunction< Long, Interval[] >[] generateLabelBlocksForLabelCache(
+	public static < D, T > InterruptibleFunction< Long, Interval[] >[] generateLabelBlocksForLabelCache(
 			final DataSource< D, T > spec )
 	{
 		return generateLabelBlocksForLabelCache( spec, scaleFactorsFromAffineTransforms( spec ) );
 	}
 
-	public static < D extends Type< D >, T extends Type< T > > InterruptibleFunction< Long, Interval[] >[] generateLabelBlocksForLabelCache(
+	public static < D, T > InterruptibleFunction< Long, Interval[] >[] generateLabelBlocksForLabelCache(
 			final DataSource< D, T > spec,
 			final double[][] scalingFactors )
 	{
@@ -248,7 +248,7 @@ public class PainteraBaseView
 		return generateLabelBlocksForLabelCacheGeneric( spec, scalingFactors, collectLabels( spec.getDataType() ) );
 	}
 
-	private static < D extends Type< D >, T extends Type< T > > InterruptibleFunction< Long, Interval[] >[] generateLabelBlocksForLabelCacheGeneric(
+	private static < D, T > InterruptibleFunction< Long, Interval[] >[] generateLabelBlocksForLabelCacheGeneric(
 			final DataSource< D, T > spec,
 			final double[][] scalingFactors,
 			final BiConsumer< D, TLongHashSet > collectLabels )
@@ -273,7 +273,7 @@ public class PainteraBaseView
 
 	}
 
-	private static < T extends Type< T > > InterruptibleFunction< Long, Interval[] >[] generateBlocksForLabelCacheLabelMultisetTypeCachedImg(
+	private static < T > InterruptibleFunction< Long, Interval[] >[] generateBlocksForLabelCacheLabelMultisetTypeCachedImg(
 			final DataSource< LabelMultisetType, T > spec,
 			final double[][] scalingFactors )
 	{
