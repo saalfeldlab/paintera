@@ -1,5 +1,6 @@
 package org.janelia.saalfeldlab.paintera.state;
 
+import java.util.concurrent.ExecutorService;
 import java.util.function.Function;
 import java.util.function.LongFunction;
 
@@ -7,18 +8,28 @@ import org.janelia.saalfeldlab.paintera.PainteraBaseView;
 import org.janelia.saalfeldlab.paintera.composition.Composite;
 import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignmentState;
 import org.janelia.saalfeldlab.paintera.control.selection.SelectedIds;
+import org.janelia.saalfeldlab.paintera.control.selection.SelectedSegments;
 import org.janelia.saalfeldlab.paintera.data.DataSource;
 import org.janelia.saalfeldlab.paintera.id.IdService;
 import org.janelia.saalfeldlab.paintera.id.ToIdConverter;
+import org.janelia.saalfeldlab.paintera.meshes.InterruptibleFunction;
 import org.janelia.saalfeldlab.paintera.meshes.MeshInfos;
 import org.janelia.saalfeldlab.paintera.meshes.MeshManager;
+import org.janelia.saalfeldlab.paintera.meshes.MeshManagerWithAssignmentForSegments;
+import org.janelia.saalfeldlab.paintera.meshes.ShapeKey;
+import org.janelia.saalfeldlab.paintera.meshes.cache.CacheUtils;
 import org.janelia.saalfeldlab.paintera.meshes.cache.SegmentMaskGenerators;
 import org.janelia.saalfeldlab.paintera.stream.HighlightingStreamConverter;
 
 import gnu.trove.set.hash.TLongHashSet;
+import javafx.beans.property.SimpleDoubleProperty;
+import javafx.beans.property.SimpleIntegerProperty;
+import javafx.scene.Group;
+import net.imglib2.Interval;
 import net.imglib2.converter.Converter;
 import net.imglib2.type.logic.BoolType;
 import net.imglib2.type.numeric.ARGBType;
+import net.imglib2.util.Pair;
 
 public class LabelSourceState< D, T > extends MinimalSourceState< D, T, DataSource< D, T >, HighlightingStreamConverter< T > >
 {
@@ -45,48 +56,45 @@ public class LabelSourceState< D, T > extends MinimalSourceState< D, T, DataSour
 			final Composite< ARGBType, ARGBType > composite,
 			final String name,
 			final FragmentSegmentAssignmentState assignment,
-			final ToIdConverter toIdConverter,
-			final SelectedIds selectedIds,
 			final IdService idService,
-			final MeshManager< TLongHashSet > meshManager,
-			final MeshInfos meshInfos )
-	{
-		this(
-				dataSource,
-				converter,
-				composite,
-				name,
-				PainteraBaseView.equalsMaskForType( dataSource.getDataType() ),
-				SegmentMaskGenerators.forType( dataSource.getDataType() ),
-				assignment,
-				toIdConverter,
-				selectedIds,
-				idService,
-				meshManager,
-				meshInfos );
-	}
-
-	public LabelSourceState(
-			final DataSource< D, T > dataSource,
-			final HighlightingStreamConverter< T > converter,
-			final Composite< ARGBType, ARGBType > composite,
-			final String name,
-			final LongFunction< Converter< D, BoolType > > maskForLabel,
-			final Function< TLongHashSet, Converter< D, BoolType > > segmentMaskGenerator,
-			final FragmentSegmentAssignmentState assignment,
-			final ToIdConverter toIdConverter,
 			final SelectedIds selectedIds,
-			final IdService idService,
-			final MeshManager< TLongHashSet > meshManager,
-			final MeshInfos meshInfos )
+			final Group meshesGroup,
+			final ExecutorService meshManagerExecutors,
+			final ExecutorService meshWorkersExecutors )
 	{
 		super( dataSource, converter, composite, name );
-		this.maskForLabel = maskForLabel;
-		this.segmentMaskGenerator = segmentMaskGenerator;
+		final D d = dataSource.getDataType();
+		this.maskForLabel = PainteraBaseView.equalsMaskForType( d );
+		this.segmentMaskGenerator = SegmentMaskGenerators.forType( d );
 		this.assignment = assignment;
-		this.toIdConverter = toIdConverter;
+		this.toIdConverter = ToIdConverter.fromType( d );
 		this.selectedIds = selectedIds;
 		this.idService = idService;
+
+
+
+		final SelectedSegments selectedSegments = new SelectedSegments( selectedIds, assignment );
+
+		final InterruptibleFunction< Long, Interval[] >[] blockCaches = PainteraBaseView.generateLabelBlocksForLabelCache( dataSource );
+		final InterruptibleFunction< ShapeKey< TLongHashSet >, Pair< float[], float[] > >[] meshCache = CacheUtils.segmentMeshCacheLoaders(
+				dataSource,
+				segmentMaskGenerator,
+				CacheUtils::toCacheSoftRefLoaderCache );
+		final MeshManagerWithAssignmentForSegments meshManager = new MeshManagerWithAssignmentForSegments(
+				dataSource,
+				blockCaches,
+				meshCache,
+				meshesGroup,
+				assignment,
+				selectedSegments,
+				converter.getStream(),
+				new SimpleIntegerProperty(),
+				new SimpleDoubleProperty(),
+				new SimpleIntegerProperty(),
+				meshManagerExecutors,
+				meshWorkersExecutors );
+		final MeshInfos< TLongHashSet > meshInfos = new MeshInfos<>( selectedSegments, assignment, meshManager, dataSource.getNumMipmapLevels() );
+
 		this.meshManager = meshManager;
 		this.meshInfos = meshInfos;
 

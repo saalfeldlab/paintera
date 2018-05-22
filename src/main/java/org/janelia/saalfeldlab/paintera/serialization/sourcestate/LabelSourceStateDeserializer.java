@@ -2,28 +2,17 @@ package org.janelia.saalfeldlab.paintera.serialization.sourcestate;
 
 import java.io.IOException;
 import java.lang.invoke.MethodHandles;
-import java.util.function.Function;
 import java.util.function.IntFunction;
-import java.util.function.LongFunction;
 import java.util.function.Supplier;
 
 import org.janelia.saalfeldlab.n5.N5Writer;
 import org.janelia.saalfeldlab.paintera.N5Helpers;
-import org.janelia.saalfeldlab.paintera.PainteraBaseView;
 import org.janelia.saalfeldlab.paintera.composition.Composite;
 import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignmentState;
-import org.janelia.saalfeldlab.paintera.control.assignment.FragmentsInSelectedSegments;
 import org.janelia.saalfeldlab.paintera.control.selection.SelectedIds;
-import org.janelia.saalfeldlab.paintera.control.selection.SelectedSegments;
 import org.janelia.saalfeldlab.paintera.data.DataSource;
 import org.janelia.saalfeldlab.paintera.data.mask.MaskedSource;
 import org.janelia.saalfeldlab.paintera.data.n5.N5DataSource;
-import org.janelia.saalfeldlab.paintera.id.ToIdConverter;
-import org.janelia.saalfeldlab.paintera.meshes.InterruptibleFunction;
-import org.janelia.saalfeldlab.paintera.meshes.MeshInfos;
-import org.janelia.saalfeldlab.paintera.meshes.MeshManagerWithAssignmentForSegments;
-import org.janelia.saalfeldlab.paintera.meshes.cache.CacheUtils;
-import org.janelia.saalfeldlab.paintera.meshes.cache.SegmentMaskGenerators;
 import org.janelia.saalfeldlab.paintera.serialization.FragmentSegmentAssignmentOnlyLocalSerializer;
 import org.janelia.saalfeldlab.paintera.serialization.StatefulSerializer;
 import org.janelia.saalfeldlab.paintera.serialization.StatefulSerializer.Arguments;
@@ -37,10 +26,6 @@ import org.slf4j.LoggerFactory;
 import com.google.gson.JsonDeserializationContext;
 import com.google.gson.JsonObject;
 
-import gnu.trove.set.hash.TLongHashSet;
-import javafx.beans.property.SimpleDoubleProperty;
-import javafx.beans.property.SimpleIntegerProperty;
-import net.imglib2.Interval;
 import net.imglib2.type.numeric.ARGBType;
 
 public class LabelSourceStateDeserializer< C extends HighlightingStreamConverter< ? > >
@@ -121,48 +106,20 @@ extends SourceStateSerialization.SourceStateDeserializerWithoutDependencies< Lab
 				context.deserialize( assignmentMap.get( FragmentSegmentAssignmentOnlyLocalSerializer.FRAGMENTS_KEY ), long[].class ),
 				context.deserialize( assignmentMap.get( FragmentSegmentAssignmentOnlyLocalSerializer.FRAGMENTS_KEY ), long[].class ) );
 
-		final SelectedSegments selectedSegments = new SelectedSegments( selectedIds, assignment );
-		final FragmentsInSelectedSegments fragmentsInSelectedSegments = new FragmentsInSelectedSegments( selectedSegments, assignment );
-
 		final AbstractHighlightingARGBStream stream = converter.getStream();
 		stream.setHighlightsAndAssignment( selectedIds, assignment );
-		final LongFunction< ? > maskGenerator = PainteraBaseView.equalsMaskForType( source.getDataType() );
-		final Function< TLongHashSet, ? > segmentMaskGenerator = SegmentMaskGenerators.forType( source.getDataType() );
-
-		final InterruptibleFunction< Long, Interval[] >[] blockCaches = PainteraBaseView.generateLabelBlocksForLabelCache( n5Source, PainteraBaseView.scaleFactorsFromAffineTransforms( source ) );
-		final InterruptibleFunction[] meshCache = CacheUtils.segmentMeshCacheLoaders(
-				( DataSource ) source,
-				(Function) segmentMaskGenerator,
-				CacheUtils::toCacheSoftRefLoaderCache );
-		LOG.debug( "Meshses group: {}", arguments.meshesGroup );
-		final MeshManagerWithAssignmentForSegments meshManager = new MeshManagerWithAssignmentForSegments(
-				source,
-				blockCaches,
-				meshCache,
-				arguments.meshesGroup,
-				assignment,
-				selectedSegments,
-				stream,
-				new SimpleIntegerProperty(),
-				new SimpleDoubleProperty(),
-				new SimpleIntegerProperty(),
-				arguments.meshManagerExecutors,
-				arguments.meshWorkersExecutors );
-		final MeshInfos meshInfos = new MeshInfos( selectedSegments, assignment, meshManager, source.getNumMipmapLevels() );
 
 		return new LabelSourceState(
 				source,
 				converter,
 				composite,
 				name,
-				maskGenerator,
-				segmentMaskGenerator,
 				assignment,
-				ToIdConverter.fromType( source.getDataType() ),
-				selectedIds,
 				N5Helpers.idService( writer, dataset ),
-				meshManager,
-				meshInfos );
+				selectedIds,
+				arguments.meshesGroup,
+				arguments.meshManagerExecutors,
+				arguments.meshWorkersExecutors );
 
 	}
 
