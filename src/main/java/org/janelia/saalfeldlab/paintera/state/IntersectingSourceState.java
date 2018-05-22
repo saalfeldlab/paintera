@@ -124,35 +124,41 @@ extends MinimalSourceState< UnsignedByteType, VolatileUnsignedByteType, DataSour
 		this.meshManager.colorProperty().bind( colorProperty );
 		this.meshManager.scaleLevelProperty().bind( meshManager.scaleLevelProperty() );
 
-		selectedIds.addListener( obs -> {
-			for ( int level = 0; level < source.getNumMipmapLevels(); ++level )
-			{
-				final DataSource< ?, ? > dsource = source instanceof MaskedSource< ?, ? > ? ((MaskedSource<?,?>)source).underlyingSource() : source;
-				final RandomAccessibleInterval< ? > data = dsource.getDataSource( 0, level );
-				LOG.debug( "data type={}", data.getClass().getName() );
-				if ( data instanceof CachedCellImg< ?, ? > )
-				{
-					( ( CachedCellImg< ?, ? > ) data ).getCache().invalidateAll();
-				}
+		selectedIds.addListener( obs -> update( source, selectedIds ) );
+		assignment.addListener( obs -> update( source, selectedIds ) );
+	}
 
-				final RandomAccessibleInterval< ? > vdata = dsource.getSource( 0, level );
-				LOG.debug( "vdata type={}", vdata.getClass().getName() );
-				if ( vdata instanceof VolatileCachedCellImg )
-				{
-					( ( VolatileCachedCellImg< ?, ? > ) vdata ).getInvalidateAll().run();
-				}
-
-			}
-			if ( Optional.ofNullable( selectedIds.getActiveIds() ).map( sel -> sel.length ).orElse( 0 ) > 0 )
+	private void update(
+			final DataSource< ?, ? > source,
+			final SelectedIds selectedIds
+			)
+	{
+		for ( int level = 0; level < source.getNumMipmapLevels(); ++level )
+		{
+			final DataSource< ?, ? > dsource = source instanceof MaskedSource< ?, ? > ? ((MaskedSource<?,?>)source).underlyingSource() : source;
+			final RandomAccessibleInterval< ? > data = dsource.getDataSource( 0, level );
+			LOG.debug( "data type={}", data.getClass().getName() );
+			if ( data instanceof CachedCellImg< ?, ? > )
 			{
-				this.meshManager.generateMesh( 1 );
+				( ( CachedCellImg< ?, ? > ) data ).getCache().invalidateAll();
 			}
-			else
-			{
-				this.meshManager.removeAllMeshes();
-			}
-		} );
 
+			final RandomAccessibleInterval< ? > vdata = dsource.getSource( 0, level );
+			LOG.debug( "vdata type={}", vdata.getClass().getName() );
+			if ( vdata instanceof VolatileCachedCellImg )
+			{
+				( ( VolatileCachedCellImg< ?, ? > ) vdata ).getInvalidateAll().run();
+			}
+
+		}
+		if ( Optional.ofNullable( selectedIds.getActiveIds() ).map( sel -> sel.length ).orElse( 0 ) > 0 )
+		{
+			this.meshManager.generateMesh( 1 );
+		}
+		else
+		{
+			this.meshManager.removeAllMeshes();
+		}
 	}
 
 	public MeshManager< Long > meshManager()
