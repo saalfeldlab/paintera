@@ -6,6 +6,7 @@ import java.util.function.Predicate;
 import org.janelia.saalfeldlab.paintera.composition.ARGBCompositeAlphaAdd;
 import org.janelia.saalfeldlab.paintera.data.DataSource;
 import org.janelia.saalfeldlab.paintera.data.PredicateDataSource;
+import org.janelia.saalfeldlab.paintera.state.ThresholdingSourceState.Threshold;
 import org.janelia.saalfeldlab.paintera.state.ThresholdingSourceState.VolatileMaskConverter;
 import org.janelia.saalfeldlab.util.Colors;
 import org.slf4j.Logger;
@@ -26,12 +27,14 @@ import net.imglib2.type.numeric.RealType;
 import net.imglib2.type.volatiles.AbstractVolatileRealType;
 
 public class ThresholdingSourceState< D extends RealType< D >, T extends AbstractVolatileRealType< D, T > >
-		extends MinimalSourceState< BoolType, Volatile< BoolType >, PredicateDataSource< D, T >, VolatileMaskConverter< BoolType, Volatile< BoolType > > >
+extends MinimalSourceState< BoolType, Volatile< BoolType >, PredicateDataSource< D, T, Threshold< D > >, VolatileMaskConverter< BoolType, Volatile< BoolType > > >
 {
 
 	private final ObjectProperty< Color > color = new SimpleObjectProperty<>( Color.WHITE );
 
 	private final DoubleProperty alpha = new SimpleDoubleProperty( 1.0 );
+
+	private final Threshold< D > threshold;
 
 	public ThresholdingSourceState(
 			final String name,
@@ -47,10 +50,15 @@ public class ThresholdingSourceState< D extends RealType< D >, T extends Abstrac
 				new ARGBCompositeAlphaAdd(),
 				name,
 				toBeThresholded );
-
+		this.threshold = getDataSource().getPredicate();
 	}
 
-	private static < D extends RealType< D >, T extends AbstractVolatileRealType< D, T > > PredicateDataSource< D, T > threshold(
+	public Threshold< D > getThreshold()
+	{
+		return this.threshold;
+	}
+
+	private static < D extends RealType< D >, T extends AbstractVolatileRealType< D, T > > PredicateDataSource< D, T, Threshold< D > > threshold(
 			final DataSource< D, T > source,
 			final ObservableDoubleValue min,
 			final ObservableDoubleValue max,
@@ -179,6 +187,18 @@ public class ThresholdingSourceState< D extends RealType< D >, T extends Abstrac
 				this.max = m;
 			}
 		}
+
+		public ObservableDoubleValue minValue()
+		{
+			return this.minSupplier;
+		}
+
+		public ObservableDoubleValue maxValue()
+		{
+			return this.maxSupplier;
+		}
+
+
 
 	}
 

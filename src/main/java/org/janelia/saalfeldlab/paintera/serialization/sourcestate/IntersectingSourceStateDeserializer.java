@@ -11,7 +11,6 @@ import org.janelia.saalfeldlab.paintera.serialization.StatefulSerializer;
 import org.janelia.saalfeldlab.paintera.serialization.StatefulSerializer.Arguments;
 import org.janelia.saalfeldlab.paintera.state.IntersectingSourceState;
 import org.janelia.saalfeldlab.paintera.state.LabelSourceState;
-import org.janelia.saalfeldlab.paintera.state.RawSourceState;
 import org.janelia.saalfeldlab.paintera.state.SourceState;
 import org.janelia.saalfeldlab.paintera.state.ThresholdingSourceState;
 import org.slf4j.Logger;
@@ -94,14 +93,11 @@ public class IntersectingSourceStateDeserializer implements JsonDeserializer< In
 		LOG.debug( "Deserializing {}", map );
 		final int[] dependsOn = context.deserialize( map.get( SourceStateSerialization.DEPENDS_ON_KEY ), int[].class );
 
-		if ( dependsOn.length != 3 ) { throw new JsonParseException( "Expected exactly three dependency, got: " + map.get( SourceStateSerialization.DEPENDS_ON_KEY ) ); }
+		if ( dependsOn.length != 2 ) { throw new JsonParseException( "Expected exactly three dependency, got: " + map.get( SourceStateSerialization.DEPENDS_ON_KEY ) ); }
 
-		final SourceState< ?, ? > rawState = this.dependsOn.apply( dependsOn[ 0 ] );
-		final SourceState< ?, ? > thresholdedState = this.dependsOn.apply( dependsOn[ 1 ] );
-		final SourceState< ?, ? > labelState = this.dependsOn.apply( dependsOn[ 2 ] );
-		if ( rawState == null || thresholdedState == null || labelState == null ) { return null; }
-
-		if ( !( rawState instanceof RawSourceState< ?, ? >) ) { throw new JsonParseException( "Expected " + RawSourceState.class.getName() + " as first dependency but got " + rawState.getClass().getName() + " instead." ); }
+		final SourceState< ?, ? > thresholdedState = this.dependsOn.apply( dependsOn[ 0 ] );
+		final SourceState< ?, ? > labelState = this.dependsOn.apply( dependsOn[ 1 ] );
+		if ( thresholdedState == null || labelState == null ) { return null; }
 
 		if ( !( thresholdedState instanceof ThresholdingSourceState< ?, ? > ) ) { throw new JsonParseException( "Expected " + ThresholdingSourceState.class.getName() + " as second dependency but got " + thresholdedState.getClass().getName() + " instead." ); }
 
@@ -116,7 +112,6 @@ public class IntersectingSourceStateDeserializer implements JsonDeserializer< In
 
 			LOG.warn( "Creating {} with thresholded={} labels={}", IntersectingSourceState.class.getSimpleName(), thresholdedState, labelState );
 			final IntersectingSourceState state = new IntersectingSourceState(
-					(RawSourceState) rawState,
 					(ThresholdingSourceState) thresholdedState,
 					(LabelSourceState) labelState,
 					composite,

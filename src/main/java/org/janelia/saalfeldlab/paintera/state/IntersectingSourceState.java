@@ -79,8 +79,7 @@ extends MinimalSourceState< UnsignedByteType, VolatileUnsignedByteType, DataSour
 	private final MeshManagerSimple meshManager;
 
 	public < D extends Type< D >, T extends Type< T >, B extends BooleanType< B > > IntersectingSourceState(
-			final RawSourceState< ?, ? > raw,
-			final SourceState< B, Volatile< B > > thresholded,
+			final ThresholdingSourceState< ?, ? > thresholded,
 			final LabelSourceState< D, T > labels,
 			final Composite< ARGBType, ARGBType > composite,
 			final String name,
@@ -97,7 +96,6 @@ extends MinimalSourceState< UnsignedByteType, VolatileUnsignedByteType, DataSour
 				composite,
 				name,
 				// dependsOn:
-				raw,
 				thresholded,
 				labels );
 		final DataSource< UnsignedByteType, VolatileUnsignedByteType > source = getDataSource();
@@ -128,11 +126,11 @@ extends MinimalSourceState< UnsignedByteType, VolatileUnsignedByteType, DataSour
 		this.meshManager.colorProperty().bind( colorProperty );
 		this.meshManager.scaleLevelProperty().bind( meshManager.scaleLevelProperty() );
 
-		raw.converter().minProperty().addListener( (obs, oldv, newv ) -> {
+		thresholded.getThreshold().minValue().addListener( (obs, oldv, newv ) -> {
 			Arrays.stream( meshCaches ).forEach( UncheckedCache::invalidateAll );
 			update( source, fragmentsInSelectedSegments );
 		} );
-		raw.converter().maxProperty().addListener( (obs, oldv, newv ) -> {
+		thresholded.getThreshold().maxValue().addListener( (obs, oldv, newv ) -> {
 			Arrays.stream( meshCaches ).forEach( UncheckedCache::invalidateAll );
 			update( source, fragmentsInSelectedSegments );
 		} );

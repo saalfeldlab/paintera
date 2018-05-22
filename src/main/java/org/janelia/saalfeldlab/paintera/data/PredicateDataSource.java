@@ -11,12 +11,14 @@ import net.imglib2.converter.Converter;
 import net.imglib2.type.BooleanType;
 import net.imglib2.type.logic.BoolType;
 
-public class PredicateDataSource< D, T extends Volatile< D > > extends ConvertedDataSource< D, T, BoolType, Volatile< BoolType > >
+public class PredicateDataSource< D, T extends Volatile< D >, P extends Predicate< D > > extends ConvertedDataSource< D, T, BoolType, Volatile< BoolType > >
 {
+
+	private final P predicate;
 
 	public PredicateDataSource(
 			final DataSource< D, T > source,
-			final Predicate< D > predicate,
+			final P predicate,
 			final String name )
 	{
 		super(
@@ -28,6 +30,12 @@ public class PredicateDataSource< D, T extends Volatile< D > > extends Converted
 				Interpolations.nearestNeighbor(),
 				Interpolations.nearestNeighbor(),
 				name );
+		this.predicate = predicate;
+	}
+
+	public P getPredicate()
+	{
+		return predicate;
 	}
 
 	public static class PredicateConverter< T, B extends BooleanType< B > > implements Converter< T, B >
