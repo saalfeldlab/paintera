@@ -135,7 +135,7 @@ public class MeshManagerWithAssignmentForSegments implements MeshManager< TLongH
 				final TLongHashSet fragmentsInSegment = assignment.getFragments( neuron.getKey() );
 				final boolean isSelected = selectedSegmentsSet.contains( neuron.getKey() );
 				final boolean isConsistent = neuron.getValue().getId().equals( fragmentsInSegment );
-				LOG.warn( "Segment {} is selected? {}  Is consistent? {}", neuron.getKey(), isSelected, isConsistent );
+				LOG.debug( "Segment {} is selected? {}  Is consistent? {}", neuron.getKey(), isSelected, isConsistent );
 				if ( !isSelected || !isConsistent )
 				{
 					currentlyShowing.remove( neuron.getKey() );
@@ -144,9 +144,9 @@ public class MeshManagerWithAssignmentForSegments implements MeshManager< TLongH
 
 			}
 			toBeRemoved.stream().map( e -> e.getValue() ).forEach( this::removeMesh );
-			LOG.warn( "Currently showing {} ", currentlyShowing );
-			LOG.warn( "Selection {}", selectedSegments );
-			LOG.warn( "To be removed {}", toBeRemoved );
+			LOG.debug( "Currently showing {} ", currentlyShowing );
+			LOG.debug( "Selection {}", selectedSegments );
+			LOG.debug( "To be removed {}", toBeRemoved );
 			Arrays.stream( selectedSegments ).filter( id -> !currentlyShowing.contains( id ) ).forEach( segment -> generateMesh( source, segment ) );
 		}
 	}
