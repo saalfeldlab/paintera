@@ -17,6 +17,7 @@ import java.util.stream.Stream;
 import org.janelia.saalfeldlab.paintera.data.DataSource;
 import org.janelia.saalfeldlab.paintera.meshes.Interruptible;
 import org.janelia.saalfeldlab.paintera.meshes.InterruptibleFunction;
+import org.janelia.saalfeldlab.paintera.meshes.InterruptibleFunctionAndCache;
 import org.janelia.saalfeldlab.paintera.meshes.ShapeKey;
 import org.janelia.saalfeldlab.util.HashWrapper;
 import org.janelia.saalfeldlab.util.MakeUnchecked;
@@ -272,7 +273,7 @@ public class CacheUtils
 	 * @return Cascade of {@link Cache} for retrieval of mesh queried by label
 	 *         id.
 	 */
-	public static < D, T > InterruptibleFunction< ShapeKey< Long >, Pair< float[], float[] > >[] meshCacheLoaders(
+	public static < D, T > InterruptibleFunctionAndCache< ShapeKey< Long >, Pair< float[], float[] > >[] meshCacheLoaders(
 			final DataSource< D, T > source,
 			final LongFunction< Converter< D, BoolType > > getMaskGenerator,
 			final Function< CacheLoader< ShapeKey< Long >, Pair< float[], float[] > >, Cache< ShapeKey< Long >, Pair< float[], float[] > > > makeCache )
@@ -296,7 +297,7 @@ public class CacheUtils
 	 * @return Cascade of {@link Cache} for retrieval of mesh queried by label
 	 *         id.
 	 */
-	public static < D, T > InterruptibleFunction< ShapeKey< Long >, Pair< float[], float[] > >[] meshCacheLoaders(
+	public static < D, T > InterruptibleFunctionAndCache< ShapeKey< Long >, Pair< float[], float[] > >[] meshCacheLoaders(
 			final DataSource< D, T > source,
 			final int[][] cubeSizes,
 			final LongFunction< Converter< D, BoolType > > getMaskGenerator,
@@ -304,7 +305,7 @@ public class CacheUtils
 	{
 		final int numMipmapLevels = source.getNumMipmapLevels();
 		@SuppressWarnings( "unchecked" )
-		final InterruptibleFunction< ShapeKey< Long >, Pair< float[], float[] > >[] caches = new InterruptibleFunction[ numMipmapLevels ];
+		final InterruptibleFunctionAndCache< ShapeKey< Long >, Pair< float[], float[] > >[] caches = new InterruptibleFunctionAndCache[ numMipmapLevels ];
 
 		for ( int i = 0; i < numMipmapLevels; ++i )
 		{
@@ -316,7 +317,7 @@ public class CacheUtils
 					getMaskGenerator,
 					transform );
 			final Cache< ShapeKey< Long >, Pair< float[], float[] > > cache = makeCache.apply( loader );
-			caches[ i ] = fromCache( cache.unchecked(), loader );
+			caches[ i ] = new InterruptibleFunctionAndCache<>( cache.unchecked(), loader );// fromCache( cache.unchecked(), loader );
 		}
 
 		return caches;
