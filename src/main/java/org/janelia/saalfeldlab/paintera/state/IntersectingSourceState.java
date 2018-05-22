@@ -182,7 +182,7 @@ extends MinimalSourceState< UnsignedByteType, VolatileUnsignedByteType, DataSour
 			final int priority,
 			final String name )
 	{
-		LOG.warn( "Number of mipmap lebels: thresholded={} labels={}", thresholded.getDataSource().getNumMipmapLevels(), labels.getDataSource().getNumMipmapLevels() );
+		LOG.warn( "Number of mipmap labels: thresholded={} labels={}", thresholded.getDataSource().getNumMipmapLevels(), labels.getDataSource().getNumMipmapLevels() );
 		if ( thresholded.getDataSource().getNumMipmapLevels() != labels.getDataSource().getNumMipmapLevels() ) { throw new RuntimeException( "Incompatible sources (num mip map levels )" ); }
 
 		final AffineTransform3D[] transforms = new AffineTransform3D[ thresholded.getDataSource().getNumMipmapLevels() ];
