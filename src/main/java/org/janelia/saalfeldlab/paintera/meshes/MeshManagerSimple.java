@@ -8,16 +8,22 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ExecutorService;
 
+import org.janelia.saalfeldlab.util.Colors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javafx.beans.binding.Bindings;
+import javafx.beans.binding.IntegerBinding;
 import javafx.beans.property.DoubleProperty;
 import javafx.beans.property.IntegerProperty;
+import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.SimpleDoubleProperty;
 import javafx.beans.property.SimpleIntegerProperty;
+import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.value.ObservableDoubleValue;
 import javafx.beans.value.ObservableIntegerValue;
 import javafx.scene.Group;
+import javafx.scene.paint.Color;
 import net.imglib2.Interval;
 import net.imglib2.util.Pair;
 
@@ -50,6 +56,8 @@ public class MeshManagerSimple implements MeshManager< Long >
 	private final ExecutorService managers;
 
 	private final ExecutorService workers;
+
+	private final ObjectProperty< Color > color = new SimpleObjectProperty<>( Color.WHITE );
 
 	public MeshManagerSimple(
 			final InterruptibleFunction< Long, Interval[] >[] blockListCache,
@@ -93,7 +101,7 @@ public class MeshManagerSimple implements MeshManager< Long >
 	@Override
 	public void generateMesh( final long id )
 	{
-		final IntegerProperty color = new SimpleIntegerProperty( 0xffffffff );
+		final IntegerBinding color = Bindings.createIntegerBinding( () -> Colors.toARGBType( this.color.get() ).get(), this.color );
 
 		for ( final MeshGenerator< Long > neuron : neurons.values() )
 		{
@@ -102,7 +110,7 @@ public class MeshManagerSimple implements MeshManager< Long >
 			}
 		}
 
-		LOG.debug( "Adding mesh for segment {}.", id );
+		LOG.warn( "Adding mesh for segment {}.", id );
 		final MeshGenerator< Long > nfx = new MeshGenerator<>(
 				id,
 				blockListCache,
@@ -116,6 +124,7 @@ public class MeshManagerSimple implements MeshManager< Long >
 				workers,
 				val -> new long[] { val } );
 		nfx.rootProperty().set( this.root );
+		nfx.scaleIndexProperty().bind( this.scaleLevel );
 
 		neurons.put( id, nfx );
 
@@ -180,6 +189,11 @@ public class MeshManagerSimple implements MeshManager< Long >
 	public InterruptibleFunction< ShapeKey< Long >, Pair< float[], float[] > >[] meshCache()
 	{
 		return meshCache;
+	}
+
+	public ObjectProperty< Color > colorProperty()
+	{
+		return this.color;
 	}
 
 }

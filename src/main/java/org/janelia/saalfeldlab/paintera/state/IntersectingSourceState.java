@@ -20,16 +20,21 @@ import org.janelia.saalfeldlab.paintera.meshes.InterruptibleFunction;
 import org.janelia.saalfeldlab.paintera.meshes.MeshManager;
 import org.janelia.saalfeldlab.paintera.meshes.MeshManagerSimple;
 import org.janelia.saalfeldlab.paintera.meshes.ShapeKey;
+import org.janelia.saalfeldlab.paintera.meshes.cache.BlocksForLabelDelegate;
 import org.janelia.saalfeldlab.paintera.meshes.cache.CacheUtils;
+import org.janelia.saalfeldlab.util.Colors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import bdv.img.cache.CreateInvalidVolatileCell;
 import bdv.util.volatiles.SharedQueue;
 import gnu.trove.set.hash.TLongHashSet;
+import javafx.beans.binding.Bindings;
+import javafx.beans.binding.ObjectBinding;
 import javafx.beans.property.SimpleDoubleProperty;
 import javafx.beans.property.SimpleIntegerProperty;
 import javafx.scene.Group;
+import javafx.scene.paint.Color;
 import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.Volatile;
 import net.imglib2.cache.Cache;
@@ -41,7 +46,6 @@ import net.imglib2.cache.volatiles.CreateInvalid;
 import net.imglib2.cache.volatiles.LoadingStrategy;
 import net.imglib2.cache.volatiles.VolatileCache;
 import net.imglib2.converter.ARGBColorConverter;
-import net.imglib2.converter.Converter;
 import net.imglib2.img.basictypeaccess.AccessFlags;
 import net.imglib2.img.basictypeaccess.ArrayDataAccessFactory;
 import net.imglib2.img.basictypeaccess.volatiles.array.VolatileByteArray;
@@ -67,7 +71,7 @@ import tmp.bdv.img.cache.VolatileCachedCellImg;
 import tmp.net.imglib2.cache.ref.WeakRefVolatileCache;
 
 public class IntersectingSourceState
-extends MinimalSourceState< UnsignedByteType, VolatileUnsignedByteType, DataSource< UnsignedByteType, VolatileUnsignedByteType >, Converter< VolatileUnsignedByteType, ARGBType > >
+extends MinimalSourceState< UnsignedByteType, VolatileUnsignedByteType, DataSource< UnsignedByteType, VolatileUnsignedByteType >, ARGBColorConverter< VolatileUnsignedByteType > >
 {
 
 	private static final Logger LOG = LoggerFactory.getLogger( MethodHandles.lookup().lookupClass() );
@@ -103,8 +107,12 @@ extends MinimalSourceState< UnsignedByteType, VolatileUnsignedByteType, DataSour
 				l -> ( s, t ) -> t.set( s.get() > 0 ),
 				CacheUtils::toCacheSoftRefLoaderCache );
 
+		final FragmentSegmentAssignmentState assignment = labels.assignment();
+		final SelectedSegments selectedSegments = new SelectedSegments( selectedIds, assignment );
+		final FragmentsInSelectedSegments fragmentsInSelectedSegments = new FragmentsInSelectedSegments( selectedSegments, assignment );
+
 		this.meshManager = new MeshManagerSimple(
-				meshManager.blockListCache(),
+				BlocksForLabelDelegate.delegate( meshManager.blockListCache(), key -> Arrays.stream( fragmentsInSelectedSegments.getFragments() ).mapToObj( l -> l ).toArray( Long[]::new ) ),
 				meshCaches,
 				meshesGroup,
 				new SimpleIntegerProperty(),
@@ -112,6 +120,9 @@ extends MinimalSourceState< UnsignedByteType, VolatileUnsignedByteType, DataSour
 				new SimpleIntegerProperty(),
 				manager,
 				workers );
+		final ObjectBinding< Color > colorProperty = Bindings.createObjectBinding( ()-> Colors.toColor( this.converter().getColor() ), this.converter().colorProperty() );
+		this.meshManager.colorProperty().bind( colorProperty );
+		this.meshManager.scaleLevelProperty().bind( meshManager.scaleLevelProperty() );
 
 		selectedIds.addListener( obs -> {
 			for ( int level = 0; level < source.getNumMipmapLevels(); ++level )

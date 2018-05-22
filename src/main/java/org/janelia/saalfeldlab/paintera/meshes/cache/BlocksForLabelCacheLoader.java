@@ -114,7 +114,6 @@ public class BlocksForLabelCacheLoader< T > implements CacheLoader< T, Interval[
 	@Override
 	public Interval[] get( final T key ) throws Exception
 	{
-
 		final boolean[] isInterrupted = { false };
 		final Consumer< T > listener = interruptedKey -> {
 			if ( interruptedKey.equals( key ) )
@@ -150,7 +149,7 @@ public class BlocksForLabelCacheLoader< T > implements CacheLoader< T, Interval[
 					results.add( block.getData() );
 				}
 			}
-			LOG.debug( "key={} grid={} -- still {} blocks after filtering", key, grid, results.size() );
+			LOG.warn( "key={} grid={} -- still {} blocks after filtering", key, grid, results.size() );
 			return isInterrupted[ 0 ] ? null : results.toArray( new Interval[ results.size() ] );
 		}
 		finally
