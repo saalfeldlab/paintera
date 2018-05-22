@@ -94,15 +94,18 @@ public class IntersectingSourceStateDeserializer implements JsonDeserializer< In
 		LOG.debug( "Deserializing {}", map );
 		final int[] dependsOn = context.deserialize( map.get( SourceStateSerialization.DEPENDS_ON_KEY ), int[].class );
 
-		if ( dependsOn.length != 2 ) { throw new JsonParseException( "Expected exactly one dependency, got: " + map.get( SourceStateSerialization.DEPENDS_ON_KEY ) ); }
+		if ( dependsOn.length != 3 ) { throw new JsonParseException( "Expected exactly three dependency, got: " + map.get( SourceStateSerialization.DEPENDS_ON_KEY ) ); }
 
-		final SourceState< ?, ? > thresholdedState = this.dependsOn.apply( dependsOn[ 0 ] );
-		final SourceState< ?, ? > labelState = this.dependsOn.apply( dependsOn[ 1 ] );
-		if ( thresholdedState == null || labelState == null ) { return null; }
+		final SourceState< ?, ? > rawState = this.dependsOn.apply( dependsOn[ 0 ] );
+		final SourceState< ?, ? > thresholdedState = this.dependsOn.apply( dependsOn[ 1 ] );
+		final SourceState< ?, ? > labelState = this.dependsOn.apply( dependsOn[ 2 ] );
+		if ( rawState == null || thresholdedState == null || labelState == null ) { return null; }
 
-		if ( !( thresholdedState instanceof ThresholdingSourceState< ?, ? > ) ) { throw new JsonParseException( "Expected " + RawSourceState.class.getName() + " as first dependency but got " + thresholdedState.getClass().getName() + " instead." ); }
+		if ( !( rawState instanceof RawSourceState< ?, ? >) ) { throw new JsonParseException( "Expected " + RawSourceState.class.getName() + " as first dependency but got " + rawState.getClass().getName() + " instead." ); }
 
-		if ( !(labelState instanceof LabelSourceState< ?, ? >)) { throw new JsonParseException( "Expected " + LabelSourceState.class.getName() + " as second dependency but got " + labelState.getClass().getName() + " instead." ); }
+		if ( !( thresholdedState instanceof ThresholdingSourceState< ?, ? > ) ) { throw new JsonParseException( "Expected " + ThresholdingSourceState.class.getName() + " as second dependency but got " + thresholdedState.getClass().getName() + " instead." ); }
+
+		if ( !(labelState instanceof LabelSourceState< ?, ? >)) { throw new JsonParseException( "Expected " + LabelSourceState.class.getName() + " as third dependency but got " + labelState.getClass().getName() + " instead." ); }
 
 		try {
 			final Class< ? extends Composite< ARGBType, ARGBType > > compositeType = ( Class< Composite< ARGBType, ARGBType > > ) Class.forName( map.get( COMPOSITE_TYPE_KEY ).getAsString() );
@@ -113,6 +116,7 @@ public class IntersectingSourceStateDeserializer implements JsonDeserializer< In
 
 			LOG.warn( "Creating {} with thresholded={} labels={}", IntersectingSourceState.class.getSimpleName(), thresholdedState, labelState );
 			final IntersectingSourceState state = new IntersectingSourceState(
+					(RawSourceState) rawState,
 					(ThresholdingSourceState) thresholdedState,
 					(LabelSourceState) labelState,
 					composite,

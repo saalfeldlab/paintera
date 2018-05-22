@@ -16,11 +16,10 @@ import org.janelia.saalfeldlab.paintera.data.DataSource;
 import org.janelia.saalfeldlab.paintera.data.Interpolations;
 import org.janelia.saalfeldlab.paintera.data.RandomAccessibleIntervalDataSource;
 import org.janelia.saalfeldlab.paintera.data.mask.MaskedSource;
-import org.janelia.saalfeldlab.paintera.meshes.InterruptibleFunction;
+import org.janelia.saalfeldlab.paintera.meshes.InterruptibleFunctionAndCache;
 import org.janelia.saalfeldlab.paintera.meshes.MeshManager;
 import org.janelia.saalfeldlab.paintera.meshes.MeshManagerSimple;
 import org.janelia.saalfeldlab.paintera.meshes.ShapeKey;
-import org.janelia.saalfeldlab.paintera.meshes.cache.BlocksForLabelDelegate;
 import org.janelia.saalfeldlab.paintera.meshes.cache.CacheUtils;
 import org.janelia.saalfeldlab.util.Colors;
 import org.slf4j.Logger;
@@ -38,6 +37,7 @@ import javafx.scene.paint.Color;
 import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.Volatile;
 import net.imglib2.cache.Cache;
+import net.imglib2.cache.UncheckedCache;
 import net.imglib2.cache.img.CachedCellImg;
 import net.imglib2.cache.img.LoadedCellCacheLoader;
 import net.imglib2.cache.ref.SoftRefLoaderCache;
@@ -79,6 +79,7 @@ extends MinimalSourceState< UnsignedByteType, VolatileUnsignedByteType, DataSour
 	private final MeshManagerSimple meshManager;
 
 	public < D extends Type< D >, T extends Type< T >, B extends BooleanType< B > > IntersectingSourceState(
+			final RawSourceState< ?, ? > raw,
 			final SourceState< B, Volatile< B > > thresholded,
 			final LabelSourceState< D, T > labels,
 			final Composite< ARGBType, ARGBType > composite,
@@ -95,6 +96,8 @@ extends MinimalSourceState< UnsignedByteType, VolatileUnsignedByteType, DataSour
 				new ARGBColorConverter.Imp0<>( 0, 1 ),
 				composite,
 				name,
+				// dependsOn:
+				raw,
 				thresholded,
 				labels );
 		final DataSource< UnsignedByteType, VolatileUnsignedByteType > source = getDataSource();
@@ -102,7 +105,7 @@ extends MinimalSourceState< UnsignedByteType, VolatileUnsignedByteType, DataSour
 		final MeshManager< TLongHashSet > meshManager = labels.meshManager();
 
 		final SelectedIds selectedIds = labels.selectedIds();
-		final InterruptibleFunction< ShapeKey< Long >, Pair< float[], float[] > >[] meshCaches = CacheUtils.meshCacheLoaders(
+		final InterruptibleFunctionAndCache< ShapeKey< Long >, Pair< float[], float[] > >[] meshCaches = CacheUtils.meshCacheLoaders(
 				source,
 				l -> ( s, t ) -> t.set( s.get() > 0 ),
 				CacheUtils::toCacheSoftRefLoaderCache );
@@ -112,7 +115,8 @@ extends MinimalSourceState< UnsignedByteType, VolatileUnsignedByteType, DataSour
 		final FragmentsInSelectedSegments fragmentsInSelectedSegments = new FragmentsInSelectedSegments( selectedSegments, assignment );
 
 		this.meshManager = new MeshManagerSimple(
-				BlocksForLabelDelegate.delegate( meshManager.blockListCache(), key -> Arrays.stream( fragmentsInSelectedSegments.getFragments() ).mapToObj( l -> l ).toArray( Long[]::new ) ),
+				meshManager.blockListCache(),
+//				BlocksForLabelDelegate.delegate( meshManager.blockListCache(), key -> Arrays.stream( fragmentsInSelectedSegments.getFragments() ).mapToObj( l -> l ).toArray( Long[]::new ) ),
 				meshCaches,
 				meshesGroup,
 				new SimpleIntegerProperty(),
@@ -124,18 +128,27 @@ extends MinimalSourceState< UnsignedByteType, VolatileUnsignedByteType, DataSour
 		this.meshManager.colorProperty().bind( colorProperty );
 		this.meshManager.scaleLevelProperty().bind( meshManager.scaleLevelProperty() );
 
-		selectedIds.addListener( obs -> update( source, selectedIds ) );
-		assignment.addListener( obs -> update( source, selectedIds ) );
+		raw.converter().minProperty().addListener( (obs, oldv, newv ) -> {
+			Arrays.stream( meshCaches ).forEach( UncheckedCache::invalidateAll );
+			update( source, fragmentsInSelectedSegments );
+		} );
+		raw.converter().maxProperty().addListener( (obs, oldv, newv ) -> {
+			Arrays.stream( meshCaches ).forEach( UncheckedCache::invalidateAll );
+			update( source, fragmentsInSelectedSegments );
+		} );
+
+//		selectedIds.addListener( obs -> update( source, fragmentsInSelectedSegments ) );
+//		assignment.addListener( obs -> update( source, fragmentsInSelectedSegments ) );
+		fragmentsInSelectedSegments.addListener( obs -> update( source, fragmentsInSelectedSegments ) );
 	}
 
 	private void update(
 			final DataSource< ?, ? > source,
-			final SelectedIds selectedIds
-			)
+			final FragmentsInSelectedSegments fragmentsInSelectedSegments )
 	{
 		for ( int level = 0; level < source.getNumMipmapLevels(); ++level )
 		{
-			final DataSource< ?, ? > dsource = source instanceof MaskedSource< ?, ? > ? ((MaskedSource<?,?>)source).underlyingSource() : source;
+			final DataSource< ?, ? > dsource = source instanceof MaskedSource< ?, ? > ? ( ( MaskedSource< ?, ? > ) source ).underlyingSource() : source;
 			final RandomAccessibleInterval< ? > data = dsource.getDataSource( 0, level );
 			LOG.debug( "data type={}", data.getClass().getName() );
 			if ( data instanceof CachedCellImg< ?, ? > )
@@ -151,13 +164,11 @@ extends MinimalSourceState< UnsignedByteType, VolatileUnsignedByteType, DataSour
 			}
 
 		}
-		if ( Optional.ofNullable( selectedIds.getActiveIds() ).map( sel -> sel.length ).orElse( 0 ) > 0 )
+
+		this.meshManager.removeAllMeshes();
+		if ( Optional.ofNullable( fragmentsInSelectedSegments.getFragments() ).map( sel -> sel.length ).orElse( 0 ) > 0 )
 		{
-			this.meshManager.generateMesh( 1 );
-		}
-		else
-		{
-			this.meshManager.removeAllMeshes();
+			Arrays.stream( fragmentsInSelectedSegments.getFragments() ).forEach( this.meshManager::generateMesh );
 		}
 	}
 
