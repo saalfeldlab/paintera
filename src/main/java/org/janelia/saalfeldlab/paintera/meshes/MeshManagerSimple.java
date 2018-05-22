@@ -110,7 +110,7 @@ public class MeshManagerSimple implements MeshManager< Long >
 			}
 		}
 
-		LOG.warn( "Adding mesh for segment {}.", id );
+		LOG.debug( "Adding mesh for segment {}.", id );
 		final MeshGenerator< Long > nfx = new MeshGenerator<>(
 				id,
 				blockListCache,

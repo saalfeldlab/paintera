@@ -149,7 +149,7 @@ public class BlocksForLabelCacheLoader< T > implements CacheLoader< T, Interval[
 					results.add( block.getData() );
 				}
 			}
-			LOG.warn( "key={} grid={} -- still {} blocks after filtering", key, grid, results.size() );
+			LOG.debug( "key={} grid={} -- still {} blocks after filtering", key, grid, results.size() );
 			return isInterrupted[ 0 ] ? null : results.toArray( new Interval[ results.size() ] );
 		}
 		finally

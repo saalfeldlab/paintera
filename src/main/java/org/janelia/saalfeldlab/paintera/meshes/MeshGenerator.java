@@ -224,7 +224,7 @@ public class MeshGenerator< T >
 
 	private void updateMeshes( final boolean doUpdate )
 	{
-		LOG.warn( "Updating mesh? {}", doUpdate );
+		LOG.debug( "Updating mesh? {}", doUpdate );
 		if ( !doUpdate ) { return; }
 
 		synchronized ( this.activeTask )
