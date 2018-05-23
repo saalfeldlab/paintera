@@ -340,7 +340,7 @@ public class MeshGeneratorJobManager< T >
 //						{
 //							mv.visibleProperty().bind( this.isVisible );
 //						}
-		mv.setCullFace( CullFace.NONE );
+		mv.setCullFace( CullFace.FRONT );
 		mv.setMaterial( material );
 		mv.setDrawMode( DrawMode.FILL );
 		return mv;
