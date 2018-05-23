@@ -64,6 +64,8 @@ public class MeshManagerWithAssignmentForSegments implements MeshManager< TLongH
 
 	private final IntegerProperty scaleLevel = new SimpleIntegerProperty();
 
+	private final DoubleProperty opacity = new SimpleDoubleProperty( 1.0 );
+
 	private final ExecutorService managers;
 
 	private final ExecutorService workers;
@@ -179,6 +181,7 @@ public class MeshManagerWithAssignmentForSegments implements MeshManager< TLongH
 				managers,
 				workers,
 				val -> val.toArray() );
+		nfx.opacityProperty().set( this.opacity.get() );
 		nfx.rootProperty().set( this.root );
 
 		neurons.put( id, nfx );
@@ -258,6 +261,12 @@ public class MeshManagerWithAssignmentForSegments implements MeshManager< TLongH
 	public InterruptibleFunction< ShapeKey< TLongHashSet >, Pair< float[], float[] > >[] meshCache()
 	{
 		return this.meshCache;
+	}
+
+	@Override
+	public DoubleProperty opacityProperty()
+	{
+		return this.opacity;
 	}
 
 }

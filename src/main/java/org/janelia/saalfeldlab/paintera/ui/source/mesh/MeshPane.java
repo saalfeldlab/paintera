@@ -50,6 +50,8 @@ public class MeshPane implements BindUnbindAndNodeSupplier, ListChangeListener< 
 
 	private final NumericSliderWithField smoothingIterationsSlider;
 
+	private final NumericSliderWithField opacitySlider;
+
 	final ObservableMap< MeshInfo< TLongHashSet >, MeshInfoNode > infoNodesCache = FXCollections.observableHashMap();
 
 	final ObservableList< MeshInfoNode > infoNodes = FXCollections.observableArrayList();
@@ -76,6 +78,7 @@ public class MeshPane implements BindUnbindAndNodeSupplier, ListChangeListener< 
 		scaleSlider = new NumericSliderWithField( 0, this.numScaleLevels - 1, manager.scaleLevelProperty().get() );
 		smoothingLambdaSlider = new NumericSliderWithField( 0.0, 1.0, 0.5 );
 		smoothingIterationsSlider = new NumericSliderWithField( 0, 10, 5 );
+		this.opacitySlider = new NumericSliderWithField( 0.0, 1.0, manager.opacityProperty().get() );
 
 		managerSettingsPane = new VBox( new Label( "Defaults" ), setupManagerSliderGrid(), meshesPane );
 
@@ -97,6 +100,7 @@ public class MeshPane implements BindUnbindAndNodeSupplier, ListChangeListener< 
 		scaleSlider.slider().valueProperty().bindBidirectional( manager.scaleLevelProperty() );
 		smoothingLambdaSlider.slider().valueProperty().bindBidirectional( manager.smoothingLambdaProperty() );
 		smoothingIterationsSlider.slider().valueProperty().bindBidirectional( manager.smoothingIterationsProperty() );
+		opacitySlider.slider().valueProperty().bindBidirectional( manager.opacityProperty() );
 		new ArrayList<>( this.infoNodes ).forEach( MeshInfoNode::bind );
 	}
 
@@ -108,6 +112,7 @@ public class MeshPane implements BindUnbindAndNodeSupplier, ListChangeListener< 
 		scaleSlider.slider().valueProperty().unbindBidirectional( manager.scaleLevelProperty() );
 		smoothingLambdaSlider.slider().valueProperty().unbindBidirectional( manager.smoothingLambdaProperty() );
 		smoothingIterationsSlider.slider().valueProperty().unbindBidirectional( manager.smoothingIterationsProperty() );
+		opacitySlider.slider().valueProperty().unbindBidirectional( manager.opacityProperty() );
 		new ArrayList<>( this.infoNodes ).forEach( MeshInfoNode::unbind );
 	}
 
@@ -163,6 +168,14 @@ public class MeshPane implements BindUnbindAndNodeSupplier, ListChangeListener< 
 		final GridPane contents = new GridPane();
 
 		int row = 0;
+
+		contents.add( new Label( "Opacity " ), 0, row );
+		contents.add( opacitySlider.slider(), 1, row );
+		contents.add( opacitySlider.textField(), 2, row );
+		opacitySlider.slider().setShowTickLabels( true );
+		opacitySlider.slider().setTooltip( new Tooltip( "Mesh opacity")  );
+		++row;
+
 		contents.add( new Label( "Scale" ), 0, row );
 		contents.add( scaleSlider.slider(), 1, row );
 		contents.add( scaleSlider.textField(), 2, row );
@@ -197,11 +210,13 @@ public class MeshPane implements BindUnbindAndNodeSupplier, ListChangeListener< 
 					scaleSlider.slider().valueProperty(),
 					smoothingLambdaSlider.slider().valueProperty(),
 					smoothingIterationsSlider.slider().valueProperty(),
+					opacitySlider.slider().valueProperty(),
 					newv ) );
 			node.bindToExternalSliders(
 					scaleSlider.slider().valueProperty(),
 					smoothingLambdaSlider.slider().valueProperty(),
 					smoothingIterationsSlider.slider().valueProperty(),
+					opacitySlider.slider().valueProperty(),
 					node.isManagedExternally().get() );
 		}
 		return node;

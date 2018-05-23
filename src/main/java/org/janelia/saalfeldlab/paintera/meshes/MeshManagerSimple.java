@@ -59,6 +59,8 @@ public class MeshManagerSimple implements MeshManager< Long >
 
 	private final ObjectProperty< Color > color = new SimpleObjectProperty<>( Color.WHITE );
 
+	private final DoubleProperty opacity = new SimpleDoubleProperty( 1.0 );
+
 	public MeshManagerSimple(
 			final InterruptibleFunction< Long, Interval[] >[] blockListCache,
 			final InterruptibleFunction< ShapeKey< Long >, Pair< float[], float[] > >[] meshCache,
@@ -123,6 +125,7 @@ public class MeshManagerSimple implements MeshManager< Long >
 				managers,
 				workers,
 				val -> new long[] { val } );
+		nfx.opacityProperty().set( this.opacity.get() );
 		nfx.rootProperty().set( this.root );
 		nfx.scaleIndexProperty().bind( this.scaleLevel );
 
@@ -194,6 +197,12 @@ public class MeshManagerSimple implements MeshManager< Long >
 	public ObjectProperty< Color > colorProperty()
 	{
 		return this.color;
+	}
+
+	@Override
+	public DoubleProperty opacityProperty()
+	{
+		return this.opacity;
 	}
 
 }

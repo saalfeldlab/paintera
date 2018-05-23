@@ -47,6 +47,8 @@ public class MeshInfo< T >
 
 	private final IntegerProperty successfulTasks = new SimpleIntegerProperty( 0 );
 
+	private final DoubleProperty opacity = new SimpleDoubleProperty( 1.0 );
+
 	public MeshInfo(
 			final long segmentId,
 			final FragmentSegmentAssignment assignment,
@@ -67,6 +69,8 @@ public class MeshInfo< T >
 
 		smoothingLambda.set( meshManager.smoothingLambdaProperty().get() );
 		smoothingLambda.addListener( new PropagateChanges<>( ( mesh, newv ) -> mesh.smoothingLambdaProperty().set( newv.doubleValue() ) ) );
+
+		opacity.addListener( new PropagateChanges<>( ( mesh, newv ) -> mesh.opacityProperty().set( newv.doubleValue() ) ) );
 
 		smoothingIterations.set( meshManager.smoothingIterationsProperty().get() );
 		smoothingIterations.addListener( new PropagateChanges<>( ( mesh, newv ) -> mesh.smoothingIterationsProperty().set( newv.intValue() ) ) );
@@ -129,6 +133,11 @@ public class MeshInfo< T >
 	public int numScaleLevels()
 	{
 		return this.numScaleLevels;
+	}
+
+	public DoubleProperty opacityProperty()
+	{
+		return this.opacity;
 	}
 
 	private class PropagateChanges< U > implements ChangeListener< U >

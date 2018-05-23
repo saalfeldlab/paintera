@@ -106,6 +106,8 @@ public class MeshGenerator< T >
 
 	private final ObservableValue< Color > color;
 
+	private final ObservableValue< Color > colorWithAlpha;
+
 	private final ObjectProperty< Group > root = new SimpleObjectProperty<>();
 
 	private final ExecutorService managers;
@@ -127,6 +129,8 @@ public class MeshGenerator< T >
 	private final DoubleProperty smoothingLambda = new SimpleDoubleProperty( 0.5 );
 
 	private final IntegerProperty smoothingIterations = new SimpleIntegerProperty( 5 );
+
+	private final DoubleProperty opacity = new SimpleDoubleProperty( 1.0 );
 
 	//
 	public MeshGenerator(
@@ -151,6 +155,7 @@ public class MeshGenerator< T >
 		this.workers = workers;
 		this.manager = new MeshGeneratorJobManager<>( this.meshes, this.managers, this.workers );
 		this.getIds = getIds;
+		this.colorWithAlpha = Bindings.createObjectBinding( () -> this.color.getValue().deriveColor( 0, 1.0, 1.0, this.opacity.get() ), this.color, this.opacity );
 
 		this.changed.addListener( ( obs, oldv, newv ) -> new Thread( () -> this.updateMeshes( newv ) ).start() );
 		this.changed.addListener( ( obs, oldv, newv ) -> changed.set( false ) );
@@ -193,8 +198,9 @@ public class MeshGenerator< T >
 			}
 			else
 			{
-				( ( PhongMaterial ) change.getValueAdded().getMaterial() ).diffuseColorProperty().bind( this.color );
+				( ( PhongMaterial ) change.getValueAdded().getMaterial() ).diffuseColorProperty().bind( this.colorWithAlpha );
 				change.getValueAdded().visibleProperty().bind( this.isVisible );
+				change.getValueAdded().opacityProperty().bind( this.opacity );
 			}
 
 			Optional.ofNullable( this.root.get() ).ifPresent( group -> {
@@ -314,6 +320,11 @@ public class MeshGenerator< T >
 	public ObservableIntegerValue successfulTasksProperty()
 	{
 		return this.successfulTasks;
+	}
+
+	public DoubleProperty opacityProperty()
+	{
+		return this.opacity;
 	}
 
 }

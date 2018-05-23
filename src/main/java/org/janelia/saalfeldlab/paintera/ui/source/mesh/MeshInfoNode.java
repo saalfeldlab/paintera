@@ -42,6 +42,8 @@ public class MeshInfoNode implements BindUnbindAndNodeSupplier
 
 	private final NumericSliderWithField smoothingIterationsSlider;
 
+	private final NumericSliderWithField opacitySlider;
+
 	private final IntegerProperty submittedTasks = new SimpleIntegerProperty( 0 );
 
 	private final IntegerProperty completedTasks = new SimpleIntegerProperty( 0 );
@@ -59,6 +61,7 @@ public class MeshInfoNode implements BindUnbindAndNodeSupplier
 		scaleSlider = new NumericSliderWithField( 0, meshInfo.numScaleLevels() - 1, meshInfo.scaleLevelProperty().get() );
 		smoothingLambdaSlider = new NumericSliderWithField( 0.0, 1.0, meshInfo.smoothingLambdaProperty().get() );
 		smoothingIterationsSlider = new NumericSliderWithField( 0, 10, meshInfo.smoothingIterationsProperty().get() );
+		this.opacitySlider = new NumericSliderWithField( 0, 1.0, meshInfo.opacityProperty().get() );
 		this.contents = createContents();
 
 	}
@@ -78,6 +81,7 @@ public class MeshInfoNode implements BindUnbindAndNodeSupplier
 		scaleSlider.slider().valueProperty().bindBidirectional( meshInfo.scaleLevelProperty() );
 		smoothingLambdaSlider.slider().valueProperty().bindBidirectional( meshInfo.smoothingLambdaProperty() );
 		smoothingIterationsSlider.slider().valueProperty().bindBidirectional( meshInfo.smoothingIterationsProperty() );
+		opacitySlider.slider().valueProperty().bindBidirectional( meshInfo.opacityProperty() );
 		this.submittedTasks.bind( meshInfo.submittedTasksProperty() );
 		this.completedTasks.bind( meshInfo.completedTasksProperty() );
 	}
@@ -88,6 +92,7 @@ public class MeshInfoNode implements BindUnbindAndNodeSupplier
 		scaleSlider.slider().valueProperty().unbindBidirectional( meshInfo.scaleLevelProperty() );
 		smoothingLambdaSlider.slider().valueProperty().unbindBidirectional( meshInfo.smoothingLambdaProperty() );
 		smoothingIterationsSlider.slider().valueProperty().unbindBidirectional( meshInfo.smoothingIterationsProperty() );
+		opacitySlider.slider().valueProperty().unbindBidirectional( meshInfo.opacityProperty() );
 		this.submittedTasks.unbind();
 		this.completedTasks.unbind();
 	}
@@ -96,39 +101,44 @@ public class MeshInfoNode implements BindUnbindAndNodeSupplier
 			final DoubleProperty scaleLevel,
 			final DoubleProperty smoothingLambda,
 			final DoubleProperty smoothingIterations,
+			final DoubleProperty opacity,
 			final boolean bind
 			)
 	{
 		if ( bind )
 		{
-			bindToExternalSliders( scaleLevel, smoothingLambda, smoothingIterations );
+			bindToExternalSliders( scaleLevel, smoothingLambda, smoothingIterations, opacity );
 		}
 		else
 		{
-			unbindExternalSliders( scaleLevel, smoothingLambda, smoothingIterations );
+			unbindExternalSliders( scaleLevel, smoothingLambda, smoothingIterations, opacity );
 		}
 	}
 
 	public void bindToExternalSliders(
 			final DoubleProperty scaleLevel,
 			final DoubleProperty smoothingLambda,
-			final DoubleProperty smoothingIterations
+			final DoubleProperty smoothingIterations,
+			final DoubleProperty opacity
 			)
 	{
 		this.scaleSlider.slider().valueProperty().bindBidirectional( scaleLevel );
 		this.smoothingLambdaSlider.slider().valueProperty().bindBidirectional( smoothingLambda );
 		this.smoothingIterationsSlider.slider().valueProperty().bindBidirectional( smoothingIterations );
+		this.opacitySlider.slider().valueProperty().bindBidirectional( opacity );
 	}
 
 	public void unbindExternalSliders(
 			final DoubleProperty scaleLevel,
 			final DoubleProperty smoothingLambda,
-			final DoubleProperty smoothingIterations
+			final DoubleProperty smoothingIterations,
+			final DoubleProperty opacity
 			)
 	{
 		this.scaleSlider.slider().valueProperty().unbindBidirectional( scaleLevel );
 		this.smoothingLambdaSlider.slider().valueProperty().unbindBidirectional( smoothingLambda );
 		this.smoothingIterationsSlider.slider().valueProperty().unbindBidirectional( smoothingIterations );
+		this.opacitySlider.slider().valueProperty().unbindBidirectional( opacity );
 	}
 
 	@Override
@@ -164,6 +174,13 @@ public class MeshInfoNode implements BindUnbindAndNodeSupplier
 		final GridPane contents = new GridPane();
 
 		int row = 0;
+
+		contents.add( new Label( "Opacity " ), 0, row );
+		contents.add( opacitySlider.slider(), 1, row );
+		contents.add( opacitySlider.textField(), 2, row );
+		opacitySlider.slider().setShowTickLabels( true );
+		opacitySlider.slider().setTooltip( new Tooltip( "Mesh opacity")  );
+		++row;
 
 		contents.add( new Label( "Scale" ), 0, row );
 		contents.add( scaleSlider.slider(), 1, row );

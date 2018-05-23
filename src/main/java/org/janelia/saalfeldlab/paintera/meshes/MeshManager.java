@@ -29,4 +29,6 @@ public interface MeshManager< T >
 
 	public InterruptibleFunction< ShapeKey< T >, Pair< float[], float[] > >[] meshCache();
 
+	public DoubleProperty opacityProperty();
+
 }
