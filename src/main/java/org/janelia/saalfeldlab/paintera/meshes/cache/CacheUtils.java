@@ -136,15 +136,13 @@ public class CacheUtils
 			final BlocksForLabelCacheLoader< Long > loader = BlocksForLabelCacheLoader.longKeys(
 					grid,
 					level == numMipmapLevels - 1 ? InterruptibleFunction.fromFunction( l -> new Interval[] { new FinalInterval( dims.clone() ) } ) : caches[ level + 1 ],
-							level == numMipmapLevels - 1 ? l -> collectAllOffsets( dims, bs, b -> fromMin( b, max, bs ) ) : relevantBlocksFromLowResInterval( grid, scalingFactors[ level + 1 ], scalingFactors[ level ] ),
-									key -> uniqueLabelLoaders[ finalLevel ].apply( HashWrapper.longArray( key ) ) );
+					level == numMipmapLevels - 1 ? l -> collectAllOffsets( dims, bs, b -> fromMin( b, max, bs ) ) : relevantBlocksFromLowResInterval( grid, scalingFactors[ level + 1 ], scalingFactors[ level ] ),
+					key -> uniqueLabelLoaders[ finalLevel ].apply( HashWrapper.longArray( key ) ) );
 			caches[ level ] = fromCache( makeCache.apply( loader ).unchecked(), ( Interruptible< Long > ) loader );
 		}
 
 		return caches;
 	}
-
-
 
 	/**
 	 *
@@ -198,8 +196,8 @@ public class CacheUtils
 			final BlocksForLabelCacheLoader< TLongHashSet > loader = BlocksForLabelCacheLoader.hashSetKeys(
 					grid,
 					level == numMipmapLevels - 1 ? InterruptibleFunction.fromFunction( l -> new Interval[] { new FinalInterval( dims.clone() ) } ) : caches[ level + 1 ],
-							level == numMipmapLevels - 1 ? l -> collectAllOffsets( dims, bs, b -> fromMin( b, max, bs ) ) : relevantBlocksFromLowResInterval( grid, scalingFactors[ level + 1 ], scalingFactors[ level ] ),
-									key -> uniqueLabelLoaders[ finalLevel ].apply( HashWrapper.longArray( key ) ) );
+					level == numMipmapLevels - 1 ? l -> collectAllOffsets( dims, bs, b -> fromMin( b, max, bs ) ) : relevantBlocksFromLowResInterval( grid, scalingFactors[ level + 1 ], scalingFactors[ level ] ),
+					key -> uniqueLabelLoaders[ finalLevel ].apply( HashWrapper.longArray( key ) ) );
 			caches[ level ] = fromCache( makeCache.apply( loader ).unchecked(), ( Interruptible< TLongHashSet > ) loader );
 		}
 
@@ -317,7 +315,7 @@ public class CacheUtils
 					getMaskGenerator,
 					transform );
 			final Cache< ShapeKey< Long >, Pair< float[], float[] > > cache = makeCache.apply( loader );
-			caches[ i ] = new InterruptibleFunctionAndCache<>( cache.unchecked(), loader );// fromCache( cache.unchecked(), loader );
+			caches[ i ] = new InterruptibleFunctionAndCache<>( cache.unchecked(), loader );
 		}
 
 		return caches;
@@ -336,7 +334,7 @@ public class CacheUtils
 	 * @return Cascade of {@link Cache} for retrieval of mesh queried by label
 	 *         id.
 	 */
-	public static < D, T > InterruptibleFunction< ShapeKey< TLongHashSet >, Pair< float[], float[] > >[] segmentMeshCacheLoaders(
+	public static < D, T > InterruptibleFunctionAndCache< ShapeKey< TLongHashSet >, Pair< float[], float[] > >[] segmentMeshCacheLoaders(
 			final DataSource< D, T > source,
 			final Function< TLongHashSet, Converter< D, BoolType > > getMaskGenerator,
 			final Function< CacheLoader< ShapeKey< TLongHashSet >, Pair< float[], float[] > >, Cache< ShapeKey< TLongHashSet >, Pair< float[], float[] > > > makeCache )
@@ -360,7 +358,7 @@ public class CacheUtils
 	 * @return Cascade of {@link Cache} for retrieval of mesh queried by label
 	 *         id.
 	 */
-	public static < D, T > InterruptibleFunction< ShapeKey< TLongHashSet >, Pair< float[], float[] > >[] segmentMeshCacheLoaders(
+	public static < D, T > InterruptibleFunctionAndCache< ShapeKey< TLongHashSet >, Pair< float[], float[] > >[] segmentMeshCacheLoaders(
 			final DataSource< D, T > source,
 			final int[][] cubeSizes,
 			final Function< TLongHashSet, Converter< D, BoolType > > getMaskGenerator,
@@ -368,7 +366,7 @@ public class CacheUtils
 	{
 		final int numMipmapLevels = source.getNumMipmapLevels();
 		@SuppressWarnings( "unchecked" )
-		final InterruptibleFunction< ShapeKey< TLongHashSet >, Pair< float[], float[] > >[] caches = new InterruptibleFunction[ numMipmapLevels ];
+		final InterruptibleFunctionAndCache< ShapeKey< TLongHashSet >, Pair< float[], float[] > >[] caches = new InterruptibleFunctionAndCache[ numMipmapLevels ];
 
 		for ( int i = 0; i < numMipmapLevels; ++i )
 		{
@@ -380,7 +378,7 @@ public class CacheUtils
 					getMaskGenerator,
 					transform );
 			final Cache< ShapeKey< TLongHashSet >, Pair< float[], float[] > > cache = makeCache.apply( loader );
-			caches[ i ] = fromCache( cache.unchecked(), loader );
+			caches[ i ] = new InterruptibleFunctionAndCache<>( cache.unchecked(), loader );
 		}
 
 		return caches;
