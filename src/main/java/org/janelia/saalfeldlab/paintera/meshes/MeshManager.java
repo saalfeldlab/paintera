@@ -31,4 +31,8 @@ public interface MeshManager< T >
 
 	public DoubleProperty opacityProperty();
 
+	public T representationForSegment( long id );
+
+	public long[] containedFragments( T t );
+
 }

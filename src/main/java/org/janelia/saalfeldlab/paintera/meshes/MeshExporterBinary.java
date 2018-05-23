@@ -10,22 +10,22 @@ import java.lang.invoke.MethodHandles;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class MeshExporterBinary extends MeshExporter
+public class MeshExporterBinary< T > extends MeshExporter< T >
 {
 	private static final Logger LOG = LoggerFactory.getLogger( MethodHandles.lookup().lookupClass() );
 
 	@Override
-	protected void save( String path, long id, float[] vertices, float[] normals, boolean append )
+	protected void save( final String path, final String id, final float[] vertices, final float[] normals, final boolean append )
 	{
 		save( path + ".vertices", vertices, append );
 		save( path + ".normals", normals, append );
 	}
 
-	private void save( String path, float[] info, boolean append )
+	private void save( final String path, final float[] info, final boolean append )
 	{
 		try
 		{
-			DataOutputStream stream = new DataOutputStream( new BufferedOutputStream( new FileOutputStream( path, append ) ) );
+			final DataOutputStream stream = new DataOutputStream( new BufferedOutputStream( new FileOutputStream( path, append ) ) );
 			try
 			{
 				for ( int i = 0; i < info.length; i++ )
@@ -34,12 +34,12 @@ public class MeshExporterBinary extends MeshExporter
 				}
 				stream.close();
 			}
-			catch ( IOException e )
+			catch ( final IOException e )
 			{
 				LOG.warn( "Couldn't write data to the file {}: {}", path, e.getMessage() );
 			}
 		}
-		catch ( FileNotFoundException e )
+		catch ( final FileNotFoundException e )
 		{
 			LOG.warn( "Couldn't find file {}: {}", path, e.getMessage() );
 		}

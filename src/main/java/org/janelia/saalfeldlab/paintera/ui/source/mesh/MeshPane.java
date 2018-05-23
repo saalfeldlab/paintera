@@ -2,6 +2,7 @@ package org.janelia.saalfeldlab.paintera.ui.source.mesh;
 
 import java.lang.invoke.MethodHandles;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
@@ -52,9 +53,9 @@ public class MeshPane implements BindUnbindAndNodeSupplier, ListChangeListener< 
 
 	private final NumericSliderWithField opacitySlider;
 
-	final ObservableMap< MeshInfo< TLongHashSet >, MeshInfoNode > infoNodesCache = FXCollections.observableHashMap();
+	final ObservableMap< MeshInfo< TLongHashSet >, MeshInfoNode< TLongHashSet > > infoNodesCache = FXCollections.observableHashMap();
 
-	final ObservableList< MeshInfoNode > infoNodes = FXCollections.observableArrayList();
+	final ObservableList< MeshInfoNode< TLongHashSet > > infoNodes = FXCollections.observableArrayList();
 
 	private final VBox managerSettingsPane;
 
@@ -131,16 +132,16 @@ public class MeshPane implements BindUnbindAndNodeSupplier, ListChangeListener< 
 
 	private void populateInfoNodes( final List< MeshInfo< TLongHashSet > > infos )
 	{
-		final List< MeshInfoNode > infoNodes = new ArrayList<>( infos ).stream().map( this::fromMeshInfo ).collect( Collectors.toList() );
+		final List< MeshInfoNode< TLongHashSet > > infoNodes = new ArrayList<>( infos ).stream().map( this::fromMeshInfo ).collect( Collectors.toList() );
 		LOG.debug( "Setting info nodes: {}: ", infoNodes );
 		this.infoNodes.setAll( infoNodes );
 		final Button exportMeshButton = new Button( "Export all" );
 		exportMeshButton.setOnAction( event -> {
-			final MeshExporterDialog exportDialog = new MeshExporterDialog( meshInfos );
-			final Optional< ExportResult > result = exportDialog.showAndWait();
+			final MeshExporterDialog< TLongHashSet > exportDialog = new MeshExporterDialog<>( meshInfos );
+			final Optional< ExportResult< TLongHashSet > > result = exportDialog.showAndWait();
 			if ( result.isPresent() )
 			{
-				final ExportResult parameters = result.get();
+				final ExportResult< TLongHashSet > parameters = result.get();
 
 				@SuppressWarnings( "unchecked" )
 				final InterruptibleFunction< Long, Interval[] >[][] blockListCaches = Stream
@@ -148,12 +149,20 @@ public class MeshPane implements BindUnbindAndNodeSupplier, ListChangeListener< 
 				.limit( meshInfos.readOnlyInfos().size() )
 				.toArray( InterruptibleFunction[][]::new );
 
-				final InterruptibleFunction< ShapeKey< Long >, Pair< float[], float[] > >[][] meshCaches = Stream
+				final InterruptibleFunction< ShapeKey< TLongHashSet >, Pair< float[], float[] > >[][] meshCaches = Stream
 						.generate( manager::meshCache )
 						.limit( meshInfos.readOnlyInfos().size() )
 						.toArray( InterruptibleFunction[][]::new );
 
-				parameters.getMeshExporter().exportMesh( blockListCaches, meshCaches, parameters.getSegmentId(), parameters.getScale(), parameters.getFilePaths() );
+
+
+				parameters.getMeshExporter().exportMesh(
+						blockListCaches,
+						meshCaches,
+						Arrays.stream( parameters.getSegmentId() ).map( manager::containedFragments ).toArray( long[][]::new ),
+						parameters.getSegmentId(),
+						parameters.getScale(),
+						parameters.getFilePaths() );
 			}
 		} );
 		InvokeOnJavaFXApplicationThread.invoke( () -> {
@@ -200,9 +209,9 @@ public class MeshPane implements BindUnbindAndNodeSupplier, ListChangeListener< 
 		return contents;
 	}
 
-	private MeshInfoNode fromMeshInfo( final MeshInfo< TLongHashSet > info )
+	private MeshInfoNode< TLongHashSet > fromMeshInfo( final MeshInfo< TLongHashSet > info )
 	{
-		final MeshInfoNode node = infoNodesCache.computeIfAbsent( info, MeshInfoNode::new );
+		final MeshInfoNode< TLongHashSet > node = infoNodesCache.computeIfAbsent( info, MeshInfoNode::new );
 		if ( this.isBound )
 		{
 			node.bind();

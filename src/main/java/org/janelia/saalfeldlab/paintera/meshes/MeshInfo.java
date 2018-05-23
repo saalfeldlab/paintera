@@ -35,6 +35,8 @@ public class MeshInfo< T >
 
 	private final long segmentId;
 
+	private final T segmentRepresentation;
+
 	private final FragmentSegmentAssignment assignment;
 
 	private final MeshManager< T > meshManager;
@@ -57,6 +59,7 @@ public class MeshInfo< T >
 	{
 		super();
 		this.segmentId = segmentId;
+		this.segmentRepresentation = meshManager.representationForSegment( segmentId );
 		this.assignment = assignment;
 		this.meshManager = meshManager;
 
@@ -103,6 +106,12 @@ public class MeshInfo< T >
 	public long segmentId()
 	{
 		return this.segmentId;
+	}
+
+
+	public T segmentRepresentation()
+	{
+		return this.segmentRepresentation;
 	}
 
 	public IntegerProperty scaleLevelProperty()
@@ -192,6 +201,11 @@ public class MeshInfo< T >
 	public MeshManager< T > meshManager()
 	{
 		return this.meshManager;
+	}
+
+	public long[] containedFragments()
+	{
+		return meshManager.containedFragments( meshManager.representationForSegment( segmentId ) );
 	}
 
 }

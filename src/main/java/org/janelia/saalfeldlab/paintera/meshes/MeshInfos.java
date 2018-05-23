@@ -28,7 +28,7 @@ public class MeshInfos< T >
 			final long[] segments = selectedSegments.getSelectedSegments();
 			final List< MeshInfo<T > > infos = Arrays
 					.stream( segments )
-					.mapToObj( id -> new MeshInfo< >( id, assignment, meshManager, numScaleLevels ) )
+					.mapToObj( id -> new MeshInfo<>( id, assignment, meshManager, numScaleLevels ) )
 					.collect( Collectors.toList() );
 
 			this.infos.setAll( infos );

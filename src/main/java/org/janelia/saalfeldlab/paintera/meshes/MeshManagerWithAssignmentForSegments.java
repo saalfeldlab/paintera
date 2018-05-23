@@ -13,6 +13,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.stream.Collectors;
 
 import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignmentState;
+import org.janelia.saalfeldlab.paintera.control.assignment.FragmentsInSelectedSegments;
 import org.janelia.saalfeldlab.paintera.control.selection.SelectedSegments;
 import org.janelia.saalfeldlab.paintera.data.DataSource;
 import org.janelia.saalfeldlab.paintera.stream.AbstractHighlightingARGBStream;
@@ -56,6 +57,8 @@ public class MeshManagerWithAssignmentForSegments implements MeshManager< TLongH
 
 	private final SelectedSegments selectedSegments;
 
+	private final FragmentsInSelectedSegments fragmentsInSelectedSegments;
+
 	private final IntegerProperty meshSimplificationIterations = new SimpleIntegerProperty();
 
 	private final DoubleProperty smoothingLambda = new SimpleDoubleProperty();
@@ -91,6 +94,7 @@ public class MeshManagerWithAssignmentForSegments implements MeshManager< TLongH
 		this.root = root;
 		this.assignment = assignment;
 		this.selectedSegments = selectedSegments;
+		this.fragmentsInSelectedSegments = new FragmentsInSelectedSegments( selectedSegments, assignment );
 		this.stream = stream;
 
 		this.meshSimplificationIterations.set( Math.max( meshSimplificationIterations.get(), 0 ) );
@@ -267,6 +271,18 @@ public class MeshManagerWithAssignmentForSegments implements MeshManager< TLongH
 	public DoubleProperty opacityProperty()
 	{
 		return this.opacity;
+	}
+
+	@Override
+	public TLongHashSet representationForSegment( final long id )
+	{
+		return new TLongHashSet( this.fragmentsInSelectedSegments.getFragments() );
+	}
+
+	@Override
+	public long[] containedFragments( TLongHashSet t )
+	{
+		return t.toArray();
 	}
 
 }

@@ -243,4 +243,16 @@ public class MeshManagerWithAssignment implements MeshManager< Long >
 		return this.opacity;
 	}
 
+	@Override
+	public Long representationForSegment( final long id )
+	{
+		return id;
+	}
+
+	@Override
+	public long[] containedFragments( final Long id )
+	{
+		return assignment.getFragments( id ).toArray();
+	}
+
 }

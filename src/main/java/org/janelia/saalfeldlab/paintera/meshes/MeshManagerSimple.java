@@ -205,4 +205,16 @@ public class MeshManagerSimple implements MeshManager< Long >
 		return this.opacity;
 	}
 
+	@Override
+	public Long representationForSegment( final long id )
+	{
+		return id;
+	}
+
+	@Override
+	public long[] containedFragments( final Long id )
+	{
+		return new long[] { id };
+	}
+
 }

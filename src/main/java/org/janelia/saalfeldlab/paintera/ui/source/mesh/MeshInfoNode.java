@@ -31,10 +31,10 @@ import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
 import javafx.scene.layout.VBox;
 
-public class MeshInfoNode implements BindUnbindAndNodeSupplier
+public class MeshInfoNode< T > implements BindUnbindAndNodeSupplier
 {
 
-	private final MeshInfo meshInfo;
+	private final MeshInfo< T > meshInfo;
 
 	private final NumericSliderWithField scaleSlider;
 
@@ -55,6 +55,7 @@ public class MeshInfoNode implements BindUnbindAndNodeSupplier
 	private final BooleanBinding isManagedExternally = manageSettings.not();
 
 	public MeshInfoNode( final MeshInfo meshInfo )
+	public MeshInfoNode( final MeshInfo< T > meshInfo )
 	{
 		super();
 		this.meshInfo = meshInfo;
@@ -69,7 +70,7 @@ public class MeshInfoNode implements BindUnbindAndNodeSupplier
 	public MeshInfoNode(
 			final long segmentId,
 			final FragmentSegmentAssignment assignment,
-			final MeshManager< Long > meshManager,
+			final MeshManager< T > meshManager,
 			final int numScaleLevels )
 	{
 		this( new MeshInfo( segmentId, assignment, meshManager, numScaleLevels ) );
@@ -205,15 +206,16 @@ public class MeshInfoNode implements BindUnbindAndNodeSupplier
 
 		final Button exportMeshButton = new Button( "Export" );
 		exportMeshButton.setOnAction( event -> {
-			final MeshExporterDialog exportDialog = new MeshExporterDialog( meshInfo );
-			final Optional< ExportResult > result = exportDialog.showAndWait();
+			final MeshExporterDialog< T > exportDialog = new MeshExporterDialog<>( meshInfo );
+			final Optional< ExportResult< T > > result = exportDialog.showAndWait();
 			if ( result.isPresent() )
 			{
-				final ExportResult parameters = result.get();
+				final ExportResult< T > parameters = result.get();
 				assert parameters.getSegmentId().length == 1;
 				parameters.getMeshExporter().exportMesh(
 						meshInfo.meshManager().blockListCache(),
 						meshInfo.meshManager().meshCache(),
+						this.meshInfo.meshManager().containedFragments( parameters.getSegmentId()[ 0 ] ),
 						parameters.getSegmentId()[ 0 ],
 						parameters.getScale(),
 						parameters.getFilePaths()[ 0 ] );
