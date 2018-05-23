@@ -48,7 +48,7 @@ public class LabelSourceState< D, T > extends MinimalSourceState< D, T, DataSour
 
 	private final MeshManager< TLongHashSet > meshManager;
 
-	private final MeshInfos meshInfos;
+	private final MeshInfos< TLongHashSet > meshInfos;
 
 	public LabelSourceState(
 			final DataSource< D, T > dataSource,
@@ -70,8 +70,6 @@ public class LabelSourceState< D, T > extends MinimalSourceState< D, T, DataSour
 		this.toIdConverter = ToIdConverter.fromType( d );
 		this.selectedIds = selectedIds;
 		this.idService = idService;
-
-
 
 		final SelectedSegments selectedSegments = new SelectedSegments( selectedIds, assignment );
 
