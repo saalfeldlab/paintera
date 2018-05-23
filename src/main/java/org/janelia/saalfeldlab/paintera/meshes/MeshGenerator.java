@@ -29,6 +29,7 @@ import javafx.scene.Group;
 import javafx.scene.Node;
 import javafx.scene.paint.Color;
 import javafx.scene.paint.PhongMaterial;
+import javafx.scene.shape.DrawMode;
 import javafx.scene.shape.MeshView;
 import net.imglib2.Interval;
 import net.imglib2.type.numeric.ARGBType;
@@ -132,6 +133,8 @@ public class MeshGenerator< T >
 
 	private final DoubleProperty opacity = new SimpleDoubleProperty( 1.0 );
 
+	private final ObjectProperty< DrawMode > drawMode = new SimpleObjectProperty< >( DrawMode.FILL );
+
 	//
 	public MeshGenerator(
 			final T segmentId,
@@ -195,12 +198,13 @@ public class MeshGenerator< T >
 			{
 				( ( PhongMaterial ) change.getValueRemoved().getMaterial() ).diffuseColorProperty().unbind();
 				change.getValueRemoved().visibleProperty().unbind();
+				change.getValueRemoved().drawModeProperty().unbind();
 			}
 			else
 			{
 				( ( PhongMaterial ) change.getValueAdded().getMaterial() ).diffuseColorProperty().bind( this.colorWithAlpha );
 				change.getValueAdded().visibleProperty().bind( this.isVisible );
-				change.getValueAdded().opacityProperty().bind( this.opacity );
+				change.getValueAdded().drawModeProperty().bind( this.drawMode );
 			}
 
 			Optional.ofNullable( this.root.get() ).ifPresent( group -> {
@@ -325,6 +329,11 @@ public class MeshGenerator< T >
 	public DoubleProperty opacityProperty()
 	{
 		return this.opacity;
+	}
+
+	public ObjectProperty< DrawMode > drawModeProperty()
+	{
+		return this.drawMode;
 	}
 
 }

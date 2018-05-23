@@ -15,13 +15,16 @@ import javafx.beans.binding.BooleanBinding;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.DoubleProperty;
 import javafx.beans.property.IntegerProperty;
+import javafx.beans.property.Property;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleDoubleProperty;
 import javafx.beans.property.SimpleIntegerProperty;
 import javafx.beans.value.ObservableBooleanValue;
+import javafx.collections.FXCollections;
 import javafx.scene.Node;
 import javafx.scene.control.Button;
 import javafx.scene.control.CheckBox;
+import javafx.scene.control.ComboBox;
 import javafx.scene.control.Label;
 import javafx.scene.control.TitledPane;
 import javafx.scene.control.Tooltip;
@@ -30,6 +33,7 @@ import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
 import javafx.scene.layout.VBox;
+import javafx.scene.shape.DrawMode;
 
 public class MeshInfoNode< T > implements BindUnbindAndNodeSupplier
 {
@@ -54,7 +58,8 @@ public class MeshInfoNode< T > implements BindUnbindAndNodeSupplier
 
 	private final BooleanBinding isManagedExternally = manageSettings.not();
 
-	public MeshInfoNode( final MeshInfo meshInfo )
+	private final ComboBox< DrawMode > drawModeChoice;
+
 	public MeshInfoNode( final MeshInfo< T > meshInfo )
 	{
 		super();
@@ -63,6 +68,8 @@ public class MeshInfoNode< T > implements BindUnbindAndNodeSupplier
 		smoothingLambdaSlider = new NumericSliderWithField( 0.0, 1.0, meshInfo.smoothingLambdaProperty().get() );
 		smoothingIterationsSlider = new NumericSliderWithField( 0, 10, meshInfo.smoothingIterationsProperty().get() );
 		this.opacitySlider = new NumericSliderWithField( 0, 1.0, meshInfo.opacityProperty().get() );
+		this.drawModeChoice = new ComboBox<>( FXCollections.observableArrayList( DrawMode.values() ) );
+		this.drawModeChoice.setValue( DrawMode.FILL );
 		this.contents = createContents();
 
 	}
@@ -73,7 +80,7 @@ public class MeshInfoNode< T > implements BindUnbindAndNodeSupplier
 			final MeshManager< T > meshManager,
 			final int numScaleLevels )
 	{
-		this( new MeshInfo( segmentId, assignment, meshManager, numScaleLevels ) );
+		this( new MeshInfo<>( segmentId, assignment, meshManager, numScaleLevels ) );
 	}
 
 	@Override
@@ -83,6 +90,7 @@ public class MeshInfoNode< T > implements BindUnbindAndNodeSupplier
 		smoothingLambdaSlider.slider().valueProperty().bindBidirectional( meshInfo.smoothingLambdaProperty() );
 		smoothingIterationsSlider.slider().valueProperty().bindBidirectional( meshInfo.smoothingIterationsProperty() );
 		opacitySlider.slider().valueProperty().bindBidirectional( meshInfo.opacityProperty() );
+		this.drawModeChoice.valueProperty().bindBidirectional( meshInfo.drawModeProperty() );
 		this.submittedTasks.bind( meshInfo.submittedTasksProperty() );
 		this.completedTasks.bind( meshInfo.completedTasksProperty() );
 	}
@@ -94,6 +102,7 @@ public class MeshInfoNode< T > implements BindUnbindAndNodeSupplier
 		smoothingLambdaSlider.slider().valueProperty().unbindBidirectional( meshInfo.smoothingLambdaProperty() );
 		smoothingIterationsSlider.slider().valueProperty().unbindBidirectional( meshInfo.smoothingIterationsProperty() );
 		opacitySlider.slider().valueProperty().unbindBidirectional( meshInfo.opacityProperty() );
+		this.drawModeChoice.valueProperty().unbindBidirectional( meshInfo.drawModeProperty() );
 		this.submittedTasks.unbind();
 		this.completedTasks.unbind();
 	}
@@ -103,16 +112,17 @@ public class MeshInfoNode< T > implements BindUnbindAndNodeSupplier
 			final DoubleProperty smoothingLambda,
 			final DoubleProperty smoothingIterations,
 			final DoubleProperty opacity,
+			final Property< DrawMode > drawMode,
 			final boolean bind
 			)
 	{
 		if ( bind )
 		{
-			bindToExternalSliders( scaleLevel, smoothingLambda, smoothingIterations, opacity );
+			bindToExternalSliders( scaleLevel, smoothingLambda, smoothingIterations, opacity, drawMode );
 		}
 		else
 		{
-			unbindExternalSliders( scaleLevel, smoothingLambda, smoothingIterations, opacity );
+			unbindExternalSliders( scaleLevel, smoothingLambda, smoothingIterations, opacity, drawMode );
 		}
 	}
 
@@ -120,26 +130,30 @@ public class MeshInfoNode< T > implements BindUnbindAndNodeSupplier
 			final DoubleProperty scaleLevel,
 			final DoubleProperty smoothingLambda,
 			final DoubleProperty smoothingIterations,
-			final DoubleProperty opacity
+			final DoubleProperty opacity,
+			final Property< DrawMode > drawMode
 			)
 	{
 		this.scaleSlider.slider().valueProperty().bindBidirectional( scaleLevel );
 		this.smoothingLambdaSlider.slider().valueProperty().bindBidirectional( smoothingLambda );
 		this.smoothingIterationsSlider.slider().valueProperty().bindBidirectional( smoothingIterations );
 		this.opacitySlider.slider().valueProperty().bindBidirectional( opacity );
+		this.drawModeChoice.valueProperty().bindBidirectional( drawMode );
 	}
 
 	public void unbindExternalSliders(
 			final DoubleProperty scaleLevel,
 			final DoubleProperty smoothingLambda,
 			final DoubleProperty smoothingIterations,
-			final DoubleProperty opacity
+			final DoubleProperty opacity,
+			final Property< DrawMode > drawMode
 			)
 	{
 		this.scaleSlider.slider().valueProperty().unbindBidirectional( scaleLevel );
 		this.smoothingLambdaSlider.slider().valueProperty().unbindBidirectional( smoothingLambda );
 		this.smoothingIterationsSlider.slider().valueProperty().unbindBidirectional( smoothingIterations );
 		this.opacitySlider.slider().valueProperty().unbindBidirectional( opacity );
+		this.drawModeChoice.valueProperty().unbindBidirectional( drawMode );
 	}
 
 	@Override
@@ -202,6 +216,10 @@ public class MeshInfoNode< T > implements BindUnbindAndNodeSupplier
 		contents.add( smoothingIterationsSlider.textField(), 2, row );
 		smoothingIterationsSlider.slider().setShowTickLabels( true );
 		smoothingIterationsSlider.slider().setTooltip( new Tooltip( "Smooth meshes n times." ) );
+		++row;
+
+		contents.add( new Label("Draw Mode"), 0, row );
+		contents.add( drawModeChoice, 2, row );
 		++row;
 
 		final Button exportMeshButton = new Button( "Export" );

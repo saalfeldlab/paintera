@@ -26,11 +26,13 @@ import javafx.collections.ObservableList;
 import javafx.collections.ObservableMap;
 import javafx.scene.Node;
 import javafx.scene.control.Button;
+import javafx.scene.control.ComboBox;
 import javafx.scene.control.Label;
 import javafx.scene.control.TitledPane;
 import javafx.scene.control.Tooltip;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.VBox;
+import javafx.scene.shape.DrawMode;
 import net.imglib2.Interval;
 import net.imglib2.util.Pair;
 
@@ -67,6 +69,8 @@ public class MeshPane implements BindUnbindAndNodeSupplier, ListChangeListener< 
 		meshesPane.setMaxWidth( Double.MAX_VALUE );
 	}
 
+	private final ComboBox< DrawMode > drawModeChoice;
+
 	private boolean isBound = false;
 
 	public MeshPane( final MeshManager< TLongHashSet > manager, final MeshInfos< TLongHashSet > meshInfos, final int numScaleLevels )
@@ -80,6 +84,8 @@ public class MeshPane implements BindUnbindAndNodeSupplier, ListChangeListener< 
 		smoothingLambdaSlider = new NumericSliderWithField( 0.0, 1.0, 0.5 );
 		smoothingIterationsSlider = new NumericSliderWithField( 0, 10, 5 );
 		this.opacitySlider = new NumericSliderWithField( 0.0, 1.0, manager.opacityProperty().get() );
+		this.drawModeChoice = new ComboBox<>( FXCollections.observableArrayList( DrawMode.values() ) );
+		this.drawModeChoice.setValue( DrawMode.FILL );
 
 		managerSettingsPane = new VBox( new Label( "Defaults" ), setupManagerSliderGrid(), meshesPane );
 
@@ -206,6 +212,10 @@ public class MeshPane implements BindUnbindAndNodeSupplier, ListChangeListener< 
 		smoothingIterationsSlider.slider().setTooltip( new Tooltip( "Default for smoothing iterations." ) );
 		++row;
 
+		contents.add( new Label("Draw Mode"), 0, row );
+		contents.add( drawModeChoice, 2, row );
+		++row;
+
 		return contents;
 	}
 
@@ -220,12 +230,14 @@ public class MeshPane implements BindUnbindAndNodeSupplier, ListChangeListener< 
 					smoothingLambdaSlider.slider().valueProperty(),
 					smoothingIterationsSlider.slider().valueProperty(),
 					opacitySlider.slider().valueProperty(),
+					drawModeChoice.valueProperty(),
 					newv ) );
 			node.bindToExternalSliders(
 					scaleSlider.slider().valueProperty(),
 					smoothingLambdaSlider.slider().valueProperty(),
 					smoothingIterationsSlider.slider().valueProperty(),
 					opacitySlider.slider().valueProperty(),
+					drawModeChoice.valueProperty(),
 					node.isManagedExternally().get() );
 		}
 		return node;
