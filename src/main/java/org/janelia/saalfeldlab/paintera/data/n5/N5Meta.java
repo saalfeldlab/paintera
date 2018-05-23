@@ -20,12 +20,12 @@ public interface N5Meta
 	{
 		if ( reader instanceof N5FSReader )
 		{
-			return new N5FSMeta( (N5FSReader)reader, dataset );
+			return new N5FSMeta( ( N5FSReader )reader, dataset );
 		}
 
 		if ( reader instanceof N5HDF5Reader )
 		{
-			return null;
+			return new N5HDF5Meta( ( N5HDF5Reader )reader, dataset );
 		}
 
 		return null;
