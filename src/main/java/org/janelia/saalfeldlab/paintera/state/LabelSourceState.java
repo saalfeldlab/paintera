@@ -1,6 +1,9 @@
 package org.janelia.saalfeldlab.paintera.state;
 
+import java.io.IOException;
+import java.nio.file.Path;
 import java.util.concurrent.ExecutorService;
+import java.util.function.BiFunction;
 import java.util.function.Function;
 import java.util.function.LongFunction;
 
@@ -18,6 +21,7 @@ import org.janelia.saalfeldlab.paintera.meshes.MeshManager;
 import org.janelia.saalfeldlab.paintera.meshes.MeshManagerWithAssignmentForSegments;
 import org.janelia.saalfeldlab.paintera.meshes.ShapeKey;
 import org.janelia.saalfeldlab.paintera.meshes.cache.CacheUtils;
+import org.janelia.saalfeldlab.paintera.meshes.cache.IntervalFileIO;
 import org.janelia.saalfeldlab.paintera.meshes.cache.SegmentMaskGenerators;
 import org.janelia.saalfeldlab.paintera.stream.HighlightingStreamConverter;
 
@@ -30,6 +34,7 @@ import net.imglib2.converter.Converter;
 import net.imglib2.type.logic.BoolType;
 import net.imglib2.type.numeric.ARGBType;
 import net.imglib2.util.Pair;
+import tmp.net.imglib2.cache.GeneralDiskCache;
 
 public class LabelSourceState< D, T > extends MinimalSourceState< D, T, DataSource< D, T >, HighlightingStreamConverter< T > >
 {
@@ -75,7 +80,23 @@ public class LabelSourceState< D, T > extends MinimalSourceState< D, T, DataSour
 
 		final SelectedSegments selectedSegments = new SelectedSegments( selectedIds, assignment );
 
-		final InterruptibleFunction< Long, Interval[] >[] blockCaches = PainteraBaseView.generateLabelBlocksForLabelCache( dataSource );
+		Path cacheLocation;
+		try {
+			cacheLocation = GeneralDiskCache.createTempDirectory( null, true );
+		}
+		catch ( final IOException e )
+		{
+			throw new RuntimeException( e );
+		}
+
+
+		final BiFunction< Path, Long, Path > filePathFromKey = ( path, l ) -> path.resolve( l.toString() );
+
+		final IntervalFileIO fileIO = new IntervalFileIO();
+
+		final InterruptibleFunction< Long, Interval[] >[] blockCaches = PainteraBaseView.generateLabelBlocksForLabelCache(
+				dataSource,
+				loader -> CacheUtils.toDiskCacheBackedSoftRedLoaderCache( loader, cacheLocation, filePathFromKey, fileIO ) );
 		final InterruptibleFunction< ShapeKey< TLongHashSet >, Pair< float[], float[] > >[] meshCache = CacheUtils.segmentMeshCacheLoaders(
 				dataSource,
 				segmentMaskGenerator,

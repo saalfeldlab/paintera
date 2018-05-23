@@ -42,6 +42,7 @@ import javafx.scene.layout.Pane;
 import net.imglib2.Interval;
 import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.cache.Cache;
+import net.imglib2.cache.CacheLoader;
 import net.imglib2.cache.img.CachedCellImg;
 import net.imglib2.converter.ARGBColorConverter;
 import net.imglib2.converter.Converter;
@@ -222,14 +223,16 @@ public class PainteraBaseView
 	}
 
 	public static < D, T > InterruptibleFunction< Long, Interval[] >[] generateLabelBlocksForLabelCache(
-			final DataSource< D, T > spec )
+			final DataSource< D, T > spec,
+			final Function< CacheLoader< Long, Interval[] >, Cache< Long, Interval[] > > makeCache )
 	{
-		return generateLabelBlocksForLabelCache( spec, scaleFactorsFromAffineTransforms( spec ) );
+		return generateLabelBlocksForLabelCache( spec, scaleFactorsFromAffineTransforms( spec ), makeCache );
 	}
 
 	public static < D, T > InterruptibleFunction< Long, Interval[] >[] generateLabelBlocksForLabelCache(
 			final DataSource< D, T > spec,
-			final double[][] scalingFactors )
+			final double[][] scalingFactors,
+			final Function< CacheLoader< Long, Interval[] >, Cache< Long, Interval[] > > makeCache )
 	{
 		final boolean isMaskedSource = spec instanceof MaskedSource< ?, ? >;
 		final boolean isLabelMultisetType = spec.getDataType() instanceof LabelMultisetType;
@@ -242,16 +245,17 @@ public class PainteraBaseView
 			@SuppressWarnings( "unchecked" )
 			final DataSource< LabelMultisetType, T > source =
 			( DataSource< LabelMultisetType, T > ) ( isMaskedSource ? ( ( MaskedSource< ?, ? > ) spec ).underlyingSource() : spec );
-			return generateBlocksForLabelCacheLabelMultisetTypeCachedImg( source, scalingFactors );
+			return generateBlocksForLabelCacheLabelMultisetTypeCachedImg( source, scalingFactors, makeCache );
 		}
 
-		return generateLabelBlocksForLabelCacheGeneric( spec, scalingFactors, collectLabels( spec.getDataType() ) );
+		return generateLabelBlocksForLabelCacheGeneric( spec, scalingFactors, collectLabels( spec.getDataType() ), makeCache );
 	}
 
 	private static < D, T > InterruptibleFunction< Long, Interval[] >[] generateLabelBlocksForLabelCacheGeneric(
 			final DataSource< D, T > spec,
 			final double[][] scalingFactors,
-			final BiConsumer< D, TLongHashSet > collectLabels )
+			final BiConsumer< D, TLongHashSet > collectLabels,
+			final Function< CacheLoader< Long, Interval[] >, Cache< Long, Interval[] > > makeCache )
 	{
 
 		final int[][] blockSizes = Stream.generate( () -> new int[] { 64, 64, 64 } ).limit( spec.getNumMipmapLevels() ).toArray( int[][]::new );
@@ -267,7 +271,7 @@ public class PainteraBaseView
 				uniqueLabelLoaders,
 				blockSizes,
 				scalingFactors,
-				CacheUtils::toCacheSoftRefLoaderCache );
+				makeCache );
 
 		return blocksForLabelCache;
 
@@ -275,7 +279,8 @@ public class PainteraBaseView
 
 	private static < T > InterruptibleFunction< Long, Interval[] >[] generateBlocksForLabelCacheLabelMultisetTypeCachedImg(
 			final DataSource< LabelMultisetType, T > spec,
-			final double[][] scalingFactors )
+			final double[][] scalingFactors,
+			final Function< CacheLoader< Long, Interval[] >, Cache< Long, Interval[] > > makeCache )
 	{
 		@SuppressWarnings( "unchecked" )
 		final InterruptibleFunction< HashWrapper< long[] >, long[] >[] uniqueLabelLoaders = new InterruptibleFunction[ spec.getNumMipmapLevels() ];
@@ -300,7 +305,8 @@ public class PainteraBaseView
 				uniqueLabelLoaders,
 				blockSizes,
 				scalingFactors,
-				CacheUtils::toCacheSoftRefLoaderCache );
+				makeCache );
+		//CacheUtils::toCacheSoftRefLoaderCache );
 
 		return blocksForLabelCache;
 	}

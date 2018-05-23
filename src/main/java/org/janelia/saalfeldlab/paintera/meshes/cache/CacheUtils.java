@@ -1,12 +1,14 @@
 package org.janelia.saalfeldlab.paintera.meshes.cache;
 
 import java.lang.invoke.MethodHandles;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.function.BiConsumer;
+import java.util.function.BiFunction;
 import java.util.function.Function;
 import java.util.function.IntFunction;
 import java.util.function.LongFunction;
@@ -33,6 +35,7 @@ import net.imglib2.cache.Cache;
 import net.imglib2.cache.CacheLoader;
 import net.imglib2.cache.UncheckedCache;
 import net.imglib2.cache.ref.SoftRefLoaderCache;
+import net.imglib2.cache.ref.SoftRefLoaderRemoverCache;
 import net.imglib2.converter.Converter;
 import net.imglib2.img.cell.CellGrid;
 import net.imglib2.realtransform.AffineTransform3D;
@@ -40,6 +43,8 @@ import net.imglib2.type.logic.BoolType;
 import net.imglib2.util.Intervals;
 import net.imglib2.util.Pair;
 import net.imglib2.view.Views;
+import tmp.net.imglib2.cache.FileIO;
+import tmp.net.imglib2.cache.GeneralDiskCache;
 
 public class CacheUtils
 {
@@ -547,6 +552,16 @@ public class CacheUtils
 	public static < K, V > Cache< K, V > toCacheSoftRefLoaderCache( final CacheLoader< K, V > loader )
 	{
 		return new SoftRefLoaderCache< K, V >().withLoader( loader );
+	}
+
+	public static < K, V > Cache< K, V > toDiskCacheBackedSoftRedLoaderCache(
+			final CacheLoader< K, V > loader,
+			final Path cacheLocation,
+			final BiFunction< Path, K, Path > filePathFromKey,
+			final FileIO< V > fileIO )
+	{
+		final GeneralDiskCache< K, V > gdc = new GeneralDiskCache<>( cacheLocation, loader, filePathFromKey, fileIO );
+		return new SoftRefLoaderRemoverCache< K, V >().withLoader( gdc ).withRemover( gdc );
 	}
 
 	public static < T, R > InterruptibleFunction< T, R > fromCache( final UncheckedCache< T, R > cache, final Interruptible< T > interruptible )
