@@ -6,6 +6,7 @@ import org.janelia.saalfeldlab.n5.N5FSReader;
 import org.janelia.saalfeldlab.n5.N5Reader;
 import org.janelia.saalfeldlab.n5.N5Writer;
 import org.janelia.saalfeldlab.n5.hdf5.N5HDF5Reader;
+import org.mortbay.log.Log;
 
 public interface N5Meta
 {
@@ -20,13 +21,15 @@ public interface N5Meta
 	{
 		if ( reader instanceof N5FSReader )
 		{
-			return new N5FSMeta( (N5FSReader)reader, dataset );
+			return new N5FSMeta( ( N5FSReader )reader, dataset );
 		}
 
 		if ( reader instanceof N5HDF5Reader )
 		{
-			return null;
+			return new N5HDF5Meta( ( N5HDF5Reader )reader, dataset );
 		}
+
+		Log.warn( "Cannot create meta for reader of type {}", reader.getClass().getName() );
 
 		return null;
 	}
