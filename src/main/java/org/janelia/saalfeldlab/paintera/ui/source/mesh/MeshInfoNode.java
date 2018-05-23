@@ -1,5 +1,6 @@
 package org.janelia.saalfeldlab.paintera.ui.source.mesh;
 
+import java.lang.invoke.MethodHandles;
 import java.util.Arrays;
 import java.util.Optional;
 
@@ -10,6 +11,8 @@ import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssign
 import org.janelia.saalfeldlab.paintera.meshes.MeshInfo;
 import org.janelia.saalfeldlab.paintera.meshes.MeshManager;
 import org.janelia.saalfeldlab.paintera.ui.BindUnbindAndNodeSupplier;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import javafx.beans.binding.BooleanBinding;
 import javafx.beans.property.BooleanProperty;
@@ -33,10 +36,13 @@ import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
 import javafx.scene.layout.VBox;
+import javafx.scene.shape.CullFace;
 import javafx.scene.shape.DrawMode;
 
 public class MeshInfoNode< T > implements BindUnbindAndNodeSupplier
 {
+
+	private static final Logger LOG = LoggerFactory.getLogger( MethodHandles.lookup().lookupClass() );
 
 	private final MeshInfo< T > meshInfo;
 
@@ -60,6 +66,8 @@ public class MeshInfoNode< T > implements BindUnbindAndNodeSupplier
 
 	private final ComboBox< DrawMode > drawModeChoice;
 
+	private final ComboBox< CullFace > cullFaceChoice;
+
 	public MeshInfoNode( final MeshInfo< T > meshInfo )
 	{
 		super();
@@ -68,8 +76,13 @@ public class MeshInfoNode< T > implements BindUnbindAndNodeSupplier
 		smoothingLambdaSlider = new NumericSliderWithField( 0.0, 1.0, meshInfo.smoothingLambdaProperty().get() );
 		smoothingIterationsSlider = new NumericSliderWithField( 0, 10, meshInfo.smoothingIterationsProperty().get() );
 		this.opacitySlider = new NumericSliderWithField( 0, 1.0, meshInfo.opacityProperty().get() );
+
 		this.drawModeChoice = new ComboBox<>( FXCollections.observableArrayList( DrawMode.values() ) );
 		this.drawModeChoice.setValue( DrawMode.FILL );
+
+		this.cullFaceChoice = new ComboBox<>( FXCollections.observableArrayList( CullFace.values() ) );
+		this.cullFaceChoice.setValue( CullFace.FRONT );
+
 		this.contents = createContents();
 
 	}
@@ -90,7 +103,8 @@ public class MeshInfoNode< T > implements BindUnbindAndNodeSupplier
 		smoothingLambdaSlider.slider().valueProperty().bindBidirectional( meshInfo.smoothingLambdaProperty() );
 		smoothingIterationsSlider.slider().valueProperty().bindBidirectional( meshInfo.smoothingIterationsProperty() );
 		opacitySlider.slider().valueProperty().bindBidirectional( meshInfo.opacityProperty() );
-		this.drawModeChoice.valueProperty().bindBidirectional( meshInfo.drawModeProperty() );
+		drawModeChoice.valueProperty().bindBidirectional( meshInfo.drawModeProperty() );
+		cullFaceChoice.valueProperty().bindBidirectional( meshInfo.cullFaceProperty()  );
 		this.submittedTasks.bind( meshInfo.submittedTasksProperty() );
 		this.completedTasks.bind( meshInfo.completedTasksProperty() );
 	}
@@ -102,7 +116,8 @@ public class MeshInfoNode< T > implements BindUnbindAndNodeSupplier
 		smoothingLambdaSlider.slider().valueProperty().unbindBidirectional( meshInfo.smoothingLambdaProperty() );
 		smoothingIterationsSlider.slider().valueProperty().unbindBidirectional( meshInfo.smoothingIterationsProperty() );
 		opacitySlider.slider().valueProperty().unbindBidirectional( meshInfo.opacityProperty() );
-		this.drawModeChoice.valueProperty().unbindBidirectional( meshInfo.drawModeProperty() );
+		drawModeChoice.valueProperty().unbindBidirectional( meshInfo.drawModeProperty() );
+		cullFaceChoice.valueProperty().unbindBidirectional( meshInfo.cullFaceProperty() );
 		this.submittedTasks.unbind();
 		this.completedTasks.unbind();
 	}
@@ -113,16 +128,17 @@ public class MeshInfoNode< T > implements BindUnbindAndNodeSupplier
 			final DoubleProperty smoothingIterations,
 			final DoubleProperty opacity,
 			final Property< DrawMode > drawMode,
+			final Property< CullFace > cullFace,
 			final boolean bind
 			)
 	{
 		if ( bind )
 		{
-			bindToExternalSliders( scaleLevel, smoothingLambda, smoothingIterations, opacity, drawMode );
+			bindToExternalSliders( scaleLevel, smoothingLambda, smoothingIterations, opacity, drawMode, cullFace );
 		}
 		else
 		{
-			unbindExternalSliders( scaleLevel, smoothingLambda, smoothingIterations, opacity, drawMode );
+			unbindExternalSliders( scaleLevel, smoothingLambda, smoothingIterations, opacity, drawMode, cullFace );
 		}
 	}
 
@@ -131,7 +147,8 @@ public class MeshInfoNode< T > implements BindUnbindAndNodeSupplier
 			final DoubleProperty smoothingLambda,
 			final DoubleProperty smoothingIterations,
 			final DoubleProperty opacity,
-			final Property< DrawMode > drawMode
+			final Property< DrawMode > drawMode,
+			final Property< CullFace > cullFace
 			)
 	{
 		this.scaleSlider.slider().valueProperty().bindBidirectional( scaleLevel );
@@ -139,6 +156,7 @@ public class MeshInfoNode< T > implements BindUnbindAndNodeSupplier
 		this.smoothingIterationsSlider.slider().valueProperty().bindBidirectional( smoothingIterations );
 		this.opacitySlider.slider().valueProperty().bindBidirectional( opacity );
 		this.drawModeChoice.valueProperty().bindBidirectional( drawMode );
+		this.cullFaceChoice.valueProperty().bindBidirectional( cullFace );
 	}
 
 	public void unbindExternalSliders(
@@ -146,7 +164,8 @@ public class MeshInfoNode< T > implements BindUnbindAndNodeSupplier
 			final DoubleProperty smoothingLambda,
 			final DoubleProperty smoothingIterations,
 			final DoubleProperty opacity,
-			final Property< DrawMode > drawMode
+			final Property< DrawMode > drawMode,
+			final Property< CullFace > cullFace
 			)
 	{
 		this.scaleSlider.slider().valueProperty().unbindBidirectional( scaleLevel );
@@ -154,6 +173,7 @@ public class MeshInfoNode< T > implements BindUnbindAndNodeSupplier
 		this.smoothingIterationsSlider.slider().valueProperty().unbindBidirectional( smoothingIterations );
 		this.opacitySlider.slider().valueProperty().unbindBidirectional( opacity );
 		this.drawModeChoice.valueProperty().unbindBidirectional( drawMode );
+		this.cullFaceChoice.valueProperty().unbindBidirectional( cullFace );
 	}
 
 	@Override
@@ -220,6 +240,10 @@ public class MeshInfoNode< T > implements BindUnbindAndNodeSupplier
 
 		contents.add( new Label("Draw Mode"), 0, row );
 		contents.add( drawModeChoice, 2, row );
+		++row;
+
+		contents.add( new Label("Cull Face"), 0, row );
+		contents.add( cullFaceChoice, 2, row );
 		++row;
 
 		final Button exportMeshButton = new Button( "Export" );

@@ -32,6 +32,7 @@ import javafx.scene.control.TitledPane;
 import javafx.scene.control.Tooltip;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.VBox;
+import javafx.scene.shape.CullFace;
 import javafx.scene.shape.DrawMode;
 import net.imglib2.Interval;
 import net.imglib2.util.Pair;
@@ -71,6 +72,8 @@ public class MeshPane implements BindUnbindAndNodeSupplier, ListChangeListener< 
 
 	private final ComboBox< DrawMode > drawModeChoice;
 
+	private final ComboBox< CullFace > cullFaceChoice;
+
 	private boolean isBound = false;
 
 	public MeshPane( final MeshManager< TLongHashSet > manager, final MeshInfos< TLongHashSet > meshInfos, final int numScaleLevels )
@@ -84,8 +87,12 @@ public class MeshPane implements BindUnbindAndNodeSupplier, ListChangeListener< 
 		smoothingLambdaSlider = new NumericSliderWithField( 0.0, 1.0, 0.5 );
 		smoothingIterationsSlider = new NumericSliderWithField( 0, 10, 5 );
 		this.opacitySlider = new NumericSliderWithField( 0.0, 1.0, manager.opacityProperty().get() );
+
 		this.drawModeChoice = new ComboBox<>( FXCollections.observableArrayList( DrawMode.values() ) );
 		this.drawModeChoice.setValue( DrawMode.FILL );
+
+		this.cullFaceChoice = new ComboBox<>( FXCollections.observableArrayList( CullFace.values() ) );
+		this.cullFaceChoice.setValue( CullFace.FRONT );
 
 		managerSettingsPane = new VBox( new Label( "Defaults" ), setupManagerSliderGrid(), meshesPane );
 
@@ -216,6 +223,10 @@ public class MeshPane implements BindUnbindAndNodeSupplier, ListChangeListener< 
 		contents.add( drawModeChoice, 2, row );
 		++row;
 
+		contents.add( new Label("CullFace "), 0, row );
+		contents.add( cullFaceChoice, 2, row );
+		++row;
+
 		return contents;
 	}
 
@@ -231,6 +242,7 @@ public class MeshPane implements BindUnbindAndNodeSupplier, ListChangeListener< 
 					smoothingIterationsSlider.slider().valueProperty(),
 					opacitySlider.slider().valueProperty(),
 					drawModeChoice.valueProperty(),
+					cullFaceChoice.valueProperty(),
 					newv ) );
 			node.bindToExternalSliders(
 					scaleSlider.slider().valueProperty(),
@@ -238,6 +250,7 @@ public class MeshPane implements BindUnbindAndNodeSupplier, ListChangeListener< 
 					smoothingIterationsSlider.slider().valueProperty(),
 					opacitySlider.slider().valueProperty(),
 					drawModeChoice.valueProperty(),
+					cullFaceChoice.valueProperty(),
 					node.isManagedExternally().get() );
 		}
 		return node;

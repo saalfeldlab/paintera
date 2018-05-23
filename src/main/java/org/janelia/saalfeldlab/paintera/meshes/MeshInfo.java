@@ -21,6 +21,7 @@ import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.value.ChangeListener;
 import javafx.beans.value.ObservableIntegerValue;
 import javafx.beans.value.ObservableValue;
+import javafx.scene.shape.CullFace;
 import javafx.scene.shape.DrawMode;
 
 public class MeshInfo< T >
@@ -56,6 +57,8 @@ public class MeshInfo< T >
 
 	private final ObjectProperty< DrawMode > drawMode = new SimpleObjectProperty<>( DrawMode.FILL );
 
+	private final ObjectProperty< CullFace > cullFace = new SimpleObjectProperty< >( CullFace.FRONT );
+
 	public MeshInfo(
 			final long segmentId,
 			final FragmentSegmentAssignment assignment,
@@ -84,6 +87,8 @@ public class MeshInfo< T >
 		smoothingIterations.addListener( new PropagateChanges<>( ( mesh, newv ) -> mesh.smoothingIterationsProperty().set( newv.intValue() ) ) );
 
 		drawMode.addListener( new PropagateChanges<>( ( mesh, newv ) -> mesh.drawModeProperty().set( newv ) ) );
+
+		cullFace.addListener( new PropagateChanges<>( ( mesh, newv ) -> mesh.cullFaceProperty().set( newv ) ) );
 
 		this.numScaleLevels = numScaleLevels;
 
@@ -213,6 +218,11 @@ public class MeshInfo< T >
 	public ObjectProperty< DrawMode > drawModeProperty()
 	{
 		return this.drawMode;
+	}
+
+	public ObjectProperty< CullFace > cullFaceProperty()
+	{
+		return this.cullFace;
 	}
 
 	public long[] containedFragments()

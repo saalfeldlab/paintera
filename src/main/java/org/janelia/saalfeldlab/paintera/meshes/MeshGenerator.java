@@ -29,6 +29,7 @@ import javafx.scene.Group;
 import javafx.scene.Node;
 import javafx.scene.paint.Color;
 import javafx.scene.paint.PhongMaterial;
+import javafx.scene.shape.CullFace;
 import javafx.scene.shape.DrawMode;
 import javafx.scene.shape.MeshView;
 import net.imglib2.Interval;
@@ -135,6 +136,8 @@ public class MeshGenerator< T >
 
 	private final ObjectProperty< DrawMode > drawMode = new SimpleObjectProperty< >( DrawMode.FILL );
 
+	private final ObjectProperty< CullFace > cullFace = new SimpleObjectProperty<>( CullFace.FRONT );
+
 	//
 	public MeshGenerator(
 			final T segmentId,
@@ -199,12 +202,14 @@ public class MeshGenerator< T >
 				( ( PhongMaterial ) change.getValueRemoved().getMaterial() ).diffuseColorProperty().unbind();
 				change.getValueRemoved().visibleProperty().unbind();
 				change.getValueRemoved().drawModeProperty().unbind();
+				change.getValueRemoved().cullFaceProperty().unbind();
 			}
 			else
 			{
 				( ( PhongMaterial ) change.getValueAdded().getMaterial() ).diffuseColorProperty().bind( this.colorWithAlpha );
 				change.getValueAdded().visibleProperty().bind( this.isVisible );
 				change.getValueAdded().drawModeProperty().bind( this.drawMode );
+				change.getValueAdded().cullFaceProperty().bind( this.cullFace );
 			}
 
 			Optional.ofNullable( this.root.get() ).ifPresent( group -> {
@@ -334,6 +339,11 @@ public class MeshGenerator< T >
 	public ObjectProperty< DrawMode > drawModeProperty()
 	{
 		return this.drawMode;
+	}
+
+	public ObjectProperty< CullFace > cullFaceProperty()
+	{
+		return this.cullFace;
 	}
 
 }
