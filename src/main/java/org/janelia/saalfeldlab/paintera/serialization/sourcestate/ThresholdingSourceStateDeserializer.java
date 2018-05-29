@@ -70,7 +70,7 @@ public class ThresholdingSourceStateDeserializer implements JsonDeserializer< Th
 		final JsonObject converterMap = map.get( ThresholdingSourceStateSerializer.CONVERTER_KEY ).getAsJsonObject();
 		final ARGBType foreground = Colors.toARGBType( converterMap.get( ThresholdingSourceStateSerializer.FOREGROUND_COLOR_KEY ).getAsString() );
 		final ARGBType background = Colors.toARGBType( converterMap.get( ThresholdingSourceStateSerializer.BACKGROUND_COLOR_KEY ).getAsString() );
-		LOG.warn( "Got foreground={} and background={}", foreground, background );
+		LOG.debug( "Got foreground={} and background={}", foreground, background );
 		state.converter().setMasked( foreground );
 		state.converter().setNotMasked( background );
 		return state;

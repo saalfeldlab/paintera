@@ -116,7 +116,7 @@ public class MeshManagerSimple< T > implements MeshManager< T >
 			}
 		}
 
-		LOG.warn( "Adding mesh for segment {} (composed of ids={}).", id, getIds.apply( id ) );
+		LOG.debug( "Adding mesh for segment {} (composed of ids={}).", id, getIds.apply( id ) );
 		final MeshGenerator< T > nfx = new MeshGenerator<>(
 				id,
 				blockListCache,

@@ -110,7 +110,7 @@ public class IntersectingSourceStateDeserializer implements JsonDeserializer< In
 			final String name = map.get( NAME_KEY ).getAsString();
 
 
-			LOG.warn( "Creating {} with thresholded={} labels={}", IntersectingSourceState.class.getSimpleName(), thresholdedState, labelState );
+			LOG.debug( "Creating {} with thresholded={} labels={}", IntersectingSourceState.class.getSimpleName(), thresholdedState, labelState );
 			final IntersectingSourceState state = new IntersectingSourceState(
 					(ThresholdingSourceState) thresholdedState,
 					(LabelSourceState) labelState,

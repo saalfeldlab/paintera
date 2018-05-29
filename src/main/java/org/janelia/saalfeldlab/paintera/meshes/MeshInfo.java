@@ -70,7 +70,6 @@ public class MeshInfo< T >
 
 		scaleLevel.set( meshManager.scaleLevelProperty().get() );
 		scaleLevel.addListener( new PropagateChanges<>( ( mesh, newv ) -> mesh.scaleIndexProperty().set( newv.intValue() ) ) );
-		scaleLevel.addListener( (obs, oldv, newv  ) -> LOG.warn( "Changing scale level from {} to {}", oldv, newv ) );
 
 		simplificationIterations.set( meshManager.meshSimplificationIterationsProperty().get() );
 		simplificationIterations.addListener( new PropagateChanges<>( ( mesh, newv ) -> mesh.meshSimplificationIterationsProperty().set( newv.intValue() ) ) );
@@ -168,7 +167,6 @@ public class MeshInfo< T >
 		public void changed( final ObservableValue< ? extends U > observable, final U oldValue, final U newValue )
 		{
 			final long[] fragments = meshManager.containedFragments( segmentId );
-			LOG.warn( "Propagating changes {} {}", segmentId, fragments );
 			final Map< T, MeshGenerator< T > > meshes = meshManager.unmodifiableMeshMap();
 			apply.accept( meshes.get( segmentId ), newValue );
 		}

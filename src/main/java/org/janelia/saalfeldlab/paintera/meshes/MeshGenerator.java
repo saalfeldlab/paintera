@@ -159,11 +159,9 @@ public class MeshGenerator< T >
 		this.colorWithAlpha = Bindings.createObjectBinding( () -> this.color.getValue().deriveColor( 0, 1.0, 1.0, this.opacity.get() ), this.color, this.opacity );
 
 		this.changed.addListener( ( obs, oldv, newv ) -> new Thread( () -> this.updateMeshes( newv ) ).start() );
-		this.changed.addListener( (obs, oldv, newv) -> LOG.warn( "Changed? old={} new={}", oldv, newv ) );
 		this.changed.addListener( ( obs, oldv, newv ) -> changed.set( false ) );
 
 		this.scaleIndex.set( scaleIndex );
-		this.scaleIndex.addListener( ( obs, oldv, newv ) -> LOG.warn( "Setting scale index from {} to {}", oldv, newv ) );
 		this.scaleIndex.addListener( ( obs, oldv, newv ) -> changed.set( true ) );
 
 		this.meshSimplificationIterations.set( meshSimplificationIterations );
@@ -235,12 +233,12 @@ public class MeshGenerator< T >
 
 	private void updateMeshes( final boolean doUpdate )
 	{
-		LOG.warn( "Updating mesh? {}", doUpdate );
+		LOG.debug( "Updating mesh? {}", doUpdate );
 		if ( !doUpdate ) { return; }
 
 		synchronized ( this.activeTask )
 		{
-			LOG.warn( "Canceling task: {}", this.activeTask );
+			LOG.debug( "Canceling task: {}", this.activeTask );
 			Optional.ofNullable( activeTask.get() ).ifPresent( f -> f.cancel( true ) );
 			activeTask.set( null );
 			final int scaleIndex = this.scaleIndex.get();
@@ -261,7 +259,7 @@ public class MeshGenerator< T >
 					submittedTasks::set,
 					completedTasks::set,
 					onFinish );
-			LOG.warn( "Submitting new task {}", task );
+			LOG.debug( "Submitting new task {}", task );
 			this.activeTask.set( task );
 		}
 	}
@@ -308,7 +306,7 @@ public class MeshGenerator< T >
 
 	public IntegerProperty scaleIndexProperty()
 	{
-		LOG.warn( "Querying scale index property {}", this.scaleIndex );
+		LOG.debug( "Querying scale index property {}", this.scaleIndex );
 		return this.scaleIndex;
 	}
 
