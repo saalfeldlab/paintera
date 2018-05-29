@@ -200,7 +200,7 @@ public class MeshInfoNode< T > implements BindUnbindAndNodeSupplier
 		statusBar.setMinWidth( 200 );
 		statusBar.setMaxWidth( 200 );
 		statusBar.setPrefWidth( 200 );
-//		statusBar.setText( "Id" + meshInfo.segmentId() );
+		statusBar.setText( "Id" + meshInfo.segmentId() );
 		final Tooltip statusToolTip = new Tooltip();
 		progress.addListener( ( obs, oldv, newv ) -> InvokeOnJavaFXApplicationThread.invoke( () -> statusToolTip.setText( statusBarToolTipText( submittedTasks.intValue(), completedTasks.intValue() ) ) ) );
 		submittedTasks.addListener( obs -> statusBar.setStyle( progressBarStyleColor( submittedTasks.get() ) ) );
