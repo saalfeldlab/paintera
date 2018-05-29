@@ -44,6 +44,8 @@ public class MeshGenerator< T >
 {
 	private static final Logger LOG = LoggerFactory.getLogger( MethodHandles.lookup().lookupClass() );
 
+	public static int RETRIEVING_RELEVANT_BLOCKS = -1;
+
 	public static class BlockListKey
 	{
 

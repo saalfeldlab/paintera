@@ -141,7 +141,7 @@ public class MeshGeneratorJobManager< T >
 
 				synchronized ( setNumberOfTasks )
 				{
-					setNumberOfTasks.accept( 0 );
+					setNumberOfTasks.accept( MeshGenerator.RETRIEVING_RELEVANT_BLOCKS );
 					setNumberOfCompletedTasks.accept( 0 );
 				}
 

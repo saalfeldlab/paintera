@@ -3,11 +3,13 @@ package org.janelia.saalfeldlab.paintera.ui.source.mesh;
 import java.lang.invoke.MethodHandles;
 import java.util.Arrays;
 import java.util.Optional;
+import java.util.function.DoubleConsumer;
 
 import org.controlsfx.control.StatusBar;
 import org.janelia.saalfeldlab.fx.ui.NumericSliderWithField;
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread;
 import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignment;
+import org.janelia.saalfeldlab.paintera.meshes.MeshGenerator;
 import org.janelia.saalfeldlab.paintera.meshes.MeshInfo;
 import org.janelia.saalfeldlab.paintera.meshes.MeshManager;
 import org.janelia.saalfeldlab.paintera.ui.BindUnbindAndNodeSupplier;
@@ -191,8 +193,8 @@ public class MeshInfoNode< T > implements BindUnbindAndNodeSupplier
 		final long[] fragments = meshInfo.meshManager().containedFragments( meshInfo.segmentId() );
 
 		final DoubleProperty progress = new SimpleDoubleProperty( 0 );
-		submittedTasks.addListener( ( obs, oldv, newv ) -> progress.set( submittedTasks.intValue() == 0 ? 0 : completedTasks.doubleValue() / submittedTasks.doubleValue() ) );
-		completedTasks.addListener( ( obs, oldv, newv ) -> progress.set( submittedTasks.intValue() == 0 ? 0 : completedTasks.doubleValue() / submittedTasks.doubleValue() ) );
+		submittedTasks.addListener( ( obs, oldv, newv ) -> progress.set( submittedTasks.intValue() <= 0 ? submittedTasks.intValue() : completedTasks.doubleValue() / submittedTasks.doubleValue() ) );
+		completedTasks.addListener( ( obs, oldv, newv ) -> progress.set( submittedTasks.intValue() <= 0 ? submittedTasks.intValue() : completedTasks.doubleValue() / submittedTasks.doubleValue() ) );
 		final StatusBar statusBar = new StatusBar();
 		// TODO come up with better way to ensure proper size of this!
 		statusBar.setMinWidth( 200 );
@@ -200,10 +202,13 @@ public class MeshInfoNode< T > implements BindUnbindAndNodeSupplier
 		statusBar.setPrefWidth( 200 );
 		statusBar.setText( "Id" + meshInfo.segmentId() );
 		final Tooltip statusToolTip = new Tooltip();
-		progress.addListener( ( obs, oldv, newv ) -> InvokeOnJavaFXApplicationThread.invoke( () -> statusToolTip.setText( completedTasks.intValue() + "/" + submittedTasks.intValue() ) ) );
+		progress.addListener( ( obs, oldv, newv ) -> InvokeOnJavaFXApplicationThread.invoke( () -> statusToolTip.setText( submittedTasks.intValue() == MeshGenerator.RETRIEVING_RELEVANT_BLOCKS
+				? "Retrieving blocks for mesh"
+						:completedTasks.intValue() + "/" + submittedTasks.intValue() ) ) );
 		statusBar.setTooltip( statusToolTip );
-		statusBar.setProgress( 1.0 );
-		progress.addListener( ( obs, oldv, newv ) -> statusBar.setProgress( Double.isFinite( newv.doubleValue() ) ? newv.doubleValue() : 1.0 ) );
+		statusBar.setProgress( 0.0 );
+		progress.addListener( ( obs, oldv, newv ) -> InvokeOnJavaFXApplicationThread.invoke( () -> statusBar.setProgress( Double.isFinite( newv.doubleValue() ) ? newv.doubleValue() : 0.0 ) ) );
+		InvokeOnJavaFXApplicationThread.invoke( () -> statusBar.setProgress( Math.max( progress.get(), 0.0 ) ) );
 		pane.setGraphic( statusBar );
 
 		final GridPane contents = new GridPane();
@@ -301,6 +306,11 @@ public class MeshInfoNode< T > implements BindUnbindAndNodeSupplier
 	public ObservableBooleanValue isManagedExternally()
 	{
 		return this.isManagedExternally;
+	}
+
+	private void setProgress( final DoubleConsumer progress )
+	{
+		progress.accept( submittedTasks.intValue() == 0 ? 0 : completedTasks.doubleValue() / submittedTasks.doubleValue() );
 	}
 
 }
