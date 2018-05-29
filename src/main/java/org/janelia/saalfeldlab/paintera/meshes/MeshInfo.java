@@ -3,6 +3,7 @@ package org.janelia.saalfeldlab.paintera.meshes;
 import java.lang.invoke.MethodHandles;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Optional;
 import java.util.function.BiConsumer;
 
 import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignment;
@@ -98,9 +99,10 @@ public class MeshInfo< T >
 	{
 		LOG.debug( "Updating task count bindings." );
 		final Map< T, MeshGenerator< T > > meshes = new HashMap<>( meshManager.unmodifiableMeshMap() );
-		this.submittedTasks.bind( meshes.get( segmentId ).submittedTasksProperty() );
-		this.completedTasks.bind( meshes.get( segmentId ).completedTasksProperty() );
-		this.successfulTasks.bind( meshes.get( segmentId ).successfulTasksProperty() );
+		LOG.warn( "Binding meshes to segmentId = {}", segmentId );
+		Optional.ofNullable( meshes.get( segmentId ) ).map( MeshGenerator::submittedTasksProperty ).ifPresent( this.submittedTasks::bind );
+		Optional.ofNullable( meshes.get( segmentId ) ).map( MeshGenerator::completedTasksProperty ).ifPresent( this.completedTasks::bind );
+		Optional.ofNullable( meshes.get( segmentId ) ).map( MeshGenerator::successfulTasksProperty ).ifPresent( this.successfulTasks::bind );
 	}
 
 	public T segmentId()
