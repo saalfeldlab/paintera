@@ -132,6 +132,7 @@ public class MeshGeneratorJobManager< T >
 
 		public void interrupt()
 		{
+			LOG.debug( "Interrupting for {} keys={}", this.identifier, this.keys );
 			this.isInterrupted = true;
 			this.getBlockList.interruptFor( this.identifier );
 			synchronized( this.keys )
