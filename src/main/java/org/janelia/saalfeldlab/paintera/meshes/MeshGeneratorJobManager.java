@@ -272,7 +272,10 @@ public class MeshGeneratorJobManager< T >
 								synchronized ( setNumberOfTasks )
 								{
 									countDownOnMeshes.countDown();
-									setNumberOfCompletedTasks.accept( numTasks - ( int ) countDownOnMeshes.getCount() );
+									if ( !isInterrupted )
+									{
+										setNumberOfCompletedTasks.accept( numTasks - ( int ) countDownOnMeshes.getCount() );
+									}
 								}
 								LOG.debug( "Counted down latch. {} remaining", countDownOnMeshes.getCount() );
 							}
