@@ -203,7 +203,7 @@ public class MeshInfoNode< T > implements BindUnbindAndNodeSupplier
 		statusBar.setText( "Id" + meshInfo.segmentId() );
 		final Tooltip statusToolTip = new Tooltip();
 		progress.addListener( ( obs, oldv, newv ) -> InvokeOnJavaFXApplicationThread.invoke( () -> statusToolTip.setText( statusBarToolTipText( submittedTasks.intValue(), completedTasks.intValue() ) ) ) );
-		submittedTasks.addListener( obs -> statusBar.setStyle( progressBarStyleColor( submittedTasks.get() ) ) );
+		submittedTasks.addListener( obs -> InvokeOnJavaFXApplicationThread.invoke( () -> statusBar.setStyle( progressBarStyleColor( submittedTasks.get() ) ) ) );
 		statusBar.setTooltip( statusToolTip );
 		statusBar.setProgress( 0.0 );
 		progress.addListener( ( obs, oldv, newv ) -> InvokeOnJavaFXApplicationThread.invoke( () -> statusBar.setProgress( Double.isFinite( newv.doubleValue() ) ? newv.doubleValue() : 0.0 ) ) );
@@ -322,13 +322,16 @@ public class MeshInfoNode< T > implements BindUnbindAndNodeSupplier
 	{
 
 		if ( submittedTasks == MeshGenerator.SUBMITTED_MESH_GENERATION_TASK ) {
+			LOG.debug( "Submitted tasks={}, changing color to red", submittedTasks );
 			return "-fx-accent: red; ";
 		}
 
 		if ( submittedTasks == MeshGenerator.RETRIEVING_RELEVANT_BLOCKS ) {
+			LOG.debug( "Submitted tasks={}, changing color to orange", submittedTasks );
 			return "-fx-accent: orange; ";
 		}
 
+		LOG.debug( "Submitted tasks={}, changing color to green", submittedTasks );
 		return "-fx-accent: green; ";
 	}
 
