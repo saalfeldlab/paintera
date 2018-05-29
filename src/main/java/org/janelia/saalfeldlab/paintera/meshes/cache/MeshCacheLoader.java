@@ -109,7 +109,10 @@ public class MeshCacheLoader< T > implements CacheLoader< ShapeKey< Long >, Pair
 			{
 				normals[ i ] *= -1;
 			}
-			return new ValuePair<>( mesh, normals );
+			synchronized( interruptListeners )
+			{
+				return isInterrupted[ 0 ] ? new ValuePair<>( mesh, normals ) : null;
+			}
 		}
 		finally
 		{

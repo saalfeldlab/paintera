@@ -6,6 +6,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
 
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread;
+import org.janelia.saalfeldlab.paintera.meshes.MeshGeneratorJobManager.ManagementTask;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -119,7 +120,9 @@ public class MeshGenerator< T >
 
 	private final ExecutorService workers;
 
-	private final ObjectProperty< Future< Void > > activeTask = new SimpleObjectProperty<>();
+	private final ObjectProperty< Future< Void > > activeFuture = new SimpleObjectProperty<>();
+
+	private final ObjectProperty< MeshGeneratorJobManager< T >.ManagementTask > activeTask = new SimpleObjectProperty<>();
 
 	private final IntegerProperty submittedTasks = new SimpleIntegerProperty( 0 );
 
@@ -186,10 +189,10 @@ public class MeshGenerator< T >
 				}
 				if ( newv == null )
 				{
-					synchronized ( this.activeTask )
+					synchronized ( this.activeFuture )
 					{
-						Optional.ofNullable( this.activeTask.get() ).ifPresent( f -> f.cancel( true ) );
-						this.activeTask.set( null );
+						Optional.ofNullable( this.activeFuture.get() ).ifPresent( f -> f.cancel( true ) );
+						this.activeFuture.set( null );
 					}
 				}
 			} );
@@ -240,19 +243,22 @@ public class MeshGenerator< T >
 		LOG.debug( "Updating mesh? {}", doUpdate );
 		if ( !doUpdate ) { return; }
 
-		synchronized ( this.activeTask )
+		synchronized ( this.activeFuture )
 		{
-			LOG.debug( "Canceling task: {}", this.activeTask );
-			Optional.ofNullable( activeTask.get() ).ifPresent( f -> f.cancel( true ) );
+			LOG.debug( "Canceling task: {}", this.activeFuture );
+			Optional.ofNullable( activeFuture.get() ).ifPresent( f -> f.cancel( true ) );
+			Optional.ofNullable( activeTask.get() ).ifPresent( ManagementTask::interrupt );
+			activeFuture.set( null );
 			activeTask.set( null );
 			final int scaleIndex = this.scaleIndex.get();
 			final Runnable onFinish = () -> {
-				synchronized ( activeTask )
+				synchronized ( activeFuture )
 				{
+					activeFuture.set( null );
 					activeTask.set( null );
 				}
 			};
-			final Future< Void > task = manager.submit(
+			final Pair< Future< Void >, MeshGeneratorJobManager< T >.ManagementTask > futureAndTask = manager.submit(
 					id,
 					scaleIndex,
 					meshSimplificationIterations.intValue(),
@@ -263,8 +269,9 @@ public class MeshGenerator< T >
 					submittedTasks::set,
 					completedTasks::set,
 					onFinish );
-			LOG.debug( "Submitting new task {}", task );
-			this.activeTask.set( task );
+			LOG.debug( "Submitting new task {}", futureAndTask );
+			this.activeFuture.set( futureAndTask.getA() );
+			this.activeTask.set( futureAndTask.getB() );
 		}
 	}
 
