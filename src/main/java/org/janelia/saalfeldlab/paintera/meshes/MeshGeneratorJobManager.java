@@ -62,7 +62,7 @@ public class MeshGeneratorJobManager< T >
 			final IntConsumer setNumberOfCompletedTasks,
 			final Runnable onFinish )
 	{
-		return manager.submit(
+		final Future< Void > task = manager.submit(
 				new ManagementTask(
 						identifier,
 						scaleIndex,
@@ -74,6 +74,8 @@ public class MeshGeneratorJobManager< T >
 						setNumberOfTasks,
 						setNumberOfCompletedTasks,
 						onFinish ) );
+		setNumberOfTasks.accept( MeshGenerator.SUBMITTED_MESH_GENERATION_TASK );
+		return task;
 	}
 
 	public class ManagementTask implements Callable< Void >

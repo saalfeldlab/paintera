@@ -46,6 +46,8 @@ public class MeshGenerator< T >
 
 	public static int RETRIEVING_RELEVANT_BLOCKS = -1;
 
+	public static int SUBMITTED_MESH_GENERATION_TASK = -2;
+
 	public static class BlockListKey
 	{
 
