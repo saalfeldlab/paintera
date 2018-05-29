@@ -4,7 +4,6 @@ import java.lang.invoke.MethodHandles;
 import java.util.Optional;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
-import java.util.function.Function;
 
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread;
 import org.slf4j.Logger;
@@ -92,7 +91,7 @@ public class MeshGenerator< T >
 
 	private final T id;
 
-	private final InterruptibleFunction< Long, Interval[] >[] blockListCache;
+	private final InterruptibleFunction< T, Interval[] >[] blockListCache;
 
 	private final InterruptibleFunction< ShapeKey< T >, Pair< float[], float[] > >[] meshCache;
 
@@ -115,8 +114,6 @@ public class MeshGenerator< T >
 	private final ExecutorService managers;
 
 	private final ExecutorService workers;
-
-	private final Function< T, long[] > getIds;
 
 	private final ObjectProperty< Future< Void > > activeTask = new SimpleObjectProperty<>();
 
@@ -141,7 +138,7 @@ public class MeshGenerator< T >
 	//
 	public MeshGenerator(
 			final T segmentId,
-			final InterruptibleFunction< Long, Interval[] >[] blockListCache,
+			final InterruptibleFunction< T, Interval[] >[] blockListCache,
 			final InterruptibleFunction< ShapeKey< T >, Pair< float[], float[] > >[] meshCache,
 			final ObservableIntegerValue color,
 			final int scaleIndex,
@@ -149,8 +146,7 @@ public class MeshGenerator< T >
 			final double smoothingLambda,
 			final int smoothingIterations,
 			final ExecutorService managers,
-			final ExecutorService workers,
-			final Function< T, long[] > getIds )
+			final ExecutorService workers )
 	{
 		super();
 		this.id = segmentId;
@@ -160,13 +156,14 @@ public class MeshGenerator< T >
 		this.managers = managers;
 		this.workers = workers;
 		this.manager = new MeshGeneratorJobManager<>( this.meshes, this.managers, this.workers );
-		this.getIds = getIds;
 		this.colorWithAlpha = Bindings.createObjectBinding( () -> this.color.getValue().deriveColor( 0, 1.0, 1.0, this.opacity.get() ), this.color, this.opacity );
 
 		this.changed.addListener( ( obs, oldv, newv ) -> new Thread( () -> this.updateMeshes( newv ) ).start() );
+		this.changed.addListener( (obs, oldv, newv) -> LOG.warn( "Changed? old={} new={}", oldv, newv ) );
 		this.changed.addListener( ( obs, oldv, newv ) -> changed.set( false ) );
 
 		this.scaleIndex.set( scaleIndex );
+		this.scaleIndex.addListener( ( obs, oldv, newv ) -> LOG.warn( "Setting scale index from {} to {}", oldv, newv ) );
 		this.scaleIndex.addListener( ( obs, oldv, newv ) -> changed.set( true ) );
 
 		this.meshSimplificationIterations.set( meshSimplificationIterations );
@@ -233,18 +230,17 @@ public class MeshGenerator< T >
 				}
 			} );
 		} );
-
 		this.changed.set( true );
 	}
 
 	private void updateMeshes( final boolean doUpdate )
 	{
-		LOG.debug( "Updating mesh? {}", doUpdate );
+		LOG.warn( "Updating mesh? {}", doUpdate );
 		if ( !doUpdate ) { return; }
 
 		synchronized ( this.activeTask )
 		{
-			LOG.debug( "Canceling task: {}", this.activeTask );
+			LOG.warn( "Canceling task: {}", this.activeTask );
 			Optional.ofNullable( activeTask.get() ).ifPresent( f -> f.cancel( true ) );
 			activeTask.set( null );
 			final int scaleIndex = this.scaleIndex.get();
@@ -255,7 +251,6 @@ public class MeshGenerator< T >
 				}
 			};
 			final Future< Void > task = manager.submit(
-					getIds.apply( id ),
 					id,
 					scaleIndex,
 					meshSimplificationIterations.intValue(),
@@ -266,7 +261,7 @@ public class MeshGenerator< T >
 					submittedTasks::set,
 					completedTasks::set,
 					onFinish );
-			LOG.debug( "Submitting new task {}", task );
+			LOG.warn( "Submitting new task {}", task );
 			this.activeTask.set( task );
 		}
 	}
@@ -313,6 +308,7 @@ public class MeshGenerator< T >
 
 	public IntegerProperty scaleIndexProperty()
 	{
+		LOG.warn( "Querying scale index property {}", this.scaleIndex );
 		return this.scaleIndex;
 	}
 

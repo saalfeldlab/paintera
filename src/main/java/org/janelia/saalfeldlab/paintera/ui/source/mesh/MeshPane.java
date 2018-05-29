@@ -2,7 +2,6 @@ package org.janelia.saalfeldlab.paintera.ui.source.mesh;
 
 import java.lang.invoke.MethodHandles;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
@@ -157,7 +156,7 @@ public class MeshPane implements BindUnbindAndNodeSupplier, ListChangeListener< 
 				final ExportResult< TLongHashSet > parameters = result.get();
 
 				@SuppressWarnings( "unchecked" )
-				final InterruptibleFunction< Long, Interval[] >[][] blockListCaches = Stream
+				final InterruptibleFunction< TLongHashSet, Interval[] >[][] blockListCaches = Stream
 				.generate( manager::blockListCache )
 				.limit( meshInfos.readOnlyInfos().size() )
 				.toArray( InterruptibleFunction[][]::new );
@@ -172,7 +171,6 @@ public class MeshPane implements BindUnbindAndNodeSupplier, ListChangeListener< 
 				parameters.getMeshExporter().exportMesh(
 						blockListCaches,
 						meshCaches,
-						Arrays.stream( parameters.getSegmentId() ).map( manager::containedFragments ).toArray( long[][]::new ),
 						parameters.getSegmentId(),
 						parameters.getScale(),
 						parameters.getFilePaths() );

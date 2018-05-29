@@ -51,13 +51,12 @@ public class MeshGeneratorJobManager< T >
 	}
 
 	public Future< Void > submit(
-			final long[] ids,
 			final T identifier,
 			final int scaleIndex,
 			final int simplificationIterations,
 			final double smoothingLambda,
 			final int smoothingIterations,
-			final InterruptibleFunction< Long, Interval[] > getBlockList,
+			final InterruptibleFunction< T, Interval[] > getBlockList,
 			final InterruptibleFunction< ShapeKey< T >, Pair< float[], float[] > > getMesh,
 			final IntConsumer setNumberOfTasks,
 			final IntConsumer setNumberOfCompletedTasks,
@@ -65,7 +64,6 @@ public class MeshGeneratorJobManager< T >
 	{
 		return manager.submit(
 				new ManagementTask(
-						ids,
 						identifier,
 						scaleIndex,
 						simplificationIterations,
@@ -80,8 +78,6 @@ public class MeshGeneratorJobManager< T >
 
 	public class ManagementTask implements Callable< Void >
 	{
-		private final long ids[];
-
 		private final T identifier;
 
 		private final int scaleIndex;
@@ -92,7 +88,7 @@ public class MeshGeneratorJobManager< T >
 
 		private final int smoothingIterations;
 
-		private final InterruptibleFunction< Long, Interval[] > getBlockList;
+		private final InterruptibleFunction< T, Interval[] > getBlockList;
 
 		private final InterruptibleFunction< ShapeKey< T >, Pair< float[], float[] > > getMesh;
 
@@ -105,20 +101,18 @@ public class MeshGeneratorJobManager< T >
 		private final Runnable onFinish;
 
 		public ManagementTask(
-				final long[] ids,
 				final T identifier,
 				final int scaleIndex,
 				final int simplificationIterations,
 				final double smoothingLambda,
 				final int smoothingIterations,
-				final InterruptibleFunction< Long, Interval[] > getBlockList,
+				final InterruptibleFunction< T, Interval[] > getBlockList,
 				final InterruptibleFunction< ShapeKey< T >, Pair< float[], float[] > > getMesh,
 				final IntConsumer setNumberOfTasks,
 				final IntConsumer setNumberOfCompletedTasks,
 				final Runnable onFinish )
 		{
 			super();
-			this.ids = ids;
 			this.identifier = identifier;
 			this.scaleIndex = scaleIndex;
 			this.simplificationIterations = simplificationIterations;
@@ -155,13 +149,11 @@ public class MeshGeneratorJobManager< T >
 					try
 					{
 
-						for ( final long id : ids )
-						{
-							Arrays
-							.stream( getBlockList.apply( id ) )
-							.map( HashWrapper::interval )
-							.forEach( blockSet::add );
-						}
+						blockSet.addAll(
+								Arrays
+								.stream( getBlockList.apply( identifier  ) )
+								.map( HashWrapper::interval )
+								.collect( Collectors.toList() ) );
 					}
 					finally
 					{
@@ -174,8 +166,8 @@ public class MeshGeneratorJobManager< T >
 				}
 				catch ( final InterruptedException e )
 				{
-					LOG.debug( "Interrupted while waiting for block lists for labell {}", ids );
-					Arrays.stream( ids ).forEach( getBlockList::interruptFor );
+					LOG.debug( "Interrupted while waiting for block lists for label {}", identifier );
+					getBlockList.interruptFor( identifier );
 					this.isInterrupted = true;
 				}
 
@@ -198,7 +190,7 @@ public class MeshGeneratorJobManager< T >
 					return null;
 				}
 
-				LOG.debug( "Generating mesh with {} blocks for ids {}.", blockList.size(), this.ids );
+				LOG.debug( "Generating mesh with {} blocks for id {}.", blockList.size(), this.identifier );
 
 				final List< ShapeKey< T > > keys = new ArrayList<>();
 				for ( final Interval block : blockList )

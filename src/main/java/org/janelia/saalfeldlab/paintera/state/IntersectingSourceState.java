@@ -76,7 +76,7 @@ extends MinimalSourceState< UnsignedByteType, VolatileUnsignedByteType, DataSour
 
 	private static final Logger LOG = LoggerFactory.getLogger( MethodHandles.lookup().lookupClass() );
 
-	private final MeshManagerSimple meshManager;
+	private final MeshManagerSimple< TLongHashSet > meshManager;
 
 	public < D extends Type< D >, T extends Type< T >, B extends BooleanType< B > > IntersectingSourceState(
 			final ThresholdingSourceState< ?, ? > thresholded,
@@ -103,7 +103,11 @@ extends MinimalSourceState< UnsignedByteType, VolatileUnsignedByteType, DataSour
 		final MeshManager< TLongHashSet > meshManager = labels.meshManager();
 
 		final SelectedIds selectedIds = labels.selectedIds();
-		final InterruptibleFunctionAndCache< ShapeKey< Long >, Pair< float[], float[] > >[] meshCaches = CacheUtils.meshCacheLoaders(
+//		final InterruptibleFunctionAndCache< ShapeKey< Long >, Pair< float[], float[] > >[] meshCaches = CacheUtils.meshCacheLoaders(
+//				source,
+//				l -> ( s, t ) -> t.set( s.get() > 0 ),
+//				CacheUtils::toCacheSoftRefLoaderCache );
+		final InterruptibleFunctionAndCache< ShapeKey< TLongHashSet >, Pair< float[], float[] > >[] meshCaches = CacheUtils.segmentMeshCacheLoaders(
 				source,
 				l -> ( s, t ) -> t.set( s.get() > 0 ),
 				CacheUtils::toCacheSoftRefLoaderCache );
@@ -112,7 +116,7 @@ extends MinimalSourceState< UnsignedByteType, VolatileUnsignedByteType, DataSour
 		final SelectedSegments selectedSegments = new SelectedSegments( selectedIds, assignment );
 		final FragmentsInSelectedSegments fragmentsInSelectedSegments = new FragmentsInSelectedSegments( selectedSegments, assignment );
 
-		this.meshManager = new MeshManagerSimple(
+		this.meshManager = new MeshManagerSimple<>(
 				meshManager.blockListCache(),
 //				BlocksForLabelDelegate.delegate( meshManager.blockListCache(), key -> Arrays.stream( fragmentsInSelectedSegments.getFragments() ).mapToObj( l -> l ).toArray( Long[]::new ) ),
 				meshCaches,
@@ -121,7 +125,9 @@ extends MinimalSourceState< UnsignedByteType, VolatileUnsignedByteType, DataSour
 				new SimpleDoubleProperty(),
 				new SimpleIntegerProperty(),
 				manager,
-				workers );
+				workers,
+				TLongHashSet::toArray
+				);
 		final ObjectBinding< Color > colorProperty = Bindings.createObjectBinding( ()-> Colors.toColor( this.converter().getColor() ), this.converter().colorProperty() );
 		this.meshManager.colorProperty().bind( colorProperty );
 		this.meshManager.scaleLevelProperty().bind( meshManager.scaleLevelProperty() );
@@ -148,16 +154,16 @@ extends MinimalSourceState< UnsignedByteType, VolatileUnsignedByteType, DataSour
 		{
 			final DataSource< ?, ? > dsource = source instanceof MaskedSource< ?, ? > ? ( ( MaskedSource< ?, ? > ) source ).underlyingSource() : source;
 			final RandomAccessibleInterval< ? > data = dsource.getDataSource( 0, level );
-			LOG.debug( "data type={}", data.getClass().getName() );
 			if ( data instanceof CachedCellImg< ?, ? > )
 			{
+				LOG.debug( "Invalidating: data type={}", data.getClass().getName() );
 				( ( CachedCellImg< ?, ? > ) data ).getCache().invalidateAll();
 			}
 
 			final RandomAccessibleInterval< ? > vdata = dsource.getSource( 0, level );
-			LOG.debug( "vdata type={}", vdata.getClass().getName() );
 			if ( vdata instanceof VolatileCachedCellImg )
 			{
+				LOG.debug( "Invalidating: vdata type={}", vdata.getClass().getName() );
 				( ( VolatileCachedCellImg< ?, ? > ) vdata ).getInvalidateAll().run();
 			}
 
@@ -166,11 +172,11 @@ extends MinimalSourceState< UnsignedByteType, VolatileUnsignedByteType, DataSour
 		this.meshManager.removeAllMeshes();
 		if ( Optional.ofNullable( fragmentsInSelectedSegments.getFragments() ).map( sel -> sel.length ).orElse( 0 ) > 0 )
 		{
-			Arrays.stream( fragmentsInSelectedSegments.getFragments() ).forEach( this.meshManager::generateMesh );
+			this.meshManager.generateMesh( new TLongHashSet( fragmentsInSelectedSegments.getFragments() ) );
 		}
 	}
 
-	public MeshManager< Long > meshManager()
+	public MeshManager< TLongHashSet > meshManager()
 	{
 		return this.meshManager;
 	}

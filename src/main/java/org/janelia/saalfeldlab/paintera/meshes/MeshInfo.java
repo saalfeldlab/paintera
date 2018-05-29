@@ -37,9 +37,7 @@ public class MeshInfo< T >
 
 	private final IntegerProperty smoothingIterations = new SimpleIntegerProperty();
 
-	private final long segmentId;
-
-	private final T segmentRepresentation;
+	private final T segmentId;
 
 	private final FragmentSegmentAssignment assignment;
 
@@ -60,14 +58,13 @@ public class MeshInfo< T >
 	private final ObjectProperty< CullFace > cullFace = new SimpleObjectProperty< >( CullFace.FRONT );
 
 	public MeshInfo(
-			final long segmentId,
+			final T segmentId,
 			final FragmentSegmentAssignment assignment,
 			final MeshManager< T > meshManager,
 			final int numScaleLevels )
 	{
 		super();
 		this.segmentId = segmentId;
-		this.segmentRepresentation = meshManager.representationForSegment( segmentId );
 		this.assignment = assignment;
 		this.meshManager = meshManager;
 
@@ -103,8 +100,8 @@ public class MeshInfo< T >
 	private void updateTasksCountBindings()
 	{
 		LOG.debug( "Updating task count bindings." );
-		final long[] fragments = assignment.getFragments( segmentId ).toArray();
-		final Map< Long, MeshGenerator< T > > meshes = new HashMap<>( meshManager.unmodifiableMeshMap() );
+		final long[] fragments = meshManager.containedFragments( segmentId );
+		final Map< T, MeshGenerator< T > > meshes = new HashMap<>( meshManager.unmodifiableMeshMap() );
 		final ObservableIntegerValue[] submittedTasks = Arrays.stream( fragments ).mapToObj( meshes::get ).filter( mesh -> mesh != null ).map( MeshGenerator::submittedTasksProperty ).toArray( ObservableIntegerValue[]::new );
 		final ObservableIntegerValue[] completedTasks = Arrays.stream( fragments ).mapToObj( meshes::get ).filter( mesh -> mesh != null ).map( MeshGenerator::completedTasksProperty ).toArray( ObservableIntegerValue[]::new );
 		final ObservableIntegerValue[] successfulTasks = Arrays.stream( fragments ).mapToObj( meshes::get ).filter( mesh -> mesh != null ).map( MeshGenerator::successfulTasksProperty ).toArray( ObservableIntegerValue[]::new );
@@ -115,16 +112,11 @@ public class MeshInfo< T >
 
 	}
 
-	public long segmentId()
+	public T segmentId()
 	{
 		return this.segmentId;
 	}
 
-
-	public T segmentRepresentation()
-	{
-		return this.segmentRepresentation;
-	}
 
 	public IntegerProperty scaleLevelProperty()
 	{
@@ -175,10 +167,10 @@ public class MeshInfo< T >
 		@Override
 		public void changed( final ObservableValue< ? extends U > observable, final U oldValue, final U newValue )
 		{
-			final long[] fragments = assignment.getFragments( segmentId ).toArray();
-			LOG.debug( "Propagating changes {} {}", segmentId, fragments );
-			final Map< Long, MeshGenerator< T > > meshes = meshManager.unmodifiableMeshMap();
-			Arrays.stream( fragments ).mapToObj( meshes::get ).filter( m -> m != null ).forEach( n -> apply.accept( n, newValue ) );
+			final long[] fragments = meshManager.containedFragments( segmentId );
+			LOG.warn( "Propagating changes {} {}", segmentId, fragments );
+			final Map< T, MeshGenerator< T > > meshes = meshManager.unmodifiableMeshMap();
+			apply.accept( meshes.get( segmentId ), newValue );
 		}
 
 	}
@@ -186,7 +178,7 @@ public class MeshInfo< T >
 	@Override
 	public int hashCode()
 	{
-		return Long.hashCode( segmentId );
+		return segmentId.hashCode();
 	}
 
 	@Override
@@ -227,7 +219,7 @@ public class MeshInfo< T >
 
 	public long[] containedFragments()
 	{
-		return meshManager.containedFragments( meshManager.representationForSegment( segmentId ) );
+		return meshManager.containedFragments( segmentId );
 	}
 
 }

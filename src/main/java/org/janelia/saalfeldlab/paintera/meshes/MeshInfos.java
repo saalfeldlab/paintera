@@ -2,6 +2,7 @@ package org.janelia.saalfeldlab.paintera.meshes;
 
 import java.util.Arrays;
 import java.util.List;
+import java.util.function.LongFunction;
 import java.util.stream.Collectors;
 
 import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignment;
@@ -20,6 +21,7 @@ public class MeshInfos< T >
 			final SelectedSegments selectedSegments,
 			final FragmentSegmentAssignment assignment,
 			final MeshManager< T > meshManager,
+			final LongFunction< T > segmentIdToRepresentation,
 			final int numScaleLevels )
 	{
 		super();
@@ -28,7 +30,8 @@ public class MeshInfos< T >
 			final long[] segments = selectedSegments.getSelectedSegments();
 			final List< MeshInfo<T > > infos = Arrays
 					.stream( segments )
-					.mapToObj( id -> new MeshInfo<>( id, assignment, meshManager, numScaleLevels ) )
+					.mapToObj( segmentIdToRepresentation::apply )
+					.map( id -> new MeshInfo<>( id, assignment, meshManager, numScaleLevels ) )
 					.collect( Collectors.toList() );
 
 			this.infos.setAll( infos );

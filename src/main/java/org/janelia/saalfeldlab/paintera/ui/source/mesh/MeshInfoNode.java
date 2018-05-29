@@ -88,7 +88,7 @@ public class MeshInfoNode< T > implements BindUnbindAndNodeSupplier
 	}
 
 	public MeshInfoNode(
-			final long segmentId,
+			final T segmentId,
 			final FragmentSegmentAssignment assignment,
 			final MeshManager< T > meshManager,
 			final int numScaleLevels )
@@ -188,7 +188,7 @@ public class MeshInfoNode< T > implements BindUnbindAndNodeSupplier
 		final TitledPane pane = new TitledPane( null, vbox );
 		pane.setExpanded( false );
 
-		final long[] fragments = meshInfo.assignment().getFragments( meshInfo.segmentId() ).toArray();
+		final long[] fragments = meshInfo.meshManager().containedFragments( meshInfo.segmentId() );
 
 		final DoubleProperty progress = new SimpleDoubleProperty( 0 );
 		submittedTasks.addListener( ( obs, oldv, newv ) -> progress.set( submittedTasks.intValue() == 0 ? 0 : completedTasks.doubleValue() / submittedTasks.doubleValue() ) );
@@ -257,7 +257,6 @@ public class MeshInfoNode< T > implements BindUnbindAndNodeSupplier
 				parameters.getMeshExporter().exportMesh(
 						meshInfo.meshManager().blockListCache(),
 						meshInfo.meshManager().meshCache(),
-						this.meshInfo.meshManager().containedFragments( parameters.getSegmentId()[ 0 ] ),
 						parameters.getSegmentId()[ 0 ],
 						parameters.getScale(),
 						parameters.getFilePaths()[ 0 ] );

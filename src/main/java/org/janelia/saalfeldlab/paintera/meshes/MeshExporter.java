@@ -23,9 +23,8 @@ public abstract class MeshExporter< T >
 	protected int numberOfFaces = 0;
 
 	public void exportMesh(
-			final Function< Long, Interval[] >[][] blockListCaches,
+			final Function< T, Interval[] >[][] blockListCaches,
 			final Function< ShapeKey< T >, Pair< float[], float[] > >[][] meshCaches,
-			final long[][] fragmentIds,
 			final T[] ids,
 			final int scale,
 			final String[] paths )
@@ -34,14 +33,13 @@ public abstract class MeshExporter< T >
 		for ( int i = 0; i < ids.length; i++ )
 		{
 			numberOfFaces = 0;
-			exportMesh( blockListCaches[ i ], meshCaches[ i ], fragmentIds[ i ], ids[ i ], scale, paths[ i ] );
+			exportMesh( blockListCaches[ i ], meshCaches[ i ], ids[ i ], scale, paths[ i ] );
 		}
 	}
 
 	public void exportMesh(
-			final Function< Long, Interval[] >[] blockListCache,
+			final Function< T, Interval[] >[] blockListCache,
 			final Function< ShapeKey< T >, Pair< float[], float[] > >[] meshCache,
-			final long[] ids,
 			final T id,
 			final int scaleIndex,
 			final String path )
@@ -49,13 +47,10 @@ public abstract class MeshExporter< T >
 		// all blocks from id
 		final Set< HashWrapper< Interval > > blockSet = new HashSet<>();
 
-		for ( final long fragmentId : ids )
-		{
-			Arrays
-			.stream( blockListCache[ scaleIndex ].apply( fragmentId ) )
-			.map( HashWrapper::interval )
-			.forEach( blockSet::add );
-		}
+		Arrays
+		.stream( blockListCache[ scaleIndex ].apply( id ) )
+		.map( HashWrapper::interval )
+		.forEach( blockSet::add );
 
 		final Interval[] blocks = blockSet.stream().map( HashWrapper::getData ).toArray( Interval[]::new );
 

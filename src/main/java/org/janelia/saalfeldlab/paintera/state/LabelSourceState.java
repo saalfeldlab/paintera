@@ -19,6 +19,7 @@ import org.janelia.saalfeldlab.paintera.meshes.MeshInfos;
 import org.janelia.saalfeldlab.paintera.meshes.MeshManager;
 import org.janelia.saalfeldlab.paintera.meshes.MeshManagerWithAssignmentForSegments;
 import org.janelia.saalfeldlab.paintera.meshes.ShapeKey;
+import org.janelia.saalfeldlab.paintera.meshes.cache.BlocksForLabelDelegate;
 import org.janelia.saalfeldlab.paintera.meshes.cache.CacheUtils;
 import org.janelia.saalfeldlab.paintera.meshes.cache.SegmentMaskGenerators;
 import org.janelia.saalfeldlab.paintera.stream.HighlightingStreamConverter;
@@ -35,11 +36,11 @@ import net.imglib2.type.numeric.ARGBType;
 import net.imglib2.util.Pair;
 
 public class LabelSourceState< D, T >
-		extends
-		MinimalSourceState< D, T, DataSource< D, T >, HighlightingStreamConverter< T > >
-		implements
-		HasMeshes< TLongHashSet >,
-		HasMeshCache< TLongHashSet >
+extends
+MinimalSourceState< D, T, DataSource< D, T >, HighlightingStreamConverter< T > >
+implements
+HasMeshes< TLongHashSet >,
+HasMeshCache< TLongHashSet >
 {
 
 	private final LongFunction< Converter< D, BoolType > > maskForLabel;
@@ -84,13 +85,16 @@ public class LabelSourceState< D, T >
 		final SelectedSegments selectedSegments = new SelectedSegments( selectedIds, assignment );
 
 		final InterruptibleFunction< Long, Interval[] >[] blockCaches = PainteraBaseView.generateLabelBlocksForLabelCache( dataSource );
+
+		final BlocksForLabelDelegate< TLongHashSet, Long >[] delegateBlockCaches = BlocksForLabelDelegate.delegate( blockCaches, ids -> Arrays.stream( ids.toArray() ).mapToObj( id -> id ).toArray( Long[]::new ), meshWorkersExecutors );
+
 		this.meshCaches = CacheUtils.segmentMeshCacheLoaders(
 				dataSource,
 				segmentMaskGenerator,
 				CacheUtils::toCacheSoftRefLoaderCache );
 		final MeshManagerWithAssignmentForSegments meshManager = new MeshManagerWithAssignmentForSegments(
 				dataSource,
-				blockCaches,
+				delegateBlockCaches,
 				meshCaches,
 				meshesGroup,
 				assignment,
@@ -101,7 +105,7 @@ public class LabelSourceState< D, T >
 				new SimpleIntegerProperty(),
 				meshManagerExecutors,
 				meshWorkersExecutors );
-		final MeshInfos< TLongHashSet > meshInfos = new MeshInfos<>( selectedSegments, assignment, meshManager, dataSource.getNumMipmapLevels() );
+		final MeshInfos< TLongHashSet > meshInfos = new MeshInfos<>( selectedSegments, assignment, meshManager, assignment::getFragments, dataSource.getNumMipmapLevels() );
 
 		this.meshManager = meshManager;
 		this.meshInfos = meshInfos;
@@ -151,8 +155,8 @@ public class LabelSourceState< D, T >
 	public void invalidateAll()
 	{
 		Arrays
-				.stream( this.meshCaches )
-				.forEach( UncheckedCache::invalidateAll );
+		.stream( this.meshCaches )
+		.forEach( UncheckedCache::invalidateAll );
 	}
 
 }
