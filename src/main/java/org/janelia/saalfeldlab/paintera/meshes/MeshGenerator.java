@@ -254,8 +254,8 @@ public class MeshGenerator< T >
 			final Runnable onFinish = () -> {
 				synchronized ( activeFuture )
 				{
-					activeFuture.set( null );
-					activeTask.set( null );
+//					activeFuture.set( null );
+//					activeTask.set( null );
 				}
 			};
 			final Pair< Future< Void >, MeshGeneratorJobManager< T >.ManagementTask > futureAndTask = manager.submit(
