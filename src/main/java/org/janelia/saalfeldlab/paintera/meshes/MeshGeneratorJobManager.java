@@ -210,6 +210,7 @@ public class MeshGeneratorJobManager< T >
 
 				synchronized( keys )
 				{
+					keys.clear();
 					for ( final Interval block : blockList )
 					{
 						keys.add(
@@ -224,88 +225,94 @@ public class MeshGeneratorJobManager< T >
 					}
 				}
 
-				final int numTasks = keys.size();
-				final CountDownLatch countDownOnMeshes = new CountDownLatch( numTasks );
 
-				final ArrayList< Callable< Void > > tasks = new ArrayList<>();
-				for ( final ShapeKey< T > key : keys )
+
+				if ( !isInterrupted )
 				{
-					tasks.add( () -> {
-						try
-						{
-							final String initialName = Thread.currentThread().getName();
+
+					final int numTasks = keys.size();
+					final CountDownLatch countDownOnMeshes = new CountDownLatch( numTasks );
+
+					final ArrayList< Callable< Void > > tasks = new ArrayList<>();
+
+					for ( final ShapeKey< T > key : keys )
+					{
+						tasks.add( () -> {
 							try
 							{
-								Thread.currentThread().setName( initialName + " -- generating mesh: " + key );
-								LOG.trace( "Set name of current thread to {} ( was {})", Thread.currentThread().getName(), initialName );
-								if ( isInterrupted ) {
-									return null;
-								}
-								final Pair< float[], float[] > verticesAndNormals = getMesh.apply( key );
-								final MeshView mv = makeMeshView( verticesAndNormals );
-								synchronized ( meshes )
+								final String initialName = Thread.currentThread().getName();
+								try
 								{
-									if ( !isInterrupted )
-									{
-										meshes.put( key, mv );
+									Thread.currentThread().setName( initialName + " -- generating mesh: " + key );
+									LOG.trace( "Set name of current thread to {} ( was {})", Thread.currentThread().getName(), initialName );
+									if ( !isInterrupted ) {
+										final Pair< float[], float[] > verticesAndNormals = getMesh.apply( key );
+										final MeshView mv = makeMeshView( verticesAndNormals );
+										synchronized ( meshes )
+										{
+											if ( !isInterrupted )
+											{
+												meshes.put( key, mv );
+											}
+										}
 									}
 								}
-							}
-							catch ( final RuntimeException e )
-							{
-								LOG.debug( "Was not able to retrieve mesh for {}: {}", key, e.getMessage() );
+								catch ( final RuntimeException e )
+								{
+									LOG.debug( "Was not able to retrieve mesh for {}: {}", key, e.getMessage() );
+								}
+								finally
+								{
+									Thread.currentThread().setName( initialName );
+								}
+								return null;
 							}
 							finally
 							{
-								Thread.currentThread().setName( initialName );
+								synchronized ( setNumberOfTasks )
+								{
+									countDownOnMeshes.countDown();
+									setNumberOfCompletedTasks.accept( numTasks - ( int ) countDownOnMeshes.getCount() );
+								}
+								LOG.debug( "Counted down latch. {} remaining", countDownOnMeshes.getCount() );
 							}
-							return null;
-						}
-						finally
-						{
-							synchronized ( setNumberOfTasks )
-							{
-								countDownOnMeshes.countDown();
-								setNumberOfCompletedTasks.accept( numTasks - ( int ) countDownOnMeshes.getCount() );
-							}
-							LOG.debug( "Counted down latch. {} remaining", countDownOnMeshes.getCount() );
-						}
 
-					} );
-				}
-
-				try
-				{
-					workers.invokeAll( tasks );
-				}
-				catch ( final InterruptedException e )
-				{
-					this.isInterrupted = true;
-					keys.forEach( getMesh::interruptFor );
-				}
-
-				try
-				{
-					if ( this.isInterrupted )
-					{
-						keys.forEach( getMesh::interruptFor );
+						} );
 					}
-					else
+
+					try
 					{
-						countDownOnMeshes.await();
+						workers.invokeAll( tasks );
 					}
-				}
-				catch ( final InterruptedException e )
-				{
-					LOG.debug( "Current thread was interrupted while waiting for mesh count down latch ({} remaining)", countDownOnMeshes.getCount() );
-					synchronized ( getMesh )
+					catch ( final InterruptedException e )
 					{
 						this.isInterrupted = true;
 						keys.forEach( getMesh::interruptFor );
 					}
-				}
 
-				return null;
+					try
+					{
+						if ( this.isInterrupted )
+						{
+							keys.forEach( getMesh::interruptFor );
+						}
+						else
+						{
+							countDownOnMeshes.await();
+						}
+					}
+					catch ( final InterruptedException e )
+					{
+						LOG.debug( "Current thread was interrupted while waiting for mesh count down latch ({} remaining)", countDownOnMeshes.getCount() );
+						synchronized ( getMesh )
+						{
+							this.isInterrupted = true;
+							keys.forEach( getMesh::interruptFor );
+						}
+					}
+
+					return null;
+				}
 			}
 			finally
 			{
@@ -321,6 +328,8 @@ public class MeshGeneratorJobManager< T >
 				}
 				this.onFinish.run();
 			}
+
+			return null;
 
 		}
 
