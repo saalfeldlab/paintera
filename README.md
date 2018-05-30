@@ -81,6 +81,7 @@ Usage: Paintera [-h] [--height=HEIGHT] [--width=WIDTH]
 | `C` | Increment ARGB stream seed by one |
 | `Shift` + `C` | Decrement ARGB stream seed by one |
 | `Ctrl` + `Shift` + `C` | Show ARGB stream seed spinner |
+| `V` | Toggle visibility of current source |
 
 
 
