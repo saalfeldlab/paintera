@@ -114,7 +114,7 @@ public class SegmentMeshCacheLoader< T > implements CacheLoader< ShapeKey< TLong
 			{
 				normals[ i ] *= -1;
 			}
-			return new ValuePair<>( mesh, normals );
+			return isInterrupted[ 0 ] ? null : new ValuePair<>( mesh, normals );
 		}
 		finally
 		{

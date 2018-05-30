@@ -15,18 +15,10 @@ import org.janelia.saalfeldlab.paintera.composition.ARGBCompositeAlphaYCbCr;
 import org.janelia.saalfeldlab.paintera.composition.CompositeCopy;
 import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignmentState;
 import org.janelia.saalfeldlab.paintera.control.selection.SelectedIds;
-import org.janelia.saalfeldlab.paintera.control.selection.SelectedSegments;
 import org.janelia.saalfeldlab.paintera.data.DataSource;
 import org.janelia.saalfeldlab.paintera.data.mask.Masks;
 import org.janelia.saalfeldlab.paintera.data.mask.TmpDirectoryCreator;
 import org.janelia.saalfeldlab.paintera.data.n5.CommitCanvasN5;
-import org.janelia.saalfeldlab.paintera.id.ToIdConverter;
-import org.janelia.saalfeldlab.paintera.meshes.InterruptibleFunction;
-import org.janelia.saalfeldlab.paintera.meshes.MeshInfos;
-import org.janelia.saalfeldlab.paintera.meshes.MeshManagerWithAssignmentForSegments;
-import org.janelia.saalfeldlab.paintera.meshes.ShapeKey;
-import org.janelia.saalfeldlab.paintera.meshes.cache.CacheUtils;
-import org.janelia.saalfeldlab.paintera.meshes.cache.SegmentMaskGenerators;
 import org.janelia.saalfeldlab.paintera.serialization.GsonHelpers;
 import org.janelia.saalfeldlab.paintera.serialization.Properties;
 import org.janelia.saalfeldlab.paintera.state.LabelSourceState;
@@ -43,24 +35,19 @@ import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
 
 import bdv.viewer.ViewerOptions;
-import gnu.trove.set.hash.TLongHashSet;
 import javafx.application.Application;
 import javafx.application.Platform;
-import javafx.beans.property.SimpleDoubleProperty;
-import javafx.beans.property.SimpleIntegerProperty;
 import javafx.scene.Scene;
 import javafx.scene.control.ButtonBar.ButtonData;
 import javafx.scene.control.ButtonType;
 import javafx.scene.control.Dialog;
 import javafx.stage.Screen;
 import javafx.stage.Stage;
-import net.imglib2.Interval;
 import net.imglib2.Volatile;
 import net.imglib2.converter.ARGBColorConverter;
 import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.type.NativeType;
 import net.imglib2.type.numeric.RealType;
-import net.imglib2.util.Pair;
 import picocli.CommandLine;
 
 public class Paintera extends Application
@@ -301,50 +288,17 @@ public class Paintera extends Application
 						new CommitCanvasN5( n5, dataset ),
 						pbv.getPropagationQueue() );
 
-				final InterruptibleFunction< Long, Interval[] >[] blockListCache =
-						PainteraBaseView.generateLabelBlocksForLabelCache( maskedSource );
-
-				final InterruptibleFunction< ShapeKey< TLongHashSet >, Pair< float[], float[] > >[] meshCache =
-						CacheUtils.segmentMeshCacheLoaders(
-								maskedSource,
-								SegmentMaskGenerators.forType( dataSource.getDataType() ),
-								CacheUtils::toCacheSoftRefLoaderCache );
-
-				final SelectedSegments selectedSegments = new SelectedSegments( selectedIds, assignment );
-
-				final MeshManagerWithAssignmentForSegments meshManager = new MeshManagerWithAssignmentForSegments(
-						maskedSource,
-						blockListCache,
-						meshCache,
-						pbv.viewer3D().meshesGroup(),
-						assignment,
-						selectedSegments,
-						stream,
-						new SimpleIntegerProperty(),
-						new SimpleDoubleProperty(),
-						new SimpleIntegerProperty(),
-						pbv.getMeshManagerExecutorService(),
-						pbv.getMeshWorkerExecutorService() );
-
-				final MeshInfos< TLongHashSet > meshInfos = new MeshInfos< >(
-						selectedSegments,
-						assignment,
-						meshManager,
-						maskedSource.getNumMipmapLevels() );
-
 				final LabelSourceState< D, T > state = new LabelSourceState<>(
 						maskedSource,
 						HighlightingStreamConverter.forType( stream, dataSource.getType() ),
 						new ARGBCompositeAlphaYCbCr(),
 						name,
-						PainteraBaseView.equalsMaskForType( dataSource.getDataType() ),
-						SegmentMaskGenerators.forType( dataSource.getDataType() ),
 						assignment,
-						ToIdConverter.fromType( dataSource.getDataType() ),
-						selectedIds,
 						N5Helpers.idService( n5, dataset ),
-						meshManager,
-						meshInfos );
+						selectedIds,
+						pbv.viewer3D().meshesGroup(),
+						pbv.getMeshManagerExecutorService(),
+						pbv.getMeshWorkerExecutorService() );
 				pbv.addLabelSource( state );
 			}
 			catch ( final Exception e )

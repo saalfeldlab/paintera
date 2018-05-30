@@ -1,9 +1,9 @@
 package org.janelia.saalfeldlab.paintera.meshes;
 
 import java.lang.invoke.MethodHandles;
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Optional;
 import java.util.function.BiConsumer;
 
 import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignment;
@@ -11,14 +11,17 @@ import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssign
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javafx.beans.binding.Bindings;
 import javafx.beans.property.DoubleProperty;
 import javafx.beans.property.IntegerProperty;
+import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.SimpleDoubleProperty;
 import javafx.beans.property.SimpleIntegerProperty;
+import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.value.ChangeListener;
 import javafx.beans.value.ObservableIntegerValue;
 import javafx.beans.value.ObservableValue;
+import javafx.scene.shape.CullFace;
+import javafx.scene.shape.DrawMode;
 
 public class MeshInfo< T >
 {
@@ -33,7 +36,7 @@ public class MeshInfo< T >
 
 	private final IntegerProperty smoothingIterations = new SimpleIntegerProperty();
 
-	private final long segmentId;
+	private final T segmentId;
 
 	private final FragmentSegmentAssignment assignment;
 
@@ -47,8 +50,28 @@ public class MeshInfo< T >
 
 	private final IntegerProperty successfulTasks = new SimpleIntegerProperty( 0 );
 
+	private final DoubleProperty opacity = new SimpleDoubleProperty( 1.0 );
+
+	private final ObjectProperty< DrawMode > drawMode = new SimpleObjectProperty<>( DrawMode.FILL );
+
+	private final ObjectProperty< CullFace > cullFace = new SimpleObjectProperty<>( CullFace.FRONT );
+
+	private final PropagateChanges< Number > scaleLevelListener = new PropagateChanges<>( ( mesh, newv ) -> mesh.scaleIndexProperty().set( newv.intValue() ) );
+
+	private final PropagateChanges< Number > simplificationIterationsListener = new PropagateChanges<>( ( mesh, newv ) -> mesh.meshSimplificationIterationsProperty().set( newv.intValue() ) );
+
+	private final PropagateChanges< Number > smoothingLambdaListener = new PropagateChanges<>( ( mesh, newv ) -> mesh.smoothingLambdaProperty().set( newv.doubleValue() ) );
+
+	private final PropagateChanges< Number > opacityListener = new PropagateChanges<>( ( mesh, newv ) -> mesh.opacityProperty().set( newv.doubleValue() ) );
+
+	private final PropagateChanges< Number> smoothingIterationsListener = new PropagateChanges<>( ( mesh, newv ) -> mesh.smoothingIterationsProperty().set( newv.intValue() ) );
+
+	private final PropagateChanges< DrawMode > drawModeListener = new PropagateChanges<>( ( mesh, newv ) -> mesh.drawModeProperty().set( newv ) );
+
+	private final PropagateChanges< CullFace > cullFaceListener = new PropagateChanges<>( ( mesh, newv ) -> mesh.cullFaceProperty().set( newv ) );
+
 	public MeshInfo(
-			final long segmentId,
+			final T segmentId,
 			final FragmentSegmentAssignment assignment,
 			final MeshManager< T > meshManager,
 			final int numScaleLevels )
@@ -59,17 +82,11 @@ public class MeshInfo< T >
 		this.meshManager = meshManager;
 
 		scaleLevel.set( meshManager.scaleLevelProperty().get() );
-		scaleLevel.addListener( new PropagateChanges<>( ( mesh, newv ) -> mesh.scaleIndexProperty().set( newv.intValue() ) ) );
-		scaleLevel.addListener( (obs, oldv, newv  ) -> LOG.warn( "Changing scale level from {} to {}", oldv, newv ) );
-
 		simplificationIterations.set( meshManager.meshSimplificationIterationsProperty().get() );
-		simplificationIterations.addListener( new PropagateChanges<>( ( mesh, newv ) -> mesh.meshSimplificationIterationsProperty().set( newv.intValue() ) ) );
-
 		smoothingLambda.set( meshManager.smoothingLambdaProperty().get() );
-		smoothingLambda.addListener( new PropagateChanges<>( ( mesh, newv ) -> mesh.smoothingLambdaProperty().set( newv.doubleValue() ) ) );
-
 		smoothingIterations.set( meshManager.smoothingIterationsProperty().get() );
-		smoothingIterations.addListener( new PropagateChanges<>( ( mesh, newv ) -> mesh.smoothingIterationsProperty().set( newv.intValue() ) ) );
+
+		listen();
 
 		this.numScaleLevels = numScaleLevels;
 
@@ -81,22 +98,39 @@ public class MeshInfo< T >
 
 	}
 
+	public void listen()
+	{
+		this.scaleLevel.addListener( this.scaleLevelListener );
+		this.simplificationIterations.addListener( this.simplificationIterationsListener );
+		this.smoothingLambda.addListener( this.smoothingLambdaListener );
+		this.opacity.addListener( this.opacityListener );
+		this.smoothingIterations.addListener( this.smoothingIterationsListener );
+		this.drawMode.addListener( this.drawModeListener );
+		this.cullFace.addListener( this.cullFaceListener );
+	}
+
+	public void hangUp()
+	{
+		this.scaleLevel.removeListener( this.scaleLevelListener );
+		this.simplificationIterations.removeListener( this.simplificationIterationsListener );
+		this.smoothingLambda.removeListener( this.smoothingLambdaListener );
+		this.opacity.removeListener( this.opacityListener );
+		this.smoothingIterations.removeListener( this.smoothingIterationsListener );
+		this.drawMode.removeListener( this.drawModeListener );
+		this.cullFace.removeListener( this.cullFaceListener );
+	}
+
 	private void updateTasksCountBindings()
 	{
 		LOG.debug( "Updating task count bindings." );
-		final long[] fragments = assignment.getFragments( segmentId ).toArray();
-		final Map< Long, MeshGenerator< T > > meshes = new HashMap<>( meshManager.unmodifiableMeshMap() );
-		final ObservableIntegerValue[] submittedTasks = Arrays.stream( fragments ).mapToObj( meshes::get ).filter( mesh -> mesh != null ).map( MeshGenerator::submittedTasksProperty ).toArray( ObservableIntegerValue[]::new );
-		final ObservableIntegerValue[] completedTasks = Arrays.stream( fragments ).mapToObj( meshes::get ).filter( mesh -> mesh != null ).map( MeshGenerator::completedTasksProperty ).toArray( ObservableIntegerValue[]::new );
-		final ObservableIntegerValue[] successfulTasks = Arrays.stream( fragments ).mapToObj( meshes::get ).filter( mesh -> mesh != null ).map( MeshGenerator::successfulTasksProperty ).toArray( ObservableIntegerValue[]::new );
-
-		this.submittedTasks.bind( Bindings.createIntegerBinding( () -> Arrays.stream( submittedTasks ).mapToInt( ObservableIntegerValue::get ).sum(), submittedTasks ) );
-		this.completedTasks.bind( Bindings.createIntegerBinding( () -> Arrays.stream( completedTasks ).mapToInt( ObservableIntegerValue::get ).sum(), completedTasks ) );
-		this.successfulTasks.bind( Bindings.createIntegerBinding( () -> Arrays.stream( submittedTasks ).mapToInt( ObservableIntegerValue::get ).sum(), successfulTasks ) );
-
+		final Map< T, MeshGenerator< T > > meshes = new HashMap<>( meshManager.unmodifiableMeshMap() );
+		LOG.debug( "Binding meshes to segmentId = {}", segmentId );
+		Optional.ofNullable( meshes.get( segmentId ) ).map( MeshGenerator::submittedTasksProperty ).ifPresent( this.submittedTasks::bind );
+		Optional.ofNullable( meshes.get( segmentId ) ).map( MeshGenerator::completedTasksProperty ).ifPresent( this.completedTasks::bind );
+		Optional.ofNullable( meshes.get( segmentId ) ).map( MeshGenerator::successfulTasksProperty ).ifPresent( this.successfulTasks::bind );
 	}
 
-	public long segmentId()
+	public T segmentId()
 	{
 		return this.segmentId;
 	}
@@ -131,6 +165,11 @@ public class MeshInfo< T >
 		return this.numScaleLevels;
 	}
 
+	public DoubleProperty opacityProperty()
+	{
+		return this.opacity;
+	}
+
 	private class PropagateChanges< U > implements ChangeListener< U >
 	{
 
@@ -145,10 +184,8 @@ public class MeshInfo< T >
 		@Override
 		public void changed( final ObservableValue< ? extends U > observable, final U oldValue, final U newValue )
 		{
-			final long[] fragments = assignment.getFragments( segmentId ).toArray();
-			LOG.debug( "Propagating changes {} {}", segmentId, fragments );
-			final Map< Long, MeshGenerator< T > > meshes = meshManager.unmodifiableMeshMap();
-			Arrays.stream( fragments ).mapToObj( meshes::get ).filter( m -> m != null ).forEach( n -> apply.accept( n, newValue ) );
+			final Map< T, MeshGenerator< T > > meshes = meshManager.unmodifiableMeshMap();
+			apply.accept( meshes.get( segmentId ), newValue );
 		}
 
 	}
@@ -156,7 +193,7 @@ public class MeshInfo< T >
 	@Override
 	public int hashCode()
 	{
-		return Long.hashCode( segmentId );
+		return segmentId.hashCode();
 	}
 
 	@Override
@@ -183,6 +220,21 @@ public class MeshInfo< T >
 	public MeshManager< T > meshManager()
 	{
 		return this.meshManager;
+	}
+
+	public ObjectProperty< DrawMode > drawModeProperty()
+	{
+		return this.drawMode;
+	}
+
+	public ObjectProperty< CullFace > cullFaceProperty()
+	{
+		return this.cullFace;
+	}
+
+	public long[] containedFragments()
+	{
+		return meshManager.containedFragments( segmentId );
 	}
 
 }

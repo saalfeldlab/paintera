@@ -64,6 +64,8 @@ public class MeshManagerWithAssignment implements MeshManager< Long >
 
 	private final IntegerProperty scaleLevel = new SimpleIntegerProperty();
 
+	private final DoubleProperty opacity = new SimpleDoubleProperty();
+
 	private final ExecutorService managers;
 
 	private final ExecutorService workers;
@@ -157,8 +159,8 @@ public class MeshManagerWithAssignment implements MeshManager< Long >
 				smoothingLambda.get(),
 				smoothingIterations.get(),
 				managers,
-				workers,
-				val -> new long[] { val } );
+				workers );
+		nfx.opacityProperty().set( this.opacity.get() );
 		nfx.rootProperty().set( this.root );
 
 		neurons.put( id, nfx );
@@ -166,7 +168,7 @@ public class MeshManagerWithAssignment implements MeshManager< Long >
 	}
 
 	@Override
-	public void removeMesh( final long id )
+	public void removeMesh( final Long id )
 	{
 		Optional.ofNullable( unmodifiableMeshMap().get( id ) ).ifPresent( this::removeMesh );
 	}
@@ -196,7 +198,7 @@ public class MeshManagerWithAssignment implements MeshManager< Long >
 	}
 
 	@Override
-	public void generateMesh( final long id )
+	public void generateMesh( final Long id )
 	{
 		generateMesh( this.source, id );
 	}
@@ -232,6 +234,18 @@ public class MeshManagerWithAssignment implements MeshManager< Long >
 	public InterruptibleFunction< ShapeKey< Long >, Pair< float[], float[] > >[] meshCache()
 	{
 		return this.meshCache;
+	}
+
+	@Override
+	public DoubleProperty opacityProperty()
+	{
+		return this.opacity;
+	}
+
+	@Override
+	public long[] containedFragments( final Long id )
+	{
+		return assignment.getFragments( id ).toArray();
 	}
 
 }

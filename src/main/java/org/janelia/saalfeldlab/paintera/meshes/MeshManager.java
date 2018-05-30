@@ -9,9 +9,9 @@ import net.imglib2.util.Pair;
 
 public interface MeshManager< T >
 {
-	public void generateMesh( final long id );
+	public void generateMesh( final T id );
 
-	public void removeMesh( final long id );
+	public void removeMesh( final T id );
 
 	public void removeAllMeshes();
 
@@ -23,10 +23,14 @@ public interface MeshManager< T >
 
 	public IntegerProperty smoothingIterationsProperty();
 
-	public Map< Long, MeshGenerator< T > > unmodifiableMeshMap();
+	public Map< T, MeshGenerator< T > > unmodifiableMeshMap();
 
-	public InterruptibleFunction< Long, Interval[] >[] blockListCache();
+	public InterruptibleFunction< T, Interval[] >[] blockListCache();
 
 	public InterruptibleFunction< ShapeKey< T >, Pair< float[], float[] > >[] meshCache();
+
+	public DoubleProperty opacityProperty();
+
+	public long[] containedFragments( T t );
 
 }

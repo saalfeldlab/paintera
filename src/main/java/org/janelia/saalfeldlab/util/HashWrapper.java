@@ -3,6 +3,7 @@ package org.janelia.saalfeldlab.util;
 import java.io.Serializable;
 import java.util.Arrays;
 import java.util.function.BiPredicate;
+import java.util.function.Function;
 import java.util.function.ToIntFunction;
 
 import net.imglib2.Interval;
@@ -12,7 +13,7 @@ public class HashWrapper< T > implements Serializable
 {
 
 	/**
-	 * 
+	 *
 	 */
 	private static final long serialVersionUID = -2571523935606311437L;
 
@@ -24,12 +25,20 @@ public class HashWrapper< T > implements Serializable
 
 	private int hashValue;
 
+	private Function< T, String > toString;
+
 	public HashWrapper( final T t, final ToIntFunction< T > hash, final BiPredicate< T, T > equals )
+	{
+		this( t, hash, equals, T::toString );
+	}
+
+	public HashWrapper( final T t, final ToIntFunction< T > hash, final BiPredicate< T, T > equals, final Function< T, String > toString )
 	{
 		super();
 		this.t = t;
 		this.hash = hash;
 		this.equals = equals;
+		this.toString = toString;
 		updateHashValue();
 	}
 
@@ -64,11 +73,12 @@ public class HashWrapper< T > implements Serializable
 	{
 		if ( o instanceof HashWrapper )
 		{
-			HashWrapper< ? > hw = ( ( HashWrapper< ? > ) o );
+			final HashWrapper< ? > hw = ( ( HashWrapper< ? > ) o );
 			final Object obj = hw.getData();
 			if ( this.t.getClass().isInstance( obj ) )
 			{
 				@SuppressWarnings( "unchecked" )
+				final
 				HashWrapper< T > that = ( HashWrapper< T > ) hw;
 				return this.dataEquals( that );
 			}
@@ -110,11 +120,28 @@ public class HashWrapper< T > implements Serializable
 
 	public static HashWrapper< Interval > interval( final Interval interval )
 	{
+		return HashWrapper.interval(
+				interval,
+				i -> Arrays.toString( Intervals.minAsLongArray( i ) ) + " " + Arrays.toString( Intervals.maxAsLongArray( i ) )
+				);
+
+	}
+
+
+	public static HashWrapper< Interval > interval( final Interval interval, final Function< Interval, String > toString )
+	{
 		final LongArrayHash hash = new LongArrayHash();
 		return new HashWrapper<>(
 				interval,
 				i -> 31 * hash.applyAsInt( Intervals.minAsLongArray( i ) ) + hash.applyAsInt( Intervals.maxAsLongArray( i ) ),
-				( i1, i2 ) -> Intervals.contains( i1, i2 ) && Intervals.contains( i2, i1 ) );
+				( i1, i2 ) -> Intervals.contains( i1, i2 ) && Intervals.contains( i2, i1 ),
+				toString );
+	}
+
+	@Override
+	public String toString()
+	{
+		return "{HashWrapper: " + this.toString.apply( this.t ) + "}";
 	}
 
 }

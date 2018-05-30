@@ -11,7 +11,7 @@ import net.imglib2.converter.Converter;
 import net.imglib2.type.numeric.ARGBType;
 
 public class MinimalSourceStateSerializer extends
-		SourceStateSerialization.SourceStateSerializerWithDependencies< MinimalSourceState< ?, ?, Converter< ?, ARGBType > > >
+		SourceStateSerialization.SourceStateSerializerWithDependencies< MinimalSourceState< ?, ?, ?, Converter< ?, ARGBType > > >
 {
 
 	public MinimalSourceStateSerializer( final ToIntFunction< SourceState< ?, ? > > stateToIndex )
@@ -20,7 +20,7 @@ public class MinimalSourceStateSerializer extends
 	}
 
 	public static class Factory implements
-			StatefulSerializer.Serializer< MinimalSourceState< ?, ?, Converter< ?, ARGBType > >, MinimalSourceStateSerializer >
+			StatefulSerializer.Serializer< MinimalSourceState< ?, ?, ?, Converter< ?, ARGBType > >, MinimalSourceStateSerializer >
 	{
 
 		@Override

@@ -25,11 +25,14 @@ import javafx.collections.ObservableList;
 import javafx.collections.ObservableMap;
 import javafx.scene.Node;
 import javafx.scene.control.Button;
+import javafx.scene.control.ComboBox;
 import javafx.scene.control.Label;
 import javafx.scene.control.TitledPane;
 import javafx.scene.control.Tooltip;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.VBox;
+import javafx.scene.shape.CullFace;
+import javafx.scene.shape.DrawMode;
 import net.imglib2.Interval;
 import net.imglib2.util.Pair;
 
@@ -50,9 +53,11 @@ public class MeshPane implements BindUnbindAndNodeSupplier, ListChangeListener< 
 
 	private final NumericSliderWithField smoothingIterationsSlider;
 
-	final ObservableMap< MeshInfo< TLongHashSet >, MeshInfoNode > infoNodesCache = FXCollections.observableHashMap();
+	private final NumericSliderWithField opacitySlider;
 
-	final ObservableList< MeshInfoNode > infoNodes = FXCollections.observableArrayList();
+	final ObservableMap< MeshInfo< TLongHashSet >, MeshInfoNode< TLongHashSet > > infoNodesCache = FXCollections.observableHashMap();
+
+	final ObservableList< MeshInfoNode< TLongHashSet > > infoNodes = FXCollections.observableArrayList();
 
 	private final VBox managerSettingsPane;
 
@@ -63,6 +68,10 @@ public class MeshPane implements BindUnbindAndNodeSupplier, ListChangeListener< 
 //		meshesPane.setMinWidth( 50 );
 		meshesPane.setMaxWidth( Double.MAX_VALUE );
 	}
+
+	private final ComboBox< DrawMode > drawModeChoice;
+
+	private final ComboBox< CullFace > cullFaceChoice;
 
 	private boolean isBound = false;
 
@@ -76,6 +85,13 @@ public class MeshPane implements BindUnbindAndNodeSupplier, ListChangeListener< 
 		scaleSlider = new NumericSliderWithField( 0, this.numScaleLevels - 1, manager.scaleLevelProperty().get() );
 		smoothingLambdaSlider = new NumericSliderWithField( 0.0, 1.0, 0.5 );
 		smoothingIterationsSlider = new NumericSliderWithField( 0, 10, 5 );
+		this.opacitySlider = new NumericSliderWithField( 0.0, 1.0, manager.opacityProperty().get() );
+
+		this.drawModeChoice = new ComboBox<>( FXCollections.observableArrayList( DrawMode.values() ) );
+		this.drawModeChoice.setValue( DrawMode.FILL );
+
+		this.cullFaceChoice = new ComboBox<>( FXCollections.observableArrayList( CullFace.values() ) );
+		this.cullFaceChoice.setValue( CullFace.FRONT );
 
 		managerSettingsPane = new VBox( new Label( "Defaults" ), setupManagerSliderGrid(), meshesPane );
 
@@ -97,6 +113,7 @@ public class MeshPane implements BindUnbindAndNodeSupplier, ListChangeListener< 
 		scaleSlider.slider().valueProperty().bindBidirectional( manager.scaleLevelProperty() );
 		smoothingLambdaSlider.slider().valueProperty().bindBidirectional( manager.smoothingLambdaProperty() );
 		smoothingIterationsSlider.slider().valueProperty().bindBidirectional( manager.smoothingIterationsProperty() );
+		opacitySlider.slider().valueProperty().bindBidirectional( manager.opacityProperty() );
 		new ArrayList<>( this.infoNodes ).forEach( MeshInfoNode::bind );
 	}
 
@@ -108,6 +125,7 @@ public class MeshPane implements BindUnbindAndNodeSupplier, ListChangeListener< 
 		scaleSlider.slider().valueProperty().unbindBidirectional( manager.scaleLevelProperty() );
 		smoothingLambdaSlider.slider().valueProperty().unbindBidirectional( manager.smoothingLambdaProperty() );
 		smoothingIterationsSlider.slider().valueProperty().unbindBidirectional( manager.smoothingIterationsProperty() );
+		opacitySlider.slider().valueProperty().unbindBidirectional( manager.opacityProperty() );
 		new ArrayList<>( this.infoNodes ).forEach( MeshInfoNode::unbind );
 	}
 
@@ -126,29 +144,36 @@ public class MeshPane implements BindUnbindAndNodeSupplier, ListChangeListener< 
 
 	private void populateInfoNodes( final List< MeshInfo< TLongHashSet > > infos )
 	{
-		final List< MeshInfoNode > infoNodes = new ArrayList<>( infos ).stream().map( this::fromMeshInfo ).collect( Collectors.toList() );
+		final List< MeshInfoNode< TLongHashSet > > infoNodes = new ArrayList<>( infos ).stream().map( this::fromMeshInfo ).collect( Collectors.toList() );
 		LOG.debug( "Setting info nodes: {}: ", infoNodes );
 		this.infoNodes.setAll( infoNodes );
 		final Button exportMeshButton = new Button( "Export all" );
 		exportMeshButton.setOnAction( event -> {
-			final MeshExporterDialog exportDialog = new MeshExporterDialog( meshInfos );
-			final Optional< ExportResult > result = exportDialog.showAndWait();
+			final MeshExporterDialog< TLongHashSet > exportDialog = new MeshExporterDialog<>( meshInfos );
+			final Optional< ExportResult< TLongHashSet > > result = exportDialog.showAndWait();
 			if ( result.isPresent() )
 			{
-				final ExportResult parameters = result.get();
+				final ExportResult< TLongHashSet > parameters = result.get();
 
 				@SuppressWarnings( "unchecked" )
-				final InterruptibleFunction< Long, Interval[] >[][] blockListCaches = Stream
+				final InterruptibleFunction< TLongHashSet, Interval[] >[][] blockListCaches = Stream
 				.generate( manager::blockListCache )
 				.limit( meshInfos.readOnlyInfos().size() )
 				.toArray( InterruptibleFunction[][]::new );
 
-				final InterruptibleFunction< ShapeKey< Long >, Pair< float[], float[] > >[][] meshCaches = Stream
+				final InterruptibleFunction< ShapeKey< TLongHashSet >, Pair< float[], float[] > >[][] meshCaches = Stream
 						.generate( manager::meshCache )
 						.limit( meshInfos.readOnlyInfos().size() )
 						.toArray( InterruptibleFunction[][]::new );
 
-				parameters.getMeshExporter().exportMesh( blockListCaches, meshCaches, parameters.getSegmentId(), parameters.getScale(), parameters.getFilePaths() );
+
+
+				parameters.getMeshExporter().exportMesh(
+						blockListCaches,
+						meshCaches,
+						parameters.getSegmentId(),
+						parameters.getScale(),
+						parameters.getFilePaths() );
 			}
 		} );
 		InvokeOnJavaFXApplicationThread.invoke( () -> {
@@ -163,6 +188,14 @@ public class MeshPane implements BindUnbindAndNodeSupplier, ListChangeListener< 
 		final GridPane contents = new GridPane();
 
 		int row = 0;
+
+		contents.add( new Label( "Opacity " ), 0, row );
+		contents.add( opacitySlider.slider(), 1, row );
+		contents.add( opacitySlider.textField(), 2, row );
+		opacitySlider.slider().setShowTickLabels( true );
+		opacitySlider.slider().setTooltip( new Tooltip( "Mesh opacity")  );
+		++row;
+
 		contents.add( new Label( "Scale" ), 0, row );
 		contents.add( scaleSlider.slider(), 1, row );
 		contents.add( scaleSlider.textField(), 2, row );
@@ -184,25 +217,31 @@ public class MeshPane implements BindUnbindAndNodeSupplier, ListChangeListener< 
 		smoothingIterationsSlider.slider().setTooltip( new Tooltip( "Default for smoothing iterations." ) );
 		++row;
 
+		contents.add( new Label("Draw Mode"), 0, row );
+		contents.add( drawModeChoice, 2, row );
+		++row;
+
+		contents.add( new Label("CullFace "), 0, row );
+		contents.add( cullFaceChoice, 2, row );
+		++row;
+
 		return contents;
 	}
 
-	private MeshInfoNode fromMeshInfo( final MeshInfo< TLongHashSet > info )
+	private MeshInfoNode< TLongHashSet > fromMeshInfo( final MeshInfo< TLongHashSet > info )
 	{
-		final MeshInfoNode node = infoNodesCache.computeIfAbsent( info, MeshInfoNode::new );
+		final MeshInfoNode< TLongHashSet > node = new MeshInfoNode<>( info );
 		if ( this.isBound )
 		{
 			node.bind();
-			node.isManagedExternally().addListener( (obs, oldv, newv) -> node.bindToExternalSliders(
-					scaleSlider.slider().valueProperty(),
-					smoothingLambdaSlider.slider().valueProperty(),
-					smoothingIterationsSlider.slider().valueProperty(),
-					newv ) );
 			node.bindToExternalSliders(
 					scaleSlider.slider().valueProperty(),
 					smoothingLambdaSlider.slider().valueProperty(),
 					smoothingIterationsSlider.slider().valueProperty(),
-					node.isManagedExternally().get() );
+					opacitySlider.slider().valueProperty(),
+					drawModeChoice.valueProperty(),
+					cullFaceChoice.valueProperty(),
+					true );
 		}
 		return node;
 	}

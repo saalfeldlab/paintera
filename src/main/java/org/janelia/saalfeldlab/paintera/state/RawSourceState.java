@@ -7,7 +7,7 @@ import net.imglib2.converter.ARGBColorConverter;
 import net.imglib2.type.numeric.ARGBType;
 import net.imglib2.type.numeric.RealType;
 
-public class RawSourceState< D, T extends RealType< T > > extends MinimalSourceState< D, T, ARGBColorConverter< T >>
+public class RawSourceState< D, T extends RealType< T > > extends MinimalSourceState< D, T, DataSource< D, T >, ARGBColorConverter< T > >
 {
 
 	public RawSourceState(

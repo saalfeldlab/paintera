@@ -72,4 +72,9 @@ public class FragmentsInSelectedSegments extends ObservableWithListenersList
 
 	}
 
+	public boolean contains( final long id )
+	{
+		return this.selectedFragments.contains( id );
+	}
+
 }

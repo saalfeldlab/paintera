@@ -1,9 +1,15 @@
 package org.janelia.saalfeldlab.paintera.control.assignment;
 
+import java.lang.invoke.MethodHandles;
+
 import org.janelia.saalfeldlab.fx.ObservableWithListenersList;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public abstract class FragmentSegmentAssignmentState extends ObservableWithListenersList implements FragmentSegmentAssignment
 {
+
+	private static final Logger LOG = LoggerFactory.getLogger( MethodHandles.lookup().lookupClass() );
 
 	public void persist()
 	{
@@ -40,6 +46,7 @@ public abstract class FragmentSegmentAssignmentState extends ObservableWithListe
 	public void mergeFragments( final long... fragments )
 	{
 		mergeFragmentsImpl( fragments );
+		LOG.debug( "Merged {}", fragments );
 		stateChanged();
 	}
 

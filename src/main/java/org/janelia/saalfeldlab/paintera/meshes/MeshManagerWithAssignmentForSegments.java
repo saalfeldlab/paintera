@@ -5,14 +5,17 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.stream.Collectors;
 
 import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignmentState;
+import org.janelia.saalfeldlab.paintera.control.assignment.FragmentsInSelectedSegments;
 import org.janelia.saalfeldlab.paintera.control.selection.SelectedSegments;
 import org.janelia.saalfeldlab.paintera.data.DataSource;
 import org.janelia.saalfeldlab.paintera.stream.AbstractHighlightingARGBStream;
@@ -42,7 +45,7 @@ public class MeshManagerWithAssignmentForSegments implements MeshManager< TLongH
 
 	private final DataSource< ?, ? > source;
 
-	private final InterruptibleFunction< Long, Interval[] >[] blockListCache;
+	private final InterruptibleFunction< TLongHashSet, Interval[] >[] blockListCache;
 
 	private final InterruptibleFunction< ShapeKey< TLongHashSet >, Pair< float[], float[] > >[] meshCache;
 
@@ -50,11 +53,13 @@ public class MeshManagerWithAssignmentForSegments implements MeshManager< TLongH
 
 	private final AbstractHighlightingARGBStream stream;
 
-	private final Map< Long, MeshGenerator< TLongHashSet > > neurons = Collections.synchronizedMap( new HashMap<>() );
+	private final Map< TLongHashSet, MeshGenerator< TLongHashSet > > neurons = Collections.synchronizedMap( new HashMap<>() );
 
 	private final Group root;
 
 	private final SelectedSegments selectedSegments;
+
+	private final FragmentsInSelectedSegments fragmentsInSelectedSegments;
 
 	private final IntegerProperty meshSimplificationIterations = new SimpleIntegerProperty();
 
@@ -64,13 +69,15 @@ public class MeshManagerWithAssignmentForSegments implements MeshManager< TLongH
 
 	private final IntegerProperty scaleLevel = new SimpleIntegerProperty();
 
+	private final DoubleProperty opacity = new SimpleDoubleProperty( 1.0 );
+
 	private final ExecutorService managers;
 
 	private final ExecutorService workers;
 
 	public MeshManagerWithAssignmentForSegments(
 			final DataSource< ?, ? > source,
-			final InterruptibleFunction< Long, Interval[] >[] blockListCache,
+			final InterruptibleFunction< TLongHashSet, Interval[] >[] blockListCacheForFragments,
 			final InterruptibleFunction< ShapeKey< TLongHashSet >, Pair< float[], float[] > >[] meshCache,
 			final Group root,
 			final FragmentSegmentAssignmentState assignment,
@@ -84,11 +91,12 @@ public class MeshManagerWithAssignmentForSegments implements MeshManager< TLongH
 	{
 		super();
 		this.source = source;
-		this.blockListCache = blockListCache;
+		this.blockListCache = blockListCacheForFragments;
 		this.meshCache = meshCache;
 		this.root = root;
 		this.assignment = assignment;
 		this.selectedSegments = selectedSegments;
+		this.fragmentsInSelectedSegments = new FragmentsInSelectedSegments( selectedSegments, assignment );
 		this.stream = stream;
 
 		this.meshSimplificationIterations.set( Math.max( meshSimplificationIterations.get(), 0 ) );
@@ -127,15 +135,16 @@ public class MeshManagerWithAssignmentForSegments implements MeshManager< TLongH
 		{
 			final long[] selectedSegments = this.selectedSegments.getSelectedSegments();
 			final TLongHashSet selectedSegmentsSet = new TLongHashSet( selectedSegments );
-			final TLongHashSet currentlyShowing = new TLongHashSet();
-			final List< Entry< Long, MeshGenerator< TLongHashSet > > > toBeRemoved = new ArrayList<>();
+			final Set< TLongHashSet > currentlyShowing = new HashSet<>();
+			final List< Entry< TLongHashSet, MeshGenerator< TLongHashSet > > > toBeRemoved = new ArrayList<>();
 			neurons.keySet().forEach( currentlyShowing::add );
-			for ( final Entry< Long, MeshGenerator< TLongHashSet > > neuron : neurons.entrySet() )
+			for ( final Entry< TLongHashSet, MeshGenerator< TLongHashSet > > neuron : neurons.entrySet() )
 			{
-				final TLongHashSet fragmentsInSegment = assignment.getFragments( neuron.getKey() );
-				final boolean isSelected = selectedSegmentsSet.contains( neuron.getKey() );
+				final TLongHashSet fragmentsInSegment = neuron.getKey();
+				final long segment = this.assignment.getSegment( fragmentsInSegment.iterator().next() );
+				final boolean isSelected = selectedSegmentsSet.contains( segment );
 				final boolean isConsistent = neuron.getValue().getId().equals( fragmentsInSegment );
-				LOG.warn( "Segment {} is selected? {}  Is consistent? {}", neuron.getKey(), isSelected, isConsistent );
+				LOG.debug( "Segment {} is selected? {}  Is consistent? {}", neuron.getKey(), isSelected, isConsistent );
 				if ( !isSelected || !isConsistent )
 				{
 					currentlyShowing.remove( neuron.getKey() );
@@ -144,24 +153,29 @@ public class MeshManagerWithAssignmentForSegments implements MeshManager< TLongH
 
 			}
 			toBeRemoved.stream().map( e -> e.getValue() ).forEach( this::removeMesh );
-			LOG.warn( "Currently showing {} ", currentlyShowing );
-			LOG.warn( "Selection {}", selectedSegments );
-			LOG.warn( "To be removed {}", toBeRemoved );
-			Arrays.stream( selectedSegments ).filter( id -> !currentlyShowing.contains( id ) ).forEach( segment -> generateMesh( source, segment ) );
+			LOG.debug( "Currently showing {} ", currentlyShowing );
+			LOG.debug( "Selection {}", selectedSegments );
+			LOG.debug( "To be removed {}", toBeRemoved );
+			Arrays
+			.stream( selectedSegments )
+			.mapToObj( segment -> assignment.getFragments( segment ) )
+			.filter( id -> !currentlyShowing.contains( id ) )
+			.forEach( this::generateMesh );
 		}
 	}
 
-	private void generateMesh( final DataSource< ?, ? > source, final long id )
+	@Override
+	public void generateMesh( final TLongHashSet fragments )
 	{
+		final long id = assignment.getSegment( fragments.iterator().next() );
 		final IntegerProperty color = new SimpleIntegerProperty( stream.argb( id ) );
 		stream.addListener( obs -> color.set( stream.argb( id ) ) );
 		assignment.addListener( obs -> color.set( stream.argb( id ) ) );
-		final TLongHashSet fragments = assignment.getFragments( id );
 
 
-		for ( final Entry< Long, MeshGenerator< TLongHashSet > > neuron : neurons.entrySet() )
+		for ( final Entry< TLongHashSet, MeshGenerator< TLongHashSet > > neuron : neurons.entrySet() )
 		{
-			if ( neuron.getKey() == id && neuron.getValue().getId().equals( fragments ) ) {
+			if ( neuron.getValue().getId().equals( fragments ) ) {
 				return;
 			}
 		}
@@ -177,16 +191,16 @@ public class MeshManagerWithAssignmentForSegments implements MeshManager< TLongH
 				smoothingLambda.get(),
 				smoothingIterations.get(),
 				managers,
-				workers,
-				val -> val.toArray() );
+				workers );
+		nfx.opacityProperty().set( this.opacity.get() );
 		nfx.rootProperty().set( this.root );
 
-		neurons.put( id, nfx );
+		neurons.put( fragments, nfx );
 
 	}
 
 	@Override
-	public void removeMesh( final long id )
+	public void removeMesh( final TLongHashSet id )
 	{
 		Optional.ofNullable( unmodifiableMeshMap().get( id ) ).ifPresent( this::removeMesh );
 	}
@@ -194,7 +208,7 @@ public class MeshManagerWithAssignmentForSegments implements MeshManager< TLongH
 	private void removeMesh( final MeshGenerator< TLongHashSet > mesh )
 	{
 		mesh.rootProperty().set( null );
-		final List< Long > toRemove = this.neurons
+		final List< TLongHashSet > toRemove = this.neurons
 				.entrySet()
 				.stream()
 				.filter( e -> e.getValue().getId().equals( mesh.getId() ) )
@@ -204,7 +218,7 @@ public class MeshManagerWithAssignmentForSegments implements MeshManager< TLongH
 	}
 
 	@Override
-	public Map< Long, MeshGenerator< TLongHashSet > > unmodifiableMeshMap()
+	public Map< TLongHashSet, MeshGenerator< TLongHashSet > > unmodifiableMeshMap()
 	{
 		return Collections.unmodifiableMap( neurons );
 	}
@@ -219,12 +233,6 @@ public class MeshManagerWithAssignmentForSegments implements MeshManager< TLongH
 	public IntegerProperty meshSimplificationIterationsProperty()
 	{
 		return meshSimplificationIterations;
-	}
-
-	@Override
-	public void generateMesh( final long id )
-	{
-		generateMesh( this.source, id );
 	}
 
 	@Override
@@ -249,7 +257,7 @@ public class MeshManagerWithAssignmentForSegments implements MeshManager< TLongH
 	}
 
 	@Override
-	public InterruptibleFunction< Long, Interval[] >[] blockListCache()
+	public InterruptibleFunction< TLongHashSet, Interval[] >[] blockListCache()
 	{
 		return this.blockListCache;
 	}
@@ -258,6 +266,18 @@ public class MeshManagerWithAssignmentForSegments implements MeshManager< TLongH
 	public InterruptibleFunction< ShapeKey< TLongHashSet >, Pair< float[], float[] > >[] meshCache()
 	{
 		return this.meshCache;
+	}
+
+	@Override
+	public DoubleProperty opacityProperty()
+	{
+		return this.opacity;
+	}
+
+	@Override
+	public long[] containedFragments( final TLongHashSet t )
+	{
+		return t.toArray();
 	}
 
 }

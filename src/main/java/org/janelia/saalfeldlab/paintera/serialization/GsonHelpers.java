@@ -19,17 +19,23 @@ import org.janelia.saalfeldlab.paintera.data.n5.N5DataSourceSerializer;
 import org.janelia.saalfeldlab.paintera.serialization.StatefulSerializer.Arguments;
 import org.janelia.saalfeldlab.paintera.serialization.converter.ARGBColorConverterSerializer;
 import org.janelia.saalfeldlab.paintera.serialization.converter.HighlightingStreamConverterSerializer;
+import org.janelia.saalfeldlab.paintera.serialization.sourcestate.IntersectingSourceStateDeserializer;
+import org.janelia.saalfeldlab.paintera.serialization.sourcestate.IntersectingSourceStateSerializer;
 import org.janelia.saalfeldlab.paintera.serialization.sourcestate.InvertingSourceStateDeserializer;
 import org.janelia.saalfeldlab.paintera.serialization.sourcestate.InvertingSourceStateSerializer;
 import org.janelia.saalfeldlab.paintera.serialization.sourcestate.LabelSourceStateDeserializer;
 import org.janelia.saalfeldlab.paintera.serialization.sourcestate.LabelSourceStateSerializer;
 import org.janelia.saalfeldlab.paintera.serialization.sourcestate.RawSourceStateDeserializer;
 import org.janelia.saalfeldlab.paintera.serialization.sourcestate.RawSourceStateSerializer;
+import org.janelia.saalfeldlab.paintera.serialization.sourcestate.ThresholdingSourceStateDeserializer;
+import org.janelia.saalfeldlab.paintera.serialization.sourcestate.ThresholdingSourceStateSerializer;
+import org.janelia.saalfeldlab.paintera.state.IntersectingSourceState;
 import org.janelia.saalfeldlab.paintera.state.InvertingRawSourceState;
 import org.janelia.saalfeldlab.paintera.state.LabelSourceState;
 import org.janelia.saalfeldlab.paintera.state.RawSourceState;
 import org.janelia.saalfeldlab.paintera.state.SourceInfo;
 import org.janelia.saalfeldlab.paintera.state.SourceState;
+import org.janelia.saalfeldlab.paintera.state.ThresholdingSourceState;
 import org.janelia.saalfeldlab.paintera.stream.HighlightingStreamConverter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -67,6 +73,8 @@ public class GsonHelpers
 				.registerTypeAdapter( SelectedIds.class, new SelectedIdsSerializer() )
 				.registerTypeAdapter( CommitCanvasN5.class, new CommitCanvasN5Serializer() )
 				.registerTypeAdapter( InvertingRawSourceState.class, new InvertingSourceStateDeserializer( dependencyFromIndex ) )
+				.registerTypeAdapter( ThresholdingSourceState.class, new ThresholdingSourceStateDeserializer( dependencyFromIndex ) )
+				.registerTypeAdapter( IntersectingSourceState.class, new IntersectingSourceStateDeserializer.Factory().createDeserializer( arguments, projectDirectory, dependencyFromIndex  ) )
 				.registerTypeAdapter( LabelSourceState.class, new LabelSourceStateDeserializer<>( arguments ) );
 	}
 
@@ -76,7 +84,7 @@ public class GsonHelpers
 	{
 		final ToIntFunction< SourceState< ?, ? > > dependencyFromIndex =
 				state -> viewer.sourceInfo().trackSources().indexOf( state.getDataSource() );
-		return builderWithAllRequiredSerializers( projectDirectory, dependencyFromIndex );
+				return builderWithAllRequiredSerializers( projectDirectory, dependencyFromIndex );
 	}
 
 	public static GsonBuilder builderWithAllRequiredSerializers(
@@ -98,6 +106,8 @@ public class GsonHelpers
 				.registerTypeAdapter( SelectedIds.class, new SelectedIdsSerializer() )
 				.registerTypeAdapter( CommitCanvasN5.class, new CommitCanvasN5Serializer() )
 				.registerTypeAdapter( FragmentSegmentAssignmentOnlyLocal.class, new FragmentSegmentAssignmentOnlyLocalSerializer() )
+				.registerTypeAdapter( ThresholdingSourceState.class, new ThresholdingSourceStateSerializer( dependencyToIndex ) )
+				.registerTypeAdapter( IntersectingSourceState.class, new IntersectingSourceStateSerializer( dependencyToIndex ) )
 				.registerTypeAdapter( InvertingRawSourceState.class, new InvertingSourceStateSerializer( dependencyToIndex ) );
 	}
 

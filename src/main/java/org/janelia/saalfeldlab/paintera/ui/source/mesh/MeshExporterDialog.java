@@ -17,7 +17,6 @@ import org.janelia.saalfeldlab.paintera.meshes.MeshInfos;
 import javafx.beans.binding.Bindings;
 import javafx.beans.binding.BooleanBinding;
 import javafx.beans.value.ChangeListener;
-import javafx.beans.value.ObservableValue;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.scene.control.Button;
@@ -31,7 +30,7 @@ import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
 import javafx.stage.DirectoryChooser;
 
-public class MeshExporterDialog extends Dialog< ExportResult >
+public class MeshExporterDialog< T > extends Dialog< ExportResult< T > >
 {
 
 	public static enum FILETYPE
@@ -47,44 +46,49 @@ public class MeshExporterDialog extends Dialog< ExportResult >
 
 	private final String[] filePaths;
 
-	private MeshExporter meshExporter;
+	private MeshExporter< T > meshExporter;
 
-	private long[] segmentIds;
+	private long[][] fragmentIds;
+
+	private T[] segmentIds;
 
 	private ComboBox< String > fileFormats;
 
-	private CheckListView< String > checkListView;
+	private CheckListView< T > checkListView;
 
 	private final BooleanBinding isError;
 
-	public MeshExporterDialog( final MeshInfo meshInfo )
+	public MeshExporterDialog( final MeshInfo< T > meshInfo )
 	{
 		super();
-		this.segmentIds = new long[] { meshInfo.segmentId() };
+		this.segmentIds = (T[])new Object[] { meshInfo.segmentId() };
+		this.fragmentIds = new long[][] { meshInfo.containedFragments() };
 		this.filePath = new TextField();
 		this.filePaths = new String[] { "" };
-		this.setTitle( "Export mesh " + this.segmentIds[ 0 ] );
+		this.setTitle( "Export mesh " + this.segmentIds );
 		this.isError = ( Bindings.createBooleanBinding( () -> filePath.getText().isEmpty(), filePath.textProperty() ) );
 		scale = new TextField( Integer.toString( meshInfo.scaleLevelProperty().get() ) );
 
 		setNumericTextField( scale, meshInfo.numScaleLevels() - 1 );
 		setResultConverter( button -> {
-			if ( button.getButtonData().isCancelButton() )
+			if ( button.getButtonData().isCancelButton() ) {
 				return null;
-			return new ExportResult( meshExporter, segmentIds, Integer.parseInt( scale.getText() ), filePaths );
+			}
+			return new ExportResult( meshExporter, fragmentIds, segmentIds, Integer.parseInt( scale.getText() ), filePaths );
 		} );
 
 		createDialog();
 
 	}
 
-	public MeshExporterDialog( final MeshInfos meshInfos )
+	public MeshExporterDialog( final MeshInfos< T > meshInfos )
 	{
 		super();
-		ObservableList< MeshInfo > meshInfoList = meshInfos.readOnlyInfos();
+		final ObservableList< MeshInfo< T > > meshInfoList = meshInfos.readOnlyInfos();
 		this.filePath = new TextField();
 		this.setTitle( "Export mesh " );
-		this.segmentIds = new long[ meshInfoList.size() ];
+		this.segmentIds = (T[])new Object[ meshInfoList.size() ];
+		this.fragmentIds = new long[ meshInfoList.size() ][];
 		this.filePaths = new String[ meshInfoList.size() ];
 		this.checkListView = new CheckListView<>();
 		this.isError = ( Bindings.createBooleanBinding( () -> filePath.getText().isEmpty() || checkListView.getItems().isEmpty(), filePath.textProperty(),
@@ -92,27 +96,33 @@ public class MeshExporterDialog extends Dialog< ExportResult >
 
 		int minCommonScaleLevels = Integer.MAX_VALUE;
 		int minCommonScale = Integer.MAX_VALUE;
-		final ObservableList< String > ids = FXCollections.observableArrayList();
+		final ObservableList< T > ids = FXCollections.observableArrayList();
 		for ( int i = 0; i < meshInfoList.size(); i++ )
 		{
-			MeshInfo info = meshInfoList.get( i );
+			final MeshInfo< T > info = meshInfoList.get( i );
 			this.segmentIds[ i ] = info.segmentId();
-			ids.add( Long.toString( info.segmentId() ) );
+			this.fragmentIds[ i ] = info.containedFragments();
+			ids.add( info.segmentId() );
 
 			if ( minCommonScaleLevels > info.numScaleLevels() )
+			{
 				minCommonScaleLevels = info.numScaleLevels();
+			}
 
 			if ( minCommonScale > info.scaleLevelProperty().get() )
+			{
 				minCommonScale = info.scaleLevelProperty().get();
+			}
 		}
 
 		scale = new TextField( Integer.toString( minCommonScale ) );
 		setNumericTextField( scale, minCommonScaleLevels - 1 );
 
 		setResultConverter( button -> {
-			if ( button.getButtonData().isCancelButton() )
+			if ( button.getButtonData().isCancelButton() ) {
 				return null;
-			return new ExportResult( meshExporter, segmentIds, Integer.parseInt( scale.getText() ), filePaths );
+			}
+			return new ExportResult< >( meshExporter, fragmentIds, segmentIds, Integer.parseInt( scale.getText() ), filePaths );
 		} );
 
 		createMultiIdsDialog( ids );
@@ -147,7 +157,7 @@ public class MeshExporterDialog extends Dialog< ExportResult >
 		this.getDialogPane().setContent( vbox );
 	}
 
-	private void createMultiIdsDialog( ObservableList< String > ids )
+	private void createMultiIdsDialog( final ObservableList< T > ids )
 	{
 		final VBox vbox = new VBox();
 		final GridPane contents = new GridPane();
@@ -164,20 +174,21 @@ public class MeshExporterDialog extends Dialog< ExportResult >
 			filePath.setText( directory.getPath() );
 
 			// recover selected ids
-			final List< Long > selectedIds = new ArrayList<>();
+			final List< T > selectedIds = new ArrayList<>();
 
-			if ( checkListView.getItems().size() == 0 )
+			if ( checkListView.getItems().size() == 0 ) {
 				return;
+			}
 
 			for ( int i = 0; i < checkListView.getItems().size(); i++ )
 			{
 				if ( checkListView.getItemBooleanProperty( i ).get() == true )
 				{
-					selectedIds.add( Long.parseLong( checkListView.getItems().get( i ) ) );
+					selectedIds.add( checkListView.getItems().get( i ) );
 				}
 			}
 
-			segmentIds = selectedIds.stream().mapToLong( l -> l ).toArray();
+			segmentIds = (T[])selectedIds.stream().toArray( Object[]::new );
 
 			for ( int i = 0; i < selectedIds.size(); i++ )
 			{
@@ -195,7 +206,7 @@ public class MeshExporterDialog extends Dialog< ExportResult >
 		this.getDialogPane().setContent( vbox );
 	}
 
-	private int createCommonDialog( GridPane contents )
+	private int createCommonDialog( final GridPane contents )
 	{
 		int row = 0;
 
@@ -206,8 +217,8 @@ public class MeshExporterDialog extends Dialog< ExportResult >
 
 		contents.add( new Label( "Format" ), 0, row );
 
-		List< String > typeNames = Stream.of( FILETYPE.values() ).map( FILETYPE::name ).collect( Collectors.toList() );
-		ObservableList< String > options = FXCollections.observableArrayList( typeNames );
+		final List< String > typeNames = Stream.of( FILETYPE.values() ).map( FILETYPE::name ).collect( Collectors.toList() );
+		final ObservableList< String > options = FXCollections.observableArrayList( typeNames );
 		fileFormats = new ComboBox<>( options );
 		fileFormats.getSelectionModel().select( 0 );
 		fileFormats.setMinWidth( 0 );
@@ -228,16 +239,16 @@ public class MeshExporterDialog extends Dialog< ExportResult >
 		return row;
 	}
 
-	private void createMeshExporter( String filetype )
+	private void createMeshExporter( final String filetype )
 	{
 		switch ( filetype )
 		{
 		case "binary":
-			meshExporter = new MeshExporterBinary();
+			meshExporter = new MeshExporterBinary<>();
 			break;
 		case ".obj":
 		default:
-			meshExporter = new MeshExporterObj();
+			meshExporter = new MeshExporterObj<>();
 			break;
 		}
 	}
@@ -245,21 +256,15 @@ public class MeshExporterDialog extends Dialog< ExportResult >
 	private void setNumericTextField( final TextField textField, final int max )
 	{
 		// force the field to be numeric only
-		textField.textProperty().addListener( new ChangeListener< String >()
-		{
-			@Override
-			public void changed( ObservableValue< ? extends String > observable, String oldValue,
-					String newValue )
+		textField.textProperty().addListener( ( ChangeListener< String > ) ( observable, oldValue, newValue ) -> {
+			if ( !newValue.matches( "\\d*" ) )
 			{
-				if ( !newValue.matches( "\\d*" ) )
-				{
-					textField.setText( newValue.replaceAll( "[^\\d]", "" ) );
-				}
+				textField.setText( newValue.replaceAll( "[^\\d]", "" ) );
+			}
 
-				if ( Integer.parseInt( textField.getText() ) > max )
-				{
-					textField.setText( Integer.toString( max ) );
-				}
+			if ( Integer.parseInt( textField.getText() ) > max )
+			{
+				textField.setText( Integer.toString( max ) );
 			}
 		} );
 	}

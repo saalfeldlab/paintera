@@ -28,6 +28,7 @@ import javafx.scene.shape.VertexFormat;
 import net.imglib2.Interval;
 import net.imglib2.util.Intervals;
 import net.imglib2.util.Pair;
+import net.imglib2.util.ValuePair;
 
 public class MeshGeneratorJobManager< T >
 {
@@ -50,38 +51,36 @@ public class MeshGeneratorJobManager< T >
 		this.workers = workers;
 	}
 
-	public Future< Void > submit(
-			final long[] ids,
+	public Pair< Future< Void >, ManagementTask > submit(
 			final T identifier,
 			final int scaleIndex,
 			final int simplificationIterations,
 			final double smoothingLambda,
 			final int smoothingIterations,
-			final InterruptibleFunction< Long, Interval[] > getBlockList,
+			final InterruptibleFunction< T, Interval[] > getBlockList,
 			final InterruptibleFunction< ShapeKey< T >, Pair< float[], float[] > > getMesh,
 			final IntConsumer setNumberOfTasks,
 			final IntConsumer setNumberOfCompletedTasks,
 			final Runnable onFinish )
 	{
-		return manager.submit(
-				new ManagementTask(
-						ids,
-						identifier,
-						scaleIndex,
-						simplificationIterations,
-						smoothingLambda,
-						smoothingIterations,
-						getBlockList,
-						getMesh,
-						setNumberOfTasks,
-						setNumberOfCompletedTasks,
-						onFinish ) );
+		final ManagementTask task = new ManagementTask(
+				identifier,
+				scaleIndex,
+				simplificationIterations,
+				smoothingLambda,
+				smoothingIterations,
+				getBlockList,
+				getMesh,
+				setNumberOfTasks,
+				setNumberOfCompletedTasks,
+				onFinish );
+		final Future< Void > future = manager.submit( task );
+		setNumberOfTasks.accept( MeshGenerator.SUBMITTED_MESH_GENERATION_TASK );
+		return new ValuePair<>( future, task );
 	}
 
 	public class ManagementTask implements Callable< Void >
 	{
-		private final long ids[];
-
 		private final T identifier;
 
 		private final int scaleIndex;
@@ -92,7 +91,7 @@ public class MeshGeneratorJobManager< T >
 
 		private final int smoothingIterations;
 
-		private final InterruptibleFunction< Long, Interval[] > getBlockList;
+		private final InterruptibleFunction< T, Interval[] > getBlockList;
 
 		private final InterruptibleFunction< ShapeKey< T >, Pair< float[], float[] > > getMesh;
 
@@ -104,21 +103,21 @@ public class MeshGeneratorJobManager< T >
 
 		private final Runnable onFinish;
 
+		private final List< ShapeKey< T > > keys = new ArrayList<>();
+
 		public ManagementTask(
-				final long[] ids,
 				final T identifier,
 				final int scaleIndex,
 				final int simplificationIterations,
 				final double smoothingLambda,
 				final int smoothingIterations,
-				final InterruptibleFunction< Long, Interval[] > getBlockList,
+				final InterruptibleFunction< T, Interval[] > getBlockList,
 				final InterruptibleFunction< ShapeKey< T >, Pair< float[], float[] > > getMesh,
 				final IntConsumer setNumberOfTasks,
 				final IntConsumer setNumberOfCompletedTasks,
 				final Runnable onFinish )
 		{
 			super();
-			this.ids = ids;
 			this.identifier = identifier;
 			this.scaleIndex = scaleIndex;
 			this.simplificationIterations = simplificationIterations;
@@ -129,6 +128,17 @@ public class MeshGeneratorJobManager< T >
 			this.setNumberOfTasks = setNumberOfTasks;
 			this.setNumberOfCompletedTasks = setNumberOfCompletedTasks;
 			this.onFinish = onFinish;
+		}
+
+		public void interrupt()
+		{
+			LOG.debug( "Interrupting for {} keys={}", this.identifier, this.keys );
+			this.isInterrupted = true;
+			this.getBlockList.interruptFor( this.identifier );
+			synchronized( this.keys )
+			{
+				this.keys.forEach( this.getMesh::interruptFor );
+			}
 		}
 
 		@Override
@@ -147,7 +157,7 @@ public class MeshGeneratorJobManager< T >
 
 				synchronized ( setNumberOfTasks )
 				{
-					setNumberOfTasks.accept( 0 );
+					setNumberOfTasks.accept( MeshGenerator.RETRIEVING_RELEVANT_BLOCKS );
 					setNumberOfCompletedTasks.accept( 0 );
 				}
 
@@ -155,13 +165,11 @@ public class MeshGeneratorJobManager< T >
 					try
 					{
 
-						for ( final long id : ids )
-						{
-							Arrays
-							.stream( getBlockList.apply( id ) )
-							.map( HashWrapper::interval )
-							.forEach( blockSet::add );
-						}
+						blockSet.addAll(
+								Arrays
+								.stream( getBlockList.apply( identifier  ) )
+								.map( HashWrapper::interval )
+								.collect( Collectors.toList() ) );
 					}
 					finally
 					{
@@ -174,8 +182,8 @@ public class MeshGeneratorJobManager< T >
 				}
 				catch ( final InterruptedException e )
 				{
-					LOG.debug( "Interrupted while waiting for block lists for labell {}", ids );
-					Arrays.stream( ids ).forEach( getBlockList::interruptFor );
+					LOG.debug( "Interrupted while waiting for block lists for label {}", identifier );
+					getBlockList.interruptFor( identifier );
 					this.isInterrupted = true;
 				}
 
@@ -198,101 +206,116 @@ public class MeshGeneratorJobManager< T >
 					return null;
 				}
 
-				LOG.debug( "Generating mesh with {} blocks for ids {}.", blockList.size(), this.ids );
+				LOG.debug( "Generating mesh with {} blocks for id {}.", blockList.size(), this.identifier );
 
-				final List< ShapeKey< T > > keys = new ArrayList<>();
-				for ( final Interval block : blockList )
+				synchronized( keys )
 				{
-					keys.add(
-							new ShapeKey<>(
-									identifier,
-									scaleIndex,
-									simplificationIterations,
-									smoothingLambda,
-									smoothingIterations,
-									Intervals.minAsLongArray( block ),
-									Intervals.maxAsLongArray( block ) ) );
+					keys.clear();
+					for ( final Interval block : blockList )
+					{
+						keys.add(
+								new ShapeKey<>(
+										identifier,
+										scaleIndex,
+										simplificationIterations,
+										smoothingLambda,
+										smoothingIterations,
+										Intervals.minAsLongArray( block ),
+										Intervals.maxAsLongArray( block ) ) );
+					}
 				}
 
-				final int numTasks = keys.size();
-				final CountDownLatch countDownOnMeshes = new CountDownLatch( numTasks );
 
-				final ArrayList< Callable< Void > > tasks = new ArrayList<>();
-				for ( final ShapeKey< T > key : keys )
+
+				if ( !isInterrupted )
 				{
-					tasks.add( () -> {
-						try
-						{
-							final String initialName = Thread.currentThread().getName();
+
+					final int numTasks = keys.size();
+					final CountDownLatch countDownOnMeshes = new CountDownLatch( numTasks );
+
+					final ArrayList< Callable< Void > > tasks = new ArrayList<>();
+
+					for ( final ShapeKey< T > key : keys )
+					{
+						tasks.add( () -> {
 							try
 							{
-								Thread.currentThread().setName( initialName + " -- generating mesh: " + key );
-								LOG.trace( "Set name of current thread to {} ( was {})", Thread.currentThread().getName(), initialName );
-								final Pair< float[], float[] > verticesAndNormals = getMesh.apply( key );
-								final MeshView mv = makeMeshView( verticesAndNormals );
-								if ( !Thread.interrupted() )
+								final String initialName = Thread.currentThread().getName();
+								try
 								{
-									synchronized ( meshes )
-									{
-										meshes.put( key, mv );
+									Thread.currentThread().setName( initialName + " -- generating mesh: " + key );
+									LOG.trace( "Set name of current thread to {} ( was {})", Thread.currentThread().getName(), initialName );
+									if ( !isInterrupted ) {
+										final Pair< float[], float[] > verticesAndNormals = getMesh.apply( key );
+										final MeshView mv = makeMeshView( verticesAndNormals );
+										synchronized ( meshes )
+										{
+											if ( !isInterrupted )
+											{
+												meshes.put( key, mv );
+											}
+										}
 									}
 								}
-							}
-							catch ( final RuntimeException e )
-							{
-								LOG.debug( "Was not able to retrieve mesh for {}: {}", key, e.getMessage() );
+								catch ( final RuntimeException e )
+								{
+									LOG.debug( "Was not able to retrieve mesh for {}: {}", key, e.getMessage() );
+								}
+								finally
+								{
+									Thread.currentThread().setName( initialName );
+								}
+								return null;
 							}
 							finally
 							{
-								Thread.currentThread().setName( initialName );
+								synchronized ( setNumberOfTasks )
+								{
+									countDownOnMeshes.countDown();
+									if ( !isInterrupted )
+									{
+										setNumberOfCompletedTasks.accept( numTasks - ( int ) countDownOnMeshes.getCount() );
+									}
+								}
+								LOG.debug( "Counted down latch. {} remaining", countDownOnMeshes.getCount() );
 							}
-							return null;
-						}
-						finally
-						{
-							synchronized ( setNumberOfTasks )
-							{
-								countDownOnMeshes.countDown();
-								setNumberOfCompletedTasks.accept( numTasks - ( int ) countDownOnMeshes.getCount() );
-							}
-							LOG.debug( "Counted down latch. {} remaining", countDownOnMeshes.getCount() );
-						}
 
-					} );
-				}
-
-				try
-				{
-					workers.invokeAll( tasks );
-				}
-				catch ( final InterruptedException e )
-				{
-					this.isInterrupted = true;
-					keys.forEach( getMesh::interruptFor );
-				}
-
-				try
-				{
-					if ( this.isInterrupted )
-					{
-						keys.forEach( getMesh::interruptFor );
+						} );
 					}
-					else
+
+					try
 					{
-						countDownOnMeshes.await();
+						workers.invokeAll( tasks );
 					}
-				}
-				catch ( final InterruptedException e )
-				{
-					LOG.debug( "Current thread was interrupted while waiting for mesh count down latch ({} remaining)", countDownOnMeshes.getCount() );
-					synchronized ( getMesh )
+					catch ( final InterruptedException e )
 					{
 						this.isInterrupted = true;
 						keys.forEach( getMesh::interruptFor );
 					}
-				}
 
-				return null;
+					try
+					{
+						if ( this.isInterrupted )
+						{
+							keys.forEach( getMesh::interruptFor );
+						}
+						else
+						{
+							countDownOnMeshes.await();
+						}
+					}
+					catch ( final InterruptedException e )
+					{
+						LOG.debug( "Current thread was interrupted while waiting for mesh count down latch ({} remaining)", countDownOnMeshes.getCount() );
+						synchronized ( getMesh )
+						{
+							this.isInterrupted = true;
+							keys.forEach( getMesh::interruptFor );
+						}
+					}
+
+					return null;
+				}
 			}
 			finally
 			{
@@ -308,6 +331,8 @@ public class MeshGeneratorJobManager< T >
 				}
 				this.onFinish.run();
 			}
+
+			return null;
 
 		}
 
@@ -340,7 +365,7 @@ public class MeshGeneratorJobManager< T >
 //						{
 //							mv.visibleProperty().bind( this.isVisible );
 //						}
-		mv.setCullFace( CullFace.NONE );
+		mv.setCullFace( CullFace.FRONT );
 		mv.setMaterial( material );
 		mv.setDrawMode( DrawMode.FILL );
 		return mv;
