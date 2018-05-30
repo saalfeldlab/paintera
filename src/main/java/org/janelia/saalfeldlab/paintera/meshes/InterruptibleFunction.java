@@ -1,5 +1,6 @@
 package org.janelia.saalfeldlab.paintera.meshes;
 
+import java.util.Arrays;
 import java.util.function.Function;
 
 public interface InterruptibleFunction< T, R > extends Function< T, R >, Interruptible< T >
@@ -29,6 +30,15 @@ public interface InterruptibleFunction< T, R > extends Function< T, R >, Interru
 	public static < T, R > InterruptibleFunction< T, R > fromFunction( final Function< T, R > function )
 	{
 		return fromFunctionAndInterruptible( function, t -> {} );
+	}
+
+	@SuppressWarnings( "unchecked" )
+	public static < T, R > InterruptibleFunction< T, R >[] fromFunction( final Function< T, R >[] functions )
+	{
+		return Arrays
+				.stream( functions )
+				.map( InterruptibleFunction::fromFunction )
+				.toArray( InterruptibleFunction[]::new );
 	}
 
 }
