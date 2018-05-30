@@ -41,6 +41,13 @@ public abstract class HighlightingStreamConverter< T > implements Converter< T, 
 		activeFragmentAlpha.set( stream.getActiveFragmentAlpha() );
 		activeSegmentAlpha.set( stream.getActiveSegmentAlpha() );
 		stream.colorFromSegmentIdProperty().bind( this.colorFromSegmentId );
+		stream.addListener( obs -> {
+			this.seed.set( stream.getSeed() );
+			this.alpha.set( stream.getAlpha() );
+			this.activeFragmentAlpha.set( stream.getActiveFragmentAlpha() );
+			this.activeSegmentAlpha.set( stream.getActiveSegmentAlpha() );
+			this.colorFromSegmentId.set( stream.getColorFromSegmentId() );
+		});
 	}
 
 	@Override

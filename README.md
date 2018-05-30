@@ -82,6 +82,7 @@ Usage: Paintera [-h] [--height=HEIGHT] [--width=WIDTH]
 | `Shift` + `C` | Decrement ARGB stream seed by one |
 | `Ctrl` + `Shift` + `C` | Show ARGB stream seed spinner |
 | `V` | Toggle visibility of current source |
+| `Shift` + `V` | Toggle visibility of not-selected ids in current source (if label source) |
 
 
 
