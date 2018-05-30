@@ -703,7 +703,7 @@ public class MaskedSource< D extends Type< D >, T extends Type< T > > implements
 				throw new RuntimeException( "Non-integer relative scales: " + Arrays.toString( relativeScales ) );
 			}
 			final TLongSet affectedBlocksAtHigherLevel = this.scaleBlocksToLevel( paintedBlocksAtPaintedScale, paintedLevel, level );
-			this.affectedBlocksByLabel[ level ].get( label.getIntegerLong() ).addAll( affectedBlocksAtHigherLevel );
+			this.affectedBlocksByLabel[ level ].computeIfAbsent( label.getIntegerLong(), key -> new TLongHashSet() ).addAll( affectedBlocksAtHigherLevel );
 
 			// downsample
 			final int[] steps = DoubleStream.of( relativeScales ).mapToInt( d -> ( int ) d ).toArray();
@@ -722,7 +722,7 @@ public class MaskedSource< D extends Type< D >, T extends Type< T > > implements
 			LOG.debug( "Upsampling for level={}", level );
 			final TLongSet affectedBlocksAtLowerLevel = this.scaleBlocksToLevel( paintedBlocksAtPaintedScale, paintedLevel, level );
 			final double[] currentRelativeScaleFromTargetToPainted = DataSource.getRelativeScales( this, 0, level, paintedLevel );
-			this.affectedBlocksByLabel[ level ].get( label.getIntegerLong() ).addAll( affectedBlocksAtLowerLevel );
+			this.affectedBlocksByLabel[ level ].computeIfAbsent( label.getIntegerLong(), key -> new TLongHashSet() ).addAll( affectedBlocksAtLowerLevel );
 
 			final Interval paintedIntervalAtTargetLevel = scaleIntervalToLevel( intervalAtPaintedScale, paintedLevel, level );
 
