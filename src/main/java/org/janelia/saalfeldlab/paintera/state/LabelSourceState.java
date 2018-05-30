@@ -128,6 +128,7 @@ public class LabelSourceState< D, T >
 				new SimpleIntegerProperty(),
 				new SimpleDoubleProperty(),
 				new SimpleIntegerProperty(),
+				this::refreshMeshes,
 				meshManagerExecutors,
 				meshWorkersExecutors );
 		final MeshInfos< TLongHashSet > meshInfos = new MeshInfos<>( selectedSegments, assignment, meshManager, assignment::getFragments, dataSource.getNumMipmapLevels() );
@@ -183,6 +184,16 @@ public class LabelSourceState< D, T >
 				.stream( this.meshCaches )
 				.forEach( UncheckedCache::invalidateAll );
 		this.clearBlockCaches.run();
+	}
+
+	public void refreshMeshes()
+	{
+		this.invalidateAll();
+		final long[] selection = this.selectedIds.getActiveIds();
+		final long lastSelection = this.selectedIds.getLastSelection();
+		this.selectedIds.deactivateAll();
+		this.selectedIds.activate( selection );
+		this.selectedIds.activateAlso( lastSelection );
 	}
 
 	private static Function< Long, Interval[] >[] blockCacheForMaskedSource(

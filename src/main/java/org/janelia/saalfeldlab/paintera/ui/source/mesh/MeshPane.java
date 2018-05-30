@@ -93,7 +93,10 @@ public class MeshPane implements BindUnbindAndNodeSupplier, ListChangeListener< 
 		this.cullFaceChoice = new ComboBox<>( FXCollections.observableArrayList( CullFace.values() ) );
 		this.cullFaceChoice.setValue( CullFace.FRONT );
 
-		managerSettingsPane = new VBox( new Label( "Defaults" ), setupManagerSliderGrid(), meshesPane );
+		final Button refresh = new Button( "Refresh meshes" );
+		refresh.setOnAction( event -> manager.refreshMeshes() );
+
+		managerSettingsPane = new VBox( new Label( "Defaults" ), setupManagerSliderGrid(), refresh, meshesPane );
 
 		this.meshInfos.readOnlyInfos().addListener( this );
 
@@ -157,16 +160,14 @@ public class MeshPane implements BindUnbindAndNodeSupplier, ListChangeListener< 
 
 				@SuppressWarnings( "unchecked" )
 				final InterruptibleFunction< TLongHashSet, Interval[] >[][] blockListCaches = Stream
-				.generate( manager::blockListCache )
-				.limit( meshInfos.readOnlyInfos().size() )
-				.toArray( InterruptibleFunction[][]::new );
+						.generate( manager::blockListCache )
+						.limit( meshInfos.readOnlyInfos().size() )
+						.toArray( InterruptibleFunction[][]::new );
 
 				final InterruptibleFunction< ShapeKey< TLongHashSet >, Pair< float[], float[] > >[][] meshCaches = Stream
 						.generate( manager::meshCache )
 						.limit( meshInfos.readOnlyInfos().size() )
 						.toArray( InterruptibleFunction[][]::new );
-
-
 
 				parameters.getMeshExporter().exportMesh(
 						blockListCaches,
@@ -193,7 +194,7 @@ public class MeshPane implements BindUnbindAndNodeSupplier, ListChangeListener< 
 		contents.add( opacitySlider.slider(), 1, row );
 		contents.add( opacitySlider.textField(), 2, row );
 		opacitySlider.slider().setShowTickLabels( true );
-		opacitySlider.slider().setTooltip( new Tooltip( "Mesh opacity")  );
+		opacitySlider.slider().setTooltip( new Tooltip( "Mesh opacity" ) );
 		++row;
 
 		contents.add( new Label( "Scale" ), 0, row );
@@ -217,11 +218,11 @@ public class MeshPane implements BindUnbindAndNodeSupplier, ListChangeListener< 
 		smoothingIterationsSlider.slider().setTooltip( new Tooltip( "Default for smoothing iterations." ) );
 		++row;
 
-		contents.add( new Label("Draw Mode"), 0, row );
+		contents.add( new Label( "Draw Mode" ), 0, row );
 		contents.add( drawModeChoice, 2, row );
 		++row;
 
-		contents.add( new Label("CullFace "), 0, row );
+		contents.add( new Label( "CullFace " ), 0, row );
 		contents.add( cullFaceChoice, 2, row );
 		++row;
 
