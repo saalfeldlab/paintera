@@ -16,6 +16,7 @@ import org.janelia.saalfeldlab.fx.ortho.OrthogonalViews;
 import org.janelia.saalfeldlab.fx.ortho.OrthogonalViews.ViewerAndTransforms;
 import org.janelia.saalfeldlab.fx.ortho.ResizableGridPane2x2;
 import org.janelia.saalfeldlab.fx.ortho.ViewerAxis;
+import org.janelia.saalfeldlab.paintera.control.CurrentSourceVisibilityToggle;
 import org.janelia.saalfeldlab.paintera.control.FitToInterval;
 import org.janelia.saalfeldlab.paintera.control.Merges;
 import org.janelia.saalfeldlab.paintera.control.Navigation;
@@ -24,6 +25,7 @@ import org.janelia.saalfeldlab.paintera.control.OrthogonalViewsValueDisplayListe
 import org.janelia.saalfeldlab.paintera.control.Paint;
 import org.janelia.saalfeldlab.paintera.control.RunWhenFirstElementIsAdded;
 import org.janelia.saalfeldlab.paintera.control.Selection;
+import org.janelia.saalfeldlab.paintera.control.ShowOnlySelectedInStreamToggle;
 import org.janelia.saalfeldlab.paintera.control.navigation.AffineTransformWithListeners;
 import org.janelia.saalfeldlab.paintera.control.navigation.DisplayTransformUpdateOnResize;
 import org.janelia.saalfeldlab.paintera.state.SourceInfo;
@@ -188,6 +190,13 @@ public class PainteraDefaultHandlers
 		EventFX.KEY_PRESSED( "maximize", e -> toggleMaximizeTopRight.toggleFullScreen(), e -> keyTracker.areOnlyTheseKeysDown( KeyCode.M ) ).installInto( orthogonalViews.topRight().viewer() );
 		EventFX.KEY_PRESSED( "maximize", e -> toggleMaximizeBottomLeft.toggleFullScreen(), e -> keyTracker.areOnlyTheseKeysDown( KeyCode.M ) ).installInto( orthogonalViews.bottomLeft().viewer() );
 		EventFX.KEY_PRESSED( "maximize", e -> toggleMaximizeBottomRight.toggleFullScreen(), e -> keyTracker.areOnlyTheseKeysDown( KeyCode.M ) ).installInto( baseView.viewer3D() );
+
+
+		final CurrentSourceVisibilityToggle csv = new CurrentSourceVisibilityToggle( sourceInfo.currentState() );
+		EventFX.KEY_PRESSED( "toggle visibility", e -> csv.toggleIsVisible(), e -> keyTracker.areOnlyTheseKeysDown( KeyCode.V ) ).installInto( borderPane );
+
+		final ShowOnlySelectedInStreamToggle sosist = new ShowOnlySelectedInStreamToggle( sourceInfo.currentState()::get, sourceInfo.removedSourcesTracker() );
+		EventFX.KEY_PRESSED( "toggle non-selected labels visibility", e -> sosist.toggleNonSelectionVisibility(), e -> keyTracker.areOnlyTheseKeysDown( KeyCode.SHIFT, KeyCode.V ) ).installInto( borderPane );
 
 		final BooleanProperty isRowMaximized = new SimpleBooleanProperty( false );
 		isRowMaximized.addListener( ( obs, oldv, newv ) -> {

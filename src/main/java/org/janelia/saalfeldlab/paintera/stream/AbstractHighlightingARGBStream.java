@@ -41,6 +41,12 @@ import net.imglib2.type.label.Label;
 public abstract class AbstractHighlightingARGBStream extends ObservableWithListenersList implements ARGBStream
 {
 
+	public static int DEFAULT_ALPHA= 0x20000000;
+
+	public static int DEFAULT_ACTIVE_FRAGMENT_ALPHA= 0xd0000000;
+
+	public static int DEFAULT_ACTIVE_SEGMENT_ALPHA= 0x80000000;
+
 	private static final Logger LOG = LoggerFactory.getLogger( MethodHandles.lookup().lookupClass() );
 
 	final static protected double[] rs = new double[] { 1, 1, 0, 0, 0, 1, 1 };
@@ -53,13 +59,13 @@ public abstract class AbstractHighlightingARGBStream extends ObservableWithListe
 
 	protected long seed = 0;
 
-	protected int alpha = 0x20000000;
+	protected int alpha = DEFAULT_ALPHA;
 
-	protected int activeFragmentAlpha = 0xd0000000;
+	protected int activeFragmentAlpha = DEFAULT_ACTIVE_FRAGMENT_ALPHA;
 
-	protected int activeSegmentAlpha = 0x80000000;
+	protected int activeSegmentAlpha = DEFAULT_ACTIVE_SEGMENT_ALPHA;
 
-	protected int invalidSegmentAlpha = 0x00000000;
+	protected int invalidSegmentAlpha = ZERO;
 
 	protected SelectedIds highlights;
 
@@ -141,8 +147,11 @@ public abstract class AbstractHighlightingARGBStream extends ObservableWithListe
 	 */
 	public void setSeed( final long seed )
 	{
-		this.seed = seed;
-		stateChanged();
+		if ( this.seed != seed )
+		{
+			this.seed = seed;
+			stateChanged();
+		}
 	}
 
 	/**
@@ -177,8 +186,11 @@ public abstract class AbstractHighlightingARGBStream extends ObservableWithListe
 	 */
 	public void setAlpha( final int alpha )
 	{
-		this.alpha = ( alpha & 0xff ) << 24;
-		stateChanged();
+		if ( getAlpha() != alpha )
+		{
+			this.alpha = ( alpha & 0xff ) << 24;
+			stateChanged();
+		}
 	}
 
 	/**
@@ -189,20 +201,29 @@ public abstract class AbstractHighlightingARGBStream extends ObservableWithListe
 	 */
 	public void setActiveSegmentAlpha( final int alpha )
 	{
-		this.activeSegmentAlpha = ( alpha & 0xff ) << 24;
-		stateChanged();
+		if ( getActiveSegmentAlpha() != alpha )
+		{
+			this.activeSegmentAlpha = ( alpha & 0xff ) << 24;
+			stateChanged();
+		}
 	}
 
 	public void setInvalidSegmentAlpha( final int alpha )
 	{
-		this.invalidSegmentAlpha = ( alpha & 0xff ) << 24;
-		stateChanged();
+		if ( getInvalidSegmentAlpha() != alpha )
+		{
+			this.invalidSegmentAlpha = ( alpha & 0xff ) << 24;
+			stateChanged();
+		}
 	}
 
 	public void setActiveFragmentAlpha( final int alpha )
 	{
-		this.activeFragmentAlpha = ( alpha & 0xff ) << 24;
-		stateChanged();
+		if ( getActiveFragmentAlpha() != alpha )
+		{
+			this.activeFragmentAlpha = ( alpha & 0xff ) << 24;
+			stateChanged();
+		}
 	}
 
 	public int getAlpha()
