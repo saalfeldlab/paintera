@@ -124,7 +124,7 @@ public class MeshInfo< T >
 	{
 		LOG.debug( "Updating task count bindings." );
 		final Map< T, MeshGenerator< T > > meshes = new HashMap<>( meshManager.unmodifiableMeshMap() );
-		LOG.warn( "Binding meshes to segmentId = {}", segmentId );
+		LOG.debug( "Binding meshes to segmentId = {}", segmentId );
 		Optional.ofNullable( meshes.get( segmentId ) ).map( MeshGenerator::submittedTasksProperty ).ifPresent( this.submittedTasks::bind );
 		Optional.ofNullable( meshes.get( segmentId ) ).map( MeshGenerator::completedTasksProperty ).ifPresent( this.completedTasks::bind );
 		Optional.ofNullable( meshes.get( segmentId ) ).map( MeshGenerator::successfulTasksProperty ).ifPresent( this.successfulTasks::bind );
