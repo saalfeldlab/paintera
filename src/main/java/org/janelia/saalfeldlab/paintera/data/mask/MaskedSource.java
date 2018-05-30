@@ -307,9 +307,7 @@ public class MaskedSource< D extends Type< D >, T extends Type< T > > implements
 
 				final TLongSet paintedBlocksAtHighestResolution = this.scaleBlocksToLevel( affectedBlocks, maskInfo.level, 0 );
 
-				System.out.println( 1 );
 				this.affectedBlocksByLabel[ maskInfo.level ].computeIfAbsent( maskInfo.value.getIntegerLong(), key -> new TLongHashSet() ).addAll( affectedBlocks );
-				System.out.println( 2 );
 				LOG.warn( "Added affected block: {}", affectedBlocksByLabel[ maskInfo.level ] );
 				this.affectedBlocks.addAll( paintedBlocksAtHighestResolution );
 
