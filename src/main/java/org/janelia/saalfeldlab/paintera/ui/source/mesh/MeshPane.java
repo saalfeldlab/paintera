@@ -231,6 +231,7 @@ public class MeshPane implements BindUnbindAndNodeSupplier, ListChangeListener< 
 	private MeshInfoNode< TLongHashSet > fromMeshInfo( final MeshInfo< TLongHashSet > info )
 	{
 		final MeshInfoNode< TLongHashSet > node = infoNodesCache.computeIfAbsent( info, MeshInfoNode::new );
+//		final MeshInfoNode< TLongHashSet > node = new MeshInfoNode<>( info );
 		if ( this.isBound )
 		{
 			node.bind();

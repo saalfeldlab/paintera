@@ -34,6 +34,7 @@ public class MeshInfos< T >
 					.map( id -> new MeshInfo<>( id, assignment, meshManager, numScaleLevels ) )
 					.collect( Collectors.toList() );
 
+			this.infos.forEach( MeshInfo::hangUp );
 			this.infos.setAll( infos );
 		} );
 	}

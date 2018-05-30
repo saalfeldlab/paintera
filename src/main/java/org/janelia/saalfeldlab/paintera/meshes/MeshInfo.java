@@ -54,7 +54,21 @@ public class MeshInfo< T >
 
 	private final ObjectProperty< DrawMode > drawMode = new SimpleObjectProperty<>( DrawMode.FILL );
 
-	private final ObjectProperty< CullFace > cullFace = new SimpleObjectProperty< >( CullFace.FRONT );
+	private final ObjectProperty< CullFace > cullFace = new SimpleObjectProperty<>( CullFace.FRONT );
+
+	private final PropagateChanges< Number > scaleLevelListener = new PropagateChanges<>( ( mesh, newv ) -> mesh.scaleIndexProperty().set( newv.intValue() ) );
+
+	private final PropagateChanges< Number > simplificationIterationsListener = new PropagateChanges<>( ( mesh, newv ) -> mesh.meshSimplificationIterationsProperty().set( newv.intValue() ) );
+
+	private final PropagateChanges< Number > smoothingLambdaListener = new PropagateChanges<>( ( mesh, newv ) -> mesh.smoothingLambdaProperty().set( newv.doubleValue() ) );
+
+	private final PropagateChanges< Number > opacityListener = new PropagateChanges<>( ( mesh, newv ) -> mesh.opacityProperty().set( newv.doubleValue() ) );
+
+	private final PropagateChanges< Number> smoothingIterationsListener = new PropagateChanges<>( ( mesh, newv ) -> mesh.smoothingIterationsProperty().set( newv.intValue() ) );
+
+	private final PropagateChanges< DrawMode > drawModeListener = new PropagateChanges<>( ( mesh, newv ) -> mesh.drawModeProperty().set( newv ) );
+
+	private final PropagateChanges< CullFace > cullFaceListener = new PropagateChanges<>( ( mesh, newv ) -> mesh.cullFaceProperty().set( newv ) );
 
 	public MeshInfo(
 			final T segmentId,
@@ -68,22 +82,11 @@ public class MeshInfo< T >
 		this.meshManager = meshManager;
 
 		scaleLevel.set( meshManager.scaleLevelProperty().get() );
-		scaleLevel.addListener( new PropagateChanges<>( ( mesh, newv ) -> mesh.scaleIndexProperty().set( newv.intValue() ) ) );
-
 		simplificationIterations.set( meshManager.meshSimplificationIterationsProperty().get() );
-		simplificationIterations.addListener( new PropagateChanges<>( ( mesh, newv ) -> mesh.meshSimplificationIterationsProperty().set( newv.intValue() ) ) );
-
 		smoothingLambda.set( meshManager.smoothingLambdaProperty().get() );
-		smoothingLambda.addListener( new PropagateChanges<>( ( mesh, newv ) -> mesh.smoothingLambdaProperty().set( newv.doubleValue() ) ) );
-
-		opacity.addListener( new PropagateChanges<>( ( mesh, newv ) -> mesh.opacityProperty().set( newv.doubleValue() ) ) );
-
 		smoothingIterations.set( meshManager.smoothingIterationsProperty().get() );
-		smoothingIterations.addListener( new PropagateChanges<>( ( mesh, newv ) -> mesh.smoothingIterationsProperty().set( newv.intValue() ) ) );
 
-		drawMode.addListener( new PropagateChanges<>( ( mesh, newv ) -> mesh.drawModeProperty().set( newv ) ) );
-
-		cullFace.addListener( new PropagateChanges<>( ( mesh, newv ) -> mesh.cullFaceProperty().set( newv ) ) );
+		listen();
 
 		this.numScaleLevels = numScaleLevels;
 
@@ -93,6 +96,28 @@ public class MeshInfo< T >
 			( ( FragmentSegmentAssignmentState ) assignment ).addListener( obs -> updateTasksCountBindings() );
 		}
 
+	}
+
+	public void listen()
+	{
+		this.scaleLevel.addListener( this.scaleLevelListener );
+		this.simplificationIterations.addListener( this.simplificationIterationsListener );
+		this.smoothingLambda.addListener( this.smoothingLambdaListener );
+		this.opacity.addListener( this.opacityListener );
+		this.smoothingIterations.addListener( this.smoothingIterationsListener );
+		this.drawMode.addListener( this.drawModeListener );
+		this.cullFace.addListener( this.cullFaceListener );
+	}
+
+	public void hangUp()
+	{
+		this.scaleLevel.removeListener( this.scaleLevelListener );
+		this.simplificationIterations.removeListener( this.simplificationIterationsListener );
+		this.smoothingLambda.removeListener( this.smoothingLambdaListener );
+		this.opacity.removeListener( this.opacityListener );
+		this.smoothingIterations.removeListener( this.smoothingIterationsListener );
+		this.drawMode.removeListener( this.drawModeListener );
+		this.cullFace.removeListener( this.cullFaceListener );
 	}
 
 	private void updateTasksCountBindings()
@@ -109,7 +134,6 @@ public class MeshInfo< T >
 	{
 		return this.segmentId;
 	}
-
 
 	public IntegerProperty scaleLevelProperty()
 	{
@@ -160,7 +184,6 @@ public class MeshInfo< T >
 		@Override
 		public void changed( final ObservableValue< ? extends U > observable, final U oldValue, final U newValue )
 		{
-			final long[] fragments = meshManager.containedFragments( segmentId );
 			final Map< T, MeshGenerator< T > > meshes = meshManager.unmodifiableMeshMap();
 			apply.accept( meshes.get( segmentId ), newValue );
 		}
