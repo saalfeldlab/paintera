@@ -122,7 +122,10 @@ public class BlocksForLabelCacheLoader< T > implements CacheLoader< T, Interval[
 				this.getRelevantIntervalsFromLowerResolution.interruptFor( key );
 			}
 		};
-		this.interruptionListeners.add( listener );
+		synchronized( this.interruptionListeners )
+		{
+			this.interruptionListeners.add( listener );
+		}
 
 		try
 		{
@@ -154,7 +157,10 @@ public class BlocksForLabelCacheLoader< T > implements CacheLoader< T, Interval[
 		}
 		finally
 		{
-			this.interruptionListeners.remove( listener );
+			synchronized( this.interruptionListeners )
+			{
+				this.interruptionListeners.remove( listener );
+			}
 		}
 	}
 
@@ -270,7 +276,10 @@ public class BlocksForLabelCacheLoader< T > implements CacheLoader< T, Interval[
 	@Override
 	public void interruptFor( final T t )
 	{
-		this.interruptionListeners.forEach( l -> l.accept( t ) );
+		synchronized( this.interruptionListeners )
+		{
+			this.interruptionListeners.forEach( l -> l.accept( t ) );
+		}
 	}
 
 }
