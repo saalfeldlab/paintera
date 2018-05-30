@@ -230,19 +230,10 @@ public class MeshPane implements BindUnbindAndNodeSupplier, ListChangeListener< 
 
 	private MeshInfoNode< TLongHashSet > fromMeshInfo( final MeshInfo< TLongHashSet > info )
 	{
-		final MeshInfoNode< TLongHashSet > node = infoNodesCache.computeIfAbsent( info, MeshInfoNode::new );
-//		final MeshInfoNode< TLongHashSet > node = new MeshInfoNode<>( info );
+		final MeshInfoNode< TLongHashSet > node = new MeshInfoNode<>( info );
 		if ( this.isBound )
 		{
 			node.bind();
-			node.isManagedExternally().addListener( (obs, oldv, newv) -> node.bindToExternalSliders(
-					scaleSlider.slider().valueProperty(),
-					smoothingLambdaSlider.slider().valueProperty(),
-					smoothingIterationsSlider.slider().valueProperty(),
-					opacitySlider.slider().valueProperty(),
-					drawModeChoice.valueProperty(),
-					cullFaceChoice.valueProperty(),
-					newv ) );
 			node.bindToExternalSliders(
 					scaleSlider.slider().valueProperty(),
 					smoothingLambdaSlider.slider().valueProperty(),
@@ -250,7 +241,7 @@ public class MeshPane implements BindUnbindAndNodeSupplier, ListChangeListener< 
 					opacitySlider.slider().valueProperty(),
 					drawModeChoice.valueProperty(),
 					cullFaceChoice.valueProperty(),
-					node.isManagedExternally().get() );
+					true );
 		}
 		return node;
 	}
