@@ -217,11 +217,8 @@ public class IdSelector
 						final Object val = access.get();
 						final long id = toIdConverter.get().biggestFragment( val );
 
-						final TLongHashSet fragments = new TLongHashSet();
-						fragments.add( id );
-						fragments.add( lastSelection );
-						LOG.warn( "Merging fragments: {} -- last selection: {}", fragments, lastSelection );
-						assignments.mergeFragments( fragments.toArray() );
+						LOG.debug( "Merging fragments: {} -- last selection: {}", id, lastSelection );
+						assignments.mergeFragments( id, lastSelection );
 					}
 				}
 			}

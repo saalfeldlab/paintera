@@ -19,6 +19,7 @@ package org.janelia.saalfeldlab.paintera.stream;
 import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignmentOnlyLocal;
 import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignmentState;
 import org.janelia.saalfeldlab.paintera.control.selection.SelectedIds;
+import org.janelia.saalfeldlab.paintera.id.IdService;
 
 import net.imglib2.type.label.Label;
 
@@ -39,9 +40,11 @@ public class ModalGoldenAngleSaturatedHighlightingARGBStream extends GoldenAngle
 
 	final static public int SELECTED_ONLY = 2;
 
+	// TODO is there a better way of constructing stream wihtout dummy
+	// assignment and id service?
 	public ModalGoldenAngleSaturatedHighlightingARGBStream()
 	{
-		this( new SelectedIds(), new FragmentSegmentAssignmentOnlyLocal( ( f, s ) -> {} ) );
+		this( new SelectedIds(), new FragmentSegmentAssignmentOnlyLocal( ( f, s ) -> {}, IdService.dummy() ) );
 	}
 
 	public ModalGoldenAngleSaturatedHighlightingARGBStream( final SelectedIds highlights, final FragmentSegmentAssignmentState assignment )
