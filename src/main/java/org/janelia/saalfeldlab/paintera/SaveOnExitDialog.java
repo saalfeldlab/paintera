@@ -3,6 +3,7 @@ package org.janelia.saalfeldlab.paintera;
 import java.io.IOException;
 import java.lang.invoke.MethodHandles;
 
+import org.janelia.saalfeldlab.paintera.SaveProject.ProjectUndefined;
 import org.janelia.saalfeldlab.paintera.serialization.GsonHelpers;
 import org.janelia.saalfeldlab.paintera.serialization.Properties;
 import org.slf4j.Logger;
@@ -59,12 +60,6 @@ public class SaveOnExitDialog implements EventHandler< WindowEvent >
 			if ( saveButton.equals( response ) )
 			{
 				LOG.debug( "Saving project before exit" );
-				if ( project == null )
-				{
-					LOG.error( "Unable to write project: Project directory not specified. Select NO in dialog to close." );
-					event.consume();
-					return;
-				}
 				try
 				{
 					SaveProject.persistProperties( project, properties, GsonHelpers.builderWithAllRequiredSerializers( baseView, this::project ).setPrettyPrinting() );
@@ -73,6 +68,12 @@ public class SaveOnExitDialog implements EventHandler< WindowEvent >
 				{
 					LOG.error( "Unable to write project! Select NO in dialog to close." );
 					LOG.error( "Exception: {}", e );
+					event.consume();
+					return;
+				}
+				catch ( final ProjectUndefined e )
+				{
+					LOG.error( "Unable to write project: Project directory not specified. Select NO in dialog to close." );
 					event.consume();
 					return;
 				}

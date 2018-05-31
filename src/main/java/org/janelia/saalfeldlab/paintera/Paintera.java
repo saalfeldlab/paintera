@@ -7,10 +7,12 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.regex.Pattern;
 
+import org.janelia.saalfeldlab.fx.event.EventFX;
 import org.janelia.saalfeldlab.fx.event.KeyTracker;
 import org.janelia.saalfeldlab.fx.ortho.OrthogonalViews;
 import org.janelia.saalfeldlab.n5.N5Reader;
 import org.janelia.saalfeldlab.n5.N5Writer;
+import org.janelia.saalfeldlab.paintera.SaveProject.ProjectUndefined;
 import org.janelia.saalfeldlab.paintera.composition.ARGBCompositeAlphaYCbCr;
 import org.janelia.saalfeldlab.paintera.composition.CompositeCopy;
 import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignmentState;
@@ -19,6 +21,7 @@ import org.janelia.saalfeldlab.paintera.data.DataSource;
 import org.janelia.saalfeldlab.paintera.data.mask.Masks;
 import org.janelia.saalfeldlab.paintera.data.mask.TmpDirectoryCreator;
 import org.janelia.saalfeldlab.paintera.data.n5.CommitCanvasN5;
+import org.janelia.saalfeldlab.paintera.serialization.GsonHelpers;
 import org.janelia.saalfeldlab.paintera.serialization.Properties;
 import org.janelia.saalfeldlab.paintera.state.LabelSourceState;
 import org.janelia.saalfeldlab.paintera.state.RawSourceState;
@@ -36,6 +39,7 @@ import bdv.viewer.ViewerOptions;
 import javafx.application.Application;
 import javafx.application.Platform;
 import javafx.scene.Scene;
+import javafx.scene.input.KeyCode;
 import javafx.stage.Screen;
 import javafx.stage.Stage;
 import net.imglib2.Volatile;
@@ -77,13 +81,6 @@ public class Paintera extends Application
 
 		final KeyTracker keyTracker = new KeyTracker();
 
-		final BorderPaneWithStatusBars paneWithStatus = new BorderPaneWithStatusBars(
-				baseView,
-				keyTracker );
-
-		@SuppressWarnings( "unused" )
-		final PainteraDefaultHandlers defaultHandlers = new PainteraDefaultHandlers( baseView, keyTracker, paneWithStatus );
-
 		// populate everything
 
 		final Optional< JsonObject > loadedProperties = loadPropertiesIfPresent( painteraArgs.project() );
@@ -93,6 +90,15 @@ public class Paintera extends Application
 		final Map< Integer, SourceState< ?, ? > > indexToState = new HashMap<>();
 
 		final Properties properties = loadedProperties.map( lp -> Properties.fromSerializedProperties( lp, baseView, true, painteraArgs::project, indexToState ) ).orElse( new Properties( baseView ) );
+
+		final BorderPaneWithStatusBars paneWithStatus = new BorderPaneWithStatusBars(
+				baseView,
+				keyTracker,
+				painteraArgs::project,
+				properties );
+
+		@SuppressWarnings( "unused" )
+		final PainteraDefaultHandlers defaultHandlers = new PainteraDefaultHandlers( baseView, keyTracker, paneWithStatus );
 
 		// TODO this should probably happen in the properties.populate:
 		properties.sourceInfo
@@ -135,6 +141,25 @@ public class Paintera extends Application
 
 		setFocusTraversable( orthoViews, false );
 		stage.setOnCloseRequest( new SaveOnExitDialog( baseView, properties, painteraArgs.project(), baseView::stop ) );
+
+		EventFX.KEY_PRESSED(
+				"save project",
+				e -> {
+					e.consume();
+					try
+					{
+						SaveProject.persistProperties( painteraArgs.project(), properties, GsonHelpers.builderWithAllRequiredSerializers( baseView, painteraArgs::project ).setPrettyPrinting() );
+					}
+					catch ( final IOException e1 )
+					{
+						LOG.error( "Unable to safe project", e1 );
+					}
+					catch ( final ProjectUndefined e1 )
+					{
+						LOG.error( "Project undefined" );
+					}
+				},
+				e -> keyTracker.areOnlyTheseKeysDown( KeyCode.CONTROL, KeyCode.S ) ).installInto( paneWithStatus.getPane() );
 
 		keyTracker.installInto( scene );
 		stage.setScene( scene );
