@@ -40,7 +40,6 @@ import javafx.application.Application;
 import javafx.application.Platform;
 import javafx.scene.Scene;
 import javafx.scene.input.KeyCode;
-import javafx.stage.Screen;
 import javafx.stage.Stage;
 import net.imglib2.Volatile;
 import net.imglib2.converter.ARGBColorConverter;
@@ -74,7 +73,7 @@ public class Paintera extends Application
 
 		final PainteraBaseView baseView = new PainteraBaseView(
 				Math.min( 8, Math.max( 1, Runtime.getRuntime().availableProcessors() / 2 ) ),
-				ViewerOptions.options().screenScales( screenScales() ),
+				ViewerOptions.options().screenScales( painteraArgs.screenScales() ),
 				si -> s -> si.getState( s ).interpolationProperty().get() );
 
 		final OrthogonalViews< Viewer3DFX > orthoViews = baseView.orthogonalViews();
@@ -285,25 +284,6 @@ public class Paintera extends Application
 				throw e instanceof UnableToAddSource ? ( UnableToAddSource ) e : new UnableToAddSource( e );
 			}
 		}
-	}
-
-	private static double[] screenScales()
-	{
-
-		final int maxSize = ( int ) Screen
-				.getScreens()
-				.stream()
-				.map( Screen::getVisualBounds )
-				.mapToDouble( b -> Math.max( b.getWidth(), b.getHeight() ) )
-				.max()
-				.orElse( 0.0 );
-
-		LOG.debug( "max screen size = {}", maxSize );
-
-		final double[] screenScales = maxSize < 2500
-				? new double[] { 1.0 / 1.0, 1.0 / 2.0, 1.0 / 4.0, 1.0 / 8.0 }
-				: new double[] { 1.0 / 2.0, 1.0 / 4.0, 1.0 / 8.0, 1.0 / 16.0 };
-		return screenScales;
 	}
 
 	public static Optional< JsonObject > loadPropertiesIfPresent( final String root )
