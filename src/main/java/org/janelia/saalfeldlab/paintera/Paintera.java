@@ -80,6 +80,13 @@ public class Paintera extends Application
 
 		final KeyTracker keyTracker = new KeyTracker();
 
+		final BorderPaneWithStatusBars paneWithStatus = new BorderPaneWithStatusBars(
+				baseView,
+				painteraArgs::project );
+
+		@SuppressWarnings( "unused" )
+		final PainteraDefaultHandlers defaultHandlers = new PainteraDefaultHandlers( baseView, keyTracker, paneWithStatus );
+
 		// populate everything
 
 		final Optional< JsonObject > loadedProperties = loadPropertiesIfPresent( painteraArgs.project() );
@@ -90,14 +97,20 @@ public class Paintera extends Application
 
 		final Properties properties = loadedProperties.map( lp -> Properties.fromSerializedProperties( lp, baseView, true, painteraArgs::project, indexToState ) ).orElse( new Properties( baseView ) );
 
-		final BorderPaneWithStatusBars paneWithStatus = new BorderPaneWithStatusBars(
-				baseView,
-				keyTracker,
-				painteraArgs::project,
-				properties );
-
-		@SuppressWarnings( "unused" )
-		final PainteraDefaultHandlers defaultHandlers = new PainteraDefaultHandlers( baseView, keyTracker, paneWithStatus );
+		paneWithStatus.saveProjectButtonOnActionProperty().set( event -> {
+			try
+			{
+				SaveProject.persistProperties( painteraArgs.project(), properties, GsonHelpers.builderWithAllRequiredSerializers( baseView, painteraArgs::project ).setPrettyPrinting() );
+			}
+			catch ( final IOException e )
+			{
+				LOG.error( "Unable to save project", e );
+			}
+			catch ( final ProjectUndefined e )
+			{
+				LOG.error( "Project undefined" );
+			}
+		} );
 
 		// TODO this should probably happen in the properties.populate:
 		properties.sourceInfo
