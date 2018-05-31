@@ -39,11 +39,14 @@ public class Viewer3DFX extends Pane
 
 	private final Scene3DHandler handler;
 
+	private final Group3DCoordinateTracker coordinateTracker;
+
 	public Viewer3DFX( final double width, final double height )
 	{
 		super();
 		this.root = new Group();
 		this.meshesGroup = new Group();
+		this.coordinateTracker = new Group3DCoordinateTracker( meshesGroup );
 		this.setWidth( width );
 		this.setHeight( height );
 		this.scene = new SubScene( root, width, height, true, SceneAntialiasing.BALANCED );
@@ -92,5 +95,10 @@ public class Viewer3DFX extends Pane
 	public Group meshesGroup()
 	{
 		return meshesGroup;
+	}
+
+	public Group3DCoordinateTracker coordinateTracker()
+	{
+		return this.coordinateTracker;
 	}
 }
