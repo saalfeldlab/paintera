@@ -17,7 +17,6 @@ import org.janelia.saalfeldlab.fx.ortho.OrthogonalViews;
 import org.janelia.saalfeldlab.fx.ortho.OrthogonalViews.ViewerAndTransforms;
 import org.janelia.saalfeldlab.fx.ortho.ResizableGridPane2x2;
 import org.janelia.saalfeldlab.fx.ortho.ViewerAxis;
-import org.janelia.saalfeldlab.paintera.control.CurrentSourceRefreshMeshes;
 import org.janelia.saalfeldlab.paintera.control.CurrentSourceVisibilityToggle;
 import org.janelia.saalfeldlab.paintera.control.FitToInterval;
 import org.janelia.saalfeldlab.paintera.control.Merges;
@@ -223,9 +222,6 @@ public class PainteraDefaultHandlers
 			}
 		} );
 		EventFX.KEY_PRESSED( "maximize bottom row", e -> isRowMaximized.set( !isRowMaximized.get() ), e -> keyTracker.areOnlyTheseKeysDown( KeyCode.M, KeyCode.SHIFT ) ).installInto( paneWithStatus.getPane() );
-
-		final CurrentSourceRefreshMeshes meshRefresher = new CurrentSourceRefreshMeshes( sourceInfo.currentState()::get );
-		EventFX.KEY_PRESSED( "refresh meshes", e -> meshRefresher.refresh(), e -> keyTracker.areOnlyTheseKeysDown( KeyCode.R ) ).installInto( paneWithStatus.getPane() );
 
 		// TODO does MouseEvent.getPickResult make the coordinate tracker
 		// obsolete?
