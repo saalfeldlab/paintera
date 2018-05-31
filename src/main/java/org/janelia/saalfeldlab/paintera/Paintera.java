@@ -21,6 +21,7 @@ import org.janelia.saalfeldlab.paintera.data.DataSource;
 import org.janelia.saalfeldlab.paintera.data.mask.Masks;
 import org.janelia.saalfeldlab.paintera.data.mask.TmpDirectoryCreator;
 import org.janelia.saalfeldlab.paintera.data.n5.CommitCanvasN5;
+import org.janelia.saalfeldlab.paintera.id.IdService;
 import org.janelia.saalfeldlab.paintera.serialization.GsonHelpers;
 import org.janelia.saalfeldlab.paintera.serialization.Properties;
 import org.janelia.saalfeldlab.paintera.state.LabelSourceState;
@@ -262,7 +263,8 @@ public class Paintera extends Application
 				final TmpDirectoryCreator nextCanvasDir = new TmpDirectoryCreator( null, null );
 				final String name = N5Helpers.lastSegmentOfDatasetPath( dataset );
 				final SelectedIds selectedIds = new SelectedIds();
-				final FragmentSegmentAssignmentState assignment = N5Helpers.assignments( n5, dataset );
+				final IdService idService = N5Helpers.idService( n5, dataset );
+				final FragmentSegmentAssignmentState assignment = N5Helpers.assignments( n5, dataset, idService );
 				final ModalGoldenAngleSaturatedHighlightingARGBStream stream = new ModalGoldenAngleSaturatedHighlightingARGBStream( selectedIds, assignment );
 				final DataSource< D, T > dataSource = N5Helpers.openAsLabelSource(
 						n5,
@@ -285,7 +287,7 @@ public class Paintera extends Application
 						new ARGBCompositeAlphaYCbCr(),
 						name,
 						assignment,
-						N5Helpers.idService( n5, dataset ),
+						idService,
 						selectedIds,
 						pbv.viewer3D().meshesGroup(),
 						pbv.getMeshManagerExecutorService(),

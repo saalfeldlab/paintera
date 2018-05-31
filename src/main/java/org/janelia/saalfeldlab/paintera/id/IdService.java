@@ -5,8 +5,8 @@ import java.util.stream.LongStream;
 public interface IdService
 {
 	/**
-	 * Invalidate an ID.  Sets the next ID of this service if the passed ID
-	 * is greater than the current next ID.
+	 * Invalidate an ID. Sets the next ID of this service if the passed ID is
+	 * greater than the current next ID.
 	 *
 	 * @param id
 	 */
@@ -65,5 +65,41 @@ public interface IdService
 	static public long max( final long[] ids )
 	{
 		return max( LongStream.of( ids ) );
+	}
+
+	public static IdService dummy()
+	{
+		return new Dummy();
+	}
+
+	public static class Dummy implements IdService
+	{
+
+		private Dummy()
+		{
+
+		}
+
+		@Override
+		public void invalidate( final long id )
+		{
+			// TODO Auto-generated method stub
+
+		}
+
+		@Override
+		public long next()
+		{
+			// TODO Auto-generated method stub
+			return 0;
+		}
+
+		@Override
+		public long[] next( final int n )
+		{
+			// TODO Auto-generated method stub
+			return null;
+		}
+
 	}
 }

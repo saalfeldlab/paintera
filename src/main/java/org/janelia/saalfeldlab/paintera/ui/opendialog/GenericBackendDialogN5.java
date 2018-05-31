@@ -133,7 +133,7 @@ public class GenericBackendDialogN5 implements BackendDialog
 
 	private final StringBinding errorMessage = Bindings.createStringBinding(
 			() -> isReady.get() ? null : String.format( ERROR_MESSAGE_PATTERN, isN5Valid.get(), isDatasetValid.get(), datasetUpdateFailed.not().get() ),
-					isReady );
+			isReady );
 
 	private final StringBinding name = Bindings.createStringBinding( () -> {
 		final String[] entries = Optional
@@ -282,7 +282,7 @@ public class GenericBackendDialogN5 implements BackendDialog
 		return this.datasetInfo.maxProperty();
 	}
 
-	public FragmentSegmentAssignmentState assignments()
+	public FragmentSegmentAssignmentState assignments( final IdService idService )
 	{
 		final String dataset = this.dataset.get() + ".fragment-segment-assignment";
 
@@ -341,7 +341,7 @@ public class GenericBackendDialogN5 implements BackendDialog
 				values = new long[] {};
 			}
 
-			return new FragmentSegmentAssignmentOnlyLocal( keys, values, persister );
+			return new FragmentSegmentAssignmentOnlyLocal( keys, values, persister, idService );
 		}
 		catch ( final IOException e )
 		{
@@ -525,11 +525,11 @@ public class GenericBackendDialogN5 implements BackendDialog
 		final TmpDirectoryCreator canvasCacheDirUpdate = new TmpDirectoryCreator( null, null );
 
 		final DataSource< D, T > masked = Masks.mask( source, canvasCacheDirUpdate.get(), canvasCacheDirUpdate, commitCanvas(), workers );
-		final FragmentSegmentAssignmentState assignment = assignments();
+		final IdService idService = idService();
+		final FragmentSegmentAssignmentState assignment = assignments( idService );
 		final SelectedIds selectedIds = new SelectedIds();
 		final ModalGoldenAngleSaturatedHighlightingARGBStream stream = new ModalGoldenAngleSaturatedHighlightingARGBStream( selectedIds, assignment );
 		final HighlightingStreamConverter< T > converter = HighlightingStreamConverter.forType( stream, masked.getType() );
-
 
 		return new LabelSourceState<>(
 				masked,
@@ -537,11 +537,11 @@ public class GenericBackendDialogN5 implements BackendDialog
 				new ARGBCompositeAlphaYCbCr(),
 				name,
 				assignment,
-				idService(),
+				idService,
 				selectedIds,
 				meshesGroup,
 				manager,
-				workers);
+				workers );
 	}
 
 	public boolean isLabelType() throws Exception

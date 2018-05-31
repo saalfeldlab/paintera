@@ -802,7 +802,8 @@ public class N5Helpers
 			final N5Writer writer,
 			final String ds,
 			final long[] fragments,
-			final long[] segments ) throws IOException
+			final long[] segments,
+			final IdService idService ) throws IOException
 	{
 		final String dataset = ds + ".fragment-segment-assignment";
 
@@ -827,10 +828,10 @@ public class N5Helpers
 			}
 		};
 
-		return new FragmentSegmentAssignmentOnlyLocal( fragments, segments, persister );
+		return new FragmentSegmentAssignmentOnlyLocal( fragments, segments, persister, idService );
 	}
 
-	public static FragmentSegmentAssignmentState assignments( final N5Writer writer, final String ds ) throws IOException
+	public static FragmentSegmentAssignmentState assignments( final N5Writer writer, final String ds, final IdService idService ) throws IOException
 	{
 		final String dataset = ds + ".fragment-segment-assignment";
 
@@ -885,7 +886,7 @@ public class N5Helpers
 			values = new long[] {};
 		}
 
-		return new FragmentSegmentAssignmentOnlyLocal( keys, values, persister );
+		return new FragmentSegmentAssignmentOnlyLocal( keys, values, persister, idService );
 	}
 
 	public static IdService idService( final N5Writer n5, final String dataset ) throws IOException

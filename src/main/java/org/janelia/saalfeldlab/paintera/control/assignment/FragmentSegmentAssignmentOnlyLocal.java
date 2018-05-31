@@ -1,13 +1,14 @@
 package org.janelia.saalfeldlab.paintera.control.assignment;
 
 import java.lang.invoke.MethodHandles;
+import java.util.Arrays;
 import java.util.function.BiConsumer;
 
+import org.janelia.saalfeldlab.paintera.id.IdService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import gnu.trove.impl.Constants;
-import gnu.trove.iterator.TLongIterator;
 import gnu.trove.iterator.TLongLongIterator;
 import gnu.trove.map.hash.TLongLongHashMap;
 import gnu.trove.map.hash.TLongObjectHashMap;
@@ -25,12 +26,14 @@ public class FragmentSegmentAssignmentOnlyLocal extends FragmentSegmentAssignmen
 
 	private final BiConsumer< long[], long[] > persister;
 
-	public FragmentSegmentAssignmentOnlyLocal( final BiConsumer< long[], long[] > persister )
+	private final IdService idService;
+
+	public FragmentSegmentAssignmentOnlyLocal( final BiConsumer< long[], long[] > persister, final IdService idService )
 	{
-		this( new long[] {}, new long[] {}, persister );
+		this( new long[] {}, new long[] {}, persister, idService );
 	}
 
-	public FragmentSegmentAssignmentOnlyLocal( final long[] fragments, final long[] segments, final BiConsumer< long[], long[] > persister )
+	public FragmentSegmentAssignmentOnlyLocal( final long[] fragments, final long[] segments, final BiConsumer< long[], long[] > persister, final IdService idService )
 	{
 
 		super();
@@ -42,6 +45,7 @@ public class FragmentSegmentAssignmentOnlyLocal extends FragmentSegmentAssignmen
 		}
 
 		this.persister = persister;
+		this.idService = idService;
 
 		syncILut();
 		LOG.debug( "Assignment map: {}", fragmentToSegmentMap );
@@ -78,82 +82,78 @@ public class FragmentSegmentAssignmentOnlyLocal extends FragmentSegmentAssignmen
 	}
 
 	@Override
-	protected synchronized void assignFragmentsImpl( final long assignFrom, final long assignTo )
+	protected synchronized void detachFragmentImpl( final long fragmentId, final long from )
 	{
-		if ( assignFrom == assignTo ) { return; }
 
-		final TLongHashSet fragments1 = getFragments( assignFrom );
-		final TLongHashSet fragments2 = getFragments( assignTo );
-		final TLongHashSet fragments = new TLongHashSet();
-
-		LOG.debug( "Assigning {} from {} to {} ({}}", fragments1, assignFrom, assignTo, fragments2 );
-		fragments.addAll( fragments1 );
-		fragments.addAll( fragments2 );
-
-		LOG.debug( "Maps before: {} {}", fragmentToSegmentMap, segmentToFragmentsMap );
-		fragments1.forEach( fragmentId -> {
-			fragmentToSegmentMap.put( fragmentId, assignTo );
-			return true;
-		} );
-		segmentToFragmentsMap.put( assignTo, fragments );
-		segmentToFragmentsMap.remove( assignFrom );
-
-		LOG.debug( "Maps after: {} {}", fragmentToSegmentMap, segmentToFragmentsMap );
-
-	}
-
-	@Override
-	protected synchronized void mergeSegmentsImpl( final long segmentId1, final long segmentId2 )
-	{
-		if ( segmentId1 == segmentId2 ) { return; }
-
-		LOG.debug( "Merging segments {} and {}", segmentId1, segmentId2 );
-		assignFragmentsImpl( Math.max( segmentId1, segmentId2 ), Math.min( segmentId1, segmentId2 ) );
-	}
-
-	@Override
-	protected synchronized void detachFragmentImpl( final long fragmentId, final long... from )
-	{
+		if ( fragmentId == from )
+		{
+			LOG.debug( "{} and {} ar the same -- no action necessary", fragmentId, from );
+			return;
+		}
 
 		final long segmentId = getSegment( fragmentId );
-		final TLongHashSet fragments = getFragments( segmentId );
-		if ( fragments != null && fragments.size() > 1 )
+		final long segmentFrom = getSegment( from );
+		if ( segmentId != segmentFrom )
 		{
-			final TLongHashSet fragmentsCopy = new TLongHashSet( fragments );
-			fragmentsCopy.remove( fragmentId );
+			LOG.debug( "{} and {} in different segments: {} {} -- no action necessary", fragmentId, from, segmentId, segmentFrom );
+			return;
+		}
 
-			if ( fragmentId == segmentId )
-			{
-				final long actualSegmentId = fragmentsCopy.iterator().next();
-				for ( final TLongIterator fragmentIt = fragmentsCopy.iterator(); fragmentIt.hasNext(); )
-				{
-					this.fragmentToSegmentMap.put( fragmentIt.next(), actualSegmentId );
-				}
-				this.segmentToFragmentsMap.put( actualSegmentId, fragmentsCopy );
-			}
-			else
-			{
-				this.segmentToFragmentsMap.put( segmentId, fragmentsCopy );
-			}
+		this.fragmentToSegmentMap.remove( fragmentId );
 
-			final long newSegmentId = fragmentId;
-			fragmentToSegmentMap.put( fragmentId, newSegmentId );
-			segmentToFragmentsMap.put( newSegmentId, new TLongHashSet( new long[] { fragmentId } ) );
+		final TLongHashSet fragments = getFragments( segmentFrom );
+		fragments.remove( fragmentId );
+		if ( fragments.size() == 1 )
+		{
+			this.fragmentToSegmentMap.remove( from );
+			this.segmentToFragmentsMap.remove( segmentFrom );
 		}
 	}
 
 	@Override
-	protected void mergeFragmentsImpl( final long... fragments )
+	protected void mergeFragmentsImpl( final long from, final long into )
 	{
-		if ( fragments.length < 2 ) { return; }
-		final long id1 = fragments[ 0 ];
-		for ( int k = 1; k < fragments.length; ++k )
+
+		if ( from == into )
 		{
-			final long id2 = fragments[ k ];
-			final long seg1 = getSegment( id1 );
-			final long seg2 = getSegment( id2 );
-			mergeSegmentsImpl( seg1, seg2 );
+			LOG.debug( "fragments {} {} are the same -- no action necessary", from, into );
+			return;
 		}
+
+		if ( getSegment( from ) == getSegment( into ) )
+		{
+			LOG.debug( "fragments {} {} are in the same segment {} {} -- no action necessary", from, into, getSegment( from ), getSegment( into ) );
+			return;
+		}
+
+		if ( !fragmentToSegmentMap.contains( into ) )
+		{
+			fragmentToSegmentMap.put( into, idService.next() );
+		}
+
+		final long segmentFrom = fragmentToSegmentMap.get( from );
+		final long segmentInto = fragmentToSegmentMap.get( into );
+
+		if ( !segmentToFragmentsMap.contains( segmentInto ) )
+		{
+			final TLongHashSet fragmentOnly = new TLongHashSet();
+			fragmentOnly.add( into );
+			segmentToFragmentsMap.put( segmentInto, fragmentOnly );
+		}
+
+		final TLongHashSet fragmentsFrom = segmentToFragmentsMap.remove( segmentFrom );
+
+		if ( fragmentsFrom != null )
+		{
+			segmentToFragmentsMap.get( segmentInto ).addAll( fragmentsFrom );
+			Arrays.stream( fragmentsFrom.toArray() ).forEach( id -> fragmentToSegmentMap.put( id, segmentInto ) );
+		}
+		else
+		{
+			segmentToFragmentsMap.get( segmentInto ).add( from );
+			fragmentToSegmentMap.put( from, segmentInto );
+		}
+
 	}
 
 	private synchronized void syncILut()

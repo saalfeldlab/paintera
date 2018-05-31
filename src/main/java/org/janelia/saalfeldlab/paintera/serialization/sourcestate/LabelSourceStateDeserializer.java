@@ -13,6 +13,7 @@ import org.janelia.saalfeldlab.paintera.control.selection.SelectedIds;
 import org.janelia.saalfeldlab.paintera.data.DataSource;
 import org.janelia.saalfeldlab.paintera.data.mask.MaskedSource;
 import org.janelia.saalfeldlab.paintera.data.n5.N5DataSource;
+import org.janelia.saalfeldlab.paintera.id.IdService;
 import org.janelia.saalfeldlab.paintera.serialization.FragmentSegmentAssignmentOnlyLocalSerializer;
 import org.janelia.saalfeldlab.paintera.serialization.StatefulSerializer;
 import org.janelia.saalfeldlab.paintera.serialization.StatefulSerializer.Arguments;
@@ -29,7 +30,7 @@ import com.google.gson.JsonObject;
 import net.imglib2.type.numeric.ARGBType;
 
 public class LabelSourceStateDeserializer< C extends HighlightingStreamConverter< ? > >
-extends SourceStateSerialization.SourceStateDeserializerWithoutDependencies< LabelSourceState< ?, ? >, C >
+		extends SourceStateSerialization.SourceStateDeserializerWithoutDependencies< LabelSourceState< ?, ? >, C >
 {
 
 	private static final Logger LOG = LoggerFactory.getLogger( MethodHandles.lookup().lookupClass() );
@@ -93,18 +94,20 @@ extends SourceStateSerialization.SourceStateDeserializerWithoutDependencies< Lab
 
 		final N5DataSource< ?, ? > n5Source = ( N5DataSource< ?, ? > ) ( isMaskedSource
 				? ( ( MaskedSource< ?, ? > ) source ).underlyingSource()
-						: source );
+				: source );
 
 		final N5Writer writer = n5Source.writer();
 		final String dataset = n5Source.dataset();
 
 		final SelectedIds selectedIds = context.deserialize( map.get( SELECTED_IDS_KEY ), SelectedIds.class );
 		final JsonObject assignmentMap = map.get( ASSIGNMENT_KEY ).getAsJsonObject();
+		final IdService idService = N5Helpers.idService( writer, dataset );
 		final FragmentSegmentAssignmentState assignment = N5Helpers.assignments(
 				writer,
 				dataset,
 				context.deserialize( assignmentMap.get( FragmentSegmentAssignmentOnlyLocalSerializer.FRAGMENTS_KEY ), long[].class ),
-				context.deserialize( assignmentMap.get( FragmentSegmentAssignmentOnlyLocalSerializer.FRAGMENTS_KEY ), long[].class ) );
+				context.deserialize( assignmentMap.get( FragmentSegmentAssignmentOnlyLocalSerializer.FRAGMENTS_KEY ), long[].class ),
+				idService );
 
 		final AbstractHighlightingARGBStream stream = converter.getStream();
 		stream.setHighlightsAndAssignment( selectedIds, assignment );
@@ -115,7 +118,7 @@ extends SourceStateSerialization.SourceStateDeserializerWithoutDependencies< Lab
 				composite,
 				name,
 				assignment,
-				N5Helpers.idService( writer, dataset ),
+				idService,
 				selectedIds,
 				arguments.meshesGroup,
 				arguments.meshManagerExecutors,
