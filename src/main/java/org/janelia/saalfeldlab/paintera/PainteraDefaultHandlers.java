@@ -1,5 +1,6 @@
 package org.janelia.saalfeldlab.paintera;
 
+import java.lang.invoke.MethodHandles;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -33,6 +34,8 @@ import org.janelia.saalfeldlab.paintera.ui.ARGBStreamSeedSetter;
 import org.janelia.saalfeldlab.paintera.ui.ToggleMaximize;
 import org.janelia.saalfeldlab.paintera.ui.opendialog.PainteraOpenDialogEventHandler;
 import org.janelia.saalfeldlab.paintera.viewer3d.Viewer3DFX;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import bdv.fx.viewer.MultiBoxOverlayRendererFX;
 import bdv.fx.viewer.ViewerPanelFX;
@@ -48,8 +51,10 @@ import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.value.ChangeListener;
 import javafx.beans.value.ObservableObjectValue;
 import javafx.scene.Node;
+import javafx.scene.control.ContextMenu;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyEvent;
+import javafx.scene.input.MouseButton;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.Pane;
 import net.imglib2.FinalRealInterval;
@@ -59,6 +64,8 @@ import net.imglib2.util.Intervals;
 
 public class PainteraDefaultHandlers
 {
+
+	private static final Logger LOG = LoggerFactory.getLogger( MethodHandles.lookup().lookupClass() );
 
 	private final PainteraBaseView baseView;
 
@@ -191,7 +198,6 @@ public class PainteraDefaultHandlers
 		EventFX.KEY_PRESSED( "maximize", e -> toggleMaximizeBottomLeft.toggleFullScreen(), e -> keyTracker.areOnlyTheseKeysDown( KeyCode.M ) ).installInto( orthogonalViews.bottomLeft().viewer() );
 		EventFX.KEY_PRESSED( "maximize", e -> toggleMaximizeBottomRight.toggleFullScreen(), e -> keyTracker.areOnlyTheseKeysDown( KeyCode.M ) ).installInto( baseView.viewer3D() );
 
-
 		final CurrentSourceVisibilityToggle csv = new CurrentSourceVisibilityToggle( sourceInfo.currentState() );
 		EventFX.KEY_PRESSED( "toggle visibility", e -> csv.toggleIsVisible(), e -> keyTracker.areOnlyTheseKeysDown( KeyCode.V ) ).installInto( borderPane );
 
@@ -216,6 +222,22 @@ public class PainteraDefaultHandlers
 			}
 		} );
 		EventFX.KEY_PRESSED( "maximize bottom row", e -> isRowMaximized.set( !isRowMaximized.get() ), e -> keyTracker.areOnlyTheseKeysDown( KeyCode.M, KeyCode.SHIFT ) ).installInto( paneWithStatus.getPane() );
+
+		// TODO does MouseEvent.getPickResult make the coordinate tracker
+		// obsolete?
+		final MeshesGroupContextMenu contextMenuFactory = new MeshesGroupContextMenu( baseView.manager(), baseView.viewer3D().coordinateTracker() );
+		baseView.viewer3D().addEventHandler(
+				MouseEvent.MOUSE_CLICKED,
+				e -> {
+					LOG.debug( "Handling event {}", e );
+					if ( MouseButton.SECONDARY.equals( e.getButton() ) && e.getClickCount() == 1 )
+					{
+						LOG.debug( "Check passed for event {}", e );
+						e.consume();
+						final ContextMenu menu = contextMenuFactory.createMenu();
+						menu.show( baseView.viewer3D(), e.getScreenX(), e.getScreenY() );
+					}
+				} );
 
 	}
 
