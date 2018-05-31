@@ -1,22 +1,27 @@
 package org.janelia.saalfeldlab.paintera;
 
+import java.io.IOException;
 import java.lang.invoke.MethodHandles;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 import java.util.function.BiConsumer;
+import java.util.function.Supplier;
 
 import org.janelia.saalfeldlab.fx.event.KeyTracker;
 import org.janelia.saalfeldlab.fx.ortho.OrthogonalViews;
 import org.janelia.saalfeldlab.fx.ortho.OrthogonalViews.ViewerAndTransforms;
 import org.janelia.saalfeldlab.fx.ui.ResizeOnLeftSide;
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread;
+import org.janelia.saalfeldlab.paintera.SaveProject.ProjectUndefined;
 import org.janelia.saalfeldlab.paintera.config.CrosshairConfig;
 import org.janelia.saalfeldlab.paintera.config.CrosshairConfigNode;
 import org.janelia.saalfeldlab.paintera.config.OrthoSliceConfig;
 import org.janelia.saalfeldlab.paintera.config.OrthoSliceConfigNode;
 import org.janelia.saalfeldlab.paintera.control.navigation.CoordinateDisplayListener;
+import org.janelia.saalfeldlab.paintera.serialization.GsonHelpers;
+import org.janelia.saalfeldlab.paintera.serialization.Properties;
 import org.janelia.saalfeldlab.paintera.state.SourceInfo;
 import org.janelia.saalfeldlab.paintera.ui.Crosshair;
 import org.janelia.saalfeldlab.paintera.ui.source.SourceTabs;
@@ -34,6 +39,7 @@ import javafx.beans.property.ReadOnlyBooleanProperty;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.value.ObservableObjectValue;
 import javafx.scene.Group;
+import javafx.scene.control.Button;
 import javafx.scene.control.CheckBox;
 import javafx.scene.control.Label;
 import javafx.scene.control.ScrollPane;
@@ -113,7 +119,9 @@ public class BorderPaneWithStatusBars
 
 	public BorderPaneWithStatusBars(
 			final PainteraBaseView center,
-			final KeyTracker keyTracker )
+			final KeyTracker keyTracker,
+			final Supplier< String > project,
+			final Properties properties )
 	{
 		LOG.debug( "Construction {}", BorderPaneWithStatusBars.class.getName() );
 		this.pane = new BorderPane( center.orthogonalViews().pane() );
@@ -193,7 +201,23 @@ public class BorderPaneWithStatusBars
 		final TitledPane settings = new TitledPane( "settings", settingsContents );
 		settings.setExpanded( false );
 
-		this.sideBar = new ScrollPane( new VBox( sourcesContents, settings ) );
+		final Button saveProjectButton = new Button( "Save" );
+		saveProjectButton.setOnAction( event -> {
+			try
+			{
+				SaveProject.persistProperties( project.get(), properties, GsonHelpers.builderWithAllRequiredSerializers( center, project ).setPrettyPrinting() );
+			}
+			catch ( final IOException e )
+			{
+				LOG.error( "Unable to save project", e );
+			}
+			catch ( final ProjectUndefined e )
+			{
+				LOG.error( "Project undefined" );
+			}
+		} );
+
+		this.sideBar = new ScrollPane( new VBox( sourcesContents, settings, saveProjectButton ) );
 		this.sideBar.setHbarPolicy( ScrollBarPolicy.NEVER );
 		this.sideBar.setVbarPolicy( ScrollBarPolicy.AS_NEEDED );
 		this.sideBar.setVisible( true );

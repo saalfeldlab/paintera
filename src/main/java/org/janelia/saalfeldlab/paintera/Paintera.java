@@ -7,10 +7,12 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.regex.Pattern;
 
+import org.janelia.saalfeldlab.fx.event.EventFX;
 import org.janelia.saalfeldlab.fx.event.KeyTracker;
 import org.janelia.saalfeldlab.fx.ortho.OrthogonalViews;
 import org.janelia.saalfeldlab.n5.N5Reader;
 import org.janelia.saalfeldlab.n5.N5Writer;
+import org.janelia.saalfeldlab.paintera.SaveProject.ProjectUndefined;
 import org.janelia.saalfeldlab.paintera.composition.ARGBCompositeAlphaYCbCr;
 import org.janelia.saalfeldlab.paintera.composition.CompositeCopy;
 import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignmentState;
@@ -23,7 +25,6 @@ import org.janelia.saalfeldlab.paintera.serialization.GsonHelpers;
 import org.janelia.saalfeldlab.paintera.serialization.Properties;
 import org.janelia.saalfeldlab.paintera.state.LabelSourceState;
 import org.janelia.saalfeldlab.paintera.state.RawSourceState;
-import org.janelia.saalfeldlab.paintera.state.SourceInfo;
 import org.janelia.saalfeldlab.paintera.state.SourceState;
 import org.janelia.saalfeldlab.paintera.stream.HighlightingStreamConverter;
 import org.janelia.saalfeldlab.paintera.stream.ModalGoldenAngleSaturatedHighlightingARGBStream;
@@ -38,9 +39,7 @@ import bdv.viewer.ViewerOptions;
 import javafx.application.Application;
 import javafx.application.Platform;
 import javafx.scene.Scene;
-import javafx.scene.control.ButtonBar.ButtonData;
-import javafx.scene.control.ButtonType;
-import javafx.scene.control.Dialog;
+import javafx.scene.input.KeyCode;
 import javafx.stage.Screen;
 import javafx.stage.Stage;
 import net.imglib2.Volatile;
@@ -55,7 +54,7 @@ public class Paintera extends Application
 
 	private static final Logger LOG = LoggerFactory.getLogger( MethodHandles.lookup().lookupClass() );
 
-	private static final String PAINTERA_KEY = "paintera";
+	public static final String PAINTERA_KEY = "paintera";
 
 	@Override
 	public void start( final Stage stage ) throws Exception
@@ -82,13 +81,6 @@ public class Paintera extends Application
 
 		final KeyTracker keyTracker = new KeyTracker();
 
-		final BorderPaneWithStatusBars paneWithStatus = new BorderPaneWithStatusBars(
-				baseView,
-				keyTracker );
-
-		@SuppressWarnings( "unused" )
-		final PainteraDefaultHandlers defaultHandlers = new PainteraDefaultHandlers( baseView, keyTracker, paneWithStatus );
-
 		// populate everything
 
 		final Optional< JsonObject > loadedProperties = loadPropertiesIfPresent( painteraArgs.project() );
@@ -99,20 +91,29 @@ public class Paintera extends Application
 
 		final Properties properties = loadedProperties.map( lp -> Properties.fromSerializedProperties( lp, baseView, true, painteraArgs::project, indexToState ) ).orElse( new Properties( baseView ) );
 
+		final BorderPaneWithStatusBars paneWithStatus = new BorderPaneWithStatusBars(
+				baseView,
+				keyTracker,
+				painteraArgs::project,
+				properties );
+
+		@SuppressWarnings( "unused" )
+		final PainteraDefaultHandlers defaultHandlers = new PainteraDefaultHandlers( baseView, keyTracker, paneWithStatus );
+
 		// TODO this should probably happen in the properties.populate:
 		properties.sourceInfo
-		.trackSources()
-		.stream()
-		.map( properties.sourceInfo::getState )
-		.filter( state -> state instanceof LabelSourceState< ?, ? > )
-		.map( state -> ( LabelSourceState< ?, ? > ) state )
-		.forEach( state -> {
-			final long[] selIds = state.selectedIds().getActiveIds();
-			final long lastId = state.selectedIds().getLastSelection();
-			state.selectedIds().deactivateAll();
-			state.selectedIds().activate( selIds );
-			state.selectedIds().activateAlso( lastId );
-		} );
+				.trackSources()
+				.stream()
+				.map( properties.sourceInfo::getState )
+				.filter( state -> state instanceof LabelSourceState< ?, ? > )
+				.map( state -> ( LabelSourceState< ?, ? > ) state )
+				.forEach( state -> {
+					final long[] selIds = state.selectedIds().getActiveIds();
+					final long lastId = state.selectedIds().getLastSelection();
+					state.selectedIds().deactivateAll();
+					state.selectedIds().activate( selIds );
+					state.selectedIds().activateAlso( lastId );
+				} );
 		properties.clean();
 
 		LOG.debug( "Adding {} raw sources: {}", painteraArgs.rawSources().length, painteraArgs.rawSources() );
@@ -139,48 +140,26 @@ public class Paintera extends Application
 		}
 
 		setFocusTraversable( orthoViews, false );
-		stage.setOnCloseRequest( event -> {
+		stage.setOnCloseRequest( new SaveOnExitDialog( baseView, properties, painteraArgs.project(), baseView::stop ) );
 
-			if ( properties.isDirty() )
-			{
-				final Dialog< ButtonType > d = new Dialog<>();
-				d.setHeaderText( "Save before exit?" );
-				final ButtonType saveButton = new ButtonType( "Yes", ButtonData.OK_DONE );
-				final ButtonType discardButton = new ButtonType( "No", ButtonData.NO );
-				final ButtonType cancelButton = new ButtonType( "Cancel", ButtonData.CANCEL_CLOSE );
-				d.getDialogPane().getButtonTypes().setAll( saveButton, discardButton, cancelButton );
-				final ButtonType response = d.showAndWait().orElse( ButtonType.CANCEL );
-
-				if ( cancelButton.equals( response ) )
-				{
-					LOG.debug( "Canceling close request." );
-					event.consume();
-					return;
-				}
-
-				if ( saveButton.equals( response ) )
-				{
-					LOG.debug( "Saving project before exit" );
+		EventFX.KEY_PRESSED(
+				"save project",
+				e -> {
+					e.consume();
 					try
 					{
-						persistProperties( painteraArgs.project(), properties, GsonHelpers.builderWithAllRequiredSerializers( baseView, painteraArgs::project ).setPrettyPrinting() );
+						SaveProject.persistProperties( painteraArgs.project(), properties, GsonHelpers.builderWithAllRequiredSerializers( baseView, painteraArgs::project ).setPrettyPrinting() );
 					}
-					catch ( final IOException e )
+					catch ( final IOException e1 )
 					{
-						LOG.error( "Unable to write project! Select NO in dialog to close." );
-						event.consume();
-						return;
+						LOG.error( "Unable to safe project", e1 );
 					}
-				}
-				else if ( discardButton.equals( response ) )
-				{
-					LOG.debug( "Discarding project changes" );
-				}
-
-			}
-
-			baseView.stop();
-		} );
+					catch ( final ProjectUndefined e1 )
+					{
+						LOG.error( "Project undefined" );
+					}
+				},
+				e -> keyTracker.areOnlyTheseKeysDown( KeyCode.CONTROL, KeyCode.S ) ).installInto( paneWithStatus.getPane() );
 
 		keyTracker.installInto( scene );
 		stage.setScene( scene );
@@ -323,8 +302,8 @@ public class Paintera extends Application
 
 		final double[] screenScales = maxSize < 2500
 				? new double[] { 1.0 / 1.0, 1.0 / 2.0, 1.0 / 4.0, 1.0 / 8.0 }
-		: new double[] { 1.0 / 2.0, 1.0 / 4.0, 1.0 / 8.0, 1.0 / 16.0 };
-				return screenScales;
+				: new double[] { 1.0 / 2.0, 1.0 / 4.0, 1.0 / 8.0, 1.0 / 16.0 };
+		return screenScales;
 	}
 
 	public static Optional< JsonObject > loadPropertiesIfPresent( final String root )
@@ -343,13 +322,6 @@ public class Paintera extends Application
 		{
 			return Optional.empty();
 		}
-	}
-
-	public static void persistProperties( final String root, final Properties properties, final GsonBuilder builder ) throws IOException
-	{
-		builder.create().getAdapter( SourceInfo.class );
-		LOG.debug( "Persisting properties {} into {}", properties, root );
-		N5Helpers.n5Writer( root, builder, 64, 64, 64 ).setAttribute( "", PAINTERA_KEY, properties );
 	}
 
 }
