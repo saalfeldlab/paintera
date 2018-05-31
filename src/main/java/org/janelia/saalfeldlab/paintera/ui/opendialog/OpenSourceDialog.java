@@ -1,7 +1,5 @@
 package org.janelia.saalfeldlab.paintera.ui.opendialog;
 
-import java.io.File;
-import java.nio.file.FileSystems;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Optional;
@@ -25,11 +23,9 @@ import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.control.Button;
 import javafx.scene.control.ButtonType;
-import javafx.scene.control.CheckBox;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.Dialog;
 import javafx.scene.control.Label;
-import javafx.scene.control.TextField;
 import javafx.scene.control.TitledPane;
 import javafx.scene.control.Tooltip;
 import javafx.scene.effect.InnerShadow;
@@ -39,7 +35,6 @@ import javafx.scene.layout.Priority;
 import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
-import javafx.stage.DirectoryChooser;
 
 public class OpenSourceDialog extends Dialog< BackendDialog > implements CombinesErrorMessages
 {
@@ -93,18 +88,6 @@ public class OpenSourceDialog extends Dialog< BackendDialog > implements Combine
 
 	private final HBox revertAxisHBox = new HBox( revertAxisOrder );
 
-	private final CheckBox usePaintingLayer = new CheckBox();
-
-	private final TextField paintingCacheDirectory = new TextField( "" );
-
-	private final Button paintingCacheDirectoryChooserButton = new Button( "Browse" );
-
-	private final HBox paintingCacheDirectoryBox = new HBox( paintingCacheDirectory, paintingCacheDirectoryChooserButton );
-
-	private final TitledPane paintingInfoPane = new TitledPane( "Painting Layer", paintingCacheDirectoryBox );
-
-	private final HBox paintingLayerPane = new HBox( paintingInfoPane );
-
 	public OpenSourceDialog( final PainteraBaseView viewer )
 	{
 		super();
@@ -126,13 +109,13 @@ public class OpenSourceDialog extends Dialog< BackendDialog > implements Combine
 		this.getDialogPane().lookupButton( ButtonType.OK ).disableProperty().bind( this.isError );
 		this.errorInfo.visibleProperty().bind( this.isError );
 
-		Tooltip revertAxisTooltip = new Tooltip( "If you data is using `zyx` you should revert it." );
+		final Tooltip revertAxisTooltip = new Tooltip( "If you data is using `zyx` you should revert it." );
 		this.grid = new GridPane();
 		this.backendDialog = new StackPane();
 		this.nameField.errorMessageProperty().addListener( ( obs, oldv, newv ) -> combineErrorMessages() );
 		this.revertAxisOrder.setTooltip( revertAxisTooltip );
 		this.revertAxisHBox.setAlignment( Pos.BASELINE_RIGHT );
-		this.dialogContent = new VBox( 10, nameField.textField(), grid, metaPanel.getPane(), revertAxisHBox, paintingLayerPane, errorInfo );
+		this.dialogContent = new VBox( 10, nameField.textField(), grid, metaPanel.getPane(), revertAxisHBox, errorInfo );
 		this.setResizable( true );
 
 		GridPane.setMargin( this.backendDialog, new Insets( 0, 0, 0, 30 ) );
@@ -148,6 +131,7 @@ public class OpenSourceDialog extends Dialog< BackendDialog > implements Combine
 
 		this.backendChoice.valueProperty().addListener( ( obs, oldv, newv ) -> {
 			if ( this.currentBackend.get() != null )
+			{
 				InvokeOnJavaFXApplicationThread.invoke( () -> {
 					final BackendDialog backendDialog = backendInfoDialogs.get( newv );
 					this.backendDialog.getChildren().setAll( backendDialog.getDialogNode() );
@@ -164,31 +148,8 @@ public class OpenSourceDialog extends Dialog< BackendDialog > implements Combine
 					Optional.ofNullable( backendDialog.nameProperty().get() ).ifPresent( nameField.textField().textProperty()::set );
 					combineErrorMessages();
 				} );
-		} );
-
-		this.paintingLayerPane.visibleProperty().bind( isLabelType );
-		this.usePaintingLayer.selectedProperty().addListener( ( obs, oldv, newv ) -> {
-			if ( newv )
-			{
-				this.paintingInfoPane.setCollapsible( newv );
-				this.paintingInfoPane.setExpanded( newv );
-			}
-			else
-			{
-				this.paintingInfoPane.setExpanded( newv );
-				this.paintingInfoPane.setCollapsible( newv );
 			}
 		} );
-
-		this.paintingCacheDirectoryChooserButton.setOnAction( event -> {
-			final DirectoryChooser directoryChooser = new DirectoryChooser();
-			final File initDir = new File( paintingCacheDirectory.getText() );
-			directoryChooser.setInitialDirectory( initDir.exists() && initDir.isDirectory() ? initDir : FileSystems.getDefault().getPath( System.getProperty( "user.home" ), "local", "tmp", "cache" ).toFile() );
-			final File directory = directoryChooser.showDialog( grid.getScene().getWindow() );
-			Optional.ofNullable( directory ).map( File::getAbsolutePath ).ifPresent( paintingCacheDirectory::setText );
-		} );
-		HBox.setHgrow( paintingInfoPane, Priority.ALWAYS );
-		paintingInfoPane.setGraphic( this.usePaintingLayer );
 
 		this.revertAxisOrder.setOnAction( event -> {
 			final BackendDialog backendDialog = backendInfoDialogs.get( backendChoice.getValue() );
@@ -235,11 +196,6 @@ public class OpenSourceDialog extends Dialog< BackendDialog > implements Combine
 		return strings -> InvokeOnJavaFXApplicationThread.invoke( () -> this.errorMessage.setText( String.join( "\n", strings ) ) );
 	}
 
-	public String canvasCacheDirectory()
-	{
-		return this.paintingCacheDirectory.getText();
-	}
-
 	public BackendDialog getBackend()
 	{
 		return this.currentBackend.get();
@@ -249,7 +205,9 @@ public class OpenSourceDialog extends Dialog< BackendDialog > implements Combine
 	{
 		final double[] reverted = new double[ array.length ];
 		for ( int i = 0; i < array.length; ++i )
+		{
 			reverted[ i ] = array[ array.length - 1 - i ];
+		}
 		return reverted;
 	}
 }
