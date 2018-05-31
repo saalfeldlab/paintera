@@ -14,17 +14,21 @@ import com.google.gson.JsonSerializer;
 public class MaskedSourceSerializer implements JsonSerializer< MaskedSource< ?, ? > >
 {
 
-	private static final Logger LOG = LoggerFactory.getLogger( MethodHandles.lookup().lookupClass() );
+	public static final Logger LOG = LoggerFactory.getLogger( MethodHandles.lookup().lookupClass() );
 
-	private static final String UNDERLYING_SOURCE_CLASS_KEY = "sourceClass";
+	public static final String UNDERLYING_SOURCE_CLASS_KEY = "sourceClass";
 
-	private static final String UNDERLYING_SOURCE_KEY = "source";
+	public static final String UNDERLYING_SOURCE_KEY = "source";
 
-	private static final String CURRENT_CACHE_DIR_KEY = "cacheDir";
+	public static final String CURRENT_CACHE_DIR_KEY = "cacheDir";
 
-	private static final String PERSIST_CANVAS_CLASS_KEY = "persistCanvasClass";
+	public static final String PERSIST_CANVAS_CLASS_KEY = "persistCanvasClass";
 
-	private static final String PERSIST_CANVAS_KEY = "persistCanvas";
+	public static final String PERSIST_CANVAS_KEY = "persistCanvas";
+
+	public static final String DIRTY_BLOCKS_KEY = "dirtyBlocks";
+
+	public static final String DIRTY_BLOCKS_BY_ID_KEY = "dirtyBlocksById";
 
 	@Override
 	public JsonElement serialize( final MaskedSource< ?, ? > src, final Type type, final JsonSerializationContext context )
@@ -38,6 +42,8 @@ public class MaskedSourceSerializer implements JsonSerializer< MaskedSource< ?, 
 //		map.addProperty( CURRENT_CACHE_DIR_KEY, Paths.get( currentProjectDirectory.get() ).relativize( Paths.get( src.currentCanvasDirectory() ) ).toString() );
 		map.addProperty( PERSIST_CANVAS_CLASS_KEY, src.getPersister().getClass().getName() );
 		map.add( PERSIST_CANVAS_KEY, context.serialize( src.getPersister(), src.getPersister().getClass() ) );
+		map.add( DIRTY_BLOCKS_KEY, context.serialize( src.getAffectedBlocks() ) );
+		map.add( DIRTY_BLOCKS_BY_ID_KEY, context.serialize( src.getAffectedBlocksById() ) );
 		return map;
 	}
 

@@ -5,6 +5,7 @@ import java.nio.file.Paths;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Optional;
 import java.util.concurrent.ExecutorService;
 import java.util.function.BiConsumer;
@@ -673,7 +674,7 @@ public class MaskedSource< D extends Type< D >, T extends Type< T > > implements
 
 	public TLongSet getModifiedBlocks( final int level, final long id )
 	{
-		LOG.warn( "Getting modified blocks for level={} and id={}", level, id );
+		LOG.debug( "Getting modified blocks for level={} and id={}", level, id );
 		return Optional.ofNullable( this.affectedBlocksByLabel[ level ].get( id ) ).map( TLongHashSet::new ).orElseGet( TLongHashSet::new );
 	}
 
@@ -1082,6 +1083,53 @@ public class MaskedSource< D extends Type< D >, T extends Type< T > > implements
 	public CellGrid getCellGrid( final int t, final int level )
 	{
 		return ( ( AbstractCellImg< ?, ?, ?, ? > ) underlyingSource().getSource( t, level ) ).getCellGrid();
+	}
+
+	public long[] getAffectedBlocks()
+	{
+		return this.affectedBlocks.toArray();
+	}
+
+	Map< Long, long[] >[] getAffectedBlocksById()
+	{
+		@SuppressWarnings( "unchecked" )
+		final Map< Long, long[] >[] maps = new HashMap[ this.affectedBlocksByLabel.length ];
+
+		for ( int level = 0; level < maps.length; ++level )
+		{
+			maps[ level ] = new HashMap<>();
+			final Map< Long, long[] > map = maps[ level ];
+			for ( final Entry< Long, TLongHashSet > entry : this.affectedBlocksByLabel[ level ].entrySet() )
+			{
+				map.put( entry.getKey(), entry.getValue().toArray() );
+			}
+		}
+
+		LOG.debug( "Retruning affected blocks by id for {} levels: {}", maps.length, maps );
+		return maps;
+	}
+
+	void affectBlocks(
+			final long[] blocks,
+			final Map< Long, long[] >[] blocksById )
+	{
+		assert this.affectedBlocksByLabel.length == blocksById.length;
+
+		LOG.debug( "Affected blocks: {} to add: {}", this.affectedBlocks, blocks );
+		this.affectedBlocks.addAll( blocks );
+		LOG.debug( "Affected blocks: {}", this.affectedBlocks );
+
+		LOG.debug( "Affected blocks by id: {} to add: {}", this.affectedBlocksByLabel, blocksById );
+		for ( int level = 0; level < blocksById.length; ++level )
+		{
+			final Map< Long, TLongHashSet > map = this.affectedBlocksByLabel[ level ];
+			for ( final Entry< Long, long[] > entry : blocksById[ level ].entrySet() )
+			{
+				map.computeIfAbsent( entry.getKey(), key -> new TLongHashSet() ).addAll( entry.getValue() );
+			}
+		}
+		LOG.debug( "Affected blocks by id: {}", this.affectedBlocksByLabel, null );
+
 	}
 
 }
