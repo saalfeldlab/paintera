@@ -19,11 +19,9 @@ import org.janelia.saalfeldlab.paintera.data.DataSource;
 import org.janelia.saalfeldlab.paintera.data.mask.Masks;
 import org.janelia.saalfeldlab.paintera.data.mask.TmpDirectoryCreator;
 import org.janelia.saalfeldlab.paintera.data.n5.CommitCanvasN5;
-import org.janelia.saalfeldlab.paintera.serialization.GsonHelpers;
 import org.janelia.saalfeldlab.paintera.serialization.Properties;
 import org.janelia.saalfeldlab.paintera.state.LabelSourceState;
 import org.janelia.saalfeldlab.paintera.state.RawSourceState;
-import org.janelia.saalfeldlab.paintera.state.SourceInfo;
 import org.janelia.saalfeldlab.paintera.state.SourceState;
 import org.janelia.saalfeldlab.paintera.stream.HighlightingStreamConverter;
 import org.janelia.saalfeldlab.paintera.stream.ModalGoldenAngleSaturatedHighlightingARGBStream;
@@ -38,9 +36,6 @@ import bdv.viewer.ViewerOptions;
 import javafx.application.Application;
 import javafx.application.Platform;
 import javafx.scene.Scene;
-import javafx.scene.control.ButtonBar.ButtonData;
-import javafx.scene.control.ButtonType;
-import javafx.scene.control.Dialog;
 import javafx.stage.Screen;
 import javafx.stage.Stage;
 import net.imglib2.Volatile;
@@ -55,7 +50,7 @@ public class Paintera extends Application
 
 	private static final Logger LOG = LoggerFactory.getLogger( MethodHandles.lookup().lookupClass() );
 
-	private static final String PAINTERA_KEY = "paintera";
+	public static final String PAINTERA_KEY = "paintera";
 
 	@Override
 	public void start( final Stage stage ) throws Exception
@@ -101,18 +96,18 @@ public class Paintera extends Application
 
 		// TODO this should probably happen in the properties.populate:
 		properties.sourceInfo
-		.trackSources()
-		.stream()
-		.map( properties.sourceInfo::getState )
-		.filter( state -> state instanceof LabelSourceState< ?, ? > )
-		.map( state -> ( LabelSourceState< ?, ? > ) state )
-		.forEach( state -> {
-			final long[] selIds = state.selectedIds().getActiveIds();
-			final long lastId = state.selectedIds().getLastSelection();
-			state.selectedIds().deactivateAll();
-			state.selectedIds().activate( selIds );
-			state.selectedIds().activateAlso( lastId );
-		} );
+				.trackSources()
+				.stream()
+				.map( properties.sourceInfo::getState )
+				.filter( state -> state instanceof LabelSourceState< ?, ? > )
+				.map( state -> ( LabelSourceState< ?, ? > ) state )
+				.forEach( state -> {
+					final long[] selIds = state.selectedIds().getActiveIds();
+					final long lastId = state.selectedIds().getLastSelection();
+					state.selectedIds().deactivateAll();
+					state.selectedIds().activate( selIds );
+					state.selectedIds().activateAlso( lastId );
+				} );
 		properties.clean();
 
 		LOG.debug( "Adding {} raw sources: {}", painteraArgs.rawSources().length, painteraArgs.rawSources() );
@@ -139,48 +134,7 @@ public class Paintera extends Application
 		}
 
 		setFocusTraversable( orthoViews, false );
-		stage.setOnCloseRequest( event -> {
-
-			if ( properties.isDirty() )
-			{
-				final Dialog< ButtonType > d = new Dialog<>();
-				d.setHeaderText( "Save before exit?" );
-				final ButtonType saveButton = new ButtonType( "Yes", ButtonData.OK_DONE );
-				final ButtonType discardButton = new ButtonType( "No", ButtonData.NO );
-				final ButtonType cancelButton = new ButtonType( "Cancel", ButtonData.CANCEL_CLOSE );
-				d.getDialogPane().getButtonTypes().setAll( saveButton, discardButton, cancelButton );
-				final ButtonType response = d.showAndWait().orElse( ButtonType.CANCEL );
-
-				if ( cancelButton.equals( response ) )
-				{
-					LOG.debug( "Canceling close request." );
-					event.consume();
-					return;
-				}
-
-				if ( saveButton.equals( response ) )
-				{
-					LOG.debug( "Saving project before exit" );
-					try
-					{
-						persistProperties( painteraArgs.project(), properties, GsonHelpers.builderWithAllRequiredSerializers( baseView, painteraArgs::project ).setPrettyPrinting() );
-					}
-					catch ( final IOException e )
-					{
-						LOG.error( "Unable to write project! Select NO in dialog to close." );
-						event.consume();
-						return;
-					}
-				}
-				else if ( discardButton.equals( response ) )
-				{
-					LOG.debug( "Discarding project changes" );
-				}
-
-			}
-
-			baseView.stop();
-		} );
+		stage.setOnCloseRequest( new SaveOnExitDialog( baseView, properties, painteraArgs.project(), baseView::stop ) );
 
 		keyTracker.installInto( scene );
 		stage.setScene( scene );
@@ -323,8 +277,8 @@ public class Paintera extends Application
 
 		final double[] screenScales = maxSize < 2500
 				? new double[] { 1.0 / 1.0, 1.0 / 2.0, 1.0 / 4.0, 1.0 / 8.0 }
-		: new double[] { 1.0 / 2.0, 1.0 / 4.0, 1.0 / 8.0, 1.0 / 16.0 };
-				return screenScales;
+				: new double[] { 1.0 / 2.0, 1.0 / 4.0, 1.0 / 8.0, 1.0 / 16.0 };
+		return screenScales;
 	}
 
 	public static Optional< JsonObject > loadPropertiesIfPresent( final String root )
@@ -343,13 +297,6 @@ public class Paintera extends Application
 		{
 			return Optional.empty();
 		}
-	}
-
-	public static void persistProperties( final String root, final Properties properties, final GsonBuilder builder ) throws IOException
-	{
-		builder.create().getAdapter( SourceInfo.class );
-		LOG.debug( "Persisting properties {} into {}", properties, root );
-		N5Helpers.n5Writer( root, builder, 64, 64, 64 ).setAttribute( "", PAINTERA_KEY, properties );
 	}
 
 }
