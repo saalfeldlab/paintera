@@ -213,11 +213,11 @@ public class LabelSourceState< D, T >
 			final int[] blockSize = new int[ imgDim.length ];
 			grid.cellDimensions( blockSize );
 			functions[ level ] = id -> {
-				LOG.warn( "Getting blocks at level={} for id={}", fLevel, id );
+				LOG.debug( "Getting blocks at level={} for id={}", fLevel, id );
 				final long[] blockMin = new long[ grid.numDimensions() ];
 				final long[] blockMax = new long[ grid.numDimensions() ];
 				final TLongSet indexedBlocks = source.getModifiedBlocks( fLevel, id );
-				LOG.warn( "Received modified blocks at level={} for id={}: {}", fLevel, id, indexedBlocks );
+				LOG.debug( "Received modified blocks at level={} for id={}: {}", fLevel, id, indexedBlocks );
 				final Interval[] intervals = new Interval[ indexedBlocks.size() ];
 				final TLongIterator blockIt = indexedBlocks.iterator();
 				for ( int i = 0; blockIt.hasNext(); ++i )
@@ -228,7 +228,7 @@ public class LabelSourceState< D, T >
 					Arrays.setAll( blockMax, d -> Math.min( blockMin[ d ] + blockSize[ d ], imgDim[ d ] ) - 1 );
 					intervals[ i ] = new FinalInterval( blockMin, blockMax );
 				}
-				LOG.warn( "Returning {} intervals", intervals.length );
+				LOG.debug( "Returning {} intervals", intervals.length );
 				return intervals;
 			};
 		}
@@ -243,7 +243,7 @@ public class LabelSourceState< D, T >
 	{
 		assert f1.length == f2.length;
 
-		LOG.warn( "Combining two functions {} and {}", f1, f2 );
+		LOG.debug( "Combining two functions {} and {}", f1, f2 );
 
 		@SuppressWarnings( "unchecked" )
 		final InterruptibleFunction< T, U >[] f = new InterruptibleFunction[ f1.length ];
@@ -270,7 +270,7 @@ public class LabelSourceState< D, T >
 			final Set< HashWrapper< Interval > > intervals = new HashSet<>();
 			Arrays.stream( t ).map( HashWrapper::interval ).forEach( intervals::add );
 			Arrays.stream( u ).map( HashWrapper::interval ).forEach( intervals::add );
-			LOG.warn( "Combined {} and {} to {}", t, u, intervals );
+			LOG.debug( "Combined {} and {} to {}", t, u, intervals );
 			return intervals.stream().map( HashWrapper::getData ).toArray( Interval[]::new );
 		}
 
