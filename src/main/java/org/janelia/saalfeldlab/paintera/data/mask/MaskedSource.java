@@ -448,9 +448,6 @@ public class MaskedSource< D extends Type< D >, T extends Type< T > > implements
 					try
 					{
 						this.persistCanvas.accept( canvas, affectedBlocks );
-					}
-					finally
-					{
 						clearCanvases();
 						for ( int level = 0; level < this.getNumMipmapLevels(); ++level )
 						{
@@ -459,6 +456,9 @@ public class MaskedSource< D extends Type< D >, T extends Type< T > > implements
 							LOG.debug( "Invalidating all for viewer source for level={}", level );
 							invalidateAllIfCachedImg( this.source.getSource( 0, level ) );
 						}
+					}
+					finally
+					{
 						synchronized ( this )
 						{
 							this.isPersisting.set( false );
