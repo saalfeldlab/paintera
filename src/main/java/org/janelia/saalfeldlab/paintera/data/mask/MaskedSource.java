@@ -2,8 +2,10 @@ package org.janelia.saalfeldlab.paintera.data.mask;
 
 import java.lang.invoke.MethodHandles;
 import java.nio.file.Paths;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Optional;
@@ -139,6 +141,8 @@ public class MaskedSource< D extends Type< D >, T extends Type< T > > implements
 	private final ObservableBooleanValue isNotPersisting = isPersisting.not();
 
 	private final Map< Long, TLongHashSet >[] affectedBlocksByLabel;
+
+	private final List< Runnable > canvasClearedListeners = new ArrayList<>();
 
 	private final ObservableBooleanValue canBePersited = Bindings.createBooleanBinding(
 			() -> isMaskNotDeployed.get() && isNotPersisting.get() && noMasksCurrentlyApplied.get(),
@@ -986,7 +990,9 @@ public class MaskedSource< D extends Type< D >, T extends Type< T > > implements
 	private void clearCanvases()
 	{
 		this.cacheDirectory.set( this.nextCacheDirectory.get() );
+		this.affectedBlocks.clear();
 		Arrays.stream( this.affectedBlocksByLabel ).forEach( Map::clear );
+		this.canvasClearedListeners.forEach( Runnable::run );
 	}
 
 	private static class CanvasBaseDirChangeListener implements ChangeListener< String >
@@ -1088,6 +1094,11 @@ public class MaskedSource< D extends Type< D >, T extends Type< T > > implements
 	public long[] getAffectedBlocks()
 	{
 		return this.affectedBlocks.toArray();
+	}
+
+	public void addOnCanvasClearedListener( final Runnable listener )
+	{
+		this.canvasClearedListeners.add( listener );
 	}
 
 	Map< Long, long[] >[] getAffectedBlocksById()

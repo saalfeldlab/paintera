@@ -105,9 +105,15 @@ public class LabelSourceState< D, T >
 		final InterruptibleFunctionAndCache< Long, Interval[] >[] backgroundBlockCaches = PainteraBaseView.generateLabelBlocksForLabelCache( dataSource );
 		this.clearBlockCaches = () -> Arrays.stream( backgroundBlockCaches ).forEach( UncheckedCache::invalidateAll );
 
-		final InterruptibleFunction< Long, Interval[] >[] blockCaches = dataSource instanceof MaskedSource< ?, ? >
+		final boolean isMaskedSource = dataSource instanceof MaskedSource< ?, ? >;
+		final InterruptibleFunction< Long, Interval[] >[] blockCaches = isMaskedSource
 				? combineInterruptibleFunctions( backgroundBlockCaches, InterruptibleFunction.fromFunction( blockCacheForMaskedSource( ( MaskedSource< ?, ? > ) dataSource ) ), new IntervalsCombiner() )
 				: backgroundBlockCaches;
+
+		if ( isMaskedSource )
+		{
+			( ( MaskedSource< ?, ? > ) dataSource ).addOnCanvasClearedListener( this::invalidateAllBlockCaches );
+		}
 
 		final BlocksForLabelDelegate< TLongHashSet, Long >[] delegateBlockCaches = BlocksForLabelDelegate.delegate( blockCaches, ids -> Arrays.stream( ids.toArray() ).mapToObj( id -> id ).toArray( Long[]::new ), meshWorkersExecutors );
 
@@ -180,9 +186,19 @@ public class LabelSourceState< D, T >
 	@Override
 	public void invalidateAll()
 	{
+		invalidateAllMeshCaches();
+		invalidateAllBlockCaches();
+	}
+
+	public void invalidateAllMeshCaches()
+	{
 		Arrays
 				.stream( this.meshCaches )
 				.forEach( UncheckedCache::invalidateAll );
+	}
+
+	public void invalidateAllBlockCaches()
+	{
 		this.clearBlockCaches.run();
 	}
 
