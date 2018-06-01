@@ -45,7 +45,7 @@ public class CrosshairConfigNode
 		GridPane.setHgrow( onFocusLabel, Priority.ALWAYS );
 		GridPane.setHgrow( offFocusLabel, Priority.ALWAYS );
 
-		contents = new TitledPane( "crosshair", grid );
+		contents = new TitledPane( "Crosshair", grid );
 		contents.setGraphic( showCrosshairs );
 		contents.setExpanded( false );
 

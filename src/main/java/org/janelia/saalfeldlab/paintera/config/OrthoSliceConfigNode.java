@@ -45,7 +45,7 @@ public class OrthoSliceConfigNode
 		GridPane.setHgrow( topRightLabel, Priority.ALWAYS );
 		GridPane.setHgrow( bottomLeftLabel, Priority.ALWAYS );
 
-		contents = new TitledPane( "orthoviews", grid );
+		contents = new TitledPane( "Ortho-Views", grid );
 		contents.setGraphic( showOrthoViews );
 		contents.setExpanded( false );
 

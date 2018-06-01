@@ -378,4 +378,9 @@ public class PainteraDefaultHandlers
 				column, row );
 	}
 
+	public Navigation navigation()
+	{
+		return this.navigation;
+	}
+
 }

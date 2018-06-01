@@ -14,6 +14,7 @@ import org.janelia.saalfeldlab.fx.ui.ResizeOnLeftSide;
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread;
 import org.janelia.saalfeldlab.paintera.config.CrosshairConfig;
 import org.janelia.saalfeldlab.paintera.config.CrosshairConfigNode;
+import org.janelia.saalfeldlab.paintera.config.NavigationConfigNode;
 import org.janelia.saalfeldlab.paintera.config.OrthoSliceConfig;
 import org.janelia.saalfeldlab.paintera.config.OrthoSliceConfigNode;
 import org.janelia.saalfeldlab.paintera.control.navigation.CoordinateDisplayListener;
@@ -73,6 +74,8 @@ public class BorderPaneWithStatusBars
 	private final Label valueStatus;
 
 	private final ResizeOnLeftSide resizeSideBar;
+
+	private final NavigationConfigNode navigationConfigNode = new NavigationConfigNode();
 
 	private final CrosshairConfig crosshairConfig = new CrosshairConfig();
 
@@ -194,6 +197,7 @@ public class BorderPaneWithStatusBars
 		sourcesContents.setExpanded( false );
 
 		final VBox settingsContents = new VBox(
+				this.navigationConfigNode.getContents(),
 				new CrosshairConfigNode( crosshairConfig ).getContents(),
 				new OrthoSliceConfigNode( orthoSliceConfig ).getContents() );
 		final TitledPane settings = new TitledPane( "settings", settingsContents );
@@ -292,6 +296,11 @@ public class BorderPaneWithStatusBars
 				focusTR,
 				focusBL );
 
+	}
+
+	public NavigationConfigNode navigationConfigNode()
+	{
+		return this.navigationConfigNode;
 	}
 
 }

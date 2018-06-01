@@ -15,6 +15,7 @@ import org.janelia.saalfeldlab.n5.N5Writer;
 import org.janelia.saalfeldlab.paintera.SaveProject.ProjectUndefined;
 import org.janelia.saalfeldlab.paintera.composition.ARGBCompositeAlphaYCbCr;
 import org.janelia.saalfeldlab.paintera.composition.CompositeCopy;
+import org.janelia.saalfeldlab.paintera.config.NavigationConfig;
 import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignmentState;
 import org.janelia.saalfeldlab.paintera.control.selection.SelectedIds;
 import org.janelia.saalfeldlab.paintera.data.DataSource;
@@ -85,8 +86,11 @@ public class Paintera extends Application
 				baseView,
 				painteraArgs::project );
 
-		@SuppressWarnings( "unused" )
 		final PainteraDefaultHandlers defaultHandlers = new PainteraDefaultHandlers( baseView, keyTracker, paneWithStatus );
+
+		final NavigationConfig navigationConfig = new NavigationConfig();
+		paneWithStatus.navigationConfigNode().bind( navigationConfig );
+		navigationConfig.bindNavigationToConfig( defaultHandlers.navigation() );
 
 		// populate everything
 
