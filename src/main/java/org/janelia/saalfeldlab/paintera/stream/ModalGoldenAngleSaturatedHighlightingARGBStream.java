@@ -18,6 +18,8 @@ package org.janelia.saalfeldlab.paintera.stream;
 
 import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignmentOnlyLocal;
 import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignmentState;
+import org.janelia.saalfeldlab.paintera.control.lock.LockedSegments;
+import org.janelia.saalfeldlab.paintera.control.lock.LockedSegmentsOnlyLocal;
 import org.janelia.saalfeldlab.paintera.control.selection.SelectedIds;
 import org.janelia.saalfeldlab.paintera.id.IdService;
 
@@ -44,12 +46,18 @@ public class ModalGoldenAngleSaturatedHighlightingARGBStream extends GoldenAngle
 	// assignment and id service?
 	public ModalGoldenAngleSaturatedHighlightingARGBStream()
 	{
-		this( new SelectedIds(), new FragmentSegmentAssignmentOnlyLocal( ( f, s ) -> {}, IdService.dummy() ) );
+		this(
+				new SelectedIds(),
+				new FragmentSegmentAssignmentOnlyLocal( ( f, s ) -> {}, IdService.dummy() ),
+				new LockedSegmentsOnlyLocal( locked -> {} ) );
 	}
 
-	public ModalGoldenAngleSaturatedHighlightingARGBStream( final SelectedIds highlights, final FragmentSegmentAssignmentState assignment )
+	public ModalGoldenAngleSaturatedHighlightingARGBStream(
+			final SelectedIds highlights,
+			final FragmentSegmentAssignmentState assignment,
+			final LockedSegments lockedSegments )
 	{
-		super( highlights, assignment );
+		super( highlights, assignment, lockedSegments );
 		seed = 1;
 	}
 
@@ -57,7 +65,6 @@ public class ModalGoldenAngleSaturatedHighlightingARGBStream extends GoldenAngle
 	protected int argbImpl( final long fragmentId, final boolean colorFromSegmentId )
 	{
 
-		final boolean isActiveSegment = isActiveSegment( fragmentId );
 		final long assigned = colorFromSegmentId ? assignment.getSegment( fragmentId ) : fragmentId;
 
 		if ( !argbCache.contains( assigned ) )
@@ -87,8 +94,13 @@ public class ModalGoldenAngleSaturatedHighlightingARGBStream extends GoldenAngle
 		{
 			argb = argb & 0x00ffffff | invalidSegmentAlpha;
 		}
+		else if ( isLockedSegment( fragmentId ) )
+		{
+			argb = argb & 0x00ffffff | lockedSegmentAlpha;
+		}
 		else
 		{
+			final boolean isActiveSegment = isActiveSegment( fragmentId );
 			argb = argb & 0x00ffffff | ( isActiveSegment ? isActiveFragment( fragmentId ) ? activeFragmentAlpha : activeSegmentAlpha : alpha );
 		}
 

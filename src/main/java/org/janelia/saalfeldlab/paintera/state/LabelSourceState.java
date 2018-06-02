@@ -8,6 +8,7 @@ import java.util.function.LongFunction;
 import org.janelia.saalfeldlab.paintera.PainteraBaseView;
 import org.janelia.saalfeldlab.paintera.composition.Composite;
 import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignmentState;
+import org.janelia.saalfeldlab.paintera.control.lock.LockedSegmentsState;
 import org.janelia.saalfeldlab.paintera.control.selection.SelectedIds;
 import org.janelia.saalfeldlab.paintera.control.selection.SelectedSegments;
 import org.janelia.saalfeldlab.paintera.data.DataSource;
@@ -36,11 +37,11 @@ import net.imglib2.type.numeric.ARGBType;
 import net.imglib2.util.Pair;
 
 public class LabelSourceState< D, T >
-extends
-MinimalSourceState< D, T, DataSource< D, T >, HighlightingStreamConverter< T > >
-implements
-HasMeshes< TLongHashSet >,
-HasMeshCache< TLongHashSet >
+		extends
+		MinimalSourceState< D, T, DataSource< D, T >, HighlightingStreamConverter< T > >
+		implements
+		HasMeshes< TLongHashSet >,
+		HasMeshCache< TLongHashSet >
 {
 
 	private final LongFunction< Converter< D, BoolType > > maskForLabel;
@@ -61,12 +62,15 @@ HasMeshCache< TLongHashSet >
 
 	private final InterruptibleFunctionAndCache< ShapeKey< TLongHashSet >, Pair< float[], float[] > >[] meshCaches;
 
+	private final LockedSegmentsState lockedSegments;
+
 	public LabelSourceState(
 			final DataSource< D, T > dataSource,
 			final HighlightingStreamConverter< T > converter,
 			final Composite< ARGBType, ARGBType > composite,
 			final String name,
 			final FragmentSegmentAssignmentState assignment,
+			final LockedSegmentsState lockedSegments,
 			final IdService idService,
 			final SelectedIds selectedIds,
 			final Group meshesGroup,
@@ -78,6 +82,7 @@ HasMeshCache< TLongHashSet >
 		this.maskForLabel = PainteraBaseView.equalsMaskForType( d );
 		this.segmentMaskGenerator = SegmentMaskGenerators.forType( d );
 		this.assignment = assignment;
+		this.lockedSegments = lockedSegments;
 		this.toIdConverter = ToIdConverter.fromType( d );
 		this.selectedIds = selectedIds;
 		this.idService = idService;
@@ -112,6 +117,7 @@ HasMeshCache< TLongHashSet >
 
 		assignment.addListener( obs -> stain() );
 		selectedIds.addListener( obs -> stain() );
+		lockedSegments.addListener( obs -> stain() );
 	}
 
 	public ToIdConverter toIdConverter()
@@ -155,8 +161,13 @@ HasMeshCache< TLongHashSet >
 	public void invalidateAll()
 	{
 		Arrays
-		.stream( this.meshCaches )
-		.forEach( UncheckedCache::invalidateAll );
+				.stream( this.meshCaches )
+				.forEach( UncheckedCache::invalidateAll );
+	}
+
+	public LockedSegmentsState lockedSegments()
+	{
+		return this.lockedSegments;
 	}
 
 }

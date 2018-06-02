@@ -6,12 +6,14 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.function.Consumer;
 
+import org.janelia.saalfeldlab.fx.event.EventFX;
 import org.janelia.saalfeldlab.fx.event.InstallAndRemove;
 import org.janelia.saalfeldlab.fx.event.KeyTracker;
 import org.janelia.saalfeldlab.paintera.state.SourceInfo;
 
 import bdv.fx.viewer.ViewerPanelFX;
 import javafx.scene.Node;
+import javafx.scene.input.KeyCode;
 
 public class Selection implements ToOnEnterOnExit
 {
@@ -40,6 +42,7 @@ public class Selection implements ToOnEnterOnExit
 				final List< InstallAndRemove< Node > > iars = new ArrayList<>();
 				iars.add( selector.selectFragmentWithMaximumCount( "toggle single id", event -> event.isPrimaryButtonDown() && keyTracker.noKeysActive() ) );
 				iars.add( selector.appendFragmentWithMaximumCount( "append id", event -> event.isSecondaryButtonDown() && keyTracker.noKeysActive() ) );
+				iars.add( EventFX.KEY_PRESSED( "lock segment", e -> selector.toggleLock(), e -> keyTracker.areOnlyTheseKeysDown( KeyCode.L ) ) );
 				this.mouseAndKeyHandlers.put( t, iars );
 			}
 //			t.getDisplay().addHandler( this.mouseAndKeyHandlers.get( t ) );
@@ -53,7 +56,9 @@ public class Selection implements ToOnEnterOnExit
 		return t -> {
 //			t.getDisplay().removeHandler( this.mouseAndKeyHandlers.get( t ) );
 			if ( this.mouseAndKeyHandlers.containsKey( t ) )
+			{
 				this.mouseAndKeyHandlers.get( t ).forEach( iar -> iar.removeFrom( t ) );
+			}
 		};
 	}
 

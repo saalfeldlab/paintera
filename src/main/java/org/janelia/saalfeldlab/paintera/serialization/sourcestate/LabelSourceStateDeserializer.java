@@ -9,6 +9,7 @@ import org.janelia.saalfeldlab.n5.N5Writer;
 import org.janelia.saalfeldlab.paintera.N5Helpers;
 import org.janelia.saalfeldlab.paintera.composition.Composite;
 import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignmentState;
+import org.janelia.saalfeldlab.paintera.control.lock.LockedSegmentsOnlyLocal;
 import org.janelia.saalfeldlab.paintera.control.selection.SelectedIds;
 import org.janelia.saalfeldlab.paintera.data.DataSource;
 import org.janelia.saalfeldlab.paintera.data.mask.MaskedSource;
@@ -108,9 +109,10 @@ public class LabelSourceStateDeserializer< C extends HighlightingStreamConverter
 				context.deserialize( assignmentMap.get( FragmentSegmentAssignmentOnlyLocalSerializer.FRAGMENTS_KEY ), long[].class ),
 				context.deserialize( assignmentMap.get( FragmentSegmentAssignmentOnlyLocalSerializer.FRAGMENTS_KEY ), long[].class ),
 				idService );
+		final LockedSegmentsOnlyLocal lockedSegments = new LockedSegmentsOnlyLocal( locked -> {} );
 
 		final AbstractHighlightingARGBStream stream = converter.getStream();
-		stream.setHighlightsAndAssignment( selectedIds, assignment );
+		stream.setHighlightsAndAssignmentAndLockedSegments( selectedIds, assignment, lockedSegments );
 
 		return new LabelSourceState(
 				source,
@@ -118,6 +120,7 @@ public class LabelSourceStateDeserializer< C extends HighlightingStreamConverter
 				composite,
 				name,
 				assignment,
+				lockedSegments,
 				idService,
 				selectedIds,
 				arguments.meshesGroup,

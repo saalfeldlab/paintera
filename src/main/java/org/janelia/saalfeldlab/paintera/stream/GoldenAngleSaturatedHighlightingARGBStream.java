@@ -17,6 +17,7 @@
 package org.janelia.saalfeldlab.paintera.stream;
 
 import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignmentState;
+import org.janelia.saalfeldlab.paintera.control.lock.LockedSegments;
 import org.janelia.saalfeldlab.paintera.control.selection.SelectedIds;
 
 /**
@@ -30,9 +31,12 @@ import org.janelia.saalfeldlab.paintera.control.selection.SelectedIds;
  */
 public class GoldenAngleSaturatedHighlightingARGBStream extends AbstractSaturatedHighlightingARGBStream
 {
-	public GoldenAngleSaturatedHighlightingARGBStream( final SelectedIds highlights, final FragmentSegmentAssignmentState assignment )
+	public GoldenAngleSaturatedHighlightingARGBStream(
+			final SelectedIds highlights,
+			final FragmentSegmentAssignmentState assignment,
+			final LockedSegments lockedSegments )
 	{
-		super( highlights, assignment );
+		super( highlights, assignment, lockedSegments );
 		seed = 1;
 	}
 
