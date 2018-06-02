@@ -50,8 +50,6 @@ public abstract class AbstractHighlightingARGBStream extends ObservableWithListe
 
 	public static int DEFAULT_ACTIVE_SEGMENT_ALPHA = 0x80000000;
 
-	public static int DEFAULT_LOCKED_SEGMENT_ALPHA = 0;
-
 	private static final Logger LOG = LoggerFactory.getLogger( MethodHandles.lookup().lookupClass() );
 
 	final static protected double[] rs = new double[] { 1, 1, 0, 0, 0, 1, 1 };
@@ -70,7 +68,7 @@ public abstract class AbstractHighlightingARGBStream extends ObservableWithListe
 
 	protected int invalidSegmentAlpha = ZERO;
 
-	protected int lockedSegmentAlpha = DEFAULT_LOCKED_SEGMENT_ALPHA;
+	protected boolean hideLockedSegments = true;
 
 	protected SelectedIds highlights;
 
@@ -313,6 +311,20 @@ public abstract class AbstractHighlightingARGBStream extends ObservableWithListe
 		this.assignment = assignment;
 		this.lockedSegments = lockedSegments;
 		clearCache();
+	}
+
+	public void setHideLockedSegments( final boolean hideLockedSegments )
+	{
+		if ( hideLockedSegments != this.hideLockedSegments )
+		{
+			this.hideLockedSegments = hideLockedSegments;
+			stateChanged();
+		}
+	}
+
+	public boolean getHideLockedSegments()
+	{
+		return this.hideLockedSegments;
 	}
 
 }

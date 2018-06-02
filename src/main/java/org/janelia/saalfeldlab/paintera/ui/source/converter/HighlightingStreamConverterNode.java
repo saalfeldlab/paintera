@@ -3,6 +3,7 @@ package org.janelia.saalfeldlab.paintera.ui.source.converter;
 import java.lang.invoke.MethodHandles;
 
 import org.janelia.saalfeldlab.paintera.stream.ColorFromSegmentId;
+import org.janelia.saalfeldlab.paintera.stream.HideLockedSegments;
 import org.janelia.saalfeldlab.paintera.stream.SeedProperty;
 import org.janelia.saalfeldlab.paintera.stream.WithAlpha;
 import org.janelia.saalfeldlab.paintera.ui.BindUnbindAndNodeSupplier;
@@ -27,7 +28,7 @@ import javafx.scene.layout.VBox;
 import javafx.util.converter.NumberStringConverter;
 import net.imglib2.converter.Converter;
 
-public class HighlightingStreamConverterNode< C extends Converter< ?, ? > & SeedProperty & WithAlpha & ColorFromSegmentId > implements BindUnbindAndNodeSupplier
+public class HighlightingStreamConverterNode< C extends Converter< ?, ? > & SeedProperty & WithAlpha & ColorFromSegmentId & HideLockedSegments > implements BindUnbindAndNodeSupplier
 {
 
 	private static final Logger LOG = LoggerFactory.getLogger( MethodHandles.lookup().lookupClass() );
@@ -141,6 +142,13 @@ public class HighlightingStreamConverterNode< C extends Converter< ?, ? > & Seed
 			gp.add( selectedSegmentAlphaSlider, 0, row );
 			gp.add( selectedSegmentAlphaField, 1, row );
 			++row;
+		}
+
+		{
+			final CheckBox hideLockedSegments = new CheckBox( "Hide locked segments." );
+			hideLockedSegments.setTooltip( new Tooltip( "Hide locked segments (toggle lock with L)" ) );
+			hideLockedSegments.selectedProperty().bindBidirectional( converter.hideLockedSegmentsProperty() );
+			contents.getChildren().add( hideLockedSegments );
 		}
 
 		{

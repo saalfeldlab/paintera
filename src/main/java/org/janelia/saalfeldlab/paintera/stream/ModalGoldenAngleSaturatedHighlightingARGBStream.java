@@ -94,9 +94,9 @@ public class ModalGoldenAngleSaturatedHighlightingARGBStream extends GoldenAngle
 		{
 			argb = argb & 0x00ffffff | invalidSegmentAlpha;
 		}
-		else if ( isLockedSegment( fragmentId ) )
+		else if ( isLockedSegment( fragmentId ) && hideLockedSegments )
 		{
-			argb = argb & 0x00ffffff | lockedSegmentAlpha;
+			argb = argb & 0x00ffffff;
 		}
 		else
 		{
