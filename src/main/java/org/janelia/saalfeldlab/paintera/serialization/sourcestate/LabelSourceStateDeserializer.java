@@ -2,6 +2,7 @@ package org.janelia.saalfeldlab.paintera.serialization.sourcestate;
 
 import java.io.IOException;
 import java.lang.invoke.MethodHandles;
+import java.util.Optional;
 import java.util.function.IntFunction;
 import java.util.function.Supplier;
 
@@ -43,6 +44,8 @@ public class LabelSourceStateDeserializer< C extends HighlightingStreamConverter
 	public static final String FRAGMENTS_KEY = "fragments";
 
 	public static final String SEGMENTS_KEY = "segments";
+
+	public static final String LOCKED_SEGMENTS_KEY = "lockedSegments";
 
 	private final Arguments arguments;
 
@@ -101,6 +104,10 @@ public class LabelSourceStateDeserializer< C extends HighlightingStreamConverter
 		final String dataset = n5Source.dataset();
 
 		final SelectedIds selectedIds = context.deserialize( map.get( SELECTED_IDS_KEY ), SelectedIds.class );
+		final long[] locallyLockedSegments = Optional
+				.ofNullable( map.get( LOCKED_SEGMENTS_KEY ) )
+				.map( el -> ( long[] ) context.deserialize( el, long[].class ) )
+				.orElseGet( () -> new long[] {} );
 		final JsonObject assignmentMap = map.get( ASSIGNMENT_KEY ).getAsJsonObject();
 		final IdService idService = N5Helpers.idService( writer, dataset );
 		final FragmentSegmentAssignmentState assignment = N5Helpers.assignments(
@@ -109,7 +116,7 @@ public class LabelSourceStateDeserializer< C extends HighlightingStreamConverter
 				context.deserialize( assignmentMap.get( FragmentSegmentAssignmentOnlyLocalSerializer.FRAGMENTS_KEY ), long[].class ),
 				context.deserialize( assignmentMap.get( FragmentSegmentAssignmentOnlyLocalSerializer.FRAGMENTS_KEY ), long[].class ),
 				idService );
-		final LockedSegmentsOnlyLocal lockedSegments = new LockedSegmentsOnlyLocal( locked -> {} );
+		final LockedSegmentsOnlyLocal lockedSegments = new LockedSegmentsOnlyLocal( locked -> {}, locallyLockedSegments );
 
 		final AbstractHighlightingARGBStream stream = converter.getStream();
 		stream.setHighlightsAndAssignmentAndLockedSegments( selectedIds, assignment, lockedSegments );
