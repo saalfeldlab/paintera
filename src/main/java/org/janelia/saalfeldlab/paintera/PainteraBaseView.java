@@ -186,6 +186,7 @@ public class PainteraBaseView
 
 		orthogonalViews().applyToAll( vp -> state.assignment().addListener( obs -> vp.requestRepaint() ) );
 		orthogonalViews().applyToAll( vp -> state.selectedIds().addListener( obs -> vp.requestRepaint() ) );
+		orthogonalViews().applyToAll( vp -> state.lockedSegments().addListener( obs -> vp.requestRepaint() ) );
 
 		sourceInfo.addState( state.getDataSource(), state );
 	}
@@ -236,13 +237,13 @@ public class PainteraBaseView
 		final boolean isLabelMultisetType = spec.getDataType() instanceof LabelMultisetType;
 		final boolean isCachedCellImg = ( isMaskedSource
 				? ( ( MaskedSource< ?, ? > ) spec ).underlyingSource().getDataSource( 0, 0 )
-						: spec.getDataSource( 0, 0 ) ) instanceof CachedCellImg< ?, ? >;
+				: spec.getDataSource( 0, 0 ) ) instanceof CachedCellImg< ?, ? >;
 
 		if ( isLabelMultisetType && isCachedCellImg )
 		{
 			@SuppressWarnings( "unchecked" )
 			final DataSource< LabelMultisetType, T > source =
-			( DataSource< LabelMultisetType, T > ) ( isMaskedSource ? ( ( MaskedSource< ?, ? > ) spec ).underlyingSource() : spec );
+					( DataSource< LabelMultisetType, T > ) ( isMaskedSource ? ( ( MaskedSource< ?, ? > ) spec ).underlyingSource() : spec );
 			return generateBlocksForLabelCacheLabelMultisetTypeCachedImg( source, scalingFactors );
 		}
 

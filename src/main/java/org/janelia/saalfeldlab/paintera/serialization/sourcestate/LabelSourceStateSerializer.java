@@ -3,6 +3,7 @@ package org.janelia.saalfeldlab.paintera.serialization.sourcestate;
 import java.lang.invoke.MethodHandles;
 import java.lang.reflect.Type;
 
+import org.janelia.saalfeldlab.paintera.control.lock.LockedSegmentsOnlyLocal;
 import org.janelia.saalfeldlab.paintera.state.LabelSourceState;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -26,6 +27,7 @@ public class LabelSourceStateSerializer
 		final JsonObject map = super.serialize( state, type, context );
 		map.add( SELECTED_IDS_KEY, context.serialize( state.selectedIds(), state.selectedIds().getClass() ) );
 		map.add( ASSIGNMENT_KEY, context.serialize( state.assignment() ) );
+		map.add( LabelSourceStateDeserializer.LOCKED_SEGMENTS_KEY, context.serialize( ( ( LockedSegmentsOnlyLocal ) state.lockedSegments() ).lockedSegmentsCopy() ) );
 		return map;
 	}
 

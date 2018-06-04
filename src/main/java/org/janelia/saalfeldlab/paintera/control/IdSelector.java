@@ -10,6 +10,7 @@ import java.util.stream.Collectors;
 import org.janelia.saalfeldlab.fx.event.InstallAndRemove;
 import org.janelia.saalfeldlab.fx.event.MouseClickFX;
 import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignmentState;
+import org.janelia.saalfeldlab.paintera.control.lock.LockedSegmentsState;
 import org.janelia.saalfeldlab.paintera.control.selection.SelectedIds;
 import org.janelia.saalfeldlab.paintera.data.DataSource;
 import org.janelia.saalfeldlab.paintera.id.ToIdConverter;
@@ -86,6 +87,29 @@ public class IdSelector
 	{
 		final ConfirmSelection confirmSelection = new ConfirmSelection();
 		return new MouseClickFX( name, confirmSelection::click, eventFilter );
+	}
+
+	public void toggleLock()
+	{
+		final SourceState< ?, ? > currentState = sourceInfo.currentState().get();
+		if ( currentState != null && currentState instanceof LabelSourceState< ?, ? > )
+		{
+			final LabelSourceState< ?, ? > state = ( LabelSourceState< ?, ? > ) currentState;
+			final long lastSelection = state.selectedIds().getLastSelection();
+
+			if ( !Label.regular( lastSelection ) ) { return; }
+
+			final long segment = state.assignment().getSegment( lastSelection );
+			final LockedSegmentsState lock = state.lockedSegments();
+			if ( lock.isLocked( segment ) )
+			{
+				lock.unlock( segment );
+			}
+			else
+			{
+				lock.lock( segment );
+			}
+		}
 	}
 
 	private abstract class SelectMaximumCount

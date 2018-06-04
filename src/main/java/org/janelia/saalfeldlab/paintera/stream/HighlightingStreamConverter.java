@@ -13,7 +13,8 @@ import net.imglib2.type.numeric.ARGBType;
 import net.imglib2.type.numeric.IntegerType;
 import net.imglib2.type.numeric.RealType;
 
-public abstract class HighlightingStreamConverter< T > implements Converter< T, ARGBType >, SeedProperty, WithAlpha, ColorFromSegmentId
+public abstract class HighlightingStreamConverter< T >
+		implements Converter< T, ARGBType >, SeedProperty, WithAlpha, ColorFromSegmentId, HideLockedSegments
 {
 
 	protected final AbstractHighlightingARGBStream stream;
@@ -28,6 +29,8 @@ public abstract class HighlightingStreamConverter< T > implements Converter< T, 
 
 	private final BooleanProperty colorFromSegmentId = new SimpleBooleanProperty( true );
 
+	private final BooleanProperty hideLockedSegments = new SimpleBooleanProperty( true );
+
 	public HighlightingStreamConverter( final AbstractHighlightingARGBStream stream )
 	{
 		super();
@@ -36,10 +39,12 @@ public abstract class HighlightingStreamConverter< T > implements Converter< T, 
 		alpha.addListener( ( obs, oldv, newv ) -> stream.setAlpha( newv.intValue() ) );
 		activeFragmentAlpha.addListener( ( obs, oldv, newv ) -> stream.setActiveFragmentAlpha( newv.intValue() ) );
 		activeSegmentAlpha.addListener( ( obs, oldv, newv ) -> stream.setActiveSegmentAlpha( newv.intValue() ) );
+		hideLockedSegments.addListener( ( obs, oldv, newv ) -> stream.setHideLockedSegments( newv ) );
 		stream.setSeed( seed.get() );
 		alpha.set( stream.getAlpha() );
 		activeFragmentAlpha.set( stream.getActiveFragmentAlpha() );
 		activeSegmentAlpha.set( stream.getActiveSegmentAlpha() );
+		hideLockedSegments.set( stream.getHideLockedSegments() );
 		stream.colorFromSegmentIdProperty().bind( this.colorFromSegmentId );
 		stream.addListener( obs -> {
 			this.seed.set( stream.getSeed() );
@@ -47,7 +52,8 @@ public abstract class HighlightingStreamConverter< T > implements Converter< T, 
 			this.activeFragmentAlpha.set( stream.getActiveFragmentAlpha() );
 			this.activeSegmentAlpha.set( stream.getActiveSegmentAlpha() );
 			this.colorFromSegmentId.set( stream.getColorFromSegmentId() );
-		});
+			this.hideLockedSegments.set( stream.getHideLockedSegments() );
+		} );
 	}
 
 	@Override
@@ -78,6 +84,12 @@ public abstract class HighlightingStreamConverter< T > implements Converter< T, 
 	public BooleanProperty colorFromSegmentIdProperty()
 	{
 		return this.colorFromSegmentId;
+	}
+
+	@Override
+	public BooleanProperty hideLockedSegmentsProperty()
+	{
+		return this.hideLockedSegments;
 	}
 
 	public AbstractHighlightingARGBStream getStream()

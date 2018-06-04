@@ -17,6 +17,7 @@
 package org.janelia.saalfeldlab.paintera.stream;
 
 import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignmentState;
+import org.janelia.saalfeldlab.paintera.control.lock.LockedSegments;
 import org.janelia.saalfeldlab.paintera.control.selection.SelectedIds;
 
 import net.imglib2.type.label.Label;
@@ -30,9 +31,12 @@ import net.imglib2.type.label.Label;
  */
 abstract public class AbstractSaturatedHighlightingARGBStream extends AbstractHighlightingARGBStream
 {
-	public AbstractSaturatedHighlightingARGBStream( final SelectedIds highlights, final FragmentSegmentAssignmentState assignment )
+	public AbstractSaturatedHighlightingARGBStream(
+			final SelectedIds highlights,
+			final FragmentSegmentAssignmentState assignment,
+			final LockedSegments lockedSegments )
 	{
-		super( highlights, assignment );
+		super( highlights, assignment, lockedSegments );
 	}
 
 	final static protected int interpolate( final double[] xs, final int k, final int l, final double u, final double v )
@@ -70,6 +74,10 @@ abstract public class AbstractSaturatedHighlightingARGBStream extends AbstractHi
 		if ( Label.INVALID == fragmentId )
 		{
 			argb = argb & 0x00ffffff | invalidSegmentAlpha;
+		}
+		else if ( isLockedSegment( fragmentId ) && hideLockedSegments )
+		{
+			argb = argb & 0x00ffffff;
 		}
 		else
 		{

@@ -21,6 +21,7 @@ import java.lang.invoke.MethodHandles;
 import org.janelia.saalfeldlab.fx.ObservableWithListenersList;
 import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignment;
 import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignmentState;
+import org.janelia.saalfeldlab.paintera.control.lock.LockedSegments;
 import org.janelia.saalfeldlab.paintera.control.selection.SelectedIds;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -41,11 +42,13 @@ import net.imglib2.type.label.Label;
 public abstract class AbstractHighlightingARGBStream extends ObservableWithListenersList implements ARGBStream
 {
 
-	public static int DEFAULT_ALPHA= 0x20000000;
+	private static final int ZERO = 0x00000000;
 
-	public static int DEFAULT_ACTIVE_FRAGMENT_ALPHA= 0xd0000000;
+	public static int DEFAULT_ALPHA = 0x20000000;
 
-	public static int DEFAULT_ACTIVE_SEGMENT_ALPHA= 0x80000000;
+	public static int DEFAULT_ACTIVE_FRAGMENT_ALPHA = 0xd0000000;
+
+	public static int DEFAULT_ACTIVE_SEGMENT_ALPHA = 0x80000000;
 
 	private static final Logger LOG = LoggerFactory.getLogger( MethodHandles.lookup().lookupClass() );
 
@@ -54,8 +57,6 @@ public abstract class AbstractHighlightingARGBStream extends ObservableWithListe
 	final static protected double[] gs = new double[] { 0, 1, 1, 1, 0, 0, 0 };
 
 	final static protected double[] bs = new double[] { 0, 0, 0, 1, 1, 1, 0 };
-
-	private static final int ZERO = 0x00000000;
 
 	protected long seed = 0;
 
@@ -67,16 +68,24 @@ public abstract class AbstractHighlightingARGBStream extends ObservableWithListe
 
 	protected int invalidSegmentAlpha = ZERO;
 
+	protected boolean hideLockedSegments = true;
+
 	protected SelectedIds highlights;
 
 	protected FragmentSegmentAssignment assignment;
 
+	protected LockedSegments lockedSegments;
+
 	private final BooleanProperty colorFromSegmentId = new SimpleBooleanProperty();
 
-	public AbstractHighlightingARGBStream( final SelectedIds highlights, final FragmentSegmentAssignmentState assignment )
+	public AbstractHighlightingARGBStream(
+			final SelectedIds highlights,
+			final FragmentSegmentAssignmentState assignment,
+			final LockedSegments lockedSegments )
 	{
 		this.highlights = highlights;
 		this.assignment = assignment;
+		this.lockedSegments = lockedSegments;
 		this.colorFromSegmentId.addListener( ( obs, oldv, newv ) -> stateChanged() );
 	}
 
@@ -118,6 +127,12 @@ public abstract class AbstractHighlightingARGBStream extends ObservableWithListe
 			if ( this.assignment.getSegment( i ) == segment ) { return true; }
 		}
 		return false;
+	}
+
+	public boolean isLockedSegment( final long id )
+	{
+		final long segment = this.assignment.getSegment( id );
+		return this.lockedSegments.isLocked( segment );
 	}
 
 	final static protected int argb( final int r, final int g, final int b, final int alpha )
@@ -281,13 +296,35 @@ public abstract class AbstractHighlightingARGBStream extends ObservableWithListe
 		clearCache();
 	}
 
-	public void setHighlightsAndAssignment(
+	public void setLockedSegments( final LockedSegments lockedSegments )
+	{
+		this.lockedSegments = lockedSegments;
+		clearCache();
+	}
+
+	public void setHighlightsAndAssignmentAndLockedSegments(
 			final SelectedIds highlights,
-			final FragmentSegmentAssignment assignment )
+			final FragmentSegmentAssignment assignment,
+			final LockedSegments lockedSegments )
 	{
 		this.highlights = highlights;
 		this.assignment = assignment;
+		this.lockedSegments = lockedSegments;
 		clearCache();
+	}
+
+	public void setHideLockedSegments( final boolean hideLockedSegments )
+	{
+		if ( hideLockedSegments != this.hideLockedSegments )
+		{
+			this.hideLockedSegments = hideLockedSegments;
+			stateChanged();
+		}
+	}
+
+	public boolean getHideLockedSegments()
+	{
+		return this.hideLockedSegments;
 	}
 
 }

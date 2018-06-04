@@ -20,6 +20,7 @@ import org.janelia.saalfeldlab.paintera.config.CrosshairConfig;
 import org.janelia.saalfeldlab.paintera.config.NavigationConfig;
 import org.janelia.saalfeldlab.paintera.config.OrthoSliceConfig;
 import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignmentState;
+import org.janelia.saalfeldlab.paintera.control.lock.LockedSegmentsOnlyLocal;
 import org.janelia.saalfeldlab.paintera.control.selection.SelectedIds;
 import org.janelia.saalfeldlab.paintera.data.DataSource;
 import org.janelia.saalfeldlab.paintera.data.mask.Masks;
@@ -295,7 +296,11 @@ public class Paintera extends Application
 				final SelectedIds selectedIds = new SelectedIds();
 				final IdService idService = N5Helpers.idService( n5, dataset );
 				final FragmentSegmentAssignmentState assignment = N5Helpers.assignments( n5, dataset, idService );
-				final ModalGoldenAngleSaturatedHighlightingARGBStream stream = new ModalGoldenAngleSaturatedHighlightingARGBStream( selectedIds, assignment );
+				final LockedSegmentsOnlyLocal lockedSegments = new LockedSegmentsOnlyLocal( locked -> {} );
+				final ModalGoldenAngleSaturatedHighlightingARGBStream stream = new ModalGoldenAngleSaturatedHighlightingARGBStream(
+						selectedIds,
+						assignment,
+						lockedSegments );
 				final DataSource< D, T > dataSource = N5Helpers.openAsLabelSource(
 						n5,
 						dataset,
@@ -317,6 +322,7 @@ public class Paintera extends Application
 						new ARGBCompositeAlphaYCbCr(),
 						name,
 						assignment,
+						lockedSegments,
 						idService,
 						selectedIds,
 						pbv.viewer3D().meshesGroup(),

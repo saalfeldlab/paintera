@@ -28,6 +28,7 @@ import org.janelia.saalfeldlab.paintera.composition.ARGBCompositeAlphaYCbCr;
 import org.janelia.saalfeldlab.paintera.composition.CompositeCopy;
 import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignmentOnlyLocal;
 import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignmentState;
+import org.janelia.saalfeldlab.paintera.control.lock.LockedSegmentsOnlyLocal;
 import org.janelia.saalfeldlab.paintera.control.selection.SelectedIds;
 import org.janelia.saalfeldlab.paintera.data.DataSource;
 import org.janelia.saalfeldlab.paintera.data.mask.Masks;
@@ -528,7 +529,11 @@ public class GenericBackendDialogN5 implements BackendDialog
 		final IdService idService = idService();
 		final FragmentSegmentAssignmentState assignment = assignments( idService );
 		final SelectedIds selectedIds = new SelectedIds();
-		final ModalGoldenAngleSaturatedHighlightingARGBStream stream = new ModalGoldenAngleSaturatedHighlightingARGBStream( selectedIds, assignment );
+		final LockedSegmentsOnlyLocal lockedSegments = new LockedSegmentsOnlyLocal( locked -> {} );
+		final ModalGoldenAngleSaturatedHighlightingARGBStream stream = new ModalGoldenAngleSaturatedHighlightingARGBStream(
+				selectedIds,
+				assignment,
+				lockedSegments );
 		final HighlightingStreamConverter< T > converter = HighlightingStreamConverter.forType( stream, masked.getType() );
 
 		return new LabelSourceState<>(
@@ -537,6 +542,7 @@ public class GenericBackendDialogN5 implements BackendDialog
 				new ARGBCompositeAlphaYCbCr(),
 				name,
 				assignment,
+				lockedSegments,
 				idService,
 				selectedIds,
 				meshesGroup,

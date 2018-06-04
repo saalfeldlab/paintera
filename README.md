@@ -84,6 +84,7 @@ Usage: Paintera [-h] [--height=HEIGHT] [--width=WIDTH]
 | `V` | Toggle visibility of current source |
 | `Shift` + `V` | Toggle visibility of not-selected ids in current source (if label source) |
 | `R` | Clear mesh caches and refresh meshes (if current source is label source) |
+| `L` | Lock last selected segment (if label source) |
 
 
 
