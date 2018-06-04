@@ -15,6 +15,7 @@ import org.janelia.saalfeldlab.n5.N5Writer;
 import org.janelia.saalfeldlab.paintera.SaveProject.ProjectUndefined;
 import org.janelia.saalfeldlab.paintera.composition.ARGBCompositeAlphaYCbCr;
 import org.janelia.saalfeldlab.paintera.composition.CompositeCopy;
+import org.janelia.saalfeldlab.paintera.config.CoordinateConfigNode;
 import org.janelia.saalfeldlab.paintera.config.CrosshairConfig;
 import org.janelia.saalfeldlab.paintera.config.NavigationConfig;
 import org.janelia.saalfeldlab.paintera.config.OrthoSliceConfig;
@@ -96,6 +97,9 @@ public class Paintera extends Application
 		final NavigationConfig navigationConfig = new NavigationConfig();
 		paneWithStatus.navigationConfigNode().bind( navigationConfig );
 		navigationConfig.bindNavigationToConfig( defaultHandlers.navigation() );
+
+		final CoordinateConfigNode coordinateConfigNode = paneWithStatus.navigationConfigNode().coordinateConfigNode();
+		coordinateConfigNode.listen( baseView.manager() );
 
 		final CrosshairConfig crosshairConfig = new CrosshairConfig();
 		paneWithStatus.crosshairConfigNode().bind( crosshairConfig );

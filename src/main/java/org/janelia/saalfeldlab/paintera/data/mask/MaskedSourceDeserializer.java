@@ -4,6 +4,8 @@ import java.lang.invoke.MethodHandles;
 import java.lang.reflect.Type;
 import java.nio.file.Paths;
 import java.util.HashMap;
+import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.ExecutorService;
 import java.util.function.BiConsumer;
 import java.util.function.IntFunction;
@@ -73,15 +75,18 @@ public class MaskedSourceDeserializer implements JsonDeserializer< MaskedSource<
 			final String initialCanvasPath = map.get( CURRENT_CACHE_DIR_KEY ).getAsString();
 
 			final DataSource< ?, ? > masked = Masks.mask( source, initialCanvasPath, canvasCacheDirUpdate, mergeCanvasIntoBackground, propagationExecutor );
-			MaskedSource< ?, ? > returnVal = masked instanceof MaskedSource< ?, ? >
+			final MaskedSource< ?, ? > returnVal = masked instanceof MaskedSource< ?, ? >
 					? ( MaskedSource< ?, ? > ) masked
 					: null;
 
 			if ( returnVal != null )
 			{
-				Type mapType = new TypeToken< HashMap< Long, long[] >[] >(){}.getType();
-				long[] blocks = context.deserialize( map.get( MaskedSourceSerializer.DIRTY_BLOCKS_KEY ), long[].class );
-				HashMap< Long, long []>[] blocksById = context.deserialize( map.get( MaskedSourceSerializer.DIRTY_BLOCKS_BY_ID_KEY ), mapType );
+				final Type mapType = new TypeToken< HashMap< Long, long[] >[] >()
+				{}.getType();
+				final long[] blocks = Optional.ofNullable( ( long[] ) context.deserialize( map.get( MaskedSourceSerializer.DIRTY_BLOCKS_KEY ), long[].class ) ).orElseGet( () -> new long[] {} );
+				final Map< Long, long[] >[] blocksById = Optional
+						.ofNullable( ( Map< Long, long[] >[] ) context.deserialize( map.get( MaskedSourceSerializer.DIRTY_BLOCKS_BY_ID_KEY ), mapType ) )
+						.orElseGet( () -> new Map[] {} );
 				returnVal.affectBlocks( blocks, blocksById );
 			}
 
