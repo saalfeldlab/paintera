@@ -130,7 +130,7 @@ public class LabelSourceStateDeserializer< C extends HighlightingStreamConverter
 				final AssignmentAction action = context.deserialize( entry.get( FragmentSegmentAssignmentOnlyLocalSerializer.DATA_KEY ), type.getClassForType() );
 				actions.add( action );
 			}
-			assignment.addActions( actions );
+			assignment.apply( actions );
 		}
 
 		final LockedSegmentsOnlyLocal lockedSegments = new LockedSegmentsOnlyLocal( locked -> {}, locallyLockedSegments );

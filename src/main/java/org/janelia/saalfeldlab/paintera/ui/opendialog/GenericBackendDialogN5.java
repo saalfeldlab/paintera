@@ -283,7 +283,7 @@ public class GenericBackendDialogN5 implements BackendDialog
 		return this.datasetInfo.maxProperty();
 	}
 
-	public FragmentSegmentAssignmentState assignments( final IdService idService )
+	public FragmentSegmentAssignmentState assignments()
 	{
 		final String dataset = this.dataset.get() + ".fragment-segment-assignment";
 
@@ -342,7 +342,7 @@ public class GenericBackendDialogN5 implements BackendDialog
 				values = new long[] {};
 			}
 
-			return new FragmentSegmentAssignmentOnlyLocal( keys, values, persister, idService );
+			return new FragmentSegmentAssignmentOnlyLocal( keys, values, persister );
 		}
 		catch ( final IOException e )
 		{
@@ -527,7 +527,7 @@ public class GenericBackendDialogN5 implements BackendDialog
 
 		final DataSource< D, T > masked = Masks.mask( source, canvasCacheDirUpdate.get(), canvasCacheDirUpdate, commitCanvas(), workers );
 		final IdService idService = idService();
-		final FragmentSegmentAssignmentState assignment = assignments( idService );
+		final FragmentSegmentAssignmentState assignment = assignments();
 		final SelectedIds selectedIds = new SelectedIds();
 		final LockedSegmentsOnlyLocal lockedSegments = new LockedSegmentsOnlyLocal( locked -> {} );
 		final ModalGoldenAngleSaturatedHighlightingARGBStream stream = new ModalGoldenAngleSaturatedHighlightingARGBStream(

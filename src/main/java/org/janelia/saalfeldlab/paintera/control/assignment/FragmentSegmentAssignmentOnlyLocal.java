@@ -3,16 +3,14 @@ package org.janelia.saalfeldlab.paintera.control.assignment;
 import java.lang.invoke.MethodHandles;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collection;
-import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 import java.util.function.BiConsumer;
+import java.util.function.LongSupplier;
 
 import org.janelia.saalfeldlab.paintera.control.assignment.action.AssignmentAction;
 import org.janelia.saalfeldlab.paintera.control.assignment.action.Detach;
 import org.janelia.saalfeldlab.paintera.control.assignment.action.Merge;
-import org.janelia.saalfeldlab.paintera.id.IdService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -34,24 +32,21 @@ public class FragmentSegmentAssignmentOnlyLocal extends FragmentSegmentAssignmen
 
 	private final BiConsumer< long[], long[] > persister;
 
-	private final IdService idService;
-
 	private final List< AssignmentAction > actions = new ArrayList<>();
 
 	private final long[] initialFragments;
 
 	private final long[] initialSegments;
 
-	public FragmentSegmentAssignmentOnlyLocal( final BiConsumer< long[], long[] > persister, final IdService idService )
+	public FragmentSegmentAssignmentOnlyLocal( final BiConsumer< long[], long[] > persister )
 	{
-		this( new long[] {}, new long[] {}, persister, idService );
+		this( new long[] {}, new long[] {}, persister );
 	}
 
 	public FragmentSegmentAssignmentOnlyLocal(
 			final long[] fragments,
 			final long[] segments,
-			final BiConsumer< long[], long[] > persister,
-			final IdService idService )
+			final BiConsumer< long[], long[] > persister )
 	{
 
 		super();
@@ -62,7 +57,6 @@ public class FragmentSegmentAssignmentOnlyLocal extends FragmentSegmentAssignmen
 		this.initialSegments = segments.clone();
 
 		this.persister = persister;
-		this.idService = idService;
 		LOG.debug( "Assignment map: {}", fragmentToSegmentMap );
 		// TODO should reset lut also forget about all actions? I think not.
 		resetLut();
@@ -116,29 +110,6 @@ public class FragmentSegmentAssignmentOnlyLocal extends FragmentSegmentAssignmen
 		}
 	}
 
-	@Override
-	protected synchronized Optional< Detach > detachFragmentImpl( final long fragmentId, final long from )
-	{
-
-		if ( fragmentId == from )
-		{
-			LOG.debug( "{} and {} ar the same -- no action necessary", fragmentId, from );
-			return Optional.empty();
-		}
-
-		final long segmentId = getSegment( fragmentId );
-		final long segmentFrom = getSegment( from );
-		if ( segmentId != segmentFrom )
-		{
-			LOG.debug( "{} and {} in different segments: {} {} -- no action necessary", fragmentId, from, segmentId, segmentFrom );
-			return Optional.empty();
-		}
-
-		final Detach detach = new Detach( fragmentId, segmentFrom );
-		addAction( detach );
-		return Optional.of( detach );
-	}
-
 	private void mergeFragmentsImpl( final Merge merge )
 	{
 
@@ -176,33 +147,6 @@ public class FragmentSegmentAssignmentOnlyLocal extends FragmentSegmentAssignmen
 		}
 	}
 
-	@Override
-	protected Optional< Merge > mergeFragmentsImpl( final long from, final long into )
-	{
-
-		if ( from == into )
-		{
-			LOG.debug( "fragments {} {} are the same -- no action necessary", from, into );
-			return Optional.empty();
-		}
-
-		if ( getSegment( from ) == getSegment( into ) )
-		{
-			LOG.debug( "fragments {} {} are in the same segment {} {} -- no action necessary", from, into, getSegment( from ), getSegment( into ) );
-			return Optional.empty();
-		}
-
-		if ( !fragmentToSegmentMap.contains( into ) )
-		{
-			fragmentToSegmentMap.put( into, idService.next() );
-		}
-
-		final Merge merge = new Merge( from, into, fragmentToSegmentMap.get( into ) );
-		addAction( merge );
-		return Optional.of( merge );
-
-	}
-
 	private void resetLut()
 	{
 		for ( int i = 0; i < this.initialFragments.length; ++i )
@@ -216,7 +160,8 @@ public class FragmentSegmentAssignmentOnlyLocal extends FragmentSegmentAssignmen
 
 	}
 
-	private void apply( final AssignmentAction action )
+	@Override
+	protected void applyImpl( final AssignmentAction action )
 	{
 		switch ( action.getType() )
 		{
@@ -251,24 +196,6 @@ public class FragmentSegmentAssignmentOnlyLocal extends FragmentSegmentAssignmen
 		}
 	}
 
-	@Override
-	protected synchronized void confirmGroupingImpl( final long[] group, final long[] outsideGroup )
-	{
-		confirmGroupingImpl( group, outsideGroup, true );
-	}
-
-	protected synchronized void confirmGroupingImpl( final long[] merge, final long[] detach, final boolean broadcast )
-	{}
-
-	@Override
-	protected synchronized void confirmTwoSegmentsImpl( final long[] fragmentsInSegment1, final long[] fragmentsInSegment2 )
-	{
-		confirmTwoSegmentsImpl( fragmentsInSegment1, fragmentsInSegment2, true );
-	}
-
-	protected synchronized void confirmTwoSegmentsImpl( final long[] fragmentsInSegment1, final long[] fragmentsInSegment2, final boolean broadcast )
-	{}
-
 	public int size()
 	{
 		return this.fragmentToSegmentMap.size();
@@ -281,25 +208,52 @@ public class FragmentSegmentAssignmentOnlyLocal extends FragmentSegmentAssignmen
 	}
 
 	@Override
-	public void addAction( final AssignmentAction action )
+	public Optional< Merge > getMergeAction(
+			final long from,
+			final long into,
+			final LongSupplier newSegmentId )
 	{
-		this.actions.add( action );
-		this.apply( action );
-		stateChanged();
+		if ( from == into )
+		{
+			LOG.debug( "fragments {} {} are the same -- no action necessary", from, into );
+			return Optional.empty();
+		}
+
+		if ( getSegment( from ) == getSegment( into ) )
+		{
+			LOG.debug( "fragments {} {} are in the same segment {} {} -- no action necessary", from, into, getSegment( from ), getSegment( into ) );
+			return Optional.empty();
+		}
+
+		if ( getSegment( into ) == into )
+		{
+			fragmentToSegmentMap.put( into, newSegmentId.getAsLong() );
+		}
+
+		final Merge merge = new Merge( from, into, fragmentToSegmentMap.get( into ) );
+		return Optional.of( merge );
 	}
 
 	@Override
-	public void addActions( final Collection< ? extends AssignmentAction > actions )
+	public Optional< Detach > getDetachAction( final long fragmentId, final long from )
 	{
-		this.actions.addAll( actions );
-		actions.forEach( this::apply );
-		stateChanged();
-	}
 
-	@Override
-	public List< AssignmentAction > getActionsCopy()
-	{
-		return Collections.unmodifiableList( this.actions );
+		if ( fragmentId == from )
+		{
+			LOG.debug( "{} and {} ar the same -- no action necessary", fragmentId, from );
+			return Optional.empty();
+		}
+
+		final long segmentId = getSegment( fragmentId );
+		final long segmentFrom = getSegment( from );
+		if ( segmentId != segmentFrom )
+		{
+			LOG.debug( "{} and {} in different segments: {} {} -- no action necessary", fragmentId, from, segmentId, segmentFrom );
+			return Optional.empty();
+		}
+
+		final Detach detach = new Detach( fragmentId, segmentFrom );
+		return Optional.of( detach );
 	}
 
 }

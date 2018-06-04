@@ -21,7 +21,6 @@ import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssign
 import org.janelia.saalfeldlab.paintera.control.lock.LockedSegments;
 import org.janelia.saalfeldlab.paintera.control.lock.LockedSegmentsOnlyLocal;
 import org.janelia.saalfeldlab.paintera.control.selection.SelectedIds;
-import org.janelia.saalfeldlab.paintera.id.IdService;
 
 import net.imglib2.type.label.Label;
 
@@ -48,7 +47,7 @@ public class ModalGoldenAngleSaturatedHighlightingARGBStream extends GoldenAngle
 	{
 		this(
 				new SelectedIds(),
-				new FragmentSegmentAssignmentOnlyLocal( ( k, v ) -> {}, IdService.dummy() ),
+				new FragmentSegmentAssignmentOnlyLocal( ( k, v ) -> {} ),
 				new LockedSegmentsOnlyLocal( locked -> {} ) );
 	}
 
