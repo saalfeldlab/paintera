@@ -3,6 +3,8 @@ package org.janelia.saalfeldlab.paintera.control.assignment;
 import java.lang.invoke.MethodHandles;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 import java.util.function.BiConsumer;
@@ -34,35 +36,42 @@ public class FragmentSegmentAssignmentOnlyLocal extends FragmentSegmentAssignmen
 
 	private final IdService idService;
 
-	private final List< ? extends AssignmentAction > actions = new ArrayList<>();
+	private final List< AssignmentAction > actions = new ArrayList<>();
+
+	private final long[] initialFragments;
+
+	private final long[] initialSegments;
 
 	public FragmentSegmentAssignmentOnlyLocal( final BiConsumer< long[], long[] > persister, final IdService idService )
 	{
 		this( new long[] {}, new long[] {}, persister, idService );
 	}
 
-	public FragmentSegmentAssignmentOnlyLocal( final long[] fragments, final long[] segments, final BiConsumer< long[], long[] > persister, final IdService idService )
+	public FragmentSegmentAssignmentOnlyLocal(
+			final long[] fragments,
+			final long[] segments,
+			final BiConsumer< long[], long[] > persister,
+			final IdService idService )
 	{
 
 		super();
 
 		assert fragments.length == segments.length: "segments and bodies must be of same length";
-		for ( int i = 0; i < fragments.length; ++i )
-		{
-			fragmentToSegmentMap.put( fragments[ i ], segments[ i ] );
-		}
+
+		this.initialFragments = fragments.clone();
+		this.initialSegments = segments.clone();
 
 		this.persister = persister;
 		this.idService = idService;
-
-		syncILut();
 		LOG.debug( "Assignment map: {}", fragmentToSegmentMap );
+		// TODO should reset lut also forget about all actions? I think not.
+		resetLut();
 	}
 
 	@Override
 	public synchronized void persist()
 	{
-		this.persister.accept( fragmentToSegmentMap.keys(), fragmentToSegmentMap.values() );
+		this.persister.accept( this.fragmentToSegmentMap.keys(), this.fragmentToSegmentMap.values() );
 	}
 
 	@Override
@@ -126,7 +135,7 @@ public class FragmentSegmentAssignmentOnlyLocal extends FragmentSegmentAssignmen
 		}
 
 		final Detach detach = new Detach( fragmentId, segmentFrom );
-		detachFragmentImpl( detach );
+		addAction( detach );
 		return Optional.of( detach );
 	}
 
@@ -189,9 +198,37 @@ public class FragmentSegmentAssignmentOnlyLocal extends FragmentSegmentAssignmen
 		}
 
 		final Merge merge = new Merge( from, into, fragmentToSegmentMap.get( into ) );
-		mergeFragmentsImpl( merge );
+		addAction( merge );
 		return Optional.of( merge );
 
+	}
+
+	private void resetLut()
+	{
+		for ( int i = 0; i < this.initialFragments.length; ++i )
+		{
+			fragmentToSegmentMap.put( this.initialFragments[ i ], this.initialSegments[ i ] );
+		}
+
+		syncILut();
+
+		this.actions.forEach( this::apply );
+
+	}
+
+	private void apply( final AssignmentAction action )
+	{
+		switch ( action.getType() )
+		{
+		case MERGE:
+		{
+			mergeFragmentsImpl( ( Merge ) action );
+			break;
+		}
+		case DETACH:
+			detachFragmentImpl( ( Detach ) action );
+			break;
+		}
 	}
 
 	private synchronized void syncILut()
@@ -241,6 +278,28 @@ public class FragmentSegmentAssignmentOnlyLocal extends FragmentSegmentAssignmen
 	{
 		this.fragmentToSegmentMap.keys( keys );
 		this.fragmentToSegmentMap.values( values );
+	}
+
+	@Override
+	public void addAction( final AssignmentAction action )
+	{
+		this.actions.add( action );
+		this.apply( action );
+		stateChanged();
+	}
+
+	@Override
+	public void addActions( final Collection< ? extends AssignmentAction > actions )
+	{
+		this.actions.addAll( actions );
+		actions.forEach( this::apply );
+		stateChanged();
+	}
+
+	@Override
+	public List< AssignmentAction > getActionsCopy()
+	{
+		return Collections.unmodifiableList( this.actions );
 	}
 
 }

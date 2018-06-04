@@ -48,7 +48,7 @@ public class ModalGoldenAngleSaturatedHighlightingARGBStream extends GoldenAngle
 	{
 		this(
 				new SelectedIds(),
-				new FragmentSegmentAssignmentOnlyLocal( ( f, s ) -> {}, IdService.dummy() ),
+				new FragmentSegmentAssignmentOnlyLocal( ( k, v ) -> {}, IdService.dummy() ),
 				new LockedSegmentsOnlyLocal( locked -> {} ) );
 	}
 

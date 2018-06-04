@@ -1,6 +1,6 @@
 package org.janelia.saalfeldlab.paintera.control.assignment.action;
 
-public class Merge
+public class Merge implements AssignmentAction
 {
 
 	public final long fromFragmentId;
@@ -21,6 +21,12 @@ public class Merge
 	public String toString()
 	{
 		return "from=" + fromFragmentId + ", into=" + intoFragmentId + ", segment=" + segmentId;
+	}
+
+	@Override
+	public Type getType()
+	{
+		return Type.MERGE;
 	}
 
 }

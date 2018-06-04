@@ -1,6 +1,6 @@
 package org.janelia.saalfeldlab.paintera.control.assignment.action;
 
-public class Detach
+public class Detach implements AssignmentAction
 {
 
 	public final long fragmentId;
@@ -18,6 +18,12 @@ public class Detach
 	public String toString()
 	{
 		return "from=" + fragmentId + ", segment=" + segmentFrom;
+	}
+
+	@Override
+	public Type getType()
+	{
+		return Type.DETACH;
 	}
 
 }

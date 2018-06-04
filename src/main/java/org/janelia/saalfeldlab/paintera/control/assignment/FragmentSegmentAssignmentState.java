@@ -1,9 +1,12 @@
 package org.janelia.saalfeldlab.paintera.control.assignment;
 
 import java.lang.invoke.MethodHandles;
+import java.util.Collection;
+import java.util.List;
 import java.util.Optional;
 
 import org.janelia.saalfeldlab.fx.ObservableWithListenersList;
+import org.janelia.saalfeldlab.paintera.control.assignment.action.AssignmentAction;
 import org.janelia.saalfeldlab.paintera.control.assignment.action.Detach;
 import org.janelia.saalfeldlab.paintera.control.assignment.action.Merge;
 import org.slf4j.Logger;
@@ -57,5 +60,11 @@ public abstract class FragmentSegmentAssignmentState extends ObservableWithListe
 		confirmTwoSegmentsImpl( fragmentsInSegment1, fragmentsInSegment2 );
 		stateChanged();
 	}
+
+	public abstract void addAction( final AssignmentAction action );
+
+	public abstract void addActions( final Collection< ? extends AssignmentAction > actions );
+
+	public abstract List< AssignmentAction > getActionsCopy();
 
 }
