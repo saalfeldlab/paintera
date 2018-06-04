@@ -7,6 +7,7 @@ import javafx.scene.control.TitledPane;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
+import javafx.scene.layout.VBox;
 
 public class NavigationConfigNode
 {
@@ -15,10 +16,18 @@ public class NavigationConfigNode
 
 	private final CheckBox allowRotationsCheckBox = new CheckBox();
 
+	private final CoordinateConfigNode coordinateConfig;
+
 	public NavigationConfigNode()
 	{
+		this.coordinateConfig = new CoordinateConfigNode();
+		final VBox vbox = new VBox();
 		final GridPane grid = new GridPane();
-		contents.setContent( grid );
+
+		vbox.getChildren().add( this.coordinateConfig.getContents() );
+		vbox.getChildren().add( grid );
+
+		contents.setContent( vbox );
 		contents.setExpanded( false );
 
 		int row = 0;
@@ -41,6 +50,11 @@ public class NavigationConfigNode
 	public Node getContents()
 	{
 		return contents;
+	}
+
+	public CoordinateConfigNode coordinateConfigNode()
+	{
+		return this.coordinateConfig;
 	}
 
 }
