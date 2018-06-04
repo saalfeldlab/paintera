@@ -317,7 +317,9 @@ public class Navigation implements ToOnEnterOnExit
 					rotate.initialize();
 				}
 				else
+				{
 					abortDrag();
+				}
 			}
 
 			@Override
@@ -327,6 +329,11 @@ public class Navigation implements ToOnEnterOnExit
 			}
 		};
 
+	}
+
+	public BooleanProperty allowRotationsProperty()
+	{
+		return this.allowRotations;
 	}
 
 	private static final EventFX< KeyEvent > keyRotationHandler(
@@ -356,7 +363,9 @@ public class Navigation implements ToOnEnterOnExit
 				name,
 				event -> {
 					if ( allowRotations.getAsBoolean() )
+					{
 						rotate.rotate( rotationCenterX.getAsDouble(), rotationCenterY.getAsDouble() );
+					}
 				},
 				predicate );
 

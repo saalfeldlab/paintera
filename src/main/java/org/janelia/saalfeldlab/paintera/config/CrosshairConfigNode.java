@@ -15,22 +15,21 @@ public class CrosshairConfigNode
 
 	private final TitledPane contents;
 
-	public CrosshairConfigNode( final CrosshairConfig config )
+	private final CheckBox showCrosshairs = new CheckBox();
+
+	private final ColorPicker onFocusColorPicker = new ColorPicker();
+
+	private final ColorPicker outOfFocusColorPicker = new ColorPicker();
+
+	public CrosshairConfigNode()
 	{
 		super();
 
-		final CheckBox showCrosshairs = new CheckBox();
-		showCrosshairs.selectedProperty().bindBidirectional( config.showCrosshairsProperty() );
-
 		final GridPane grid = new GridPane();
 
-		final ColorPicker onFocusColorPicker = new ColorPicker();
-		onFocusColorPicker.valueProperty().bindBidirectional( config.onFocusColorProperty() );
 		onFocusColorPicker.setMaxWidth( 40 );
 		onFocusColorPicker.getCustomColors().addAll( Colors.cremi( 1.0 ), Colors.cremi( 0.5 ) );
 
-		final ColorPicker outOfFocusColorPicker = new ColorPicker();
-		outOfFocusColorPicker.valueProperty().bindBidirectional( config.outOfFocusColorProperty() );
 		outOfFocusColorPicker.setMaxWidth( 40 );
 		outOfFocusColorPicker.getCustomColors().addAll( Colors.cremi( 1.0 ), Colors.cremi( 0.5 ) );
 
@@ -45,10 +44,17 @@ public class CrosshairConfigNode
 		GridPane.setHgrow( onFocusLabel, Priority.ALWAYS );
 		GridPane.setHgrow( offFocusLabel, Priority.ALWAYS );
 
-		contents = new TitledPane( "crosshair", grid );
+		contents = new TitledPane( "Crosshair", grid );
 		contents.setGraphic( showCrosshairs );
 		contents.setExpanded( false );
 
+	}
+
+	public void bind( final CrosshairConfig config )
+	{
+		showCrosshairs.selectedProperty().bindBidirectional( config.showCrosshairsProperty() );
+		onFocusColorPicker.valueProperty().bindBidirectional( config.onFocusColorProperty() );
+		outOfFocusColorPicker.valueProperty().bindBidirectional( config.outOfFocusColorProperty() );
 	}
 
 	public Node getContents()

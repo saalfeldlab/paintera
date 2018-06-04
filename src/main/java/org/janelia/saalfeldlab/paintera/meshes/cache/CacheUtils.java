@@ -108,7 +108,7 @@ public class CacheUtils
 	 * @return Cascade of {@link Cache} that produce list of containing blocks
 	 *         for a label (key) at each scale level.
 	 */
-	public static < D, T > InterruptibleFunction< Long, Interval[] >[] blocksForLabelCachesLongKeys(
+	public static < D, T > InterruptibleFunctionAndCache< Long, Interval[] >[] blocksForLabelCachesLongKeys(
 			final DataSource< D, T > source,
 			final InterruptibleFunction< HashWrapper< long[] >, long[] >[] uniqueLabelLoaders,
 			final int[][] blockSizes,
@@ -119,7 +119,7 @@ public class CacheUtils
 		assert uniqueLabelLoaders.length == numMipmapLevels;
 
 		@SuppressWarnings( "unchecked" )
-		final InterruptibleFunction< Long, Interval[] >[] caches = new InterruptibleFunction[ numMipmapLevels ];
+		final InterruptibleFunctionAndCache< Long, Interval[] >[] caches = new InterruptibleFunctionAndCache[ numMipmapLevels ];
 
 		LOG.debug( "Number of mipmap levels for source {}: {}", source.getName(), source.getNumMipmapLevels() );
 		LOG.debug( "Provided {} block sizes and {} scaling factors", blockSizes.length, scalingFactors.length );
@@ -136,9 +136,9 @@ public class CacheUtils
 			final BlocksForLabelCacheLoader< Long > loader = BlocksForLabelCacheLoader.longKeys(
 					grid,
 					level == numMipmapLevels - 1 ? InterruptibleFunction.fromFunction( l -> new Interval[] { new FinalInterval( dims.clone() ) } ) : caches[ level + 1 ],
-					level == numMipmapLevels - 1 ? l -> collectAllOffsets( dims, bs, b -> fromMin( b, max, bs ) ) : relevantBlocksFromLowResInterval( grid, scalingFactors[ level + 1 ], scalingFactors[ level ] ),
-					key -> uniqueLabelLoaders[ finalLevel ].apply( HashWrapper.longArray( key ) ) );
-			caches[ level ] = fromCache( makeCache.apply( loader ).unchecked(), ( Interruptible< Long > ) loader );
+							level == numMipmapLevels - 1 ? l -> collectAllOffsets( dims, bs, b -> fromMin( b, max, bs ) ) : relevantBlocksFromLowResInterval( grid, scalingFactors[ level + 1 ], scalingFactors[ level ] ),
+									key -> uniqueLabelLoaders[ finalLevel ].apply( HashWrapper.longArray( key ) ) );
+			caches[ level ] = new InterruptibleFunctionAndCache<>( makeCache.apply( loader ).unchecked(), loader );
 		}
 
 		return caches;
@@ -196,8 +196,8 @@ public class CacheUtils
 			final BlocksForLabelCacheLoader< TLongHashSet > loader = BlocksForLabelCacheLoader.hashSetKeys(
 					grid,
 					level == numMipmapLevels - 1 ? InterruptibleFunction.fromFunction( l -> new Interval[] { new FinalInterval( dims.clone() ) } ) : caches[ level + 1 ],
-					level == numMipmapLevels - 1 ? l -> collectAllOffsets( dims, bs, b -> fromMin( b, max, bs ) ) : relevantBlocksFromLowResInterval( grid, scalingFactors[ level + 1 ], scalingFactors[ level ] ),
-					key -> uniqueLabelLoaders[ finalLevel ].apply( HashWrapper.longArray( key ) ) );
+							level == numMipmapLevels - 1 ? l -> collectAllOffsets( dims, bs, b -> fromMin( b, max, bs ) ) : relevantBlocksFromLowResInterval( grid, scalingFactors[ level + 1 ], scalingFactors[ level ] ),
+									key -> uniqueLabelLoaders[ finalLevel ].apply( HashWrapper.longArray( key ) ) );
 			caches[ level ] = fromCache( makeCache.apply( loader ).unchecked(), ( Interruptible< TLongHashSet > ) loader );
 		}
 

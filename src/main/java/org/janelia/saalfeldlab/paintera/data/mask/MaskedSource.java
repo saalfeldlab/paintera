@@ -2,8 +2,12 @@ package org.janelia.saalfeldlab.paintera.data.mask;
 
 import java.lang.invoke.MethodHandles;
 import java.nio.file.Paths;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Optional;
 import java.util.concurrent.ExecutorService;
 import java.util.function.BiConsumer;
@@ -11,6 +15,7 @@ import java.util.function.Supplier;
 import java.util.stream.DoubleStream;
 import java.util.stream.IntStream;
 import java.util.stream.LongStream;
+import java.util.stream.Stream;
 
 import org.janelia.saalfeldlab.paintera.data.DataSource;
 import org.janelia.saalfeldlab.paintera.data.mask.PickOne.PickAndConvert;
@@ -54,6 +59,7 @@ import net.imglib2.cache.img.DiskCellCache;
 import net.imglib2.converter.Converters;
 import net.imglib2.converter.TypeIdentity;
 import net.imglib2.img.basictypeaccess.LongAccess;
+import net.imglib2.img.cell.AbstractCellImg;
 import net.imglib2.img.cell.Cell;
 import net.imglib2.img.cell.CellGrid;
 import net.imglib2.img.cell.LazyCellImg.LazyCells;
@@ -134,6 +140,10 @@ public class MaskedSource< D extends Type< D >, T extends Type< T > > implements
 
 	private final ObservableBooleanValue isNotPersisting = isPersisting.not();
 
+	private final Map< Long, TLongHashSet >[] affectedBlocksByLabel;
+
+	private final List< Runnable > canvasClearedListeners = new ArrayList<>();
+
 	private final ObservableBooleanValue canBePersited = Bindings.createBooleanBinding(
 			() -> isMaskNotDeployed.get() && isNotPersisting.get() && noMasksCurrentlyApplied.get(),
 			isNotPersisting,
@@ -206,6 +216,8 @@ public class MaskedSource< D extends Type< D >, T extends Type< T > > implements
 
 		this.cacheDirectory.addListener( new CanvasBaseDirChangeListener( dataCanvases, canvases, this.dimensions, this.blockSizes ) );
 		this.cacheDirectory.set( initialCacheDirectory );
+
+		this.affectedBlocksByLabel = Stream.generate( HashMap::new ).limit( this.canvases.length ).toArray( Map[]::new );
 
 		setMasksConstant();
 
@@ -300,6 +312,8 @@ public class MaskedSource< D extends Type< D >, T extends Type< T > > implements
 
 				final TLongSet paintedBlocksAtHighestResolution = this.scaleBlocksToLevel( affectedBlocks, maskInfo.level, 0 );
 
+				this.affectedBlocksByLabel[ maskInfo.level ].computeIfAbsent( maskInfo.value.getIntegerLong(), key -> new TLongHashSet() ).addAll( affectedBlocks );
+				LOG.warn( "Added affected block: {}", affectedBlocksByLabel[ maskInfo.level ] );
 				this.affectedBlocks.addAll( paintedBlocksAtHighestResolution );
 
 				this.maskApplyCount.set( this.maskApplyCount.get() + 1 );
@@ -438,9 +452,6 @@ public class MaskedSource< D extends Type< D >, T extends Type< T > > implements
 					try
 					{
 						this.persistCanvas.accept( canvas, affectedBlocks );
-					}
-					finally
-					{
 						clearCanvases();
 						for ( int level = 0; level < this.getNumMipmapLevels(); ++level )
 						{
@@ -449,6 +460,9 @@ public class MaskedSource< D extends Type< D >, T extends Type< T > > implements
 							LOG.debug( "Invalidating all for viewer source for level={}", level );
 							invalidateAllIfCachedImg( this.source.getSource( 0, level ) );
 						}
+					}
+					finally
+					{
 						synchronized ( this )
 						{
 							this.isPersisting.set( false );
@@ -662,6 +676,12 @@ public class MaskedSource< D extends Type< D >, T extends Type< T > > implements
 		}
 	}
 
+	public TLongSet getModifiedBlocks( final int level, final long id )
+	{
+		LOG.debug( "Getting modified blocks for level={} and id={}", level, id );
+		return Optional.ofNullable( this.affectedBlocksByLabel[ level ].get( id ) ).map( TLongHashSet::new ).orElseGet( TLongHashSet::new );
+	}
+
 	private void propagateMask(
 			final RandomAccessibleInterval< UnsignedByteType > mask,
 			final TLongSet paintedBlocksAtPaintedScale,
@@ -688,6 +708,7 @@ public class MaskedSource< D extends Type< D >, T extends Type< T > > implements
 				throw new RuntimeException( "Non-integer relative scales: " + Arrays.toString( relativeScales ) );
 			}
 			final TLongSet affectedBlocksAtHigherLevel = this.scaleBlocksToLevel( paintedBlocksAtPaintedScale, paintedLevel, level );
+			this.affectedBlocksByLabel[ level ].computeIfAbsent( label.getIntegerLong(), key -> new TLongHashSet() ).addAll( affectedBlocksAtHigherLevel );
 
 			// downsample
 			final int[] steps = DoubleStream.of( relativeScales ).mapToInt( d -> ( int ) d ).toArray();
@@ -706,6 +727,7 @@ public class MaskedSource< D extends Type< D >, T extends Type< T > > implements
 			LOG.debug( "Upsampling for level={}", level );
 			final TLongSet affectedBlocksAtLowerLevel = this.scaleBlocksToLevel( paintedBlocksAtPaintedScale, paintedLevel, level );
 			final double[] currentRelativeScaleFromTargetToPainted = DataSource.getRelativeScales( this, 0, level, paintedLevel );
+			this.affectedBlocksByLabel[ level ].computeIfAbsent( label.getIntegerLong(), key -> new TLongHashSet() ).addAll( affectedBlocksAtLowerLevel );
 
 			final Interval paintedIntervalAtTargetLevel = scaleIntervalToLevel( intervalAtPaintedScale, paintedLevel, level );
 
@@ -968,6 +990,9 @@ public class MaskedSource< D extends Type< D >, T extends Type< T > > implements
 	private void clearCanvases()
 	{
 		this.cacheDirectory.set( this.nextCacheDirectory.get() );
+		this.affectedBlocks.clear();
+		Arrays.stream( this.affectedBlocksByLabel ).forEach( Map::clear );
+		this.canvasClearedListeners.forEach( Runnable::run );
 	}
 
 	private static class CanvasBaseDirChangeListener implements ChangeListener< String >
@@ -1059,6 +1084,63 @@ public class MaskedSource< D extends Type< D >, T extends Type< T > > implements
 	public BiConsumer< CachedCellImg< UnsignedLongType, ? >, long[] > getPersister()
 	{
 		return this.persistCanvas;
+	}
+
+	public CellGrid getCellGrid( final int t, final int level )
+	{
+		return ( ( AbstractCellImg< ?, ?, ?, ? > ) underlyingSource().getSource( t, level ) ).getCellGrid();
+	}
+
+	public long[] getAffectedBlocks()
+	{
+		return this.affectedBlocks.toArray();
+	}
+
+	public void addOnCanvasClearedListener( final Runnable listener )
+	{
+		this.canvasClearedListeners.add( listener );
+	}
+
+	Map< Long, long[] >[] getAffectedBlocksById()
+	{
+		@SuppressWarnings( "unchecked" )
+		final Map< Long, long[] >[] maps = new HashMap[ this.affectedBlocksByLabel.length ];
+
+		for ( int level = 0; level < maps.length; ++level )
+		{
+			maps[ level ] = new HashMap<>();
+			final Map< Long, long[] > map = maps[ level ];
+			for ( final Entry< Long, TLongHashSet > entry : this.affectedBlocksByLabel[ level ].entrySet() )
+			{
+				map.put( entry.getKey(), entry.getValue().toArray() );
+			}
+		}
+
+		LOG.debug( "Retruning affected blocks by id for {} levels: {}", maps.length, maps );
+		return maps;
+	}
+
+	void affectBlocks(
+			final long[] blocks,
+			final Map< Long, long[] >[] blocksById )
+	{
+		assert this.affectedBlocksByLabel.length == blocksById.length;
+
+		LOG.debug( "Affected blocks: {} to add: {}", this.affectedBlocks, blocks );
+		this.affectedBlocks.addAll( blocks );
+		LOG.debug( "Affected blocks: {}", this.affectedBlocks );
+
+		LOG.debug( "Affected blocks by id: {} to add: {}", this.affectedBlocksByLabel, blocksById );
+		for ( int level = 0; level < blocksById.length; ++level )
+		{
+			final Map< Long, TLongHashSet > map = this.affectedBlocksByLabel[ level ];
+			for ( final Entry< Long, long[] > entry : blocksById[ level ].entrySet() )
+			{
+				map.computeIfAbsent( entry.getKey(), key -> new TLongHashSet() ).addAll( entry.getValue() );
+			}
+		}
+		LOG.debug( "Affected blocks by id: {}", this.affectedBlocksByLabel, null );
+
 	}
 
 }

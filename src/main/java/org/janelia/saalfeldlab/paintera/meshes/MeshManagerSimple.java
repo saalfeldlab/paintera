@@ -63,6 +63,9 @@ public class MeshManagerSimple< T > implements MeshManager< T >
 
 	private final Function< T, long[] > getIds;
 
+	// TODO actually do something
+	private final Runnable refreshMeshes = () -> {};
+
 	public MeshManagerSimple(
 			final InterruptibleFunction< T, Interval[] >[] blockListCache,
 			final InterruptibleFunction< ShapeKey< T >, Pair< float[], float[] > >[] meshCache,
@@ -111,9 +114,7 @@ public class MeshManagerSimple< T > implements MeshManager< T >
 
 		for ( final T neuron : neurons.keySet() )
 		{
-			if ( neuron.equals( id ) ) {
-				return;
-			}
+			if ( neuron.equals( id ) ) { return; }
 		}
 
 		LOG.debug( "Adding mesh for segment {} (composed of ids={}).", id, getIds.apply( id ) );
@@ -215,6 +216,12 @@ public class MeshManagerSimple< T > implements MeshManager< T >
 	public long[] containedFragments( final T id )
 	{
 		return getIds.apply( id );
+	}
+
+	@Override
+	public void refreshMeshes()
+	{
+		this.refreshMeshes.run();
 	}
 
 }

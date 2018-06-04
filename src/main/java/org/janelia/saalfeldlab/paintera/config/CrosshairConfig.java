@@ -1,5 +1,10 @@
 package org.janelia.saalfeldlab.paintera.config;
 
+import java.util.Arrays;
+import java.util.Collection;
+
+import org.janelia.saalfeldlab.paintera.ui.Crosshair;
+
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.SimpleBooleanProperty;
@@ -76,5 +81,22 @@ public class CrosshairConfig
 	public ObservableBooleanValue wasChanged()
 	{
 		return this.wasChanged();
+	}
+
+	public void bindCrosshairsToConfig( final Collection< Crosshair > crosshairs )
+	{
+		crosshairs.stream().forEach( this::bindCrosshairToConfig );
+	}
+
+	public void bindCrosshairsToConfig( final Crosshair... crosshairs )
+	{
+		this.bindCrosshairsToConfig( Arrays.asList( crosshairs ) );
+	}
+
+	public void bindCrosshairToConfig( final Crosshair crosshair )
+	{
+		crosshair.highlightColorProperty().bind( this.onFocusColor );
+		crosshair.regularColorProperty().bind( this.outOfFocusColor );
+		crosshair.isVisibleProperty().bind( this.showCrosshairs );
 	}
 }

@@ -111,7 +111,7 @@ public class PainteraCommandLineArgs implements Callable< Boolean >
 		{
 			screenScales[ i ] = screenScaleFactor * screenScales[ i - 1 ];
 		}
-		LOG.warn( "Retruning screen scales {}", screenScales );
+		LOG.debug( "Returning screen scales {}", screenScales );
 		return screenScales;
 	}
 
