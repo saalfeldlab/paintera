@@ -17,29 +17,25 @@ public class OrthoSliceConfig
 
 	private final BooleanProperty showBottomLeft = new SimpleBooleanProperty( true );
 
-	private final OrthoSliceFX topLeft;
+	final ObservableBooleanValue isTopLeftVisible;
 
-	private final OrthoSliceFX topRight;
+	final ObservableBooleanValue isTopRightVisible;
 
-	private final OrthoSliceFX bottomLeft;
+	final ObservableBooleanValue isBottomLeftVisible;
+
+	private final ObservableBooleanValue hasSources;
 
 	public OrthoSliceConfig(
-			final OrthoSliceFX topLeft,
-			final OrthoSliceFX topRight,
-			final OrthoSliceFX bottomLeft,
 			final ObservableBooleanValue isTopLeftVisible,
 			final ObservableBooleanValue isTopRightVisible,
 			final ObservableBooleanValue isBottomLeftVisible,
 			final ObservableBooleanValue hasSources )
 	{
 		super();
-		this.topLeft = topLeft;
-		this.topRight = topRight;
-		this.bottomLeft = bottomLeft;
-
-		this.topLeft.isVisibleProperty().bind( showTopLeft.and( enable ).and( hasSources ).and( isTopLeftVisible ) );
-		this.topRight.isVisibleProperty().bind( showTopRight.and( enable ).and( hasSources ).and( isTopRightVisible ) );
-		this.bottomLeft.isVisibleProperty().bind( showBottomLeft.and( enable ).and( hasSources ).and( isBottomLeftVisible ) );
+		this.isTopLeftVisible = isTopLeftVisible;
+		this.isTopRightVisible = isTopRightVisible;
+		this.isBottomLeftVisible = isBottomLeftVisible;
+		this.hasSources = hasSources;
 	}
 
 	public BooleanProperty enableProperty()
@@ -60,6 +56,16 @@ public class OrthoSliceConfig
 	public BooleanProperty showBottomLeftProperty()
 	{
 		return this.showBottomLeft;
+	}
+
+	public void bindOrthoSlicesToConifg(
+			final OrthoSliceFX topLeft,
+			final OrthoSliceFX topRight,
+			final OrthoSliceFX bottomLeft )
+	{
+		topLeft.isVisibleProperty().bind( showTopLeft.and( enable ).and( hasSources ).and( isTopLeftVisible ) );
+		topRight.isVisibleProperty().bind( showTopRight.and( enable ).and( hasSources ).and( isTopRightVisible ) );
+		bottomLeft.isVisibleProperty().bind( showBottomLeft.and( enable ).and( hasSources ).and( isBottomLeftVisible ) );
 	}
 
 }

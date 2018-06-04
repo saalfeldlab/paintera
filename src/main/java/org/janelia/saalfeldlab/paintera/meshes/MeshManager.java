@@ -33,4 +33,6 @@ public interface MeshManager< T >
 
 	public long[] containedFragments( T t );
 
+	public void refreshMeshes();
+
 }

@@ -3,6 +3,7 @@ package org.janelia.saalfeldlab.paintera.data.mask;
 import java.lang.invoke.MethodHandles;
 import java.lang.reflect.Type;
 import java.nio.file.Paths;
+import java.util.HashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.function.BiConsumer;
 import java.util.function.IntFunction;
@@ -15,6 +16,7 @@ import org.janelia.saalfeldlab.paintera.state.SourceState;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.google.common.reflect.TypeToken;
 import com.google.gson.JsonDeserializationContext;
 import com.google.gson.JsonDeserializer;
 import com.google.gson.JsonElement;
@@ -29,15 +31,15 @@ public class MaskedSourceDeserializer implements JsonDeserializer< MaskedSource<
 
 	private static final Logger LOG = LoggerFactory.getLogger( MethodHandles.lookup().lookupClass() );
 
-	private static final String UNDERLYING_SOURCE_CLASS_KEY = "sourceClass";
+	private static final String UNDERLYING_SOURCE_CLASS_KEY = MaskedSourceSerializer.UNDERLYING_SOURCE_CLASS_KEY;
 
-	private static final String UNDERLYING_SOURCE_KEY = "source";
+	private static final String UNDERLYING_SOURCE_KEY = MaskedSourceSerializer.UNDERLYING_SOURCE_KEY;
 
-	private static final String CURRENT_CACHE_DIR_KEY = "cacheDir";
+	private static final String CURRENT_CACHE_DIR_KEY = MaskedSourceSerializer.CURRENT_CACHE_DIR_KEY;
 
-	private static final String PERSIST_CANVAS_CLASS_KEY = "persistCanvasClass";
+	private static final String PERSIST_CANVAS_CLASS_KEY = MaskedSourceSerializer.PERSIST_CANVAS_CLASS_KEY;
 
-	private static final String PERSIST_CANVAS_KEY = "persistCanvas";
+	private static final String PERSIST_CANVAS_KEY = MaskedSourceSerializer.PERSIST_CANVAS_KEY;
 
 	private final Supplier< String > currentProjectDirectory;
 
@@ -71,9 +73,20 @@ public class MaskedSourceDeserializer implements JsonDeserializer< MaskedSource<
 			final String initialCanvasPath = map.get( CURRENT_CACHE_DIR_KEY ).getAsString();
 
 			final DataSource< ?, ? > masked = Masks.mask( source, initialCanvasPath, canvasCacheDirUpdate, mergeCanvasIntoBackground, propagationExecutor );
-			return masked instanceof MaskedSource< ?, ? >
+			MaskedSource< ?, ? > returnVal = masked instanceof MaskedSource< ?, ? >
 					? ( MaskedSource< ?, ? > ) masked
 					: null;
+
+			if ( returnVal != null )
+			{
+				Type mapType = new TypeToken< HashMap< Long, long[] >[] >(){}.getType();
+				long[] blocks = context.deserialize( map.get( MaskedSourceSerializer.DIRTY_BLOCKS_KEY ), long[].class );
+				HashMap< Long, long []>[] blocksById = context.deserialize( map.get( MaskedSourceSerializer.DIRTY_BLOCKS_BY_ID_KEY ), mapType );
+				returnVal.affectBlocks( blocks, blocksById );
+			}
+
+			return returnVal;
+
 		}
 		catch ( final ClassNotFoundException e )
 		{

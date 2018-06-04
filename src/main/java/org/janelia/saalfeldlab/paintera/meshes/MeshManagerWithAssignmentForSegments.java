@@ -75,6 +75,8 @@ public class MeshManagerWithAssignmentForSegments implements MeshManager< TLongH
 
 	private final ExecutorService workers;
 
+	private final Runnable refreshMeshes;
+
 	public MeshManagerWithAssignmentForSegments(
 			final DataSource< ?, ? > source,
 			final InterruptibleFunction< TLongHashSet, Interval[] >[] blockListCacheForFragments,
@@ -86,6 +88,7 @@ public class MeshManagerWithAssignmentForSegments implements MeshManager< TLongH
 			final ObservableIntegerValue meshSimplificationIterations,
 			final ObservableDoubleValue smoothingLambda,
 			final ObservableIntegerValue smooothingIterations,
+			final Runnable refreshMeshes,
 			final ExecutorService managers,
 			final ExecutorService workers )
 	{
@@ -98,6 +101,7 @@ public class MeshManagerWithAssignmentForSegments implements MeshManager< TLongH
 		this.selectedSegments = selectedSegments;
 		this.fragmentsInSelectedSegments = new FragmentsInSelectedSegments( selectedSegments, assignment );
 		this.stream = stream;
+		this.refreshMeshes = refreshMeshes;
 
 		this.meshSimplificationIterations.set( Math.max( meshSimplificationIterations.get(), 0 ) );
 		meshSimplificationIterations.addListener( ( obs, oldv, newv ) -> {
@@ -157,10 +161,10 @@ public class MeshManagerWithAssignmentForSegments implements MeshManager< TLongH
 			LOG.debug( "Selection {}", selectedSegments );
 			LOG.debug( "To be removed {}", toBeRemoved );
 			Arrays
-			.stream( selectedSegments )
-			.mapToObj( segment -> assignment.getFragments( segment ) )
-			.filter( id -> !currentlyShowing.contains( id ) )
-			.forEach( this::generateMesh );
+					.stream( selectedSegments )
+					.mapToObj( segment -> assignment.getFragments( segment ) )
+					.filter( id -> !currentlyShowing.contains( id ) )
+					.forEach( this::generateMesh );
 		}
 	}
 
@@ -172,12 +176,9 @@ public class MeshManagerWithAssignmentForSegments implements MeshManager< TLongH
 		stream.addListener( obs -> color.set( stream.argb( id ) ) );
 		assignment.addListener( obs -> color.set( stream.argb( id ) ) );
 
-
 		for ( final Entry< TLongHashSet, MeshGenerator< TLongHashSet > > neuron : neurons.entrySet() )
 		{
-			if ( neuron.getValue().getId().equals( fragments ) ) {
-				return;
-			}
+			if ( neuron.getValue().getId().equals( fragments ) ) { return; }
 		}
 
 		LOG.debug( "Adding mesh for segment {}.", id );
@@ -278,6 +279,12 @@ public class MeshManagerWithAssignmentForSegments implements MeshManager< TLongH
 	public long[] containedFragments( final TLongHashSet t )
 	{
 		return t.toArray();
+	}
+
+	@Override
+	public void refreshMeshes()
+	{
+		this.refreshMeshes.run();
 	}
 
 }

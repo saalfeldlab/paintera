@@ -70,6 +70,8 @@ public class MeshManagerWithAssignment implements MeshManager< Long >
 
 	private final ExecutorService workers;
 
+	private final Runnable refreshMeshes;
+
 	public MeshManagerWithAssignment(
 			final DataSource< ?, ? > source,
 			final InterruptibleFunction< Long, Interval[] >[] blockListCache,
@@ -81,6 +83,7 @@ public class MeshManagerWithAssignment implements MeshManager< Long >
 			final ObservableIntegerValue meshSimplificationIterations,
 			final ObservableDoubleValue smoothingLambda,
 			final ObservableIntegerValue smooothingIterations,
+			final Runnable refreshMeshes,
 			final ExecutorService managers,
 			final ExecutorService workers )
 	{
@@ -92,6 +95,7 @@ public class MeshManagerWithAssignment implements MeshManager< Long >
 		this.assignment = assignment;
 		this.fragmentsInSelectedSegments = fragmentsInSelectedSegments;
 		this.stream = stream;
+		this.refreshMeshes = refreshMeshes;
 
 		this.meshSimplificationIterations.set( Math.max( meshSimplificationIterations.get(), 0 ) );
 		meshSimplificationIterations.addListener( ( obs, oldv, newv ) -> {
@@ -143,9 +147,7 @@ public class MeshManagerWithAssignment implements MeshManager< Long >
 
 		for ( final MeshGenerator< Long > neuron : neurons.values() )
 		{
-			if ( neuron.getId() == id ) {
-				return;
-			}
+			if ( neuron.getId() == id ) { return; }
 		}
 
 		LOG.debug( "Adding mesh for segment {}.", id );
@@ -246,6 +248,12 @@ public class MeshManagerWithAssignment implements MeshManager< Long >
 	public long[] containedFragments( final Long id )
 	{
 		return assignment.getFragments( id ).toArray();
+	}
+
+	@Override
+	public void refreshMeshes()
+	{
+		this.refreshMeshes.run();
 	}
 
 }

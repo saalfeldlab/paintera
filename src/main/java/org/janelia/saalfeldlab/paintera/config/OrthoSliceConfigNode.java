@@ -12,26 +12,23 @@ public class OrthoSliceConfigNode
 
 	private final TitledPane contents;
 
-	public OrthoSliceConfigNode( final OrthoSliceConfig config )
+	private final CheckBox topLeftCheckBox = new CheckBox();
+
+	private final CheckBox topRightCheckBox = new CheckBox();
+
+	private final CheckBox bottomLeftCheckBox = new CheckBox();
+
+	private final CheckBox showOrthoViews = new CheckBox();
+
+	public OrthoSliceConfigNode()
 	{
 		super();
-
-		final CheckBox showOrthoViews = new CheckBox();
-		showOrthoViews.selectedProperty().bindBidirectional( config.enableProperty() );
 
 		final GridPane grid = new GridPane();
 
 		final Label topLeftLabel = new Label( "top left" );
 		final Label topRightLabel = new Label( "top right" );
 		final Label bottomLeftLabel = new Label( "bottom left" );
-
-		final CheckBox topLeftCheckBox = new CheckBox();
-		final CheckBox topRightCheckBox = new CheckBox();
-		final CheckBox bottomLeftCheckBox = new CheckBox();
-
-		topLeftCheckBox.selectedProperty().bindBidirectional( config.showTopLeftProperty() );
-		topRightCheckBox.selectedProperty().bindBidirectional( config.showTopRightProperty() );
-		bottomLeftCheckBox.selectedProperty().bindBidirectional( config.showBottomLeftProperty() );
 
 		grid.add( topLeftLabel, 0, 0 );
 		grid.add( topRightLabel, 0, 1 );
@@ -45,10 +42,18 @@ public class OrthoSliceConfigNode
 		GridPane.setHgrow( topRightLabel, Priority.ALWAYS );
 		GridPane.setHgrow( bottomLeftLabel, Priority.ALWAYS );
 
-		contents = new TitledPane( "orthoviews", grid );
+		contents = new TitledPane( "Ortho-Views", grid );
 		contents.setGraphic( showOrthoViews );
 		contents.setExpanded( false );
 
+	}
+
+	public void bind( final OrthoSliceConfig config )
+	{
+		showOrthoViews.selectedProperty().bindBidirectional( config.enableProperty() );
+		topLeftCheckBox.selectedProperty().bindBidirectional( config.showTopLeftProperty() );
+		topRightCheckBox.selectedProperty().bindBidirectional( config.showTopRightProperty() );
+		bottomLeftCheckBox.selectedProperty().bindBidirectional( config.showBottomLeftProperty() );
 	}
 
 	public Node getContents()

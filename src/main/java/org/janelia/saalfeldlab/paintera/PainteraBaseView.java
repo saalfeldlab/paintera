@@ -15,6 +15,7 @@ import org.janelia.saalfeldlab.paintera.composition.CompositeProjectorPreMultipl
 import org.janelia.saalfeldlab.paintera.data.DataSource;
 import org.janelia.saalfeldlab.paintera.data.mask.MaskedSource;
 import org.janelia.saalfeldlab.paintera.meshes.InterruptibleFunction;
+import org.janelia.saalfeldlab.paintera.meshes.InterruptibleFunctionAndCache;
 import org.janelia.saalfeldlab.paintera.meshes.cache.CacheUtils;
 import org.janelia.saalfeldlab.paintera.meshes.cache.UniqueLabelListLabelMultisetCacheLoader;
 import org.janelia.saalfeldlab.paintera.state.GlobalTransformManager;
@@ -222,13 +223,13 @@ public class PainteraBaseView
 		return this.generalPurposeExecutorService;
 	}
 
-	public static < D, T > InterruptibleFunction< Long, Interval[] >[] generateLabelBlocksForLabelCache(
+	public static < D, T > InterruptibleFunctionAndCache< Long, Interval[] >[] generateLabelBlocksForLabelCache(
 			final DataSource< D, T > spec )
 	{
 		return generateLabelBlocksForLabelCache( spec, scaleFactorsFromAffineTransforms( spec ) );
 	}
 
-	public static < D, T > InterruptibleFunction< Long, Interval[] >[] generateLabelBlocksForLabelCache(
+	public static < D, T > InterruptibleFunctionAndCache< Long, Interval[] >[] generateLabelBlocksForLabelCache(
 			final DataSource< D, T > spec,
 			final double[][] scalingFactors )
 	{
@@ -249,7 +250,7 @@ public class PainteraBaseView
 		return generateLabelBlocksForLabelCacheGeneric( spec, scalingFactors, collectLabels( spec.getDataType() ) );
 	}
 
-	private static < D, T > InterruptibleFunction< Long, Interval[] >[] generateLabelBlocksForLabelCacheGeneric(
+	private static < D, T > InterruptibleFunctionAndCache< Long, Interval[] >[] generateLabelBlocksForLabelCacheGeneric(
 			final DataSource< D, T > spec,
 			final double[][] scalingFactors,
 			final BiConsumer< D, TLongHashSet > collectLabels )
@@ -263,7 +264,7 @@ public class PainteraBaseView
 				collectLabels,
 				CacheUtils::toCacheSoftRefLoaderCache );
 
-		final InterruptibleFunction< Long, Interval[] >[] blocksForLabelCache = CacheUtils.blocksForLabelCachesLongKeys(
+		final InterruptibleFunctionAndCache< Long, Interval[] >[] blocksForLabelCache = CacheUtils.blocksForLabelCachesLongKeys(
 				spec,
 				uniqueLabelLoaders,
 				blockSizes,
@@ -274,7 +275,7 @@ public class PainteraBaseView
 
 	}
 
-	private static < T > InterruptibleFunction< Long, Interval[] >[] generateBlocksForLabelCacheLabelMultisetTypeCachedImg(
+	private static < T > InterruptibleFunctionAndCache< Long, Interval[] >[] generateBlocksForLabelCacheLabelMultisetTypeCachedImg(
 			final DataSource< LabelMultisetType, T > spec,
 			final double[][] scalingFactors )
 	{
@@ -296,7 +297,7 @@ public class PainteraBaseView
 			blockSizes[ level ] = IntStream.range( 0, grid.numDimensions() ).map( grid::cellDimension ).toArray();
 		}
 
-		final InterruptibleFunction< Long, Interval[] >[] blocksForLabelCache = CacheUtils.blocksForLabelCachesLongKeys(
+		final InterruptibleFunctionAndCache< Long, Interval[] >[] blocksForLabelCache = CacheUtils.blocksForLabelCachesLongKeys(
 				spec,
 				uniqueLabelLoaders,
 				blockSizes,

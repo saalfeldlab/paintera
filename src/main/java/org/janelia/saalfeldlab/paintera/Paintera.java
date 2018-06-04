@@ -15,6 +15,9 @@ import org.janelia.saalfeldlab.n5.N5Writer;
 import org.janelia.saalfeldlab.paintera.SaveProject.ProjectUndefined;
 import org.janelia.saalfeldlab.paintera.composition.ARGBCompositeAlphaYCbCr;
 import org.janelia.saalfeldlab.paintera.composition.CompositeCopy;
+import org.janelia.saalfeldlab.paintera.config.CrosshairConfig;
+import org.janelia.saalfeldlab.paintera.config.NavigationConfig;
+import org.janelia.saalfeldlab.paintera.config.OrthoSliceConfig;
 import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignmentState;
 import org.janelia.saalfeldlab.paintera.control.lock.LockedSegmentsOnlyLocal;
 import org.janelia.saalfeldlab.paintera.control.selection.SelectedIds;
@@ -31,6 +34,7 @@ import org.janelia.saalfeldlab.paintera.state.SourceState;
 import org.janelia.saalfeldlab.paintera.stream.HighlightingStreamConverter;
 import org.janelia.saalfeldlab.paintera.stream.ModalGoldenAngleSaturatedHighlightingARGBStream;
 import org.janelia.saalfeldlab.paintera.viewer3d.Viewer3DFX;
+import org.janelia.saalfeldlab.util.Colors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -42,6 +46,7 @@ import javafx.application.Application;
 import javafx.application.Platform;
 import javafx.scene.Scene;
 import javafx.scene.input.KeyCode;
+import javafx.scene.paint.Color;
 import javafx.stage.Stage;
 import net.imglib2.Volatile;
 import net.imglib2.converter.ARGBColorConverter;
@@ -86,8 +91,29 @@ public class Paintera extends Application
 				baseView,
 				painteraArgs::project );
 
-		@SuppressWarnings( "unused" )
 		final PainteraDefaultHandlers defaultHandlers = new PainteraDefaultHandlers( baseView, keyTracker, paneWithStatus );
+
+		// TODO (de-)seraizlie config
+		final NavigationConfig navigationConfig = new NavigationConfig();
+		paneWithStatus.navigationConfigNode().bind( navigationConfig );
+		navigationConfig.bindNavigationToConfig( defaultHandlers.navigation() );
+
+		final CrosshairConfig crosshairConfig = new CrosshairConfig();
+		paneWithStatus.crosshairConfigNode().bind( crosshairConfig );
+		crosshairConfig.bindCrosshairsToConfig( paneWithStatus.crosshairs().values() );
+		crosshairConfig.setOnFocusColor( Colors.CREMI );
+		crosshairConfig.setOutOfFocusColor( Color.WHITE.deriveColor( 0, 1, 1, 0.5 ) );
+
+		final OrthoSliceConfig orthoSliceConfig = new OrthoSliceConfig(
+				baseView.orthogonalViews().topLeft().viewer().visibleProperty(),
+				baseView.orthogonalViews().topRight().viewer().visibleProperty(),
+				baseView.orthogonalViews().bottomLeft().viewer().visibleProperty(),
+				baseView.sourceInfo().hasSources() );
+		paneWithStatus.orthoSliceConfigNode().bind( orthoSliceConfig );
+		orthoSliceConfig.bindOrthoSlicesToConifg(
+				paneWithStatus.orthoSlices().get( baseView.orthogonalViews().topLeft() ),
+				paneWithStatus.orthoSlices().get( baseView.orthogonalViews().topRight() ),
+				paneWithStatus.orthoSlices().get( baseView.orthogonalViews().bottomLeft() ) );
 
 		// populate everything
 
