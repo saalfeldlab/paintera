@@ -1,5 +1,10 @@
 package org.janelia.saalfeldlab.paintera.control.assignment;
 
+import java.util.Optional;
+
+import org.janelia.saalfeldlab.paintera.control.assignment.action.Detach;
+import org.janelia.saalfeldlab.paintera.control.assignment.action.Merge;
+
 import gnu.trove.set.hash.TLongHashSet;
 
 public interface FragmentSegmentAssignment
@@ -27,16 +32,16 @@ public interface FragmentSegmentAssignment
 	 * @param fragment1
 	 * @param fragment2
 	 */
-	public void mergeFragments( final long fragment1, long fragment2 );
+	public Optional< Merge > mergeFragments( final long fragment1, long fragment2 );
 
 	/**
 	 * TODO should this have only one argument (always detach fragment) or two
 	 * (only detach if correct segment is selected already)?
-	 * 
+	 *
 	 * @param fragmentId
 	 * @param from
 	 */
-	public void detachFragment( final long fragmentId, long from );
+	public Optional< Detach > detachFragment( final long fragmentId, long from );
 
 	/**
 	 *

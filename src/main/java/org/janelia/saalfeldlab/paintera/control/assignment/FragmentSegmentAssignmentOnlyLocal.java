@@ -1,9 +1,15 @@
 package org.janelia.saalfeldlab.paintera.control.assignment;
 
 import java.lang.invoke.MethodHandles;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.List;
+import java.util.Optional;
 import java.util.function.BiConsumer;
 
+import org.janelia.saalfeldlab.paintera.control.assignment.action.AssignmentAction;
+import org.janelia.saalfeldlab.paintera.control.assignment.action.Detach;
+import org.janelia.saalfeldlab.paintera.control.assignment.action.Merge;
 import org.janelia.saalfeldlab.paintera.id.IdService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -27,6 +33,8 @@ public class FragmentSegmentAssignmentOnlyLocal extends FragmentSegmentAssignmen
 	private final BiConsumer< long[], long[] > persister;
 
 	private final IdService idService;
+
+	private final List< ? extends AssignmentAction > actions = new ArrayList<>();
 
 	public FragmentSegmentAssignmentOnlyLocal( final BiConsumer< long[], long[] > persister, final IdService idService )
 	{
@@ -81,23 +89,11 @@ public class FragmentSegmentAssignmentOnlyLocal extends FragmentSegmentAssignmen
 		return fragments == null ? new TLongHashSet( new long[] { segmentId } ) : fragments;
 	}
 
-	@Override
-	protected synchronized void detachFragmentImpl( final long fragmentId, final long from )
+	private void detachFragmentImpl( final Detach detach )
 	{
 
-		if ( fragmentId == from )
-		{
-			LOG.debug( "{} and {} ar the same -- no action necessary", fragmentId, from );
-			return;
-		}
-
-		final long segmentId = getSegment( fragmentId );
-		final long segmentFrom = getSegment( from );
-		if ( segmentId != segmentFrom )
-		{
-			LOG.debug( "{} and {} in different segments: {} {} -- no action necessary", fragmentId, from, segmentId, segmentFrom );
-			return;
-		}
+		final long fragmentId = detach.fragmentId;
+		final long segmentFrom = detach.segmentFrom;
 
 		this.fragmentToSegmentMap.remove( fragmentId );
 
@@ -105,34 +101,50 @@ public class FragmentSegmentAssignmentOnlyLocal extends FragmentSegmentAssignmen
 		fragments.remove( fragmentId );
 		if ( fragments.size() == 1 )
 		{
+			final long from = fragments.iterator().next();
 			this.fragmentToSegmentMap.remove( from );
 			this.segmentToFragmentsMap.remove( segmentFrom );
 		}
 	}
 
 	@Override
-	protected void mergeFragmentsImpl( final long from, final long into )
+	protected synchronized Optional< Detach > detachFragmentImpl( final long fragmentId, final long from )
 	{
 
-		if ( from == into )
+		if ( fragmentId == from )
 		{
-			LOG.debug( "fragments {} {} are the same -- no action necessary", from, into );
-			return;
+			LOG.debug( "{} and {} ar the same -- no action necessary", fragmentId, from );
+			return Optional.empty();
 		}
 
-		if ( getSegment( from ) == getSegment( into ) )
+		final long segmentId = getSegment( fragmentId );
+		final long segmentFrom = getSegment( from );
+		if ( segmentId != segmentFrom )
 		{
-			LOG.debug( "fragments {} {} are in the same segment {} {} -- no action necessary", from, into, getSegment( from ), getSegment( into ) );
-			return;
+			LOG.debug( "{} and {} in different segments: {} {} -- no action necessary", fragmentId, from, segmentId, segmentFrom );
+			return Optional.empty();
 		}
+
+		final Detach detach = new Detach( fragmentId, segmentFrom );
+		detachFragmentImpl( detach );
+		return Optional.of( detach );
+	}
+
+	private void mergeFragmentsImpl( final Merge merge )
+	{
+
+		LOG.debug( "Merging {}", merge );
+
+		final long into = merge.intoFragmentId;
+		final long from = merge.fromFragmentId;
+		final long segmentInto = merge.segmentId;
 
 		if ( !fragmentToSegmentMap.contains( into ) )
 		{
-			fragmentToSegmentMap.put( into, idService.next() );
+			fragmentToSegmentMap.put( into, segmentInto );
 		}
 
 		final long segmentFrom = fragmentToSegmentMap.get( from );
-		final long segmentInto = fragmentToSegmentMap.get( into );
 
 		if ( !segmentToFragmentsMap.contains( segmentInto ) )
 		{
@@ -153,6 +165,32 @@ public class FragmentSegmentAssignmentOnlyLocal extends FragmentSegmentAssignmen
 			segmentToFragmentsMap.get( segmentInto ).add( from );
 			fragmentToSegmentMap.put( from, segmentInto );
 		}
+	}
+
+	@Override
+	protected Optional< Merge > mergeFragmentsImpl( final long from, final long into )
+	{
+
+		if ( from == into )
+		{
+			LOG.debug( "fragments {} {} are the same -- no action necessary", from, into );
+			return Optional.empty();
+		}
+
+		if ( getSegment( from ) == getSegment( into ) )
+		{
+			LOG.debug( "fragments {} {} are in the same segment {} {} -- no action necessary", from, into, getSegment( from ), getSegment( into ) );
+			return Optional.empty();
+		}
+
+		if ( !fragmentToSegmentMap.contains( into ) )
+		{
+			fragmentToSegmentMap.put( into, idService.next() );
+		}
+
+		final Merge merge = new Merge( from, into, fragmentToSegmentMap.get( into ) );
+		mergeFragmentsImpl( merge );
+		return Optional.of( merge );
 
 	}
 
