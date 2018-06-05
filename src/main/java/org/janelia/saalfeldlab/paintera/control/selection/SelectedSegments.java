@@ -39,6 +39,11 @@ public class SelectedSegments extends ObservableWithListenersList
 		}
 	}
 
+	public boolean isSegmentSelected( final long id )
+	{
+		return this.selectedSegments.contains( id );
+	}
+
 	private void update()
 	{
 		synchronized ( this.selectedSegments )

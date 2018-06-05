@@ -8,7 +8,7 @@ public class ExportResult< T >
 
 	private final long[][] fragmentIds;
 
-	private final T[] segmentId;
+	private final long[] segmentId;
 
 	private final String[] filePaths;
 
@@ -16,7 +16,7 @@ public class ExportResult< T >
 
 	// TODO: change scale parameter when the interface allows to export
 	// different scales for different meshes at the same time
-	public ExportResult( final MeshExporter< T > meshExporter, final long[][] fragmentIds, final T[] segmentId, final int scale, final String[] filePaths )
+	public ExportResult( final MeshExporter< T > meshExporter, final long[][] fragmentIds, final long[] segmentId, final int scale, final String[] filePaths )
 	{
 		this.meshExporter = meshExporter;
 		this.fragmentIds = fragmentIds;
@@ -35,7 +35,7 @@ public class ExportResult< T >
 		return fragmentIds;
 	}
 
-	public T[] getSegmentId()
+	public long[] getSegmentId()
 	{
 		return segmentId;
 	}

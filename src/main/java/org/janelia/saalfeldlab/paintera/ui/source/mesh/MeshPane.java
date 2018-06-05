@@ -2,6 +2,7 @@ package org.janelia.saalfeldlab.paintera.ui.source.mesh;
 
 import java.lang.invoke.MethodHandles;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
@@ -41,7 +42,7 @@ public class MeshPane implements BindUnbindAndNodeSupplier, ListChangeListener< 
 
 	private static final Logger LOG = LoggerFactory.getLogger( MethodHandles.lookup().lookupClass() );
 
-	private final MeshManager< TLongHashSet > manager;
+	private final MeshManager< Long, TLongHashSet > manager;
 
 	private final MeshInfos< TLongHashSet > meshInfos;
 
@@ -75,7 +76,7 @@ public class MeshPane implements BindUnbindAndNodeSupplier, ListChangeListener< 
 
 	private boolean isBound = false;
 
-	public MeshPane( final MeshManager< TLongHashSet > manager, final MeshInfos< TLongHashSet > meshInfos, final int numScaleLevels )
+	public MeshPane( final MeshManager< Long, TLongHashSet > manager, final MeshInfos< TLongHashSet > meshInfos, final int numScaleLevels )
 	{
 		super();
 		this.manager = manager;
@@ -172,7 +173,7 @@ public class MeshPane implements BindUnbindAndNodeSupplier, ListChangeListener< 
 				parameters.getMeshExporter().exportMesh(
 						blockListCaches,
 						meshCaches,
-						parameters.getSegmentId(),
+						Arrays.stream( parameters.getSegmentId() ).mapToObj( id -> manager.unmodifiableMeshMap().get( id ).getId() ).toArray( TLongHashSet[]::new ),
 						parameters.getScale(),
 						parameters.getFilePaths() );
 			}

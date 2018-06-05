@@ -94,18 +94,23 @@ public class FragmentSegmentAssignmentOnlyLocal extends FragmentSegmentAssignmen
 
 	private void detachFragmentImpl( final Detach detach )
 	{
+		final long segmentFrom = fragmentToSegmentMap.get( detach.fragmentId );
+		if ( fragmentToSegmentMap.get( detach.fragmentFrom ) != segmentFrom )
+		{
+			LOG.debug( "{} not in same segment -- return without detach", detach );
+			return;
+		}
 
 		final long fragmentId = detach.fragmentId;
-		final long segmentFrom = detach.segmentFrom;
+		final long fragmentFrom = detach.fragmentFrom;
 
 		this.fragmentToSegmentMap.remove( fragmentId );
 
-		final TLongHashSet fragments = getFragments( segmentFrom );
+		final TLongHashSet fragments = this.segmentToFragmentsMap.get( segmentFrom );
 		fragments.remove( fragmentId );
 		if ( fragments.size() == 1 )
 		{
-			final long from = fragments.iterator().next();
-			this.fragmentToSegmentMap.remove( from );
+			this.fragmentToSegmentMap.remove( fragmentFrom );
 			this.segmentToFragmentsMap.remove( segmentFrom );
 		}
 	}
@@ -244,16 +249,8 @@ public class FragmentSegmentAssignmentOnlyLocal extends FragmentSegmentAssignmen
 			return Optional.empty();
 		}
 
-		final long segmentId = getSegment( fragmentId );
-		final long segmentFrom = getSegment( from );
-		if ( segmentId != segmentFrom )
-		{
-			LOG.debug( "{} and {} in different segments: {} {} -- no action necessary", fragmentId, from, segmentId, segmentFrom );
-			return Optional.empty();
-		}
+		return Optional.ofNullable( new Detach( fragmentId, from ) );
 
-		final Detach detach = new Detach( fragmentId, segmentFrom );
-		return Optional.of( detach );
 	}
 
 }

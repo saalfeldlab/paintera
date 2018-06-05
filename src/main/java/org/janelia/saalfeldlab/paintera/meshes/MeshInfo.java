@@ -36,11 +36,11 @@ public class MeshInfo< T >
 
 	private final IntegerProperty smoothingIterations = new SimpleIntegerProperty();
 
-	private final T segmentId;
+	private final Long segmentId;
 
 	private final FragmentSegmentAssignment assignment;
 
-	private final MeshManager< T > meshManager;
+	private final MeshManager< Long, T > meshManager;
 
 	private final int numScaleLevels;
 
@@ -64,16 +64,16 @@ public class MeshInfo< T >
 
 	private final PropagateChanges< Number > opacityListener = new PropagateChanges<>( ( mesh, newv ) -> mesh.opacityProperty().set( newv.doubleValue() ) );
 
-	private final PropagateChanges< Number> smoothingIterationsListener = new PropagateChanges<>( ( mesh, newv ) -> mesh.smoothingIterationsProperty().set( newv.intValue() ) );
+	private final PropagateChanges< Number > smoothingIterationsListener = new PropagateChanges<>( ( mesh, newv ) -> mesh.smoothingIterationsProperty().set( newv.intValue() ) );
 
 	private final PropagateChanges< DrawMode > drawModeListener = new PropagateChanges<>( ( mesh, newv ) -> mesh.drawModeProperty().set( newv ) );
 
 	private final PropagateChanges< CullFace > cullFaceListener = new PropagateChanges<>( ( mesh, newv ) -> mesh.cullFaceProperty().set( newv ) );
 
 	public MeshInfo(
-			final T segmentId,
+			final Long segmentId,
 			final FragmentSegmentAssignment assignment,
-			final MeshManager< T > meshManager,
+			final MeshManager< Long, T > meshManager,
 			final int numScaleLevels )
 	{
 		super();
@@ -123,14 +123,14 @@ public class MeshInfo< T >
 	private void updateTasksCountBindings()
 	{
 		LOG.debug( "Updating task count bindings." );
-		final Map< T, MeshGenerator< T > > meshes = new HashMap<>( meshManager.unmodifiableMeshMap() );
+		final Map< Long, MeshGenerator< T > > meshes = new HashMap<>( meshManager.unmodifiableMeshMap() );
 		LOG.debug( "Binding meshes to segmentId = {}", segmentId );
 		Optional.ofNullable( meshes.get( segmentId ) ).map( MeshGenerator::submittedTasksProperty ).ifPresent( this.submittedTasks::bind );
 		Optional.ofNullable( meshes.get( segmentId ) ).map( MeshGenerator::completedTasksProperty ).ifPresent( this.completedTasks::bind );
 		Optional.ofNullable( meshes.get( segmentId ) ).map( MeshGenerator::successfulTasksProperty ).ifPresent( this.successfulTasks::bind );
 	}
 
-	public T segmentId()
+	public Long segmentId()
 	{
 		return this.segmentId;
 	}
@@ -184,7 +184,7 @@ public class MeshInfo< T >
 		@Override
 		public void changed( final ObservableValue< ? extends U > observable, final U oldValue, final U newValue )
 		{
-			final Map< T, MeshGenerator< T > > meshes = meshManager.unmodifiableMeshMap();
+			final Map< Long, MeshGenerator< T > > meshes = meshManager.unmodifiableMeshMap();
 			apply.accept( meshes.get( segmentId ), newValue );
 		}
 
@@ -217,7 +217,7 @@ public class MeshInfo< T >
 		return this.successfulTasks;
 	}
 
-	public MeshManager< T > meshManager()
+	public MeshManager< Long, T > meshManager()
 	{
 		return this.meshManager;
 	}
