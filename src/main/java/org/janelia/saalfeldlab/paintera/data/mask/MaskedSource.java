@@ -1,6 +1,7 @@
 package org.janelia.saalfeldlab.paintera.data.mask;
 
 import java.lang.invoke.MethodHandles;
+import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -1024,6 +1025,8 @@ public class MaskedSource< D extends Type< D >, T extends Type< T > > implements
 		{
 
 			Optional.ofNullable( oldValue ).map( Paths::get ).ifPresent( DiskCellCache::addDeleteHook );
+			// TODO add clean-up job that already starts deleting before jvm
+			// shutdown
 
 			LOG.info( "Updating cache directory: observable={} oldValue={} newValue={}", observable, oldValue, newValue );
 
@@ -1034,14 +1037,14 @@ public class MaskedSource< D extends Type< D >, T extends Type< T > > implements
 
 			for ( int level = 0; level < canvases.length; ++level )
 			{
-
 				if ( newValue != null )
 				{
+					final Path cacheDir = Paths.get( newValue, String.format( "%d", level ) );
 					final DiskCachedCellImgOptions o = opts
 							.volatileAccesses( true )
 							.dirtyAccesses( true )
-							.cacheDirectory( Paths.get( newValue, String.format( "%d", level ) ) )
-							.deleteCacheDirectoryOnExit( false )
+							.cacheDirectory( cacheDir )
+							.deleteCacheDirectoryOnExit( true )
 							.cellDimensions( blockSizes[ level ] );
 					final DiskCachedCellImgFactory< UnsignedLongType > f = new DiskCachedCellImgFactory<>( new UnsignedLongType(), o );
 					final CellLoader< UnsignedLongType > loader = img -> img.forEach( t -> t.set( Label.INVALID ) );

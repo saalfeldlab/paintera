@@ -72,7 +72,12 @@ public class MaskedSourceDeserializer implements JsonDeserializer< MaskedSource<
 							map.get( PERSIST_CANVAS_KEY ),
 							Class.forName( persisterClass ) );
 
-			final String initialCanvasPath = map.get( CURRENT_CACHE_DIR_KEY ).getAsString();
+			final String initialCanvasPath = canvasCacheDirUpdate.get();
+			// TODO re-use canvas
+//					Optional
+//					.ofNullable( map.get( CURRENT_CACHE_DIR_KEY ) )
+//					.map( JsonElement::getAsString )
+//					.orElseGet( canvasCacheDirUpdate );
 
 			final DataSource< ?, ? > masked = Masks.mask( source, initialCanvasPath, canvasCacheDirUpdate, mergeCanvasIntoBackground, propagationExecutor );
 			final MaskedSource< ?, ? > returnVal = masked instanceof MaskedSource< ?, ? >

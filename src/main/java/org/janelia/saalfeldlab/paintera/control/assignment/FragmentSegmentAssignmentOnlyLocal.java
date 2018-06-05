@@ -94,6 +94,7 @@ public class FragmentSegmentAssignmentOnlyLocal extends FragmentSegmentAssignmen
 
 	private void detachFragmentImpl( final Detach detach )
 	{
+		LOG.warn( "Detach {}", detach );
 		final long segmentFrom = fragmentToSegmentMap.get( detach.fragmentId );
 		if ( fragmentToSegmentMap.get( detach.fragmentFrom ) != segmentFrom )
 		{
@@ -106,12 +107,16 @@ public class FragmentSegmentAssignmentOnlyLocal extends FragmentSegmentAssignmen
 
 		this.fragmentToSegmentMap.remove( fragmentId );
 
+		LOG.warn( "Removing fragment={} from segment={}", fragmentId, segmentFrom );
 		final TLongHashSet fragments = this.segmentToFragmentsMap.get( segmentFrom );
-		fragments.remove( fragmentId );
-		if ( fragments.size() == 1 )
+		if ( fragments != null )
 		{
-			this.fragmentToSegmentMap.remove( fragmentFrom );
-			this.segmentToFragmentsMap.remove( segmentFrom );
+			fragments.remove( fragmentId );
+			if ( fragments.size() == 1 )
+			{
+				this.fragmentToSegmentMap.remove( fragmentFrom );
+				this.segmentToFragmentsMap.remove( segmentFrom );
+			}
 		}
 	}
 
@@ -123,6 +128,12 @@ public class FragmentSegmentAssignmentOnlyLocal extends FragmentSegmentAssignmen
 		final long into = merge.intoFragmentId;
 		final long from = merge.fromFragmentId;
 		final long segmentInto = merge.segmentId;
+
+		if ( fragmentToSegmentMap.get( from ) == fragmentToSegmentMap.get( into ) )
+		{
+			LOG.debug( "Fragments already in same segment -- not merging" );
+			return;
+		}
 
 		if ( !fragmentToSegmentMap.contains( into ) )
 		{
