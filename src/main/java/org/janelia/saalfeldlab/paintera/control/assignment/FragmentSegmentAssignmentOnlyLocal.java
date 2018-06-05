@@ -89,7 +89,7 @@ public class FragmentSegmentAssignmentOnlyLocal extends FragmentSegmentAssignmen
 	public synchronized TLongHashSet getFragments( final long segmentId )
 	{
 		final TLongHashSet fragments = segmentToFragmentsMap.get( segmentId );
-		return fragments == null ? new TLongHashSet( new long[] { segmentId } ) : fragments;
+		return fragments == null ? new TLongHashSet( new long[] { segmentId } ) : new TLongHashSet( fragments );
 	}
 
 	private void detachFragmentImpl( final Detach detach )
