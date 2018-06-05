@@ -37,13 +37,14 @@ public class MaskedSourceSerializer implements JsonSerializer< MaskedSource< ?, 
 		map.add( UNDERLYING_SOURCE_KEY, context.serialize( src.underlyingSource() ) );
 		map.addProperty( UNDERLYING_SOURCE_CLASS_KEY, src.underlyingSource().getClass().getName() );
 		LOG.warn( "Not using relative directory for canvas directory!" );
-		map.addProperty( CURRENT_CACHE_DIR_KEY, src.currentCanvasDirectory() );
-//		LOG.warn( "Trying to relativize '{}' and '{}'", currentProjectDirectory.get(), src.currentCanvasDirectory() );
-//		map.addProperty( CURRENT_CACHE_DIR_KEY, Paths.get( currentProjectDirectory.get() ).relativize( Paths.get( src.currentCanvasDirectory() ) ).toString() );
 		map.addProperty( PERSIST_CANVAS_CLASS_KEY, src.getPersister().getClass().getName() );
 		map.add( PERSIST_CANVAS_KEY, context.serialize( src.getPersister(), src.getPersister().getClass() ) );
-		map.add( DIRTY_BLOCKS_KEY, context.serialize( src.getAffectedBlocks() ) );
-		map.add( DIRTY_BLOCKS_BY_ID_KEY, context.serialize( src.getAffectedBlocksById() ) );
+		// TODO re-use canvas
+//		map.addProperty( CURRENT_CACHE_DIR_KEY, src.currentCanvasDirectory() );
+//		LOG.warn( "Trying to relativize '{}' and '{}'", currentProjectDirectory.get(), src.currentCanvasDirectory() );
+//		map.addProperty( CURRENT_CACHE_DIR_KEY, Paths.get( currentProjectDirectory.get() ).relativize( Paths.get( src.currentCanvasDirectory() ) ).toString() );
+//		map.add( DIRTY_BLOCKS_KEY, context.serialize( src.getAffectedBlocks() ) );
+//		map.add( DIRTY_BLOCKS_BY_ID_KEY, context.serialize( src.getAffectedBlocksById() ) );
 		return map;
 	}
 
