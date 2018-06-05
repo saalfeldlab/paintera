@@ -5,6 +5,9 @@ import java.util.Arrays;
 import java.util.Optional;
 import java.util.function.Consumer;
 
+import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignmentState;
+import org.janelia.saalfeldlab.paintera.control.selection.SelectedIds;
+import org.janelia.saalfeldlab.paintera.control.selection.SelectedSegments;
 import org.janelia.saalfeldlab.paintera.state.LabelSourceState;
 import org.janelia.saalfeldlab.paintera.state.SourceInfo;
 import org.janelia.saalfeldlab.paintera.state.SourceState;
@@ -17,12 +20,14 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import bdv.viewer.Source;
+import javafx.beans.InvalidationListener;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.beans.property.StringProperty;
 import javafx.beans.value.ObservableDoubleValue;
 import javafx.scene.Node;
+import javafx.scene.control.Button;
 import javafx.scene.control.ButtonType;
 import javafx.scene.control.CheckBox;
 import javafx.scene.control.ContentDisplay;
@@ -30,6 +35,8 @@ import javafx.scene.control.Dialog;
 import javafx.scene.control.Label;
 import javafx.scene.control.TextField;
 import javafx.scene.control.TitledPane;
+import javafx.scene.control.Tooltip;
+import javafx.scene.layout.GridPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
@@ -65,6 +72,7 @@ public class StatePane implements BindUnbindAndNodeSupplier
 		this.children = new BindUnbindAndNodeSupplier[] {
 				new CompositePane( state.compositeProperty() ),
 				new ConverterPane( state.converter() ),
+				state instanceof LabelSourceState< ?, ? > ? selectedIds( ( LabelSourceState< ?, ? > ) state ) : BindUnbindAndNodeSupplier.empty(),
 				state instanceof LabelSourceState< ?, ? > ? meshPane( ( LabelSourceState< ?, ? > ) state ) : BindUnbindAndNodeSupplier.empty()
 		};
 
@@ -82,9 +90,7 @@ public class StatePane implements BindUnbindAndNodeSupplier
 		sourceElementLabel.textProperty().bind( this.name );
 		sourceElementLabel.setOnMouseClicked( event -> {
 			event.consume();
-			if ( event.getClickCount() != 2 ) {
-				return;
-			}
+			if ( event.getClickCount() != 2 ) { return; }
 			final Dialog< Boolean > d = new Dialog<>();
 			d.setTitle( "Set source name" );
 			final TextField tf = new TextField( name.get() );
@@ -146,15 +152,187 @@ public class StatePane implements BindUnbindAndNodeSupplier
 		return tp;
 	}
 
+	private static BindUnbindAndNodeSupplier selectedIds( final LabelSourceState< ?, ? > state )
+	{
+		final SelectedIds selectedIds = state.selectedIds();
+		final FragmentSegmentAssignmentState assignment = state.assignment();
+
+		if ( selectedIds == null || assignment == null ) { return BindUnbindAndNodeSupplier.empty(); }
+
+		final SelectedSegments selectedSegments = new SelectedSegments( selectedIds, assignment );
+
+		final TextField lastSelectionField = new TextField();
+		final TextField selectedIdsField = new TextField();
+		final TextField selectedSegmentsField = new TextField();
+		final GridPane grid = new GridPane();
+		grid.setHgap( 5 );
+
+		grid.add( lastSelectionField, 1, 0 );
+		grid.add( selectedIdsField, 1, 1 );
+		grid.add( selectedSegmentsField, 1, 2 );
+
+		final Label lastSelectionLabel = new Label( "Active" );
+		final Label fragmentLabel = new Label( "Fragments" );
+		final Label segmentLabel = new Label( "Segments" );
+		lastSelectionLabel.setTooltip( new Tooltip( "Active (last actiated) fragment id" ) );
+		fragmentLabel.setTooltip( new Tooltip( "Active fragment ids" ) );
+		segmentLabel.setTooltip( new Tooltip( "Active segment ids" ) );
+
+		final Tooltip activeFragmentsToolTip = new Tooltip();
+		final Tooltip activeSegmentsToolTip = new Tooltip();
+		activeFragmentsToolTip.textProperty().bind( selectedIdsField.textProperty() );
+		activeSegmentsToolTip.textProperty().bind( selectedSegmentsField.textProperty() );
+		selectedIdsField.setTooltip( activeFragmentsToolTip );
+		selectedSegmentsField.setTooltip( activeSegmentsToolTip );
+
+		grid.add( lastSelectionLabel, 0, 0 );
+		grid.add( fragmentLabel, 0, 1 );
+		grid.add( segmentLabel, 0, 2 );
+
+		GridPane.setHgrow( lastSelectionField, Priority.ALWAYS );
+		GridPane.setHgrow( selectedIdsField, Priority.ALWAYS );
+		GridPane.setHgrow( selectedSegmentsField, Priority.ALWAYS );
+		lastSelectionField.setEditable( false );
+		selectedIdsField.setEditable( false );
+		selectedSegmentsField.setEditable( false );
+
+		final Button modifyButton = new Button( "Modify selection" );
+		modifyButton.setOnAction( event -> {
+
+			event.consume();
+			final TextField selField = new TextField();
+			final TextField lsField = new TextField();
+			selField.setText( selectedIdsField.getText() );
+			lsField.setText( lastSelectionField.getText() );
+
+			final Dialog< ButtonType > dialog = new Dialog<>();
+			dialog.getDialogPane().getButtonTypes().setAll( ButtonType.OK, ButtonType.CANCEL );
+
+			final GridPane dialogGrid = new GridPane();
+			dialogGrid.setHgap( 5 );
+
+			final Label lsSelectionLabel = new Label( "Active" );
+			final Label selLabel = new Label( "Fragments" );
+
+			GridPane.setHgrow( selField, Priority.ALWAYS );
+			GridPane.setHgrow( lsField, Priority.ALWAYS );
+
+			dialogGrid.add( lsField, 1, 0 );
+			dialogGrid.add( selField, 1, 1 );
+
+			dialogGrid.add( lsSelectionLabel, 0, 0 );
+			dialogGrid.add( selLabel, 0, 1 );
+
+			dialog.getDialogPane().setContent( dialogGrid );
+
+			if ( dialog.showAndWait().map( ButtonType.OK::equals ).orElse( false ) )
+			{
+				try
+				{
+					final long[] userSelection =
+							Arrays
+									.stream( selField.getText().split( "," ) )
+									.map( String::trim )
+									.mapToLong( Long::parseLong )
+									.toArray();
+					final long lastSelection = Optional.ofNullable( lsField.getText() ).filter( t -> t.length() > 0 ).map( Long::parseLong ).orElse( -1L );
+
+					selectedIds.activate( userSelection );
+					if ( userSelection.length > 0 && net.imglib2.type.label.Label.regular( lastSelection ) )
+					{
+						selectedIds.activateAlso( lastSelection );
+					}
+				}
+				catch ( final NumberFormatException e )
+				{
+					LOG.error( "Invalid user input (only number (active) or comma separated numbers (fragments) allowed -- not updating selection" );
+				}
+
+			}
+		} );
+
+		final VBox vbox = new VBox(
+				grid,
+				modifyButton );
+
+		final TitledPane contents = new TitledPane( "Selection", vbox );
+		contents.setExpanded( false );
+
+		final InvalidationListener selectionListener = obs -> {
+			final long[] selIds = selectedIds.getActiveIds();
+
+			lastSelectionField.setText( Long.toString( selectedIds.getLastSelection() ) );
+
+			if ( selIds.length < 1 )
+			{
+				selectedIdsField.setText( "" );
+				return;
+			}
+
+			final StringBuilder sb = new StringBuilder().append( selIds[ 0 ] );
+			for ( int i = 1; i < selIds.length; ++i )
+			{
+				sb
+						.append( ", " )
+						.append( selIds[ i ] );
+			}
+
+			selectedIdsField.setText( sb.toString() );
+		};
+
+		final InvalidationListener selectedSegmentsListener = obs -> {
+			final long[] selIds = selectedSegments.getSelectedSegments();
+
+			if ( selIds.length < 1 )
+			{
+				selectedSegmentsField.setText( "" );
+				return;
+			}
+
+			final StringBuilder sb = new StringBuilder().append( selIds[ 0 ] );
+			for ( int i = 1; i < selIds.length; ++i )
+			{
+				sb
+						.append( ", " )
+						.append( selIds[ i ] );
+			}
+
+			selectedSegmentsField.setText( sb.toString() );
+		};
+
+		return new BindUnbindAndNodeSupplier()
+		{
+
+			@Override
+			public void unbind()
+			{
+				selectedIds.removeListener( selectionListener );
+				selectedSegments.removeListener( selectedSegmentsListener );
+			}
+
+			@Override
+			public void bind()
+			{
+				selectedIds.addListener( selectionListener );
+				selectedSegments.addListener( selectedSegmentsListener );
+			}
+
+			@Override
+			public Node get()
+			{
+				return contents;
+			}
+		};
+
+	}
+
 	private static BindUnbindAndNodeSupplier meshPane( final LabelSourceState< ?, ? > state )
 	{
 		LOG.debug( "Creating mesh pane for source {} from {} and {}: ", state.nameProperty().get(), state.meshManager(), state.meshInfos() );
-		if ( state.meshManager() != null && state.meshInfos() != null ) {
-			return new MeshPane(
-					state.meshManager(),
-					state.meshInfos(),
-					state.getDataSource().getNumMipmapLevels() );
-		}
+		if ( state.meshManager() != null && state.meshInfos() != null ) { return new MeshPane(
+				state.meshManager(),
+				state.meshInfos(),
+				state.getDataSource().getNumMipmapLevels() ); }
 		return BindUnbindAndNodeSupplier.empty();
 	}
 
