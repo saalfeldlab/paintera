@@ -62,7 +62,7 @@ public class Scene3DHandler
 		rotate.installInto( viewer );
 
 		final TranslateXY translateXY = new TranslateXY( "translate", MouseEvent::isSecondaryButtonDown );
-		translateXY.installInto( viewer );
+		translateXY.installIntoAsFilter( viewer );
 	}
 
 	public void setInitialTransformToInterval( final Interval interval )
@@ -84,9 +84,13 @@ public class Scene3DHandler
 			if ( event.isShiftDown() )
 			{
 				if ( event.isControlDown() )
+				{
 					scrollFactor = scroll > 0 ? 1.01 : 1 / 1.01;
+				}
 				else
+				{
 					scrollFactor = scroll > 0 ? 2.05 : 1 / 2.05;
+				}
 			}
 
 			if ( Math.abs( event.getDeltaY() ) > Math.abs( event.getDeltaX() ) )
@@ -135,7 +139,7 @@ public class Scene3DHandler
 
 		public Rotate( final String name, final DoubleProperty speed, final double factor, final Predicate< MouseEvent > eventFilter )
 		{
-			super( name, eventFilter, affine, false );
+			super( name, eventFilter, true, affine, false );
 			LOG.trace( "rotation" );
 			this.factor.set( factor );
 			this.speed.set( speed.get() * this.factor.get() );
@@ -152,9 +156,13 @@ public class Scene3DHandler
 			if ( event.isShiftDown() )
 			{
 				if ( event.isControlDown() )
+				{
 					factor.set( SLOW_FACTOR );
+				}
 				else
+				{
 					factor.set( FAST_FACTOR );
+				}
 			}
 
 			this.speed.set( speed.get() * this.factor.get() );
@@ -192,7 +200,7 @@ public class Scene3DHandler
 	{
 		public TranslateXY( final String name, final Predicate< MouseEvent > eventFilter )
 		{
-			super( name, eventFilter, affine, false );
+			super( name, eventFilter, true, affine, false );
 			LOG.trace( "translate" );
 		}
 

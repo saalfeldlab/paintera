@@ -1,8 +1,12 @@
 package org.janelia.saalfeldlab.fx.event;
 
+import java.lang.invoke.MethodHandles;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.value.ObservableBooleanValue;
@@ -12,6 +16,9 @@ import javafx.scene.input.MouseEvent;
 
 public abstract class MouseDragFX implements InstallAndRemove< Node >
 {
+
+	private static final Logger LOG = LoggerFactory.getLogger( MethodHandles.lookup().lookupClass() );
+
 	protected double startX = 0;
 
 	protected double startY = 0;
@@ -113,7 +120,10 @@ public abstract class MouseDragFX implements InstallAndRemove< Node >
 				isDragging.set( true );
 				initDrag( event );
 				if ( consume )
+				{
+					LOG.debug( "Consuming Drag Detect event" );
 					event.consume();
+				}
 			}
 		}
 	}
@@ -128,7 +138,10 @@ public abstract class MouseDragFX implements InstallAndRemove< Node >
 			{
 				drag( event );
 				if ( consume )
+				{
+					LOG.debug( "Consuming Drag event" );
 					event.consume();
+				}
 				if ( updateXY )
 				{
 					startX = event.getX();
@@ -151,7 +164,10 @@ public abstract class MouseDragFX implements InstallAndRemove< Node >
 			{
 				endDrag( event );
 				if ( consume )
+				{
+					LOG.debug( "Consuming DragRelease event" );
 					event.consume();
+				}
 			}
 		}
 
