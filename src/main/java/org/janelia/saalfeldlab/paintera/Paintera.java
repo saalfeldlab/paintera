@@ -9,6 +9,7 @@ import java.util.regex.Pattern;
 
 import org.janelia.saalfeldlab.fx.event.EventFX;
 import org.janelia.saalfeldlab.fx.event.KeyTracker;
+import org.janelia.saalfeldlab.fx.event.MouseTracker;
 import org.janelia.saalfeldlab.fx.ortho.OrthogonalViews;
 import org.janelia.saalfeldlab.n5.N5Reader;
 import org.janelia.saalfeldlab.n5.N5Writer;
@@ -47,6 +48,7 @@ import javafx.application.Application;
 import javafx.application.Platform;
 import javafx.scene.Scene;
 import javafx.scene.input.KeyCode;
+import javafx.scene.input.MouseEvent;
 import javafx.scene.paint.Color;
 import javafx.stage.Stage;
 import net.imglib2.Volatile;
@@ -87,12 +89,13 @@ public class Paintera extends Application
 		final OrthogonalViews< Viewer3DFX > orthoViews = baseView.orthogonalViews();
 
 		final KeyTracker keyTracker = new KeyTracker();
+		final MouseTracker mouseTracker = new MouseTracker();
 
 		final BorderPaneWithStatusBars paneWithStatus = new BorderPaneWithStatusBars(
 				baseView,
 				painteraArgs::project );
 
-		final PainteraDefaultHandlers defaultHandlers = new PainteraDefaultHandlers( baseView, keyTracker, paneWithStatus );
+		final PainteraDefaultHandlers defaultHandlers = new PainteraDefaultHandlers( baseView, keyTracker, mouseTracker, paneWithStatus );
 
 		// TODO (de-)seraizlie config
 		final NavigationConfig navigationConfig = new NavigationConfig();
@@ -206,6 +209,7 @@ public class Paintera extends Application
 				e -> keyTracker.areOnlyTheseKeysDown( KeyCode.CONTROL, KeyCode.S ) ).installInto( paneWithStatus.getPane() );
 
 		keyTracker.installInto( scene );
+		scene.addEventFilter( MouseEvent.ANY, mouseTracker );
 		stage.setScene( scene );
 		stage.setWidth( properties.windowProperties.widthProperty.get() );
 		stage.setHeight( properties.windowProperties.heightProperty.get() );

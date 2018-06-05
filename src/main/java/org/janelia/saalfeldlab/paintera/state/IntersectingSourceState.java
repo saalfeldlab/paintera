@@ -71,12 +71,12 @@ import tmp.bdv.img.cache.VolatileCachedCellImg;
 import tmp.net.imglib2.cache.ref.WeakRefVolatileCache;
 
 public class IntersectingSourceState
-extends MinimalSourceState< UnsignedByteType, VolatileUnsignedByteType, DataSource< UnsignedByteType, VolatileUnsignedByteType >, ARGBColorConverter< VolatileUnsignedByteType > >
+		extends MinimalSourceState< UnsignedByteType, VolatileUnsignedByteType, DataSource< UnsignedByteType, VolatileUnsignedByteType >, ARGBColorConverter< VolatileUnsignedByteType > >
 {
 
 	private static final Logger LOG = LoggerFactory.getLogger( MethodHandles.lookup().lookupClass() );
 
-	private final MeshManagerSimple< TLongHashSet > meshManager;
+	private final MeshManagerSimple< TLongHashSet, TLongHashSet > meshManager;
 
 	public < D extends Type< D >, T extends Type< T >, B extends BooleanType< B > > IntersectingSourceState(
 			final ThresholdingSourceState< ?, ? > thresholded,
@@ -100,7 +100,7 @@ extends MinimalSourceState< UnsignedByteType, VolatileUnsignedByteType, DataSour
 				labels );
 		final DataSource< UnsignedByteType, VolatileUnsignedByteType > source = getDataSource();
 
-		final MeshManager< TLongHashSet > meshManager = labels.meshManager();
+		final MeshManager< Long, TLongHashSet > meshManager = labels.meshManager();
 
 		final SelectedIds selectedIds = labels.selectedIds();
 //		final InterruptibleFunctionAndCache< ShapeKey< Long >, Pair< float[], float[] > >[] meshCaches = CacheUtils.meshCacheLoaders(
@@ -118,7 +118,10 @@ extends MinimalSourceState< UnsignedByteType, VolatileUnsignedByteType, DataSour
 
 		this.meshManager = new MeshManagerSimple<>(
 				meshManager.blockListCache(),
-//				BlocksForLabelDelegate.delegate( meshManager.blockListCache(), key -> Arrays.stream( fragmentsInSelectedSegments.getFragments() ).mapToObj( l -> l ).toArray( Long[]::new ) ),
+				// BlocksForLabelDelegate.delegate(
+				// meshManager.blockListCache(), key -> Arrays.stream(
+				// fragmentsInSelectedSegments.getFragments() ).mapToObj( l -> l
+				// ).toArray( Long[]::new ) ),
 				meshCaches,
 				meshesGroup,
 				new SimpleIntegerProperty(),
@@ -126,17 +129,17 @@ extends MinimalSourceState< UnsignedByteType, VolatileUnsignedByteType, DataSour
 				new SimpleIntegerProperty(),
 				manager,
 				workers,
-				TLongHashSet::toArray
-				);
-		final ObjectBinding< Color > colorProperty = Bindings.createObjectBinding( ()-> Colors.toColor( this.converter().getColor() ), this.converter().colorProperty() );
+				TLongHashSet::toArray,
+				hs -> hs );
+		final ObjectBinding< Color > colorProperty = Bindings.createObjectBinding( () -> Colors.toColor( this.converter().getColor() ), this.converter().colorProperty() );
 		this.meshManager.colorProperty().bind( colorProperty );
 		this.meshManager.scaleLevelProperty().bind( meshManager.scaleLevelProperty() );
 
-		thresholded.getThreshold().minValue().addListener( (obs, oldv, newv ) -> {
+		thresholded.getThreshold().minValue().addListener( ( obs, oldv, newv ) -> {
 			Arrays.stream( meshCaches ).forEach( UncheckedCache::invalidateAll );
 			update( source, fragmentsInSelectedSegments );
 		} );
-		thresholded.getThreshold().maxValue().addListener( (obs, oldv, newv ) -> {
+		thresholded.getThreshold().maxValue().addListener( ( obs, oldv, newv ) -> {
 			Arrays.stream( meshCaches ).forEach( UncheckedCache::invalidateAll );
 			update( source, fragmentsInSelectedSegments );
 		} );
@@ -176,7 +179,7 @@ extends MinimalSourceState< UnsignedByteType, VolatileUnsignedByteType, DataSour
 		}
 	}
 
-	public MeshManager< TLongHashSet > meshManager()
+	public MeshManager< TLongHashSet, TLongHashSet > meshManager()
 	{
 		return this.meshManager;
 	}
@@ -203,7 +206,7 @@ extends MinimalSourceState< UnsignedByteType, VolatileUnsignedByteType, DataSour
 		for ( int level = 0; level < thresholded.getDataSource().getNumMipmapLevels(); ++level )
 		{
 			final DataSource< D, T > labelsSource = labels.getDataSource() instanceof MaskedSource< ?, ? >
-			? ( ( MaskedSource< D, T > ) labels.getDataSource() ).underlyingSource()
+					? ( ( MaskedSource< D, T > ) labels.getDataSource() ).underlyingSource()
 					: labels.getDataSource();
 			final AffineTransform3D tf1 = new AffineTransform3D();
 			final AffineTransform3D tf2 = new AffineTransform3D();
@@ -215,7 +218,7 @@ extends MinimalSourceState< UnsignedByteType, VolatileUnsignedByteType, DataSour
 			final RandomAccessibleInterval< D > label = labelsSource.getDataSource( 0, level );
 
 			final CellGrid grid = label instanceof AbstractCellImg< ?, ?, ?, ? >
-			? ( ( AbstractCellImg< ?, ?, ?, ? > ) label ).getCellGrid()
+					? ( ( AbstractCellImg< ?, ?, ?, ? > ) label ).getCellGrid()
 					: new CellGrid( Intervals.dimensionsAsLongArray( label ), Arrays.stream( Intervals.dimensionsAsLongArray( label ) ).mapToInt( l -> ( int ) l ).toArray() );
 
 			final B extension = Util.getTypeFromInterval( thresh );

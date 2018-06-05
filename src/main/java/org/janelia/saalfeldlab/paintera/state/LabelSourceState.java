@@ -72,7 +72,7 @@ public class LabelSourceState< D, T >
 
 	private final IdService idService;
 
-	private final MeshManager< TLongHashSet > meshManager;
+	private final MeshManager< Long, TLongHashSet > meshManager;
 
 	private final MeshInfos< TLongHashSet > meshInfos;
 
@@ -142,7 +142,7 @@ public class LabelSourceState< D, T >
 				this::refreshMeshes,
 				meshManagerExecutors,
 				meshWorkersExecutors );
-		final MeshInfos< TLongHashSet > meshInfos = new MeshInfos<>( selectedSegments, assignment, meshManager, assignment::getFragments, dataSource.getNumMipmapLevels() );
+		final MeshInfos< TLongHashSet > meshInfos = new MeshInfos<>( selectedSegments, assignment, meshManager, dataSource.getNumMipmapLevels() );
 
 		this.meshManager = meshManager;
 		this.meshInfos = meshInfos;
@@ -163,7 +163,7 @@ public class LabelSourceState< D, T >
 	}
 
 	@Override
-	public MeshManager< TLongHashSet > meshManager()
+	public MeshManager< Long, TLongHashSet > meshManager()
 	{
 		return this.meshManager;
 	}

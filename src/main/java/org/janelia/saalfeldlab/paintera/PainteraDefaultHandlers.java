@@ -11,6 +11,7 @@ import java.util.function.Consumer;
 
 import org.janelia.saalfeldlab.fx.event.EventFX;
 import org.janelia.saalfeldlab.fx.event.KeyTracker;
+import org.janelia.saalfeldlab.fx.event.MouseTracker;
 import org.janelia.saalfeldlab.fx.ortho.GridResizer;
 import org.janelia.saalfeldlab.fx.ortho.OnEnterOnExit;
 import org.janelia.saalfeldlab.fx.ortho.OrthogonalViews;
@@ -73,6 +74,8 @@ public class PainteraDefaultHandlers
 	@SuppressWarnings( "unused" )
 	private final KeyTracker keyTracker;
 
+	private final MouseTracker mouseTracker;
+
 	private final OrthogonalViews< Viewer3DFX > orthogonalViews;
 
 	private final SourceInfo sourceInfo;
@@ -110,10 +113,12 @@ public class PainteraDefaultHandlers
 	public PainteraDefaultHandlers(
 			final PainteraBaseView baseView,
 			final KeyTracker keyTracker,
+			final MouseTracker mouseTracker,
 			final BorderPaneWithStatusBars paneWithStatus )
 	{
 		this.baseView = baseView;
 		this.keyTracker = keyTracker;
+		this.mouseTracker = mouseTracker;
 		this.orthogonalViews = baseView.orthogonalViews();
 		this.sourceInfo = baseView.sourceInfo();
 		this.numSources = Bindings.size( sourceInfo.trackSources() );
@@ -234,7 +239,7 @@ public class PainteraDefaultHandlers
 				MouseEvent.MOUSE_CLICKED,
 				e -> {
 					LOG.debug( "Handling event {}", e );
-					if ( MouseButton.SECONDARY.equals( e.getButton() ) && e.getClickCount() == 1 )
+					if ( MouseButton.SECONDARY.equals( e.getButton() ) && e.getClickCount() == 1 && !mouseTracker.isDragging() )
 					{
 						LOG.debug( "Check passed for event {}", e );
 						e.consume();

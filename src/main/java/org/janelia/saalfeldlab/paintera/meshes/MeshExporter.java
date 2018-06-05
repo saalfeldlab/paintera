@@ -48,9 +48,9 @@ public abstract class MeshExporter< T >
 		final Set< HashWrapper< Interval > > blockSet = new HashSet<>();
 
 		Arrays
-		.stream( blockListCache[ scaleIndex ].apply( id ) )
-		.map( HashWrapper::interval )
-		.forEach( blockSet::add );
+				.stream( blockListCache[ scaleIndex ].apply( id ) )
+				.map( HashWrapper::interval )
+				.forEach( blockSet::add );
 
 		final Interval[] blocks = blockSet.stream().map( HashWrapper::getData ).toArray( Interval[]::new );
 

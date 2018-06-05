@@ -2,6 +2,8 @@ package org.janelia.saalfeldlab.paintera.serialization.sourcestate;
 
 import java.io.IOException;
 import java.lang.invoke.MethodHandles;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Optional;
 import java.util.function.IntFunction;
 import java.util.function.Supplier;
@@ -10,6 +12,7 @@ import org.janelia.saalfeldlab.n5.N5Writer;
 import org.janelia.saalfeldlab.paintera.N5Helpers;
 import org.janelia.saalfeldlab.paintera.composition.Composite;
 import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignmentState;
+import org.janelia.saalfeldlab.paintera.control.assignment.action.AssignmentAction;
 import org.janelia.saalfeldlab.paintera.control.lock.LockedSegmentsOnlyLocal;
 import org.janelia.saalfeldlab.paintera.control.selection.SelectedIds;
 import org.janelia.saalfeldlab.paintera.data.DataSource;
@@ -26,6 +29,7 @@ import org.janelia.saalfeldlab.paintera.stream.HighlightingStreamConverter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.google.gson.JsonArray;
 import com.google.gson.JsonDeserializationContext;
 import com.google.gson.JsonObject;
 
@@ -113,9 +117,22 @@ public class LabelSourceStateDeserializer< C extends HighlightingStreamConverter
 		final FragmentSegmentAssignmentState assignment = N5Helpers.assignments(
 				writer,
 				dataset,
-				context.deserialize( assignmentMap.get( FragmentSegmentAssignmentOnlyLocalSerializer.FRAGMENTS_KEY ), long[].class ),
-				context.deserialize( assignmentMap.get( FragmentSegmentAssignmentOnlyLocalSerializer.FRAGMENTS_KEY ), long[].class ),
 				idService );
+
+		if ( assignmentMap != null && assignmentMap.has( FragmentSegmentAssignmentOnlyLocalSerializer.ACTIONS_KEY ) )
+		{
+			final JsonArray serializedActions = assignmentMap.get( FragmentSegmentAssignmentOnlyLocalSerializer.ACTIONS_KEY ).getAsJsonArray();
+			final List< AssignmentAction > actions = new ArrayList<>();
+			for ( int i = 0; i < serializedActions.size(); ++i )
+			{
+				final JsonObject entry = serializedActions.get( i ).getAsJsonObject();
+				final AssignmentAction.Type type = context.deserialize( entry.get( FragmentSegmentAssignmentOnlyLocalSerializer.TYPE_KEY ), AssignmentAction.Type.class );
+				final AssignmentAction action = context.deserialize( entry.get( FragmentSegmentAssignmentOnlyLocalSerializer.DATA_KEY ), type.getClassForType() );
+				actions.add( action );
+			}
+			assignment.apply( actions );
+		}
+
 		final LockedSegmentsOnlyLocal lockedSegments = new LockedSegmentsOnlyLocal( locked -> {}, locallyLockedSegments );
 
 		final AbstractHighlightingARGBStream stream = converter.getStream();

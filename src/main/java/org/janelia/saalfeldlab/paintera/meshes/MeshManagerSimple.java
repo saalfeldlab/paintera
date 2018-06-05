@@ -5,6 +5,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.ExecutorService;
 import java.util.function.Function;
 
@@ -32,7 +33,7 @@ import net.imglib2.util.Pair;
  *
  * @author Philipp Hanslovsky
  */
-public class MeshManagerSimple< T > implements MeshManager< T >
+public class MeshManagerSimple< N, T > implements MeshManager< N, T >
 {
 
 	private static final Logger LOG = LoggerFactory.getLogger( MethodHandles.lookup().lookupClass() );
@@ -41,7 +42,7 @@ public class MeshManagerSimple< T > implements MeshManager< T >
 
 	private final InterruptibleFunction< ShapeKey< T >, Pair< float[], float[] > >[] meshCache;
 
-	private final Map< T, MeshGenerator< T > > neurons = Collections.synchronizedMap( new HashMap<>() );
+	private final Map< N, MeshGenerator< T > > neurons = Collections.synchronizedMap( new HashMap<>() );
 
 	private final Group root;
 
@@ -61,7 +62,9 @@ public class MeshManagerSimple< T > implements MeshManager< T >
 
 	private final DoubleProperty opacity = new SimpleDoubleProperty( 1.0 );
 
-	private final Function< T, long[] > getIds;
+	private final Function< N, long[] > getIds;
+
+	private final Function< N, T > idToMeshId;
 
 	// TODO actually do something
 	private final Runnable refreshMeshes = () -> {};
@@ -75,13 +78,15 @@ public class MeshManagerSimple< T > implements MeshManager< T >
 			final ObservableIntegerValue smoothingIterations,
 			final ExecutorService managers,
 			final ExecutorService workers,
-			final Function< T, long[] > getIds )
+			final Function< N, long[] > getIds,
+			final Function< N, T > idToMeshId )
 	{
 		super();
 		this.blockListCache = blockListCache;
 		this.meshCache = meshCache;
 		this.root = root;
 		this.getIds = getIds;
+		this.idToMeshId = idToMeshId;
 
 		this.meshSimplificationIterations.set( Math.max( meshSimplificationIterations.get(), 0 ) );
 		meshSimplificationIterations.addListener( ( obs, oldv, newv ) -> {
@@ -108,18 +113,15 @@ public class MeshManagerSimple< T > implements MeshManager< T >
 	}
 
 	@Override
-	public void generateMesh( final T id )
+	public void generateMesh( final N id )
 	{
 		final IntegerBinding color = Bindings.createIntegerBinding( () -> Colors.toARGBType( this.color.get() ).get(), this.color );
 
-		for ( final T neuron : neurons.keySet() )
-		{
-			if ( neuron.equals( id ) ) { return; }
-		}
+		if ( neurons.containsKey( id ) ) { return; }
 
 		LOG.debug( "Adding mesh for segment {} (composed of ids={}).", id, getIds.apply( id ) );
 		final MeshGenerator< T > nfx = new MeshGenerator<>(
-				id,
+				idToMeshId.apply( id ),
 				blockListCache,
 				meshCache,
 				color,
@@ -138,22 +140,18 @@ public class MeshManagerSimple< T > implements MeshManager< T >
 	}
 
 	@Override
-	public void removeMesh( final T id )
+	public void removeMesh( final N id )
 	{
-		if ( this.unmodifiableMeshMap().get( id ) != null )
-		{
-			this.removeMesh( id );
-		}
+		Optional.ofNullable( this.neurons.remove( id ) ).ifPresent( this::removeMesh );
 	}
 
 	private void removeMesh( final MeshGenerator< T > mesh )
 	{
 		mesh.rootProperty().set( null );
-		this.neurons.remove( mesh.getId() );
 	}
 
 	@Override
-	public Map< T, MeshGenerator< T > > unmodifiableMeshMap()
+	public Map< N, MeshGenerator< T > > unmodifiableMeshMap()
 	{
 		return Collections.unmodifiableMap( neurons );
 	}
@@ -213,7 +211,7 @@ public class MeshManagerSimple< T > implements MeshManager< T >
 	}
 
 	@Override
-	public long[] containedFragments( final T id )
+	public long[] containedFragments( final N id )
 	{
 		return getIds.apply( id );
 	}

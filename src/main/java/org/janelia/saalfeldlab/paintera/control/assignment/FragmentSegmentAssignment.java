@@ -1,9 +1,22 @@
 package org.janelia.saalfeldlab.paintera.control.assignment;
 
+import java.lang.invoke.MethodHandles;
+import java.util.Collection;
+import java.util.Optional;
+import java.util.function.LongSupplier;
+
+import org.janelia.saalfeldlab.paintera.control.assignment.action.AssignmentAction;
+import org.janelia.saalfeldlab.paintera.control.assignment.action.Detach;
+import org.janelia.saalfeldlab.paintera.control.assignment.action.Merge;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import gnu.trove.set.hash.TLongHashSet;
 
 public interface FragmentSegmentAssignment
 {
+
+	public static final Logger LOG = LoggerFactory.getLogger( MethodHandles.lookup().lookupClass() );
 
 	/**
 	 *
@@ -21,35 +34,38 @@ public interface FragmentSegmentAssignment
 	 */
 	public TLongHashSet getFragments( final long segmentId );
 
-	/**
-	 * Merge fragments
-	 *
-	 * @param fragment1
-	 * @param fragment2
-	 */
-	public void mergeFragments( final long fragment1, long fragment2 );
+	public void apply( AssignmentAction action );
 
-	/**
-	 * TODO should this have only one argument (always detach fragment) or two
-	 * (only detach if correct segment is selected already)?
-	 * 
-	 * @param fragmentId
-	 * @param from
-	 */
-	public void detachFragment( final long fragmentId, long from );
+	public void apply( Collection< ? extends AssignmentAction > actions );
 
-	/**
-	 *
-	 * @param groupedFragments
-	 * @param notInGroupFragments
-	 */
-	public void confirmGrouping( final long[] groupedFragments, final long[] notInGroupFragments );
+	// TODO should get<TYPE>Action be part of interface?
+	public default Optional< Merge > getMergeAction(
+			final long from,
+			final long into,
+			final LongSupplier newSegmentId )
+	{
+		return Optional.empty();
+	}
 
-	/**
-	 *
-	 * @param fragmentsInSegment1
-	 * @param fragmentsInSegment2
-	 */
-	public void confirmTwoSegments( final long[] fragmentsInSegment1, final long[] fragmentsInSegment2 );
+	public default Optional< Detach > getDetachAction(
+			final long fragmentId,
+			final long from )
+	{
+		return Optional.empty();
+	}
+
+	public default Optional< AssignmentAction > getConfirmGroupingAction(
+			final long[] fragmentsWithin,
+			final long[] fragmentsWihout )
+	{
+		return Optional.empty();
+	}
+
+	public default Optional< AssignmentAction > getConfirmTwoSegmentsAction(
+			final long[] segment1,
+			final long[] segment2 )
+	{
+		return Optional.empty();
+	}
 
 }

@@ -50,18 +50,18 @@ public class MeshExporterDialog< T > extends Dialog< ExportResult< T > >
 
 	private long[][] fragmentIds;
 
-	private T[] segmentIds;
+	private long[] segmentIds;
 
 	private ComboBox< String > fileFormats;
 
-	private CheckListView< T > checkListView;
+	private CheckListView< Long > checkListView;
 
 	private final BooleanBinding isError;
 
 	public MeshExporterDialog( final MeshInfo< T > meshInfo )
 	{
 		super();
-		this.segmentIds = (T[])new Object[] { meshInfo.segmentId() };
+		this.segmentIds = new long[] { meshInfo.segmentId() };
 		this.fragmentIds = new long[][] { meshInfo.containedFragments() };
 		this.filePath = new TextField();
 		this.filePaths = new String[] { "" };
@@ -71,9 +71,7 @@ public class MeshExporterDialog< T > extends Dialog< ExportResult< T > >
 
 		setNumericTextField( scale, meshInfo.numScaleLevels() - 1 );
 		setResultConverter( button -> {
-			if ( button.getButtonData().isCancelButton() ) {
-				return null;
-			}
+			if ( button.getButtonData().isCancelButton() ) { return null; }
 			return new ExportResult( meshExporter, fragmentIds, segmentIds, Integer.parseInt( scale.getText() ), filePaths );
 		} );
 
@@ -87,7 +85,7 @@ public class MeshExporterDialog< T > extends Dialog< ExportResult< T > >
 		final ObservableList< MeshInfo< T > > meshInfoList = meshInfos.readOnlyInfos();
 		this.filePath = new TextField();
 		this.setTitle( "Export mesh " );
-		this.segmentIds = (T[])new Object[ meshInfoList.size() ];
+		this.segmentIds = new long[ meshInfoList.size() ];
 		this.fragmentIds = new long[ meshInfoList.size() ][];
 		this.filePaths = new String[ meshInfoList.size() ];
 		this.checkListView = new CheckListView<>();
@@ -96,7 +94,7 @@ public class MeshExporterDialog< T > extends Dialog< ExportResult< T > >
 
 		int minCommonScaleLevels = Integer.MAX_VALUE;
 		int minCommonScale = Integer.MAX_VALUE;
-		final ObservableList< T > ids = FXCollections.observableArrayList();
+		final ObservableList< Long > ids = FXCollections.observableArrayList();
 		for ( int i = 0; i < meshInfoList.size(); i++ )
 		{
 			final MeshInfo< T > info = meshInfoList.get( i );
@@ -119,10 +117,8 @@ public class MeshExporterDialog< T > extends Dialog< ExportResult< T > >
 		setNumericTextField( scale, minCommonScaleLevels - 1 );
 
 		setResultConverter( button -> {
-			if ( button.getButtonData().isCancelButton() ) {
-				return null;
-			}
-			return new ExportResult< >( meshExporter, fragmentIds, segmentIds, Integer.parseInt( scale.getText() ), filePaths );
+			if ( button.getButtonData().isCancelButton() ) { return null; }
+			return new ExportResult<>( meshExporter, fragmentIds, segmentIds, Integer.parseInt( scale.getText() ), filePaths );
 		} );
 
 		createMultiIdsDialog( ids );
@@ -157,7 +153,7 @@ public class MeshExporterDialog< T > extends Dialog< ExportResult< T > >
 		this.getDialogPane().setContent( vbox );
 	}
 
-	private void createMultiIdsDialog( final ObservableList< T > ids )
+	private void createMultiIdsDialog( final ObservableList< Long > ids )
 	{
 		final VBox vbox = new VBox();
 		final GridPane contents = new GridPane();
@@ -174,11 +170,9 @@ public class MeshExporterDialog< T > extends Dialog< ExportResult< T > >
 			filePath.setText( directory.getPath() );
 
 			// recover selected ids
-			final List< T > selectedIds = new ArrayList<>();
+			final List< Long > selectedIds = new ArrayList<>();
 
-			if ( checkListView.getItems().size() == 0 ) {
-				return;
-			}
+			if ( checkListView.getItems().size() == 0 ) { return; }
 
 			for ( int i = 0; i < checkListView.getItems().size(); i++ )
 			{
@@ -188,7 +182,7 @@ public class MeshExporterDialog< T > extends Dialog< ExportResult< T > >
 				}
 			}
 
-			segmentIds = (T[])selectedIds.stream().toArray( Object[]::new );
+			segmentIds = selectedIds.stream().mapToLong( l -> l ).toArray();
 
 			for ( int i = 0; i < selectedIds.size(); i++ )
 			{

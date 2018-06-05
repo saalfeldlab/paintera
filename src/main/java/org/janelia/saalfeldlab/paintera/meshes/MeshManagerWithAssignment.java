@@ -35,7 +35,7 @@ import net.imglib2.util.Pair;
  *
  * @author Philipp Hanslovsky
  */
-public class MeshManagerWithAssignment implements MeshManager< Long >
+public class MeshManagerWithAssignment implements MeshManager< Long, Long >
 {
 
 	private static final Logger LOG = LoggerFactory.getLogger( MethodHandles.lookup().lookupClass() );

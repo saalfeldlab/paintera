@@ -10,6 +10,9 @@ import java.util.stream.Collectors;
 import org.janelia.saalfeldlab.fx.event.InstallAndRemove;
 import org.janelia.saalfeldlab.fx.event.MouseClickFX;
 import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignmentState;
+import org.janelia.saalfeldlab.paintera.control.assignment.action.AssignmentAction;
+import org.janelia.saalfeldlab.paintera.control.assignment.action.Detach;
+import org.janelia.saalfeldlab.paintera.control.assignment.action.Merge;
 import org.janelia.saalfeldlab.paintera.control.lock.LockedSegmentsState;
 import org.janelia.saalfeldlab.paintera.control.selection.SelectedIds;
 import org.janelia.saalfeldlab.paintera.data.DataSource;
@@ -242,7 +245,8 @@ public class IdSelector
 						final long id = toIdConverter.get().biggestFragment( val );
 
 						LOG.debug( "Merging fragments: {} -- last selection: {}", id, lastSelection );
-						assignments.mergeFragments( id, lastSelection );
+						final Optional< Merge > action = assignments.getMergeAction( id, lastSelection, state.idService()::next );
+						action.ifPresent( assignments::apply );
 					}
 				}
 			}
@@ -296,7 +300,8 @@ public class IdSelector
 						final Object val = access.get();
 						final long id = toIdConverter.get().biggestFragment( val );
 
-						assignment.detachFragment( id, lastSelection );
+						final Optional< Detach > detach = assignment.getDetachAction( id, lastSelection );
+						detach.ifPresent( assignment::apply );
 
 					}
 				}
@@ -375,7 +380,8 @@ public class IdSelector
 							final long[] visibleFragments = visibleFragmentsSet.toArray();
 							final long[] fragmentsInActiveSegment = Arrays.stream( visibleFragments ).filter( frag -> selectedSegmentsSet.contains( assignment.getSegment( frag ) ) ).toArray();
 							final long[] fragmentsNotInActiveSegment = Arrays.stream( visibleFragments ).filter( frag -> !selectedSegmentsSet.contains( assignment.getSegment( frag ) ) ).toArray();
-							assignment.confirmGrouping( fragmentsInActiveSegment, fragmentsNotInActiveSegment );
+							final Optional< AssignmentAction > action = assignment.getConfirmGroupingAction( fragmentsInActiveSegment, fragmentsNotInActiveSegment );
+							action.ifPresent( assignment::apply );
 						}
 
 						else
@@ -395,7 +401,8 @@ public class IdSelector
 									}
 								}
 							} );
-							assignment.confirmTwoSegments( fragmentsBySegment.get( relevantSegments[ 0 ] ).toArray(), fragmentsBySegment.get( relevantSegments[ 1 ] ).toArray() );
+							final Optional< AssignmentAction > action = assignment.getConfirmTwoSegmentsAction( fragmentsBySegment.get( relevantSegments[ 0 ] ).toArray(), fragmentsBySegment.get( relevantSegments[ 1 ] ).toArray() );
+							action.ifPresent( assignment::apply );
 						}
 
 					}

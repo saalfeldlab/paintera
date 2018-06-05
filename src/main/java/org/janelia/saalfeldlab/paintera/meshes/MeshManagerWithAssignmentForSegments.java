@@ -38,7 +38,7 @@ import net.imglib2.util.Pair;
  *
  * @author Philipp Hanslovsky
  */
-public class MeshManagerWithAssignmentForSegments implements MeshManager< TLongHashSet >
+public class MeshManagerWithAssignmentForSegments implements MeshManager< Long, TLongHashSet >
 {
 
 	private static final Logger LOG = LoggerFactory.getLogger( MethodHandles.lookup().lookupClass() );
@@ -53,7 +53,7 @@ public class MeshManagerWithAssignmentForSegments implements MeshManager< TLongH
 
 	private final AbstractHighlightingARGBStream stream;
 
-	private final Map< TLongHashSet, MeshGenerator< TLongHashSet > > neurons = Collections.synchronizedMap( new HashMap<>() );
+	private final Map< Long, MeshGenerator< TLongHashSet > > neurons = Collections.synchronizedMap( new HashMap<>() );
 
 	private final Group root;
 
@@ -130,7 +130,6 @@ public class MeshManagerWithAssignmentForSegments implements MeshManager< TLongH
 
 		this.assignment.addListener( obs -> this.update() );
 		this.selectedSegments.addListener( obs -> this.update() );
-
 	}
 
 	private void update()
@@ -139,15 +138,16 @@ public class MeshManagerWithAssignmentForSegments implements MeshManager< TLongH
 		{
 			final long[] selectedSegments = this.selectedSegments.getSelectedSegments();
 			final TLongHashSet selectedSegmentsSet = new TLongHashSet( selectedSegments );
-			final Set< TLongHashSet > currentlyShowing = new HashSet<>();
-			final List< Entry< TLongHashSet, MeshGenerator< TLongHashSet > > > toBeRemoved = new ArrayList<>();
+			final Set< Long > currentlyShowing = new HashSet<>();
+			final List< Entry< Long, MeshGenerator< TLongHashSet > > > toBeRemoved = new ArrayList<>();
 			neurons.keySet().forEach( currentlyShowing::add );
-			for ( final Entry< TLongHashSet, MeshGenerator< TLongHashSet > > neuron : neurons.entrySet() )
+			for ( final Entry< Long, MeshGenerator< TLongHashSet > > neuron : neurons.entrySet() )
 			{
-				final TLongHashSet fragmentsInSegment = neuron.getKey();
-				final long segment = this.assignment.getSegment( fragmentsInSegment.iterator().next() );
+				final long segment = neuron.getKey();
+				final TLongHashSet fragmentsInSegment = assignment.getFragments( segment );
 				final boolean isSelected = selectedSegmentsSet.contains( segment );
 				final boolean isConsistent = neuron.getValue().getId().equals( fragmentsInSegment );
+				LOG.debug( "Fragments in segment {}: {}", segment, fragmentsInSegment );
 				LOG.debug( "Segment {} is selected? {}  Is consistent? {}", neuron.getKey(), isSelected, isConsistent );
 				if ( !isSelected || !isConsistent )
 				{
@@ -162,23 +162,32 @@ public class MeshManagerWithAssignmentForSegments implements MeshManager< TLongH
 			LOG.debug( "To be removed {}", toBeRemoved );
 			Arrays
 					.stream( selectedSegments )
-					.mapToObj( segment -> assignment.getFragments( segment ) )
 					.filter( id -> !currentlyShowing.contains( id ) )
 					.forEach( this::generateMesh );
 		}
 	}
 
 	@Override
-	public void generateMesh( final TLongHashSet fragments )
+	public void generateMesh( final Long idObject )
 	{
-		final long id = assignment.getSegment( fragments.iterator().next() );
+		final long id = idObject;
+
+		if ( !this.selectedSegments.isSegmentSelected( id ) )
+		{
+			LOG.debug( "Id {} not selected -- will return without creating mesh", id );
+			return;
+		}
+
+		final TLongHashSet fragments = this.assignment.getFragments( id );
+
 		final IntegerProperty color = new SimpleIntegerProperty( stream.argb( id ) );
 		stream.addListener( obs -> color.set( stream.argb( id ) ) );
 		assignment.addListener( obs -> color.set( stream.argb( id ) ) );
 
-		for ( final Entry< TLongHashSet, MeshGenerator< TLongHashSet > > neuron : neurons.entrySet() )
+		final Boolean isPresentAndValid = Optional.ofNullable( neurons.get( idObject ) ).map( MeshGenerator::getId ).map( fragments::equals ).orElse( false );
+		if ( isPresentAndValid )
 		{
-			if ( neuron.getValue().getId().equals( fragments ) ) { return; }
+			LOG.warn( "Id {} already present with valid selection {}", id, fragments );
 		}
 
 		LOG.debug( "Adding mesh for segment {}.", id );
@@ -196,12 +205,12 @@ public class MeshManagerWithAssignmentForSegments implements MeshManager< TLongH
 		nfx.opacityProperty().set( this.opacity.get() );
 		nfx.rootProperty().set( this.root );
 
-		neurons.put( fragments, nfx );
+		neurons.put( idObject, nfx );
 
 	}
 
 	@Override
-	public void removeMesh( final TLongHashSet id )
+	public void removeMesh( final Long id )
 	{
 		Optional.ofNullable( unmodifiableMeshMap().get( id ) ).ifPresent( this::removeMesh );
 	}
@@ -209,7 +218,7 @@ public class MeshManagerWithAssignmentForSegments implements MeshManager< TLongH
 	private void removeMesh( final MeshGenerator< TLongHashSet > mesh )
 	{
 		mesh.rootProperty().set( null );
-		final List< TLongHashSet > toRemove = this.neurons
+		final List< Long > toRemove = this.neurons
 				.entrySet()
 				.stream()
 				.filter( e -> e.getValue().getId().equals( mesh.getId() ) )
@@ -219,7 +228,7 @@ public class MeshManagerWithAssignmentForSegments implements MeshManager< TLongH
 	}
 
 	@Override
-	public Map< TLongHashSet, MeshGenerator< TLongHashSet > > unmodifiableMeshMap()
+	public Map< Long, MeshGenerator< TLongHashSet > > unmodifiableMeshMap()
 	{
 		return Collections.unmodifiableMap( neurons );
 	}
@@ -276,9 +285,9 @@ public class MeshManagerWithAssignmentForSegments implements MeshManager< TLongH
 	}
 
 	@Override
-	public long[] containedFragments( final TLongHashSet t )
+	public long[] containedFragments( final Long t )
 	{
-		return t.toArray();
+		return this.assignment.getFragments( t ).toArray();
 	}
 
 	@Override

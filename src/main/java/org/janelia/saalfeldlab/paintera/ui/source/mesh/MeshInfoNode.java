@@ -79,9 +79,9 @@ public class MeshInfoNode< T > implements BindUnbindAndNodeSupplier
 	}
 
 	public MeshInfoNode(
-			final T segmentId,
+			final Long segmentId,
 			final FragmentSegmentAssignment assignment,
-			final MeshManager< T > meshManager,
+			final MeshManager< Long, T > meshManager,
 			final int numScaleLevels )
 	{
 		this( new MeshInfo<>( segmentId, assignment, meshManager, numScaleLevels ) );
@@ -95,7 +95,7 @@ public class MeshInfoNode< T > implements BindUnbindAndNodeSupplier
 		smoothingIterationsSlider.slider().valueProperty().bindBidirectional( meshInfo.smoothingIterationsProperty() );
 		opacitySlider.slider().valueProperty().bindBidirectional( meshInfo.opacityProperty() );
 		drawModeChoice.valueProperty().bindBidirectional( meshInfo.drawModeProperty() );
-		cullFaceChoice.valueProperty().bindBidirectional( meshInfo.cullFaceProperty()  );
+		cullFaceChoice.valueProperty().bindBidirectional( meshInfo.cullFaceProperty() );
 		this.submittedTasks.bind( meshInfo.submittedTasksProperty() );
 		this.completedTasks.bind( meshInfo.completedTasksProperty() );
 	}
@@ -120,8 +120,7 @@ public class MeshInfoNode< T > implements BindUnbindAndNodeSupplier
 			final DoubleProperty opacity,
 			final Property< DrawMode > drawMode,
 			final Property< CullFace > cullFace,
-			final boolean bind
-			)
+			final boolean bind )
 	{
 		if ( bind )
 		{
@@ -139,8 +138,7 @@ public class MeshInfoNode< T > implements BindUnbindAndNodeSupplier
 			final DoubleProperty smoothingIterations,
 			final DoubleProperty opacity,
 			final Property< DrawMode > drawMode,
-			final Property< CullFace > cullFace
-			)
+			final Property< CullFace > cullFace )
 	{
 		this.scaleSlider.slider().valueProperty().bindBidirectional( scaleLevel );
 		this.smoothingLambdaSlider.slider().valueProperty().bindBidirectional( smoothingLambda );
@@ -156,8 +154,7 @@ public class MeshInfoNode< T > implements BindUnbindAndNodeSupplier
 			final DoubleProperty smoothingIterations,
 			final DoubleProperty opacity,
 			final Property< DrawMode > drawMode,
-			final Property< CullFace > cullFace
-			)
+			final Property< CullFace > cullFace )
 	{
 		this.scaleSlider.slider().valueProperty().unbindBidirectional( scaleLevel );
 		this.smoothingLambdaSlider.slider().valueProperty().unbindBidirectional( smoothingLambda );
@@ -208,16 +205,14 @@ public class MeshInfoNode< T > implements BindUnbindAndNodeSupplier
 			if ( result.isPresent() )
 			{
 				final ExportResult< T > parameters = result.get();
-				assert parameters.getSegmentId().length == 1;
 				parameters.getMeshExporter().exportMesh(
 						meshInfo.meshManager().blockListCache(),
 						meshInfo.meshManager().meshCache(),
-						parameters.getSegmentId()[ 0 ],
+						meshInfo.meshManager().unmodifiableMeshMap().get( parameters.getSegmentId()[ 0 ] ).getId(),
 						parameters.getScale(),
 						parameters.getFilePaths()[ 0 ] );
 			}
 		} );
-
 
 		final Label ids = new Label( Arrays.toString( fragments ) );
 		final Label idsLabel = new Label( "ids: " );
@@ -227,10 +222,9 @@ public class MeshInfoNode< T > implements BindUnbindAndNodeSupplier
 		idsLabel.setMinWidth( 30 );
 		idsLabel.setMaxWidth( 30 );
 		final Region spacer = new Region();
-		final HBox idsRow = new HBox ( idsLabel, spacer, ids );
+		final HBox idsRow = new HBox( idsLabel, spacer, ids );
 		HBox.setHgrow( ids, Priority.ALWAYS );
 		HBox.setHgrow( spacer, Priority.ALWAYS );
-
 
 		vbox.getChildren().addAll( idsRow, exportMeshButton );
 
@@ -242,20 +236,22 @@ public class MeshInfoNode< T > implements BindUnbindAndNodeSupplier
 
 		return submittedTasks == MeshGenerator.RETRIEVING_RELEVANT_BLOCKS
 				? "Retrieving blocks for mesh"
-						: submittedTasks == MeshGenerator.SUBMITTED_MESH_GENERATION_TASK
+				: submittedTasks == MeshGenerator.SUBMITTED_MESH_GENERATION_TASK
 						? "Submitted mesh generation task"
-								: ( completedTasks + "/" + submittedTasks );
+						: ( completedTasks + "/" + submittedTasks );
 	}
 
 	private static String progressBarStyleColor( final int submittedTasks )
 	{
 
-		if ( submittedTasks == MeshGenerator.SUBMITTED_MESH_GENERATION_TASK ) {
+		if ( submittedTasks == MeshGenerator.SUBMITTED_MESH_GENERATION_TASK )
+		{
 			LOG.debug( "Submitted tasks={}, changing color to red", submittedTasks );
 			return "-fx-accent: red; ";
 		}
 
-		if ( submittedTasks == MeshGenerator.RETRIEVING_RELEVANT_BLOCKS ) {
+		if ( submittedTasks == MeshGenerator.RETRIEVING_RELEVANT_BLOCKS )
+		{
 			LOG.debug( "Submitted tasks={}, changing color to orange", submittedTasks );
 			return "-fx-accent: orange; ";
 		}

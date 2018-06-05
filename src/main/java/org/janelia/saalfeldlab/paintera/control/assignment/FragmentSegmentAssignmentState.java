@@ -1,8 +1,13 @@
 package org.janelia.saalfeldlab.paintera.control.assignment;
 
 import java.lang.invoke.MethodHandles;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.List;
 
 import org.janelia.saalfeldlab.fx.ObservableWithListenersList;
+import org.janelia.saalfeldlab.paintera.control.assignment.action.AssignmentAction;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -11,46 +16,34 @@ public abstract class FragmentSegmentAssignmentState extends ObservableWithListe
 
 	private static final Logger LOG = LoggerFactory.getLogger( MethodHandles.lookup().lookupClass() );
 
+	protected List< AssignmentAction > actions = new ArrayList<>();
+
 	public void persist()
 	{
 		throw new UnsupportedOperationException( "Not implemented yet!" );
 	}
 
-	protected abstract void detachFragmentImpl( final long fragmentId, long from );
-
-	protected abstract void mergeFragmentsImpl( final long fragment1, final long fragment2 );
-
-	protected abstract void confirmGroupingImpl( final long[] merge, final long[] detach );
-
-	protected abstract void confirmTwoSegmentsImpl( final long[] fragmentsInSegment1, final long[] fragmentsInSegment2 );
+	protected abstract void applyImpl( final AssignmentAction action );
 
 	@Override
-	public void mergeFragments( final long fragment1, final long fragment2 )
+	public void apply( final AssignmentAction action )
 	{
-		mergeFragmentsImpl( fragment1, fragment2 );
-		LOG.debug( "Merged {} {}", fragment1, fragment2 );
+		applyImpl( action );
+		this.actions.add( action );
 		stateChanged();
 	}
 
 	@Override
-	public void detachFragment( final long fragmentId, final long from )
+	public void apply( final Collection< ? extends AssignmentAction > actions )
 	{
-		detachFragmentImpl( fragmentId, from );
+		actions.forEach( this::apply );
+		this.actions.addAll( actions );
 		stateChanged();
 	}
 
-	@Override
-	public void confirmGrouping( final long[] groupedFragments, final long[] notInGroupFragments )
+	public List< AssignmentAction > getActionsCopy()
 	{
-		confirmGroupingImpl( groupedFragments, notInGroupFragments );
-		stateChanged();
-	}
-
-	@Override
-	public void confirmTwoSegments( final long[] fragmentsInSegment1, final long[] fragmentsInSegment2 )
-	{
-		confirmTwoSegmentsImpl( fragmentsInSegment1, fragmentsInSegment2 );
-		stateChanged();
+		return Collections.unmodifiableList( this.actions );
 	}
 
 }
