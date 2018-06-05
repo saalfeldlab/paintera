@@ -13,6 +13,7 @@ public class ObservableWithListenersList implements Observable
 	public synchronized void addListener( final InvalidationListener listener )
 	{
 		this.listeners.add( listener );
+		listener.invalidated( this );
 	}
 
 	@Override
@@ -24,7 +25,9 @@ public class ObservableWithListenersList implements Observable
 	protected void stateChanged()
 	{
 		for ( int i = 0; i < listeners.size(); ++i )
+		{
 			listeners.get( i ).invalidated( this );
+		}
 	}
 
 }
