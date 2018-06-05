@@ -197,6 +197,59 @@ public class StatePane implements BindUnbindAndNodeSupplier
 		selectedSegmentsField.setEditable( false );
 
 		final Button modifyButton = new Button( "Modify selection" );
+		modifyButton.setOnAction( event -> {
+
+			event.consume();
+			final TextField selField = new TextField();
+			final TextField lsField = new TextField();
+			selField.setText( selectedIdsField.getText() );
+			lsField.setText( lastSelectionField.getText() );
+
+			final Dialog< ButtonType > dialog = new Dialog<>();
+			dialog.getDialogPane().getButtonTypes().setAll( ButtonType.OK, ButtonType.CANCEL );
+
+			final GridPane dialogGrid = new GridPane();
+			dialogGrid.setHgap( 5 );
+
+			final Label lsSelectionLabel = new Label( "Active" );
+			final Label selLabel = new Label( "Fragments" );
+
+			GridPane.setHgrow( selField, Priority.ALWAYS );
+			GridPane.setHgrow( lsField, Priority.ALWAYS );
+
+			dialogGrid.add( lsField, 1, 0 );
+			dialogGrid.add( selField, 1, 1 );
+
+			dialogGrid.add( lsSelectionLabel, 0, 0 );
+			dialogGrid.add( selLabel, 0, 1 );
+
+			dialog.getDialogPane().setContent( dialogGrid );
+
+			if ( dialog.showAndWait().map( ButtonType.OK::equals ).orElse( false ) )
+			{
+				try
+				{
+					final long[] userSelection =
+							Arrays
+									.stream( selField.getText().split( "," ) )
+									.map( String::trim )
+									.mapToLong( Long::parseLong )
+									.toArray();
+					final long lastSelection = Optional.ofNullable( lsField.getText() ).filter( t -> t.length() > 0 ).map( Long::parseLong ).orElse( -1L );
+
+					selectedIds.activate( userSelection );
+					if ( userSelection.length > 0 && net.imglib2.type.label.Label.regular( lastSelection ) )
+					{
+						selectedIds.activateAlso( lastSelection );
+					}
+				}
+				catch ( final NumberFormatException e )
+				{
+					LOG.error( "Invalid user input (only number (active) or comma separated numbers (fragments) allowed -- not updating selection" );
+				}
+
+			}
+		} );
 
 		final VBox vbox = new VBox(
 				grid,
