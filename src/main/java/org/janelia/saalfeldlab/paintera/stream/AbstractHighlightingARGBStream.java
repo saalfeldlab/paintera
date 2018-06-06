@@ -338,25 +338,27 @@ public abstract class AbstractHighlightingARGBStream extends ObservableWithListe
 	public void specifyColorExplicitly( final long segmentId, final int color )
 	{
 		this.explicitlySpecifiedColors.put( segmentId, color );
-		stateChanged();
+		clearCache();
 	}
 
 	public void specifyColorsExplicitly( final long[] segmentIds, final int[] colors )
 	{
-		LOG.warn( "Specifying segmentIds {} and colors {}", segmentIds, colors );
+		LOG.debug( "Specifying segmentIds {} and colors {}", segmentIds, colors );
 		for ( int i = 0; i < segmentIds.length; ++i )
 		{
 			this.explicitlySpecifiedColors.put( segmentIds[ i ], colors[ i ] );
 		}
-		stateChanged();
+		clearCache();
 	}
 
 	public void removeExplicitColor( final long segmentId )
 	{
+		LOG.debug( "Removing color {} from {}", segmentId, this.explicitlySpecifiedColors );
 		if ( this.explicitlySpecifiedColors.contains( segmentId ) )
 		{
+			LOG.debug( "Map contains colors: Removing color {} from {}", segmentId, this.explicitlySpecifiedColors );
 			this.explicitlySpecifiedColors.remove( segmentId );
-			stateChanged();
+			clearCache();
 		}
 	}
 
@@ -373,7 +375,7 @@ public abstract class AbstractHighlightingARGBStream extends ObservableWithListe
 		}
 		if ( notifyStateChanged )
 		{
-			stateChanged();
+			clearCache();
 		}
 	}
 
