@@ -192,6 +192,7 @@ public class MeshManagerWithAssignmentForSegments implements MeshManager< Long, 
 
 		LOG.debug( "Adding mesh for segment {}.", id );
 		final MeshGenerator< TLongHashSet > nfx = new MeshGenerator<>(
+				this.root,
 				fragments,
 				blockListCache,
 				meshCache,
@@ -203,7 +204,6 @@ public class MeshManagerWithAssignmentForSegments implements MeshManager< Long, 
 				managers,
 				workers );
 		nfx.opacityProperty().set( this.opacity.get() );
-		nfx.rootProperty().set( this.root );
 
 		neurons.put( idObject, nfx );
 
@@ -217,7 +217,7 @@ public class MeshManagerWithAssignmentForSegments implements MeshManager< Long, 
 
 	private void removeMesh( final MeshGenerator< TLongHashSet > mesh )
 	{
-		mesh.rootProperty().set( null );
+		mesh.isEnabledProperty().set( false );
 		final List< Long > toRemove = this.neurons
 				.entrySet()
 				.stream()
