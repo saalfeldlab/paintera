@@ -27,6 +27,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import gnu.trove.impl.Constants;
+import gnu.trove.map.TLongIntMap;
 import gnu.trove.map.hash.TLongIntHashMap;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.SimpleBooleanProperty;
@@ -77,6 +78,8 @@ public abstract class AbstractHighlightingARGBStream extends ObservableWithListe
 	protected LockedSegments lockedSegments;
 
 	private final BooleanProperty colorFromSegmentId = new SimpleBooleanProperty();
+
+	protected final TLongIntHashMap explicitlySpecifiedColors = new TLongIntHashMap();
 
 	public AbstractHighlightingARGBStream(
 			final SelectedIds highlights,
@@ -265,7 +268,12 @@ public abstract class AbstractHighlightingARGBStream extends ObservableWithListe
 	{
 		LOG.debug( "Before clearing cache: {}", argbCache );
 		argbCache.clear();
+		argbCache.putAll( this.explicitlySpecifiedColors );
 		LOG.debug( "After clearing cache: {}", argbCache );
+		// TODO is this stateChanged bad here?
+		// stateChanged() probably triggers a re-render, which calls clearCache,
+		// which calls stateChanged, which ...
+		// need to check if this is true
 		stateChanged();
 	}
 
@@ -325,6 +333,55 @@ public abstract class AbstractHighlightingARGBStream extends ObservableWithListe
 	public boolean getHideLockedSegments()
 	{
 		return this.hideLockedSegments;
+	}
+
+	public void specifyColorExplicitly( final long segmentId, final int color )
+	{
+		this.explicitlySpecifiedColors.put( segmentId, color );
+		clearCache();
+	}
+
+	public void specifyColorsExplicitly( final long[] segmentIds, final int[] colors )
+	{
+		LOG.debug( "Specifying segmentIds {} and colors {}", segmentIds, colors );
+		for ( int i = 0; i < segmentIds.length; ++i )
+		{
+			this.explicitlySpecifiedColors.put( segmentIds[ i ], colors[ i ] );
+		}
+		clearCache();
+	}
+
+	public void removeExplicitColor( final long segmentId )
+	{
+		LOG.debug( "Removing color {} from {}", segmentId, this.explicitlySpecifiedColors );
+		if ( this.explicitlySpecifiedColors.contains( segmentId ) )
+		{
+			LOG.debug( "Map contains colors: Removing color {} from {}", segmentId, this.explicitlySpecifiedColors );
+			this.explicitlySpecifiedColors.remove( segmentId );
+			clearCache();
+		}
+	}
+
+	public void removeExplicitColors( final long[] segmentIds )
+	{
+		boolean notifyStateChanged = false;
+		for ( final long id : segmentIds )
+		{
+			if ( this.explicitlySpecifiedColors.contains( id ) )
+			{
+				this.explicitlySpecifiedColors.remove( id );
+				notifyStateChanged = true;
+			}
+		}
+		if ( notifyStateChanged )
+		{
+			clearCache();
+		}
+	}
+
+	public TLongIntMap getExplicitlySpecifiedColorsCopy()
+	{
+		return new TLongIntHashMap( this.explicitlySpecifiedColors );
 	}
 
 }

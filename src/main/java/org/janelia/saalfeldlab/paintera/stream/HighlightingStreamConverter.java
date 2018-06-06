@@ -1,11 +1,25 @@
 package org.janelia.saalfeldlab.paintera.stream;
 
+import java.lang.invoke.MethodHandles;
+import java.util.HashMap;
+import java.util.Map;
+
+import org.janelia.saalfeldlab.util.Colors;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import gnu.trove.map.TLongIntMap;
+import javafx.beans.InvalidationListener;
+import javafx.beans.Observable;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.IntegerProperty;
 import javafx.beans.property.LongProperty;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleIntegerProperty;
 import javafx.beans.property.SimpleLongProperty;
+import javafx.collections.FXCollections;
+import javafx.collections.ObservableMap;
+import javafx.scene.paint.Color;
 import net.imglib2.converter.Converter;
 import net.imglib2.type.label.LabelMultisetType;
 import net.imglib2.type.label.VolatileLabelMultisetType;
@@ -14,8 +28,10 @@ import net.imglib2.type.numeric.IntegerType;
 import net.imglib2.type.numeric.RealType;
 
 public abstract class HighlightingStreamConverter< T >
-		implements Converter< T, ARGBType >, SeedProperty, WithAlpha, ColorFromSegmentId, HideLockedSegments
+		implements Converter< T, ARGBType >, SeedProperty, WithAlpha, ColorFromSegmentId, HideLockedSegments, UserSpecifiedColors
 {
+
+	private static final Logger LOG = LoggerFactory.getLogger( MethodHandles.lookup().lookupClass() );
 
 	protected final AbstractHighlightingARGBStream stream;
 
@@ -30,6 +46,12 @@ public abstract class HighlightingStreamConverter< T >
 	private final BooleanProperty colorFromSegmentId = new SimpleBooleanProperty( true );
 
 	private final BooleanProperty hideLockedSegments = new SimpleBooleanProperty( true );
+
+	private final ObservableMap< Long, Color > userSpecifiedColors = FXCollections.observableHashMap();
+
+	private final ObservableMap< Long, Color > unmodifiableSpecifiedColors = FXCollections.unmodifiableObservableMap( userSpecifiedColors );
+
+	private final InvalidationListener updateUserSpecifiedColors = new UpdateUserSpecifiedColors();
 
 	public HighlightingStreamConverter( final AbstractHighlightingARGBStream stream )
 	{
@@ -54,6 +76,7 @@ public abstract class HighlightingStreamConverter< T >
 			this.colorFromSegmentId.set( stream.getColorFromSegmentId() );
 			this.hideLockedSegments.set( stream.getHideLockedSegments() );
 		} );
+		stream.addListener( updateUserSpecifiedColors );
 	}
 
 	@Override
@@ -108,6 +131,45 @@ public abstract class HighlightingStreamConverter< T >
 
 		return null;
 
+	}
+
+	private class UpdateUserSpecifiedColors implements InvalidationListener
+	{
+
+		@Override
+		public void invalidated( final Observable observable )
+		{
+			final Map< Long, Color > map = new HashMap<>();
+			final TLongIntMap explicitlySpecifiedColors = stream.getExplicitlySpecifiedColorsCopy();
+			explicitlySpecifiedColors.forEachEntry( ( k, v ) -> {
+				map.put( k, Colors.toColor( new ARGBType( v ) ) );
+				return true;
+			} );
+			LOG.debug( "internal map={} updated map={}", userSpecifiedColors, map );
+			if ( !userSpecifiedColors.equals( map ) )
+			{
+				userSpecifiedColors.clear();
+				userSpecifiedColors.putAll( map );
+			}
+		}
+	}
+
+	@Override
+	public ObservableMap< Long, Color > userSpecifiedColors()
+	{
+		return this.unmodifiableSpecifiedColors;
+	}
+
+	@Override
+	public void setColor( final long id, final Color color )
+	{
+		stream.specifyColorExplicitly( id, Colors.toARGBType( color ).get() );
+	}
+
+	@Override
+	public void removeColor( final long id )
+	{
+		stream.removeExplicitColor( id );
 	}
 
 }

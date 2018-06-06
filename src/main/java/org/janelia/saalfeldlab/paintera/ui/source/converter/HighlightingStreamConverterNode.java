@@ -1,10 +1,14 @@
 package org.janelia.saalfeldlab.paintera.ui.source.converter;
 
 import java.lang.invoke.MethodHandles;
+import java.util.Iterator;
+import java.util.Map.Entry;
 
+import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread;
 import org.janelia.saalfeldlab.paintera.stream.ColorFromSegmentId;
 import org.janelia.saalfeldlab.paintera.stream.HideLockedSegments;
 import org.janelia.saalfeldlab.paintera.stream.SeedProperty;
+import org.janelia.saalfeldlab.paintera.stream.UserSpecifiedColors;
 import org.janelia.saalfeldlab.paintera.stream.WithAlpha;
 import org.janelia.saalfeldlab.paintera.ui.BindUnbindAndNodeSupplier;
 import org.slf4j.Logger;
@@ -16,19 +20,25 @@ import javafx.beans.property.IntegerProperty;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleDoubleProperty;
 import javafx.beans.property.SimpleIntegerProperty;
+import javafx.collections.MapChangeListener;
+import javafx.collections.ObservableMap;
 import javafx.scene.Node;
+import javafx.scene.control.Button;
 import javafx.scene.control.CheckBox;
+import javafx.scene.control.ColorPicker;
 import javafx.scene.control.Slider;
 import javafx.scene.control.TextField;
+import javafx.scene.control.TitledPane;
 import javafx.scene.control.Tooltip;
 import javafx.scene.layout.ColumnConstraints;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
+import javafx.scene.paint.Color;
 import javafx.util.converter.NumberStringConverter;
 import net.imglib2.converter.Converter;
 
-public class HighlightingStreamConverterNode< C extends Converter< ?, ? > & SeedProperty & WithAlpha & ColorFromSegmentId & HideLockedSegments > implements BindUnbindAndNodeSupplier
+public class HighlightingStreamConverterNode< C extends Converter< ?, ? > & SeedProperty & WithAlpha & ColorFromSegmentId & HideLockedSegments & UserSpecifiedColors > implements BindUnbindAndNodeSupplier
 {
 
 	private static final Logger LOG = LoggerFactory.getLogger( MethodHandles.lookup().lookupClass() );
@@ -142,6 +152,73 @@ public class HighlightingStreamConverterNode< C extends Converter< ?, ? > & Seed
 			gp.add( selectedSegmentAlphaSlider, 0, row );
 			gp.add( selectedSegmentAlphaField, 1, row );
 			++row;
+		}
+
+		{
+			final double colorPickerWidth = 30;
+			final double buttonWidth = 40;
+			final ObservableMap< Long, Color > colorsMap = converter.userSpecifiedColors();
+			final Button addButton = new Button( "+" );
+			addButton.setMinWidth( buttonWidth );
+			addButton.setMaxWidth( buttonWidth );
+			final ColorPicker addColorPicker = new ColorPicker();
+			addColorPicker.setMaxWidth( colorPickerWidth );
+			addColorPicker.setMinWidth( colorPickerWidth );
+			final TextField addIdField = new TextField();
+			GridPane.setHgrow( addIdField, Priority.ALWAYS );
+			addButton.setOnAction( event -> {
+				event.consume();
+				try
+				{
+					final long id = Long.parseLong( addIdField.getText() );
+					converter.setColor( id, addColorPicker.getValue() );
+					addIdField.setText( "" );
+				}
+				catch ( final NumberFormatException e )
+				{
+					LOG.error( "Not a valid long/integer format: {}", addIdField.getText() );
+				}
+			} );
+
+			final GridPane colorContents = new GridPane();
+			colorContents.setHgap( 5 );
+			final TitledPane colorPane = new TitledPane( "Custom Colors", colorContents );
+			colorPane.setExpanded( false );
+			final MapChangeListener< Long, Color > colorsChanged = change -> {
+				InvokeOnJavaFXApplicationThread.invoke( () -> {
+					int gridRow = 0;
+					colorContents.getChildren().clear();
+					for ( final Iterator< Entry< Long, Color > > it = colorsMap.entrySet().iterator(); it.hasNext(); ++gridRow )
+					{
+						final Entry< Long, Color > entry = it.next();
+						final TextField tf = new TextField( Long.toString( entry.getKey() ) );
+						tf.setEditable( false );
+						GridPane.setHgrow( tf, Priority.ALWAYS );
+						final ColorPicker colorPicker = new ColorPicker( entry.getValue() );
+						colorPicker.setMinWidth( colorPickerWidth );
+						colorPicker.setMaxWidth( colorPickerWidth );
+						colorPicker.valueProperty().addListener( ( obs, oldv, newv ) -> {
+							converter.setColor( entry.getKey(), newv );
+						} );
+						final Button removeButton = new Button( "X" );
+						removeButton.setMaxWidth( buttonWidth );
+						removeButton.setMinWidth( buttonWidth );
+						removeButton.setOnAction( event -> {
+							event.consume();
+							converter.removeColor( entry.getKey() );
+						} );
+						colorContents.add( tf, 0, gridRow );
+						colorContents.add( colorPicker, 1, gridRow );
+						colorContents.add( removeButton, 2, gridRow );
+					}
+					colorContents.add( addIdField, 0, gridRow );
+					colorContents.add( addColorPicker, 1, gridRow );
+					colorContents.add( addButton, 2, gridRow );
+				} );
+			};
+			colorsMap.addListener( colorsChanged );
+			colorsChanged.onChanged( null );
+			contents.getChildren().add( colorPane );
 		}
 
 		{
