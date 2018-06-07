@@ -114,7 +114,7 @@ public class Paintera extends Application
 
 		final String projectDir = Optional
 				.ofNullable( painteraArgs.project() )
-				.orElseGet( new ProjectDirectoryNotSpecifiedDialog()
+				.orElseGet( new ProjectDirectoryNotSpecifiedDialog( painteraArgs.defaultToTempDirectory() )
 						.showDialog( "No project directory specified on command line. You can specify a project directory or start Paintera without specifying a project directory." )::get );
 
 		final PainteraBaseView baseView = new PainteraBaseView(

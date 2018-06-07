@@ -24,8 +24,19 @@ public class ProjectDirectoryNotSpecifiedDialog
 
 	private static final Logger LOG = LoggerFactory.getLogger( MethodHandles.lookup().lookupClass() );
 
+	private final boolean defaultToTempDirectory;
+
+	public ProjectDirectoryNotSpecifiedDialog( final boolean defaultToTempDirectory )
+	{
+		super();
+		this.defaultToTempDirectory = defaultToTempDirectory;
+	}
+
 	public Optional< String > showDialog( final String contentText ) throws ProjectDirectoryNotSpecified
 	{
+
+		if ( this.defaultToTempDirectory ) { return Optional.of( tmpDir() ); }
+
 		final StringProperty projectDirectory = new SimpleStringProperty( null );
 
 		final ButtonType specifyProject = new ButtonType( "Specify Project", ButtonData.OTHER );
