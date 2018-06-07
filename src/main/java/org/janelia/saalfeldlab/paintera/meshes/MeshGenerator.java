@@ -114,7 +114,9 @@ public class MeshGenerator< T >
 
 	private final ObservableValue< Color > colorWithAlpha;
 
-	private final ObjectProperty< Group > root = new SimpleObjectProperty<>();
+	private final Group root;
+
+	private final BooleanProperty isEnabled = new SimpleBooleanProperty( true );
 
 	private final ExecutorService managers;
 
@@ -138,12 +140,13 @@ public class MeshGenerator< T >
 
 	private final DoubleProperty opacity = new SimpleDoubleProperty( 1.0 );
 
-	private final ObjectProperty< DrawMode > drawMode = new SimpleObjectProperty< >( DrawMode.FILL );
+	private final ObjectProperty< DrawMode > drawMode = new SimpleObjectProperty<>( DrawMode.FILL );
 
 	private final ObjectProperty< CullFace > cullFace = new SimpleObjectProperty<>( CullFace.FRONT );
 
 	//
 	public MeshGenerator(
+			final Group root,
 			final T segmentId,
 			final InterruptibleFunction< T, Interval[] >[] blockListCache,
 			final InterruptibleFunction< ShapeKey< T >, Pair< float[], float[] > >[] meshCache,
@@ -180,19 +183,22 @@ public class MeshGenerator< T >
 		this.smoothingIterations.set( smoothingIterations );
 		this.smoothingIterations.addListener( ( obs, oldv, newv ) -> changed.set( true ) );
 
-		this.root.addListener( ( obs, oldv, newv ) -> {
+		this.root = root;
+
+		this.isEnabled.addListener( ( obs, oldv, newv ) -> {
 			InvokeOnJavaFXApplicationThread.invoke( () -> {
-				synchronized ( this.meshes )
+				synchronized ( this.root )
 				{
-					Optional.ofNullable( oldv ).ifPresent( g -> this.meshes.forEach( ( id, mesh ) -> g.getChildren().remove( mesh ) ) );
-					Optional.ofNullable( newv ).ifPresent( g -> this.meshes.forEach( ( id, mesh ) -> g.getChildren().add( mesh ) ) );
-				}
-				if ( newv == null )
-				{
-					synchronized ( this.activeFuture )
+					synchronized ( this.meshes )
 					{
-						Optional.ofNullable( this.activeFuture.get() ).ifPresent( f -> f.cancel( true ) );
-						this.activeFuture.set( null );
+						if ( newv )
+						{
+							this.root.getChildren().addAll( this.meshes.values() );
+						}
+						else
+						{
+							this.root.getChildren().removeAll( this.meshes.values() );
+						}
 					}
 				}
 			} );
@@ -214,26 +220,33 @@ public class MeshGenerator< T >
 				change.getValueAdded().cullFaceProperty().bind( this.cullFace );
 			}
 
-			Optional.ofNullable( this.root.get() ).ifPresent( group -> {
-				if ( change.wasRemoved() )
+			synchronized ( this.root )
+			{
+				synchronized ( this.meshes )
 				{
-					InvokeOnJavaFXApplicationThread.invoke( synchronize( () -> group.getChildren().remove( change.getValueRemoved() ), group ) );
-				}
-				else if ( change.wasAdded() && !group.getChildren().contains( change.getValueAdded() ) )
-				{
-					InvokeOnJavaFXApplicationThread.invoke( () -> {
-						synchronized ( group )
-						{
-							final ObservableList< Node > children = group.getChildren();
-							if ( !children.contains( change.getValueAdded() ) )
+					if ( change.wasRemoved() )
+					{
+						InvokeOnJavaFXApplicationThread.invoke( synchronize( () -> this.root.getChildren().remove( change.getValueRemoved() ), this.root ) );
+					}
+					else if ( change.wasAdded() && !this.root.getChildren().contains( change.getValueAdded() ) )
+					{
+						InvokeOnJavaFXApplicationThread.invoke( () -> {
+							synchronized ( this.root )
 							{
-								LOG.debug( "Adding children: {}", change.getValueAdded() );
-								children.add( change.getValueAdded() );
+								if ( this.root != null && this.isEnabled.get() )
+								{
+									final ObservableList< Node > children = this.root.getChildren();
+									if ( !children.contains( change.getValueAdded() ) )
+									{
+										LOG.debug( "Adding children: {}", change.getValueAdded() );
+										children.add( change.getValueAdded() );
+									}
+								}
 							}
-						}
-					} );
+						} );
+					}
 				}
-			} );
+			}
 		} );
 		this.changed.set( true );
 	}
@@ -285,9 +298,9 @@ public class MeshGenerator< T >
 		return id;
 	}
 
-	public ObjectProperty< Group > rootProperty()
+	public BooleanProperty isEnabledProperty()
 	{
-		return this.root;
+		return this.isEnabled;
 	}
 
 	public Runnable synchronize( final Runnable r, final Object syncObject )

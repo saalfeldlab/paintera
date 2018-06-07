@@ -121,6 +121,7 @@ public class MeshManagerSimple< N, T > implements MeshManager< N, T >
 
 		LOG.debug( "Adding mesh for segment {} (composed of ids={}).", id, getIds.apply( id ) );
 		final MeshGenerator< T > nfx = new MeshGenerator<>(
+				this.root,
 				idToMeshId.apply( id ),
 				blockListCache,
 				meshCache,
@@ -132,7 +133,6 @@ public class MeshManagerSimple< N, T > implements MeshManager< N, T >
 				managers,
 				workers );
 		nfx.opacityProperty().set( this.opacity.get() );
-		nfx.rootProperty().set( this.root );
 		nfx.scaleIndexProperty().bind( this.scaleLevel );
 
 		neurons.put( id, nfx );
@@ -147,7 +147,7 @@ public class MeshManagerSimple< N, T > implements MeshManager< N, T >
 
 	private void removeMesh( final MeshGenerator< T > mesh )
 	{
-		mesh.rootProperty().set( null );
+		mesh.isEnabledProperty().set( false );
 	}
 
 	@Override
