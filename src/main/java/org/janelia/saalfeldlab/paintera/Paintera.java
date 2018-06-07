@@ -37,6 +37,7 @@ import org.janelia.saalfeldlab.paintera.stream.HighlightingStreamConverter;
 import org.janelia.saalfeldlab.paintera.stream.ModalGoldenAngleSaturatedHighlightingARGBStream;
 import org.janelia.saalfeldlab.paintera.viewer3d.Viewer3DFX;
 import org.janelia.saalfeldlab.util.Colors;
+import org.janelia.saalfeldlab.util.MakeUnchecked;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -85,7 +86,22 @@ public class Paintera extends Application
 	{
 		try
 		{
-			startImpl( stage );
+			try
+			{
+				startImpl( stage );
+			}
+			catch ( final RuntimeException re )
+			{
+				final Throwable cause = re.getCause();
+				if ( cause != null && cause instanceof Exception )
+				{
+					throw ( Exception ) cause;
+				}
+				else
+				{
+					throw re;
+				}
+			}
 		}
 		catch ( final ProjectDirectoryNotSpecified e )
 		{
@@ -114,8 +130,8 @@ public class Paintera extends Application
 
 		final String projectDir = Optional
 				.ofNullable( painteraArgs.project() )
-				.orElseGet( new ProjectDirectoryNotSpecifiedDialog( painteraArgs.defaultToTempDirectory() )
-						.showDialog( "No project directory specified on command line. You can specify a project directory or start Paintera without specifying a project directory." )::get );
+				.orElseGet( MakeUnchecked.supplier( () -> new ProjectDirectoryNotSpecifiedDialog( painteraArgs.defaultToTempDirectory() )
+						.showDialog( "No project directory specified on command line. You can specify a project directory or start Paintera without specifying a project directory." ).get() ) );
 
 		final PainteraBaseView baseView = new PainteraBaseView(
 				Math.min( 8, Math.max( 1, Runtime.getRuntime().availableProcessors() / 2 ) ),
