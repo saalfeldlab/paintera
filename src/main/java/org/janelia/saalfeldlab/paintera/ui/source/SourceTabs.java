@@ -68,7 +68,7 @@ public class SourceTabs implements Supplier< Node >
 	{
 		LOG.debug( "Constructiong {}", SourceTabs.class.getName() );
 		this.info = info;
-		width.set( 200 );
+		width.set( 300 );
 		this.info.trackSources().addListener( ( ListChangeListener< Source< ? > > ) change -> {
 			final ArrayList< Source< ? > > copy = new ArrayList<>( this.info.trackSources() );
 			final List< StatePane > show = copy.stream().map( source -> statePaneCache.computeIfAbsent( source, src -> new StatePane(
@@ -84,10 +84,10 @@ public class SourceTabs implements Supplier< Node >
 		this.info.removedSourcesTracker().addListener( ( ListChangeListener< Source< ? > > ) change -> {
 			final ArrayList< ? extends Source< ? > > list = new ArrayList<>( change.getList() );
 			list
-			.stream()
-			.map( statePaneCache::remove )
-			.map( Optional::ofNullable )
-			.forEach( o -> o.ifPresent( StatePane::unbind ) );
+					.stream()
+					.map( statePaneCache::remove )
+					.map( Optional::ofNullable )
+					.forEach( o -> o.ifPresent( StatePane::unbind ) );
 		} );
 
 	}

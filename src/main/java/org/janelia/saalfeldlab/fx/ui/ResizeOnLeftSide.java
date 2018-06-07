@@ -81,7 +81,9 @@ public class ResizeOnLeftSide
 
 		isCurrentlyWithinMarginOfBorder.addListener( ( obs, oldv, newv ) -> {
 			if ( !mouseDragged.isDraggingProperty().get() )
+			{
 				Optional.ofNullable( node.getScene() ).ifPresent( s -> s.setCursor( newv ? Cursor.W_RESIZE : Cursor.DEFAULT ) );
+			}
 		} );
 	}
 

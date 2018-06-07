@@ -180,6 +180,20 @@ public class HighlightingStreamConverterNode< C extends Converter< ?, ? > & Seed
 				}
 			} );
 
+			{
+				final CheckBox hideLockedSegments = new CheckBox( "Hide locked segments." );
+				hideLockedSegments.setTooltip( new Tooltip( "Hide locked segments (toggle lock with L)" ) );
+				hideLockedSegments.selectedProperty().bindBidirectional( converter.hideLockedSegmentsProperty() );
+				contents.getChildren().add( hideLockedSegments );
+			}
+
+			{
+				final CheckBox colorFromSegmentId = new CheckBox( "Color From segment Id." );
+				colorFromSegmentId.setTooltip( new Tooltip( "Generate fragment color from segment id (on) or fragment id (off)" ) );
+				colorFromSegmentId.selectedProperty().bindBidirectional( colorFromSegment );
+				contents.getChildren().add( colorFromSegmentId );
+			}
+
 			final GridPane colorContents = new GridPane();
 			colorContents.setHgap( 5 );
 			final TitledPane colorPane = new TitledPane( "Custom Colors", colorContents );
@@ -221,20 +235,6 @@ public class HighlightingStreamConverterNode< C extends Converter< ?, ? > & Seed
 			contents.getChildren().add( colorPane );
 		}
 
-		{
-			final CheckBox hideLockedSegments = new CheckBox( "Hide locked segments." );
-			hideLockedSegments.setTooltip( new Tooltip( "Hide locked segments (toggle lock with L)" ) );
-			hideLockedSegments.selectedProperty().bindBidirectional( converter.hideLockedSegmentsProperty() );
-			contents.getChildren().add( hideLockedSegments );
-		}
-
-		{
-			final CheckBox colorFromSegmentId = new CheckBox( "Color From segment Id." );
-			colorFromSegmentId.setTooltip( new Tooltip( "Generate fragment color from segment id (on) or fragment id (off)" ) );
-			colorFromSegmentId.selectedProperty().bindBidirectional( colorFromSegment );
-			contents.getChildren().add( colorFromSegmentId );
-		}
-
 //		{
 //			if ( state.selectedIdsProperty().get() != null )
 //			{
@@ -243,7 +243,9 @@ public class HighlightingStreamConverterNode< C extends Converter< ?, ? > & Seed
 //			}
 //		}
 
-		return contents;
+		final TitledPane tp = new TitledPane( "Converter", contents );
+		tp.setExpanded( false );
+		return tp;
 	}
 
 	private static int toIntegerBased( final double opacity )

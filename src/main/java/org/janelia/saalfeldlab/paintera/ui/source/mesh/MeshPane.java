@@ -31,6 +31,7 @@ import javafx.scene.control.Label;
 import javafx.scene.control.TitledPane;
 import javafx.scene.control.Tooltip;
 import javafx.scene.layout.GridPane;
+import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
 import javafx.scene.shape.CullFace;
 import javafx.scene.shape.DrawMode;
@@ -64,11 +65,7 @@ public class MeshPane implements BindUnbindAndNodeSupplier, ListChangeListener< 
 
 	private final VBox meshesBox = new VBox();
 
-	private final TitledPane meshesPane = new TitledPane( "Meshes", meshesBox );
-	{
-//		meshesPane.setMinWidth( 50 );
-		meshesPane.setMaxWidth( Double.MAX_VALUE );
-	}
+	private final TitledPane meshesPane = new TitledPane( "Mesh List", meshesBox );
 
 	private final ComboBox< DrawMode > drawModeChoice;
 
@@ -94,10 +91,9 @@ public class MeshPane implements BindUnbindAndNodeSupplier, ListChangeListener< 
 		this.cullFaceChoice = new ComboBox<>( FXCollections.observableArrayList( CullFace.values() ) );
 		this.cullFaceChoice.setValue( CullFace.FRONT );
 
-		final Button refresh = new Button( "Refresh meshes" );
-		refresh.setOnAction( event -> manager.refreshMeshes() );
+		this.meshesPane.setExpanded( false );
 
-		managerSettingsPane = new VBox( new Label( "Defaults" ), setupManagerSliderGrid(), refresh, meshesPane );
+		managerSettingsPane = new VBox( setupManagerSliderGrid(), meshesPane );
 
 		this.meshInfos.readOnlyInfos().addListener( this );
 
@@ -106,7 +102,9 @@ public class MeshPane implements BindUnbindAndNodeSupplier, ListChangeListener< 
 	@Override
 	public Node get()
 	{
-		return managerSettingsPane;
+		final TitledPane pane = new TitledPane( "Meshes", this.managerSettingsPane );
+		pane.setExpanded( false );
+		return pane;
 	}
 
 	@Override
@@ -191,43 +189,65 @@ public class MeshPane implements BindUnbindAndNodeSupplier, ListChangeListener< 
 
 		int row = 0;
 
-		contents.add( new Label( "Opacity " ), 0, row );
+		final double textFieldWidth = 95;
+
+		contents.add( labelWithToolTip( "Opacity " ), 0, row );
 		contents.add( opacitySlider.slider(), 1, row );
 		contents.add( opacitySlider.textField(), 2, row );
 		opacitySlider.slider().setShowTickLabels( true );
-		opacitySlider.slider().setTooltip( new Tooltip( "Mesh opacity" ) );
+		opacitySlider.slider().setTooltip( new Tooltip( "Mesh opacity." ) );
+		opacitySlider.textField().setMinWidth( textFieldWidth );
+		opacitySlider.textField().setMaxWidth( textFieldWidth );
+		GridPane.setHgrow( opacitySlider.slider(), Priority.ALWAYS );
 		++row;
 
-		contents.add( new Label( "Scale" ), 0, row );
+		contents.add( labelWithToolTip( "Scale" ), 0, row );
 		contents.add( scaleSlider.slider(), 1, row );
 		contents.add( scaleSlider.textField(), 2, row );
 		scaleSlider.slider().setShowTickLabels( true );
-		scaleSlider.slider().setTooltip( new Tooltip( "Default for scale level." ) );
+		scaleSlider.slider().setTooltip( new Tooltip( "Scale level." ) );
+		scaleSlider.textField().setMinWidth( textFieldWidth );
+		scaleSlider.textField().setMaxWidth( textFieldWidth );
+		GridPane.setHgrow( scaleSlider.slider(), Priority.ALWAYS );
 		++row;
 
-		contents.add( new Label( "Lambda" ), 0, row );
+		contents.add( labelWithToolTip( "Lambda" ), 0, row );
 		contents.add( smoothingLambdaSlider.slider(), 1, row );
 		contents.add( smoothingLambdaSlider.textField(), 2, row );
 		smoothingLambdaSlider.slider().setShowTickLabels( true );
-		smoothingLambdaSlider.slider().setTooltip( new Tooltip( "Default for smoothing lambda." ) );
+		smoothingLambdaSlider.slider().setTooltip( new Tooltip( "Smoothing lambda." ) );
+		smoothingLambdaSlider.textField().setMinWidth( textFieldWidth );
+		smoothingLambdaSlider.textField().setMaxWidth( textFieldWidth );
+		GridPane.setHgrow( smoothingLambdaSlider.slider(), Priority.ALWAYS );
 		++row;
 
-		contents.add( new Label( "Iterations" ), 0, row );
+		contents.add( labelWithToolTip( "Iterations" ), 0, row );
 		contents.add( smoothingIterationsSlider.slider(), 1, row );
 		contents.add( smoothingIterationsSlider.textField(), 2, row );
 		smoothingIterationsSlider.slider().setShowTickLabels( true );
-		smoothingIterationsSlider.slider().setTooltip( new Tooltip( "Default for smoothing iterations." ) );
+		smoothingIterationsSlider.slider().setTooltip( new Tooltip( "Smoothing iterations." ) );
+		smoothingIterationsSlider.textField().setMinWidth( textFieldWidth );
+		smoothingIterationsSlider.textField().setMaxWidth( textFieldWidth );
+		GridPane.setHgrow( smoothingIterationsSlider.slider(), Priority.ALWAYS );
 		++row;
 
-		contents.add( new Label( "Draw Mode" ), 0, row );
+		contents.add( labelWithToolTip( "Draw Mode" ), 0, row );
 		contents.add( drawModeChoice, 2, row );
+		drawModeChoice.setMaxWidth( textFieldWidth );
 		++row;
 
-		contents.add( new Label( "CullFace " ), 0, row );
+		contents.add( labelWithToolTip( "CullFace " ), 0, row );
 		contents.add( cullFaceChoice, 2, row );
+		cullFaceChoice.setMaxWidth( textFieldWidth );
 		++row;
 
-		return contents;
+		final Button refresh = new Button( "Refresh Meshes" );
+		refresh.setOnAction( event -> manager.refreshMeshes() );
+
+		final TitledPane pane = new TitledPane( "Settings", new VBox( contents, refresh ) );
+		pane.setExpanded( false );
+
+		return pane;
 	}
 
 	private MeshInfoNode< TLongHashSet > fromMeshInfo( final MeshInfo< TLongHashSet > info )
@@ -246,5 +266,14 @@ public class MeshPane implements BindUnbindAndNodeSupplier, ListChangeListener< 
 					true );
 		}
 		return node;
+	}
+
+	private final Node labelWithToolTip( final String text )
+	{
+		final Label label = new Label( text );
+		final Tooltip tt = new Tooltip( text );
+		tt.textProperty().bind( label.textProperty() );
+		label.setTooltip( tt );
+		return label;
 	}
 }
