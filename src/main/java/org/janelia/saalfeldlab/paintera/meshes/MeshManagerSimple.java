@@ -142,10 +142,10 @@ public class MeshManagerSimple< N, T > implements MeshManager< N, T >
 	@Override
 	public void removeMesh( final N id )
 	{
-		Optional.ofNullable( this.neurons.remove( id ) ).ifPresent( this::removeMesh );
+		Optional.ofNullable( this.neurons.remove( id ) ).ifPresent( this::disable );
 	}
 
-	private void removeMesh( final MeshGenerator< T > mesh )
+	private void disable( final MeshGenerator< T > mesh )
 	{
 		mesh.isEnabledProperty().set( false );
 	}
@@ -183,8 +183,8 @@ public class MeshManagerSimple< N, T > implements MeshManager< N, T >
 	@Override
 	public void removeAllMeshes()
 	{
-		final ArrayList< MeshGenerator< T > > generatorsCopy = new ArrayList<>( unmodifiableMeshMap().values() );
-		generatorsCopy.forEach( this::removeMesh );
+		final ArrayList< N > keysCopy = new ArrayList<>( unmodifiableMeshMap().keySet() );
+		keysCopy.forEach( this::removeMesh );
 	}
 
 	@Override
