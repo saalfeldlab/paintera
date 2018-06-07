@@ -1,13 +1,19 @@
 package org.janelia.saalfeldlab.paintera.data.mask;
 
 import java.io.IOException;
+import java.lang.invoke.MethodHandles;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.attribute.FileAttribute;
 import java.util.function.Supplier;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 public class TmpDirectoryCreator implements Supplier< String >
 {
+
+	private static Logger LOG = LoggerFactory.getLogger( MethodHandles.lookup().lookupClass() );
 
 	private final Path dir;
 
@@ -28,7 +34,9 @@ public class TmpDirectoryCreator implements Supplier< String >
 	{
 		try
 		{
-			return dir == null ? Files.createTempDirectory( prefix, attrs ).toString() : Files.createTempDirectory( dir, prefix, attrs ).toString();
+			final String tmpDir = dir == null ? Files.createTempDirectory( prefix, attrs ).toString() : Files.createTempDirectory( dir, prefix, attrs ).toString();
+			LOG.debug( "Created tmp dir {}", tmpDir );
+			return tmpDir;
 		}
 		catch ( final IOException e )
 		{

@@ -48,6 +48,12 @@ public class PainteraCommandLineArgs implements Callable< Boolean >
 	@Parameters( index = "0", paramLabel = "PROJECT", arity = "0..1", description = "Optional project N5 root (N5 or HDF5)." )
 	private String project;
 
+	@Option( names = "--print-error-codes", paramLabel = "PRINT_ERROR_CODES", required = false, description = "List all error codes and exit." )
+	private Boolean printErrorCodes;
+
+	@Option( names = "--default-to-temp-directory", paramLabel = "DEFAULT_TO_TEMP_DIRECTORY", required = false, description = "Default to temporary directory instead of showing dialog when PROJECT is not specified." )
+	private Boolean defaultToTempDirectory;
+
 	@Override
 	public Boolean call() throws Exception
 	{
@@ -65,6 +71,19 @@ public class PainteraCommandLineArgs implements Callable< Boolean >
 		{
 			checkScreenScales( screenScales );
 		}
+
+		printErrorCodes = printErrorCodes == null ? false : printErrorCodes;
+		if ( printErrorCodes )
+		{
+			LOG.info( "Error codes:" );
+			for ( final Paintera.Error error : Paintera.Error.values() )
+			{
+				LOG.info( "{} -- {}", error.code, error.description );
+			}
+			return false;
+		}
+
+		defaultToTempDirectory = defaultToTempDirectory == null ? false : defaultToTempDirectory;
 
 		return true;
 	}
@@ -99,6 +118,11 @@ public class PainteraCommandLineArgs implements Callable< Boolean >
 	public double[] screenScales()
 	{
 		return this.screenScales.clone();
+	}
+
+	public boolean defaultToTempDirectory()
+	{
+		return this.defaultToTempDirectory;
 	}
 
 	private static double[] createScreenScales( final int numScreenScales, final double highestScreenScale, final double screenScaleFactor ) throws ZeroLengthScreenScales
