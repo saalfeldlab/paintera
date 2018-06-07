@@ -94,7 +94,7 @@ public class FragmentSegmentAssignmentOnlyLocal extends FragmentSegmentAssignmen
 
 	private void detachFragmentImpl( final Detach detach )
 	{
-		LOG.warn( "Detach {}", detach );
+		LOG.debug( "Detach {}", detach );
 		final long segmentFrom = fragmentToSegmentMap.get( detach.fragmentId );
 		if ( fragmentToSegmentMap.get( detach.fragmentFrom ) != segmentFrom )
 		{
@@ -107,7 +107,7 @@ public class FragmentSegmentAssignmentOnlyLocal extends FragmentSegmentAssignmen
 
 		this.fragmentToSegmentMap.remove( fragmentId );
 
-		LOG.warn( "Removing fragment={} from segment={}", fragmentId, segmentFrom );
+		LOG.debug( "Removing fragment={} from segment={}", fragmentId, segmentFrom );
 		final TLongHashSet fragments = this.segmentToFragmentsMap.get( segmentFrom );
 		if ( fragments != null )
 		{
