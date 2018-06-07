@@ -11,6 +11,10 @@ import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.scene.Node;
 import javafx.scene.control.ComboBox;
+import javafx.scene.control.TitledPane;
+import javafx.scene.layout.HBox;
+import javafx.scene.layout.Priority;
+import javafx.scene.layout.Region;
 import javafx.util.StringConverter;
 import net.imglib2.type.numeric.ARGBType;
 
@@ -68,8 +72,12 @@ public class CompositePane implements BindUnbindAndNodeSupplier
 		final ComboBox< String > combo = new ComboBox<>( availableComposites );
 		combo.setValue( converter.toString( composite ) );
 		combo.valueProperty().addListener( ( obs, oldv, newv ) -> this.compositeProperty.set( converter.fromString( newv ) ) );
-
-		return combo;
+		final Region spacer = new Region();
+		HBox.setHgrow( spacer, Priority.ALWAYS );
+		final HBox hbox = new HBox( combo, spacer );
+		final TitledPane pane = new TitledPane( "ARGB Composite", hbox );
+		pane.setExpanded( false );
+		return pane;
 	}
 
 	@Override

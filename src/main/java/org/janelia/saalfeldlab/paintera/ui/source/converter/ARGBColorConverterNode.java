@@ -19,6 +19,7 @@ import javafx.scene.Node;
 import javafx.scene.control.ColorPicker;
 import javafx.scene.control.TextField;
 import javafx.scene.control.TextFormatter;
+import javafx.scene.control.TitledPane;
 import javafx.scene.control.Tooltip;
 import javafx.scene.input.KeyCode;
 import javafx.scene.layout.HBox;
@@ -143,7 +144,9 @@ public class ARGBColorConverterNode implements BindUnbindAndNodeSupplier
 
 		LOG.debug( "Returning TilePane with children: ", tilePane.getChildren() );
 
-		return tilePane;
+		final TitledPane contents = new TitledPane( "Converter", tilePane );
+		contents.setExpanded( false );
+		return contents;
 	}
 
 }
