@@ -48,6 +48,9 @@ public class PainteraCommandLineArgs implements Callable< Boolean >
 	@Parameters( index = "0", paramLabel = "PROJECT", arity = "0..1", description = "Optional project N5 root (N5 or HDF5)." )
 	private String project;
 
+	@Option( names = "--print-error-codes", paramLabel = "PRINT_ERROR_CODES", required = false, description = "List all error codes and exit." )
+	private Boolean printErrorCodes;
+
 	@Override
 	public Boolean call() throws Exception
 	{
@@ -64,6 +67,17 @@ public class PainteraCommandLineArgs implements Callable< Boolean >
 		if ( screenScales != null )
 		{
 			checkScreenScales( screenScales );
+		}
+
+		printErrorCodes = printErrorCodes == null ? false : printErrorCodes;
+		if ( printErrorCodes )
+		{
+			LOG.info( "Error codes:" );
+			for ( final Paintera.Error error : Paintera.Error.values() )
+			{
+				LOG.info( "{} -- {}", error.code, error.description );
+			}
+			return false;
 		}
 
 		return true;

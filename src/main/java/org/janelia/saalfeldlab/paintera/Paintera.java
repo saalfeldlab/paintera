@@ -69,9 +69,9 @@ public class Paintera extends Application
 	{
 		NO_PROJECT_SPECIFIED( 1, "No Paintera project specified" );
 		;
-		private final int code;
+		public final int code;
 
-		private final String description;
+		public final String description;
 
 		private Error( final int code, final String description )
 		{
