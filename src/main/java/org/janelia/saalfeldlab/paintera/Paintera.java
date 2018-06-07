@@ -65,8 +65,36 @@ public class Paintera extends Application
 
 	public static final String PAINTERA_KEY = "paintera";
 
+	public enum Error
+	{
+		NO_PROJECT_SPECIFIED( 1, "No Paintera project specified" );
+		;
+		private final int code;
+
+		private final String description;
+
+		private Error( final int code, final String description )
+		{
+			this.code = code;
+			this.description = description;
+		}
+	}
+
 	@Override
 	public void start( final Stage stage ) throws Exception
+	{
+		try
+		{
+			startImpl( stage );
+		}
+		catch ( final ProjectDirectoryNotSpecified e )
+		{
+			LOG.error( Error.NO_PROJECT_SPECIFIED.description );
+			System.exit( Error.NO_PROJECT_SPECIFIED.code );
+		}
+	}
+
+	public void startImpl( final Stage stage ) throws Exception
 	{
 
 		final Parameters parameters = getParameters();
