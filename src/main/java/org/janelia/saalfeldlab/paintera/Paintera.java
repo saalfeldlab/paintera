@@ -81,11 +81,17 @@ public class Paintera extends Application
 			return;
 		}
 
-		LOG.debug( "Using screen scales {}", painteraArgs.screenScales() );
+		final double[] screenScales = painteraArgs.screenScales();
+		LOG.debug( "Using screen scales {}", screenScales );
+
+		final String projectDir = Optional
+				.ofNullable( painteraArgs.project() )
+				.orElseGet( new ProjectDirectoryNotSpecifiedDialog()
+						.showDialog( "No project directory specified on command line. You can specify a project directory or start Paintera without specifying a project directory." )::get );
 
 		final PainteraBaseView baseView = new PainteraBaseView(
 				Math.min( 8, Math.max( 1, Runtime.getRuntime().availableProcessors() / 2 ) ),
-				ViewerOptions.options().screenScales( painteraArgs.screenScales() ),
+				ViewerOptions.options().screenScales( screenScales ),
 				si -> s -> si.getState( s ).interpolationProperty().get() );
 
 		final OrthogonalViews< Viewer3DFX > orthoViews = baseView.orthogonalViews();
@@ -95,7 +101,7 @@ public class Paintera extends Application
 
 		final BorderPaneWithStatusBars paneWithStatus = new BorderPaneWithStatusBars(
 				baseView,
-				painteraArgs::project );
+				() -> projectDir );
 
 		final PainteraDefaultHandlers defaultHandlers = new PainteraDefaultHandlers( baseView, keyTracker, mouseTracker, paneWithStatus );
 
@@ -126,18 +132,18 @@ public class Paintera extends Application
 
 		// populate everything
 
-		final Optional< JsonObject > loadedProperties = loadPropertiesIfPresent( painteraArgs.project() );
+		final Optional< JsonObject > loadedProperties = loadPropertiesIfPresent( projectDir );
 
 		// TODO this can probably be hidden in
 		// Properties.fromSerializedProperties
 		final Map< Integer, SourceState< ?, ? > > indexToState = new HashMap<>();
 
-		final Properties properties = loadedProperties.map( lp -> Properties.fromSerializedProperties( lp, baseView, true, painteraArgs::project, indexToState ) ).orElse( new Properties( baseView ) );
+		final Properties properties = loadedProperties.map( lp -> Properties.fromSerializedProperties( lp, baseView, true, () -> projectDir, indexToState ) ).orElse( new Properties( baseView ) );
 
 		paneWithStatus.saveProjectButtonOnActionProperty().set( event -> {
 			try
 			{
-				SaveProject.persistProperties( painteraArgs.project(), properties, GsonHelpers.builderWithAllRequiredSerializers( baseView, painteraArgs::project ).setPrettyPrinting() );
+				SaveProject.persistProperties( projectDir, properties, GsonHelpers.builderWithAllRequiredSerializers( baseView, () -> projectDir ).setPrettyPrinting() );
 			}
 			catch ( final IOException e )
 			{
@@ -189,7 +195,7 @@ public class Paintera extends Application
 		}
 
 		setFocusTraversable( orthoViews, false );
-		stage.setOnCloseRequest( new SaveOnExitDialog( baseView, properties, painteraArgs.project(), baseView::stop ) );
+		stage.setOnCloseRequest( new SaveOnExitDialog( baseView, properties, projectDir, baseView::stop ) );
 
 		EventFX.KEY_PRESSED(
 				"save project",
@@ -197,7 +203,7 @@ public class Paintera extends Application
 					e.consume();
 					try
 					{
-						SaveProject.persistProperties( painteraArgs.project(), properties, GsonHelpers.builderWithAllRequiredSerializers( baseView, painteraArgs::project ).setPrettyPrinting() );
+						SaveProject.persistProperties( projectDir, properties, GsonHelpers.builderWithAllRequiredSerializers( baseView, () -> projectDir ).setPrettyPrinting() );
 					}
 					catch ( final IOException e1 )
 					{
