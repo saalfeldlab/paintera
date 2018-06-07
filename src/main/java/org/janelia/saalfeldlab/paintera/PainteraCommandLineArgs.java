@@ -115,7 +115,7 @@ public class PainteraCommandLineArgs implements Callable< Boolean >
 		return screenScales;
 	}
 
-	private static void checkScreenScales( final double[] screenScales ) throws Exception
+	private static void checkScreenScales( final double[] screenScales ) throws ZeroLengthScreenScales, InvalidScreenScaleValue, ScreenScaleNotDecreasing
 	{
 		if ( screenScales.length == 0 ) { throw new ZeroLengthScreenScales(); }
 
@@ -127,10 +127,8 @@ public class PainteraCommandLineArgs implements Callable< Boolean >
 			final double curr = screenScales[ i ];
 			// no check for > 1 necessary because already checked for
 			// monotonicity
-			if ( screenScales[ 0 ] <= 0 )
-			{
-
-			}
+			if ( curr <= 0 ) { throw new InvalidScreenScaleValue( curr ); }
+			if ( prev <= curr ) { throw new ScreenScaleNotDecreasing( prev, curr ); }
 		}
 
 	}
@@ -145,6 +143,14 @@ public class PainteraCommandLineArgs implements Callable< Boolean >
 		InvalidScreenScaleValue( final double scale )
 		{
 			super( "Screen scale " + scale + " not in legal interval (0,1]" );
+		}
+	}
+
+	public static class ScreenScaleNotDecreasing extends Exception
+	{
+		public ScreenScaleNotDecreasing( final double first, final double second )
+		{
+			super( "Second screen scale " + second + " larger than or equal to first " + first );
 		}
 	}
 
