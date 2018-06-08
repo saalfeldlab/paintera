@@ -372,7 +372,7 @@ public class Paintera extends Application
 				final String name = N5Helpers.lastSegmentOfDatasetPath( dataset );
 				final SelectedIds selectedIds = new SelectedIds();
 				final IdService idService = N5Helpers.idService( n5, dataset );
-				final FragmentSegmentAssignmentState assignment = N5Helpers.assignments( n5, dataset, idService );
+				final FragmentSegmentAssignmentState assignment = N5Helpers.assignments( n5, dataset );
 				final LockedSegmentsOnlyLocal lockedSegments = new LockedSegmentsOnlyLocal( locked -> {} );
 				final ModalGoldenAngleSaturatedHighlightingARGBStream stream = new ModalGoldenAngleSaturatedHighlightingARGBStream(
 						selectedIds,

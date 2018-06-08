@@ -4,6 +4,7 @@ import java.lang.invoke.MethodHandles;
 import java.util.Arrays;
 import java.util.Optional;
 import java.util.function.LongSupplier;
+import java.util.function.Supplier;
 
 import org.janelia.saalfeldlab.paintera.control.assignment.action.AssignmentAction;
 import org.janelia.saalfeldlab.paintera.control.assignment.action.Detach;
@@ -13,6 +14,7 @@ import org.slf4j.LoggerFactory;
 
 import gnu.trove.impl.Constants;
 import gnu.trove.iterator.TLongLongIterator;
+import gnu.trove.map.TLongLongMap;
 import gnu.trove.map.hash.TLongLongHashMap;
 import gnu.trove.map.hash.TLongObjectHashMap;
 import gnu.trove.set.hash.TLongHashSet;
@@ -34,28 +36,21 @@ public class FragmentSegmentAssignmentOnlyLocal extends FragmentSegmentAssignmen
 
 	private final Persister persister;
 
-	private final long[] initialFragments;
-
-	private final long[] initialSegments;
+	private final Supplier< TLongLongMap > initialLut;
 
 	public FragmentSegmentAssignmentOnlyLocal( final Persister persister )
 	{
-		this( new long[] {}, new long[] {}, persister );
+		this( () -> new TLongLongHashMap(), persister );
 	}
 
 	public FragmentSegmentAssignmentOnlyLocal(
-			final long[] fragments,
-			final long[] segments,
+			final Supplier< TLongLongMap > initialLut,
 			final Persister persister )
 	{
 
 		super();
 
-		assert fragments.length == segments.length: "segments and bodies must be of same length";
-
-		this.initialFragments = fragments.clone();
-		this.initialSegments = segments.clone();
-
+		this.initialLut = initialLut;
 		this.persister = persister;
 		LOG.debug( "Assignment map: {}", fragmentToSegmentMap );
 		// TODO should reset lut also forget about all actions? I think not.
@@ -73,6 +68,8 @@ public class FragmentSegmentAssignmentOnlyLocal extends FragmentSegmentAssignmen
 
 		try
 		{
+			// TODO Should we reset the LUT first to make sure that all previous
+			// changes were loaded?
 			LOG.debug( "Persisting assignment {}", this.fragmentToSegmentMap );
 			LOG.debug( "Committing actions {}", this.actions );
 			this.persister.persist( this.fragmentToSegmentMap.keys(), this.fragmentToSegmentMap.values() );
@@ -181,11 +178,8 @@ public class FragmentSegmentAssignmentOnlyLocal extends FragmentSegmentAssignmen
 
 	private void resetLut()
 	{
-		for ( int i = 0; i < this.initialFragments.length; ++i )
-		{
-			fragmentToSegmentMap.put( this.initialFragments[ i ], this.initialSegments[ i ] );
-		}
-
+		fragmentToSegmentMap.clear();
+		fragmentToSegmentMap.putAll( initialLut.get() );
 		syncILut();
 
 		this.actions.forEach( this::apply );

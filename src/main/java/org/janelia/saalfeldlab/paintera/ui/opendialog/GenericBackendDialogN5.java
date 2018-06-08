@@ -15,21 +15,15 @@ import java.util.function.Supplier;
 
 import org.janelia.saalfeldlab.fx.ui.ExceptionNode;
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread;
-import org.janelia.saalfeldlab.n5.DataBlock;
 import org.janelia.saalfeldlab.n5.DataType;
 import org.janelia.saalfeldlab.n5.DatasetAttributes;
-import org.janelia.saalfeldlab.n5.GzipCompression;
-import org.janelia.saalfeldlab.n5.LongArrayDataBlock;
 import org.janelia.saalfeldlab.n5.N5Reader;
 import org.janelia.saalfeldlab.n5.N5Writer;
 import org.janelia.saalfeldlab.n5.imglib2.N5Utils;
 import org.janelia.saalfeldlab.paintera.N5Helpers;
 import org.janelia.saalfeldlab.paintera.composition.ARGBCompositeAlphaYCbCr;
 import org.janelia.saalfeldlab.paintera.composition.CompositeCopy;
-import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignmentOnlyLocal;
-import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignmentOnlyLocal.Persister;
 import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignmentState;
-import org.janelia.saalfeldlab.paintera.control.assignment.UnableToPersist;
 import org.janelia.saalfeldlab.paintera.control.lock.LockedSegmentsOnlyLocal;
 import org.janelia.saalfeldlab.paintera.control.selection.SelectedIds;
 import org.janelia.saalfeldlab.paintera.data.DataSource;
@@ -66,7 +60,6 @@ import javafx.scene.control.Button;
 import javafx.scene.control.ComboBox;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.Priority;
-import net.imglib2.Cursor;
 import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.Volatile;
 import net.imglib2.cache.img.CachedCellImg;
@@ -285,68 +278,9 @@ public class GenericBackendDialogN5 implements BackendDialog
 		return this.datasetInfo.maxProperty();
 	}
 
-	public FragmentSegmentAssignmentState assignments()
+	public FragmentSegmentAssignmentState assignments() throws IOException
 	{
-		final String dataset = this.dataset.get() + ".fragment-segment-assignment";
-
-		try
-		{
-			final N5Writer writer = n5.get();
-
-			final Persister persister = ( keys, values ) -> {
-				// TODO handle zero length assignments?
-				if ( keys.length == 0 ) { throw new UnableToPersist( "Zero length data, will not persist fragment-segment-assignment." ); }
-				try
-				{
-					final DatasetAttributes attrs = new DatasetAttributes( new long[] { keys.length, 2 }, new int[] { keys.length, 1 }, DataType.UINT64, new GzipCompression() );
-					writer.createDataset( dataset, attrs );
-					final DataBlock< long[] > keyBlock = new LongArrayDataBlock( new int[] { keys.length, 1 }, new long[] { 0, 0 }, keys );
-					final DataBlock< long[] > valueBlock = new LongArrayDataBlock( new int[] { values.length, 1 }, new long[] { 0, 1 }, values );
-					writer.writeBlock( dataset, attrs, keyBlock );
-					writer.writeBlock( dataset, attrs, valueBlock );
-				}
-				catch ( final Exception e )
-				{
-					throw new UnableToPersist( e );
-				}
-			};
-
-			final long[] keys;
-			final long[] values;
-			LOG.debug( "Found fragment segment assingment dataset {}? {}", dataset, writer.datasetExists( dataset ) );
-			if ( writer.datasetExists( dataset ) )
-			{
-				final DatasetAttributes attrs = writer.getDatasetAttributes( dataset );
-				final int numEntries = ( int ) attrs.getDimensions()[ 0 ];
-				keys = new long[ numEntries ];
-				values = new long[ numEntries ];
-				LOG.debug( "Found {} assignments", numEntries );
-				final RandomAccessibleInterval< UnsignedLongType > data = N5Utils.open( writer, dataset );
-
-				final Cursor< UnsignedLongType > keysCursor = Views.flatIterable( Views.hyperSlice( data, 1, 0l ) ).cursor();
-				for ( int i = 0; keysCursor.hasNext(); ++i )
-				{
-					keys[ i ] = keysCursor.next().get();
-				}
-
-				final Cursor< UnsignedLongType > valuesCursor = Views.flatIterable( Views.hyperSlice( data, 1, 1l ) ).cursor();
-				for ( int i = 0; valuesCursor.hasNext(); ++i )
-				{
-					values[ i ] = valuesCursor.next().get();
-				}
-			}
-			else
-			{
-				keys = new long[] {};
-				values = new long[] {};
-			}
-
-			return new FragmentSegmentAssignmentOnlyLocal( keys, values, persister );
-		}
-		catch ( final IOException e )
-		{
-			throw new RuntimeException( e );
-		}
+		return N5Helpers.assignments( n5.get(), this.dataset.get() );
 	}
 
 	public IdService idService()
