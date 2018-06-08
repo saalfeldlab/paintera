@@ -91,6 +91,10 @@ public class SaveOnExitDialog implements EventHandler< WindowEvent >
 			}
 
 		}
+		else
+		{
+			checkForUncommitedCanvases();
+		}
 
 		onSuccess.run();
 	}
