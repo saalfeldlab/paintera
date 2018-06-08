@@ -28,7 +28,6 @@ import org.janelia.saalfeldlab.paintera.control.lock.LockedSegmentsOnlyLocal;
 import org.janelia.saalfeldlab.paintera.control.selection.SelectedIds;
 import org.janelia.saalfeldlab.paintera.data.DataSource;
 import org.janelia.saalfeldlab.paintera.data.mask.Masks;
-import org.janelia.saalfeldlab.paintera.data.mask.TmpDirectoryCreator;
 import org.janelia.saalfeldlab.paintera.data.n5.CommitCanvasN5;
 import org.janelia.saalfeldlab.paintera.id.IdService;
 import org.janelia.saalfeldlab.paintera.id.N5IdService;
@@ -439,7 +438,8 @@ public class GenericBackendDialogN5 implements BackendDialog
 			final int priority,
 			final Group meshesGroup,
 			final ExecutorService manager,
-			final ExecutorService workers ) throws Exception
+			final ExecutorService workers,
+			final String projectDirectory ) throws Exception
 	{
 		final N5Writer reader = n5.get();
 		final String dataset = this.dataset.get();
@@ -456,7 +456,7 @@ public class GenericBackendDialogN5 implements BackendDialog
 			source = ( DataSource< D, T > ) N5Helpers.openScalarAsSource( reader, dataset, transform, sharedQueue, priority, name );
 		}
 
-		final TmpDirectoryCreator canvasCacheDirUpdate = new TmpDirectoryCreator( null, null );
+		final Supplier< String > canvasCacheDirUpdate = Masks.canvasTmpDirDirectorySupplier( projectDirectory );
 
 		final DataSource< D, T > masked = Masks.mask( source, canvasCacheDirUpdate.get(), canvasCacheDirUpdate, commitCanvas(), workers );
 		final IdService idService = idService();
