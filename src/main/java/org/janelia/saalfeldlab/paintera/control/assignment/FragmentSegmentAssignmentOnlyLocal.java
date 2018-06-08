@@ -76,6 +76,7 @@ public class FragmentSegmentAssignmentOnlyLocal extends FragmentSegmentAssignmen
 			LOG.debug( "Persisting assignment {}", this.fragmentToSegmentMap );
 			LOG.debug( "Committing actions {}", this.actions );
 			this.persister.persist( this.fragmentToSegmentMap.keys(), this.fragmentToSegmentMap.values() );
+			this.actions.clear();
 		}
 		catch ( final Exception e )
 		{
