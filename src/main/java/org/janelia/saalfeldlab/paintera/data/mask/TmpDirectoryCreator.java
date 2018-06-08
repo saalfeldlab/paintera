@@ -39,7 +39,7 @@ public class TmpDirectoryCreator implements Supplier< String >
 		{
 			Optional.ofNullable( dir ).map( Path::toFile ).ifPresent( File::mkdirs );
 			final String tmpDir = dir == null ? Files.createTempDirectory( prefix, attrs ).toString() : Files.createTempDirectory( dir, prefix, attrs ).toString();
-			LOG.warn( "Created tmp dir {}", tmpDir );
+			LOG.debug( "Created tmp dir {}", tmpDir );
 			return tmpDir;
 		}
 		catch ( final IOException e )
