@@ -54,12 +54,24 @@ public class PainteraOpenDialogEventHandler implements EventHandler< Event >
 
 	private final Consumer< Exception > exceptionHandler;
 
-	public PainteraOpenDialogEventHandler( final PainteraBaseView viewer, final SharedQueue cellCache, final Predicate< Event > check )
+	private final String projectDirectory;
+
+	public PainteraOpenDialogEventHandler(
+			final PainteraBaseView viewer,
+			final SharedQueue cellCache,
+			final Predicate< Event > check,
+			final String projectDirectory )
 	{
-		this( viewer, cellCache, check, e -> {}, true );
+		this( viewer, cellCache, check, e -> {}, true, projectDirectory );
 	}
 
-	public PainteraOpenDialogEventHandler( final PainteraBaseView viewer, final SharedQueue cellCache, final Predicate< Event > check, final Consumer< Exception > exceptionHandler, final boolean consume )
+	public PainteraOpenDialogEventHandler(
+			final PainteraBaseView viewer,
+			final SharedQueue cellCache,
+			final Predicate< Event > check,
+			final Consumer< Exception > exceptionHandler,
+			final boolean consume,
+			final String projectDirectory )
 	{
 		super();
 		this.viewer = viewer;
@@ -67,6 +79,7 @@ public class PainteraOpenDialogEventHandler implements EventHandler< Event >
 		this.check = check;
 		this.consume = consume;
 		this.exceptionHandler = exceptionHandler;
+		this.projectDirectory = projectDirectory;
 	}
 
 	private < T extends RealType< T > & NativeType< T >, V extends AbstractVolatileRealType< T, V > & NativeType< V > > void addRaw(
@@ -90,7 +103,8 @@ public class PainteraOpenDialogEventHandler implements EventHandler< Event >
 				cellCache.getNumPriorities() - 1,
 				viewer.viewer3D().meshesGroup(),
 				viewer.getMeshManagerExecutorService(),
-				viewer.getMeshWorkerExecutorService() );
+				viewer.getMeshWorkerExecutorService(),
+				projectDirectory );
 		final Object meta = dataset.metaData();
 		LOG.debug( "Adding label source with meta={}", meta );
 		InvokeOnJavaFXApplicationThread.invoke( () -> viewer.addLabelSource( rep ) );
@@ -164,7 +178,7 @@ public class PainteraOpenDialogEventHandler implements EventHandler< Event >
 		{
 			@SuppressWarnings( "unchecked" )
 			final AbstractCellImg< LabelMultisetType, VolatileLabelMultisetArray, C, I > img =
-			( AbstractCellImg< LabelMultisetType, VolatileLabelMultisetArray, C, I > ) source.getDataSource( 0, level );
+					( AbstractCellImg< LabelMultisetType, VolatileLabelMultisetArray, C, I > ) source.getDataSource( 0, level );
 			uniqueIdCaches[ level ] = uniqueLabelLoaders( img );
 		}
 
@@ -180,8 +194,8 @@ public class PainteraOpenDialogEventHandler implements EventHandler< Event >
 	}
 
 	public static < C extends Cell< VolatileLabelMultisetArray >, I extends RandomAccessible< C > & IterableInterval< C > >
-	InterruptibleFunction< HashWrapper< long[] >, long[] > uniqueLabelLoaders(
-			final AbstractCellImg< LabelMultisetType, VolatileLabelMultisetArray, C, I > img )
+			InterruptibleFunction< HashWrapper< long[] >, long[] > uniqueLabelLoaders(
+					final AbstractCellImg< LabelMultisetType, VolatileLabelMultisetArray, C, I > img )
 	{
 		final I cells = img.getCells();
 		return InterruptibleFunction.fromFunction( location -> {

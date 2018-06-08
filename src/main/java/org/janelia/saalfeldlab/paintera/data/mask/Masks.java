@@ -1,6 +1,7 @@
 package org.janelia.saalfeldlab.paintera.data.mask;
 
 import java.lang.invoke.MethodHandles;
+import java.nio.file.Paths;
 import java.util.Optional;
 import java.util.concurrent.ExecutorService;
 import java.util.function.BiConsumer;
@@ -123,7 +124,7 @@ public class Masks
 				source,
 				blockSizes,
 				canvasCacheDirUpdate,
-				Optional.ofNullable( initialCanvasPath ).orElse( new TmpDirectoryCreator( null, null ).get() ),
+				Optional.ofNullable( initialCanvasPath ).orElseGet( canvasCacheDirUpdate ),
 				pacD,
 				pacT,
 				type,
@@ -200,7 +201,7 @@ public class Masks
 				source,
 				blockSizes,
 				canvasCacheDirUpdate,
-				Optional.ofNullable( initialCanvasPath ).orElse( new TmpDirectoryCreator( null, null ).get() ),
+				Optional.ofNullable( initialCanvasPath ).orElseGet( canvasCacheDirUpdate ),
 				pacD,
 				pacT,
 				type,
@@ -209,6 +210,11 @@ public class Masks
 				propagationExecutor );
 
 		return ms;
+	}
+
+	public static Supplier< String > canvasTmpDirDirectorySupplier( final String root )
+	{
+		return new TmpDirectoryCreator( Paths.get( root, "canvases" ), "canvas-" );
 	}
 
 }

@@ -5,6 +5,7 @@ import java.lang.invoke.MethodHandles;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
+import java.util.function.Supplier;
 import java.util.regex.Pattern;
 
 import org.janelia.saalfeldlab.fx.event.EventFX;
@@ -28,7 +29,6 @@ import org.janelia.saalfeldlab.paintera.control.selection.SelectedIds;
 import org.janelia.saalfeldlab.paintera.data.DataSource;
 import org.janelia.saalfeldlab.paintera.data.mask.CannotPersist;
 import org.janelia.saalfeldlab.paintera.data.mask.Masks;
-import org.janelia.saalfeldlab.paintera.data.mask.TmpDirectoryCreator;
 import org.janelia.saalfeldlab.paintera.data.n5.CommitCanvasN5;
 import org.janelia.saalfeldlab.paintera.id.IdService;
 import org.janelia.saalfeldlab.paintera.serialization.GsonHelpers;
@@ -150,7 +150,7 @@ public class Paintera extends Application
 				baseView,
 				() -> projectDir );
 
-		final PainteraDefaultHandlers defaultHandlers = new PainteraDefaultHandlers( baseView, keyTracker, mouseTracker, paneWithStatus );
+		final PainteraDefaultHandlers defaultHandlers = new PainteraDefaultHandlers( baseView, keyTracker, mouseTracker, paneWithStatus, projectDir );
 
 		// TODO (de-)seraizlie config
 		final NavigationConfig navigationConfig = new NavigationConfig();
@@ -227,7 +227,7 @@ public class Paintera extends Application
 		LOG.debug( "Adding {} label sources: {}", painteraArgs.labelSources().length, painteraArgs.labelSources() );
 		for ( final String source : painteraArgs.labelSources() )
 		{
-			addLabelFromString( baseView, source );
+			addLabelFromString( baseView, source, projectDir );
 		}
 
 		properties.windowProperties.widthProperty.set( painteraArgs.width( properties.windowProperties.widthProperty.get() ) );
@@ -350,11 +350,14 @@ public class Paintera extends Application
 		return Optional.empty();
 	}
 
-	private static < D extends NativeType< D >, T extends Volatile< D > & NativeType< T > > void addLabelFromString( final PainteraBaseView pbv, final String identifier ) throws UnableToAddSource
+	private static < D extends NativeType< D >, T extends Volatile< D > & NativeType< T > > void addLabelFromString(
+			final PainteraBaseView pbv,
+			final String identifier,
+			final String projectDirectory ) throws UnableToAddSource
 	{
 		if ( !Pattern.matches( "^[a-z]+://.+", identifier ) )
 		{
-			addLabelFromString( pbv, "file://" + identifier );
+			addLabelFromString( pbv, "file://" + identifier, projectDirectory );
 			return;
 		}
 
@@ -368,7 +371,7 @@ public class Paintera extends Application
 				final double[] resolution = Optional.ofNullable( n5.getAttribute( dataset, "resolution", double[].class ) ).orElse( new double[] { 1.0, 1.0, 1.0 } );
 				final double[] offset = Optional.ofNullable( n5.getAttribute( dataset, "offset", double[].class ) ).orElse( new double[] { 0.0, 0.0, 0.0 } );
 				final AffineTransform3D transform = N5Helpers.fromResolutionAndOffset( resolution, offset );
-				final TmpDirectoryCreator nextCanvasDir = new TmpDirectoryCreator( null, null );
+				final Supplier< String > nextCanvasDir = Masks.canvasTmpDirDirectorySupplier( projectDirectory );
 				final String name = N5Helpers.lastSegmentOfDatasetPath( dataset );
 				final SelectedIds selectedIds = new SelectedIds();
 				final IdService idService = N5Helpers.idService( n5, dataset );
