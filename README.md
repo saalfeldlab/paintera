@@ -77,7 +77,7 @@ Usage: Paintera [-h] [--height=HEIGHT] [--width=WIDTH]
 | `Space` wheel | change brush size |
 | `F` | Flood-fill with id that was last toggled active (if any) |
 | `N` | Select new, previously unused id |
-| `Ctrl` + `C` | Commit current canvas into background |
+| `Ctrl` + `C` | Show dialog to commit canvas and/or assignments |
 | `C` | Increment ARGB stream seed by one |
 | `Shift` + `C` | Decrement ARGB stream seed by one |
 | `Ctrl` + `Shift` + `C` | Show ARGB stream seed spinner |
