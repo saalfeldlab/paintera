@@ -14,7 +14,6 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.function.BiConsumer;
 import java.util.function.Function;
 import java.util.regex.Pattern;
 
@@ -31,7 +30,9 @@ import org.janelia.saalfeldlab.n5.hdf5.N5HDF5Reader;
 import org.janelia.saalfeldlab.n5.hdf5.N5HDF5Writer;
 import org.janelia.saalfeldlab.n5.imglib2.N5Utils;
 import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignmentOnlyLocal;
+import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignmentOnlyLocal.Persister;
 import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignmentState;
+import org.janelia.saalfeldlab.paintera.control.assignment.UnableToPersist;
 import org.janelia.saalfeldlab.paintera.data.DataSource;
 import org.janelia.saalfeldlab.paintera.data.n5.N5DataSource;
 import org.janelia.saalfeldlab.paintera.data.n5.N5FSMeta;
@@ -806,12 +807,9 @@ public class N5Helpers
 	{
 		final String dataset = ds + ".fragment-segment-assignment";
 
-		final BiConsumer< long[], long[] > persister = ( keys, values ) -> {
-			if ( keys.length == 0 )
-			{
-				LOG.info( "Zero length data, will not persist fragment-segment-assignment." );
-				return;
-			}
+		final Persister persister = ( keys, values ) -> {
+			// TODO handle zero length assignments?
+			if ( keys.length == 0 ) { throw new UnableToPersist( "Zero length data, will not persist fragment-segment-assignment." ); }
 			try
 			{
 				final DatasetAttributes attrs = new DatasetAttributes( new long[] { keys.length, 2 }, new int[] { keys.length, 1 }, DataType.UINT64, new GzipCompression() );
@@ -821,9 +819,9 @@ public class N5Helpers
 				writer.writeBlock( dataset, attrs, keyBlock );
 				writer.writeBlock( dataset, attrs, valueBlock );
 			}
-			catch ( final IOException e )
+			catch ( final Exception e )
 			{
-				throw new RuntimeException( e );
+				throw new UnableToPersist( e );
 			}
 		};
 
@@ -834,12 +832,9 @@ public class N5Helpers
 	{
 		final String dataset = ds + ".fragment-segment-assignment";
 
-		final BiConsumer< long[], long[] > persister = ( keys, values ) -> {
-			if ( keys.length == 0 )
-			{
-				LOG.info( "Zero length data, will not persist fragment-segment-assignment." );
-				return;
-			}
+		final Persister persister = ( keys, values ) -> {
+			// TODO handle zero length assignments?
+			if ( keys.length == 0 ) { throw new UnableToPersist( "Zero length data, will not persist fragment-segment-assignment." ); }
 			try
 			{
 				final DatasetAttributes attrs = new DatasetAttributes( new long[] { keys.length, 2 }, new int[] { keys.length, 1 }, DataType.UINT64, new GzipCompression() );
@@ -849,9 +844,9 @@ public class N5Helpers
 				writer.writeBlock( dataset, attrs, keyBlock );
 				writer.writeBlock( dataset, attrs, valueBlock );
 			}
-			catch ( final IOException e )
+			catch ( final Exception e )
 			{
-				throw new RuntimeException( e );
+				throw new UnableToPersist( e );
 			}
 		};
 

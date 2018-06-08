@@ -8,6 +8,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.function.Function;
 
+import org.janelia.saalfeldlab.paintera.control.assignment.UnableToPersist;
 import org.janelia.saalfeldlab.paintera.data.mask.CannotPersist;
 import org.janelia.saalfeldlab.paintera.data.mask.MaskedSource;
 import org.janelia.saalfeldlab.paintera.state.LabelSourceState;
@@ -39,7 +40,7 @@ public class CommitChanges
 
 	public static void commit(
 			final Function< Collection< Commitable >, Optional< Set< Commitable > > > getCommitablesToCommit,
-			final SourceState< ?, ? > currentState ) throws CannotPersist
+			final SourceState< ?, ? > currentState ) throws CannotPersist, UnableToPersist
 	{
 		commit( getCommitablesToCommit, currentState, Optional.empty() );
 	}
@@ -47,7 +48,7 @@ public class CommitChanges
 	public static void commit(
 			final Function< Collection< Commitable >, Optional< Set< Commitable > > > getCommitablesToCommit,
 			final SourceState< ?, ? > currentState,
-			final Optional< Set< Commitable > > filteredCommitableOptions ) throws CannotPersist
+			final Optional< Set< Commitable > > filteredCommitableOptions ) throws CannotPersist, UnableToPersist
 	{
 		LOG.debug( "Commiting for state {}", currentState );
 		if ( currentState == null || !( currentState instanceof LabelSourceState< ?, ? > ) )

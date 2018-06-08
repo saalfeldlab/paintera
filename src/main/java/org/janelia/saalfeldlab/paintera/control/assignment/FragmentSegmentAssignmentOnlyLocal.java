@@ -1,11 +1,8 @@
 package org.janelia.saalfeldlab.paintera.control.assignment;
 
 import java.lang.invoke.MethodHandles;
-import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.List;
 import java.util.Optional;
-import java.util.function.BiConsumer;
 import java.util.function.LongSupplier;
 
 import org.janelia.saalfeldlab.paintera.control.assignment.action.AssignmentAction;
@@ -24,21 +21,24 @@ import net.imglib2.type.label.Label;
 public class FragmentSegmentAssignmentOnlyLocal extends FragmentSegmentAssignmentState
 {
 
+	public interface Persister
+	{
+		public void persist( long[] keys, long[] values ) throws UnableToPersist;
+	}
+
 	private static final Logger LOG = LoggerFactory.getLogger( MethodHandles.lookup().lookupClass() );
 
 	private final TLongLongHashMap fragmentToSegmentMap = new TLongLongHashMap( Constants.DEFAULT_CAPACITY, Constants.DEFAULT_LOAD_FACTOR, Label.TRANSPARENT, Label.TRANSPARENT );
 
 	private final TLongObjectHashMap< TLongHashSet > segmentToFragmentsMap = new TLongObjectHashMap<>( Constants.DEFAULT_CAPACITY, Constants.DEFAULT_LOAD_FACTOR, Label.TRANSPARENT );
 
-	private final BiConsumer< long[], long[] > persister;
-
-	private final List< AssignmentAction > actions = new ArrayList<>();
+	private final Persister persister;
 
 	private final long[] initialFragments;
 
 	private final long[] initialSegments;
 
-	public FragmentSegmentAssignmentOnlyLocal( final BiConsumer< long[], long[] > persister )
+	public FragmentSegmentAssignmentOnlyLocal( final Persister persister )
 	{
 		this( new long[] {}, new long[] {}, persister );
 	}
@@ -46,7 +46,7 @@ public class FragmentSegmentAssignmentOnlyLocal extends FragmentSegmentAssignmen
 	public FragmentSegmentAssignmentOnlyLocal(
 			final long[] fragments,
 			final long[] segments,
-			final BiConsumer< long[], long[] > persister )
+			final Persister persister )
 	{
 
 		super();
@@ -63,9 +63,24 @@ public class FragmentSegmentAssignmentOnlyLocal extends FragmentSegmentAssignmen
 	}
 
 	@Override
-	public synchronized void persist()
+	public synchronized void persist() throws UnableToPersist
 	{
-		this.persister.accept( this.fragmentToSegmentMap.keys(), this.fragmentToSegmentMap.values() );
+		if ( actions.size() == 0 )
+		{
+			LOG.debug( "No actions to commit." );
+			return;
+		}
+
+		try
+		{
+			LOG.debug( "Persisting assignment {}", this.fragmentToSegmentMap );
+			LOG.debug( "Committing actions {}", this.actions );
+			this.persister.persist( this.fragmentToSegmentMap.keys(), this.fragmentToSegmentMap.values() );
+		}
+		catch ( final Exception e )
+		{
+			throw e instanceof UnableToPersist ? ( UnableToPersist ) e : new UnableToPersist( e );
+		}
 	}
 
 	@Override

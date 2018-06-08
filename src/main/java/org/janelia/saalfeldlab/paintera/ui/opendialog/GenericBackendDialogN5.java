@@ -27,7 +27,9 @@ import org.janelia.saalfeldlab.paintera.N5Helpers;
 import org.janelia.saalfeldlab.paintera.composition.ARGBCompositeAlphaYCbCr;
 import org.janelia.saalfeldlab.paintera.composition.CompositeCopy;
 import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignmentOnlyLocal;
+import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignmentOnlyLocal.Persister;
 import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignmentState;
+import org.janelia.saalfeldlab.paintera.control.assignment.UnableToPersist;
 import org.janelia.saalfeldlab.paintera.control.lock.LockedSegmentsOnlyLocal;
 import org.janelia.saalfeldlab.paintera.control.selection.SelectedIds;
 import org.janelia.saalfeldlab.paintera.data.DataSource;
@@ -291,12 +293,9 @@ public class GenericBackendDialogN5 implements BackendDialog
 		{
 			final N5Writer writer = n5.get();
 
-			final BiConsumer< long[], long[] > persister = ( keys, values ) -> {
-				if ( keys.length == 0 )
-				{
-					LOG.warn( "Zero length data, will not persist fragment-segment-assignment." );
-					return;
-				}
+			final Persister persister = ( keys, values ) -> {
+				// TODO handle zero length assignments?
+				if ( keys.length == 0 ) { throw new UnableToPersist( "Zero length data, will not persist fragment-segment-assignment." ); }
 				try
 				{
 					final DatasetAttributes attrs = new DatasetAttributes( new long[] { keys.length, 2 }, new int[] { keys.length, 1 }, DataType.UINT64, new GzipCompression() );
@@ -306,9 +305,9 @@ public class GenericBackendDialogN5 implements BackendDialog
 					writer.writeBlock( dataset, attrs, keyBlock );
 					writer.writeBlock( dataset, attrs, valueBlock );
 				}
-				catch ( final IOException e )
+				catch ( final Exception e )
 				{
-					throw new RuntimeException( e );
+					throw new UnableToPersist( e );
 				}
 			};
 
