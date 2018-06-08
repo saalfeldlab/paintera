@@ -51,7 +51,7 @@ public class CommitDialog implements Function< Collection< CommitChanges.Commita
 		final List< Commitable > commitables = new ArrayList<>( commitableOptions );
 		Collections.sort( commitables );
 
-		LOG.warn( "Selecting from commitables: {}", commitables );
+		LOG.debug( "Selecting from commitables: {}", commitables );
 
 		final Map< Commitable, CheckBox > checkBoxesMap = new HashMap<>();
 		final List< CheckBox > checkBoxes = new ArrayList<>();

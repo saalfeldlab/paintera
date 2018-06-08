@@ -71,6 +71,7 @@ public class CommitChanges
 			return;
 		}
 
+		LOG.debug( "Commiting {}", commitables.get() );
 		for ( final Commitable commitable : commitables.get() )
 		{
 			switch ( commitable )
