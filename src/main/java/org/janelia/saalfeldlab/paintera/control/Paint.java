@@ -17,8 +17,6 @@ import org.janelia.saalfeldlab.paintera.control.paint.Paint2D;
 import org.janelia.saalfeldlab.paintera.control.paint.RestrictPainting;
 import org.janelia.saalfeldlab.paintera.control.paint.SelectNextId;
 import org.janelia.saalfeldlab.paintera.control.selection.SelectedIds;
-import org.janelia.saalfeldlab.paintera.data.mask.CannotPersist;
-import org.janelia.saalfeldlab.paintera.data.mask.MaskedSource;
 import org.janelia.saalfeldlab.paintera.state.GlobalTransformManager;
 import org.janelia.saalfeldlab.paintera.state.LabelSourceState;
 import org.janelia.saalfeldlab.paintera.state.SourceInfo;
@@ -142,24 +140,6 @@ public class Paint implements ToOnEnterOnExit
 
 					final SelectNextId nextId = new SelectNextId( sourceInfo );
 					iars.add( EventFX.KEY_PRESSED( "next id", event -> nextId.getNextId(), event -> keyTracker.areOnlyTheseKeysDown( KeyCode.N ) ) );
-
-					iars.add( EventFX.KEY_PRESSED( "merge canvas", event -> {
-						final Source< ? > cs = currentSource.get();
-						if ( cs instanceof MaskedSource< ?, ? > )
-						{
-							LOG.debug( "Merging canvas for source {}", cs );
-							final MaskedSource< ?, ? > mcs = ( MaskedSource< ?, ? > ) cs;
-							try
-							{
-								mcs.persistCanvas();
-							}
-							catch ( final CannotPersist e )
-							{
-								LOG.warn( "Could not persist canvas. Try again later." );
-							}
-						}
-						event.consume();
-					}, event -> keyTracker.areOnlyTheseKeysDown( KeyCode.CONTROL, KeyCode.C ) ) );
 
 					this.mouseAndKeyHandlers.put( t, iars );
 				}

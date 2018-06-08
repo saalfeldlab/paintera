@@ -20,10 +20,12 @@ import org.janelia.saalfeldlab.paintera.config.CoordinateConfigNode;
 import org.janelia.saalfeldlab.paintera.config.CrosshairConfig;
 import org.janelia.saalfeldlab.paintera.config.NavigationConfig;
 import org.janelia.saalfeldlab.paintera.config.OrthoSliceConfig;
+import org.janelia.saalfeldlab.paintera.control.CommitChanges;
 import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignmentState;
 import org.janelia.saalfeldlab.paintera.control.lock.LockedSegmentsOnlyLocal;
 import org.janelia.saalfeldlab.paintera.control.selection.SelectedIds;
 import org.janelia.saalfeldlab.paintera.data.DataSource;
+import org.janelia.saalfeldlab.paintera.data.mask.CannotPersist;
 import org.janelia.saalfeldlab.paintera.data.mask.Masks;
 import org.janelia.saalfeldlab.paintera.data.mask.TmpDirectoryCreator;
 import org.janelia.saalfeldlab.paintera.data.n5.CommitCanvasN5;
@@ -259,6 +261,20 @@ public class Paintera extends Application
 					}
 				},
 				e -> keyTracker.areOnlyTheseKeysDown( KeyCode.CONTROL, KeyCode.S ) ).installInto( paneWithStatus.getPane() );
+
+		EventFX.KEY_PRESSED( "commit", e -> {
+			LOG.warn( "Showing commit dialog" );
+			e.consume();
+			try
+			{
+				CommitChanges.commit( new CommitDialog(), baseView.sourceInfo().currentState().get() );
+			}
+			catch ( final CannotPersist e1 )
+			{
+				LOG.error( "Unnable to persist canvas {}", e1 );
+			}
+		},
+				e -> keyTracker.areOnlyTheseKeysDown( KeyCode.CONTROL, KeyCode.C ) ).installInto( paneWithStatus.getPane() );
 
 		keyTracker.installInto( scene );
 		scene.addEventFilter( MouseEvent.ANY, mouseTracker );
