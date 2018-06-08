@@ -116,8 +116,7 @@ public class LabelSourceStateDeserializer< C extends HighlightingStreamConverter
 		final IdService idService = N5Helpers.idService( writer, dataset );
 		final FragmentSegmentAssignmentState assignment = N5Helpers.assignments(
 				writer,
-				dataset,
-				idService );
+				dataset );
 
 		if ( assignmentMap != null && assignmentMap.has( FragmentSegmentAssignmentOnlyLocalSerializer.ACTIONS_KEY ) )
 		{

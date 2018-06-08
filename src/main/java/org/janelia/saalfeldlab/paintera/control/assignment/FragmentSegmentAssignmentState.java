@@ -18,7 +18,7 @@ public abstract class FragmentSegmentAssignmentState extends ObservableWithListe
 
 	protected List< AssignmentAction > actions = new ArrayList<>();
 
-	public void persist()
+	public void persist() throws UnableToPersist
 	{
 		throw new UnsupportedOperationException( "Not implemented yet!" );
 	}

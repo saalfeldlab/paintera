@@ -14,8 +14,8 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.function.BiConsumer;
 import java.util.function.Function;
+import java.util.function.Supplier;
 import java.util.regex.Pattern;
 
 import org.janelia.saalfeldlab.n5.DataBlock;
@@ -31,7 +31,9 @@ import org.janelia.saalfeldlab.n5.hdf5.N5HDF5Reader;
 import org.janelia.saalfeldlab.n5.hdf5.N5HDF5Writer;
 import org.janelia.saalfeldlab.n5.imglib2.N5Utils;
 import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignmentOnlyLocal;
+import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignmentOnlyLocal.Persister;
 import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignmentState;
+import org.janelia.saalfeldlab.paintera.control.assignment.UnableToPersist;
 import org.janelia.saalfeldlab.paintera.data.DataSource;
 import org.janelia.saalfeldlab.paintera.data.n5.N5DataSource;
 import org.janelia.saalfeldlab.paintera.data.n5.N5FSMeta;
@@ -53,6 +55,8 @@ import bdv.img.cache.CreateInvalidVolatileCell;
 import bdv.util.volatiles.SharedQueue;
 import bdv.util.volatiles.VolatileTypeMatcher;
 import bdv.viewer.Interpolation;
+import gnu.trove.map.TLongLongMap;
+import gnu.trove.map.hash.TLongLongHashMap;
 import net.imglib2.Cursor;
 import net.imglib2.RandomAccessible;
 import net.imglib2.RandomAccessibleInterval;
@@ -798,20 +802,13 @@ public class N5Helpers
 		return transform.concatenate( new Translation3D( shift ) );
 	}
 
-	public static FragmentSegmentAssignmentState assignments(
-			final N5Writer writer,
-			final String ds,
-			final long[] fragments,
-			final long[] segments ) throws IOException
+	public static FragmentSegmentAssignmentState assignments( final N5Writer writer, final String ds ) throws IOException
 	{
 		final String dataset = ds + ".fragment-segment-assignment";
 
-		final BiConsumer< long[], long[] > persister = ( keys, values ) -> {
-			if ( keys.length == 0 )
-			{
-				LOG.info( "Zero length data, will not persist fragment-segment-assignment." );
-				return;
-			}
+		final Persister persister = ( keys, values ) -> {
+			// TODO handle zero length assignments?
+			if ( keys.length == 0 ) { throw new UnableToPersist( "Zero length data, will not persist fragment-segment-assignment." ); }
 			try
 			{
 				final DatasetAttributes attrs = new DatasetAttributes( new long[] { keys.length, 2 }, new int[] { keys.length, 1 }, DataType.UINT64, new GzipCompression() );
@@ -821,71 +818,46 @@ public class N5Helpers
 				writer.writeBlock( dataset, attrs, keyBlock );
 				writer.writeBlock( dataset, attrs, valueBlock );
 			}
-			catch ( final IOException e )
+			catch ( final Exception e )
 			{
-				throw new RuntimeException( e );
+				throw new UnableToPersist( e );
 			}
 		};
 
-		return new FragmentSegmentAssignmentOnlyLocal( fragments, segments, persister );
-	}
-
-	public static FragmentSegmentAssignmentState assignments( final N5Writer writer, final String ds, final IdService idService ) throws IOException
-	{
-		final String dataset = ds + ".fragment-segment-assignment";
-
-		final BiConsumer< long[], long[] > persister = ( keys, values ) -> {
-			if ( keys.length == 0 )
+		final Supplier< TLongLongMap > initialLutSupplier = MakeUnchecked.supplier( () -> {
+			final long[] keys;
+			final long[] values;
+			LOG.debug( "Found fragment segment assingment dataset {}? {}", dataset, writer.datasetExists( dataset ) );
+			if ( writer.datasetExists( dataset ) )
 			{
-				LOG.info( "Zero length data, will not persist fragment-segment-assignment." );
-				return;
-			}
-			try
-			{
-				final DatasetAttributes attrs = new DatasetAttributes( new long[] { keys.length, 2 }, new int[] { keys.length, 1 }, DataType.UINT64, new GzipCompression() );
-				writer.createDataset( dataset, attrs );
-				final DataBlock< long[] > keyBlock = new LongArrayDataBlock( new int[] { keys.length, 1 }, new long[] { 0, 0 }, keys );
-				final DataBlock< long[] > valueBlock = new LongArrayDataBlock( new int[] { values.length, 1 }, new long[] { 0, 1 }, values );
-				writer.writeBlock( dataset, attrs, keyBlock );
-				writer.writeBlock( dataset, attrs, valueBlock );
-			}
-			catch ( final IOException e )
-			{
-				throw new RuntimeException( e );
-			}
-		};
+				final DatasetAttributes attrs = writer.getDatasetAttributes( dataset );
+				final int numEntries = ( int ) attrs.getDimensions()[ 0 ];
+				keys = new long[ numEntries ];
+				values = new long[ numEntries ];
+				LOG.debug( "Found {} assignments", numEntries );
+				final RandomAccessibleInterval< UnsignedLongType > data = N5Utils.open( writer, dataset );
 
-		final long[] keys;
-		final long[] values;
-		LOG.debug( "Found fragment segment assingment dataset {}? {}", dataset, writer.datasetExists( dataset ) );
-		if ( writer.datasetExists( dataset ) )
-		{
-			final DatasetAttributes attrs = writer.getDatasetAttributes( dataset );
-			final int numEntries = ( int ) attrs.getDimensions()[ 0 ];
-			keys = new long[ numEntries ];
-			values = new long[ numEntries ];
-			LOG.debug( "Found {} assignments", numEntries );
-			final RandomAccessibleInterval< UnsignedLongType > data = N5Utils.open( writer, dataset );
+				final Cursor< UnsignedLongType > keysCursor = Views.flatIterable( Views.hyperSlice( data, 1, 0l ) ).cursor();
+				for ( int i = 0; keysCursor.hasNext(); ++i )
+				{
+					keys[ i ] = keysCursor.next().get();
+				}
 
-			final Cursor< UnsignedLongType > keysCursor = Views.flatIterable( Views.hyperSlice( data, 1, 0l ) ).cursor();
-			for ( int i = 0; keysCursor.hasNext(); ++i )
-			{
-				keys[ i ] = keysCursor.next().get();
+				final Cursor< UnsignedLongType > valuesCursor = Views.flatIterable( Views.hyperSlice( data, 1, 1l ) ).cursor();
+				for ( int i = 0; valuesCursor.hasNext(); ++i )
+				{
+					values[ i ] = valuesCursor.next().get();
+				}
 			}
-
-			final Cursor< UnsignedLongType > valuesCursor = Views.flatIterable( Views.hyperSlice( data, 1, 1l ) ).cursor();
-			for ( int i = 0; valuesCursor.hasNext(); ++i )
+			else
 			{
-				values[ i ] = valuesCursor.next().get();
+				keys = new long[] {};
+				values = new long[] {};
 			}
-		}
-		else
-		{
-			keys = new long[] {};
-			values = new long[] {};
-		}
+			return new TLongLongHashMap( keys, values );
+		} );
 
-		return new FragmentSegmentAssignmentOnlyLocal( keys, values, persister );
+		return new FragmentSegmentAssignmentOnlyLocal( initialLutSupplier, persister );
 	}
 
 	public static IdService idService( final N5Writer n5, final String dataset ) throws IOException

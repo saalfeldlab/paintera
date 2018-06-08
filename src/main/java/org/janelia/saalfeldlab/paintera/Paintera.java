@@ -22,6 +22,7 @@ import org.janelia.saalfeldlab.paintera.config.NavigationConfig;
 import org.janelia.saalfeldlab.paintera.config.OrthoSliceConfig;
 import org.janelia.saalfeldlab.paintera.control.CommitChanges;
 import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignmentState;
+import org.janelia.saalfeldlab.paintera.control.assignment.UnableToPersist;
 import org.janelia.saalfeldlab.paintera.control.lock.LockedSegmentsOnlyLocal;
 import org.janelia.saalfeldlab.paintera.control.selection.SelectedIds;
 import org.janelia.saalfeldlab.paintera.data.DataSource;
@@ -263,7 +264,7 @@ public class Paintera extends Application
 				e -> keyTracker.areOnlyTheseKeysDown( KeyCode.CONTROL, KeyCode.S ) ).installInto( paneWithStatus.getPane() );
 
 		EventFX.KEY_PRESSED( "commit", e -> {
-			LOG.warn( "Showing commit dialog" );
+			LOG.debug( "Showing commit dialog" );
 			e.consume();
 			try
 			{
@@ -271,7 +272,11 @@ public class Paintera extends Application
 			}
 			catch ( final CannotPersist e1 )
 			{
-				LOG.error( "Unnable to persist canvas {}", e1 );
+				LOG.error( "Unable to persist canvas {}", e1 );
+			}
+			catch ( final UnableToPersist e1 )
+			{
+				LOG.error( "Unable to persist fragment-segment-assignment {}", e1 );
 			}
 		},
 				e -> keyTracker.areOnlyTheseKeysDown( KeyCode.CONTROL, KeyCode.C ) ).installInto( paneWithStatus.getPane() );
@@ -367,7 +372,7 @@ public class Paintera extends Application
 				final String name = N5Helpers.lastSegmentOfDatasetPath( dataset );
 				final SelectedIds selectedIds = new SelectedIds();
 				final IdService idService = N5Helpers.idService( n5, dataset );
-				final FragmentSegmentAssignmentState assignment = N5Helpers.assignments( n5, dataset, idService );
+				final FragmentSegmentAssignmentState assignment = N5Helpers.assignments( n5, dataset );
 				final LockedSegmentsOnlyLocal lockedSegments = new LockedSegmentsOnlyLocal( locked -> {} );
 				final ModalGoldenAngleSaturatedHighlightingARGBStream stream = new ModalGoldenAngleSaturatedHighlightingARGBStream(
 						selectedIds,

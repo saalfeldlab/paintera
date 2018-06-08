@@ -1,12 +1,10 @@
 package org.janelia.saalfeldlab.paintera.control.assignment;
 
 import java.lang.invoke.MethodHandles;
-import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.List;
 import java.util.Optional;
-import java.util.function.BiConsumer;
 import java.util.function.LongSupplier;
+import java.util.function.Supplier;
 
 import org.janelia.saalfeldlab.paintera.control.assignment.action.AssignmentAction;
 import org.janelia.saalfeldlab.paintera.control.assignment.action.Detach;
@@ -16,6 +14,7 @@ import org.slf4j.LoggerFactory;
 
 import gnu.trove.impl.Constants;
 import gnu.trove.iterator.TLongLongIterator;
+import gnu.trove.map.TLongLongMap;
 import gnu.trove.map.hash.TLongLongHashMap;
 import gnu.trove.map.hash.TLongObjectHashMap;
 import gnu.trove.set.hash.TLongHashSet;
@@ -24,38 +23,34 @@ import net.imglib2.type.label.Label;
 public class FragmentSegmentAssignmentOnlyLocal extends FragmentSegmentAssignmentState
 {
 
+	public interface Persister
+	{
+		public void persist( long[] keys, long[] values ) throws UnableToPersist;
+	}
+
 	private static final Logger LOG = LoggerFactory.getLogger( MethodHandles.lookup().lookupClass() );
 
 	private final TLongLongHashMap fragmentToSegmentMap = new TLongLongHashMap( Constants.DEFAULT_CAPACITY, Constants.DEFAULT_LOAD_FACTOR, Label.TRANSPARENT, Label.TRANSPARENT );
 
 	private final TLongObjectHashMap< TLongHashSet > segmentToFragmentsMap = new TLongObjectHashMap<>( Constants.DEFAULT_CAPACITY, Constants.DEFAULT_LOAD_FACTOR, Label.TRANSPARENT );
 
-	private final BiConsumer< long[], long[] > persister;
+	private final Persister persister;
 
-	private final List< AssignmentAction > actions = new ArrayList<>();
+	private final Supplier< TLongLongMap > initialLut;
 
-	private final long[] initialFragments;
-
-	private final long[] initialSegments;
-
-	public FragmentSegmentAssignmentOnlyLocal( final BiConsumer< long[], long[] > persister )
+	public FragmentSegmentAssignmentOnlyLocal( final Persister persister )
 	{
-		this( new long[] {}, new long[] {}, persister );
+		this( () -> new TLongLongHashMap(), persister );
 	}
 
 	public FragmentSegmentAssignmentOnlyLocal(
-			final long[] fragments,
-			final long[] segments,
-			final BiConsumer< long[], long[] > persister )
+			final Supplier< TLongLongMap > initialLut,
+			final Persister persister )
 	{
 
 		super();
 
-		assert fragments.length == segments.length: "segments and bodies must be of same length";
-
-		this.initialFragments = fragments.clone();
-		this.initialSegments = segments.clone();
-
+		this.initialLut = initialLut;
 		this.persister = persister;
 		LOG.debug( "Assignment map: {}", fragmentToSegmentMap );
 		// TODO should reset lut also forget about all actions? I think not.
@@ -63,9 +58,27 @@ public class FragmentSegmentAssignmentOnlyLocal extends FragmentSegmentAssignmen
 	}
 
 	@Override
-	public synchronized void persist()
+	public synchronized void persist() throws UnableToPersist
 	{
-		this.persister.accept( this.fragmentToSegmentMap.keys(), this.fragmentToSegmentMap.values() );
+		if ( actions.size() == 0 )
+		{
+			LOG.debug( "No actions to commit." );
+			return;
+		}
+
+		try
+		{
+			// TODO Should we reset the LUT first to make sure that all previous
+			// changes were loaded?
+			LOG.debug( "Persisting assignment {}", this.fragmentToSegmentMap );
+			LOG.debug( "Committing actions {}", this.actions );
+			this.persister.persist( this.fragmentToSegmentMap.keys(), this.fragmentToSegmentMap.values() );
+			this.actions.clear();
+		}
+		catch ( final Exception e )
+		{
+			throw e instanceof UnableToPersist ? ( UnableToPersist ) e : new UnableToPersist( e );
+		}
 	}
 
 	@Override
@@ -165,11 +178,8 @@ public class FragmentSegmentAssignmentOnlyLocal extends FragmentSegmentAssignmen
 
 	private void resetLut()
 	{
-		for ( int i = 0; i < this.initialFragments.length; ++i )
-		{
-			fragmentToSegmentMap.put( this.initialFragments[ i ], this.initialSegments[ i ] );
-		}
-
+		fragmentToSegmentMap.clear();
+		fragmentToSegmentMap.putAll( initialLut.get() );
 		syncILut();
 
 		this.actions.forEach( this::apply );
