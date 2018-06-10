@@ -76,17 +76,15 @@ public class GridResizer implements InstallAndRemove< Node >
 		@Override
 		public void handle( final MouseEvent event )
 		{
-			if ( !keyTracker.noKeysActive() ) {
-				return;
-			}
+			if ( !keyTracker.noKeysActive() ) { return; }
 			synchronized ( manager )
 			{
 				synchronized ( grid )
 				{
 					final double x = event.getX();
 					final double y = event.getY();
-					final double gridBorderX = manager.column1.getPercentWidth() / 100 * grid.widthProperty().get();
-					final double gridBorderY = manager.row1.getPercentHeight() / 100 * grid.heightProperty().get();
+					final double gridBorderX = manager.firstColumnWidthProperty().get() / 100 * grid.widthProperty().get();
+					final double gridBorderY = manager.firstRowHeightProperty().get() / 100 * grid.heightProperty().get();
 					final boolean mouseWithinResizableRangeX = Math.abs( x - gridBorderX ) < tolerance;
 					final boolean mouseWithinResizableRangeY = Math.abs( y - gridBorderY ) < tolerance;
 
@@ -141,8 +139,8 @@ public class GridResizer implements InstallAndRemove< Node >
 		{
 			final double x = event.getX();
 			final double y = event.getY();
-			final double gridBorderX = manager.column1.getPercentWidth() / 100 * grid.widthProperty().get();
-			final double gridBorderY = manager.row1.getPercentHeight() / 100 * grid.heightProperty().get();
+			final double gridBorderX = manager.firstColumnWidthProperty().get() / 100 * grid.widthProperty().get();
+			final double gridBorderY = manager.firstRowHeightProperty().get() / 100 * grid.heightProperty().get();
 
 			mouseWithinResizableRangeX = Math.abs( x - gridBorderX ) < tolerance;
 			mouseWithinResizableRangeY = Math.abs( y - gridBorderY ) < tolerance;
@@ -183,15 +181,13 @@ public class GridResizer implements InstallAndRemove< Node >
 				if ( mouseWithinResizableRangeX )
 				{
 					final double percentWidth = Math.min( Math.max( stopX * 100.0 / width, 20 ), 80 );
-					manager.column1.setPercentWidth( percentWidth );
-					manager.column2.setPercentWidth( 100 - percentWidth );
+					manager.firstColumnWidthProperty().set( percentWidth );
 				}
 
 				if ( mouseWithinResizableRangeY )
 				{
 					final double percentHeight = Math.min( Math.max( stopY * 100.0 / height, 20 ), 80 );
-					manager.row1.setPercentHeight( percentHeight );
-					manager.row2.setPercentHeight( 100 - percentHeight );
+					manager.firstRowHeightProperty().set( percentHeight );
 				}
 
 				event.consume();
@@ -210,8 +206,8 @@ public class GridResizer implements InstallAndRemove< Node >
 			{
 				final double x = event.getX();
 				final double y = event.getY();
-				final double gridBorderX = manager.column1.getPercentWidth() / 100 * grid.widthProperty().get();
-				final double gridBorderY = manager.row1.getPercentHeight() / 100 * grid.heightProperty().get();
+				final double gridBorderX = manager.firstColumnWidthProperty().get() / 100 * grid.widthProperty().get();
+				final double gridBorderY = manager.firstRowHeightProperty().get() / 100 * grid.heightProperty().get();
 				final boolean mouseWithinResizableRangeX = Math.abs( x - gridBorderX ) < tolerance;
 				final boolean mouseWithinResizableRangeY = Math.abs( y - gridBorderY ) < tolerance;
 
@@ -225,35 +221,27 @@ public class GridResizer implements InstallAndRemove< Node >
 					{
 						timeline.getKeyFrames().addAll(
 								new KeyFrame( Duration.ZERO,
-										new KeyValue( manager.column1.percentWidthProperty(), manager.column1.getPercentWidth() ),
-										new KeyValue( manager.column2.percentWidthProperty(), manager.column2.getPercentWidth() ),
-										new KeyValue( manager.row1.percentHeightProperty(), manager.row1.getPercentHeight() ),
-										new KeyValue( manager.row2.percentHeightProperty(), manager.row2.getPercentHeight() ) ),
+										new KeyValue( manager.firstColumnWidthProperty(), manager.firstColumnWidthProperty().get() ),
+										new KeyValue( manager.firstRowHeightProperty(), manager.firstRowHeightProperty().get() ) ),
 								new KeyFrame( new Duration( time ),
-										new KeyValue( manager.column1.percentWidthProperty(), 50 ),
-										new KeyValue( manager.column2.percentWidthProperty(), 50 ),
-										new KeyValue( manager.row1.percentHeightProperty(), 50 ),
-										new KeyValue( manager.row2.percentHeightProperty(), 50 ) ) );
+										new KeyValue( manager.firstColumnWidthProperty(), 50 ),
+										new KeyValue( manager.firstRowHeightProperty(), 50 ) ) );
 					}
 					else if ( mouseWithinResizableRangeX )
 					{
 						timeline.getKeyFrames().addAll(
 								new KeyFrame( Duration.ZERO,
-										new KeyValue( manager.column1.percentWidthProperty(), manager.column1.getPercentWidth() ),
-										new KeyValue( manager.column2.percentWidthProperty(), manager.column2.getPercentWidth() ) ),
+										new KeyValue( manager.firstColumnWidthProperty(), manager.firstColumnWidthProperty().get() ) ),
 								new KeyFrame( new Duration( time ),
-										new KeyValue( manager.column1.percentWidthProperty(), 50 ),
-										new KeyValue( manager.column2.percentWidthProperty(), 50 ) ) );
+										new KeyValue( manager.firstColumnWidthProperty(), 50 ) ) );
 					}
 					else if ( mouseWithinResizableRangeY )
 					{
 						timeline.getKeyFrames().addAll(
 								new KeyFrame( Duration.ZERO,
-										new KeyValue( manager.row1.percentHeightProperty(), manager.row1.getPercentHeight() ),
-										new KeyValue( manager.row2.percentHeightProperty(), manager.row2.getPercentHeight() ) ),
+										new KeyValue( manager.firstRowHeightProperty(), manager.firstRowHeightProperty().get() ) ),
 								new KeyFrame( new Duration( time ),
-										new KeyValue( manager.row1.percentHeightProperty(), 50 ),
-										new KeyValue( manager.row2.percentHeightProperty(), 50 ) ) );
+										new KeyValue( manager.firstRowHeightProperty(), 50 ) ) );
 					}
 					timeline.play();
 				}

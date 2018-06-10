@@ -12,6 +12,7 @@ import java.util.function.Consumer;
 import org.janelia.saalfeldlab.fx.event.EventFX;
 import org.janelia.saalfeldlab.fx.event.KeyTracker;
 import org.janelia.saalfeldlab.fx.event.MouseTracker;
+import org.janelia.saalfeldlab.fx.ortho.GridConstraintsManager;
 import org.janelia.saalfeldlab.fx.ortho.GridResizer;
 import org.janelia.saalfeldlab.fx.ortho.OnEnterOnExit;
 import org.janelia.saalfeldlab.fx.ortho.OrthogonalViews;
@@ -114,7 +115,8 @@ public class PainteraDefaultHandlers
 			final PainteraBaseView baseView,
 			final KeyTracker keyTracker,
 			final MouseTracker mouseTracker,
-			final BorderPaneWithStatusBars paneWithStatus )
+			final BorderPaneWithStatusBars paneWithStatus,
+			final GridConstraintsManager gridConstraintsManager )
 	{
 		this.baseView = baseView;
 		this.keyTracker = keyTracker;
@@ -146,10 +148,10 @@ public class PainteraDefaultHandlers
 
 		this.openDialogHandler = addPainteraOpenDialogHandler( baseView, keyTracker, KeyCode.CONTROL, KeyCode.O );
 
-		this.toggleMaximizeTopLeft = toggleMaximizeNode( orthogonalViews.grid(), 0, 0 );
-		this.toggleMaximizeTopRight = toggleMaximizeNode( orthogonalViews.grid(), 1, 0 );
-		this.toggleMaximizeBottomLeft = toggleMaximizeNode( orthogonalViews.grid(), 0, 1 );
-		this.toggleMaximizeBottomRight = toggleMaximizeNode( orthogonalViews.grid(), 1, 1 );
+		this.toggleMaximizeTopLeft = toggleMaximizeNode( orthogonalViews.grid(), gridConstraintsManager, 0, 0 );
+		this.toggleMaximizeTopRight = toggleMaximizeNode( orthogonalViews.grid(), gridConstraintsManager, 1, 0 );
+		this.toggleMaximizeBottomLeft = toggleMaximizeNode( orthogonalViews.grid(), gridConstraintsManager, 0, 1 );
+		this.toggleMaximizeBottomRight = toggleMaximizeNode( orthogonalViews.grid(), gridConstraintsManager, 1, 1 );
 
 		viewerToTransforms.put( orthogonalViews.topLeft().viewer(), orthogonalViews.topLeft() );
 		viewerToTransforms.put( orthogonalViews.topRight().viewer(), orthogonalViews.topRight() );
@@ -179,7 +181,7 @@ public class PainteraDefaultHandlers
 		EventFX.KEY_PRESSED( "cycle current source", e -> sourceInfo.incrementCurrentSourceIndex(), e -> keyTracker.areOnlyTheseKeysDown( KeyCode.CONTROL, KeyCode.TAB ) ).installInto( borderPane );
 		EventFX.KEY_PRESSED( "backwards cycle current source", e -> sourceInfo.decrementCurrentSourceIndex(), e -> keyTracker.areOnlyTheseKeysDown( KeyCode.CONTROL, KeyCode.SHIFT, KeyCode.TAB ) ).installInto( borderPane );
 
-		this.resizer = new GridResizer( baseView.orthogonalViews().grid().constraintsManager(), 5, baseView.pane(), keyTracker );
+		this.resizer = new GridResizer( gridConstraintsManager, 5, baseView.pane(), keyTracker );
 		this.resizer.installInto( baseView.pane() );
 
 		final ObjectProperty< Source< ? > > currentSource = sourceInfo.currentSourceProperty();
@@ -217,14 +219,14 @@ public class PainteraDefaultHandlers
 				orthogonalViews.bottomLeft().globalToViewerTransform().setTransform( ViewerAxis.globalToViewer( ViewerAxis.Z ) );
 				orthogonalViews.topLeft().viewer().setVisible( false );
 				orthogonalViews.topRight().viewer().setVisible( false );
-				orthogonalViews.grid().constraintsManager().maximize( 1, 0 );
+				gridConstraintsManager.maximize( 1, 0 );
 			}
 			else
 			{
 				orthogonalViews.bottomLeft().globalToViewerTransform().setTransform( ViewerAxis.globalToViewer( ViewerAxis.Y ) );
 				orthogonalViews.topLeft().viewer().setVisible( true );
 				orthogonalViews.topRight().viewer().setVisible( true );
-				orthogonalViews.grid().constraintsManager().resetToLast();
+				gridConstraintsManager.resetToLast();
 			}
 		} );
 		EventFX.KEY_PRESSED( "maximize bottom row", e -> isRowMaximized.set( !isRowMaximized.get() ), e -> keyTracker.areOnlyTheseKeysDown( KeyCode.M, KeyCode.SHIFT ) ).installInto( paneWithStatus.getPane() );
@@ -373,13 +375,14 @@ public class PainteraDefaultHandlers
 
 	public static ToggleMaximize toggleMaximizeNode(
 			final ResizableGridPane2x2< ?, ?, ?, ? > grid,
+			final GridConstraintsManager manager,
 			final int column,
 			final int row )
 	{
 		return new ToggleMaximize(
 				grid.getChildAt( column, row ),
 				grid.pane().getChildren(),
-				grid.constraintsManager(),
+				manager,
 				column, row );
 	}
 

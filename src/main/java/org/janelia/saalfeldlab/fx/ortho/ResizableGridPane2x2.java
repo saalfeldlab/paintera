@@ -11,8 +11,6 @@ public class ResizableGridPane2x2< TL extends Node, TR extends Node, BL extends 
 
 	private final GridPane grid = new GridPane();
 
-	private final GridConstraintsManager constraintsManager = new GridConstraintsManager( grid );
-
 	private final ObjectProperty< TL > topLeft = new SimpleObjectProperty<>();
 
 	private final ObjectProperty< TR > topRight = new SimpleObjectProperty<>();
@@ -45,11 +43,6 @@ public class ResizableGridPane2x2< TL extends Node, TR extends Node, BL extends 
 	public Pane pane()
 	{
 		return this.grid;
-	}
-
-	public GridConstraintsManager constraintsManager()
-	{
-		return this.constraintsManager;
 	}
 
 	public ObjectProperty< TL > topLeftProperty()
@@ -106,6 +99,11 @@ public class ResizableGridPane2x2< TL extends Node, TR extends Node, BL extends 
 		if ( column == 1 && row == 1 ) { return bottomRight.get(); }
 
 		return null;
+	}
+
+	public void manage( final GridConstraintsManager manager )
+	{
+		manager.manageGrid( this.grid );
 	}
 
 }

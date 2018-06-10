@@ -10,6 +10,7 @@ import java.util.regex.Pattern;
 import org.janelia.saalfeldlab.fx.event.EventFX;
 import org.janelia.saalfeldlab.fx.event.KeyTracker;
 import org.janelia.saalfeldlab.fx.event.MouseTracker;
+import org.janelia.saalfeldlab.fx.ortho.GridConstraintsManager;
 import org.janelia.saalfeldlab.fx.ortho.OrthogonalViews;
 import org.janelia.saalfeldlab.n5.N5Reader;
 import org.janelia.saalfeldlab.n5.N5Writer;
@@ -150,7 +151,15 @@ public class Paintera extends Application
 				baseView,
 				() -> projectDir );
 
-		final PainteraDefaultHandlers defaultHandlers = new PainteraDefaultHandlers( baseView, keyTracker, mouseTracker, paneWithStatus );
+		final GridConstraintsManager gridConstraintsManager = new GridConstraintsManager();
+		baseView.orthogonalViews().grid().manage( gridConstraintsManager );
+
+		final PainteraDefaultHandlers defaultHandlers = new PainteraDefaultHandlers(
+				baseView,
+				keyTracker,
+				mouseTracker,
+				paneWithStatus,
+				gridConstraintsManager );
 
 		// TODO (de-)seraizlie config
 		final NavigationConfig navigationConfig = new NavigationConfig();
