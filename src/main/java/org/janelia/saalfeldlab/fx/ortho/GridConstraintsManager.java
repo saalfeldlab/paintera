@@ -5,9 +5,9 @@ import java.lang.invoke.MethodHandles;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javafx.beans.binding.Bindings;
 import javafx.beans.property.DoubleProperty;
 import javafx.beans.property.SimpleDoubleProperty;
-import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.value.ObservableObjectValue;
 import javafx.collections.ObservableList;
 import javafx.scene.Node;
@@ -68,13 +68,17 @@ public class GridConstraintsManager
 
 	private boolean isFullScreen = false;
 
-	private final SimpleObjectProperty< MaximizedColumn > maximizedColumn = new SimpleObjectProperty<>( MaximizedColumn.NONE );
-
-	private final SimpleObjectProperty< MaximizedRow > maximizedRow = new SimpleObjectProperty<>( MaximizedRow.NONE );
-
 	private final SimpleDoubleProperty firstRowHeight = new SimpleDoubleProperty();
 
 	private final SimpleDoubleProperty firstColumnWidth = new SimpleDoubleProperty();
+
+	private transient final ObservableObjectValue< MaximizedColumn > maximizedColumn = Bindings.createObjectBinding(
+			() -> fromFirstColumnWidth( firstColumnWidth.get() ),
+			firstColumnWidth );
+
+	private transient final ObservableObjectValue< MaximizedRow > maximizedRow = Bindings.createObjectBinding(
+			() -> fromFirstRowHeight( firstRowHeight.get() ),
+			firstRowHeight );
 
 	public GridConstraintsManager()
 	{
@@ -89,8 +93,6 @@ public class GridConstraintsManager
 		firstRowHeight.set( DEFAULT_ROW_HEIGHT1 );
 
 		isFullScreen = false;
-		maximizedColumn.set( MaximizedColumn.NONE );
-		maximizedRow.set( MaximizedRow.NONE );
 	}
 
 	public void resetToLast()
@@ -98,9 +100,6 @@ public class GridConstraintsManager
 		LOG.debug( "Reset to last {} {}", previousFirstColumnWidth, previousFirstRowHeight );
 		firstColumnWidth.set( previousFirstColumnWidth );
 		firstRowHeight.set( previousFirstRowHeight );
-
-		maximizedColumn.set( MaximizedColumn.NONE );
-		maximizedRow.set( MaximizedRow.NONE );
 
 		isFullScreen = false;
 	}
@@ -136,10 +135,6 @@ public class GridConstraintsManager
 		LOG.debug( "Maximized first column={} first row={}", firstColumnWidth.getValue(), firstRowHeight.getValue() );
 
 		isFullScreen = true;
-		LOG.debug( "Maximized row before {}", maximizedRow );
-		maximizedRow.set( r == 0 ? MaximizedRow.TOP : MaximizedRow.BOTTOM );
-		maximizedColumn.set( c == 0 ? MaximizedColumn.LEFT : MaximizedColumn.RIGHT );
-		LOG.debug( "Maximized row after {}", maximizedRow );
 	}
 
 	public synchronized void maximize( final int row, final int steps )
@@ -164,8 +159,6 @@ public class GridConstraintsManager
 		firstRowHeight.set( row == 0 ? 100 : 0 );
 
 		isFullScreen = true;
-		maximizedRow.set( row == 0 ? MaximizedRow.TOP : MaximizedRow.BOTTOM );
-		maximizedColumn.set( MaximizedColumn.NONE );
 	}
 
 	public void manageGrid( final GridPane grid )
@@ -258,8 +251,6 @@ public class GridConstraintsManager
 	{
 		if ( this == that ) { return; }
 		this.isFullScreen = that.isFullScreen;
-		this.maximizedColumn.set( maximizedColumn.get() );
-		this.maximizedRow.set( that.maximizedRow.get() );
 		this.firstColumnWidth.set( that.firstColumnWidth.get() );
 		this.firstRowHeight.set( that.firstRowHeight.get() );
 		this.previousFirstColumnWidth = that.previousFirstColumnWidth;
@@ -287,6 +278,24 @@ public class GridConstraintsManager
 				.append( maximizedColumn )
 				.append( "}" )
 				.toString();
+	}
+
+	private static MaximizedColumn fromFirstColumnWidth( final double width )
+	{
+		return width == 0
+				? MaximizedColumn.RIGHT
+				: width == 100
+						? MaximizedColumn.LEFT
+						: MaximizedColumn.NONE;
+	}
+
+	private static MaximizedRow fromFirstRowHeight( final double height )
+	{
+		return height == 0
+				? MaximizedRow.BOTTOM
+				: height == 100
+						? MaximizedRow.TOP
+						: MaximizedRow.NONE;
 	}
 
 }
