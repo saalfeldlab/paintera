@@ -1,14 +1,14 @@
 package org.janelia.saalfeldlab.fx.ortho;
 
 import java.lang.invoke.MethodHandles;
-import java.util.List;
-import java.util.stream.Collectors;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javafx.beans.property.DoubleProperty;
 import javafx.beans.property.SimpleDoubleProperty;
+import javafx.beans.property.SimpleObjectProperty;
+import javafx.beans.value.ObservableObjectValue;
 import javafx.collections.ObservableList;
 import javafx.scene.Node;
 import javafx.scene.layout.ColumnConstraints;
@@ -68,9 +68,9 @@ public class GridConstraintsManager
 
 	private boolean isFullScreen = false;
 
-	private MaximizedColumn maximizedColumn = MaximizedColumn.NONE;
+	private final SimpleObjectProperty< MaximizedColumn > maximizedColumn = new SimpleObjectProperty<>( MaximizedColumn.NONE );
 
-	private MaximizedRow maximizedRow = MaximizedRow.NONE;
+	private final SimpleObjectProperty< MaximizedRow > maximizedRow = new SimpleObjectProperty<>( MaximizedRow.NONE );
 
 	private final SimpleDoubleProperty firstRowHeight = new SimpleDoubleProperty();
 
@@ -80,6 +80,7 @@ public class GridConstraintsManager
 	{
 		resetToDefault();
 		storeCurrent();
+
 	}
 
 	private synchronized final void resetToDefault()
@@ -88,8 +89,8 @@ public class GridConstraintsManager
 		firstRowHeight.set( DEFAULT_ROW_HEIGHT1 );
 
 		isFullScreen = false;
-		maximizedColumn = MaximizedColumn.NONE;
-		maximizedRow = MaximizedRow.NONE;
+		maximizedColumn.set( MaximizedColumn.NONE );
+		maximizedRow.set( MaximizedRow.NONE );
 	}
 
 	public void resetToLast()
@@ -98,9 +99,10 @@ public class GridConstraintsManager
 		firstColumnWidth.set( previousFirstColumnWidth );
 		firstRowHeight.set( previousFirstRowHeight );
 
+		maximizedColumn.set( MaximizedColumn.NONE );
+		maximizedRow.set( MaximizedRow.NONE );
+
 		isFullScreen = false;
-		maximizedRow = MaximizedRow.NONE;
-		maximizedColumn = MaximizedColumn.NONE;
 	}
 
 	private synchronized void storeCurrent()
@@ -134,9 +136,10 @@ public class GridConstraintsManager
 		LOG.debug( "Maximized first column={} first row={}", firstColumnWidth.getValue(), firstRowHeight.getValue() );
 
 		isFullScreen = true;
-		maximizedRow = r == 0 ? MaximizedRow.TOP : MaximizedRow.BOTTOM;
-		maximizedColumn = c == 0 ? MaximizedColumn.LEFT : MaximizedColumn.RIGHT;
-
+		LOG.debug( "Maximized row before {}", maximizedRow );
+		maximizedRow.set( r == 0 ? MaximizedRow.TOP : MaximizedRow.BOTTOM );
+		maximizedColumn.set( c == 0 ? MaximizedColumn.LEFT : MaximizedColumn.RIGHT );
+		LOG.debug( "Maximized row after {}", maximizedRow );
 	}
 
 	public synchronized void maximize( final int row, final int steps )
@@ -161,8 +164,8 @@ public class GridConstraintsManager
 		firstRowHeight.set( row == 0 ? 100 : 0 );
 
 		isFullScreen = true;
-		maximizedRow = row == 0 ? MaximizedRow.TOP : MaximizedRow.BOTTOM;
-		maximizedColumn = MaximizedColumn.NONE;
+		maximizedRow.set( row == 0 ? MaximizedRow.TOP : MaximizedRow.BOTTOM );
+		maximizedColumn.set( MaximizedColumn.NONE );
 	}
 
 	public void manageGrid( final GridPane grid )
@@ -231,22 +234,32 @@ public class GridConstraintsManager
 		return isFullScreen;
 	}
 
-	public MaximizedColumn getMaximizedColumn()
+	public ObservableObjectValue< MaximizedColumn > observeMaximizedColumn()
 	{
 		return this.maximizedColumn;
 	}
 
-	public MaximizedRow getMaximizedRow()
+	public ObservableObjectValue< MaximizedRow > observeMaximizedRow()
 	{
 		return this.maximizedRow;
+	}
+
+	public MaximizedColumn getMaximizedColumn()
+	{
+		return this.maximizedColumn.get();
+	}
+
+	public MaximizedRow getMaximizedRow()
+	{
+		return this.maximizedRow.get();
 	}
 
 	public void set( final GridConstraintsManager that )
 	{
 		if ( this == that ) { return; }
 		this.isFullScreen = that.isFullScreen;
-		this.maximizedColumn = that.maximizedColumn;
-		this.maximizedRow = that.maximizedRow;
+		this.maximizedColumn.set( maximizedColumn.get() );
+		this.maximizedRow.set( that.maximizedRow.get() );
 		this.firstColumnWidth.set( that.firstColumnWidth.get() );
 		this.firstRowHeight.set( that.firstRowHeight.get() );
 		this.previousFirstColumnWidth = that.previousFirstColumnWidth;
@@ -274,30 +287,6 @@ public class GridConstraintsManager
 				.append( maximizedColumn )
 				.append( "}" )
 				.toString();
-	}
-
-	private static List< Node > getAllChildrenInColumn( final GridPane grid, final int col )
-	{
-		final List< Node > relevantNodes = grid
-				.getChildren()
-				.stream()
-				.filter( c -> GridPane.getColumnIndex( c ) != null )
-				.filter( c -> GridPane.getColumnIndex( c ) == col )
-				.collect( Collectors.toList() );
-		LOG.warn( "Getting all nodes in col {}: {}", col, relevantNodes );
-		return relevantNodes;
-	}
-
-	private static List< Node > getAllChildrenInRow( final GridPane grid, final int row )
-	{
-		final List< Node > relevantNodes = grid
-				.getChildren()
-				.stream()
-				.filter( c -> GridPane.getRowIndex( c ) != null )
-				.filter( c -> GridPane.getRowIndex( c ) == row )
-				.collect( Collectors.toList() );
-		LOG.warn( "Getting all nodes in row {}: {}", row, relevantNodes );
-		return relevantNodes;
 	}
 
 }

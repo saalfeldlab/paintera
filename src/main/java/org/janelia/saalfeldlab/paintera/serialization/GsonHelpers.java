@@ -20,6 +20,7 @@ import org.janelia.saalfeldlab.paintera.serialization.StatefulSerializer.Argumen
 import org.janelia.saalfeldlab.paintera.serialization.converter.ARGBColorConverterSerializer;
 import org.janelia.saalfeldlab.paintera.serialization.converter.HighlightingStreamConverterSerializer;
 import org.janelia.saalfeldlab.paintera.serialization.fx.SimpleDoublePropertySerializer;
+import org.janelia.saalfeldlab.paintera.serialization.fx.SimpleEnumPropertySerializer;
 import org.janelia.saalfeldlab.paintera.serialization.sourcestate.IntersectingSourceStateDeserializer;
 import org.janelia.saalfeldlab.paintera.serialization.sourcestate.IntersectingSourceStateSerializer;
 import org.janelia.saalfeldlab.paintera.serialization.sourcestate.InvertingSourceStateDeserializer;
@@ -44,6 +45,7 @@ import org.slf4j.LoggerFactory;
 import com.google.gson.GsonBuilder;
 
 import javafx.beans.property.SimpleDoubleProperty;
+import javafx.beans.property.SimpleObjectProperty;
 import net.imglib2.converter.ARGBColorConverter;
 import net.imglib2.realtransform.AffineTransform3D;
 
@@ -78,6 +80,7 @@ public class GsonHelpers
 				.registerTypeAdapter( ThresholdingSourceState.class, new ThresholdingSourceStateDeserializer( dependencyFromIndex ) )
 				.registerTypeAdapter( IntersectingSourceState.class, new IntersectingSourceStateDeserializer.Factory().createDeserializer( arguments, projectDirectory, dependencyFromIndex ) )
 				.registerTypeAdapter( SimpleDoubleProperty.class, new SimpleDoublePropertySerializer() )
+				.registerTypeAdapter( SimpleObjectProperty.class, new SimpleEnumPropertySerializer<>() )
 				.registerTypeAdapter( LabelSourceState.class, new LabelSourceStateDeserializer<>( arguments ) );
 	}
 
@@ -112,6 +115,7 @@ public class GsonHelpers
 				.registerTypeAdapter( ThresholdingSourceState.class, new ThresholdingSourceStateSerializer( dependencyToIndex ) )
 				.registerTypeAdapter( IntersectingSourceState.class, new IntersectingSourceStateSerializer( dependencyToIndex ) )
 				.registerTypeAdapter( SimpleDoubleProperty.class, new SimpleDoublePropertySerializer() )
+				.registerTypeAdapter( SimpleObjectProperty.class, new SimpleEnumPropertySerializer<>() )
 				.registerTypeAdapter( InvertingRawSourceState.class, new InvertingSourceStateSerializer( dependencyToIndex ) );
 	}
 

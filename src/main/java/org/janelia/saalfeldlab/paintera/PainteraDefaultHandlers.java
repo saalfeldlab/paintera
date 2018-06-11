@@ -13,6 +13,8 @@ import org.janelia.saalfeldlab.fx.event.EventFX;
 import org.janelia.saalfeldlab.fx.event.KeyTracker;
 import org.janelia.saalfeldlab.fx.event.MouseTracker;
 import org.janelia.saalfeldlab.fx.ortho.GridConstraintsManager;
+import org.janelia.saalfeldlab.fx.ortho.GridConstraintsManager.MaximizedColumn;
+import org.janelia.saalfeldlab.fx.ortho.GridConstraintsManager.MaximizedRow;
 import org.janelia.saalfeldlab.fx.ortho.GridResizer;
 import org.janelia.saalfeldlab.fx.ortho.OnEnterOnExit;
 import org.janelia.saalfeldlab.fx.ortho.OrthogonalViews;
@@ -49,6 +51,7 @@ import javafx.beans.binding.IntegerBinding;
 import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.ReadOnlyBooleanProperty;
 import javafx.beans.value.ChangeListener;
+import javafx.beans.value.ObservableBooleanValue;
 import javafx.beans.value.ObservableObjectValue;
 import javafx.scene.Node;
 import javafx.scene.control.ContextMenu;
@@ -107,6 +110,8 @@ public class PainteraDefaultHandlers
 	private final MultiBoxOverlayRendererFX[] multiBoxes;
 
 	private final GridResizer resizer;
+
+	private final ObservableBooleanValue bottomLeftNeedsZNormal;
 
 	public PainteraDefaultHandlers(
 			final PainteraBaseView baseView,
@@ -213,9 +218,21 @@ public class PainteraDefaultHandlers
 				"toggle maximize bottom row",
 				e -> {
 					gridConstraintsManager.maximize( 1, 0 );
-					orthogonalViews.bottomLeft().globalToViewerTransform().setTransform( ViewerAxis.globalToViewer( gridConstraintsManager.isFullScreen() ? ViewerAxis.Z : ViewerAxis.Y ) );
 				},
 				e -> keyTracker.areOnlyTheseKeysDown( KeyCode.M, KeyCode.SHIFT ) ).installInto( paneWithStatus.getPane() );
+
+		bottomLeftNeedsZNormal = Bindings.createBooleanBinding(
+				() -> MaximizedColumn.NONE.equals( gridConstraintsManager.getMaximizedColumn() ) && MaximizedRow.BOTTOM.equals( gridConstraintsManager.getMaximizedRow() ),
+				gridConstraintsManager.observeMaximizedColumn(),
+				gridConstraintsManager.observeMaximizedRow() );
+
+		final AffineTransformWithListeners bottomLeftGlobalToViewer = orthogonalViews.bottomLeft().globalToViewerTransform();
+		bottomLeftNeedsZNormal.addListener( ( obs, oldv, newv ) -> bottomLeftGlobalToViewer.setTransform( ViewerAxis.globalToViewer( newv ? ViewerAxis.Z : ViewerAxis.Y ) ) );
+
+		if ( gridConstraintsManager.isFullScreen() && GridConstraintsManager.MaximizedRow.BOTTOM.equals( gridConstraintsManager.getMaximizedRow() ) && GridConstraintsManager.MaximizedColumn.NONE.equals( gridConstraintsManager.getMaximizedColumn() ) )
+		{
+			orthogonalViews.bottomLeft().globalToViewerTransform().setTransform( ViewerAxis.globalToViewer( ViewerAxis.Z ) );
+		}
 
 		final CurrentSourceRefreshMeshes meshRefresher = new CurrentSourceRefreshMeshes( sourceInfo.currentState()::get );
 		EventFX.KEY_PRESSED( "refresh meshes", e -> meshRefresher.refresh(), e -> keyTracker.areOnlyTheseKeysDown( KeyCode.R ) ).installInto( paneWithStatus.getPane() );

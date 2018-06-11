@@ -198,7 +198,7 @@ public class Paintera extends Application
 				.map( lp -> Properties.fromSerializedProperties( lp, baseView, true, () -> projectDir, indexToState, gridConstraintsManager ) )
 				.orElse( new Properties( baseView, gridConstraintsManager ) );
 
-		gridConstraintsManager.set( properties.gridConstraints );
+//		gridConstraintsManager.set( properties.gridConstraints );
 
 		paneWithStatus.saveProjectButtonOnActionProperty().set( event -> {
 			try
