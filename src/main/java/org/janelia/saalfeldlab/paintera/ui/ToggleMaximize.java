@@ -1,17 +1,22 @@
 package org.janelia.saalfeldlab.paintera.ui;
 
 import org.janelia.saalfeldlab.fx.ortho.GridConstraintsManager;
+import org.janelia.saalfeldlab.fx.ortho.GridConstraintsManager.MaximizedColumn;
+import org.janelia.saalfeldlab.fx.ortho.GridConstraintsManager.MaximizedRow;
 
 public class ToggleMaximize
 {
 
 	private final GridConstraintsManager manager;
 
-	private final int col;
+	private final MaximizedColumn col;
 
-	private final int row;
+	private final MaximizedRow row;
 
-	public ToggleMaximize( final GridConstraintsManager manager, final int col, final int row )
+	public ToggleMaximize(
+			final GridConstraintsManager manager,
+			final MaximizedColumn col,
+			final MaximizedRow row )
 	{
 		super();
 		this.manager = manager;

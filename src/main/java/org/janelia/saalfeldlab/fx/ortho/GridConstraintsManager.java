@@ -41,6 +41,21 @@ public class GridConstraintsManager
 		{
 			return this.index;
 		}
+
+		public static MaximizedRow fromIndex( final int index )
+		{
+			switch ( index )
+			{
+			case 0:
+				return TOP;
+			case 1:
+				return BOTTOM;
+			case -1:
+				return NONE;
+			default:
+				return null;
+			}
+		}
 	}
 
 	public enum MaximizedColumn
@@ -59,6 +74,21 @@ public class GridConstraintsManager
 		public int asIndex()
 		{
 			return this.index;
+		}
+
+		public static MaximizedColumn fromIndex( final int index )
+		{
+			switch ( index )
+			{
+			case 0:
+				return LEFT;
+			case 1:
+				return RIGHT;
+			case -1:
+				return NONE;
+			default:
+				return null;
+			}
 		}
 	}
 
@@ -110,7 +140,7 @@ public class GridConstraintsManager
 		this.previousFirstColumnWidth = firstColumnWidth.get();
 	}
 
-	public synchronized void maximize( final int r, final int c, final int steps )
+	public synchronized void maximize( final MaximizedRow r, final MaximizedColumn c, final int steps )
 	{
 		LOG.debug( "Maximizing cell ({}, {}). Is already maximized? {}", r, c, isFullScreen );
 		if ( isFullScreen )
@@ -119,9 +149,17 @@ public class GridConstraintsManager
 			return;
 		}
 
+		if ( r == null || r.equals( MaximizedRow.NONE ) || c == null || c.equals( MaximizedColumn.NONE ) )
+		{
+			LOG.debug( "Arguments null or NONE: {} {}", r, c );
+			return;
+		}
+
 		storeCurrent();
-		final double columnStep = ( c == 0 ? 100 - firstColumnWidth.get() : firstColumnWidth.get() - 0 ) / steps;
-		final double rowStep = ( r == 0 ? 100 - firstRowHeight.get() : firstRowHeight.get() - 0 ) / steps;
+		final boolean isLeft = c.equals( MaximizedColumn.LEFT );
+		final boolean isTop = r.equals( MaximizedRow.TOP );
+		final double columnStep = ( isLeft ? 100 - firstColumnWidth.get() : firstColumnWidth.get() - 0 ) / steps;
+		final double rowStep = ( isTop ? 100 - firstRowHeight.get() : firstRowHeight.get() - 0 ) / steps;
 
 		for ( int i = 0; i < steps; ++i )
 		{
@@ -129,15 +167,15 @@ public class GridConstraintsManager
 			firstRowHeight.set( firstRowHeight.get() + rowStep );
 		}
 
-		firstColumnWidth.set( c == 0 ? 100 : 0 );
-		firstRowHeight.set( r == 0 ? 100 : 0 );
+		firstColumnWidth.set( isLeft ? 100 : 0 );
+		firstRowHeight.set( isTop ? 100 : 0 );
 
 		LOG.debug( "Maximized first column={} first row={}", firstColumnWidth.getValue(), firstRowHeight.getValue() );
 
 		isFullScreen = true;
 	}
 
-	public synchronized void maximize( final int row, final int steps )
+	public synchronized void maximize( final MaximizedRow row, final int steps )
 	{
 		LOG.debug( "Maximizing row {}. Is already maximized? {}", row, isFullScreen );
 		if ( isFullScreen )
@@ -146,17 +184,24 @@ public class GridConstraintsManager
 			return;
 		}
 
+		if ( row == null || row.equals( MaximizedRow.NONE ) )
+		{
+			LOG.debug( "Argument null or NONE: {}", row );
+			return;
+		}
+
 		LOG.debug( "Maximizing row {}", row );
 
 		storeCurrent();
-		final double rowStep = ( row == 0 ? 100 - firstRowHeight.get() : firstRowHeight.get() - 0 ) / steps;
+		final boolean isTop = row.equals( MaximizedRow.TOP );
+		final double rowStep = ( isTop ? 100 - firstRowHeight.get() : firstRowHeight.get() - 0 ) / steps;
 
 		for ( int i = 0; i < steps; ++i )
 		{
 			firstRowHeight.set( firstRowHeight.get() + rowStep );
 		}
 
-		firstRowHeight.set( row == 0 ? 100 : 0 );
+		firstRowHeight.set( isTop ? 100 : 0 );
 
 		isFullScreen = true;
 	}

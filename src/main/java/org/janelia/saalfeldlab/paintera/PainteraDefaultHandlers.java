@@ -217,7 +217,7 @@ public class PainteraDefaultHandlers
 		EventFX.KEY_PRESSED(
 				"toggle maximize bottom row",
 				e -> {
-					gridConstraintsManager.maximize( 1, 0 );
+					gridConstraintsManager.maximize( MaximizedRow.BOTTOM, 0 );
 				},
 				e -> keyTracker.areOnlyTheseKeysDown( KeyCode.M, KeyCode.SHIFT ) ).installInto( paneWithStatus.getPane() );
 
@@ -383,7 +383,8 @@ public class PainteraDefaultHandlers
 	{
 		return new ToggleMaximize(
 				manager,
-				column, row );
+				MaximizedColumn.fromIndex( column ),
+				MaximizedRow.fromIndex( row ) );
 	}
 
 	public Navigation navigation()
