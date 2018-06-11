@@ -2,7 +2,6 @@ package org.janelia.saalfeldlab.paintera.data.mask;
 
 import java.lang.invoke.MethodHandles;
 import java.lang.reflect.Type;
-import java.nio.file.Paths;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
@@ -60,7 +59,7 @@ public class MaskedSourceDeserializer implements JsonDeserializer< MaskedSource<
 		try
 		{
 			final JsonObject map = el.getAsJsonObject();
-			final TmpDirectoryCreator canvasCacheDirUpdate = new TmpDirectoryCreator( Paths.get( currentProjectDirectory.get() ), null );
+			final Supplier< String > canvasCacheDirUpdate = Masks.canvasTmpDirDirectorySupplier( currentProjectDirectory.get() );
 
 			final String sourceClass = map.get( UNDERLYING_SOURCE_CLASS_KEY ).getAsString();
 			final DataSource< ?, ? > source = context.deserialize( map.get( UNDERLYING_SOURCE_KEY ), Class.forName( sourceClass ) );

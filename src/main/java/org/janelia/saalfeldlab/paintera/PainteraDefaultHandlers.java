@@ -118,6 +118,7 @@ public class PainteraDefaultHandlers
 			final KeyTracker keyTracker,
 			final MouseTracker mouseTracker,
 			final BorderPaneWithStatusBars paneWithStatus,
+			final String projectDirectory,
 			final GridConstraintsManager gridConstraintsManager )
 	{
 		this.baseView = baseView;
@@ -148,7 +149,7 @@ public class PainteraDefaultHandlers
 				baseView.orthogonalViews().topRight().viewer(),
 				baseView.orthogonalViews().bottomLeft().viewer() );
 
-		this.openDialogHandler = addPainteraOpenDialogHandler( baseView, keyTracker, KeyCode.CONTROL, KeyCode.O );
+		this.openDialogHandler = addPainteraOpenDialogHandler( baseView, keyTracker, projectDirectory, KeyCode.CONTROL, KeyCode.O );
 
 		this.toggleMaximizeTopLeft = toggleMaximizeNode( gridConstraintsManager, 0, 0 );
 		this.toggleMaximizeTopRight = toggleMaximizeNode( gridConstraintsManager, 1, 0 );
@@ -362,6 +363,7 @@ public class PainteraDefaultHandlers
 	public static PainteraOpenDialogEventHandler addPainteraOpenDialogHandler(
 			final PainteraBaseView baseView,
 			final KeyTracker keyTracker,
+			final String projectDirectory,
 			final KeyCode... triggers )
 	{
 
@@ -370,7 +372,8 @@ public class PainteraDefaultHandlers
 		final PainteraOpenDialogEventHandler handler = new PainteraOpenDialogEventHandler(
 				baseView,
 				baseView.orthogonalViews().sharedQueue(),
-				e -> keyTracker.areOnlyTheseKeysDown( triggers ) );
+				e -> keyTracker.areOnlyTheseKeysDown( triggers ),
+				projectDirectory );
 		baseView.pane().addEventHandler( KeyEvent.KEY_PRESSED, handler );
 		return handler;
 

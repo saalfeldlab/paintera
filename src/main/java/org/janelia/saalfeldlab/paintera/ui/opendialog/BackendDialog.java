@@ -34,7 +34,8 @@ public interface BackendDialog
 			final int priority,
 			final Group meshesGroup,
 			final ExecutorService manager,
-			final ExecutorService workers ) throws Exception;
+			final ExecutorService workers,
+			final String projectDirectory ) throws Exception;
 
 	public DoubleProperty[] resolution();
 
