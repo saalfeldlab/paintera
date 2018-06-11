@@ -17,7 +17,6 @@ import org.janelia.saalfeldlab.fx.ortho.GridResizer;
 import org.janelia.saalfeldlab.fx.ortho.OnEnterOnExit;
 import org.janelia.saalfeldlab.fx.ortho.OrthogonalViews;
 import org.janelia.saalfeldlab.fx.ortho.OrthogonalViews.ViewerAndTransforms;
-import org.janelia.saalfeldlab.fx.ortho.ResizableGridPane2x2;
 import org.janelia.saalfeldlab.fx.ortho.ViewerAxis;
 import org.janelia.saalfeldlab.paintera.control.CurrentSourceRefreshMeshes;
 import org.janelia.saalfeldlab.paintera.control.CurrentSourceVisibilityToggle;
@@ -47,10 +46,8 @@ import bdv.viewer.Source;
 import javafx.beans.binding.Bindings;
 import javafx.beans.binding.BooleanBinding;
 import javafx.beans.binding.IntegerBinding;
-import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.ReadOnlyBooleanProperty;
-import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.value.ChangeListener;
 import javafx.beans.value.ObservableObjectValue;
 import javafx.scene.Node;
@@ -148,10 +145,10 @@ public class PainteraDefaultHandlers
 
 		this.openDialogHandler = addPainteraOpenDialogHandler( baseView, keyTracker, KeyCode.CONTROL, KeyCode.O );
 
-		this.toggleMaximizeTopLeft = toggleMaximizeNode( orthogonalViews.grid(), gridConstraintsManager, 0, 0 );
-		this.toggleMaximizeTopRight = toggleMaximizeNode( orthogonalViews.grid(), gridConstraintsManager, 1, 0 );
-		this.toggleMaximizeBottomLeft = toggleMaximizeNode( orthogonalViews.grid(), gridConstraintsManager, 0, 1 );
-		this.toggleMaximizeBottomRight = toggleMaximizeNode( orthogonalViews.grid(), gridConstraintsManager, 1, 1 );
+		this.toggleMaximizeTopLeft = toggleMaximizeNode( gridConstraintsManager, 0, 0 );
+		this.toggleMaximizeTopRight = toggleMaximizeNode( gridConstraintsManager, 1, 0 );
+		this.toggleMaximizeBottomLeft = toggleMaximizeNode( gridConstraintsManager, 0, 1 );
+		this.toggleMaximizeBottomRight = toggleMaximizeNode( gridConstraintsManager, 1, 1 );
 
 		viewerToTransforms.put( orthogonalViews.topLeft().viewer(), orthogonalViews.topLeft() );
 		viewerToTransforms.put( orthogonalViews.topRight().viewer(), orthogonalViews.topRight() );
@@ -212,24 +209,13 @@ public class PainteraDefaultHandlers
 		final ShowOnlySelectedInStreamToggle sosist = new ShowOnlySelectedInStreamToggle( sourceInfo.currentState()::get, sourceInfo.removedSourcesTracker() );
 		EventFX.KEY_PRESSED( "toggle non-selected labels visibility", e -> sosist.toggleNonSelectionVisibility(), e -> keyTracker.areOnlyTheseKeysDown( KeyCode.SHIFT, KeyCode.V ) ).installInto( borderPane );
 
-		final BooleanProperty isRowMaximized = new SimpleBooleanProperty( false );
-		isRowMaximized.addListener( ( obs, oldv, newv ) -> {
-			if ( newv )
-			{
-				orthogonalViews.bottomLeft().globalToViewerTransform().setTransform( ViewerAxis.globalToViewer( ViewerAxis.Z ) );
-				orthogonalViews.topLeft().viewer().setVisible( false );
-				orthogonalViews.topRight().viewer().setVisible( false );
-				gridConstraintsManager.maximize( 1, 0 );
-			}
-			else
-			{
-				orthogonalViews.bottomLeft().globalToViewerTransform().setTransform( ViewerAxis.globalToViewer( ViewerAxis.Y ) );
-				orthogonalViews.topLeft().viewer().setVisible( true );
-				orthogonalViews.topRight().viewer().setVisible( true );
-				gridConstraintsManager.resetToLast();
-			}
-		} );
-		EventFX.KEY_PRESSED( "maximize bottom row", e -> isRowMaximized.set( !isRowMaximized.get() ), e -> keyTracker.areOnlyTheseKeysDown( KeyCode.M, KeyCode.SHIFT ) ).installInto( paneWithStatus.getPane() );
+		EventFX.KEY_PRESSED(
+				"toggle maximize bottom row",
+				e -> {
+					gridConstraintsManager.maximize( 1, 0 );
+					orthogonalViews.bottomLeft().globalToViewerTransform().setTransform( ViewerAxis.globalToViewer( gridConstraintsManager.isFullScreen() ? ViewerAxis.Z : ViewerAxis.Y ) );
+				},
+				e -> keyTracker.areOnlyTheseKeysDown( KeyCode.M, KeyCode.SHIFT ) ).installInto( paneWithStatus.getPane() );
 
 		final CurrentSourceRefreshMeshes meshRefresher = new CurrentSourceRefreshMeshes( sourceInfo.currentState()::get );
 		EventFX.KEY_PRESSED( "refresh meshes", e -> meshRefresher.refresh(), e -> keyTracker.areOnlyTheseKeysDown( KeyCode.R ) ).installInto( paneWithStatus.getPane() );
@@ -374,14 +360,11 @@ public class PainteraDefaultHandlers
 	}
 
 	public static ToggleMaximize toggleMaximizeNode(
-			final ResizableGridPane2x2< ?, ?, ?, ? > grid,
 			final GridConstraintsManager manager,
 			final int column,
 			final int row )
 	{
 		return new ToggleMaximize(
-				grid.getChildAt( column, row ),
-				grid.pane().getChildren(),
 				manager,
 				column, row );
 	}
