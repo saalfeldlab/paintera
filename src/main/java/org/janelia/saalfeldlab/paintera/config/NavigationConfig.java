@@ -8,7 +8,7 @@ import javafx.beans.property.SimpleBooleanProperty;
 public class NavigationConfig
 {
 
-	private final BooleanProperty allowRotations = new SimpleBooleanProperty( true );
+	private final SimpleBooleanProperty allowRotations = new SimpleBooleanProperty( true );
 
 	public BooleanProperty allowRotationsProperty()
 	{

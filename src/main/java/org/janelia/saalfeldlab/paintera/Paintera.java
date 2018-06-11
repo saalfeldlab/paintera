@@ -18,7 +18,6 @@ import org.janelia.saalfeldlab.paintera.SaveProject.ProjectUndefined;
 import org.janelia.saalfeldlab.paintera.composition.ARGBCompositeAlphaYCbCr;
 import org.janelia.saalfeldlab.paintera.composition.CompositeCopy;
 import org.janelia.saalfeldlab.paintera.config.CoordinateConfigNode;
-import org.janelia.saalfeldlab.paintera.config.NavigationConfig;
 import org.janelia.saalfeldlab.paintera.config.OrthoSliceConfig;
 import org.janelia.saalfeldlab.paintera.control.CommitChanges;
 import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignmentState;
@@ -158,11 +157,6 @@ public class Paintera extends Application
 				paneWithStatus,
 				gridConstraintsManager );
 
-		// TODO (de-)serialize config
-		final NavigationConfig navigationConfig = new NavigationConfig();
-		paneWithStatus.navigationConfigNode().bind( navigationConfig );
-		navigationConfig.bindNavigationToConfig( defaultHandlers.navigation() );
-
 		final CoordinateConfigNode coordinateConfigNode = paneWithStatus.navigationConfigNode().coordinateConfigNode();
 		coordinateConfigNode.listen( baseView.manager() );
 
@@ -192,6 +186,9 @@ public class Paintera extends Application
 				paneWithStatus.orthoSlices().get( baseView.orthogonalViews().topLeft() ),
 				paneWithStatus.orthoSlices().get( baseView.orthogonalViews().topRight() ),
 				paneWithStatus.orthoSlices().get( baseView.orthogonalViews().bottomLeft() ) );
+
+		paneWithStatus.navigationConfigNode().bind( properties.navigationConfig );
+		properties.navigationConfig.bindNavigationToConfig( defaultHandlers.navigation() );
 
 //		gridConstraintsManager.set( properties.gridConstraints );
 

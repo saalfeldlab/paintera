@@ -8,6 +8,7 @@ import java.util.function.Supplier;
 import org.janelia.saalfeldlab.fx.ortho.GridConstraintsManager;
 import org.janelia.saalfeldlab.paintera.PainteraBaseView;
 import org.janelia.saalfeldlab.paintera.config.CrosshairConfig;
+import org.janelia.saalfeldlab.paintera.config.NavigationConfig;
 import org.janelia.saalfeldlab.paintera.config.OrthoSliceConfigBase;
 import org.janelia.saalfeldlab.paintera.serialization.StatefulSerializer.Arguments;
 import org.janelia.saalfeldlab.paintera.state.SourceInfo;
@@ -45,6 +46,8 @@ public class Properties implements TransformListener< AffineTransform3D >
 
 	private static final String ORTHO_SLICE_CONFIG_KEY = "orthoSliceConfig";
 
+	private static final String NAVIGATION_CONFIG_KEY = "navigationConfig";
+
 	@Expose
 	public final SourceInfo sourceInfo;
 
@@ -62,6 +65,9 @@ public class Properties implements TransformListener< AffineTransform3D >
 
 	@Expose
 	public final OrthoSliceConfigBase orthoSliceConfig = new OrthoSliceConfigBase();
+
+	@Expose
+	public final NavigationConfig navigationConfig = new NavigationConfig();
 
 	private transient final BooleanProperty transformDirty = new SimpleBooleanProperty( false );
 
@@ -169,6 +175,10 @@ public class Properties implements TransformListener< AffineTransform3D >
 					properties.orthoSliceConfig.showTopRightProperty().set( conf.showTopRightProperty().get() );
 					properties.orthoSliceConfig.showBottomLeftProperty().set( conf.showBottomLeftProperty().get() );
 				} );
+		Optional
+				.ofNullable( serializedProperties.get( NAVIGATION_CONFIG_KEY ) )
+				.map( json -> gson.fromJson( json, NavigationConfig.class ) )
+				.ifPresent( conf -> properties.navigationConfig.allowRotationsProperty().set( conf.allowRotationsProperty().get() ) );
 
 		gridConstraints.set( deserializedGridConstraints );
 
