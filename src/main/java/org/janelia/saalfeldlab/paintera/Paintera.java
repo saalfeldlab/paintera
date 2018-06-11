@@ -18,7 +18,6 @@ import org.janelia.saalfeldlab.paintera.SaveProject.ProjectUndefined;
 import org.janelia.saalfeldlab.paintera.composition.ARGBCompositeAlphaYCbCr;
 import org.janelia.saalfeldlab.paintera.composition.CompositeCopy;
 import org.janelia.saalfeldlab.paintera.config.CoordinateConfigNode;
-import org.janelia.saalfeldlab.paintera.config.CrosshairConfig;
 import org.janelia.saalfeldlab.paintera.config.NavigationConfig;
 import org.janelia.saalfeldlab.paintera.config.OrthoSliceConfig;
 import org.janelia.saalfeldlab.paintera.control.CommitChanges;
@@ -40,7 +39,6 @@ import org.janelia.saalfeldlab.paintera.state.SourceState;
 import org.janelia.saalfeldlab.paintera.stream.HighlightingStreamConverter;
 import org.janelia.saalfeldlab.paintera.stream.ModalGoldenAngleSaturatedHighlightingARGBStream;
 import org.janelia.saalfeldlab.paintera.viewer3d.Viewer3DFX;
-import org.janelia.saalfeldlab.util.Colors;
 import org.janelia.saalfeldlab.util.MakeUnchecked;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -54,7 +52,6 @@ import javafx.application.Platform;
 import javafx.scene.Scene;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.MouseEvent;
-import javafx.scene.paint.Color;
 import javafx.stage.Stage;
 import net.imglib2.Volatile;
 import net.imglib2.converter.ARGBColorConverter;
@@ -169,12 +166,6 @@ public class Paintera extends Application
 		final CoordinateConfigNode coordinateConfigNode = paneWithStatus.navigationConfigNode().coordinateConfigNode();
 		coordinateConfigNode.listen( baseView.manager() );
 
-		final CrosshairConfig crosshairConfig = new CrosshairConfig();
-		paneWithStatus.crosshairConfigNode().bind( crosshairConfig );
-		crosshairConfig.bindCrosshairsToConfig( paneWithStatus.crosshairs().values() );
-		crosshairConfig.setOnFocusColor( Colors.CREMI );
-		crosshairConfig.setOutOfFocusColor( Color.WHITE.deriveColor( 0, 1, 1, 0.5 ) );
-
 		final OrthoSliceConfig orthoSliceConfig = new OrthoSliceConfig(
 				baseView.orthogonalViews().topLeft().viewer().visibleProperty(),
 				baseView.orthogonalViews().topRight().viewer().visibleProperty(),
@@ -197,6 +188,9 @@ public class Paintera extends Application
 		final Properties properties = loadedProperties
 				.map( lp -> Properties.fromSerializedProperties( lp, baseView, true, () -> projectDir, indexToState, gridConstraintsManager ) )
 				.orElse( new Properties( baseView, gridConstraintsManager ) );
+
+		paneWithStatus.crosshairConfigNode().bind( properties.crosshairConfig );
+		properties.crosshairConfig.bindCrosshairsToConfig( paneWithStatus.crosshairs().values() );
 
 //		gridConstraintsManager.set( properties.gridConstraints );
 

@@ -7,6 +7,7 @@ import java.util.function.ToIntFunction;
 
 import org.janelia.saalfeldlab.paintera.PainteraBaseView;
 import org.janelia.saalfeldlab.paintera.composition.Composite;
+import org.janelia.saalfeldlab.paintera.config.CrosshairConfig;
 import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignmentOnlyLocal;
 import org.janelia.saalfeldlab.paintera.control.selection.SelectedIds;
 import org.janelia.saalfeldlab.paintera.data.mask.MaskedSource;
@@ -17,6 +18,7 @@ import org.janelia.saalfeldlab.paintera.data.n5.N5DataSource;
 import org.janelia.saalfeldlab.paintera.data.n5.N5DataSourceDeserializer;
 import org.janelia.saalfeldlab.paintera.data.n5.N5DataSourceSerializer;
 import org.janelia.saalfeldlab.paintera.serialization.StatefulSerializer.Arguments;
+import org.janelia.saalfeldlab.paintera.serialization.config.CrosshairConfigSerializer;
 import org.janelia.saalfeldlab.paintera.serialization.converter.ARGBColorConverterSerializer;
 import org.janelia.saalfeldlab.paintera.serialization.converter.HighlightingStreamConverterSerializer;
 import org.janelia.saalfeldlab.paintera.serialization.fx.SimpleDoublePropertySerializer;
@@ -78,6 +80,7 @@ public class GsonHelpers
 				.registerTypeAdapter( ThresholdingSourceState.class, new ThresholdingSourceStateDeserializer( dependencyFromIndex ) )
 				.registerTypeAdapter( IntersectingSourceState.class, new IntersectingSourceStateDeserializer.Factory().createDeserializer( arguments, projectDirectory, dependencyFromIndex ) )
 				.registerTypeAdapter( SimpleDoubleProperty.class, new SimpleDoublePropertySerializer() )
+				.registerTypeAdapter( CrosshairConfig.class, new CrosshairConfigSerializer() )
 				.registerTypeAdapter( LabelSourceState.class, new LabelSourceStateDeserializer<>( arguments ) );
 	}
 
@@ -112,6 +115,7 @@ public class GsonHelpers
 				.registerTypeAdapter( ThresholdingSourceState.class, new ThresholdingSourceStateSerializer( dependencyToIndex ) )
 				.registerTypeAdapter( IntersectingSourceState.class, new IntersectingSourceStateSerializer( dependencyToIndex ) )
 				.registerTypeAdapter( SimpleDoubleProperty.class, new SimpleDoublePropertySerializer() )
+				.registerTypeAdapter( CrosshairConfig.class, new CrosshairConfigSerializer() )
 				.registerTypeAdapter( InvertingRawSourceState.class, new InvertingSourceStateSerializer( dependencyToIndex ) );
 	}
 

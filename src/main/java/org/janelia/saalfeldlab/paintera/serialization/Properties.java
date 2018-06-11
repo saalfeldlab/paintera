@@ -7,6 +7,7 @@ import java.util.function.Supplier;
 
 import org.janelia.saalfeldlab.fx.ortho.GridConstraintsManager;
 import org.janelia.saalfeldlab.paintera.PainteraBaseView;
+import org.janelia.saalfeldlab.paintera.config.CrosshairConfig;
 import org.janelia.saalfeldlab.paintera.serialization.StatefulSerializer.Arguments;
 import org.janelia.saalfeldlab.paintera.state.SourceInfo;
 import org.janelia.saalfeldlab.paintera.state.SourceState;
@@ -39,6 +40,8 @@ public class Properties implements TransformListener< AffineTransform3D >
 
 	private static final String GRID_CONSTRAINTS_KEY = "gridConstraints";
 
+	private static final String CROSSHAIR_CONFIG_KEY = "crosshairConfig";
+
 	@Expose
 	public final SourceInfo sourceInfo;
 
@@ -50,6 +53,9 @@ public class Properties implements TransformListener< AffineTransform3D >
 
 	@Expose
 	public final GridConstraintsManager gridConstraints;
+
+	@Expose
+	public final CrosshairConfig crosshairConfig = new CrosshairConfig();
 
 	private transient final BooleanProperty transformDirty = new SimpleBooleanProperty( false );
 
@@ -138,6 +144,16 @@ public class Properties implements TransformListener< AffineTransform3D >
 				.ofNullable( serializedProperties.get( GRID_CONSTRAINTS_KEY ) )
 				.map( json -> gson.fromJson( json, GridConstraintsManager.class ) )
 				.orElse( gridConstraints );
+
+		Optional
+				.ofNullable( serializedProperties.get( CROSSHAIR_CONFIG_KEY ) )
+				.map( json -> gson.fromJson( json, CrosshairConfig.class ) )
+				.ifPresent( conf -> {
+					properties.crosshairConfig.setOnFocusColor( conf.getOnFocusColor() );
+					properties.crosshairConfig.setOutOfFocusColor( conf.getOutOfFocusColor() );
+					properties.crosshairConfig.setShowCrosshairs( conf.getShowCrosshairs() );
+				} );
+
 		gridConstraints.set( deserializedGridConstraints );
 
 		if ( removeExistingSources )
