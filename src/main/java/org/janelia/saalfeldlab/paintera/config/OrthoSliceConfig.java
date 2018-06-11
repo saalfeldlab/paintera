@@ -3,19 +3,12 @@ package org.janelia.saalfeldlab.paintera.config;
 import org.janelia.saalfeldlab.paintera.viewer3d.OrthoSliceFX;
 
 import javafx.beans.property.BooleanProperty;
-import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.value.ObservableBooleanValue;
 
 public class OrthoSliceConfig
 {
 
-	private final BooleanProperty enable = new SimpleBooleanProperty( true );
-
-	private final BooleanProperty showTopLeft = new SimpleBooleanProperty( true );
-
-	private final BooleanProperty showTopRight = new SimpleBooleanProperty( true );
-
-	private final BooleanProperty showBottomLeft = new SimpleBooleanProperty( true );
+	private final OrthoSliceConfigBase baseConfig;
 
 	final ObservableBooleanValue isTopLeftVisible;
 
@@ -26,12 +19,14 @@ public class OrthoSliceConfig
 	private final ObservableBooleanValue hasSources;
 
 	public OrthoSliceConfig(
+			final OrthoSliceConfigBase baseConfig,
 			final ObservableBooleanValue isTopLeftVisible,
 			final ObservableBooleanValue isTopRightVisible,
 			final ObservableBooleanValue isBottomLeftVisible,
 			final ObservableBooleanValue hasSources )
 	{
 		super();
+		this.baseConfig = baseConfig;
 		this.isTopLeftVisible = isTopLeftVisible;
 		this.isTopRightVisible = isTopRightVisible;
 		this.isBottomLeftVisible = isBottomLeftVisible;
@@ -40,22 +35,22 @@ public class OrthoSliceConfig
 
 	public BooleanProperty enableProperty()
 	{
-		return this.enable;
+		return this.baseConfig.isEnabledProperty();
 	}
 
 	public BooleanProperty showTopLeftProperty()
 	{
-		return this.showTopLeft;
+		return this.baseConfig.showTopLeftProperty();
 	}
 
 	public BooleanProperty showTopRightProperty()
 	{
-		return this.showTopRight;
+		return this.baseConfig.showTopRightProperty();
 	}
 
 	public BooleanProperty showBottomLeftProperty()
 	{
-		return this.showBottomLeft;
+		return this.baseConfig.showBottomLeftProperty();
 	}
 
 	public void bindOrthoSlicesToConifg(
@@ -63,9 +58,10 @@ public class OrthoSliceConfig
 			final OrthoSliceFX topRight,
 			final OrthoSliceFX bottomLeft )
 	{
-		topLeft.isVisibleProperty().bind( showTopLeft.and( enable ).and( hasSources ).and( isTopLeftVisible ) );
-		topRight.isVisibleProperty().bind( showTopRight.and( enable ).and( hasSources ).and( isTopRightVisible ) );
-		bottomLeft.isVisibleProperty().bind( showBottomLeft.and( enable ).and( hasSources ).and( isBottomLeftVisible ) );
+		final BooleanProperty enable = baseConfig.isEnabledProperty();
+		topLeft.isVisibleProperty().bind( baseConfig.showTopLeftProperty().and( enable ).and( hasSources ).and( isTopLeftVisible ) );
+		topRight.isVisibleProperty().bind( baseConfig.showTopRightProperty().and( enable ).and( hasSources ).and( isTopRightVisible ) );
+		bottomLeft.isVisibleProperty().bind( baseConfig.showBottomLeftProperty().and( enable ).and( hasSources ).and( isBottomLeftVisible ) );
 	}
 
 }

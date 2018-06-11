@@ -158,24 +158,13 @@ public class Paintera extends Application
 				paneWithStatus,
 				gridConstraintsManager );
 
-		// TODO (de-)seraizlie config
+		// TODO (de-)serialize config
 		final NavigationConfig navigationConfig = new NavigationConfig();
 		paneWithStatus.navigationConfigNode().bind( navigationConfig );
 		navigationConfig.bindNavigationToConfig( defaultHandlers.navigation() );
 
 		final CoordinateConfigNode coordinateConfigNode = paneWithStatus.navigationConfigNode().coordinateConfigNode();
 		coordinateConfigNode.listen( baseView.manager() );
-
-		final OrthoSliceConfig orthoSliceConfig = new OrthoSliceConfig(
-				baseView.orthogonalViews().topLeft().viewer().visibleProperty(),
-				baseView.orthogonalViews().topRight().viewer().visibleProperty(),
-				baseView.orthogonalViews().bottomLeft().viewer().visibleProperty(),
-				baseView.sourceInfo().hasSources() );
-		paneWithStatus.orthoSliceConfigNode().bind( orthoSliceConfig );
-		orthoSliceConfig.bindOrthoSlicesToConifg(
-				paneWithStatus.orthoSlices().get( baseView.orthogonalViews().topLeft() ),
-				paneWithStatus.orthoSlices().get( baseView.orthogonalViews().topRight() ),
-				paneWithStatus.orthoSlices().get( baseView.orthogonalViews().bottomLeft() ) );
 
 		// populate everything
 
@@ -191,6 +180,18 @@ public class Paintera extends Application
 
 		paneWithStatus.crosshairConfigNode().bind( properties.crosshairConfig );
 		properties.crosshairConfig.bindCrosshairsToConfig( paneWithStatus.crosshairs().values() );
+
+		final OrthoSliceConfig orthoSliceConfig = new OrthoSliceConfig(
+				properties.orthoSliceConfig,
+				baseView.orthogonalViews().topLeft().viewer().visibleProperty(),
+				baseView.orthogonalViews().topRight().viewer().visibleProperty(),
+				baseView.orthogonalViews().bottomLeft().viewer().visibleProperty(),
+				baseView.sourceInfo().hasSources() );
+		paneWithStatus.orthoSliceConfigNode().bind( orthoSliceConfig );
+		orthoSliceConfig.bindOrthoSlicesToConifg(
+				paneWithStatus.orthoSlices().get( baseView.orthogonalViews().topLeft() ),
+				paneWithStatus.orthoSlices().get( baseView.orthogonalViews().topRight() ),
+				paneWithStatus.orthoSlices().get( baseView.orthogonalViews().bottomLeft() ) );
 
 //		gridConstraintsManager.set( properties.gridConstraints );
 

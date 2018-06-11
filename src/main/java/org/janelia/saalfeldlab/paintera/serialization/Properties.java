@@ -8,6 +8,7 @@ import java.util.function.Supplier;
 import org.janelia.saalfeldlab.fx.ortho.GridConstraintsManager;
 import org.janelia.saalfeldlab.paintera.PainteraBaseView;
 import org.janelia.saalfeldlab.paintera.config.CrosshairConfig;
+import org.janelia.saalfeldlab.paintera.config.OrthoSliceConfigBase;
 import org.janelia.saalfeldlab.paintera.serialization.StatefulSerializer.Arguments;
 import org.janelia.saalfeldlab.paintera.state.SourceInfo;
 import org.janelia.saalfeldlab.paintera.state.SourceState;
@@ -42,6 +43,8 @@ public class Properties implements TransformListener< AffineTransform3D >
 
 	private static final String CROSSHAIR_CONFIG_KEY = "crosshairConfig";
 
+	private static final String ORTHO_SLICE_CONFIG_KEY = "orthoSliceConfig";
+
 	@Expose
 	public final SourceInfo sourceInfo;
 
@@ -56,6 +59,9 @@ public class Properties implements TransformListener< AffineTransform3D >
 
 	@Expose
 	public final CrosshairConfig crosshairConfig = new CrosshairConfig();
+
+	@Expose
+	public final OrthoSliceConfigBase orthoSliceConfig = new OrthoSliceConfigBase();
 
 	private transient final BooleanProperty transformDirty = new SimpleBooleanProperty( false );
 
@@ -152,6 +158,16 @@ public class Properties implements TransformListener< AffineTransform3D >
 					properties.crosshairConfig.setOnFocusColor( conf.getOnFocusColor() );
 					properties.crosshairConfig.setOutOfFocusColor( conf.getOutOfFocusColor() );
 					properties.crosshairConfig.setShowCrosshairs( conf.getShowCrosshairs() );
+				} );
+
+		Optional
+				.ofNullable( serializedProperties.get( ORTHO_SLICE_CONFIG_KEY ) )
+				.map( json -> gson.fromJson( json, OrthoSliceConfigBase.class ) )
+				.ifPresent( conf -> {
+					properties.orthoSliceConfig.isEnabledProperty().set( conf.isEnabledProperty().get() );
+					properties.orthoSliceConfig.showTopLeftProperty().set( conf.showTopLeftProperty().get() );
+					properties.orthoSliceConfig.showTopRightProperty().set( conf.showTopRightProperty().get() );
+					properties.orthoSliceConfig.showBottomLeftProperty().set( conf.showBottomLeftProperty().get() );
 				} );
 
 		gridConstraints.set( deserializedGridConstraints );

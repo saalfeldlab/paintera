@@ -21,6 +21,7 @@ import org.janelia.saalfeldlab.paintera.serialization.StatefulSerializer.Argumen
 import org.janelia.saalfeldlab.paintera.serialization.config.CrosshairConfigSerializer;
 import org.janelia.saalfeldlab.paintera.serialization.converter.ARGBColorConverterSerializer;
 import org.janelia.saalfeldlab.paintera.serialization.converter.HighlightingStreamConverterSerializer;
+import org.janelia.saalfeldlab.paintera.serialization.fx.SimpleBooleanPropertySerializer;
 import org.janelia.saalfeldlab.paintera.serialization.fx.SimpleDoublePropertySerializer;
 import org.janelia.saalfeldlab.paintera.serialization.sourcestate.IntersectingSourceStateDeserializer;
 import org.janelia.saalfeldlab.paintera.serialization.sourcestate.IntersectingSourceStateSerializer;
@@ -45,6 +46,7 @@ import org.slf4j.LoggerFactory;
 
 import com.google.gson.GsonBuilder;
 
+import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleDoubleProperty;
 import net.imglib2.converter.ARGBColorConverter;
 import net.imglib2.realtransform.AffineTransform3D;
@@ -81,6 +83,7 @@ public class GsonHelpers
 				.registerTypeAdapter( IntersectingSourceState.class, new IntersectingSourceStateDeserializer.Factory().createDeserializer( arguments, projectDirectory, dependencyFromIndex ) )
 				.registerTypeAdapter( SimpleDoubleProperty.class, new SimpleDoublePropertySerializer() )
 				.registerTypeAdapter( CrosshairConfig.class, new CrosshairConfigSerializer() )
+				.registerTypeAdapter( SimpleBooleanProperty.class, new SimpleBooleanPropertySerializer() )
 				.registerTypeAdapter( LabelSourceState.class, new LabelSourceStateDeserializer<>( arguments ) );
 	}
 
@@ -116,6 +119,7 @@ public class GsonHelpers
 				.registerTypeAdapter( IntersectingSourceState.class, new IntersectingSourceStateSerializer( dependencyToIndex ) )
 				.registerTypeAdapter( SimpleDoubleProperty.class, new SimpleDoublePropertySerializer() )
 				.registerTypeAdapter( CrosshairConfig.class, new CrosshairConfigSerializer() )
+				.registerTypeAdapter( SimpleBooleanProperty.class, new SimpleBooleanPropertySerializer() )
 				.registerTypeAdapter( InvertingRawSourceState.class, new InvertingSourceStateSerializer( dependencyToIndex ) );
 	}
 
