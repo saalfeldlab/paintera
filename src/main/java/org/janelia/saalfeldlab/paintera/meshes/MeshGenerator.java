@@ -366,7 +366,7 @@ public class MeshGenerator< T >
 
 	public void bindTo( final MeshSettings meshSettings )
 	{
-		LOG.warn( "Binding to {}", meshSettings );
+		LOG.debug( "Binding to {}", meshSettings );
 		opacityProperty().bind( meshSettings.opacityProperty() );
 		scaleIndexProperty().bind( meshSettings.scaleLevelProperty() );
 		meshSimplificationIterationsProperty().bind( meshSettings.simplificationIterationsProperty() );
