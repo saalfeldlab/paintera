@@ -198,7 +198,36 @@ public class MeshPane implements BindUnbindAndNodeSupplier, ListChangeListener< 
 
 		final GridPane contents = new GridPane();
 
-		int row = 0;
+		final int row = populateGridWithMeshSettings(
+				contents,
+				0,
+				opacitySlider,
+				scaleSlider,
+				smoothingLambdaSlider,
+				smoothingIterationsSlider,
+				drawModeChoice,
+				cullFaceChoice );
+
+		final Button refresh = new Button( "Refresh Meshes" );
+		refresh.setOnAction( event -> manager.refreshMeshes() );
+
+		final TitledPane pane = new TitledPane( "Settings", new VBox( contents, refresh ) );
+		pane.setExpanded( false );
+
+		return pane;
+	}
+
+	public static int populateGridWithMeshSettings(
+			final GridPane contents,
+			final int initialRow,
+			final NumericSliderWithField opacitySlider,
+			final NumericSliderWithField scaleSlider,
+			final NumericSliderWithField smoothingLambdaSlider,
+			final NumericSliderWithField smoothingIterationsSlider,
+			final ComboBox< DrawMode > drawModeChoice,
+			final ComboBox< CullFace > cullFaceChoice )
+	{
+		int row = initialRow;
 
 		final double textFieldWidth = 95;
 
@@ -252,13 +281,7 @@ public class MeshPane implements BindUnbindAndNodeSupplier, ListChangeListener< 
 		cullFaceChoice.setMaxWidth( textFieldWidth );
 		++row;
 
-		final Button refresh = new Button( "Refresh Meshes" );
-		refresh.setOnAction( event -> manager.refreshMeshes() );
-
-		final TitledPane pane = new TitledPane( "Settings", new VBox( contents, refresh ) );
-		pane.setExpanded( false );
-
-		return pane;
+		return row;
 	}
 
 	private MeshInfoNode< TLongHashSet > fromMeshInfo( final MeshInfo< TLongHashSet > info )
@@ -267,19 +290,11 @@ public class MeshPane implements BindUnbindAndNodeSupplier, ListChangeListener< 
 		if ( this.isBound )
 		{
 			node.bind();
-			node.bindToExternalSliders(
-					scaleSlider.slider().valueProperty(),
-					smoothingLambdaSlider.slider().valueProperty(),
-					smoothingIterationsSlider.slider().valueProperty(),
-					opacitySlider.slider().valueProperty(),
-					drawModeChoice.valueProperty(),
-					cullFaceChoice.valueProperty(),
-					true );
 		}
 		return node;
 	}
 
-	private final Node labelWithToolTip( final String text )
+	private static final Node labelWithToolTip( final String text )
 	{
 		final Label label = new Label( text );
 		final Tooltip tt = new Tooltip( text );

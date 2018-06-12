@@ -93,26 +93,4 @@ public class MeshSettings
 		this.cullFace.set( that.cullFace.get() );
 	}
 
-	public void bind( final MeshSettings that )
-	{
-		this.scaleLevel.bind( that.scaleLevel );
-		this.simplificationIterations.bind( that.simplificationIterations );
-		this.smoothingLambda.bind( that.smoothingLambda );
-		this.smoothingIterations.bind( that.smoothingIterations );
-		this.opacity.bind( that.opacity );
-		this.drawMode.bind( that.drawMode );
-		this.cullFace.bind( that.cullFace );
-	}
-
-	public void unbind()
-	{
-		this.scaleLevel.unbind();
-		this.simplificationIterations.unbind();
-		this.smoothingLambda.unbind();
-		this.smoothingIterations.unbind();
-		this.opacity.unbind();
-		this.drawMode.unbind();
-		this.cullFace.unbind();
-	}
-
 }

@@ -49,13 +49,13 @@ public class ManagedMeshSettings
 		settings.addListener( ( MapChangeListener< Long, MeshSettings > ) change -> {
 			if ( change.wasAdded() )
 			{
-				final SimpleBooleanProperty isManaged = new SimpleBooleanProperty( true );
-				this.isManagedProperties.putIfAbsent( change.getKey(), isManaged );
-				final MeshSettings meshSettings = change.getValueAdded();
-				isManaged.addListener( ( obs, oldv, newv ) -> this.bindToGlobalSettings( meshSettings, newv ) );
+				LOG.debug( "Adding change {}", change );
+				this.isManagedProperties.putIfAbsent( change.getKey(), new SimpleBooleanProperty( true ) );
+				LOG.debug( "is {} managed? {}", change.getKey(), this.isManagedProperties.get( change.getKey() ) );
 			}
 			else if ( change.wasRemoved() )
 			{
+				LOG.debug( "Removing change {}", change );
 				this.isManagedProperties.remove( change.getKey() );
 			}
 		} );
@@ -93,6 +93,7 @@ public class ManagedMeshSettings
 				.stream()
 				.filter( filter.negate() )
 				.collect( Collectors.toSet() );
+		LOG.debug( "Removing {}", toBeRemoved );
 		toBeRemoved.forEach( this.settings::remove );
 	}
 
@@ -110,18 +111,6 @@ public class ManagedMeshSettings
 			final Long id = entry.getKey();
 			this.settings.put( id, entry.getValue().copy() );
 			this.isManagedProperties.computeIfAbsent( id, key -> new SimpleBooleanProperty() ).set( that.isManagedProperties.get( id ).get() );
-		}
-	}
-
-	private void bindToGlobalSettings( final MeshSettings settings, final boolean bind )
-	{
-		if ( bind )
-		{
-			settings.bind( this.globalSettings );
-		}
-		else
-		{
-			settings.unbind();
 		}
 	}
 
@@ -169,8 +158,13 @@ public class ManagedMeshSettings
 							.ofNullable( settingsMap.get( IS_MANAGED_KEY ) )
 							.map( JsonElement::getAsBoolean )
 							.orElse( true );
-					managedSettings.settings.put( id, settings );
-					managedSettings.isManagedProperties.get( id ).set( isManaged );
+					LOG.debug( "{} is managed? {}", id, isManaged );
+					managedSettings.isManagedProperties.computeIfAbsent( id, key -> new SimpleBooleanProperty() ).set( isManaged );
+					managedSettings.settings.put( id, settings.copy() );
+					if ( !isManaged )
+					{
+						managedSettings.settings.get( id ).set( settings );
+					}
 				}
 				return managedSettings;
 			}

@@ -15,16 +15,17 @@ import org.slf4j.LoggerFactory;
 
 import javafx.beans.property.DoubleProperty;
 import javafx.beans.property.IntegerProperty;
-import javafx.beans.property.Property;
 import javafx.beans.property.SimpleDoubleProperty;
 import javafx.beans.property.SimpleIntegerProperty;
 import javafx.collections.FXCollections;
 import javafx.scene.Node;
 import javafx.scene.control.Button;
+import javafx.scene.control.CheckBox;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.Label;
 import javafx.scene.control.TitledPane;
 import javafx.scene.control.Tooltip;
+import javafx.scene.layout.GridPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
@@ -57,6 +58,8 @@ public class MeshInfoNode< T > implements BindUnbindAndNodeSupplier
 
 	private final ComboBox< CullFace > cullFaceChoice;
 
+	private final CheckBox hasIndividualSettings = new CheckBox( "Individual Settings" );
+
 	public MeshInfoNode( final MeshInfo< T > meshInfo )
 	{
 		super();
@@ -80,6 +83,8 @@ public class MeshInfoNode< T > implements BindUnbindAndNodeSupplier
 	@Override
 	public void bind()
 	{
+		LOG.debug( "Binding to {}", meshInfo );
+		scaleSlider.slider().setValue( meshInfo.scaleLevelProperty().get() );
 		scaleSlider.slider().valueProperty().bindBidirectional( meshInfo.scaleLevelProperty() );
 		smoothingLambdaSlider.slider().valueProperty().bindBidirectional( meshInfo.smoothingLambdaProperty() );
 		smoothingIterationsSlider.slider().valueProperty().bindBidirectional( meshInfo.smoothingIterationsProperty() );
@@ -88,6 +93,7 @@ public class MeshInfoNode< T > implements BindUnbindAndNodeSupplier
 		cullFaceChoice.valueProperty().bindBidirectional( meshInfo.cullFaceProperty() );
 		this.submittedTasks.bind( meshInfo.submittedTasksProperty() );
 		this.completedTasks.bind( meshInfo.completedTasksProperty() );
+		meshInfo.isManagedProperty().bind( this.hasIndividualSettings.selectedProperty().not() );
 	}
 
 	@Override
@@ -101,58 +107,7 @@ public class MeshInfoNode< T > implements BindUnbindAndNodeSupplier
 		cullFaceChoice.valueProperty().unbindBidirectional( meshInfo.cullFaceProperty() );
 		this.submittedTasks.unbind();
 		this.completedTasks.unbind();
-	}
-
-	public void bindToExternalSliders(
-			final DoubleProperty scaleLevel,
-			final DoubleProperty smoothingLambda,
-			final DoubleProperty smoothingIterations,
-			final DoubleProperty opacity,
-			final Property< DrawMode > drawMode,
-			final Property< CullFace > cullFace,
-			final boolean bind )
-	{
-		if ( bind )
-		{
-			bindToExternalSliders( scaleLevel, smoothingLambda, smoothingIterations, opacity, drawMode, cullFace );
-		}
-		else
-		{
-			unbindExternalSliders( scaleLevel, smoothingLambda, smoothingIterations, opacity, drawMode, cullFace );
-		}
-	}
-
-	public void bindToExternalSliders(
-			final DoubleProperty scaleLevel,
-			final DoubleProperty smoothingLambda,
-			final DoubleProperty smoothingIterations,
-			final DoubleProperty opacity,
-			final Property< DrawMode > drawMode,
-			final Property< CullFace > cullFace )
-	{
-		LOG.debug( "Binding draw mode to {}", drawMode );
-		this.scaleSlider.slider().valueProperty().bindBidirectional( scaleLevel );
-		this.smoothingLambdaSlider.slider().valueProperty().bindBidirectional( smoothingLambda );
-		this.smoothingIterationsSlider.slider().valueProperty().bindBidirectional( smoothingIterations );
-		this.opacitySlider.slider().valueProperty().bindBidirectional( opacity );
-		this.drawModeChoice.valueProperty().bindBidirectional( drawMode );
-		this.cullFaceChoice.valueProperty().bindBidirectional( cullFace );
-	}
-
-	public void unbindExternalSliders(
-			final DoubleProperty scaleLevel,
-			final DoubleProperty smoothingLambda,
-			final DoubleProperty smoothingIterations,
-			final DoubleProperty opacity,
-			final Property< DrawMode > drawMode,
-			final Property< CullFace > cullFace )
-	{
-		this.scaleSlider.slider().valueProperty().unbindBidirectional( scaleLevel );
-		this.smoothingLambdaSlider.slider().valueProperty().unbindBidirectional( smoothingLambda );
-		this.smoothingIterationsSlider.slider().valueProperty().unbindBidirectional( smoothingIterations );
-		this.opacitySlider.slider().valueProperty().unbindBidirectional( opacity );
-		this.drawModeChoice.valueProperty().unbindBidirectional( drawMode );
-		this.cullFaceChoice.valueProperty().unbindBidirectional( cullFace );
+		meshInfo.isManagedProperty().unbind();
 	}
 
 	@Override
@@ -217,7 +172,33 @@ public class MeshInfoNode< T > implements BindUnbindAndNodeSupplier
 		HBox.setHgrow( ids, Priority.ALWAYS );
 		HBox.setHgrow( spacer, Priority.ALWAYS );
 
-		vbox.getChildren().addAll( idsRow, exportMeshButton );
+		final VBox individualSettingsBox = new VBox( hasIndividualSettings );
+		hasIndividualSettings.setSelected( false );
+		final GridPane settingsGrid = new GridPane();
+		MeshPane.populateGridWithMeshSettings(
+				settingsGrid,
+				0,
+				opacitySlider,
+				scaleSlider,
+				smoothingLambdaSlider,
+				smoothingIterationsSlider,
+				drawModeChoice,
+				cullFaceChoice );
+		hasIndividualSettings.selectedProperty().addListener( ( obs, oldv, newv ) -> {
+			if ( newv )
+			{
+				InvokeOnJavaFXApplicationThread.invoke( () -> individualSettingsBox.getChildren().setAll( hasIndividualSettings, settingsGrid ) );
+			}
+			else
+			{
+				InvokeOnJavaFXApplicationThread.invoke( () -> individualSettingsBox.getChildren().setAll( hasIndividualSettings ) );
+			}
+		} );
+		final boolean isManagedCurrent = meshInfo.isManagedProperty().get();
+		hasIndividualSettings.setSelected( !isManagedCurrent );
+		meshInfo.isManagedProperty().bind( hasIndividualSettings.selectedProperty().not() );
+
+		vbox.getChildren().addAll( idsRow, exportMeshButton, individualSettingsBox );
 
 		return pane;
 	}

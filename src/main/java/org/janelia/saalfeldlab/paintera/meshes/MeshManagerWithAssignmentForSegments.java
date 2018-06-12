@@ -23,6 +23,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import gnu.trove.set.hash.TLongHashSet;
+import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.DoubleProperty;
 import javafx.beans.property.IntegerProperty;
 import javafx.beans.property.SimpleIntegerProperty;
@@ -171,13 +172,9 @@ public class MeshManagerWithAssignmentForSegments implements MeshManager< Long, 
 				meshSettings.smoothingIterationsProperty().get(),
 				managers,
 				workers );
-		nfx.opacityProperty().bind( meshSettings.opacityProperty() );
-		nfx.scaleIndexProperty().bind( meshSettings.scaleLevelProperty() );
-		nfx.meshSimplificationIterationsProperty().bind( meshSettings.simplificationIterationsProperty() );
-		nfx.cullFaceProperty().bind( meshSettings.cullFaceProperty() );
-		nfx.drawModeProperty().bind( meshSettings.drawModeProperty() );
-		nfx.smoothingIterationsProperty().bind( meshSettings.smoothingIterationsProperty() );
-		nfx.smoothingLambdaProperty().bind( meshSettings.smoothingLambdaProperty() );
+		final BooleanProperty isManaged = this.meshSettings.isManagedProperty( id );
+		isManaged.addListener( ( obs, oldv, newv ) -> nfx.bindTo( newv ? this.meshSettings.getGlobalSettings() : meshSettings ) );
+		nfx.bindTo( isManaged.get() ? this.meshSettings.getGlobalSettings() : meshSettings );
 
 		neurons.put( idObject, nfx );
 

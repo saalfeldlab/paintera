@@ -11,6 +11,7 @@ import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssign
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.DoubleProperty;
 import javafx.beans.property.IntegerProperty;
 import javafx.beans.property.ObjectProperty;
@@ -40,15 +41,19 @@ public class MeshInfo< T >
 
 	private final IntegerProperty successfulTasks = new SimpleIntegerProperty( 0 );
 
+	private final BooleanProperty isManaged;
+
 	public MeshInfo(
 			final Long segmentId,
 			final MeshSettings meshSettings,
+			final BooleanProperty isManaged,
 			final FragmentSegmentAssignment assignment,
 			final MeshManager< Long, T > meshManager )
 	{
 		super();
 		this.segmentId = segmentId;
 		this.meshSettings = meshSettings;
+		this.isManaged = isManaged;
 		this.assignment = assignment;
 		this.meshManager = meshManager;
 
@@ -183,6 +188,11 @@ public class MeshInfo< T >
 	public long[] containedFragments()
 	{
 		return meshManager.containedFragments( segmentId );
+	}
+
+	public BooleanProperty isManagedProperty()
+	{
+		return this.isManaged;
 	}
 
 }
