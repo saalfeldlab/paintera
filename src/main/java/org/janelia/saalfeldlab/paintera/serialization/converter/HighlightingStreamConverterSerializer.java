@@ -5,6 +5,7 @@ import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Type;
 import java.util.Iterator;
 import java.util.Map.Entry;
+import java.util.Optional;
 
 import org.janelia.saalfeldlab.paintera.stream.AbstractHighlightingARGBStream;
 import org.janelia.saalfeldlab.paintera.stream.HighlightingStreamConverter;
@@ -36,6 +37,8 @@ public class HighlightingStreamConverterSerializer implements
 
 	public static final String SPECIFIED_COLORS_KEY = "userSpecifiedColors";
 
+	public static final String SEED_KEY = "seed";
+
 	@Override
 	public HighlightingStreamConverter< ? > deserialize( final JsonElement json, final Type typeOfT, final JsonDeserializationContext context ) throws JsonParseException
 	{
@@ -62,7 +65,9 @@ public class HighlightingStreamConverterSerializer implements
 			@SuppressWarnings( "unchecked" )
 			final Class< ? extends HighlightingStreamConverter< ? > > converterClass =
 					( Class< ? extends HighlightingStreamConverter< ? > > ) Class.forName( map.get( TYPE_KEY ).getAsString() );
-			return converterClass.getConstructor( AbstractHighlightingARGBStream.class ).newInstance( stream );
+			final HighlightingStreamConverter< ? > converter = converterClass.getConstructor( AbstractHighlightingARGBStream.class ).newInstance( stream );
+			Optional.ofNullable( map.get( SEED_KEY ) ).map( JsonElement::getAsLong ).ifPresent( converter.seedProperty()::set );
+			return converter;
 		}
 		catch ( InstantiationException
 				| IllegalAccessException
@@ -86,6 +91,7 @@ public class HighlightingStreamConverterSerializer implements
 		final AbstractHighlightingARGBStream stream = src.getStream();
 		map.addProperty( TYPE_KEY, src.getClass().getName() );
 		map.addProperty( STREAM_TYPE_KEY, stream.getClass().getName() );
+		map.addProperty( SEED_KEY, stream.getSeed() );
 
 		final TLongIntMap specifiedColors = stream.getExplicitlySpecifiedColorsCopy();
 		if ( specifiedColors.size() > 0 )

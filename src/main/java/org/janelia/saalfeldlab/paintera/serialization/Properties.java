@@ -5,7 +5,11 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.function.Supplier;
 
+import org.janelia.saalfeldlab.fx.ortho.GridConstraintsManager;
 import org.janelia.saalfeldlab.paintera.PainteraBaseView;
+import org.janelia.saalfeldlab.paintera.config.CrosshairConfig;
+import org.janelia.saalfeldlab.paintera.config.NavigationConfig;
+import org.janelia.saalfeldlab.paintera.config.OrthoSliceConfigBase;
 import org.janelia.saalfeldlab.paintera.serialization.StatefulSerializer.Arguments;
 import org.janelia.saalfeldlab.paintera.state.SourceInfo;
 import org.janelia.saalfeldlab.paintera.state.SourceState;
@@ -36,6 +40,14 @@ public class Properties implements TransformListener< AffineTransform3D >
 
 	private static final String WINDOW_PROPERTIES_KEY = "windowProperties";
 
+	private static final String GRID_CONSTRAINTS_KEY = "gridConstraints";
+
+	private static final String CROSSHAIR_CONFIG_KEY = "crosshairConfig";
+
+	private static final String ORTHO_SLICE_CONFIG_KEY = "orthoSliceConfig";
+
+	private static final String NAVIGATION_CONFIG_KEY = "navigationConfig";
+
 	@Expose
 	public final SourceInfo sourceInfo;
 
@@ -45,20 +57,37 @@ public class Properties implements TransformListener< AffineTransform3D >
 	@Expose
 	public final WindowProperties windowProperties = new WindowProperties();
 
+	@Expose
+	public final GridConstraintsManager gridConstraints;
+
+	@Expose
+	public final CrosshairConfig crosshairConfig = new CrosshairConfig();
+
+	@Expose
+	public final OrthoSliceConfigBase orthoSliceConfig = new OrthoSliceConfigBase();
+
+	@Expose
+	public final NavigationConfig navigationConfig = new NavigationConfig();
+
 	private transient final BooleanProperty transformDirty = new SimpleBooleanProperty( false );
 
 	public transient final ObservableBooleanValue isDirty;
 
-	public Properties( final PainteraBaseView viewer )
+	public Properties(
+			final PainteraBaseView viewer,
+			final GridConstraintsManager gridConstraints )
 	{
-		this( viewer.sourceInfo() );
+		this( viewer.sourceInfo(), gridConstraints );
 		viewer.manager().addListener( this );
 	}
 
-	public Properties( final SourceInfo sources )
+	public Properties(
+			final SourceInfo sources,
+			final GridConstraintsManager gridConstraints )
 	{
 		super();
 		this.sourceInfo = sources;
+		this.gridConstraints = gridConstraints;
 		this.isDirty = transformDirty.or( windowProperties.hasChanged ).or( sources.isDirtyProperty() );
 	}
 
@@ -96,7 +125,8 @@ public class Properties implements TransformListener< AffineTransform3D >
 			final PainteraBaseView viewer,
 			final boolean removeExistingSources,
 			final Supplier< String > projectDirectory,
-			final Map< Integer, SourceState< ?, ? > > indexToState )
+			final Map< Integer, SourceState< ?, ? > > indexToState,
+			final GridConstraintsManager manager )
 	{
 		final Arguments arguments = new StatefulSerializer.Arguments( viewer );
 		return fromSerializedProperties(
@@ -104,6 +134,7 @@ public class Properties implements TransformListener< AffineTransform3D >
 				viewer,
 				removeExistingSources,
 				indexToState,
+				manager,
 				GsonHelpers.builderWithAllRequiredDeserializers( arguments, projectDirectory, indexToState::get ).create() );
 	}
 
@@ -112,12 +143,44 @@ public class Properties implements TransformListener< AffineTransform3D >
 			final PainteraBaseView viewer,
 			final boolean removeExistingSources,
 			final Map< Integer, SourceState< ?, ? > > indexToState,
+			final GridConstraintsManager gridConstraints,
 			final Gson gson )
 	{
 
 		LOG.debug( "Populating with {}", serializedProperties );
 
-		final Properties properties = new Properties( viewer );
+		final Properties properties = new Properties(
+				viewer,
+				gridConstraints );
+		final GridConstraintsManager deserializedGridConstraints = Optional
+				.ofNullable( serializedProperties.get( GRID_CONSTRAINTS_KEY ) )
+				.map( json -> gson.fromJson( json, GridConstraintsManager.class ) )
+				.orElse( gridConstraints );
+
+		Optional
+				.ofNullable( serializedProperties.get( CROSSHAIR_CONFIG_KEY ) )
+				.map( json -> gson.fromJson( json, CrosshairConfig.class ) )
+				.ifPresent( conf -> {
+					properties.crosshairConfig.setOnFocusColor( conf.getOnFocusColor() );
+					properties.crosshairConfig.setOutOfFocusColor( conf.getOutOfFocusColor() );
+					properties.crosshairConfig.setShowCrosshairs( conf.getShowCrosshairs() );
+				} );
+
+		Optional
+				.ofNullable( serializedProperties.get( ORTHO_SLICE_CONFIG_KEY ) )
+				.map( json -> gson.fromJson( json, OrthoSliceConfigBase.class ) )
+				.ifPresent( conf -> {
+					properties.orthoSliceConfig.isEnabledProperty().set( conf.isEnabledProperty().get() );
+					properties.orthoSliceConfig.showTopLeftProperty().set( conf.showTopLeftProperty().get() );
+					properties.orthoSliceConfig.showTopRightProperty().set( conf.showTopRightProperty().get() );
+					properties.orthoSliceConfig.showBottomLeftProperty().set( conf.showBottomLeftProperty().get() );
+				} );
+		Optional
+				.ofNullable( serializedProperties.get( NAVIGATION_CONFIG_KEY ) )
+				.map( json -> gson.fromJson( json, NavigationConfig.class ) )
+				.ifPresent( conf -> properties.navigationConfig.allowRotationsProperty().set( conf.allowRotationsProperty().get() ) );
+
+		gridConstraints.set( deserializedGridConstraints );
 
 		if ( removeExistingSources )
 		{

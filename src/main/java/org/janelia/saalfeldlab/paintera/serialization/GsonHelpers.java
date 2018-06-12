@@ -7,6 +7,7 @@ import java.util.function.ToIntFunction;
 
 import org.janelia.saalfeldlab.paintera.PainteraBaseView;
 import org.janelia.saalfeldlab.paintera.composition.Composite;
+import org.janelia.saalfeldlab.paintera.config.CrosshairConfig;
 import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignmentOnlyLocal;
 import org.janelia.saalfeldlab.paintera.control.selection.SelectedIds;
 import org.janelia.saalfeldlab.paintera.data.mask.MaskedSource;
@@ -16,9 +17,16 @@ import org.janelia.saalfeldlab.paintera.data.n5.CommitCanvasN5;
 import org.janelia.saalfeldlab.paintera.data.n5.N5DataSource;
 import org.janelia.saalfeldlab.paintera.data.n5.N5DataSourceDeserializer;
 import org.janelia.saalfeldlab.paintera.data.n5.N5DataSourceSerializer;
+import org.janelia.saalfeldlab.paintera.meshes.ManagedMeshSettings;
+import org.janelia.saalfeldlab.paintera.meshes.MeshSettings;
 import org.janelia.saalfeldlab.paintera.serialization.StatefulSerializer.Arguments;
+import org.janelia.saalfeldlab.paintera.serialization.config.CrosshairConfigSerializer;
+import org.janelia.saalfeldlab.paintera.serialization.config.MeshSettingsSerializer;
 import org.janelia.saalfeldlab.paintera.serialization.converter.ARGBColorConverterSerializer;
 import org.janelia.saalfeldlab.paintera.serialization.converter.HighlightingStreamConverterSerializer;
+import org.janelia.saalfeldlab.paintera.serialization.fx.SimpleBooleanPropertySerializer;
+import org.janelia.saalfeldlab.paintera.serialization.fx.SimpleDoublePropertySerializer;
+import org.janelia.saalfeldlab.paintera.serialization.fx.SimpleIntegerPropertySerializer;
 import org.janelia.saalfeldlab.paintera.serialization.sourcestate.IntersectingSourceStateDeserializer;
 import org.janelia.saalfeldlab.paintera.serialization.sourcestate.IntersectingSourceStateSerializer;
 import org.janelia.saalfeldlab.paintera.serialization.sourcestate.InvertingSourceStateDeserializer;
@@ -42,6 +50,9 @@ import org.slf4j.LoggerFactory;
 
 import com.google.gson.GsonBuilder;
 
+import javafx.beans.property.SimpleBooleanProperty;
+import javafx.beans.property.SimpleDoubleProperty;
+import javafx.beans.property.SimpleIntegerProperty;
 import net.imglib2.converter.ARGBColorConverter;
 import net.imglib2.realtransform.AffineTransform3D;
 
@@ -74,7 +85,13 @@ public class GsonHelpers
 				.registerTypeAdapter( CommitCanvasN5.class, new CommitCanvasN5Serializer() )
 				.registerTypeAdapter( InvertingRawSourceState.class, new InvertingSourceStateDeserializer( dependencyFromIndex ) )
 				.registerTypeAdapter( ThresholdingSourceState.class, new ThresholdingSourceStateDeserializer( dependencyFromIndex ) )
-				.registerTypeAdapter( IntersectingSourceState.class, new IntersectingSourceStateDeserializer.Factory().createDeserializer( arguments, projectDirectory, dependencyFromIndex  ) )
+				.registerTypeAdapter( IntersectingSourceState.class, new IntersectingSourceStateDeserializer.Factory().createDeserializer( arguments, projectDirectory, dependencyFromIndex ) )
+				.registerTypeAdapter( SimpleDoubleProperty.class, new SimpleDoublePropertySerializer() )
+				.registerTypeAdapter( CrosshairConfig.class, new CrosshairConfigSerializer() )
+				.registerTypeAdapter( SimpleBooleanProperty.class, new SimpleBooleanPropertySerializer() )
+				.registerTypeAdapter( SimpleIntegerProperty.class, new SimpleIntegerPropertySerializer() )
+				.registerTypeAdapter( ManagedMeshSettings.class, ManagedMeshSettings.jsonSerializer() )
+				.registerTypeAdapter( MeshSettings.class, new MeshSettingsSerializer() )
 				.registerTypeAdapter( LabelSourceState.class, new LabelSourceStateDeserializer<>( arguments ) );
 	}
 
@@ -84,7 +101,7 @@ public class GsonHelpers
 	{
 		final ToIntFunction< SourceState< ?, ? > > dependencyFromIndex =
 				state -> viewer.sourceInfo().trackSources().indexOf( state.getDataSource() );
-				return builderWithAllRequiredSerializers( projectDirectory, dependencyFromIndex );
+		return builderWithAllRequiredSerializers( projectDirectory, dependencyFromIndex );
 	}
 
 	public static GsonBuilder builderWithAllRequiredSerializers(
@@ -108,6 +125,12 @@ public class GsonHelpers
 				.registerTypeAdapter( FragmentSegmentAssignmentOnlyLocal.class, new FragmentSegmentAssignmentOnlyLocalSerializer() )
 				.registerTypeAdapter( ThresholdingSourceState.class, new ThresholdingSourceStateSerializer( dependencyToIndex ) )
 				.registerTypeAdapter( IntersectingSourceState.class, new IntersectingSourceStateSerializer( dependencyToIndex ) )
+				.registerTypeAdapter( SimpleDoubleProperty.class, new SimpleDoublePropertySerializer() )
+				.registerTypeAdapter( CrosshairConfig.class, new CrosshairConfigSerializer() )
+				.registerTypeAdapter( SimpleBooleanProperty.class, new SimpleBooleanPropertySerializer() )
+				.registerTypeAdapter( SimpleIntegerProperty.class, new SimpleIntegerPropertySerializer() )
+				.registerTypeAdapter( ManagedMeshSettings.class, ManagedMeshSettings.jsonSerializer() )
+				.registerTypeAdapter( MeshSettings.class, new MeshSettingsSerializer() )
 				.registerTypeAdapter( InvertingRawSourceState.class, new InvertingSourceStateSerializer( dependencyToIndex ) );
 	}
 

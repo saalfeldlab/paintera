@@ -21,6 +21,8 @@ public class LabelSourceStateSerializer
 
 	public static final String ASSIGNMENT_KEY = "assignment";
 
+	public static final String MANAGED_MESH_SETTINGS_KEY = "meshSettings";
+
 	@Override
 	public JsonObject serialize( final LabelSourceState< ?, ? > state, final Type type, final JsonSerializationContext context )
 	{
@@ -28,6 +30,7 @@ public class LabelSourceStateSerializer
 		map.add( SELECTED_IDS_KEY, context.serialize( state.selectedIds(), state.selectedIds().getClass() ) );
 		map.add( ASSIGNMENT_KEY, context.serialize( state.assignment() ) );
 		map.add( LabelSourceStateDeserializer.LOCKED_SEGMENTS_KEY, context.serialize( ( ( LockedSegmentsOnlyLocal ) state.lockedSegments() ).lockedSegmentsCopy() ) );
+		map.add( MANAGED_MESH_SETTINGS_KEY, context.serialize( state.managedMeshSettings() ) );
 		return map;
 	}
 

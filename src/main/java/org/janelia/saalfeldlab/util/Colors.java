@@ -41,6 +41,16 @@ public class Colors
 				ARGBType.red( c ),
 				ARGBType.green( c ),
 				ARGBType.blue( c ) );
+
+	}
+
+	public static String toHTML( final Color color )
+	{
+		final int r = ( int ) Math.round( color.getRed() * 255 ) & 0xff;
+		final int g = ( int ) Math.round( color.getGreen() * 255 ) & 0xff;
+		final int b = ( int ) Math.round( color.getBlue() * 255 ) & 0xff;
+		final int a = ( int ) Math.round( color.getOpacity() ) * 255 & 0xff;
+		return String.format( "#%02X%02X%02X%02X", r, g, b, a );
 	}
 
 	public static ARGBType toARGBType( final String html )

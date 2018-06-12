@@ -8,6 +8,9 @@ import java.util.function.Consumer;
 import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignmentState;
 import org.janelia.saalfeldlab.paintera.control.selection.SelectedIds;
 import org.janelia.saalfeldlab.paintera.control.selection.SelectedSegments;
+import org.janelia.saalfeldlab.paintera.meshes.ManagedMeshSettings;
+import org.janelia.saalfeldlab.paintera.meshes.MeshInfos;
+import org.janelia.saalfeldlab.paintera.meshes.MeshManager;
 import org.janelia.saalfeldlab.paintera.state.LabelSourceState;
 import org.janelia.saalfeldlab.paintera.state.SourceInfo;
 import org.janelia.saalfeldlab.paintera.state.SourceState;
@@ -20,6 +23,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import bdv.viewer.Source;
+import gnu.trove.set.hash.TLongHashSet;
 import javafx.beans.InvalidationListener;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.SimpleBooleanProperty;
@@ -328,11 +332,18 @@ public class StatePane implements BindUnbindAndNodeSupplier
 
 	private static BindUnbindAndNodeSupplier meshPane( final LabelSourceState< ?, ? > state )
 	{
-		LOG.debug( "Creating mesh pane for source {} from {} and {}: ", state.nameProperty().get(), state.meshManager(), state.meshInfos() );
-		if ( state.meshManager() != null && state.meshInfos() != null ) { return new MeshPane(
-				state.meshManager(),
-				state.meshInfos(),
-				state.getDataSource().getNumMipmapLevels() ); }
+		final FragmentSegmentAssignmentState assignment = state.assignment();
+		final SelectedIds selectedIds = state.selectedIds();
+		final SelectedSegments selectedSegments = new SelectedSegments( selectedIds, assignment );
+		final MeshManager< Long, TLongHashSet > meshManager = state.meshManager();
+		final ManagedMeshSettings meshSettings = state.managedMeshSettings();
+		final int numScaleLevels = state.dataSource().getNumMipmapLevels();
+		final MeshInfos< TLongHashSet > meshInfos = new MeshInfos<>( selectedSegments, assignment, meshManager, meshSettings, numScaleLevels );
+		LOG.debug( "Creating mesh pane for source {} from {} and {}: ", state.nameProperty().get(), meshManager, meshInfos );
+		if ( meshManager != null ) { return new MeshPane(
+				meshManager,
+				meshInfos,
+				numScaleLevels ); }
 		return BindUnbindAndNodeSupplier.empty();
 	}
 

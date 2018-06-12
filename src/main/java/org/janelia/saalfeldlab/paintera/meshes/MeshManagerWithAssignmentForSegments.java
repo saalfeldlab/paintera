@@ -23,12 +23,10 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import gnu.trove.set.hash.TLongHashSet;
+import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.DoubleProperty;
 import javafx.beans.property.IntegerProperty;
-import javafx.beans.property.SimpleDoubleProperty;
 import javafx.beans.property.SimpleIntegerProperty;
-import javafx.beans.value.ObservableDoubleValue;
-import javafx.beans.value.ObservableIntegerValue;
 import javafx.scene.Group;
 import net.imglib2.Interval;
 import net.imglib2.util.Pair;
@@ -61,15 +59,7 @@ public class MeshManagerWithAssignmentForSegments implements MeshManager< Long, 
 
 	private final FragmentsInSelectedSegments fragmentsInSelectedSegments;
 
-	private final IntegerProperty meshSimplificationIterations = new SimpleIntegerProperty();
-
-	private final DoubleProperty smoothingLambda = new SimpleDoubleProperty();
-
-	private final IntegerProperty smoothingIterations = new SimpleIntegerProperty();
-
-	private final IntegerProperty scaleLevel = new SimpleIntegerProperty();
-
-	private final DoubleProperty opacity = new SimpleDoubleProperty( 1.0 );
+	private final ManagedMeshSettings meshSettings;
 
 	private final ExecutorService managers;
 
@@ -82,12 +72,10 @@ public class MeshManagerWithAssignmentForSegments implements MeshManager< Long, 
 			final InterruptibleFunction< TLongHashSet, Interval[] >[] blockListCacheForFragments,
 			final InterruptibleFunction< ShapeKey< TLongHashSet >, Pair< float[], float[] > >[] meshCache,
 			final Group root,
+			final ManagedMeshSettings meshSettings,
 			final FragmentSegmentAssignmentState assignment,
 			final SelectedSegments selectedSegments,
 			final AbstractHighlightingARGBStream stream,
-			final ObservableIntegerValue meshSimplificationIterations,
-			final ObservableDoubleValue smoothingLambda,
-			final ObservableIntegerValue smooothingIterations,
 			final Runnable refreshMeshes,
 			final ExecutorService managers,
 			final ExecutorService workers )
@@ -103,27 +91,7 @@ public class MeshManagerWithAssignmentForSegments implements MeshManager< Long, 
 		this.stream = stream;
 		this.refreshMeshes = refreshMeshes;
 
-		this.meshSimplificationIterations.set( Math.max( meshSimplificationIterations.get(), 0 ) );
-		meshSimplificationIterations.addListener( ( obs, oldv, newv ) -> {
-			LOG.debug( "Added mesh simplification iterations" );
-			this.meshSimplificationIterations.set( Math.max( newv.intValue(), 0 ) );
-		} );
-
-		this.smoothingLambda.set( Math.min( Math.max( smoothingLambda.get(), 0 ), 1.0 ) );
-		smoothingLambda.addListener( ( obs, oldv, newv ) -> {
-			LOG.debug( "Added smoothing lambda" );
-			this.smoothingLambda.set( Math.min( Math.max( newv.doubleValue(), 0 ), 1.0 ) );
-		} );
-
-		this.smoothingIterations.set( Math.max( smoothingIterations.get(), 0 ) );
-		smoothingIterations.addListener( ( obs, oldv, newv ) -> {
-			LOG.debug( "Added smoothing iterations" );
-			this.smoothingIterations.set( Math.max( newv.intValue(), 0 ) );
-		} );
-
-		this.scaleLevel.set( this.source.getNumMipmapLevels() - 1 );
-		this.smoothingLambda.set( Smooth.DEFAULT_LAMBDA );
-		this.smoothingIterations.set( Smooth.DEFAULT_ITERATIONS );
+		this.meshSettings = meshSettings;
 
 		this.managers = managers;
 		this.workers = workers;
@@ -191,19 +159,22 @@ public class MeshManagerWithAssignmentForSegments implements MeshManager< Long, 
 		}
 
 		LOG.debug( "Adding mesh for segment {}.", id );
+		final MeshSettings meshSettings = this.meshSettings.getOrAddMesh( idObject );
 		final MeshGenerator< TLongHashSet > nfx = new MeshGenerator<>(
 				this.root,
 				fragments,
 				blockListCache,
 				meshCache,
 				color,
-				scaleLevel.get(),
-				meshSimplificationIterations.get(),
-				smoothingLambda.get(),
-				smoothingIterations.get(),
+				meshSettings.scaleLevelProperty().get(),
+				meshSettings.simplificationIterationsProperty().get(),
+				meshSettings.smoothingLambdaProperty().get(),
+				meshSettings.smoothingIterationsProperty().get(),
 				managers,
 				workers );
-		nfx.opacityProperty().set( this.opacity.get() );
+		final BooleanProperty isManaged = this.meshSettings.isManagedProperty( id );
+		isManaged.addListener( ( obs, oldv, newv ) -> nfx.bindTo( newv ? this.meshSettings.getGlobalSettings() : meshSettings ) );
+		nfx.bindTo( isManaged.get() ? this.meshSettings.getGlobalSettings() : meshSettings );
 
 		neurons.put( idObject, nfx );
 
@@ -236,13 +207,13 @@ public class MeshManagerWithAssignmentForSegments implements MeshManager< Long, 
 	@Override
 	public IntegerProperty scaleLevelProperty()
 	{
-		return scaleLevel;
+		return this.meshSettings.getGlobalSettings().scaleLevelProperty();
 	}
 
 	@Override
 	public IntegerProperty meshSimplificationIterationsProperty()
 	{
-		return meshSimplificationIterations;
+		return this.meshSettings.getGlobalSettings().simplificationIterationsProperty();
 	}
 
 	@Override
@@ -256,14 +227,14 @@ public class MeshManagerWithAssignmentForSegments implements MeshManager< Long, 
 	public DoubleProperty smoothingLambdaProperty()
 	{
 
-		return smoothingLambda;
+		return this.meshSettings.getGlobalSettings().smoothingLambdaProperty();
 	}
 
 	@Override
 	public IntegerProperty smoothingIterationsProperty()
 	{
 
-		return smoothingIterations;
+		return this.meshSettings.getGlobalSettings().smoothingIterationsProperty();
 	}
 
 	@Override
@@ -281,7 +252,7 @@ public class MeshManagerWithAssignmentForSegments implements MeshManager< Long, 
 	@Override
 	public DoubleProperty opacityProperty()
 	{
-		return this.opacity;
+		return this.meshSettings.getGlobalSettings().opacityProperty();
 	}
 
 	@Override

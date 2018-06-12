@@ -12,11 +12,13 @@ import java.util.function.Consumer;
 import org.janelia.saalfeldlab.fx.event.EventFX;
 import org.janelia.saalfeldlab.fx.event.KeyTracker;
 import org.janelia.saalfeldlab.fx.event.MouseTracker;
+import org.janelia.saalfeldlab.fx.ortho.GridConstraintsManager;
+import org.janelia.saalfeldlab.fx.ortho.GridConstraintsManager.MaximizedColumn;
+import org.janelia.saalfeldlab.fx.ortho.GridConstraintsManager.MaximizedRow;
 import org.janelia.saalfeldlab.fx.ortho.GridResizer;
 import org.janelia.saalfeldlab.fx.ortho.OnEnterOnExit;
 import org.janelia.saalfeldlab.fx.ortho.OrthogonalViews;
 import org.janelia.saalfeldlab.fx.ortho.OrthogonalViews.ViewerAndTransforms;
-import org.janelia.saalfeldlab.fx.ortho.ResizableGridPane2x2;
 import org.janelia.saalfeldlab.fx.ortho.ViewerAxis;
 import org.janelia.saalfeldlab.paintera.control.CurrentSourceRefreshMeshes;
 import org.janelia.saalfeldlab.paintera.control.CurrentSourceVisibilityToggle;
@@ -46,11 +48,10 @@ import bdv.viewer.Source;
 import javafx.beans.binding.Bindings;
 import javafx.beans.binding.BooleanBinding;
 import javafx.beans.binding.IntegerBinding;
-import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.ReadOnlyBooleanProperty;
-import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.value.ChangeListener;
+import javafx.beans.value.ObservableBooleanValue;
 import javafx.beans.value.ObservableObjectValue;
 import javafx.scene.Node;
 import javafx.scene.control.ContextMenu;
@@ -110,12 +111,15 @@ public class PainteraDefaultHandlers
 
 	private final GridResizer resizer;
 
+	private final ObservableBooleanValue bottomLeftNeedsZNormal;
+
 	public PainteraDefaultHandlers(
 			final PainteraBaseView baseView,
 			final KeyTracker keyTracker,
 			final MouseTracker mouseTracker,
 			final BorderPaneWithStatusBars paneWithStatus,
-			final String projectDirectory )
+			final String projectDirectory,
+			final GridConstraintsManager gridConstraintsManager )
 	{
 		this.baseView = baseView;
 		this.keyTracker = keyTracker;
@@ -147,10 +151,10 @@ public class PainteraDefaultHandlers
 
 		this.openDialogHandler = addPainteraOpenDialogHandler( baseView, keyTracker, projectDirectory, KeyCode.CONTROL, KeyCode.O );
 
-		this.toggleMaximizeTopLeft = toggleMaximizeNode( orthogonalViews.grid(), 0, 0 );
-		this.toggleMaximizeTopRight = toggleMaximizeNode( orthogonalViews.grid(), 1, 0 );
-		this.toggleMaximizeBottomLeft = toggleMaximizeNode( orthogonalViews.grid(), 0, 1 );
-		this.toggleMaximizeBottomRight = toggleMaximizeNode( orthogonalViews.grid(), 1, 1 );
+		this.toggleMaximizeTopLeft = toggleMaximizeNode( gridConstraintsManager, 0, 0 );
+		this.toggleMaximizeTopRight = toggleMaximizeNode( gridConstraintsManager, 1, 0 );
+		this.toggleMaximizeBottomLeft = toggleMaximizeNode( gridConstraintsManager, 0, 1 );
+		this.toggleMaximizeBottomRight = toggleMaximizeNode( gridConstraintsManager, 1, 1 );
 
 		viewerToTransforms.put( orthogonalViews.topLeft().viewer(), orthogonalViews.topLeft() );
 		viewerToTransforms.put( orthogonalViews.topRight().viewer(), orthogonalViews.topRight() );
@@ -180,7 +184,7 @@ public class PainteraDefaultHandlers
 		EventFX.KEY_PRESSED( "cycle current source", e -> sourceInfo.incrementCurrentSourceIndex(), e -> keyTracker.areOnlyTheseKeysDown( KeyCode.CONTROL, KeyCode.TAB ) ).installInto( borderPane );
 		EventFX.KEY_PRESSED( "backwards cycle current source", e -> sourceInfo.decrementCurrentSourceIndex(), e -> keyTracker.areOnlyTheseKeysDown( KeyCode.CONTROL, KeyCode.SHIFT, KeyCode.TAB ) ).installInto( borderPane );
 
-		this.resizer = new GridResizer( baseView.orthogonalViews().grid().constraintsManager(), 5, baseView.pane(), keyTracker );
+		this.resizer = new GridResizer( gridConstraintsManager, 5, baseView.pane(), keyTracker );
 		this.resizer.installInto( baseView.pane() );
 
 		final ObjectProperty< Source< ? > > currentSource = sourceInfo.currentSourceProperty();
@@ -211,24 +215,25 @@ public class PainteraDefaultHandlers
 		final ShowOnlySelectedInStreamToggle sosist = new ShowOnlySelectedInStreamToggle( sourceInfo.currentState()::get, sourceInfo.removedSourcesTracker() );
 		EventFX.KEY_PRESSED( "toggle non-selected labels visibility", e -> sosist.toggleNonSelectionVisibility(), e -> keyTracker.areOnlyTheseKeysDown( KeyCode.SHIFT, KeyCode.V ) ).installInto( borderPane );
 
-		final BooleanProperty isRowMaximized = new SimpleBooleanProperty( false );
-		isRowMaximized.addListener( ( obs, oldv, newv ) -> {
-			if ( newv )
-			{
-				orthogonalViews.bottomLeft().globalToViewerTransform().setTransform( ViewerAxis.globalToViewer( ViewerAxis.Z ) );
-				orthogonalViews.topLeft().viewer().setVisible( false );
-				orthogonalViews.topRight().viewer().setVisible( false );
-				orthogonalViews.grid().constraintsManager().maximize( 1, 0 );
-			}
-			else
-			{
-				orthogonalViews.bottomLeft().globalToViewerTransform().setTransform( ViewerAxis.globalToViewer( ViewerAxis.Y ) );
-				orthogonalViews.topLeft().viewer().setVisible( true );
-				orthogonalViews.topRight().viewer().setVisible( true );
-				orthogonalViews.grid().constraintsManager().resetToLast();
-			}
-		} );
-		EventFX.KEY_PRESSED( "maximize bottom row", e -> isRowMaximized.set( !isRowMaximized.get() ), e -> keyTracker.areOnlyTheseKeysDown( KeyCode.M, KeyCode.SHIFT ) ).installInto( paneWithStatus.getPane() );
+		EventFX.KEY_PRESSED(
+				"toggle maximize bottom row",
+				e -> {
+					gridConstraintsManager.maximize( MaximizedRow.BOTTOM, 0 );
+				},
+				e -> keyTracker.areOnlyTheseKeysDown( KeyCode.M, KeyCode.SHIFT ) ).installInto( paneWithStatus.getPane() );
+
+		bottomLeftNeedsZNormal = Bindings.createBooleanBinding(
+				() -> MaximizedColumn.NONE.equals( gridConstraintsManager.getMaximizedColumn() ) && MaximizedRow.BOTTOM.equals( gridConstraintsManager.getMaximizedRow() ),
+				gridConstraintsManager.observeMaximizedColumn(),
+				gridConstraintsManager.observeMaximizedRow() );
+
+		final AffineTransformWithListeners bottomLeftGlobalToViewer = orthogonalViews.bottomLeft().globalToViewerTransform();
+		bottomLeftNeedsZNormal.addListener( ( obs, oldv, newv ) -> bottomLeftGlobalToViewer.setTransform( ViewerAxis.globalToViewer( newv ? ViewerAxis.Z : ViewerAxis.Y ) ) );
+
+		if ( gridConstraintsManager.isFullScreen() && GridConstraintsManager.MaximizedRow.BOTTOM.equals( gridConstraintsManager.getMaximizedRow() ) && GridConstraintsManager.MaximizedColumn.NONE.equals( gridConstraintsManager.getMaximizedColumn() ) )
+		{
+			orthogonalViews.bottomLeft().globalToViewerTransform().setTransform( ViewerAxis.globalToViewer( ViewerAxis.Z ) );
+		}
 
 		final CurrentSourceRefreshMeshes meshRefresher = new CurrentSourceRefreshMeshes( sourceInfo.currentState()::get );
 		EventFX.KEY_PRESSED( "refresh meshes", e -> meshRefresher.refresh(), e -> keyTracker.areOnlyTheseKeysDown( KeyCode.R ) ).installInto( paneWithStatus.getPane() );
@@ -375,15 +380,14 @@ public class PainteraDefaultHandlers
 	}
 
 	public static ToggleMaximize toggleMaximizeNode(
-			final ResizableGridPane2x2< ?, ?, ?, ? > grid,
+			final GridConstraintsManager manager,
 			final int column,
 			final int row )
 	{
 		return new ToggleMaximize(
-				grid.getChildAt( column, row ),
-				grid.pane().getChildren(),
-				grid.constraintsManager(),
-				column, row );
+				manager,
+				MaximizedColumn.fromIndex( column ),
+				MaximizedRow.fromIndex( row ) );
 	}
 
 	public Navigation navigation()

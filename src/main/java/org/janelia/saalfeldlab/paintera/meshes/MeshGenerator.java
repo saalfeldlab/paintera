@@ -364,4 +364,16 @@ public class MeshGenerator< T >
 		return this.cullFace;
 	}
 
+	public void bindTo( final MeshSettings meshSettings )
+	{
+		LOG.debug( "Binding to {}", meshSettings );
+		opacityProperty().bind( meshSettings.opacityProperty() );
+		scaleIndexProperty().bind( meshSettings.scaleLevelProperty() );
+		meshSimplificationIterationsProperty().bind( meshSettings.simplificationIterationsProperty() );
+		cullFaceProperty().bind( meshSettings.cullFaceProperty() );
+		drawModeProperty().bind( meshSettings.drawModeProperty() );
+		smoothingIterationsProperty().bind( meshSettings.smoothingIterationsProperty() );
+		smoothingLambdaProperty().bind( meshSettings.smoothingLambdaProperty() );
+	}
+
 }

@@ -23,7 +23,7 @@ import org.janelia.saalfeldlab.paintera.id.ToIdConverter;
 import org.janelia.saalfeldlab.paintera.meshes.Interruptible;
 import org.janelia.saalfeldlab.paintera.meshes.InterruptibleFunction;
 import org.janelia.saalfeldlab.paintera.meshes.InterruptibleFunctionAndCache;
-import org.janelia.saalfeldlab.paintera.meshes.MeshInfos;
+import org.janelia.saalfeldlab.paintera.meshes.ManagedMeshSettings;
 import org.janelia.saalfeldlab.paintera.meshes.MeshManager;
 import org.janelia.saalfeldlab.paintera.meshes.MeshManagerWithAssignmentForSegments;
 import org.janelia.saalfeldlab.paintera.meshes.ShapeKey;
@@ -38,8 +38,6 @@ import org.slf4j.LoggerFactory;
 import gnu.trove.iterator.TLongIterator;
 import gnu.trove.set.TLongSet;
 import gnu.trove.set.hash.TLongHashSet;
-import javafx.beans.property.SimpleDoubleProperty;
-import javafx.beans.property.SimpleIntegerProperty;
 import javafx.scene.Group;
 import net.imglib2.FinalInterval;
 import net.imglib2.Interval;
@@ -74,7 +72,7 @@ public class LabelSourceState< D, T >
 
 	private final MeshManager< Long, TLongHashSet > meshManager;
 
-	private final MeshInfos< TLongHashSet > meshInfos;
+	private final ManagedMeshSettings managedMeshSettings;
 
 	private final Runnable clearBlockCaches;
 
@@ -128,24 +126,21 @@ public class LabelSourceState< D, T >
 				CacheUtils::toCacheSoftRefLoaderCache );
 		this.meshCaches = meshCaches;
 
+		this.managedMeshSettings = new ManagedMeshSettings( dataSource.getNumMipmapLevels() );
 		final MeshManagerWithAssignmentForSegments meshManager = new MeshManagerWithAssignmentForSegments(
 				dataSource,
 				delegateBlockCaches,
 				meshCaches,
 				meshesGroup,
+				managedMeshSettings,
 				assignment,
 				selectedSegments,
 				converter.getStream(),
-				new SimpleIntegerProperty(),
-				new SimpleDoubleProperty(),
-				new SimpleIntegerProperty(),
 				this::refreshMeshes,
 				meshManagerExecutors,
 				meshWorkersExecutors );
-		final MeshInfos< TLongHashSet > meshInfos = new MeshInfos<>( selectedSegments, assignment, meshManager, dataSource.getNumMipmapLevels() );
 
 		this.meshManager = meshManager;
-		this.meshInfos = meshInfos;
 
 		assignment.addListener( obs -> stain() );
 		selectedIds.addListener( obs -> stain() );
@@ -169,9 +164,9 @@ public class LabelSourceState< D, T >
 	}
 
 	@Override
-	public MeshInfos< TLongHashSet > meshInfos()
+	public ManagedMeshSettings managedMeshSettings()
 	{
-		return this.meshInfos;
+		return this.managedMeshSettings;
 	}
 
 	public FragmentSegmentAssignmentState assignment()

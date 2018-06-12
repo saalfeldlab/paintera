@@ -11,9 +11,11 @@ import java.util.stream.Stream;
 import org.janelia.saalfeldlab.fx.ui.NumericSliderWithField;
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread;
 import org.janelia.saalfeldlab.paintera.meshes.InterruptibleFunction;
+import org.janelia.saalfeldlab.paintera.meshes.ManagedMeshSettings;
 import org.janelia.saalfeldlab.paintera.meshes.MeshInfo;
 import org.janelia.saalfeldlab.paintera.meshes.MeshInfos;
 import org.janelia.saalfeldlab.paintera.meshes.MeshManager;
+import org.janelia.saalfeldlab.paintera.meshes.MeshSettings;
 import org.janelia.saalfeldlab.paintera.meshes.ShapeKey;
 import org.janelia.saalfeldlab.paintera.ui.BindUnbindAndNodeSupplier;
 import org.slf4j.Logger;
@@ -80,16 +82,16 @@ public class MeshPane implements BindUnbindAndNodeSupplier, ListChangeListener< 
 		this.meshInfos = meshInfos;
 		this.numScaleLevels = numScaleLevels;
 
-		scaleSlider = new NumericSliderWithField( 0, this.numScaleLevels - 1, manager.scaleLevelProperty().get() );
+		scaleSlider = new NumericSliderWithField( 0, this.numScaleLevels - 1, meshInfos.meshSettings().getGlobalSettings().scaleLevelProperty().get() );
 		smoothingLambdaSlider = new NumericSliderWithField( 0.0, 1.0, 0.5 );
 		smoothingIterationsSlider = new NumericSliderWithField( 0, 10, 5 );
-		this.opacitySlider = new NumericSliderWithField( 0.0, 1.0, manager.opacityProperty().get() );
+		this.opacitySlider = new NumericSliderWithField( 0.0, 1.0, meshInfos.meshSettings().getGlobalSettings().opacityProperty().get() );
 
 		this.drawModeChoice = new ComboBox<>( FXCollections.observableArrayList( DrawMode.values() ) );
-		this.drawModeChoice.setValue( DrawMode.FILL );
+		this.drawModeChoice.setValue( meshInfos.meshSettings().getGlobalSettings().drawModeProperty().get() );
 
 		this.cullFaceChoice = new ComboBox<>( FXCollections.observableArrayList( CullFace.values() ) );
-		this.cullFaceChoice.setValue( CullFace.FRONT );
+		this.cullFaceChoice.setValue( meshInfos.meshSettings().getGlobalSettings().cullFaceProperty().get() );
 
 		this.meshesPane.setExpanded( false );
 
@@ -110,12 +112,17 @@ public class MeshPane implements BindUnbindAndNodeSupplier, ListChangeListener< 
 	@Override
 	public void bind()
 	{
+		final ManagedMeshSettings meshSettings = this.meshInfos.meshSettings();
+		final MeshSettings globalSettings = meshSettings.getGlobalSettings();
 		isBound = true;
 		this.meshInfos.readOnlyInfos().addListener( this );
-		scaleSlider.slider().valueProperty().bindBidirectional( manager.scaleLevelProperty() );
-		smoothingLambdaSlider.slider().valueProperty().bindBidirectional( manager.smoothingLambdaProperty() );
-		smoothingIterationsSlider.slider().valueProperty().bindBidirectional( manager.smoothingIterationsProperty() );
-		opacitySlider.slider().valueProperty().bindBidirectional( manager.opacityProperty() );
+		LOG.debug( "Binidng to global settings scale={}", globalSettings.scaleLevelProperty() );
+		scaleSlider.slider().valueProperty().bindBidirectional( globalSettings.scaleLevelProperty() );
+		smoothingLambdaSlider.slider().valueProperty().bindBidirectional( globalSettings.smoothingLambdaProperty() );
+		smoothingIterationsSlider.slider().valueProperty().bindBidirectional( globalSettings.smoothingIterationsProperty() );
+		opacitySlider.slider().valueProperty().bindBidirectional( globalSettings.opacityProperty() );
+		drawModeChoice.valueProperty().bindBidirectional( globalSettings.drawModeProperty() );
+		cullFaceChoice.valueProperty().bindBidirectional( globalSettings.cullFaceProperty() );
 		new ArrayList<>( this.infoNodes ).forEach( MeshInfoNode::bind );
 	}
 
@@ -124,10 +131,14 @@ public class MeshPane implements BindUnbindAndNodeSupplier, ListChangeListener< 
 	{
 		isBound = false;
 		this.meshInfos.readOnlyInfos().removeListener( this );
-		scaleSlider.slider().valueProperty().unbindBidirectional( manager.scaleLevelProperty() );
-		smoothingLambdaSlider.slider().valueProperty().unbindBidirectional( manager.smoothingLambdaProperty() );
-		smoothingIterationsSlider.slider().valueProperty().unbindBidirectional( manager.smoothingIterationsProperty() );
-		opacitySlider.slider().valueProperty().unbindBidirectional( manager.opacityProperty() );
+		final ManagedMeshSettings meshSettings = this.meshInfos.meshSettings();
+		final MeshSettings globalSettings = meshSettings.getGlobalSettings();
+		scaleSlider.slider().valueProperty().unbindBidirectional( globalSettings.scaleLevelProperty() );
+		smoothingLambdaSlider.slider().valueProperty().unbindBidirectional( globalSettings.smoothingLambdaProperty() );
+		smoothingIterationsSlider.slider().valueProperty().unbindBidirectional( globalSettings.smoothingIterationsProperty() );
+		opacitySlider.slider().valueProperty().unbindBidirectional( globalSettings.opacityProperty() );
+		drawModeChoice.valueProperty().unbindBidirectional( globalSettings.drawModeProperty() );
+		cullFaceChoice.valueProperty().unbindBidirectional( globalSettings.cullFaceProperty() );
 		new ArrayList<>( this.infoNodes ).forEach( MeshInfoNode::unbind );
 	}
 
@@ -187,7 +198,36 @@ public class MeshPane implements BindUnbindAndNodeSupplier, ListChangeListener< 
 
 		final GridPane contents = new GridPane();
 
-		int row = 0;
+		final int row = populateGridWithMeshSettings(
+				contents,
+				0,
+				opacitySlider,
+				scaleSlider,
+				smoothingLambdaSlider,
+				smoothingIterationsSlider,
+				drawModeChoice,
+				cullFaceChoice );
+
+		final Button refresh = new Button( "Refresh Meshes" );
+		refresh.setOnAction( event -> manager.refreshMeshes() );
+
+		final TitledPane pane = new TitledPane( "Settings", new VBox( contents, refresh ) );
+		pane.setExpanded( false );
+
+		return pane;
+	}
+
+	public static int populateGridWithMeshSettings(
+			final GridPane contents,
+			final int initialRow,
+			final NumericSliderWithField opacitySlider,
+			final NumericSliderWithField scaleSlider,
+			final NumericSliderWithField smoothingLambdaSlider,
+			final NumericSliderWithField smoothingIterationsSlider,
+			final ComboBox< DrawMode > drawModeChoice,
+			final ComboBox< CullFace > cullFaceChoice )
+	{
+		int row = initialRow;
 
 		final double textFieldWidth = 95;
 
@@ -241,13 +281,7 @@ public class MeshPane implements BindUnbindAndNodeSupplier, ListChangeListener< 
 		cullFaceChoice.setMaxWidth( textFieldWidth );
 		++row;
 
-		final Button refresh = new Button( "Refresh Meshes" );
-		refresh.setOnAction( event -> manager.refreshMeshes() );
-
-		final TitledPane pane = new TitledPane( "Settings", new VBox( contents, refresh ) );
-		pane.setExpanded( false );
-
-		return pane;
+		return row;
 	}
 
 	private MeshInfoNode< TLongHashSet > fromMeshInfo( final MeshInfo< TLongHashSet > info )
@@ -256,19 +290,11 @@ public class MeshPane implements BindUnbindAndNodeSupplier, ListChangeListener< 
 		if ( this.isBound )
 		{
 			node.bind();
-			node.bindToExternalSliders(
-					scaleSlider.slider().valueProperty(),
-					smoothingLambdaSlider.slider().valueProperty(),
-					smoothingIterationsSlider.slider().valueProperty(),
-					opacitySlider.slider().valueProperty(),
-					drawModeChoice.valueProperty(),
-					cullFaceChoice.valueProperty(),
-					true );
 		}
 		return node;
 	}
 
-	private final Node labelWithToolTip( final String text )
+	private static final Node labelWithToolTip( final String text )
 	{
 		final Label label = new Label( text );
 		final Tooltip tt = new Tooltip( text );

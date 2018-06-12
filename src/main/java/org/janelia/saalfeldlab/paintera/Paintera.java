@@ -11,6 +11,7 @@ import java.util.regex.Pattern;
 import org.janelia.saalfeldlab.fx.event.EventFX;
 import org.janelia.saalfeldlab.fx.event.KeyTracker;
 import org.janelia.saalfeldlab.fx.event.MouseTracker;
+import org.janelia.saalfeldlab.fx.ortho.GridConstraintsManager;
 import org.janelia.saalfeldlab.fx.ortho.OrthogonalViews;
 import org.janelia.saalfeldlab.n5.N5Reader;
 import org.janelia.saalfeldlab.n5.N5Writer;
@@ -18,8 +19,6 @@ import org.janelia.saalfeldlab.paintera.SaveProject.ProjectUndefined;
 import org.janelia.saalfeldlab.paintera.composition.ARGBCompositeAlphaYCbCr;
 import org.janelia.saalfeldlab.paintera.composition.CompositeCopy;
 import org.janelia.saalfeldlab.paintera.config.CoordinateConfigNode;
-import org.janelia.saalfeldlab.paintera.config.CrosshairConfig;
-import org.janelia.saalfeldlab.paintera.config.NavigationConfig;
 import org.janelia.saalfeldlab.paintera.config.OrthoSliceConfig;
 import org.janelia.saalfeldlab.paintera.control.CommitChanges;
 import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignmentState;
@@ -39,7 +38,6 @@ import org.janelia.saalfeldlab.paintera.state.SourceState;
 import org.janelia.saalfeldlab.paintera.stream.HighlightingStreamConverter;
 import org.janelia.saalfeldlab.paintera.stream.ModalGoldenAngleSaturatedHighlightingARGBStream;
 import org.janelia.saalfeldlab.paintera.viewer3d.Viewer3DFX;
-import org.janelia.saalfeldlab.util.Colors;
 import org.janelia.saalfeldlab.util.MakeUnchecked;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -53,7 +51,6 @@ import javafx.application.Platform;
 import javafx.scene.Scene;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.MouseEvent;
-import javafx.scene.paint.Color;
 import javafx.stage.Stage;
 import net.imglib2.Volatile;
 import net.imglib2.converter.ARGBColorConverter;
@@ -150,23 +147,37 @@ public class Paintera extends Application
 				baseView,
 				() -> projectDir );
 
-		final PainteraDefaultHandlers defaultHandlers = new PainteraDefaultHandlers( baseView, keyTracker, mouseTracker, paneWithStatus, projectDir );
+		final GridConstraintsManager gridConstraintsManager = new GridConstraintsManager();
+		baseView.orthogonalViews().grid().manage( gridConstraintsManager );
 
-		// TODO (de-)seraizlie config
-		final NavigationConfig navigationConfig = new NavigationConfig();
-		paneWithStatus.navigationConfigNode().bind( navigationConfig );
-		navigationConfig.bindNavigationToConfig( defaultHandlers.navigation() );
+		final PainteraDefaultHandlers defaultHandlers = new PainteraDefaultHandlers(
+				baseView,
+				keyTracker,
+				mouseTracker,
+				paneWithStatus,
+				projectDir,
+				gridConstraintsManager );
 
 		final CoordinateConfigNode coordinateConfigNode = paneWithStatus.navigationConfigNode().coordinateConfigNode();
 		coordinateConfigNode.listen( baseView.manager() );
 
-		final CrosshairConfig crosshairConfig = new CrosshairConfig();
-		paneWithStatus.crosshairConfigNode().bind( crosshairConfig );
-		crosshairConfig.bindCrosshairsToConfig( paneWithStatus.crosshairs().values() );
-		crosshairConfig.setOnFocusColor( Colors.CREMI );
-		crosshairConfig.setOutOfFocusColor( Color.WHITE.deriveColor( 0, 1, 1, 0.5 ) );
+		// populate everything
+
+		final Optional< JsonObject > loadedProperties = loadPropertiesIfPresent( projectDir );
+
+		// TODO this can probably be hidden in
+		// Properties.fromSerializedProperties
+		final Map< Integer, SourceState< ?, ? > > indexToState = new HashMap<>();
+
+		final Properties properties = loadedProperties
+				.map( lp -> Properties.fromSerializedProperties( lp, baseView, true, () -> projectDir, indexToState, gridConstraintsManager ) )
+				.orElse( new Properties( baseView, gridConstraintsManager ) );
+
+		paneWithStatus.crosshairConfigNode().bind( properties.crosshairConfig );
+		properties.crosshairConfig.bindCrosshairsToConfig( paneWithStatus.crosshairs().values() );
 
 		final OrthoSliceConfig orthoSliceConfig = new OrthoSliceConfig(
+				properties.orthoSliceConfig,
 				baseView.orthogonalViews().topLeft().viewer().visibleProperty(),
 				baseView.orthogonalViews().topRight().viewer().visibleProperty(),
 				baseView.orthogonalViews().bottomLeft().viewer().visibleProperty(),
@@ -177,15 +188,10 @@ public class Paintera extends Application
 				paneWithStatus.orthoSlices().get( baseView.orthogonalViews().topRight() ),
 				paneWithStatus.orthoSlices().get( baseView.orthogonalViews().bottomLeft() ) );
 
-		// populate everything
+		paneWithStatus.navigationConfigNode().bind( properties.navigationConfig );
+		properties.navigationConfig.bindNavigationToConfig( defaultHandlers.navigation() );
 
-		final Optional< JsonObject > loadedProperties = loadPropertiesIfPresent( projectDir );
-
-		// TODO this can probably be hidden in
-		// Properties.fromSerializedProperties
-		final Map< Integer, SourceState< ?, ? > > indexToState = new HashMap<>();
-
-		final Properties properties = loadedProperties.map( lp -> Properties.fromSerializedProperties( lp, baseView, true, () -> projectDir, indexToState ) ).orElse( new Properties( baseView ) );
+//		gridConstraintsManager.set( properties.gridConstraints );
 
 		paneWithStatus.saveProjectButtonOnActionProperty().set( event -> {
 			try
