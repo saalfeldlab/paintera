@@ -19,6 +19,7 @@ import org.janelia.saalfeldlab.paintera.data.DataSource;
 import org.janelia.saalfeldlab.paintera.data.mask.MaskedSource;
 import org.janelia.saalfeldlab.paintera.data.n5.N5DataSource;
 import org.janelia.saalfeldlab.paintera.id.IdService;
+import org.janelia.saalfeldlab.paintera.meshes.ManagedMeshSettings;
 import org.janelia.saalfeldlab.paintera.serialization.FragmentSegmentAssignmentOnlyLocalSerializer;
 import org.janelia.saalfeldlab.paintera.serialization.StatefulSerializer;
 import org.janelia.saalfeldlab.paintera.serialization.StatefulSerializer.Arguments;
@@ -137,7 +138,7 @@ public class LabelSourceStateDeserializer< C extends HighlightingStreamConverter
 		final AbstractHighlightingARGBStream stream = converter.getStream();
 		stream.setHighlightsAndAssignmentAndLockedSegments( selectedIds, assignment, lockedSegments );
 
-		return new LabelSourceState(
+		final LabelSourceState state = new LabelSourceState(
 				source,
 				converter,
 				composite,
@@ -149,6 +150,15 @@ public class LabelSourceStateDeserializer< C extends HighlightingStreamConverter
 				arguments.meshesGroup,
 				arguments.meshManagerExecutors,
 				arguments.meshWorkersExecutors );
+
+		if ( map.has( LabelSourceStateSerializer.MANAGED_MESH_SETTINGS_KEY ) )
+		{
+			final ManagedMeshSettings meshSettings = context.deserialize(
+					map.get( LabelSourceStateSerializer.MANAGED_MESH_SETTINGS_KEY ),
+					ManagedMeshSettings.class );
+			state.managedMeshSettings().set( meshSettings );
+		}
+		return state;
 
 	}
 

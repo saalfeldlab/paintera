@@ -17,12 +17,16 @@ import org.janelia.saalfeldlab.paintera.data.n5.CommitCanvasN5;
 import org.janelia.saalfeldlab.paintera.data.n5.N5DataSource;
 import org.janelia.saalfeldlab.paintera.data.n5.N5DataSourceDeserializer;
 import org.janelia.saalfeldlab.paintera.data.n5.N5DataSourceSerializer;
+import org.janelia.saalfeldlab.paintera.meshes.ManagedMeshSettings;
+import org.janelia.saalfeldlab.paintera.meshes.MeshSettings;
 import org.janelia.saalfeldlab.paintera.serialization.StatefulSerializer.Arguments;
 import org.janelia.saalfeldlab.paintera.serialization.config.CrosshairConfigSerializer;
+import org.janelia.saalfeldlab.paintera.serialization.config.MeshSettingsSerializer;
 import org.janelia.saalfeldlab.paintera.serialization.converter.ARGBColorConverterSerializer;
 import org.janelia.saalfeldlab.paintera.serialization.converter.HighlightingStreamConverterSerializer;
 import org.janelia.saalfeldlab.paintera.serialization.fx.SimpleBooleanPropertySerializer;
 import org.janelia.saalfeldlab.paintera.serialization.fx.SimpleDoublePropertySerializer;
+import org.janelia.saalfeldlab.paintera.serialization.fx.SimpleIntegerPropertySerializer;
 import org.janelia.saalfeldlab.paintera.serialization.sourcestate.IntersectingSourceStateDeserializer;
 import org.janelia.saalfeldlab.paintera.serialization.sourcestate.IntersectingSourceStateSerializer;
 import org.janelia.saalfeldlab.paintera.serialization.sourcestate.InvertingSourceStateDeserializer;
@@ -48,6 +52,7 @@ import com.google.gson.GsonBuilder;
 
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleDoubleProperty;
+import javafx.beans.property.SimpleIntegerProperty;
 import net.imglib2.converter.ARGBColorConverter;
 import net.imglib2.realtransform.AffineTransform3D;
 
@@ -84,6 +89,9 @@ public class GsonHelpers
 				.registerTypeAdapter( SimpleDoubleProperty.class, new SimpleDoublePropertySerializer() )
 				.registerTypeAdapter( CrosshairConfig.class, new CrosshairConfigSerializer() )
 				.registerTypeAdapter( SimpleBooleanProperty.class, new SimpleBooleanPropertySerializer() )
+				.registerTypeAdapter( SimpleIntegerProperty.class, new SimpleIntegerPropertySerializer() )
+				.registerTypeAdapter( ManagedMeshSettings.class, ManagedMeshSettings.jsonSerializer() )
+				.registerTypeAdapter( MeshSettings.class, new MeshSettingsSerializer() )
 				.registerTypeAdapter( LabelSourceState.class, new LabelSourceStateDeserializer<>( arguments ) );
 	}
 
@@ -120,6 +128,9 @@ public class GsonHelpers
 				.registerTypeAdapter( SimpleDoubleProperty.class, new SimpleDoublePropertySerializer() )
 				.registerTypeAdapter( CrosshairConfig.class, new CrosshairConfigSerializer() )
 				.registerTypeAdapter( SimpleBooleanProperty.class, new SimpleBooleanPropertySerializer() )
+				.registerTypeAdapter( SimpleIntegerProperty.class, new SimpleIntegerPropertySerializer() )
+				.registerTypeAdapter( ManagedMeshSettings.class, ManagedMeshSettings.jsonSerializer() )
+				.registerTypeAdapter( MeshSettings.class, new MeshSettingsSerializer() )
 				.registerTypeAdapter( InvertingRawSourceState.class, new InvertingSourceStateSerializer( dependencyToIndex ) );
 	}
 

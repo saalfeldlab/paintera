@@ -7,10 +7,8 @@ import java.util.Optional;
 import org.controlsfx.control.StatusBar;
 import org.janelia.saalfeldlab.fx.ui.NumericSliderWithField;
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread;
-import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignment;
 import org.janelia.saalfeldlab.paintera.meshes.MeshGenerator;
 import org.janelia.saalfeldlab.paintera.meshes.MeshInfo;
-import org.janelia.saalfeldlab.paintera.meshes.MeshManager;
 import org.janelia.saalfeldlab.paintera.ui.BindUnbindAndNodeSupplier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -63,28 +61,20 @@ public class MeshInfoNode< T > implements BindUnbindAndNodeSupplier
 	{
 		super();
 		this.meshInfo = meshInfo;
+		LOG.debug( "Initializing MeshinfoNode with draw mode {}", meshInfo.drawModeProperty() );
 		scaleSlider = new NumericSliderWithField( 0, meshInfo.numScaleLevels() - 1, meshInfo.scaleLevelProperty().get() );
 		smoothingLambdaSlider = new NumericSliderWithField( 0.0, 1.0, meshInfo.smoothingLambdaProperty().get() );
 		smoothingIterationsSlider = new NumericSliderWithField( 0, 10, meshInfo.smoothingIterationsProperty().get() );
 		this.opacitySlider = new NumericSliderWithField( 0, 1.0, meshInfo.opacityProperty().get() );
 
 		this.drawModeChoice = new ComboBox<>( FXCollections.observableArrayList( DrawMode.values() ) );
-		this.drawModeChoice.setValue( DrawMode.FILL );
+		this.drawModeChoice.setValue( meshInfo.drawModeProperty().get() );
 
 		this.cullFaceChoice = new ComboBox<>( FXCollections.observableArrayList( CullFace.values() ) );
-		this.cullFaceChoice.setValue( CullFace.FRONT );
+		this.cullFaceChoice.setValue( meshInfo.cullFaceProperty().get() );
 
 		this.contents = createContents();
 
-	}
-
-	public MeshInfoNode(
-			final Long segmentId,
-			final FragmentSegmentAssignment assignment,
-			final MeshManager< Long, T > meshManager,
-			final int numScaleLevels )
-	{
-		this( new MeshInfo<>( segmentId, assignment, meshManager, numScaleLevels ) );
 	}
 
 	@Override
@@ -140,6 +130,7 @@ public class MeshInfoNode< T > implements BindUnbindAndNodeSupplier
 			final Property< DrawMode > drawMode,
 			final Property< CullFace > cullFace )
 	{
+		LOG.debug( "Binding draw mode to {}", drawMode );
 		this.scaleSlider.slider().valueProperty().bindBidirectional( scaleLevel );
 		this.smoothingLambdaSlider.slider().valueProperty().bindBidirectional( smoothingLambda );
 		this.smoothingIterationsSlider.slider().valueProperty().bindBidirectional( smoothingIterations );
@@ -238,7 +229,7 @@ public class MeshInfoNode< T > implements BindUnbindAndNodeSupplier
 				? "Retrieving blocks for mesh"
 				: submittedTasks == MeshGenerator.SUBMITTED_MESH_GENERATION_TASK
 						? "Submitted mesh generation task"
-						: ( completedTasks + "/" + submittedTasks );
+						: completedTasks + "/" + submittedTasks;
 	}
 
 	private static String progressBarStyleColor( final int submittedTasks )
