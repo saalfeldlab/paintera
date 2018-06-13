@@ -272,13 +272,6 @@ public class MeshGenerator< T >
 		{
 			interrupt();
 			final int scaleIndex = this.scaleIndex.get();
-			final Runnable onFinish = () -> {
-				synchronized ( activeFuture )
-				{
-//					activeFuture.set( null );
-//					activeTask.set( null );
-				}
-			};
 			final Pair< Future< Void >, MeshGeneratorJobManager< T >.ManagementTask > futureAndTask = manager.submit(
 					id,
 					scaleIndex,
@@ -289,7 +282,7 @@ public class MeshGenerator< T >
 					meshCache[ scaleIndex ],
 					submittedTasks::set,
 					completedTasks::set,
-					onFinish );
+					() -> {} );
 			LOG.debug( "Submitting new task {}", futureAndTask );
 			this.activeFuture.set( futureAndTask.getA() );
 			this.activeTask.set( futureAndTask.getB() );
