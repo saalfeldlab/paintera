@@ -50,6 +50,7 @@ public class BlocksForLabelDelegate< T, U > implements InterruptibleFunction< T,
 		final U[] mappedKeys = this.keyMapping.apply( t );
 		LOG.debug( "Mapped keys from {} to {}", t, mappedKeys );
 		final List< Future< Interval[] > > intervalFutures = new ArrayList<>();
+		final ExecutorService workers = MoreExecutors.newDirectExecutorService();
 		for ( final U mappedKey : mappedKeys )
 		{
 			LOG.trace( "Requesting intervals from delegate for key {}", mappedKey );
@@ -61,9 +62,9 @@ public class BlocksForLabelDelegate< T, U > implements InterruptibleFunction< T,
 			try
 			{
 				Arrays
-				.stream( future.get() )
-				.map( HashWrapper::interval )
-				.forEach( intervals::add );
+						.stream( future.get() )
+						.map( HashWrapper::interval )
+						.forEach( intervals::add );
 			}
 			catch ( InterruptedException | ExecutionException e )
 			{
@@ -79,6 +80,7 @@ public class BlocksForLabelDelegate< T, U > implements InterruptibleFunction< T,
 	@Override
 	public void interruptFor( final T t )
 	{
+		LOG.warn( "Interrupting for {}", t );
 		Arrays.stream( keyMapping.apply( t ) ).forEach( delegate::interruptFor );
 	}
 
