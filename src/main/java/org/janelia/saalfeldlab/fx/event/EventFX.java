@@ -52,7 +52,9 @@ public abstract class EventFX< E extends Event > implements EventHandler< E >, I
 	public void handle( final E e )
 	{
 		if ( eventFilter.test( e ) )
+		{
 			actOn( e );
+		}
 	}
 
 	public static EventFX< KeyEvent > KEY_PRESSED( final String name, final Consumer< KeyEvent > eventHandler, final Predicate< KeyEvent > eventFilter )
@@ -105,7 +107,11 @@ public abstract class EventFX< E extends Event > implements EventHandler< E >, I
 
 		private final Consumer< E > eventHandler;
 
-		public EventFXWithConsumer( final String name, final EventType< E > eventType, final Consumer< E > eventHandler, final Predicate< E > eventFilter )
+		public EventFXWithConsumer(
+				final String name,
+				final EventType< E > eventType,
+				final Consumer< E > eventHandler,
+				final Predicate< E > eventFilter )
 		{
 			super( name, eventType, eventFilter );
 			this.eventHandler = eventHandler;
@@ -114,6 +120,7 @@ public abstract class EventFX< E extends Event > implements EventHandler< E >, I
 		@Override
 		public void actOn( final E event )
 		{
+			event.consume();
 			eventHandler.accept( event );
 		}
 
