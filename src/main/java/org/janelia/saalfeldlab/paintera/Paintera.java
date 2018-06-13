@@ -1,5 +1,6 @@
 package org.janelia.saalfeldlab.paintera;
 
+import java.io.File;
 import java.io.IOException;
 import java.lang.invoke.MethodHandles;
 import java.util.HashMap;
@@ -53,6 +54,7 @@ import javafx.scene.Scene;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.MouseEvent;
 import javafx.stage.Stage;
+import javafx.stage.WindowEvent;
 import net.imglib2.Volatile;
 import net.imglib2.converter.ARGBColorConverter;
 import net.imglib2.realtransform.AffineTransform3D;
@@ -109,6 +111,10 @@ public class Paintera extends Application
 			LOG.error( Error.NO_PROJECT_SPECIFIED.description );
 			System.exit( Error.NO_PROJECT_SPECIFIED.code );
 		}
+		catch ( final LockFile.UnableToCreateLock e )
+		{
+			LockFileAlreadyExistsDialog.showDialog( e );
+		}
 	}
 
 	public void startImpl( final Stage stage ) throws Exception
@@ -120,6 +126,8 @@ public class Paintera extends Application
 		final boolean parsedSuccessfully = Optional.ofNullable( CommandLine.call( painteraArgs, System.err, args ) ).orElse( false );
 		Platform.setImplicitExit( true );
 
+		// TODO introduce and throw appropriate exception instead of call to
+		// Platform.exit
 		if ( !parsedSuccessfully )
 		{
 			Platform.exit();
@@ -133,6 +141,10 @@ public class Paintera extends Application
 				.ofNullable( painteraArgs.project() )
 				.orElseGet( MakeUnchecked.supplier( () -> new ProjectDirectoryNotSpecifiedDialog( painteraArgs.defaultToTempDirectory() )
 						.showDialog( "No project directory specified on command line. You can specify a project directory or start Paintera without specifying a project directory." ).get() ) );
+
+		final LockFile lockFile = new LockFile( new File( projectDir, ".paintera" ), "lock" );
+		lockFile.lock();
+		stage.addEventHandler( WindowEvent.WINDOW_HIDDEN, e -> lockFile.remove() );
 
 		final PainteraBaseView baseView = new PainteraBaseView(
 				Math.min( 8, Math.max( 1, Runtime.getRuntime().availableProcessors() / 2 ) ),
