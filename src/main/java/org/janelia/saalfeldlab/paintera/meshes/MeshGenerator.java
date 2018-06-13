@@ -251,6 +251,18 @@ public class MeshGenerator< T >
 		this.changed.set( true );
 	}
 
+	public void interrupt()
+	{
+		synchronized ( this.activeFuture )
+		{
+			LOG.warn( "Canceling task: {}", this.activeFuture );
+			Optional.ofNullable( activeFuture.get() ).ifPresent( f -> f.cancel( true ) );
+			Optional.ofNullable( activeTask.get() ).ifPresent( ManagementTask::interrupt );
+			activeFuture.set( null );
+			activeTask.set( null );
+		}
+	}
+
 	private void updateMeshes( final boolean doUpdate )
 	{
 		LOG.debug( "Updating mesh? {}", doUpdate );
@@ -258,11 +270,7 @@ public class MeshGenerator< T >
 
 		synchronized ( this.activeFuture )
 		{
-			LOG.debug( "Canceling task: {}", this.activeFuture );
-			Optional.ofNullable( activeFuture.get() ).ifPresent( f -> f.cancel( true ) );
-			Optional.ofNullable( activeTask.get() ).ifPresent( ManagementTask::interrupt );
-			activeFuture.set( null );
-			activeTask.set( null );
+			interrupt();
 			final int scaleIndex = this.scaleIndex.get();
 			final Runnable onFinish = () -> {
 				synchronized ( activeFuture )

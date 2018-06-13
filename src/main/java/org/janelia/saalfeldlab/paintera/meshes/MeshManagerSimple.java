@@ -148,6 +148,7 @@ public class MeshManagerSimple< N, T > implements MeshManager< N, T >
 	private void disable( final MeshGenerator< T > mesh )
 	{
 		mesh.isEnabledProperty().set( false );
+		mesh.interrupt();
 	}
 
 	@Override

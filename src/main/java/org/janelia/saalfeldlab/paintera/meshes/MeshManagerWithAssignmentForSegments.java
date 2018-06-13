@@ -195,7 +195,11 @@ public class MeshManagerWithAssignmentForSegments implements MeshManager< Long, 
 				.filter( e -> e.getValue().getId().equals( mesh.getId() ) )
 				.map( Entry::getKey )
 				.collect( Collectors.toList() );
-		toRemove.forEach( this.neurons::remove );
+		toRemove
+				.stream()
+				.map( this.neurons::remove )
+				.filter( n -> n != null )
+				.forEach( MeshGenerator::interrupt );
 	}
 
 	@Override
