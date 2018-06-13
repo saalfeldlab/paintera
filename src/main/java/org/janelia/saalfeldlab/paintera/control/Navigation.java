@@ -367,6 +367,13 @@ public class Navigation implements ToOnEnterOnExit
 		return this.allowRotations;
 	}
 
+	public void bindTo( final ButtonRotationSpeedConfig config )
+	{
+		this.buttonRotationSpeedConfig.regular.bind( config.regular );
+		this.buttonRotationSpeedConfig.slow.bind( config.slow );
+		this.buttonRotationSpeedConfig.fast.bind( config.fast );
+	}
+
 	private static final EventFX< KeyEvent > keyRotationHandler(
 			final String name,
 			final DoubleSupplier rotationCenterX,
