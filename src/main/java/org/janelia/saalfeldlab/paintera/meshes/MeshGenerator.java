@@ -187,18 +187,15 @@ public class MeshGenerator< T >
 
 		this.isEnabled.addListener( ( obs, oldv, newv ) -> {
 			InvokeOnJavaFXApplicationThread.invoke( () -> {
-				synchronized ( this.root )
+				synchronized ( this.meshes )
 				{
-					synchronized ( this.meshes )
+					if ( newv )
 					{
-						if ( newv )
-						{
-							this.root.getChildren().addAll( this.meshes.values() );
-						}
-						else
-						{
-							this.root.getChildren().removeAll( this.meshes.values() );
-						}
+						this.root.getChildren().addAll( this.meshes.values() );
+					}
+					else
+					{
+						this.root.getChildren().removeAll( this.meshes.values() );
 					}
 				}
 			} );
@@ -220,32 +217,24 @@ public class MeshGenerator< T >
 				change.getValueAdded().cullFaceProperty().bind( this.cullFace );
 			}
 
-			synchronized ( this.root )
+			if ( change.wasRemoved() )
 			{
-				synchronized ( this.meshes )
-				{
-					if ( change.wasRemoved() )
+				InvokeOnJavaFXApplicationThread.invoke( () -> this.root.getChildren().remove( change.getValueRemoved() ) );
+//					InvokeOnJavaFXApplicationThread.invoke( synchronize( () -> this.root.getChildren().remove( change.getValueRemoved() ), this.root ) );
+			}
+			else if ( change.wasAdded() && !this.root.getChildren().contains( change.getValueAdded() ) )
+			{
+				InvokeOnJavaFXApplicationThread.invoke( () -> {
+					if ( this.root != null && this.isEnabled.get() )
 					{
-						InvokeOnJavaFXApplicationThread.invoke( synchronize( () -> this.root.getChildren().remove( change.getValueRemoved() ), this.root ) );
+						final ObservableList< Node > children = this.root.getChildren();
+						if ( !children.contains( change.getValueAdded() ) )
+						{
+							LOG.debug( "Adding children: {}", change.getValueAdded() );
+							children.add( change.getValueAdded() );
+						}
 					}
-					else if ( change.wasAdded() && !this.root.getChildren().contains( change.getValueAdded() ) )
-					{
-						InvokeOnJavaFXApplicationThread.invoke( () -> {
-							synchronized ( this.root )
-							{
-								if ( this.root != null && this.isEnabled.get() )
-								{
-									final ObservableList< Node > children = this.root.getChildren();
-									if ( !children.contains( change.getValueAdded() ) )
-									{
-										LOG.debug( "Adding children: {}", change.getValueAdded() );
-										children.add( change.getValueAdded() );
-									}
-								}
-							}
-						} );
-					}
-				}
+				} );
 			}
 		} );
 		this.changed.set( true );
