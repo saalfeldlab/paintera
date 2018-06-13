@@ -71,11 +71,11 @@ Usage: Paintera [-h] [--height=HEIGHT] [--width=WIDTH]
 | right click | toggle id under cursor if current source is label source (append to current selection) |
 | `Shift` left click | Merge id under cursor with id that was last toggled active (if any) |
 | `Shift` right click | Split id under cursor from id that was last toggled active (if any) |
-| `Space` left drag | Paint with id that was last toggled active (if any) |
-| `Space` right drag | Erase within canvas only |
-| `Shift` + `Space` right drag | Paint background label |
+| `Space` left click/drag | Paint with id that was last toggled active (if any) |
+| `Space` right click/drag | Erase within canvas only |
+| `Shift` + `Space` right click/drag | Paint background label |
 | `Space` wheel | change brush size |
-| `F` | Flood-fill with id that was last toggled active (if any) |
+| `Shift` + `F` + left click | Flood-fill with id that was last toggled active (if any) |
 | `N` | Select new, previously unused id |
 | `Ctrl` + `C` | Show dialog to commit canvas and/or assignments |
 | `C` | Increment ARGB stream seed by one |

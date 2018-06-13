@@ -178,7 +178,7 @@ public class Properties implements TransformListener< AffineTransform3D >
 		Optional
 				.ofNullable( serializedProperties.get( NAVIGATION_CONFIG_KEY ) )
 				.map( json -> gson.fromJson( json, NavigationConfig.class ) )
-				.ifPresent( conf -> properties.navigationConfig.allowRotationsProperty().set( conf.allowRotationsProperty().get() ) );
+				.ifPresent( properties.navigationConfig::set );
 
 		gridConstraints.set( deserializedGridConstraints );
 

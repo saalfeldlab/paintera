@@ -19,6 +19,7 @@ import org.janelia.saalfeldlab.paintera.SaveProject.ProjectUndefined;
 import org.janelia.saalfeldlab.paintera.composition.ARGBCompositeAlphaYCbCr;
 import org.janelia.saalfeldlab.paintera.composition.CompositeCopy;
 import org.janelia.saalfeldlab.paintera.config.CoordinateConfigNode;
+import org.janelia.saalfeldlab.paintera.config.NavigationConfigNode;
 import org.janelia.saalfeldlab.paintera.config.OrthoSliceConfig;
 import org.janelia.saalfeldlab.paintera.control.CommitChanges;
 import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignmentState;
@@ -158,7 +159,9 @@ public class Paintera extends Application
 				projectDir,
 				gridConstraintsManager );
 
-		final CoordinateConfigNode coordinateConfigNode = paneWithStatus.navigationConfigNode().coordinateConfigNode();
+		final NavigationConfigNode navigationConfigNode = paneWithStatus.navigationConfigNode();
+
+		final CoordinateConfigNode coordinateConfigNode = navigationConfigNode.coordinateConfigNode();
 		coordinateConfigNode.listen( baseView.manager() );
 
 		// populate everything

@@ -17,6 +17,7 @@ import org.janelia.saalfeldlab.fx.event.InstallAndRemove;
 import org.janelia.saalfeldlab.fx.event.KeyTracker;
 import org.janelia.saalfeldlab.fx.event.MouseDragFX;
 import org.janelia.saalfeldlab.paintera.control.navigation.AffineTransformWithListeners;
+import org.janelia.saalfeldlab.paintera.control.navigation.ButtonRotationSpeedConfig;
 import org.janelia.saalfeldlab.paintera.control.navigation.KeyRotate;
 import org.janelia.saalfeldlab.paintera.control.navigation.RemoveRotation;
 import org.janelia.saalfeldlab.paintera.control.navigation.Rotate;
@@ -55,6 +56,8 @@ public class Navigation implements ToOnEnterOnExit
 	private final DoubleProperty rotationSpeed = new SimpleDoubleProperty( 1.0 );
 
 	private final BooleanProperty allowRotations = new SimpleBooleanProperty( true );
+
+	private final ButtonRotationSpeedConfig buttonRotationSpeedConfig = new ButtonRotationSpeedConfig();
 
 	private final GlobalTransformManager manager;
 
@@ -209,12 +212,12 @@ public class Navigation implements ToOnEnterOnExit
 				iars.add( EventFX.KEY_PRESSED( "set key rotation axis z", e -> keyRotationAxis.set( KeyRotate.Axis.Z ), e -> keyTracker.areOnlyTheseKeysDown( KeyCode.Z ) ) );
 
 				iars.add( keyRotationHandler(
-						"key rotate left 5",
+						"key rotate left regular",
 						mouseXIfInsideElseCenterX::get,
 						mouseYIfInsideElseCenterY::get,
 						allowRotations::get,
 						keyRotationAxis::get,
-						-5.0 / 180.0 * Math.PI,
+						this.buttonRotationSpeedConfig.regular.multiply( -Math.PI / 180.0 )::get,
 						displayTransform,
 						globalToViewerTransform,
 						globalTransform,
@@ -223,12 +226,26 @@ public class Navigation implements ToOnEnterOnExit
 						event -> keyTracker.areOnlyTheseKeysDown( KeyCode.LEFT ) ) );
 
 				iars.add( keyRotationHandler(
-						"key rotate left 45",
+						"key rotate left slow",
 						mouseXIfInsideElseCenterX::get,
 						mouseYIfInsideElseCenterY::get,
 						allowRotations::get,
 						keyRotationAxis::get,
-						-45.0 / 180.0 * Math.PI,
+						this.buttonRotationSpeedConfig.slow.multiply( -Math.PI / 180.0 )::get,
+						displayTransform,
+						globalToViewerTransform,
+						globalTransform,
+						manager::setTransform,
+						manager,
+						event -> keyTracker.areOnlyTheseKeysDown( KeyCode.CONTROL, KeyCode.LEFT ) ) );
+
+				iars.add( keyRotationHandler(
+						"key rotate left fast",
+						mouseXIfInsideElseCenterX::get,
+						mouseYIfInsideElseCenterY::get,
+						allowRotations::get,
+						keyRotationAxis::get,
+						this.buttonRotationSpeedConfig.fast.multiply( -Math.PI / 180.0 )::get,
 						displayTransform,
 						globalToViewerTransform,
 						globalTransform,
@@ -237,12 +254,12 @@ public class Navigation implements ToOnEnterOnExit
 						event -> keyTracker.areOnlyTheseKeysDown( KeyCode.SHIFT, KeyCode.LEFT ) ) );
 
 				iars.add( keyRotationHandler(
-						"key rotate right 5",
+						"key rotate right regular",
 						mouseXIfInsideElseCenterX::get,
 						mouseYIfInsideElseCenterY::get,
 						allowRotations::get,
 						keyRotationAxis::get,
-						5.0 / 180.0 * Math.PI,
+						this.buttonRotationSpeedConfig.regular.multiply( +Math.PI / 180.0 )::get,
 						displayTransform,
 						globalToViewerTransform,
 						globalTransform,
@@ -251,12 +268,26 @@ public class Navigation implements ToOnEnterOnExit
 						event -> keyTracker.areOnlyTheseKeysDown( KeyCode.RIGHT ) ) );
 
 				iars.add( keyRotationHandler(
-						"key rotate right 45",
+						"key rotate right slow",
 						mouseXIfInsideElseCenterX::get,
 						mouseYIfInsideElseCenterY::get,
 						allowRotations::get,
 						keyRotationAxis::get,
-						45.0 / 180.0 * Math.PI,
+						this.buttonRotationSpeedConfig.slow.multiply( +Math.PI / 180.0 )::get,
+						displayTransform,
+						globalToViewerTransform,
+						globalTransform,
+						manager::setTransform,
+						manager,
+						event -> keyTracker.areOnlyTheseKeysDown( KeyCode.CONTROL, KeyCode.RIGHT ) ) );
+
+				iars.add( keyRotationHandler(
+						"key rotate right fast",
+						mouseXIfInsideElseCenterX::get,
+						mouseYIfInsideElseCenterY::get,
+						allowRotations::get,
+						keyRotationAxis::get,
+						this.buttonRotationSpeedConfig.fast.multiply( +Math.PI / 180.0 )::get,
 						displayTransform,
 						globalToViewerTransform,
 						globalTransform,
@@ -336,13 +367,20 @@ public class Navigation implements ToOnEnterOnExit
 		return this.allowRotations;
 	}
 
+	public void bindTo( final ButtonRotationSpeedConfig config )
+	{
+		this.buttonRotationSpeedConfig.regular.bind( config.regular );
+		this.buttonRotationSpeedConfig.slow.bind( config.slow );
+		this.buttonRotationSpeedConfig.fast.bind( config.fast );
+	}
+
 	private static final EventFX< KeyEvent > keyRotationHandler(
 			final String name,
 			final DoubleSupplier rotationCenterX,
 			final DoubleSupplier rotationCenterY,
 			final BooleanSupplier allowRotations,
 			final Supplier< KeyRotate.Axis > axis,
-			final double step,
+			final DoubleSupplier step,
 			final AffineTransform3D displayTransform,
 			final AffineTransform3D globalToViewerTransform,
 			final AffineTransform3D globalTransform,

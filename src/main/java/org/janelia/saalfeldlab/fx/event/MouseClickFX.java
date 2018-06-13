@@ -31,7 +31,7 @@ public class MouseClickFX implements InstallAndRemove< Node >
 		this.onReleaseConsumer = onReleaseConsumer;
 		this.eventFilter = eventFilters;
 		this.onPress = EventFX.MOUSE_PRESSED( name, this::press, this.eventFilter );
-		this.onRelease = EventFX.MOUSE_RELEASED( name, this::release, event -> true );
+		this.onRelease = EventFX.MOUSE_RELEASED( name, this::release, event -> isEvent );
 	}
 
 	private double startX;
@@ -60,14 +60,13 @@ public class MouseClickFX implements InstallAndRemove< Node >
 
 	private void release( final MouseEvent event )
 	{
-		if ( isEvent )
+		final double x = event.getX();
+		final double y = event.getY();
+		final double dX = x - startX;
+		final double dY = y - startY;
+		if ( dX * dX + dY * dY <= tolerance * tolerance )
 		{
-			final double x = event.getX();
-			final double y = event.getY();
-			final double dX = x - startX;
-			final double dY = y - startY;
-			if ( dX * dX + dY * dY <= tolerance * tolerance )
-				onReleaseConsumer.accept( event );
+			onReleaseConsumer.accept( event );
 		}
 		isEvent = false;
 	}
