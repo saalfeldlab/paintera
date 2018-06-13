@@ -2,6 +2,7 @@ package org.janelia.saalfeldlab.paintera.control.navigation;
 
 import java.lang.invoke.MethodHandles;
 import java.util.function.Consumer;
+import java.util.function.DoubleSupplier;
 import java.util.function.Supplier;
 
 import org.slf4j.Logger;
@@ -30,7 +31,7 @@ public class KeyRotate
 
 	private final Supplier< Axis > axis;
 
-	private final double step;
+	private final DoubleSupplier step;
 
 	private final AffineTransform3D displayTransform;
 
@@ -44,7 +45,7 @@ public class KeyRotate
 
 	public KeyRotate(
 			final Supplier< Axis > axis,
-			final double step,
+			final DoubleSupplier step,
 			final AffineTransform3D displayTransform,
 			final AffineTransform3D globalToViewerTransform,
 			final AffineTransform3D globalTransform,
@@ -82,7 +83,7 @@ public class KeyRotate
 		concatenated.set( concatenated.get( 0, 3 ) - x, 0, 3 );
 		concatenated.set( concatenated.get( 1, 3 ) - y, 1, 3 );
 		LOG.debug( "Rotating {} around axis={} by angle={}", concatenated, axis, step );
-		concatenated.rotate( axis.get().axis, step );
+		concatenated.rotate( axis.get().axis, step.getAsDouble() );
 		concatenated.set( concatenated.get( 0, 3 ) + x, 0, 3 );
 		concatenated.set( concatenated.get( 1, 3 ) + y, 1, 3 );
 
