@@ -9,3 +9,5 @@
 .settings
 /target
 *.swp
+attributes.json*
+canvases
