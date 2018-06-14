@@ -113,6 +113,12 @@ public class N5Helpers
 
 	public static final String MAX_NUM_ENTRIES_KEY = "maxNumEntries";
 
+	public static final String PAINTERA_DATA_KEY = "painteraData";
+
+	public static final String PAINTERA_DATA_DATASET = "data";
+
+	public static final String PAINTERA_FRAGMENT_SEGMENT_ASSIGNMENT_DATASTE = "fragment-segment-assignment";
+
 	private static final Logger LOG = LoggerFactory.getLogger( MethodHandles.lookup().lookupClass() );
 
 	public static boolean isIntegerType( final DataType type )
@@ -131,6 +137,11 @@ public class N5Helpers
 		default:
 			return false;
 		}
+	}
+
+	public static boolean isPainteraDataset( final N5Reader n5, final String group ) throws IOException
+	{
+		return n5.exists( group ) && n5.listAttributes( group ).containsKey( PAINTERA_DATA_KEY );
 	}
 
 	public static boolean isMultiScale( final N5Reader n5, final String dataset ) throws IOException
@@ -245,6 +256,14 @@ public class N5Helpers
 		return scaleDirs;
 	}
 
+	public static DataType getDataType( final N5Reader n5, final String group ) throws IOException
+	{
+		LOG.warn( "Getting data type for group/dataset {}", group );
+		if ( isPainteraDataset( n5, group ) ) { return getDataType( n5, group + "/" + PAINTERA_DATA_DATASET ); }
+		if ( isMultiScale( n5, group ) ) { return getDataType( n5, getFinestLevel( n5, group ) ); }
+		return n5.getDatasetAttributes( group ).getDataType();
+	}
+
 	public static void sortScaleDatasets( final String[] scaleDatasets )
 	{
 		Arrays.sort( scaleDatasets, ( f1, f2 ) -> {
@@ -319,7 +338,14 @@ public class N5Helpers
 	{
 		try
 		{
-			if ( n5.datasetExists( pathName ) )
+			if ( isPainteraDataset( n5, pathName ) )
+			{
+				synchronized ( datasets )
+				{
+					datasets.add( pathName );
+				}
+			}
+			else if ( n5.datasetExists( pathName ) )
 			{
 				synchronized ( datasets )
 				{
@@ -328,8 +354,10 @@ public class N5Helpers
 			}
 			else
 			{
+
 				String[] groups = null;
 				/* based on attribute */
+
 				boolean isMipmapGroup = Optional.ofNullable( n5.getAttribute( pathName, MULTI_SCALE_KEY, Boolean.class ) ).orElse( false );
 
 				/* based on groupd content (the old way) */
@@ -802,12 +830,19 @@ public class N5Helpers
 		return transform.concatenate( new Translation3D( shift ) );
 	}
 
-	public static FragmentSegmentAssignmentState assignments( final N5Writer writer, final String ds ) throws IOException
+	public static FragmentSegmentAssignmentState assignments( final N5Writer writer, final String group ) throws IOException
 	{
-		final String dataset = ds + ".fragment-segment-assignment";
+
+		if ( !isPainteraDataset( writer, group ) ) { return new FragmentSegmentAssignmentOnlyLocal(
+				TLongLongHashMap::new,
+				( ks, vs ) -> {
+					throw new UnableToPersist( "Persisting assignments not supported for non Paintera group/dataset " + group );
+				} ); }
+
+		final String dataset = group + "/" + PAINTERA_FRAGMENT_SEGMENT_ASSIGNMENT_DATASTE;
 
 		final Persister persister = ( keys, values ) -> {
-			// TODO handle zero length assignments?
+			// TODO how to handle zero length assignments?
 			if ( keys.length == 0 ) { throw new UnableToPersist( "Zero length data, will not persist fragment-segment-assignment." ); }
 			try
 			{
@@ -959,6 +994,7 @@ public class N5Helpers
 			final N5Reader n5,
 			final String dataset ) throws IOException
 	{
+		LOG.warn( "Getting finest level for dataset {}", dataset );
 		final String[] scaleDirs = listAndSortScaleDatasets( n5, dataset );
 		return Paths.get( dataset, scaleDirs[ 0 ] ).toString();
 	}

@@ -219,21 +219,21 @@ public class GenericBackendDialogN5 implements BackendDialog
 		dataset.set( "" );
 	}
 
-	public void updateDatasetInfo( final String dataset, final DatasetInfo info )
+	public void updateDatasetInfo( final String group, final DatasetInfo info )
 	{
 
-		LOG.debug( "Updating dataset info for dataset {}", dataset );
+		LOG.debug( "Updating dataset info for dataset {}", group );
 		try
 		{
 			final N5Reader n5 = this.n5.get();
-			final String ds = N5Helpers.isMultiScale( n5, dataset ) ? N5Helpers.getFinestLevel( n5, dataset ) : dataset;
-			LOG.debug( "Got dataset={}, ds={}", dataset, ds );
 
-			setResolution( N5Helpers.getResolution( n5, dataset ) );
-			setOffset( N5Helpers.getOffset( n5, dataset ) );
-			final DatasetAttributes dsAttrs = n5.getDatasetAttributes( ds );
-			this.datasetInfo.minProperty().set( Optional.ofNullable( n5.getAttribute( dataset, MIN_KEY, Double.class ) ).orElse( N5Helpers.minForType( dsAttrs.getDataType() ) ) );
-			this.datasetInfo.maxProperty().set( Optional.ofNullable( n5.getAttribute( dataset, MAX_KEY, Double.class ) ).orElse( N5Helpers.maxForType( dsAttrs.getDataType() ) ) );
+			setResolution( N5Helpers.getResolution( n5, group ) );
+			setOffset( N5Helpers.getOffset( n5, group ) );
+
+			final DataType dataType = N5Helpers.getDataType( n5, group );
+
+			this.datasetInfo.minProperty().set( Optional.ofNullable( n5.getAttribute( group, MIN_KEY, Double.class ) ).orElse( N5Helpers.minForType( dataType ) ) );
+			this.datasetInfo.maxProperty().set( Optional.ofNullable( n5.getAttribute( group, MAX_KEY, Double.class ) ).orElse( N5Helpers.maxForType( dataType ) ) );
 		}
 		catch ( final IOException e )
 		{
@@ -290,17 +290,19 @@ public class GenericBackendDialogN5 implements BackendDialog
 			final String dataset = this.dataset.get();
 
 			final Long maxId = n5.getAttribute( dataset, "maxId", Long.class );
+			final boolean isPainteraData = N5Helpers.isPainteraDataset( n5, dataset );
 			final long actualMaxId;
 			if ( maxId == null )
 			{
+				final String ds = isPainteraData ? dataset + "/" + N5Helpers.PAINTERA_DATA_DATASET : dataset;
 				if ( isLabelMultisetType() )
 				{
 					LOG.debug( "Getting id service for label multisets" );
-					actualMaxId = maxIdLabelMultiset( n5, dataset );
+					actualMaxId = maxIdLabelMultiset( n5, ds );
 				}
 				else if ( isIntegerType() )
 				{
-					actualMaxId = maxId( n5, dataset );
+					actualMaxId = maxId( n5, ds );
 				}
 				else
 				{
@@ -490,7 +492,12 @@ public class GenericBackendDialogN5 implements BackendDialog
 
 	public boolean isLabelMultisetType() throws Exception
 	{
-		final Boolean attribute = getAttribute( LABEL_MULTISETTYPE_KEY, Boolean.class );
+		final N5Writer n5 = this.n5.get();
+		final String dataset = this.dataset.get();
+		final Boolean attribute = n5.getAttribute(
+				N5Helpers.isPainteraDataset( n5, dataset ) ? dataset + "/" + N5Helpers.PAINTERA_DATA_DATASET : dataset,
+				N5Helpers.LABEL_MULTISETTYPE_KEY,
+				Boolean.class );
 		LOG.debug( "Getting label multiset attribute: {}", attribute );
 		return Optional.ofNullable( attribute ).orElse( false );
 	}
@@ -533,28 +540,6 @@ public class GenericBackendDialogN5 implements BackendDialog
 		final String dataset = this.dataset.get();
 		final N5Writer writer = this.n5.get();
 		return new CommitCanvasN5( writer, dataset );
-	}
-
-	public < T > T getAttribute( final String key, final Class< T > clazz ) throws IOException
-	{
-		final N5Reader n5 = this.n5.get();
-		final String ds = this.dataset.get();
-
-		if ( n5.datasetExists( ds ) )
-		{
-			LOG.debug( "Getting attributes for {} and {}", n5, ds );
-			return n5.getAttribute( ds, key, clazz );
-		}
-
-		final String[] scaleDirs = N5Helpers.listAndSortScaleDatasets( n5, ds );
-
-		if ( scaleDirs.length > 0 )
-		{
-			LOG.warn( "Getting attributes for mipmap dataset: {} and {}", n5, scaleDirs[ 0 ] );
-			return n5.getAttribute( Paths.get( ds, scaleDirs[ 0 ] ).toString(), key, clazz );
-		}
-
-		throw new RuntimeException( String.format( "Cannot read dataset attributes for group %s and dataset %s.", n5, ds ) );
 	}
 
 	public ExecutorService propagationExecutor()
