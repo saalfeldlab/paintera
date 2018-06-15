@@ -187,18 +187,15 @@ public class MeshGenerator< T >
 
 		this.isEnabled.addListener( ( obs, oldv, newv ) -> {
 			InvokeOnJavaFXApplicationThread.invoke( () -> {
-				synchronized ( this.root )
+				synchronized ( this.meshes )
 				{
-					synchronized ( this.meshes )
+					if ( newv )
 					{
-						if ( newv )
-						{
-							this.root.getChildren().addAll( this.meshes.values() );
-						}
-						else
-						{
-							this.root.getChildren().removeAll( this.meshes.values() );
-						}
+						this.root.getChildren().addAll( this.meshes.values() );
+					}
+					else
+					{
+						this.root.getChildren().removeAll( this.meshes.values() );
 					}
 				}
 			} );
@@ -220,35 +217,39 @@ public class MeshGenerator< T >
 				change.getValueAdded().cullFaceProperty().bind( this.cullFace );
 			}
 
-			synchronized ( this.root )
+			if ( change.wasRemoved() )
 			{
-				synchronized ( this.meshes )
-				{
-					if ( change.wasRemoved() )
+				InvokeOnJavaFXApplicationThread.invoke( () -> this.root.getChildren().remove( change.getValueRemoved() ) );
+//					InvokeOnJavaFXApplicationThread.invoke( synchronize( () -> this.root.getChildren().remove( change.getValueRemoved() ), this.root ) );
+			}
+			else if ( change.wasAdded() && !this.root.getChildren().contains( change.getValueAdded() ) )
+			{
+				InvokeOnJavaFXApplicationThread.invoke( () -> {
+					if ( this.root != null && this.isEnabled.get() )
 					{
-						InvokeOnJavaFXApplicationThread.invoke( synchronize( () -> this.root.getChildren().remove( change.getValueRemoved() ), this.root ) );
+						final ObservableList< Node > children = this.root.getChildren();
+						if ( !children.contains( change.getValueAdded() ) )
+						{
+							LOG.debug( "Adding children: {}", change.getValueAdded() );
+							children.add( change.getValueAdded() );
+						}
 					}
-					else if ( change.wasAdded() && !this.root.getChildren().contains( change.getValueAdded() ) )
-					{
-						InvokeOnJavaFXApplicationThread.invoke( () -> {
-							synchronized ( this.root )
-							{
-								if ( this.root != null && this.isEnabled.get() )
-								{
-									final ObservableList< Node > children = this.root.getChildren();
-									if ( !children.contains( change.getValueAdded() ) )
-									{
-										LOG.debug( "Adding children: {}", change.getValueAdded() );
-										children.add( change.getValueAdded() );
-									}
-								}
-							}
-						} );
-					}
-				}
+				} );
 			}
 		} );
 		this.changed.set( true );
+	}
+
+	public void interrupt()
+	{
+		synchronized ( this.activeFuture )
+		{
+			LOG.warn( "Canceling task: {}", this.activeFuture );
+			Optional.ofNullable( activeFuture.get() ).ifPresent( f -> f.cancel( true ) );
+			Optional.ofNullable( activeTask.get() ).ifPresent( ManagementTask::interrupt );
+			activeFuture.set( null );
+			activeTask.set( null );
+		}
 	}
 
 	private void updateMeshes( final boolean doUpdate )
@@ -258,19 +259,8 @@ public class MeshGenerator< T >
 
 		synchronized ( this.activeFuture )
 		{
-			LOG.debug( "Canceling task: {}", this.activeFuture );
-			Optional.ofNullable( activeFuture.get() ).ifPresent( f -> f.cancel( true ) );
-			Optional.ofNullable( activeTask.get() ).ifPresent( ManagementTask::interrupt );
-			activeFuture.set( null );
-			activeTask.set( null );
+			interrupt();
 			final int scaleIndex = this.scaleIndex.get();
-			final Runnable onFinish = () -> {
-				synchronized ( activeFuture )
-				{
-//					activeFuture.set( null );
-//					activeTask.set( null );
-				}
-			};
 			final Pair< Future< Void >, MeshGeneratorJobManager< T >.ManagementTask > futureAndTask = manager.submit(
 					id,
 					scaleIndex,
@@ -281,7 +271,7 @@ public class MeshGenerator< T >
 					meshCache[ scaleIndex ],
 					submittedTasks::set,
 					completedTasks::set,
-					onFinish );
+					() -> {} );
 			LOG.debug( "Submitting new task {}", futureAndTask );
 			this.activeFuture.set( futureAndTask.getA() );
 			this.activeTask.set( futureAndTask.getB() );

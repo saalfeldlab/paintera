@@ -132,10 +132,10 @@ public class MeshGeneratorJobManager< T >
 
 		public void interrupt()
 		{
-			LOG.debug( "Interrupting for {} keys={}", this.identifier, this.keys );
+			LOG.warn( "Interrupting for {} keys={}", this.identifier, this.keys );
 			this.isInterrupted = true;
 			this.getBlockList.interruptFor( this.identifier );
-			synchronized( this.keys )
+			synchronized ( this.keys )
 			{
 				this.keys.forEach( this.getMesh::interruptFor );
 			}
@@ -167,9 +167,9 @@ public class MeshGeneratorJobManager< T >
 
 						blockSet.addAll(
 								Arrays
-								.stream( getBlockList.apply( identifier  ) )
-								.map( HashWrapper::interval )
-								.collect( Collectors.toList() ) );
+										.stream( getBlockList.apply( identifier ) )
+										.map( HashWrapper::interval )
+										.collect( Collectors.toList() ) );
 					}
 					finally
 					{
@@ -208,7 +208,7 @@ public class MeshGeneratorJobManager< T >
 
 				LOG.debug( "Generating mesh with {} blocks for id {}.", blockList.size(), this.identifier );
 
-				synchronized( keys )
+				synchronized ( keys )
 				{
 					keys.clear();
 					for ( final Interval block : blockList )
@@ -224,8 +224,6 @@ public class MeshGeneratorJobManager< T >
 										Intervals.maxAsLongArray( block ) ) );
 					}
 				}
-
-
 
 				if ( !isInterrupted )
 				{
@@ -245,7 +243,8 @@ public class MeshGeneratorJobManager< T >
 								{
 									Thread.currentThread().setName( initialName + " -- generating mesh: " + key );
 									LOG.trace( "Set name of current thread to {} ( was {})", Thread.currentThread().getName(), initialName );
-									if ( !isInterrupted ) {
+									if ( !isInterrupted )
+									{
 										final Pair< float[], float[] > verticesAndNormals = getMesh.apply( key );
 										final MeshView mv = makeMeshView( verticesAndNormals );
 										synchronized ( meshes )

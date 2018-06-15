@@ -118,7 +118,9 @@ public class LabelSourceState< D, T >
 			( ( MaskedSource< ?, ? > ) dataSource ).addOnCanvasClearedListener( this::invalidateAllBlockCaches );
 		}
 
-		final BlocksForLabelDelegate< TLongHashSet, Long >[] delegateBlockCaches = BlocksForLabelDelegate.delegate( blockCaches, ids -> Arrays.stream( ids.toArray() ).mapToObj( id -> id ).toArray( Long[]::new ), meshWorkersExecutors );
+		final BlocksForLabelDelegate< TLongHashSet, Long >[] delegateBlockCaches = BlocksForLabelDelegate.delegate(
+				blockCaches,
+				ids -> Arrays.stream( ids.toArray() ).mapToObj( id -> id ).toArray( Long[]::new ) );
 
 		final InterruptibleFunctionAndCache< ShapeKey< TLongHashSet >, Pair< float[], float[] > >[] meshCaches = CacheUtils.segmentMeshCacheLoaders(
 				dataSource,
