@@ -79,6 +79,9 @@ public class Viewer3DFX extends Pane
 		this.cameraGroup.getTransforms().add( new Translate( 0, 0, -1 ) );
 
 		handler = new Scene3DHandler( this );
+
+		this.root.visibleProperty().bind( isMeshesEnabled );
+
 	}
 
 	public void setInitialTransformToInterval( final Interval interval )
