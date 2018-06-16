@@ -10,6 +10,7 @@ import org.janelia.saalfeldlab.paintera.PainteraBaseView;
 import org.janelia.saalfeldlab.paintera.config.CrosshairConfig;
 import org.janelia.saalfeldlab.paintera.config.NavigationConfig;
 import org.janelia.saalfeldlab.paintera.config.OrthoSliceConfigBase;
+import org.janelia.saalfeldlab.paintera.config.Viewer3DConfig;
 import org.janelia.saalfeldlab.paintera.serialization.StatefulSerializer.Arguments;
 import org.janelia.saalfeldlab.paintera.state.SourceInfo;
 import org.janelia.saalfeldlab.paintera.state.SourceState;
@@ -48,6 +49,8 @@ public class Properties implements TransformListener< AffineTransform3D >
 
 	private static final String NAVIGATION_CONFIG_KEY = "navigationConfig";
 
+	private static final String VIEWER_3D_CONFIG_KEY = "viewer3DConfig";
+
 	@Expose
 	public final SourceInfo sourceInfo;
 
@@ -68,6 +71,9 @@ public class Properties implements TransformListener< AffineTransform3D >
 
 	@Expose
 	public final NavigationConfig navigationConfig = new NavigationConfig();
+
+	@Expose
+	public final Viewer3DConfig viewer3DConfig = new Viewer3DConfig();
 
 	private transient final BooleanProperty transformDirty = new SimpleBooleanProperty( false );
 
@@ -179,6 +185,10 @@ public class Properties implements TransformListener< AffineTransform3D >
 				.ofNullable( serializedProperties.get( NAVIGATION_CONFIG_KEY ) )
 				.map( json -> gson.fromJson( json, NavigationConfig.class ) )
 				.ifPresent( properties.navigationConfig::set );
+		Optional
+				.ofNullable( serializedProperties.get( VIEWER_3D_CONFIG_KEY ) )
+				.map( json -> gson.fromJson( json, Viewer3DConfig.class ) )
+				.ifPresent( properties.viewer3DConfig::set );
 
 		gridConstraints.set( deserializedGridConstraints );
 

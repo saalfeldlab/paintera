@@ -26,6 +26,7 @@ import gnu.trove.set.hash.TLongHashSet;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.DoubleProperty;
 import javafx.beans.property.IntegerProperty;
+import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleIntegerProperty;
 import javafx.scene.Group;
 import net.imglib2.Interval;
@@ -67,6 +68,8 @@ public class MeshManagerWithAssignmentForSegments implements MeshManager< Long, 
 
 	private final Runnable refreshMeshes;
 
+	private final BooleanProperty areMeshesEnabled = new SimpleBooleanProperty( true );
+
 	public MeshManagerWithAssignmentForSegments(
 			final DataSource< ?, ? > source,
 			final InterruptibleFunction< TLongHashSet, Interval[] >[] blockListCacheForFragments,
@@ -98,6 +101,17 @@ public class MeshManagerWithAssignmentForSegments implements MeshManager< Long, 
 
 		this.assignment.addListener( obs -> this.update() );
 		this.selectedSegments.addListener( obs -> this.update() );
+		this.areMeshesEnabled.addListener( ( obs, oldv, newv ) -> {
+			if ( newv )
+			{
+				update();
+			}
+			else
+			{
+				removeAllMeshes();
+			}
+		} );
+
 	}
 
 	private void update()
@@ -138,6 +152,11 @@ public class MeshManagerWithAssignmentForSegments implements MeshManager< Long, 
 	@Override
 	public void generateMesh( final Long idObject )
 	{
+		if ( !areMeshesEnabled.get() )
+		{
+			LOG.debug( "Meshes not enabled -- will return without creating mesh" );
+			return;
+		}
 		final long id = idObject;
 
 		if ( !this.selectedSegments.isSegmentSelected( id ) )
@@ -269,6 +288,12 @@ public class MeshManagerWithAssignmentForSegments implements MeshManager< Long, 
 	public void refreshMeshes()
 	{
 		this.refreshMeshes.run();
+	}
+
+	@Override
+	public BooleanProperty areMeshesEnabledProperty()
+	{
+		return this.areMeshesEnabled;
 	}
 
 }

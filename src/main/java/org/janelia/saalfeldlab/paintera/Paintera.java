@@ -206,6 +206,9 @@ public class Paintera extends Application
 		paneWithStatus.navigationConfigNode().bind( properties.navigationConfig );
 		properties.navigationConfig.bindNavigationToConfig( defaultHandlers.navigation() );
 
+		paneWithStatus.viewer3DConfigNode().bind( properties.viewer3DConfig );
+		properties.viewer3DConfig.bindViewerToConfig( baseView.viewer3D() );
+
 //		gridConstraintsManager.set( properties.gridConstraints );
 
 		paneWithStatus.saveProjectButtonOnActionProperty().set( event -> {

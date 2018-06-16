@@ -15,9 +15,11 @@ import org.slf4j.LoggerFactory;
 
 import javafx.beans.binding.Bindings;
 import javafx.beans.binding.IntegerBinding;
+import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.DoubleProperty;
 import javafx.beans.property.IntegerProperty;
 import javafx.beans.property.ObjectProperty;
+import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleDoubleProperty;
 import javafx.beans.property.SimpleIntegerProperty;
 import javafx.beans.property.SimpleObjectProperty;
@@ -68,6 +70,8 @@ public class MeshManagerSimple< N, T > implements MeshManager< N, T >
 
 	// TODO actually do something
 	private final Runnable refreshMeshes = () -> {};
+
+	private final BooleanProperty areMeshesEnabled = new SimpleBooleanProperty( true );
 
 	public MeshManagerSimple(
 			final InterruptibleFunction< T, Interval[] >[] blockListCache,
@@ -221,6 +225,12 @@ public class MeshManagerSimple< N, T > implements MeshManager< N, T >
 	public void refreshMeshes()
 	{
 		this.refreshMeshes.run();
+	}
+
+	@Override
+	public BooleanProperty areMeshesEnabledProperty()
+	{
+		return this.areMeshesEnabled;
 	}
 
 }

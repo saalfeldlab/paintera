@@ -2,6 +2,7 @@ package org.janelia.saalfeldlab.paintera.meshes;
 
 import java.util.Map;
 
+import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.DoubleProperty;
 import javafx.beans.property.IntegerProperty;
 import net.imglib2.Interval;
@@ -34,5 +35,7 @@ public interface MeshManager< N, T >
 	public long[] containedFragments( N t );
 
 	public void refreshMeshes();
+
+	public BooleanProperty areMeshesEnabledProperty();
 
 }
