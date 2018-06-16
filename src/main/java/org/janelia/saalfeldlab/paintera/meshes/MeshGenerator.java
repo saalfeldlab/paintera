@@ -367,6 +367,11 @@ public class MeshGenerator< T >
 		return this.inflate;
 	}
 
+	public BooleanProperty isVisibleProperty()
+	{
+		return this.isVisible;
+	}
+
 	public void bindTo( final MeshSettings meshSettings )
 	{
 		LOG.debug( "Binding to {}", meshSettings );
@@ -378,6 +383,7 @@ public class MeshGenerator< T >
 		smoothingIterationsProperty().bind( meshSettings.smoothingIterationsProperty() );
 		smoothingLambdaProperty().bind( meshSettings.smoothingLambdaProperty() );
 		inflateProperty().bind( meshSettings.inflateProperty() );
+		isVisible.bind( meshSettings.isVisibleProperty() );
 	}
 
 }

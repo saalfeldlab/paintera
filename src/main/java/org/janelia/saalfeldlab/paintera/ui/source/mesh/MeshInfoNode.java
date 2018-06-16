@@ -62,6 +62,8 @@ public class MeshInfoNode< T > implements BindUnbindAndNodeSupplier
 
 	private final CheckBox hasIndividualSettings = new CheckBox( "Individual Settings" );
 
+	private final CheckBox isVisible = new CheckBox( "Is Visible" );
+
 	public MeshInfoNode( final MeshInfo< T > meshInfo )
 	{
 		super();
@@ -98,6 +100,7 @@ public class MeshInfoNode< T > implements BindUnbindAndNodeSupplier
 		this.submittedTasks.bind( meshInfo.submittedTasksProperty() );
 		this.completedTasks.bind( meshInfo.completedTasksProperty() );
 		meshInfo.isManagedProperty().bind( this.hasIndividualSettings.selectedProperty().not() );
+		this.isVisible.selectedProperty().bindBidirectional( meshInfo.isVisibleProperty() );
 	}
 
 	@Override
@@ -113,6 +116,7 @@ public class MeshInfoNode< T > implements BindUnbindAndNodeSupplier
 		this.submittedTasks.unbind();
 		this.completedTasks.unbind();
 		meshInfo.isManagedProperty().unbind();
+		this.isVisible.selectedProperty().unbindBidirectional( meshInfo.isVisibleProperty() );
 	}
 
 	@Override
@@ -193,7 +197,10 @@ public class MeshInfoNode< T > implements BindUnbindAndNodeSupplier
 		hasIndividualSettings.selectedProperty().addListener( ( obs, oldv, newv ) -> {
 			if ( newv )
 			{
-				InvokeOnJavaFXApplicationThread.invoke( () -> individualSettingsBox.getChildren().setAll( hasIndividualSettings, settingsGrid ) );
+				InvokeOnJavaFXApplicationThread.invoke( () -> individualSettingsBox.getChildren().setAll(
+						hasIndividualSettings,
+						isVisible,
+						settingsGrid ) );
 			}
 			else
 			{
