@@ -1,8 +1,10 @@
 package org.janelia.saalfeldlab.paintera.meshes;
 
+import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.DoubleProperty;
 import javafx.beans.property.IntegerProperty;
 import javafx.beans.property.ObjectProperty;
+import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleDoubleProperty;
 import javafx.beans.property.SimpleIntegerProperty;
 import javafx.beans.property.SimpleObjectProperty;
@@ -29,6 +31,8 @@ public class MeshSettings
 	private final ObjectProperty< CullFace > cullFace = new SimpleObjectProperty<>( CullFace.FRONT );
 
 	private final DoubleProperty inflate = new SimpleDoubleProperty( 1.0 );
+
+	private final BooleanProperty isVisible = new SimpleBooleanProperty( true );
 
 	public MeshSettings( final int numScaleLevels )
 	{
@@ -77,6 +81,11 @@ public class MeshSettings
 		return this.inflate;
 	}
 
+	public BooleanProperty isVisibleProperty()
+	{
+		return this.isVisible;
+	}
+
 	public int numScaleLevels()
 	{
 		return this.numScaleLevels;
@@ -99,6 +108,7 @@ public class MeshSettings
 		this.drawMode.set( that.drawMode.get() );
 		this.cullFace.set( that.cullFace.get() );
 		this.inflate.set( that.inflate.get() );
+		this.isVisible.set( that.isVisible.get() );
 	}
 
 }

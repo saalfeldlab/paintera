@@ -28,6 +28,7 @@ import javafx.collections.ObservableList;
 import javafx.collections.ObservableMap;
 import javafx.scene.Node;
 import javafx.scene.control.Button;
+import javafx.scene.control.CheckBox;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.Label;
 import javafx.scene.control.TitledPane;
@@ -74,6 +75,8 @@ public class MeshPane implements BindUnbindAndNodeSupplier, ListChangeListener< 
 	private final ComboBox< DrawMode > drawModeChoice;
 
 	private final ComboBox< CullFace > cullFaceChoice;
+
+	private final CheckBox isVisible = new CheckBox( "Is Visible" );
 
 	private boolean isBound = false;
 
@@ -128,6 +131,7 @@ public class MeshPane implements BindUnbindAndNodeSupplier, ListChangeListener< 
 		drawModeChoice.valueProperty().bindBidirectional( globalSettings.drawModeProperty() );
 		cullFaceChoice.valueProperty().bindBidirectional( globalSettings.cullFaceProperty() );
 		new ArrayList<>( this.infoNodes ).forEach( MeshInfoNode::bind );
+		this.isVisible.selectedProperty().bindBidirectional( globalSettings.isVisibleProperty() );
 	}
 
 	@Override
@@ -145,6 +149,7 @@ public class MeshPane implements BindUnbindAndNodeSupplier, ListChangeListener< 
 		drawModeChoice.valueProperty().unbindBidirectional( globalSettings.drawModeProperty() );
 		cullFaceChoice.valueProperty().unbindBidirectional( globalSettings.cullFaceProperty() );
 		new ArrayList<>( this.infoNodes ).forEach( MeshInfoNode::unbind );
+		this.isVisible.selectedProperty().unbindBidirectional( globalSettings.isVisibleProperty() );
 	}
 
 	@Override
@@ -217,7 +222,7 @@ public class MeshPane implements BindUnbindAndNodeSupplier, ListChangeListener< 
 		final Button refresh = new Button( "Refresh Meshes" );
 		refresh.setOnAction( event -> manager.refreshMeshes() );
 
-		final TitledPane pane = new TitledPane( "Settings", new VBox( contents, refresh ) );
+		final TitledPane pane = new TitledPane( "Settings", new VBox( isVisible, contents, refresh ) );
 		pane.setExpanded( false );
 
 		return pane;

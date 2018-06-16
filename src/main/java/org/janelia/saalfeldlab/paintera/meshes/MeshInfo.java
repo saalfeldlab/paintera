@@ -128,6 +128,11 @@ public class MeshInfo< T >
 		return this.meshSettings.inflateProperty();
 	}
 
+	public BooleanProperty isVisibleProperty()
+	{
+		return this.meshSettings.isVisibleProperty();
+	}
+
 	private class PropagateChanges< U > implements ChangeListener< U >
 	{
 

@@ -39,6 +39,8 @@ public class MeshSettingsSerializer implements
 
 	private static final String INFLATE_KEY = "inflate";
 
+	private static final String IS_VISIBLE_KEY = "isVisible";
+
 //		private final int numScaleLevels;
 //
 //	private final SimpleIntegerProperty scaleLevel = new SimpleIntegerProperty();
@@ -68,6 +70,7 @@ public class MeshSettingsSerializer implements
 		Optional.ofNullable( map.get( INFLATE_KEY ) ).map( JsonElement::getAsDouble ).ifPresent( settings.inflateProperty()::set );
 		Optional.ofNullable( map.get( DRAW_MODE_KEY ) ).map( el -> ( DrawMode ) context.deserialize( el, DrawMode.class ) ).ifPresent( settings.drawModeProperty()::set );
 		Optional.ofNullable( map.get( CULL_FACE_KEY ) ).map( el -> ( CullFace ) context.deserialize( el, CullFace.class ) ).ifPresent( settings.cullFaceProperty()::set );
+		Optional.ofNullable( map.get( IS_VISIBLE_KEY ) ).map( JsonElement::getAsBoolean ).ifPresent( settings.isVisibleProperty()::set );
 		return settings;
 	}
 
@@ -82,6 +85,7 @@ public class MeshSettingsSerializer implements
 		map.addProperty( SMOOTHING_ITERATIONS_KEY, src.smoothingIterationsProperty().get() );
 		map.addProperty( OPACITY_KEY, src.opacityProperty().get() );
 		map.addProperty( INFLATE_KEY, src.inflateProperty().get() );
+		map.addProperty( IS_VISIBLE_KEY, src.isVisibleProperty().get() );
 		map.add( DRAW_MODE_KEY, context.serialize( src.drawModeProperty().get() ) );
 		map.add( CULL_FACE_KEY, context.serialize( src.cullFaceProperty().get() ) );
 		return map;
