@@ -188,6 +188,8 @@ public class PainteraBaseView
 		orthogonalViews().applyToAll( vp -> state.selectedIds().addListener( obs -> vp.requestRepaint() ) );
 		orthogonalViews().applyToAll( vp -> state.lockedSegments().addListener( obs -> vp.requestRepaint() ) );
 
+		state.meshManager().areMeshesEnabledProperty().bind( viewer3D.isMeshesEnabledProperty() );
+
 		sourceInfo.addState( state.getDataSource(), state );
 	}
 

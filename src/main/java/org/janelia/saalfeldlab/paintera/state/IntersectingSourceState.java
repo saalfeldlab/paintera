@@ -134,6 +134,7 @@ public class IntersectingSourceState
 		final ObjectBinding< Color > colorProperty = Bindings.createObjectBinding( () -> Colors.toColor( this.converter().getColor() ), this.converter().colorProperty() );
 		this.meshManager.colorProperty().bind( colorProperty );
 		this.meshManager.scaleLevelProperty().bind( meshManager.scaleLevelProperty() );
+		this.meshManager.areMeshesEnabledProperty().bind( meshManager.areMeshesEnabledProperty() );
 
 		thresholded.getThreshold().minValue().addListener( ( obs, oldv, newv ) -> {
 			Arrays.stream( meshCaches ).forEach( UncheckedCache::invalidateAll );

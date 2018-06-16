@@ -15,6 +15,7 @@ import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread;
 import org.janelia.saalfeldlab.paintera.config.CrosshairConfigNode;
 import org.janelia.saalfeldlab.paintera.config.NavigationConfigNode;
 import org.janelia.saalfeldlab.paintera.config.OrthoSliceConfigNode;
+import org.janelia.saalfeldlab.paintera.config.Viewer3DConfigNode;
 import org.janelia.saalfeldlab.paintera.control.navigation.CoordinateDisplayListener;
 import org.janelia.saalfeldlab.paintera.state.SourceInfo;
 import org.janelia.saalfeldlab.paintera.ui.Crosshair;
@@ -78,6 +79,8 @@ public class BorderPaneWithStatusBars
 	private final CrosshairConfigNode crosshairConfigNode = new CrosshairConfigNode();
 
 	private final OrthoSliceConfigNode orthoSliceConfigNode = new OrthoSliceConfigNode();
+
+	private final Viewer3DConfigNode viewer3DConfigNode = new Viewer3DConfigNode();
 
 	private final Map< ViewerAndTransforms, Crosshair > crossHairs;
 
@@ -187,7 +190,8 @@ public class BorderPaneWithStatusBars
 		final VBox settingsContents = new VBox(
 				this.navigationConfigNode.getContents(),
 				this.crosshairConfigNode.getContents(),
-				this.orthoSliceConfigNode.getContents() );
+				this.orthoSliceConfigNode.getContents(),
+				this.viewer3DConfigNode.getContents() );
 		final TitledPane settings = new TitledPane( "settings", settingsContents );
 		settings.setExpanded( false );
 
@@ -292,6 +296,11 @@ public class BorderPaneWithStatusBars
 	public OrthoSliceConfigNode orthoSliceConfigNode()
 	{
 		return this.orthoSliceConfigNode;
+	}
+
+	public Viewer3DConfigNode viewer3DConfigNode()
+	{
+		return this.viewer3DConfigNode;
 	}
 
 	public Map< ViewerAndTransforms, Crosshair > crosshairs()

@@ -5,6 +5,8 @@ import java.lang.invoke.MethodHandles;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javafx.beans.property.BooleanProperty;
+import javafx.beans.property.SimpleBooleanProperty;
 import javafx.scene.AmbientLight;
 import javafx.scene.Group;
 import javafx.scene.PerspectiveCamera;
@@ -41,6 +43,8 @@ public class Viewer3DFX extends Pane
 
 	private final Group3DCoordinateTracker coordinateTracker;
 
+	private final BooleanProperty isMeshesEnabled = new SimpleBooleanProperty();
+
 	public Viewer3DFX( final double width, final double height )
 	{
 		super();
@@ -75,6 +79,9 @@ public class Viewer3DFX extends Pane
 		this.cameraGroup.getTransforms().add( new Translate( 0, 0, -1 ) );
 
 		handler = new Scene3DHandler( this );
+
+		this.root.visibleProperty().bind( isMeshesEnabled );
+
 	}
 
 	public void setInitialTransformToInterval( final Interval interval )
@@ -100,5 +107,10 @@ public class Viewer3DFX extends Pane
 	public Group3DCoordinateTracker coordinateTracker()
 	{
 		return this.coordinateTracker;
+	}
+
+	public BooleanProperty isMeshesEnabledProperty()
+	{
+		return this.isMeshesEnabled;
 	}
 }
