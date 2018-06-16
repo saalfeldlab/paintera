@@ -28,6 +28,8 @@ public class MeshSettings
 
 	private final ObjectProperty< CullFace > cullFace = new SimpleObjectProperty<>( CullFace.FRONT );
 
+	private final DoubleProperty inflate = new SimpleDoubleProperty( 1.0 );
+
 	public MeshSettings( final int numScaleLevels )
 	{
 		super();
@@ -70,6 +72,11 @@ public class MeshSettings
 		return this.cullFace;
 	}
 
+	public DoubleProperty inflateProperty()
+	{
+		return this.inflate;
+	}
+
 	public int numScaleLevels()
 	{
 		return this.numScaleLevels;
@@ -91,6 +98,7 @@ public class MeshSettings
 		this.opacity.set( that.opacity.get() );
 		this.drawMode.set( that.drawMode.get() );
 		this.cullFace.set( that.cullFace.get() );
+		this.inflate.set( that.inflate.get() );
 	}
 
 }

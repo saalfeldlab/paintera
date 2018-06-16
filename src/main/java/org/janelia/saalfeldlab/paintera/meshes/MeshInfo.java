@@ -123,6 +123,11 @@ public class MeshInfo< T >
 		return this.meshSettings.opacityProperty();
 	}
 
+	public DoubleProperty inflateProperty()
+	{
+		return this.meshSettings.inflateProperty();
+	}
+
 	private class PropagateChanges< U > implements ChangeListener< U >
 	{
 

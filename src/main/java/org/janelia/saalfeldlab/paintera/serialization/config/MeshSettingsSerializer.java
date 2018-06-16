@@ -37,6 +37,8 @@ public class MeshSettingsSerializer implements
 
 	private static final String CULL_FACE_KEY = "cullFace";
 
+	private static final String INFLATE_KEY = "inflate";
+
 //		private final int numScaleLevels;
 //
 //	private final SimpleIntegerProperty scaleLevel = new SimpleIntegerProperty();
@@ -63,6 +65,7 @@ public class MeshSettingsSerializer implements
 		Optional.ofNullable( map.get( SMOOTHING_ITERATIONS_KEY ) ).map( JsonElement::getAsInt ).ifPresent( settings.smoothingIterationsProperty()::set );
 		Optional.ofNullable( map.get( SMOOTHING_LAMBDA_KEY ) ).map( JsonElement::getAsDouble ).ifPresent( settings.smoothingLambdaProperty()::set );
 		Optional.ofNullable( map.get( OPACITY_KEY ) ).map( JsonElement::getAsDouble ).ifPresent( settings.opacityProperty()::set );
+		Optional.ofNullable( map.get( INFLATE_KEY ) ).map( JsonElement::getAsDouble ).ifPresent( settings.inflateProperty()::set );
 		Optional.ofNullable( map.get( DRAW_MODE_KEY ) ).map( el -> ( DrawMode ) context.deserialize( el, DrawMode.class ) ).ifPresent( settings.drawModeProperty()::set );
 		Optional.ofNullable( map.get( CULL_FACE_KEY ) ).map( el -> ( CullFace ) context.deserialize( el, CullFace.class ) ).ifPresent( settings.cullFaceProperty()::set );
 		return settings;
@@ -78,6 +81,7 @@ public class MeshSettingsSerializer implements
 		map.addProperty( SMOOTHING_LAMBDA_KEY, src.smoothingLambdaProperty().get() );
 		map.addProperty( SMOOTHING_ITERATIONS_KEY, src.smoothingIterationsProperty().get() );
 		map.addProperty( OPACITY_KEY, src.opacityProperty().get() );
+		map.addProperty( INFLATE_KEY, src.inflateProperty().get() );
 		map.add( DRAW_MODE_KEY, context.serialize( src.drawModeProperty().get() ) );
 		map.add( CULL_FACE_KEY, context.serialize( src.cullFaceProperty().get() ) );
 		return map;
