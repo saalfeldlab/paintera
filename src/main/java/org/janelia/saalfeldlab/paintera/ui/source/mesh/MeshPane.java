@@ -59,6 +59,8 @@ public class MeshPane implements BindUnbindAndNodeSupplier, ListChangeListener< 
 
 	private final NumericSliderWithField opacitySlider;
 
+	private final NumericSliderWithField inflateSlider;
+
 	final ObservableMap< MeshInfo< TLongHashSet >, MeshInfoNode< TLongHashSet > > infoNodesCache = FXCollections.observableHashMap();
 
 	final ObservableList< MeshInfoNode< TLongHashSet > > infoNodes = FXCollections.observableArrayList();
@@ -86,6 +88,7 @@ public class MeshPane implements BindUnbindAndNodeSupplier, ListChangeListener< 
 		smoothingLambdaSlider = new NumericSliderWithField( 0.0, 1.0, 0.5 );
 		smoothingIterationsSlider = new NumericSliderWithField( 0, 10, 5 );
 		this.opacitySlider = new NumericSliderWithField( 0.0, 1.0, meshInfos.meshSettings().getGlobalSettings().opacityProperty().get() );
+		this.inflateSlider = new NumericSliderWithField( 0.5, 2.0, meshInfos.meshSettings().getGlobalSettings().inflateProperty().get() );
 
 		this.drawModeChoice = new ComboBox<>( FXCollections.observableArrayList( DrawMode.values() ) );
 		this.drawModeChoice.setValue( meshInfos.meshSettings().getGlobalSettings().drawModeProperty().get() );
@@ -121,6 +124,7 @@ public class MeshPane implements BindUnbindAndNodeSupplier, ListChangeListener< 
 		smoothingLambdaSlider.slider().valueProperty().bindBidirectional( globalSettings.smoothingLambdaProperty() );
 		smoothingIterationsSlider.slider().valueProperty().bindBidirectional( globalSettings.smoothingIterationsProperty() );
 		opacitySlider.slider().valueProperty().bindBidirectional( globalSettings.opacityProperty() );
+		inflateSlider.slider().valueProperty().bindBidirectional( globalSettings.inflateProperty() );
 		drawModeChoice.valueProperty().bindBidirectional( globalSettings.drawModeProperty() );
 		cullFaceChoice.valueProperty().bindBidirectional( globalSettings.cullFaceProperty() );
 		new ArrayList<>( this.infoNodes ).forEach( MeshInfoNode::bind );
@@ -137,6 +141,7 @@ public class MeshPane implements BindUnbindAndNodeSupplier, ListChangeListener< 
 		smoothingLambdaSlider.slider().valueProperty().unbindBidirectional( globalSettings.smoothingLambdaProperty() );
 		smoothingIterationsSlider.slider().valueProperty().unbindBidirectional( globalSettings.smoothingIterationsProperty() );
 		opacitySlider.slider().valueProperty().unbindBidirectional( globalSettings.opacityProperty() );
+		inflateSlider.slider().valueProperty().unbindBidirectional( globalSettings.inflateProperty() );
 		drawModeChoice.valueProperty().unbindBidirectional( globalSettings.drawModeProperty() );
 		cullFaceChoice.valueProperty().unbindBidirectional( globalSettings.cullFaceProperty() );
 		new ArrayList<>( this.infoNodes ).forEach( MeshInfoNode::unbind );
@@ -205,6 +210,7 @@ public class MeshPane implements BindUnbindAndNodeSupplier, ListChangeListener< 
 				scaleSlider,
 				smoothingLambdaSlider,
 				smoothingIterationsSlider,
+				inflateSlider,
 				drawModeChoice,
 				cullFaceChoice );
 
@@ -224,6 +230,7 @@ public class MeshPane implements BindUnbindAndNodeSupplier, ListChangeListener< 
 			final NumericSliderWithField scaleSlider,
 			final NumericSliderWithField smoothingLambdaSlider,
 			final NumericSliderWithField smoothingIterationsSlider,
+			final NumericSliderWithField inflateSlider,
 			final ComboBox< DrawMode > drawModeChoice,
 			final ComboBox< CullFace > cullFaceChoice )
 	{
@@ -269,6 +276,16 @@ public class MeshPane implements BindUnbindAndNodeSupplier, ListChangeListener< 
 		smoothingIterationsSlider.textField().setMinWidth( textFieldWidth );
 		smoothingIterationsSlider.textField().setMaxWidth( textFieldWidth );
 		GridPane.setHgrow( smoothingIterationsSlider.slider(), Priority.ALWAYS );
+		++row;
+
+		contents.add( labelWithToolTip( "Inflate" ), 0, row );
+		contents.add( inflateSlider.slider(), 1, row );
+		contents.add( inflateSlider.textField(), 2, row );
+		inflateSlider.slider().setShowTickLabels( true );
+		inflateSlider.slider().setTooltip( new Tooltip( "Inflate meshes by factor" ) );
+		inflateSlider.textField().setMinWidth( textFieldWidth );
+		inflateSlider.textField().setMaxWidth( textFieldWidth );
+		GridPane.setHgrow( inflateSlider.slider(), Priority.ALWAYS );
 		++row;
 
 		contents.add( labelWithToolTip( "Draw Mode" ), 0, row );

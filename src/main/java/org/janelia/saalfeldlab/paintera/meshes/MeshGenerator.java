@@ -144,6 +144,8 @@ public class MeshGenerator< T >
 
 	private final ObjectProperty< CullFace > cullFace = new SimpleObjectProperty<>( CullFace.FRONT );
 
+	private final DoubleProperty inflate = new SimpleDoubleProperty( 1.0 );
+
 	//
 	public MeshGenerator(
 			final Group root,
@@ -208,6 +210,9 @@ public class MeshGenerator< T >
 				change.getValueRemoved().visibleProperty().unbind();
 				change.getValueRemoved().drawModeProperty().unbind();
 				change.getValueRemoved().cullFaceProperty().unbind();
+				change.getValueRemoved().scaleXProperty().unbind();
+				change.getValueRemoved().scaleYProperty().unbind();
+				change.getValueRemoved().scaleZProperty().unbind();
 			}
 			else
 			{
@@ -215,6 +220,9 @@ public class MeshGenerator< T >
 				change.getValueAdded().visibleProperty().bind( this.isVisible );
 				change.getValueAdded().drawModeProperty().bind( this.drawMode );
 				change.getValueAdded().cullFaceProperty().bind( this.cullFace );
+				change.getValueAdded().scaleXProperty().bind( this.inflate );
+				change.getValueAdded().scaleYProperty().bind( this.inflate );
+				change.getValueAdded().scaleZProperty().bind( this.inflate );
 			}
 
 			if ( change.wasRemoved() )
@@ -354,6 +362,11 @@ public class MeshGenerator< T >
 		return this.cullFace;
 	}
 
+	public DoubleProperty inflateProperty()
+	{
+		return this.inflate;
+	}
+
 	public void bindTo( final MeshSettings meshSettings )
 	{
 		LOG.debug( "Binding to {}", meshSettings );
@@ -364,6 +377,7 @@ public class MeshGenerator< T >
 		drawModeProperty().bind( meshSettings.drawModeProperty() );
 		smoothingIterationsProperty().bind( meshSettings.smoothingIterationsProperty() );
 		smoothingLambdaProperty().bind( meshSettings.smoothingLambdaProperty() );
+		inflateProperty().bind( meshSettings.inflateProperty() );
 	}
 
 }

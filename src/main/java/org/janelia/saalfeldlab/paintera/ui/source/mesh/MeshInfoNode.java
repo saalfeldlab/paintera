@@ -48,6 +48,8 @@ public class MeshInfoNode< T > implements BindUnbindAndNodeSupplier
 
 	private final NumericSliderWithField opacitySlider;
 
+	private final NumericSliderWithField inflateSlider;
+
 	private final IntegerProperty submittedTasks = new SimpleIntegerProperty( 0 );
 
 	private final IntegerProperty completedTasks = new SimpleIntegerProperty( 0 );
@@ -69,6 +71,7 @@ public class MeshInfoNode< T > implements BindUnbindAndNodeSupplier
 		smoothingLambdaSlider = new NumericSliderWithField( 0.0, 1.0, meshInfo.smoothingLambdaProperty().get() );
 		smoothingIterationsSlider = new NumericSliderWithField( 0, 10, meshInfo.smoothingIterationsProperty().get() );
 		this.opacitySlider = new NumericSliderWithField( 0, 1.0, meshInfo.opacityProperty().get() );
+		this.inflateSlider = new NumericSliderWithField( 0.5, 2.0, meshInfo.inflateProperty().get() );
 
 		this.drawModeChoice = new ComboBox<>( FXCollections.observableArrayList( DrawMode.values() ) );
 		this.drawModeChoice.setValue( meshInfo.drawModeProperty().get() );
@@ -89,6 +92,7 @@ public class MeshInfoNode< T > implements BindUnbindAndNodeSupplier
 		smoothingLambdaSlider.slider().valueProperty().bindBidirectional( meshInfo.smoothingLambdaProperty() );
 		smoothingIterationsSlider.slider().valueProperty().bindBidirectional( meshInfo.smoothingIterationsProperty() );
 		opacitySlider.slider().valueProperty().bindBidirectional( meshInfo.opacityProperty() );
+		inflateSlider.slider().valueProperty().bindBidirectional( meshInfo.inflateProperty() );
 		drawModeChoice.valueProperty().bindBidirectional( meshInfo.drawModeProperty() );
 		cullFaceChoice.valueProperty().bindBidirectional( meshInfo.cullFaceProperty() );
 		this.submittedTasks.bind( meshInfo.submittedTasksProperty() );
@@ -103,6 +107,7 @@ public class MeshInfoNode< T > implements BindUnbindAndNodeSupplier
 		smoothingLambdaSlider.slider().valueProperty().unbindBidirectional( meshInfo.smoothingLambdaProperty() );
 		smoothingIterationsSlider.slider().valueProperty().unbindBidirectional( meshInfo.smoothingIterationsProperty() );
 		opacitySlider.slider().valueProperty().unbindBidirectional( meshInfo.opacityProperty() );
+		inflateSlider.slider().valueProperty().unbindBidirectional( meshInfo.inflateProperty() );
 		drawModeChoice.valueProperty().unbindBidirectional( meshInfo.drawModeProperty() );
 		cullFaceChoice.valueProperty().unbindBidirectional( meshInfo.cullFaceProperty() );
 		this.submittedTasks.unbind();
@@ -182,6 +187,7 @@ public class MeshInfoNode< T > implements BindUnbindAndNodeSupplier
 				scaleSlider,
 				smoothingLambdaSlider,
 				smoothingIterationsSlider,
+				inflateSlider,
 				drawModeChoice,
 				cullFaceChoice );
 		hasIndividualSettings.selectedProperty().addListener( ( obs, oldv, newv ) -> {
