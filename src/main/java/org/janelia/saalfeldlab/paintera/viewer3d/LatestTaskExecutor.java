@@ -13,7 +13,7 @@ public class LatestTaskExecutor implements Executor
 
 	private final ScheduledExecutorService executor;
 
-	private final long delayInNanoSeconds;
+	private long delayInNanoSeconds;
 
 	public LatestTaskExecutor( final ThreadFactory factory )
 	{
@@ -63,5 +63,10 @@ public class LatestTaskExecutor implements Executor
 	public List< Runnable > shutdownNow()
 	{
 		return this.executor.shutdownNow();
+	}
+
+	public void setDelay( final long delayInNanoSeconds )
+	{
+		this.delayInNanoSeconds = delayInNanoSeconds;
 	}
 }
