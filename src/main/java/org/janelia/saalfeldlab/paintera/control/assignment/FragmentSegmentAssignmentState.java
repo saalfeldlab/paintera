@@ -36,7 +36,7 @@ public abstract class FragmentSegmentAssignmentState extends ObservableWithListe
 	@Override
 	public void apply( final Collection< ? extends AssignmentAction > actions )
 	{
-		actions.forEach( this::apply );
+		actions.forEach( this::applyImpl );
 		this.actions.addAll( actions );
 		stateChanged();
 	}
