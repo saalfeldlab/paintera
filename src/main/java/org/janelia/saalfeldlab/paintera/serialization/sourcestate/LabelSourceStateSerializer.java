@@ -2,6 +2,7 @@ package org.janelia.saalfeldlab.paintera.serialization.sourcestate;
 
 import java.lang.invoke.MethodHandles;
 import java.lang.reflect.Type;
+import java.util.function.Predicate;
 
 import org.janelia.saalfeldlab.paintera.control.lock.LockedSegmentsOnlyLocal;
 import org.janelia.saalfeldlab.paintera.control.selection.SelectedSegments;
@@ -37,7 +38,9 @@ public class LabelSourceStateSerializer
 		final ManagedMeshSettings managedMeshSettings = new ManagedMeshSettings( state.managedMeshSettings().getGlobalSettings() );
 		managedMeshSettings.set( state.managedMeshSettings() );
 		final TLongHashSet activeSegments = new TLongHashSet( new SelectedSegments( state.selectedIds(), state.assignment() ).getSelectedSegments() );
-		managedMeshSettings.keepOnlyMatching( activeSegments::contains );
+		final Predicate< Long > isSelected = activeSegments::contains;
+		final Predicate< Long > isManaged = id -> managedMeshSettings.isManagedProperty( id ).get();
+		managedMeshSettings.keepOnlyMatching( isSelected.and( isManaged.negate() ) );
 		map.add( MANAGED_MESH_SETTINGS_KEY, context.serialize( managedMeshSettings ) );
 		return map;
 	}
