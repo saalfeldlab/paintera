@@ -4,11 +4,12 @@ import java.lang.invoke.MethodHandles;
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
-import java.util.Arrays;
 
 import org.janelia.saalfeldlab.util.MakeUnchecked;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import com.sun.javafx.tk.PlatformImage;
 
 import javafx.scene.image.Image;
 import javafx.scene.image.WritableImage;
@@ -40,7 +41,7 @@ public class BufferExposingWritableImage extends WritableImage
 	{
 		super( width, height );
 
-		this.setWritablePlatformImage = Arrays.stream( Image.class.getDeclaredMethods() ).filter( m -> m.getName().equals( "setPlatformImage" ) ).findFirst().get();
+		this.setWritablePlatformImage = Image.class.getDeclaredMethod( "setPlatformImage", PlatformImage.class );
 		this.setWritablePlatformImage.setAccessible( true );
 
 		this.store = new int[ width * height ];
