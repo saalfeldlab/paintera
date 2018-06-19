@@ -154,4 +154,9 @@ public class OrthoSliceFX
 	{
 		this.es.shutDown();
 	}
+
+	public void setDelay( final long delayInNanoSeconds )
+	{
+		this.es.setDelay( delayInNanoSeconds );
+	}
 }
