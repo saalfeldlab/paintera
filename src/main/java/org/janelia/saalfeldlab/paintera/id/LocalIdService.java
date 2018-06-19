@@ -2,14 +2,15 @@ package org.janelia.saalfeldlab.paintera.id;
 
 import java.util.stream.LongStream;
 
-public class LocalIdService implements IdService {
+public class LocalIdService implements IdService
+{
 
 	private long next = 0;
 
 	@Override
 	public synchronized void invalidate( final long id )
 	{
-		next = IdService.max( next, id + 1 ) ;
+		next = IdService.max( next, id + 1 );
 	}
 
 	public void setNext( final long id )
@@ -29,5 +30,11 @@ public class LocalIdService implements IdService {
 		final long[] ids = LongStream.range( next, next + n ).toArray();
 		next += n;
 		return ids;
+	}
+
+	@Override
+	public synchronized boolean isInvalidated( final long id )
+	{
+		return id < this.next;
 	}
 }

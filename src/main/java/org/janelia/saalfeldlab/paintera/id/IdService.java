@@ -28,6 +28,16 @@ public interface IdService
 	public long[] next( final int n );
 
 	/**
+	 *
+	 * Check if {@code id} was invalidated, e.g. when provided through
+	 * {@link #next()}.
+	 *
+	 * @param id
+	 * @return
+	 */
+	public boolean isInvalidated( final long id );
+
+	/**
 	 * Greater than comparison for two uint64 passed as long.
 	 *
 	 * @param a
@@ -99,6 +109,13 @@ public interface IdService
 		{
 			// TODO Auto-generated method stub
 			return null;
+		}
+
+		@Override
+		public boolean isInvalidated( final long id )
+		{
+			// TODO Auto-generated method stub
+			return false;
 		}
 
 	}
