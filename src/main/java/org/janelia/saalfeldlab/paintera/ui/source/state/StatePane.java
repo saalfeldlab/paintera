@@ -4,6 +4,7 @@ import java.lang.invoke.MethodHandles;
 import java.util.Arrays;
 import java.util.Optional;
 import java.util.function.Consumer;
+import java.util.function.LongPredicate;
 
 import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignmentState;
 import org.janelia.saalfeldlab.paintera.control.selection.SelectedIds;
@@ -31,6 +32,8 @@ import javafx.beans.property.SimpleStringProperty;
 import javafx.beans.property.StringProperty;
 import javafx.beans.value.ObservableDoubleValue;
 import javafx.scene.Node;
+import javafx.scene.control.Alert;
+import javafx.scene.control.Alert.AlertType;
 import javafx.scene.control.Button;
 import javafx.scene.control.ButtonType;
 import javafx.scene.control.CheckBox;
@@ -239,12 +242,34 @@ public class StatePane implements BindUnbindAndNodeSupplier
 									.map( String::trim )
 									.mapToLong( Long::parseLong )
 									.toArray();
+					final TLongHashSet invalidSelection = new TLongHashSet( Arrays
+							.stream( userSelection )
+							.filter( ( ( LongPredicate ) state.idService()::isInvalidated ).negate() )
+							.toArray() );
 					final long lastSelection = Optional.ofNullable( lsField.getText() ).filter( t -> t.length() > 0 ).map( Long::parseLong ).orElse( -1L );
-
-					selectedIds.activate( userSelection );
-					if ( userSelection.length > 0 && net.imglib2.type.label.Label.regular( lastSelection ) )
+					if ( !state.idService().isInvalidated( lastSelection ) )
 					{
-						selectedIds.activateAlso( lastSelection );
+						invalidSelection.add( lastSelection );
+					}
+
+					if ( invalidSelection.size() > 0 )
+					{
+						final Alert invalidSelectionAlert = new Alert( AlertType.ERROR );
+						invalidSelectionAlert.setTitle( "Paintera" );
+						invalidSelectionAlert.setContentText( "Unable to set selection - ids out of range for id service. For new id, press N." );
+						invalidSelectionAlert.getDialogPane().setExpandableContent( new VBox(
+								1.0,
+								Arrays.stream( invalidSelection.toArray() ).mapToObj( Long::toString ).map( Label::new ).toArray( Label[]::new ) ) );
+						invalidSelectionAlert.show();
+
+					}
+					else
+					{
+						selectedIds.activate( userSelection );
+						if ( userSelection.length > 0 && net.imglib2.type.label.Label.regular( lastSelection ) )
+						{
+							selectedIds.activateAlso( lastSelection );
+						}
 					}
 				}
 				catch ( final NumberFormatException e )

@@ -28,7 +28,9 @@ public class N5IdService implements IdService
 		final long oldNext = next;
 		next = IdService.max( next, id + 1 );
 		if ( next != oldNext )
+		{
 			serializeMaxId();
+		}
 	}
 
 	@Override
@@ -58,6 +60,12 @@ public class N5IdService implements IdService
 		{
 			throw new RuntimeException( e );
 		}
+	}
+
+	@Override
+	public boolean isInvalidated( final long id )
+	{
+		return id < next;
 	}
 
 }
