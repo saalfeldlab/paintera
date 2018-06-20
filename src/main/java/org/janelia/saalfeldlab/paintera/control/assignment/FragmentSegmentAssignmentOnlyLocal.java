@@ -142,7 +142,14 @@ public class FragmentSegmentAssignmentOnlyLocal extends FragmentSegmentAssignmen
 		final long from = merge.fromFragmentId;
 		final long segmentInto = merge.segmentId;
 
-		if ( fragmentToSegmentMap.get( from ) == fragmentToSegmentMap.get( into ) )
+		LOG.trace( "Current fragmentToSegmentMap {}", fragmentToSegmentMap );
+
+		// If neither from nor into are assigned to a segment yet, both will
+		// return fragmentToSegmentMap.getNoEntryKey() and we will falsely
+		// return here
+		// Therefore, check if from is contained. Alternatively, compare
+		// getSegment( from ) == getSegment( to )
+		if ( fragmentToSegmentMap.contains( from ) && fragmentToSegmentMap.get( from ) == fragmentToSegmentMap.get( into ) )
 		{
 			LOG.debug( "Fragments already in same segment -- not merging" );
 			return;
@@ -189,10 +196,12 @@ public class FragmentSegmentAssignmentOnlyLocal extends FragmentSegmentAssignmen
 	@Override
 	protected void applyImpl( final AssignmentAction action )
 	{
+		LOG.debug( "Applying action {}", action );
 		switch ( action.getType() )
 		{
 		case MERGE:
 		{
+			LOG.debug( "Applying merge {}", action );
 			mergeFragmentsImpl( ( Merge ) action );
 			break;
 		}
