@@ -1009,6 +1009,7 @@ public class N5Helpers
 
 	public static double[] getDoubleArrayAttribute( final N5Reader n5, final String dataset, final String key, final double... fallBack ) throws IOException
 	{
+		if ( isPainteraDataset( n5, dataset ) ) { return getDoubleArrayAttribute( n5, dataset + "/" + PAINTERA_DATA_DATASET, key, fallBack ); }
 		return Optional.ofNullable( n5.getAttribute( dataset, key, double[].class ) ).orElse( fallBack );
 	}
 
