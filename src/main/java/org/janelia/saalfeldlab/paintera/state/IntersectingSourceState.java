@@ -135,6 +135,9 @@ public class IntersectingSourceState
 		this.meshManager.colorProperty().bind( colorProperty );
 		this.meshManager.scaleLevelProperty().bind( meshManager.scaleLevelProperty() );
 		this.meshManager.areMeshesEnabledProperty().bind( meshManager.areMeshesEnabledProperty() );
+		this.meshManager.meshSimplificationIterationsProperty().bind( meshManager.meshSimplificationIterationsProperty() );
+		this.meshManager.smoothingIterationsProperty().bind( meshManager.smoothingIterationsProperty() );
+		this.meshManager.smoothingLambdaProperty().bind( meshManager.smoothingLambdaProperty() );
 
 		thresholded.getThreshold().minValue().addListener( ( obs, oldv, newv ) -> {
 			Arrays.stream( meshCaches ).forEach( UncheckedCache::invalidateAll );

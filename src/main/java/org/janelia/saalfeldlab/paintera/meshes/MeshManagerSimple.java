@@ -138,6 +138,9 @@ public class MeshManagerSimple< N, T > implements MeshManager< N, T >
 				workers );
 		nfx.opacityProperty().set( this.opacity.get() );
 		nfx.scaleIndexProperty().bind( this.scaleLevel );
+		nfx.meshSimplificationIterationsProperty().bind( this.meshSimplificationIterations );
+		nfx.smoothingIterationsProperty().bind( this.smoothingIterations );
+		nfx.smoothingLambdaProperty().bind( this.smoothingLambda );
 
 		neurons.put( id, nfx );
 
