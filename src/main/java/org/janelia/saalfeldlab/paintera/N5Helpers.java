@@ -901,26 +901,25 @@ public class N5Helpers
 		final long actualMaxId;
 		if ( maxId == null )
 		{
-			final boolean isMultiscale = isMultiScale( n5, dataset );
-			final String dsPath = dataset;
-			// isMultiscale ? Paths.get( dataset, getCoarsestLevel( n5, dataset
-			// ) ).toString() : dataset;
-			final DatasetAttributes attributes = n5.getDatasetAttributes( dsPath );
-			LOG.debug( "is multiscale? {} dsPath={}", isMultiscale, dsPath );
-			if ( isLabelMultisetType( n5, dsPath, isMultiscale ) )
+			final String ds = isPainteraDataset( n5, dataset ) ? dataset + "/" + N5Helpers.PAINTERA_DATA_DATASET : dataset;
+			final boolean isMultiscale = isMultiScale( n5, ds );
+			final DatasetAttributes attributes = n5.getDatasetAttributes( ds );
+			LOG.debug( "is multiscale? {} dsPath={}", isMultiscale, ds );
+			if ( isLabelMultisetType( n5, ds, isMultiscale ) )
 			{
 				LOG.debug( "Getting id service for label multisets" );
-				actualMaxId = maxIdLabelMultiset( n5, dsPath );
+				actualMaxId = maxIdLabelMultiset( n5, ds );
 				LOG.debug( "Got max id={}", actualMaxId );
 			}
 			else if ( isIntegerType( attributes.getDataType() ) )
 			{
-				actualMaxId = maxId( n5, dsPath );
+				actualMaxId = maxId( n5, ds );
 			}
 			else
 			{
 				return null;
 			}
+			n5.setAttribute( dataset, "maxId", actualMaxId );
 		}
 		else
 		{
