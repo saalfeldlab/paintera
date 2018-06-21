@@ -308,6 +308,7 @@ public class GenericBackendDialogN5 implements BackendDialog
 				{
 					return null;
 				}
+				n5.setAttribute( dataset, "maxId", actualMaxId );
 			}
 			else
 			{
