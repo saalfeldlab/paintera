@@ -69,15 +69,14 @@ public class CommitCanvasN5 implements BiConsumer< CachedCellImg< UnsignedLongTy
 	{
 		try
 		{
-			final boolean isMultiscale = !n5.datasetExists( dataset );
+			final String dataset = N5Helpers.isPainteraDataset( n5, this.dataset ) ? this.dataset + "/" + N5Helpers.PAINTERA_DATA_DATASET : this.dataset;
+			final boolean isMultiscale = N5Helpers.isMultiScale( n5, dataset );
 
 			final CellGrid canvasGrid = canvas.getCellGrid();
 
 			final String highestResolutionDataset = isMultiscale ? Paths.get( dataset, N5Helpers.listAndSortScaleDatasets( n5, dataset )[ 0 ] ).toString() : dataset;
 
-			if ( !Optional.ofNullable( n5.getAttribute( highestResolutionDataset, N5Helpers.LABEL_MULTISETTYPE_KEY, Boolean.class ) ).orElse( false ) ) {
-				throw new RuntimeException( "Only label multiset type accepted currently!" );
-			}
+			if ( !Optional.ofNullable( n5.getAttribute( highestResolutionDataset, N5Helpers.LABEL_MULTISETTYPE_KEY, Boolean.class ) ).orElse( false ) ) { throw new RuntimeException( "Only label multiset type accepted currently!" ); }
 
 			final DatasetAttributes highestResolutionAttributes = n5.getDatasetAttributes( highestResolutionDataset );
 			final CellGrid highestResolutionGrid = new CellGrid( highestResolutionAttributes.getDimensions(), highestResolutionAttributes.getBlockSize() );

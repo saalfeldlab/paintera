@@ -296,11 +296,11 @@ public class Paintera extends Application
 			}
 			catch ( final CannotPersist e1 )
 			{
-				LOG.error( "Unable to persist canvas {}", e1 );
+				LOG.error( "Unable to persist canvas: {}", e1.getMessage() );
 			}
 			catch ( final UnableToPersist e1 )
 			{
-				LOG.error( "Unable to persist fragment-segment-assignment {}", e1 );
+				LOG.error( "Unable to persist fragment-segment-assignment: {}", e1.getMessage() );
 			}
 		},
 				e -> keyTracker.areOnlyTheseKeysDown( KeyCode.CONTROL, KeyCode.C ) ).installInto( paneWithStatus.getPane() );
@@ -392,8 +392,9 @@ public class Paintera extends Application
 				final String[] split = identifier.replaceFirst( "file://", "" ).split( ":" );
 				final N5Writer n5 = N5Helpers.n5Writer( split[ 0 ], 64, 64, 64 );
 				final String dataset = split[ 1 ];
-				final double[] resolution = Optional.ofNullable( n5.getAttribute( dataset, "resolution", double[].class ) ).orElse( new double[] { 1.0, 1.0, 1.0 } );
-				final double[] offset = Optional.ofNullable( n5.getAttribute( dataset, "offset", double[].class ) ).orElse( new double[] { 0.0, 0.0, 0.0 } );
+				LOG.warn( "Adding label dataset={} dataset={}", split[ 0 ], dataset );
+				final double[] resolution = N5Helpers.getResolution( n5, dataset );
+				final double[] offset = N5Helpers.getOffset( n5, dataset );
 				final AffineTransform3D transform = N5Helpers.fromResolutionAndOffset( resolution, offset );
 				final Supplier< String > nextCanvasDir = Masks.canvasTmpDirDirectorySupplier( projectDirectory );
 				final String name = N5Helpers.lastSegmentOfDatasetPath( dataset );

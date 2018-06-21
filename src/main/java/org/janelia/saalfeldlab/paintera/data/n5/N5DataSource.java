@@ -81,7 +81,7 @@ public class N5DataSource< D extends NativeType< D >, T extends Volatile< D > & 
 	{
 		return N5Helpers.isLabelMultisetType( n5, dataset )
 				? i -> new NearestNeighborInterpolatorFactory<>()
-						: ( Function ) realTypeInterpolation();
+				: ( Function ) realTypeInterpolation();
 	}
 
 	private static < T extends RealType< T > > Function< Interpolation, InterpolatorFactory< T, RandomAccessible< T > > > realTypeInterpolation()
@@ -91,13 +91,14 @@ public class N5DataSource< D extends NativeType< D >, T extends Volatile< D > & 
 
 	@SuppressWarnings( { "unchecked", "rawtypes" } )
 	private static < D extends NativeType< D >, T extends Volatile< D > & NativeType< T > >
-	Triple< RandomAccessibleInterval< D >[], RandomAccessibleInterval< T >[], AffineTransform3D[] > getData(
-			final N5Reader reader,
-			final String dataset,
-			final AffineTransform3D transform,
-			final SharedQueue sharedQueue,
-			final int priority ) throws IOException
+			Triple< RandomAccessibleInterval< D >[], RandomAccessibleInterval< T >[], AffineTransform3D[] > getData(
+					final N5Reader reader,
+					final String dataset,
+					final AffineTransform3D transform,
+					final SharedQueue sharedQueue,
+					final int priority ) throws IOException
 	{
+		if ( N5Helpers.isPainteraDataset( reader, dataset ) ) { return getData( reader, dataset + "/" + N5Helpers.PAINTERA_DATA_DATASET, transform, sharedQueue, priority ); }
 		final boolean isMultiscale = N5Helpers.isMultiScale( reader, dataset );
 		final boolean isLabelMultiset = N5Helpers.isLabelMultisetType( reader, dataset, isMultiscale );
 
@@ -105,13 +106,13 @@ public class N5DataSource< D extends NativeType< D >, T extends Volatile< D > & 
 		{
 			return isMultiscale
 					? ( Triple ) N5Helpers.openLabelMultisetMultiscale( reader, dataset, transform, sharedQueue, priority )
-							: ( Triple ) N5Helpers.asArrayTriple( N5Helpers.openLabelMutliset( reader, dataset, transform, sharedQueue, priority ) );
+					: ( Triple ) N5Helpers.asArrayTriple( N5Helpers.openLabelMutliset( reader, dataset, transform, sharedQueue, priority ) );
 		}
 		else
 		{
 			return isMultiscale
 					? ( Triple ) N5Helpers.openRawMultiscale( reader, dataset, transform, sharedQueue, priority )
-							: ( Triple ) N5Helpers.asArrayTriple( N5Helpers.openRaw( reader, dataset, transform, sharedQueue, priority ) );
+					: ( Triple ) N5Helpers.asArrayTriple( N5Helpers.openRaw( reader, dataset, transform, sharedQueue, priority ) );
 		}
 	}
 }
