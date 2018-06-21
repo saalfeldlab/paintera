@@ -155,25 +155,30 @@ public class FragmentSegmentAssignmentOnlyLocal extends FragmentSegmentAssignmen
 			return;
 		}
 
+		final long segmentFrom = fragmentToSegmentMap.contains( from ) ? fragmentToSegmentMap.get( from ) : from;
+		final TLongHashSet fragmentsFrom = segmentToFragmentsMap.remove( segmentFrom );
+		LOG.debug( "From segment: {} To segment: {}", segmentFrom, segmentInto );
+
 		if ( !fragmentToSegmentMap.contains( into ) )
 		{
+			LOG.debug( "Adding segment {} to framgent {}", segmentInto, into );
 			fragmentToSegmentMap.put( into, segmentInto );
 		}
-
-		final long segmentFrom = fragmentToSegmentMap.get( from );
 
 		if ( !segmentToFragmentsMap.contains( segmentInto ) )
 		{
 			final TLongHashSet fragmentOnly = new TLongHashSet();
 			fragmentOnly.add( into );
+			LOG.debug( "Adding fragments {} for segmentInto {}", fragmentOnly, segmentInto );
 			segmentToFragmentsMap.put( segmentInto, fragmentOnly );
 		}
-
-		final TLongHashSet fragmentsFrom = segmentToFragmentsMap.remove( segmentFrom );
+		LOG.debug( "Framgents for from segment: {}", fragmentsFrom );
 
 		if ( fragmentsFrom != null )
 		{
-			segmentToFragmentsMap.get( segmentInto ).addAll( fragmentsFrom );
+			final TLongHashSet fragmentsInto = segmentToFragmentsMap.get( segmentInto );
+			LOG.debug( "Fragments into {}", fragmentsInto );
+			fragmentsInto.addAll( fragmentsFrom );
 			Arrays.stream( fragmentsFrom.toArray() ).forEach( id -> fragmentToSegmentMap.put( id, segmentInto ) );
 		}
 		else
@@ -206,6 +211,7 @@ public class FragmentSegmentAssignmentOnlyLocal extends FragmentSegmentAssignmen
 			break;
 		}
 		case DETACH:
+			LOG.debug( "Applying detach {}", action );
 			detachFragmentImpl( ( Detach ) action );
 			break;
 		}
@@ -260,6 +266,8 @@ public class FragmentSegmentAssignmentOnlyLocal extends FragmentSegmentAssignmen
 			return Optional.empty();
 		}
 
+		// TODO do not add to fragmentToSegmentMap here. Have the mergeImpl take
+		// care of it instead.
 		if ( getSegment( into ) == into )
 		{
 			fragmentToSegmentMap.put( into, newSegmentId.getAsLong() );
