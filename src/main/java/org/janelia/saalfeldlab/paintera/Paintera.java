@@ -293,11 +293,11 @@ public class Paintera extends Application
 			}
 			catch ( final CannotPersist e1 )
 			{
-				LOG.error( "Unable to persist canvas {}", e1 );
+				LOG.error( "Unable to persist canvas: {}", e1.getMessage() );
 			}
 			catch ( final UnableToPersist e1 )
 			{
-				LOG.error( "Unable to persist fragment-segment-assignment {}", e1 );
+				LOG.error( "Unable to persist fragment-segment-assignment: {}", e1.getMessage() );
 			}
 		},
 				e -> keyTracker.areOnlyTheseKeysDown( KeyCode.CONTROL, KeyCode.C ) ).installInto( paneWithStatus.getPane() );
