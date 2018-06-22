@@ -255,13 +255,13 @@ public class MaskedSource< D extends Type< D >, T extends Type< T > > implements
 				.create( source.getSource( 0, mask.level ) );
 		final RandomAccessibleInterval< VolatileUnsignedByteType > vstore = VolatileViews.wrapAsVolatile( store );
 		final UnsignedLongType INVALID = new UnsignedLongType( Label.INVALID );
-		this.dMasks[ mask.level ] = Converters.convert( Views.extendZero( store ), ( input, output ) -> output.set( input.get() == 1 ? mask.value : INVALID ), new UnsignedLongType() );
+		this.dMasks[ mask.level ] = Converters.convert( Views.extendZero( store ), ( input, output ) -> output.set( input.get() > 0 ? mask.value : INVALID ), new UnsignedLongType() );
 		this.tMasks[ mask.level ] = Converters.convert( Views.extendZero( vstore ), ( input, output ) -> {
 			final boolean isValid = input.isValid();
 			output.setValid( isValid );
 			if ( isValid )
 			{
-				output.get().set( input.get().get() == 1 ? mask.value : INVALID );
+				output.get().set( input.get().get() > 0 ? mask.value : INVALID );
 			}
 		}, new VolatileUnsignedLongType() );
 		final RealRandomAccessible< UnsignedLongType > dMaskInterpolated = Views.interpolate( this.dMasks[ mask.level ], new NearestNeighborInterpolatorFactory<>() );
@@ -303,7 +303,7 @@ public class MaskedSource< D extends Type< D >, T extends Type< T > > implements
 
 				paintAffectedPixels(
 						affectedBlocks,
-						Converters.convert( Views.extendZero( mask ), ( s, t ) -> t.set( s.get() == 1 ), new BitType() ),
+						Converters.convert( Views.extendZero( mask ), ( s, t ) -> t.set( s.get() > 0 ), new BitType() ),
 						canvas,
 						maskInfo.value,
 						canvas.getCellGrid(),
@@ -796,7 +796,7 @@ public class MaskedSource< D extends Type< D >, T extends Type< T > > implements
 					while ( maskCursor.hasNext() )
 					{
 						canvasCursor.fwd();
-						final boolean wasPainted = maskCursor.next().get() == 1;
+						final boolean wasPainted = maskCursor.next().get() > 0;
 						if ( wasPainted )
 						{
 							canvasCursor.get().set( label );

@@ -25,6 +25,7 @@ import bdv.fx.viewer.ViewerState;
 import bdv.viewer.Source;
 import javafx.beans.property.DoubleProperty;
 import javafx.beans.property.SimpleDoubleProperty;
+import javafx.beans.property.SimpleIntegerProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.scene.input.MouseEvent;
 import net.imglib2.FinalInterval;
@@ -72,6 +73,8 @@ public class Paint2D
 	private final SimpleObjectProperty< RandomAccessibleInterval< UnsignedByteType > > canvas = new SimpleObjectProperty<>();
 
 	private final SimpleObjectProperty< Interval > interval = new SimpleObjectProperty<>();
+
+	private final SimpleIntegerProperty maskFill = new SimpleIntegerProperty( 1 );
 
 	private final Runnable repaintRequest;
 
@@ -206,8 +209,7 @@ public class Paint2D
 		final SourceState< ?, ? > currentSourceState = sourceInfo.getState( viewerSource );
 		final DataSource< ?, ? > source = currentSourceState.getDataSource();
 
-		if ( !( source instanceof MaskedSource< ?, ? > ) )
-			return;
+		if ( !( source instanceof MaskedSource< ?, ? > ) ) { return; }
 
 		final MaskedSource< ?, ? > maskedSource = ( MaskedSource< ?, ? > ) source;
 
@@ -226,6 +228,7 @@ public class Paint2D
 		LOG.debug( "Setting canvas to {}", canvas );
 		this.canvas.set( canvas );
 		this.maskedSource.set( maskedSource );
+		this.maskFill.set( 1 );
 	}
 
 //	private void paint( final double x, final double y )
@@ -298,13 +301,16 @@ public class Paint2D
 		final RealPoint seedReal = new RealPoint( viewerX, viewerY, 0 );
 		labelToViewerTransform.applyInverse( seedReal, seedReal );
 		final Point seed = new Point( IntStream.range( 0, 3 ).mapToDouble( seedReal::getDoublePosition ).mapToLong( Math::round ).toArray() );
+		final int maskFill = this.maskFill.get();
+		LOG.trace( "Filling with threshold {}", maskFill );
+
 		FloodFill.fill(
 				containsCheck,
 				trackingLabelSource,
 				seed,
-				new UnsignedByteType( 1 ),
+				new UnsignedByteType( maskFill ),
 				new DiamondShape( 1 ),
-				( BiPredicate< BitType, UnsignedByteType > ) ( mask, canvas ) -> mask.get() && canvas.get() == 0 );
+				( BiPredicate< BitType, UnsignedByteType > ) ( mask, canvas ) -> mask.get() && canvas.get() != maskFill );
 
 		final long[] min = trackingLabelSource.getMin().clone();
 		final long[] max = trackingLabelSource.getMax().clone();
@@ -326,6 +332,7 @@ public class Paint2D
 //		LOG.warn( "MIN REAL: {}", maxReal );
 
 		this.interval.set( new FinalInterval( min, max ) );
+		this.maskFill.set( maskFill % 2 + 1 );
 
 	}
 
@@ -387,10 +394,10 @@ public class Paint2D
 					LinAlgHelpers.add( p1, d, p1 );
 				}
 				paint( x, y );
-				startX = x;
-				startY = y;
 				repaintRequest.run();
 			} );
+			startX = x;
+			startY = y;
 		}
 
 		@Override
