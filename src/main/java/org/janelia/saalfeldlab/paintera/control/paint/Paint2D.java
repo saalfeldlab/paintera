@@ -25,7 +25,6 @@ import bdv.fx.viewer.ViewerState;
 import bdv.viewer.Source;
 import javafx.beans.property.DoubleProperty;
 import javafx.beans.property.SimpleDoubleProperty;
-import javafx.beans.property.SimpleIntegerProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.scene.input.MouseEvent;
 import net.imglib2.FinalInterval;
@@ -73,8 +72,6 @@ public class Paint2D
 	private final SimpleObjectProperty< RandomAccessibleInterval< UnsignedByteType > > canvas = new SimpleObjectProperty<>();
 
 	private final SimpleObjectProperty< Interval > interval = new SimpleObjectProperty<>();
-
-	private final SimpleIntegerProperty maskFill = new SimpleIntegerProperty( 1 );
 
 	private final Runnable repaintRequest;
 
@@ -228,7 +225,6 @@ public class Paint2D
 		LOG.debug( "Setting canvas to {}", canvas );
 		this.canvas.set( canvas );
 		this.maskedSource.set( maskedSource );
-		this.maskFill.set( 1 );
 	}
 
 //	private void paint( final double x, final double y )
@@ -240,6 +236,11 @@ public class Paint2D
 //	}
 
 	private void paint( final double viewerX, final double viewerY )
+	{
+		paint( viewerX, viewerY, 0, 0 );
+	}
+
+	private void paint( final double viewerX, final double viewerY, final double shiftX, final double shiftY )
 	{
 
 		final RandomAccessibleInterval< UnsignedByteType > labels = this.canvas.get();
@@ -298,10 +299,10 @@ public class Paint2D
 		final AffineRandomAccessible< BitType, AffineGet > containsCheck =
 				RealViews.affine( new FunctionRealRandomAccessible<>( 3, function, () -> new BitType( true ) ), labelToViewerTransform.inverse() );
 
-		final RealPoint seedReal = new RealPoint( viewerX, viewerY, 0 );
+		final RealPoint seedReal = new RealPoint( viewerX + shiftX, viewerY + shiftY, 0 );
 		labelToViewerTransform.applyInverse( seedReal, seedReal );
 		final Point seed = new Point( IntStream.range( 0, 3 ).mapToDouble( seedReal::getDoublePosition ).mapToLong( Math::round ).toArray() );
-		final int maskFill = this.maskFill.get();
+		final int maskFill = 1;
 		LOG.trace( "Filling with threshold {}", maskFill );
 
 		FloodFill.fill(
@@ -332,7 +333,6 @@ public class Paint2D
 //		LOG.warn( "MIN REAL: {}", maxReal );
 
 		this.interval.set( new FinalInterval( min, max ) );
-		this.maskFill.set( maskFill % 2 + 1 );
 
 	}
 
@@ -386,14 +386,18 @@ public class Paint2D
 			final double l = LinAlgHelpers.length( d );
 			LinAlgHelpers.normalize( d );
 
+			final double radius = brushOverlay.viewerRadiusProperty().get();
+			final double shiftX = d[ 0 ] * radius;
+			final double shiftY = d[ 1 ] * radius;
+
 			paintQueue.submit( () -> {
 
 				for ( int i = 0; i < l; ++i )
 				{
-					paint( p1[ 0 ], p1[ 1 ] );
+					paint( p1[ 0 ], p1[ 1 ], shiftX, shiftY );
 					LinAlgHelpers.add( p1, d, p1 );
 				}
-				paint( x, y );
+				paint( x, y, shiftX, shiftY );
 				repaintRequest.run();
 			} );
 			startX = x;
