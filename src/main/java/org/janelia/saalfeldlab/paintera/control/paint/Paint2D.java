@@ -1,6 +1,7 @@
 package org.janelia.saalfeldlab.paintera.control.paint;
 
 import java.lang.invoke.MethodHandles;
+import java.util.Arrays;
 import java.util.Optional;
 import java.util.concurrent.ExecutorService;
 import java.util.function.Predicate;
@@ -33,17 +34,15 @@ import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.RealRandomAccessible;
 import net.imglib2.algorithm.region.hypersphere.HyperSphere;
 import net.imglib2.interpolation.randomaccess.NearestNeighborInterpolatorFactory;
-import net.imglib2.realtransform.AffineGet;
-import net.imglib2.realtransform.AffineRandomAccessible;
 import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.realtransform.RealViews;
 import net.imglib2.realtransform.Scale3D;
 import net.imglib2.realtransform.Translation3D;
 import net.imglib2.type.numeric.integer.UnsignedByteType;
 import net.imglib2.type.numeric.integer.UnsignedLongType;
-import net.imglib2.util.AccessBoxRandomAccessibleOnGet;
 import net.imglib2.util.Intervals;
 import net.imglib2.util.LinAlgHelpers;
+import net.imglib2.view.MixedTransformView;
 import net.imglib2.view.Views;
 
 public class Paint2D
@@ -244,41 +243,70 @@ public class Paint2D
 	private void paint( final double viewerX, final double viewerY, final double shiftX, final double shiftY )
 	{
 
-		LOG.warn( "At {} {}", viewerX, viewerY );
+//		LOG.warn( "At {} {}", viewerX, viewerY );
 
 		final RandomAccessibleInterval< UnsignedByteType > labels = this.canvas.get();
 		if ( labels == null ) { return; }
 
-		final AffineTransform3D labelToViewerTransform = this.labelToViewerTransform.copy();
-		final AffineTransform3D labelToGlobalTransform = this.labelToGlobalTransform.copy();
-		final AffineTransform3D globalToViewerTransform = this.globalToViewerTransform.copy();
+		final long tBeforePaint0 = System.currentTimeMillis();
+		final AffineTransform3D labelToViewerTransform = this.labelToViewerTransform;
+		final AffineTransform3D globalToViewerTransform = this.globalToViewerTransform;
 
-		// label to viewer or global to viewer?
-		final double scale = Affine3DHelpers.extractScale( globalToViewerTransform, 0 ) / Math.sqrt( 3 );
-		final int xScale = ( int ) Math.round( viewerX / scale );
-		final int yScale = ( int ) Math.round( viewerY / scale );
+		final double range = 0.5;
+
+		// radius is in global coordinates, scale from viewer coordinates to
+		// global coordinates
+		final double scale = Affine3DHelpers.extractScale( globalToViewerTransform, 0 );
+		final long xScale = Math.round( viewerX / scale );
+		final long yScale = Math.round( viewerY / scale );
 
 		final Point p = new Point( xScale, yScale );
 
 		final AffineTransform3D tf = labelToViewerTransform.copy();
 		tf.preConcatenate( new Scale3D( 1.0 / scale, 1.0 / scale, 1.0 / scale ) );
 
-		final AffineTransform3D tfFront = tf.copy().preConcatenate( new Translation3D( 0, 0, -1.0 / Math.sqrt( 3 ) ) );
-		final AffineTransform3D tfBack = tf.copy().preConcatenate( new Translation3D( 0, 0, 1.0 / Math.sqrt( 3 ) ) );
+		final AffineTransform3D tfFront = tf.copy().preConcatenate( new Translation3D( 0, 0, -range ) );
+		final AffineTransform3D tfBack = tf.copy().preConcatenate( new Translation3D( 0, 0, range ) );
 
 		final RandomAccessible< UnsignedByteType > labelsExtended = Views.extendValue( labels, new UnsignedByteType( 1 ) );
-		final AccessBoxRandomAccessibleOnGet< UnsignedByteType > coordinateTracker = new AccessBoxRandomAccessibleOnGet<>( labelsExtended );
-		final RealRandomAccessible< UnsignedByteType > interpolated = Views.interpolate( coordinateTracker, new NearestNeighborInterpolatorFactory<>() );
-		final AffineRandomAccessible< UnsignedByteType, AffineGet > front = RealViews.affine( interpolated, tfFront );
-		final AffineRandomAccessible< UnsignedByteType, AffineGet > back = RealViews.affine( interpolated, tfBack );
+		final RealRandomAccessible< UnsignedByteType > interpolated = Views.interpolate( labelsExtended, new NearestNeighborInterpolatorFactory<>() );
+		final MixedTransformView< UnsignedByteType > front = Views.hyperSlice( RealViews.affine( interpolated, tfFront ), 2, 0l );
+		final MixedTransformView< UnsignedByteType > back = Views.hyperSlice( RealViews.affine( interpolated, tfBack ), 2, 0l );
 
-		LOG.warn( "Filling with radius {} at {}", this.brushRadius.get(), p );
+		final double dr = this.brushRadius.get();
+		final long r = Math.round( dr );
+		final long tBeforePaint1 = System.currentTimeMillis();
+		final long t0 = System.currentTimeMillis();
+		new HyperSphere<>( front, p, r ).forEach( UnsignedByteType::setOne );
+		final long t1 = System.currentTimeMillis();
+		new HyperSphere<>( back, p, r ).forEach( UnsignedByteType::setOne );
+		final long t2 = System.currentTimeMillis();
 
-		new HyperSphere<>( front, p, ( long ) this.brushRadius.get() ).forEach( UnsignedByteType::setOne );
-		new HyperSphere<>( back, p, ( long ) this.brushRadius.get() ).forEach( UnsignedByteType::setOne );
+		final long tAfterPaint0 = System.currentTimeMillis();
 
-		final FinalInterval trackedInterval = new FinalInterval( coordinateTracker.getMin(), coordinateTracker.getMax() );
+		// add painted interval
+		final double[] topLeft = { Math.floor( xScale - dr ), Math.floor( yScale - dr ), 0 };
+		final double[] bottomRight = { Math.ceil( xScale + dr ), Math.ceil( yScale + dr ), 0 };
+
+		tf.applyInverse( topLeft, topLeft );
+		tf.applyInverse( bottomRight, bottomRight );
+
+		final long[] tl = new long[ 3 ];
+		final long[] br = new long[ 3 ];
+		Arrays.setAll( tl, d -> ( long ) Math.floor( Math.min( topLeft[ d ], bottomRight[ d ] ) ) );
+		Arrays.setAll( br, d -> ( long ) Math.ceil( Math.max( topLeft[ d ], bottomRight[ d ] ) ) );
+
+		final FinalInterval trackedInterval = new FinalInterval( tl, br );
 		this.interval.set( Intervals.union( trackedInterval, Optional.ofNullable( this.interval.get() ).orElse( trackedInterval ) ) );
+
+		final long tAfterPaint1 = System.currentTimeMillis();
+
+		LOG.trace(
+				"before paint {}ms paint1 {}ms paint2 {}ms after paint{}",
+				tBeforePaint1 - tBeforePaint0,
+				t1 - t0,
+				t2 - t1,
+				tAfterPaint1 - tAfterPaint0 );
 	}
 
 	private class PaintDrag extends MouseDragFX
@@ -337,14 +365,18 @@ public class Paint2D
 				final double shiftX = d[ 0 ] * radius;
 				final double shiftY = d[ 1 ] * radius;
 
+				LOG.debug( "Number of paintings triggered {}", l + 1 );
 				paintQueue.submit( () -> {
 
+					final long t0 = System.currentTimeMillis();
 					for ( int i = 0; i < l; ++i )
 					{
 						paint( p1[ 0 ], p1[ 1 ], shiftX, shiftY );
 						LinAlgHelpers.add( p1, d, p1 );
 					}
-					paint( x, y, shiftX, shiftY );
+//					paint( x, y, shiftX, shiftY );
+					final long t1 = System.currentTimeMillis();
+					LOG.debug( "Painting {} times with radius {} took a total of {}ms", l + 1, brushRadius.get(), t1 - t0 );
 					repaintRequest.run();
 				} );
 			}
