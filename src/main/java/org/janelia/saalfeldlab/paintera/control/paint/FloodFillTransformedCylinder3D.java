@@ -128,8 +128,8 @@ public class FloodFillTransformedCylinder3D
 
 		final double cx = seedWorld.getDoublePosition( 0 );
 		final double cy = seedWorld.getDoublePosition( 1 );
-		final double zMinExclusive = seedWorld.getDoublePosition( 2 ) + zRangeNeg;
-		final double zMaxExclusive = seedWorld.getDoublePosition( 2 ) + zRangePos;
+		final double zMinInclusive = seedWorld.getDoublePosition( 2 ) + zRangeNeg;
+		final double zMaxInclusive = seedWorld.getDoublePosition( 2 ) + zRangePos;
 
 		for ( int d = 0; d < 3; ++d )
 		{
@@ -168,7 +168,7 @@ public class FloodFillTransformedCylinder3D
 					x + dxx, y + dxy, z + dxz,
 					radiusSquared,
 					cx, cy,
-					zMinExclusive, zMaxExclusive );
+					zMinInclusive, zMaxInclusive );
 
 			addIfInside(
 					sourceCoordinates,
@@ -177,7 +177,7 @@ public class FloodFillTransformedCylinder3D
 					x - dxx, y - dxy, z - dxz,
 					radiusSquared,
 					cx, cy,
-					zMinExclusive, zMaxExclusive );
+					zMinInclusive, zMaxInclusive );
 
 			addIfInside(
 					sourceCoordinates,
@@ -186,7 +186,7 @@ public class FloodFillTransformedCylinder3D
 					x + dyx, y + dyy, z + dyz,
 					radiusSquared,
 					cx, cy,
-					zMinExclusive, zMaxExclusive );
+					zMinInclusive, zMaxInclusive );
 
 			addIfInside(
 					sourceCoordinates,
@@ -195,7 +195,7 @@ public class FloodFillTransformedCylinder3D
 					x - dyx, y - dyy, z - dyz,
 					radiusSquared,
 					cx, cy,
-					zMinExclusive, zMaxExclusive );
+					zMinInclusive, zMaxInclusive );
 
 			addIfInside(
 					sourceCoordinates,
@@ -204,7 +204,7 @@ public class FloodFillTransformedCylinder3D
 					x + dzx, y + dzy, z + dzz,
 					radiusSquared,
 					cx, cy,
-					zMinExclusive, zMaxExclusive );
+					zMinInclusive, zMaxInclusive );
 
 			addIfInside(
 					sourceCoordinates,
@@ -213,7 +213,7 @@ public class FloodFillTransformedCylinder3D
 					x - dzx, y - dzy, z - dzz,
 					radiusSquared,
 					cx, cy,
-					zMinExclusive, zMaxExclusive );
+					zMinInclusive, zMaxInclusive );
 
 		}
 	}
@@ -230,14 +230,14 @@ public class FloodFillTransformedCylinder3D
 			final double rSquared,
 			final double cx,
 			final double cy,
-			final double zMinExclusive,
-			final double zMaxExclusive )
+			final double zMinInclusive,
+			final double zMaxInclusive )
 	{
-		if ( wz > zMinExclusive && wz < zMaxExclusive )
+		if ( wz >= zMinInclusive && wz <= zMaxInclusive )
 		{
 			final double dx = wx - cx;
 			final double dy = wy - cy;
-			if ( dx * dx + dy * dy < rSquared )
+			if ( dx * dx + dy * dy <= rSquared )
 			{
 				labelCoordinates.add( lx );
 				labelCoordinates.add( ly );
