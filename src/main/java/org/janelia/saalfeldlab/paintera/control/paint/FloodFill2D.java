@@ -1,0 +1,220 @@
+package org.janelia.saalfeldlab.paintera.control.paint;
+
+import java.lang.invoke.MethodHandles;
+import java.util.function.LongFunction;
+import java.util.function.Predicate;
+import java.util.function.Supplier;
+
+import org.janelia.saalfeldlab.paintera.data.mask.MaskInUse;
+import org.janelia.saalfeldlab.paintera.data.mask.MaskInfo;
+import org.janelia.saalfeldlab.paintera.data.mask.MaskedSource;
+import org.janelia.saalfeldlab.paintera.state.LabelSourceState;
+import org.janelia.saalfeldlab.paintera.state.SourceInfo;
+import org.janelia.saalfeldlab.paintera.state.SourceState;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import bdv.fx.viewer.ViewerPanelFX;
+import bdv.fx.viewer.ViewerState;
+import bdv.viewer.Source;
+import javafx.scene.Cursor;
+import javafx.scene.Scene;
+import net.imglib2.FinalInterval;
+import net.imglib2.RandomAccess;
+import net.imglib2.RandomAccessibleInterval;
+import net.imglib2.RealLocalizable;
+import net.imglib2.RealPoint;
+import net.imglib2.RealPositionable;
+import net.imglib2.converter.Converters;
+import net.imglib2.realtransform.AffineTransform3D;
+import net.imglib2.type.Type;
+import net.imglib2.type.label.LabelMultisetType;
+import net.imglib2.type.logic.BoolType;
+import net.imglib2.type.numeric.RealType;
+import net.imglib2.type.numeric.integer.UnsignedLongType;
+import net.imglib2.util.AccessBoxRandomAccessibleOnGet;
+import net.imglib2.view.ExtendedRandomAccessibleInterval;
+import net.imglib2.view.Views;
+
+public class FloodFill2D
+{
+
+	private static final Logger LOG = LoggerFactory.getLogger( MethodHandles.lookup().lookupClass() );
+
+	private final ViewerPanelFX viewer;
+
+	private final SourceInfo sourceInfo;
+
+	private final Runnable requestRepaint;
+
+	private final AffineTransform3D viewerTransform = new AffineTransform3D();
+
+	private static final class ForegroundCheck implements Predicate< UnsignedLongType >
+	{
+
+		@Override
+		public boolean test( final UnsignedLongType t )
+		{
+			return t.getIntegerLong() == 1;
+		}
+
+	}
+
+	private static final ForegroundCheck FOREGROUND_CHECK = new ForegroundCheck();
+
+	public FloodFill2D( final ViewerPanelFX viewer, final SourceInfo sourceInfo, final Runnable requestRepaint )
+	{
+		super();
+		this.viewer = viewer;
+		this.sourceInfo = sourceInfo;
+		this.requestRepaint = requestRepaint;
+		viewer.addTransformListener( t -> viewerTransform.set( t ) );
+	}
+
+	public void fillAt( final double x, final double y, final Supplier< Long > fillSupplier )
+	{
+		if ( sourceInfo.currentSourceProperty().get() == null )
+		{
+			LOG.warn( "No current source selected -- will not fill" );
+			return;
+		}
+		final Long fill = fillSupplier.get();
+		if ( fill == null )
+		{
+			LOG.warn( "Received invalid label {} -- will not fill.", fill );
+			return;
+		}
+		fillAt( x, y, fill );
+	}
+
+	@SuppressWarnings( { "rawtypes", "unchecked" } )
+	public void fillAt( final double x, final double y, final long fill )
+	{
+		final Source< ? > currentSource = sourceInfo.currentSourceProperty().get();
+		final ViewerState viewerState = viewer.getState();
+		if ( currentSource == null )
+		{
+			LOG.warn( "No current source selected -- will not fill" );
+			return;
+		}
+
+		final SourceState< ?, ? > currentSourceState = sourceInfo.getState( currentSource );
+
+		if ( !( currentSourceState instanceof LabelSourceState< ?, ? > ) )
+		{
+			LOG.warn( "Selected source is not a label source -- will not fill" );
+			return;
+		}
+
+		final LabelSourceState< ?, ? > state = ( LabelSourceState< ?, ? > ) currentSourceState;
+
+		if ( !state.isVisibleProperty().get() )
+		{
+			LOG.warn( "Selected source is not visible -- will not fill" );
+			return;
+		}
+
+		if ( !( currentSource instanceof MaskedSource< ?, ? > ) )
+		{
+			LOG.warn( "Selected source is not painting-enabled -- will not fill" );
+			return;
+		}
+
+		final LongFunction< ? > maskForLabel = state.maskForLabel();
+		if ( maskForLabel == null )
+		{
+			LOG.warn( "Cannot generate boolean mask for this source -- will not fill" );
+			return;
+		}
+
+		final MaskedSource< ?, ? > source = ( MaskedSource< ?, ? > ) currentSource;
+
+		final Type< ? > t = source.getDataType();
+
+		if ( !( t instanceof RealType< ? > ) && !( t instanceof LabelMultisetType ) )
+		{
+			LOG.warn( "Data type is not real or LabelMultisetType type -- will not fill" );
+			return;
+		}
+
+		final int level = 0;
+		final AffineTransform3D labelTransform = new AffineTransform3D();
+		final int time = viewerState.timepointProperty().get();
+		source.getSourceTransform( time, level, labelTransform );
+		final AffineTransform3D viewerTransform = this.viewerTransform.copy();
+		final AffineTransform3D labelToViewerTransform = this.viewerTransform.copy().preConcatenate( labelTransform );
+
+		final RealPoint rp = setCoordinates( x, y, viewer, labelTransform );
+		final RandomAccessibleInterval background = source.underlyingSource().getDataSource( time, level );
+		final RandomAccess< ? > access = background.randomAccess();
+		for ( int d = 0; d < access.numDimensions(); ++d )
+		{
+			access.setPosition( Math.round( rp.getDoublePosition( d ) ), d );
+		}
+
+		final MaskInfo maskInfo = new MaskInfo<>( time, level, new UnsignedLongType( fill ) );
+
+		final Scene scene = viewer.getScene();
+		final Cursor previousCursor = scene.getCursor();
+		scene.setCursor( Cursor.WAIT );
+		try
+		{
+			final RandomAccessibleInterval mask = source.generateMask( maskInfo, px -> px.getIntegerLong() > 0 );
+			final long seedLabel = state.toIdConverter().biggestFragment( access.get() );
+			final RandomAccessibleInterval relevantBackground = Converters.convert( background, state.maskForLabel().apply( seedLabel ), new BoolType() );
+			final ExtendedRandomAccessibleInterval< BoolType, ? > extended = Views.extendValue( relevantBackground, new BoolType( false ) );
+
+			final AccessBoxRandomAccessibleOnGet accessTracker = new AccessBoxRandomAccessibleOnGet<>( Views.extendValue( mask, new UnsignedLongType( 1l ) ) );
+			accessTracker.initAccessBox();
+
+			FloodFillTransformedPlane.fill(
+					labelToViewerTransform,
+					PaintUtils.maximumVoxelDiagonalLengthPerDimension( labelTransform, viewerTransform )[ 2 ],
+					extended.randomAccess(),
+					accessTracker.randomAccess(),
+					new RealPoint( x, y, 0 ),
+					1l );
+
+			requestRepaint.run();
+			source.applyMask( mask, new FinalInterval( accessTracker.getMin(), accessTracker.getMax() ), px -> px.getIntegerLong() > 0 );
+
+		}
+		catch ( final MaskInUse e )
+		{
+			LOG.warn( e.getMessage() );
+			return;
+		}
+		finally
+		{
+			scene.setCursor( previousCursor );
+		}
+
+	}
+
+	private static RealPoint setCoordinates(
+			final double x,
+			final double y,
+			final ViewerPanelFX viewer,
+			final AffineTransform3D labelTransform )
+	{
+		return setCoordinates( x, y, new RealPoint( labelTransform.numDimensions() ), viewer, labelTransform );
+	}
+
+	private static < P extends RealLocalizable & RealPositionable > P setCoordinates(
+			final double x,
+			final double y,
+			final P location,
+			final ViewerPanelFX viewer,
+			final AffineTransform3D labelTransform )
+	{
+		location.setPosition( x, 0 );
+		location.setPosition( y, 1 );
+		location.setPosition( 0, 2 );
+
+		viewer.displayToGlobalCoordinates( location );
+		labelTransform.applyInverse( location, location );
+
+		return location;
+	}
+
+}

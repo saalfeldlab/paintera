@@ -13,6 +13,7 @@ import org.janelia.saalfeldlab.fx.event.EventFX;
 import org.janelia.saalfeldlab.fx.event.InstallAndRemove;
 import org.janelia.saalfeldlab.fx.event.KeyTracker;
 import org.janelia.saalfeldlab.paintera.control.paint.FloodFill;
+import org.janelia.saalfeldlab.paintera.control.paint.FloodFill2D;
 import org.janelia.saalfeldlab.paintera.control.paint.Paint2D;
 import org.janelia.saalfeldlab.paintera.control.paint.RestrictPainting;
 import org.janelia.saalfeldlab.paintera.control.paint.SelectNextId;
@@ -114,6 +115,7 @@ public class Paint implements ToOnEnterOnExit
 					painters.put( t, paint2D );
 
 					final FloodFill fill = new FloodFill( t, sourceInfo, requestRepaint );
+					final FloodFill2D fill2D = new FloodFill2D( t, sourceInfo, requestRepaint );
 
 					final RestrictPainting restrictor = new RestrictPainting( t, sourceInfo, requestRepaint );
 
@@ -136,6 +138,7 @@ public class Paint implements ToOnEnterOnExit
 
 					// advanced paint stuff
 					iars.add( EventFX.MOUSE_PRESSED( "fill", event -> fill.fillAt( event.getX(), event.getY(), paintSelection::get ), event -> event.isPrimaryButtonDown() && keyTracker.areOnlyTheseKeysDown( KeyCode.SHIFT, KeyCode.F ) ) );
+					iars.add( EventFX.MOUSE_PRESSED( "fill 2D", event -> fill2D.fillAt( event.getX(), event.getY(), paintSelection::get ), event -> event.isPrimaryButtonDown() && keyTracker.areOnlyTheseKeysDown( KeyCode.F ) ) );
 					iars.add( EventFX.MOUSE_PRESSED( "restrict", event -> restrictor.restrictTo( event.getX(), event.getY() ), event -> event.isPrimaryButtonDown() && keyTracker.areOnlyTheseKeysDown( KeyCode.SHIFT, KeyCode.R ) ) );
 
 					final SelectNextId nextId = new SelectNextId( sourceInfo );
