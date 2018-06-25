@@ -21,7 +21,11 @@ public class FloodFillTransformedCylinder3D
 
 	private final AffineTransform3D localToWorld;
 
-	private final double radiusSquared;
+	private final double radiusXSquared;
+
+	private final double radiusYSquared;
+
+	private final double radiusXSquaredRadiusYSquared;
 
 	private final double zRangePos;
 
@@ -45,48 +49,72 @@ public class FloodFillTransformedCylinder3D
 
 	private final double dzz;
 
+	private final double dxxHalf;
+
+	private final double dxyHalf;
+
+	private final double dxzHalf;
+
+	private final double dyxHalf;
+
+	private final double dyyHalf;
+
+	private final double dyzHalf;
+
+	private final double dzxHalf;
+
+	private final double dzyHalf;
+
+	private final double dzzHalf;
+
 	public static void fill(
 			final AffineTransform3D localToWorld,
-			final double radius,
+			final double radiusX,
+			final double radiusY,
 			final double zRange,
 			final RandomAccess< ? extends IntegerType< ? > > localAccess,
 			final RealLocalizable seedWorld,
 			final long fillLabel )
 	{
-		new FloodFillTransformedCylinder3D( localToWorld, radius, zRange ).fill( localAccess, seedWorld, fillLabel );
+		new FloodFillTransformedCylinder3D( localToWorld, radiusX, radiusY, zRange ).fill( localAccess, seedWorld, fillLabel );
 	}
 
 	public static void fill(
 			final AffineTransform3D localToWorld,
-			final double radius,
+			final double radiusX,
+			final double radiusY,
 			final double zRangePos,
 			final double zRangeNeg,
 			final RandomAccess< ? extends IntegerType< ? > > localAccess,
 			final RealLocalizable seedWorld,
 			final long fillLabel )
 	{
-		new FloodFillTransformedCylinder3D( localToWorld, radius, zRangePos, zRangeNeg ).fill( localAccess, seedWorld, fillLabel );
+		new FloodFillTransformedCylinder3D( localToWorld, radiusX, radiusY, zRangePos, zRangeNeg ).fill( localAccess, seedWorld, fillLabel );
 	}
 
 	// radius and range in world coordinates
 	public FloodFillTransformedCylinder3D(
 			final AffineTransform3D localToWorld,
-			final double radius,
+			final double radiusX,
+			final double radiusY,
 			final double zRange )
 	{
-		this( localToWorld, radius, +zRange, -zRange );
+		this( localToWorld, radiusX, radiusY, +zRange, -zRange );
 	}
 
 	// radius and range in world coordinates
 	public FloodFillTransformedCylinder3D(
 			final AffineTransform3D localToWorld,
-			final double radius,
+			final double radiusX,
+			final double radiusY,
 			final double zRangePos,
 			final double zRangeNeg )
 	{
 		super();
 		this.localToWorld = localToWorld;
-		this.radiusSquared = radius * radius;
+		this.radiusXSquared = radiusX * radiusX;
+		this.radiusYSquared = radiusY * radiusY;
+		this.radiusXSquaredRadiusYSquared = radiusXSquared * radiusYSquared;
 		this.zRangePos = zRangePos;
 		this.zRangeNeg = zRangeNeg;
 
@@ -111,6 +139,19 @@ public class FloodFillTransformedCylinder3D
 		this.dzx = dz[ 0 ];
 		this.dzy = dz[ 1 ];
 		this.dzz = dz[ 2 ];
+
+		this.dxxHalf = 0.5 * dxx;
+		this.dxyHalf = 0.5 * dxy;
+		this.dxzHalf = 0.5 * dxz;
+
+		this.dyxHalf = 0.5 * dyx;
+		this.dyyHalf = 0.5 * dyy;
+		this.dyzHalf = 0.5 * dyz;
+
+		this.dzxHalf = 0.5 * dzx;
+		this.dzyHalf = 0.5 * dzy;
+		this.dzzHalf = 0.5 * dzz;
+
 	}
 
 	public void fill(
@@ -166,7 +207,6 @@ public class FloodFillTransformedCylinder3D
 					worldCoordinates,
 					lx + 1, ly, lz,
 					x + dxx, y + dxy, z + dxz,
-					radiusSquared,
 					cx, cy,
 					zMinInclusive, zMaxInclusive );
 
@@ -175,7 +215,6 @@ public class FloodFillTransformedCylinder3D
 					worldCoordinates,
 					lx - 1, ly, lz,
 					x - dxx, y - dxy, z - dxz,
-					radiusSquared,
 					cx, cy,
 					zMinInclusive, zMaxInclusive );
 
@@ -184,7 +223,6 @@ public class FloodFillTransformedCylinder3D
 					worldCoordinates,
 					lx, ly + 1, lz,
 					x + dyx, y + dyy, z + dyz,
-					radiusSquared,
 					cx, cy,
 					zMinInclusive, zMaxInclusive );
 
@@ -193,7 +231,6 @@ public class FloodFillTransformedCylinder3D
 					worldCoordinates,
 					lx, ly - 1, lz,
 					x - dyx, y - dyy, z - dyz,
-					radiusSquared,
 					cx, cy,
 					zMinInclusive, zMaxInclusive );
 
@@ -202,7 +239,6 @@ public class FloodFillTransformedCylinder3D
 					worldCoordinates,
 					lx, ly, lz + 1,
 					x + dzx, y + dzy, z + dzz,
-					radiusSquared,
 					cx, cy,
 					zMinInclusive, zMaxInclusive );
 
@@ -211,14 +247,13 @@ public class FloodFillTransformedCylinder3D
 					worldCoordinates,
 					lx, ly, lz - 1,
 					x - dzx, y - dzy, z - dzz,
-					radiusSquared,
 					cx, cy,
 					zMinInclusive, zMaxInclusive );
 
 		}
 	}
 
-	private static final void addIfInside(
+	private void addIfInside(
 			final TLongArrayList labelCoordinates,
 			final TDoubleArrayList worldCoordinates,
 			final long lx,
@@ -227,7 +262,6 @@ public class FloodFillTransformedCylinder3D
 			final double wx,
 			final double wy,
 			final double wz,
-			final double rSquared,
 			final double cx,
 			final double cy,
 			final double zMinInclusive,
@@ -237,7 +271,7 @@ public class FloodFillTransformedCylinder3D
 		{
 			final double dx = wx - cx;
 			final double dy = wy - cy;
-			if ( dx * dx + dy * dy <= rSquared )
+			if ( dx * dx * radiusYSquared + dy * dy * radiusXSquared <= radiusXSquaredRadiusYSquared )
 			{
 				labelCoordinates.add( lx );
 				labelCoordinates.add( ly );

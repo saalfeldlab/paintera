@@ -26,22 +26,37 @@ import javafx.beans.property.DoubleProperty;
 import javafx.beans.property.SimpleDoubleProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.scene.input.MouseEvent;
+import net.imglib2.FinalInterval;
 import net.imglib2.FinalRealInterval;
 import net.imglib2.Interval;
 import net.imglib2.RandomAccess;
 import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.RealPoint;
 import net.imglib2.realtransform.AffineTransform3D;
-import net.imglib2.type.numeric.integer.UnsignedByteType;
 import net.imglib2.type.numeric.integer.UnsignedLongType;
+import net.imglib2.util.AccessBoxRandomAccessibleOnGet;
 import net.imglib2.util.Intervals;
 import net.imglib2.util.LinAlgHelpers;
+import net.imglib2.view.ExtendedRandomAccessibleInterval;
 import net.imglib2.view.Views;
 
 public class Paint2D
 {
 
 	private static Logger LOG = LoggerFactory.getLogger( MethodHandles.lookup().lookupClass() );
+
+	private static final class ForegroundCheck implements Predicate< UnsignedLongType >
+	{
+
+		@Override
+		public boolean test( final UnsignedLongType t )
+		{
+			return t.getIntegerLong() > 0;
+		}
+
+	}
+
+	private static final ForegroundCheck FOREGROUND_CHECK = new ForegroundCheck();
 
 	private final ViewerPanelFX viewer;
 
@@ -61,7 +76,7 @@ public class Paint2D
 
 	private final SimpleObjectProperty< MaskedSource< ?, ? > > maskedSource = new SimpleObjectProperty<>();
 
-	private final SimpleObjectProperty< RandomAccessibleInterval< UnsignedByteType > > canvas = new SimpleObjectProperty<>();
+	private final SimpleObjectProperty< RandomAccessibleInterval< UnsignedLongType > > canvas = new SimpleObjectProperty<>();
 
 	private final SimpleObjectProperty< Interval > interval = new SimpleObjectProperty<>();
 
@@ -215,7 +230,7 @@ public class Paint2D
 		final UnsignedLongType value = new UnsignedLongType( id );
 
 		final MaskInfo< UnsignedLongType > mask = new MaskInfo<>( 0, level, value );
-		final RandomAccessibleInterval< UnsignedByteType > canvas = maskedSource.generateMask( mask );
+		final RandomAccessibleInterval< UnsignedLongType > canvas = maskedSource.generateMask( mask, FOREGROUND_CHECK );
 		// canvasSource.getDataSource( state.getCurrentTimepoint(), level );
 		LOG.debug( "Setting canvas to {}", canvas );
 		this.canvas.set( canvas );
@@ -241,7 +256,7 @@ public class Paint2D
 
 //		LOG.warn( "At {} {}", viewerX, viewerY );
 
-		final RandomAccessibleInterval< UnsignedByteType > labels = this.canvas.get();
+		final RandomAccessibleInterval< UnsignedLongType > labels = this.canvas.get();
 		if ( labels == null ) { return; }
 
 		final AffineTransform3D labelToViewerTransform = this.labelToViewerTransform;
@@ -263,11 +278,16 @@ public class Paint2D
 		viewerTransformWithoutTranslation.apply( unitY, unitY );
 		viewerTransformWithoutTranslation.apply( unitZ, unitZ );
 		LOG.debug( "Transformed unit vectors x={} y={} z={}", unitX, unitY, unitZ );
-		final double zRange = 0.5 * ( Math.abs( unitX[ 2 ] ) + Math.abs( unitY[ 2 ] ) + Math.abs( unitZ[ 2 ] ) );
+		final double factor = 0.5;
+		final double xRange = factor * ( Math.abs( unitX[ 0 ] ) + Math.abs( unitY[ 0 ] ) + Math.abs( unitZ[ 0 ] ) );
+		final double yRange = factor * ( Math.abs( unitX[ 1 ] ) + Math.abs( unitY[ 1 ] ) + Math.abs( unitZ[ 1 ] ) );
+		final double zRange = factor * ( Math.abs( unitX[ 2 ] ) + Math.abs( unitY[ 2 ] ) + Math.abs( unitZ[ 2 ] ) );
 		LOG.debug( "range is {}", zRange );
 
 		final double radius = this.brushRadius.get();
 		final double viewerRadius = Affine3DHelpers.extractScale( globalToViewerTransform, 0 ) * radius;
+		final double radiusX = Math.max( xRange, yRange ) + viewerRadius;
+		final double radiusY = Math.max( xRange, yRange ) + viewerRadius;
 		final double[] fillMin = { viewerX - viewerRadius, viewerY - viewerRadius, -zRange };
 		final double[] fillMax = { viewerX + viewerRadius, viewerY + viewerRadius, +zRange };
 		labelToViewerTransform.applyInverse( fillMin, fillMin );
@@ -277,14 +297,19 @@ public class Paint2D
 		Arrays.setAll( transformedFillMin, d -> ( long ) Math.floor( Math.min( fillMin[ d ], fillMax[ d ] ) ) );
 		Arrays.setAll( transformedFillMax, d -> ( long ) Math.ceil( Math.max( fillMin[ d ], fillMax[ d ] ) ) );
 
-		final Interval trackedInterval = Intervals.smallestContainingInterval( new FinalRealInterval( transformedFillMin, transformedFillMax ) );
-		final RandomAccess< UnsignedByteType > access = Views.extendValue( labels, new UnsignedByteType( fillLabel ) ).randomAccess( trackedInterval );
+		// containingInterval might be too small
+		final Interval conatiningInterval = Intervals.smallestContainingInterval( new FinalRealInterval( transformedFillMin, transformedFillMax ) );
+		final ExtendedRandomAccessibleInterval< UnsignedLongType, RandomAccessibleInterval< UnsignedLongType > > extendedLabels = Views.extendValue( labels, new UnsignedLongType( fillLabel ) );
+		final AccessBoxRandomAccessibleOnGet< UnsignedLongType > accessTracker = new AccessBoxRandomAccessibleOnGet<>( extendedLabels );
+		accessTracker.initAccessBox();
+		final RandomAccess< UnsignedLongType > access = accessTracker.randomAccess( conatiningInterval );
 		final RealPoint seed = new RealPoint( viewerX, viewerY, 0.0 );
 
-		FloodFillTransformedCylinder3D.fill( labelToViewerTransform, viewerRadius, zRange, access, seed, fillLabel );
+		FloodFillTransformedCylinder3D.fill( labelToViewerTransform, radiusX, radiusY, zRange, access, seed, fillLabel );
 
+		final FinalInterval trackedInterval = new FinalInterval( accessTracker.getMin(), accessTracker.getMax() );
 		this.interval.set( Intervals.union( trackedInterval, Optional.ofNullable( this.interval.get() ).orElse( trackedInterval ) ) );
-		this.fillLabel = fillLabel == 1 ? 2 : 1;
+		++this.fillLabel;
 
 	}
 
@@ -383,7 +408,7 @@ public class Paint2D
 
 	private void applyMask()
 	{
-		Optional.ofNullable( maskedSource.get() ).ifPresent( ms -> ms.applyMask( canvas.get(), interval.get() ) );
+		Optional.ofNullable( maskedSource.get() ).ifPresent( ms -> ms.applyMask( canvas.get(), interval.get(), FOREGROUND_CHECK ) );
 	}
 
 }
