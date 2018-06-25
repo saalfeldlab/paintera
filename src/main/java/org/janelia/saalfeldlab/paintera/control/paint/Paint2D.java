@@ -268,20 +268,12 @@ public class Paint2D
 		viewerTransformWithoutTranslation.setTranslation( 0.0, 0.0, 0.0 );
 
 		// get maximum extent of pixels along z
-		final double[] unitX = { 1.0, 0.0, 0.0 };
-		final double[] unitY = { 0.0, 1.0, 0.0 };
-		final double[] unitZ = { 0.0, 0.0, 1.0 };
-		labelToGlobalTransformWithoutTranslation.apply( unitX, unitX );
-		labelToGlobalTransformWithoutTranslation.apply( unitY, unitY );
-		labelToGlobalTransformWithoutTranslation.apply( unitZ, unitZ );
-		viewerTransformWithoutTranslation.apply( unitX, unitX );
-		viewerTransformWithoutTranslation.apply( unitY, unitY );
-		viewerTransformWithoutTranslation.apply( unitZ, unitZ );
-		LOG.debug( "Transformed unit vectors x={} y={} z={}", unitX, unitY, unitZ );
+		final double[] projections = PaintUtils.maximumVoxelDiagonalLengthPerDimension( labelToGlobalTransformWithoutTranslation, globalToViewerTransform );
+
 		final double factor = 0.5;
-		final double xRange = factor * ( Math.abs( unitX[ 0 ] ) + Math.abs( unitY[ 0 ] ) + Math.abs( unitZ[ 0 ] ) );
-		final double yRange = factor * ( Math.abs( unitX[ 1 ] ) + Math.abs( unitY[ 1 ] ) + Math.abs( unitZ[ 1 ] ) );
-		final double zRange = factor * ( Math.abs( unitX[ 2 ] ) + Math.abs( unitY[ 2 ] ) + Math.abs( unitZ[ 2 ] ) );
+		final double xRange = factor * projections[ 0 ];
+		final double yRange = factor * projections[ 1 ];
+		final double zRange = factor * projections[ 2 ];
 		LOG.debug( "range is {}", zRange );
 
 		final double radius = this.brushRadius.get();
