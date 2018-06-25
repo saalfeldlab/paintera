@@ -370,7 +370,7 @@ public class Paint2D
 						paint( p1[ 0 ], p1[ 1 ], shiftX, shiftY );
 						LinAlgHelpers.add( p1, d, p1 );
 					}
-//					paint( x, y, shiftX, shiftY );
+					paint( x, y, shiftX, shiftY );
 					final long t1 = System.currentTimeMillis();
 					LOG.debug( "Painting {} times with radius {} took a total of {}ms", l + 1, brushRadius.get(), t1 - t0 );
 					repaintRequest.run();
