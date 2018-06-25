@@ -142,7 +142,7 @@ public class FloodFill2D
 		final int time = viewerState.timepointProperty().get();
 		source.getSourceTransform( time, level, labelTransform );
 		final AffineTransform3D viewerTransform = this.viewerTransform.copy();
-		final AffineTransform3D labelToViewerTransform = this.viewerTransform.copy().preConcatenate( labelTransform );
+		final AffineTransform3D labelToViewerTransform = this.viewerTransform.copy().concatenate( labelTransform );
 
 		final RealPoint rp = setCoordinates( x, y, viewer, labelTransform );
 		final RandomAccessibleInterval background = source.underlyingSource().getDataSource( time, level );
@@ -161,6 +161,7 @@ public class FloodFill2D
 		{
 			final RandomAccessibleInterval mask = source.generateMask( maskInfo, px -> px.getIntegerLong() > 0 );
 			final long seedLabel = state.toIdConverter().biggestFragment( access.get() );
+			LOG.warn( "Got seed label {}", seedLabel );
 			final RandomAccessibleInterval relevantBackground = Converters.convert( background, state.maskForLabel().apply( seedLabel ), new BoolType() );
 			final ExtendedRandomAccessibleInterval< BoolType, ? > extended = Views.extendValue( relevantBackground, new BoolType( false ) );
 
@@ -169,7 +170,7 @@ public class FloodFill2D
 
 			FloodFillTransformedPlane.fill(
 					labelToViewerTransform,
-					PaintUtils.maximumVoxelDiagonalLengthPerDimension( labelTransform, viewerTransform )[ 2 ],
+					0.5 * PaintUtils.maximumVoxelDiagonalLengthPerDimension( labelTransform, viewerTransform )[ 2 ],
 					extended.randomAccess(),
 					accessTracker.randomAccess(),
 					new RealPoint( x, y, 0 ),

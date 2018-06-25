@@ -210,7 +210,7 @@ public class FloodFillTransformedPlane
 			maskAccess.fwd( 0 );
 			relevantBackgroundAccess.fwd( 0 );
 			addIfInside(
-					!relevantBackgroundAccess.get().get(),
+					relevantBackgroundAccess.get().get(),
 					fillLabel,
 					maskAccess.get().getIntegerLong(),
 					sourceCoordinates,
@@ -222,7 +222,7 @@ public class FloodFillTransformedPlane
 			maskAccess.move( -2l, 0 );
 			relevantBackgroundAccess.move( -2l, 0 );
 			addIfInside(
-					!relevantBackgroundAccess.get().get(),
+					relevantBackgroundAccess.get().get(),
 					fillLabel,
 					maskAccess.get().getIntegerLong(),
 					sourceCoordinates,
@@ -236,7 +236,7 @@ public class FloodFillTransformedPlane
 			maskAccess.fwd( 1 );
 			relevantBackgroundAccess.fwd( 1 );
 			addIfInside(
-					!relevantBackgroundAccess.get().get(),
+					relevantBackgroundAccess.get().get(),
 					fillLabel,
 					maskAccess.get().getIntegerLong(),
 					sourceCoordinates,
@@ -248,7 +248,7 @@ public class FloodFillTransformedPlane
 			maskAccess.move( -2l, 1 );
 			relevantBackgroundAccess.move( -2l, 1 );
 			addIfInside(
-					!relevantBackgroundAccess.get().get(),
+					relevantBackgroundAccess.get().get(),
 					fillLabel,
 					maskAccess.get().getIntegerLong(),
 					sourceCoordinates,
@@ -262,7 +262,7 @@ public class FloodFillTransformedPlane
 			maskAccess.fwd( 2 );
 			relevantBackgroundAccess.fwd( 2 );
 			addIfInside(
-					!relevantBackgroundAccess.get().get(),
+					relevantBackgroundAccess.get().get(),
 					fillLabel,
 					maskAccess.get().getIntegerLong(),
 					sourceCoordinates,
@@ -274,7 +274,7 @@ public class FloodFillTransformedPlane
 			maskAccess.move( -2l, 2 );
 			relevantBackgroundAccess.move( -2l, 2 );
 			addIfInside(
-					!relevantBackgroundAccess.get().get(),
+					relevantBackgroundAccess.get().get(),
 					fillLabel,
 					maskAccess.get().getIntegerLong(),
 					sourceCoordinates,
