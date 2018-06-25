@@ -6,6 +6,7 @@ import java.util.Optional;
 import java.util.concurrent.ExecutorService;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
+import java.util.stream.IntStream;
 
 import org.janelia.saalfeldlab.fx.event.MouseDragFX;
 import org.janelia.saalfeldlab.paintera.data.DataSource;
@@ -22,27 +23,24 @@ import bdv.fx.viewer.ViewerPanelFX;
 import bdv.fx.viewer.ViewerState;
 import bdv.util.Affine3DHelpers;
 import bdv.viewer.Source;
+import gnu.trove.list.array.TDoubleArrayList;
+import gnu.trove.list.array.TLongArrayList;
 import javafx.beans.property.DoubleProperty;
 import javafx.beans.property.SimpleDoubleProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.scene.input.MouseEvent;
-import net.imglib2.FinalInterval;
+import net.imglib2.FinalRealInterval;
 import net.imglib2.Interval;
-import net.imglib2.Point;
-import net.imglib2.RandomAccessible;
+import net.imglib2.RandomAccess;
 import net.imglib2.RandomAccessibleInterval;
-import net.imglib2.RealRandomAccessible;
-import net.imglib2.algorithm.region.hypersphere.HyperSphere;
-import net.imglib2.interpolation.randomaccess.NearestNeighborInterpolatorFactory;
+import net.imglib2.RealLocalizable;
+import net.imglib2.RealPoint;
 import net.imglib2.realtransform.AffineTransform3D;
-import net.imglib2.realtransform.RealViews;
-import net.imglib2.realtransform.Scale3D;
-import net.imglib2.realtransform.Translation3D;
+import net.imglib2.type.numeric.IntegerType;
 import net.imglib2.type.numeric.integer.UnsignedByteType;
 import net.imglib2.type.numeric.integer.UnsignedLongType;
 import net.imglib2.util.Intervals;
 import net.imglib2.util.LinAlgHelpers;
-import net.imglib2.view.MixedTransformView;
 import net.imglib2.view.Views;
 
 public class Paint2D
@@ -75,6 +73,8 @@ public class Paint2D
 	private final Runnable repaintRequest;
 
 	private final ExecutorService paintQueue;
+
+	private int fillLabel;
 
 	public Paint2D(
 			final ViewerPanelFX viewer,
@@ -225,6 +225,7 @@ public class Paint2D
 		LOG.debug( "Setting canvas to {}", canvas );
 		this.canvas.set( canvas );
 		this.maskedSource.set( maskedSource );
+		this.fillLabel = 1;
 	}
 
 //	private void paint( final double x, final double y )
@@ -248,65 +249,56 @@ public class Paint2D
 		final RandomAccessibleInterval< UnsignedByteType > labels = this.canvas.get();
 		if ( labels == null ) { return; }
 
-		final long tBeforePaint0 = System.currentTimeMillis();
 		final AffineTransform3D labelToViewerTransform = this.labelToViewerTransform;
 		final AffineTransform3D globalToViewerTransform = this.globalToViewerTransform;
+		final AffineTransform3D labelToGlobalTransform = this.labelToGlobalTransform;
+		final AffineTransform3D labelToGlobalTransformWithoutTranslation = labelToGlobalTransform.copy();
+		final AffineTransform3D viewerTransformWithoutTranslation = globalToViewerTransform.copy();
+		labelToGlobalTransformWithoutTranslation.setTranslation( 0.0, 0.0, 0.0 );
+		viewerTransformWithoutTranslation.setTranslation( 0.0, 0.0, 0.0 );
 
-		final double range = 0.5;
+		// get maximum extent of pixels along z
+		final double[] unitX = { 1.0, 0.0, 0.0 };
+		final double[] unitY = { 0.0, 1.0, 0.0 };
+		final double[] unitZ = { 0.0, 0.0, 1.0 };
+		labelToGlobalTransformWithoutTranslation.apply( unitX, unitX );
+		labelToGlobalTransformWithoutTranslation.apply( unitY, unitY );
+		labelToGlobalTransformWithoutTranslation.apply( unitZ, unitZ );
+		viewerTransformWithoutTranslation.apply( unitX, unitX );
+		viewerTransformWithoutTranslation.apply( unitY, unitY );
+		viewerTransformWithoutTranslation.apply( unitZ, unitZ );
+		LOG.debug( "Transformed unit vectors x={} y={} z={}", unitX, unitY, unitZ );
+		final double zRange = 0.5 * ( Math.abs( unitX[ 2 ] ) + Math.abs( unitY[ 2 ] ) + Math.abs( unitZ[ 2 ] ) );
+		LOG.debug( "range is {}", zRange );
 
-		// radius is in global coordinates, scale from viewer coordinates to
-		// global coordinates
-		final double scale = Affine3DHelpers.extractScale( globalToViewerTransform, 0 );
-		final long xScale = Math.round( viewerX / scale );
-		final long yScale = Math.round( viewerY / scale );
+		final double radius = this.brushRadius.get();
+		final double viewerRadius = Affine3DHelpers.extractScale( globalToViewerTransform, 0 ) * radius;
+		final double[] fillMin = { viewerX - viewerRadius, viewerY - viewerRadius, -zRange };
+		final double[] fillMax = { viewerX + viewerRadius, viewerY + viewerRadius, +zRange };
+		labelToViewerTransform.applyInverse( fillMin, fillMin );
+		labelToViewerTransform.applyInverse( fillMax, fillMax );
+		final double[] transformedFillMin = new double[ 3 ];
+		final double[] transformedFillMax = new double[ 3 ];
+		Arrays.setAll( transformedFillMin, d -> ( long ) Math.floor( Math.min( fillMin[ d ], fillMax[ d ] ) ) );
+		Arrays.setAll( transformedFillMax, d -> ( long ) Math.ceil( Math.max( fillMin[ d ], fillMax[ d ] ) ) );
 
-		final Point p = new Point( xScale, yScale );
+		final Interval trackedInterval = Intervals.smallestContainingInterval( new FinalRealInterval( transformedFillMin, transformedFillMax ) );
+		final RandomAccess< UnsignedByteType > access = Views.extendValue( labels, new UnsignedByteType( fillLabel ) ).randomAccess( trackedInterval );
+		final RealPoint seed = new RealPoint( viewerX, viewerY, 0.0 );
 
-		final AffineTransform3D tf = labelToViewerTransform.copy();
-		tf.preConcatenate( new Scale3D( 1.0 / scale, 1.0 / scale, 1.0 / scale ) );
+		specialPurposeFloodfill(
+				access,
+				seed,
+				labelToViewerTransform,
+				new double[] { viewerX, viewerY },
+				viewerRadius * viewerRadius,
+				-zRange,
+				+zRange,
+				fillLabel );
 
-		final AffineTransform3D tfFront = tf.copy().preConcatenate( new Translation3D( 0, 0, -range ) );
-		final AffineTransform3D tfBack = tf.copy().preConcatenate( new Translation3D( 0, 0, range ) );
-
-		final RandomAccessible< UnsignedByteType > labelsExtended = Views.extendValue( labels, new UnsignedByteType( 1 ) );
-		final RealRandomAccessible< UnsignedByteType > interpolated = Views.interpolate( labelsExtended, new NearestNeighborInterpolatorFactory<>() );
-		final MixedTransformView< UnsignedByteType > front = Views.hyperSlice( RealViews.affine( interpolated, tfFront ), 2, 0l );
-		final MixedTransformView< UnsignedByteType > back = Views.hyperSlice( RealViews.affine( interpolated, tfBack ), 2, 0l );
-
-		final double dr = this.brushRadius.get();
-		final long r = Math.round( dr );
-		final long tBeforePaint1 = System.currentTimeMillis();
-		final long t0 = System.currentTimeMillis();
-		new HyperSphere<>( front, p, r ).forEach( UnsignedByteType::setOne );
-		final long t1 = System.currentTimeMillis();
-		new HyperSphere<>( back, p, r ).forEach( UnsignedByteType::setOne );
-		final long t2 = System.currentTimeMillis();
-
-		final long tAfterPaint0 = System.currentTimeMillis();
-
-		// add painted interval
-		final double[] topLeft = { Math.floor( xScale - dr ), Math.floor( yScale - dr ), 0 };
-		final double[] bottomRight = { Math.ceil( xScale + dr ), Math.ceil( yScale + dr ), 0 };
-
-		tf.applyInverse( topLeft, topLeft );
-		tf.applyInverse( bottomRight, bottomRight );
-
-		final long[] tl = new long[ 3 ];
-		final long[] br = new long[ 3 ];
-		Arrays.setAll( tl, d -> ( long ) Math.floor( Math.min( topLeft[ d ], bottomRight[ d ] ) ) );
-		Arrays.setAll( br, d -> ( long ) Math.ceil( Math.max( topLeft[ d ], bottomRight[ d ] ) ) );
-
-		final FinalInterval trackedInterval = new FinalInterval( tl, br );
 		this.interval.set( Intervals.union( trackedInterval, Optional.ofNullable( this.interval.get() ).orElse( trackedInterval ) ) );
+		this.fillLabel = fillLabel == 1 ? 2 : 1;
 
-		final long tAfterPaint1 = System.currentTimeMillis();
-
-		LOG.trace(
-				"before paint {}ms paint1 {}ms paint2 {}ms after paint{}",
-				tBeforePaint1 - tBeforePaint0,
-				t1 - t0,
-				t2 - t1,
-				tAfterPaint1 - tAfterPaint0 );
 	}
 
 	private class PaintDrag extends MouseDragFX
@@ -405,6 +397,167 @@ public class Paint2D
 	private void applyMask()
 	{
 		Optional.ofNullable( maskedSource.get() ).ifPresent( ms -> ms.applyMask( canvas.get(), interval.get() ) );
+	}
+
+	private static void specialPurposeFloodfill(
+			final RandomAccess< ? extends IntegerType< ? > > localAccess,
+			final RealLocalizable seedWorld,
+			final AffineTransform3D localToWorld,
+			final double[] centerInWorldCoordinates,
+			final double radiusWorldSquaredIn,
+			final double zMinExclusive,
+			final double zMaxExclusive,
+			final long fillLabel )
+	{
+		final double[] dx = { 1.0, 0.0, 0.0 };
+		final double[] dy = { 0.0, 1.0, 0.0 };
+		final double[] dz = { 0.0, 0.0, 1.0 };
+		final double[] pos = IntStream.range( 0, 3 ).mapToDouble( seedWorld::getDoublePosition ).toArray();
+		final AffineTransform3D transformNoTranslation = localToWorld.copy();
+		transformNoTranslation.setTranslation( 0.0, 0.0, 0.0 );
+		transformNoTranslation.apply( dx, dx );
+		transformNoTranslation.apply( dy, dy );
+		transformNoTranslation.apply( dz, dz );
+
+		final RealPoint seedLocal = new RealPoint( seedWorld );
+		localToWorld.applyInverse( seedLocal, seedLocal );
+
+		final double dxx = dx[ 0 ];
+		final double dxy = dx[ 1 ];
+		final double dxz = dx[ 2 ];
+
+		final double dyx = dy[ 0 ];
+		final double dyy = dy[ 1 ];
+		final double dyz = dy[ 2 ];
+
+		final double dzx = dz[ 0 ];
+		final double dzy = dz[ 1 ];
+		final double dzz = dz[ 2 ];
+
+		final TLongArrayList sourceCoordinates = new TLongArrayList();
+		final TDoubleArrayList worldCoordinates = new TDoubleArrayList();
+
+		final double cx = centerInWorldCoordinates[ 0 ];
+		final double cy = centerInWorldCoordinates[ 1 ];
+
+		for ( int d = 0; d < 3; ++d )
+		{
+			sourceCoordinates.add( Math.round( seedLocal.getDoublePosition( d ) ) );
+			worldCoordinates.add( pos[ d ] );
+		}
+
+		for ( int offset = 0; offset < sourceCoordinates.size(); offset += 3 )
+		{
+			final int o0 = offset + 0;
+			final int o1 = offset + 1;
+			final int o2 = offset + 2;
+			final long lx = sourceCoordinates.get( o0 );
+			final long ly = sourceCoordinates.get( o1 );
+			final long lz = sourceCoordinates.get( o2 );
+			localAccess.setPosition( lx, 0 );
+			localAccess.setPosition( ly, 1 );
+			localAccess.setPosition( lz, 2 );
+
+			final IntegerType< ? > val = localAccess.get();
+
+			if ( val.getIntegerLong() == fillLabel )
+			{
+				continue;
+			}
+			val.setInteger( fillLabel );
+
+			final double x = worldCoordinates.get( o0 );
+			final double y = worldCoordinates.get( o1 );
+			final double z = worldCoordinates.get( o2 );
+
+			addIfInside(
+					sourceCoordinates,
+					worldCoordinates,
+					lx + 1, ly, lz,
+					x + dxx, y + dxy, z + dxz,
+					radiusWorldSquaredIn,
+					cx, cy,
+					zMinExclusive, zMaxExclusive );
+
+			addIfInside(
+					sourceCoordinates,
+					worldCoordinates,
+					lx - 1, ly, lz,
+					x - dxx, y - dxy, z - dxz,
+					radiusWorldSquaredIn,
+					cx, cy,
+					zMinExclusive, zMaxExclusive );
+
+			addIfInside(
+					sourceCoordinates,
+					worldCoordinates,
+					lx, ly + 1, lz,
+					x + dyx, y + dyy, z + dyz,
+					radiusWorldSquaredIn,
+					cx, cy,
+					zMinExclusive, zMaxExclusive );
+
+			addIfInside(
+					sourceCoordinates,
+					worldCoordinates,
+					lx, ly - 1, lz,
+					x - dyx, y - dyy, z - dyz,
+					radiusWorldSquaredIn,
+					cx, cy,
+					zMinExclusive, zMaxExclusive );
+
+			addIfInside(
+					sourceCoordinates,
+					worldCoordinates,
+					lx, ly, lz + 1,
+					x + dzx, y + dzy, z + dzz,
+					radiusWorldSquaredIn,
+					cx, cy,
+					zMinExclusive, zMaxExclusive );
+
+			addIfInside(
+					sourceCoordinates,
+					worldCoordinates,
+					lx, ly, lz - 1,
+					x - dzx, y - dzy, z - dzz,
+					radiusWorldSquaredIn,
+					cx, cy,
+					zMinExclusive, zMaxExclusive );
+
+		}
+
+	}
+
+	private static final void addIfInside(
+			final TLongArrayList labelCoordinates,
+			final TDoubleArrayList worldCoordinates,
+			final long lx,
+			final long ly,
+			final long lz,
+			final double wx,
+			final double wy,
+			final double wz,
+			final double rSquared,
+			final double cx,
+			final double cy,
+			final double zMinExclusive,
+			final double zMaxExclusive )
+	{
+		if ( wz > zMinExclusive && wz < zMaxExclusive )
+		{
+			final double dx = wx - cx;
+			final double dy = wy - cy;
+			if ( dx * dx + dy * dy < rSquared )
+			{
+				labelCoordinates.add( lx );
+				labelCoordinates.add( ly );
+				labelCoordinates.add( lz );
+
+				worldCoordinates.add( wx );
+				worldCoordinates.add( wy );
+				worldCoordinates.add( wz );
+			}
+		}
 	}
 
 }
