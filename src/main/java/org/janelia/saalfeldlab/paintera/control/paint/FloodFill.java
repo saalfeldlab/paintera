@@ -7,6 +7,7 @@ import java.util.Collection;
 import java.util.List;
 import java.util.function.BiPredicate;
 import java.util.function.LongFunction;
+import java.util.function.Predicate;
 import java.util.function.Supplier;
 
 import org.janelia.saalfeldlab.paintera.data.mask.MaskInUse;
@@ -38,7 +39,6 @@ import net.imglib2.type.label.Label;
 import net.imglib2.type.label.LabelMultisetType;
 import net.imglib2.type.label.Multiset.Entry;
 import net.imglib2.type.numeric.RealType;
-import net.imglib2.type.numeric.integer.UnsignedByteType;
 import net.imglib2.type.numeric.integer.UnsignedLongType;
 import net.imglib2.util.AccessBoxRandomAccessible;
 import net.imglib2.util.Intervals;
@@ -56,6 +56,19 @@ public class FloodFill
 	private final Runnable requestRepaint;
 
 	private final AffineTransform3D viewerTransform = new AffineTransform3D();
+
+	private static final class ForegroundCheck implements Predicate< UnsignedLongType >
+	{
+
+		@Override
+		public boolean test( final UnsignedLongType t )
+		{
+			return t.getIntegerLong() == 1;
+		}
+
+	}
+
+	private static final ForegroundCheck FOREGROUND_CHECK = new ForegroundCheck();
 
 	public FloodFill( final ViewerPanelFX viewer, final SourceInfo sourceInfo, final Runnable requestRepaint )
 	{
@@ -132,8 +145,6 @@ public class FloodFill
 			return;
 		}
 
-		// TODO always fill at highest resolution?
-//		final int level = viewerState.getBestMipMapLevel( new AffineTransform3D(), sourceInfo.currentSourceIndexInVisibleSources().get() );
 		final int level = 0;
 		final AffineTransform3D labelTransform = new AffineTransform3D();
 		final int time = viewerState.timepointProperty().get();
@@ -218,14 +229,14 @@ public class FloodFill
 			final Runnable doWhenDone ) throws MaskInUse
 	{
 		final MaskInfo< UnsignedLongType > maskInfo = new MaskInfo<>( time, level, new UnsignedLongType( fill ) );
-		final RandomAccessibleInterval< UnsignedByteType > mask = source.generateMask( maskInfo );
-		final AccessBoxRandomAccessible< UnsignedByteType > accessTracker = new AccessBoxRandomAccessible<>( Views.extendValue( mask, new UnsignedByteType( 1 ) ) );
+		final RandomAccessibleInterval< UnsignedLongType > mask = source.generateMask( maskInfo, FOREGROUND_CHECK );
+		final AccessBoxRandomAccessible< UnsignedLongType > accessTracker = new AccessBoxRandomAccessible<>( Views.extendValue( mask, new UnsignedLongType( 1 ) ) );
 		final Thread t = new Thread( () -> {
 			net.imglib2.algorithm.fill.FloodFill.fill(
 					source.getDataSource( time, level ),
 					accessTracker,
 					seed,
-					new UnsignedByteType( 1 ),
+					new UnsignedLongType( 1 ),
 					new DiamondShape( 1 ) );
 			final Interval interval = accessTracker.createAccessInterval();
 			LOG.debug( "Applying mask for interval {} {}", Arrays.toString( Intervals.minAsLongArray( interval ) ), Arrays.toString( Intervals.maxAsLongArray( interval ) ) );
@@ -249,7 +260,7 @@ public class FloodFill
 			doWhenDone.run();
 			if ( !Thread.interrupted() )
 			{
-				source.applyMask( mask, accessTracker.createAccessInterval() );
+				source.applyMask( mask, accessTracker.createAccessInterval(), FOREGROUND_CHECK );
 			}
 		} ).start();
 	}
@@ -275,14 +286,14 @@ public class FloodFill
 		}
 
 		final MaskInfo< UnsignedLongType > maskInfo = new MaskInfo<>( time, level, new UnsignedLongType( fill ) );
-		final RandomAccessibleInterval< UnsignedByteType > mask = source.generateMask( maskInfo );
-		final AccessBoxRandomAccessible< UnsignedByteType > accessTracker = new AccessBoxRandomAccessible<>( Views.extendValue( mask, new UnsignedByteType( 1 ) ) );
+		final RandomAccessibleInterval< UnsignedLongType > mask = source.generateMask( maskInfo, FOREGROUND_CHECK );
+		final AccessBoxRandomAccessible< UnsignedLongType > accessTracker = new AccessBoxRandomAccessible<>( Views.extendValue( mask, new UnsignedLongType( 1 ) ) );
 		final Thread t = new Thread( () -> {
 			net.imglib2.algorithm.fill.FloodFill.fill(
 					Views.extendValue( data, new LabelMultisetType() ),
 					accessTracker,
 					seed,
-					new UnsignedByteType( 1 ),
+					new UnsignedLongType( 1 ),
 					new DiamondShape( 1 ),
 					makePredicateMultiset( seedLabel ) );
 			final Interval interval = accessTracker.createAccessInterval();
@@ -307,14 +318,14 @@ public class FloodFill
 			doWhenDone.run();
 			if ( !Thread.interrupted() )
 			{
-				source.applyMask( mask, accessTracker.createAccessInterval() );
+				source.applyMask( mask, accessTracker.createAccessInterval(), FOREGROUND_CHECK );
 			}
 		} ).start();
 	}
 
-	private static BiPredicate< LabelMultisetType, UnsignedByteType > makePredicateMultiset( final long id )
+	private static BiPredicate< LabelMultisetType, UnsignedLongType > makePredicateMultiset( final long id )
 	{
-		final UnsignedByteType zero = new UnsignedByteType( 0 );
+		final UnsignedLongType zero = new UnsignedLongType( 0 );
 		return ( l, u ) -> zero.valueEquals( u ) && l.contains( id );
 	}
 

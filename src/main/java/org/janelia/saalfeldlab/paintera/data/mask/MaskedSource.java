@@ -12,6 +12,7 @@ import java.util.Map.Entry;
 import java.util.Optional;
 import java.util.concurrent.ExecutorService;
 import java.util.function.BiConsumer;
+import java.util.function.Predicate;
 import java.util.function.Supplier;
 import java.util.stream.DoubleStream;
 import java.util.stream.IntStream;
@@ -74,9 +75,7 @@ import net.imglib2.type.label.Label;
 import net.imglib2.type.logic.BitType;
 import net.imglib2.type.logic.BoolType;
 import net.imglib2.type.numeric.IntegerType;
-import net.imglib2.type.numeric.integer.UnsignedByteType;
 import net.imglib2.type.numeric.integer.UnsignedLongType;
-import net.imglib2.type.volatiles.VolatileUnsignedByteType;
 import net.imglib2.type.volatiles.VolatileUnsignedLongType;
 import net.imglib2.util.AccessedBlocksRandomAccessible;
 import net.imglib2.util.ConstantUtils;
@@ -100,7 +99,7 @@ public class MaskedSource< D extends Type< D >, T extends Type< T > > implements
 
 	private final RandomAccessibleInterval< VolatileUnsignedLongType >[] canvases;
 
-	private final HashMap< RandomAccessibleInterval< UnsignedByteType >, MaskInfo< UnsignedLongType > > masks;
+	private final HashMap< RandomAccessibleInterval< UnsignedLongType >, MaskInfo< UnsignedLongType > > masks;
 
 	private final RandomAccessible< UnsignedLongType >[] dMasks;
 
@@ -224,12 +223,12 @@ public class MaskedSource< D extends Type< D >, T extends Type< T > > implements
 
 	}
 
-	public RandomAccessibleInterval< UnsignedByteType > generateMask( final int t, final int level, final UnsignedLongType value ) throws MaskInUse
+	public RandomAccessibleInterval< UnsignedLongType > generateMask( final int t, final int level, final UnsignedLongType value, final Predicate< UnsignedLongType > isPaintedForeground ) throws MaskInUse
 	{
-		return generateMask( new MaskInfo<>( t, level, value ) );
+		return generateMask( new MaskInfo<>( t, level, value ), isPaintedForeground );
 	}
 
-	public RandomAccessibleInterval< UnsignedByteType > generateMask( final MaskInfo< UnsignedLongType > mask ) throws MaskInUse
+	public RandomAccessibleInterval< UnsignedLongType > generateMask( final MaskInfo< UnsignedLongType > mask, final Predicate< UnsignedLongType > isPaintedForeground ) throws MaskInUse
 	{
 
 		synchronized ( this )
@@ -248,20 +247,20 @@ public class MaskedSource< D extends Type< D >, T extends Type< T > > implements
 				.cacheDirectory( null )
 				.deleteCacheDirectoryOnExit( true )
 				.volatileAccesses( true )
-				.dirtyAccesses( true )
+				.dirtyAccesses( false )
 				.cellDimensions( this.blockSizes[ mask.level ] );
 
-		final CachedCellImg< UnsignedByteType, ? > store = new DiskCachedCellImgFactory<>( new UnsignedByteType(), maskOpts )
+		final CachedCellImg< UnsignedLongType, ? > store = new DiskCachedCellImgFactory<>( new UnsignedLongType(), maskOpts )
 				.create( source.getSource( 0, mask.level ) );
-		final RandomAccessibleInterval< VolatileUnsignedByteType > vstore = VolatileViews.wrapAsVolatile( store );
+		final RandomAccessibleInterval< VolatileUnsignedLongType > vstore = VolatileViews.wrapAsVolatile( store );
 		final UnsignedLongType INVALID = new UnsignedLongType( Label.INVALID );
-		this.dMasks[ mask.level ] = Converters.convert( Views.extendZero( store ), ( input, output ) -> output.set( input.get() == 1 ? mask.value : INVALID ), new UnsignedLongType() );
+		this.dMasks[ mask.level ] = Converters.convert( Views.extendZero( store ), ( input, output ) -> output.set( isPaintedForeground.test( input ) ? mask.value : INVALID ), new UnsignedLongType() );
 		this.tMasks[ mask.level ] = Converters.convert( Views.extendZero( vstore ), ( input, output ) -> {
 			final boolean isValid = input.isValid();
 			output.setValid( isValid );
 			if ( isValid )
 			{
-				output.get().set( input.get().get() == 1 ? mask.value : INVALID );
+				output.get().set( input.get().get() > 0 ? mask.value : INVALID );
 			}
 		}, new VolatileUnsignedLongType() );
 		final RealRandomAccessible< UnsignedLongType > dMaskInterpolated = Views.interpolate( this.dMasks[ mask.level ], new NearestNeighborInterpolatorFactory<>() );
@@ -276,12 +275,12 @@ public class MaskedSource< D extends Type< D >, T extends Type< T > > implements
 				this.tMasks[ level ] = RealViews.affine( tMaskInterpolated, scale3D.inverse() );
 			}
 		}
-		final AccessedBlocksRandomAccessible< UnsignedByteType > trackingStore = new AccessedBlocksRandomAccessible<>( store, store.getCellGrid() );
+		final AccessedBlocksRandomAccessible< UnsignedLongType > trackingStore = new AccessedBlocksRandomAccessible<>( store, store.getCellGrid() );
 		this.masks.put( trackingStore, mask );
 		return trackingStore;
 	}
 
-	public void applyMask( final RandomAccessibleInterval< UnsignedByteType > mask, final Interval paintedInterval )
+	public void applyMask( final RandomAccessibleInterval< UnsignedLongType > mask, final Interval paintedInterval, final Predicate< UnsignedLongType > acceptAsPainted )
 	{
 		new Thread( () -> {
 			synchronized ( this )
@@ -303,7 +302,7 @@ public class MaskedSource< D extends Type< D >, T extends Type< T > > implements
 
 				paintAffectedPixels(
 						affectedBlocks,
-						Converters.convert( Views.extendZero( mask ), ( s, t ) -> t.set( s.get() == 1 ), new BitType() ),
+						Converters.convert( Views.extendZero( mask ), ( s, t ) -> t.set( acceptAsPainted.test( s ) ), new BitType() ),
 						canvas,
 						maskInfo.value,
 						canvas.getCellGrid(),
@@ -325,7 +324,8 @@ public class MaskedSource< D extends Type< D >, T extends Type< T > > implements
 							affectedBlocks,
 							maskInfo.level,
 							maskInfo.value,
-							paintedInterval );
+							paintedInterval,
+							acceptAsPainted );
 					setMasksConstant();
 				} );
 
@@ -684,11 +684,12 @@ public class MaskedSource< D extends Type< D >, T extends Type< T > > implements
 	}
 
 	private void propagateMask(
-			final RandomAccessibleInterval< UnsignedByteType > mask,
+			final RandomAccessibleInterval< UnsignedLongType > mask,
 			final TLongSet paintedBlocksAtPaintedScale,
 			final int paintedLevel,
 			final UnsignedLongType label,
-			final Interval intervalAtPaintedScale )
+			final Interval intervalAtPaintedScale,
+			final Predicate< UnsignedLongType > isPaintedForeground )
 	{
 
 		for ( int level = paintedLevel + 1; level < getNumMipmapLevels(); ++level )
@@ -721,7 +722,7 @@ public class MaskedSource< D extends Type< D >, T extends Type< T > > implements
 					intervalAtHigherLevel );
 		}
 
-		final RealRandomAccessible< UnsignedByteType > interpolatedMask = Views.interpolate( Views.extendZero( mask ), new NearestNeighborInterpolatorFactory<>() );
+		final RealRandomAccessible< UnsignedLongType > interpolatedMask = Views.interpolate( Views.extendZero( mask ), new NearestNeighborInterpolatorFactory<>() );
 
 		for ( int level = paintedLevel - 1; level >= 0; --level )
 		{
@@ -745,7 +746,7 @@ public class MaskedSource< D extends Type< D >, T extends Type< T > > implements
 			final long[] minPainted = new long[ minTarget.length ];
 			final long[] maxPainted = new long[ minTarget.length ];
 			final Scale3D scaleTransform = new Scale3D( currentRelativeScaleFromTargetToPainted );
-			final RealRandomAccessible< UnsignedByteType > scaledMask = RealViews.transformReal( interpolatedMask, scaleTransform );
+			final RealRandomAccessible< UnsignedLongType > scaledMask = RealViews.transformReal( interpolatedMask, scaleTransform );
 			for ( final TLongIterator blockIterator = affectedBlocksAtLowerLevel.iterator(); blockIterator.hasNext(); )
 			{
 				final long blockId = blockIterator.next();
@@ -780,7 +781,7 @@ public class MaskedSource< D extends Type< D >, T extends Type< T > > implements
 							Intervals.maxAsLongArray( mask ) );
 
 					final IntervalView< BoolType > relevantBlockAtPaintedResolution = Views.interval(
-							Converters.convert( mask, ( s, t ) -> t.set( s.get() > 0 ), new BoolType() ),
+							Converters.convert( mask, ( s, t ) -> t.set( isPaintedForeground.test( s ) ), new BoolType() ),
 							minPainted,
 							maxPainted );
 
@@ -792,11 +793,11 @@ public class MaskedSource< D extends Type< D >, T extends Type< T > > implements
 					LOG.debug( "Upsampling for level {} and intersected intervals ({} {})", level, intersectionMin, intersectionMax );
 					final Interval interval = new FinalInterval( intersectionMin, intersectionMax );
 					final Cursor< UnsignedLongType > canvasCursor = Views.flatIterable( Views.interval( canvasAtTargetLevel, interval ) ).cursor();
-					final Cursor< UnsignedByteType > maskCursor = Views.flatIterable( Views.interval( Views.raster( scaledMask ), interval ) ).cursor();
+					final Cursor< UnsignedLongType > maskCursor = Views.flatIterable( Views.interval( Views.raster( scaledMask ), interval ) ).cursor();
 					while ( maskCursor.hasNext() )
 					{
 						canvasCursor.fwd();
-						final boolean wasPainted = maskCursor.next().get() == 1;
+						final boolean wasPainted = isPaintedForeground.test( maskCursor.next() );
 						if ( wasPainted )
 						{
 							canvasCursor.get().set( label );
