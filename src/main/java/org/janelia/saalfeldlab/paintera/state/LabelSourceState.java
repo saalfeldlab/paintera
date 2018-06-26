@@ -19,7 +19,6 @@ import org.janelia.saalfeldlab.paintera.control.selection.SelectedSegments;
 import org.janelia.saalfeldlab.paintera.data.DataSource;
 import org.janelia.saalfeldlab.paintera.data.mask.MaskedSource;
 import org.janelia.saalfeldlab.paintera.id.IdService;
-import org.janelia.saalfeldlab.paintera.id.ToIdConverter;
 import org.janelia.saalfeldlab.paintera.meshes.Interruptible;
 import org.janelia.saalfeldlab.paintera.meshes.InterruptibleFunction;
 import org.janelia.saalfeldlab.paintera.meshes.InterruptibleFunctionAndCache;
@@ -46,9 +45,10 @@ import net.imglib2.converter.Converter;
 import net.imglib2.img.cell.CellGrid;
 import net.imglib2.type.logic.BoolType;
 import net.imglib2.type.numeric.ARGBType;
+import net.imglib2.type.numeric.IntegerType;
 import net.imglib2.util.Pair;
 
-public class LabelSourceState< D, T >
+public class LabelSourceState< D extends IntegerType< D >, T >
 		extends
 		MinimalSourceState< D, T, DataSource< D, T >, HighlightingStreamConverter< T > >
 		implements
@@ -63,8 +63,6 @@ public class LabelSourceState< D, T >
 	private final Function< TLongHashSet, Converter< D, BoolType > > segmentMaskGenerator;
 
 	private final FragmentSegmentAssignmentState assignment;
-
-	private final ToIdConverter toIdConverter;
 
 	private final SelectedIds selectedIds;
 
@@ -99,7 +97,6 @@ public class LabelSourceState< D, T >
 		this.segmentMaskGenerator = SegmentMaskGenerators.forType( d );
 		this.assignment = assignment;
 		this.lockedSegments = lockedSegments;
-		this.toIdConverter = ToIdConverter.fromType( d );
 		this.selectedIds = selectedIds;
 		this.idService = idService;
 
@@ -147,11 +144,6 @@ public class LabelSourceState< D, T >
 		assignment.addListener( obs -> stain() );
 		selectedIds.addListener( obs -> stain() );
 		lockedSegments.addListener( obs -> stain() );
-	}
-
-	public ToIdConverter toIdConverter()
-	{
-		return this.toIdConverter;
 	}
 
 	public LongFunction< Converter< D, BoolType > > maskForLabel()

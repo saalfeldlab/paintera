@@ -16,7 +16,6 @@ import org.janelia.saalfeldlab.paintera.control.assignment.action.Merge;
 import org.janelia.saalfeldlab.paintera.control.lock.LockedSegmentsState;
 import org.janelia.saalfeldlab.paintera.control.selection.SelectedIds;
 import org.janelia.saalfeldlab.paintera.data.DataSource;
-import org.janelia.saalfeldlab.paintera.id.ToIdConverter;
 import org.janelia.saalfeldlab.paintera.state.LabelSourceState;
 import org.janelia.saalfeldlab.paintera.state.SourceInfo;
 import org.janelia.saalfeldlab.paintera.state.SourceState;
@@ -41,6 +40,7 @@ import net.imglib2.realtransform.InverseRealTransform;
 import net.imglib2.realtransform.RealTransformRealRandomAccessible;
 import net.imglib2.realtransform.RealViews;
 import net.imglib2.type.label.Label;
+import net.imglib2.type.numeric.IntegerType;
 import net.imglib2.view.IntervalView;
 import net.imglib2.view.Views;
 
@@ -118,24 +118,25 @@ public class IdSelector
 	private abstract class SelectMaximumCount
 	{
 
-		public void click( final MouseEvent e )
+		public < I extends IntegerType< I > > void click( final MouseEvent e )
 		{
 			final Optional< Source< ? > > optionalSource = getCurrentSource();
 			if ( !optionalSource.isPresent() ) { return; }
 			final Source< ? > source = optionalSource.get();
 			if ( source instanceof DataSource< ?, ? > )
 			{
-				final DataSource< ?, ? > dataSource = ( DataSource< ?, ? > ) source;
+				@SuppressWarnings( "unchecked" )
+				final DataSource< I, ? > dataSource = ( DataSource< I, ? > ) source;
 				final SourceState< ?, ? > currentSourceState = sourceInfo.getState( source );
 				if ( !( currentSourceState instanceof LabelSourceState< ?, ? > ) )
 				{
 					LOG.warn( "Not a label source -- cannot select  id." );
 					return;
 				}
-				final LabelSourceState< ?, ? > state = ( LabelSourceState< ?, ? > ) currentSourceState;
+				@SuppressWarnings( "unchecked" )
+				final LabelSourceState< I, ? > state = ( LabelSourceState< I, ? > ) currentSourceState;
 				final Optional< SelectedIds > selectedIds = Optional.ofNullable( state.selectedIds() );
-				final Optional< ToIdConverter > toIdConverter = Optional.ofNullable( state.toIdConverter() );
-				if ( selectedIds.isPresent() && toIdConverter.isPresent() )
+				if ( selectedIds.isPresent() )
 				{
 					synchronized ( viewer )
 					{
@@ -145,12 +146,12 @@ public class IdSelector
 						final AffineTransform3D screenScaleTransforms = new AffineTransform3D();
 						final int level = viewerState.getBestMipMapLevel( screenScaleTransforms, getIndexOf( dataSource, viewerState ) );
 						dataSource.getSourceTransform( 0, level, affine );
-						final RealTransformRealRandomAccessible< ?, InverseRealTransform >.RealTransformRealRandomAccess access = RealViews.transformReal( dataSource.getInterpolatedDataSource( 0, level, Interpolation.NEARESTNEIGHBOR ), affine ).realRandomAccess();
+						final RealTransformRealRandomAccessible< I, InverseRealTransform >.RealTransformRealRandomAccess access = RealViews.transformReal( dataSource.getInterpolatedDataSource( 0, level, Interpolation.NEARESTNEIGHBOR ), affine ).realRandomAccess();
 						viewer.getMouseCoordinates( access );
 						access.setPosition( 0l, 2 );
 						viewer.displayToGlobalCoordinates( access );
-						final Object val = access.get();
-						final long id = toIdConverter.get().biggestFragment( val );
+						final I val = access.get();
+						final long id = val.getIntegerLong();
 						actOn( id, selectedIds.get() );
 					}
 				}
@@ -203,25 +204,26 @@ public class IdSelector
 	private class MergeFragments
 	{
 
-		public void click( final MouseEvent e )
+		public < I extends IntegerType< I > > void click( final MouseEvent e )
 		{
 			final Optional< Source< ? > > optionalSource = getCurrentSource();
 			if ( !optionalSource.isPresent() ) { return; }
 			final Source< ? > source = optionalSource.get();
 			if ( source instanceof DataSource< ?, ? > )
 			{
-				final DataSource< ?, ? > dataSource = ( DataSource< ?, ? > ) source;
+				@SuppressWarnings( "unchecked" )
+				final DataSource< I, ? > dataSource = ( DataSource< I, ? > ) source;
 				final SourceState< ?, ? > currentSourceState = sourceInfo.getState( source );
 				if ( !( currentSourceState instanceof LabelSourceState< ?, ? > ) )
 				{
 					LOG.warn( "Not a label source -- cannot select  id." );
 					return;
 				}
-				final LabelSourceState< ?, ? > state = ( LabelSourceState< ?, ? > ) currentSourceState;
+				@SuppressWarnings( "unchecked" )
+				final LabelSourceState< I, ? > state = ( LabelSourceState< I, ? > ) currentSourceState;
 				final Optional< SelectedIds > selectedIds = Optional.ofNullable( state.selectedIds() );
-				final Optional< ToIdConverter > toIdConverter = Optional.ofNullable( state.toIdConverter() );
 				final Optional< FragmentSegmentAssignmentState > assignmentOptional = Optional.ofNullable( state.assignment() );
-				if ( toIdConverter.isPresent() && selectedIds.isPresent() && assignmentOptional.isPresent() )
+				if ( selectedIds.isPresent() && assignmentOptional.isPresent() )
 				{
 					synchronized ( viewer )
 					{
@@ -237,12 +239,12 @@ public class IdSelector
 						final int level = viewerState.getBestMipMapLevel( viewerTransform, getIndexOf( source, viewerState ) );
 						final AffineTransform3D affine = new AffineTransform3D();
 						dataSource.getSourceTransform( 0, level, affine );
-						final RealRandomAccess< ? > access = RealViews.transformReal( dataSource.getInterpolatedDataSource( 0, level, Interpolation.NEARESTNEIGHBOR ), affine ).realRandomAccess();
+						final RealRandomAccess< I > access = RealViews.transformReal( dataSource.getInterpolatedDataSource( 0, level, Interpolation.NEARESTNEIGHBOR ), affine ).realRandomAccess();
 						viewer.getMouseCoordinates( access );
 						access.setPosition( 0l, 2 );
 						viewer.displayToGlobalCoordinates( access );
-						final Object val = access.get();
-						final long id = toIdConverter.get().biggestFragment( val );
+						final I val = access.get();
+						final long id = val.getIntegerLong();
 
 						LOG.debug( "Merging fragments: {} -- last selection: {}", id, lastSelection );
 						final Optional< Merge > action = assignments.getMergeAction( id, lastSelection, state.idService()::next );
@@ -257,25 +259,26 @@ public class IdSelector
 	private class DetachFragment
 	{
 
-		public void click( final MouseEvent e )
+		public < I extends IntegerType< I > > void click( final MouseEvent e )
 		{
 			final Optional< Source< ? > > optionalSource = getCurrentSource();
 			if ( !optionalSource.isPresent() ) { return; }
 			final Source< ? > source = optionalSource.get();
 			if ( source instanceof DataSource< ?, ? > )
 			{
-				final DataSource< ?, ? > dataSource = ( DataSource< ?, ? > ) source;
+				@SuppressWarnings( "unchecked" )
+				final DataSource< I, ? > dataSource = ( DataSource< I, ? > ) source;
 				final SourceState< ?, ? > currentSourceState = sourceInfo.getState( source );
 				if ( !( currentSourceState instanceof LabelSourceState< ?, ? > ) )
 				{
 					LOG.warn( "Not a label source -- cannot select  id." );
 					return;
 				}
-				final LabelSourceState< ?, ? > state = ( LabelSourceState< ?, ? > ) currentSourceState;
+				@SuppressWarnings( "unchecked" )
+				final LabelSourceState< I, ? > state = ( LabelSourceState< I, ? > ) currentSourceState;
 				final Optional< SelectedIds > selectedIds = Optional.ofNullable( state.selectedIds() );
-				final Optional< ToIdConverter > toIdConverter = Optional.ofNullable( state.toIdConverter() );
 				final Optional< FragmentSegmentAssignmentState > assignmentOptional = Optional.ofNullable( state.assignment() );
-				if ( toIdConverter.isPresent() && selectedIds.isPresent() && assignmentOptional.isPresent() )
+				if ( selectedIds.isPresent() && assignmentOptional.isPresent() )
 				{
 					synchronized ( viewer )
 					{
@@ -292,13 +295,13 @@ public class IdSelector
 						final int level = viewerState.getBestMipMapLevel( viewerTransform, getIndexOf( source, viewerState ) );
 						final AffineTransform3D affine = new AffineTransform3D();
 						dataSource.getSourceTransform( 0, level, affine );
-						final RealTransformRealRandomAccessible< ?, InverseRealTransform > transformedSource = RealViews.transformReal( dataSource.getInterpolatedDataSource( 0, level, Interpolation.NEARESTNEIGHBOR ), affine );
-						final RealRandomAccess< ? > access = transformedSource.realRandomAccess();
+						final RealTransformRealRandomAccessible< I, InverseRealTransform > transformedSource = RealViews.transformReal( dataSource.getInterpolatedDataSource( 0, level, Interpolation.NEARESTNEIGHBOR ), affine );
+						final RealRandomAccess< I > access = transformedSource.realRandomAccess();
 						viewer.getMouseCoordinates( access );
 						access.setPosition( 0l, 2 );
 						viewer.displayToGlobalCoordinates( access );
-						final Object val = access.get();
-						final long id = toIdConverter.get().biggestFragment( val );
+						final I val = access.get();
+						final long id = val.getIntegerLong();
 
 						final Optional< Detach > detach = assignment.getDetachAction( id, lastSelection );
 						detach.ifPresent( assignment::apply );
@@ -312,7 +315,7 @@ public class IdSelector
 
 	private class ConfirmSelection
 	{
-		public void click( final MouseEvent e )
+		public < I extends IntegerType< I > > void click( final MouseEvent e )
 		{
 			LOG.debug( "Clicked confirm selection!" );
 			final Optional< Source< ? > > optionalSource = getCurrentSource();
@@ -322,20 +325,21 @@ public class IdSelector
 				return;
 			}
 			final Source< ? > source = optionalSource.get();
-			if ( source instanceof DataSource< ?, ? > )
+			if ( source instanceof DataSource< ?, ? > && sourceInfo.getState( source ) instanceof LabelSourceState< ?, ? > )
 			{
-				final DataSource< ?, ? > dataSource = ( DataSource< ?, ? > ) source;
+				@SuppressWarnings( "unchecked" )
+				final DataSource< I, ? > dataSource = ( DataSource< I, ? > ) source;
 				final SourceState< ?, ? > currentSourceState = sourceInfo.getState( source );
 				if ( !( currentSourceState instanceof LabelSourceState< ?, ? > ) )
 				{
 					LOG.warn( "Not a label source -- cannot select  id." );
 					return;
 				}
-				final LabelSourceState< ?, ? > state = ( LabelSourceState< ?, ? > ) currentSourceState;
+				@SuppressWarnings( "unchecked" )
+				final LabelSourceState< I, ? > state = ( LabelSourceState< I, ? > ) currentSourceState;
 				final Optional< SelectedIds > selectedIds = Optional.ofNullable( state.selectedIds() );
-				final Optional< ToIdConverter > toIdConverter = Optional.ofNullable( state.toIdConverter() );
 				final Optional< FragmentSegmentAssignmentState > assignmentOptional = Optional.ofNullable( state.assignment() );
-				if ( toIdConverter.isPresent() && selectedIds.isPresent() && assignmentOptional.isPresent() )
+				if ( selectedIds.isPresent() && assignmentOptional.isPresent() )
 				{
 					synchronized ( viewer )
 					{
@@ -362,13 +366,13 @@ public class IdSelector
 						final int level = viewerState.getBestMipMapLevel( viewerTransform, getIndexOf( source, viewerState ) );
 						final AffineTransform3D affine = new AffineTransform3D();
 						dataSource.getSourceTransform( 0, level, affine );
-						final RealTransformRealRandomAccessible< ?, InverseRealTransform > transformedSource = RealViews.transformReal( dataSource.getInterpolatedDataSource( 0, level, Interpolation.NEARESTNEIGHBOR ), affine );
-						final RealRandomAccess< ? > access = transformedSource.realRandomAccess();
+						final RealTransformRealRandomAccessible< I, InverseRealTransform > transformedSource = RealViews.transformReal( dataSource.getInterpolatedDataSource( 0, level, Interpolation.NEARESTNEIGHBOR ), affine );
+						final RealRandomAccess< I > access = transformedSource.realRandomAccess();
 						viewer.getMouseCoordinates( access );
 						access.setPosition( 0l, 2 );
 						viewer.displayToGlobalCoordinates( access );
-						final Object val = access.get();
-						final long selectedFragment = toIdConverter.get().biggestFragment( val );
+						final I val = access.get();
+						final long selectedFragment = val.getIntegerLong();
 						final long selectedSegment = assignment.getSegment( selectedFragment );
 						final TLongHashSet selectedSegmentsSet = new TLongHashSet( new long[] { selectedSegment } );
 						final TLongHashSet visibleFragmentsSet = new TLongHashSet();
@@ -376,7 +380,7 @@ public class IdSelector
 						if ( activeSegments.length == 0 || activeSegments[ 0 ] == selectedSegment )
 						{
 							LOG.debug( "confirm merge and separate of single segment" );
-							visitEveryDisplayPixel( dataSource, viewer, obj -> visibleFragmentsSet.addAll( toIdConverter.get().allIds( obj ) ) );
+							visitEveryDisplayPixel( dataSource, viewer, obj -> visibleFragmentsSet.add( obj.getIntegerLong() ) );
 							final long[] visibleFragments = visibleFragmentsSet.toArray();
 							final long[] fragmentsInActiveSegment = Arrays.stream( visibleFragments ).filter( frag -> selectedSegmentsSet.contains( assignment.getSegment( frag ) ) ).toArray();
 							final long[] fragmentsNotInActiveSegment = Arrays.stream( visibleFragments ).filter( frag -> !selectedSegmentsSet.contains( assignment.getSegment( frag ) ) ).toArray();
@@ -391,14 +395,11 @@ public class IdSelector
 							final TLongObjectHashMap< TLongHashSet > fragmentsBySegment = new TLongObjectHashMap<>();
 							Arrays.stream( relevantSegments ).forEach( seg -> fragmentsBySegment.put( seg, new TLongHashSet() ) );
 							visitEveryDisplayPixel( dataSource, viewer, obj -> {
-								final long[] fragments = toIdConverter.get().allIds( obj );
-								for ( final long frag : fragments )
+								final long frag = obj.getIntegerLong();
+								final TLongHashSet frags = fragmentsBySegment.get( assignment.getSegment( frag ) );
+								if ( frags != null )
 								{
-									final TLongHashSet frags = fragmentsBySegment.get( assignment.getSegment( frag ) );
-									if ( frags != null )
-									{
-										frags.add( frag );
-									}
+									frags.add( frag );
 								}
 							} );
 							final Optional< AssignmentAction > action = assignment.getConfirmTwoSegmentsAction( fragmentsBySegment.get( relevantSegments[ 0 ] ).toArray(), fragmentsBySegment.get( relevantSegments[ 1 ] ).toArray() );
@@ -426,10 +427,10 @@ public class IdSelector
 				.indexOf( source );
 	}
 
-	private static void visitEveryDisplayPixel(
-			final DataSource< ?, ? > dataSource,
+	private static < I > void visitEveryDisplayPixel(
+			final DataSource< I, ? > dataSource,
 			final ViewerPanelFX viewer,
-			final Consumer< Object > doAtPixel )
+			final Consumer< I > doAtPixel )
 	{
 		final AffineTransform3D viewerTransform = new AffineTransform3D();
 		final AffineTransform3D sourceTransform = new AffineTransform3D();
@@ -438,12 +439,12 @@ public class IdSelector
 		final int level = state.getBestMipMapLevel( viewerTransform, getIndexOf( dataSource, state ) );
 		dataSource.getSourceTransform( 0, level, sourceTransform );
 
-		final RealRandomAccessible< ? > interpolatedSource = dataSource.getInterpolatedDataSource( 0, level, Interpolation.NEARESTNEIGHBOR );
-		final RealTransformRealRandomAccessible< ?, InverseRealTransform > transformedSource = RealViews.transformReal( interpolatedSource, sourceTransform );
+		final RealRandomAccessible< I > interpolatedSource = dataSource.getInterpolatedDataSource( 0, level, Interpolation.NEARESTNEIGHBOR );
+		final RealTransformRealRandomAccessible< I, InverseRealTransform > transformedSource = RealViews.transformReal( interpolatedSource, sourceTransform );
 
 		final int w = ( int ) viewer.getWidth();
 		final int h = ( int ) viewer.getHeight();
-		final IntervalView< ? > screenLabels =
+		final IntervalView< I > screenLabels =
 				Views.interval(
 						Views.hyperSlice(
 								RealViews.affine( transformedSource, viewerTransform ), 2, 0 ),
@@ -452,11 +453,11 @@ public class IdSelector
 		visitEveryPixel( screenLabels, doAtPixel );
 	}
 
-	private static void visitEveryPixel(
-			final RandomAccessibleInterval< ? > img,
-			final Consumer< Object > doAtPixel )
+	private static < I > void visitEveryPixel(
+			final RandomAccessibleInterval< I > img,
+			final Consumer< I > doAtPixel )
 	{
-		final Cursor< ? > cursor = Views.flatIterable( img ).cursor();
+		final Cursor< I > cursor = Views.flatIterable( img ).cursor();
 
 		while ( cursor.hasNext() )
 		{

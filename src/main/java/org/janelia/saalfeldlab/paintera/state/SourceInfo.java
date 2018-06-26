@@ -10,7 +10,6 @@ import java.util.stream.Collectors;
 import org.janelia.saalfeldlab.paintera.composition.Composite;
 import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignmentState;
 import org.janelia.saalfeldlab.paintera.data.DataSource;
-import org.janelia.saalfeldlab.paintera.id.ToIdConverter;
 import org.janelia.saalfeldlab.util.MakeUnchecked;
 import org.janelia.saalfeldlab.util.MakeUnchecked.CheckedConsumer;
 import org.slf4j.Logger;
@@ -229,19 +228,11 @@ public class SourceInfo
 		this.removedSources.add( source );
 	}
 
-	public synchronized Optional< ToIdConverter > toIdConverter( final Source< ? > source )
-	{
-		final SourceState< ?, ? > state = states.get( source );
-		return state instanceof LabelSourceState< ?, ? >
-		? Optional.of( ( ( LabelSourceState< ?, ? > ) state ).toIdConverter() )
-				: Optional.empty();
-	}
-
 	public synchronized Optional< FragmentSegmentAssignmentState > assignment( final Source< ? > source )
 	{
 		final SourceState< ?, ? > state = states.get( source );
 		return state instanceof LabelSourceState< ?, ? >
-		? Optional.of( ( ( LabelSourceState< ?, ? > ) state ).assignment() )
+				? Optional.of( ( ( LabelSourceState< ?, ? > ) state ).assignment() )
 				: Optional.empty();
 	}
 
