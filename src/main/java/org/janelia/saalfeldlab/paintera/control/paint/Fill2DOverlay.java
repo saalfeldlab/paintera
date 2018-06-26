@@ -36,6 +36,12 @@ public class Fill2DOverlay implements OverlayRendererGeneric< GraphicsContext >
 		this.viewer.getDisplay().addOverlayRenderer( this );
 		this.viewer.addEventFilter( MouseEvent.MOUSE_MOVED, this::setPosition );
 		this.viewer.addEventFilter( MouseEvent.MOUSE_DRAGGED, this::setPosition );
+		this.brushDepth.addListener( ( obs, oldv, newv ) -> {
+			if ( visible )
+			{
+				this.viewer.getDisplay().drawOverlays();
+			}
+		} );
 
 	}
 
