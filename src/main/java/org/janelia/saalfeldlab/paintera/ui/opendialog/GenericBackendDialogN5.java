@@ -445,53 +445,33 @@ public class GenericBackendDialogN5 implements BackendDialog
 			final ExecutorService workers,
 			final String projectDirectory ) throws Exception
 	{
-		System.out.println( 1 );
 		final N5Writer reader = n5.get();
-		System.out.println( 2 );
 		final String dataset = this.dataset.get();
-		System.out.println( 3 );
 		final double[] resolution = asPrimitiveArray( resolution() );
-		System.out.println( 4 );
 		final double[] offset = asPrimitiveArray( offset() );
-		System.out.println( 5 );
 		final AffineTransform3D transform = N5Helpers.fromResolutionAndOffset( resolution, offset );
-		System.out.println( 6 );
 		final DataSource< D, T > source;
-		System.out.println( 7 );
 		if ( N5Helpers.isLabelMultisetType( reader, dataset ) )
 		{
-			System.out.println( 8 );
 			source = ( DataSource ) N5Helpers.openLabelMultisetAsSource( reader, dataset, transform, sharedQueue, priority, name );
-			System.out.println( 9 );
 		}
 		else
 		{
-			System.out.println( 10 );
 			source = ( DataSource< D, T > ) N5Helpers.openScalarAsSource( reader, dataset, transform, sharedQueue, priority, name );
-			System.out.println( 11 );
 		}
-		System.out.println( 12 );
 
 		final Supplier< String > canvasCacheDirUpdate = Masks.canvasTmpDirDirectorySupplier( projectDirectory );
-		System.out.println( 13 );
 
 		final DataSource< D, T > masked = Masks.mask( source, canvasCacheDirUpdate.get(), canvasCacheDirUpdate, commitCanvas(), workers );
-		System.out.println( 14 );
 		final IdService idService = idService();
-		System.out.println( 15 );
 		final FragmentSegmentAssignmentState assignment = assignments();
-		System.out.println( 16 );
 		final SelectedIds selectedIds = new SelectedIds();
-		System.out.println( 17 );
 		final LockedSegmentsOnlyLocal lockedSegments = new LockedSegmentsOnlyLocal( locked -> {} );
-		System.out.println( 18 );
 		final ModalGoldenAngleSaturatedHighlightingARGBStream stream = new ModalGoldenAngleSaturatedHighlightingARGBStream(
 				selectedIds,
 				assignment,
 				lockedSegments );
-		System.out.println( 19 );
 		final HighlightingStreamConverter< T > converter = HighlightingStreamConverter.forType( stream, masked.getType() );
-		System.out.println( 20 );
 
 		return new LabelSourceState<>(
 				masked,
