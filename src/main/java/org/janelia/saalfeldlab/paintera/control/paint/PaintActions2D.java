@@ -143,17 +143,17 @@ public class PaintActions2D
 
 	private static final ForegroundCheck FOREGROUND_CHECK = new ForegroundCheck();
 
-	protected final ViewerPanelFX viewer;
+	private final ViewerPanelFX viewer;
 
-	protected final SourceInfo sourceInfo;
+	private final SourceInfo sourceInfo;
 
-	protected final BrushOverlay brushOverlay;
+	private final BrushOverlay brushOverlay;
 
-	protected final SimpleDoubleProperty brushRadius = new SimpleDoubleProperty( 5.0 );
+	private final SimpleDoubleProperty brushRadius = new SimpleDoubleProperty( 5.0 );
 
-	protected final SimpleDoubleProperty brushRadiusIncrement = new SimpleDoubleProperty( 1.0 );
+	private final SimpleDoubleProperty brushRadiusIncrement = new SimpleDoubleProperty( 1.0 );
 
-	protected final SimpleDoubleProperty brushDepth = new SimpleDoubleProperty( 1.0 );
+	private final SimpleDoubleProperty brushDepth = new SimpleDoubleProperty( 1.0 );
 
 	private final Runnable repaintRequest;
 
