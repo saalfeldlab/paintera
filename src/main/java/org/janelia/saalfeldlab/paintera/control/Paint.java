@@ -57,6 +57,8 @@ public class Paint implements ToOnEnterOnExit
 
 	private final SimpleDoubleProperty brushRadiusIncrement = new SimpleDoubleProperty( 1.0 );
 
+	private final SimpleDoubleProperty brushDepth = new SimpleDoubleProperty( 1.0 );
+
 	private final Runnable requestRepaint;
 
 	private final BooleanProperty paint3D = new SimpleBooleanProperty( false );
@@ -89,10 +91,9 @@ public class Paint implements ToOnEnterOnExit
 				if ( !this.mouseAndKeyHandlers.containsKey( t ) )
 				{
 					final PaintActions2D paint2D = new PaintActions2D( t, sourceInfo, manager, requestRepaint, paintQueue );
-					paint2D.brushRadiusProperty().set( this.brushRadius.get() );
 					paint2D.brushRadiusProperty().bindBidirectional( this.brushRadius );
-					paint2D.brushRadiusIncrementProperty().set( this.brushRadiusIncrement.get() );
 					paint2D.brushRadiusIncrementProperty().bindBidirectional( this.brushRadiusIncrement );
+					paint2D.brushDepthProperty().bindBidirectional( this.brushDepth );
 					final ObjectProperty< Source< ? > > currentSource = sourceInfo.currentSourceProperty();
 					final ObjectBinding< SelectedIds > currentSelectedIds = Bindings.createObjectBinding(
 							() -> selectedIdsFromState( sourceInfo.getState( currentSource.get() ) ),
@@ -125,6 +126,7 @@ public class Paint implements ToOnEnterOnExit
 					iars.add( EventFX.KEY_PRESSED( "show brush overlay", event -> paint2D.showBrushOverlay(), event -> keyTracker.areKeysDown( KeyCode.SPACE ) ) );
 					iars.add( EventFX.KEY_RELEASED( "show brush overlay", event -> paint2D.hideBrushOverlay(), event -> event.getCode().equals( KeyCode.SPACE ) && !keyTracker.areKeysDown( KeyCode.SPACE ) ) );
 					iars.add( EventFX.SCROLL( "change brush size", event -> paint2D.changeBrushRadius( event.getDeltaY() ), event -> keyTracker.areOnlyTheseKeysDown( KeyCode.SPACE ) ) );
+					iars.add( EventFX.SCROLL( "change brush depth", event -> paint2D.changeBrushDepth( event.getDeltaY() ), event -> keyTracker.areOnlyTheseKeysDown( KeyCode.SPACE, KeyCode.SHIFT ) ) );
 
 					// click paint
 					iars.add( paint2D.clickPaintLabel( "paint 2D", paintSelection::get, event -> event.isPrimaryButtonDown() && keyTracker.areOnlyTheseKeysDown( KeyCode.SPACE ) && this.paint2D.get() ) );

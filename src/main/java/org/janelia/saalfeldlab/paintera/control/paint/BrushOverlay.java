@@ -16,6 +16,7 @@ import javafx.scene.Cursor;
 import javafx.scene.canvas.GraphicsContext;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.paint.Color;
+import javafx.scene.text.Font;
 import net.imglib2.realtransform.AffineTransform3D;
 
 public class BrushOverlay implements OverlayRendererGeneric< GraphicsContext >
@@ -32,6 +33,8 @@ public class BrushOverlay implements OverlayRendererGeneric< GraphicsContext >
 	private final SimpleDoubleProperty physicalRadius = new SimpleDoubleProperty();
 
 	private final SimpleDoubleProperty viewerRadius = new SimpleDoubleProperty();
+
+	private final SimpleDoubleProperty brushDepth = new SimpleDoubleProperty();
 
 	protected boolean visible = false;
 
@@ -62,7 +65,9 @@ public class BrushOverlay implements OverlayRendererGeneric< GraphicsContext >
 		if ( visible != this.visible )
 		{
 			if ( this.visible )
+			{
 				this.wasVisible = true;
+			}
 			this.visible = visible;
 			this.viewer.getDisplay().drawOverlays();
 		}
@@ -94,9 +99,26 @@ public class BrushOverlay implements OverlayRendererGeneric< GraphicsContext >
 					y + scaledRadius > 0 &&
 					y - scaledRadius < height )
 			{
+				final double depth = brushDepth.get();
+				final double depthScaleFactor = 5;
+				if ( depth > 1 )
+				{
+//					g.setStroke( Color.BLACK.deriveColor( 0.0, 1.0, 1.0, 0.5 ) );
+					g.setStroke( Color.WHEAT.deriveColor( 0.0, 1.0, 1.0, 0.5 ) );
+					g.setFill( Color.WHITE.deriveColor( 0.0, 1.0, 1.0, 0.5 ) );
+					g.setFont( Font.font( g.getFont().getFamily(), 15.0 ) );
+					g.setLineWidth( this.strokeWidth );
+					g.strokeOval( x - scaledRadius, y - scaledRadius + depth * depthScaleFactor, 2 * scaledRadius + 1, 2 * scaledRadius + 1 );
+//					g.fillRect( x - scaledRadius, y, 2 * scaledRadius + 1, depth * depthScaleFactor );
+					g.strokeLine( x - scaledRadius, y + depth * depthScaleFactor, x - scaledRadius, y );
+					g.strokeLine( x + scaledRadius + 1, y + depth * depthScaleFactor, x + scaledRadius + 1, y );
+					g.fillText( "depth=" + depth, x + scaledRadius + 1, y + depth * depthScaleFactor + scaledRadius + 1 );
+				}
+
 				g.setStroke( Color.WHITE );
 				g.setLineWidth( this.strokeWidth );
 				g.strokeOval( x - scaledRadius, y - scaledRadius, 2 * scaledRadius + 1, 2 * scaledRadius + 1 );
+
 //				this.viewer.getScene().setCursor( Cursor.NONE );
 				return;
 			}
@@ -123,6 +145,11 @@ public class BrushOverlay implements OverlayRendererGeneric< GraphicsContext >
 	public ObservableDoubleValue viewerRadiusProperty()
 	{
 		return this.viewerRadius;
+	}
+
+	public DoubleProperty brushDepthProperty()
+	{
+		return this.brushDepth;
 	}
 
 	private void updateViewerRadius( final AffineTransform3D transform )
