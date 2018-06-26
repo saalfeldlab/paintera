@@ -159,7 +159,7 @@ public class FloodFill2D
 		scene.setCursor( Cursor.WAIT );
 		try
 		{
-			final RandomAccessibleInterval mask = source.generateMask( maskInfo, px -> px.getIntegerLong() > 0 );
+			final RandomAccessibleInterval mask = source.generateMask( maskInfo, FOREGROUND_CHECK );
 			final long seedLabel = state.toIdConverter().biggestFragment( access.get() );
 			LOG.warn( "Got seed label {}", seedLabel );
 			final RandomAccessibleInterval relevantBackground = Converters.convert( background, state.maskForLabel().apply( seedLabel ), new BoolType() );
@@ -177,7 +177,7 @@ public class FloodFill2D
 					1l );
 
 			requestRepaint.run();
-			source.applyMask( mask, new FinalInterval( accessTracker.getMin(), accessTracker.getMax() ), px -> px.getIntegerLong() > 0 );
+			source.applyMask( mask, new FinalInterval( accessTracker.getMin(), accessTracker.getMax() ), FOREGROUND_CHECK );
 
 		}
 		catch ( final MaskInUse e )
