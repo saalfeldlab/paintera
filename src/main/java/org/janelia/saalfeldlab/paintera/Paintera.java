@@ -59,6 +59,7 @@ import net.imglib2.Volatile;
 import net.imglib2.converter.ARGBColorConverter;
 import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.type.NativeType;
+import net.imglib2.type.numeric.IntegerType;
 import net.imglib2.type.numeric.RealType;
 import picocli.CommandLine;
 
@@ -374,7 +375,7 @@ public class Paintera extends Application
 		return Optional.empty();
 	}
 
-	private static < D extends NativeType< D >, T extends Volatile< D > & NativeType< T > > void addLabelFromString(
+	private static < D extends NativeType< D > & IntegerType< D >, T extends Volatile< D > & NativeType< T > > void addLabelFromString(
 			final PainteraBaseView pbv,
 			final String identifier,
 			final String projectDirectory ) throws UnableToAddSource

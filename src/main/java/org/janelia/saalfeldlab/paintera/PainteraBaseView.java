@@ -173,7 +173,7 @@ public class PainteraBaseView
 		colorConv.alphaProperty().addListener( ( obs, oldv, newv ) -> orthogonalViews().requestRepaint() );
 	}
 
-	public < D extends Type< D >, T extends Type< T > > void addLabelSource(
+	public < D extends IntegerType< D >, T extends Type< T > > void addLabelSource(
 			final LabelSourceState< D, T > state )
 	{
 		LOG.debug( "Adding label state={}", state );

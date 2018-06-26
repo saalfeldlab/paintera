@@ -436,7 +436,7 @@ public class GenericBackendDialogN5 implements BackendDialog
 	}
 
 	@Override
-	public < D extends NativeType< D >, T extends Volatile< D > & NativeType< T > > LabelSourceState< D, T > getLabels(
+	public < D extends NativeType< D > & IntegerType< D >, T extends Volatile< D > & NativeType< T > > LabelSourceState< D, T > getLabels(
 			final String name,
 			final SharedQueue sharedQueue,
 			final int priority,
