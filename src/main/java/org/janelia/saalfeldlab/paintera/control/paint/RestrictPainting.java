@@ -33,6 +33,7 @@ import net.imglib2.algorithm.neighborhood.Shape;
 import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.type.Type;
 import net.imglib2.type.label.Label;
+import net.imglib2.type.label.LabelMultisetType;
 import net.imglib2.type.numeric.RealType;
 import net.imglib2.type.numeric.integer.UnsignedLongType;
 import net.imglib2.util.AccessBoxRandomAccessible;
@@ -119,9 +120,9 @@ public class RestrictPainting
 
 		final Type< ? > t = source.getDataType();
 
-		if ( !( t instanceof RealType< ? > ) )
+		if ( !( t instanceof RealType< ? > ) && !( t instanceof LabelMultisetType ) )
 		{
-			LOG.warn( "Data type is not integer type -- will not fill" );
+			LOG.warn( "Data type is not integer type or LabelMultisetType -- will not fill" );
 			return;
 		}
 
@@ -139,7 +140,14 @@ public class RestrictPainting
 
 		try
 		{
-			restrictTo( ( MaskedSource ) source, time, level, p, requestRepaint );
+			if ( source.getDataType() instanceof LabelMultisetType )
+			{
+				restrictToLabelMultisetType( ( MaskedSource ) source, time, level, p, requestRepaint );
+			}
+			else
+			{
+				restrictTo( ( MaskedSource ) source, time, level, p, requestRepaint );
+			}
 		}
 		catch ( final MaskInUse e )
 		{
@@ -197,7 +205,37 @@ public class RestrictPainting
 		final RandomAccessible< Pair< T, UnsignedLongType > > paired = Views.pair( Views.extendBorder( background ), Views.extendValue( canvas, new UnsignedLongType( Label.INVALID ) ) );
 
 		restrictTo( paired, accessTracker, seed, new DiamondShape( 1 ), bg -> bg.valueEquals( backgroundSeed ), cv -> cv.valueEquals( paintedLabel ) );
-		restrictTo( paired, accessTracker, seed, new DiamondShape( 1 ), bg -> bg.equals( backgroundSeed ), cv -> cv.equals( paintedLabel ) );
+
+		requestRepaint.run();
+
+		source.applyMask( mask, accessTracker.createAccessInterval(), FOREGROUND_CHECK );
+
+	}
+
+	private static void restrictToLabelMultisetType(
+			final MaskedSource< LabelMultisetType, ? > source,
+			final int time,
+			final int level,
+			final Localizable seed,
+			final Runnable requestRepaint ) throws MaskInUse
+	{
+		final RandomAccessibleInterval< UnsignedLongType > canvas = source.getReadOnlyDataCanvas( time, level );
+		final RandomAccessibleInterval< LabelMultisetType > background = source.getReadOnlyDataBackground( time, level );
+		final MaskInfo< UnsignedLongType > maskInfo = new MaskInfo<>( time, level, new UnsignedLongType( Label.TRANSPARENT ) );
+		final RandomAccessibleInterval< UnsignedLongType > mask = source.generateMask( maskInfo, FOREGROUND_CHECK );
+		final AccessBoxRandomAccessible< UnsignedLongType > accessTracker = new AccessBoxRandomAccessible<>( Views.extendValue( mask, new UnsignedLongType( 1 ) ) );
+
+		final RandomAccess< UnsignedLongType > canvasAccess = canvas.randomAccess();
+		canvasAccess.setPosition( seed );
+		final UnsignedLongType paintedLabel = canvasAccess.get();
+		final RandomAccess< LabelMultisetType > backgroundAccess = background.randomAccess();
+		backgroundAccess.setPosition( seed );
+		final LabelMultisetType backgroundSeed = backgroundAccess.get();
+		final long backgroundSeedLabel = backgroundSeed.entrySet().stream().max( ( e1, e2 ) -> Long.compare( e1.getCount(), e2.getCount() ) ).map( e -> e.getElement().id() ).orElse( Label.INVALID );
+
+		final RandomAccessible< Pair< LabelMultisetType, UnsignedLongType > > paired = Views.pair( Views.extendValue( background, new LabelMultisetType() ), Views.extendValue( canvas, new UnsignedLongType( Label.INVALID ) ) );
+
+		restrictTo( paired, accessTracker, seed, new DiamondShape( 1 ), bg -> bg.contains( backgroundSeedLabel ), cv -> cv.valueEquals( paintedLabel ) );
 
 		requestRepaint.run();
 
