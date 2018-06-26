@@ -196,6 +196,7 @@ public class RestrictPainting
 
 		final RandomAccessible< Pair< T, UnsignedLongType > > paired = Views.pair( Views.extendBorder( background ), Views.extendValue( canvas, new UnsignedLongType( Label.INVALID ) ) );
 
+		restrictTo( paired, accessTracker, seed, new DiamondShape( 1 ), bg -> bg.valueEquals( backgroundSeed ), cv -> cv.valueEquals( paintedLabel ) );
 		restrictTo( paired, accessTracker, seed, new DiamondShape( 1 ), bg -> bg.equals( backgroundSeed ), cv -> cv.equals( paintedLabel ) );
 
 		requestRepaint.run();
