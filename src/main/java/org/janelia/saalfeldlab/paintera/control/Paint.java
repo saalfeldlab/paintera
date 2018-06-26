@@ -130,9 +130,6 @@ public class Paint implements ToOnEnterOnExit
 					iars.add( paint2D.clickPaintLabel( "paint 2D", paintSelection::get, event -> event.isPrimaryButtonDown() && keyTracker.areOnlyTheseKeysDown( KeyCode.SPACE ) && this.paint2D.get() ) );
 					iars.add( paint2D.clickPaintLabel( "erase canvas click 2D", () -> Label.TRANSPARENT, event -> event.isSecondaryButtonDown() && keyTracker.areOnlyTheseKeysDown( KeyCode.SPACE ) && this.paint2D.get() ) );
 					iars.add( paint2D.clickPaintLabel( "to background 2D", () -> Label.BACKGROUND, event -> event.isSecondaryButtonDown() && keyTracker.areOnlyTheseKeysDown( KeyCode.SPACE, KeyCode.SHIFT ) && this.paint2D.get() ) );
-//					iars.add( EventFX.MOUSE_PRESSED( "paint click 2D", e -> paint2D.prepareAndPaintUnchecked( e, paintSelection.get() ), e -> e.isPrimaryButtonDown() && keyTracker.areOnlyTheseKeysDown( KeyCode.SPACE ) && this.paint2D.get() ) );
-//					iars.add( EventFX.MOUSE_PRESSED( "erase canvas click 2D", e -> paint2D.prepareAndPaintUnchecked( e, Label.TRANSPARENT ), e -> e.isSecondaryButtonDown() && keyTracker.areOnlyTheseKeysDown( KeyCode.SPACE ) && this.paint2D.get() ) );
-//					iars.add( EventFX.MOUSE_PRESSED( "to background click 2D", e -> paint2D.prepareAndPaintUnchecked( e, Label.BACKGROUND ), e -> e.isSecondaryButtonDown() && keyTracker.areOnlyTheseKeysDown( KeyCode.SPACE, KeyCode.SHIFT ) && this.paint2D.get() ) );
 
 					// drag paint
 					iars.add( paint2D.dragPaintLabel( "paint 2D", paintSelection::get, event -> event.isPrimaryButtonDown() && keyTracker.areOnlyTheseKeysDown( KeyCode.SPACE ) && this.paint2D.get() ) );
