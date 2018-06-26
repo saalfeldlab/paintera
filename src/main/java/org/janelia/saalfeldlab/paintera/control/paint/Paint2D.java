@@ -43,7 +43,7 @@ public class Paint2D
 		// get maximum extent of pixels along z
 		final double[] projections = PaintUtils.maximumVoxelDiagonalLengthPerDimension( labelToGlobalTransformWithoutTranslation, globalToViewerTransform );
 
-		final double factor = 0.5 * brushDepth;
+		final double factor = 0.5 + brushDepth - 1;
 		final double xRange = factor * projections[ 0 ];
 		final double yRange = factor * projections[ 1 ];
 		final double zRange = factor * projections[ 2 ];
