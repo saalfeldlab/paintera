@@ -37,19 +37,10 @@ public class Masks
 			final BiConsumer< CachedCellImg< UnsignedLongType, ? >, long[] > mergeCanvasIntoBackground,
 			final ExecutorService propagationExecutor )
 	{
-		LOG.warn( "Masking source {}", source );
-		try
-		{
-			final D d = source.getDataType();
-		}
-		catch ( final Exception e )
-		{
-			e.printStackTrace();
-		}
+		LOG.debug( "Masking source {}", source );
 		final D d = source.getDataType();
 		final T t = source.getType();
-		System.out.println( "M " + 3 );
-		LOG.warn( "d={} t={}", d, t );
+		LOG.debug( "d={} t={}", d, t );
 
 		if ( d instanceof LabelMultisetType && t instanceof VolatileLabelMultisetType )
 		{
