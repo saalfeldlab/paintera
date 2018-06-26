@@ -17,6 +17,8 @@ import org.slf4j.LoggerFactory;
 import bdv.fx.viewer.ViewerPanelFX;
 import bdv.fx.viewer.ViewerState;
 import bdv.viewer.Source;
+import javafx.beans.property.DoubleProperty;
+import javafx.beans.property.SimpleDoubleProperty;
 import javafx.scene.Cursor;
 import javafx.scene.Scene;
 import net.imglib2.FinalInterval;
@@ -49,6 +51,8 @@ public class FloodFill2D
 	private final Runnable requestRepaint;
 
 	private final AffineTransform3D viewerTransform = new AffineTransform3D();
+
+	private final SimpleDoubleProperty fillDepth = new SimpleDoubleProperty( 1.0 );
 
 	private static final class ForegroundCheck implements Predicate< UnsignedLongType >
 	{
@@ -172,7 +176,7 @@ public class FloodFill2D
 
 			FloodFillTransformedPlane.fill(
 					labelToViewerTransform,
-					0.5 * PaintUtils.maximumVoxelDiagonalLengthPerDimension( labelTransform, viewerTransform )[ 2 ],
+					( 0.5 + this.fillDepth.get() - 1.0 ) * PaintUtils.maximumVoxelDiagonalLengthPerDimension( labelTransform, viewerTransform )[ 2 ],
 					extended.randomAccess(),
 					accessTracker.randomAccess(),
 					new RealPoint( x, y, 0 ),
@@ -218,6 +222,11 @@ public class FloodFill2D
 		labelTransform.applyInverse( location, location );
 
 		return location;
+	}
+
+	public DoubleProperty fillDepthProperty()
+	{
+		return this.fillDepth;
 	}
 
 }
