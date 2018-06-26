@@ -3,7 +3,7 @@ package org.janelia.saalfeldlab.paintera.stream;
 import java.util.Set;
 
 import net.imglib2.type.label.Label;
-import net.imglib2.type.label.Multiset.Entry;
+import net.imglib2.type.label.LabelMultisetType.Entry;
 import net.imglib2.type.label.VolatileLabelMultisetType;
 import net.imglib2.type.numeric.ARGBType;
 
@@ -21,12 +21,13 @@ public class HighlightingStreamConverterLabelMultisetType extends HighlightingSt
 	{
 		// TODO this needs to use all LabelMultisetType, not just first
 		final boolean isValid = input.isValid();
-		if ( !isValid )
-			return;
+		if ( !isValid ) { return; }
 		// entry
 		final Set< Entry< Label > > entries = input.get().entrySet();
 		if ( entries.size() == 0 )
+		{
 			output.set( stream.argb( Label.INVALID ) );
+		}
 		else
 		{
 			double a = 0;

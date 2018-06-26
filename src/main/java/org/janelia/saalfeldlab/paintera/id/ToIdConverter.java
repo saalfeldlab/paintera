@@ -3,7 +3,6 @@ package org.janelia.saalfeldlab.paintera.id;
 import java.util.Set;
 
 import net.imglib2.type.label.Label;
-import net.imglib2.type.label.LabelMultiset;
 import net.imglib2.type.label.LabelMultisetType;
 import net.imglib2.type.numeric.ARGBType;
 import net.imglib2.type.numeric.IntegerType;
@@ -17,20 +16,16 @@ public interface ToIdConverter
 
 	public long biggestFragment( Object o );
 
-	public static < T > ToIdConverter fromType( T t )
+	public static < T > ToIdConverter fromType( final T t )
 	{
-		if ( t instanceof LabelMultisetType )
-			return fromLabelMultisetType();
-		
-		if ( t instanceof ARGBType )
-			return fromARGB();
+		if ( t instanceof LabelMultisetType ) { return fromLabelMultisetType(); }
 
-		if ( t instanceof IntegerType< ? > )
-			return fromIntegerType();
+		if ( t instanceof ARGBType ) { return fromARGB(); }
 
-		if ( t instanceof RealType< ? > )
-			return fromRealType();
-		
+		if ( t instanceof IntegerType< ? > ) { return fromIntegerType(); }
+
+		if ( t instanceof RealType< ? > ) { return fromRealType(); }
+
 		return null;
 	}
 
@@ -66,10 +61,10 @@ public interface ToIdConverter
 		public long[] allIds( final Object o )
 		{
 			final LabelMultisetType t = ( LabelMultisetType ) o;
-			final Set< LabelMultiset.Entry< net.imglib2.type.label.Label > > entries = t.entrySet();
+			final Set< LabelMultisetType.Entry< net.imglib2.type.label.Label > > entries = t.entrySet();
 			final long[] ids = new long[ entries.size() ];
 			int index = 0;
-			for ( final LabelMultiset.Entry< net.imglib2.type.label.Label > entry : entries )
+			for ( final LabelMultisetType.Entry< net.imglib2.type.label.Label > entry : entries )
 			{
 				ids[ index ] = entry.getElement().id();
 				++index;
@@ -83,7 +78,7 @@ public interface ToIdConverter
 			final LabelMultisetType t = ( LabelMultisetType ) o;
 			long argMaxId = Label.INVALID;
 			long maxCount = 0;
-			for ( final LabelMultiset.Entry< net.imglib2.type.label.Label > entry : t.entrySet() )
+			for ( final LabelMultisetType.Entry< net.imglib2.type.label.Label > entry : t.entrySet() )
 			{
 				final long id = entry.getElement().id();
 				if ( Label.regular( id ) )

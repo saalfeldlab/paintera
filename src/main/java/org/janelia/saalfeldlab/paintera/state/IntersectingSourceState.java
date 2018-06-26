@@ -58,7 +58,7 @@ import net.imglib2.type.PrimitiveType;
 import net.imglib2.type.Type;
 import net.imglib2.type.label.Label;
 import net.imglib2.type.label.LabelMultisetType;
-import net.imglib2.type.label.Multiset.Entry;
+import net.imglib2.type.label.LabelMultisetType.Entry;
 import net.imglib2.type.numeric.ARGBType;
 import net.imglib2.type.numeric.integer.UnsignedByteType;
 import net.imglib2.type.volatiles.VolatileUnsignedByteType;

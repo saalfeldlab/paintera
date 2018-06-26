@@ -80,6 +80,7 @@ import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.realtransform.ScaleAndTranslation;
 import net.imglib2.realtransform.Translation3D;
 import net.imglib2.type.NativeType;
+import net.imglib2.type.label.Label;
 import net.imglib2.type.label.LabelMultisetType;
 import net.imglib2.type.label.N5CacheLoader;
 import net.imglib2.type.label.VolatileLabelMultisetArray;
@@ -681,7 +682,7 @@ public class N5Helpers
 				new CellGrid( attrs.getDimensions(), attrs.getBlockSize() ),
 				new Fraction(),
 				wrappedCache,
-				new VolatileLabelMultisetArray( 0, true ) );
+				new VolatileLabelMultisetArray( 0, true, new long[] { Label.INVALID } ) );
 		cachedImg.setLinkedType( new LabelMultisetType( cachedImg ) );
 
 		@SuppressWarnings( "unchecked" )
@@ -973,7 +974,7 @@ public class N5Helpers
 				new CellGrid( attrs.getDimensions(), attrs.getBlockSize() ),
 				new LabelMultisetType().getEntitiesPerPixel(),
 				wrappedCache,
-				new VolatileLabelMultisetArray( 0, true ) );
+				new VolatileLabelMultisetArray( 0, true, new long[] { Label.INVALID } ) );
 		data.setLinkedType( new LabelMultisetType( data ) );
 		long maxId = 0;
 		for ( final Cell< VolatileLabelMultisetArray > cell : Views.iterable( data.getCells() ) )

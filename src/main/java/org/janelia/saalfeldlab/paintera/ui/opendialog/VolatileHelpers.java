@@ -52,7 +52,7 @@ public class VolatileHelpers
 	private static final Logger LOG = LoggerFactory.getLogger( MethodHandles.lookup().lookupClass() );
 
 	public static < T extends NativeType< T >, V extends Volatile< T > & NativeType< V >, A > Pair< VolatileCachedCellImg< V, A >, VolatileCache< Long, Cell< A > > > createVolatileCachedCellImg(
-			CachedCellImg< T, A > cachedImg,
+			final CachedCellImg< T, A > cachedImg,
 			final Function< NativeImg< V, ? extends A >, V > typeFactory,
 			final CreateInvalid< Long, Cell< A > > createInvalid,
 			final SharedQueue queue,
@@ -110,7 +110,7 @@ public class VolatileHelpers
 			list.createListAt( listData, 0 );
 			list.add( e );
 			final int[] data = new int[ numEntities ];
-			final VolatileLabelMultisetArray array = new VolatileLabelMultisetArray( data, listData, false, new TLongHashSet( new long[] { Label.INVALID } ) );
+			final VolatileLabelMultisetArray array = new VolatileLabelMultisetArray( data, listData, false, new TLongHashSet( new long[] { Label.INVALID } ), new long[] { Label.INVALID } );
 			return new Cell<>( cellDims, cellMin, array );
 		}
 
@@ -150,16 +150,16 @@ public class VolatileHelpers
 					new CellGrid( attrs.getDimensions(), attrs.getBlockSize() ),
 					new LabelMultisetType(),
 					wrappedCache,
-					new VolatileLabelMultisetArray( 0, true ) );
+					new VolatileLabelMultisetArray( 0, true, new long[] { Label.INVALID } ) );
 			raw[ scale ] = cachedImg;
 			// TODO cannot use VolatileViews because VolatileTypeMatches
 			// does not know LabelMultisetType
 //				vraw[ scale ] = VolatileViews.wrapAsVolatile( raw[ scale ], sharedQueue, new CacheHints( LoadingStrategy.VOLATILE, priority, true ) );
-			Pair< VolatileCachedCellImg< VolatileLabelMultisetType, VolatileLabelMultisetArray >, VolatileCache< Long, Cell< VolatileLabelMultisetArray > > > volatileCachedImg = VolatileHelpers.createVolatileCachedCellImg(
-					cachedImg, 
+			final Pair< VolatileCachedCellImg< VolatileLabelMultisetType, VolatileLabelMultisetArray >, VolatileCache< Long, Cell< VolatileLabelMultisetArray > > > volatileCachedImg = VolatileHelpers.createVolatileCachedCellImg(
+					cachedImg,
 					( Function< NativeImg< VolatileLabelMultisetType, ? extends VolatileLabelMultisetArray >, VolatileLabelMultisetType > ) img -> new VolatileLabelMultisetType( ( NativeImg< ?, VolatileLabelMultisetArray > ) img ),
 					new VolatileHelpers.CreateInvalidVolatileLabelMultisetArray( cachedImg.getCellGrid() ),
-				sharedQueue,
+					sharedQueue,
 					new CacheHints( LoadingStrategy.VOLATILE, priority, false ) );
 			vraw[ scale ] = volatileCachedImg.getA();
 

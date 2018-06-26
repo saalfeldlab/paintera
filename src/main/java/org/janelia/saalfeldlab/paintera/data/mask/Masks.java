@@ -37,11 +37,32 @@ public class Masks
 			final BiConsumer< CachedCellImg< UnsignedLongType, ? >, long[] > mergeCanvasIntoBackground,
 			final ExecutorService propagationExecutor )
 	{
-		LOG.debug( "Masking source {}", source );
+		LOG.warn( "Masking source {}", source );
+		System.out.println( "M " + 1 );
+		try
+		{
+			final D d = source.getDataType();
+		}
+		catch ( final Exception e )
+		{
+			e.printStackTrace();
+		}
 		final D d = source.getDataType();
+		System.out.println( "M " + 2 );
 		final T t = source.getType();
+		System.out.println( "M " + 3 );
+		LOG.warn( "d={} t={}", d, t );
 
-		if ( d instanceof IntegerType< ? > && t instanceof AbstractVolatileRealType< ?, ? > )
+		if ( d instanceof LabelMultisetType && t instanceof VolatileLabelMultisetType )
+		{
+			return ( DataSource< D, T > ) fromLabelMultisetType(
+					( DataSource< LabelMultisetType, VolatileLabelMultisetType > ) source,
+					initialCanvasPath,
+					canvasCacheDirUpdate,
+					mergeCanvasIntoBackground,
+					propagationExecutor );
+		}
+		else if ( d instanceof IntegerType< ? > && t instanceof AbstractVolatileRealType< ?, ? > )
 		{
 			final RealType< ? > i = ( ( AbstractVolatileRealType< ?, ? > ) t ).get();
 			if ( d.getClass().isAssignableFrom( i.getClass() ) ) { return fromIntegerType(
@@ -51,12 +72,6 @@ public class Masks
 					mergeCanvasIntoBackground,
 					propagationExecutor ); }
 		}
-		else if ( d instanceof LabelMultisetType && t instanceof VolatileLabelMultisetType ) { return ( DataSource< D, T > ) fromLabelMultisetType(
-				( DataSource< LabelMultisetType, VolatileLabelMultisetType > ) source,
-				initialCanvasPath,
-				canvasCacheDirUpdate,
-				mergeCanvasIntoBackground,
-				propagationExecutor ); }
 		LOG.debug( "Do not know how to convert to masked canvas for d={} t={} -- just returning source.", d, t );
 		return source;
 	}
@@ -165,7 +180,9 @@ public class Masks
 			final ExecutorService propagationExecutor )
 	{
 
+		System.out.println( "lmt " + 0 );
 		final int[][] blockSizes = new int[ source.getNumMipmapLevels() ][];
+		System.out.println( "lmt " + 1 );
 		for ( int level = 0; level < blockSizes.length; ++level )
 		{
 			if ( source.getDataSource( 0, level ) instanceof AbstractCellImg< ?, ?, ?, ? > )
@@ -179,23 +196,33 @@ public class Masks
 				blockSizes[ level ] = level == 0 ? new int[] { 64, 64, 64 } : blockSizes[ level - 1 ];
 			}
 		}
+		System.out.println( "lmt " + 2 );
 
 		final LabelMultisetType defaultValue = FromIntegerTypeConverter.geAppropriateType();
+		System.out.println( "lmt " + 3 );
 		new FromIntegerTypeConverter< UnsignedLongType >().convert( new UnsignedLongType( Label.INVALID ), defaultValue );
+		System.out.println( "lmt " + 4 );
 
 		final LabelMultisetType type = FromIntegerTypeConverter.geAppropriateType();
+		System.out.println( "lmt " + 5 );
 		new FromIntegerTypeConverter< UnsignedLongType >().convert( new UnsignedLongType( Label.OUTSIDE ), defaultValue );
+		System.out.println( "lmt " + 6 );
 		final VolatileLabelMultisetType vtype = FromIntegerTypeConverter.geAppropriateVolatileType();
+		System.out.println( "lmt " + 7 );
 		new FromIntegerTypeConverter< UnsignedLongType >().convert( new UnsignedLongType( Label.OUTSIDE ), defaultValue );
+		System.out.println( "lmt " + 8 );
 		vtype.setValid( true );
+		System.out.println( "lmt " + 9 );
 
 		final PickOneLabelMultisetType< UnsignedLongType > pacD = new PickOneLabelMultisetType<>(
 				l -> Label.regular( l.getIntegerLong() ),
 				( l1, l2 ) -> l2.getIntegerLong() != Label.TRANSPARENT && Label.regular( l1.getIntegerLong() ) );
+		System.out.println( "lmt " + 10 );
 
 		final PickOneVolatileLabelMultisetType< UnsignedLongType, VolatileUnsignedLongType > pacT = new PickOneVolatileLabelMultisetType<>(
 				l -> Label.regular( l.getIntegerLong() ),
 				( l1, l2 ) -> l2.getIntegerLong() != Label.TRANSPARENT && Label.regular( l1.getIntegerLong() ) );
+		System.out.println( "lmt " + 11 );
 
 		final MaskedSource< LabelMultisetType, VolatileLabelMultisetType > ms = new MaskedSource<>(
 				source,
@@ -208,6 +235,7 @@ public class Masks
 				vtype,
 				mergeCanvasIntoBackground,
 				propagationExecutor );
+		System.out.println( "lmt " + 12 );
 
 		return ms;
 	}
