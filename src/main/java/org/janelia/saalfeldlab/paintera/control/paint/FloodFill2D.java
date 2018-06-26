@@ -21,10 +21,12 @@ import javafx.scene.Cursor;
 import javafx.scene.Scene;
 import net.imglib2.FinalInterval;
 import net.imglib2.RandomAccess;
+import net.imglib2.RandomAccessible;
 import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.RealLocalizable;
 import net.imglib2.RealPoint;
 import net.imglib2.RealPositionable;
+import net.imglib2.converter.Converter;
 import net.imglib2.converter.Converters;
 import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.type.Type;
@@ -33,7 +35,6 @@ import net.imglib2.type.logic.BoolType;
 import net.imglib2.type.numeric.RealType;
 import net.imglib2.type.numeric.integer.UnsignedLongType;
 import net.imglib2.util.AccessBoxRandomAccessibleOnGet;
-import net.imglib2.view.ExtendedRandomAccessibleInterval;
 import net.imglib2.view.Views;
 
 public class FloodFill2D
@@ -87,8 +88,7 @@ public class FloodFill2D
 		fillAt( x, y, fill );
 	}
 
-	@SuppressWarnings( { "rawtypes", "unchecked" } )
-	public void fillAt( final double x, final double y, final long fill )
+	public < T extends Type< T > > void fillAt( final double x, final double y, final long fill )
 	{
 		final Source< ? > currentSource = sourceInfo.currentSourceProperty().get();
 		final ViewerState viewerState = viewer.getState();
@@ -98,7 +98,8 @@ public class FloodFill2D
 			return;
 		}
 
-		final SourceState< ?, ? > currentSourceState = sourceInfo.getState( currentSource );
+		@SuppressWarnings( "unchecked" )
+		final SourceState< T, ? > currentSourceState = ( SourceState< T, ? > ) sourceInfo.getState( currentSource );
 
 		if ( !( currentSourceState instanceof LabelSourceState< ?, ? > ) )
 		{
@@ -106,7 +107,7 @@ public class FloodFill2D
 			return;
 		}
 
-		final LabelSourceState< ?, ? > state = ( LabelSourceState< ?, ? > ) currentSourceState;
+		final LabelSourceState< T, ? > state = ( LabelSourceState< T, ? > ) currentSourceState;
 
 		if ( !state.isVisibleProperty().get() )
 		{
@@ -120,16 +121,17 @@ public class FloodFill2D
 			return;
 		}
 
-		final LongFunction< ? > maskForLabel = state.maskForLabel();
+		final LongFunction< Converter< T, BoolType > > maskForLabel = state.maskForLabel();
 		if ( maskForLabel == null )
 		{
 			LOG.warn( "Cannot generate boolean mask for this source -- will not fill" );
 			return;
 		}
 
-		final MaskedSource< ?, ? > source = ( MaskedSource< ?, ? > ) currentSource;
+		@SuppressWarnings( "unchecked" )
+		final MaskedSource< T, ? > source = ( MaskedSource< T, ? > ) currentSource;
 
-		final Type< ? > t = source.getDataType();
+		final T t = source.getDataType();
 
 		if ( !( t instanceof RealType< ? > ) && !( t instanceof LabelMultisetType ) )
 		{
@@ -145,27 +147,27 @@ public class FloodFill2D
 		final AffineTransform3D labelToViewerTransform = this.viewerTransform.copy().concatenate( labelTransform );
 
 		final RealPoint rp = setCoordinates( x, y, viewer, labelTransform );
-		final RandomAccessibleInterval background = source.underlyingSource().getDataSource( time, level );
-		final RandomAccess< ? > access = background.randomAccess();
+		final RandomAccessibleInterval< T > background = source.underlyingSource().getDataSource( time, level );
+		final RandomAccess< T > access = background.randomAccess();
 		for ( int d = 0; d < access.numDimensions(); ++d )
 		{
 			access.setPosition( Math.round( rp.getDoublePosition( d ) ), d );
 		}
 
-		final MaskInfo maskInfo = new MaskInfo<>( time, level, new UnsignedLongType( fill ) );
+		final MaskInfo< UnsignedLongType > maskInfo = new MaskInfo<>( time, level, new UnsignedLongType( fill ) );
 
 		final Scene scene = viewer.getScene();
 		final Cursor previousCursor = scene.getCursor();
 		scene.setCursor( Cursor.WAIT );
 		try
 		{
-			final RandomAccessibleInterval mask = source.generateMask( maskInfo, FOREGROUND_CHECK );
+			final RandomAccessibleInterval< UnsignedLongType > mask = source.generateMask( maskInfo, FOREGROUND_CHECK );
 			final long seedLabel = state.toIdConverter().biggestFragment( access.get() );
 			LOG.warn( "Got seed label {}", seedLabel );
-			final RandomAccessibleInterval relevantBackground = Converters.convert( background, state.maskForLabel().apply( seedLabel ), new BoolType() );
-			final ExtendedRandomAccessibleInterval< BoolType, ? > extended = Views.extendValue( relevantBackground, new BoolType( false ) );
+			final RandomAccessibleInterval< BoolType > relevantBackground = Converters.convert( background, state.maskForLabel().apply( seedLabel ), new BoolType() );
+			final RandomAccessible< BoolType > extended = Views.extendValue( relevantBackground, new BoolType( false ) );
 
-			final AccessBoxRandomAccessibleOnGet accessTracker = new AccessBoxRandomAccessibleOnGet<>( Views.extendValue( mask, new UnsignedLongType( 1l ) ) );
+			final AccessBoxRandomAccessibleOnGet< UnsignedLongType > accessTracker = new AccessBoxRandomAccessibleOnGet<>( Views.extendValue( mask, new UnsignedLongType( 1l ) ) );
 			accessTracker.initAccessBox();
 
 			FloodFillTransformedPlane.fill(
