@@ -43,15 +43,15 @@ public class Paint2D
 		// get maximum extent of pixels along z
 		final double[] projections = PaintUtils.maximumVoxelDiagonalLengthPerDimension( labelToGlobalTransformWithoutTranslation, globalToViewerTransform );
 
-		final double factor = 0.5 + brushDepth - 1;
+		final double factor = 0.5;
 		final double xRange = factor * projections[ 0 ];
 		final double yRange = factor * projections[ 1 ];
-		final double zRange = factor * projections[ 2 ];
+		final double zRange = ( factor + brushDepth - 1 ) * projections[ 2 ];
 		LOG.debug( "range is {}", zRange );
 
 		final double viewerRadius = Affine3DHelpers.extractScale( globalToViewerTransform, 0 ) * radius;
-		final double radiusX = Math.max( xRange, yRange ) + viewerRadius;
-		final double radiusY = Math.max( xRange, yRange ) + viewerRadius;
+		final double radiusX = xRange + viewerRadius;
+		final double radiusY = yRange + viewerRadius;
 		final double[] fillMin = { x - viewerRadius, y - viewerRadius, -zRange };
 		final double[] fillMax = { x + viewerRadius, y + viewerRadius, +zRange };
 		labelToViewerTransform.applyInverse( fillMin, fillMin );
