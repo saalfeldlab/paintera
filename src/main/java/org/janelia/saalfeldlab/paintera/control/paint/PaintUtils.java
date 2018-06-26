@@ -6,11 +6,51 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import net.imglib2.realtransform.AffineTransform3D;
+import net.imglib2.util.LinAlgHelpers;
 
 public class PaintUtils
 {
 
 	private static final Logger LOG = LoggerFactory.getLogger( MethodHandles.lookup().lookupClass() );
+
+	/**
+	 *
+	 * This should be equivalent to
+	 * {@link #maximumVoxelDiagonalLengthPerDimension(AffineTransform3D, AffineTransform3D)}.
+	 *
+	 * @param labelToGlobalTransform
+	 * @param viewerTransform
+	 * @return
+	 */
+	public static double[] labelUnitLengthAlongViewerAxis(
+			final AffineTransform3D labelToGlobalTransform,
+			final AffineTransform3D viewerTransform )
+	{
+		final double[] unitX = { 1.0, 0.0, 0.0 };
+		final double[] unitY = { 0.0, 1.0, 0.0 };
+		final double[] unitZ = { 0.0, 0.0, 1.0 };
+		final AffineTransform3D labelToGlobalTransformWithoutTranslation = duplicateWithoutTranslation( labelToGlobalTransform );
+		final AffineTransform3D viewerTransformWithoutTranslation = duplicateWithoutTranslation( viewerTransform );
+		final AffineTransform3D labelToViewerTransformWithoutTranslation = labelToGlobalTransformWithoutTranslation.preConcatenate( viewerTransformWithoutTranslation );
+		labelToViewerTransformWithoutTranslation.applyInverse( unitX, unitX );
+		labelToViewerTransformWithoutTranslation.applyInverse( unitY, unitY );
+		labelToViewerTransformWithoutTranslation.applyInverse( unitZ, unitZ );
+
+		LinAlgHelpers.normalize( unitX );
+		LinAlgHelpers.normalize( unitY );
+		LinAlgHelpers.normalize( unitZ );
+
+		labelToViewerTransformWithoutTranslation.apply( unitX, unitX );
+		labelToViewerTransformWithoutTranslation.apply( unitY, unitY );
+		labelToViewerTransformWithoutTranslation.apply( unitZ, unitZ );
+
+		return new double[] {
+				unitX[ 0 ],
+				unitY[ 1 ],
+				unitZ[ 2 ]
+		};
+
+	}
 
 	public static double[] maximumVoxelDiagonalLengthPerDimension(
 			final AffineTransform3D labelToGlobalTransform,
