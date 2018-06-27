@@ -12,7 +12,6 @@ import java.util.function.BiPredicate;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.stream.Collectors;
-import java.util.stream.IntStream;
 
 import org.janelia.saalfeldlab.paintera.meshes.Interruptible;
 import org.janelia.saalfeldlab.paintera.meshes.InterruptibleFunction;
@@ -25,11 +24,7 @@ import net.imglib2.FinalInterval;
 import net.imglib2.Interval;
 import net.imglib2.Point;
 import net.imglib2.cache.CacheLoader;
-import net.imglib2.img.array.ArrayImg;
-import net.imglib2.img.array.ArrayImgs;
-import net.imglib2.img.basictypeaccess.array.LongArray;
 import net.imglib2.img.cell.CellGrid;
-import net.imglib2.type.numeric.integer.LongType;
 import net.imglib2.util.Intervals;
 
 public class BlocksForLabelCacheLoader< T > implements CacheLoader< T, Interval[] >, Interruptible< T >
@@ -94,7 +89,7 @@ public class BlocksForLabelCacheLoader< T > implements CacheLoader< T, Interval[
 				getRelevantIntervalsFromLowerResolution,
 				getRelevantBlocksIntersectingWithLowResInterval,
 				getUniqueLabelListForBlock,
-				(id, block) -> Arrays.stream( block ).filter( b -> b == id ).count() > 0 );
+				( id, block ) -> Arrays.stream( block ).filter( b -> b == id ).count() > 0 );
 	}
 
 	public static BlocksForLabelCacheLoader< TLongHashSet > hashSetKeys(
@@ -108,7 +103,7 @@ public class BlocksForLabelCacheLoader< T > implements CacheLoader< T, Interval[
 				getRelevantIntervalsFromLowerResolution,
 				getRelevantBlocksIntersectingWithLowResInterval,
 				getUniqueLabelListForBlock,
-				(ids, block) -> Arrays.stream( block ).filter( ids::contains ).count() > 0 );
+				( ids, block ) -> Arrays.stream( block ).filter( ids::contains ).count() > 0 );
 	}
 
 	@Override
@@ -122,7 +117,7 @@ public class BlocksForLabelCacheLoader< T > implements CacheLoader< T, Interval[
 				this.getRelevantIntervalsFromLowerResolution.interruptFor( key );
 			}
 		};
-		synchronized( this.interruptionListeners )
+		synchronized ( this.interruptionListeners )
 		{
 			this.interruptionListeners.add( listener );
 		}
@@ -132,11 +127,11 @@ public class BlocksForLabelCacheLoader< T > implements CacheLoader< T, Interval[
 			final Interval[] relevantLowResBlocks = getRelevantIntervalsFromLowerResolution.apply( key );
 			final HashSet< HashWrapper< Interval > > blocks = new HashSet<>();
 			Arrays
-			.stream( relevantLowResBlocks )
-			.map( getRelevantBlocksIntersectingWithLowResInterval::apply )
-			.flatMap( List::stream )
-			.map( HashWrapper::interval )
-			.forEach( blocks::add );
+					.stream( relevantLowResBlocks )
+					.map( getRelevantBlocksIntersectingWithLowResInterval::apply )
+					.flatMap( List::stream )
+					.map( HashWrapper::interval )
+					.forEach( blocks::add );
 			LOG.debug( "key={} grid={} -- got {} block candidates", key, grid, blocks.size() );
 
 			final List< Interval > results = new ArrayList<>();
@@ -157,93 +152,11 @@ public class BlocksForLabelCacheLoader< T > implements CacheLoader< T, Interval[
 		}
 		finally
 		{
-			synchronized( this.interruptionListeners )
+			synchronized ( this.interruptionListeners )
 			{
 				this.interruptionListeners.remove( listener );
 			}
 		}
-	}
-
-	public static void main( final String[] args ) throws Exception
-	{
-
-		final long[] res1 = new long[] {
-				1, 1, 1, 2, 3, 3, 4, 4
-		};
-
-		final long[] res2 = new long[] {
-				1, 2, 3, 4
-		};
-
-		final ArrayImg< LongType, LongArray > img1 = ArrayImgs.longs( res1, res1.length );
-		final ArrayImg< LongType, LongArray > img2 = ArrayImgs.longs( res2, res2.length );
-
-		final CellGrid grid1 = new CellGrid( Intervals.dimensionsAsLongArray( img1 ), IntStream.generate( () -> 2 ).limit( res1.length ).toArray() );
-		final CellGrid grid2 = new CellGrid( Intervals.dimensionsAsLongArray( img2 ), IntStream.generate( () -> 2 ).limit( res2.length ).toArray() );
-
-		final UniqueLabelListCacheLoader< LongType > uniqueLabelsLoader1 = new UniqueLabelListCacheLoader<>( img1, grid1, ( l, hs ) -> hs.add( l.get() ) );
-		final UniqueLabelListCacheLoader< LongType > uniqueLabelsLoader2 = new UniqueLabelListCacheLoader<>( img2, grid2, ( l, hs ) -> hs.add( l.get() ) );
-
-		final Function< long[], long[] > uncheckedGet1 = pos -> {
-			try
-			{
-				return uniqueLabelsLoader1.get( HashWrapper.longArray( pos ) );
-			}
-			catch ( final Exception e )
-			{
-				throw new RuntimeException( e );
-			}
-		};
-		final Function< long[], long[] > uncheckedGet2 = pos -> {
-			try
-			{
-				return uniqueLabelsLoader2.get( HashWrapper.longArray( pos ) );
-			}
-			catch ( final Exception e )
-			{
-				throw new RuntimeException( e );
-			}
-		};
-
-		final BlocksForLabelCacheLoader< Long > blocksForLabelLoader2 = longKeys(
-				grid2,
-				InterruptibleFunction.fromFunction( val -> new Interval[] { new FinalInterval( 3 ) } ),
-				i -> IntStream.range( 0, res2.length / 2 ).mapToObj( pos -> Intervals.translate( new FinalInterval( 2 ), pos * 2, 0 ) ).collect( Collectors.toList() ),
-				uncheckedGet2 );
-
-		System.out.println( toString( blocksForLabelLoader2.get( 0l ) ) );
-		System.out.println( toString( blocksForLabelLoader2.get( 1l ) ) );
-		System.out.println( toString( blocksForLabelLoader2.get( 2l ) ) );
-		System.out.println( toString( blocksForLabelLoader2.get( 3l ) ) );
-		System.out.println( toString( blocksForLabelLoader2.get( 4l ) ) );
-		System.out.println( toString( blocksForLabelLoader2.get( 5l ) ) );
-
-		final Function< Long, Interval[] > uncheckedGetIntervals2 = id -> {
-			try
-			{
-				return blocksForLabelLoader2.get( id );
-			}
-			catch ( final Exception e )
-			{
-				throw new RuntimeException( e );
-			}
-		};
-
-		final BlocksForLabelCacheLoader< Long > blocksForLabelLoader1 = longKeys(
-				grid1,
-				InterruptibleFunction.fromFunction( val -> uncheckedGetIntervals2.apply( val ) ),
-				i -> doubleStep( i ),
-				uncheckedGet1 );
-
-		System.out.println();
-
-		System.out.println( toString( blocksForLabelLoader1.get( 0l ) ) );
-		System.out.println( toString( blocksForLabelLoader1.get( 1l ) ) );
-		System.out.println( toString( blocksForLabelLoader1.get( 2l ) ) );
-		System.out.println( toString( blocksForLabelLoader1.get( 3l ) ) );
-		System.out.println( toString( blocksForLabelLoader1.get( 4l ) ) );
-		System.out.println( toString( blocksForLabelLoader1.get( 5l ) ) );
-
 	}
 
 	private static List< String > toString( final Interval[] intervals )
@@ -276,7 +189,7 @@ public class BlocksForLabelCacheLoader< T > implements CacheLoader< T, Interval[
 	@Override
 	public void interruptFor( final T t )
 	{
-		synchronized( this.interruptionListeners )
+		synchronized ( this.interruptionListeners )
 		{
 			this.interruptionListeners.forEach( l -> l.accept( t ) );
 		}

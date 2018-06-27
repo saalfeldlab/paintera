@@ -202,7 +202,7 @@ public class PainteraOpenDialogEventHandler implements EventHandler< Event >
 		return InterruptibleFunction.fromFunction( location -> {
 			final RandomAccess< C > access = cells.randomAccess();
 			access.setPosition( location.getData() );
-			final long[] labels = access.get().getData().containedLabels();
+			final long[] labels = new long[] {};
 			LOG.debug( "Position={}: labels={}", location.getData(), labels );
 			return labels;
 		} );

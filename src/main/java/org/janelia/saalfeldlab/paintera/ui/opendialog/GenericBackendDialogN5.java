@@ -19,7 +19,6 @@ import org.janelia.saalfeldlab.n5.DataType;
 import org.janelia.saalfeldlab.n5.DatasetAttributes;
 import org.janelia.saalfeldlab.n5.N5Reader;
 import org.janelia.saalfeldlab.n5.N5Writer;
-import org.janelia.saalfeldlab.n5.imglib2.N5Utils;
 import org.janelia.saalfeldlab.paintera.N5Helpers;
 import org.janelia.saalfeldlab.paintera.composition.ARGBCompositeAlphaYCbCr;
 import org.janelia.saalfeldlab.paintera.composition.CompositeCopy;
@@ -30,7 +29,6 @@ import org.janelia.saalfeldlab.paintera.data.DataSource;
 import org.janelia.saalfeldlab.paintera.data.mask.Masks;
 import org.janelia.saalfeldlab.paintera.data.n5.CommitCanvasN5;
 import org.janelia.saalfeldlab.paintera.id.IdService;
-import org.janelia.saalfeldlab.paintera.id.N5IdService;
 import org.janelia.saalfeldlab.paintera.state.LabelSourceState;
 import org.janelia.saalfeldlab.paintera.state.RawSourceState;
 import org.janelia.saalfeldlab.paintera.stream.HighlightingStreamConverter;
@@ -59,26 +57,16 @@ import javafx.scene.control.Button;
 import javafx.scene.control.ComboBox;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.Priority;
-import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.Volatile;
 import net.imglib2.cache.img.CachedCellImg;
-import net.imglib2.cache.ref.BoundedSoftRefLoaderCache;
-import net.imglib2.cache.util.LoaderCacheAsCacheAdapter;
 import net.imglib2.converter.ARGBColorConverter;
 import net.imglib2.converter.ARGBColorConverter.InvertingImp1;
-import net.imglib2.img.cell.Cell;
-import net.imglib2.img.cell.CellGrid;
 import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.type.NativeType;
-import net.imglib2.type.label.Label;
-import net.imglib2.type.label.LabelMultisetType;
-import net.imglib2.type.label.N5CacheLoader;
-import net.imglib2.type.label.VolatileLabelMultisetArray;
 import net.imglib2.type.numeric.IntegerType;
 import net.imglib2.type.numeric.RealType;
 import net.imglib2.type.numeric.integer.UnsignedLongType;
 import net.imglib2.type.volatiles.AbstractVolatileRealType;
-import net.imglib2.view.Views;
 
 public class GenericBackendDialogN5 implements BackendDialog
 {
@@ -287,100 +275,12 @@ public class GenericBackendDialogN5 implements BackendDialog
 	{
 		try
 		{
-			final N5Writer n5 = this.n5.get();
-			final String dataset = this.dataset.get();
-
-			final Long maxId = n5.getAttribute( dataset, "maxId", Long.class );
-			final boolean isPainteraData = N5Helpers.isPainteraDataset( n5, dataset );
-			final long actualMaxId;
-			if ( maxId == null )
-			{
-				final String ds = isPainteraData ? dataset + "/" + N5Helpers.PAINTERA_DATA_DATASET : dataset;
-				if ( isLabelMultisetType() )
-				{
-					LOG.debug( "Getting id service for label multisets" );
-					actualMaxId = maxIdLabelMultiset( n5, ds );
-				}
-				else if ( isIntegerType() )
-				{
-					actualMaxId = maxId( n5, ds );
-				}
-				else
-				{
-					return null;
-				}
-				n5.setAttribute( dataset, "maxId", actualMaxId );
-			}
-			else
-			{
-				actualMaxId = maxId;
-			}
-			return new N5IdService( n5, dataset, actualMaxId );
-
+			return N5Helpers.idService( this.n5.get(), this.dataset.get() );
 		}
-		catch ( final Exception e )
+		catch ( final IOException e )
 		{
-			LOG.warn( "Unable to generate id-service: {}", e );
-			e.printStackTrace();
-			return null;
+			throw new RuntimeException( e );
 		}
-	}
-
-	private static < T extends IntegerType< T > & NativeType< T > > long maxId( final N5Reader n5, final String dataset ) throws IOException
-	{
-		final String ds;
-		if ( n5.datasetExists( dataset ) )
-		{
-			ds = dataset;
-		}
-		else
-		{
-			final String[] scaleDirs = N5Helpers.listAndSortScaleDatasets( n5, dataset );
-			ds = Paths.get( dataset, scaleDirs ).toString();
-		}
-		final RandomAccessibleInterval< T > data = N5Utils.open( n5, ds );
-		long maxId = 0;
-		for ( final T label : Views.flatIterable( data ) )
-		{
-			maxId = IdService.max( label.getIntegerLong(), maxId );
-		}
-		return maxId;
-	}
-
-	private static long maxIdLabelMultiset( final N5Reader n5, final String dataset ) throws IOException
-	{
-		final String ds;
-		if ( n5.datasetExists( dataset ) )
-		{
-			ds = dataset;
-		}
-		else
-		{
-			final String[] scaleDirs = N5Helpers.listAndSortScaleDatasets( n5, dataset );
-			ds = Paths.get( dataset, scaleDirs[ scaleDirs.length - 1 ] ).toString();
-		}
-		final DatasetAttributes attrs = n5.getDatasetAttributes( ds );
-		final N5CacheLoader loader = new N5CacheLoader( n5, ds );
-		final BoundedSoftRefLoaderCache< Long, Cell< VolatileLabelMultisetArray > > cache = new BoundedSoftRefLoaderCache<>( 1 );
-		final LoaderCacheAsCacheAdapter< Long, Cell< VolatileLabelMultisetArray > > wrappedCache = new LoaderCacheAsCacheAdapter<>( cache, loader );
-		final CachedCellImg< LabelMultisetType, VolatileLabelMultisetArray > data = new CachedCellImg<>(
-				new CellGrid( attrs.getDimensions(), attrs.getBlockSize() ),
-				new LabelMultisetType().getEntitiesPerPixel(),
-				wrappedCache,
-				new VolatileLabelMultisetArray( 0, true, new long[] { Label.INVALID } ) );
-		data.setLinkedType( new LabelMultisetType( data ) );
-		long maxId = 0;
-		for ( final Cell< VolatileLabelMultisetArray > cell : Views.iterable( data.getCells() ) )
-		{
-			for ( final long id : cell.getData().containedLabels() )
-			{
-				if ( id > maxId )
-				{
-					maxId = id;
-				}
-			}
-		}
-		return maxId;
 	}
 
 	private Node initializeNode(

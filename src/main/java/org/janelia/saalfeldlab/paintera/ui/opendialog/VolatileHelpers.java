@@ -13,7 +13,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import bdv.util.volatiles.SharedQueue;
-import gnu.trove.set.hash.TLongHashSet;
 import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.Volatile;
 import net.imglib2.cache.Cache;
@@ -110,7 +109,7 @@ public class VolatileHelpers
 			list.createListAt( listData, 0 );
 			list.add( e );
 			final int[] data = new int[ numEntities ];
-			final VolatileLabelMultisetArray array = new VolatileLabelMultisetArray( data, listData, false, new TLongHashSet( new long[] { Label.INVALID } ), new long[] { Label.INVALID } );
+			final VolatileLabelMultisetArray array = new VolatileLabelMultisetArray( data, listData, false, new long[] { Label.INVALID } );
 			return new Cell<>( cellDims, cellMin, array );
 		}
 

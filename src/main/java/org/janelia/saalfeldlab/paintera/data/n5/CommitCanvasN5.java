@@ -67,6 +67,7 @@ public class CommitCanvasN5 implements BiConsumer< CachedCellImg< UnsignedLongTy
 	@Override
 	public void accept( final CachedCellImg< UnsignedLongType, ? > canvas, final long[] blocks )
 	{
+		if ( true ) { throw new RuntimeException( "Comminting canvas disabled at the moment" ); }
 		try
 		{
 			final String dataset = N5Helpers.isPainteraDataset( n5, this.dataset ) ? this.dataset + "/" + N5Helpers.PAINTERA_DATA_DATASET : this.dataset;
@@ -253,7 +254,7 @@ public class CommitCanvasN5 implements BiConsumer< CachedCellImg< UnsignedLongTy
 							previousCellsAccess.setPosition( offset[ 0 ], 0 );
 							previousCellsAccess.setPosition( offset[ 1 ], 1 );
 							previousCellsAccess.setPosition( offset[ 2 ], 2 );
-							relevantBlocksAtPrevious.addAll( previousCellsAccess.get().getData().containedLabels() );
+//							relevantBlocksAtPrevious.addAll( previousCellsAccess.get().getData().containedLabels() );
 						} );
 
 						LOG.debug( "level={}: Creating downscaled for interval=({} {})", level, previousRelevantIntervalMin, previousRelevantIntervalMax );
@@ -261,7 +262,6 @@ public class CommitCanvasN5 implements BiConsumer< CachedCellImg< UnsignedLongTy
 						final VolatileLabelMultisetArray updatedAccess = LabelMultisetTypeDownscaler.createDownscaledCell(
 								Views.zeroMin( Views.interval( previousData, previousRelevantIntervalMin, previousRelevantIntervalMax ) ),
 								relativeFactors,
-								relevantBlocksAtPrevious,
 								targetMaxNumEntries );
 
 						final byte[] serializedAccess = new byte[ LabelMultisetTypeDownscaler.getSerializedVolatileLabelMultisetArraySize( updatedAccess ) ];

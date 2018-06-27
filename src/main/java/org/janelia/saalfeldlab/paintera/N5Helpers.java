@@ -62,7 +62,6 @@ import net.imglib2.RandomAccessible;
 import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.Volatile;
 import net.imglib2.cache.img.CachedCellImg;
-import net.imglib2.cache.ref.BoundedSoftRefLoaderCache;
 import net.imglib2.cache.ref.SoftRefLoaderCache;
 import net.imglib2.cache.util.LoaderCacheAsCacheAdapter;
 import net.imglib2.cache.volatiles.CacheHints;
@@ -85,7 +84,6 @@ import net.imglib2.type.label.LabelMultisetType;
 import net.imglib2.type.label.N5CacheLoader;
 import net.imglib2.type.label.VolatileLabelMultisetArray;
 import net.imglib2.type.label.VolatileLabelMultisetType;
-import net.imglib2.type.numeric.IntegerType;
 import net.imglib2.type.numeric.RealType;
 import net.imglib2.type.numeric.integer.UnsignedLongType;
 import net.imglib2.util.Fraction;
@@ -898,96 +896,11 @@ public class N5Helpers
 
 	public static IdService idService( final N5Writer n5, final String dataset ) throws IOException
 	{
-		final Long maxId = n5.getAttribute( dataset, MAX_ID_KEY, Long.class );
-		final long actualMaxId;
-		if ( maxId == null )
-		{
-			final String ds = isPainteraDataset( n5, dataset ) ? dataset + "/" + N5Helpers.PAINTERA_DATA_DATASET : dataset;
-			final boolean isMultiscale = isMultiScale( n5, ds );
-			final DatasetAttributes attributes = n5.getDatasetAttributes( ds );
-			LOG.debug( "is multiscale? {} dsPath={}", isMultiscale, ds );
-			if ( isLabelMultisetType( n5, ds, isMultiscale ) )
-			{
-				LOG.debug( "Getting id service for label multisets" );
-				actualMaxId = maxIdLabelMultiset( n5, ds );
-				LOG.debug( "Got max id={}", actualMaxId );
-			}
-			else if ( isIntegerType( attributes.getDataType() ) )
-			{
-				actualMaxId = maxId( n5, ds );
-			}
-			else
-			{
-				return null;
-			}
-			n5.setAttribute( dataset, "maxId", actualMaxId );
-		}
-		else
-		{
-			actualMaxId = maxId;
-		}
-		return new N5IdService( n5, dataset, actualMaxId );
 
-	}
+		final Long maxId = n5.getAttribute( dataset, "maxId", Long.class );
+		if ( maxId == null ) { throw new RuntimeException( "maxId not specified in attributes.json" ); }
+		return new N5IdService( n5, dataset, maxId );
 
-	private static < T extends IntegerType< T > & NativeType< T > > long maxId( final N5Reader n5, final String dataset ) throws IOException
-	{
-		final String ds;
-		if ( n5.datasetExists( dataset ) )
-		{
-			ds = dataset;
-		}
-		else
-		{
-			final String[] scaleDirs = N5Helpers.listAndSortScaleDatasets( n5, dataset );
-			ds = Paths.get( dataset, scaleDirs ).toString();
-		}
-		final RandomAccessibleInterval< T > data = N5Utils.open( n5, ds );
-		long maxId = 0;
-		for ( final T label : Views.flatIterable( data ) )
-		{
-			maxId = IdService.max( label.getIntegerLong(), maxId );
-		}
-		return maxId;
-	}
-
-	private static long maxIdLabelMultiset( final N5Reader n5, final String dataset ) throws IOException
-	{
-		final String ds;
-		if ( n5.datasetExists( dataset ) )
-		{
-			ds = dataset;
-		}
-		else
-		{
-			final String[] scaleDirs = N5Helpers.listAndSortScaleDatasets( n5, dataset );
-			ds = Paths.get( dataset, scaleDirs[ scaleDirs.length - 1 ] ).toString();
-		}
-
-		LOG.debug( "Looking for max id at n5={} dataset={}", n5, dataset );
-
-		final DatasetAttributes attrs = n5.getDatasetAttributes( ds );
-		final N5CacheLoader loader = new N5CacheLoader( n5, ds );
-		final BoundedSoftRefLoaderCache< Long, Cell< VolatileLabelMultisetArray > > cache = new BoundedSoftRefLoaderCache<>( 1 );
-		final LoaderCacheAsCacheAdapter< Long, Cell< VolatileLabelMultisetArray > > wrappedCache = new LoaderCacheAsCacheAdapter<>( cache, loader );
-		final CachedCellImg< LabelMultisetType, VolatileLabelMultisetArray > data = new CachedCellImg<>(
-				new CellGrid( attrs.getDimensions(), attrs.getBlockSize() ),
-				new LabelMultisetType().getEntitiesPerPixel(),
-				wrappedCache,
-				new VolatileLabelMultisetArray( 0, true, new long[] { Label.INVALID } ) );
-		data.setLinkedType( new LabelMultisetType( data ) );
-		long maxId = 0;
-		for ( final Cell< VolatileLabelMultisetArray > cell : Views.iterable( data.getCells() ) )
-		{
-			for ( final long id : cell.getData().containedLabels() )
-			{
-				if ( id > maxId )
-				{
-					maxId = id;
-				}
-			}
-		}
-		return maxId;
 	}
 
 	public static String getFinestLevel(

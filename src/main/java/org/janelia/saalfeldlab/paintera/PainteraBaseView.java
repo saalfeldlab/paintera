@@ -17,7 +17,6 @@ import org.janelia.saalfeldlab.paintera.data.mask.MaskedSource;
 import org.janelia.saalfeldlab.paintera.meshes.InterruptibleFunction;
 import org.janelia.saalfeldlab.paintera.meshes.InterruptibleFunctionAndCache;
 import org.janelia.saalfeldlab.paintera.meshes.cache.CacheUtils;
-import org.janelia.saalfeldlab.paintera.meshes.cache.UniqueLabelListLabelMultisetCacheLoader;
 import org.janelia.saalfeldlab.paintera.state.GlobalTransformManager;
 import org.janelia.saalfeldlab.paintera.state.LabelSourceState;
 import org.janelia.saalfeldlab.paintera.state.RawSourceState;
@@ -260,11 +259,9 @@ public class PainteraBaseView
 
 		final int[][] blockSizes = Stream.generate( () -> new int[] { 64, 64, 64 } ).limit( spec.getNumMipmapLevels() ).toArray( int[][]::new );
 
-		final InterruptibleFunction< HashWrapper< long[] >, long[] >[] uniqueLabelLoaders = CacheUtils.uniqueLabelCaches(
-				spec,
-				blockSizes,
-				collectLabels,
-				CacheUtils::toCacheSoftRefLoaderCache );
+		final InterruptibleFunction< HashWrapper< long[] >, long[] >[] uniqueLabelLoaders = Stream
+				.generate( () -> InterruptibleFunction.fromFunction( key -> new long[] {} ) )
+				.toArray( InterruptibleFunction[]::new );
 
 		final InterruptibleFunctionAndCache< Long, Interval[] >[] blocksForLabelCache = CacheUtils.blocksForLabelCachesLongKeys(
 				spec,
@@ -293,9 +290,8 @@ public class PainteraBaseView
 			final CachedCellImg< LabelMultisetType, VolatileLabelMultisetArray > cachedImg = ( CachedCellImg< LabelMultisetType, VolatileLabelMultisetArray > ) img;
 			final LazyCells< Cell< VolatileLabelMultisetArray > > cells = cachedImg.getCells();
 			final CellGrid grid = cachedImg.getCellGrid();
-			final UniqueLabelListLabelMultisetCacheLoader loader = new UniqueLabelListLabelMultisetCacheLoader( cells );
-			final Cache< HashWrapper< long[] >, long[] > cache = CacheUtils.toCacheSoftRefLoaderCache( loader );
-			uniqueLabelLoaders[ level ] = CacheUtils.fromCache( cache, loader );
+			final Cache< HashWrapper< long[] >, long[] > cache = CacheUtils.toCacheSoftRefLoaderCache( k -> new long[] {} );
+			uniqueLabelLoaders[ level ] = CacheUtils.fromCache( cache, t -> {} );
 			blockSizes[ level ] = IntStream.range( 0, grid.numDimensions() ).map( grid::cellDimension ).toArray();
 		}
 
