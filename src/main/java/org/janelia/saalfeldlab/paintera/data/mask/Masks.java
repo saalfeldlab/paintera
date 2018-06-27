@@ -44,6 +44,7 @@ public class Masks
 
 		if ( d instanceof LabelMultisetType && t instanceof VolatileLabelMultisetType )
 		{
+			LOG.debug( "Masking multiset source" );
 			return ( DataSource< D, T > ) fromLabelMultisetType(
 					( DataSource< LabelMultisetType, VolatileLabelMultisetType > ) source,
 					initialCanvasPath,
