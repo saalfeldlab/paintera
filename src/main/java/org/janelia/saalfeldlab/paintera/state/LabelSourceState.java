@@ -74,6 +74,8 @@ public class LabelSourceState< D extends IntegerType< D >, T >
 
 	private final Runnable clearBlockCaches;
 
+	private final InterruptibleFunction< Long, Interval[] >[] backgroundBlockCaches;
+
 	private final InterruptibleFunctionAndCache< ShapeKey< TLongHashSet >, Pair< float[], float[] > >[] meshCaches;
 
 	private final LockedSegmentsState lockedSegments;
@@ -88,6 +90,7 @@ public class LabelSourceState< D extends IntegerType< D >, T >
 			final IdService idService,
 			final SelectedIds selectedIds,
 			final Group meshesGroup,
+			final InterruptibleFunction< Long, Interval[] >[] backgroundBlockCaches,
 			final ExecutorService meshManagerExecutors,
 			final ExecutorService meshWorkersExecutors )
 	{
@@ -102,8 +105,14 @@ public class LabelSourceState< D extends IntegerType< D >, T >
 
 		final SelectedSegments selectedSegments = new SelectedSegments( selectedIds, assignment );
 
-		final InterruptibleFunctionAndCache< Long, Interval[] >[] backgroundBlockCaches = PainteraBaseView.generateLabelBlocksForLabelCache( dataSource );
-		this.clearBlockCaches = () -> Arrays.stream( backgroundBlockCaches ).forEach( UncheckedCache::invalidateAll );
+		this.backgroundBlockCaches = backgroundBlockCaches;
+		this.clearBlockCaches = () -> Arrays.stream( backgroundBlockCaches ).forEach( c -> {
+			if ( c instanceof UncheckedCache< ?, ? > )
+			{
+				final UncheckedCache< ?, ? > uc = ( UncheckedCache< ?, ? > ) c;
+				uc.invalidateAll();
+			}
+		} );
 
 		final boolean isMaskedSource = dataSource instanceof MaskedSource< ?, ? >;
 		final InterruptibleFunction< Long, Interval[] >[] blockCaches = isMaskedSource
@@ -195,6 +204,11 @@ public class LabelSourceState< D extends IntegerType< D >, T >
 	public LockedSegmentsState lockedSegments()
 	{
 		return this.lockedSegments;
+	}
+
+	public InterruptibleFunction< Long, Interval[] >[] backgroundBlockCaches()
+	{
+		return this.backgroundBlockCaches;
 	}
 
 	public void invalidateAllBlockCaches()

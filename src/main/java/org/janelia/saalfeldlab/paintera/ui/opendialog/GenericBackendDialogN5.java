@@ -29,6 +29,7 @@ import org.janelia.saalfeldlab.paintera.data.DataSource;
 import org.janelia.saalfeldlab.paintera.data.mask.Masks;
 import org.janelia.saalfeldlab.paintera.data.n5.CommitCanvasN5;
 import org.janelia.saalfeldlab.paintera.id.IdService;
+import org.janelia.saalfeldlab.paintera.meshes.cache.BlocksForLabelFromFile;
 import org.janelia.saalfeldlab.paintera.state.LabelSourceState;
 import org.janelia.saalfeldlab.paintera.state.RawSourceState;
 import org.janelia.saalfeldlab.paintera.stream.HighlightingStreamConverter;
@@ -373,6 +374,11 @@ public class GenericBackendDialogN5 implements BackendDialog
 				lockedSegments );
 		final HighlightingStreamConverter< T > converter = HighlightingStreamConverter.forType( stream, masked.getType() );
 
+		final BlocksForLabelFromFile[] blockLoaders = Arrays
+				.stream( N5Helpers.labelMappingFromFileLoaderPattern( reader, dataset ) )
+				.map( BlocksForLabelFromFile::new )
+				.toArray( BlocksForLabelFromFile[]::new );
+
 		return new LabelSourceState<>(
 				masked,
 				converter,
@@ -383,6 +389,7 @@ public class GenericBackendDialogN5 implements BackendDialog
 				idService,
 				selectedIds,
 				meshesGroup,
+				blockLoaders,
 				manager,
 				workers );
 	}

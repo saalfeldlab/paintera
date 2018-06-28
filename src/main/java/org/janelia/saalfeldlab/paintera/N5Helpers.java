@@ -3,6 +3,7 @@ package org.janelia.saalfeldlab.paintera;
 import java.io.IOException;
 import java.lang.invoke.MethodHandles;
 import java.lang.reflect.Array;
+import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -17,6 +18,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Function;
 import java.util.function.Supplier;
 import java.util.regex.Pattern;
+import java.util.stream.Stream;
 
 import org.janelia.saalfeldlab.n5.DataBlock;
 import org.janelia.saalfeldlab.n5.DataType;
@@ -117,6 +119,8 @@ public class N5Helpers
 	public static final String PAINTERA_DATA_DATASET = "data";
 
 	public static final String PAINTERA_FRAGMENT_SEGMENT_ASSIGNMENT_DATASTE = "fragment-segment-assignment";
+
+	public static final String LABEL_TO_BLOCK_MAPPING = "label-to-block-mapping";
 
 	private static final Logger LOG = LoggerFactory.getLogger( MethodHandles.lookup().lookupClass() );
 
@@ -974,6 +978,55 @@ public class N5Helpers
 	public static String lastSegmentOfDatasetPath( final String dataset )
 	{
 		return Paths.get( dataset ).getFileName().toString();
+	}
+
+	public static String[] labelMappingFromFileLoaderPattern( final N5Reader reader, final String dataset ) throws IOException, ReflectionException
+	{
+		if ( !isPainteraDataset( reader, dataset ) )
+		{
+			if ( isMultiScale( reader, dataset ) )
+			{
+				return Stream.generate( () -> null ).toArray( String[]::new );
+			}
+			else
+			{
+				return null;
+			}
+		}
+
+		if ( !( reader instanceof N5FSReader ) )
+		{
+			if ( isMultiScale( reader, dataset + "/data" ) )
+			{
+				final String[] sortedScaleDirs = listAndSortScaleDatasets( reader, dataset + "/data" );
+				return Arrays
+						.stream( sortedScaleDirs )
+						.map( ssd -> ( String ) null )
+						.toArray( String[]::new );
+			}
+			else
+			{
+				return null;
+			}
+		}
+
+		final N5FSMeta meta = new N5FSMeta( ( N5FSReader ) reader, dataset );
+		final String basePath = Paths.get( meta.basePath(), dataset, LABEL_TO_BLOCK_MAPPING ).toAbsolutePath().toString();
+		if ( isMultiScale( reader, dataset + "/data" ) )
+		{
+			final String[] sortedScaleDirs = listAndSortScaleDatasets( reader, dataset + "/data" );
+			return Arrays
+					.stream( sortedScaleDirs )
+					.map( ssd -> Paths.get( basePath, ssd, "%d" ) )
+					.map( Path::toAbsolutePath )
+					.map( Path::toString )
+					.toArray( String[]::new );
+		}
+		else
+		{
+			return new String[] { basePath + "/%d" };
+		}
+
 	}
 
 }

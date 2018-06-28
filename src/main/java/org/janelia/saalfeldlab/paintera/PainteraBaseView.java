@@ -7,16 +7,9 @@ import java.util.concurrent.Executors;
 import java.util.function.BiConsumer;
 import java.util.function.Function;
 import java.util.function.LongFunction;
-import java.util.stream.IntStream;
-import java.util.stream.Stream;
 
 import org.janelia.saalfeldlab.fx.ortho.OrthogonalViews;
 import org.janelia.saalfeldlab.paintera.composition.CompositeProjectorPreMultiply;
-import org.janelia.saalfeldlab.paintera.data.DataSource;
-import org.janelia.saalfeldlab.paintera.data.mask.MaskedSource;
-import org.janelia.saalfeldlab.paintera.meshes.InterruptibleFunction;
-import org.janelia.saalfeldlab.paintera.meshes.InterruptibleFunctionAndCache;
-import org.janelia.saalfeldlab.paintera.meshes.cache.CacheUtils;
 import org.janelia.saalfeldlab.paintera.state.GlobalTransformManager;
 import org.janelia.saalfeldlab.paintera.state.LabelSourceState;
 import org.janelia.saalfeldlab.paintera.state.RawSourceState;
@@ -25,7 +18,6 @@ import org.janelia.saalfeldlab.paintera.state.SourceState;
 import org.janelia.saalfeldlab.paintera.stream.AbstractHighlightingARGBStream;
 import org.janelia.saalfeldlab.paintera.stream.HighlightingStreamConverter;
 import org.janelia.saalfeldlab.paintera.viewer3d.Viewer3DFX;
-import org.janelia.saalfeldlab.util.HashWrapper;
 import org.janelia.saalfeldlab.util.NamedThreadFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -39,19 +31,11 @@ import gnu.trove.set.hash.TLongHashSet;
 import javafx.collections.ListChangeListener;
 import javafx.collections.ObservableList;
 import javafx.scene.layout.Pane;
-import net.imglib2.Interval;
-import net.imglib2.RandomAccessibleInterval;
-import net.imglib2.cache.Cache;
-import net.imglib2.cache.img.CachedCellImg;
 import net.imglib2.converter.ARGBColorConverter;
 import net.imglib2.converter.Converter;
-import net.imglib2.img.cell.Cell;
-import net.imglib2.img.cell.CellGrid;
-import net.imglib2.img.cell.LazyCellImg.LazyCells;
 import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.type.Type;
 import net.imglib2.type.label.LabelMultisetType;
-import net.imglib2.type.label.VolatileLabelMultisetArray;
 import net.imglib2.type.logic.BoolType;
 import net.imglib2.type.numeric.ARGBType;
 import net.imglib2.type.numeric.IntegerType;
@@ -222,87 +206,6 @@ public class PainteraBaseView
 	public ExecutorService generalPurposeExecutorService()
 	{
 		return this.generalPurposeExecutorService;
-	}
-
-	public static < D, T > InterruptibleFunctionAndCache< Long, Interval[] >[] generateLabelBlocksForLabelCache(
-			final DataSource< D, T > spec )
-	{
-		return generateLabelBlocksForLabelCache( spec, scaleFactorsFromAffineTransforms( spec ) );
-	}
-
-	public static < D, T > InterruptibleFunctionAndCache< Long, Interval[] >[] generateLabelBlocksForLabelCache(
-			final DataSource< D, T > spec,
-			final double[][] scalingFactors )
-	{
-		final boolean isMaskedSource = spec instanceof MaskedSource< ?, ? >;
-		final boolean isLabelMultisetType = spec.getDataType() instanceof LabelMultisetType;
-		final boolean isCachedCellImg = ( isMaskedSource
-				? ( ( MaskedSource< ?, ? > ) spec ).underlyingSource().getDataSource( 0, 0 )
-				: spec.getDataSource( 0, 0 ) ) instanceof CachedCellImg< ?, ? >;
-
-		if ( isLabelMultisetType && isCachedCellImg )
-		{
-			@SuppressWarnings( "unchecked" )
-			final DataSource< LabelMultisetType, T > source =
-					( DataSource< LabelMultisetType, T > ) ( isMaskedSource ? ( ( MaskedSource< ?, ? > ) spec ).underlyingSource() : spec );
-			return generateBlocksForLabelCacheLabelMultisetTypeCachedImg( source, scalingFactors );
-		}
-
-		return generateLabelBlocksForLabelCacheGeneric( spec, scalingFactors, collectLabels( spec.getDataType() ) );
-	}
-
-	private static < D, T > InterruptibleFunctionAndCache< Long, Interval[] >[] generateLabelBlocksForLabelCacheGeneric(
-			final DataSource< D, T > spec,
-			final double[][] scalingFactors,
-			final BiConsumer< D, TLongHashSet > collectLabels )
-	{
-
-		final int[][] blockSizes = Stream.generate( () -> new int[] { 64, 64, 64 } ).limit( spec.getNumMipmapLevels() ).toArray( int[][]::new );
-
-		final InterruptibleFunction< HashWrapper< long[] >, long[] >[] uniqueLabelLoaders = Stream
-				.generate( () -> InterruptibleFunction.fromFunction( key -> new long[] {} ) )
-				.toArray( InterruptibleFunction[]::new );
-
-		final InterruptibleFunctionAndCache< Long, Interval[] >[] blocksForLabelCache = CacheUtils.blocksForLabelCachesLongKeys(
-				spec,
-				uniqueLabelLoaders,
-				blockSizes,
-				scalingFactors,
-				CacheUtils::toCacheSoftRefLoaderCache );
-
-		return blocksForLabelCache;
-
-	}
-
-	private static < T > InterruptibleFunctionAndCache< Long, Interval[] >[] generateBlocksForLabelCacheLabelMultisetTypeCachedImg(
-			final DataSource< LabelMultisetType, T > spec,
-			final double[][] scalingFactors )
-	{
-		@SuppressWarnings( "unchecked" )
-		final InterruptibleFunction< HashWrapper< long[] >, long[] >[] uniqueLabelLoaders = new InterruptibleFunction[ spec.getNumMipmapLevels() ];
-		final int[][] blockSizes = new int[ spec.getNumMipmapLevels() ][];
-		for ( int level = 0; level < spec.getNumMipmapLevels(); ++level )
-		{
-			LOG.debug( "Generating unique label list loaders at level {} for LabelMultisetType source: {}", level, spec );
-			final RandomAccessibleInterval< LabelMultisetType > img = spec.getDataSource( 0, level );
-			if ( !( img instanceof CachedCellImg ) ) { throw new RuntimeException( "Source at level " + level + " is not a CachedCellImg for " + spec ); }
-			@SuppressWarnings( "unchecked" )
-			final CachedCellImg< LabelMultisetType, VolatileLabelMultisetArray > cachedImg = ( CachedCellImg< LabelMultisetType, VolatileLabelMultisetArray > ) img;
-			final LazyCells< Cell< VolatileLabelMultisetArray > > cells = cachedImg.getCells();
-			final CellGrid grid = cachedImg.getCellGrid();
-			final Cache< HashWrapper< long[] >, long[] > cache = CacheUtils.toCacheSoftRefLoaderCache( k -> new long[] {} );
-			uniqueLabelLoaders[ level ] = CacheUtils.fromCache( cache, t -> {} );
-			blockSizes[ level ] = IntStream.range( 0, grid.numDimensions() ).map( grid::cellDimension ).toArray();
-		}
-
-		final InterruptibleFunctionAndCache< Long, Interval[] >[] blocksForLabelCache = CacheUtils.blocksForLabelCachesLongKeys(
-				spec,
-				uniqueLabelLoaders,
-				blockSizes,
-				scalingFactors,
-				CacheUtils::toCacheSoftRefLoaderCache );
-
-		return blocksForLabelCache;
 	}
 
 	public static double[][] scaleFactorsFromAffineTransforms( final Source< ? > source )

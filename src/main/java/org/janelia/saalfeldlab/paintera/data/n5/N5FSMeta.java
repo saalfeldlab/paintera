@@ -60,4 +60,9 @@ public class N5FSMeta implements N5Meta
 
 	}
 
+	public String basePath()
+	{
+		return n5;
+	}
+
 }
