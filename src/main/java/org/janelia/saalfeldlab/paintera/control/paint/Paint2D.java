@@ -103,7 +103,7 @@ public class Paint2D
 					globalToViewerTransform,
 					1 );
 
-			LOG.warn(
+			LOG.debug(
 					"Corresponding axes in label coordinate system: x={} y={} z={}",
 					correspondingToXAxis,
 					correspondingToYAxis,
@@ -119,7 +119,7 @@ public class Paint2D
 					globalToViewerTransform,
 					1,
 					viewerRadius );
-			LOG.warn( "Transformed radii: x={} y={}", transformedXRadius, transformedYRadius );
+			LOG.debug( "Transformed radii: x={} y={}", transformedXRadius, transformedYRadius );
 
 			transformedRadius[ correspondingToXAxis ] = transformedXRadius[ correspondingToXAxis ];
 			transformedRadius[ correspondingToYAxis ] = transformedYRadius[ correspondingToYAxis ];
@@ -128,10 +128,6 @@ public class Paint2D
 			labelToViewerTransform.applyInverse( seed, seed );
 
 			final long slicePos = Math.round( seed[ viewerAxisInLabelCoordinates ] );
-			final MixedTransformView< UnsignedLongType > slice = Views.hyperSlice(
-					labels,
-					viewerAxisInLabelCoordinates,
-					slicePos );
 
 			final long[] center = {
 					Math.round( seed[ viewerAxisInLabelCoordinates == 0 ? 1 : 0 ] ),
@@ -143,48 +139,58 @@ public class Paint2D
 					( long ) Math.ceil( transformedRadius[ viewerAxisInLabelCoordinates != 2 ? 2 : 1 ] )
 			};
 
-			LOG.warn( "Transformed radius={}", transformedRadius );
+			LOG.debug( "Transformed radius={}", transformedRadius );
 
-			final Neighborhood< UnsignedLongType > neighborhood;
-			if ( sliceRadii[ 0 ] == sliceRadii[ 1 ] )
-			{
-				neighborhood = HyperSphereNeighborhood
-						.< UnsignedLongType >factory()
-						.create(
-								center,
-								sliceRadii[ 0 ],
-								slice.randomAccess() );
-			}
-			else
-			{
-				neighborhood = HyperEllipsoidNeighborhood
-						.< UnsignedLongType >factory()
-						.create(
-								center,
-								sliceRadii,
-								slice.randomAccess() );
-			}
+			final long numSlices = Math.max( ( long ) Math.ceil( brushDepth ) - 1, 0 );
 
-			LOG.warn( "Painting with radii {} centered at {} in slice {}", sliceRadii, center, slicePos );
-
-			for ( final UnsignedLongType t : neighborhood )
+			for ( long i = slicePos - numSlices; i <= slicePos + numSlices; ++i )
 			{
-				t.set( fillLabel );
+				final MixedTransformView< UnsignedLongType > slice = Views.hyperSlice(
+						labels,
+						viewerAxisInLabelCoordinates,
+						i );
+
+				final Neighborhood< UnsignedLongType > neighborhood;
+				if ( sliceRadii[ 0 ] == sliceRadii[ 1 ] )
+				{
+					neighborhood = HyperSphereNeighborhood
+							.< UnsignedLongType >factory()
+							.create(
+									center,
+									sliceRadii[ 0 ],
+									slice.randomAccess() );
+				}
+				else
+				{
+					neighborhood = HyperEllipsoidNeighborhood
+							.< UnsignedLongType >factory()
+							.create(
+									center,
+									sliceRadii,
+									slice.randomAccess() );
+				}
+
+				LOG.debug( "Painting with radii {} centered at {} in slice {}", sliceRadii, center, slicePos );
+
+				for ( final UnsignedLongType t : neighborhood )
+				{
+					t.set( fillLabel );
+				}
 			}
 
 			final long[] min2D = IntStream.range( 0, 2 ).mapToLong( d -> center[ d ] - sliceRadii[ d ] ).toArray();
 			final long[] max2D = IntStream.range( 0, 2 ).mapToLong( d -> center[ d ] + sliceRadii[ d ] ).toArray();
 
 			final long[] min = {
-					viewerAxisInLabelCoordinates == 0 ? slicePos : min2D[ 0 ],
-					viewerAxisInLabelCoordinates == 1 ? slicePos : viewerAxisInLabelCoordinates == 0 ? min2D[ 0 ] : min2D[ 1 ],
-					viewerAxisInLabelCoordinates == 2 ? slicePos : min2D[ 1 ]
+					viewerAxisInLabelCoordinates == 0 ? slicePos - numSlices : min2D[ 0 ],
+					viewerAxisInLabelCoordinates == 1 ? slicePos - numSlices : viewerAxisInLabelCoordinates == 0 ? min2D[ 0 ] : min2D[ 1 ],
+					viewerAxisInLabelCoordinates == 2 ? slicePos - numSlices : min2D[ 1 ]
 			};
 
 			final long[] max = {
-					viewerAxisInLabelCoordinates == 0 ? slicePos : max2D[ 0 ],
-					viewerAxisInLabelCoordinates == 1 ? slicePos : viewerAxisInLabelCoordinates == 0 ? max2D[ 0 ] : max2D[ 1 ],
-					viewerAxisInLabelCoordinates == 2 ? slicePos : max2D[ 1 ]
+					viewerAxisInLabelCoordinates == 0 ? slicePos + numSlices : max2D[ 0 ],
+					viewerAxisInLabelCoordinates == 1 ? slicePos + numSlices : viewerAxisInLabelCoordinates == 0 ? max2D[ 0 ] : max2D[ 1 ],
+					viewerAxisInLabelCoordinates == 2 ? slicePos + numSlices : max2D[ 1 ]
 			};
 
 			return new FinalInterval( min, max );
