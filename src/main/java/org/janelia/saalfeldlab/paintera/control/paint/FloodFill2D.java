@@ -31,9 +31,9 @@ import net.imglib2.RealPositionable;
 import net.imglib2.converter.Converter;
 import net.imglib2.converter.Converters;
 import net.imglib2.realtransform.AffineTransform3D;
-import net.imglib2.type.Type;
 import net.imglib2.type.label.LabelMultisetType;
 import net.imglib2.type.logic.BoolType;
+import net.imglib2.type.numeric.IntegerType;
 import net.imglib2.type.numeric.RealType;
 import net.imglib2.type.numeric.integer.UnsignedLongType;
 import net.imglib2.util.AccessBoxRandomAccessibleOnGet;
@@ -92,7 +92,7 @@ public class FloodFill2D
 		fillAt( x, y, fill );
 	}
 
-	public < T extends Type< T > > void fillAt( final double x, final double y, final long fill )
+	public < T extends IntegerType< T > > void fillAt( final double x, final double y, final long fill )
 	{
 		final Source< ? > currentSource = sourceInfo.currentSourceProperty().get();
 		final ViewerState viewerState = viewer.getState();
@@ -166,7 +166,7 @@ public class FloodFill2D
 		try
 		{
 			final RandomAccessibleInterval< UnsignedLongType > mask = source.generateMask( maskInfo, FOREGROUND_CHECK );
-			final long seedLabel = state.toIdConverter().biggestFragment( access.get() );
+			final long seedLabel = access.get().getIntegerLong();
 			LOG.warn( "Got seed label {}", seedLabel );
 			final RandomAccessibleInterval< BoolType > relevantBackground = Converters.convert( background, state.maskForLabel().apply( seedLabel ), new BoolType() );
 			final RandomAccessible< BoolType > extended = Views.extendValue( relevantBackground, new BoolType( false ) );
