@@ -33,8 +33,8 @@ import net.imglib2.algorithm.neighborhood.Shape;
 import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.type.Type;
 import net.imglib2.type.label.Label;
+import net.imglib2.type.label.LabelMultisetType;
 import net.imglib2.type.numeric.RealType;
-import net.imglib2.type.numeric.integer.UnsignedByteType;
 import net.imglib2.type.numeric.integer.UnsignedLongType;
 import net.imglib2.util.AccessBoxRandomAccessible;
 import net.imglib2.util.Pair;
@@ -49,6 +49,19 @@ public class RestrictPainting
 	private static final Logger LOG = LoggerFactory.getLogger( MethodHandles.lookup().lookupClass() );
 
 	private static final int CLEANUP_THRESHOLD = ( int ) 1e5;
+
+	private static final class ForegroundCheck implements Predicate< UnsignedLongType >
+	{
+
+		@Override
+		public boolean test( final UnsignedLongType t )
+		{
+			return t.getIntegerLong() == 1;
+		}
+
+	}
+
+	private static final ForegroundCheck FOREGROUND_CHECK = new ForegroundCheck();
 
 	private final ViewerPanelFX viewer;
 
@@ -107,9 +120,9 @@ public class RestrictPainting
 
 		final Type< ? > t = source.getDataType();
 
-		if ( !( t instanceof RealType< ? > ) )
+		if ( !( t instanceof RealType< ? > ) && !( t instanceof LabelMultisetType ) )
 		{
-			LOG.warn( "Data type is not integer type -- will not fill" );
+			LOG.warn( "Data type is not integer type or LabelMultisetType -- will not fill" );
 			return;
 		}
 
@@ -127,7 +140,14 @@ public class RestrictPainting
 
 		try
 		{
-			restrictTo( ( MaskedSource ) source, time, level, p, requestRepaint );
+			if ( source.getDataType() instanceof LabelMultisetType )
+			{
+				restrictToLabelMultisetType( ( MaskedSource ) source, time, level, p, requestRepaint );
+			}
+			else
+			{
+				restrictTo( ( MaskedSource ) source, time, level, p, requestRepaint );
+			}
 		}
 		catch ( final MaskInUse e )
 		{
@@ -172,8 +192,8 @@ public class RestrictPainting
 		final RandomAccessibleInterval< UnsignedLongType > canvas = source.getReadOnlyDataCanvas( time, level );
 		final RandomAccessibleInterval< T > background = source.getReadOnlyDataBackground( time, level );
 		final MaskInfo< UnsignedLongType > maskInfo = new MaskInfo<>( time, level, new UnsignedLongType( Label.TRANSPARENT ) );
-		final RandomAccessibleInterval< UnsignedByteType > mask = source.generateMask( maskInfo );
-		final AccessBoxRandomAccessible< UnsignedByteType > accessTracker = new AccessBoxRandomAccessible<>( Views.extendValue( mask, new UnsignedByteType( 1 ) ) );
+		final RandomAccessibleInterval< UnsignedLongType > mask = source.generateMask( maskInfo, FOREGROUND_CHECK );
+		final AccessBoxRandomAccessible< UnsignedLongType > accessTracker = new AccessBoxRandomAccessible<>( Views.extendValue( mask, new UnsignedLongType( 1 ) ) );
 
 		final RandomAccess< UnsignedLongType > canvasAccess = canvas.randomAccess();
 		canvasAccess.setPosition( seed );
@@ -184,17 +204,48 @@ public class RestrictPainting
 
 		final RandomAccessible< Pair< T, UnsignedLongType > > paired = Views.pair( Views.extendBorder( background ), Views.extendValue( canvas, new UnsignedLongType( Label.INVALID ) ) );
 
-		restrictTo( paired, accessTracker, seed, new DiamondShape( 1 ), bg -> bg.equals( backgroundSeed ), cv -> cv.equals( paintedLabel ) );
+		restrictTo( paired, accessTracker, seed, new DiamondShape( 1 ), bg -> bg.valueEquals( backgroundSeed ), cv -> cv.valueEquals( paintedLabel ) );
 
 		requestRepaint.run();
 
-		source.applyMask( mask, accessTracker.createAccessInterval() );
+		source.applyMask( mask, accessTracker.createAccessInterval(), FOREGROUND_CHECK );
+
+	}
+
+	private static void restrictToLabelMultisetType(
+			final MaskedSource< LabelMultisetType, ? > source,
+			final int time,
+			final int level,
+			final Localizable seed,
+			final Runnable requestRepaint ) throws MaskInUse
+	{
+		final RandomAccessibleInterval< UnsignedLongType > canvas = source.getReadOnlyDataCanvas( time, level );
+		final RandomAccessibleInterval< LabelMultisetType > background = source.getReadOnlyDataBackground( time, level );
+		final MaskInfo< UnsignedLongType > maskInfo = new MaskInfo<>( time, level, new UnsignedLongType( Label.TRANSPARENT ) );
+		final RandomAccessibleInterval< UnsignedLongType > mask = source.generateMask( maskInfo, FOREGROUND_CHECK );
+		final AccessBoxRandomAccessible< UnsignedLongType > accessTracker = new AccessBoxRandomAccessible<>( Views.extendValue( mask, new UnsignedLongType( 1 ) ) );
+
+		final RandomAccess< UnsignedLongType > canvasAccess = canvas.randomAccess();
+		canvasAccess.setPosition( seed );
+		final UnsignedLongType paintedLabel = canvasAccess.get();
+		final RandomAccess< LabelMultisetType > backgroundAccess = background.randomAccess();
+		backgroundAccess.setPosition( seed );
+		final LabelMultisetType backgroundSeed = backgroundAccess.get();
+		final long backgroundSeedLabel = backgroundSeed.entrySet().stream().max( ( e1, e2 ) -> Long.compare( e1.getCount(), e2.getCount() ) ).map( e -> e.getElement().id() ).orElse( Label.INVALID );
+
+		final RandomAccessible< Pair< LabelMultisetType, UnsignedLongType > > paired = Views.pair( Views.extendValue( background, new LabelMultisetType() ), Views.extendValue( canvas, new UnsignedLongType( Label.INVALID ) ) );
+
+		restrictTo( paired, accessTracker, seed, new DiamondShape( 1 ), bg -> bg.contains( backgroundSeedLabel ), cv -> cv.valueEquals( paintedLabel ) );
+
+		requestRepaint.run();
+
+		source.applyMask( mask, accessTracker.createAccessInterval(), FOREGROUND_CHECK );
 
 	}
 
 	private static < T, U > void restrictTo(
 			final RandomAccessible< Pair< T, U > > source,
-			final RandomAccessible< UnsignedByteType > mask,
+			final RandomAccessible< UnsignedLongType > mask,
 			final Localizable seed,
 			final Shape shape,
 			final Predicate< T > backgroundFilter,
@@ -202,7 +253,7 @@ public class RestrictPainting
 	{
 		final int n = source.numDimensions();
 
-		final RandomAccessible< Pair< Pair< T, U >, UnsignedByteType > > paired = Views.pair( source, mask );
+		final RandomAccessible< Pair< Pair< T, U >, UnsignedLongType > > paired = Views.pair( source, mask );
 
 		final TLongList[] coordinates = new TLongList[ n ];
 		for ( int d = 0; d < n; ++d )
@@ -211,16 +262,16 @@ public class RestrictPainting
 			coordinates[ d ].add( seed.getLongPosition( d ) );
 		}
 
-		final RandomAccessible< Neighborhood< Pair< Pair< T, U >, UnsignedByteType > > > neighborhood = shape.neighborhoodsRandomAccessible( paired );
-		final RandomAccess< Neighborhood< Pair< Pair< T, U >, UnsignedByteType > > > neighborhoodAccess = neighborhood.randomAccess();
+		final RandomAccessible< Neighborhood< Pair< Pair< T, U >, UnsignedLongType > > > neighborhood = shape.neighborhoodsRandomAccessible( paired );
+		final RandomAccess< Neighborhood< Pair< Pair< T, U >, UnsignedLongType > > > neighborhoodAccess = neighborhood.randomAccess();
 
-		final RandomAccess< UnsignedByteType > targetAccess = mask.randomAccess();
+		final RandomAccess< UnsignedLongType > targetAccess = mask.randomAccess();
 		targetAccess.setPosition( seed );
 		targetAccess.get().set( 1 );
 
-		final UnsignedByteType zero = new UnsignedByteType( 0 );
-		final UnsignedByteType one = new UnsignedByteType( 1 );
-		final UnsignedByteType two = new UnsignedByteType( 2 );
+		final UnsignedLongType zero = new UnsignedLongType( 0 );
+		final UnsignedLongType one = new UnsignedLongType( 1 );
+		final UnsignedLongType two = new UnsignedLongType( 2 );
 
 		for ( int i = 0; i < coordinates[ 0 ].size(); ++i )
 		{
@@ -229,12 +280,12 @@ public class RestrictPainting
 				neighborhoodAccess.setPosition( coordinates[ d ].get( i ), d );
 			}
 
-			final Cursor< Pair< Pair< T, U >, UnsignedByteType > > neighborhoodCursor = neighborhoodAccess.get().cursor();
+			final Cursor< Pair< Pair< T, U >, UnsignedLongType > > neighborhoodCursor = neighborhoodAccess.get().cursor();
 
 			while ( neighborhoodCursor.hasNext() )
 			{
-				final Pair< Pair< T, U >, UnsignedByteType > p = neighborhoodCursor.next();
-				final UnsignedByteType m = p.getB();
+				final Pair< Pair< T, U >, UnsignedLongType > p = neighborhoodCursor.next();
+				final UnsignedLongType m = p.getB();
 				final Pair< T, U > backgroundAndCanvas = p.getA();
 				if ( m.valueEquals( zero ) && canvasFilter.test( backgroundAndCanvas.getB() ) )
 				{

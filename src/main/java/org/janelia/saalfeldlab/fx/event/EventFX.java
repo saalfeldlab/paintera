@@ -62,9 +62,14 @@ public abstract class EventFX< E extends Event > implements EventHandler< E >, I
 		return new EventFXWithConsumer<>( name, KeyEvent.KEY_PRESSED, eventHandler, eventFilter );
 	}
 
+	public static EventFX< KeyEvent > KEY_RELEASED( final String name, final Consumer< KeyEvent > eventHandler, final Predicate< KeyEvent > eventFilter, final boolean consume )
+	{
+		return new EventFXWithConsumer<>( name, KeyEvent.KEY_RELEASED, eventHandler, eventFilter, consume );
+	}
+
 	public static EventFX< KeyEvent > KEY_RELEASED( final String name, final Consumer< KeyEvent > eventHandler, final Predicate< KeyEvent > eventFilter )
 	{
-		return new EventFXWithConsumer<>( name, KeyEvent.KEY_RELEASED, eventHandler, eventFilter );
+		return KEY_RELEASED( name, eventHandler, eventFilter, true );
 	}
 
 	public static EventFX< KeyEvent > KEY_TYPED( final String name, final Consumer< KeyEvent > eventHandler, final Predicate< KeyEvent > eventFilter )
@@ -107,20 +112,36 @@ public abstract class EventFX< E extends Event > implements EventHandler< E >, I
 
 		private final Consumer< E > eventHandler;
 
+		private final boolean consume;
+
 		public EventFXWithConsumer(
 				final String name,
 				final EventType< E > eventType,
 				final Consumer< E > eventHandler,
 				final Predicate< E > eventFilter )
 		{
+			this( name, eventType, eventHandler, eventFilter, false );
+		}
+
+		public EventFXWithConsumer(
+				final String name,
+				final EventType< E > eventType,
+				final Consumer< E > eventHandler,
+				final Predicate< E > eventFilter,
+				final boolean consume )
+		{
 			super( name, eventType, eventFilter );
 			this.eventHandler = eventHandler;
+			this.consume = consume;
 		}
 
 		@Override
 		public void actOn( final E event )
 		{
-			event.consume();
+			if ( consume )
+			{
+				event.consume();
+			}
 			eventHandler.accept( event );
 		}
 
