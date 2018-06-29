@@ -1,6 +1,7 @@
 package org.janelia.saalfeldlab.paintera.control.paint;
 
 import java.lang.invoke.MethodHandles;
+import java.util.Arrays;
 import java.util.function.LongFunction;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
@@ -22,12 +23,15 @@ import javafx.beans.property.SimpleDoubleProperty;
 import javafx.scene.Cursor;
 import javafx.scene.Scene;
 import net.imglib2.FinalInterval;
+import net.imglib2.Point;
 import net.imglib2.RandomAccess;
 import net.imglib2.RandomAccessible;
 import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.RealLocalizable;
 import net.imglib2.RealPoint;
 import net.imglib2.RealPositionable;
+import net.imglib2.algorithm.fill.FloodFill;
+import net.imglib2.algorithm.neighborhood.DiamondShape;
 import net.imglib2.converter.Converter;
 import net.imglib2.converter.Converters;
 import net.imglib2.realtransform.AffineTransform3D;
@@ -37,6 +41,7 @@ import net.imglib2.type.numeric.IntegerType;
 import net.imglib2.type.numeric.RealType;
 import net.imglib2.type.numeric.integer.UnsignedLongType;
 import net.imglib2.util.AccessBoxRandomAccessibleOnGet;
+import net.imglib2.view.MixedTransformView;
 import net.imglib2.view.Views;
 
 public class FloodFill2D
@@ -174,19 +179,66 @@ public class FloodFill2D
 					new BoolType() );
 			final RandomAccessible< BoolType > extended = Views.extendValue( relevantBackground, new BoolType( false ) );
 
+			final int fillNormalAxisInLabelCoordinateSystem = PaintUtils.labelAxisCorrespondingToViewerAxis(
+					labelTransform,
+					viewerTransform,
+					2 );
 			final AccessBoxRandomAccessibleOnGet< UnsignedLongType > accessTracker = new AccessBoxRandomAccessibleOnGet<>( Views.extendValue( mask, new UnsignedLongType( 1l ) ) );
 			accessTracker.initAccessBox();
 
-			FloodFillTransformedPlane.fill(
-					labelToViewerTransform,
-					( 0.5 + this.fillDepth.get() - 1.0 ) * PaintUtils.maximumVoxelDiagonalLengthPerDimension( labelTransform, viewerTransform )[ 2 ],
-					extended.randomAccess(),
-					accessTracker.randomAccess(),
-					new RealPoint( x, y, 0 ),
-					1l );
+			if ( fillNormalAxisInLabelCoordinateSystem < 0 )
 
-			requestRepaint.run();
-			source.applyMask( mask, new FinalInterval( accessTracker.getMin(), accessTracker.getMax() ), FOREGROUND_CHECK );
+			{
+
+				FloodFillTransformedPlane.fill(
+						labelToViewerTransform,
+						( 0.5 + this.fillDepth.get() - 1.0 ) * PaintUtils.maximumVoxelDiagonalLengthPerDimension( labelTransform, viewerTransform )[ 2 ],
+						extended.randomAccess(),
+						accessTracker.randomAccess(),
+						new RealPoint( x, y, 0 ),
+						1l );
+
+				requestRepaint.run();
+				source.applyMask( mask, new FinalInterval( accessTracker.getMin(), accessTracker.getMax() ), FOREGROUND_CHECK );
+			}
+
+			else
+			{
+				LOG.debug( "Flood filling axis aligned. Corressponding viewer axis={}", fillNormalAxisInLabelCoordinateSystem );
+				final long slicePos = access.getLongPosition( fillNormalAxisInLabelCoordinateSystem );
+				final long numSlices = Math.max( ( long ) Math.ceil( this.fillDepth.get() ) - 1, 0 );
+				final long[] seed2D = {
+						access.getLongPosition( fillNormalAxisInLabelCoordinateSystem == 0 ? 1 : 0 ),
+						access.getLongPosition( fillNormalAxisInLabelCoordinateSystem != 2 ? 2 : 1 )
+				};
+				accessTracker.initAccessBox();
+				final long[] min = { Long.MAX_VALUE, Long.MAX_VALUE, Long.MAX_VALUE };
+				final long[] max = { Long.MIN_VALUE, Long.MIN_VALUE, Long.MIN_VALUE };
+				for ( long i = slicePos - numSlices; i <= slicePos + numSlices; ++i )
+				{
+					final MixedTransformView< BoolType > relevantBackgroundSlice = Views.hyperSlice(
+							extended,
+							fillNormalAxisInLabelCoordinateSystem,
+							i );
+					final MixedTransformView< UnsignedLongType > relevantAccessTracker = Views.hyperSlice(
+							accessTracker,
+							fillNormalAxisInLabelCoordinateSystem,
+							i );
+
+					FloodFill.fill(
+							relevantBackgroundSlice,
+							relevantAccessTracker,
+							new Point( seed2D ),
+							new UnsignedLongType( 1l ),
+							new DiamondShape( 1 ) );
+					Arrays.setAll( min, d -> Math.min( accessTracker.getMin()[ d ], min[ d ] ) );
+					Arrays.setAll( max, d -> Math.max( accessTracker.getMax()[ d ], max[ d ] ) );
+				}
+
+				requestRepaint.run();
+				source.applyMask( mask, new FinalInterval( min, max ), FOREGROUND_CHECK );
+
+			}
 
 		}
 		catch ( final MaskInUse e )
