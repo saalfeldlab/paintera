@@ -168,7 +168,10 @@ public class FloodFill2D
 			final RandomAccessibleInterval< UnsignedLongType > mask = source.generateMask( maskInfo, FOREGROUND_CHECK );
 			final long seedLabel = access.get().getIntegerLong();
 			LOG.warn( "Got seed label {}", seedLabel );
-			final RandomAccessibleInterval< BoolType > relevantBackground = Converters.convert( background, state.maskForLabel().apply( seedLabel ), new BoolType() );
+			final RandomAccessibleInterval< BoolType > relevantBackground = Converters.convert(
+					background,
+					( src, tgt ) -> tgt.set( src.getIntegerLong() == seedLabel ),
+					new BoolType() );
 			final RandomAccessible< BoolType > extended = Views.extendValue( relevantBackground, new BoolType( false ) );
 
 			final AccessBoxRandomAccessibleOnGet< UnsignedLongType > accessTracker = new AccessBoxRandomAccessibleOnGet<>( Views.extendValue( mask, new UnsignedLongType( 1l ) ) );
