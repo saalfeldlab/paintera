@@ -151,7 +151,7 @@ public class FloodFill2D
 		final AffineTransform3D labelToViewerTransform = this.viewerTransform.copy().concatenate( labelTransform );
 
 		final RealPoint rp = setCoordinates( x, y, viewer, labelTransform );
-		final RandomAccessibleInterval< T > background = source.underlyingSource().getDataSource( time, level );
+		final RandomAccessibleInterval< T > background = source.getDataSource( time, level );
 		final RandomAccess< T > access = background.randomAccess();
 		for ( int d = 0; d < access.numDimensions(); ++d )
 		{
