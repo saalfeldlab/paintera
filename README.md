@@ -34,12 +34,34 @@ or, to generate a "fat jar" with all dependencies added, run:
 mvn -Pfat clean package
 ```
 
-## Run
-
-```shell
-java -Xmx16G -XX:+UseConcMarkSweepGC -jar target/paintera-0.1.0-SNAPSHOT-shaded.jar
+## Install
+(Linux and OSX only)
+```bash
+[PREFIX=</path/to/prefix>] sh install.sh
 ```
-Replace `16G` with the maximum amount of memory that Paintera should use.
+Set `PREFIX` to a path that is on your `PATH`
+
+## Run
+If you are on Linux/OSX you can install [ctrueden/jrun](github.com/ctrueden/jrun) and the paintera launch script ([instructions]()) and then run:
+```bash
+[VERSION=<version>] [JAVA_OPTS=<java-opts>] paintera [ARG...]
+```
+If you set `VERSION` to a `SNAPSHOT` release you will need to run
+```bash
+mvn clean install
+```
+first.
+
+On any OS, you can also run a [compiled fat jar](https://github.com/saalfeldlab/paintera/#compile)
+```shell
+java <java-opts> -jar target/paintera-0.1.0-SNAPSHOT-shaded.jar
+```
+We recommend at these Java options:
+
+|Option| Description|
+| ---- | ---------- |
+| -Xmx16G | Maximum Java heap space (replace 16G with desired amount) |
+| -XX:+UseConcMarkSweepGC | concurrent garbage collector generally better for UI applications |
 
 #### Display help message and command line parameters
 ```shell
