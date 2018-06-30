@@ -5,4 +5,7 @@ artifactId="paintera"
 version="${VERSION:-0.1.0-SNAPSHOT}"
 mainClass="org.janelia.saalfeldlab.paintera.Paintera"
 
-jrun "${groupId}:${artifactId}:${version}:${mainClass}"
+jrun \
+    ${JAVA_OPTS} \
+    "${groupId}:${artifactId}:${version}:${mainClass}" \
+    $@
