@@ -42,7 +42,7 @@ mvn -Pfat clean package
 Set `PREFIX` to a path that is on your `PATH`
 
 ## Run
-If you are on Linux/OSX you can install [ctrueden/jrun](github.com/ctrueden/jrun) and the paintera launch script ([instructions]()) and then run:
+If you are on Linux/OSX you can install [ctrueden/jrun](github.com/ctrueden/jrun) and the paintera launch script ([instructions](https://github.com/saalfeldlab/paintera#install)) and then run:
 ```bash
 [VERSION=<version>] [JAVA_OPTS=<java-opts>] paintera [ARG...]
 ```
