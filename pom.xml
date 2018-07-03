@@ -20,6 +20,7 @@
 		<scijava.jvm.version>1.8</scijava.jvm.version>
 		<bigdataviewer-core.version>5.0.0</bigdataviewer-core.version>
 		<bigdataviewer-vistools.version>1.0.0-beta-11</bigdataviewer-vistools.version>
+		<main-class>org.janelia.saalfeldlab.paintera.Paintera</main-class>
 	</properties>
 
 	<profiles>
