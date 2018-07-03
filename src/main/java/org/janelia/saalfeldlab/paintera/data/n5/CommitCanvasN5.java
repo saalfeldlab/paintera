@@ -1,23 +1,35 @@
 package org.janelia.saalfeldlab.paintera.data.n5;
 
+import java.io.DataOutputStream;
+import java.io.File;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.lang.invoke.MethodHandles;
 import java.nio.file.Paths;
 import java.util.Arrays;
 import java.util.Iterator;
 import java.util.Optional;
+import java.util.Set;
 import java.util.function.BiConsumer;
+import java.util.stream.Collectors;
 import java.util.stream.DoubleStream;
 
 import org.janelia.saalfeldlab.n5.ByteArrayDataBlock;
 import org.janelia.saalfeldlab.n5.DatasetAttributes;
+import org.janelia.saalfeldlab.n5.LongArrayDataBlock;
+import org.janelia.saalfeldlab.n5.N5FSReader;
 import org.janelia.saalfeldlab.n5.N5Writer;
 import org.janelia.saalfeldlab.paintera.N5Helpers;
 import org.janelia.saalfeldlab.paintera.data.mask.MaskedSource;
+import org.janelia.saalfeldlab.paintera.meshes.cache.BlocksForLabelFromFile;
+import org.janelia.saalfeldlab.util.HashWrapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import gnu.trove.iterator.TLongIterator;
 import gnu.trove.set.hash.TLongHashSet;
+import net.imglib2.FinalInterval;
+import net.imglib2.Interval;
 import net.imglib2.RandomAccess;
 import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.algorithm.util.Grids;
@@ -29,6 +41,7 @@ import net.imglib2.realtransform.Scale3D;
 import net.imglib2.type.label.FromIntegerTypeConverter;
 import net.imglib2.type.label.Label;
 import net.imglib2.type.label.LabelMultisetType;
+import net.imglib2.type.label.LabelMultisetType.Entry;
 import net.imglib2.type.label.LabelMultisetTypeDownscaler;
 import net.imglib2.type.label.LabelUtils;
 import net.imglib2.type.label.VolatileLabelMultisetArray;
@@ -67,19 +80,34 @@ public class CommitCanvasN5 implements BiConsumer< CachedCellImg< UnsignedLongTy
 	@Override
 	public void accept( final CachedCellImg< UnsignedLongType, ? > canvas, final long[] blocks )
 	{
-		if ( true ) { throw new RuntimeException( "Comminting canvas disabled at the moment" ); }
 		try
 		{
-			final String dataset = N5Helpers.isPainteraDataset( n5, this.dataset ) ? this.dataset + "/" + N5Helpers.PAINTERA_DATA_DATASET : this.dataset;
+			final boolean isPainteraDataset = N5Helpers.isPainteraDataset( n5, this.dataset );
+			final String dataset = isPainteraDataset ? this.dataset + "/" + N5Helpers.PAINTERA_DATA_DATASET : this.dataset;
 			final boolean isMultiscale = N5Helpers.isMultiScale( n5, dataset );
+
+			final String uniqueLabelsPath = this.dataset + "/unique-labels";
+			final String labelToBlockMappingPath = this.dataset + "/label-to-block-mapping";
+			LOG.warn( "uniqueLabelsPath {}", uniqueLabelsPath );
+
+			final boolean hasUniqueLabels = n5.exists( uniqueLabelsPath );
+			final boolean hasLabelToBlockMapping = n5.exists( labelToBlockMappingPath );
+			final boolean updateLabelToBlockMapping = isPainteraDataset && hasUniqueLabels && hasLabelToBlockMapping && n5 instanceof N5FSReader;
 
 			final CellGrid canvasGrid = canvas.getCellGrid();
 
 			final String highestResolutionDataset = isMultiscale ? Paths.get( dataset, N5Helpers.listAndSortScaleDatasets( n5, dataset )[ 0 ] ).toString() : dataset;
+			final String highestResolutionDatasetUniqueLabels = Paths.get( uniqueLabelsPath, N5Helpers.listAndSortScaleDatasets( n5, uniqueLabelsPath )[ 0 ] ).toString();
+			final String highestResolutionLabelToBlockMapping = updateLabelToBlockMapping ? Paths.get( new N5FSMeta( ( N5FSReader ) n5, dataset ).basePath(), labelToBlockMappingPath, "s0" ).toAbsolutePath().toString() : null;
+			LOG.warn( "highestResolutionDatasetUniqueLabels {}", highestResolutionDatasetUniqueLabels );
+			LOG.warn( "Label to block mapping at highest resolution {} {}", highestResolutionLabelToBlockMapping, updateLabelToBlockMapping );
+			final String highestResolutionLabelToBlockMappingPattern = updateLabelToBlockMapping ? highestResolutionLabelToBlockMapping + "/%d" : null;
+			final BlocksForLabelFromFile highestResolutionBlocksForLabelLoader = new BlocksForLabelFromFile( highestResolutionLabelToBlockMappingPattern );
 
 			if ( !Optional.ofNullable( n5.getAttribute( highestResolutionDataset, N5Helpers.LABEL_MULTISETTYPE_KEY, Boolean.class ) ).orElse( false ) ) { throw new RuntimeException( "Only label multiset type accepted currently!" ); }
 
 			final DatasetAttributes highestResolutionAttributes = n5.getDatasetAttributes( highestResolutionDataset );
+			final DatasetAttributes highestResolutionAttributesUniqueLabels = updateLabelToBlockMapping ? n5.getDatasetAttributes( highestResolutionDatasetUniqueLabels ) : null;
 			final CellGrid highestResolutionGrid = new CellGrid( highestResolutionAttributes.getDimensions(), highestResolutionAttributes.getBlockSize() );
 
 			if ( !highestResolutionGrid.equals( canvasGrid ) )
@@ -146,6 +174,118 @@ public class CommitCanvasN5 implements BiConsumer< CachedCellImg< UnsignedLongTy
 				final byte[] byteData = LabelUtils.serializeLabelMultisetTypes( pairIterable, numElements );
 				final ByteArrayDataBlock dataBlock = new ByteArrayDataBlock( Intervals.dimensionsAsIntArray( blockWithBackground ), gridPosition, byteData );
 				n5.writeBlock( highestResolutionDataset, highestResolutionAttributes, dataBlock );
+
+				if ( updateLabelToBlockMapping )
+				{
+					final long[] previousData = Optional
+							.ofNullable( n5.readBlock( highestResolutionDatasetUniqueLabels, highestResolutionAttributesUniqueLabels, gridPosition ) )
+							.map( b -> ( LongArrayDataBlock ) b )
+							.map( LongArrayDataBlock::getData )
+							.orElse( new long[] {} );
+					final TLongHashSet previousDataAsSet = new TLongHashSet( previousData );
+					final TLongHashSet currentDataAsSet = new TLongHashSet();
+					final TLongHashSet wasAdded = new TLongHashSet();
+					final TLongHashSet wasRemoved = new TLongHashSet();
+					final IntervalView< Pair< UnsignedLongType, LabelMultisetType > > relevantData = Views.interval( Views.pair( canvas, highestResolutionData ), min, max );
+					for ( final Pair< UnsignedLongType, LabelMultisetType > p : Views.iterable( relevantData ) )
+					{
+						final UnsignedLongType pa = p.getA();
+						final LabelMultisetType pb = p.getB();
+						final long pav = pa.getIntegerLong();
+						if ( pav == Label.INVALID )
+						{
+							pb
+									.entrySet()
+									.stream()
+									.map( Entry::getElement )
+									.mapToLong( Label::id )
+									.forEach( currentDataAsSet::add );
+						}
+						else
+						{
+							currentDataAsSet.add( pav );
+						}
+					}
+
+					for ( final TLongIterator pIt = previousDataAsSet.iterator(); pIt.hasNext(); )
+					{
+						final long p = pIt.next();
+						if ( !currentDataAsSet.contains( p ) )
+						{
+							wasRemoved.add( p );
+						}
+					}
+
+					for ( final TLongIterator cIt = currentDataAsSet.iterator(); cIt.hasNext(); )
+					{
+						final long c = cIt.next();
+						if ( !previousDataAsSet.contains( c ) )
+						{
+							wasAdded.add( c );
+						}
+					}
+
+					LOG.warn( "was added {}", wasAdded );
+					LOG.warn( "was removed {}", wasRemoved );
+
+					final HashWrapper< Interval > wrappedInterval = HashWrapper.interval( new FinalInterval( min, max ) );
+
+					for ( final TLongIterator wasAddedIt = wasAdded.iterator(); wasAddedIt.hasNext(); )
+					{
+						final long wasAddedId = wasAddedIt.next();
+						final Set< HashWrapper< Interval > > containedIntervals = Arrays
+								.stream( highestResolutionBlocksForLabelLoader.apply( wasAddedId ) )
+								.map( HashWrapper::interval )
+								.collect( Collectors.toSet() );
+						containedIntervals.add( wrappedInterval );
+						final File targetPath = new File( String.format( highestResolutionLabelToBlockMappingPattern, wasAddedId ) );
+//						LOG.warn( "Writing {} to {}", containedIntervals, targetPath );
+						try (FileOutputStream fos = new FileOutputStream( targetPath ))
+						{
+							try (DataOutputStream dos = new DataOutputStream( fos ))
+							{
+								for ( final HashWrapper< Interval > wi : containedIntervals )
+								{
+									final Interval interval = wi.getData();
+									dos.writeLong( interval.min( 0 ) );
+									dos.writeLong( interval.min( 1 ) );
+									dos.writeLong( interval.min( 2 ) );
+
+									dos.writeLong( interval.max( 0 ) );
+									dos.writeLong( interval.max( 1 ) );
+									dos.writeLong( interval.max( 2 ) );
+								}
+							}
+						}
+					}
+
+					for ( final TLongIterator wasRemovedIt = wasRemoved.iterator(); wasRemovedIt.hasNext(); )
+					{
+						final long wasRemovedId = wasRemovedIt.next();
+						final Set< HashWrapper< Interval > > containedIntervals = Arrays
+								.stream( highestResolutionBlocksForLabelLoader.apply( wasRemovedId ) )
+								.map( HashWrapper::interval )
+								.collect( Collectors.toSet() );
+						containedIntervals.remove( wrappedInterval );
+						try (FileOutputStream fos = new FileOutputStream( new File( String.format( highestResolutionLabelToBlockMappingPattern, wasRemovedId ) ) ))
+						{
+							try (DataOutputStream dos = new DataOutputStream( fos ))
+							{
+								for ( final HashWrapper< Interval > wi : containedIntervals )
+								{
+									final Interval interval = wi.getData();
+									dos.writeLong( interval.min( 0 ) );
+									dos.writeLong( interval.min( 1 ) );
+									dos.writeLong( interval.min( 2 ) );
+
+									dos.writeLong( interval.max( 0 ) );
+									dos.writeLong( interval.max( 1 ) );
+									dos.writeLong( interval.max( 2 ) );
+								}
+							}
+						}
+					}
+				}
 
 			}
 
@@ -281,7 +421,7 @@ public class CommitCanvasN5 implements BiConsumer< CachedCellImg< UnsignedLongTy
 //				if ( isIntegerType() )
 //					commitForIntegerType( n5, dataset, canvas );
 		}
-		catch ( final IOException e )
+		catch ( final IOException | ReflectionException e )
 		{
 			// TODO Auto-generated catch block
 			e.printStackTrace();
