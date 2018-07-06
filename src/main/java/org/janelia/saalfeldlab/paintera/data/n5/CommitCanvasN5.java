@@ -12,6 +12,7 @@ import java.util.Iterator;
 import java.util.Optional;
 import java.util.Set;
 import java.util.function.BiConsumer;
+import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.DoubleStream;
@@ -413,6 +414,20 @@ public class CommitCanvasN5 implements BiConsumer< CachedCellImg< UnsignedLongTy
 		}
 	}
 
+	private static void modifyAndWrite(
+			final Function< Long, Interval[] > blocksForLabelLoader,
+			final long id,
+			final Consumer< Set< HashWrapper< Interval > > > modify,
+			final String labelToBlockMappingPattern ) throws FileNotFoundException, IOException
+	{
+		final Set< HashWrapper< Interval > > containedIntervals = Arrays
+				.stream( blocksForLabelLoader.apply( id ) )
+				.map( HashWrapper::interval )
+				.collect( Collectors.toSet() );
+		modify.accept( containedIntervals );
+		writeToFile( labelToBlockMappingPattern, id, containedIntervals );
+	}
+
 	private static void updateHighestResolutionLabelMapping(
 			final N5Writer n5,
 			final String uniqueLabelsDataset,
@@ -434,24 +449,12 @@ public class CommitCanvasN5 implements BiConsumer< CachedCellImg< UnsignedLongTy
 
 		for ( final TLongIterator wasAddedIt = wasAdded.iterator(); wasAddedIt.hasNext(); )
 		{
-			final long wasAddedId = wasAddedIt.next();
-			final Set< HashWrapper< Interval > > containedIntervals = Arrays
-					.stream( highestResolutionBlocksForLabelLoader.apply( wasAddedId ) )
-					.map( HashWrapper::interval )
-					.collect( Collectors.toSet() );
-			containedIntervals.add( wrappedInterval );
-			writeToFile( labelToBlockMappingPattern, wasAddedId, containedIntervals );
+			modifyAndWrite( highestResolutionBlocksForLabelLoader, wasAddedIt.next(), set -> set.add( wrappedInterval ), labelToBlockMappingPattern );
 		}
 
 		for ( final TLongIterator wasRemovedIt = wasRemoved.iterator(); wasRemovedIt.hasNext(); )
 		{
-			final long wasRemovedId = wasRemovedIt.next();
-			final Set< HashWrapper< Interval > > containedIntervals = Arrays
-					.stream( highestResolutionBlocksForLabelLoader.apply( wasRemovedId ) )
-					.map( HashWrapper::interval )
-					.collect( Collectors.toSet() );
-			containedIntervals.remove( wrappedInterval );
-			writeToFile( labelToBlockMappingPattern, wasRemovedId, containedIntervals );
+			modifyAndWrite( highestResolutionBlocksForLabelLoader, wasRemovedIt.next(), set -> set.remove( wrappedInterval ), labelToBlockMappingPattern );
 		}
 	}
 
