@@ -207,8 +207,11 @@ public class CommitCanvasN5 implements BiConsumer< CachedCellImg< UnsignedLongTy
 
 					final String datasetUniqueLabelsPrevious = Paths.get( uniqueLabelsPath, N5Helpers.listAndSortScaleDatasets( n5, uniqueLabelsPath )[ level - 1 ] ).toString();
 					final String datasetUniqueLabels = Paths.get( uniqueLabelsPath, N5Helpers.listAndSortScaleDatasets( n5, uniqueLabelsPath )[ level ] ).toString();
+					final String labelToBlockMappingPrevious = updateLabelToBlockMapping ? Paths.get( new N5FSMeta( ( N5FSReader ) n5, dataset ).basePath(), labelToBlockMappingPath, "s" + ( level - 1 ) ).toAbsolutePath().toString() : null;
 					final String labelToBlockMapping = updateLabelToBlockMapping ? Paths.get( new N5FSMeta( ( N5FSReader ) n5, dataset ).basePath(), labelToBlockMappingPath, "s" + level ).toAbsolutePath().toString() : null;
+					final String labelToBlockMappingPatternPrevious = updateLabelToBlockMapping ? labelToBlockMappingPrevious + "/%d" : null;
 					final String labelToBlockMappingPattern = updateLabelToBlockMapping ? labelToBlockMapping + "/%d" : null;
+					final BlocksForLabelFromFile blocksForLabelLoaderPrevious = new BlocksForLabelFromFile( labelToBlockMappingPatternPrevious );
 					final BlocksForLabelFromFile blocksForLabelLoader = new BlocksForLabelFromFile( labelToBlockMappingPattern );
 					final DatasetAttributes attributesUniqueLabelsPrevious = updateLabelToBlockMapping ? n5.getDatasetAttributes( datasetUniqueLabelsPrevious ) : null;
 					final DatasetAttributes attributesUniqueLabels = updateLabelToBlockMapping ? n5.getDatasetAttributes( datasetUniqueLabels ) : null;
@@ -225,11 +228,6 @@ public class CommitCanvasN5 implements BiConsumer< CachedCellImg< UnsignedLongTy
 
 					final CachedCellImg< LabelMultisetType, VolatileLabelMultisetArray > previousData = LabelUtils.openVolatile( n5, previousDataset );
 					final RandomAccess< Cell< VolatileLabelMultisetArray > > previousCellsAccess = previousData.getCells().randomAccess();
-
-					final long[] blockPositionInTargetGrid = new long[ targetGrid.numDimensions() ];
-
-					final long[] blockMin = new long[ blockPositionInTargetGrid.length ];
-					final long[] blockMax = new long[ blockPositionInTargetGrid.length ];
 
 					final int[] targetBlockSize = targetAttributes.getBlockSize();
 					final int[] previousBlockSize = previousAttributes.getBlockSize();
@@ -249,11 +247,14 @@ public class CommitCanvasN5 implements BiConsumer< CachedCellImg< UnsignedLongTy
 
 					for ( final long targetBlock : affectedBlocks )
 					{
+						final long[] blockPositionInTargetGrid = new long[ targetGrid.numDimensions() ];
 						targetGrid.getCellGridPositionFlat( targetBlock, blockPositionInTargetGrid );
 
 						final long[] blockMinInTargetGrid = multiplyElementwise3( blockPositionInTargetGrid, targetBlockSize, new long[ 3 ] );
 						final double[] blockMinDouble = asDoubleArray3( blockMinInTargetGrid, new double[ 3 ] );
 						final double[] blockMaxDouble = add3( blockMinDouble, targetBlockSize, new double[ 3 ] );
+
+						LOG.debug( "level={}: blockMinDouble={} blockMaxDouble={}", level, blockMinDouble, blockMaxDouble );
 
 						LOG.debug( "level={}: Downsampling block {} with min={} max={} in tarspace.", level, blockPositionInTargetGrid, blockMinDouble, blockMaxDouble );
 
@@ -267,22 +268,18 @@ public class CommitCanvasN5 implements BiConsumer< CachedCellImg< UnsignedLongTy
 						targetToPrevious.apply( blockMinDouble, blockMinDouble );
 						targetToPrevious.apply( blockMaxDouble, blockMaxDouble );
 
-						blockMin[ 0 ] = Math.min( ( long ) blockMinDouble[ 0 ], previousDimensions[ 0 ] );
-						blockMin[ 1 ] = Math.min( ( long ) blockMinDouble[ 1 ], previousDimensions[ 0 ] );
-						blockMin[ 2 ] = Math.min( ( long ) blockMinDouble[ 2 ], previousDimensions[ 0 ] );
+						LOG.debug( "level={}: blockMinDouble={} blockMaxDouble={}", level, blockMinDouble, blockMaxDouble );
 
-						blockMax[ 0 ] = Math.min( ( long ) blockMaxDouble[ 0 ], previousDimensions[ 0 ] );
-						blockMax[ 1 ] = Math.min( ( long ) blockMaxDouble[ 1 ], previousDimensions[ 1 ] );
-						blockMax[ 2 ] = Math.min( ( long ) blockMaxDouble[ 2 ], previousDimensions[ 2 ] );
+						final long[] blockMin = minOf3( blockMinDouble, previousDimensions, new long[ 3 ] );
+						final long[] blockMax = minOf3( blockMaxDouble, previousDimensions, new long[ 3 ] );
 
 						final long[] previousRelevantIntervalMin = blockMin.clone();
 						final long[] previousRelevantIntervalMax = add3( blockMax, -1, new long[ 3 ] );
 
 						divide3( blockMin, previousBlockSize, blockMin );
-
-						blockMax[ 0 ] = Math.max( blockMax[ 0 ] / previousBlockSize[ 0 ] - 1, blockMin[ 0 ] );
-						blockMax[ 1 ] = Math.max( blockMax[ 1 ] / previousBlockSize[ 1 ] - 1, blockMin[ 1 ] );
-						blockMax[ 2 ] = Math.max( blockMax[ 2 ] / previousBlockSize[ 2 ] - 1, blockMin[ 2 ] );
+						divide3( blockMax, previousBlockSize, blockMax );
+						add3( blockMax, -1, blockMax );
+						minOf3( blockMax, blockMin, blockMax );
 
 						LOG.debug( "level={}: Downsampling contained label lists for block {} with min={} max={} in previous space.", level, blockPositionInTargetGrid, blockMin, blockMax );
 
@@ -304,11 +301,11 @@ public class CommitCanvasN5 implements BiConsumer< CachedCellImg< UnsignedLongTy
 						{
 							final TLongHashSet mergedContainedLabels = new TLongHashSet();
 							// TODO find better way of iterating here
-							LOG.debug( "level={}: Fetching contained labels for previous level at {} {} {}", level, blockMin, blockMax, ones );
+							LOG.warn( "level={}: Fetching contained labels for previous level at {} {} {}", level, blockMin, blockMax, ones );
 							for ( final long[] offset : Grids.collectAllOffsets( blockMin, blockMax, ones ) )
 							{
 								final long[] cl = readContainedLabels( n5, datasetUniqueLabelsPrevious, attributesUniqueLabelsPrevious, offset );
-								LOG.warn( "level={}: offset={}: got contained labels: {}", level, offset, cl );
+								LOG.warn( "level={}: offset={}: got contained labels: {}", level, offset, cl.length );
 								mergedContainedLabels.addAll( cl );
 							}
 							final TLongHashSet containedLabels = readContainedLabelsSet( n5, datasetUniqueLabels, attributesUniqueLabels, blockPositionInTargetGrid );
@@ -317,8 +314,8 @@ public class CommitCanvasN5 implements BiConsumer< CachedCellImg< UnsignedLongTy
 							final TLongHashSet wasAdded = containedInFirstButNotInSecond( mergedContainedLabels, containedLabels );
 							final TLongHashSet wasRemoved = containedInFirstButNotInSecond( containedLabels, mergedContainedLabels );
 
-							LOG.debug( "level={}: Updating label to block mapping for {}. Added:   {}", level, blockMinInTargetGrid, wasAdded );
-							LOG.debug( "level={}: Updating label to block mapping for {}. Removed: {}", level, blockMinInTargetGrid, wasRemoved );
+							LOG.warn( "level={}: Updating label to block mapping for {}. Added:   {}", level, blockMinInTargetGrid, wasAdded.size() );
+							LOG.warn( "level={}: Updating label to block mapping for {}. Removed: {}", level, blockMinInTargetGrid, wasRemoved.size() );
 
 							final HashWrapper< Interval > wrappedInterval = HashWrapper.interval( new FinalInterval( blockMinInTargetGrid, blockMaxInTargetGrid ) );
 
@@ -471,6 +468,9 @@ public class CommitCanvasN5 implements BiConsumer< CachedCellImg< UnsignedLongTy
 		final TLongHashSet wasAdded = containedInFirstButNotInSecond( currentDataAsSet, previousDataAsSet );
 		final TLongHashSet wasRemoved = containedInFirstButNotInSecond( previousDataAsSet, currentDataAsSet );
 
+		final int[] size = uniqueLabelsAttributes.getBlockSize();
+		n5.writeBlock( uniqueLabelsDataset, uniqueLabelsAttributes, new LongArrayDataBlock( size, gridPosition, currentDataAsSet.toArray() ) );
+
 		LOG.debug( "was added {}", wasAdded );
 		LOG.debug( "was removed {}", wasRemoved );
 
@@ -549,6 +549,22 @@ public class CommitCanvasN5 implements BiConsumer< CachedCellImg< UnsignedLongTy
 		quotient[ 1 ] = divident[ 1 ] / divisor[ 1 ];
 		quotient[ 2 ] = divident[ 2 ] / divisor[ 2 ];
 		return quotient;
+	}
+
+	private static long[] minOf3( final double[] arr1, final long[] arr2, final long[] min )
+	{
+		min[ 0 ] = Math.min( ( long ) arr1[ 0 ], arr2[ 0 ] );
+		min[ 1 ] = Math.min( ( long ) arr1[ 1 ], arr2[ 1 ] );
+		min[ 2 ] = Math.min( ( long ) arr1[ 2 ], arr2[ 2 ] );
+		return min;
+	}
+
+	private static long[] minOf3( final long[] arr1, final long[] arr2, final long[] min )
+	{
+		min[ 0 ] = Math.min( arr1[ 0 ], arr2[ 0 ] );
+		min[ 1 ] = Math.min( arr1[ 1 ], arr2[ 1 ] );
+		min[ 2 ] = Math.min( arr1[ 2 ], arr2[ 2 ] );
+		return min;
 	}
 
 }
