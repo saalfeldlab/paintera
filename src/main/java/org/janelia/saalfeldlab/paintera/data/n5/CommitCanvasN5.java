@@ -2,6 +2,7 @@ package org.janelia.saalfeldlab.paintera.data.n5;
 
 import java.io.DataOutputStream;
 import java.io.File;
+import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.lang.invoke.MethodHandles;
@@ -11,6 +12,7 @@ import java.util.Iterator;
 import java.util.Optional;
 import java.util.Set;
 import java.util.function.BiConsumer;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.DoubleStream;
 
@@ -18,6 +20,7 @@ import org.janelia.saalfeldlab.n5.ByteArrayDataBlock;
 import org.janelia.saalfeldlab.n5.DatasetAttributes;
 import org.janelia.saalfeldlab.n5.LongArrayDataBlock;
 import org.janelia.saalfeldlab.n5.N5FSReader;
+import org.janelia.saalfeldlab.n5.N5Reader;
 import org.janelia.saalfeldlab.n5.N5Writer;
 import org.janelia.saalfeldlab.paintera.N5Helpers;
 import org.janelia.saalfeldlab.paintera.data.mask.MaskedSource;
@@ -177,114 +180,14 @@ public class CommitCanvasN5 implements BiConsumer< CachedCellImg< UnsignedLongTy
 
 				if ( updateLabelToBlockMapping )
 				{
-					final long[] previousData = Optional
-							.ofNullable( n5.readBlock( highestResolutionDatasetUniqueLabels, highestResolutionAttributesUniqueLabels, gridPosition ) )
-							.map( b -> ( LongArrayDataBlock ) b )
-							.map( LongArrayDataBlock::getData )
-							.orElse( new long[] {} );
-					final TLongHashSet previousDataAsSet = new TLongHashSet( previousData );
-					final TLongHashSet currentDataAsSet = new TLongHashSet();
-					final TLongHashSet wasAdded = new TLongHashSet();
-					final TLongHashSet wasRemoved = new TLongHashSet();
-					final IntervalView< Pair< UnsignedLongType, LabelMultisetType > > relevantData = Views.interval( Views.pair( canvas, highestResolutionData ), min, max );
-					for ( final Pair< UnsignedLongType, LabelMultisetType > p : Views.iterable( relevantData ) )
-					{
-						final UnsignedLongType pa = p.getA();
-						final LabelMultisetType pb = p.getB();
-						final long pav = pa.getIntegerLong();
-						if ( pav == Label.INVALID )
-						{
-							pb
-									.entrySet()
-									.stream()
-									.map( Entry::getElement )
-									.mapToLong( Label::id )
-									.forEach( currentDataAsSet::add );
-						}
-						else
-						{
-							currentDataAsSet.add( pav );
-						}
-					}
-
-					for ( final TLongIterator pIt = previousDataAsSet.iterator(); pIt.hasNext(); )
-					{
-						final long p = pIt.next();
-						if ( !currentDataAsSet.contains( p ) )
-						{
-							wasRemoved.add( p );
-						}
-					}
-
-					for ( final TLongIterator cIt = currentDataAsSet.iterator(); cIt.hasNext(); )
-					{
-						final long c = cIt.next();
-						if ( !previousDataAsSet.contains( c ) )
-						{
-							wasAdded.add( c );
-						}
-					}
-
-					LOG.warn( "was added {}", wasAdded );
-					LOG.warn( "was removed {}", wasRemoved );
-
-					final HashWrapper< Interval > wrappedInterval = HashWrapper.interval( new FinalInterval( min, max ) );
-
-					for ( final TLongIterator wasAddedIt = wasAdded.iterator(); wasAddedIt.hasNext(); )
-					{
-						final long wasAddedId = wasAddedIt.next();
-						final Set< HashWrapper< Interval > > containedIntervals = Arrays
-								.stream( highestResolutionBlocksForLabelLoader.apply( wasAddedId ) )
-								.map( HashWrapper::interval )
-								.collect( Collectors.toSet() );
-						containedIntervals.add( wrappedInterval );
-						final File targetPath = new File( String.format( highestResolutionLabelToBlockMappingPattern, wasAddedId ) );
-//						LOG.warn( "Writing {} to {}", containedIntervals, targetPath );
-						try (FileOutputStream fos = new FileOutputStream( targetPath ))
-						{
-							try (DataOutputStream dos = new DataOutputStream( fos ))
-							{
-								for ( final HashWrapper< Interval > wi : containedIntervals )
-								{
-									final Interval interval = wi.getData();
-									dos.writeLong( interval.min( 0 ) );
-									dos.writeLong( interval.min( 1 ) );
-									dos.writeLong( interval.min( 2 ) );
-
-									dos.writeLong( interval.max( 0 ) );
-									dos.writeLong( interval.max( 1 ) );
-									dos.writeLong( interval.max( 2 ) );
-								}
-							}
-						}
-					}
-
-					for ( final TLongIterator wasRemovedIt = wasRemoved.iterator(); wasRemovedIt.hasNext(); )
-					{
-						final long wasRemovedId = wasRemovedIt.next();
-						final Set< HashWrapper< Interval > > containedIntervals = Arrays
-								.stream( highestResolutionBlocksForLabelLoader.apply( wasRemovedId ) )
-								.map( HashWrapper::interval )
-								.collect( Collectors.toSet() );
-						containedIntervals.remove( wrappedInterval );
-						try (FileOutputStream fos = new FileOutputStream( new File( String.format( highestResolutionLabelToBlockMappingPattern, wasRemovedId ) ) ))
-						{
-							try (DataOutputStream dos = new DataOutputStream( fos ))
-							{
-								for ( final HashWrapper< Interval > wi : containedIntervals )
-								{
-									final Interval interval = wi.getData();
-									dos.writeLong( interval.min( 0 ) );
-									dos.writeLong( interval.min( 1 ) );
-									dos.writeLong( interval.min( 2 ) );
-
-									dos.writeLong( interval.max( 0 ) );
-									dos.writeLong( interval.max( 1 ) );
-									dos.writeLong( interval.max( 2 ) );
-								}
-							}
-						}
-					}
+					updateHighestResolutionLabelMapping(
+							n5,
+							highestResolutionDatasetUniqueLabels,
+							highestResolutionAttributesUniqueLabels,
+							gridPosition,
+							Views.interval( Views.pair( canvas, highestResolutionData ), min, max ),
+							highestResolutionBlocksForLabelLoader,
+							highestResolutionLabelToBlockMappingPattern );
 				}
 
 			}
@@ -425,6 +328,130 @@ public class CommitCanvasN5 implements BiConsumer< CachedCellImg< UnsignedLongTy
 		{
 			// TODO Auto-generated catch block
 			e.printStackTrace();
+		}
+	}
+
+	private static TLongHashSet readContainedLabelsSet(
+			final N5Reader n5,
+			final String uniqueLabelsDataset,
+			final DatasetAttributes uniqueLabelsAttributes,
+			final long[] gridPosition ) throws IOException
+	{
+		final long[] previousData = Optional
+				.ofNullable( n5.readBlock( uniqueLabelsDataset, uniqueLabelsAttributes, gridPosition ) )
+				.map( b -> ( LongArrayDataBlock ) b )
+				.map( LongArrayDataBlock::getData )
+				.orElse( new long[] {} );
+		return new TLongHashSet( previousData );
+	}
+
+	private static TLongHashSet generateContainedLabelsSet(
+			final RandomAccessibleInterval< Pair< UnsignedLongType, LabelMultisetType > > relevantData )
+	{
+		final TLongHashSet currentDataAsSet = new TLongHashSet();
+		for ( final Pair< UnsignedLongType, LabelMultisetType > p : Views.iterable( relevantData ) )
+		{
+			final UnsignedLongType pa = p.getA();
+			final LabelMultisetType pb = p.getB();
+			final long pav = pa.getIntegerLong();
+			if ( pav == Label.INVALID )
+			{
+				pb
+						.entrySet()
+						.stream()
+						.map( Entry::getElement )
+						.mapToLong( Label::id )
+						.forEach( currentDataAsSet::add );
+			}
+			else
+			{
+				currentDataAsSet.add( pav );
+			}
+		}
+		return currentDataAsSet;
+	}
+
+	private static final TLongHashSet containedInFirstButNotInSecond(
+			final TLongHashSet first,
+			final TLongHashSet second )
+	{
+		final TLongHashSet notInSecond = new TLongHashSet();
+		for ( final TLongIterator fIt = first.iterator(); fIt.hasNext(); )
+		{
+			final long p = fIt.next();
+			if ( !second.contains( p ) )
+			{
+				notInSecond.add( p );
+			}
+		}
+		return notInSecond;
+	}
+
+	private static void writeToFile(
+			final String pattern,
+			final long id,
+			final Set< HashWrapper< Interval > > containedIntervals ) throws FileNotFoundException, IOException
+	{
+		final File targetPath = new File( String.format( pattern, id ) );
+//						LOG.warn( "Writing {} to {}", containedIntervals, targetPath );
+		try (FileOutputStream fos = new FileOutputStream( targetPath ))
+		{
+			try (DataOutputStream dos = new DataOutputStream( fos ))
+			{
+				for ( final HashWrapper< Interval > wi : containedIntervals )
+				{
+					final Interval interval = wi.getData();
+					dos.writeLong( interval.min( 0 ) );
+					dos.writeLong( interval.min( 1 ) );
+					dos.writeLong( interval.min( 2 ) );
+
+					dos.writeLong( interval.max( 0 ) );
+					dos.writeLong( interval.max( 1 ) );
+					dos.writeLong( interval.max( 2 ) );
+				}
+			}
+		}
+	}
+
+	private static void updateHighestResolutionLabelMapping(
+			final N5Writer n5,
+			final String uniqueLabelsDataset,
+			final DatasetAttributes uniqueLabelsAttributes,
+			final long[] gridPosition,
+			final RandomAccessibleInterval< Pair< UnsignedLongType, LabelMultisetType > > relevantData,
+			final Function< Long, Interval[] > highestResolutionBlocksForLabelLoader,
+			final String labelToBlockMappingPattern ) throws IOException
+	{
+		final TLongHashSet previousDataAsSet = readContainedLabelsSet( n5, uniqueLabelsDataset, uniqueLabelsAttributes, gridPosition );
+		final TLongHashSet currentDataAsSet = generateContainedLabelsSet( relevantData );
+		final TLongHashSet wasAdded = containedInFirstButNotInSecond( currentDataAsSet, previousDataAsSet );
+		final TLongHashSet wasRemoved = containedInFirstButNotInSecond( previousDataAsSet, currentDataAsSet );
+
+		LOG.debug( "was added {}", wasAdded );
+		LOG.debug( "was removed {}", wasRemoved );
+
+		final HashWrapper< Interval > wrappedInterval = HashWrapper.interval( new FinalInterval( relevantData ) );
+
+		for ( final TLongIterator wasAddedIt = wasAdded.iterator(); wasAddedIt.hasNext(); )
+		{
+			final long wasAddedId = wasAddedIt.next();
+			final Set< HashWrapper< Interval > > containedIntervals = Arrays
+					.stream( highestResolutionBlocksForLabelLoader.apply( wasAddedId ) )
+					.map( HashWrapper::interval )
+					.collect( Collectors.toSet() );
+			containedIntervals.add( wrappedInterval );
+			writeToFile( labelToBlockMappingPattern, wasAddedId, containedIntervals );
+		}
+
+		for ( final TLongIterator wasRemovedIt = wasRemoved.iterator(); wasRemovedIt.hasNext(); )
+		{
+			final long wasRemovedId = wasRemovedIt.next();
+			final Set< HashWrapper< Interval > > containedIntervals = Arrays
+					.stream( highestResolutionBlocksForLabelLoader.apply( wasRemovedId ) )
+					.map( HashWrapper::interval )
+					.collect( Collectors.toSet() );
+			containedIntervals.remove( wrappedInterval );
+			writeToFile( labelToBlockMappingPattern, wasRemovedId, containedIntervals );
 		}
 	}
 
