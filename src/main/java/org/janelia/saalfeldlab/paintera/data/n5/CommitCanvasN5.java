@@ -330,6 +330,7 @@ public class CommitCanvasN5 implements BiConsumer< CachedCellImg< UnsignedLongTy
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
+		LOG.info( "Finished commiting canvas" );
 	}
 
 	private static TLongHashSet readContainedLabelsSet(
