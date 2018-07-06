@@ -245,9 +245,6 @@ public class CommitCanvasN5 implements BiConsumer< CachedCellImg< UnsignedLongTy
 
 					final int[] ones = { 1, 1, 1 };
 
-					final long[] previousRelevantIntervalMin = new long[ blockMin.length ];
-					final long[] previousRelevantIntervalMax = new long[ blockMin.length ];
-
 					LOG.debug( "level={}: Got {} blocks", level, affectedBlocks.length );
 
 					for ( final long targetBlock : affectedBlocks )
@@ -278,17 +275,10 @@ public class CommitCanvasN5 implements BiConsumer< CachedCellImg< UnsignedLongTy
 						blockMax[ 1 ] = Math.min( ( long ) blockMaxDouble[ 1 ], previousDimensions[ 1 ] );
 						blockMax[ 2 ] = Math.min( ( long ) blockMaxDouble[ 2 ], previousDimensions[ 2 ] );
 
-						previousRelevantIntervalMin[ 0 ] = blockMin[ 0 ];
-						previousRelevantIntervalMin[ 1 ] = blockMin[ 1 ];
-						previousRelevantIntervalMin[ 2 ] = blockMin[ 2 ];
+						final long[] previousRelevantIntervalMin = blockMin.clone();
+						final long[] previousRelevantIntervalMax = add3( blockMax, -1, new long[ 3 ] );
 
-						previousRelevantIntervalMax[ 0 ] = blockMax[ 0 ] - 1;
-						previousRelevantIntervalMax[ 1 ] = blockMax[ 1 ] - 1;
-						previousRelevantIntervalMax[ 2 ] = blockMax[ 2 ] - 1;
-
-						blockMin[ 0 ] /= previousBlockSize[ 0 ];
-						blockMin[ 1 ] /= previousBlockSize[ 1 ];
-						blockMin[ 2 ] /= previousBlockSize[ 2 ];
+						divide3( blockMin, previousBlockSize, blockMin );
 
 						blockMax[ 0 ] = Math.max( blockMax[ 0 ] / previousBlockSize[ 0 ] - 1, blockMin[ 0 ] );
 						blockMax[ 1 ] = Math.max( blockMax[ 1 ] / previousBlockSize[ 1 ] - 1, blockMin[ 1 ] );
@@ -317,7 +307,9 @@ public class CommitCanvasN5 implements BiConsumer< CachedCellImg< UnsignedLongTy
 							LOG.debug( "level={}: Fetching contained labels for previous level at {} {} {}", level, blockMin, blockMax, ones );
 							for ( final long[] offset : Grids.collectAllOffsets( blockMin, blockMax, ones ) )
 							{
-								mergedContainedLabels.addAll( readContainedLabels( n5, datasetUniqueLabelsPrevious, attributesUniqueLabelsPrevious, offset ) );
+								final long[] cl = readContainedLabels( n5, datasetUniqueLabelsPrevious, attributesUniqueLabelsPrevious, offset );
+								LOG.warn( "level={}: offset={}: got contained labels: {}", level, offset, cl );
+								mergedContainedLabels.addAll( cl );
 							}
 							final TLongHashSet containedLabels = readContainedLabelsSet( n5, datasetUniqueLabels, attributesUniqueLabels, blockPositionInTargetGrid );
 							n5.writeBlock( datasetUniqueLabels, attributesUniqueLabels, new LongArrayDataBlock( size, blockPositionInTargetGrid, mergedContainedLabels.toArray() ) );
@@ -533,6 +525,30 @@ public class CommitCanvasN5 implements BiConsumer< CachedCellImg< UnsignedLongTy
 		sum[ 1 ] = summand1[ 1 ] + summand2[ 1 ];
 		sum[ 2 ] = summand1[ 2 ] + summand2[ 2 ];
 		return sum;
+	}
+
+	private static long[] add3( final long[] summand1, final long summand2, final long[] sum )
+	{
+		sum[ 0 ] = summand1[ 0 ] + summand2;
+		sum[ 1 ] = summand1[ 1 ] + summand2;
+		sum[ 2 ] = summand1[ 2 ] + summand2;
+		return sum;
+	}
+
+	private static long[] divide3( final long[] divident, final long[] divisor, final long[] quotient )
+	{
+		quotient[ 0 ] = divident[ 0 ] / divisor[ 0 ];
+		quotient[ 1 ] = divident[ 1 ] / divisor[ 1 ];
+		quotient[ 2 ] = divident[ 2 ] / divisor[ 2 ];
+		return quotient;
+	}
+
+	private static long[] divide3( final long[] divident, final int[] divisor, final long[] quotient )
+	{
+		quotient[ 0 ] = divident[ 0 ] / divisor[ 0 ];
+		quotient[ 1 ] = divident[ 1 ] / divisor[ 1 ];
+		quotient[ 2 ] = divident[ 2 ] / divisor[ 2 ];
+		return quotient;
 	}
 
 }
