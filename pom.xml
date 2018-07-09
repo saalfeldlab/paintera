@@ -5,7 +5,7 @@
 	<modelVersion>4.0.0</modelVersion>
 
 	<parent>
-		<version>21.0.0</version>
+		<version>23.1.1</version>
 		<groupId>org.scijava</groupId>
 		<artifactId>pom-scijava</artifactId>
 	</parent>
@@ -18,8 +18,6 @@
 	<description>New Era Painting and annotation tool</description>
 	<properties>
 		<scijava.jvm.version>1.8</scijava.jvm.version>
-		<bigdataviewer-core.version>5.0.0</bigdataviewer-core.version>
-		<bigdataviewer-vistools.version>1.0.0-beta-11</bigdataviewer-vistools.version>
 		<main-class>org.janelia.saalfeldlab.paintera.Paintera</main-class>
 	</properties>
 
