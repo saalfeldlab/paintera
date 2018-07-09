@@ -14,7 +14,7 @@ import net.imglib2.converter.Converter;
 import net.imglib2.type.BooleanType;
 import net.imglib2.type.label.Label;
 import net.imglib2.type.label.LabelMultisetType;
-import net.imglib2.type.label.Multiset.Entry;
+import net.imglib2.type.label.LabelMultisetType.Entry;
 import net.imglib2.type.numeric.IntegerType;
 
 public class SegmentMaskGenerators
@@ -24,16 +24,9 @@ public class SegmentMaskGenerators
 
 	public static < T, B extends BooleanType< B > > Function< TLongHashSet, Converter< T, B > > forType( final T t )
 	{
-		if ( t instanceof LabelMultisetType )
-		{
-			return new LabelMultisetTypeMaskGenerator();
-		}
+		if ( t instanceof LabelMultisetType ) { return new LabelMultisetTypeMaskGenerator(); }
 
-		if ( t instanceof IntegerType< ? > ) {
-			return new IntegerTypeMaskGenerator();
-		}
-
-
+		if ( t instanceof IntegerType< ? > ) { return new IntegerTypeMaskGenerator(); }
 
 		return null;
 	}

@@ -58,8 +58,9 @@ import net.imglib2.type.PrimitiveType;
 import net.imglib2.type.Type;
 import net.imglib2.type.label.Label;
 import net.imglib2.type.label.LabelMultisetType;
-import net.imglib2.type.label.Multiset.Entry;
+import net.imglib2.type.label.LabelMultisetType.Entry;
 import net.imglib2.type.numeric.ARGBType;
+import net.imglib2.type.numeric.IntegerType;
 import net.imglib2.type.numeric.integer.UnsignedByteType;
 import net.imglib2.type.volatiles.VolatileUnsignedByteType;
 import net.imglib2.util.Intervals;
@@ -78,7 +79,7 @@ public class IntersectingSourceState
 
 	private final MeshManagerSimple< TLongHashSet, TLongHashSet > meshManager;
 
-	public < D extends Type< D >, T extends Type< T >, B extends BooleanType< B > > IntersectingSourceState(
+	public < D extends IntegerType< D >, T extends Type< T >, B extends BooleanType< B > > IntersectingSourceState(
 			final ThresholdingSourceState< ?, ? > thresholded,
 			final LabelSourceState< D, T > labels,
 			final Composite< ARGBType, ARGBType > composite,
@@ -188,7 +189,7 @@ public class IntersectingSourceState
 		return this.meshManager;
 	}
 
-	private static < D extends Type< D >, T extends Type< T >, B extends BooleanType< B > > DataSource< UnsignedByteType, VolatileUnsignedByteType > makeIntersect(
+	private static < D extends IntegerType< D >, T extends Type< T >, B extends BooleanType< B > > DataSource< UnsignedByteType, VolatileUnsignedByteType > makeIntersect(
 			final SourceState< B, Volatile< B > > thresholded,
 			final LabelSourceState< D, T > labels,
 			final SharedQueue queue,

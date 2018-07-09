@@ -36,6 +36,7 @@ import net.imglib2.img.cell.CellGrid;
 import net.imglib2.type.NativeType;
 import net.imglib2.type.label.LabelMultisetType;
 import net.imglib2.type.label.VolatileLabelMultisetArray;
+import net.imglib2.type.numeric.IntegerType;
 import net.imglib2.type.numeric.RealType;
 import net.imglib2.type.volatiles.AbstractVolatileRealType;
 
@@ -93,7 +94,7 @@ public class PainteraOpenDialogEventHandler implements EventHandler< Event >
 		InvokeOnJavaFXApplicationThread.invoke( () -> viewer.addRawSource( raw ) );
 	}
 
-	private < D extends NativeType< D >, T extends Volatile< D > & NativeType< T > > void addLabel(
+	private < D extends NativeType< D > & IntegerType< D >, T extends Volatile< D > & NativeType< T > > void addLabel(
 			final String name,
 			final BackendDialog dataset ) throws Exception
 	{
@@ -201,7 +202,7 @@ public class PainteraOpenDialogEventHandler implements EventHandler< Event >
 		return InterruptibleFunction.fromFunction( location -> {
 			final RandomAccess< C > access = cells.randomAccess();
 			access.setPosition( location.getData() );
-			final long[] labels = access.get().getData().containedLabels();
+			final long[] labels = new long[] {};
 			LOG.debug( "Position={}: labels={}", location.getData(), labels );
 			return labels;
 		} );

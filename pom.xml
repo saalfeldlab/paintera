@@ -20,6 +20,7 @@
 		<scijava.jvm.version>1.8</scijava.jvm.version>
 		<bigdataviewer-core.version>5.0.0</bigdataviewer-core.version>
 		<bigdataviewer-vistools.version>1.0.0-beta-11</bigdataviewer-vistools.version>
+		<main-class>org.janelia.saalfeldlab.paintera.Paintera</main-class>
 	</properties>
 
 	<profiles>
@@ -84,7 +85,7 @@
 		<dependency>
 			<groupId>org.janelia.saalfeldlab</groupId>
 			<artifactId>n5-label-multisets</artifactId>
-			<version>0.2.0</version>
+			<version>0.3.0</version>
 		</dependency>
 		<dependency>
 			<groupId>sc.fiji</groupId>
@@ -188,13 +189,14 @@
 
 	<developers>
 		<developer>
-			<id>tpietzsch</id>
-			<name>Tobias Pietzsch</name>
-			<email>pietzsch@mpi-cbg.de</email>
+			<id>hanslovsky</id>
+			<name>Philipp Hanslovsky</name>
+			<email>hanslovskyp@saalfelds@janelia.hhmi.org</email>
 			<url />
-			<organization>MPI-CBG</organization>
-			<organizationUrl>http://www.mpi-cbg.de/</organizationUrl>
+			<organization>HHMI Janelia</organization>
+			<organizationUrl>http://janelia.org/</organizationUrl>
 			<roles>
+				<role>founder</role>
 				<role>architect</role>
 				<role>developer</role>
 			</roles>

@@ -19,7 +19,6 @@ import org.janelia.saalfeldlab.paintera.control.selection.SelectedSegments;
 import org.janelia.saalfeldlab.paintera.data.DataSource;
 import org.janelia.saalfeldlab.paintera.data.mask.MaskedSource;
 import org.janelia.saalfeldlab.paintera.id.IdService;
-import org.janelia.saalfeldlab.paintera.id.ToIdConverter;
 import org.janelia.saalfeldlab.paintera.meshes.Interruptible;
 import org.janelia.saalfeldlab.paintera.meshes.InterruptibleFunction;
 import org.janelia.saalfeldlab.paintera.meshes.InterruptibleFunctionAndCache;
@@ -46,9 +45,10 @@ import net.imglib2.converter.Converter;
 import net.imglib2.img.cell.CellGrid;
 import net.imglib2.type.logic.BoolType;
 import net.imglib2.type.numeric.ARGBType;
+import net.imglib2.type.numeric.IntegerType;
 import net.imglib2.util.Pair;
 
-public class LabelSourceState< D, T >
+public class LabelSourceState< D extends IntegerType< D >, T >
 		extends
 		MinimalSourceState< D, T, DataSource< D, T >, HighlightingStreamConverter< T > >
 		implements
@@ -64,8 +64,6 @@ public class LabelSourceState< D, T >
 
 	private final FragmentSegmentAssignmentState assignment;
 
-	private final ToIdConverter toIdConverter;
-
 	private final SelectedIds selectedIds;
 
 	private final IdService idService;
@@ -75,6 +73,8 @@ public class LabelSourceState< D, T >
 	private final ManagedMeshSettings managedMeshSettings;
 
 	private final Runnable clearBlockCaches;
+
+	private final InterruptibleFunction< Long, Interval[] >[] backgroundBlockCaches;
 
 	private final InterruptibleFunctionAndCache< ShapeKey< TLongHashSet >, Pair< float[], float[] > >[] meshCaches;
 
@@ -90,6 +90,7 @@ public class LabelSourceState< D, T >
 			final IdService idService,
 			final SelectedIds selectedIds,
 			final Group meshesGroup,
+			final InterruptibleFunction< Long, Interval[] >[] backgroundBlockCaches,
 			final ExecutorService meshManagerExecutors,
 			final ExecutorService meshWorkersExecutors )
 	{
@@ -99,14 +100,19 @@ public class LabelSourceState< D, T >
 		this.segmentMaskGenerator = SegmentMaskGenerators.forType( d );
 		this.assignment = assignment;
 		this.lockedSegments = lockedSegments;
-		this.toIdConverter = ToIdConverter.fromType( d );
 		this.selectedIds = selectedIds;
 		this.idService = idService;
 
 		final SelectedSegments selectedSegments = new SelectedSegments( selectedIds, assignment );
 
-		final InterruptibleFunctionAndCache< Long, Interval[] >[] backgroundBlockCaches = PainteraBaseView.generateLabelBlocksForLabelCache( dataSource );
-		this.clearBlockCaches = () -> Arrays.stream( backgroundBlockCaches ).forEach( UncheckedCache::invalidateAll );
+		this.backgroundBlockCaches = backgroundBlockCaches;
+		this.clearBlockCaches = () -> Arrays.stream( backgroundBlockCaches ).forEach( c -> {
+			if ( c instanceof UncheckedCache< ?, ? > )
+			{
+				final UncheckedCache< ?, ? > uc = ( UncheckedCache< ?, ? > ) c;
+				uc.invalidateAll();
+			}
+		} );
 
 		final boolean isMaskedSource = dataSource instanceof MaskedSource< ?, ? >;
 		final InterruptibleFunction< Long, Interval[] >[] blockCaches = isMaskedSource
@@ -147,11 +153,6 @@ public class LabelSourceState< D, T >
 		assignment.addListener( obs -> stain() );
 		selectedIds.addListener( obs -> stain() );
 		lockedSegments.addListener( obs -> stain() );
-	}
-
-	public ToIdConverter toIdConverter()
-	{
-		return this.toIdConverter;
 	}
 
 	public LongFunction< Converter< D, BoolType > > maskForLabel()
@@ -203,6 +204,11 @@ public class LabelSourceState< D, T >
 	public LockedSegmentsState lockedSegments()
 	{
 		return this.lockedSegments;
+	}
+
+	public InterruptibleFunction< Long, Interval[] >[] backgroundBlockCaches()
+	{
+		return this.backgroundBlockCaches;
 	}
 
 	public void invalidateAllBlockCaches()

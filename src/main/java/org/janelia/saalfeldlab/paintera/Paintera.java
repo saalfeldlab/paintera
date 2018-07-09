@@ -3,6 +3,7 @@ package org.janelia.saalfeldlab.paintera;
 import java.io.File;
 import java.io.IOException;
 import java.lang.invoke.MethodHandles;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
@@ -32,6 +33,7 @@ import org.janelia.saalfeldlab.paintera.data.mask.CannotPersist;
 import org.janelia.saalfeldlab.paintera.data.mask.Masks;
 import org.janelia.saalfeldlab.paintera.data.n5.CommitCanvasN5;
 import org.janelia.saalfeldlab.paintera.id.IdService;
+import org.janelia.saalfeldlab.paintera.meshes.cache.BlocksForLabelFromFile;
 import org.janelia.saalfeldlab.paintera.serialization.GsonHelpers;
 import org.janelia.saalfeldlab.paintera.serialization.Properties;
 import org.janelia.saalfeldlab.paintera.state.LabelSourceState;
@@ -59,6 +61,7 @@ import net.imglib2.Volatile;
 import net.imglib2.converter.ARGBColorConverter;
 import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.type.NativeType;
+import net.imglib2.type.numeric.IntegerType;
 import net.imglib2.type.numeric.RealType;
 import picocli.CommandLine;
 
@@ -374,7 +377,7 @@ public class Paintera extends Application
 		return Optional.empty();
 	}
 
-	private static < D extends NativeType< D >, T extends Volatile< D > & NativeType< T > > void addLabelFromString(
+	private static < D extends NativeType< D > & IntegerType< D >, T extends Volatile< D > & NativeType< T > > void addLabelFromString(
 			final PainteraBaseView pbv,
 			final String identifier,
 			final String projectDirectory ) throws UnableToAddSource
@@ -421,6 +424,11 @@ public class Paintera extends Application
 						new CommitCanvasN5( n5, dataset ),
 						pbv.getPropagationQueue() );
 
+				final BlocksForLabelFromFile[] blockLoaders = Arrays
+						.stream( N5Helpers.labelMappingFromFileLoaderPattern( n5, dataset ) )
+						.map( BlocksForLabelFromFile::new )
+						.toArray( BlocksForLabelFromFile[]::new );
+
 				final LabelSourceState< D, T > state = new LabelSourceState<>(
 						maskedSource,
 						HighlightingStreamConverter.forType( stream, dataSource.getType() ),
@@ -431,6 +439,7 @@ public class Paintera extends Application
 						idService,
 						selectedIds,
 						pbv.viewer3D().meshesGroup(),
+						blockLoaders,
 						pbv.getMeshManagerExecutorService(),
 						pbv.getMeshWorkerExecutorService() );
 				pbv.addLabelSource( state );
