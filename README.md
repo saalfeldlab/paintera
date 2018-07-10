@@ -35,28 +35,20 @@ mvn -Pfat clean package
 ```
 
 ## Install
-(Linux and OSX only)
 ```bash
-[PREFIX=</path/to/prefix>] sh install.sh
+conda install -c hanslovsky paintera
 ```
-Set `PREFIX` to a path that is on your `PATH`
 
 ## Run
-If you are on Linux/OSX you can install [ctrueden/jrun](github.com/ctrueden/jrun) and the paintera launch script ([instructions](https://github.com/saalfeldlab/paintera#install)) and then run:
 ```bash
-[VERSION=<version>] [JAVA_OPTS=<java-opts>] paintera [ARG...]
+paintera [ARG...]
 ```
-If you set `VERSION` to a `SNAPSHOT` release you will need to run
-```bash
-mvn clean install
-```
-first.
 
-On any OS, you can also run a [compiled fat jar](https://github.com/saalfeldlab/paintera/#compile)
+You can also run a [compiled fat jar](https://github.com/saalfeldlab/paintera/#compile)
 ```shell
 java <java-opts> -jar target/paintera-0.1.0-SNAPSHOT-shaded.jar
 ```
-We recommend at these Java options:
+We recommend these Java options:
 
 |Option| Description|
 | ---- | ---------- |
@@ -65,7 +57,7 @@ We recommend at these Java options:
 
 #### Display help message and command line parameters
 ```shell
-$ java -jar target/paintera-0.1.0-SNAPSHOT-shaded.jar --help
+$ java -jar target/paintera-0.1.1-SNAPSHOT-shaded.jar --help
 Usage: Paintera [-h] [--height=HEIGHT] [--width=WIDTH]
                 [--label-source=LABEL_SOURCE]... [--raw-source=RAW_SOURCE]...
       --height=HEIGHT   Initial height of viewer. Defaults to 600.
