@@ -41,7 +41,15 @@ conda install -c hanslovsky paintera
 
 ## Run
 ```bash
-paintera [ARG...]
+paintera [[JRUN ARG...] [JVM ARG...] --] [ARG...]
+```
+Jrun/JVM args are separated by `--`. The default max heap size is half the available system memory. To change the heap size, run
+```bash
+paintera -Xmx<size> -- [ARG...]
+```
+or
+```bash
+PAINTERA_MAX_HEAP_SIZE=<size> paintera [ARG...]
 ```
 
 You can also run a [compiled fat jar](https://github.com/saalfeldlab/paintera/#compile)
