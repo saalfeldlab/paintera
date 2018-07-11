@@ -198,7 +198,7 @@
 				<role>architect</role>
 				<role>developer</role>
 			</roles>
-			<timezone>+1</timezone>
+			<timezone>-5</timezone>
 		</developer>
 		<developer>
 			<id>axtimwalde</id>
