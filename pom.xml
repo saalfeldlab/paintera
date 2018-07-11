@@ -183,7 +183,9 @@
 	<contributors>
 		<contributor>
 			<name>Vanessa Leite</name>
-			<properties><id>ssinhaleite</id></properties>
+			<properties>
+				<id>ssinhaleite</id>
+			</properties>
 			<url>https://github.com/ssinhaleite</url>
 		</contributor>
 	</contributors>
@@ -202,7 +204,8 @@
 
 
 	<ciManagement>
-		<system>None</system>
+		<system>Travis CI</system>
+		<url>https://travis-ci.org/saalfeldlab/paintera</url>
 	</ciManagement>
 
 	<scm>
