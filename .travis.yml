@@ -1,29 +1,9 @@
 language: java
-
-env:
-  global:
-
-matrix:
-  include:
-    - os: linux
-      jdk: oraclejdk8
-      sudo: true
-
+jdk: oraclejdk8
+branches:
+  only:
+  - master
+  - "/.*-[0-9]+\\..*/"
 cache:
   directories:
-    - $HOME/.m2
-
-install:
-  - sudo apt install -y libzmq3-dev
-  - cd ..
-  - git clone https://github.com/zeromq/jzmq.git
-  - cd jzmq/jzmq-jni
-  - ./autogen.sh
-  - ./configure --prefix=/usr
-  - make
-  - sudo make install
-  - cd ../../bigcat
-
-script: 
-  - mvn clean install
-
+  - "~/.m2/repository"
