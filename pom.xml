@@ -16,68 +16,25 @@
 
 	<name>Paintera</name>
 	<description>New Era Painting and annotation tool</description>
+	<url>https://github.com/saalfeldlab/paintera</url>
+	<inceptionYear>2018</inceptionYear>
+	<organization>
+		<name>HHMI Janeli</name>
+		<url>https://janelia.org</url>
+	</organization>
+	<licenses>
+		<license>
+			<name>GNU General Public License v2.0</name>
+		</license>
+	</licenses>
+
 	<properties>
 		<scijava.jvm.version>1.8</scijava.jvm.version>
 		<main-class>org.janelia.saalfeldlab.paintera.Paintera</main-class>
+		<license.licenseName>GNU General Public License v2.0</license.licenseName>
+		<license.copyrightOwners>Philipp Hanslovsky, Stepahn Saalfeld</license.copyrightOwners>
 	</properties>
 
-	<profiles>
-		<profile>
-			<id>fat</id>
-			<build>
-				<plugins>
-					<plugin>
-						<groupId>org.apache.maven.plugins</groupId>
-						<artifactId>maven-shade-plugin</artifactId>
-						<version>3.1.0</version>
-						<configuration>
-							<filters>
-								<filter>
-									<artifact>*:*</artifact>
-									<excludes>
-										<exclude>META-INF/*.SF</exclude>
-										<exclude>META-INF/*.DSA</exclude>
-										<exclude>META-INF/*.RSA</exclude>
-									</excludes>
-								</filter>
-							</filters>
-							<shadedArtifactId>${project.artifactId}</shadedArtifactId>
-							<shadedArtifactAttached>true</shadedArtifactAttached>
-							<!-- Do not minimize for now to speed up packaging. -->
-							<!-- <minimzeJar>true</minimzeJar> -->
-						</configuration>
-						<executions>
-							<execution>
-								<phase>package</phase>
-								<goals>
-									<goal>shade</goal>
-								</goals>
-								<configuration>
-									<transformers>
-										<transformer
-											implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
-											<mainClass>org.janelia.saalfeldlab.paintera.Paintera</mainClass>
-										</transformer>
-									</transformers>
-								</configuration>
-							</execution>
-						</executions>
-					</plugin>
-				</plugins>
-			</build>
-		</profile>
-
-
-		<profile>
-			<id>disable-java8-doclint</id>
-			<activation>
-				<jdk>[1.8,)</jdk>
-			</activation>
-			<properties>
-				<additionalparam>-Xdoclint:none</additionalparam>
-			</properties>
-		</profile>
-	</profiles>
 
 	<dependencies>
 		<dependency>
@@ -174,6 +131,12 @@
 			<groupId>org.clapper</groupId>
 			<artifactId>javautil</artifactId>
 			<version>3.2.0</version>
+			<exclusions>
+				<exclusion>
+					<groupId>org.slf4j</groupId>
+					<artifactId>slf4j-jdk14</artifactId>
+				</exclusion>
+			</exclusions>
 		</dependency>
 
 		<dependency>
@@ -195,10 +158,11 @@
 			<organizationUrl>http://janelia.org/</organizationUrl>
 			<roles>
 				<role>founder</role>
-				<role>architect</role>
+				<role>lead</role>
 				<role>developer</role>
+				<role>maintainer</role>
 			</roles>
-			<timezone>+1</timezone>
+			<timezone>-5</timezone>
 		</developer>
 		<developer>
 			<id>axtimwalde</id>
@@ -208,12 +172,45 @@
 			<organization>HHMI Janelia</organization>
 			<organizationUrl>http://janelia.org/</organizationUrl>
 			<roles>
-				<role>architect</role>
+				<role>lead</role>
 				<role>developer</role>
+				<role>maintainer</role>
 			</roles>
 			<timezone>-5</timezone>
 		</developer>
 	</developers>
+
+	<contributors>
+		<contributor>
+			<name>Vanessa Leite</name>
+			<properties><id>ssinhaleite</id></properties>
+			<url>https://github.com/ssinhaleite</url>
+		</contributor>
+	</contributors>
+
+	<mailingLists>
+		<mailingList>
+			<name>ImageJ Forum</name>
+			<archive>http://forum.imagej.net/</archive>
+		</mailingList>
+	</mailingLists>
+
+	<issueManagement>
+		<system>GitHub</system>
+		<url>https://github.com/imglib/imglib2-ui/issues</url>
+	</issueManagement>
+
+
+	<ciManagement>
+		<system>None</system>
+	</ciManagement>
+
+	<scm>
+		<connection>scm:git:git://github.com/saalfeldlab/bigcat</connection>
+		<developerConnection>scm:git:git@github.com:saalfeldlab/bigcat.git</developerConnection>
+		<tag>HEAD</tag>
+		<url>https://github.com/saalfeldlab/bigcat</url>
+	</scm>
 
 	<repositories>
 		<repository>
@@ -226,25 +223,51 @@
 		</repository>
 	</repositories>
 
-	<scm>
-		<connection>scm:git:git://github.com/saalfeldlab/bigcat</connection>
-		<developerConnection>scm:git:git@github.com:saalfeldlab/bigcat.git</developerConnection>
-		<tag>HEAD</tag>
-		<url>https://github.com/saalfeldlab/bigcat</url>
-	</scm>
+	<profiles>
+		<profile>
+			<id>fat</id>
+			<build>
+				<plugins>
+					<plugin>
+						<groupId>org.apache.maven.plugins</groupId>
+						<artifactId>maven-shade-plugin</artifactId>
+						<version>3.1.0</version>
+						<configuration>
+							<filters>
+								<filter>
+									<artifact>*:*</artifact>
+									<excludes>
+										<exclude>META-INF/*.SF</exclude>
+										<exclude>META-INF/*.DSA</exclude>
+										<exclude>META-INF/*.RSA</exclude>
+									</excludes>
+								</filter>
+							</filters>
+							<shadedArtifactId>${project.artifactId}</shadedArtifactId>
+							<shadedArtifactAttached>true</shadedArtifactAttached>
+							<!-- Do not minimize for now to speed up packaging. -->
+							<!-- <minimzeJar>true</minimzeJar> -->
+						</configuration>
+						<executions>
+							<execution>
+								<phase>package</phase>
+								<goals>
+									<goal>shade</goal>
+								</goals>
+								<configuration>
+									<transformers>
+										<transformer
+											implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
+											<mainClass>org.janelia.saalfeldlab.paintera.Paintera</mainClass>
+										</transformer>
+									</transformers>
+								</configuration>
+							</execution>
+						</executions>
+					</plugin>
+				</plugins>
+			</build>
+		</profile>
+	</profiles>
 
-	<build>
-		<plugins>
-			<plugin>
-				<!-- This should be removed once project gets more mature -->
-				<artifactId>maven-enforcer-plugin</artifactId>
-				<executions>
-					<execution>
-						<id>enforce-rules</id>
-						<phase>none</phase>
-					</execution>
-				</executions>
-			</plugin>
-		</plugins>
-	</build>
 </project>
