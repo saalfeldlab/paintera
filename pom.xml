@@ -183,7 +183,9 @@
 	<contributors>
 		<contributor>
 			<name>Vanessa Leite</name>
-			<properties><id>ssinhaleite</id></properties>
+			<properties>
+				<id>ssinhaleite</id>
+			</properties>
 			<url>https://github.com/ssinhaleite</url>
 		</contributor>
 	</contributors>
@@ -197,12 +199,13 @@
 
 	<issueManagement>
 		<system>GitHub</system>
-		<url>https://github.com/imglib/imglib2-ui/issues</url>
+		<url>https://github.com/saalfeldlab/paintera/issues</url>
 	</issueManagement>
 
 
 	<ciManagement>
-		<system>None</system>
+		<system>Travis CI</system>
+		<url>https://travis-ci.org/saalfeldlab/paintera</url>
 	</ciManagement>
 
 	<scm>
