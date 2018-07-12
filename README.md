@@ -37,6 +37,7 @@ or, to generate a "fat jar" with all dependencies added, run:
 ```shell
 mvn -Pfat clean package
 ```
+This will include `org.slf4j:slf4j-simple` as `slf4j` binding.
 
 ## Install
 ```bash
