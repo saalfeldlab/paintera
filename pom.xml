@@ -32,7 +32,7 @@
 		<scijava.jvm.version>1.8</scijava.jvm.version>
 		<main-class>org.janelia.saalfeldlab.paintera.Paintera</main-class>
 		<license.licenseName>GNU General Public License v2.0</license.licenseName>
-		<license.copyrightOwners>Philipp Hanslovsky, Stepahn Saalfeld</license.copyrightOwners>
+		<license.copyrightOwners>Philipp Hanslovsky, Stephan Saalfeld</license.copyrightOwners>
 	</properties>
 
 
