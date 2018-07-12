@@ -57,6 +57,15 @@ or
 PAINTERA_MAX_HEAP_SIZE=<size> paintera [ARG...]
 ```
 
+By default, `org.slf4j:slf4j-simple` is used as `slf4j` binding for logging. This can be replaced by setting the `PAINTERA_SLF4J_BINDING` environment variable:
+```bash
+PAINTERA_SLF4J_BINDING=groupId:artifactId[:version]
+```
+For example, to replace `org.slf4j:slf4j-simple` with `ch.qos.logback:logback-classic`, run (on Linux/OSX):
+```
+PAINTERA_SLF4J_BINDING=ch.qos.logback:logback-classic paintera
+```
+
 You can also run a [compiled fat jar](https://github.com/saalfeldlab/paintera/#compile)
 ```shell
 java <java-opts> -jar target/paintera-0.1.2-SNAPSHOT-shaded.jar
