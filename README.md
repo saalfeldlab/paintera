@@ -58,7 +58,7 @@ PAINTERA_MAX_HEAP_SIZE=<size> paintera [ARG...]
 
 You can also run a [compiled fat jar](https://github.com/saalfeldlab/paintera/#compile)
 ```shell
-java <java-opts> -jar target/paintera-0.1.0-SNAPSHOT-shaded.jar
+java <java-opts> -jar target/paintera-0.1.2-SNAPSHOT-shaded.jar
 ```
 We recommend these Java options:
 
