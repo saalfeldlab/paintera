@@ -5,7 +5,17 @@ import java.util.stream.LongStream;
 public class LocalIdService implements IdService
 {
 
-	private long next = 0;
+	private long next;
+
+	public LocalIdService()
+	{
+		this( 0 );
+	}
+
+	public LocalIdService( final long maxId )
+	{
+		this.next = maxId;
+	}
 
 	@Override
 	public synchronized void invalidate( final long id )

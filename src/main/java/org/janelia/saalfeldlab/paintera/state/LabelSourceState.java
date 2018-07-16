@@ -9,16 +9,22 @@ import java.util.concurrent.ExecutorService;
 import java.util.function.BiFunction;
 import java.util.function.Function;
 import java.util.function.LongFunction;
+import java.util.function.ToLongFunction;
 
 import org.janelia.saalfeldlab.paintera.PainteraBaseView;
+import org.janelia.saalfeldlab.paintera.composition.ARGBCompositeAlphaYCbCr;
 import org.janelia.saalfeldlab.paintera.composition.Composite;
+import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignmentOnlyLocal;
 import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignmentState;
+import org.janelia.saalfeldlab.paintera.control.lock.LockedSegmentsOnlyLocal;
 import org.janelia.saalfeldlab.paintera.control.lock.LockedSegmentsState;
 import org.janelia.saalfeldlab.paintera.control.selection.SelectedIds;
 import org.janelia.saalfeldlab.paintera.control.selection.SelectedSegments;
 import org.janelia.saalfeldlab.paintera.data.DataSource;
+import org.janelia.saalfeldlab.paintera.data.RandomAccessibleIntervalDataSource;
 import org.janelia.saalfeldlab.paintera.data.mask.MaskedSource;
 import org.janelia.saalfeldlab.paintera.id.IdService;
+import org.janelia.saalfeldlab.paintera.id.LocalIdService;
 import org.janelia.saalfeldlab.paintera.meshes.Interruptible;
 import org.janelia.saalfeldlab.paintera.meshes.InterruptibleFunction;
 import org.janelia.saalfeldlab.paintera.meshes.InterruptibleFunctionAndCache;
@@ -30,23 +36,33 @@ import org.janelia.saalfeldlab.paintera.meshes.cache.BlocksForLabelDelegate;
 import org.janelia.saalfeldlab.paintera.meshes.cache.CacheUtils;
 import org.janelia.saalfeldlab.paintera.meshes.cache.SegmentMaskGenerators;
 import org.janelia.saalfeldlab.paintera.stream.HighlightingStreamConverter;
+import org.janelia.saalfeldlab.paintera.stream.HighlightingStreamConverterIntegerType;
+import org.janelia.saalfeldlab.paintera.stream.ModalGoldenAngleSaturatedHighlightingARGBStream;
 import org.janelia.saalfeldlab.util.HashWrapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import bdv.util.volatiles.VolatileTypeMatcher;
 import gnu.trove.iterator.TLongIterator;
 import gnu.trove.set.TLongSet;
 import gnu.trove.set.hash.TLongHashSet;
 import javafx.scene.Group;
 import net.imglib2.FinalInterval;
 import net.imglib2.Interval;
+import net.imglib2.RandomAccessibleInterval;
+import net.imglib2.Volatile;
 import net.imglib2.cache.UncheckedCache;
 import net.imglib2.converter.Converter;
+import net.imglib2.converter.Converters;
 import net.imglib2.img.cell.CellGrid;
+import net.imglib2.interpolation.randomaccess.NearestNeighborInterpolatorFactory;
+import net.imglib2.realtransform.AffineTransform3D;
+import net.imglib2.type.NativeType;
 import net.imglib2.type.logic.BoolType;
 import net.imglib2.type.numeric.ARGBType;
 import net.imglib2.type.numeric.IntegerType;
 import net.imglib2.util.Pair;
+import net.imglib2.util.Util;
 
 public class LabelSourceState< D extends IntegerType< D >, T >
 		extends
@@ -224,6 +240,66 @@ public class LabelSourceState< D extends IntegerType< D >, T >
 		this.selectedIds.deactivateAll();
 		this.selectedIds.activate( selection );
 		this.selectedIds.activateAlso( lastSelection );
+	}
+
+	public static < D extends IntegerType< D > & NativeType< D >, T extends Volatile< D > & IntegerType< T > > LabelSourceState< D, T > simpleSourceFromSingleRAIWithoutMeshes(
+			final RandomAccessibleInterval< D > data,
+			final double[] resolution,
+			final double[] offset,
+			final long maxId,
+			final String name,
+			final Group meshesGroup,
+			final ExecutorService meshManagerExecutors,
+			final ExecutorService meshWorkersExecutors )
+	{
+
+		final AffineTransform3D mipmapTransform = new AffineTransform3D();
+		mipmapTransform.set(
+				resolution[ 0 ], 0, 0, offset[ 0 ],
+				0, resolution[ 1 ], 0, offset[ 1 ],
+				0, 0, resolution[ 2 ], offset[ 2 ] );
+
+		final T vt = ( T ) VolatileTypeMatcher.getVolatileTypeForType( Util.getTypeFromInterval( data ) ).createVariable();
+		vt.setValid( true );
+		final RandomAccessibleInterval< T > vdata = Converters.convert( data, ( s, t ) -> t.get().set( s ), vt );
+
+		final RandomAccessibleIntervalDataSource< D, T > dataSource = new RandomAccessibleIntervalDataSource<>(
+				data,
+				vdata,
+				mipmapTransform,
+				i -> new NearestNeighborInterpolatorFactory<>(),
+				i -> new NearestNeighborInterpolatorFactory<>(),
+				name );
+
+		final SelectedIds selectedIds = new SelectedIds();
+		final FragmentSegmentAssignmentOnlyLocal assignment = new FragmentSegmentAssignmentOnlyLocal( new FragmentSegmentAssignmentOnlyLocal.DoesNotPersist() );
+		final LockedSegmentsOnlyLocal lockedSegments = new LockedSegmentsOnlyLocal( seg -> {} );
+		final ModalGoldenAngleSaturatedHighlightingARGBStream stream = new ModalGoldenAngleSaturatedHighlightingARGBStream(
+				selectedIds,
+				assignment,
+				lockedSegments );
+
+		@SuppressWarnings( "unchecked" )
+		final InterruptibleFunction< Long, Interval[] >[] backgroundBlockCaches = new InterruptibleFunction[] { InterruptibleFunction.fromFunction( id -> new Interval[] {} ) };
+
+		final ToLongFunction< T > toLong = integer -> {
+			final long val = integer.get().getIntegerLong();
+			return val;
+		};
+		return new LabelSourceState<>(
+				dataSource,
+				new HighlightingStreamConverterIntegerType<>( stream, toLong ),
+//				HighlightingStreamConverterIntegerType.forInteger( stream ),
+				new ARGBCompositeAlphaYCbCr(),
+				name,
+				assignment,
+				lockedSegments,
+				new LocalIdService( maxId ),
+				selectedIds,
+				meshesGroup,
+				backgroundBlockCaches,
+				meshManagerExecutors,
+				meshWorkersExecutors );
 	}
 
 	private static Function< Long, Interval[] >[] blockCacheForMaskedSource(

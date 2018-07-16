@@ -15,6 +15,13 @@ import org.janelia.saalfeldlab.fx.event.MouseTracker;
 import org.janelia.saalfeldlab.fx.ortho.GridConstraintsManager;
 import org.janelia.saalfeldlab.fx.ortho.OrthogonalViews;
 import org.janelia.saalfeldlab.paintera.composition.CompositeProjectorPreMultiply;
+import org.janelia.saalfeldlab.paintera.config.CoordinateConfigNode;
+import org.janelia.saalfeldlab.paintera.config.CrosshairConfig;
+import org.janelia.saalfeldlab.paintera.config.NavigationConfig;
+import org.janelia.saalfeldlab.paintera.config.NavigationConfigNode;
+import org.janelia.saalfeldlab.paintera.config.OrthoSliceConfig;
+import org.janelia.saalfeldlab.paintera.config.OrthoSliceConfigBase;
+import org.janelia.saalfeldlab.paintera.config.Viewer3DConfig;
 import org.janelia.saalfeldlab.paintera.state.GlobalTransformManager;
 import org.janelia.saalfeldlab.paintera.state.LabelSourceState;
 import org.janelia.saalfeldlab.paintera.state.RawSourceState;
@@ -314,11 +321,21 @@ public class PainteraBaseView
 
 	public static DefaultPainteraBaseView defaultView() throws IOException
 	{
-		return defaultView( Files.createTempDirectory( "paintera-base-view-" ).toString(), 1.0, 0.5, 0.25 );
+		return defaultView(
+				Files.createTempDirectory( "paintera-base-view-" ).toString(),
+				new CrosshairConfig(),
+				new OrthoSliceConfigBase(),
+				new NavigationConfig(),
+				new Viewer3DConfig(),
+				1.0, 0.5, 0.25 );
 	}
 
 	public static DefaultPainteraBaseView defaultView(
 			final String projectDir,
+			final CrosshairConfig crosshairConfig,
+			final OrthoSliceConfigBase orthoSliceConfigBase,
+			final NavigationConfig navigationConfig,
+			final Viewer3DConfig viewer3DConfig,
 			final double... screenScales )
 	{
 		final PainteraBaseView baseView = new PainteraBaseView(
@@ -351,6 +368,32 @@ public class PainteraBaseView
 				paneWithStatus,
 				gridConstraintsManager,
 				defaultHandlers );
+
+		final NavigationConfigNode navigationConfigNode = paneWithStatus.navigationConfigNode();
+
+		final CoordinateConfigNode coordinateConfigNode = navigationConfigNode.coordinateConfigNode();
+		coordinateConfigNode.listen( baseView.manager() );
+
+		paneWithStatus.crosshairConfigNode().bind( crosshairConfig );
+		crosshairConfig.bindCrosshairsToConfig( paneWithStatus.crosshairs().values() );
+
+		final OrthoSliceConfig orthoSliceConfig = new OrthoSliceConfig(
+				orthoSliceConfigBase,
+				baseView.orthogonalViews().topLeft().viewer().visibleProperty(),
+				baseView.orthogonalViews().topRight().viewer().visibleProperty(),
+				baseView.orthogonalViews().bottomLeft().viewer().visibleProperty(),
+				baseView.sourceInfo().hasSources() );
+		paneWithStatus.orthoSliceConfigNode().bind( orthoSliceConfig );
+		orthoSliceConfig.bindOrthoSlicesToConifg(
+				paneWithStatus.orthoSlices().get( baseView.orthogonalViews().topLeft() ),
+				paneWithStatus.orthoSlices().get( baseView.orthogonalViews().topRight() ),
+				paneWithStatus.orthoSlices().get( baseView.orthogonalViews().bottomLeft() ) );
+
+		paneWithStatus.navigationConfigNode().bind( navigationConfig );
+		navigationConfig.bindNavigationToConfig( defaultHandlers.navigation() );
+
+		paneWithStatus.viewer3DConfigNode().bind( viewer3DConfig );
+		viewer3DConfig.bindViewerToConfig( baseView.viewer3D() );
 
 		return dpbv;
 	}

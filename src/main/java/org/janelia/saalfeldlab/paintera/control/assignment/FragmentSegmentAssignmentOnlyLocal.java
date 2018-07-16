@@ -28,6 +28,17 @@ public class FragmentSegmentAssignmentOnlyLocal extends FragmentSegmentAssignmen
 		public void persist( long[] keys, long[] values ) throws UnableToPersist;
 	}
 
+	public static class DoesNotPersist implements Persister
+	{
+
+		@Override
+		public void persist( final long[] keys, final long[] values ) throws UnableToPersist
+		{
+			throw new UnableToPersist( "Cannot persist at all!" );
+		}
+
+	}
+
 	private static final Logger LOG = LoggerFactory.getLogger( MethodHandles.lookup().lookupClass() );
 
 	private final TLongLongHashMap fragmentToSegmentMap = new TLongLongHashMap( Constants.DEFAULT_CAPACITY, Constants.DEFAULT_LOAD_FACTOR, Label.TRANSPARENT, Label.TRANSPARENT );
