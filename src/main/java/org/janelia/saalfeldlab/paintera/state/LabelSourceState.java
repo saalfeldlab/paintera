@@ -246,7 +246,7 @@ public class LabelSourceState< D extends IntegerType< D >, T >
 		this.selectedIds.activateAlso( lastSelection );
 	}
 
-	public static < D extends IntegerType< D > & NativeType< D >, T extends Volatile< D > & IntegerType< T > > LabelSourceState< D, T > simpleSourceFromSingleRAIWithoutMeshes(
+	public static < D extends IntegerType< D > & NativeType< D >, T extends Volatile< D > & IntegerType< T > > LabelSourceState< D, T > simpleSourceFromSingleRAI(
 			final RandomAccessibleInterval< D > data,
 			final double[] resolution,
 			final double[] offset,
@@ -257,7 +257,7 @@ public class LabelSourceState< D extends IntegerType< D >, T >
 			final ExecutorService meshWorkersExecutors )
 	{
 
-		if ( !Views.isZeroMin( data ) ) { return simpleSourceFromSingleRAIWithoutMeshes(
+		if ( !Views.isZeroMin( data ) ) { return simpleSourceFromSingleRAI(
 				Views.zeroMin( data ),
 				resolution,
 				offset,
