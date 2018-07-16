@@ -1,5 +1,32 @@
 package org.janelia.saalfeldlab.paintera;
 
+import java.io.IOException;
+import java.lang.invoke.MethodHandles;
+import java.nio.file.Files;
+import java.util.Arrays;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.function.BiConsumer;
+import java.util.function.Function;
+import java.util.function.LongFunction;
+
+import org.janelia.saalfeldlab.fx.event.KeyTracker;
+import org.janelia.saalfeldlab.fx.event.MouseTracker;
+import org.janelia.saalfeldlab.fx.ortho.GridConstraintsManager;
+import org.janelia.saalfeldlab.fx.ortho.OrthogonalViews;
+import org.janelia.saalfeldlab.paintera.composition.CompositeProjectorPreMultiply;
+import org.janelia.saalfeldlab.paintera.state.GlobalTransformManager;
+import org.janelia.saalfeldlab.paintera.state.LabelSourceState;
+import org.janelia.saalfeldlab.paintera.state.RawSourceState;
+import org.janelia.saalfeldlab.paintera.state.SourceInfo;
+import org.janelia.saalfeldlab.paintera.state.SourceState;
+import org.janelia.saalfeldlab.paintera.stream.AbstractHighlightingARGBStream;
+import org.janelia.saalfeldlab.paintera.stream.HighlightingStreamConverter;
+import org.janelia.saalfeldlab.paintera.viewer3d.Viewer3DFX;
+import org.janelia.saalfeldlab.util.NamedThreadFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import bdv.util.volatiles.SharedQueue;
 import bdv.viewer.Interpolation;
 import bdv.viewer.Source;
@@ -18,27 +45,6 @@ import net.imglib2.type.logic.BoolType;
 import net.imglib2.type.numeric.ARGBType;
 import net.imglib2.type.numeric.IntegerType;
 import net.imglib2.type.numeric.RealType;
-import org.janelia.saalfeldlab.fx.ortho.OrthogonalViews;
-import org.janelia.saalfeldlab.paintera.composition.CompositeProjectorPreMultiply;
-import org.janelia.saalfeldlab.paintera.state.GlobalTransformManager;
-import org.janelia.saalfeldlab.paintera.state.LabelSourceState;
-import org.janelia.saalfeldlab.paintera.state.RawSourceState;
-import org.janelia.saalfeldlab.paintera.state.SourceInfo;
-import org.janelia.saalfeldlab.paintera.state.SourceState;
-import org.janelia.saalfeldlab.paintera.stream.AbstractHighlightingARGBStream;
-import org.janelia.saalfeldlab.paintera.stream.HighlightingStreamConverter;
-import org.janelia.saalfeldlab.paintera.viewer3d.Viewer3DFX;
-import org.janelia.saalfeldlab.util.NamedThreadFactory;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import java.lang.invoke.MethodHandles;
-import java.util.Arrays;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.function.BiConsumer;
-import java.util.function.Function;
-import java.util.function.LongFunction;
 
 public class PainteraBaseView
 {
@@ -304,6 +310,81 @@ public class PainteraBaseView
 	public ExecutorService getMeshWorkerExecutorService()
 	{
 		return this.meshWorkerExecutorService;
+	}
+
+	public static DefaultPainteraBaseView defaultView() throws IOException
+	{
+		return defaultView( Files.createTempDirectory( "paintera-base-view-" ).toString(), 1.0, 0.5, 0.25 );
+	}
+
+	public static DefaultPainteraBaseView defaultView(
+			final String projectDir,
+			final double... screenScales )
+	{
+		final PainteraBaseView baseView = new PainteraBaseView(
+				Math.min( 8, Math.max( 1, Runtime.getRuntime().availableProcessors() / 2 ) ),
+				ViewerOptions.options().screenScales( screenScales ),
+				si -> s -> si.getState( s ).interpolationProperty().get() );
+
+		final KeyTracker keyTracker = new KeyTracker();
+		final MouseTracker mouseTracker = new MouseTracker();
+
+		final BorderPaneWithStatusBars paneWithStatus = new BorderPaneWithStatusBars(
+				baseView,
+				() -> projectDir );
+
+		final GridConstraintsManager gridConstraintsManager = new GridConstraintsManager();
+		baseView.orthogonalViews().grid().manage( gridConstraintsManager );
+
+		final PainteraDefaultHandlers defaultHandlers = new PainteraDefaultHandlers(
+				baseView,
+				keyTracker,
+				mouseTracker,
+				paneWithStatus,
+				projectDir,
+				gridConstraintsManager );
+
+		final DefaultPainteraBaseView dpbv = new DefaultPainteraBaseView(
+				baseView,
+				keyTracker,
+				mouseTracker,
+				paneWithStatus,
+				gridConstraintsManager,
+				defaultHandlers );
+
+		return dpbv;
+	}
+
+	public static class DefaultPainteraBaseView
+	{
+		public final PainteraBaseView baseView;
+
+		public final KeyTracker keyTracker;
+
+		public final MouseTracker mouseTracker;
+
+		public final BorderPaneWithStatusBars paneWithStatus;
+
+		public final GridConstraintsManager gridConstraintsManager;
+
+		public final PainteraDefaultHandlers handlers;
+
+		private DefaultPainteraBaseView(
+				final PainteraBaseView baseView,
+				final KeyTracker keyTracker,
+				final MouseTracker mouseTracker,
+				final BorderPaneWithStatusBars paneWithStatus,
+				final GridConstraintsManager gridConstraintsManager,
+				final PainteraDefaultHandlers handlers )
+		{
+			super();
+			this.baseView = baseView;
+			this.keyTracker = keyTracker;
+			this.mouseTracker = mouseTracker;
+			this.paneWithStatus = paneWithStatus;
+			this.gridConstraintsManager = gridConstraintsManager;
+			this.handlers = handlers;
+		}
 	}
 
 }
