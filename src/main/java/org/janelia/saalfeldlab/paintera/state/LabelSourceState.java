@@ -51,9 +51,11 @@ import net.imglib2.FinalInterval;
 import net.imglib2.Interval;
 import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.Volatile;
+import net.imglib2.algorithm.util.Grids;
 import net.imglib2.cache.UncheckedCache;
 import net.imglib2.converter.Converter;
 import net.imglib2.converter.Converters;
+import net.imglib2.img.cell.AbstractCellImg;
 import net.imglib2.img.cell.CellGrid;
 import net.imglib2.interpolation.randomaccess.NearestNeighborInterpolatorFactory;
 import net.imglib2.realtransform.AffineTransform3D;
@@ -61,8 +63,10 @@ import net.imglib2.type.NativeType;
 import net.imglib2.type.logic.BoolType;
 import net.imglib2.type.numeric.ARGBType;
 import net.imglib2.type.numeric.IntegerType;
+import net.imglib2.util.Intervals;
 import net.imglib2.util.Pair;
 import net.imglib2.util.Util;
+import net.imglib2.view.Views;
 
 public class LabelSourceState< D extends IntegerType< D >, T >
 		extends
@@ -253,6 +257,16 @@ public class LabelSourceState< D extends IntegerType< D >, T >
 			final ExecutorService meshWorkersExecutors )
 	{
 
+		if ( !Views.isZeroMin( data ) ) { return simpleSourceFromSingleRAIWithoutMeshes(
+				Views.zeroMin( data ),
+				resolution,
+				offset,
+				maxId,
+				name,
+				meshesGroup,
+				meshManagerExecutors,
+				meshWorkersExecutors ); }
+
 		final AffineTransform3D mipmapTransform = new AffineTransform3D();
 		mipmapTransform.set(
 				resolution[ 0 ], 0, 0, offset[ 0 ],
@@ -279,8 +293,22 @@ public class LabelSourceState< D extends IntegerType< D >, T >
 				assignment,
 				lockedSegments );
 
+		final int[] blockSize;
+		if ( data instanceof AbstractCellImg< ?, ?, ?, ? > )
+		{
+			final CellGrid grid = ( ( AbstractCellImg< ?, ?, ?, ? > ) data ).getCellGrid();
+			blockSize = new int[ grid.numDimensions() ];
+			Arrays.setAll( blockSize, grid::cellDimension );
+		}
+		else
+		{
+			blockSize = new int[] { 64, 64, 64 };
+		}
+
+		final Interval[] intervals = Grids.collectAllContainedIntervals( Intervals.dimensionsAsLongArray( data ), blockSize ).stream().toArray( Interval[]::new );
+
 		@SuppressWarnings( "unchecked" )
-		final InterruptibleFunction< Long, Interval[] >[] backgroundBlockCaches = new InterruptibleFunction[] { InterruptibleFunction.fromFunction( id -> new Interval[] {} ) };
+		final InterruptibleFunction< Long, Interval[] >[] backgroundBlockCaches = new InterruptibleFunction[] { InterruptibleFunction.fromFunction( id -> intervals ) };
 
 		final ToLongFunction< T > toLong = integer -> {
 			final long val = integer.get().getIntegerLong();
