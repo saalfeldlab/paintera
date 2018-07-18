@@ -986,11 +986,11 @@ public class N5Helpers
 		{
 			if ( isMultiScale( reader, dataset ) )
 			{
-				return Stream.generate( () -> null ).toArray( String[]::new );
+				return Stream.generate( () -> null ).limit( N5Helpers.listScaleDatasets( reader, dataset ).length ).toArray( String[]::new );
 			}
 			else
 			{
-				return null;
+				return new String[] { null };
 			}
 		}
 
@@ -1006,7 +1006,7 @@ public class N5Helpers
 			}
 			else
 			{
-				return null;
+				return new String[] { null };
 			}
 		}
 
