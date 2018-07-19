@@ -26,21 +26,4 @@ public class Detach implements AssignmentAction
 		return Type.DETACH;
 	}
 
-	@Override
-	public int hashCode()
-	{
-		return Long.hashCode( fragmentId ) * 31 + Long.hashCode( fragmentFrom );
-	}
-
-	@Override
-	public boolean equals( final Object other )
-	{
-		return other instanceof Detach ? equalsDetach( ( Detach ) other ) : false;
-	}
-
-	private boolean equalsDetach( final Detach that )
-	{
-		return this.fragmentId == that.fragmentId && this.fragmentFrom == that.fragmentFrom;
-	}
-
 }
