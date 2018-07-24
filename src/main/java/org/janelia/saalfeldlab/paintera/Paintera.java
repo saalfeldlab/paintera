@@ -1,15 +1,22 @@
 package org.janelia.saalfeldlab.paintera;
 
-import java.io.File;
-import java.io.IOException;
-import java.lang.invoke.MethodHandles;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Optional;
-import java.util.function.Supplier;
-import java.util.regex.Pattern;
-
+import bdv.viewer.ViewerOptions;
+import com.google.gson.GsonBuilder;
+import com.google.gson.JsonObject;
+import javafx.application.Application;
+import javafx.application.Platform;
+import javafx.scene.Scene;
+import javafx.scene.input.KeyCode;
+import javafx.scene.input.MouseEvent;
+import javafx.stage.Stage;
+import javafx.stage.WindowEvent;
+import net.imglib2.Volatile;
+import net.imglib2.converter.ARGBColorConverter;
+import net.imglib2.realtransform.AffineTransform3D;
+import net.imglib2.type.NativeType;
+import net.imglib2.type.numeric.ARGBType;
+import net.imglib2.type.numeric.IntegerType;
+import net.imglib2.type.numeric.RealType;
 import org.janelia.saalfeldlab.fx.event.EventFX;
 import org.janelia.saalfeldlab.fx.event.KeyTracker;
 import org.janelia.saalfeldlab.fx.event.MouseTracker;
@@ -19,6 +26,7 @@ import org.janelia.saalfeldlab.n5.N5Reader;
 import org.janelia.saalfeldlab.n5.N5Writer;
 import org.janelia.saalfeldlab.paintera.SaveProject.ProjectUndefined;
 import org.janelia.saalfeldlab.paintera.composition.ARGBCompositeAlphaYCbCr;
+import org.janelia.saalfeldlab.paintera.composition.Composite;
 import org.janelia.saalfeldlab.paintera.composition.CompositeCopy;
 import org.janelia.saalfeldlab.paintera.config.CoordinateConfigNode;
 import org.janelia.saalfeldlab.paintera.config.NavigationConfigNode;
@@ -45,25 +53,17 @@ import org.janelia.saalfeldlab.paintera.viewer3d.Viewer3DFX;
 import org.janelia.saalfeldlab.util.MakeUnchecked;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import com.google.gson.GsonBuilder;
-import com.google.gson.JsonObject;
-
-import bdv.viewer.ViewerOptions;
-import javafx.application.Application;
-import javafx.application.Platform;
-import javafx.scene.Scene;
-import javafx.scene.input.KeyCode;
-import javafx.scene.input.MouseEvent;
-import javafx.stage.Stage;
-import javafx.stage.WindowEvent;
-import net.imglib2.Volatile;
-import net.imglib2.converter.ARGBColorConverter;
-import net.imglib2.realtransform.AffineTransform3D;
-import net.imglib2.type.NativeType;
-import net.imglib2.type.numeric.IntegerType;
-import net.imglib2.type.numeric.RealType;
 import picocli.CommandLine;
+
+import java.io.File;
+import java.io.IOException;
+import java.lang.invoke.MethodHandles;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Optional;
+import java.util.function.Supplier;
+import java.util.regex.Pattern;
 
 public class Paintera extends Application
 {
@@ -335,11 +335,27 @@ public class Paintera extends Application
 		view.grid().getBottomRight().setFocusTraversable( isTraversable );
 	}
 
+	public static Optional< ? extends DataSource< ?, ? > > addRawFromStringNoGenerics(
+			final PainteraBaseView pbv,
+			final String identifier,
+			final Composite< ARGBType, ARGBType > composite ) throws UnableToAddSource
+	{
+		return addRawFromString( pbv, identifier, composite );
+	}
+
 	private static < D extends NativeType< D > & RealType< D >, T extends Volatile< D > & NativeType< T > & RealType< T > > Optional< DataSource< D, T > > addRawFromString(
 			final PainteraBaseView pbv,
 			final String identifier ) throws UnableToAddSource
 	{
-		if ( !Pattern.matches( "^[a-z]+://.+", identifier ) ) { return addRawFromString( pbv, "file://" + identifier ); }
+		return addRawFromString( pbv, identifier, new CompositeCopy<>() );
+	}
+
+	private static < D extends NativeType< D > & RealType< D >, T extends Volatile< D > & NativeType< T > & RealType< T > > Optional< DataSource< D, T > > addRawFromString(
+			final PainteraBaseView pbv,
+			final String identifier,
+			final Composite<ARGBType, ARGBType > composite ) throws UnableToAddSource
+	{
+		if ( !Pattern.matches( "^[a-z]+://.+", identifier ) ) { return addRawFromString( pbv, "file://" + identifier, composite ); }
 
 		if ( Pattern.matches( "^file://.+", identifier ) )
 		{
@@ -361,7 +377,7 @@ public class Paintera extends Application
 				final RawSourceState< D, T > state = new RawSourceState<>(
 						source,
 						new ARGBColorConverter.Imp1<>(),
-						new CompositeCopy<>(),
+						composite,
 						name );
 
 				pbv.addRawSource( state );
@@ -377,10 +393,30 @@ public class Paintera extends Application
 		return Optional.empty();
 	}
 
+	public static void addLabelFromStringNoGenerics(
+			final PainteraBaseView pbv,
+			final String identifier,
+			final String projectDirectory,
+			final GetAssignment assignmentGenerator,
+			GetN5IDService idServiceGenerator ) throws UnableToAddSource
+	{
+		addLabelFromString( pbv, identifier, projectDirectory, assignmentGenerator, idServiceGenerator );
+	}
+
 	private static < D extends NativeType< D > & IntegerType< D >, T extends Volatile< D > & NativeType< T > > void addLabelFromString(
 			final PainteraBaseView pbv,
 			final String identifier,
 			final String projectDirectory ) throws UnableToAddSource
+	{
+		addLabelFromString( pbv,identifier, projectDirectory, N5Helpers::assignments, N5Helpers::idService );
+	}
+
+	private static < D extends NativeType< D > & IntegerType< D >, T extends Volatile< D > & NativeType< T > > void addLabelFromString(
+			final PainteraBaseView pbv,
+			final String identifier,
+			final String projectDirectory,
+			final GetAssignment assignmentGenerator,
+			final GetN5IDService idServiceGenerator ) throws UnableToAddSource
 	{
 		if ( !Pattern.matches( "^[a-z]+://.+", identifier ) )
 		{
@@ -402,8 +438,8 @@ public class Paintera extends Application
 				final Supplier< String > nextCanvasDir = Masks.canvasTmpDirDirectorySupplier( projectDirectory );
 				final String name = N5Helpers.lastSegmentOfDatasetPath( dataset );
 				final SelectedIds selectedIds = new SelectedIds();
-				final IdService idService = N5Helpers.idService( n5, dataset );
-				final FragmentSegmentAssignmentState assignment = N5Helpers.assignments( n5, dataset );
+				final IdService idService = idServiceGenerator.getIdService( n5, dataset );
+				final FragmentSegmentAssignmentState assignment = assignmentGenerator.getAssignment( n5, dataset );
 				final LockedSegmentsOnlyLocal lockedSegments = new LockedSegmentsOnlyLocal( locked -> {} );
 				final ModalGoldenAngleSaturatedHighlightingARGBStream stream = new ModalGoldenAngleSaturatedHighlightingARGBStream(
 						selectedIds,
@@ -467,6 +503,20 @@ public class Paintera extends Application
 		{
 			return Optional.empty();
 		}
+	}
+
+	public static interface GetAssignment
+	{
+
+	public FragmentSegmentAssignmentState getAssignment( final N5Writer writer, final String dataset ) throws IOException;
+
+	}
+
+	public static interface GetN5IDService
+	{
+
+		public IdService getIdService( final N5Writer writer, final String dataset ) throws IOException;
+
 	}
 
 }
