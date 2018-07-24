@@ -20,7 +20,7 @@ import gnu.trove.map.hash.TLongObjectHashMap;
 import gnu.trove.set.hash.TLongHashSet;
 import net.imglib2.type.label.Label;
 
-public class FragmentSegmentAssignmentOnlyLocal extends FragmentSegmentAssignmentState
+public class FragmentSegmentAssignmentOnlyLocal extends FragmentSegmentAssignmentStateWithActionTracker
 {
 
 	public interface Persister
