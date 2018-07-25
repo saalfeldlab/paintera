@@ -7,21 +7,21 @@ public abstract class LockedSegmentsState extends ObservableWithListenersList im
 
 	public abstract void persist();
 
-	protected abstract void lockImpl( long segment );
+	protected abstract void lockImpl(long segment);
 
-	protected abstract void unlockImpl( long segment );
+	protected abstract void unlockImpl(long segment);
 
 	@Override
-	public void lock( final long segment )
+	public void lock(final long segment)
 	{
-		lockImpl( segment );
+		lockImpl(segment);
 		stateChanged();
 	}
 
 	@Override
-	public void unlock( final long segment )
+	public void unlock(final long segment)
 	{
-		unlockImpl( segment );
+		unlockImpl(segment);
 		stateChanged();
 	}
 

@@ -2,12 +2,11 @@ package org.janelia.saalfeldlab.paintera.control.selection;
 
 import java.util.Arrays;
 
-import org.janelia.saalfeldlab.fx.ObservableWithListenersList;
-import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignmentState;
-
 import gnu.trove.set.hash.TLongHashSet;
 import javafx.beans.InvalidationListener;
 import javafx.beans.Observable;
+import org.janelia.saalfeldlab.fx.ObservableWithListenersList;
+import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignmentState;
 
 public class SelectedSegments extends ObservableWithListenersList
 {
@@ -22,34 +21,35 @@ public class SelectedSegments extends ObservableWithListenersList
 
 	private final AssignmentListener assignmentListener = new AssignmentListener();
 
-	public SelectedSegments( final SelectedIds selectedIds, final FragmentSegmentAssignmentState assignment )
+	public SelectedSegments(final SelectedIds selectedIds, final FragmentSegmentAssignmentState assignment)
 	{
 		super();
 		this.selectedIds = selectedIds;
 		this.assignment = assignment;
-		this.selectedIds.addListener( selectionListener );
-		this.assignment.addListener( assignmentListener );
+		this.selectedIds.addListener(selectionListener);
+		this.assignment.addListener(assignmentListener);
 	}
 
 	public long[] getSelectedSegments()
 	{
-		synchronized ( this.selectedSegments )
+		synchronized (this.selectedSegments)
 		{
 			return this.selectedSegments.toArray();
 		}
 	}
 
-	public boolean isSegmentSelected( final long id )
+	public boolean isSegmentSelected(final long id)
 	{
-		return this.selectedSegments.contains( id );
+		return this.selectedSegments.contains(id);
 	}
 
 	private void update()
 	{
-		synchronized ( this.selectedSegments )
+		synchronized (this.selectedSegments)
 		{
 			this.selectedSegments.clear();
-			this.selectedSegments.addAll( Arrays.stream( this.selectedIds.getActiveIds() ).map( assignment::getSegment ).toArray() );
+			this.selectedSegments.addAll(Arrays.stream(this.selectedIds.getActiveIds()).map(assignment::getSegment)
+					.toArray());
 		}
 		stateChanged();
 	}
@@ -58,7 +58,7 @@ public class SelectedSegments extends ObservableWithListenersList
 	{
 
 		@Override
-		public void invalidated( final Observable obs )
+		public void invalidated(final Observable obs)
 		{
 			update();
 		}
@@ -69,7 +69,7 @@ public class SelectedSegments extends ObservableWithListenersList
 	{
 
 		@Override
-		public void invalidated( final Observable obs )
+		public void invalidated(final Observable obs)
 		{
 			update();
 		}

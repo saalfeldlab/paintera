@@ -29,8 +29,8 @@
  */
 package bdv.fx.viewer;
 
-public interface TransformAwareBufferedImageOverlayRendererGeneric< G, T >
-		extends OverlayRendererGeneric< G >, RenderTargetGeneric< T >, TransformAwareRenderTargetGeneric< T >
+public interface TransformAwareBufferedImageOverlayRendererGeneric<G, T>
+		extends OverlayRendererGeneric<G>, RenderTargetGeneric<T>, TransformAwareRenderTargetGeneric<T>
 {
 
 }

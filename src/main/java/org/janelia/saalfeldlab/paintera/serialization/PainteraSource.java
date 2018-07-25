@@ -2,13 +2,12 @@ package org.janelia.saalfeldlab.paintera.serialization;
 
 import java.util.Optional;
 
-import org.janelia.saalfeldlab.paintera.PainteraBaseView;
-
 import bdv.viewer.Source;
+import org.janelia.saalfeldlab.paintera.PainteraBaseView;
 
 public interface PainteraSource
 {
-	public Optional< Source< ? > > addToViewer( PainteraBaseView viewer );
+	public Optional<Source<?>> addToViewer(PainteraBaseView viewer);
 
 	public boolean isDirty();
 

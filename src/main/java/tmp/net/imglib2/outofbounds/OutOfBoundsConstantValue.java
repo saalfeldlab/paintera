@@ -40,30 +40,30 @@ import net.imglib2.Interval;
 import net.imglib2.RandomAccessible;
 
 /**
- *
  * @param <T>
  *
  * @author Stephan Preibisch
  * @author Stephan Saalfeld
  * @author Philipp Hanslovsky
  */
-public class OutOfBoundsConstantValue< T > extends AbstractOutOfBoundsValue< T >
+public class OutOfBoundsConstantValue<T> extends AbstractOutOfBoundsValue<T>
 {
 
-	private final Supplier< T > valueSupplier;
+	private final Supplier<T> valueSupplier;
 
 	private final T value;
 
-	protected OutOfBoundsConstantValue( final OutOfBoundsConstantValue< T > outOfBounds )
+	protected OutOfBoundsConstantValue(final OutOfBoundsConstantValue<T> outOfBounds)
 	{
-		super( outOfBounds );
+		super(outOfBounds);
 		this.valueSupplier = outOfBounds.valueSupplier;
 		this.value = outOfBounds.valueSupplier.get();
 	}
 
-	public < F extends Interval & RandomAccessible< T > > OutOfBoundsConstantValue( final F f, final Supplier< T > valueSupplier )
+	public <F extends Interval & RandomAccessible<T>> OutOfBoundsConstantValue(final F f, final Supplier<T>
+			valueSupplier)
 	{
-		super( f );
+		super(f);
 		this.valueSupplier = valueSupplier;
 		this.value = valueSupplier.get();
 	}
@@ -74,20 +74,20 @@ public class OutOfBoundsConstantValue< T > extends AbstractOutOfBoundsValue< T >
 	final public T get()
 	{
 		// System.out.println( getLocationAsString() + " " + isOutOfBounds );
-		if ( isOutOfBounds ) { return value; }
+		if (isOutOfBounds) { return value; }
 		return sampler.get();
 	}
 
 	@Override
-	final public OutOfBoundsConstantValue< T > copy()
+	final public OutOfBoundsConstantValue<T> copy()
 	{
-		return new OutOfBoundsConstantValue<>( this );
+		return new OutOfBoundsConstantValue<>(this);
 	}
 
 	/* RandomAccess */
 
 	@Override
-	final public OutOfBoundsConstantValue< T > copyRandomAccess()
+	final public OutOfBoundsConstantValue<T> copyRandomAccess()
 	{
 		return copy();
 	}

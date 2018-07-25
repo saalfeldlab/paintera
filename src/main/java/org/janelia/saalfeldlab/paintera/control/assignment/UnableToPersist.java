@@ -5,17 +5,17 @@ public class UnableToPersist extends Exception
 
 	public UnableToPersist()
 	{
-		this( "Unable to persist." );
+		this("Unable to persist.");
 	}
 
-	public UnableToPersist( final Throwable cause )
+	public UnableToPersist(final Throwable cause)
 	{
-		super( "Unable to persist.", cause );
+		super("Unable to persist.", cause);
 	}
 
-	public UnableToPersist( final String message )
+	public UnableToPersist(final String message)
 	{
-		super( message );
+		super(message);
 	}
 
 }

@@ -14,7 +14,7 @@ public class N5IdService implements IdService
 
 	private long next;
 
-	public N5IdService( final N5Writer n5, final String dataset, final long next )
+	public N5IdService(final N5Writer n5, final String dataset, final long next)
 	{
 		super();
 		this.n5 = n5;
@@ -23,11 +23,11 @@ public class N5IdService implements IdService
 	}
 
 	@Override
-	public synchronized void invalidate( final long id )
+	public synchronized void invalidate(final long id)
 	{
 		final long oldNext = next;
-		next = IdService.max( next, id + 1 );
-		if ( next != oldNext )
+		next = IdService.max(next, id + 1);
+		if (next != oldNext)
 		{
 			serializeMaxId();
 		}
@@ -42,9 +42,9 @@ public class N5IdService implements IdService
 	}
 
 	@Override
-	public synchronized long[] next( final int n )
+	public synchronized long[] next(final int n)
 	{
-		final long[] ids = LongStream.range( next, next + n ).toArray();
+		final long[] ids = LongStream.range(next, next + n).toArray();
 		next += n;
 		serializeMaxId();
 		return ids;
@@ -54,16 +54,15 @@ public class N5IdService implements IdService
 	{
 		try
 		{
-			n5.setAttribute( dataset, "maxId", next );
-		}
-		catch ( final IOException e )
+			n5.setAttribute(dataset, "maxId", next);
+		} catch (final IOException e)
 		{
-			throw new RuntimeException( e );
+			throw new RuntimeException(e);
 		}
 	}
 
 	@Override
-	public boolean isInvalidated( final long id )
+	public boolean isInvalidated(final long id)
 	{
 		return id < next;
 	}

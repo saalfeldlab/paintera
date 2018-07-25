@@ -4,9 +4,6 @@ import java.util.Arrays;
 import java.util.HashSet;
 import java.util.function.UnaryOperator;
 
-import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread;
-import org.janelia.saalfeldlab.paintera.ui.opendialog.OpenSourceDialog;
-
 import javafx.beans.property.DoubleProperty;
 import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.SimpleObjectProperty;
@@ -24,6 +21,8 @@ import javafx.scene.layout.ColumnConstraints;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
+import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread;
+import org.janelia.saalfeldlab.paintera.ui.opendialog.OpenSourceDialog;
 
 public class MetaPanel
 {
@@ -38,105 +37,114 @@ public class MetaPanel
 
 	private static final String Z_STRING = "Z";
 
-	private final SpatialInformation resolution = new SpatialInformation( TEXTFIELD_WIDTH, X_STRING, Y_STRING, Z_STRING );
+	private final SpatialInformation resolution = new SpatialInformation(TEXTFIELD_WIDTH, X_STRING, Y_STRING,
+			Z_STRING);
 
-	private final SpatialInformation offset = new SpatialInformation( TEXTFIELD_WIDTH, X_STRING, Y_STRING, Z_STRING );
+	private final SpatialInformation offset = new SpatialInformation(TEXTFIELD_WIDTH, X_STRING, Y_STRING, Z_STRING);
 
-	private final TextField min = new TextField( "" );
+	private final TextField min = new TextField("");
 
-	private final TextField max = new TextField( "" );
+	private final TextField max = new TextField("");
 
 	private final VBox content = new VBox();
 
-	private final ScrollPane cc = new ScrollPane( content );
+	private final ScrollPane cc = new ScrollPane(content);
 
-	private final TitledPane pane = new TitledPane( "meta", cc );
+	private final TitledPane pane = new TitledPane("meta", cc);
 
 	private final VBox rawMeta = new VBox();
 
 	private final VBox labelMeta = new VBox();
 
-	private final HashSet< Node > additionalMeta = new HashSet<>();
+	private final HashSet<Node> additionalMeta = new HashSet<>();
 
-	private final SimpleObjectProperty< OpenSourceDialog.TYPE > dataType = new SimpleObjectProperty<>( null );
+	private final SimpleObjectProperty<OpenSourceDialog.TYPE> dataType = new SimpleObjectProperty<>(null);
 
 	public MetaPanel()
 	{
-		cc.setFitToWidth( true );
+		cc.setFitToWidth(true);
 
 		final GridPane spatialInfo = new GridPane();
-		spatialInfo.setHgap( GRID_HGAP );
-		final Label empty = new Label( "" );
-		final Label xLabel = new Label( X_STRING );
-		final Label yLabel = new Label( Y_STRING );
-		final Label zLabel = new Label( Z_STRING );
+		spatialInfo.setHgap(GRID_HGAP);
+		final Label empty = new Label("");
+		final Label xLabel = new Label(X_STRING);
+		final Label yLabel = new Label(Y_STRING);
+		final Label zLabel = new Label(Z_STRING);
 
-		formatLabels( empty, xLabel, yLabel, zLabel );
-		addToGrid( spatialInfo, 0, 0, empty, xLabel, yLabel, zLabel );
-		addToGrid( spatialInfo, 0, 1, new Label( "Resolution " ), resolution.textX(), resolution.textY(), resolution.textZ() );
-		addToGrid( spatialInfo, 0, 2, new Label( "Offset" ), offset.textX(), offset.textY(), offset.textZ() );
+		formatLabels(empty, xLabel, yLabel, zLabel);
+		addToGrid(spatialInfo, 0, 0, empty, xLabel, yLabel, zLabel);
+		addToGrid(
+				spatialInfo,
+				0,
+				1,
+				new Label("Resolution "),
+				resolution.textX(),
+				resolution.textY(),
+				resolution.textZ()
+		         );
+		addToGrid(spatialInfo, 0, 2, new Label("Offset"), offset.textX(), offset.textY(), offset.textZ());
 		final ColumnConstraints cc = new ColumnConstraints();
-		cc.setHgrow( Priority.ALWAYS );
-		spatialInfo.getColumnConstraints().addAll( cc );
+		cc.setHgrow(Priority.ALWAYS);
+		spatialInfo.getColumnConstraints().addAll(cc);
 
-		content.getChildren().add( spatialInfo );
+		content.getChildren().add(spatialInfo);
 
-		this.dataType.addListener( ( obs, oldv, newv ) -> {
-			if ( newv != null )
-				InvokeOnJavaFXApplicationThread.invoke( () -> {
-					final ObservableList< Node > children = this.content.getChildren();
-					children.removeAll( this.additionalMeta );
+		this.dataType.addListener((obs, oldv, newv) -> {
+			if (newv != null)
+				InvokeOnJavaFXApplicationThread.invoke(() -> {
+					final ObservableList<Node> children = this.content.getChildren();
+					children.removeAll(this.additionalMeta);
 					this.additionalMeta.clear();
-					switch ( newv )
+					switch (newv)
 					{
-					case RAW:
-						children.add( this.rawMeta );
-						this.additionalMeta.add( this.rawMeta );
-						break;
-					case LABEL:
-						children.add( this.labelMeta );
-						this.additionalMeta.add( this.labelMeta );
-						break;
-					default:
-						break;
+						case RAW:
+							children.add(this.rawMeta);
+							this.additionalMeta.add(this.rawMeta);
+							break;
+						case LABEL:
+							children.add(this.labelMeta);
+							this.additionalMeta.add(this.labelMeta);
+							break;
+						default:
+							break;
 					}
-				} );
-		} );
+				});
+		});
 
 		final GridPane rawMinMax = new GridPane();
-		rawMinMax.getColumnConstraints().add( cc );
-		rawMinMax.add( new Label( "Intensity Range" ), 0, 0 );
-		rawMinMax.add( this.min, 1, 0 );
-		rawMinMax.add( this.max, 2, 0 );
-		this.min.setPromptText( "min" );
-		this.max.setPromptText( "max" );
-		this.min.setPrefWidth( TEXTFIELD_WIDTH );
-		this.max.setPrefWidth( TEXTFIELD_WIDTH );
-		this.rawMeta.getChildren().add( rawMinMax );
+		rawMinMax.getColumnConstraints().add(cc);
+		rawMinMax.add(new Label("Intensity Range"), 0, 0);
+		rawMinMax.add(this.min, 1, 0);
+		rawMinMax.add(this.max, 2, 0);
+		this.min.setPromptText("min");
+		this.max.setPromptText("max");
+		this.min.setPrefWidth(TEXTFIELD_WIDTH);
+		this.max.setPrefWidth(TEXTFIELD_WIDTH);
+		this.rawMeta.getChildren().add(rawMinMax);
 
 	}
 
-	public void listenOnResolution( final DoubleProperty x, final DoubleProperty y, final DoubleProperty z )
+	public void listenOnResolution(final DoubleProperty x, final DoubleProperty y, final DoubleProperty z)
 	{
-		this.resolution.bindTo( x, y, z );
+		this.resolution.bindTo(x, y, z);
 	}
 
-	public void listenOnOffset( final DoubleProperty x, final DoubleProperty y, final DoubleProperty z )
+	public void listenOnOffset(final DoubleProperty x, final DoubleProperty y, final DoubleProperty z)
 	{
-		this.offset.bindTo( x, y, z );
+		this.offset.bindTo(x, y, z);
 	}
 
-	public void listenOnMinMax( final DoubleProperty min, final DoubleProperty max )
+	public void listenOnMinMax(final DoubleProperty min, final DoubleProperty max)
 	{
-		min.addListener( ( obs, oldv, newv ) -> {
-			if ( Double.isFinite( newv.doubleValue() ) )
-				this.min.setText( Double.toString( newv.doubleValue() ) );
-		} );
+		min.addListener((obs, oldv, newv) -> {
+			if (Double.isFinite(newv.doubleValue()))
+				this.min.setText(Double.toString(newv.doubleValue()));
+		});
 
-		max.addListener( ( obs, oldv, newv ) -> {
-			if ( Double.isFinite( newv.doubleValue() ) )
-				this.max.setText( Double.toString( newv.doubleValue() ) );
-		} );
+		max.addListener((obs, oldv, newv) -> {
+			if (Double.isFinite(newv.doubleValue()))
+				this.max.setText(Double.toString(newv.doubleValue()));
+		});
 	}
 
 	public Node getPane()
@@ -144,61 +152,65 @@ public class MetaPanel
 		return pane;
 	}
 
-	public static class DoubleFilter implements UnaryOperator< Change >
+	public static class DoubleFilter implements UnaryOperator<Change>
 	{
 
 		@Override
-		public Change apply( final Change t )
+		public Change apply(final Change t)
 		{
 			final String input = t.getText();
-			return input.matches( "\\d*(\\.\\d*)?" ) ? t : null;
+			return input.matches("\\d*(\\.\\d*)?") ? t : null;
 		}
 	}
 
 	public double[] getResolution()
 	{
-		return asArray( resolution.textX().textProperty(), resolution.textY().textProperty(), resolution.textZ().textProperty() );
+		return asArray(
+				resolution.textX().textProperty(),
+				resolution.textY().textProperty(),
+				resolution.textZ().textProperty()
+		              );
 	}
 
 	public double[] getOffset()
 	{
-		return asArray( offset.textX().textProperty(), offset.textY().textProperty(), offset.textZ().textProperty() );
+		return asArray(offset.textX().textProperty(), offset.textY().textProperty(), offset.textZ().textProperty());
 	}
 
-	public double[] asArray( final ObservableStringValue... values )
+	public double[] asArray(final ObservableStringValue... values)
 	{
-		return Arrays.stream( values ).map( ObservableValue::getValue ).mapToDouble( Double::parseDouble ).toArray();
+		return Arrays.stream(values).map(ObservableValue::getValue).mapToDouble(Double::parseDouble).toArray();
 	}
 
 	public double min()
 	{
 		final String text = min.getText();
-		return text.length() > 0 ? Double.parseDouble( min.getText() ) : Double.NaN;
+		return text.length() > 0 ? Double.parseDouble(min.getText()) : Double.NaN;
 	}
 
 	public double max()
 	{
 		final String text = max.getText();
-		return text.length() > 0 ? Double.parseDouble( max.getText() ) : Double.NaN;
+		return text.length() > 0 ? Double.parseDouble(max.getText()) : Double.NaN;
 	}
 
-	public void bindDataTypeTo( final ObjectProperty< OpenSourceDialog.TYPE > dataType )
+	public void bindDataTypeTo(final ObjectProperty<OpenSourceDialog.TYPE> dataType)
 	{
-		this.dataType.bind( dataType );
+		this.dataType.bind(dataType);
 	}
 
-	private static void addToGrid( final GridPane grid, final int startCol, final int row, final Node... nodes )
+	private static void addToGrid(final GridPane grid, final int startCol, final int row, final Node... nodes)
 	{
-		for ( int col = startCol, i = 0; i < nodes.length; ++i, ++col )
-			grid.add( nodes[ i ], col, row );
+		for (int col = startCol, i = 0; i < nodes.length; ++i, ++col)
+			grid.add(nodes[i], col, row);
 	}
 
-	private static void formatLabels( final Label... labels )
+	private static void formatLabels(final Label... labels)
 	{
-		for ( int i = 0; i < labels.length; ++i )
+		for (int i = 0; i < labels.length; ++i)
 		{
-			labels[ i ].setAlignment( Pos.BASELINE_CENTER );
-			labels[ i ].setPrefWidth( TEXTFIELD_WIDTH );
+			labels[i].setAlignment(Pos.BASELINE_CENTER);
+			labels[i].setPrefWidth(TEXTFIELD_WIDTH);
 		}
 	}
 

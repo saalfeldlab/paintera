@@ -1,49 +1,50 @@
 package org.janelia.saalfeldlab.paintera.control.assignment;
 
-import org.janelia.saalfeldlab.fx.ObservableWithListenersList;
-import org.janelia.saalfeldlab.paintera.control.assignment.action.AssignmentAction;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import java.lang.invoke.MethodHandles;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 
-public abstract class FragmentSegmentAssignmentStateWithActionTracker extends ObservableWithListenersList implements FragmentSegmentAssignmentState
+import org.janelia.saalfeldlab.fx.ObservableWithListenersList;
+import org.janelia.saalfeldlab.paintera.control.assignment.action.AssignmentAction;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+public abstract class FragmentSegmentAssignmentStateWithActionTracker extends ObservableWithListenersList
+		implements FragmentSegmentAssignmentState
 {
 
-	private static final Logger LOG = LoggerFactory.getLogger( MethodHandles.lookup().lookupClass() );
+	private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
-	protected List< AssignmentAction > actions = new ArrayList<>();
+	protected List<AssignmentAction> actions = new ArrayList<>();
 
 	public void persist() throws UnableToPersist
 	{
-		throw new UnableToPersist(new UnsupportedOperationException( "Not implemented yet!" ));
+		throw new UnableToPersist(new UnsupportedOperationException("Not implemented yet!"));
 	}
 
-	protected abstract void applyImpl( final AssignmentAction action );
+	protected abstract void applyImpl(final AssignmentAction action);
 
 	@Override
-	public void apply( final AssignmentAction action )
+	public void apply(final AssignmentAction action)
 	{
-		applyImpl( action );
-		this.actions.add( action );
+		applyImpl(action);
+		this.actions.add(action);
 		stateChanged();
 	}
 
 	@Override
-	public void apply( final Collection< ? extends AssignmentAction > actions )
+	public void apply(final Collection<? extends AssignmentAction> actions)
 	{
-		actions.forEach( this::applyImpl );
-		this.actions.addAll( actions );
+		actions.forEach(this::applyImpl);
+		this.actions.addAll(actions);
 		stateChanged();
 	}
 
-	public List< AssignmentAction > getActionsCopy()
+	public List<AssignmentAction> getActionsCopy()
 	{
-		return Collections.unmodifiableList( this.actions );
+		return Collections.unmodifiableList(this.actions);
 	}
 
 }

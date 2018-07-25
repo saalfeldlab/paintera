@@ -10,68 +10,70 @@ import net.imglib2.ui.TransformListener;
 public class GlobalTransformManager
 {
 
-	private final ArrayList< TransformListener< AffineTransform3D > > listeners;
+	private final ArrayList<TransformListener<AffineTransform3D>> listeners;
 
 	private final AffineTransform3D affine;
 
 	@SafeVarargs
-	public GlobalTransformManager( final TransformListener< AffineTransform3D >... listeners )
+	public GlobalTransformManager(final TransformListener<AffineTransform3D>... listeners)
 	{
-		this( new AffineTransform3D(), listeners );
+		this(new AffineTransform3D(), listeners);
 	}
 
 	@SafeVarargs
-	public GlobalTransformManager( final AffineTransform3D affine, final TransformListener< AffineTransform3D >... listeners )
+	public GlobalTransformManager(final AffineTransform3D affine, final TransformListener<AffineTransform3D>...
+			listeners)
 	{
-		this( affine, Arrays.asList( listeners ) );
+		this(affine, Arrays.asList(listeners));
 	}
 
-	public GlobalTransformManager( final AffineTransform3D affine, final List< TransformListener< AffineTransform3D > > listeners )
+	public GlobalTransformManager(final AffineTransform3D affine, final List<TransformListener<AffineTransform3D>>
+			listeners)
 	{
 		super();
 		this.listeners = new ArrayList<>();
 		this.affine = affine;
-		listeners.forEach( l -> addListener( l ) );
+		listeners.forEach(l -> addListener(l));
 	}
 
-	public synchronized void setTransform( final AffineTransform3D affine )
+	public synchronized void setTransform(final AffineTransform3D affine)
 	{
-		this.affine.set( affine );
+		this.affine.set(affine);
 		notifyListeners();
 	}
 
-	public void addListener( final TransformListener< AffineTransform3D > listener )
+	public void addListener(final TransformListener<AffineTransform3D> listener)
 	{
-		this.listeners.add( listener );
-		listener.transformChanged( this.affine.copy() );
+		this.listeners.add(listener);
+		listener.transformChanged(this.affine.copy());
 	}
 
-	public void removeListener( final TransformListener< AffineTransform3D > listener )
+	public void removeListener(final TransformListener<AffineTransform3D> listener)
 	{
-		this.listeners.remove( listener );
+		this.listeners.remove(listener);
 	}
 
-	public synchronized void preConcatenate( final AffineTransform3D transform )
+	public synchronized void preConcatenate(final AffineTransform3D transform)
 	{
-		this.affine.preConcatenate( transform );
+		this.affine.preConcatenate(transform);
 		notifyListeners();
 	}
 
-	public synchronized void concatenate( final AffineTransform3D transform )
+	public synchronized void concatenate(final AffineTransform3D transform)
 	{
-		this.affine.concatenate( transform );
+		this.affine.concatenate(transform);
 		notifyListeners();
 	}
 
 	private synchronized void notifyListeners()
 	{
-		for ( final TransformListener< AffineTransform3D > l : listeners )
-			l.transformChanged( this.affine.copy() );
+		for (final TransformListener<AffineTransform3D> l : listeners)
+			l.transformChanged(this.affine.copy());
 	}
 
-	public void getTransform( final AffineTransform3D target )
+	public void getTransform(final AffineTransform3D target)
 	{
-		target.set( this.affine );
+		target.set(this.affine);
 	}
 
 }

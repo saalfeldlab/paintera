@@ -36,26 +36,25 @@ package bdv.fx.viewer;
 /**
  * Receiver for rendered data (to be drawn onto a canvas later).
  * <p>
- * A {@link Renderer} will render source data into some storage and provide this
- * to a {@link RenderTargetGeneric}.
+ * A {@link Renderer} will render source data into some storage and provide this to a {@link RenderTargetGeneric}.
  * <p>
- * See {@link ImageOverlayRendererFX}, which is a {@link RenderTargetGeneric}
- * and also an {@link OverlayRendererGeneric} that draws the data.
+ * See {@link ImageOverlayRendererFX}, which is a {@link RenderTargetGeneric} and also an {@link OverlayRendererGeneric}
+ * that draws the data.
  *
  * @author Tobias Pietzsch
  * @author Philipp Hanslovsky
  */
-public interface RenderTargetGeneric< T >
+public interface RenderTargetGeneric<T>
 {
 	/**
 	 * Set the data that is to be drawn on the canvas.
 	 *
 	 * @param bufferedImage
-	 *            image to draw (may be null).
-	 * @return previous data that is currently not being painted or null. Used
-	 *         for double-buffering.
+	 * 		image to draw (may be null).
+	 *
+	 * @return previous data that is currently not being painted or null. Used for double-buffering.
 	 */
-	public T setBufferedImage( final T bufferedImage );
+	public T setBufferedImage(final T bufferedImage);
 
 	/**
 	 * Get the current canvas width.

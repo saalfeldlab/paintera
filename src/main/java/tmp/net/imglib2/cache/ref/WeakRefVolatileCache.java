@@ -16,17 +16,17 @@ import net.imglib2.cache.volatiles.CacheHints;
 import net.imglib2.cache.volatiles.CreateInvalid;
 import net.imglib2.cache.volatiles.VolatileCache;
 
-public class WeakRefVolatileCache< K, V > implements VolatileCache< K, V >
+public class WeakRefVolatileCache<K, V> implements VolatileCache<K, V>
 {
-	final ConcurrentHashMap< K, Entry > map = new ConcurrentHashMap<>();
+	final ConcurrentHashMap<K, Entry> map = new ConcurrentHashMap<>();
 
-	final ReferenceQueue< V > queue = new ReferenceQueue<>();
+	final ReferenceQueue<V> queue = new ReferenceQueue<>();
 
-	final Cache< K, V > backingCache;
+	final Cache<K, V> backingCache;
 
-	final BlockingFetchQueues< Callable< ? > > fetchQueue;
+	final BlockingFetchQueues<Callable<?>> fetchQueue;
 
-	final CreateInvalid< ? super K, ? extends V > createInvalid;
+	final CreateInvalid<? super K, ? extends V> createInvalid;
 
 	private final boolean invalidateBackingCache;
 
@@ -39,29 +39,29 @@ public class WeakRefVolatileCache< K, V > implements VolatileCache< K, V >
 
 	static final int VALID = 2;
 
-	final class CacheWeakReference extends WeakReference< V >
+	final class CacheWeakReference extends WeakReference<V>
 	{
 		private final Entry entry;
 
 		final int loaded;
 
-		public CacheWeakReference( final V referent )
+		public CacheWeakReference(final V referent)
 		{
-			super( referent );
+			super(referent);
 			entry = null;
 			loaded = NOTLOADED;
 		}
 
-		public CacheWeakReference( final V referent, final Entry entry, final int loaded )
+		public CacheWeakReference(final V referent, final Entry entry, final int loaded)
 		{
-			super( referent, queue );
+			super(referent, queue);
 			this.entry = entry;
 			this.loaded = loaded;
 		}
 
 		public void clean()
 		{
-			entry.clean( this );
+			entry.clean(this);
 		}
 	}
 
@@ -73,63 +73,61 @@ public class WeakRefVolatileCache< K, V > implements VolatileCache< K, V >
 
 		long enqueueFrame;
 
-		public Entry( final K key )
+		public Entry(final K key)
 		{
 			this.key = key;
-			this.ref = new CacheWeakReference( null );
+			this.ref = new CacheWeakReference(null);
 			this.enqueueFrame = -1;
 		}
 
-		public void setInvalid( final V value )
+		public void setInvalid(final V value)
 		{
-			ref = new CacheWeakReference( value, this, INVALID );
+			ref = new CacheWeakReference(value, this, INVALID);
 		}
 
 		// Precondition: caller must hold lock on this.
-		public void setValid( final V value )
+		public void setValid(final V value)
 		{
-			ref = new CacheWeakReference( value, this, VALID );
+			ref = new CacheWeakReference(value, this, VALID);
 			enqueueFrame = Long.MAX_VALUE;
 			notifyAll();
 		}
 
-		public void clean( final CacheWeakReference ref )
+		public void clean(final CacheWeakReference ref)
 		{
-			if ( ref == this.ref )
-				map.remove( key, this );
+			if (ref == this.ref)
+				map.remove(key, this);
 		}
 
 		public V tryCreateInvalid() throws ExecutionException
 		{
 			try
 			{
-				return createInvalid.createInvalid( key );
-			}
-			catch ( final InterruptedException e )
+				return createInvalid.createInvalid(key);
+			} catch (final InterruptedException e)
 			{
 				Thread.currentThread().interrupt();
-				throw new ExecutionException( e );
-			}
-			catch ( final Exception e )
+				throw new ExecutionException(e);
+			} catch (final Exception e)
 			{
-				throw new ExecutionException( e );
+				throw new ExecutionException(e);
 			}
 		}
 	}
 
 	public WeakRefVolatileCache(
-			final Cache< K, V > backingCache,
-			final BlockingFetchQueues< Callable< ? > > fetchQueue,
-			final CreateInvalid< ? super K, ? extends V > createInvalid )
+			final Cache<K, V> backingCache,
+			final BlockingFetchQueues<Callable<?>> fetchQueue,
+			final CreateInvalid<? super K, ? extends V> createInvalid)
 	{
-		this( backingCache, fetchQueue, createInvalid, false );
+		this(backingCache, fetchQueue, createInvalid, false);
 	}
 
 	public WeakRefVolatileCache(
-			final Cache< K, V > backingCache,
-			final BlockingFetchQueues< Callable< ? > > fetchQueue,
-			final CreateInvalid< ? super K, ? extends V > createInvalid,
-			final boolean invalidateBackingCache )
+			final Cache<K, V> backingCache,
+			final BlockingFetchQueues<Callable<?>> fetchQueue,
+			final CreateInvalid<? super K, ? extends V> createInvalid,
+			final boolean invalidateBackingCache)
 	{
 		this.backingCache = backingCache;
 		this.fetchQueue = fetchQueue;
@@ -138,81 +136,79 @@ public class WeakRefVolatileCache< K, V > implements VolatileCache< K, V >
 	}
 
 	@Override
-	public V getIfPresent( final Object key, final CacheHints hints ) throws ExecutionException
+	public V getIfPresent(final Object key, final CacheHints hints) throws ExecutionException
 	{
-		final Entry entry = map.get( key );
-		if ( entry == null )
+		final Entry entry = map.get(key);
+		if (entry == null)
 			return null;
 
 		final CacheWeakReference ref = entry.ref;
-		final V v = ref.get();
-		if ( v != null && ref.loaded == VALID )
+		final V                  v   = ref.get();
+		if (v != null && ref.loaded == VALID)
 			return v;
 
 		cleanUp();
-		switch ( hints.getLoadingStrategy() )
+		switch (hints.getLoadingStrategy())
 		{
-		case BLOCKING:
-			return getBlocking( entry );
-		case BUDGETED:
-			if ( estimatedBugdetTimeLeft( hints ) > 0 )
-				return getBudgeted( entry, hints );
-		case VOLATILE:
-			enqueue( entry, hints );
-		case DONTLOAD:
-		default:
-			return v;
+			case BLOCKING:
+				return getBlocking(entry);
+			case BUDGETED:
+				if (estimatedBugdetTimeLeft(hints) > 0)
+					return getBudgeted(entry, hints);
+			case VOLATILE:
+				enqueue(entry, hints);
+			case DONTLOAD:
+			default:
+				return v;
 		}
 	}
 
 
 	@Override
-	public V get( final K key, final CacheHints hints ) throws ExecutionException
+	public V get(final K key, final CacheHints hints) throws ExecutionException
 	{
 		/*
 		 * Get existing entry for key or create it.
 		 */
-		final Entry entry = map.computeIfAbsent( key, k -> new Entry( k ) );
+		final Entry entry = map.computeIfAbsent(key, k -> new Entry(k));
 
 		final CacheWeakReference ref = entry.ref;
-		V v = ref.get();
-		if ( v != null && ref.loaded == VALID )
+		V                        v   = ref.get();
+		if (v != null && ref.loaded == VALID)
 			return v;
 
 		cleanUp();
-		switch ( hints.getLoadingStrategy() )
+		switch (hints.getLoadingStrategy())
 		{
-		case BLOCKING:
-			v = getBlocking( entry );
-			break;
-		case BUDGETED:
-			v = getBudgeted( entry, hints );
-			break;
-		case VOLATILE:
-			v = getVolatile( entry, hints );
-			break;
-		case DONTLOAD:
-			v = getDontLoad( entry );
-			break;
+			case BLOCKING:
+				v = getBlocking(entry);
+				break;
+			case BUDGETED:
+				v = getBudgeted(entry, hints);
+				break;
+			case VOLATILE:
+				v = getVolatile(entry, hints);
+				break;
+			case DONTLOAD:
+				v = getDontLoad(entry);
+				break;
 		}
 
-		if ( v == null )
-			return get( key, hints );
+		if (v == null)
+			return get(key, hints);
 		else
 			return v;
 	}
 
 	/**
-	 * Remove entries from the cache whose references have been
-	 * garbage-collected.
+	 * Remove entries from the cache whose references have been garbage-collected.
 	 */
 	public void cleanUp()
 	{
-		while ( true )
+		while (true)
 		{
-			@SuppressWarnings( "unchecked" )
-			final CacheWeakReference poll = ( CacheWeakReference ) queue.poll();
-			if ( poll == null )
+			@SuppressWarnings("unchecked") final CacheWeakReference poll = (CacheWeakReference) queue.poll();
+			if (poll == null)
 				break;
 			poll.clean();
 		}
@@ -221,130 +217,130 @@ public class WeakRefVolatileCache< K, V > implements VolatileCache< K, V >
 	@Override
 	public void invalidateAll()
 	{
-		if ( this.invalidateBackingCache )
+		if (this.invalidateBackingCache)
 			this.backingCache.invalidateAll();
 		this.map.clear();
 	}
 
 	// ================ private methods =====================
 
-	private V getDontLoad( final Entry entry ) throws ExecutionException
+	private V getDontLoad(final Entry entry) throws ExecutionException
 	{
-		synchronized( entry )
+		synchronized (entry)
 		{
 			final CacheWeakReference ref = entry.ref;
-			V v = ref.get();
-			if ( v == null && ref.loaded != NOTLOADED )
+			V                        v   = ref.get();
+			if (v == null && ref.loaded != NOTLOADED)
 			{
-				map.remove( entry.key, entry );
+				map.remove(entry.key, entry);
 				return null;
 			}
 
-			if ( ref.loaded == VALID )
+			if (ref.loaded == VALID)
 				return v;
 
-			final V vl = backingCache.getIfPresent( entry.key );
-			if ( vl != null )
+			final V vl = backingCache.getIfPresent(entry.key);
+			if (vl != null)
 			{
-				entry.setValid( vl );
+				entry.setValid(vl);
 				return vl;
 			}
 
-			if ( ref.loaded == NOTLOADED )
+			if (ref.loaded == NOTLOADED)
 			{
 				v = entry.tryCreateInvalid();
-				entry.setInvalid( v );
+				entry.setInvalid(v);
 			}
 
 			return v;
 		}
 	}
 
-	private V getVolatile( final Entry entry, final CacheHints hints ) throws ExecutionException
+	private V getVolatile(final Entry entry, final CacheHints hints) throws ExecutionException
 	{
-		synchronized( entry )
+		synchronized (entry)
 		{
 			final CacheWeakReference ref = entry.ref;
-			V v = ref.get();
-			if ( v == null && ref.loaded != NOTLOADED )
+			V                        v   = ref.get();
+			if (v == null && ref.loaded != NOTLOADED)
 			{
-				map.remove( entry.key, entry );
+				map.remove(entry.key, entry);
 				return null;
 			}
 
-			if ( ref.loaded == VALID )
+			if (ref.loaded == VALID)
 				return v;
 
-			final V vl = backingCache.getIfPresent( entry.key );
-			if ( vl != null )
+			final V vl = backingCache.getIfPresent(entry.key);
+			if (vl != null)
 			{
-				entry.setValid( vl );
+				entry.setValid(vl);
 				return vl;
 			}
 
-			if ( ref.loaded == NOTLOADED )
+			if (ref.loaded == NOTLOADED)
 			{
 				v = entry.tryCreateInvalid();
-				entry.setInvalid( v );
+				entry.setInvalid(v);
 			}
 
-			enqueue( entry, hints );
+			enqueue(entry, hints);
 			return v;
 		}
 	}
 
-	private V getBudgeted( final Entry entry, final CacheHints hints ) throws ExecutionException
+	private V getBudgeted(final Entry entry, final CacheHints hints) throws ExecutionException
 	{
-		synchronized( entry )
+		synchronized (entry)
 		{
 			CacheWeakReference ref = entry.ref;
-			V v = ref.get();
-			if ( v == null && ref.loaded != NOTLOADED )
+			V                  v   = ref.get();
+			if (v == null && ref.loaded != NOTLOADED)
 			{
-//				printEntryCollected( "map.remove getBudgeted 1", entry );
-				map.remove( entry.key, entry );
+				//				printEntryCollected( "map.remove getBudgeted 1", entry );
+				map.remove(entry.key, entry);
 				return null;
 			}
 
-			if ( ref.loaded == VALID )
+			if (ref.loaded == VALID)
 				return v;
 
-			enqueue( entry, hints );
+			enqueue(entry, hints);
 
-			final int priority = hints.getQueuePriority();
-			final IoStatistics stats = CacheIoTiming.getIoStatistics();
-			final IoTimeBudget budget = stats.getIoTimeBudget();
-			final long timeLeft = budget.timeLeft( priority );
-			if ( timeLeft > 0 )
+			final int          priority = hints.getQueuePriority();
+			final IoStatistics stats    = CacheIoTiming.getIoStatistics();
+			final IoTimeBudget budget   = stats.getIoTimeBudget();
+			final long         timeLeft = budget.timeLeft(priority);
+			if (timeLeft > 0)
 			{
 				final long t0 = stats.getIoNanoTime();
 				stats.start();
 				try
 				{
-					entry.wait( timeLeft  / 1000000l, 1 );
+					entry.wait(timeLeft / 1000000l, 1);
 					// releases and re-acquires entry lock
+				} catch (final InterruptedException e)
+				{
 				}
-				catch ( final InterruptedException e )
-				{}
 				stats.stop();
 				final long t = stats.getIoNanoTime() - t0;
-				budget.use( t, priority );
+				budget.use(t, priority);
 			}
 
 			ref = entry.ref;
 			v = ref.get();
-			if ( v == null )
+			if (v == null)
 			{
-				if ( ref.loaded == NOTLOADED )
+				if (ref.loaded == NOTLOADED)
 				{
 					v = entry.tryCreateInvalid();
-					entry.setInvalid( v );
+					entry.setInvalid(v);
 					return v;
 				}
 				else
 				{
-//					printEntryCollected( "map.remove getBudgeted 2", entry );
-					map.remove( entry.key, entry );
+					//					printEntryCollected( "map.remove getBudgeted 2", entry );
+					map.remove(entry.key, entry);
 					return null;
 				}
 			}
@@ -352,39 +348,39 @@ public class WeakRefVolatileCache< K, V > implements VolatileCache< K, V >
 		}
 	}
 
-	private V getBlocking( final Entry entry ) throws ExecutionException
+	private V getBlocking(final Entry entry) throws ExecutionException
 	{
-		synchronized( entry )
+		synchronized (entry)
 		{
 			final CacheWeakReference ref = entry.ref;
-			final V v = ref.get();
-			if ( v == null && ref.loaded != NOTLOADED )
+			final V                  v   = ref.get();
+			if (v == null && ref.loaded != NOTLOADED)
 			{
-//				printEntryCollected( "map.remove getBlocking 1", entry );
-				map.remove( entry.key, entry );
+				//				printEntryCollected( "map.remove getBlocking 1", entry );
+				map.remove(entry.key, entry);
 				return null;
 			}
 
-			if ( ref.loaded == VALID ) // v.isValid()
+			if (ref.loaded == VALID) // v.isValid()
 				return v;
 		}
-		final V vl = backingCache.get( entry.key );
-		synchronized( entry )
+		final V vl = backingCache.get(entry.key);
+		synchronized (entry)
 		{
 			final CacheWeakReference ref = entry.ref;
-			final V v = ref.get();
-			if ( v == null && ref.loaded != NOTLOADED )
+			final V                  v   = ref.get();
+			if (v == null && ref.loaded != NOTLOADED)
 			{
-//				printEntryCollected( "map.remove getBlocking 2", entry );
-				map.remove( entry.key, entry );
+				//				printEntryCollected( "map.remove getBlocking 2", entry );
+				map.remove(entry.key, entry);
 				return null;
 			}
 
-			if ( ref.loaded == VALID ) // v.isValid()
+			if (ref.loaded == VALID) // v.isValid()
 				return v;
 
 			// entry.loaded == INVALID
-			entry.setValid( vl );
+			entry.setValid(vl);
 			return vl;
 		}
 	}
@@ -392,45 +388,44 @@ public class WeakRefVolatileCache< K, V > implements VolatileCache< K, V >
 	/**
 	 * {@link Callable} to put into the fetch queue. Loads data for a specific key.
 	 */
-	final class FetchEntry implements Callable< Void >
+	final class FetchEntry implements Callable<Void>
 	{
 		final K key;
 
-		public FetchEntry( final K key )
+		public FetchEntry(final K key)
 		{
 			this.key = key;
 		}
 
 		/**
-		 * If this key's entry is not yet valid, then load it. After the method
-		 * returns, the entry is guaranteed to be valid.
+		 * If this key's entry is not yet valid, then load it. After the method returns, the entry is guaranteed to be
+		 * valid.
 		 *
 		 * @throws ExecutionException
-		 *             if the entry could not be loaded. If the queue is handled
-		 *             by {@link FetcherThreads} then loading will be retried
-		 *             until it succeeds.
+		 * 		if the entry could not be loaded. If the queue is handled by {@link FetcherThreads} then loading
+		 * 		will be
+		 * 		retried until it succeeds.
 		 */
 		@Override
 		public Void call() throws ExecutionException
 		{
-			final Entry entry = map.get( key );
-			if ( entry != null )
-				getBlocking( entry );
+			final Entry entry = map.get(key);
+			if (entry != null)
+				getBlocking(entry);
 			return null;
 		}
 	}
 
 	/**
-	 * Enqueue the {@link Entry} if it hasn't been enqueued for this frame
-	 * already.
+	 * Enqueue the {@link Entry} if it hasn't been enqueued for this frame already.
 	 */
-	private void enqueue( final Entry entry, final CacheHints hints )
+	private void enqueue(final Entry entry, final CacheHints hints)
 	{
 		final long currentQueueFrame = fetchQueue.getCurrentFrame();
-		if ( entry.enqueueFrame < currentQueueFrame )
+		if (entry.enqueueFrame < currentQueueFrame)
 		{
 			entry.enqueueFrame = currentQueueFrame;
-			fetchQueue.put( new FetchEntry( entry.key ), hints.getQueuePriority(), hints.isEnqueuToFront() );
+			fetchQueue.put(new FetchEntry(entry.key), hints.getQueuePriority(), hints.isEnqueuToFront());
 		}
 	}
 
@@ -438,14 +433,15 @@ public class WeakRefVolatileCache< K, V > implements VolatileCache< K, V >
 	 * Estimate of how much time is left for budgeted loading.
 	 *
 	 * @param hints
-	 *            specifies the budget priority level.
+	 * 		specifies the budget priority level.
+	 *
 	 * @return time left for budgeted loading.
 	 */
-	private long estimatedBugdetTimeLeft( final CacheHints hints )
+	private long estimatedBugdetTimeLeft(final CacheHints hints)
 	{
-		final int priority = hints.getQueuePriority();
-		final IoStatistics stats = CacheIoTiming.getIoStatistics();
-		final IoTimeBudget budget = stats.getIoTimeBudget();
-		return budget.estimateTimeLeft( priority );
+		final int          priority = hints.getQueuePriority();
+		final IoStatistics stats    = CacheIoTiming.getIoStatistics();
+		final IoTimeBudget budget   = stats.getIoTimeBudget();
+		return budget.estimateTimeLeft(priority);
 	}
 }

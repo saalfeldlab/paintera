@@ -5,14 +5,12 @@ import java.util.function.IntFunction;
 import java.util.function.Supplier;
 import java.util.function.ToIntFunction;
 
-import org.janelia.saalfeldlab.paintera.PainteraBaseView;
-import org.janelia.saalfeldlab.paintera.state.SourceState;
-
+import bdv.util.volatiles.SharedQueue;
 import com.google.gson.JsonDeserializer;
 import com.google.gson.JsonSerializer;
-
-import bdv.util.volatiles.SharedQueue;
 import javafx.scene.Group;
+import org.janelia.saalfeldlab.paintera.PainteraBaseView;
+import org.janelia.saalfeldlab.paintera.state.SourceState;
 
 public class StatefulSerializer
 {
@@ -31,7 +29,7 @@ public class StatefulSerializer
 
 		public final Group meshesGroup;
 
-		public Arguments( final PainteraBaseView viewer )
+		public Arguments(final PainteraBaseView viewer)
 		{
 			this.sharedQueue = viewer.getQueue();
 			this.generalPurposeExecutors = viewer.generalPurposeExecutorService();
@@ -42,23 +40,23 @@ public class StatefulSerializer
 		}
 	}
 
-	public static interface Serializer< T, S extends JsonSerializer< T > >
+	public static interface Serializer<T, S extends JsonSerializer<T>>
 	{
 		public S createSerializer(
-				Supplier< String > projectDirectory,
-				ToIntFunction< SourceState< ?, ? > > stateToIndex );
+				Supplier<String> projectDirectory,
+				ToIntFunction<SourceState<?, ?>> stateToIndex);
 	}
 
-	public static interface Deserializer< T, S extends JsonDeserializer< T > >
+	public static interface Deserializer<T, S extends JsonDeserializer<T>>
 	{
 		public S createDeserializer(
 				Arguments arguments,
-				Supplier< String > projectDirectory,
-				IntFunction< SourceState< ?, ? > > dependencyFromIndex );
+				Supplier<String> projectDirectory,
+				IntFunction<SourceState<?, ?>> dependencyFromIndex);
 	}
 
-	public static interface SerializerAndDeserializer< T, D extends JsonDeserializer< T >, S extends JsonSerializer< T > >
-			extends Serializer< T, S >, Deserializer< T, D >
+	public static interface SerializerAndDeserializer<T, D extends JsonDeserializer<T>, S extends JsonSerializer<T>>
+			extends Serializer<T, S>, Deserializer<T, D>
 	{
 
 	}

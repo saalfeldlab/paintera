@@ -36,64 +36,61 @@ package bdv.fx.viewer;
 import net.imglib2.ui.TransformListener;
 
 /**
- * A component that uses one or several {@link OverlayRendererGeneric
- * OverlayRendererGenerics} to render a canvas displayed on screen.
+ * A component that uses one or several {@link OverlayRendererGeneric OverlayRendererGenerics} to render a canvas
+ * displayed on screen.
  * <p>
- * Moreover, {@link InteractiveDisplayCanvasGeneric} is a transform event
- * multi-caster. It receives {@link TransformListener#transformChanged(Object)
- * transformChanged} events and propagates them to all registered listeners.
+ * Moreover, {@link InteractiveDisplayCanvasGeneric} is a transform event multi-caster. It receives {@link
+ * TransformListener#transformChanged(Object) transformChanged} events and propagates them to all registered listeners.
  *
  * @param <A>
- *            transform type
+ * 		transform type
  *
  * @author Tobias Pietzsch
  * @author Philipp Hanslovsky
  */
-public interface InteractiveDisplayCanvasGeneric< A, G, H > extends TransformListener< A >
+public interface InteractiveDisplayCanvasGeneric<A, G, H> extends TransformListener<A>
 {
 
 	/**
-	 * Add an {@link OverlayRendererGeneric} that draws on top of the current
-	 * buffered image.
+	 * Add an {@link OverlayRendererGeneric} that draws on top of the current buffered image.
 	 *
 	 * @param renderer
-	 *            overlay renderer to add.
+	 * 		overlay renderer to add.
 	 */
-	public void addOverlayRenderer( final OverlayRendererGeneric< G > renderer );
+	public void addOverlayRenderer(final OverlayRendererGeneric<G> renderer);
 
 	/**
 	 * Remove an {@link OverlayRendererGeneric}.
 	 *
 	 * @param renderer
-	 *            overlay renderer to remove.
+	 * 		overlay renderer to remove.
 	 */
-	public void removeOverlayRenderer( final OverlayRendererGeneric< G > renderer );
+	public void removeOverlayRenderer(final OverlayRendererGeneric<G> renderer);
 
 	/**
-	 * Add a {@link TransformListener} to notify about view transformation
-	 * changes.
+	 * Add a {@link TransformListener} to notify about view transformation changes.
 	 *
 	 * @param listener
-	 *            the transform listener to add.
+	 * 		the transform listener to add.
 	 */
-	public void addTransformListener( final TransformListener< A > listener );
+	public void addTransformListener(final TransformListener<A> listener);
 
 	/**
 	 * Remove a {@link TransformListener}.
 	 *
 	 * @param listener
-	 *            the transform listener to remove.
+	 * 		the transform listener to remove.
 	 */
-	public void removeTransformListener( final TransformListener< A > listener );
+	public void removeTransformListener(final TransformListener<A> listener);
 
 	/**
 	 * Add new event handler.
 	 */
-	public void addHandler( final H handler );
+	public void addHandler(final H handler);
 
 	/**
 	 * Remove an event handler.
 	 */
-	public void removeHandler( final H handler );
+	public void removeHandler(final H handler);
 
 }

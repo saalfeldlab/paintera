@@ -42,26 +42,27 @@ import net.imglib2.algorithm.neighborhood.Neighborhood;
 
 /**
  * INCOMPLETE !!!
- *
+ * <p>
  * TODO
  *
  * @author Tobias Pietzsch <tobias.pietzsch@gmail.com>
  */
-public interface HyperEllipsoidNeighborhoodFactory< T > extends HyperSphereNeighborhoodFactory< T >
+public interface HyperEllipsoidNeighborhoodFactory<T> extends HyperSphereNeighborhoodFactory<T>
 {
-	public Neighborhood< T > create( final long[] position, final long[] radius, final RandomAccess< T > sourceRandomAccess );
+	public Neighborhood<T> create(final long[] position, final long[] radius, final RandomAccess<T>
+			sourceRandomAccess);
 
-	static public long[] arrayOf( final long x, final int size )
+	static public long[] arrayOf(final long x, final int size)
 	{
-		final long[] array = new long[ size ];
-		Arrays.fill( array, x );
+		final long[] array = new long[size];
+		Arrays.fill(array, x);
 		return array;
 	}
 
 	@Override
-	default Neighborhood< T > create( final long[] position, final long radius, final RandomAccess< T > sourceRandomAccess )
+	default Neighborhood<T> create(final long[] position, final long radius, final RandomAccess<T> sourceRandomAccess)
 	{
-		return create( position, arrayOf( radius, position.length ), sourceRandomAccess );
+		return create(position, arrayOf(radius, position.length), sourceRandomAccess);
 	}
 
 }

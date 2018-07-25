@@ -8,15 +8,15 @@ import javafx.beans.property.SimpleLongProperty;
 public class OrthoSliceConfigBase
 {
 
-	private final SimpleBooleanProperty enabled = new SimpleBooleanProperty( true );
+	private final SimpleBooleanProperty enabled = new SimpleBooleanProperty(true);
 
-	private final SimpleBooleanProperty showTopLeft = new SimpleBooleanProperty( true );
+	private final SimpleBooleanProperty showTopLeft = new SimpleBooleanProperty(true);
 
-	private final SimpleBooleanProperty showTopRight = new SimpleBooleanProperty( true );
+	private final SimpleBooleanProperty showTopRight = new SimpleBooleanProperty(true);
 
-	private final SimpleBooleanProperty showBottomLeft = new SimpleBooleanProperty( true );
+	private final SimpleBooleanProperty showBottomLeft = new SimpleBooleanProperty(true);
 
-	private final SimpleLongProperty delayInNanoSeconds = new SimpleLongProperty( 200 );
+	private final SimpleLongProperty delayInNanoSeconds = new SimpleLongProperty(200);
 
 	public BooleanProperty isEnabledProperty()
 	{

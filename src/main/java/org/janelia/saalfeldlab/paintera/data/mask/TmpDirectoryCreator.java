@@ -12,21 +12,21 @@ import java.util.function.Supplier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class TmpDirectoryCreator implements Supplier< String >
+public class TmpDirectoryCreator implements Supplier<String>
 {
 
-	private static Logger LOG = LoggerFactory.getLogger( MethodHandles.lookup().lookupClass() );
+	private static Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
 	private final Path dir;
 
 	private final String prefix;
 
-	private final FileAttribute< ? >[] attrs;
+	private final FileAttribute<?>[] attrs;
 
-	public TmpDirectoryCreator( final Path dir, final String prefix, final FileAttribute< ? >... attrs )
+	public TmpDirectoryCreator(final Path dir, final String prefix, final FileAttribute<?>... attrs)
 	{
 		super();
-		LOG.warn( "Creating {} with dir={} prefix={} attrs={}", this.getClass().getSimpleName(), dir, prefix, attrs );
+		LOG.warn("Creating {} with dir={} prefix={} attrs={}", this.getClass().getSimpleName(), dir, prefix, attrs);
 		this.dir = dir;
 		this.prefix = prefix;
 		this.attrs = attrs;
@@ -37,14 +37,15 @@ public class TmpDirectoryCreator implements Supplier< String >
 	{
 		try
 		{
-			Optional.ofNullable( dir ).map( Path::toFile ).ifPresent( File::mkdirs );
-			final String tmpDir = dir == null ? Files.createTempDirectory( prefix, attrs ).toString() : Files.createTempDirectory( dir, prefix, attrs ).toString();
-			LOG.debug( "Created tmp dir {}", tmpDir );
+			Optional.ofNullable(dir).map(Path::toFile).ifPresent(File::mkdirs);
+			final String tmpDir = dir == null
+			                      ? Files.createTempDirectory(prefix, attrs).toString()
+			                      : Files.createTempDirectory(dir, prefix, attrs).toString();
+			LOG.debug("Created tmp dir {}", tmpDir);
 			return tmpDir;
-		}
-		catch ( final IOException e )
+		} catch (final IOException e)
 		{
-			throw new RuntimeException( e );
+			throw new RuntimeException(e);
 		}
 	}
 

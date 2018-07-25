@@ -6,22 +6,21 @@ public class ReflectionHelpers
 {
 
 	public static Field searchForField(
-			final Class< ? > startClass,
-			final String name ) throws NoSuchFieldException
+			final Class<?> startClass,
+			final String name) throws NoSuchFieldException
 	{
 
 		try
 		{
-			final Field field = startClass.getDeclaredField( name );
-			field.setAccessible( true );
+			final Field field = startClass.getDeclaredField(name);
+			field.setAccessible(true);
 			return field;
-		}
-		catch ( final NoSuchFieldException e )
+		} catch (final NoSuchFieldException e)
 		{
-			final Class< ? > superClass = startClass.getSuperclass();
-			if ( superClass == null )
+			final Class<?> superClass = startClass.getSuperclass();
+			if (superClass == null)
 				throw e;
-			return searchForField( superClass, name );
+			return searchForField(superClass, name);
 		}
 	}
 }

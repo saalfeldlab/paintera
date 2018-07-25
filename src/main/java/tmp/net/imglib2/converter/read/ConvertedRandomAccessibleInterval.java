@@ -47,31 +47,32 @@ import net.imglib2.type.Type;
  * TODO
  *
  * @author Philipp Hanslovsky
- *
  */
-public class ConvertedRandomAccessibleInterval< A, B > extends AbstractWrappedInterval< RandomAccessibleInterval< A > > implements RandomAccessibleInterval< B >, View
+public class ConvertedRandomAccessibleInterval<A, B> extends AbstractWrappedInterval<RandomAccessibleInterval<A>>
+		implements RandomAccessibleInterval<B>, View
 {
-	private final Converter< ? super A, ? super B > converter;
+	private final Converter<? super A, ? super B> converter;
 
-	private final Supplier< B > supplier;
+	private final Supplier<B> supplier;
 
-	public ConvertedRandomAccessibleInterval( final RandomAccessibleInterval< A > source, final Converter< ? super A, ? super B > converter, final Supplier< B > b )
+	public ConvertedRandomAccessibleInterval(final RandomAccessibleInterval<A> source, final Converter<? super A, ?
+			super B> converter, final Supplier<B> b)
 	{
-		super( source );
+		super(source);
 		this.converter = converter;
 		this.supplier = b;
 	}
 
 	@Override
-	public ConvertedRandomAccess< A, B > randomAccess()
+	public ConvertedRandomAccess<A, B> randomAccess()
 	{
-		return new ConvertedRandomAccess<>( sourceInterval.randomAccess(), converter, supplier );
+		return new ConvertedRandomAccess<>(sourceInterval.randomAccess(), converter, supplier);
 	}
 
 	@Override
-	public ConvertedRandomAccess< A, B > randomAccess( final Interval interval )
+	public ConvertedRandomAccess<A, B> randomAccess(final Interval interval)
 	{
-		return new ConvertedRandomAccess<>( sourceInterval.randomAccess( interval ), converter, supplier );
+		return new ConvertedRandomAccess<>(sourceInterval.randomAccess(interval), converter, supplier);
 	}
 
 	/**
@@ -82,7 +83,7 @@ public class ConvertedRandomAccessibleInterval< A, B > extends AbstractWrappedIn
 		return supplier.get();
 	}
 
-	public Converter< ? super A, ? super B > getConverter()
+	public Converter<? super A, ? super B> getConverter()
 	{
 		return converter;
 	}

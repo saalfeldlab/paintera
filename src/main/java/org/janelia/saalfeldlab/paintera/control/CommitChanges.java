@@ -24,72 +24,72 @@ public class CommitChanges
 		CANVAS,
 		FRAGMENT_SEGMENT_ASSIGNMENTS;
 
-		public static Set< Commitable > asSet()
+		public static Set<Commitable> asSet()
 		{
-			return setOf( Commitable.values() );
+			return setOf(Commitable.values());
 		}
 
-		public static Set< Commitable > setOf( final Commitable... commitables )
+		public static Set<Commitable> setOf(final Commitable... commitables)
 		{
-			return new HashSet<>( Arrays.asList( commitables ) );
+			return new HashSet<>(Arrays.asList(commitables));
 		}
 
 	}
 
-	private static final Logger LOG = LoggerFactory.getLogger( MethodHandles.lookup().lookupClass() );
+	private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
 	public static void commit(
-			final Function< Collection< Commitable >, Optional< Set< Commitable > > > getCommitablesToCommit,
-			final SourceState< ?, ? > currentState ) throws CannotPersist, UnableToPersist
+			final Function<Collection<Commitable>, Optional<Set<Commitable>>> getCommitablesToCommit,
+			final SourceState<?, ?> currentState) throws CannotPersist, UnableToPersist
 	{
-		commit( getCommitablesToCommit, currentState, Optional.empty() );
+		commit(getCommitablesToCommit, currentState, Optional.empty());
 	}
 
 	public static void commit(
-			final Function< Collection< Commitable >, Optional< Set< Commitable > > > getCommitablesToCommit,
-			final SourceState< ?, ? > currentState,
-			final Optional< Set< Commitable > > filteredCommitableOptions ) throws CannotPersist, UnableToPersist
+			final Function<Collection<Commitable>, Optional<Set<Commitable>>> getCommitablesToCommit,
+			final SourceState<?, ?> currentState,
+			final Optional<Set<Commitable>> filteredCommitableOptions) throws CannotPersist, UnableToPersist
 	{
-		LOG.debug( "Commiting for state {}", currentState );
-		if ( currentState == null || !( currentState instanceof LabelSourceState< ?, ? > ) )
+		LOG.debug("Commiting for state {}", currentState);
+		if (currentState == null || !(currentState instanceof LabelSourceState<?, ?>))
 		{
-			LOG.debug( "Invalid current state (null or not {}): {}", LabelSourceState.class, currentState );
+			LOG.debug("Invalid current state (null or not {}): {}", LabelSourceState.class, currentState);
 			return;
 		}
-		final LabelSourceState< ?, ? > state = ( LabelSourceState< ?, ? > ) currentState;
-		final boolean isMasked = state.getDataSource() instanceof MaskedSource< ?, ? >;
-		final Set< Commitable > commitableOptions = filteredCommitableOptions.orElseGet( Commitable::asSet );
-		if ( !isMasked )
+		final LabelSourceState<?, ?> state             = (LabelSourceState<?, ?>) currentState;
+		final boolean                isMasked          = state.getDataSource() instanceof MaskedSource<?, ?>;
+		final Set<Commitable>        commitableOptions = filteredCommitableOptions.orElseGet(Commitable::asSet);
+		if (!isMasked)
 		{
-			commitableOptions.remove( Commitable.CANVAS );
+			commitableOptions.remove(Commitable.CANVAS);
 		}
 
-		final Optional< Set< Commitable > > commitables = getCommitablesToCommit.apply( commitableOptions );
+		final Optional<Set<Commitable>> commitables = getCommitablesToCommit.apply(commitableOptions);
 
-		if ( !commitables.isPresent() )
+		if (!commitables.isPresent())
 		{
-			LOG.debug( "Not commiting anything." );
+			LOG.debug("Not commiting anything.");
 			return;
 		}
 
-		LOG.debug( "Commiting {}", commitables.get() );
-		for ( final Commitable commitable : commitables.get() )
+		LOG.debug("Commiting {}", commitables.get());
+		for (final Commitable commitable : commitables.get())
 		{
-			switch ( commitable )
+			switch (commitable)
 			{
-			case CANVAS:
-				if ( isMasked )
+				case CANVAS:
+					if (isMasked)
+					{
+						// TODO Should this be handled here instead of throwing
+						// exception?
+						((MaskedSource<?, ?>) state.getDataSource()).persistCanvas();
+					}
+					break;
+				case FRAGMENT_SEGMENT_ASSIGNMENTS:
 				{
-					// TODO Should this be handled here instead of throwing
-					// exception?
-					( ( MaskedSource< ?, ? > ) state.getDataSource() ).persistCanvas();
+					state.assignment().persist();
+					break;
 				}
-				break;
-			case FRAGMENT_SEGMENT_ASSIGNMENTS:
-			{
-				state.assignment().persist();
-				break;
-			}
 			}
 
 		}

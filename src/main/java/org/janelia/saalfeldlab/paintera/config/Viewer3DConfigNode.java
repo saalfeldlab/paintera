@@ -7,20 +7,20 @@ import javafx.scene.control.TitledPane;
 public class Viewer3DConfigNode
 {
 
-	private final TitledPane contents = new TitledPane( "3D Viewer", null );
+	private final TitledPane contents = new TitledPane("3D Viewer", null);
 
 	private final CheckBox areMeshesEnabledCheckBox = new CheckBox();
 
 	public Viewer3DConfigNode()
 	{
-		contents.setGraphic( areMeshesEnabledCheckBox );
-		contents.setExpanded( false );
-		contents.collapsibleProperty().bind( areMeshesEnabledCheckBox.selectedProperty() );
+		contents.setGraphic(areMeshesEnabledCheckBox);
+		contents.setExpanded(false);
+		contents.collapsibleProperty().bind(areMeshesEnabledCheckBox.selectedProperty());
 	}
 
-	public void bind( final Viewer3DConfig config )
+	public void bind(final Viewer3DConfig config)
 	{
-		areMeshesEnabledCheckBox.selectedProperty().bindBidirectional( config.areMeshesenabledProperty() );
+		areMeshesEnabledCheckBox.selectedProperty().bindBidirectional(config.areMeshesenabledProperty());
 	}
 
 	public Node getContents()

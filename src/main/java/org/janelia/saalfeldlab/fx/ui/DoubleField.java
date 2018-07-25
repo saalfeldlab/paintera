@@ -17,37 +17,36 @@ public class DoubleField
 
 	private final DoubleProperty value = new SimpleDoubleProperty();
 
-	public DoubleField( final double initialValue )
+	public DoubleField(final double initialValue)
 	{
 
-		valueAsString.addListener( ( obs, oldv, newv ) -> this.field.setText( newv ) );
+		valueAsString.addListener((obs, oldv, newv) -> this.field.setText(newv));
 
-		valueAsString.bindBidirectional( value, new StringConverter< Number >()
+		valueAsString.bindBidirectional(value, new StringConverter<Number>()
 		{
 			@Override
-			public String toString( final Number value )
+			public String toString(final Number value)
 			{
 				return value.toString();
 			}
 
 			@Override
-			public Double fromString( final String string )
+			public Double fromString(final String string)
 			{
 				try
 				{
-					return Double.valueOf( string );
-				}
-				catch ( NumberFormatException | NullPointerException e )
+					return Double.valueOf(string);
+				} catch (NumberFormatException | NullPointerException e)
 				{
 					return value.get();
 				}
 			}
-		} );
+		});
 
-		this.value.set( initialValue );
+		this.value.set(initialValue);
 
-		this.field.setOnAction( wrapAsEventHandler( this::submitText ) );
-		this.field.focusedProperty().addListener( ( obs, oldv, newv ) -> submitText( !newv ) );
+		this.field.setOnAction(wrapAsEventHandler(this::submitText));
+		this.field.focusedProperty().addListener((obs, oldv, newv) -> submitText(!newv));
 
 	}
 
@@ -61,15 +60,15 @@ public class DoubleField
 		return this.value;
 	}
 
-	private static < E extends Event > EventHandler< E > wrapAsEventHandler( final Runnable r )
+	private static <E extends Event> EventHandler<E> wrapAsEventHandler(final Runnable r)
 	{
-		return wrapAsEventHandler( r, true );
+		return wrapAsEventHandler(r, true);
 	}
 
-	private static < E extends Event > EventHandler< E > wrapAsEventHandler( final Runnable r, final boolean consume )
+	private static <E extends Event> EventHandler<E> wrapAsEventHandler(final Runnable r, final boolean consume)
 	{
 		return e -> {
-			if ( consume )
+			if (consume)
 			{
 				e.consume();
 			}
@@ -79,20 +78,19 @@ public class DoubleField
 
 	private void submitText()
 	{
-		submitText( true );
+		submitText(true);
 	}
 
-	private void submitText( final boolean submit )
+	private void submitText(final boolean submit)
 	{
-		if ( !submit ) { return; }
+		if (!submit) { return; }
 		try
 		{
-			final double val = Double.valueOf( textField().getText() );
-			value.set( val );
-		}
-		catch ( NumberFormatException | NullPointerException e )
+			final double val = Double.valueOf(textField().getText());
+			value.set(val);
+		} catch (NumberFormatException | NullPointerException e)
 		{
-			this.field.setText( this.valueAsString.get() );
+			this.field.setText(this.valueAsString.get());
 		}
 	}
 }

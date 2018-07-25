@@ -5,7 +5,7 @@ import java.util.Arrays;
 import net.imglib2.FinalInterval;
 import net.imglib2.Interval;
 
-public class ShapeKey< T >
+public class ShapeKey<T>
 {
 
 	private final T shapeId;
@@ -29,7 +29,7 @@ public class ShapeKey< T >
 			final double smoothingLambda,
 			final int smoothingIterations,
 			final long[] min,
-			final long[] max )
+			final long[] max)
 	{
 		this.shapeId = shapeId;
 		this.scaleIndex = scaleIndex;
@@ -50,7 +50,8 @@ public class ShapeKey< T >
 				simplificationIterations,
 				smoothingLambda,
 				smoothingIterations,
-				Arrays.toString( min ), Arrays.toString( max ) );
+				Arrays.toString(min), Arrays.toString(max)
+		                    );
 	}
 
 	@Override
@@ -59,26 +60,26 @@ public class ShapeKey< T >
 		int result = scaleIndex;
 		result = 31 * result + shapeId.hashCode();
 		result = 31 * result + simplificationIterations;
-		result = 31 * result + Double.hashCode( smoothingLambda );
+		result = 31 * result + Double.hashCode(smoothingLambda);
 		result = 31 * result + smoothingIterations;
-		result = 31 * result + Arrays.hashCode( this.min );
-		result = 31 * result + Arrays.hashCode( this.max );
+		result = 31 * result + Arrays.hashCode(this.min);
+		result = 31 * result + Arrays.hashCode(this.max);
 		return result;
 	}
 
 	@Override
-	public boolean equals( final Object other )
+	public boolean equals(final Object other)
 	{
-		if ( other instanceof ShapeKey< ? > )
+		if (other instanceof ShapeKey<?>)
 		{
-			final ShapeKey< ? > otherShapeKey = ( ShapeKey< ? > ) other;
-			return shapeId.equals( otherShapeKey .shapeId ) &&
+			final ShapeKey<?> otherShapeKey = (ShapeKey<?>) other;
+			return shapeId.equals(otherShapeKey.shapeId) &&
 					otherShapeKey.scaleIndex == scaleIndex &&
 					otherShapeKey.simplificationIterations == this.simplificationIterations &&
 					otherShapeKey.smoothingLambda == this.smoothingLambda &&
 					otherShapeKey.smoothingIterations == this.smoothingIterations &&
-					Arrays.equals( otherShapeKey.min, min ) &&
-					Arrays.equals( otherShapeKey.max, max );
+					Arrays.equals(otherShapeKey.min, min) &&
+					Arrays.equals(otherShapeKey.max, max);
 		}
 		return false;
 	}
@@ -118,19 +119,19 @@ public class ShapeKey< T >
 		return max.clone();
 	}
 
-	public void min( final long[] min )
+	public void min(final long[] min)
 	{
-		System.arraycopy( this.min, 0, min, 0, min.length );
+		System.arraycopy(this.min, 0, min, 0, min.length);
 	}
 
-	public void max( final long[] max )
+	public void max(final long[] max)
 	{
-		System.arraycopy( this.max, 0, max, 0, max.length );
+		System.arraycopy(this.max, 0, max, 0, max.length);
 	}
 
 	public Interval interval()
 	{
-		return new FinalInterval( min, max );
+		return new FinalInterval(min, max);
 	}
 
 }

@@ -36,8 +36,6 @@ package bdv.fx.viewer;
 import java.util.Collection;
 import java.util.concurrent.CopyOnWriteArrayList;
 
-import org.janelia.saalfeldlab.fx.event.InstallAndRemove;
-
 import javafx.application.Platform;
 import javafx.beans.value.ChangeListener;
 import javafx.geometry.Insets;
@@ -53,155 +51,155 @@ import javafx.scene.layout.Pane;
 import javafx.scene.layout.StackPane;
 import javafx.scene.paint.Color;
 import net.imglib2.ui.TransformListener;
+import org.janelia.saalfeldlab.fx.event.InstallAndRemove;
 
 /**
  * A {@link Pane} that acts like {@link InteractiveDisplayCanvasGeneric}.
  *
  * @param <A>
- *            transform type
+ * 		transform type
  *
  * @author Tobias Pietzsch
  * @author Philipp Hanslovsky
  */
-public class InteractiveDisplayPaneComponent< A > extends StackPane
+public class InteractiveDisplayPaneComponent<A> extends StackPane
 {
 
 	/**
-	 * The {@link OverlayRendererGeneric} that draws on top of the current
-	 * buffered image.
+	 * The {@link OverlayRendererGeneric} that draws on top of the current buffered image.
 	 */
-	final protected CopyOnWriteArrayList< OverlayRendererGeneric< GraphicsContext > > overlayRenderers;
+	final protected CopyOnWriteArrayList<OverlayRendererGeneric<GraphicsContext>> overlayRenderers;
 
 	protected final ImageOverlayRendererFX renderTarget;
 
-	private final CanvasPane canvasPane = new CanvasPane( 1, 1 );
+	private final CanvasPane canvasPane = new CanvasPane(1, 1);
 
 	protected final ImageView imageView = new ImageView();
+
 	{
-		this.imageView.setPreserveRatio( false );
-		this.imageView.setSmooth( false );
-		this.imageView.fitWidthProperty().bind( this.widthProperty() );
-		this.imageView.fitHeightProperty().bind( this.heightProperty() );
-		this.getChildren().add( imageView );
-		this.getChildren().add( canvasPane );
-		this.setBackground( new Background( new BackgroundFill( Color.BLACK, CornerRadii.EMPTY, Insets.EMPTY ) ) );
+		this.imageView.setPreserveRatio(false);
+		this.imageView.setSmooth(false);
+		this.imageView.fitWidthProperty().bind(this.widthProperty());
+		this.imageView.fitHeightProperty().bind(this.heightProperty());
+		this.getChildren().add(imageView);
+		this.getChildren().add(canvasPane);
+		this.setBackground(new Background(new BackgroundFill(Color.BLACK, CornerRadii.EMPTY, Insets.EMPTY)));
 	}
 
-//	private final Canvas canvas;
+	//	private final Canvas canvas;
 
 	/**
-	 * Create a new {@link InteractiveDisplayCanvasGeneric} with initially no
-	 * {@link OverlayRendererGeneric OverlayRenderers} and no
-	 * {@link TransformListener TransformListeners}.
+	 * Create a new {@link InteractiveDisplayCanvasGeneric} with initially no {@link OverlayRendererGeneric
+	 * OverlayRenderers} and no {@link TransformListener TransformListeners}.
 	 *
 	 * @param width
-	 *            preferred component width.
+	 * 		preferred component width.
 	 * @param height
-	 *            preferred component height.
+	 * 		preferred component height.
 	 * @param ImageOverlayRendererFX
 	 */
 	public InteractiveDisplayPaneComponent(
 			final int width,
 			final int height,
-			final ImageOverlayRendererFX renderTarget )
+			final ImageOverlayRendererFX renderTarget)
 	{
 		super();
-		setWidth( width );
-		setHeight( height );
+		setWidth(width);
+		setHeight(height);
 
 		this.overlayRenderers = new CopyOnWriteArrayList<>();
 		this.renderTarget = renderTarget;
 
-		final ChangeListener< Number > sizeChangeListener = ( ChangeListener< Number > ) ( observable, oldValue, newValue ) -> {
+		final ChangeListener<Number> sizeChangeListener = (ChangeListener<Number>) (observable, oldValue, newValue)
+				-> {
 			final double wd = widthProperty().get();
 			final double hd = heightProperty().get();
-			final int w = ( int ) wd;
-			final int h = ( int ) hd;
-			if ( w <= 0 || h <= 0 )
+			final int    w  = (int) wd;
+			final int    h  = (int) hd;
+			if (w <= 0 || h <= 0)
 				return;
-			overlayRenderers.forEach( or -> or.setCanvasSize( w, h ) );
-			renderTarget.setCanvasSize( w, h );
+			overlayRenderers.forEach(or -> or.setCanvasSize(w, h));
+			renderTarget.setCanvasSize(w, h);
 		};
 
-		widthProperty().addListener( sizeChangeListener );
-		heightProperty().addListener( sizeChangeListener );
+		widthProperty().addListener(sizeChangeListener);
+		heightProperty().addListener(sizeChangeListener);
 
 	}
 
 	public void drawOverlays()
 	{
 		final Runnable r = () -> {
-			final Canvas canvas = canvasPane.getCanvas();
-			final GraphicsContext gc = canvas.getGraphicsContext2D();
-			gc.clearRect( 0, 0, canvas.getWidth(), canvas.getHeight() );
-			overlayRenderers.forEach( or -> or.drawOverlays( gc ) );
+			final Canvas          canvas = canvasPane.getCanvas();
+			final GraphicsContext gc     = canvas.getGraphicsContext2D();
+			gc.clearRect(0, 0, canvas.getWidth(), canvas.getHeight());
+			overlayRenderers.forEach(or -> or.drawOverlays(gc));
 		};
-		if ( !Platform.isFxApplicationThread() )
-			Platform.runLater( r );
+		if (!Platform.isFxApplicationThread())
+			Platform.runLater(r);
 		else
 			r.run();
 	}
 
 	/**
-	 * Add an {@link OverlayRendererGeneric} that draws on top of the current
-	 * buffered image.
+	 * Add an {@link OverlayRendererGeneric} that draws on top of the current buffered image.
 	 *
 	 * @param renderer
-	 *            overlay renderer to add.
+	 * 		overlay renderer to add.
 	 */
-	public void addOverlayRenderer( final OverlayRendererGeneric< GraphicsContext > renderer )
+	public void addOverlayRenderer(final OverlayRendererGeneric<GraphicsContext> renderer)
 	{
-		overlayRenderers.add( renderer );
-		renderer.setCanvasSize( ( int ) getWidth(), ( int ) getHeight() );
+		overlayRenderers.add(renderer);
+		renderer.setCanvasSize((int) getWidth(), (int) getHeight());
 	}
 
 	/**
 	 * Remove an {@link OverlayRendererGeneric}.
 	 *
 	 * @param renderer
-	 *            overlay renderer to remove.
+	 * 		overlay renderer to remove.
 	 */
-	public void removeOverlayRenderer( final OverlayRendererGeneric< GraphicsContext > renderer )
+	public void removeOverlayRenderer(final OverlayRendererGeneric<GraphicsContext> renderer)
 	{
-		overlayRenderers.remove( renderer );
+		overlayRenderers.remove(renderer);
 	}
 
 	/**
 	 * Add handler that installs itself into the pane.
 	 *
 	 * @param h
-	 *            handler to remove
+	 * 		handler to remove
 	 */
-	public void addHandler( final Collection< InstallAndRemove< Node > > h )
+	public void addHandler(final Collection<InstallAndRemove<Node>> h)
 	{
-		h.forEach( i -> i.installInto( this ) );
+		h.forEach(i -> i.installInto(this));
 	}
 
 	/**
 	 * Add handler that removes itself from the pane.
 	 *
 	 * @param h
-	 *            handler to remove
+	 * 		handler to remove
 	 */
-	public void removeHandler( final Collection< InstallAndRemove< Node > > h )
+	public void removeHandler(final Collection<InstallAndRemove<Node>> h)
 	{
-		h.forEach( i -> i.removeFrom( this ) );
+		h.forEach(i -> i.removeFrom(this));
 	}
 
 	public void repaint()
 	{
-		this.renderTarget.drawOverlays( this.imageView::setImage );
+		this.renderTarget.drawOverlays(this.imageView::setImage);
 		drawOverlays();
 		layout();
 	}
 
-	public void addImageChangeListener( final ChangeListener< Image > listener )
+	public void addImageChangeListener(final ChangeListener<Image> listener)
 	{
-		this.imageView.imageProperty().addListener( listener );
+		this.imageView.imageProperty().addListener(listener);
 	}
 
-	public void removeImageChangeListener( final ChangeListener< Image > listener )
+	public void removeImageChangeListener(final ChangeListener<Image> listener)
 	{
-		this.imageView.imageProperty().removeListener( listener );
+		this.imageView.imageProperty().removeListener(listener);
 	}
 }

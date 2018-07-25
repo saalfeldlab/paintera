@@ -18,27 +18,27 @@ public class MeshSettings
 
 	private final SimpleIntegerProperty scaleLevel = new SimpleIntegerProperty();
 
-	private final SimpleIntegerProperty simplificationIterations = new SimpleIntegerProperty( 0 );
+	private final SimpleIntegerProperty simplificationIterations = new SimpleIntegerProperty(0);
 
-	private final DoubleProperty smoothingLambda = new SimpleDoubleProperty( Smooth.DEFAULT_LAMBDA );
+	private final DoubleProperty smoothingLambda = new SimpleDoubleProperty(Smooth.DEFAULT_LAMBDA);
 
-	private final IntegerProperty smoothingIterations = new SimpleIntegerProperty( Smooth.DEFAULT_ITERATIONS );
+	private final IntegerProperty smoothingIterations = new SimpleIntegerProperty(Smooth.DEFAULT_ITERATIONS);
 
-	private final DoubleProperty opacity = new SimpleDoubleProperty( 1.0 );
+	private final DoubleProperty opacity = new SimpleDoubleProperty(1.0);
 
-	private final ObjectProperty< DrawMode > drawMode = new SimpleObjectProperty<>( DrawMode.FILL );
+	private final ObjectProperty<DrawMode> drawMode = new SimpleObjectProperty<>(DrawMode.FILL);
 
-	private final ObjectProperty< CullFace > cullFace = new SimpleObjectProperty<>( CullFace.FRONT );
+	private final ObjectProperty<CullFace> cullFace = new SimpleObjectProperty<>(CullFace.FRONT);
 
-	private final DoubleProperty inflate = new SimpleDoubleProperty( 1.0 );
+	private final DoubleProperty inflate = new SimpleDoubleProperty(1.0);
 
-	private final BooleanProperty isVisible = new SimpleBooleanProperty( true );
+	private final BooleanProperty isVisible = new SimpleBooleanProperty(true);
 
-	public MeshSettings( final int numScaleLevels )
+	public MeshSettings(final int numScaleLevels)
 	{
 		super();
 		this.numScaleLevels = numScaleLevels;
-		this.scaleLevel.set( numScaleLevels - 1 );
+		this.scaleLevel.set(numScaleLevels - 1);
 	}
 
 	public IntegerProperty scaleLevelProperty()
@@ -66,12 +66,12 @@ public class MeshSettings
 		return this.opacity;
 	}
 
-	public ObjectProperty< DrawMode > drawModeProperty()
+	public ObjectProperty<DrawMode> drawModeProperty()
 	{
 		return this.drawMode;
 	}
 
-	public ObjectProperty< CullFace > cullFaceProperty()
+	public ObjectProperty<CullFace> cullFaceProperty()
 	{
 		return this.cullFace;
 	}
@@ -93,22 +93,22 @@ public class MeshSettings
 
 	public MeshSettings copy()
 	{
-		final MeshSettings that = new MeshSettings( this.numScaleLevels );
-		that.set( this );
+		final MeshSettings that = new MeshSettings(this.numScaleLevels);
+		that.set(this);
 		return that;
 	}
 
-	public void set( final MeshSettings that )
+	public void set(final MeshSettings that)
 	{
-		this.scaleLevel.set( that.scaleLevel.get() );
-		this.simplificationIterations.set( that.simplificationIterations.get() );
-		this.smoothingLambda.set( that.smoothingLambda.get() );
-		this.smoothingIterations.set( that.smoothingIterations.get() );
-		this.opacity.set( that.opacity.get() );
-		this.drawMode.set( that.drawMode.get() );
-		this.cullFace.set( that.cullFace.get() );
-		this.inflate.set( that.inflate.get() );
-		this.isVisible.set( that.isVisible.get() );
+		this.scaleLevel.set(that.scaleLevel.get());
+		this.simplificationIterations.set(that.simplificationIterations.get());
+		this.smoothingLambda.set(that.smoothingLambda.get());
+		this.smoothingIterations.set(that.smoothingIterations.get());
+		this.opacity.set(that.opacity.get());
+		this.drawMode.set(that.drawMode.get());
+		this.cullFace.set(that.cullFace.get());
+		this.inflate.set(that.inflate.get());
+		this.isVisible.set(that.isVisible.get());
 	}
 
 }

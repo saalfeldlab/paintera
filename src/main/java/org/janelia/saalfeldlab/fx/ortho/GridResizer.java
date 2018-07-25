@@ -1,8 +1,5 @@
 package org.janelia.saalfeldlab.fx.ortho;
 
-import org.janelia.saalfeldlab.fx.event.InstallAndRemove;
-import org.janelia.saalfeldlab.fx.event.KeyTracker;
-
 import javafx.animation.KeyFrame;
 import javafx.animation.KeyValue;
 import javafx.animation.Timeline;
@@ -13,8 +10,10 @@ import javafx.scene.Scene;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.Pane;
 import javafx.util.Duration;
+import org.janelia.saalfeldlab.fx.event.InstallAndRemove;
+import org.janelia.saalfeldlab.fx.event.KeyTracker;
 
-public class GridResizer implements InstallAndRemove< Node >
+public class GridResizer implements InstallAndRemove<Node>
 {
 	private final GridConstraintsManager manager;
 
@@ -32,7 +31,8 @@ public class GridResizer implements InstallAndRemove< Node >
 
 	private final KeyTracker keyTracker;
 
-	public GridResizer( final GridConstraintsManager manager, final double tolerance, final Pane grid, final KeyTracker keyTracker )
+	public GridResizer(final GridConstraintsManager manager, final double tolerance, final Pane grid, final KeyTracker
+			keyTracker)
 	{
 		super();
 		this.manager = manager;
@@ -41,27 +41,27 @@ public class GridResizer implements InstallAndRemove< Node >
 		this.keyTracker = keyTracker;
 	}
 
-	public EventHandler< MouseEvent > onMouseMovedHandler()
+	public EventHandler<MouseEvent> onMouseMovedHandler()
 	{
 		return new MouseChanged();
 	}
 
-	public EventHandler< MouseEvent > onMousePressedHandler()
+	public EventHandler<MouseEvent> onMousePressedHandler()
 	{
 		return new MousePressed();
 	}
 
-	public EventHandler< MouseEvent > onMouseDraggedHandler()
+	public EventHandler<MouseEvent> onMouseDraggedHandler()
 	{
 		return new MouseDragged();
 	}
 
-	public EventHandler< MouseEvent > onMouseDoubleClickedHandler()
+	public EventHandler<MouseEvent> onMouseDoubleClickedHandler()
 	{
 		return new MouseDoubleClicked();
 	}
 
-	public EventHandler< MouseEvent > onMouseReleased()
+	public EventHandler<MouseEvent> onMouseReleased()
 	{
 		return new MouseReleased();
 	}
@@ -71,59 +71,61 @@ public class GridResizer implements InstallAndRemove< Node >
 		return dragging;
 	}
 
-	private class MouseChanged implements EventHandler< MouseEvent >
+	private class MouseChanged implements EventHandler<MouseEvent>
 	{
 		@Override
-		public void handle( final MouseEvent event )
+		public void handle(final MouseEvent event)
 		{
-			if ( !keyTracker.noKeysActive() ) { return; }
-			synchronized ( manager )
+			if (!keyTracker.noKeysActive()) { return; }
+			synchronized (manager)
 			{
-				synchronized ( grid )
+				synchronized (grid)
 				{
-					final double x = event.getX();
-					final double y = event.getY();
-					final double gridBorderX = manager.firstColumnWidthProperty().get() / 100 * grid.widthProperty().get();
-					final double gridBorderY = manager.firstRowHeightProperty().get() / 100 * grid.heightProperty().get();
-					final boolean mouseWithinResizableRangeX = Math.abs( x - gridBorderX ) < tolerance;
-					final boolean mouseWithinResizableRangeY = Math.abs( y - gridBorderY ) < tolerance;
+					final double  x                          = event.getX();
+					final double  y                          = event.getY();
+					final double  gridBorderX                = manager.firstColumnWidthProperty().get() / 100 * grid
+							.widthProperty().get();
+					final double  gridBorderY                = manager.firstRowHeightProperty().get() / 100 * grid
+							.heightProperty().get();
+					final boolean mouseWithinResizableRangeX = Math.abs(x - gridBorderX) < tolerance;
+					final boolean mouseWithinResizableRangeY = Math.abs(y - gridBorderY) < tolerance;
 
 					final Scene scene = grid.sceneProperty().get();
 
-					if ( mouseWithinResizableRangeX && mouseWithinResizableRangeY )
+					if (mouseWithinResizableRangeX && mouseWithinResizableRangeY)
 					{
-						if ( Double.compare( x - gridBorderX, 0.0 ) < 0 && Double.compare( y - gridBorderY, 0.0 ) < 0 )
+						if (Double.compare(x - gridBorderX, 0.0) < 0 && Double.compare(y - gridBorderY, 0.0) < 0)
 						{
-							scene.setCursor( Cursor.SE_RESIZE );
+							scene.setCursor(Cursor.SE_RESIZE);
 						}
-						else if ( Double.compare( x - gridBorderX, 0.0 ) > 0 && Double.compare( y - gridBorderY, 0.0 ) < 0 )
+						else if (Double.compare(x - gridBorderX, 0.0) > 0 && Double.compare(y - gridBorderY, 0.0) < 0)
 						{
-							scene.setCursor( Cursor.SW_RESIZE );
+							scene.setCursor(Cursor.SW_RESIZE);
 						}
-						else if ( Double.compare( x - gridBorderX, 0.0 ) < 0 && Double.compare( y - gridBorderY, 0.0 ) > 0 )
+						else if (Double.compare(x - gridBorderX, 0.0) < 0 && Double.compare(y - gridBorderY, 0.0) > 0)
 						{
-							scene.setCursor( Cursor.NE_RESIZE );
+							scene.setCursor(Cursor.NE_RESIZE);
 						}
 						else
 						{
-							scene.setCursor( Cursor.NW_RESIZE );
+							scene.setCursor(Cursor.NW_RESIZE);
 						}
 						isOnMargin = true;
 					}
 
-					else if ( mouseWithinResizableRangeX )
+					else if (mouseWithinResizableRangeX)
 					{
-						scene.setCursor( Cursor.H_RESIZE );
+						scene.setCursor(Cursor.H_RESIZE);
 						isOnMargin = true;
 					}
-					else if ( mouseWithinResizableRangeY )
+					else if (mouseWithinResizableRangeY)
 					{
-						scene.setCursor( Cursor.V_RESIZE );
+						scene.setCursor(Cursor.V_RESIZE);
 						isOnMargin = true;
 					}
-					else if ( isOnMargin )
+					else if (isOnMargin)
 					{
-						scene.setCursor( Cursor.DEFAULT );
+						scene.setCursor(Cursor.DEFAULT);
 						isOnMargin = false;
 					}
 				}
@@ -131,63 +133,63 @@ public class GridResizer implements InstallAndRemove< Node >
 		}
 	}
 
-	private class MousePressed implements EventHandler< MouseEvent >
+	private class MousePressed implements EventHandler<MouseEvent>
 	{
 
 		@Override
-		public void handle( final MouseEvent event )
+		public void handle(final MouseEvent event)
 		{
-			final double x = event.getX();
-			final double y = event.getY();
+			final double x           = event.getX();
+			final double y           = event.getY();
 			final double gridBorderX = manager.firstColumnWidthProperty().get() / 100 * grid.widthProperty().get();
 			final double gridBorderY = manager.firstRowHeightProperty().get() / 100 * grid.heightProperty().get();
 
-			mouseWithinResizableRangeX = Math.abs( x - gridBorderX ) < tolerance;
-			mouseWithinResizableRangeY = Math.abs( y - gridBorderY ) < tolerance;
+			mouseWithinResizableRangeX = Math.abs(x - gridBorderX) < tolerance;
+			mouseWithinResizableRangeY = Math.abs(y - gridBorderY) < tolerance;
 
 			dragging = mouseWithinResizableRangeX || mouseWithinResizableRangeY;
-			if ( dragging )
+			if (dragging)
 			{
 				event.consume();
 			}
 		}
 	}
 
-	private class MouseReleased implements EventHandler< MouseEvent >
+	private class MouseReleased implements EventHandler<MouseEvent>
 	{
 
 		@Override
-		public void handle( final MouseEvent event )
+		public void handle(final MouseEvent event)
 		{
 			dragging = false;
-			grid.sceneProperty().get().setCursor( Cursor.DEFAULT );
+			grid.sceneProperty().get().setCursor(Cursor.DEFAULT);
 		}
 
 	}
 
-	private class MouseDragged implements EventHandler< MouseEvent >
+	private class MouseDragged implements EventHandler<MouseEvent>
 	{
 
 		@Override
-		public void handle( final MouseEvent event )
+		public void handle(final MouseEvent event)
 		{
-			if ( dragging )
+			if (dragging)
 			{
-				final double width = grid.widthProperty().get();
+				final double width  = grid.widthProperty().get();
 				final double height = grid.heightProperty().get();
-				final double stopX = event.getX();
-				final double stopY = event.getY();
+				final double stopX  = event.getX();
+				final double stopY  = event.getY();
 
-				if ( mouseWithinResizableRangeX )
+				if (mouseWithinResizableRangeX)
 				{
-					final double percentWidth = Math.min( Math.max( stopX * 100.0 / width, 20 ), 80 );
-					manager.firstColumnWidthProperty().set( percentWidth );
+					final double percentWidth = Math.min(Math.max(stopX * 100.0 / width, 20), 80);
+					manager.firstColumnWidthProperty().set(percentWidth);
 				}
 
-				if ( mouseWithinResizableRangeY )
+				if (mouseWithinResizableRangeY)
 				{
-					final double percentHeight = Math.min( Math.max( stopY * 100.0 / height, 20 ), 80 );
-					manager.firstRowHeightProperty().set( percentHeight );
+					final double percentHeight = Math.min(Math.max(stopY * 100.0 / height, 20), 80);
+					manager.firstRowHeightProperty().set(percentHeight);
 				}
 
 				event.consume();
@@ -197,51 +199,80 @@ public class GridResizer implements InstallAndRemove< Node >
 
 	}
 
-	private class MouseDoubleClicked implements EventHandler< MouseEvent >
+	private class MouseDoubleClicked implements EventHandler<MouseEvent>
 	{
 		@Override
-		public void handle( final MouseEvent event )
+		public void handle(final MouseEvent event)
 		{
-			if ( event.getClickCount() == 2 )
+			if (event.getClickCount() == 2)
 			{
-				final double x = event.getX();
-				final double y = event.getY();
-				final double gridBorderX = manager.firstColumnWidthProperty().get() / 100 * grid.widthProperty().get();
-				final double gridBorderY = manager.firstRowHeightProperty().get() / 100 * grid.heightProperty().get();
-				final boolean mouseWithinResizableRangeX = Math.abs( x - gridBorderX ) < tolerance;
-				final boolean mouseWithinResizableRangeY = Math.abs( y - gridBorderY ) < tolerance;
+				final double  x                          = event.getX();
+				final double  y                          = event.getY();
+				final double  gridBorderX                = manager.firstColumnWidthProperty().get() / 100 * grid
+						.widthProperty().get();
+				final double  gridBorderY                = manager.firstRowHeightProperty().get() / 100 * grid
+						.heightProperty().get();
+				final boolean mouseWithinResizableRangeX = Math.abs(x - gridBorderX) < tolerance;
+				final boolean mouseWithinResizableRangeY = Math.abs(y - gridBorderY) < tolerance;
 
-				if ( mouseWithinResizableRangeX || mouseWithinResizableRangeY )
+				if (mouseWithinResizableRangeX || mouseWithinResizableRangeY)
 				{
 					final int time = 300;
 					event.consume();
 					final Timeline timeline = new Timeline();
 
-					if ( mouseWithinResizableRangeX && mouseWithinResizableRangeY )
+					if (mouseWithinResizableRangeX && mouseWithinResizableRangeY)
 					{
 						timeline.getKeyFrames().addAll(
-								new KeyFrame( Duration.ZERO,
-										new KeyValue( manager.firstColumnWidthProperty(), manager.firstColumnWidthProperty().get() ),
-										new KeyValue( manager.firstRowHeightProperty(), manager.firstRowHeightProperty().get() ) ),
-								new KeyFrame( new Duration( time ),
-										new KeyValue( manager.firstColumnWidthProperty(), 50 ),
-										new KeyValue( manager.firstRowHeightProperty(), 50 ) ) );
+								new KeyFrame(
+										Duration.ZERO,
+										new KeyValue(
+												manager.firstColumnWidthProperty(),
+												manager.firstColumnWidthProperty().get()
+										),
+										new KeyValue(
+												manager.firstRowHeightProperty(),
+												manager.firstRowHeightProperty().get()
+										)
+								),
+								new KeyFrame(
+										new Duration(time),
+										new KeyValue(manager.firstColumnWidthProperty(), 50),
+										new KeyValue(manager.firstRowHeightProperty(), 50)
+								)
+						                              );
 					}
-					else if ( mouseWithinResizableRangeX )
+					else if (mouseWithinResizableRangeX)
 					{
 						timeline.getKeyFrames().addAll(
-								new KeyFrame( Duration.ZERO,
-										new KeyValue( manager.firstColumnWidthProperty(), manager.firstColumnWidthProperty().get() ) ),
-								new KeyFrame( new Duration( time ),
-										new KeyValue( manager.firstColumnWidthProperty(), 50 ) ) );
+								new KeyFrame(
+										Duration.ZERO,
+										new KeyValue(
+												manager.firstColumnWidthProperty(),
+												manager.firstColumnWidthProperty().get()
+										)
+								),
+								new KeyFrame(
+										new Duration(time),
+										new KeyValue(manager.firstColumnWidthProperty(), 50)
+								)
+						                              );
 					}
-					else if ( mouseWithinResizableRangeY )
+					else if (mouseWithinResizableRangeY)
 					{
 						timeline.getKeyFrames().addAll(
-								new KeyFrame( Duration.ZERO,
-										new KeyValue( manager.firstRowHeightProperty(), manager.firstRowHeightProperty().get() ) ),
-								new KeyFrame( new Duration( time ),
-										new KeyValue( manager.firstRowHeightProperty(), 50 ) ) );
+								new KeyFrame(
+										Duration.ZERO,
+										new KeyValue(
+												manager.firstRowHeightProperty(),
+												manager.firstRowHeightProperty().get()
+										)
+								),
+								new KeyFrame(
+										new Duration(time),
+										new KeyValue(manager.firstRowHeightProperty(), 50)
+								)
+						                              );
 					}
 					timeline.play();
 				}
@@ -250,22 +281,22 @@ public class GridResizer implements InstallAndRemove< Node >
 	}
 
 	@Override
-	public void installInto( final Node node )
+	public void installInto(final Node node)
 	{
-		node.addEventFilter( MouseEvent.MOUSE_MOVED, onMouseMovedHandler() );
-		node.addEventFilter( MouseEvent.MOUSE_CLICKED, onMouseDoubleClickedHandler() );
-		node.addEventFilter( MouseEvent.MOUSE_DRAGGED, onMouseDraggedHandler() );
-		node.addEventFilter( MouseEvent.MOUSE_PRESSED, onMousePressedHandler() );
-		node.addEventFilter( MouseEvent.MOUSE_RELEASED, onMouseReleased() );
+		node.addEventFilter(MouseEvent.MOUSE_MOVED, onMouseMovedHandler());
+		node.addEventFilter(MouseEvent.MOUSE_CLICKED, onMouseDoubleClickedHandler());
+		node.addEventFilter(MouseEvent.MOUSE_DRAGGED, onMouseDraggedHandler());
+		node.addEventFilter(MouseEvent.MOUSE_PRESSED, onMousePressedHandler());
+		node.addEventFilter(MouseEvent.MOUSE_RELEASED, onMouseReleased());
 	}
 
 	@Override
-	public void removeFrom( final Node node )
+	public void removeFrom(final Node node)
 	{
-		node.removeEventFilter( MouseEvent.MOUSE_MOVED, onMouseMovedHandler() );
-		node.removeEventFilter( MouseEvent.MOUSE_CLICKED, onMouseDoubleClickedHandler() );
-		node.removeEventFilter( MouseEvent.MOUSE_DRAGGED, onMouseDraggedHandler() );
-		node.removeEventFilter( MouseEvent.MOUSE_PRESSED, onMousePressedHandler() );
-		node.removeEventFilter( MouseEvent.MOUSE_RELEASED, onMouseReleased() );
+		node.removeEventFilter(MouseEvent.MOUSE_MOVED, onMouseMovedHandler());
+		node.removeEventFilter(MouseEvent.MOUSE_CLICKED, onMouseDoubleClickedHandler());
+		node.removeEventFilter(MouseEvent.MOUSE_DRAGGED, onMouseDraggedHandler());
+		node.removeEventFilter(MouseEvent.MOUSE_PRESSED, onMousePressedHandler());
+		node.removeEventFilter(MouseEvent.MOUSE_RELEASED, onMouseReleased());
 	}
 }

@@ -7,12 +7,13 @@ public class JFXUtil
 
 	public static void platformImplStartup()
 	{
-		platformImplStartup( () -> {} );
+		platformImplStartup(() -> {
+		});
 	}
 
-	public static void platformImplStartup( final Runnable r )
+	public static void platformImplStartup(final Runnable r)
 	{
-		PlatformImpl.startup( r );
+		PlatformImpl.startup(r);
 	}
 
 }

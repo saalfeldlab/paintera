@@ -3,20 +3,18 @@ package org.janelia.saalfeldlab.paintera.data.n5;
 import java.lang.invoke.MethodHandles;
 import java.lang.reflect.Type;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonSerializationContext;
 import com.google.gson.JsonSerializer;
-
 import net.imglib2.realtransform.AffineTransform3D;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-public class N5DataSourceSerializer implements JsonSerializer< N5DataSource< ?, ? > >
+public class N5DataSourceSerializer implements JsonSerializer<N5DataSource<?, ?>>
 {
 
-	private static final Logger LOG = LoggerFactory.getLogger( MethodHandles.lookup().lookupClass() );
+	private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
 	private static final String META_CLASS_KEY = "metaType";
 
@@ -26,16 +24,16 @@ public class N5DataSourceSerializer implements JsonSerializer< N5DataSource< ?, 
 
 	@Override
 	public JsonElement serialize(
-			final N5DataSource< ?, ? > s,
+			final N5DataSource<?, ?> s,
 			final Type type,
-			final JsonSerializationContext context )
+			final JsonSerializationContext context)
 	{
 		final JsonObject map = new JsonObject();
-		map.addProperty( META_CLASS_KEY, s.meta().getClass().getName() );
-		map.add( META_KEY, context.serialize( s.meta() ) );
+		map.addProperty(META_CLASS_KEY, s.meta().getClass().getName());
+		map.add(META_KEY, context.serialize(s.meta()));
 		final AffineTransform3D transform = new AffineTransform3D();
-		s.getSourceTransform( 0, 0, transform );
-		map.add( TRANSFORM_KEY, context.serialize( transform ) );
+		s.getSourceTransform(0, 0, transform);
+		map.add(TRANSFORM_KEY, context.serialize(transform));
 		return map;
 	}
 

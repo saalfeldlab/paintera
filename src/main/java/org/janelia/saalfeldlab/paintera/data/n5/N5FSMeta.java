@@ -2,10 +2,9 @@ package org.janelia.saalfeldlab.paintera.data.n5;
 
 import java.io.IOException;
 
+import com.google.gson.annotations.Expose;
 import org.janelia.saalfeldlab.n5.N5FSReader;
 import org.janelia.saalfeldlab.n5.N5FSWriter;
-
-import com.google.gson.annotations.Expose;
 
 public class N5FSMeta implements N5Meta
 {
@@ -16,12 +15,12 @@ public class N5FSMeta implements N5Meta
 	@Expose
 	private final String dataset;
 
-	public N5FSMeta( final N5FSReader reader, final String dataset ) throws ReflectionException
+	public N5FSMeta(final N5FSReader reader, final String dataset) throws ReflectionException
 	{
-		this( fromReader( reader ), dataset );
+		this(fromReader(reader), dataset);
 	}
 
-	public N5FSMeta( final String n5, final String dataset )
+	public N5FSMeta(final String n5, final String dataset)
 	{
 		super();
 		this.n5 = n5;
@@ -31,13 +30,13 @@ public class N5FSMeta implements N5Meta
 	@Override
 	public N5FSReader reader() throws IOException
 	{
-		return new N5FSReader( n5 );
+		return new N5FSReader(n5);
 	}
 
 	@Override
 	public N5FSWriter writer() throws IOException
 	{
-		return new N5FSWriter( n5 );
+		return new N5FSWriter(n5);
 	}
 
 	@Override
@@ -46,16 +45,15 @@ public class N5FSMeta implements N5Meta
 		return dataset;
 	}
 
-	private static String fromReader( final N5FSReader reader ) throws ReflectionException
+	private static String fromReader(final N5FSReader reader) throws ReflectionException
 	{
 
 		try
 		{
-			return ( String ) ReflectionHelpers.searchForField( reader.getClass(), "basePath" ).get( reader );
-		}
-		catch ( IllegalArgumentException | IllegalAccessException | NoSuchFieldException | SecurityException e )
+			return (String) ReflectionHelpers.searchForField(reader.getClass(), "basePath").get(reader);
+		} catch (IllegalArgumentException | IllegalAccessException | NoSuchFieldException | SecurityException e)
 		{
-			throw new ReflectionException( e );
+			throw new ReflectionException(e);
 		}
 
 	}

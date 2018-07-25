@@ -7,23 +7,23 @@ import bdv.fx.viewer.ViewerPanelFX;
 public class OnEnterOnExit
 {
 
-	final Consumer< ViewerPanelFX > onEnter;
+	final Consumer<ViewerPanelFX> onEnter;
 
-	final Consumer< ViewerPanelFX > onExit;
+	final Consumer<ViewerPanelFX> onExit;
 
-	public OnEnterOnExit( final Consumer< ViewerPanelFX > onEnter, final Consumer< ViewerPanelFX > onExit )
+	public OnEnterOnExit(final Consumer<ViewerPanelFX> onEnter, final Consumer<ViewerPanelFX> onExit)
 	{
 		super();
 		this.onEnter = onEnter;
 		this.onExit = onExit;
 	}
 
-	public Consumer< ViewerPanelFX > onEnter()
+	public Consumer<ViewerPanelFX> onEnter()
 	{
 		return this.onEnter;
 	}
 
-	public Consumer< ViewerPanelFX > onExit()
+	public Consumer<ViewerPanelFX> onExit()
 	{
 		return this.onExit;
 	}

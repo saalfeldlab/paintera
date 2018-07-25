@@ -9,7 +9,7 @@ public class Merge implements AssignmentAction
 
 	public final long segmentId;
 
-	public Merge( final long fromFragmentId, final long intoFragmentId, final long segmentId )
+	public Merge(final long fromFragmentId, final long intoFragmentId, final long segmentId)
 	{
 		super();
 		this.fromFragmentId = fromFragmentId;

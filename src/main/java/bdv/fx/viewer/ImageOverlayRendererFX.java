@@ -41,25 +41,23 @@ import net.imglib2.img.array.ArrayImg;
 import net.imglib2.ui.Renderer;
 
 /**
- * {@link OverlayRendererGeneric} drawing an {@link ArrayImg}, scaled to fill an
- * {@link ImgView}. It can be used as a {@link RenderTargetGeneric}, such that
- * the {@link ArrayImg} to draw is set by a {@link Renderer}.
+ * {@link OverlayRendererGeneric} drawing an {@link ArrayImg}, scaled to fill an {@link ImgView}. It can be used as a
+ * {@link RenderTargetGeneric}, such that the {@link ArrayImg} to draw is set by a {@link Renderer}.
  *
  * @author Tobias Pietzsch
  * @author Philipp Hanslovsky
  */
-public class ImageOverlayRendererFX implements OverlayRendererGeneric< Consumer< Image > >, RenderTargetGeneric< BufferExposingWritableImage >
+public class ImageOverlayRendererFX
+		implements OverlayRendererGeneric<Consumer<Image>>, RenderTargetGeneric<BufferExposingWritableImage>
 {
 
 	protected BufferExposingWritableImage bufferedImage;
 
 	/**
-	 * An {@link ArrayImg} that has been previously
-	 * {@link #setBufferedImage(ArrayImage) set} for painting. Whenever a new
-	 * image is set, this is stored here and marked {@link #pending}. Whenever
-	 * an image is painted and a new image is pending, the new image is painted
-	 * to the screen. Before doing this, the image previously used for painting
-	 * is swapped into {@link #pendingImage}. This is used for double-buffering.
+	 * An {@link ArrayImg} that has been previously {@link #setBufferedImage(ArrayImage) set} for painting. Whenever a
+	 * new image is set, this is stored here and marked {@link #pending}. Whenever an image is painted and a new image
+	 * is pending, the new image is painted to the screen. Before doing this, the image previously used for painting is
+	 * swapped into {@link #pendingImage}. This is used for double-buffering.
 	 */
 	protected BufferExposingWritableImage pendingImage;
 
@@ -91,10 +89,10 @@ public class ImageOverlayRendererFX implements OverlayRendererGeneric< Consumer<
 	 * Set the {@link ArrayImage} that is to be drawn on the canvas.
 	 *
 	 * @param img
-	 *            image to draw (may be null).
+	 * 		image to draw (may be null).
 	 */
 	@Override
-	public synchronized BufferExposingWritableImage setBufferedImage( final BufferExposingWritableImage img )
+	public synchronized BufferExposingWritableImage setBufferedImage(final BufferExposingWritableImage img)
 	{
 		final BufferExposingWritableImage tmp = pendingImage;
 		pendingImage = img;
@@ -115,11 +113,11 @@ public class ImageOverlayRendererFX implements OverlayRendererGeneric< Consumer<
 	}
 
 	@Override
-	public void drawOverlays( final Consumer< Image > g )
+	public void drawOverlays(final Consumer<Image> g)
 	{
-		synchronized ( this )
+		synchronized (this)
 		{
-			if ( pending )
+			if (pending)
 			{
 				final BufferExposingWritableImage tmp = bufferedImage;
 				bufferedImage = pendingImage;
@@ -127,14 +125,14 @@ public class ImageOverlayRendererFX implements OverlayRendererGeneric< Consumer<
 				pending = false;
 			}
 		}
-		if ( bufferedImage != null )
+		if (bufferedImage != null)
 		{
-			g.accept( bufferedImage );
+			g.accept(bufferedImage);
 		}
 	}
 
 	@Override
-	public void setCanvasSize( final int width, final int height )
+	public void setCanvasSize(final int width, final int height)
 	{
 		this.width = width;
 		this.height = height;

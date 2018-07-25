@@ -6,39 +6,39 @@ import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.RealRandomAccessible;
 import net.imglib2.realtransform.AffineTransform3D;
 
-public class DelegatingDataSource< D, T > implements DataSource< D, T >
+public class DelegatingDataSource<D, T> implements DataSource<D, T>
 {
 
-	private final DataSource< D, T > delegate;
+	private final DataSource<D, T> delegate;
 
-	public DelegatingDataSource( final DataSource< D, T > delegate )
+	public DelegatingDataSource(final DataSource<D, T> delegate)
 	{
 		super();
 		this.delegate = delegate;
 	}
 
 	@Override
-	public boolean isPresent( final int t )
+	public boolean isPresent(final int t)
 	{
-		return this.delegate.isPresent( t );
+		return this.delegate.isPresent(t);
 	}
 
 	@Override
-	public RandomAccessibleInterval< T > getSource( final int t, final int level )
+	public RandomAccessibleInterval<T> getSource(final int t, final int level)
 	{
-		return this.delegate.getSource( t, level );
+		return this.delegate.getSource(t, level);
 	}
 
 	@Override
-	public RealRandomAccessible< T > getInterpolatedSource( final int t, final int level, final Interpolation method )
+	public RealRandomAccessible<T> getInterpolatedSource(final int t, final int level, final Interpolation method)
 	{
-		return this.delegate.getInterpolatedSource( t, level, method );
+		return this.delegate.getInterpolatedSource(t, level, method);
 	}
 
 	@Override
-	public void getSourceTransform( final int t, final int level, final AffineTransform3D transform )
+	public void getSourceTransform(final int t, final int level, final AffineTransform3D transform)
 	{
-		this.delegate.getSourceTransform( t, level, transform );
+		this.delegate.getSourceTransform(t, level, transform);
 	}
 
 	@Override
@@ -66,15 +66,15 @@ public class DelegatingDataSource< D, T > implements DataSource< D, T >
 	}
 
 	@Override
-	public RandomAccessibleInterval< D > getDataSource( final int t, final int level )
+	public RandomAccessibleInterval<D> getDataSource(final int t, final int level)
 	{
-		return this.delegate.getDataSource( t, level );
+		return this.delegate.getDataSource(t, level);
 	}
 
 	@Override
-	public RealRandomAccessible< D > getInterpolatedDataSource( final int t, final int level, final Interpolation method )
+	public RealRandomAccessible<D> getInterpolatedDataSource(final int t, final int level, final Interpolation method)
 	{
-		return this.delegate.getInterpolatedDataSource( t, level, method );
+		return this.delegate.getInterpolatedDataSource(t, level, method);
 	}
 
 	@Override

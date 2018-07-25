@@ -32,20 +32,19 @@ package bdv.fx.viewer;
 import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.ui.TransformListener;
 
-public interface TransformAwareRenderTargetGeneric< T > extends RenderTargetGeneric< T >
+public interface TransformAwareRenderTargetGeneric<T> extends RenderTargetGeneric<T>
 {
 	/**
-	 * Set the data store that is to be drawn on the canvas, and the transform
-	 * with which this image was created.
+	 * Set the data store that is to be drawn on the canvas, and the transform with which this image was created.
 	 *
 	 * @param img
-	 *            image to draw (may be null).
+	 * 		image to draw (may be null).
 	 */
-	public T setBufferedImageAndTransform( final T img, final AffineTransform3D transform );
+	public T setBufferedImageAndTransform(final T img, final AffineTransform3D transform);
 
-	public void addTransformListener( final TransformListener< AffineTransform3D > listener );
+	public void addTransformListener(final TransformListener<AffineTransform3D> listener);
 
-	public void addTransformListener( final TransformListener< AffineTransform3D > listener, final int index );
+	public void addTransformListener(final TransformListener<AffineTransform3D> listener, final int index);
 
-	public void removeTransformListener( final TransformListener< AffineTransform3D > listener );
+	public void removeTransformListener(final TransformListener<AffineTransform3D> listener);
 }

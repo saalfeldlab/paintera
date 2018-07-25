@@ -5,7 +5,7 @@ import java.util.function.Supplier;
 import javafx.scene.Node;
 import javafx.scene.layout.Pane;
 
-public interface BindUnbindAndNodeSupplier extends Supplier< Node >, BindUnbind
+public interface BindUnbindAndNodeSupplier extends Supplier<Node>, BindUnbind
 {
 
 	public static BindUnbindAndNodeSupplier empty()

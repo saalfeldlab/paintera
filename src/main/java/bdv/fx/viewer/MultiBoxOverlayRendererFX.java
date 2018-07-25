@@ -35,9 +35,6 @@ import java.util.List;
 import java.util.function.Supplier;
 import java.util.stream.IntStream;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import bdv.viewer.Source;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.SimpleBooleanProperty;
@@ -45,17 +42,18 @@ import javafx.scene.canvas.GraphicsContext;
 import net.imglib2.Interval;
 import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.util.Intervals;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
- * Render multibox overlay corresponding to a {@link ViewerState} into a
- * {@link GraphicsContext}.
+ * Render multibox overlay corresponding to a {@link ViewerState} into a {@link GraphicsContext}.
  *
  * @author Tobias Pietzsch &lt;tobias.pietzsch@gmail.com&gt;
  */
-public class MultiBoxOverlayRendererFX implements OverlayRendererGeneric< GraphicsContext >
+public class MultiBoxOverlayRendererFX implements OverlayRendererGeneric<GraphicsContext>
 {
 
-	private static final Logger LOG = LoggerFactory.getLogger( MethodHandles.lookup().lookupClass() );
+	private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
 	/**
 	 * Navigation wire-frame cube.
@@ -72,43 +70,43 @@ public class MultiBoxOverlayRendererFX implements OverlayRendererGeneric< Graphi
 	 */
 	protected Interval virtualScreenInterval;
 
-	protected final ArrayList< IntervalAndTransform > boxSources;
+	protected final ArrayList<IntervalAndTransform> boxSources;
 
-	private final Supplier< ViewerState > viewerState;
+	private final Supplier<ViewerState> viewerState;
 
-	private final List< Source< ? > > allSources;
+	private final List<Source<?>> allSources;
 
-	private final List< Source< ? > > visibleSources;
+	private final List<Source<?>> visibleSources;
 
-	private final BooleanProperty isVisible = new SimpleBooleanProperty( true );
+	private final BooleanProperty isVisible = new SimpleBooleanProperty(true);
 
 	public MultiBoxOverlayRendererFX(
-			final Supplier< ViewerState > viewerState,
-			final List< Source< ? > > allSources,
-			final List< Source< ? > > visibleSources )
+			final Supplier<ViewerState> viewerState,
+			final List<Source<?>> allSources,
+			final List<Source<?>> visibleSources)
 	{
-		this( viewerState, allSources, visibleSources, 800, 600 );
+		this(viewerState, allSources, visibleSources, 800, 600);
 	}
 
 	public MultiBoxOverlayRendererFX(
-			final Supplier< ViewerState > viewerState,
-			final List< Source< ? > > allSources,
-			final List< Source< ? > > visibleSources,
+			final Supplier<ViewerState> viewerState,
+			final List<Source<?>> allSources,
+			final List<Source<?>> visibleSources,
 			final int screenWidth,
-			final int screenHeight )
+			final int screenHeight)
 	{
 		this.viewerState = viewerState;
 		this.allSources = allSources;
 		this.visibleSources = visibleSources;
 		box = new MultiBoxOverlayFX();
-		boxInterval = Intervals.createMinSize( 10, 10, 160, 120 );
-		virtualScreenInterval = Intervals.createMinSize( 0, 0, screenWidth, screenHeight );
+		boxInterval = Intervals.createMinSize(10, 10, 160, 120);
+		virtualScreenInterval = Intervals.createMinSize(0, 0, screenWidth, screenHeight);
 		boxSources = new ArrayList<>();
 	}
 
-	public synchronized void paint( final GraphicsContext g )
+	public synchronized void paint(final GraphicsContext g)
 	{
-		box.paint( g, boxSources, virtualScreenInterval, boxInterval );
+		box.paint(g, boxSources, virtualScreenInterval, boxInterval);
 	}
 
 	// TODO
@@ -118,31 +116,30 @@ public class MultiBoxOverlayRendererFX implements OverlayRendererGeneric< Graphi
 	}
 
 	// TODO
-	public void highlight( final int sourceIndex )
+	public void highlight(final int sourceIndex)
 	{
-		box.highlight( sourceIndex );
+		box.highlight(sourceIndex);
 	}
 
 	/**
-	 * Update the screen interval. This is the target 2D interval into which
-	 * pixels are rendered. (In the box overlay it is shown as a filled grey
-	 * rectangle.)
+	 * Update the screen interval. This is the target 2D interval into which pixels are rendered. (In the box
+	 * overlay it
+	 * is shown as a filled grey rectangle.)
 	 */
-	public synchronized void updateVirtualScreenSize( final int screenWidth, final int screenHeight )
+	public synchronized void updateVirtualScreenSize(final int screenWidth, final int screenHeight)
 	{
-		final long oldW = virtualScreenInterval.dimension( 0 );
-		final long oldH = virtualScreenInterval.dimension( 1 );
-		if ( screenWidth != oldW || screenHeight != oldH )
+		final long oldW = virtualScreenInterval.dimension(0);
+		final long oldH = virtualScreenInterval.dimension(1);
+		if (screenWidth != oldW || screenHeight != oldH)
 		{
-			virtualScreenInterval = Intervals.createMinSize( 0, 0, screenWidth, screenHeight );
+			virtualScreenInterval = Intervals.createMinSize(0, 0, screenWidth, screenHeight);
 		}
 	}
 
 	/**
-	 * Update the box interval. This is the screen interval in which to display
-	 * navigation wire-frame cube.
+	 * Update the box interval. This is the screen interval in which to display navigation wire-frame cube.
 	 */
-	public synchronized void setBoxInterval( final Interval interval )
+	public synchronized void setBoxInterval(final Interval interval)
 	{
 		boxInterval = interval;
 	}
@@ -150,44 +147,53 @@ public class MultiBoxOverlayRendererFX implements OverlayRendererGeneric< Graphi
 	/**
 	 * Update data to show in the box overlay.
 	 */
-	public synchronized void setViewerState( final ViewerState viewerState )
+	public synchronized void setViewerState(final ViewerState viewerState)
 	{
-		synchronized ( viewerState )
+		synchronized (viewerState)
 		{
 			final int timepoint = viewerState.timepointProperty().get();
 
-			final int numSources = this.allSources.size();
-			final int numPresentSources = ( int ) IntStream.range( 0, numSources ).mapToObj( allSources::get ).filter( s -> s.isPresent( timepoint ) ).count();
+			final int numSources        = this.allSources.size();
+			final int numPresentSources = (int) IntStream.range(
+					0,
+					numSources
+			                                                   ).mapToObj(allSources::get).filter(s -> s.isPresent(
+					timepoint)).count();
 
-			LOG.debug( "numSources={} numPresentSources={} boxSources.size={}", numSources, numPresentSources, boxSources.size() );
+			LOG.debug(
+					"numSources={} numPresentSources={} boxSources.size={}",
+					numSources,
+					numPresentSources,
+					boxSources.size()
+			         );
 
-			if ( boxSources.size() != numPresentSources )
+			if (boxSources.size() != numPresentSources)
 			{
-				while ( boxSources.size() < numPresentSources )
+				while (boxSources.size() < numPresentSources)
 				{
-					boxSources.add( new IntervalAndTransform() );
+					boxSources.add(new IntervalAndTransform());
 				}
-				while ( boxSources.size() > numPresentSources )
+				while (boxSources.size() > numPresentSources)
 				{
-					boxSources.remove( boxSources.size() - 1 );
+					boxSources.remove(boxSources.size() - 1);
 				}
 			}
 
-			final AffineTransform3D sourceToViewer = new AffineTransform3D();
+			final AffineTransform3D sourceToViewer  = new AffineTransform3D();
 			final AffineTransform3D sourceTransform = new AffineTransform3D();
-			for ( int i = 0, j = 0; i < numSources; ++i )
+			for (int i = 0, j = 0; i < numSources; ++i)
 			{
-				final Source< ? > source = this.allSources.get( i );
-				if ( source.isPresent( timepoint ) )
+				final Source<?> source = this.allSources.get(i);
+				if (source.isPresent(timepoint))
 				{
-					LOG.debug( "Setting box for source i={}, j={} boxSources.size={}", i, j, boxSources.size() );
-					final IntervalAndTransform boxsource = boxSources.get( j++ );
-					viewerState.getViewerTransform( sourceToViewer );
-					source.getSourceTransform( timepoint, 0, sourceTransform );
-					sourceToViewer.concatenate( sourceTransform );
-					boxsource.setSourceToViewer( sourceToViewer );
-					boxsource.setSourceInterval( source.getSource( timepoint, 0 ) );
-					boxsource.setVisible( this.visibleSources.contains( source ) );
+					LOG.debug("Setting box for source i={}, j={} boxSources.size={}", i, j, boxSources.size());
+					final IntervalAndTransform boxsource = boxSources.get(j++);
+					viewerState.getViewerTransform(sourceToViewer);
+					source.getSourceTransform(timepoint, 0, sourceTransform);
+					sourceToViewer.concatenate(sourceTransform);
+					boxsource.setSourceToViewer(sourceToViewer);
+					boxsource.setSourceInterval(source.getSource(timepoint, 0));
+					boxsource.setVisible(this.visibleSources.contains(source));
 				}
 			}
 		}
@@ -199,18 +205,18 @@ public class MultiBoxOverlayRendererFX implements OverlayRendererGeneric< Graphi
 	}
 
 	@Override
-	public void drawOverlays( final GraphicsContext g )
+	public void drawOverlays(final GraphicsContext g)
 	{
-		if ( this.isVisible.get() )
+		if (this.isVisible.get())
 		{
-			this.setViewerState( viewerState.get() );
-			this.paint( g );
+			this.setViewerState(viewerState.get());
+			this.paint(g);
 		}
 	}
 
 	@Override
-	public void setCanvasSize( final int width, final int height )
+	public void setCanvasSize(final int width, final int height)
 	{
-		this.updateVirtualScreenSize( width, height );
+		this.updateVirtualScreenSize(width, height);
 	}
 }

@@ -24,22 +24,25 @@ public class ViewerState
 
 	private final AffineTransform3D viewerTransform = new AffineTransform3D();
 
-	protected final IntegerProperty timepoint = new SimpleIntegerProperty( 0 );
+	protected final IntegerProperty timepoint = new SimpleIntegerProperty(0);
 
-	protected final IntegerProperty numTimepoints = new SimpleIntegerProperty( 1 );
+	protected final IntegerProperty numTimepoints = new SimpleIntegerProperty(1);
 
-	protected final ObservableList< SourceAndConverter< ? > > sourcesAndConverters = FXCollections.observableArrayList();
+	protected final ObservableList<SourceAndConverter<?>> sourcesAndConverters = FXCollections.observableArrayList();
 
-	protected final ObservableMap< Source< ? >, SourceAndConverter< ? > > sources = asMap( sourcesAndConverters, SourceAndConverter::getSpimSource );
+	protected final ObservableMap<Source<?>, SourceAndConverter<?>> sources = asMap(
+			sourcesAndConverters,
+			SourceAndConverter::getSpimSource
+	                                                                               );
 
-	protected void setViewerTransform( final AffineTransform3D to )
+	protected void setViewerTransform(final AffineTransform3D to)
 	{
-		this.viewerTransform.set( to );
+		this.viewerTransform.set(to);
 	}
 
-	public void getViewerTransform( final AffineTransform3D to )
+	public void getViewerTransform(final AffineTransform3D to)
 	{
-		to.set( this.viewerTransform );
+		to.set(this.viewerTransform);
 	}
 
 	public ReadOnlyIntegerProperty timepointProperty()
@@ -47,55 +50,60 @@ public class ViewerState
 		return this.timepoint;
 	}
 
-	public List< SourceAndConverter< ? > > getSources()
+	public List<SourceAndConverter<?>> getSources()
 	{
-		return Collections.unmodifiableList( sourcesAndConverters );
+		return Collections.unmodifiableList(sourcesAndConverters);
 	}
 
-	public synchronized int getBestMipMapLevel( final AffineTransform3D screenScaleTransform, final Source< ? > source, final int timepoint )
+	public synchronized int getBestMipMapLevel(final AffineTransform3D screenScaleTransform, final Source<?> source,
+	                                           final int timepoint)
 	{
 		final AffineTransform3D screenTransform = new AffineTransform3D();
-		getViewerTransform( screenTransform );
-		screenTransform.preConcatenate( screenScaleTransform );
+		getViewerTransform(screenTransform);
+		screenTransform.preConcatenate(screenScaleTransform);
 
-		return MipmapTransforms.getBestMipMapLevel( screenTransform, source, timepoint );
+		return MipmapTransforms.getBestMipMapLevel(screenTransform, source, timepoint);
 	}
 
-	public synchronized int getBestMipMapLevel( final AffineTransform3D screenScaleTransform, final Source< ? > source )
+	public synchronized int getBestMipMapLevel(final AffineTransform3D screenScaleTransform, final Source<?> source)
 	{
-		return getBestMipMapLevel( screenScaleTransform, source, timepoint.get() );
+		return getBestMipMapLevel(screenScaleTransform, source, timepoint.get());
 	}
 
-	public synchronized int getBestMipMapLevel( final AffineTransform3D screenScaleTransform, final int sourceIndex )
+	public synchronized int getBestMipMapLevel(final AffineTransform3D screenScaleTransform, final int sourceIndex)
 	{
-		return getBestMipMapLevel( screenScaleTransform, sourcesAndConverters.get( sourceIndex ).getSpimSource() );
+		return getBestMipMapLevel(screenScaleTransform, sourcesAndConverters.get(sourceIndex).getSpimSource());
 	}
 
 	public ViewerState copy()
 	{
 		final ViewerState state = new ViewerState();
-		state.viewerTransform.set( viewerTransform );
-		state.timepoint.set( timepoint.get() );
-		state.numTimepoints.set( numTimepoints.get() );
-		state.sourcesAndConverters.setAll( sourcesAndConverters );
+		state.viewerTransform.set(viewerTransform);
+		state.timepoint.set(timepoint.get());
+		state.numTimepoints.set(numTimepoints.get());
+		state.sourcesAndConverters.setAll(sourcesAndConverters);
 		return state;
 	}
 
-	public static < S, T > ObservableList< T > mapObservableList( final ObservableList< ? extends S > source, final Function< S, T > mapping )
+	public static <S, T> ObservableList<T> mapObservableList(final ObservableList<? extends S> source, final
+	Function<S, T> mapping)
 	{
-		final ObservableList< T > target = FXCollections.observableArrayList();
-		source.addListener( ( ListChangeListener< ? super S > ) change -> target.setAll( source.stream().map( mapping ).collect( Collectors.toList() ) ) );
+		final ObservableList<T> target = FXCollections.observableArrayList();
+		source.addListener((ListChangeListener<? super S>) change -> target.setAll(source.stream().map(mapping)
+				.collect(
+				Collectors.toList())));
 		return target;
 	}
 
-	public static < S, T > ObservableMap< T, S > asMap( final ObservableList< ? extends S > source, final Function< S, T > generateKeyFromValue )
+	public static <S, T> ObservableMap<T, S> asMap(final ObservableList<? extends S> source, final Function<S, T>
+			generateKeyFromValue)
 	{
-		final ObservableMap< T, S > target = FXCollections.observableHashMap();
-		source.addListener( ( ListChangeListener< ? super S > ) change -> {
-			final Map< T, S > tmp = new HashMap<>();
-			source.forEach( s -> tmp.put( generateKeyFromValue.apply( s ), s ) );
-			target.putAll( tmp );
-		} );
+		final ObservableMap<T, S> target = FXCollections.observableHashMap();
+		source.addListener((ListChangeListener<? super S>) change -> {
+			final Map<T, S> tmp = new HashMap<>();
+			source.forEach(s -> tmp.put(generateKeyFromValue.apply(s), s));
+			target.putAll(tmp);
+		});
 		return target;
 	}
 

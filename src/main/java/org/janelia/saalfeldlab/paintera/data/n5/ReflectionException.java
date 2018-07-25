@@ -8,9 +8,9 @@ public class ReflectionException extends Exception
 	 */
 	private static final long serialVersionUID = 2335784633578733328L;
 
-	public ReflectionException( final Throwable cause )
+	public ReflectionException(final Throwable cause)
 	{
-		super( cause );
+		super(cause);
 	}
 
 }

@@ -6,6 +6,9 @@ import java.util.Arrays;
 import java.util.function.Supplier;
 import java.util.function.ToIntFunction;
 
+import com.google.gson.JsonObject;
+import com.google.gson.JsonSerializationContext;
+import com.google.gson.JsonSerializer;
 import org.janelia.saalfeldlab.paintera.serialization.StatefulSerializer;
 import org.janelia.saalfeldlab.paintera.state.SourceState;
 import org.janelia.saalfeldlab.paintera.state.ThresholdingSourceState;
@@ -13,14 +16,10 @@ import org.janelia.saalfeldlab.util.Colors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.google.gson.JsonObject;
-import com.google.gson.JsonSerializationContext;
-import com.google.gson.JsonSerializer;
-
-public class ThresholdingSourceStateSerializer implements JsonSerializer< ThresholdingSourceState< ?, ? > >
+public class ThresholdingSourceStateSerializer implements JsonSerializer<ThresholdingSourceState<?, ?>>
 {
 
-	private static final Logger LOG = LoggerFactory.getLogger( MethodHandles.lookup().lookupClass() );
+	private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
 	public static final String NAME_KEY = "name";
 
@@ -32,37 +31,39 @@ public class ThresholdingSourceStateSerializer implements JsonSerializer< Thresh
 
 	public static final String BACKGROUND_COLOR_KEY = "background";
 
-	private final ToIntFunction< SourceState< ?, ? > > stateToIndex;
+	private final ToIntFunction<SourceState<?, ?>> stateToIndex;
 
-	public ThresholdingSourceStateSerializer( final ToIntFunction< SourceState< ?, ? > > stateToIndex )
+	public ThresholdingSourceStateSerializer(final ToIntFunction<SourceState<?, ?>> stateToIndex)
 	{
 		super();
 		this.stateToIndex = stateToIndex;
 	}
 
-	public static class Factory implements StatefulSerializer.Serializer< ThresholdingSourceState< ?, ? >, ThresholdingSourceStateSerializer >
+	public static class Factory
+			implements StatefulSerializer.Serializer<ThresholdingSourceState<?, ?>, ThresholdingSourceStateSerializer>
 	{
 
 		@Override
 		public ThresholdingSourceStateSerializer createSerializer(
-				final Supplier< String > projectDirectory,
-				final ToIntFunction< SourceState< ?, ? > > stateToIndex )
+				final Supplier<String> projectDirectory,
+				final ToIntFunction<SourceState<?, ?>> stateToIndex)
 		{
-			return new ThresholdingSourceStateSerializer( stateToIndex );
+			return new ThresholdingSourceStateSerializer(stateToIndex);
 		}
 
 	}
 
 	@Override
-	public JsonObject serialize( final ThresholdingSourceState< ?, ? > state, final Type type, final JsonSerializationContext context )
+	public JsonObject serialize(final ThresholdingSourceState<?, ?> state, final Type type, final
+	JsonSerializationContext context)
 	{
 		final JsonObject map = new JsonObject();
-		map.addProperty( NAME_KEY, state.nameProperty().get() );
-		map.add( DEPENDS_ON_KEY, context.serialize( Arrays.stream( state.dependsOn() ).mapToInt( stateToIndex ).toArray() ) );
+		map.addProperty(NAME_KEY, state.nameProperty().get());
+		map.add(DEPENDS_ON_KEY, context.serialize(Arrays.stream(state.dependsOn()).mapToInt(stateToIndex).toArray()));
 		final JsonObject converterMap = new JsonObject();
-		converterMap.addProperty( FOREGROUND_COLOR_KEY, Colors.toHTML( state.converter().getMasked() ) );
-		converterMap.addProperty( BACKGROUND_COLOR_KEY, Colors.toHTML( state.converter().getNotMasked() ) );
-		map.add( CONVERTER_KEY, converterMap );
+		converterMap.addProperty(FOREGROUND_COLOR_KEY, Colors.toHTML(state.converter().getMasked()));
+		converterMap.addProperty(BACKGROUND_COLOR_KEY, Colors.toHTML(state.converter().getNotMasked()));
+		map.add(CONVERTER_KEY, converterMap);
 		return map;
 	}
 

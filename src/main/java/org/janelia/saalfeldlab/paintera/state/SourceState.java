@@ -1,8 +1,5 @@
 package org.janelia.saalfeldlab.paintera.state;
 
-import org.janelia.saalfeldlab.paintera.composition.Composite;
-import org.janelia.saalfeldlab.paintera.data.DataSource;
-
 import bdv.viewer.Interpolation;
 import bdv.viewer.SourceAndConverter;
 import javafx.beans.property.BooleanProperty;
@@ -11,15 +8,17 @@ import javafx.beans.property.StringProperty;
 import javafx.beans.value.ObservableBooleanValue;
 import net.imglib2.converter.Converter;
 import net.imglib2.type.numeric.ARGBType;
+import org.janelia.saalfeldlab.paintera.composition.Composite;
+import org.janelia.saalfeldlab.paintera.data.DataSource;
 
-public interface SourceState< D, T >
+public interface SourceState<D, T>
 {
 
-	public DataSource< D, T > getDataSource();
+	public DataSource<D, T> getDataSource();
 
-	public Converter< T, ARGBType > converter();
+	public Converter<T, ARGBType> converter();
 
-	public ObjectProperty< Composite< ARGBType, ARGBType > > compositeProperty();
+	public ObjectProperty<Composite<ARGBType, ARGBType>> compositeProperty();
 
 	public StringProperty nameProperty();
 
@@ -27,9 +26,9 @@ public interface SourceState< D, T >
 
 	public ObservableBooleanValue isDirtyProperty();
 
-	public ObjectProperty< Interpolation > interpolationProperty();
+	public ObjectProperty<Interpolation> interpolationProperty();
 
-	public SourceState< ?, ? >[] dependsOn();
+	public SourceState<?, ?>[] dependsOn();
 
 	public void stain();
 
@@ -37,9 +36,9 @@ public interface SourceState< D, T >
 
 	public boolean isDirty();
 
-	public default SourceAndConverter< T > getSourceAndConverter()
+	public default SourceAndConverter<T> getSourceAndConverter()
 	{
-		return new SourceAndConverter<>( getDataSource(), converter() );
+		return new SourceAndConverter<>(getDataSource(), converter());
 	}
 
 }

@@ -37,22 +37,24 @@ package tmp.net.imglib2.algorithm.neighborhood;
 import net.imglib2.RandomAccess;
 import net.imglib2.algorithm.neighborhood.Neighborhood;
 
-public final class HyperEllipsoidNeighborhoodUnsafe< T > extends HyperEllipsoidNeighborhood< T >
+public final class HyperEllipsoidNeighborhoodUnsafe<T> extends HyperEllipsoidNeighborhood<T>
 {
-	public static < T > HyperEllipsoidNeighborhoodFactory< T > factory()
+	public static <T> HyperEllipsoidNeighborhoodFactory<T> factory()
 	{
-		return new HyperEllipsoidNeighborhoodFactory< T >()
+		return new HyperEllipsoidNeighborhoodFactory<T>()
 		{
 			@Override
-			public Neighborhood< T > create( final long[] position, final long[] radius, final RandomAccess< T > sourceRandomAccess )
+			public Neighborhood<T> create(final long[] position, final long[] radius, final RandomAccess<T>
+					sourceRandomAccess)
 			{
-				return new HyperEllipsoidNeighborhoodUnsafe< T >( position, radius, sourceRandomAccess );
+				return new HyperEllipsoidNeighborhoodUnsafe<T>(position, radius, sourceRandomAccess);
 			}
 
 			@Override
-			public Neighborhood< T > create( final long[] position, final long radius, final RandomAccess< T > sourceRandomAccess )
+			public Neighborhood<T> create(final long[] position, final long radius, final RandomAccess<T>
+					sourceRandomAccess)
 			{
-				return new HyperEllipsoidNeighborhoodUnsafe< T >( position, radius, sourceRandomAccess );
+				return new HyperEllipsoidNeighborhoodUnsafe<T>(position, radius, sourceRandomAccess);
 			}
 		};
 	}
@@ -61,14 +63,16 @@ public final class HyperEllipsoidNeighborhoodUnsafe< T > extends HyperEllipsoidN
 
 	private final LocalCursor firstElementCursor;
 
-	HyperEllipsoidNeighborhoodUnsafe( final long[] position, final long radius, final RandomAccess< T > sourceRandomAccess )
+	HyperEllipsoidNeighborhoodUnsafe(final long[] position, final long radius, final RandomAccess<T>
+			sourceRandomAccess)
 	{
-		this( position, HyperEllipsoidNeighborhoodFactory.arrayOf( radius, position.length ), sourceRandomAccess );
+		this(position, HyperEllipsoidNeighborhoodFactory.arrayOf(radius, position.length), sourceRandomAccess);
 	}
 
-	HyperEllipsoidNeighborhoodUnsafe( final long[] position, final long[] radius, final RandomAccess< T > sourceRandomAccess )
+	HyperEllipsoidNeighborhoodUnsafe(final long[] position, final long[] radius, final RandomAccess<T>
+			sourceRandomAccess)
 	{
-		super( position, radius, sourceRandomAccess );
+		super(position, radius, sourceRandomAccess);
 		theCursor = super.cursor();
 		firstElementCursor = super.cursor();
 	}

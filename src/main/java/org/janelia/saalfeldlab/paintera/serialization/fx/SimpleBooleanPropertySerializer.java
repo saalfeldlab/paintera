@@ -10,24 +10,27 @@ import com.google.gson.JsonParseException;
 import com.google.gson.JsonPrimitive;
 import com.google.gson.JsonSerializationContext;
 import com.google.gson.JsonSerializer;
-
 import javafx.beans.property.SimpleBooleanProperty;
 
 public class SimpleBooleanPropertySerializer implements
-		JsonSerializer< SimpleBooleanProperty >,
-		JsonDeserializer< SimpleBooleanProperty >
+                                             JsonSerializer<SimpleBooleanProperty>,
+                                             JsonDeserializer<SimpleBooleanProperty>
 {
 
 	@Override
-	public SimpleBooleanProperty deserialize( final JsonElement json, final Type typeOfT, final JsonDeserializationContext context ) throws JsonParseException
+	public SimpleBooleanProperty deserialize(final JsonElement json, final Type typeOfT, final
+	JsonDeserializationContext context)
+	throws JsonParseException
 	{
-		return new SimpleBooleanProperty( Optional.ofNullable( ( Boolean ) context.deserialize( json, boolean.class ) ).orElse( false ) );
+		return new SimpleBooleanProperty(Optional.ofNullable((Boolean) context.deserialize(json, boolean.class))
+				.orElse(
+				false));
 	}
 
 	@Override
-	public JsonElement serialize( final SimpleBooleanProperty src, final Type typeOfSrc, final JsonSerializationContext context )
+	public JsonElement serialize(final SimpleBooleanProperty src, final Type typeOfSrc, final JsonSerializationContext context)
 	{
-		return new JsonPrimitive( src.get() );
+		return new JsonPrimitive(src.get());
 	}
 
 }

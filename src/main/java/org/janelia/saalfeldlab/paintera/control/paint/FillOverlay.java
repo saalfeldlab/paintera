@@ -2,9 +2,6 @@ package org.janelia.saalfeldlab.paintera.control.paint;
 
 import java.lang.invoke.MethodHandles;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import bdv.fx.viewer.OverlayRendererGeneric;
 import bdv.fx.viewer.ViewerPanelFX;
 import javafx.scene.Cursor;
@@ -12,11 +9,13 @@ import javafx.scene.canvas.GraphicsContext;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.paint.Color;
 import javafx.scene.text.Font;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-public class FillOverlay implements OverlayRendererGeneric< GraphicsContext >
+public class FillOverlay implements OverlayRendererGeneric<GraphicsContext>
 {
 
-	private static final Logger LOG = LoggerFactory.getLogger( MethodHandles.lookup().lookupClass() );
+	private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
 	private final ViewerPanelFX viewer;
 
@@ -26,20 +25,20 @@ public class FillOverlay implements OverlayRendererGeneric< GraphicsContext >
 
 	protected boolean wasVisible = false;
 
-	public FillOverlay( final ViewerPanelFX viewer )
+	public FillOverlay(final ViewerPanelFX viewer)
 	{
 		this.viewer = viewer;
-		this.viewer.getDisplay().addOverlayRenderer( this );
-		this.viewer.addEventFilter( MouseEvent.MOUSE_MOVED, this::setPosition );
-		this.viewer.addEventFilter( MouseEvent.MOUSE_DRAGGED, this::setPosition );
+		this.viewer.getDisplay().addOverlayRenderer(this);
+		this.viewer.addEventFilter(MouseEvent.MOUSE_MOVED, this::setPosition);
+		this.viewer.addEventFilter(MouseEvent.MOUSE_DRAGGED, this::setPosition);
 
 	}
 
-	public void setVisible( final boolean visible )
+	public void setVisible(final boolean visible)
 	{
-		if ( visible != this.visible )
+		if (visible != this.visible)
 		{
-			if ( this.visible )
+			if (this.visible)
 			{
 				this.wasVisible = true;
 			}
@@ -48,12 +47,12 @@ public class FillOverlay implements OverlayRendererGeneric< GraphicsContext >
 		}
 	}
 
-	public void setPosition( final MouseEvent event )
+	public void setPosition(final MouseEvent event)
 	{
-		setPosition( event.getX(), event.getY() );
+		setPosition(event.getX(), event.getY());
 	}
 
-	public void setPosition( final double x, final double y )
+	public void setPosition(final double x, final double y)
 	{
 		this.x = x;
 		this.y = y;
@@ -61,30 +60,31 @@ public class FillOverlay implements OverlayRendererGeneric< GraphicsContext >
 	}
 
 	@Override
-	public void drawOverlays( final GraphicsContext g )
+	public void drawOverlays(final GraphicsContext g)
 	{
 
-		if ( visible && this.viewer.isMouseInside() )
+		if (visible && this.viewer.isMouseInside())
 		{
 
 			{
-				this.viewer.getScene().setCursor( Cursor.CROSSHAIR );
-				g.setFill( Color.WHITE );
-				g.setFont( Font.font( g.getFont().getFamily(), 15.0 ) );
-				g.fillText( "Fill 3D", x + 5, y - 5 );
-//				this.viewer.getScene().setCursor( Cursor.NONE );
+				this.viewer.getScene().setCursor(Cursor.CROSSHAIR);
+				g.setFill(Color.WHITE);
+				g.setFont(Font.font(g.getFont().getFamily(), 15.0));
+				g.fillText("Fill 3D", x + 5, y - 5);
+				//				this.viewer.getScene().setCursor( Cursor.NONE );
 				return;
 			}
 		}
-		if ( wasVisible )
+		if (wasVisible)
 		{
-			this.viewer.getScene().setCursor( Cursor.DEFAULT );
+			this.viewer.getScene().setCursor(Cursor.DEFAULT);
 			wasVisible = false;
 		}
 	}
 
 	@Override
-	public void setCanvasSize( final int width, final int height )
-	{}
+	public void setCanvasSize(final int width, final int height)
+	{
+	}
 
 }

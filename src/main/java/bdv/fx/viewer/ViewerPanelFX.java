@@ -65,26 +65,24 @@ import net.imglib2.ui.PainterThread;
 import net.imglib2.ui.TransformListener;
 
 /**
- * A JPanel for viewing multiple of {@link Source}s. The panel contains a
- * {@link InteractiveDisplayPaneComponent canvas} and a time slider (if there
- * are multiple time-points). Maintains a {@link ViewerState render state}, the
- * renderer, and basic navigation help overlays. It has it's own
- * {@link PainterThread} for painting, which is started on construction (use
- * {@link #stop() to stop the PainterThread}.
+ * A JPanel for viewing multiple of {@link Source}s. The panel contains a {@link InteractiveDisplayPaneComponent canvas}
+ * and a time slider (if there are multiple time-points). Maintains a {@link ViewerState render state}, the renderer,
+ * and basic navigation help overlays. It has it's own {@link PainterThread} for painting, which is started on
+ * construction (use {@link #stop() to stop the PainterThread}.
  *
  * @author Tobias Pietzsch &lt;tobias.pietzsch@gmail.com&gt;
  * @author Philipp Hanslovsky
  */
 public class ViewerPanelFX
 		extends BorderPane
-		implements OverlayRendererGeneric< GraphicsContext >,
-		TransformListener< AffineTransform3D >,
-		PainterThread.Paintable,
-		RequestRepaint
+		implements OverlayRendererGeneric<GraphicsContext>,
+		           TransformListener<AffineTransform3D>,
+		           PainterThread.Paintable,
+		           RequestRepaint
 {
 	/**
-	 * Currently rendered state (visible sources, transformation, timepoint,
-	 * etc.) A copy can be obtained by {@link #getState()}.
+	 * Currently rendered state (visible sources, transformation, timepoint, etc.) A copy can be obtained by {@link
+	 * #getState()}.
 	 */
 	protected final ViewerState state = new ViewerState();
 
@@ -104,15 +102,13 @@ public class ViewerPanelFX
 	protected final AffineTransform3D viewerTransform;
 
 	/**
-	 * Canvas used for displaying the rendered {@link #renderTarget image} and
-	 * overlays.
+	 * Canvas used for displaying the rendered {@link #renderTarget image} and overlays.
 	 */
-	protected final InteractiveDisplayPaneComponent< AffineTransform3D > display;
+	protected final InteractiveDisplayPaneComponent<AffineTransform3D> display;
 
 	/**
-	 * A {@link ThreadGroup} for (only) the threads used by this
-	 * {@link ViewerPanelFX}, that is, {@link #painterThread} and
-	 * {@link #renderingExecutorService}.
+	 * A {@link ThreadGroup} for (only) the threads used by this {@link ViewerPanelFX}, that is, {@link #painterThread}
+	 * and {@link #renderingExecutorService}.
 	 */
 	protected ThreadGroup threadGroup;
 
@@ -129,26 +125,22 @@ public class ViewerPanelFX
 	protected final ExecutorService renderTargetExecutorService;
 
 	/**
-	 * These listeners will be notified about changes to the
-	 * {@link #viewerTransform}. This is done <em>before</em> calling
-	 * {@link #requestRepaint()} so listeners have the chance to interfere.
+	 * These listeners will be notified about changes to the {@link #viewerTransform}. This is done <em>before</em>
+	 * calling {@link #requestRepaint()} so listeners have the chance to interfere.
 	 */
-	protected final CopyOnWriteArrayList< TransformListener< AffineTransform3D > > transformListeners;
+	protected final CopyOnWriteArrayList<TransformListener<AffineTransform3D>> transformListeners;
 
 	/**
-	 * These listeners will be notified about changes to the
-	 * {@link #viewerTransform} that was used to render the current image. This
-	 * is intended for example for {@link OverlayRendererGeneric}s that need to
-	 * exactly match the transform of their overlaid content to the transform of
-	 * the image.
+	 * These listeners will be notified about changes to the {@link #viewerTransform} that was used to render the
+	 * current image. This is intended for example for {@link OverlayRendererGeneric}s that need to exactly match the
+	 * transform of their overlaid content to the transform of the image.
 	 */
-	protected final CopyOnWriteArrayList< TransformListener< AffineTransform3D > > lastRenderTransformListeners;
+	protected final CopyOnWriteArrayList<TransformListener<AffineTransform3D>> lastRenderTransformListeners;
 
 	/**
-	 * These listeners will be notified about changes to the current timepoint
-	 * {@link ViewerState#getCurrentTimepoint()}. This is done <em>before</em>
-	 * calling {@link #requestRepaint()} so listeners have the chance to
-	 * interfere.
+	 * These listeners will be notified about changes to the current timepoint {@link
+	 * ViewerState#getCurrentTimepoint()}. This is done <em>before</em> calling {@link #requestRepaint()} so listeners
+	 * have the chance to interfere.
 	 */
 	protected final ViewerOptions.Values options;
 
@@ -158,80 +150,84 @@ public class ViewerPanelFX
 
 	protected final SimpleBooleanProperty isInside = new SimpleBooleanProperty();
 
-	private final Function< Source< ? >, Interpolation > interpolation;
+	private final Function<Source<?>, Interpolation> interpolation;
 
 	public ViewerPanelFX(
-			final List< SourceAndConverter< ? > > sources,
+			final List<SourceAndConverter<?>> sources,
 			final int numTimePoints,
 			final CacheControl cacheControl,
-			final Function< Source< ? >, Interpolation > interpolation )
+			final Function<Source<?>, Interpolation> interpolation)
 	{
-		this( sources, numTimePoints, cacheControl, ViewerOptions.options(), interpolation );
+		this(sources, numTimePoints, cacheControl, ViewerOptions.options(), interpolation);
 	}
 
 	/**
 	 * @param cacheControl
-	 *            to control IO budgeting and fetcher queue.
+	 * 		to control IO budgeting and fetcher queue.
 	 * @param optional
-	 *            optional parameters. See {@link ViewerOptions#options()}.
+	 * 		optional parameters. See {@link ViewerOptions#options()}.
 	 */
-	public ViewerPanelFX( final CacheControl cacheControl, final ViewerOptions optional, final Function< Source< ? >, Interpolation > interpolation )
+	public ViewerPanelFX(final CacheControl cacheControl, final ViewerOptions optional, final Function<Source<?>,
+			Interpolation> interpolation)
 	{
-		this( 1, cacheControl, optional, interpolation );
+		this(1, cacheControl, optional, interpolation);
 	}
 
 	/**
 	 * @param numTimepoints
-	 *            number of available timepoints.
+	 * 		number of available timepoints.
 	 * @param cacheControl
-	 *            to control IO budgeting and fetcher queue.
+	 * 		to control IO budgeting and fetcher queue.
 	 * @param optional
-	 *            optional parameters. See {@link ViewerOptions#options()}.
+	 * 		optional parameters. See {@link ViewerOptions#options()}.
 	 */
-	public ViewerPanelFX( final int numTimepoints, final CacheControl cacheControl, final ViewerOptions optional, final Function< Source< ? >, Interpolation > interpolation )
+	public ViewerPanelFX(final int numTimepoints, final CacheControl cacheControl, final ViewerOptions optional,
+	                     final Function<Source<?>, Interpolation> interpolation)
 	{
-		this( new ArrayList<>(), numTimepoints, cacheControl, optional, interpolation );
+		this(new ArrayList<>(), numTimepoints, cacheControl, optional, interpolation);
 	}
 
 	/**
 	 * @param sources
-	 *            the {@link SourceAndConverter sources} to display.
+	 * 		the {@link SourceAndConverter sources} to display.
 	 * @param numTimepoints
-	 *            number of available timepoints.
+	 * 		number of available timepoints.
 	 * @param cacheControl
-	 *            to control IO budgeting and fetcher queue.
+	 * 		to control IO budgeting and fetcher queue.
 	 * @param optional
-	 *            optional parameters. See {@link ViewerOptions#options()}.
+	 * 		optional parameters. See {@link ViewerOptions#options()}.
 	 */
 	public ViewerPanelFX(
-			final List< SourceAndConverter< ? > > sources,
+			final List<SourceAndConverter<?>> sources,
 			final int numTimepoints,
 			final CacheControl cacheControl,
 			final ViewerOptions optional,
-			final Function< Source< ? >, Interpolation > interpolation )
+			final Function<Source<?>, Interpolation> interpolation)
 	{
 		super();
 		options = optional.values;
-		setWidth( options.getWidth() );
-		setHeight( options.getHeight() );
+		setWidth(options.getWidth());
+		setHeight(options.getHeight());
 
-		state.numTimepoints.set( numTimepoints );
+		state.numTimepoints.set(numTimepoints);
 
-		threadGroup = new ThreadGroup( this.toString() );
-		painterThread = new PainterThread( threadGroup, this );
+		threadGroup = new ThreadGroup(this.toString());
+		painterThread = new PainterThread(threadGroup, this);
 		viewerTransform = new AffineTransform3D();
-		renderTargetExecutorService = Executors.newFixedThreadPool( 3 );
+		renderTargetExecutorService = Executors.newFixedThreadPool(3);
 		renderTarget = new TransformAwareBufferedImageOverlayRendererFX();
 		display = new InteractiveDisplayPaneComponent<>(
 				options.getWidth(),
 				options.getHeight(),
-				renderTarget );
-		renderTarget.setCanvasSize( options.getWidth(), options.getHeight() );
-		display.addOverlayRenderer( this );
+				renderTarget
+		);
+		renderTarget.setCanvasSize(options.getWidth(), options.getHeight());
+		display.addOverlayRenderer(this);
 
 		renderingExecutorService = Executors.newFixedThreadPool(
 				options.getNumRenderingThreads(),
-				new RenderThreadFactory() );
+				new RenderThreadFactory()
+		                                                       );
 		imageRenderer = new MultiResolutionRendererFX(
 				renderTarget,
 				painterThread,
@@ -242,173 +238,171 @@ public class ViewerPanelFX
 				renderingExecutorService,
 				options.isUseVolatileIfAvailable(),
 				options.getAccumulateProjectorFactory(),
-				cacheControl );
+				cacheControl
+		);
 
-		display.setMinSize( 0, 0 );
-		setCenter( display );
+		display.setMinSize(0, 0);
+		setCenter(display);
 
 		transformListeners = new CopyOnWriteArrayList<>();
 		lastRenderTransformListeners = new CopyOnWriteArrayList<>();
 
 		this.interpolation = interpolation;
 
-		state.sourcesAndConverters.addListener( ( ListChangeListener< SourceAndConverter< ? > > ) c -> requestRepaint() );
+		state.sourcesAndConverters.addListener((ListChangeListener<SourceAndConverter<?>>) c -> requestRepaint());
 
-		addEventFilter( MouseEvent.MOUSE_MOVED, event -> {
-			synchronized ( isInside )
+		addEventFilter(MouseEvent.MOUSE_MOVED, event -> {
+			synchronized (isInside)
 			{
-				if ( isInside.get() )
+				if (isInside.get())
 				{
-					mouseX.set( event.getX() );
-					mouseY.set( event.getY() );
+					mouseX.set(event.getX());
+					mouseY.set(event.getY());
 				}
 			}
-		} );
-		addEventFilter( MouseEvent.MOUSE_ENTERED, event -> {
-			synchronized ( isInside )
+		});
+		addEventFilter(MouseEvent.MOUSE_ENTERED, event -> {
+			synchronized (isInside)
 			{
-				isInside.set( true );
+				isInside.set(true);
 			}
-		} );
-		addEventFilter( MouseEvent.MOUSE_EXITED, event -> {
-			synchronized ( isInside )
+		});
+		addEventFilter(MouseEvent.MOUSE_EXITED, event -> {
+			synchronized (isInside)
 			{
-				isInside.set( false );
+				isInside.set(false);
 			}
-		} );
+		});
 
-		final ChangeListener< Number > initialListener = new ChangeListener< Number >()
+		final ChangeListener<Number> initialListener = new ChangeListener<Number>()
 		{
 
 			@Override
-			public void changed( final ObservableValue< ? extends Number > observable, final Number oldValue, final Number newValue )
+			public void changed(final ObservableValue<? extends Number> observable, final Number oldValue, final
+			Number newValue)
 			{
 				requestRepaint();
-				synchronized ( display )
+				synchronized (display)
 				{
-					display.widthProperty().removeListener( this );
-					display.heightProperty().removeListener( this );
+					display.widthProperty().removeListener(this);
+					display.heightProperty().removeListener(this);
 				}
 			}
 
 		};
 
-		synchronized ( display )
+		synchronized (display)
 		{
-			display.widthProperty().addListener( initialListener );
-			display.heightProperty().addListener( initialListener );
+			display.widthProperty().addListener(initialListener);
+			display.heightProperty().addListener(initialListener);
 		}
 
 		painterThread.start();
 	}
 
-	public void addSource( final SourceAndConverter< ? > sourceAndConverter )
+	public void addSource(final SourceAndConverter<?> sourceAndConverter)
 	{
-		synchronized ( state )
+		synchronized (state)
 		{
-			state.sourcesAndConverters.add( sourceAndConverter );
+			state.sourcesAndConverters.add(sourceAndConverter);
 		}
 	}
 
-	public void addSources( final Collection< ? extends SourceAndConverter< ? > > sourceAndConverter )
+	public void addSources(final Collection<? extends SourceAndConverter<?>> sourceAndConverter)
 	{
-		synchronized ( state )
+		synchronized (state)
 		{
-			state.sourcesAndConverters.addAll( sourceAndConverter );
+			state.sourcesAndConverters.addAll(sourceAndConverter);
 		}
 	}
 
-	public void removeSource( final Source< ? > source )
+	public void removeSource(final Source<?> source)
 	{
-		synchronized ( state )
+		synchronized (state)
 		{
-			state.sourcesAndConverters.remove( state.sources.get( source ) );
+			state.sourcesAndConverters.remove(state.sources.get(source));
 		}
 	}
 
-	public void removeSources( final Collection< Source< ? > > sources )
+	public void removeSources(final Collection<Source<?>> sources)
 	{
-		synchronized ( state )
+		synchronized (state)
 		{
-			state.sourcesAndConverters.removeAll( sources.stream().map( state.sources::get ).collect( Collectors.toList() ) );
+			state.sourcesAndConverters.removeAll(sources.stream().map(state.sources::get).collect(Collectors.toList
+					()));
 		}
 	}
 
 	public void removeAllSources()
 	{
-		synchronized ( state )
+		synchronized (state)
 		{
 			this.state.sourcesAndConverters.clear();
 		}
 	}
 
-	public void setAllSources( final Collection< ? extends SourceAndConverter< ? > > sources )
+	public void setAllSources(final Collection<? extends SourceAndConverter<?>> sources)
 	{
-		synchronized ( state )
+		synchronized (state)
 		{
-			this.state.sourcesAndConverters.setAll( sources );
+			this.state.sourcesAndConverters.setAll(sources);
 		}
 	}
 
 	/**
-	 * Set {@code gPos} to the display coordinates at gPos transformed into the
-	 * global coordinate system.
+	 * Set {@code gPos} to the display coordinates at gPos transformed into the global coordinate system.
 	 *
 	 * @param gPos
-	 *            is set to the corresponding global coordinates.
+	 * 		is set to the corresponding global coordinates.
 	 */
-	public < P extends RealLocalizable & RealPositionable > void displayToGlobalCoordinates( final double[] gPos )
+	public <P extends RealLocalizable & RealPositionable> void displayToGlobalCoordinates(final double[] gPos)
 	{
 		assert gPos.length >= 3;
 
-		viewerTransform.applyInverse( gPos, gPos );
+		viewerTransform.applyInverse(gPos, gPos);
 	}
 
 	/**
-	 * Set {@code gPos} to the display coordinates at gPos transformed into the
-	 * global coordinate system.
+	 * Set {@code gPos} to the display coordinates at gPos transformed into the global coordinate system.
 	 *
 	 * @param gPos
-	 *            is set to the corresponding global coordinates.
+	 * 		is set to the corresponding global coordinates.
 	 */
-	public < P extends RealLocalizable & RealPositionable > void displayToGlobalCoordinates( final P gPos )
+	public <P extends RealLocalizable & RealPositionable> void displayToGlobalCoordinates(final P gPos)
 	{
 		assert gPos.numDimensions() >= 3;
 
-		viewerTransform.applyInverse( gPos, gPos );
+		viewerTransform.applyInverse(gPos, gPos);
 	}
 
 	/**
-	 * Set {@code gPos} to the display coordinates (x,y,0)<sup>T</sup>
-	 * transformed into the global coordinate system.
+	 * Set {@code gPos} to the display coordinates (x,y,0)<sup>T</sup> transformed into the global coordinate system.
 	 *
 	 * @param gPos
-	 *            is set to the global coordinates at display
-	 *            (x,y,0)<sup>T</sup>.
+	 * 		is set to the global coordinates at display (x,y,0)<sup>T</sup>.
 	 */
-	public void displayToGlobalCoordinates( final double x, final double y, final RealPositionable gPos )
+	public void displayToGlobalCoordinates(final double x, final double y, final RealPositionable gPos)
 	{
 		assert gPos.numDimensions() >= 3;
-		final RealPoint lPos = new RealPoint( 3 );
-		lPos.setPosition( x, 0 );
-		lPos.setPosition( y, 1 );
-		viewerTransform.applyInverse( gPos, lPos );
+		final RealPoint lPos = new RealPoint(3);
+		lPos.setPosition(x, 0);
+		lPos.setPosition(y, 1);
+		viewerTransform.applyInverse(gPos, lPos);
 	}
 
 	/**
-	 * Set {@code gPos} to the current mouse coordinates transformed into the
-	 * global coordinate system.
+	 * Set {@code gPos} to the current mouse coordinates transformed into the global coordinate system.
 	 *
 	 * @param gPos
-	 *            is set to the current global coordinates.
+	 * 		is set to the current global coordinates.
 	 */
-	public void getGlobalMouseCoordinates( final RealPositionable gPos )
+	public void getGlobalMouseCoordinates(final RealPositionable gPos)
 	{
 		assert gPos.numDimensions() == 3;
-		final RealPoint lPos = new RealPoint( 3 );
-		lPos.setPosition( mouseX.longValue(), 0 );
-		lPos.setPosition( mouseY.longValue(), 1 );
-		viewerTransform.applyInverse( gPos, lPos );
+		final RealPoint lPos = new RealPoint(3);
+		lPos.setPosition(mouseX.longValue(), 0);
+		lPos.setPosition(mouseY.longValue(), 1);
+		viewerTransform.applyInverse(gPos, lPos);
 	}
 
 	/**
@@ -416,25 +410,25 @@ public class ViewerPanelFX
 	 *
 	 * @param p
 	 */
-	public synchronized void getMouseCoordinates( final Positionable p )
+	public synchronized void getMouseCoordinates(final Positionable p)
 	{
 		assert p.numDimensions() == 2;
-		p.setPosition( mouseX.longValue(), 0 );
-		p.setPosition( mouseY.longValue(), 1 );
+		p.setPosition(mouseX.longValue(), 0);
+		p.setPosition(mouseY.longValue(), 1);
 	}
 
 	@Override
 	public void paint()
 	{
 
-		ArrayList< SourceAndConverter< ? > > sources = new ArrayList<>();
-		int timepoint;
-		AffineTransform3D viewerTransform = new AffineTransform3D();
-		synchronized ( state )
+		ArrayList<SourceAndConverter<?>> sources = new ArrayList<>();
+		int                              timepoint;
+		AffineTransform3D                viewerTransform = new AffineTransform3D();
+		synchronized (state)
 		{
-			sources.addAll( state.getSources() );
+			sources.addAll(state.getSources());
 			timepoint = state.timepoint.get();
-			state.getViewerTransform( viewerTransform );
+			state.getViewerTransform(viewerTransform);
 		}
 
 		imageRenderer.paint(
@@ -442,7 +436,8 @@ public class ViewerPanelFX
 				timepoint,
 				viewerTransform,
 				interpolation,
-				null );
+				null
+		                   );
 
 		display.repaint();
 	}
@@ -453,49 +448,49 @@ public class ViewerPanelFX
 	@Override
 	public void requestRepaint()
 	{
-		if ( isVisible() )
+		if (isVisible())
 			imageRenderer.requestRepaint();
 	}
 
 	@Override
-	public synchronized void transformChanged( final AffineTransform3D transform )
+	public synchronized void transformChanged(final AffineTransform3D transform)
 	{
-		viewerTransform.set( transform );
-		state.setViewerTransform( transform );
-		for ( final TransformListener< AffineTransform3D > l : transformListeners )
-			l.transformChanged( viewerTransform );
+		viewerTransform.set(transform);
+		state.setViewerTransform(transform);
+		for (final TransformListener<AffineTransform3D> l : transformListeners)
+			l.transformChanged(viewerTransform);
 		requestRepaint();
 	}
 
 	/**
 	 * Set the viewer transform.
 	 */
-	public synchronized void setCurrentViewerTransform( final AffineTransform3D viewerTransform )
+	public synchronized void setCurrentViewerTransform(final AffineTransform3D viewerTransform)
 	{
-		transformChanged( viewerTransform );
+		transformChanged(viewerTransform);
 	}
 
 	/**
 	 * Show the specified time-point.
 	 *
 	 * @param timepoint
-	 *            time-point index.
+	 * 		time-point index.
 	 */
-	public synchronized void setTimepoint( final int timepoint )
+	public synchronized void setTimepoint(final int timepoint)
 	{
-		state.timepoint.set( timepoint );
+		state.timepoint.set(timepoint);
 	}
 
-	public void setNumTimepoints( final int numTimepoints )
+	public void setNumTimepoints(final int numTimepoints)
 	{
 
-		if ( numTimepoints < 1 || state.numTimepoints.get() == numTimepoints )
+		if (numTimepoints < 1 || state.numTimepoints.get() == numTimepoints)
 			return;
-		state.numTimepoints.set( numTimepoints );
-		if ( state.numTimepoints.get() >= numTimepoints )
+		state.numTimepoints.set(numTimepoints);
+		if (state.numTimepoints.get() >= numTimepoints)
 		{
 			final int timepoint = numTimepoints - 1;
-			state.timepoint.set( timepoint );
+			state.timepoint.set(timepoint);
 		}
 		requestRepaint();
 	}
@@ -515,75 +510,69 @@ public class ViewerPanelFX
 	 *
 	 * @return the viewer canvas.
 	 */
-	public InteractiveDisplayPaneComponent< AffineTransform3D > getDisplay()
+	public InteractiveDisplayPaneComponent<AffineTransform3D> getDisplay()
 	{
 		return display;
 	}
 
 	/**
-	 * Add a {@link TransformListener} to notify about viewer transformation
-	 * changes. Listeners will be notified when a new image has been painted
-	 * with the viewer transform used to render that image.
-	 *
-	 * This happens immediately after that image is painted onto the screen,
-	 * before any overlays are painted.
+	 * Add a {@link TransformListener} to notify about viewer transformation changes. Listeners will be notified when a
+	 * new image has been painted with the viewer transform used to render that image.
+	 * <p>
+	 * This happens immediately after that image is painted onto the screen, before any overlays are painted.
 	 *
 	 * @param listener
-	 *            the transform listener to add.
+	 * 		the transform listener to add.
 	 */
-	public void addRenderTransformListener( final TransformListener< AffineTransform3D > listener )
+	public void addRenderTransformListener(final TransformListener<AffineTransform3D> listener)
 	{
-		renderTarget.addTransformListener( listener );
+		renderTarget.addTransformListener(listener);
 	}
 
 	/**
-	 * Add a {@link TransformListener} to notify about viewer transformation
-	 * changes. Listeners will be notified when a new image has been painted
-	 * with the viewer transform used to render that image.
-	 *
-	 * This happens immediately after that image is painted onto the screen,
-	 * before any overlays are painted.
+	 * Add a {@link TransformListener} to notify about viewer transformation changes. Listeners will be notified when a
+	 * new image has been painted with the viewer transform used to render that image.
+	 * <p>
+	 * This happens immediately after that image is painted onto the screen, before any overlays are painted.
 	 *
 	 * @param listener
-	 *            the transform listener to add.
+	 * 		the transform listener to add.
 	 * @param index
-	 *            position in the list of listeners at which to insert this one.
+	 * 		position in the list of listeners at which to insert this one.
 	 */
-	public void addRenderTransformListener( final TransformListener< AffineTransform3D > listener, final int index )
+	public void addRenderTransformListener(final TransformListener<AffineTransform3D> listener, final int index)
 	{
-		renderTarget.addTransformListener( listener, index );
+		renderTarget.addTransformListener(listener, index);
 	}
 
 	/**
-	 * Add a {@link TransformListener} to notify about viewer transformation
-	 * changes. Listeners will be notified <em>before</em> calling
-	 * {@link #requestRepaint()} so they have the chance to interfere.
+	 * Add a {@link TransformListener} to notify about viewer transformation changes. Listeners will be notified
+	 * <em>before</em> calling {@link #requestRepaint()} so they have the chance to interfere.
 	 *
 	 * @param listener
-	 *            the transform listener to add.
+	 * 		the transform listener to add.
 	 */
-	public void addTransformListener( final TransformListener< AffineTransform3D > listener )
+	public void addTransformListener(final TransformListener<AffineTransform3D> listener)
 	{
-		addTransformListener( listener, Integer.MAX_VALUE );
+		addTransformListener(listener, Integer.MAX_VALUE);
 	}
 
 	/**
-	 * Add a {@link TransformListener} to notify about viewer transformation
-	 * changes. Listeners will be notified <em>before</em> calling
-	 * {@link #requestRepaint()} so they have the chance to interfere.
+	 * Add a {@link TransformListener} to notify about viewer transformation changes. Listeners will be notified
+	 * <em>before</em> calling {@link #requestRepaint()} so they have the chance to interfere.
 	 *
 	 * @param listener
-	 *            the transform listener to add.
+	 * 		the transform listener to add.
 	 * @param index
-	 *            position in the list of listeners at which to insert this one.
+	 * 		position in the list of listeners at which to insert this one.
 	 */
-	public void addTransformListener( final TransformListener< AffineTransform3D > listener, final int index )
+	public void addTransformListener(final TransformListener<AffineTransform3D> listener, final int index)
 	{
-		synchronized ( transformListeners )
+		synchronized (transformListeners)
 		{
 			final int s = transformListeners.size();
-			transformListeners.add( index < 0 ? 0 : index > s ? s : index, listener );
-			listener.transformChanged( viewerTransform );
+			transformListeners.add(index < 0 ? 0 : index > s ? s : index, listener);
+			listener.transformChanged(viewerTransform);
 		}
 	}
 
@@ -591,75 +580,76 @@ public class ViewerPanelFX
 	 * Remove a {@link TransformListener}.
 	 *
 	 * @param listener
-	 *            the transform listener to remove.
+	 * 		the transform listener to remove.
 	 */
-	public void removeTransformListener( final TransformListener< AffineTransform3D > listener )
+	public void removeTransformListener(final TransformListener<AffineTransform3D> listener)
 	{
-		synchronized ( transformListeners )
+		synchronized (transformListeners)
 		{
-			transformListeners.remove( listener );
+			transformListeners.remove(listener);
 		}
-		renderTarget.removeTransformListener( listener );
+		renderTarget.removeTransformListener(listener);
 	}
 
 	/**
 	 * does nothing.
 	 */
 	@Override
-	public void setCanvasSize( final int width, final int height )
-	{}
+	public void setCanvasSize(final int width, final int height)
+	{
+	}
 
 	public ViewerOptions.Values getOptionValues()
 	{
 		return options;
 	}
 
-//	public SourceInfoOverlayRenderer getSourceInfoOverlayRenderer()
-//	{
-//		return sourceInfoOverlayRenderer;
-//	}
+	//	public SourceInfoOverlayRenderer getSourceInfoOverlayRenderer()
+	//	{
+	//		return sourceInfoOverlayRenderer;
+	//	}
 
 	/**
-	 * Stop the {@link #painterThread} and shutdown rendering
-	 * {@link ExecutorService}.
+	 * Stop the {@link #painterThread} and shutdown rendering {@link ExecutorService}.
 	 */
 	public void stop()
 	{
 		painterThread.interrupt();
 		try
 		{
-			painterThread.join( 0 );
-		}
-		catch ( final InterruptedException e )
+			painterThread.join(0);
+		} catch (final InterruptedException e)
 		{
 			e.printStackTrace();
 		}
 		renderingExecutorService.shutdown();
 		renderTargetExecutorService.shutdown();
-//		state.kill();
+		//		state.kill();
 		imageRenderer.kill();
 	}
 
-	protected static final AtomicInteger panelNumber = new AtomicInteger( 1 );
+	protected static final AtomicInteger panelNumber = new AtomicInteger(1);
 
 	protected class RenderThreadFactory implements ThreadFactory
 	{
 		private final String threadNameFormat = String.format(
 				"bdv-panel-%d-thread-%%d",
-				panelNumber.getAndIncrement() );
+				panelNumber.getAndIncrement()
+		                                                     );
 
-		private final AtomicInteger threadNumber = new AtomicInteger( 1 );
+		private final AtomicInteger threadNumber = new AtomicInteger(1);
 
 		@Override
-		public Thread newThread( final Runnable r )
+		public Thread newThread(final Runnable r)
 		{
-			final Thread t = new Thread( threadGroup, r,
-					String.format( threadNameFormat, threadNumber.getAndIncrement() ),
-					0 );
-			if ( t.isDaemon() )
-				t.setDaemon( false );
-			if ( t.getPriority() != Thread.NORM_PRIORITY )
-				t.setPriority( Thread.NORM_PRIORITY );
+			final Thread t = new Thread(threadGroup, r,
+					String.format(threadNameFormat, threadNumber.getAndIncrement()),
+					0
+			);
+			if (t.isDaemon())
+				t.setDaemon(false);
+			if (t.getPriority() != Thread.NORM_PRIORITY)
+				t.setPriority(Thread.NORM_PRIORITY);
 			return t;
 		}
 	}
@@ -670,7 +660,7 @@ public class ViewerPanelFX
 	}
 
 	@Override
-	public void drawOverlays( final GraphicsContext g )
+	public void drawOverlays(final GraphicsContext g)
 	{
 		display.requestLayout();
 	}
@@ -682,7 +672,7 @@ public class ViewerPanelFX
 
 	public ReadOnlyBooleanProperty isMouseInsideProperty()
 	{
-		return ReadOnlyBooleanProperty.readOnlyBooleanProperty( this.isInside );
+		return ReadOnlyBooleanProperty.readOnlyBooleanProperty(this.isInside);
 	}
 
 	public double getMouseX()
@@ -697,12 +687,12 @@ public class ViewerPanelFX
 
 	public ReadOnlyDoubleProperty mouseXProperty()
 	{
-		return ReadOnlyDoubleProperty.readOnlyDoubleProperty( mouseX );
+		return ReadOnlyDoubleProperty.readOnlyDoubleProperty(mouseX);
 	}
 
 	public ReadOnlyDoubleProperty mouseYProperty()
 	{
-		return ReadOnlyDoubleProperty.readOnlyDoubleProperty( mouseY );
+		return ReadOnlyDoubleProperty.readOnlyDoubleProperty(mouseY);
 	}
 
 }

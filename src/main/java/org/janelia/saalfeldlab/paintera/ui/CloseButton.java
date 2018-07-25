@@ -11,22 +11,23 @@ import javafx.scene.shape.Path;
 public class CloseButton
 {
 
-	public static Node create( final double size )
+	public static Node create(final double size)
 	{
-		return create( path -> path.setStrokeWidth( 1 ), size );
+		return create(path -> path.setStrokeWidth(1), size);
 	}
 
-	public static Node create( final Consumer< Path > pathSetup, final double size )
+	public static Node create(final Consumer<Path> pathSetup, final double size)
 	{
 		final StackPane closeBtn = new StackPane();
-		final Path path = new Path();
-		pathSetup.accept( path );
+		final Path      path     = new Path();
+		pathSetup.accept(path);
 		path.getElements().addAll(
-				new MoveTo( 0, 0 ),
-				new LineTo( size, size ),
-				new MoveTo( 0, size ),
-				new LineTo( size, 0 ) );
-		closeBtn.getChildren().add( path );
+				new MoveTo(0, 0),
+				new LineTo(size, size),
+				new MoveTo(0, size),
+				new LineTo(size, 0)
+		                         );
+		closeBtn.getChildren().add(path);
 		return closeBtn;
 	}
 

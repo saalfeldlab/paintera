@@ -36,37 +36,36 @@ import javafx.application.Platform;
 
 public class InvokeOnJavaFXApplicationThread
 {
-	public static void invoke( final Runnable runnable )
+	public static void invoke(final Runnable runnable)
 	{
-		if ( Platform.isFxApplicationThread() )
+		if (Platform.isFxApplicationThread())
 			runnable.run();
 		else
-			Platform.runLater( runnable );
+			Platform.runLater(runnable);
 	}
 
-	public static void invokeAndWait( final Runnable runnable ) throws InterruptedException
+	public static void invokeAndWait(final Runnable runnable) throws InterruptedException
 	{
-		final CountDownLatch latch = new CountDownLatch( 1 );
+		final CountDownLatch latch = new CountDownLatch(1);
 		final Runnable countDownRunnable = () -> {
 			runnable.run();
 			latch.countDown();
 		};
-		invoke( countDownRunnable );
-		synchronized ( latch )
+		invoke(countDownRunnable);
+		synchronized (latch)
 		{
 			latch.await();
 		}
 	}
 
-	public static void invokeAndWait( final Runnable runnable, final Consumer< InterruptedException > exceptionHandler )
+	public static void invokeAndWait(final Runnable runnable, final Consumer<InterruptedException> exceptionHandler)
 	{
 		try
 		{
-			invokeAndWait( runnable );
-		}
-		catch ( final InterruptedException e )
+			invokeAndWait(runnable);
+		} catch (final InterruptedException e)
 		{
-			exceptionHandler.accept( e );
+			exceptionHandler.accept(e);
 		}
 	}
 }

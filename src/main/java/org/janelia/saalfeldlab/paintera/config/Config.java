@@ -12,7 +12,7 @@ public class Config
 	public Config(
 			final NavigationConfig navigation,
 			final OrthoSliceConfig orthoSlices,
-			final CrosshairConfig crosshairs )
+			final CrosshairConfig crosshairs)
 	{
 		super();
 		this.navigation = navigation;

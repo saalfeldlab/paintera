@@ -2,13 +2,6 @@ package org.janelia.saalfeldlab.paintera.ui.source.converter;
 
 import java.lang.invoke.MethodHandles;
 
-import org.janelia.saalfeldlab.fx.ui.NumericSliderWithField;
-import org.janelia.saalfeldlab.fx.util.DoubleStringFormatter;
-import org.janelia.saalfeldlab.paintera.ui.BindUnbindAndNodeSupplier;
-import org.janelia.saalfeldlab.util.Colors;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import javafx.beans.binding.StringBinding;
 import javafx.beans.property.DoubleProperty;
 import javafx.beans.property.ObjectProperty;
@@ -28,17 +21,23 @@ import javafx.scene.layout.TilePane;
 import javafx.scene.paint.Color;
 import net.imglib2.converter.ARGBColorConverter;
 import net.imglib2.type.numeric.ARGBType;
+import org.janelia.saalfeldlab.fx.ui.NumericSliderWithField;
+import org.janelia.saalfeldlab.fx.util.DoubleStringFormatter;
+import org.janelia.saalfeldlab.paintera.ui.BindUnbindAndNodeSupplier;
+import org.janelia.saalfeldlab.util.Colors;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class ARGBColorConverterNode implements BindUnbindAndNodeSupplier
 {
 
-	private static final Logger LOG = LoggerFactory.getLogger( MethodHandles.lookup().lookupClass() );
+	private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
-	private final ARGBColorConverter< ? > converter;
+	private final ARGBColorConverter<?> converter;
 
-	private final ObjectProperty< Color > colorProperty = new SimpleObjectProperty<>( Color.WHITE );
+	private final ObjectProperty<Color> colorProperty = new SimpleObjectProperty<>(Color.WHITE);
 
-	private final ObjectProperty< ARGBType > argbProperty = new SimpleObjectProperty<>( Colors.toARGBType( Color.WHITE ) );
+	private final ObjectProperty<ARGBType> argbProperty = new SimpleObjectProperty<>(Colors.toARGBType(Color.WHITE));
 
 	private final DoubleProperty alphaProperty = new SimpleDoubleProperty();
 
@@ -46,12 +45,12 @@ public class ARGBColorConverterNode implements BindUnbindAndNodeSupplier
 
 	private final DoubleProperty max = new SimpleDoubleProperty();
 
-	public ARGBColorConverterNode( final ARGBColorConverter< ? > converter )
+	public ARGBColorConverterNode(final ARGBColorConverter<?> converter)
 	{
 		super();
 		this.converter = converter;
-		this.colorProperty.addListener( ( obs, oldv, newv ) -> argbProperty.set( Colors.toARGBType( newv ) ) );
-		this.argbProperty.addListener( ( obs, oldv, newv ) -> colorProperty.set( Colors.toColor( newv ) ) );
+		this.colorProperty.addListener((obs, oldv, newv) -> argbProperty.set(Colors.toARGBType(newv)));
+		this.argbProperty.addListener((obs, oldv, newv) -> colorProperty.set(Colors.toColor(newv)));
 	}
 
 	@Override
@@ -63,89 +62,89 @@ public class ARGBColorConverterNode implements BindUnbindAndNodeSupplier
 	@Override
 	public void bind()
 	{
-		argbProperty.bindBidirectional( converter.colorProperty() );
-		alphaProperty.bindBidirectional( converter.alphaProperty() );
-		this.min.bindBidirectional( converter.minProperty() );
-		this.max.bindBidirectional( converter.maxProperty() );
+		argbProperty.bindBidirectional(converter.colorProperty());
+		alphaProperty.bindBidirectional(converter.alphaProperty());
+		this.min.bindBidirectional(converter.minProperty());
+		this.max.bindBidirectional(converter.maxProperty());
 	}
 
 	@Override
 	public void unbind()
 	{
-		argbProperty.unbindBidirectional( converter.colorProperty() );
-		alphaProperty.unbindBidirectional( converter.alphaProperty() );
-		this.min.unbindBidirectional( converter.minProperty() );
-		this.max.unbindBidirectional( converter.maxProperty() );
+		argbProperty.unbindBidirectional(converter.colorProperty());
+		alphaProperty.unbindBidirectional(converter.alphaProperty());
+		this.min.unbindBidirectional(converter.minProperty());
+		this.max.unbindBidirectional(converter.maxProperty());
 	}
 
 	private Node getNodeForARGBColorConverter()
 	{
 
-		final TilePane tilePane = new TilePane( Orientation.VERTICAL );
-		tilePane.setMinWidth( 0 );
+		final TilePane tilePane = new TilePane(Orientation.VERTICAL);
+		tilePane.setMinWidth(0);
 
-		final ColorPicker picker = new ColorPicker( Colors.toColor( argbProperty.get() ) );
-		picker.valueProperty().bindBidirectional( this.colorProperty );
-		final HBox colorPickerBox = new HBox( picker );
-		HBox.setHgrow( picker, Priority.ALWAYS );
-		tilePane.getChildren().add( colorPickerBox );
+		final ColorPicker picker = new ColorPicker(Colors.toColor(argbProperty.get()));
+		picker.valueProperty().bindBidirectional(this.colorProperty);
+		final HBox colorPickerBox = new HBox(picker);
+		HBox.setHgrow(picker, Priority.ALWAYS);
+		tilePane.getChildren().add(colorPickerBox);
 
-		final StringBinding min = this.min.asString();
-		final StringBinding max = this.max.asString();
-		final TextField minInput = new TextField( min.get() );
-		final TextField maxInput = new TextField( max.get() );
-		minInput.promptTextProperty().bind( this.min.asString( "min=%f" ) );
-		minInput.promptTextProperty().bind( this.max.asString( "max=%f" ) );
+		final StringBinding min      = this.min.asString();
+		final StringBinding max      = this.max.asString();
+		final TextField     minInput = new TextField(min.get());
+		final TextField     maxInput = new TextField(max.get());
+		minInput.promptTextProperty().bind(this.min.asString("min=%f"));
+		minInput.promptTextProperty().bind(this.max.asString("max=%f"));
 
-		min.addListener( ( obs, oldv, newv ) -> minInput.setText( newv ) );
-		max.addListener( ( obs, oldv, newv ) -> maxInput.setText( newv ) );
+		min.addListener((obs, oldv, newv) -> minInput.setText(newv));
+		max.addListener((obs, oldv, newv) -> maxInput.setText(newv));
 
-		final TextFormatter< Double > minFormatter = DoubleStringFormatter.createFormatter( this.min.get(), 2 );
-		final TextFormatter< Double > maxFormatter = DoubleStringFormatter.createFormatter( this.max.get(), 2 );
+		final TextFormatter<Double> minFormatter = DoubleStringFormatter.createFormatter(this.min.get(), 2);
+		final TextFormatter<Double> maxFormatter = DoubleStringFormatter.createFormatter(this.max.get(), 2);
 
-		minInput.setTextFormatter( minFormatter );
-		maxInput.setTextFormatter( maxFormatter );
+		minInput.setTextFormatter(minFormatter);
+		maxInput.setTextFormatter(maxFormatter);
 
-		minInput.setOnKeyPressed( event -> {
-			if ( event.getCode().equals( KeyCode.ENTER ) )
+		minInput.setOnKeyPressed(event -> {
+			if (event.getCode().equals(KeyCode.ENTER))
 			{
 				minInput.commitValue();
 				event.consume();
 			}
-		} );
-		maxInput.setOnKeyPressed( event -> {
-			if ( event.getCode().equals( KeyCode.ENTER ) )
+		});
+		maxInput.setOnKeyPressed(event -> {
+			if (event.getCode().equals(KeyCode.ENTER))
 			{
 				maxInput.commitValue();
 				event.consume();
 			}
-		} );
+		});
 
-		minInput.setTooltip( new Tooltip( "min" ) );
-		maxInput.setTooltip( new Tooltip( "max" ) );
+		minInput.setTooltip(new Tooltip("min"));
+		maxInput.setTooltip(new Tooltip("max"));
 
-		minFormatter.valueProperty().addListener( ( obs, oldv, newv ) -> this.min.set( newv ) );
-		maxFormatter.valueProperty().addListener( ( obs, oldv, newv ) -> this.max.set( newv ) );
+		minFormatter.valueProperty().addListener((obs, oldv, newv) -> this.min.set(newv));
+		maxFormatter.valueProperty().addListener((obs, oldv, newv) -> this.max.set(newv));
 
-		this.min.addListener( ( obs, oldv, newv ) -> minFormatter.setValue( newv.doubleValue() ) );
-		this.max.addListener( ( obs, oldv, newv ) -> maxFormatter.setValue( newv.doubleValue() ) );
+		this.min.addListener((obs, oldv, newv) -> minFormatter.setValue(newv.doubleValue()));
+		this.max.addListener((obs, oldv, newv) -> maxFormatter.setValue(newv.doubleValue()));
 
-		final HBox minMaxBox = new HBox( minInput, maxInput );
-		tilePane.getChildren().add( minMaxBox );
+		final HBox minMaxBox = new HBox(minInput, maxInput);
+		tilePane.getChildren().add(minMaxBox);
 
-		final NumericSliderWithField alphaSliderWithField = new NumericSliderWithField( 0, 1, this.alphaProperty.get() );
-		alphaSliderWithField.slider().valueProperty().bindBidirectional( this.alphaProperty );
-		alphaSliderWithField.textField().setMinWidth( 48 );
-		alphaSliderWithField.textField().setMaxWidth( 48 );
-		final HBox alphaBox = new HBox( alphaSliderWithField.slider(), alphaSliderWithField.textField() );
-		Tooltip.install( alphaSliderWithField.slider(), new Tooltip( "alpha" ) );
-		HBox.setHgrow( alphaSliderWithField.slider(), Priority.ALWAYS );
-		tilePane.getChildren().add( alphaBox );
+		final NumericSliderWithField alphaSliderWithField = new NumericSliderWithField(0, 1, this.alphaProperty.get());
+		alphaSliderWithField.slider().valueProperty().bindBidirectional(this.alphaProperty);
+		alphaSliderWithField.textField().setMinWidth(48);
+		alphaSliderWithField.textField().setMaxWidth(48);
+		final HBox alphaBox = new HBox(alphaSliderWithField.slider(), alphaSliderWithField.textField());
+		Tooltip.install(alphaSliderWithField.slider(), new Tooltip("alpha"));
+		HBox.setHgrow(alphaSliderWithField.slider(), Priority.ALWAYS);
+		tilePane.getChildren().add(alphaBox);
 
-		LOG.debug( "Returning TilePane with children: ", tilePane.getChildren() );
+		LOG.debug("Returning TilePane with children: ", tilePane.getChildren());
 
-		final TitledPane contents = new TitledPane( "Converter", tilePane );
-		contents.setExpanded( false );
+		final TitledPane contents = new TitledPane("Converter", tilePane);
+		contents.setExpanded(false);
 		return contents;
 	}
 

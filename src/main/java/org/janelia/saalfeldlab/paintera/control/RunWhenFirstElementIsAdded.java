@@ -4,29 +4,28 @@ import java.util.function.Consumer;
 
 import javafx.collections.ListChangeListener;
 
-public class RunWhenFirstElementIsAdded< T > implements ListChangeListener< T >
+public class RunWhenFirstElementIsAdded<T> implements ListChangeListener<T>
 {
 
-	final Consumer< Change< ? extends T > > onChange;
+	final Consumer<Change<? extends T>> onChange;
 
-	public RunWhenFirstElementIsAdded( final Consumer< Change< ? extends T > > onChange )
+	public RunWhenFirstElementIsAdded(final Consumer<Change<? extends T>> onChange)
 	{
 		super();
 		this.onChange = onChange;
 	}
 
 	@Override
-	public void onChanged( final Change< ? extends T > change )
+	public void onChanged(final Change<? extends T> change)
 	{
-		while ( change.next() )
+		while (change.next())
 		{
-			if ( change.wasAdded() && change.getList().size() == change.getAddedSize() )
+			if (change.wasAdded() && change.getList().size() == change.getAddedSize())
 			{
-				onChange.accept( change );
+				onChange.accept(change);
 			}
 		}
 	}
-
 
 
 }

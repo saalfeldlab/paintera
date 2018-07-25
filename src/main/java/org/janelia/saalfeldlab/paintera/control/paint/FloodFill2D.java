@@ -6,15 +6,6 @@ import java.util.function.LongFunction;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
 
-import org.janelia.saalfeldlab.paintera.data.mask.MaskInUse;
-import org.janelia.saalfeldlab.paintera.data.mask.MaskInfo;
-import org.janelia.saalfeldlab.paintera.data.mask.MaskedSource;
-import org.janelia.saalfeldlab.paintera.state.LabelSourceState;
-import org.janelia.saalfeldlab.paintera.state.SourceInfo;
-import org.janelia.saalfeldlab.paintera.state.SourceState;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import bdv.fx.viewer.ViewerPanelFX;
 import bdv.fx.viewer.ViewerState;
 import bdv.viewer.Source;
@@ -43,11 +34,19 @@ import net.imglib2.type.numeric.integer.UnsignedLongType;
 import net.imglib2.util.AccessBoxRandomAccessibleOnGet;
 import net.imglib2.view.MixedTransformView;
 import net.imglib2.view.Views;
+import org.janelia.saalfeldlab.paintera.data.mask.MaskInUse;
+import org.janelia.saalfeldlab.paintera.data.mask.MaskInfo;
+import org.janelia.saalfeldlab.paintera.data.mask.MaskedSource;
+import org.janelia.saalfeldlab.paintera.state.LabelSourceState;
+import org.janelia.saalfeldlab.paintera.state.SourceInfo;
+import org.janelia.saalfeldlab.paintera.state.SourceState;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class FloodFill2D
 {
 
-	private static final Logger LOG = LoggerFactory.getLogger( MethodHandles.lookup().lookupClass() );
+	private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
 	private final ViewerPanelFX viewer;
 
@@ -57,13 +56,13 @@ public class FloodFill2D
 
 	private final AffineTransform3D viewerTransform = new AffineTransform3D();
 
-	private final SimpleDoubleProperty fillDepth = new SimpleDoubleProperty( 1.0 );
+	private final SimpleDoubleProperty fillDepth = new SimpleDoubleProperty(1.0);
 
-	private static final class ForegroundCheck implements Predicate< UnsignedLongType >
+	private static final class ForegroundCheck implements Predicate<UnsignedLongType>
 	{
 
 		@Override
-		public boolean test( final UnsignedLongType t )
+		public boolean test(final UnsignedLongType t)
 		{
 			return t.getIntegerLong() == 1;
 		}
@@ -72,183 +71,202 @@ public class FloodFill2D
 
 	private static final ForegroundCheck FOREGROUND_CHECK = new ForegroundCheck();
 
-	public FloodFill2D( final ViewerPanelFX viewer, final SourceInfo sourceInfo, final Runnable requestRepaint )
+	public FloodFill2D(final ViewerPanelFX viewer, final SourceInfo sourceInfo, final Runnable requestRepaint)
 	{
 		super();
 		this.viewer = viewer;
 		this.sourceInfo = sourceInfo;
 		this.requestRepaint = requestRepaint;
-		viewer.addTransformListener( t -> viewerTransform.set( t ) );
+		viewer.addTransformListener(t -> viewerTransform.set(t));
 	}
 
-	public void fillAt( final double x, final double y, final Supplier< Long > fillSupplier )
+	public void fillAt(final double x, final double y, final Supplier<Long> fillSupplier)
 	{
-		if ( sourceInfo.currentSourceProperty().get() == null )
+		if (sourceInfo.currentSourceProperty().get() == null)
 		{
-			LOG.warn( "No current source selected -- will not fill" );
+			LOG.warn("No current source selected -- will not fill");
 			return;
 		}
 		final Long fill = fillSupplier.get();
-		if ( fill == null )
+		if (fill == null)
 		{
-			LOG.warn( "Received invalid label {} -- will not fill.", fill );
+			LOG.warn("Received invalid label {} -- will not fill.", fill);
 			return;
 		}
-		fillAt( x, y, fill );
+		fillAt(x, y, fill);
 	}
 
-	public < T extends IntegerType< T > > void fillAt( final double x, final double y, final long fill )
+	public <T extends IntegerType<T>> void fillAt(final double x, final double y, final long fill)
 	{
-		final Source< ? > currentSource = sourceInfo.currentSourceProperty().get();
-		final ViewerState viewerState = viewer.getState();
-		if ( currentSource == null )
+		final Source<?>   currentSource = sourceInfo.currentSourceProperty().get();
+		final ViewerState viewerState   = viewer.getState();
+		if (currentSource == null)
 		{
-			LOG.warn( "No current source selected -- will not fill" );
+			LOG.warn("No current source selected -- will not fill");
 			return;
 		}
 
-		@SuppressWarnings( "unchecked" )
-		final SourceState< T, ? > currentSourceState = ( SourceState< T, ? > ) sourceInfo.getState( currentSource );
+		@SuppressWarnings("unchecked") final SourceState<T, ?> currentSourceState = (SourceState<T, ?>) sourceInfo
+				.getState(
+				currentSource);
 
-		if ( !( currentSourceState instanceof LabelSourceState< ?, ? > ) )
+		if (!(currentSourceState instanceof LabelSourceState<?, ?>))
 		{
-			LOG.warn( "Selected source is not a label source -- will not fill" );
+			LOG.warn("Selected source is not a label source -- will not fill");
 			return;
 		}
 
-		final LabelSourceState< T, ? > state = ( LabelSourceState< T, ? > ) currentSourceState;
+		final LabelSourceState<T, ?> state = (LabelSourceState<T, ?>) currentSourceState;
 
-		if ( !state.isVisibleProperty().get() )
+		if (!state.isVisibleProperty().get())
 		{
-			LOG.warn( "Selected source is not visible -- will not fill" );
+			LOG.warn("Selected source is not visible -- will not fill");
 			return;
 		}
 
-		if ( !( currentSource instanceof MaskedSource< ?, ? > ) )
+		if (!(currentSource instanceof MaskedSource<?, ?>))
 		{
-			LOG.warn( "Selected source is not painting-enabled -- will not fill" );
+			LOG.warn("Selected source is not painting-enabled -- will not fill");
 			return;
 		}
 
-		final LongFunction< Converter< T, BoolType > > maskForLabel = state.maskForLabel();
-		if ( maskForLabel == null )
+		final LongFunction<Converter<T, BoolType>> maskForLabel = state.maskForLabel();
+		if (maskForLabel == null)
 		{
-			LOG.warn( "Cannot generate boolean mask for this source -- will not fill" );
+			LOG.warn("Cannot generate boolean mask for this source -- will not fill");
 			return;
 		}
 
-		@SuppressWarnings( "unchecked" )
-		final MaskedSource< T, ? > source = ( MaskedSource< T, ? > ) currentSource;
+		@SuppressWarnings("unchecked") final MaskedSource<T, ?> source = (MaskedSource<T, ?>) currentSource;
 
 		final T t = source.getDataType();
 
-		if ( !( t instanceof RealType< ? > ) && !( t instanceof LabelMultisetType ) )
+		if (!(t instanceof RealType<?>) && !(t instanceof LabelMultisetType))
 		{
-			LOG.warn( "Data type is not real or LabelMultisetType type -- will not fill" );
+			LOG.warn("Data type is not real or LabelMultisetType type -- will not fill");
 			return;
 		}
 
-		final int level = 0;
+		final int               level          = 0;
 		final AffineTransform3D labelTransform = new AffineTransform3D();
-		final int time = viewerState.timepointProperty().get();
-		source.getSourceTransform( time, level, labelTransform );
-		final AffineTransform3D viewerTransform = this.viewerTransform.copy();
-		final AffineTransform3D labelToViewerTransform = this.viewerTransform.copy().concatenate( labelTransform );
+		final int               time           = viewerState.timepointProperty().get();
+		source.getSourceTransform(time, level, labelTransform);
+		final AffineTransform3D viewerTransform        = this.viewerTransform.copy();
+		final AffineTransform3D labelToViewerTransform = this.viewerTransform.copy().concatenate(labelTransform);
 
-		final RealPoint rp = setCoordinates( x, y, viewer, labelTransform );
-		final RandomAccessibleInterval< T > background = source.getDataSource( time, level );
-		final RandomAccess< T > access = background.randomAccess();
-		for ( int d = 0; d < access.numDimensions(); ++d )
+		final RealPoint                   rp         = setCoordinates(x, y, viewer, labelTransform);
+		final RandomAccessibleInterval<T> background = source.getDataSource(time, level);
+		final RandomAccess<T>             access     = background.randomAccess();
+		for (int d = 0; d < access.numDimensions(); ++d)
 		{
-			access.setPosition( Math.round( rp.getDoublePosition( d ) ), d );
+			access.setPosition(Math.round(rp.getDoublePosition(d)), d);
 		}
 
-		final MaskInfo< UnsignedLongType > maskInfo = new MaskInfo<>( time, level, new UnsignedLongType( fill ) );
+		final MaskInfo<UnsignedLongType> maskInfo = new MaskInfo<>(time, level, new UnsignedLongType(fill));
 
-		final Scene scene = viewer.getScene();
+		final Scene  scene          = viewer.getScene();
 		final Cursor previousCursor = scene.getCursor();
-		scene.setCursor( Cursor.WAIT );
+		scene.setCursor(Cursor.WAIT);
 		try
 		{
-			final RandomAccessibleInterval< UnsignedLongType > mask = source.generateMask( maskInfo, FOREGROUND_CHECK );
-			final long seedLabel = access.get().getIntegerLong();
-			LOG.warn( "Got seed label {}", seedLabel );
-			final RandomAccessibleInterval< BoolType > relevantBackground = Converters.convert(
+			final RandomAccessibleInterval<UnsignedLongType> mask      = source.generateMask(
+					maskInfo,
+					FOREGROUND_CHECK
+			                                                                                );
+			final long                                       seedLabel = access.get().getIntegerLong();
+			LOG.warn("Got seed label {}", seedLabel);
+			final RandomAccessibleInterval<BoolType> relevantBackground = Converters.convert(
 					background,
-					( src, tgt ) -> tgt.set( src.getIntegerLong() == seedLabel ),
-					new BoolType() );
-			final RandomAccessible< BoolType > extended = Views.extendValue( relevantBackground, new BoolType( false ) );
+					(src, tgt) -> tgt.set(src.getIntegerLong() == seedLabel),
+					new BoolType()
+			                                                                                );
+			final RandomAccessible<BoolType> extended = Views.extendValue(relevantBackground, new BoolType(false));
 
 			final int fillNormalAxisInLabelCoordinateSystem = PaintUtils.labelAxisCorrespondingToViewerAxis(
 					labelTransform,
 					viewerTransform,
-					2 );
-			final AccessBoxRandomAccessibleOnGet< UnsignedLongType > accessTracker = new AccessBoxRandomAccessibleOnGet<>( Views.extendValue( mask, new UnsignedLongType( 1l ) ) );
+					2
+			                                                                                               );
+			final AccessBoxRandomAccessibleOnGet<UnsignedLongType> accessTracker = new
+					AccessBoxRandomAccessibleOnGet<>(
+					Views.extendValue(mask, new UnsignedLongType(1l)));
 			accessTracker.initAccessBox();
 
-			if ( fillNormalAxisInLabelCoordinateSystem < 0 )
+			if (fillNormalAxisInLabelCoordinateSystem < 0)
 
 			{
 
 				FloodFillTransformedPlane.fill(
 						labelToViewerTransform,
-						( 0.5 + this.fillDepth.get() - 1.0 ) * PaintUtils.maximumVoxelDiagonalLengthPerDimension( labelTransform, viewerTransform )[ 2 ],
+						(0.5 + this.fillDepth.get() - 1.0) * PaintUtils.maximumVoxelDiagonalLengthPerDimension(
+								labelTransform,
+								viewerTransform
+						                                                                                      )[2],
 						extended.randomAccess(),
 						accessTracker.randomAccess(),
-						new RealPoint( x, y, 0 ),
-						1l );
+						new RealPoint(x, y, 0),
+						1l
+				                              );
 
 				requestRepaint.run();
-				source.applyMask( mask, new FinalInterval( accessTracker.getMin(), accessTracker.getMax() ), FOREGROUND_CHECK );
+				source.applyMask(
+						mask,
+						new FinalInterval(accessTracker.getMin(), accessTracker.getMax()),
+						FOREGROUND_CHECK
+				                );
 			}
 
 			else
 			{
-				LOG.debug( "Flood filling axis aligned. Corressponding viewer axis={}", fillNormalAxisInLabelCoordinateSystem );
-				final long slicePos = access.getLongPosition( fillNormalAxisInLabelCoordinateSystem );
-				final long numSlices = Math.max( ( long ) Math.ceil( this.fillDepth.get() ) - 1, 0 );
+				LOG.debug(
+						"Flood filling axis aligned. Corressponding viewer axis={}",
+						fillNormalAxisInLabelCoordinateSystem
+				         );
+				final long slicePos  = access.getLongPosition(fillNormalAxisInLabelCoordinateSystem);
+				final long numSlices = Math.max((long) Math.ceil(this.fillDepth.get()) - 1, 0);
 				final long[] seed2D = {
-						access.getLongPosition( fillNormalAxisInLabelCoordinateSystem == 0 ? 1 : 0 ),
-						access.getLongPosition( fillNormalAxisInLabelCoordinateSystem != 2 ? 2 : 1 )
+						access.getLongPosition(fillNormalAxisInLabelCoordinateSystem == 0 ? 1 : 0),
+						access.getLongPosition(fillNormalAxisInLabelCoordinateSystem != 2 ? 2 : 1)
 				};
 				accessTracker.initAccessBox();
-				final long[] min = { Long.MAX_VALUE, Long.MAX_VALUE, Long.MAX_VALUE };
-				final long[] max = { Long.MIN_VALUE, Long.MIN_VALUE, Long.MIN_VALUE };
-				for ( long i = slicePos - numSlices; i <= slicePos + numSlices; ++i )
+				final long[] min = {Long.MAX_VALUE, Long.MAX_VALUE, Long.MAX_VALUE};
+				final long[] max = {Long.MIN_VALUE, Long.MIN_VALUE, Long.MIN_VALUE};
+				for (long i = slicePos - numSlices; i <= slicePos + numSlices; ++i)
 				{
-					final MixedTransformView< BoolType > relevantBackgroundSlice = Views.hyperSlice(
+					final MixedTransformView<BoolType> relevantBackgroundSlice = Views.hyperSlice(
 							extended,
 							fillNormalAxisInLabelCoordinateSystem,
-							i );
-					final MixedTransformView< UnsignedLongType > relevantAccessTracker = Views.hyperSlice(
+							i
+					                                                                             );
+					final MixedTransformView<UnsignedLongType> relevantAccessTracker = Views.hyperSlice(
 							accessTracker,
 							fillNormalAxisInLabelCoordinateSystem,
-							i );
+							i
+					                                                                                   );
 
 					FloodFill.fill(
 							relevantBackgroundSlice,
 							relevantAccessTracker,
-							new Point( seed2D ),
-							new UnsignedLongType( 1l ),
-							new DiamondShape( 1 ) );
-					Arrays.setAll( min, d -> Math.min( accessTracker.getMin()[ d ], min[ d ] ) );
-					Arrays.setAll( max, d -> Math.max( accessTracker.getMax()[ d ], max[ d ] ) );
+							new Point(seed2D),
+							new UnsignedLongType(1l),
+							new DiamondShape(1)
+					              );
+					Arrays.setAll(min, d -> Math.min(accessTracker.getMin()[d], min[d]));
+					Arrays.setAll(max, d -> Math.max(accessTracker.getMax()[d], max[d]));
 				}
 
 				requestRepaint.run();
-				source.applyMask( mask, new FinalInterval( min, max ), FOREGROUND_CHECK );
+				source.applyMask(mask, new FinalInterval(min, max), FOREGROUND_CHECK);
 
 			}
 
-		}
-		catch ( final MaskInUse e )
+		} catch (final MaskInUse e)
 		{
-			LOG.warn( e.getMessage() );
+			LOG.warn(e.getMessage());
 			return;
-		}
-		finally
+		} finally
 		{
-			scene.setCursor( previousCursor );
+			scene.setCursor(previousCursor);
 		}
 
 	}
@@ -257,24 +275,24 @@ public class FloodFill2D
 			final double x,
 			final double y,
 			final ViewerPanelFX viewer,
-			final AffineTransform3D labelTransform )
+			final AffineTransform3D labelTransform)
 	{
-		return setCoordinates( x, y, new RealPoint( labelTransform.numDimensions() ), viewer, labelTransform );
+		return setCoordinates(x, y, new RealPoint(labelTransform.numDimensions()), viewer, labelTransform);
 	}
 
-	private static < P extends RealLocalizable & RealPositionable > P setCoordinates(
+	private static <P extends RealLocalizable & RealPositionable> P setCoordinates(
 			final double x,
 			final double y,
 			final P location,
 			final ViewerPanelFX viewer,
-			final AffineTransform3D labelTransform )
+			final AffineTransform3D labelTransform)
 	{
-		location.setPosition( x, 0 );
-		location.setPosition( y, 1 );
-		location.setPosition( 0, 2 );
+		location.setPosition(x, 0);
+		location.setPosition(y, 1);
+		location.setPosition(0, 2);
 
-		viewer.displayToGlobalCoordinates( location );
-		labelTransform.applyInverse( location, location );
+		viewer.displayToGlobalCoordinates(location);
+		labelTransform.applyInverse(location, location);
 
 		return location;
 	}

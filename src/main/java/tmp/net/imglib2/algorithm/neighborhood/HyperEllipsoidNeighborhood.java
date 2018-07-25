@@ -54,27 +54,29 @@ import net.imglib2.algorithm.neighborhood.Neighborhood;
  * @author Stephan Preibisch <preibisch@mpi-cbg.de>
  * @author Stephan Saalfeld <saalfeld@mpi-cbg.de>
  */
-public class HyperEllipsoidNeighborhood< T > extends AbstractLocalizable implements Neighborhood< T >
+public class HyperEllipsoidNeighborhood<T> extends AbstractLocalizable implements Neighborhood<T>
 {
-	public static < T > HyperEllipsoidNeighborhoodFactory< T > factory()
+	public static <T> HyperEllipsoidNeighborhoodFactory<T> factory()
 	{
-		return new HyperEllipsoidNeighborhoodFactory< T >()
+		return new HyperEllipsoidNeighborhoodFactory<T>()
 		{
 			@Override
-			public Neighborhood< T > create( final long[] position, final long[] radius, final RandomAccess< T > sourceRandomAccess )
+			public Neighborhood<T> create(final long[] position, final long[] radius, final RandomAccess<T>
+					sourceRandomAccess)
 			{
-				return new HyperEllipsoidNeighborhood< T >( position, radius, sourceRandomAccess );
+				return new HyperEllipsoidNeighborhood<T>(position, radius, sourceRandomAccess);
 			}
 
 			@Override
-			public Neighborhood< T > create( final long[] position, final long radius, final RandomAccess< T > sourceRandomAccess )
+			public Neighborhood<T> create(final long[] position, final long radius, final RandomAccess<T>
+					sourceRandomAccess)
 			{
-				return new HyperEllipsoidNeighborhood< T >( position, radius, sourceRandomAccess );
+				return new HyperEllipsoidNeighborhood<T>(position, radius, sourceRandomAccess);
 			}
 		};
 	}
 
-	private final RandomAccess< T > sourceRandomAccess;
+	private final RandomAccess<T> sourceRandomAccess;
 
 	private final long[] radii;
 
@@ -86,42 +88,42 @@ public class HyperEllipsoidNeighborhood< T > extends AbstractLocalizable impleme
 
 	private final Interval structuringElementBoundingBox;
 
-	final static protected long[] arrayOf( final long x, final int size )
+	final static protected long[] arrayOf(final long x, final int size)
 	{
-		final long[] array = new long[ size ];
-		Arrays.fill( array, x );
+		final long[] array = new long[size];
+		Arrays.fill(array, x);
 		return array;
 	}
 
-	HyperEllipsoidNeighborhood( final long[] position, final long[] radius, final RandomAccess< T > sourceRandomAccess )
+	HyperEllipsoidNeighborhood(final long[] position, final long[] radius, final RandomAccess<T> sourceRandomAccess)
 	{
-		super( position );
+		super(position);
 		this.sourceRandomAccess = sourceRandomAccess;
 		this.radii = radius;
 		maxDim = n - 1;
-		radiusRatii = new double[ maxDim ];
-		for ( int d = 0; d < maxDim; ++d )
+		radiusRatii = new double[maxDim];
+		for (int d = 0; d < maxDim; ++d)
 		{
-			radiusRatii[ d ] = ( double ) radius[ d ] / ( double ) radius[ d + 1 ];
+			radiusRatii[d] = (double) radius[d] / (double) radius[d + 1];
 		}
 
 		size = computeSize();
 
-		final long[] min = new long[ n ];
-		final long[] max = new long[ n ];
+		final long[] min = new long[n];
+		final long[] max = new long[n];
 
-		for ( int d = 0; d < n; d++ )
+		for (int d = 0; d < n; d++)
 		{
-			min[ d ] = -radius[ d ];
-			max[ d ] = radius[ d ];
+			min[d] = -radius[d];
+			max[d] = radius[d];
 		}
 
-		structuringElementBoundingBox = new FinalInterval( min, max );
+		structuringElementBoundingBox = new FinalInterval(min, max);
 	}
 
-	HyperEllipsoidNeighborhood( final long[] position, final long radius, final RandomAccess< T > sourceRandomAccess )
+	HyperEllipsoidNeighborhood(final long[] position, final long radius, final RandomAccess<T> sourceRandomAccess)
 	{
-		this( position, arrayOf( radius, position.length ), sourceRandomAccess );
+		this(position, arrayOf(radius, position.length), sourceRandomAccess);
 	}
 
 	/**
@@ -129,11 +131,11 @@ public class HyperEllipsoidNeighborhood< T > extends AbstractLocalizable impleme
 	 */
 	protected long computeSize()
 	{
-		final LocalCursor cursor = new LocalCursor( sourceRandomAccess );
+		final LocalCursor cursor = new LocalCursor(sourceRandomAccess);
 
 		// "compute number of pixels"
 		long size = 0;
-		while ( cursor.hasNext() )
+		while (cursor.hasNext())
 		{
 			cursor.fwd();
 			++size;
@@ -142,9 +144,9 @@ public class HyperEllipsoidNeighborhood< T > extends AbstractLocalizable impleme
 		return size;
 	}
 
-	public final class LocalCursor extends AbstractEuclideanSpace implements Cursor< T >
+	public final class LocalCursor extends AbstractEuclideanSpace implements Cursor<T>
 	{
-		private final RandomAccess< T > source;
+		private final RandomAccess<T> source;
 
 		// the current radius in each dimension we are at
 		private final double[] r;
@@ -155,19 +157,19 @@ public class HyperEllipsoidNeighborhood< T > extends AbstractLocalizable impleme
 		// the remaining number of steps in each dimension we still have to go
 		private final long[] s;
 
-		public LocalCursor( final RandomAccess< T > source )
+		public LocalCursor(final RandomAccess<T> source)
 		{
-			super( source.numDimensions() );
+			super(source.numDimensions());
 			this.source = source;
-			r = new double[ n ];
-			ri = new long[ n ];
-			s = new long[ n ];
+			r = new double[n];
+			ri = new long[n];
+			s = new long[n];
 			reset();
 		}
 
-		protected LocalCursor( final LocalCursor c )
+		protected LocalCursor(final LocalCursor c)
 		{
-			super( c.numDimensions() );
+			super(c.numDimensions());
 			source = c.source.copyRandomAccess();
 			r = c.r.clone();
 			ri = c.ri.clone();
@@ -184,46 +186,46 @@ public class HyperEllipsoidNeighborhood< T > extends AbstractLocalizable impleme
 		public void fwd()
 		{
 
-			if ( --s[ 0 ] >= 0 )
+			if (--s[0] >= 0)
 			{
-				source.fwd( 0 );
+				source.fwd(0);
 			}
 			else
 			{
 				int d = 1;
-				for ( ; d < n; ++d )
+				for (; d < n; ++d)
 				{
-					if ( --s[ d ] >= 0 )
+					if (--s[d] >= 0)
 					{
-						source.fwd( d );
+						source.fwd(d);
 						break;
 					}
 				}
 
-				for ( ; d > 0; --d )
+				for (; d > 0; --d)
 				{
-					final int e = d - 1;
-					final double rd = r[ d ];
-					final long pd = s[ d ] - ri[ d ];
+					final int    e  = d - 1;
+					final double rd = r[d];
+					final long   pd = s[d] - ri[d];
 
 					// final double rad = Math.sqrt( rd * rd - pd * pd );
 
-					final double rad = radiusRatii[ e ] * Math.sqrt( rd * rd - pd * pd );
+					final double rad = radiusRatii[e] * Math.sqrt(rd * rd - pd * pd);
 
-					final long radi = ( long ) rad;
-					r[ e ] = rad;
-					ri[ e ] = radi;
-					s[ e ] = 2 * radi;
+					final long radi = (long) rad;
+					r[e] = rad;
+					ri[e] = radi;
+					s[e] = 2 * radi;
 
-					source.setPosition( position[ e ] - radi, e );
+					source.setPosition(position[e] - radi, e);
 				}
 			}
 		}
 
 		@Override
-		public void jumpFwd( final long steps )
+		public void jumpFwd(final long steps)
 		{
-			for ( long i = 0; i < steps; ++i )
+			for (long i = 0; i < steps; ++i)
 			{
 				fwd();
 			}
@@ -245,77 +247,77 @@ public class HyperEllipsoidNeighborhood< T > extends AbstractLocalizable impleme
 		@Override
 		public void reset()
 		{
-			for ( int d = 0; d < maxDim; ++d )
+			for (int d = 0; d < maxDim; ++d)
 			{
-				r[ d ] = ri[ d ] = s[ d ] = 0;
-				source.setPosition( position[ d ], d );
+				r[d] = ri[d] = s[d] = 0;
+				source.setPosition(position[d], d);
 			}
 
-			source.setPosition( position[ maxDim ] - radii[ maxDim ] - 1, maxDim );
+			source.setPosition(position[maxDim] - radii[maxDim] - 1, maxDim);
 
-			r[ maxDim ] = radii[ maxDim ];
-			ri[ maxDim ] = radii[ maxDim ];
-			s[ maxDim ] = 1 + 2 * radii[ maxDim ];
+			r[maxDim] = radii[maxDim];
+			ri[maxDim] = radii[maxDim];
+			s[maxDim] = 1 + 2 * radii[maxDim];
 		}
 
 		@Override
 		public boolean hasNext()
 		{
-			return s[ maxDim ] > 0;
+			return s[maxDim] > 0;
 		}
 
 		@Override
-		public float getFloatPosition( final int d )
+		public float getFloatPosition(final int d)
 		{
-			return source.getFloatPosition( d );
+			return source.getFloatPosition(d);
 		}
 
 		@Override
-		public double getDoublePosition( final int d )
+		public double getDoublePosition(final int d)
 		{
-			return source.getDoublePosition( d );
+			return source.getDoublePosition(d);
 		}
 
 		@Override
-		public int getIntPosition( final int d )
+		public int getIntPosition(final int d)
 		{
-			return source.getIntPosition( d );
+			return source.getIntPosition(d);
 		}
 
 		@Override
-		public long getLongPosition( final int d )
+		public long getLongPosition(final int d)
 		{
-			return source.getLongPosition( d );
+			return source.getLongPosition(d);
 		}
 
 		@Override
-		public void localize( final long[] position )
+		public void localize(final long[] position)
 		{
-			source.localize( position );
+			source.localize(position);
 		}
 
 		@Override
-		public void localize( final float[] position )
+		public void localize(final float[] position)
 		{
-			source.localize( position );
+			source.localize(position);
 		}
 
 		@Override
-		public void localize( final double[] position )
+		public void localize(final double[] position)
 		{
-			source.localize( position );
+			source.localize(position);
 		}
 
 		@Override
-		public void localize( final int[] position )
+		public void localize(final int[] position)
 		{
-			source.localize( position );
+			source.localize(position);
 		}
 
 		@Override
 		public LocalCursor copy()
 		{
-			return new LocalCursor( this );
+			return new LocalCursor(this);
 		}
 
 		@Override
@@ -350,126 +352,126 @@ public class HyperEllipsoidNeighborhood< T > extends AbstractLocalizable impleme
 	}
 
 	@Override
-	public double realMin( final int d )
+	public double realMin(final int d)
 	{
-		return position[ d ] - radii[ d ];
+		return position[d] - radii[d];
 	}
 
 	@Override
-	public void realMin( final double[] min )
+	public void realMin(final double[] min)
 	{
-		for ( int d = 0; d < min.length; d++ )
+		for (int d = 0; d < min.length; d++)
 		{
-			min[ d ] = position[ d ] - radii[ d ];
+			min[d] = position[d] - radii[d];
 		}
 	}
 
 	@Override
-	public void realMin( final RealPositionable min )
+	public void realMin(final RealPositionable min)
 	{
-		for ( int d = 0; d < min.numDimensions(); d++ )
+		for (int d = 0; d < min.numDimensions(); d++)
 		{
-			min.setPosition( position[ d ] - radii[ d ], d );
+			min.setPosition(position[d] - radii[d], d);
 		}
 	}
 
 	@Override
-	public double realMax( final int d )
+	public double realMax(final int d)
 	{
-		return position[ d ] + radii[ d ];
+		return position[d] + radii[d];
 	}
 
 	@Override
-	public void realMax( final double[] max )
+	public void realMax(final double[] max)
 	{
-		for ( int d = 0; d < max.length; d++ )
+		for (int d = 0; d < max.length; d++)
 		{
-			max[ d ] = position[ d ] + radii[ d ];
+			max[d] = position[d] + radii[d];
 		}
 	}
 
 	@Override
-	public void realMax( final RealPositionable max )
+	public void realMax(final RealPositionable max)
 	{
-		for ( int d = 0; d < max.numDimensions(); d++ )
+		for (int d = 0; d < max.numDimensions(); d++)
 		{
-			max.setPosition( position[ d ] + radii[ d ], d );
+			max.setPosition(position[d] + radii[d], d);
 		}
 	}
 
 	@Override
-	public Iterator< T > iterator()
+	public Iterator<T> iterator()
 	{
 		return cursor();
 	}
 
 	@Override
-	public long min( final int d )
+	public long min(final int d)
 	{
-		return position[ d ] - radii[ d ];
+		return position[d] - radii[d];
 	}
 
 	@Override
-	public void min( final long[] min )
+	public void min(final long[] min)
 	{
-		for ( int d = 0; d < min.length; d++ )
+		for (int d = 0; d < min.length; d++)
 		{
-			min[ d ] = position[ d ] - radii[ d ];
+			min[d] = position[d] - radii[d];
 		}
 	}
 
 	@Override
-	public void min( final Positionable min )
+	public void min(final Positionable min)
 	{
-		for ( int d = 0; d < min.numDimensions(); d++ )
+		for (int d = 0; d < min.numDimensions(); d++)
 		{
-			min.setPosition( position[ d ] - radii[ d ], d );
+			min.setPosition(position[d] - radii[d], d);
 		}
 	}
 
 	@Override
-	public long max( final int d )
+	public long max(final int d)
 	{
-		return position[ d ] + radii[ d ];
+		return position[d] + radii[d];
 	}
 
 	@Override
-	public void max( final long[] max )
+	public void max(final long[] max)
 	{
-		for ( int d = 0; d < max.length; d++ )
+		for (int d = 0; d < max.length; d++)
 		{
-			max[ d ] = position[ d ] + radii[ d ];
+			max[d] = position[d] + radii[d];
 		}
 	}
 
 	@Override
-	public void max( final Positionable max )
+	public void max(final Positionable max)
 	{
-		for ( int d = 0; d < max.numDimensions(); d++ )
+		for (int d = 0; d < max.numDimensions(); d++)
 		{
-			max.setPosition( position[ d ] + radii[ d ], d );
+			max.setPosition(position[d] + radii[d], d);
 		}
 	}
 
 	@Override
-	public void dimensions( final long[] dimensions )
+	public void dimensions(final long[] dimensions)
 	{
-		for ( int d = 0; d < dimensions.length; d++ )
+		for (int d = 0; d < dimensions.length; d++)
 		{
-			dimensions[ d ] = 2 * radii[ d ] + 1;
+			dimensions[d] = 2 * radii[d] + 1;
 		}
 	}
 
 	@Override
-	public long dimension( final int d )
+	public long dimension(final int d)
 	{
-		return 2 * radii[ d ] + 1;
+		return 2 * radii[d] + 1;
 	}
 
 	@Override
 	public LocalCursor cursor()
 	{
-		return new LocalCursor( sourceRandomAccess.copyRandomAccess() );
+		return new LocalCursor(sourceRandomAccess.copyRandomAccess());
 	}
 
 	@Override

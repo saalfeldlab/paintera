@@ -11,10 +11,10 @@ public class ButtonRotationSpeedConfig
 
 	private static final double DEFAULT_FAST = 45.0;
 
-	public SimpleDoubleProperty slow = new SimpleDoubleProperty( DEFAULT_SLOW );
+	public SimpleDoubleProperty slow = new SimpleDoubleProperty(DEFAULT_SLOW);
 
-	public SimpleDoubleProperty regular = new SimpleDoubleProperty( DEFAULT_REGULAR );
+	public SimpleDoubleProperty regular = new SimpleDoubleProperty(DEFAULT_REGULAR);
 
-	public SimpleDoubleProperty fast = new SimpleDoubleProperty( DEFAULT_FAST );
+	public SimpleDoubleProperty fast = new SimpleDoubleProperty(DEFAULT_FAST);
 
 }

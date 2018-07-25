@@ -1,17 +1,11 @@
 package org.janelia.saalfeldlab.paintera.viewer3d;
 
+import javax.imageio.ImageIO;
 import java.io.File;
 import java.io.IOException;
 import java.lang.invoke.MethodHandles;
 import java.util.Optional;
 import java.util.function.Predicate;
-
-import javax.imageio.ImageIO;
-
-import org.janelia.saalfeldlab.fx.event.MouseDragFX;
-import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import javafx.beans.property.DoubleProperty;
 import javafx.beans.property.SimpleDoubleProperty;
@@ -27,10 +21,14 @@ import javafx.scene.input.ScrollEvent;
 import javafx.scene.transform.Affine;
 import javafx.stage.FileChooser;
 import net.imglib2.Interval;
+import org.janelia.saalfeldlab.fx.event.MouseDragFX;
+import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class Scene3DHandler
 {
-	public static final Logger LOG = LoggerFactory.getLogger( MethodHandles.lookup().lookupClass() );
+	public static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
 	private final Viewer3DFX viewer;
 
@@ -46,44 +44,53 @@ public class Scene3DHandler
 
 	private double scrollFactor;
 
-	private static final Point3D xNormal = new Point3D( 1, 0, 0 );
+	private static final Point3D xNormal = new Point3D(1, 0, 0);
 
-	private static final Point3D yNormal = new Point3D( 0, 1, 0 );
+	private static final Point3D yNormal = new Point3D(0, 1, 0);
 
-	public Scene3DHandler( final Viewer3DFX viewer )
+	public Scene3DHandler(final Viewer3DFX viewer)
 	{
 		this.viewer = viewer;
-		this.viewer.meshesGroup().getTransforms().addAll( affine );
+		this.viewer.meshesGroup().getTransforms().addAll(affine);
 
-		affine.setToTransform( initialTransform );
+		affine.setToTransform(initialTransform);
 		addCommands();
 
-		final Rotate rotate = new Rotate( "rotate 3d", new SimpleDoubleProperty( 1.0 ), 1.0, MouseEvent::isPrimaryButtonDown );
-		rotate.installInto( viewer );
+		final Rotate rotate = new Rotate(
+				"rotate 3d",
+				new SimpleDoubleProperty(1.0),
+				1.0,
+				MouseEvent::isPrimaryButtonDown
+		);
+		rotate.installInto(viewer);
 
-		final TranslateXY translateXY = new TranslateXY( "translate", MouseEvent::isSecondaryButtonDown );
-		translateXY.installIntoAsFilter( viewer );
+		final TranslateXY translateXY = new TranslateXY("translate", MouseEvent::isSecondaryButtonDown);
+		translateXY.installIntoAsFilter(viewer);
 	}
 
-	public void setInitialTransformToInterval( final Interval interval )
+	public void setInitialTransformToInterval(final Interval interval)
 	{
 		initialTransform.setToIdentity();
-		initialTransform.prependTranslation( -interval.dimension( 0 ) / 2, -interval.dimension( 1 ) / 2, -interval.dimension( 2 ) / 2 );
-		final double sf = 1.0 / interval.dimension( 0 );
-		initialTransform.prependScale( sf, sf, sf );
-		InvokeOnJavaFXApplicationThread.invoke( () -> affine.setToTransform( initialTransform ) );
+		initialTransform.prependTranslation(
+				-interval.dimension(0) / 2,
+				-interval.dimension(1) / 2,
+				-interval.dimension(2) / 2
+		                                   );
+		final double sf = 1.0 / interval.dimension(0);
+		initialTransform.prependScale(sf, sf, sf);
+		InvokeOnJavaFXApplicationThread.invoke(() -> affine.setToTransform(initialTransform));
 	}
 
 	private void addCommands()
 	{
-		viewer.addEventHandler( ScrollEvent.SCROLL, event -> {
+		viewer.addEventHandler(ScrollEvent.SCROLL, event -> {
 
 			final double scroll = event.getDeltaY();
 			scrollFactor = scroll > 0 ? 1.05 : 1 / 1.05;
 
-			if ( event.isShiftDown() )
+			if (event.isShiftDown())
 			{
-				if ( event.isControlDown() )
+				if (event.isControlDown())
 				{
 					scrollFactor = scroll > 0 ? 1.01 : 1 / 1.01;
 				}
@@ -93,33 +100,33 @@ public class Scene3DHandler
 				}
 			}
 
-			if ( Math.abs( event.getDeltaY() ) > Math.abs( event.getDeltaX() ) )
+			if (Math.abs(event.getDeltaY()) > Math.abs(event.getDeltaX()))
 			{
-				InvokeOnJavaFXApplicationThread.invoke( () -> {
-					affine.prependScale( scrollFactor, scrollFactor, scrollFactor );
-				} );
+				InvokeOnJavaFXApplicationThread.invoke(() -> {
+					affine.prependScale(scrollFactor, scrollFactor, scrollFactor);
+				});
 
 				event.consume();
 			}
-		} );
+		});
 
-		viewer.addEventHandler( KeyEvent.KEY_PRESSED, event -> {
-			if ( event.getCode().equals( KeyCode.Z ) && event.isShiftDown() )
+		viewer.addEventHandler(KeyEvent.KEY_PRESSED, event -> {
+			if (event.getCode().equals(KeyCode.Z) && event.isShiftDown())
 			{
-				InvokeOnJavaFXApplicationThread.invoke( () -> affine.setToTransform( initialTransform ) );
+				InvokeOnJavaFXApplicationThread.invoke(() -> affine.setToTransform(initialTransform));
 				event.consume();
 			}
-		} );
+		});
 
-		viewer.addEventHandler( KeyEvent.KEY_PRESSED, event -> {
-			if ( event.getCode().equals( KeyCode.P ) && event.isControlDown() )
+		viewer.addEventHandler(KeyEvent.KEY_PRESSED, event -> {
+			if (event.getCode().equals(KeyCode.P) && event.isControlDown())
 			{
-				InvokeOnJavaFXApplicationThread.invoke( () -> {
+				InvokeOnJavaFXApplicationThread.invoke(() -> {
 					saveAsPng();
-				} );
+				});
 				event.consume();
 			}
-		} );
+		});
 	}
 
 	private class Rotate extends MouseDragFX
@@ -137,90 +144,92 @@ public class Scene3DHandler
 
 		private final Affine affineDragStart = new Affine();
 
-		public Rotate( final String name, final DoubleProperty speed, final double factor, final Predicate< MouseEvent > eventFilter )
+		public Rotate(final String name, final DoubleProperty speed, final double factor, final Predicate<MouseEvent>
+				eventFilter)
 		{
-			super( name, eventFilter, true, affine, false );
-			LOG.trace( "rotation" );
-			this.factor.set( factor );
-			this.speed.set( speed.get() * this.factor.get() );
+			super(name, eventFilter, true, affine, false);
+			LOG.trace("rotation");
+			this.factor.set(factor);
+			this.speed.set(speed.get() * this.factor.get());
 
-			speed.addListener( ( obs, old, newv ) -> this.speed.set( this.factor.get() * speed.get() ) );
-			this.factor.addListener( ( obs, old, newv ) -> this.speed.set( speed.get() ) );
+			speed.addListener((obs, old, newv) -> this.speed.set(this.factor.get() * speed.get()));
+			this.factor.addListener((obs, old, newv) -> this.speed.set(speed.get()));
 		}
 
 		@Override
-		public void initDrag( final javafx.scene.input.MouseEvent event )
+		public void initDrag(final javafx.scene.input.MouseEvent event)
 		{
-			factor.set( NORMAL_FACTOR );
+			factor.set(NORMAL_FACTOR);
 
-			if ( event.isShiftDown() )
+			if (event.isShiftDown())
 			{
-				if ( event.isControlDown() )
+				if (event.isControlDown())
 				{
-					factor.set( SLOW_FACTOR );
+					factor.set(SLOW_FACTOR);
 				}
 				else
 				{
-					factor.set( FAST_FACTOR );
+					factor.set(FAST_FACTOR);
 				}
 			}
 
-			this.speed.set( speed.get() * this.factor.get() );
+			this.speed.set(speed.get() * this.factor.get());
 
-			synchronized ( transformLock )
+			synchronized (transformLock)
 			{
-				affineDragStart.setToTransform( affine );
+				affineDragStart.setToTransform(affine);
 			}
 		}
 
 		@Override
-		public void drag( final javafx.scene.input.MouseEvent event )
+		public void drag(final javafx.scene.input.MouseEvent event)
 		{
-			synchronized ( transformLock )
+			synchronized (transformLock)
 			{
-				LOG.trace( "drag - rotate" );
-				final Affine target = new Affine( affineDragStart );
-				final double dX = event.getX() - startX;
-				final double dY = event.getY() - startY;
-				final double v = step * this.speed.get();
-				LOG.trace( "dx: {} dy: {}", dX, dY );
+				LOG.trace("drag - rotate");
+				final Affine target = new Affine(affineDragStart);
+				final double dX     = event.getX() - startX;
+				final double dY     = event.getY() - startY;
+				final double v      = step * this.speed.get();
+				LOG.trace("dx: {} dy: {}", dX, dY);
 
-				target.prependRotation( v * dY, centerX, centerY, 0, xNormal );
-				target.prependRotation( v * -dX, centerX, centerY, 0, yNormal );
+				target.prependRotation(v * dY, centerX, centerY, 0, xNormal);
+				target.prependRotation(v * -dX, centerX, centerY, 0, yNormal);
 
-				LOG.trace( "target: {}", target );
-				InvokeOnJavaFXApplicationThread.invoke( () -> {
-					affine.setToTransform( target );
-				} );
+				LOG.trace("target: {}", target);
+				InvokeOnJavaFXApplicationThread.invoke(() -> {
+					affine.setToTransform(target);
+				});
 			}
 		}
 	}
 
 	private class TranslateXY extends MouseDragFX
 	{
-		public TranslateXY( final String name, final Predicate< MouseEvent > eventFilter )
+		public TranslateXY(final String name, final Predicate<MouseEvent> eventFilter)
 		{
-			super( name, eventFilter, true, affine, false );
-			LOG.trace( "translate" );
+			super(name, eventFilter, true, affine, false);
+			LOG.trace("translate");
 		}
 
 		@Override
-		public void initDrag( final MouseEvent event )
-		{}
+		public void initDrag(final MouseEvent event)
+		{
+		}
 
 		@Override
-		public void drag( final MouseEvent event )
+		public void drag(final MouseEvent event)
 		{
-			synchronized ( transformLock )
+			synchronized (transformLock)
 			{
-				LOG.trace( "drag - translate" );
+				LOG.trace("drag - translate");
 				final double dX = event.getX() - startX;
 				final double dY = event.getY() - startY;
 
-				LOG.trace( "dx " + dX + " dy: " + dY );
-				InvokeOnJavaFXApplicationThread.invoke( () -> {
-					affine.prependTranslation( 2 * dX / viewer.getHeight(), 2 * dY / viewer.getHeight() );
-				} );
+				LOG.trace("dx " + dX + " dy: " + dY);
+				InvokeOnJavaFXApplicationThread.invoke(() -> {
+					affine.prependTranslation(2 * dX / viewer.getHeight(), 2 * dY / viewer.getHeight());
+				});
 
 				startX += dX;
 				startY += dY;
@@ -230,36 +239,35 @@ public class Scene3DHandler
 
 	private void saveAsPng()
 	{
-		final WritableImage image = viewer.scene().snapshot( new SnapshotParameters(), null );
+		final WritableImage image = viewer.scene().snapshot(new SnapshotParameters(), null);
 
 		final FileChooser fileChooser = new FileChooser();
-		fileChooser.setTitle( "Save 3d snapshot " );
-		final SimpleObjectProperty< Optional< File > > fileProperty = new SimpleObjectProperty<>( Optional.empty() );
+		fileChooser.setTitle("Save 3d snapshot ");
+		final SimpleObjectProperty<Optional<File>> fileProperty = new SimpleObjectProperty<>(Optional.empty());
 		try
 		{
-			InvokeOnJavaFXApplicationThread.invokeAndWait( () -> {
-				fileProperty.set( Optional.ofNullable( fileChooser.showSaveDialog( viewer.root().sceneProperty().get().getWindow() ) ) );
-			} );
-		}
-		catch ( final InterruptedException e )
+			InvokeOnJavaFXApplicationThread.invokeAndWait(() -> {
+				fileProperty.set(Optional.ofNullable(fileChooser.showSaveDialog(viewer.root().sceneProperty().get()
+						.getWindow())));
+			});
+		} catch (final InterruptedException e)
 		{
 			e.printStackTrace();
 		}
-		if ( fileProperty.get().isPresent() )
+		if (fileProperty.get().isPresent())
 		{
 			File file = fileProperty.get().get();
-			if ( !file.getName().endsWith( ".png" ) )
+			if (!file.getName().endsWith(".png"))
 			{
 				// TODO: now, it is overwritten if there is a file with the same
 				// name and extension
-				file = new File( file.getAbsolutePath() + ".png" );
+				file = new File(file.getAbsolutePath() + ".png");
 			}
 
 			try
 			{
-				ImageIO.write( SwingFXUtils.fromFXImage( image, null ), "png", file );
-			}
-			catch ( final IOException e )
+				ImageIO.write(SwingFXUtils.fromFXImage(image, null), "png", file);
+			} catch (final IOException e)
 			{
 				// TODO: handle exception here
 			}

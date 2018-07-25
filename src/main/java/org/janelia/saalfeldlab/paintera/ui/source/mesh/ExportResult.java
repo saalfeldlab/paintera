@@ -2,9 +2,9 @@ package org.janelia.saalfeldlab.paintera.ui.source.mesh;
 
 import org.janelia.saalfeldlab.paintera.meshes.MeshExporter;
 
-public class ExportResult< T >
+public class ExportResult<T>
 {
-	private final MeshExporter< T > meshExporter;
+	private final MeshExporter<T> meshExporter;
 
 	private final long[][] fragmentIds;
 
@@ -16,7 +16,8 @@ public class ExportResult< T >
 
 	// TODO: change scale parameter when the interface allows to export
 	// different scales for different meshes at the same time
-	public ExportResult( final MeshExporter< T > meshExporter, final long[][] fragmentIds, final long[] segmentId, final int scale, final String[] filePaths )
+	public ExportResult(final MeshExporter<T> meshExporter, final long[][] fragmentIds, final long[] segmentId, final
+	int scale, final String[] filePaths)
 	{
 		this.meshExporter = meshExporter;
 		this.fragmentIds = fragmentIds;
@@ -25,7 +26,7 @@ public class ExportResult< T >
 		this.scale = scale;
 	}
 
-	public MeshExporter< T > getMeshExporter()
+	public MeshExporter<T> getMeshExporter()
 	{
 		return meshExporter;
 	}

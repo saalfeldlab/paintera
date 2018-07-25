@@ -9,9 +9,9 @@ import org.janelia.saalfeldlab.paintera.state.SourceState;
 public class CurrentSourceRefreshMeshes
 {
 
-	private final Supplier< SourceState< ?, ? > > currentState;
+	private final Supplier<SourceState<?, ?>> currentState;
 
-	public CurrentSourceRefreshMeshes( final Supplier< SourceState< ?, ? > > currentState )
+	public CurrentSourceRefreshMeshes(final Supplier<SourceState<?, ?>> currentState)
 	{
 		super();
 		this.currentState = currentState;
@@ -20,13 +20,13 @@ public class CurrentSourceRefreshMeshes
 	public void refresh()
 	{
 		Optional
-				.ofNullable( currentState.get() )
-				.filter( state -> state instanceof LabelSourceState< ?, ? > )
-				.map( state -> ( LabelSourceState< ?, ? > ) state )
-				.ifPresent( this::refresh );
+				.ofNullable(currentState.get())
+				.filter(state -> state instanceof LabelSourceState<?, ?>)
+				.map(state -> (LabelSourceState<?, ?>) state)
+				.ifPresent(this::refresh);
 	}
 
-	private void refresh( final LabelSourceState< ?, ? > state )
+	private void refresh(final LabelSourceState<?, ?> state)
 	{
 		state.refreshMeshes();
 	}

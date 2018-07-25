@@ -7,7 +7,7 @@ public class Detach implements AssignmentAction
 
 	public final long fragmentFrom;
 
-	public Detach( final long fragmentId, final long fragmentFrom )
+	public Detach(final long fragmentId, final long fragmentFrom)
 	{
 		super();
 		this.fragmentId = fragmentId;

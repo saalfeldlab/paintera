@@ -3,17 +3,16 @@ package org.janelia.saalfeldlab.paintera.control.selection;
 import java.lang.invoke.MethodHandles;
 import java.util.Arrays;
 
+import gnu.trove.set.hash.TLongHashSet;
+import net.imglib2.type.label.Label;
 import org.janelia.saalfeldlab.fx.ObservableWithListenersList;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import gnu.trove.set.hash.TLongHashSet;
-import net.imglib2.type.label.Label;
-
 public class SelectedIds extends ObservableWithListenersList
 {
 
-	private static final Logger LOG = LoggerFactory.getLogger( MethodHandles.lookup().lookupClass() );
+	private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
 	private final TLongHashSet selectedIds;
 
@@ -21,65 +20,65 @@ public class SelectedIds extends ObservableWithListenersList
 
 	public SelectedIds()
 	{
-		this( new TLongHashSet() );
+		this(new TLongHashSet());
 	}
 
-	public SelectedIds( final TLongHashSet selectedIds )
+	public SelectedIds(final TLongHashSet selectedIds)
 	{
 		super();
 		this.selectedIds = selectedIds;
 		updateLastSelection();
 	}
 
-	public boolean isActive( final long id )
+	public boolean isActive(final long id)
 	{
-		return selectedIds.contains( id );
+		return selectedIds.contains(id);
 	}
 
-	public void activate( final long... ids )
+	public void activate(final long... ids)
 	{
-		deactivateAll( false );
-		activateAlso( ids );
-		LOG.debug( "Activated " + Arrays.toString( ids ) + " " + selectedIds );
+		deactivateAll(false);
+		activateAlso(ids);
+		LOG.debug("Activated " + Arrays.toString(ids) + " " + selectedIds);
 	}
 
-	public void activateAlso( final long... ids )
+	public void activateAlso(final long... ids)
 	{
-		for ( final long id : ids )
-			selectedIds.add( id );
-		if ( ids.length > 0 )
-			this.lastSelection = ids[ 0 ];
+		for (final long id : ids)
+			selectedIds.add(id);
+		if (ids.length > 0)
+			this.lastSelection = ids[0];
 		stateChanged();
 	}
 
 	public void deactivateAll()
 	{
-		deactivateAll( true );
+		deactivateAll(true);
 	}
 
-	private void deactivateAll( final boolean notify )
+	private void deactivateAll(final boolean notify)
 	{
 		selectedIds.clear();
 		lastSelection = Label.INVALID;
-		if ( notify )
+		if (notify)
 			stateChanged();
 	}
 
-	public void deactivate( final long... ids )
+	public void deactivate(final long... ids)
 	{
-		for ( final long id : ids )
+		for (final long id : ids)
 		{
-			selectedIds.remove( id );
-			if ( id == lastSelection )
+			selectedIds.remove(id);
+			if (id == lastSelection)
 				lastSelection = Label.INVALID;
 		}
-		LOG.debug( "Deactivated {}, {}", Arrays.toString( ids ), selectedIds );
+		LOG.debug("Deactivated {}, {}", Arrays.toString(ids), selectedIds);
 		stateChanged();
 	}
 
-	public boolean isOnlyActiveId( final long id )
+	public boolean isOnlyActiveId(final long id)
 	{
-		return selectedIds.size() == 1 && isActive( id );
+		return selectedIds.size() == 1 && isActive(id);
 	}
 
 	public long[] getActiveIds()
@@ -92,7 +91,7 @@ public class SelectedIds extends ObservableWithListenersList
 		return this.lastSelection;
 	}
 
-	public boolean isLastSelection( final long id )
+	public boolean isLastSelection(final long id)
 	{
 		return this.lastSelection == id;
 	}
@@ -105,7 +104,7 @@ public class SelectedIds extends ObservableWithListenersList
 
 	private void updateLastSelection()
 	{
-		if ( selectedIds.size() > 0 )
+		if (selectedIds.size() > 0)
 		{
 			lastSelection = selectedIds.iterator().next();
 		}

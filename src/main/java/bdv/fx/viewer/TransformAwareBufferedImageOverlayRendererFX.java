@@ -33,33 +33,30 @@ import java.lang.invoke.MethodHandles;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.function.Consumer;
 
+import javafx.scene.image.Image;
+import net.imglib2.realtransform.AffineTransform3D;
+import net.imglib2.ui.TransformListener;
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javafx.scene.image.Image;
-import net.imglib2.realtransform.AffineTransform3D;
-import net.imglib2.ui.TransformListener;
-
 public class TransformAwareBufferedImageOverlayRendererFX
 		extends ImageOverlayRendererFX
-		implements TransformAwareBufferedImageOverlayRendererGeneric< Consumer< Image >, BufferExposingWritableImage >
+		implements TransformAwareBufferedImageOverlayRendererGeneric<Consumer<Image>, BufferExposingWritableImage>
 {
 
-	private static Logger LOG = LoggerFactory.getLogger( MethodHandles.lookup().lookupClass() );
+	private static Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
 	protected AffineTransform3D pendingTransform;
 
 	protected AffineTransform3D paintedTransform;
 
 	/**
-	 * These listeners will be notified about the transform that is associated
-	 * to the currently rendered image. This is intended for example for
-	 * {@link OverlayRendererGeneric OverlayRendererGenerics} that need to
-	 * exactly match the transform of their overlaid content to the transform of
-	 * the image.
+	 * These listeners will be notified about the transform that is associated to the currently rendered image. This is
+	 * intended for example for {@link OverlayRendererGeneric OverlayRendererGenerics} that need to exactly match the
+	 * transform of their overlaid content to the transform of the image.
 	 */
-	protected final CopyOnWriteArrayList< TransformListener< AffineTransform3D > > paintedTransformListeners;
+	protected final CopyOnWriteArrayList<TransformListener<AffineTransform3D>> paintedTransformListeners;
 
 	public TransformAwareBufferedImageOverlayRendererFX()
 	{
@@ -70,83 +67,85 @@ public class TransformAwareBufferedImageOverlayRendererFX
 	}
 
 	@Override
-	public synchronized BufferExposingWritableImage setBufferedImageAndTransform( final BufferExposingWritableImage img, final AffineTransform3D transform )
+	public synchronized BufferExposingWritableImage setBufferedImageAndTransform(final BufferExposingWritableImage
+			                                                                                 img, final
+	AffineTransform3D transform)
 	{
-		pendingTransform.set( transform );
-		return super.setBufferedImage( img );
+		pendingTransform.set(transform);
+		return super.setBufferedImage(img);
 	}
 
 	@Override
-	public void drawOverlays( final Consumer< Image > g )
+	public void drawOverlays(final Consumer<Image> g)
 	{
 		boolean notifyTransformListeners = false;
-		synchronized ( this )
+		synchronized (this)
 		{
-			if ( pending )
+			if (pending)
 			{
 				final BufferExposingWritableImage tmp = bufferedImage;
 				bufferedImage = pendingImage;
-				paintedTransform.set( pendingTransform );
+				paintedTransform.set(pendingTransform);
 				pendingImage = tmp;
 				pending = false;
 				notifyTransformListeners = true;
 			}
 		}
 		final BufferExposingWritableImage sourceImage = this.bufferedImage;
-		if ( sourceImage != null )
+		if (sourceImage != null)
 		{
 			final boolean notify = notifyTransformListeners;
-			InvokeOnJavaFXApplicationThread.invoke( () -> {
+			InvokeOnJavaFXApplicationThread.invoke(() -> {
 
-				LOG.debug( "Setting image to {}", sourceImage );
-				g.accept( null );
+				LOG.debug("Setting image to {}", sourceImage);
+				g.accept(null);
 				sourceImage.setPixelsDirty();
-				g.accept( sourceImage );
+				g.accept(sourceImage);
 				// TODO add countdown latch to wait for setImage to return
 				// before
 				// notifying listeners
-				if ( notify )
-					for ( final TransformListener< AffineTransform3D > listener : paintedTransformListeners )
-						listener.transformChanged( paintedTransform );
-			} );
-//			LOG.debug( String.format( "g.drawImage() :%4d ms", watch.nanoTime() / 1000000 ) );
+				if (notify)
+					for (final TransformListener<AffineTransform3D> listener : paintedTransformListeners)
+						listener.transformChanged(paintedTransform);
+			});
+			//			LOG.debug( String.format( "g.drawImage() :%4d ms", watch.nanoTime() / 1000000 ) );
 		}
 	}
 
 	/**
-	 * Add a {@link TransformListener} to notify about viewer transformation
-	 * changes. Listeners will be notified when a new image has been rendered
-	 * (immediately before that image is displayed) with the viewer transform
-	 * used to render that image.
+	 * Add a {@link TransformListener} to notify about viewer transformation changes. Listeners will be notified when a
+	 * new image has been rendered (immediately before that image is displayed) with the viewer transform used to
+	 * render
+	 * that image.
 	 *
 	 * @param listener
-	 *            the transform listener to add.
+	 * 		the transform listener to add.
 	 */
 	@Override
-	public void addTransformListener( final TransformListener< AffineTransform3D > listener )
+	public void addTransformListener(final TransformListener<AffineTransform3D> listener)
 	{
-		addTransformListener( listener, Integer.MAX_VALUE );
+		addTransformListener(listener, Integer.MAX_VALUE);
 	}
 
 	/**
-	 * Add a {@link TransformListener} to notify about viewer transformation
-	 * changes. Listeners will be notified when a new image has been rendered
-	 * (immediately before that image is displayed) with the viewer transform
-	 * used to render that image.
+	 * Add a {@link TransformListener} to notify about viewer transformation changes. Listeners will be notified when a
+	 * new image has been rendered (immediately before that image is displayed) with the viewer transform used to
+	 * render
+	 * that image.
 	 *
 	 * @param listener
-	 *            the transform listener to add.
+	 * 		the transform listener to add.
 	 * @param index
-	 *            position in the list of listeners at which to insert this one.
+	 * 		position in the list of listeners at which to insert this one.
 	 */
 	@Override
-	public void addTransformListener( final TransformListener< AffineTransform3D > listener, final int index )
+	public void addTransformListener(final TransformListener<AffineTransform3D> listener, final int index)
 	{
-		synchronized ( paintedTransformListeners )
+		synchronized (paintedTransformListeners)
 		{
 			final int s = paintedTransformListeners.size();
-			paintedTransformListeners.add( index < 0 ? 0 : index > s ? s : index, listener );
-			listener.transformChanged( paintedTransform );
+			paintedTransformListeners.add(index < 0 ? 0 : index > s ? s : index, listener);
+			listener.transformChanged(paintedTransform);
 		}
 	}
 
@@ -154,24 +153,23 @@ public class TransformAwareBufferedImageOverlayRendererFX
 	 * Remove a {@link TransformListener}.
 	 *
 	 * @param listener
-	 *            the transform listener to remove.
+	 * 		the transform listener to remove.
 	 */
 	@Override
-	public void removeTransformListener( final TransformListener< AffineTransform3D > listener )
+	public void removeTransformListener(final TransformListener<AffineTransform3D> listener)
 	{
-		synchronized ( paintedTransformListeners )
+		synchronized (paintedTransformListeners)
 		{
-			paintedTransformListeners.remove( listener );
+			paintedTransformListeners.remove(listener);
 		}
 	}
 
 	/**
 	 * DON'T USE THIS.
 	 * <p>
-	 * This is a work around for JDK bug
-	 * https://bugs.openjdk.java.net/browse/JDK-8029147 which leads to
-	 * ViewerPanel not being garbage-collected when ViewerFrame is closed. So
-	 * instead we need to manually let go of resources...
+	 * This is a work around for JDK bug https://bugs.openjdk.java.net/browse/JDK-8029147 which leads to ViewerPanel
+	 * not
+	 * being garbage-collected when ViewerFrame is closed. So instead we need to manually let go of resources...
 	 */
 	void kill()
 	{

@@ -44,30 +44,30 @@ public class IntervalAndTransform implements MultiBoxOverlayFX.IntervalAndTransf
 	public IntervalAndTransform()
 	{
 		isVisible = false;
-		sourceInterval = new ModifiableInterval( 3 );
+		sourceInterval = new ModifiableInterval(3);
 		sourceToViewer = new AffineTransform3D();
 	}
 
-	public void set( final boolean visible, final Interval sourceInterval, final AffineTransform3D sourceToViewer )
+	public void set(final boolean visible, final Interval sourceInterval, final AffineTransform3D sourceToViewer)
 	{
-		setVisible( visible );
-		setSourceInterval( sourceInterval );
-		setSourceToViewer( sourceToViewer );
+		setVisible(visible);
+		setSourceInterval(sourceInterval);
+		setSourceToViewer(sourceToViewer);
 	}
 
-	public void setVisible( final boolean visible )
+	public void setVisible(final boolean visible)
 	{
 		isVisible = visible;
 	}
 
-	public void setSourceInterval( final Interval interval )
+	public void setSourceInterval(final Interval interval)
 	{
-		sourceInterval.set( interval );
+		sourceInterval.set(interval);
 	}
 
-	public void setSourceToViewer( final AffineTransform3D t )
+	public void setSourceToViewer(final AffineTransform3D t)
 	{
-		sourceToViewer.set( t );
+		sourceToViewer.set(t);
 	}
 
 	@Override

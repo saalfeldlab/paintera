@@ -11,15 +11,15 @@ public class LockFile
 
 		private final File lockFile;
 
-		public UnableToCreateLock( final File lockFile, final Throwable cause )
+		public UnableToCreateLock(final File lockFile, final Throwable cause)
 		{
-			super( cause );
+			super(cause);
 			this.lockFile = lockFile;
 		}
 
-		public UnableToCreateLock( final File lockFile, final String message )
+		public UnableToCreateLock(final File lockFile, final String message)
 		{
-			super( message );
+			super(message);
 			this.lockFile = lockFile;
 		}
 
@@ -32,9 +32,9 @@ public class LockFile
 	public static class LockAlreadyExists extends UnableToCreateLock
 	{
 
-		public LockAlreadyExists( final File lockFile )
+		public LockAlreadyExists(final File lockFile)
 		{
-			super( lockFile, "Lock already exists: " + lockFile );
+			super(lockFile, "Lock already exists: " + lockFile);
 		}
 	}
 
@@ -42,15 +42,15 @@ public class LockFile
 
 	private boolean isLocked = false;
 
-	public LockFile( final String directory, final String filename )
+	public LockFile(final String directory, final String filename)
 	{
-		this( new File( directory ), filename );
+		this(new File(directory), filename);
 	}
 
-	public LockFile( final File directory, final String filename )
+	public LockFile(final File directory, final String filename)
 	{
 		directory.mkdirs();
-		this.file = new File( directory, filename );
+		this.file = new File(directory, filename);
 		this.file.deleteOnExit();
 	}
 
@@ -60,18 +60,17 @@ public class LockFile
 		try
 		{
 			this.isLocked = this.file.createNewFile();
-		}
-		catch ( final IOException e )
+		} catch (final IOException e)
 		{
-			throw new UnableToCreateLock( this.file, e );
+			throw new UnableToCreateLock(this.file, e);
 		}
-		if ( !this.isLocked ) { throw new LockAlreadyExists( this.file ); }
+		if (!this.isLocked) { throw new LockAlreadyExists(this.file); }
 		return this.isLocked;
 	}
 
 	public void remove()
 	{
-		if ( isLocked )
+		if (isLocked)
 		{
 			this.file.delete();
 			isLocked = false;

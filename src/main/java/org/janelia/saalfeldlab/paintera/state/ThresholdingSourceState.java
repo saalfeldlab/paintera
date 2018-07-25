@@ -3,15 +3,6 @@ package org.janelia.saalfeldlab.paintera.state;
 import java.lang.invoke.MethodHandles;
 import java.util.function.Predicate;
 
-import org.janelia.saalfeldlab.paintera.composition.ARGBCompositeAlphaAdd;
-import org.janelia.saalfeldlab.paintera.data.DataSource;
-import org.janelia.saalfeldlab.paintera.data.PredicateDataSource;
-import org.janelia.saalfeldlab.paintera.state.ThresholdingSourceState.Threshold;
-import org.janelia.saalfeldlab.paintera.state.ThresholdingSourceState.VolatileMaskConverter;
-import org.janelia.saalfeldlab.util.Colors;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import javafx.beans.property.DoubleProperty;
 import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.SimpleDoubleProperty;
@@ -25,49 +16,62 @@ import net.imglib2.type.logic.BoolType;
 import net.imglib2.type.numeric.ARGBType;
 import net.imglib2.type.numeric.RealType;
 import net.imglib2.type.volatiles.AbstractVolatileRealType;
+import org.janelia.saalfeldlab.paintera.composition.ARGBCompositeAlphaAdd;
+import org.janelia.saalfeldlab.paintera.data.DataSource;
+import org.janelia.saalfeldlab.paintera.data.PredicateDataSource;
+import org.janelia.saalfeldlab.paintera.state.ThresholdingSourceState.Threshold;
+import org.janelia.saalfeldlab.paintera.state.ThresholdingSourceState.VolatileMaskConverter;
+import org.janelia.saalfeldlab.util.Colors;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-public class ThresholdingSourceState< D extends RealType< D >, T extends AbstractVolatileRealType< D, T > >
-extends MinimalSourceState< BoolType, Volatile< BoolType >, PredicateDataSource< D, T, Threshold< D > >, VolatileMaskConverter< BoolType, Volatile< BoolType > > >
+public class ThresholdingSourceState<D extends RealType<D>, T extends AbstractVolatileRealType<D, T>>
+		extends
+		MinimalSourceState<BoolType, Volatile<BoolType>, PredicateDataSource<D, T, Threshold<D>>,
+				VolatileMaskConverter<BoolType, Volatile<BoolType>>>
 {
 
-	private final ObjectProperty< Color > color = new SimpleObjectProperty<>( Color.WHITE );
+	private final ObjectProperty<Color> color = new SimpleObjectProperty<>(Color.WHITE);
 
-	private final DoubleProperty alpha = new SimpleDoubleProperty( 1.0 );
+	private final DoubleProperty alpha = new SimpleDoubleProperty(1.0);
 
-	private final Threshold< D > threshold;
+	private final Threshold<D> threshold;
 
 	public ThresholdingSourceState(
 			final String name,
-			final RawSourceState< D, T > toBeThresholded )
+			final RawSourceState<D, T> toBeThresholded)
 	{
 		super(
 				threshold(
 						toBeThresholded.dataSource(),
 						toBeThresholded.converter().minProperty(),
 						toBeThresholded.converter().maxProperty(),
-						name ),
+						name
+				         ),
 				new VolatileMaskConverter<>(),
 				new ARGBCompositeAlphaAdd(),
 				name,
-				toBeThresholded );
+				toBeThresholded
+		     );
 		this.threshold = getDataSource().getPredicate();
 	}
 
-	public Threshold< D > getThreshold()
+	public Threshold<D> getThreshold()
 	{
 		return this.threshold;
 	}
 
-	private static < D extends RealType< D >, T extends AbstractVolatileRealType< D, T > > PredicateDataSource< D, T, Threshold< D > > threshold(
-			final DataSource< D, T > source,
+	private static <D extends RealType<D>, T extends AbstractVolatileRealType<D, T>> PredicateDataSource<D, T,
+			Threshold<D>> threshold(
+			final DataSource<D, T> source,
 			final ObservableDoubleValue min,
 			final ObservableDoubleValue max,
-			final String name )
+			final String name)
 	{
-		return new PredicateDataSource<>( source, new Threshold<>( min, max ), name );
+		return new PredicateDataSource<>(source, new Threshold<>(min, max), name);
 	}
 
-	public ObjectProperty< Color > colorProperty()
+	public ObjectProperty<Color> colorProperty()
 	{
 		return this.color;
 	}
@@ -77,54 +81,55 @@ extends MinimalSourceState< BoolType, Volatile< BoolType >, PredicateDataSource<
 		return this.alpha;
 	}
 
-	public static class MaskConverter< B extends BooleanType< B > > implements Converter< B, ARGBType >
+	public static class MaskConverter<B extends BooleanType<B>> implements Converter<B, ARGBType>
 	{
 
-		private final ARGBType masked = Colors.toARGBType( Color.rgb( 255, 255, 255, 1.0 ) );
+		private final ARGBType masked = Colors.toARGBType(Color.rgb(255, 255, 255, 1.0));
 
-		private final ARGBType notMasked = Colors.toARGBType( Color.rgb( 0, 0, 0, 0.0 ) );
+		private final ARGBType notMasked = Colors.toARGBType(Color.rgb(0, 0, 0, 0.0));
 
 		@Override
-		public void convert( final B mask, final ARGBType color )
+		public void convert(final B mask, final ARGBType color)
 		{
-			color.set( mask.get() ? masked : notMasked );
+			color.set(mask.get() ? masked : notMasked);
 		}
 
-		public void setMasked( final ARGBType masked )
+		public void setMasked(final ARGBType masked)
 		{
-			this.masked.set( masked );
+			this.masked.set(masked);
 		}
 
-		public void setNotMasked( final ARGBType notMasked )
+		public void setNotMasked(final ARGBType notMasked)
 		{
-			this.notMasked.set( masked );
+			this.notMasked.set(masked);
 		}
 
 	}
 
-	public static class VolatileMaskConverter< B extends BooleanType< B >, V extends Volatile< B > > implements Converter< V, ARGBType >
+	public static class VolatileMaskConverter<B extends BooleanType<B>, V extends Volatile<B>>
+			implements Converter<V, ARGBType>
 	{
 
-		private static final Logger LOG = LoggerFactory.getLogger( MethodHandles.lookup().lookupClass() );
+		private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
-		private final ARGBType masked = Colors.toARGBType( Color.rgb( 255, 255, 255, 1.0 ) );
+		private final ARGBType masked = Colors.toARGBType(Color.rgb(255, 255, 255, 1.0));
 
-		private final ARGBType notMasked = Colors.toARGBType( Color.rgb( 0, 0, 0, 0.0 ) );
+		private final ARGBType notMasked = Colors.toARGBType(Color.rgb(0, 0, 0, 0.0));
 
 		@Override
-		public void convert( final V mask, final ARGBType color )
+		public void convert(final V mask, final ARGBType color)
 		{
-			color.set( mask.get().get() ? masked : notMasked );
+			color.set(mask.get().get() ? masked : notMasked);
 		}
 
-		public void setMasked( final ARGBType masked )
+		public void setMasked(final ARGBType masked)
 		{
-			this.masked.set( masked );
+			this.masked.set(masked);
 		}
 
-		public void setNotMasked( final ARGBType notMasked )
+		public void setNotMasked(final ARGBType notMasked)
 		{
-			this.notMasked.set( notMasked );
+			this.notMasked.set(notMasked);
 		}
 
 		public ARGBType getMasked()
@@ -138,10 +143,10 @@ extends MinimalSourceState< BoolType, Volatile< BoolType >, PredicateDataSource<
 		}
 	}
 
-	public static class Threshold< T extends RealType< T > > implements Predicate< T >
+	public static class Threshold<T extends RealType<T>> implements Predicate<T>
 	{
 
-		private static final Logger LOG = LoggerFactory.getLogger( MethodHandles.lookup().lookupClass() );
+		private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
 		private double min;
 
@@ -153,20 +158,20 @@ extends MinimalSourceState< BoolType, Volatile< BoolType >, PredicateDataSource<
 
 		public Threshold(
 				final ObservableDoubleValue minSupplier,
-				final ObservableDoubleValue maxSupplier )
+				final ObservableDoubleValue maxSupplier)
 		{
 			super();
 			this.minSupplier = minSupplier;
 			this.maxSupplier = maxSupplier;
-			this.minSupplier.addListener( ( obs, oldv, newv ) -> update() );
-			this.maxSupplier.addListener( ( obs, oldv, newv ) -> update() );
+			this.minSupplier.addListener((obs, oldv, newv) -> update());
+			this.maxSupplier.addListener((obs, oldv, newv) -> update());
 			update();
 		}
 
 		@Override
-		public boolean test( final T t )
+		public boolean test(final T t)
 		{
-			final double val = t.getRealDouble();
+			final double  val            = t.getRealDouble();
 			final boolean isWithinMinMax = val < this.max && val > this.min;
 			return isWithinMinMax;
 		}
@@ -176,7 +181,7 @@ extends MinimalSourceState< BoolType, Volatile< BoolType >, PredicateDataSource<
 			final double m = this.minSupplier.get();
 			final double M = this.maxSupplier.get();
 
-			if ( m < M )
+			if (m < M)
 			{
 				this.min = m;
 				this.max = M;
@@ -197,7 +202,6 @@ extends MinimalSourceState< BoolType, Volatile< BoolType >, PredicateDataSource<
 		{
 			return this.maxSupplier;
 		}
-
 
 
 	}

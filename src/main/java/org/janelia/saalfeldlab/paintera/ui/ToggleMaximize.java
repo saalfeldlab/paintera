@@ -16,7 +16,7 @@ public class ToggleMaximize
 	public ToggleMaximize(
 			final GridConstraintsManager manager,
 			final MaximizedColumn col,
-			final MaximizedRow row )
+			final MaximizedRow row)
 	{
 		super();
 		this.manager = manager;
@@ -26,7 +26,7 @@ public class ToggleMaximize
 
 	public void toggleFullScreen()
 	{
-		this.manager.maximize( row, col, 200 );
+		this.manager.maximize(row, col, 200);
 	}
 
 }

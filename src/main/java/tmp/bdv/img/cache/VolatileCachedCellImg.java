@@ -22,25 +22,25 @@ import net.imglib2.util.Fraction;
 import tmp.bdv.img.cache.VolatileCachedCellImg.VolatileCachedCells;
 
 /**
- * A {@link LazyCellImg} for {@link Volatile} accesses. The only difference to
- * {@link LazyCellImg} is that is has {@link CacheHints}.
+ * A {@link LazyCellImg} for {@link Volatile} accesses. The only difference to {@link LazyCellImg} is that is has {@link
+ * CacheHints}.
  *
  * @param <T>
- *            the pixel type
+ * 		the pixel type
  * @param <A>
- *            the underlying native access type
+ * 		the underlying native access type
  *
  * @author Tobias Pietzsch
  * @author Stephan Saalfeld
  * @author Philipp Hanslovsky
  */
-public class VolatileCachedCellImg< T extends NativeType< T >, A >
-		extends AbstractCellImg< T, A, Cell< A >, VolatileCachedCells< Cell< A > > >
+public class VolatileCachedCellImg<T extends NativeType<T>, A>
+		extends AbstractCellImg<T, A, Cell<A>, VolatileCachedCells<Cell<A>>>
 {
 	@FunctionalInterface
-	public interface Get< T >
+	public interface Get<T>
 	{
-		T get( long index, CacheHints cacheHints );
+		T get(long index, CacheHints cacheHints);
 	}
 
 	private final Runnable invalidateAll;
@@ -48,67 +48,61 @@ public class VolatileCachedCellImg< T extends NativeType< T >, A >
 	public VolatileCachedCellImg(
 			final CellGrid grid,
 			final Fraction entitiesPerPixel,
-			Function< NativeImg< T, ? extends A >, T > typeFactory,
+			Function<NativeImg<T, ? extends A>, T> typeFactory,
 			final CacheHints cacheHints,
-			final Get< Cell< A > > get,
-			final Runnable invalidateAll )
+			final Get<Cell<A>> get,
+			final Runnable invalidateAll)
 	{
-		super( grid, new VolatileCachedCells<>( grid.getGridDimensions(), get, cacheHints ), entitiesPerPixel );
-		setLinkedType( typeFactory.apply( this ) );
+		super(grid, new VolatileCachedCells<>(grid.getGridDimensions(), get, cacheHints), entitiesPerPixel);
+		setLinkedType(typeFactory.apply(this));
 		this.invalidateAll = invalidateAll;
 	}
 
-	public VolatileCachedCellImg( final CellGrid grid, final T type, final CacheHints cacheHints, final Get< Cell< A > > get, final Runnable invalidateAll )
+	public VolatileCachedCellImg(final CellGrid grid, final T type, final CacheHints cacheHints, final Get<Cell<A>>
+			get, final Runnable invalidateAll)
 	{
-		super( grid, new VolatileCachedCells<>( grid.getGridDimensions(), get, cacheHints ), type.getEntitiesPerPixel() );
+		super(grid, new VolatileCachedCells<>(grid.getGridDimensions(), get, cacheHints), type.getEntitiesPerPixel());
 
-		@SuppressWarnings( "unchecked" )
-		final NativeTypeFactory< T, ? super A > typeFactory = ( NativeTypeFactory< T, ? super A > ) type.getNativeTypeFactory();
-		setLinkedType( typeFactory.createLinkedType( this ) );
+		@SuppressWarnings("unchecked") final NativeTypeFactory<T, ? super A> typeFactory = (NativeTypeFactory<T, ?
+				super A>) type.getNativeTypeFactory();
+		setLinkedType(typeFactory.createLinkedType(this));
 		this.invalidateAll = invalidateAll;
 	}
 
 	/**
-	 * Set {@link CacheHints hints} on how to handle cell requests for this
-	 * cache. The hints comprise {@link LoadingStrategy}, queue priority, and
-	 * queue order.
+	 * Set {@link CacheHints hints} on how to handle cell requests for this cache. The hints comprise {@link
+	 * LoadingStrategy}, queue priority, and queue order.
 	 * <p>
-	 * Whenever a cell is accessed its data may be invalid, meaning that the
-	 * cell data has not been loaded yet. In this case, the
-	 * {@link LoadingStrategy} determines when the data should be loaded:
+	 * Whenever a cell is accessed its data may be invalid, meaning that the cell data has not been loaded yet. In this
+	 * case, the {@link LoadingStrategy} determines when the data should be loaded:
 	 * <ul>
 	 * <li>{@link LoadingStrategy#VOLATILE}: Enqueue the cell for asynchronous
-	 * loading by a fetcher thread, if it has not been enqueued in the current
-	 * frame already.
+	 * loading by a fetcher thread, if it has not been enqueued in the current frame already.
 	 * <li>{@link LoadingStrategy#BLOCKING}: Load the cell data immediately.
 	 * <li>{@link LoadingStrategy#BUDGETED}: Load the cell data immediately if
-	 * there is enough {@link IoTimeBudget} left for the current thread group.
-	 * Otherwise enqueue for asynchronous loading, if it has not been enqueued
-	 * in the current frame already.
+	 * there is enough {@link IoTimeBudget} left for the current thread group. Otherwise enqueue for asynchronous
+	 * loading, if it has not been enqueued in the current frame already.
 	 * <li>{@link LoadingStrategy#DONTLOAD}: Do nothing.
 	 * </ul>
 	 * <p>
-	 * If a cell is enqueued, it is enqueued in the queue with the specified
-	 * {@link CacheHints#getQueuePriority() queue priority}. Priorities are
-	 * consecutive integers <em>0 ... n-1</em>, where 0 is the highest priority.
-	 * Requests with priority <em>i &lt; j</em> will be handled before requests
-	 * with priority <em>j</em>.
+	 * If a cell is enqueued, it is enqueued in the queue with the specified {@link CacheHints#getQueuePriority() queue
+	 * priority}. Priorities are consecutive integers <em>0 ... n-1</em>, where 0 is the highest priority. Requests
+	 * with
+	 * priority <em>i &lt; j</em> will be handled before requests with priority <em>j</em>.
 	 * <p>
-	 * Finally, the {@link CacheHints#isEnqueuToFront() queue order} determines
-	 * whether the cell is enqueued to the front or to the back of the queue
-	 * with the specified priority.
+	 * Finally, the {@link CacheHints#isEnqueuToFront() queue order} determines whether the cell is enqueued to the
+	 * front or to the back of the queue with the specified priority.
 	 * <p>
-	 * Note, that the queues are {@link BlockingFetchQueues#clearToPrefetch()
-	 * cleared} whenever a {@link CacheControl#prepareNextFrame() new frame} is
-	 * rendered.
+	 * Note, that the queues are {@link BlockingFetchQueues#clearToPrefetch() cleared} whenever a {@link
+	 * CacheControl#prepareNextFrame() new frame} is rendered.
 	 *
 	 * @param cacheHints
-	 *            describe handling of cell requests for this cache. May be
-	 *            {@code null}, in which case the default hints are restored.
+	 * 		describe handling of cell requests for this cache. May be {@code null}, in which case the default hints are
+	 * 		restored.
 	 */
-	public void setCacheHints( final CacheHints cacheHints )
+	public void setCacheHints(final CacheHints cacheHints)
 	{
-		cells.cacheHints = ( cacheHints != null ) ? cacheHints : cells.defaultCacheHints;
+		cells.cacheHints = (cacheHints != null) ? cacheHints : cells.defaultCacheHints;
 	}
 
 	public CacheHints getDefaultCacheHints()
@@ -117,53 +111,53 @@ public class VolatileCachedCellImg< T extends NativeType< T >, A >
 	}
 
 	@Override
-	public ImgFactory< T > factory()
+	public ImgFactory<T> factory()
 	{
-		throw new UnsupportedOperationException( "not implemented yet" );
+		throw new UnsupportedOperationException("not implemented yet");
 	}
 
 	@Override
-	public Img< T > copy()
+	public Img<T> copy()
 	{
-		throw new UnsupportedOperationException( "not implemented yet" );
+		throw new UnsupportedOperationException("not implemented yet");
 	}
 
-	public static final class VolatileCachedCells< T > extends AbstractLongListImg< T >
+	public static final class VolatileCachedCells<T> extends AbstractLongListImg<T>
 	{
-		private final Get< T > get;
+		private final Get<T> get;
 
 		final CacheHints defaultCacheHints;
 
 		CacheHints cacheHints;
 
-		protected VolatileCachedCells( final long[] dimensions, final Get< T > get, final CacheHints cacheHints )
+		protected VolatileCachedCells(final long[] dimensions, final Get<T> get, final CacheHints cacheHints)
 		{
-			super( dimensions );
+			super(dimensions);
 			this.get = get;
 			this.defaultCacheHints = cacheHints;
 			this.cacheHints = cacheHints;
 		}
 
 		@Override
-		protected T get( final long index )
+		protected T get(final long index)
 		{
-			return get.get( index, cacheHints );
+			return get.get(index, cacheHints);
 		}
 
 		@Override
-		protected void set( final long index, final T value )
-		{
-			throw new UnsupportedOperationException();
-		}
-
-		@Override
-		public ImgFactory< T > factory()
+		protected void set(final long index, final T value)
 		{
 			throw new UnsupportedOperationException();
 		}
 
 		@Override
-		public Img< T > copy()
+		public ImgFactory<T> factory()
+		{
+			throw new UnsupportedOperationException();
+		}
+
+		@Override
+		public Img<T> copy()
 		{
 			throw new UnsupportedOperationException();
 		}

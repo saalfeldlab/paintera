@@ -15,34 +15,34 @@ import net.imglib2.view.Views;
 import tmp.net.imglib2.converter.read.ConvertedRandomAccessibleInterval;
 import tmp.net.imglib2.outofbounds.OutOfBoundsConstantValueFactory;
 
-public class ConvertedDataSource< D, T, U, V > implements DataSource< U, V >
+public class ConvertedDataSource<D, T, U, V> implements DataSource<U, V>
 {
 
-	private final DataSource< D, T > source;
+	private final DataSource<D, T> source;
 
-	private final Converter< D, U > dataTypeConverter;
+	private final Converter<D, U> dataTypeConverter;
 
-	private final Converter< T, V > typeConverter;
+	private final Converter<T, V> typeConverter;
 
-	private final Supplier< U > dataTypeExtensionSupplier;
+	private final Supplier<U> dataTypeExtensionSupplier;
 
-	private final Supplier< V > typeExtensionSupplier;
+	private final Supplier<V> typeExtensionSupplier;
 
-	private final Function< Interpolation, InterpolatorFactory< U, RandomAccessible< U > > > dataInterpolation;
+	private final Function<Interpolation, InterpolatorFactory<U, RandomAccessible<U>>> dataInterpolation;
 
-	private final Function< Interpolation, InterpolatorFactory< V, RandomAccessible< V > > > interpolation;
+	private final Function<Interpolation, InterpolatorFactory<V, RandomAccessible<V>>> interpolation;
 
 	private final String name;
 
 	public ConvertedDataSource(
-			final DataSource< D, T > source,
-			final Converter< D, U > dataTypeConverter,
-			final Converter< T, V > typeConverter,
-			final Supplier< U > dataTypeSupplier,
-			final Supplier< V > typeSupplier,
-			final Function< Interpolation, InterpolatorFactory< U, RandomAccessible< U > > > dataInterpolation,
-			final Function< Interpolation, InterpolatorFactory< V, RandomAccessible< V > > > interpolation,
-			final String name )
+			final DataSource<D, T> source,
+			final Converter<D, U> dataTypeConverter,
+			final Converter<T, V> typeConverter,
+			final Supplier<U> dataTypeSupplier,
+			final Supplier<V> typeSupplier,
+			final Function<Interpolation, InterpolatorFactory<U, RandomAccessible<U>>> dataInterpolation,
+			final Function<Interpolation, InterpolatorFactory<V, RandomAccessible<V>>> interpolation,
+			final String name)
 	{
 		super();
 		this.source = source;
@@ -56,29 +56,34 @@ public class ConvertedDataSource< D, T, U, V > implements DataSource< U, V >
 	}
 
 	@Override
-	public boolean isPresent( final int t )
+	public boolean isPresent(final int t)
 	{
-		return source.isPresent( t );
+		return source.isPresent(t);
 	}
 
 	@Override
-	public RandomAccessibleInterval< V > getSource( final int t, final int level )
+	public RandomAccessibleInterval<V> getSource(final int t, final int level)
 	{
-		return new ConvertedRandomAccessibleInterval<>( source.getSource( t, level ), typeConverter, typeExtensionSupplier );
+		return new ConvertedRandomAccessibleInterval<>(
+				source.getSource(t, level),
+				typeConverter,
+				typeExtensionSupplier
+		);
 	}
 
 	@Override
-	public RealRandomAccessible< V > getInterpolatedSource( final int t, final int level, final Interpolation method )
+	public RealRandomAccessible<V> getInterpolatedSource(final int t, final int level, final Interpolation method)
 	{
 		return Views.interpolate(
-				Views.extend( getSource( t, level ), new OutOfBoundsConstantValueFactory<>( typeExtensionSupplier ) ),
-				interpolation.apply( method ) );
+				Views.extend(getSource(t, level), new OutOfBoundsConstantValueFactory<>(typeExtensionSupplier)),
+				interpolation.apply(method)
+		                        );
 	}
 
 	@Override
-	public void getSourceTransform( final int t, final int level, final AffineTransform3D transform )
+	public void getSourceTransform(final int t, final int level, final AffineTransform3D transform)
 	{
-		source.getSourceTransform( t, level, transform );
+		source.getSourceTransform(t, level, transform);
 	}
 
 	@Override
@@ -106,17 +111,23 @@ public class ConvertedDataSource< D, T, U, V > implements DataSource< U, V >
 	}
 
 	@Override
-	public RandomAccessibleInterval< U > getDataSource( final int t, final int level )
+	public RandomAccessibleInterval<U> getDataSource(final int t, final int level)
 	{
-		return new ConvertedRandomAccessibleInterval<>( source.getDataSource( t, level ), dataTypeConverter, dataTypeExtensionSupplier );
+		return new ConvertedRandomAccessibleInterval<>(
+				source.getDataSource(t, level),
+				dataTypeConverter,
+				dataTypeExtensionSupplier
+		);
 	}
 
 	@Override
-	public RealRandomAccessible< U > getInterpolatedDataSource( final int t, final int level, final Interpolation method )
+	public RealRandomAccessible<U> getInterpolatedDataSource(final int t, final int level, final Interpolation method)
 	{
 		return Views.interpolate(
-				Views.extend( getDataSource( t, level ), new OutOfBoundsConstantValueFactory<>( dataTypeExtensionSupplier ) ),
-				dataInterpolation.apply( method ) );
+				Views.extend(getDataSource(t, level), new OutOfBoundsConstantValueFactory<>
+						(dataTypeExtensionSupplier)),
+				dataInterpolation.apply(method)
+		                        );
 	}
 
 	@Override

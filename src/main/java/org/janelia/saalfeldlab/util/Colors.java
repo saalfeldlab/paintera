@@ -6,55 +6,56 @@ import net.imglib2.type.numeric.ARGBType;
 public class Colors
 {
 	// #ff0088
-	public static final Color CREMI = Color.rgb( 0xff, 0x00, 0x88, 1.0 );
+	public static final Color CREMI = Color.rgb(0xff, 0x00, 0x88, 1.0);
 
-	public static Color cremi( final double opacity )
+	public static Color cremi(final double opacity)
 	{
 		final double factor = opacity / CREMI.getOpacity();
-		return CREMI.deriveColor( 0, 1, 1, factor );
+		return CREMI.deriveColor(0, 1, 1, factor);
 	}
 
-	public static ARGBType toARGBType( final Color color )
+	public static ARGBType toARGBType(final Color color)
 	{
-		final int r = ( int ) Math.round( 255 * color.getRed() );
-		final int g = ( int ) Math.round( 255 * color.getGreen() );
-		final int b = ( int ) Math.round( 255 * color.getBlue() );
-		final int a = ( int ) Math.round( 255 * color.getOpacity() );
-		return new ARGBType( ARGBType.rgba( r, g, b, a ) );
+		final int r = (int) Math.round(255 * color.getRed());
+		final int g = (int) Math.round(255 * color.getGreen());
+		final int b = (int) Math.round(255 * color.getBlue());
+		final int a = (int) Math.round(255 * color.getOpacity());
+		return new ARGBType(ARGBType.rgba(r, g, b, a));
 	}
 
-	public static Color toColor( final ARGBType type )
+	public static Color toColor(final ARGBType type)
 	{
 		final int value = type.get();
-		final int r = ARGBType.red( value );
-		final int g = ARGBType.green( value );
-		final int b = ARGBType.blue( value );
-		final int a = ARGBType.alpha( value );
-		return Color.rgb( r, g, b, a / 255.0 );
+		final int r     = ARGBType.red(value);
+		final int g     = ARGBType.green(value);
+		final int b     = ARGBType.blue(value);
+		final int a     = ARGBType.alpha(value);
+		return Color.rgb(r, g, b, a / 255.0);
 	}
 
-	public static String toHTML( final ARGBType color )
+	public static String toHTML(final ARGBType color)
 	{
 		final int c = color.get();
 		return String.format(
 				"#%02X%02X%02X",
-				ARGBType.red( c ),
-				ARGBType.green( c ),
-				ARGBType.blue( c ) );
+				ARGBType.red(c),
+				ARGBType.green(c),
+				ARGBType.blue(c)
+		                    );
 
 	}
 
-	public static String toHTML( final Color color )
+	public static String toHTML(final Color color)
 	{
-		final int r = ( int ) Math.round( color.getRed() * 255 ) & 0xff;
-		final int g = ( int ) Math.round( color.getGreen() * 255 ) & 0xff;
-		final int b = ( int ) Math.round( color.getBlue() * 255 ) & 0xff;
-		final int a = ( int ) Math.round( color.getOpacity() ) * 255 & 0xff;
-		return String.format( "#%02X%02X%02X%02X", r, g, b, a );
+		final int r = (int) Math.round(color.getRed() * 255) & 0xff;
+		final int g = (int) Math.round(color.getGreen() * 255) & 0xff;
+		final int b = (int) Math.round(color.getBlue() * 255) & 0xff;
+		final int a = (int) Math.round(color.getOpacity()) * 255 & 0xff;
+		return String.format("#%02X%02X%02X%02X", r, g, b, a);
 	}
 
-	public static ARGBType toARGBType( final String html )
+	public static ARGBType toARGBType(final String html)
 	{
-		return Colors.toARGBType( Color.web( html ) );
+		return Colors.toARGBType(Color.web(html));
 	}
 }

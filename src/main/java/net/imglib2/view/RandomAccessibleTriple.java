@@ -39,29 +39,28 @@ import net.imglib2.RandomAccessible;
 import net.imglib2.util.Triple;
 
 /**
- * A {@link RandomAccessible} over two independent {@link RandomAccessible
- * RandomAccessibles} whose type is the {@link Triple} of corresponding values
- * at the same coordinates in either of the two sources.
+ * A {@link RandomAccessible} over two independent {@link RandomAccessible RandomAccessibles} whose type is the {@link
+ * Triple} of corresponding values at the same coordinates in either of the two sources.
  *
  * @author Stephan Saalfeld
  * @author Tobias Pietzsch
  * @author Philipp Hanslovsky
  */
-public class RandomAccessibleTriple< A, B, C > implements RandomAccessible< Triple< A, B, C > >
+public class RandomAccessibleTriple<A, B, C> implements RandomAccessible<Triple<A, B, C>>
 {
-	final protected RandomAccessible< A > sourceA;
+	final protected RandomAccessible<A> sourceA;
 
-	final protected RandomAccessible< B > sourceB;
+	final protected RandomAccessible<B> sourceB;
 
-	final protected RandomAccessible< C > sourceC;
+	final protected RandomAccessible<C> sourceC;
 
-	public class RandomAccess implements Triple< A, B, C >, net.imglib2.RandomAccess< Triple< A, B, C > >
+	public class RandomAccess implements Triple<A, B, C>, net.imglib2.RandomAccess<Triple<A, B, C>>
 	{
-		final protected net.imglib2.RandomAccess< A > a;
+		final protected net.imglib2.RandomAccess<A> a;
 
-		final protected net.imglib2.RandomAccess< B > b;
+		final protected net.imglib2.RandomAccess<B> b;
 
-		final protected net.imglib2.RandomAccess< C > c;
+		final protected net.imglib2.RandomAccess<C> c;
 
 		public RandomAccess()
 		{
@@ -89,51 +88,51 @@ public class RandomAccessibleTriple< A, B, C > implements RandomAccessible< Trip
 		}
 
 		@Override
-		public void localize( final int[] position )
+		public void localize(final int[] position)
 		{
-			a.localize( position );
+			a.localize(position);
 		}
 
 		@Override
-		public void localize( final long[] position )
+		public void localize(final long[] position)
 		{
-			a.localize( position );
+			a.localize(position);
 		}
 
 		@Override
-		public int getIntPosition( final int d )
+		public int getIntPosition(final int d)
 		{
-			return a.getIntPosition( d );
+			return a.getIntPosition(d);
 		}
 
 		@Override
-		public long getLongPosition( final int d )
+		public long getLongPosition(final int d)
 		{
-			return a.getLongPosition( d );
+			return a.getLongPosition(d);
 		}
 
 		@Override
-		public void localize( final float[] position )
+		public void localize(final float[] position)
 		{
-			a.localize( position );
+			a.localize(position);
 		}
 
 		@Override
-		public void localize( final double[] position )
+		public void localize(final double[] position)
 		{
-			a.localize( position );
+			a.localize(position);
 		}
 
 		@Override
-		public float getFloatPosition( final int d )
+		public float getFloatPosition(final int d)
 		{
-			return a.getFloatPosition( d );
+			return a.getFloatPosition(d);
 		}
 
 		@Override
-		public double getDoublePosition( final int d )
+		public double getDoublePosition(final int d)
 		{
-			return a.getDoublePosition( d );
+			return a.getDoublePosition(d);
 		}
 
 		@Override
@@ -143,103 +142,103 @@ public class RandomAccessibleTriple< A, B, C > implements RandomAccessible< Trip
 		}
 
 		@Override
-		public void fwd( final int d )
+		public void fwd(final int d)
 		{
-			a.fwd( d );
-			b.fwd( d );
-			c.fwd( d );
+			a.fwd(d);
+			b.fwd(d);
+			c.fwd(d);
 		}
 
 		@Override
-		public void bck( final int d )
+		public void bck(final int d)
 		{
-			a.bck( d );
-			b.bck( d );
-			c.bck( d );
+			a.bck(d);
+			b.bck(d);
+			c.bck(d);
 		}
 
 		@Override
-		public void move( final int distance, final int d )
+		public void move(final int distance, final int d)
 		{
-			a.move( distance, d );
-			b.move( distance, d );
-			c.move( distance, d );
+			a.move(distance, d);
+			b.move(distance, d);
+			c.move(distance, d);
 		}
 
 		@Override
-		public void move( final long distance, final int d )
+		public void move(final long distance, final int d)
 		{
-			a.move( distance, d );
-			b.move( distance, d );
-			c.move( distance, d );
+			a.move(distance, d);
+			b.move(distance, d);
+			c.move(distance, d);
 		}
 
 		@Override
-		public void move( final Localizable localizable )
+		public void move(final Localizable localizable)
 		{
-			a.move( localizable );
-			b.move( localizable );
-			c.move( localizable );
+			a.move(localizable);
+			b.move(localizable);
+			c.move(localizable);
 		}
 
 		@Override
-		public void move( final int[] distance )
+		public void move(final int[] distance)
 		{
-			a.move( distance );
-			b.move( distance );
-			c.move( distance );
+			a.move(distance);
+			b.move(distance);
+			c.move(distance);
 		}
 
 		@Override
-		public void move( final long[] distance )
+		public void move(final long[] distance)
 		{
-			a.move( distance );
-			b.move( distance );
-			c.move( distance );
+			a.move(distance);
+			b.move(distance);
+			c.move(distance);
 		}
 
 		@Override
-		public void setPosition( final Localizable localizable )
+		public void setPosition(final Localizable localizable)
 		{
-			a.setPosition( localizable );
-			b.setPosition( localizable );
-			c.setPosition( localizable );
+			a.setPosition(localizable);
+			b.setPosition(localizable);
+			c.setPosition(localizable);
 		}
 
 		@Override
-		public void setPosition( final int[] position )
+		public void setPosition(final int[] position)
 		{
-			a.setPosition( position );
-			b.setPosition( position );
-			c.setPosition( position );
+			a.setPosition(position);
+			b.setPosition(position);
+			c.setPosition(position);
 		}
 
 		@Override
-		public void setPosition( final long[] position )
+		public void setPosition(final long[] position)
 		{
-			a.setPosition( position );
-			b.setPosition( position );
-			c.setPosition( position );
+			a.setPosition(position);
+			b.setPosition(position);
+			c.setPosition(position);
 		}
 
 		@Override
-		public void setPosition( final int position, final int d )
+		public void setPosition(final int position, final int d)
 		{
-			a.setPosition( position, d );
-			b.setPosition( position, d );
-			c.setPosition( position, d );
+			a.setPosition(position, d);
+			b.setPosition(position, d);
+			c.setPosition(position, d);
 		}
 
 		@Override
-		public void setPosition( final long position, final int d )
+		public void setPosition(final long position, final int d)
 		{
-			a.setPosition( position, d );
-			b.setPosition( position, d );
-			c.setPosition( position, d );
+			a.setPosition(position, d);
+			b.setPosition(position, d);
+			c.setPosition(position, d);
 		}
 
 		@Override
-		public Triple< A, B, C > get()
+		public Triple<A, B, C> get()
 		{
 			return this;
 		}
@@ -248,7 +247,7 @@ public class RandomAccessibleTriple< A, B, C > implements RandomAccessible< Trip
 		public RandomAccess copy()
 		{
 			final RandomAccess copy = new RandomAccess();
-			copy.setPosition( this );
+			copy.setPosition(this);
 			return copy;
 		}
 
@@ -260,9 +259,9 @@ public class RandomAccessibleTriple< A, B, C > implements RandomAccessible< Trip
 	}
 
 	public RandomAccessibleTriple(
-			final RandomAccessible< A > sourceA,
-			final RandomAccessible< B > sourceB,
-			final RandomAccessible< C > sourceC )
+			final RandomAccessible<A> sourceA,
+			final RandomAccessible<B> sourceB,
+			final RandomAccessible<C> sourceC)
 	{
 		this.sourceA = sourceA;
 		this.sourceB = sourceB;
@@ -282,7 +281,7 @@ public class RandomAccessibleTriple< A, B, C > implements RandomAccessible< Trip
 	}
 
 	@Override
-	public RandomAccess randomAccess( final Interval interval )
+	public RandomAccess randomAccess(final Interval interval)
 	{
 		return new RandomAccess();
 	}

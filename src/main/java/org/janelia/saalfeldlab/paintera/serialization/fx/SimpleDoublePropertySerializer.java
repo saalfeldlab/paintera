@@ -10,24 +10,28 @@ import com.google.gson.JsonParseException;
 import com.google.gson.JsonPrimitive;
 import com.google.gson.JsonSerializationContext;
 import com.google.gson.JsonSerializer;
-
 import javafx.beans.property.SimpleDoubleProperty;
 
 public class SimpleDoublePropertySerializer implements
-		JsonSerializer< SimpleDoubleProperty >,
-		JsonDeserializer< SimpleDoubleProperty >
+                                            JsonSerializer<SimpleDoubleProperty>,
+                                            JsonDeserializer<SimpleDoubleProperty>
 {
 
 	@Override
-	public SimpleDoubleProperty deserialize( final JsonElement json, final Type typeOfT, final JsonDeserializationContext context ) throws JsonParseException
+	public SimpleDoubleProperty deserialize(final JsonElement json, final Type typeOfT, final
+	JsonDeserializationContext context)
+	throws JsonParseException
 	{
-		return new SimpleDoubleProperty( Optional.ofNullable( ( Double ) context.deserialize( json, double.class ) ).orElse( 0.0 ) );
+		return new SimpleDoubleProperty(Optional.ofNullable((Double) context.deserialize(
+				json,
+				double.class
+		                                                                                )).orElse(0.0));
 	}
 
 	@Override
-	public JsonElement serialize( final SimpleDoubleProperty src, final Type typeOfSrc, final JsonSerializationContext context )
+	public JsonElement serialize(final SimpleDoubleProperty src, final Type typeOfSrc, final JsonSerializationContext context)
 	{
-		return new JsonPrimitive( src.get() );
+		return new JsonPrimitive(src.get());
 	}
 
 }

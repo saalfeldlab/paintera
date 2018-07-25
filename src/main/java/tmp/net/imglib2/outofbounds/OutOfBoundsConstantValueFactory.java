@@ -41,27 +41,26 @@ import net.imglib2.RandomAccessible;
 import net.imglib2.outofbounds.OutOfBoundsFactory;
 
 /**
- *
  * @param <T>
  *
  * @author Stephan Preibisch
  * @author Stephan Saalfeld
  * @author Philipp Hanslovsky
  */
-public class OutOfBoundsConstantValueFactory< T, F extends Interval & RandomAccessible< T > >
-		implements OutOfBoundsFactory< T, F >
+public class OutOfBoundsConstantValueFactory<T, F extends Interval & RandomAccessible<T>>
+		implements OutOfBoundsFactory<T, F>
 {
 
-	private final Supplier< T > valueSupplier;
+	private final Supplier<T> valueSupplier;
 
-	public OutOfBoundsConstantValueFactory( final Supplier< T > valueSupplier )
+	public OutOfBoundsConstantValueFactory(final Supplier<T> valueSupplier)
 	{
 		this.valueSupplier = valueSupplier;
 	}
 
 	@Override
-	public OutOfBoundsConstantValue< T > create( final F f )
+	public OutOfBoundsConstantValue<T> create(final F f)
 	{
-		return new OutOfBoundsConstantValue<>( f, valueSupplier );
+		return new OutOfBoundsConstantValue<>(f, valueSupplier);
 	}
 }

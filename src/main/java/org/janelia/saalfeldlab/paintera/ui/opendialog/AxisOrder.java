@@ -46,9 +46,7 @@ public enum AxisOrder
 
 	XYZTC, XZYTC,
 	YZXTC, YXZTC,
-	ZXYTC, ZYXTC
-
-	;
+	ZXYTC, ZYXTC;
 
 	public enum AXIS
 	{
@@ -71,13 +69,17 @@ public enum AxisOrder
 	{
 		final String upperCaseName = this.name().toUpperCase();
 		this.numDimensions = upperCaseName.length();
-		this.hasChannels = upperCaseName.contains( AXIS.C.name() );
-		this.hasTime = upperCaseName.contains( AXIS.T.name() );
-		this.numSpaceDimensions = this.numDimensions - ( hasChannels ? 1 : 0 ) - ( hasTime ? 1 : 0 );
-		this.permutation = new int[ this.numDimensions ];
-		for ( int d = 0; d < this.numDimensions; ++d )
-			this.permutation[ getIndexFor( AXIS.valueOf( upperCaseName.substring( d, d + 1 ) ), this.hasTime, this.numSpaceDimensions ) ] = d;
-		this.inversePermutation = invertPermutation( this.permutation );
+		this.hasChannels = upperCaseName.contains(AXIS.C.name());
+		this.hasTime = upperCaseName.contains(AXIS.T.name());
+		this.numSpaceDimensions = this.numDimensions - (hasChannels ? 1 : 0) - (hasTime ? 1 : 0);
+		this.permutation = new int[this.numDimensions];
+		for (int d = 0; d < this.numDimensions; ++d)
+			this.permutation[getIndexFor(
+					AXIS.valueOf(upperCaseName.substring(d, d + 1)),
+					this.hasTime,
+					this.numSpaceDimensions
+			                            )] = d;
+		this.inversePermutation = invertPermutation(this.permutation);
 	}
 
 	public int numDimensions()
@@ -100,19 +102,19 @@ public enum AxisOrder
 		return this.hasTime;
 	}
 
-	public int axis( final AXIS axis )
+	public int axis(final AXIS axis)
 	{
-		return name().indexOf( axis.name() );
+		return name().indexOf(axis.name());
 	}
 
 	public int timeAxis()
 	{
-		return axis( AXIS.T );
+		return axis(AXIS.T);
 	}
 
 	public int channelAxis()
 	{
-		return axis( AXIS.C );
+		return axis(AXIS.C);
 	}
 
 	public int[] permutation()
@@ -127,70 +129,75 @@ public enum AxisOrder
 
 	public AxisOrder spatialOnly()
 	{
-		final Pattern pattern = Pattern.compile( String.format( "([%s%s%s]+)+", AXIS.X.name(), AXIS.Y.name(), AXIS.Z.name() ) );
-		final Matcher matcher = pattern.matcher( name() );
+		final Pattern pattern = Pattern.compile(String.format(
+				"([%s%s%s]+)+",
+				AXIS.X.name(),
+				AXIS.Y.name(),
+				AXIS.Z.name()
+		                                                     ));
+		final Matcher matcher = pattern.matcher(name());
 		matcher.find();
-		final String matched = matcher.group( 1 );
-		return Arrays.stream( values() ).filter( order -> order.name().equals( matched ) ).findFirst().orElse( null );
+		final String matched = matcher.group(1);
+		return Arrays.stream(values()).filter(order -> order.name().equals(matched)).findFirst().orElse(null);
 	}
 
-	public static Optional< AxisOrder > defaultOrder( final int numDimensions )
+	public static Optional<AxisOrder> defaultOrder(final int numDimensions)
 	{
-		switch ( numDimensions )
+		switch (numDimensions)
 		{
-		case 3:
-			return Optional.of( XYZ );
-		case 4:
-			return Optional.of( TXYZ );
-		case 5:
-			return Optional.of( TCXYZ );
-		default:
-			return Optional.empty();
+			case 3:
+				return Optional.of(XYZ);
+			case 4:
+				return Optional.of(TXYZ);
+			case 5:
+				return Optional.of(TCXYZ);
+			default:
+				return Optional.empty();
 		}
 	}
 
 	public AxisOrder withoutChannel()
 	{
-		return AxisOrder.valueOf( name().replaceAll( AXIS.C.name(), "" ) );
+		return AxisOrder.valueOf(name().replaceAll(AXIS.C.name(), ""));
 	}
 
 	public int[] spatialIndices()
 	{
 		final String name = name();
-		return new int[] { name.indexOf( AXIS.X.name() ), name.indexOf( AXIS.Y.name() ), name.indexOf( AXIS.Z.name() ) };
+		return new int[] {name.indexOf(AXIS.X.name()), name.indexOf(AXIS.Y.name()), name.indexOf(AXIS.Z.name())};
 	}
 
-	private static int getIndexFor( final AXIS identifier, final boolean hasTime, final int numSpaceDimensions )
+	private static int getIndexFor(final AXIS identifier, final boolean hasTime, final int numSpaceDimensions)
 	{
-		switch ( identifier )
+		switch (identifier)
 		{
-		case X:
-			return 0;
-		case Y:
-			return 1;
-		case Z:
-			return 2;
-		case T:
-			return 3;
-		case C:
-			return numSpaceDimensions + ( hasTime ? 1 : 0 );
-		default:
-			return -1;
+			case X:
+				return 0;
+			case Y:
+				return 1;
+			case Z:
+				return 2;
+			case T:
+				return 3;
+			case C:
+				return numSpaceDimensions + (hasTime ? 1 : 0);
+			default:
+				return -1;
 		}
 	}
 
-	private static int[] invertPermutation( final int[] permutation )
+	private static int[] invertPermutation(final int[] permutation)
 	{
-		final int[] inverted = new int[ permutation.length ];
-		for ( int i = 0; i < inverted.length; ++i )
-			inverted[ permutation[ i ] ] = i;
+		final int[] inverted = new int[permutation.length];
+		for (int i = 0; i < inverted.length; ++i)
+			inverted[permutation[i]] = i;
 		return inverted;
 	}
 
-//	public static void main( final String[] args )
-//	{
-//		final AxisOrder order = XZYTC;
-//		System.out.println( order.spatialOnly() );
-//	}
+	//	public static void main( final String[] args )
+	//	{
+	//		final AxisOrder order = XZYTC;
+	//		System.out.println( order.spatialOnly() );
+	//	}
 
 }

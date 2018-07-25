@@ -1,18 +1,15 @@
 /**
  * License: GPL
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License 2
- * as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+ * <p>
+ * This program is free software; you can redistribute it and/or modify it under the terms of the GNU General Public
+ * License 2 as published by the Free Software Foundation.
+ * <p>
+ * This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied
+ * warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more
+ * details.
+ * <p>
+ * You should have received a copy of the GNU General Public License along with this program; if not, write to the Free
+ * Software Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
  */
 package org.janelia.saalfeldlab.paintera.stream;
 
@@ -34,18 +31,18 @@ public class GoldenAngleSaturatedHighlightingARGBStream extends AbstractSaturate
 	public GoldenAngleSaturatedHighlightingARGBStream(
 			final SelectedIds highlights,
 			final FragmentSegmentAssignmentState assignment,
-			final LockedSegments lockedSegments )
+			final LockedSegments lockedSegments)
 	{
-		super( highlights, assignment, lockedSegments );
+		super(highlights, assignment, lockedSegments);
 		seed = 1;
 	}
 
-	final static protected double goldenRatio = 1.0 / ( 0.5 * Math.sqrt( 5 ) + 0.5 );
+	final static protected double goldenRatio = 1.0 / (0.5 * Math.sqrt(5) + 0.5);
 
 	@Override
-	final protected double getDoubleImpl( final long id, final boolean colorFromSegmentId )
+	final protected double getDoubleImpl(final long id, final boolean colorFromSegmentId)
 	{
 		final double x = id * seed * goldenRatio;
-		return x - ( long ) Math.floor( x );
+		return x - (long) Math.floor(x);
 	}
 }

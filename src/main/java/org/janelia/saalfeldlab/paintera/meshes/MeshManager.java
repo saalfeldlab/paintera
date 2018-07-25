@@ -8,11 +8,11 @@ import javafx.beans.property.IntegerProperty;
 import net.imglib2.Interval;
 import net.imglib2.util.Pair;
 
-public interface MeshManager< N, T >
+public interface MeshManager<N, T>
 {
-	public void generateMesh( final N id );
+	public void generateMesh(final N id);
 
-	public void removeMesh( final N id );
+	public void removeMesh(final N id);
 
 	public void removeAllMeshes();
 
@@ -24,15 +24,15 @@ public interface MeshManager< N, T >
 
 	public IntegerProperty smoothingIterationsProperty();
 
-	public Map< N, MeshGenerator< T > > unmodifiableMeshMap();
+	public Map<N, MeshGenerator<T>> unmodifiableMeshMap();
 
-	public InterruptibleFunction< T, Interval[] >[] blockListCache();
+	public InterruptibleFunction<T, Interval[]>[] blockListCache();
 
-	public InterruptibleFunction< ShapeKey< T >, Pair< float[], float[] > >[] meshCache();
+	public InterruptibleFunction<ShapeKey<T>, Pair<float[], float[]>>[] meshCache();
 
 	public DoubleProperty opacityProperty();
 
-	public long[] containedFragments( N t );
+	public long[] containedFragments(N t);
 
 	public void refreshMeshes();
 

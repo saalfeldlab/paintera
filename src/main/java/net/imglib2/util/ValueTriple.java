@@ -1,6 +1,6 @@
 package net.imglib2.util;
 
-public class ValueTriple< A, B, C > implements Triple< A, B, C >
+public class ValueTriple<A, B, C> implements Triple<A, B, C>
 {
 
 	private final A a;
@@ -9,7 +9,7 @@ public class ValueTriple< A, B, C > implements Triple< A, B, C >
 
 	private final C c;
 
-	public ValueTriple( final A a, final B b, final C c )
+	public ValueTriple(final A a, final B b, final C c)
 	{
 		super();
 		this.a = a;

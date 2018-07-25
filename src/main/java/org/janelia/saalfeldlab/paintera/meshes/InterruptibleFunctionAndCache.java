@@ -2,16 +2,16 @@ package org.janelia.saalfeldlab.paintera.meshes;
 
 import net.imglib2.cache.UncheckedCache;
 
-public class InterruptibleFunctionAndCache< K, V > implements UncheckedCache< K, V >, InterruptibleFunction< K, V >
+public class InterruptibleFunctionAndCache<K, V> implements UncheckedCache<K, V>, InterruptibleFunction<K, V>
 {
 
-	private final UncheckedCache< K, V > cacheDelegate;
+	private final UncheckedCache<K, V> cacheDelegate;
 
-	private final Interruptible< K > interrupt;
+	private final Interruptible<K> interrupt;
 
 	public InterruptibleFunctionAndCache(
-			final UncheckedCache< K, V > cacheDelegate,
-			final Interruptible< K > interrupt )
+			final UncheckedCache<K, V> cacheDelegate,
+			final Interruptible<K> interrupt)
 	{
 		super();
 		this.cacheDelegate = cacheDelegate;
@@ -25,27 +25,27 @@ public class InterruptibleFunctionAndCache< K, V > implements UncheckedCache< K,
 	}
 
 	@Override
-	public V apply( final K key )
+	public V apply(final K key)
 	{
-		return this.get( key );
+		return this.get(key);
 	}
 
 	@Override
-	public void interruptFor( final K t )
+	public void interruptFor(final K t)
 	{
-		interrupt.interruptFor( t );
+		interrupt.interruptFor(t);
 	}
 
 	@Override
-	public V getIfPresent( final K key )
+	public V getIfPresent(final K key)
 	{
-		return cacheDelegate.getIfPresent( key );
+		return cacheDelegate.getIfPresent(key);
 	}
 
 	@Override
-	public V get( final K key )
+	public V get(final K key)
 	{
-		return cacheDelegate.get( key );
+		return cacheDelegate.get(key);
 	}
 
 

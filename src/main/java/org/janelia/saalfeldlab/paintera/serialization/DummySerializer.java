@@ -6,14 +6,14 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonSerializationContext;
 import com.google.gson.JsonSerializer;
 
-public class DummySerializer implements JsonSerializer< Object >
+public class DummySerializer implements JsonSerializer<Object>
 {
 
 	@Override
-	public JsonElement serialize( final Object src, final Type typeOfSrc, final JsonSerializationContext context )
+	public JsonElement serialize(final Object src, final Type typeOfSrc, final JsonSerializationContext context)
 	{
-		System.out.println( "DOING SHIT YAW!" );
-		return context.serialize( src.toString() );
+		System.out.println("DOING SHIT YAW!");
+		return context.serialize(src.toString());
 	}
 
 }

@@ -15,37 +15,37 @@ public class LatestTaskExecutor implements Executor
 
 	private long delayInNanoSeconds;
 
-	public LatestTaskExecutor( final ThreadFactory factory )
+	public LatestTaskExecutor(final ThreadFactory factory)
 	{
-		this( 0, factory );
+		this(0, factory);
 	}
 
-	public LatestTaskExecutor( final long delayInNanoSeconds, final ThreadFactory factory )
+	public LatestTaskExecutor(final long delayInNanoSeconds, final ThreadFactory factory)
 	{
 		super();
-		this.executor = Executors.newSingleThreadScheduledExecutor( factory );
+		this.executor = Executors.newSingleThreadScheduledExecutor(factory);
 		this.delayInNanoSeconds = delayInNanoSeconds;
 	}
 
 	@Override
-	public void execute( final Runnable command )
+	public void execute(final Runnable command)
 	{
-		synchronized ( this )
+		synchronized (this)
 		{
 			final Runnable pendingTask = task;
 			task = command;
-			if ( pendingTask == null )
+			if (pendingTask == null)
 			{
 				executor.schedule(
 						() -> {
 							final Runnable currentTask;
-							synchronized ( LatestTaskExecutor.this )
+							synchronized (LatestTaskExecutor.this)
 							{
 								currentTask = task;
 								task = null;
 							}
 							currentTask.run();
-						}, delayInNanoSeconds, TimeUnit.NANOSECONDS );
+						}, delayInNanoSeconds, TimeUnit.NANOSECONDS);
 			}
 		}
 	}
@@ -60,12 +60,12 @@ public class LatestTaskExecutor implements Executor
 		this.executor.shutdown();
 	}
 
-	public List< Runnable > shutdownNow()
+	public List<Runnable> shutdownNow()
 	{
 		return this.executor.shutdownNow();
 	}
 
-	public void setDelay( final long delayInNanoSeconds )
+	public void setDelay(final long delayInNanoSeconds)
 	{
 		this.delayInNanoSeconds = delayInNanoSeconds;
 	}

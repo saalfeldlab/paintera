@@ -9,7 +9,7 @@ public class DecorateRunnable implements Runnable
 
 	private final Runnable after;
 
-	public DecorateRunnable( final Runnable r, final Runnable before, final Runnable after )
+	public DecorateRunnable(final Runnable r, final Runnable before, final Runnable after)
 	{
 		super();
 		this.before = before;
@@ -25,19 +25,21 @@ public class DecorateRunnable implements Runnable
 		this.after.run();
 	}
 
-	public static Runnable before( final Runnable r, final Runnable before )
+	public static Runnable before(final Runnable r, final Runnable before)
 	{
-		return new DecorateRunnable( r, before, () -> {} );
+		return new DecorateRunnable(r, before, () -> {
+		});
 	}
 
-	public static Runnable after( final Runnable r, final Runnable after )
+	public static Runnable after(final Runnable r, final Runnable after)
 	{
-		return new DecorateRunnable( r, () -> {}, after );
+		return new DecorateRunnable(r, () -> {
+		}, after);
 	}
 
-	public static Runnable beforeAndAfter( final Runnable r, final Runnable before, final Runnable after )
+	public static Runnable beforeAndAfter(final Runnable r, final Runnable before, final Runnable after)
 	{
-		return new DecorateRunnable( r, before, after );
+		return new DecorateRunnable(r, before, after);
 	}
 
 }

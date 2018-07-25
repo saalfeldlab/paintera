@@ -9,21 +9,21 @@ public class LocalIdService implements IdService
 
 	public LocalIdService()
 	{
-		this( 0 );
+		this(0);
 	}
 
-	public LocalIdService( final long maxId )
+	public LocalIdService(final long maxId)
 	{
 		this.next = maxId;
 	}
 
 	@Override
-	public synchronized void invalidate( final long id )
+	public synchronized void invalidate(final long id)
 	{
-		next = IdService.max( next, id + 1 );
+		next = IdService.max(next, id + 1);
 	}
 
-	public void setNext( final long id )
+	public void setNext(final long id)
 	{
 		next = id;
 	}
@@ -35,15 +35,15 @@ public class LocalIdService implements IdService
 	}
 
 	@Override
-	public synchronized long[] next( final int n )
+	public synchronized long[] next(final int n)
 	{
-		final long[] ids = LongStream.range( next, next + n ).toArray();
+		final long[] ids = LongStream.range(next, next + n).toArray();
 		next += n;
 		return ids;
 	}
 
 	@Override
-	public synchronized boolean isInvalidated( final long id )
+	public synchronized boolean isInvalidated(final long id)
 	{
 		return id < this.next;
 	}

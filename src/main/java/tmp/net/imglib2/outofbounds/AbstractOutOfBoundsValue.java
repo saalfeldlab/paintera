@@ -42,7 +42,6 @@ import net.imglib2.RandomAccessible;
 import net.imglib2.outofbounds.OutOfBounds;
 
 /**
- *
  * @param <T>
  *
  * @author Stephan Preibisch
@@ -50,9 +49,9 @@ import net.imglib2.outofbounds.OutOfBounds;
  * @author Tobias Pietzsch
  * @author Philipp Hanslovsky
  */
-public abstract class AbstractOutOfBoundsValue< T > extends AbstractLocalizable implements OutOfBounds< T >
+public abstract class AbstractOutOfBoundsValue<T> extends AbstractLocalizable implements OutOfBounds<T>
 {
-	final protected RandomAccess< T > sampler;
+	final protected RandomAccess<T> sampler;
 
 	final protected long[] dimension, min, max;
 
@@ -60,42 +59,42 @@ public abstract class AbstractOutOfBoundsValue< T > extends AbstractLocalizable 
 
 	protected boolean isOutOfBounds = false;
 
-	protected AbstractOutOfBoundsValue( final AbstractOutOfBoundsValue< T > outOfBounds )
+	protected AbstractOutOfBoundsValue(final AbstractOutOfBoundsValue<T> outOfBounds)
 	{
-		super( outOfBounds.numDimensions() );
+		super(outOfBounds.numDimensions());
 		this.sampler = outOfBounds.sampler.copyRandomAccess();
-		dimension = new long[ n ];
-		min = new long[ n ];
-		max = new long[ n ];
-		dimIsOutOfBounds = new boolean[ n ];
-		for ( int d = 0; d < n; ++d )
+		dimension = new long[n];
+		min = new long[n];
+		max = new long[n];
+		dimIsOutOfBounds = new boolean[n];
+		for (int d = 0; d < n; ++d)
 		{
-			dimension[ d ] = outOfBounds.dimension[ d ];
-			min[ d ] = outOfBounds.min[ d ];
-			max[ d ] = outOfBounds.max[ d ];
-			position[ d ] = outOfBounds.position[ d ];
-			dimIsOutOfBounds[ d ] = outOfBounds.dimIsOutOfBounds[ d ];
+			dimension[d] = outOfBounds.dimension[d];
+			min[d] = outOfBounds.min[d];
+			max[d] = outOfBounds.max[d];
+			position[d] = outOfBounds.position[d];
+			dimIsOutOfBounds[d] = outOfBounds.dimIsOutOfBounds[d];
 		}
 	}
 
-	public < F extends Interval & RandomAccessible< T > > AbstractOutOfBoundsValue( final F f )
+	public <F extends Interval & RandomAccessible<T>> AbstractOutOfBoundsValue(final F f)
 	{
-		super( f.numDimensions() );
+		super(f.numDimensions());
 		this.sampler = f.randomAccess();
-		dimension = new long[ n ];
-		f.dimensions( dimension );
-		min = new long[ n ];
-		f.min( min );
-		max = new long[ n ];
-		f.max( max );
-		dimIsOutOfBounds = new boolean[ n ];
+		dimension = new long[n];
+		f.dimensions(dimension);
+		min = new long[n];
+		f.min(min);
+		max = new long[n];
+		f.max(max);
+		dimIsOutOfBounds = new boolean[n];
 	}
 
 	final private void checkOutOfBounds()
 	{
-		for ( int d = 0; d < n; ++d )
+		for (int d = 0; d < n; ++d)
 		{
-			if ( dimIsOutOfBounds[ d ] )
+			if (dimIsOutOfBounds[d])
 			{
 				isOutOfBounds = true;
 				return;
@@ -116,150 +115,150 @@ public abstract class AbstractOutOfBoundsValue< T > extends AbstractLocalizable 
 	/* Positionable */
 
 	@Override
-	public void fwd( final int dim )
+	public void fwd(final int dim)
 	{
 		final boolean wasOutOfBounds = isOutOfBounds;
-		final long p = ++position[ dim ];
-		if ( p == min[ dim ] )
+		final long    p              = ++position[dim];
+		if (p == min[dim])
 		{
-			dimIsOutOfBounds[ dim ] = false;
+			dimIsOutOfBounds[dim] = false;
 			checkOutOfBounds();
 		}
-		else if ( p == max[ dim ] + 1 )
+		else if (p == max[dim] + 1)
 		{
-			dimIsOutOfBounds[ dim ] = isOutOfBounds = true;
+			dimIsOutOfBounds[dim] = isOutOfBounds = true;
 			return;
 		}
 
-		if ( isOutOfBounds ) { return; }
-		if ( wasOutOfBounds )
+		if (isOutOfBounds) { return; }
+		if (wasOutOfBounds)
 		{
-			sampler.setPosition( position );
+			sampler.setPosition(position);
 		}
 		else
 		{
-			sampler.fwd( dim );
+			sampler.fwd(dim);
 		}
 	}
 
 	@Override
-	public void bck( final int dim )
+	public void bck(final int dim)
 	{
 		final boolean wasOutOfBounds = isOutOfBounds;
-		final long p = position[ dim ]--;
-		if ( p == min[ dim ] )
+		final long    p              = position[dim]--;
+		if (p == min[dim])
 		{
-			dimIsOutOfBounds[ dim ] = isOutOfBounds = true;
+			dimIsOutOfBounds[dim] = isOutOfBounds = true;
 		}
-		else if ( p == max[ dim ] + 1 )
+		else if (p == max[dim] + 1)
 		{
-			dimIsOutOfBounds[ dim ] = false;
+			dimIsOutOfBounds[dim] = false;
 			checkOutOfBounds();
 		}
 
-		if ( isOutOfBounds ) { return; }
-		if ( wasOutOfBounds )
+		if (isOutOfBounds) { return; }
+		if (wasOutOfBounds)
 		{
-			sampler.setPosition( position );
+			sampler.setPosition(position);
 		}
 		else
 		{
-			sampler.bck( dim );
+			sampler.bck(dim);
 		}
 	}
 
 	@Override
-	public void move( final long distance, final int dim )
+	public void move(final long distance, final int dim)
 	{
-		setPosition( position[ dim ] + distance, dim );
+		setPosition(position[dim] + distance, dim);
 	}
 
 	@Override
-	public void move( final int distance, final int dim )
+	public void move(final int distance, final int dim)
 	{
-		move( ( long ) distance, dim );
+		move((long) distance, dim);
 	}
 
 	@Override
-	public void move( final Localizable localizable )
+	public void move(final Localizable localizable)
 	{
-		for ( int d = 0; d < n; ++d )
+		for (int d = 0; d < n; ++d)
 		{
-			move( localizable.getLongPosition( d ), d );
+			move(localizable.getLongPosition(d), d);
 		}
 	}
 
 	@Override
-	public void move( final int[] distance )
+	public void move(final int[] distance)
 	{
-		for ( int d = 0; d < n; ++d )
+		for (int d = 0; d < n; ++d)
 		{
-			move( distance[ d ], d );
+			move(distance[d], d);
 		}
 	}
 
 	@Override
-	public void move( final long[] distance )
+	public void move(final long[] distance)
 	{
-		for ( int d = 0; d < n; ++d )
+		for (int d = 0; d < n; ++d)
 		{
-			move( distance[ d ], d );
+			move(distance[d], d);
 		}
 	}
 
 	@Override
-	public void setPosition( final long position, final int dim )
+	public void setPosition(final long position, final int dim)
 	{
-		this.position[ dim ] = position;
-		if ( position < min[ dim ] || position > max[ dim ] )
+		this.position[dim] = position;
+		if (position < min[dim] || position > max[dim])
 		{
-			dimIsOutOfBounds[ dim ] = isOutOfBounds = true;
+			dimIsOutOfBounds[dim] = isOutOfBounds = true;
 		}
-		else if ( isOutOfBounds )
+		else if (isOutOfBounds)
 		{
-			dimIsOutOfBounds[ dim ] = false;
+			dimIsOutOfBounds[dim] = false;
 			checkOutOfBounds();
-			if ( !isOutOfBounds )
+			if (!isOutOfBounds)
 			{
-				sampler.setPosition( this.position );
+				sampler.setPosition(this.position);
 			}
 		}
 		else
 		{
-			sampler.setPosition( position, dim );
+			sampler.setPosition(position, dim);
 		}
 	}
 
 	@Override
-	public void setPosition( final int position, final int dim )
+	public void setPosition(final int position, final int dim)
 	{
-		setPosition( ( long ) position, dim );
+		setPosition((long) position, dim);
 	}
 
 	@Override
-	public void setPosition( final Localizable localizable )
+	public void setPosition(final Localizable localizable)
 	{
-		for ( int d = 0; d < n; ++d )
+		for (int d = 0; d < n; ++d)
 		{
-			setPosition( localizable.getLongPosition( d ), d );
+			setPosition(localizable.getLongPosition(d), d);
 		}
 	}
 
 	@Override
-	public void setPosition( final int[] position )
+	public void setPosition(final int[] position)
 	{
-		for ( int d = 0; d < position.length; ++d )
+		for (int d = 0; d < position.length; ++d)
 		{
-			setPosition( position[ d ], d );
+			setPosition(position[d], d);
 		}
 	}
 
 	@Override
-	public void setPosition( final long[] position )
+	public void setPosition(final long[] position)
 	{
-		for ( int d = 0; d < position.length; ++d )
+		for (int d = 0; d < position.length; ++d)
 		{
-			setPosition( position[ d ], d );
+			setPosition(position[d], d);
 		}
 	}
 }

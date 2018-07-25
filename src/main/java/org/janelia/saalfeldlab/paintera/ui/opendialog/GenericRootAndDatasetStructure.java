@@ -13,31 +13,31 @@ import javafx.scene.control.ComboBox;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.Priority;
 
-public class GenericRootAndDatasetStructure< T >
+public class GenericRootAndDatasetStructure<T>
 {
 
 	private final String datasetPromptText;
 
-	private final Property< String > dataset;
+	private final Property<String> dataset;
 
-	private final ObservableList< String > datasetChoices;
+	private final ObservableList<String> datasetChoices;
 
-	private final ObservableValue< Boolean > isDropDownReady;
+	private final ObservableValue<Boolean> isDropDownReady;
 
-	private final Consumer< Scene > onBrowseClicked;
+	private final Consumer<Scene> onBrowseClicked;
 
-	private final Supplier< Node > rootNode;
+	private final Supplier<Node> rootNode;
 
 	private final Node node;
 
 	public GenericRootAndDatasetStructure(
 			final String datasetPromptText,
-			final Property< T > group,
-			final Property< String > dataset,
-			final ObservableList< String > datasetChoices,
-			final ObservableValue< Boolean > isDropDownReady,
-			final Consumer< Scene > onBrowseClicked,
-			final Supplier< Node > groupNode )
+			final Property<T> group,
+			final Property<String> dataset,
+			final ObservableList<String> datasetChoices,
+			final ObservableValue<Boolean> isDropDownReady,
+			final Consumer<Scene> onBrowseClicked,
+			final Supplier<Node> groupNode)
 	{
 		super();
 		this.datasetPromptText = datasetPromptText;
@@ -51,20 +51,20 @@ public class GenericRootAndDatasetStructure< T >
 
 	private Node createNode()
 	{
-		final Node groupField = rootNode.get();
-		final ComboBox< String > datasetDropDown = new ComboBox<>( datasetChoices );
-		datasetDropDown.setPromptText( datasetPromptText );
-		datasetDropDown.setEditable( false );
-		datasetDropDown.valueProperty().bindBidirectional( dataset );
-		datasetDropDown.disableProperty().bind( this.isDropDownReady );
+		final Node             groupField      = rootNode.get();
+		final ComboBox<String> datasetDropDown = new ComboBox<>(datasetChoices);
+		datasetDropDown.setPromptText(datasetPromptText);
+		datasetDropDown.setEditable(false);
+		datasetDropDown.valueProperty().bindBidirectional(dataset);
+		datasetDropDown.disableProperty().bind(this.isDropDownReady);
 		final GridPane grid = new GridPane();
-		grid.add( groupField, 0, 0 );
-		grid.add( datasetDropDown, 0, 1 );
-		GridPane.setHgrow( groupField, Priority.ALWAYS );
-		GridPane.setHgrow( datasetDropDown, Priority.ALWAYS );
-		final Button button = new Button( "Browse" );
-		button.setOnAction( event -> onBrowseClicked.accept( grid.getScene() ) );
-		grid.add( button, 1, 0 );
+		grid.add(groupField, 0, 0);
+		grid.add(datasetDropDown, 0, 1);
+		GridPane.setHgrow(groupField, Priority.ALWAYS);
+		GridPane.setHgrow(datasetDropDown, Priority.ALWAYS);
+		final Button button = new Button("Browse");
+		button.setOnAction(event -> onBrowseClicked.accept(grid.getScene()));
+		grid.add(button, 1, 0);
 
 		return grid;
 	}

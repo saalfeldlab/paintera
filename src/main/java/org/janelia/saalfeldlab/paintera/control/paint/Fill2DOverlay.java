@@ -2,9 +2,6 @@ package org.janelia.saalfeldlab.paintera.control.paint;
 
 import java.lang.invoke.MethodHandles;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import bdv.fx.viewer.OverlayRendererGeneric;
 import bdv.fx.viewer.ViewerPanelFX;
 import javafx.beans.property.DoubleProperty;
@@ -14,11 +11,13 @@ import javafx.scene.canvas.GraphicsContext;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.paint.Color;
 import javafx.scene.text.Font;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-public class Fill2DOverlay implements OverlayRendererGeneric< GraphicsContext >
+public class Fill2DOverlay implements OverlayRendererGeneric<GraphicsContext>
 {
 
-	private static final Logger LOG = LoggerFactory.getLogger( MethodHandles.lookup().lookupClass() );
+	private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
 	private final ViewerPanelFX viewer;
 
@@ -30,26 +29,26 @@ public class Fill2DOverlay implements OverlayRendererGeneric< GraphicsContext >
 
 	protected boolean wasVisible = false;
 
-	public Fill2DOverlay( final ViewerPanelFX viewer )
+	public Fill2DOverlay(final ViewerPanelFX viewer)
 	{
 		this.viewer = viewer;
-		this.viewer.getDisplay().addOverlayRenderer( this );
-		this.viewer.addEventFilter( MouseEvent.MOUSE_MOVED, this::setPosition );
-		this.viewer.addEventFilter( MouseEvent.MOUSE_DRAGGED, this::setPosition );
-		this.brushDepth.addListener( ( obs, oldv, newv ) -> {
-			if ( visible )
+		this.viewer.getDisplay().addOverlayRenderer(this);
+		this.viewer.addEventFilter(MouseEvent.MOUSE_MOVED, this::setPosition);
+		this.viewer.addEventFilter(MouseEvent.MOUSE_DRAGGED, this::setPosition);
+		this.brushDepth.addListener((obs, oldv, newv) -> {
+			if (visible)
 			{
 				this.viewer.getDisplay().drawOverlays();
 			}
-		} );
+		});
 
 	}
 
-	public void setVisible( final boolean visible )
+	public void setVisible(final boolean visible)
 	{
-		if ( visible != this.visible )
+		if (visible != this.visible)
 		{
-			if ( this.visible )
+			if (this.visible)
 			{
 				this.wasVisible = true;
 			}
@@ -58,12 +57,12 @@ public class Fill2DOverlay implements OverlayRendererGeneric< GraphicsContext >
 		}
 	}
 
-	public void setPosition( final MouseEvent event )
+	public void setPosition(final MouseEvent event)
 	{
-		setPosition( event.getX(), event.getY() );
+		setPosition(event.getX(), event.getY());
 	}
 
-	public void setPosition( final double x, final double y )
+	public void setPosition(final double x, final double y)
 	{
 		this.x = x;
 		this.y = y;
@@ -71,42 +70,43 @@ public class Fill2DOverlay implements OverlayRendererGeneric< GraphicsContext >
 	}
 
 	@Override
-	public void drawOverlays( final GraphicsContext g )
+	public void drawOverlays(final GraphicsContext g)
 	{
 
-		if ( visible && this.viewer.isMouseInside() )
+		if (visible && this.viewer.isMouseInside())
 		{
 
 			{
-				this.viewer.getScene().setCursor( Cursor.CROSSHAIR );
+				this.viewer.getScene().setCursor(Cursor.CROSSHAIR);
 				final double depth = brushDepth.get();
-				if ( depth > 1 )
+				if (depth > 1)
 				{
-					g.setFill( Color.WHITE );
-					g.setFont( Font.font( g.getFont().getFamily(), 15.0 ) );
-					g.fillText( "Fill 2D depth=" + depth, x + 5, y - 5 );
+					g.setFill(Color.WHITE);
+					g.setFont(Font.font(g.getFont().getFamily(), 15.0));
+					g.fillText("Fill 2D depth=" + depth, x + 5, y - 5);
 				}
 				else
 				{
-					g.setFill( Color.WHITE );
-					g.setFont( Font.font( g.getFont().getFamily(), 15.0 ) );
-					g.fillText( "Fill 2D", x + 5, y - 5 );
+					g.setFill(Color.WHITE);
+					g.setFont(Font.font(g.getFont().getFamily(), 15.0));
+					g.fillText("Fill 2D", x + 5, y - 5);
 				}
 
-//				this.viewer.getScene().setCursor( Cursor.NONE );
+				//				this.viewer.getScene().setCursor( Cursor.NONE );
 				return;
 			}
 		}
-		if ( wasVisible )
+		if (wasVisible)
 		{
-			this.viewer.getScene().setCursor( Cursor.DEFAULT );
+			this.viewer.getScene().setCursor(Cursor.DEFAULT);
 			wasVisible = false;
 		}
 	}
 
 	@Override
-	public void setCanvasSize( final int width, final int height )
-	{}
+	public void setCanvasSize(final int width, final int height)
+	{
+	}
 
 	public DoubleProperty brushDepthProperty()
 	{
