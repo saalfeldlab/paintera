@@ -66,6 +66,8 @@ public class PainteraCommandLineArgs implements Callable<Boolean>
 			description = "Default to temporary directory instead of showing dialog when PROJECT is not specified.")
 	private Boolean defaultToTempDirectory;
 
+	@Option(names = "--version", paramLabel = "PRINT_VERSION_STRING", required = false, description = "Print version string and exit")
+	private Boolean printVersionString;
 	@Override
 	public Boolean call() throws Exception
 	{
@@ -94,6 +96,13 @@ public class PainteraCommandLineArgs implements Callable<Boolean>
 			{
 				LOG.info("{} -- {}", error.code, error.description);
 			}
+			return false;
+		}
+
+		printVersionString = printVersionString == null ? false : printVersionString;
+		if (printVersionString)
+		{
+			LOG.info("Paintera version: {}", Version.VERSION_STRING);
 			return false;
 		}
 
