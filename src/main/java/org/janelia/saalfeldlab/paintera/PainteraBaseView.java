@@ -10,10 +10,17 @@ import java.util.function.BiConsumer;
 import java.util.function.Function;
 import java.util.function.LongFunction;
 
+import net.imglib2.RandomAccessibleInterval;
+import net.imglib2.Volatile;
+import net.imglib2.type.NativeType;
+import net.imglib2.type.volatiles.AbstractVolatileNativeNumericType;
+import net.imglib2.type.volatiles.AbstractVolatileNativeRealType;
+import net.imglib2.type.volatiles.AbstractVolatileRealType;
 import org.janelia.saalfeldlab.fx.event.KeyTracker;
 import org.janelia.saalfeldlab.fx.event.MouseTracker;
 import org.janelia.saalfeldlab.fx.ortho.GridConstraintsManager;
 import org.janelia.saalfeldlab.fx.ortho.OrthogonalViews;
+import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread;
 import org.janelia.saalfeldlab.paintera.composition.CompositeProjectorPreMultiply;
 import org.janelia.saalfeldlab.paintera.config.CoordinateConfigNode;
 import org.janelia.saalfeldlab.paintera.config.CrosshairConfig;
@@ -162,6 +169,20 @@ public class PainteraBaseView
 		sourceInfo.addState( state );
 	}
 
+	public < D extends RealType< D > & NativeType< D >, T extends AbstractVolatileNativeRealType< D, T >> RawSourceState< D, T > addSingleScaleRawSource(
+			final RandomAccessibleInterval< D > data,
+			double[] resolution,
+			double[] offset,
+			double min,
+			double max,
+			String name
+			)
+	{
+		RawSourceState<D, T> state = RawSourceState.simpleSourceFromSingleRAI(data, resolution, offset, min, max, name);
+		InvokeOnJavaFXApplicationThread.invoke( () -> addRawSource(state) );
+		return state;
+	}
+
 	public < T extends RealType< T >, U extends RealType< U > > void addRawSource(
 			final RawSourceState< T, U > state )
 	{
@@ -173,6 +194,28 @@ public class PainteraBaseView
 		colorConv.minProperty().addListener( ( obs, oldv, newv ) -> orthogonalViews().requestRepaint() );
 		colorConv.maxProperty().addListener( ( obs, oldv, newv ) -> orthogonalViews().requestRepaint() );
 		colorConv.alphaProperty().addListener( ( obs, oldv, newv ) -> orthogonalViews().requestRepaint() );
+	}
+
+	public < D extends IntegerType< D > & NativeType< D >, T extends Volatile< D > & IntegerType< T > > LabelSourceState<D, T> addSingleScaleLabelSource(
+			final RandomAccessibleInterval<D> data,
+			final double[] resolution,
+			final double[] offset,
+			final long maxId,
+			final String name
+	)
+	{
+		LabelSourceState<D, T> state = LabelSourceState.simpleSourceFromSingleRAI(
+				data,
+				resolution,
+				offset,
+				maxId,
+				name,
+				viewer3D().meshesGroup(),
+				meshManagerExecutorService,
+				meshWorkerExecutorService
+		);
+		InvokeOnJavaFXApplicationThread.invoke( () -> addLabelSource(state) );
+		return state;
 	}
 
 	public < D extends IntegerType< D >, T extends Type< T > > void addLabelSource(

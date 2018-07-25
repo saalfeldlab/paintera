@@ -254,6 +254,49 @@ public class LabelSourceState< D extends IntegerType< D >, T >
 			final String name,
 			final Group meshesGroup,
 			final ExecutorService meshManagerExecutors,
+			final ExecutorService meshWorkersExecutors ) {
+
+		final int[] blockSize;
+		if ( data instanceof AbstractCellImg< ?, ?, ?, ? > )
+		{
+			final CellGrid grid = ( ( AbstractCellImg< ?, ?, ?, ? > ) data ).getCellGrid();
+			blockSize = new int[ grid.numDimensions() ];
+			Arrays.setAll( blockSize, grid::cellDimension );
+		}
+		else
+		{
+			blockSize = new int[] { 64, 64, 64 };
+		}
+
+		final Interval[] intervals = Grids.collectAllContainedIntervals( Intervals.dimensionsAsLongArray( data ), blockSize )
+				.stream()
+				.toArray( Interval[]::new );
+
+		@SuppressWarnings( "unchecked" )
+		final InterruptibleFunction< Long, Interval[] >[] backgroundBlockCaches = new InterruptibleFunction[] {
+			InterruptibleFunction.fromFunction( id -> intervals )
+		};
+		return simpleSourceFromSingleRAI(
+				data,
+				resolution,
+				offset,
+				maxId,
+				name,
+				backgroundBlockCaches,
+				meshesGroup,
+				meshManagerExecutors,
+				meshWorkersExecutors);
+	}
+
+	public static < D extends IntegerType< D > & NativeType< D >, T extends Volatile< D > & IntegerType< T > > LabelSourceState< D, T > simpleSourceFromSingleRAI(
+			final RandomAccessibleInterval< D > data,
+			final double[] resolution,
+			final double[] offset,
+			final long maxId,
+			final String name,
+			final InterruptibleFunction< Long, Interval[] >[] backgroundBlockCaches,
+			final Group meshesGroup,
+			final ExecutorService meshManagerExecutors,
 			final ExecutorService meshWorkersExecutors )
 	{
 
@@ -263,6 +306,7 @@ public class LabelSourceState< D extends IntegerType< D >, T >
 				offset,
 				maxId,
 				name,
+				backgroundBlockCaches,
 				meshesGroup,
 				meshManagerExecutors,
 				meshWorkersExecutors ); }
@@ -293,22 +337,7 @@ public class LabelSourceState< D extends IntegerType< D >, T >
 				assignment,
 				lockedSegments );
 
-		final int[] blockSize;
-		if ( data instanceof AbstractCellImg< ?, ?, ?, ? > )
-		{
-			final CellGrid grid = ( ( AbstractCellImg< ?, ?, ?, ? > ) data ).getCellGrid();
-			blockSize = new int[ grid.numDimensions() ];
-			Arrays.setAll( blockSize, grid::cellDimension );
-		}
-		else
-		{
-			blockSize = new int[] { 64, 64, 64 };
-		}
 
-		final Interval[] intervals = Grids.collectAllContainedIntervals( Intervals.dimensionsAsLongArray( data ), blockSize ).stream().toArray( Interval[]::new );
-
-		@SuppressWarnings( "unchecked" )
-		final InterruptibleFunction< Long, Interval[] >[] backgroundBlockCaches = new InterruptibleFunction[] { InterruptibleFunction.fromFunction( id -> intervals ) };
 
 		final ToLongFunction< T > toLong = integer -> {
 			final long val = integer.get().getIntegerLong();
