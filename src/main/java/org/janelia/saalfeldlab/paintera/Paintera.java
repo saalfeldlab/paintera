@@ -456,7 +456,12 @@ public class Paintera extends Application
 	{
 		if (!Pattern.matches("^[a-z]+://.+", identifier))
 		{
-			addLabelFromString(pbv, "file://" + identifier, projectDirectory);
+			addLabelFromString(
+					pbv,
+					"file://" + identifier,
+					projectDirectory,
+					assignmentGenerator,
+					idServiceGenerator);
 			return;
 		}
 
