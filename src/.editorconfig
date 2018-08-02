@@ -1,0 +1,4 @@
+[*]
+indent_style    = tab
+tab_width       = unset
+max_line_length = 140
