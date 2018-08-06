@@ -7,8 +7,11 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
+import java.util.function.Function;
 import java.util.function.Supplier;
 import java.util.regex.Pattern;
+import java.util.stream.IntStream;
+import java.util.stream.Stream;
 
 import bdv.viewer.ViewerOptions;
 import com.google.gson.GsonBuilder;
@@ -20,6 +23,7 @@ import javafx.scene.input.KeyCode;
 import javafx.scene.input.MouseEvent;
 import javafx.stage.Stage;
 import javafx.stage.WindowEvent;
+import net.imglib2.Interval;
 import net.imglib2.Volatile;
 import net.imglib2.converter.ARGBColorConverter;
 import net.imglib2.realtransform.AffineTransform3D;
@@ -32,6 +36,7 @@ import org.janelia.saalfeldlab.fx.event.KeyTracker;
 import org.janelia.saalfeldlab.fx.event.MouseTracker;
 import org.janelia.saalfeldlab.fx.ortho.GridConstraintsManager;
 import org.janelia.saalfeldlab.fx.ortho.OrthogonalViews;
+import org.janelia.saalfeldlab.labels.blocks.LabelBlockLookupFromFile;
 import org.janelia.saalfeldlab.n5.N5Reader;
 import org.janelia.saalfeldlab.n5.N5Writer;
 import org.janelia.saalfeldlab.paintera.SaveProject.ProjectUndefined;
@@ -51,7 +56,7 @@ import org.janelia.saalfeldlab.paintera.data.mask.CannotPersist;
 import org.janelia.saalfeldlab.paintera.data.mask.Masks;
 import org.janelia.saalfeldlab.paintera.data.n5.CommitCanvasN5;
 import org.janelia.saalfeldlab.paintera.id.IdService;
-import org.janelia.saalfeldlab.paintera.meshes.cache.BlocksForLabelFromFile;
+import org.janelia.saalfeldlab.paintera.meshes.InterruptibleFunction;
 import org.janelia.saalfeldlab.paintera.serialization.GsonHelpers;
 import org.janelia.saalfeldlab.paintera.serialization.Properties;
 import org.janelia.saalfeldlab.paintera.state.LabelSourceState;
@@ -510,10 +515,13 @@ public class Paintera extends Application
 						pbv.getPropagationQueue()
 				                                                );
 
-				final BlocksForLabelFromFile[] blockLoaders = Arrays
-						.stream(N5Helpers.labelMappingFromFileLoaderPattern(n5, dataset))
-						.map(BlocksForLabelFromFile::new)
-						.toArray(BlocksForLabelFromFile[]::new);
+
+				final String lookupPath = N5Helpers.labelMappingFromFileBasePath(n5, dataset);
+				final LabelBlockLookupFromFile lookup = new LabelBlockLookupFromFile(LabelBlockLookupFromFile.patternFromBasePath(lookupPath));
+				InterruptibleFunction<Long, Interval[]>[] blockLoaders = IntStream
+						.range(0, new File(lookupPath).list((current, check) -> new File(current, name).isDirectory()).length)
+						.mapToObj(level -> InterruptibleFunction.fromFunction( (Function<Long, Interval[]>) id -> lookup.read(level, id)))
+						.toArray(InterruptibleFunction[]::new );
 
 				final LabelSourceState<D, T> state = new LabelSourceState<>(
 						maskedSource,

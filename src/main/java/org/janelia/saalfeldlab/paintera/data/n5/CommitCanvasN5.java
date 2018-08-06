@@ -41,6 +41,8 @@ import net.imglib2.util.Intervals;
 import net.imglib2.util.Pair;
 import net.imglib2.view.IntervalView;
 import net.imglib2.view.Views;
+import org.janelia.saalfeldlab.labels.blocks.LabelBlockLookup;
+import org.janelia.saalfeldlab.labels.blocks.LabelBlockLookupFromFile;
 import org.janelia.saalfeldlab.n5.ByteArrayDataBlock;
 import org.janelia.saalfeldlab.n5.DatasetAttributes;
 import org.janelia.saalfeldlab.n5.LongArrayDataBlock;
@@ -49,7 +51,6 @@ import org.janelia.saalfeldlab.n5.N5Reader;
 import org.janelia.saalfeldlab.n5.N5Writer;
 import org.janelia.saalfeldlab.paintera.N5Helpers;
 import org.janelia.saalfeldlab.paintera.data.mask.MaskedSource;
-import org.janelia.saalfeldlab.paintera.meshes.cache.BlocksForLabelFromFile;
 import org.janelia.saalfeldlab.util.HashWrapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -123,12 +124,10 @@ public class CommitCanvasN5 implements BiConsumer<CachedCellImg<UnsignedLongType
 					highestResolutionLabelToBlockMapping,
 					updateLabelToBlockMapping
 			         );
-			final String                 highestResolutionLabelToBlockMappingPattern = updateLabelToBlockMapping
-			                                                                           ?
-			                                                                           highestResolutionLabelToBlockMapping + "/%d"
-			                                                                           : null;
-			final BlocksForLabelFromFile highestResolutionBlocksForLabelLoader       = new BlocksForLabelFromFile(
-					highestResolutionLabelToBlockMappingPattern);
+			final String labelToBlockMappingPattern = updateLabelToBlockMapping
+					? Paths.get(uniqueLabelsPath, "s%d", "%d").toAbsolutePath().toString()
+					: null;
+			final LabelBlockLookupFromFile labelBlockLoader = new LabelBlockLookupFromFile(labelToBlockMappingPattern);
 
 			if (!Optional.ofNullable(n5.getAttribute(
 					highestResolutionDataset,
@@ -241,8 +240,7 @@ public class CommitCanvasN5 implements BiConsumer<CachedCellImg<UnsignedLongType
 							highestResolutionAttributesUniqueLabels,
 							gridPosition,
 							Views.interval(Views.pair(canvas, highestResolutionData), min, max),
-							highestResolutionBlocksForLabelLoader,
-							highestResolutionLabelToBlockMappingPattern
+							labelBlockLoader
 					                                   );
 				}
 
@@ -279,17 +277,6 @@ public class CommitCanvasN5 implements BiConsumer<CachedCellImg<UnsignedLongType
 							dataset
 					).basePath(), labelToBlockMappingPath, "s" + level).toAbsolutePath().toString()
 					                                                                  : null;
-					final String                 labelToBlockMappingPatternPrevious = updateLabelToBlockMapping
-					                                                                  ? labelToBlockMappingPrevious +
-							                                                                  "/%d"
-					                                                                  : null;
-					final String                 labelToBlockMappingPattern         = updateLabelToBlockMapping
-					                                                                  ? labelToBlockMapping + "/%d"
-					                                                                  : null;
-					final BlocksForLabelFromFile blocksForLabelLoaderPrevious       = new BlocksForLabelFromFile(
-							labelToBlockMappingPatternPrevious);
-					final BlocksForLabelFromFile blocksForLabelLoader               = new BlocksForLabelFromFile(
-							labelToBlockMappingPattern);
 					final DatasetAttributes      attributesUniqueLabelsPrevious     = updateLabelToBlockMapping
 					                                                                  ? n5.getDatasetAttributes(
 							datasetUniqueLabelsPrevious)
@@ -527,20 +514,20 @@ public class CommitCanvasN5 implements BiConsumer<CachedCellImg<UnsignedLongType
 							for (final TLongIterator wasAddedIt = wasAdded.iterator(); wasAddedIt.hasNext(); )
 							{
 								modifyAndWrite(
-										blocksForLabelLoader,
+										labelBlockLoader,
+										level,
 										wasAddedIt.next(),
-										set -> set.add(wrappedInterval),
-										labelToBlockMappingPattern
+										set -> set.add(wrappedInterval)
 								              );
 							}
 
 							for (final TLongIterator wasRemovedIt = wasRemoved.iterator(); wasRemovedIt.hasNext(); )
 							{
 								modifyAndWrite(
-										blocksForLabelLoader,
+										labelBlockLoader,
+										level,
 										wasRemovedIt.next(),
-										set -> set.remove(wrappedInterval),
-										labelToBlockMappingPattern
+										set -> set.remove(wrappedInterval)
 								              );
 							}
 						}
@@ -628,44 +615,18 @@ public class CommitCanvasN5 implements BiConsumer<CachedCellImg<UnsignedLongType
 		return notInSecond;
 	}
 
-	private static void writeToFile(
-			final String pattern,
-			final long id,
-			final Set<HashWrapper<Interval>> containedIntervals) throws FileNotFoundException, IOException
-	{
-		final File targetPath = new File(String.format(pattern, id));
-		//						LOG.warn( "Writing {} to {}", containedIntervals, targetPath );
-		try (FileOutputStream fos = new FileOutputStream(targetPath))
-		{
-			try (DataOutputStream dos = new DataOutputStream(fos))
-			{
-				for (final HashWrapper<Interval> wi : containedIntervals)
-				{
-					final Interval interval = wi.getData();
-					dos.writeLong(interval.min(0));
-					dos.writeLong(interval.min(1));
-					dos.writeLong(interval.min(2));
-
-					dos.writeLong(interval.max(0));
-					dos.writeLong(interval.max(1));
-					dos.writeLong(interval.max(2));
-				}
-			}
-		}
-	}
-
 	private static void modifyAndWrite(
-			final Function<Long, Interval[]> blocksForLabelLoader,
+			final LabelBlockLookup labelBlockLookup,
+			final int level,
 			final long id,
-			final Consumer<Set<HashWrapper<Interval>>> modify,
-			final String labelToBlockMappingPattern) throws FileNotFoundException, IOException
+			final Consumer<Set<HashWrapper<Interval>>> modify) throws FileNotFoundException, IOException
 	{
 		final Set<HashWrapper<Interval>> containedIntervals = Arrays
-				.stream(blocksForLabelLoader.apply(id))
+				.stream(labelBlockLookup.read(level, id))
 				.map(HashWrapper::interval)
 				.collect(Collectors.toSet());
 		modify.accept(containedIntervals);
-		writeToFile(labelToBlockMappingPattern, id, containedIntervals);
+		labelBlockLookup.write(level, id, containedIntervals.stream().toArray(Interval[]::new));
 	}
 
 	private static void updateHighestResolutionLabelMapping(
@@ -674,8 +635,7 @@ public class CommitCanvasN5 implements BiConsumer<CachedCellImg<UnsignedLongType
 			final DatasetAttributes uniqueLabelsAttributes,
 			final long[] gridPosition,
 			final RandomAccessibleInterval<Pair<UnsignedLongType, LabelMultisetType>> relevantData,
-			final Function<Long, Interval[]> highestResolutionBlocksForLabelLoader,
-			final String labelToBlockMappingPattern) throws IOException
+			final LabelBlockLookup labelBlockLookup) throws IOException
 	{
 		final TLongHashSet previousDataAsSet = readContainedLabelsSet(
 				n5,
@@ -702,21 +662,19 @@ public class CommitCanvasN5 implements BiConsumer<CachedCellImg<UnsignedLongType
 		for (final TLongIterator wasAddedIt = wasAdded.iterator(); wasAddedIt.hasNext(); )
 		{
 			modifyAndWrite(
-					highestResolutionBlocksForLabelLoader,
+					labelBlockLookup,
+					0,
 					wasAddedIt.next(),
-					set -> set.add(wrappedInterval),
-					labelToBlockMappingPattern
-			              );
+					set -> set.add(wrappedInterval));
 		}
 
 		for (final TLongIterator wasRemovedIt = wasRemoved.iterator(); wasRemovedIt.hasNext(); )
 		{
 			modifyAndWrite(
-					highestResolutionBlocksForLabelLoader,
+					labelBlockLookup,
+					0,
 					wasRemovedIt.next(),
-					set -> set.remove(wrappedInterval),
-					labelToBlockMappingPattern
-			              );
+					set -> set.remove(wrappedInterval));
 		}
 	}
 

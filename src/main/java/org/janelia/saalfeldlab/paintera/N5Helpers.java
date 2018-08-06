@@ -1116,6 +1116,24 @@ public class N5Helpers
 		return Paths.get(dataset).getFileName().toString();
 	}
 
+	public static String labelMappingFromFileBasePath(final N5Reader reader, final String dataset)
+			throws IOException, ReflectionException
+	{
+		if(!isPainteraDataset(reader, dataset))
+		{
+			return null;
+		}
+
+		final N5FSMeta meta     = new N5FSMeta((N5FSReader) reader, dataset);
+		final String   basePath = Paths.get(
+				meta.basePath(),
+				dataset,
+				LABEL_TO_BLOCK_MAPPING
+		).toAbsolutePath().toString();
+
+		return basePath;
+	}
+
 	public static String[] labelMappingFromFileLoaderPattern(final N5Reader reader, final String dataset)
 	throws IOException, ReflectionException
 	{
