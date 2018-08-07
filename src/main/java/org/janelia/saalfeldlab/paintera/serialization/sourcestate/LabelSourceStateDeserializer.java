@@ -155,11 +155,12 @@ public class LabelSourceStateDeserializer<C extends HighlightingStreamConverter<
 				.LABEL_BLOCK_MAPPING_KEY);
 
 		final String lookupPath = N5Helpers.labelMappingFromFileBasePath(writer, dataset);
+		LOG.debug("Got lookupPath={}", lookupPath);
 		final LabelBlockLookupFromFile lookup = new LabelBlockLookupFromFile(LabelBlockLookupFromFile.patternFromBasePath(lookupPath));
 		InterruptibleFunction<Long, Interval[]>[] blockLoaders = IntStream
-				.range(0, new File(lookupPath).list((current, check) -> new File(current, name).isDirectory()).length)
+				.range(0, source.getNumMipmapLevels())
 				.mapToObj(level -> InterruptibleFunction.fromFunction( (Function<Long, Interval[]>) id -> lookup.read(level, id)))
-				.toArray(InterruptibleFunction[]::new );
+				.toArray(InterruptibleFunction[]::new);
 
 		final LabelSourceState state = new LabelSourceState(
 				source,

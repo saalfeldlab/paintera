@@ -436,7 +436,7 @@ public class GenericBackendDialogN5 implements BackendDialog
 		final String lookupPath = N5Helpers.labelMappingFromFileBasePath(reader, dataset);
 		final LabelBlockLookupFromFile lookup = new LabelBlockLookupFromFile(LabelBlockLookupFromFile.patternFromBasePath(lookupPath));
 		InterruptibleFunction<Long, Interval[]>[] blockLoaders = IntStream
-				.range(0, new File(lookupPath).list((current, check) -> new File(current, name).isDirectory()).length)
+				.range(0, masked.getNumMipmapLevels())
 				.mapToObj(level -> InterruptibleFunction.fromFunction( (Function<Long, Interval[]>) id -> lookup.read(level, id)))
 				.toArray(InterruptibleFunction[]::new );
 

@@ -518,8 +518,9 @@ public class Paintera extends Application
 
 				final String lookupPath = N5Helpers.labelMappingFromFileBasePath(n5, dataset);
 				final LabelBlockLookupFromFile lookup = new LabelBlockLookupFromFile(LabelBlockLookupFromFile.patternFromBasePath(lookupPath));
+				LOG.debug("Got lookup path {}", lookupPath);
 				InterruptibleFunction<Long, Interval[]>[] blockLoaders = IntStream
-						.range(0, new File(lookupPath).list((current, check) -> new File(current, name).isDirectory()).length)
+						.range(0, maskedSource.getNumMipmapLevels())
 						.mapToObj(level -> InterruptibleFunction.fromFunction( (Function<Long, Interval[]>) id -> lookup.read(level, id)))
 						.toArray(InterruptibleFunction[]::new );
 
