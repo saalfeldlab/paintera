@@ -63,6 +63,7 @@ import net.imglib2.util.Util;
 import net.imglib2.util.ValueTriple;
 import net.imglib2.view.Views;
 import org.janelia.saalfeldlab.labels.blocks.LabelBlockLookup;
+import org.janelia.saalfeldlab.labels.blocks.LabelBlockLookupAdapter;
 import org.janelia.saalfeldlab.labels.blocks.LabelBlockLookupFromFile;
 import org.janelia.saalfeldlab.n5.DataBlock;
 import org.janelia.saalfeldlab.n5.DataType;
@@ -92,7 +93,6 @@ import org.janelia.saalfeldlab.paintera.ui.opendialog.VolatileHelpers;
 import org.janelia.saalfeldlab.util.MakeUnchecked;
 import org.janelia.saalfeldlab.util.MakeUnchecked.CheckedConsumer;
 import org.janelia.saalfeldlab.util.NamedThreadFactory;
-import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import tmp.bdv.img.cache.VolatileCachedCellImg;
@@ -1197,10 +1197,20 @@ public class N5Helpers
 	{
 		if ( reader instanceof N5FSReader && isPainteraDataset( reader, group ) )
 		{
-			return Optional
-					.ofNullable( reader.getAttribute( group, "labelBlockLookup", LabelBlockLookup.class ) )
-					.orElseGet( MakeUnchecked.supplier( () -> new LabelBlockLookupFromFile(Paths.get(new N5FSMeta((N5FSReader) reader, group).basePath(),group, "/", "label-to-block-mapping", "s%d", "%d" ).toString() ) ) )
+			try
+			{
+				N5FSMeta n5fs = new N5FSMeta((N5FSReader) reader, group);
+				final GsonBuilder gsonBuilder = new GsonBuilder().registerTypeHierarchyAdapter(LabelBlockLookup.class, LabelBlockLookupAdapter.Companion.getJsonAdapter());
+			final LabelBlockLookup lookup =  Optional
+					.ofNullable( n5fs.reader(gsonBuilder).getAttribute( group, "labelBlockLookup", LabelBlockLookup.class ) )
+					.orElseGet( MakeUnchecked.supplier( () ->  new LabelBlockLookupFromFile(Paths.get(n5fs.basePath(),group, "/", "label-to-block-mapping", "s%d", "%d" ).toString() ) ) )
 					;
+			LOG.debug("Got lookup: {}", lookup);
+			return lookup;
+			} catch (ReflectionException e)
+			{
+				throw new RuntimeException(e);
+			}
 		}
 		else
 			return new LabelBlockLookupNotSupportedForNonPainteraDataset();
