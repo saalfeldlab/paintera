@@ -1,9 +1,6 @@
 package org.janelia.saalfeldlab.paintera.data.n5;
 
-import java.io.DataOutputStream;
-import java.io.File;
 import java.io.FileNotFoundException;
-import java.io.FileOutputStream;
 import java.io.IOException;
 import java.lang.invoke.MethodHandles;
 import java.nio.file.Paths;
@@ -13,7 +10,6 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
-import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.DoubleStream;
 
@@ -42,7 +38,6 @@ import net.imglib2.util.Pair;
 import net.imglib2.view.IntervalView;
 import net.imglib2.view.Views;
 import org.janelia.saalfeldlab.labels.blocks.LabelBlockLookup;
-import org.janelia.saalfeldlab.labels.blocks.LabelBlockLookupFromFile;
 import org.janelia.saalfeldlab.n5.ByteArrayDataBlock;
 import org.janelia.saalfeldlab.n5.DatasetAttributes;
 import org.janelia.saalfeldlab.n5.LongArrayDataBlock;
@@ -94,13 +89,10 @@ public class CommitCanvasN5 implements BiConsumer<CachedCellImg<UnsignedLongType
 			final boolean isMultiscale      = N5Helpers.isMultiScale(n5, dataset);
 
 			final String uniqueLabelsPath        = this.dataset + "/unique-labels";
-			final String labelToBlockMappingPath = this.dataset + "/label-to-block-mapping";
 			LOG.debug("uniqueLabelsPath {}", uniqueLabelsPath);
 
 			final boolean hasUniqueLabels           = n5.exists(uniqueLabelsPath);
-			final boolean hasLabelToBlockMapping    = n5.exists(labelToBlockMappingPath);
-			final boolean updateLabelToBlockMapping = isPainteraDataset && hasUniqueLabels && hasLabelToBlockMapping
-					&& n5 instanceof N5FSReader;
+			final boolean updateLabelToBlockMapping = isPainteraDataset && hasUniqueLabels && n5 instanceof N5FSReader;
 
 			final CellGrid canvasGrid = canvas.getCellGrid();
 
@@ -112,22 +104,8 @@ public class CommitCanvasN5 implements BiConsumer<CachedCellImg<UnsignedLongType
 					uniqueLabelsPath,
 					N5Helpers.listAndSortScaleDatasets(n5, uniqueLabelsPath)[0]
 			                                                             ).toString();
-			final String highestResolutionLabelToBlockMapping = updateLabelToBlockMapping
-			                                                    ? Paths.get(new N5FSMeta(
-					(N5FSReader) n5,
-					dataset
-			).basePath(), labelToBlockMappingPath, "s0").toAbsolutePath().toString()
-			                                                    : null;
 			LOG.debug("highestResolutionDatasetUniqueLabels {}", highestResolutionDatasetUniqueLabels);
-			LOG.debug(
-					"Label to block mapping at highest resolution {} {}",
-					highestResolutionLabelToBlockMapping,
-					updateLabelToBlockMapping
-			         );
-			final String labelToBlockMappingPattern = updateLabelToBlockMapping
-					? Paths.get(uniqueLabelsPath, "s%d", "%d").toAbsolutePath().toString()
-					: null;
-			final LabelBlockLookupFromFile labelBlockLoader = new LabelBlockLookupFromFile(labelToBlockMappingPattern);
+			final LabelBlockLookup labelBlockLoader = N5Helpers.getLabelBlockLookup(n5, this.dataset);
 
 			if (!Optional.ofNullable(n5.getAttribute(
 					highestResolutionDataset,
@@ -265,18 +243,6 @@ public class CommitCanvasN5 implements BiConsumer<CachedCellImg<UnsignedLongType
 							uniqueLabelsPath,
 							N5Helpers.listAndSortScaleDatasets(n5, uniqueLabelsPath)[level]
 					                                                                           ).toString();
-					final String                 labelToBlockMappingPrevious        = updateLabelToBlockMapping
-					                                                                  ? Paths.get(new N5FSMeta(
-							(N5FSReader) n5,
-							dataset
-					).basePath(), labelToBlockMappingPath, "s" + (level - 1)).toAbsolutePath().toString()
-					                                                                  : null;
-					final String                 labelToBlockMapping                = updateLabelToBlockMapping
-					                                                                  ? Paths.get(new N5FSMeta(
-							(N5FSReader) n5,
-							dataset
-					).basePath(), labelToBlockMappingPath, "s" + level).toAbsolutePath().toString()
-					                                                                  : null;
 					final DatasetAttributes      attributesUniqueLabelsPrevious     = updateLabelToBlockMapping
 					                                                                  ? n5.getDatasetAttributes(
 							datasetUniqueLabelsPrevious)
@@ -541,7 +507,7 @@ public class CommitCanvasN5 implements BiConsumer<CachedCellImg<UnsignedLongType
 
 			//				if ( isIntegerType() )
 			//					commitForIntegerType( n5, dataset, canvas );
-		} catch (final IOException | ReflectionException e)
+		} catch (final IOException e)
 		{
 			// TODO Auto-generated catch block
 			e.printStackTrace();

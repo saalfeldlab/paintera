@@ -28,6 +28,7 @@ import com.google.gson.GsonBuilder;
 import gnu.trove.map.TLongLongMap;
 import gnu.trove.map.hash.TLongLongHashMap;
 import net.imglib2.Cursor;
+import net.imglib2.Interval;
 import net.imglib2.RandomAccessible;
 import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.Volatile;
@@ -61,6 +62,8 @@ import net.imglib2.util.Pair;
 import net.imglib2.util.Util;
 import net.imglib2.util.ValueTriple;
 import net.imglib2.view.Views;
+import org.janelia.saalfeldlab.labels.blocks.LabelBlockLookup;
+import org.janelia.saalfeldlab.labels.blocks.LabelBlockLookupFromFile;
 import org.janelia.saalfeldlab.n5.DataBlock;
 import org.janelia.saalfeldlab.n5.DataType;
 import org.janelia.saalfeldlab.n5.DatasetAttributes;
@@ -89,6 +92,7 @@ import org.janelia.saalfeldlab.paintera.ui.opendialog.VolatileHelpers;
 import org.janelia.saalfeldlab.util.MakeUnchecked;
 import org.janelia.saalfeldlab.util.MakeUnchecked.CheckedConsumer;
 import org.janelia.saalfeldlab.util.NamedThreadFactory;
+import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import tmp.bdv.img.cache.VolatileCachedCellImg;
@@ -1187,6 +1191,50 @@ public class N5Helpers
 			return new String[] {basePath + "/%d"};
 		}
 
+	}
+
+	public static LabelBlockLookup getLabelBlockLookup(N5Reader reader, String group) throws IOException
+	{
+		if ( reader instanceof N5FSReader && isPainteraDataset( reader, group ) )
+		{
+			return Optional
+					.ofNullable( reader.getAttribute( group, "labelBlockLookup", LabelBlockLookup.class ) )
+					.orElseGet( MakeUnchecked.supplier( () -> new LabelBlockLookupFromFile(Paths.get(new N5FSMeta((N5FSReader) reader, group).basePath(),group, "/", "label-to-block-mapping", "s%d", "%d" ).toString() ) ) )
+					;
+		}
+		else
+			return new LabelBlockLookupNotSupportedForNonPainteraDataset();
+	}
+
+	@LabelBlockLookup.LookupType("UNSUPPORTED")
+	private static class LabelBlockLookupNotSupportedForNonPainteraDataset implements LabelBlockLookup
+	{
+
+		private LabelBlockLookupNotSupportedForNonPainteraDataset()
+		{
+			LOG.warn("3D meshes not supported for non Paintera dataset!");
+		}
+
+		@Override
+		public Interval[] read( int level, long id )
+		{
+			LOG.debug("Reading blocks not supported for non-paintera dataset -- returning empty array");
+			return new Interval[ 0 ];
+		}
+
+		@Override
+		public void write( int level, long id, Interval... intervals )
+		{
+			LOG.debug("Saving blocks not supported for non-paintera dataset");
+		}
+
+		// This is here because annotation interfaces cannot have members in kotlin (currently)
+		// https://stackoverflow.com/questions/49661899/java-annotation-implementation-to-kotlin
+		@Override
+		public String getType()
+		{
+			return "UNSUPPORTED";
+		}
 	}
 
 }

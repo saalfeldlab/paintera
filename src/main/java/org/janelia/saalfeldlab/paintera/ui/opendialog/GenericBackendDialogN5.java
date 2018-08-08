@@ -1,6 +1,5 @@
 package org.janelia.saalfeldlab.paintera.ui.opendialog;
 
-import java.io.File;
 import java.io.IOException;
 import java.lang.invoke.MethodHandles;
 import java.nio.file.Paths;
@@ -12,7 +11,6 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
-import java.util.function.Function;
 import java.util.function.Supplier;
 import java.util.stream.IntStream;
 
@@ -50,7 +48,7 @@ import net.imglib2.type.numeric.integer.UnsignedLongType;
 import net.imglib2.type.volatiles.AbstractVolatileRealType;
 import org.janelia.saalfeldlab.fx.ui.ExceptionNode;
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread;
-import org.janelia.saalfeldlab.labels.blocks.LabelBlockLookupFromFile;
+import org.janelia.saalfeldlab.labels.blocks.LabelBlockLookup;
 import org.janelia.saalfeldlab.n5.DataType;
 import org.janelia.saalfeldlab.n5.DatasetAttributes;
 import org.janelia.saalfeldlab.n5.N5Reader;
@@ -70,6 +68,7 @@ import org.janelia.saalfeldlab.paintera.state.LabelSourceState;
 import org.janelia.saalfeldlab.paintera.state.RawSourceState;
 import org.janelia.saalfeldlab.paintera.stream.HighlightingStreamConverter;
 import org.janelia.saalfeldlab.paintera.stream.ModalGoldenAngleSaturatedHighlightingARGBStream;
+import org.janelia.saalfeldlab.util.MakeUnchecked;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -433,11 +432,10 @@ public class GenericBackendDialogN5 implements BackendDialog
 		);
 		final HighlightingStreamConverter<T> converter = HighlightingStreamConverter.forType(stream, masked.getType());
 
-		final String lookupPath = N5Helpers.labelMappingFromFileBasePath(reader, dataset);
-		final LabelBlockLookupFromFile lookup = new LabelBlockLookupFromFile(LabelBlockLookupFromFile.patternFromBasePath(lookupPath));
+		final LabelBlockLookup lookup = N5Helpers.getLabelBlockLookup(n5.get(), dataset);
 		InterruptibleFunction<Long, Interval[]>[] blockLoaders = IntStream
 				.range(0, masked.getNumMipmapLevels())
-				.mapToObj(level -> InterruptibleFunction.fromFunction( (Function<Long, Interval[]>) id -> lookup.read(level, id)))
+				.mapToObj(level -> InterruptibleFunction.fromFunction( MakeUnchecked.function((MakeUnchecked.CheckedFunction<Long, Interval[]>) id -> lookup.read(level, id))))
 				.toArray(InterruptibleFunction[]::new );
 
 		return new LabelSourceState<>(

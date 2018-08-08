@@ -36,7 +36,7 @@ import org.janelia.saalfeldlab.fx.event.KeyTracker;
 import org.janelia.saalfeldlab.fx.event.MouseTracker;
 import org.janelia.saalfeldlab.fx.ortho.GridConstraintsManager;
 import org.janelia.saalfeldlab.fx.ortho.OrthogonalViews;
-import org.janelia.saalfeldlab.labels.blocks.LabelBlockLookupFromFile;
+import org.janelia.saalfeldlab.labels.blocks.LabelBlockLookup;
 import org.janelia.saalfeldlab.n5.N5Reader;
 import org.janelia.saalfeldlab.n5.N5Writer;
 import org.janelia.saalfeldlab.paintera.SaveProject.ProjectUndefined;
@@ -516,13 +516,11 @@ public class Paintera extends Application
 				                                                );
 
 
-				final String lookupPath = N5Helpers.labelMappingFromFileBasePath(n5, dataset);
-				final LabelBlockLookupFromFile lookup = new LabelBlockLookupFromFile(LabelBlockLookupFromFile.patternFromBasePath(lookupPath));
-				LOG.debug("Got lookup path {}", lookupPath);
+				final LabelBlockLookup lookup = N5Helpers.getLabelBlockLookup(n5, dataset);
 				InterruptibleFunction<Long, Interval[]>[] blockLoaders = IntStream
 						.range(0, maskedSource.getNumMipmapLevels())
-						.mapToObj(level -> InterruptibleFunction.fromFunction( (Function<Long, Interval[]>) id -> lookup.read(level, id)))
-						.toArray(InterruptibleFunction[]::new );
+						.mapToObj(level -> InterruptibleFunction.fromFunction( MakeUnchecked.function( (MakeUnchecked.CheckedFunction<Long, Interval[]>) id -> lookup.read(level, id))))
+						.toArray(InterruptibleFunction[]::new);
 
 				final LabelSourceState<D, T> state = new LabelSourceState<>(
 						maskedSource,
