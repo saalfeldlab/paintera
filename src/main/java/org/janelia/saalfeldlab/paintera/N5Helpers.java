@@ -1200,7 +1200,7 @@ public class N5Helpers
 			try
 			{
 				N5FSMeta n5fs = new N5FSMeta((N5FSReader) reader, group);
-				final GsonBuilder gsonBuilder = new GsonBuilder().registerTypeHierarchyAdapter(LabelBlockLookup.class, LabelBlockLookupAdapter.Companion.getJsonAdapter());
+				final GsonBuilder gsonBuilder = new GsonBuilder().registerTypeHierarchyAdapter(LabelBlockLookup.class, LabelBlockLookupAdapter.getJsonAdapter());
 			final LabelBlockLookup lookup =  Optional
 					.ofNullable( n5fs.reader(gsonBuilder).getAttribute( group, "labelBlockLookup", LabelBlockLookup.class ) )
 					.orElseGet( MakeUnchecked.supplier( () ->  new LabelBlockLookupFromFile(Paths.get(n5fs.basePath(),group, "/", "label-to-block-mapping", "s%d", "%d" ).toString() ) ) )
