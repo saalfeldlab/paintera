@@ -1035,8 +1035,10 @@ public class N5Helpers
 	public static IdService idService(final N5Writer n5, final String dataset) throws IOException
 	{
 
+		LOG.debug("Requesting id service for {}:{}", n5, dataset);
 		final Long maxId = n5.getAttribute(dataset, "maxId", Long.class);
-		if (maxId == null) { throw new RuntimeException("maxId not specified in attributes.json"); }
+		LOG.debug("Found maxId={}", maxId);
+		if (maxId == null) { throw new IOException("maxId not specified in attributes.json"); }
 		return new N5IdService(n5, dataset, maxId);
 
 	}

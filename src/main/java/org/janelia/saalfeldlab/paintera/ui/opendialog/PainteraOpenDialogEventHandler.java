@@ -66,7 +66,7 @@ public class PainteraOpenDialogEventHandler implements EventHandler<Event>
 				viewer,
 				cellCache,
 				check,
-				e -> {},
+				e -> LOG.error("Unable to open dataset: {}", e.getMessage(), e),
 				true,
 				projectDirectory);
 	}
@@ -154,6 +154,7 @@ public class PainteraOpenDialogEventHandler implements EventHandler<Event>
 						}
 					} catch (final Exception ex)
 					{
+						LOG.debug("Caught exception: {}", ex.getMessage(), ex);
 						exceptionHandler.accept(ex);
 					}
 				});
