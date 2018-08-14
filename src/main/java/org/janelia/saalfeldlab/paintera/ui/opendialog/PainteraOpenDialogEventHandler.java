@@ -26,6 +26,7 @@ import net.imglib2.type.label.VolatileLabelMultisetArray;
 import net.imglib2.type.numeric.IntegerType;
 import net.imglib2.type.numeric.RealType;
 import net.imglib2.type.volatiles.AbstractVolatileRealType;
+import org.janelia.saalfeldlab.fx.ui.Exceptions;
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread;
 import org.janelia.saalfeldlab.paintera.PainteraBaseView;
 import org.janelia.saalfeldlab.paintera.data.DataSource;
@@ -66,7 +67,10 @@ public class PainteraOpenDialogEventHandler implements EventHandler<Event>
 				viewer,
 				cellCache,
 				check,
-				e -> LOG.error("Unable to open dataset: {}", e.getMessage(), e),
+				e -> {
+					LOG.error("Unable to open dataset: {}", e.getMessage(), e);
+					InvokeOnJavaFXApplicationThread.invoke( () -> Exceptions.exceptionAlert("Paintera", "Unable to open data set", e).show() );
+					},
 				true,
 				projectDirectory);
 	}
