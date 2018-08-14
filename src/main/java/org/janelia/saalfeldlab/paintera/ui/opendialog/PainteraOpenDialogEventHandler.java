@@ -62,8 +62,13 @@ public class PainteraOpenDialogEventHandler implements EventHandler<Event>
 			final Predicate<Event> check,
 			final String projectDirectory)
 	{
-		this(viewer, cellCache, check, e -> {
-		}, true, projectDirectory);
+		this(
+				viewer,
+				cellCache,
+				check,
+				e -> {},
+				true,
+				projectDirectory);
 	}
 
 	public PainteraOpenDialogEventHandler(
