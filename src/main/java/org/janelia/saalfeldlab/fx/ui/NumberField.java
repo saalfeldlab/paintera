@@ -33,9 +33,10 @@ public class NumberField<P extends Property<Number>> extends ObjectField<Number,
 			double initialValue,
 			final DoublePredicate test,
 			SubmitOn... submitOn
-	                                                             )
+	                                                     )
 	{
-		StringConverter<Number> converter = new StringConverter<Number>() {
+		StringConverter<Number> converter = new StringConverter<Number>()
+		{
 			@Override
 			public String toString(Number number)
 			{
@@ -45,10 +46,16 @@ public class NumberField<P extends Property<Number>> extends ObjectField<Number,
 			@Override
 			public Number fromString(String s)
 			{
-				final double val = Double.parseDouble(s);
-				if (!test.test(val))
-					throw new RuntimeException("Illegal value: " + s);
-				return val;
+				try
+				{
+					final double val = Double.parseDouble(s);
+					if (!test.test(val))
+						throw new ObjectField.InvalidUserInput("Illegal value: " + s);
+					return val;
+				} catch (NumberFormatException e)
+				{
+					throw new ObjectField.InvalidUserInput("Unable to convert: " + s, e);
+				}
 			}
 		};
 
@@ -59,9 +66,10 @@ public class NumberField<P extends Property<Number>> extends ObjectField<Number,
 			long initialValue,
 			final LongPredicate test,
 			SubmitOn... submitOn
-	                                                         )
+	                                                 )
 	{
-		StringConverter<Number> converter = new StringConverter<Number>() {
+		StringConverter<Number> converter = new StringConverter<Number>()
+		{
 			@Override
 			public String toString(Number number)
 			{
@@ -71,14 +79,21 @@ public class NumberField<P extends Property<Number>> extends ObjectField<Number,
 			@Override
 			public Number fromString(String s)
 			{
-				final long val = Long.parseLong(s);
-				if (!test.test(val))
-					throw new RuntimeException("Illegal value: " + s);
-				return val;
+				try
+				{
+					final long val = Long.parseLong(s);
+					if (!test.test(val))
+						throw new ObjectField.InvalidUserInput("Illegal value: " + s);
+					return val;
+				} catch (NumberFormatException e)
+				{
+					throw new ObjectField.InvalidUserInput("Unable to convert: " + s, e);
+				}
 			}
 		};
 
-		LongProperty lp = new LongPropertyBase(initialValue) {
+		LongProperty lp = new LongPropertyBase(initialValue)
+		{
 			@Override
 			public Object getBean()
 			{
@@ -99,9 +114,10 @@ public class NumberField<P extends Property<Number>> extends ObjectField<Number,
 			int initialValue,
 			final IntPredicate test,
 			SubmitOn... submitOn
-	                                                           )
+	                                                   )
 	{
-		StringConverter<Number> converter = new StringConverter<Number>() {
+		StringConverter<Number> converter = new StringConverter<Number>()
+		{
 			@Override
 			public String toString(Number number)
 			{
@@ -111,10 +127,17 @@ public class NumberField<P extends Property<Number>> extends ObjectField<Number,
 			@Override
 			public Integer fromString(String s)
 			{
-				final int val = Integer.parseInt(s);
-				if (!test.test(val))
-					throw new RuntimeException("Illegal value: " + s);
-				return val;
+				try
+				{
+					final int val = Integer.parseInt(s);
+					if (!test.test(val))
+						throw new ObjectField.InvalidUserInput("Illegal value: " + s);
+					return val;
+				}
+				catch (NumberFormatException e)
+				{
+					throw new ObjectField.InvalidUserInput("Unable to convert: " + s, e);
+				}
 			}
 		};
 
@@ -123,41 +146,45 @@ public class NumberField<P extends Property<Number>> extends ObjectField<Number,
 
 	public static void main(String[] args)
 	{
-		PlatformImpl.startup(() -> {});
+		PlatformImpl.startup(() -> {
+		});
 
 		final ObjectField<Number, DoubleProperty> df = doubleField(
 				5.0,
 				d -> true,
 				SubmitOn.ENTER_PRESSED,
-				SubmitOn.FOCUS_LOST);
+				SubmitOn.FOCUS_LOST
+		                                                          );
 		final TextField        lbl1       = new TextField();
 		final StringExpression converted1 = Bindings.convert(df.valueProperty());
 		lbl1.textProperty().bind(converted1);
-		final HBox  hb1  = new HBox(df.textField(), lbl1);
+		final HBox hb1 = new HBox(df.textField(), lbl1);
 
 		final ObjectField<Number, LongProperty> lf = longField(
 				4,
 				d -> true,
 				SubmitOn.ENTER_PRESSED,
-				SubmitOn.FOCUS_LOST);
+				SubmitOn.FOCUS_LOST
+		                                                      );
 		final TextField        lbl2       = new TextField();
 		final StringExpression converted2 = Bindings.convert(lf.valueProperty());
 		lbl2.textProperty().bind(converted2);
-		final HBox  hb2  = new HBox(lf.textField(), lbl2);
+		final HBox hb2 = new HBox(lf.textField(), lbl2);
 
 		final ObjectField<Number, LongProperty> ulf = longField(
 				4,
 				d -> d >= 0,
 				SubmitOn.ENTER_PRESSED,
-				SubmitOn.FOCUS_LOST);
+				SubmitOn.FOCUS_LOST
+		                                                       );
 		final TextField        lbl3       = new TextField();
 		final StringExpression converted3 = Bindings.convert(ulf.valueProperty());
 		lbl3.textProperty().bind(converted3);
-		final HBox  hb3  = new HBox(ulf.textField(), lbl3);
+		final HBox hb3 = new HBox(ulf.textField(), lbl3);
 
 
 		Platform.runLater(() -> {
-			final VBox pane = new VBox(hb1, hb2, hb3);
+			final VBox  pane  = new VBox(hb1, hb2, hb3);
 			final Scene scene = new Scene(pane);
 			final Stage stage = new Stage();
 			stage.setScene(scene);

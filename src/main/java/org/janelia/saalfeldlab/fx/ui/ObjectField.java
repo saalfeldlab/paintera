@@ -1,30 +1,19 @@
 package org.janelia.saalfeldlab.fx.ui;
 
+import java.io.File;
 import java.util.Arrays;
-import java.util.function.DoublePredicate;
-import java.util.function.IntPredicate;
-import java.util.function.LongPredicate;
+import java.util.function.Predicate;
 
-import com.sun.javafx.application.PlatformImpl;
-import javafx.application.Platform;
-import javafx.beans.binding.Bindings;
-import javafx.beans.binding.StringExpression;
-import javafx.beans.property.DoubleProperty;
-import javafx.beans.property.IntegerProperty;
-import javafx.beans.property.LongProperty;
-import javafx.beans.property.LongPropertyBase;
 import javafx.beans.property.Property;
-import javafx.beans.property.SimpleDoubleProperty;
-import javafx.beans.property.SimpleIntegerProperty;
+import javafx.beans.property.SimpleObjectProperty;
+import javafx.beans.property.SimpleStringProperty;
+import javafx.beans.property.StringProperty;
 import javafx.beans.value.ChangeListener;
 import javafx.beans.value.ObservableValue;
 import javafx.event.EventHandler;
-import javafx.scene.Scene;
 import javafx.scene.control.TextField;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyEvent;
-import javafx.scene.layout.HBox;
-import javafx.stage.Stage;
 import javafx.util.StringConverter;
 
 public class ObjectField< T, P extends Property< T > >
@@ -33,6 +22,19 @@ public class ObjectField< T, P extends Property< T > >
 	public enum SubmitOn {
 		ENTER_PRESSED,
 		FOCUS_LOST
+	}
+
+	public static class InvalidUserInput extends RuntimeException
+	{
+		public InvalidUserInput(String message )
+		{
+			this(message, null);
+		}
+
+		public InvalidUserInput(String message, Throwable cause)
+		{
+			super(message, cause);
+		}
 	}
 
 	private final P value;
@@ -98,10 +100,58 @@ public class ObjectField< T, P extends Property< T > >
 		{
 			value.setValue(converter.fromString(textField.getText()));
 		}
-		catch (Exception e)
+		catch (InvalidUserInput e)
 		{
 			textField.setText(converter.toString(value.getValue()));
 		}
+	}
+
+	public static ObjectField<File, Property<File>> fileField(
+			File initialFile,
+			final Predicate<File> test,
+			SubmitOn... submitOn)
+	{
+		StringConverter<File> converter = new StringConverter<File>() {
+			@Override
+			public String toString(File file)
+			{
+				return file.getAbsolutePath();
+			}
+
+			@Override
+			public File fromString(String s)
+			{
+				File f = new File(s);
+				if (!test.test(f))
+				{
+					throw new InvalidUserInput("User input could not converted to file: " + s, null);
+				}
+				return f;
+			}
+		};
+		return new ObjectField<>(new SimpleObjectProperty<>(initialFile), converter, submitOn);
+	}
+
+	public static ObjectField<String, StringProperty> stringField(
+			String initialValue,
+			SubmitOn... submitOn)
+	{
+
+		final StringConverter<String> converter = new StringConverter<String>() {
+			@Override
+			public String toString(String s)
+			{
+				return s;
+			}
+
+			@Override
+			public String fromString(String s)
+			{
+				return s;
+			}
+		};
+
+		return new ObjectField<>(new SimpleStringProperty(initialValue), converter, submitOn);
 	}
 
 	private class EnterPressedHandler implements EventHandler<KeyEvent>
