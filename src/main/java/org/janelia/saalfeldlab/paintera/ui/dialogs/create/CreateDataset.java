@@ -10,6 +10,7 @@ import java.util.List;
 import java.util.Optional;
 
 import bdv.util.volatiles.SharedQueue;
+import bdv.viewer.Source;
 import com.sun.javafx.application.PlatformImpl;
 import javafx.application.Platform;
 import javafx.beans.property.DoubleProperty;
@@ -65,9 +66,9 @@ public class CreateDataset
 
 	private static final double NAME_WIDTH = 150;
 
-	private final DataSource<?, ?> currentSource;
+	private final Source<?> currentSource;
 
-	private final List<DataSource<?, ?>> allSources;
+	private final List<Source<?>> allSources;
 
 	private final ObservableList<MipMapLevel> mipmapLevels = FXCollections.observableArrayList();
 
@@ -163,15 +164,15 @@ public class CreateDataset
 	);
 
 	public CreateDataset(
-			DataSource<?, ?> currentSource,
-			DataSource<?, ?>... allSources)
+			Source<?> currentSource,
+			Source<?>... allSources)
 	{
 		this(currentSource, Arrays.asList(allSources));
 	}
 
 	public CreateDataset(
-			DataSource<?, ?> currentSource,
-			Collection<DataSource<?, ?>> allSources)
+			Source<?> currentSource,
+			Collection<Source<?>> allSources)
 	{
 		this.currentSource = currentSource;
 		this.allSources = new ArrayList<>(allSources);
@@ -233,12 +234,12 @@ public class CreateDataset
 		return button.filter( ButtonType.OK::equals ).map( bt -> new Pair<>(new N5FSMeta(container, dataset), name));
 	}
 
-	private DataSource<?, ?> currentSource()
+	private Source<?> currentSource()
 	{
 		return this.currentSource;
 	}
 
-	private void populateFrom(DataSource<?, ?> source)
+	private void populateFrom(Source<?> source)
 	{
 		if (source == null)
 			return;
@@ -252,7 +253,7 @@ public class CreateDataset
 			}
 		}
 
-		final RandomAccessibleInterval<?> data = source.getDataSource(0, 0);
+		final RandomAccessibleInterval<?> data = source.getSource(0, 0);
 		this.dimensions.getX().valueProperty().set(data.dimension(0));
 		this.dimensions.getY().valueProperty().set(data.dimension(1));
 		this.dimensions.getZ().valueProperty().set(data.dimension(2));
