@@ -27,6 +27,7 @@ import bdv.util.volatiles.SharedQueue;
 import bdv.util.volatiles.VolatileTypeMatcher;
 import bdv.viewer.Interpolation;
 import com.google.gson.GsonBuilder;
+import com.google.gson.JsonElement;
 import gnu.trove.map.TLongLongMap;
 import gnu.trove.map.hash.TLongLongHashMap;
 import net.imglib2.Cursor;
@@ -1188,6 +1189,21 @@ public class N5Helpers
 			int[] maxNumEntries
 	                                          ) throws IOException
 	{
+		createEmptyLabeLDataset(container, group, dimensions, blockSize, resolution, offset,relativeScaleFactors, maxNumEntries, false);
+	}
+
+	public static void createEmptyLabeLDataset(
+			String container,
+			String group,
+			long[] dimensions,
+			int[] blockSize,
+			double[] resolution,
+			double[] offset,
+			double[][] relativeScaleFactors,
+			int[] maxNumEntries,
+			boolean ignoreExisiting
+	                                          ) throws IOException
+	{
 
 		//		{"painteraData":{"type":"label"},
 		// "maxId":191985,
@@ -1197,7 +1213,20 @@ public class N5Helpers
 		final Map<String, String> pd = new HashMap<String, String>();
 		pd.put("type", "label");
 		final N5FSWriter n5 = new N5FSWriter(container);
-		n5.createGroup(group);
+		final String uniqueLabelsGroup = String.format("%s/unique-labels", group);
+
+		if (!ignoreExisiting && n5.datasetExists(group))
+			throw new IOException(String.format("Dataset `%s' already exists in container `%s'", group, container));
+
+		if (!n5.exists(group))
+			n5.createGroup(group);
+
+		if (!ignoreExisiting && n5.listAttributes(group).containsKey(PAINTERA_DATA_KEY))
+			throw new IOException(String.format("Group `%s' exists in container `%s' and is Paintera data set", group, container));
+
+		if (!ignoreExisiting && n5.exists(uniqueLabelsGroup))
+			throw new IOException(String.format("Unique labels group `%s' exists in container `%s' -- conflict likely.", uniqueLabelsGroup, container));
+
 		n5.setAttribute(group, PAINTERA_DATA_KEY, pd);
 		n5.setAttribute(group, MAX_ID_KEY, 1L);
 
@@ -1211,7 +1240,6 @@ public class N5Helpers
 		n5.setAttribute(dataGroup, RESOLUTION_KEY, resolution);
 		n5.setAttribute(dataGroup, IS_LABEL_MULTISET_KEY, true);
 
-		final String uniqueLabelsGroup = String.format("%s/unique-labels", group);
 		n5.createGroup(uniqueLabelsGroup);
 		n5.setAttribute(uniqueLabelsGroup, MULTI_SCALE_KEY, true);
 

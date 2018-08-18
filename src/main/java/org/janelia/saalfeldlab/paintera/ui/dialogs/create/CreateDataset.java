@@ -33,6 +33,7 @@ import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
 import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
+import javafx.util.Pair;
 import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.img.cell.AbstractCellImg;
 import net.imglib2.img.cell.CellGrid;
@@ -41,6 +42,7 @@ import net.imglib2.type.label.LabelMultisetType;
 import net.imglib2.type.label.VolatileLabelMultisetType;
 import net.imglib2.type.numeric.integer.UnsignedByteType;
 import net.imglib2.type.volatiles.VolatileUnsignedByteType;
+import net.imglib2.util.ValuePair;
 import org.janelia.saalfeldlab.fx.ui.DirectoryField;
 import org.janelia.saalfeldlab.fx.ui.Exceptions;
 import org.janelia.saalfeldlab.fx.ui.NamedNode;
@@ -176,9 +178,10 @@ public class CreateDataset
 		Optional.ofNullable(currentSource).ifPresent(this::populateFrom);
 	}
 
-	public Optional<DataSource<LabelMultisetType, VolatileLabelMultisetType>> showDialog()
+	public Optional<Pair<N5FSMeta, String>> showDialog()
 	{
 		final Alert alert = new Alert(Alert.AlertType.CONFIRMATION);
+		alert.setResizable(true);
 		alert.setTitle("Paintera");
 		alert.setHeaderText("Create new Label dataset");
 		alert.getDialogPane().setContent(this.pane);
@@ -224,7 +227,10 @@ public class CreateDataset
 
 		final Optional<ButtonType> button = alert.showAndWait();
 
-		return Optional.empty();
+		final String container = this.n5Container.directoryProperty().getValue().getAbsolutePath();
+		final String dataset = this.dataset.valueProperty().get();
+		final String name = this.name.getText();
+		return button.filter( ButtonType.OK::equals ).map( bt -> new Pair<>(new N5FSMeta(container, dataset), name));
 	}
 
 	private DataSource<?, ?> currentSource()
@@ -295,7 +301,7 @@ public class CreateDataset
 
 		Platform.runLater(() -> {
 			final Button b = new Button("BUTTON");
-			b.setOnAction(e -> cd.showDialog());
+			b.setOnAction(e -> LOG.warn( "Got new dataset meta: {}", cd.showDialog()));
 			final Scene scene = new Scene(b);
 			final Stage stage = new Stage();
 			stage.setScene(scene);
