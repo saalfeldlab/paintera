@@ -27,7 +27,6 @@ import bdv.util.volatiles.SharedQueue;
 import bdv.util.volatiles.VolatileTypeMatcher;
 import bdv.viewer.Interpolation;
 import com.google.gson.GsonBuilder;
-import com.google.gson.JsonElement;
 import gnu.trove.map.TLongLongMap;
 import gnu.trove.map.hash.TLongLongHashMap;
 import net.imglib2.Cursor;
@@ -752,7 +751,8 @@ public class N5Helpers
 						dataset);
 		final N5CacheLoader loader = new N5CacheLoader(
 				reader,
-				dataset
+				dataset,
+				N5CacheLoader.constantNullReplacement( Label.BACKGROUND )
 		);
 		final SoftRefLoaderCache<Long, Cell<VolatileLabelMultisetArray>> cache = new
 				SoftRefLoaderCache<>();
