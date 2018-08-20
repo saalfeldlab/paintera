@@ -34,6 +34,7 @@ import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
 import javafx.scene.layout.VBox;
 import org.janelia.saalfeldlab.fx.Labels;
+import org.janelia.saalfeldlab.fx.TitledPanes;
 import org.janelia.saalfeldlab.fx.undo.UndoFromEvents;
 import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignmentState;
 import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignmentStateWithActionTracker;
@@ -433,11 +434,11 @@ public class StatePane implements BindUnbindAndNodeSupplier
 			};
 			final Function<AssignmentAction, Node> contents = action -> Labels.withTooltip(action.toString());
 			final FragmentSegmentAssignmentStateWithActionTracker assignmentsWithHistory = (FragmentSegmentAssignmentStateWithActionTracker) assignments;
-			Supplier<Node> pane = () -> new TitledPane("Assignments", UndoFromEvents.withUndoRedoButtons(
+			Supplier<Node> pane = () -> TitledPanes.createCollapsed("Assignments", UndoFromEvents.withUndoRedoButtons(
 					assignmentsWithHistory.events(),
 					title,
 					contents
-			                                                        ));
+			                                                                                         ));
 			return BindUnbindAndNodeSupplier.noBind(pane);
 		}
 		return BindUnbindAndNodeSupplier.empty();
