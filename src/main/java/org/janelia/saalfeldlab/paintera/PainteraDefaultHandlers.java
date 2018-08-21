@@ -43,6 +43,7 @@ import org.janelia.saalfeldlab.fx.ortho.OnEnterOnExit;
 import org.janelia.saalfeldlab.fx.ortho.OrthogonalViews;
 import org.janelia.saalfeldlab.fx.ortho.OrthogonalViews.ViewerAndTransforms;
 import org.janelia.saalfeldlab.fx.ortho.ViewerAxis;
+import org.janelia.saalfeldlab.fx.ui.Exceptions;
 import org.janelia.saalfeldlab.paintera.control.CurrentSourceRefreshMeshes;
 import org.janelia.saalfeldlab.paintera.control.CurrentSourceVisibilityToggle;
 import org.janelia.saalfeldlab.paintera.control.FitToInterval;
@@ -59,6 +60,7 @@ import org.janelia.saalfeldlab.paintera.control.navigation.DisplayTransformUpdat
 import org.janelia.saalfeldlab.paintera.state.SourceInfo;
 import org.janelia.saalfeldlab.paintera.ui.ARGBStreamSeedSetter;
 import org.janelia.saalfeldlab.paintera.ui.ToggleMaximize;
+import org.janelia.saalfeldlab.paintera.ui.dialogs.create.CreateDatasetHandler;
 import org.janelia.saalfeldlab.paintera.ui.opendialog.PainteraOpenDialogEventHandler;
 import org.janelia.saalfeldlab.paintera.viewer3d.Viewer3DFX;
 import org.slf4j.Logger;
@@ -354,6 +356,14 @@ public class PainteraDefaultHandlers
 				}
 		                                   );
 
+		EventFX.KEY_PRESSED(
+				"Create new label dataset",
+				e -> CreateDatasetHandler.createAndAddNewLabelDataset(
+						baseView,
+						projectDirectory,
+						Exceptions.handler("Paintera", "Unable to create new Dataset"),
+						baseView.sourceInfo().currentSourceProperty().get()),
+				e -> keyTracker.areOnlyTheseKeysDown(KeyCode.CONTROL, KeyCode.SHIFT, KeyCode.N)).installInto(paneWithStatus.getPane());
 	}
 
 	private final Map<ViewerPanelFX, ViewerAndTransforms> viewerToTransforms = new HashMap<>();

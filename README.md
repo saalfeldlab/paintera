@@ -123,6 +123,7 @@ Usage: Paintera [-h] [--height=HEIGHT] [--width=WIDTH]
 | `R` | Clear mesh caches and refresh meshes (if current source is label source) |
 | `L` | Lock last selected segment (if label source) |
 | `Ctrl` + `S` | Save current project state |
+| `Ctrl` + `Shift` + `N` | Create new label dataset |
 
 ## Data
 

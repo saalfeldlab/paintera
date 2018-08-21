@@ -10,6 +10,7 @@ import javafx.stage.Stage;
 
 import java.io.PrintWriter;
 import java.io.StringWriter;
+import java.util.function.Consumer;
 
 public class Exceptions {
 
@@ -61,6 +62,14 @@ public class Exceptions {
 
 		return alert;
 
+	}
+
+	public static Consumer<Exception> handler(
+			final String title,
+			final String headerText
+	                                         )
+	{
+		return e -> exceptionAlert(title, headerText, e);
 	}
 
 }
