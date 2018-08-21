@@ -110,6 +110,6 @@ public class MipMapLevel
 			levels.add(new MipMapLevel(2, -1, fieldWidth, nameWidth, submitOn));
 		});
 
-		return new VBox(levelsBox, addBox);
+		return new VBox(addBox, levelsBox);
 	}
 }
