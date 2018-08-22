@@ -45,6 +45,7 @@ import org.janelia.saalfeldlab.paintera.config.NavigationConfigNode;
 import org.janelia.saalfeldlab.paintera.config.OrthoSliceConfig;
 import org.janelia.saalfeldlab.paintera.config.OrthoSliceConfigBase;
 import org.janelia.saalfeldlab.paintera.config.Viewer3DConfig;
+import org.janelia.saalfeldlab.paintera.data.mask.MaskedSource;
 import org.janelia.saalfeldlab.paintera.state.GlobalTransformManager;
 import org.janelia.saalfeldlab.paintera.state.LabelSourceState;
 import org.janelia.saalfeldlab.paintera.state.RawSourceState;
@@ -177,6 +178,10 @@ public class PainteraBaseView
 		{
 			addGenericState(state);
 		}
+
+		if (state.getDataSource() instanceof MaskedSource<?, ?>)
+			((MaskedSource<?, ?>) state.getDataSource()).showCanvasOverBackgroundProperty().addListener(obs -> orthogonalViews().requestRepaint());
+
 	}
 
 	public <D, T> void addGenericState(final SourceState<D, T> state)

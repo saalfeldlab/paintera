@@ -143,6 +143,8 @@ public class MaskedSource<D extends Type<D>, T extends Type<T>> implements DataS
 
 	private final List<Runnable> canvasClearedListeners = new ArrayList<>();
 
+	private final BooleanProperty showCanvasOverBackground = new SimpleBooleanProperty(this, "show canvas", true);
+
 	private final ObservableBooleanValue canBePersited = Bindings.createBooleanBinding(
 			() -> isMaskNotDeployed.get() && isNotPersisting.get() && noMasksCurrentlyApplied.get(),
 			isNotPersisting,
@@ -228,6 +230,11 @@ public class MaskedSource<D extends Type<D>, T extends Type<T>> implements DataS
 
 		setMasksConstant();
 
+	}
+
+	public BooleanProperty showCanvasOverBackgroundProperty()
+	{
+		return showCanvasOverBackground;
 	}
 
 	public RandomAccessibleInterval<UnsignedLongType> generateMask(final int t, final int level, final
@@ -555,6 +562,12 @@ public class MaskedSource<D extends Type<D>, T extends Type<T>> implements DataS
 	@Override
 	public RandomAccessibleInterval<T> getSource(final int t, final int level)
 	{
+		if (!this.showCanvasOverBackground.get() || this.affectedBlocks.size() == 0 && this.isMaskNotDeployed.get())
+		{
+			LOG.debug("Hide canvas or no mask/canvas data present -- delegate to underlying source");
+			return this.source.getSource(t, level);
+		}
+
 		final RandomAccessibleInterval<T>                                                   source   = this.source
 				.getSource(
 				t,
@@ -619,6 +632,13 @@ public class MaskedSource<D extends Type<D>, T extends Type<T>> implements DataS
 	@Override
 	public RandomAccessibleInterval<D> getDataSource(final int t, final int level)
 	{
+
+		if (!this.showCanvasOverBackground.get() || this.affectedBlocks.size() == 0 && this.isMaskNotDeployed.get())
+		{
+			LOG.debug("Hide canvas or no mask/canvas data present -- delegate to underlying source");
+			return this.source.getDataSource(t, level);
+		}
+
 		final RandomAccessibleInterval<D>                                   source   = this.source.getDataSource(
 				t,
 				level
