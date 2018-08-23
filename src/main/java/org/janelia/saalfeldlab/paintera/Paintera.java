@@ -72,6 +72,8 @@ public class Paintera extends Application
 
 	public static final String PAINTERA_KEY = "paintera";
 
+	public static final String NAME = "Paintera";
+
 	public enum Error
 	{
 		NO_PROJECT_SPECIFIED(1, "No Paintera project specified");;
@@ -153,7 +155,7 @@ public class Paintera extends Application
 		stage.addEventHandler(WindowEvent.WINDOW_HIDDEN, e -> lockFile.remove());
 
 		final PainteraBaseView baseView = new PainteraBaseView(
-				Math.min(8, Math.max(1, Runtime.getRuntime().availableProcessors() / 2)),
+				PainteraBaseView.reasonableNumFetcherThreads(),
 				ViewerOptions.options().screenScales(screenScales),
 				si -> s -> si.getState(s).interpolationProperty().get()
 		);

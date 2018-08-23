@@ -45,6 +45,7 @@ import org.janelia.saalfeldlab.paintera.config.NavigationConfigNode;
 import org.janelia.saalfeldlab.paintera.config.OrthoSliceConfig;
 import org.janelia.saalfeldlab.paintera.config.OrthoSliceConfigBase;
 import org.janelia.saalfeldlab.paintera.config.Viewer3DConfig;
+import org.janelia.saalfeldlab.paintera.data.mask.MaskedSource;
 import org.janelia.saalfeldlab.paintera.state.GlobalTransformManager;
 import org.janelia.saalfeldlab.paintera.state.LabelSourceState;
 import org.janelia.saalfeldlab.paintera.state.RawSourceState;
@@ -177,6 +178,13 @@ public class PainteraBaseView
 		{
 			addGenericState(state);
 		}
+
+		if (state.getDataSource() instanceof MaskedSource<?, ?>) {
+			final MaskedSource<?, ?> ms = ((MaskedSource<?, ?>) state.getDataSource());
+			ms.showCanvasOverBackgroundProperty().addListener(obs -> orthogonalViews().requestRepaint());
+			ms.currentCanvasDirectoryProperty().addListener(obs -> orthogonalViews().requestRepaint());
+		}
+
 	}
 
 	public <D, T> void addGenericState(final SourceState<D, T> state)
@@ -404,7 +412,7 @@ public class PainteraBaseView
 			final double... screenScales)
 	{
 		final PainteraBaseView baseView = new PainteraBaseView(
-				Math.min(8, Math.max(1, Runtime.getRuntime().availableProcessors() / 2)),
+				reasonableNumFetcherThreads(),
 				ViewerOptions.options().screenScales(screenScales),
 				si -> s -> si.getState(s).interpolationProperty().get()
 		);
