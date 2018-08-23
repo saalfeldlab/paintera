@@ -1065,15 +1065,25 @@ public class N5Helpers
 		return Paths.get(dataset, scaleDirs[scaleDirs.length - 1]).toString();
 	}
 
-	public static double[] getDoubleArrayAttribute(final N5Reader n5, final String dataset, final String key, final
-	double... fallBack)
+	public static double[] getDoubleArrayAttribute(
+			final N5Reader n5,
+			final String dataset,
+			final String key,
+			final double... fallBack)
 	throws IOException
 	{
 		if (isPainteraDataset(n5, dataset))
 		{
 			return getDoubleArrayAttribute(n5, dataset + "/" + PAINTERA_DATA_DATASET, key, fallBack);
 		}
-		return Optional.ofNullable(n5.getAttribute(dataset, key, double[].class)).orElse(fallBack);
+		try {
+			return Optional.ofNullable(n5.getAttribute(dataset, key, double[].class)).orElse(fallBack);
+		}
+		catch (ClassCastException e)
+		{
+			LOG.debug("Caught exception when trying to read double[] attribute. Will try to read as long[] attribute instead.", e);
+			return Optional.ofNullable(asDoubleArray(n5.getAttribute(dataset, key, long[].class))).orElse(fallBack);
+		}
 	}
 
 	public static double[] getResolution(final N5Reader n5, final String dataset) throws IOException
@@ -1277,6 +1287,13 @@ public class N5Helpers
 				Arrays.setAll(accumulatedFactors, dim -> accumulatedFactors[dim] * scaleFactors[dim]);
 			}
 		}
+	}
+
+	private static double[] asDoubleArray(long[] array)
+	{
+		final double[] doubleArray = new double[array.length];
+		Arrays.setAll(doubleArray, d -> array[d]);
+		return doubleArray;
 	}
 
 }
