@@ -30,6 +30,7 @@ import javafx.beans.binding.Bindings;
 import javafx.beans.binding.BooleanBinding;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.IntegerProperty;
+import javafx.beans.property.ReadOnlyStringProperty;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleIntegerProperty;
 import javafx.beans.property.SimpleStringProperty;
@@ -505,6 +506,20 @@ public class MaskedSource<D extends Type<D>, T extends Type<T>> implements DataS
 		{
 			this.masks.clear();
 			this.isMaskDeployed.set(false);
+		}
+	}
+
+	public void forgetCanvases() throws CannotClearCanvas
+	{
+		synchronized (this)
+		{
+			if (this.isPersisting.get())
+			{
+				throw new CannotClearCanvas("Currently persisting canvas -- try again later.");
+			}
+			this.masks.clear();
+			this.isMaskDeployed.set(false);
+			clearCanvases();
 		}
 	}
 
@@ -1295,6 +1310,11 @@ public class MaskedSource<D extends Type<D>, T extends Type<T>> implements DataS
 	public DataSource<D, T> underlyingSource()
 	{
 		return this.source;
+	}
+
+	public ReadOnlyStringProperty currentCanvasDirectoryProperty()
+	{
+		return this.cacheDirectory;
 	}
 
 	public String currentCanvasDirectory()

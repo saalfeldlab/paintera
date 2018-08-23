@@ -72,6 +72,8 @@ public class Paintera extends Application
 
 	public static final String PAINTERA_KEY = "paintera";
 
+	public static final String NAME = "Paintera";
+
 	public enum Error
 	{
 		NO_PROJECT_SPECIFIED(1, "No Paintera project specified");;
