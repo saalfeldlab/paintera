@@ -153,7 +153,7 @@ public class Paintera extends Application
 		stage.addEventHandler(WindowEvent.WINDOW_HIDDEN, e -> lockFile.remove());
 
 		final PainteraBaseView baseView = new PainteraBaseView(
-				Math.min(8, Math.max(1, Runtime.getRuntime().availableProcessors() / 2)),
+				PainteraBaseView.reasonableNumFetcherThreads(),
 				ViewerOptions.options().screenScales(screenScales),
 				si -> s -> si.getState(s).interpolationProperty().get()
 		);

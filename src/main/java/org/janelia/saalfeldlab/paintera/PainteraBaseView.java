@@ -409,7 +409,7 @@ public class PainteraBaseView
 			final double... screenScales)
 	{
 		final PainteraBaseView baseView = new PainteraBaseView(
-				Math.min(8, Math.max(1, Runtime.getRuntime().availableProcessors() / 2)),
+				reasonableNumFetcherThreads(),
 				ViewerOptions.options().screenScales(screenScales),
 				si -> s -> si.getState(s).interpolationProperty().get()
 		);
