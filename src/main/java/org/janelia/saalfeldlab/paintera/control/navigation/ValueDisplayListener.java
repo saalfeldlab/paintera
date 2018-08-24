@@ -15,6 +15,8 @@ import net.imglib2.RealRandomAccess;
 import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.realtransform.RealViews;
 import net.imglib2.ui.TransformListener;
+import net.imglib2.view.composite.Composite;
+import org.janelia.saalfeldlab.paintera.data.ChannelDataSource;
 import org.janelia.saalfeldlab.paintera.data.DataSource;
 
 public class ValueDisplayListener
@@ -106,8 +108,28 @@ public class ValueDisplayListener
 					affine
 			                                                          ).realRandomAccess();
 			final D                   val    = getVal(x, y, access, viewer);
-			submitValue.accept(stringConverter(source.getDataType()).apply(val));
+			submitValue.accept(stringConverterFromSource(source).apply(val));
 		}
+	}
+
+	private static<D> Function<D, String> stringConverterFromSource(final DataSource<D, ? > source)
+	{
+		if (source instanceof ChannelDataSource<?, ?>)
+		{
+			final long numChannels = ((ChannelDataSource<?, ?>)source).numChannels();
+			return (Function) (Function<? extends Composite<?>, String>) comp -> {
+				StringBuilder sb = new StringBuilder("(");
+				if (numChannels > 0)
+					sb.append(comp.get(0).toString());
+
+				for (int channel = 1; channel < numChannels; ++channel)
+					sb.append((", ")).append(comp.get(channel).toString());
+
+				sb.append((")"));
+				return sb.toString();
+			};
+		}
+		return stringConverter(source.getDataType());
 	}
 
 	private static <D> Function<D, String> stringConverter(final D d)
