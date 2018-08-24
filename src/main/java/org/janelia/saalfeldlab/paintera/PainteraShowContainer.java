@@ -51,24 +51,26 @@ public class PainteraShowContainer extends Application {
 			{
 				throw new CommandLine.PicocliException("--channel-axis has to be within [0, 3] but is " + clArgs.channelAxis);
 			}
-
-			if (cl.isUsageHelpRequested())
-			{
-				throw new CommandLine.PicocliException("Help requested");
-			}
 		}
 		catch (final CommandLine.PicocliException e)
 		{
-			LOG.info(e.getMessage());
+			LOG.error(e.getMessage());
 			LOG.debug("Stack trace", e);
 			cl.usage(System.err);
 			Platform.exit();
 			return;
 		}
 
+		if (cl.isUsageHelpRequested())
+		{
+			cl.usage(System.out);
+			Platform.exit();
+			return;
+		}
+
 		if (cl.isVersionHelpRequested())
 		{
-			LOG.info(Version.VERSION_STRING);
+			System.out.println(Version.VERSION_STRING);
 			Platform.exit();
 			return;
 		}
