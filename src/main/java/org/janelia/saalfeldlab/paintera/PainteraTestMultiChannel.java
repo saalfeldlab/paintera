@@ -68,7 +68,7 @@ public class PainteraTestMultiChannel extends Application {
 
 		ARGBCompositeColorConverter<VolatileFloatType, RealComposite<VolatileFloatType>, VolatileWithSet<RealComposite<VolatileFloatType>>> conv =
 				ARGBCompositeColorConverter.imp0((int) numChannels, 0.0, 1.0);
-		final ChannelSourceState<FloatType, VolatileFloatType, VolatileWithSet<RealComposite<VolatileFloatType>>> state = new ChannelSourceState<>(
+		final ChannelSourceState<FloatType, VolatileFloatType, RealComposite<VolatileFloatType>, VolatileWithSet<RealComposite<VolatileFloatType>>> state = new ChannelSourceState<>(
 				source,
 				conv,
 				new ARGBCompositeAlphaAdd(),

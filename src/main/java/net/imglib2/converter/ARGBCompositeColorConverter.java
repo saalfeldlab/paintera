@@ -97,6 +97,19 @@ public abstract class ARGBCompositeColorConverter<R extends RealType<R>, C exten
 		return this.alpha;
 	}
 
+	public DoubleProperty channelAlphaProperty(int channel) {
+		return this.channelAlpha[channel];
+	}
+
+	public ObjectProperty<ARGBType> colorProperty(int channel) {
+		return this.color[channel];
+	}
+
+	public int numChannels()
+	{
+		return this.numChannels;
+	}
+
 	private void update()
 	{
 		A = (int) Math.min(Math.max(Math.round(255 * alphaProperty().get()), 0), 255);
