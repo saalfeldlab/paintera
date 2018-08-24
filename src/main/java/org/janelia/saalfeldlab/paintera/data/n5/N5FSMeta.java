@@ -63,4 +63,10 @@ public class N5FSMeta implements N5Meta
 		return n5;
 	}
 
+	@Override
+	public String toString()
+	{
+		return String.format("{N5FS: container=%s dataset=%s}", n5, dataset);
+	}
+
 }
