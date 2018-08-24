@@ -12,6 +12,7 @@ import javafx.scene.control.Button;
 import javafx.scene.control.ButtonType;
 import javafx.scene.control.ColorPicker;
 import javafx.scene.control.ContextMenu;
+import javafx.scene.control.Label;
 import javafx.scene.control.MenuButton;
 import javafx.scene.control.MenuItem;
 import javafx.scene.control.TextField;
@@ -19,6 +20,7 @@ import javafx.scene.control.TextFormatter;
 import javafx.scene.control.TitledPane;
 import javafx.scene.control.Tooltip;
 import javafx.scene.input.KeyCode;
+import javafx.scene.layout.GridPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.TilePane;
@@ -41,6 +43,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.lang.invoke.MethodHandles;
+import java.util.Arrays;
 import java.util.Optional;
 import java.util.stream.IntStream;
 
@@ -159,11 +162,14 @@ public class ARGBCompositeColorConverterNode implements BindUnbindAndNodeSupplie
 		Tooltip.install(alphaSliderWithField.slider(), new Tooltip("alpha"));
 		HBox.setHgrow(alphaSliderWithField.slider(), Priority.ALWAYS);
 
-		final Button setColorButton = new Button("Set Color");
-		setColorButton.setTooltip(new Tooltip("Set all colors equidistant over hue of hsb color space"));
-		setColorButton.setOnAction(e -> setColorsEquidistant());
+		MenuButton setButton = new MenuButton(
+				"Set",
+				null,
+				Menus.menuItem("Equidistant Colors (Hue)", e -> setColorsEquidistant()),
+				Menus.menuItem("Value Range", e -> setAllMinMax()));
+		setButton.setTooltip(new Tooltip("Change channels globally."));
 
-		final TitledPane contents = new TitledPane("Converter", new VBox(alphaBox, setColorButton, channels));
+		final TitledPane contents = new TitledPane("Converter", new VBox(alphaBox, setButton, channels));
 		contents.setExpanded(false);
 		return contents;
 	}
@@ -184,15 +190,6 @@ public class ARGBCompositeColorConverterNode implements BindUnbindAndNodeSupplie
 		dialog.setTitle(Paintera.NAME);
 		dialog.setHeaderText("Set channel colors equidistant across hue value of HSB space.");
 
-//		final Button saturateButton = Buttons.withTooltip(
-//				"Saturation",
-//				"Fully saturate selected colors",
-//				e -> picker.setValue(Color.hsb(picker.getValue().getHue(), 1.0, picker.getValue().getBrightness())));
-//		final Button maximizeBrightnessButton = Buttons.withTooltip(
-//				"Brightness",
-//				"Maximize brightness of selected colors",
-//				e -> picker.setValue(Color.hsb(picker.getValue().getHue(), picker.getValue().getSaturation(), 1.0)));
-
 		MenuButton maximizeButton = new MenuButton(
 				"Maximize",
 				null,
@@ -206,11 +203,67 @@ public class ARGBCompositeColorConverterNode implements BindUnbindAndNodeSupplie
 
 
 		final Optional<ButtonType> bt = dialog.showAndWait();
-		if (!ButtonType.OK.equals(bt.orElse(ButtonType.CANCEL)))
+		if (ButtonType.OK.equals(bt.orElse(ButtonType.CANCEL)))
+		{
+			final double hue = picker.valueProperty().get().getHue();
+			final double saturation = picker.valueProperty().get().getSaturation();
+			final double brightness = picker.valueProperty().get().getBrightness();
+			for (int channel = 0; channel < numChannels; ++channel)
+				colorProperty[channel].set(Color.hsb(hue + channel * step, saturation, brightness));
+
+		} else
 		{
 			LOG.debug("Resetting colors");
 			for (int channel = 0; channel < numChannels; ++channel)
 				colorProperty[channel].set(colorBackup[channel]);
+		}
+
+	}
+
+	private void setAllMinMax()
+	{
+		final double[] minBackUp = IntStream.range(0, numChannels).mapToObj(channel -> min[channel]).mapToDouble(DoubleProperty::get).toArray();
+		final double[] maxBackUp = IntStream.range(0, numChannels).mapToObj(channel -> max[channel]).mapToDouble(DoubleProperty::get).toArray();
+		final Label minLabel = new Label("Min");
+		final Label maxLabel = new Label("Min");
+		final NumberField<DoubleProperty> minField = NumberField.doubleField(min[0].get(), m -> true, ObjectField.SubmitOn.ENTER_PRESSED, ObjectField.SubmitOn.FOCUS_LOST);
+		final NumberField<DoubleProperty> maxField = NumberField.doubleField(max[0].get(), m -> true, ObjectField.SubmitOn.ENTER_PRESSED, ObjectField.SubmitOn.FOCUS_LOST);
+
+		minField.textField().setPrefWidth(50);
+		maxField.textField().setPrefWidth(50);
+
+		minField.valueProperty().addListener((obs, oldv, newv) -> Arrays.stream(min).forEach(m -> m.setValue(newv)));
+		maxField.valueProperty().addListener((obs, oldv, newv) -> Arrays.stream(max).forEach(m -> m.setValue(newv)));
+
+		GridPane.setHgrow(minLabel, Priority.ALWAYS);
+		GridPane.setHgrow(maxLabel, Priority.ALWAYS);
+
+		GridPane grid = new GridPane();
+		grid.add(minLabel, 0, 0);
+		grid.add(maxLabel, 0, 1);
+		grid.add(minField.textField(), 1, 0);
+		grid.add(maxField.textField(), 1, 1);
+
+		Alert dialog = new Alert(Alert.AlertType.CONFIRMATION);
+		dialog.setResizable(true);
+		dialog.setTitle(Paintera.NAME);
+		dialog.setHeaderText("Set the same value range for all channels.");
+		dialog.getDialogPane().setContent(grid);
+
+		Optional<ButtonType> bt = dialog.showAndWait();
+
+		if (ButtonType.OK.equals(bt.orElse(ButtonType.CANCEL)))
+		{
+			Arrays.stream(min).forEach(m -> m.set(minField.valueProperty().get()));
+			Arrays.stream(max).forEach(m -> m.set(maxField.valueProperty().get()));
+		}
+		else
+		{
+			for (int channel = 0; channel < numChannels; ++channel)
+			{
+				min[channel].set(minBackUp[channel]);
+				max[channel].set(maxBackUp[channel]);
+			}
 		}
 
 	}
