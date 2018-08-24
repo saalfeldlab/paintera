@@ -35,17 +35,29 @@ public class PainteraTestMultiChannel extends Application {
 
 	@Override
 	public void start(Stage primaryStage) throws Exception {
-		final String path = "/groups/saalfeld/home/hanslovskyp/workspace-pycharm/u-net/test-aff/snapshots/batch_22251.hdf";
+//		final String path = "/groups/saalfeld/home/hanslovskyp/workspace-pycharm/u-net/test-aff/snapshots/batch_22251.hdf";
+		final String path = "/groups/saalfeld/home/hanslovskyp/workspace-pycharm/u-net/train-downscaled-quasi-isotropic/snapshots/batch_291.hdf";
 		final String raw = "volumes/raw";
 		final String dataset = "volumes/affinities/gt";
+		final String prediction = "volumes/affinities/prediction";
+		final String loss = "volumes/loss_gradient";
 		N5HDF5Meta meta = new N5HDF5Meta(path, dataset, new int[] {64, 64, 64, 3}, true);
 		final AffineTransform3D transform = N5Helpers.getTransform(meta.reader(), meta.dataset(), true);
 		final PainteraBaseView.DefaultPainteraBaseView viewer = PainteraBaseView.defaultView();
+
 		N5ChannelDataSource<FloatType, VolatileFloatType> source = N5ChannelDataSource.zeroExtended(
 				meta,
 				transform,
 				viewer.baseView.getQueue(),
-				"channels",
+				"ground truth",
+				0,
+				3);
+
+		N5ChannelDataSource<FloatType, VolatileFloatType> predictionSource = N5ChannelDataSource.zeroExtended(
+				new N5HDF5Meta(path, prediction, new int[] {64, 64, 64, 3}, true),
+				N5Helpers.getTransform(meta.reader(), prediction, true),
+				viewer.baseView.getQueue(),
+				"prediction",
 				0,
 				3);
 
@@ -72,16 +84,26 @@ public class PainteraTestMultiChannel extends Application {
 				source,
 				conv,
 				new ARGBCompositeAlphaAdd(),
-				"channels"
+				source.getName()
+		);
+
+		ARGBCompositeColorConverter<VolatileFloatType, RealComposite<VolatileFloatType>, VolatileWithSet<RealComposite<VolatileFloatType>>> predictionConv =
+				ARGBCompositeColorConverter.imp0((int) numChannels, 0.0, 1.0);
+		final ChannelSourceState<FloatType, VolatileFloatType, RealComposite<VolatileFloatType>, VolatileWithSet<RealComposite<VolatileFloatType>>> predictionState = new ChannelSourceState<>(
+				predictionSource,
+				predictionConv,
+				new ARGBCompositeAlphaAdd(),
+				predictionSource.getName()
 		);
 
 		for (int channel = 0; channel < numChannels; ++channel) {
-			conv.minProperty(0).set(0.0);
-			conv.maxProperty(0).set(1.0);
+			predictionConv.minProperty(0).set(0.0);
+			predictionConv.maxProperty(0).set(1.0);
 		}
 
 		viewer.baseView.addState(rawState);
 		viewer.baseView.addState(state);
+		viewer.baseView.addState(predictionState);
 
 		final Scene scene = new Scene(viewer.paneWithStatus.getPane());
 		viewer.keyTracker.installInto(scene);
