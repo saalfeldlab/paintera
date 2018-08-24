@@ -175,7 +175,7 @@ public class N5ChannelDataSource<
 
 	@Override
 	public RealComposite<D> getDataType() {
-		return null;
+		return Util.getTypeFromInterval(getDataSource(0, 0));
 	}
 
 	@Override
