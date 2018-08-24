@@ -179,6 +179,8 @@ public class PainteraBaseView
 			addGenericState(state);
 		}
 
+		state.compositeProperty().addListener(obs -> orthogonalViews().requestRepaint());
+
 		if (state.getDataSource() instanceof MaskedSource<?, ?>) {
 			final MaskedSource<?, ?> ms = ((MaskedSource<?, ?>) state.getDataSource());
 			ms.showCanvasOverBackgroundProperty().addListener(obs -> orthogonalViews().requestRepaint());
