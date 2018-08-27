@@ -32,11 +32,25 @@ import picocli.CommandLine;
 import java.io.IOException;
 import java.lang.invoke.MethodHandles;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.stream.IntStream;
 
 public class PainteraShowContainer extends Application {
 
 	private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
+
+	private static final String VALUE_RANGE_KEY = "valueRange";
+
+	private static final String MIN_KEY = "min";
+
+	private static final String MAX_KEY = "max";
+
+	private static final String VALUE_RANGE_MIN_KEY = "valueRangeMin";
+
+	private static final String VALUE_RANGE_MAX_KEY = "valueRangeMax";
 
 	@Override
 	public void start(Stage primaryStage) throws Exception {
@@ -186,17 +200,22 @@ public class PainteraShowContainer extends Application {
 		ARGBColorConverter.Imp0<V> conv = new ARGBColorConverter.Imp0<>();
 		RawSourceState<T, V> state = new RawSourceState<>(source, conv, new CompositeCopy<>(), source.getName());
 
-		T t = source.getDataType();
-		if (t instanceof IntegerType<?>)
+		Set<String> attrs = rawMeta.reader().listAttributes(rawMeta.dataset()).keySet();
+		if (attrs.containsAll(Arrays.asList(VALUE_RANGE_MIN_KEY, VALUE_RANGE_MAX_KEY)))
 		{
-			conv.minProperty().set(t.getMinValue());
-			conv.maxProperty().set(t.getMaxValue());
+			conv.minProperty().set(rawMeta.reader().getAttribute(rawMeta.dataset(), VALUE_RANGE_MIN_KEY, double.class));
+			conv.maxProperty().set(rawMeta.reader().getAttribute(rawMeta.dataset(), VALUE_RANGE_MAX_KEY, double.class));
 		}
-		else
-		{
-			LOG.debug("Setting range to [0.0, 1.0] for {}", rawMeta);
-			conv.minProperty().set(0.0);
-			conv.maxProperty().set(1.0);
+		else {
+			final T t = source.getDataType();
+			if (t instanceof IntegerType<?>) {
+				conv.minProperty().set(t.getMinValue());
+				conv.maxProperty().set(t.getMaxValue());
+			} else {
+				LOG.debug("Setting range to [0.0, 1.0] for {}", rawMeta);
+				conv.minProperty().set(0.0);
+				conv.maxProperty().set(1.0);
+			}
 		}
 
 		viewer.addState(state);
@@ -224,19 +243,27 @@ public class PainteraShowContainer extends Application {
 				new ARGBCompositeAlphaAdd(),
 				source.getName());
 
-		T t = source.getDataType().get(0);
-		if (t instanceof IntegerType<?>)
+
+		Set<String> attrs = meta.reader().listAttributes(meta.dataset()).keySet();
+		if (attrs.containsAll(Arrays.asList(VALUE_RANGE_MIN_KEY, VALUE_RANGE_MAX_KEY)))
 		{
-			for (int channel = 0; channel < conv.numChannels(); ++channel) {
-				conv.minProperty(channel).set(t.getMinValue());
-				conv.maxProperty(channel).set(t.getMaxValue());
-			}
+			final double min = meta.reader().getAttribute(meta.dataset(), VALUE_RANGE_MIN_KEY, double.class);
+			final double max = meta.reader().getAttribute(meta.dataset(), VALUE_RANGE_MAX_KEY, double.class);
+			IntStream.range(0, conv.numChannels()).mapToObj(conv::minProperty).forEach(p -> p.set(min));
+			IntStream.range(0, conv.numChannels()).mapToObj(conv::maxProperty).forEach(p -> p.set(max));
 		}
-		else
-		{
-			for (int channel = 0; channel < conv.numChannels(); ++channel) {
-				conv.minProperty(channel).set(0.0);
-				conv.maxProperty(channel).set(1.0);
+		else {
+			T t = source.getDataType().get(0);
+			if (t instanceof IntegerType<?>) {
+				for (int channel = 0; channel < conv.numChannels(); ++channel) {
+					conv.minProperty(channel).set(t.getMinValue());
+					conv.maxProperty(channel).set(t.getMaxValue());
+				}
+			} else {
+				for (int channel = 0; channel < conv.numChannels(); ++channel) {
+					conv.minProperty(channel).set(0.0);
+					conv.maxProperty(channel).set(1.0);
+				}
 			}
 		}
 
