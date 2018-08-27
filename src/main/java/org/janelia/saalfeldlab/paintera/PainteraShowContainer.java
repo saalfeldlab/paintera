@@ -44,15 +44,7 @@ public class PainteraShowContainer extends Application {
 
 	private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
-	private static final String VALUE_RANGE_KEY = "valueRange";
-
-	private static final String MIN_KEY = "min";
-
-	private static final String MAX_KEY = "max";
-
-	private static final String VALUE_RANGE_MIN_KEY = "valueRangeMin";
-
-	private static final String VALUE_RANGE_MAX_KEY = "valueRangeMax";
+	private static final String VALUE_RANGE_KEY = "value_range";
 
 	@Override
 	public void start(Stage primaryStage) throws Exception {
@@ -203,10 +195,11 @@ public class PainteraShowContainer extends Application {
 		RawSourceState<T, V> state = new RawSourceState<>(source, conv, new CompositeCopy<>(), source.getName());
 
 		Set<String> attrs = rawMeta.reader().listAttributes(rawMeta.dataset()).keySet();
-		if (attrs.containsAll(Arrays.asList(VALUE_RANGE_MIN_KEY, VALUE_RANGE_MAX_KEY)))
+		if (attrs.contains(VALUE_RANGE_KEY))
 		{
-			conv.minProperty().set(rawMeta.reader().getAttribute(rawMeta.dataset(), VALUE_RANGE_MIN_KEY, double.class));
-			conv.maxProperty().set(rawMeta.reader().getAttribute(rawMeta.dataset(), VALUE_RANGE_MAX_KEY, double.class));
+			final double[] valueRange = rawMeta.reader().getAttribute(rawMeta.dataset(), VALUE_RANGE_KEY, double[].class);
+			conv.minProperty().set(valueRange[0]);
+			conv.maxProperty().set(valueRange[1]);
 		}
 		else {
 			final T t = source.getDataType();
@@ -247,10 +240,11 @@ public class PainteraShowContainer extends Application {
 
 
 		Set<String> attrs = meta.reader().listAttributes(meta.dataset()).keySet();
-		if (attrs.containsAll(Arrays.asList(VALUE_RANGE_MIN_KEY, VALUE_RANGE_MAX_KEY)))
+		if (attrs.contains(VALUE_RANGE_KEY))
 		{
-			final double min = meta.reader().getAttribute(meta.dataset(), VALUE_RANGE_MIN_KEY, double.class);
-			final double max = meta.reader().getAttribute(meta.dataset(), VALUE_RANGE_MAX_KEY, double.class);
+			final double[] valueRange = meta.reader().getAttribute(meta.dataset(), VALUE_RANGE_KEY, double[].class);
+			final double min = valueRange[0];
+			final double max = valueRange[1];
 			IntStream.range(0, conv.numChannels()).mapToObj(conv::minProperty).forEach(p -> p.set(min));
 			IntStream.range(0, conv.numChannels()).mapToObj(conv::maxProperty).forEach(p -> p.set(max));
 		}
