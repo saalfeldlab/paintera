@@ -152,6 +152,11 @@ public class N5ChannelDataSource<
 		return meta.writer();
 	}
 
+	public int getChannelDimension()
+	{
+		return this.channelDimension;
+	}
+
 	public String dataset()
 	{
 		return meta.dataset();

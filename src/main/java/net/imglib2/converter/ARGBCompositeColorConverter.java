@@ -5,25 +5,17 @@ import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.SimpleDoubleProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.scene.paint.Color;
-import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.Volatile;
-import net.imglib2.img.array.ArrayImg;
-import net.imglib2.img.array.ArrayImgs;
-import net.imglib2.img.basictypeaccess.array.DoubleArray;
 import net.imglib2.type.numeric.ARGBType;
 import net.imglib2.type.numeric.RealType;
-import net.imglib2.type.numeric.real.DoubleType;
-import net.imglib2.type.volatiles.VolatileDoubleType;
-import net.imglib2.util.Intervals;
-import net.imglib2.view.Views;
-import net.imglib2.view.composite.CompositeIntervalView;
 import net.imglib2.view.composite.RealComposite;
-import org.janelia.saalfeldlab.paintera.data.n5.VolatileWithSet;
 import org.janelia.saalfeldlab.util.Colors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.lang.invoke.MethodHandles;
+import java.util.function.IntFunction;
+import java.util.function.IntToDoubleFunction;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
@@ -107,6 +99,32 @@ public abstract class ARGBCompositeColorConverter<R extends RealType<R>, C exten
 		return this.color[channel];
 	}
 
+	public void setColors(IntFunction<ARGBType> setter) {
+		for (int channel = 0; channel < numChannels; ++channel) {
+			color[channel].set(setter.apply(channel));
+		}
+	}
+
+	public void setMins(IntToDoubleFunction setter) {
+		for (int channel = 0; channel < numChannels; ++channel) {
+			min[channel].set(setter.applyAsDouble(channel));
+		}
+	}
+
+	public void setMaxs(IntToDoubleFunction setter) {
+		for (int channel = 0; channel < numChannels; ++channel) {
+			max[channel].set(setter.applyAsDouble(channel));
+		}
+	}
+
+	public void setAlphas(IntToDoubleFunction setter) {
+		for (int channel = 0; channel < numChannels; ++channel) {
+			channelAlpha[channel].set(setter.applyAsDouble(channel));
+		}
+	}
+
+
+
 	public int numChannels() {
 		return this.numChannels;
 	}
@@ -186,7 +204,7 @@ public abstract class ARGBCompositeColorConverter<R extends RealType<R>, C exten
 		output.set(ARGBType.rgba(r, g, b, A));
 	}
 
-	private static class InvertingImp0<
+	public static class InvertingImp0<
 			R extends RealType<R>,
 			C extends RealComposite<R>,
 			V extends Volatile<C>> extends ARGBCompositeColorConverter<R, C, V> {
@@ -205,7 +223,7 @@ public abstract class ARGBCompositeColorConverter<R extends RealType<R>, C exten
 		}
 	}
 
-	private static class InvertingImp1<
+	public static class InvertingImp1<
 			R extends RealType<R>,
 			C extends RealComposite<R>,
 			V extends Volatile<C>> extends ARGBCompositeColorConverter<R, C, V> {

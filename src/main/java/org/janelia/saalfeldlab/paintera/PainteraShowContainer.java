@@ -1,5 +1,6 @@
 package org.janelia.saalfeldlab.paintera;
 
+import com.google.gson.Gson;
 import com.google.gson.JsonObject;
 import javafx.application.Application;
 import javafx.application.Platform;
@@ -23,6 +24,7 @@ import org.janelia.saalfeldlab.paintera.data.n5.N5ChannelDataSource;
 import org.janelia.saalfeldlab.paintera.data.n5.N5Meta;
 import org.janelia.saalfeldlab.paintera.data.n5.ReflectionException;
 import org.janelia.saalfeldlab.paintera.data.n5.VolatileWithSet;
+import org.janelia.saalfeldlab.paintera.serialization.GsonHelpers;
 import org.janelia.saalfeldlab.paintera.state.ChannelSourceState;
 import org.janelia.saalfeldlab.paintera.state.RawSourceState;
 import org.slf4j.Logger;
@@ -267,6 +269,11 @@ public class PainteraShowContainer extends Application {
 			}
 		}
 
+//		Gson serializer = GsonHelpers.builderWithAllRequiredSerializers(viewer, () -> null).setPrettyPrinting().create();
+//		Gson derserializer = GsonHelpers.builderWithAllRequiredDeserializers(viewer, () -> null).setPrettyPrinting().create();
+//		String serializedState = serializer.toJson(state);
+//		LOG.warn("Serialized state: {}", serializedState);
+//		ChannelSourceState<T, V, RealComposite<V>, VolatileWithSet<RealComposite<V>>> deserializedState = derserializer.fromJson(serializedState, ChannelSourceState.class);
 		viewer.addState(state);
 	}
 
