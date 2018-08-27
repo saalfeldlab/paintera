@@ -4,6 +4,7 @@ import java.lang.invoke.MethodHandles;
 
 import javafx.scene.Node;
 import net.imglib2.converter.ARGBColorConverter;
+import net.imglib2.converter.ARGBCompositeColorConverter;
 import net.imglib2.converter.Converter;
 import net.imglib2.type.numeric.ARGBType;
 import org.janelia.saalfeldlab.paintera.stream.HighlightingStreamConverter;
@@ -60,6 +61,8 @@ public class ConverterPane implements BindUnbindAndNodeSupplier
 		else if (converter instanceof HighlightingStreamConverter<?>)
 			return new HighlightingStreamConverterNode<>((org.janelia.saalfeldlab.paintera.stream
 					.HighlightingStreamConverter<?>) converter);
+		else if (converter instanceof ARGBCompositeColorConverter<?, ?, ?>)
+			return new ARGBCompositeColorConverterNode((ARGBCompositeColorConverter<?, ?, ?>) converter);
 		return BindUnbindAndNodeSupplier.empty();
 	}
 

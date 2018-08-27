@@ -1069,12 +1069,37 @@ public class N5Helpers
 			final N5Reader n5,
 			final String dataset,
 			final String key,
+			final double... fallBack) throws IOException
+	{
+		return getDoubleArrayAttribute(n5, dataset, key, false, fallBack);
+	}
+
+	public static double[] getDoubleArrayAttribute(
+			final N5Reader n5,
+			final String dataset,
+			final String key,
+			final boolean revert,
 			final double... fallBack)
 	throws IOException
 	{
+
+		if (revert)
+		{
+			final double[] toRevert = getDoubleArrayAttribute(n5, dataset, key, false, fallBack);
+			LOG.debug("Will revert {}", toRevert);
+			for ( int i = 0, k = toRevert.length - 1; i < toRevert.length / 2; ++i, --k)
+			{
+				double tmp = toRevert[i];
+				toRevert[i] = toRevert[k];
+				toRevert[k] = tmp;
+			}
+			LOG.debug("Reverted {}", toRevert);
+			return toRevert;
+		}
+
 		if (isPainteraDataset(n5, dataset))
 		{
-			return getDoubleArrayAttribute(n5, dataset + "/" + PAINTERA_DATA_DATASET, key, fallBack);
+			return getDoubleArrayAttribute(n5, dataset + "/" + PAINTERA_DATA_DATASET, key, revert, fallBack);
 		}
 		try {
 			return Optional.ofNullable(n5.getAttribute(dataset, key, double[].class)).orElse(fallBack);
@@ -1086,14 +1111,25 @@ public class N5Helpers
 		}
 	}
 
+
 	public static double[] getResolution(final N5Reader n5, final String dataset) throws IOException
 	{
-		return getDoubleArrayAttribute(n5, dataset, RESOLUTION_KEY, 1.0, 1.0, 1.0);
+		return getResolution(n5, dataset, false);
+	}
+
+	public static double[] getResolution(final N5Reader n5, final String dataset, boolean revert) throws IOException
+	{
+		return getDoubleArrayAttribute(n5, dataset, RESOLUTION_KEY, revert, 1.0, 1.0, 1.0);
 	}
 
 	public static double[] getOffset(final N5Reader n5, final String dataset) throws IOException
 	{
-		return getDoubleArrayAttribute(n5, dataset, OFFSET_KEY, 0.0, 0.0, 0.0);
+		return getOffset(n5, dataset, false);
+	}
+
+	public static double[] getOffset(final N5Reader n5, final String dataset, boolean revert) throws IOException
+	{
+		return getDoubleArrayAttribute(n5, dataset, OFFSET_KEY, revert,0.0, 0.0, 0.0);
 	}
 
 	public static double[] getDownsamplingFactors(final N5Reader n5, final String dataset) throws IOException
@@ -1108,7 +1144,12 @@ public class N5Helpers
 
 	public static AffineTransform3D getTransform(final N5Reader n5, final String dataset) throws IOException
 	{
-		return fromResolutionAndOffset(getResolution(n5, dataset), getOffset(n5, dataset));
+		return getTransform(n5, dataset, false);
+	}
+
+	public static AffineTransform3D getTransform(final N5Reader n5, final String dataset, boolean revertSpatialAttributes) throws IOException
+	{
+		return fromResolutionAndOffset(getResolution(n5, dataset, revertSpatialAttributes), getOffset(n5, dataset, revertSpatialAttributes));
 	}
 
 	public static <A, B, C> ValueTriple<A[], B[], C[]> asArrayTriple(final ValueTriple<A, B, C> scalarTriple)
