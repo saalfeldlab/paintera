@@ -2,9 +2,16 @@ package org.janelia.saalfeldlab.util;
 
 import javafx.scene.paint.Color;
 import net.imglib2.type.numeric.ARGBType;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.lang.invoke.MethodHandles;
 
 public class Colors
 {
+
+	private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
+
 	// #ff0088
 	public static final Color CREMI = Color.rgb(0xff, 0x00, 0x88, 1.0);
 
@@ -20,7 +27,9 @@ public class Colors
 		final int g = (int) Math.round(255 * color.getGreen());
 		final int b = (int) Math.round(255 * color.getBlue());
 		final int a = (int) Math.round(255 * color.getOpacity());
-		return new ARGBType(ARGBType.rgba(r, g, b, a));
+		final ARGBType argb = new ARGBType(ARGBType.rgba(r, g, b, a));
+		LOG.debug("color={} argb={}", color, argb);
+		return argb;
 	}
 
 	public static Color toColor(final ARGBType type)

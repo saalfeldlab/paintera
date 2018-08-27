@@ -5,10 +5,20 @@ import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.SimpleDoubleProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.scene.paint.Color;
+import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.Volatile;
+import net.imglib2.img.array.ArrayImg;
+import net.imglib2.img.array.ArrayImgs;
+import net.imglib2.img.basictypeaccess.array.DoubleArray;
 import net.imglib2.type.numeric.ARGBType;
 import net.imglib2.type.numeric.RealType;
+import net.imglib2.type.numeric.real.DoubleType;
+import net.imglib2.type.volatiles.VolatileDoubleType;
+import net.imglib2.util.Intervals;
+import net.imglib2.view.Views;
+import net.imglib2.view.composite.CompositeIntervalView;
 import net.imglib2.view.composite.RealComposite;
+import org.janelia.saalfeldlab.paintera.data.n5.VolatileWithSet;
 import org.janelia.saalfeldlab.util.Colors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -40,8 +50,6 @@ public abstract class ARGBCompositeColorConverter<R extends RealType<R>, C exten
 	protected final double[] scaleG;
 
 	protected final double[] scaleB;
-
-	protected int black;
 
 	public ARGBCompositeColorConverter(final int numChannels) {
 		this(numChannels, 0, 255);
@@ -116,7 +124,6 @@ public abstract class ARGBCompositeColorConverter<R extends RealType<R>, C exten
 		LOG.debug("Updated red   scales to {}", scaleR);
 		LOG.debug("Updated green scales to {}", scaleG);
 		LOG.debug("Updated blue  scales to {}", scaleB);
-		black = ARGBType.rgba(0, 0, 0, A);
 	}
 
 	public static <
@@ -130,7 +137,7 @@ public abstract class ARGBCompositeColorConverter<R extends RealType<R>, C exten
 			R extends RealType<R>,
 			C extends RealComposite<R>,
 			V extends Volatile<C>> ARGBCompositeColorConverter<R, C, V> imp1(final int numChannels) {
-		return new InvertingImp0<>(numChannels);
+		return new InvertingImp1<>(numChannels);
 	}
 
 	public static <
@@ -144,7 +151,7 @@ public abstract class ARGBCompositeColorConverter<R extends RealType<R>, C exten
 			R extends RealType<R>,
 			C extends RealComposite<R>,
 			V extends Volatile<C>> ARGBCompositeColorConverter<R, C, V> imp1(final int numChannels, double min, double max) {
-		return new InvertingImp0<>(numChannels, min, max);
+		return new InvertingImp1<>(numChannels, min, max);
 	}
 
 	private static <
@@ -176,9 +183,6 @@ public abstract class ARGBCompositeColorConverter<R extends RealType<R>, C exten
 		final int r = Math.min(255, Math.max(r0, 0));
 		final int g = Math.min(255, Math.max(g0, 0));
 		final int b = Math.min(255, Math.max(b0, 0));
-		// TODO Find this bug, why are blue and green seemingly mixed up?
-//		output.set(ARGBType.rgba(r, b, g, A));
-//		output.set((((((A << 8) | r) << 8) | g) << 8) | b);
 		output.set(ARGBType.rgba(r, g, b, A));
 	}
 
@@ -197,7 +201,7 @@ public abstract class ARGBCompositeColorConverter<R extends RealType<R>, C exten
 
 		@Override
 		public void convert(final V input, final ARGBType output) {
-			ARGBCompositeColorConverter.convertInverting(input, output, numChannels, min, scaleR, scaleB, scaleG, A);
+			ARGBCompositeColorConverter.convertInverting(input, output, numChannels, min, scaleR, scaleG, scaleB, A);
 		}
 	}
 
@@ -216,7 +220,7 @@ public abstract class ARGBCompositeColorConverter<R extends RealType<R>, C exten
 
 		@Override
 		public void convert(final V input, final ARGBType output) {
-			ARGBCompositeColorConverter.convertInverting(input, output, numChannels, min, scaleR, scaleB, scaleG, A);
+			ARGBCompositeColorConverter.convertInverting(input, output, numChannels, min, scaleR, scaleG, scaleB, A);
 		}
 	}
 }
