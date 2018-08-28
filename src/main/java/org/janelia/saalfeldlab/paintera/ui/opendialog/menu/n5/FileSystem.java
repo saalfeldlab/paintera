@@ -29,7 +29,7 @@ public class FileSystem {
 	private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
 	private final StringProperty container = new SimpleStringProperty(USER_HOME);
-	private final ObjectProperty<Supplier<N5Writer>> writerSupplier = new SimpleObjectProperty<>(MakeUnchecked.supplier(() -> new N5FSWriter(container.get())));
+	private final ObjectProperty<Supplier<N5Writer>> writerSupplier = new SimpleObjectProperty<>(MakeUnchecked.supplier(() -> null));
 
 	{
 		container.addListener((obs, oldv, newv) -> {
@@ -65,6 +65,10 @@ public class FileSystem {
 			if (updatedRoot != null && updatedRoot.exists() && updatedRoot.isDirectory())
 				container.set(updatedRoot.getAbsolutePath());
 		};
-		return new GenericBackendDialogN5(containerTextField, onClick, "N5", writerSupplier, propagationExecutor);
+		GenericBackendDialogN5 d = new GenericBackendDialogN5(containerTextField, onClick, "N5", writerSupplier, propagationExecutor);
+		final String path = container.get();
+		if (path != null && new File(path).isDirectory())
+			writerSupplier.set(MakeUnchecked.supplier(() -> new N5FSWriter(path)));
+		return d;
 	}
 }

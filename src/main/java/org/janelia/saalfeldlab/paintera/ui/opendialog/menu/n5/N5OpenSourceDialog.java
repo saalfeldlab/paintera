@@ -73,9 +73,7 @@ public class N5OpenSourceDialog extends Dialog<BackendDialog> implements Combine
 	@OpenDialogMenuEntry.OpenDialogMenuEntryPath(path="N5", rank=Integer.MIN_VALUE)
 	public static class N5FSOpener implements OpenDialogMenuEntry
 	{
-
-		private FileSystem fs = new FileSystem();
-
+		private static final FileSystem fs = new FileSystem();
 
 		@Override
 		public LoopBuilder.TriConsumer<PainteraBaseView, ActionEvent, String> onAction() {
