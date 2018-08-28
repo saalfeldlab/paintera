@@ -137,36 +137,4 @@ public class OpenDialogMenu {
 		}
 		return handlers;
 	}
-
-	@OpenDialogMenuEntry.OpenDialogMenuEntryPath(path="sort>of>ok")
-	public static class DummyOpenDialogMenuEntry implements OpenDialogMenuEntry
-	{
-
-		@Override
-		public BiConsumer<PainteraBaseView, String> onAction() {
-			return (pbv, pd) -> System.out.println("LOL DUMMY!");
-		}
-	}
-
-
-
-	public static void main(String[] args)
-	{
-		PlatformImpl.startup(() -> {});
-
-		OpenDialogMenu odm = new OpenDialogMenu(Exception::printStackTrace);
-		ContextMenu menu = odm.getContextMenu("SOME MENU!", null, null);
-
-
-		Platform.runLater(() -> {
-			Stage stage = new Stage();
-			StackPane root = new StackPane();
-			root.addEventHandler(MouseEvent.MOUSE_PRESSED, e -> menu.show(root, e.getScreenX(), e.getScreenY()));
-			Scene scene = new Scene(root, 800, 600);
-			stage.setScene(scene);
-			stage.show();
-		});
-
-
-	}
 }
