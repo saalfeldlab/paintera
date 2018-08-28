@@ -4,6 +4,8 @@ import com.sun.javafx.application.PlatformImpl;
 import javafx.application.Platform;
 import javafx.event.ActionEvent;
 import javafx.event.EventHandler;
+import javafx.geometry.Bounds;
+import javafx.scene.Node;
 import javafx.scene.Scene;
 import javafx.scene.control.ContextMenu;
 import javafx.scene.input.KeyEvent;
@@ -29,6 +31,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
+import java.util.function.DoubleSupplier;
 import java.util.function.Predicate;
 
 public class OpenDialogMenu {
@@ -59,11 +62,14 @@ public class OpenDialogMenu {
 	}
 
 	public static EventHandler<KeyEvent> keyPressedHandler(
+			final Node target,
 			Consumer<Exception> exceptionHandler,
 			Predicate<KeyEvent> check,
 			final String menuText,
 			final PainteraBaseView viewer,
-			final String projectDirectory)
+			final String projectDirectory,
+			final DoubleSupplier x,
+			final DoubleSupplier y)
 	{
 
 		return event -> {
@@ -72,7 +78,8 @@ public class OpenDialogMenu {
 				event.consume();
 				OpenDialogMenu m = new OpenDialogMenu(exceptionHandler);
 				ContextMenu cm = m.getContextMenu(menuText, viewer, projectDirectory);
-				cm.show(viewer.pane().getScene().getWindow());
+				Bounds bounds = target.localToScreen(target.getBoundsInLocal());
+				cm.show(target, x.getAsDouble() + bounds.getMinX(), y.getAsDouble() + bounds.getMinY());
 			}
 		};
 

@@ -8,6 +8,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Consumer;
+import java.util.function.DoubleSupplier;
 
 import bdv.fx.viewer.MultiBoxOverlayRendererFX;
 import bdv.fx.viewer.ViewerPanelFX;
@@ -159,9 +160,12 @@ public class PainteraDefaultHandlers
 		                    );
 
 		this.openDatasetContextMenuHandler = addOpenDatasetContextMenuHandler(
+				paneWithStatus.getPane(),
 				baseView,
 				keyTracker,
 				projectDirectory,
+				this.mouseTracker::getX,
+				this.mouseTracker::getY,
 				KeyCode.CONTROL,
 				KeyCode.O
 		                                                     );
@@ -488,23 +492,29 @@ public class PainteraDefaultHandlers
 	}
 
 	public static EventHandler<KeyEvent> addOpenDatasetContextMenuHandler(
+			final Node target,
 			final PainteraBaseView baseView,
 			final KeyTracker keyTracker,
 			final String projectDirectory,
+			final DoubleSupplier currentMouseX,
+			final DoubleSupplier currentMouseY,
 			final KeyCode... triggers)
 	{
 
 		assert triggers.length > 0;
 
 		EventHandler<KeyEvent> handler = OpenDialogMenu.keyPressedHandler(
+				target,
 				exception -> Exceptions.exceptionAlert(Paintera.NAME, "Unable to show open dataset menu", exception),
 				e -> keyTracker.areOnlyTheseKeysDown(triggers),
 				"Open dataset",
 				baseView,
-				projectDirectory
+				projectDirectory,
+				currentMouseX,
+				currentMouseY
 		);
 
-		baseView.pane().addEventHandler(KeyEvent.KEY_PRESSED, handler);
+		target.addEventHandler(KeyEvent.KEY_PRESSED, handler);
 		return handler;
 	}
 
