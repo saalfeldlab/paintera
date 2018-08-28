@@ -4,6 +4,7 @@ import bdv.util.volatiles.SharedQueue;
 import com.google.gson.JsonDeserializationContext;
 import com.google.gson.JsonDeserializer;
 import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
 import com.google.gson.JsonParseException;
 import net.imglib2.realtransform.AffineTransform3D;
 import org.janelia.saalfeldlab.paintera.serialization.StatefulSerializer;
@@ -15,6 +16,7 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.lang.invoke.MethodHandles;
 import java.lang.reflect.Type;
+import java.util.Optional;
 import java.util.function.IntFunction;
 import java.util.function.Supplier;
 
@@ -58,9 +60,12 @@ public class N5ChannelDataSourceDeserializer implements JsonDeserializer<N5Chann
 					AffineTransform3D.class
 			                                                       );
 
-			final int channelDimension = el.getAsJsonObject().get(N5ChannelDataSourceSerializer.CHANNEL_DIMENSION_KEY).getAsInt();
+			JsonObject obj = el.getAsJsonObject();
+			final int channelDimension = obj.get(N5ChannelDataSourceSerializer.CHANNEL_DIMENSION_KEY).getAsInt();
+			final long channelMin = Optional.ofNullable(obj.get(N5ChannelDataSourceSerializer.CHANNEL_MIN_KEY)).map(JsonElement::getAsLong).orElse(Long.MIN_VALUE);
+			final long channelMax = Optional.ofNullable(obj.get(N5ChannelDataSourceSerializer.CHANNEL_MAX_KEY)).map(JsonElement::getAsLong).orElse(Long.MAX_VALUE);
 			LOG.debug("Deserialized transform: {}", transform);
-			return N5ChannelDataSource.zeroExtended(meta, transform, sharedQueue, "", priority, channelDimension);
+			return N5ChannelDataSource.zeroExtended(meta, transform, sharedQueue, "", priority, channelDimension, channelMin, channelMax);
 		} catch (IOException | ClassNotFoundException | DataTypeNotSupported e)
 		{
 			throw new JsonParseException(e);

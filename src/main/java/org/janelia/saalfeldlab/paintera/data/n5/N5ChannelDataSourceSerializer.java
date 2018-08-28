@@ -24,6 +24,10 @@ public class N5ChannelDataSourceSerializer implements JsonSerializer<N5ChannelDa
 
 	public static final String CHANNEL_DIMENSION_KEY = "channelDimension";
 
+	public static final String CHANNEL_MIN_KEY = "channelMin";
+
+	public static final String CHANNEL_MAX_KEY = "channelMin";
+
 	@Override
 	public JsonElement serialize(
 			final N5ChannelDataSource<?, ?> s,
@@ -37,6 +41,8 @@ public class N5ChannelDataSourceSerializer implements JsonSerializer<N5ChannelDa
 		s.getSourceTransform(0, 0, transform);
 		map.add(TRANSFORM_KEY, context.serialize(transform));
 		map.addProperty(CHANNEL_DIMENSION_KEY, s.getChannelDimension());
+		map.addProperty(CHANNEL_MIN_KEY, s.getChannelMin());
+		map.addProperty(CHANNEL_MAX_KEY, s.getChannelMax());
 		return map;
 	}
 
