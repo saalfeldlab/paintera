@@ -42,7 +42,7 @@ public class OpenDialogMenu {
 
 	private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
-	private static final List<Pair<String, Constructor<? extends OpenDialogMenuEntry>>> constructors = new ArrayList<>();
+	private static final Map<String, Constructor<? extends OpenDialogMenuEntry>> constructors = new HashMap<>();
 
 	private final List<Pair<String, BiConsumer<PainteraBaseView, String>>> handlers;
 
@@ -114,7 +114,7 @@ public class OpenDialogMenu {
 				final String type = clazz.getAnnotation(OpenDialogMenuEntry.OpenDialogMenuEntryPath.class).path();
 
 				Constructor<? extends OpenDialogMenuEntry> constructor = clazz.getDeclaredConstructor();
-				constructors.add(new Pair<>(type, constructor));
+				constructors.put(type, constructor);
 
 			} catch (final ClassNotFoundException | NoSuchMethodException | ClassCastException e) {
 				e.printStackTrace();
@@ -144,7 +144,7 @@ public class OpenDialogMenu {
 			{
 				update();
 			}
-			for (Pair<String, Constructor<? extends OpenDialogMenuEntry>> e : constructors)
+			for (Map.Entry<String, Constructor<? extends OpenDialogMenuEntry>> e : constructors.entrySet())
 			{
 				OpenDialogMenuEntry instance = e.getValue().newInstance();
 				entries.add(new Pair<>(e.getKey(), instance));
