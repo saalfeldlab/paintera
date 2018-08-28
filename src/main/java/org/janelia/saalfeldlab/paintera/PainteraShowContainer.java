@@ -3,7 +3,9 @@ package org.janelia.saalfeldlab.paintera;
 import com.google.gson.JsonObject;
 import javafx.application.Application;
 import javafx.application.Platform;
+import javafx.event.Event;
 import javafx.scene.Scene;
+import javafx.scene.input.KeyEvent;
 import javafx.stage.Stage;
 import javafx.stage.WindowEvent;
 import net.imglib2.converter.ARGBColorConverter;
@@ -115,7 +117,7 @@ public class PainteraShowContainer extends Application {
 		}
 
 
-		final Scene scene = new Scene(viewer.paneWithStatus.getPane());
+		final Scene scene = new Scene(viewer.paneWithStatus.getPane(), clArgs.width, clArgs.height);
 		viewer.keyTracker.installInto(scene);
 		primaryStage.setScene(scene);
 		primaryStage.show();
@@ -138,6 +140,12 @@ public class PainteraShowContainer extends Application {
 
 		@CommandLine.Option(names = {"--limit-number-of-channels"})
 		Integer maxNumChannels = -1;
+
+		@CommandLine.Option(names = {"--width"})
+		Integer width = 1600;
+
+		@CommandLine.Option(names = {"--height"})
+		Integer height = 900;
 	}
 
 	private static boolean isLabelData(N5Reader reader, String group) throws IOException {
