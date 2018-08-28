@@ -208,7 +208,9 @@ public class PainteraShowContainer extends Application {
 		LOG.info("Adding channel source {}", meta);
 
 		DatasetAttributes datasetAttributes = meta.datasetAttributes();
-		long numChannels = maxNumChannels <= 0 ? datasetAttributes.getDimensions()[channelDimension] : maxNumChannels;
+		long channelDim = datasetAttributes.getDimensions()[channelDimension];
+		long channelMax = channelDim - 1;
+		long numChannels = maxNumChannels <= 0 ? channelDim : maxNumChannels;
 
 		for (long cmin = 0; cmin < datasetAttributes.getDimensions()[channelDimension]; cmin += numChannels) {
 
@@ -218,7 +220,7 @@ public class PainteraShowContainer extends Application {
 					meta,
 					N5Helpers.getTransform(meta.reader(), meta.dataset(), revertArrayAttributes),
 					viewer.getQueue(),
-					String.format("%s-channels-[%d,%d]", meta.dataset(), cmin, cmax)	,
+					cmin == 0 && cmax == channelMax ? meta.dataset() : String.format("%s-channels-[%d,%d]", meta.dataset(), cmin, cmax)	,
 					viewer.getQueue().getNumPriorities() - 1,
 					channelDimension,
 					cmin,
