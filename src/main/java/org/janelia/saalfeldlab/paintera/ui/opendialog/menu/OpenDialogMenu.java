@@ -3,13 +3,18 @@ package org.janelia.saalfeldlab.paintera.ui.opendialog.menu;
 import com.sun.javafx.application.PlatformImpl;
 import javafx.application.Platform;
 import javafx.event.ActionEvent;
+import javafx.event.EventHandler;
 import javafx.scene.Scene;
 import javafx.scene.control.ContextMenu;
+import javafx.scene.input.KeyEvent;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.StackPane;
 import javafx.stage.Stage;
 import javafx.util.Pair;
+import net.imglib2.loops.LoopBuilder;
 import org.janelia.saalfeldlab.fx.MenuFromHandlers;
+import org.janelia.saalfeldlab.fx.event.MouseClickFX;
+import org.janelia.saalfeldlab.paintera.PainteraBaseView;
 import org.scijava.annotations.Index;
 import org.scijava.annotations.IndexItem;
 
@@ -22,10 +27,11 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Consumer;
+import java.util.function.Predicate;
 
 public class OpenDialogMenu {
 
-	private final List<Pair<String, Consumer<ActionEvent>>> handlers;
+	private final List<Pair<String, LoopBuilder.TriConsumer<PainteraBaseView, ActionEvent, String>>> handlers;
 
 	private static final HashMap<String, Constructor<? extends OpenDialogMenuEntry>> constructors = new HashMap<>();
 
@@ -34,9 +40,40 @@ public class OpenDialogMenu {
 		this.handlers = getMenuEntries(exceptionHandler);
 	}
 
-	public ContextMenu getContextMenu(String menuText)
+	public ContextMenu getContextMenu(
+			String menuText,
+			PainteraBaseView viewer,
+			String projectDirectory)
 	{
-		return new MenuFromHandlers(this.handlers).asContextMenu(menuText);
+		List<Pair<String, Consumer<ActionEvent>>> asConsumers = new ArrayList<>();
+		synchronized(this.handlers) {
+			for (Pair<String, LoopBuilder.TriConsumer<PainteraBaseView, ActionEvent, String>> handler : handlers)
+			{
+				Consumer<ActionEvent> consumer = event -> handler.getValue().accept(viewer, event, projectDirectory);
+				asConsumers.add(new Pair<>(handler.getKey(), consumer));
+			}
+		}
+		return new MenuFromHandlers(asConsumers).asContextMenu(menuText);
+	}
+
+	public static EventHandler<KeyEvent> keyPressedHandler(
+			Consumer<Exception> exceptionHandler,
+			Predicate<KeyEvent> check,
+			final String menuText,
+			final PainteraBaseView viewer,
+			final String projectDirectory)
+	{
+
+		return event -> {
+			if (check.test(event))
+			{
+				event.consume();
+				OpenDialogMenu m = new OpenDialogMenu(exceptionHandler);
+				ContextMenu cm = m.getContextMenu(menuText, viewer, projectDirectory);
+				cm.show(viewer.pane().getScene().getWindow());
+			}
+		};
+
 	}
 
 	private static ArrayList<Field> getDeclaredFields(Class<?> clazz) {
@@ -70,7 +107,7 @@ public class OpenDialogMenu {
 		}
 	}
 
-	public static List<Pair<String, Consumer<ActionEvent>>> getMenuEntries(Consumer<Exception> exceptionHandler)
+	public static List<Pair<String, LoopBuilder.TriConsumer<PainteraBaseView, ActionEvent, String>>> getMenuEntries(Consumer<Exception> exceptionHandler)
 	{
 		try {
 			return getMenuEntries();
@@ -82,7 +119,7 @@ public class OpenDialogMenu {
 	}
 
 
-	public static List<Pair<String, Consumer<ActionEvent>>> getMenuEntries() throws IllegalAccessException, InvocationTargetException, InstantiationException {
+	public static List<Pair<String, LoopBuilder.TriConsumer<PainteraBaseView, ActionEvent, String>>> getMenuEntries() throws IllegalAccessException, InvocationTargetException, InstantiationException {
 		synchronized(constructors)
 		{
 			if (constructors.size() == 0)
@@ -90,7 +127,7 @@ public class OpenDialogMenu {
 				update();
 			}
 		}
-		List<Pair<String, Consumer<ActionEvent>>> handlers = new ArrayList<>();
+		List<Pair<String, LoopBuilder.TriConsumer<PainteraBaseView, ActionEvent, String>>> handlers = new ArrayList<>();
 		for (Map.Entry<String, Constructor<? extends OpenDialogMenuEntry>> e : constructors.entrySet())
 		{
 			OpenDialogMenuEntry instance = e.getValue().newInstance();
@@ -104,8 +141,8 @@ public class OpenDialogMenu {
 	{
 
 		@Override
-		public Consumer<ActionEvent> onAction() {
-			return e -> System.out.println("LOL DUMMY!");
+		public LoopBuilder.TriConsumer<PainteraBaseView, ActionEvent, String> onAction() {
+			return (pbv, e, pd) -> System.out.println("LOL DUMMY!");
 		}
 	}
 
@@ -116,7 +153,7 @@ public class OpenDialogMenu {
 		PlatformImpl.startup(() -> {});
 
 		OpenDialogMenu odm = new OpenDialogMenu(Exception::printStackTrace);
-		ContextMenu menu = odm.getContextMenu("SOME MENU!");
+		ContextMenu menu = odm.getContextMenu("SOME MENU!", null, null);
 
 
 		Platform.runLater(() -> {

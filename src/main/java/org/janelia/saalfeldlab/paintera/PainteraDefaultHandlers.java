@@ -21,6 +21,7 @@ import javafx.beans.property.ReadOnlyBooleanProperty;
 import javafx.beans.value.ChangeListener;
 import javafx.beans.value.ObservableBooleanValue;
 import javafx.beans.value.ObservableObjectValue;
+import javafx.event.EventHandler;
 import javafx.scene.Node;
 import javafx.scene.control.ContextMenu;
 import javafx.scene.input.KeyCode;
@@ -61,7 +62,7 @@ import org.janelia.saalfeldlab.paintera.state.SourceInfo;
 import org.janelia.saalfeldlab.paintera.ui.ARGBStreamSeedSetter;
 import org.janelia.saalfeldlab.paintera.ui.ToggleMaximize;
 import org.janelia.saalfeldlab.paintera.ui.dialogs.create.CreateDatasetHandler;
-import org.janelia.saalfeldlab.paintera.ui.opendialog.PainteraOpenDialogEventHandler;
+import org.janelia.saalfeldlab.paintera.ui.opendialog.menu.OpenDialogMenu;
 import org.janelia.saalfeldlab.paintera.viewer3d.Viewer3DFX;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -97,9 +98,6 @@ public class PainteraDefaultHandlers
 
 	private final Consumer<OnEnterOnExit> onEnterOnExit;
 
-	@SuppressWarnings("unused")
-	private final PainteraOpenDialogEventHandler openDialogHandler;
-
 	private final ToggleMaximize toggleMaximizeTopLeft;
 
 	private final ToggleMaximize toggleMaximizeTopRight;
@@ -113,6 +111,8 @@ public class PainteraDefaultHandlers
 	private final GridResizer resizer;
 
 	private final ObservableBooleanValue bottomLeftNeedsZNormal;
+
+	private final EventHandler<KeyEvent> openDatasetContextMenuHandler;
 
 	public PainteraDefaultHandlers(
 			final PainteraBaseView baseView,
@@ -158,7 +158,7 @@ public class PainteraDefaultHandlers
 				baseView.orthogonalViews().bottomLeft().viewer()
 		                    );
 
-		this.openDialogHandler = addPainteraOpenDialogHandler(
+		this.openDatasetContextMenuHandler = addOpenDatasetContextMenuHandler(
 				baseView,
 				keyTracker,
 				projectDirectory,
@@ -487,7 +487,7 @@ public class PainteraDefaultHandlers
 		view.grid().getBottomRight().setFocusTraversable(isTraversable);
 	}
 
-	public static PainteraOpenDialogEventHandler addPainteraOpenDialogHandler(
+	public static EventHandler<KeyEvent> addOpenDatasetContextMenuHandler(
 			final PainteraBaseView baseView,
 			final KeyTracker keyTracker,
 			final String projectDirectory,
@@ -496,15 +496,16 @@ public class PainteraDefaultHandlers
 
 		assert triggers.length > 0;
 
-		final PainteraOpenDialogEventHandler handler = new PainteraOpenDialogEventHandler(
-				baseView,
-				baseView.orthogonalViews().sharedQueue(),
+		EventHandler<KeyEvent> handler = OpenDialogMenu.keyPressedHandler(
+				exception -> Exceptions.exceptionAlert(Paintera.NAME, "Unable to show open dataset menu", exception),
 				e -> keyTracker.areOnlyTheseKeysDown(triggers),
+				"Open dataset",
+				baseView,
 				projectDirectory
 		);
+
 		baseView.pane().addEventHandler(KeyEvent.KEY_PRESSED, handler);
 		return handler;
-
 	}
 
 	public static ToggleMaximize toggleMaximizeNode(
