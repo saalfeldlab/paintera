@@ -74,17 +74,11 @@ public class GenericBackendDialogN5 implements BackendDialog
 
 	private static final String EMPTY_STRING = "";
 
-	private static final String LABEL_MULTISETTYPE_KEY = "isLabelMultiset";
-
 	private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
 	private static final String MIN_KEY = "min";
 
 	private static final String MAX_KEY = "max";
-
-	private static final String DOWNSAMPLING_FACTORS_KEY = "downsamplingFactors";
-
-	private static final String MAX_NUM_ENTRIES_KEY = "maxNumEntries";
 
 	private static final String ERROR_MESSAGE_PATTERN = "n5? %s -- dataset? %s -- update? %s";
 

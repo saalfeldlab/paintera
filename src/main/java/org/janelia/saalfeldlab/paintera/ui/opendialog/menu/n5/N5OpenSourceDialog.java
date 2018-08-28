@@ -78,6 +78,7 @@ public class N5OpenSourceDialog extends Dialog<BackendDialog> implements Combine
 				try {
 					GenericBackendDialogN5 dialog = fs.backendDialog(pbv.getPropagationQueue());
 					N5OpenSourceDialog osDialog = new N5OpenSourceDialog(pbv, dialog);
+					osDialog.setHeaderFromBackendType("N5");
 					Optional<BackendDialog> backend = osDialog.showAndWait();
 					if (backend == null || !backend.isPresent())
 						return;
@@ -100,12 +101,13 @@ public class N5OpenSourceDialog extends Dialog<BackendDialog> implements Combine
 				try {
 					GenericBackendDialogN5 dialog = hdf5.backendDialog(pbv.getPropagationQueue());
 					N5OpenSourceDialog osDialog = new N5OpenSourceDialog(pbv, dialog);
+					osDialog.setHeaderFromBackendType("HDF5");
 					Optional<BackendDialog> backend = osDialog.showAndWait();
 					if (backend == null || !backend.isPresent())
 						return;
 					N5OpenSourceDialog.addSource(osDialog.getName(), osDialog.getType(), dialog, pbv, projectDirectory);
 				} catch (Exception e1) {
-					Exceptions.exceptionAlert(Paintera.NAME, "Unable to open N5 data set", e1);
+					Exceptions.exceptionAlert(Paintera.NAME, "Unable to open HDF5 data set", e1);
 				}
 			};
 		}
@@ -121,12 +123,13 @@ public class N5OpenSourceDialog extends Dialog<BackendDialog> implements Combine
 					final GoogleCloud googleCloud = new GoogleCloud();
 					final GenericBackendDialogN5 dialog = googleCloud.backendDialog(pbv.getPropagationQueue());
 					final N5OpenSourceDialog osDialog = new N5OpenSourceDialog(pbv, dialog);
+					osDialog.setHeaderFromBackendType("Google Cloud");
 					Optional<BackendDialog> backend = osDialog.showAndWait();
 					if (backend == null || !backend.isPresent())
 						return;
 					N5OpenSourceDialog.addSource(osDialog.getName(), osDialog.getType(), dialog, pbv, projectDirectory);
 				} catch (Exception e1) {
-					Exceptions.exceptionAlert(Paintera.NAME, "Unable to open N5 data set", e1);
+					Exceptions.exceptionAlert(Paintera.NAME, "Unable to open Google Cloud data set", e1);
 				}
 			};
 		}
@@ -223,6 +226,7 @@ public class N5OpenSourceDialog extends Dialog<BackendDialog> implements Combine
 		this.grid.add(choices, 0, 0);
 		this.setResultConverter(button -> button.equals(ButtonType.OK) ? backendDialog : null);
 		combineErrorMessages();
+		setTitle(Paintera.NAME);
 
 	}
 
@@ -362,6 +366,11 @@ public class N5OpenSourceDialog extends Dialog<BackendDialog> implements Combine
 				CacheUtils::toCacheSoftRefLoaderCache
 		);
 
+	}
+
+	public void setHeaderFromBackendType(String backendType)
+	{
+		this.setHeaderText(String.format("Open %s dataset", backendType));
 	}
 
 	private static <C extends Cell<VolatileLabelMultisetArray>, I extends RandomAccessible<C> & IterableInterval<C>>
