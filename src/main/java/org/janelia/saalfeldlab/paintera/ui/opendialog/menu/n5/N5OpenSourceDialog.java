@@ -6,7 +6,6 @@ import javafx.beans.property.DoubleProperty;
 import javafx.beans.value.ObservableValue;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
-import javafx.event.ActionEvent;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.control.Button;
@@ -30,7 +29,6 @@ import net.imglib2.Volatile;
 import net.imglib2.img.cell.AbstractCellImg;
 import net.imglib2.img.cell.Cell;
 import net.imglib2.img.cell.CellGrid;
-import net.imglib2.loops.LoopBuilder;
 import net.imglib2.type.NativeType;
 import net.imglib2.type.label.LabelMultisetType;
 import net.imglib2.type.label.VolatileLabelMultisetArray;
@@ -61,31 +59,71 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Optional;
 import java.util.concurrent.ExecutorService;
+import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.stream.IntStream;
 
-public class N5OpenSourceDialog extends Dialog<BackendDialog> implements CombinesErrorMessages
-{
+public class N5OpenSourceDialog extends Dialog<BackendDialog> implements CombinesErrorMessages {
 
 	private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
-	@OpenDialogMenuEntry.OpenDialogMenuEntryPath(path="N5", rank=Integer.MIN_VALUE)
-	public static class N5FSOpener implements OpenDialogMenuEntry
-	{
+	@OpenDialogMenuEntry.OpenDialogMenuEntryPath(path = "N5", rank = Integer.MIN_VALUE)
+	public static class N5FSOpener implements OpenDialogMenuEntry {
 		private static final FileSystem fs = new FileSystem();
 
 		@Override
-		public LoopBuilder.TriConsumer<PainteraBaseView, ActionEvent, String> onAction() {
-			return (pbv, e, projectDirectory) -> {
-				e.consume();
-				GenericBackendDialogN5 dialog = fs.backendDialog(pbv.getPropagationQueue());
-				N5OpenSourceDialog osDialog = new N5OpenSourceDialog(pbv, dialog);
-				Optional<BackendDialog> backend = osDialog.showAndWait();
-				if (backend == null)
-					return;
-
+		public BiConsumer<PainteraBaseView, String> onAction() {
+			return (pbv, projectDirectory) -> {
 				try {
+					GenericBackendDialogN5 dialog = fs.backendDialog(pbv.getPropagationQueue());
+					N5OpenSourceDialog osDialog = new N5OpenSourceDialog(pbv, dialog);
+					Optional<BackendDialog> backend = osDialog.showAndWait();
+					if (backend == null || !backend.isPresent())
+						return;
+					N5OpenSourceDialog.addSource(osDialog.getName(), osDialog.getType(), dialog, pbv, projectDirectory);
+				} catch (Exception e1) {
+					Exceptions.exceptionAlert(Paintera.NAME, "Unable to open N5 data set", e1);
+				}
+			};
+		}
+	}
+
+	@OpenDialogMenuEntry.OpenDialogMenuEntryPath(path = "HDF5", rank = Integer.MIN_VALUE + 1)
+	public static class N5HDFOpener implements OpenDialogMenuEntry {
+
+		private static final HDF5 hdf5 = new HDF5();
+
+		@Override
+		public BiConsumer<PainteraBaseView, String> onAction() {
+			return (pbv, projectDirectory) -> {
+				try {
+					GenericBackendDialogN5 dialog = hdf5.backendDialog(pbv.getPropagationQueue());
+					N5OpenSourceDialog osDialog = new N5OpenSourceDialog(pbv, dialog);
+					Optional<BackendDialog> backend = osDialog.showAndWait();
+					if (backend == null || !backend.isPresent())
+						return;
+					N5OpenSourceDialog.addSource(osDialog.getName(), osDialog.getType(), dialog, pbv, projectDirectory);
+				} catch (Exception e1) {
+					Exceptions.exceptionAlert(Paintera.NAME, "Unable to open N5 data set", e1);
+				}
+			};
+		}
+	}
+
+	@OpenDialogMenuEntry.OpenDialogMenuEntryPath(path = "Google Cloud", rank = Integer.MIN_VALUE + 2)
+	public static class GoogleCloudOpener implements OpenDialogMenuEntry {
+
+		@Override
+		public BiConsumer<PainteraBaseView, String> onAction() {
+			return (pbv, projectDirectory) -> {
+				try {
+					final GoogleCloud googleCloud = new GoogleCloud();
+					final GenericBackendDialogN5 dialog = googleCloud.backendDialog(pbv.getPropagationQueue());
+					final N5OpenSourceDialog osDialog = new N5OpenSourceDialog(pbv, dialog);
+					Optional<BackendDialog> backend = osDialog.showAndWait();
+					if (backend == null || !backend.isPresent())
+						return;
 					N5OpenSourceDialog.addSource(osDialog.getName(), osDialog.getType(), dialog, pbv, projectDirectory);
 				} catch (Exception e1) {
 					Exceptions.exceptionAlert(Paintera.NAME, "Unable to open N5 data set", e1);
@@ -124,8 +162,7 @@ public class N5OpenSourceDialog extends Dialog<BackendDialog> implements Combine
 
 	private final HBox revertAxisHBox = new HBox(revertAxisOrder);
 
-	public N5OpenSourceDialog(final PainteraBaseView viewer, final BackendDialog backendDialog)
-	{
+	public N5OpenSourceDialog(final PainteraBaseView viewer, final BackendDialog backendDialog) {
 		super();
 
 		this.backendDialog = backendDialog;
@@ -138,11 +175,11 @@ public class N5OpenSourceDialog extends Dialog<BackendDialog> implements Combine
 		this.errorInfo = new TitledPane("", errorMessage);
 		this.isError = Bindings.createBooleanBinding(() -> Optional.ofNullable(this.errorMessage.textProperty().get())
 				.orElse(
-				"").length() > 0, this.errorMessage.textProperty());
+						"").length() > 0, this.errorMessage.textProperty());
 		errorInfo.textProperty().bind(Bindings.createStringBinding(
 				() -> this.isError.get() ? "ERROR" : "",
 				this.isError
-		                                                          ));
+		));
 
 		this.getDialogPane().lookupButton(ButtonType.OK).disableProperty().bind(this.isError);
 		this.errorInfo.visibleProperty().bind(this.isError);
@@ -189,46 +226,38 @@ public class N5OpenSourceDialog extends Dialog<BackendDialog> implements Combine
 
 	}
 
-	public OpenSourceDialog.TYPE getType()
-	{
+	public OpenSourceDialog.TYPE getType() {
 		return typeChoice.getValue();
 	}
 
-	public String getName()
-	{
+	public String getName() {
 		return nameField.getText();
 	}
 
-	public MetaPanel getMeta()
-	{
+	public MetaPanel getMeta() {
 		return this.metaPanel;
 	}
 
 	@Override
-	public Collection<ObservableValue<String>> errorMessages()
-	{
+	public Collection<ObservableValue<String>> errorMessages() {
 		return Arrays.asList(this.nameField.errorMessageProperty(), getBackend().errorMessage());
 	}
 
 	@Override
-	public Consumer<Collection<String>> combiner()
-	{
+	public Consumer<Collection<String>> combiner() {
 		return strings -> InvokeOnJavaFXApplicationThread.invoke(() -> this.errorMessage.setText(String.join(
 				"\n",
 				strings
-		                                                                                                    )));
+		)));
 	}
 
-	public BackendDialog getBackend()
-	{
+	public BackendDialog getBackend() {
 		return this.backendDialog;
 	}
 
-	private static final double[] revert(final double[] array)
-	{
+	private static final double[] revert(final double[] array) {
 		final double[] reverted = new double[array.length];
-		for (int i = 0; i < array.length; ++i)
-		{
+		for (int i = 0; i < array.length; ++i) {
 			reverted[i] = array[array.length - 1 - i];
 		}
 		return reverted;
@@ -241,8 +270,7 @@ public class N5OpenSourceDialog extends Dialog<BackendDialog> implements Combine
 			final PainteraBaseView viewer,
 			final String projectDirectory) throws Exception {
 		LOG.debug("Type={}", type);
-		switch (type)
-		{
+		switch (type) {
 			case RAW:
 				LOG.trace("Adding raw data");
 				addRaw(name, dataset, viewer);
@@ -259,8 +287,7 @@ public class N5OpenSourceDialog extends Dialog<BackendDialog> implements Combine
 	addRaw(
 			final String name,
 			final BackendDialog dataset,
-			PainteraBaseView viewer) throws Exception
-	{
+			PainteraBaseView viewer) throws Exception {
 		final RawSourceState<T, V> raw = dataset.getRaw(name, viewer.getQueue(), viewer.getQueue().getNumPriorities() - 1);
 		LOG.debug("Got raw: {}", raw);
 		InvokeOnJavaFXApplicationThread.invoke(() -> viewer.addRawSource(raw));
@@ -270,8 +297,7 @@ public class N5OpenSourceDialog extends Dialog<BackendDialog> implements Combine
 			final String name,
 			final BackendDialog dataset,
 			final PainteraBaseView viewer,
-			final String projectDirectory) throws Exception
-	{
+			final String projectDirectory) throws Exception {
 		final LabelSourceState<D, T> rep = dataset.getLabels(
 				name,
 				viewer.getQueue(),
@@ -296,15 +322,13 @@ public class N5OpenSourceDialog extends Dialog<BackendDialog> implements Combine
 	private static <C extends Cell<VolatileLabelMultisetArray>, I extends RandomAccessible<C> & IterableInterval<C>>
 	Function<Long, Interval[]>[] getBlockListCaches(
 			final DataSource<LabelMultisetType, ?> source,
-			final ExecutorService es)
-	{
+			final ExecutorService es) {
 		final int numLevels = source.getNumMipmapLevels();
 		if (IntStream.range(0, numLevels).mapToObj(lvl -> source.getDataSource(
 				0,
 				lvl
 		)).filter(src -> !(src instanceof
-				AbstractCellImg<?, ?, ?, ?>)).count() > 0)
-		{
+				AbstractCellImg<?, ?, ?, ?>)).count() > 0) {
 			return null;
 		}
 
@@ -320,8 +344,7 @@ public class N5OpenSourceDialog extends Dialog<BackendDialog> implements Combine
 		@SuppressWarnings("unchecked") final InterruptibleFunction<HashWrapper<long[]>, long[]>[] uniqueIdCaches = new
 				InterruptibleFunction[numLevels];
 
-		for (int level = 0; level < numLevels; ++level)
-		{
+		for (int level = 0; level < numLevels; ++level) {
 			@SuppressWarnings("unchecked") final AbstractCellImg<LabelMultisetType, VolatileLabelMultisetArray, C, I>
 					img =
 					(AbstractCellImg<LabelMultisetType, VolatileLabelMultisetArray, C, I>) source.getDataSource(
@@ -343,13 +366,12 @@ public class N5OpenSourceDialog extends Dialog<BackendDialog> implements Combine
 
 	private static <C extends Cell<VolatileLabelMultisetArray>, I extends RandomAccessible<C> & IterableInterval<C>>
 	InterruptibleFunction<HashWrapper<long[]>, long[]> uniqueLabelLoaders(
-			final AbstractCellImg<LabelMultisetType, VolatileLabelMultisetArray, C, I> img)
-	{
+			final AbstractCellImg<LabelMultisetType, VolatileLabelMultisetArray, C, I> img) {
 		final I cells = img.getCells();
 		return InterruptibleFunction.fromFunction(location -> {
 			final RandomAccess<C> access = cells.randomAccess();
 			access.setPosition(location.getData());
-			final long[] labels = new long[] {};
+			final long[] labels = new long[]{};
 			LOG.debug("Position={}: labels={}", location.getData(), labels);
 			return labels;
 		});

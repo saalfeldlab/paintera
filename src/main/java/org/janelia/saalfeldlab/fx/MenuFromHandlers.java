@@ -8,6 +8,7 @@ import javafx.scene.Scene;
 import javafx.scene.control.ContextMenu;
 import javafx.scene.control.Menu;
 import javafx.scene.control.MenuItem;
+import javafx.scene.control.SeparatorMenuItem;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.StackPane;
 import javafx.stage.Stage;
@@ -59,6 +60,8 @@ public class MenuFromHandlers {
 	public ContextMenu asContextMenu(final String menuText)
 	{
 		final ContextMenu menu = new ContextMenu();
+		if (menuText != null)
+			menu.getItems().addAll(Menus.disabledItem(menuText), new SeparatorMenuItem());
 
 		Set<MenuPath> parentPaths = subMenus();
 

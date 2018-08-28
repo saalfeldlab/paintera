@@ -23,15 +23,17 @@ import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
 
 public class OpenDialogMenu {
 
-	private final List<Pair<String, LoopBuilder.TriConsumer<PainteraBaseView, ActionEvent, String>>> handlers;
+	private final List<Pair<String, BiConsumer<PainteraBaseView, String>>> handlers;
 
 	private static final HashMap<String, Constructor<? extends OpenDialogMenuEntry>> constructors = new HashMap<>();
 
@@ -47,9 +49,9 @@ public class OpenDialogMenu {
 	{
 		List<Pair<String, Consumer<ActionEvent>>> asConsumers = new ArrayList<>();
 		synchronized(this.handlers) {
-			for (Pair<String, LoopBuilder.TriConsumer<PainteraBaseView, ActionEvent, String>> handler : handlers)
+			for (Pair<String, BiConsumer<PainteraBaseView, String>> handler : handlers)
 			{
-				Consumer<ActionEvent> consumer = event -> handler.getValue().accept(viewer, event, projectDirectory);
+				Consumer<ActionEvent> consumer = event -> handler.getValue().accept(viewer, projectDirectory);
 				asConsumers.add(new Pair<>(handler.getKey(), consumer));
 			}
 		}
@@ -107,7 +109,7 @@ public class OpenDialogMenu {
 		}
 	}
 
-	public static List<Pair<String, LoopBuilder.TriConsumer<PainteraBaseView, ActionEvent, String>>> getMenuEntries(Consumer<Exception> exceptionHandler)
+	public static List<Pair<String, BiConsumer<PainteraBaseView, String>>> getMenuEntries(Consumer<Exception> exceptionHandler)
 	{
 		try {
 			return getMenuEntries();
@@ -119,7 +121,7 @@ public class OpenDialogMenu {
 	}
 
 
-	public static List<Pair<String, LoopBuilder.TriConsumer<PainteraBaseView, ActionEvent, String>>> getMenuEntries() throws IllegalAccessException, InvocationTargetException, InstantiationException {
+	public static List<Pair<String, BiConsumer<PainteraBaseView, String>>> getMenuEntries() throws IllegalAccessException, InvocationTargetException, InstantiationException {
 		synchronized(constructors)
 		{
 			if (constructors.size() == 0)
@@ -127,7 +129,7 @@ public class OpenDialogMenu {
 				update();
 			}
 		}
-		List<Pair<String, LoopBuilder.TriConsumer<PainteraBaseView, ActionEvent, String>>> handlers = new ArrayList<>();
+		List<Pair<String, BiConsumer<PainteraBaseView, String>>> handlers = new ArrayList<>();
 		for (Map.Entry<String, Constructor<? extends OpenDialogMenuEntry>> e : constructors.entrySet())
 		{
 			OpenDialogMenuEntry instance = e.getValue().newInstance();
@@ -141,8 +143,8 @@ public class OpenDialogMenu {
 	{
 
 		@Override
-		public LoopBuilder.TriConsumer<PainteraBaseView, ActionEvent, String> onAction() {
-			return (pbv, e, pd) -> System.out.println("LOL DUMMY!");
+		public BiConsumer<PainteraBaseView, String> onAction() {
+			return (pbv, pd) -> System.out.println("LOL DUMMY!");
 		}
 	}
 

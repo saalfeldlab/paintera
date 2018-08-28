@@ -26,4 +26,11 @@ public class Menus {
 		return mi;
 	}
 
+	public static MenuItem disabledItem(String title)
+	{
+		MenuItem item = new MenuItem(title);
+		item.setDisable(true);
+		return item;
+	}
+
 }

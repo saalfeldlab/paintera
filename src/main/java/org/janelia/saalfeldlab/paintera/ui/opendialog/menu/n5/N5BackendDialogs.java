@@ -45,48 +45,6 @@ public class N5BackendDialogs
 
 	private static final String[] H5_EXTENSIONS = {"*.h5", "*.hdf", "*.hdf5"};
 
-	public static GenericBackendDialogN5 fileSystem(
-			final ExecutorService propagationExecutor)
-	{
-		final StringProperty                     root           = new SimpleStringProperty();
-		final ObjectProperty<Supplier<N5Writer>> writerSupplier = new SimpleObjectProperty<>(() -> null);
-		final TextField                          rootField      = new TextField();
-		rootField.setMinWidth(0);
-		rootField.setMaxWidth(Double.POSITIVE_INFINITY);
-		rootField.setPromptText("N5 root");
-		rootField.textProperty().bindBidirectional(root);
-
-		final DirectoryChooser directoryChooser = new DirectoryChooser();
-
-		final Consumer<Event> onClick = event -> {
-
-			directoryChooser.setInitialDirectory(Optional
-					.ofNullable(root.get())
-					.map(File::new)
-					.filter(File::exists)
-					.filter(File::isDirectory)
-					.orElse(USER_HOME));
-			final File updatedRoot = directoryChooser.showDialog(rootField.getScene().getWindow());
-
-			LOG.debug("Updated root to {}", updatedRoot);
-
-			if (updatedRoot != null && updatedRoot.exists() && updatedRoot.isDirectory())
-			{
-				final String path = updatedRoot.getAbsolutePath();
-				root.set(path);
-				writerSupplier.set(MakeUnchecked.supplier(() -> new N5FSWriter(path)));
-				LOG.debug("Updated root={} and writer supplier={}", root, writerSupplier);
-			}
-			Optional
-					.ofNullable(updatedRoot)
-					.filter(File::exists)
-					.filter(File::isFile)
-					.map(File::getAbsolutePath)
-					.ifPresent(root::set);
-		};
-		return new GenericBackendDialogN5(rootField, onClick, "N5", writerSupplier, propagationExecutor);
-	}
-
 	public static GenericBackendDialogN5 hdf5(
 			final ExecutorService propagationExecutor)
 	{
@@ -126,7 +84,7 @@ public class N5BackendDialogs
 					.map(File::getAbsolutePath)
 					.ifPresent(root::set);
 		};
-		return new GenericBackendDialogN5(rootField, onClick, "HDF5", writerSupplier, propagationExecutor);
+		return new GenericBackendDialogN5(rootField, onClick, "FileSystem", writerSupplier, propagationExecutor);
 	}
 
 	public static GenericBackendDialogN5 googleCloud(

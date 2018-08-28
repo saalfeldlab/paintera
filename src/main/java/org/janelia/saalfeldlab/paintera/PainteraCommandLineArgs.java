@@ -61,7 +61,7 @@ public class PainteraCommandLineArgs implements Callable<Boolean>
 	private double[] screenScales;
 
 	@Parameters(index = "0", paramLabel = "PROJECT", arity = "0..1", description = "Optional project N5 root (N5 or " +
-			"HDF5).")
+			"FileSystem).")
 	private String project;
 
 	@Option(names = "--print-error-codes", paramLabel = "PRINT_ERROR_CODES", required = false, description = "List all" +

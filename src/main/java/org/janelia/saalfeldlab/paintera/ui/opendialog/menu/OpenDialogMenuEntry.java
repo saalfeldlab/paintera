@@ -26,6 +26,6 @@ public interface OpenDialogMenuEntry {
 		int rank() default Integer.MAX_VALUE;
 	}
 
-	LoopBuilder.TriConsumer<PainteraBaseView, ActionEvent, String> onAction();
+	BiConsumer<PainteraBaseView, String> onAction();
 
 }
