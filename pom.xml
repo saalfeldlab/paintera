@@ -38,6 +38,10 @@
 
 	<dependencies>
 		<dependency>
+			<groupId>org.scijava</groupId>
+			<artifactId>scijava-common</artifactId>
+		</dependency>
+		<dependency>
 			<groupId>org.janelia.saalfeldlab</groupId>
 			<artifactId>n5-label-multisets</artifactId>
 			<version>0.4.0</version>
@@ -218,16 +222,16 @@
 						<artifactId>maven-shade-plugin</artifactId>
 						<version>3.1.0</version>
 						<configuration>
-							<filters>
-								<filter>
-									<artifact>*:*</artifact>
-									<excludes>
-										<exclude>META-INF/*.SF</exclude>
-										<exclude>META-INF/*.DSA</exclude>
-										<exclude>META-INF/*.RSA</exclude>
-									</excludes>
-								</filter>
-							</filters>
+							<!--<filters>-->
+								<!--<filter>-->
+									<!--<artifact>*:*</artifact>-->
+									<!--<excludes>-->
+										<!--<exclude>META-INF/*.SF</exclude>-->
+										<!--<exclude>META-INF/*.DSA</exclude>-->
+										<!--<exclude>META-INF/*.RSA</exclude>-->
+									<!--</excludes>-->
+								<!--</filter>-->
+							<!--</filters>-->
 							<shadedArtifactId>${project.artifactId}</shadedArtifactId>
 							<shadedArtifactAttached>true</shadedArtifactAttached>
 							<!-- Do not minimize for now to speed up packaging. -->
