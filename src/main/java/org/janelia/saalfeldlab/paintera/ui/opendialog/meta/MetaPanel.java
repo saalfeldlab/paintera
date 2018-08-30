@@ -2,16 +2,21 @@ package org.janelia.saalfeldlab.paintera.ui.opendialog.meta;
 
 import java.util.Arrays;
 import java.util.HashSet;
+import java.util.Optional;
 import java.util.function.UnaryOperator;
+import java.util.stream.Stream;
 
 import javafx.beans.property.DoubleProperty;
 import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.SimpleObjectProperty;
+import javafx.beans.value.ObservableObjectValue;
 import javafx.beans.value.ObservableStringValue;
 import javafx.beans.value.ObservableValue;
+import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.geometry.Pos;
 import javafx.scene.Node;
+import javafx.scene.control.ComboBox;
 import javafx.scene.control.Label;
 import javafx.scene.control.ScrollPane;
 import javafx.scene.control.TextField;
@@ -19,10 +24,12 @@ import javafx.scene.control.TextFormatter.Change;
 import javafx.scene.control.TitledPane;
 import javafx.scene.layout.ColumnConstraints;
 import javafx.scene.layout.GridPane;
+import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
+import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
-import org.janelia.saalfeldlab.fx.event.KeyTracker;
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread;
+import org.janelia.saalfeldlab.paintera.data.mask.AxisOrder;
 import org.janelia.saalfeldlab.paintera.ui.opendialog.OpenSourceDialog;
 
 public class MetaPanel
@@ -59,6 +66,19 @@ public class MetaPanel
 	private final HashSet<Node> additionalMeta = new HashSet<>();
 
 	private final SimpleObjectProperty<OpenSourceDialog.TYPE> dataType = new SimpleObjectProperty<>(null);
+
+	private final SimpleObjectProperty<long[]> dimensionsProperty = new SimpleObjectProperty<>(null);
+
+	private final SimpleObjectProperty<AxisOrder> axisOrder = new SimpleObjectProperty<>(null);
+
+	private final ObservableList<AxisOrder> axisOrderChoices = FXCollections.observableArrayList();
+
+	{
+		dimensionsProperty.addListener((obs, oldv, newv) -> {
+			if (newv != null ) {
+			}
+		});
+	}
 
 	public MetaPanel()
 	{
@@ -108,7 +128,51 @@ public class MetaPanel
 		cc.setHgrow(Priority.ALWAYS);
 		spatialInfo.getColumnConstraints().addAll(cc);
 
-		content.getChildren().add(spatialInfo);
+		StackPane dimensionInfo = new StackPane();
+		// max num of labels
+
+		this.dimensionsProperty.addListener((obs, oldv, newv) -> {
+			if (newv == null)
+				InvokeOnJavaFXApplicationThread.invoke(dimensionInfo.getChildren()::clear);
+			else
+			{
+				this.axisOrderChoices.setAll(AxisOrder.valuesFor(newv.length));
+				final AxisOrder newAxisOrder = AxisOrder.defaultOrder(newv.length).get();
+				if (!Optional.ofNullable(axisOrder.get()).map(AxisOrder::numDimensions).filter(i -> i == newAxisOrder.numDimensions()).isPresent())
+				{
+					this.axisOrder.set(newAxisOrder);
+				}
+				ComboBox<AxisOrder> axisOrderComboBox = new ComboBox<>(this.axisOrderChoices);
+				axisOrderComboBox.valueProperty().bindBidirectional(this.axisOrder);
+				Label[] labels = Stream.generate(Label::new).limit(newv.length).toArray(Label[]::new);
+				this.axisOrder.addListener((obsAx, oldvAx, newvAx) -> {
+					if (newvAx == null)
+						return;
+					AxisOrder.Axis[] axes = newvAx.axes();
+					for (int i = 0; i < labels.length; ++i)
+						labels[i].setText(axes[i].name());
+				});
+				AxisOrder.Axis[] axes = this.axisOrder.get().axes();
+				for (int i = 0; i < labels.length; ++i)
+					labels[i].setText(axes[i].name());
+				GridPane grid = new GridPane();
+				System.out.println(Arrays.toString(labels));
+				System.out.println(Arrays.toString(newv));
+				System.out.println(this.axisOrder);
+				for (int d = 0; d < newv.length; ++d)
+				{
+					Label lbl = new Label("" + newv[d]);
+					grid.add(labels[d], d, 0);
+					grid.add(lbl, d, 1);
+					GridPane.setHgrow(labels[d], Priority.ALWAYS);
+					GridPane.setHgrow(lbl, Priority.ALWAYS);
+				}
+				grid.add(axisOrderComboBox, newv.length, 0);
+				InvokeOnJavaFXApplicationThread.invoke(() -> dimensionInfo.getChildren().add(grid));
+			}
+		});
+
+		content.getChildren().addAll(spatialInfo, dimensionInfo);
 
 		this.dataType.addListener((obs, oldv, newv) -> {
 			if (newv != null)
@@ -153,6 +217,11 @@ public class MetaPanel
 	public void listenOnOffset(final DoubleProperty x, final DoubleProperty y, final DoubleProperty z)
 	{
 		this.offset.bindTo(x, y, z);
+	}
+
+	public void listenOnDimensions(final ObservableObjectValue<long[]> dimensions)
+	{
+		this.dimensionsProperty.bind(dimensions);
 	}
 
 	public void listenOnMinMax(final DoubleProperty min, final DoubleProperty max)
@@ -233,6 +302,11 @@ public class MetaPanel
 			labels[i].setAlignment(Pos.BASELINE_CENTER);
 			labels[i].setPrefWidth(TEXTFIELD_WIDTH);
 		}
+	}
+
+	public ObservableObjectValue<AxisOrder> axisOrderProperty()
+	{
+		return this.axisOrder;
 	}
 
 }

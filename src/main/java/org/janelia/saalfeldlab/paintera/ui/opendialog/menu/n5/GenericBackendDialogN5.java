@@ -6,10 +6,12 @@ import javafx.beans.binding.BooleanBinding;
 import javafx.beans.binding.ObjectBinding;
 import javafx.beans.binding.StringBinding;
 import javafx.beans.property.DoubleProperty;
+import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.beans.property.StringProperty;
+import javafx.beans.value.ObservableObjectValue;
 import javafx.beans.value.ObservableStringValue;
 import javafx.beans.value.ObservableValue;
 import javafx.collections.FXCollections;
@@ -104,6 +106,10 @@ public class GenericBackendDialogN5 implements BackendDialog
 	private final SimpleBooleanProperty datasetUpdateFailed = new SimpleBooleanProperty(false);
 
 	private final ExecutorService propagationExecutor;
+
+	private final ObjectProperty<DatasetAttributes> datasetAttributes = new SimpleObjectProperty<>();
+
+	private final ObjectBinding<long[]> dimensions = Bindings.createObjectBinding(() -> Optional.ofNullable(datasetAttributes.get()).map(DatasetAttributes::getDimensions).orElse(null), datasetAttributes);
 
 	private final BooleanBinding isReady = isN5Valid
 			.and(isDatasetValid)
@@ -219,6 +225,16 @@ public class GenericBackendDialogN5 implements BackendDialog
 		dataset.set("");
 	}
 
+	public ObservableObjectValue<DatasetAttributes> datsetAttributesProperty()
+	{
+		return this.datasetAttributes;
+	}
+
+	public ObservableObjectValue<long[]> dimensionsProperty()
+	{
+		return this.dimensions;
+	}
+
 	public void updateDatasetInfo(final String group, final DatasetInfo info)
 	{
 
@@ -229,6 +245,8 @@ public class GenericBackendDialogN5 implements BackendDialog
 
 			setResolution(N5Helpers.getResolution(n5, group));
 			setOffset(N5Helpers.getOffset(n5, group));
+
+			this.datasetAttributes.set(N5Helpers.getDatasetAttributes(n5, group));
 
 			final DataType dataType = N5Helpers.getDataType(n5, group);
 

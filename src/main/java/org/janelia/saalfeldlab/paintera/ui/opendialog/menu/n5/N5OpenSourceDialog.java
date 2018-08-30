@@ -2,7 +2,10 @@ package org.janelia.saalfeldlab.paintera.ui.opendialog.menu.n5;
 
 import javafx.beans.binding.Bindings;
 import javafx.beans.binding.BooleanBinding;
+import javafx.beans.binding.ObjectBinding;
 import javafx.beans.property.DoubleProperty;
+import javafx.beans.property.ObjectProperty;
+import javafx.beans.value.ObservableObjectValue;
 import javafx.beans.value.ObservableValue;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
@@ -37,6 +40,7 @@ import net.imglib2.type.numeric.RealType;
 import net.imglib2.type.volatiles.AbstractVolatileRealType;
 import org.janelia.saalfeldlab.fx.ui.Exceptions;
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread;
+import org.janelia.saalfeldlab.n5.DatasetAttributes;
 import org.janelia.saalfeldlab.paintera.Paintera;
 import org.janelia.saalfeldlab.paintera.PainteraBaseView;
 import org.janelia.saalfeldlab.paintera.data.DataSource;
@@ -44,7 +48,6 @@ import org.janelia.saalfeldlab.paintera.meshes.InterruptibleFunction;
 import org.janelia.saalfeldlab.paintera.meshes.cache.CacheUtils;
 import org.janelia.saalfeldlab.paintera.state.LabelSourceState;
 import org.janelia.saalfeldlab.paintera.state.RawSourceState;
-import org.janelia.saalfeldlab.paintera.ui.opendialog.BackendDialog;
 import org.janelia.saalfeldlab.paintera.ui.opendialog.CombinesErrorMessages;
 import org.janelia.saalfeldlab.paintera.ui.opendialog.NameField;
 import org.janelia.saalfeldlab.paintera.ui.opendialog.OpenSourceDialog;
@@ -64,7 +67,7 @@ import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.stream.IntStream;
 
-public class N5OpenSourceDialog extends Dialog<BackendDialog> implements CombinesErrorMessages {
+public class N5OpenSourceDialog extends Dialog<GenericBackendDialogN5> implements CombinesErrorMessages {
 
 	private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
@@ -79,7 +82,7 @@ public class N5OpenSourceDialog extends Dialog<BackendDialog> implements Combine
 					GenericBackendDialogN5 dialog = fs.backendDialog(pbv.getPropagationQueue());
 					N5OpenSourceDialog osDialog = new N5OpenSourceDialog(pbv, dialog);
 					osDialog.setHeaderFromBackendType("N5");
-					Optional<BackendDialog> backend = osDialog.showAndWait();
+					Optional<GenericBackendDialogN5> backend = osDialog.showAndWait();
 					if (backend == null || !backend.isPresent())
 						return;
 					N5OpenSourceDialog.addSource(osDialog.getName(), osDialog.getType(), dialog, pbv, projectDirectory);
@@ -102,7 +105,7 @@ public class N5OpenSourceDialog extends Dialog<BackendDialog> implements Combine
 					GenericBackendDialogN5 dialog = hdf5.backendDialog(pbv.getPropagationQueue());
 					N5OpenSourceDialog osDialog = new N5OpenSourceDialog(pbv, dialog);
 					osDialog.setHeaderFromBackendType("HDF5");
-					Optional<BackendDialog> backend = osDialog.showAndWait();
+					Optional<GenericBackendDialogN5> backend = osDialog.showAndWait();
 					if (backend == null || !backend.isPresent())
 						return;
 					N5OpenSourceDialog.addSource(osDialog.getName(), osDialog.getType(), dialog, pbv, projectDirectory);
@@ -124,7 +127,7 @@ public class N5OpenSourceDialog extends Dialog<BackendDialog> implements Combine
 					final GenericBackendDialogN5 dialog = googleCloud.backendDialog(pbv.getPropagationQueue());
 					final N5OpenSourceDialog osDialog = new N5OpenSourceDialog(pbv, dialog);
 					osDialog.setHeaderFromBackendType("Google Cloud");
-					Optional<BackendDialog> backend = osDialog.showAndWait();
+					Optional<GenericBackendDialogN5> backend = osDialog.showAndWait();
 					if (backend == null || !backend.isPresent())
 						return;
 					N5OpenSourceDialog.addSource(osDialog.getName(), osDialog.getType(), dialog, pbv, projectDirectory);
@@ -157,7 +160,7 @@ public class N5OpenSourceDialog extends Dialog<BackendDialog> implements Combine
 
 	private final ExecutorService propagationExecutor;
 
-	private final BackendDialog backendDialog;
+	private final GenericBackendDialogN5 backendDialog;
 
 	private final MetaPanel metaPanel = new MetaPanel();
 
@@ -165,10 +168,11 @@ public class N5OpenSourceDialog extends Dialog<BackendDialog> implements Combine
 
 	private final HBox revertAxisHBox = new HBox(revertAxisOrder);
 
-	public N5OpenSourceDialog(final PainteraBaseView viewer, final BackendDialog backendDialog) {
+	public N5OpenSourceDialog(final PainteraBaseView viewer, final GenericBackendDialogN5 backendDialog) {
 		super();
 
 		this.backendDialog = backendDialog;
+		this.metaPanel.listenOnDimensions(backendDialog.dimensionsProperty());
 
 		this.propagationExecutor = viewer.getPropagationQueue();
 
@@ -203,6 +207,9 @@ public class N5OpenSourceDialog extends Dialog<BackendDialog> implements Combine
 		final VBox choices = new VBox();
 		this.typeChoice = new ComboBox<>(typeChoices);
 		this.metaPanel.bindDataTypeTo(this.typeChoice.valueProperty());
+
+		final ObservableObjectValue<DatasetAttributes> attributesProperty = backendDialog.datsetAttributesProperty();
+		final ObjectBinding<long[]> dimensionsProperty = Bindings.createObjectBinding(() -> attributesProperty.get().getDimensions().clone(), attributesProperty);
 
 		final DoubleProperty[] res = backendDialog.resolution();
 		final DoubleProperty[] off = backendDialog.offset();
@@ -255,7 +262,7 @@ public class N5OpenSourceDialog extends Dialog<BackendDialog> implements Combine
 		)));
 	}
 
-	public BackendDialog getBackend() {
+	public GenericBackendDialogN5 getBackend() {
 		return this.backendDialog;
 	}
 
@@ -270,7 +277,7 @@ public class N5OpenSourceDialog extends Dialog<BackendDialog> implements Combine
 	public static void addSource(
 			final String name,
 			final OpenSourceDialog.TYPE type,
-			final BackendDialog dataset,
+			final GenericBackendDialogN5 dataset,
 			final PainteraBaseView viewer,
 			final String projectDirectory) throws Exception {
 		LOG.debug("Type={}", type);
@@ -290,7 +297,7 @@ public class N5OpenSourceDialog extends Dialog<BackendDialog> implements Combine
 	private static <T extends RealType<T> & NativeType<T>, V extends AbstractVolatileRealType<T, V> & NativeType<V>> void
 	addRaw(
 			final String name,
-			final BackendDialog dataset,
+			final GenericBackendDialogN5 dataset,
 			PainteraBaseView viewer) throws Exception {
 		final RawSourceState<T, V> raw = dataset.getRaw(name, viewer.getQueue(), viewer.getQueue().getNumPriorities() - 1);
 		LOG.debug("Got raw: {}", raw);
@@ -299,7 +306,7 @@ public class N5OpenSourceDialog extends Dialog<BackendDialog> implements Combine
 
 	private static <D extends NativeType<D> & IntegerType<D>, T extends Volatile<D> & NativeType<T>> void addLabel(
 			final String name,
-			final BackendDialog dataset,
+			final GenericBackendDialogN5 dataset,
 			final PainteraBaseView viewer,
 			final String projectDirectory) throws Exception {
 		final LabelSourceState<D, T> rep = dataset.getLabels(

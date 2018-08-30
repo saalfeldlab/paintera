@@ -271,6 +271,14 @@ public class N5Helpers
 		return n5.getDatasetAttributes(group).getDataType();
 	}
 
+	public static DatasetAttributes getDatasetAttributes(final N5Reader n5, final String group) throws IOException
+	{
+		LOG.warn("Getting data type for group/dataset {}", group);
+		if (isPainteraDataset(n5, group)) { return getDatasetAttributes(n5, group + "/" + PAINTERA_DATA_DATASET); }
+		if (isMultiScale(n5, group)) { return getDatasetAttributes(n5, getFinestLevel(n5, group)); }
+		return n5.getDatasetAttributes(group);
+	}
+
 	public static void sortScaleDatasets(final String[] scaleDatasets)
 	{
 		Arrays.sort(scaleDatasets, (f1, f2) -> {

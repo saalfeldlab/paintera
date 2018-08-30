@@ -4,6 +4,7 @@ import java.util.Arrays;
 import java.util.Optional;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Stream;
 
 public enum AxisOrder
 {
@@ -139,6 +140,11 @@ public enum AxisOrder
 		matcher.find();
 		final String matched = matcher.group(1);
 		return Arrays.stream(values()).filter(order -> order.name().equals(matched)).findFirst().orElse(null);
+	}
+
+	public static AxisOrder[] valuesFor(final int numDimensions)
+	{
+		return Stream.of(values()).filter(ax -> ax.numDimensions == numDimensions).toArray(AxisOrder[]::new);
 	}
 
 	public static Optional<AxisOrder> defaultOrder(final int numDimensions)
