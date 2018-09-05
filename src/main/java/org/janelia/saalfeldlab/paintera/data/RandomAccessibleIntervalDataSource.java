@@ -232,14 +232,15 @@ public class RandomAccessibleIntervalDataSource<D extends Type<D>, T extends Typ
 		if (AxisOrder.XYZ.equals(axisOrder))
 			return rai;
 
-		int[] indicesAsRAIDimensions = axisOrder.indices(AxisOrder.Axis.X, AxisOrder.Axis.Y, AxisOrder.Axis.Z);
+		int[] indicesLookupFromSourceSpace = axisOrder.indices(AxisOrder.Axis.X, AxisOrder.Axis.Y, AxisOrder.Axis.Z);
+		LOG.warn("Got indicies {} for axis order {}", indicesLookupFromSourceSpace, axisOrder);
 		MixedTransform tf = new MixedTransform(rai.numDimensions(), rai.numDimensions());
-		tf.setComponentMapping(indicesAsRAIDimensions);
+		tf.setComponentMapping(indicesLookupFromSourceSpace);
 		RandomAccessible<T> view = new MixedTransformView<>(rai, tf);
 		long[] min = new long[rai.numDimensions()];
 		long[] max = new long[rai.numDimensions()];
-		Arrays.setAll(min, d -> rai.min(indicesAsRAIDimensions[d]));
-		Arrays.setAll(max, d -> rai.max(indicesAsRAIDimensions[d]));
+		Arrays.setAll(min, d -> rai.min(indicesLookupFromSourceSpace[d]));
+		Arrays.setAll(max, d -> rai.max(indicesLookupFromSourceSpace[d]));
 		return Views.interval(view, new FinalInterval(min, max));
 	}
 
