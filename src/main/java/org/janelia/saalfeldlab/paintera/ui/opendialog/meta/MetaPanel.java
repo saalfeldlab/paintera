@@ -14,20 +14,19 @@ import javafx.beans.value.ObservableStringValue;
 import javafx.beans.value.ObservableValue;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
+import javafx.geometry.Orientation;
 import javafx.geometry.Pos;
 import javafx.scene.Node;
-import javafx.scene.control.ComboBox;
-import javafx.scene.control.Label;
-import javafx.scene.control.ScrollPane;
-import javafx.scene.control.TextField;
+import javafx.scene.control.*;
 import javafx.scene.control.TextFormatter.Change;
-import javafx.scene.control.TitledPane;
 import javafx.scene.layout.ColumnConstraints;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
+import javafx.scene.text.TextAlignment;
+import org.janelia.saalfeldlab.fx.TitledPanes;
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread;
 import org.janelia.saalfeldlab.paintera.data.mask.AxisOrder;
 import org.janelia.saalfeldlab.paintera.ui.opendialog.OpenSourceDialog;
@@ -137,14 +136,13 @@ public class MetaPanel
 			else
 			{
 				this.axisOrderChoices.setAll(AxisOrder.valuesFor(newv.length));
-				final AxisOrder newAxisOrder = AxisOrder.defaultOrder(newv.length).get();
-				if (!Optional.ofNullable(axisOrder.get()).map(AxisOrder::numDimensions).filter(i -> i == newAxisOrder.numDimensions()).isPresent())
-				{
-					this.axisOrder.set(newAxisOrder);
-				}
+				this.axisOrder.set(AxisOrder.defaultOrder(newv.length).get());
 				ComboBox<AxisOrder> axisOrderComboBox = new ComboBox<>(this.axisOrderChoices);
 				axisOrderComboBox.valueProperty().bindBidirectional(this.axisOrder);
 				Label[] labels = Stream.generate(Label::new).limit(newv.length).toArray(Label[]::new);
+				Stream.of(labels).forEach(l -> l.setTextAlignment(TextAlignment.CENTER));
+				Stream.of(labels).forEach(l -> l.setAlignment(Pos.CENTER));
+				Stream.of(labels).forEach(l -> l.setPrefWidth(TEXTFIELD_WIDTH));
 				this.axisOrder.addListener((obsAx, oldvAx, newvAx) -> {
 					if (newvAx == null)
 						return;
@@ -161,18 +159,22 @@ public class MetaPanel
 				System.out.println(this.axisOrder);
 				for (int d = 0; d < newv.length; ++d)
 				{
-					Label lbl = new Label("" + newv[d]);
-					grid.add(labels[d], d, 0);
-					grid.add(lbl, d, 1);
-					GridPane.setHgrow(labels[d], Priority.ALWAYS);
-					GridPane.setHgrow(lbl, Priority.ALWAYS);
+					final TextField lbl = new TextField("" + newv[d]);
+					lbl.setEditable(false);
+					grid.add(labels[d], d + 1, 0);
+					grid.add(lbl, d + 1, 1);
+					lbl.setPrefWidth(TEXTFIELD_WIDTH);
 				}
-				grid.add(axisOrderComboBox, newv.length, 0);
+				final Label axisOrderLabel = new Label("Axis Order");
+				grid.add(axisOrderLabel, 0, 0);
+				grid.add(axisOrderComboBox, 0, 1);
+				GridPane.setHgrow(axisOrderLabel, Priority.ALWAYS);
+				GridPane.setHgrow(axisOrderComboBox, Priority.ALWAYS);
 				InvokeOnJavaFXApplicationThread.invoke(() -> dimensionInfo.getChildren().add(grid));
 			}
 		});
 
-		content.getChildren().addAll(spatialInfo, dimensionInfo);
+		content.getChildren().addAll(spatialInfo, new Separator(Orientation.HORIZONTAL), dimensionInfo, new Separator(Orientation.HORIZONTAL));
 
 		this.dataType.addListener((obs, oldv, newv) -> {
 			if (newv != null)
