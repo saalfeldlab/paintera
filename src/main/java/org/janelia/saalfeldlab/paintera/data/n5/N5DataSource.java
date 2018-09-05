@@ -6,6 +6,8 @@ import java.util.function.Function;
 import bdv.util.volatiles.SharedQueue;
 import bdv.viewer.Interpolation;
 import com.google.gson.annotations.Expose;
+import javafx.beans.property.ObjectProperty;
+import javafx.beans.property.SimpleObjectProperty;
 import net.imglib2.RandomAccessible;
 import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.Volatile;
@@ -20,6 +22,7 @@ import org.janelia.saalfeldlab.n5.N5Reader;
 import org.janelia.saalfeldlab.n5.N5Writer;
 import org.janelia.saalfeldlab.paintera.N5Helpers;
 import org.janelia.saalfeldlab.paintera.data.RandomAccessibleIntervalDataSource;
+import org.janelia.saalfeldlab.paintera.data.mask.AxisOrder;
 
 public class N5DataSource<D extends NativeType<D>, T extends Volatile<D> & NativeType<T>>
 		extends RandomAccessibleIntervalDataSource<D, T>
@@ -31,6 +34,7 @@ public class N5DataSource<D extends NativeType<D>, T extends Volatile<D> & Nativ
 	public N5DataSource(
 			final N5Meta meta,
 			final AffineTransform3D transform,
+			final AxisOrder axisOrder,
 			final SharedQueue sharedQueue,
 			final String name,
 			final int priority) throws IOException
@@ -38,6 +42,7 @@ public class N5DataSource<D extends NativeType<D>, T extends Volatile<D> & Nativ
 		this(
 				meta,
 				transform,
+				axisOrder,
 				sharedQueue,
 				name,
 				priority,
@@ -49,6 +54,7 @@ public class N5DataSource<D extends NativeType<D>, T extends Volatile<D> & Nativ
 	public N5DataSource(
 			final N5Meta meta,
 			final AffineTransform3D transform,
+			final AxisOrder axisOrder,
 			final SharedQueue sharedQueue,
 			final String name,
 			final int priority,
@@ -58,6 +64,7 @@ public class N5DataSource<D extends NativeType<D>, T extends Volatile<D> & Nativ
 	{
 		super(
 				getData(meta.reader(), meta.dataset(), transform, sharedQueue, priority),
+				axisOrder,
 				dataInterpolation,
 				interpolation,
 				name

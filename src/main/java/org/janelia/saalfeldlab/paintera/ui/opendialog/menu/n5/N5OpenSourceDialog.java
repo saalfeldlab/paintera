@@ -44,6 +44,7 @@ import org.janelia.saalfeldlab.n5.DatasetAttributes;
 import org.janelia.saalfeldlab.paintera.Paintera;
 import org.janelia.saalfeldlab.paintera.PainteraBaseView;
 import org.janelia.saalfeldlab.paintera.data.DataSource;
+import org.janelia.saalfeldlab.paintera.data.mask.AxisOrder;
 import org.janelia.saalfeldlab.paintera.meshes.InterruptibleFunction;
 import org.janelia.saalfeldlab.paintera.meshes.cache.CacheUtils;
 import org.janelia.saalfeldlab.paintera.state.LabelSourceState;
@@ -173,6 +174,7 @@ public class N5OpenSourceDialog extends Dialog<GenericBackendDialogN5> implement
 
 		this.backendDialog = backendDialog;
 		this.metaPanel.listenOnDimensions(backendDialog.dimensionsProperty());
+		this.backendDialog.axisOrderProperty().bind(this.metaPanel.axisOrderProperty());
 
 		this.propagationExecutor = viewer.getPropagationQueue();
 
@@ -318,8 +320,6 @@ public class N5OpenSourceDialog extends Dialog<GenericBackendDialogN5> implement
 				viewer.getMeshWorkerExecutorService(),
 				projectDirectory
 		);
-		final Object meta = dataset.metaData();
-		LOG.debug("Adding label source with meta={}", meta);
 		InvokeOnJavaFXApplicationThread.invoke(() -> viewer.addLabelSource(rep));
 	}
 

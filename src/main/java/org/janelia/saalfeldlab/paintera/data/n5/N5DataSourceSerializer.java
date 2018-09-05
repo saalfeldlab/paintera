@@ -2,12 +2,14 @@ package org.janelia.saalfeldlab.paintera.data.n5;
 
 import java.lang.invoke.MethodHandles;
 import java.lang.reflect.Type;
+import java.util.Optional;
 
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonSerializationContext;
 import com.google.gson.JsonSerializer;
 import net.imglib2.realtransform.AffineTransform3D;
+import org.janelia.saalfeldlab.paintera.data.mask.AxisOrder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -22,6 +24,8 @@ public class N5DataSourceSerializer implements JsonSerializer<N5DataSource<?, ?>
 
 	private static final String TRANSFORM_KEY = "transform";
 
+	public static final String AXIS_ORDER_KEY = "axisOrder";
+
 	@Override
 	public JsonElement serialize(
 			final N5DataSource<?, ?> s,
@@ -34,6 +38,7 @@ public class N5DataSourceSerializer implements JsonSerializer<N5DataSource<?, ?>
 		final AffineTransform3D transform = new AffineTransform3D();
 		s.getSourceTransform(0, 0, transform);
 		map.add(TRANSFORM_KEY, context.serialize(transform));
+		map.add(AXIS_ORDER_KEY, context.serialize(Optional.ofNullable(s.axisOrderProperty().get()).orElse(AxisOrder.XYZ)));
 		return map;
 	}
 

@@ -53,6 +53,7 @@ import org.janelia.saalfeldlab.n5.N5FSReader;
 import org.janelia.saalfeldlab.n5.N5Reader;
 import org.janelia.saalfeldlab.paintera.N5Helpers;
 import org.janelia.saalfeldlab.paintera.data.DataSource;
+import org.janelia.saalfeldlab.paintera.data.mask.AxisOrder;
 import org.janelia.saalfeldlab.paintera.data.n5.N5DataSource;
 import org.janelia.saalfeldlab.paintera.data.n5.N5FSMeta;
 import org.janelia.saalfeldlab.paintera.data.n5.ReflectionException;
@@ -292,6 +293,7 @@ public class CreateDataset
 				reader,
 				"volumes/raw/data/s0",
 				tf,
+				AxisOrder.XYZ,
 				new SharedQueue(1, 1),
 				1,
 				"NAME"

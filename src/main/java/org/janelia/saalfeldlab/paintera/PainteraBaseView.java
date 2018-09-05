@@ -48,6 +48,7 @@ import org.janelia.saalfeldlab.paintera.config.NavigationConfigNode;
 import org.janelia.saalfeldlab.paintera.config.OrthoSliceConfig;
 import org.janelia.saalfeldlab.paintera.config.OrthoSliceConfigBase;
 import org.janelia.saalfeldlab.paintera.config.Viewer3DConfig;
+import org.janelia.saalfeldlab.paintera.data.mask.AxisOrder;
 import org.janelia.saalfeldlab.paintera.data.mask.MaskedSource;
 import org.janelia.saalfeldlab.paintera.state.ChannelSourceState;
 import org.janelia.saalfeldlab.paintera.state.GlobalTransformManager;
@@ -238,12 +239,26 @@ public class PainteraBaseView
 			final double[] offset,
 			final long maxId,
 			final String name
+	)
+	{
+		return addSingleScaleLabelSource(data, resolution, offset, AxisOrder.XYZ, maxId, name);
+	}
+
+	public <D extends IntegerType<D> & NativeType<D>, T extends Volatile<D> & IntegerType<T>> LabelSourceState<D, T>
+	addSingleScaleLabelSource(
+			final RandomAccessibleInterval<D> data,
+			final double[] resolution,
+			final double[] offset,
+			AxisOrder axisOrder,
+			final long maxId,
+			final String name
 	                                                                                                                                          )
 	{
 		LabelSourceState<D, T> state = LabelSourceState.simpleSourceFromSingleRAI(
 				data,
 				resolution,
 				offset,
+				axisOrder,
 				maxId,
 				name,
 				viewer3D().meshesGroup(),

@@ -14,6 +14,7 @@ import net.imglib2.view.composite.RealComposite;
 import org.janelia.saalfeldlab.paintera.composition.ARGBCompositeAlphaAdd;
 import org.janelia.saalfeldlab.paintera.composition.CompositeCopy;
 import org.janelia.saalfeldlab.paintera.data.DataSource;
+import org.janelia.saalfeldlab.paintera.data.mask.AxisOrder;
 import org.janelia.saalfeldlab.paintera.data.n5.N5ChannelDataSource;
 import org.janelia.saalfeldlab.paintera.data.n5.N5HDF5Meta;
 import org.janelia.saalfeldlab.paintera.data.n5.VolatileWithSet;
@@ -72,7 +73,11 @@ public class PainteraTestMultiChannel extends Application {
 		DataSource<FloatType, VolatileFloatType> rawSource = N5Helpers.openRawAsSource(
 				meta.reader(),
 				raw,
-				N5Helpers.getTransform(meta.reader(), raw, true), viewer.baseView.getQueue(), 0, "raw");
+				N5Helpers.getTransform(meta.reader(), raw, true),
+				AxisOrder.XYZ,
+				viewer.baseView.getQueue(),
+				0,
+				"raw");
 		RawSourceState<FloatType, VolatileFloatType> rawState = new RawSourceState<>(
 				rawSource,
 				new ARGBColorConverter.Imp0<>(),

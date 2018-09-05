@@ -9,6 +9,7 @@ import net.imglib2.type.numeric.real.DoubleType;
 import net.imglib2.util.ConstantUtils;
 import org.janelia.saalfeldlab.paintera.composition.CompositeCopy;
 import org.janelia.saalfeldlab.paintera.data.RandomAccessibleIntervalDataSource;
+import org.janelia.saalfeldlab.paintera.data.mask.AxisOrder;
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -25,6 +26,7 @@ public class SourceInfoTest
 			rai,
 			rai,
 			new AffineTransform3D(),
+			AxisOrder.XYZ,
 			i -> new NearestNeighborInterpolatorFactory<>(),
 			i -> new NearestNeighborInterpolatorFactory<>(),
 			"source1"
@@ -35,6 +37,7 @@ public class SourceInfoTest
 			rai,
 			rai,
 			new AffineTransform3D(),
+			AxisOrder.XYZ,
 			i -> new NearestNeighborInterpolatorFactory<>(),
 			i -> new NearestNeighborInterpolatorFactory<>(),
 			"source2"

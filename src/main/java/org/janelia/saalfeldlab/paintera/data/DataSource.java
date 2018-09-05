@@ -4,9 +4,11 @@ import java.util.Arrays;
 
 import bdv.viewer.Interpolation;
 import bdv.viewer.Source;
+import javafx.beans.property.ObjectProperty;
 import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.RealRandomAccessible;
 import net.imglib2.realtransform.AffineTransform3D;
+import org.janelia.saalfeldlab.paintera.data.mask.AxisOrder;
 
 /**
  * {@link Source} that includes a type <code>D</code> representation that is used for data processing (in contrast to
@@ -45,4 +47,5 @@ public interface DataSource<D, T> extends Source<T>
 		Arrays.setAll(targetScale, d -> targetScale[d] / scale[d]);
 		return targetScale;
 	}
+
 }

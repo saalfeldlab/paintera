@@ -80,6 +80,7 @@ import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssign
 import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignmentState;
 import org.janelia.saalfeldlab.paintera.control.assignment.UnableToPersist;
 import org.janelia.saalfeldlab.paintera.data.DataSource;
+import org.janelia.saalfeldlab.paintera.data.mask.AxisOrder;
 import org.janelia.saalfeldlab.paintera.data.n5.N5DataSource;
 import org.janelia.saalfeldlab.paintera.data.n5.N5FSMeta;
 import org.janelia.saalfeldlab.paintera.data.n5.N5HDF5Meta;
@@ -459,6 +460,7 @@ public class N5Helpers
 			final N5Reader reader,
 			final String dataset,
 			final AffineTransform3D transform,
+			final AxisOrder axisOrder,
 			final SharedQueue sharedQueue,
 			final int priority,
 			final String name) throws IOException, ReflectionException
@@ -467,6 +469,7 @@ public class N5Helpers
 				reader,
 				dataset,
 				transform,
+				axisOrder,
 				sharedQueue,
 				priority,
 				i -> i == Interpolation.NLINEAR
@@ -484,6 +487,7 @@ public class N5Helpers
 			final N5Reader reader,
 			final String dataset,
 			final AffineTransform3D transform,
+			final AxisOrder axisOrder,
 			final SharedQueue sharedQueue,
 			final int priority,
 			final String name) throws IOException, ReflectionException
@@ -492,6 +496,7 @@ public class N5Helpers
 				reader,
 				dataset,
 				transform,
+				axisOrder,
 				sharedQueue,
 				priority,
 				i -> new NearestNeighborInterpolatorFactory<>(),
@@ -505,6 +510,7 @@ public class N5Helpers
 			final N5Reader reader,
 			final String dataset,
 			final AffineTransform3D transform,
+			final AxisOrder axisOrder,
 			final SharedQueue sharedQueue,
 			final int priority,
 			final Function<Interpolation, InterpolatorFactory<T, RandomAccessible<T>>> dataInterpolation,
@@ -516,6 +522,7 @@ public class N5Helpers
 		return new N5DataSource<>(
 				N5Meta.fromReader(reader, dataset),
 				transform,
+				axisOrder,
 				sharedQueue,
 				name,
 				priority,
@@ -690,6 +697,7 @@ public class N5Helpers
 			final N5Reader reader,
 			final String dataset,
 			final AffineTransform3D transform,
+			final AxisOrder axisOrder,
 			final SharedQueue sharedQueue,
 			final int priority,
 			final String name) throws IOException, ReflectionException
@@ -702,6 +710,7 @@ public class N5Helpers
 		return new N5DataSource<>(
 				N5Meta.fromReader(reader, dataset),
 				transform,
+				axisOrder,
 				sharedQueue,
 				name,
 				priority,
@@ -901,13 +910,14 @@ public class N5Helpers
 			final N5Reader reader,
 			final String dataset,
 			final AffineTransform3D transform,
+			final AxisOrder axisOrder,
 			final SharedQueue queue,
 			final int priority,
 			final String name) throws IOException, ReflectionException
 	{
 		return isLabelMultisetType(reader, dataset)
-		       ? (DataSource<D, T>) openLabelMultisetAsSource(reader, dataset, transform, queue, priority, name)
-		       : (DataSource<D, T>) openScalarAsSource(reader, dataset, transform, queue, priority, name);
+		       ? (DataSource<D, T>) openLabelMultisetAsSource(reader, dataset, transform, axisOrder, queue, priority, name)
+		       : (DataSource<D, T>) openScalarAsSource(reader, dataset, transform, axisOrder, queue, priority, name);
 	}
 
 	public static AffineTransform3D considerDownsampling(

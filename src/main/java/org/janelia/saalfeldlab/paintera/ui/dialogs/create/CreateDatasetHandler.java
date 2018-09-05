@@ -19,6 +19,7 @@ import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssign
 import org.janelia.saalfeldlab.paintera.control.lock.LockedSegmentsOnlyLocal;
 import org.janelia.saalfeldlab.paintera.control.selection.SelectedIds;
 import org.janelia.saalfeldlab.paintera.data.DataSource;
+import org.janelia.saalfeldlab.paintera.data.mask.AxisOrder;
 import org.janelia.saalfeldlab.paintera.data.mask.Masks;
 import org.janelia.saalfeldlab.paintera.data.n5.CommitCanvasN5;
 import org.janelia.saalfeldlab.paintera.data.n5.N5DataSource;
@@ -69,6 +70,7 @@ public class CreateDatasetHandler
 			final DataSource<LabelMultisetType, VolatileLabelMultisetType> source = new N5DataSource<>(
 					meta,
 					transform,
+					AxisOrder.XYZ,
 					pbv.getQueue(),
 					name,
 					0

@@ -45,6 +45,7 @@ import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssign
 import org.janelia.saalfeldlab.paintera.control.lock.LockedSegmentsOnlyLocal;
 import org.janelia.saalfeldlab.paintera.control.selection.SelectedIds;
 import org.janelia.saalfeldlab.paintera.data.DataSource;
+import org.janelia.saalfeldlab.paintera.data.mask.AxisOrder;
 import org.janelia.saalfeldlab.paintera.data.mask.Masks;
 import org.janelia.saalfeldlab.paintera.data.n5.CommitCanvasN5;
 import org.janelia.saalfeldlab.paintera.id.IdService;
@@ -71,7 +72,7 @@ import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 
-public class GenericBackendDialogN5 implements BackendDialog
+public class GenericBackendDialogN5
 {
 
 	private static final String EMPTY_STRING = "";
@@ -110,6 +111,8 @@ public class GenericBackendDialogN5 implements BackendDialog
 	private final ObjectProperty<DatasetAttributes> datasetAttributes = new SimpleObjectProperty<>();
 
 	private final ObjectBinding<long[]> dimensions = Bindings.createObjectBinding(() -> Optional.ofNullable(datasetAttributes.get()).map(DatasetAttributes::getDimensions).orElse(null), datasetAttributes);
+
+	private final ObjectProperty<AxisOrder> axisOrder = new SimpleObjectProperty<>();
 
 	private final BooleanBinding isReady = isN5Valid
 			.and(isDatasetValid)
@@ -268,37 +271,31 @@ public class GenericBackendDialogN5 implements BackendDialog
 		}
 	}
 
-	@Override
 	public Node getDialogNode()
 	{
 		return node;
 	}
 
-	@Override
 	public StringBinding errorMessage()
 	{
 		return errorMessage;
 	}
 
-	@Override
 	public DoubleProperty[] resolution()
 	{
 		return this.datasetInfo.spatialResolutionProperties();
 	}
 
-	@Override
 	public DoubleProperty[] offset()
 	{
 		return this.datasetInfo.spatialOffsetProperties();
 	}
 
-	@Override
 	public DoubleProperty min()
 	{
 		return this.datasetInfo.minProperty();
 	}
 
-	@Override
 	public DoubleProperty max()
 	{
 		return this.datasetInfo.maxProperty();
@@ -336,19 +333,16 @@ public class GenericBackendDialogN5 implements BackendDialog
 		return grid;
 	}
 
-	@Override
 	public ObservableStringValue nameProperty()
 	{
 		return name;
 	}
 
-	@Override
 	public String identifier()
 	{
 		return identifier;
 	}
 
-	@Override
 	public <T extends RealType<T> & NativeType<T>, V extends AbstractVolatileRealType<T, V> & NativeType<V>>
 	RawSourceState<T, V> getRaw(
 			final String name,
@@ -364,6 +358,7 @@ public class GenericBackendDialogN5 implements BackendDialog
 				reader,
 				dataset,
 				transform,
+				axisOrder.get(),
 				sharedQueue,
 				priority,
 				name
@@ -374,7 +369,6 @@ public class GenericBackendDialogN5 implements BackendDialog
 		return state;
 	}
 
-	@Override
 	public <D extends NativeType<D> & IntegerType<D>, T extends Volatile<D> & NativeType<T>> LabelSourceState<D, T>
 	getLabels(
 			final String name,
@@ -397,6 +391,7 @@ public class GenericBackendDialogN5 implements BackendDialog
 					reader,
 					dataset,
 					transform,
+					axisOrder.get(),
 					sharedQueue,
 					priority,
 					name
@@ -408,6 +403,7 @@ public class GenericBackendDialogN5 implements BackendDialog
 					reader,
 					dataset,
 					transform,
+					axisOrder.get(),
 					sharedQueue,
 					priority,
 					name
@@ -527,5 +523,28 @@ public class GenericBackendDialogN5 implements BackendDialog
 	public double[] asPrimitiveArray(final DoubleProperty[] data)
 	{
 		return Arrays.stream(data).mapToDouble(DoubleProperty::get).toArray();
+	}
+
+	public void setResolution(final double[] resolution)
+	{
+		final DoubleProperty[] res = resolution();
+		for (int i = 0; i < res.length; ++i)
+		{
+			res[i].set(resolution[i]);
+		}
+	}
+
+	public void setOffset(final double[] offset)
+	{
+		final DoubleProperty[] off = offset();
+		for (int i = 0; i < off.length; ++i)
+		{
+			off[i].set(offset[i]);
+		}
+	}
+
+	public ObjectProperty<AxisOrder> axisOrderProperty()
+	{
+		return this.axisOrder;
 	}
 }
