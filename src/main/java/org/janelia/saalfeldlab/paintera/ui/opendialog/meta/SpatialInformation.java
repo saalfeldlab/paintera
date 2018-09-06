@@ -1,14 +1,35 @@
 package org.janelia.saalfeldlab.paintera.ui.opendialog.meta;
 
+import java.lang.invoke.MethodHandles;
+import java.util.Arrays;
+import java.util.HashSet;
+import java.util.Set;
+import java.util.function.DoublePredicate;
+
 import javafx.beans.property.DoubleProperty;
 import javafx.beans.property.SimpleDoubleProperty;
+import javafx.beans.property.SimpleStringProperty;
+import javafx.beans.property.StringProperty;
 import javafx.scene.control.TextField;
 import javafx.scene.control.TextFormatter;
+import javafx.scene.input.KeyCode;
+import javafx.scene.input.KeyEvent;
 import javafx.util.StringConverter;
+import org.janelia.saalfeldlab.fx.event.KeyTracker;
 import org.janelia.saalfeldlab.paintera.ui.opendialog.meta.MetaPanel.DoubleFilter;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class SpatialInformation
 {
+
+	private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
+
+	public enum Submit {
+		WHILE_TYPING,
+		ON_ENTER,
+		ON_FOCUS_LOST
+	}
 
 	private final DoubleProperty x = new SimpleDoubleProperty();
 
@@ -22,8 +43,14 @@ public class SpatialInformation
 
 	private final TextField textZ = new TextField("");
 
-	public SpatialInformation(final double textFieldWidth, final String promptTextX, final String promptTextY, final
-	String promptTextZ)
+	public SpatialInformation(
+			final double textFieldWidth,
+			final String promptTextX,
+			final String promptTextY,
+			final String promptTextZ,
+			final DoublePredicate checkValues,
+			final Submit checkContents,
+			final Submit... moreCheckContents)
 	{
 		textX.setPrefWidth(textFieldWidth);
 		textY.setPrefWidth(textFieldWidth);
@@ -33,14 +60,73 @@ public class SpatialInformation
 		textY.setPromptText(promptTextY);
 		textZ.setPromptText(promptTextZ);
 
-		textX.setTextFormatter(new TextFormatter<>(new DoubleFilter()));
-		textY.setTextFormatter(new TextFormatter<>(new DoubleFilter()));
-		textZ.setTextFormatter(new TextFormatter<>(new DoubleFilter()));
+		textX.setText(Double.toString(x.doubleValue()));
+		textY.setText(Double.toString(y.doubleValue()));
+		textZ.setText(Double.toString(z.doubleValue()));
 
-		this.textX.textProperty().bindBidirectional(x, new Converter());
-		this.textY.textProperty().bindBidirectional(y, new Converter());
-		this.textZ.textProperty().bindBidirectional(z, new Converter());
+		x.addListener((obs, oldv, newv) -> {if (!checkValues.test(newv.doubleValue())) x.set(oldv.doubleValue());});
+		y.addListener((obs, oldv, newv) -> {if (!checkValues.test(newv.doubleValue())) y.set(oldv.doubleValue());});
+		z.addListener((obs, oldv, newv) -> {if (!checkValues.test(newv.doubleValue())) z.set(oldv.doubleValue());});
 
+
+		final Set<Submit> checkSet = new HashSet<>(Arrays.asList(moreCheckContents));
+		checkSet.add(checkContents);
+		for (Submit check : checkSet)
+		{
+			switch (check)
+			{
+				case WHILE_TYPING:
+					textX.setTextFormatter(new TextFormatter<>(new DoubleFilter()));
+					textY.setTextFormatter(new TextFormatter<>(new DoubleFilter()));
+					textZ.setTextFormatter(new TextFormatter<>(new DoubleFilter()));
+					textX.textProperty().bindBidirectional(x, new Converter());
+					textY.textProperty().bindBidirectional(y, new Converter());
+					textZ.textProperty().bindBidirectional(z, new Converter());
+					break;
+				case ON_ENTER:
+					textX.addEventFilter(KeyEvent.KEY_PRESSED, event -> submitOnKeyPressed(textX.textProperty(), x, event, KeyCode.ENTER));
+					textY.addEventFilter(KeyEvent.KEY_PRESSED, event -> submitOnKeyPressed(textY.textProperty(), y, event, KeyCode.ENTER));
+					textZ.addEventFilter(KeyEvent.KEY_PRESSED, event -> submitOnKeyPressed(textZ.textProperty(), z, event, KeyCode.ENTER));
+					x.addListener((obs, oldv, newv) -> textX.setText(Double.toString(newv.doubleValue())));
+					y.addListener((obs, oldv, newv) -> textY.setText(Double.toString(newv.doubleValue())));
+					z.addListener((obs, oldv, newv) -> textZ.setText(Double.toString(newv.doubleValue())));
+					break;
+				case ON_FOCUS_LOST:
+					textX.focusedProperty().addListener((obs, oldv, newv) -> submitOnFocusLost(textX.textProperty(), x, newv));
+					textY.focusedProperty().addListener((obs, oldv, newv) -> submitOnFocusLost(textY.textProperty(), y, newv));
+					textZ.focusedProperty().addListener((obs, oldv, newv) -> submitOnFocusLost(textZ.textProperty(), z, newv));
+					x.addListener((obs, oldv, newv) -> textX.setText(Double.toString(newv.doubleValue())));
+					y.addListener((obs, oldv, newv) -> textY.setText(Double.toString(newv.doubleValue())));
+					z.addListener((obs, oldv, newv) -> textZ.setText(Double.toString(newv.doubleValue())));
+			}
+		}
+	}
+
+	private static void submitIfValid(StringProperty text, DoubleProperty number)
+	{
+		try
+		{
+			number.set(Double.parseDouble(text.get()));
+		} catch (NumberFormatException e)
+		{
+			text.set(Double.toString(number.doubleValue()));
+		}
+	}
+
+	private static void submitOnFocusLost(StringProperty text, DoubleProperty number, boolean hasFocus)
+	{
+		if (!hasFocus)
+			submitIfValid(text, number);
+	}
+
+	private static void submitOnKeyPressed(StringProperty text, DoubleProperty number, KeyEvent event, KeyCode key)
+	{
+		if (event.getCode().equals(key))
+		{
+			LOG.debug("submitting {} to {}", text, number);
+			event.consume();
+			submitIfValid(text, number);
+		}
 	}
 
 	public TextField textX()

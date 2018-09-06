@@ -125,7 +125,7 @@ public class N5BackendDialogs
 					.map(File::getAbsolutePath)
 					.ifPresent(root::set);
 		};
-		return new GenericBackendDialogN5(rootField, onClick, "HDF5", writerSupplier, propagationExecutor);
+		return new GenericBackendDialogN5(rootField, onClick, "FileSystem", writerSupplier, propagationExecutor);
 	}
 
 	public static GenericBackendDialogN5 googleCloud(

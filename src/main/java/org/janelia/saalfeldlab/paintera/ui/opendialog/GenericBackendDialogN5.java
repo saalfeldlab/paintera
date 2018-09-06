@@ -299,15 +299,9 @@ public class GenericBackendDialogN5 implements BackendDialog
 		return N5Helpers.assignments(n5.get(), this.dataset.get());
 	}
 
-	public IdService idService()
+	public IdService idService() throws IOException
 	{
-		try
-		{
-			return N5Helpers.idService(this.n5.get(), this.dataset.get());
-		} catch (final IOException e)
-		{
-			throw new RuntimeException(e);
-		}
+		return N5Helpers.idService(this.n5.get(), this.dataset.get());
 	}
 
 	private Node initializeNode(

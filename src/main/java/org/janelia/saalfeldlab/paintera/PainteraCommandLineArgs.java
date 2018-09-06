@@ -17,6 +17,12 @@ public class PainteraCommandLineArgs implements Callable<Boolean>
 
 	private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
+	private static final int DEFAULT_NUM_SCREEN_SCALES = 5;
+
+	private static final double DEFAULT_HIGHEST_SCREEN_SCALE = 1.0;
+
+	private static final double DEFAULT_SCREEN_SCALE_FACTOR = 0.5;
+
 	@Option(names = {"--width"}, paramLabel = "WIDTH", required = false, description = "Initial width of viewer. " +
 			"Defaults to 800. Overrides width stored in project.")
 	private int width = -1;
@@ -55,7 +61,7 @@ public class PainteraCommandLineArgs implements Callable<Boolean>
 	private double[] screenScales;
 
 	@Parameters(index = "0", paramLabel = "PROJECT", arity = "0..1", description = "Optional project N5 root (N5 or " +
-			"HDF5).")
+			"FileSystem).")
 	private String project;
 
 	@Option(names = "--print-error-codes", paramLabel = "PRINT_ERROR_CODES", required = false, description = "List all" +
@@ -76,9 +82,9 @@ public class PainteraCommandLineArgs implements Callable<Boolean>
 		rawSources = rawSources == null ? new String[] {} : rawSources;
 		labelSources = labelSources == null ? new String[] {} : labelSources;
 
-		numScreenScales = Optional.ofNullable(this.numScreenScales).filter(n -> n > 0).orElse(3);
-		highestScreenScale = Optional.ofNullable(highestScreenScale).filter(s -> s > 0 && s <= 1).orElse(1.0);
-		screenScaleFactor = Optional.ofNullable(screenScaleFactor).filter(f -> f > 0 && f < 1).orElse(0.5);
+		numScreenScales = Optional.ofNullable(this.numScreenScales).filter(n -> n > 0).orElse(DEFAULT_NUM_SCREEN_SCALES);
+		highestScreenScale = Optional.ofNullable(highestScreenScale).filter(s -> s > 0 && s <= 1).orElse(DEFAULT_HIGHEST_SCREEN_SCALE);
+		screenScaleFactor = Optional.ofNullable(screenScaleFactor).filter(f -> f > 0 && f < 1).orElse(DEFAULT_SCREEN_SCALE_FACTOR);
 		screenScales = screenScales == null
 		               ? createScreenScales(numScreenScales, highestScreenScale, screenScaleFactor)
 		               : screenScales;

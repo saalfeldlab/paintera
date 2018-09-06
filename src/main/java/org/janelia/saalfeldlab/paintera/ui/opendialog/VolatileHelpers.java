@@ -169,7 +169,8 @@ public class VolatileHelpers
 					scaleDataset);
 			final N5CacheLoader                                                     loader       = new N5CacheLoader(
 					reader,
-					scaleDataset
+					scaleDataset,
+					N5CacheLoader.constantNullReplacement( Label.BACKGROUND )
 			);
 			final SoftRefLoaderCache<Long, Cell<VolatileLabelMultisetArray>>        cache        = new
 					SoftRefLoaderCache<>();

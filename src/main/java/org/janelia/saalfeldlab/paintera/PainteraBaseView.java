@@ -22,6 +22,7 @@ import javafx.scene.layout.Pane;
 import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.Volatile;
 import net.imglib2.converter.ARGBColorConverter;
+import net.imglib2.converter.ARGBCompositeColorConverter;
 import net.imglib2.converter.Converter;
 import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.type.NativeType;
@@ -32,6 +33,8 @@ import net.imglib2.type.numeric.ARGBType;
 import net.imglib2.type.numeric.IntegerType;
 import net.imglib2.type.numeric.RealType;
 import net.imglib2.type.volatiles.AbstractVolatileNativeRealType;
+import net.imglib2.type.volatiles.AbstractVolatileRealType;
+import net.imglib2.view.composite.RealComposite;
 import org.janelia.saalfeldlab.fx.event.KeyTracker;
 import org.janelia.saalfeldlab.fx.event.MouseTracker;
 import org.janelia.saalfeldlab.fx.ortho.GridConstraintsManager;
@@ -45,6 +48,8 @@ import org.janelia.saalfeldlab.paintera.config.NavigationConfigNode;
 import org.janelia.saalfeldlab.paintera.config.OrthoSliceConfig;
 import org.janelia.saalfeldlab.paintera.config.OrthoSliceConfigBase;
 import org.janelia.saalfeldlab.paintera.config.Viewer3DConfig;
+import org.janelia.saalfeldlab.paintera.data.mask.MaskedSource;
+import org.janelia.saalfeldlab.paintera.state.ChannelSourceState;
 import org.janelia.saalfeldlab.paintera.state.GlobalTransformManager;
 import org.janelia.saalfeldlab.paintera.state.LabelSourceState;
 import org.janelia.saalfeldlab.paintera.state.RawSourceState;
@@ -173,15 +178,28 @@ public class PainteraBaseView
 		{
 			addRawSource((RawSourceState) state);
 		}
+		else if (state instanceof ChannelSourceState<?, ?, ?, ?>)
+		{
+			addChannelSource((ChannelSourceState<?, ?, ?, ?>) state);
+		}
 		else
 		{
 			addGenericState(state);
 		}
+
 	}
 
 	public <D, T> void addGenericState(final SourceState<D, T> state)
 	{
 		sourceInfo.addState(state);
+
+		state.compositeProperty().addListener(obs -> orthogonalViews().requestRepaint());
+
+		if (state.getDataSource() instanceof MaskedSource<?, ?>) {
+			final MaskedSource<?, ?> ms = ((MaskedSource<?, ?>) state.getDataSource());
+			ms.showCanvasOverBackgroundProperty().addListener(obs -> orthogonalViews().requestRepaint());
+			ms.currentCanvasDirectoryProperty().addListener(obs -> orthogonalViews().requestRepaint());
+		}
 	}
 
 	public <D extends RealType<D> & NativeType<D>, T extends AbstractVolatileNativeRealType<D, T>> RawSourceState<D,
@@ -203,8 +221,8 @@ public class PainteraBaseView
 	public <T extends RealType<T>, U extends RealType<U>> void addRawSource(
 			final RawSourceState<T, U> state)
 	{
+		addGenericState(state);
 		LOG.debug("Adding raw state={}", state);
-		sourceInfo.addState(state);
 		final ARGBColorConverter<U> conv      = state.converter();
 		final ARGBColorConverter<U> colorConv = conv;
 		colorConv.colorProperty().addListener((obs, oldv, newv) -> orthogonalViews().requestRepaint());
@@ -239,6 +257,9 @@ public class PainteraBaseView
 	public <D extends IntegerType<D>, T extends Type<T>> void addLabelSource(
 			final LabelSourceState<D, T> state)
 	{
+
+		addGenericState(state);
+
 		LOG.debug("Adding label state={}", state);
 		final Converter<T, ARGBType> converter = state.converter();
 		if (converter instanceof HighlightingStreamConverter<?>)
@@ -252,8 +273,25 @@ public class PainteraBaseView
 		orthogonalViews().applyToAll(vp -> state.lockedSegments().addListener(obs -> vp.requestRepaint()));
 
 		state.meshManager().areMeshesEnabledProperty().bind(viewer3D.isMeshesEnabledProperty());
+	}
 
-		sourceInfo.addState(state.getDataSource(), state);
+	public <
+			D extends RealType<D>,
+			T extends AbstractVolatileRealType<D, T>,
+			CT extends RealComposite<T>,
+			V extends Volatile<CT>> void addChannelSource(
+			final ChannelSourceState<D, T, CT, V> state)
+	{
+		addGenericState(state);
+		LOG.debug("Adding raw state={}", state);
+		final ARGBCompositeColorConverter<T, CT, V> conv = state.converter();
+		for (int channel = 0; channel < conv.numChannels(); ++channel) {
+			conv.colorProperty(channel).addListener((obs, oldv, newv) -> orthogonalViews().requestRepaint());
+			conv.minProperty(channel).addListener((obs, oldv, newv) -> orthogonalViews().requestRepaint());
+			conv.maxProperty(channel).addListener((obs, oldv, newv) -> orthogonalViews().requestRepaint());
+			conv.channelAlphaProperty(channel).addListener((obs, oldv, newv) -> orthogonalViews().requestRepaint());
+		}
+		conv.alphaProperty().addListener((obs, oldv, newv) -> orthogonalViews().requestRepaint());
 	}
 
 	@SuppressWarnings({"unchecked", "rawtypes"})
@@ -404,7 +442,7 @@ public class PainteraBaseView
 			final double... screenScales)
 	{
 		final PainteraBaseView baseView = new PainteraBaseView(
-				Math.min(8, Math.max(1, Runtime.getRuntime().availableProcessors() / 2)),
+				reasonableNumFetcherThreads(),
 				ViewerOptions.options().screenScales(screenScales),
 				si -> s -> si.getState(s).interpolationProperty().get()
 		);

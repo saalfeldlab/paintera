@@ -13,6 +13,8 @@ public interface BindUnbindAndNodeSupplier extends Supplier<Node>, BindUnbind
 		return new Empty();
 	}
 
+	public static BindUnbindAndNodeSupplier noBind(Supplier<Node> n) { return new NoBind(n); };
+
 	public static class Empty implements BindUnbindAndNodeSupplier
 	{
 
@@ -33,6 +35,34 @@ public interface BindUnbindAndNodeSupplier extends Supplier<Node>, BindUnbind
 		{
 
 		}
+	}
 
+	public static class NoBind implements BindUnbindAndNodeSupplier
+	{
+
+		private final Supplier<Node> n;
+
+		public NoBind(Supplier<Node> n)
+		{
+			this.n = n;
+		}
+
+		@Override
+		public Node get()
+		{
+			return n.get();
+		}
+
+		@Override
+		public void bind()
+		{
+
+		}
+
+		@Override
+		public void unbind()
+		{
+
+		}
 	}
 }

@@ -9,7 +9,9 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -174,7 +176,8 @@ public class N5Helpers
 			if (isMultiScale)
 			{
 				LOG.warn(
-						"Found multi-scale group without {} tag. Implicit multi-scale detection will be removed in the" +
+						"Found multi-scale group without {} tag. Implicit multi-scale detection will be removed in " +
+								"the" +
 								" future. Please add \"{}\":{} to attributes.json.",
 						MULTI_SCALE_KEY,
 						MULTI_SCALE_KEY,
@@ -321,12 +324,12 @@ public class N5Helpers
 
 	public static List<String> discoverDatasets(final N5Reader n5, final Runnable onInterruption)
 	{
-		final List<String>    datasets = new ArrayList<>();
-		final ExecutorService exec     = Executors.newFixedThreadPool(
+		final List<String> datasets = new ArrayList<>();
+		final ExecutorService exec = Executors.newFixedThreadPool(
 				n5 instanceof N5HDF5Reader ? 1 : 12,
 				new NamedThreadFactory("dataset-discovery-%d", true)
-		                                                             );
-		final AtomicInteger   counter  = new AtomicInteger(1);
+		                                                         );
+		final AtomicInteger counter = new AtomicInteger(1);
 		exec.submit(() -> discoverSubdirectories(n5, "", datasets, exec, counter));
 		while (counter.get() > 0 && !Thread.currentThread().isInterrupted())
 		{
@@ -572,16 +575,16 @@ public class N5Helpers
 		final V                   vtype = (V) VolatileTypeMatcher.getVolatileTypeForType(type);
 		final Pair<VolatileCachedCellImg<V, A>, VolatileCache<Long, Cell<A>>> vraw = VolatileHelpers
 				.createVolatileCachedCellImg(
-				raw,
-				N5Helpers.<V, A>linkedTypeFactory(vtype),
-				(CreateInvalid<Long, Cell<A>>) (CreateInvalid) CreateInvalidVolatileCell.get(
-						raw.getCellGrid(),
-						type,
-						AccessFlags.ofAccess(raw.getAccessType()).contains(AccessFlags.DIRTY)
-				                                                                            ),
-				sharedQueue,
-				new CacheHints(LoadingStrategy.VOLATILE, priority, true)
-		                                                                                                                        );
+						raw,
+						N5Helpers.<V, A>linkedTypeFactory(vtype),
+						(CreateInvalid<Long, Cell<A>>) (CreateInvalid) CreateInvalidVolatileCell.get(
+								raw.getCellGrid(),
+								type,
+								AccessFlags.ofAccess(raw.getAccessType()).contains(AccessFlags.DIRTY)
+						                                                                            ),
+						sharedQueue,
+						new CacheHints(LoadingStrategy.VOLATILE, priority, true)
+				                            );
 		return new ValueTriple<>(raw, vraw.getA(), transform);
 	}
 
@@ -640,16 +643,16 @@ public class N5Helpers
 				RandomAccessibleInterval[scaleDatasets.length];
 		@SuppressWarnings("unchecked") final RandomAccessibleInterval<V>[] vraw = new
 				RandomAccessibleInterval[scaleDatasets.length];
-		final AffineTransform3D[] transforms                 = new AffineTransform3D[scaleDatasets.length];
-		final double[]            initialDonwsamplingFactors = getDownsamplingFactors(
+		final AffineTransform3D[] transforms = new AffineTransform3D[scaleDatasets.length];
+		final double[] initialDonwsamplingFactors = getDownsamplingFactors(
 				reader,
 				Paths.get(dataset, scaleDatasets[0]).toString()
-		                                                                             );
+		                                                                  );
 		LOG.debug("Initial transform={}", transform);
-		final ExecutorService            es      = Executors.newFixedThreadPool(
+		final ExecutorService es = Executors.newFixedThreadPool(
 				scaleDatasets.length,
 				new NamedThreadFactory("populate-mipmap-scales-%d", true)
-		                                                                       );
+		                                                       );
 		final ArrayList<Future<Boolean>> futures = new ArrayList<>();
 		for (int scale = 0; scale < scaleDatasets.length; ++scale)
 		{
@@ -747,14 +750,15 @@ public class N5Helpers
 			final SharedQueue sharedQueue,
 			final int priority) throws IOException
 	{
-		final DatasetAttributes                                                 attrs        = reader
+		final DatasetAttributes attrs = reader
 				.getDatasetAttributes(
-				dataset);
-		final N5CacheLoader                                                     loader       = new N5CacheLoader(
+						dataset);
+		final N5CacheLoader loader = new N5CacheLoader(
 				reader,
-				dataset
+				dataset,
+				N5CacheLoader.constantNullReplacement( Label.BACKGROUND )
 		);
-		final SoftRefLoaderCache<Long, Cell<VolatileLabelMultisetArray>>        cache        = new
+		final SoftRefLoaderCache<Long, Cell<VolatileLabelMultisetArray>> cache = new
 				SoftRefLoaderCache<>();
 		final LoaderCacheAsCacheAdapter<Long, Cell<VolatileLabelMultisetArray>> wrappedCache = new
 				LoaderCacheAsCacheAdapter<>(
@@ -779,7 +783,7 @@ public class N5Helpers
 				new VolatileHelpers.CreateInvalidVolatileLabelMultisetArray(cachedImg.getCellGrid()),
 				sharedQueue,
 				new CacheHints(LoadingStrategy.VOLATILE, priority, false)
-		                                                                                                                                                                                                                                                      );
+				                                                                       );
 
 		return new ValueTriple<>(cachedImg, volatileCachedImgAndCache.getA(), transform);
 
@@ -850,16 +854,16 @@ public class N5Helpers
 				RandomAccessibleInterval[scaleDatasets.length];
 		@SuppressWarnings("unchecked") final RandomAccessibleInterval<VolatileLabelMultisetType>[] vraw = new
 				RandomAccessibleInterval[scaleDatasets.length];
-		final AffineTransform3D[]        transforms                 = new AffineTransform3D[scaleDatasets.length];
-		final double[]                   initialDonwsamplingFactors = getDownsamplingFactors(
+		final AffineTransform3D[] transforms = new AffineTransform3D[scaleDatasets.length];
+		final double[] initialDonwsamplingFactors = getDownsamplingFactors(
 				reader,
 				Paths.get(dataset, scaleDatasets[0]).toString()
-		                                                                                    );
-		final ExecutorService            es                         = Executors.newFixedThreadPool(
+		                                                                  );
+		final ExecutorService es = Executors.newFixedThreadPool(
 				scaleDatasets.length,
 				new NamedThreadFactory("populate-mipmap-scales-%d", true)
-		                                                                                          );
-		final ArrayList<Future<Boolean>> futures                    = new ArrayList<>();
+		                                                       );
+		final ArrayList<Future<Boolean>> futures = new ArrayList<>();
 		for (int scale = 0; scale < scaleDatasets.length; ++scale)
 		{
 			final int fScale = scale;
@@ -955,7 +959,8 @@ public class N5Helpers
 			return new FragmentSegmentAssignmentOnlyLocal(
 					TLongLongHashMap::new,
 					(ks, vs) -> {
-						throw new UnableToPersist("Persisting assignments not supported for non Paintera group/dataset" +
+						throw new UnableToPersist("Persisting assignments not supported for non Paintera " +
+								"group/dataset" +
 								" " + group);
 					}
 			);
@@ -978,7 +983,7 @@ public class N5Helpers
 						new GzipCompression()
 				);
 				writer.createDataset(dataset, attrs);
-				final DataBlock<long[]> keyBlock   = new LongArrayDataBlock(
+				final DataBlock<long[]> keyBlock = new LongArrayDataBlock(
 						new int[] {keys.length, 1},
 						new long[] {0, 0},
 						keys
@@ -1039,8 +1044,10 @@ public class N5Helpers
 	public static IdService idService(final N5Writer n5, final String dataset) throws IOException
 	{
 
+		LOG.debug("Requesting id service for {}:{}", n5, dataset);
 		final Long maxId = n5.getAttribute(dataset, "maxId", Long.class);
-		if (maxId == null) { throw new RuntimeException("maxId not specified in attributes.json"); }
+		LOG.debug("Found maxId={}", maxId);
+		if (maxId == null) { throw new IOException("maxId not specified in attributes.json"); }
 		return new N5IdService(n5, dataset, maxId);
 
 	}
@@ -1062,25 +1069,71 @@ public class N5Helpers
 		return Paths.get(dataset, scaleDirs[scaleDirs.length - 1]).toString();
 	}
 
-	public static double[] getDoubleArrayAttribute(final N5Reader n5, final String dataset, final String key, final
-	double... fallBack)
+	public static double[] getDoubleArrayAttribute(
+			final N5Reader n5,
+			final String dataset,
+			final String key,
+			final double... fallBack) throws IOException
+	{
+		return getDoubleArrayAttribute(n5, dataset, key, false, fallBack);
+	}
+
+	public static double[] getDoubleArrayAttribute(
+			final N5Reader n5,
+			final String dataset,
+			final String key,
+			final boolean revert,
+			final double... fallBack)
 	throws IOException
 	{
+
+		if (revert)
+		{
+			final double[] toRevert = getDoubleArrayAttribute(n5, dataset, key, false, fallBack);
+			LOG.debug("Will revert {}", toRevert);
+			for ( int i = 0, k = toRevert.length - 1; i < toRevert.length / 2; ++i, --k)
+			{
+				double tmp = toRevert[i];
+				toRevert[i] = toRevert[k];
+				toRevert[k] = tmp;
+			}
+			LOG.debug("Reverted {}", toRevert);
+			return toRevert;
+		}
+
 		if (isPainteraDataset(n5, dataset))
 		{
-			return getDoubleArrayAttribute(n5, dataset + "/" + PAINTERA_DATA_DATASET, key, fallBack);
+			return getDoubleArrayAttribute(n5, dataset + "/" + PAINTERA_DATA_DATASET, key, revert, fallBack);
 		}
-		return Optional.ofNullable(n5.getAttribute(dataset, key, double[].class)).orElse(fallBack);
+		try {
+			return Optional.ofNullable(n5.getAttribute(dataset, key, double[].class)).orElse(fallBack);
+		}
+		catch (ClassCastException e)
+		{
+			LOG.debug("Caught exception when trying to read double[] attribute. Will try to read as long[] attribute instead.", e);
+			return Optional.ofNullable(asDoubleArray(n5.getAttribute(dataset, key, long[].class))).orElse(fallBack);
+		}
 	}
+
 
 	public static double[] getResolution(final N5Reader n5, final String dataset) throws IOException
 	{
-		return getDoubleArrayAttribute(n5, dataset, RESOLUTION_KEY, 1.0, 1.0, 1.0);
+		return getResolution(n5, dataset, false);
+	}
+
+	public static double[] getResolution(final N5Reader n5, final String dataset, boolean revert) throws IOException
+	{
+		return getDoubleArrayAttribute(n5, dataset, RESOLUTION_KEY, revert, 1.0, 1.0, 1.0);
 	}
 
 	public static double[] getOffset(final N5Reader n5, final String dataset) throws IOException
 	{
-		return getDoubleArrayAttribute(n5, dataset, OFFSET_KEY, 0.0, 0.0, 0.0);
+		return getOffset(n5, dataset, false);
+	}
+
+	public static double[] getOffset(final N5Reader n5, final String dataset, boolean revert) throws IOException
+	{
+		return getDoubleArrayAttribute(n5, dataset, OFFSET_KEY, revert,0.0, 0.0, 0.0);
 	}
 
 	public static double[] getDownsamplingFactors(final N5Reader n5, final String dataset) throws IOException
@@ -1095,7 +1148,12 @@ public class N5Helpers
 
 	public static AffineTransform3D getTransform(final N5Reader n5, final String dataset) throws IOException
 	{
-		return fromResolutionAndOffset(getResolution(n5, dataset), getOffset(n5, dataset));
+		return getTransform(n5, dataset, false);
+	}
+
+	public static AffineTransform3D getTransform(final N5Reader n5, final String dataset, boolean revertSpatialAttributes) throws IOException
+	{
+		return fromResolutionAndOffset(getResolution(n5, dataset, revertSpatialAttributes), getOffset(n5, dataset, revertSpatialAttributes));
 	}
 
 	public static <A, B, C> ValueTriple<A[], B[], C[]> asArrayTriple(final ValueTriple<A, B, C> scalarTriple)
@@ -1170,12 +1228,12 @@ public class N5Helpers
 			}
 		}
 
-		final N5FSMeta meta     = new N5FSMeta((N5FSReader) reader, dataset);
-		final String   basePath = Paths.get(
+		final N5FSMeta meta = new N5FSMeta((N5FSReader) reader, dataset);
+		final String basePath = Paths.get(
 				meta.basePath(),
 				dataset,
 				LABEL_TO_BLOCK_MAPPING
-		                                   ).toAbsolutePath().toString();
+		                                 ).toAbsolutePath().toString();
 		if (isMultiScale(reader, dataset + "/data"))
 		{
 			final String[] sortedScaleDirs = listAndSortScaleDatasets(reader, dataset + "/data");
@@ -1247,4 +1305,111 @@ public class N5Helpers
 		}
 	}
 
+	public static void createEmptyLabeLDataset(
+			String container,
+			String group,
+			long[] dimensions,
+			int[] blockSize,
+			double[] resolution,
+			double[] offset,
+			double[][] relativeScaleFactors,
+			int[] maxNumEntries
+	                                          ) throws IOException
+	{
+		createEmptyLabeLDataset(container, group, dimensions, blockSize, resolution, offset,relativeScaleFactors, maxNumEntries, false);
+	}
+
+	public static void createEmptyLabeLDataset(
+			String container,
+			String group,
+			long[] dimensions,
+			int[] blockSize,
+			double[] resolution,
+			double[] offset,
+			double[][] relativeScaleFactors,
+			int[] maxNumEntries,
+			boolean ignoreExisiting
+	                                          ) throws IOException
+	{
+
+		//		{"painteraData":{"type":"label"},
+		// "maxId":191985,
+		// "labelBlockLookup":{"attributes":{},"root":"/home/phil/local/tmp/sample_a_padded_20160501.n5",
+		// "scaleDatasetPattern":"volumes/labels/neuron_ids/oke-test/s%d","type":"n5-filesystem"}}
+
+		final Map<String, String> pd = new HashMap<String, String>();
+		pd.put("type", "label");
+		final N5FSWriter n5 = new N5FSWriter(container);
+		final String uniqueLabelsGroup = String.format("%s/unique-labels", group);
+
+		if (!ignoreExisiting && n5.datasetExists(group))
+			throw new IOException(String.format("Dataset `%s' already exists in container `%s'", group, container));
+
+		if (!n5.exists(group))
+			n5.createGroup(group);
+
+		if (!ignoreExisiting && n5.listAttributes(group).containsKey(PAINTERA_DATA_KEY))
+			throw new IOException(String.format("Group `%s' exists in container `%s' and is Paintera data set", group, container));
+
+		if (!ignoreExisiting && n5.exists(uniqueLabelsGroup))
+			throw new IOException(String.format("Unique labels group `%s' exists in container `%s' -- conflict likely.", uniqueLabelsGroup, container));
+
+		n5.setAttribute(group, PAINTERA_DATA_KEY, pd);
+		n5.setAttribute(group, MAX_ID_KEY, 1L);
+
+		final String dataGroup = String.format("%s/data", group);
+		n5.createGroup(dataGroup);
+
+		// {"maxId":191978,"multiScale":true,"offset":[3644.0,3644.0,1520.0],"resolution":[4.0,4.0,40.0],
+		// "isLabelMultiset":true}%
+		n5.setAttribute(dataGroup, MULTI_SCALE_KEY, true);
+		n5.setAttribute(dataGroup, OFFSET_KEY, offset);
+		n5.setAttribute(dataGroup, RESOLUTION_KEY, resolution);
+		n5.setAttribute(dataGroup, IS_LABEL_MULTISET_KEY, true);
+
+		n5.createGroup(uniqueLabelsGroup);
+		n5.setAttribute(uniqueLabelsGroup, MULTI_SCALE_KEY, true);
+
+		final String scaleDatasetPattern      = String.format("%s/s%%d", dataGroup);
+		final String scaleUniqueLabelsPattern = String.format("%s/s%%d", uniqueLabelsGroup);
+		final long[]       scaledDimensions         = dimensions.clone();
+		final double[] accumulatedFactors = new double[] {1.0, 1.0, 1.0};
+		for (int scaleLevel = 0, downscaledLevel = -1; downscaledLevel < relativeScaleFactors.length; ++scaleLevel, ++downscaledLevel)
+		{
+			double[]     scaleFactors       = downscaledLevel < 0 ? null : relativeScaleFactors[downscaledLevel];
+
+			final String dataset            = String.format(scaleDatasetPattern, scaleLevel);
+			final String uniqeLabelsDataset = String.format(scaleUniqueLabelsPattern, scaleLevel);
+			final int maxNum = downscaledLevel < 0 ? -1 : maxNumEntries[downscaledLevel];
+			n5.createDataset(dataset, scaledDimensions, blockSize, DataType.UINT8, new GzipCompression());
+			n5.createDataset(uniqeLabelsDataset, scaledDimensions, blockSize, DataType.UINT64, new GzipCompression());
+
+			// {"maxNumEntries":-1,"compression":{"type":"gzip","level":-1},"downsamplingFactors":[2.0,2.0,1.0],"blockSize":[64,64,64],"dataType":"uint8","dimensions":[625,625,125]}%
+			n5.setAttribute(dataset, MAX_NUM_ENTRIES_KEY, maxNum);
+			if (scaleLevel == 0)
+				n5.setAttribute(dataset, IS_LABEL_MULTISET_KEY, true);
+			else
+			{
+				n5.setAttribute(dataset, DOWNSAMPLING_FACTORS_KEY, accumulatedFactors);
+				n5.setAttribute(uniqeLabelsDataset, DOWNSAMPLING_FACTORS_KEY, accumulatedFactors);
+			}
+
+
+
+			// {"compression":{"type":"gzip","level":-1},"downsamplingFactors":[2.0,2.0,1.0],"blockSize":[64,64,64],"dataType":"uint64","dimensions":[625,625,125]}
+
+			if (scaleFactors != null)
+			{
+				Arrays.setAll(scaledDimensions, dim -> (long) Math.ceil(scaledDimensions[dim] / scaleFactors[dim]));
+				Arrays.setAll(accumulatedFactors, dim -> accumulatedFactors[dim] * scaleFactors[dim]);
+			}
+		}
+	}
+
+	private static double[] asDoubleArray(long[] array)
+	{
+		final double[] doubleArray = new double[array.length];
+		Arrays.setAll(doubleArray, d -> array[d]);
+		return doubleArray;
+	}
 }
