@@ -91,7 +91,7 @@ public class N5OpenSourceDialog extends Dialog<BackendDialog> implements Combine
 		}
 	}
 
-	@Plugin(type = OpenDialogMenuEntry.class, menuPath = "HDF5", priority = Double.MAX_VALUE - 1)
+	@Plugin(type = OpenDialogMenuEntry.class, menuPath = "HDF5", priority = Double.MAX_VALUE / 2.0)
 	public static class N5HDFOpener implements OpenDialogMenuEntry {
 
 		private static final HDF5 hdf5 = new HDF5();
@@ -114,7 +114,7 @@ public class N5OpenSourceDialog extends Dialog<BackendDialog> implements Combine
 		}
 	}
 
-	@Plugin(type = OpenDialogMenuEntry.class, menuPath= "Google Cloud", priority = Double.MAX_VALUE - 1)
+	@Plugin(type = OpenDialogMenuEntry.class, menuPath= "Google Cloud", priority = Double.MAX_VALUE / 4.0)
 	public static class GoogleCloudOpener implements OpenDialogMenuEntry {
 
 		@Override

@@ -108,6 +108,7 @@ public class OpenDialogMenu
 				pluginService.getPluginsOfType(OpenDialogMenuEntry.class);
 		Collections.sort(infos, (i1, i2) -> {
 			int rankComparison = -Double.compare(i1.getPriority(), i2.getPriority());
+			LOG.trace("rank comparison for {} {} is {}", i1.getPriority(), i2.getPriority(), rankComparison);
 			if (rankComparison == 0)
 			{
 				return i1.getAnnotation().menuPath().compareToIgnoreCase(i2.getAnnotation().menuPath());
