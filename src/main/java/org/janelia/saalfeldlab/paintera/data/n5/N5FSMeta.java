@@ -2,6 +2,7 @@ package org.janelia.saalfeldlab.paintera.data.n5;
 
 import java.io.IOException;
 
+import com.google.gson.GsonBuilder;
 import com.google.gson.annotations.Expose;
 import org.janelia.saalfeldlab.n5.N5FSReader;
 import org.janelia.saalfeldlab.n5.N5FSWriter;
@@ -37,6 +38,11 @@ public class N5FSMeta implements N5Meta
 	public N5FSWriter writer() throws IOException
 	{
 		return new N5FSWriter(n5);
+	}
+
+	public N5FSReader reader(GsonBuilder builder) throws IOException
+	{
+		return new N5FSReader(n5, builder);
 	}
 
 	@Override

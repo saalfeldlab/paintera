@@ -7,14 +7,14 @@ import java.util.List;
 import java.util.Optional;
 import java.util.function.IntFunction;
 import java.util.function.Supplier;
-import java.util.stream.Stream;
+import java.util.stream.IntStream;
 
 import com.google.gson.JsonArray;
 import com.google.gson.JsonDeserializationContext;
-import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import net.imglib2.Interval;
 import net.imglib2.type.numeric.ARGBType;
+import org.janelia.saalfeldlab.labels.blocks.LabelBlockLookup;
 import org.janelia.saalfeldlab.n5.N5Writer;
 import org.janelia.saalfeldlab.paintera.N5Helpers;
 import org.janelia.saalfeldlab.paintera.composition.Composite;
@@ -25,10 +25,10 @@ import org.janelia.saalfeldlab.paintera.control.selection.SelectedIds;
 import org.janelia.saalfeldlab.paintera.data.DataSource;
 import org.janelia.saalfeldlab.paintera.data.mask.MaskedSource;
 import org.janelia.saalfeldlab.paintera.data.n5.N5DataSource;
+import org.janelia.saalfeldlab.paintera.data.n5.ReflectionException;
 import org.janelia.saalfeldlab.paintera.id.IdService;
 import org.janelia.saalfeldlab.paintera.meshes.InterruptibleFunction;
 import org.janelia.saalfeldlab.paintera.meshes.ManagedMeshSettings;
-import org.janelia.saalfeldlab.paintera.meshes.cache.BlocksForLabelFromFile;
 import org.janelia.saalfeldlab.paintera.serialization.FragmentSegmentAssignmentOnlyLocalSerializer;
 import org.janelia.saalfeldlab.paintera.serialization.StatefulSerializer;
 import org.janelia.saalfeldlab.paintera.serialization.StatefulSerializer.Arguments;
@@ -36,6 +36,7 @@ import org.janelia.saalfeldlab.paintera.state.LabelSourceState;
 import org.janelia.saalfeldlab.paintera.state.SourceState;
 import org.janelia.saalfeldlab.paintera.stream.AbstractHighlightingARGBStream;
 import org.janelia.saalfeldlab.paintera.stream.HighlightingStreamConverter;
+import org.janelia.saalfeldlab.util.MakeUnchecked;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -85,8 +86,7 @@ public class LabelSourceStateDeserializer<C extends HighlightingStreamConverter<
 			final C converter,
 			final String name,
 			final SourceState<?, ?>[] dependsOn,
-			final JsonDeserializationContext context) throws IOException, ClassNotFoundException
-	{
+			final JsonDeserializationContext context) throws IOException, ClassNotFoundException, ReflectionException {
 		final boolean isMaskedSource = source instanceof MaskedSource<?, ?>;
 		LOG.debug("Is {} masked source? {}", source, isMaskedSource);
 		if (isMaskedSource)
@@ -106,7 +106,7 @@ public class LabelSourceStateDeserializer<C extends HighlightingStreamConverter<
 			return null;
 		}
 
-		final N5DataSource<?, ?> n5Source = (N5DataSource<?, ?>) (isMaskedSource
+		final N5DataSource<?, ?> n5Source = (N5DataSource) (isMaskedSource
 		                                                          ? ((MaskedSource<?, ?>) source).underlyingSource()
 		                                                          : source);
 
@@ -148,34 +148,11 @@ public class LabelSourceStateDeserializer<C extends HighlightingStreamConverter<
 		final AbstractHighlightingARGBStream stream = converter.getStream();
 		stream.setHighlightsAndAssignmentAndLockedSegments(selectedIds, assignment, lockedSegments);
 
-		final JsonElement                               labelBlockMappers = map.get(LabelSourceStateSerializer
-				.LABEL_BLOCK_MAPPING_KEY);
-		final InterruptibleFunction<Long, Interval[]>[] blockLoaders;
-		if (labelBlockMappers == null || !(labelBlockMappers instanceof JsonArray) || ((JsonArray) labelBlockMappers)
-				.size() != source.getNumMipmapLevels())
-		{
-			blockLoaders = Stream.generate(() -> new BlocksForLabelFromFile(null)).limit(source.getNumMipmapLevels())
-					.toArray(
-					InterruptibleFunction[]::new);
-		}
-		else
-		{
-			blockLoaders = new InterruptibleFunction[source.getNumMipmapLevels()];
-			final JsonArray labelBlockMappersArray = labelBlockMappers.getAsJsonArray();
-			for (int level = 0; level < blockLoaders.length; ++level)
-			{
-				final String                                                   className = labelBlockMappersArray.get(
-						level).getAsJsonObject().get(LabelSourceStateSerializer.TYPE_KEY).getAsString();
-				final Class<? extends InterruptibleFunction<Long, Interval[]>> clazz     = (Class<? extends
-						InterruptibleFunction<Long, Interval[]>>) Class.forName(
-						className);
-				final InterruptibleFunction<Long, Interval[]>                  mapper    = context.deserialize(
-						labelBlockMappersArray.get(level).getAsJsonObject().get(LabelSourceStateSerializer.DATA_KEY),
-						clazz
-				                                                                                              );
-				blockLoaders[level] = mapper;
-			}
-		}
+		LabelBlockLookup lookup = N5Helpers.getLabelBlockLookup(writer, dataset);
+		InterruptibleFunction<Long, Interval[]>[] blockLoaders = IntStream
+				.range(0, source.getNumMipmapLevels())
+				.mapToObj(level -> InterruptibleFunction.fromFunction( MakeUnchecked.function((MakeUnchecked.CheckedFunction<Long, Interval[]>) id -> lookup.read(level, id))))
+				.toArray(InterruptibleFunction[]::new);
 
 		final LabelSourceState state = new LabelSourceState(
 				source,

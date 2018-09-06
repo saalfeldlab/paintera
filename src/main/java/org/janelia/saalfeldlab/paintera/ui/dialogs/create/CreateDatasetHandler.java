@@ -5,12 +5,15 @@ import java.util.Arrays;
 import java.util.Optional;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
+import java.util.stream.IntStream;
 
 import bdv.viewer.Source;
 import javafx.util.Pair;
+import net.imglib2.Interval;
 import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.type.label.LabelMultisetType;
 import net.imglib2.type.label.VolatileLabelMultisetType;
+import org.janelia.saalfeldlab.labels.blocks.LabelBlockLookup;
 import org.janelia.saalfeldlab.n5.N5FSReader;
 import org.janelia.saalfeldlab.paintera.N5Helpers;
 import org.janelia.saalfeldlab.paintera.PainteraBaseView;
@@ -25,10 +28,11 @@ import org.janelia.saalfeldlab.paintera.data.n5.N5DataSource;
 import org.janelia.saalfeldlab.paintera.data.n5.N5FSMeta;
 import org.janelia.saalfeldlab.paintera.data.n5.ReflectionException;
 import org.janelia.saalfeldlab.paintera.id.IdService;
-import org.janelia.saalfeldlab.paintera.meshes.cache.BlocksForLabelFromFile;
+import org.janelia.saalfeldlab.paintera.meshes.InterruptibleFunction;
 import org.janelia.saalfeldlab.paintera.state.LabelSourceState;
 import org.janelia.saalfeldlab.paintera.stream.HighlightingStreamConverter;
 import org.janelia.saalfeldlab.paintera.stream.ModalGoldenAngleSaturatedHighlightingARGBStream;
+import org.janelia.saalfeldlab.util.MakeUnchecked;
 
 public class CreateDatasetHandler
 {
@@ -89,10 +93,11 @@ public class CreateDatasetHandler
 			final FragmentSegmentAssignmentState assignment     = N5Helpers.assignments(meta.writer(), group);
 			final LockedSegmentsOnlyLocal        lockedSegments = new LockedSegmentsOnlyLocal(locked -> {});
 
-			final BlocksForLabelFromFile[] blockLoaders = Arrays
-					.stream(N5Helpers.labelMappingFromFileLoaderPattern(reader, group))
-					.map(BlocksForLabelFromFile::new)
-					.toArray(BlocksForLabelFromFile[]::new);
+			final LabelBlockLookup lookup = N5Helpers.getLabelBlockLookup(meta.reader(), meta.dataset());
+			InterruptibleFunction<Long, Interval[]>[] blockLoaders = IntStream
+					.range(0, maskedSource.getNumMipmapLevels())
+					.mapToObj(level -> InterruptibleFunction.fromFunction( MakeUnchecked.function((MakeUnchecked.CheckedFunction<Long, Interval[]>) id -> lookup.read(level, id))))
+					.toArray(InterruptibleFunction[]::new );
 
 
 			ModalGoldenAngleSaturatedHighlightingARGBStream stream = new ModalGoldenAngleSaturatedHighlightingARGBStream(
