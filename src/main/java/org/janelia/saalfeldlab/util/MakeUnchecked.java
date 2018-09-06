@@ -84,14 +84,18 @@ public class MakeUnchecked
 
 	public static <T> Supplier<T> supplier(final CheckedSupplier<T> supplier)
 	{
+		return supplier(supplier, e -> {throw e instanceof RuntimeException ? (RuntimeException)e : new RuntimeException(e);});
+	}
+
+	public static <T> Supplier<T> supplier(final CheckedSupplier<T> supplier, Function<Exception, T> handler)
+	{
 		return () -> {
 			try
 			{
 				return supplier.get();
 			} catch (final Exception e)
 			{
-				if (e instanceof RuntimeException) { throw (RuntimeException) e; }
-				throw new RuntimeException(e);
+				return handler.apply(e);
 			}
 		};
 	}

@@ -12,6 +12,7 @@ import gnu.trove.map.TLongLongMap;
 import gnu.trove.map.hash.TLongLongHashMap;
 import gnu.trove.map.hash.TLongObjectHashMap;
 import gnu.trove.set.hash.TLongHashSet;
+import javafx.util.Pair;
 import net.imglib2.type.label.Label;
 import org.janelia.saalfeldlab.paintera.control.assignment.action.AssignmentAction;
 import org.janelia.saalfeldlab.paintera.control.assignment.action.Detach;
@@ -212,7 +213,7 @@ public class FragmentSegmentAssignmentOnlyLocal extends FragmentSegmentAssignmen
 		fragmentToSegmentMap.putAll(initialLut.get());
 		syncILut();
 
-		this.actions.forEach(this::apply);
+		this.actions.stream().filter(p -> p.getValue().get()).map(Pair::getKey).forEach(this::applyImpl);
 
 	}
 
@@ -233,6 +234,12 @@ public class FragmentSegmentAssignmentOnlyLocal extends FragmentSegmentAssignmen
 				detachFragmentImpl((Detach) action);
 				break;
 		}
+	}
+
+	@Override
+	protected void reapplyActions()
+	{
+		resetLut();
 	}
 
 	private synchronized void syncILut()

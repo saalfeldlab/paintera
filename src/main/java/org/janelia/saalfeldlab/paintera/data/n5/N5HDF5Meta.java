@@ -96,4 +96,10 @@ public class N5HDF5Meta implements N5Meta
 		}
 	}
 
+	@Override
+	public String toString()
+	{
+		return String.format("{N5HDF5: container=%s dataset=%s}", file, dataset);
+	}
+
 }

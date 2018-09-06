@@ -4,7 +4,9 @@ import java.lang.invoke.MethodHandles;
 import java.util.Arrays;
 import java.util.Optional;
 import java.util.function.Consumer;
+import java.util.function.Function;
 import java.util.function.LongPredicate;
+import java.util.function.Supplier;
 
 import bdv.viewer.Source;
 import gnu.trove.set.hash.TLongHashSet;
@@ -30,9 +32,17 @@ import javafx.scene.layout.GridPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
+import org.janelia.saalfeldlab.fx.Labels;
+import org.janelia.saalfeldlab.fx.TitledPanes;
+import org.janelia.saalfeldlab.fx.undo.UndoFromEvents;
 import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignmentState;
+import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignmentStateWithActionTracker;
+import org.janelia.saalfeldlab.paintera.control.assignment.action.AssignmentAction;
+import org.janelia.saalfeldlab.paintera.control.assignment.action.Detach;
+import org.janelia.saalfeldlab.paintera.control.assignment.action.Merge;
 import org.janelia.saalfeldlab.paintera.control.selection.SelectedIds;
 import org.janelia.saalfeldlab.paintera.control.selection.SelectedSegments;
+import org.janelia.saalfeldlab.paintera.data.mask.MaskedSource;
 import org.janelia.saalfeldlab.paintera.meshes.ManagedMeshSettings;
 import org.janelia.saalfeldlab.paintera.meshes.MeshInfos;
 import org.janelia.saalfeldlab.paintera.meshes.MeshManager;
@@ -41,6 +51,7 @@ import org.janelia.saalfeldlab.paintera.state.SourceInfo;
 import org.janelia.saalfeldlab.paintera.state.SourceState;
 import org.janelia.saalfeldlab.paintera.ui.BindUnbindAndNodeSupplier;
 import org.janelia.saalfeldlab.paintera.ui.CloseButton;
+import org.janelia.saalfeldlab.paintera.ui.source.MaskedSourcePane;
 import org.janelia.saalfeldlab.paintera.ui.source.composite.CompositePane;
 import org.janelia.saalfeldlab.paintera.ui.source.converter.ConverterPane;
 import org.janelia.saalfeldlab.paintera.ui.source.mesh.MeshPane;
@@ -79,11 +90,17 @@ public class StatePane implements BindUnbindAndNodeSupplier
 				new CompositePane(state.compositeProperty()),
 				new ConverterPane(state.converter()),
 				state instanceof LabelSourceState<?, ?>
-				? selectedIds((LabelSourceState<?, ?>) state)
-				: BindUnbindAndNodeSupplier.empty(),
+					? selectedIds((LabelSourceState<?, ?>) state)
+					: BindUnbindAndNodeSupplier.empty(),
 				state instanceof LabelSourceState<?, ?>
-				? meshPane((LabelSourceState<?, ?>) state)
-				: BindUnbindAndNodeSupplier.empty()
+					? meshPane((LabelSourceState<?, ?>) state)
+					: BindUnbindAndNodeSupplier.empty(),
+				state instanceof LabelSourceState<?, ?>
+					? assignmentPane((LabelSourceState<?,?>) state)
+					: BindUnbindAndNodeSupplier.empty(),
+				state.getDataSource() instanceof MaskedSource<?, ?>
+					? new MaskedSourcePane((MaskedSource<?, ?>) state.getDataSource())
+					: BindUnbindAndNodeSupplier.empty()
 		};
 
 		final VBox contents = new VBox(Arrays.stream(this.children).map(c -> c.get()).toArray(Node[]::new));
@@ -395,6 +412,37 @@ public class StatePane implements BindUnbindAndNodeSupplier
 					meshInfos,
 					numScaleLevels
 			);
+		}
+		return BindUnbindAndNodeSupplier.empty();
+	}
+
+
+	private static BindUnbindAndNodeSupplier assignmentPane(final LabelSourceState<?, ?> state)
+	{
+		final FragmentSegmentAssignmentState assignments = state.assignment();
+		if (assignments instanceof FragmentSegmentAssignmentStateWithActionTracker)
+		{
+			final Function<AssignmentAction, String> title = action -> {
+				switch(action.getType())
+				{
+					case MERGE:
+						final Merge m = (Merge)action;
+						return String.format("M: %d %d (%d)", m.fromFragmentId, m.intoFragmentId, m.fromFragmentId);
+					case DETACH:
+						final Detach d = (Detach) action;
+						return String.format("D: %d %d", d.fragmentId, d.fragmentFrom);
+					default:
+						return "UNSUPPORTED ACTION";
+				}
+			};
+			final Function<AssignmentAction, Node> contents = action -> Labels.withTooltip(action.toString());
+			final FragmentSegmentAssignmentStateWithActionTracker assignmentsWithHistory = (FragmentSegmentAssignmentStateWithActionTracker) assignments;
+			Supplier<Node> pane = () -> TitledPanes.createCollapsed("Assignments", UndoFromEvents.withUndoRedoButtons(
+					assignmentsWithHistory.events(),
+					title,
+					contents
+			                                                                                         ));
+			return BindUnbindAndNodeSupplier.noBind(pane);
 		}
 		return BindUnbindAndNodeSupplier.empty();
 	}

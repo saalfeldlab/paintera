@@ -21,6 +21,7 @@ import javafx.scene.layout.ColumnConstraints;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
+import org.janelia.saalfeldlab.fx.event.KeyTracker;
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread;
 import org.janelia.saalfeldlab.paintera.ui.opendialog.OpenSourceDialog;
 
@@ -37,10 +38,9 @@ public class MetaPanel
 
 	private static final String Z_STRING = "Z";
 
-	private final SpatialInformation resolution = new SpatialInformation(TEXTFIELD_WIDTH, X_STRING, Y_STRING,
-			Z_STRING);
+	private final SpatialInformation resolution;
 
-	private final SpatialInformation offset = new SpatialInformation(TEXTFIELD_WIDTH, X_STRING, Y_STRING, Z_STRING);
+	private final SpatialInformation offset;
 
 	private final TextField min = new TextField("");
 
@@ -62,6 +62,27 @@ public class MetaPanel
 
 	public MetaPanel()
 	{
+		this.resolution = new SpatialInformation(
+			TEXTFIELD_WIDTH,
+			X_STRING,
+			Y_STRING,
+			Z_STRING,
+			v -> v > 0,
+			SpatialInformation.Submit.ON_ENTER,
+			SpatialInformation.Submit.ON_FOCUS_LOST);
+		this.resolution.textX().setText("1.0");
+		this.resolution.textY().setText("1.0");
+		this.resolution.textZ().setText("1.0");
+
+		this.offset = new SpatialInformation(
+			TEXTFIELD_WIDTH,
+			X_STRING,
+			Y_STRING,
+			Z_STRING,
+			v -> true,
+			SpatialInformation.Submit.ON_ENTER,
+			SpatialInformation.Submit.ON_FOCUS_LOST);
+
 		cc.setFitToWidth(true);
 
 		final GridPane spatialInfo = new GridPane();

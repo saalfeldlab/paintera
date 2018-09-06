@@ -51,7 +51,6 @@ public class LockFile
 	{
 		directory.mkdirs();
 		this.file = new File(directory, filename);
-		this.file.deleteOnExit();
 	}
 
 	public boolean lock() throws UnableToCreateLock

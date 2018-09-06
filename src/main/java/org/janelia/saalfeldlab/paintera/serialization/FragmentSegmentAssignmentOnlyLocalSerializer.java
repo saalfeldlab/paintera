@@ -4,11 +4,13 @@ import java.lang.invoke.MethodHandles;
 import java.lang.reflect.Type;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.Collectors;
 
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonSerializationContext;
 import com.google.gson.JsonSerializer;
+import javafx.util.Pair;
 import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignmentOnlyLocal;
 import org.janelia.saalfeldlab.paintera.control.assignment.action.AssignmentAction;
 import org.slf4j.Logger;
@@ -29,7 +31,7 @@ public class FragmentSegmentAssignmentOnlyLocalSerializer implements JsonSeriali
 	public JsonElement serialize(final FragmentSegmentAssignmentOnlyLocal src, final Type typeOfSrc, final
 	JsonSerializationContext context)
 	{
-		final List<AssignmentAction> actions = src.getActionsCopy();
+		final List<AssignmentAction> actions = src.events().stream().filter(p -> p.getValue().get()).map(Pair::getKey).collect(Collectors.toList());
 		LOG.debug("Serializing actions {}", actions);
 		final List<JsonElement> serializedActions = new ArrayList<>();
 		for (final AssignmentAction action : actions)
