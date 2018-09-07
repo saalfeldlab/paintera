@@ -16,10 +16,13 @@ import net.imglib2.RealRandomAccessible;
 import net.imglib2.interpolation.InterpolatorFactory;
 import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.transform.integer.MixedTransform;
+import net.imglib2.transform.integer.PermuteCoordinateAxesTransform;
 import net.imglib2.type.Type;
+import net.imglib2.util.Intervals;
 import net.imglib2.util.Triple;
 import net.imglib2.util.Util;
 import net.imglib2.view.MixedTransformView;
+import net.imglib2.view.TransformView;
 import net.imglib2.view.Views;
 import org.janelia.saalfeldlab.paintera.data.mask.AxisOrder;
 import org.slf4j.Logger;
@@ -233,14 +236,13 @@ public class RandomAccessibleIntervalDataSource<D extends Type<D>, T extends Typ
 			return rai;
 
 		int[] indicesLookupFromSourceSpace = axisOrder.indices(AxisOrder.Axis.X, AxisOrder.Axis.Y, AxisOrder.Axis.Z);
-		LOG.warn("Got indicies {} for axis order {}", indicesLookupFromSourceSpace, axisOrder);
-		MixedTransform tf = new MixedTransform(rai.numDimensions(), rai.numDimensions());
-		tf.setComponentMapping(indicesLookupFromSourceSpace);
-		RandomAccessible<T> view = new MixedTransformView<>(rai, tf);
+		LOG.trace("Got indicies {} for axis order {}", indicesLookupFromSourceSpace, axisOrder);
+		final PermuteCoordinateAxesTransform tf = new PermuteCoordinateAxesTransform(indicesLookupFromSourceSpace);
+		RandomAccessible<T> view = new TransformView<>(rai, tf);
 		long[] min = new long[rai.numDimensions()];
 		long[] max = new long[rai.numDimensions()];
-		Arrays.setAll(min, d -> rai.min(indicesLookupFromSourceSpace[d]));
-		Arrays.setAll(max, d -> rai.max(indicesLookupFromSourceSpace[d]));
+		tf.applyInverse(min, Intervals.minAsLongArray(rai));
+		tf.applyInverse(max, Intervals.maxAsLongArray(rai));
 		return Views.interval(view, new FinalInterval(min, max));
 	}
 
