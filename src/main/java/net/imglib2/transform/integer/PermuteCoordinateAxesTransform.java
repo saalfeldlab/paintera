@@ -43,7 +43,7 @@ public class PermuteCoordinateAxesTransform implements InvertibleTransform {
 	@Override
 	public void apply(Localizable source, Positionable target) {
 		for (int i = 0; i < lookup.length; ++i)
-				target.setPosition(source.getLongPosition(lookup[i]), i);
+			target.setPosition(source.getLongPosition(lookup[i]), i);
 	}
 
 	@Override
@@ -67,7 +67,7 @@ public class PermuteCoordinateAxesTransform implements InvertibleTransform {
 	@Override
 	public void applyInverse(Positionable source, Localizable target) {
 		for (int i = 0; i < lookup.length; ++i)
-			source.setPosition(target.getLongPosition(lookup[i]), i);
+			source.setPosition(target.getLongPosition(inverseLookup[i]), i);
 	}
 
 
