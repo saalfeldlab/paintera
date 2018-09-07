@@ -165,10 +165,6 @@ public class N5OpenSourceDialog extends Dialog<GenericBackendDialogN5> implement
 
 	private final MetaPanel metaPanel = new MetaPanel();
 
-	private final Button revertAxisOrder = new Button(" Revert axis");
-
-	private final HBox revertAxisHBox = new HBox(revertAxisOrder);
-
 	public N5OpenSourceDialog(final PainteraBaseView viewer, final GenericBackendDialogN5 backendDialog) {
 		super();
 
@@ -196,9 +192,7 @@ public class N5OpenSourceDialog extends Dialog<GenericBackendDialogN5> implement
 		final Tooltip revertAxisTooltip = new Tooltip("If you data is using `zyx` you should revert it.");
 		this.grid = new GridPane();
 		this.nameField.errorMessageProperty().addListener((obs, oldv, newv) -> combineErrorMessages());
-		this.revertAxisOrder.setTooltip(revertAxisTooltip);
-		this.revertAxisHBox.setAlignment(Pos.BASELINE_RIGHT);
-		this.dialogContent = new VBox(10, nameField.textField(), grid, metaPanel.getPane(), revertAxisHBox, errorInfo);
+		this.dialogContent = new VBox(10, nameField.textField(), grid, metaPanel.getPane(), errorInfo);
 		this.setResizable(true);
 
 		GridPane.setMargin(this.backendDialog.getDialogNode(), new Insets(0, 0, 0, 30));
@@ -223,11 +217,12 @@ public class N5OpenSourceDialog extends Dialog<GenericBackendDialogN5> implement
 		combineErrorMessages();
 		Optional.ofNullable(backendDialog.nameProperty().get()).ifPresent(nameField.textField()::setText);
 
-		this.revertAxisOrder.setOnAction(event -> {
+		metaPanel.listenOnResolution(backendDialog.resolution()[0], backendDialog.resolution()[1], backendDialog.resolution()[2]);
+
+		metaPanel.getRevertButton().setOnAction(event -> {
 			backendDialog.setResolution(revert(metaPanel.getResolution()));
 			backendDialog.setOffset(revert(metaPanel.getOffset()));
 		});
-		HBox.setHgrow(revertAxisHBox, Priority.ALWAYS);
 
 		this.typeChoice.setValue(typeChoices.get(0));
 		this.typeChoice.setMinWidth(100);

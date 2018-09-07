@@ -26,6 +26,7 @@ import javafx.scene.layout.Priority;
 import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
 import javafx.scene.text.TextAlignment;
+import org.janelia.saalfeldlab.fx.Buttons;
 import org.janelia.saalfeldlab.fx.TitledPanes;
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread;
 import org.janelia.saalfeldlab.paintera.data.mask.AxisOrder;
@@ -71,6 +72,9 @@ public class MetaPanel
 	private final SimpleObjectProperty<AxisOrder> axisOrder = new SimpleObjectProperty<>(null);
 
 	private final ObservableList<AxisOrder> axisOrderChoices = FXCollections.observableArrayList();
+
+	private final Button revertButton = Buttons.withTooltip("Revert", "Revert array attributes", e -> {});
+
 
 	{
 		dimensionsProperty.addListener((obs, oldv, newv) -> {
@@ -123,6 +127,8 @@ public class MetaPanel
 				resolution.textZ()
 		         );
 		addToGrid(spatialInfo, 0, 2, new Label("Offset"), offset.textX(), offset.textY(), offset.textZ());
+		spatialInfo.add(revertButton, 3, 3);
+		revertButton.setPrefWidth(TEXTFIELD_WIDTH);
 		final ColumnConstraints cc = new ColumnConstraints();
 		cc.setHgrow(Priority.ALWAYS);
 		spatialInfo.getColumnConstraints().addAll(cc);
@@ -304,6 +310,11 @@ public class MetaPanel
 			labels[i].setAlignment(Pos.BASELINE_CENTER);
 			labels[i].setPrefWidth(TEXTFIELD_WIDTH);
 		}
+	}
+
+	public Button getRevertButton()
+	{
+		return revertButton;
 	}
 
 	public ObservableObjectValue<AxisOrder> axisOrderProperty()
