@@ -142,21 +142,23 @@ public class MetaPanel
 						.filter(order -> AxisOrder.XYZ.equals(order.spatialOnly()))
 						.toArray(AxisOrder[]::new);
 				this.axisOrderChoices.setAll(supportedAxes);
-				this.axisOrder.set(AxisOrder.defaultOrder(newv.length).get());
+				ObjectProperty<AxisOrder> axisOrder = new SimpleObjectProperty<>(AxisOrder.defaultOrder(newv.length).get());
+				axisOrder.addListener((obsAO, oldvAO, newvAO) -> this.axisOrder.set(newvAO));
+				this.axisOrder.set(axisOrder.get());
 				ComboBox<AxisOrder> axisOrderComboBox = new ComboBox<>(this.axisOrderChoices);
-				axisOrderComboBox.valueProperty().bindBidirectional(this.axisOrder);
+				axisOrderComboBox.valueProperty().bindBidirectional(axisOrder);
 				Label[] labels = Stream.generate(Label::new).limit(newv.length).toArray(Label[]::new);
 				Stream.of(labels).forEach(l -> l.setTextAlignment(TextAlignment.CENTER));
 				Stream.of(labels).forEach(l -> l.setAlignment(Pos.CENTER));
 				Stream.of(labels).forEach(l -> l.setPrefWidth(TEXTFIELD_WIDTH));
-				this.axisOrder.addListener((obsAx, oldvAx, newvAx) -> {
+				axisOrder.addListener((obsAx, oldvAx, newvAx) -> {
 					if (newvAx == null)
 						return;
 					AxisOrder.Axis[] axes = newvAx.axes();
 					for (int i = 0; i < labels.length; ++i)
 						labels[i].setText(axes[i].name());
 				});
-				AxisOrder.Axis[] axes = this.axisOrder.get().axes();
+				AxisOrder.Axis[] axes = axisOrder.get().axes();
 				for (int i = 0; i < labels.length; ++i)
 					labels[i].setText(axes[i].name());
 				GridPane grid = new GridPane();
