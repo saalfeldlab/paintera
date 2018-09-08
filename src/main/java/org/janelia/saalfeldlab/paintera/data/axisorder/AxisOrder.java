@@ -132,7 +132,7 @@ public enum AxisOrder {
 			case 3:
 				return Optional.of(XYZ);
 			case 4:
-				return Optional.of(TXYZ);
+				return Optional.of(XYZC);
 			case 5:
 				return Optional.of(TCXYZ);
 			default:
