@@ -173,7 +173,7 @@ public class MetaPanel
 				grid.add(axisOrderComboBox, 0, 1);
 				GridPane.setHgrow(axisOrderLabel, Priority.ALWAYS);
 				GridPane.setHgrow(axisOrderComboBox, Priority.ALWAYS);
-				InvokeOnJavaFXApplicationThread.invoke(() -> dimensionInfo.getChildren().add(grid));
+				InvokeOnJavaFXApplicationThread.invoke(() -> dimensionInfo.getChildren().setAll(grid));
 			}
 		});
 
