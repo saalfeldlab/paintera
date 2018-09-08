@@ -80,7 +80,7 @@ public class RemoveRotation
 			affine.set(val, i, i);
 			affine.set(mouseLocation[i] - inOriginalSpace[i] * val, i, 3);
 		}
-		LOG.warn("Updating transform to {}", affine);
+		LOG.debug("Updating transform to {}", affine);
 		submitTransform.accept(affine);
 	}
 
