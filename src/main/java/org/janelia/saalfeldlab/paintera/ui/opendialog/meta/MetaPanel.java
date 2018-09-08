@@ -249,7 +249,7 @@ public class MetaPanel
 
 	public static enum TYPE
 	{
-		RAW, LABEL, CHANNEL
+		RAW, LABEL
 	}
 
 	public static class DoubleFilter implements UnaryOperator<Change>
