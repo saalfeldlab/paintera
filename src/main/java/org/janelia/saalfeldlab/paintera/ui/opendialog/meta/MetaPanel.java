@@ -27,7 +27,6 @@ import javafx.scene.text.TextAlignment;
 import org.janelia.saalfeldlab.fx.Buttons;
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread;
 import org.janelia.saalfeldlab.paintera.data.axisorder.AxisOrder;
-import org.janelia.saalfeldlab.paintera.ui.opendialog.OpenSourceDialog;
 
 public class MetaPanel
 {
@@ -62,7 +61,7 @@ public class MetaPanel
 
 	private final HashSet<Node> additionalMeta = new HashSet<>();
 
-	private final SimpleObjectProperty<OpenSourceDialog.TYPE> dataType = new SimpleObjectProperty<>(null);
+	private final SimpleObjectProperty<TYPE> dataType = new SimpleObjectProperty<>(null);
 
 	private final SimpleObjectProperty<long[]> dimensionsProperty = new SimpleObjectProperty<>(null);
 
@@ -248,6 +247,11 @@ public class MetaPanel
 		return pane;
 	}
 
+	public static enum TYPE
+	{
+		RAW, LABEL, CHANNEL
+	}
+
 	public static class DoubleFilter implements UnaryOperator<Change>
 	{
 
@@ -290,7 +294,7 @@ public class MetaPanel
 		return text.length() > 0 ? Double.parseDouble(max.getText()) : Double.NaN;
 	}
 
-	public void bindDataTypeTo(final ObjectProperty<OpenSourceDialog.TYPE> dataType)
+	public void bindDataTypeTo(final ObjectProperty<TYPE> dataType)
 	{
 		this.dataType.bind(dataType);
 	}

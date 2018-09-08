@@ -40,13 +40,14 @@ import org.janelia.saalfeldlab.n5.DatasetAttributes;
 import org.janelia.saalfeldlab.paintera.Paintera;
 import org.janelia.saalfeldlab.paintera.PainteraBaseView;
 import org.janelia.saalfeldlab.paintera.data.DataSource;
+import org.janelia.saalfeldlab.paintera.data.axisorder.AxisOrder;
+import org.janelia.saalfeldlab.paintera.data.axisorder.AxisOrderNotSupported;
 import org.janelia.saalfeldlab.paintera.meshes.InterruptibleFunction;
 import org.janelia.saalfeldlab.paintera.meshes.cache.CacheUtils;
 import org.janelia.saalfeldlab.paintera.state.LabelSourceState;
 import org.janelia.saalfeldlab.paintera.state.RawSourceState;
 import org.janelia.saalfeldlab.paintera.ui.opendialog.CombinesErrorMessages;
 import org.janelia.saalfeldlab.paintera.ui.opendialog.NameField;
-import org.janelia.saalfeldlab.paintera.ui.opendialog.OpenSourceDialog;
 import org.janelia.saalfeldlab.paintera.ui.opendialog.menu.OpenDialogMenuEntry;
 import org.janelia.saalfeldlab.paintera.ui.opendialog.meta.MetaPanel;
 import org.janelia.saalfeldlab.util.HashWrapper;
@@ -138,13 +139,13 @@ public class N5OpenSourceDialog extends Dialog<GenericBackendDialogN5> implement
 
 	private final GridPane grid;
 
-	private final ComboBox<OpenSourceDialog.TYPE> typeChoice;
+	private final ComboBox<MetaPanel.TYPE> typeChoice;
 
 	private final Label errorMessage;
 
 	private final TitledPane errorInfo;
 
-	private final ObservableList<OpenSourceDialog.TYPE> typeChoices = FXCollections.observableArrayList(OpenSourceDialog.TYPE.values());
+	private final ObservableList<MetaPanel.TYPE> typeChoices = FXCollections.observableArrayList(MetaPanel.TYPE.values());
 
 	private final NameField nameField = new NameField(
 			"Source name",
@@ -229,7 +230,7 @@ public class N5OpenSourceDialog extends Dialog<GenericBackendDialogN5> implement
 
 	}
 
-	public OpenSourceDialog.TYPE getType() {
+	public MetaPanel.TYPE getType() {
 		return typeChoice.getValue();
 	}
 
@@ -268,11 +269,13 @@ public class N5OpenSourceDialog extends Dialog<GenericBackendDialogN5> implement
 
 	public static void addSource(
 			final String name,
-			final OpenSourceDialog.TYPE type,
+			final MetaPanel.TYPE type,
 			final GenericBackendDialogN5 dataset,
 			final PainteraBaseView viewer,
 			final String projectDirectory) throws Exception {
 		LOG.debug("Type={}", type);
+		if (!AxisOrder.XYZ.equals(dataset.axisOrderProperty().get().spatialOnly()))
+			throw new AxisOrderNotSupported()
 		switch (type) {
 			case RAW:
 				LOG.trace("Adding raw data");
