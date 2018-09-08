@@ -34,6 +34,7 @@ import net.imglib2.type.label.VolatileLabelMultisetArray;
 import net.imglib2.type.numeric.IntegerType;
 import net.imglib2.type.numeric.RealType;
 import net.imglib2.type.volatiles.AbstractVolatileRealType;
+import net.imglib2.view.composite.RealComposite;
 import org.janelia.saalfeldlab.fx.ui.Exceptions;
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread;
 import org.janelia.saalfeldlab.n5.DatasetAttributes;
@@ -42,8 +43,10 @@ import org.janelia.saalfeldlab.paintera.PainteraBaseView;
 import org.janelia.saalfeldlab.paintera.data.DataSource;
 import org.janelia.saalfeldlab.paintera.data.axisorder.AxisOrder;
 import org.janelia.saalfeldlab.paintera.data.axisorder.AxisOrderNotSupported;
+import org.janelia.saalfeldlab.paintera.data.n5.VolatileWithSet;
 import org.janelia.saalfeldlab.paintera.meshes.InterruptibleFunction;
 import org.janelia.saalfeldlab.paintera.meshes.cache.CacheUtils;
+import org.janelia.saalfeldlab.paintera.state.ChannelSourceState;
 import org.janelia.saalfeldlab.paintera.state.LabelSourceState;
 import org.janelia.saalfeldlab.paintera.state.RawSourceState;
 import org.janelia.saalfeldlab.paintera.ui.opendialog.CombinesErrorMessages;
@@ -57,12 +60,14 @@ import org.slf4j.LoggerFactory;
 import java.lang.invoke.MethodHandles;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.ExecutorService;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.stream.IntStream;
+import java.util.stream.Stream;
 
 public class N5OpenSourceDialog extends Dialog<GenericBackendDialogN5> implements CombinesErrorMessages {
 
@@ -275,7 +280,10 @@ public class N5OpenSourceDialog extends Dialog<GenericBackendDialogN5> implement
 			final String projectDirectory) throws Exception {
 		LOG.debug("Type={}", type);
 		if (!AxisOrder.XYZ.equals(dataset.axisOrderProperty().get().spatialOnly()))
-			throw new AxisOrderNotSupported()
+			throw new AxisOrderNotSupported(
+					"Spatial axes have to be in XYZ order.",
+					dataset.axisOrderProperty().get(),
+					AxisOrder.onlyThisSpatialOrder(AxisOrder.XYZ));
 		switch (type) {
 			case RAW:
 				LOG.trace("Adding raw data");
@@ -294,9 +302,26 @@ public class N5OpenSourceDialog extends Dialog<GenericBackendDialogN5> implement
 			final String name,
 			final GenericBackendDialogN5 dataset,
 			PainteraBaseView viewer) throws Exception {
-		final RawSourceState<T, V> raw = dataset.getRaw(name, viewer.getQueue(), viewer.getQueue().getNumPriorities() - 1);
-		LOG.debug("Got raw: {}", raw);
-		InvokeOnJavaFXApplicationThread.invoke(() -> viewer.addRawSource(raw));
+		if (dataset.axisOrderProperty().get().hasTime())
+			throw new AxisOrderNotSupported(
+					"Time series not supported for raw! Use spatial data with order XYZ, channel optional.",
+					dataset.axisOrderProperty().get(),
+					Stream.of(AxisOrder.onlyThisSpatialOrder(AxisOrder.XYZ)).filter(ao -> !ao.hasTime()).toArray(AxisOrder[]::new)
+			);
+		if (dataset.axisOrderProperty().get().hasChannels())
+		{
+			LOG.debug("Axis order {} has channel at index {}", dataset.axisOrderProperty().get(), dataset.axisOrderProperty().get().channelIndex());
+			List<ChannelSourceState<T, V, RealComposite<V>, VolatileWithSet<RealComposite<V>>>> channels =
+					dataset.getChannels(name, viewer.getQueue(), viewer.getQueue().getNumPriorities() - 1);
+			LOG.debug("Got {} channel sources", channels.size());
+			InvokeOnJavaFXApplicationThread.invoke(() -> channels.forEach(viewer::addChannelSource));
+			LOG.debug("Added {} channel sources", channels.size());
+		}
+		else {
+			final RawSourceState<T, V> raw = dataset.getRaw(name, viewer.getQueue(), viewer.getQueue().getNumPriorities() - 1);
+			LOG.debug("Got raw: {}", raw);
+			InvokeOnJavaFXApplicationThread.invoke(() -> viewer.addRawSource(raw));
+		}
 	}
 
 	private static <D extends NativeType<D> & IntegerType<D>, T extends Volatile<D> & NativeType<T>> void addLabel(
@@ -304,6 +329,12 @@ public class N5OpenSourceDialog extends Dialog<GenericBackendDialogN5> implement
 			final GenericBackendDialogN5 dataset,
 			final PainteraBaseView viewer,
 			final String projectDirectory) throws Exception {
+		if (dataset.axisOrderProperty().get().hasChannels() || dataset.axisOrderProperty().get().hasTime())
+			throw new AxisOrderNotSupported(
+					"Time series or channel data not supported for labels! Use spatial data with order XYZ.",
+					dataset.axisOrderProperty().get(),
+					AxisOrder.XYZ
+					);
 		final LabelSourceState<D, T> rep = dataset.getLabels(
 				name,
 				viewer.getQueue(),

@@ -173,6 +173,15 @@ public enum AxisOrder {
 		return axes.stream().toArray(Axis[]::new);
 	}
 
+	public static AxisOrder[] onlyThisSpatialOrder(AxisOrder order)
+	{
+		final AxisOrder spatialOnly = order.spatialOnly();
+		return Stream
+				.of(values())
+				.filter(ao -> spatialOnly.equals(ao.spatialOnly()))
+				.toArray(AxisOrder[]::new);
+	}
+
 	public AxisOrder spatialOnly()
 	{
 		// TODO make this more efficient

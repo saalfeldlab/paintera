@@ -26,12 +26,14 @@ import javafx.scene.layout.Priority;
 import net.imglib2.Volatile;
 import net.imglib2.cache.img.CachedCellImg;
 import net.imglib2.converter.ARGBColorConverter.InvertingImp1;
+import net.imglib2.converter.ARGBCompositeColorConverter;
 import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.type.NativeType;
 import net.imglib2.type.numeric.IntegerType;
 import net.imglib2.type.numeric.RealType;
 import net.imglib2.type.numeric.integer.UnsignedLongType;
 import net.imglib2.type.volatiles.AbstractVolatileRealType;
+import net.imglib2.view.composite.RealComposite;
 import org.janelia.saalfeldlab.fx.ui.ExceptionNode;
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread;
 import org.janelia.saalfeldlab.n5.DataType;
@@ -39,17 +41,23 @@ import org.janelia.saalfeldlab.n5.DatasetAttributes;
 import org.janelia.saalfeldlab.n5.N5Reader;
 import org.janelia.saalfeldlab.n5.N5Writer;
 import org.janelia.saalfeldlab.paintera.N5Helpers;
+import org.janelia.saalfeldlab.paintera.composition.ARGBCompositeAlphaAdd;
 import org.janelia.saalfeldlab.paintera.composition.ARGBCompositeAlphaYCbCr;
 import org.janelia.saalfeldlab.paintera.composition.CompositeCopy;
 import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignmentState;
 import org.janelia.saalfeldlab.paintera.control.lock.LockedSegmentsOnlyLocal;
 import org.janelia.saalfeldlab.paintera.control.selection.SelectedIds;
+import org.janelia.saalfeldlab.paintera.data.ChannelDataSource;
 import org.janelia.saalfeldlab.paintera.data.DataSource;
 import org.janelia.saalfeldlab.paintera.data.axisorder.AxisOrder;
 import org.janelia.saalfeldlab.paintera.data.mask.Masks;
 import org.janelia.saalfeldlab.paintera.data.n5.CommitCanvasN5;
+import org.janelia.saalfeldlab.paintera.data.n5.N5ChannelDataSource;
+import org.janelia.saalfeldlab.paintera.data.n5.N5Meta;
+import org.janelia.saalfeldlab.paintera.data.n5.VolatileWithSet;
 import org.janelia.saalfeldlab.paintera.id.IdService;
 import org.janelia.saalfeldlab.paintera.meshes.cache.BlocksForLabelFromFile;
+import org.janelia.saalfeldlab.paintera.state.ChannelSourceState;
 import org.janelia.saalfeldlab.paintera.state.LabelSourceState;
 import org.janelia.saalfeldlab.paintera.state.RawSourceState;
 import org.janelia.saalfeldlab.paintera.stream.HighlightingStreamConverter;
@@ -340,6 +348,41 @@ public class GenericBackendDialogN5
 	public String identifier()
 	{
 		return identifier;
+	}
+
+	public <T extends RealType<T> & NativeType<T>, V extends AbstractVolatileRealType<T, V> & NativeType<V>>
+	List<ChannelSourceState<T, V, RealComposite<V>, VolatileWithSet<RealComposite<V>>>> getChannels(
+			final String name,
+			final SharedQueue sharedQueue,
+			final int priority) throws Exception
+	{
+		final N5Reader                  reader     = n5.get();
+		final String                    dataset    = this.dataset.get();
+		final N5Meta                    meta       = N5Meta.fromReader(reader, dataset);
+		final double[]                  resolution = asPrimitiveArray(resolution());
+		final double[]                  offset     = asPrimitiveArray(offset());
+		final AffineTransform3D         transform  = N5Helpers.fromResolutionAndOffset(resolution, offset);
+		final N5ChannelDataSource<T, V> source     = N5ChannelDataSource.zeroExtended(
+				meta,
+				transform,
+				sharedQueue,
+				name,
+				priority,
+				axisOrder.get().channelIndex(),
+				0,
+				datasetAttributes.get().getDimensions()[axisOrderProperty().get().channelIndex()]
+		);
+
+		ARGBCompositeColorConverter<V, RealComposite<V>, VolatileWithSet<RealComposite<V>>> converter =
+				ARGBCompositeColorConverter.imp1((int) source.numChannels(), min().get(), max().get());
+
+		ChannelSourceState<T, V, RealComposite<V>, VolatileWithSet<RealComposite<V>>> state = new ChannelSourceState<>(
+				source,
+				converter,
+				new ARGBCompositeAlphaAdd(),
+				name);
+		LOG.debug("Returning channel source state {} {}", name, state);
+		return Arrays.asList(state);
 	}
 
 	public <T extends RealType<T> & NativeType<T>, V extends AbstractVolatileRealType<T, V> & NativeType<V>>

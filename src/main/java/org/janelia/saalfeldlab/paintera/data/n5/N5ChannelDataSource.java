@@ -82,7 +82,12 @@ public class N5ChannelDataSource<
 
 	private final Converter<RealComposite<T>, VolatileWithSet<RealComposite<T>>> viewerConverter = (source, target ) -> {
 		target.setT(source);
-		target.setValid(source.get(0).isValid());
+		boolean isValid = true;
+		int numChannels = (int) this.numChannels();
+		// TODO exchange this with only check for first index if block size == num channels
+		for (int i = 0; i < numChannels && isValid; ++i)
+			isValid &= source.get(i).isValid();
+		target.setValid(isValid);
 	};
 
 	private N5ChannelDataSource(

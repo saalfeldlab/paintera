@@ -8,11 +8,20 @@ public class AxisOrderNotSupported extends Exception {
 
 	private final AxisOrder[] supportedAxisOrders;
 
-	public AxisOrderNotSupported (final AxisOrder getIllegalAxisOrder, AxisOrder... supportedAxisOrders)
+
+	public AxisOrderNotSupported (final String message, final AxisOrder illegalAxisOrder, AxisOrder... supportedAxisOrders)
 	{
-		super(String.format("AxisOrder not supported: {}. Use any of {} instead.", Arrays.toString(supportedAxisOrders)));
-		this.illegalAxisOrder = getIllegalAxisOrder;
+		super(message);
+		this.illegalAxisOrder = illegalAxisOrder;
 		this.supportedAxisOrders = supportedAxisOrders;
+	}
+
+	public AxisOrderNotSupported (final AxisOrder illegalAxisOrder, AxisOrder... supportedAxisOrders)
+	{
+		this(
+				String.format("Axis order not supported: {}. Use any of {} instead.", Arrays.toString(supportedAxisOrders)),
+				illegalAxisOrder,
+				supportedAxisOrders);
 	}
 
 	public AxisOrder getIllegalAxisOrder() {
