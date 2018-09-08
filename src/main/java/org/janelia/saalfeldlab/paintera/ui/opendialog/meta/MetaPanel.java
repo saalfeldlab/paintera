@@ -138,7 +138,11 @@ public class MetaPanel
 				InvokeOnJavaFXApplicationThread.invoke(dimensionInfo.getChildren()::clear);
 			else
 			{
-				this.axisOrderChoices.setAll(AxisOrder.valuesFor(newv.length));
+				final AxisOrder[] supportedAxes = Arrays
+						.stream(AxisOrder.valuesFor(newv.length))
+						.filter(order -> AxisOrder.XYZ.equals(order.spatialOnly()))
+						.toArray(AxisOrder[]::new);
+				this.axisOrderChoices.setAll(supportedAxes);
 				this.axisOrder.set(AxisOrder.defaultOrder(newv.length).get());
 				ComboBox<AxisOrder> axisOrderComboBox = new ComboBox<>(this.axisOrderChoices);
 				axisOrderComboBox.valueProperty().bindBidirectional(this.axisOrder);
@@ -157,9 +161,6 @@ public class MetaPanel
 				for (int i = 0; i < labels.length; ++i)
 					labels[i].setText(axes[i].name());
 				GridPane grid = new GridPane();
-				System.out.println(Arrays.toString(labels));
-				System.out.println(Arrays.toString(newv));
-				System.out.println(this.axisOrder);
 				for (int d = 0; d < newv.length; ++d)
 				{
 					final TextField lbl = new TextField("" + newv[d]);

@@ -81,6 +81,7 @@ import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssign
 import org.janelia.saalfeldlab.paintera.control.assignment.UnableToPersist;
 import org.janelia.saalfeldlab.paintera.data.DataSource;
 import org.janelia.saalfeldlab.paintera.data.axisorder.AxisOrder;
+import org.janelia.saalfeldlab.paintera.data.axisorder.AxisOrderNotSupported;
 import org.janelia.saalfeldlab.paintera.data.n5.N5DataSource;
 import org.janelia.saalfeldlab.paintera.data.n5.N5FSMeta;
 import org.janelia.saalfeldlab.paintera.data.n5.N5HDF5Meta;
@@ -463,8 +464,7 @@ public class N5Helpers
 			final AxisOrder axisOrder,
 			final SharedQueue sharedQueue,
 			final int priority,
-			final String name) throws IOException, ReflectionException
-	{
+			final String name) throws IOException, ReflectionException, AxisOrderNotSupported {
 		return openScalarAsSource(
 				reader,
 				dataset,
@@ -490,8 +490,7 @@ public class N5Helpers
 			final AxisOrder axisOrder,
 			final SharedQueue sharedQueue,
 			final int priority,
-			final String name) throws IOException, ReflectionException
-	{
+			final String name) throws IOException, ReflectionException, AxisOrderNotSupported {
 		return openScalarAsSource(
 				reader,
 				dataset,
@@ -515,8 +514,7 @@ public class N5Helpers
 			final int priority,
 			final Function<Interpolation, InterpolatorFactory<T, RandomAccessible<T>>> dataInterpolation,
 			final Function<Interpolation, InterpolatorFactory<V, RandomAccessible<V>>> interpolation,
-			final String name) throws IOException, ReflectionException
-	{
+			final String name) throws IOException, ReflectionException, AxisOrderNotSupported {
 
 		LOG.debug("Creating N5 Data source from {} {}", reader, dataset);
 		return new N5DataSource<>(
@@ -700,8 +698,7 @@ public class N5Helpers
 			final AxisOrder axisOrder,
 			final SharedQueue sharedQueue,
 			final int priority,
-			final String name) throws IOException, ReflectionException
-	{
+			final String name) throws IOException, ReflectionException, AxisOrderNotSupported {
 		final ValueTriple<RandomAccessibleInterval<LabelMultisetType>[],
 				RandomAccessibleInterval<VolatileLabelMultisetType>[], AffineTransform3D[]> data =
 				isMultiScale(reader, dataset)
@@ -913,8 +910,7 @@ public class N5Helpers
 			final AxisOrder axisOrder,
 			final SharedQueue queue,
 			final int priority,
-			final String name) throws IOException, ReflectionException
-	{
+			final String name) throws IOException, ReflectionException, AxisOrderNotSupported {
 		return isLabelMultisetType(reader, dataset)
 		       ? (DataSource<D, T>) openLabelMultisetAsSource(reader, dataset, transform, axisOrder, queue, priority, name)
 		       : (DataSource<D, T>) openScalarAsSource(reader, dataset, transform, axisOrder, queue, priority, name);

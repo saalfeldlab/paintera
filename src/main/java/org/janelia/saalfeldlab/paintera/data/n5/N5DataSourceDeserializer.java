@@ -14,6 +14,7 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonParseException;
 import net.imglib2.realtransform.AffineTransform3D;
 import org.janelia.saalfeldlab.paintera.data.axisorder.AxisOrder;
+import org.janelia.saalfeldlab.paintera.data.axisorder.AxisOrderNotSupported;
 import org.janelia.saalfeldlab.paintera.serialization.StatefulSerializer;
 import org.janelia.saalfeldlab.paintera.serialization.StatefulSerializer.Arguments;
 import org.janelia.saalfeldlab.paintera.state.SourceState;
@@ -66,7 +67,7 @@ public class N5DataSourceDeserializer implements JsonDeserializer<N5DataSource<?
 					.orElse(AxisOrder.XYZ);
 			LOG.debug("Deserialized transform: {}", transform);
 			return new N5DataSource<>(meta, transform, axisOrder, sharedQueue, "", priority);
-		} catch (IOException | ClassNotFoundException e)
+		} catch (IOException | ClassNotFoundException | AxisOrderNotSupported e)
 		{
 			throw new JsonParseException(e);
 		}

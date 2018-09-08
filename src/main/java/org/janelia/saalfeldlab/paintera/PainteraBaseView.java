@@ -49,6 +49,7 @@ import org.janelia.saalfeldlab.paintera.config.OrthoSliceConfig;
 import org.janelia.saalfeldlab.paintera.config.OrthoSliceConfigBase;
 import org.janelia.saalfeldlab.paintera.config.Viewer3DConfig;
 import org.janelia.saalfeldlab.paintera.data.axisorder.AxisOrder;
+import org.janelia.saalfeldlab.paintera.data.axisorder.AxisOrderNotSupported;
 import org.janelia.saalfeldlab.paintera.data.mask.MaskedSource;
 import org.janelia.saalfeldlab.paintera.state.ChannelSourceState;
 import org.janelia.saalfeldlab.paintera.state.GlobalTransformManager;
@@ -210,9 +211,7 @@ public class PainteraBaseView
 			double[] offset,
 			double min,
 			double max,
-			String name
-	                                                                                                                                           )
-	{
+			String name) throws AxisOrderNotSupported {
 		RawSourceState<D, T> state = RawSourceState.simpleSourceFromSingleRAI(data, resolution, offset, min, max,
 				name);
 		InvokeOnJavaFXApplicationThread.invoke(() -> addRawSource(state));
@@ -238,9 +237,7 @@ public class PainteraBaseView
 			final double[] resolution,
 			final double[] offset,
 			final long maxId,
-			final String name
-	)
-	{
+			final String name) throws AxisOrderNotSupported {
 		return addSingleScaleLabelSource(data, resolution, offset, AxisOrder.XYZ, maxId, name);
 	}
 
@@ -251,9 +248,7 @@ public class PainteraBaseView
 			final double[] offset,
 			AxisOrder axisOrder,
 			final long maxId,
-			final String name
-	                                                                                                                                          )
-	{
+			final String name) throws AxisOrderNotSupported {
 		LabelSourceState<D, T> state = LabelSourceState.simpleSourceFromSingleRAI(
 				data,
 				resolution,

@@ -58,7 +58,7 @@ public enum AxisOrder {
 
 	public enum Axis
 	{
-		X(), Y, Z, T(AxisType.TIME), C(AxisType.CHANNEL);
+		X, Y, Z, T(AxisType.TIME), C(AxisType.CHANNEL);
 
 		private final AxisType type;
 
@@ -171,6 +171,19 @@ public enum AxisOrder {
 	public Axis[] axes()
 	{
 		return axes.stream().toArray(Axis[]::new);
+	}
+
+	public AxisOrder spatialOnly()
+	{
+		// TODO make this more efficient
+		final String[] spatialAxes = this
+				.axes
+				.stream()
+				.filter(ax -> AxisType.SPATIAL.equals(ax.getType()))
+				.map(Axis::name)
+				.toArray(String[]::new);
+		final String name = String.join("", spatialAxes);
+		return Arrays.stream(AxisOrder.values()).filter(order -> name.equalsIgnoreCase(order.name())).findFirst().get();
 	}
 
 	public static AxisOrder[] valuesFor(int numDimensions)

@@ -48,6 +48,7 @@ import org.janelia.saalfeldlab.paintera.control.selection.SelectedSegments;
 import org.janelia.saalfeldlab.paintera.data.DataSource;
 import org.janelia.saalfeldlab.paintera.data.RandomAccessibleIntervalDataSource;
 import org.janelia.saalfeldlab.paintera.data.axisorder.AxisOrder;
+import org.janelia.saalfeldlab.paintera.data.axisorder.AxisOrderNotSupported;
 import org.janelia.saalfeldlab.paintera.data.mask.MaskedSource;
 import org.janelia.saalfeldlab.paintera.id.IdService;
 import org.janelia.saalfeldlab.paintera.id.LocalIdService;
@@ -264,8 +265,7 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 			final String name,
 			final Group meshesGroup,
 			final ExecutorService meshManagerExecutors,
-			final ExecutorService meshWorkersExecutors)
-	{
+			final ExecutorService meshWorkersExecutors) throws AxisOrderNotSupported {
 
 		final int[] blockSize;
 		if (data instanceof AbstractCellImg<?, ?, ?, ?>)
@@ -315,8 +315,7 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 			final InterruptibleFunction<Long, Interval[]>[] backgroundBlockCaches,
 			final Group meshesGroup,
 			final ExecutorService meshManagerExecutors,
-			final ExecutorService meshWorkersExecutors)
-	{
+			final ExecutorService meshWorkersExecutors) throws AxisOrderNotSupported {
 
 		if (!Views.isZeroMin(data))
 		{

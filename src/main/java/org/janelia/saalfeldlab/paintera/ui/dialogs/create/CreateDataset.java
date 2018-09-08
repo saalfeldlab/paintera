@@ -51,6 +51,7 @@ import org.janelia.saalfeldlab.n5.N5Reader;
 import org.janelia.saalfeldlab.paintera.N5Helpers;
 import org.janelia.saalfeldlab.paintera.data.DataSource;
 import org.janelia.saalfeldlab.paintera.data.axisorder.AxisOrder;
+import org.janelia.saalfeldlab.paintera.data.axisorder.AxisOrderNotSupported;
 import org.janelia.saalfeldlab.paintera.data.n5.N5DataSource;
 import org.janelia.saalfeldlab.paintera.data.n5.N5FSMeta;
 import org.janelia.saalfeldlab.paintera.data.n5.ReflectionException;
@@ -273,8 +274,7 @@ public class CreateDataset
 		this.offset.getZ().valueProperty().set(transform.get(2, 3));
 	}
 
-	public static void main(String[] args) throws IOException, ReflectionException
-	{
+	public static void main(String[] args) throws IOException, ReflectionException, AxisOrderNotSupported {
 		PlatformImpl.startup(() -> {
 		});
 

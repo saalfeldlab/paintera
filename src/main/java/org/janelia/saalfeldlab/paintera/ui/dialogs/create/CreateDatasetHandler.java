@@ -20,6 +20,7 @@ import org.janelia.saalfeldlab.paintera.control.lock.LockedSegmentsOnlyLocal;
 import org.janelia.saalfeldlab.paintera.control.selection.SelectedIds;
 import org.janelia.saalfeldlab.paintera.data.DataSource;
 import org.janelia.saalfeldlab.paintera.data.axisorder.AxisOrder;
+import org.janelia.saalfeldlab.paintera.data.axisorder.AxisOrderNotSupported;
 import org.janelia.saalfeldlab.paintera.data.mask.Masks;
 import org.janelia.saalfeldlab.paintera.data.n5.CommitCanvasN5;
 import org.janelia.saalfeldlab.paintera.data.n5.N5DataSource;
@@ -54,9 +55,7 @@ public class CreateDatasetHandler
 			final PainteraBaseView pbv,
 			final String projecDirectory,
 			final Source<?> currentSource,
-			final Source<?>... allSources
-	                                              ) throws IOException, ReflectionException
-	{
+			final Source<?>... allSources) throws IOException, ReflectionException, AxisOrderNotSupported {
 		final CreateDataset                    cd          = new CreateDataset(currentSource, allSources);
 		final Optional<Pair<N5FSMeta, String>> metaAndName = cd.showDialog();
 		if (metaAndName.isPresent())

@@ -22,6 +22,7 @@ import net.imglib2.util.Util;
 import net.imglib2.view.TransformView;
 import net.imglib2.view.Views;
 import org.janelia.saalfeldlab.paintera.data.axisorder.AxisOrder;
+import org.janelia.saalfeldlab.paintera.data.axisorder.AxisOrderNotSupported;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -53,8 +54,7 @@ public class RandomAccessibleIntervalDataSource<D extends Type<D>, T extends Typ
 			final AxisOrder axisOrder,
 			final Function<Interpolation, InterpolatorFactory<D, RandomAccessible<D>>> dataInterpolation,
 			final Function<Interpolation, InterpolatorFactory<T, RandomAccessible<T>>> interpolation,
-			final String name)
-	{
+			final String name) throws AxisOrderNotSupported {
 		this(data.getA(), data.getB(), data.getC(), axisOrder, dataInterpolation, interpolation, name);
 	}
 
@@ -66,8 +66,7 @@ public class RandomAccessibleIntervalDataSource<D extends Type<D>, T extends Typ
 			final AxisOrder axisOrder,
 			final Function<Interpolation, InterpolatorFactory<D, RandomAccessible<D>>> dataInterpolation,
 			final Function<Interpolation, InterpolatorFactory<T, RandomAccessible<T>>> interpolation,
-			final String name)
-	{
+			final String name) throws AxisOrderNotSupported {
 		this(
 				new RandomAccessibleInterval[] {dataSource},
 				new RandomAccessibleInterval[] {source},
@@ -86,8 +85,7 @@ public class RandomAccessibleIntervalDataSource<D extends Type<D>, T extends Typ
 			final AxisOrder axisOrder,
 			final Function<Interpolation, InterpolatorFactory<D, RandomAccessible<D>>> dataInterpolation,
 			final Function<Interpolation, InterpolatorFactory<T, RandomAccessible<T>>> interpolation,
-			final String name)
-	{
+			final String name) throws AxisOrderNotSupported {
 		this(
 				dataSources,
 				sources,
@@ -110,8 +108,7 @@ public class RandomAccessibleIntervalDataSource<D extends Type<D>, T extends Typ
 			final Function<Interpolation, InterpolatorFactory<T, RandomAccessible<T>>> interpolation,
 			final Supplier<D> dataTypeSupplier,
 			final Supplier<T> typeSupplier,
-			final String name)
-	{
+			final String name) throws AxisOrderNotSupported {
 		super();
 		this.mipmapTransforms = mipmapTransforms;
 		this.dataSources = dataSources;
@@ -122,6 +119,15 @@ public class RandomAccessibleIntervalDataSource<D extends Type<D>, T extends Typ
 		this.typeSupplier = typeSupplier;
 		this.name = name;
 		this.axisOrder.set(axisOrder);
+		if (!AxisOrder.XYZ.equals(axisOrder))
+			throw new AxisOrderNotSupported(axisOrder, AxisOrder.XYZ);
+		this.axisOrder.addListener((obs, oldv, newv) -> {
+			if (!AxisOrder.XYZ.equals(newv))
+			{
+				this.axisOrder.set(AxisOrder.XYZ);
+				throw new RuntimeException(new AxisOrderNotSupported(newv, AxisOrder.XYZ));
+			}
+		});
 	}
 
 	@Override
@@ -140,7 +146,7 @@ public class RandomAccessibleIntervalDataSource<D extends Type<D>, T extends Typ
 	public RandomAccessibleInterval<T> getSource(final int t, final int level)
 	{
 		LOG.debug("Requesting source at t={}, level={}", t, level);
-		return permute(sources[level], axisOrder.get());
+		return sources[level];
 	}
 
 	@Override
@@ -190,7 +196,7 @@ public class RandomAccessibleIntervalDataSource<D extends Type<D>, T extends Typ
 	public RandomAccessibleInterval<D> getDataSource(final int t, final int level)
 	{
 		LOG.debug("Requesting data source at t={}, level={}", t, level);
-		return permute(dataSources[level], axisOrder.get());
+		return dataSources[level];
 	}
 
 	@Override
@@ -209,8 +215,7 @@ public class RandomAccessibleIntervalDataSource<D extends Type<D>, T extends Typ
 		return dataTypeSupplier.get();
 	}
 
-	public RandomAccessibleIntervalDataSource<D, T> copy()
-	{
+	public RandomAccessibleIntervalDataSource<D, T> copy() throws AxisOrderNotSupported {
 		return new RandomAccessibleIntervalDataSource<>(
 				dataSources,
 				sources,
@@ -222,25 +227,6 @@ public class RandomAccessibleIntervalDataSource<D extends Type<D>, T extends Typ
 				typeSupplier,
 				name
 		);
-	}
-
-	private static <T> RandomAccessibleInterval<T> permute(RandomAccessibleInterval<T> rai, AxisOrder axisOrder)
-	{
-		assert rai.numDimensions() == axisOrder.numDimensions();
-		assert axisOrder.numDimensions() == axisOrder.numSpaceDimensions();
-
-		if (AxisOrder.XYZ.equals(axisOrder))
-			return rai;
-
-		int[] indicesLookupFromSourceSpace = axisOrder.indices(AxisOrder.Axis.X, AxisOrder.Axis.Y, AxisOrder.Axis.Z);
-		LOG.trace("Got indicies {} for axis order {}", indicesLookupFromSourceSpace, axisOrder);
-		final PermuteCoordinateAxesTransform tf = new PermuteCoordinateAxesTransform(indicesLookupFromSourceSpace);
-		RandomAccessible<T> view = new TransformView<>(rai, tf);
-		long[] min = new long[rai.numDimensions()];
-		long[] max = new long[rai.numDimensions()];
-		tf.applyInverse(min, Intervals.minAsLongArray(rai));
-		tf.applyInverse(max, Intervals.maxAsLongArray(rai));
-		return Views.interval(view, new FinalInterval(min, max));
 	}
 
 }

@@ -20,6 +20,7 @@ import org.janelia.saalfeldlab.paintera.composition.ARGBCompositeAlphaAdd;
 import org.janelia.saalfeldlab.paintera.composition.CompositeCopy;
 import org.janelia.saalfeldlab.paintera.data.DataSource;
 import org.janelia.saalfeldlab.paintera.data.axisorder.AxisOrder;
+import org.janelia.saalfeldlab.paintera.data.axisorder.AxisOrderNotSupported;
 import org.janelia.saalfeldlab.paintera.data.n5.DataTypeNotSupported;
 import org.janelia.saalfeldlab.paintera.data.n5.N5ChannelDataSource;
 import org.janelia.saalfeldlab.paintera.data.n5.N5Meta;
@@ -176,7 +177,7 @@ public class PainteraShowContainer extends Application {
 			final N5Meta rawMeta,
 			AxisOrder axisOrder,
 			final boolean revertArrayAttributes
-	) throws IOException, ReflectionException {
+	) throws IOException, ReflectionException, AxisOrderNotSupported {
 		LOG.info("Adding raw source {}", rawMeta);
 		DataSource<T, V> source = N5Helpers.openRawAsSource(
 				rawMeta.reader(),

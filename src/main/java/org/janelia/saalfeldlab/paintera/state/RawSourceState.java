@@ -17,6 +17,7 @@ import org.janelia.saalfeldlab.paintera.composition.CompositeCopy;
 import org.janelia.saalfeldlab.paintera.data.DataSource;
 import org.janelia.saalfeldlab.paintera.data.RandomAccessibleIntervalDataSource;
 import org.janelia.saalfeldlab.paintera.data.axisorder.AxisOrder;
+import org.janelia.saalfeldlab.paintera.data.axisorder.AxisOrderNotSupported;
 
 public class RawSourceState<D, T extends RealType<T>>
 		extends MinimalSourceState<D, T, DataSource<D, T>, ARGBColorConverter<T>>
@@ -38,8 +39,7 @@ public class RawSourceState<D, T extends RealType<T>>
 			final double[] offset,
 			final double min,
 			final double max,
-			final String name)
-	{
+			final String name) throws AxisOrderNotSupported {
 		return simpleSourceFromSingleRAI(data, resolution, offset, AxisOrder.XYZ, min, max, name);
 	}
 
@@ -51,8 +51,7 @@ public class RawSourceState<D, T extends RealType<T>>
 			final AxisOrder axisOrder,
 			final double min,
 			final double max,
-			final String name)
-	{
+			final String name) throws AxisOrderNotSupported {
 
 		if (!Views.isZeroMin(data))
 		{
