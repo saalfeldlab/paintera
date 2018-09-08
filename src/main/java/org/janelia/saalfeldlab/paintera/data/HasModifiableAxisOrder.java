@@ -1,7 +1,7 @@
 package org.janelia.saalfeldlab.paintera.data;
 
 import javafx.beans.property.ObjectProperty;
-import org.janelia.saalfeldlab.paintera.data.mask.AxisOrder;
+import org.janelia.saalfeldlab.paintera.data.axisorder.AxisOrder;
 
 public interface HasModifiableAxisOrder extends HasAxisOrder {
 

@@ -16,7 +16,7 @@ import org.janelia.saalfeldlab.paintera.composition.Composite;
 import org.janelia.saalfeldlab.paintera.composition.CompositeCopy;
 import org.janelia.saalfeldlab.paintera.data.DataSource;
 import org.janelia.saalfeldlab.paintera.data.RandomAccessibleIntervalDataSource;
-import org.janelia.saalfeldlab.paintera.data.mask.AxisOrder;
+import org.janelia.saalfeldlab.paintera.data.axisorder.AxisOrder;
 
 public class RawSourceState<D, T extends RealType<T>>
 		extends MinimalSourceState<D, T, DataSource<D, T>, ARGBColorConverter<T>>

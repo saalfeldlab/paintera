@@ -48,7 +48,7 @@ import org.janelia.saalfeldlab.paintera.config.NavigationConfigNode;
 import org.janelia.saalfeldlab.paintera.config.OrthoSliceConfig;
 import org.janelia.saalfeldlab.paintera.config.OrthoSliceConfigBase;
 import org.janelia.saalfeldlab.paintera.config.Viewer3DConfig;
-import org.janelia.saalfeldlab.paintera.data.mask.AxisOrder;
+import org.janelia.saalfeldlab.paintera.data.axisorder.AxisOrder;
 import org.janelia.saalfeldlab.paintera.data.mask.MaskedSource;
 import org.janelia.saalfeldlab.paintera.state.ChannelSourceState;
 import org.janelia.saalfeldlab.paintera.state.GlobalTransformManager;

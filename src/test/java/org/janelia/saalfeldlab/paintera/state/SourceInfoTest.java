@@ -9,7 +9,7 @@ import net.imglib2.type.numeric.real.DoubleType;
 import net.imglib2.util.ConstantUtils;
 import org.janelia.saalfeldlab.paintera.composition.CompositeCopy;
 import org.janelia.saalfeldlab.paintera.data.RandomAccessibleIntervalDataSource;
-import org.janelia.saalfeldlab.paintera.data.mask.AxisOrder;
+import org.janelia.saalfeldlab.paintera.data.axisorder.AxisOrder;
 import org.junit.Assert;
 import org.junit.Test;
 

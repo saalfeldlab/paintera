@@ -6,8 +6,6 @@ import java.util.function.Function;
 import bdv.util.volatiles.SharedQueue;
 import bdv.viewer.Interpolation;
 import com.google.gson.annotations.Expose;
-import javafx.beans.property.ObjectProperty;
-import javafx.beans.property.SimpleObjectProperty;
 import net.imglib2.RandomAccessible;
 import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.Volatile;
@@ -22,7 +20,7 @@ import org.janelia.saalfeldlab.n5.N5Reader;
 import org.janelia.saalfeldlab.n5.N5Writer;
 import org.janelia.saalfeldlab.paintera.N5Helpers;
 import org.janelia.saalfeldlab.paintera.data.RandomAccessibleIntervalDataSource;
-import org.janelia.saalfeldlab.paintera.data.mask.AxisOrder;
+import org.janelia.saalfeldlab.paintera.data.axisorder.AxisOrder;
 
 public class N5DataSource<D extends NativeType<D>, T extends Volatile<D> & NativeType<T>>
 		extends RandomAccessibleIntervalDataSource<D, T>

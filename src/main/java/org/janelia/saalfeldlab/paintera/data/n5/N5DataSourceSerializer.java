@@ -9,7 +9,7 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonSerializationContext;
 import com.google.gson.JsonSerializer;
 import net.imglib2.realtransform.AffineTransform3D;
-import org.janelia.saalfeldlab.paintera.data.mask.AxisOrder;
+import org.janelia.saalfeldlab.paintera.data.axisorder.AxisOrder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

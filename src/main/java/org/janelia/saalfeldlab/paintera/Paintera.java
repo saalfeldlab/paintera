@@ -47,7 +47,7 @@ import org.janelia.saalfeldlab.paintera.control.assignment.UnableToPersist;
 import org.janelia.saalfeldlab.paintera.control.lock.LockedSegmentsOnlyLocal;
 import org.janelia.saalfeldlab.paintera.control.selection.SelectedIds;
 import org.janelia.saalfeldlab.paintera.data.DataSource;
-import org.janelia.saalfeldlab.paintera.data.mask.AxisOrder;
+import org.janelia.saalfeldlab.paintera.data.axisorder.AxisOrder;
 import org.janelia.saalfeldlab.paintera.data.mask.CannotPersist;
 import org.janelia.saalfeldlab.paintera.data.mask.Masks;
 import org.janelia.saalfeldlab.paintera.data.n5.CommitCanvasN5;

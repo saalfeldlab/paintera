@@ -2,7 +2,6 @@ package org.janelia.saalfeldlab.paintera.ui.opendialog.meta;
 
 import java.util.Arrays;
 import java.util.HashSet;
-import java.util.Optional;
 import java.util.function.UnaryOperator;
 import java.util.stream.Stream;
 
@@ -21,15 +20,13 @@ import javafx.scene.control.*;
 import javafx.scene.control.TextFormatter.Change;
 import javafx.scene.layout.ColumnConstraints;
 import javafx.scene.layout.GridPane;
-import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
 import javafx.scene.text.TextAlignment;
 import org.janelia.saalfeldlab.fx.Buttons;
-import org.janelia.saalfeldlab.fx.TitledPanes;
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread;
-import org.janelia.saalfeldlab.paintera.data.mask.AxisOrder;
+import org.janelia.saalfeldlab.paintera.data.axisorder.AxisOrder;
 import org.janelia.saalfeldlab.paintera.ui.opendialog.OpenSourceDialog;
 
 public class MetaPanel

@@ -1,7 +1,6 @@
 package org.janelia.saalfeldlab.paintera.data;
 
 import java.lang.invoke.MethodHandles;
-import java.util.Arrays;
 import java.util.function.Function;
 import java.util.function.Supplier;
 
@@ -15,16 +14,14 @@ import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.RealRandomAccessible;
 import net.imglib2.interpolation.InterpolatorFactory;
 import net.imglib2.realtransform.AffineTransform3D;
-import net.imglib2.transform.integer.MixedTransform;
 import net.imglib2.transform.integer.PermuteCoordinateAxesTransform;
 import net.imglib2.type.Type;
 import net.imglib2.util.Intervals;
 import net.imglib2.util.Triple;
 import net.imglib2.util.Util;
-import net.imglib2.view.MixedTransformView;
 import net.imglib2.view.TransformView;
 import net.imglib2.view.Views;
-import org.janelia.saalfeldlab.paintera.data.mask.AxisOrder;
+import org.janelia.saalfeldlab.paintera.data.axisorder.AxisOrder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
