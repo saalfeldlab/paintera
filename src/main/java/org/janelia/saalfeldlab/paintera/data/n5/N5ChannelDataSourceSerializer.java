@@ -28,6 +28,8 @@ public class N5ChannelDataSourceSerializer implements JsonSerializer<N5ChannelDa
 
 	public static final String CHANNEL_MAX_KEY = "channelMin";
 
+	public static final String REVERT_CHANNEL_AXIS_KEY = "revertChannelOrder";
+
 	@Override
 	public JsonElement serialize(
 			final N5ChannelDataSource<?, ?> s,
@@ -43,6 +45,7 @@ public class N5ChannelDataSourceSerializer implements JsonSerializer<N5ChannelDa
 		map.addProperty(CHANNEL_DIMENSION_KEY, s.getChannelDimension());
 		map.addProperty(CHANNEL_MIN_KEY, s.getChannelMin());
 		map.addProperty(CHANNEL_MAX_KEY, s.getChannelMax());
+		map.addProperty(REVERT_CHANNEL_AXIS_KEY, s.doesRevertChannelOrder());
 		return map;
 	}
 

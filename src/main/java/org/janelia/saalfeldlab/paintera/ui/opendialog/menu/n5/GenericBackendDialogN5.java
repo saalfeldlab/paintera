@@ -63,6 +63,7 @@ import org.janelia.saalfeldlab.paintera.state.RawSourceState;
 import org.janelia.saalfeldlab.paintera.stream.HighlightingStreamConverter;
 import org.janelia.saalfeldlab.paintera.stream.ModalGoldenAngleSaturatedHighlightingARGBStream;
 import org.janelia.saalfeldlab.paintera.ui.opendialog.DatasetInfo;
+import org.janelia.saalfeldlab.paintera.ui.opendialog.meta.ChannelInformation;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -120,6 +121,8 @@ public class GenericBackendDialogN5
 	private final ObjectBinding<long[]> dimensions = Bindings.createObjectBinding(() -> Optional.ofNullable(datasetAttributes.get()).map(DatasetAttributes::getDimensions).orElse(null), datasetAttributes);
 
 	private final ObjectProperty<AxisOrder> axisOrder = new SimpleObjectProperty<>();
+
+	private final ChannelInformation channelInformation = new ChannelInformation();
 
 	private final BooleanBinding isReady = isN5Valid
 			.and(isDatasetValid)
@@ -318,6 +321,11 @@ public class GenericBackendDialogN5
 		return N5Helpers.idService(this.n5.get(), this.dataset.get());
 	}
 
+	public ChannelInformation getChannelInformation()
+	{
+		return this.channelInformation;
+	}
+
 	private Node initializeNode(
 			final Node rootNode,
 			final String datasetPromptText,
@@ -356,33 +364,46 @@ public class GenericBackendDialogN5
 			final SharedQueue sharedQueue,
 			final int priority) throws Exception
 	{
-		final N5Reader                  reader     = n5.get();
-		final String                    dataset    = this.dataset.get();
-		final N5Meta                    meta       = N5Meta.fromReader(reader, dataset);
-		final double[]                  resolution = asPrimitiveArray(resolution());
-		final double[]                  offset     = asPrimitiveArray(offset());
-		final AffineTransform3D         transform  = N5Helpers.fromResolutionAndOffset(resolution, offset);
-		final N5ChannelDataSource<T, V> source     = N5ChannelDataSource.zeroExtended(
-				meta,
-				transform,
-				sharedQueue,
-				name,
-				priority,
-				axisOrder.get().channelIndex(),
-				0,
-				datasetAttributes.get().getDimensions()[axisOrderProperty().get().channelIndex()]
-		);
+		final N5Reader                  reader            = n5.get();
+		final String                    dataset           = this.dataset.get();
+		final N5Meta                    meta              = N5Meta.fromReader(reader, dataset);
+		final double[]                  resolution        = asPrimitiveArray(resolution());
+		final double[]                  offset            = asPrimitiveArray(offset());
+		final AffineTransform3D         transform         = N5Helpers.fromResolutionAndOffset(resolution, offset);
+		final long                      numChannels       = datasetAttributes.get().getDimensions()[axisOrderProperty().get().channelIndex()];
+		final int                       channelsPerSource = channelInformation.channelsPerSourceProperty().get();
+		final boolean                   revertChannels    = channelInformation.revertChannelAxisProperty().get();
 
-		ARGBCompositeColorConverter<V, RealComposite<V>, VolatileWithSet<RealComposite<V>>> converter =
-				ARGBCompositeColorConverter.imp1((int) source.numChannels(), min().get(), max().get());
+		LOG.debug("Got channel info: num channels={} channels per source={} revert channel order? {}", numChannels, channelsPerSource, revertChannels);
 
-		ChannelSourceState<T, V, RealComposite<V>, VolatileWithSet<RealComposite<V>>> state = new ChannelSourceState<>(
-				source,
-				converter,
-				new ARGBCompositeAlphaAdd(),
-				name);
-		LOG.debug("Returning channel source state {} {}", name, state);
-		return Arrays.asList(state);
+		List<ChannelSourceState<T, V, RealComposite<V>, VolatileWithSet<RealComposite<V>>>> sources = new ArrayList<>();
+		for (int channelMin = 0; channelMin < numChannels; channelMin += channelsPerSource) {
+
+			final N5ChannelDataSource<T, V> source = N5ChannelDataSource.zeroExtended(
+					meta,
+					transform,
+					sharedQueue,
+					name,
+					priority,
+					axisOrder.get().channelIndex(),
+					channelMin,
+					Math.min(channelMin + channelInformation.channelsPerSourceProperty().get(), numChannels) - 1,
+					revertChannels
+			);
+
+			ARGBCompositeColorConverter<V, RealComposite<V>, VolatileWithSet<RealComposite<V>>> converter =
+					ARGBCompositeColorConverter.imp1((int) source.numChannels(), min().get(), max().get());
+
+			ChannelSourceState<T, V, RealComposite<V>, VolatileWithSet<RealComposite<V>>> state = new ChannelSourceState<>(
+					source,
+					converter,
+					new ARGBCompositeAlphaAdd(),
+					name);
+			sources.add(state);
+
+		}
+		LOG.debug("Returning {} channel source states", sources.size());
+		return sources;
 	}
 
 	public <T extends RealType<T> & NativeType<T>, V extends AbstractVolatileRealType<T, V> & NativeType<V>>

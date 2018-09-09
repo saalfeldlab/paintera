@@ -83,6 +83,7 @@ public class N5OpenSourceDialog extends Dialog<GenericBackendDialogN5> implement
 				try {
 					GenericBackendDialogN5 dialog = fs.backendDialog(pbv.getPropagationQueue());
 					N5OpenSourceDialog osDialog = new N5OpenSourceDialog(pbv, dialog);
+					dialog.getChannelInformation().bindTo(osDialog.metaPanel.channelInformation());
 					osDialog.setHeaderFromBackendType("N5");
 					Optional<GenericBackendDialogN5> backend = osDialog.showAndWait();
 					if (backend == null || !backend.isPresent())
@@ -106,6 +107,7 @@ public class N5OpenSourceDialog extends Dialog<GenericBackendDialogN5> implement
 				try {
 					GenericBackendDialogN5 dialog = hdf5.backendDialog(pbv.getPropagationQueue());
 					N5OpenSourceDialog osDialog = new N5OpenSourceDialog(pbv, dialog);
+					dialog.getChannelInformation().bindTo(osDialog.metaPanel.channelInformation());
 					osDialog.setHeaderFromBackendType("HDF5");
 					Optional<GenericBackendDialogN5> backend = osDialog.showAndWait();
 					if (backend == null || !backend.isPresent())
@@ -128,6 +130,7 @@ public class N5OpenSourceDialog extends Dialog<GenericBackendDialogN5> implement
 					final GoogleCloud googleCloud = new GoogleCloud();
 					final GenericBackendDialogN5 dialog = googleCloud.backendDialog(pbv.getPropagationQueue());
 					final N5OpenSourceDialog osDialog = new N5OpenSourceDialog(pbv, dialog);
+					dialog.getChannelInformation().bindTo(osDialog.metaPanel.channelInformation());
 					osDialog.setHeaderFromBackendType("Google Cloud");
 					Optional<GenericBackendDialogN5> backend = osDialog.showAndWait();
 					if (backend == null || !backend.isPresent())

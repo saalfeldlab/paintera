@@ -1,5 +1,6 @@
 package org.janelia.saalfeldlab.paintera.ui.opendialog.meta;
 
+import java.lang.invoke.MethodHandles;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.function.UnaryOperator;
@@ -27,9 +28,13 @@ import javafx.scene.text.TextAlignment;
 import org.janelia.saalfeldlab.fx.Buttons;
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread;
 import org.janelia.saalfeldlab.paintera.data.axisorder.AxisOrder;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class MetaPanel
 {
+
+	private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
 	private static final double GRID_HGAP = 0;
 
@@ -70,6 +75,8 @@ public class MetaPanel
 	private final ObservableList<AxisOrder> axisOrderChoices = FXCollections.observableArrayList();
 
 	private final Button revertButton = Buttons.withTooltip("Revert", "Revert array attributes", e -> {});
+
+	private final ChannelInformation channelInfo = new ChannelInformation();
 
 
 	public MetaPanel()
@@ -125,9 +132,13 @@ public class MetaPanel
 		StackPane dimensionInfo = new StackPane();
 		// max num of labels
 
+		StackPane channelInfoPane = new StackPane();
+
 		this.dimensionsProperty.addListener((obs, oldv, newv) -> {
-			if (newv == null)
+			if (newv == null) {
 				InvokeOnJavaFXApplicationThread.invoke(dimensionInfo.getChildren()::clear);
+				InvokeOnJavaFXApplicationThread.invoke(channelInfoPane.getChildren()::clear);
+			}
 			else
 			{
 				final AxisOrder[] supportedAxes = Arrays
@@ -168,11 +179,35 @@ public class MetaPanel
 				grid.add(axisOrderComboBox, 0, 1);
 				GridPane.setHgrow(axisOrderLabel, Priority.ALWAYS);
 				GridPane.setHgrow(axisOrderComboBox, Priority.ALWAYS);
+
+				final ChannelInformation channelInfo = new ChannelInformation();
+				this.channelInfo.bindTo(channelInfo);
+				final Node channelInfoNode = channelInfo.getNode();
+				axisOrder.addListener((obsAO, oldvAO, newvAO) -> {
+					if (newvAO.hasChannels())
+					{
+						channelInfo.numChannelsProperty().set((int) newv[newvAO.channelIndex()]);
+						if (!oldvAO.hasChannels())
+							InvokeOnJavaFXApplicationThread.invoke(() -> channelInfoPane.getChildren().setAll(channelInfoNode));
+					}
+					else
+						InvokeOnJavaFXApplicationThread.invoke(() -> channelInfoPane.getChildren().clear());
+				});
+
+				if (axisOrder.get().hasChannels()) {
+					LOG.debug("Updating channel info pane for axis order {} and dimensions {}", axisOrder, newv);
+					channelInfo.numChannelsProperty().set((int) newv[axisOrder.get().channelIndex()]);
+					InvokeOnJavaFXApplicationThread.invoke(() -> channelInfoPane.getChildren().setAll(channelInfoNode));
+				}
+
 				InvokeOnJavaFXApplicationThread.invoke(() -> dimensionInfo.getChildren().setAll(grid));
 			}
 		});
 
-		content.getChildren().addAll(spatialInfo, new Separator(Orientation.HORIZONTAL), dimensionInfo, new Separator(Orientation.HORIZONTAL));
+		content.getChildren().addAll(
+				spatialInfo, new Separator(Orientation.HORIZONTAL),
+				dimensionInfo, new Separator(Orientation.HORIZONTAL),
+				channelInfoPane, new Separator(Orientation.HORIZONTAL));
 
 		this.dataType.addListener((obs, oldv, newv) -> {
 			if (newv != null)
@@ -292,6 +327,11 @@ public class MetaPanel
 	public void bindDataTypeTo(final ObjectProperty<TYPE> dataType)
 	{
 		this.dataType.bind(dataType);
+	}
+
+	public ChannelInformation channelInformation()
+	{
+		return this.channelInfo;
 	}
 
 	private static void addToGrid(final GridPane grid, final int startCol, final int row, final Node... nodes)

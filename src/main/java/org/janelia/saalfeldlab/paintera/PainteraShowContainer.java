@@ -237,7 +237,8 @@ public class PainteraShowContainer extends Application {
 					viewer.getQueue().getNumPriorities() - 1,
 					channelDimension,
 					cmin,
-					cmax);
+					cmax,
+					false);
 			ARGBCompositeColorConverter<V, RealComposite<V>, VolatileWithSet<RealComposite<V>>> conv = ARGBCompositeColorConverter.imp0((int) source.numChannels());
 
 			ChannelSourceState<T, V, RealComposite<V>, VolatileWithSet<RealComposite<V>>> state = new ChannelSourceState<>(

@@ -1,5 +1,9 @@
 package org.janelia.saalfeldlab.paintera.data.axisorder;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.lang.invoke.MethodHandles;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -48,7 +52,7 @@ public enum AxisOrder {
 	YZXTC, YXZTC,
 	ZXYTC, ZYXTC;
 
-
+	private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
 	public enum AxisType {
 		SPATIAL,
@@ -103,6 +107,7 @@ public enum AxisOrder {
 		this.hasChannels = axes.contains(Axis.C);
 		this.hasTime = axes.contains(Axis.T);
 		this.numSpaceDimensions = (int)axes.stream().map(Axis::getType).filter(AxisType.SPATIAL::equals).count();
+
 	}
 
 	public int numDimensions()
@@ -117,6 +122,7 @@ public enum AxisOrder {
 
 	public boolean hasChannels()
 	{
+		LOG.debug("Axis order {} has channels? {}", this, this.hasChannels);
 		return this.hasChannels;
 	}
 

@@ -293,7 +293,7 @@ public class PainteraBaseView
 			final ChannelSourceState<D, T, CT, V> state)
 	{
 		addGenericState(state);
-		LOG.info("Adding channel state={}", state);
+		LOG.debug("Adding channel state={}", state);
 		final ARGBCompositeColorConverter<T, CT, V> conv = state.converter();
 		for (int channel = 0; channel < conv.numChannels(); ++channel) {
 			conv.colorProperty(channel).addListener((obs, oldv, newv) -> orthogonalViews().requestRepaint());
@@ -302,7 +302,7 @@ public class PainteraBaseView
 			conv.channelAlphaProperty(channel).addListener((obs, oldv, newv) -> orthogonalViews().requestRepaint());
 		}
 		conv.alphaProperty().addListener((obs, oldv, newv) -> orthogonalViews().requestRepaint());
-		LOG.info("Added channel state {}", state.nameProperty().get());
+		LOG.debug("Added channel state {}", state.nameProperty().get());
 	}
 
 	@SuppressWarnings({"unchecked", "rawtypes"})

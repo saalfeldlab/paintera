@@ -54,7 +54,8 @@ public class PainteraTestMultiChannel extends Application {
 				0,
 				3,
 				0,
-				2);
+				2,
+				false);
 
 		N5ChannelDataSource<FloatType, VolatileFloatType> predictionSource = N5ChannelDataSource.zeroExtended(
 				new N5HDF5Meta(path, prediction, new int[] {64, 64, 64, 3}, true),
@@ -64,7 +65,8 @@ public class PainteraTestMultiChannel extends Application {
 				0,
 				3,
 				0,
-				2);
+				2,
+				false);
 
 		final long numChannels = source.numChannels();
 		LOG.info("num channels: {}", numChannels);
