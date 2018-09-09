@@ -379,26 +379,31 @@ public class GenericBackendDialogN5
 		List<ChannelSourceState<T, V, RealComposite<V>, VolatileWithSet<RealComposite<V>>>> sources = new ArrayList<>();
 		for (int channelMin = 0; channelMin < numChannels; channelMin += channelsPerSource) {
 
+			final long channelMax = Math.min(channelMin + channelInformation.channelsPerSourceProperty().get(), numChannels) - 1;
+			String sourceName = channelMin <= 0 && channelMax >= numChannels - 1
+					? name
+					: getChannelSourceName(name, channelMin, channelMax, numChannels, revertChannels);
 			final N5ChannelDataSource<T, V> source = N5ChannelDataSource.zeroExtended(
 					meta,
 					transform,
 					sharedQueue,
-					name,
+					sourceName,
 					priority,
 					axisOrder.get().channelIndex(),
 					channelMin,
-					Math.min(channelMin + channelInformation.channelsPerSourceProperty().get(), numChannels) - 1,
+					channelMax,
 					revertChannels
 			);
 
 			ARGBCompositeColorConverter<V, RealComposite<V>, VolatileWithSet<RealComposite<V>>> converter =
 					ARGBCompositeColorConverter.imp1((int) source.numChannels(), min().get(), max().get());
 
+
 			ChannelSourceState<T, V, RealComposite<V>, VolatileWithSet<RealComposite<V>>> state = new ChannelSourceState<>(
 					source,
 					converter,
 					new ARGBCompositeAlphaAdd(),
-					name);
+					sourceName);
 			sources.add(state);
 
 		}
@@ -609,5 +614,16 @@ public class GenericBackendDialogN5
 	public ObjectProperty<AxisOrder> axisOrderProperty()
 	{
 		return this.axisOrder;
+	}
+
+	private String getChannelSourceName(String base, long channelMin, long channelMax, long numChannels, boolean revertChannels)
+	{
+		LOG.warn("Getting channel source name for {} {} {} {} {}", base, channelMin, channelMax, numChannels, revertChannels);
+		final String pattern = "%s-%d-%d";
+		final String name = revertChannels
+				? String.format(pattern, base, numChannels - channelMin - 1, numChannels - channelMax - 1)
+				: String.format(pattern, base, channelMin, channelMax);
+		LOG.warn("Name={}", name);
+		return name;
 	}
 }
