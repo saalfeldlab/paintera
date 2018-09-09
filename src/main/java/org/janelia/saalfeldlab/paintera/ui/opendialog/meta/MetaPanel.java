@@ -72,13 +72,6 @@ public class MetaPanel
 	private final Button revertButton = Buttons.withTooltip("Revert", "Revert array attributes", e -> {});
 
 
-	{
-		dimensionsProperty.addListener((obs, oldv, newv) -> {
-			if (newv != null ) {
-			}
-		});
-	}
-
 	public MetaPanel()
 	{
 		this.resolution = new SpatialInformation(
