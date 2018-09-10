@@ -54,6 +54,7 @@ import org.janelia.saalfeldlab.paintera.ui.opendialog.NameField;
 import org.janelia.saalfeldlab.paintera.ui.opendialog.menu.OpenDialogMenuEntry;
 import org.janelia.saalfeldlab.paintera.ui.opendialog.meta.MetaPanel;
 import org.janelia.saalfeldlab.util.HashWrapper;
+import org.scijava.plugin.Plugin;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -73,7 +74,7 @@ public class N5OpenSourceDialog extends Dialog<GenericBackendDialogN5> implement
 
 	private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
-	@OpenDialogMenuEntry.OpenDialogMenuEntryPath(path = "N5", rank = Integer.MIN_VALUE)
+	@Plugin(type = OpenDialogMenuEntry.class, menuPath = "N5", priority = Double.MAX_VALUE)
 	public static class N5FSOpener implements OpenDialogMenuEntry {
 		private static final FileSystem fs = new FileSystem();
 
@@ -96,7 +97,7 @@ public class N5OpenSourceDialog extends Dialog<GenericBackendDialogN5> implement
 		}
 	}
 
-	@OpenDialogMenuEntry.OpenDialogMenuEntryPath(path = "HDF5", rank = Integer.MIN_VALUE + 1)
+	@Plugin(type = OpenDialogMenuEntry.class, menuPath = "HDF5", priority = Double.MAX_VALUE / 2.0)
 	public static class N5HDFOpener implements OpenDialogMenuEntry {
 
 		private static final HDF5 hdf5 = new HDF5();
@@ -120,7 +121,7 @@ public class N5OpenSourceDialog extends Dialog<GenericBackendDialogN5> implement
 		}
 	}
 
-	@OpenDialogMenuEntry.OpenDialogMenuEntryPath(path = "Google Cloud", rank = Integer.MIN_VALUE + 2)
+	@Plugin(type = OpenDialogMenuEntry.class, menuPath= "Google Cloud", priority = Double.MAX_VALUE / 4.0)
 	public static class GoogleCloudOpener implements OpenDialogMenuEntry {
 
 		@Override

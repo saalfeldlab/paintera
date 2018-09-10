@@ -23,6 +23,7 @@ import javafx.scene.control.Button;
 import javafx.scene.control.ComboBox;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.Priority;
+import net.imglib2.Interval;
 import net.imglib2.Volatile;
 import net.imglib2.cache.img.CachedCellImg;
 import net.imglib2.converter.ARGBColorConverter.InvertingImp1;
@@ -36,6 +37,7 @@ import net.imglib2.type.volatiles.AbstractVolatileRealType;
 import net.imglib2.view.composite.RealComposite;
 import org.janelia.saalfeldlab.fx.ui.ExceptionNode;
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread;
+import org.janelia.saalfeldlab.labels.blocks.LabelBlockLookup;
 import org.janelia.saalfeldlab.n5.DataType;
 import org.janelia.saalfeldlab.n5.DatasetAttributes;
 import org.janelia.saalfeldlab.n5.N5Reader;
@@ -56,14 +58,15 @@ import org.janelia.saalfeldlab.paintera.data.n5.N5ChannelDataSource;
 import org.janelia.saalfeldlab.paintera.data.n5.N5Meta;
 import org.janelia.saalfeldlab.paintera.data.n5.VolatileWithSet;
 import org.janelia.saalfeldlab.paintera.id.IdService;
-import org.janelia.saalfeldlab.paintera.meshes.cache.BlocksForLabelFromFile;
 import org.janelia.saalfeldlab.paintera.state.ChannelSourceState;
+import org.janelia.saalfeldlab.paintera.meshes.InterruptibleFunction;
 import org.janelia.saalfeldlab.paintera.state.LabelSourceState;
 import org.janelia.saalfeldlab.paintera.state.RawSourceState;
 import org.janelia.saalfeldlab.paintera.stream.HighlightingStreamConverter;
 import org.janelia.saalfeldlab.paintera.stream.ModalGoldenAngleSaturatedHighlightingARGBStream;
 import org.janelia.saalfeldlab.paintera.ui.opendialog.DatasetInfo;
 import org.janelia.saalfeldlab.paintera.ui.opendialog.meta.ChannelInformation;
+import org.janelia.saalfeldlab.util.MakeUnchecked;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -79,6 +82,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
+import java.util.stream.IntStream;
 
 public class GenericBackendDialogN5
 {
@@ -500,10 +504,11 @@ public class GenericBackendDialogN5
 		);
 		final HighlightingStreamConverter<T> converter = HighlightingStreamConverter.forType(stream, masked.getType());
 
-		final BlocksForLabelFromFile[] blockLoaders = Arrays
-				.stream(N5Helpers.labelMappingFromFileLoaderPattern(reader, dataset))
-				.map(BlocksForLabelFromFile::new)
-				.toArray(BlocksForLabelFromFile[]::new);
+		final LabelBlockLookup lookup = N5Helpers.getLabelBlockLookup(n5.get(), dataset);
+		InterruptibleFunction<Long, Interval[]>[] blockLoaders = IntStream
+				.range(0, masked.getNumMipmapLevels())
+				.mapToObj(level -> InterruptibleFunction.fromFunction( MakeUnchecked.function((MakeUnchecked.CheckedFunction<Long, Interval[]>) id -> lookup.read(level, id))))
+				.toArray(InterruptibleFunction[]::new );
 
 		return new LabelSourceState<>(
 				masked,
