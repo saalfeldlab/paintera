@@ -40,6 +40,7 @@ import java.io.IOException;
 import java.lang.invoke.MethodHandles;
 import java.util.function.Function;
 import java.util.function.IntFunction;
+import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
 public class N5ChannelDataSource<
@@ -82,9 +83,32 @@ public class N5ChannelDataSource<
 
 	private final Converter<RealComposite<T>, VolatileWithSet<RealComposite<T>>> viewerConverter = (source, target ) -> {
 		target.setT(source);
-		target.setValid(source.get(0).isValid());
+		boolean isValid = true;
+		int numChannels = (int) this.numChannels();
+		// TODO exchange this with only check for first index if block size == num channels
+		for (int i = 0; i < numChannels && isValid; ++i)
+			isValid &= source.get(i).isValid();
+		target.setValid(isValid);
 	};
 
+	private final boolean revertChannelOrder;
+
+	/**
+	 *
+	 * @param meta
+	 * @param transform
+	 * @param sharedQueue
+	 * @param dataExtension
+	 * @param extension
+	 * @param name
+	 * @param priority
+	 * @param channelDimension
+	 * @param channelMin
+	 * @param channelMax
+	 * @param revertChannelOrder
+	 * @throws IOException
+	 * @throws DataTypeNotSupported
+	 */
 	private N5ChannelDataSource(
 			final N5Meta meta,
 			final AffineTransform3D transform,
@@ -95,7 +119,8 @@ public class N5ChannelDataSource<
 			final int priority,
 			final int channelDimension,
 			final long channelMin,
-			final long channelMax) throws
+			final long channelMax,
+			final boolean revertChannelOrder) throws
 			IOException, DataTypeNotSupported {
 
 		Triple<RandomAccessibleInterval<D>[], RandomAccessibleInterval<T>[], AffineTransform3D[]> dataTriple = getData(
@@ -115,11 +140,13 @@ public class N5ChannelDataSource<
 
 		this.intervals = dataTriple.getA();
 		extension.setValid(true);
-		this.data = collapseDimension(dataTriple.getA(), this.channelDimension, dataExtension, this.channelMin, this.channelMax);
-		this.viewerData = collapseDimension(dataTriple.getB(), this.channelDimension, extension, this.channelMin, this.channelMax);
+		this.data = collapseDimension(dataTriple.getA(), this.channelDimension, dataExtension, this.channelMin, this.channelMax, revertChannelOrder);
+		this.viewerData = collapseDimension(dataTriple.getB(), this.channelDimension, extension, this.channelMin, this.channelMax, revertChannelOrder);
 
 		this.interpolation = ipol -> new NearestNeighborInterpolatorFactory<>();
 		this.viewerInterpolation = ipol -> Interpolation.NLINEAR.equals(ipol) ? new NLinearInterpolatorFactory<>() : new NearestNeighborInterpolatorFactory<>();
+
+		this.revertChannelOrder = revertChannelOrder;
 
 		LOG.debug("Channel dimension {} has {} channels", channelDimension, numChannels);
 	}
@@ -134,7 +161,8 @@ public class N5ChannelDataSource<
 			final int priority,
 			final int channelDimension,
 			final long channelMin,
-			final long channelMax) throws IOException, DataTypeNotSupported {
+			final long channelMax,
+			final boolean revertChannelOrder) throws IOException, DataTypeNotSupported {
 
 		Triple<RandomAccessibleInterval<D>[], RandomAccessibleInterval<T>[], AffineTransform3D[]> data = getData(
 				meta.reader(),
@@ -150,7 +178,7 @@ public class N5ChannelDataSource<
 		d.setZero();
 		t.setZero();
 		t.setValid(true);
-		return new N5ChannelDataSource<>(meta, transform, sharedQueue, d, t, name, priority, channelDimension, channelMin, channelMax);
+		return new N5ChannelDataSource<>(meta, transform, sharedQueue, d, t, name, priority, channelDimension, channelMin, channelMax, revertChannelOrder);
 	}
 
 	public N5Meta meta()
@@ -181,6 +209,11 @@ public class N5ChannelDataSource<
 	public int getChannelDimension()
 	{
 		return this.channelDimension;
+	}
+
+	public boolean doesRevertChannelOrder()
+	{
+		return this.revertChannelOrder;
 	}
 
 	public String dataset()
@@ -344,10 +377,11 @@ public class N5ChannelDataSource<
 			final int dimension,
 			final T extension,
 			final long channelMin,
-			final long channelMax
+			final long channelMax,
+			final boolean revertChannelOrder
 	)
 	{
-		return Stream.of(rais).map(rai -> collapseDimension(rai, dimension, extension, channelMin, channelMax)).toArray(RandomAccessible[]::new);
+		return Stream.of(rais).map(rai -> collapseDimension(rai, dimension, extension, channelMin, channelMax, revertChannelOrder)).toArray(RandomAccessible[]::new);
 	}
 
 	private static <T extends RealType<T>> RandomAccessible<RealComposite<T>>  collapseDimension(
@@ -355,7 +389,8 @@ public class N5ChannelDataSource<
 			final int dimension,
 			final T extension,
 			final long channelMin,
-			final long channelMax
+			final long channelMax,
+			final boolean revertChannelOrder
 	)
 	{
 		final int lastDim = rai.numDimensions() - 1;
@@ -371,9 +406,14 @@ public class N5ChannelDataSource<
 		min[dimension] = channelMin;
 		max[dimension] = channelMax;
 
-		RandomAccessibleInterval<T> relevantRai = min[dimension] > rai.min(dimension) || max[dimension] < rai.max(dimension)
-				? Views.offsetInterval(rai, new FinalInterval(min, max))
+		Views.invertAxis(rai, dimension);
+		RandomAccessibleInterval<T> orderCorrected = revertChannelOrder
+				? Views.translate(Views.invertAxis(rai, dimension), IntStream.range(0, rai.numDimensions()).mapToLong(dim -> dim == dimension ? rai.max(dim) : 0).toArray())
 				: rai;
+
+		RandomAccessibleInterval<T> relevantRai = min[dimension] > orderCorrected.min(dimension) || max[dimension] < orderCorrected.max(dimension)
+				? Views.offsetInterval(orderCorrected, new FinalInterval(min, max))
+				: orderCorrected;
 
 		final RandomAccessible<T> ra = Views.extendValue(lastDim == dimension ? relevantRai : Views.moveAxis(relevantRai, dimension, lastDim), extension);
 		return Views.collapseReal(ra, numChannels);

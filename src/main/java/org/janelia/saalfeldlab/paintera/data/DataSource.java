@@ -45,4 +45,5 @@ public interface DataSource<D, T> extends Source<T>
 		Arrays.setAll(targetScale, d -> targetScale[d] / scale[d]);
 		return targetScale;
 	}
+
 }

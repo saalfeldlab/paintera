@@ -2,13 +2,13 @@ package org.janelia.saalfeldlab.paintera.ui.opendialog.menu.n5;
 
 import javafx.beans.binding.Bindings;
 import javafx.beans.binding.BooleanBinding;
+import javafx.beans.binding.ObjectBinding;
 import javafx.beans.property.DoubleProperty;
+import javafx.beans.value.ObservableObjectValue;
 import javafx.beans.value.ObservableValue;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.geometry.Insets;
-import javafx.geometry.Pos;
-import javafx.scene.control.Button;
 import javafx.scene.control.ButtonType;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.Dialog;
@@ -17,7 +17,6 @@ import javafx.scene.control.TitledPane;
 import javafx.scene.control.Tooltip;
 import javafx.scene.effect.InnerShadow;
 import javafx.scene.layout.GridPane;
-import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
@@ -35,19 +34,23 @@ import net.imglib2.type.label.VolatileLabelMultisetArray;
 import net.imglib2.type.numeric.IntegerType;
 import net.imglib2.type.numeric.RealType;
 import net.imglib2.type.volatiles.AbstractVolatileRealType;
+import net.imglib2.view.composite.RealComposite;
 import org.janelia.saalfeldlab.fx.ui.Exceptions;
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread;
+import org.janelia.saalfeldlab.n5.DatasetAttributes;
 import org.janelia.saalfeldlab.paintera.Paintera;
 import org.janelia.saalfeldlab.paintera.PainteraBaseView;
 import org.janelia.saalfeldlab.paintera.data.DataSource;
+import org.janelia.saalfeldlab.paintera.data.axisorder.AxisOrder;
+import org.janelia.saalfeldlab.paintera.data.axisorder.AxisOrderNotSupported;
+import org.janelia.saalfeldlab.paintera.data.n5.VolatileWithSet;
 import org.janelia.saalfeldlab.paintera.meshes.InterruptibleFunction;
 import org.janelia.saalfeldlab.paintera.meshes.cache.CacheUtils;
+import org.janelia.saalfeldlab.paintera.state.ChannelSourceState;
 import org.janelia.saalfeldlab.paintera.state.LabelSourceState;
 import org.janelia.saalfeldlab.paintera.state.RawSourceState;
-import org.janelia.saalfeldlab.paintera.ui.opendialog.BackendDialog;
 import org.janelia.saalfeldlab.paintera.ui.opendialog.CombinesErrorMessages;
 import org.janelia.saalfeldlab.paintera.ui.opendialog.NameField;
-import org.janelia.saalfeldlab.paintera.ui.opendialog.OpenSourceDialog;
 import org.janelia.saalfeldlab.paintera.ui.opendialog.menu.OpenDialogMenuEntry;
 import org.janelia.saalfeldlab.paintera.ui.opendialog.meta.MetaPanel;
 import org.janelia.saalfeldlab.util.HashWrapper;
@@ -58,14 +61,16 @@ import org.slf4j.LoggerFactory;
 import java.lang.invoke.MethodHandles;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.ExecutorService;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.stream.IntStream;
+import java.util.stream.Stream;
 
-public class N5OpenSourceDialog extends Dialog<BackendDialog> implements CombinesErrorMessages {
+public class N5OpenSourceDialog extends Dialog<GenericBackendDialogN5> implements CombinesErrorMessages {
 
 	private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
@@ -79,8 +84,9 @@ public class N5OpenSourceDialog extends Dialog<BackendDialog> implements Combine
 				try {
 					GenericBackendDialogN5 dialog = fs.backendDialog(pbv.getPropagationQueue());
 					N5OpenSourceDialog osDialog = new N5OpenSourceDialog(pbv, dialog);
+					dialog.getChannelInformation().bindTo(osDialog.metaPanel.channelInformation());
 					osDialog.setHeaderFromBackendType("N5");
-					Optional<BackendDialog> backend = osDialog.showAndWait();
+					Optional<GenericBackendDialogN5> backend = osDialog.showAndWait();
 					if (backend == null || !backend.isPresent())
 						return;
 					N5OpenSourceDialog.addSource(osDialog.getName(), osDialog.getType(), dialog, pbv, projectDirectory);
@@ -102,8 +108,9 @@ public class N5OpenSourceDialog extends Dialog<BackendDialog> implements Combine
 				try {
 					GenericBackendDialogN5 dialog = hdf5.backendDialog(pbv.getPropagationQueue());
 					N5OpenSourceDialog osDialog = new N5OpenSourceDialog(pbv, dialog);
+					dialog.getChannelInformation().bindTo(osDialog.metaPanel.channelInformation());
 					osDialog.setHeaderFromBackendType("HDF5");
-					Optional<BackendDialog> backend = osDialog.showAndWait();
+					Optional<GenericBackendDialogN5> backend = osDialog.showAndWait();
 					if (backend == null || !backend.isPresent())
 						return;
 					N5OpenSourceDialog.addSource(osDialog.getName(), osDialog.getType(), dialog, pbv, projectDirectory);
@@ -124,8 +131,9 @@ public class N5OpenSourceDialog extends Dialog<BackendDialog> implements Combine
 					final GoogleCloud googleCloud = new GoogleCloud();
 					final GenericBackendDialogN5 dialog = googleCloud.backendDialog(pbv.getPropagationQueue());
 					final N5OpenSourceDialog osDialog = new N5OpenSourceDialog(pbv, dialog);
+					dialog.getChannelInformation().bindTo(osDialog.metaPanel.channelInformation());
 					osDialog.setHeaderFromBackendType("Google Cloud");
-					Optional<BackendDialog> backend = osDialog.showAndWait();
+					Optional<GenericBackendDialogN5> backend = osDialog.showAndWait();
 					if (backend == null || !backend.isPresent())
 						return;
 					N5OpenSourceDialog.addSource(osDialog.getName(), osDialog.getType(), dialog, pbv, projectDirectory);
@@ -140,13 +148,13 @@ public class N5OpenSourceDialog extends Dialog<BackendDialog> implements Combine
 
 	private final GridPane grid;
 
-	private final ComboBox<OpenSourceDialog.TYPE> typeChoice;
+	private final ComboBox<MetaPanel.TYPE> typeChoice;
 
 	private final Label errorMessage;
 
 	private final TitledPane errorInfo;
 
-	private final ObservableList<OpenSourceDialog.TYPE> typeChoices = FXCollections.observableArrayList(OpenSourceDialog.TYPE.values());
+	private final ObservableList<MetaPanel.TYPE> typeChoices = FXCollections.observableArrayList(MetaPanel.TYPE.values());
 
 	private final NameField nameField = new NameField(
 			"Source name",
@@ -158,18 +166,16 @@ public class N5OpenSourceDialog extends Dialog<BackendDialog> implements Combine
 
 	private final ExecutorService propagationExecutor;
 
-	private final BackendDialog backendDialog;
+	private final GenericBackendDialogN5 backendDialog;
 
 	private final MetaPanel metaPanel = new MetaPanel();
 
-	private final Button revertAxisOrder = new Button(" Revert axis");
-
-	private final HBox revertAxisHBox = new HBox(revertAxisOrder);
-
-	public N5OpenSourceDialog(final PainteraBaseView viewer, final BackendDialog backendDialog) {
+	public N5OpenSourceDialog(final PainteraBaseView viewer, final GenericBackendDialogN5 backendDialog) {
 		super();
 
 		this.backendDialog = backendDialog;
+		this.metaPanel.listenOnDimensions(backendDialog.dimensionsProperty());
+		this.backendDialog.axisOrderProperty().bind(this.metaPanel.axisOrderProperty());
 
 		this.propagationExecutor = viewer.getPropagationQueue();
 
@@ -191,9 +197,7 @@ public class N5OpenSourceDialog extends Dialog<BackendDialog> implements Combine
 		final Tooltip revertAxisTooltip = new Tooltip("If you data is using `zyx` you should revert it.");
 		this.grid = new GridPane();
 		this.nameField.errorMessageProperty().addListener((obs, oldv, newv) -> combineErrorMessages());
-		this.revertAxisOrder.setTooltip(revertAxisTooltip);
-		this.revertAxisHBox.setAlignment(Pos.BASELINE_RIGHT);
-		this.dialogContent = new VBox(10, nameField.textField(), grid, metaPanel.getPane(), revertAxisHBox, errorInfo);
+		this.dialogContent = new VBox(10, nameField.textField(), grid, metaPanel.getPane(), errorInfo);
 		this.setResizable(true);
 
 		GridPane.setMargin(this.backendDialog.getDialogNode(), new Insets(0, 0, 0, 30));
@@ -205,6 +209,9 @@ public class N5OpenSourceDialog extends Dialog<BackendDialog> implements Combine
 		this.typeChoice = new ComboBox<>(typeChoices);
 		this.metaPanel.bindDataTypeTo(this.typeChoice.valueProperty());
 
+		final ObservableObjectValue<DatasetAttributes> attributesProperty = backendDialog.datsetAttributesProperty();
+		final ObjectBinding<long[]> dimensionsProperty = Bindings.createObjectBinding(() -> attributesProperty.get().getDimensions().clone(), attributesProperty);
+
 		final DoubleProperty[] res = backendDialog.resolution();
 		final DoubleProperty[] off = backendDialog.offset();
 		this.metaPanel.listenOnResolution(res[0], res[1], res[2]);
@@ -215,11 +222,12 @@ public class N5OpenSourceDialog extends Dialog<BackendDialog> implements Combine
 		combineErrorMessages();
 		Optional.ofNullable(backendDialog.nameProperty().get()).ifPresent(nameField.textField()::setText);
 
-		this.revertAxisOrder.setOnAction(event -> {
+		metaPanel.listenOnResolution(backendDialog.resolution()[0], backendDialog.resolution()[1], backendDialog.resolution()[2]);
+
+		metaPanel.getRevertButton().setOnAction(event -> {
 			backendDialog.setResolution(revert(metaPanel.getResolution()));
 			backendDialog.setOffset(revert(metaPanel.getOffset()));
 		});
-		HBox.setHgrow(revertAxisHBox, Priority.ALWAYS);
 
 		this.typeChoice.setValue(typeChoices.get(0));
 		this.typeChoice.setMinWidth(100);
@@ -231,7 +239,7 @@ public class N5OpenSourceDialog extends Dialog<BackendDialog> implements Combine
 
 	}
 
-	public OpenSourceDialog.TYPE getType() {
+	public MetaPanel.TYPE getType() {
 		return typeChoice.getValue();
 	}
 
@@ -256,7 +264,7 @@ public class N5OpenSourceDialog extends Dialog<BackendDialog> implements Combine
 		)));
 	}
 
-	public BackendDialog getBackend() {
+	public GenericBackendDialogN5 getBackend() {
 		return this.backendDialog;
 	}
 
@@ -270,11 +278,16 @@ public class N5OpenSourceDialog extends Dialog<BackendDialog> implements Combine
 
 	public static void addSource(
 			final String name,
-			final OpenSourceDialog.TYPE type,
-			final BackendDialog dataset,
+			final MetaPanel.TYPE type,
+			final GenericBackendDialogN5 dataset,
 			final PainteraBaseView viewer,
 			final String projectDirectory) throws Exception {
 		LOG.debug("Type={}", type);
+		if (!AxisOrder.XYZ.equals(dataset.axisOrderProperty().get().spatialOnly()))
+			throw new AxisOrderNotSupported(
+					"Spatial axes have to be in XYZ order.",
+					dataset.axisOrderProperty().get(),
+					AxisOrder.onlyThisSpatialOrder(AxisOrder.XYZ));
 		switch (type) {
 			case RAW:
 				LOG.trace("Adding raw data");
@@ -291,18 +304,41 @@ public class N5OpenSourceDialog extends Dialog<BackendDialog> implements Combine
 	private static <T extends RealType<T> & NativeType<T>, V extends AbstractVolatileRealType<T, V> & NativeType<V>> void
 	addRaw(
 			final String name,
-			final BackendDialog dataset,
+			final GenericBackendDialogN5 dataset,
 			PainteraBaseView viewer) throws Exception {
-		final RawSourceState<T, V> raw = dataset.getRaw(name, viewer.getQueue(), viewer.getQueue().getNumPriorities() - 1);
-		LOG.debug("Got raw: {}", raw);
-		InvokeOnJavaFXApplicationThread.invoke(() -> viewer.addRawSource(raw));
+		if (dataset.axisOrderProperty().get().hasTime())
+			throw new AxisOrderNotSupported(
+					"Time series not supported for raw! Use spatial data with order XYZ, channel optional.",
+					dataset.axisOrderProperty().get(),
+					Stream.of(AxisOrder.onlyThisSpatialOrder(AxisOrder.XYZ)).filter(ao -> !ao.hasTime()).toArray(AxisOrder[]::new)
+			);
+		if (dataset.axisOrderProperty().get().hasChannels())
+		{
+			LOG.debug("Axis order {} has channel at index {}", dataset.axisOrderProperty().get(), dataset.axisOrderProperty().get().channelIndex());
+			List<ChannelSourceState<T, V, RealComposite<V>, VolatileWithSet<RealComposite<V>>>> channels =
+					dataset.getChannels(name, viewer.getQueue(), viewer.getQueue().getNumPriorities() - 1);
+			LOG.debug("Got {} channel sources", channels.size());
+			InvokeOnJavaFXApplicationThread.invoke(() -> channels.forEach(viewer::addChannelSource));
+			LOG.debug("Added {} channel sources", channels.size());
+		}
+		else {
+			final RawSourceState<T, V> raw = dataset.getRaw(name, viewer.getQueue(), viewer.getQueue().getNumPriorities() - 1);
+			LOG.debug("Got raw: {}", raw);
+			InvokeOnJavaFXApplicationThread.invoke(() -> viewer.addRawSource(raw));
+		}
 	}
 
 	private static <D extends NativeType<D> & IntegerType<D>, T extends Volatile<D> & NativeType<T>> void addLabel(
 			final String name,
-			final BackendDialog dataset,
+			final GenericBackendDialogN5 dataset,
 			final PainteraBaseView viewer,
 			final String projectDirectory) throws Exception {
+		if (dataset.axisOrderProperty().get().hasChannels() || dataset.axisOrderProperty().get().hasTime())
+			throw new AxisOrderNotSupported(
+					"Time series or channel data not supported for labels! Use spatial data with order XYZ.",
+					dataset.axisOrderProperty().get(),
+					AxisOrder.XYZ
+					);
 		final LabelSourceState<D, T> rep = dataset.getLabels(
 				name,
 				viewer.getQueue(),
@@ -312,8 +348,6 @@ public class N5OpenSourceDialog extends Dialog<BackendDialog> implements Combine
 				viewer.getMeshWorkerExecutorService(),
 				projectDirectory
 		);
-		final Object meta = dataset.metaData();
-		LOG.debug("Adding label source with meta={}", meta);
 		InvokeOnJavaFXApplicationThread.invoke(() -> viewer.addLabelSource(rep));
 	}
 

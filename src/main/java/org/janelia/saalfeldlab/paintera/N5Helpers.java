@@ -84,6 +84,8 @@ import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssign
 import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignmentState;
 import org.janelia.saalfeldlab.paintera.control.assignment.UnableToPersist;
 import org.janelia.saalfeldlab.paintera.data.DataSource;
+import org.janelia.saalfeldlab.paintera.data.axisorder.AxisOrder;
+import org.janelia.saalfeldlab.paintera.data.axisorder.AxisOrderNotSupported;
 import org.janelia.saalfeldlab.paintera.data.n5.N5DataSource;
 import org.janelia.saalfeldlab.paintera.data.n5.N5FSMeta;
 import org.janelia.saalfeldlab.paintera.data.n5.N5HDF5Meta;
@@ -275,6 +277,14 @@ public class N5Helpers
 		return n5.getDatasetAttributes(group).getDataType();
 	}
 
+	public static DatasetAttributes getDatasetAttributes(final N5Reader n5, final String group) throws IOException
+	{
+		LOG.warn("Getting data type for group/dataset {}", group);
+		if (isPainteraDataset(n5, group)) { return getDatasetAttributes(n5, group + "/" + PAINTERA_DATA_DATASET); }
+		if (isMultiScale(n5, group)) { return getDatasetAttributes(n5, getFinestLevel(n5, group)); }
+		return n5.getDatasetAttributes(group);
+	}
+
 	public static void sortScaleDatasets(final String[] scaleDatasets)
 	{
 		Arrays.sort(scaleDatasets, (f1, f2) -> {
@@ -455,14 +465,15 @@ public class N5Helpers
 			final N5Reader reader,
 			final String dataset,
 			final AffineTransform3D transform,
+			final AxisOrder axisOrder,
 			final SharedQueue sharedQueue,
 			final int priority,
-			final String name) throws IOException, ReflectionException
-	{
+			final String name) throws IOException, ReflectionException, AxisOrderNotSupported {
 		return openScalarAsSource(
 				reader,
 				dataset,
 				transform,
+				axisOrder,
 				sharedQueue,
 				priority,
 				i -> i == Interpolation.NLINEAR
@@ -480,14 +491,15 @@ public class N5Helpers
 			final N5Reader reader,
 			final String dataset,
 			final AffineTransform3D transform,
+			final AxisOrder axisOrder,
 			final SharedQueue sharedQueue,
 			final int priority,
-			final String name) throws IOException, ReflectionException
-	{
+			final String name) throws IOException, ReflectionException, AxisOrderNotSupported {
 		return openScalarAsSource(
 				reader,
 				dataset,
 				transform,
+				axisOrder,
 				sharedQueue,
 				priority,
 				i -> new NearestNeighborInterpolatorFactory<>(),
@@ -501,17 +513,18 @@ public class N5Helpers
 			final N5Reader reader,
 			final String dataset,
 			final AffineTransform3D transform,
+			final AxisOrder axisOrder,
 			final SharedQueue sharedQueue,
 			final int priority,
 			final Function<Interpolation, InterpolatorFactory<T, RandomAccessible<T>>> dataInterpolation,
 			final Function<Interpolation, InterpolatorFactory<V, RandomAccessible<V>>> interpolation,
-			final String name) throws IOException, ReflectionException
-	{
+			final String name) throws IOException, ReflectionException, AxisOrderNotSupported {
 
 		LOG.debug("Creating N5 Data source from {} {}", reader, dataset);
 		return new N5DataSource<>(
 				N5Meta.fromReader(reader, dataset),
 				transform,
+				axisOrder,
 				sharedQueue,
 				name,
 				priority,
@@ -686,10 +699,10 @@ public class N5Helpers
 			final N5Reader reader,
 			final String dataset,
 			final AffineTransform3D transform,
+			final AxisOrder axisOrder,
 			final SharedQueue sharedQueue,
 			final int priority,
-			final String name) throws IOException, ReflectionException
-	{
+			final String name) throws IOException, ReflectionException, AxisOrderNotSupported {
 		final ValueTriple<RandomAccessibleInterval<LabelMultisetType>[],
 				RandomAccessibleInterval<VolatileLabelMultisetType>[], AffineTransform3D[]> data =
 				isMultiScale(reader, dataset)
@@ -698,6 +711,7 @@ public class N5Helpers
 		return new N5DataSource<>(
 				N5Meta.fromReader(reader, dataset),
 				transform,
+				axisOrder,
 				sharedQueue,
 				name,
 				priority,
@@ -897,13 +911,13 @@ public class N5Helpers
 			final N5Reader reader,
 			final String dataset,
 			final AffineTransform3D transform,
+			final AxisOrder axisOrder,
 			final SharedQueue queue,
 			final int priority,
-			final String name) throws IOException, ReflectionException
-	{
+			final String name) throws IOException, ReflectionException, AxisOrderNotSupported {
 		return isLabelMultisetType(reader, dataset)
-		       ? (DataSource<D, T>) openLabelMultisetAsSource(reader, dataset, transform, queue, priority, name)
-		       : (DataSource<D, T>) openScalarAsSource(reader, dataset, transform, queue, priority, name);
+		       ? (DataSource<D, T>) openLabelMultisetAsSource(reader, dataset, transform, axisOrder, queue, priority, name)
+		       : (DataSource<D, T>) openScalarAsSource(reader, dataset, transform, axisOrder, queue, priority, name);
 	}
 
 	public static AffineTransform3D considerDownsampling(

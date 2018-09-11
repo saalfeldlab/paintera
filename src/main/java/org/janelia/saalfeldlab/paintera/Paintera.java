@@ -52,6 +52,7 @@ import org.janelia.saalfeldlab.paintera.control.assignment.UnableToPersist;
 import org.janelia.saalfeldlab.paintera.control.lock.LockedSegmentsOnlyLocal;
 import org.janelia.saalfeldlab.paintera.control.selection.SelectedIds;
 import org.janelia.saalfeldlab.paintera.data.DataSource;
+import org.janelia.saalfeldlab.paintera.data.axisorder.AxisOrder;
 import org.janelia.saalfeldlab.paintera.data.mask.CannotPersist;
 import org.janelia.saalfeldlab.paintera.data.mask.Masks;
 import org.janelia.saalfeldlab.paintera.data.n5.CommitCanvasN5;
@@ -410,6 +411,7 @@ public class Paintera extends Application
 						reader,
 						dataset,
 						N5Helpers.getTransform(reader, dataset),
+						AxisOrder.XYZ,
 						pbv.getQueue(),
 						0,
 						name
@@ -504,6 +506,7 @@ public class Paintera extends Application
 						n5,
 						dataset,
 						transform,
+						AxisOrder.XYZ,
 						pbv.getQueue(),
 						0,
 						name

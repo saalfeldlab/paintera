@@ -48,6 +48,8 @@ import org.janelia.saalfeldlab.paintera.config.NavigationConfigNode;
 import org.janelia.saalfeldlab.paintera.config.OrthoSliceConfig;
 import org.janelia.saalfeldlab.paintera.config.OrthoSliceConfigBase;
 import org.janelia.saalfeldlab.paintera.config.Viewer3DConfig;
+import org.janelia.saalfeldlab.paintera.data.axisorder.AxisOrder;
+import org.janelia.saalfeldlab.paintera.data.axisorder.AxisOrderNotSupported;
 import org.janelia.saalfeldlab.paintera.data.mask.MaskedSource;
 import org.janelia.saalfeldlab.paintera.state.ChannelSourceState;
 import org.janelia.saalfeldlab.paintera.state.GlobalTransformManager;
@@ -209,9 +211,7 @@ public class PainteraBaseView
 			double[] offset,
 			double min,
 			double max,
-			String name
-	                                                                                                                                           )
-	{
+			String name) throws AxisOrderNotSupported {
 		RawSourceState<D, T> state = RawSourceState.simpleSourceFromSingleRAI(data, resolution, offset, min, max,
 				name);
 		InvokeOnJavaFXApplicationThread.invoke(() -> addRawSource(state));
@@ -237,13 +237,23 @@ public class PainteraBaseView
 			final double[] resolution,
 			final double[] offset,
 			final long maxId,
-			final String name
-	                                                                                                                                          )
-	{
+			final String name) throws AxisOrderNotSupported {
+		return addSingleScaleLabelSource(data, resolution, offset, AxisOrder.XYZ, maxId, name);
+	}
+
+	public <D extends IntegerType<D> & NativeType<D>, T extends Volatile<D> & IntegerType<T>> LabelSourceState<D, T>
+	addSingleScaleLabelSource(
+			final RandomAccessibleInterval<D> data,
+			final double[] resolution,
+			final double[] offset,
+			AxisOrder axisOrder,
+			final long maxId,
+			final String name) throws AxisOrderNotSupported {
 		LabelSourceState<D, T> state = LabelSourceState.simpleSourceFromSingleRAI(
 				data,
 				resolution,
 				offset,
+				axisOrder,
 				maxId,
 				name,
 				viewer3D().meshesGroup(),
@@ -283,7 +293,7 @@ public class PainteraBaseView
 			final ChannelSourceState<D, T, CT, V> state)
 	{
 		addGenericState(state);
-		LOG.debug("Adding raw state={}", state);
+		LOG.debug("Adding channel state={}", state);
 		final ARGBCompositeColorConverter<T, CT, V> conv = state.converter();
 		for (int channel = 0; channel < conv.numChannels(); ++channel) {
 			conv.colorProperty(channel).addListener((obs, oldv, newv) -> orthogonalViews().requestRepaint());
@@ -292,6 +302,7 @@ public class PainteraBaseView
 			conv.channelAlphaProperty(channel).addListener((obs, oldv, newv) -> orthogonalViews().requestRepaint());
 		}
 		conv.alphaProperty().addListener((obs, oldv, newv) -> orthogonalViews().requestRepaint());
+		LOG.debug("Added channel state {}", state.nameProperty().get());
 	}
 
 	@SuppressWarnings({"unchecked", "rawtypes"})
