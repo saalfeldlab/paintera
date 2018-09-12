@@ -10,22 +10,17 @@ import java.util.function.Supplier;
 
 import bdv.fx.viewer.ViewerPanelFX;
 import bdv.viewer.Source;
+import javafx.animation.KeyFrame;
+import javafx.animation.Timeline;
 import javafx.beans.binding.Bindings;
-import javafx.beans.property.BooleanProperty;
-import javafx.beans.property.ObjectProperty;
-import javafx.beans.property.ReadOnlyBooleanProperty;
-import javafx.beans.property.SimpleBooleanProperty;
+import javafx.beans.property.*;
+import javafx.beans.value.ObservableLongValue;
 import javafx.beans.value.ObservableObjectValue;
 import javafx.event.ActionEvent;
 import javafx.event.EventHandler;
 import javafx.scene.Group;
-import javafx.scene.control.Button;
-import javafx.scene.control.CheckBox;
-import javafx.scene.control.Label;
-import javafx.scene.control.ScrollPane;
+import javafx.scene.control.*;
 import javafx.scene.control.ScrollPane.ScrollBarPolicy;
-import javafx.scene.control.TitledPane;
-import javafx.scene.control.Tooltip;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.AnchorPane;
 import javafx.scene.layout.BorderPane;
@@ -33,9 +28,12 @@ import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
 import javafx.scene.text.Font;
+import javafx.util.Duration;
 import net.imglib2.RealPoint;
+import org.janelia.saalfeldlab.fx.TitledPanes;
 import org.janelia.saalfeldlab.fx.ortho.OrthogonalViews;
 import org.janelia.saalfeldlab.fx.ortho.OrthogonalViews.ViewerAndTransforms;
+import org.janelia.saalfeldlab.fx.ui.NumberField;
 import org.janelia.saalfeldlab.fx.ui.ResizeOnLeftSide;
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread;
 import org.janelia.saalfeldlab.paintera.config.CrosshairConfigNode;
@@ -208,11 +206,21 @@ public class BorderPaneWithStatusBars
 		final TitledPane sourcesContents = new TitledPane("sources", sourceTabs.get());
 		sourcesContents.setExpanded(false);
 
+		final ObservableLongValue currentMemory = center.currentMemoryUsageInBytesProperty();
+		final Label memoryUsageField = new Label(Long.toString(currentMemory.get() / 1000 / 1000));
+		final Timeline currentMemoryUsageUPdateTask = new Timeline(new KeyFrame(
+				Duration.seconds(1),
+				e -> memoryUsageField.setText(Long.toString(currentMemory.get() / 1000 / 1000))));
+		currentMemoryUsageUPdateTask.setCycleCount(Timeline.INDEFINITE);
+		currentMemoryUsageUPdateTask.play();
+		final TitledPane memoryUsage = TitledPanes.createCollapsed("Memory", new HBox(new Label("Cache Size"), memoryUsageField));
+
 		final VBox settingsContents = new VBox(
 				this.navigationConfigNode.getContents(),
 				this.crosshairConfigNode.getContents(),
 				this.orthoSliceConfigNode.getContents(),
-				this.viewer3DConfigNode.getContents()
+				this.viewer3DConfigNode.getContents(),
+				memoryUsage
 		);
 		final TitledPane settings = new TitledPane("settings", settingsContents);
 		settings.setExpanded(false);

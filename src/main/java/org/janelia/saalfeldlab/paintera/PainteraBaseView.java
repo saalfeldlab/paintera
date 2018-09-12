@@ -17,6 +17,10 @@ import bdv.viewer.Source;
 import bdv.viewer.SourceAndConverter;
 import bdv.viewer.ViewerOptions;
 import gnu.trove.set.hash.TLongHashSet;
+import javafx.beans.property.LongProperty;
+import javafx.beans.property.SimpleLongProperty;
+import javafx.beans.value.ObservableIntegerValue;
+import javafx.beans.value.ObservableLongValue;
 import javafx.collections.ListChangeListener;
 import javafx.collections.ObservableList;
 import javafx.scene.layout.Pane;
@@ -88,6 +92,11 @@ public class PainteraBaseView
 
 	// 1GB
 	private final LoaderCache<GlobalCache.Key<?>, ?> globalBackingCache = new MemoryBoundedSoftRefLoaderCache<>(1000 * 1000 * 1000, DiscoverableMemoryUsage.memoryUsageFromDiscoveredFunctions());
+
+	private final LongProperty currentMemoryUsageInBytes = new SimpleLongProperty();
+	{
+		((MemoryBoundedSoftRefLoaderCache<?, ?>) globalBackingCache).addMemoryUsageListener(currentMemoryUsageInBytes::set);
+	}
 
 	private final GlobalCache globalCache;
 
@@ -568,6 +577,11 @@ public class PainteraBaseView
 			this.gridConstraintsManager = gridConstraintsManager;
 			this.handlers = handlers;
 		}
+	}
+
+	public ObservableLongValue currentMemoryUsageInBytesProperty()
+	{
+		return this.currentMemoryUsageInBytes;
 	}
 
 }
