@@ -3,7 +3,10 @@ package org.janelia.saalfeldlab.paintera.cache;
 import net.imglib2.cache.CacheLoader;
 import net.imglib2.cache.LoaderCache;
 import net.imglib2.cache.ref.WeakRefLoaderCache;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
+import java.lang.invoke.MethodHandles;
 import java.lang.ref.SoftReference;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -22,8 +25,12 @@ import java.util.function.ToLongFunction;
  * @param <K>
  * @param <V>
  * @author Tobias Pietzsch &lt;tobias.pietzsch@gmail.com&gt;
+ * @author Philipp Hanslovsky
  */
 public class MemoryBoundedSoftRefLoaderCache<K, V> implements LoaderCache<K, V> {
+
+	private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
+
 	private final LoaderCache<K, V> cache;
 
 	private SoftRefs softRefs;
@@ -117,16 +124,19 @@ public class MemoryBoundedSoftRefLoaderCache<K, V> implements LoaderCache<K, V> 
 
 		private void subtractFromCurrentSizeInBytes(long sizeInBytes)
 		{
+			LOG.trace("Subtracting {}", sizeInBytes);
 			setCurrentSizeInBytes(this.currentSizeInBytes - sizeInBytes);
 		}
 
 		private void addToCurrentSizeInBytes(long sizeInBytes)
 		{
+			LOG.trace("Adding {}", sizeInBytes);
 			setCurrentSizeInBytes(this.currentSizeInBytes + sizeInBytes);
 		}
 
 		private void setCurrentSizeInBytes(long sizeInBytes)
 		{
+			LOG.trace("Setting to {}", sizeInBytes);
 			this.currentSizeInBytes = sizeInBytes;
 			MemoryBoundedSoftRefLoaderCache.this.memoryUsageListeners.forEach(l -> l.accept(sizeInBytes));
 		}
