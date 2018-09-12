@@ -36,6 +36,7 @@ import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
 import javafx.util.Pair;
 import net.imglib2.RandomAccessibleInterval;
+import net.imglib2.cache.ref.SoftRefLoaderCache;
 import net.imglib2.img.cell.AbstractCellImg;
 import net.imglib2.img.cell.CellGrid;
 import net.imglib2.realtransform.AffineTransform3D;
@@ -49,6 +50,7 @@ import org.janelia.saalfeldlab.fx.ui.SpatialField;
 import org.janelia.saalfeldlab.n5.N5FSReader;
 import org.janelia.saalfeldlab.n5.N5Reader;
 import org.janelia.saalfeldlab.paintera.N5Helpers;
+import org.janelia.saalfeldlab.paintera.cache.global.GlobalCache;
 import org.janelia.saalfeldlab.paintera.data.DataSource;
 import org.janelia.saalfeldlab.paintera.data.axisorder.AxisOrder;
 import org.janelia.saalfeldlab.paintera.data.axisorder.AxisOrderNotSupported;
@@ -291,7 +293,7 @@ public class CreateDataset
 				"volumes/raw/data/s0",
 				tf,
 				AxisOrder.XYZ,
-				new SharedQueue(1, 1),
+				new GlobalCache(10, 1, new SoftRefLoaderCache<>()),
 				1,
 				"NAME"
 		                                                                                            );

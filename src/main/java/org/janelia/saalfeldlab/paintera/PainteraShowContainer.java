@@ -184,8 +184,8 @@ public class PainteraShowContainer extends Application {
 				rawMeta.dataset(),
 				N5Helpers.getTransform(rawMeta.reader(), rawMeta.dataset(), revertArrayAttributes),
 				axisOrder,
-				viewer.getQueue(),
-				viewer.getQueue().getNumPriorities() - 1,
+				viewer.getGlobalCache(),
+				viewer.getGlobalCache().getNumPriorities() - 1,
 				rawMeta.dataset());
 		ARGBColorConverter.Imp0<V> conv = new ARGBColorConverter.Imp0<>();
 		RawSourceState<T, V> state = new RawSourceState<>(source, conv, new CompositeCopy<>(), source.getName());
@@ -232,9 +232,9 @@ public class PainteraShowContainer extends Application {
 			N5ChannelDataSource<T, V> source = N5ChannelDataSource.zeroExtended(
 					meta,
 					N5Helpers.getTransform(meta.reader(), meta.dataset(), revertArrayAttributes),
-					viewer.getQueue(),
+					viewer.getGlobalCache(),
 					cmin == 0 && cmax == channelMax ? meta.dataset() : String.format("%s-channels-[%d,%d]", meta.dataset(), cmin, cmax)	,
-					viewer.getQueue().getNumPriorities() - 1,
+					viewer.getGlobalCache().getNumPriorities() - 1,
 					channelDimension,
 					cmin,
 					cmax,

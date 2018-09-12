@@ -54,6 +54,7 @@ import org.janelia.saalfeldlab.n5.DatasetAttributes;
 import org.janelia.saalfeldlab.n5.N5Reader;
 import org.janelia.saalfeldlab.n5.N5Writer;
 import org.janelia.saalfeldlab.paintera.N5Helpers;
+import org.janelia.saalfeldlab.paintera.cache.global.GlobalCache;
 import org.janelia.saalfeldlab.paintera.composition.ARGBCompositeAlphaYCbCr;
 import org.janelia.saalfeldlab.paintera.composition.CompositeCopy;
 import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignmentState;
@@ -343,7 +344,7 @@ public class GenericBackendDialogN5 implements BackendDialog
 	public <T extends RealType<T> & NativeType<T>, V extends AbstractVolatileRealType<T, V> & NativeType<V>>
 	RawSourceState<T, V> getRaw(
 			final String name,
-			final SharedQueue sharedQueue,
+			final GlobalCache globalCache,
 			final int priority) throws Exception
 	{
 		final N5Reader             reader     = n5.get();
@@ -356,7 +357,7 @@ public class GenericBackendDialogN5 implements BackendDialog
 				dataset,
 				transform,
 				AxisOrder.XYZ,
-				sharedQueue,
+				globalCache,
 				priority,
 				name
 		                                                                 );
@@ -370,7 +371,7 @@ public class GenericBackendDialogN5 implements BackendDialog
 	public <D extends NativeType<D> & IntegerType<D>, T extends Volatile<D> & NativeType<T>> LabelSourceState<D, T>
 	getLabels(
 			final String name,
-			final SharedQueue sharedQueue,
+			final GlobalCache globalCache,
 			final int priority,
 			final Group meshesGroup,
 			final ExecutorService manager,
@@ -390,7 +391,7 @@ public class GenericBackendDialogN5 implements BackendDialog
 					dataset,
 					transform,
 					AxisOrder.XYZ,
-					sharedQueue,
+					globalCache,
 					priority,
 					name
 			                                                         );
@@ -402,7 +403,7 @@ public class GenericBackendDialogN5 implements BackendDialog
 					dataset,
 					transform,
 					AxisOrder.XYZ,
-					sharedQueue,
+					globalCache,
 					priority,
 					name
 			                                                        );

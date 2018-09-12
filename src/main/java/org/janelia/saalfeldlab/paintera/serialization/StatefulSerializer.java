@@ -10,6 +10,7 @@ import com.google.gson.JsonDeserializer;
 import com.google.gson.JsonSerializer;
 import javafx.scene.Group;
 import org.janelia.saalfeldlab.paintera.PainteraBaseView;
+import org.janelia.saalfeldlab.paintera.cache.global.GlobalCache;
 import org.janelia.saalfeldlab.paintera.state.SourceState;
 
 public class StatefulSerializer
@@ -17,7 +18,7 @@ public class StatefulSerializer
 
 	public static class Arguments
 	{
-		public final SharedQueue sharedQueue;
+		public final GlobalCache globalCache;
 
 		public final ExecutorService generalPurposeExecutors;
 
@@ -31,7 +32,7 @@ public class StatefulSerializer
 
 		public Arguments(final PainteraBaseView viewer)
 		{
-			this.sharedQueue = viewer.getQueue();
+			this.globalCache = viewer.getGlobalCache();
 			this.generalPurposeExecutors = viewer.generalPurposeExecutorService();
 			this.meshManagerExecutors = viewer.getMeshManagerExecutorService();
 			this.meshWorkersExecutors = viewer.getMeshWorkerExecutorService();

@@ -316,13 +316,13 @@ public class N5OpenSourceDialog extends Dialog<GenericBackendDialogN5> implement
 		{
 			LOG.debug("Axis order {} has channel at index {}", dataset.axisOrderProperty().get(), dataset.axisOrderProperty().get().channelIndex());
 			List<ChannelSourceState<T, V, RealComposite<V>, VolatileWithSet<RealComposite<V>>>> channels =
-					dataset.getChannels(name, viewer.getQueue(), viewer.getQueue().getNumPriorities() - 1);
+					dataset.getChannels(name, viewer.getGlobalCache(), viewer.getGlobalCache().getNumPriorities() - 1);
 			LOG.debug("Got {} channel sources", channels.size());
 			InvokeOnJavaFXApplicationThread.invoke(() -> channels.forEach(viewer::addChannelSource));
 			LOG.debug("Added {} channel sources", channels.size());
 		}
 		else {
-			final RawSourceState<T, V> raw = dataset.getRaw(name, viewer.getQueue(), viewer.getQueue().getNumPriorities() - 1);
+			final RawSourceState<T, V> raw = dataset.getRaw(name, viewer.getGlobalCache(), viewer.getGlobalCache().getNumPriorities() - 1);
 			LOG.debug("Got raw: {}", raw);
 			InvokeOnJavaFXApplicationThread.invoke(() -> viewer.addRawSource(raw));
 		}
@@ -341,8 +341,8 @@ public class N5OpenSourceDialog extends Dialog<GenericBackendDialogN5> implement
 					);
 		final LabelSourceState<D, T> rep = dataset.getLabels(
 				name,
-				viewer.getQueue(),
-				viewer.getQueue().getNumPriorities() - 1,
+				viewer.getGlobalCache(),
+				viewer.getGlobalCache().getNumPriorities() - 1,
 				viewer.viewer3D().meshesGroup(),
 				viewer.getMeshManagerExecutorService(),
 				viewer.getMeshWorkerExecutorService(),

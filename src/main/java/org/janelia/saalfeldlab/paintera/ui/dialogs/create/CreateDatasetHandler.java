@@ -74,7 +74,7 @@ public class CreateDatasetHandler
 					meta,
 					transform,
 					AxisOrder.XYZ,
-					pbv.getQueue(),
+					pbv.getGlobalCache(),
 					name,
 					0
 			);

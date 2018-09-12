@@ -50,6 +50,8 @@ import net.imglib2.util.Pair;
 import net.imglib2.util.Util;
 import net.imglib2.util.ValueTriple;
 import net.imglib2.view.Views;
+import org.janelia.saalfeldlab.paintera.cache.global.GlobalCache;
+import org.janelia.saalfeldlab.paintera.cache.global.InvalidAccessException;
 import org.janelia.saalfeldlab.paintera.composition.Composite;
 import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignmentState;
 import org.janelia.saalfeldlab.paintera.control.assignment.FragmentsInSelectedSegments;
@@ -87,15 +89,14 @@ public class IntersectingSourceState
 			final LabelSourceState<D, T> labels,
 			final Composite<ARGBType, ARGBType> composite,
 			final String name,
-			final SharedQueue queue,
+			final GlobalCache globalCache,
 			final int priority,
 			final Group meshesGroup,
 			final ExecutorService manager,
-			final ExecutorService workers)
-	{
+			final ExecutorService workers) throws InvalidAccessException {
 		// TODO use better converter
 		super(
-				makeIntersect(thresholded, labels, queue, priority, name),
+				makeIntersect(thresholded, labels, globalCache, priority, name),
 				new ARGBColorConverter.Imp0<>(0, 1),
 				composite,
 				name,
@@ -213,10 +214,9 @@ public class IntersectingSourceState
 	DataSource<UnsignedByteType, VolatileUnsignedByteType> makeIntersect(
 			final SourceState<B, Volatile<B>> thresholded,
 			final LabelSourceState<D, T> labels,
-			final SharedQueue queue,
+			final GlobalCache globalCache,
 			final int priority,
-			final String name)
-	{
+			final String name) throws InvalidAccessException {
 		LOG.debug(
 				"Number of mipmap labels: thresholded={} labels={}",
 				thresholded.getDataSource().getNumMipmapLevels(),
@@ -280,49 +280,13 @@ public class IntersectingSourceState
 					extension::copy
 			);
 
-			final Set<AccessFlags> accessFlags = AccessFlags.setOf(AccessFlags.VOLATILE);
-			final Cache<Long, Cell<VolatileByteArray>> cache = new SoftRefLoaderCache<Long, Cell<VolatileByteArray>>()
-					.withLoader(LoadedCellCacheLoader.get(grid, loader, new UnsignedByteType(), accessFlags));
-
 			LOG.debug("Making intersect for level={} with grid={}", level, grid);
 
-			final CachedCellImg<UnsignedByteType, VolatileByteArray> img           = new CachedCellImg<>(
-					grid,
-					new UnsignedByteType(),
-					cache,
-					ArrayDataAccessFactory.get(PrimitiveType.BYTE, accessFlags)
-			);
-			final CreateInvalid<Long, Cell<VolatileByteArray>>       createInvalid = CreateInvalidVolatileCell.get(
-					grid,
-					new VolatileUnsignedByteType(),
-					false
-			                                                                                                      );
-			final VolatileCache<Long, Cell<VolatileByteArray>>       volatileCache = new WeakRefVolatileCache<>(
-					cache,
-					queue,
-					createInvalid
-			);
-			final CacheHints                                         hints         = new CacheHints(
-					LoadingStrategy.VOLATILE,
-					priority,
-					false
-			);
-			final VolatileCachedCellImg<VolatileUnsignedByteType, VolatileByteArray> vimg =
-					new VolatileCachedCellImg<>(
-							grid,
-							new VolatileUnsignedByteType(),
-							hints,
-							volatileCache.unchecked()::get,
-							volatileCache::invalidateAll
-					);
-			//			final RandomAccessibleInterval< VolatileUnsignedByteType > vimg = VolatileViews.wrapAsVolatile(
-			//					img,
-			//					queue,
-			//					new CacheHints( LoadingStrategy.VOLATILE, priority, false ) );
+			final CachedCellImg<UnsignedByteType, VolatileByteArray> img = globalCache.createVolatileImg(grid, loader, new UnsignedByteType());
+			final Pair<RandomAccessibleInterval<VolatileUnsignedByteType>, VolatileCache<Long, Cell<VolatileByteArray>>> vimg = globalCache.wrapAsVolatile(img, priority);
 			data[level] = img;
-			vdata[level] = vimg;
+			vdata[level] = vimg.getA();
 			transforms[level] = tf1;
-
 		}
 
 		try {

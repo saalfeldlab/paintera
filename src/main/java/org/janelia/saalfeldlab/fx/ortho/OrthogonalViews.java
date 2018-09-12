@@ -88,21 +88,21 @@ public class OrthogonalViews<BR extends Node>
 
 	private final ViewerAndTransforms bottomLeft;
 
-	private final SharedQueue queue;
+	private final CacheControl queue;
 
 	public OrthogonalViews(
 			final GlobalTransformManager manager,
-			final SharedQueue queue,
+			final CacheControl cacheControl,
 			final ViewerOptions optional,
 			final BR bottomRight,
 			final Function<Source<?>, Interpolation> interpolation)
 	{
 		this.manager = manager;
-		this.topLeft = create(this.manager, queue, optional, ViewerAxis.Z, interpolation);
-		this.topRight = create(this.manager, queue, optional, ViewerAxis.X, interpolation);
-		this.bottomLeft = create(this.manager, queue, optional, ViewerAxis.Y, interpolation);
+		this.topLeft = create(this.manager, cacheControl, optional, ViewerAxis.Z, interpolation);
+		this.topRight = create(this.manager, cacheControl, optional, ViewerAxis.X, interpolation);
+		this.bottomLeft = create(this.manager, cacheControl, optional, ViewerAxis.Y, interpolation);
 		this.grid = new ResizableGridPane2x2<>(topLeft.viewer, topRight.viewer, bottomLeft.viewer, bottomRight);
-		this.queue = queue;
+		this.queue = cacheControl;
 	}
 
 	public ResizableGridPane2x2<ViewerPanelFX, ViewerPanelFX, ViewerPanelFX, BR> grid()
@@ -188,7 +188,7 @@ public class OrthogonalViews<BR extends Node>
 		return this.bottomLeft;
 	}
 
-	public SharedQueue sharedQueue()
+	public CacheControl sharedQueue()
 	{
 		return this.queue;
 	}
