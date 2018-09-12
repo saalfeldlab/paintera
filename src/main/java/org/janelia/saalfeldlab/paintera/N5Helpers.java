@@ -54,7 +54,9 @@ import net.imglib2.type.label.N5CacheLoader;
 import net.imglib2.type.label.VolatileLabelMultisetArray;
 import net.imglib2.type.label.VolatileLabelMultisetType;
 import net.imglib2.type.numeric.RealType;
-import net.imglib2.type.numeric.integer.UnsignedLongType;
+import net.imglib2.type.numeric.integer.*;
+import net.imglib2.type.numeric.real.DoubleType;
+import net.imglib2.type.numeric.real.FloatType;
 import net.imglib2.util.Fraction;
 import net.imglib2.util.Pair;
 import net.imglib2.util.Util;
@@ -586,7 +588,7 @@ public class N5Helpers
 		try {
 			final CellGrid grid = getGrid(reader, dataset);
 			final CellLoader<T> loader = new N5CellLoader<>(reader, dataset, reader.getDatasetAttributes(dataset).getBlockSize());
-			final T type = N5Utils.type(reader.getDatasetAttributes(dataset).getDataType());
+			final T type = N5Helpers.type(reader.getDatasetAttributes(dataset).getDataType());
 			final CachedCellImg<T, A> raw = globalCache.createVolatileImg(grid, loader, type);
 			final V vtype = (V) VolatileTypeMatcher.getVolatileTypeForType(type);
 			Pair<RandomAccessibleInterval<V>, VolatileCache<Long, Cell<A>>> vraw = globalCache.wrapAsVolatile(raw, priority);
@@ -1012,7 +1014,7 @@ public class N5Helpers
 				keys = new long[numEntries];
 				values = new long[numEntries];
 				LOG.debug("Found {} assignments", numEntries);
-				final RandomAccessibleInterval<UnsignedLongType> data = N5Utils.openWithBoundedSoftRefCache(writer, dataset, MAX_NUM_CACHE_ENTRIES);
+				final RandomAccessibleInterval<UnsignedLongType> data = N5Utils.open(writer, dataset);
 
 				final Cursor<UnsignedLongType> keysCursor = Views.flatIterable(Views.hyperSlice(data, 1, 0l)).cursor();
 				for (int i = 0; keysCursor.hasNext(); ++i)
@@ -1409,6 +1411,33 @@ public class N5Helpers
 	public static CellGrid getGrid(N5Reader reader, final String dataset) throws IOException {
 		DatasetAttributes attributes = reader.getDatasetAttributes(dataset);
 		return new CellGrid(attributes.getDimensions(), attributes.getBlockSize());
+	}
+
+	public static final <T extends NativeType<T>> T type(final DataType dataType) {
+		switch (dataType) {
+			case INT8:
+				return (T) new ByteType();
+			case UINT8:
+				return (T) new UnsignedByteType();
+			case INT16:
+				return (T) new ShortType();
+			case UINT16:
+				return (T) new UnsignedShortType();
+			case INT32:
+				return (T) new IntType();
+			case UINT32:
+				return (T) new UnsignedIntType();
+			case INT64:
+				return (T) new LongType();
+			case UINT64:
+				return (T) new UnsignedLongType();
+			case FLOAT32:
+				return (T) new FloatType();
+			case FLOAT64:
+				return (T) new DoubleType();
+			default:
+				return null;
+		}
 	}
 
 	private static double[] asDoubleArray(long[] array)
