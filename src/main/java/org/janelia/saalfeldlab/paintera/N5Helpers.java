@@ -34,18 +34,10 @@ import net.imglib2.Interval;
 import net.imglib2.RandomAccessible;
 import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.Volatile;
-import net.imglib2.cache.LoaderCache;
 import net.imglib2.cache.img.CachedCellImg;
 import net.imglib2.cache.img.CellLoader;
-import net.imglib2.cache.ref.BoundedSoftRefLoaderCache;
-import net.imglib2.cache.ref.SoftRefLoaderCache;
-import net.imglib2.cache.util.LoaderCacheAsCacheAdapter;
-import net.imglib2.cache.volatiles.CacheHints;
-import net.imglib2.cache.volatiles.CreateInvalid;
-import net.imglib2.cache.volatiles.LoadingStrategy;
 import net.imglib2.cache.volatiles.VolatileCache;
 import net.imglib2.img.NativeImg;
-import net.imglib2.img.basictypeaccess.AccessFlags;
 import net.imglib2.img.basictypeaccess.array.ArrayDataAccess;
 import net.imglib2.img.cell.Cell;
 import net.imglib2.img.cell.CellGrid;
@@ -1025,7 +1017,6 @@ public class N5Helpers
 				keys = new long[numEntries];
 				values = new long[numEntries];
 				LOG.debug("Found {} assignments", numEntries);
-//				final RandomAccessibleInterval<UnsignedLongType> data = N5Utils.open(writer, dataset);
 				final RandomAccessibleInterval<UnsignedLongType> data = N5Utils.openWithBoundedSoftRefCache(writer, dataset, MAX_NUM_CACHE_ENTRIES);
 
 				final Cursor<UnsignedLongType> keysCursor = Views.flatIterable(Views.hyperSlice(data, 1, 0l)).cursor();
