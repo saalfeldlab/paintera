@@ -19,7 +19,7 @@ import net.imglib2.type.numeric.ARGBType;
  * Combines the Y-channel of a with the Cb and Cr channels of b, and mixes the result
  * into a weighted by b's alpha value.
  *
- * @author Stephan Saalfeld <saalfelds@janelia.hhmi.org>
+ * @author Stephan Saalfeld
  */
 public class ARGBCompositeAlphaYCbCr implements Composite<ARGBType, ARGBType>
 {

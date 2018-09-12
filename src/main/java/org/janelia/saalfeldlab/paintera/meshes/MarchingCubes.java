@@ -442,14 +442,7 @@ public class MarchingCubes<B extends BooleanType<B>>
 	/**
 	 * Creates the mesh using the information directly from the RAI structure
 	 *
-	 * @param input
-	 * 		RAI with the label (segmentation) information
-	 * @param cubeSize
-	 * 		size of the cube to walk in the volume
-	 * @param nextValuesVertex
-	 * 		generic interface to access the information on RAI
-	 *
-	 * @return SimpleMesh, basically an array with the vertices
+	 * @return
 	 */
 	public float[] generateMesh()
 	{

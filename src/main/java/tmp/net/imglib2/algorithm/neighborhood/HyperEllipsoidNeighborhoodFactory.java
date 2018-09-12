@@ -45,7 +45,7 @@ import net.imglib2.algorithm.neighborhood.Neighborhood;
  * <p>
  * TODO
  *
- * @author Tobias Pietzsch <tobias.pietzsch@gmail.com>
+ * @author Tobias Pietzsch
  */
 public interface HyperEllipsoidNeighborhoodFactory<T> extends HyperSphereNeighborhoodFactory<T>
 {

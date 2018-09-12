@@ -24,11 +24,11 @@ public class PaintUtils
 	 * @param labelToGlobalTransform
 	 * @param viewerTransform
 	 * @param axis
-	 * 		0=x, 1=y, 2=z
+	 * 		{@code 0=x, 1=y, 2=z}
 	 * @param tolerance
-	 * 		0 <= tolerance << 1
+	 * 		{@code 0 <= tolerance << 1}
 	 *
-	 * @return -1 if axis no unique corresponding axis according to tolerance, else 0=x, 1=y, 2=z
+	 * @return {@code -1} if axis no unique corresponding axis according to tolerance, else {@code 0=x, 1=y, 2=z}
 	 */
 	public static int labelAxisCorrespondingToViewerAxis(
 			final AffineTransform3D labelToGlobalTransform,
@@ -56,9 +56,9 @@ public class PaintUtils
 	 * @param labelToGlobalTransform
 	 * @param viewerTransform
 	 * @param axis
-	 * 		0=x, 1=y, 2=z
+	 * 		{@code 0=x, 1=y, 2=z}
 	 * @param length
-	 * 		!= 0
+	 * 		{@code != 0}
 	 *
 	 * @return
 	 */

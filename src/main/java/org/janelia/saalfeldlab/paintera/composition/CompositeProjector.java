@@ -15,7 +15,7 @@ import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.type.Type;
 
 /**
- * @author Stephan Saalfeld <saalfelds@janelia.hhmi.org>
+ * @author Stephan Saalfeld
  */
 public class CompositeProjector<A extends Type<A>> extends AccumulateProjector<A, A>
 {

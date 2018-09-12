@@ -18,7 +18,7 @@ import net.imglib2.type.numeric.ARGBType;
 /**
  * Multiplies b by b's alpha value and adds it to a.
  *
- * @author Stephan Saalfeld <saalfelds@janelia.hhmi.org>
+ * @author Stephan Saalfeld
  */
 public class ARGBCompositeAlphaAdd implements Composite<ARGBType, ARGBType>
 {

@@ -34,6 +34,9 @@
 		<license.licenseName>GNU General Public License v2.0</license.licenseName>
 		<license.copyrightOwners>Philipp Hanslovsky, Stephan Saalfeld</license.copyrightOwners>
 		<imglib2-algorithm.version>0.10.0</imglib2-algorithm.version>
+
+		<!-- NB: Deploy releases to the ImageJ Maven repository. -->
+		<releaseProfiles>deploy-to-imagej</releaseProfiles>
 	</properties>
 
 
@@ -195,17 +198,13 @@
 	</ciManagement>
 
 	<scm>
-		<connection>scm:git:git://github.com/saalfeldlab/bigcat</connection>
-		<developerConnection>scm:git:git@github.com:saalfeldlab/bigcat.git</developerConnection>
+		<connection>scm:git:git://github.com/saalfeldlab/paintera</connection>
+		<developerConnection>scm:git:git@github.com:saalfeldlab/paintera.git</developerConnection>
 		<tag>HEAD</tag>
-		<url>https://github.com/saalfeldlab/bigcat</url>
+		<url>https://github.com/saalfeldlab/paintera</url>
 	</scm>
 
 	<repositories>
-		<repository>
-			<id>saalfeld-lab-maven-repo</id>
-			<url>https://saalfeldlab.github.io/maven</url>
-		</repository>
 		<repository>
 			<id>imagej.public</id>
 			<url>https://maven.imagej.net/content/groups/public</url>

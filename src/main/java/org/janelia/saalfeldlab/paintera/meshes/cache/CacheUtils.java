@@ -52,14 +52,10 @@ public class CacheUtils
 	 * 		block size per dimension. Note that this need not be the same as a potential blocking for {@code source}.
 	 * @param scalingFactors
 	 * 		scaling factors for each scale level, relative to a common baseline. Usually,
-	 * 		{@link scalingFactors[ 0 ] == 1}
+	 * 		{@code scalingFactors[ 0 ] == 1}
 	 * 		should be the case.
 	 * @param makeCache
 	 * 		Build a {@link Cache} from a {@link CacheLoader}
-	 * @param es
-	 * 		{@link ExecutorService} for parallel execution of retrieval of lists of unique labels. The task is
-	 * 		parallelized
-	 * 		over blocks.
 	 *
 	 * @return Cascade of {@link Cache} that produce list of containing blocks for a label (key) at each scale level.
 	 */
@@ -114,14 +110,10 @@ public class CacheUtils
 	 * 		block size per dimension. Note that this need not be the same as a potential blocking for {@code source}.
 	 * @param scalingFactors
 	 * 		scaling factors for each scale level, relative to a common baseline. Usually,
-	 * 		{@link scalingFactors[ 0 ] == 1}
+	 * 		{@code scalingFactors[ 0 ] == 1}
 	 * 		should be the case.
 	 * @param makeCache
 	 * 		Build a {@link Cache} from a {@link CacheLoader}
-	 * @param es
-	 * 		{@link ExecutorService} for parallel execution of retrieval of lists of unique labels. The task is
-	 * 		parallelized
-	 * 		over blocks.
 	 *
 	 * @return Cascade of {@link Cache} that produce list of containing blocks for a label (key) at each scale level.
 	 */
@@ -298,8 +290,6 @@ public class CacheUtils
 
 	/**
 	 * @param source
-	 * @param cubeSizes
-	 * 		cube sizes for marching cubes
 	 * @param getMaskGenerator
 	 * 		Turn data into binary mask usable in marching cubes.
 	 * @param makeCache
@@ -390,7 +380,7 @@ public class CacheUtils
 	 * and
 	 * re-throws as {@link RuntimeException}
 	 *
-	 * @param throwingCache
+	 * @param throwingLoader
 	 *
 	 * @return
 	 */
@@ -447,7 +437,8 @@ public class CacheUtils
 	 * Utility method to collect all blocks of specified size contained within an interval {@code [min, max]}. Blocks
 	 * are mapped into arbitrary object as specified by {@code func}.
 	 *
-	 * @param dimensions
+	 * @param min
+	 * @param max
 	 * @param blockSize
 	 * @param func
 	 *

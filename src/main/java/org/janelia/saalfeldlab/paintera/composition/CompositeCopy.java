@@ -18,7 +18,7 @@ import net.imglib2.type.Type;
 /**
  * Copies b into a.
  *
- * @author Stephan Saalfeld <saalfelds@janelia.hhmi.org>
+ * @author Stephan Saalfeld
  */
 public class CompositeCopy<A extends Type<A>> implements Composite<A, A>
 {
