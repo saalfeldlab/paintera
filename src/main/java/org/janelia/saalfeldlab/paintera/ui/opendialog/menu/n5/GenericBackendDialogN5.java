@@ -422,6 +422,7 @@ public class GenericBackendDialogN5
 			final GlobalCache globalCache,
 			final int priority) throws Exception
 	{
+		LOG.info("Raw data set requested. Name=", name);
 		final N5Reader             reader     = n5.get();
 		final String               dataset    = this.dataset.get();
 		final double[]             resolution = asPrimitiveArray(resolution());
@@ -438,7 +439,7 @@ public class GenericBackendDialogN5
 		                                                                 );
 		final InvertingImp1<V>     converter  = new InvertingImp1<>(min().get(), max().get());
 		final RawSourceState<T, V> state      = new RawSourceState<>(source, converter, new CompositeCopy<>(), name);
-		LOG.debug("Returning raw source state {} {}", name, state);
+		LOG.info("Returning raw source state {} {}", name, state);
 		return state;
 	}
 

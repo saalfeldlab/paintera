@@ -43,6 +43,8 @@ import org.janelia.saalfeldlab.fx.event.MouseTracker;
 import org.janelia.saalfeldlab.fx.ortho.GridConstraintsManager;
 import org.janelia.saalfeldlab.fx.ortho.OrthogonalViews;
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread;
+import org.janelia.saalfeldlab.paintera.cache.DiscoverableMemoryUsage;
+import org.janelia.saalfeldlab.paintera.cache.MemoryBoundedSoftRefLoaderCache;
 import org.janelia.saalfeldlab.paintera.cache.global.GlobalCache;
 import org.janelia.saalfeldlab.paintera.composition.CompositeProjectorPreMultiply;
 import org.janelia.saalfeldlab.paintera.config.CoordinateConfigNode;
@@ -82,7 +84,10 @@ public class PainteraBaseView
 
 	private final GlobalTransformManager manager = new GlobalTransformManager();
 
-	private final LoaderCache<GlobalCache.Key<?>, ?> globalBackingCache = new BoundedSoftRefLoaderCache<>(DEFAULT_MAX_NUM_CACHE_ENTRIES);
+//	private final LoaderCache<GlobalCache.Key<?>, ?> globalBackingCache = new BoundedSoftRefLoaderCache<>(DEFAULT_MAX_NUM_CACHE_ENTRIES);
+
+	// 1GB
+	private final LoaderCache<GlobalCache.Key<?>, ?> globalBackingCache = new MemoryBoundedSoftRefLoaderCache<>(1000 * 1000 * 1000, DiscoverableMemoryUsage.memoryUsageFromDiscoveredFunctions());
 
 	private final GlobalCache globalCache;
 
