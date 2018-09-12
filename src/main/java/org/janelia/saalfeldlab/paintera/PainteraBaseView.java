@@ -93,11 +93,6 @@ public class PainteraBaseView
 	// 1GB
 	private final LoaderCache<GlobalCache.Key<?>, ?> globalBackingCache = new MemoryBoundedSoftRefLoaderCache<>(1000 * 1000 * 1000, DiscoverableMemoryUsage.memoryUsageFromDiscoveredFunctions());
 
-	private final LongProperty currentMemoryUsageInBytes = new SimpleLongProperty();
-	{
-		((MemoryBoundedSoftRefLoaderCache<?, ?>) globalBackingCache).addMemoryUsageListener(currentMemoryUsageInBytes::set);
-	}
-
 	private final GlobalCache globalCache;
 
 	private final ViewerOptions viewerOptions;
@@ -579,9 +574,9 @@ public class PainteraBaseView
 		}
 	}
 
-	public ObservableLongValue currentMemoryUsageInBytesProperty()
+	public long getCurrentMemoryUsageInBytes()
 	{
-		return this.currentMemoryUsageInBytes;
+		return ((MemoryBoundedSoftRefLoaderCache)this.globalBackingCache).getCurrentMemoryUsageInBytes();
 	}
 
 }

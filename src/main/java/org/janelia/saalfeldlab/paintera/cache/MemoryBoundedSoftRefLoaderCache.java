@@ -37,8 +37,6 @@ public class MemoryBoundedSoftRefLoaderCache<K, V> implements LoaderCache<K, V> 
 
 	private final ToLongFunction<V> memoryUsageInBytes;
 
-	private final List<LongConsumer> memoryUsageListeners = new ArrayList<>();
-
 	public MemoryBoundedSoftRefLoaderCache(final long maxSizeInBytes, final LoaderCache<K, V> cache, final ToLongFunction<V> memoryUsageInBytes) {
 		this.cache = cache;
 		this.softRefs = new SoftRefs(maxSizeInBytes);
@@ -49,17 +47,19 @@ public class MemoryBoundedSoftRefLoaderCache<K, V> implements LoaderCache<K, V> 
 		this(maxSizeInBytes, new WeakRefLoaderCache<>(), memoryUsageInBytes);
 	}
 
+
+
+	public void restrictToMaxSize()
+	{
+		softRefs.restrictToMaxSize();
+	}
+
 	public long getCurrentMemoryUsageInBytes()
 	{
 		synchronized(softRefs)
 		{
 			return this.softRefs.currentSizeInBytes;
 		}
-	}
-
-	public void addMemoryUsageListener(LongConsumer listener)
-	{
-		this.memoryUsageListeners.add(listener);
 	}
 
 	@Override
@@ -100,6 +100,24 @@ public class MemoryBoundedSoftRefLoaderCache<K, V> implements LoaderCache<K, V> 
 			this.maxSizeInBytes = maxSizeInBytes;
 		}
 
+		public void restrictToMaxSize()
+		{
+			if (currentSizeInBytes <= maxSizeInBytes)
+				return;
+			synchronized(this)
+			{
+				List<K> keys = new ArrayList<>(keySet());
+				for (K key : keys)
+				{
+					if (currentSizeInBytes <= maxSizeInBytes)
+						break;
+					SoftRef<V> ref = remove(key);
+					ref.clear();
+				}
+			}
+		}
+
+
 		@Override
 		protected boolean removeEldestEntry(final Entry<K, SoftRef<V>> eldest) {
 			if (currentSizeInBytes > maxSizeInBytes) {
@@ -138,7 +156,6 @@ public class MemoryBoundedSoftRefLoaderCache<K, V> implements LoaderCache<K, V> 
 		{
 			LOG.trace("Setting to {}", sizeInBytes);
 			this.currentSizeInBytes = sizeInBytes;
-			MemoryBoundedSoftRefLoaderCache.this.memoryUsageListeners.forEach(l -> l.accept(sizeInBytes));
 		}
 	}
 }

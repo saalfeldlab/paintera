@@ -206,11 +206,10 @@ public class BorderPaneWithStatusBars
 		final TitledPane sourcesContents = new TitledPane("sources", sourceTabs.get());
 		sourcesContents.setExpanded(false);
 
-		final ObservableLongValue currentMemory = center.currentMemoryUsageInBytesProperty();
-		final Label memoryUsageField = new Label(Long.toString(currentMemory.get() / 1000 / 1000));
+		final Label memoryUsageField = new Label(Long.toString(center.getCurrentMemoryUsageInBytes() / 1000 / 1000));
 		final Timeline currentMemoryUsageUPdateTask = new Timeline(new KeyFrame(
 				Duration.seconds(1),
-				e -> memoryUsageField.setText(Long.toString(currentMemory.get() / 1000 / 1000))));
+				e -> memoryUsageField.setText(Long.toString(center.getCurrentMemoryUsageInBytes() / 1000 / 1000))));
 		currentMemoryUsageUPdateTask.setCycleCount(Timeline.INDEFINITE);
 		currentMemoryUsageUPdateTask.play();
 		final TitledPane memoryUsage = TitledPanes.createCollapsed("Memory", new HBox(new Label("Cache Size"), memoryUsageField));
