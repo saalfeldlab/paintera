@@ -137,11 +137,6 @@ public class ViewerPanelFX
 	 */
 	protected final CopyOnWriteArrayList<TransformListener<AffineTransform3D>> lastRenderTransformListeners;
 
-	/**
-	 * These listeners will be notified about changes to the current timepoint {@link
-	 * ViewerState#getCurrentTimepoint()}. This is done <em>before</em> calling {@link #requestRepaint()} so listeners
-	 * have the chance to interfere.
-	 */
 	protected final ViewerOptions.Values options;
 
 	protected final SimpleDoubleProperty mouseX = new SimpleDoubleProperty();

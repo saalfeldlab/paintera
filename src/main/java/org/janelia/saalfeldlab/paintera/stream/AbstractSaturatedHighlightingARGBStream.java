@@ -23,7 +23,7 @@ import org.janelia.saalfeldlab.paintera.control.selection.SelectedIds;
  * radial projection of the RGB colors {red, yellow, green, cyan, blue,
  * magenta}. Changing the seed of the stream makes a new sequence.
  *
- * @author Stephan Saalfeld <saalfelds@janelia.hhmi.org>
+ * @author Stephan Saalfeld
  */
 abstract public class AbstractSaturatedHighlightingARGBStream extends AbstractHighlightingARGBStream
 {

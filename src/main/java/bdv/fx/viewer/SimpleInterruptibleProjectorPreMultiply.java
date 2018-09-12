@@ -26,9 +26,6 @@ import net.imglib2.ui.util.StopWatch;
  *
  * @param <A>
  * 		pixel type of the source {@link RandomAccessible}.
- * @param <B>
- * 		pixel type of the target {@link RandomAccessibleInterval}.
- *
  * @author Tobias Pietzsch
  * @author Stephan Saalfeld
  * @author Philipp Hanslovsky

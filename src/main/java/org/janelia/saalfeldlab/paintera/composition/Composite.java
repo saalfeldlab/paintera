@@ -17,7 +17,7 @@ package org.janelia.saalfeldlab.paintera.composition;
 /**
  * A function that composes two input values a and b into a.
  *
- * @author Stephan Saalfeld <saalfelds@janelia.hhmi.org>
+ * @author Stephan Saalfeld
  */
 public interface Composite<A, B>
 {

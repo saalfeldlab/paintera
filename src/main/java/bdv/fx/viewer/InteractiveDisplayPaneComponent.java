@@ -96,7 +96,7 @@ public class InteractiveDisplayPaneComponent<A> extends StackPane
 	 * 		preferred component width.
 	 * @param height
 	 * 		preferred component height.
-	 * @param ImageOverlayRendererFX
+	 * @param renderTarget
 	 */
 	public InteractiveDisplayPaneComponent(
 			final int width,

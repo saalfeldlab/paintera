@@ -95,7 +95,8 @@ public class Convert
 	}
 
 	/**
-	 * @param triangles
+	 * @param vertices
+	 * @param triangleVertexLUT
 	 *
 	 * @return
 	 */

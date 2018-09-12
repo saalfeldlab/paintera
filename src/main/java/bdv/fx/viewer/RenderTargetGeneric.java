@@ -36,7 +36,7 @@ package bdv.fx.viewer;
 /**
  * Receiver for rendered data (to be drawn onto a canvas later).
  * <p>
- * A {@link Renderer} will render source data into some storage and provide this to a {@link RenderTargetGeneric}.
+ * A renderer will render source data into some storage and provide this to a {@link RenderTargetGeneric}.
  * <p>
  * See {@link ImageOverlayRendererFX}, which is a {@link RenderTargetGeneric} and also an {@link OverlayRendererGeneric}
  * that draws the data.

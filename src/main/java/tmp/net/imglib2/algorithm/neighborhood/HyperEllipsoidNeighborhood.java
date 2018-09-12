@@ -50,9 +50,9 @@ import net.imglib2.algorithm.neighborhood.Neighborhood;
 /**
  * TODO
  *
- * @author Tobias Pietzsch <tobias.pietzsch@gmail.com>
- * @author Stephan Preibisch <preibisch@mpi-cbg.de>
- * @author Stephan Saalfeld <saalfeld@mpi-cbg.de>
+ * @author Tobias Pietzsch
+ * @author Stephan Preibisch
+ * @author Stephan Saalfeld
  */
 public class HyperEllipsoidNeighborhood<T> extends AbstractLocalizable implements Neighborhood<T>
 {

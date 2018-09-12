@@ -755,7 +755,6 @@ public class MaskedSource<D extends Type<D>, T extends Type<T>> implements DataS
 	 * @param target
 	 * @param steps
 	 *
-	 * @return
 	 */
 	public static <T extends IntegerType<T>> void downsample(
 			final RandomAccessible<T> source,

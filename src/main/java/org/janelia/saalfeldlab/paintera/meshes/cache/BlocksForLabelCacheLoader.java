@@ -56,10 +56,6 @@ public class BlocksForLabelCacheLoader<T> implements CacheLoader<T, Interval[]>,
 	 * 		Given a block for this resolution defined by its position in the cell grid, retrieve a unique list of
 	 * 		labels
 	 * 		present in this block.
-	 * @param es
-	 * 		{@link ExecutorService} for parallel execution of retrieval of lists of unique labels. The task is
-	 * 		parallelized
-	 * 		over blocks.
 	 */
 	public BlocksForLabelCacheLoader(
 			final CellGrid grid,

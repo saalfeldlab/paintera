@@ -54,7 +54,7 @@ public class ImageOverlayRendererFX
 	protected BufferExposingWritableImage bufferedImage;
 
 	/**
-	 * An {@link ArrayImg} that has been previously {@link #setBufferedImage(ArrayImage) set} for painting. Whenever a
+	 * An {@link ArrayImg} that has been previously set for painting. Whenever a
 	 * new image is set, this is stored here and marked {@link #pending}. Whenever an image is painted and a new image
 	 * is pending, the new image is painted to the screen. Before doing this, the image previously used for painting is
 	 * swapped into {@link #pendingImage}. This is used for double-buffering.
@@ -86,7 +86,7 @@ public class ImageOverlayRendererFX
 	}
 
 	/**
-	 * Set the {@link ArrayImage} that is to be drawn on the canvas.
+	 * Set the {@link ArrayImg} that is to be drawn on the canvas.
 	 *
 	 * @param img
 	 * 		image to draw (may be null).
