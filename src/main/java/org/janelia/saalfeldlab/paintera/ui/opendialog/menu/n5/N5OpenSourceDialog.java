@@ -91,7 +91,8 @@ public class N5OpenSourceDialog extends Dialog<GenericBackendDialogN5> implement
 						return;
 					N5OpenSourceDialog.addSource(osDialog.getName(), osDialog.getType(), dialog, pbv, projectDirectory);
 				} catch (Exception e1) {
-					Exceptions.exceptionAlert(Paintera.NAME, "Unable to open N5 data set", e1);
+					LOG.debug("Unable to open n5 dataset", e1);
+					Exceptions.exceptionAlert(Paintera.NAME, "Unable to open N5 data set", e1).show();
 				}
 			};
 		}
@@ -115,7 +116,8 @@ public class N5OpenSourceDialog extends Dialog<GenericBackendDialogN5> implement
 						return;
 					N5OpenSourceDialog.addSource(osDialog.getName(), osDialog.getType(), dialog, pbv, projectDirectory);
 				} catch (Exception e1) {
-					Exceptions.exceptionAlert(Paintera.NAME, "Unable to open HDF5 data set", e1);
+					LOG.debug("Unable to open hdf5 dataset", e1);
+					Exceptions.exceptionAlert(Paintera.NAME, "Unable to open HDF5 data set", e1).show();
 				}
 			};
 		}
@@ -138,7 +140,8 @@ public class N5OpenSourceDialog extends Dialog<GenericBackendDialogN5> implement
 						return;
 					N5OpenSourceDialog.addSource(osDialog.getName(), osDialog.getType(), dialog, pbv, projectDirectory);
 				} catch (Exception e1) {
-					Exceptions.exceptionAlert(Paintera.NAME, "Unable to open Google Cloud data set", e1);
+					LOG.debug("Unable to open google cloud dataset", e1);
+					Exceptions.exceptionAlert(Paintera.NAME, "Unable to open Google Cloud data set", e1).show();
 				}
 			};
 		}
