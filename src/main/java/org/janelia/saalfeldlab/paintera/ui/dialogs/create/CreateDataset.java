@@ -39,11 +39,8 @@ import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.img.cell.AbstractCellImg;
 import net.imglib2.img.cell.CellGrid;
 import net.imglib2.realtransform.AffineTransform3D;
-import net.imglib2.type.label.LabelMultisetType;
-import net.imglib2.type.label.VolatileLabelMultisetType;
 import net.imglib2.type.numeric.integer.UnsignedByteType;
 import net.imglib2.type.volatiles.VolatileUnsignedByteType;
-import net.imglib2.util.ValuePair;
 import org.janelia.saalfeldlab.fx.ui.DirectoryField;
 import org.janelia.saalfeldlab.fx.ui.Exceptions;
 import org.janelia.saalfeldlab.fx.ui.NamedNode;
@@ -53,6 +50,8 @@ import org.janelia.saalfeldlab.n5.N5FSReader;
 import org.janelia.saalfeldlab.n5.N5Reader;
 import org.janelia.saalfeldlab.paintera.N5Helpers;
 import org.janelia.saalfeldlab.paintera.data.DataSource;
+import org.janelia.saalfeldlab.paintera.data.axisorder.AxisOrder;
+import org.janelia.saalfeldlab.paintera.data.axisorder.AxisOrderNotSupported;
 import org.janelia.saalfeldlab.paintera.data.n5.N5DataSource;
 import org.janelia.saalfeldlab.paintera.data.n5.N5FSMeta;
 import org.janelia.saalfeldlab.paintera.data.n5.ReflectionException;
@@ -275,8 +274,7 @@ public class CreateDataset
 		this.offset.getZ().valueProperty().set(transform.get(2, 3));
 	}
 
-	public static void main(String[] args) throws IOException, ReflectionException
-	{
+	public static void main(String[] args) throws IOException, ReflectionException, AxisOrderNotSupported {
 		PlatformImpl.startup(() -> {
 		});
 
@@ -292,6 +290,7 @@ public class CreateDataset
 				reader,
 				"volumes/raw/data/s0",
 				tf,
+				AxisOrder.XYZ,
 				new SharedQueue(1, 1),
 				1,
 				"NAME"

@@ -3,9 +3,7 @@ package org.janelia.saalfeldlab.paintera;
 import com.google.gson.JsonObject;
 import javafx.application.Application;
 import javafx.application.Platform;
-import javafx.event.Event;
 import javafx.scene.Scene;
-import javafx.scene.input.KeyEvent;
 import javafx.stage.Stage;
 import javafx.stage.WindowEvent;
 import net.imglib2.converter.ARGBColorConverter;
@@ -21,6 +19,8 @@ import org.janelia.saalfeldlab.n5.N5Reader;
 import org.janelia.saalfeldlab.paintera.composition.ARGBCompositeAlphaAdd;
 import org.janelia.saalfeldlab.paintera.composition.CompositeCopy;
 import org.janelia.saalfeldlab.paintera.data.DataSource;
+import org.janelia.saalfeldlab.paintera.data.axisorder.AxisOrder;
+import org.janelia.saalfeldlab.paintera.data.axisorder.AxisOrderNotSupported;
 import org.janelia.saalfeldlab.paintera.data.n5.DataTypeNotSupported;
 import org.janelia.saalfeldlab.paintera.data.n5.N5ChannelDataSource;
 import org.janelia.saalfeldlab.paintera.data.n5.N5Meta;
@@ -109,7 +109,7 @@ public class PainteraShowContainer extends Application {
 		}
 
 		for (N5Meta rawMeta : rawDatasets) {
-			addRawSource(viewer.baseView, rawMeta, clArgs.revertArrayAttributes);
+			addRawSource(viewer.baseView, rawMeta, clArgs.axisOrder, clArgs.revertArrayAttributes);
 		}
 
 		for (N5Meta channelMeta : channelDatasets) {
@@ -146,6 +146,9 @@ public class PainteraShowContainer extends Application {
 
 		@CommandLine.Option(names = {"--height"})
 		Integer height = 900;
+
+		@CommandLine.Option(names = {"--dataset-axis-order"}, description = "Axis order of data. This is not the axis order of array attributes!")
+		AxisOrder axisOrder = AxisOrder.XYZ;
 	}
 
 	private static boolean isLabelData(N5Reader reader, String group) throws IOException {
@@ -172,13 +175,15 @@ public class PainteraShowContainer extends Application {
 	private static <T extends RealType<T> & NativeType<T>, V extends AbstractVolatileRealType<T, V> & NativeType<V>> void addRawSource(
 			final PainteraBaseView viewer,
 			final N5Meta rawMeta,
+			AxisOrder axisOrder,
 			final boolean revertArrayAttributes
-	) throws IOException, ReflectionException {
+	) throws IOException, ReflectionException, AxisOrderNotSupported {
 		LOG.info("Adding raw source {}", rawMeta);
 		DataSource<T, V> source = N5Helpers.openRawAsSource(
 				rawMeta.reader(),
 				rawMeta.dataset(),
 				N5Helpers.getTransform(rawMeta.reader(), rawMeta.dataset(), revertArrayAttributes),
+				axisOrder,
 				viewer.getQueue(),
 				viewer.getQueue().getNumPriorities() - 1,
 				rawMeta.dataset());
@@ -232,7 +237,8 @@ public class PainteraShowContainer extends Application {
 					viewer.getQueue().getNumPriorities() - 1,
 					channelDimension,
 					cmin,
-					cmax);
+					cmax,
+					false);
 			ARGBCompositeColorConverter<V, RealComposite<V>, VolatileWithSet<RealComposite<V>>> conv = ARGBCompositeColorConverter.imp0((int) source.numChannels());
 
 			ChannelSourceState<T, V, RealComposite<V>, VolatileWithSet<RealComposite<V>>> state = new ChannelSourceState<>(

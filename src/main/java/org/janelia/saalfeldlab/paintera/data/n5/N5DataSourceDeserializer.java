@@ -3,6 +3,7 @@ package org.janelia.saalfeldlab.paintera.data.n5;
 import java.io.IOException;
 import java.lang.invoke.MethodHandles;
 import java.lang.reflect.Type;
+import java.util.Optional;
 import java.util.function.IntFunction;
 import java.util.function.Supplier;
 
@@ -12,6 +13,8 @@ import com.google.gson.JsonDeserializer;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonParseException;
 import net.imglib2.realtransform.AffineTransform3D;
+import org.janelia.saalfeldlab.paintera.data.axisorder.AxisOrder;
+import org.janelia.saalfeldlab.paintera.data.axisorder.AxisOrderNotSupported;
 import org.janelia.saalfeldlab.paintera.serialization.StatefulSerializer;
 import org.janelia.saalfeldlab.paintera.serialization.StatefulSerializer.Arguments;
 import org.janelia.saalfeldlab.paintera.state.SourceState;
@@ -57,9 +60,14 @@ public class N5DataSourceDeserializer implements JsonDeserializer<N5DataSource<?
 					el.getAsJsonObject().get(TRANSFORM_KEY),
 					AffineTransform3D.class
 			                                                       );
+
+			final AxisOrder axisOrder = Optional
+					.ofNullable(el.getAsJsonObject().get(N5DataSourceSerializer.AXIS_ORDER_KEY))
+					.map(e -> (AxisOrder)context.deserialize(e, AxisOrder.class))
+					.orElse(AxisOrder.XYZ);
 			LOG.debug("Deserialized transform: {}", transform);
-			return new N5DataSource<>(meta, transform, sharedQueue, "", priority);
-		} catch (IOException | ClassNotFoundException e)
+			return new N5DataSource<>(meta, transform, axisOrder, sharedQueue, "", priority);
+		} catch (IOException | ClassNotFoundException | AxisOrderNotSupported e)
 		{
 			throw new JsonParseException(e);
 		}
