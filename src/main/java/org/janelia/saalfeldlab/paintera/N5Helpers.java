@@ -700,11 +700,6 @@ public class N5Helpers
 			final GlobalCache globalCache,
 			final int priority,
 			final String name) throws IOException, ReflectionException, AxisOrderNotSupported {
-		final ValueTriple<RandomAccessibleInterval<LabelMultisetType>[],
-				RandomAccessibleInterval<VolatileLabelMultisetType>[], AffineTransform3D[]> data =
-				isMultiScale(reader, dataset)
-				? openLabelMultisetMultiscale(reader, dataset, transform, globalCache, priority)
-				: asArrayTriple(openLabelMutliset(reader, dataset, transform, globalCache, priority));
 		return new N5DataSource<>(
 				N5Meta.fromReader(reader, dataset),
 				transform,
