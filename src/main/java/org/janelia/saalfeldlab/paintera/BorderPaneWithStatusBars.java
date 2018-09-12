@@ -8,8 +8,7 @@ import java.util.Optional;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
-import java.util.function.BiConsumer;
-import java.util.function.Supplier;
+import java.util.function.*;
 
 import bdv.fx.viewer.ViewerPanelFX;
 import bdv.viewer.Source;
@@ -37,6 +36,7 @@ import org.janelia.saalfeldlab.fx.TitledPanes;
 import org.janelia.saalfeldlab.fx.ortho.OrthogonalViews;
 import org.janelia.saalfeldlab.fx.ortho.OrthogonalViews.ViewerAndTransforms;
 import org.janelia.saalfeldlab.fx.ui.NumberField;
+import org.janelia.saalfeldlab.fx.ui.ObjectField;
 import org.janelia.saalfeldlab.fx.ui.ResizeOnLeftSide;
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread;
 import org.janelia.saalfeldlab.paintera.cache.MemoryBoundedSoftRefLoaderCache;
@@ -211,10 +211,15 @@ public class BorderPaneWithStatusBars
 		final TitledPane sourcesContents = new TitledPane("sources", sourceTabs.get());
 		sourcesContents.setExpanded(false);
 
-		final Label memoryUsageField = new Label(Long.toString(center.getCurrentMemoryUsageInBytes() / 1000 / 1000));
+		LongUnaryOperator toMegaBytes = bytes -> bytes / 1000 / 1000;
+		LongSupplier currentMemory = center::getCurrentMemoryUsageInBytes;
+		LongSupplier maxMemory = ((MemoryBoundedSoftRefLoaderCache<?, ?>)center.getGlobalBackingCache())::getMaxSize;
+		Supplier<String> currentMemoryStr = () -> Long.toString(toMegaBytes.applyAsLong(currentMemory.getAsLong()));
+		Supplier<String> maxMemoryStr = () -> Long.toString(toMegaBytes.applyAsLong(maxMemory.getAsLong()));
+		final Label memoryUsageField = new Label(String.format("%s/%s", currentMemoryStr.get(), maxMemoryStr.get()));
 		final Timeline currentMemoryUsageUPdateTask = new Timeline(new KeyFrame(
 				Duration.seconds(1),
-				e -> memoryUsageField.setText(Long.toString(center.getCurrentMemoryUsageInBytes() / 1000 / 1000))));
+				e -> memoryUsageField.setText(String.format("%s/%s", currentMemoryStr.get(), maxMemoryStr.get()))));
 		currentMemoryUsageUPdateTask.setCycleCount(Timeline.INDEFINITE);
 		currentMemoryUsageUPdateTask.play();
 
@@ -222,8 +227,26 @@ public class BorderPaneWithStatusBars
 		final ScheduledExecutorService memoryCleanupScheduler = Executors.newScheduledThreadPool(1, new NamedThreadFactory("cache clean up", true));
 		memoryCleanupScheduler.scheduleAtFixedRate(((MemoryBoundedSoftRefLoaderCache<?, ?>)center.getGlobalBackingCache())::restrictToMaxSize,0, 3, TimeUnit.SECONDS);
 
+		Button setButton = new Button("Set");
+		setButton.setOnAction(e -> {
+			Alert dialog = new Alert(Alert.AlertType.CONFIRMATION);
+			NumberField<LongProperty> field = NumberField.longField(
+					maxMemory.getAsLong(),
+					val -> val > 0 && val < Runtime.getRuntime().maxMemory(),
+					ObjectField.SubmitOn.ENTER_PRESSED,
+					ObjectField.SubmitOn.FOCUS_LOST);
+			dialog.getDialogPane().setContent(field.textField());
+			if (ButtonType.OK.equals(dialog.showAndWait().orElse(ButtonType.CANCEL)))
+			{
+				new Thread(() -> {
+					((MemoryBoundedSoftRefLoaderCache<?, ?>)center.getGlobalBackingCache()).setMaxSize(field.valueProperty().get());
+					InvokeOnJavaFXApplicationThread.invoke(() -> memoryUsageField.setText(String.format("%s/%s", currentMemoryStr.get(), maxMemoryStr.get())));
+				}).start();
+			}
+		});
 
-		final TitledPane memoryUsage = TitledPanes.createCollapsed("Memory", new HBox(new Label("Cache Size"), memoryUsageField));
+
+		final TitledPane memoryUsage = TitledPanes.createCollapsed("Memory", new HBox(new Label("Cache Size"), memoryUsageField, setButton));
 
 		final VBox settingsContents = new VBox(
 				this.navigationConfigNode.getContents(),

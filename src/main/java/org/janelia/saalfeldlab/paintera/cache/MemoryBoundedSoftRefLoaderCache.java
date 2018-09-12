@@ -54,6 +54,16 @@ public class MemoryBoundedSoftRefLoaderCache<K, V> implements LoaderCache<K, V> 
 		softRefs.restrictToMaxSize();
 	}
 
+	public long getMaxSize()
+	{
+		return softRefs.maxSizeInBytes;
+	}
+
+	public void setMaxSize(long maxSizeInBytes)
+	{
+		this.softRefs.setMaxSize(maxSizeInBytes);
+	}
+
 	public long getCurrentMemoryUsageInBytes()
 	{
 		synchronized(softRefs)
@@ -86,7 +96,7 @@ public class MemoryBoundedSoftRefLoaderCache<K, V> implements LoaderCache<K, V> 
 	class SoftRefs extends LinkedHashMap<K, SoftRef<V>> {
 		private static final long serialVersionUID = 1L;
 
-		private final long maxSizeInBytes;
+		private long maxSizeInBytes;
 
 		private long currentSizeInBytes = 0;
 
@@ -115,6 +125,12 @@ public class MemoryBoundedSoftRefLoaderCache<K, V> implements LoaderCache<K, V> 
 					ref.clear();
 				}
 			}
+		}
+
+		public synchronized void setMaxSize(long maxSizeInBytes)
+		{
+			this.maxSizeInBytes = maxSizeInBytes;
+			restrictToMaxSize();
 		}
 
 
