@@ -11,23 +11,17 @@ import java.util.function.Function;
 import java.util.function.LongFunction;
 
 import bdv.cache.CacheControl;
-import bdv.util.volatiles.SharedQueue;
 import bdv.viewer.Interpolation;
 import bdv.viewer.Source;
 import bdv.viewer.SourceAndConverter;
 import bdv.viewer.ViewerOptions;
 import gnu.trove.set.hash.TLongHashSet;
-import javafx.beans.property.LongProperty;
-import javafx.beans.property.SimpleLongProperty;
-import javafx.beans.value.ObservableIntegerValue;
-import javafx.beans.value.ObservableLongValue;
 import javafx.collections.ListChangeListener;
 import javafx.collections.ObservableList;
 import javafx.scene.layout.Pane;
 import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.Volatile;
 import net.imglib2.cache.LoaderCache;
-import net.imglib2.cache.ref.BoundedSoftRefLoaderCache;
 import net.imglib2.converter.ARGBColorConverter;
 import net.imglib2.converter.ARGBCompositeColorConverter;
 import net.imglib2.converter.Converter;
@@ -577,6 +571,11 @@ public class PainteraBaseView
 	public long getCurrentMemoryUsageInBytes()
 	{
 		return ((MemoryBoundedSoftRefLoaderCache)this.globalBackingCache).getCurrentMemoryUsageInBytes();
+	}
+
+	public LoaderCache<GlobalCache.Key<?>, ?> getGlobalBackingCache()
+	{
+		return this.globalBackingCache;
 	}
 
 }

@@ -5,6 +5,9 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 import java.util.function.BiConsumer;
 import java.util.function.Supplier;
 
@@ -36,6 +39,7 @@ import org.janelia.saalfeldlab.fx.ortho.OrthogonalViews.ViewerAndTransforms;
 import org.janelia.saalfeldlab.fx.ui.NumberField;
 import org.janelia.saalfeldlab.fx.ui.ResizeOnLeftSide;
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread;
+import org.janelia.saalfeldlab.paintera.cache.MemoryBoundedSoftRefLoaderCache;
 import org.janelia.saalfeldlab.paintera.config.CrosshairConfigNode;
 import org.janelia.saalfeldlab.paintera.config.NavigationConfigNode;
 import org.janelia.saalfeldlab.paintera.config.OrthoSliceConfigNode;
@@ -47,6 +51,7 @@ import org.janelia.saalfeldlab.paintera.ui.source.SourceTabs;
 import org.janelia.saalfeldlab.paintera.viewer3d.OrthoSliceFX;
 import org.janelia.saalfeldlab.util.Colors;
 import org.janelia.saalfeldlab.util.MakeUnchecked;
+import org.janelia.saalfeldlab.util.NamedThreadFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -212,6 +217,12 @@ public class BorderPaneWithStatusBars
 				e -> memoryUsageField.setText(Long.toString(center.getCurrentMemoryUsageInBytes() / 1000 / 1000))));
 		currentMemoryUsageUPdateTask.setCycleCount(Timeline.INDEFINITE);
 		currentMemoryUsageUPdateTask.play();
+
+		// TODO put this stuff in a better place!
+		final ScheduledExecutorService memoryCleanupScheduler = Executors.newScheduledThreadPool(1, new NamedThreadFactory("cache clean up", true));
+		memoryCleanupScheduler.scheduleAtFixedRate(((MemoryBoundedSoftRefLoaderCache<?, ?>)center.getGlobalBackingCache())::restrictToMaxSize,0, 3, TimeUnit.SECONDS);
+
+
 		final TitledPane memoryUsage = TitledPanes.createCollapsed("Memory", new HBox(new Label("Cache Size"), memoryUsageField));
 
 		final VBox settingsContents = new VBox(
