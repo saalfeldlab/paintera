@@ -222,6 +222,20 @@ public class GlobalCache implements CacheControl {
 	}
 
 	@SuppressWarnings("unchecked")
+	public <K, V> Pair<Cache<K, V>, Invalidate<K>> createNewCache(final CacheLoader<K, V> loader)
+	{
+		final int setup = nextSetupId();
+		final KeyBimap<K, Key<K>> bimap = KeyBimap.build(
+				subKey -> new Key<>(setup, subKey),
+				key -> key.subKey);
+
+		Cache<K, V> cache = backingCache.mapKeys( (KeyBimap) bimap).withLoader(loader);
+		Invalidate<K> invalidate = invalidateFor(setup);
+		return new ValuePair<>(cache, invalidate);
+	}
+
+
+	@SuppressWarnings("unchecked")
 	public <T extends NativeType<T>, A extends ArrayDataAccess<A>> Pair<CachedCellImg<T, A>, Invalidate<Long>> createImg(
 			final CellGrid grid,
 			final CacheLoader<Long, Cell<A>> loader,
@@ -288,7 +302,7 @@ public class GlobalCache implements CacheControl {
 
 		final CacheHints cacheHints = new CacheHints(LoadingStrategy.VOLATILE, priority, true);
 
-		@SuppressWarnings("unchecked") final VolatileCachedCellImg<V, A> vimg = new VolatileCachedCellImg<>(
+		final VolatileCachedCellImg<V, A> vimg = new VolatileCachedCellImg<>(
 				img.getCellGrid(),
 				vtype,
 				cacheHints,
@@ -321,7 +335,7 @@ public class GlobalCache implements CacheControl {
 
 		final CacheHints cacheHints = new CacheHints(LoadingStrategy.VOLATILE, priority, true);
 
-		@SuppressWarnings("unchecked") final VolatileCachedCellImg<V, A> vimg = new VolatileCachedCellImg<>(
+		final VolatileCachedCellImg<V, A> vimg = new VolatileCachedCellImg<>(
 				img.getCellGrid(),
 				type.getEntitiesPerPixel(),
 				typeFactory,
