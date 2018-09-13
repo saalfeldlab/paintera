@@ -221,6 +221,7 @@ public class GlobalCache implements CacheControl {
 		return createImg(grid, loader, type);
 	}
 
+	@SuppressWarnings("unchecked")
 	public <T extends NativeType<T>, A extends ArrayDataAccess<A>> Pair<CachedCellImg<T, A>, Invalidate<Long>> createImg(
 			final CellGrid grid,
 			final CacheLoader<Long, Cell<A>> loader,
@@ -241,6 +242,7 @@ public class GlobalCache implements CacheControl {
 				invalidateFor(setup));
 	}
 
+	@SuppressWarnings("unchecked")
 	public <T extends NativeType<T>, A> Pair<CachedCellImg<T, A>, Invalidate<Long>> createImg(
 			final CellGrid grid,
 			final CacheLoader<Long, Cell<A>> loader,
@@ -258,6 +260,7 @@ public class GlobalCache implements CacheControl {
 		return new ValuePair<>(new CachedCellImg<>(grid, fraction, cache, accessType), invalidate);
 	}
 
+	@SuppressWarnings("unchecked")
 	public <
 			T extends NativeType<T>,
 			V extends Volatile<T> & NativeType<V>, A>
