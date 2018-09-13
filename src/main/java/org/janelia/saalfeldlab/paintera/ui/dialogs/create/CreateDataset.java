@@ -50,6 +50,8 @@ import org.janelia.saalfeldlab.fx.ui.SpatialField;
 import org.janelia.saalfeldlab.n5.N5FSReader;
 import org.janelia.saalfeldlab.n5.N5Reader;
 import org.janelia.saalfeldlab.paintera.N5Helpers;
+import org.janelia.saalfeldlab.paintera.cache.MemoryBoundedSoftRefLoaderCache;
+import org.janelia.saalfeldlab.paintera.cache.WeakRefLoaderCache;
 import org.janelia.saalfeldlab.paintera.cache.global.GlobalCache;
 import org.janelia.saalfeldlab.paintera.data.DataSource;
 import org.janelia.saalfeldlab.paintera.data.axisorder.AxisOrder;
@@ -286,6 +288,7 @@ public class CreateDataset
 				0.0, 5.0, 0.0, 5.0,
 				0.0, 0.0, 40., -1.
 		      );
+		MemoryBoundedSoftRefLoaderCache<GlobalCache.Key<?>, ?, ?> backingCache = MemoryBoundedSoftRefLoaderCache.withWeakRefs(Runtime.getRuntime().maxMemory(), obj -> 0);
 		final N5Reader reader = new N5FSReader(
 				"/home/phil/local/tmp/sample_a_padded_20160501.n5");
 		final DataSource<UnsignedByteType, VolatileUnsignedByteType> raw = N5Helpers.openRawAsSource(
@@ -293,7 +296,7 @@ public class CreateDataset
 				"volumes/raw/data/s0",
 				tf,
 				AxisOrder.XYZ,
-				new GlobalCache(10, 1, new SoftRefLoaderCache<>()),
+				new GlobalCache(10, 1, backingCache, backingCache),
 				1,
 				"NAME"
 		                                                                                            );

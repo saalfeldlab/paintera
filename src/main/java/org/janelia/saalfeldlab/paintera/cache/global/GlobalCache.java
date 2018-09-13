@@ -42,7 +42,6 @@ import net.imglib2.cache.img.CellLoader;
 import net.imglib2.cache.img.LoadedCellCacheLoader;
 import net.imglib2.cache.queue.BlockingFetchQueues;
 import net.imglib2.cache.queue.FetcherThreads;
-import net.imglib2.cache.ref.WeakRefVolatileCache;
 import net.imglib2.cache.util.KeyBimap;
 import net.imglib2.cache.volatiles.*;
 import net.imglib2.img.NativeImg;
@@ -55,15 +54,23 @@ import net.imglib2.img.cell.CellGrid;
 import net.imglib2.type.NativeType;
 import net.imglib2.util.Fraction;
 import net.imglib2.util.Pair;
+import net.imglib2.util.Triple;
 import net.imglib2.util.Util;
 import net.imglib2.util.ValuePair;
+import net.imglib2.util.ValueTriple;
+import org.janelia.saalfeldlab.paintera.cache.Invalidate;
+import org.janelia.saalfeldlab.paintera.cache.WeakRefVolatileCache;
 import tmp.bdv.img.cache.VolatileCachedCellImg;
 
+import java.util.Collection;
 import java.util.concurrent.Callable;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Function;
+import java.util.function.Predicate;
+import java.util.stream.Collectors;
 
 public class GlobalCache implements CacheControl {
+
 	/**
 	 * Key for a cell identified by timepoint, setup, level, and index
 	 * (flattened spatial coordinate).
@@ -130,7 +137,9 @@ public class GlobalCache implements CacheControl {
 
 	private final BlockingFetchQueues<Callable<?>> queue;
 
-	protected final LoaderCache<Key<?>, ?> backingCache;
+	private final LoaderCache<Key<?>, ?> backingCache;
+
+	private final Invalidate<Key<?>> invalidate;
 
 	private final AtomicInteger nextSetupId = new AtomicInteger(0);
 
@@ -141,11 +150,12 @@ public class GlobalCache implements CacheControl {
 	 * @param maxNumLevels      the highest occurring mipmap level plus 1.
 	 * @param numFetcherThreads how many threads should be created to load data.
 	 */
-	public GlobalCache(final int maxNumLevels, final int numFetcherThreads, LoaderCache<Key<?>, ?> backingCache) {
+	public GlobalCache(final int maxNumLevels, final int numFetcherThreads, LoaderCache<Key<?>, ?> backingCache, Invalidate<Key<?>> invalidate) {
 		queue = new BlockingFetchQueues<>(maxNumLevels);
 		new FetcherThreads(queue, numFetcherThreads);
 //		backingCache = new SoftRefLoaderCache<>();
 		this.backingCache = backingCache;
+		this.invalidate = invalidate;
 	}
 
 	/**
@@ -154,9 +164,10 @@ public class GlobalCache implements CacheControl {
 	 *
 	 * @param queue queue to which asynchronous data loading jobs are submitted
 	 */
-	public GlobalCache(final BlockingFetchQueues<Callable<?>> queue, LoaderCache<Key<?>, ?> backingCache) {
+	public GlobalCache(final BlockingFetchQueues<Callable<?>> queue, LoaderCache<Key<?>, ?> backingCache, Invalidate<Key<?>> invalidate) {
 		this.queue = queue;
 		this.backingCache = backingCache;
+		this.invalidate = invalidate;
 	}
 
 	/**
@@ -187,14 +198,14 @@ public class GlobalCache implements CacheControl {
 		return this.queue.getNumPriorities();
 	}
 
-	public <T extends NativeType<T>, A extends ArrayDataAccess<A>> CachedCellImg<T, A> createVolatileImg(
+	public <T extends NativeType<T>, A extends ArrayDataAccess<A>> Pair<CachedCellImg<T, A>, Invalidate<Long>> createVolatileImg(
 			final CellGrid grid,
 			final CellLoader<T> loader,
 			final T type) {
 		return createImg(grid, loader, type, AccessFlags.VOLATILE);
 	}
 
-	public <T extends NativeType<T>, A extends ArrayDataAccess<A>> CachedCellImg<T, A> createImg(
+	public <T extends NativeType<T>, A extends ArrayDataAccess<A>> Pair<CachedCellImg<T, A>, Invalidate<Long>> createImg(
 			final CellGrid grid,
 			final CellLoader<T> loader,
 			final T type,
@@ -203,14 +214,14 @@ public class GlobalCache implements CacheControl {
 		return createImg(grid, cacheLoader, type, accessFlags);
 	}
 
-	public <T extends NativeType<T>, A extends ArrayDataAccess<A>> CachedCellImg<T, A> createVolatileImg(
+	public <T extends NativeType<T>, A extends ArrayDataAccess<A>> Pair<CachedCellImg<T, A>, Invalidate<Long>> createVolatileImg(
 			final CellGrid grid,
 			final CacheLoader<Long, Cell<A>> loader,
 			final T type) {
 		return createImg(grid, loader, type);
 	}
 
-	public <T extends NativeType<T>, A extends ArrayDataAccess<A>> CachedCellImg<T, A> createImg(
+	public <T extends NativeType<T>, A extends ArrayDataAccess<A>> Pair<CachedCellImg<T, A>, Invalidate<Long>> createImg(
 			final CellGrid grid,
 			final CacheLoader<Long, Cell<A>> loader,
 			final T type,
@@ -222,13 +233,15 @@ public class GlobalCache implements CacheControl {
 
 		final Cache<Long, Cell<A>> cache = backingCache
 				.mapKeys((KeyBimap) bimap)
-				.withLoader((CacheLoader) loader);
+				.withLoader(loader);
 
 		final A access = ArrayDataAccessFactory.get(type, AccessFlags.setOf(accessFlags));
-		return new CachedCellImg<>(grid, type, cache, access);
+		return new ValuePair<>(
+				new CachedCellImg<>(grid, type, cache, access),
+				invalidateFor(setup));
 	}
 
-	public <T extends NativeType<T>, A> CachedCellImg<T, A> createImg(
+	public <T extends NativeType<T>, A> Pair<CachedCellImg<T, A>, Invalidate<Long>> createImg(
 			final CellGrid grid,
 			final CacheLoader<Long, Cell<A>> loader,
 			final Fraction fraction,
@@ -240,15 +253,17 @@ public class GlobalCache implements CacheControl {
 
 		final Cache<Long, Cell<A>> cache = backingCache
 				.mapKeys((KeyBimap) bimap)
-				.withLoader((CacheLoader) loader);
-		return new CachedCellImg<>(grid, fraction, cache, accessType);
+				.withLoader(loader);
+		final Invalidate<Long> invalidate = invalidateFor(setup);
+		return new ValuePair<>(new CachedCellImg<>(grid, fraction, cache, accessType), invalidate);
 	}
 
 	public <
 			T extends NativeType<T>,
 			V extends Volatile<T> & NativeType<V>, A>
-	Pair<RandomAccessibleInterval<V>, VolatileCache<Long, Cell<A>>> wrapAsVolatile(
-			CachedCellImg<T, A> img,
+	Triple<RandomAccessibleInterval<V>, VolatileCache<Long, Cell<A>>, Invalidate<Long>> wrapAsVolatile(
+			final CachedCellImg<T, A> img,
+			final Invalidate<Long> backingInvalidate,
 			final int priority
 	) throws InvalidAccessException {
 		final A accessType = img.getAccessType();
@@ -264,7 +279,7 @@ public class GlobalCache implements CacheControl {
 				img.getCellGrid(),
 				type,
 				isDirty);
-		VolatileCache<Long, Cell<A>> vcache = new WeakRefVolatileCache<>(img.getCache(), queue, createInvalid);
+		WeakRefVolatileCache<Long, Cell<A>> vcache = WeakRefVolatileCache.fromCacheAndInvalidate(img.getCache(), backingInvalidate, queue, createInvalid);
 		final UncheckedVolatileCache<Long, Cell<A>> unchecked =
 				vcache.unchecked();
 
@@ -275,16 +290,17 @@ public class GlobalCache implements CacheControl {
 				vtype,
 				cacheHints,
 				unchecked::get,
-				((WeakRefVolatileCache<Long, Cell<A>>) vcache)::cleanUp);
+				((WeakRefVolatileCache<Long, Cell<A>>) vcache)::invalidateAll);
 
-		return new ValuePair<>(vimg, vcache);
+		return new ValueTriple<>(vimg, vcache, vcache);
 	}
 
 	public <
 			T extends NativeType<T>,
 			V extends Volatile<T> & NativeType<V>, A>
-	Pair<RandomAccessibleInterval<V>, VolatileCache<Long, Cell<A>>> wrapAsVolatile(
+	Triple<RandomAccessibleInterval<V>, VolatileCache<Long, Cell<A>>, Invalidate<Long>> wrapAsVolatile(
 			CachedCellImg<T, A> img,
+			final Invalidate<Long> backingInvalidate,
 			final Function<NativeImg<V, ? extends A>, V> typeFactory,
 			final CreateInvalid<Long, Cell<A>> createInvalid,
 			final int priority
@@ -297,7 +313,7 @@ public class GlobalCache implements CacheControl {
 		final T type = Util.getTypeFromInterval(img);
 		final boolean isDirty = AccessFlags.ofAccess(accessType).contains(AccessFlags.DIRTY);
 
-		VolatileCache<Long, Cell<A>> vcache = new WeakRefVolatileCache<>(img.getCache(), queue, createInvalid);
+		WeakRefVolatileCache<Long, Cell<A>> vcache = WeakRefVolatileCache.fromCacheAndInvalidate(img.getCache(), backingInvalidate, queue, createInvalid);
 		final UncheckedVolatileCache<Long, Cell<A>> unchecked = vcache.unchecked();
 
 		final CacheHints cacheHints = new CacheHints(LoadingStrategy.VOLATILE, priority, true);
@@ -309,7 +325,39 @@ public class GlobalCache implements CacheControl {
 				cacheHints,
 				unchecked::get,
 				((WeakRefVolatileCache<Long, Cell<A>>) vcache)::cleanUp);
-		return new ValuePair<>(vimg, vcache);
+		return new ValueTriple<>(vimg, vcache, vcache);
+	}
+
+	private <K> Invalidate <K> invalidateFor(int setup)
+	{
+		return new Invalidate<K>() {
+			@Override
+			public void invalidateAll() {
+				invalidateMatching(k -> true);
+			}
+
+			@Override
+			public Collection<K> invalidateMatching(Predicate<K> test) {
+				return GlobalCache
+						.this
+						.invalidate
+						.invalidateMatching(k -> k.setup == setup && test.test((K) k.subKey))
+						.stream()
+						.map(k -> (K) k.subKey)
+						.collect(Collectors.toList())
+						;
+			}
+
+			@Override
+			public void invalidate(Collection<K> keys) {
+				GlobalCache.this.invalidate.invalidate(keys.stream().map(k -> new Key<>(setup, k)).collect(Collectors.toList()));
+			}
+
+			@Override
+			public void invalidate(K key) {
+				GlobalCache.this.invalidate.invalidate(new Key<>(setup, key));
+			}
+		};
 	}
 
 

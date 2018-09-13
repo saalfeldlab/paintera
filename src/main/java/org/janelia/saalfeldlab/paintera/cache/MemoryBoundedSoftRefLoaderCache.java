@@ -2,19 +2,19 @@ package org.janelia.saalfeldlab.paintera.cache;
 
 import net.imglib2.cache.CacheLoader;
 import net.imglib2.cache.LoaderCache;
-import net.imglib2.cache.ref.WeakRefLoaderCache;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.lang.invoke.MethodHandles;
 import java.lang.ref.SoftReference;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map.Entry;
 import java.util.concurrent.ExecutionException;
 import java.util.function.Consumer;
-import java.util.function.LongConsumer;
+import java.util.function.Predicate;
 import java.util.function.ToLongFunction;
 
 /**
@@ -27,27 +27,26 @@ import java.util.function.ToLongFunction;
  * @author Tobias Pietzsch &lt;tobias.pietzsch@gmail.com&gt;
  * @author Philipp Hanslovsky
  */
-public class MemoryBoundedSoftRefLoaderCache<K, V> implements LoaderCache<K, V> {
+public class MemoryBoundedSoftRefLoaderCache<K, V, LC extends LoaderCache<K, V> & Invalidate<K>> implements LoaderCache<K, V>, Invalidate<K>{
 
 	private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
-	private final LoaderCache<K, V> cache;
+	private final LC cache;
 
 	private SoftRefs softRefs;
 
 	private final ToLongFunction<V> memoryUsageInBytes;
 
-	public MemoryBoundedSoftRefLoaderCache(final long maxSizeInBytes, final LoaderCache<K, V> cache, final ToLongFunction<V> memoryUsageInBytes) {
+	private MemoryBoundedSoftRefLoaderCache(final LC cache, final long maxSizeInBytes, final ToLongFunction<V> memoryUsageInBytes) {
 		this.cache = cache;
 		this.softRefs = new SoftRefs(maxSizeInBytes);
 		this.memoryUsageInBytes = memoryUsageInBytes;
 	}
 
-	public MemoryBoundedSoftRefLoaderCache(final long maxSizeInBytes, final ToLongFunction<V> memoryUsageInBytes) {
-		this(maxSizeInBytes, new WeakRefLoaderCache<>(), memoryUsageInBytes);
+	public static <K, V> MemoryBoundedSoftRefLoaderCache<K, V, WeakRefLoaderCache<K, V>> withWeakRefs(final long maxSizeInBytes, final ToLongFunction<V> memoryUsageInBytes)
+	{
+		return new MemoryBoundedSoftRefLoaderCache<>(new WeakRefLoaderCache<>(), maxSizeInBytes, memoryUsageInBytes);
 	}
-
-
 
 	public void restrictToMaxSize()
 	{
@@ -91,6 +90,37 @@ public class MemoryBoundedSoftRefLoaderCache<K, V> implements LoaderCache<K, V> 
 	public void invalidateAll() {
 		softRefs.clear();
 		cache.invalidateAll();
+	}
+
+	@Override
+	public Collection<K> invalidateMatching(Predicate<K> test) {
+		final Collection<K> removedKeys = cache.invalidateMatching(test);
+		invalidate(removedKeys);
+		return removedKeys;
+	}
+
+	@Override
+	public void invalidate(Collection<K> keys) {
+		cache.invalidate(keys);
+		synchronized (softRefs)
+		{
+			for (K key : keys) {
+				final SoftRef<V> v = softRefs.remove(key);
+				if (v != null)
+					v.clear();
+			}
+		}
+	}
+
+	@Override
+	public void invalidate(K key) {
+		cache.invalidate(key);
+		synchronized (softRefs)
+		{
+			final SoftRef<V> v = softRefs.remove(key);
+			if (v != null)
+				v.clear();
+		}
 	}
 
 	class SoftRefs extends LinkedHashMap<K, SoftRef<V>> {

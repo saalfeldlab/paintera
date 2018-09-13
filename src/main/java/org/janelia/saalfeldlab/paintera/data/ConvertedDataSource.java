@@ -1,6 +1,8 @@
 package org.janelia.saalfeldlab.paintera.data;
 
+import java.util.Collection;
 import java.util.function.Function;
+import java.util.function.Predicate;
 import java.util.function.Supplier;
 
 import bdv.viewer.Interpolation;
@@ -136,4 +138,8 @@ public class ConvertedDataSource<D, T, U, V> implements DataSource<U, V>
 		return dataTypeExtensionSupplier.get();
 	}
 
+	@Override
+	public void invalidateAll() {
+		source.invalidateAll();
+	}
 }

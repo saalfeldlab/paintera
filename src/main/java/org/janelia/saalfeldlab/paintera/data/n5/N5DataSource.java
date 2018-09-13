@@ -1,7 +1,9 @@
 package org.janelia.saalfeldlab.paintera.data.n5;
 
 import java.io.IOException;
+import java.util.Arrays;
 import java.util.function.Function;
+import java.util.stream.Stream;
 
 import bdv.viewer.Interpolation;
 import com.google.gson.annotations.Expose;
@@ -18,6 +20,7 @@ import net.imglib2.util.Triple;
 import org.janelia.saalfeldlab.n5.N5Reader;
 import org.janelia.saalfeldlab.n5.N5Writer;
 import org.janelia.saalfeldlab.paintera.N5Helpers;
+import org.janelia.saalfeldlab.paintera.cache.InvalidateAll;
 import org.janelia.saalfeldlab.paintera.cache.global.GlobalCache;
 import org.janelia.saalfeldlab.paintera.data.RandomAccessibleIntervalDataSource;
 import org.janelia.saalfeldlab.paintera.data.axisorder.AxisOrder;
@@ -60,7 +63,7 @@ public class N5DataSource<D extends NativeType<D>, T extends Volatile<D> & Nativ
 			final Function<Interpolation, InterpolatorFactory<T, RandomAccessible<T>>> interpolation) throws
 			IOException, AxisOrderNotSupported {
 		super(
-				getData(meta.reader(), meta.dataset(), transform, globalCache, priority),
+				RandomAccessibleIntervalDataSource.asDataWithInvalidate((N5Helpers.ImagesWithInvalidate<D, T>[])getData(meta.reader(), meta.dataset(), transform, globalCache, priority)),
 				axisOrder,
 				dataInterpolation,
 				interpolation,
@@ -109,7 +112,7 @@ public class N5DataSource<D extends NativeType<D>, T extends Volatile<D> & Nativ
 
 	@SuppressWarnings({"unchecked", "rawtypes"})
 	private static <D extends NativeType<D>, T extends Volatile<D> & NativeType<T>>
-	Triple<RandomAccessibleInterval<D>[], RandomAccessibleInterval<T>[], AffineTransform3D[]> getData(
+	N5Helpers.ImagesWithInvalidate<D, T>[] getData(
 			final N5Reader reader,
 			final String dataset,
 			final AffineTransform3D transform,
@@ -126,26 +129,24 @@ public class N5DataSource<D extends NativeType<D>, T extends Volatile<D> & Nativ
 		if (isLabelMultiset)
 		{
 			return isMultiscale
-			       ? (Triple) N5Helpers.openLabelMultisetMultiscale(reader, dataset, transform, globalCache, priority)
-			       : (Triple) N5Helpers.asArrayTriple(N5Helpers.openLabelMutliset(
+			       ? (N5Helpers.ImagesWithInvalidate[]) N5Helpers.openLabelMultisetMultiscale(reader, dataset, transform, globalCache, priority)
+			       : new N5Helpers.ImagesWithInvalidate[] {N5Helpers.openLabelMutliset(
 					       reader,
 					       dataset,
 					       transform,
 					       globalCache,
-					       priority
-			                                                                     ));
+					       priority)};
 		}
 		else
 		{
 			return isMultiscale
-			       ? (Triple) N5Helpers.openRawMultiscale(reader, dataset, transform, globalCache, priority)
-			       : (Triple) N5Helpers.asArrayTriple(N5Helpers.openRaw(
+			       ? N5Helpers.openRawMultiscale(reader, dataset, transform, globalCache, priority)
+			       : new N5Helpers.ImagesWithInvalidate[] {N5Helpers.openRaw(
 					       reader,
 					       dataset,
 					       transform,
 					       globalCache,
-					       priority
-			                                                           ));
+					       priority)};
 		}
 	}
 }

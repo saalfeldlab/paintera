@@ -1,14 +1,5 @@
 package org.janelia.saalfeldlab.paintera.state;
 
-import java.lang.invoke.MethodHandles;
-import java.util.Arrays;
-import java.util.Optional;
-import java.util.Set;
-import java.util.concurrent.ExecutorService;
-import java.util.function.Predicate;
-
-import bdv.img.cache.CreateInvalidVolatileCell;
-import bdv.util.volatiles.SharedQueue;
 import gnu.trove.set.hash.TLongHashSet;
 import javafx.beans.binding.Bindings;
 import javafx.beans.binding.ObjectBinding;
@@ -18,25 +9,16 @@ import javafx.scene.Group;
 import javafx.scene.paint.Color;
 import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.Volatile;
-import net.imglib2.cache.Cache;
 import net.imglib2.cache.UncheckedCache;
 import net.imglib2.cache.img.CachedCellImg;
-import net.imglib2.cache.img.LoadedCellCacheLoader;
-import net.imglib2.cache.ref.SoftRefLoaderCache;
-import net.imglib2.cache.volatiles.CacheHints;
-import net.imglib2.cache.volatiles.CreateInvalid;
-import net.imglib2.cache.volatiles.LoadingStrategy;
 import net.imglib2.cache.volatiles.VolatileCache;
 import net.imglib2.converter.ARGBColorConverter;
-import net.imglib2.img.basictypeaccess.AccessFlags;
-import net.imglib2.img.basictypeaccess.ArrayDataAccessFactory;
 import net.imglib2.img.basictypeaccess.volatiles.array.VolatileByteArray;
 import net.imglib2.img.cell.AbstractCellImg;
 import net.imglib2.img.cell.Cell;
 import net.imglib2.img.cell.CellGrid;
 import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.type.BooleanType;
-import net.imglib2.type.PrimitiveType;
 import net.imglib2.type.Type;
 import net.imglib2.type.label.Label;
 import net.imglib2.type.label.LabelMultisetType;
@@ -47,9 +29,12 @@ import net.imglib2.type.numeric.integer.UnsignedByteType;
 import net.imglib2.type.volatiles.VolatileUnsignedByteType;
 import net.imglib2.util.Intervals;
 import net.imglib2.util.Pair;
+import net.imglib2.util.Triple;
 import net.imglib2.util.Util;
 import net.imglib2.util.ValueTriple;
 import net.imglib2.view.Views;
+import org.janelia.saalfeldlab.paintera.cache.Invalidate;
+import org.janelia.saalfeldlab.paintera.cache.InvalidateAll;
 import org.janelia.saalfeldlab.paintera.cache.global.GlobalCache;
 import org.janelia.saalfeldlab.paintera.cache.global.InvalidAccessException;
 import org.janelia.saalfeldlab.paintera.composition.Composite;
@@ -72,7 +57,13 @@ import org.janelia.saalfeldlab.util.Colors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import tmp.bdv.img.cache.VolatileCachedCellImg;
-import tmp.net.imglib2.cache.ref.WeakRefVolatileCache;
+
+import java.lang.invoke.MethodHandles;
+import java.util.Arrays;
+import java.util.Optional;
+import java.util.concurrent.ExecutorService;
+import java.util.function.Predicate;
+import java.util.stream.Stream;
 
 public class IntersectingSourceState
 		extends
@@ -227,12 +218,11 @@ public class IntersectingSourceState
 			throw new RuntimeException("Incompatible sources (num mip map levels )");
 		}
 
-		final AffineTransform3D[]                                  transforms = new AffineTransform3D[thresholded
-				.getDataSource().getNumMipmapLevels()];
-		final RandomAccessibleInterval<UnsignedByteType>[]         data       = new
-				RandomAccessibleInterval[transforms.length];
-		final RandomAccessibleInterval<VolatileUnsignedByteType>[] vdata      = new
-				RandomAccessibleInterval[transforms.length];
+		final AffineTransform3D[]                                  transforms = new AffineTransform3D[thresholded.getDataSource().getNumMipmapLevels()];
+		final RandomAccessibleInterval<UnsignedByteType>[]         data       = new RandomAccessibleInterval[transforms.length];
+		final RandomAccessibleInterval<VolatileUnsignedByteType>[] vdata      = new RandomAccessibleInterval[transforms.length];
+		final Invalidate<Long>[] invalidate                                   = new Invalidate[transforms.length];
+		final Invalidate<Long>[] vinvalidate                                  = new Invalidate[transforms.length];
 
 		final SelectedIds                    selectedIds                 = labels.selectedIds();
 		final FragmentSegmentAssignmentState assignment                  = labels.assignment();
@@ -282,16 +272,21 @@ public class IntersectingSourceState
 
 			LOG.debug("Making intersect for level={} with grid={}", level, grid);
 
-			final CachedCellImg<UnsignedByteType, VolatileByteArray> img = globalCache.createVolatileImg(grid, loader, new UnsignedByteType());
-			final Pair<RandomAccessibleInterval<VolatileUnsignedByteType>, VolatileCache<Long, Cell<VolatileByteArray>>> vimg = globalCache.wrapAsVolatile(img, priority);
-			data[level] = img;
-			vdata[level] = vimg.getA();
+			final Pair<CachedCellImg<UnsignedByteType, VolatileByteArray>, Invalidate<Long>> imgAndInvalidate =
+					globalCache.createVolatileImg(grid, loader, new UnsignedByteType());
+			final Triple<RandomAccessibleInterval<VolatileUnsignedByteType>, VolatileCache<Long, Cell<VolatileByteArray>>, Invalidate<Long>> vimgAndInvalidate =
+					globalCache.wrapAsVolatile(imgAndInvalidate.getA(), imgAndInvalidate.getB(), priority);
+			data[level] = imgAndInvalidate.getA();
+			vdata[level] = vimgAndInvalidate.getA();
+			invalidate[level] = imgAndInvalidate.getB();
+			vinvalidate[level] = vimgAndInvalidate.getC();
 			transforms[level] = tf1;
 		}
 
 		try {
 			return new RandomAccessibleIntervalDataSource<>(
 					new ValueTriple<>(data, vdata, transforms),
+					() -> {Stream.of(invalidate).forEach(InvalidateAll::invalidateAll); Stream.of(vinvalidate).forEach(InvalidateAll::invalidateAll);},
 					AxisOrder.XYZ,
 					Interpolations.nearestNeighbor(),
 					Interpolations.nearestNeighbor(),

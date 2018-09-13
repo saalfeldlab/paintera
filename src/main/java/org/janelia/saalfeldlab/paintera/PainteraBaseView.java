@@ -22,6 +22,7 @@ import javafx.scene.layout.Pane;
 import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.Volatile;
 import net.imglib2.cache.LoaderCache;
+import net.imglib2.cache.ref.SoftRefLoaderCache;
 import net.imglib2.converter.ARGBColorConverter;
 import net.imglib2.converter.ARGBCompositeColorConverter;
 import net.imglib2.converter.Converter;
@@ -42,6 +43,7 @@ import org.janelia.saalfeldlab.fx.ortho.GridConstraintsManager;
 import org.janelia.saalfeldlab.fx.ortho.OrthogonalViews;
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread;
 import org.janelia.saalfeldlab.paintera.cache.DiscoverableMemoryUsage;
+import org.janelia.saalfeldlab.paintera.cache.Invalidate;
 import org.janelia.saalfeldlab.paintera.cache.MemoryBoundedSoftRefLoaderCache;
 import org.janelia.saalfeldlab.paintera.cache.global.GlobalCache;
 import org.janelia.saalfeldlab.paintera.composition.CompositeProjectorPreMultiply;
@@ -85,7 +87,7 @@ public class PainteraBaseView
 //	private final LoaderCache<GlobalCache.Key<?>, ?> globalBackingCache = new BoundedSoftRefLoaderCache<>(DEFAULT_MAX_NUM_CACHE_ENTRIES);
 
 	// 1GB
-	private final LoaderCache<GlobalCache.Key<?>, ?> globalBackingCache = new MemoryBoundedSoftRefLoaderCache<>(1000 * 1000 * 1000, DiscoverableMemoryUsage.memoryUsageFromDiscoveredFunctions());
+	private final LoaderCache<GlobalCache.Key<?>, ?> globalBackingCache = MemoryBoundedSoftRefLoaderCache.withWeakRefs(1000 * 1000 * 1000, DiscoverableMemoryUsage.memoryUsageFromDiscoveredFunctions());
 
 	private final GlobalCache globalCache;
 
@@ -138,7 +140,7 @@ public class PainteraBaseView
 			final Function<SourceInfo, Function<Source<?>, Interpolation>> interpolation)
 	{
 		super();
-		this.globalCache = new GlobalCache(MAX_NUM_MIPMAP_LEVELS, numFetcherThreads, globalBackingCache);
+		this.globalCache = new GlobalCache(MAX_NUM_MIPMAP_LEVELS, numFetcherThreads, globalBackingCache, (Invalidate<GlobalCache.Key<?>>)globalBackingCache);
 		this.viewerOptions = viewerOptions
 				.accumulateProjectorFactory(new CompositeProjectorPreMultiply.CompositeProjectorFactory(sourceInfo
 						.composites()))

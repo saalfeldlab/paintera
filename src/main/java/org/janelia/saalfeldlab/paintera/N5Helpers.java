@@ -22,8 +22,6 @@ import java.util.function.Supplier;
 import java.util.regex.Pattern;
 import java.util.stream.Stream;
 
-import bdv.img.cache.CreateInvalidVolatileCell;
-import bdv.util.volatiles.SharedQueue;
 import bdv.util.volatiles.VolatileTypeMatcher;
 import bdv.viewer.Interpolation;
 import com.google.gson.GsonBuilder;
@@ -57,9 +55,8 @@ import net.imglib2.type.numeric.RealType;
 import net.imglib2.type.numeric.integer.*;
 import net.imglib2.type.numeric.real.DoubleType;
 import net.imglib2.type.numeric.real.FloatType;
-import net.imglib2.util.Fraction;
 import net.imglib2.util.Pair;
-import net.imglib2.util.Util;
+import net.imglib2.util.Triple;
 import net.imglib2.util.ValueTriple;
 import net.imglib2.view.Views;
 import org.janelia.saalfeldlab.labels.blocks.LabelBlockLookup;
@@ -78,6 +75,7 @@ import org.janelia.saalfeldlab.n5.hdf5.N5HDF5Reader;
 import org.janelia.saalfeldlab.n5.hdf5.N5HDF5Writer;
 import org.janelia.saalfeldlab.n5.imglib2.N5CellLoader;
 import org.janelia.saalfeldlab.n5.imglib2.N5Utils;
+import org.janelia.saalfeldlab.paintera.cache.Invalidate;
 import org.janelia.saalfeldlab.paintera.cache.global.GlobalCache;
 import org.janelia.saalfeldlab.paintera.cache.global.InvalidAccessException;
 import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignmentOnlyLocal;
@@ -100,7 +98,6 @@ import org.janelia.saalfeldlab.util.MakeUnchecked.CheckedConsumer;
 import org.janelia.saalfeldlab.util.NamedThreadFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import tmp.bdv.img.cache.VolatileCachedCellImg;
 
 public class N5Helpers
 {
@@ -132,6 +129,31 @@ public class N5Helpers
 	private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
 	private static final int MAX_NUM_CACHE_ENTRIES = 100;
+
+	public static class ImagesWithInvalidate<D, T> {
+		public final RandomAccessibleInterval<D> data;
+
+		public final RandomAccessibleInterval<T> vdata;
+
+		public final AffineTransform3D transform;
+
+		public final Invalidate<Long> invalidate;
+
+		public final Invalidate<Long> vinvalidate;
+
+		public ImagesWithInvalidate(
+				final RandomAccessibleInterval<D> data,
+				final RandomAccessibleInterval<T> vdata,
+				final AffineTransform3D transform,
+				final Invalidate<Long> invalidate,
+				final Invalidate<Long> vinvalidate) {
+			this.data = data;
+			this.vdata = vdata;
+			this.transform = transform;
+			this.invalidate = invalidate;
+			this.vinvalidate = vinvalidate;
+		}
+	}
 
 	public static boolean isIntegerType(final DataType type)
 	{
@@ -446,8 +468,7 @@ public class N5Helpers
 	}
 
 	public static <T extends NativeType<T>, V extends Volatile<T> & NativeType<V>>
-	ValueTriple<RandomAccessibleInterval<T>, RandomAccessibleInterval<V>, AffineTransform3D>
-	openRaw(
+	ImagesWithInvalidate<T, V> openRaw(
 			final N5Reader reader,
 			final String dataset,
 			final GlobalCache globalCache,
@@ -537,7 +558,7 @@ public class N5Helpers
 	}
 
 	public static <T extends NativeType<T>, V extends Volatile<T> & NativeType<V>, A>
-	ValueTriple<RandomAccessibleInterval<T>[], RandomAccessibleInterval<V>[], AffineTransform3D[]> openScalar(
+	ImagesWithInvalidate<T, V>[] openScalar(
 			final N5Reader reader,
 			final String dataset,
 			final AffineTransform3D transform,
@@ -546,7 +567,7 @@ public class N5Helpers
 	{
 		return isMultiScale(reader, dataset)
 		       ? openRawMultiscale(reader, dataset, transform, globalCache, priority)
-		       : asArrayTriple(openRaw(reader, dataset, transform, globalCache, priority));
+		       : new ImagesWithInvalidate[] {openRaw(reader, dataset, transform, globalCache, priority)};
 
 	}
 
@@ -558,8 +579,7 @@ public class N5Helpers
 
 	@SuppressWarnings({"unchecked", "rawtypes"})
 	public static <T extends NativeType<T>, V extends Volatile<T> & NativeType<V>, A>
-	ValueTriple<RandomAccessibleInterval<T>, RandomAccessibleInterval<V>, AffineTransform3D>
-	openRaw(
+	ImagesWithInvalidate<T, V> openRaw(
 			final N5Reader reader,
 			final String dataset,
 			final double[] resolution,
@@ -576,9 +596,9 @@ public class N5Helpers
 		return openRaw(reader, dataset, transform, globalCache, priority);
 	}
 
+	@SuppressWarnings("unchecked")
 	public static <T extends NativeType<T>, V extends Volatile<T> & NativeType<V>, A extends ArrayDataAccess<A>>
-	ValueTriple<RandomAccessibleInterval<T>, RandomAccessibleInterval<V>, AffineTransform3D>
-	openRaw(
+	ImagesWithInvalidate<T, V> openRaw(
 			final N5Reader reader,
 			final String dataset,
 			final AffineTransform3D transform,
@@ -589,10 +609,10 @@ public class N5Helpers
 			final CellGrid grid = getGrid(reader, dataset);
 			final CellLoader<T> loader = new N5CellLoader<>(reader, dataset, reader.getDatasetAttributes(dataset).getBlockSize());
 			final T type = N5Helpers.type(reader.getDatasetAttributes(dataset).getDataType());
-			final CachedCellImg<T, A> raw = globalCache.createVolatileImg(grid, loader, type);
+			final Pair<CachedCellImg<T, A>, Invalidate<Long>> raw = globalCache.createVolatileImg(grid, loader, type);
 			final V vtype = (V) VolatileTypeMatcher.getVolatileTypeForType(type);
-			Pair<RandomAccessibleInterval<V>, VolatileCache<Long, Cell<A>>> vraw = globalCache.wrapAsVolatile(raw, priority);
-			return new ValueTriple<>(raw, vraw.getA(), transform);
+			final Triple<RandomAccessibleInterval<V>, VolatileCache<Long, Cell<A>>, Invalidate<Long>> vraw = globalCache.wrapAsVolatile(raw.getA(), raw.getB(), priority);
+			return new ImagesWithInvalidate<>(raw.getA(), vraw.getA(), transform, raw.getB(), vraw.getC());
 		}
 		catch (Exception e)
 		{
@@ -601,8 +621,7 @@ public class N5Helpers
 	}
 
 	public static <T extends NativeType<T>, V extends Volatile<T> & NativeType<V>>
-	ValueTriple<RandomAccessibleInterval<T>[], RandomAccessibleInterval<V>[], AffineTransform3D[]>
-	openRawMultiscale(
+	ImagesWithInvalidate<T, V>[] openRawMultiscale(
 			final N5Reader reader,
 			final String dataset,
 			final GlobalCache globalCache,
@@ -620,8 +639,7 @@ public class N5Helpers
 	}
 
 	public static <T extends NativeType<T>, V extends Volatile<T> & NativeType<V>>
-	ValueTriple<RandomAccessibleInterval<T>[], RandomAccessibleInterval<V>[], AffineTransform3D[]>
-	openRawMultiscale(
+	ImagesWithInvalidate<T, V>[] openRawMultiscale(
 			final N5Reader reader,
 			final String dataset,
 			final double[] resolution,
@@ -638,9 +656,9 @@ public class N5Helpers
 		return openRawMultiscale(reader, dataset, transform, globalCache, priority);
 	}
 
+	@SuppressWarnings("unchecked")
 	public static <T extends NativeType<T>, V extends Volatile<T> & NativeType<V>>
-	ValueTriple<RandomAccessibleInterval<T>[], RandomAccessibleInterval<V>[], AffineTransform3D[]>
-	openRawMultiscale(
+	ImagesWithInvalidate<T, V>[] openRawMultiscale(
 			final N5Reader reader,
 			final String dataset,
 			final AffineTransform3D transform,
@@ -651,11 +669,6 @@ public class N5Helpers
 
 		LOG.debug("Opening directories {} as multi-scale in {}: ", Arrays.toString(scaleDatasets), dataset);
 
-		@SuppressWarnings("unchecked") final RandomAccessibleInterval<T>[] raw = new
-				RandomAccessibleInterval[scaleDatasets.length];
-		@SuppressWarnings("unchecked") final RandomAccessibleInterval<V>[] vraw = new
-				RandomAccessibleInterval[scaleDatasets.length];
-		final AffineTransform3D[] transforms = new AffineTransform3D[scaleDatasets.length];
 		final double[] initialDonwsamplingFactors = getDownsamplingFactors(
 				reader,
 				Paths.get(dataset, scaleDatasets[0]).toString()
@@ -666,31 +679,27 @@ public class N5Helpers
 				new NamedThreadFactory("populate-mipmap-scales-%d", true)
 		                                                       );
 		final ArrayList<Future<Boolean>> futures = new ArrayList<>();
+		final ImagesWithInvalidate<T, V>[] imagesWithInvalidate = new ImagesWithInvalidate[scaleDatasets.length];
 		for (int scale = 0; scale < scaleDatasets.length; ++scale)
 		{
 			final int fScale = scale;
 			futures.add(es.submit(MakeUnchecked.supplier(() -> {
 				LOG.debug("Populating scale level {}", fScale);
 				final String scaleDataset = Paths.get(dataset, scaleDatasets[fScale]).toString();
-				final ValueTriple<RandomAccessibleInterval<T>, RandomAccessibleInterval<V>, AffineTransform3D>
-						cachedAndVolatile =
-						openRaw(reader, scaleDataset, transform.copy(), globalCache, priority);
-				raw[fScale] = cachedAndVolatile.getA();
-				vraw[fScale] = cachedAndVolatile.getB();
+				imagesWithInvalidate[fScale] = openRaw(reader, scaleDataset, transform.copy(), globalCache, priority);
 				final double[] downsamplingFactors = getDownsamplingFactors(reader, scaleDataset);
 				LOG.debug("Read downsampling factors: {}", Arrays.toString(downsamplingFactors));
-				transforms[fScale] = considerDownsampling(
-						cachedAndVolatile.getC(),
+				imagesWithInvalidate[fScale].transform.set(considerDownsampling(
+						imagesWithInvalidate[fScale].transform.copy(),
 						downsamplingFactors,
-						initialDonwsamplingFactors
-				                                         );
+						initialDonwsamplingFactors));
 				LOG.debug("Populated scale level {}", fScale);
 				return true;
 			})::get));
 		}
 		futures.forEach(MakeUnchecked.unchecked((CheckedConsumer<Future<Boolean>>) Future::get));
 		es.shutdown();
-		return new ValueTriple<>(raw, vraw, transforms);
+		return imagesWithInvalidate;
 	}
 
 	public static DataSource<LabelMultisetType, VolatileLabelMultisetType>
@@ -714,9 +723,7 @@ public class N5Helpers
 		);
 	}
 
-	public static ValueTriple<RandomAccessibleInterval<LabelMultisetType>,
-			RandomAccessibleInterval<VolatileLabelMultisetType>, AffineTransform3D>
-	openLabelMutliset(
+	public static ImagesWithInvalidate<LabelMultisetType, VolatileLabelMultisetType> openLabelMutliset(
 			final N5Reader reader,
 			final String dataset,
 			final GlobalCache globalCache,
@@ -732,8 +739,7 @@ public class N5Helpers
 		                        );
 	}
 
-	public static ValueTriple<RandomAccessibleInterval<LabelMultisetType>,
-			RandomAccessibleInterval<VolatileLabelMultisetType>, AffineTransform3D> openLabelMutliset(
+	public static ImagesWithInvalidate<LabelMultisetType, VolatileLabelMultisetType> openLabelMutliset(
 			final N5Reader reader,
 			final String dataset,
 			final double[] resolution,
@@ -750,8 +756,7 @@ public class N5Helpers
 		return openLabelMutliset(reader, dataset, transform, globalCache, priority);
 	}
 
-	public static ValueTriple<RandomAccessibleInterval<LabelMultisetType>,
-			RandomAccessibleInterval<VolatileLabelMultisetType>, AffineTransform3D> openLabelMutliset(
+	public static ImagesWithInvalidate<LabelMultisetType, VolatileLabelMultisetType> openLabelMutliset(
 			final N5Reader reader,
 			final String dataset,
 			final AffineTransform3D transform,
@@ -765,24 +770,25 @@ public class N5Helpers
 					dataset,
 					N5CacheLoader.constantNullReplacement(Label.BACKGROUND)
 			);
-			final CachedCellImg<LabelMultisetType, VolatileLabelMultisetArray> cachedImg = globalCache.createImg(
+			final Pair<CachedCellImg<LabelMultisetType, VolatileLabelMultisetArray>, Invalidate<Long>> cachedImg = globalCache.createImg(
 					new CellGrid(attrs.getDimensions(), attrs.getBlockSize()),
 					loader,
 					new LabelMultisetType().getEntitiesPerPixel(),
 					new VolatileLabelMultisetArray(0, true, new long[]{Label.INVALID})
 			);
-			cachedImg.setLinkedType(new LabelMultisetType(cachedImg));
+			cachedImg.getA().setLinkedType(new LabelMultisetType(cachedImg.getA()));
 
 			final Function<NativeImg<VolatileLabelMultisetType, ? extends VolatileLabelMultisetArray>, VolatileLabelMultisetType> linkedTypeFactory =
 					img -> new VolatileLabelMultisetType((NativeImg<?, VolatileLabelMultisetArray>) img);
 
-			Pair<RandomAccessibleInterval<VolatileLabelMultisetType>, VolatileCache<Long, Cell<VolatileLabelMultisetArray>>> vimg = globalCache.wrapAsVolatile(
-					cachedImg,
+			Triple<RandomAccessibleInterval<VolatileLabelMultisetType>, VolatileCache<Long, Cell<VolatileLabelMultisetArray>>, Invalidate<Long>> vimg = globalCache.wrapAsVolatile(
+					cachedImg.getA(),
+					cachedImg.getB(),
 					linkedTypeFactory,
-					new VolatileHelpers.CreateInvalidVolatileLabelMultisetArray(cachedImg.getCellGrid()),
+					new VolatileHelpers.CreateInvalidVolatileLabelMultisetArray(cachedImg.getA().getCellGrid()),
 					priority);
 
-			return new ValueTriple<>(cachedImg, vimg.getA(), transform);
+			return new ImagesWithInvalidate<>(cachedImg.getA(), vimg.getA(), transform, cachedImg.getB(), vimg.getC());
 		}
 		catch (InvalidAccessException e)
 		{
@@ -791,9 +797,7 @@ public class N5Helpers
 
 	}
 
-	public static ValueTriple<RandomAccessibleInterval<LabelMultisetType>[],
-			RandomAccessibleInterval<VolatileLabelMultisetType>[], AffineTransform3D[]>
-	openLabelMultisetMultiscale(
+	public static ImagesWithInvalidate<LabelMultisetType, VolatileLabelMultisetType>[] openLabelMultisetMultiscale(
 			final N5Reader reader,
 			final String dataset,
 			final GlobalCache globalCache,
@@ -809,9 +813,7 @@ public class N5Helpers
 		                                  );
 	}
 
-	public static ValueTriple<RandomAccessibleInterval<LabelMultisetType>[],
-			RandomAccessibleInterval<VolatileLabelMultisetType>[], AffineTransform3D[]>
-	openLabelMultisetMultiscale(
+	public static ImagesWithInvalidate<LabelMultisetType, VolatileLabelMultisetType>[] openLabelMultisetMultiscale(
 			final N5Reader reader,
 			final String dataset,
 			final double[] resolution,
@@ -834,9 +836,8 @@ public class N5Helpers
 		                                  );
 	}
 
-	public static ValueTriple<RandomAccessibleInterval<LabelMultisetType>[],
-			RandomAccessibleInterval<VolatileLabelMultisetType>[], AffineTransform3D[]>
-	openLabelMultisetMultiscale(
+	@SuppressWarnings("unchecked")
+	public static ImagesWithInvalidate<LabelMultisetType, VolatileLabelMultisetType>[] openLabelMultisetMultiscale(
 			final N5Reader reader,
 			final String dataset,
 			final AffineTransform3D transform,
@@ -852,11 +853,6 @@ public class N5Helpers
 				transform
 		         );
 
-		@SuppressWarnings("unchecked") final RandomAccessibleInterval<LabelMultisetType>[] raw = new
-				RandomAccessibleInterval[scaleDatasets.length];
-		@SuppressWarnings("unchecked") final RandomAccessibleInterval<VolatileLabelMultisetType>[] vraw = new
-				RandomAccessibleInterval[scaleDatasets.length];
-		final AffineTransform3D[] transforms = new AffineTransform3D[scaleDatasets.length];
 		final double[] initialDonwsamplingFactors = getDownsamplingFactors(
 				reader,
 				Paths.get(dataset, scaleDatasets[0]).toString()
@@ -866,31 +862,27 @@ public class N5Helpers
 				new NamedThreadFactory("populate-mipmap-scales-%d", true)
 		                                                       );
 		final ArrayList<Future<Boolean>> futures = new ArrayList<>();
+		final ImagesWithInvalidate<LabelMultisetType, VolatileLabelMultisetType>[] imagesWithInvalidate = new ImagesWithInvalidate[scaleDatasets.length];
 		for (int scale = 0; scale < scaleDatasets.length; ++scale)
 		{
 			final int fScale = scale;
 			futures.add(es.submit(MakeUnchecked.supplier(() -> {
 				LOG.debug("Populating scale level {}", fScale);
 				final String scaleDataset = Paths.get(dataset, scaleDatasets[fScale]).toString();
-				final ValueTriple<RandomAccessibleInterval<LabelMultisetType>,
-						RandomAccessibleInterval<VolatileLabelMultisetType>, AffineTransform3D> cachedAndVolatile =
-						openLabelMutliset(reader, scaleDataset, transform.copy(), globalCache, priority);
-				raw[fScale] = cachedAndVolatile.getA();
-				vraw[fScale] = cachedAndVolatile.getB();
+				imagesWithInvalidate[fScale] = openLabelMutliset(reader, scaleDataset, transform.copy(), globalCache, priority);
 				final double[] downsamplingFactors = getDownsamplingFactors(reader, scaleDataset);
 				LOG.debug("Read downsampling factors: {}", Arrays.toString(downsamplingFactors));
-				transforms[fScale] = considerDownsampling(
-						cachedAndVolatile.getC(),
+				imagesWithInvalidate[fScale].transform.set(considerDownsampling(
+						imagesWithInvalidate[fScale].transform.copy(),
 						downsamplingFactors,
-						initialDonwsamplingFactors
-				                                         );
+						initialDonwsamplingFactors));
 				LOG.debug("Populated scale level {}", fScale);
 				return true;
 			})::get));
 		}
 		futures.forEach(MakeUnchecked.unchecked((CheckedConsumer<Future<Boolean>>) Future::get));
 		es.shutdown();
-		return new ValueTriple<>(raw, vraw, transforms);
+		return imagesWithInvalidate;
 	}
 
 	@SuppressWarnings("unchecked")

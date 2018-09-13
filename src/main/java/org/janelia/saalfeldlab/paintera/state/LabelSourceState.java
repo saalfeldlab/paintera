@@ -37,6 +37,8 @@ import net.imglib2.util.Pair;
 import net.imglib2.util.Util;
 import net.imglib2.view.Views;
 import org.janelia.saalfeldlab.paintera.PainteraBaseView;
+import org.janelia.saalfeldlab.paintera.cache.Invalidate;
+import org.janelia.saalfeldlab.paintera.cache.InvalidateAll;
 import org.janelia.saalfeldlab.paintera.composition.ARGBCompositeAlphaYCbCr;
 import org.janelia.saalfeldlab.paintera.composition.Composite;
 import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignmentOnlyLocal;
@@ -266,6 +268,21 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 			final Group meshesGroup,
 			final ExecutorService meshManagerExecutors,
 			final ExecutorService meshWorkersExecutors) throws AxisOrderNotSupported {
+		return simpleSourceFromSingleRAI(data, resolution, offset, () -> {}, axisOrder, maxId, name, meshesGroup, meshManagerExecutors, meshWorkersExecutors);
+	}
+
+	public static <D extends IntegerType<D> & NativeType<D>, T extends Volatile<D> & IntegerType<T>>
+	LabelSourceState<D, T> simpleSourceFromSingleRAI(
+			final RandomAccessibleInterval<D> data,
+			final double[] resolution,
+			final double[] offset,
+			final InvalidateAll invalidateAll,
+			final AxisOrder axisOrder,
+			final long maxId,
+			final String name,
+			final Group meshesGroup,
+			final ExecutorService meshManagerExecutors,
+			final ExecutorService meshWorkersExecutors) throws AxisOrderNotSupported {
 
 		final int[] blockSize;
 		if (data instanceof AbstractCellImg<?, ?, ?, ?>)
@@ -294,6 +311,7 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 				data,
 				resolution,
 				offset,
+				invalidateAll,
 				axisOrder,
 				maxId,
 				name,
@@ -316,6 +334,22 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 			final Group meshesGroup,
 			final ExecutorService meshManagerExecutors,
 			final ExecutorService meshWorkersExecutors) throws AxisOrderNotSupported {
+		return simpleSourceFromSingleRAI(data, resolution, offset, () -> {}, axisOrder, maxId, name, backgroundBlockCaches, meshesGroup, meshManagerExecutors, meshWorkersExecutors);
+	}
+
+	public static <D extends IntegerType<D> & NativeType<D>, T extends Volatile<D> & IntegerType<T>>
+	LabelSourceState<D, T> simpleSourceFromSingleRAI(
+			final RandomAccessibleInterval<D> data,
+			final double[] resolution,
+			final double[] offset,
+			final InvalidateAll invalidateAll,
+			final AxisOrder axisOrder,
+			final long maxId,
+			final String name,
+			final InterruptibleFunction<Long, Interval[]>[] backgroundBlockCaches,
+			final Group meshesGroup,
+			final ExecutorService meshManagerExecutors,
+			final ExecutorService meshWorkersExecutors) throws AxisOrderNotSupported {
 
 		if (!Views.isZeroMin(data))
 		{
@@ -323,6 +357,7 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 					Views.zeroMin(data),
 					resolution,
 					offset,
+					invalidateAll,
 					axisOrder,
 					maxId,
 					name,
@@ -348,6 +383,7 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 				data,
 				vdata,
 				mipmapTransform,
+				invalidateAll,
 				axisOrder,
 				i -> new NearestNeighborInterpolatorFactory<>(),
 				i -> new NearestNeighborInterpolatorFactory<>(),

@@ -213,7 +213,7 @@ public class BorderPaneWithStatusBars
 
 		LongUnaryOperator toMegaBytes = bytes -> bytes / 1000 / 1000;
 		LongSupplier currentMemory = center::getCurrentMemoryUsageInBytes;
-		LongSupplier maxMemory = ((MemoryBoundedSoftRefLoaderCache<?, ?>)center.getGlobalBackingCache())::getMaxSize;
+		LongSupplier maxMemory = ((MemoryBoundedSoftRefLoaderCache<?, ?, ?>)center.getGlobalBackingCache())::getMaxSize;
 		Supplier<String> currentMemoryStr = () -> Long.toString(toMegaBytes.applyAsLong(currentMemory.getAsLong()));
 		Supplier<String> maxMemoryStr = () -> Long.toString(toMegaBytes.applyAsLong(maxMemory.getAsLong()));
 		final Label memoryUsageField = new Label(String.format("%s/%s", currentMemoryStr.get(), maxMemoryStr.get()));
@@ -225,7 +225,7 @@ public class BorderPaneWithStatusBars
 
 		// TODO put this stuff in a better place!
 		final ScheduledExecutorService memoryCleanupScheduler = Executors.newScheduledThreadPool(1, new NamedThreadFactory("cache clean up", true));
-		memoryCleanupScheduler.scheduleAtFixedRate(((MemoryBoundedSoftRefLoaderCache<?, ?>)center.getGlobalBackingCache())::restrictToMaxSize,0, 3, TimeUnit.SECONDS);
+		memoryCleanupScheduler.scheduleAtFixedRate(((MemoryBoundedSoftRefLoaderCache<?, ?, ?>)center.getGlobalBackingCache())::restrictToMaxSize,0, 3, TimeUnit.SECONDS);
 
 		Button setButton = new Button("Set");
 		setButton.setOnAction(e -> {
@@ -239,7 +239,7 @@ public class BorderPaneWithStatusBars
 			if (ButtonType.OK.equals(dialog.showAndWait().orElse(ButtonType.CANCEL)))
 			{
 				new Thread(() -> {
-					((MemoryBoundedSoftRefLoaderCache<?, ?>)center.getGlobalBackingCache()).setMaxSize(field.valueProperty().get());
+					((MemoryBoundedSoftRefLoaderCache<?, ?, ?>)center.getGlobalBackingCache()).setMaxSize(field.valueProperty().get());
 					InvokeOnJavaFXApplicationThread.invoke(() -> memoryUsageField.setText(String.format("%s/%s", currentMemoryStr.get(), maxMemoryStr.get())));
 				}).start();
 			}
