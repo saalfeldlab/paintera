@@ -31,6 +31,7 @@ import org.janelia.saalfeldlab.paintera.data.n5.N5FSMeta;
 import org.janelia.saalfeldlab.paintera.data.n5.ReflectionException;
 import org.janelia.saalfeldlab.paintera.id.IdService;
 import org.janelia.saalfeldlab.paintera.meshes.InterruptibleFunction;
+import org.janelia.saalfeldlab.paintera.meshes.MeshManagerWithAssignmentForSegments;
 import org.janelia.saalfeldlab.paintera.state.LabelSourceState;
 import org.janelia.saalfeldlab.paintera.stream.HighlightingStreamConverter;
 import org.janelia.saalfeldlab.paintera.stream.ModalGoldenAngleSaturatedHighlightingARGBStream;
@@ -104,12 +105,21 @@ public class CreateDatasetHandler
 			ModalGoldenAngleSaturatedHighlightingARGBStream stream = new ModalGoldenAngleSaturatedHighlightingARGBStream(
 					selectedIds,
 					assignment,
-					lockedSegments
-			);
+					lockedSegments);
 			final HighlightingStreamConverter<VolatileLabelMultisetType> converter = HighlightingStreamConverter.forType(
 					stream,
-					new VolatileLabelMultisetType()
-			                                                                                                      );
+					new VolatileLabelMultisetType());
+
+			final MeshManagerWithAssignmentForSegments meshManager = MeshManagerWithAssignmentForSegments.fromBlockLookup(
+					maskedSource,
+					selectedIds,
+					assignment,
+					stream,
+					pbv.viewer3D().meshesGroup(),
+					blockLoaders,
+					pbv.getGlobalCache()::createNewCache,
+					pbv.getMeshManagerExecutorService(),
+					pbv.getMeshWorkerExecutorService());
 
 			LabelSourceState<LabelMultisetType, VolatileLabelMultisetType> state = new LabelSourceState<>(
 					maskedSource,
@@ -120,11 +130,7 @@ public class CreateDatasetHandler
 					lockedSegments,
 					idService,
 					selectedIds,
-					pbv.viewer3D().meshesGroup(),
-					blockLoaders,
-					pbv.getMeshManagerExecutorService(),
-					pbv.getMeshWorkerExecutorService()
-			);
+					meshManager);
 
 			pbv.addLabelSource(state);
 		}

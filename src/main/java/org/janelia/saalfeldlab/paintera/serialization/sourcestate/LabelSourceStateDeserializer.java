@@ -29,6 +29,7 @@ import org.janelia.saalfeldlab.paintera.data.n5.ReflectionException;
 import org.janelia.saalfeldlab.paintera.id.IdService;
 import org.janelia.saalfeldlab.paintera.meshes.InterruptibleFunction;
 import org.janelia.saalfeldlab.paintera.meshes.ManagedMeshSettings;
+import org.janelia.saalfeldlab.paintera.meshes.MeshManagerWithAssignmentForSegments;
 import org.janelia.saalfeldlab.paintera.serialization.FragmentSegmentAssignmentOnlyLocalSerializer;
 import org.janelia.saalfeldlab.paintera.serialization.StatefulSerializer;
 import org.janelia.saalfeldlab.paintera.serialization.StatefulSerializer.Arguments;
@@ -89,6 +90,7 @@ public class LabelSourceStateDeserializer<C extends HighlightingStreamConverter<
 			final JsonDeserializationContext context) throws IOException, ClassNotFoundException, ReflectionException {
 		final boolean isMaskedSource = source instanceof MaskedSource<?, ?>;
 		LOG.debug("Is {} masked source? {}", source, isMaskedSource);
+		// TODO decouple this from n5!
 		if (isMaskedSource)
 		{
 			LOG.debug("Underlying source: {}", ((MaskedSource<?, ?>) source).underlyingSource());
@@ -154,6 +156,18 @@ public class LabelSourceStateDeserializer<C extends HighlightingStreamConverter<
 				.mapToObj(level -> InterruptibleFunction.fromFunction( MakeUnchecked.function((MakeUnchecked.CheckedFunction<Long, Interval[]>) id -> lookup.read(level, id))))
 				.toArray(InterruptibleFunction[]::new);
 
+		final MeshManagerWithAssignmentForSegments meshManager = MeshManagerWithAssignmentForSegments.fromBlockLookup(
+				(DataSource) source,
+				selectedIds,
+				assignment,
+				stream,
+				arguments.meshesGroup,
+				blockLoaders,
+				arguments.globalCache::createNewCache,
+				arguments.meshManagerExecutors,
+				arguments.meshWorkersExecutors
+		);
+
 		final LabelSourceState state = new LabelSourceState(
 				source,
 				converter,
@@ -163,10 +177,7 @@ public class LabelSourceStateDeserializer<C extends HighlightingStreamConverter<
 				lockedSegments,
 				idService,
 				selectedIds,
-				arguments.meshesGroup,
-				blockLoaders,
-				arguments.meshManagerExecutors,
-				arguments.meshWorkersExecutors
+				meshManager
 		);
 
 		if (map.has(LabelSourceStateSerializer.MANAGED_MESH_SETTINGS_KEY))

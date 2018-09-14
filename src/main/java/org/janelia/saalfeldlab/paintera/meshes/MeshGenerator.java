@@ -260,7 +260,7 @@ public class MeshGenerator<T>
 	{
 		synchronized (this.activeFuture)
 		{
-			LOG.warn("Canceling task: {}", this.activeFuture);
+			LOG.debug("Canceling task: {}", this.activeFuture);
 			Optional.ofNullable(activeFuture.get()).ifPresent(f -> f.cancel(true));
 			Optional.ofNullable(activeTask.get()).ifPresent(ManagementTask::interrupt);
 			activeFuture.set(null);

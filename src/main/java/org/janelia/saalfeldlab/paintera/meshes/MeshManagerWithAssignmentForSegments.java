@@ -12,8 +12,14 @@ import java.util.Map.Entry;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ExecutorService;
+import java.util.function.BiFunction;
+import java.util.function.Function;
+import java.util.function.LongFunction;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
+import gnu.trove.iterator.TLongIterator;
+import gnu.trove.set.TLongSet;
 import gnu.trove.set.hash.TLongHashSet;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.DoubleProperty;
@@ -21,13 +27,30 @@ import javafx.beans.property.IntegerProperty;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleIntegerProperty;
 import javafx.scene.Group;
+import net.imglib2.FinalInterval;
 import net.imglib2.Interval;
+import net.imglib2.cache.Cache;
+import net.imglib2.cache.CacheLoader;
+import net.imglib2.converter.Converter;
+import net.imglib2.img.cell.CellGrid;
+import net.imglib2.type.logic.BoolType;
+import net.imglib2.type.numeric.IntegerType;
 import net.imglib2.util.Pair;
+import org.janelia.saalfeldlab.paintera.PainteraBaseView;
+import org.janelia.saalfeldlab.paintera.cache.Invalidate;
+import org.janelia.saalfeldlab.paintera.cache.InvalidateAll;
+import org.janelia.saalfeldlab.paintera.cache.global.GlobalCache;
 import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignmentState;
 import org.janelia.saalfeldlab.paintera.control.assignment.FragmentsInSelectedSegments;
+import org.janelia.saalfeldlab.paintera.control.selection.SelectedIds;
 import org.janelia.saalfeldlab.paintera.control.selection.SelectedSegments;
 import org.janelia.saalfeldlab.paintera.data.DataSource;
+import org.janelia.saalfeldlab.paintera.data.mask.MaskedSource;
+import org.janelia.saalfeldlab.paintera.meshes.cache.BlocksForLabelDelegate;
+import org.janelia.saalfeldlab.paintera.meshes.cache.CacheUtils;
+import org.janelia.saalfeldlab.paintera.meshes.cache.SegmentMaskGenerators;
 import org.janelia.saalfeldlab.paintera.stream.AbstractHighlightingARGBStream;
+import org.janelia.saalfeldlab.util.HashWrapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -44,6 +67,8 @@ public class MeshManagerWithAssignmentForSegments implements MeshManager<Long, T
 	private final InterruptibleFunction<TLongHashSet, Interval[]>[] blockListCache;
 
 	private final InterruptibleFunction<ShapeKey<TLongHashSet>, Pair<float[], float[]>>[] meshCache;
+
+	private final Invalidate<ShapeKey<TLongHashSet>>[] invalidateMeshCaches;
 
 	private final FragmentSegmentAssignmentState assignment;
 
@@ -63,7 +88,7 @@ public class MeshManagerWithAssignmentForSegments implements MeshManager<Long, T
 
 	private final ExecutorService workers;
 
-	private final Runnable refreshMeshes;
+	private final List<Runnable> refreshMeshes = new ArrayList<>();
 
 	private final BooleanProperty areMeshesEnabled = new SimpleBooleanProperty(true);
 
@@ -71,12 +96,12 @@ public class MeshManagerWithAssignmentForSegments implements MeshManager<Long, T
 			final DataSource<?, ?> source,
 			final InterruptibleFunction<TLongHashSet, Interval[]>[] blockListCacheForFragments,
 			final InterruptibleFunction<ShapeKey<TLongHashSet>, Pair<float[], float[]>>[] meshCache,
+			final Invalidate<ShapeKey<TLongHashSet>>[] invalidateMeshCaches,
 			final Group root,
 			final ManagedMeshSettings meshSettings,
 			final FragmentSegmentAssignmentState assignment,
 			final SelectedSegments selectedSegments,
 			final AbstractHighlightingARGBStream stream,
-			final Runnable refreshMeshes,
 			final ExecutorService managers,
 			final ExecutorService workers)
 	{
@@ -84,12 +109,12 @@ public class MeshManagerWithAssignmentForSegments implements MeshManager<Long, T
 		this.source = source;
 		this.blockListCache = blockListCacheForFragments;
 		this.meshCache = meshCache;
+		this.invalidateMeshCaches = invalidateMeshCaches;
 		this.root = root;
 		this.assignment = assignment;
 		this.selectedSegments = selectedSegments;
 		this.fragmentsInSelectedSegments = new FragmentsInSelectedSegments(selectedSegments, assignment);
 		this.stream = stream;
-		this.refreshMeshes = refreshMeshes;
 
 		this.meshSettings = meshSettings;
 
@@ -109,6 +134,11 @@ public class MeshManagerWithAssignmentForSegments implements MeshManager<Long, T
 			}
 		});
 
+	}
+
+	public void addRefreshMeshesListener(Runnable listener)
+	{
+		this.refreshMeshes.add(listener);
 	}
 
 	private void update()
@@ -290,13 +320,155 @@ public class MeshManagerWithAssignmentForSegments implements MeshManager<Long, T
 	@Override
 	public void refreshMeshes()
 	{
-		this.refreshMeshes.run();
+		this.refreshMeshes.forEach(Runnable::run);
 	}
 
 	@Override
 	public BooleanProperty areMeshesEnabledProperty()
 	{
 		return this.areMeshesEnabled;
+	}
+
+	@Override
+	public ManagedMeshSettings managedMeshSettings()
+	{
+		return this.meshSettings;
+	}
+
+	@Override
+	public void invalidateMeshCaches()
+	{
+		Stream.of(this.invalidateMeshCaches).forEach(InvalidateAll::invalidateAll);
+	}
+
+	public static <D extends IntegerType<D>> MeshManagerWithAssignmentForSegments fromBlockLookup(
+			DataSource<D, ?> dataSource,
+			final SelectedIds selectedIds,
+			final FragmentSegmentAssignmentState assignment,
+			final AbstractHighlightingARGBStream stream,
+			final Group meshesGroup,
+			final InterruptibleFunction<Long, Interval[]>[] backgroundBlockCaches,
+			final Function<CacheLoader<ShapeKey<TLongHashSet>, Pair<float[], float[]>>, Pair<Cache<ShapeKey<TLongHashSet>,
+					Pair<float[], float[]>>, Invalidate<ShapeKey<TLongHashSet>>>> makeCache,
+			final ExecutorService meshManagerExecutors,
+			final ExecutorService meshWorkersExecutors
+			)
+	{
+		final SelectedSegments selectedSegments = new SelectedSegments(selectedIds, assignment);
+
+		final boolean isMaskedSource = dataSource instanceof MaskedSource<?, ?>;
+		final InterruptibleFunction<Long, Interval[]>[] blockCaches = isMaskedSource
+		                                                              ? combineInterruptibleFunctions(
+				backgroundBlockCaches,
+				InterruptibleFunction.fromFunction(blockCacheForMaskedSource((MaskedSource<?, ?>) dataSource)),
+				new IntervalsCombiner())
+		                                                              : backgroundBlockCaches;
+
+		final BlocksForLabelDelegate<TLongHashSet, Long>[] delegateBlockCaches = BlocksForLabelDelegate.delegate(
+				blockCaches,
+				ids -> Arrays.stream(ids.toArray()).boxed().toArray(Long[]::new));
+
+
+		final D d = dataSource.getDataType();
+		final Function<TLongHashSet, Converter<D, BoolType>> segmentMaskGenerator = SegmentMaskGenerators.forType(d);
+
+		final Pair<InterruptibleFunctionAndCache<ShapeKey<TLongHashSet>, Pair<float[], float[]>>, Invalidate<ShapeKey<TLongHashSet>>>[] meshCaches = CacheUtils
+				.segmentMeshCacheLoaders(
+						dataSource,
+						segmentMaskGenerator,
+						makeCache);
+
+		return new MeshManagerWithAssignmentForSegments(
+				dataSource,
+				delegateBlockCaches,
+				Stream.of(meshCaches).map(Pair::getA).toArray(InterruptibleFunctionAndCache[]::new),
+				Stream.of(meshCaches).map(Pair::getB).toArray(Invalidate[]::new),
+				meshesGroup,
+				new ManagedMeshSettings(dataSource.getNumMipmapLevels()),
+				assignment,
+				selectedSegments,
+				stream,
+				meshManagerExecutors,
+				meshWorkersExecutors);
+	}
+
+	private static <T, U, V, W> InterruptibleFunction<T, U>[] combineInterruptibleFunctions(
+			final InterruptibleFunction<T, V>[] f1,
+			final InterruptibleFunction<T, W>[] f2,
+			final BiFunction<V, W, U> combiner)
+	{
+		assert f1.length == f2.length;
+
+		LOG.debug("Combining two functions {} and {}", f1, f2);
+
+		@SuppressWarnings("unchecked") final InterruptibleFunction<T, U>[] f = new InterruptibleFunction[f1.length];
+		for (int i = 0; i < f.length; ++i)
+		{
+			final InterruptibleFunction<T, V> ff1        = f1[i];
+			final InterruptibleFunction<T, W> ff2        = f2[i];
+			final List<Interruptible<T>>      interrupts = Arrays.asList(ff1, ff2);
+			f[i] = InterruptibleFunction.fromFunctionAndInterruptible(
+					t -> combiner.apply(ff1.apply(t), ff2.apply(t)),
+					t -> interrupts.forEach(interrupt -> interrupt.interruptFor(t))
+			);
+		}
+		return f;
+	}
+
+	private static Function<Long, Interval[]>[] blockCacheForMaskedSource(
+			final MaskedSource<?, ?> source)
+	{
+
+		final int numLevels = source.getNumMipmapLevels();
+
+		@SuppressWarnings("unchecked") final Function<Long, Interval[]>[] functions = new Function[numLevels];
+
+		for (int level = 0; level < numLevels; ++level)
+		{
+			final int      fLevel    = level;
+			final CellGrid grid      = source.getCellGrid(0, level);
+			final long[]   imgDim    = grid.getImgDimensions();
+			final int[]    blockSize = new int[imgDim.length];
+			grid.cellDimensions(blockSize);
+			functions[level] = id -> {
+				LOG.debug("Getting blocks at level={} for id={}", fLevel, id);
+				final long[]   blockMin      = new long[grid.numDimensions()];
+				final long[]   blockMax      = new long[grid.numDimensions()];
+				final TLongSet indexedBlocks = source.getModifiedBlocks(fLevel, id);
+				LOG.debug("Received modified blocks at level={} for id={}: {}", fLevel, id, indexedBlocks);
+				final Interval[]    intervals = new Interval[indexedBlocks.size()];
+				final TLongIterator blockIt   = indexedBlocks.iterator();
+				for (int i = 0; blockIt.hasNext(); ++i)
+				{
+					final long blockIndex = blockIt.next();
+					grid.getCellGridPositionFlat(blockIndex, blockMin);
+					Arrays.setAll(blockMin, d -> blockMin[d] * blockSize[d]);
+					Arrays.setAll(blockMax, d -> Math.min(blockMin[d] + blockSize[d], imgDim[d]) - 1);
+					intervals[i] = new FinalInterval(blockMin, blockMax);
+				}
+				LOG.debug("Returning {} intervals", intervals.length);
+				return intervals;
+			};
+		}
+
+		return functions;
+	}
+
+	private static class IntervalsCombiner implements BiFunction<Interval[], Interval[], Interval[]>
+	{
+
+		private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
+
+		@Override
+		public Interval[] apply(final Interval[] t, final Interval[] u)
+		{
+			final Set<HashWrapper<Interval>> intervals = new HashSet<>();
+			Arrays.stream(t).map(HashWrapper::interval).forEach(intervals::add);
+			Arrays.stream(u).map(HashWrapper::interval).forEach(intervals::add);
+			LOG.debug("Combined {} and {} to {}", t, u, intervals);
+			return intervals.stream().map(HashWrapper::getData).toArray(Interval[]::new);
+		}
+
 	}
 
 }

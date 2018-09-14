@@ -272,10 +272,10 @@ public class PainteraBaseView
 				axisOrder,
 				maxId,
 				name,
+				getGlobalCache(),
 				viewer3D().meshesGroup(),
 				meshManagerExecutorService,
-				meshWorkerExecutorService
-		                                                                         );
+				meshWorkerExecutorService);
 		InvokeOnJavaFXApplicationThread.invoke(() -> addLabelSource(state));
 		return state;
 	}

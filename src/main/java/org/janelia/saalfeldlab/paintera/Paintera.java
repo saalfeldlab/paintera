@@ -58,6 +58,7 @@ import org.janelia.saalfeldlab.paintera.data.mask.Masks;
 import org.janelia.saalfeldlab.paintera.data.n5.CommitCanvasN5;
 import org.janelia.saalfeldlab.paintera.id.IdService;
 import org.janelia.saalfeldlab.paintera.meshes.InterruptibleFunction;
+import org.janelia.saalfeldlab.paintera.meshes.MeshManagerWithAssignmentForSegments;
 import org.janelia.saalfeldlab.paintera.serialization.GsonHelpers;
 import org.janelia.saalfeldlab.paintera.serialization.Properties;
 import org.janelia.saalfeldlab.paintera.state.LabelSourceState;
@@ -526,6 +527,16 @@ public class Paintera extends Application
 						.range(0, maskedSource.getNumMipmapLevels())
 						.mapToObj(level -> InterruptibleFunction.fromFunction( MakeUnchecked.function( (MakeUnchecked.CheckedFunction<Long, Interval[]>) id -> lookup.read(level, id))))
 						.toArray(InterruptibleFunction[]::new);
+				final MeshManagerWithAssignmentForSegments meshManager = MeshManagerWithAssignmentForSegments.fromBlockLookup(
+						maskedSource,
+						selectedIds,
+						assignment,
+						stream,
+						pbv.viewer3D().meshesGroup(),
+						blockLoaders,
+						pbv.getGlobalCache()::createNewCache,
+						pbv.getMeshManagerExecutorService(),
+						pbv.getMeshWorkerExecutorService());
 
 				final LabelSourceState<D, T> state = new LabelSourceState<>(
 						maskedSource,
@@ -536,11 +547,7 @@ public class Paintera extends Application
 						lockedSegments,
 						idService,
 						selectedIds,
-						pbv.viewer3D().meshesGroup(),
-						blockLoaders,
-						pbv.getMeshManagerExecutorService(),
-						pbv.getMeshWorkerExecutorService()
-				);
+						meshManager);
 				pbv.addLabelSource(state);
 			} catch (final Exception e)
 			{

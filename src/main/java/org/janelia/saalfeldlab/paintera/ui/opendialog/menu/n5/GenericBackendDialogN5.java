@@ -59,6 +59,7 @@ import org.janelia.saalfeldlab.paintera.data.n5.N5ChannelDataSource;
 import org.janelia.saalfeldlab.paintera.data.n5.N5Meta;
 import org.janelia.saalfeldlab.paintera.data.n5.VolatileWithSet;
 import org.janelia.saalfeldlab.paintera.id.IdService;
+import org.janelia.saalfeldlab.paintera.meshes.MeshManagerWithAssignmentForSegments;
 import org.janelia.saalfeldlab.paintera.state.ChannelSourceState;
 import org.janelia.saalfeldlab.paintera.meshes.InterruptibleFunction;
 import org.janelia.saalfeldlab.paintera.state.LabelSourceState;
@@ -512,6 +513,17 @@ public class GenericBackendDialogN5
 				.mapToObj(level -> InterruptibleFunction.fromFunction( MakeUnchecked.function((MakeUnchecked.CheckedFunction<Long, Interval[]>) id -> lookup.read(level, id))))
 				.toArray(InterruptibleFunction[]::new );
 
+		MeshManagerWithAssignmentForSegments meshManager = MeshManagerWithAssignmentForSegments.fromBlockLookup(
+				masked,
+				selectedIds,
+				assignment,
+				stream,
+				meshesGroup,
+				blockLoaders,
+				globalCache::createNewCache,
+				manager,
+				workers);
+
 		return new LabelSourceState<>(
 				masked,
 				converter,
@@ -521,11 +533,7 @@ public class GenericBackendDialogN5
 				lockedSegments,
 				idService,
 				selectedIds,
-				meshesGroup,
-				blockLoaders,
-				manager,
-				workers
-		);
+				meshManager);
 	}
 
 	public boolean isLabelType() throws Exception

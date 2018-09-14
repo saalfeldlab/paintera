@@ -57,16 +57,6 @@ public class LabelSourceStateSerializer
 		final Predicate<Long> isManaged   = id -> managedMeshSettings.isManagedProperty(id).get();
 		managedMeshSettings.keepOnlyMatching(isSelected.and(isManaged.negate()));
 		map.add(MANAGED_MESH_SETTINGS_KEY, context.serialize(managedMeshSettings));
-		final JsonArray labelBlockLoaders = new JsonArray();
-		for (final InterruptibleFunction<Long, Interval[]> loader : state.backgroundBlockCaches())
-		{
-			final JsonObject loaderSpec = new JsonObject();
-			loaderSpec.add(DATA_KEY, context.serialize(loader));
-			loaderSpec.addProperty(TYPE_KEY, loader.getClass().getName());
-			labelBlockLoaders.add(loaderSpec);
-		}
-
-		map.add(LABEL_BLOCK_MAPPING_KEY, labelBlockLoaders);
 		return map;
 	}
 

@@ -100,17 +100,11 @@ public class IntersectingSourceState
 		final MeshManager<Long, TLongHashSet> meshManager = labels.meshManager();
 
 		final SelectedIds selectedIds = labels.selectedIds();
-		//		final InterruptibleFunctionAndCache< ShapeKey< Long >, Pair< float[], float[] > >[] meshCaches =
-		// CacheUtils.meshCacheLoaders(
-		//				source,
-		//				l -> ( s, t ) -> t.set( s.get() > 0 ),
-		//				CacheUtils::toCacheSoftRefLoaderCache );
-		final InterruptibleFunctionAndCache<ShapeKey<TLongHashSet>, Pair<float[], float[]>>[] meshCaches = CacheUtils
+		final Pair<InterruptibleFunctionAndCache<ShapeKey<TLongHashSet>, Pair<float[], float[]>>, Invalidate<ShapeKey<TLongHashSet>>>[] meshCaches = CacheUtils
 				.segmentMeshCacheLoaders(
 				source,
 				l -> (s, t) -> t.set(s.get() > 0),
-				CacheUtils::toCacheSoftRefLoaderCache
-		                                                                                                                                     );
+				globalCache::createNewCache);
 
 		final FragmentSegmentAssignmentState assignment                  = labels.assignment();
 		final SelectedSegments               selectedSegments            = new SelectedSegments(
@@ -128,7 +122,7 @@ public class IntersectingSourceState
 				// meshManager.blockListCache(), key -> Arrays.stream(
 				// fragmentsInSelectedSegments.getFragments() ).mapToObj( l -> l
 				// ).toArray( Long[]::new ) ),
-				meshCaches,
+				Stream.of(meshCaches).map(Pair::getA).toArray(InterruptibleFunctionAndCache[]::new),
 				meshesGroup,
 				new SimpleIntegerProperty(),
 				new SimpleDoubleProperty(),
@@ -151,11 +145,11 @@ public class IntersectingSourceState
 		this.meshManager.smoothingLambdaProperty().bind(meshManager.smoothingLambdaProperty());
 
 		thresholded.getThreshold().minValue().addListener((obs, oldv, newv) -> {
-			Arrays.stream(meshCaches).forEach(UncheckedCache::invalidateAll);
+			Arrays.stream(meshCaches).map(Pair::getB).forEach(InvalidateAll::invalidateAll);
 			update(source, fragmentsInSelectedSegments);
 		});
 		thresholded.getThreshold().maxValue().addListener((obs, oldv, newv) -> {
-			Arrays.stream(meshCaches).forEach(UncheckedCache::invalidateAll);
+			Arrays.stream(meshCaches).map(Pair::getB).forEach(InvalidateAll::invalidateAll);
 			update(source, fragmentsInSelectedSegments);
 		});
 
