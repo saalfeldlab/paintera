@@ -22,7 +22,6 @@ import javafx.scene.layout.Pane;
 import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.Volatile;
 import net.imglib2.cache.LoaderCache;
-import net.imglib2.cache.ref.SoftRefLoaderCache;
 import net.imglib2.converter.ARGBColorConverter;
 import net.imglib2.converter.ARGBCompositeColorConverter;
 import net.imglib2.converter.Converter;

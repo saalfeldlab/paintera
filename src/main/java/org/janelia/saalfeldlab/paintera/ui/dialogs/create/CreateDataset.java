@@ -9,7 +9,6 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
-import bdv.util.volatiles.SharedQueue;
 import bdv.viewer.Source;
 import com.sun.javafx.application.PlatformImpl;
 import javafx.application.Platform;
@@ -36,7 +35,6 @@ import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
 import javafx.util.Pair;
 import net.imglib2.RandomAccessibleInterval;
-import net.imglib2.cache.ref.SoftRefLoaderCache;
 import net.imglib2.img.cell.AbstractCellImg;
 import net.imglib2.img.cell.CellGrid;
 import net.imglib2.realtransform.AffineTransform3D;

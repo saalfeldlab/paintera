@@ -5,7 +5,6 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
-import java.util.concurrent.ExecutorService;
 import java.util.function.Function;
 import java.util.function.IntFunction;
 import java.util.function.LongFunction;
@@ -20,7 +19,6 @@ import net.imglib2.Point;
 import net.imglib2.cache.Cache;
 import net.imglib2.cache.CacheLoader;
 import net.imglib2.cache.UncheckedCache;
-import net.imglib2.cache.ref.SoftRefLoaderCache;
 import net.imglib2.converter.Converter;
 import net.imglib2.img.cell.CellGrid;
 import net.imglib2.realtransform.AffineTransform3D;
@@ -518,11 +516,6 @@ public class CacheUtils
 	{
 		return "(" + Point.wrap(Intervals.minAsLongArray(interval)) + " " + Point.wrap(Intervals.maxAsLongArray
 				(interval)) + ")";
-	}
-
-	public static <K, V> Cache<K, V> toCacheSoftRefLoaderCache(final CacheLoader<K, V> loader)
-	{
-		return new SoftRefLoaderCache<K, V>().withLoader(loader);
 	}
 
 	public static <T, R> InterruptibleFunction<T, R> fromCache(final UncheckedCache<T, R> cache, final

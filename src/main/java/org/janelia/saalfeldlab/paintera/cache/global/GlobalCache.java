@@ -153,7 +153,6 @@ public class GlobalCache implements CacheControl {
 	public GlobalCache(final int maxNumLevels, final int numFetcherThreads, LoaderCache<Key<?>, ?> backingCache, Invalidate<Key<?>> invalidate) {
 		queue = new BlockingFetchQueues<>(maxNumLevels);
 		new FetcherThreads(queue, numFetcherThreads);
-//		backingCache = new SoftRefLoaderCache<>();
 		this.backingCache = backingCache;
 		this.invalidate = invalidate;
 	}

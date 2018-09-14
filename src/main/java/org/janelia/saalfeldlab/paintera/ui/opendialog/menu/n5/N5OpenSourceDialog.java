@@ -361,51 +361,6 @@ public class N5OpenSourceDialog extends Dialog<GenericBackendDialogN5> implement
 		return blockSize;
 	}
 
-	private static <C extends Cell<VolatileLabelMultisetArray>, I extends RandomAccessible<C> & IterableInterval<C>>
-	Function<Long, Interval[]>[] getBlockListCaches(
-			final DataSource<LabelMultisetType, ?> source,
-			final ExecutorService es) {
-		final int numLevels = source.getNumMipmapLevels();
-		if (IntStream.range(0, numLevels).mapToObj(lvl -> source.getDataSource(
-				0,
-				lvl
-		)).filter(src -> !(src instanceof
-				AbstractCellImg<?, ?, ?, ?>)).count() > 0) {
-			return null;
-		}
-
-		final int[][] blockSizes = IntStream
-				.range(0, numLevels)
-				.mapToObj(lvl -> (AbstractCellImg<?, ?, ?, ?>) source.getDataSource(0, lvl))
-				.map(AbstractCellImg::getCellGrid)
-				.map(N5OpenSourceDialog::blockSize)
-				.toArray(int[][]::new);
-
-		final double[][] scalingFactors = PainteraBaseView.scaleFactorsFromAffineTransforms(source);
-
-		@SuppressWarnings("unchecked") final InterruptibleFunction<HashWrapper<long[]>, long[]>[] uniqueIdCaches = new
-				InterruptibleFunction[numLevels];
-
-		for (int level = 0; level < numLevels; ++level) {
-			@SuppressWarnings("unchecked") final AbstractCellImg<LabelMultisetType, VolatileLabelMultisetArray, C, I>
-					img =
-					(AbstractCellImg<LabelMultisetType, VolatileLabelMultisetArray, C, I>) source.getDataSource(
-							0,
-							level
-					);
-			uniqueIdCaches[level] = uniqueLabelLoaders(img);
-		}
-
-		return CacheUtils.blocksForLabelCachesLongKeys(
-				source,
-				uniqueIdCaches,
-				blockSizes,
-				scalingFactors,
-				CacheUtils::toCacheSoftRefLoaderCache
-		);
-
-	}
-
 	public void setHeaderFromBackendType(String backendType)
 	{
 		this.setHeaderText(String.format("Open %s dataset", backendType));

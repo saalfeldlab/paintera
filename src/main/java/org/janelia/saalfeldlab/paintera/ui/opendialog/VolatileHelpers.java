@@ -1,49 +1,18 @@
 package org.janelia.saalfeldlab.paintera.ui.opendialog;
 
-import java.io.IOException;
 import java.lang.invoke.MethodHandles;
-import java.util.Arrays;
-import java.util.Optional;
-import java.util.function.Function;
 
-import bdv.util.volatiles.SharedQueue;
-import net.imglib2.RandomAccessibleInterval;
-import net.imglib2.Volatile;
-import net.imglib2.cache.Cache;
-import net.imglib2.cache.img.CachedCellImg;
-import net.imglib2.cache.ref.SoftRefLoaderCache;
-import net.imglib2.cache.util.LoaderCacheAsCacheAdapter;
-import net.imglib2.cache.volatiles.CacheHints;
 import net.imglib2.cache.volatiles.CreateInvalid;
-import net.imglib2.cache.volatiles.LoadingStrategy;
-import net.imglib2.cache.volatiles.VolatileCache;
-import net.imglib2.img.NativeImg;
 import net.imglib2.img.cell.Cell;
 import net.imglib2.img.cell.CellGrid;
-import net.imglib2.realtransform.AffineTransform3D;
-import net.imglib2.realtransform.Translation3D;
-import net.imglib2.type.NativeType;
 import net.imglib2.type.label.Label;
 import net.imglib2.type.label.LabelMultisetEntry;
 import net.imglib2.type.label.LabelMultisetEntryList;
-import net.imglib2.type.label.LabelMultisetType;
 import net.imglib2.type.label.LongMappedAccessData;
-import net.imglib2.type.label.N5CacheLoader;
 import net.imglib2.type.label.VolatileLabelMultisetArray;
-import net.imglib2.type.label.VolatileLabelMultisetType;
-import net.imglib2.util.Fraction;
 import net.imglib2.util.Intervals;
-import net.imglib2.util.Pair;
-import net.imglib2.util.ValuePair;
-import net.imglib2.util.ValueTriple;
-import org.janelia.saalfeldlab.n5.DatasetAttributes;
-import org.janelia.saalfeldlab.n5.N5Reader;
-import org.janelia.saalfeldlab.paintera.N5Helpers;
-import org.janelia.saalfeldlab.paintera.cache.global.GlobalCache;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import tmp.bdv.img.cache.VolatileCachedCellImg;
-import tmp.net.imglib2.cache.ref.WeakRefVolatileCache;
 
 public class VolatileHelpers
 {
