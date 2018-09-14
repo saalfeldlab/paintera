@@ -396,4 +396,18 @@ public class MeshGenerator<T>
 		isVisible.bind(meshSettings.isVisibleProperty());
 	}
 
+	public void unbind()
+	{
+		LOG.debug("Unbinding mesh generator");
+		opacityProperty().unbind();
+		scaleIndexProperty().unbind();
+		meshSimplificationIterationsProperty().unbind();
+		cullFaceProperty().unbind();
+		drawModeProperty().unbind();
+			smoothingIterationsProperty().unbind();
+		smoothingLambdaProperty().unbind();
+		inflateProperty().unbind();
+		isVisible.unbind();
+	}
+
 }

@@ -52,7 +52,7 @@ public class BlocksForLabelDelegate<T, U> implements InterruptibleFunction<T, In
 	@Override
 	public void interruptFor(final T t)
 	{
-		LOG.warn("Interrupting for {}", t);
+		LOG.debug("Interrupting for {}", t);
 		Arrays.stream(keyMapping.apply(t)).forEach(delegate::interruptFor);
 	}
 

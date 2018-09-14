@@ -143,6 +143,7 @@ public class MeshManagerWithAssignmentForSegments implements MeshManager<Long, T
 
 	private void update()
 	{
+		LOG.debug("Updating");
 		synchronized (neurons)
 		{
 			final long[]                                         selectedSegments    = this.selectedSegments
@@ -241,6 +242,7 @@ public class MeshManagerWithAssignmentForSegments implements MeshManager<Long, T
 	private void removeMesh(final MeshGenerator<TLongHashSet> mesh)
 	{
 		mesh.isEnabledProperty().set(false);
+		mesh.unbind();
 		final List<Long> toRemove = this.neurons
 				.entrySet()
 				.stream()
