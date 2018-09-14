@@ -2,7 +2,10 @@ package org.janelia.saalfeldlab.paintera.cache;
 
 import net.imglib2.cache.CacheLoader;
 import net.imglib2.cache.LoaderCache;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
+import java.lang.invoke.MethodHandles;
 import java.lang.ref.ReferenceQueue;
 import java.lang.ref.WeakReference;
 import java.util.Collection;
@@ -14,6 +17,9 @@ import java.util.stream.Collectors;
 
 public class WeakRefLoaderCache< K, V > implements LoaderCache< K, V >, Invalidate<K>
 {
+
+	private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
+
 	final ConcurrentHashMap< K, Entry > map = new ConcurrentHashMap<>();
 
 	final ReferenceQueue< V > queue = new ReferenceQueue<>();
@@ -92,11 +98,13 @@ public class WeakRefLoaderCache< K, V > implements LoaderCache< K, V >, Invalida
 
 	@Override
 	public void invalidate(Collection<K> keys) {
+		LOG.debug("Invalidating keys {}", keys);
 		synchronized (map)
 		{
 			keys.forEach(map::remove);
 			cleanUp();
 			keys.forEach(map::remove);
+			LOG.debug("map size {}", map.size());
 		}
 	}
 
