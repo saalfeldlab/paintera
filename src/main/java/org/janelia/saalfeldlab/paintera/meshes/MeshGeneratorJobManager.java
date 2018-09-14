@@ -251,8 +251,7 @@ public class MeshGeneratorJobManager<T>
 									if (!isInterrupted)
 									{
 										final Pair<float[], float[]> verticesAndNormals = getMesh.apply(key);
-										final MeshView               mv                 = makeMeshView(
-												verticesAndNormals);
+										final MeshView               mv                 = makeMeshView(verticesAndNormals);
 										LOG.debug("Found {}/3 vertices and {}/3 normals", verticesAndNormals.getA().length, verticesAndNormals.getB().length);
 										synchronized (meshes)
 										{
