@@ -49,7 +49,7 @@ public class PainteraTestMultiChannel extends Application {
 		N5ChannelDataSource<FloatType, VolatileFloatType> source = N5ChannelDataSource.zeroExtended(
 				meta,
 				transform,
-				viewer.baseView.getQueue(),
+				viewer.baseView.getGlobalCache(),
 				"ground truth",
 				0,
 				3,
@@ -60,7 +60,7 @@ public class PainteraTestMultiChannel extends Application {
 		N5ChannelDataSource<FloatType, VolatileFloatType> predictionSource = N5ChannelDataSource.zeroExtended(
 				new N5HDF5Meta(path, prediction, new int[] {64, 64, 64, 3}, true),
 				N5Helpers.getTransform(meta.reader(), prediction, true),
-				viewer.baseView.getQueue(),
+				viewer.baseView.getGlobalCache(),
 				"prediction",
 				0,
 				3,
@@ -77,7 +77,7 @@ public class PainteraTestMultiChannel extends Application {
 				raw,
 				N5Helpers.getTransform(meta.reader(), raw, true),
 				AxisOrder.XYZ,
-				viewer.baseView.getQueue(),
+				viewer.baseView.getGlobalCache(),
 				0,
 				"raw");
 		RawSourceState<FloatType, VolatileFloatType> rawState = new RawSourceState<>(

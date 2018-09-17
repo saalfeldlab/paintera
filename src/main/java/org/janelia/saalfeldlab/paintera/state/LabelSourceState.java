@@ -21,6 +21,8 @@ import net.imglib2.Interval;
 import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.Volatile;
 import net.imglib2.algorithm.util.Grids;
+import net.imglib2.cache.Cache;
+import net.imglib2.cache.CacheLoader;
 import net.imglib2.cache.UncheckedCache;
 import net.imglib2.converter.Converter;
 import net.imglib2.converter.Converters;
@@ -37,6 +39,9 @@ import net.imglib2.util.Pair;
 import net.imglib2.util.Util;
 import net.imglib2.view.Views;
 import org.janelia.saalfeldlab.paintera.PainteraBaseView;
+import org.janelia.saalfeldlab.paintera.cache.Invalidate;
+import org.janelia.saalfeldlab.paintera.cache.InvalidateAll;
+import org.janelia.saalfeldlab.paintera.cache.global.GlobalCache;
 import org.janelia.saalfeldlab.paintera.composition.ARGBCompositeAlphaYCbCr;
 import org.janelia.saalfeldlab.paintera.composition.Composite;
 import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignmentOnlyLocal;
@@ -81,7 +86,6 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 
 	private final LongFunction<Converter<D, BoolType>> maskForLabel;
 
-	private final Function<TLongHashSet, Converter<D, BoolType>> segmentMaskGenerator;
 
 	private final FragmentSegmentAssignmentState assignment;
 
@@ -90,14 +94,6 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 	private final IdService idService;
 
 	private final MeshManager<Long, TLongHashSet> meshManager;
-
-	private final ManagedMeshSettings managedMeshSettings;
-
-	private final Runnable clearBlockCaches;
-
-	private final InterruptibleFunction<Long, Interval[]>[] backgroundBlockCaches;
-
-	private final InterruptibleFunctionAndCache<ShapeKey<TLongHashSet>, Pair<float[], float[]>>[] meshCaches;
 
 	private final LockedSegmentsState lockedSegments;
 
@@ -110,75 +106,18 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 			final LockedSegmentsState lockedSegments,
 			final IdService idService,
 			final SelectedIds selectedIds,
-			final Group meshesGroup,
-			final InterruptibleFunction<Long, Interval[]>[] backgroundBlockCaches,
-			final ExecutorService meshManagerExecutors,
-			final ExecutorService meshWorkersExecutors)
+			final MeshManager<Long, TLongHashSet> meshManager)
 	{
 		super(dataSource, converter, composite, name);
 		final D d = dataSource.getDataType();
 		this.maskForLabel = PainteraBaseView.equalsMaskForType(d);
-		this.segmentMaskGenerator = SegmentMaskGenerators.forType(d);
 		this.assignment = assignment;
 		this.lockedSegments = lockedSegments;
 		this.selectedIds = selectedIds;
 		this.idService = idService;
-
-		final SelectedSegments selectedSegments = new SelectedSegments(selectedIds, assignment);
-
-		this.backgroundBlockCaches = backgroundBlockCaches;
-		this.clearBlockCaches = () -> Arrays.stream(backgroundBlockCaches).forEach(c -> {
-			if (c instanceof UncheckedCache<?, ?>)
-			{
-				final UncheckedCache<?, ?> uc = (UncheckedCache<?, ?>) c;
-				uc.invalidateAll();
-			}
-		});
-
-		final boolean isMaskedSource = dataSource instanceof MaskedSource<?, ?>;
-		final InterruptibleFunction<Long, Interval[]>[] blockCaches = isMaskedSource
-		                                                              ? combineInterruptibleFunctions(
-				backgroundBlockCaches,
-				InterruptibleFunction.fromFunction(blockCacheForMaskedSource((MaskedSource<?, ?>) dataSource)),
-				new IntervalsCombiner()
-		                                                                                             )
-		                                                              : backgroundBlockCaches;
-
-		if (isMaskedSource)
-		{
+		if (dataSource instanceof MaskedSource<?, ?>)
 			((MaskedSource<?, ?>) dataSource).addOnCanvasClearedListener(this::invalidateAllBlockCaches);
-		}
-
-		final BlocksForLabelDelegate<TLongHashSet, Long>[] delegateBlockCaches = BlocksForLabelDelegate.delegate(
-				blockCaches,
-				ids -> Arrays.stream(ids.toArray()).mapToObj(id -> id).toArray(Long[]::new)
-		                                                                                                        );
-
-		final InterruptibleFunctionAndCache<ShapeKey<TLongHashSet>, Pair<float[], float[]>>[] meshCaches = CacheUtils
-				.segmentMeshCacheLoaders(
-				dataSource,
-				segmentMaskGenerator,
-				CacheUtils::toCacheSoftRefLoaderCache
-		                                                                                                                                     );
-		this.meshCaches = meshCaches;
-
-		this.managedMeshSettings = new ManagedMeshSettings(dataSource.getNumMipmapLevels());
-		final MeshManagerWithAssignmentForSegments meshManager = new MeshManagerWithAssignmentForSegments(
-				dataSource,
-				delegateBlockCaches,
-				meshCaches,
-				meshesGroup,
-				managedMeshSettings,
-				assignment,
-				selectedSegments,
-				converter.getStream(),
-				this::refreshMeshes,
-				meshManagerExecutors,
-				meshWorkersExecutors
-		);
-
 		this.meshManager = meshManager;
-
 		assignment.addListener(obs -> stain());
 		selectedIds.addListener(obs -> stain());
 		lockedSegments.addListener(obs -> stain());
@@ -198,7 +137,7 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 	@Override
 	public ManagedMeshSettings managedMeshSettings()
 	{
-		return this.managedMeshSettings;
+		return this.meshManager.managedMeshSettings();
 	}
 
 	public FragmentSegmentAssignmentState assignment()
@@ -225,9 +164,7 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 
 	public void invalidateAllMeshCaches()
 	{
-		Arrays
-				.stream(this.meshCaches)
-				.forEach(UncheckedCache::invalidateAll);
+		this.meshManager.invalidateMeshCaches();
 	}
 
 	public LockedSegmentsState lockedSegments()
@@ -235,14 +172,10 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 		return this.lockedSegments;
 	}
 
-	public InterruptibleFunction<Long, Interval[]>[] backgroundBlockCaches()
-	{
-		return this.backgroundBlockCaches;
-	}
 
 	public void invalidateAllBlockCaches()
 	{
-		this.clearBlockCaches.run();
+//		this.clearBlockCaches.run();
 	}
 
 	public void refreshMeshes()
@@ -263,6 +196,23 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 			final AxisOrder axisOrder,
 			final long maxId,
 			final String name,
+			final GlobalCache globalCache,
+			final Group meshesGroup,
+			final ExecutorService meshManagerExecutors,
+			final ExecutorService meshWorkersExecutors) throws AxisOrderNotSupported {
+		return simpleSourceFromSingleRAI(data, resolution, offset, () -> {}, axisOrder, maxId, name, globalCache, meshesGroup, meshManagerExecutors, meshWorkersExecutors);
+	}
+
+	public static <D extends IntegerType<D> & NativeType<D>, T extends Volatile<D> & IntegerType<T>>
+	LabelSourceState<D, T> simpleSourceFromSingleRAI(
+			final RandomAccessibleInterval<D> data,
+			final double[] resolution,
+			final double[] offset,
+			final InvalidateAll invalidateAll,
+			final AxisOrder axisOrder,
+			final long maxId,
+			final String name,
+			final GlobalCache globalCache,
 			final Group meshesGroup,
 			final ExecutorService meshManagerExecutors,
 			final ExecutorService meshWorkersExecutors) throws AxisOrderNotSupported {
@@ -294,10 +244,12 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 				data,
 				resolution,
 				offset,
+				invalidateAll,
 				axisOrder,
 				maxId,
 				name,
 				backgroundBlockCaches,
+				globalCache,
 				meshesGroup,
 				meshManagerExecutors,
 				meshWorkersExecutors
@@ -313,6 +265,24 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 			final long maxId,
 			final String name,
 			final InterruptibleFunction<Long, Interval[]>[] backgroundBlockCaches,
+			final GlobalCache globalCache,
+			final Group meshesGroup,
+			final ExecutorService meshManagerExecutors,
+			final ExecutorService meshWorkersExecutors) throws AxisOrderNotSupported {
+		return simpleSourceFromSingleRAI(data, resolution, offset, () -> {}, axisOrder, maxId, name, backgroundBlockCaches, globalCache, meshesGroup, meshManagerExecutors, meshWorkersExecutors);
+	}
+
+	public static <D extends IntegerType<D> & NativeType<D>, T extends Volatile<D> & IntegerType<T>>
+	LabelSourceState<D, T> simpleSourceFromSingleRAI(
+			final RandomAccessibleInterval<D> data,
+			final double[] resolution,
+			final double[] offset,
+			final InvalidateAll invalidateAll,
+			final AxisOrder axisOrder,
+			final long maxId,
+			final String name,
+			final InterruptibleFunction<Long, Interval[]>[] backgroundBlockCaches,
+			final GlobalCache globalCache,
 			final Group meshesGroup,
 			final ExecutorService meshManagerExecutors,
 			final ExecutorService meshWorkersExecutors) throws AxisOrderNotSupported {
@@ -323,10 +293,12 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 					Views.zeroMin(data),
 					resolution,
 					offset,
+					invalidateAll,
 					axisOrder,
 					maxId,
 					name,
 					backgroundBlockCaches,
+					globalCache,
 					meshesGroup,
 					meshManagerExecutors,
 					meshWorkersExecutors
@@ -348,6 +320,7 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 				data,
 				vdata,
 				mipmapTransform,
+				invalidateAll,
 				axisOrder,
 				i -> new NearestNeighborInterpolatorFactory<>(),
 				i -> new NearestNeighborInterpolatorFactory<>(),
@@ -371,99 +344,28 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 			final long val = integer.get().getIntegerLong();
 			return val;
 		};
+
+		MeshManagerWithAssignmentForSegments meshManager = MeshManagerWithAssignmentForSegments.fromBlockLookup(
+				dataSource,
+				selectedIds,
+				assignment,
+				stream,
+				meshesGroup,
+				backgroundBlockCaches,
+				globalCache::createNewCache,
+				meshManagerExecutors,
+				meshWorkersExecutors);
+
 		return new LabelSourceState<>(
 				dataSource,
 				new HighlightingStreamConverterIntegerType<>(stream, toLong),
-				//				HighlightingStreamConverterIntegerType.forInteger( stream ),
 				new ARGBCompositeAlphaYCbCr(),
 				name,
 				assignment,
 				lockedSegments,
 				new LocalIdService(maxId),
 				selectedIds,
-				meshesGroup,
-				backgroundBlockCaches,
-				meshManagerExecutors,
-				meshWorkersExecutors
+				meshManager
 		);
-	}
-
-	private static Function<Long, Interval[]>[] blockCacheForMaskedSource(
-			final MaskedSource<?, ?> source)
-	{
-
-		final int numLevels = source.getNumMipmapLevels();
-
-		@SuppressWarnings("unchecked") final Function<Long, Interval[]>[] functions = new Function[numLevels];
-
-		for (int level = 0; level < numLevels; ++level)
-		{
-			final int      fLevel    = level;
-			final CellGrid grid      = source.getCellGrid(0, level);
-			final long[]   imgDim    = grid.getImgDimensions();
-			final int[]    blockSize = new int[imgDim.length];
-			grid.cellDimensions(blockSize);
-			functions[level] = id -> {
-				LOG.debug("Getting blocks at level={} for id={}", fLevel, id);
-				final long[]   blockMin      = new long[grid.numDimensions()];
-				final long[]   blockMax      = new long[grid.numDimensions()];
-				final TLongSet indexedBlocks = source.getModifiedBlocks(fLevel, id);
-				LOG.debug("Received modified blocks at level={} for id={}: {}", fLevel, id, indexedBlocks);
-				final Interval[]    intervals = new Interval[indexedBlocks.size()];
-				final TLongIterator blockIt   = indexedBlocks.iterator();
-				for (int i = 0; blockIt.hasNext(); ++i)
-				{
-					final long blockIndex = blockIt.next();
-					grid.getCellGridPositionFlat(blockIndex, blockMin);
-					Arrays.setAll(blockMin, d -> blockMin[d] * blockSize[d]);
-					Arrays.setAll(blockMax, d -> Math.min(blockMin[d] + blockSize[d], imgDim[d]) - 1);
-					intervals[i] = new FinalInterval(blockMin, blockMax);
-				}
-				LOG.debug("Returning {} intervals", intervals.length);
-				return intervals;
-			};
-		}
-
-		return functions;
-	}
-
-	private static <T, U, V, W> InterruptibleFunction<T, U>[] combineInterruptibleFunctions(
-			final InterruptibleFunction<T, V>[] f1,
-			final InterruptibleFunction<T, W>[] f2,
-			final BiFunction<V, W, U> combiner)
-	{
-		assert f1.length == f2.length;
-
-		LOG.debug("Combining two functions {} and {}", f1, f2);
-
-		@SuppressWarnings("unchecked") final InterruptibleFunction<T, U>[] f = new InterruptibleFunction[f1.length];
-		for (int i = 0; i < f.length; ++i)
-		{
-			final InterruptibleFunction<T, V> ff1        = f1[i];
-			final InterruptibleFunction<T, W> ff2        = f2[i];
-			final List<Interruptible<T>>      interrupts = Arrays.asList(ff1, ff2);
-			f[i] = InterruptibleFunction.fromFunctionAndInterruptible(
-					t -> combiner.apply(ff1.apply(t), ff2.apply(t)),
-					t -> interrupts.forEach(interrupt -> interrupt.interruptFor(t))
-			                                                         );
-		}
-		return f;
-	}
-
-	private static class IntervalsCombiner implements BiFunction<Interval[], Interval[], Interval[]>
-	{
-
-		private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
-
-		@Override
-		public Interval[] apply(final Interval[] t, final Interval[] u)
-		{
-			final Set<HashWrapper<Interval>> intervals = new HashSet<>();
-			Arrays.stream(t).map(HashWrapper::interval).forEach(intervals::add);
-			Arrays.stream(u).map(HashWrapper::interval).forEach(intervals::add);
-			LOG.debug("Combined {} and {} to {}", t, u, intervals);
-			return intervals.stream().map(HashWrapper::getData).toArray(Interval[]::new);
-		}
-
 	}
 }

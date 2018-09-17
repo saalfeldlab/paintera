@@ -82,8 +82,8 @@ public class GsonHelpers {
 			final Supplier<String> projectDirectory,
 			final IntFunction<SourceState<?, ?>> dependencyFromIndex) {
 		return new GsonBuilder()
-				.registerTypeAdapter(N5DataSource.class, new N5DataSourceDeserializer(arguments.sharedQueue, 0))
-				.registerTypeAdapter(N5ChannelDataSource.class, new N5ChannelDataSourceDeserializer(arguments.sharedQueue, 0))
+				.registerTypeAdapter(N5DataSource.class, new N5DataSourceDeserializer(arguments.globalCache, 0))
+				.registerTypeAdapter(N5ChannelDataSource.class, new N5ChannelDataSourceDeserializer(arguments.globalCache, 0))
 				.registerTypeAdapter(AffineTransform3D.class, new AffineTransform3DJsonAdapter())
 				.registerTypeHierarchyAdapter(ARGBColorConverter.class, new ARGBColorConverterSerializer<>())
 				.registerTypeHierarchyAdapter(ARGBCompositeColorConverter.class, new ARGBCompositeColorConverterSerializer<>())

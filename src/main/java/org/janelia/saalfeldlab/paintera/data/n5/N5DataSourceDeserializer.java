@@ -13,6 +13,7 @@ import com.google.gson.JsonDeserializer;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonParseException;
 import net.imglib2.realtransform.AffineTransform3D;
+import org.janelia.saalfeldlab.paintera.cache.global.GlobalCache;
 import org.janelia.saalfeldlab.paintera.data.axisorder.AxisOrder;
 import org.janelia.saalfeldlab.paintera.data.axisorder.AxisOrderNotSupported;
 import org.janelia.saalfeldlab.paintera.serialization.StatefulSerializer;
@@ -32,14 +33,14 @@ public class N5DataSourceDeserializer implements JsonDeserializer<N5DataSource<?
 
 	private static final String TRANSFORM_KEY = "transform";
 
-	private final SharedQueue sharedQueue;
+	private final GlobalCache globalCache;
 
 	private final int priority;
 
-	public N5DataSourceDeserializer(final SharedQueue sharedQueue, final int priority)
+	public N5DataSourceDeserializer(final GlobalCache globalCache, final int priority)
 	{
 		super();
-		this.sharedQueue = sharedQueue;
+		this.globalCache = globalCache;
 		this.priority = priority;
 	}
 
@@ -66,7 +67,7 @@ public class N5DataSourceDeserializer implements JsonDeserializer<N5DataSource<?
 					.map(e -> (AxisOrder)context.deserialize(e, AxisOrder.class))
 					.orElse(AxisOrder.XYZ);
 			LOG.debug("Deserialized transform: {}", transform);
-			return new N5DataSource<>(meta, transform, axisOrder, sharedQueue, "", priority);
+			return new N5DataSource<>(meta, transform, axisOrder, globalCache, "", priority);
 		} catch (IOException | ClassNotFoundException | AxisOrderNotSupported e)
 		{
 			throw new JsonParseException(e);
@@ -84,7 +85,7 @@ public class N5DataSourceDeserializer implements JsonDeserializer<N5DataSource<?
 				final Supplier<String> projectDirectory,
 				final IntFunction<SourceState<?, ?>> dependencyFromIndex)
 		{
-			return new N5DataSourceDeserializer(arguments.sharedQueue, 0);
+			return new N5DataSourceDeserializer(arguments.globalCache, 0);
 		}
 
 	}

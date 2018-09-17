@@ -7,12 +7,14 @@ import bdv.viewer.Source;
 import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.RealRandomAccessible;
 import net.imglib2.realtransform.AffineTransform3D;
+import org.janelia.saalfeldlab.paintera.cache.Invalidate;
+import org.janelia.saalfeldlab.paintera.cache.InvalidateAll;
 
 /**
  * {@link Source} that includes a type <code>D</code> representation that is used for data processing (in contrast to
  * <code>T</code> that is used for visualization).
  */
-public interface DataSource<D, T> extends Source<T>
+public interface DataSource<D, T> extends Source<T>, InvalidateAll
 {
 	public RandomAccessibleInterval<D> getDataSource(int t, int level);
 
@@ -45,5 +47,4 @@ public interface DataSource<D, T> extends Source<T>
 		Arrays.setAll(targetScale, d -> targetScale[d] / scale[d]);
 		return targetScale;
 	}
-
 }

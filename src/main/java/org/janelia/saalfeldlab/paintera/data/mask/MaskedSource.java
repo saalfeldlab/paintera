@@ -1208,6 +1208,12 @@ public class MaskedSource<D extends Type<D>, T extends Type<T>> implements DataS
 		this.canvasClearedListeners.forEach(Runnable::run);
 	}
 
+	@Override
+	public void invalidateAll() {
+		// TODO what to do with canvas?
+		this.source.invalidateAll();
+	}
+
 	private static class CanvasBaseDirChangeListener implements ChangeListener<String>
 	{
 

@@ -13,6 +13,7 @@ import net.imglib2.type.NativeType;
 import net.imglib2.type.numeric.IntegerType;
 import net.imglib2.type.numeric.RealType;
 import net.imglib2.type.volatiles.AbstractVolatileRealType;
+import org.janelia.saalfeldlab.paintera.cache.global.GlobalCache;
 import org.janelia.saalfeldlab.paintera.state.LabelSourceState;
 import org.janelia.saalfeldlab.paintera.state.RawSourceState;
 
@@ -26,13 +27,13 @@ public interface BackendDialog
 	public <T extends RealType<T> & NativeType<T>, V extends AbstractVolatileRealType<T, V> & NativeType<V>>
 	RawSourceState<T, V> getRaw(
 			final String name,
-			final SharedQueue sharedQueue,
+			final GlobalCache globalCache,
 			final int priority) throws Exception;
 
 	public <D extends NativeType<D> & IntegerType<D>, T extends Volatile<D> & NativeType<T>> LabelSourceState<D, T>
 	getLabels(
 			final String name,
-			final SharedQueue sharedQueue,
+			final GlobalCache globalCache,
 			final int priority,
 			final Group meshesGroup,
 			final ExecutorService manager,

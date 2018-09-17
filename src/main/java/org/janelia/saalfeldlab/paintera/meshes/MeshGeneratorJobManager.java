@@ -132,7 +132,7 @@ public class MeshGeneratorJobManager<T>
 
 		public void interrupt()
 		{
-			LOG.warn("Interrupting for {} keys={}", this.identifier, this.keys);
+			LOG.debug("Interrupting for {} keys={}", this.identifier, this.keys);
 			this.isInterrupted = true;
 			this.getBlockList.interruptFor(this.identifier);
 			synchronized (this.keys)
@@ -148,6 +148,7 @@ public class MeshGeneratorJobManager<T>
 			{
 				synchronized (meshes)
 				{
+					LOG.debug("Clearing meshes: {}", meshes);
 					meshes.clear();
 				}
 
@@ -170,6 +171,7 @@ public class MeshGeneratorJobManager<T>
 										.stream(getBlockList.apply(identifier))
 										.map(HashWrapper::interval)
 										.collect(Collectors.toList()));
+						LOG.debug("Found relevant blocks: {}", blockSet);
 					} finally
 					{
 						countDownOnBlockList.countDown();
@@ -249,8 +251,8 @@ public class MeshGeneratorJobManager<T>
 									if (!isInterrupted)
 									{
 										final Pair<float[], float[]> verticesAndNormals = getMesh.apply(key);
-										final MeshView               mv                 = makeMeshView(
-												verticesAndNormals);
+										final MeshView               mv                 = makeMeshView(verticesAndNormals);
+										LOG.debug("Found {}/3 vertices and {}/3 normals", verticesAndNormals.getA().length, verticesAndNormals.getB().length);
 										synchronized (meshes)
 										{
 											if (!isInterrupted)
@@ -261,7 +263,7 @@ public class MeshGeneratorJobManager<T>
 									}
 								} catch (final RuntimeException e)
 								{
-									LOG.debug("Was not able to retrieve mesh for {}: {}", key, e.getMessage());
+									LOG.debug("Was not able to retrieve mesh for {}: {}", key, e);
 								} finally
 								{
 									Thread.currentThread().setName(initialName);

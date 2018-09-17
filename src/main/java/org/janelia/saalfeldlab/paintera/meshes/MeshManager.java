@@ -10,32 +10,36 @@ import net.imglib2.util.Pair;
 
 public interface MeshManager<N, T>
 {
-	public void generateMesh(final N id);
+	void generateMesh(final N id);
 
-	public void removeMesh(final N id);
+	void removeMesh(final N id);
 
-	public void removeAllMeshes();
+	void removeAllMeshes();
 
-	public IntegerProperty scaleLevelProperty();
+	IntegerProperty scaleLevelProperty();
 
-	public IntegerProperty meshSimplificationIterationsProperty();
+	IntegerProperty meshSimplificationIterationsProperty();
 
-	public DoubleProperty smoothingLambdaProperty();
+	DoubleProperty smoothingLambdaProperty();
 
-	public IntegerProperty smoothingIterationsProperty();
+	IntegerProperty smoothingIterationsProperty();
 
-	public Map<N, MeshGenerator<T>> unmodifiableMeshMap();
+	Map<N, MeshGenerator<T>> unmodifiableMeshMap();
 
-	public InterruptibleFunction<T, Interval[]>[] blockListCache();
+	InterruptibleFunction<T, Interval[]>[] blockListCache();
 
-	public InterruptibleFunction<ShapeKey<T>, Pair<float[], float[]>>[] meshCache();
+	InterruptibleFunction<ShapeKey<T>, Pair<float[], float[]>>[] meshCache();
 
-	public DoubleProperty opacityProperty();
+	DoubleProperty opacityProperty();
 
-	public long[] containedFragments(N t);
+	long[] containedFragments(N t);
 
-	public void refreshMeshes();
+	void refreshMeshes();
 
-	public BooleanProperty areMeshesEnabledProperty();
+	BooleanProperty areMeshesEnabledProperty();
+
+	ManagedMeshSettings managedMeshSettings();
+
+	default void invalidateMeshCaches() {}
 
 }

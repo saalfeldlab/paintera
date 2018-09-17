@@ -238,4 +238,10 @@ public class MeshManagerSimple<N, T> implements MeshManager<N, T>
 		return this.areMeshesEnabled;
 	}
 
+	@Override
+	public ManagedMeshSettings managedMeshSettings()
+	{
+		throw new UnsupportedOperationException("not implemented yet");
+	}
+
 }

@@ -260,11 +260,12 @@ public class MeshGenerator<T>
 	{
 		synchronized (this.activeFuture)
 		{
-			LOG.warn("Canceling task: {}", this.activeFuture);
+			LOG.debug("Canceling task: {}", this.activeFuture);
 			Optional.ofNullable(activeFuture.get()).ifPresent(f -> f.cancel(true));
 			Optional.ofNullable(activeTask.get()).ifPresent(ManagementTask::interrupt);
 			activeFuture.set(null);
 			activeTask.set(null);
+			this.meshes.clear();
 		}
 	}
 
@@ -394,6 +395,20 @@ public class MeshGenerator<T>
 		smoothingLambdaProperty().bind(meshSettings.smoothingLambdaProperty());
 		inflateProperty().bind(meshSettings.inflateProperty());
 		isVisible.bind(meshSettings.isVisibleProperty());
+	}
+
+	public void unbind()
+	{
+		LOG.debug("Unbinding mesh generator");
+		opacityProperty().unbind();
+		scaleIndexProperty().unbind();
+		meshSimplificationIterationsProperty().unbind();
+		cullFaceProperty().unbind();
+		drawModeProperty().unbind();
+			smoothingIterationsProperty().unbind();
+		smoothingLambdaProperty().unbind();
+		inflateProperty().unbind();
+		isVisible.unbind();
 	}
 
 }

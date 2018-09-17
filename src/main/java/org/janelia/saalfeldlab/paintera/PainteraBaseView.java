@@ -10,7 +10,7 @@ import java.util.function.BiConsumer;
 import java.util.function.Function;
 import java.util.function.LongFunction;
 
-import bdv.util.volatiles.SharedQueue;
+import bdv.cache.CacheControl;
 import bdv.viewer.Interpolation;
 import bdv.viewer.Source;
 import bdv.viewer.SourceAndConverter;
@@ -21,6 +21,7 @@ import javafx.collections.ObservableList;
 import javafx.scene.layout.Pane;
 import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.Volatile;
+import net.imglib2.cache.LoaderCache;
 import net.imglib2.converter.ARGBColorConverter;
 import net.imglib2.converter.ARGBCompositeColorConverter;
 import net.imglib2.converter.Converter;
@@ -40,6 +41,10 @@ import org.janelia.saalfeldlab.fx.event.MouseTracker;
 import org.janelia.saalfeldlab.fx.ortho.GridConstraintsManager;
 import org.janelia.saalfeldlab.fx.ortho.OrthogonalViews;
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread;
+import org.janelia.saalfeldlab.paintera.cache.DiscoverableMemoryUsage;
+import org.janelia.saalfeldlab.paintera.cache.Invalidate;
+import org.janelia.saalfeldlab.paintera.cache.MemoryBoundedSoftRefLoaderCache;
+import org.janelia.saalfeldlab.paintera.cache.global.GlobalCache;
 import org.janelia.saalfeldlab.paintera.composition.CompositeProjectorPreMultiply;
 import org.janelia.saalfeldlab.paintera.config.CoordinateConfigNode;
 import org.janelia.saalfeldlab.paintera.config.CrosshairConfig;
@@ -69,11 +74,21 @@ public class PainteraBaseView
 
 	private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
+	private static final int DEFAULT_MAX_NUM_CACHE_ENTRIES = 1000;
+
+	// set this absurdly high
+	private static final int MAX_NUM_MIPMAP_LEVELS = 100;
+
 	private final SourceInfo sourceInfo = new SourceInfo();
 
 	private final GlobalTransformManager manager = new GlobalTransformManager();
 
-	private final SharedQueue cacheControl;
+//	private final LoaderCache<GlobalCache.Key<?>, ?> globalBackingCache = new BoundedSoftRefLoaderCache<>(DEFAULT_MAX_NUM_CACHE_ENTRIES);
+
+	// 1GB
+	private final LoaderCache<GlobalCache.Key<?>, ?> globalBackingCache = MemoryBoundedSoftRefLoaderCache.withWeakRefs(1000 * 1000 * 1000, DiscoverableMemoryUsage.memoryUsageFromDiscoveredFunctions());
+
+	private final GlobalCache globalCache;
 
 	private final ViewerOptions viewerOptions;
 
@@ -124,7 +139,7 @@ public class PainteraBaseView
 			final Function<SourceInfo, Function<Source<?>, Interpolation>> interpolation)
 	{
 		super();
-		this.cacheControl = new SharedQueue(numFetcherThreads);
+		this.globalCache = new GlobalCache(MAX_NUM_MIPMAP_LEVELS, numFetcherThreads, globalBackingCache, (Invalidate<GlobalCache.Key<?>>)globalBackingCache);
 		this.viewerOptions = viewerOptions
 				.accumulateProjectorFactory(new CompositeProjectorPreMultiply.CompositeProjectorFactory(sourceInfo
 						.composites()))
@@ -134,7 +149,7 @@ public class PainteraBaseView
 				.numRenderingThreads(Math.min(3, Math.max(1, Runtime.getRuntime().availableProcessors() / 3)));
 		this.views = new OrthogonalViews<>(
 				manager,
-				cacheControl,
+				this.globalCache,
 				this.viewerOptions,
 				viewer3D,
 				interpolation.apply(sourceInfo)
@@ -256,10 +271,10 @@ public class PainteraBaseView
 				axisOrder,
 				maxId,
 				name,
+				getGlobalCache(),
 				viewer3D().meshesGroup(),
 				meshManagerExecutorService,
-				meshWorkerExecutorService
-		                                                                         );
+				meshWorkerExecutorService);
 		InvokeOnJavaFXApplicationThread.invoke(() -> addLabelSource(state));
 		return state;
 	}
@@ -408,7 +423,6 @@ public class PainteraBaseView
 		this.orthogonalViews().topLeft().viewer().stop();
 		this.orthogonalViews().topRight().viewer().stop();
 		this.orthogonalViews().bottomLeft().viewer().stop();
-		this.cacheControl.shutdown();
 		LOG.debug("Sent stop requests everywhere");
 	}
 
@@ -417,9 +431,14 @@ public class PainteraBaseView
 		return Math.min(8, Math.max(1, Runtime.getRuntime().availableProcessors() / 2));
 	}
 
-	public SharedQueue getQueue()
+	public CacheControl getCacheControl()
 	{
-		return this.cacheControl;
+		return this.getGlobalCache();
+	}
+
+	public GlobalCache getGlobalCache()
+	{
+		return this.globalCache;
 	}
 
 	public ExecutorService getMeshManagerExecutorService()
@@ -548,6 +567,16 @@ public class PainteraBaseView
 			this.gridConstraintsManager = gridConstraintsManager;
 			this.handlers = handlers;
 		}
+	}
+
+	public long getCurrentMemoryUsageInBytes()
+	{
+		return ((MemoryBoundedSoftRefLoaderCache)this.globalBackingCache).getCurrentMemoryUsageInBytes();
+	}
+
+	public LoaderCache<GlobalCache.Key<?>, ?> getGlobalBackingCache()
+	{
+		return this.globalBackingCache;
 	}
 
 }

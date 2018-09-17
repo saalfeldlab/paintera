@@ -91,7 +91,8 @@ public class N5OpenSourceDialog extends Dialog<GenericBackendDialogN5> implement
 						return;
 					N5OpenSourceDialog.addSource(osDialog.getName(), osDialog.getType(), dialog, pbv, projectDirectory);
 				} catch (Exception e1) {
-					Exceptions.exceptionAlert(Paintera.NAME, "Unable to open N5 data set", e1);
+					LOG.debug("Unable to open n5 dataset", e1);
+					Exceptions.exceptionAlert(Paintera.NAME, "Unable to open N5 data set", e1).show();
 				}
 			};
 		}
@@ -115,7 +116,8 @@ public class N5OpenSourceDialog extends Dialog<GenericBackendDialogN5> implement
 						return;
 					N5OpenSourceDialog.addSource(osDialog.getName(), osDialog.getType(), dialog, pbv, projectDirectory);
 				} catch (Exception e1) {
-					Exceptions.exceptionAlert(Paintera.NAME, "Unable to open HDF5 data set", e1);
+					LOG.debug("Unable to open hdf5 dataset", e1);
+					Exceptions.exceptionAlert(Paintera.NAME, "Unable to open HDF5 data set", e1).show();
 				}
 			};
 		}
@@ -138,7 +140,8 @@ public class N5OpenSourceDialog extends Dialog<GenericBackendDialogN5> implement
 						return;
 					N5OpenSourceDialog.addSource(osDialog.getName(), osDialog.getType(), dialog, pbv, projectDirectory);
 				} catch (Exception e1) {
-					Exceptions.exceptionAlert(Paintera.NAME, "Unable to open Google Cloud data set", e1);
+					LOG.debug("Unable to open google cloud dataset", e1);
+					Exceptions.exceptionAlert(Paintera.NAME, "Unable to open Google Cloud data set", e1).show();
 				}
 			};
 		}
@@ -316,13 +319,13 @@ public class N5OpenSourceDialog extends Dialog<GenericBackendDialogN5> implement
 		{
 			LOG.debug("Axis order {} has channel at index {}", dataset.axisOrderProperty().get(), dataset.axisOrderProperty().get().channelIndex());
 			List<ChannelSourceState<T, V, RealComposite<V>, VolatileWithSet<RealComposite<V>>>> channels =
-					dataset.getChannels(name, viewer.getQueue(), viewer.getQueue().getNumPriorities() - 1);
+					dataset.getChannels(name, viewer.getGlobalCache(), viewer.getGlobalCache().getNumPriorities() - 1);
 			LOG.debug("Got {} channel sources", channels.size());
 			InvokeOnJavaFXApplicationThread.invoke(() -> channels.forEach(viewer::addChannelSource));
 			LOG.debug("Added {} channel sources", channels.size());
 		}
 		else {
-			final RawSourceState<T, V> raw = dataset.getRaw(name, viewer.getQueue(), viewer.getQueue().getNumPriorities() - 1);
+			final RawSourceState<T, V> raw = dataset.getRaw(name, viewer.getGlobalCache(), viewer.getGlobalCache().getNumPriorities() - 1);
 			LOG.debug("Got raw: {}", raw);
 			InvokeOnJavaFXApplicationThread.invoke(() -> viewer.addRawSource(raw));
 		}
@@ -341,8 +344,8 @@ public class N5OpenSourceDialog extends Dialog<GenericBackendDialogN5> implement
 					);
 		final LabelSourceState<D, T> rep = dataset.getLabels(
 				name,
-				viewer.getQueue(),
-				viewer.getQueue().getNumPriorities() - 1,
+				viewer.getGlobalCache(),
+				viewer.getGlobalCache().getNumPriorities() - 1,
 				viewer.viewer3D().meshesGroup(),
 				viewer.getMeshManagerExecutorService(),
 				viewer.getMeshWorkerExecutorService(),
@@ -356,51 +359,6 @@ public class N5OpenSourceDialog extends Dialog<GenericBackendDialogN5> implement
 		final int[] blockSize = new int[grid.numDimensions()];
 		Arrays.setAll(blockSize, grid::cellDimension);
 		return blockSize;
-	}
-
-	private static <C extends Cell<VolatileLabelMultisetArray>, I extends RandomAccessible<C> & IterableInterval<C>>
-	Function<Long, Interval[]>[] getBlockListCaches(
-			final DataSource<LabelMultisetType, ?> source,
-			final ExecutorService es) {
-		final int numLevels = source.getNumMipmapLevels();
-		if (IntStream.range(0, numLevels).mapToObj(lvl -> source.getDataSource(
-				0,
-				lvl
-		)).filter(src -> !(src instanceof
-				AbstractCellImg<?, ?, ?, ?>)).count() > 0) {
-			return null;
-		}
-
-		final int[][] blockSizes = IntStream
-				.range(0, numLevels)
-				.mapToObj(lvl -> (AbstractCellImg<?, ?, ?, ?>) source.getDataSource(0, lvl))
-				.map(AbstractCellImg::getCellGrid)
-				.map(N5OpenSourceDialog::blockSize)
-				.toArray(int[][]::new);
-
-		final double[][] scalingFactors = PainteraBaseView.scaleFactorsFromAffineTransforms(source);
-
-		@SuppressWarnings("unchecked") final InterruptibleFunction<HashWrapper<long[]>, long[]>[] uniqueIdCaches = new
-				InterruptibleFunction[numLevels];
-
-		for (int level = 0; level < numLevels; ++level) {
-			@SuppressWarnings("unchecked") final AbstractCellImg<LabelMultisetType, VolatileLabelMultisetArray, C, I>
-					img =
-					(AbstractCellImg<LabelMultisetType, VolatileLabelMultisetArray, C, I>) source.getDataSource(
-							0,
-							level
-					);
-			uniqueIdCaches[level] = uniqueLabelLoaders(img);
-		}
-
-		return CacheUtils.blocksForLabelCachesLongKeys(
-				source,
-				uniqueIdCaches,
-				blockSizes,
-				scalingFactors,
-				CacheUtils::toCacheSoftRefLoaderCache
-		);
-
 	}
 
 	public void setHeaderFromBackendType(String backendType)

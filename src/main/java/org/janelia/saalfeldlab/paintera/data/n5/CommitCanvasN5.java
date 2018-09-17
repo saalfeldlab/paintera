@@ -592,7 +592,7 @@ public class CommitCanvasN5 implements BiConsumer<CachedCellImg<UnsignedLongType
 				.map(HashWrapper::interval)
 				.collect(Collectors.toSet());
 		modify.accept(containedIntervals);
-		labelBlockLookup.write(level, id, containedIntervals.stream().toArray(Interval[]::new));
+		labelBlockLookup.write(level, id, containedIntervals.stream().map(HashWrapper::getData).toArray(Interval[]::new));
 	}
 
 	private static void updateHighestResolutionLabelMapping(

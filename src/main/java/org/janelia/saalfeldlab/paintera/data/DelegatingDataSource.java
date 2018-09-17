@@ -6,6 +6,9 @@ import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.RealRandomAccessible;
 import net.imglib2.realtransform.AffineTransform3D;
 
+import java.util.Collection;
+import java.util.function.Predicate;
+
 public class DelegatingDataSource<D, T> implements DataSource<D, T>
 {
 
@@ -83,4 +86,8 @@ public class DelegatingDataSource<D, T> implements DataSource<D, T>
 		return this.delegate.getDataType();
 	}
 
+	@Override
+	public void invalidateAll() {
+		delegate.invalidateAll();
+	}
 }
