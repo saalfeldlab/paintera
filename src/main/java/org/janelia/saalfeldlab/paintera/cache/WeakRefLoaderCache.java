@@ -90,7 +90,7 @@ public class WeakRefLoaderCache< K, V > implements LoaderCache< K, V >, Invalida
 	public Collection<K> invalidateMatching(Predicate<K> test) {
 		synchronized (map)
 		{
-			List<K> toBeRemoved = map.keySet().stream().filter(test).collect(Collectors.toList());
+			final List<K> toBeRemoved = map.keySet().stream().filter(test).collect(Collectors.toList());
 			invalidate(toBeRemoved);
 			return toBeRemoved;
 		}
@@ -99,6 +99,8 @@ public class WeakRefLoaderCache< K, V > implements LoaderCache< K, V >, Invalida
 	@Override
 	public void invalidate(Collection<K> keys) {
 		LOG.debug("Invalidating keys {}", keys);
+		if (keys == null)
+			return;
 		synchronized (map)
 		{
 			keys.forEach(map::remove);

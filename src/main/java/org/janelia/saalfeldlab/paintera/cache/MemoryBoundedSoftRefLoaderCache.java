@@ -50,7 +50,14 @@ public class MemoryBoundedSoftRefLoaderCache<K, V, LC extends LoaderCache<K, V> 
 
 	public void restrictToMaxSize()
 	{
-		softRefs.restrictToMaxSize();
+		LOG.debug("Restricting to max size");
+		final List<K> toBeInvalidated = softRefs.restrictToMaxSize();
+		if (toBeInvalidated != null) {
+			LOG.debug("Invalidated {} keys: Soft refs size {}", toBeInvalidated.size(), softRefs.size());
+			this.cache.invalidate(toBeInvalidated);
+		}
+		else
+			LOG.debug("Did not invalidate any keys");
 	}
 
 	public long getMaxSize()
@@ -60,7 +67,8 @@ public class MemoryBoundedSoftRefLoaderCache<K, V, LC extends LoaderCache<K, V> 
 
 	public void setMaxSize(long maxSizeInBytes)
 	{
-		this.softRefs.setMaxSize(maxSizeInBytes);
+		final List<K> toBeInvalidated = this.softRefs.setMaxSize(maxSizeInBytes);
+		this.invalidate(toBeInvalidated);
 	}
 
 	public long getCurrentMemoryUsageInBytes()
@@ -95,8 +103,14 @@ public class MemoryBoundedSoftRefLoaderCache<K, V, LC extends LoaderCache<K, V> 
 	@Override
 	public Collection<K> invalidateMatching(Predicate<K> test) {
 		final Collection<K> removedKeys = cache.invalidateMatching(test);
-		invalidate(removedKeys);
-		return removedKeys;
+		final List<K> toBeRemoved = new ArrayList<>(removedKeys);
+		synchronized (softRefs)
+		{
+			softRefs.keySet().stream().filter(test).forEach(toBeRemoved::add);
+		}
+		// this removes removedKeys from backing cache twice but makes sure additional keys get removed, as well
+		invalidate(toBeRemoved);
+		return toBeRemoved;
 	}
 
 	@Override
@@ -140,27 +154,33 @@ public class MemoryBoundedSoftRefLoaderCache<K, V, LC extends LoaderCache<K, V> 
 			this.maxSizeInBytes = maxSizeInBytes;
 		}
 
-		public void restrictToMaxSize()
+		public List<K> restrictToMaxSize()
 		{
-			if (currentSizeInBytes <= maxSizeInBytes)
-				return;
+			final boolean needsUpdate = currentSizeInBytes > maxSizeInBytes;
+			LOG.debug("Needs update? {} ({}/{})", needsUpdate, currentSizeInBytes, maxSizeInBytes);
+			if (!needsUpdate)
+				return null;
 			synchronized(this)
 			{
 				List<K> keys = new ArrayList<>(keySet());
+				List<K> removedKeys = new ArrayList<>();
 				for (K key : keys)
 				{
 					if (currentSizeInBytes <= maxSizeInBytes)
 						break;
 					SoftRef<V> ref = remove(key);
 					ref.clear();
+					removedKeys.add(key);
 				}
+				LOG.debug("Returning {} keys that were removed", removedKeys.size());
+				return removedKeys;
 			}
 		}
 
-		public synchronized void setMaxSize(long maxSizeInBytes)
+		public synchronized List<K> setMaxSize(long maxSizeInBytes)
 		{
 			this.maxSizeInBytes = maxSizeInBytes;
-			restrictToMaxSize();
+			return restrictToMaxSize();
 		}
 
 
@@ -176,7 +196,7 @@ public class MemoryBoundedSoftRefLoaderCache<K, V, LC extends LoaderCache<K, V> 
 		synchronized void touch(final K key, final V value) {
 			final SoftRef<V> ref = get(key);
 			if (ref == null || ref.get() == null)
-				put(key, new SoftRef<V>(value, onConstruction, onClear, this));
+				put(key, new SoftRef<>(value, onConstruction, onClear, this));
 		}
 
 		@Override
