@@ -82,13 +82,13 @@ public class FloodFill
 	{
 		if (sourceInfo.currentSourceProperty().get() == null)
 		{
-			LOG.warn("No current source selected -- will not fill");
+			LOG.info("No current source selected -- will not fill");
 			return;
 		}
 		final Long fill = fillSupplier.get();
 		if (fill == null)
 		{
-			LOG.warn("Received invalid label {} -- will not fill.", fill);
+			LOG.info("Received invalid label {} -- will not fill.", fill);
 			return;
 		}
 		fillAt(x, y, fill);
@@ -101,7 +101,7 @@ public class FloodFill
 		final ViewerState viewerState   = viewer.getState();
 		if (currentSource == null)
 		{
-			LOG.warn("No current source selected -- will not fill");
+			LOG.info("No current source selected -- will not fill");
 			return;
 		}
 
@@ -109,7 +109,7 @@ public class FloodFill
 
 		if (!(currentSourceState instanceof LabelSourceState<?, ?>))
 		{
-			LOG.warn("Selected source is not a label source -- will not fill");
+			LOG.info("Selected source is not a label source -- will not fill");
 			return;
 		}
 
@@ -117,20 +117,20 @@ public class FloodFill
 
 		if (!state.isVisibleProperty().get())
 		{
-			LOG.warn("Selected source is not visible -- will not fill");
+			LOG.info("Selected source is not visible -- will not fill");
 			return;
 		}
 
 		if (!(currentSource instanceof MaskedSource<?, ?>))
 		{
-			LOG.warn("Selected source is not painting-enabled -- will not fill");
+			LOG.info("Selected source is not painting-enabled -- will not fill");
 			return;
 		}
 
 		final LongFunction<?> maskForLabel = state.maskForLabel();
 		if (maskForLabel == null)
 		{
-			LOG.warn("Cannot generate boolean mask for this source -- will not fill");
+			LOG.info("Cannot generate boolean mask for this source -- will not fill");
 			return;
 		}
 
@@ -140,7 +140,7 @@ public class FloodFill
 
 		if (!(t instanceof RealType<?>) && !(t instanceof LabelMultisetType))
 		{
-			LOG.warn("Data type is not real or LabelMultisetType type -- will not fill");
+			LOG.info("Data type is not real or LabelMultisetType type -- will not fill");
 			return;
 		}
 
@@ -187,7 +187,7 @@ public class FloodFill
 			}
 		} catch (final MaskInUse e)
 		{
-			LOG.warn(e.getMessage());
+			LOG.info(e.getMessage());
 			return;
 		}
 
@@ -296,7 +296,7 @@ public class FloodFill
 		final long seedLabel = getArgMaxLabel(dataAccess.get());
 		if (!Label.regular(seedLabel))
 		{
-			LOG.warn("Trying to fill at irregular label: {} ({})", seedLabel, new Point(seed));
+			LOG.info("Trying to fill at irregular label: {} ({})", seedLabel, new Point(seed));
 			return;
 		}
 

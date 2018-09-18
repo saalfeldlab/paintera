@@ -202,7 +202,7 @@ public class N5Helpers
 			}
 			if (isMultiScale)
 			{
-				LOG.warn(
+				LOG.debug(
 						"Found multi-scale group without {} tag. Implicit multi-scale detection will be removed in " +
 								"the" +
 								" future. Please add \"{}\":{} to attributes.json.",
@@ -296,7 +296,7 @@ public class N5Helpers
 
 	public static DataType getDataType(final N5Reader n5, final String group) throws IOException
 	{
-		LOG.warn("Getting data type for group/dataset {}", group);
+		LOG.debug("Getting data type for group/dataset {}", group);
 		if (isPainteraDataset(n5, group)) { return getDataType(n5, group + "/" + PAINTERA_DATA_DATASET); }
 		if (isMultiScale(n5, group)) { return getDataType(n5, getFinestLevel(n5, group)); }
 		return n5.getDatasetAttributes(group).getDataType();
@@ -304,7 +304,7 @@ public class N5Helpers
 
 	public static DatasetAttributes getDatasetAttributes(final N5Reader n5, final String group) throws IOException
 	{
-		LOG.warn("Getting data type for group/dataset {}", group);
+		LOG.debug("Getting data type for group/dataset {}", group);
 		if (isPainteraDataset(n5, group)) { return getDatasetAttributes(n5, group + "/" + PAINTERA_DATA_DATASET); }
 		if (isMultiScale(n5, group)) { return getDatasetAttributes(n5, getFinestLevel(n5, group)); }
 		return n5.getDatasetAttributes(group);
@@ -432,7 +432,7 @@ public class N5Helpers
 					}
 					if (isMipmapGroup)
 					{
-						LOG.warn(
+						LOG.debug(
 								"Found multi-scale group without {} tag. Implicit multi-scale detection will be " +
 										"removed in the future. Please add \"{}\":{} to attributes.json.",
 								MULTI_SCALE_KEY,
@@ -1050,7 +1050,7 @@ public class N5Helpers
 			final N5Reader n5,
 			final String dataset) throws IOException
 	{
-		LOG.warn("Getting finest level for dataset {}", dataset);
+		LOG.debug("Getting finest level for dataset {}", dataset);
 		final String[] scaleDirs = listAndSortScaleDatasets(n5, dataset);
 		return Paths.get(dataset, scaleDirs[0]).toString();
 	}
@@ -1274,7 +1274,7 @@ public class N5Helpers
 
 		private LabelBlockLookupNotSupportedForNonPainteraDataset()
 		{
-			LOG.warn("3D meshes not supported for non Paintera dataset!");
+			LOG.info("3D meshes not supported for non Paintera dataset!");
 		}
 
 		@Override

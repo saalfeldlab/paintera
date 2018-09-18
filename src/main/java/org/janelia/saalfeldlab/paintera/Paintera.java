@@ -433,7 +433,7 @@ public class Paintera extends Application
 			}
 		}
 
-		LOG.warn("Unable to generate raw source from {}", identifier);
+		LOG.debug("Unable to generate raw source from {}", identifier);
 		return Optional.empty();
 	}
 
@@ -482,7 +482,7 @@ public class Paintera extends Application
 				final String[] split   = identifier.replaceFirst("file://", "").split(":");
 				final N5Writer n5      = N5Helpers.n5Writer(split[0], 64, 64, 64);
 				final String   dataset = split[1];
-				LOG.warn("Adding label dataset={} dataset={}", split[0], dataset);
+				LOG.debug("Adding label dataset={} dataset={}", split[0], dataset);
 				final double[]                       resolution     = N5Helpers.getResolution(n5, dataset);
 				final double[]                       offset         = N5Helpers.getOffset(n5, dataset);
 				final AffineTransform3D              transform      = N5Helpers.fromResolutionAndOffset(

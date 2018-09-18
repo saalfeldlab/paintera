@@ -130,7 +130,7 @@ public class IdSelector
 				final SourceState<?, ?> currentSourceState = sourceInfo.getState(source);
 				if (!(currentSourceState instanceof LabelSourceState<?, ?>))
 				{
-					LOG.warn("Not a label source -- cannot select  id.");
+					LOG.info("Not a label source -- cannot select  id.");
 					return;
 				}
 				@SuppressWarnings("unchecked") final LabelSourceState<I, ?> state = (LabelSourceState<I, ?>)
@@ -222,7 +222,7 @@ public class IdSelector
 				final SourceState<?, ?> currentSourceState = sourceInfo.getState(source);
 				if (!(currentSourceState instanceof LabelSourceState<?, ?>))
 				{
-					LOG.warn("Not a label source -- cannot select  id.");
+					LOG.info("Not a label source -- cannot select  id.");
 					return;
 				}
 				@SuppressWarnings("unchecked") final LabelSourceState<I, ?> state = (LabelSourceState<I, ?>)
@@ -292,7 +292,7 @@ public class IdSelector
 				final SourceState<?, ?> currentSourceState = sourceInfo.getState(source);
 				if (!(currentSourceState instanceof LabelSourceState<?, ?>))
 				{
-					LOG.warn("Not a label source -- cannot select  id.");
+					LOG.info("Not a label source -- cannot select  id.");
 					return;
 				}
 				@SuppressWarnings("unchecked") final LabelSourceState<I, ?> state = (LabelSourceState<I, ?>)
@@ -362,7 +362,7 @@ public class IdSelector
 				final SourceState<?, ?> currentSourceState = sourceInfo.getState(source);
 				if (!(currentSourceState instanceof LabelSourceState<?, ?>))
 				{
-					LOG.warn("Not a label source -- cannot select  id.");
+					LOG.info("Not a label source -- cannot select  id.");
 					return;
 				}
 				@SuppressWarnings("unchecked") final LabelSourceState<I, ?> state = (LabelSourceState<I, ?>)
@@ -383,13 +383,13 @@ public class IdSelector
 
 						if (activeSegments.length > 1)
 						{
-							LOG.warn("More than one segment active, not doing anything!");
+							LOG.info("More than one segment active, not doing anything!");
 							return;
 						}
 
 						if (activeSegments.length == 0)
 						{
-							LOG.warn("No segments active, not doing anything!");
+							LOG.info("No segments active, not doing anything!");
 							return;
 						}
 

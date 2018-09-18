@@ -197,7 +197,7 @@ public class CreateDataset
 			try
 			{
 
-				LOG.warn("Trying to create empty label dataset `{}' in container `{}'", dataset, container);
+				LOG.debug("Trying to create empty label dataset `{}' in container `{}'", dataset, container);
 
 				if (dataset == null || dataset.equals(""))
 					throw new IOException("Dataset not specified!");
@@ -216,7 +216,7 @@ public class CreateDataset
 				                                 );
 			} catch (IOException ex)
 			{
-				LOG.warn("Unable to create empty dataset");
+				LOG.error("Unable to create empty dataset", ex);
 				e.consume();
 				Alert exceptionAlert = Exceptions.exceptionAlert(
 						"Paintera",
@@ -304,7 +304,7 @@ public class CreateDataset
 
 		Platform.runLater(() -> {
 			final Button b = new Button("BUTTON");
-			b.setOnAction(e -> LOG.warn( "Got new dataset meta: {}", cd.showDialog()));
+			b.setOnAction(e -> LOG.info( "Got new dataset meta: {}", cd.showDialog()));
 			final Scene scene = new Scene(b);
 			final Stage stage = new Stage();
 			stage.setScene(scene);

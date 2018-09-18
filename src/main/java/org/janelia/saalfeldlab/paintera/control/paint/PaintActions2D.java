@@ -122,7 +122,7 @@ public class PaintActions2D
 		public void paint(final double viewerX, final double viewerY)
 		{
 
-			//		LOG.warn( "At {} {}", viewerX, viewerY );
+			LOG.debug( "At {} {}", viewerX, viewerY );
 
 			final RandomAccessibleInterval<UnsignedLongType> labels = this.canvas.get();
 			if (labels == null) { return; }
@@ -329,7 +329,7 @@ public class PaintActions2D
 			{
 				final double[] p1 = new double[] {startX, startY};
 
-				//			LOG.warn( "Drag: paint at screen=({},{}) / start=({},{})", x, y, startX, startY );
+				LOG.debug( "Drag: paint at screen=({},{}) / start=({},{})", x, y, startX, startY );
 
 				final double[] d = new double[] {x, y};
 

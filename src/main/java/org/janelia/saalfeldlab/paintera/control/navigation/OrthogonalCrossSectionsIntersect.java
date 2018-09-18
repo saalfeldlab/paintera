@@ -25,7 +25,7 @@ public class OrthogonalCrossSectionsIntersect
 			final double z)
 	{
 		final double[] center = new double[] {x, y, z};
-		LOG.warn("Centering at {}", center);
+		LOG.debug("Centering at {}", center);
 		transform.apply(center, center);
 		transform.set(transform.get(0, 3) - center[0], 0, 3);
 		transform.set(transform.get(1, 3) - center[1], 1, 3);

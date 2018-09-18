@@ -59,7 +59,7 @@ public class HDF5 {
 					.orElse(new File(USER_HOME)));
 			final File updatedRoot = fileChooser.showOpenDialog(containerTextField.getScene().getWindow());
 
-			LOG.warn("Updating root to {}", updatedRoot);
+			LOG.debug("Updating root to {}", updatedRoot);
 
 			if (updatedRoot != null && updatedRoot.exists() && updatedRoot.isFile())
 				container.set(updatedRoot.getAbsolutePath());

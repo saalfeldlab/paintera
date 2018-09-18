@@ -42,7 +42,7 @@ public class SelectNextId
 
 		if (currentSource == null)
 		{
-			LOG.warn("No current source -- cannot create new id.");
+			LOG.info("No current source -- cannot create new id.");
 			return;
 		}
 
@@ -50,7 +50,7 @@ public class SelectNextId
 
 		if (!(currentSourceState instanceof LabelSourceState<?, ?>))
 		{
-			LOG.warn("Not a label source -- cannot request id.");
+			LOG.info("Not a label source -- cannot request id.");
 			return;
 		}
 		final LabelSourceState<?, ?> state = (LabelSourceState<?, ?>) currentSourceState;
@@ -58,14 +58,14 @@ public class SelectNextId
 		// TODO should we create ids also for invisible sources?
 		if (!state.isVisibleProperty().get())
 		{
-			LOG.warn("Source {} is not visible -- cannot create new id.", currentSource);
+			LOG.info("Source {} is not visible -- cannot create new id.", currentSource);
 			return;
 		}
 
 		final IdService idService = state.idService();
 		if (idService == null)
 		{
-			LOG.warn("Source {} does not provide id-service -- cannot create new id.", currentSource);
+			LOG.info("Source {} does not provide id-service -- cannot create new id.", currentSource);
 			return;
 		}
 

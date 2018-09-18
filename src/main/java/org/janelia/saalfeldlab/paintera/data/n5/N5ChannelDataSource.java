@@ -349,7 +349,7 @@ public class N5ChannelDataSource<
 			IntFunction<D> valueAtIndex
 	)
 	{
-		LOG.warn("Creating extension with size {}", size);
+		LOG.debug("Creating extension with size {}", size);
 		final ArrayImg<D, ?> img = new ArrayImgFactory<>(d).create(1, size);
 		img.setLinkedType((D) d.getNativeTypeFactory().createLinkedType((NativeImg)img));
 		final CompositeIntervalView<D, RealComposite<D>> collapsed = Views.collapseReal(img);

@@ -214,7 +214,7 @@ public class SourceInfo
 
 		if (currentSourceIndex == -1)
 		{
-			LOG.warn("Cannot remove source {}: not present", source);
+			LOG.debug("Cannot remove source {}: not present", source);
 			return;
 		}
 
@@ -231,11 +231,11 @@ public class SourceInfo
 			{
 				if (force)
 				{
-					LOG.warn("Forcing removal of state {} with dependents {}:", state, dependents);
+					LOG.debug("Forcing removal of state {} with dependents {}:", state, dependents);
 				}
 				else
 				{
-					LOG.warn(
+					LOG.info(
 							"Cannot remove state {} with dependents: {}. Run SourceInfo.removeSource( source, true ) " +
 									"to force removal.",
 							state,

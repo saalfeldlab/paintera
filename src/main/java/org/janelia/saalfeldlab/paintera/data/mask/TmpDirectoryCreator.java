@@ -26,7 +26,7 @@ public class TmpDirectoryCreator implements Supplier<String>
 	public TmpDirectoryCreator(final Path dir, final String prefix, final FileAttribute<?>... attrs)
 	{
 		super();
-		LOG.warn("Creating {} with dir={} prefix={} attrs={}", this.getClass().getSimpleName(), dir, prefix, attrs);
+		LOG.debug("Creating {} with dir={} prefix={} attrs={}", this.getClass().getSimpleName(), dir, prefix, attrs);
 		this.dir = dir;
 		this.prefix = prefix;
 		this.attrs = attrs;

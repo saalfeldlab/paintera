@@ -91,7 +91,7 @@ public class GoogleCloudBrowseHandler
 		final Iterator<Project> projectIterator = resourceManager.list().iterateAll().iterator();
 		if (!projectIterator.hasNext())
 		{
-			LOG.warn("No Google Cloud projects found for {}.", oauth);
+			LOG.debug("No Google Cloud projects found for {}.", oauth);
 			return null;
 		}
 		while (projectIterator.hasNext())
@@ -179,7 +179,7 @@ public class GoogleCloudBrowseHandler
 		InvokeOnJavaFXApplicationThread.invoke(() -> {
 			final Scene                 scene = new Scene(new StackPane(new Label("test")));
 			final Pair<Storage, Bucket> sab   = handler.select(scene).orElse(new ValuePair<>(null, null));
-			LOG.warn("storage={} bucket={}", sab.getA(), sab.getB());
+			LOG.debug("storage={} bucket={}", sab.getA(), sab.getB());
 		});
 
 	}

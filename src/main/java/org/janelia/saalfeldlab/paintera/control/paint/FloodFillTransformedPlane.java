@@ -193,7 +193,7 @@ public class FloodFillTransformedPlane
 
 		if (!relevantBackgroundAccess.get().get())
 		{
-			LOG.warn(
+			LOG.info(
 					"Started at invalid position {}: {} -- not doing anything",
 					new Point(relevantBackgroundAccess),
 					relevantBackgroundAccess.get()

@@ -511,7 +511,7 @@ public class GenericBackendDialogN5
 		IntFunction<InterruptibleFunction<Long, Interval[]>> loaderForLevelFactory = level -> InterruptibleFunction.fromFunction(
 				MakeUnchecked.function(
 						id -> lookup.read(level, id),
-						id -> {LOG.warn("Falling back to empty array"); return new Interval[0];}
+						id -> {LOG.debug("Falling back to empty array"); return new Interval[0];}
 		));
 
 		InterruptibleFunction<Long, Interval[]>[] blockLoaders = IntStream
@@ -639,12 +639,12 @@ public class GenericBackendDialogN5
 
 	private String getChannelSourceName(String base, long channelMin, long channelMax, long numChannels, boolean revertChannels)
 	{
-		LOG.warn("Getting channel source name for {} {} {} {} {}", base, channelMin, channelMax, numChannels, revertChannels);
+		LOG.debug("Getting channel source name for {} {} {} {} {}", base, channelMin, channelMax, numChannels, revertChannels);
 		final String pattern = "%s-%d-%d";
 		final String name = revertChannels
 				? String.format(pattern, base, numChannels - channelMin - 1, numChannels - channelMax - 1)
 				: String.format(pattern, base, channelMin, channelMax);
-		LOG.warn("Name={}", name);
+		LOG.debug("Name={}", name);
 		return name;
 	}
 }

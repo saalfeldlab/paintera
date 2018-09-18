@@ -50,7 +50,7 @@ public class UndoFromEvents<T>
 		currentEventIndex.addListener((obs, oldv, newv) -> {
 			int oldIndex = oldv.intValue();
 			int newIndex = newv.intValue();
-			LOG.warn("Updating current event index {} {}", oldIndex, newIndex);
+			LOG.debug("Updating current event index {} {}", oldIndex, newIndex);
 			if (oldIndex >= 0 && oldIndex < currentEventLabel.size())
 				InvokeOnJavaFXApplicationThread.invoke(() -> currentEventLabel.get(oldIndex).setText(""));
 			if (newIndex >= 0 && newIndex < currentEventLabel.size())
@@ -144,7 +144,7 @@ public class UndoFromEvents<T>
 
 	private void updateEventBox(List<Pair<T, ? extends BooleanProperty>> events)
 	{
-		LOG.warn("Updating event box for events {}", events);
+		LOG.debug("Updating event box for events {}", events);
 		List<Node> nodes = new ArrayList<>();
 		this.currentEventLabel.clear();
 		this.currentEventIndex.set(-1);

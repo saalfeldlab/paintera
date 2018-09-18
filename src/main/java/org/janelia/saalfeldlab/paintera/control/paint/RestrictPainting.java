@@ -83,7 +83,7 @@ public class RestrictPainting
 		final ViewerState viewerState   = viewer.getState();
 		if (currentSource == null)
 		{
-			LOG.warn("No current source selected -- will not fill");
+			LOG.info("No current source selected -- will not fill");
 			return;
 		}
 
@@ -91,27 +91,27 @@ public class RestrictPainting
 
 		if (!(currentSourceState instanceof LabelSourceState<?, ?>))
 		{
-			LOG.warn("Not a label source -- will not restrict");
+			LOG.info("Not a label source -- will not restrict");
 			return;
 		}
 		final LabelSourceState<?, ?> state = (LabelSourceState<?, ?>) currentSourceState;
 
 		if (!currentSourceState.isVisibleProperty().get())
 		{
-			LOG.warn("Selected source is not visible -- will not fill");
+			LOG.info("Selected source is not visible -- will not fill");
 			return;
 		}
 
 		if (!(currentSource instanceof MaskedSource<?, ?>))
 		{
-			LOG.warn("Selected source is not painting-enabled -- will not fill");
+			LOG.info("Selected source is not painting-enabled -- will not fill");
 			return;
 		}
 
 		final LongFunction<?> maskGenerator = state.maskForLabel();
 		if (maskGenerator == null)
 		{
-			LOG.warn("Cannot generate boolean mask for this source -- will not fill");
+			LOG.info("Cannot generate boolean mask for this source -- will not fill");
 			return;
 		}
 
@@ -121,7 +121,7 @@ public class RestrictPainting
 
 		if (!(t instanceof RealType<?>) && !(t instanceof LabelMultisetType))
 		{
-			LOG.warn("Data type is not integer type or LabelMultisetType -- will not fill");
+			LOG.info("Data type is not integer type or LabelMultisetType -- will not fill");
 			return;
 		}
 
@@ -152,7 +152,7 @@ public class RestrictPainting
 			}
 		} catch (final MaskInUse e)
 		{
-			LOG.warn("Mask already in use -- will not paint: {}", e.getMessage());
+			LOG.info("Mask already in use -- will not paint: {}", e.getMessage());
 		}
 
 	}

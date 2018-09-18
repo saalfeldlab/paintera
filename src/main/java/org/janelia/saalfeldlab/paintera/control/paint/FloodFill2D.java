@@ -84,13 +84,13 @@ public class FloodFill2D
 	{
 		if (sourceInfo.currentSourceProperty().get() == null)
 		{
-			LOG.warn("No current source selected -- will not fill");
+			LOG.info("No current source selected -- will not fill");
 			return;
 		}
 		final Long fill = fillSupplier.get();
 		if (fill == null)
 		{
-			LOG.warn("Received invalid label {} -- will not fill.", fill);
+			LOG.info("Received invalid label {} -- will not fill.", fill);
 			return;
 		}
 		fillAt(x, y, fill);
@@ -102,7 +102,7 @@ public class FloodFill2D
 		final ViewerState viewerState   = viewer.getState();
 		if (currentSource == null)
 		{
-			LOG.warn("No current source selected -- will not fill");
+			LOG.info("No current source selected -- will not fill");
 			return;
 		}
 
@@ -112,7 +112,7 @@ public class FloodFill2D
 
 		if (!(currentSourceState instanceof LabelSourceState<?, ?>))
 		{
-			LOG.warn("Selected source is not a label source -- will not fill");
+			LOG.info("Selected source is not a label source -- will not fill");
 			return;
 		}
 
@@ -120,20 +120,20 @@ public class FloodFill2D
 
 		if (!state.isVisibleProperty().get())
 		{
-			LOG.warn("Selected source is not visible -- will not fill");
+			LOG.info("Selected source is not visible -- will not fill");
 			return;
 		}
 
 		if (!(currentSource instanceof MaskedSource<?, ?>))
 		{
-			LOG.warn("Selected source is not painting-enabled -- will not fill");
+			LOG.info("Selected source is not painting-enabled -- will not fill");
 			return;
 		}
 
 		final LongFunction<Converter<T, BoolType>> maskForLabel = state.maskForLabel();
 		if (maskForLabel == null)
 		{
-			LOG.warn("Cannot generate boolean mask for this source -- will not fill");
+			LOG.info("Cannot generate boolean mask for this source -- will not fill");
 			return;
 		}
 
@@ -143,7 +143,7 @@ public class FloodFill2D
 
 		if (!(t instanceof RealType<?>) && !(t instanceof LabelMultisetType))
 		{
-			LOG.warn("Data type is not real or LabelMultisetType type -- will not fill");
+			LOG.debug("Data type is not real or LabelMultisetType type -- will not fill");
 			return;
 		}
 
@@ -174,7 +174,7 @@ public class FloodFill2D
 					FOREGROUND_CHECK
 			                                                                                );
 			final long                                       seedLabel = access.get().getIntegerLong();
-			LOG.warn("Got seed label {}", seedLabel);
+			LOG.debug("Got seed label {}", seedLabel);
 			final RandomAccessibleInterval<BoolType> relevantBackground = Converters.convert(
 					background,
 					(src, tgt) -> tgt.set(src.getIntegerLong() == seedLabel),
@@ -262,7 +262,7 @@ public class FloodFill2D
 
 		} catch (final MaskInUse e)
 		{
-			LOG.warn(e.getMessage());
+			LOG.debug(e.getMessage());
 			return;
 		} finally
 		{

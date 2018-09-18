@@ -205,7 +205,7 @@ public class MeshManagerWithAssignmentForSegments implements MeshManager<Long, T
 				fragments::equals).orElse(false);
 		if (isPresentAndValid)
 		{
-			LOG.warn("Id {} already present with valid selection {}", id, fragments);
+			LOG.debug("Id {} already present with valid selection {}", id, fragments);
 		}
 
 		LOG.debug("Adding mesh for segment {}.", id);
@@ -322,6 +322,7 @@ public class MeshManagerWithAssignmentForSegments implements MeshManager<Long, T
 	@Override
 	public void refreshMeshes()
 	{
+		LOG.debug("Refreshing meshes. {} Listeners", refreshMeshes.size());
 		this.refreshMeshes.forEach(Runnable::run);
 	}
 
@@ -356,6 +357,7 @@ public class MeshManagerWithAssignmentForSegments implements MeshManager<Long, T
 			final ExecutorService meshWorkersExecutors
 			)
 	{
+		LOG.debug("Data source is type {}", dataSource.getClass());
 		final SelectedSegments selectedSegments = new SelectedSegments(selectedIds, assignment);
 
 		final boolean isMaskedSource = dataSource instanceof MaskedSource<?, ?>;

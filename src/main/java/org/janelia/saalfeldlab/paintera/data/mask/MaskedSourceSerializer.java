@@ -35,12 +35,12 @@ public class MaskedSourceSerializer implements JsonSerializer<MaskedSource<?, ?>
 		final JsonObject map = new JsonObject();
 		map.add(UNDERLYING_SOURCE_KEY, context.serialize(src.underlyingSource()));
 		map.addProperty(UNDERLYING_SOURCE_CLASS_KEY, src.underlyingSource().getClass().getName());
-		LOG.warn("Not using relative directory for canvas directory!");
+		LOG.debug("Not using relative directory for canvas directory!");
 		map.addProperty(PERSIST_CANVAS_CLASS_KEY, src.getPersister().getClass().getName());
 		map.add(PERSIST_CANVAS_KEY, context.serialize(src.getPersister(), src.getPersister().getClass()));
 		// TODO re-use canvas
 		//		map.addProperty( CURRENT_CACHE_DIR_KEY, src.currentCanvasDirectory() );
-		//		LOG.warn( "Trying to relativize '{}' and '{}'", currentProjectDirectory.get(), src
+		//		LOG.debug( "Trying to relativize '{}' and '{}'", currentProjectDirectory.get(), src
 		// .currentCanvasDirectory() );
 		//		map.addProperty( CURRENT_CACHE_DIR_KEY, Paths.get( currentProjectDirectory.get() ).relativize( Paths
 		// .get( src.currentCanvasDirectory() ) ).toString() );

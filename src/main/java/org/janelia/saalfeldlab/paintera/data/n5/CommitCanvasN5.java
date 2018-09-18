@@ -284,6 +284,7 @@ public class CommitCanvasN5 implements BiConsumer<CachedCellImg<UnsignedLongType
 							targetGrid,
 							targetDownsamplingFactors
 					                                                                   ).toArray();
+                    LOG.debug("Affected blocks at higher level: {}", affectedBlocks);
 
 					final CachedCellImg<LabelMultisetType, VolatileLabelMultisetArray> previousData        =
 							LabelUtils.openVolatile(
@@ -417,7 +418,7 @@ public class CommitCanvasN5 implements BiConsumer<CachedCellImg<UnsignedLongType
 						{
 							final TLongHashSet mergedContainedLabels = new TLongHashSet();
 							// TODO find better way of iterating here
-							LOG.warn(
+							LOG.debug(
 									"level={}: Fetching contained labels for previous level at {} {} {}",
 									level,
 									blockMin,
@@ -432,7 +433,7 @@ public class CommitCanvasN5 implements BiConsumer<CachedCellImg<UnsignedLongType
 										attributesUniqueLabelsPrevious,
 										offset
 								                                     );
-								LOG.warn("level={}: offset={}: got contained labels: {}", level, offset, cl.length);
+								LOG.debug("level={}: offset={}: got contained labels: {}", level, offset, cl.length);
 								mergedContainedLabels.addAll(cl);
 							}
 							final TLongHashSet containedLabels = readContainedLabelsSet(
@@ -459,13 +460,13 @@ public class CommitCanvasN5 implements BiConsumer<CachedCellImg<UnsignedLongType
 									mergedContainedLabels
 							                                                              );
 
-							LOG.warn(
+							LOG.debug(
 									"level={}: Updating label to block mapping for {}. Added:   {}",
 									level,
 									blockMinInTargetGrid,
 									wasAdded.size()
 							        );
-							LOG.warn(
+							LOG.debug(
 									"level={}: Updating label to block mapping for {}. Removed: {}",
 									level,
 									blockMinInTargetGrid,

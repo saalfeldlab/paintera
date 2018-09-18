@@ -365,7 +365,7 @@ public class MaskedSource<D extends Type<D>, T extends Type<T>> implements DataS
 						maskInfo.value.getIntegerLong(),
 						key -> new TLongHashSet()
 				                                                          ).addAll(affectedBlocks);
-				LOG.warn("Added affected block: {}", affectedBlocksByLabel[maskInfo.level]);
+				LOG.debug("Added affected block: {}", affectedBlocksByLabel[maskInfo.level]);
 				this.affectedBlocks.addAll(paintedBlocksAtHighestResolution);
 
 				this.maskApplyCount.set(this.maskApplyCount.get() + 1);
