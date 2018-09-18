@@ -6,6 +6,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.function.Consumer;
 import java.util.function.Function;
+import java.util.function.Supplier;
 
 import gnu.trove.set.hash.TLongHashSet;
 import net.imglib2.RandomAccessibleInterval;
@@ -34,7 +35,7 @@ public class SegmentMeshCacheLoader<T>
 
 	private final int[] cubeSize;
 
-	private final RandomAccessibleInterval<T> data;
+	private final Supplier<RandomAccessibleInterval<T>> data;
 
 	private final Function<TLongHashSet, Converter<T, BoolType>> getMaskGenerator;
 
@@ -46,7 +47,7 @@ public class SegmentMeshCacheLoader<T>
 
 	public SegmentMeshCacheLoader(
 			final int[] cubeSize,
-			final RandomAccessibleInterval<T> data,
+			final Supplier<RandomAccessibleInterval<T>> data,
 			final Function<TLongHashSet, Converter<T, BoolType>> getMaskGenerator,
 			final AffineTransform3D transform)//,
 	//			final InterruptibleFunction< HashWrapper< long[] >, long[] > containedLabelsInBlock )
@@ -80,7 +81,7 @@ public class SegmentMeshCacheLoader<T>
 
 		LOG.debug("key={}, getMaskGenerator={}", key, getMaskGenerator);
 		final RandomAccessibleInterval<BoolType> mask = Converters.convert(
-				data,
+				data.get(),
 				getMaskGenerator.apply(key.shapeId()),
 				new BoolType(false)
 		                                                                  );

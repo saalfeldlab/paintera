@@ -24,7 +24,9 @@ import java.util.stream.Stream;
 
 import bdv.util.volatiles.VolatileTypeMatcher;
 import bdv.viewer.Interpolation;
+import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
+import com.google.gson.JsonElement;
 import gnu.trove.map.TLongLongMap;
 import gnu.trove.map.hash.TLongLongHashMap;
 import net.imglib2.Cursor;
@@ -1247,25 +1249,29 @@ public class N5Helpers
 
 	public static LabelBlockLookup getLabelBlockLookup(N5Reader reader, String group) throws IOException
 	{
-		if ( reader instanceof N5FSReader && isPainteraDataset( reader, group ) )
-		{
-			try
-			{
+		try {
+			LOG.debug("Getting label block lookup for {}", N5Meta.fromReader(reader, group));
+			if (reader instanceof N5FSReader && isPainteraDataset(reader, group)) {
 				N5FSMeta n5fs = new N5FSMeta((N5FSReader) reader, group);
 				final GsonBuilder gsonBuilder = new GsonBuilder().registerTypeHierarchyAdapter(LabelBlockLookup.class, LabelBlockLookupAdapter.getJsonAdapter());
-			final LabelBlockLookup lookup =  Optional
-					.ofNullable( n5fs.reader(gsonBuilder).getAttribute( group, "labelBlockLookup", LabelBlockLookup.class ) )
-					.orElseGet( MakeUnchecked.supplier( () ->  new LabelBlockLookupFromFile(Paths.get(n5fs.basePath(),group, "/", "label-to-block-mapping", "s%d", "%d" ).toString() ) ) )
-					;
-			LOG.debug("Got lookup: {}", lookup);
-			return lookup;
-			} catch (ReflectionException e)
-			{
-				throw new RuntimeException(e);
-			}
+				final Gson gson = gsonBuilder.create();
+				final N5Reader appropriateReader = n5fs.reader(gsonBuilder);
+				final JsonElement labelBlockLookupJson = reader.getAttribute(group, "labelBlockLookup", JsonElement.class);
+				LOG.debug("Got label block lookup json: {}", labelBlockLookupJson);
+				final LabelBlockLookup lookup = Optional
+						.ofNullable(labelBlockLookupJson)
+						.filter(JsonElement::isJsonObject)
+						.map(obj -> gson.fromJson(obj, LabelBlockLookup.class))
+						.orElseGet(MakeUnchecked.supplier(() -> new LabelBlockLookupFromFile(Paths.get(n5fs.basePath(), group, "/", "label-to-block-mapping", "s%d", "%d").toString())));
+				LOG.debug("Got lookup type: {}", lookup.getClass());
+				return lookup;
+			} else
+				return new LabelBlockLookupNotSupportedForNonPainteraDataset();
 		}
-		else
-			return new LabelBlockLookupNotSupportedForNonPainteraDataset();
+		catch (final ReflectionException e)
+		{
+			throw new IOException(e);
+		}
 	}
 
 	@LabelBlockLookup.LookupType("UNSUPPORTED")

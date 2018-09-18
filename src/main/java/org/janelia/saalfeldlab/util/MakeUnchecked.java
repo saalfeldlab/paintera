@@ -1,5 +1,10 @@
 package org.janelia.saalfeldlab.util;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.lang.invoke.MethodHandles;
+import java.nio.file.NoSuchFileException;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import java.util.function.Function;
@@ -7,6 +12,8 @@ import java.util.function.Supplier;
 
 public class MakeUnchecked
 {
+
+	private static Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
 	public static interface CheckedFunction<T, U>
 	{
@@ -32,6 +39,23 @@ public class MakeUnchecked
 			} catch (final Exception e)
 			{
 				return onExcept.apply(t);
+			}
+		};
+	}
+
+	public static <T, U> Function<T, U> function(final CheckedFunction<T, U> func, final Function<T, U> fallback)
+	{
+		return t -> {
+			try
+			{
+				final U val = func.apply(t);
+				LOG.debug("Got val {}", val);
+				return val;
+			}
+			catch (final Exception e)
+			{
+				LOG.debug("Caught exception, using fallback instead.", e);
+				return fallback.apply(t);
 			}
 		};
 	}

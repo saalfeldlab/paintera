@@ -31,6 +31,7 @@ import net.imglib2.FinalInterval;
 import net.imglib2.Interval;
 import net.imglib2.cache.Cache;
 import net.imglib2.cache.CacheLoader;
+import net.imglib2.cache.UncheckedCache;
 import net.imglib2.converter.Converter;
 import net.imglib2.img.cell.CellGrid;
 import net.imglib2.type.logic.BoolType;
@@ -382,7 +383,7 @@ public class MeshManagerWithAssignmentForSegments implements MeshManager<Long, T
 						segmentMaskGenerator,
 						makeCache);
 
-		return new MeshManagerWithAssignmentForSegments(
+		final MeshManagerWithAssignmentForSegments manager = new MeshManagerWithAssignmentForSegments(
 				dataSource,
 				delegateBlockCaches,
 				Stream.of(meshCaches).map(Pair::getA).toArray(InterruptibleFunctionAndCache[]::new),
@@ -394,6 +395,19 @@ public class MeshManagerWithAssignmentForSegments implements MeshManager<Long, T
 				stream,
 				meshManagerExecutors,
 				meshWorkersExecutors);
+		manager.addRefreshMeshesListener(() -> {
+			LOG.debug("Refreshing meshes!");
+			Stream
+					.of(meshCaches)
+					.map(Pair::getB)
+					.forEach(InvalidateAll::invalidateAll);
+			final long[] selection     = selectedIds.getActiveIds();
+			final long   lastSelection = selectedIds.getLastSelection();
+			selectedIds.deactivateAll();
+			selectedIds.activate(selection);
+			selectedIds.activateAlso(lastSelection);
+		});
+		return manager;
 	}
 
 	private static <T, U, V, W> InterruptibleFunction<T, U>[] combineInterruptibleFunctions(

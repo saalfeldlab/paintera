@@ -115,8 +115,6 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 		this.lockedSegments = lockedSegments;
 		this.selectedIds = selectedIds;
 		this.idService = idService;
-		if (dataSource instanceof MaskedSource<?, ?>)
-			((MaskedSource<?, ?>) dataSource).addOnCanvasClearedListener(this::invalidateAllBlockCaches);
 		this.meshManager = meshManager;
 		assignment.addListener(obs -> stain());
 		selectedIds.addListener(obs -> stain());

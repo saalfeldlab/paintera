@@ -338,13 +338,15 @@ public class CacheUtils
 		@SuppressWarnings("unchecked") Pair<InterruptibleFunctionAndCache<ShapeKey<TLongHashSet>,
 				Pair<float[], float[]>>, Invalidate<ShapeKey<TLongHashSet>>>[] caches = new Pair[numMipmapLevels];
 
+		LOG.debug("source is type {}", source.getClass());
 		for (int i = 0; i < numMipmapLevels; ++i)
 		{
+			final int fi = i;
 			final AffineTransform3D transform = new AffineTransform3D();
 			source.getSourceTransform(0, i, transform);
 			final SegmentMeshCacheLoader<D> loader = new SegmentMeshCacheLoader<>(
 					cubeSizes[i],
-					source.getDataSource(0, i),
+					() -> source.getDataSource(0, fi),
 					getMaskGenerator,
 					transform
 			);
