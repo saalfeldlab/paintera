@@ -273,10 +273,6 @@ public class CommitCanvasN5 implements BiConsumer<CachedCellImg<UnsignedLongType
 							targetAttributes.getDimensions(),
 							targetAttributes.getBlockSize()
 					);
-					final CellGrid previousGrid = new CellGrid(
-							previousAttributes.getDimensions(),
-							previousAttributes.getBlockSize()
-					);
 
 					final long[] affectedBlocks = MaskedSource.scaleBlocksToHigherLevel(
 							blocks,
