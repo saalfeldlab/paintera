@@ -1,6 +1,5 @@
 package org.janelia.saalfeldlab.paintera.ui.opendialog.menu.n5;
 
-import bdv.util.volatiles.SharedQueue;
 import javafx.beans.binding.Bindings;
 import javafx.beans.binding.BooleanBinding;
 import javafx.beans.binding.ObjectBinding;
@@ -50,7 +49,6 @@ import org.janelia.saalfeldlab.paintera.composition.CompositeCopy;
 import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignmentState;
 import org.janelia.saalfeldlab.paintera.control.lock.LockedSegmentsOnlyLocal;
 import org.janelia.saalfeldlab.paintera.control.selection.SelectedIds;
-import org.janelia.saalfeldlab.paintera.data.ChannelDataSource;
 import org.janelia.saalfeldlab.paintera.data.DataSource;
 import org.janelia.saalfeldlab.paintera.data.axisorder.AxisOrder;
 import org.janelia.saalfeldlab.paintera.data.mask.Masks;
@@ -59,9 +57,9 @@ import org.janelia.saalfeldlab.paintera.data.n5.N5ChannelDataSource;
 import org.janelia.saalfeldlab.paintera.data.n5.N5Meta;
 import org.janelia.saalfeldlab.paintera.data.n5.VolatileWithSet;
 import org.janelia.saalfeldlab.paintera.id.IdService;
+import org.janelia.saalfeldlab.paintera.meshes.InterruptibleFunction;
 import org.janelia.saalfeldlab.paintera.meshes.MeshManagerWithAssignmentForSegments;
 import org.janelia.saalfeldlab.paintera.state.ChannelSourceState;
-import org.janelia.saalfeldlab.paintera.meshes.InterruptibleFunction;
 import org.janelia.saalfeldlab.paintera.state.LabelSourceState;
 import org.janelia.saalfeldlab.paintera.state.RawSourceState;
 import org.janelia.saalfeldlab.paintera.stream.HighlightingStreamConverter;
@@ -83,6 +81,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
+import java.util.function.IntFunction;
 import java.util.function.Supplier;
 import java.util.stream.IntStream;
 
@@ -508,9 +507,16 @@ public class GenericBackendDialogN5
 		final HighlightingStreamConverter<T> converter = HighlightingStreamConverter.forType(stream, masked.getType());
 
 		final LabelBlockLookup lookup = N5Helpers.getLabelBlockLookup(n5.get(), dataset);
+
+		IntFunction<InterruptibleFunction<Long, Interval[]>> loaderForLevelFactory = level -> InterruptibleFunction.fromFunction(
+				MakeUnchecked.function(
+						id -> lookup.read(level, id),
+						id -> {LOG.warn("Falling back to empty array"); return new Interval[0];}
+		));
+
 		InterruptibleFunction<Long, Interval[]>[] blockLoaders = IntStream
 				.range(0, masked.getNumMipmapLevels())
-				.mapToObj(level -> InterruptibleFunction.fromFunction( MakeUnchecked.function((MakeUnchecked.CheckedFunction<Long, Interval[]>) id -> lookup.read(level, id))))
+				.mapToObj(loaderForLevelFactory)
 				.toArray(InterruptibleFunction[]::new );
 
 		MeshManagerWithAssignmentForSegments meshManager = MeshManagerWithAssignmentForSegments.fromBlockLookup(
