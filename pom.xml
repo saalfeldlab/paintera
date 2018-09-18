@@ -119,6 +119,11 @@
 		<dependency>
 			<groupId>org.janelia.saalfeldlab</groupId>
 			<artifactId>label-utilities</artifactId>
+			<version>0.2.1</version>
+		</dependency>
+		<dependency>
+			<groupId>org.janelia.saalfeldlab</groupId>
+			<artifactId>label-utilities-n5</artifactId>
 			<version>0.1.0</version>
 		</dependency>
 		<dependency>
