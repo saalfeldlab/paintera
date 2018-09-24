@@ -85,9 +85,7 @@ public class CommitCanvasN5 implements BiConsumer<CachedCellImg<UnsignedLongType
 		try
 		{
 			final boolean isPainteraDataset = N5Helpers.isPainteraDataset(n5, this.dataset);
-			final String  dataset           = isPainteraDataset
-			                                  ? this.dataset + "/" + N5Helpers.PAINTERA_DATA_DATASET
-			                                  : this.dataset;
+			final String  dataset           = N5Helpers.volumetricDataGroup(this.dataset, isPainteraDataset);
 			final boolean isMultiscale      = N5Helpers.isMultiScale(n5, dataset);
 
 			final String uniqueLabelsPath        = this.dataset + "/unique-labels";

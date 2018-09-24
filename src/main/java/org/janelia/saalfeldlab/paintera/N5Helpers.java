@@ -1443,6 +1443,13 @@ public class N5Helpers
 		return new CellGrid(attributes.getDimensions(), attributes.getBlockSize());
 	}
 
+	public static String volumetricDataGroup(String group, boolean isPainteraDataset)
+	{
+		return isPainteraDataset
+				? group + "/" + N5Helpers.PAINTERA_DATA_DATASET
+				: group;
+	}
+
 	private static double[] asDoubleArray(long[] array)
 	{
 		final double[] doubleArray = new double[array.length];

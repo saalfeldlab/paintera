@@ -18,4 +18,12 @@ public class N5HelpersTest {
 		Assert.assertEquals(new CellGrid(dims, blockSize), N5Helpers.asCellGrid(attributes));
 	}
 
+	@Test
+	public void testVolumetricDataGroup()
+	{
+		final String group = "some/group";
+		Assert.assertEquals(group, N5Helpers.volumetricDataGroup(group, false));
+		Assert.assertEquals(group + "/" + N5Helpers.PAINTERA_DATA_DATASET, N5Helpers.volumetricDataGroup(group, true));
+	}
+
 }
