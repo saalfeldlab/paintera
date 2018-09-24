@@ -87,8 +87,7 @@ public class CommitCanvasN5 implements BiConsumer<CachedCellImg<UnsignedLongType
 			final boolean isPainteraDataset = N5Helpers.isPainteraDataset(n5, this.dataset);
 			final String  dataset           = N5Helpers.volumetricDataGroup(this.dataset, isPainteraDataset);
 			final boolean isMultiscale      = N5Helpers.isMultiScale(n5, dataset);
-
-			final String uniqueLabelsPath        = this.dataset + "/unique-labels";
+			final String uniqueLabelsPath   = this.dataset + "/unique-labels";
 			LOG.debug("uniqueLabelsPath {}", uniqueLabelsPath);
 
 			final boolean hasUniqueLabels           = n5.exists(uniqueLabelsPath);
@@ -96,9 +95,7 @@ public class CommitCanvasN5 implements BiConsumer<CachedCellImg<UnsignedLongType
 
 			final CellGrid canvasGrid = canvas.getCellGrid();
 
-			final String highestResolutionDataset = isMultiscale ? Paths.get(
-					dataset,
-					N5Helpers.listAndSortScaleDatasets(n5, dataset)[0]).toString() : dataset;
+			final String highestResolutionDataset = N5Helpers.highestResolutionDataset(n5, dataset);
 			final String highestResolutionDatasetUniqueLabels = Paths.get(
 					uniqueLabelsPath,
 					N5Helpers.listAndSortScaleDatasets(n5, uniqueLabelsPath)[0]).toString();

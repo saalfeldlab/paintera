@@ -130,8 +130,6 @@ public class N5Helpers
 
 	private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
-	private static final int MAX_NUM_CACHE_ENTRIES = 100;
-
 	public static class ImagesWithInvalidate<D, T> {
 		public final RandomAccessibleInterval<D> data;
 
@@ -248,7 +246,7 @@ public class N5Helpers
 			case UINT16:
 				return 0xffff;
 			case UINT32:
-				return 0xffffffffl;
+				return 0xffffffffL;
 			case UINT64:
 				return 2.0 * Long.MAX_VALUE;
 			case INT8:
@@ -1411,6 +1409,7 @@ public class N5Helpers
 		return new CellGrid(attributes.getDimensions(), attributes.getBlockSize());
 	}
 
+	@SuppressWarnings("unchecked")
 	public static final <T extends NativeType<T>> T type(final DataType dataType) {
 		switch (dataType) {
 			case INT8:
@@ -1443,10 +1442,24 @@ public class N5Helpers
 		return new CellGrid(attributes.getDimensions(), attributes.getBlockSize());
 	}
 
-	public static String volumetricDataGroup(String group, boolean isPainteraDataset)
+	public static String volumetricDataGroup(final N5Reader reader, String group) throws IOException {
+		return volumetricDataGroup(group, N5Helpers.isPainteraDataset(reader, group));
+	}
+
+	public static String volumetricDataGroup(final String group, final boolean isPainteraDataset)
 	{
 		return isPainteraDataset
 				? group + "/" + N5Helpers.PAINTERA_DATA_DATASET
+				: group;
+	}
+
+	public static String highestResolutionDataset(final N5Reader n5, final String group) throws IOException {
+		return highestResolutionDataset(n5, group, N5Helpers.isMultiScale(n5, group));
+	}
+
+	public static String highestResolutionDataset(final N5Reader n5, final String group, final boolean isMultiscale) throws IOException {
+		return isMultiscale
+				? Paths.get(group, N5Helpers.listAndSortScaleDatasets(n5, group)[0]).toString()
 				: group;
 	}
 
