@@ -47,6 +47,7 @@ import org.janelia.saalfeldlab.n5.N5Writer;
 import org.janelia.saalfeldlab.paintera.N5Helpers;
 import org.janelia.saalfeldlab.paintera.data.mask.MaskedSource;
 import org.janelia.saalfeldlab.util.HashWrapper;
+import org.janelia.saalfeldlab.util.Sets;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -447,14 +448,12 @@ public class CommitCanvasN5 implements BiConsumer<CachedCellImg<UnsignedLongType
 									)
 							             );
 
-							final TLongHashSet wasAdded   = containedInFirstButNotInSecond(
+							final TLongHashSet wasAdded   = Sets.containedInFirstButNotInSecond(
 									mergedContainedLabels,
-									containedLabels
-							                                                              );
-							final TLongHashSet wasRemoved = containedInFirstButNotInSecond(
+									containedLabels);
+							final TLongHashSet wasRemoved = Sets.containedInFirstButNotInSecond(
 									containedLabels,
-									mergedContainedLabels
-							                                                              );
+									mergedContainedLabels);
 
 							LOG.debug(
 									"level={}: Updating label to block mapping for {}. Added:   {}",
@@ -562,22 +561,6 @@ public class CommitCanvasN5 implements BiConsumer<CachedCellImg<UnsignedLongType
 		return currentDataAsSet;
 	}
 
-	private static final TLongHashSet containedInFirstButNotInSecond(
-			final TLongHashSet first,
-			final TLongHashSet second)
-	{
-		final TLongHashSet notInSecond = new TLongHashSet();
-		for (final TLongIterator fIt = first.iterator(); fIt.hasNext(); )
-		{
-			final long p = fIt.next();
-			if (!second.contains(p))
-			{
-				notInSecond.add(p);
-			}
-		}
-		return notInSecond;
-	}
-
 	private static void modifyAndWrite(
 			final LabelBlockLookup labelBlockLookup,
 			final int level,
@@ -607,8 +590,8 @@ public class CommitCanvasN5 implements BiConsumer<CachedCellImg<UnsignedLongType
 				gridPosition
 		                                                             );
 		final TLongHashSet currentDataAsSet  = generateContainedLabelsSet(relevantData);
-		final TLongHashSet wasAdded          = containedInFirstButNotInSecond(currentDataAsSet, previousDataAsSet);
-		final TLongHashSet wasRemoved        = containedInFirstButNotInSecond(previousDataAsSet, currentDataAsSet);
+		final TLongHashSet wasAdded          = Sets.containedInFirstButNotInSecond(currentDataAsSet, previousDataAsSet);
+		final TLongHashSet wasRemoved        = Sets.containedInFirstButNotInSecond(previousDataAsSet, currentDataAsSet);
 
 		final int[] size = uniqueLabelsAttributes.getBlockSize();
 		n5.writeBlock(
