@@ -122,10 +122,7 @@ public class CommitCanvasN5 implements BiConsumer<CachedCellImg<UnsignedLongType
 			                                                                  ? n5.getDatasetAttributes(
 					highestResolutionDatasetUniqueLabels)
 			                                                                  : null;
-			final CellGrid          highestResolutionGrid                   = new CellGrid(
-					highestResolutionAttributes.getDimensions(),
-					highestResolutionAttributes.getBlockSize()
-			);
+			final CellGrid          highestResolutionGrid                   = N5Helpers.asCellGrid(highestResolutionAttributes);
 
 			if (!highestResolutionGrid.equals(canvasGrid))
 			{
@@ -269,10 +266,7 @@ public class CommitCanvasN5 implements BiConsumer<CachedCellImg<UnsignedLongType
 							d -> targetDownsamplingFactors[d] / previousDownsamplingFactors[d]
 					             );
 
-					final CellGrid targetGrid   = new CellGrid(
-							targetAttributes.getDimensions(),
-							targetAttributes.getBlockSize()
-					);
+					final CellGrid targetGrid   = N5Helpers.asCellGrid(targetAttributes);
 
 					final long[] affectedBlocks = MaskedSource.scaleBlocksToHigherLevel(
 							blocks,

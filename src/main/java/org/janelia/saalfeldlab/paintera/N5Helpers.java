@@ -1438,6 +1438,11 @@ public class N5Helpers
 		}
 	}
 
+	public static CellGrid asCellGrid(DatasetAttributes attributes)
+	{
+		return new CellGrid(attributes.getDimensions(), attributes.getBlockSize());
+	}
+
 	private static double[] asDoubleArray(long[] array)
 	{
 		final double[] doubleArray = new double[array.length];
