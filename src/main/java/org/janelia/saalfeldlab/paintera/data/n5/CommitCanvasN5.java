@@ -48,6 +48,7 @@ import org.janelia.saalfeldlab.paintera.N5Helpers;
 import org.janelia.saalfeldlab.paintera.data.mask.MaskedSource;
 import org.janelia.saalfeldlab.util.HashWrapper;
 import org.janelia.saalfeldlab.util.Sets;
+import org.janelia.saalfeldlab.util.math.ArrayMath;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -97,14 +98,12 @@ public class CommitCanvasN5 implements BiConsumer<CachedCellImg<UnsignedLongType
 
 			final CellGrid canvasGrid = canvas.getCellGrid();
 
-			final String highestResolutionDataset             = isMultiscale ? Paths.get(
+			final String highestResolutionDataset = isMultiscale ? Paths.get(
 					dataset,
-					N5Helpers.listAndSortScaleDatasets(n5, dataset)[0]
-			                                                                            ).toString() : dataset;
+					N5Helpers.listAndSortScaleDatasets(n5, dataset)[0]).toString() : dataset;
 			final String highestResolutionDatasetUniqueLabels = Paths.get(
 					uniqueLabelsPath,
-					N5Helpers.listAndSortScaleDatasets(n5, uniqueLabelsPath)[0]
-			                                                             ).toString();
+					N5Helpers.listAndSortScaleDatasets(n5, uniqueLabelsPath)[0]).toString();
 			LOG.debug("highestResolutionDatasetUniqueLabels {}", highestResolutionDatasetUniqueLabels);
 			final LabelBlockLookup labelBlockLoader = N5Helpers.getLabelBlockLookup(n5, this.dataset);
 
@@ -317,13 +316,13 @@ public class CommitCanvasN5 implements BiConsumer<CachedCellImg<UnsignedLongType
 						final long[] blockPositionInTargetGrid = new long[targetGrid.numDimensions()];
 						targetGrid.getCellGridPositionFlat(targetBlock, blockPositionInTargetGrid);
 
-						final long[]   blockMinInTargetGrid = multiplyElementwise3(
+						final long[]   blockMinInTargetGrid = ArrayMath.multiplyElementwise3(
 								blockPositionInTargetGrid,
 								targetBlockSize,
 								new long[3]
 						                                                          );
-						final double[] blockMinDouble       = asDoubleArray3(blockMinInTargetGrid, new double[3]);
-						final double[] blockMaxDouble       = add3(blockMinDouble, targetBlockSize, new double[3]);
+						final double[] blockMinDouble       = ArrayMath.asDoubleArray3(blockMinInTargetGrid, new double[3]);
+						final double[] blockMaxDouble       = ArrayMath.add3(blockMinDouble, targetBlockSize, new double[3]);
 
 						LOG.debug(
 								"level={}: blockMinDouble={} blockMaxDouble={}",
@@ -345,7 +344,7 @@ public class CommitCanvasN5 implements BiConsumer<CachedCellImg<UnsignedLongType
 								(int) (Math.min(blockMaxDouble[1], targetDimensions[1]) - blockMinDouble[1]),
 								(int) (Math.min(blockMaxDouble[2], targetDimensions[2]) - blockMinDouble[2])};
 
-						final long[] blockMaxInTargetGrid = add3(blockMinInTargetGrid, size, new long[3]);
+						final long[] blockMaxInTargetGrid = ArrayMath.add3(blockMinInTargetGrid, size, new long[3]);
 
 						targetToPrevious.apply(blockMinDouble, blockMinDouble);
 						targetToPrevious.apply(blockMaxDouble, blockMaxDouble);
@@ -357,16 +356,16 @@ public class CommitCanvasN5 implements BiConsumer<CachedCellImg<UnsignedLongType
 								blockMaxDouble
 						         );
 
-						final long[] blockMin = minOf3(blockMinDouble, previousDimensions, new long[3]);
-						final long[] blockMax = minOf3(blockMaxDouble, previousDimensions, new long[3]);
+						final long[] blockMin = ArrayMath.minOf3(blockMinDouble, previousDimensions, new long[3]);
+						final long[] blockMax = ArrayMath.minOf3(blockMaxDouble, previousDimensions, new long[3]);
 
 						final long[] previousRelevantIntervalMin = blockMin.clone();
-						final long[] previousRelevantIntervalMax = add3(blockMax, -1, new long[3]);
+						final long[] previousRelevantIntervalMax = ArrayMath.add3(blockMax, -1, new long[3]);
 
-						divide3(blockMin, previousBlockSize, blockMin);
-						divide3(blockMax, previousBlockSize, blockMax);
-						add3(blockMax, -1, blockMax);
-						minOf3(blockMax, blockMin, blockMax);
+						ArrayMath.divide3(blockMin, previousBlockSize, blockMin);
+						ArrayMath.divide3(blockMax, previousBlockSize, blockMax);
+						ArrayMath.add3(blockMax, -1, blockMax);
+						ArrayMath.minOf3(blockMax, blockMin, blockMax);
 
 						LOG.debug(
 								"level={}: Downsampling contained label lists for block {} with min={} max={} in " +
@@ -556,86 +555,6 @@ public class CommitCanvasN5 implements BiConsumer<CachedCellImg<UnsignedLongType
 					wasRemovedIt.next(),
 					set -> set.remove(wrappedInterval));
 		}
-	}
-
-	private static long[] multiplyElementwise3(final long[] factor1, final long[] factor2, final long[] product)
-	{
-		product[0] = factor1[0] * factor2[0];
-		product[1] = factor1[1] * factor2[1];
-		product[2] = factor1[2] * factor2[2];
-		return product;
-	}
-
-	private static long[] multiplyElementwise3(final long[] factor1, final int[] factor2, final long[] product)
-	{
-		product[0] = factor1[0] * factor2[0];
-		product[1] = factor1[1] * factor2[1];
-		product[2] = factor1[2] * factor2[2];
-		return product;
-	}
-
-	private static double[] asDoubleArray3(final long[] source, final double[] target)
-	{
-		target[0] = source[0];
-		target[1] = source[1];
-		target[2] = source[2];
-		return target;
-	}
-
-	private static double[] add3(final double[] summand1, final int[] summand2, final double[] sum)
-	{
-		sum[0] = summand1[0] + summand2[0];
-		sum[1] = summand1[1] + summand2[1];
-		sum[2] = summand1[2] + summand2[2];
-		return sum;
-	}
-
-	private static long[] add3(final long[] summand1, final int[] summand2, final long[] sum)
-	{
-		sum[0] = summand1[0] + summand2[0];
-		sum[1] = summand1[1] + summand2[1];
-		sum[2] = summand1[2] + summand2[2];
-		return sum;
-	}
-
-	private static long[] add3(final long[] summand1, final long summand2, final long[] sum)
-	{
-		sum[0] = summand1[0] + summand2;
-		sum[1] = summand1[1] + summand2;
-		sum[2] = summand1[2] + summand2;
-		return sum;
-	}
-
-	private static long[] divide3(final long[] divident, final long[] divisor, final long[] quotient)
-	{
-		quotient[0] = divident[0] / divisor[0];
-		quotient[1] = divident[1] / divisor[1];
-		quotient[2] = divident[2] / divisor[2];
-		return quotient;
-	}
-
-	private static long[] divide3(final long[] divident, final int[] divisor, final long[] quotient)
-	{
-		quotient[0] = divident[0] / divisor[0];
-		quotient[1] = divident[1] / divisor[1];
-		quotient[2] = divident[2] / divisor[2];
-		return quotient;
-	}
-
-	private static long[] minOf3(final double[] arr1, final long[] arr2, final long[] min)
-	{
-		min[0] = Math.min((long) arr1[0], arr2[0]);
-		min[1] = Math.min((long) arr1[1], arr2[1]);
-		min[2] = Math.min((long) arr1[2], arr2[2]);
-		return min;
-	}
-
-	private static long[] minOf3(final long[] arr1, final long[] arr2, final long[] min)
-	{
-		min[0] = Math.min(arr1[0], arr2[0]);
-		min[1] = Math.min(arr1[1], arr2[1]);
-		min[2] = Math.min(arr1[2], arr2[2]);
-		return min;
 	}
 
 	private static void updateLabelToBlockMapping(
