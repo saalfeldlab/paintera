@@ -18,7 +18,7 @@ import net.imglib2.type.Type;
 import net.imglib2.util.Triple;
 import net.imglib2.util.Util;
 import net.imglib2.view.Views;
-import org.janelia.saalfeldlab.util.n5.N5Helpers;
+import org.janelia.saalfeldlab.util.n5.ImagesWithInvalidate;
 import org.janelia.saalfeldlab.paintera.cache.InvalidateAll;
 import org.janelia.saalfeldlab.paintera.data.axisorder.AxisOrder;
 import org.janelia.saalfeldlab.paintera.data.axisorder.AxisOrderNotSupported;
@@ -167,7 +167,7 @@ public class RandomAccessibleIntervalDataSource<D extends Type<D>, T extends Typ
 	@SuppressWarnings("unchecked")
 	public static <D, T>
 	RandomAccessibleIntervalDataSource.DataWithInvalidate<D, T> asDataWithInvalidate(
-			final N5Helpers.ImagesWithInvalidate<D, T>[] imagesWithInvalidate
+			final ImagesWithInvalidate<D, T>[] imagesWithInvalidate
 	)
 	{
 		RandomAccessibleInterval<T>[] data = Stream.of(imagesWithInvalidate).map(i -> i.data).toArray(RandomAccessibleInterval[]::new);

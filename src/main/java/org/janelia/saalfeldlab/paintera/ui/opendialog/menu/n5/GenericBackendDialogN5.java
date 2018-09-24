@@ -41,6 +41,7 @@ import org.janelia.saalfeldlab.n5.DataType;
 import org.janelia.saalfeldlab.n5.DatasetAttributes;
 import org.janelia.saalfeldlab.n5.N5Reader;
 import org.janelia.saalfeldlab.n5.N5Writer;
+import org.janelia.saalfeldlab.util.n5.N5Data;
 import org.janelia.saalfeldlab.util.n5.N5Helpers;
 import org.janelia.saalfeldlab.paintera.cache.global.GlobalCache;
 import org.janelia.saalfeldlab.paintera.composition.ARGBCompositeAlphaAdd;
@@ -429,7 +430,7 @@ public class GenericBackendDialogN5
 		final double[]             resolution = asPrimitiveArray(resolution());
 		final double[]             offset     = asPrimitiveArray(offset());
 		final AffineTransform3D    transform  = N5Helpers.fromResolutionAndOffset(resolution, offset);
-		final DataSource<T, V>     source     = N5Helpers.openRawAsSource(
+		final DataSource<T, V>     source     = N5Data.openRawAsSource(
 				reader,
 				dataset,
 				transform,
@@ -462,7 +463,7 @@ public class GenericBackendDialogN5
 		final DataSource<D, T>  source;
 		if (N5Types.isLabelMultisetType(reader, dataset))
 		{
-			source = (DataSource) N5Helpers.openLabelMultisetAsSource(
+			source = (DataSource) N5Data.openLabelMultisetAsSource(
 					reader,
 					dataset,
 					transform,
@@ -474,7 +475,7 @@ public class GenericBackendDialogN5
 		}
 		else
 		{
-			source = (DataSource<D, T>) N5Helpers.openScalarAsSource(
+			source = (DataSource<D, T>) N5Data.openScalarAsSource(
 					reader,
 					dataset,
 					transform,

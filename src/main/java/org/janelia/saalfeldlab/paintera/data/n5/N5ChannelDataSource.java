@@ -29,6 +29,8 @@ import net.imglib2.view.composite.CompositeIntervalView;
 import net.imglib2.view.composite.RealComposite;
 import org.janelia.saalfeldlab.n5.N5Reader;
 import org.janelia.saalfeldlab.n5.N5Writer;
+import org.janelia.saalfeldlab.util.n5.ImagesWithInvalidate;
+import org.janelia.saalfeldlab.util.n5.N5Data;
 import org.janelia.saalfeldlab.util.n5.N5Helpers;
 import org.janelia.saalfeldlab.paintera.cache.InvalidateAll;
 import org.janelia.saalfeldlab.paintera.cache.global.GlobalCache;
@@ -125,7 +127,7 @@ public class N5ChannelDataSource<
 			final boolean revertChannelOrder) throws
 			IOException, DataTypeNotSupported {
 
-		final N5Helpers.ImagesWithInvalidate<D, T>[] data = getData(
+		final ImagesWithInvalidate<D, T>[] data = getData(
 				meta.reader(),
 				meta.dataset(),
 				transform,
@@ -168,7 +170,7 @@ public class N5ChannelDataSource<
 			final long channelMax,
 			final boolean revertChannelOrder) throws IOException, DataTypeNotSupported {
 
-		final N5Helpers.ImagesWithInvalidate<D, T>[] data = getData(
+		final ImagesWithInvalidate<D, T>[] data = getData(
 				meta.reader(),
 				meta.dataset(),
 				transform,
@@ -292,7 +294,7 @@ public class N5ChannelDataSource<
 	private static <
 			D extends NativeType<D> & RealType<D>,
 			T extends Volatile<D> & NativeType<T> & RealType<T>>
-	N5Helpers.ImagesWithInvalidate<D, T>[] getData(
+	ImagesWithInvalidate<D, T>[] getData(
 			final N5Reader reader,
 			final String dataset,
 			final AffineTransform3D transform,
@@ -314,8 +316,8 @@ public class N5ChannelDataSource<
 			throw new DataTypeNotSupported("Label multiset data not supported!");
 
 		return isMultiscale
-				? N5Helpers.openRawMultiscale(reader, dataset, transform, globalCache, priority)
-				: new N5Helpers.ImagesWithInvalidate[] {N5Helpers.openRaw(
+				? N5Data.openRawMultiscale(reader, dataset, transform, globalCache, priority)
+				: new ImagesWithInvalidate[] {N5Data.openRaw(
 				reader,
 				dataset,
 				transform,

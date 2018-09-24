@@ -47,7 +47,7 @@ import org.janelia.saalfeldlab.fx.ui.ObjectField;
 import org.janelia.saalfeldlab.fx.ui.SpatialField;
 import org.janelia.saalfeldlab.n5.N5FSReader;
 import org.janelia.saalfeldlab.n5.N5Reader;
-import org.janelia.saalfeldlab.util.n5.N5Helpers;
+import org.janelia.saalfeldlab.util.n5.N5Data;
 import org.janelia.saalfeldlab.paintera.cache.MemoryBoundedSoftRefLoaderCache;
 import org.janelia.saalfeldlab.paintera.cache.global.GlobalCache;
 import org.janelia.saalfeldlab.paintera.data.DataSource;
@@ -203,7 +203,7 @@ public class CreateDataset
 
 				if (name == null || name.equals(""))
 					throw new IOException("Name not specified!");
-				N5Helpers.createEmptyLabeLDataset(
+				N5Data.createEmptyLabeLDataset(
 						container,
 						dataset,
 						dimensions.getAs(new long[3]),
@@ -288,7 +288,7 @@ public class CreateDataset
 		MemoryBoundedSoftRefLoaderCache<GlobalCache.Key<?>, ?, ?> backingCache = MemoryBoundedSoftRefLoaderCache.withWeakRefs(Runtime.getRuntime().maxMemory(), obj -> 0);
 		final N5Reader reader = new N5FSReader(
 				"/home/phil/local/tmp/sample_a_padded_20160501.n5");
-		final DataSource<UnsignedByteType, VolatileUnsignedByteType> raw = N5Helpers.openRawAsSource(
+		final DataSource<UnsignedByteType, VolatileUnsignedByteType> raw = N5Data.openRawAsSource(
 				reader,
 				"volumes/raw/data/s0",
 				tf,

@@ -65,6 +65,7 @@ import org.janelia.saalfeldlab.paintera.stream.HighlightingStreamConverter;
 import org.janelia.saalfeldlab.paintera.stream.ModalGoldenAngleSaturatedHighlightingARGBStream;
 import org.janelia.saalfeldlab.paintera.viewer3d.Viewer3DFX;
 import org.janelia.saalfeldlab.util.MakeUnchecked;
+import org.janelia.saalfeldlab.util.n5.N5Data;
 import org.janelia.saalfeldlab.util.n5.N5Helpers;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -406,7 +407,7 @@ public class Paintera extends Application
 				final String   dataset = split[1];
 				final String   name    = N5Helpers.lastSegmentOfDatasetPath(dataset);
 
-				final DataSource<D, T> source = N5Helpers.openRawAsSource(
+				final DataSource<D, T> source = N5Data.openRawAsSource(
 						reader,
 						dataset,
 						N5Helpers.getTransform(reader, dataset),
@@ -501,7 +502,7 @@ public class Paintera extends Application
 						assignment,
 						lockedSegments
 				);
-				final DataSource<D, T> dataSource = N5Helpers.openAsLabelSource(
+				final DataSource<D, T> dataSource = N5Data.openAsLabelSource(
 						n5,
 						dataset,
 						transform,

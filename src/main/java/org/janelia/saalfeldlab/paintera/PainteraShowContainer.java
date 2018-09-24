@@ -28,6 +28,7 @@ import org.janelia.saalfeldlab.paintera.data.n5.ReflectionException;
 import org.janelia.saalfeldlab.paintera.data.n5.VolatileWithSet;
 import org.janelia.saalfeldlab.paintera.state.ChannelSourceState;
 import org.janelia.saalfeldlab.paintera.state.RawSourceState;
+import org.janelia.saalfeldlab.util.n5.N5Data;
 import org.janelia.saalfeldlab.util.n5.N5Helpers;
 import org.janelia.saalfeldlab.util.n5.N5Types;
 import org.slf4j.Logger;
@@ -181,7 +182,7 @@ public class PainteraShowContainer extends Application {
 			final boolean revertArrayAttributes
 	) throws IOException, ReflectionException, AxisOrderNotSupported {
 		LOG.info("Adding raw source {}", rawMeta);
-		DataSource<T, V> source = N5Helpers.openRawAsSource(
+		DataSource<T, V> source = N5Data.openRawAsSource(
 				rawMeta.reader(),
 				rawMeta.dataset(),
 				N5Helpers.getTransform(rawMeta.reader(), rawMeta.dataset(), revertArrayAttributes),

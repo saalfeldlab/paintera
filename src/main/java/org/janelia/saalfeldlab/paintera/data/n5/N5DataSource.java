@@ -15,6 +15,8 @@ import net.imglib2.type.NativeType;
 import net.imglib2.type.numeric.RealType;
 import org.janelia.saalfeldlab.n5.N5Reader;
 import org.janelia.saalfeldlab.n5.N5Writer;
+import org.janelia.saalfeldlab.util.n5.ImagesWithInvalidate;
+import org.janelia.saalfeldlab.util.n5.N5Data;
 import org.janelia.saalfeldlab.util.n5.N5Helpers;
 import org.janelia.saalfeldlab.paintera.cache.global.GlobalCache;
 import org.janelia.saalfeldlab.paintera.data.RandomAccessibleIntervalDataSource;
@@ -59,7 +61,7 @@ public class N5DataSource<D extends NativeType<D>, T extends Volatile<D> & Nativ
 			final Function<Interpolation, InterpolatorFactory<T, RandomAccessible<T>>> interpolation) throws
 			IOException, AxisOrderNotSupported {
 		super(
-				RandomAccessibleIntervalDataSource.asDataWithInvalidate((N5Helpers.ImagesWithInvalidate<D, T>[])getData(meta.reader(), meta.dataset(), transform, globalCache, priority)),
+				RandomAccessibleIntervalDataSource.asDataWithInvalidate((ImagesWithInvalidate<D, T>[])getData(meta.reader(), meta.dataset(), transform, globalCache, priority)),
 				axisOrder,
 				dataInterpolation,
 				interpolation,
@@ -108,7 +110,7 @@ public class N5DataSource<D extends NativeType<D>, T extends Volatile<D> & Nativ
 
 	@SuppressWarnings({"unchecked", "rawtypes"})
 	private static <D extends NativeType<D>, T extends Volatile<D> & NativeType<T>>
-	N5Helpers.ImagesWithInvalidate<D, T>[] getData(
+	ImagesWithInvalidate<D, T>[] getData(
 			final N5Reader reader,
 			final String dataset,
 			final AffineTransform3D transform,
@@ -125,8 +127,8 @@ public class N5DataSource<D extends NativeType<D>, T extends Volatile<D> & Nativ
 		if (isLabelMultiset)
 		{
 			return isMultiscale
-			       ? (N5Helpers.ImagesWithInvalidate[]) N5Helpers.openLabelMultisetMultiscale(reader, dataset, transform, globalCache, priority)
-			       : new N5Helpers.ImagesWithInvalidate[] {N5Helpers.openLabelMultiset(
+			       ? (ImagesWithInvalidate[]) N5Data.openLabelMultisetMultiscale(reader, dataset, transform, globalCache, priority)
+			       : new ImagesWithInvalidate[] {N5Data.openLabelMultiset(
 					       reader,
 					       dataset,
 					       transform,
@@ -136,8 +138,8 @@ public class N5DataSource<D extends NativeType<D>, T extends Volatile<D> & Nativ
 		else
 		{
 			return isMultiscale
-			       ? N5Helpers.openRawMultiscale(reader, dataset, transform, globalCache, priority)
-			       : new N5Helpers.ImagesWithInvalidate[] {N5Helpers.openRaw(
+			       ? N5Data.openRawMultiscale(reader, dataset, transform, globalCache, priority)
+			       : new ImagesWithInvalidate[] {N5Data.openRaw(
 					       reader,
 					       dataset,
 					       transform,

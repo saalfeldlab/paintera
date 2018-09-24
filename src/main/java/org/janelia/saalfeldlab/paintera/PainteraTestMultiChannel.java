@@ -20,6 +20,7 @@ import org.janelia.saalfeldlab.paintera.data.n5.N5HDF5Meta;
 import org.janelia.saalfeldlab.paintera.data.n5.VolatileWithSet;
 import org.janelia.saalfeldlab.paintera.state.ChannelSourceState;
 import org.janelia.saalfeldlab.paintera.state.RawSourceState;
+import org.janelia.saalfeldlab.util.n5.N5Data;
 import org.janelia.saalfeldlab.util.n5.N5Helpers;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -73,7 +74,7 @@ public class PainteraTestMultiChannel extends Application {
 		LOG.info("num channels: {}", numChannels);
 
 
-		DataSource<FloatType, VolatileFloatType> rawSource = N5Helpers.openRawAsSource(
+		DataSource<FloatType, VolatileFloatType> rawSource = N5Data.openRawAsSource(
 				meta.reader(),
 				raw,
 				N5Helpers.getTransform(meta.reader(), raw, true),
