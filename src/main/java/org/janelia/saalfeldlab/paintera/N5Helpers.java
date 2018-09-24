@@ -4,6 +4,7 @@ import bdv.viewer.Interpolation;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonElement;
+import com.sun.javafx.geom.transform.Affine3D;
 import gnu.trove.map.TLongLongMap;
 import gnu.trove.map.hash.TLongLongHashMap;
 import net.imglib2.Cursor;
@@ -26,6 +27,7 @@ import net.imglib2.realtransform.ScaleAndTranslation;
 import net.imglib2.realtransform.Translation3D;
 import net.imglib2.type.NativeType;
 import net.imglib2.type.label.Label;
+import net.imglib2.type.label.LabelMultiset;
 import net.imglib2.type.label.LabelMultisetType;
 import net.imglib2.type.label.N5CacheLoader;
 import net.imglib2.type.label.VolatileLabelMultisetArray;
@@ -161,6 +163,11 @@ public class N5Helpers
 		}
 	}
 
+	/**
+	 * Check if {@code type} is integer tpye
+	 * @param type {@link DataType}
+	 * @return {@code true} if {@code type} is integer type, false otherwise
+	 */
 	public static boolean isIntegerType(final DataType type)
 	{
 		switch (type)
@@ -179,28 +186,46 @@ public class N5Helpers
 		}
 	}
 
+	/**
+	 * Check if a group is a paintera data set:
+	 * @param n5 {@link N5Reader} container
+	 * @param group to be tested for paintera dataset
+	 * @return {@code true} if {@code group} exists and has attribute {@code painteraData}.
+	 * @throws IOException if any N5 operation throws {@link IOException}
+	 */
 	public static boolean isPainteraDataset(final N5Reader n5, final String group) throws IOException
 	{
 		return n5.exists(group) && n5.listAttributes(group).containsKey(PAINTERA_DATA_KEY);
 	}
 
-	public static boolean isMultiScale(final N5Reader n5, final String dataset) throws IOException
+	/**
+	 * Determine if a group is multiscale.
+	 * @param n5 {@link N5Reader} container
+	 * @param group to be tested for multiscale
+	 * @return {@code true} if {@code group} exists and is not a dataset and has attribute "multiScale": true,
+	 * or (legacy) all children are groups following the regex pattern {@code "$s[0-9]+^"}, {@code false} otherwise.
+	 * @throws IOException if any N5 operation throws {@link IOException}
+	 */
+	public static boolean isMultiScale(final N5Reader n5, final String group) throws IOException
 	{
+
+		if (!n5.exists(group) || n5.datasetExists(group))
+			return false;
+
 		/* based on attribute */
-		boolean isMultiScale = Optional.ofNullable(n5.getAttribute(dataset, MULTI_SCALE_KEY, Boolean.class)).orElse(
-				false);
+		boolean isMultiScale = Optional.ofNullable(n5.getAttribute(group, MULTI_SCALE_KEY, Boolean.class)).orElse(false);
 
 		/*
 		 * based on groupd content (the old way) TODO conider removing as
 		 * multi-scale declaration by attribute becomes part of the N5 spec.
 		 */
-		if (!isMultiScale && !n5.datasetExists(dataset))
+		if (!isMultiScale && !n5.datasetExists(group))
 		{
-			final String[] groups = n5.list(dataset);
-			isMultiScale = groups.length > 0;
-			for (final String group : groups)
+			final String[] subGroups = n5.list(group);
+			isMultiScale = subGroups.length > 0;
+			for (final String subGroup : subGroups)
 			{
-				if (!(group.matches("^s[0-9]+$") && n5.datasetExists(dataset + "/" + group)))
+				if (!(subGroup.matches("^s[0-9]+$") && n5.datasetExists(group + "/" + subGroup)))
 				{
 					isMultiScale = false;
 					break;
@@ -221,18 +246,44 @@ public class N5Helpers
 		return isMultiScale;
 	}
 
-	public static boolean isLabelMultisetType(final N5Reader n5, final String dataset, final boolean isMultiscale)
+	/**
+	 * Determine if a group contains {@link LabelMultisetType} data.
+	 *
+	 * @param n5 {@link N5Reader} container
+	 * @param group to be tested for {@link LabelMultisetType} data.
+	 * @param isMultiscale whether or not {@code group} is multi-scale
+	 * @return {@code} true if {@code group} (or first scale dataset if {@code isMultiscale == true})
+	 * has attribute {@code "isLabelMutliset": true}, {@code false} otherwise.
+	 * @throws IOException if any N5 operation throws {@link IOException}
+	 */
+	public static boolean isLabelMultisetType(final N5Reader n5, final String group, final boolean isMultiscale)
 	throws IOException
 	{
-		return isMultiscale && isLabelMultisetType(n5, getFinestLevel(n5, dataset))
-				|| Optional.ofNullable(n5.getAttribute(dataset, IS_LABEL_MULTISET_KEY, Boolean.class)).orElse(false);
+		return isMultiscale
+		 	? isLabelMultisetType(n5, getFinestLevel(n5, group))
+			: Optional.ofNullable(n5.getAttribute(group, IS_LABEL_MULTISET_KEY, Boolean.class)).orElse(false);
 	}
 
-	public static boolean isLabelMultisetType(final N5Reader n5, final String dataset) throws IOException
+
+	/**
+	 * Determine if a group contains {@link LabelMultisetType} data.
+	 *
+	 * @param n5 {@link N5Reader} container
+	 * @param group to be tested for {@link LabelMultisetType} data.
+	 * @return {@code} true if {@code group} has attribute {@code "isLabelMutliset": true},
+	 * {@code false} otherwise.
+	 * @throws IOException if any N5 operation throws {@link IOException}
+	 */
+	public static boolean isLabelMultisetType(final N5Reader n5, final String group) throws IOException
 	{
-		return Optional.ofNullable(n5.getAttribute(dataset, IS_LABEL_MULTISET_KEY, Boolean.class)).orElse(false);
+		return Optional.ofNullable(n5.getAttribute(group, IS_LABEL_MULTISET_KEY, Boolean.class)).orElse(false);
 	}
 
+	/**
+	 * Get appropriate min value for {@link DataType}
+	 * @param t {@link DataType}
+	 * @return {@code 0.0}
+	 */
 	public static double minForType(final DataType t)
 	{
 		// TODO ever return non-zero here?
@@ -243,6 +294,12 @@ public class N5Helpers
 		}
 	}
 
+
+	/**
+	 * Get appropriate max value for {@link DataType}
+	 * @param t {@link DataType}
+	 * @return 1.0 for floating point, otherwise the max integer value that can be represented with {@code t}, cast to double.
+	 */
 	public static double maxForType(final DataType t)
 	{
 		switch (t)
@@ -271,6 +328,14 @@ public class N5Helpers
 		}
 	}
 
+	/**
+	 * List all scale datasets within {@code group}
+	 * @param n5 {@link N5Reader} container
+	 * @param group contains scale directories
+	 * @return list of all contained scale datasets, relative to {@code group},
+	 * e.g. for a structure {@code "group/{s0,s1}"} this would return {@code {"s0", "s1"}}.
+	 * @throws IOException if any N5 operation throws {@link IOException}
+	 */
 	public static String[] listScaleDatasets(final N5Reader n5, final String group) throws IOException
 	{
 		final String[] scaleDirs = Arrays
@@ -291,6 +356,15 @@ public class N5Helpers
 		return scaleDirs;
 	}
 
+
+	/**
+	 * List and sort all scale datasets within {@code group}
+	 * @param n5 {@link N5Reader} container
+	 * @param group contains scale directories
+	 * @return sorted list of all contained scale datasets, relative to {@code group},
+	 * e.g. for a structure {@code "group/{s0,s1}"} this would return {@code {"s0", "s1"}}.
+	 * @throws IOException if any N5 operation throws {@link IOException}
+	 */
 	public static String[] listAndSortScaleDatasets(final N5Reader n5, final String group) throws IOException
 	{
 		final String[] scaleDirs = listScaleDatasets(n5, group);
@@ -300,6 +374,13 @@ public class N5Helpers
 		return scaleDirs;
 	}
 
+	/**
+	 *
+	 * @param n5 {@link N5Reader} container
+	 * @param group multi-scale group, dataset, or paintera dataset
+	 * @return {@link DataType} found in appropriate {@code attributes.json}
+	 * @throws IOException if any N5 operation throws {@link IOException}
+	 */
 	public static DataType getDataType(final N5Reader n5, final String group) throws IOException
 	{
 		LOG.debug("Getting data type for group/dataset {}", group);
@@ -308,6 +389,13 @@ public class N5Helpers
 		return n5.getDatasetAttributes(group).getDataType();
 	}
 
+	/**
+	 *
+	 * @param n5 {@link N5Reader} container
+	 * @param group multi-scale group, dataset, or paintera dataset
+	 * @return {@link DatasetAttributes} found in appropriate {@code attributes.json}
+	 * @throws IOException if any N5 operation throws {@link IOException}
+	 */
 	public static DatasetAttributes getDatasetAttributes(final N5Reader n5, final String group) throws IOException
 	{
 		LOG.debug("Getting data type for group/dataset {}", group);
@@ -316,28 +404,59 @@ public class N5Helpers
 		return n5.getDatasetAttributes(group);
 	}
 
+	/**
+	 * Sort scale datasets numerically by removing all non-number characters during comparison.
+	 * @param scaleDatasets list of scale datasets
+	 */
 	public static void sortScaleDatasets(final String[] scaleDatasets)
 	{
 		Arrays.sort(scaleDatasets, Comparator.comparingInt(s -> Integer.parseInt(s.replaceAll("[^\\d]", ""))));
 	}
 
+	/**
+	 *
+	 * @param base path to directory or h5 file
+	 * @param defaultCellDimensions default cell dimensions (only required for h5 readers)
+	 * @return appropriate {@link N5Reader} for file system or h5 access
+	 * @throws IOException if any N5 operation throws {@link IOException}
+	 */
 	public static N5Reader n5Reader(final String base, final int... defaultCellDimensions) throws IOException
 	{
 		return isHDF(base) ? new N5HDF5Reader(base, defaultCellDimensions) : new N5FSReader(base);
 	}
 
-	public static N5Reader n5Reader(final String base, final GsonBuilder gsonBuilder, final int...
-			defaultCellDimensions)
+	/**
+	 *
+	 * @param base path to directory or h5 file
+	 * @param defaultCellDimensions default cell dimensions (only required for h5 readers)
+	 * @return appropriate {@link N5Reader} with custom {@link GsonBuilder} for file system or h5 access
+	 * @throws IOException if any N5 operation throws {@link IOException}
+	 */
+	public static N5Reader n5Reader(final String base, final GsonBuilder gsonBuilder, final int... defaultCellDimensions)
 	throws IOException
 	{
 		return isHDF(base) ? new N5HDF5Reader(base, defaultCellDimensions) : new N5FSReader(base, gsonBuilder);
 	}
 
+	/**
+	 *
+	 * @param base path to directory or h5 file
+	 * @param defaultCellDimensions default cell dimensions (only required for h5 readers)
+	 * @return appropriate {@link N5Writer} for file system or h5 access
+	 * @throws IOException if any N5 operation throws {@link IOException}
+	 */
 	public static N5Writer n5Writer(final String base, final int... defaultCellDimensions) throws IOException
 	{
 		return isHDF(base) ? new N5HDF5Writer(base, defaultCellDimensions) : new N5FSWriter(base);
 	}
 
+	/**
+	 *
+	 * @param base path to directory or h5 file
+	 * @param defaultCellDimensions default cell dimensions (only required for h5 readers)
+	 * @return appropriate {@link N5Writer} with custom {@link GsonBuilder} for file system or h5 access
+	 * @throws IOException if any N5 operation throws {@link IOException}
+	 */
 	public static N5Writer n5Writer(final String base, final GsonBuilder gsonBuilder, final int...
 			defaultCellDimensions)
 	throws IOException
@@ -345,12 +464,24 @@ public class N5Helpers
 		return isHDF(base) ? new N5HDF5Writer(base, defaultCellDimensions) : new N5FSWriter(base, gsonBuilder);
 	}
 
+	/**
+	 * Generate {@link N5Meta} from base path
+	 * @param base base path of n5 container
+	 * @param dataset dataset
+	 * @param defaultCellDimensions default cell dimensions (only required for h5 readers)
+	 * @return appropriate {@link N5Meta} object for file system or h5 access
+	 */
 	@SuppressWarnings("unused")
 	public static N5Meta metaData(final String base, final String dataset, final int... defaultCellDimensions)
 	{
 		return isHDF(base) ? new N5HDF5Meta(base, dataset, defaultCellDimensions, false) : new N5FSMeta(base, dataset);
 	}
 
+	/**
+	 *
+	 * @param base path
+	 * @return {@code true} if {@code base} starts with "h5://" or ends with ".hdf5" or ".h5"
+	 */
 	public static boolean isHDF(final String base)
 	{
 		LOG.debug("Checking {} for HDF", base);
@@ -359,6 +490,16 @@ public class N5Helpers
 		return isHDF;
 	}
 
+	/**
+	 * Find all datasets inside an n5 container
+	 * A dataset is any one of:
+	 *   - N5 dataset
+	 *   - multi-sclae group
+	 *   - paintera dataset
+	 * @param n5 container
+	 * @param onInterruption run this action when interrupted
+	 * @return List of all contained datasets (paths wrt to the root of the container)
+	 */
 	public static List<String> discoverDatasets(final N5Reader n5, final Runnable onInterruption)
 	{
 		final List<String> datasets = new ArrayList<>();
@@ -469,6 +610,17 @@ public class N5Helpers
 		LOG.debug("leaving {}, {} threads remaining", pathName, numThreads);
 	}
 
+	/**
+	 *
+	 * @param reader container
+	 * @param dataset dataset
+	 * @param globalCache {@link GlobalCache} to create sub-cache for this dataset
+	 * @param priority in fetching queue
+	 * @param <T> data type
+	 * @param <V> viewer type
+	 * @return image data and cache invalidation
+	 * @throws IOException if any N5 operation throws {@link IOException}
+	 */
 	@SuppressWarnings("unused")
 	public static <T extends NativeType<T>, V extends Volatile<T> & NativeType<V>>
 	ImagesWithInvalidate<T, V> openRaw(
@@ -487,6 +639,20 @@ public class N5Helpers
 		              );
 	}
 
+	/**
+	 *
+	 * @param reader container
+	 * @param dataset dataset
+	 * @param transform transforms voxel data into real world coordinates
+	 * @param axisOrder set axis order for this data
+	 * @param globalCache {@link GlobalCache} to create sub-cache for this dataset
+	 * @param priority in fetching queue
+	 * @param name initialize with this name
+	 * @param <T> data type
+	 * @param <V> viewer type
+	 * @return {@link DataSource}
+	 * @throws IOException if any N5 operation throws {@link IOException}
+	 */
 	public static <T extends NativeType<T> & RealType<T>, V extends Volatile<T> & NativeType<V> & RealType<V>>
 	DataSource<T, V> openRawAsSource(
 			final N5Reader reader,
@@ -513,6 +679,20 @@ public class N5Helpers
 		                         );
 	}
 
+	/**
+	 *
+	 * @param reader container
+	 * @param dataset dataset
+	 * @param transform transforms voxel data into real world coordinates
+	 * @param axisOrder set axis order for this data
+	 * @param globalCache {@link GlobalCache} to create sub-cache for this dataset
+	 * @param priority in fetching queue
+	 * @param name initialize with this name
+	 * @param <T> data type
+	 * @param <V> viewer type
+	 * @return {@link DataSource}
+	 * @throws IOException if any N5 operation throws {@link IOException}
+	 */
 	public static <T extends NativeType<T>, V extends Volatile<T> & NativeType<V>>
 	DataSource<T, V> openScalarAsSource(
 			final N5Reader reader,
@@ -535,6 +715,22 @@ public class N5Helpers
 		                         );
 	}
 
+	/**
+	 *
+	 * @param reader container
+	 * @param dataset dataset
+	 * @param transform transforms voxel data into real world coordinates
+	 * @param axisOrder set axis order for this data
+	 * @param globalCache {@link GlobalCache} to create sub-cache for this dataset
+	 * @param priority in fetching queue
+	 * @param dataInterpolation interpolator factory for data
+	 * @param interpolation interpolator factory for viewer data
+	 * @param name initialize with this name
+	 * @param <T> data type
+	 * @param <V> viewer type
+	 * @return {@link DataSource}
+	 * @throws IOException if any N5 operation throws {@link IOException}
+	 */
 	public static <T extends NativeType<T>, V extends Volatile<T> & NativeType<V>>
 	DataSource<T, V> openScalarAsSource(
 			final N5Reader reader,
@@ -560,6 +756,18 @@ public class N5Helpers
 		);
 	}
 
+	/**
+	 *
+	 * @param reader container
+	 * @param dataset dataset
+	 * @param transform transforms voxel data into real world coordinates
+	 * @param globalCache {@link GlobalCache} to create sub-cache for this dataset
+	 * @param priority in fetching queue
+	 * @param <T> data type
+	 * @param <V> viewer type
+	 * @return {@link DataSource}
+	 * @throws IOException if any N5 operation throws {@link IOException}
+	 */
 	@SuppressWarnings("unused")
 	public static <T extends NativeType<T>, V extends Volatile<T> & NativeType<V>>
 	ImagesWithInvalidate<T, V>[] openScalar(
@@ -594,6 +802,19 @@ public class N5Helpers
 		return openRaw(reader, dataset, transform, globalCache, priority);
 	}
 
+
+	/**
+	 *
+	 * @param reader container
+	 * @param dataset dataset
+	 * @param transform transforms voxel data into real world coordinates
+	 * @param globalCache {@link GlobalCache} to create sub-cache for this dataset
+	 * @param priority in fetching queue
+	 * @param <T> data type
+	 * @param <V> viewer type
+	 * @return image data with cache invalidation
+	 * @throws IOException if any N5 operation throws {@link IOException}
+	 */
 	@SuppressWarnings("unchecked")
 	public static <T extends NativeType<T>, V extends Volatile<T> & NativeType<V>, A extends ArrayDataAccess<A>>
 	ImagesWithInvalidate<T, V> openRaw(
@@ -617,6 +838,17 @@ public class N5Helpers
 		}
 	}
 
+	/**
+	 *
+	 * @param reader container
+	 * @param dataset dataset
+	 * @param globalCache {@link GlobalCache} to create sub-cache for this dataset
+	 * @param priority in fetching queue
+	 * @param <T> data type
+	 * @param <V> viewer type
+	 * @return multi-scale image data with cache invalidation
+	 * @throws IOException if any N5 operation throws {@link IOException}
+	 */
 	@SuppressWarnings("unused")
 	public static <T extends NativeType<T>, V extends Volatile<T> & NativeType<V>>
 	ImagesWithInvalidate<T, V>[] openRawMultiscale(
@@ -636,6 +868,19 @@ public class N5Helpers
 
 	}
 
+	/**
+	 *
+	 * @param reader container
+	 * @param dataset dataset
+	 * @param resolution voxel resolution
+	 * @param offset offset in real world coordinates
+	 * @param globalCache {@link GlobalCache} to create sub-cache for this dataset
+	 * @param priority in fetching queue
+	 * @param <T> data type
+	 * @param <V> viewer type
+	 * @return multi-scale image data with cache invalidation
+	 * @throws IOException if any N5 operation throws {@link IOException}
+	 */
 	public static <T extends NativeType<T>, V extends Volatile<T> & NativeType<V>>
 	ImagesWithInvalidate<T, V>[] openRawMultiscale(
 			final N5Reader reader,
@@ -700,6 +945,19 @@ public class N5Helpers
 		return imagesWithInvalidate;
 	}
 
+
+	/**
+	 *
+	 * @param reader container
+	 * @param dataset dataset
+	 * @param transform transforms voxel data into real world coordinates
+	 * @param axisOrder set axis order for this data
+	 * @param globalCache {@link GlobalCache} to create sub-cache for this dataset
+	 * @param priority in fetching queue
+	 * @param name initialize with this name
+	 * @return {@link DataSource}
+	 * @throws IOException if any N5 operation throws {@link IOException}
+	 */
 	public static DataSource<LabelMultisetType, VolatileLabelMultisetType>
 	openLabelMultisetAsSource(
 			final N5Reader reader,
@@ -721,6 +979,16 @@ public class N5Helpers
 		);
 	}
 
+
+	/**
+	 *
+	 * @param reader container
+	 * @param dataset dataset
+	 * @param globalCache {@link GlobalCache} to create sub-cache for this dataset
+	 * @param priority in fetching queue
+	 * @return image data with cache invalidation
+	 * @throws IOException if any N5 operation throws {@link IOException}
+	 */
 	@SuppressWarnings("unused")
 	public static ImagesWithInvalidate<LabelMultisetType, VolatileLabelMultisetType> openLabelMutliset(
 			final N5Reader reader,
@@ -738,6 +1006,17 @@ public class N5Helpers
 		                        );
 	}
 
+	/**
+	 *
+	 * @param reader container
+	 * @param dataset dataset
+	 * @param resolution voxel size
+	 * @param offset in world coordinates
+	 * @param globalCache {@link GlobalCache} to create sub-cache for this dataset
+	 * @param priority in fetching queue
+	 * @return image data with cache invalidation
+	 * @throws IOException if any N5 operation throws {@link IOException}
+	 */
 	public static ImagesWithInvalidate<LabelMultisetType, VolatileLabelMultisetType> openLabelMutliset(
 			final N5Reader reader,
 			final String dataset,
@@ -798,6 +1077,16 @@ public class N5Helpers
 
 	}
 
+
+	/**
+	 *
+	 * @param reader container
+	 * @param dataset dataset
+	 * @param globalCache {@link GlobalCache} to create sub-cache for this dataset
+	 * @param priority in fetching queue
+	 * @return multi-scale image data with cache invalidation
+	 * @throws IOException if any N5 operation throws {@link IOException}
+	 */
 	@SuppressWarnings("unused")
 	public static ImagesWithInvalidate<LabelMultisetType, VolatileLabelMultisetType>[] openLabelMultisetMultiscale(
 			final N5Reader reader,
@@ -815,6 +1104,17 @@ public class N5Helpers
 		                                  );
 	}
 
+	/**
+	 *
+	 * @param reader container
+	 * @param dataset dataset
+	 * @param resolution voxel size
+	 * @param offset in world coordinates
+	 * @param globalCache {@link GlobalCache} to create sub-cache for this dataset
+	 * @param priority in fetching queue
+	 * @return multi-scale image data with cache invalidation
+	 * @throws IOException if any N5 operation throws {@link IOException}
+	 */
 	public static ImagesWithInvalidate<LabelMultisetType, VolatileLabelMultisetType>[] openLabelMultisetMultiscale(
 			final N5Reader reader,
 			final String dataset,
@@ -838,6 +1138,17 @@ public class N5Helpers
 		                                  );
 	}
 
+
+	/**
+	 *
+	 * @param reader container
+	 * @param dataset dataset
+	 * @param transform from voxel space to world coordinates
+	 * @param globalCache {@link GlobalCache} to create sub-cache for this dataset
+	 * @param priority in fetching queue
+	 * @return multi-scale image data with cache invalidation
+	 * @throws IOException if any N5 operation throws {@link IOException}
+	 */
 	@SuppressWarnings("unchecked")
 	public static ImagesWithInvalidate<LabelMultisetType, VolatileLabelMultisetType>[] openLabelMultisetMultiscale(
 			final N5Reader reader,
@@ -887,6 +1198,20 @@ public class N5Helpers
 		return imagesWithInvalidate;
 	}
 
+	/**
+	 *
+	 * @param reader container
+	 * @param dataset dataset
+	 * @param transform transforms voxel data into real world coordinates
+	 * @param axisOrder set axis order for this data
+	 * @param globalCache {@link GlobalCache} to create sub-cache for this dataset
+	 * @param priority in fetching queue
+	 * @param name initialize with this name
+	 * @param <D> data type
+	 * @param <T> viewer type
+	 * @return {@link DataSource}
+	 * @throws IOException if any N5 operation throws {@link IOException}
+	 */
 	@SuppressWarnings("unchecked")
 	public static <D extends NativeType<D>, T extends NativeType<T>> DataSource<D, T>
 	openAsLabelSource(
@@ -902,6 +1227,13 @@ public class N5Helpers
 		       : (DataSource<D, T>) openScalarAsSource(reader, dataset, transform, axisOrder, globalCache, priority, name);
 	}
 
+	/**
+	 * Adjust {@link AffineTransform3D} by scaling and translating appropriately.
+	 * @param transform to be adjusted wrt to downsampling factors
+	 * @param downsamplingFactors at target level
+	 * @param initialDownsamplingFactors at source level
+	 * @return adjusted {@link AffineTransform3D}
+	 */
 	public static AffineTransform3D considerDownsampling(
 			final AffineTransform3D transform,
 			final double[] downsamplingFactors,
@@ -916,6 +1248,13 @@ public class N5Helpers
 		return transform.concatenate(new Translation3D(shift));
 	}
 
+	/**
+	 * Get appropriate {@link FragmentSegmentAssignmentState} for {@code group} in n5 container {@code writer}
+	 * @param writer container
+	 * @param group group
+	 * @return {@link FragmentSegmentAssignmentState}
+	 * @throws IOException if any n5 operation throws {@link IOException}
+	 */
 	public static FragmentSegmentAssignmentState assignments(final N5Writer writer, final String group)
 	throws IOException
 	{
@@ -1007,6 +1346,14 @@ public class N5Helpers
 		return new FragmentSegmentAssignmentOnlyLocal(initialLutSupplier, persister);
 	}
 
+	/**
+	 * Get id-service for n5 {@code container} and {@code dataset}.
+	 * Requires write access on the attributes of {@code dataset} and attribute {@code "maxId": <maxId>} in {@code dataset}.
+	 * @param n5 container
+	 * @param dataset dataset
+	 * @return {@link N5IdService}
+	 * @throws IOException If no attribute {@code "maxId": <maxId>} in {@code dataset} or any n5 operation throws.
+	 */
 	public static IdService idService(final N5Writer n5, final String dataset) throws IOException
 	{
 
@@ -1018,35 +1365,68 @@ public class N5Helpers
 
 	}
 
+	/**
+	 *
+	 * @param n5 container
+	 * @param group scale group
+	 * @return {@code "group/s0"} if {@code "s0" is the finest scale level}
+	 * @throws IOException if any n5 operation throws {@link IOException}
+	 */
 	public static String getFinestLevel(
 			final N5Reader n5,
-			final String dataset) throws IOException
+			final String group) throws IOException
 	{
-		LOG.debug("Getting finest level for dataset {}", dataset);
-		final String[] scaleDirs = listAndSortScaleDatasets(n5, dataset);
-		return Paths.get(dataset, scaleDirs[0]).toString();
+		LOG.debug("Getting finest level for dataset {}", group);
+		final String[] scaleDirs = listAndSortScaleDatasets(n5, group);
+		return Paths.get(group, scaleDirs[0]).toString();
 	}
 
+	/**
+	 *
+	 * @param n5 container
+	 * @param group scale group
+	 * @return {@code "group/sN"} if {@code "sN" is the coarsest scale level}
+	 * @throws IOException if any n5 operation throws {@link IOException}
+	 */
 	public static String getCoarsestLevel(
 			final N5Reader n5,
-			final String dataset) throws IOException
+			final String group) throws IOException
 	{
-		final String[] scaleDirs = listAndSortScaleDatasets(n5, dataset);
-		return Paths.get(dataset, scaleDirs[scaleDirs.length - 1]).toString();
+		final String[] scaleDirs = listAndSortScaleDatasets(n5, group);
+		return Paths.get(group, scaleDirs[scaleDirs.length - 1]).toString();
 	}
 
+	/**
+	 *
+	 * @param n5 container
+	 * @param group group
+	 * @param key key for array attribute
+	 * @param fallBack if key not present, return this value instead
+	 * @return value of attribute at {@code key} as {@code double[]}
+	 * @throws IOException if any n5 operation throws {@link IOException}
+	 */
 	public static double[] getDoubleArrayAttribute(
 			final N5Reader n5,
-			final String dataset,
+			final String group,
 			final String key,
 			final double... fallBack) throws IOException
 	{
-		return getDoubleArrayAttribute(n5, dataset, key, false, fallBack);
+		return getDoubleArrayAttribute(n5, group, key, false, fallBack);
 	}
 
+	/**
+	 *
+	 * @param n5 container
+	 * @param group group
+	 * @param key key for array attribute
+	 * @param revert set to {@code true} to revert order of array entries
+	 * @param fallBack if key not present, return this value instead
+	 * @return value of attribute at {@code key} as {@code double[]}
+	 * @throws IOException if any n5 operation throws {@link IOException}
+	 */
 	public static double[] getDoubleArrayAttribute(
 			final N5Reader n5,
-			final String dataset,
+			final String group,
 			final String key,
 			final boolean revert,
 			final double... fallBack)
@@ -1055,7 +1435,7 @@ public class N5Helpers
 
 		if (revert)
 		{
-			final double[] toRevert = getDoubleArrayAttribute(n5, dataset, key, false, fallBack);
+			final double[] toRevert = getDoubleArrayAttribute(n5, group, key, false, fallBack);
 			LOG.debug("Will revert {}", toRevert);
 			for ( int i = 0, k = toRevert.length - 1; i < toRevert.length / 2; ++i, --k)
 			{
@@ -1067,142 +1447,140 @@ public class N5Helpers
 			return toRevert;
 		}
 
-		if (isPainteraDataset(n5, dataset))
+		if (isPainteraDataset(n5, group))
 		{
 			//noinspection ConstantConditions
-			return getDoubleArrayAttribute(n5, dataset + "/" + PAINTERA_DATA_DATASET, key, revert, fallBack);
+			return getDoubleArrayAttribute(n5, group + "/" + PAINTERA_DATA_DATASET, key, revert, fallBack);
 		}
 		try {
-			return Optional.ofNullable(n5.getAttribute(dataset, key, double[].class)).orElse(fallBack);
+			return Optional.ofNullable(n5.getAttribute(group, key, double[].class)).orElse(fallBack);
 		}
 		catch (ClassCastException e)
 		{
 			LOG.debug("Caught exception when trying to read double[] attribute. Will try to read as long[] attribute instead.", e);
-			return Optional.ofNullable(asDoubleArray(n5.getAttribute(dataset, key, long[].class))).orElse(fallBack);
+			return Optional.ofNullable(asDoubleArray(n5.getAttribute(group, key, long[].class))).orElse(fallBack);
 		}
 	}
 
 
-	public static double[] getResolution(final N5Reader n5, final String dataset) throws IOException
+	/**
+	 *
+	 * @param n5 container
+	 * @param group group
+	 * @return value of attribute at {@code "resolution"} as {@code double[]}
+	 * @throws IOException if any n5 operation throws {@link IOException}
+	 */
+	public static double[] getResolution(final N5Reader n5, final String group) throws IOException
 	{
-		return getResolution(n5, dataset, false);
+		return getResolution(n5, group, false);
 	}
 
-	public static double[] getResolution(final N5Reader n5, final String dataset, boolean revert) throws IOException
+	/**
+	 *
+	 * @param n5 container
+	 * @param group group
+	 * @param revert set to {@code true} to revert order of array entries
+	 * @return value of attribute at {@code "resolution"} as {@code double[]}
+	 * @throws IOException if any n5 operation throws {@link IOException}
+	 */
+	public static double[] getResolution(final N5Reader n5, final String group, boolean revert) throws IOException
 	{
-		return getDoubleArrayAttribute(n5, dataset, RESOLUTION_KEY, revert, 1.0, 1.0, 1.0);
+		return getDoubleArrayAttribute(n5, group, RESOLUTION_KEY, revert, 1.0, 1.0, 1.0);
 	}
 
-	public static double[] getOffset(final N5Reader n5, final String dataset) throws IOException
+	/**
+	 *
+	 * @param n5 container
+	 * @param group group
+	 * @return value of attribute at {@code "offset"} as {@code double[]}
+	 * @throws IOException if any n5 operation throws {@link IOException}
+	 */
+	public static double[] getOffset(final N5Reader n5, final String group) throws IOException
 	{
-		return getOffset(n5, dataset, false);
+		return getOffset(n5, group, false);
 	}
 
-	public static double[] getOffset(final N5Reader n5, final String dataset, boolean revert) throws IOException
+	/**
+	 *
+	 * @param n5 container
+	 * @param group group
+	 * @param revert set to {@code true} to revert order of array entries
+	 * @return value of attribute at {@code "offset"} as {@code double[]}
+	 * @throws IOException if any n5 operation throws {@link IOException}
+	 */
+	public static double[] getOffset(final N5Reader n5, final String group, boolean revert) throws IOException
 	{
-		return getDoubleArrayAttribute(n5, dataset, OFFSET_KEY, revert,0.0, 0.0, 0.0);
+		return getDoubleArrayAttribute(n5, group, OFFSET_KEY, revert,0.0, 0.0, 0.0);
 	}
 
-	public static double[] getDownsamplingFactors(final N5Reader n5, final String dataset) throws IOException
+	/**
+	 *
+	 * @param n5 container
+	 * @param group group
+	 * @return value of attribute at {@code "downsamplingFactors"} as {@code double[]}
+	 * @throws IOException if any n5 operation throws {@link IOException}
+	 */
+	public static double[] getDownsamplingFactors(final N5Reader n5, final String group) throws IOException
 	{
-		return getDoubleArrayAttribute(n5, dataset, DOWNSAMPLING_FACTORS_KEY, 1.0, 1.0, 1.0);
+		return getDoubleArrayAttribute(n5, group, DOWNSAMPLING_FACTORS_KEY, 1.0, 1.0, 1.0);
 	}
 
+	/**
+	 *
+	 * @param resolution voxel-size
+	 * @param offset in real-world coordinates
+	 * @return {@link AffineTransform3D} with {@code resolution} on diagonal and {@code offset} on 4th column.
+	 */
 	public static AffineTransform3D fromResolutionAndOffset(final double[] resolution, final double[] offset)
 	{
 		return new AffineTransform3D().concatenate(new ScaleAndTranslation(resolution, offset));
 	}
 
-	public static AffineTransform3D getTransform(final N5Reader n5, final String dataset) throws IOException
+	/**
+	 *
+	 * @param n5 container
+	 * @param group group
+	 * @return {@link AffineTransform3D} that transforms voxel space to real world coordinate space.
+	 * @throws IOException if any n5 operation throws {@link IOException}
+	 */
+	public static AffineTransform3D getTransform(final N5Reader n5, final String group) throws IOException
 	{
-		return getTransform(n5, dataset, false);
+		return getTransform(n5, group, false);
 	}
 
-	public static AffineTransform3D getTransform(final N5Reader n5, final String dataset, boolean revertSpatialAttributes) throws IOException
+	/**
+	 *
+	 * @param n5 container
+	 * @param group group
+	 * @param revertSpatialAttributes revert offset and resolution attributes if {@code true}
+	 * @return {@link AffineTransform3D} that transforms voxel space to real world coordinate space.
+	 * @throws IOException if any n5 operation throws {@link IOException}
+	 */
+	public static AffineTransform3D getTransform(final N5Reader n5, final String group, boolean revertSpatialAttributes) throws IOException
 	{
-		return fromResolutionAndOffset(getResolution(n5, dataset, revertSpatialAttributes), getOffset(n5, dataset, revertSpatialAttributes));
+		return fromResolutionAndOffset(getResolution(n5, group, revertSpatialAttributes), getOffset(n5, group, revertSpatialAttributes));
 	}
 
-	public static String lastSegmentOfDatasetPath(final String dataset)
+	/**
+	 * Return the last segment of a path to a group/dataset in n5 container (absolute or relative)
+	 * @param group /some/path/to/group
+	 * @return last segment of {@code group}: {@code "group"}
+	 */
+	public static String lastSegmentOfDatasetPath(final String group)
 	{
-		return Paths.get(dataset).getFileName().toString();
+		return Paths.get(group).getFileName().toString();
 	}
 
-	@SuppressWarnings("unused")
-	public static String labelMappingFromFileBasePath(final N5Reader reader, final String dataset)
-			throws IOException, ReflectionException
-	{
-		if(!isPainteraDataset(reader, dataset))
-		{
-			return null;
-		}
-
-		final N5FSMeta meta     = new N5FSMeta((N5FSReader) reader, dataset);
-		return Paths.get(
-				meta.basePath(),
-				dataset,
-				LABEL_TO_BLOCK_MAPPING
-		).toAbsolutePath().toString();
-	}
-
-	@SuppressWarnings("unused")
-	public static String[] labelMappingFromFileLoaderPattern(final N5Reader reader, final String dataset)
-	throws IOException, ReflectionException
-	{
-		if (!isPainteraDataset(reader, dataset))
-		{
-			if (isMultiScale(reader, dataset))
-			{
-				return Stream.generate(() -> null).limit(N5Helpers.listScaleDatasets(reader, dataset).length).toArray(
-						String[]::new);
-			}
-			else
-			{
-				return new String[] {null};
-			}
-		}
-
-		if (!(reader instanceof N5FSReader))
-		{
-			if (isMultiScale(reader, dataset + "/data"))
-			{
-				final String[] sortedScaleDirs = listAndSortScaleDatasets(reader, dataset + "/data");
-				return Arrays
-						.stream(sortedScaleDirs)
-						.map(ssd -> (String) null)
-						.toArray(String[]::new);
-			}
-			else
-			{
-				return new String[] {null};
-			}
-		}
-
-		final N5FSMeta meta = new N5FSMeta((N5FSReader) reader, dataset);
-		final String basePath = Paths.get(
-				meta.basePath(),
-				dataset,
-				LABEL_TO_BLOCK_MAPPING
-		                                 ).toAbsolutePath().toString();
-		if (isMultiScale(reader, dataset + "/data"))
-		{
-			final String[] sortedScaleDirs = listAndSortScaleDatasets(reader, dataset + "/data");
-			return Arrays
-					.stream(sortedScaleDirs)
-					.map(ssd -> Paths.get(basePath, ssd, "%d"))
-					.map(Path::toAbsolutePath)
-					.map(Path::toString)
-					.toArray(String[]::new);
-		}
-		else
-		{
-			return new String[] {basePath + "/%d"};
-		}
-
-	}
-
+	/**
+	 *
+	 * @param reader container
+	 * @param group needs to be paitnera dataset to return meaningful lookup
+	 * @return unsupported lookup if {@code is not a paintera dataset}, {@link LabelBlockLookup} otherwise.
+	 * @throws IOException if any n5 operation throws {@link IOException}
+	 */
 	public static LabelBlockLookup getLabelBlockLookup(N5Reader reader, String group) throws IOException
 	{
+		// TODO fix this, we don't always want to return file-based lookup!!!
 		try {
 			LOG.debug("Getting label block lookup for {}", N5Meta.fromReader(reader, group));
 			if (reader instanceof N5FSReader && isPainteraDataset(reader, group)) {
@@ -1260,6 +1638,19 @@ public class N5Helpers
 		}
 	}
 
+	/**
+	 *
+	 * @param container container
+	 * @param group target group in {@code container}
+	 * @param dimensions size
+	 * @param blockSize chunk size
+	 * @param resolution voxel size
+	 * @param offset in world coordinates
+	 * @param relativeScaleFactors relative scale factors for multi-scale data, e.g.
+	 * {@code [2,2,1], [2,2,2]} will result in absolute factors {@code [1,1,1], [2,2,1], [4,4,2]}.
+	 * @param maxNumEntries limit number of entries in each {@link LabelMultiset} (set to less than or equal to zero for unbounded)
+	 * @throws IOException if any n5 operation throws {@link IOException}
+	 */
 	public static void createEmptyLabeLDataset(
 			String container,
 			String group,
@@ -1268,12 +1659,26 @@ public class N5Helpers
 			double[] resolution,
 			double[] offset,
 			double[][] relativeScaleFactors,
-			int[] maxNumEntries
-	                                          ) throws IOException
+			int[] maxNumEntries) throws IOException
 	{
 		createEmptyLabeLDataset(container, group, dimensions, blockSize, resolution, offset,relativeScaleFactors, maxNumEntries, false);
 	}
 
+	/**
+	 *
+	 * @param container container
+	 * @param group target group in {@code container}
+	 * @param dimensions size
+	 * @param blockSize chunk size
+	 * @param resolution voxel size
+	 * @param offset in world coordinates
+	 * @param relativeScaleFactors relative scale factors for multi-scale data, e.g.
+	 * {@code [2,2,1], [2,2,2]} will result in absolute factors {@code [1,1,1], [2,2,1], [4,4,2]}.
+	 * @param maxNumEntries limit number of entries in each {@link LabelMultiset} (set to less than or equal to zero for unbounded)
+	 * @param ignoreExisiting overwrite any existing data set
+	 * @throws IOException if any n5 operation throws {@link IOException} or {@code group}
+	 * already exists and {@code ignorExisting} is {@code false}
+	 */
 	public static void createEmptyLabeLDataset(
 			String container,
 			String group,
@@ -1283,8 +1688,7 @@ public class N5Helpers
 			double[] offset,
 			double[][] relativeScaleFactors,
 			int[] maxNumEntries,
-			boolean ignoreExisiting
-	                                          ) throws IOException
+			boolean ignoreExisiting) throws IOException
 	{
 
 		//		{"painteraData":{"type":"label"},
@@ -1361,11 +1765,23 @@ public class N5Helpers
 		}
 	}
 
+	/**
+	 *
+	 * @param reader container
+	 * @param dataset dataset
+	 * @return {@link CellGrid} that is equivalent to dimensions and block size of dataset
+	 * @throws IOException if any n5 operation throws {@link IOException}
+	 */
 	public static CellGrid getGrid(N5Reader reader, final String dataset) throws IOException {
-		DatasetAttributes attributes = reader.getDatasetAttributes(dataset);
-		return new CellGrid(attributes.getDimensions(), attributes.getBlockSize());
+		return asCellGrid(reader.getDatasetAttributes(dataset));
 	}
 
+	/**
+	 *
+	 * @param dataType N5 {@link DataType}
+	 * @param <T> {@link NativeType}
+	 * @return appropriate {@link NativeType} for {@code dataType}
+	 */
 	@SuppressWarnings("unchecked")
 	public static <T extends NativeType<T>> T type(final DataType dataType) {
 		switch (dataType) {
@@ -1394,11 +1810,23 @@ public class N5Helpers
 		}
 	}
 
+
+	/**
+	 *
+	 * @param attributes attributes
+	 * @return {@link CellGrid} that is equivalent to dimensions and block size of {@code attributes}
+	 */
 	public static CellGrid asCellGrid(DatasetAttributes attributes)
 	{
 		return new CellGrid(attributes.getDimensions(), attributes.getBlockSize());
 	}
 
+	/**
+	 *
+	 * @param group dataset, multi-scale group, or paintera dataset
+	 * @param isPainteraDataset set to {@code true} if {@code group} is paintera data set
+	 * @return multi-scale group or n5 dataset
+	 */
 	public static String volumetricDataGroup(final String group, final boolean isPainteraDataset)
 	{
 		return isPainteraDataset
@@ -1406,10 +1834,24 @@ public class N5Helpers
 				: group;
 	}
 
+	/**
+	 *
+	 * @param n5 container
+	 * @param group  multi-scale group
+	 * @return {@code group} if {@code group} is n5 dataset, {@code group/s0} if {@code group} is multi-scale
+	 */
 	public static String highestResolutionDataset(final N5Reader n5, final String group) throws IOException {
 		return highestResolutionDataset(n5, group, N5Helpers.isMultiScale(n5, group));
 	}
 
+
+	/**
+	 *
+	 * @param n5 container
+	 * @param group  multi-scale group
+	 * @param isMultiscale set to true if {@code group} is multi-scale
+	 * @return {@code group} if {@code group} is n5 dataset, {@code group/s0} if {@code isMultiscale} is {@code true}
+	 */
 	public static String highestResolutionDataset(final N5Reader n5, final String group, final boolean isMultiscale) throws IOException {
 		return isMultiscale
 				? Paths.get(group, N5Helpers.listAndSortScaleDatasets(n5, group)[0]).toString()

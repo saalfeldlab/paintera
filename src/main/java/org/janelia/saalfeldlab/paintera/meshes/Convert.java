@@ -29,9 +29,9 @@ public class Convert
 	 * Convert a set of triangles defined by three vertices each into a reduced list of vertices and a LUT from vertex
 	 * index to triangle index and from triangle index to vertex index.
 	 *
-	 * @param triangles
+	 * @param triangles triangles
 	 *
-	 * @return
+	 * @return ([vertices], [vertex-triangle-lookup], [triangle-vertex-lut])
 	 */
 	public static Triple<TFloatArrayList, ArrayList<TIntHashSet>, ArrayList<TIntArrayList>> convertToLUT(
 			final float[] triangles)
@@ -87,7 +87,7 @@ public class Convert
 				triangleIndices.add(triangleIndex);
 			}
 		}
-		return new ValueTriple<TFloatArrayList, ArrayList<TIntHashSet>, ArrayList<TIntArrayList>>(
+		return new ValueTriple<>(
 				vertices,
 				vertexTriangleLUT,
 				triangleVertexLUT
@@ -95,10 +95,10 @@ public class Convert
 	}
 
 	/**
-	 * @param vertices
-	 * @param triangleVertexLUT
+	 * @param vertices vertices
+	 * @param triangleVertexLUT triangleVertexLUT
 	 *
-	 * @return
+	 * @return vertices
 	 */
 	public static float[] convertFromLUT(
 			final TFloatArrayList vertices,
@@ -122,12 +122,12 @@ public class Convert
 	}
 
 	/**
-	 * Convert vertex to triangle and triangel to vertex lookups into a vertex to vertex lookup of all edges.
+	 * Convert vertex to triangle and triangle to vertex lookups into a vertex to vertex lookup of all edges.
 	 *
-	 * @param vertexTriangleLUT
-	 * @param triangleVertexLUT
+	 * @param vertexTriangleLUT vertexTriangleLUT
+	 * @param triangleVertexLUT triangleVertexLUT
 	 *
-	 * @return
+	 * @return vertex to edge lookup
 	 */
 	public static ArrayList<TIntHashSet> convertToEdgeSets(
 			final ArrayList<TIntHashSet> vertexTriangleLUT,
