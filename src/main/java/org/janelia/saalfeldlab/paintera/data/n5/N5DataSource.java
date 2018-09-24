@@ -1,14 +1,11 @@
 package org.janelia.saalfeldlab.paintera.data.n5;
 
 import java.io.IOException;
-import java.util.Arrays;
 import java.util.function.Function;
-import java.util.stream.Stream;
 
 import bdv.viewer.Interpolation;
 import com.google.gson.annotations.Expose;
 import net.imglib2.RandomAccessible;
-import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.Volatile;
 import net.imglib2.interpolation.InterpolatorFactory;
 import net.imglib2.interpolation.randomaccess.NLinearInterpolatorFactory;
@@ -16,11 +13,9 @@ import net.imglib2.interpolation.randomaccess.NearestNeighborInterpolatorFactory
 import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.type.NativeType;
 import net.imglib2.type.numeric.RealType;
-import net.imglib2.util.Triple;
 import org.janelia.saalfeldlab.n5.N5Reader;
 import org.janelia.saalfeldlab.n5.N5Writer;
 import org.janelia.saalfeldlab.paintera.N5Helpers;
-import org.janelia.saalfeldlab.paintera.cache.InvalidateAll;
 import org.janelia.saalfeldlab.paintera.cache.global.GlobalCache;
 import org.janelia.saalfeldlab.paintera.data.RandomAccessibleIntervalDataSource;
 import org.janelia.saalfeldlab.paintera.data.axisorder.AxisOrder;
@@ -130,7 +125,7 @@ public class N5DataSource<D extends NativeType<D>, T extends Volatile<D> & Nativ
 		{
 			return isMultiscale
 			       ? (N5Helpers.ImagesWithInvalidate[]) N5Helpers.openLabelMultisetMultiscale(reader, dataset, transform, globalCache, priority)
-			       : new N5Helpers.ImagesWithInvalidate[] {N5Helpers.openLabelMutliset(
+			       : new N5Helpers.ImagesWithInvalidate[] {N5Helpers.openLabelMultiset(
 					       reader,
 					       dataset,
 					       transform,

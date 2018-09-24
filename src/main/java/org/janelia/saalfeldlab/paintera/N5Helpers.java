@@ -4,7 +4,6 @@ import bdv.viewer.Interpolation;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonElement;
-import com.sun.javafx.geom.transform.Affine3D;
 import gnu.trove.map.TLongLongMap;
 import gnu.trove.map.hash.TLongLongHashMap;
 import net.imglib2.Cursor;
@@ -88,7 +87,6 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.lang.invoke.MethodHandles;
-import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -107,7 +105,6 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Function;
 import java.util.function.Supplier;
 import java.util.regex.Pattern;
-import java.util.stream.Stream;
 
 public class N5Helpers
 {
@@ -253,7 +250,7 @@ public class N5Helpers
 	 * @param group to be tested for {@link LabelMultisetType} data.
 	 * @param isMultiscale whether or not {@code group} is multi-scale
 	 * @return {@code} true if {@code group} (or first scale dataset if {@code isMultiscale == true})
-	 * has attribute {@code "isLabelMutliset": true}, {@code false} otherwise.
+	 * has attribute {@code "isLabelMultiset": true}, {@code false} otherwise.
 	 * @throws IOException if any N5 operation throws {@link IOException}
 	 */
 	public static boolean isLabelMultisetType(final N5Reader n5, final String group, final boolean isMultiscale)
@@ -270,7 +267,7 @@ public class N5Helpers
 	 *
 	 * @param n5 {@link N5Reader} container
 	 * @param group to be tested for {@link LabelMultisetType} data.
-	 * @return {@code} true if {@code group} has attribute {@code "isLabelMutliset": true},
+	 * @return {@code} true if {@code group} has attribute {@code "isLabelMultiset": true},
 	 * {@code false} otherwise.
 	 * @throws IOException if any N5 operation throws {@link IOException}
 	 */
@@ -990,13 +987,13 @@ public class N5Helpers
 	 * @throws IOException if any N5 operation throws {@link IOException}
 	 */
 	@SuppressWarnings("unused")
-	public static ImagesWithInvalidate<LabelMultisetType, VolatileLabelMultisetType> openLabelMutliset(
+	public static ImagesWithInvalidate<LabelMultisetType, VolatileLabelMultisetType> openLabelMultiset(
 			final N5Reader reader,
 			final String dataset,
 			final GlobalCache globalCache,
 			final int priority) throws IOException
 	{
-		return openLabelMutliset(
+		return openLabelMultiset(
 				reader,
 				dataset,
 				getResolution(reader, dataset),
@@ -1017,7 +1014,7 @@ public class N5Helpers
 	 * @return image data with cache invalidation
 	 * @throws IOException if any N5 operation throws {@link IOException}
 	 */
-	public static ImagesWithInvalidate<LabelMultisetType, VolatileLabelMultisetType> openLabelMutliset(
+	public static ImagesWithInvalidate<LabelMultisetType, VolatileLabelMultisetType> openLabelMultiset(
 			final N5Reader reader,
 			final String dataset,
 			final double[] resolution,
@@ -1031,10 +1028,10 @@ public class N5Helpers
 				0, resolution[1], 0, offset[1],
 				0, 0, resolution[2], offset[2]
 		             );
-		return openLabelMutliset(reader, dataset, transform, globalCache, priority);
+		return openLabelMultiset(reader, dataset, transform, globalCache, priority);
 	}
 
-	public static ImagesWithInvalidate<LabelMultisetType, VolatileLabelMultisetType> openLabelMutliset(
+	public static ImagesWithInvalidate<LabelMultisetType, VolatileLabelMultisetType> openLabelMultiset(
 			final N5Reader reader,
 			final String dataset,
 			final AffineTransform3D transform,
@@ -1182,7 +1179,7 @@ public class N5Helpers
 			futures.add(es.submit(MakeUnchecked.supplier(() -> {
 				LOG.debug("Populating scale level {}", fScale);
 				final String scaleDataset = Paths.get(dataset, scaleDatasets[fScale]).toString();
-				imagesWithInvalidate[fScale] = openLabelMutliset(reader, scaleDataset, transform.copy(), globalCache, priority);
+				imagesWithInvalidate[fScale] = openLabelMultiset(reader, scaleDataset, transform.copy(), globalCache, priority);
 				final double[] downsamplingFactors = getDownsamplingFactors(reader, scaleDataset);
 				LOG.debug("Read downsampling factors: {}", Arrays.toString(downsamplingFactors));
 				imagesWithInvalidate[fScale].transform.set(considerDownsampling(
