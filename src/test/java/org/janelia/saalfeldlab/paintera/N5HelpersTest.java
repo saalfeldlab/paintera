@@ -18,6 +18,12 @@ import java.lang.invoke.MethodHandles;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Arrays;
+import java.util.Collections;
+import java.util.HashSet;
+import java.util.List;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.janelia.saalfeldlab.paintera.N5Helpers.listAndSortScaleDatasets;
 
@@ -42,7 +48,7 @@ public class N5HelpersTest {
 		Assert.assertEquals(group + "/" + N5Helpers.PAINTERA_DATA_DATASET, N5Helpers.volumetricDataGroup(group, true));
 	}
 
-	@Test public void testIsMulitscale() throws IOException {
+	@Test public void testIsMultiscale() throws IOException {
 		final N5Writer writer = fileSystemWriterAtTmpDir();
 		final String group = "group";
 		writer.createGroup(group);
@@ -102,6 +108,24 @@ public class N5HelpersTest {
 		dir.deleteOnExit();
 		final N5FSWriter writer = new N5FSWriter(tmp.toAbsolutePath().toString());
 		return writer;
+	}
+
+	@Test public void testDiscoverDatasets() throws IOException {
+		final N5Writer writer = fileSystemWriterAtTmpDir();
+		final String group = "group";
+		writer.createGroup(group);
+		writer.setAttribute(group, N5Helpers.MULTI_SCALE_KEY, true);
+		final DatasetAttributes attrs = new DatasetAttributes(new long[]{1}, new int[]{1}, DataType.UINT8, new RawCompression());
+		writer.createDataset(group + "/s0", attrs);
+		writer.createDataset(group + "/s1", attrs);
+		writer.createDataset(group + "/s2", attrs);
+		writer.createGroup("some_group");
+		writer.createDataset("some_group/two", attrs);
+		final List<String> groups = N5Helpers.discoverDatasets(writer, () -> {});
+		Collections.sort(groups);
+		LOG.debug("Got groups {}", groups);
+		Assert.assertEquals(Arrays.asList("/group", "/some_group/two"), groups);
+
 	}
 
 }
