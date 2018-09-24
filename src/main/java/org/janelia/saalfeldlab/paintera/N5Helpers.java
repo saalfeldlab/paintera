@@ -13,6 +13,7 @@ import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -543,7 +544,7 @@ public class N5Helpers
 
 		LOG.debug("Creating N5 Data source from {} {}", reader, dataset);
 		return new N5DataSource<>(
-				N5Meta.fromReader(reader, dataset),
+				Objects.requireNonNull(N5Meta.fromReader(reader, dataset)),
 				transform,
 				axisOrder,
 				globalCache,
