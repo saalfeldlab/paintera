@@ -34,6 +34,7 @@ import org.janelia.saalfeldlab.paintera.cache.InvalidateAll;
 import org.janelia.saalfeldlab.paintera.cache.global.GlobalCache;
 import org.janelia.saalfeldlab.paintera.data.ChannelDataSource;
 import org.janelia.saalfeldlab.paintera.data.RandomAccessibleIntervalDataSource;
+import org.janelia.saalfeldlab.util.n5.N5Types;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -308,7 +309,7 @@ public class N5ChannelDataSource<
 					priority);
 		}
 		final boolean isMultiscale = N5Helpers.isMultiScale(reader, dataset);
-		final boolean isLabelMultiset = N5Helpers.isLabelMultisetType(reader, dataset, isMultiscale);
+		final boolean isLabelMultiset = N5Types.isLabelMultisetType(reader, dataset, isMultiscale);
 		if (isLabelMultiset)
 			throw new DataTypeNotSupported("Label multiset data not supported!");
 

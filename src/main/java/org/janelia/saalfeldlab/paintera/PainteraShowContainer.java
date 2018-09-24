@@ -29,6 +29,7 @@ import org.janelia.saalfeldlab.paintera.data.n5.VolatileWithSet;
 import org.janelia.saalfeldlab.paintera.state.ChannelSourceState;
 import org.janelia.saalfeldlab.paintera.state.RawSourceState;
 import org.janelia.saalfeldlab.util.n5.N5Helpers;
+import org.janelia.saalfeldlab.util.n5.N5Types;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import picocli.CommandLine;
@@ -158,7 +159,7 @@ public class PainteraShowContainer extends Application {
 			LOG.debug("Got paintera info {} for group {}", painteraInfo, group);
 			return painteraInfo.get("type").getAsString().equals("label");
 		}
-		return N5Helpers.isLabelMultisetType(reader, group) || reader.getDatasetAttributes(group).getDataType().equals(DataType.UINT64);
+		return N5Types.isLabelMultisetType(reader, group) || reader.getDatasetAttributes(group).getDataType().equals(DataType.UINT64);
 	}
 
 	private static int getNumDimensions(N5Reader n5, String dataset) throws IOException {

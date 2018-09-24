@@ -67,6 +67,7 @@ import org.janelia.saalfeldlab.paintera.stream.ModalGoldenAngleSaturatedHighligh
 import org.janelia.saalfeldlab.paintera.ui.opendialog.DatasetInfo;
 import org.janelia.saalfeldlab.paintera.ui.opendialog.meta.ChannelInformation;
 import org.janelia.saalfeldlab.util.MakeUnchecked;
+import org.janelia.saalfeldlab.util.n5.N5Types;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -266,19 +267,19 @@ public class GenericBackendDialogN5
 
 			this.datasetAttributes.set(N5Helpers.getDatasetAttributes(n5, group));
 
-			final DataType dataType = N5Helpers.getDataType(n5, group);
+			final DataType dataType = N5Types.getDataType(n5, group);
 
 			this.datasetInfo.minProperty().set(Optional.ofNullable(n5.getAttribute(
 					group,
 					MIN_KEY,
 					Double.class
-			                                                                      )).orElse(N5Helpers.minForType(
+			                                                                      )).orElse(N5Types.minForType(
 					dataType)));
 			this.datasetInfo.maxProperty().set(Optional.ofNullable(n5.getAttribute(
 					group,
 					MAX_KEY,
 					Double.class
-			                                                                      )).orElse(N5Helpers.maxForType(
+			                                                                      )).orElse(N5Types.maxForType(
 					dataType)));
 		} catch (final IOException e)
 		{
@@ -459,7 +460,7 @@ public class GenericBackendDialogN5
 		final double[]          offset     = asPrimitiveArray(offset());
 		final AffineTransform3D transform  = N5Helpers.fromResolutionAndOffset(resolution, offset);
 		final DataSource<D, T>  source;
-		if (N5Helpers.isLabelMultisetType(reader, dataset))
+		if (N5Types.isLabelMultisetType(reader, dataset))
 		{
 			source = (DataSource) N5Helpers.openLabelMultisetAsSource(
 					reader,
@@ -594,7 +595,7 @@ public class GenericBackendDialogN5
 
 	public boolean isIntegerType() throws Exception
 	{
-		return N5Helpers.isIntegerType(getDataType());
+		return N5Types.isIntegerType(getDataType());
 	}
 
 	public BiConsumer<CachedCellImg<UnsignedLongType, ?>, long[]> commitCanvas()

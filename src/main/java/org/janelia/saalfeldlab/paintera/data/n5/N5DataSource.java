@@ -20,6 +20,7 @@ import org.janelia.saalfeldlab.paintera.cache.global.GlobalCache;
 import org.janelia.saalfeldlab.paintera.data.RandomAccessibleIntervalDataSource;
 import org.janelia.saalfeldlab.paintera.data.axisorder.AxisOrder;
 import org.janelia.saalfeldlab.paintera.data.axisorder.AxisOrderNotSupported;
+import org.janelia.saalfeldlab.util.n5.N5Types;
 
 public class N5DataSource<D extends NativeType<D>, T extends Volatile<D> & NativeType<T>>
 		extends RandomAccessibleIntervalDataSource<D, T>
@@ -92,7 +93,7 @@ public class N5DataSource<D extends NativeType<D>, T extends Volatile<D> & Nativ
 	interpolation(final N5Reader n5, final String dataset)
 	throws IOException
 	{
-		return N5Helpers.isLabelMultisetType(n5, dataset)
+		return N5Types.isLabelMultisetType(n5, dataset)
 		       ? i -> new NearestNeighborInterpolatorFactory<>()
 		       : (Function) realTypeInterpolation();
 	}
@@ -119,7 +120,7 @@ public class N5DataSource<D extends NativeType<D>, T extends Volatile<D> & Nativ
 			return getData(reader, dataset + "/" + N5Helpers.PAINTERA_DATA_DATASET, transform, globalCache, priority);
 		}
 		final boolean isMultiscale = N5Helpers.isMultiScale(reader, dataset);
-		final boolean isLabelMultiset = N5Helpers.isLabelMultisetType(reader, dataset, isMultiscale);
+		final boolean isLabelMultiset = N5Types.isLabelMultisetType(reader, dataset, isMultiscale);
 
 		if (isLabelMultiset)
 		{

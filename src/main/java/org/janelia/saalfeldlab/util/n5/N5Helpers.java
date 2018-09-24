@@ -32,16 +32,7 @@ import net.imglib2.type.label.N5CacheLoader;
 import net.imglib2.type.label.VolatileLabelMultisetArray;
 import net.imglib2.type.label.VolatileLabelMultisetType;
 import net.imglib2.type.numeric.RealType;
-import net.imglib2.type.numeric.integer.ByteType;
-import net.imglib2.type.numeric.integer.IntType;
-import net.imglib2.type.numeric.integer.LongType;
-import net.imglib2.type.numeric.integer.ShortType;
-import net.imglib2.type.numeric.integer.UnsignedByteType;
-import net.imglib2.type.numeric.integer.UnsignedIntType;
 import net.imglib2.type.numeric.integer.UnsignedLongType;
-import net.imglib2.type.numeric.integer.UnsignedShortType;
-import net.imglib2.type.numeric.real.DoubleType;
-import net.imglib2.type.numeric.real.FloatType;
 import net.imglib2.util.Pair;
 import net.imglib2.util.Triple;
 import net.imglib2.view.Views;
@@ -161,29 +152,6 @@ public class N5Helpers
 	}
 
 	/**
-	 * Check if {@code type} is integer tpye
-	 * @param type {@link DataType}
-	 * @return {@code true} if {@code type} is integer type, false otherwise
-	 */
-	public static boolean isIntegerType(final DataType type)
-	{
-		switch (type)
-		{
-			case INT8:
-			case INT16:
-			case INT32:
-			case INT64:
-			case UINT8:
-			case UINT16:
-			case UINT32:
-			case UINT64:
-				return true;
-			default:
-				return false;
-		}
-	}
-
-	/**
 	 * Check if a group is a paintera data set:
 	 * @param n5 {@link N5Reader} container
 	 * @param group to be tested for paintera dataset
@@ -243,87 +211,6 @@ public class N5Helpers
 		return isMultiScale;
 	}
 
-	/**
-	 * Determine if a group contains {@link LabelMultisetType} data.
-	 *
-	 * @param n5 {@link N5Reader} container
-	 * @param group to be tested for {@link LabelMultisetType} data.
-	 * @param isMultiscale whether or not {@code group} is multi-scale
-	 * @return {@code} true if {@code group} (or first scale dataset if {@code isMultiscale == true})
-	 * has attribute {@code "isLabelMultiset": true}, {@code false} otherwise.
-	 * @throws IOException if any N5 operation throws {@link IOException}
-	 */
-	public static boolean isLabelMultisetType(final N5Reader n5, final String group, final boolean isMultiscale)
-	throws IOException
-	{
-		return isMultiscale
-		 	? isLabelMultisetType(n5, getFinestLevel(n5, group))
-			: Optional.ofNullable(n5.getAttribute(group, IS_LABEL_MULTISET_KEY, Boolean.class)).orElse(false);
-	}
-
-
-	/**
-	 * Determine if a group contains {@link LabelMultisetType} data.
-	 *
-	 * @param n5 {@link N5Reader} container
-	 * @param group to be tested for {@link LabelMultisetType} data.
-	 * @return {@code} true if {@code group} has attribute {@code "isLabelMultiset": true},
-	 * {@code false} otherwise.
-	 * @throws IOException if any N5 operation throws {@link IOException}
-	 */
-	public static boolean isLabelMultisetType(final N5Reader n5, final String group) throws IOException
-	{
-		return Optional.ofNullable(n5.getAttribute(group, IS_LABEL_MULTISET_KEY, Boolean.class)).orElse(false);
-	}
-
-	/**
-	 * Get appropriate min value for {@link DataType}
-	 * @param t {@link DataType}
-	 * @return {@code 0.0}
-	 */
-	public static double minForType(final DataType t)
-	{
-		// TODO ever return non-zero here?
-		switch (t)
-		{
-			default:
-				return 0.0;
-		}
-	}
-
-
-	/**
-	 * Get appropriate max value for {@link DataType}
-	 * @param t {@link DataType}
-	 * @return 1.0 for floating point, otherwise the max integer value that can be represented with {@code t}, cast to double.
-	 */
-	public static double maxForType(final DataType t)
-	{
-		switch (t)
-		{
-			case UINT8:
-				return 0xff;
-			case UINT16:
-				return 0xffff;
-			case UINT32:
-				return 0xffffffffL;
-			case UINT64:
-				return 2.0 * Long.MAX_VALUE;
-			case INT8:
-				return Byte.MAX_VALUE;
-			case INT16:
-				return Short.MAX_VALUE;
-			case INT32:
-				return Integer.MAX_VALUE;
-			case INT64:
-				return Long.MAX_VALUE;
-			case FLOAT32:
-			case FLOAT64:
-				return 1.0;
-			default:
-				return 1.0;
-		}
-	}
 
 	/**
 	 * List all scale datasets within {@code group}
@@ -369,21 +256,6 @@ public class N5Helpers
 
 		LOG.debug("Sorted scale dirs: {}", Arrays.toString(scaleDirs));
 		return scaleDirs;
-	}
-
-	/**
-	 *
-	 * @param n5 {@link N5Reader} container
-	 * @param group multi-scale group, dataset, or paintera dataset
-	 * @return {@link DataType} found in appropriate {@code attributes.json}
-	 * @throws IOException if any N5 operation throws {@link IOException}
-	 */
-	public static DataType getDataType(final N5Reader n5, final String group) throws IOException
-	{
-		LOG.debug("Getting data type for group/dataset {}", group);
-		if (isPainteraDataset(n5, group)) { return getDataType(n5, group + "/" + PAINTERA_DATA_DATASET); }
-		if (isMultiScale(n5, group)) { return getDataType(n5, getFinestLevel(n5, group)); }
-		return n5.getDatasetAttributes(group).getDataType();
 	}
 
 	/**
@@ -824,7 +696,7 @@ public class N5Helpers
 		try {
 			final CellGrid grid = getGrid(reader, dataset);
 			final CellLoader<T> loader = new N5CellLoader<>(reader, dataset, reader.getDatasetAttributes(dataset).getBlockSize());
-			final T type = N5Helpers.type(reader.getDatasetAttributes(dataset).getDataType());
+			final T type = N5Types.type(reader.getDatasetAttributes(dataset).getDataType());
 			final Pair<CachedCellImg<T, A>, Invalidate<Long>> raw = globalCache.createVolatileImg(grid, loader, type);
 			final Triple<RandomAccessibleInterval<V>, VolatileCache<Long, Cell<A>>, Invalidate<Long>> vraw = globalCache.wrapAsVolatile(raw.getA(), raw.getB(), priority);
 			return new ImagesWithInvalidate<>(raw.getA(), vraw.getA(), transform, raw.getB(), vraw.getC());
@@ -1219,7 +1091,7 @@ public class N5Helpers
 			final GlobalCache globalCache,
 			final int priority,
 			final String name) throws IOException, ReflectionException, AxisOrderNotSupported {
-		return isLabelMultisetType(reader, dataset)
+		return N5Types.isLabelMultisetType(reader, dataset)
 		       ? (DataSource<D, T>) openLabelMultisetAsSource(reader, dataset, transform, axisOrder, globalCache, priority, name)
 		       : (DataSource<D, T>) openScalarAsSource(reader, dataset, transform, axisOrder, globalCache, priority, name);
 	}
@@ -1771,40 +1643,6 @@ public class N5Helpers
 	 */
 	public static CellGrid getGrid(N5Reader reader, final String dataset) throws IOException {
 		return asCellGrid(reader.getDatasetAttributes(dataset));
-	}
-
-	/**
-	 *
-	 * @param dataType N5 {@link DataType}
-	 * @param <T> {@link NativeType}
-	 * @return appropriate {@link NativeType} for {@code dataType}
-	 */
-	@SuppressWarnings("unchecked")
-	public static <T extends NativeType<T>> T type(final DataType dataType) {
-		switch (dataType) {
-			case INT8:
-				return (T) new ByteType();
-			case UINT8:
-				return (T) new UnsignedByteType();
-			case INT16:
-				return (T) new ShortType();
-			case UINT16:
-				return (T) new UnsignedShortType();
-			case INT32:
-				return (T) new IntType();
-			case UINT32:
-				return (T) new UnsignedIntType();
-			case INT64:
-				return (T) new LongType();
-			case UINT64:
-				return (T) new UnsignedLongType();
-			case FLOAT32:
-				return (T) new FloatType();
-			case FLOAT64:
-				return (T) new DoubleType();
-			default:
-				return null;
-		}
 	}
 
 
