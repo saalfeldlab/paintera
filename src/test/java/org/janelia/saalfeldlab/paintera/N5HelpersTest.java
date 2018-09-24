@@ -110,7 +110,8 @@ public class N5HelpersTest {
 		return writer;
 	}
 
-	@Test public void testDiscoverDatasets() throws IOException {
+	@Test
+	public void testDiscoverDatasets() throws IOException {
 		final N5Writer writer = fileSystemWriterAtTmpDir();
 		final String group = "group";
 		writer.createGroup(group);

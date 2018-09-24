@@ -482,7 +482,7 @@ public class N5Helpers
 		              );
 	}
 
-	public static <T extends NativeType<T> & RealType<T>, V extends Volatile<T> & NativeType<V> & RealType<V>, A>
+	public static <T extends NativeType<T> & RealType<T>, V extends Volatile<T> & NativeType<V> & RealType<V>>
 	DataSource<T, V> openRawAsSource(
 			final N5Reader reader,
 			final String dataset,
