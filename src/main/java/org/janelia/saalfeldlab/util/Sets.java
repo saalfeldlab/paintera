@@ -24,9 +24,9 @@ public class Sets {
 				notInSecond.add(p);
 			}
 		}
-		LOG.warn("First:         {}", first);
-		LOG.warn("Second:        {}", second);
-		LOG.warn("Not in second: {}", notInSecond);
+		LOG.debug("First:         {}", first);
+		LOG.debug("Second:        {}", second);
+		LOG.debug("Not in second: {}", notInSecond);
 		return notInSecond;
 	}
 }
