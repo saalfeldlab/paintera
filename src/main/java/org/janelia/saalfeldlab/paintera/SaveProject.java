@@ -5,6 +5,7 @@ import java.lang.invoke.MethodHandles;
 
 import com.google.gson.GsonBuilder;
 import org.janelia.saalfeldlab.paintera.serialization.Properties;
+import org.janelia.saalfeldlab.util.n5.N5Helpers;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

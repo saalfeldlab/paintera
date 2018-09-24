@@ -1,4 +1,4 @@
-package org.janelia.saalfeldlab.paintera;
+package org.janelia.saalfeldlab.util.n5;
 
 import bdv.viewer.Interpolation;
 import com.google.gson.Gson;

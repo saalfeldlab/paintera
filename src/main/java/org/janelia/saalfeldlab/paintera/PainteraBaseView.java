@@ -86,7 +86,7 @@ public class PainteraBaseView
 //	private final LoaderCache<GlobalCache.Key<?>, ?> globalBackingCache = new BoundedSoftRefLoaderCache<>(DEFAULT_MAX_NUM_CACHE_ENTRIES);
 
 	// 1GB
-	private final LoaderCache<GlobalCache.Key<?>, ?> globalBackingCache = MemoryBoundedSoftRefLoaderCache.withWeakRefs(1000 * 1000 * 1000, DiscoverableMemoryUsage.memoryUsageFromDiscoveredFunctions());
+	private final LoaderCache<GlobalCache.Key<?>, ?> globalBackingCache = MemoryBoundedSoftRefLoaderCache.withWeakRefs(Runtime.getRuntime().maxMemory(), DiscoverableMemoryUsage.memoryUsageFromDiscoveredFunctions());
 
 	private final GlobalCache globalCache;
 

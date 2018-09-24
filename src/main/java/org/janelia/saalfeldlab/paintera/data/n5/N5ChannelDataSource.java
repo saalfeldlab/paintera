@@ -1,6 +1,5 @@
 package org.janelia.saalfeldlab.paintera.data.n5;
 
-import bdv.util.volatiles.SharedQueue;
 import bdv.viewer.Interpolation;
 import com.google.gson.annotations.Expose;
 import mpicbg.spim.data.sequence.VoxelDimensions;
@@ -24,14 +23,13 @@ import net.imglib2.type.NativeType;
 import net.imglib2.type.numeric.RealType;
 import net.imglib2.type.volatiles.AbstractVolatileRealType;
 import net.imglib2.util.Intervals;
-import net.imglib2.util.Triple;
 import net.imglib2.util.Util;
 import net.imglib2.view.Views;
 import net.imglib2.view.composite.CompositeIntervalView;
 import net.imglib2.view.composite.RealComposite;
 import org.janelia.saalfeldlab.n5.N5Reader;
 import org.janelia.saalfeldlab.n5.N5Writer;
-import org.janelia.saalfeldlab.paintera.N5Helpers;
+import org.janelia.saalfeldlab.util.n5.N5Helpers;
 import org.janelia.saalfeldlab.paintera.cache.InvalidateAll;
 import org.janelia.saalfeldlab.paintera.cache.global.GlobalCache;
 import org.janelia.saalfeldlab.paintera.data.ChannelDataSource;
