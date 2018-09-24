@@ -413,85 +413,19 @@ public class CommitCanvasN5 implements BiConsumer<CachedCellImg<UnsignedLongType
 
 						if (updateLabelToBlockMapping)
 						{
-							final TLongHashSet mergedContainedLabels = new TLongHashSet();
-							// TODO find better way of iterating here
-							LOG.debug(
-									"level={}: Fetching contained labels for previous level at {} {} {}",
+							updateLabelToBlockMapping(
+									n5,
+									labelBlockLoader,
+									datasetUniqueLabels,
+									datasetUniqueLabelsPrevious,
 									level,
+									blockPositionInTargetGrid,
+									blockMinInTargetGrid,
+									blockMaxInTargetGrid,
+									size,
 									blockMin,
 									blockMax,
-									ones
-							        );
-							for (final long[] offset : Grids.collectAllOffsets(blockMin, blockMax, ones))
-							{
-								final long[] cl = readContainedLabels(
-										n5,
-										datasetUniqueLabelsPrevious,
-										attributesUniqueLabelsPrevious,
-										offset
-								                                     );
-								LOG.debug("level={}: offset={}: got contained labels: {}", level, offset, cl.length);
-								mergedContainedLabels.addAll(cl);
-							}
-							final TLongHashSet containedLabels = readContainedLabelsSet(
-									n5,
-									datasetUniqueLabels,
-									attributesUniqueLabels,
-									blockPositionInTargetGrid
-							                                                           );
-							n5.writeBlock(
-									datasetUniqueLabels,
-									attributesUniqueLabels,
-									new LongArrayDataBlock(size,
-											blockPositionInTargetGrid,
-											mergedContainedLabels.toArray()
-									)
-							             );
-
-							final TLongHashSet wasAdded   = Sets.containedInFirstButNotInSecond(
-									mergedContainedLabels,
-									containedLabels);
-							final TLongHashSet wasRemoved = Sets.containedInFirstButNotInSecond(
-									containedLabels,
-									mergedContainedLabels);
-
-							LOG.debug(
-									"level={}: Updating label to block mapping for {}. Added:   {}",
-									level,
-									blockMinInTargetGrid,
-									wasAdded.size()
-							        );
-							LOG.debug(
-									"level={}: Updating label to block mapping for {}. Removed: {}",
-									level,
-									blockMinInTargetGrid,
-									wasRemoved.size()
-							        );
-
-							final HashWrapper<Interval> wrappedInterval = HashWrapper.interval(new FinalInterval(
-									blockMinInTargetGrid,
-									blockMaxInTargetGrid
-							));
-
-							for (final TLongIterator wasAddedIt = wasAdded.iterator(); wasAddedIt.hasNext(); )
-							{
-								modifyAndWrite(
-										labelBlockLoader,
-										level,
-										wasAddedIt.next(),
-										set -> set.add(wrappedInterval)
-								              );
-							}
-
-							for (final TLongIterator wasRemovedIt = wasRemoved.iterator(); wasRemovedIt.hasNext(); )
-							{
-								modifyAndWrite(
-										labelBlockLoader,
-										level,
-										wasRemovedIt.next(),
-										set -> set.remove(wrappedInterval)
-								              );
-							}
+									ones);
 						}
 
 					}
@@ -702,6 +636,103 @@ public class CommitCanvasN5 implements BiConsumer<CachedCellImg<UnsignedLongType
 		min[1] = Math.min(arr1[1], arr2[1]);
 		min[2] = Math.min(arr1[2], arr2[2]);
 		return min;
+	}
+
+	private static void updateLabelToBlockMapping(
+			final N5Writer n5,
+			final LabelBlockLookup labelBlockLoader,
+			final String datasetUniqueLabels,
+			final String datasetUniqueLabelsPrevious,
+			final int level,
+			final long[] blockPositionInTargetGrid,
+			final long[] blockMinInTargetGrid,
+			final long[] blockMaxInTargetGrid,
+			final int[] size,
+			final long[] blockMin,
+			final long[] blockMax,
+			final int[] ones
+	) throws IOException {
+		final TLongHashSet mergedContainedLabels = new TLongHashSet();
+		final DatasetAttributes attributesUniqueLabels = n5.getDatasetAttributes(datasetUniqueLabels);
+		final DatasetAttributes attributesUniqueLabelsPrevious = n5.getDatasetAttributes(datasetUniqueLabelsPrevious);
+		// TODO find better way of iterating here
+		LOG.debug(
+				"level={}: Fetching contained labels for previous level at {} {} {}",
+				level,
+				blockMin,
+				blockMax,
+				ones
+		);
+		for (final long[] offset : Grids.collectAllOffsets(blockMin, blockMax, ones))
+		{
+			final long[] cl = readContainedLabels(
+					n5,
+					datasetUniqueLabelsPrevious,
+					attributesUniqueLabelsPrevious,
+					offset
+			);
+			LOG.debug("level={}: offset={}: got contained labels: {}", level, offset, cl.length);
+			mergedContainedLabels.addAll(cl);
+		}
+		final TLongHashSet containedLabels = readContainedLabelsSet(
+				n5,
+				datasetUniqueLabels,
+				attributesUniqueLabels,
+				blockPositionInTargetGrid
+		);
+		n5.writeBlock(
+				datasetUniqueLabels,
+				attributesUniqueLabels,
+				new LongArrayDataBlock(size,
+						blockPositionInTargetGrid,
+						mergedContainedLabels.toArray()
+				)
+		);
+
+		final TLongHashSet wasAdded   = Sets.containedInFirstButNotInSecond(
+				mergedContainedLabels,
+				containedLabels);
+		final TLongHashSet wasRemoved = Sets.containedInFirstButNotInSecond(
+				containedLabels,
+				mergedContainedLabels);
+
+		LOG.debug(
+				"level={}: Updating label to block mapping for {}. Added:   {}",
+				level,
+				blockMinInTargetGrid,
+				wasAdded.size()
+		);
+		LOG.debug(
+				"level={}: Updating label to block mapping for {}. Removed: {}",
+				level,
+				blockMinInTargetGrid,
+				wasRemoved.size()
+		);
+
+		final HashWrapper<Interval> wrappedInterval = HashWrapper.interval(new FinalInterval(
+				blockMinInTargetGrid,
+				blockMaxInTargetGrid
+		));
+
+		for (final TLongIterator wasAddedIt = wasAdded.iterator(); wasAddedIt.hasNext(); )
+		{
+			modifyAndWrite(
+					labelBlockLoader,
+					level,
+					wasAddedIt.next(),
+					set -> set.add(wrappedInterval)
+			);
+		}
+
+		for (final TLongIterator wasRemovedIt = wasRemoved.iterator(); wasRemovedIt.hasNext(); )
+		{
+			modifyAndWrite(
+					labelBlockLoader,
+					level,
+					wasRemovedIt.next(),
+					set -> set.remove(wrappedInterval)
+			);
+		}
 	}
 
 }
