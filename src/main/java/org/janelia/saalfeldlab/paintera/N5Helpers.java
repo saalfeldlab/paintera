@@ -1,30 +1,5 @@
 package org.janelia.saalfeldlab.paintera;
 
-import java.io.IOException;
-import java.lang.invoke.MethodHandles;
-import java.lang.reflect.Array;
-import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.Comparator;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Optional;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
-import java.util.concurrent.atomic.AtomicInteger;
-import java.util.function.Function;
-import java.util.function.Supplier;
-import java.util.regex.Pattern;
-import java.util.stream.Stream;
-
-import bdv.util.volatiles.VolatileTypeMatcher;
 import bdv.viewer.Interpolation;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
@@ -56,12 +31,18 @@ import net.imglib2.type.label.N5CacheLoader;
 import net.imglib2.type.label.VolatileLabelMultisetArray;
 import net.imglib2.type.label.VolatileLabelMultisetType;
 import net.imglib2.type.numeric.RealType;
-import net.imglib2.type.numeric.integer.*;
+import net.imglib2.type.numeric.integer.ByteType;
+import net.imglib2.type.numeric.integer.IntType;
+import net.imglib2.type.numeric.integer.LongType;
+import net.imglib2.type.numeric.integer.ShortType;
+import net.imglib2.type.numeric.integer.UnsignedByteType;
+import net.imglib2.type.numeric.integer.UnsignedIntType;
+import net.imglib2.type.numeric.integer.UnsignedLongType;
+import net.imglib2.type.numeric.integer.UnsignedShortType;
 import net.imglib2.type.numeric.real.DoubleType;
 import net.imglib2.type.numeric.real.FloatType;
 import net.imglib2.util.Pair;
 import net.imglib2.util.Triple;
-import net.imglib2.util.ValueTriple;
 import net.imglib2.view.Views;
 import org.janelia.saalfeldlab.labels.blocks.LabelBlockLookup;
 import org.janelia.saalfeldlab.labels.blocks.LabelBlockLookupAdapter;
@@ -98,10 +79,33 @@ import org.janelia.saalfeldlab.paintera.id.IdService;
 import org.janelia.saalfeldlab.paintera.id.N5IdService;
 import org.janelia.saalfeldlab.paintera.ui.opendialog.VolatileHelpers;
 import org.janelia.saalfeldlab.util.MakeUnchecked;
-import org.janelia.saalfeldlab.util.MakeUnchecked.CheckedConsumer;
 import org.janelia.saalfeldlab.util.NamedThreadFactory;
+import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.io.IOException;
+import java.lang.invoke.MethodHandles;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Optional;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.Function;
+import java.util.function.Supplier;
+import java.util.regex.Pattern;
+import java.util.stream.Stream;
 
 public class N5Helpers
 {
@@ -446,7 +450,7 @@ public class N5Helpers
 						datasets.add(pathName);
 					}
 				}
-				else if (groups != null)
+				else
 				{
 					for (final String group : groups)
 					{
@@ -465,6 +469,7 @@ public class N5Helpers
 		LOG.debug("leaving {}, {} threads remaining", pathName, numThreads);
 	}
 
+	@SuppressWarnings("unused")
 	public static <T extends NativeType<T>, V extends Volatile<T> & NativeType<V>>
 	ImagesWithInvalidate<T, V> openRaw(
 			final N5Reader reader,
@@ -508,7 +513,7 @@ public class N5Helpers
 		                         );
 	}
 
-	public static <T extends NativeType<T>, V extends Volatile<T> & NativeType<V>, A>
+	public static <T extends NativeType<T>, V extends Volatile<T> & NativeType<V>>
 	DataSource<T, V> openScalarAsSource(
 			final N5Reader reader,
 			final String dataset,
@@ -530,7 +535,7 @@ public class N5Helpers
 		                         );
 	}
 
-	public static <T extends NativeType<T>, V extends Volatile<T> & NativeType<V>, A>
+	public static <T extends NativeType<T>, V extends Volatile<T> & NativeType<V>>
 	DataSource<T, V> openScalarAsSource(
 			final N5Reader reader,
 			final String dataset,
@@ -555,7 +560,8 @@ public class N5Helpers
 		);
 	}
 
-	public static <T extends NativeType<T>, V extends Volatile<T> & NativeType<V>, A>
+	@SuppressWarnings("unused")
+	public static <T extends NativeType<T>, V extends Volatile<T> & NativeType<V>>
 	ImagesWithInvalidate<T, V>[] openScalar(
 			final N5Reader reader,
 			final String dataset,
@@ -570,13 +576,7 @@ public class N5Helpers
 	}
 
 	@SuppressWarnings({"unchecked", "rawtypes"})
-	public static <T extends NativeType<T>, A> Function<NativeImg<T, ? extends A>, T> linkedTypeFactory(final T t)
-	{
-		return img -> (T) t.getNativeTypeFactory().createLinkedType((NativeImg) img);
-	}
-
-	@SuppressWarnings({"unchecked", "rawtypes"})
-	public static <T extends NativeType<T>, V extends Volatile<T> & NativeType<V>, A>
+	public static <T extends NativeType<T>, V extends Volatile<T> & NativeType<V>>
 	ImagesWithInvalidate<T, V> openRaw(
 			final N5Reader reader,
 			final String dataset,
@@ -608,7 +608,6 @@ public class N5Helpers
 			final CellLoader<T> loader = new N5CellLoader<>(reader, dataset, reader.getDatasetAttributes(dataset).getBlockSize());
 			final T type = N5Helpers.type(reader.getDatasetAttributes(dataset).getDataType());
 			final Pair<CachedCellImg<T, A>, Invalidate<Long>> raw = globalCache.createVolatileImg(grid, loader, type);
-			final V vtype = (V) VolatileTypeMatcher.getVolatileTypeForType(type);
 			final Triple<RandomAccessibleInterval<V>, VolatileCache<Long, Cell<A>>, Invalidate<Long>> vraw = globalCache.wrapAsVolatile(raw.getA(), raw.getB(), priority);
 			return new ImagesWithInvalidate<>(raw.getA(), vraw.getA(), transform, raw.getB(), vraw.getC());
 		}
@@ -618,6 +617,7 @@ public class N5Helpers
 		}
 	}
 
+	@SuppressWarnings("unused")
 	public static <T extends NativeType<T>, V extends Volatile<T> & NativeType<V>>
 	ImagesWithInvalidate<T, V>[] openRawMultiscale(
 			final N5Reader reader,
@@ -695,7 +695,7 @@ public class N5Helpers
 				return true;
 			})::get));
 		}
-		futures.forEach(MakeUnchecked.unchecked((CheckedConsumer<Future<Boolean>>) Future::get));
+		futures.forEach(MakeUnchecked.unchecked(Future::get));
 		es.shutdown();
 		return imagesWithInvalidate;
 	}
@@ -710,7 +710,7 @@ public class N5Helpers
 			final int priority,
 			final String name) throws IOException, ReflectionException, AxisOrderNotSupported {
 		return new N5DataSource<>(
-				N5Meta.fromReader(reader, dataset),
+				Objects.requireNonNull(N5Meta.fromReader(reader, dataset)),
 				transform,
 				axisOrder,
 				globalCache,
@@ -721,6 +721,7 @@ public class N5Helpers
 		);
 	}
 
+	@SuppressWarnings("unused")
 	public static ImagesWithInvalidate<LabelMultisetType, VolatileLabelMultisetType> openLabelMutliset(
 			final N5Reader reader,
 			final String dataset,
@@ -776,6 +777,8 @@ public class N5Helpers
 			);
 			cachedImg.getA().setLinkedType(new LabelMultisetType(cachedImg.getA()));
 
+
+			@SuppressWarnings("unchecked")
 			final Function<NativeImg<VolatileLabelMultisetType, ? extends VolatileLabelMultisetArray>, VolatileLabelMultisetType> linkedTypeFactory =
 					img -> new VolatileLabelMultisetType((NativeImg<?, VolatileLabelMultisetArray>) img);
 
@@ -795,6 +798,7 @@ public class N5Helpers
 
 	}
 
+	@SuppressWarnings("unused")
 	public static ImagesWithInvalidate<LabelMultisetType, VolatileLabelMultisetType>[] openLabelMultisetMultiscale(
 			final N5Reader reader,
 			final String dataset,
@@ -878,7 +882,7 @@ public class N5Helpers
 				return true;
 			})::get));
 		}
-		futures.forEach(MakeUnchecked.unchecked((CheckedConsumer<Future<Boolean>>) Future::get));
+		futures.forEach(MakeUnchecked.unchecked(Future::get));
 		es.shutdown();
 		return imagesWithInvalidate;
 	}
@@ -896,36 +900,6 @@ public class N5Helpers
 		return isLabelMultisetType(reader, dataset)
 		       ? (DataSource<D, T>) openLabelMultisetAsSource(reader, dataset, transform, axisOrder, globalCache, priority, name)
 		       : (DataSource<D, T>) openScalarAsSource(reader, dataset, transform, axisOrder, globalCache, priority, name);
-	}
-
-	public static AffineTransform3D considerDownsampling(
-			final double[] initialResolution,
-			final double[] offset,
-			final double[] downsamplingFactors,
-			final double[] initialDownsamplingFactors)
-	{
-		final double[] scaledResolution = new double[downsamplingFactors.length];
-		final double[] shift            = new double[downsamplingFactors.length];
-
-		for (int d = 0; d < downsamplingFactors.length; ++d)
-		{
-			scaledResolution[d] = downsamplingFactors[d] * initialResolution[d];
-			shift[d] = 0.5 / initialDownsamplingFactors[d] - 0.5 / downsamplingFactors[d];
-		}
-
-		LOG.debug(
-				"Downsampling factors={}, scaled resolution={}",
-				Arrays.toString(downsamplingFactors),
-				Arrays.toString(scaledResolution)
-		         );
-
-		final AffineTransform3D transform = new AffineTransform3D();
-		transform.set(
-				scaledResolution[0], 0, 0, offset[0],
-				0, scaledResolution[1], 0, offset[1],
-				0, 0, scaledResolution[2], offset[2]
-		             );
-		return transform.concatenate(new Translation3D(shift));
 	}
 
 	public static AffineTransform3D considerDownsampling(
@@ -1006,7 +980,7 @@ public class N5Helpers
 				LOG.debug("Found {} assignments", numEntries);
 				final RandomAccessibleInterval<UnsignedLongType> data = N5Utils.open(writer, dataset);
 
-				final Cursor<UnsignedLongType> keysCursor = Views.flatIterable(Views.hyperSlice(data, 1, 0l)).cursor();
+				final Cursor<UnsignedLongType> keysCursor = Views.flatIterable(Views.hyperSlice(data, 1, 0L)).cursor();
 				for (int i = 0; keysCursor.hasNext(); ++i)
 				{
 					keys[i] = keysCursor.next().get();
@@ -1015,7 +989,7 @@ public class N5Helpers
 				final Cursor<UnsignedLongType> valuesCursor = Views.flatIterable(Views.hyperSlice(
 						data,
 						1,
-						1l
+						1L
 				                                                                                 )).cursor();
 				for (int i = 0; valuesCursor.hasNext(); ++i)
 				{
@@ -1095,6 +1069,7 @@ public class N5Helpers
 
 		if (isPainteraDataset(n5, dataset))
 		{
+			//noinspection ConstantConditions
 			return getDoubleArrayAttribute(n5, dataset + "/" + PAINTERA_DATA_DATASET, key, revert, fallBack);
 		}
 		try {
@@ -1148,28 +1123,12 @@ public class N5Helpers
 		return fromResolutionAndOffset(getResolution(n5, dataset, revertSpatialAttributes), getOffset(n5, dataset, revertSpatialAttributes));
 	}
 
-	public static <A, B, C> ValueTriple<A[], B[], C[]> asArrayTriple(final ValueTriple<A, B, C> scalarTriple)
-	{
-		final A a = scalarTriple.getA();
-		final B b = scalarTriple.getB();
-		final C c = scalarTriple.getC();
-
-		@SuppressWarnings("unchecked") final A[] aArray = (A[]) Array.newInstance(a.getClass(), 1);
-		@SuppressWarnings("unchecked") final B[] bArray = (B[]) Array.newInstance(b.getClass(), 1);
-		@SuppressWarnings("unchecked") final C[] cArray = (C[]) Array.newInstance(c.getClass(), 1);
-
-		aArray[0] = a;
-		bArray[0] = b;
-		cArray[0] = c;
-
-		return new ValueTriple<>(aArray, bArray, cArray);
-	}
-
 	public static String lastSegmentOfDatasetPath(final String dataset)
 	{
 		return Paths.get(dataset).getFileName().toString();
 	}
 
+	@SuppressWarnings("unused")
 	public static String labelMappingFromFileBasePath(final N5Reader reader, final String dataset)
 			throws IOException, ReflectionException
 	{
@@ -1179,15 +1138,14 @@ public class N5Helpers
 		}
 
 		final N5FSMeta meta     = new N5FSMeta((N5FSReader) reader, dataset);
-		final String   basePath = Paths.get(
+		return Paths.get(
 				meta.basePath(),
 				dataset,
 				LABEL_TO_BLOCK_MAPPING
 		).toAbsolutePath().toString();
-
-		return basePath;
 	}
 
+	@SuppressWarnings("unused")
 	public static String[] labelMappingFromFileLoaderPattern(final N5Reader reader, final String dataset)
 	throws IOException, ReflectionException
 	{
@@ -1251,7 +1209,6 @@ public class N5Helpers
 				N5FSMeta n5fs = new N5FSMeta((N5FSReader) reader, group);
 				final GsonBuilder gsonBuilder = new GsonBuilder().registerTypeHierarchyAdapter(LabelBlockLookup.class, LabelBlockLookupAdapter.getJsonAdapter());
 				final Gson gson = gsonBuilder.create();
-				final N5Reader appropriateReader = n5fs.reader(gsonBuilder);
 				final JsonElement labelBlockLookupJson = reader.getAttribute(group, "labelBlockLookup", JsonElement.class);
 				LOG.debug("Got label block lookup json: {}", labelBlockLookupJson);
 				final LabelBlockLookup lookup = Optional
@@ -1279,6 +1236,7 @@ public class N5Helpers
 			LOG.info("3D meshes not supported for non Paintera dataset!");
 		}
 
+		@NotNull
 		@Override
 		public Interval[] read( int level, long id )
 		{
@@ -1294,6 +1252,7 @@ public class N5Helpers
 
 		// This is here because annotation interfaces cannot have members in kotlin (currently)
 		// https://stackoverflow.com/questions/49661899/java-annotation-implementation-to-kotlin
+		@NotNull
 		@Override
 		public String getType()
 		{
@@ -1333,7 +1292,7 @@ public class N5Helpers
 		// "labelBlockLookup":{"attributes":{},"root":"/home/phil/local/tmp/sample_a_padded_20160501.n5",
 		// "scaleDatasetPattern":"volumes/labels/neuron_ids/oke-test/s%d","type":"n5-filesystem"}}
 
-		final Map<String, String> pd = new HashMap<String, String>();
+		final Map<String, String> pd = new HashMap<>();
 		pd.put("type", "label");
 		final N5FSWriter n5 = new N5FSWriter(container);
 		final String uniqueLabelsGroup = String.format("%s/unique-labels", group);
@@ -1408,7 +1367,7 @@ public class N5Helpers
 	}
 
 	@SuppressWarnings("unchecked")
-	public static final <T extends NativeType<T>> T type(final DataType dataType) {
+	public static <T extends NativeType<T>> T type(final DataType dataType) {
 		switch (dataType) {
 			case INT8:
 				return (T) new ByteType();
@@ -1438,10 +1397,6 @@ public class N5Helpers
 	public static CellGrid asCellGrid(DatasetAttributes attributes)
 	{
 		return new CellGrid(attributes.getDimensions(), attributes.getBlockSize());
-	}
-
-	public static String volumetricDataGroup(final N5Reader reader, String group) throws IOException {
-		return volumetricDataGroup(group, N5Helpers.isPainteraDataset(reader, group));
 	}
 
 	public static String volumetricDataGroup(final String group, final boolean isPainteraDataset)

@@ -83,6 +83,9 @@ public class N5HelpersTest {
 		writer.createDataset(group + "/s2", attrs);
 
 		Assert.assertEquals(Arrays.asList("s0", "s1", "s2"), Arrays.asList(listAndSortScaleDatasets(writer, group)));
+
+		Assert.assertEquals("group/s0", N5Helpers.getFinestLevel(writer, group));
+		Assert.assertEquals("group/s2", N5Helpers.getCoarsestLevel(writer, group));
 	}
 
 	@Test
