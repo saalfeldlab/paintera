@@ -9,6 +9,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -312,12 +313,7 @@ public class N5Helpers
 
 	public static void sortScaleDatasets(final String[] scaleDatasets)
 	{
-		Arrays.sort(scaleDatasets, (f1, f2) -> {
-			return Integer.compare(
-					Integer.parseInt(f1.replaceAll("[^\\d]", "")),
-					Integer.parseInt(f2.replaceAll("[^\\d]", ""))
-			                      );
-		});
+		Arrays.sort(scaleDatasets, Comparator.comparingInt(s -> Integer.parseInt(s.replaceAll("[^\\d]", ""))));
 	}
 
 	public static N5Reader n5Reader(final String base, final int... defaultCellDimensions) throws IOException
