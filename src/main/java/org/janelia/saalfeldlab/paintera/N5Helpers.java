@@ -340,6 +340,7 @@ public class N5Helpers
 		return isHDF(base) ? new N5HDF5Writer(base, defaultCellDimensions) : new N5FSWriter(base, gsonBuilder);
 	}
 
+	@SuppressWarnings("unused")
 	public static N5Meta metaData(final String base, final String dataset, final int... defaultCellDimensions)
 	{
 		return isHDF(base) ? new N5HDF5Meta(base, dataset, defaultCellDimensions, false) : new N5FSMeta(base, dataset);
@@ -378,7 +379,7 @@ public class N5Helpers
 		return datasets;
 	}
 
-	public static void discoverSubdirectories(
+	private static void discoverSubdirectories(
 			final N5Reader n5,
 			final String pathName,
 			final Collection<String> datasets,
