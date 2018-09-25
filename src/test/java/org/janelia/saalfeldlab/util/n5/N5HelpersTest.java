@@ -1,23 +1,18 @@
-package org.janelia.saalfeldlab.paintera;
+package org.janelia.saalfeldlab.util.n5;
 
 import net.imglib2.img.cell.CellGrid;
 import org.janelia.saalfeldlab.n5.DataType;
 import org.janelia.saalfeldlab.n5.DatasetAttributes;
 import org.janelia.saalfeldlab.n5.GzipCompression;
-import org.janelia.saalfeldlab.n5.N5FSWriter;
 import org.janelia.saalfeldlab.n5.N5Writer;
 import org.janelia.saalfeldlab.n5.RawCompression;
-import org.janelia.saalfeldlab.util.n5.N5Helpers;
 import org.junit.Assert;
 import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.File;
 import java.io.IOException;
 import java.lang.invoke.MethodHandles;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
@@ -46,7 +41,7 @@ public class N5HelpersTest {
 	}
 
 	@Test public void testIsMultiscale() throws IOException {
-		final N5Writer writer = fileSystemWriterAtTmpDir();
+		final N5Writer writer = N5TestUtil.fileSystemWriterAtTmpDir();
 		final String group = "group";
 		writer.createGroup(group);
 
@@ -70,7 +65,7 @@ public class N5HelpersTest {
 
 	@Test
 	public void testListAndSortScaleDatasets() throws IOException {
-		final N5Writer writer = fileSystemWriterAtTmpDir();
+		final N5Writer writer = N5TestUtil.fileSystemWriterAtTmpDir();
 		final String group = "group";
 		writer.createGroup(group);
 		writer.setAttribute(group, N5Helpers.MULTI_SCALE_KEY, true);
@@ -87,7 +82,7 @@ public class N5HelpersTest {
 
 	@Test
 	public void testHighestResolutionDataset() throws IOException {
-		final N5Writer writer = fileSystemWriterAtTmpDir();
+		final N5Writer writer = N5TestUtil.fileSystemWriterAtTmpDir();
 		final String group = "group";
 		writer.createGroup(group);
 		writer.setAttribute(group, N5Helpers.MULTI_SCALE_KEY, true);
@@ -102,17 +97,9 @@ public class N5HelpersTest {
 
 	}
 
-	private static N5Writer fileSystemWriterAtTmpDir() throws IOException {
-		final Path tmp = Files.createTempDirectory(null);
-		final File dir = tmp.toFile();
-		dir.deleteOnExit();
-		final N5FSWriter writer = new N5FSWriter(tmp.toAbsolutePath().toString());
-		return writer;
-	}
-
 	@Test
 	public void testDiscoverDatasets() throws IOException {
-		final N5Writer writer = fileSystemWriterAtTmpDir();
+		final N5Writer writer = N5TestUtil.fileSystemWriterAtTmpDir();
 		final String group = "group";
 		writer.createGroup(group);
 		writer.setAttribute(group, N5Helpers.MULTI_SCALE_KEY, true);
