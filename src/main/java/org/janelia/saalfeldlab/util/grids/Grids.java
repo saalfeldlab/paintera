@@ -1,8 +1,138 @@
 package org.janelia.saalfeldlab.util.grids;
 
+import gnu.trove.list.array.TLongArrayList;
+import net.imglib2.FinalInterval;
+import net.imglib2.FinalRealInterval;
+import net.imglib2.Interval;
+import net.imglib2.RealInterval;
+import net.imglib2.img.cell.CellGrid;
 import net.imglib2.realtransform.ScaleAndTranslation;
+import net.imglib2.util.IntervalIndexer;
+import net.imglib2.util.Intervals;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.lang.invoke.MethodHandles;
 
 public class Grids {
+
+	private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
+
+	/**
+	 * Get all blocks/cells of a {@link CellGrid} that the real interval defined by {@code min} and {@code max}
+	 * intersects with, represented as linear indices.
+	 * @param min top-left corner of interval
+	 * @param max bottom-right corner of interval
+	 * @param cellGrid defines grid (block size/cell size)
+	 * @return linear indices of all cells/blocks that intersect with interval defined by {@code min}, {@code max}.
+	 */
+	public static long[] getIntersectingBlocks(
+			final double[] min,
+			final double[] max,
+			final CellGrid cellGrid)
+	{
+		final Interval relevantInterval = snapToGrid(min, max, cellGrid);
+		final int[] blockSize = new int[cellGrid.numDimensions()];
+		cellGrid.cellDimensions(blockSize);
+		TLongArrayList blockIndices = new TLongArrayList();
+		net.imglib2.algorithm.util.Grids.forEachOffset(
+				Intervals.minAsLongArray(relevantInterval),
+				Intervals.maxAsLongArray(relevantInterval),
+				blockSize,
+				blockOffset -> blockIndices.add(posToIndex(cellGrid, blockOffset)));
+		return blockIndices.toArray();
+	}
+
+	/**
+	 *
+	 * Snap {@code min}, {@code max} to {@code cellGrid}, i.e. increase/decrease min/max such that
+	 * min/max are integer multiples of block size/cell size. The snapped interval is restricted
+	 * to the interval defined by {@code cellGrid}.
+	 *
+	 * @param min top-left corner of interval
+	 * @param max bottom-right corner of interval
+	 * @param cellGrid defines the block size/cell size to which to snap
+	 * @return new interval that is aligned with block size/cell size of {@code cellGrid}
+	 */
+	public static Interval snapToGrid(
+			final double[] min,
+			final double[] max,
+			final CellGrid cellGrid
+	)
+	{
+		return snapToGrid(new FinalRealInterval(min, max), cellGrid);
+	}
+
+	/**
+	 *
+	 * Snap real {@code interval} to {@code cellGrid}, i.e. increase/decrease min/max such that
+	 * min/max are integer multiples of block size/cell size. The snapped interval is restricted
+	 * to the interval defined by {@code cellGrid}.
+	 *
+	 * @param interval to be snapped to grid
+	 * @param cellGrid defines the block size/cell size to which to snap
+	 * @return new interval that is aligned with block size/cell size of {@code cellGrid}
+	 */
+	public static Interval snapToGrid(
+			final RealInterval interval,
+			final CellGrid cellGrid
+			)
+	{
+		return snapToGrid(Intervals.smallestContainingInterval(interval), cellGrid);
+	}
+
+	/**
+	 *
+	 * Snap {@code min}, {@code max} to {@code cellGrid}, i.e. increase/decrease min/max such that
+	 * min/max are integer multiples of block size/cell size. The snapped interval is restricted
+	 * to the interval defined by {@code cellGrid}.
+	 *
+	 * @param min top-left corner of interval
+	 * @param max bottom-right corner of interval
+	 * @param cellGrid defines the block size/cell size to which to snap
+	 * @return new interval that is aligned with block size/cell size of {@code cellGrid}
+	 */
+	public static Interval snapToGrid(
+			long[] min,
+			long[] max,
+			final CellGrid cellGrid)
+	{
+		return snapToGrid(new FinalInterval(min, max), cellGrid);
+	}
+
+	/**
+	 *
+	 * Snap {@code interval} to {@code cellGrid}, i.e. increase/decrease min/max such that
+	 * min/max are integer multiples of block size/cell size. The snapped interval is restricted
+	 * to the interval defined by {@code cellGrid}.
+	 *
+	 * @param interval to be snapped to grid
+	 * @param cellGrid defines the block size/cell size to which to snap
+	 * @return new interval that is aligned with block size/cell size of {@code cellGrid}
+	 */
+	public static Interval snapToGrid(
+			final Interval interval,
+			final CellGrid cellGrid)
+	{
+		assert interval.numDimensions() == cellGrid.numDimensions();
+		final Interval intersectedInterval = Intervals.intersect(
+				interval,
+				new FinalInterval(cellGrid.getImgDimensions()));
+		final int nDim = cellGrid.numDimensions();
+		final long[] snappedMin = new long[nDim];
+		final long[] snappedMax = new long[nDim];
+		for (int d = 0; d < nDim; ++d)
+		{
+			final long min = intersectedInterval.min(d);
+			final long max = intersectedInterval.max(d);
+			final int blockSize = cellGrid.cellDimension(d);
+			snappedMin[d] = Math.max(snapDown(min, blockSize), 0);
+			snappedMax[d] = Math.min(snapUp(max, blockSize), cellGrid.imgDimension(d) - 1);
+//			snappedMin[d] = Math.max(min - (min % blockSize), 0);
+//			snappedMax[d] = Math.min(max - (max % blockSize), cellGrid.imgDimension(d)) - 1;
+		}
+		return new FinalInterval(snappedMin, snappedMax);
+	}
 
 	/**
 	 * Map bounding box defined by {@code min} and {@code max} according to {@code relativeScale}.
@@ -109,5 +239,38 @@ public class Grids {
 		assert mappedMax.length == targetToWorld.numTargetDimensions();
 		mapBoundingBox(min, max, mappedMin, mappedMax, sourceToWorld.preConcatenate(targetToWorld.inverse()));
 	}
+
+	private static long[] getCellPos(
+			final CellGrid cellGrid,
+			final long[] pos,
+			final long[] cellPos
+	)
+	{
+		cellGrid.getCellPosition(pos, cellPos);
+		return cellPos;
+	}
+
+	private static long posToIndex(
+			final CellGrid cellGrid,
+			final long[] position
+	)
+	{
+		final long index = IntervalIndexer.positionToIndex(
+				getCellPos(cellGrid, position, new long[position.length]),
+				cellGrid.getGridDimensions());
+		LOG.debug("Index for position {} ind grid {}: {}", position, cellGrid, index);
+		return index;
+	}
+
+	private static long snapDown(long pos, int blockSize)
+	{
+		return (pos / blockSize) * blockSize;
+	}
+
+	private static long snapUp(long pos, int blockSize)
+	{
+		return (pos / blockSize) * blockSize + blockSize - 1;
+	}
+
 
 }
