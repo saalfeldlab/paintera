@@ -21,6 +21,10 @@ public class GridsTest {
 		Grids.scaleBoundingBox(min, max, mappedMin, mappedMax, new double[] {2.0, 3.0});
 		Assert.assertArrayEquals(new double[] {-2.0, -3.0}, mappedMin, 0.0);
 		Assert.assertArrayEquals(new double[] {+2.0, +3.0}, mappedMax, 0.0);
+
+		Grids.scaleBoundingBox(min, max, mappedMin, mappedMax, new double[] {2.0, 3.0}, new double[] {3.0, 4.0});
+		Assert.assertArrayEquals(new double[] {2.0 / 3.0 * min[0], 3.0 / 4.0 * min[1]}, mappedMin, 0.0);
+		Assert.assertArrayEquals(new double[] {2.0 / 3.0 * max[0], 3.0 / 4.0 * max[1]}, mappedMax, 0.0);
 	}
 
 }
