@@ -22,6 +22,30 @@ public class Grids {
 
 	private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
+	/**
+	 *
+	 * @param sourceBlocks linear index representation of blocks in source grid space
+	 * @param sourceGrid grid of source
+	 * @param targetGrid grid of target
+	 * @param relativeScale relative scale from source to target coordinates
+	 * @return Linear index representation for all blocks in {@code targetGrid} that intersect with {@code sourceBlocks}
+	 * in {@code sourcegrid}
+	 */
+	public static TLongSet getRelevantBlocksInTargetGrid(
+			final long[] sourceBlocks,
+			final CellGrid sourceGrid,
+			final CellGrid targetGrid,
+			final double[] relativeScale)
+	{
+		return getRelevantBlocksInTargetGrid(
+				sourceBlocks,
+				sourceGrid,
+				targetGrid,
+				DoubleStream.generate(() -> 1.0).limit(relativeScale.length).toArray(),
+				relativeScale
+		);
+	}
+
 
 	/**
 	 *
