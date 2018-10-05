@@ -29,6 +29,7 @@
  */
 package bdv.fx.viewer;
 
+import java.lang.invoke.MethodHandles;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
@@ -63,6 +64,8 @@ import net.imglib2.RealPositionable;
 import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.ui.PainterThread;
 import net.imglib2.ui.TransformListener;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * A JPanel for viewing multiple of {@link Source}s. The panel contains a {@link InteractiveDisplayPaneComponent canvas}
@@ -80,6 +83,8 @@ public class ViewerPanelFX
 		           PainterThread.Paintable,
 		           RequestRepaint
 {
+
+	private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 	/**
 	 * Currently rendered state (visible sources, transformation, timepoint, etc.) A copy can be obtained by {@link
 	 * #getState()}.
@@ -89,7 +94,7 @@ public class ViewerPanelFX
 	/**
 	 * Renders the current state for the {@link #display}.
 	 */
-	protected final MultiResolutionRendererFX imageRenderer;
+	protected MultiResolutionRendererFX imageRenderer;
 
 	/**
 	 * TODO
@@ -147,6 +152,8 @@ public class ViewerPanelFX
 
 	private final Function<Source<?>, Interpolation> interpolation;
 
+	private final CacheControl cacheControl;
+
 	public ViewerPanelFX(
 			final List<SourceAndConverter<?>> sources,
 			final int numTimePoints,
@@ -200,6 +207,7 @@ public class ViewerPanelFX
 			final Function<Source<?>, Interpolation> interpolation)
 	{
 		super();
+		this.cacheControl = cacheControl;
 		options = optional.values;
 		setWidth(options.getWidth());
 		setHeight(options.getHeight());
@@ -688,6 +696,33 @@ public class ViewerPanelFX
 	public ReadOnlyDoubleProperty mouseYProperty()
 	{
 		return ReadOnlyDoubleProperty.readOnlyDoubleProperty(mouseY);
+	}
+
+	public void setScreenScales(double[] screenScales)
+	{
+		LOG.warn("Setting screen scales to {}", screenScales);
+		final MultiResolutionRendererFX renderer = new MultiResolutionRendererFX(
+				renderTarget,
+				painterThread,
+				screenScales,
+				options.getTargetRenderNanos(),
+				options.isDoubleBuffered(),
+				options.getNumRenderingThreads(),
+				renderingExecutorService,
+				options.isUseVolatileIfAvailable(),
+				options.getAccumulateProjectorFactory(),
+				cacheControl
+		);
+		setMultiResolutionRenderer(renderer);
+	}
+
+	private void setMultiResolutionRenderer(MultiResolutionRendererFX renderer)
+	{
+		final MultiResolutionRendererFX oldRenderer = this.imageRenderer;
+		this.imageRenderer = renderer;
+		if (oldRenderer != null)
+			oldRenderer.kill();
+		requestRepaint();
 	}
 
 }

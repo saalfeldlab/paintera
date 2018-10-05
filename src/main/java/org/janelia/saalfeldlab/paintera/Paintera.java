@@ -43,6 +43,7 @@ import org.janelia.saalfeldlab.paintera.composition.CompositeCopy;
 import org.janelia.saalfeldlab.paintera.config.CoordinateConfigNode;
 import org.janelia.saalfeldlab.paintera.config.NavigationConfigNode;
 import org.janelia.saalfeldlab.paintera.config.OrthoSliceConfig;
+import org.janelia.saalfeldlab.paintera.config.ScreenScalesConfig;
 import org.janelia.saalfeldlab.paintera.control.CommitChanges;
 import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignmentState;
 import org.janelia.saalfeldlab.paintera.control.assignment.UnableToPersist;
@@ -228,6 +229,10 @@ public class Paintera extends Application
 				paneWithStatus.orthoSlices().get(baseView.orthogonalViews().topRight()),
 				paneWithStatus.orthoSlices().get(baseView.orthogonalViews().bottomLeft())
 		                                        );
+
+		final ScreenScalesConfig screenScaleConfig = new ScreenScalesConfig(screenScales);
+		paneWithStatus.screenScalesConfigNode().bind(screenScaleConfig);
+		screenScaleConfig.screenScalersProperty().addListener((obs, oldv, newv) -> baseView.orthogonalViews().setScreenScales(newv));
 
 		paneWithStatus.navigationConfigNode().bind(properties.navigationConfig);
 		properties.navigationConfig.bindNavigationToConfig(defaultHandlers.navigation());

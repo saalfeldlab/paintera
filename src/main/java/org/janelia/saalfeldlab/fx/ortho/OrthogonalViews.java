@@ -193,4 +193,9 @@ public class OrthogonalViews<BR extends Node>
 		return this.queue;
 	}
 
+	public void setScreenScales(double[] screenScales)
+	{
+		applyToAll(vp -> vp.setScreenScales(screenScales));
+	}
+
 }

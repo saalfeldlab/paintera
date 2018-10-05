@@ -16,7 +16,6 @@ import javafx.animation.KeyFrame;
 import javafx.animation.Timeline;
 import javafx.beans.binding.Bindings;
 import javafx.beans.property.*;
-import javafx.beans.value.ObservableLongValue;
 import javafx.beans.value.ObservableObjectValue;
 import javafx.event.ActionEvent;
 import javafx.event.EventHandler;
@@ -43,6 +42,7 @@ import org.janelia.saalfeldlab.paintera.cache.MemoryBoundedSoftRefLoaderCache;
 import org.janelia.saalfeldlab.paintera.config.CrosshairConfigNode;
 import org.janelia.saalfeldlab.paintera.config.NavigationConfigNode;
 import org.janelia.saalfeldlab.paintera.config.OrthoSliceConfigNode;
+import org.janelia.saalfeldlab.paintera.config.ScreenScalesConfigNode;
 import org.janelia.saalfeldlab.paintera.config.Viewer3DConfigNode;
 import org.janelia.saalfeldlab.paintera.control.navigation.CoordinateDisplayListener;
 import org.janelia.saalfeldlab.paintera.state.SourceInfo;
@@ -83,6 +83,8 @@ public class BorderPaneWithStatusBars
 	private final OrthoSliceConfigNode orthoSliceConfigNode = new OrthoSliceConfigNode();
 
 	private final Viewer3DConfigNode viewer3DConfigNode = new Viewer3DConfigNode();
+
+	private final ScreenScalesConfigNode screenScaleConfigNode = new ScreenScalesConfigNode();
 
 	private final Map<ViewerAndTransforms, Crosshair> crossHairs;
 
@@ -253,6 +255,7 @@ public class BorderPaneWithStatusBars
 				this.crosshairConfigNode.getContents(),
 				this.orthoSliceConfigNode.getContents(),
 				this.viewer3DConfigNode.getContents(),
+				this.screenScaleConfigNode.getContents(),
 				memoryUsage
 		);
 		final TitledPane settings = new TitledPane("settings", settingsContents);
@@ -361,6 +364,8 @@ public class BorderPaneWithStatusBars
 	{
 		return this.orthoSliceConfigNode;
 	}
+
+	public ScreenScalesConfigNode screenScalesConfigNode() { return this.screenScaleConfigNode; }
 
 	public Viewer3DConfigNode viewer3DConfigNode()
 	{
