@@ -30,7 +30,7 @@ public class Grids {
 	 * @param targetGrid grid of target
 	 * @param scaleSourceToWorld scale source coordinate to world
 	 * @param scaleTargetToWorld scale target coordinate to world
-	 * @return Linear index representation for all blocks in {@code targetGrid} that intersect with {@sourceBlocks}
+	 * @return Linear index representation for all blocks in {@code targetGrid} that intersect with {@code sourceBlocks}
 	 * in {@code sourcegrid}
 	 */
 	public static TLongSet getRelevantBlocksInTargetGrid(
