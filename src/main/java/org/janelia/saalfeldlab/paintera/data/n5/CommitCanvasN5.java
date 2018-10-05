@@ -1,18 +1,5 @@
 package org.janelia.saalfeldlab.paintera.data.n5;
 
-import java.io.FileNotFoundException;
-import java.io.IOException;
-import java.lang.invoke.MethodHandles;
-import java.nio.file.Paths;
-import java.util.Arrays;
-import java.util.Iterator;
-import java.util.Optional;
-import java.util.Set;
-import java.util.function.BiConsumer;
-import java.util.function.Consumer;
-import java.util.stream.Collectors;
-import java.util.stream.DoubleStream;
-
 import gnu.trove.iterator.TLongIterator;
 import gnu.trove.set.hash.TLongHashSet;
 import net.imglib2.FinalInterval;
@@ -44,13 +31,25 @@ import org.janelia.saalfeldlab.n5.LongArrayDataBlock;
 import org.janelia.saalfeldlab.n5.N5FSReader;
 import org.janelia.saalfeldlab.n5.N5Reader;
 import org.janelia.saalfeldlab.n5.N5Writer;
-import org.janelia.saalfeldlab.util.n5.N5Helpers;
-import org.janelia.saalfeldlab.paintera.data.mask.MaskedSource;
 import org.janelia.saalfeldlab.util.HashWrapper;
 import org.janelia.saalfeldlab.util.Sets;
 import org.janelia.saalfeldlab.util.math.ArrayMath;
+import org.janelia.saalfeldlab.util.n5.N5Helpers;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.io.FileNotFoundException;
+import java.io.IOException;
+import java.lang.invoke.MethodHandles;
+import java.nio.file.Paths;
+import java.util.Arrays;
+import java.util.Iterator;
+import java.util.Optional;
+import java.util.Set;
+import java.util.function.BiConsumer;
+import java.util.function.Consumer;
+import java.util.stream.Collectors;
+import java.util.stream.DoubleStream;
 
 public class CommitCanvasN5 implements BiConsumer<CachedCellImg<UnsignedLongType, ?>, long[]>
 {
@@ -247,28 +246,25 @@ public class CommitCanvasN5 implements BiConsumer<CachedCellImg<UnsignedLongType
 					final double[] targetDownsamplingFactors   = n5.getAttribute(
 							targetDataset,
 							N5Helpers.DOWNSAMPLING_FACTORS_KEY,
-							double[].class
-					                                                            );
-					final double[] previousDownsamplingFactors = Optional.ofNullable(n5.getAttribute(
-							previousDataset,
-							N5Helpers.DOWNSAMPLING_FACTORS_KEY,
-							double[].class
-					                                                                                )).orElse(new
-							double[] {1, 1, 1});
+							double[].class);
+					final double[] previousDownsamplingFactors = Optional
+							.ofNullable(n5.getAttribute(
+									previousDataset,
+									N5Helpers.DOWNSAMPLING_FACTORS_KEY,
+									double[].class))
+							.orElse(new double[] {1, 1, 1});
 					final double[] relativeDownsamplingFactors = new double[targetDownsamplingFactors.length];
 					Arrays.setAll(
 							relativeDownsamplingFactors,
-							d -> targetDownsamplingFactors[d] / previousDownsamplingFactors[d]
-					             );
+							d -> targetDownsamplingFactors[d] / previousDownsamplingFactors[d]);
 
 					final CellGrid targetGrid   = N5Helpers.asCellGrid(targetAttributes);
 
-					final long[] affectedBlocks = MaskedSource.scaleBlocksToHigherLevel(
+					final long[] affectedBlocks = org.janelia.saalfeldlab.util.grids.Grids.getRelevantBlocksInTargetGrid(
 							blocks,
 							highestResolutionGrid,
 							targetGrid,
-							targetDownsamplingFactors
-					                                                                   ).toArray();
+							targetDownsamplingFactors).toArray();
                     LOG.debug("Affected blocks at higher level: {}", affectedBlocks);
 
 					final CachedCellImg<LabelMultisetType, VolatileLabelMultisetArray> previousData        =

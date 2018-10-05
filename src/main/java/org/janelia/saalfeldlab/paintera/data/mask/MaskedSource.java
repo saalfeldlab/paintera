@@ -432,56 +432,12 @@ public class MaskedSource<D extends Type<D>, T extends Type<T>> implements DataS
 		final CellGrid grid          = this.dataCanvases[blocksLevel].getCellGrid();
 		final CellGrid targetGrid    = this.dataCanvases[targetLevel].getCellGrid();
 		final double[] toTargetScale = DataSource.getRelativeScales(this, 0, blocksLevel, targetLevel);
-
-		return scaleBlocksToHigherLevel(blocks.toArray(), grid, targetGrid, toTargetScale);
-
-	}
-
-	public static TLongSet scaleBlocksToHigherLevel(
-			final long[] blocks,
-			final CellGrid grid,
-			final CellGrid targetGrid,
-			final double[] relativeFromBlocksToTarget)
-	{
-
-		assert DoubleStream.of(relativeFromBlocksToTarget).filter(d -> Math.round(d) != d).count() == 0;
-		assert DoubleStream.of(relativeFromBlocksToTarget).filter(d -> d <= 0).count() == 0;
-		assert DoubleStream.of(relativeFromBlocksToTarget).filter(d -> d > 1).count() > 0;
-
-		final long[]   blockPos     = new long[grid.numDimensions()];
-		final int[]    blockSize    = new int[grid.numDimensions()];
-		final double[] blockMin     = new double[grid.numDimensions()];
-		final double[] blockMax     = new double[grid.numDimensions()];
-		final long[]   blockMinLong = new long[grid.numDimensions()];
-		final long[]   blockMaxLong = new long[grid.numDimensions()];
-		grid.cellDimensions(blockSize);
-
-		final int[] targetBlockSize = new int[targetGrid.numDimensions()];
-		targetGrid.cellDimensions(targetBlockSize);
-		final int[]  ones                 = IntStream.generate(() -> 1).limit(targetGrid.numDimensions()).toArray();
-		final long[] targetGridDimensions = targetGrid.getGridDimensions();
-
-		final Scale3D toTargetScale = new Scale3D(relativeFromBlocksToTarget).inverse();
-
-		final TLongSet targetBlocks = new TLongHashSet();
-		for (final long blockId : blocks)
-		{
-			grid.getCellGridPositionFlat(blockId, blockPos);
-			Arrays.setAll(blockMin, d -> blockPos[d] * blockSize[d]);
-			Arrays.setAll(blockMax, d -> Math.min(blockMin[d] + blockSize[d], targetGrid.imgDimension(d)));
-			toTargetScale.apply(blockMin, blockMin);
-			toTargetScale.apply(blockMax, blockMax);
-			Arrays.setAll(blockMinLong, d -> (long) blockMin[d] / targetBlockSize[d]);
-			Arrays.setAll(blockMaxLong, d -> (long) (blockMax[d] - 1) / targetBlockSize[d]);
-			Grids.forEachOffset(
-					blockMinLong,
-					blockMaxLong,
-					ones,
-					block -> targetBlocks.add(IntervalIndexer.positionToIndex(block, targetGridDimensions))
-			                   );
-		}
-
-		return targetBlocks;
+		return org.janelia.saalfeldlab.util.grids.Grids.getRelevantBlocksInTargetGrid(
+				blocks.toArray(),
+				grid,
+				targetGrid,
+				toTargetScale
+		);
 	}
 
 	private void scalePositionToLevel(final long[] position, final int intervalLevel, final int targetLevel, final
