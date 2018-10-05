@@ -34,6 +34,7 @@ import net.imglib2.type.numeric.integer.UnsignedLongType;
 import net.imglib2.util.AccessBoxRandomAccessible;
 import net.imglib2.util.Intervals;
 import net.imglib2.view.Views;
+import org.janelia.saalfeldlab.paintera.data.mask.Mask;
 import org.janelia.saalfeldlab.paintera.data.mask.exception.MaskInUse;
 import org.janelia.saalfeldlab.paintera.data.mask.MaskInfo;
 import org.janelia.saalfeldlab.paintera.data.mask.MaskedSource;
@@ -233,15 +234,9 @@ public class FloodFill
 				level,
 				new UnsignedLongType(fill)
 		);
-		final RandomAccessibleInterval<UnsignedLongType>  mask          = source.generateMask(
-				maskInfo,
-				FOREGROUND_CHECK
-		                                                                                     );
+		final Mask<UnsignedLongType> mask = source.generateMask(maskInfo, FOREGROUND_CHECK);
 		final AccessBoxRandomAccessible<UnsignedLongType> accessTracker = new AccessBoxRandomAccessible<>(Views
-				.extendValue(
-				mask,
-				new UnsignedLongType(1)
-		                                                                                                                   ));
+				.extendValue(mask.mask, new UnsignedLongType(1)));
 		final Thread t = new Thread(() -> {
 			net.imglib2.algorithm.fill.FloodFill.fill(
 					source.getDataSource(time, level),
@@ -305,15 +300,9 @@ public class FloodFill
 				level,
 				new UnsignedLongType(fill)
 		);
-		final RandomAccessibleInterval<UnsignedLongType>  mask          = source.generateMask(
-				maskInfo,
-				FOREGROUND_CHECK
-		                                                                                     );
+		final Mask<UnsignedLongType>  mask = source.generateMask(maskInfo, FOREGROUND_CHECK);
 		final AccessBoxRandomAccessible<UnsignedLongType> accessTracker = new AccessBoxRandomAccessible<>(Views
-				.extendValue(
-				mask,
-				new UnsignedLongType(1)
-		                                                                                                                   ));
+				.extendValue(mask.mask, new UnsignedLongType(1)));
 		final Thread t = new Thread(() -> {
 			net.imglib2.algorithm.fill.FloodFill.fill(
 					Views.extendValue(data, new LabelMultisetType()),

@@ -30,6 +30,7 @@ import net.imglib2.type.numeric.integer.UnsignedLongType;
 import net.imglib2.util.AccessBoxRandomAccessible;
 import net.imglib2.util.Pair;
 import net.imglib2.view.Views;
+import org.janelia.saalfeldlab.paintera.data.mask.Mask;
 import org.janelia.saalfeldlab.paintera.data.mask.exception.MaskInUse;
 import org.janelia.saalfeldlab.paintera.data.mask.MaskInfo;
 import org.janelia.saalfeldlab.paintera.data.mask.MaskedSource;
@@ -198,15 +199,9 @@ public class RestrictPainting
 				level,
 				new UnsignedLongType(Label.TRANSPARENT)
 		);
-		final RandomAccessibleInterval<UnsignedLongType>  mask          = source.generateMask(
-				maskInfo,
-				FOREGROUND_CHECK
-		                                                                                     );
+		final Mask<UnsignedLongType> mask = source.generateMask(maskInfo, FOREGROUND_CHECK);
 		final AccessBoxRandomAccessible<UnsignedLongType> accessTracker = new AccessBoxRandomAccessible<>(Views
-				.extendValue(
-				mask,
-				new UnsignedLongType(1)
-		                                                                                                                   ));
+				.extendValue(mask.mask, new UnsignedLongType(1)));
 
 		final RandomAccess<UnsignedLongType> canvasAccess = canvas.randomAccess();
 		canvasAccess.setPosition(seed);
@@ -250,15 +245,9 @@ public class RestrictPainting
 				level,
 				new UnsignedLongType(Label.TRANSPARENT)
 		);
-		final RandomAccessibleInterval<UnsignedLongType>  mask          = source.generateMask(
-				maskInfo,
-				FOREGROUND_CHECK
-		                                                                                     );
+		final Mask<UnsignedLongType> mask = source.generateMask(maskInfo, FOREGROUND_CHECK);
 		final AccessBoxRandomAccessible<UnsignedLongType> accessTracker = new AccessBoxRandomAccessible<>(Views
-				.extendValue(
-				mask,
-				new UnsignedLongType(1)
-		                                                                                                                   ));
+				.extendValue(mask.mask, new UnsignedLongType(1)));
 
 		final RandomAccess<UnsignedLongType> canvasAccess = canvas.randomAccess();
 		canvasAccess.setPosition(seed);

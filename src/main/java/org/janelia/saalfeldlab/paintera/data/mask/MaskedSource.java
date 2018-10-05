@@ -30,14 +30,17 @@ import javafx.beans.binding.Bindings;
 import javafx.beans.binding.BooleanBinding;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.IntegerProperty;
+import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.ReadOnlyStringProperty;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleIntegerProperty;
+import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.beans.property.StringProperty;
 import javafx.beans.value.ChangeListener;
 import javafx.beans.value.ObservableBooleanValue;
 import javafx.beans.value.ObservableValue;
+import javafx.util.Pair;
 import mpicbg.spim.data.sequence.VoxelDimensions;
 import net.imglib2.Cursor;
 import net.imglib2.FinalInterval;
@@ -51,6 +54,7 @@ import net.imglib2.algorithm.util.Grids;
 import net.imglib2.cache.Cache;
 import net.imglib2.cache.img.CachedCellImg;
 import net.imglib2.cache.img.CellLoader;
+import net.imglib2.cache.img.DiskCachedCellImg;
 import net.imglib2.cache.img.DiskCachedCellImgFactory;
 import net.imglib2.cache.img.DiskCachedCellImgOptions;
 import net.imglib2.cache.img.DiskCellCache;
@@ -71,6 +75,7 @@ import net.imglib2.type.label.Label;
 import net.imglib2.type.logic.BitType;
 import net.imglib2.type.logic.BoolType;
 import net.imglib2.type.numeric.IntegerType;
+import net.imglib2.type.numeric.NumericType;
 import net.imglib2.type.numeric.integer.UnsignedLongType;
 import net.imglib2.type.volatiles.VolatileUnsignedLongType;
 import net.imglib2.util.AccessedBlocksRandomAccessible;
@@ -96,13 +101,15 @@ public class MaskedSource<D extends Type<D>, T extends Type<T>> implements DataS
 
 	private static final int NUM_DIMENSIONS = 3;
 
+	private final UnsignedLongType INVALID = new UnsignedLongType(Label.INVALID);
+
 	private final DataSource<D, T> source;
 
 	private final CachedCellImg<UnsignedLongType, LongAccess>[] dataCanvases;
 
 	private final RandomAccessibleInterval<VolatileUnsignedLongType>[] canvases;
 
-	private final HashMap<RandomAccessibleInterval<UnsignedLongType>, MaskInfo<UnsignedLongType>> masks;
+	private final ObjectProperty<Mask> masks = new SimpleObjectProperty<>(null);
 
 	private final RandomAccessible<UnsignedLongType>[] dMasks;
 
@@ -213,7 +220,6 @@ public class MaskedSource<D extends Type<D>, T extends Type<T>> implements DataS
 		this.tMasks = new RandomAccessible[this.canvases.length];
 		this.nextCacheDirectory = nextCacheDirectory;
 
-		this.masks = new HashMap<>();
 		this.pacD = pacD;
 		this.pacT = pacT;
 		this.extensionT = extensionT;
@@ -241,15 +247,9 @@ public class MaskedSource<D extends Type<D>, T extends Type<T>> implements DataS
 		return showCanvasOverBackground;
 	}
 
-	public RandomAccessibleInterval<UnsignedLongType> generateMask(final int t, final int level, final
-	UnsignedLongType value, final Predicate<UnsignedLongType> isPaintedForeground)
-	throws MaskInUse
-	{
-		return generateMask(new MaskInfo<>(t, level, value), isPaintedForeground);
-	}
-
-	public RandomAccessibleInterval<UnsignedLongType> generateMask(final MaskInfo<UnsignedLongType> mask, final
-	Predicate<UnsignedLongType> isPaintedForeground)
+	public Mask<UnsignedLongType> generateMask(
+			final MaskInfo<UnsignedLongType> mask,
+			final Predicate<UnsignedLongType> isPaintedForeground)
 	throws MaskInUse
 	{
 
@@ -268,101 +268,60 @@ public class MaskedSource<D extends Type<D>, T extends Type<T>> implements DataS
 			this.isMaskDeployed.set(true);
 		}
 
-		final DiskCachedCellImgOptions maskOpts = DiskCachedCellImgOptions
-				.options()
-				.cacheDirectory(null)
-				.deleteCacheDirectoryOnExit(true)
-				.volatileAccesses(true)
-				.dirtyAccesses(false)
-				.cellDimensions(this.blockSizes[mask.level]);
-
-		final CachedCellImg<UnsignedLongType, ?> store = new DiskCachedCellImgFactory<>(
-				new UnsignedLongType(),
-				maskOpts
-		)
-				.create(source.getSource(0, mask.level));
-		final RandomAccessibleInterval<VolatileUnsignedLongType> vstore  = VolatileViews.wrapAsVolatile(store);
-		final UnsignedLongType                                   INVALID = new UnsignedLongType(Label.INVALID);
-		this.dMasks[mask.level] = Converters.convert(
-				Views.extendZero(store),
-				(input, output) -> output.set(isPaintedForeground.test(input) ? mask.value : INVALID),
-				new UnsignedLongType()
-		                                            );
-		this.tMasks[mask.level] = Converters.convert(Views.extendZero(vstore), (input, output) -> {
-			final boolean isValid = input.isValid();
-			output.setValid(isValid);
-			if (isValid)
-			{
-				output.get().set(input.get().get() > 0 ? mask.value : INVALID);
-			}
-		}, new VolatileUnsignedLongType());
-		final RealRandomAccessible<UnsignedLongType>         dMaskInterpolated = Views.interpolate(
-				this.dMasks[mask.level],
-				new NearestNeighborInterpolatorFactory<>()
-		                                                                                          );
-		final RealRandomAccessible<VolatileUnsignedLongType> tMaskInterpolated = Views.interpolate(
-				this.tMasks[mask.level],
-				new NearestNeighborInterpolatorFactory<>()
-		                                                                                          );
-		for (int level = 0; level < getNumMipmapLevels(); ++level)
-		{
-			if (level != mask.level)
-			{
-				final double[] scale   = DataSource.getRelativeScales(this, 0, mask.level, level);
-				final Scale3D  scale3D = new Scale3D(scale);
-				this.dMasks[level] = RealViews.affine(dMaskInterpolated, scale3D.inverse());
-				this.tMasks[level] = RealViews.affine(tMaskInterpolated, scale3D.inverse());
-			}
-		}
+		Pair<RandomAccessibleInterval<UnsignedLongType>, RandomAccessibleInterval<VolatileUnsignedLongType>>
+				storeWithVolatile = createMaskStoreWithVolatile(mask.level);
+		final RandomAccessibleInterval<UnsignedLongType> store = storeWithVolatile.getKey();
+		final RandomAccessibleInterval<VolatileUnsignedLongType> vstore  = storeWithVolatile.getValue();
+		setMasks(store, vstore, mask.level, mask.value, isPaintedForeground);
 		final AccessedBlocksRandomAccessible<UnsignedLongType> trackingStore = new AccessedBlocksRandomAccessible<>(
 				store,
-				store.getCellGrid()
+				((AbstractCellImg<?,?,?,?>)store).getCellGrid()
 		);
-		this.masks.put(trackingStore, mask);
-		return trackingStore;
+		final Mask<UnsignedLongType> m = new Mask<>(mask, trackingStore);
+		this.masks.set(m);
+		return m;
 	}
 
-	public void applyMask(final RandomAccessibleInterval<UnsignedLongType> mask, final Interval paintedInterval, final
-	Predicate<UnsignedLongType> acceptAsPainted)
+	public void applyMask(
+			final Mask<UnsignedLongType> mask,
+			final Interval paintedInterval,
+			final Predicate<UnsignedLongType> acceptAsPainted)
 	{
 		new Thread(() -> {
 			synchronized (this)
 			{
-				LOG.debug("Applying mask: {}", mask, paintedInterval);
-				final MaskInfo<UnsignedLongType> maskInfo = this.masks.get(mask);
-				if (maskInfo == null)
+				if (mask != this.masks.get())
 				{
 					LOG.warn("Did not pass valid mask {}, will not do anything", mask);
 					return;
 				}
+				LOG.debug("Applying mask: {}", mask, paintedInterval);
+				final MaskInfo<UnsignedLongType> maskInfo = mask.info;
 				final CachedCellImg<UnsignedLongType, ?> canvas = dataCanvases[maskInfo.level];
 				final CellGrid                           grid   = canvas.getCellGrid();
 
 				final int[] blockSize = new int[grid.numDimensions()];
 				grid.cellDimensions(blockSize);
 
-				final TLongSet affectedBlocks = affectedBlocks(mask, canvas.getCellGrid(), paintedInterval);
+				final TLongSet affectedBlocks = affectedBlocks(mask.mask, canvas.getCellGrid(), paintedInterval);
 
 				paintAffectedPixels(
 						affectedBlocks,
 						Converters.convert(
-								Views.extendZero(mask),
+								Views.extendZero(mask.mask),
 								(s, t) -> t.set(acceptAsPainted.test(s)),
-								new BitType()
-						                  ),
+								new BitType()),
 						canvas,
 						maskInfo.value,
 						canvas.getCellGrid(),
-						paintedInterval
-				                   );
+						paintedInterval);
 
 				forgetMasks();
 
 				final TLongSet paintedBlocksAtHighestResolution = this.scaleBlocksToLevel(
 						affectedBlocks,
 						maskInfo.level,
-						0
-				                                                                         );
+						0);
 
 				this.affectedBlocksByLabel[maskInfo.level].computeIfAbsent(
 						maskInfo.value.getIntegerLong(),
@@ -375,7 +334,7 @@ public class MaskedSource<D extends Type<D>, T extends Type<T>> implements DataS
 
 				propagationExecutor.submit(() -> {
 					propagateMask(
-							mask,
+							mask.mask,
 							affectedBlocks,
 							maskInfo.level,
 							maskInfo.value,
@@ -410,20 +369,9 @@ public class MaskedSource<D extends Type<D>, T extends Type<T>> implements DataS
 		if (intervalLevel == targetLevel) { return interval; }
 
 		final double[] min = LongStream.of(Intervals.minAsLongArray(interval)).asDoubleStream().toArray();
-		final double[] max = LongStream.of(Intervals.maxAsLongArray(interval)).asDoubleStream().map(d -> d + 1)
-				.toArray();
-
-		final Scale3D toTargetScale = new Scale3D(DataSource.getRelativeScales(
-				this,
-				0,
-				intervalLevel,
-				targetLevel
-		                                                                      )).inverse();
-
-		toTargetScale.apply(min, min);
-		toTargetScale.apply(max, max);
-		Arrays.setAll(max, d -> Math.ceil(max[d]) - 1);
-
+		final double[] max = LongStream.of(Intervals.maxAsLongArray(interval)).asDoubleStream().map(d -> d + 1).toArray();
+		final double[] relativeScale = DataSource.getRelativeScales(this, 0, intervalLevel, targetLevel );
+		org.janelia.saalfeldlab.util.grids.Grids.scaleBoundingBox(min, max, min, max, relativeScale);
 		return Intervals.smallestContainingInterval(new FinalRealInterval(min, max));
 
 	}
@@ -463,7 +411,7 @@ public class MaskedSource<D extends Type<D>, T extends Type<T>> implements DataS
 	{
 		synchronized (this)
 		{
-			this.masks.clear();
+			this.masks.set(null);
 			this.isMaskDeployed.set(false);
 		}
 	}
@@ -476,7 +424,7 @@ public class MaskedSource<D extends Type<D>, T extends Type<T>> implements DataS
 			{
 				throw new CannotClearCanvas("Currently persisting canvas -- try again later.");
 			}
-			this.masks.clear();
+			this.masks.set(null);
 			this.isMaskDeployed.set(false);
 			clearCanvases();
 		}
@@ -800,13 +748,11 @@ public class MaskedSource<D extends Type<D>, T extends Type<T>> implements DataS
 					this,
 					0,
 					level - 1,
-					level
-			                                                                                                      );
+					level);
 			final Interval                                    intervalAtHigherLevel = scaleIntervalToLevel(
 					intervalAtPaintedScale,
 					paintedLevel,
-					levelAsFinal
-			                                                                                              );
+					levelAsFinal);
 
 			if (DoubleStream.of(relativeScales).filter(d -> Math.round(d) != d).count() > 0)
 			{
@@ -1345,6 +1291,86 @@ public class MaskedSource<D extends Type<D>, T extends Type<T>> implements DataS
 		}
 		LOG.debug("Affected blocks by id: {}", this.affectedBlocksByLabel, null);
 
+	}
+
+	private DiskCachedCellImgOptions getMaskDiskCachedCellImgOptions(int level)
+	{
+		return DiskCachedCellImgOptions
+				.options()
+				.cacheDirectory(null)
+				.deleteCacheDirectoryOnExit(true)
+				.volatileAccesses(true)
+				.dirtyAccesses(false)
+				.cellDimensions(this.blockSizes[level]);
+	}
+
+	private DiskCachedCellImg<UnsignedLongType, ?> createMaskStore(
+			final DiskCachedCellImgOptions maskOpts,
+			final int level)
+	{
+		return new DiskCachedCellImgFactory<>(new UnsignedLongType(), maskOpts).create(source.getSource(0, level));
+	}
+
+	private Pair<RandomAccessibleInterval<UnsignedLongType>, RandomAccessibleInterval<VolatileUnsignedLongType>> createMaskStoreWithVolatile(final int level)
+	{
+		final DiskCachedCellImgOptions maskOpts = getMaskDiskCachedCellImgOptions(level);
+		final CachedCellImg<UnsignedLongType, ?> store = createMaskStore(maskOpts, level);
+		final RandomAccessibleInterval<VolatileUnsignedLongType> vstore  = VolatileViews.wrapAsVolatile(store);
+		return new Pair<>(store, vstore);
+	}
+
+	private void setMasks(
+			final RandomAccessibleInterval<UnsignedLongType> store,
+			final RandomAccessibleInterval<VolatileUnsignedLongType> vstore,
+			final int maskLevel,
+			final UnsignedLongType value,
+			final Predicate<UnsignedLongType> isPaintedForeground)
+	{
+
+		setAtMaskLevel(store, vstore, maskLevel, value, isPaintedForeground);
+
+		final RealRandomAccessible<UnsignedLongType> dMaskInterpolated =
+				interpolateNearestNeighbor(this.dMasks[maskLevel]);
+		final RealRandomAccessible<VolatileUnsignedLongType> tMaskInterpolated =
+				interpolateNearestNeighbor(this.tMasks[maskLevel]);
+
+		for (int level = 0; level < getNumMipmapLevels(); ++level)
+		{
+			if (level != maskLevel)
+			{
+				final double[] scale   = DataSource.getRelativeScales(this, 0, maskLevel, level);
+				final Scale3D  scale3D = new Scale3D(scale);
+				this.dMasks[level] = RealViews.affine(dMaskInterpolated, scale3D.inverse());
+				this.tMasks[level] = RealViews.affine(tMaskInterpolated, scale3D.inverse());
+			}
+		}
+	}
+
+	private void setAtMaskLevel(
+			final RandomAccessibleInterval<UnsignedLongType> store,
+			final RandomAccessibleInterval<VolatileUnsignedLongType> vstore,
+			final int maskLevel,
+			final UnsignedLongType value,
+			final Predicate<UnsignedLongType> isPaintedForeground)
+	{
+		this.dMasks[maskLevel] = Converters.convert(
+				Views.extendZero(store),
+				(input, output) -> output.set(isPaintedForeground.test(input) ? value : INVALID),
+				new UnsignedLongType());
+
+		this.tMasks[maskLevel] = Converters.convert(Views.extendZero(vstore), (input, output) -> {
+			final boolean isValid = input.isValid();
+			output.setValid(isValid);
+			if (isValid)
+			{
+				output.get().set(input.get().get() > 0 ? value : INVALID);
+			}
+		}, new VolatileUnsignedLongType());
+	}
+
+	private static <T> RealRandomAccessible<T> interpolateNearestNeighbor(RandomAccessible<T> ra)
+	{
+		return Views.interpolate(ra, new NearestNeighborInterpolatorFactory<>());
 	}
 
 }
