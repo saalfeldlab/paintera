@@ -1,6 +1,8 @@
 package org.janelia.saalfeldlab.paintera;
 
-public class UnableToAddSource extends Exception
+import org.janelia.saalfeldlab.paintera.exception.PainteraException;
+
+public class UnableToAddSource extends PainteraException
 {
 
 	public UnableToAddSource(Throwable cause)

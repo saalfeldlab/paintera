@@ -9,7 +9,7 @@ import java.util.Set;
 import java.util.function.Function;
 
 import org.janelia.saalfeldlab.paintera.control.assignment.UnableToPersist;
-import org.janelia.saalfeldlab.paintera.data.mask.CannotPersist;
+import org.janelia.saalfeldlab.paintera.data.mask.exception.CannotPersist;
 import org.janelia.saalfeldlab.paintera.data.mask.MaskedSource;
 import org.janelia.saalfeldlab.paintera.state.LabelSourceState;
 import org.janelia.saalfeldlab.paintera.state.SourceState;

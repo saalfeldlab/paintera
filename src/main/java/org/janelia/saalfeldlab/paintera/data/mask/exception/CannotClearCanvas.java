@@ -1,6 +1,6 @@
-package org.janelia.saalfeldlab.paintera.data.mask;
+package org.janelia.saalfeldlab.paintera.data.mask.exception;
 
-public class CannotClearCanvas extends Exception
+public class CannotClearCanvas extends MaskedSourceException
 {
 
 	/**

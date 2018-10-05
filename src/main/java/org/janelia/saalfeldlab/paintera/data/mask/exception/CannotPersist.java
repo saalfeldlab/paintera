@@ -1,6 +1,6 @@
-package org.janelia.saalfeldlab.paintera.data.mask;
+package org.janelia.saalfeldlab.paintera.data.mask.exception;
 
-public class CannotPersist extends Exception
+public class CannotPersist extends MaskedSourceException
 {
 
 	/**
