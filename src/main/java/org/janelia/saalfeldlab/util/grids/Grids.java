@@ -1,6 +1,8 @@
 package org.janelia.saalfeldlab.util.grids;
 
 import gnu.trove.list.array.TLongArrayList;
+import gnu.trove.set.TLongSet;
+import gnu.trove.set.hash.TLongHashSet;
 import net.imglib2.FinalInterval;
 import net.imglib2.FinalRealInterval;
 import net.imglib2.Interval;
@@ -13,10 +15,53 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.lang.invoke.MethodHandles;
+import java.util.Arrays;
+import java.util.stream.DoubleStream;
 
 public class Grids {
 
 	private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
+
+
+	/**
+	 *
+	 * @param sourceBlocks linear index representation of blocks in source grid space
+	 * @param sourceGrid grid of source
+	 * @param targetGrid grid of target
+	 * @param scaleSourceToWorld scale source coordinate to world
+	 * @param scaleTargetToWorld scale target coordinate to world
+	 * @return Linear index representation for all blocks in {@code targetGrid} that intersect with {@sourceBlocks}
+	 * in {@code sourcegrid}
+	 */
+	public static TLongSet getRelevantBlocksInTargetGrid(
+			final long[] sourceBlocks,
+			final CellGrid sourceGrid,
+			final CellGrid targetGrid,
+			final double[] scaleSourceToWorld,
+			final double[] scaleTargetToWorld)
+	{
+
+		assert DoubleStream.of(scaleSourceToWorld).filter(d -> d <= 0).count() == 0;
+		assert DoubleStream.of(scaleTargetToWorld).filter(d -> d <= 0).count() == 0;
+
+		final long[]   blockPos     = new long[sourceGrid.numDimensions()];
+		final int[]    blockSize    = new int[sourceGrid.numDimensions()];
+		final double[] blockMin     = new double[sourceGrid.numDimensions()];
+		final double[] blockMax     = new double[sourceGrid.numDimensions()];
+		sourceGrid.cellDimensions(blockSize);
+
+		final TLongSet targetBlocks = new TLongHashSet();
+		for (final long blockId : sourceBlocks)
+		{
+			sourceGrid.getCellGridPositionFlat(blockId, blockPos);
+			Arrays.setAll(blockMin, d -> blockPos[d] * blockSize[d]);
+			Arrays.setAll(blockMax, d -> Math.min(blockMin[d] + blockSize[d], sourceGrid.imgDimension(d)) - 1);
+			scaleBoundingBox(blockMin, blockMax, blockMin, blockMax, scaleSourceToWorld, scaleTargetToWorld);
+			targetBlocks.addAll(getIntersectingBlocks(blockMin, blockMax, targetGrid));
+		}
+
+		return targetBlocks;
+	}
 
 	/**
 	 * Get all blocks/cells of a {@link CellGrid} that the real interval defined by {@code min} and {@code max}

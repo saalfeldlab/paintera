@@ -147,4 +147,117 @@ public class GridsTest {
 		}
 	}
 
+	@Test
+	public void testGetRelevantBlocksInTargetGrid()
+	{
+		// source
+		//
+		//  ______ ______ __
+		// |   0  |   1  | 2|
+		// |------|------|--|
+		// |   3  |   4  | 5|
+		//  ‾‾‾‾‾‾ ‾‾‾‾‾‾ ‾‾
+
+
+		// target
+		//  ____ ____
+		// |  0 |  1 |
+		// |----|----|
+		// |  2 |  3 |
+		//  ‾‾‾‾ ‾‾‾‾
+
+		final double[] scaleSourceToWorld = {2.0, 3.0};
+		final double[] scaleTargetToWorld = {3.0, 6.0};
+
+		// img size in world coordinates: {14, 24}
+		// source grid block size in world coordinates: {6, 12}
+		// target grid block size in world coorinates: {9, 18}
+		final CellGrid sourceGrid = new CellGrid(new long[] {7, 8}, new int[] {3, 4});
+		final CellGrid targetGrid = new CellGrid(new long[] {5, 4}, new int[] {3, 3});
+		{
+			long[] sourceBlocks = LongStream.range(0, 6).toArray();
+			long[] targetBlocks = Grids.getRelevantBlocksInTargetGrid(
+					sourceBlocks,
+					sourceGrid,
+					targetGrid,
+					scaleSourceToWorld,
+					scaleTargetToWorld).toArray();
+			Arrays.sort(targetBlocks);
+			Assert.assertArrayEquals(LongStream.range(0, 4).toArray(), targetBlocks);
+		}
+
+		// test each source block:
+		{
+			long[] sourceBlocks = {0};
+			long[] targetBlocks = Grids.getRelevantBlocksInTargetGrid(
+					sourceBlocks,
+					sourceGrid,
+					targetGrid,
+					scaleSourceToWorld,
+					scaleTargetToWorld).toArray();
+			Arrays.sort(targetBlocks);
+			Assert.assertArrayEquals(new long[] {0}, targetBlocks);
+		}
+
+		{
+			long[] sourceBlocks = {1};
+			long[] targetBlocks = Grids.getRelevantBlocksInTargetGrid(
+					sourceBlocks,
+					sourceGrid,
+					targetGrid,
+					scaleSourceToWorld,
+					scaleTargetToWorld).toArray();
+			Arrays.sort(targetBlocks);
+			Assert.assertArrayEquals(new long[] {0, 1}, targetBlocks);
+		}
+
+		{
+			long[] sourceBlocks = {2};
+			long[] targetBlocks = Grids.getRelevantBlocksInTargetGrid(
+					sourceBlocks,
+					sourceGrid,
+					targetGrid,
+					scaleSourceToWorld,
+					scaleTargetToWorld).toArray();
+			Arrays.sort(targetBlocks);
+			Assert.assertArrayEquals(new long[] {1}, targetBlocks);
+		}
+
+		{
+			long[] sourceBlocks = {3};
+			long[] targetBlocks = Grids.getRelevantBlocksInTargetGrid(
+					sourceBlocks,
+					sourceGrid,
+					targetGrid,
+					scaleSourceToWorld,
+					scaleTargetToWorld).toArray();
+			Arrays.sort(targetBlocks);
+			Assert.assertArrayEquals(new long[] {0, 2}, targetBlocks);
+		}
+
+		{
+			long[] sourceBlocks = {4};
+			long[] targetBlocks = Grids.getRelevantBlocksInTargetGrid(
+					sourceBlocks,
+					sourceGrid,
+					targetGrid,
+					scaleSourceToWorld,
+					scaleTargetToWorld).toArray();
+			Arrays.sort(targetBlocks);
+			Assert.assertArrayEquals(new long[] {0, 1, 2, 3}, targetBlocks);
+		}
+
+		{
+			long[] sourceBlocks = {5};
+			long[] targetBlocks = Grids.getRelevantBlocksInTargetGrid(
+					sourceBlocks,
+					sourceGrid,
+					targetGrid,
+					scaleSourceToWorld,
+					scaleTargetToWorld).toArray();
+			Arrays.sort(targetBlocks);
+			Assert.assertArrayEquals(new long[] {1, 3}, targetBlocks);
+		}
+	}
+
 }
