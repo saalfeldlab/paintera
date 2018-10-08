@@ -120,7 +120,7 @@ import tmp.bdv.img.cache.VolatileCachedCellImg;
  * <p>
  * Rendering timing is tied to a {@link CacheControl} control for IO budgeting, etc.
  *
- * @author Tobias Pietzsch &lt;tobias.pietzsch@gmail.com&gt;
+ * @author Tobias Pietzsch
  * @author Philipp Hanslovsky
  */
 public class MultiResolutionRendererGeneric<T>
@@ -128,73 +128,73 @@ public class MultiResolutionRendererGeneric<T>
 
 	private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.class);
 
-	public static interface ImageGenerator<T>
+	public interface ImageGenerator<T>
 	{
 
-		public T create(int width, int height);
+		T create(int width, int height);
 
-		public T create(int width, int height, T other);
+		T create(int width, int height, T other);
 
 	}
 
 	/**
 	 * Receiver for the data store that we render.
 	 */
-	protected final TransformAwareRenderTargetGeneric<T> display;
+	private final TransformAwareRenderTargetGeneric<T> display;
 
 	/**
 	 * Thread that triggers repainting of the display. Requests for repainting are send there.
 	 */
-	protected final PainterThread painterThread;
+	private final PainterThread painterThread;
 
 	/**
 	 * Currently active projector, used to re-paint the display. It maps the source data to {@link #screenImages}.
 	 */
-	protected VolatileProjector projector;
+	private VolatileProjector projector;
 
 	/**
 	 * The index of the screen scale of the {@link #projector current projector}.
 	 */
-	protected int currentScreenScaleIndex;
+	private int currentScreenScaleIndex;
 
 	/**
 	 * Whether double buffering is used.
 	 */
-	protected final boolean doubleBuffered;
+	private final boolean doubleBuffered;
 
 	/**
 	 * Double-buffer index of next {@link #screenImages image} to render.
 	 */
-	protected final ArrayDeque<Integer> renderIdQueue;
+	private final ArrayDeque<Integer> renderIdQueue;
 
 	/**
 	 * Maps from data store to double-buffer index. Needed for double-buffering.
 	 */
-	protected final HashMap<T, Integer> bufferedImageToRenderId;
+	private final HashMap<T, Integer> bufferedImageToRenderId;
 
 	/**
 	 * Used to render an individual source. One image per screen resolution and visible source. First index is screen
 	 * scale, second index is index in list of visible sources.
 	 */
-	protected ArrayImg<ARGBType, IntArray>[][] renderImages;
+	ArrayImg<ARGBType, IntArray>[][] renderImages;
 
 	/**
 	 * Storage for mask images of {@link VolatileHierarchyProjector}. One array per visible source. (First) index is
 	 * index in list of visible sources.
 	 */
-	protected byte[][] renderMaskArrays;
+	private byte[][] renderMaskArrays;
 
 	/**
 	 * Used to render the image for display. Three images per screen resolution if double buffering is enabled. First
 	 * index is screen scale, second index is double-buffer.
 	 */
-	protected T[][] screenImages;
+	private List<List<T>> screenImages;
 
 	/**
 	 * data store wrapping the data in the {@link #screenImages}. First index is screen scale, second index is
 	 * double-buffer.
 	 */
-	protected T[][] bufferedImages;
+	private List<List<T>> bufferedImages;
 
 	/**
 	 * Scale factors from the {@link #display viewer canvas} to the {@link #screenImages}.
@@ -202,14 +202,14 @@ public class MultiResolutionRendererGeneric<T>
 	 * A scale factor of 1 means 1 pixel in the screen image is displayed as 1 pixel on the canvas, a scale factor of
 	 * 0.5 means 1 pixel in the screen image is displayed as 2 pixel on the canvas, etc.
 	 */
-	protected final double[] screenScales;
+	private double[] screenScales;
 
 	/**
 	 * The scale transformation from viewer to {@link #screenImages screen image}. Each transformations corresponds
 	 * to a
 	 * {@link #screenScales screen scale}.
 	 */
-	protected AffineTransform3D[] screenScaleTransforms;
+	private AffineTransform3D[] screenScaleTransforms;
 
 	/**
 	 * If the rendering time (in nanoseconds) for the (currently) highest scaled screen image is above this threshold,
@@ -217,7 +217,7 @@ public class MultiResolutionRendererGeneric<T>
 	 * time for the (currently) second-highest scaled screen image is below this threshold, decrease the {@link
 	 * #maxScreenScaleIndex index} of the highest screen scale to use.
 	 */
-	protected final long targetRenderNanos;
+	private final long targetRenderNanos;
 
 	/**
 	 * The index of the (coarsest) screen scale with which to start rendering. Once this level is painted, rendering
@@ -225,60 +225,58 @@ public class MultiResolutionRendererGeneric<T>
 	 * maxScreenScaleIndex is adapted such that it is the highest index for which rendering in {@link
 	 * #targetRenderNanos} nanoseconds is still possible.
 	 */
-	protected int maxScreenScaleIndex;
+	private int maxScreenScaleIndex;
 
 	/**
 	 * The index of the screen scale which should be rendered next.
 	 */
-	protected int requestedScreenScaleIndex;
+	private int requestedScreenScaleIndex;
 
 	/**
 	 * Whether the current rendering operation may be cancelled (to start a new one). Rendering may be cancelled unless
 	 * we are rendering at coarsest screen scale and coarsest mipmap level.
 	 */
-	protected volatile boolean renderingMayBeCancelled;
+	private volatile boolean renderingMayBeCancelled;
 
 	/**
 	 * How many threads to use for rendering.
 	 */
-	protected final int numRenderingThreads;
+	private final int numRenderingThreads;
 
 	/**
 	 * {@link ExecutorService} used for rendering.
 	 */
-	protected final ExecutorService renderingExecutorService;
+	private final ExecutorService renderingExecutorService;
 
 	/**
 	 * TODO
 	 */
-	protected final AccumulateProjectorFactory<ARGBType> accumulateProjectorFactory;
+	private final AccumulateProjectorFactory<ARGBType> accumulateProjectorFactory;
 
 	/**
 	 * Controls IO budgeting and fetcher queue.
 	 */
-	protected final CacheControl cacheControl;
+	private final CacheControl cacheControl;
 
 	/**
 	 * Whether volatile versions of sources should be used if available.
 	 */
-	protected final boolean useVolatileIfAvailable;
+	private final boolean useVolatileIfAvailable;
 
 	/**
 	 * Whether a repaint was {@link #requestRepaint() requested}. This will cause {@link
 	 * CacheControl#prepareNextFrame()}.
 	 */
-	protected boolean newFrameRequest;
+	private boolean newFrameRequest;
 
 	/**
 	 * The timepoint for which last a projector was {@link #createProjector created}.
 	 */
-	protected int previousTimepoint;
+	private int previousTimepoint;
 
-	// TODO: should be settable
-	protected long[] iobudget = new long[] {100l * 1000000l, 10l * 1000000l};
+	private long[] iobudget = new long[] {100l * 1000000l, 10l * 1000000l};
 
-	// TODO: should be settable
-	protected boolean prefetchCells = true;
+	private boolean prefetchCells = true;
 
 	private final Function<T, ArrayImg<ARGBType, ? extends IntAccess>> wrapAsArrayImg;
 
