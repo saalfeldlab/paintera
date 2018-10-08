@@ -43,21 +43,21 @@ public class PainteraCommandLineArgs implements Callable<Boolean>
 	private String[] labelSources;
 
 	@Option(names = "--num-screen-scales", paramLabel = "NUM_SCREEN_SCALES", required = false, description = "Number " +
-			"of screen scales, defaults to 3")
+			"of screen scales, defaults to 3. If no scale option is specified, scales default to [1.0, 0.5, 0.25, 0.125, 0.0625].")
 	private Integer numScreenScales;
 
 	@Option(names = "--highest-screen-scale", paramLabel = "HIGHEST_SCREEN_SCALE", required = false, description =
-			"Highest screen scale, restricted to the interval (0,1], defaults to 1")
+			"Highest screen scale, restricted to the interval (0,1], defaults to 1. If no scale option is specified, scales default to [1.0, 0.5, 0.25, 0.125, 0.0625].")
 	private Double highestScreenScale;
 
 	@Option(names = "--screen-scale-factor", paramLabel = "SCREEN_SCALE_FACTOR", required = false, description =
 			"Scalar value from the open interval (0,1) that defines how screen scales diminish in each dimension. " +
-					"Defaults to 0.5")
+					"Defaults to 0.5. If no scale option is specified, scales default to [1.0, 0.5, 0.25, 0.125, 0.0625].")
 	private Double screenScaleFactor;
 
 	@Option(names = "--screen-scales", paramLabel = "SCREEN_SCALES", required = false, description = "Explicitly set " +
-			"screen scales. Must be strictliy monotonically decreasing values in from the interval (0,1]. Overrides " +
-			"all other screen scale options.", arity = "1..*", split = ",")
+			"screen scales. Must be strictly monotonically decreasing values in from the interval (0,1]. Overrides " +
+			"all other screen scale options. If no scale option is specified, scales default to [1.0, 0.5, 0.25, 0.125, 0.0625].", arity = "1..*", split = ",")
 	private double[] screenScales;
 
 	@Parameters(index = "0", paramLabel = "PROJECT", arity = "0..1", description = "Optional project N5 root (N5 or " +
@@ -74,6 +74,9 @@ public class PainteraCommandLineArgs implements Callable<Boolean>
 
 	@Option(names = "--version", paramLabel = "PRINT_VERSION_STRING", required = false, description = "Print version string and exit")
 	private Boolean printVersionString;
+
+	private boolean screenScalesProvided = false;
+
 	@Override
 	public Boolean call() throws Exception
 	{
@@ -81,6 +84,8 @@ public class PainteraCommandLineArgs implements Callable<Boolean>
 		height = height <= 0 ? -1 : height;
 		rawSources = rawSources == null ? new String[] {} : rawSources;
 		labelSources = labelSources == null ? new String[] {} : labelSources;
+
+		screenScalesProvided = screenScales != null || numScreenScales != null || highestScreenScale != null || screenScaleFactor != null;
 
 		numScreenScales = Optional.ofNullable(this.numScreenScales).filter(n -> n > 0).orElse(DEFAULT_NUM_SCREEN_SCALES);
 		highestScreenScale = Optional.ofNullable(highestScreenScale).filter(s -> s > 0 && s <= 1).orElse(DEFAULT_HIGHEST_SCREEN_SCALE);
@@ -152,6 +157,11 @@ public class PainteraCommandLineArgs implements Callable<Boolean>
 	public boolean defaultToTempDirectory()
 	{
 		return this.defaultToTempDirectory;
+	}
+
+	public boolean wereScreenScalesProvided()
+	{
+		return this.screenScalesProvided;
 	}
 
 	private static double[] createScreenScales(final int numScreenScales, final double highestScreenScale, final

@@ -11,6 +11,7 @@ import net.imglib2.realtransform.AffineTransform3D;
 import org.janelia.saalfeldlab.paintera.PainteraBaseView;
 import org.janelia.saalfeldlab.paintera.composition.Composite;
 import org.janelia.saalfeldlab.paintera.config.CrosshairConfig;
+import org.janelia.saalfeldlab.paintera.config.ScreenScalesConfig;
 import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignmentOnlyLocal;
 import org.janelia.saalfeldlab.paintera.control.selection.SelectedIds;
 import org.janelia.saalfeldlab.paintera.data.mask.MaskedSource;
@@ -121,6 +122,7 @@ public class GsonHelpers {
 				.registerTypeAdapter(SimpleLongProperty.class, new SimpleLongPropertySerializer())
 				.registerTypeAdapter(ManagedMeshSettings.class, ManagedMeshSettings.jsonSerializer())
 				.registerTypeAdapter(MeshSettings.class, new MeshSettingsSerializer())
+				.registerTypeAdapter(ScreenScalesConfig.class, new ScreenScalesConfigSerializer())
 				.registerTypeAdapter(LabelSourceState.class, new LabelSourceStateDeserializer<>(arguments));
 	}
 
@@ -174,6 +176,7 @@ public class GsonHelpers {
 				.registerTypeAdapter(SimpleLongProperty.class, new SimpleLongPropertySerializer())
 				.registerTypeAdapter(ManagedMeshSettings.class, ManagedMeshSettings.jsonSerializer())
 				.registerTypeAdapter(MeshSettings.class, new MeshSettingsSerializer())
+				.registerTypeAdapter(ScreenScalesConfig.class, new ScreenScalesConfigSerializer())
 				.registerTypeAdapter(
 						InvertingRawSourceState.class,
 						new InvertingSourceStateSerializer(dependencyToIndex)

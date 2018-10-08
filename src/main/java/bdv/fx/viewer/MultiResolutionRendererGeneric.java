@@ -932,7 +932,7 @@ public class MultiResolutionRendererGeneric<T>
 
 	private synchronized void createVariables()
 	{
-		LOG.warn("Updating images for screen scales {}", screenScales);
+		LOG.debug("Updating images for screen scales {}", screenScales);
 		renderImages = new ArrayImg[screenScales.length][0];
 		renderMaskArrays = new byte[0][];
 		screenImages = new ArrayList<>();

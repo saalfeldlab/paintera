@@ -751,7 +751,7 @@ public class ViewerPanelFX
 
 	public void setScreenScales(double[] screenScales)
 	{
-		LOG.warn("Setting screen scales to {}", screenScales);
+		LOG.debug("Setting screen scales to {}", screenScales);
 		this.imageRenderer.setScreenScales(screenScales.clone());
 	}
 

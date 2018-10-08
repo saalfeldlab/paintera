@@ -146,9 +146,6 @@ public class Paintera extends Application
 			return;
 		}
 
-		final double[] screenScales = painteraArgs.screenScales();
-		LOG.debug("Using screen scales {}", screenScales);
-
 		final String projectDir = Optional
 				.ofNullable(painteraArgs.project())
 				.orElseGet(MakeUnchecked.supplier(() -> new ProjectDirectoryNotSpecifiedDialog(painteraArgs
@@ -163,7 +160,7 @@ public class Paintera extends Application
 
 		final PainteraBaseView baseView = new PainteraBaseView(
 				PainteraBaseView.reasonableNumFetcherThreads(),
-				ViewerOptions.options().screenScales(screenScales),
+				ViewerOptions.options().screenScales(ScreenScalesConfig.defaultScreenScalesCopy()),
 				si -> s -> si.getState(s).interpolationProperty().get()
 		);
 
@@ -230,10 +227,11 @@ public class Paintera extends Application
 				paneWithStatus.orthoSlices().get(baseView.orthogonalViews().bottomLeft())
 		                                        );
 
-		final ScreenScalesConfig screenScaleConfig = new ScreenScalesConfig(screenScales);
-		paneWithStatus.screenScalesConfigNode().bind(screenScaleConfig);
-		paneWithStatus.screenScalesConfigNode().screenScalesProperty().addListener((obs, oldv, newv) -> {LOG.warn("Setting screen scales in ortho views to {}", newv); baseView.orthogonalViews().setScreenScales(newv.getScalesCopy());});
-//		screenScaleConfig.screenScalesProperty().addListener((obs, oldv, newv) -> {LOG.warn("Setting screen scales in ortho views to {}", newv);baseView.orthogonalViews().setScreenScales(newv.getScalesCopy());});
+		paneWithStatus.screenScalesConfigNode().bind(properties.screenScalesConfig);
+		properties.screenScalesConfig.screenScalesProperty().addListener((obs, oldv, newv) -> baseView.orthogonalViews().setScreenScales(newv.getScalesCopy()));
+		baseView.orthogonalViews().setScreenScales(properties.screenScalesConfig.screenScalesProperty().get().getScalesCopy());
+		if (painteraArgs.wereScreenScalesProvided())
+			properties.screenScalesConfig.screenScalesProperty().set(new ScreenScalesConfig.ScreenScales(painteraArgs.screenScales()));
 
 		paneWithStatus.navigationConfigNode().bind(properties.navigationConfig);
 		properties.navigationConfig.bindNavigationToConfig(defaultHandlers.navigation());

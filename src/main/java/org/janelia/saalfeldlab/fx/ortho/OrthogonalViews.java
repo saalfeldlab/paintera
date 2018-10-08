@@ -200,7 +200,7 @@ public class OrthogonalViews<BR extends Node>
 
 	public void setScreenScales(final double[] screenScales, final boolean doRequestReapint)
 	{
-		LOG.warn("Setting screen scales to {} for all panels.", screenScales);
+		LOG.debug("Setting screen scales to {} for all panels.", screenScales);
 		applyToAll(vp -> vp.setScreenScales(screenScales));
 		if (doRequestReapint)
 			requestRepaint();

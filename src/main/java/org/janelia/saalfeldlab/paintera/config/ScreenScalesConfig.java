@@ -7,6 +7,8 @@ import java.util.Arrays;
 
 public class ScreenScalesConfig {
 
+	private static final double[] DEFAULT_SCREEN_SCALES = new double[] {1.0, 0.5, 0.25, 0.125, 0.0625};
+
 	public static class ScreenScales {
 
 		private final double[] scales;
@@ -15,7 +17,6 @@ public class ScreenScalesConfig {
 		{
 			this(scales.scales.clone());
 		}
-
 
 		public ScreenScales(double... scales) {
 			this.scales = scales;
@@ -49,7 +50,12 @@ public class ScreenScalesConfig {
 
 	private final ObjectProperty<ScreenScales> screenScales = new SimpleObjectProperty<>();
 
-	public ScreenScalesConfig(final double[] initialScales)
+	public ScreenScalesConfig()
+	{
+		this(DEFAULT_SCREEN_SCALES.clone());
+	}
+
+	public ScreenScalesConfig(final double... initialScales)
 	{
 		this.screenScales.set(new ScreenScales(initialScales.clone()));
 	}
@@ -62,6 +68,20 @@ public class ScreenScalesConfig {
 	public void set(final ScreenScalesConfig that)
 	{
 		this.screenScales.set(that.screenScales.get());
+	}
+
+	public static double[] defaultScreenScalesCopy()
+	{
+		return DEFAULT_SCREEN_SCALES.clone();
+	}
+
+	@Override
+	public String toString()
+	{
+		return String.format(
+				"{ScreenScalesConfig: %s}",
+				this.screenScales.get() == null ? null : this.screenScales.get().toString()
+		);
 	}
 
 }

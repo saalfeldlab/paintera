@@ -19,6 +19,7 @@ import org.janelia.saalfeldlab.paintera.PainteraBaseView;
 import org.janelia.saalfeldlab.paintera.config.CrosshairConfig;
 import org.janelia.saalfeldlab.paintera.config.NavigationConfig;
 import org.janelia.saalfeldlab.paintera.config.OrthoSliceConfigBase;
+import org.janelia.saalfeldlab.paintera.config.ScreenScalesConfig;
 import org.janelia.saalfeldlab.paintera.config.Viewer3DConfig;
 import org.janelia.saalfeldlab.paintera.serialization.StatefulSerializer.Arguments;
 import org.janelia.saalfeldlab.paintera.state.SourceInfo;
@@ -49,6 +50,8 @@ public class Properties implements TransformListener<AffineTransform3D>
 
 	private static final String VIEWER_3D_CONFIG_KEY = "viewer3DConfig";
 
+	private static final String SCREEN_SCALES_CONFIG_KEY = "screenScalesConfig";
+
 	@Expose
 	public final SourceInfo sourceInfo;
 
@@ -72,6 +75,9 @@ public class Properties implements TransformListener<AffineTransform3D>
 
 	@Expose
 	public final Viewer3DConfig viewer3DConfig = new Viewer3DConfig();
+
+	@Expose
+	public final ScreenScalesConfig screenScalesConfig = new ScreenScalesConfig();
 
 	private transient final BooleanProperty transformDirty = new SimpleBooleanProperty(false);
 
@@ -191,6 +197,11 @@ public class Properties implements TransformListener<AffineTransform3D>
 				.ofNullable(serializedProperties.get(VIEWER_3D_CONFIG_KEY))
 				.map(json -> gson.fromJson(json, Viewer3DConfig.class))
 				.ifPresent(properties.viewer3DConfig::set);
+
+		Optional
+				.ofNullable(serializedProperties.get(SCREEN_SCALES_CONFIG_KEY))
+				.map(json -> gson.fromJson(json, ScreenScalesConfig.class))
+				.ifPresent(properties.screenScalesConfig::set);
 
 		gridConstraints.set(deserializedGridConstraints);
 
