@@ -47,6 +47,7 @@ import bdv.viewer.RequestRepaint;
 import bdv.viewer.Source;
 import bdv.viewer.SourceAndConverter;
 import bdv.viewer.ViewerOptions;
+import bdv.viewer.render.AccumulateProjectorFactory;
 import javafx.beans.property.ReadOnlyBooleanProperty;
 import javafx.beans.property.ReadOnlyDoubleProperty;
 import javafx.beans.property.SimpleBooleanProperty;
@@ -62,7 +63,7 @@ import net.imglib2.RealLocalizable;
 import net.imglib2.RealPoint;
 import net.imglib2.RealPositionable;
 import net.imglib2.realtransform.AffineTransform3D;
-import net.imglib2.ui.PainterThread;
+import net.imglib2.type.numeric.ARGBType;
 import net.imglib2.ui.TransformListener;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -85,6 +86,56 @@ public class ViewerPanelFX
 {
 
 	private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
+
+	private static class RenderUnit
+	{
+		private final MultiResolutionRendererFX renderer;
+
+		private final PainterThread p;
+
+		public RenderUnit(
+				final TransformAwareBufferedImageOverlayRendererFX renderTarget,
+				final AccumulateProjectorFactory<ARGBType> accumulateProjectorFactory,
+				final long targetRenderNanos,
+				final int numRenderingThreads,
+				final double[] screenScales,
+				final ThreadGroup threadGroup,
+				final PainterThread.Paintable paintable,
+				final ExecutorService renderingExecutorService,
+				final CacheControl cacheControl)
+		{
+
+			this.p = new PainterThread(threadGroup, paintable);
+			this. renderer = new MultiResolutionRendererFX(
+					renderTarget,
+					p,
+					screenScales.clone(),
+					targetRenderNanos,
+					true, // isDoubleBuffered
+					numRenderingThreads,
+					renderingExecutorService,
+					true, // useVolatileIfAvailable
+					accumulateProjectorFactory,
+					cacheControl
+			);
+		}
+
+		public void stop()
+		{
+			p.stopRendering();
+			p.interrupt();
+			try
+			{
+				p.join(0);
+			} catch (final InterruptedException e)
+			{
+				LOG.error("Error when shutting down renderer.", e);
+				e.printStackTrace();
+			}
+			renderer.kill();
+			p.stop();
+		}
+	}
 	/**
 	 * Currently rendered state (visible sources, transformation, timepoint, etc.) A copy can be obtained by {@link
 	 * #getState()}.
@@ -636,7 +687,7 @@ public class ViewerPanelFX
 	protected class RenderThreadFactory implements ThreadFactory
 	{
 		private final String threadNameFormat = String.format(
-				"bdv-panel-%d-thread-%%d",
+				"viewer-panel-fx-%d-thread-%%d",
 				panelNumber.getAndIncrement()
 		                                                     );
 
@@ -649,8 +700,8 @@ public class ViewerPanelFX
 					String.format(threadNameFormat, threadNumber.getAndIncrement()),
 					0
 			);
-			if (t.isDaemon())
-				t.setDaemon(false);
+			if (!t.isDaemon())
+				t.setDaemon(true);
 			if (t.getPriority() != Thread.NORM_PRIORITY)
 				t.setPriority(Thread.NORM_PRIORITY);
 			return t;
@@ -701,28 +752,7 @@ public class ViewerPanelFX
 	public void setScreenScales(double[] screenScales)
 	{
 		LOG.warn("Setting screen scales to {}", screenScales);
-		final MultiResolutionRendererFX renderer = new MultiResolutionRendererFX(
-				renderTarget,
-				painterThread,
-				screenScales,
-				options.getTargetRenderNanos(),
-				options.isDoubleBuffered(),
-				options.getNumRenderingThreads(),
-				renderingExecutorService,
-				options.isUseVolatileIfAvailable(),
-				options.getAccumulateProjectorFactory(),
-				cacheControl
-		);
-		setMultiResolutionRenderer(renderer);
-	}
-
-	private void setMultiResolutionRenderer(MultiResolutionRendererFX renderer)
-	{
-		final MultiResolutionRendererFX oldRenderer = this.imageRenderer;
-		this.imageRenderer = renderer;
-		if (oldRenderer != null)
-			oldRenderer.kill();
-		requestRepaint();
+		this.imageRenderer.setScreenScales(screenScales.clone());
 	}
 
 }
