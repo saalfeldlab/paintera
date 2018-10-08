@@ -232,7 +232,8 @@ public class Paintera extends Application
 
 		final ScreenScalesConfig screenScaleConfig = new ScreenScalesConfig(screenScales);
 		paneWithStatus.screenScalesConfigNode().bind(screenScaleConfig);
-		screenScaleConfig.screenScalersProperty().addListener((obs, oldv, newv) -> baseView.orthogonalViews().setScreenScales(newv));
+		paneWithStatus.screenScalesConfigNode().screenScalesProperty().addListener((obs, oldv, newv) -> {LOG.warn("Setting screen scales in ortho views to {}", newv); baseView.orthogonalViews().setScreenScales(newv.getScalesCopy());});
+//		screenScaleConfig.screenScalesProperty().addListener((obs, oldv, newv) -> {LOG.warn("Setting screen scales in ortho views to {}", newv);baseView.orthogonalViews().setScreenScales(newv.getScalesCopy());});
 
 		paneWithStatus.navigationConfigNode().bind(properties.navigationConfig);
 		properties.navigationConfig.bindNavigationToConfig(defaultHandlers.navigation());

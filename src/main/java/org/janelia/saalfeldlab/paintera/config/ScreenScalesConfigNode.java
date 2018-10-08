@@ -17,7 +17,7 @@ public class ScreenScalesConfigNode {
 
 	private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
-	private final ObjectProperty<double[]> screenScales = new SimpleObjectProperty<>(new double[] {1.0, 0.5});
+	private final ObjectProperty<ScreenScalesConfig.ScreenScales> screenScales = new SimpleObjectProperty<>(new ScreenScalesConfig.ScreenScales(1.0, 0.5));
 
 	private final Node contents;
 
@@ -32,17 +32,16 @@ public class ScreenScalesConfigNode {
 
 	public void bind(final ScreenScalesConfig config)
 	{
-		this.screenScales.bindBidirectional(config.screenScalersProperty());
+		this.screenScales.bindBidirectional(config.screenScalesProperty());
 	}
 
 	private final Node createContents()
 	{
 		TitledPane pane = new TitledPane("Screen Scales", null);
-		ObjectField<double[], ObjectProperty<double[]>> screenScalesField = new ObjectField<>(
+		ObjectField<ScreenScalesConfig.ScreenScales, ObjectProperty<ScreenScalesConfig.ScreenScales>> screenScalesField = new ObjectField<>(
 				screenScales,
 				new ScreenScalesStringConverter(),
-				ObjectField.SubmitOn.ENTER_PRESSED,
-				ObjectField.SubmitOn.FOCUS_LOST
+				ObjectField.SubmitOn.ENTER_PRESSED
 		);
 		pane.setContent(screenScalesField.textField());
 		screenScalesField.textField().setTooltip(new Tooltip(
@@ -51,21 +50,22 @@ public class ScreenScalesConfigNode {
 		return pane;
 	}
 
-	private static class ScreenScalesStringConverter extends StringConverter<double[]>
+	private static class ScreenScalesStringConverter extends StringConverter<ScreenScalesConfig.ScreenScales>
 	{
 
 		@Override
-		public String toString(double[] scales) {
-			final StringBuilder sb = new StringBuilder().append(scales[0]);
-			for (int i = 1; i < scales.length; ++i)
+		public String toString(ScreenScalesConfig.ScreenScales scales) {
+			final double[] scalesArray = scales.getScalesCopy();
+			final StringBuilder sb = new StringBuilder().append(scalesArray[0]);
+			for (int i = 1; i < scalesArray.length; ++i)
 			{
-				sb.append(", ").append(scales[i]);
+				sb.append(", ").append(scalesArray[i]);
 			}
 			return sb.toString();
 		}
 
 		@Override
-		public double[] fromString(String string) {
+		public ScreenScalesConfig.ScreenScales fromString(String string) {
 
 			try {
 				final double[] scales = Arrays
@@ -87,12 +87,17 @@ public class ScreenScalesConfigNode {
 				}
 
 				LOG.warn("Setting scales: {}", scales);
-				return scales;
+				return new ScreenScalesConfig.ScreenScales(scales);
 
 			} catch (Exception e)
 			{
 				throw new ObjectField.InvalidUserInput("Invalid screen scale supplied.", e);
 			}
 		}
+	}
+
+	public ObjectProperty<ScreenScalesConfig.ScreenScales> screenScalesProperty()
+	{
+		return this.screenScales;
 	}
 }
