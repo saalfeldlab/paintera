@@ -371,5 +371,51 @@ public class GridsTest {
 		}
 	}
 
+	@Test
+	public void testLinearIndexToCellPositionMinMax()
+	{
+		// intersects with all
+		//
+		//  ______ ______ __
+		// |   0  |   1  | 2|
+		// |------|------|--|
+		// |   3  |   4  | 5|
+		//  ‾‾‾‾‾‾ ‾‾‾‾‾‾ ‾‾
+		final CellGrid grid = new CellGrid(new long[]{7, 8}, new int[]{3, 4});
+		final long[] min = new long[2];
+		final long[] max = new long[2];
+		final long[] pos = new long[2];
+
+		Grids.linearIndexToCellPositionMinMax(grid, 0, pos, min, max);
+		Assert.assertArrayEquals(new long[] {0, 0}, pos);
+		Assert.assertArrayEquals(new long[] {0, 0}, min);
+		Assert.assertArrayEquals(new long[] {2, 3}, max);
+
+		Grids.linearIndexToCellPositionMinMax(grid, 1, pos, min, max);
+		Assert.assertArrayEquals(new long[] {1, 0}, pos);
+		Assert.assertArrayEquals(new long[] {3, 0}, min);
+		Assert.assertArrayEquals(new long[] {5, 3}, max);
+
+		Grids.linearIndexToCellPositionMinMax(grid, 2, pos, min, max);
+		Assert.assertArrayEquals(new long[] {2, 0}, pos);
+		Assert.assertArrayEquals(new long[] {6, 0}, min);
+		Assert.assertArrayEquals(new long[] {6, 3}, max);
+
+		Grids.linearIndexToCellPositionMinMax(grid, 3, pos, min, max);
+		Assert.assertArrayEquals(new long[] {0, 1}, pos);
+		Assert.assertArrayEquals(new long[] {0, 4}, min);
+		Assert.assertArrayEquals(new long[] {2, 7}, max);
+
+		Grids.linearIndexToCellPositionMinMax(grid, 4, pos, min, max);
+		Assert.assertArrayEquals(new long[] {1, 1}, pos);
+		Assert.assertArrayEquals(new long[] {3, 4}, min);
+		Assert.assertArrayEquals(new long[] {5, 7}, max);
+
+		Grids.linearIndexToCellPositionMinMax(grid, 5, pos, min, max);
+		Assert.assertArrayEquals(new long[] {2, 1}, pos);
+		Assert.assertArrayEquals(new long[] {6, 4}, min);
+		Assert.assertArrayEquals(new long[] {6, 7}, max);
+	}
+
 
 }

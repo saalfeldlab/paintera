@@ -101,36 +101,15 @@ public class CommitCanvasN5 implements BiConsumer<CachedCellImg<UnsignedLongType
 			LOG.debug("highestResolutionDatasetUniqueLabels {}", highestResolutionDatasetUniqueLabels);
 			final LabelBlockLookup labelBlockLoader = N5Helpers.getLabelBlockLookup(n5, this.dataset);
 
-			if (!Optional.ofNullable(n5.getAttribute(
-					highestResolutionDataset,
-					N5Helpers.LABEL_MULTISETTYPE_KEY,
-					Boolean.class
-			                                        )).orElse(false))
-			{
-				throw new RuntimeException("Only label multiset type accepted currently!");
-			}
+			checkLabelMultisetTypeOrFail(n5, highestResolutionDataset);
 
-			final DatasetAttributes highestResolutionAttributes             = n5.getDatasetAttributes(
-					highestResolutionDataset);
+			final DatasetAttributes highestResolutionAttributes             = n5.getDatasetAttributes(highestResolutionDataset);
 			final DatasetAttributes highestResolutionAttributesUniqueLabels = updateLabelToBlockMapping
-			                                                                  ? n5.getDatasetAttributes(
-					highestResolutionDatasetUniqueLabels)
+			                                                                  ? n5.getDatasetAttributes(highestResolutionDatasetUniqueLabels)
 			                                                                  : null;
 			final CellGrid          highestResolutionGrid                   = N5Helpers.asCellGrid(highestResolutionAttributes);
 
-			if (!highestResolutionGrid.equals(canvasGrid))
-			{
-				LOG.error(
-						"Canvas grid {} and highest resolution dataset grid {} incompatible!",
-						canvasGrid,
-						highestResolutionGrid
-				         );
-				throw new RuntimeException(String.format(
-						"Canvas grid %s and highest resolution dataset grid %s incompatible!",
-						canvasGrid,
-						highestResolutionGrid
-				                                        ));
-			}
+			checkGridsCompatibleOrFail(canvasGrid, highestResolutionGrid);
 
 			final int[]  highestResolutionBlockSize  = highestResolutionAttributes.getBlockSize();
 			final long[] highestResolutionDimensions = highestResolutionAttributes.getDimensions();
@@ -139,66 +118,17 @@ public class CommitCanvasN5 implements BiConsumer<CachedCellImg<UnsignedLongType
 			final long[] min          = new long[highestResolutionBlockSize.length];
 			final long[] max          = new long[highestResolutionBlockSize.length];
 
-			final RandomAccessibleInterval<LabelMultisetType> highestResolutionData = LabelUtils.openVolatile(
-					n5,
-					highestResolutionDataset
-			                                                                                                 );
+			final RandomAccessibleInterval<LabelMultisetType> highestResolutionData = LabelUtils.openVolatile(n5, highestResolutionDataset);
 
-			LOG.debug("Persisting canvas with grid={} into background with grid={}", canvasGrid,
-					highestResolutionGrid);
+			LOG.debug("Persisting canvas with grid={} into background with grid={}", canvasGrid, highestResolutionGrid);
 
 			for (final long blockId : blocks)
 			{
-				highestResolutionGrid.getCellGridPositionFlat(blockId, gridPosition);
-				Arrays.setAll(min, d -> gridPosition[d] * highestResolutionBlockSize[d]);
-				Arrays.setAll(
-						max,
-						d -> Math.min(min[d] + highestResolutionBlockSize[d], highestResolutionDimensions[d]) - 1
-				             );
-
-				final RandomAccessibleInterval<LabelMultisetType> convertedToMultisets = Converters.convert(
-						(RandomAccessibleInterval<UnsignedLongType>) canvas,
-						new FromIntegerTypeConverter<>(),
-						FromIntegerTypeConverter.geAppropriateType()
-				                                                                                           );
-
-				final IntervalView<Pair<LabelMultisetType, LabelMultisetType>> blockWithBackground =
-						Views.interval(Views.pair(convertedToMultisets, highestResolutionData), min, max);
-
-				final int numElements = (int) Intervals.numElements(blockWithBackground);
-
-				final Iterable<LabelMultisetType> pairIterable = () -> new Iterator<LabelMultisetType>()
-				{
-
-					Iterator<Pair<LabelMultisetType, LabelMultisetType>> iterator = Views.flatIterable(
-							blockWithBackground).iterator();
-
-					@Override
-					public boolean hasNext()
-					{
-						return iterator.hasNext();
-					}
-
-					@Override
-					public LabelMultisetType next()
-					{
-						final Pair<LabelMultisetType, LabelMultisetType> p = iterator.next();
-						final LabelMultisetType                          a = p.getA();
-						if (a.entrySet().iterator().next().getElement().id() == Label.INVALID)
-						{
-							return p.getB();
-						}
-						else
-						{
-							return a;
-						}
-					}
-
-				};
-
-				final byte[]             byteData  = LabelUtils.serializeLabelMultisetTypes(pairIterable, numElements);
-				final ByteArrayDataBlock dataBlock = new ByteArrayDataBlock(Intervals.dimensionsAsIntArray(
-						blockWithBackground), gridPosition, byteData);
+				org.janelia.saalfeldlab.util.grids.Grids.linearIndexToCellPositionMinMax(highestResolutionGrid, blockId, gridPosition, min, max);
+				final IntervalView<Pair<LabelMultisetType, UnsignedLongType>> backgroundWithCanvas = Views.interval(Views.pair(highestResolutionData, canvas), min, max);
+				final int numElements = (int) Intervals.numElements(backgroundWithCanvas);
+				final byte[]             byteData  = LabelUtils.serializeLabelMultisetTypes(new BackgroundCanvasIterable(Views.flatIterable(backgroundWithCanvas)), numElements);
+				final ByteArrayDataBlock dataBlock = new ByteArrayDataBlock(Intervals.dimensionsAsIntArray(backgroundWithCanvas), gridPosition, byteData);
 				n5.writeBlock(highestResolutionDataset, highestResolutionAttributes, dataBlock);
 
 				if (updateLabelToBlockMapping)
@@ -209,8 +139,7 @@ public class CommitCanvasN5 implements BiConsumer<CachedCellImg<UnsignedLongType
 							highestResolutionAttributesUniqueLabels,
 							gridPosition,
 							Views.interval(Views.pair(canvas, highestResolutionData), min, max),
-							labelBlockLoader
-					                                   );
+							labelBlockLoader);
 				}
 
 			}
@@ -636,6 +565,42 @@ public class CommitCanvasN5 implements BiConsumer<CachedCellImg<UnsignedLongType
 					wasRemovedIt.next(),
 					set -> set.remove(wrappedInterval)
 			);
+		}
+	}
+
+	private static void checkLabelMultisetTypeOrFail(
+			final N5Reader n5,
+			final String dataset
+	) throws IOException {
+
+		if (!Optional.ofNullable(n5.getAttribute(
+				dataset,
+				N5Helpers.LABEL_MULTISETTYPE_KEY,
+				Boolean.class)).orElse(false))
+		{
+			throw new RuntimeException("Only label multiset type accepted currently!");
+		}
+	}
+
+	private static void checkGridsCompatibleOrFail(
+			final CellGrid canvasGrid,
+			final CellGrid highestResolutionGrid
+	)
+	{
+
+
+		if (!highestResolutionGrid.equals(canvasGrid))
+		{
+			LOG.error(
+					"Canvas grid {} and highest resolution dataset grid {} incompatible!",
+					canvasGrid,
+					highestResolutionGrid
+			);
+			throw new RuntimeException(String.format(
+					"Canvas grid %s and highest resolution dataset grid %s incompatible!",
+					canvasGrid,
+					highestResolutionGrid
+			));
 		}
 	}
 
