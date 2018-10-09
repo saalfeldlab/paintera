@@ -60,11 +60,16 @@ public class CommitCanvasN5 implements PersistCanvas
 
 	private final String dataset;
 
-	public CommitCanvasN5(final N5Writer n5, final String dataset)
-	{
+	private final boolean isPainteraDataset;
+
+	private final boolean isMultiscale;
+
+	public CommitCanvasN5(final N5Writer n5, final String dataset) throws IOException {
 		super();
 		this.n5 = n5;
 		this.dataset = dataset;
+		this.isPainteraDataset = N5Helpers.isPainteraDataset(this.n5, this.dataset);
+		this.isMultiscale = N5Helpers.isMultiScale(this.n5, this.isPainteraDataset ? this.dataset + "/data" : this.dataset);
 	}
 
 	public final N5Writer n5()
@@ -80,15 +85,37 @@ public class CommitCanvasN5 implements PersistCanvas
 	@Override
 	public boolean supportsLabelBlockLookupUpdate()
 	{
-		// TODO return true here
-		return false;
+		return false;//isPainteraDataset;
 	}
 
 	@Override
 	public void updateLabelBlockLookup(CachedCellImg<UnsignedLongType, ?> canvas, long[] blockIds) throws UnableToUpdateLabelBlockLookup
 	{
-		// TODO implement this here
-		throw new LabelBlockLookupUpdateNotSupported("");
+		try {
+			final String uniqueLabelsPath = this.dataset + "/unique-labels";
+			LOG.debug("uniqueLabelsPath {}", uniqueLabelsPath);
+			final DatasetSpec highestResolutionDataset = DatasetSpec.of(n5, N5Helpers.highestResolutionDataset(n5, uniqueLabelsPath, true));
+			final LabelBlockLookup labelBlockLoader = N5Helpers.getLabelBlockLookup(n5, this.dataset);
+			final BlockSpec highestResolutionBlockSpec = new BlockSpec(highestResolutionDataset.grid);
+
+			// we know that it is paintera data set here
+			final RandomAccessibleInterval<LabelMultisetType> highestResolutionData = LabelUtils.openVolatile(n5, this.dataset + "/data/s0");
+
+			for (final long blockId : blockIds) {
+				highestResolutionBlockSpec.fromLinearIndex(blockId);
+				updateHighestResolutionLabelMapping(
+						n5,
+						highestResolutionDataset.dataset,
+						highestResolutionDataset.attributes,
+						highestResolutionBlockSpec.pos,
+						Views.interval(Views.pair(canvas, highestResolutionData), highestResolutionBlockSpec.asInterval()),
+						labelBlockLoader);
+			}
+		}
+		catch (IOException e)
+		{
+			throw new UnableToUpdateLabelBlockLookup("Unable to update label block lookup for " + this.dataset, e);
+		}
 	}
 
 	@Override
@@ -97,27 +124,15 @@ public class CommitCanvasN5 implements PersistCanvas
 		LOG.info("Committing canvas");
 		try
 		{
-			final boolean isPainteraDataset = N5Helpers.isPainteraDataset(n5, this.dataset);
 			final String dataset = isPainteraDataset ? this.dataset + "/data" : this.dataset;
-			final boolean isMultiscale      = N5Helpers.isMultiScale(n5, dataset);
-			final String uniqueLabelsPath   = this.dataset + "/unique-labels";
-			LOG.debug("uniqueLabelsPath {}", uniqueLabelsPath);
-
-			final boolean hasUniqueLabels           = n5.exists(uniqueLabelsPath);
-			final boolean updateLabelToBlockMapping = isPainteraDataset && hasUniqueLabels && n5 instanceof N5FSReader;
 
 			final CellGrid canvasGrid = canvas.getCellGrid();
 
 			final DatasetSpec highestResolutionDataset = DatasetSpec.of(n5, N5Helpers.highestResolutionDataset(n5, dataset));
-			final String highestResolutionDatasetUniqueLabels = Paths.get(uniqueLabelsPath, N5Helpers.listAndSortScaleDatasets(n5, uniqueLabelsPath)[0]).toString();
-			LOG.debug("highestResolutionDatasetUniqueLabels {}", highestResolutionDatasetUniqueLabels);
 			final LabelBlockLookup labelBlockLoader = N5Helpers.getLabelBlockLookup(n5, this.dataset);
 
 			checkLabelMultisetTypeOrFail(n5, highestResolutionDataset.dataset);
 
-			final DatasetAttributes highestResolutionAttributesUniqueLabels = updateLabelToBlockMapping
-			                                                                  ? n5.getDatasetAttributes(highestResolutionDatasetUniqueLabels)
-			                                                                  : null;
 			checkGridsCompatibleOrFail(canvasGrid, highestResolutionDataset.grid);
 
 			final BlockSpec highestResolutionBlockSpec = new BlockSpec(highestResolutionDataset.grid);
@@ -134,31 +149,19 @@ public class CommitCanvasN5 implements PersistCanvas
 				final byte[]             byteData  = LabelUtils.serializeLabelMultisetTypes(new BackgroundCanvasIterable(Views.flatIterable(backgroundWithCanvas)), numElements);
 				final ByteArrayDataBlock dataBlock = new ByteArrayDataBlock(Intervals.dimensionsAsIntArray(backgroundWithCanvas), highestResolutionBlockSpec.pos, byteData);
 				n5.writeBlock(highestResolutionDataset.dataset, highestResolutionDataset.attributes, dataBlock);
-
-				if (updateLabelToBlockMapping)
-				{
-					updateHighestResolutionLabelMapping(
-							n5,
-							highestResolutionDatasetUniqueLabels,
-							highestResolutionAttributesUniqueLabels,
-							highestResolutionBlockSpec.pos,
-							Views.interval(Views.pair(canvas, highestResolutionData), highestResolutionBlockSpec.asInterval()),
-							labelBlockLoader);
-				}
-
 			}
 
 			if (isMultiscale)
 			{
 				final String[] scaleDatasets = N5Helpers.listAndSortScaleDatasets(n5, dataset);
-				final String[] scaleUniqueLabels = N5Helpers.listAndSortScaleDatasets(n5, uniqueLabelsPath);
+//				final String[] scaleUniqueLabels = N5Helpers.listAndSortScaleDatasets(n5, uniqueLabelsPath);
 				for (int level = 1; level < scaleDatasets.length; ++level)
 				{
 					final DatasetSpec targetDataset = DatasetSpec.of(n5, Paths.get(dataset, scaleDatasets[level]).toString());
 					final DatasetSpec previousDataset = DatasetSpec.of(n5, Paths.get(dataset, scaleDatasets[level - 1]).toString());
 
-					final String datasetUniqueLabelsPrevious = Paths.get(uniqueLabelsPath, scaleUniqueLabels[level-1]).toString();
-					final String datasetUniqueLabels         = Paths.get(uniqueLabelsPath, scaleUniqueLabels[level]).toString();
+//					final String datasetUniqueLabelsPrevious = Paths.get(uniqueLabelsPath, scaleUniqueLabels[level-1]).toString();
+//					final String datasetUniqueLabels         = Paths.get(uniqueLabelsPath, scaleUniqueLabels[level]).toString();
 
 					final double[] targetDownsamplingFactors   = N5Helpers.getDownsamplingFactors(n5, targetDataset.dataset);
 					final double[] previousDownsamplingFactors = N5Helpers.getDownsamplingFactors(n5, previousDataset.dataset);
@@ -215,22 +218,22 @@ public class CommitCanvasN5 implements PersistCanvas
 								size,
 								blockSpec.pos);
 
-						if (updateLabelToBlockMapping)
-						{
-							updateLabelToBlockMapping(
-									n5,
-									labelBlockLoader,
-									datasetUniqueLabels,
-									datasetUniqueLabelsPrevious,
-									level,
-									blockSpec.pos,
-									blockSpec.min,
-									blockSpec.max,
-									size,
-									blockMin,
-									blockMax,
-									ONES_3_INT);
-						}
+//						if (updateLabelToBlockMapping)
+//						{
+//							updateLabelToBlockMapping(
+//									n5,
+//									labelBlockLoader,
+//									datasetUniqueLabels,
+//									datasetUniqueLabelsPrevious,
+//									level,
+//									blockSpec.pos,
+//									blockSpec.min,
+//									blockSpec.max,
+//									size,
+//									blockMin,
+//									blockMax,
+//									ONES_3_INT);
+//						}
 
 					}
 

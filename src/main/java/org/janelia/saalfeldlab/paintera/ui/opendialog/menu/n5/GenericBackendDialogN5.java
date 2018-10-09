@@ -41,6 +41,7 @@ import org.janelia.saalfeldlab.n5.DataType;
 import org.janelia.saalfeldlab.n5.DatasetAttributes;
 import org.janelia.saalfeldlab.n5.N5Reader;
 import org.janelia.saalfeldlab.n5.N5Writer;
+import org.janelia.saalfeldlab.paintera.data.mask.persist.PersistCanvas;
 import org.janelia.saalfeldlab.util.n5.N5Data;
 import org.janelia.saalfeldlab.util.n5.N5Helpers;
 import org.janelia.saalfeldlab.paintera.cache.global.GlobalCache;
@@ -599,8 +600,7 @@ public class GenericBackendDialogN5
 		return N5Types.isIntegerType(getDataType());
 	}
 
-	public BiConsumer<CachedCellImg<UnsignedLongType, ?>, long[]> commitCanvas()
-	{
+	public PersistCanvas commitCanvas() throws IOException {
 		final String   dataset = this.dataset.get();
 		final N5Writer writer  = this.n5.get();
 		return new CommitCanvasN5(writer, dataset);
