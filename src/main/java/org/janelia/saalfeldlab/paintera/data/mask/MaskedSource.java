@@ -1,24 +1,5 @@
 package org.janelia.saalfeldlab.paintera.data.mask;
 
-import java.lang.invoke.MethodHandles;
-import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Map.Entry;
-import java.util.Optional;
-import java.util.concurrent.ExecutorService;
-import java.util.function.BiConsumer;
-import java.util.function.Predicate;
-import java.util.function.Supplier;
-import java.util.stream.DoubleStream;
-import java.util.stream.IntStream;
-import java.util.stream.LongStream;
-import java.util.stream.Stream;
-
 import bdv.util.volatiles.VolatileViews;
 import bdv.viewer.Interpolation;
 import gnu.trove.iterator.TLongIterator;
@@ -75,7 +56,6 @@ import net.imglib2.type.label.Label;
 import net.imglib2.type.logic.BitType;
 import net.imglib2.type.logic.BoolType;
 import net.imglib2.type.numeric.IntegerType;
-import net.imglib2.type.numeric.NumericType;
 import net.imglib2.type.numeric.integer.UnsignedLongType;
 import net.imglib2.type.volatiles.VolatileUnsignedLongType;
 import net.imglib2.util.AccessedBlocksRandomAccessible;
@@ -90,9 +70,32 @@ import org.janelia.saalfeldlab.paintera.data.mask.PickOne.PickAndConvert;
 import org.janelia.saalfeldlab.paintera.data.mask.exception.CannotClearCanvas;
 import org.janelia.saalfeldlab.paintera.data.mask.exception.CannotPersist;
 import org.janelia.saalfeldlab.paintera.data.mask.exception.MaskInUse;
+import org.janelia.saalfeldlab.paintera.data.mask.persist.PersistCanvas;
+import org.janelia.saalfeldlab.paintera.data.mask.persist.UnableToPersistCanvas;
+import org.janelia.saalfeldlab.paintera.data.mask.persist.UnableToUpdateLabelBlockLookup;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import tmp.bdv.img.cache.VolatileCachedCellImg;
+
+import java.lang.invoke.MethodHandles;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Map.Entry;
+import java.util.Optional;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.BiConsumer;
+import java.util.function.Predicate;
+import java.util.function.Supplier;
+import java.util.stream.DoubleStream;
+import java.util.stream.IntStream;
+import java.util.stream.LongStream;
+import java.util.stream.Stream;
 
 public class MaskedSource<D extends Type<D>, T extends Type<T>> implements DataSource<D, T>
 {
@@ -128,7 +131,7 @@ public class MaskedSource<D extends Type<D>, T extends Type<T>> implements DataS
 	// TODO make sure that BB is handled properly in multi scale case!!!
 	private final TLongSet affectedBlocks = new TLongHashSet();
 
-	private final BiConsumer<CachedCellImg<UnsignedLongType, ?>, long[]> persistCanvas;
+	private final PersistCanvas persistCanvas;
 
 	private final StringProperty cacheDirectory = new SimpleStringProperty();
 
@@ -177,7 +180,7 @@ public class MaskedSource<D extends Type<D>, T extends Type<T>> implements DataS
 			final PickAndConvert<T, VolatileUnsignedLongType, VolatileUnsignedLongType, T> pacT,
 			final D extensionD,
 			final T extensionT,
-			final BiConsumer<CachedCellImg<UnsignedLongType, ?>, long[]> persistCanvas,
+			final PersistCanvas persistCanvas,
 			final ExecutorService propagationExecutor)
 	{
 		this(
@@ -204,7 +207,7 @@ public class MaskedSource<D extends Type<D>, T extends Type<T>> implements DataS
 			final PickAndConvert<T, VolatileUnsignedLongType, VolatileUnsignedLongType, T> pacT,
 			final D extensionD,
 			final T extensionT,
-			final BiConsumer<CachedCellImg<UnsignedLongType, ?>, long[]> persistCanvas,
+			final PersistCanvas persistCanvas,
 			final ExecutorService propagationExecutor)
 	{
 		super();
@@ -444,14 +447,21 @@ public class MaskedSource<D extends Type<D>, T extends Type<T>> implements DataS
 				new Thread(() -> {
 					try
 					{
-						this.persistCanvas.accept(canvas, affectedBlocks);
-						clearCanvases();
-						for (int level = 0; level < this.getNumMipmapLevels(); ++level)
+						try {
+							this.persistCanvas.persistCanvas(canvas, affectedBlocks);
+							if (this.persistCanvas.supportsLabelBlockLookupUpdate())
+								this.persistCanvas.updateLabelBlockLookup(canvas, affectedBlocks);
+							clearCanvases();
+							for (int level = 0; level < this.getNumMipmapLevels(); ++level) {
+								LOG.debug("Invalidating all for data source for level={}", level);
+								invalidateAllIfCachedImg(this.source.getDataSource(0, level));
+								LOG.debug("Invalidating all for viewer source for level={}", level);
+								invalidateAllIfCachedImg(this.source.getSource(0, level));
+							}
+						}
+						catch (UnableToPersistCanvas | UnableToUpdateLabelBlockLookup e)
 						{
-							LOG.debug("Invalidating all for data source for level={}", level);
-							invalidateAllIfCachedImg(this.source.getDataSource(0, level));
-							LOG.debug("Invalidating all for viewer source for level={}", level);
-							invalidateAllIfCachedImg(this.source.getSource(0, level));
+							throw new RuntimeException("Error while trying to persist.", e);
 						}
 					} finally
 					{
@@ -1232,7 +1242,7 @@ public class MaskedSource<D extends Type<D>, T extends Type<T>> implements DataS
 		return this.cacheDirectory.get();
 	}
 
-	public BiConsumer<CachedCellImg<UnsignedLongType, ?>, long[]> getPersister()
+	public PersistCanvas getPersister()
 	{
 		return this.persistCanvas;
 	}

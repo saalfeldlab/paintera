@@ -4,15 +4,11 @@ import gnu.trove.iterator.TLongIterator;
 import gnu.trove.set.hash.TLongHashSet;
 import net.imglib2.FinalInterval;
 import net.imglib2.Interval;
-import net.imglib2.RandomAccess;
 import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.algorithm.util.Grids;
 import net.imglib2.cache.img.CachedCellImg;
-import net.imglib2.converter.Converters;
-import net.imglib2.img.cell.Cell;
 import net.imglib2.img.cell.CellGrid;
 import net.imglib2.realtransform.Scale3D;
-import net.imglib2.type.label.FromIntegerTypeConverter;
 import net.imglib2.type.label.Label;
 import net.imglib2.type.label.LabelMultisetType;
 import net.imglib2.type.label.LabelMultisetType.Entry;
@@ -31,6 +27,10 @@ import org.janelia.saalfeldlab.n5.LongArrayDataBlock;
 import org.janelia.saalfeldlab.n5.N5FSReader;
 import org.janelia.saalfeldlab.n5.N5Reader;
 import org.janelia.saalfeldlab.n5.N5Writer;
+import org.janelia.saalfeldlab.paintera.data.mask.persist.LabelBlockLookupUpdateNotSupported;
+import org.janelia.saalfeldlab.paintera.data.mask.persist.PersistCanvas;
+import org.janelia.saalfeldlab.paintera.data.mask.persist.UnableToUpdateLabelBlockLookup;
+import org.janelia.saalfeldlab.paintera.exception.PainteraException;
 import org.janelia.saalfeldlab.util.HashWrapper;
 import org.janelia.saalfeldlab.util.Sets;
 import org.janelia.saalfeldlab.util.math.ArrayMath;
@@ -43,18 +43,18 @@ import java.io.IOException;
 import java.lang.invoke.MethodHandles;
 import java.nio.file.Paths;
 import java.util.Arrays;
-import java.util.Iterator;
 import java.util.Optional;
 import java.util.Set;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
-import java.util.stream.DoubleStream;
 
-public class CommitCanvasN5 implements BiConsumer<CachedCellImg<UnsignedLongType, ?>, long[]>
+public class CommitCanvasN5 implements PersistCanvas
 {
 
 	private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
+
+	private static final int[] ONES_3_INT = {1, 1, 1};
 
 	private final N5Writer n5;
 
@@ -78,13 +78,27 @@ public class CommitCanvasN5 implements BiConsumer<CachedCellImg<UnsignedLongType
 	}
 
 	@Override
-	public void accept(final CachedCellImg<UnsignedLongType, ?> canvas, final long[] blocks)
+	public boolean supportsLabelBlockLookupUpdate()
+	{
+		// TODO return true here
+		return false;
+	}
+
+	@Override
+	public void updateLabelBlockLookup(CachedCellImg<UnsignedLongType, ?> canvas, long[] blockIds) throws UnableToUpdateLabelBlockLookup
+	{
+		// TODO implement this here
+		throw new LabelBlockLookupUpdateNotSupported("");
+	}
+
+	@Override
+	public void persistCanvas(final CachedCellImg<UnsignedLongType, ?> canvas, final long[] blocks)
 	{
 		LOG.info("Committing canvas");
 		try
 		{
 			final boolean isPainteraDataset = N5Helpers.isPainteraDataset(n5, this.dataset);
-			final String  dataset           = N5Helpers.volumetricDataGroup(this.dataset, isPainteraDataset);
+			final String dataset = isPainteraDataset ? this.dataset + "/data" : this.dataset;
 			final boolean isMultiscale      = N5Helpers.isMultiScale(n5, dataset);
 			final String uniqueLabelsPath   = this.dataset + "/unique-labels";
 			LOG.debug("uniqueLabelsPath {}", uniqueLabelsPath);
@@ -94,42 +108,32 @@ public class CommitCanvasN5 implements BiConsumer<CachedCellImg<UnsignedLongType
 
 			final CellGrid canvasGrid = canvas.getCellGrid();
 
-			final String highestResolutionDataset = N5Helpers.highestResolutionDataset(n5, dataset);
-			final String highestResolutionDatasetUniqueLabels = Paths.get(
-					uniqueLabelsPath,
-					N5Helpers.listAndSortScaleDatasets(n5, uniqueLabelsPath)[0]).toString();
+			final DatasetSpec highestResolutionDataset = DatasetSpec.of(n5, N5Helpers.highestResolutionDataset(n5, dataset));
+			final String highestResolutionDatasetUniqueLabels = Paths.get(uniqueLabelsPath, N5Helpers.listAndSortScaleDatasets(n5, uniqueLabelsPath)[0]).toString();
 			LOG.debug("highestResolutionDatasetUniqueLabels {}", highestResolutionDatasetUniqueLabels);
 			final LabelBlockLookup labelBlockLoader = N5Helpers.getLabelBlockLookup(n5, this.dataset);
 
-			checkLabelMultisetTypeOrFail(n5, highestResolutionDataset);
+			checkLabelMultisetTypeOrFail(n5, highestResolutionDataset.dataset);
 
-			final DatasetAttributes highestResolutionAttributes             = n5.getDatasetAttributes(highestResolutionDataset);
 			final DatasetAttributes highestResolutionAttributesUniqueLabels = updateLabelToBlockMapping
 			                                                                  ? n5.getDatasetAttributes(highestResolutionDatasetUniqueLabels)
 			                                                                  : null;
-			final CellGrid          highestResolutionGrid                   = N5Helpers.asCellGrid(highestResolutionAttributes);
+			checkGridsCompatibleOrFail(canvasGrid, highestResolutionDataset.grid);
 
-			checkGridsCompatibleOrFail(canvasGrid, highestResolutionGrid);
+			final BlockSpec highestResolutionBlockSpec = new BlockSpec(highestResolutionDataset.grid);
 
-			final int[]  highestResolutionBlockSize  = highestResolutionAttributes.getBlockSize();
-			final long[] highestResolutionDimensions = highestResolutionAttributes.getDimensions();
+			final RandomAccessibleInterval<LabelMultisetType> highestResolutionData = LabelUtils.openVolatile(n5, highestResolutionDataset.dataset);
 
-			final long[] gridPosition = new long[highestResolutionBlockSize.length];
-			final long[] min          = new long[highestResolutionBlockSize.length];
-			final long[] max          = new long[highestResolutionBlockSize.length];
-
-			final RandomAccessibleInterval<LabelMultisetType> highestResolutionData = LabelUtils.openVolatile(n5, highestResolutionDataset);
-
-			LOG.debug("Persisting canvas with grid={} into background with grid={}", canvasGrid, highestResolutionGrid);
+			LOG.debug("Persisting canvas with grid={} into background with grid={}", canvasGrid, highestResolutionDataset.grid);
 
 			for (final long blockId : blocks)
 			{
-				org.janelia.saalfeldlab.util.grids.Grids.linearIndexToCellPositionMinMax(highestResolutionGrid, blockId, gridPosition, min, max);
-				final IntervalView<Pair<LabelMultisetType, UnsignedLongType>> backgroundWithCanvas = Views.interval(Views.pair(highestResolutionData, canvas), min, max);
+				highestResolutionBlockSpec.fromLinearIndex(blockId);
+				final IntervalView<Pair<LabelMultisetType, UnsignedLongType>> backgroundWithCanvas = Views.interval(Views.pair(highestResolutionData, canvas), highestResolutionBlockSpec.asInterval());
 				final int numElements = (int) Intervals.numElements(backgroundWithCanvas);
 				final byte[]             byteData  = LabelUtils.serializeLabelMultisetTypes(new BackgroundCanvasIterable(Views.flatIterable(backgroundWithCanvas)), numElements);
-				final ByteArrayDataBlock dataBlock = new ByteArrayDataBlock(Intervals.dimensionsAsIntArray(backgroundWithCanvas), gridPosition, byteData);
-				n5.writeBlock(highestResolutionDataset, highestResolutionAttributes, dataBlock);
+				final ByteArrayDataBlock dataBlock = new ByteArrayDataBlock(Intervals.dimensionsAsIntArray(backgroundWithCanvas), highestResolutionBlockSpec.pos, byteData);
+				n5.writeBlock(highestResolutionDataset.dataset, highestResolutionDataset.attributes, dataBlock);
 
 				if (updateLabelToBlockMapping)
 				{
@@ -137,8 +141,8 @@ public class CommitCanvasN5 implements BiConsumer<CachedCellImg<UnsignedLongType
 							n5,
 							highestResolutionDatasetUniqueLabels,
 							highestResolutionAttributesUniqueLabels,
-							gridPosition,
-							Views.interval(Views.pair(canvas, highestResolutionData), min, max),
+							highestResolutionBlockSpec.pos,
+							Views.interval(Views.pair(canvas, highestResolutionData), highestResolutionBlockSpec.asInterval()),
 							labelBlockLoader);
 				}
 
@@ -147,182 +151,69 @@ public class CommitCanvasN5 implements BiConsumer<CachedCellImg<UnsignedLongType
 			if (isMultiscale)
 			{
 				final String[] scaleDatasets = N5Helpers.listAndSortScaleDatasets(n5, dataset);
+				final String[] scaleUniqueLabels = N5Helpers.listAndSortScaleDatasets(n5, uniqueLabelsPath);
 				for (int level = 1; level < scaleDatasets.length; ++level)
 				{
-					final String targetDataset   = Paths.get(dataset, scaleDatasets[level]).toString();
-					final String previousDataset = Paths.get(dataset, scaleDatasets[level - 1]).toString();
+					final DatasetSpec targetDataset = DatasetSpec.of(n5, Paths.get(dataset, scaleDatasets[level]).toString());
+					final DatasetSpec previousDataset = DatasetSpec.of(n5, Paths.get(dataset, scaleDatasets[level - 1]).toString());
 
-					final DatasetAttributes targetAttributes   = n5.getDatasetAttributes(targetDataset);
-					final DatasetAttributes previousAttributes = n5.getDatasetAttributes(previousDataset);
+					final String datasetUniqueLabelsPrevious = Paths.get(uniqueLabelsPath, scaleUniqueLabels[level-1]).toString();
+					final String datasetUniqueLabels         = Paths.get(uniqueLabelsPath, scaleUniqueLabels[level]).toString();
 
-					final String                 datasetUniqueLabelsPrevious        = Paths.get(
-							uniqueLabelsPath,
-							N5Helpers.listAndSortScaleDatasets(n5, uniqueLabelsPath)[level - 1]
-					                                                                           ).toString();
-					final String                 datasetUniqueLabels                = Paths.get(
-							uniqueLabelsPath,
-							N5Helpers.listAndSortScaleDatasets(n5, uniqueLabelsPath)[level]
-					                                                                           ).toString();
-					final DatasetAttributes      attributesUniqueLabelsPrevious     = updateLabelToBlockMapping
-					                                                                  ? n5.getDatasetAttributes(
-							datasetUniqueLabelsPrevious)
-					                                                                  : null;
-					final DatasetAttributes      attributesUniqueLabels             = updateLabelToBlockMapping
-					                                                                  ? n5.getDatasetAttributes(
-							datasetUniqueLabels)
-					                                                                  : null;
-
-					final double[] targetDownsamplingFactors   = n5.getAttribute(
-							targetDataset,
-							N5Helpers.DOWNSAMPLING_FACTORS_KEY,
-							double[].class);
-					final double[] previousDownsamplingFactors = Optional
-							.ofNullable(n5.getAttribute(
-									previousDataset,
-									N5Helpers.DOWNSAMPLING_FACTORS_KEY,
-									double[].class))
-							.orElse(new double[] {1, 1, 1});
-					final double[] relativeDownsamplingFactors = new double[targetDownsamplingFactors.length];
-					Arrays.setAll(
-							relativeDownsamplingFactors,
-							d -> targetDownsamplingFactors[d] / previousDownsamplingFactors[d]);
-
-					final CellGrid targetGrid   = N5Helpers.asCellGrid(targetAttributes);
+					final double[] targetDownsamplingFactors   = N5Helpers.getDownsamplingFactors(n5, targetDataset.dataset);
+					final double[] previousDownsamplingFactors = N5Helpers.getDownsamplingFactors(n5, previousDataset.dataset);
+					final double[] relativeDownsamplingFactors = ArrayMath.divide3(targetDownsamplingFactors, previousDownsamplingFactors);
 
 					final long[] affectedBlocks = org.janelia.saalfeldlab.util.grids.Grids.getRelevantBlocksInTargetGrid(
 							blocks,
-							highestResolutionGrid,
-							targetGrid,
+							highestResolutionDataset.grid,
+							targetDataset.grid,
 							targetDownsamplingFactors).toArray();
                     LOG.debug("Affected blocks at higher level: {}", affectedBlocks);
 
-					final CachedCellImg<LabelMultisetType, VolatileLabelMultisetArray> previousData        =
-							LabelUtils.openVolatile(
-							n5,
-							previousDataset
-					                                                                                                                );
-					final RandomAccess<Cell<VolatileLabelMultisetArray>>               previousCellsAccess =
-							previousData.getCells().randomAccess();
-
-					final int[] targetBlockSize   = targetAttributes.getBlockSize();
-					final int[] previousBlockSize = previousAttributes.getBlockSize();
-
-					final long[] targetDimensions   = targetAttributes.getDimensions();
-					final long[] previousDimensions = previousAttributes.getDimensions();
+					final CachedCellImg<LabelMultisetType, VolatileLabelMultisetArray> previousData = LabelUtils.openVolatile(n5, previousDataset.dataset);
 
 					final Scale3D targetToPrevious = new Scale3D(relativeDownsamplingFactors);
 
-					final int targetMaxNumEntries = Optional.ofNullable(n5.getAttribute(
-							targetDataset,
-							N5Helpers.MAX_NUM_ENTRIES_KEY,
-							Integer.class
-					                                                                   )).orElse(-1);
+					final int targetMaxNumEntries = N5Helpers.getIntegerAttribute(n5, targetDataset.dataset, N5Helpers.MAX_NUM_ENTRIES_KEY, -1);
 
-					final int[] relativeFactors = DoubleStream.of(relativeDownsamplingFactors).mapToInt(d -> (int) d)
-							.toArray();
-
-					final int[] ones = {1, 1, 1};
+					final int[] relativeFactors = ArrayMath.asInt3(relativeDownsamplingFactors, true);
 
 					LOG.debug("level={}: Got {} blocks", level, affectedBlocks.length);
 
+					final BlockSpec blockSpec = new BlockSpec(targetDataset.grid);
+
 					for (final long targetBlock : affectedBlocks)
 					{
-						final long[] blockPositionInTargetGrid = new long[targetGrid.numDimensions()];
-						targetGrid.getCellGridPositionFlat(targetBlock, blockPositionInTargetGrid);
-
-						final long[]   blockMinInTargetGrid = ArrayMath.multiplyElementwise3(
-								blockPositionInTargetGrid,
-								targetBlockSize,
-								new long[3]
-						                                                          );
-						final double[] blockMinDouble       = ArrayMath.asDoubleArray3(blockMinInTargetGrid, new double[3]);
-						final double[] blockMaxDouble       = ArrayMath.add3(blockMinDouble, targetBlockSize, new double[3]);
-
-						LOG.debug(
-								"level={}: blockMinDouble={} blockMaxDouble={}",
-								level,
-								blockMinDouble,
-								blockMaxDouble
-						         );
-
-						LOG.debug(
-								"level={}: Downsampling block {} with min={} max={} in tarspace.",
-								level,
-								blockPositionInTargetGrid,
-								blockMinDouble,
-								blockMaxDouble
-						         );
-
-						final int[] size = {
-								(int) (Math.min(blockMaxDouble[0], targetDimensions[0]) - blockMinDouble[0]),
-								(int) (Math.min(blockMaxDouble[1], targetDimensions[1]) - blockMinDouble[1]),
-								(int) (Math.min(blockMaxDouble[2], targetDimensions[2]) - blockMinDouble[2])};
-
-						final long[] blockMaxInTargetGrid = ArrayMath.add3(blockMinInTargetGrid, size, new long[3]);
-
+						blockSpec.fromLinearIndex(targetBlock);
+						final double[] blockMinDouble = ArrayMath.asDoubleArray3(blockSpec.min);
+						final double[] blockMaxDouble = ArrayMath.asDoubleArray3(ArrayMath.add3(blockSpec.max, 1));
 						targetToPrevious.apply(blockMinDouble, blockMinDouble);
 						targetToPrevious.apply(blockMaxDouble, blockMaxDouble);
 
-						LOG.debug(
-								"level={}: blockMinDouble={} blockMaxDouble={}",
-								level,
-								blockMinDouble,
-								blockMaxDouble
-						         );
+						LOG.debug("level={}: blockMinDouble={} blockMaxDouble={}", level, blockMinDouble, blockMaxDouble);
 
-						final long[] blockMin = ArrayMath.minOf3(blockMinDouble, previousDimensions, new long[3]);
-						final long[] blockMax = ArrayMath.minOf3(blockMaxDouble, previousDimensions, new long[3]);
+						final long[] blockMin = ArrayMath.minOf3(ArrayMath.asLong3(ArrayMath.floor3(blockMinDouble, blockMinDouble)), previousDataset.dimensions);
+						final long[] blockMax = ArrayMath.minOf3(ArrayMath.asLong3(ArrayMath.ceil3(blockMaxDouble, blockMaxDouble)), previousDataset.dimensions);
+						final int[] size = Intervals.dimensionsAsIntArray(new FinalInterval(blockMin, blockMax));
 
 						final long[] previousRelevantIntervalMin = blockMin.clone();
-						final long[] previousRelevantIntervalMax = ArrayMath.add3(blockMax, -1, new long[3]);
+						final long[] previousRelevantIntervalMax = ArrayMath.add3(blockMax, -1);
 
-						ArrayMath.divide3(blockMin, previousBlockSize, blockMin);
-						ArrayMath.divide3(blockMax, previousBlockSize, blockMax);
+						ArrayMath.divide3(blockMin, previousDataset.blockSize, blockMin);
+						ArrayMath.divide3(blockMax, previousDataset.blockSize, blockMax);
 						ArrayMath.add3(blockMax, -1, blockMax);
 						ArrayMath.minOf3(blockMax, blockMin, blockMax);
 
-						LOG.debug(
-								"level={}: Downsampling contained label lists for block {} with min={} max={} in " +
-										"previous space.",
-								level,
-								blockPositionInTargetGrid,
-								blockMin,
-								blockMax
-						         );
-
-						LOG.debug(
-								"level={}: Creating downscaled for interval=({} {})",
-								level,
-								previousRelevantIntervalMin,
-								previousRelevantIntervalMax
-						         );
-
-						final VolatileLabelMultisetArray updatedAccess = LabelMultisetTypeDownscaler
-								.createDownscaledCell(
-								Views.zeroMin(Views.interval(
-										previousData,
-										previousRelevantIntervalMin,
-										previousRelevantIntervalMax
-								                            )),
+						downsampleVolatileLabelMultisetArrayAndSerialize(
+								n5,
+								targetDataset.dataset,
+								targetDataset.attributes,
+								Views.interval(previousData, previousRelevantIntervalMin, previousRelevantIntervalMax),
 								relativeFactors,
-								targetMaxNumEntries
-						                                                                                                 );
-
-						final byte[] serializedAccess = new byte[LabelMultisetTypeDownscaler
-								.getSerializedVolatileLabelMultisetArraySize(
-								updatedAccess)];
-						LabelMultisetTypeDownscaler.serializeVolatileLabelMultisetArray(
-								updatedAccess,
-								serializedAccess
-						                                                               );
-
-						LOG.debug("level={}: Writing block of size {} at {}.", level, size, blockPositionInTargetGrid);
-
-						n5.writeBlock(
-								targetDataset,
-								targetAttributes,
-								new ByteArrayDataBlock(size, blockPositionInTargetGrid, serializedAccess)
-						             );
+								targetMaxNumEntries,
+								size,
+								blockSpec.pos);
 
 						if (updateLabelToBlockMapping)
 						{
@@ -332,28 +223,24 @@ public class CommitCanvasN5 implements BiConsumer<CachedCellImg<UnsignedLongType
 									datasetUniqueLabels,
 									datasetUniqueLabelsPrevious,
 									level,
-									blockPositionInTargetGrid,
-									blockMinInTargetGrid,
-									blockMaxInTargetGrid,
+									blockSpec.pos,
+									blockSpec.min,
+									blockSpec.max,
 									size,
 									blockMin,
 									blockMax,
-									ones);
+									ONES_3_INT);
 						}
 
 					}
 
 				}
 
-				//					throw new RuntimeException( "multi-scale export not implemented yet!" );
 			}
 
-			//				if ( isIntegerType() )
-			//					commitForIntegerType( n5, dataset, canvas );
-		} catch (final IOException e)
+		} catch (final IOException | PainteraException e)
 		{
-			// TODO Auto-generated catch block
-			e.printStackTrace();
+			LOG.error("Unable to commit canvas.", e);
 		}
 		LOG.info("Finished commiting canvas");
 	}
@@ -573,10 +460,8 @@ public class CommitCanvasN5 implements BiConsumer<CachedCellImg<UnsignedLongType
 			final String dataset
 	) throws IOException {
 
-		if (!Optional.ofNullable(n5.getAttribute(
-				dataset,
-				N5Helpers.LABEL_MULTISETTYPE_KEY,
-				Boolean.class)).orElse(false))
+		LOG.debug("Checking if dataset {} is label multiset type.", dataset);
+		if (!N5Helpers.getBooleanAttribute(n5, dataset, N5Helpers.LABEL_MULTISETTYPE_KEY, false))
 		{
 			throw new RuntimeException("Only label multiset type accepted currently!");
 		}
@@ -602,6 +487,37 @@ public class CommitCanvasN5 implements BiConsumer<CachedCellImg<UnsignedLongType
 					highestResolutionGrid
 			));
 		}
+	}
+
+	private static void downsampleVolatileLabelMultisetArrayAndSerialize(
+			final N5Writer n5,
+			final String dataset,
+			final DatasetAttributes attributes,
+			final RandomAccessibleInterval<LabelMultisetType> data,
+			final int[] relativeFactors,
+			final int maxNumEntries,
+			final int[] size,
+			final long[] blockPosition
+	) throws IOException {
+		final VolatileLabelMultisetArray updatedAccess = LabelMultisetTypeDownscaler.createDownscaledCell(
+				Views.isZeroMin(data) ? data : Views.zeroMin(data),
+				relativeFactors,
+				maxNumEntries
+		);
+
+		final byte[] serializedAccess = new byte[LabelMultisetTypeDownscaler
+				.getSerializedVolatileLabelMultisetArraySize(
+						updatedAccess)];
+		LabelMultisetTypeDownscaler.serializeVolatileLabelMultisetArray(
+				updatedAccess,
+				serializedAccess
+		);
+
+		n5.writeBlock(
+				dataset,
+				attributes,
+				new ByteArrayDataBlock(size, blockPosition, serializedAccess)
+		);
 	}
 
 }

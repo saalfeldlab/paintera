@@ -106,6 +106,19 @@ public class ArrayMath {
 		return quotient;
 	}
 
+	public static double[] divide3(final double[] divident, final double[] divisor)
+	{
+		return divide3(divident, divisor, new double[3]);
+	}
+
+	public static double[] divide3(final double[] divident, final double[] divisor, final double[] quotient)
+	{
+		quotient[0] = divident[0] / divisor[0];
+		quotient[1] = divident[1] / divisor[1];
+		quotient[2] = divident[2] / divisor[2];
+		return quotient;
+	}
+
 	public static long[] minOf3(final double[] arr1, final long[] arr2)
 	{
 		return minOf3(arr1, arr2, new long[3]);
@@ -130,6 +143,80 @@ public class ArrayMath {
 		min[1] = Math.min(arr1[1], arr2[1]);
 		min[2] = Math.min(arr1[2], arr2[2]);
 		return min;
+	}
+
+	public static int[] minOf3(final int[] arr1, final int[] arr2)
+	{
+		return minOf3(arr1, arr2, new int[3]);
+	}
+
+	public static int[] minOf3(final int[] arr1, final int[] arr2, final int[] min)
+	{
+		min[0] = Math.min(arr1[0], arr2[0]);
+		min[1] = Math.min(arr1[1], arr2[1]);
+		min[2] = Math.min(arr1[2], arr2[2]);
+		return min;
+	}
+
+	public static double[] ceil3(final double[] array)
+	{
+		return ceil3(array, new double[3]);
+	}
+
+	public static double[] ceil3(final double[] array, final double[] ceil)
+	{
+		ceil[0] = Math.ceil(array[0]);
+		ceil[1] = Math.ceil(array[1]);
+		ceil[2] = Math.ceil(array[2]);
+		return ceil;
+	}
+
+	public static double[] floor3(final double[] array)
+	{
+		return floor3(array, new double[3]);
+	}
+
+	public static double[] floor3(final double[] array, final double[] floor)
+	{
+		floor[0] = Math.floor(array[0]);
+		floor[1] = Math.floor(array[1]);
+		floor[2] = Math.floor(array[2]);
+		return floor;
+	}
+
+	public static long[] asLong3(final double[] array)
+	{
+		return asLong3(array, new long[3]);
+	}
+
+	public static long[] asLong3(final double[] array, final long[] arrayAsLong)
+	{
+		arrayAsLong[0] = (long) array[0];
+		arrayAsLong[1] = (long) array[1];
+		arrayAsLong[2] = (long) array[2];
+		return arrayAsLong;
+	}
+
+	public static int[] asInt3(final double[] array, boolean failIfNonIntegral) throws DoubleHasNonIntegralValue {
+		return asInt3(array, new int[3], failIfNonIntegral);
+	}
+
+	public static int[] asInt3(final double[] array, final int[] arrayAsInt, boolean failIfNonIntegral) throws DoubleHasNonIntegralValue {
+		arrayAsInt[0] = (int) array[0];
+		arrayAsInt[1] = (int) array[1];
+		arrayAsInt[2] = (int) array[2];
+
+		if (failIfNonIntegral)
+		{
+			if (arrayAsInt[0] != array[0])
+				throw new DoubleHasNonIntegralValue(array[0]);
+			if (arrayAsInt[1] != array[1])
+				throw new DoubleHasNonIntegralValue(array[1]);
+			if (arrayAsInt[2] != array[2])
+				throw new DoubleHasNonIntegralValue(array[2]);
+		}
+
+		return arrayAsInt;
 	}
 
 }

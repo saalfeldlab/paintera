@@ -717,6 +717,25 @@ public class N5Helpers
 		return getDoubleArrayAttribute(n5, group, DOWNSAMPLING_FACTORS_KEY, 1.0, 1.0, 1.0);
 	}
 
+	public static boolean getBooleanAttribute(final N5Reader n5, final String group, final String attribute, final boolean fallback) throws IOException {
+		return getAttribute(n5, group, attribute, Boolean.class, fallback);
+	}
+
+	public static int getIntegerAttribute(final N5Reader n5, final String group, final String attribute, final int fallback) throws IOException {
+		return getAttribute(n5, group, attribute, Integer.class, fallback);
+	}
+
+	public static <T> T getAttribute(final N5Reader n5, final String group, String attribute, Class<T> clazz, T fallback) throws IOException
+	{
+		return getAttribute(n5, group, attribute, clazz, (Supplier<T>) () -> fallback);
+	}
+
+	public static <T> T getAttribute(final N5Reader n5, final String group, String attribute, Class<T> clazz, Supplier<T> fallback) throws IOException
+	{
+		final T val = n5.getAttribute(group, attribute, clazz);
+		return val == null ? fallback.get() : val;
+	}
+
 	/**
 	 *
 	 * @param resolution voxel-size
