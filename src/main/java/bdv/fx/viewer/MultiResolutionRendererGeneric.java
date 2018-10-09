@@ -927,7 +927,6 @@ public class MultiResolutionRendererGeneric<T>
 	{
 		this.screenScales = screenScales.clone();
 		createVariables();
-		checkResize();
 	}
 
 	private synchronized void createVariables()
