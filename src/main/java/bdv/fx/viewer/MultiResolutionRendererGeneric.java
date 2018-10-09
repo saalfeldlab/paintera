@@ -932,6 +932,8 @@ public class MultiResolutionRendererGeneric<T>
 	private synchronized void createVariables()
 	{
 		LOG.debug("Updating images for screen scales {}", screenScales);
+		if (renderingMayBeCancelled && projector != null)
+			projector.cancel();
 		renderImages = new ArrayImg[screenScales.length][0];
 		renderMaskArrays = new byte[0][];
 		screenImages = new ArrayList<>();
