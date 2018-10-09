@@ -24,11 +24,10 @@ import org.janelia.saalfeldlab.labels.blocks.LabelBlockLookup;
 import org.janelia.saalfeldlab.n5.ByteArrayDataBlock;
 import org.janelia.saalfeldlab.n5.DatasetAttributes;
 import org.janelia.saalfeldlab.n5.LongArrayDataBlock;
-import org.janelia.saalfeldlab.n5.N5FSReader;
 import org.janelia.saalfeldlab.n5.N5Reader;
 import org.janelia.saalfeldlab.n5.N5Writer;
-import org.janelia.saalfeldlab.paintera.data.mask.persist.LabelBlockLookupUpdateNotSupported;
 import org.janelia.saalfeldlab.paintera.data.mask.persist.PersistCanvas;
+import org.janelia.saalfeldlab.paintera.data.mask.persist.UnableToPersistCanvas;
 import org.janelia.saalfeldlab.paintera.data.mask.persist.UnableToUpdateLabelBlockLookup;
 import org.janelia.saalfeldlab.paintera.exception.PainteraException;
 import org.janelia.saalfeldlab.util.HashWrapper;
@@ -45,7 +44,6 @@ import java.nio.file.Paths;
 import java.util.Arrays;
 import java.util.Optional;
 import java.util.Set;
-import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
@@ -85,7 +83,7 @@ public class CommitCanvasN5 implements PersistCanvas
 	@Override
 	public boolean supportsLabelBlockLookupUpdate()
 	{
-		return false;//isPainteraDataset;
+		return isPainteraDataset;
 	}
 
 	@Override
@@ -111,16 +109,75 @@ public class CommitCanvasN5 implements PersistCanvas
 						Views.interval(Views.pair(canvas, highestResolutionData), highestResolutionBlockSpec.asInterval()),
 						labelBlockLoader);
 			}
+
+			final String[] scaleUniqueLabels = N5Helpers.listAndSortScaleDatasets(n5, uniqueLabelsPath);
+
+			LOG.debug("Found scale datasets {}", (Object) scaleUniqueLabels);
+			for (int level = 1; level < scaleUniqueLabels.length; ++level)
+			{
+				final DatasetSpec datasetUniqueLabelsPrevious = DatasetSpec.of(n5, Paths.get(uniqueLabelsPath, scaleUniqueLabels[level-1]).toString());
+				final DatasetSpec datasetUniqueLabels         = DatasetSpec.of(n5, Paths.get(uniqueLabelsPath, scaleUniqueLabels[level]).toString());
+
+				final double[] targetDownsamplingFactors   = N5Helpers.getDownsamplingFactors(n5, datasetUniqueLabels.dataset);
+				final double[] previousDownsamplingFactors = N5Helpers.getDownsamplingFactors(n5, datasetUniqueLabelsPrevious.dataset);
+				final double[] relativeDownsamplingFactors = ArrayMath.divide3(targetDownsamplingFactors, previousDownsamplingFactors);
+
+				final long[] affectedBlocks = org.janelia.saalfeldlab.util.grids.Grids.getRelevantBlocksInTargetGrid(
+						blockIds,
+						highestResolutionDataset.grid,
+						datasetUniqueLabels.grid,
+						targetDownsamplingFactors).toArray();
+
+				final Scale3D targetToPrevious = new Scale3D(relativeDownsamplingFactors);
+
+				final BlockSpec blockSpec = new BlockSpec(datasetUniqueLabels.grid);
+
+				LOG.debug("Updating label block lookup for level {}", level);
+				for (final long targetBlock : affectedBlocks)
+				{
+					blockSpec.fromLinearIndex(targetBlock);
+					final double[] blockMinDouble = ArrayMath.asDoubleArray3(blockSpec.min);
+					final double[] blockMaxDouble = ArrayMath.asDoubleArray3(ArrayMath.add3(blockSpec.max, 1));
+					targetToPrevious.apply(blockMinDouble, blockMinDouble);
+					targetToPrevious.apply(blockMaxDouble, blockMaxDouble);
+
+					final long[] blockMin = ArrayMath.minOf3(ArrayMath.asLong3(ArrayMath.floor3(blockMinDouble, blockMinDouble)), datasetUniqueLabelsPrevious.dimensions);
+					final long[] blockMax = ArrayMath.minOf3(ArrayMath.asLong3(ArrayMath.ceil3(blockMaxDouble, blockMaxDouble)), datasetUniqueLabelsPrevious.dimensions);
+					final int[] size = Intervals.dimensionsAsIntArray(new FinalInterval(blockMin, blockMax));
+
+					ArrayMath.divide3(blockMin, datasetUniqueLabelsPrevious.blockSize, blockMin);
+					ArrayMath.divide3(blockMax, datasetUniqueLabelsPrevious.blockSize, blockMax);
+					ArrayMath.add3(blockMax, -1, blockMax);
+					ArrayMath.minOf3(blockMax, blockMin, blockMax);
+
+					updateLabelToBlockMapping(
+								n5,
+								labelBlockLoader,
+								datasetUniqueLabels.dataset,
+								datasetUniqueLabelsPrevious.dataset,
+								level,
+								blockSpec.pos,
+								blockSpec.min,
+								blockSpec.max,
+								size,
+								blockMin,
+								blockMax,
+								ONES_3_INT);
+				}
+
+			}
+
+
 		}
 		catch (IOException e)
 		{
 			throw new UnableToUpdateLabelBlockLookup("Unable to update label block lookup for " + this.dataset, e);
 		}
+		LOG.info("Finished updating label-block-lookup");
 	}
 
 	@Override
-	public void persistCanvas(final CachedCellImg<UnsignedLongType, ?> canvas, final long[] blocks)
-	{
+	public void persistCanvas(final CachedCellImg<UnsignedLongType, ?> canvas, final long[] blocks) throws UnableToPersistCanvas {
 		LOG.info("Committing canvas");
 		try
 		{
@@ -217,24 +274,6 @@ public class CommitCanvasN5 implements PersistCanvas
 								targetMaxNumEntries,
 								size,
 								blockSpec.pos);
-
-//						if (updateLabelToBlockMapping)
-//						{
-//							updateLabelToBlockMapping(
-//									n5,
-//									labelBlockLoader,
-//									datasetUniqueLabels,
-//									datasetUniqueLabelsPrevious,
-//									level,
-//									blockSpec.pos,
-//									blockSpec.min,
-//									blockSpec.max,
-//									size,
-//									blockMin,
-//									blockMax,
-//									ONES_3_INT);
-//						}
-
 					}
 
 				}
@@ -244,6 +283,7 @@ public class CommitCanvasN5 implements PersistCanvas
 		} catch (final IOException | PainteraException e)
 		{
 			LOG.error("Unable to commit canvas.", e);
+			throw new UnableToPersistCanvas("Unable to commit canvas.", e);
 		}
 		LOG.info("Finished commiting canvas");
 	}
@@ -334,8 +374,7 @@ public class CommitCanvasN5 implements PersistCanvas
 		n5.writeBlock(
 				uniqueLabelsDataset,
 				uniqueLabelsAttributes,
-				new LongArrayDataBlock(size, gridPosition, currentDataAsSet.toArray())
-		             );
+				new LongArrayDataBlock(size, gridPosition, currentDataAsSet.toArray()));
 
 		LOG.debug("was added {}", wasAdded);
 		LOG.debug("was removed {}", wasRemoved);
