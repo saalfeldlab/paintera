@@ -1,5 +1,6 @@
 package org.janelia.saalfeldlab.paintera.data.mask.persist;
 
+import gnu.trove.iterator.TLongIterator;
 import gnu.trove.map.TLongObjectMap;
 import gnu.trove.set.hash.TLongHashSet;
 import net.imglib2.cache.img.CachedCellImg;
@@ -52,19 +53,44 @@ public interface PersistCanvas {
 			this.diffWasCalculated = false;
 		}
 
+		private void createDiffIfNecessary()
+		{
+			if (!diffWasCalculated)
+				createDiff();
+		}
+
 		private void createDiff()
 		{
-			this.oldUniqueLabels.clear();
-			this.newUniqueLabels.clear();
+			this.wasAdded.clear();
+			this.wasRemoved.clear();
+
+			for (final TLongIterator newLabelIt = this.newUniqueLabels.iterator(); newLabelIt.hasNext();)
+			{
+				final long id = newLabelIt.next();
+				if (!this.oldUniqueLabels.contains(id))
+					this.wasAdded.add(id);
+			}
+
+			for (final TLongIterator oldLabelIt = this.oldUniqueLabels.iterator(); oldLabelIt.hasNext();)
+			{
+				final long id = oldLabelIt.next();
+				if (!this.newUniqueLabels.contains(id))
+					this.wasRemoved.add(id);
+			}
+
 			this.diffWasCalculated = true;
-			// TODO
 		}
 
 		private long[] getIds(final TLongHashSet idSet)
 		{
-			if (!diffWasCalculated)
-				createDiff();
+			createDiffIfNecessary();
 			return idSet.toArray();
+		}
+
+		@Override
+		public String toString()
+		{
+			return String.format("{BlockDiff: new=%s old=%s}", newUniqueLabels, oldUniqueLabels);
 		}
 
 	}
