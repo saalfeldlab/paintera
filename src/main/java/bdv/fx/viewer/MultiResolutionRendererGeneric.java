@@ -331,8 +331,8 @@ public class MultiResolutionRendererGeneric<T>
 		final int componentW = display.getWidth();
 		final int componentH = display.getHeight();
 		if (screenImages.get(0).get(0) == null
-				|| width.applyAsInt(screenImages.get(0).get(0)) * screenScales[0] != componentW
-				|| height.applyAsInt(screenImages.get(0).get(0)) * screenScales[0] != componentH)
+				|| width.applyAsInt(screenImages.get(0).get(0)) != (int)(componentW * screenScales[0])
+				|| height.applyAsInt(screenImages.get(0).get(0)) != (int)(componentH * screenScales[0]))
 		{
 			renderIdQueue.clear();
 			renderIdQueue.addAll(Arrays.asList(0, 1, 2));
