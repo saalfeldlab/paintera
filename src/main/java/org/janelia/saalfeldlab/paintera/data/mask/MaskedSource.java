@@ -448,9 +448,9 @@ public class MaskedSource<D extends Type<D>, T extends Type<T>> implements DataS
 					try
 					{
 						try {
-							this.persistCanvas.persistCanvas(canvas, affectedBlocks);
+							List<TLongObjectMap<PersistCanvas.BlockDiff>> blockDiffs = this.persistCanvas.persistCanvas(canvas, affectedBlocks);
 							if (this.persistCanvas.supportsLabelBlockLookupUpdate())
-								this.persistCanvas.updateLabelBlockLookup(canvas, affectedBlocks);
+								this.persistCanvas.updateLabelBlockLookup(blockDiffs);
 							clearCanvases();
 							for (int level = 0; level < this.getNumMipmapLevels(); ++level) {
 								LOG.debug("Invalidating all for data source for level={}", level);

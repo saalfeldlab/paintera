@@ -3,6 +3,7 @@ package org.janelia.saalfeldlab.paintera.data.n5;
 import net.imglib2.FinalInterval;
 import net.imglib2.Interval;
 import net.imglib2.img.cell.CellGrid;
+import net.imglib2.util.IntervalIndexer;
 import org.janelia.saalfeldlab.util.grids.Grids;
 
 public class BlockSpec {
@@ -15,6 +16,8 @@ public class BlockSpec {
 
 	public final long[] max;
 
+	private final long[] gridDimensions;
+
 	public BlockSpec(final CellGrid grid)
 	{
 		this.grid = grid;
@@ -26,6 +29,8 @@ public class BlockSpec {
 		this.min = new long[numDimensions];
 
 		this.max = new long[numDimensions];
+
+		this.gridDimensions = grid.getGridDimensions();
 	}
 
 	/**
@@ -37,9 +42,21 @@ public class BlockSpec {
 		Grids.linearIndexToCellPositionMinMax(this.grid, index, pos, min, max);
 	}
 
+	public void fromInterval(final Interval interval)
+	{
+		interval.min(min);
+		interval.max(max);
+		grid.getCellPosition(min, pos);
+	}
+
 	public Interval asInterval()
 	{
 		return new FinalInterval(min, max);
+	}
+
+	public long asLinearIndex()
+	{
+		return IntervalIndexer.positionToIndex(pos, gridDimensions);
 	}
 
 }
