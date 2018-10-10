@@ -6,6 +6,8 @@ import net.imglib2.img.cell.CellGrid;
 import net.imglib2.util.IntervalIndexer;
 import org.janelia.saalfeldlab.util.grids.Grids;
 
+import java.util.Arrays;
+
 public class BlockSpec {
 
 	public final CellGrid grid;
@@ -57,6 +59,11 @@ public class BlockSpec {
 	public long asLinearIndex()
 	{
 		return IntervalIndexer.positionToIndex(pos, gridDimensions);
+	}
+
+	@Override
+	public String toString() {
+		return String.format("{BlockSpec: min=%s max=%s pos=%s grid=%s}", Arrays.toString(min), Arrays.toString(max), Arrays.toString(pos), grid);
 	}
 
 }
