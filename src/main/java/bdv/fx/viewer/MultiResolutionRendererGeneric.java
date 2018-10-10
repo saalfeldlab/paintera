@@ -340,8 +340,8 @@ public class MultiResolutionRendererGeneric<T>
 			for (int i = 0; i < screenScales.length; ++i)
 			{
 				final double screenToViewerScale = screenScales[i];
-				final int    w                   = (int) (screenToViewerScale * componentW);
-				final int    h                   = (int) (screenToViewerScale * componentH);
+				final int    w                   = Math.max((int) (screenToViewerScale * componentW), 1);
+				final int    h                   = Math.max((int) (screenToViewerScale * componentH), 1);
 				if (doubleBuffered)
 					for (int b = 0; b < 3; ++b)
 					{
