@@ -98,6 +98,7 @@ public class CommitCanvasN5 implements PersistCanvas
 	@Override
 	public void updateLabelBlockLookup(final List<TLongObjectMap<BlockDiff>> blockDiffsByLevel) throws UnableToUpdateLabelBlockLookup
 	{
+		LOG.debug("Updating label block lookup with {}", blockDiffsByLevel);
 		try {
 			final String uniqueLabelsPath = this.dataset + "/unique-labels";
 			LOG.debug("uniqueLabelsPath {}", uniqueLabelsPath);
@@ -123,6 +124,8 @@ public class CommitCanvasN5 implements PersistCanvas
 
 					blockSpec.fromLinearIndex(blockId);
 
+					LOG.trace("Unique labels for block ({}: {} {}): {}", blockId, blockSpec.min, blockSpec.max, blockDiff);
+
 					n5.writeBlock(
 							datasetUniqueLabels.dataset,
 							datasetUniqueLabels.attributes,
@@ -145,6 +148,8 @@ public class CommitCanvasN5 implements PersistCanvas
 				final TLongSet modifiedIds = new TLongHashSet();
 				modifiedIds.addAll(removedById.keySet());
 				modifiedIds.addAll(addedById.keySet());
+				LOG.debug("Removed by id: {}", removedById);
+				LOG.debug("Added by id: {}", addedById);
 				for (final long modifiedId : modifiedIds.toArray())
 				{
 					final Interval[] blockList = labelBlockLoader.read(level, modifiedId);
@@ -155,15 +160,27 @@ public class CommitCanvasN5 implements PersistCanvas
 						blockListLinearIndices.add(blockSpec.asLinearIndex());
 					}
 
-					blockListLinearIndices.removeAll(removedById.get(modifiedId));
-					blockListLinearIndices.addAll(addedById.get(modifiedId));
+					final TLongSet removed = removedById.get(modifiedId);
+					final TLongSet added = addedById.get(modifiedId);
+
+					LOG.debug("Removed for id {}: {}", modifiedId, removed);
+					LOG.debug("Added for id {}: {}", modifiedId, added);
+
+					if (removed != null)
+						blockListLinearIndices.removeAll(removed);
+
+					if (added != null)
+						blockListLinearIndices.addAll(added);
 
 					final Interval[] updatedIntervals = new Interval[blockListLinearIndices.size()];
 					final TLongIterator blockIt = blockListLinearIndices.iterator();
 					for (int index = 0; blockIt.hasNext(); ++index)
 					{
-						blockSpec.fromLinearIndex(blockIt.next());
-						updatedIntervals[index] = blockSpec.asInterval();
+						final long blockId = blockIt.next();
+						blockSpec.fromLinearIndex(blockId);
+						final Interval interval = blockSpec.asInterval();
+						updatedIntervals[index] = interval;
+						LOG.trace("Added interval {} for linear index {} and block spec {}", interval, blockId, blockSpec);
 					}
 					labelBlockLoader.write(level, modifiedId, updatedIntervals);
 				}
@@ -262,7 +279,7 @@ public class CommitCanvasN5 implements PersistCanvas
 
 						final long[] blockMin = ArrayMath.minOf3(ArrayMath.asLong3(ArrayMath.floor3(blockMinDouble, blockMinDouble)), previousDataset.dimensions);
 						final long[] blockMax = ArrayMath.minOf3(ArrayMath.asLong3(ArrayMath.ceil3(blockMaxDouble, blockMaxDouble)), previousDataset.dimensions);
-						final int[] size = Intervals.dimensionsAsIntArray(new FinalInterval(blockMin, blockMax));
+						final int[] size = Intervals.dimensionsAsIntArray(new FinalInterval(blockSpec.min, blockSpec.max));
 
 						final long[] previousRelevantIntervalMin = blockMin.clone();
 						final long[] previousRelevantIntervalMax = ArrayMath.add3(blockMax, -1);
@@ -272,6 +289,7 @@ public class CommitCanvasN5 implements PersistCanvas
 						ArrayMath.add3(blockMax, -1, blockMax);
 						ArrayMath.minOf3(blockMax, blockMin, blockMax);
 
+						LOG.trace("Reading old access at position {} and size {}. ({} {})", blockSpec.pos, size, blockSpec.min, blockSpec.max);
 						VolatileLabelMultisetArray oldAccess = LabelUtils.fromBytes(
 								(byte[]) n5.readBlock(targetDataset.dataset, targetDataset.attributes, blockSpec.pos).getData(),
 								(int) Intervals.numElements(size));
