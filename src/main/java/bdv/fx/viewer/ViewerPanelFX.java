@@ -86,56 +86,6 @@ public class ViewerPanelFX
 {
 
 	private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
-
-	private static class RenderUnit
-	{
-		private final MultiResolutionRendererFX renderer;
-
-		private final PainterThread p;
-
-		public RenderUnit(
-				final TransformAwareBufferedImageOverlayRendererFX renderTarget,
-				final AccumulateProjectorFactory<ARGBType> accumulateProjectorFactory,
-				final long targetRenderNanos,
-				final int numRenderingThreads,
-				final double[] screenScales,
-				final ThreadGroup threadGroup,
-				final PainterThread.Paintable paintable,
-				final ExecutorService renderingExecutorService,
-				final CacheControl cacheControl)
-		{
-
-			this.p = new PainterThread(threadGroup, paintable);
-			this. renderer = new MultiResolutionRendererFX(
-					renderTarget,
-					p,
-					screenScales.clone(),
-					targetRenderNanos,
-					true, // isDoubleBuffered
-					numRenderingThreads,
-					renderingExecutorService,
-					true, // useVolatileIfAvailable
-					accumulateProjectorFactory,
-					cacheControl
-			);
-		}
-
-		public void stop()
-		{
-			p.stopRendering();
-			p.interrupt();
-			try
-			{
-				p.join(0);
-			} catch (final InterruptedException e)
-			{
-				LOG.error("Error when shutting down renderer.", e);
-				e.printStackTrace();
-			}
-			renderer.kill();
-			p.stop();
-		}
-	}
 	/**
 	 * Currently rendered state (visible sources, transformation, timepoint, etc.) A copy can be obtained by {@link
 	 * #getState()}.
