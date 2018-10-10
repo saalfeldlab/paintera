@@ -36,7 +36,6 @@ import bdv.viewer.render.AccumulateProjectorFactory;
 import net.imglib2.Volatile;
 import net.imglib2.img.array.ArrayImg;
 import net.imglib2.type.numeric.ARGBType;
-import net.imglib2.ui.PainterThread;
 import net.imglib2.ui.RenderTarget;
 import net.imglib2.ui.Renderer;
 
@@ -139,7 +138,6 @@ public class MultiResolutionRendererFX extends MultiResolutionRendererGeneric<Bu
 				cacheControl,
 				image -> image.asArrayImg(),
 				new MakeWritableImage(),
-				(Class<BufferExposingWritableImage>) (Class<?>) BufferExposingWritableImage.class,
 				img -> (int) img.getWidth(),
 				img -> (int) img.getHeight()
 		     );

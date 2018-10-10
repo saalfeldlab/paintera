@@ -29,6 +29,7 @@
  */
 package bdv.fx.viewer;
 
+import java.lang.invoke.MethodHandles;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
@@ -46,6 +47,7 @@ import bdv.viewer.RequestRepaint;
 import bdv.viewer.Source;
 import bdv.viewer.SourceAndConverter;
 import bdv.viewer.ViewerOptions;
+import bdv.viewer.render.AccumulateProjectorFactory;
 import javafx.beans.property.ReadOnlyBooleanProperty;
 import javafx.beans.property.ReadOnlyDoubleProperty;
 import javafx.beans.property.SimpleBooleanProperty;
@@ -61,8 +63,10 @@ import net.imglib2.RealLocalizable;
 import net.imglib2.RealPoint;
 import net.imglib2.RealPositionable;
 import net.imglib2.realtransform.AffineTransform3D;
-import net.imglib2.ui.PainterThread;
+import net.imglib2.type.numeric.ARGBType;
 import net.imglib2.ui.TransformListener;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * A JPanel for viewing multiple of {@link Source}s. The panel contains a {@link InteractiveDisplayPaneComponent canvas}
@@ -80,6 +84,8 @@ public class ViewerPanelFX
 		           PainterThread.Paintable,
 		           RequestRepaint
 {
+
+	private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 	/**
 	 * Currently rendered state (visible sources, transformation, timepoint, etc.) A copy can be obtained by {@link
 	 * #getState()}.
@@ -89,7 +95,7 @@ public class ViewerPanelFX
 	/**
 	 * Renders the current state for the {@link #display}.
 	 */
-	protected final MultiResolutionRendererFX imageRenderer;
+	protected MultiResolutionRendererFX imageRenderer;
 
 	/**
 	 * TODO
@@ -147,6 +153,8 @@ public class ViewerPanelFX
 
 	private final Function<Source<?>, Interpolation> interpolation;
 
+	private final CacheControl cacheControl;
+
 	public ViewerPanelFX(
 			final List<SourceAndConverter<?>> sources,
 			final int numTimePoints,
@@ -200,6 +208,7 @@ public class ViewerPanelFX
 			final Function<Source<?>, Interpolation> interpolation)
 	{
 		super();
+		this.cacheControl = cacheControl;
 		options = optional.values;
 		setWidth(options.getWidth());
 		setHeight(options.getHeight());
@@ -628,7 +637,7 @@ public class ViewerPanelFX
 	protected class RenderThreadFactory implements ThreadFactory
 	{
 		private final String threadNameFormat = String.format(
-				"bdv-panel-%d-thread-%%d",
+				"viewer-panel-fx-%d-thread-%%d",
 				panelNumber.getAndIncrement()
 		                                                     );
 
@@ -641,8 +650,8 @@ public class ViewerPanelFX
 					String.format(threadNameFormat, threadNumber.getAndIncrement()),
 					0
 			);
-			if (t.isDaemon())
-				t.setDaemon(false);
+			if (!t.isDaemon())
+				t.setDaemon(true);
 			if (t.getPriority() != Thread.NORM_PRIORITY)
 				t.setPriority(Thread.NORM_PRIORITY);
 			return t;
@@ -688,6 +697,12 @@ public class ViewerPanelFX
 	public ReadOnlyDoubleProperty mouseYProperty()
 	{
 		return ReadOnlyDoubleProperty.readOnlyDoubleProperty(mouseY);
+	}
+
+	public void setScreenScales(double[] screenScales)
+	{
+		LOG.debug("Setting screen scales to {}", screenScales);
+		this.imageRenderer.setScreenScales(screenScales.clone());
 	}
 
 }

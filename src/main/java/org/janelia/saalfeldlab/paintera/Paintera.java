@@ -43,6 +43,7 @@ import org.janelia.saalfeldlab.paintera.composition.CompositeCopy;
 import org.janelia.saalfeldlab.paintera.config.CoordinateConfigNode;
 import org.janelia.saalfeldlab.paintera.config.NavigationConfigNode;
 import org.janelia.saalfeldlab.paintera.config.OrthoSliceConfig;
+import org.janelia.saalfeldlab.paintera.config.ScreenScalesConfig;
 import org.janelia.saalfeldlab.paintera.control.CommitChanges;
 import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignmentState;
 import org.janelia.saalfeldlab.paintera.control.assignment.UnableToPersist;
@@ -145,9 +146,6 @@ public class Paintera extends Application
 			return;
 		}
 
-		final double[] screenScales = painteraArgs.screenScales();
-		LOG.debug("Using screen scales {}", screenScales);
-
 		final String projectDir = Optional
 				.ofNullable(painteraArgs.project())
 				.orElseGet(MakeUnchecked.supplier(() -> new ProjectDirectoryNotSpecifiedDialog(painteraArgs
@@ -162,7 +160,7 @@ public class Paintera extends Application
 
 		final PainteraBaseView baseView = new PainteraBaseView(
 				PainteraBaseView.reasonableNumFetcherThreads(),
-				ViewerOptions.options().screenScales(screenScales),
+				ViewerOptions.options().screenScales(ScreenScalesConfig.defaultScreenScalesCopy()),
 				si -> s -> si.getState(s).interpolationProperty().get()
 		);
 
@@ -228,6 +226,12 @@ public class Paintera extends Application
 				paneWithStatus.orthoSlices().get(baseView.orthogonalViews().topRight()),
 				paneWithStatus.orthoSlices().get(baseView.orthogonalViews().bottomLeft())
 		                                        );
+
+		paneWithStatus.screenScalesConfigNode().bind(properties.screenScalesConfig);
+		properties.screenScalesConfig.screenScalesProperty().addListener((obs, oldv, newv) -> baseView.orthogonalViews().setScreenScales(newv.getScalesCopy()));
+		baseView.orthogonalViews().setScreenScales(properties.screenScalesConfig.screenScalesProperty().get().getScalesCopy());
+		if (painteraArgs.wereScreenScalesProvided())
+			properties.screenScalesConfig.screenScalesProperty().set(new ScreenScalesConfig.ScreenScales(painteraArgs.screenScales()));
 
 		paneWithStatus.navigationConfigNode().bind(properties.navigationConfig);
 		properties.navigationConfig.bindNavigationToConfig(defaultHandlers.navigation());

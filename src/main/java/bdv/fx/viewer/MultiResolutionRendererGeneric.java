@@ -29,19 +29,6 @@
  */
 package bdv.fx.viewer;
 
-import java.lang.invoke.MethodHandles;
-import java.lang.reflect.Array;
-import java.util.ArrayDeque;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Optional;
-import java.util.concurrent.ExecutorService;
-import java.util.function.Function;
-import java.util.function.ToIntFunction;
-
 import bdv.cache.CacheControl;
 import bdv.util.MipmapTransforms;
 import bdv.viewer.Interpolation;
@@ -73,54 +60,27 @@ import net.imglib2.img.basictypeaccess.array.IntArray;
 import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.realtransform.RealViews;
 import net.imglib2.type.numeric.ARGBType;
-import net.imglib2.ui.PainterThread;
-import net.imglib2.ui.Renderer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import tmp.bdv.img.cache.VolatileCachedCellImg;
 
+import java.lang.invoke.MethodHandles;
+import java.util.ArrayDeque;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Optional;
+import java.util.concurrent.ExecutorService;
+import java.util.function.Function;
+import java.util.function.ToIntFunction;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
+
 /**
- * A {@link Renderer} that uses a coarse-to-fine rendering scheme. First, a small data store at a fraction of the canvas
- * resolution is rendered. Then, increasingly larger images are rendered, until the full canvas resolution is reached.
- * <p>
- * When drawing the low-resolution data store to the screen, they will be scaled up by Java2D to the full canvas size,
- * which is relatively fast. Rendering the small, low-resolution images is usually very fast, such that the display is
- * very interactive while the user changes the viewing transformation for example. When the transformation remains fixed
- * for a longer period, higher-resolution details are filled in successively.
- * <p>
- * The renderer allocates a data store for each of a predefined set of
- * <em>screen scales</em> (a screen scale of 1 means that 1 pixel in the screen
- * image is displayed as 1 pixel on the canvas, a screen scale of 0.5 means 1 pixel in the screen image is displayed as
- * 2 pixel on the canvas, etc.)
- * <p>
- * At any time, one of these screen scales is selected as the <em>highest screen scale</em>. Rendering starts with this
- * highest screen scale and then proceeds to lower screen scales (higher resolution images). Unless the highest screen
- * scale is currently rendering, {@link #requestRepaint() repaint request} will cancel rendering, such that display
- * remains interactive.
- * <p>
- * The renderer tries to maintain a per-frame rendering time close to a desired number of <code>targetRenderNanos</code>
- * nanoseconds. If the rendering time (in nanoseconds) for the (currently) highest scaled screen image is above this
- * threshold, a coarser screen scale is chosen as the highest screen scale to use. Similarly, if the rendering time for
- * the (currently) second-highest scaled screen image is below this threshold, this finer screen scale chosen as the
- * highest screen scale to use.
- * <p>
- * The renderer uses multiple threads (if desired) and double-buffering (if desired).
- * <p>
- * Double buffering means that three render stores are created for every screen scale. After rendering the first one of
- * them and setting it to the {@link RenderTargetGeneric}, next time, rendering goes to the second one, then to the
- * third. The {@link RenderTargetGeneric} will always have a complete image, which is not rendered to while it is
- * potentially drawn to the screen. When setting an image to the {@link RenderTargetGeneric}, the {@link
- * RenderTargetGeneric} will release one of the previously set images to be rendered again. Thus, rendering will not
- * interfere with painting the data to the canvas.
- * <p>
- * The renderer supports rendering of {@link Volatile} sources. In each rendering pass, all currently valid data for the
- * best fitting mipmap level and all coarser levels is rendered to a {@link #renderImages temporary image} for each
- * visible source. Then the temporary images are combined to the final image for display. The number of passes required
- * until all data is valid might differ between visible sources.
- * <p>
- * Rendering timing is tied to a {@link CacheControl} control for IO budgeting, etc.
  *
- * @author Tobias Pietzsch &lt;tobias.pietzsch@gmail.com&gt;
+ * @author Tobias Pietzsch
  * @author Philipp Hanslovsky
  */
 public class MultiResolutionRendererGeneric<T>
@@ -128,73 +88,73 @@ public class MultiResolutionRendererGeneric<T>
 
 	private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.class);
 
-	public static interface ImageGenerator<T>
+	public interface ImageGenerator<T>
 	{
 
-		public T create(int width, int height);
+		T create(int width, int height);
 
-		public T create(int width, int height, T other);
+		T create(int width, int height, T other);
 
 	}
 
 	/**
 	 * Receiver for the data store that we render.
 	 */
-	protected final TransformAwareRenderTargetGeneric<T> display;
+	private final TransformAwareRenderTargetGeneric<T> display;
 
 	/**
 	 * Thread that triggers repainting of the display. Requests for repainting are send there.
 	 */
-	protected final PainterThread painterThread;
+	private final PainterThread painterThread;
 
 	/**
 	 * Currently active projector, used to re-paint the display. It maps the source data to {@link #screenImages}.
 	 */
-	protected VolatileProjector projector;
+	private VolatileProjector projector;
 
 	/**
 	 * The index of the screen scale of the {@link #projector current projector}.
 	 */
-	protected int currentScreenScaleIndex;
+	private int currentScreenScaleIndex;
 
 	/**
 	 * Whether double buffering is used.
 	 */
-	protected final boolean doubleBuffered;
+	private final boolean doubleBuffered;
 
 	/**
 	 * Double-buffer index of next {@link #screenImages image} to render.
 	 */
-	protected final ArrayDeque<Integer> renderIdQueue;
+	private final ArrayDeque<Integer> renderIdQueue;
 
 	/**
 	 * Maps from data store to double-buffer index. Needed for double-buffering.
 	 */
-	protected final HashMap<T, Integer> bufferedImageToRenderId;
+	private final HashMap<T, Integer> bufferedImageToRenderId;
 
 	/**
 	 * Used to render an individual source. One image per screen resolution and visible source. First index is screen
 	 * scale, second index is index in list of visible sources.
 	 */
-	protected ArrayImg<ARGBType, IntArray>[][] renderImages;
+	ArrayImg<ARGBType, IntArray>[][] renderImages;
 
 	/**
 	 * Storage for mask images of {@link VolatileHierarchyProjector}. One array per visible source. (First) index is
 	 * index in list of visible sources.
 	 */
-	protected byte[][] renderMaskArrays;
+	private byte[][] renderMaskArrays;
 
 	/**
 	 * Used to render the image for display. Three images per screen resolution if double buffering is enabled. First
 	 * index is screen scale, second index is double-buffer.
 	 */
-	protected T[][] screenImages;
+	private List<List<T>> screenImages;
 
 	/**
 	 * data store wrapping the data in the {@link #screenImages}. First index is screen scale, second index is
 	 * double-buffer.
 	 */
-	protected T[][] bufferedImages;
+	private List<List<T>> bufferedImages;
 
 	/**
 	 * Scale factors from the {@link #display viewer canvas} to the {@link #screenImages}.
@@ -202,14 +162,14 @@ public class MultiResolutionRendererGeneric<T>
 	 * A scale factor of 1 means 1 pixel in the screen image is displayed as 1 pixel on the canvas, a scale factor of
 	 * 0.5 means 1 pixel in the screen image is displayed as 2 pixel on the canvas, etc.
 	 */
-	protected final double[] screenScales;
+	private double[] screenScales;
 
 	/**
 	 * The scale transformation from viewer to {@link #screenImages screen image}. Each transformations corresponds
 	 * to a
 	 * {@link #screenScales screen scale}.
 	 */
-	protected AffineTransform3D[] screenScaleTransforms;
+	private AffineTransform3D[] screenScaleTransforms;
 
 	/**
 	 * If the rendering time (in nanoseconds) for the (currently) highest scaled screen image is above this threshold,
@@ -217,7 +177,7 @@ public class MultiResolutionRendererGeneric<T>
 	 * time for the (currently) second-highest scaled screen image is below this threshold, decrease the {@link
 	 * #maxScreenScaleIndex index} of the highest screen scale to use.
 	 */
-	protected final long targetRenderNanos;
+	private final long targetRenderNanos;
 
 	/**
 	 * The index of the (coarsest) screen scale with which to start rendering. Once this level is painted, rendering
@@ -225,60 +185,58 @@ public class MultiResolutionRendererGeneric<T>
 	 * maxScreenScaleIndex is adapted such that it is the highest index for which rendering in {@link
 	 * #targetRenderNanos} nanoseconds is still possible.
 	 */
-	protected int maxScreenScaleIndex;
+	private int maxScreenScaleIndex;
 
 	/**
 	 * The index of the screen scale which should be rendered next.
 	 */
-	protected int requestedScreenScaleIndex;
+	private int requestedScreenScaleIndex;
 
 	/**
 	 * Whether the current rendering operation may be cancelled (to start a new one). Rendering may be cancelled unless
 	 * we are rendering at coarsest screen scale and coarsest mipmap level.
 	 */
-	protected volatile boolean renderingMayBeCancelled;
+	private volatile boolean renderingMayBeCancelled;
 
 	/**
 	 * How many threads to use for rendering.
 	 */
-	protected final int numRenderingThreads;
+	private final int numRenderingThreads;
 
 	/**
 	 * {@link ExecutorService} used for rendering.
 	 */
-	protected final ExecutorService renderingExecutorService;
+	private final ExecutorService renderingExecutorService;
 
 	/**
 	 * TODO
 	 */
-	protected final AccumulateProjectorFactory<ARGBType> accumulateProjectorFactory;
+	private final AccumulateProjectorFactory<ARGBType> accumulateProjectorFactory;
 
 	/**
 	 * Controls IO budgeting and fetcher queue.
 	 */
-	protected final CacheControl cacheControl;
+	private final CacheControl cacheControl;
 
 	/**
 	 * Whether volatile versions of sources should be used if available.
 	 */
-	protected final boolean useVolatileIfAvailable;
+	private final boolean useVolatileIfAvailable;
 
 	/**
 	 * Whether a repaint was {@link #requestRepaint() requested}. This will cause {@link
 	 * CacheControl#prepareNextFrame()}.
 	 */
-	protected boolean newFrameRequest;
+	private boolean newFrameRequest;
 
 	/**
 	 * The timepoint for which last a projector was {@link #createProjector created}.
 	 */
-	protected int previousTimepoint;
+	private int previousTimepoint;
 
-	// TODO: should be settable
-	protected long[] iobudget = new long[] {100l * 1000000l, 10l * 1000000l};
+	private long[] iobudget = new long[] {100l * 1000000l, 10l * 1000000l};
 
-	// TODO: should be settable
-	protected boolean prefetchCells = true;
+	private boolean prefetchCells = true;
 
 	private final Function<T, ArrayImg<ARGBType, ? extends IntAccess>> wrapAsArrayImg;
 
@@ -316,7 +274,7 @@ public class MultiResolutionRendererGeneric<T>
 	 * 		the cache controls IO budgeting and fetcher queue.
 	 */
 	@SuppressWarnings("unchecked")
-	public MultiResolutionRendererGeneric(
+	MultiResolutionRendererGeneric(
 			final TransformAwareRenderTargetGeneric<T> display,
 			final PainterThread painterThread,
 			final double[] screenScales,
@@ -329,7 +287,6 @@ public class MultiResolutionRendererGeneric<T>
 			final CacheControl cacheControl,
 			final Function<T, ArrayImg<ARGBType, ? extends IntAccess>> wrapAsArrayImg,
 			final ImageGenerator<T> makeImage,
-			final Class<? extends T> cls,
 			final ToIntFunction<T> width,
 			final ToIntFunction<T> height)
 	{
@@ -341,13 +298,7 @@ public class MultiResolutionRendererGeneric<T>
 		this.doubleBuffered = doubleBuffered;
 		renderIdQueue = new ArrayDeque<>();
 		bufferedImageToRenderId = new HashMap<>();
-		renderImages = new ArrayImg[screenScales.length][0];
-		// new ARGBScreenImage[ screenScales.length ][ 0 ];
-		renderMaskArrays = new byte[0][];
-		screenImages = (T[][]) Array.newInstance(cls, screenScales.length, 3);
-		// )new ARGBScreenImage[ screenScales.length ][ 3 ];
-		this.bufferedImages = (T[][]) Array.newInstance(cls, screenScales.length, 3);
-		screenScaleTransforms = new AffineTransform3D[screenScales.length];
+		createVariables();
 
 		this.makeImage = makeImage;
 
@@ -359,8 +310,6 @@ public class MultiResolutionRendererGeneric<T>
 
 		this.targetRenderNanos = targetRenderNanos;
 
-		maxScreenScaleIndex = screenScales.length - 1;
-		requestedScreenScaleIndex = maxScreenScaleIndex;
 		renderingMayBeCancelled = true;
 		this.numRenderingThreads = numRenderingThreads;
 		this.renderingExecutorService = renderingExecutorService;
@@ -377,13 +326,13 @@ public class MultiResolutionRendererGeneric<T>
 	 *
 	 * @return whether the size was changed.
 	 */
-	protected synchronized boolean checkResize()
+	private synchronized boolean checkResize()
 	{
 		final int componentW = display.getWidth();
 		final int componentH = display.getHeight();
-		if (screenImages[0][0] == null
-				|| width.applyAsInt(screenImages[0][0]) * screenScales[0] != componentW
-				|| height.applyAsInt(screenImages[0][0]) * screenScales[0] != componentH)
+		if (screenImages.get(0).get(0) == null
+				|| width.applyAsInt(screenImages.get(0).get(0)) != (int)(componentW * screenScales[0])
+				|| height.applyAsInt(screenImages.get(0).get(0)) != (int)(componentH * screenScales[0]))
 		{
 			renderIdQueue.clear();
 			renderIdQueue.addAll(Arrays.asList(0, 1, 2));
@@ -391,24 +340,24 @@ public class MultiResolutionRendererGeneric<T>
 			for (int i = 0; i < screenScales.length; ++i)
 			{
 				final double screenToViewerScale = screenScales[i];
-				final int    w                   = (int) (screenToViewerScale * componentW);
-				final int    h                   = (int) (screenToViewerScale * componentH);
+				final int    w                   = Math.max((int) (screenToViewerScale * componentW), 1);
+				final int    h                   = Math.max((int) (screenToViewerScale * componentH), 1);
 				if (doubleBuffered)
 					for (int b = 0; b < 3; ++b)
 					{
 						// reuse storage arrays of level 0 (highest resolution)
-						screenImages[i][b] = i == 0
+						screenImages.get(i).set(b, i == 0
 						                     ? makeImage.create(w, h)
-						                     : makeImage.create(w, h, screenImages[0][b]);
-						final T bi = screenImages[i][b];
+						                     : makeImage.create(w, h, screenImages.get(0).get(b)));
+						final T bi = screenImages.get(i).get(b);
 						// getBufferedImage.apply( screenImages[ i ][ b ] );
-						bufferedImages[i][b] = bi;
+						bufferedImages.get(i).set(b, bi);
 						bufferedImageToRenderId.put(bi, b);
 					}
 				else
 				{
-					screenImages[i][0] = makeImage.create(w, h);
-					bufferedImages[i][0] = screenImages[i][0];
+					screenImages.get(i).set(0, makeImage.create(w, h));
+					bufferedImages.get(i).set(0, screenImages.get(i).get(0));
 					// getBufferedImage.apply( screenImages[ i ][ 0 ] );
 				}
 				final AffineTransform3D scale  = new AffineTransform3D();
@@ -427,19 +376,19 @@ public class MultiResolutionRendererGeneric<T>
 	}
 
 	@SuppressWarnings("unchecked")
-	protected boolean checkRenewRenderImages(final int numVisibleSources)
+	private boolean checkRenewRenderImages(final int numVisibleSources)
 	{
 		final int n = numVisibleSources > 1 ? numVisibleSources : 0;
 		if (n != renderImages[0].length ||
 				n != 0 &&
-						(renderImages[0][0].dimension(0) != width.applyAsInt(screenImages[0][0]) ||
-								renderImages[0][0].dimension(1) != height.applyAsInt(screenImages[0][0])))
+						(renderImages[0][0].dimension(0) != width.applyAsInt(screenImages.get(0).get(0)) ||
+								renderImages[0][0].dimension(1) != height.applyAsInt(screenImages.get(0).get(0))))
 		{
 			renderImages = new ArrayImg[screenScales.length][n];
 			for (int i = 0; i < screenScales.length; ++i)
 			{
-				final int w = width.applyAsInt(screenImages[i][0]);
-				final int h = height.applyAsInt(screenImages[i][0]);
+				final int w = width.applyAsInt(screenImages.get(i).get(0));
+				final int h = height.applyAsInt(screenImages.get(i).get(0));
 				for (int j = 0; j < n; ++j)
 					renderImages[i][j] = i == 0
 					                     ? ArrayImgs.argbs(w, h)
@@ -450,9 +399,9 @@ public class MultiResolutionRendererGeneric<T>
 		return false;
 	}
 
-	protected boolean checkRenewMaskArrays(final int numVisibleSources)
+	private boolean checkRenewMaskArrays(final int numVisibleSources)
 	{
-		final int size = width.applyAsInt(screenImages[0][0]) * height.applyAsInt(screenImages[0][0]);
+		final int size = width.applyAsInt(screenImages.get(0).get(0)) * height.applyAsInt(screenImages.get(0).get(0));
 		if (numVisibleSources != renderMaskArrays.length ||
 				numVisibleSources != 0 && renderMaskArrays[0].length < size)
 		{
@@ -464,7 +413,7 @@ public class MultiResolutionRendererGeneric<T>
 		return false;
 	}
 
-	protected final AffineTransform3D currentProjectorTransform = new AffineTransform3D();
+	private final AffineTransform3D currentProjectorTransform = new AffineTransform3D();
 
 	/**
 	 * Render image at the {@link #requestedScreenScaleIndex requested screen scale}.
@@ -509,8 +458,8 @@ public class MultiResolutionRendererGeneric<T>
 			{
 				final int renderId = renderIdQueue.peek();
 				currentScreenScaleIndex = requestedScreenScaleIndex;
-				bufferedImage = bufferedImages[currentScreenScaleIndex][renderId];
-				final T screenImage = screenImages[currentScreenScaleIndex][renderId];
+				bufferedImage = bufferedImages.get(currentScreenScaleIndex).get(renderId);
+				final T screenImage = screenImages.get(currentScreenScaleIndex).get(renderId);
 				synchronized (Optional.ofNullable(synchronizationLock).orElse(this))
 				{
 					final int numSources = sacs.size();
@@ -618,7 +567,7 @@ public class MultiResolutionRendererGeneric<T>
 	 * not
 	 * being garbage-collected when ViewerFrame is closed. So instead we need to manually let go of resources...
 	 */
-	public void kill()
+	void kill()
 	{
 		projector = null;
 		renderIdQueue.clear();
@@ -627,10 +576,8 @@ public class MultiResolutionRendererGeneric<T>
 			renderImages[i] = null;
 		for (int i = 0; i < renderMaskArrays.length; ++i)
 			renderMaskArrays[i] = null;
-		for (int i = 0; i < screenImages.length; ++i)
-			screenImages[i] = null;
-		for (int i = 0; i < bufferedImages.length; ++i)
-			bufferedImages[i] = null;
+		screenImages.clear();
+		bufferedImages.clear();
 	}
 
 	private VolatileProjector createProjector(
@@ -713,7 +660,7 @@ public class MultiResolutionRendererGeneric<T>
 	{
 		private boolean valid = false;
 
-		public SimpleVolatileProjector(
+		SimpleVolatileProjector(
 				final RandomAccessible<A> source,
 				final Converter<? super A, ARGBType> converter,
 				final RandomAccessibleInterval<ARGBType> target,
@@ -974,6 +921,31 @@ public class MultiResolutionRendererGeneric<T>
 					cellsRandomAccess
 			                     );
 		}
+	}
+
+	public synchronized void setScreenScales(double[] screenScales)
+	{
+		this.screenScales = screenScales.clone();
+		createVariables();
+	}
+
+	private synchronized void createVariables()
+	{
+		LOG.debug("Updating images for screen scales {}", screenScales);
+		if (renderingMayBeCancelled && projector != null)
+			projector.cancel();
+		renderImages = new ArrayImg[screenScales.length][0];
+		renderMaskArrays = new byte[0][];
+		screenImages = new ArrayList<>();
+		bufferedImages = new ArrayList<>();
+		for (int i = 0; i < screenScales.length; ++i)
+		{
+			screenImages.add(Arrays.asList(null, null, null));
+			bufferedImages.add(Arrays.asList(null, null, null));
+		}
+		screenScaleTransforms = new AffineTransform3D[screenScales.length];
+		maxScreenScaleIndex = screenScales.length - 1;
+		requestedScreenScaleIndex = maxScreenScaleIndex;
 	}
 
 }

@@ -193,4 +193,17 @@ public class OrthogonalViews<BR extends Node>
 		return this.queue;
 	}
 
+	public void setScreenScales(final double[] screenScales)
+	{
+		this.setScreenScales(screenScales, true);
+	}
+
+	public void setScreenScales(final double[] screenScales, final boolean doRequestReapint)
+	{
+		LOG.debug("Setting screen scales to {} for all panels.", screenScales);
+		applyToAll(vp -> vp.setScreenScales(screenScales));
+		if (doRequestReapint)
+			requestRepaint();
+	}
+
 }
