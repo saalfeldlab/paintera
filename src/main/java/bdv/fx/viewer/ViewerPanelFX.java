@@ -29,25 +29,12 @@
  */
 package bdv.fx.viewer;
 
-import java.lang.invoke.MethodHandles;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.List;
-import java.util.concurrent.CopyOnWriteArrayList;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ThreadFactory;
-import java.util.concurrent.atomic.AtomicInteger;
-import java.util.function.Function;
-import java.util.stream.Collectors;
-
 import bdv.cache.CacheControl;
 import bdv.viewer.Interpolation;
 import bdv.viewer.RequestRepaint;
 import bdv.viewer.Source;
 import bdv.viewer.SourceAndConverter;
 import bdv.viewer.ViewerOptions;
-import bdv.viewer.render.AccumulateProjectorFactory;
 import javafx.beans.property.ReadOnlyBooleanProperty;
 import javafx.beans.property.ReadOnlyDoubleProperty;
 import javafx.beans.property.SimpleBooleanProperty;
@@ -63,10 +50,21 @@ import net.imglib2.RealLocalizable;
 import net.imglib2.RealPoint;
 import net.imglib2.RealPositionable;
 import net.imglib2.realtransform.AffineTransform3D;
-import net.imglib2.type.numeric.ARGBType;
 import net.imglib2.ui.TransformListener;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.lang.invoke.MethodHandles;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.List;
+import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ThreadFactory;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 /**
  * A JPanel for viewing multiple of {@link Source}s. The panel contains a {@link InteractiveDisplayPaneComponent canvas}
@@ -228,10 +226,9 @@ public class ViewerPanelFX
 		renderTarget.setCanvasSize(options.getWidth(), options.getHeight());
 		display.addOverlayRenderer(this);
 
-		renderingExecutorService = Executors.newFixedThreadPool(
-				options.getNumRenderingThreads(),
-				new RenderThreadFactory()
-		                                                       );
+		LOG.debug("Using {} rendering threads for panel {}.", options.getNumRenderingThreads(), panelNumber);
+		renderingExecutorService = Executors.newFixedThreadPool(options.getNumRenderingThreads(), new RenderThreadFactory());
+
 		imageRenderer = new MultiResolutionRendererFX(
 				renderTarget,
 				painterThread,
@@ -636,12 +633,15 @@ public class ViewerPanelFX
 
 	protected class RenderThreadFactory implements ThreadFactory
 	{
-		private final String threadNameFormat = String.format(
-				"viewer-panel-fx-%d-thread-%%d",
-				panelNumber.getAndIncrement()
-		                                                     );
+		private final String threadNameFormat;
 
 		private final AtomicInteger threadNumber = new AtomicInteger(1);
+
+		public RenderThreadFactory()
+		{
+			this.threadNameFormat = String.format("viewer-panel-fx-%d-thread-%%d", panelNumber.getAndIncrement());
+			LOG.debug("Created {} with format {}", getClass().getSimpleName(), threadNameFormat);
+		}
 
 		@Override
 		public Thread newThread(final Runnable r)
@@ -650,6 +650,7 @@ public class ViewerPanelFX
 					String.format(threadNameFormat, threadNumber.getAndIncrement()),
 					0
 			);
+			LOG.debug("Creating thread with name {}", t.getName());
 			if (!t.isDaemon())
 				t.setDaemon(true);
 			if (t.getPriority() != Thread.NORM_PRIORITY)
