@@ -450,12 +450,7 @@ public class MaskedSource<D extends Type<D>, T extends Type<T>> implements DataS
 							if (this.persistCanvas.supportsLabelBlockLookupUpdate())
 								this.persistCanvas.updateLabelBlockLookup(blockDiffs);
 							clearCanvases();
-							for (int level = 0; level < this.getNumMipmapLevels(); ++level) {
-								LOG.debug("Invalidating all for data source for level={}", level);
-								invalidateAllIfCachedImg(this.source.getDataSource(0, level));
-								LOG.debug("Invalidating all for viewer source for level={}", level);
-								invalidateAllIfCachedImg(this.source.getSource(0, level));
-							}
+							this.source.invalidateAll();
 						}
 						catch (UnableToPersistCanvas | UnableToUpdateLabelBlockLookup e)
 						{
@@ -1193,31 +1188,6 @@ public class MaskedSource<D extends Type<D>, T extends Type<T>> implements DataS
 			}
 		}
 
-	}
-
-	public static void invalidateAllIfCachedImg(final RandomAccessibleInterval<?> img)
-	{
-		if (img instanceof VolatileCachedCellImg<?, ?>)
-		{
-			LOG.debug(
-					"{} is instance of {} ({}) -- invalidating all",
-					img,
-					VolatileCachedCellImg.class.getName(),
-					img.getClass().getName()
-			         );
-			((VolatileCachedCellImg<?, ?>) img).getInvalidateAll().run();
-		}
-		else if (img instanceof CachedCellImg<?, ?>)
-		{
-			LOG.debug(
-					"{} is instance of {} ({}) -- invalidating all",
-					img,
-					CachedCellImg.class.getName(),
-					img.getClass().getName()
-			         );
-			final Cache<Long, ?> cache = ((CachedCellImg<?, ?>) img).getCache();
-			cache.invalidateAll();
-		}
 	}
 
 	public DataSource<D, T> underlyingSource()
