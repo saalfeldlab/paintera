@@ -468,7 +468,7 @@ public class MaskedSource<D extends Type<D>, T extends Type<T>> implements DataS
 			else
 			{
 				LOG.error(
-						"Cannot persist canvas: is persiting? {} has mask? {} is creating mask? {} is applying mask? {}",
+						"Cannot persist canvas: is persisting? {} has mask? {} is creating mask? {} is applying mask? {}",
 						isPersisting,
 						this.currentMask != null,
 						this.isCreatingMask,

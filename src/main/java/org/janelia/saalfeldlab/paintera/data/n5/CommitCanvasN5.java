@@ -188,7 +188,8 @@ public class CommitCanvasN5 implements PersistCanvas
 
 	@Override
 	public List<TLongObjectMap<BlockDiff>> persistCanvas(final CachedCellImg<UnsignedLongType, ?> canvas, final long[] blocks) throws UnableToPersistCanvas {
-		LOG.info("Committing canvas");
+		LOG.info("Committing canvas: {} blocks", blocks.length);
+		LOG.debug("Affected blocks in grid {}: {}", canvas.getCellGrid(), blocks);
 		try
 		{
 			final String dataset = isPainteraDataset ? this.dataset + "/data" : this.dataset;
@@ -196,7 +197,6 @@ public class CommitCanvasN5 implements PersistCanvas
 			final CellGrid canvasGrid = canvas.getCellGrid();
 
 			final DatasetSpec highestResolutionDataset = DatasetSpec.of(n5, N5Helpers.highestResolutionDataset(n5, dataset));
-			final LabelBlockLookup labelBlockLoader = N5Helpers.getLabelBlockLookup(n5, this.dataset);
 
 			checkLabelMultisetTypeOrFail(n5, highestResolutionDataset.dataset);
 
