@@ -1,9 +1,5 @@
 package org.janelia.saalfeldlab.paintera.cache;
 
-import com.sun.org.apache.bcel.internal.generic.DMUL;
-import javafx.util.Pair;
-import org.janelia.saalfeldlab.paintera.PainteraBaseView;
-import org.janelia.saalfeldlab.paintera.ui.opendialog.menu.OpenDialogMenuEntry;
 import org.janelia.saalfeldlab.util.MakeUnchecked;
 import org.scijava.Context;
 import org.scijava.InstantiableException;
@@ -16,20 +12,18 @@ import org.slf4j.LoggerFactory;
 import java.lang.invoke.MethodHandles;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.Comparator;
 import java.util.List;
-import java.util.function.BiConsumer;
 import java.util.function.ToLongFunction;
 
 public interface DiscoverableMemoryUsage<V> extends ToLongFunction<V>, SciJavaPlugin {
 
-	public static Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
+	Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
-	public static List<DiscoverableMemoryUsage> DISCOVERED_MEMORY_USAGE = Collections.unmodifiableList(MakeUnchecked.supplier(DiscoverableMemoryUsage::discoverAll).get());
+	List<DiscoverableMemoryUsage> DISCOVERED_MEMORY_USAGE = Collections.unmodifiableList(MakeUnchecked.supplier(DiscoverableMemoryUsage::discoverAll).get());
 
 	boolean isApplicable(Object object);
 
-	public static ToLongFunction<?> memoryUsageFromDiscoveredFunctions()
+	static ToLongFunction<?> memoryUsageFromDiscoveredFunctions()
 	{
 		return object -> {
 			for (DiscoverableMemoryUsage memoryUsage : DISCOVERED_MEMORY_USAGE)
@@ -39,7 +33,7 @@ public interface DiscoverableMemoryUsage<V> extends ToLongFunction<V>, SciJavaPl
 		};
 	}
 
-	public static List<DiscoverableMemoryUsage> discoverAll() throws InstantiableException {
+	static List<DiscoverableMemoryUsage> discoverAll() throws InstantiableException {
 		List<DiscoverableMemoryUsage> list = new ArrayList<>();
 		final Context context = new Context(PluginService.class);
 
