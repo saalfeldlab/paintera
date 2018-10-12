@@ -34,6 +34,7 @@ import net.imglib2.type.numeric.integer.UnsignedLongType;
 import net.imglib2.util.AccessBoxRandomAccessibleOnGet;
 import net.imglib2.view.MixedTransformView;
 import net.imglib2.view.Views;
+import org.janelia.saalfeldlab.paintera.data.mask.Mask;
 import org.janelia.saalfeldlab.paintera.data.mask.exception.MaskInUse;
 import org.janelia.saalfeldlab.paintera.data.mask.MaskInfo;
 import org.janelia.saalfeldlab.paintera.data.mask.MaskedSource;
@@ -169,10 +170,7 @@ public class FloodFill2D
 		scene.setCursor(Cursor.WAIT);
 		try
 		{
-			final RandomAccessibleInterval<UnsignedLongType> mask      = source.generateMask(
-					maskInfo,
-					FOREGROUND_CHECK
-			                                                                                );
+			final Mask<UnsignedLongType> mask = source.generateMask(maskInfo, FOREGROUND_CHECK);
 			final long                                       seedLabel = access.get().getIntegerLong();
 			LOG.debug("Got seed label {}", seedLabel);
 			final RandomAccessibleInterval<BoolType> relevantBackground = Converters.convert(
@@ -182,14 +180,10 @@ public class FloodFill2D
 			                                                                                );
 			final RandomAccessible<BoolType> extended = Views.extendValue(relevantBackground, new BoolType(false));
 
-			final int fillNormalAxisInLabelCoordinateSystem = PaintUtils.labelAxisCorrespondingToViewerAxis(
-					labelTransform,
-					viewerTransform,
-					2
-			                                                                                               );
+			final int fillNormalAxisInLabelCoordinateSystem = PaintUtils.labelAxisCorrespondingToViewerAxis(labelTransform, viewerTransform, 2);
 			final AccessBoxRandomAccessibleOnGet<UnsignedLongType> accessTracker = new
 					AccessBoxRandomAccessibleOnGet<>(
-					Views.extendValue(mask, new UnsignedLongType(1l)));
+					Views.extendValue(mask.mask, new UnsignedLongType(1l)));
 			accessTracker.initAccessBox();
 
 			if (fillNormalAxisInLabelCoordinateSystem < 0)

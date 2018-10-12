@@ -20,6 +20,7 @@ import net.imglib2.type.numeric.integer.UnsignedLongType;
 import net.imglib2.type.volatiles.AbstractVolatileRealType;
 import net.imglib2.type.volatiles.VolatileUnsignedLongType;
 import org.janelia.saalfeldlab.paintera.data.DataSource;
+import org.janelia.saalfeldlab.paintera.data.mask.persist.PersistCanvas;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -33,7 +34,7 @@ public class Masks
 			final DataSource<D, T> source,
 			final String initialCanvasPath,
 			final Supplier<String> canvasCacheDirUpdate,
-			final BiConsumer<CachedCellImg<UnsignedLongType, ?>, long[]> mergeCanvasIntoBackground,
+			final PersistCanvas mergeCanvasIntoBackground,
 			final ExecutorService propagationExecutor)
 	{
 		LOG.debug("Masking source {}", source);
@@ -73,7 +74,7 @@ public class Masks
 	public static <I extends IntegerType<I> & NativeType<I>, V extends AbstractVolatileRealType<I, V>> MaskedSource<I,
 			V> fromIntegerType(
 			final DataSource<I, V> source,
-			final BiConsumer<CachedCellImg<UnsignedLongType, ?>, long[]> mergeCanvasIntoBackground,
+			final PersistCanvas mergeCanvasIntoBackground,
 			final ExecutorService propagationExecutor)
 	{
 		return fromIntegerType(source, null, mergeCanvasIntoBackground, propagationExecutor);
@@ -83,7 +84,7 @@ public class Masks
 			V> fromIntegerType(
 			final DataSource<I, V> source,
 			final String initialCanvasPath,
-			final BiConsumer<CachedCellImg<UnsignedLongType, ?>, long[]> mergeCanvasIntoBackground,
+			final PersistCanvas mergeCanvasIntoBackground,
 			final ExecutorService propagationExecutor)
 	{
 		return fromIntegerType(
@@ -100,7 +101,7 @@ public class Masks
 			final DataSource<I, V> source,
 			final String initialCanvasPath,
 			final Supplier<String> canvasCacheDirUpdate,
-			final BiConsumer<CachedCellImg<UnsignedLongType, ?>, long[]> mergeCanvasIntoBackground,
+			final PersistCanvas mergeCanvasIntoBackground,
 			final ExecutorService propagationExecutor)
 	{
 
@@ -159,7 +160,7 @@ public class Masks
 
 	public static MaskedSource<LabelMultisetType, VolatileLabelMultisetType> fromLabelMultisetType(
 			final DataSource<LabelMultisetType, VolatileLabelMultisetType> source,
-			final BiConsumer<CachedCellImg<UnsignedLongType, ?>, long[]> mergeCanvasIntoBackground,
+			final PersistCanvas mergeCanvasIntoBackground,
 			final ExecutorService propagationExecutor)
 	{
 		return fromLabelMultisetType(source, null, mergeCanvasIntoBackground, propagationExecutor);
@@ -168,7 +169,7 @@ public class Masks
 	public static MaskedSource<LabelMultisetType, VolatileLabelMultisetType> fromLabelMultisetType(
 			final DataSource<LabelMultisetType, VolatileLabelMultisetType> source,
 			final String initialCanvasPath,
-			final BiConsumer<CachedCellImg<UnsignedLongType, ?>, long[]> mergeCanvasIntoBackground,
+			final PersistCanvas mergeCanvasIntoBackground,
 			final ExecutorService propagationExecutor)
 	{
 		return fromLabelMultisetType(
@@ -184,7 +185,7 @@ public class Masks
 			final DataSource<LabelMultisetType, VolatileLabelMultisetType> source,
 			final String initialCanvasPath,
 			final Supplier<String> canvasCacheDirUpdate,
-			final BiConsumer<CachedCellImg<UnsignedLongType, ?>, long[]> mergeCanvasIntoBackground,
+			final PersistCanvas mergeCanvasIntoBackground,
 			final ExecutorService propagationExecutor)
 	{
 

@@ -19,6 +19,7 @@ import com.google.gson.JsonParseException;
 import net.imglib2.cache.img.CachedCellImg;
 import net.imglib2.type.numeric.integer.UnsignedLongType;
 import org.janelia.saalfeldlab.paintera.data.DataSource;
+import org.janelia.saalfeldlab.paintera.data.mask.persist.PersistCanvas;
 import org.janelia.saalfeldlab.paintera.serialization.StatefulSerializer;
 import org.janelia.saalfeldlab.paintera.serialization.StatefulSerializer.Arguments;
 import org.janelia.saalfeldlab.paintera.state.SourceState;
@@ -70,9 +71,9 @@ public class MaskedSourceDeserializer implements JsonDeserializer<MaskedSource<?
 			                                                        );
 
 			final String persisterClass = map.get(PERSIST_CANVAS_CLASS_KEY).getAsString();
-			@SuppressWarnings("unchecked") final BiConsumer<CachedCellImg<UnsignedLongType, ?>, long[]>
+			@SuppressWarnings("unchecked") final PersistCanvas
 					mergeCanvasIntoBackground =
-					(BiConsumer<CachedCellImg<UnsignedLongType, ?>, long[]>) context.deserialize(
+					context.deserialize(
 							map.get(PERSIST_CANVAS_KEY),
 							Class.forName(persisterClass)
 					                                                                            );

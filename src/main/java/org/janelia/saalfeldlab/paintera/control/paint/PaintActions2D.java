@@ -24,6 +24,7 @@ import net.imglib2.view.Views;
 import org.janelia.saalfeldlab.fx.event.EventFX;
 import org.janelia.saalfeldlab.fx.event.MouseDragFX;
 import org.janelia.saalfeldlab.paintera.data.DataSource;
+import org.janelia.saalfeldlab.paintera.data.mask.Mask;
 import org.janelia.saalfeldlab.paintera.data.mask.exception.MaskInUse;
 import org.janelia.saalfeldlab.paintera.data.mask.MaskInfo;
 import org.janelia.saalfeldlab.paintera.data.mask.MaskedSource;
@@ -60,7 +61,7 @@ public class PaintActions2D
 
 		protected final SimpleObjectProperty<MaskedSource<?, ?>> maskedSource = new SimpleObjectProperty<>();
 
-		protected final SimpleObjectProperty<RandomAccessibleInterval<UnsignedLongType>> canvas = new
+		protected final SimpleObjectProperty<Mask<UnsignedLongType>> canvas = new
 				SimpleObjectProperty<>();
 
 		protected final SimpleObjectProperty<Interval> interval = new SimpleObjectProperty<>();
@@ -110,7 +111,7 @@ public class PaintActions2D
 			final UnsignedLongType value = new UnsignedLongType(id);
 
 			final MaskInfo<UnsignedLongType>                 mask   = new MaskInfo<>(0, level, value);
-			final RandomAccessibleInterval<UnsignedLongType> canvas = maskedSource.generateMask(mask,
+			final Mask<UnsignedLongType> canvas = maskedSource.generateMask(mask,
 					FOREGROUND_CHECK);
 			// canvasSource.getDataSource( state.getCurrentTimepoint(), level );
 			LOG.debug("Setting canvas to {}", canvas);
@@ -124,10 +125,10 @@ public class PaintActions2D
 
 			LOG.debug( "At {} {}", viewerX, viewerY );
 
-			final RandomAccessibleInterval<UnsignedLongType> labels = this.canvas.get();
+			final Mask<UnsignedLongType> labels = this.canvas.get();
 			if (labels == null) { return; }
 			final Interval trackedInterval = Paint2D.paint(
-					Views.extendValue(labels, new UnsignedLongType(Label.INVALID)),
+					Views.extendValue(labels.mask, new UnsignedLongType(Label.INVALID)),
 					fillLabel,
 					viewerX,
 					viewerY,

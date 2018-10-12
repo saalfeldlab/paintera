@@ -22,6 +22,19 @@ public class Grids {
 
 	private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
+	public static void linearIndexToCellPositionMinMax(
+			final CellGrid grid,
+			final long linearIndex,
+			final long[] gridPosition,
+			final long[] min,
+			final long[] max
+	)
+	{
+		grid.getCellGridPositionFlat(linearIndex, gridPosition);
+		Arrays.setAll(min, d -> gridPosition[d] * grid.cellDimension(d));
+		Arrays.setAll(max, d -> Math.min(min[d] + grid.cellDimension(d), grid.imgDimension(d)) - 1);
+	}
+
 	/**
 	 *
 	 * @param sourceBlocks linear index representation of blocks in source grid space
