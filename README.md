@@ -2,6 +2,19 @@
 
 # Paintera
 
+Paintera is a general visualization tool for 3D volumetric data and proof-reading in segmentation/reconstruction with a primary focus on neuron reconstruction from [electron micrographs](http://www.rsc.org/publishing/journals/prospect/ontology.asp?id=CMO:0001800&MSID=B310802C) in [connectomics](https://en.wikipedia.org/wiki/Connectomics). It features/supports (unchecked boxes mean planned but not yet implemented)
+ - [x] Views of orthogonal 2D cross-sections of the data at arbitrary angles and zoom levels
+ - [x] [Mipmaps](https://en.wikipedia.org/wiki/Mipmap) for efficient display of arbitrarily large data at arbitrary scale levels
+ - [x] Label data
+   - [x] Painting
+   - [x] Manual agglomeration
+   - [x] 3D visualization as polygon meshes
+      - [x] Meshes for each mipmap level
+      - [x] Mesh generation on-the-fly via marching cubes to incorporate painted labels and agglomerations in 3D visualization. Marching Cubes is parallelized over small blocks. Only relevant blocks are considered (huge speed-up for sparse label data).
+      - [ ] Adaptive mesh details, i.e. only show high-resolution meshes for blocks that are closer to camera.
+      
+Paintera is implemented in [Java](https://openjdk.java.net/) and makes extensive use of the UI framework [JavaFX](https://openjfx.io/)
+
 **IMPORTANT NOTE** If you [install Paintera through conda](https://github.com/saalfeldlab/paintera#install) you will have to use your system Java and JavaFX to be able to run Paintera because there is no JavaFX package on conda at the moment.
 
 TBD
