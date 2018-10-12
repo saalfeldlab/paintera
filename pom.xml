@@ -1,7 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<project xmlns="http://maven.apache.org/POM/4.0.0"
-	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
 	<modelVersion>4.0.0</modelVersion>
 
 	<parent>
@@ -12,7 +10,7 @@
 
 	<groupId>org.janelia.saalfeldlab</groupId>
 	<artifactId>paintera</artifactId>
-	<version>0.4.1-SNAPSHOT</version>
+	<version>0.5.0</version>
 
 	<name>Paintera</name>
 	<description>New Era Painting and annotation tool</description>
@@ -205,7 +203,7 @@
 	<scm>
 		<connection>scm:git:git://github.com/saalfeldlab/paintera</connection>
 		<developerConnection>scm:git:git@github.com:saalfeldlab/paintera.git</developerConnection>
-		<tag>HEAD</tag>
+		<tag>paintera-0.5.0</tag>
 		<url>https://github.com/saalfeldlab/paintera</url>
 	</scm>
 
@@ -255,8 +253,7 @@
 								</goals>
 								<configuration>
 									<transformers>
-										<transformer
-											implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
+										<transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
 											<mainClass>org.janelia.saalfeldlab.paintera.Paintera</mainClass>
 										</transformer>
 									</transformers>
