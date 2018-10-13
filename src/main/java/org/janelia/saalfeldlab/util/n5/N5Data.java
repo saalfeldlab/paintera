@@ -35,8 +35,6 @@ import org.janelia.saalfeldlab.paintera.cache.Invalidate;
 import org.janelia.saalfeldlab.paintera.cache.global.GlobalCache;
 import org.janelia.saalfeldlab.paintera.cache.global.InvalidAccessException;
 import org.janelia.saalfeldlab.paintera.data.DataSource;
-import org.janelia.saalfeldlab.paintera.data.axisorder.AxisOrder;
-import org.janelia.saalfeldlab.paintera.data.axisorder.AxisOrderNotSupported;
 import org.janelia.saalfeldlab.paintera.data.n5.N5DataSource;
 import org.janelia.saalfeldlab.paintera.data.n5.N5Meta;
 import org.janelia.saalfeldlab.paintera.data.n5.ReflectionException;
@@ -97,7 +95,6 @@ public class N5Data {
 	 * @param reader container
 	 * @param dataset dataset
 	 * @param transform transforms voxel data into real world coordinates
-	 * @param axisOrder set axis order for this data
 	 * @param globalCache {@link GlobalCache} to create sub-cache for this dataset
 	 * @param priority in fetching queue
 	 * @param name initialize with this name
@@ -111,15 +108,13 @@ public class N5Data {
 			final N5Reader reader,
 			final String dataset,
 			final AffineTransform3D transform,
-			final AxisOrder axisOrder,
 			final GlobalCache globalCache,
 			final int priority,
-			final String name) throws IOException, ReflectionException, AxisOrderNotSupported {
+			final String name) throws IOException, ReflectionException {
 		return openScalarAsSource(
 				reader,
 				dataset,
 				transform,
-				axisOrder,
 				globalCache,
 				priority,
 				i -> i == Interpolation.NLINEAR
@@ -137,7 +132,6 @@ public class N5Data {
 	 * @param reader container
 	 * @param dataset dataset
 	 * @param transform transforms voxel data into real world coordinates
-	 * @param axisOrder set axis order for this data
 	 * @param globalCache {@link GlobalCache} to create sub-cache for this dataset
 	 * @param priority in fetching queue
 	 * @param name initialize with this name
@@ -151,15 +145,13 @@ public class N5Data {
 			final N5Reader reader,
 			final String dataset,
 			final AffineTransform3D transform,
-			final AxisOrder axisOrder,
 			final GlobalCache globalCache,
 			final int priority,
-			final String name) throws IOException, ReflectionException, AxisOrderNotSupported {
+			final String name) throws IOException, ReflectionException {
 		return openScalarAsSource(
 				reader,
 				dataset,
 				transform,
-				axisOrder,
 				globalCache,
 				priority,
 				i -> new NearestNeighborInterpolatorFactory<>(),
@@ -173,7 +165,6 @@ public class N5Data {
 	 * @param reader container
 	 * @param dataset dataset
 	 * @param transform transforms voxel data into real world coordinates
-	 * @param axisOrder set axis order for this data
 	 * @param globalCache {@link GlobalCache} to create sub-cache for this dataset
 	 * @param priority in fetching queue
 	 * @param dataInterpolation interpolator factory for data
@@ -189,18 +180,16 @@ public class N5Data {
 			final N5Reader reader,
 			final String dataset,
 			final AffineTransform3D transform,
-			final AxisOrder axisOrder,
 			final GlobalCache globalCache,
 			final int priority,
 			final Function<Interpolation, InterpolatorFactory<T, RandomAccessible<T>>> dataInterpolation,
 			final Function<Interpolation, InterpolatorFactory<V, RandomAccessible<V>>> interpolation,
-			final String name) throws IOException, ReflectionException, AxisOrderNotSupported {
+			final String name) throws IOException, ReflectionException {
 
 		LOG.debug("Creating N5 Data source from {} {}", reader, dataset);
 		return new N5DataSource<>(
 				Objects.requireNonNull(N5Meta.fromReader(reader, dataset)),
 				transform,
-				axisOrder,
 				globalCache,
 				name,
 				priority,
@@ -402,7 +391,6 @@ public class N5Data {
 	 * @param reader container
 	 * @param dataset dataset
 	 * @param transform transforms voxel data into real world coordinates
-	 * @param axisOrder set axis order for this data
 	 * @param globalCache {@link GlobalCache} to create sub-cache for this dataset
 	 * @param priority in fetching queue
 	 * @param name initialize with this name
@@ -414,14 +402,12 @@ public class N5Data {
 			final N5Reader reader,
 			final String dataset,
 			final AffineTransform3D transform,
-			final AxisOrder axisOrder,
 			final GlobalCache globalCache,
 			final int priority,
-			final String name) throws IOException, ReflectionException, AxisOrderNotSupported {
+			final String name) throws IOException, ReflectionException {
 		return new N5DataSource<>(
 				Objects.requireNonNull(N5Meta.fromReader(reader, dataset)),
 				transform,
-				axisOrder,
 				globalCache,
 				name,
 				priority,
@@ -651,7 +637,6 @@ public class N5Data {
 	 * @param reader container
 	 * @param dataset dataset
 	 * @param transform transforms voxel data into real world coordinates
-	 * @param axisOrder set axis order for this data
 	 * @param globalCache {@link GlobalCache} to create sub-cache for this dataset
 	 * @param priority in fetching queue
 	 * @param name initialize with this name
@@ -666,13 +651,12 @@ public class N5Data {
 			final N5Reader reader,
 			final String dataset,
 			final AffineTransform3D transform,
-			final AxisOrder axisOrder,
 			final GlobalCache globalCache,
 			final int priority,
-			final String name) throws IOException, ReflectionException, AxisOrderNotSupported {
+			final String name) throws IOException, ReflectionException {
 		return N5Types.isLabelMultisetType(reader, dataset)
-		       ? (DataSource<D, T>) openLabelMultisetAsSource(reader, dataset, transform, axisOrder, globalCache, priority, name)
-		       : (DataSource<D, T>) openScalarAsSource(reader, dataset, transform, axisOrder, globalCache, priority, name);
+		       ? (DataSource<D, T>) openLabelMultisetAsSource(reader, dataset, transform, globalCache, priority, name)
+		       : (DataSource<D, T>) openScalarAsSource(reader, dataset, transform, globalCache, priority, name);
 	}
 
 	/**

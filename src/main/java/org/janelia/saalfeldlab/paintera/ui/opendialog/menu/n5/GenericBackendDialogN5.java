@@ -24,14 +24,12 @@ import javafx.scene.layout.GridPane;
 import javafx.scene.layout.Priority;
 import net.imglib2.Interval;
 import net.imglib2.Volatile;
-import net.imglib2.cache.img.CachedCellImg;
 import net.imglib2.converter.ARGBColorConverter.InvertingImp1;
 import net.imglib2.converter.ARGBCompositeColorConverter;
 import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.type.NativeType;
 import net.imglib2.type.numeric.IntegerType;
 import net.imglib2.type.numeric.RealType;
-import net.imglib2.type.numeric.integer.UnsignedLongType;
 import net.imglib2.type.volatiles.AbstractVolatileRealType;
 import net.imglib2.view.composite.RealComposite;
 import org.janelia.saalfeldlab.fx.ui.ExceptionNode;
@@ -41,9 +39,6 @@ import org.janelia.saalfeldlab.n5.DataType;
 import org.janelia.saalfeldlab.n5.DatasetAttributes;
 import org.janelia.saalfeldlab.n5.N5Reader;
 import org.janelia.saalfeldlab.n5.N5Writer;
-import org.janelia.saalfeldlab.paintera.data.mask.persist.PersistCanvas;
-import org.janelia.saalfeldlab.util.n5.N5Data;
-import org.janelia.saalfeldlab.util.n5.N5Helpers;
 import org.janelia.saalfeldlab.paintera.cache.global.GlobalCache;
 import org.janelia.saalfeldlab.paintera.composition.ARGBCompositeAlphaAdd;
 import org.janelia.saalfeldlab.paintera.composition.ARGBCompositeAlphaYCbCr;
@@ -54,6 +49,7 @@ import org.janelia.saalfeldlab.paintera.control.selection.SelectedIds;
 import org.janelia.saalfeldlab.paintera.data.DataSource;
 import org.janelia.saalfeldlab.paintera.data.axisorder.AxisOrder;
 import org.janelia.saalfeldlab.paintera.data.mask.Masks;
+import org.janelia.saalfeldlab.paintera.data.mask.persist.PersistCanvas;
 import org.janelia.saalfeldlab.paintera.data.n5.CommitCanvasN5;
 import org.janelia.saalfeldlab.paintera.data.n5.N5ChannelDataSource;
 import org.janelia.saalfeldlab.paintera.data.n5.N5Meta;
@@ -69,6 +65,8 @@ import org.janelia.saalfeldlab.paintera.stream.ModalGoldenAngleSaturatedHighligh
 import org.janelia.saalfeldlab.paintera.ui.opendialog.DatasetInfo;
 import org.janelia.saalfeldlab.paintera.ui.opendialog.meta.ChannelInformation;
 import org.janelia.saalfeldlab.util.MakeUnchecked;
+import org.janelia.saalfeldlab.util.n5.N5Data;
+import org.janelia.saalfeldlab.util.n5.N5Helpers;
 import org.janelia.saalfeldlab.util.n5.N5Types;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -82,7 +80,6 @@ import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import java.util.function.IntFunction;
 import java.util.function.Supplier;
@@ -435,7 +432,6 @@ public class GenericBackendDialogN5
 				reader,
 				dataset,
 				transform,
-				axisOrder.get(),
 				globalCache,
 				priority,
 				name
@@ -468,7 +464,6 @@ public class GenericBackendDialogN5
 					reader,
 					dataset,
 					transform,
-					axisOrder.get(),
 					globalCache,
 					priority,
 					name
@@ -480,7 +475,6 @@ public class GenericBackendDialogN5
 					reader,
 					dataset,
 					transform,
-					axisOrder.get(),
 					globalCache,
 					priority,
 					name

@@ -415,7 +415,6 @@ public class Paintera extends Application
 						reader,
 						dataset,
 						N5Helpers.getTransform(reader, dataset),
-						AxisOrder.XYZ,
 						pbv.getGlobalCache(),
 						0,
 						name
@@ -510,7 +509,6 @@ public class Paintera extends Application
 						n5,
 						dataset,
 						transform,
-						AxisOrder.XYZ,
 						pbv.getGlobalCache(),
 						0,
 						name

@@ -14,7 +14,6 @@ import net.imglib2.view.composite.RealComposite;
 import org.janelia.saalfeldlab.paintera.composition.ARGBCompositeAlphaAdd;
 import org.janelia.saalfeldlab.paintera.composition.CompositeCopy;
 import org.janelia.saalfeldlab.paintera.data.DataSource;
-import org.janelia.saalfeldlab.paintera.data.axisorder.AxisOrder;
 import org.janelia.saalfeldlab.paintera.data.n5.N5ChannelDataSource;
 import org.janelia.saalfeldlab.paintera.data.n5.N5HDF5Meta;
 import org.janelia.saalfeldlab.paintera.data.n5.VolatileWithSet;
@@ -78,7 +77,6 @@ public class PainteraTestMultiChannel extends Application {
 				meta.reader(),
 				raw,
 				N5Helpers.getTransform(meta.reader(), raw, true),
-				AxisOrder.XYZ,
 				viewer.baseView.getGlobalCache(),
 				0,
 				"raw");

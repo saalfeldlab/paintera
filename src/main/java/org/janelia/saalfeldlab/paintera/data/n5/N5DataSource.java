@@ -20,8 +20,6 @@ import org.janelia.saalfeldlab.util.n5.N5Data;
 import org.janelia.saalfeldlab.util.n5.N5Helpers;
 import org.janelia.saalfeldlab.paintera.cache.global.GlobalCache;
 import org.janelia.saalfeldlab.paintera.data.RandomAccessibleIntervalDataSource;
-import org.janelia.saalfeldlab.paintera.data.axisorder.AxisOrder;
-import org.janelia.saalfeldlab.paintera.data.axisorder.AxisOrderNotSupported;
 import org.janelia.saalfeldlab.util.n5.N5Types;
 
 public class N5DataSource<D extends NativeType<D>, T extends Volatile<D> & NativeType<T>>
@@ -34,14 +32,12 @@ public class N5DataSource<D extends NativeType<D>, T extends Volatile<D> & Nativ
 	public N5DataSource(
 			final N5Meta meta,
 			final AffineTransform3D transform,
-			final AxisOrder axisOrder,
 			final GlobalCache globalCache,
 			final String name,
-			final int priority) throws IOException, AxisOrderNotSupported {
+			final int priority) throws IOException {
 		this(
 				meta,
 				transform,
-				axisOrder,
 				globalCache,
 				name,
 				priority,
@@ -53,16 +49,14 @@ public class N5DataSource<D extends NativeType<D>, T extends Volatile<D> & Nativ
 	public N5DataSource(
 			final N5Meta meta,
 			final AffineTransform3D transform,
-			final AxisOrder axisOrder,
 			final GlobalCache globalCache,
 			final String name,
 			final int priority,
 			final Function<Interpolation, InterpolatorFactory<D, RandomAccessible<D>>> dataInterpolation,
 			final Function<Interpolation, InterpolatorFactory<T, RandomAccessible<T>>> interpolation) throws
-			IOException, AxisOrderNotSupported {
+			IOException {
 		super(
 				RandomAccessibleIntervalDataSource.asDataWithInvalidate((ImagesWithInvalidate<D, T>[])getData(meta.reader(), meta.dataset(), transform, globalCache, priority)),
-				axisOrder,
 				dataInterpolation,
 				interpolation,
 				name

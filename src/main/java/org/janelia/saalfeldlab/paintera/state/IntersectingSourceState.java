@@ -277,20 +277,13 @@ public class IntersectingSourceState
 			transforms[level] = tf1;
 		}
 
-		try {
-			return new RandomAccessibleIntervalDataSource<>(
-					new ValueTriple<>(data, vdata, transforms),
-					() -> {Stream.of(invalidate).forEach(InvalidateAll::invalidateAll); Stream.of(vinvalidate).forEach(InvalidateAll::invalidateAll);},
-					AxisOrder.XYZ,
-					Interpolations.nearestNeighbor(),
-					Interpolations.nearestNeighbor(),
-					name
-			);
-		}
-		catch (AxisOrderNotSupported e)
-		{
-			throw new RuntimeException(e);
-		}
+		return new RandomAccessibleIntervalDataSource<>(
+				new ValueTriple<>(data, vdata, transforms),
+				() -> {Stream.of(invalidate).forEach(InvalidateAll::invalidateAll); Stream.of(vinvalidate).forEach(InvalidateAll::invalidateAll);},
+				Interpolations.nearestNeighbor(),
+				Interpolations.nearestNeighbor(),
+				name
+		);
 	}
 
 	private static <T> Predicate<T> checkForType(final T t, final FragmentsInSelectedSegments fragmentsInSelectedSegments)

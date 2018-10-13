@@ -102,7 +102,6 @@ public class RawSourceState<D, T extends RealType<T>>
 				vdata,
 				mipmapTransform,
 				invalidateAll,
-				axisOrder,
 				i -> new NearestNeighborInterpolatorFactory<>(),
 				i -> new NearestNeighborInterpolatorFactory<>(),
 				name
