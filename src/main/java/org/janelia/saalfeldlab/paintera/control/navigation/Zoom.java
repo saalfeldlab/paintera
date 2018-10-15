@@ -34,6 +34,12 @@ public class Zoom
 
 	public void zoomCenteredAt(final double delta, final double x, final double y)
 	{
+
+		if (delta == 0.0)
+		{
+			return;
+		}
+
 		final AffineTransform3D global = new AffineTransform3D();
 		synchronized (lock)
 		{

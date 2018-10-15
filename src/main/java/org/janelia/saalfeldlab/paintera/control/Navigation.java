@@ -219,7 +219,7 @@ public class Navigation implements ToOnEnterOnExit
 				final Zoom zoom = new Zoom(zoomSpeed::get, manager, viewerTransform, manager);
 				iars.add(EventFX.SCROLL(
 						"zoom",
-						event -> zoom.zoomCenteredAt(-event.getDeltaY(), event.getX(), event.getY()),
+						event -> zoom.zoomCenteredAt(Math.abs(event.getDeltaY()) > Math.abs(event.getDeltaX()) ? -event.getDeltaY() : -event.getDeltaX(), event.getX(), event.getY()),
 						event -> keyTracker.areOnlyTheseKeysDown(KeyCode.META) ||
 								keyTracker.areOnlyTheseKeysDown(KeyCode.CONTROL, KeyCode.SHIFT)
 				                       ));
