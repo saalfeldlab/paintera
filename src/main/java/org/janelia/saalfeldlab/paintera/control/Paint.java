@@ -152,7 +152,7 @@ public class Paint implements ToOnEnterOnExit
 					                       ));
 					iars.add(EventFX.SCROLL(
 							"change brush depth",
-							event -> paint2D.changeBrushDepth(event.getDeltaY()),
+							event -> paint2D.changeBrushDepth(-ControlUtils.getBiggestScroll(event)),
 							event -> keyTracker.areOnlyTheseKeysDown(
 									KeyCode.SPACE,
 									KeyCode.SHIFT

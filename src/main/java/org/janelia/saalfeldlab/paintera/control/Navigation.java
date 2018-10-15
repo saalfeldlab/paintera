@@ -159,17 +159,17 @@ public class Navigation implements ToOnEnterOnExit
 
 				iars.add(EventFX.SCROLL(
 						"translate along normal",
-						e -> scrollDefault.scroll(-e.getDeltaY()),
+						e -> scrollDefault.scroll(-ControlUtils.getBiggestScroll(e)),
 						event -> keyTracker.noKeysActive()
 				                       ));
 				iars.add(EventFX.SCROLL(
 						"translate along normal fast",
-						e -> scrollFast.scroll(-e.getDeltaY()),
+						e -> scrollFast.scroll(-ControlUtils.getBiggestScroll(e)),
 						event -> keyTracker.areOnlyTheseKeysDown(KeyCode.SHIFT)
 				                       ));
 				iars.add(EventFX.SCROLL(
 						"translate along normal slow",
-						e -> scrollSlow.scroll(-e.getDeltaY()),
+						e -> scrollSlow.scroll(-ControlUtils.getBiggestScroll(e)),
 						event -> keyTracker.areOnlyTheseKeysDown(KeyCode.CONTROL)
 				                       ));
 
@@ -219,7 +219,7 @@ public class Navigation implements ToOnEnterOnExit
 				final Zoom zoom = new Zoom(zoomSpeed::get, manager, viewerTransform, manager);
 				iars.add(EventFX.SCROLL(
 						"zoom",
-						event -> zoom.zoomCenteredAt(-event.getDeltaY(), event.getX(), event.getY()),
+						event -> zoom.zoomCenteredAt(-ControlUtils.getBiggestScroll(event), event.getX(), event.getY()),
 						event -> keyTracker.areOnlyTheseKeysDown(KeyCode.META) ||
 								keyTracker.areOnlyTheseKeysDown(KeyCode.CONTROL, KeyCode.SHIFT)
 				                       ));
