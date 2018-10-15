@@ -119,7 +119,7 @@ public class ScreenScalesConfigNode {
 	{
 		Dialog<ScreenScalesConfig.ScreenScales> d = new Dialog<>();
 		d.setTitle(Paintera.NAME);
-		d.setHeaderText("Set N screen scales from geometric series: a_n = a * f^n");
+		d.setHeaderText("Set N screen scales from geometric sequence: a_n = a * f^n");
 
 		final NumberField<DoubleProperty> aField = NumberField.doubleField(1.0, a -> a <= 1.0 && a > 0, ObjectField.SubmitOn.ENTER_PRESSED, ObjectField.SubmitOn.FOCUS_LOST);
 		final NumberField<DoubleProperty> fField = NumberField.doubleField(0.5, f -> f < 1.0 && f > 0, ObjectField.SubmitOn.ENTER_PRESSED, ObjectField.SubmitOn.FOCUS_LOST);
