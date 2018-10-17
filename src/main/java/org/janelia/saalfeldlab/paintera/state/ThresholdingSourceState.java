@@ -54,6 +54,7 @@ public class ThresholdingSourceState<D extends RealType<D>, T extends AbstractVo
 				toBeThresholded
 		     );
 		this.threshold = getDataSource().getPredicate();
+		this.axisOrderProperty().bindBidirectional(toBeThresholded.axisOrderProperty());
 	}
 
 	public Threshold<D> getThreshold()

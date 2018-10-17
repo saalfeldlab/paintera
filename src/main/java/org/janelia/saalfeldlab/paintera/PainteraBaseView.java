@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.lang.invoke.MethodHandles;
 import java.nio.file.Files;
 import java.util.Arrays;
+import java.util.Optional;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.function.BiConsumer;
@@ -152,7 +153,8 @@ public class PainteraBaseView
 				this.globalCache,
 				this.viewerOptions,
 				viewer3D,
-				interpolation.apply(sourceInfo)
+				interpolation.apply(sourceInfo),
+				s -> Optional.ofNullable(sourceInfo.getState(s)).map(SourceState::getAxisOrder).orElse(null)
 		);
 		this.vsacUpdate = change -> views.setAllSources(visibleSourcesAndConverters);
 		visibleSourcesAndConverters.addListener(vsacUpdate);
@@ -211,6 +213,7 @@ public class PainteraBaseView
 		sourceInfo.addState(state);
 
 		state.compositeProperty().addListener(obs -> orthogonalViews().requestRepaint());
+		state.axisOrderProperty().addListener(obs -> orthogonalViews().requestRepaint());
 
 		if (state.getDataSource() instanceof MaskedSource<?, ?>) {
 			final MaskedSource<?, ?> ms = ((MaskedSource<?, ?>) state.getDataSource());

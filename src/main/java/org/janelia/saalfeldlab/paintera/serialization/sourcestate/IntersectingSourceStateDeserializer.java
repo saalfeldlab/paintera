@@ -2,6 +2,7 @@ package org.janelia.saalfeldlab.paintera.serialization.sourcestate;
 
 import java.lang.invoke.MethodHandles;
 import java.lang.reflect.Type;
+import java.util.Optional;
 import java.util.concurrent.ExecutorService;
 import java.util.function.IntFunction;
 import java.util.function.Supplier;
@@ -17,6 +18,7 @@ import net.imglib2.type.numeric.ARGBType;
 import org.janelia.saalfeldlab.paintera.cache.global.GlobalCache;
 import org.janelia.saalfeldlab.paintera.cache.global.InvalidAccessException;
 import org.janelia.saalfeldlab.paintera.composition.Composite;
+import org.janelia.saalfeldlab.paintera.data.axisorder.AxisOrder;
 import org.janelia.saalfeldlab.paintera.serialization.StatefulSerializer;
 import org.janelia.saalfeldlab.paintera.serialization.StatefulSerializer.Arguments;
 import org.janelia.saalfeldlab.paintera.state.IntersectingSourceState;

@@ -20,6 +20,7 @@ import javafx.scene.layout.Pane;
 import net.imglib2.realtransform.AffineTransform3D;
 import org.janelia.saalfeldlab.paintera.control.navigation.AffineTransformWithListeners;
 import org.janelia.saalfeldlab.paintera.control.navigation.TransformConcatenator;
+import org.janelia.saalfeldlab.paintera.data.axisorder.AxisOrder;
 import org.janelia.saalfeldlab.paintera.state.GlobalTransformManager;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -95,12 +96,13 @@ public class OrthogonalViews<BR extends Node>
 			final CacheControl cacheControl,
 			final ViewerOptions optional,
 			final BR bottomRight,
-			final Function<Source<?>, Interpolation> interpolation)
+			final Function<Source<?>, Interpolation> interpolation,
+			final Function<Source<?>, AxisOrder> axisOrder)
 	{
 		this.manager = manager;
-		this.topLeft = create(this.manager, cacheControl, optional, ViewerAxis.Z, interpolation);
-		this.topRight = create(this.manager, cacheControl, optional, ViewerAxis.X, interpolation);
-		this.bottomLeft = create(this.manager, cacheControl, optional, ViewerAxis.Y, interpolation);
+		this.topLeft = create(this.manager, cacheControl, optional, ViewerAxis.Z, interpolation, axisOrder);
+		this.topRight = create(this.manager, cacheControl, optional, ViewerAxis.X, interpolation, axisOrder);
+		this.bottomLeft = create(this.manager, cacheControl, optional, ViewerAxis.Y, interpolation, axisOrder);
 		this.grid = new ResizableGridPane2x2<>(topLeft.viewer, topRight.viewer, bottomLeft.viewer, bottomRight);
 		this.queue = cacheControl;
 	}
@@ -120,11 +122,13 @@ public class OrthogonalViews<BR extends Node>
 			final CacheControl cacheControl,
 			final ViewerOptions optional,
 			final ViewerAxis axis,
-			final Function<Source<?>, Interpolation> interpolation)
+			final Function<Source<?>, Interpolation> interpolation,
+			final Function<Source<?>, AxisOrder> axisOrder)
 	{
 		final AffineTransform3D globalToViewer = ViewerAxis.globalToViewer(axis);
 		LOG.debug("Generating viewer, axis={}, globalToViewer={}", axis, globalToViewer);
 		final ViewerPanelFX                viewer                  = new ViewerPanelFX(
+				axisOrder,
 				1,
 				cacheControl,
 				optional,

@@ -60,6 +60,7 @@ import net.imglib2.img.basictypeaccess.array.IntArray;
 import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.realtransform.RealViews;
 import net.imglib2.type.numeric.ARGBType;
+import org.janelia.saalfeldlab.paintera.data.axisorder.AxisOrder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import tmp.bdv.img.cache.VolatileCachedCellImg;
@@ -420,6 +421,7 @@ public class MultiResolutionRendererGeneric<T>
 	 */
 	public boolean paint(
 			final List<SourceAndConverter<?>> sources,
+			final Function<Source<?>, AxisOrder> axisOrders,
 			final int timepoint,
 			final AffineTransform3D viewerTransform,
 			final Function<Source<?>, Interpolation> interpolationForSource,
@@ -468,6 +470,7 @@ public class MultiResolutionRendererGeneric<T>
 					final int t = timepoint;
 					p = createProjector(
 							sacs,
+							axisOrders,
 							t,
 							viewerTransform,
 							currentScreenScaleIndex,
@@ -582,6 +585,7 @@ public class MultiResolutionRendererGeneric<T>
 
 	private VolatileProjector createProjector(
 			final List<SourceAndConverter<?>> sacs,
+			final Function<Source<?>, AxisOrder> axisOrders,
 			final int timepoint,
 			final AffineTransform3D viewerTransform,
 			final int screenScaleIndex,
@@ -604,6 +608,7 @@ public class MultiResolutionRendererGeneric<T>
 			final Interpolation         interpolation = interpolationForSource.apply(sac.getSpimSource());
 			projector = createSingleSourceProjector(
 					sac,
+					axisOrders.apply(sac.getSpimSource()),
 					timepoint,
 					viewerTransform,
 					currentScreenScaleIndex,
@@ -624,10 +629,12 @@ public class MultiResolutionRendererGeneric<T>
 			{
 				final ArrayImg<ARGBType, IntArray> renderImage = renderImages[currentScreenScaleIndex][j];
 				final byte[]                       maskArray   = renderMaskArrays[j];
+				final AxisOrder                    axisOrder   = axisOrders.apply(sac.getSpimSource());
 				++j;
 				final Interpolation interpolation = interpolationForSource.apply(sac.getSpimSource());
 				final VolatileProjector p = createSingleSourceProjector(
 						sac,
+						axisOrder,
 						timepoint,
 						viewerTransform,
 						currentScreenScaleIndex,
@@ -687,6 +694,7 @@ public class MultiResolutionRendererGeneric<T>
 
 	private <U> VolatileProjector createSingleSourceProjector(
 			final SourceAndConverter<U> source,
+			final AxisOrder axisOrder,
 			final int timepoint,
 			final AffineTransform3D viewerTransform,
 			final int screenScaleIndex,
@@ -705,6 +713,7 @@ public class MultiResolutionRendererGeneric<T>
 				         );
 				return createSingleSourceVolatileProjector(
 						source.asVolatile(),
+						axisOrder,
 						timepoint,
 						screenScaleIndex,
 						viewerTransform,
@@ -725,6 +734,7 @@ public class MultiResolutionRendererGeneric<T>
 						(SourceAndConverter<? extends Volatile<?>>) source;
 				return createSingleSourceVolatileProjector(
 						vsource,
+						axisOrder,
 						timepoint,
 						screenScaleIndex,
 						viewerTransform,
@@ -743,6 +753,7 @@ public class MultiResolutionRendererGeneric<T>
 		return new SimpleVolatileProjector<>(
 				getTransformedSource(
 						source.getSpimSource(),
+						axisOrder,
 						timepoint,
 						viewerTransform,
 						screenScaleTransform,
@@ -756,6 +767,7 @@ public class MultiResolutionRendererGeneric<T>
 
 	private <V extends Volatile<?>> VolatileProjector createSingleSourceVolatileProjector(
 			final SourceAndConverter<V> source,
+			final AxisOrder axisOrder,
 			final int t,
 			final int screenScaleIndex,
 			final AffineTransform3D viewerTransform,
@@ -807,6 +819,7 @@ public class MultiResolutionRendererGeneric<T>
 		for (final Level l : levels)
 			renderList.add(getTransformedSource(
 					spimSource,
+					axisOrder,
 					t,
 					viewerTransform,
 					screenScaleTransform,
@@ -842,6 +855,7 @@ public class MultiResolutionRendererGeneric<T>
 
 	private static <T> RandomAccessible<T> getTransformedSource(
 			final Source<T> source,
+			final AxisOrder axisOrder,
 			final int timepoint,
 			final AffineTransform3D viewerTransform,
 			final AffineTransform3D screenScaleTransform,
@@ -859,6 +873,7 @@ public class MultiResolutionRendererGeneric<T>
 		final AffineTransform3D sourceToScreen  = viewerTransform.copy();
 		final AffineTransform3D sourceTransform = new AffineTransform3D();
 		source.getSourceTransform(timepoint, mipmapIndex, sourceTransform);
+		sourceToScreen.concatenate(axisOrder.asAffineTransform().inverse());
 		sourceToScreen.concatenate(sourceTransform);
 		sourceToScreen.preConcatenate(screenScaleTransform);
 

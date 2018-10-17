@@ -97,6 +97,9 @@ public class IntersectingSourceState
 		     );
 		final DataSource<UnsignedByteType, VolatileUnsignedByteType> source = getDataSource();
 
+		this.axisOrderProperty().bindBidirectional(thresholded.axisOrderProperty());
+		this.axisOrderProperty().bindBidirectional(labels.axisOrderProperty());
+
 		final MeshManager<Long, TLongHashSet> meshManager = labels.meshManager();
 
 		final SelectedIds selectedIds = labels.selectedIds();

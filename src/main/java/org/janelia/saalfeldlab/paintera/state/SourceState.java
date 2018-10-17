@@ -10,33 +10,35 @@ import net.imglib2.converter.Converter;
 import net.imglib2.type.numeric.ARGBType;
 import org.janelia.saalfeldlab.paintera.composition.Composite;
 import org.janelia.saalfeldlab.paintera.data.DataSource;
+import org.janelia.saalfeldlab.paintera.data.HasModifiableAxisOrder;
+import org.janelia.saalfeldlab.paintera.data.axisorder.AxisOrder;
 
-public interface SourceState<D, T>
+public interface SourceState<D, T> extends HasModifiableAxisOrder
 {
 
-	public DataSource<D, T> getDataSource();
+	DataSource<D, T> getDataSource();
 
-	public Converter<T, ARGBType> converter();
+	Converter<T, ARGBType> converter();
 
-	public ObjectProperty<Composite<ARGBType, ARGBType>> compositeProperty();
+	ObjectProperty<Composite<ARGBType, ARGBType>> compositeProperty();
 
-	public StringProperty nameProperty();
+	StringProperty nameProperty();
 
-	public BooleanProperty isVisibleProperty();
+	BooleanProperty isVisibleProperty();
 
-	public ObservableBooleanValue isDirtyProperty();
+	ObservableBooleanValue isDirtyProperty();
 
-	public ObjectProperty<Interpolation> interpolationProperty();
+	ObjectProperty<Interpolation> interpolationProperty();
 
-	public SourceState<?, ?>[] dependsOn();
+	SourceState<?, ?>[] dependsOn();
 
-	public void stain();
+	void stain();
 
-	public void clean();
+	void clean();
 
-	public boolean isDirty();
+	boolean isDirty();
 
-	public default SourceAndConverter<T> getSourceAndConverter()
+	default SourceAndConverter<T> getSourceAndConverter()
 	{
 		return new SourceAndConverter<>(getDataSource(), converter());
 	}

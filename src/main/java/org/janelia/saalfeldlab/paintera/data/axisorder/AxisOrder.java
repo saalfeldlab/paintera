@@ -1,5 +1,6 @@
 package org.janelia.saalfeldlab.paintera.data.axisorder;
 
+import net.imglib2.realtransform.AffineTransform3D;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -201,9 +202,30 @@ public enum AxisOrder {
 		return Arrays.stream(AxisOrder.values()).filter(order -> name.equalsIgnoreCase(order.name())).findFirst().get();
 	}
 
+	public AffineTransform3D asAffineTransform()
+	{
+		final int[] spatialIndices = spatialOnly().spatialIndices();
+		double[] values = new double[12];
+		values[0 + spatialIndices[0]] = 1;
+		values[4 + spatialIndices[1]] = 1;
+		values[8 + spatialIndices[2]] = 1;
+
+		final AffineTransform3D tf = new AffineTransform3D();
+		tf.set(values);
+		return tf;
+	}
+
 	public static AxisOrder[] valuesFor(int numDimensions)
 	{
 		return Stream.of(values()).filter(ax -> ax.numDimensions() == numDimensions).toArray(AxisOrder[]::new);
+	}
+
+	public static AxisOrder[] spatialValues()
+	{
+		return Stream
+				.of(values())
+				.filter(ao -> !ao.hasTime() && !ao.hasChannels())
+				.toArray(AxisOrder[]::new);
 	}
 
 	private static int getIndexFor(final Axis identifier, final boolean hasTime, final int numSpaceDimensions)

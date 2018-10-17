@@ -52,6 +52,7 @@ import org.janelia.saalfeldlab.paintera.state.SourceState;
 import org.janelia.saalfeldlab.paintera.ui.BindUnbindAndNodeSupplier;
 import org.janelia.saalfeldlab.paintera.ui.CloseButton;
 import org.janelia.saalfeldlab.paintera.ui.source.MaskedSourcePane;
+import org.janelia.saalfeldlab.paintera.ui.source.axisorder.AxisOrderPane;
 import org.janelia.saalfeldlab.paintera.ui.source.composite.CompositePane;
 import org.janelia.saalfeldlab.paintera.ui.source.converter.ConverterPane;
 import org.janelia.saalfeldlab.paintera.ui.source.mesh.MeshPane;
@@ -87,6 +88,7 @@ public class StatePane implements BindUnbindAndNodeSupplier
 		this.state = state;
 		this.sourceInfo = sourceInfo;
 		this.children = new BindUnbindAndNodeSupplier[] {
+				new AxisOrderPane(state.axisOrderProperty()),
 				new CompositePane(state.compositeProperty()),
 				new ConverterPane(state.converter()),
 				state instanceof LabelSourceState<?, ?>
