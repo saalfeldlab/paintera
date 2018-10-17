@@ -62,13 +62,9 @@ public class N5DataSourceDeserializer implements JsonDeserializer<N5DataSource<?
 					AffineTransform3D.class
 			                                                       );
 
-			final AxisOrder axisOrder = Optional
-					.ofNullable(el.getAsJsonObject().get(N5DataSourceSerializer.AXIS_ORDER_KEY))
-					.map(e -> (AxisOrder)context.deserialize(e, AxisOrder.class))
-					.orElse(AxisOrder.XYZ);
 			LOG.debug("Deserialized transform: {}", transform);
-			return new N5DataSource<>(meta, transform, axisOrder, globalCache, "", priority);
-		} catch (IOException | ClassNotFoundException | AxisOrderNotSupported e)
+			return new N5DataSource<>(meta, transform, globalCache, "", priority);
+		} catch (IOException | ClassNotFoundException e)
 		{
 			throw new JsonParseException(e);
 		}

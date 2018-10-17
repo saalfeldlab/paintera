@@ -38,7 +38,6 @@ public class N5DataSourceSerializer implements JsonSerializer<N5DataSource<?, ?>
 		final AffineTransform3D transform = new AffineTransform3D();
 		s.getSourceTransform(0, 0, transform);
 		map.add(TRANSFORM_KEY, context.serialize(transform));
-		map.add(AXIS_ORDER_KEY, context.serialize(Optional.ofNullable(s.axisOrderProperty().get()).orElse(AxisOrder.XYZ)));
 		return map;
 	}
 

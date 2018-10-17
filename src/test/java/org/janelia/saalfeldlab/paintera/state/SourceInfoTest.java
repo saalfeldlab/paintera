@@ -28,7 +28,6 @@ public class SourceInfoTest
 			rai,
 			new AffineTransform3D(),
 			() -> {},
-			AxisOrder.XYZ,
 			i -> new NearestNeighborInterpolatorFactory<>(),
 			i -> new NearestNeighborInterpolatorFactory<>(),
 			"source1"
@@ -40,7 +39,6 @@ public class SourceInfoTest
 			rai,
 			new AffineTransform3D(),
 			() -> {},
-			AxisOrder.XYZ,
 			i -> new NearestNeighborInterpolatorFactory<>(),
 			i -> new NearestNeighborInterpolatorFactory<>(),
 			"source2"

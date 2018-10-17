@@ -20,23 +20,19 @@ import net.imglib2.util.Util;
 import net.imglib2.view.Views;
 import org.janelia.saalfeldlab.util.n5.ImagesWithInvalidate;
 import org.janelia.saalfeldlab.paintera.cache.InvalidateAll;
-import org.janelia.saalfeldlab.paintera.data.axisorder.AxisOrder;
-import org.janelia.saalfeldlab.paintera.data.axisorder.AxisOrderNotSupported;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class RandomAccessibleIntervalDataSource<D extends Type<D>, T extends Type<T>> implements DataSource<D, T>, HasModifiableAxisOrder
+public class RandomAccessibleIntervalDataSource<D extends Type<D>, T extends Type<T>> implements DataSource<D, T>
 {
 
 	private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
 	private final AffineTransform3D[] mipmapTransforms;
 
-	private final ObjectProperty<AxisOrder> axisOrder = new SimpleObjectProperty<>();
+	private final RandomAccessibleInterval<T>[] sources;
 
 	private final RandomAccessibleInterval<D>[] dataSources;
-
-	private final RandomAccessibleInterval<T>[] sources;
 
 	private final InvalidateAll invalidateAll;
 
@@ -69,21 +65,19 @@ public class RandomAccessibleIntervalDataSource<D extends Type<D>, T extends Typ
 
 	public RandomAccessibleIntervalDataSource(
 			final DataWithInvalidate<D, T> dataWithInvalidate,
-			final AxisOrder axisOrder,
 			final Function<Interpolation, InterpolatorFactory<D, RandomAccessible<D>>> dataInterpolation,
 			final Function<Interpolation, InterpolatorFactory<T, RandomAccessible<T>>> interpolation,
-			final String name) throws AxisOrderNotSupported {
-		this(dataWithInvalidate.data, dataWithInvalidate.viewData, dataWithInvalidate.transforms, dataWithInvalidate.invalidateAll, axisOrder, dataInterpolation, interpolation, name);
+			final String name) {
+		this(dataWithInvalidate.data, dataWithInvalidate.viewData, dataWithInvalidate.transforms, dataWithInvalidate.invalidateAll, dataInterpolation, interpolation, name);
 	}
 
 	public RandomAccessibleIntervalDataSource(
 			final Triple<RandomAccessibleInterval<D>[], RandomAccessibleInterval<T>[], AffineTransform3D[]> data,
 			final InvalidateAll invalidateAll,
-			final AxisOrder axisOrder,
 			final Function<Interpolation, InterpolatorFactory<D, RandomAccessible<D>>> dataInterpolation,
 			final Function<Interpolation, InterpolatorFactory<T, RandomAccessible<T>>> interpolation,
-			final String name) throws AxisOrderNotSupported {
-		this(data.getA(), data.getB(), data.getC(), invalidateAll, axisOrder, dataInterpolation, interpolation, name);
+			final String name) {
+		this(data.getA(), data.getB(), data.getC(), invalidateAll, dataInterpolation, interpolation, name);
 	}
 
 	@SuppressWarnings("unchecked")
@@ -92,16 +86,14 @@ public class RandomAccessibleIntervalDataSource<D extends Type<D>, T extends Typ
 			final RandomAccessibleInterval<T> source,
 			final AffineTransform3D mipmapTransform,
 			final InvalidateAll invalidateAll,
-			final AxisOrder axisOrder,
 			final Function<Interpolation, InterpolatorFactory<D, RandomAccessible<D>>> dataInterpolation,
 			final Function<Interpolation, InterpolatorFactory<T, RandomAccessible<T>>> interpolation,
-			final String name) throws AxisOrderNotSupported {
+			final String name) {
 		this(
 				new RandomAccessibleInterval[] {dataSource},
 				new RandomAccessibleInterval[] {source},
 				new AffineTransform3D[] {mipmapTransform},
 				invalidateAll,
-				axisOrder,
 				dataInterpolation,
 				interpolation,
 				name
@@ -113,16 +105,14 @@ public class RandomAccessibleIntervalDataSource<D extends Type<D>, T extends Typ
 			final RandomAccessibleInterval<T>[] sources,
 			final AffineTransform3D[] mipmapTransforms,
 			final InvalidateAll invalidateAll,
-			final AxisOrder axisOrder,
 			final Function<Interpolation, InterpolatorFactory<D, RandomAccessible<D>>> dataInterpolation,
 			final Function<Interpolation, InterpolatorFactory<T, RandomAccessible<T>>> interpolation,
-			final String name) throws AxisOrderNotSupported {
+			final String name) {
 		this(
 				dataSources,
 				sources,
 				mipmapTransforms,
 				invalidateAll,
-				axisOrder,
 				dataInterpolation,
 				interpolation,
 				() -> Util.getTypeFromInterval(dataSources[0]).createVariable(),
@@ -136,12 +126,11 @@ public class RandomAccessibleIntervalDataSource<D extends Type<D>, T extends Typ
 			final RandomAccessibleInterval<T>[] sources,
 			final AffineTransform3D[] mipmapTransforms,
 			final InvalidateAll invalidateAll,
-			final AxisOrder axisOrder,
 			final Function<Interpolation, InterpolatorFactory<D, RandomAccessible<D>>> dataInterpolation,
 			final Function<Interpolation, InterpolatorFactory<T, RandomAccessible<T>>> interpolation,
 			final Supplier<D> dataTypeSupplier,
 			final Supplier<T> typeSupplier,
-			final String name) throws AxisOrderNotSupported {
+			final String name) {
 		super();
 		this.mipmapTransforms = mipmapTransforms;
 		this.dataSources = dataSources;
@@ -152,16 +141,6 @@ public class RandomAccessibleIntervalDataSource<D extends Type<D>, T extends Typ
 		this.dataTypeSupplier = dataTypeSupplier;
 		this.typeSupplier = typeSupplier;
 		this.name = name;
-		this.axisOrder.set(axisOrder);
-		if (!AxisOrder.XYZ.equals(axisOrder))
-			throw new AxisOrderNotSupported(axisOrder, AxisOrder.XYZ);
-		this.axisOrder.addListener((obs, oldv, newv) -> {
-			if (!AxisOrder.XYZ.equals(newv))
-			{
-				this.axisOrder.set(AxisOrder.XYZ);
-				throw new RuntimeException(new AxisOrderNotSupported(newv, AxisOrder.XYZ));
-			}
-		});
 	}
 
 	@SuppressWarnings("unchecked")
@@ -175,12 +154,6 @@ public class RandomAccessibleIntervalDataSource<D extends Type<D>, T extends Typ
 		AffineTransform3D[] transforms = Stream.of(imagesWithInvalidate).map(i -> i.transform).toArray(AffineTransform3D[]::new);
 		InvalidateAll invalidateAll = () -> Stream.of(imagesWithInvalidate).forEach( i -> {i.invalidate.invalidateAll(); i.vinvalidate.invalidateAll();});
 		return new RandomAccessibleIntervalDataSource.DataWithInvalidate(data, vdata, transforms, invalidateAll);
-	}
-
-	@Override
-	public ObjectProperty<AxisOrder> axisOrderProperty()
-	{
-		return this.axisOrder;
 	}
 
 	@Override
@@ -262,13 +235,12 @@ public class RandomAccessibleIntervalDataSource<D extends Type<D>, T extends Typ
 		return dataTypeSupplier.get();
 	}
 
-	public RandomAccessibleIntervalDataSource<D, T> copy() throws AxisOrderNotSupported {
+	public RandomAccessibleIntervalDataSource<D, T> copy() {
 		return new RandomAccessibleIntervalDataSource<>(
 				dataSources,
 				sources,
 				mipmapTransforms,
 				invalidateAll,
-				axisOrder.get(),
 				dataInterpolation,
 				interpolation,
 				dataTypeSupplier,

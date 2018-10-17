@@ -1,14 +1,5 @@
 package org.janelia.saalfeldlab.paintera.ui.dialogs.create;
 
-import java.io.File;
-import java.io.IOException;
-import java.lang.invoke.MethodHandles;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.List;
-import java.util.Optional;
-
 import bdv.viewer.Source;
 import com.sun.javafx.application.PlatformImpl;
 import javafx.application.Platform;
@@ -47,17 +38,24 @@ import org.janelia.saalfeldlab.fx.ui.ObjectField;
 import org.janelia.saalfeldlab.fx.ui.SpatialField;
 import org.janelia.saalfeldlab.n5.N5FSReader;
 import org.janelia.saalfeldlab.n5.N5Reader;
-import org.janelia.saalfeldlab.util.n5.N5Data;
 import org.janelia.saalfeldlab.paintera.cache.MemoryBoundedSoftRefLoaderCache;
 import org.janelia.saalfeldlab.paintera.cache.global.GlobalCache;
 import org.janelia.saalfeldlab.paintera.data.DataSource;
-import org.janelia.saalfeldlab.paintera.data.axisorder.AxisOrder;
-import org.janelia.saalfeldlab.paintera.data.axisorder.AxisOrderNotSupported;
 import org.janelia.saalfeldlab.paintera.data.n5.N5DataSource;
 import org.janelia.saalfeldlab.paintera.data.n5.N5FSMeta;
 import org.janelia.saalfeldlab.paintera.data.n5.ReflectionException;
+import org.janelia.saalfeldlab.util.n5.N5Data;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.io.File;
+import java.io.IOException;
+import java.lang.invoke.MethodHandles;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.List;
+import java.util.Optional;
 
 public class CreateDataset
 {
@@ -275,7 +273,7 @@ public class CreateDataset
 		this.offset.getZ().valueProperty().set(transform.get(2, 3));
 	}
 
-	public static void main(String[] args) throws IOException, ReflectionException, AxisOrderNotSupported {
+	public static void main(String[] args) throws IOException, ReflectionException {
 		PlatformImpl.startup(() -> {
 		});
 
@@ -292,7 +290,6 @@ public class CreateDataset
 				reader,
 				"volumes/raw/data/s0",
 				tf,
-				AxisOrder.XYZ,
 				new GlobalCache(10, 1, backingCache, backingCache),
 				1,
 				"NAME"

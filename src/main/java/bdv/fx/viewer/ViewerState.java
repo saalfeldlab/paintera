@@ -18,6 +18,7 @@ import javafx.collections.ListChangeListener;
 import javafx.collections.ObservableList;
 import javafx.collections.ObservableMap;
 import net.imglib2.realtransform.AffineTransform3D;
+import org.janelia.saalfeldlab.paintera.data.axisorder.AxisOrder;
 
 public class ViewerState
 {
@@ -29,6 +30,8 @@ public class ViewerState
 	protected final IntegerProperty numTimepoints = new SimpleIntegerProperty(1);
 
 	protected final ObservableList<SourceAndConverter<?>> sourcesAndConverters = FXCollections.observableArrayList();
+
+	private final Function<Source<?>, AxisOrder> axisOrder;
 
 	protected final ObservableMap<Source<?>, SourceAndConverter<?>> sources = asMap(
 			sourcesAndConverters,
@@ -75,9 +78,14 @@ public class ViewerState
 		return getBestMipMapLevel(screenScaleTransform, sourcesAndConverters.get(sourceIndex).getSpimSource());
 	}
 
+	public ViewerState(final Function<Source<?>, AxisOrder> axisOrder)
+	{
+		this.axisOrder = axisOrder;
+	}
+
 	public ViewerState copy()
 	{
-		final ViewerState state = new ViewerState();
+		final ViewerState state = new ViewerState(this.axisOrder);
 		state.viewerTransform.set(viewerTransform);
 		state.timepoint.set(timepoint.get());
 		state.numTimepoints.set(numTimepoints.get());
@@ -105,6 +113,11 @@ public class ViewerState
 			target.putAll(tmp);
 		});
 		return target;
+	}
+
+	public AxisOrder axisOrder(final Source<?> source)
+	{
+		return this.axisOrder.apply(source);
 	}
 
 }

@@ -319,7 +319,6 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 				vdata,
 				mipmapTransform,
 				invalidateAll,
-				axisOrder,
 				i -> new NearestNeighborInterpolatorFactory<>(),
 				i -> new NearestNeighborInterpolatorFactory<>(),
 				name

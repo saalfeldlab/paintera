@@ -186,7 +186,6 @@ public class PainteraShowContainer extends Application {
 				rawMeta.reader(),
 				rawMeta.dataset(),
 				N5Helpers.getTransform(rawMeta.reader(), rawMeta.dataset(), revertArrayAttributes),
-				axisOrder,
 				viewer.getGlobalCache(),
 				viewer.getGlobalCache().getNumPriorities() - 1,
 				rawMeta.dataset());
