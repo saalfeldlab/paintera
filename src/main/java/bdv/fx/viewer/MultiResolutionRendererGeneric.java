@@ -163,8 +163,6 @@ public class MultiResolutionRendererGeneric<T>
 	 */
 	private double[] screenScales;
 
-	private final long[] offset;
-
 	/**
 	 * The scale transformation from viewer to {@link #screenImages screen image}. Each transformations corresponds
 	 * to a
@@ -279,7 +277,6 @@ public class MultiResolutionRendererGeneric<T>
 			final TransformAwareRenderTargetGeneric<T> display,
 			final PainterThread painterThread,
 			final double[] screenScales,
-			final long[] offset,
 			final long targetRenderNanos,
 			final boolean doubleBuffered,
 			final int numRenderingThreads,
@@ -320,7 +317,6 @@ public class MultiResolutionRendererGeneric<T>
 		this.cacheControl = cacheControl;
 		newFrameRequest = false;
 		previousTimepoint = -1;
-		this.offset = offset;
 	}
 
 	/**
@@ -431,8 +427,6 @@ public class MultiResolutionRendererGeneric<T>
 	{
 		if (display.getWidth() <= 0 || display.getHeight() <= 0)
 			return false;
-
-		viewerTransform.translate(-offset[0], -offset[1], 0);
 
 		final boolean resized = checkResize();
 

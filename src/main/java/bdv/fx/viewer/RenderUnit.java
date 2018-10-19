@@ -68,6 +68,8 @@ public class RenderUnit implements TransformListener<AffineTransform3D> {
 
 	private final List<Runnable> updateListeners = new ArrayList<>();
 
+	private long[][] offsets = new long[0][];
+
 	public RenderUnit(
 			final ThreadGroup threadGroup,
 			final Supplier<ViewerState> viewerState,
@@ -170,6 +172,7 @@ public class RenderUnit implements TransformListener<AffineTransform3D> {
 		displays = new ImagePane[numBlocks];
 		renderTargets = new TransformAwareBufferedImageOverlayRendererFX[numBlocks];
 		painterThreads = new PainterThread[numBlocks];
+		offsets = new long[numBlocks][];
 		LOG.debug("Updating render unit");
 		final long[] cellPos = new long[2];
 		final long[] min = new long[2];
@@ -188,7 +191,6 @@ public class RenderUnit implements TransformListener<AffineTransform3D> {
 					renderTarget,
 					painterThread,
 					this.screenScales,
-					min.clone(),
 					targetRenderNanos,
 					true,
 					NUM_RENDERING_THREADS,
@@ -204,6 +206,7 @@ public class RenderUnit implements TransformListener<AffineTransform3D> {
 			displays[index] = display;
 			renderTargets[index] = renderTarget;
 			painterThreads[index] = painterThread;
+			offsets[index] = min.clone();
 			painterThread.setDaemon(true);
 			painterThread.start();
 		}
@@ -246,6 +249,7 @@ public class RenderUnit implements TransformListener<AffineTransform3D> {
 			MultiResolutionRendererFX renderer;
 			ImagePane display;
 			TransformAwareBufferedImageOverlayRendererFX renderTarget;
+			long[] offset;
 			ViewerState viewerState = null;
 			final List<SourceAndConverter<?>> sacs = new ArrayList<>();
 			synchronized (RenderUnit.this)
@@ -253,16 +257,18 @@ public class RenderUnit implements TransformListener<AffineTransform3D> {
 				renderer = index < renderers.length ? renderers[index] : null;
 				display = index < displays.length ? displays[index] : null;
 				renderTarget = index < renderTargets.length ? renderTargets[index] : null;
-				if (renderer != null && display != null && renderTarget != null) {
+				offset = index < offsets.length ? offsets[index] : null;
+				if (renderer != null && display != null && renderTarget != null && offset != null) {
 					viewerState = RenderUnit.this.viewerState.get().copy();
 					sacs.addAll(viewerState.getSources());
 				}
 			}
-			if (renderer == null || display == null || renderTarget == null)
+			if (renderer == null || display == null || renderTarget == null || offset == null)
 				return;
 
 			final AffineTransform3D viewerTransform = new AffineTransform3D();
 			viewerState.getViewerTransform(viewerTransform);
+			viewerTransform.translate(-offset[0], -offset[1], 0);
 
 			renderer.paint(
 					sacs,
