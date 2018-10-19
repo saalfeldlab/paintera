@@ -5,15 +5,14 @@ import bdv.viewer.Interpolation;
 import bdv.viewer.Source;
 import bdv.viewer.SourceAndConverter;
 import bdv.viewer.render.AccumulateProjectorFactory;
+import javafx.beans.property.ObjectProperty;
 import javafx.scene.Node;
+import javafx.scene.image.Image;
 import javafx.scene.layout.GridPane;
-import net.imglib2.Interval;
-import net.imglib2.algorithm.util.Grids;
 import net.imglib2.img.cell.CellGrid;
 import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.type.numeric.ARGBType;
 import net.imglib2.ui.TransformListener;
-import net.imglib2.util.Intervals;
 import org.janelia.saalfeldlab.paintera.config.ScreenScalesConfig;
 import org.janelia.saalfeldlab.paintera.data.axisorder.AxisOrder;
 import org.slf4j.Logger;
@@ -218,21 +217,9 @@ public class RenderUnit implements TransformListener<AffineTransform3D> {
 		// TODO
 	}
 
-	public synchronized Node displaysAsGrid()
+	public synchronized ImageDisplayGrid getImageDisplayGrid()
 	{
-		final GridPane pane = new GridPane();
-		pane.setMinWidth(1);
-		pane.setMinHeight(1);
-		pane.setPrefWidth(dimensions[0]);
-		pane.setPrefHeight(dimensions[1]);
-		long[] gridPos = new long[2];
-		for (int i = 0; i < displays.length; ++i)
-		{
-			this.grid.getCellGridPositionFlat(i, gridPos);
-			LOG.debug("Putting render block {} into cell at position {}", i, gridPos);
-			pane.add(displays[i], (int)gridPos[0], (int)gridPos[1]);
-		}
-		return pane;
+		return new ImageDisplayGrid(displays, grid);
 	}
 
 	private class Paintable implements PainterThread.Paintable
@@ -286,10 +273,59 @@ public class RenderUnit implements TransformListener<AffineTransform3D> {
 	public void addUpdateListener(final Runnable listener)
 	{
 		this.updateListeners.add(listener);
+		listener.run();
 	}
 
 	private void notifyUpdated()
 	{
 		this.updateListeners.forEach(Runnable::run);
 	}
+
+	public static class ImageDisplayGrid
+	{
+		private final ImagePane[] images;
+
+		private final CellGrid grid;
+
+		private final GridPane pane;
+
+		private ImageDisplayGrid(final ImagePane[] images, final CellGrid grid) {
+			this.images = images;
+			this.grid = grid;
+			this.pane = makeGrid();
+		}
+
+		public Node getGridPane()
+		{
+			return this.pane;
+		}
+
+		public CellGrid getGrid()
+		{
+			return this.grid;
+		}
+
+		public ObjectProperty<Image> imagePropertyAt(final int linearGridIndex)
+		{
+			return images[linearGridIndex].imageProperty();
+		}
+
+		private GridPane makeGrid()
+		{
+			final GridPane pane = new GridPane();
+			pane.setMinWidth(1);
+			pane.setMinHeight(1);
+			pane.setPrefWidth(this.grid.getImgDimensions()[0]);
+			pane.setPrefHeight(this.grid.getImgDimensions()[0]);
+			long[] gridPos = new long[2];
+			for (int i = 0; i < images.length; ++i)
+			{
+				this.grid.getCellGridPositionFlat(i, gridPos);
+				LOG.debug("Putting render block {} into cell at position {}", i, gridPos);
+				pane.add(images[i], (int)gridPos[0], (int)gridPos[1]);
+			}
+			return pane;
+		}
+	}
+
 }

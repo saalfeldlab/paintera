@@ -33,6 +33,7 @@
  */
 package bdv.fx.viewer;
 
+import javafx.beans.property.ObjectProperty;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.geometry.Insets;
@@ -88,6 +89,11 @@ public class ImagePane extends StackPane
 		setWidth(width);
 		setHeight(height);
 //		super.getChildren().setAll(this.imageView);
+	}
+
+	public ObjectProperty<Image> imageProperty()
+	{
+		return this.imageView.imageProperty();
 	}
 
 	public void setImage(final Image image)

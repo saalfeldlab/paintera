@@ -35,10 +35,12 @@ import bdv.viewer.RequestRepaint;
 import bdv.viewer.Source;
 import bdv.viewer.SourceAndConverter;
 import bdv.viewer.ViewerOptions;
+import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.ReadOnlyBooleanProperty;
 import javafx.beans.property.ReadOnlyDoubleProperty;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleDoubleProperty;
+import javafx.beans.property.SimpleObjectProperty;
 import javafx.collections.ListChangeListener;
 import javafx.scene.Node;
 import javafx.scene.canvas.GraphicsContext;
@@ -133,6 +135,8 @@ public class ViewerPanelFX
 	protected final SimpleBooleanProperty isInside = new SimpleBooleanProperty();
 
 	private final Function<Source<?>, Interpolation> interpolation;
+
+	private final ObjectProperty<RenderUnit.ImageDisplayGrid> imageDisplayGrid = new SimpleObjectProperty<>(null);
 
 	public ViewerPanelFX(
 			final List<SourceAndConverter<?>> sources,
@@ -246,7 +250,12 @@ public class ViewerPanelFX
 				cacheControl,
 				options.getTargetRenderNanos(),
 				renderingExecutorService);
-		this.renderUnit.addUpdateListener(() -> InvokeOnJavaFXApplicationThread.invoke(() -> this.display.setChild(renderUnit.displaysAsGrid())));
+		this.renderUnit.addUpdateListener(() ->
+		{
+			final RenderUnit.ImageDisplayGrid grid = renderUnit.getImageDisplayGrid();
+			InvokeOnJavaFXApplicationThread.invoke(() -> this.display.setChild(grid.getGridPane()));
+			this.imageDisplayGrid.set(grid);
+		});
 		this.widthProperty().addListener((obs, oldv, newv) -> this.renderUnit.setDimensions((long)getWidth(), (long)getHeight()));
 		this.heightProperty().addListener((obs, oldv, newv) -> this.renderUnit.setDimensions((long)getWidth(), (long)getHeight()));
 		setWidth(options.getWidth());
@@ -627,6 +636,11 @@ public class ViewerPanelFX
 	public OverlayPane getDisplay()
 	{
 		return this.overlayPane;
+	}
+
+	public ObjectProperty<RenderUnit.ImageDisplayGrid> imageDisplayGridProperty()
+	{
+		return this.imageDisplayGrid;
 	}
 
 }
