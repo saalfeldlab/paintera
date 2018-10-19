@@ -202,7 +202,8 @@ public class RenderUnit implements TransformListener<AffineTransform3D> {
 	public synchronized Node displaysAsGrid()
 	{
 		final GridPane pane = new GridPane();
-		pane.setGridLinesVisible(true);
+		pane.setMinWidth(1);
+		pane.setMinHeight(1);
 		pane.setPrefWidth(dimensions[0]);
 		pane.setPrefHeight(dimensions[1]);
 		long[] gridPos = new long[2];
