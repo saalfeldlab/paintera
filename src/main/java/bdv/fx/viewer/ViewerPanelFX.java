@@ -92,7 +92,7 @@ public class ViewerPanelFX
 
 	private final OverlayPane overlayPane = new OverlayPane();
 
-	private final StackPane center = new StackPane(display);
+	private final StackPane center = new StackPane(display, overlayPane);
 	/**
 	 * Currently rendered state (visible sources, transformation, timepoint, etc.) A copy can be obtained by {@link
 	 * #getState()}.
