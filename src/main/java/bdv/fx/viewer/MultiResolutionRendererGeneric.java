@@ -87,7 +87,7 @@ import java.util.stream.Stream;
 public class MultiResolutionRendererGeneric<T>
 {
 
-	private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.class);
+	private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
 	public interface ImageGenerator<T>
 	{
