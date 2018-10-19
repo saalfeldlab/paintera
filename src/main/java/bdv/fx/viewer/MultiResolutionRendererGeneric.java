@@ -60,6 +60,7 @@ import net.imglib2.img.basictypeaccess.array.IntArray;
 import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.realtransform.RealViews;
 import net.imglib2.type.numeric.ARGBType;
+import net.imglib2.view.Views;
 import org.janelia.saalfeldlab.paintera.data.axisorder.AxisOrder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -164,6 +165,8 @@ public class MultiResolutionRendererGeneric<T>
 	 * 0.5 means 1 pixel in the screen image is displayed as 2 pixel on the canvas, etc.
 	 */
 	private double[] screenScales;
+
+	private final long[] offset;
 
 	/**
 	 * The scale transformation from viewer to {@link #screenImages screen image}. Each transformations corresponds
@@ -279,6 +282,7 @@ public class MultiResolutionRendererGeneric<T>
 			final TransformAwareRenderTargetGeneric<T> display,
 			final PainterThread painterThread,
 			final double[] screenScales,
+			final long[] offset,
 			final long targetRenderNanos,
 			final boolean doubleBuffered,
 			final int numRenderingThreads,
@@ -319,6 +323,7 @@ public class MultiResolutionRendererGeneric<T>
 		this.cacheControl = cacheControl;
 		newFrameRequest = false;
 		previousTimepoint = -1;
+		this.offset = offset;
 	}
 
 	/**
@@ -429,6 +434,8 @@ public class MultiResolutionRendererGeneric<T>
 	{
 		if (display.getWidth() <= 0 || display.getHeight() <= 0)
 			return false;
+
+		viewerTransform.translate(offset[0], offset[1], 0);
 
 		final boolean resized = checkResize();
 
@@ -572,6 +579,8 @@ public class MultiResolutionRendererGeneric<T>
 	 */
 	void kill()
 	{
+		if (projector != null)
+			projector.cancel();
 		projector = null;
 		renderIdQueue.clear();
 		bufferedImageToRenderId.clear();

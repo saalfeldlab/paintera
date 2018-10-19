@@ -126,6 +126,31 @@ public class Grids {
 	}
 
 	/**
+	 * Get all blocks/cells of a {@link CellGrid} that the real interval defined by {@code min} and {@code max}
+	 * intersects with, represented as linear indices.
+	 * @param min top-left corner of interval
+	 * @param max bottom-right corner of interval
+	 * @param cellGrid defines grid (block size/cell size)
+	 * @return linear indices of all cells/blocks that intersect with interval defined by {@code min}, {@code max}.
+	 */
+	public static long[] getIntersectingBlocks(
+			final long[] min,
+			final long[] max,
+			final CellGrid cellGrid)
+	{
+		final Interval relevantInterval = snapToGrid(min, max, cellGrid);
+		final int[] blockSize = new int[cellGrid.numDimensions()];
+		cellGrid.cellDimensions(blockSize);
+		TLongArrayList blockIndices = new TLongArrayList();
+		net.imglib2.algorithm.util.Grids.forEachOffset(
+				Intervals.minAsLongArray(relevantInterval),
+				Intervals.maxAsLongArray(relevantInterval),
+				blockSize,
+				blockOffset -> blockIndices.add(posToIndex(cellGrid, blockOffset)));
+		return blockIndices.toArray();
+	}
+
+	/**
 	 *
 	 * Snap {@code min}, {@code max} to {@code cellGrid}, i.e. increase/decrease min/max such that
 	 * min/max are integer multiples of block size/cell size. The snapped interval is restricted

@@ -97,7 +97,7 @@ public class TransformAwareBufferedImageOverlayRendererFX
 			final boolean notify = notifyTransformListeners;
 			InvokeOnJavaFXApplicationThread.invoke(() -> {
 
-				LOG.debug("Setting image to {}", sourceImage);
+				LOG.trace("Setting image to {}", sourceImage);
 				g.accept(null);
 				sourceImage.setPixelsDirty();
 				g.accept(sourceImage);
@@ -162,18 +162,5 @@ public class TransformAwareBufferedImageOverlayRendererFX
 		{
 			paintedTransformListeners.remove(listener);
 		}
-	}
-
-	/**
-	 * DON'T USE THIS.
-	 * <p>
-	 * This is a work around for JDK bug https://bugs.openjdk.java.net/browse/JDK-8029147 which leads to ViewerPanel
-	 * not
-	 * being garbage-collected when ViewerFrame is closed. So instead we need to manually let go of resources...
-	 */
-	void kill()
-	{
-		bufferedImage = null;
-		pendingImage = null;
 	}
 }

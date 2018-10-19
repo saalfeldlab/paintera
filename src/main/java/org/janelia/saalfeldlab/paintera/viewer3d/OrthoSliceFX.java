@@ -74,7 +74,7 @@ public class OrthoSliceFX
 		super();
 		this.scene = scene;
 		this.viewer = viewer;
-		this.viewer.getDisplay().addImageChangeListener(this.renderTransformListener);
+//		this.viewer.getDisplay().addImageChangeListener(this.renderTransformListener);
 		this.planes.add(mv);
 
 		this.material = new PhongMaterial();
