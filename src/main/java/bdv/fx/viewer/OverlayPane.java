@@ -86,7 +86,7 @@ public class OverlayPane<A> extends StackPane
 	public OverlayPane()
 	{
 		super();
-		setBackground(new Background(new BackgroundFill(Color.BLACK, CornerRadii.EMPTY, Insets.EMPTY)));
+		setBackground(new Background(new BackgroundFill(Color.BLACK.deriveColor(0.0, 1.0, 1.0, 0.0), CornerRadii.EMPTY, Insets.EMPTY)));
 
 		this.overlayRenderers = new CopyOnWriteArrayList<>();
 
