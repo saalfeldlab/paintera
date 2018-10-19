@@ -60,7 +60,6 @@ import net.imglib2.img.basictypeaccess.array.IntArray;
 import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.realtransform.RealViews;
 import net.imglib2.type.numeric.ARGBType;
-import net.imglib2.view.Views;
 import org.janelia.saalfeldlab.paintera.data.axisorder.AxisOrder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -77,8 +76,6 @@ import java.util.Optional;
 import java.util.concurrent.ExecutorService;
 import java.util.function.Function;
 import java.util.function.ToIntFunction;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 /**
  *
@@ -435,7 +432,7 @@ public class MultiResolutionRendererGeneric<T>
 		if (display.getWidth() <= 0 || display.getHeight() <= 0)
 			return false;
 
-		viewerTransform.translate(offset[0], offset[1], 0);
+		viewerTransform.translate(-offset[0], -offset[1], 0);
 
 		final boolean resized = checkResize();
 
