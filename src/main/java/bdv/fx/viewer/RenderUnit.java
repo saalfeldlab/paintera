@@ -34,7 +34,7 @@ public class RenderUnit implements TransformListener<AffineTransform3D> {
 
 	private static final int NUM_RENDERING_THREADS = 1;
 
-	private final int[] blockSize = {100, 100};
+	private final int[] blockSize = {250, 250};
 
 	private final long[] dimensions = {1, 1};
 
@@ -141,10 +141,15 @@ public class RenderUnit implements TransformListener<AffineTransform3D> {
 	private synchronized void update()
 	{
 		for (MultiResolutionRendererFX renderer : renderers)
-			renderer.kill();
+			if (renderer != null)
+				renderer.kill();
 
-		for (PainterThread p : painterThreads)
+		for (PainterThread p : painterThreads) {
+			if (p == null)
+				continue;
 			p.stopRendering();
+			p.interrupt();
+		}
 
 		this.grid = new CellGrid(dimensions, blockSize);
 
@@ -153,13 +158,12 @@ public class RenderUnit implements TransformListener<AffineTransform3D> {
 		displays = new ImagePane[numBlocks];
 		renderTargets = new TransformAwareBufferedImageOverlayRendererFX[numBlocks];
 		painterThreads = new PainterThread[numBlocks];
-		LOG.warn("Updating render unit");
+		LOG.debug("Updating render unit");
 		final long[] cellPos = new long[2];
 		final long[] min = new long[2];
 		final long[] max = new long[2];
 		final int[] cellDims = new int[2];
 		for (int index = 0; index < renderers.length; ++index) {
-//			final Interval interval = intervals.get(someIndex);
 			this.grid.getCellGridPositionFlat(index, cellPos);
 			min[0] = this.grid.getCellMin(0, cellPos[0]);
 			min[1] = this.grid.getCellMin(1, cellPos[1]);
@@ -181,7 +185,7 @@ public class RenderUnit implements TransformListener<AffineTransform3D> {
 					accumulateProjectorFactory,
 					cacheControl
 			);
-			LOG.trace("Creating new renderer for block ({}) ({} {})", min, max);
+			LOG.trace("Creating new renderer for block ({}) ({})", min, max);
 			final ImagePane display = new ImagePane(cellDims[0], cellDims[1]);
 			renderTarget.setCanvasSize(cellDims[0], cellDims[1]);
 			renderers[index] = renderer;
