@@ -379,6 +379,12 @@ public class ViewerPanelFX
 		renderUnit.requestRepaint();
 	}
 
+
+	public void requestRepaint(final long[] min, final long[] max)
+	{
+		renderUnit.requestRepaint(min, max);
+	}
+
 	@Override
 	public synchronized void transformChanged(final AffineTransform3D transform)
 	{

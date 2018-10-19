@@ -143,6 +143,7 @@ public class PainteraDefaultHandlers
 				keyTracker,
 				baseView.manager(),
 				baseView.orthogonalViews()::requestRepaint,
+				baseView.orthogonalViews()::requestRepaint,
 				baseView.getPaintQueue()
 		);
 		this.selection = new Selection(sourceInfo, keyTracker);

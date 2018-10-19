@@ -152,6 +152,11 @@ public class OrthogonalViews<BR extends Node>
 		applyToAll(ViewerPanelFX::requestRepaint);
 	}
 
+	public void requestRepaint(final long[] min, final long[] max)
+	{
+		applyToAll(vp -> vp.requestRepaint(min, max));
+	}
+
 	public void setAllSources(final Collection<? extends SourceAndConverter<?>> sources)
 	{
 		applyToAll(viewer -> viewer.setAllSources(sources));

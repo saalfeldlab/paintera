@@ -3,11 +3,13 @@ package org.janelia.saalfeldlab.paintera.control.paint;
 import java.lang.invoke.MethodHandles;
 import java.util.Optional;
 import java.util.concurrent.ExecutorService;
+import java.util.function.BiConsumer;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
 
 import bdv.fx.viewer.ViewerPanelFX;
 import bdv.fx.viewer.ViewerState;
+import bdv.util.Affine3DHelpers;
 import bdv.viewer.Source;
 import javafx.beans.property.DoubleProperty;
 import javafx.beans.property.SimpleDoubleProperty;
@@ -143,7 +145,20 @@ public class PaintActions2D
 					Optional.ofNullable(this.interval.get()).orElse(trackedInterval)
 			                                 ));
 			++this.fillLabel;
-			repaintRequest.run();
+
+			final double viewerRadius = Affine3DHelpers.extractScale(globalToViewerTransform, 0) * brushRadius.get();
+			final long[] viewerMin = {
+					(long) Math.floor(viewerX - viewerRadius),
+					(long) Math.floor(viewerY - viewerRadius)
+			};
+			final long[] viewerMax = {
+					(long) Math.ceil(viewerX + viewerRadius),
+					(long) Math.ceil(viewerY + viewerRadius)
+			};
+
+			LOG.warn("Painted sphere with radius {} at ({}, {}): ({} {})", viewerRadius, viewerX, viewerY, viewerMin, viewerMax);
+
+			repaintRequest.accept(viewerMin, viewerMax);
 
 		}
 
@@ -172,7 +187,7 @@ public class PaintActions2D
 
 	private final SimpleDoubleProperty brushDepth = new SimpleDoubleProperty(1.0);
 
-	private final Runnable repaintRequest;
+	private final BiConsumer<long[], long[]> repaintRequest;
 
 	private final ExecutorService paintQueue;
 
@@ -180,7 +195,7 @@ public class PaintActions2D
 			final ViewerPanelFX viewer,
 			final SourceInfo sourceInfo,
 			final GlobalTransformManager manager,
-			final Runnable repaintRequest,
+			final BiConsumer<long[], long[]> repaintRequest,
 			final ExecutorService paintQueue)
 	{
 		super();
