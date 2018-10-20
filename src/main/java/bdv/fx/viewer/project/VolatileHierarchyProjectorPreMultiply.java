@@ -1,4 +1,4 @@
-package bdv.fx.viewer;
+package bdv.fx.viewer.project;
 
 import java.util.ArrayList;
 import java.util.Arrays;

@@ -30,8 +30,8 @@
 package bdv.fx.viewer.render;
 
 import bdv.cache.CacheControl;
-import bdv.fx.viewer.SimpleInterruptibleProjectorPreMultiply;
-import bdv.fx.viewer.VolatileHierarchyProjectorPreMultiply;
+import bdv.fx.viewer.project.SimpleInterruptibleProjectorPreMultiply;
+import bdv.fx.viewer.project.VolatileHierarchyProjectorPreMultiply;
 import bdv.util.MipmapTransforms;
 import bdv.viewer.Interpolation;
 import bdv.viewer.Source;
