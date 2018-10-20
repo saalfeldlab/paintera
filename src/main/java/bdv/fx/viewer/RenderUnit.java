@@ -163,9 +163,6 @@ public class RenderUnit implements TransformListener<AffineTransform3D> {
 
 	private synchronized void update()
 	{
-		for (MultiResolutionRendererFX renderer : renderers)
-			if (renderer != null)
-				renderer.kill();
 
 		for (PainterThread p : painterThreads) {
 			if (p == null)
