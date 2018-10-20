@@ -103,6 +103,16 @@ public class RenderUnit implements TransformListener<AffineTransform3D> {
 		update();
 	}
 
+	public synchronized void requestRepaintSingleTile(final int screenScaleIndex, final int tileIndex)
+	{
+		renderers[tileIndex].requestRepaint(screenScaleIndex);
+	}
+
+	public synchronized void requestRepaintSingleTile(final int tileIndex)
+	{
+		renderers[tileIndex].requestRepaint();
+	}
+
 	public synchronized void requestRepaint(final int screenScaleIndex, final int[] tileIndices)
 	{
 		for (final int b : tileIndices)
