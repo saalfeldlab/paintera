@@ -49,8 +49,6 @@ import javafx.scene.paint.Color;
 import net.imglib2.ui.TransformListener;
 
 /**
- * A {@link Pane} that acts like {@link InteractiveDisplayCanvasGeneric}.
- *
  * @author Philipp Hanslovsky
  */
 public class ImagePane extends StackPane
@@ -71,9 +69,6 @@ public class ImagePane extends StackPane
 	//	private final Canvas canvas;
 
 	/**
-	 * Create a new {@link InteractiveDisplayCanvasGeneric} with initially no {@link OverlayRendererGeneric
-	 * OverlayRenderers} and no {@link TransformListener TransformListeners}.
-	 *
 	 * @param width
 	 * 		preferred component width.
 	 * @param height

@@ -56,8 +56,6 @@ import java.util.Collection;
 import java.util.concurrent.CopyOnWriteArrayList;
 
 /**
- * A {@link Pane} that acts like {@link InteractiveDisplayCanvasGeneric}.
- *
  * @param <A>
  * 		transform type
  *
@@ -79,9 +77,6 @@ public class OverlayPane<A> extends StackPane
 	//	private final Canvas canvas;
 
 	/**
-	 * Create a new {@link InteractiveDisplayCanvasGeneric} with initially no {@link OverlayRendererGeneric
-	 * OverlayRenderers} and no {@link TransformListener TransformListeners}.
-	 *
 	 */
 	public OverlayPane()
 	{

@@ -81,12 +81,6 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 
 /**
- * A JPanel for viewing multiple of {@link Source}s. The panel contains a {@link InteractiveDisplayPaneComponent canvas}
- * and a time slider (if there are multiple time-points). Maintains a {@link ViewerState render state}, the renderer,
- * and basic navigation help overlays. It has it's own {@link PainterThread} for painting, which is started on
- * construction (use {@link #stop() to stop the PainterThread}.
- *
- * @author Tobias Pietzsch &lt;tobias.pietzsch@gmail.com&gt;
  * @author Philipp Hanslovsky
  */
 public class ViewerPanelFX
@@ -548,16 +542,6 @@ public class ViewerPanelFX
 	{
 		return state.copy();
 	}
-
-//	/**
-//	 * Get the viewer canvas.
-//	 *
-//	 * @return the viewer canvas.
-//	 */
-//	public InteractiveDisplayPaneComponent<AffineTransform3D> getDisplay()
-//	{
-//		return display;
-//	}
 
 	/**
 	 * Add a {@link TransformListener} to notify about viewer transformation changes. Listeners will be notified when a
