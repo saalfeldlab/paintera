@@ -27,7 +27,7 @@
  * POSSIBILITY OF SUCH DAMAGE.
  * #L%
  */
-package bdv.fx.viewer;
+package bdv.fx.viewer.multibox;
 
 import javafx.scene.shape.ClosePath;
 import javafx.scene.shape.LineTo;

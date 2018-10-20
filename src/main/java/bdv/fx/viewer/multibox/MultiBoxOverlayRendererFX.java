@@ -27,7 +27,7 @@
  * POSSIBILITY OF SUCH DAMAGE.
  * #L%
  */
-package bdv.fx.viewer;
+package bdv.fx.viewer.multibox;
 
 import java.lang.invoke.MethodHandles;
 import java.util.ArrayList;
@@ -35,6 +35,8 @@ import java.util.List;
 import java.util.function.Supplier;
 import java.util.stream.IntStream;
 
+import bdv.fx.viewer.OverlayRendererGeneric;
+import bdv.fx.viewer.ViewerState;
 import bdv.viewer.Source;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.SimpleBooleanProperty;

@@ -27,8 +27,9 @@
  * POSSIBILITY OF SUCH DAMAGE.
  * #L%
  */
-package bdv.fx.viewer;
+package bdv.fx.viewer.multibox;
 
+import bdv.fx.viewer.multibox.MultiBoxOverlayFX;
 import bdv.util.ModifiableInterval;
 import net.imglib2.Interval;
 import net.imglib2.realtransform.AffineTransform3D;

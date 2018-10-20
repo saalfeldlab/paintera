@@ -27,7 +27,7 @@
  * POSSIBILITY OF SUCH DAMAGE.
  * #L%
  */
-package bdv.fx.viewer;
+package bdv.fx.viewer.multibox;
 
 import java.util.List;
 
