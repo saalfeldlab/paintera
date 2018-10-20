@@ -3,7 +3,7 @@
 // (powered by Fernflower decompiler)
 //
 
-package bdv.fx.viewer;
+package bdv.fx.viewer.render;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

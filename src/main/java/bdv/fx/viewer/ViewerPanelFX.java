@@ -30,6 +30,8 @@
 package bdv.fx.viewer;
 
 import bdv.cache.CacheControl;
+import bdv.fx.viewer.render.OverlayRendererGeneric;
+import bdv.fx.viewer.render.RenderUnit;
 import bdv.viewer.Interpolation;
 import bdv.viewer.RequestRepaint;
 import bdv.viewer.Source;

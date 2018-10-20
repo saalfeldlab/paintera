@@ -1,6 +1,8 @@
-package bdv.fx.viewer;
+package bdv.fx.viewer.render;
 
 import bdv.cache.CacheControl;
+import bdv.fx.viewer.ImagePane;
+import bdv.fx.viewer.ViewerState;
 import bdv.viewer.Interpolation;
 import bdv.viewer.Source;
 import bdv.viewer.SourceAndConverter;

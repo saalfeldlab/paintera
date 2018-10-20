@@ -33,6 +33,7 @@
  */
 package bdv.fx.viewer;
 
+import bdv.fx.viewer.render.OverlayRendererGeneric;
 import javafx.beans.property.ObjectProperty;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
@@ -43,10 +44,8 @@ import javafx.scene.image.ImageView;
 import javafx.scene.layout.Background;
 import javafx.scene.layout.BackgroundFill;
 import javafx.scene.layout.CornerRadii;
-import javafx.scene.layout.Pane;
 import javafx.scene.layout.StackPane;
 import javafx.scene.paint.Color;
-import net.imglib2.ui.TransformListener;
 
 /**
  * @author Philipp Hanslovsky

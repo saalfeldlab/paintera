@@ -31,7 +31,7 @@
  * POSSIBILITY OF SUCH DAMAGE.
  * #L%
  */
-package bdv.fx.viewer;
+package bdv.fx.viewer.render;
 
 /**
  * Receiver for rendered data (to be drawn onto a canvas later).

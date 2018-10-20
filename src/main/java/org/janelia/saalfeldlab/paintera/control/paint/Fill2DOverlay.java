@@ -2,7 +2,7 @@ package org.janelia.saalfeldlab.paintera.control.paint;
 
 import java.lang.invoke.MethodHandles;
 
-import bdv.fx.viewer.OverlayRendererGeneric;
+import bdv.fx.viewer.render.OverlayRendererGeneric;
 import bdv.fx.viewer.ViewerPanelFX;
 import javafx.beans.property.DoubleProperty;
 import javafx.beans.property.SimpleDoubleProperty;

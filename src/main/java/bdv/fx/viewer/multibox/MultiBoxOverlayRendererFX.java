@@ -35,7 +35,7 @@ import java.util.List;
 import java.util.function.Supplier;
 import java.util.stream.IntStream;
 
-import bdv.fx.viewer.OverlayRendererGeneric;
+import bdv.fx.viewer.render.OverlayRendererGeneric;
 import bdv.fx.viewer.ViewerState;
 import bdv.viewer.Source;
 import javafx.beans.property.BooleanProperty;

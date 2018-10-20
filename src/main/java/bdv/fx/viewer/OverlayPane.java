@@ -33,6 +33,7 @@
  */
 package bdv.fx.viewer;
 
+import bdv.fx.viewer.render.OverlayRendererGeneric;
 import javafx.application.Platform;
 import javafx.beans.value.ChangeListener;
 import javafx.collections.FXCollections;
@@ -41,15 +42,11 @@ import javafx.geometry.Insets;
 import javafx.scene.Node;
 import javafx.scene.canvas.Canvas;
 import javafx.scene.canvas.GraphicsContext;
-import javafx.scene.image.Image;
-import javafx.scene.image.ImageView;
 import javafx.scene.layout.Background;
 import javafx.scene.layout.BackgroundFill;
 import javafx.scene.layout.CornerRadii;
-import javafx.scene.layout.Pane;
 import javafx.scene.layout.StackPane;
 import javafx.scene.paint.Color;
-import net.imglib2.ui.TransformListener;
 import org.janelia.saalfeldlab.fx.event.InstallAndRemove;
 
 import java.util.Collection;

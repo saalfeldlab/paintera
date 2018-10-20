@@ -27,9 +27,11 @@
  * POSSIBILITY OF SUCH DAMAGE.
  * #L%
  */
-package bdv.fx.viewer;
+package bdv.fx.viewer.render;
 
 import bdv.cache.CacheControl;
+import bdv.fx.viewer.SimpleInterruptibleProjectorPreMultiply;
+import bdv.fx.viewer.VolatileHierarchyProjectorPreMultiply;
 import bdv.util.MipmapTransforms;
 import bdv.viewer.Interpolation;
 import bdv.viewer.Source;
