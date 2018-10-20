@@ -156,7 +156,7 @@ public class PaintActions2D
 					(long) Math.ceil(viewerY + viewerRadius)
 			};
 
-			LOG.warn("Painted sphere with radius {} at ({}, {}): ({} {})", viewerRadius, viewerX, viewerY, viewerMin, viewerMax);
+			LOG.debug("Painted sphere with radius {} at ({}, {}): ({} {})", viewerRadius, viewerX, viewerY, viewerMin, viewerMax);
 
 			repaintRequest.accept(viewerMin, viewerMax);
 
