@@ -35,6 +35,7 @@ import bdv.viewer.RequestRepaint;
 import bdv.viewer.Source;
 import bdv.viewer.SourceAndConverter;
 import bdv.viewer.ViewerOptions;
+import gnu.trove.list.array.TIntArrayList;
 import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.ReadOnlyBooleanProperty;
 import javafx.beans.property.ReadOnlyDoubleProperty;
@@ -42,17 +43,26 @@ import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleDoubleProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.collections.ListChangeListener;
-import javafx.scene.Node;
 import javafx.scene.canvas.GraphicsContext;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.StackPane;
+import net.imglib2.Point;
 import net.imglib2.Positionable;
 import net.imglib2.RealLocalizable;
 import net.imglib2.RealPoint;
 import net.imglib2.RealPositionable;
+import net.imglib2.algorithm.fill.FloodFill;
+import net.imglib2.algorithm.neighborhood.DiamondShape;
+import net.imglib2.img.array.ArrayImg;
+import net.imglib2.img.array.ArrayImgs;
+import net.imglib2.img.basictypeaccess.array.IntArray;
+import net.imglib2.img.cell.CellGrid;
 import net.imglib2.realtransform.AffineTransform3D;
+import net.imglib2.type.numeric.integer.IntType;
 import net.imglib2.ui.TransformListener;
+import net.imglib2.util.Intervals;
+import net.imglib2.view.Views;
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread;
 import org.janelia.saalfeldlab.paintera.data.axisorder.AxisOrder;
 import org.slf4j.Logger;
@@ -385,7 +395,7 @@ public class ViewerPanelFX
 	@Override
 	public void requestRepaint()
 	{
-		renderUnit.requestRepaint();
+		renderUnit.requestRepaint(iterateOverBlocksInOrder());
 	}
 
 
@@ -393,6 +403,98 @@ public class ViewerPanelFX
 	{
 		renderUnit.requestRepaint(min, max);
 	}
+
+	private int[] iterateOverBlocksInOrder()
+	{
+		final boolean isMouseInside = isMouseInside();
+		final long x0 = (long) (isMouseInside ? mouseX.get() : getWidth() / 2);
+		final long y0 = (long) (isMouseInside ? mouseY.get() : getHeight() / 2);
+		final RenderUnit.ImageDisplayGrid imageDisplayGrid = this.imageDisplayGrid.get();
+		if (imageDisplayGrid == null)
+			return new int[0];
+
+		final CellGrid grid = imageDisplayGrid.getGrid();
+		final long[] pos = {x0, y0};
+		final long[] cellPos = new long[2];
+		grid.getCellPosition(pos, cellPos);
+		final long[] gridDimensions = grid.getGridDimensions();
+		LOG.debug("Starting at pos={} cellPos={}", pos, cellPos);
+		final ArrayImg<IntType, IntArray> toBeFilled = ArrayImgs.ints(range((int) Intervals.numElements(gridDimensions)), gridDimensions);
+
+		final TIntArrayList indices = new TIntArrayList();
+		final IntType targetType = new IntType();
+		targetType.set(-1);
+		FloodFill.fill(
+				Views.extendValue(toBeFilled, targetType.copy()),
+				toBeFilled,
+				new Point(cellPos),
+				new DiamondShape(1),
+				(s, t) -> !targetType.valueEquals(s),
+				it -> {indices.add(it.getInteger()); it.set(targetType);}
+				);
+
+		return indices.toArray();
+
+//		might be faster than flood filling
+//		// int will always be good enough here
+//		final int numSteps = (int) Math.max(
+//				Math.max(cellPos[0], gridDimensions[0] - cellPos[0]),
+//				Math.max(cellPos[1], gridDimensions[1] - cellPos[1])
+//		);
+//
+//		int[] c0 = {(int) cellPos[0], (int) cellPos[1]};
+//		for (int step = 1; step <= numSteps; ++step)
+//		{
+//			final int xMin = c0[0] - step;
+//			final int xMax = c0[0] + step;
+//			final int yMin = c0[1] - step;
+//			final int yMax = c0[1] + step;
+//
+//			if (xMin >= 0) {
+//				cellPos[0] = xMin;
+//				final int M = Math.min(yMax, (int) gridDimensions[1] - 1);
+//				for (int y = Math.max(yMin, 0); y < M; ++y)
+//				{
+//					cellPos[1] = y;
+//					actOnBlock.accept((int)IntervalIndexer.positionToIndex(cellPos, gridDimensions));
+//				}
+//			}
+//
+//			if (xMax < gridDimensions[0]) {
+//				cellPos[0] = xMax;
+//				final int M = Math.min(yMax, (int) gridDimensions[1] - 1);
+//				for (int y = Math.max(yMin, 0); y <= M; ++y)
+//				{
+//					cellPos[1] = y;
+//					actOnBlock.accept((int)IntervalIndexer.positionToIndex(cellPos, gridDimensions));
+//				}
+//			}
+//
+//			if (yMin >= 0) {
+//				cellPos[1] = yMin;
+//				final int M = Math.min(xMax, (int) gridDimensions[0] - 1);
+//				for (int x = Math.max(xMin, 0); x <= M; ++x)
+//				{
+//					cellPos[0] = x;
+//					actOnBlock.accept((int)IntervalIndexer.positionToIndex(cellPos, gridDimensions));
+//				}
+//			}
+//
+//			if (yMax < gridDimensions[1]) {
+//				cellPos[1] = yMax;
+//				final int M = Math.min(xMax, (int) gridDimensions[0] - 1);
+//				for (int x = Math.max(xMin, 0); x <= M; ++x)
+//				{
+//					cellPos[0] = x;
+//					actOnBlock.accept((int)IntervalIndexer.positionToIndex(cellPos, gridDimensions));
+//				}
+//			}
+//
+//		}
+
+
+	}
+
 
 	@Override
 	public synchronized void transformChanged(final AffineTransform3D transform)
@@ -641,6 +743,14 @@ public class ViewerPanelFX
 	public ObjectProperty<RenderUnit.ImageDisplayGrid> imageDisplayGridProperty()
 	{
 		return this.imageDisplayGrid;
+	}
+
+	private static final int[] range(int size)
+	{
+		int[] range = new int[size];
+		for (int i = 0; i < range.length; ++i)
+			range[i] = i;
+		return range;
 	}
 
 }
