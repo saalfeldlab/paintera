@@ -96,11 +96,14 @@ public class Paint implements ToOnEnterOnExit
 			{
 				if (!this.mouseAndKeyHandlers.containsKey(t))
 				{
+					// TODO For now, only request repaint viewer that was painted into.
+					// TODO In the future, transform painted interval appropriately and
+					// TODO update all viewers
 					final PaintActions2D paint2D = new PaintActions2D(
 							t,
 							sourceInfo,
 							manager,
-							requestRepaintInterval,
+							t::requestRepaint,
 							paintQueue
 					);
 					paint2D.brushRadiusProperty().bindBidirectional(this.brushRadius);
