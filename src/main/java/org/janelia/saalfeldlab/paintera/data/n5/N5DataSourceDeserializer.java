@@ -3,22 +3,19 @@ package org.janelia.saalfeldlab.paintera.data.n5;
 import java.io.IOException;
 import java.lang.invoke.MethodHandles;
 import java.lang.reflect.Type;
-import java.util.Optional;
 import java.util.function.IntFunction;
 import java.util.function.Supplier;
 
-import bdv.util.volatiles.SharedQueue;
 import com.google.gson.JsonDeserializationContext;
 import com.google.gson.JsonDeserializer;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonParseException;
 import net.imglib2.realtransform.AffineTransform3D;
 import org.janelia.saalfeldlab.paintera.cache.global.GlobalCache;
-import org.janelia.saalfeldlab.paintera.data.axisorder.AxisOrder;
-import org.janelia.saalfeldlab.paintera.data.axisorder.AxisOrderNotSupported;
 import org.janelia.saalfeldlab.paintera.serialization.StatefulSerializer;
 import org.janelia.saalfeldlab.paintera.serialization.StatefulSerializer.Arguments;
 import org.janelia.saalfeldlab.paintera.state.SourceState;
+import org.scijava.plugin.Plugin;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -71,8 +68,8 @@ public class N5DataSourceDeserializer implements JsonDeserializer<N5DataSource<?
 
 	}
 
-	public static class Factory implements StatefulSerializer.Deserializer<N5DataSource<?, ?>,
-			N5DataSourceDeserializer>
+	@Plugin(type= StatefulSerializer.DeserializerFactory.class)
+	public static class Factory implements StatefulSerializer.DeserializerFactory<N5DataSource<?, ?>, N5DataSourceDeserializer>
 	{
 
 		@Override
@@ -84,6 +81,10 @@ public class N5DataSourceDeserializer implements JsonDeserializer<N5DataSource<?
 			return new N5DataSourceDeserializer(arguments.globalCache, 0);
 		}
 
+		@Override
+		public Class<N5DataSource<?, ?>> getTargetClass() {
+			return (Class<N5DataSource<?, ?>>) (Class<?>) N5DataSource.class;
+		}
 	}
 
 }

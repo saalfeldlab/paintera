@@ -11,10 +11,11 @@ import com.google.gson.JsonPrimitive;
 import com.google.gson.JsonSerializationContext;
 import com.google.gson.JsonSerializer;
 import javafx.beans.property.SimpleIntegerProperty;
+import org.janelia.saalfeldlab.paintera.serialization.PainteraSerialization;
+import org.scijava.plugin.Plugin;
 
-public class SimpleIntegerPropertySerializer implements
-                                             JsonSerializer<SimpleIntegerProperty>,
-                                             JsonDeserializer<SimpleIntegerProperty>
+@Plugin(type = PainteraSerialization.PainteraAdapter.class)
+public class SimpleIntegerPropertySerializer implements PainteraSerialization.PainteraAdapter<SimpleIntegerProperty>
 {
 
 	@Override
@@ -33,4 +34,8 @@ public class SimpleIntegerPropertySerializer implements
 		return new JsonPrimitive(src.get());
 	}
 
+	@Override
+	public Class<SimpleIntegerProperty> getTargetClass() {
+		return SimpleIntegerProperty.class;
+	}
 }

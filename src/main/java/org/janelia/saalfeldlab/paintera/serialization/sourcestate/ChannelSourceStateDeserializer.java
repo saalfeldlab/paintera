@@ -7,17 +7,22 @@ import net.imglib2.type.numeric.ARGBType;
 import org.janelia.saalfeldlab.paintera.composition.Composite;
 import org.janelia.saalfeldlab.paintera.data.ChannelDataSource;
 import org.janelia.saalfeldlab.paintera.data.DataSource;
+import org.janelia.saalfeldlab.paintera.serialization.PainteraSerialization;
 import org.janelia.saalfeldlab.paintera.state.ChannelSourceState;
 import org.janelia.saalfeldlab.paintera.state.SourceState;
+import org.scijava.plugin.Plugin;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.lang.invoke.MethodHandles;
 
+@Plugin(type= PainteraSerialization.PainteraDeserializer.class)
 public class ChannelSourceStateDeserializer extends
 		SourceStateSerialization
 				.SourceStateDeserializerWithoutDependencies<ChannelSourceState<?, ?, ?, ?>,
-				ARGBCompositeColorConverter<?, ?, ?>> {
+				ARGBCompositeColorConverter<?, ?, ?>>
+	implements PainteraSerialization.PainteraDeserializer<ChannelSourceState<?, ?, ?, ?>>
+{
 
 	private static Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
@@ -35,4 +40,8 @@ public class ChannelSourceStateDeserializer extends
 		return new ChannelSourceState<>((ChannelDataSource) source, (ARGBCompositeColorConverter) converter, composite, name);
 	}
 
+	@Override
+	public Class<ChannelSourceState<?, ?, ?, ?>> getTargetClass() {
+		return (Class<ChannelSourceState<?, ?, ?, ?>>) (Class<?>) ChannelSourceState.class;
+	}
 }

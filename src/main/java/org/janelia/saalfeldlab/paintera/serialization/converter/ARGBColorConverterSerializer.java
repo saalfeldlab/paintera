@@ -13,10 +13,12 @@ import com.google.gson.JsonSerializationContext;
 import com.google.gson.JsonSerializer;
 import net.imglib2.converter.ARGBColorConverter;
 import net.imglib2.type.numeric.RealType;
+import org.janelia.saalfeldlab.paintera.serialization.PainteraSerialization;
 import org.janelia.saalfeldlab.util.Colors;
+import org.scijava.plugin.Plugin;
 
-public class ARGBColorConverterSerializer<T extends RealType<T>>
-		implements JsonSerializer<ARGBColorConverter<T>>, JsonDeserializer<ARGBColorConverter<T>>
+@Plugin(type= PainteraSerialization.PainteraAdapter.class)
+public class ARGBColorConverterSerializer<T extends RealType<T>> implements PainteraSerialization.PainteraAdapter<ARGBColorConverter<T>>
 {
 
 	private static final String ALPHA_KEY = "alpha";
@@ -69,4 +71,14 @@ public class ARGBColorConverterSerializer<T extends RealType<T>>
 		return map;
 	}
 
+	@Override
+	public boolean isHierarchyAdapter()
+	{
+		return true;
+	}
+
+	@Override
+	public Class<ARGBColorConverter<T>> getTargetClass() {
+		return (Class<ARGBColorConverter<T>>) (Class<?>) ARGBColorConverter.class;
+	}
 }

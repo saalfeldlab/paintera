@@ -13,10 +13,11 @@ import com.google.gson.JsonSerializer;
 import javafx.scene.shape.CullFace;
 import javafx.scene.shape.DrawMode;
 import org.janelia.saalfeldlab.paintera.meshes.MeshSettings;
+import org.janelia.saalfeldlab.paintera.serialization.PainteraSerialization;
+import org.scijava.plugin.Plugin;
 
-public class MeshSettingsSerializer implements
-                                    JsonSerializer<MeshSettings>,
-                                    JsonDeserializer<MeshSettings>
+@Plugin(type = PainteraSerialization.PainteraAdapter.class)
+public class MeshSettingsSerializer implements PainteraSerialization.PainteraAdapter<MeshSettings>
 {
 
 	private static final String NUM_SCALE_LEVLES_KEY = "numScaleLevels";
@@ -106,4 +107,8 @@ public class MeshSettingsSerializer implements
 		return map;
 	}
 
+	@Override
+	public Class<MeshSettings> getTargetClass() {
+		return MeshSettings.class;
+	}
 }

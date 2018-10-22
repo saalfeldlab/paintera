@@ -7,10 +7,13 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonSerializationContext;
 import com.google.gson.JsonSerializer;
+import org.janelia.saalfeldlab.paintera.serialization.PainteraSerialization;
+import org.scijava.plugin.Plugin;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class MaskedSourceSerializer implements JsonSerializer<MaskedSource<?, ?>>
+@Plugin(type = PainteraSerialization.PainteraSerializer.class)
+public class MaskedSourceSerializer implements PainteraSerialization.PainteraSerializer<MaskedSource<?, ?>>
 {
 
 	public static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
@@ -49,4 +52,8 @@ public class MaskedSourceSerializer implements JsonSerializer<MaskedSource<?, ?>
 		return map;
 	}
 
+	@Override
+	public Class<MaskedSource<?, ?>> getTargetClass() {
+		return (Class<MaskedSource<?, ?>>) (Class<?>) MaskedSource.class;
+	}
 }

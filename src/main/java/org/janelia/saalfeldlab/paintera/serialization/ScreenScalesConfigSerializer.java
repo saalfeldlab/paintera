@@ -8,6 +8,7 @@ import com.google.gson.JsonParseException;
 import com.google.gson.JsonSerializationContext;
 import com.google.gson.JsonSerializer;
 import org.janelia.saalfeldlab.paintera.config.ScreenScalesConfig;
+import org.scijava.plugin.Plugin;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -15,7 +16,8 @@ import java.lang.invoke.MethodHandles;
 import java.lang.reflect.Type;
 import java.util.Optional;
 
-public class ScreenScalesConfigSerializer implements JsonSerializer<ScreenScalesConfig>, JsonDeserializer<ScreenScalesConfig> {
+@Plugin(type = PainteraSerialization.PainteraAdapter.class)
+public class ScreenScalesConfigSerializer implements PainteraSerialization.PainteraAdapter<ScreenScalesConfig> {
 
 	private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
@@ -51,5 +53,10 @@ public class ScreenScalesConfigSerializer implements JsonSerializer<ScreenScales
 				.map(scales -> scales.getScalesCopy())
 				.ifPresent(scales -> obj.add(SCALES_KEY, jsonSerializationContext.serialize(scales)));
 		return obj;
+	}
+
+	@Override
+	public Class<ScreenScalesConfig> getTargetClass() {
+		return ScreenScalesConfig.class;
 	}
 }

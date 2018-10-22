@@ -12,6 +12,7 @@ import com.google.gson.JsonSerializer;
 import org.janelia.saalfeldlab.paintera.serialization.StatefulSerializer;
 import org.janelia.saalfeldlab.paintera.state.InvertingRawSourceState;
 import org.janelia.saalfeldlab.paintera.state.SourceState;
+import org.scijava.plugin.Plugin;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -32,8 +33,9 @@ public class InvertingSourceStateSerializer implements JsonSerializer<InvertingR
 		this.stateToIndex = stateToIndex;
 	}
 
+	@Plugin(type = StatefulSerializer.SerializerFactory.class)
 	public static class Factory
-			implements StatefulSerializer.Serializer<InvertingRawSourceState<?, ?>, InvertingSourceStateSerializer>
+			implements StatefulSerializer.SerializerFactory<InvertingRawSourceState<?, ?>, InvertingSourceStateSerializer>
 	{
 
 		@Override
@@ -44,6 +46,10 @@ public class InvertingSourceStateSerializer implements JsonSerializer<InvertingR
 			return new InvertingSourceStateSerializer(stateToIndex);
 		}
 
+		@Override
+		public Class<InvertingRawSourceState<?, ?>> getTargetClass() {
+			return (Class<InvertingRawSourceState<?, ?>>) (Class<?>) InvertingRawSourceState.class;
+		}
 	}
 
 	@Override

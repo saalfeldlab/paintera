@@ -5,13 +5,16 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonSerializationContext;
 import com.google.gson.JsonSerializer;
 import net.imglib2.realtransform.AffineTransform3D;
+import org.janelia.saalfeldlab.paintera.serialization.PainteraSerialization;
+import org.scijava.plugin.Plugin;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.lang.invoke.MethodHandles;
 import java.lang.reflect.Type;
 
-public class N5ChannelDataSourceSerializer implements JsonSerializer<N5ChannelDataSource<?, ?>>
+@Plugin(type = PainteraSerialization.PainteraSerializer.class)
+public class N5ChannelDataSourceSerializer implements PainteraSerialization.PainteraSerializer<N5ChannelDataSource<?, ?>>
 {
 
 	private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
@@ -49,4 +52,8 @@ public class N5ChannelDataSourceSerializer implements JsonSerializer<N5ChannelDa
 		return map;
 	}
 
+	@Override
+	public Class<N5ChannelDataSource<?, ?>> getTargetClass() {
+		return (Class<N5ChannelDataSource<?, ?>>) (Class<?>) N5ChannelDataSource.class;
+	}
 }

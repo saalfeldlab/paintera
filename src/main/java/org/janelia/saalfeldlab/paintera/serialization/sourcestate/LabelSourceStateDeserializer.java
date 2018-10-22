@@ -38,6 +38,7 @@ import org.janelia.saalfeldlab.paintera.state.SourceState;
 import org.janelia.saalfeldlab.paintera.stream.AbstractHighlightingARGBStream;
 import org.janelia.saalfeldlab.paintera.stream.HighlightingStreamConverter;
 import org.janelia.saalfeldlab.util.MakeUnchecked;
+import org.scijava.plugin.Plugin;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -65,8 +66,9 @@ public class LabelSourceStateDeserializer<C extends HighlightingStreamConverter<
 		this.arguments = arguments;
 	}
 
+	@Plugin(type = StatefulSerializer.DeserializerFactory.class)
 	public static class Factory<C extends HighlightingStreamConverter<?>>
-			implements StatefulSerializer.Deserializer<LabelSourceState<?, ?>, LabelSourceStateDeserializer<C>>
+			implements StatefulSerializer.DeserializerFactory<LabelSourceState<?, ?>, LabelSourceStateDeserializer<C>>
 	{
 
 		@Override
@@ -76,6 +78,10 @@ public class LabelSourceStateDeserializer<C extends HighlightingStreamConverter<
 			return new LabelSourceStateDeserializer<>(arguments);
 		}
 
+		@Override
+		public Class<LabelSourceState<?, ?>> getTargetClass() {
+			return (Class<LabelSourceState<?, ?>>) (Class<?>) LabelSourceState.class;
+		}
 	}
 
 	@SuppressWarnings({"unchecked", "rawtypes"})

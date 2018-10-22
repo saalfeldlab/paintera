@@ -13,6 +13,7 @@ import org.janelia.saalfeldlab.paintera.serialization.StatefulSerializer;
 import org.janelia.saalfeldlab.paintera.state.SourceState;
 import org.janelia.saalfeldlab.paintera.state.ThresholdingSourceState;
 import org.janelia.saalfeldlab.util.Colors;
+import org.scijava.plugin.Plugin;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -39,8 +40,9 @@ public class ThresholdingSourceStateSerializer implements JsonSerializer<Thresho
 		this.stateToIndex = stateToIndex;
 	}
 
+	@Plugin(type = StatefulSerializer.SerializerFactory.class)
 	public static class Factory
-			implements StatefulSerializer.Serializer<ThresholdingSourceState<?, ?>, ThresholdingSourceStateSerializer>
+			implements StatefulSerializer.SerializerFactory<ThresholdingSourceState<?, ?>, ThresholdingSourceStateSerializer>
 	{
 
 		@Override
@@ -51,6 +53,10 @@ public class ThresholdingSourceStateSerializer implements JsonSerializer<Thresho
 			return new ThresholdingSourceStateSerializer(stateToIndex);
 		}
 
+		@Override
+		public Class<ThresholdingSourceState<?, ?>> getTargetClass() {
+			return (Class<ThresholdingSourceState<?, ?>>) (Class<?>) ThresholdingSourceState.class;
+		}
 	}
 
 	@Override

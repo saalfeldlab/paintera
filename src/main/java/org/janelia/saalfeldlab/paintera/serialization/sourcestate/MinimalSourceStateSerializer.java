@@ -21,8 +21,8 @@ public class MinimalSourceStateSerializer extends
 	}
 
 	public static class Factory implements
-	                            StatefulSerializer.Serializer<MinimalSourceState<?, ?, ?, Converter<?, ARGBType>>,
-			                            MinimalSourceStateSerializer>
+			StatefulSerializer.SerializerFactory<MinimalSourceState<?, ?, ?, Converter<?, ARGBType>>,
+													MinimalSourceStateSerializer>
 	{
 
 		@Override
@@ -33,6 +33,10 @@ public class MinimalSourceStateSerializer extends
 			return new MinimalSourceStateSerializer(stateToIndex);
 		}
 
+		@Override
+		public Class<MinimalSourceState<?, ?, ?, Converter<?, ARGBType>>> getTargetClass() {
+			return (Class<MinimalSourceState<?, ?, ?, Converter<?, ARGBType>>>) (Class<?>) MinimalSourceState.class;
+		}
 	}
 
 }

@@ -11,10 +11,11 @@ import com.google.gson.JsonPrimitive;
 import com.google.gson.JsonSerializationContext;
 import com.google.gson.JsonSerializer;
 import javafx.beans.property.SimpleLongProperty;
+import org.janelia.saalfeldlab.paintera.serialization.PainteraSerialization;
+import org.scijava.plugin.Plugin;
 
-public class SimpleLongPropertySerializer implements
-                                          JsonSerializer<SimpleLongProperty>,
-                                          JsonDeserializer<SimpleLongProperty>
+@Plugin(type = PainteraSerialization.PainteraAdapter.class)
+public class SimpleLongPropertySerializer implements PainteraSerialization.PainteraAdapter<SimpleLongProperty>
 {
 
 	@Override
@@ -31,4 +32,8 @@ public class SimpleLongPropertySerializer implements
 		return new JsonPrimitive(src.get());
 	}
 
+	@Override
+	public Class<SimpleLongProperty> getTargetClass() {
+		return SimpleLongProperty.class;
+	}
 }

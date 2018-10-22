@@ -11,15 +11,18 @@ import net.imglib2.Volatile;
 import net.imglib2.converter.ARGBCompositeColorConverter;
 import net.imglib2.type.numeric.RealType;
 import net.imglib2.view.composite.RealComposite;
+import org.janelia.saalfeldlab.paintera.serialization.PainteraSerialization;
 import org.janelia.saalfeldlab.util.Colors;
+import org.scijava.plugin.Plugin;
 
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Type;
 import java.util.Optional;
 import java.util.stream.IntStream;
 
+@Plugin(type= PainteraSerialization.PainteraAdapter.class)
 public class ARGBCompositeColorConverterSerializer<R extends RealType<R>, C extends RealComposite<R>, V extends Volatile<C>>
-		implements JsonSerializer<ARGBCompositeColorConverter<R, C, V>>, JsonDeserializer<ARGBCompositeColorConverter<R, C, V>>
+		implements PainteraSerialization.PainteraAdapter<ARGBCompositeColorConverter<R, C, V>>
 {
 
 	private static final String NUM_CHANNELS_KEY = "numChannels";
@@ -98,4 +101,14 @@ public class ARGBCompositeColorConverterSerializer<R extends RealType<R>, C exte
 		return map;
 	}
 
+	@Override
+	public boolean isHierarchyAdapter()
+	{
+		return true;
+	}
+
+	@Override
+	public Class<ARGBCompositeColorConverter<R, C, V>> getTargetClass() {
+		return (Class<ARGBCompositeColorConverter<R, C, V>>) (Class<?>) ARGBCompositeColorConverter.class;
+	}
 }

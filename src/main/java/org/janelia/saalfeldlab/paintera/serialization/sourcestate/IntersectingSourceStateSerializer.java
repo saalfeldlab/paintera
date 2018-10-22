@@ -12,6 +12,7 @@ import com.google.gson.JsonSerializer;
 import org.janelia.saalfeldlab.paintera.serialization.StatefulSerializer;
 import org.janelia.saalfeldlab.paintera.state.IntersectingSourceState;
 import org.janelia.saalfeldlab.paintera.state.SourceState;
+import org.scijava.plugin.Plugin;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -34,8 +35,9 @@ public class IntersectingSourceStateSerializer implements JsonSerializer<Interse
 		this.stateToIndex = stateToIndex;
 	}
 
+	@Plugin(type = StatefulSerializer.SerializerFactory.class)
 	public static class Factory
-			implements StatefulSerializer.Serializer<IntersectingSourceState, IntersectingSourceStateSerializer>
+			implements StatefulSerializer.SerializerFactory<IntersectingSourceState, IntersectingSourceStateSerializer>
 	{
 
 		@Override
@@ -46,6 +48,10 @@ public class IntersectingSourceStateSerializer implements JsonSerializer<Interse
 			return new IntersectingSourceStateSerializer(stateToIndex);
 		}
 
+		@Override
+		public Class<IntersectingSourceState> getTargetClass() {
+			return IntersectingSourceState.class;
+		}
 	}
 
 	@Override

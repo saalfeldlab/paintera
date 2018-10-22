@@ -17,15 +17,16 @@ import com.google.gson.JsonSerializer;
 import gnu.trove.iterator.TLongIntIterator;
 import gnu.trove.map.TLongIntMap;
 import net.imglib2.type.numeric.ARGBType;
+import org.janelia.saalfeldlab.paintera.serialization.PainteraSerialization;
 import org.janelia.saalfeldlab.paintera.stream.AbstractHighlightingARGBStream;
 import org.janelia.saalfeldlab.paintera.stream.HighlightingStreamConverter;
 import org.janelia.saalfeldlab.util.Colors;
+import org.scijava.plugin.Plugin;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class HighlightingStreamConverterSerializer implements
-                                                   JsonSerializer<HighlightingStreamConverter<?>>,
-                                                   JsonDeserializer<HighlightingStreamConverter<?>>
+@Plugin(type = PainteraSerialization.PainteraAdapter.class)
+public class HighlightingStreamConverterSerializer implements PainteraSerialization.PainteraAdapter<HighlightingStreamConverter<?>>
 {
 
 	private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
@@ -118,4 +119,14 @@ public class HighlightingStreamConverterSerializer implements
 		return map;
 	}
 
+	@Override
+	public boolean isHierarchyAdapter()
+	{
+		return true;
+	}
+
+	@Override
+	public Class<HighlightingStreamConverter<?>> getTargetClass() {
+		return (Class<HighlightingStreamConverter<?>>) (Class<?>) HighlightingStreamConverter.class;
+	}
 }

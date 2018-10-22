@@ -9,9 +9,10 @@ import com.google.gson.JsonParseException;
 import com.google.gson.JsonSerializationContext;
 import com.google.gson.JsonSerializer;
 import net.imglib2.realtransform.AffineTransform3D;
+import org.scijava.plugin.Plugin;
 
-public class AffineTransform3DJsonAdapter
-		implements JsonDeserializer<AffineTransform3D>, JsonSerializer<AffineTransform3D>
+@Plugin(type= PainteraSerialization.PainteraAdapter.class)
+public class AffineTransform3DJsonAdapter implements PainteraSerialization.PainteraAdapter<AffineTransform3D>
 {
 
 	@Override
@@ -32,4 +33,8 @@ public class AffineTransform3DJsonAdapter
 		return transform;
 	}
 
+	@Override
+	public Class<AffineTransform3D> getTargetClass() {
+		return AffineTransform3D.class;
+	}
 }

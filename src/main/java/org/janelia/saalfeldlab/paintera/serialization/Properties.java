@@ -26,6 +26,7 @@ import org.janelia.saalfeldlab.paintera.state.SourceInfo;
 import org.janelia.saalfeldlab.paintera.state.SourceState;
 import org.janelia.saalfeldlab.util.MakeUnchecked;
 import org.janelia.saalfeldlab.util.MakeUnchecked.CheckedConsumer;
+import org.scijava.InstantiableException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -136,8 +137,7 @@ public class Properties implements TransformListener<AffineTransform3D>
 			final boolean removeExistingSources,
 			final Supplier<String> projectDirectory,
 			final Map<Integer, SourceState<?, ?>> indexToState,
-			final GridConstraintsManager manager)
-	{
+			final GridConstraintsManager manager) throws InstantiableException {
 		final Arguments arguments = new StatefulSerializer.Arguments(viewer);
 		return fromSerializedProperties(
 				serializedProperties,

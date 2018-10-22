@@ -6,7 +6,6 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ExecutorService;
-import java.util.function.BiConsumer;
 import java.util.function.IntFunction;
 import java.util.function.Supplier;
 
@@ -16,13 +15,12 @@ import com.google.gson.JsonDeserializer;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParseException;
-import net.imglib2.cache.img.CachedCellImg;
-import net.imglib2.type.numeric.integer.UnsignedLongType;
 import org.janelia.saalfeldlab.paintera.data.DataSource;
 import org.janelia.saalfeldlab.paintera.data.mask.persist.PersistCanvas;
 import org.janelia.saalfeldlab.paintera.serialization.StatefulSerializer;
 import org.janelia.saalfeldlab.paintera.serialization.StatefulSerializer.Arguments;
 import org.janelia.saalfeldlab.paintera.state.SourceState;
+import org.scijava.plugin.Plugin;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -122,7 +120,8 @@ public class MaskedSourceDeserializer implements JsonDeserializer<MaskedSource<?
 		}
 	}
 
-	public static class Factory implements StatefulSerializer.Deserializer<MaskedSource<?, ?>, MaskedSourceDeserializer>
+	@Plugin(type = StatefulSerializer.DeserializerFactory.class)
+	public static class Factory implements StatefulSerializer.DeserializerFactory<MaskedSource<?, ?>, MaskedSourceDeserializer>
 	{
 
 		@Override
@@ -134,6 +133,10 @@ public class MaskedSourceDeserializer implements JsonDeserializer<MaskedSource<?
 			return new MaskedSourceDeserializer(projectDirectory, arguments.propagationWorkers);
 		}
 
+		@Override
+		public Class<MaskedSource<?, ?>> getTargetClass() {
+			return (Class<MaskedSource<?, ?>>) (Class<?>) MaskedSource.class;
+		}
 	}
 
 }

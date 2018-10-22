@@ -2,12 +2,10 @@ package org.janelia.saalfeldlab.paintera.serialization.sourcestate;
 
 import java.lang.invoke.MethodHandles;
 import java.lang.reflect.Type;
-import java.util.Optional;
 import java.util.concurrent.ExecutorService;
 import java.util.function.IntFunction;
 import java.util.function.Supplier;
 
-import bdv.util.volatiles.SharedQueue;
 import com.google.gson.JsonDeserializationContext;
 import com.google.gson.JsonDeserializer;
 import com.google.gson.JsonElement;
@@ -18,13 +16,13 @@ import net.imglib2.type.numeric.ARGBType;
 import org.janelia.saalfeldlab.paintera.cache.global.GlobalCache;
 import org.janelia.saalfeldlab.paintera.cache.global.InvalidAccessException;
 import org.janelia.saalfeldlab.paintera.composition.Composite;
-import org.janelia.saalfeldlab.paintera.data.axisorder.AxisOrder;
 import org.janelia.saalfeldlab.paintera.serialization.StatefulSerializer;
 import org.janelia.saalfeldlab.paintera.serialization.StatefulSerializer.Arguments;
 import org.janelia.saalfeldlab.paintera.state.IntersectingSourceState;
 import org.janelia.saalfeldlab.paintera.state.LabelSourceState;
 import org.janelia.saalfeldlab.paintera.state.SourceState;
 import org.janelia.saalfeldlab.paintera.state.ThresholdingSourceState;
+import org.scijava.plugin.Plugin;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -68,8 +66,9 @@ public class IntersectingSourceStateDeserializer implements JsonDeserializer<Int
 		this.workers = workers;
 	}
 
+	@Plugin(type = StatefulSerializer.DeserializerFactory.class)
 	public static class Factory
-			implements StatefulSerializer.Deserializer<IntersectingSourceState, IntersectingSourceStateDeserializer>
+			implements StatefulSerializer.DeserializerFactory<IntersectingSourceState, IntersectingSourceStateDeserializer>
 	{
 
 		@Override
@@ -88,6 +87,10 @@ public class IntersectingSourceStateDeserializer implements JsonDeserializer<Int
 			);
 		}
 
+		@Override
+		public Class<IntersectingSourceState> getTargetClass() {
+			return IntersectingSourceState.class;
+		}
 	}
 
 	@Override

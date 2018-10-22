@@ -13,12 +13,16 @@ import org.janelia.saalfeldlab.paintera.control.lock.LockedSegmentsOnlyLocal;
 import org.janelia.saalfeldlab.paintera.control.selection.SelectedSegments;
 import org.janelia.saalfeldlab.paintera.meshes.InterruptibleFunction;
 import org.janelia.saalfeldlab.paintera.meshes.ManagedMeshSettings;
+import org.janelia.saalfeldlab.paintera.serialization.PainteraSerialization;
 import org.janelia.saalfeldlab.paintera.state.LabelSourceState;
+import org.scijava.plugin.Plugin;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+@Plugin(type = PainteraSerialization.PainteraSerializer.class)
 public class LabelSourceStateSerializer
 		extends SourceStateSerialization.SourceStateSerializerWithoutDependencies<LabelSourceState<?, ?>>
+	implements PainteraSerialization.PainteraSerializer<LabelSourceState<?, ?>>
 {
 
 	private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
@@ -60,4 +64,8 @@ public class LabelSourceStateSerializer
 		return map;
 	}
 
+	@Override
+	public Class<LabelSourceState<?, ?>> getTargetClass() {
+		return (Class<LabelSourceState<?, ?>>) (Class<?>) LabelSourceState.class;
+	}
 }
