@@ -7,7 +7,7 @@ import java.util.Arrays;
 
 public class ScreenScalesConfig {
 
-	private static final double[] DEFAULT_SCREEN_SCALES = new double[] {1.0, 0.5, 0.25, 0.125, 0.0625};
+	private static final double[] DEFAULT_SCREEN_SCALES = new double[] {1.0, 0.5, 0.25};
 
 	public static class ScreenScales {
 
