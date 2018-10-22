@@ -431,63 +431,6 @@ public class ViewerPanelFX
 
 		return indices.toArray();
 
-//		might be faster than flood filling
-//		// int will always be good enough here
-//		final int numSteps = (int) Math.max(
-//				Math.max(cellPos[0], gridDimensions[0] - cellPos[0]),
-//				Math.max(cellPos[1], gridDimensions[1] - cellPos[1])
-//		);
-//
-//		int[] c0 = {(int) cellPos[0], (int) cellPos[1]};
-//		for (int step = 1; step <= numSteps; ++step)
-//		{
-//			final int xMin = c0[0] - step;
-//			final int xMax = c0[0] + step;
-//			final int yMin = c0[1] - step;
-//			final int yMax = c0[1] + step;
-//
-//			if (xMin >= 0) {
-//				cellPos[0] = xMin;
-//				final int M = Math.min(yMax, (int) gridDimensions[1] - 1);
-//				for (int y = Math.max(yMin, 0); y < M; ++y)
-//				{
-//					cellPos[1] = y;
-//					actOnBlock.accept((int)IntervalIndexer.positionToIndex(cellPos, gridDimensions));
-//				}
-//			}
-//
-//			if (xMax < gridDimensions[0]) {
-//				cellPos[0] = xMax;
-//				final int M = Math.min(yMax, (int) gridDimensions[1] - 1);
-//				for (int y = Math.max(yMin, 0); y <= M; ++y)
-//				{
-//					cellPos[1] = y;
-//					actOnBlock.accept((int)IntervalIndexer.positionToIndex(cellPos, gridDimensions));
-//				}
-//			}
-//
-//			if (yMin >= 0) {
-//				cellPos[1] = yMin;
-//				final int M = Math.min(xMax, (int) gridDimensions[0] - 1);
-//				for (int x = Math.max(xMin, 0); x <= M; ++x)
-//				{
-//					cellPos[0] = x;
-//					actOnBlock.accept((int)IntervalIndexer.positionToIndex(cellPos, gridDimensions));
-//				}
-//			}
-//
-//			if (yMax < gridDimensions[1]) {
-//				cellPos[1] = yMax;
-//				final int M = Math.min(xMax, (int) gridDimensions[0] - 1);
-//				for (int x = Math.max(xMin, 0); x <= M; ++x)
-//				{
-//					cellPos[0] = x;
-//					actOnBlock.accept((int)IntervalIndexer.positionToIndex(cellPos, gridDimensions));
-//				}
-//			}
-//
-//		}
-
 
 	}
 
