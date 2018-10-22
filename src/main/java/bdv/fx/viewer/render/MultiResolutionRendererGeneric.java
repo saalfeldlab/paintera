@@ -27,9 +27,11 @@
  * POSSIBILITY OF SUCH DAMAGE.
  * #L%
  */
-package bdv.fx.viewer;
+package bdv.fx.viewer.render;
 
 import bdv.cache.CacheControl;
+import bdv.fx.viewer.project.SimpleInterruptibleProjectorPreMultiply;
+import bdv.fx.viewer.project.VolatileHierarchyProjectorPreMultiply;
 import bdv.util.MipmapTransforms;
 import bdv.viewer.Interpolation;
 import bdv.viewer.Source;
@@ -76,8 +78,6 @@ import java.util.Optional;
 import java.util.concurrent.ExecutorService;
 import java.util.function.Function;
 import java.util.function.ToIntFunction;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 /**
  *
@@ -87,7 +87,7 @@ import java.util.stream.Stream;
 public class MultiResolutionRendererGeneric<T>
 {
 
-	private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.class);
+	private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
 	public interface ImageGenerator<T>
 	{
@@ -561,26 +561,6 @@ public class MultiResolutionRendererGeneric<T>
 		if (screenScaleIndex > requestedScreenScaleIndex)
 			requestedScreenScaleIndex = screenScaleIndex;
 		painterThread.requestRepaint();
-	}
-
-	/**
-	 * DON'T USE THIS.
-	 * <p>
-	 * This is a work around for JDK bug https://bugs.openjdk.java.net/browse/JDK-8029147 which leads to ViewerPanel
-	 * not
-	 * being garbage-collected when ViewerFrame is closed. So instead we need to manually let go of resources...
-	 */
-	void kill()
-	{
-		projector = null;
-		renderIdQueue.clear();
-		bufferedImageToRenderId.clear();
-		for (int i = 0; i < renderImages.length; ++i)
-			renderImages[i] = null;
-		for (int i = 0; i < renderMaskArrays.length; ++i)
-			renderMaskArrays[i] = null;
-		screenImages.clear();
-		bufferedImages.clear();
 	}
 
 	private VolatileProjector createProjector(

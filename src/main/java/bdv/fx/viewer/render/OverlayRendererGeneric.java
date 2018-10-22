@@ -1,9 +1,13 @@
 /*
  * #%L
- * BigDataViewer core classes with minimal dependencies
+ * ImgLib2: a general-purpose, multidimensional image processing library.
  * %%
- * Copyright (C) 2012 - 2016 Tobias Pietzsch, Stephan Saalfeld, Stephan Preibisch,
- * Jean-Yves Tinevez, HongKee Moon, Johannes Schindelin, Curtis Rueden, John Bogovic
+ * Copyright (C) 2009 - 2016 Tobias Pietzsch, Stephan Preibisch, Stephan Saalfeld,
+ * John Bogovic, Albert Cardona, Barry DeZonia, Christian Dietz, Jan Funke,
+ * Aivar Grislis, Jonathan Hale, Grant Harris, Stefan Helfrich, Mark Hiner,
+ * Martin Horn, Steffen Jaensch, Lee Kamentsky, Larry Lindsey, Melissa Linkert,
+ * Mark Longair, Brian Northan, Nick Perry, Curtis Rueden, Johannes Schindelin,
+ * Jean-Yves Tinevez and Michael Zinsmaier.
  * %%
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -27,24 +31,28 @@
  * POSSIBILITY OF SUCH DAMAGE.
  * #L%
  */
-package bdv.fx.viewer;
+package bdv.fx.viewer.render;
 
-import net.imglib2.realtransform.AffineTransform3D;
-import net.imglib2.ui.TransformListener;
-
-public interface TransformAwareRenderTargetGeneric<T> extends RenderTargetGeneric<T>
+/**
+ * Draw something to a canvas and receive notifications about changes of the canvas size.
+ *
+ * @author Tobias Pietzsch
+ */
+public interface OverlayRendererGeneric<G>
 {
 	/**
-	 * Set the data store that is to be drawn on the canvas, and the transform with which this image was created.
-	 *
-	 * @param img
-	 * 		image to draw (may be null).
+	 * Render overlays.
 	 */
-	public T setBufferedImageAndTransform(final T img, final AffineTransform3D transform);
+	public void drawOverlays(final G g);
 
-	public void addTransformListener(final TransformListener<AffineTransform3D> listener);
-
-	public void addTransformListener(final TransformListener<AffineTransform3D> listener, final int index);
-
-	public void removeTransformListener(final TransformListener<AffineTransform3D> listener);
+	/**
+	 * This is called, when the screen size of the canvas (the component displaying the image and generating mouse
+	 * events) changes. This can be used to determine scale of overlay or screen coordinates relative to the border.
+	 *
+	 * @param width
+	 * 		the new canvas width.
+	 * @param height
+	 * 		the new canvas height.
+	 */
+	public void setCanvasSize(final int width, final int height);
 }

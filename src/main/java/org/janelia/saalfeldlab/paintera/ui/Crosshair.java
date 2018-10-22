@@ -1,6 +1,6 @@
 package org.janelia.saalfeldlab.paintera.ui;
 
-import bdv.fx.viewer.OverlayRendererGeneric;
+import bdv.fx.viewer.render.OverlayRendererGeneric;
 import javafx.beans.binding.Bindings;
 import javafx.beans.binding.ObjectBinding;
 import javafx.beans.property.BooleanProperty;

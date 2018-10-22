@@ -3,13 +3,22 @@
 // (powered by Fernflower decompiler)
 //
 
-package bdv.fx.viewer;
+package bdv.fx.viewer.render;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.lang.invoke.MethodHandles;
 import java.util.concurrent.RejectedExecutionException;
 
 public final class PainterThread extends Thread {
+
+	private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
+
 	private final PainterThread.Paintable paintable;
+
 	private boolean pleaseRepaint;
+
 	private boolean isRunning;
 
 	public PainterThread(PainterThread.Paintable paintable) {
@@ -47,7 +56,7 @@ public final class PainterThread extends Thread {
 
 				synchronized(this) {
 					try {
-						if (!this.pleaseRepaint) {
+						if (this.isRunning && !this.pleaseRepaint) {
 							this.wait();
 						}
 						continue;
@@ -75,8 +84,10 @@ public final class PainterThread extends Thread {
 	public void stopRendering()
 	{
 		synchronized(this) {
+			LOG.debug("Stop rendering now!");
 			this.isRunning = false;
 			this.notify();
+			LOG.debug("Notified on this ({})", this);
 		}
 	}
 

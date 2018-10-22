@@ -6,6 +6,7 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
+import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 
@@ -62,6 +63,8 @@ public class Paint implements ToOnEnterOnExit
 
 	private final Runnable requestRepaint;
 
+	private final BiConsumer<long[], long[]> requestRepaintInterval;
+
 	private final BooleanProperty paint3D = new SimpleBooleanProperty(false);
 
 	private final BooleanBinding paint2D = paint3D.not();
@@ -73,6 +76,7 @@ public class Paint implements ToOnEnterOnExit
 			final KeyTracker keyTracker,
 			final GlobalTransformManager manager,
 			final Runnable requestRepaint,
+			final BiConsumer<long[], long[]> requestRepaintInterval,
 			final ExecutorService paintQueue)
 	{
 		super();
@@ -80,6 +84,7 @@ public class Paint implements ToOnEnterOnExit
 		this.keyTracker = keyTracker;
 		this.manager = manager;
 		this.requestRepaint = requestRepaint;
+		this.requestRepaintInterval = requestRepaintInterval;
 		this.paintQueue = paintQueue;
 	}
 
@@ -91,11 +96,14 @@ public class Paint implements ToOnEnterOnExit
 			{
 				if (!this.mouseAndKeyHandlers.containsKey(t))
 				{
+					// TODO For now, only request repaint viewer that was painted into.
+					// TODO In the future, transform painted interval appropriately and
+					// TODO update all viewers
 					final PaintActions2D paint2D = new PaintActions2D(
 							t,
 							sourceInfo,
 							manager,
-							requestRepaint,
+							t::requestRepaint,
 							paintQueue
 					);
 					paint2D.brushRadiusProperty().bindBidirectional(this.brushRadius);

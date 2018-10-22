@@ -10,7 +10,7 @@ import java.util.Map;
 import java.util.function.Consumer;
 import java.util.function.DoubleSupplier;
 
-import bdv.fx.viewer.MultiBoxOverlayRendererFX;
+import bdv.fx.viewer.multibox.MultiBoxOverlayRendererFX;
 import bdv.fx.viewer.ViewerPanelFX;
 import bdv.viewer.Interpolation;
 import bdv.viewer.Source;
@@ -142,6 +142,7 @@ public class PainteraDefaultHandlers
 				sourceInfo,
 				keyTracker,
 				baseView.manager(),
+				baseView.orthogonalViews()::requestRepaint,
 				baseView.orthogonalViews()::requestRepaint,
 				baseView.getPaintQueue()
 		);

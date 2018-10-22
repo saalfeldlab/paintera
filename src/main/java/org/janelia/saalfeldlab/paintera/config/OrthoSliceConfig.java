@@ -66,14 +66,6 @@ public class OrthoSliceConfig
 				isTopRightVisible));
 		bottomLeft.isVisibleProperty().bind(baseConfig.showBottomLeftProperty().and(enable).and(hasSources).and(
 				isBottomLeftVisible));
-		final ChangeListener<? super Number> delayListener = (obs, oldv, newv) -> {
-			final long delay = newv.longValue() * 1000 * 1000;
-			topLeft.setDelay(delay);
-			topRight.setDelay(delay);
-			bottomLeft.setDelay(delay);
-		};
-		baseConfig.delayInNanoSeconds().addListener(delayListener);
-		delayListener.changed(null, 0, baseConfig.delayInNanoSeconds().get());
 
 	}
 

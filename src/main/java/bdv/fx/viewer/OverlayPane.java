@@ -33,36 +33,33 @@
  */
 package bdv.fx.viewer;
 
-import java.util.Collection;
-import java.util.concurrent.CopyOnWriteArrayList;
-
+import bdv.fx.viewer.render.OverlayRendererGeneric;
 import javafx.application.Platform;
 import javafx.beans.value.ChangeListener;
+import javafx.collections.FXCollections;
+import javafx.collections.ObservableList;
 import javafx.geometry.Insets;
 import javafx.scene.Node;
 import javafx.scene.canvas.Canvas;
 import javafx.scene.canvas.GraphicsContext;
-import javafx.scene.image.Image;
-import javafx.scene.image.ImageView;
 import javafx.scene.layout.Background;
 import javafx.scene.layout.BackgroundFill;
 import javafx.scene.layout.CornerRadii;
-import javafx.scene.layout.Pane;
 import javafx.scene.layout.StackPane;
 import javafx.scene.paint.Color;
-import net.imglib2.ui.TransformListener;
 import org.janelia.saalfeldlab.fx.event.InstallAndRemove;
 
+import java.util.Collection;
+import java.util.concurrent.CopyOnWriteArrayList;
+
 /**
- * A {@link Pane} that acts like {@link InteractiveDisplayCanvasGeneric}.
- *
  * @param <A>
  * 		transform type
  *
  * @author Tobias Pietzsch
  * @author Philipp Hanslovsky
  */
-public class InteractiveDisplayPaneComponent<A> extends StackPane
+public class OverlayPane<A> extends StackPane
 {
 
 	/**
@@ -70,47 +67,23 @@ public class InteractiveDisplayPaneComponent<A> extends StackPane
 	 */
 	final protected CopyOnWriteArrayList<OverlayRendererGeneric<GraphicsContext>> overlayRenderers;
 
-	protected final ImageOverlayRendererFX renderTarget;
-
 	private final CanvasPane canvasPane = new CanvasPane(1, 1);
 
-	protected final ImageView imageView = new ImageView();
-
-	{
-		this.imageView.setPreserveRatio(false);
-		this.imageView.setSmooth(false);
-		this.imageView.fitWidthProperty().bind(this.widthProperty());
-		this.imageView.fitHeightProperty().bind(this.heightProperty());
-		this.getChildren().add(imageView);
-		this.getChildren().add(canvasPane);
-		this.setBackground(new Background(new BackgroundFill(Color.BLACK, CornerRadii.EMPTY, Insets.EMPTY)));
-	}
+	private final ObservableList<Node> children = FXCollections.unmodifiableObservableList(super.getChildren());
 
 	//	private final Canvas canvas;
 
 	/**
-	 * Create a new {@link InteractiveDisplayCanvasGeneric} with initially no {@link OverlayRendererGeneric
-	 * OverlayRenderers} and no {@link TransformListener TransformListeners}.
-	 *
-	 * @param width
-	 * 		preferred component width.
-	 * @param height
-	 * 		preferred component height.
-	 * @param renderTarget
 	 */
-	public InteractiveDisplayPaneComponent(
-			final int width,
-			final int height,
-			final ImageOverlayRendererFX renderTarget)
+	public OverlayPane()
 	{
 		super();
-		setWidth(width);
-		setHeight(height);
+		super.getChildren().add(canvasPane);
+		setBackground(new Background(new BackgroundFill(Color.BLACK.deriveColor(0.0, 1.0, 1.0, 0.0), CornerRadii.EMPTY, Insets.EMPTY)));
 
 		this.overlayRenderers = new CopyOnWriteArrayList<>();
-		this.renderTarget = renderTarget;
 
-		final ChangeListener<Number> sizeChangeListener = (ChangeListener<Number>) (observable, oldValue, newValue)
+		final ChangeListener<Number> sizeChangeListener = (observable, oldValue, newValue)
 				-> {
 			final double wd = widthProperty().get();
 			final double hd = heightProperty().get();
@@ -119,7 +92,6 @@ public class InteractiveDisplayPaneComponent<A> extends StackPane
 			if (w <= 0 || h <= 0)
 				return;
 			overlayRenderers.forEach(or -> or.setCanvasSize(w, h));
-			renderTarget.setCanvasSize(w, h);
 		};
 
 		widthProperty().addListener(sizeChangeListener);
@@ -188,18 +160,14 @@ public class InteractiveDisplayPaneComponent<A> extends StackPane
 
 	public void repaint()
 	{
-		this.renderTarget.drawOverlays(this.imageView::setImage);
 		drawOverlays();
 		layout();
 	}
 
-	public void addImageChangeListener(final ChangeListener<Image> listener)
+	@Override
+	public ObservableList<Node> getChildren()
 	{
-		this.imageView.imageProperty().addListener(listener);
+		return this.children;
 	}
 
-	public void removeImageChangeListener(final ChangeListener<Image> listener)
-	{
-		this.imageView.imageProperty().removeListener(listener);
-	}
 }

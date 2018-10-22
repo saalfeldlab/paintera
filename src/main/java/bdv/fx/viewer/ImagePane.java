@@ -33,64 +33,71 @@
  */
 package bdv.fx.viewer;
 
-import net.imglib2.ui.TransformListener;
+import bdv.fx.viewer.render.OverlayRendererGeneric;
+import javafx.beans.property.ObjectProperty;
+import javafx.collections.FXCollections;
+import javafx.collections.ObservableList;
+import javafx.geometry.Insets;
+import javafx.scene.Node;
+import javafx.scene.image.Image;
+import javafx.scene.image.ImageView;
+import javafx.scene.layout.Background;
+import javafx.scene.layout.BackgroundFill;
+import javafx.scene.layout.CornerRadii;
+import javafx.scene.layout.StackPane;
+import javafx.scene.paint.Color;
 
 /**
- * A component that uses one or several {@link OverlayRendererGeneric OverlayRendererGenerics} to render a canvas
- * displayed on screen.
- * <p>
- * Moreover, {@link InteractiveDisplayCanvasGeneric} is a transform event multi-caster. It receives {@link
- * TransformListener#transformChanged(Object) transformChanged} events and propagates them to all registered listeners.
- *
- * @param <A>
- * 		transform type
- *
- * @author Tobias Pietzsch
  * @author Philipp Hanslovsky
  */
-public interface InteractiveDisplayCanvasGeneric<A, G, H> extends TransformListener<A>
+public class ImagePane extends StackPane
 {
 
 	/**
-	 * Add an {@link OverlayRendererGeneric} that draws on top of the current buffered image.
-	 *
-	 * @param renderer
-	 * 		overlay renderer to add.
+	 * The {@link OverlayRendererGeneric} that draws on top of the current buffered image.
 	 */
-	public void addOverlayRenderer(final OverlayRendererGeneric<G> renderer);
+	private final ImageView imageView = new ImageView();
+
+	{
+		this.imageView.setPreserveRatio(false);
+		this.imageView.setSmooth(false);
+		this.imageView.fitWidthProperty().bind(this.widthProperty());
+		this.imageView.fitHeightProperty().bind(this.heightProperty());
+	}
+
+	//	private final Canvas canvas;
 
 	/**
-	 * Remove an {@link OverlayRendererGeneric}.
-	 *
-	 * @param renderer
-	 * 		overlay renderer to remove.
+	 * @param width
+	 * 		preferred component width.
+	 * @param height
+	 * 		preferred component height.
 	 */
-	public void removeOverlayRenderer(final OverlayRendererGeneric<G> renderer);
+	public ImagePane(
+			final int width,
+			final int height)
+	{
+		super();
+		super.getChildren().add(imageView);
+		this.setBackground(new Background(new BackgroundFill(Color.BLACK, CornerRadii.EMPTY, Insets.EMPTY)));
+		setWidth(width);
+		setHeight(height);
+//		super.getChildren().setAll(this.imageView);
+	}
 
-	/**
-	 * Add a {@link TransformListener} to notify about view transformation changes.
-	 *
-	 * @param listener
-	 * 		the transform listener to add.
-	 */
-	public void addTransformListener(final TransformListener<A> listener);
+	public ObjectProperty<Image> imageProperty()
+	{
+		return this.imageView.imageProperty();
+	}
 
-	/**
-	 * Remove a {@link TransformListener}.
-	 *
-	 * @param listener
-	 * 		the transform listener to remove.
-	 */
-	public void removeTransformListener(final TransformListener<A> listener);
+	public void setImage(final Image image)
+	{
+		this.imageView.setImage(image);
+	}
 
-	/**
-	 * Add new event handler.
-	 */
-	public void addHandler(final H handler);
-
-	/**
-	 * Remove an event handler.
-	 */
-	public void removeHandler(final H handler);
-
+	@Override
+	public ObservableList<Node> getChildren()
+	{
+		return FXCollections.unmodifiableObservableList(super.getChildren());
+	}
 }

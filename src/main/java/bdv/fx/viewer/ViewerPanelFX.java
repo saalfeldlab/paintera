@@ -30,27 +30,42 @@
 package bdv.fx.viewer;
 
 import bdv.cache.CacheControl;
+import bdv.fx.viewer.render.OverlayRendererGeneric;
+import bdv.fx.viewer.render.RenderUnit;
 import bdv.viewer.Interpolation;
 import bdv.viewer.RequestRepaint;
 import bdv.viewer.Source;
 import bdv.viewer.SourceAndConverter;
 import bdv.viewer.ViewerOptions;
+import gnu.trove.list.array.TIntArrayList;
+import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.ReadOnlyBooleanProperty;
 import javafx.beans.property.ReadOnlyDoubleProperty;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleDoubleProperty;
-import javafx.beans.value.ChangeListener;
-import javafx.beans.value.ObservableValue;
+import javafx.beans.property.SimpleObjectProperty;
 import javafx.collections.ListChangeListener;
 import javafx.scene.canvas.GraphicsContext;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.BorderPane;
+import javafx.scene.layout.StackPane;
+import net.imglib2.Point;
 import net.imglib2.Positionable;
 import net.imglib2.RealLocalizable;
 import net.imglib2.RealPoint;
 import net.imglib2.RealPositionable;
+import net.imglib2.algorithm.fill.FloodFill;
+import net.imglib2.algorithm.neighborhood.DiamondShape;
+import net.imglib2.img.array.ArrayImg;
+import net.imglib2.img.array.ArrayImgs;
+import net.imglib2.img.basictypeaccess.array.IntArray;
+import net.imglib2.img.cell.CellGrid;
 import net.imglib2.realtransform.AffineTransform3D;
+import net.imglib2.type.numeric.integer.IntType;
 import net.imglib2.ui.TransformListener;
+import net.imglib2.util.Intervals;
+import net.imglib2.view.Views;
+import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread;
 import org.janelia.saalfeldlab.paintera.data.axisorder.AxisOrder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -68,23 +83,24 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 
 /**
- * A JPanel for viewing multiple of {@link Source}s. The panel contains a {@link InteractiveDisplayPaneComponent canvas}
- * and a time slider (if there are multiple time-points). Maintains a {@link ViewerState render state}, the renderer,
- * and basic navigation help overlays. It has it's own {@link PainterThread} for painting, which is started on
- * construction (use {@link #stop() to stop the PainterThread}.
- *
- * @author Tobias Pietzsch &lt;tobias.pietzsch@gmail.com&gt;
  * @author Philipp Hanslovsky
  */
 public class ViewerPanelFX
 		extends BorderPane
 		implements OverlayRendererGeneric<GraphicsContext>,
 		           TransformListener<AffineTransform3D>,
-		           PainterThread.Paintable,
 		           RequestRepaint
 {
 
 	private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
+
+	private final RenderUnit renderUnit;
+
+	private final SingleChildStackPane display = new SingleChildStackPane(1, 1);
+
+	private final OverlayPane overlayPane = new OverlayPane();
+
+	private final StackPane center = new StackPane(display, overlayPane);
 	/**
 	 * Currently rendered state (visible sources, transformation, timepoint, etc.) A copy can be obtained by {@link
 	 * #getState()}.
@@ -92,42 +108,16 @@ public class ViewerPanelFX
 	protected final ViewerState state;
 
 	/**
-	 * Renders the current state for the {@link #display}.
-	 */
-	protected MultiResolutionRendererFX imageRenderer;
-
-	/**
-	 * TODO
-	 */
-	protected final TransformAwareBufferedImageOverlayRendererFX renderTarget;
-
-	/**
 	 * Transformation set by the interactive viewer.
 	 */
 	protected final AffineTransform3D viewerTransform;
 
-	/**
-	 * Canvas used for displaying the rendered {@link #renderTarget image} and overlays.
-	 */
-	protected final InteractiveDisplayPaneComponent<AffineTransform3D> display;
-
-	/**
-	 * A {@link ThreadGroup} for (only) the threads used by this {@link ViewerPanelFX}, that is, {@link #painterThread}
-	 * and {@link #renderingExecutorService}.
-	 */
 	protected ThreadGroup threadGroup;
-
-	/**
-	 * Thread that triggers repainting of the display.
-	 */
-	protected final PainterThread painterThread;
 
 	/**
 	 * The {@link ExecutorService} used for rendereing.
 	 */
 	protected final ExecutorService renderingExecutorService;
-
-	protected final ExecutorService renderTargetExecutorService;
 
 	/**
 	 * These listeners will be notified about changes to the {@link #viewerTransform}. This is done <em>before</em>
@@ -152,7 +142,7 @@ public class ViewerPanelFX
 
 	private final Function<Source<?>, Interpolation> interpolation;
 
-	private final CacheControl cacheControl;
+	private final ObjectProperty<RenderUnit.ImageDisplayGrid> imageDisplayGrid = new SimpleObjectProperty<>(null);
 
 	public ViewerPanelFX(
 			final List<SourceAndConverter<?>> sources,
@@ -216,46 +206,16 @@ public class ViewerPanelFX
 			final Function<Source<?>, Interpolation> interpolation)
 	{
 		super();
-		this.cacheControl = cacheControl;
+		this.setCenter(this.center);
+		this.renderingExecutorService = Executors.newFixedThreadPool(optional.values.getNumRenderingThreads(), new RenderThreadFactory());
 		options = optional.values;
-		setWidth(options.getWidth());
-		setHeight(options.getHeight());
 
 		this.state = new ViewerState(axisOrder);
 
 		state.numTimepoints.set(numTimepoints);
 
 		threadGroup = new ThreadGroup(this.toString());
-		painterThread = new PainterThread(threadGroup, this);
 		viewerTransform = new AffineTransform3D();
-		renderTargetExecutorService = Executors.newFixedThreadPool(3);
-		renderTarget = new TransformAwareBufferedImageOverlayRendererFX();
-		display = new InteractiveDisplayPaneComponent<>(
-				options.getWidth(),
-				options.getHeight(),
-				renderTarget
-		);
-		renderTarget.setCanvasSize(options.getWidth(), options.getHeight());
-		display.addOverlayRenderer(this);
-
-		LOG.debug("Using {} rendering threads for panel {}.", options.getNumRenderingThreads(), panelNumber);
-		renderingExecutorService = Executors.newFixedThreadPool(options.getNumRenderingThreads(), new RenderThreadFactory());
-
-		imageRenderer = new MultiResolutionRendererFX(
-				renderTarget,
-				painterThread,
-				options.getScreenScales(),
-				options.getTargetRenderNanos(),
-				options.isDoubleBuffered(),
-				options.getNumRenderingThreads(),
-				renderingExecutorService,
-				options.isUseVolatileIfAvailable(),
-				options.getAccumulateProjectorFactory(),
-				cacheControl
-		);
-
-		display.setMinSize(0, 0);
-		setCenter(display);
 
 		transformListeners = new CopyOnWriteArrayList<>();
 		lastRenderTransformListeners = new CopyOnWriteArrayList<>();
@@ -287,30 +247,25 @@ public class ViewerPanelFX
 			}
 		});
 
-		final ChangeListener<Number> initialListener = new ChangeListener<Number>()
+		this.renderUnit = new RenderUnit(
+				threadGroup,
+				this::getState,
+				axisOrder,
+				interpolation,
+				options.getAccumulateProjectorFactory(),
+				cacheControl,
+				options.getTargetRenderNanos(),
+				renderingExecutorService);
+		this.renderUnit.addUpdateListener(() ->
 		{
-
-			@Override
-			public void changed(final ObservableValue<? extends Number> observable, final Number oldValue, final
-			Number newValue)
-			{
-				requestRepaint();
-				synchronized (display)
-				{
-					display.widthProperty().removeListener(this);
-					display.heightProperty().removeListener(this);
-				}
-			}
-
-		};
-
-		synchronized (display)
-		{
-			display.widthProperty().addListener(initialListener);
-			display.heightProperty().addListener(initialListener);
-		}
-
-		painterThread.start();
+			final RenderUnit.ImageDisplayGrid grid = renderUnit.getImageDisplayGrid();
+			InvokeOnJavaFXApplicationThread.invoke(() -> this.display.setChild(grid.getGridPane()));
+			this.imageDisplayGrid.set(grid);
+		});
+		this.widthProperty().addListener((obs, oldv, newv) -> this.renderUnit.setDimensions((long)getWidth(), (long)getHeight()));
+		this.heightProperty().addListener((obs, oldv, newv) -> this.renderUnit.setDimensions((long)getWidth(), (long)getHeight()));
+		setWidth(options.getWidth());
+		setHeight(options.getHeight());
 	}
 
 	public void addSource(final SourceAndConverter<?> sourceAndConverter)
@@ -430,41 +385,55 @@ public class ViewerPanelFX
 		p.setPosition(mouseY.longValue(), 1);
 	}
 
-	@Override
-	public void paint()
-	{
-
-		ArrayList<SourceAndConverter<?>> sources = new ArrayList<>();
-		int                              timepoint;
-		AffineTransform3D                viewerTransform = new AffineTransform3D();
-		synchronized (state)
-		{
-			sources.addAll(state.getSources());
-			timepoint = state.timepoint.get();
-			state.getViewerTransform(viewerTransform);
-		}
-
-		imageRenderer.paint(
-				sources,
-				state::axisOrder,
-				timepoint,
-				viewerTransform,
-				interpolation,
-				null
-		                   );
-
-		display.repaint();
-	}
-
 	/**
 	 * Repaint as soon as possible.
 	 */
 	@Override
 	public void requestRepaint()
 	{
-		if (isVisible())
-			imageRenderer.requestRepaint();
+		renderUnit.requestRepaint(iterateOverBlocksInOrder());
 	}
+
+
+	public void requestRepaint(final long[] min, final long[] max)
+	{
+		renderUnit.requestRepaint(min, max);
+	}
+
+	private int[] iterateOverBlocksInOrder()
+	{
+		final boolean isMouseInside = isMouseInside();
+		final long x0 = (long) (isMouseInside ? mouseX.get() : getWidth() / 2);
+		final long y0 = (long) (isMouseInside ? mouseY.get() : getHeight() / 2);
+		final RenderUnit.ImageDisplayGrid imageDisplayGrid = this.imageDisplayGrid.get();
+		if (imageDisplayGrid == null)
+			return new int[0];
+
+		final CellGrid grid = imageDisplayGrid.getGrid();
+		final long[] pos = {x0, y0};
+		final long[] cellPos = new long[2];
+		grid.getCellPosition(pos, cellPos);
+		final long[] gridDimensions = grid.getGridDimensions();
+		LOG.debug("Starting at pos={} cellPos={}", pos, cellPos);
+		final ArrayImg<IntType, IntArray> toBeFilled = ArrayImgs.ints(range((int) Intervals.numElements(gridDimensions)), gridDimensions);
+
+		final TIntArrayList indices = new TIntArrayList();
+		final IntType targetType = new IntType();
+		targetType.set(-1);
+		FloodFill.fill(
+				Views.extendValue(toBeFilled, targetType.copy()),
+				toBeFilled,
+				new Point(cellPos),
+				new DiamondShape(1),
+				(s, t) -> !targetType.valueEquals(s),
+				it -> {indices.add(it.getInteger()); it.set(targetType);}
+				);
+
+		return indices.toArray();
+
+
+	}
+
 
 	@Override
 	public synchronized void transformChanged(final AffineTransform3D transform)
@@ -520,16 +489,6 @@ public class ViewerPanelFX
 	}
 
 	/**
-	 * Get the viewer canvas.
-	 *
-	 * @return the viewer canvas.
-	 */
-	public InteractiveDisplayPaneComponent<AffineTransform3D> getDisplay()
-	{
-		return display;
-	}
-
-	/**
 	 * Add a {@link TransformListener} to notify about viewer transformation changes. Listeners will be notified when a
 	 * new image has been painted with the viewer transform used to render that image.
 	 * <p>
@@ -538,26 +497,26 @@ public class ViewerPanelFX
 	 * @param listener
 	 * 		the transform listener to add.
 	 */
-	public void addRenderTransformListener(final TransformListener<AffineTransform3D> listener)
-	{
-		renderTarget.addTransformListener(listener);
-	}
-
-	/**
-	 * Add a {@link TransformListener} to notify about viewer transformation changes. Listeners will be notified when a
-	 * new image has been painted with the viewer transform used to render that image.
-	 * <p>
-	 * This happens immediately after that image is painted onto the screen, before any overlays are painted.
-	 *
-	 * @param listener
-	 * 		the transform listener to add.
-	 * @param index
-	 * 		position in the list of listeners at which to insert this one.
-	 */
-	public void addRenderTransformListener(final TransformListener<AffineTransform3D> listener, final int index)
-	{
-		renderTarget.addTransformListener(listener, index);
-	}
+//	public void addRenderTransformListener(final TransformListener<AffineTransform3D> listener)
+//	{
+//		renderTarget.addTransformListener(listener);
+//	}
+//
+//	/**
+//	 * Add a {@link TransformListener} to notify about viewer transformation changes. Listeners will be notified when a
+//	 * new image has been painted with the viewer transform used to render that image.
+//	 * <p>
+//	 * This happens immediately after that image is painted onto the screen, before any overlays are painted.
+//	 *
+//	 * @param listener
+//	 * 		the transform listener to add.
+//	 * @param index
+//	 * 		position in the list of listeners at which to insert this one.
+//	 */
+//	public void addRenderTransformListener(final TransformListener<AffineTransform3D> listener, final int index)
+//	{
+//		renderTarget.addTransformListener(listener, index);
+//	}
 
 	/**
 	 * Add a {@link TransformListener} to notify about viewer transformation changes. Listeners will be notified
@@ -602,7 +561,7 @@ public class ViewerPanelFX
 		{
 			transformListeners.remove(listener);
 		}
-		renderTarget.removeTransformListener(listener);
+//		renderTarget.removeTransformListener(listener);
 	}
 
 	/**
@@ -623,23 +582,9 @@ public class ViewerPanelFX
 	//		return sourceInfoOverlayRenderer;
 	//	}
 
-	/**
-	 * Stop the {@link #painterThread} and shutdown rendering {@link ExecutorService}.
-	 */
 	public void stop()
 	{
-		painterThread.interrupt();
-		try
-		{
-			painterThread.join(0);
-		} catch (final InterruptedException e)
-		{
-			e.printStackTrace();
-		}
 		renderingExecutorService.shutdown();
-		renderTargetExecutorService.shutdown();
-		//		state.kill();
-		imageRenderer.kill();
 	}
 
 	protected static final AtomicInteger panelNumber = new AtomicInteger(1);
@@ -672,10 +617,10 @@ public class ViewerPanelFX
 		}
 	}
 
-	public TransformAwareBufferedImageOverlayRendererFX renderTarget()
-	{
-		return this.renderTarget;
-	}
+//	public TransformAwareBufferedImageOverlayRendererFX renderTarget()
+//	{
+//		return this.renderTarget;
+//	}
 
 	@Override
 	public void drawOverlays(final GraphicsContext g)
@@ -716,7 +661,25 @@ public class ViewerPanelFX
 	public void setScreenScales(double[] screenScales)
 	{
 		LOG.debug("Setting screen scales to {}", screenScales);
-		this.imageRenderer.setScreenScales(screenScales.clone());
+		this.renderUnit.setScreenScales(screenScales.clone());
+	}
+
+	public OverlayPane getDisplay()
+	{
+		return this.overlayPane;
+	}
+
+	public ObjectProperty<RenderUnit.ImageDisplayGrid> imageDisplayGridProperty()
+	{
+		return this.imageDisplayGrid;
+	}
+
+	private static final int[] range(int size)
+	{
+		int[] range = new int[size];
+		for (int i = 0; i < range.length; ++i)
+			range[i] = i;
+		return range;
 	}
 
 }

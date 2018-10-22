@@ -1,4 +1,4 @@
-package bdv.fx.viewer;
+package bdv.fx.viewer.render;
 
 import java.lang.invoke.MethodHandles;
 import java.lang.reflect.Field;

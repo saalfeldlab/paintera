@@ -27,7 +27,7 @@
  * POSSIBILITY OF SUCH DAMAGE.
  * #L%
  */
-package bdv.fx.viewer;
+package bdv.fx.viewer.render;
 
 import java.util.concurrent.ExecutorService;
 
@@ -136,7 +136,7 @@ public class MultiResolutionRendererFX extends MultiResolutionRendererGeneric<Bu
 				useVolatileIfAvailable,
 				accumulateProjectorFactory,
 				cacheControl,
-				image -> image.asArrayImg(),
+				BufferExposingWritableImage::asArrayImg,
 				new MakeWritableImage(),
 				img -> (int) img.getWidth(),
 				img -> (int) img.getHeight()
