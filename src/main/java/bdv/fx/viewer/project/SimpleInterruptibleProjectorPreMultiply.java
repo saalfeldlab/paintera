@@ -2,10 +2,12 @@ package bdv.fx.viewer.project;
 
 import java.util.ArrayList;
 import java.util.concurrent.Callable;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+import bdv.fx.viewer.PriorityExecutorService;
 import com.sun.javafx.image.PixelUtils;
 import net.imglib2.RandomAccess;
 import net.imglib2.RandomAccessible;
@@ -40,7 +42,9 @@ public class SimpleInterruptibleProjectorPreMultiply<A> extends AbstractInterrup
 	 */
 	final protected int numThreads;
 
-	final protected ExecutorService executorService;
+//	final protected ExecutorService executorService;
+
+	private final PriorityExecutorService executorService;
 
 	/**
 	 * Time needed for rendering the last frame, in nano-seconds.
@@ -73,7 +77,7 @@ public class SimpleInterruptibleProjectorPreMultiply<A> extends AbstractInterrup
 			final Converter<? super A, ARGBType> converter,
 			final RandomAccessibleInterval<ARGBType> target,
 			final int numThreads,
-			final ExecutorService executorService)
+			final PriorityExecutorService executorService)
 	{
 		super(source.numDimensions(), converter, target);
 		this.source = source;
@@ -105,11 +109,6 @@ public class SimpleInterruptibleProjectorPreMultiply<A> extends AbstractInterrup
 
 		final int width  = (int) target.dimension(0);
 		final int height = (int) target.dimension(1);
-
-		final boolean         createExecutor = executorService == null;
-		final ExecutorService ex             = createExecutor
-		                                       ? Executors.newFixedThreadPool(numThreads)
-		                                       : executorService;
 		final int             numTasks;
 		if (numThreads > 1)
 		{
@@ -118,7 +117,8 @@ public class SimpleInterruptibleProjectorPreMultiply<A> extends AbstractInterrup
 		else
 			numTasks = 1;
 		final double                    taskHeight = (double) height / numTasks;
-		final ArrayList<Callable<Void>> tasks      = new ArrayList<>(numTasks);
+		final ArrayList<Runnable> tasks      = new ArrayList<>(numTasks);
+		final CountDownLatch latch = new CountDownLatch(numTasks);
 		for (int taskNum = 0; taskNum < numTasks; ++taskNum)
 		{
 			final long myMinY   = min[1] + (int) (taskNum * taskHeight);
@@ -126,51 +126,51 @@ public class SimpleInterruptibleProjectorPreMultiply<A> extends AbstractInterrup
 			                       ? height
 			                       : (int) ((taskNum + 1) * taskHeight)) - myMinY - min[1];
 
-			final Callable<Void> r = () -> {
-				if (interrupted.get())
-					return null;
-
-				System.out.println("WTF!");
-				final RandomAccess<A>        sourceRandomAccess = source.randomAccess(
-						SimpleInterruptibleProjectorPreMultiply.this);
-				final RandomAccess<ARGBType> targetRandomAccess = target.randomAccess(target);
-
-				sourceRandomAccess.setPosition(min);
-				sourceRandomAccess.setPosition(myMinY, 1);
-				targetRandomAccess.setPosition(min[0], 0);
-				targetRandomAccess.setPosition(myMinY, 1);
-				for (int y = 0; y < myHeight; ++y)
-				{
+			final Runnable r = () -> {
+				try {
 					if (interrupted.get())
-						return null;
-					for (int x = 0; x < width; ++x)
-					{
-						final ARGBType argb = targetRandomAccess.get();
-						converter.convert(sourceRandomAccess.get(), argb);
-						final int nonpre = argb.get();
-						argb.set(PixelUtils.NonPretoPre(nonpre));
-						sourceRandomAccess.fwd(0);
-						targetRandomAccess.fwd(0);
+						return;
+
+					final RandomAccess<A> sourceRandomAccess = source.randomAccess(
+							SimpleInterruptibleProjectorPreMultiply.this);
+					final RandomAccess<ARGBType> targetRandomAccess = target.randomAccess(target);
+
+					sourceRandomAccess.setPosition(min);
+					sourceRandomAccess.setPosition(myMinY, 1);
+					targetRandomAccess.setPosition(min[0], 0);
+					targetRandomAccess.setPosition(myMinY, 1);
+					for (int y = 0; y < myHeight; ++y) {
+						if (interrupted.get())
+							return;
+						for (int x = 0; x < width; ++x) {
+							final ARGBType argb = targetRandomAccess.get();
+							converter.convert(sourceRandomAccess.get(), argb);
+							final int nonpre = argb.get();
+							argb.set(PixelUtils.NonPretoPre(nonpre));
+							sourceRandomAccess.fwd(0);
+							targetRandomAccess.fwd(0);
+						}
+						sourceRandomAccess.move(cr, 0);
+						targetRandomAccess.move(cr, 0);
+						sourceRandomAccess.fwd(1);
+						targetRandomAccess.fwd(1);
 					}
-					sourceRandomAccess.move(cr, 0);
-					targetRandomAccess.move(cr, 0);
-					sourceRandomAccess.fwd(1);
-					targetRandomAccess.fwd(1);
+					return;
 				}
-				return null;
+				finally {
+					latch.countDown();
+				}
 			};
 			tasks.add(r);
 		}
 		try
 		{
-			ex.invokeAll(tasks);
+			tasks.forEach(executorService::submit);
+			latch.await();
 		} catch (final InterruptedException e)
 		{
 			Thread.currentThread().interrupt();
 		}
-		if (createExecutor)
-			ex.shutdown();
-
 		lastFrameRenderNanoTime = stopWatch.nanoTime();
 
 		return !interrupted.get();

@@ -6,10 +6,11 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ExecutorService;
 
+import bdv.fx.viewer.PriorityExecutorService;
+import bdv.fx.viewer.project.AccumulateProjector;
+import bdv.fx.viewer.project.AccumulateProjectorFactory;
+import bdv.fx.viewer.project.VolatileProjector;
 import bdv.viewer.Source;
-import bdv.viewer.render.AccumulateProjector;
-import bdv.viewer.render.AccumulateProjectorFactory;
-import bdv.viewer.render.VolatileProjector;
 import com.sun.javafx.image.PixelUtils;
 import net.imglib2.Cursor;
 import net.imglib2.RandomAccessible;
@@ -49,7 +50,7 @@ public class CompositeProjectorPreMultiply extends AccumulateProjector<ARGBType,
 				final ArrayList<? extends RandomAccessible<? extends ARGBType>> sourceScreenImages,
 				final RandomAccessibleInterval<ARGBType> targetScreenImage,
 				final int numThreads,
-				final ExecutorService executorService)
+				final PriorityExecutorService executorService)
 		{
 			final CompositeProjectorPreMultiply projector = new CompositeProjectorPreMultiply(
 					sourceProjectors,
@@ -76,7 +77,7 @@ public class CompositeProjectorPreMultiply extends AccumulateProjector<ARGBType,
 			final ArrayList<? extends RandomAccessible<? extends ARGBType>> sources,
 			final RandomAccessibleInterval<ARGBType> target,
 			final int numThreads,
-			final ExecutorService executorService)
+			final PriorityExecutorService executorService)
 	{
 		super(sourceProjectors, sources, target, numThreads, executorService);
 		LOG.debug("Creating {}", this.getClass().getName());

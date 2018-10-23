@@ -1,18 +1,18 @@
 package org.janelia.saalfeldlab.paintera.composition;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.concurrent.ExecutorService;
-
+import bdv.fx.viewer.PriorityExecutorService;
+import bdv.fx.viewer.project.AccumulateProjector;
+import bdv.fx.viewer.project.AccumulateProjectorFactory;
+import bdv.fx.viewer.project.VolatileProjector;
 import bdv.viewer.Source;
-import bdv.viewer.render.AccumulateProjector;
-import bdv.viewer.render.AccumulateProjectorFactory;
-import bdv.viewer.render.VolatileProjector;
 import net.imglib2.Cursor;
 import net.imglib2.RandomAccessible;
 import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.type.Type;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
 
 /**
  * @author Stephan Saalfeld
@@ -41,7 +41,7 @@ public class CompositeProjector<A extends Type<A>> extends AccumulateProjector<A
 				final ArrayList<? extends RandomAccessible<? extends A>> sourceScreenImages,
 				final RandomAccessibleInterval<A> targetScreenImage,
 				final int numThreads,
-				final ExecutorService executorService)
+				final PriorityExecutorService executorService)
 		{
 			final CompositeProjector<A> projector = new CompositeProjector<>(
 					sourceProjectors,
@@ -68,7 +68,7 @@ public class CompositeProjector<A extends Type<A>> extends AccumulateProjector<A
 			final ArrayList<? extends RandomAccessible<? extends A>> sources,
 			final RandomAccessibleInterval<A> target,
 			final int numThreads,
-			final ExecutorService executorService)
+			final PriorityExecutorService executorService)
 	{
 		super(sourceProjectors, sources, target, numThreads, executorService);
 	}

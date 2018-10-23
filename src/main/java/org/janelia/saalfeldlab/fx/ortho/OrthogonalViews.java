@@ -6,12 +6,11 @@ import java.util.function.Consumer;
 import java.util.function.Function;
 
 import bdv.cache.CacheControl;
+import bdv.fx.viewer.ViewerOptions;
 import bdv.fx.viewer.ViewerPanelFX;
-import bdv.util.volatiles.SharedQueue;
 import bdv.viewer.Interpolation;
 import bdv.viewer.Source;
 import bdv.viewer.SourceAndConverter;
-import bdv.viewer.ViewerOptions;
 import javafx.event.Event;
 import javafx.event.EventHandler;
 import javafx.event.EventType;

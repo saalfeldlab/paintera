@@ -30,21 +30,22 @@
 package bdv.fx.viewer.render;
 
 import bdv.cache.CacheControl;
+import bdv.fx.viewer.PriorityExecutorService;
+import bdv.fx.viewer.project.AccumulateProjectorFactory;
+import bdv.fx.viewer.project.EmptyProjector;
 import bdv.fx.viewer.project.SimpleInterruptibleProjectorPreMultiply;
+import bdv.fx.viewer.project.VolatileHierarchyProjector;
 import bdv.fx.viewer.project.VolatileHierarchyProjectorPreMultiply;
+import bdv.fx.viewer.project.VolatileProjector;
 import bdv.util.MipmapTransforms;
 import bdv.viewer.Interpolation;
 import bdv.viewer.Source;
 import bdv.viewer.SourceAndConverter;
-import bdv.viewer.render.AccumulateProjectorFactory;
 import bdv.viewer.render.DefaultMipmapOrdering;
-import bdv.viewer.render.EmptyProjector;
 import bdv.viewer.render.MipmapOrdering;
 import bdv.viewer.render.MipmapOrdering.Level;
 import bdv.viewer.render.MipmapOrdering.MipmapHints;
 import bdv.viewer.render.Prefetcher;
-import bdv.viewer.render.VolatileHierarchyProjector;
-import bdv.viewer.render.VolatileProjector;
 import net.imglib2.Dimensions;
 import net.imglib2.RandomAccess;
 import net.imglib2.RandomAccessible;
@@ -207,7 +208,7 @@ public class MultiResolutionRendererGeneric<T>
 	/**
 	 * {@link ExecutorService} used for rendering.
 	 */
-	private final ExecutorService renderingExecutorService;
+	private final PriorityExecutorService renderingExecutorService;
 
 	/**
 	 * TODO
@@ -282,7 +283,7 @@ public class MultiResolutionRendererGeneric<T>
 			final long targetRenderNanos,
 			final boolean doubleBuffered,
 			final int numRenderingThreads,
-			final ExecutorService renderingExecutorService,
+			final PriorityExecutorService renderingExecutorService,
 			final boolean useVolatileIfAvailable,
 			final AccumulateProjectorFactory<ARGBType> accumulateProjectorFactory,
 			final CacheControl cacheControl,
@@ -652,7 +653,7 @@ public class MultiResolutionRendererGeneric<T>
 				final Converter<? super A, ARGBType> converter,
 				final RandomAccessibleInterval<ARGBType> target,
 				final int numThreads,
-				final ExecutorService executorService)
+				final PriorityExecutorService executorService)
 		{
 			super(source, converter, target, numThreads, executorService);
 		}

@@ -12,10 +12,10 @@ import java.util.function.Function;
 import java.util.function.LongFunction;
 
 import bdv.cache.CacheControl;
+import bdv.fx.viewer.ViewerOptions;
 import bdv.viewer.Interpolation;
 import bdv.viewer.Source;
 import bdv.viewer.SourceAndConverter;
-import bdv.viewer.ViewerOptions;
 import gnu.trove.set.hash.TLongHashSet;
 import javafx.collections.ListChangeListener;
 import javafx.collections.ObservableList;

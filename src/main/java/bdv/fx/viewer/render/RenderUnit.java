@@ -2,11 +2,12 @@ package bdv.fx.viewer.render;
 
 import bdv.cache.CacheControl;
 import bdv.fx.viewer.ImagePane;
+import bdv.fx.viewer.PriorityExecutorService;
 import bdv.fx.viewer.ViewerState;
+import bdv.fx.viewer.project.AccumulateProjectorFactory;
 import bdv.viewer.Interpolation;
 import bdv.viewer.Source;
 import bdv.viewer.SourceAndConverter;
-import bdv.viewer.render.AccumulateProjectorFactory;
 import javafx.beans.property.ObjectProperty;
 import javafx.scene.Node;
 import javafx.scene.image.Image;
@@ -65,7 +66,7 @@ public class RenderUnit implements TransformListener<AffineTransform3D> {
 
 	private final long targetRenderNanos;
 
-	private final ExecutorService renderingExecutorService;
+	private final PriorityExecutorService renderingExecutorService;
 
 	private final List<Runnable> updateListeners = new ArrayList<>();
 
@@ -79,7 +80,7 @@ public class RenderUnit implements TransformListener<AffineTransform3D> {
 			final AccumulateProjectorFactory<ARGBType> accumulateProjectorFactory,
 			final CacheControl cacheControl,
 			final long targetRenderNanos,
-			final ExecutorService renderingExecutorService) {
+			final PriorityExecutorService renderingExecutorService) {
 		this.threadGroup = threadGroup;
 		this.viewerState = viewerState;
 		this.axisOrder = axisOrder;

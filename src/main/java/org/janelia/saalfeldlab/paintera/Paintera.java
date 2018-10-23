@@ -1,16 +1,6 @@
 package org.janelia.saalfeldlab.paintera;
 
-import java.io.File;
-import java.io.IOException;
-import java.lang.invoke.MethodHandles;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Optional;
-import java.util.function.Supplier;
-import java.util.regex.Pattern;
-import java.util.stream.IntStream;
-
-import bdv.viewer.ViewerOptions;
+import bdv.fx.viewer.ViewerOptions;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
 import javafx.application.Application;
@@ -50,9 +40,8 @@ import org.janelia.saalfeldlab.paintera.control.assignment.UnableToPersist;
 import org.janelia.saalfeldlab.paintera.control.lock.LockedSegmentsOnlyLocal;
 import org.janelia.saalfeldlab.paintera.control.selection.SelectedIds;
 import org.janelia.saalfeldlab.paintera.data.DataSource;
-import org.janelia.saalfeldlab.paintera.data.axisorder.AxisOrder;
-import org.janelia.saalfeldlab.paintera.data.mask.exception.CannotPersist;
 import org.janelia.saalfeldlab.paintera.data.mask.Masks;
+import org.janelia.saalfeldlab.paintera.data.mask.exception.CannotPersist;
 import org.janelia.saalfeldlab.paintera.data.n5.CommitCanvasN5;
 import org.janelia.saalfeldlab.paintera.id.IdService;
 import org.janelia.saalfeldlab.paintera.meshes.InterruptibleFunction;
@@ -71,6 +60,16 @@ import org.janelia.saalfeldlab.util.n5.N5Helpers;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import picocli.CommandLine;
+
+import java.io.File;
+import java.io.IOException;
+import java.lang.invoke.MethodHandles;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Optional;
+import java.util.function.Supplier;
+import java.util.regex.Pattern;
+import java.util.stream.IntStream;
 
 public class Paintera extends Application
 {

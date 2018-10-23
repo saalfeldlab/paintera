@@ -29,10 +29,9 @@
  */
 package bdv.fx.viewer.render;
 
-import java.util.concurrent.ExecutorService;
-
 import bdv.cache.CacheControl;
-import bdv.viewer.render.AccumulateProjectorFactory;
+import bdv.fx.viewer.PriorityExecutorService;
+import bdv.fx.viewer.project.AccumulateProjectorFactory;
 import net.imglib2.Volatile;
 import net.imglib2.img.array.ArrayImg;
 import net.imglib2.type.numeric.ARGBType;
@@ -120,7 +119,7 @@ public class MultiResolutionRendererFX extends MultiResolutionRendererGeneric<Bu
 			final long targetRenderNanos,
 			final boolean doubleBuffered,
 			final int numRenderingThreads,
-			final ExecutorService renderingExecutorService,
+			final PriorityExecutorService renderingExecutorService,
 			final boolean useVolatileIfAvailable,
 			final AccumulateProjectorFactory<ARGBType> accumulateProjectorFactory,
 			final CacheControl cacheControl)

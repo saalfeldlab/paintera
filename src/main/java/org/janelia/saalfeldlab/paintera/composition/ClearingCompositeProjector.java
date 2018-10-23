@@ -1,16 +1,16 @@
 package org.janelia.saalfeldlab.paintera.composition;
 
-import java.util.ArrayList;
-import java.util.Map;
-import java.util.concurrent.ExecutorService;
-
+import bdv.fx.viewer.PriorityExecutorService;
+import bdv.fx.viewer.project.AccumulateProjectorFactory;
+import bdv.fx.viewer.project.VolatileProjector;
 import bdv.viewer.Source;
-import bdv.viewer.render.AccumulateProjectorFactory;
-import bdv.viewer.render.VolatileProjector;
 import net.imglib2.Cursor;
 import net.imglib2.RandomAccessible;
 import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.type.Type;
+
+import java.util.ArrayList;
+import java.util.Map;
 
 public class ClearingCompositeProjector<A extends Type<A>> extends CompositeProjector<A>
 {
@@ -39,7 +39,7 @@ public class ClearingCompositeProjector<A extends Type<A>> extends CompositeProj
 				final ArrayList<? extends RandomAccessible<? extends A>> sourceScreenImages,
 				final RandomAccessibleInterval<A> targetScreenImage,
 				final int numThreads,
-				final ExecutorService executorService)
+				final PriorityExecutorService executorService)
 		{
 			final ClearingCompositeProjector<A> projector = new ClearingCompositeProjector<>(
 					sourceProjectors,
@@ -68,7 +68,7 @@ public class ClearingCompositeProjector<A extends Type<A>> extends CompositeProj
 			final RandomAccessibleInterval<A> target,
 			final A clearValue,
 			final int numThreads,
-			final ExecutorService executorService)
+			final PriorityExecutorService executorService)
 	{
 		super(sourceProjectors, sources, target, numThreads, executorService);
 		this.clearValue = clearValue;

@@ -36,7 +36,6 @@ import bdv.viewer.Interpolation;
 import bdv.viewer.RequestRepaint;
 import bdv.viewer.Source;
 import bdv.viewer.SourceAndConverter;
-import bdv.viewer.ViewerOptions;
 import gnu.trove.list.array.TIntArrayList;
 import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.ReadOnlyBooleanProperty;
@@ -117,7 +116,7 @@ public class ViewerPanelFX
 	/**
 	 * The {@link ExecutorService} used for rendereing.
 	 */
-	protected final ExecutorService renderingExecutorService;
+	protected final PriorityExecutorService renderingExecutorService;
 
 	/**
 	 * These listeners will be notified about changes to the {@link #viewerTransform}. This is done <em>before</em>
@@ -207,7 +206,7 @@ public class ViewerPanelFX
 	{
 		super();
 		this.setCenter(this.center);
-		this.renderingExecutorService = Executors.newFixedThreadPool(optional.values.getNumRenderingThreads(), new RenderThreadFactory());
+		this.renderingExecutorService = new PriorityExecutorService(Executors.newFixedThreadPool(optional.values.getNumRenderingThreads(), new RenderThreadFactory()));
 		options = optional.values;
 
 		this.state = new ViewerState(axisOrder);
