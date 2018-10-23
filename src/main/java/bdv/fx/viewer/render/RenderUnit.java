@@ -106,54 +106,54 @@ public class RenderUnit implements TransformListener<AffineTransform3D> {
 		update();
 	}
 
-	public synchronized void requestRepaintSingleTile(final int screenScaleIndex, final int tileIndex)
+	public synchronized void requestRepaintSingleTile(final int screenScaleIndex, final int tileIndex, final double priority)
 	{
-		renderers[tileIndex].requestRepaint(screenScaleIndex);
+		renderers[tileIndex].requestRepaint(priority, screenScaleIndex);
 	}
 
-	public synchronized void requestRepaintSingleTile(final int tileIndex)
+	public synchronized void requestRepaintSingleTile(final int tileIndex, final double priority)
 	{
-		renderers[tileIndex].requestRepaint();
+		renderers[tileIndex].requestRepaint(priority);
 	}
 
-	public synchronized void requestRepaint(final int screenScaleIndex, final int[] tileIndices)
-	{
-		for (final int b : tileIndices)
-			renderers[b].requestRepaint(screenScaleIndex);
-	}
-
-	public synchronized void requestRepaint(final int[] tileIndices)
+	public synchronized void requestRepaint(final int screenScaleIndex, final int[] tileIndices, final double priority)
 	{
 		for (final int b : tileIndices)
-			renderers[b].requestRepaint();
+			renderers[b].requestRepaint(priority, screenScaleIndex);
 	}
 
-	public synchronized void requestRepaint(final int screenScaleIndex)
+	public synchronized void requestRepaint(final int[] tileIndices, final double priority)
+	{
+		for (final int b : tileIndices)
+			renderers[b].requestRepaint(priority);
+	}
+
+	public synchronized void requestRepaint(final int screenScaleIndex, final double priority)
 	{
 		for (int b = 0; b < renderers.length; ++b)
-			renderers[b].requestRepaint(screenScaleIndex);
+			renderers[b].requestRepaint(priority, screenScaleIndex);
 	}
 
-	public synchronized void requestRepaint()
+	public synchronized void requestRepaint(final double priority)
 	{
 		for (int b = 0; b < renderers.length; ++b)
-			renderers[b].requestRepaint();
+			renderers[b].requestRepaint(priority);
 	}
 
-	public synchronized void requestRepaint(final int screenScaleIndex, final long[] min, final long[] max)
+	public synchronized void requestRepaint(final int screenScaleIndex, final long[] min, final long[] max, final double priority)
 	{
 
 		long[] relevantBlocks = org.janelia.saalfeldlab.util.grids.Grids.getIntersectingBlocks(min, max, this.grid);
 		for (final long b : relevantBlocks)
-			renderers[(int)b].requestRepaint(screenScaleIndex);
+			renderers[(int)b].requestRepaint(priority, screenScaleIndex);
 	}
 
-	public synchronized void requestRepaint(final long[] min, final long[] max)
+	public synchronized void requestRepaint(final long[] min, final long[] max, final double priority)
 	{
 
 		long[] relevantBlocks = org.janelia.saalfeldlab.util.grids.Grids.getIntersectingBlocks(min, max, this.grid);
 		for (final long b : relevantBlocks)
-			renderers[(int)b].requestRepaint();
+			renderers[(int)b].requestRepaint(priority);
 	}
 
 	public synchronized void setScreenScales(final double[] screenScales)

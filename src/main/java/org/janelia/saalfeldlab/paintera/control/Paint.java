@@ -103,7 +103,7 @@ public class Paint implements ToOnEnterOnExit
 							t,
 							sourceInfo,
 							manager,
-							t::requestRepaint,
+							(m, M) -> t.requestRepaint(m, M, Double.MAX_VALUE),
 							paintQueue
 					);
 					paint2D.brushRadiusProperty().bindBidirectional(this.brushRadius);

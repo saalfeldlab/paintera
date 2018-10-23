@@ -390,13 +390,17 @@ public class ViewerPanelFX
 	@Override
 	public void requestRepaint()
 	{
-		renderUnit.requestRepaint(iterateOverBlocksInOrder());
+		final int[] blocks = iterateOverBlocksInOrder();
+		for (int i = 0; i < blocks.length; ++i) {
+			renderUnit.requestRepaintSingleTile(blocks[i], PriorityExecutorService.DEFAULT_PRIORITY - i);
+		}
+//		renderUnit.requestRepaint(iterateOverBlocksInOrder(), PriorityExecutorService.DEFAULT_PRIORITY);
 	}
 
 
-	public void requestRepaint(final long[] min, final long[] max)
+	public void requestRepaint(final long[] min, final long[] max, final double priority)
 	{
-		renderUnit.requestRepaint(min, max);
+		renderUnit.requestRepaint(min, max, priority);
 	}
 
 	private int[] iterateOverBlocksInOrder()

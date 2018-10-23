@@ -248,6 +248,8 @@ public class MultiResolutionRendererGeneric<T>
 
 	private final ImageGenerator<T> makeImage;
 
+	private double priority = PriorityExecutorService.DEFAULT_PRIORITY;
+
 	/**
 	 * @param display
 	 * 		The canvas that will display the images we render.
@@ -491,7 +493,7 @@ public class MultiResolutionRendererGeneric<T>
 		}
 
 		// try rendering
-		final boolean success    = p.map(PriorityExecutorService.DEFAULT_PRIORITY, createProjector);
+		final boolean success    = p.map(this.priority, createProjector);
 		final long    rendertime = p.getLastFrameRenderNanoTime();
 
 		synchronized (this)
@@ -523,7 +525,7 @@ public class MultiResolutionRendererGeneric<T>
 				}
 
 				if (currentScreenScaleIndex > 0)
-					requestRepaint(currentScreenScaleIndex - 1);
+					requestRepaint(this.priority, currentScreenScaleIndex - 1);
 				else if (!p.isValid())
 				{
 					try
@@ -534,7 +536,7 @@ public class MultiResolutionRendererGeneric<T>
 						// restore interrupted state
 						Thread.currentThread().interrupt();
 					}
-					requestRepaint(currentScreenScaleIndex);
+					requestRepaint(this.priority, currentScreenScaleIndex);
 				}
 			}
 		}
@@ -545,22 +547,23 @@ public class MultiResolutionRendererGeneric<T>
 	/**
 	 * Request a repaint of the display from the painter thread, with maximum screen scale index and mipmap level.
 	 */
-	public void requestRepaint()
+	public void requestRepaint(final double priority)
 	{
 		newFrameRequest = true;
-		requestRepaint(maxScreenScaleIndex);
+		requestRepaint(priority, maxScreenScaleIndex);
 	}
 
 	/**
 	 * Request a repaint of the display from the painter thread. The painter thread will trigger a {@link #paint} as
 	 * soon as possible (that is, immediately or after the currently running {@link #paint} has completed).
 	 */
-	public synchronized void requestRepaint(final int screenScaleIndex)
+	public synchronized void requestRepaint(final double priority, final int screenScaleIndex)
 	{
 		if (renderingMayBeCancelled && projector != null)
 			projector.cancel();
 		if (screenScaleIndex > requestedScreenScaleIndex)
 			requestedScreenScaleIndex = screenScaleIndex;
+		this.priority = priority;
 		painterThread.requestRepaint();
 	}
 

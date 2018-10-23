@@ -6,6 +6,7 @@ import java.util.function.Consumer;
 import java.util.function.Function;
 
 import bdv.cache.CacheControl;
+import bdv.fx.viewer.PriorityExecutorService;
 import bdv.fx.viewer.ViewerOptions;
 import bdv.fx.viewer.ViewerPanelFX;
 import bdv.viewer.Interpolation;
@@ -153,7 +154,7 @@ public class OrthogonalViews<BR extends Node>
 
 	public void requestRepaint(final long[] min, final long[] max)
 	{
-		applyToAll(vp -> vp.requestRepaint(min, max));
+		applyToAll(vp -> vp.requestRepaint(min, max, PriorityExecutorService.DEFAULT_PRIORITY));
 	}
 
 	public void setAllSources(final Collection<? extends SourceAndConverter<?>> sources)
