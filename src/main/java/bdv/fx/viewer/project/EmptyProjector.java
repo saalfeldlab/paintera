@@ -47,17 +47,17 @@ public class EmptyProjector< T extends NumericType< T> > implements VolatileProj
 	}
 
 	@Override
-	public boolean map()
+	public boolean map(final double priority)
 	{
-		return map( false );
+		return map(priority,false);
 	}
 
 	@Override
-	public boolean map( final boolean clearUntouchedTargetPixels )
+	public boolean map(final double priority, final boolean clearUntouchedTargetPixels)
 	{
 		final StopWatch stopWatch = new StopWatch();
 		stopWatch.start();
-		if ( clearUntouchedTargetPixels )
+		if (clearUntouchedTargetPixels)
 			for ( final T t : Views.iterable( target ) )
 				t.setZero();
 		lastFrameRenderNanoTime = stopWatch.nanoTime();

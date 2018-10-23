@@ -1,9 +1,13 @@
 /*
  * #%L
- * BigDataViewer core classes with minimal dependencies
+ * ImgLib2: a general-purpose, multidimensional image processing library.
  * %%
- * Copyright (C) 2012 - 2016 Tobias Pietzsch, Stephan Saalfeld, Stephan Preibisch,
- * Jean-Yves Tinevez, HongKee Moon, Johannes Schindelin, Curtis Rueden, John Bogovic
+ * Copyright (C) 2009 - 2016 Tobias Pietzsch, Stephan Preibisch, Stephan Saalfeld,
+ * John Bogovic, Albert Cardona, Barry DeZonia, Christian Dietz, Jan Funke,
+ * Aivar Grislis, Jonathan Hale, Grant Harris, Stefan Helfrich, Mark Hiner,
+ * Martin Horn, Steffen Jaensch, Lee Kamentsky, Larry Lindsey, Melissa Linkert,
+ * Mark Longair, Brian Northan, Nick Perry, Curtis Rueden, Johannes Schindelin,
+ * Jean-Yves Tinevez and Michael Zinsmaier.
  * %%
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -29,21 +33,37 @@
  */
 package bdv.fx.viewer.project;
 
-import net.imglib2.Volatile;
+import net.imglib2.RandomAccessibleInterval;
+import net.imglib2.display.projector.Projector;
 
-public interface VolatileProjector extends InterruptibleProjector
+/**
+ * Similar to a {@link Projector}, this renders a target image (usually a 2D
+ * {@link RandomAccessibleInterval}). In contrast to a {@link Projector},
+ * rendering can be interrupted, in which case {@link #map(double)} will return false.
+ * Also, the rendering time for the last {@link #map(double)} can be queried.
+ * 
+ * @author Tobias Pietzsch
+ * @author Stephan Saalfeld
+ */
+public interface InterruptibleProjector
 {
 	/**
 	 * Render the target image.
-	 *
-	 * @param clearUntouchedTargetPixels
+	 * 
 	 * @return true if rendering was completed (all target pixels written).
 	 *         false if rendering was interrupted.
 	 */
-	boolean map(double priority, boolean clearUntouchedTargetPixels);
+	boolean map(double priority);
 
 	/**
-	 * @return true if all mapped pixels were {@link Volatile#isValid() valid}.
+	 * Abort {@link #map(double)} if it is currently running.
 	 */
-	boolean isValid();
+	public void cancel();
+
+	/**
+	 * How many nano-seconds did the last {@link #map(double)} take.
+	 * 
+	 * @return time needed for rendering the last frame, in nano-seconds.
+	 */
+	long getLastFrameRenderNanoTime();
 }

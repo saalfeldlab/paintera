@@ -44,7 +44,6 @@ import net.imglib2.img.Img;
 import net.imglib2.img.array.ArrayImgs;
 import net.imglib2.type.numeric.NumericType;
 import net.imglib2.type.numeric.integer.ByteType;
-import net.imglib2.ui.AbstractInterruptibleProjector;
 import net.imglib2.ui.util.StopWatch;
 import net.imglib2.view.Views;
 
@@ -57,7 +56,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * {@link VolatileProjector} for a hierarchy of {@link Volatile} inputs.  After each
- * {@link #map()} call, the projector has a {@link #isValid() state} that
+ * {@link #map(double)} call, the projector has a {@link #isValid() state} that
  * signalizes whether all projected pixels were perfect.
  *
  * @author Stephan Saalfeld &lt;saalfeld@mpi-cbg.de&gt;
@@ -221,13 +220,13 @@ public class VolatileHierarchyProjector< A extends Volatile< ? >, B extends Nume
 	}
 
 	@Override
-	public boolean map()
+	public boolean map(final double priority)
 	{
-		return map( true );
+		return map(priority, true);
 	}
 
 	@Override
-	public boolean map( final boolean clearUntouchedTargetPixels )
+	public boolean map(final double priority, final boolean clearUntouchedTargetPixels)
 	{
 		interrupted.set( false );
 

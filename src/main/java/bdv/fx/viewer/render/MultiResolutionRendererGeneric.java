@@ -491,7 +491,7 @@ public class MultiResolutionRendererGeneric<T>
 		}
 
 		// try rendering
-		final boolean success    = p.map(createProjector);
+		final boolean success    = p.map(PriorityExecutorService.DEFAULT_PRIORITY, createProjector);
 		final long    rendertime = p.getLastFrameRenderNanoTime();
 
 		synchronized (this)
@@ -659,9 +659,9 @@ public class MultiResolutionRendererGeneric<T>
 		}
 
 		@Override
-		public boolean map(final boolean clearUntouchedTargetPixels)
+		public boolean map(final double priority, final boolean clearUntouchedTargetPixels)
 		{
-			final boolean success = super.map();
+			final boolean success = super.map(priority);
 			valid |= success;
 			return success;
 		}

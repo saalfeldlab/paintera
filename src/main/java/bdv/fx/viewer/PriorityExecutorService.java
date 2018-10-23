@@ -28,8 +28,7 @@ public class PriorityExecutorService {
 			return true;
 		}
 
-		default void cancel()
-		{
+		default void cancel() {
 
 		}
 
@@ -47,9 +46,18 @@ public class PriorityExecutorService {
 
 		private final Runnable r;
 
-		public WrapAsTask(final Runnable r, final double priority) {
+		private boolean isValid;
+
+		public WrapAsTask(
+				final Runnable r,
+				final double priority) {
 			this.r = r;
 			this.priority = priority;
+			this.isValid = true;
+		}
+
+		public void invalidate() {
+			this.isValid = false;
 		}
 
 		@Override
@@ -60,6 +68,11 @@ public class PriorityExecutorService {
 		@Override
 		public double priority() {
 			return this.priority;
+		}
+
+		@Override
+		public boolean isValid() {
+			return this.isValid;
 		}
 	}
 

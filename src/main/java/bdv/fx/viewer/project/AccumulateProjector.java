@@ -98,13 +98,13 @@ public abstract class AccumulateProjector< A, B > implements VolatileProjector
 	}
 
 	@Override
-	public boolean map()
+	public boolean map(final double priority)
 	{
-		return map( true );
+		return map(priority,true);
 	}
 
 	@Override
-	public boolean map( final boolean clearUntouchedTargetPixels )
+	public boolean map(final double priority, final boolean clearUntouchedTargetPixels)
 	{
 		interrupted.set( false );
 
@@ -114,7 +114,7 @@ public abstract class AccumulateProjector< A, B > implements VolatileProjector
 		valid = true;
 		for ( final VolatileProjector p : sourceProjectors )
 			if ( !p.isValid() )
-				if ( !p.map( clearUntouchedTargetPixels ) )
+				if (!p.map(priority, clearUntouchedTargetPixels))
 					return false;
 				else
 					valid &= p.isValid();

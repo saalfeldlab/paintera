@@ -1,12 +1,5 @@
 package bdv.fx.viewer.project;
 
-import java.util.ArrayList;
-import java.util.concurrent.Callable;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.atomic.AtomicBoolean;
-
 import bdv.fx.viewer.PriorityExecutorService;
 import com.sun.javafx.image.PixelUtils;
 import net.imglib2.RandomAccess;
@@ -14,9 +7,11 @@ import net.imglib2.RandomAccessible;
 import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.converter.Converter;
 import net.imglib2.type.numeric.ARGBType;
-import net.imglib2.ui.AbstractInterruptibleProjector;
-import net.imglib2.ui.InterruptibleProjector;
 import net.imglib2.ui.util.StopWatch;
+
+import java.util.ArrayList;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * An {@link InterruptibleProjector}, that renders a target 2D {@link RandomAccessibleInterval} by copying values from a
@@ -93,7 +88,7 @@ public class SimpleInterruptibleProjectorPreMultiply<A> extends AbstractInterrup
 	 * @return true if rendering was completed (all target pixels written). false if rendering was interrupted.
 	 */
 	@Override
-	public boolean map()
+	public boolean map(final double priority)
 	{
 		interrupted.set(false);
 
