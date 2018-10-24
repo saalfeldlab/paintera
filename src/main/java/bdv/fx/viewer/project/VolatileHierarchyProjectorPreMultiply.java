@@ -302,7 +302,7 @@ public class VolatileHierarchyProjectorPreMultiply<A extends Volatile<?>>
 			}
 			try
 			{
-				tasks.forEach(executorService::submit);
+				tasks.forEach(t -> executorService.submit(t, priority));
 				latch.await();
 			} catch (final InterruptedException e)
 			{

@@ -321,7 +321,7 @@ public class VolatileHierarchyProjector< A extends Volatile< ? >, B extends Nume
 			}
 			try
 			{
-				tasks.forEach(executorService::submit);
+				tasks.forEach(t -> executorService.submit(t, priority));
 				latch.await();
 			}
 			catch ( final InterruptedException e )

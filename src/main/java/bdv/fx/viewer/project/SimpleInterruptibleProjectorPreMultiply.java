@@ -160,7 +160,7 @@ public class SimpleInterruptibleProjectorPreMultiply<A> extends AbstractInterrup
 		}
 		try
 		{
-			tasks.forEach(executorService::submit);
+			tasks.forEach(t -> executorService.submit(t, priority));
 			latch.await();
 		} catch (final InterruptedException e)
 		{
