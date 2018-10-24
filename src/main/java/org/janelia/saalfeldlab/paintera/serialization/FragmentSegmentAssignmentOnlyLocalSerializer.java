@@ -13,10 +13,12 @@ import com.google.gson.JsonSerializer;
 import javafx.util.Pair;
 import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignmentOnlyLocal;
 import org.janelia.saalfeldlab.paintera.control.assignment.action.AssignmentAction;
+import org.scijava.plugin.Plugin;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class FragmentSegmentAssignmentOnlyLocalSerializer implements JsonSerializer<FragmentSegmentAssignmentOnlyLocal>
+@Plugin(type = PainteraSerialization.PainteraSerializer.class)
+public class FragmentSegmentAssignmentOnlyLocalSerializer implements PainteraSerialization.PainteraSerializer<FragmentSegmentAssignmentOnlyLocal>
 {
 
 	private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
@@ -47,4 +49,8 @@ public class FragmentSegmentAssignmentOnlyLocalSerializer implements JsonSeriali
 		return map;
 	}
 
+	@Override
+	public Class<FragmentSegmentAssignmentOnlyLocal> getTargetClass() {
+		return FragmentSegmentAssignmentOnlyLocal.class;
+	}
 }

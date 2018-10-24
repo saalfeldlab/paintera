@@ -10,8 +10,10 @@ import com.google.gson.JsonParseException;
 import com.google.gson.JsonSerializationContext;
 import com.google.gson.JsonSerializer;
 import org.janelia.saalfeldlab.paintera.control.selection.SelectedIds;
+import org.scijava.plugin.Plugin;
 
-public class SelectedIdsSerializer implements JsonSerializer<SelectedIds>, JsonDeserializer<SelectedIds>
+@Plugin(type = PainteraSerialization.PainteraAdapter.class)
+public class SelectedIdsSerializer implements PainteraSerialization.PainteraAdapter<SelectedIds>
 {
 
 	private static final String LAST_SELECTION = "lastSelection";
@@ -48,4 +50,8 @@ public class SelectedIdsSerializer implements JsonSerializer<SelectedIds>, JsonD
 		return obj;
 	}
 
+	@Override
+	public Class<SelectedIds> getTargetClass() {
+		return SelectedIds.class;
+	}
 }

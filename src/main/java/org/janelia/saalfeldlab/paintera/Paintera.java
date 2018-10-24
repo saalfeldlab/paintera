@@ -200,14 +200,14 @@ public class Paintera extends Application
 		final Map<Integer, SourceState<?, ?>> indexToState = new HashMap<>();
 
 		final Properties properties = loadedProperties
-				.map(lp -> Properties.fromSerializedProperties(
+				.map(MakeUnchecked.function(lp -> Properties.fromSerializedProperties(
 						lp,
 						baseView,
 						true,
 						() -> projectDir,
 						indexToState,
 						gridConstraintsManager
-				                                              ))
+				                                              )))
 				.orElse(new Properties(baseView, gridConstraintsManager));
 
 		paneWithStatus.crosshairConfigNode().bind(properties.crosshairConfig);

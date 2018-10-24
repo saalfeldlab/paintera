@@ -10,11 +10,13 @@ import com.google.gson.JsonDeserializer;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParseException;
+import org.janelia.saalfeldlab.paintera.serialization.PainteraSerialization;
 import org.janelia.saalfeldlab.paintera.serialization.StatefulSerializer;
 import org.janelia.saalfeldlab.paintera.serialization.StatefulSerializer.Arguments;
 import org.janelia.saalfeldlab.paintera.state.InvertingRawSourceState;
 import org.janelia.saalfeldlab.paintera.state.RawSourceState;
 import org.janelia.saalfeldlab.paintera.state.SourceState;
+import org.scijava.plugin.Plugin;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -33,8 +35,9 @@ public class InvertingSourceStateDeserializer implements JsonDeserializer<Invert
 		this.dependsOn = dependsOn;
 	}
 
+	@Plugin(type = StatefulSerializer.DeserializerFactory.class)
 	public static class Factory
-			implements StatefulSerializer.Deserializer<InvertingRawSourceState<?, ?>, InvertingSourceStateDeserializer>
+			implements StatefulSerializer.DeserializerFactory<InvertingRawSourceState<?, ?>, InvertingSourceStateDeserializer>
 	{
 
 		@Override
@@ -46,6 +49,10 @@ public class InvertingSourceStateDeserializer implements JsonDeserializer<Invert
 			return new InvertingSourceStateDeserializer(dependencyFromIndex);
 		}
 
+		@Override
+		public Class<InvertingRawSourceState<?, ?>> getTargetClass() {
+			return (Class<InvertingRawSourceState<?, ?>>) (Class<?>) InvertingRawSourceState.class;
+		}
 	}
 
 	@Override

@@ -6,8 +6,10 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonSerializationContext;
 import com.google.gson.JsonSerializer;
+import org.scijava.plugin.Plugin;
 
-public class WindowPropertiesSerializer implements JsonSerializer<WindowProperties>
+@Plugin(type = PainteraSerialization.PainteraSerializer.class)
+public class WindowPropertiesSerializer implements PainteraSerialization.PainteraSerializer<WindowProperties>
 {
 	public static final String WIDTH_KEY = "width";
 
@@ -23,4 +25,8 @@ public class WindowPropertiesSerializer implements JsonSerializer<WindowProperti
 		return obj;
 	}
 
+	@Override
+	public Class<WindowProperties> getTargetClass() {
+		return WindowProperties.class;
+	}
 }

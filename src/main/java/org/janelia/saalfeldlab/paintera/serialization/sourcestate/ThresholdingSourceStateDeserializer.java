@@ -11,12 +11,15 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParseException;
 import net.imglib2.type.numeric.ARGBType;
+import org.ejml.factory.DecompositionFactory;
+import org.janelia.saalfeldlab.paintera.serialization.PainteraSerialization;
 import org.janelia.saalfeldlab.paintera.serialization.StatefulSerializer;
 import org.janelia.saalfeldlab.paintera.serialization.StatefulSerializer.Arguments;
 import org.janelia.saalfeldlab.paintera.state.RawSourceState;
 import org.janelia.saalfeldlab.paintera.state.SourceState;
 import org.janelia.saalfeldlab.paintera.state.ThresholdingSourceState;
 import org.janelia.saalfeldlab.util.Colors;
+import org.scijava.plugin.Plugin;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -33,9 +36,10 @@ public class ThresholdingSourceStateDeserializer implements JsonDeserializer<Thr
 		this.dependsOn = dependsOn;
 	}
 
+	@Plugin(type = StatefulSerializer.DeserializerFactory.class)
 	public static class Factory implements
-	                            StatefulSerializer.Deserializer<ThresholdingSourceState<?, ?>,
-			                            ThresholdingSourceStateDeserializer>
+			StatefulSerializer.DeserializerFactory<ThresholdingSourceState<?, ?>,
+													ThresholdingSourceStateDeserializer>
 	{
 
 		@Override
@@ -47,6 +51,10 @@ public class ThresholdingSourceStateDeserializer implements JsonDeserializer<Thr
 			return new ThresholdingSourceStateDeserializer(dependencyFromIndex);
 		}
 
+		@Override
+		public Class<ThresholdingSourceState<?, ?>> getTargetClass() {
+			return (Class<ThresholdingSourceState<?, ?>>) (Class<?>) ThresholdingSourceState.class;
+		}
 	}
 
 	@Override

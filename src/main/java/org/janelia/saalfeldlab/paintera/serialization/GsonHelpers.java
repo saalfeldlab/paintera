@@ -5,6 +5,7 @@ import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleDoubleProperty;
 import javafx.beans.property.SimpleIntegerProperty;
 import javafx.beans.property.SimpleLongProperty;
+import javafx.util.Pair;
 import net.imglib2.converter.ARGBColorConverter;
 import net.imglib2.converter.ARGBCompositeColorConverter;
 import net.imglib2.realtransform.AffineTransform3D;
@@ -57,10 +58,13 @@ import org.janelia.saalfeldlab.paintera.state.SourceInfo;
 import org.janelia.saalfeldlab.paintera.state.SourceState;
 import org.janelia.saalfeldlab.paintera.state.ThresholdingSourceState;
 import org.janelia.saalfeldlab.paintera.stream.HighlightingStreamConverter;
+import org.scijava.InstantiableException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.lang.invoke.MethodHandles;
+import java.util.List;
+import java.util.Map;
 import java.util.function.IntFunction;
 import java.util.function.Supplier;
 import java.util.function.ToIntFunction;
@@ -71,7 +75,7 @@ public class GsonHelpers {
 
 	public static GsonBuilder builderWithAllRequiredDeserializers(
 			final PainteraBaseView viewer,
-			final Supplier<String> projectDirectory) {
+			final Supplier<String> projectDirectory) throws InstantiableException {
 		final IntFunction<SourceState<?, ?>> dependencyFromIndex = index -> viewer.sourceInfo().getState(viewer
 				.sourceInfo().trackSources().get(
 						index));
@@ -81,49 +85,32 @@ public class GsonHelpers {
 	public static GsonBuilder builderWithAllRequiredDeserializers(
 			final Arguments arguments,
 			final Supplier<String> projectDirectory,
-			final IntFunction<SourceState<?, ?>> dependencyFromIndex) {
-		return new GsonBuilder()
-				.registerTypeAdapter(N5DataSource.class, new N5DataSourceDeserializer(arguments.globalCache, 0))
-				.registerTypeAdapter(N5ChannelDataSource.class, new N5ChannelDataSourceDeserializer(arguments.globalCache, 0))
-				.registerTypeAdapter(AffineTransform3D.class, new AffineTransform3DJsonAdapter())
-				.registerTypeHierarchyAdapter(ARGBColorConverter.class, new ARGBColorConverterSerializer<>())
-				.registerTypeHierarchyAdapter(ARGBCompositeColorConverter.class, new ARGBCompositeColorConverterSerializer<>())
-				.registerTypeHierarchyAdapter(
-						HighlightingStreamConverter.class,
-						new HighlightingStreamConverterSerializer()
-				)
-				.registerTypeAdapter(
-						MaskedSource.class,
-						new MaskedSourceDeserializer(projectDirectory, arguments.propagationWorkers)
-				)
-				.registerTypeAdapter(RawSourceState.class, new RawSourceStateDeserializer())
-				.registerTypeAdapter(ChannelSourceState.class, new ChannelSourceStateDeserializer())
-				.registerTypeAdapter(SelectedIds.class, new SelectedIdsSerializer())
-				.registerTypeAdapter(CommitCanvasN5.class, new CommitCanvasN5Serializer())
-				.registerTypeAdapter(
-						InvertingRawSourceState.class,
-						new InvertingSourceStateDeserializer(dependencyFromIndex)
-				)
-				.registerTypeAdapter(
-						ThresholdingSourceState.class,
-						new ThresholdingSourceStateDeserializer(dependencyFromIndex)
-				)
-				.registerTypeAdapter(
-						IntersectingSourceState.class,
-						new IntersectingSourceStateDeserializer.Factory().createDeserializer(arguments,
-								projectDirectory,
-								dependencyFromIndex
-						)
-				)
-				.registerTypeAdapter(SimpleDoubleProperty.class, new SimpleDoublePropertySerializer())
-				.registerTypeAdapter(CrosshairConfig.class, new CrosshairConfigSerializer())
-				.registerTypeAdapter(SimpleBooleanProperty.class, new SimpleBooleanPropertySerializer())
-				.registerTypeAdapter(SimpleIntegerProperty.class, new SimpleIntegerPropertySerializer())
-				.registerTypeAdapter(SimpleLongProperty.class, new SimpleLongPropertySerializer())
-				.registerTypeAdapter(ManagedMeshSettings.class, ManagedMeshSettings.jsonSerializer())
-				.registerTypeAdapter(MeshSettings.class, new MeshSettingsSerializer())
-				.registerTypeAdapter(ScreenScalesConfig.class, new ScreenScalesConfigSerializer())
-				.registerTypeAdapter(LabelSourceState.class, new LabelSourceStateDeserializer<>(arguments));
+			final IntFunction<SourceState<?, ?>> dependencyFromIndex) throws InstantiableException {
+
+		final Map<Class<?>, List<Pair<PainteraSerialization.PainteraDeserializer, Double>>> deserializers = PainteraSerialization.getDeserializers();
+		final Map<Class<?>, List<Pair<StatefulSerializer.DeserializerFactory, Double>>> deserializerFactories = StatefulSerializer.getDeserializers();
+
+		final GsonBuilder builder = new GsonBuilder();
+
+		for (final Map.Entry<Class<?>, List<Pair<PainteraSerialization.PainteraDeserializer, Double>>> d : deserializers.entrySet())
+		{
+			final PainteraSerialization.PainteraDeserializer<?> v = d.getValue().get(0).getKey();
+			LOG.debug("Adding deserializer for class {} ({})", d.getKey(), v.isHierarchyAdapter());
+			if (v.isHierarchyAdapter())
+				builder.registerTypeHierarchyAdapter(d.getKey(), v);
+			else
+				builder.registerTypeAdapter(d.getKey(), v);
+		}
+
+		for (final Map.Entry<Class<?>, List<Pair<StatefulSerializer.DeserializerFactory, Double>>> d : deserializerFactories.entrySet())
+		{
+			final StatefulSerializer.DeserializerFactory<?, ?> v = d.getValue().get(0).getKey();
+			LOG.debug("Adding deserializer factory for class {}", d.getKey());
+			builder.registerTypeAdapter(d.getKey(), v.createDeserializer(arguments, projectDirectory, dependencyFromIndex));
+		}
+
+		return builder;
+
 	}
 
 	public static GsonBuilder builderWithAllRequiredSerializers(
@@ -138,49 +125,31 @@ public class GsonHelpers {
 			final Supplier<String> projectDirectory,
 			final ToIntFunction<SourceState<?, ?>> dependencyToIndex) {
 		LOG.debug("Creating builder with required serializers.");
-		return new GsonBuilder()
-				.registerTypeAdapter(AffineTransform3D.class, new AffineTransform3DJsonAdapter())
-				.registerTypeAdapter(WindowProperties.class, new WindowPropertiesSerializer())
-				.registerTypeAdapter(RawSourceState.class, new RawSourceStateSerializer())
-				.registerTypeAdapter(ChannelSourceState.class, new ChannelSourceStateSerializer())
-				.registerTypeHierarchyAdapter(
-						HighlightingStreamConverter.class,
-						new HighlightingStreamConverterSerializer()
-				)
-				.registerTypeHierarchyAdapter(Composite.class, new CompositeSerializer())
-				.registerTypeAdapter(N5DataSource.class, new N5DataSourceSerializer())
-				.registerTypeAdapter(N5ChannelDataSource.class, new N5ChannelDataSourceSerializer())
-				.registerTypeAdapter(LabelSourceState.class, new LabelSourceStateSerializer())
-				.registerTypeAdapter(SourceInfo.class, new SourceInfoSerializer())
-				.registerTypeAdapter(MaskedSource.class, new MaskedSourceSerializer())
-				.registerTypeHierarchyAdapter(ARGBColorConverter.class, new ARGBColorConverterSerializer<>())
-				.registerTypeHierarchyAdapter(ARGBCompositeColorConverter.class, new ARGBCompositeColorConverterSerializer<>())
-				.registerTypeAdapter(SelectedIds.class, new SelectedIdsSerializer())
-				.registerTypeAdapter(CommitCanvasN5.class, new CommitCanvasN5Serializer())
-				.registerTypeAdapter(
-						FragmentSegmentAssignmentOnlyLocal.class,
-						new FragmentSegmentAssignmentOnlyLocalSerializer()
-				)
-				.registerTypeAdapter(
-						ThresholdingSourceState.class,
-						new ThresholdingSourceStateSerializer(dependencyToIndex)
-				)
-				.registerTypeAdapter(
-						IntersectingSourceState.class,
-						new IntersectingSourceStateSerializer(dependencyToIndex)
-				)
-				.registerTypeAdapter(SimpleDoubleProperty.class, new SimpleDoublePropertySerializer())
-				.registerTypeAdapter(CrosshairConfig.class, new CrosshairConfigSerializer())
-				.registerTypeAdapter(SimpleBooleanProperty.class, new SimpleBooleanPropertySerializer())
-				.registerTypeAdapter(SimpleIntegerProperty.class, new SimpleIntegerPropertySerializer())
-				.registerTypeAdapter(SimpleLongProperty.class, new SimpleLongPropertySerializer())
-				.registerTypeAdapter(ManagedMeshSettings.class, ManagedMeshSettings.jsonSerializer())
-				.registerTypeAdapter(MeshSettings.class, new MeshSettingsSerializer())
-				.registerTypeAdapter(ScreenScalesConfig.class, new ScreenScalesConfigSerializer())
-				.registerTypeAdapter(
-						InvertingRawSourceState.class,
-						new InvertingSourceStateSerializer(dependencyToIndex)
-				);
+
+		final Map<Class<?>, List<Pair<PainteraSerialization.PainteraSerializer, Double>>> serializers = PainteraSerialization.getSerializers();
+		final Map<Class<?>, List<Pair<StatefulSerializer.SerializerFactory, Double>>> serializerFactories = StatefulSerializer.getSerializers();
+		LOG.debug("Found serializer factories for these classes: {}", serializerFactories.keySet());
+
+		final GsonBuilder builder = new GsonBuilder();
+
+		for (final Map.Entry<Class<?>, List<Pair<PainteraSerialization.PainteraSerializer, Double>>> d : serializers.entrySet())
+		{
+			final PainteraSerialization.PainteraSerializer v = d.getValue().get(0).getKey();
+			LOG.debug("Adding serializer for class {} ({})", d.getKey(), v.isHierarchyAdapter());
+			if (v.isHierarchyAdapter())
+				builder.registerTypeHierarchyAdapter(d.getKey(), v);
+			else
+				builder.registerTypeAdapter(d.getKey(), v);
+		}
+
+		for (final Map.Entry<Class<?>, List<Pair<StatefulSerializer.SerializerFactory, Double>>> d : serializerFactories.entrySet())
+		{
+			final StatefulSerializer.SerializerFactory v = d.getValue().get(0).getKey();
+			LOG.debug("Adding serializer factory for class {}", d.getKey());
+			builder.registerTypeAdapter(d.getKey(), v.createSerializer(projectDirectory, dependencyToIndex));
+		}
+
+		return builder;
 	}
 
 }

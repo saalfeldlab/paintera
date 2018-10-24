@@ -13,8 +13,10 @@ import com.google.gson.JsonSerializer;
 import org.janelia.saalfeldlab.paintera.data.n5.CommitCanvasN5;
 import org.janelia.saalfeldlab.paintera.data.n5.N5Meta;
 import org.janelia.saalfeldlab.paintera.data.n5.ReflectionException;
+import org.scijava.plugin.Plugin;
 
-public class CommitCanvasN5Serializer implements JsonSerializer<CommitCanvasN5>, JsonDeserializer<CommitCanvasN5>
+@Plugin(type = PainteraSerialization.PainteraAdapter.class)
+public class CommitCanvasN5Serializer implements PainteraSerialization.PainteraAdapter<CommitCanvasN5>
 {
 
 	public static final String META_CLASS_KEY = "class";
@@ -55,4 +57,8 @@ public class CommitCanvasN5Serializer implements JsonSerializer<CommitCanvasN5>,
 		}
 	}
 
+	@Override
+	public Class<CommitCanvasN5> getTargetClass() {
+		return CommitCanvasN5.class;
+	}
 }

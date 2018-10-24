@@ -22,6 +22,8 @@ import javafx.beans.property.SimpleBooleanProperty;
 import javafx.collections.FXCollections;
 import javafx.collections.MapChangeListener;
 import javafx.collections.ObservableMap;
+import org.janelia.saalfeldlab.paintera.serialization.PainteraSerialization;
+import org.scijava.plugin.Plugin;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -115,9 +117,8 @@ public class ManagedMeshSettings
 		}
 	}
 
-	private static class Serializer implements
-	                                JsonSerializer<ManagedMeshSettings>,
-	                                JsonDeserializer<ManagedMeshSettings>
+	@Plugin(type = PainteraSerialization.PainteraAdapter.class)
+	public static class Serializer implements PainteraSerialization.PainteraAdapter<ManagedMeshSettings>
 	{
 
 		private static final String GLOBAL_SETTINGS_KEY = "globalSettings";
@@ -206,6 +207,10 @@ public class ManagedMeshSettings
 			return map;
 		}
 
+		@Override
+		public Class<ManagedMeshSettings> getTargetClass() {
+			return ManagedMeshSettings.class;
+		}
 	}
 
 }

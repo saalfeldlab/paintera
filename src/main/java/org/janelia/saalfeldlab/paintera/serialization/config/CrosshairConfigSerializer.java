@@ -13,11 +13,12 @@ import com.google.gson.JsonSerializationContext;
 import com.google.gson.JsonSerializer;
 import javafx.scene.paint.Color;
 import org.janelia.saalfeldlab.paintera.config.CrosshairConfig;
+import org.janelia.saalfeldlab.paintera.serialization.PainteraSerialization;
 import org.janelia.saalfeldlab.util.Colors;
+import org.scijava.plugin.Plugin;
 
-public class CrosshairConfigSerializer implements
-                                       JsonSerializer<CrosshairConfig>,
-                                       JsonDeserializer<CrosshairConfig>
+@Plugin(type = PainteraSerialization.PainteraAdapter.class)
+public class CrosshairConfigSerializer implements PainteraSerialization.PainteraAdapter<CrosshairConfig>
 {
 
 	private static final String ON_FOCUS_COLOR_KEY = "onFocusColor";
@@ -67,4 +68,8 @@ public class CrosshairConfigSerializer implements
 		return map;
 	}
 
+	@Override
+	public Class<CrosshairConfig> getTargetClass() {
+		return CrosshairConfig.class;
+	}
 }

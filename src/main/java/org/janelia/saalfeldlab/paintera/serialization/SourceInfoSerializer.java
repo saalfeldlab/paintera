@@ -30,10 +30,12 @@ import net.imglib2.exception.IncompatibleTypeException;
 import org.janelia.saalfeldlab.paintera.serialization.sourcestate.SourceStateSerialization;
 import org.janelia.saalfeldlab.paintera.state.SourceInfo;
 import org.janelia.saalfeldlab.paintera.state.SourceState;
+import org.scijava.plugin.Plugin;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class SourceInfoSerializer implements JsonSerializer<SourceInfo>
+@Plugin(type = PainteraSerialization.PainteraSerializer.class)
+public class SourceInfoSerializer implements PainteraSerialization.PainteraSerializer<SourceInfo>
 {
 
 	private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
@@ -189,4 +191,8 @@ public class SourceInfoSerializer implements JsonSerializer<SourceInfo>
 		return false;
 	}
 
+	@Override
+	public Class<SourceInfo> getTargetClass() {
+		return SourceInfo.class;
+	}
 }
