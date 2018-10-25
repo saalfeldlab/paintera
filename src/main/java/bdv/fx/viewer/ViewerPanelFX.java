@@ -334,7 +334,11 @@ public class ViewerPanelFX
 	@Override
 	public void requestRepaint()
 	{
-		renderUnit.requestRepaint(iterateOverBlocksInOrder());
+		renderUnit.requestRepaint();
+		// TODO request repaint in priority order like this:
+//		synchronized (renderUnit) {
+//			renderUnit.requestRepaint(iterateOverBlocksInOrder());
+//		}
 	}
 
 	/**
