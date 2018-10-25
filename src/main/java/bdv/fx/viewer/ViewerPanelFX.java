@@ -95,8 +95,7 @@ import java.util.stream.Collectors;
  */
 public class ViewerPanelFX
 		extends StackPane
-		implements OverlayRendererGeneric<GraphicsContext>,
-		           TransformListener<AffineTransform3D>,
+		implements TransformListener<AffineTransform3D>,
 		           RequestRepaint
 {
 
@@ -454,14 +453,6 @@ public class ViewerPanelFX
 	}
 
 	/**
-	 * does nothing.
-	 */
-	@Override
-	public void setCanvasSize(final int width, final int height)
-	{
-	}
-
-	/**
 	 * Shutdown the {@link ExecutorService} used for rendering tiles onto the screen.
 	 */
 	public void stop()
@@ -503,12 +494,6 @@ public class ViewerPanelFX
 	public ObservableList<Node> getChildren()
 	{
 		return FXCollections.unmodifiableObservableList(super.getChildren());
-	}
-
-	@Override
-	public void drawOverlays(final GraphicsContext g)
-	{
-		display.requestLayout();
 	}
 
 
