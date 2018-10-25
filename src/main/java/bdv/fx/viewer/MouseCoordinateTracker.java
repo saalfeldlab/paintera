@@ -82,7 +82,7 @@ public class MouseCoordinateTracker implements InstallAndRemove<Node> {
 	 */
 	public synchronized boolean getIsInside()
 	{
-		return this.isInside.get();
+		return this.isInsideProperty().get();
 	}
 
 	/**
@@ -91,7 +91,7 @@ public class MouseCoordinateTracker implements InstallAndRemove<Node> {
 	 */
 	public synchronized double getMouseX()
 	{
-		return this.mouseX.doubleValue();
+		return this.mouseXProperty().doubleValue();
 	}
 
 	/**
@@ -100,7 +100,7 @@ public class MouseCoordinateTracker implements InstallAndRemove<Node> {
 	 */
 	public synchronized double getMouseY()
 	{
-		return this.mouseY.doubleValue();
+		return this.mouseYProperty().doubleValue();
 	}
 
 	private synchronized void setPosition(final double x, final double y)
