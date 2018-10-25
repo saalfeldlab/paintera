@@ -14,6 +14,7 @@ import javafx.scene.control.Tooltip;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
+import net.imglib2.converter.Converter;
 import org.janelia.saalfeldlab.fx.Labels;
 import org.janelia.saalfeldlab.fx.TitledPanes;
 import org.janelia.saalfeldlab.fx.undo.UndoFromEvents;
@@ -46,6 +47,9 @@ import org.slf4j.LoggerFactory;
 import java.lang.invoke.MethodHandles;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.function.Function;
 import java.util.function.LongPredicate;
@@ -56,6 +60,29 @@ public class SourceStateUIElementsDefaultFactory implements SourceStateUIElement
 
 	private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
+	private static Map<Class<?>, BindUnbindForConverterFactory> CONVERTER_SUPPLIER_FACTORIES_MAP = null;
+
+	private static BindUnbindForConverterFactory getConverterSupplierFactory(Class<?> clazz)
+	{
+		if (CONVERTER_SUPPLIER_FACTORIES_MAP == null)
+		{
+			final Map<Class<?>, BindUnbindForConverterFactory> tmp = new HashMap<>();
+			try {
+				SciJavaUtils.byTargetClassSortedByPriorities(BindUnbindForConverterFactory.class)
+						.entrySet()
+						.stream()
+						.filter(Objects::nonNull)
+						.filter(e -> e.getKey() != null && e.getValue() != null && !e.getValue().isEmpty())
+						.forEach(e -> tmp.put(e.getKey(), e.getValue().get(0).getKey()));
+			} catch (InstantiableException e) {
+				throw new RuntimeException(e);
+			}
+			CONVERTER_SUPPLIER_FACTORIES_MAP = new HashMap<>(tmp);
+		}
+		return CONVERTER_SUPPLIER_FACTORIES_MAP.get(clazz);
+	}
+
+
 	@Override
 	public Class<SourceState> getTargetClass() {
 		return SourceState.class;
@@ -65,6 +92,13 @@ public class SourceStateUIElementsDefaultFactory implements SourceStateUIElement
 	{
 
 		BindUnbindAndNodeSupplier[] create(T state);
+
+	}
+
+	public interface BindUnbindForConverterFactory<T extends Converter> extends SciJavaPlugin, SciJavaUtils.HasTargetClass<T>
+	{
+
+		BindUnbindAndNodeSupplier create(T converter);
 
 	}
 
@@ -96,7 +130,7 @@ public class SourceStateUIElementsDefaultFactory implements SourceStateUIElement
 		BindUnbindAndNodeSupplier[] suppliers = {
 				new AxisOrderPane(state.axisOrderProperty()),
 				new CompositePane(state.compositeProperty()),
-				new ConverterPane(state.converter()),
+				fromConverter(state.converter())
 		};
 
 		try {
@@ -117,6 +151,16 @@ public class SourceStateUIElementsDefaultFactory implements SourceStateUIElement
 		{
 			throw new RuntimeException(e);
 		}
+	}
+
+	private static BindUnbindAndNodeSupplier fromConverter(Converter converter)
+	{
+		LOG.warn("Getting supplier for converter {}", converter);
+		return Optional
+				.ofNullable(getConverterSupplierFactory(converter.getClass()))
+				.map(s -> (Function<Converter, BindUnbindAndNodeSupplier>) (s::create))
+				.orElse((Function<Converter, BindUnbindAndNodeSupplier>) ConverterPane::new)
+				.apply(converter);
 	}
 
 	private static class BindUnbindAndNodeSupplierImpl implements BindUnbindAndNodeSupplier
