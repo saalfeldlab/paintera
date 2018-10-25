@@ -22,6 +22,7 @@ import javafx.scene.control.Button;
 import javafx.scene.control.ButtonType;
 import javafx.scene.control.ScrollPane;
 import javafx.scene.control.ScrollPane.ScrollBarPolicy;
+import javafx.scene.control.TitledPane;
 import javafx.scene.layout.VBox;
 import javafx.stage.Modality;
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread;
@@ -64,26 +65,22 @@ public class SourceTabs implements Supplier<Node>
 
 	private final DoubleProperty width = new SimpleDoubleProperty();
 
+	private final Consumer<Source<?>> remove;
+
 	public SourceTabs(
 			final ObservableIntegerValue currentSourceIndex,
 			final Consumer<Source<?>> remove,
 			final SourceInfo info)
 	{
-		LOG.debug("Constructiong {}", SourceTabs.class.getName());
+		LOG.debug("Constructing {}", SourceTabs.class.getName());
 		this.info = info;
+		this.remove = remove;
 		width.set(300);
 		this.info.trackSources().addListener((ListChangeListener<Source<?>>) change -> {
 			final ArrayList<Source<?>> copy = new ArrayList<>(this.info.trackSources());
 			final List<StatePane> show = copy.stream().map(source -> statePaneCache.computeIfAbsent(
 					source,
-					src -> new StatePane(
-							info.getState(src),
-							info,
-							s -> removeDialog(remove, s),
-							width
-					)
-			                                                                                       )).collect
-					(Collectors.toList());
+					this::makeStatePane)).collect(Collectors.toList());
 			new ArrayList<>(this.statePanes).forEach(StatePane::unbind);
 			show.forEach(StatePane::bind);
 			this.statePanes.setAll(show);
@@ -128,6 +125,35 @@ public class SourceTabs implements Supplier<Node>
 	public DoubleProperty widthProperty()
 	{
 		return this.width;
+	}
+
+	private StatePane makeStatePane(final Source<?> source)
+	{
+		final StatePane p = new StatePane(
+				info.getState(source),
+				info,
+				s -> removeDialog(remove, s),
+				width);
+		addDragAndDropListener(p.get(), info, contents.getChildren());
+		return p;
+	}
+
+	private static void addDragAndDropListener(final Node p, final SourceInfo info, final List<Node> children)
+	{
+		p.setOnDragDetected( event -> {
+			p.startFullDrag();
+		} );
+
+		p.setOnMouseDragReleased( event -> {
+			final Object origin = event.getGestureSource();
+			if ( origin != p && origin instanceof TitledPane)
+			{
+				final TitledPane pane = ( TitledPane ) origin;
+				final int sourceIndex = children.indexOf( pane );
+				final int targetIndex = children.indexOf( p );
+				info.moveSourceTo( sourceIndex, targetIndex );
+			}
+		} );
 	}
 
 }
