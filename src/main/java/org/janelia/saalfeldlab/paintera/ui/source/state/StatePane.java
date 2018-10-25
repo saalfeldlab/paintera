@@ -156,22 +156,4 @@ public class StatePane implements BindUnbindAndNodeSupplier
 		return tp;
 	}
 
-	//	private static void addDragAndDropListener( final Node p, final SourceInfo info, final List< Node > children )
-	//	{
-	//		p.setOnDragDetected( event -> {
-	//			p.startFullDrag();
-	//		} );
-	//
-	//		p.setOnMouseDragReleased( event -> {
-	//			final Object origin = event.getGestureSource();
-	//			if ( origin != p && origin instanceof TitledPane )
-	//			{
-	//				final TitledPane pane = ( TitledPane ) origin;
-	//				final int sourceIndex = children.indexOf( pane );
-	//				final int targetIndex = children.indexOf( p );
-	//				info.moveSourceTo( sourceIndex, targetIndex );
-	//			}
-	//		} );
-	//	}
-
 }
