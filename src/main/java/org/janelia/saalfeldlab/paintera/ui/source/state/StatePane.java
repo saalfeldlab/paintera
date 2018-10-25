@@ -37,18 +37,26 @@ public class StatePane implements BindUnbindAndNodeSupplier
 
 	private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
-	private static final Map<Class<?>, SourceStateUIElementsFactory> UI_ELEMENTS_FACTORY_MAP = new HashMap<>();
-	static {
-		try {
-			SciJavaUtils.byTargetClassSortedByPriorities(SourceStateUIElementsFactory.class)
-					.entrySet()
-					.stream()
-					.filter(Objects::nonNull)
-					.filter(e -> e.getKey() != null && e.getValue() != null && !e.getValue().isEmpty())
-					.forEach(e -> UI_ELEMENTS_FACTORY_MAP.put(e.getKey(), e.getValue().get(0).getKey()));
-		} catch (InstantiableException e) {
-			throw new RuntimeException(e);
+	private static Map<Class<?>, SourceStateUIElementsFactory> UI_ELEMENTS_FACTORY_MAP = null;
+
+	private static SourceStateUIElementsFactory getUiElementsFactory(Class<?> clazz)
+	{
+		if (UI_ELEMENTS_FACTORY_MAP == null)
+		{
+			final Map<Class<?>, SourceStateUIElementsFactory> tmp = new HashMap<>();
+			try {
+				SciJavaUtils.byTargetClassSortedByPriorities(SourceStateUIElementsFactory.class)
+						.entrySet()
+						.stream()
+						.filter(Objects::nonNull)
+						.filter(e -> e.getKey() != null && e.getValue() != null && !e.getValue().isEmpty())
+						.forEach(e -> tmp.put(e.getKey(), e.getValue().get(0).getKey()));
+			} catch (InstantiableException e) {
+				throw new RuntimeException(e);
+			}
+			UI_ELEMENTS_FACTORY_MAP = new HashMap<>(tmp);
 		}
+		return UI_ELEMENTS_FACTORY_MAP.get(clazz);
 	}
 
 	private final SourceState<?, ?> state;
@@ -75,7 +83,7 @@ public class StatePane implements BindUnbindAndNodeSupplier
 		this.state = state;
 		this.sourceInfo = sourceInfo;
 		this.supplier = Optional
-				.ofNullable(UI_ELEMENTS_FACTORY_MAP.get(state.getClass()))
+				.ofNullable(getUiElementsFactory(state.getClass()))
 				.orElseGet(SourceStateUIElementsDefaultFactory::new)
 				.create(state);
 
