@@ -44,7 +44,10 @@ import javafx.beans.property.ReadOnlyDoubleProperty;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleDoubleProperty;
 import javafx.beans.property.SimpleObjectProperty;
+import javafx.collections.FXCollections;
 import javafx.collections.ListChangeListener;
+import javafx.collections.ObservableList;
+import javafx.scene.Node;
 import javafx.scene.canvas.GraphicsContext;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.BorderPane;
@@ -67,6 +70,7 @@ import net.imglib2.util.Intervals;
 import net.imglib2.view.Views;
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread;
 import org.janelia.saalfeldlab.paintera.data.axisorder.AxisOrder;
+import org.jetbrains.annotations.Contract;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -84,9 +88,13 @@ import java.util.stream.Collectors;
 
 /**
  * @author Philipp Hanslovsky
+ *
+ * Renders arbitrary cross-sections through a set of multi-resolution data sources with overlays. Overlays are generated
+ * independently of cross-sections -- updates of overlays do not trigger re-rendering of the cross-sections.
+ *
  */
 public class ViewerPanelFX
-		extends BorderPane
+		extends StackPane
 		implements OverlayRendererGeneric<GraphicsContext>,
 		           TransformListener<AffineTransform3D>,
 		           RequestRepaint
@@ -100,47 +108,19 @@ public class ViewerPanelFX
 
 	private final OverlayPane overlayPane = new OverlayPane();
 
-	private final StackPane center = new StackPane(display, overlayPane);
-	/**
-	 * Currently rendered state (visible sources, transformation, timepoint, etc.) A copy can be obtained by {@link
-	 * #getState()}.
-	 */
-	protected final ViewerState state;
+	private final ViewerState state;
 
-	/**
-	 * Transformation set by the interactive viewer.
-	 */
-	protected final AffineTransform3D viewerTransform;
+	private final AffineTransform3D viewerTransform;
 
-	protected ThreadGroup threadGroup;
+	private ThreadGroup threadGroup;
 
-	/**
-	 * The {@link ExecutorService} used for rendereing.
-	 */
-	protected final ExecutorService renderingExecutorService;
+	private final ExecutorService renderingExecutorService;
 
-	/**
-	 * These listeners will be notified about changes to the {@link #viewerTransform}. This is done <em>before</em>
-	 * calling {@link #requestRepaint()} so listeners have the chance to interfere.
-	 */
-	protected final CopyOnWriteArrayList<TransformListener<AffineTransform3D>> transformListeners;
+	private final CopyOnWriteArrayList<TransformListener<AffineTransform3D>> transformListeners;
 
-	/**
-	 * These listeners will be notified about changes to the {@link #viewerTransform} that was used to render the
-	 * current image. This is intended for example for {@link OverlayRendererGeneric}s that need to exactly match the
-	 * transform of their overlaid content to the transform of the image.
-	 */
-	protected final CopyOnWriteArrayList<TransformListener<AffineTransform3D>> lastRenderTransformListeners;
+	private final ViewerOptions.Values options;
 
-	protected final ViewerOptions.Values options;
-
-	protected final SimpleDoubleProperty mouseX = new SimpleDoubleProperty();
-
-	protected final SimpleDoubleProperty mouseY = new SimpleDoubleProperty();
-
-	protected final SimpleBooleanProperty isInside = new SimpleBooleanProperty();
-
-	private final Function<Source<?>, Interpolation> interpolation;
+	private final MouseCoordinateTracker mouseTracker = new MouseCoordinateTracker();
 
 	private final ObjectProperty<RenderUnit.ImageDisplayGrid> imageDisplayGrid = new SimpleObjectProperty<>(null);
 
@@ -155,10 +135,16 @@ public class ViewerPanelFX
 	}
 
 	/**
+	 * Will create {@link ViewerPanelFX} without any data sources and a single time point.
+	 *
+	 * @param axisOrder
+	 *      Get axis order method for each data source.
 	 * @param cacheControl
 	 * 		to control IO budgeting and fetcher queue.
 	 * @param optional
 	 * 		optional parameters. See {@link ViewerOptions#options()}.
+	 * @param interpolation
+	 *      Get interpolation method for each data source.
 	 */
 	public ViewerPanelFX(
 			final Function<Source<?>, AxisOrder> axisOrder,
@@ -170,12 +156,18 @@ public class ViewerPanelFX
 	}
 
 	/**
+	 * Will create {@link ViewerPanelFX} without any data sources.
+	 *
+	 * @param axisOrder
+	 *      Get axis order method for each data source.
 	 * @param numTimepoints
 	 * 		number of available timepoints.
 	 * @param cacheControl
 	 * 		to control IO budgeting and fetcher queue.
 	 * @param optional
 	 * 		optional parameters. See {@link ViewerOptions#options()}.
+	 * @param interpolation
+	 *      Get interpolation method for each data source.
 	 */
 	public ViewerPanelFX(
 			final Function<Source<?>, AxisOrder> axisOrder,
@@ -188,14 +180,21 @@ public class ViewerPanelFX
 	}
 
 	/**
+	 *
+	 * Will create {@link ViewerPanelFX} and populate with {@code sources}.
+	 *
 	 * @param sources
 	 * 		the {@link SourceAndConverter sources} to display.
+	 * @param axisOrder
+	 * 	    Get axis order method for each data source.
 	 * @param numTimepoints
 	 * 		number of available timepoints.
 	 * @param cacheControl
 	 * 		to control IO budgeting and fetcher queue.
 	 * @param optional
 	 * 		optional parameters. See {@link ViewerOptions#options()}.
+	 * @param interpolation
+	 *      Get interpolation method for each data source.
 	 */
 	public ViewerPanelFX(
 			final List<SourceAndConverter<?>> sources,
@@ -206,7 +205,7 @@ public class ViewerPanelFX
 			final Function<Source<?>, Interpolation> interpolation)
 	{
 		super();
-		this.setCenter(this.center);
+		super.getChildren().setAll(display, overlayPane);
 		this.renderingExecutorService = Executors.newFixedThreadPool(optional.values.getNumRenderingThreads(), new RenderThreadFactory());
 		options = optional.values;
 
@@ -218,34 +217,10 @@ public class ViewerPanelFX
 		viewerTransform = new AffineTransform3D();
 
 		transformListeners = new CopyOnWriteArrayList<>();
-		lastRenderTransformListeners = new CopyOnWriteArrayList<>();
-
-		this.interpolation = interpolation;
 
 		state.sourcesAndConverters.addListener((ListChangeListener<SourceAndConverter<?>>) c -> requestRepaint());
 
-		addEventFilter(MouseEvent.MOUSE_MOVED, event -> {
-			synchronized (isInside)
-			{
-				if (isInside.get())
-				{
-					mouseX.set(event.getX());
-					mouseY.set(event.getY());
-				}
-			}
-		});
-		addEventFilter(MouseEvent.MOUSE_ENTERED, event -> {
-			synchronized (isInside)
-			{
-				isInside.set(true);
-			}
-		});
-		addEventFilter(MouseEvent.MOUSE_EXITED, event -> {
-			synchronized (isInside)
-			{
-				isInside.set(false);
-			}
-		});
+		mouseTracker.installInto(this);
 
 		this.renderUnit = new RenderUnit(
 				threadGroup,
@@ -266,49 +241,13 @@ public class ViewerPanelFX
 		this.heightProperty().addListener((obs, oldv, newv) -> this.renderUnit.setDimensions((long)getWidth(), (long)getHeight()));
 		setWidth(options.getWidth());
 		setHeight(options.getHeight());
+		setAllSources(sources);
 	}
 
-	public void addSource(final SourceAndConverter<?> sourceAndConverter)
-	{
-		synchronized (state)
-		{
-			state.sourcesAndConverters.add(sourceAndConverter);
-		}
-	}
-
-	public void addSources(final Collection<? extends SourceAndConverter<?>> sourceAndConverter)
-	{
-		synchronized (state)
-		{
-			state.sourcesAndConverters.addAll(sourceAndConverter);
-		}
-	}
-
-	public void removeSource(final Source<?> source)
-	{
-		synchronized (state)
-		{
-			state.sourcesAndConverters.remove(state.sources.get(source));
-		}
-	}
-
-	public void removeSources(final Collection<Source<?>> sources)
-	{
-		synchronized (state)
-		{
-			state.sourcesAndConverters.removeAll(sources.stream().map(state.sources::get).collect(Collectors.toList
-					()));
-		}
-	}
-
-	public void removeAllSources()
-	{
-		synchronized (state)
-		{
-			this.state.sourcesAndConverters.clear();
-		}
-	}
-
+	/**
+	 * Set the sources of this {@link ViewerPanelFX}.
+	 * @param sources Will replace all current sources.
+	 */
 	public void setAllSources(final Collection<? extends SourceAndConverter<?>> sources)
 	{
 		synchronized (state)
@@ -323,7 +262,7 @@ public class ViewerPanelFX
 	 * @param gPos
 	 * 		is set to the corresponding global coordinates.
 	 */
-	public <P extends RealLocalizable & RealPositionable> void displayToGlobalCoordinates(final double[] gPos)
+	public void displayToGlobalCoordinates(final double[] gPos)
 	{
 		assert gPos.length >= 3;
 
@@ -368,21 +307,26 @@ public class ViewerPanelFX
 	{
 		assert gPos.numDimensions() == 3;
 		final RealPoint lPos = new RealPoint(3);
-		lPos.setPosition(mouseX.longValue(), 0);
-		lPos.setPosition(mouseY.longValue(), 1);
+		synchronized (mouseTracker) {
+			lPos.setPosition(mouseTracker.getMouseX(), 0);
+			lPos.setPosition(mouseTracker.getMouseY(), 1);
+		}
 		viewerTransform.applyInverse(gPos, lPos);
 	}
 
 	/**
-	 * TODO
+	 * Set {@code p} to current mouse coordinates in viewer space.
 	 *
 	 * @param p
+	 * 		is set to the current mouse coordinates in viewer space.
 	 */
-	public synchronized void getMouseCoordinates(final Positionable p)
+	public void getMouseCoordinates(final Positionable p)
 	{
 		assert p.numDimensions() == 2;
-		p.setPosition(mouseX.longValue(), 0);
-		p.setPosition(mouseY.longValue(), 1);
+		synchronized (mouseTracker) {
+			p.setPosition((long) mouseTracker.getMouseX(), 0);
+			p.setPosition((long) mouseTracker.getMouseY(), 1);
+		}
 	}
 
 	/**
@@ -394,17 +338,25 @@ public class ViewerPanelFX
 		renderUnit.requestRepaint(iterateOverBlocksInOrder());
 	}
 
-
+	/**
+	 * Repaint the specified two-dimensional interval as soon as possible.
+	 * @param min
+	 * 		top left corner of interval to be repainted
+	 * @param max
+	 * 		bottom right corner of interval to be repainted
+	 */
 	public void requestRepaint(final long[] min, final long[] max)
 	{
+		assert min.length == 2;
+		assert max.length == 2;
 		renderUnit.requestRepaint(min, max);
 	}
 
 	private int[] iterateOverBlocksInOrder()
 	{
 		final boolean isMouseInside = isMouseInside();
-		final long x0 = (long) (isMouseInside ? mouseX.get() : getWidth() / 2);
-		final long y0 = (long) (isMouseInside ? mouseY.get() : getHeight() / 2);
+		final long x0 = (long) (isMouseInside ? mouseTracker.getMouseX() : (getWidth() / 2));
+		final long y0 = (long) (isMouseInside ? mouseTracker.getMouseY() : (getHeight() / 2));
 		final RenderUnit.ImageDisplayGrid imageDisplayGrid = this.imageDisplayGrid.get();
 		if (imageDisplayGrid == null)
 			return new int[0];
@@ -446,39 +398,6 @@ public class ViewerPanelFX
 	}
 
 	/**
-	 * Set the viewer transform.
-	 */
-	public synchronized void setCurrentViewerTransform(final AffineTransform3D viewerTransform)
-	{
-		transformChanged(viewerTransform);
-	}
-
-	/**
-	 * Show the specified time-point.
-	 *
-	 * @param timepoint
-	 * 		time-point index.
-	 */
-	public synchronized void setTimepoint(final int timepoint)
-	{
-		state.timepoint.set(timepoint);
-	}
-
-	public void setNumTimepoints(final int numTimepoints)
-	{
-
-		if (numTimepoints < 1 || state.numTimepoints.get() == numTimepoints)
-			return;
-		state.numTimepoints.set(numTimepoints);
-		if (state.numTimepoints.get() >= numTimepoints)
-		{
-			final int timepoint = numTimepoints - 1;
-			state.timepoint.set(timepoint);
-		}
-		requestRepaint();
-	}
-
-	/**
 	 * Get a copy of the current {@link ViewerState}.
 	 *
 	 * @return a copy of the current {@link ViewerState}.
@@ -487,36 +406,6 @@ public class ViewerPanelFX
 	{
 		return state.copy();
 	}
-
-	/**
-	 * Add a {@link TransformListener} to notify about viewer transformation changes. Listeners will be notified when a
-	 * new image has been painted with the viewer transform used to render that image.
-	 * <p>
-	 * This happens immediately after that image is painted onto the screen, before any overlays are painted.
-	 *
-	 * @param listener
-	 * 		the transform listener to add.
-	 */
-//	public void addRenderTransformListener(final TransformListener<AffineTransform3D> listener)
-//	{
-//		renderTarget.addTransformListener(listener);
-//	}
-//
-//	/**
-//	 * Add a {@link TransformListener} to notify about viewer transformation changes. Listeners will be notified when a
-//	 * new image has been painted with the viewer transform used to render that image.
-//	 * <p>
-//	 * This happens immediately after that image is painted onto the screen, before any overlays are painted.
-//	 *
-//	 * @param listener
-//	 * 		the transform listener to add.
-//	 * @param index
-//	 * 		position in the list of listeners at which to insert this one.
-//	 */
-//	public void addRenderTransformListener(final TransformListener<AffineTransform3D> listener, final int index)
-//	{
-//		renderTarget.addTransformListener(listener, index);
-//	}
 
 	/**
 	 * Add a {@link TransformListener} to notify about viewer transformation changes. Listeners will be notified
@@ -572,22 +461,15 @@ public class ViewerPanelFX
 	{
 	}
 
-	public ViewerOptions.Values getOptionValues()
-	{
-		return options;
-	}
-
-	//	public SourceInfoOverlayRenderer getSourceInfoOverlayRenderer()
-	//	{
-	//		return sourceInfoOverlayRenderer;
-	//	}
-
+	/**
+	 * Shutdown the {@link ExecutorService} used for rendering tiles onto the screen.
+	 */
 	public void stop()
 	{
 		renderingExecutorService.shutdown();
 	}
 
-	protected static final AtomicInteger panelNumber = new AtomicInteger(1);
+	private static final AtomicInteger panelNumber = new AtomicInteger(1);
 
 	protected class RenderThreadFactory implements ThreadFactory
 	{
@@ -595,7 +477,7 @@ public class ViewerPanelFX
 
 		private final AtomicInteger threadNumber = new AtomicInteger(1);
 
-		public RenderThreadFactory()
+		RenderThreadFactory()
 		{
 			this.threadNameFormat = String.format("viewer-panel-fx-%d-thread-%%d", panelNumber.getAndIncrement());
 			LOG.debug("Created {} with format {}", getClass().getSimpleName(), threadNameFormat);
@@ -617,10 +499,11 @@ public class ViewerPanelFX
 		}
 	}
 
-//	public TransformAwareBufferedImageOverlayRendererFX renderTarget()
-//	{
-//		return this.renderTarget;
-//	}
+	@Override
+	public ObservableList<Node> getChildren()
+	{
+		return FXCollections.unmodifiableObservableList(super.getChildren());
+	}
 
 	@Override
 	public void drawOverlays(final GraphicsContext g)
@@ -628,53 +511,77 @@ public class ViewerPanelFX
 		display.requestLayout();
 	}
 
+
+
+	/**
+	 * @see  MouseCoordinateTracker#getIsInside()
+	 * @return {@link MouseCoordinateTracker#getIsInside()} ()}
+	 */
 	public boolean isMouseInside()
 	{
-		return this.isInside.get();
+		return this.mouseTracker.getIsInside();
 	}
 
+	/**
+	 * @see  MouseCoordinateTracker#isInsideProperty()
+	 * @return {@link MouseCoordinateTracker#isInsideProperty()}
+	 */
 	public ReadOnlyBooleanProperty isMouseInsideProperty()
 	{
-		return ReadOnlyBooleanProperty.readOnlyBooleanProperty(this.isInside);
+		return mouseTracker.isInsideProperty();
 	}
 
-	public double getMouseX()
-	{
-		return mouseX.doubleValue();
-	}
-
-	public double getMouseY()
-	{
-		return mouseY.doubleValue();
-	}
-
+	/**
+	 * @see  MouseCoordinateTracker#mouseXProperty()
+	 * @return {@link MouseCoordinateTracker#mouseXProperty()}
+	 */
 	public ReadOnlyDoubleProperty mouseXProperty()
 	{
-		return ReadOnlyDoubleProperty.readOnlyDoubleProperty(mouseX);
+		return mouseTracker.mouseXProperty();
 	}
 
+
+	/**
+	 * @see  MouseCoordinateTracker#mouseYProperty()
+	 * @return {@link MouseCoordinateTracker#mouseYProperty()}
+	 */
 	public ReadOnlyDoubleProperty mouseYProperty()
 	{
-		return ReadOnlyDoubleProperty.readOnlyDoubleProperty(mouseY);
+		return mouseTracker.mouseYProperty();
 	}
 
+	/**
+	 * set the screen-scales used for rendering
+	 * @param screenScales subject to following constraints:
+	 *                     1. {@code 0 < sceenScales[i] <= 1} for all {@code i}
+	 *                     2. {@code screenScales[i] < screenScales[i - 1]} for all {@code i > 0}
+	 */
 	public void setScreenScales(double[] screenScales)
 	{
 		LOG.debug("Setting screen scales to {}", screenScales);
 		this.renderUnit.setScreenScales(screenScales.clone());
 	}
 
+	/**
+	 *
+	 * @return {@link OverlayPane} used for drawing overlays without re-rendering 2D cross-sections
+	 */
 	public OverlayPane getDisplay()
 	{
 		return this.overlayPane;
 	}
 
+	/**
+	 *
+	 * @return The current grid of image tiles that the screen is split into.
+	 */
 	public ObjectProperty<RenderUnit.ImageDisplayGrid> imageDisplayGridProperty()
 	{
 		return this.imageDisplayGrid;
 	}
 
-	private static final int[] range(int size)
+	@Contract(pure = true)
+	private static int[] range(int size)
 	{
 		int[] range = new int[size];
 		for (int i = 0; i < range.length; ++i)
