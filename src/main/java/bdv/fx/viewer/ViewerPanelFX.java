@@ -30,7 +30,6 @@
 package bdv.fx.viewer;
 
 import bdv.cache.CacheControl;
-import bdv.fx.viewer.render.OverlayRendererGeneric;
 import bdv.fx.viewer.render.RenderUnit;
 import bdv.viewer.Interpolation;
 import bdv.viewer.RequestRepaint;
@@ -41,16 +40,14 @@ import gnu.trove.list.array.TIntArrayList;
 import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.ReadOnlyBooleanProperty;
 import javafx.beans.property.ReadOnlyDoubleProperty;
-import javafx.beans.property.SimpleBooleanProperty;
-import javafx.beans.property.SimpleDoubleProperty;
+import javafx.beans.property.ReadOnlyObjectProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.collections.FXCollections;
 import javafx.collections.ListChangeListener;
 import javafx.collections.ObservableList;
 import javafx.scene.Node;
-import javafx.scene.canvas.GraphicsContext;
-import javafx.scene.input.MouseEvent;
-import javafx.scene.layout.BorderPane;
+import javafx.scene.image.Image;
+import javafx.scene.layout.GridPane;
 import javafx.scene.layout.StackPane;
 import net.imglib2.Point;
 import net.imglib2.Positionable;
@@ -68,9 +65,7 @@ import net.imglib2.type.numeric.integer.IntType;
 import net.imglib2.ui.TransformListener;
 import net.imglib2.util.Intervals;
 import net.imglib2.view.Views;
-import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread;
 import org.janelia.saalfeldlab.paintera.data.axisorder.AxisOrder;
-import org.jetbrains.annotations.Contract;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -84,7 +79,6 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Function;
-import java.util.stream.Collectors;
 
 /**
  * @author Philipp Hanslovsky
@@ -121,7 +115,7 @@ public class ViewerPanelFX
 
 	private final MouseCoordinateTracker mouseTracker = new MouseCoordinateTracker();
 
-	private final ObjectProperty<RenderUnit.ImageDisplayGrid> imageDisplayGrid = new SimpleObjectProperty<>(null);
+	private final ObjectProperty<RenderUnit.ImagePropertyGrid> imageDisplayGrid = new SimpleObjectProperty<>(null);
 
 	public ViewerPanelFX(
 			final List<SourceAndConverter<?>> sources,
@@ -232,10 +226,9 @@ public class ViewerPanelFX
 				renderingExecutorService);
 		this.renderUnit.addUpdateListener(() ->
 		{
-			final RenderUnit.ImageDisplayGrid grid = renderUnit.getImageDisplayGrid();
-			InvokeOnJavaFXApplicationThread.invoke(() -> this.display.setChild(grid.getGridPane()));
-			this.imageDisplayGrid.set(grid);
+			this.imageDisplayGrid.set(renderUnit.getImagePropertyGrid());
 		});
+		this.imageDisplayGrid.addListener((obs, oldv, newv) -> {synchronized(renderUnit){this.display.setChild(makeGrid(newv));}});
 		this.widthProperty().addListener((obs, oldv, newv) -> this.renderUnit.setDimensions((long)getWidth(), (long)getHeight()));
 		this.heightProperty().addListener((obs, oldv, newv) -> this.renderUnit.setDimensions((long)getWidth(), (long)getHeight()));
 		setWidth(options.getWidth());
@@ -360,7 +353,7 @@ public class ViewerPanelFX
 		final boolean isMouseInside = isMouseInside();
 		final long x0 = (long) (isMouseInside ? mouseTracker.getMouseX() : (getWidth() / 2));
 		final long y0 = (long) (isMouseInside ? mouseTracker.getMouseY() : (getHeight() / 2));
-		final RenderUnit.ImageDisplayGrid imageDisplayGrid = this.imageDisplayGrid.get();
+		final RenderUnit.ImagePropertyGrid imageDisplayGrid = this.imageDisplayGrid.get();
 		if (imageDisplayGrid == null)
 			return new int[0];
 
@@ -564,18 +557,45 @@ public class ViewerPanelFX
 	 *
 	 * @return The current grid of image tiles that the screen is split into.
 	 */
-	public ObjectProperty<RenderUnit.ImageDisplayGrid> imageDisplayGridProperty()
+	public ObjectProperty<RenderUnit.ImagePropertyGrid> imageDisplayGridProperty()
 	{
 		return this.imageDisplayGrid;
 	}
 
-	@Contract(pure = true)
 	private static int[] range(int size)
 	{
 		int[] range = new int[size];
 		for (int i = 0; i < range.length; ++i)
 			range[i] = i;
 		return range;
+	}
+
+	private static GridPane makeGrid(final RenderUnit.ImagePropertyGrid grid)
+	{
+		final GridPane pane = new GridPane();
+
+		if (grid == null)
+			return pane;
+
+		final CellGrid cellGrid = grid.getGrid();
+		pane.setMinWidth(1);
+		pane.setMinHeight(1);
+		pane.setPrefWidth(cellGrid.getImgDimensions()[0]);
+		pane.setPrefHeight(cellGrid.getImgDimensions()[0]);
+		final long[] gridPos = new long[2];
+		final long[] cellMin = new long[2];
+		final int[] cellDims = new int[2];
+		final int numTiles = grid.numTiles();
+		for (int i = 0; i < numTiles; ++i) {
+			cellGrid.getCellGridPositionFlat(i, gridPos);
+			cellGrid.getCellDimensions(gridPos, cellMin, cellDims);
+			final ReadOnlyObjectProperty<Image> image = grid.imagePropertyAt(i);
+			final ImagePane imagePane = new ImagePane(cellDims[0], cellDims[1]);
+			imagePane.imageProperty().bind(image);
+			LOG.debug("Putting render block {} into cell at position {}", i, gridPos);
+			pane.add(imagePane, (int) gridPos[0], (int) gridPos[1]);
+		}
+		return pane;
 	}
 
 }

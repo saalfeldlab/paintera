@@ -1,22 +1,14 @@
 package org.janelia.saalfeldlab.paintera.viewer3d;
 
-import java.util.ArrayList;
-import java.util.List;
-
 import bdv.fx.viewer.ViewerPanelFX;
 import javafx.beans.property.BooleanProperty;
-import javafx.beans.property.ObjectProperty;
+import javafx.beans.property.ReadOnlyObjectProperty;
 import javafx.beans.property.SimpleBooleanProperty;
-import javafx.beans.value.ChangeListener;
-import javafx.beans.value.ObservableValue;
 import javafx.collections.FXCollections;
 import javafx.collections.ListChangeListener;
 import javafx.collections.ObservableList;
 import javafx.scene.Group;
-import javafx.scene.Node;
-import javafx.scene.SnapshotParameters;
 import javafx.scene.image.Image;
-import javafx.scene.image.ImageView;
 import javafx.scene.paint.Color;
 import javafx.scene.paint.PhongMaterial;
 import javafx.scene.shape.CullFace;
@@ -27,7 +19,9 @@ import net.imglib2.img.cell.CellGrid;
 import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.util.Intervals;
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread;
-import org.janelia.saalfeldlab.util.NamedThreadFactory;
+
+import java.util.ArrayList;
+import java.util.List;
 
 public class OrthoSliceFX
 {
@@ -112,7 +106,7 @@ public class OrthoSliceFX
 				mv.setMaterial(material);
 				material.setDiffuseColor(Color.BLACK);
 				material.setSpecularColor(Color.BLACK);
-				final ObjectProperty<Image> display = newv.imagePropertyAt(meshIndex);
+				final ReadOnlyObjectProperty<Image> display = newv.imagePropertyAt(meshIndex);
 				display.addListener((obsIm, oldvIm, newvIm) -> {
 					if (newvIm != null)
 						InvokeOnJavaFXApplicationThread.invoke(() -> material.setSelfIlluminationMap(newvIm));
