@@ -123,7 +123,7 @@ public class RenderUnit {
 	 * Request repaint of a single tile
 	 *
 	 * @param screenScaleIndex request repaint at this target scale
-	 * @param tileIndex linear index of tile as defined by {@link CellGrid#} that was constructed with block size and dimensions as
+	 * @param tileIndex linear index of tile as defined by {@link CellGrid} that was constructed with block size and dimensions as
 	 *                  specified via {@link #setBlockSize(int, int)} and {@link #setDimensions(long, long)}, respectively.
 	 */
 	public synchronized void requestRepaintSingleTile(final int screenScaleIndex, final int tileIndex)
@@ -135,7 +135,7 @@ public class RenderUnit {
 	/**
 	 * Request repaint of a single tile at highest possible resolution
 	 *
-	 * @param tileIndex linear index of tile as defined by {@link CellGrid#} that was constructed with block size and dimensions as
+	 * @param tileIndex linear index of tile as defined by {@link CellGrid} that was constructed with block size and dimensions as
 	 *                  specified via {@link #setBlockSize(int, int)} and {@link #setDimensions(long, long)}, respectively.
 	 */
 	public synchronized void requestRepaintSingleTile(final int tileIndex)
@@ -147,7 +147,7 @@ public class RenderUnit {
 	 * Request repaint of a list of tiles
 	 *
 	 * @param screenScaleIndex request repaint at this target scale
-	 * @param tileIndices list of linear indices of tiles as defined by {@link CellGrid#} that was constructed with block size and
+	 * @param tileIndices list of linear indices of tiles as defined by {@link CellGrid} that was constructed with block size and
 	 *                    dimensions as specified via {@link #setBlockSize(int, int)} and {@link #setDimensions(long, long)}, respectively.
 	 */
 	public synchronized void requestRepaint(final int screenScaleIndex, final int[] tileIndices)
@@ -160,7 +160,7 @@ public class RenderUnit {
 	/**
 	 * Request repaint of a list of tiles at highest possible resolution
 	 *
-	 * @param tileIndices list of linear indices of tiles as defined by {@link CellGrid#} that was constructed with block size and
+	 * @param tileIndices list of linear indices of tiles as defined by {@link CellGrid} that was constructed with block size and
 	 *                    dimensions as specified via {@link #setBlockSize(int, int)} and {@link #setDimensions(long, long)}, respectively.
 	 */
 	public synchronized void requestRepaint(final int[] tileIndices)
@@ -386,7 +386,7 @@ public class RenderUnit {
 		/**
 		 *
 		 * @param linearGridIndex linear index wrt to {@link #getGrid()}.
-		 * @return {@link ReadOnlyObjectProperty<Image>} at {@code linearGridIndex}
+		 * @return {@link ReadOnlyObjectProperty} at {@code linearGridIndex}
 		 */
 		public ReadOnlyObjectProperty<Image> imagePropertyAt(final int linearGridIndex)
 		{

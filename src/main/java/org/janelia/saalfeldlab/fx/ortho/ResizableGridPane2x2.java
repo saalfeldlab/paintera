@@ -6,6 +6,16 @@ import javafx.scene.Node;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.Pane;
 
+/**
+ * A wrapper around {@link GridPane} that holds for children organized in a 2x2 grid. The underlying
+ * {@link GridPane} is exposed through {@link #pane()} and can be managed with a {@link GridConstraintsManager}
+ * that is passed to {@link #manage(GridConstraintsManager)}.
+ *
+ * @param <TL> type of top left child
+ * @param <TR> type of top right child
+ * @param <BL> type of bottom left child
+ * @param <BR> type of bottom right child
+ */
 public class ResizableGridPane2x2<TL extends Node, TR extends Node, BL extends Node, BR extends Node>
 {
 
@@ -26,6 +36,13 @@ public class ResizableGridPane2x2<TL extends Node, TR extends Node, BL extends N
 		bottomRight.addListener((obs, oldv, newv) -> replace(grid, oldv, newv, 1, 1));
 	}
 
+	/**
+	 *
+	 * @param topLeft top left child
+	 * @param topRight top right child
+	 * @param bottomLeft bottom left child
+	 * @param bottomRight bottom right child
+	 */
 	public ResizableGridPane2x2(
 			final TL topLeft,
 			final TR topRight,
@@ -41,71 +58,102 @@ public class ResizableGridPane2x2<TL extends Node, TR extends Node, BL extends N
 		this.bottomRight.set(bottomRight);
 	}
 
+	/**
+	 *
+	 * @return underlying {@link GridPane}
+	 */
 	public Pane pane()
 	{
 		return this.grid;
 	}
 
+	/**
+	 *
+	 * @return proprty tracking child at top left
+	 */
 	public ObjectProperty<TL> topLeftProperty()
 	{
 		return topLeft;
 	}
 
+	/**
+	 *
+	 * @return proprty tracking child at top right
+	 */
 	public ObjectProperty<TR> topRightProperty()
 	{
 		return topRight;
 	}
 
+	/**
+	 *
+	 * @return proprty tracking child at bottom left
+	 */
 	public ObjectProperty<BL> bottomLeftProperty()
 	{
 		return bottomLeft;
 	}
 
+	/**
+	 *
+	 * @return proprty tracking child at bottom right
+	 */
 	public ObjectProperty<BR> bottomRightProperty()
 	{
 		return bottomRight;
 	}
 
+	/**
+	 *
+	 * @return child at top left
+	 */
 	public TL getTopLeft()
 	{
-		return topLeft.get();
+		return topLeftProperty().get();
 	}
 
+	/**
+	 *
+	 * @return child at top right
+	 */
 	public TR getTopRight()
 	{
-		return topRight.get();
+		return topRightProperty().get();
 	}
 
+	/**
+	 *
+	 * @return child at bottom left
+	 */
 	public BL getBototmLeft()
 	{
-		return bottomLeft.get();
+		return bottomLeftProperty().get();
 	}
 
+	/**
+	 *
+	 * @return child at bottom right
+	 */
 	public BR getBottomRight()
 	{
-		return bottomRight.get();
+		return bottomRightProperty().get();
 	}
 
-	public static void replace(final GridPane grid, final Node oldValue, final Node newValue, final int col, final int
+	/**
+	 * Manage the underlying {@link GridPane} with a {@link GridConstraintsManager}.
+	 *
+	 * @param manager controls grid cell proportions
+	 */
+	public void manage(final GridConstraintsManager manager)
+	{
+		manager.manageGrid(this.grid);
+	}
+
+	private static void replace(final GridPane grid, final Node oldValue, final Node newValue, final int col, final int
 			row)
 	{
 		grid.getChildren().remove(oldValue);
 		grid.add(newValue, col, row);
-	}
-
-	public Node getChildAt(final int column, final int row)
-	{
-		if (column == 0 && row == 0) { return topLeft.get(); }
-		if (column == 1 && row == 0) { return topRight.get(); }
-		if (column == 0 && row == 1) { return bottomLeft.get(); }
-		if (column == 1 && row == 1) { return bottomRight.get(); }
-
-		return null;
-	}
-
-	public void manage(final GridConstraintsManager manager)
-	{
-		manager.manageGrid(this.grid);
 	}
 
 }
