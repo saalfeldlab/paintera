@@ -25,11 +25,20 @@ import org.janelia.saalfeldlab.paintera.state.GlobalTransformManager;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+/**
+ * Wrap a {@link ResizableGridPane2x2} with {@link ViewerPanelFX viewer panels} at top left, top right, and bottom left. Bottom right
+ * is left generic for flexibility. In practice, this can be populated with a settings tab, a 3D viewer, etc.
+ *
+ * @param <BR> type of bottom right child
+ */
 public class OrthogonalViews<BR extends Node>
 {
 
 	private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
+	/**
+	 * Utility class that holds {@link ViewerPanelFX} and related objects.
+	 */
 	public static class ViewerAndTransforms
 	{
 		private final ViewerPanelFX viewer;
@@ -42,6 +51,14 @@ public class OrthogonalViews<BR extends Node>
 
 		private final TransformConcatenator concatenator;
 
+		/**
+		 *
+		 * @param viewer viewer
+		 * @param manager manages the transform from world coordinates to shared viewer space
+		 * @param displayTransform accounts for scale after all other translations are applied
+		 * @param globalToViewerTransform transform shared viewer space to the space of {@code viewer}. This typically is an axis permutation
+		 *                                only, without scaling or rotation.
+		 */
 		public ViewerAndTransforms(
 				final ViewerPanelFX viewer,
 				final GlobalTransformManager manager,
@@ -63,16 +80,27 @@ public class OrthogonalViews<BR extends Node>
 			this.concatenator.setTransformListener(viewer);
 		}
 
+		/**
+		 *
+		 * @return display transform ({@link #ViewerAndTransforms constructor} for details)
+		 */
 		public AffineTransformWithListeners displayTransform()
 		{
 			return this.displayTransform;
 		}
 
+		/**
+		 *
+		 * @return global to viewer transform ({@link #ViewerAndTransforms constructor} for details)
+		 */
 		public AffineTransformWithListeners globalToViewerTransform()
 		{
 			return this.globalToViewerTransform;
 		}
-
+		/**
+		 *
+		 * @return {@link ViewerPanelFX viewer} associated with this.
+		 */
 		public ViewerPanelFX viewer()
 		{
 			return viewer;
@@ -91,6 +119,15 @@ public class OrthogonalViews<BR extends Node>
 
 	private final CacheControl queue;
 
+	/**
+	 *
+	 * @param manager manages the transform from world coordinates to shared viewer space and is shared by all {@link ViewerPanelFX viewers}.
+	 * @param cacheControl shared between all {@link ViewerPanelFX viewers}
+	 * @param optional Options for {@link ViewerPanelFX}
+	 * @param bottomRight bottom right child
+	 * @param interpolation {@link Interpolation interpolation} lookup for every {@link Source}
+	 * @param axisOrder {@link AxisOrder axis order} lookup for every {@link Source}
+	 */
 	public OrthogonalViews(
 			final GlobalTransformManager manager,
 			final CacheControl cacheControl,
@@ -107,14 +144,128 @@ public class OrthogonalViews<BR extends Node>
 		this.queue = cacheControl;
 	}
 
+	/**
+	 *
+	 * @return underlying {@link ResizableGridPane2x2}
+	 */
 	public ResizableGridPane2x2<ViewerPanelFX, ViewerPanelFX, ViewerPanelFX, BR> grid()
 	{
 		return this.grid;
 	}
 
+	/**
+	 *
+	 * @return {@link ResizableGridPane2x2#pane()} for the underlying {@link ResizableGridPane2x2}
+	 */
 	public Pane pane()
 	{
 		return grid().pane();
+	}
+
+	/**
+	 *
+	 * @param apply Apply this to all {@link ViewerPanelFX viewer children} (top left, top right, bottom left)
+	 */
+	public void applyToAll(final Consumer<ViewerPanelFX> apply)
+	{
+		apply.accept(topLeft.viewer);
+		apply.accept(topRight.viewer);
+		apply.accept(bottomLeft.viewer);
+	}
+
+	/**
+	 * {@link ViewerPanelFX#requestRepaint()}} for all {@link ViewerPanelFX viewer children} (top left, top right, bottom left)
+	 */
+	public void requestRepaint()
+	{
+		applyToAll(ViewerPanelFX::requestRepaint);
+	}
+
+	/**
+	 * {@link ViewerPanelFX#requestRepaint(long[], long[])}} for all {@link ViewerPanelFX viewer children} (top left, top right, bottom left)
+	 *
+	 * @param min
+	 * 		top left corner of interval to be repainted
+	 * @param max
+	 * 		bottom right corner of interval to be repainted
+	 */
+	public void requestRepaint(final long[] min, final long[] max)
+	{
+		applyToAll(vp -> vp.requestRepaint(min, max));
+	}
+
+	/**
+	 * {@link ViewerPanelFX#setAllSources(Collection)}} for all {@link ViewerPanelFX viewer children} (top left, top right, bottom left)
+	 *
+	 * @param sources Will replace all current sources.
+	 */
+	public void setAllSources(final Collection<? extends SourceAndConverter<?>> sources)
+	{
+		applyToAll(viewer -> viewer.setAllSources(sources));
+	}
+
+	/**
+	 * {@link ViewerPanelFX#addEventFilter(EventType, EventHandler)}} for all {@link ViewerPanelFX viewer children} (top left, top right, bottom left)
+	 * @see Node#addEventFilter(EventType, EventHandler) for details.
+	 */
+	public <E extends Event> void addEventFilter(final EventType<E> eventType, final EventHandler<E> handler)
+	{
+		applyToAll(viewer -> viewer.addEventFilter(eventType, handler));
+	}
+
+	/**
+	 *
+	 * @return top left {@link ViewerPanelFX viewer}
+	 */
+	public ViewerAndTransforms topLeft()
+	{
+		return this.topLeft;
+	}
+
+	/**
+	 *
+	 * @return top right {@link ViewerPanelFX viewer}
+	 */
+	public ViewerAndTransforms topRight()
+	{
+		return this.topRight;
+	}
+
+	/**
+	 *
+	 * @return bottom left {@link ViewerPanelFX viewer}
+	 */
+	public ViewerAndTransforms bottomLeft()
+	{
+		return this.bottomLeft;
+	}
+
+	/**
+	 * Delegates to {@link #setScreenScales(double[], boolean) setScreenScales(screenScales, true)}
+	 *
+	 * @param screenScales subject to following constraints:
+	 *                     1. {@code 0 < sceenScales[i] <= 1} for all {@code i}
+	 *                     2. {@code screenScales[i] < screenScales[i - 1]} for all {@code i > 0}
+	 */
+	public void setScreenScales(final double[] screenScales)
+	{
+		this.setScreenScales(screenScales, true);
+	}
+
+	/**
+	 * {@link ViewerPanelFX#setScreenScales(double[])}} for all {@link ViewerPanelFX viewer children} (top left, top right, bottom left)
+	 *
+	 * @param screenScales subject to following constraints:
+	 *                     1. {@code 0 < sceenScales[i] <= 1} for all {@code i}
+	 *                     2. {@code screenScales[i] < screenScales[i - 1]} for all {@code i > 0}
+	 * @param doRequestReapint if {@code true}, also run {@link #requestRepaint()}
+	 */
+	public void setScreenScales(final double[] screenScales, final boolean doRequestReapint)
+	{
+		LOG.debug("Setting screen scales to {} for all panels.", screenScales);
+		applyToAll(vp -> vp.setScreenScales(screenScales));
+		if (doRequestReapint)
+			requestRepaint();
 	}
 
 	private static ViewerAndTransforms create(
@@ -138,81 +289,6 @@ public class OrthogonalViews<BR extends Node>
 		final AffineTransformWithListeners globalToViewerTransform = new AffineTransformWithListeners(globalToViewer);
 
 		return new ViewerAndTransforms(viewer, manager, displayTransform, globalToViewerTransform);
-	}
-
-	public void applyToAll(final Consumer<ViewerPanelFX> apply)
-	{
-		apply.accept(topLeft.viewer);
-		apply.accept(topRight.viewer);
-		apply.accept(bottomLeft.viewer);
-	}
-
-	public void requestRepaint()
-	{
-		applyToAll(ViewerPanelFX::requestRepaint);
-	}
-
-	public void requestRepaint(final long[] min, final long[] max)
-	{
-		applyToAll(vp -> vp.requestRepaint(min, max));
-	}
-
-	public void setAllSources(final Collection<? extends SourceAndConverter<?>> sources)
-	{
-		applyToAll(viewer -> viewer.setAllSources(sources));
-	}
-
-	public <E extends Event> void addEventHandler(final EventType<E> eventType, final EventHandler<E> handler)
-	{
-		applyToAll(viewer -> viewer.addEventHandler(eventType, handler));
-	}
-
-	public <E extends Event> void addEventFilter(final EventType<E> eventType, final EventHandler<E> handler)
-	{
-		applyToAll(viewer -> viewer.addEventFilter(eventType, handler));
-	}
-
-	public <E extends Event> void removeEventHandler(final EventType<E> eventType, final EventHandler<E> handler)
-	{
-		applyToAll(viewer -> viewer.removeEventHandler(eventType, handler));
-	}
-
-	public <E extends Event> void removeEventFilter(final EventType<E> eventType, final EventHandler<E> handler)
-	{
-		applyToAll(viewer -> viewer.removeEventFilter(eventType, handler));
-	}
-
-	public ViewerAndTransforms topLeft()
-	{
-		return this.topLeft;
-	}
-
-	public ViewerAndTransforms topRight()
-	{
-		return this.topRight;
-	}
-
-	public ViewerAndTransforms bottomLeft()
-	{
-		return this.bottomLeft;
-	}
-
-	public CacheControl sharedQueue()
-	{
-		return this.queue;
-	}
-
-	public void setScreenScales(final double[] screenScales)
-	{
-		this.setScreenScales(screenScales, true);
-	}
-
-	public void setScreenScales(final double[] screenScales, final boolean doRequestReapint)
-	{
-		LOG.debug("Setting screen scales to {} for all panels.", screenScales);
-		applyToAll(vp -> vp.setScreenScales(screenScales));
-		if (doRequestReapint)
-			requestRepaint();
 	}
 
 }

@@ -1,29 +1,12 @@
 package org.janelia.saalfeldlab.paintera.state;
 
-import java.lang.invoke.MethodHandles;
-import java.util.Arrays;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
-import java.util.concurrent.ExecutorService;
-import java.util.function.BiFunction;
-import java.util.function.Function;
-import java.util.function.LongFunction;
-import java.util.function.ToLongFunction;
-
 import bdv.util.volatiles.VolatileTypeMatcher;
-import gnu.trove.iterator.TLongIterator;
-import gnu.trove.set.TLongSet;
 import gnu.trove.set.hash.TLongHashSet;
 import javafx.scene.Group;
-import net.imglib2.FinalInterval;
 import net.imglib2.Interval;
 import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.Volatile;
 import net.imglib2.algorithm.util.Grids;
-import net.imglib2.cache.Cache;
-import net.imglib2.cache.CacheLoader;
-import net.imglib2.cache.UncheckedCache;
 import net.imglib2.converter.Converter;
 import net.imglib2.converter.Converters;
 import net.imglib2.img.cell.AbstractCellImg;
@@ -31,15 +14,15 @@ import net.imglib2.img.cell.CellGrid;
 import net.imglib2.interpolation.randomaccess.NearestNeighborInterpolatorFactory;
 import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.type.NativeType;
+import net.imglib2.type.label.LabelMultisetType;
 import net.imglib2.type.logic.BoolType;
 import net.imglib2.type.numeric.ARGBType;
 import net.imglib2.type.numeric.IntegerType;
+import net.imglib2.type.numeric.RealType;
 import net.imglib2.util.Intervals;
-import net.imglib2.util.Pair;
 import net.imglib2.util.Util;
 import net.imglib2.view.Views;
 import org.janelia.saalfeldlab.paintera.PainteraBaseView;
-import org.janelia.saalfeldlab.paintera.cache.Invalidate;
 import org.janelia.saalfeldlab.paintera.cache.InvalidateAll;
 import org.janelia.saalfeldlab.paintera.cache.global.GlobalCache;
 import org.janelia.saalfeldlab.paintera.composition.ARGBCompositeAlphaYCbCr;
@@ -49,30 +32,26 @@ import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssign
 import org.janelia.saalfeldlab.paintera.control.lock.LockedSegmentsOnlyLocal;
 import org.janelia.saalfeldlab.paintera.control.lock.LockedSegmentsState;
 import org.janelia.saalfeldlab.paintera.control.selection.SelectedIds;
-import org.janelia.saalfeldlab.paintera.control.selection.SelectedSegments;
 import org.janelia.saalfeldlab.paintera.data.DataSource;
 import org.janelia.saalfeldlab.paintera.data.RandomAccessibleIntervalDataSource;
 import org.janelia.saalfeldlab.paintera.data.axisorder.AxisOrder;
-import org.janelia.saalfeldlab.paintera.data.axisorder.AxisOrderNotSupported;
-import org.janelia.saalfeldlab.paintera.data.mask.MaskedSource;
 import org.janelia.saalfeldlab.paintera.id.IdService;
 import org.janelia.saalfeldlab.paintera.id.LocalIdService;
-import org.janelia.saalfeldlab.paintera.meshes.Interruptible;
 import org.janelia.saalfeldlab.paintera.meshes.InterruptibleFunction;
-import org.janelia.saalfeldlab.paintera.meshes.InterruptibleFunctionAndCache;
 import org.janelia.saalfeldlab.paintera.meshes.ManagedMeshSettings;
 import org.janelia.saalfeldlab.paintera.meshes.MeshManager;
 import org.janelia.saalfeldlab.paintera.meshes.MeshManagerWithAssignmentForSegments;
-import org.janelia.saalfeldlab.paintera.meshes.ShapeKey;
-import org.janelia.saalfeldlab.paintera.meshes.cache.BlocksForLabelDelegate;
-import org.janelia.saalfeldlab.paintera.meshes.cache.CacheUtils;
-import org.janelia.saalfeldlab.paintera.meshes.cache.SegmentMaskGenerators;
 import org.janelia.saalfeldlab.paintera.stream.HighlightingStreamConverter;
 import org.janelia.saalfeldlab.paintera.stream.HighlightingStreamConverterIntegerType;
 import org.janelia.saalfeldlab.paintera.stream.ModalGoldenAngleSaturatedHighlightingARGBStream;
-import org.janelia.saalfeldlab.util.HashWrapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.lang.invoke.MethodHandles;
+import java.util.Arrays;
+import java.util.concurrent.ExecutorService;
+import java.util.function.LongFunction;
+import java.util.function.ToLongFunction;
 
 public class LabelSourceState<D extends IntegerType<D>, T>
 		extends
@@ -110,7 +89,7 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 	{
 		super(dataSource, converter, composite, name);
 		final D d = dataSource.getDataType();
-		this.maskForLabel = PainteraBaseView.equalsMaskForType(d);
+		this.maskForLabel = equalsMaskForType(d);
 		this.assignment = assignment;
 		this.lockedSegments = lockedSegments;
 		this.selectedIds = selectedIds;
@@ -197,7 +176,7 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 			final GlobalCache globalCache,
 			final Group meshesGroup,
 			final ExecutorService meshManagerExecutors,
-			final ExecutorService meshWorkersExecutors) throws AxisOrderNotSupported {
+			final ExecutorService meshWorkersExecutors) {
 		return simpleSourceFromSingleRAI(data, resolution, offset, () -> {}, axisOrder, maxId, name, globalCache, meshesGroup, meshManagerExecutors, meshWorkersExecutors);
 	}
 
@@ -213,7 +192,7 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 			final GlobalCache globalCache,
 			final Group meshesGroup,
 			final ExecutorService meshManagerExecutors,
-			final ExecutorService meshWorkersExecutors) throws AxisOrderNotSupported {
+			final ExecutorService meshWorkersExecutors) {
 
 		final int[] blockSize;
 		if (data instanceof AbstractCellImg<?, ?, ?, ?>)
@@ -266,7 +245,7 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 			final GlobalCache globalCache,
 			final Group meshesGroup,
 			final ExecutorService meshManagerExecutors,
-			final ExecutorService meshWorkersExecutors) throws AxisOrderNotSupported {
+			final ExecutorService meshWorkersExecutors) {
 		return simpleSourceFromSingleRAI(data, resolution, offset, () -> {}, axisOrder, maxId, name, backgroundBlockCaches, globalCache, meshesGroup, meshManagerExecutors, meshWorkersExecutors);
 	}
 
@@ -283,7 +262,7 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 			final GlobalCache globalCache,
 			final Group meshesGroup,
 			final ExecutorService meshManagerExecutors,
-			final ExecutorService meshWorkersExecutors) throws AxisOrderNotSupported {
+			final ExecutorService meshWorkersExecutors) {
 
 		if (!Views.isZeroMin(data))
 		{
@@ -364,5 +343,32 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 				selectedIds,
 				meshManager
 		);
+	}
+
+	@SuppressWarnings({"unchecked", "rawtypes"})
+	private static <D> LongFunction<Converter<D, BoolType>> equalsMaskForType(final D d)
+	{
+		if (d instanceof LabelMultisetType) { return (LongFunction) equalMaskForLabelMultisetType(); }
+
+		if (d instanceof IntegerType<?>) { return (LongFunction) equalMaskForIntegerType(); }
+
+		if (d instanceof RealType<?>) { return (LongFunction) equalMaskForRealType(); }
+
+		return null;
+	}
+
+	private static LongFunction<Converter<LabelMultisetType, BoolType>> equalMaskForLabelMultisetType()
+	{
+		return id -> (s, t) -> t.set(s.contains(id));
+	}
+
+	private static <D extends IntegerType<D>> LongFunction<Converter<D, BoolType>> equalMaskForIntegerType()
+	{
+		return id -> (s, t) -> t.set(s.getIntegerLong() == id);
+	}
+
+	private static <D extends RealType<D>> LongFunction<Converter<D, BoolType>> equalMaskForRealType()
+	{
+		return id -> (s, t) -> t.set(s.getRealDouble() == id);
 	}
 }

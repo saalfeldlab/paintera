@@ -160,8 +160,7 @@ public class Paintera extends Application
 
 		final PainteraBaseView baseView = new PainteraBaseView(
 				PainteraBaseView.reasonableNumFetcherThreads(),
-				ViewerOptions.options().screenScales(ScreenScalesConfig.defaultScreenScalesCopy()),
-				si -> s -> si.getState(s).interpolationProperty().get()
+				ViewerOptions.options().screenScales(ScreenScalesConfig.defaultScreenScalesCopy())
 		);
 
 		final OrthogonalViews<Viewer3DFX> orthoViews = baseView.orthogonalViews();

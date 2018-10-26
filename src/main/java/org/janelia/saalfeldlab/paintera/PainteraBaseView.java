@@ -17,6 +17,7 @@ import bdv.viewer.Source;
 import bdv.viewer.SourceAndConverter;
 import bdv.viewer.ViewerOptions;
 import gnu.trove.set.hash.TLongHashSet;
+import javafx.beans.property.ObjectProperty;
 import javafx.collections.ListChangeListener;
 import javafx.collections.ObservableList;
 import javafx.scene.layout.Pane;
@@ -70,6 +71,16 @@ import org.janelia.saalfeldlab.util.NamedThreadFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+/**
+ * Contains all the things necessary to build a Paintera UI, most importantly:
+ * <p><ul>
+ * <li>{@link OrthogonalViews 2D cross-section viewers}</li>
+ * <li>{@link Viewer3DFX 3D viewer}</li>
+ * <li>{@link SourceInfo source state management}</li>
+ * <li>{@link GlobalCache global cache management}</li>
+ * <li>{@link ExecutorService thread management} for number crunching</li>
+ * </ul><p>
+ */
 public class PainteraBaseView
 {
 
@@ -121,23 +132,23 @@ public class PainteraBaseView
 
 	private final ExecutorService propagationQueue = Executors.newFixedThreadPool(1);
 
-	public PainteraBaseView(final int numFetcherThreads, final Function<SourceInfo, Function<Source<?>,
-			Interpolation>> interpolation)
+	/**
+	 *
+	 * delegates to {@link #PainteraBaseView(int, ViewerOptions) {@code PainteraBaseView(numFetcherThreads, ViewerOptions.options())}}
+	 */
+	public PainteraBaseView(final int numFetcherThreads)
 	{
-		this(numFetcherThreads, ViewerOptions.options(), interpolation);
+		this(numFetcherThreads, ViewerOptions.options());
 	}
 
+	/**
+	 *
+	 * @param numFetcherThreads number of threads used for {@link net.imglib2.cache.queue.FetcherThreads}
+	 * @param viewerOptions options passed down to {@link OrthogonalViews viewers}
+	 */
 	public PainteraBaseView(
 			final int numFetcherThreads,
 			final ViewerOptions viewerOptions)
-	{
-		this(numFetcherThreads, viewerOptions, si -> source -> si.getState(source).interpolationProperty().get());
-	}
-
-	public PainteraBaseView(
-			final int numFetcherThreads,
-			final ViewerOptions viewerOptions,
-			final Function<SourceInfo, Function<Source<?>, Interpolation>> interpolation)
 	{
 		super();
 		this.globalCache = new GlobalCache(MAX_NUM_MIPMAP_LEVELS, numFetcherThreads, globalBackingCache, (Invalidate<GlobalCache.Key<?>>)globalBackingCache);
@@ -153,7 +164,7 @@ public class PainteraBaseView
 				this.globalCache,
 				this.viewerOptions,
 				viewer3D,
-				interpolation.apply(sourceInfo),
+				s -> Optional.ofNullable(sourceInfo.getState(s)).map(SourceState::interpolationProperty).map(ObjectProperty::get).orElse(Interpolation.NLINEAR),
 				s -> Optional.ofNullable(sourceInfo.getState(s)).map(SourceState::getAxisOrder).orElse(null)
 		);
 		this.vsacUpdate = change -> views.setAllSources(visibleSourcesAndConverters);
@@ -161,31 +172,65 @@ public class PainteraBaseView
 		LOG.debug("Meshes group={}", viewer3D.meshesGroup());
 	}
 
+	/**
+	 *
+	 * @return {@link OrthogonalViews orthogonal viewers} ui element and management
+	 */
 	public OrthogonalViews<Viewer3DFX> orthogonalViews()
 	{
 		return this.views;
 	}
 
+	/**
+	 *
+	 * @return {@link Viewer3DFX 3D viewer}
+	 */
 	public Viewer3DFX viewer3D()
 	{
 		return this.viewer3D;
 	}
 
+	/**
+	 *
+	 * @return {@link SourceInfo source state management}
+	 */
 	public SourceInfo sourceInfo()
 	{
 		return this.sourceInfo;
 	}
 
+	/**
+	 *
+	 * @return {@link Pane} that can be added to a JavaFX scene graph
+	 */
 	public Pane pane()
 	{
 		return orthogonalViews().pane();
 	}
 
+	/**
+	 *
+	 * @return {@link GlobalTransformManager} that manages shared transforms of {@link OrthogonalViews viewers}
+	 */
 	public GlobalTransformManager manager()
 	{
 		return this.manager;
 	}
 
+	/**
+	 *
+	 * Add a source and state to the viewer
+	 *
+	 * @param state will delegate, if appropriate {@link SourceState state}, to
+	 *              <p><ul>
+	 *              <li>{@link #addLabelSource(LabelSourceState)} }</li>
+	 *              <li>{@link #addRawSource(RawSourceState)}</li>
+	 *              <li>{@link #addChannelSource(ChannelSourceState)}</li>
+	 *              </ul><p>
+	 *              or call {@link #addGenericState(SourceState)} otherwise.
+	 * @param <D> Data type of {@code state}
+	 * @param <T> Viewer type of {@code state}
+	 */
 	@SuppressWarnings("unchecked")
 	public <D, T> void addState(final SourceState<D, T> state)
 	{
@@ -208,6 +253,19 @@ public class PainteraBaseView
 
 	}
 
+	/**
+	 * add a generic state without any further information about the kind of state
+	 *
+	 * Changes to {@link SourceState#compositeProperty()} and {@link SourceState#axisOrderProperty()} trigger
+	 * {@link OrthogonalViews#requestRepaint() a request for repaint} of the underlying viewers.
+	 *
+	 * If {@code state} holds a {@link MaskedSource}, {@link MaskedSource#showCanvasOverBackgroundProperty()}
+	 * and {@link MaskedSource#currentCanvasDirectoryProperty()} trigger {@link OrthogonalViews#requestRepaint()}.
+	 *
+	 * @param state generic state
+	 * @param <D> Data type of {@code state}
+	 * @param <T> Viewer type of {@code state}
+	 */
 	public <D, T> void addGenericState(final SourceState<D, T> state)
 	{
 		sourceInfo.addState(state);
@@ -222,33 +280,73 @@ public class PainteraBaseView
 		}
 	}
 
-	public <D extends RealType<D> & NativeType<D>, T extends AbstractVolatileNativeRealType<D, T>> RawSourceState<D,
-			T> addSingleScaleRawSource(
+	/**
+	 * convenience method to add a single {@link RandomAccessibleInterval} as single scale level {@link RawSourceState}
+	 *
+	 * @param data input data
+	 * @param resolution voxel size
+	 * @param offset offset in global coordinates
+	 * @param min minimum value of display range
+	 * @param max maximum value of display range
+	 * @param name name for source
+	 * @param <D> Data type of {@code state}
+	 * @param <T> Viewer type of {@code state}
+	 * @return the {@link RawSourceState} that was built from the inputs and added to the viewer
+	 */
+	public <D extends RealType<D> & NativeType<D>, T extends AbstractVolatileNativeRealType<D, T>> RawSourceState<D, T> addSingleScaleRawSource(
 			final RandomAccessibleInterval<D> data,
 			double[] resolution,
 			double[] offset,
 			double min,
-			double max,
-			String name) throws AxisOrderNotSupported {
+			String name,
+			double max) throws AxisOrderNotSupported {
 		RawSourceState<D, T> state = RawSourceState.simpleSourceFromSingleRAI(data, resolution, offset, min, max,
 				name);
 		InvokeOnJavaFXApplicationThread.invoke(() -> addRawSource(state));
 		return state;
 	}
 
-	public <T extends RealType<T>, U extends RealType<U>> void addRawSource(
-			final RawSourceState<T, U> state)
+	/**
+	 *
+	 * Add {@link RawSourceState raw data}
+	 *
+	 * delegates to {@link #addGenericState(SourceState)} and triggers {@link OrthogonalViews#requestRepaint()}
+	 * on changes to these properties:
+	 * <p><ul>
+	 * <li>{@link ARGBColorConverter#colorProperty()}</li>
+	 * <li>{@link ARGBColorConverter#minProperty()}</li>
+	 * <li>{@link ARGBColorConverter#maxProperty()}</li>
+	 * <li>{@link ARGBColorConverter#alphaProperty()}</li>
+	 * </ul><p>
+	 *
+	 * @param state input
+	 * @param <T> Data type of {@code state}
+	 * @param <U> Viewer type of {@code state}
+	 */
+	public <T extends RealType<T>, U extends RealType<U>> void addRawSource(final RawSourceState<T, U> state)
 	{
 		addGenericState(state);
 		LOG.debug("Adding raw state={}", state);
 		final ARGBColorConverter<U> conv      = state.converter();
-		final ARGBColorConverter<U> colorConv = conv;
-		colorConv.colorProperty().addListener((obs, oldv, newv) -> orthogonalViews().requestRepaint());
-		colorConv.minProperty().addListener((obs, oldv, newv) -> orthogonalViews().requestRepaint());
-		colorConv.maxProperty().addListener((obs, oldv, newv) -> orthogonalViews().requestRepaint());
-		colorConv.alphaProperty().addListener((obs, oldv, newv) -> orthogonalViews().requestRepaint());
+		conv.colorProperty().addListener((obs, oldv, newv) -> orthogonalViews().requestRepaint());
+		conv.minProperty().addListener((obs, oldv, newv) -> orthogonalViews().requestRepaint());
+		conv.maxProperty().addListener((obs, oldv, newv) -> orthogonalViews().requestRepaint());
+		conv.alphaProperty().addListener((obs, oldv, newv) -> orthogonalViews().requestRepaint());
 	}
 
+
+	/**
+	 * convenience method to add a single {@link RandomAccessibleInterval} as single scale level {@link LabelSourceState}
+	 *
+	 * @param data input data
+	 * @param resolution voxel size
+	 * @param offset offset in global coordinates
+	 * @param maxId the maximum value in {@code data}
+	 * @param name name for source
+	 * @param <D> Data type of {@code state}
+	 * @param <T> Viewer type of {@code state}
+	 * @return the {@link LabelSourceState} that was built from the inputs and added to the viewer
+	 */
 	public <D extends IntegerType<D> & NativeType<D>, T extends Volatile<D> & IntegerType<T>> LabelSourceState<D, T>
 	addSingleScaleLabelSource(
 			final RandomAccessibleInterval<D> data,
@@ -259,12 +357,25 @@ public class PainteraBaseView
 		return addSingleScaleLabelSource(data, resolution, offset, AxisOrder.XYZ, maxId, name);
 	}
 
+	/**
+	 * convenience method to add a single {@link RandomAccessibleInterval} as single scale level {@link LabelSourceState}
+	 *
+	 * @param data input data
+	 * @param resolution voxel size
+	 * @param offset offset in global coordinates
+	 * @param axisOrder axis permutation
+	 * @param maxId the maximum value in {@code data}
+	 * @param name name for source
+	 * @param <D> Data type of {@code state}
+	 * @param <T> Viewer type of {@code state}
+	 * @return the {@link LabelSourceState} that was built from the inputs and added to the viewer
+	 */
 	public <D extends IntegerType<D> & NativeType<D>, T extends Volatile<D> & IntegerType<T>> LabelSourceState<D, T>
 	addSingleScaleLabelSource(
 			final RandomAccessibleInterval<D> data,
 			final double[] resolution,
 			final double[] offset,
-			AxisOrder axisOrder,
+			final AxisOrder axisOrder,
 			final long maxId,
 			final String name) throws AxisOrderNotSupported {
 		LabelSourceState<D, T> state = LabelSourceState.simpleSourceFromSingleRAI(
@@ -278,12 +389,29 @@ public class PainteraBaseView
 				viewer3D().meshesGroup(),
 				meshManagerExecutorService,
 				meshWorkerExecutorService);
+		state.setAxisOrder(axisOrder);
 		InvokeOnJavaFXApplicationThread.invoke(() -> addLabelSource(state));
 		return state;
 	}
 
-	public <D extends IntegerType<D>, T extends Type<T>> void addLabelSource(
-			final LabelSourceState<D, T> state)
+	/**
+	 *
+	 * Add {@link LabelSourceState raw data}
+	 *
+	 * delegates to {@link #addGenericState(SourceState)} and triggers {@link OrthogonalViews#requestRepaint()}
+	 * on changes to these properties:
+	 * <p><ul>
+	 * <li>{@link AbstractHighlightingARGBStream}</li>
+	 * <li>{@link LabelSourceState#assignment()}</li>
+	 * <li>{@link LabelSourceState#selectedIds()}</li>
+	 * <li>{@link LabelSourceState#lockedSegments()}</li>
+	 * </ul><p>
+	 *
+	 * @param state input
+	 * @param <D> Data type of {@code state}
+	 * @param <T> Viewer type of {@code state}
+	 */
+	public <D extends IntegerType<D>, T extends Type<T>> void addLabelSource(final LabelSourceState<D, T> state)
 	{
 
 		addGenericState(state);
@@ -303,6 +431,26 @@ public class PainteraBaseView
 		state.meshManager().areMeshesEnabledProperty().bind(viewer3D.isMeshesEnabledProperty());
 	}
 
+	/**
+	 *
+	 * Add {@link ChannelSourceState raw data}
+	 *
+	 * delegates to {@link #addGenericState(SourceState)} and triggers {@link OrthogonalViews#requestRepaint()}
+	 * on changes to these properties:
+	 * <p><ul>
+	 * <li>{@link ARGBCompositeColorConverter#colorProperty(int)}</li>
+	 * <li>{@link ARGBCompositeColorConverter#minProperty(int)}</li>
+	 * <li>{@link ARGBCompositeColorConverter#maxProperty(int)}</li>
+	 * <li>{@link ARGBCompositeColorConverter#channelAlphaProperty(int)}</li>
+	 * <li>{@link ARGBCompositeColorConverter#alphaProperty()}</li>
+	 * </ul><p>
+	 *
+	 * @param state input
+	 * @param <D> Data type of {@code state}
+	 * @param <T> Viewer type of {@code state}
+	 * @param <CT> Composite data type of {@code state}
+	 * @param <V> Composite viewer type of {@code state}
+	 */
 	public <
 			D extends RealType<D>,
 			T extends AbstractVolatileRealType<D, T>,
@@ -323,98 +471,37 @@ public class PainteraBaseView
 		LOG.debug("Added channel state {}", state.nameProperty().get());
 	}
 
-	@SuppressWarnings({"unchecked", "rawtypes"})
-	public static <D> LongFunction<Converter<D, BoolType>> equalsMaskForType(final D d)
-	{
-		if (d instanceof LabelMultisetType) { return (LongFunction) equalMaskForLabelMultisetType(); }
-
-		if (d instanceof IntegerType<?>) { return (LongFunction) equalMaskForIntegerType(); }
-
-		if (d instanceof RealType<?>) { return (LongFunction) equalMaskForRealType(); }
-
-		return null;
-	}
-
-	public static LongFunction<Converter<LabelMultisetType, BoolType>> equalMaskForLabelMultisetType()
-	{
-		return id -> (s, t) -> t.set(s.contains(id));
-	}
-
-	public static <D extends IntegerType<D>> LongFunction<Converter<D, BoolType>> equalMaskForIntegerType()
-	{
-		return id -> (s, t) -> t.set(s.getIntegerLong() == id);
-	}
-
-	public static <D extends RealType<D>> LongFunction<Converter<D, BoolType>> equalMaskForRealType()
-	{
-		return id -> (s, t) -> t.set(s.getRealDouble() == id);
-	}
-
+	/**
+	 *
+	 * @return {@link ExecutorService} for general purpose computations
+	 */
 	public ExecutorService generalPurposeExecutorService()
 	{
 		return this.generalPurposeExecutorService;
 	}
 
-	public static double[][] scaleFactorsFromAffineTransforms(final Source<?> source)
-	{
-		final double[][]        scaleFactors = new double[source.getNumMipmapLevels()][3];
-		final AffineTransform3D reference    = new AffineTransform3D();
-		source.getSourceTransform(0, 0, reference);
-		for (int level = 0; level < scaleFactors.length; ++level)
-		{
-			final double[]          factors   = scaleFactors[level];
-			final AffineTransform3D transform = new AffineTransform3D();
-			source.getSourceTransform(0, level, transform);
-			factors[0] = transform.get(0, 0) / reference.get(0, 0);
-			factors[1] = transform.get(1, 1) / reference.get(1, 1);
-			factors[2] = transform.get(2, 2) / reference.get(2, 2);
-		}
-
-		{
-			LOG.debug("Generated scaling factors:");
-			Arrays.stream(scaleFactors).map(Arrays::toString).forEach(LOG::debug);
-		}
-
-		return scaleFactors;
-	}
-
-	@SuppressWarnings("unchecked")
-	public static <T> BiConsumer<T, TLongHashSet> collectLabels(final T type)
-	{
-		if (type instanceof LabelMultisetType)
-		{
-			return (BiConsumer<T, TLongHashSet>) collectLabelsFromLabelMultisetType();
-		}
-		if (type instanceof IntegerType<?>) { return (BiConsumer<T, TLongHashSet>) collectLabelsFromIntegerType(); }
-		if (type instanceof RealType<?>) { return (BiConsumer<T, TLongHashSet>) collectLabelsFromRealType(); }
-		return null;
-	}
-
-	private static BiConsumer<LabelMultisetType, TLongHashSet> collectLabelsFromLabelMultisetType()
-	{
-		return (lbl, set) -> lbl.entrySet().forEach(entry -> set.add(entry.getElement().id()));
-	}
-
-	private static <I extends IntegerType<I>> BiConsumer<I, TLongHashSet> collectLabelsFromIntegerType()
-	{
-		return (lbl, set) -> set.add(lbl.getIntegerLong());
-	}
-
-	private static <R extends RealType<R>> BiConsumer<R, TLongHashSet> collectLabelsFromRealType()
-	{
-		return (lbl, set) -> set.add((long) lbl.getRealDouble());
-	}
-
+	/**
+	 *
+	 * @return {@link ExecutorService} for painting related computations
+	 */
 	public ExecutorService getPaintQueue()
 	{
 		return this.paintQueue;
 	}
 
+	/**
+	 *
+	 * @return {@link ExecutorService} for down-/upsampling painted labels
+	 */
 	public ExecutorService getPropagationQueue()
 	{
 		return this.propagationQueue;
 	}
 
+	/**
+	 * shut down {@link ExecutorService executors} and {@link Thread threads}.
+	 * TODO this can probably be removed, because everything should be daemon threads!
+	 */
 	public void stop()
 	{
 		LOG.debug("Stopping everything");
@@ -429,31 +516,61 @@ public class PainteraBaseView
 		LOG.debug("Sent stop requests everywhere");
 	}
 
+	/**
+	 * Determine a good number of fetcher threads.
+	 * @return half of all available processor, but no more than eight and no less than 1.
+	 */
 	public static int reasonableNumFetcherThreads()
 	{
 		return Math.min(8, Math.max(1, Runtime.getRuntime().availableProcessors() / 2));
 	}
 
-	public CacheControl getCacheControl()
-	{
-		return this.getGlobalCache();
-	}
-
+	/**
+	 *
+	 * @return global cache for caching basically everything (image data, meshes)
+	 */
 	public GlobalCache getGlobalCache()
 	{
 		return this.globalCache;
 	}
 
+	/**
+	 *
+	 * @return {@link ExecutorService} for managing mesh generation tasks
+	 *
+	 * TODO this should probably be removed by a management thread for every single {@link org.janelia.saalfeldlab.paintera.meshes.MeshManager}
+	 * TODO like the {@link bdv.fx.viewer.render.PainterThread} for rendering
+	 */
 	public ExecutorService getMeshManagerExecutorService()
 	{
 		return this.meshManagerExecutorService;
 	}
 
+	/**
+	 *
+	 * @return {@link ExecutorService} for the heavy workload in mesh generation tasks
+	 */
 	public ExecutorService getMeshWorkerExecutorService()
 	{
 		return this.meshWorkerExecutorService;
 	}
 
+	/**
+	 * create a {@link PainteraBaseView instance with reasonable default valuesand UI elements}
+	 * delegates to {@link PainteraBaseView#defaultView()} with values set to
+	 * <table summary="Arguments passed to delegated method call">
+	 *     <tr>
+	 *         <td>projectDir</td><td>{@code Files.createTempDirectory("paintera-base-view-").toString()}</td>
+	 *         <td>crosshairConfig</td><td>default constructed {@link CrosshairConfig}</td>
+	 *         <td>orthoSliceConfigBase</td><td>default constructed {@link OrthoSliceConfigBase}</td>
+	 *         <td>navigationConfig</td><td>default constructed {@link NavigationConfig}</td>
+	 *         <td>viewer3DConfig</td><td>default constructed {@link Viewer3DConfig}</td>
+	 *         <td>screenScales</td><td>{@code [1.0, 0.5, 0.25]}</td>
+	 *     </tr>
+	 * </table>
+	 * @return {@link PainteraBaseView#defaultView(String, CrosshairConfig, OrthoSliceConfigBase, NavigationConfig, Viewer3DConfig, double...) PainteraBaseView.defaultView}
+	 * @throws IOException if thrown by one of the delegates
+	 */
 	public static DefaultPainteraBaseView defaultView() throws IOException
 	{
 		return defaultView(
@@ -462,10 +579,19 @@ public class PainteraBaseView
 				new OrthoSliceConfigBase(),
 				new NavigationConfig(),
 				new Viewer3DConfig(),
-				1.0, 0.5, 0.25
-		                  );
+				1.0, 0.5, 0.25);
 	}
 
+	/**
+	 * create a {@link PainteraBaseView instance with reasonable default valuesand UI elements}
+	 * @param projectDir project directory
+	 * @param crosshairConfig settings for {@link org.janelia.saalfeldlab.paintera.ui.Crosshair cross hairs}
+	 * @param orthoSliceConfigBase settings for {@link org.janelia.saalfeldlab.paintera.viewer3d.OrthoSliceFX}
+	 * @param navigationConfig settings for {@link org.janelia.saalfeldlab.paintera.control.Navigation}
+	 * @param viewer3DConfig settings for {@link Viewer3DFX}
+	 * @param screenScales screen scales
+	 * @return {@link DefaultPainteraBaseView}
+	 */
 	public static DefaultPainteraBaseView defaultView(
 			final String projectDir,
 			final CrosshairConfig crosshairConfig,
@@ -476,8 +602,7 @@ public class PainteraBaseView
 	{
 		final PainteraBaseView baseView = new PainteraBaseView(
 				reasonableNumFetcherThreads(),
-				ViewerOptions.options().screenScales(screenScales),
-				si -> s -> si.getState(s).interpolationProperty().get()
+				ViewerOptions.options().screenScales(screenScales)
 		);
 
 		final KeyTracker   keyTracker   = new KeyTracker();
@@ -540,6 +665,9 @@ public class PainteraBaseView
 		return dpbv;
 	}
 
+	/**
+	 * Utility class to hold objects used to turn {@link PainteraBaseView} into functional UI
+	 */
 	public static class DefaultPainteraBaseView
 	{
 		public final PainteraBaseView baseView;
@@ -572,11 +700,19 @@ public class PainteraBaseView
 		}
 	}
 
+	/**
+	 *
+	 * @return current memory consumption of {{@link #getGlobalBackingCache()}}
+	 */
 	public long getCurrentMemoryUsageInBytes()
 	{
 		return ((MemoryBoundedSoftRefLoaderCache)this.globalBackingCache).getCurrentMemoryUsageInBytes();
 	}
 
+	/**
+	 *
+	 * @return the {@link LoaderCache} that backs {@link #getGlobalCache()}
+	 */
 	public LoaderCache<GlobalCache.Key<?>, ?> getGlobalBackingCache()
 	{
 		return this.globalBackingCache;

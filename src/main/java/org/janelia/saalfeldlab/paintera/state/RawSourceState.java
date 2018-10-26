@@ -40,7 +40,7 @@ public class RawSourceState<D, T extends RealType<T>>
 			final double[] offset,
 			final double min,
 			final double max,
-			final String name) throws AxisOrderNotSupported {
+			final String name) {
 		return simpleSourceFromSingleRAI(data, resolution, offset, () -> {}, min, max, name);
 	}
 
@@ -52,7 +52,7 @@ public class RawSourceState<D, T extends RealType<T>>
 			final InvalidateAll invalidateAll,
 			final double min,
 			final double max,
-			final String name) throws AxisOrderNotSupported {
+			final String name) {
 		return simpleSourceFromSingleRAI(data, resolution, offset, invalidateAll, AxisOrder.XYZ, min, max, name);
 	}
 
@@ -64,7 +64,7 @@ public class RawSourceState<D, T extends RealType<T>>
 			final AxisOrder axisOrder,
 			final double min,
 			final double max,
-			final String name) throws AxisOrderNotSupported {
+			final String name) {
 		return simpleSourceFromSingleRAI(data, resolution, offset, () -> {}, axisOrder, min, max, name);
 	}
 
@@ -77,7 +77,7 @@ public class RawSourceState<D, T extends RealType<T>>
 			final AxisOrder axisOrder,
 			final double min,
 			final double max,
-			final String name) throws AxisOrderNotSupported {
+			final String name) {
 
 		if (!Views.isZeroMin(data))
 		{

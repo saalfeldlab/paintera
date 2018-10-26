@@ -8,19 +8,12 @@ import gnu.trove.map.TLongObjectMap;
 import gnu.trove.map.hash.TLongLongHashMap;
 import gnu.trove.set.TLongSet;
 import gnu.trove.set.hash.TLongHashSet;
-import javafx.beans.binding.Bindings;
-import javafx.beans.binding.BooleanBinding;
 import javafx.beans.property.BooleanProperty;
-import javafx.beans.property.IntegerProperty;
-import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.ReadOnlyStringProperty;
 import javafx.beans.property.SimpleBooleanProperty;
-import javafx.beans.property.SimpleIntegerProperty;
-import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.beans.property.StringProperty;
 import javafx.beans.value.ChangeListener;
-import javafx.beans.value.ObservableBooleanValue;
 import javafx.beans.value.ObservableValue;
 import javafx.util.Pair;
 import mpicbg.spim.data.sequence.VoxelDimensions;
@@ -33,7 +26,6 @@ import net.imglib2.RandomAccessible;
 import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.RealRandomAccessible;
 import net.imglib2.algorithm.util.Grids;
-import net.imglib2.cache.Cache;
 import net.imglib2.cache.img.CachedCellImg;
 import net.imglib2.cache.img.CellLoader;
 import net.imglib2.cache.img.DiskCachedCellImg;
@@ -44,9 +36,7 @@ import net.imglib2.converter.Converters;
 import net.imglib2.converter.TypeIdentity;
 import net.imglib2.img.basictypeaccess.LongAccess;
 import net.imglib2.img.cell.AbstractCellImg;
-import net.imglib2.img.cell.Cell;
 import net.imglib2.img.cell.CellGrid;
-import net.imglib2.img.cell.LazyCellImg.LazyCells;
 import net.imglib2.interpolation.randomaccess.NearestNeighborInterpolatorFactory;
 import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.realtransform.RealViews;
@@ -77,7 +67,6 @@ import org.janelia.saalfeldlab.paintera.data.mask.persist.UnableToUpdateLabelBlo
 import org.janelia.saalfeldlab.paintera.data.n5.BlockSpec;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import tmp.bdv.img.cache.VolatileCachedCellImg;
 
 import java.lang.invoke.MethodHandles;
 import java.nio.file.Path;
@@ -90,8 +79,6 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Optional;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.function.BiConsumer;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
 import java.util.stream.DoubleStream;
@@ -99,9 +86,42 @@ import java.util.stream.IntStream;
 import java.util.stream.LongStream;
 import java.util.stream.Stream;
 
+/**
+ *
+ * Wrap a paintable canvas around a source that provides background.
+ *
+ * In order to allow for sources that are as general as possible, {@link MaskedSource} adds two layers on top of
+ * the original data provided by the underlying source. In total, that makes three layers of data (from deepest to most shallow/short lived):
+ * <ul>
+ * <li>Background provided by underlying source</li>
+ * <li>Canvas that stores current paintings projected to all mipmap levels. Can be merged into background when triggered by user</li>
+ * <li>Mask is only active when the user currently paints and only valid for one specific mipmap level at a time (other levels are interpolated).
+ * Once a painting action is finished, the mask should be submitted back to the {@link MaskedSource}, to merge it into the canvas and propagate
+ * to all mipmap levels.</li>
+ * </ul>
+ *
+ * Only one (or no) mask can be active at any time. {@link MaskedSource} will throw an appropriate exception if a mask is requested while
+ * any of these are true:
+ * <ul>
+ * <li>A mask has been requested previously and is still in use (i.e. not submitted back)</li>
+ * <li>A mask was submitted back and propagation of the mask to all mipmap levels of the canvas is still underway</li>
+ * <li>The canvas is currently being committed into the background.</li>
+ * </ul>
+ *
+ * The mask that is currently active has to be unique. If a mask that is not identical to the currently active mask is submitted back, or
+ * {@link MaskedSource} is busy with committing to the background an appropriate exception will be thrown.
+ *
+ * The canvas can only be committed to the background if currently no mask is active and no mask is being submitted/propagated back into
+ * the canvas. In either of those cases, an appropriate exception is thrown.
+ *
+ *
+ *
+ *
+ * @param <D> data type
+ * @param <T> viewer type
+ */
 public class MaskedSource<D extends Type<D>, T extends Type<T>> implements DataSource<D, T>
 {
-
 	private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
 	private static final int NUM_DIMENSIONS = 3;
