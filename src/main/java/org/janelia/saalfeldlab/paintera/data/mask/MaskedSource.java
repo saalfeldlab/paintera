@@ -8,6 +8,8 @@ import gnu.trove.map.TLongObjectMap;
 import gnu.trove.map.hash.TLongLongHashMap;
 import gnu.trove.set.TLongSet;
 import gnu.trove.set.hash.TLongHashSet;
+import javafx.animation.KeyFrame;
+import javafx.animation.Timeline;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.ReadOnlyStringProperty;
 import javafx.beans.property.SimpleBooleanProperty;
@@ -15,6 +17,11 @@ import javafx.beans.property.SimpleStringProperty;
 import javafx.beans.property.StringProperty;
 import javafx.beans.value.ChangeListener;
 import javafx.beans.value.ObservableValue;
+import javafx.event.ActionEvent;
+import javafx.event.EventHandler;
+import javafx.scene.control.Alert;
+import javafx.scene.control.ButtonType;
+import javafx.util.Duration;
 import javafx.util.Pair;
 import mpicbg.spim.data.sequence.VoxelDimensions;
 import net.imglib2.Cursor;
@@ -56,6 +63,7 @@ import net.imglib2.util.Intervals;
 import net.imglib2.view.IntervalView;
 import net.imglib2.view.RandomAccessibleTriple;
 import net.imglib2.view.Views;
+import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread;
 import org.janelia.saalfeldlab.paintera.data.DataSource;
 import org.janelia.saalfeldlab.paintera.data.mask.PickOne.PickAndConvert;
 import org.janelia.saalfeldlab.paintera.data.mask.exception.CannotClearCanvas;
@@ -65,6 +73,8 @@ import org.janelia.saalfeldlab.paintera.data.mask.persist.PersistCanvas;
 import org.janelia.saalfeldlab.paintera.data.mask.persist.UnableToPersistCanvas;
 import org.janelia.saalfeldlab.paintera.data.mask.persist.UnableToUpdateLabelBlockLookup;
 import org.janelia.saalfeldlab.paintera.data.n5.BlockSpec;
+import org.janelia.saalfeldlab.paintera.ui.PainteraAlerts;
+import org.janelia.saalfeldlab.util.MakeUnchecked;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -303,6 +313,7 @@ public class MaskedSource<D extends Type<D>, T extends Type<T>> implements DataS
 		if (mask == null)
 			return;
 		new Thread(() -> {
+			Thread.currentThread().setName("apply mask");
 			synchronized (this)
 			{
 				final boolean maskCanBeApplied = !this.isCreatingMask && this.currentMask == mask && !this.isApplyingMask && !this.isPersisting;
@@ -312,6 +323,26 @@ public class MaskedSource<D extends Type<D>, T extends Type<T>> implements DataS
 					return;
 				}
 				this.isApplyingMask = true;
+
+				final BooleanProperty proxy = new SimpleBooleanProperty(this.isApplyingMask);
+				final Runnable dialogHandler = () -> {
+					LOG.debug("Creating dialog.");
+					final Alert isApplyingDialog = PainteraAlerts.alert(Alert.AlertType.INFORMATION);
+					isApplyingDialog.setHeaderText("Applying mask to canvas.");
+					isApplyingDialog.setContentText("Mask info: " + mask.info.toString());
+					isApplyingDialog.getDialogPane().lookupButton(ButtonType.OK).setDisable(true);
+					synchronized(MaskedSource.this) {
+						isApplyingDialog.getDialogPane().lookupButton(ButtonType.OK).disableProperty().bind(proxy);
+					}
+						LOG.debug("Will show dialog? {}", this,isApplyingMask);
+						if(this.isApplyingMask) isApplyingDialog.showAndWait();
+				};
+				new Thread(MakeUnchecked.runnable(() -> {
+					Thread.sleep(1000);
+					InvokeOnJavaFXApplicationThread.invoke(dialogHandler);
+				})).start();
+//				new Timeline(new KeyFrame(Duration.seconds(0), dialogHandler)).play();
+
 				LOG.debug("Applying mask: {}", mask, paintedInterval);
 				final MaskInfo<UnsignedLongType> maskInfo = mask.info;
 				final CachedCellImg<UnsignedLongType, ?> canvas = dataCanvases[maskInfo.level];
@@ -347,7 +378,6 @@ public class MaskedSource<D extends Type<D>, T extends Type<T>> implements DataS
 				LOG.debug("Added affected block: {}", affectedBlocksByLabel[maskInfo.level]);
 				this.affectedBlocks.addAll(paintedBlocksAtHighestResolution);
 
-				final MaskedSource<D, T> thiz = this;
 				propagationExecutor.submit(() -> {
 					propagateMask(
 							mask.mask,
@@ -358,10 +388,11 @@ public class MaskedSource<D extends Type<D>, T extends Type<T>> implements DataS
 							acceptAsPainted
 					             );
 					setMasksConstant();
-					synchronized(thiz)
+					synchronized(MaskedSource.this)
 					{
 						LOG.debug("Done applying mask!");
-						thiz.isApplyingMask = false;
+						MaskedSource.this.isApplyingMask = false;
+						proxy.set(false);
 					}
 				});
 
