@@ -7,6 +7,7 @@ import javafx.scene.control.TextArea;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.Priority;
 import javafx.stage.Stage;
+import org.janelia.saalfeldlab.paintera.Paintera;
 
 import java.io.PrintWriter;
 import java.io.StringWriter;
@@ -15,9 +16,17 @@ import java.util.function.Consumer;
 public class Exceptions {
 
 	public static Alert exceptionAlert(
+			final String headerText,
+			final Exception e
+	)
+	{
+		return exceptionAlert(Paintera.NAME, headerText, e);
+	}
+
+	public static Alert exceptionAlert(
 			final String title,
 			final String headerText,
-			Exception e
+			final Exception e
 	)
 	{
 		Alert alert = new Alert(Alert.AlertType.ERROR);
