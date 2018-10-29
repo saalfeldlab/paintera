@@ -30,6 +30,7 @@ import org.janelia.saalfeldlab.paintera.control.paint.FillOverlay;
 import org.janelia.saalfeldlab.paintera.control.paint.FloodFill;
 import org.janelia.saalfeldlab.paintera.control.paint.FloodFill2D;
 import org.janelia.saalfeldlab.paintera.control.paint.PaintActions2D;
+import org.janelia.saalfeldlab.paintera.control.paint.PaintClickOrDrag;
 import org.janelia.saalfeldlab.paintera.control.paint.RestrictPainting;
 import org.janelia.saalfeldlab.paintera.control.paint.SelectNextId;
 import org.janelia.saalfeldlab.paintera.control.selection.SelectedIds;
@@ -191,51 +192,30 @@ public class Paint implements ToOnEnterOnExit
 									KeyCode.F)
 					                             ));
 
-					// click paint
-					iars.add(paint2D.clickPaintLabel(
-							"paint 2D",
-							paintSelection::get,
-							event -> event.isPrimaryButtonDown() && keyTracker.areOnlyTheseKeysDown(KeyCode.SPACE) &&
-									this.paint2D.get()
-					                                ));
-					iars.add(paint2D.clickPaintLabel(
-							"erase canvas click 2D",
+					// paint
+					iars.add(new PaintClickOrDrag(
+							sourceInfo,
+							t,
+							paintSelection,
+							brushRadius::get,
+							brushDepth::get,
+							event -> event.isPrimaryButtonDown() && keyTracker.areOnlyTheseKeysDown(KeyCode.SPACE)));
+					// erase
+					iars.add(new PaintClickOrDrag(
+							sourceInfo,
+							t,
 							() -> Label.TRANSPARENT,
-							event -> event.isSecondaryButtonDown() && keyTracker.areOnlyTheseKeysDown(KeyCode.SPACE)
-									&& this.paint2D.get()
-					                                ));
-					iars.add(paint2D.clickPaintLabel(
-							"to background 2D",
+							brushRadius::get,
+							brushDepth::get,
+							event -> event.isSecondaryButtonDown() && keyTracker.areOnlyTheseKeysDown(KeyCode.SPACE)));
+					// background
+					iars.add(new PaintClickOrDrag(
+							sourceInfo,
+							t,
 							() -> Label.BACKGROUND,
-							event -> event.isSecondaryButtonDown() && keyTracker.areOnlyTheseKeysDown(
-									KeyCode.SPACE,
-									KeyCode.SHIFT
-							                                                                         ) && this.paint2D
-									.get()
-					                                ));
-
-					// drag paint
-					iars.add(paint2D.dragPaintLabel(
-							"paint 2D",
-							paintSelection::get,
-							event -> event.isPrimaryButtonDown() && keyTracker.areOnlyTheseKeysDown(KeyCode.SPACE) &&
-									this.paint2D.get()
-					                               ));
-					iars.add(paint2D.dragPaintLabel(
-							"erase canvas 2D",
-							() -> Label.TRANSPARENT,
-							event -> event.isSecondaryButtonDown() && keyTracker.areOnlyTheseKeysDown(KeyCode.SPACE)
-									&& this.paint2D.get()
-					                               ));
-					iars.add(paint2D.dragPaintLabel(
-							"to background 2D",
-							() -> Label.BACKGROUND,
-							event -> event.isSecondaryButtonDown() && keyTracker.areOnlyTheseKeysDown(
-									KeyCode.SPACE,
-									KeyCode.SHIFT
-							                                                                         ) && this.paint2D
-									.get()
-					                               ));
+							brushRadius::get,
+							brushDepth::get,
+							event -> event.isSecondaryButtonDown() && keyTracker.areOnlyTheseKeysDown(KeyCode.SPACE, KeyCode.SHIFT)));
 
 					// advanced paint stuff
 					iars.add(EventFX.MOUSE_PRESSED(
