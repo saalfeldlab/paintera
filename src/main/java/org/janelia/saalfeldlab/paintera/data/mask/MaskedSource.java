@@ -8,8 +8,6 @@ import gnu.trove.map.TLongObjectMap;
 import gnu.trove.map.hash.TLongLongHashMap;
 import gnu.trove.set.TLongSet;
 import gnu.trove.set.hash.TLongHashSet;
-import javafx.animation.KeyFrame;
-import javafx.animation.Timeline;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.ReadOnlyStringProperty;
 import javafx.beans.property.SimpleBooleanProperty;
@@ -17,11 +15,9 @@ import javafx.beans.property.SimpleStringProperty;
 import javafx.beans.property.StringProperty;
 import javafx.beans.value.ChangeListener;
 import javafx.beans.value.ObservableValue;
-import javafx.event.ActionEvent;
-import javafx.event.EventHandler;
 import javafx.scene.control.Alert;
 import javafx.scene.control.ButtonType;
-import javafx.util.Duration;
+import javafx.stage.Modality;
 import javafx.util.Pair;
 import mpicbg.spim.data.sequence.VoxelDimensions;
 import net.imglib2.Cursor;
@@ -331,6 +327,8 @@ public class MaskedSource<D extends Type<D>, T extends Type<T>> implements DataS
 					isApplyingDialog.setHeaderText("Applying mask to canvas.");
 					isApplyingDialog.setContentText("Mask info: " + mask.info.toString());
 					isApplyingDialog.getDialogPane().lookupButton(ButtonType.OK).setDisable(true);
+					isApplyingDialog.initModality(Modality.NONE);
+					proxy.addListener((obs, oldv, newv) -> {if(!newv) InvokeOnJavaFXApplicationThread.invoke(isApplyingDialog::hide);});
 					synchronized(MaskedSource.this) {
 						isApplyingDialog.getDialogPane().lookupButton(ButtonType.OK).disableProperty().bind(proxy);
 					}
