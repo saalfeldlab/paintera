@@ -16,6 +16,7 @@ import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.lang.invoke.MethodHandles;
+import java.nio.file.Paths;
 import java.util.Optional;
 import java.util.concurrent.ExecutorService;
 import java.util.function.Consumer;
@@ -28,7 +29,8 @@ public class FileSystem {
 
 	private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
-	private final StringProperty container = new SimpleStringProperty(USER_HOME);
+	private final StringProperty container = new SimpleStringProperty(MakeUnchecked.supplier(Paths.get(USER_HOME)::toRealPath).get().toString());
+
 	private final ObjectProperty<Supplier<N5Writer>> writerSupplier = new SimpleObjectProperty<>(MakeUnchecked.supplier(() -> null));
 
 	{
