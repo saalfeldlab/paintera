@@ -512,6 +512,7 @@ public class MaskedSource<D extends Type<D>, T extends Type<T>> implements DataS
 					if(proxy.get()) isCommittingDialog.show();
 				};
 				new Thread(() -> {
+					Exception caughtException = null;
 					try
 					{
 						try {
@@ -534,11 +535,16 @@ public class MaskedSource<D extends Type<D>, T extends Type<T>> implements DataS
 							clearCanvases();
 							states.set(states.size() - 1, "Clearing canvases...   Done");
 							this.source.invalidateAll();
-							states.add("Finished committing canvas.");
 						}
 						catch (UnableToPersistCanvas | UnableToUpdateLabelBlockLookup e)
 						{
+							caughtException = e;
 							throw new RuntimeException("Error while trying to persist.", e);
+						}
+						catch (RuntimeException e)
+						{
+							caughtException = e;
+							throw e;
 						}
 					} finally
 					{
@@ -546,6 +552,10 @@ public class MaskedSource<D extends Type<D>, T extends Type<T>> implements DataS
 						{
 							thiz.isPersisting = false;
 							proxy.set(false);
+							if (caughtException == null)
+								states.add("Successfully finished committing canvas.");
+							else
+								states.add("Unable to commit canvas: " + caughtException.getMessage());
 						}
 					}
 				}).start();
