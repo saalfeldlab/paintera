@@ -15,6 +15,13 @@ import javafx.beans.property.SimpleStringProperty;
 import javafx.beans.property.StringProperty;
 import javafx.beans.value.ChangeListener;
 import javafx.beans.value.ObservableValue;
+import javafx.collections.FXCollections;
+import javafx.collections.ListChangeListener;
+import javafx.collections.ObservableList;
+import javafx.scene.control.Alert;
+import javafx.scene.control.ButtonType;
+import javafx.scene.layout.VBox;
+import javafx.stage.Modality;
 import javafx.util.Pair;
 import mpicbg.spim.data.sequence.VoxelDimensions;
 import net.imglib2.Cursor;
@@ -56,6 +63,7 @@ import net.imglib2.util.Intervals;
 import net.imglib2.view.IntervalView;
 import net.imglib2.view.RandomAccessibleTriple;
 import net.imglib2.view.Views;
+import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread;
 import org.janelia.saalfeldlab.paintera.data.DataSource;
 import org.janelia.saalfeldlab.paintera.data.mask.PickOne.PickAndConvert;
 import org.janelia.saalfeldlab.paintera.data.mask.exception.CannotClearCanvas;
@@ -65,6 +73,8 @@ import org.janelia.saalfeldlab.paintera.data.mask.persist.PersistCanvas;
 import org.janelia.saalfeldlab.paintera.data.mask.persist.UnableToPersistCanvas;
 import org.janelia.saalfeldlab.paintera.data.mask.persist.UnableToUpdateLabelBlockLookup;
 import org.janelia.saalfeldlab.paintera.data.n5.BlockSpec;
+import org.janelia.saalfeldlab.paintera.ui.PainteraAlerts;
+import org.janelia.saalfeldlab.util.MakeUnchecked;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -81,6 +91,7 @@ import java.util.Optional;
 import java.util.concurrent.ExecutorService;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
+import java.util.stream.Collectors;
 import java.util.stream.DoubleStream;
 import java.util.stream.IntStream;
 import java.util.stream.LongStream;
@@ -303,6 +314,7 @@ public class MaskedSource<D extends Type<D>, T extends Type<T>> implements DataS
 		if (mask == null)
 			return;
 		new Thread(() -> {
+			Thread.currentThread().setName("apply mask");
 			synchronized (this)
 			{
 				final boolean maskCanBeApplied = !this.isCreatingMask && this.currentMask == mask && !this.isApplyingMask && !this.isPersisting;
@@ -312,6 +324,28 @@ public class MaskedSource<D extends Type<D>, T extends Type<T>> implements DataS
 					return;
 				}
 				this.isApplyingMask = true;
+
+				final BooleanProperty proxy = new SimpleBooleanProperty(this.isApplyingMask);
+				final Runnable dialogHandler = () -> {
+					LOG.debug("Creating dialog.");
+					final Alert isApplyingDialog = PainteraAlerts.alert(Alert.AlertType.INFORMATION);
+					isApplyingDialog.setHeaderText("Applying mask to canvas.");
+					isApplyingDialog.setContentText("Mask info: " + mask.info.toString());
+					isApplyingDialog.getDialogPane().lookupButton(ButtonType.OK).setDisable(true);
+					isApplyingDialog.initModality(Modality.NONE);
+					proxy.addListener((obs, oldv, newv) -> {if(!newv) InvokeOnJavaFXApplicationThread.invoke(isApplyingDialog::hide);});
+					synchronized(MaskedSource.this) {
+						isApplyingDialog.getDialogPane().lookupButton(ButtonType.OK).disableProperty().bind(proxy);
+					}
+						LOG.debug("Will show dialog? {}", this,isApplyingMask);
+						if(this.isApplyingMask) isApplyingDialog.showAndWait();
+				};
+				new Thread(MakeUnchecked.runnable(() -> {
+					Thread.sleep(1000);
+					InvokeOnJavaFXApplicationThread.invoke(dialogHandler);
+				})).start();
+//				new Timeline(new KeyFrame(Duration.seconds(0), dialogHandler)).play();
+
 				LOG.debug("Applying mask: {}", mask, paintedInterval);
 				final MaskInfo<UnsignedLongType> maskInfo = mask.info;
 				final CachedCellImg<UnsignedLongType, ?> canvas = dataCanvases[maskInfo.level];
@@ -347,7 +381,6 @@ public class MaskedSource<D extends Type<D>, T extends Type<T>> implements DataS
 				LOG.debug("Added affected block: {}", affectedBlocksByLabel[maskInfo.level]);
 				this.affectedBlocks.addAll(paintedBlocksAtHighestResolution);
 
-				final MaskedSource<D, T> thiz = this;
 				propagationExecutor.submit(() -> {
 					propagateMask(
 							mask.mask,
@@ -358,10 +391,11 @@ public class MaskedSource<D extends Type<D>, T extends Type<T>> implements DataS
 							acceptAsPainted
 					             );
 					setMasksConstant();
-					synchronized(thiz)
+					synchronized(MaskedSource.this)
 					{
 						LOG.debug("Done applying mask!");
-						thiz.isApplyingMask = false;
+						MaskedSource.this.isApplyingMask = false;
+						proxy.set(false);
 					}
 				});
 
@@ -462,25 +496,66 @@ public class MaskedSource<D extends Type<D>, T extends Type<T>> implements DataS
 				final long[]                             affectedBlocks = this.affectedBlocks.toArray();
 				this.affectedBlocks.clear();
 				final MaskedSource<D, T> thiz = this;
+				final BooleanProperty proxy = new SimpleBooleanProperty(this.isPersisting);
+				ObservableList<String> states = FXCollections.observableArrayList();
+				final Runnable dialogHandler = () -> {
+					LOG.warn("Creating commit status dialog.");
+					final Alert isCommittingDialog = PainteraAlerts.alert(Alert.AlertType.INFORMATION);
+					isCommittingDialog.setHeaderText("Committing canvas.");
+					isCommittingDialog.getDialogPane().lookupButton(ButtonType.OK).setDisable(true);
+					isCommittingDialog.initModality(Modality.NONE);
+					states.addListener((ListChangeListener<? super String>) change -> InvokeOnJavaFXApplicationThread.invoke(() -> isCommittingDialog.getDialogPane().setContent(new VBox(asLabels(states)))));
+					synchronized(MaskedSource.this) {
+						isCommittingDialog.getDialogPane().lookupButton(ButtonType.OK).disableProperty().bind(proxy);
+					}
+					LOG.info("Will show dialog? {}", proxy.get());
+					if(proxy.get()) isCommittingDialog.show();
+				};
 				new Thread(() -> {
+					Exception caughtException = null;
 					try
 					{
 						try {
+							InvokeOnJavaFXApplicationThread.invokeAndWait(dialogHandler);
+						}
+						catch (final InterruptedException e)
+						{
+							throw new RuntimeException(e);
+						}
+						try {
+							states.add("Persisting painted labels...");
 							List<TLongObjectMap<PersistCanvas.BlockDiff>> blockDiffs = this.persistCanvas.persistCanvas(canvas, affectedBlocks);
-							if (this.persistCanvas.supportsLabelBlockLookupUpdate())
+							states.set(states.size() - 1, "Persisting painted labels...   Done");
+							if (this.persistCanvas.supportsLabelBlockLookupUpdate()) {
+								states.add("Updating label-to-block lookup...");
 								this.persistCanvas.updateLabelBlockLookup(blockDiffs);
+								states.set(states.size() - 1, "Updating label-to-block lookup...   Done");
+							}
+							states.add("Clearing canvases...");
 							clearCanvases();
+							states.set(states.size() - 1, "Clearing canvases...   Done");
 							this.source.invalidateAll();
 						}
 						catch (UnableToPersistCanvas | UnableToUpdateLabelBlockLookup e)
 						{
+							caughtException = e;
 							throw new RuntimeException("Error while trying to persist.", e);
+						}
+						catch (RuntimeException e)
+						{
+							caughtException = e;
+							throw e;
 						}
 					} finally
 					{
 						synchronized (thiz)
 						{
 							thiz.isPersisting = false;
+							proxy.set(false);
+							if (caughtException == null)
+								states.add("Successfully finished committing canvas.");
+							else
+								states.add("Unable to commit canvas: " + caughtException.getMessage());
 						}
 					}
 				}).start();
@@ -1364,6 +1439,11 @@ public class MaskedSource<D extends Type<D>, T extends Type<T>> implements DataS
 	private static <T> RealRandomAccessible<T> interpolateNearestNeighbor(RandomAccessible<T> ra)
 	{
 		return Views.interpolate(ra, new NearestNeighborInterpolatorFactory<>());
+	}
+
+	private static javafx.scene.control.Label[] asLabels(final List<? extends String> strings)
+	{
+		return strings.stream().map(javafx.scene.control.Label::new).toArray(javafx.scene.control.Label[]::new);
 	}
 
 }
