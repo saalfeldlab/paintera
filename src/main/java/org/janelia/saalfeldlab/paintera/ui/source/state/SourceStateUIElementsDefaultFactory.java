@@ -155,7 +155,7 @@ public class SourceStateUIElementsDefaultFactory implements SourceStateUIElement
 
 	private static BindUnbindAndNodeSupplier fromConverter(Converter converter)
 	{
-		LOG.warn("Getting supplier for converter {}", converter);
+		LOG.debug("Getting supplier for converter {}", converter);
 		return Optional
 				.ofNullable(getConverterSupplierFactory(converter.getClass()))
 				.map(s -> (Function<Converter, BindUnbindAndNodeSupplier>) (s::create))

@@ -29,10 +29,11 @@ import net.imglib2.type.Type;
 import net.imglib2.type.label.Label;
 import net.imglib2.type.label.LabelMultisetType;
 import net.imglib2.type.label.LabelMultisetType.Entry;
-import net.imglib2.type.numeric.RealType;
+import net.imglib2.type.numeric.IntegerType;
 import net.imglib2.type.numeric.integer.UnsignedLongType;
 import net.imglib2.util.AccessBoxRandomAccessible;
 import net.imglib2.util.Intervals;
+import net.imglib2.util.Util;
 import net.imglib2.view.Views;
 import org.janelia.saalfeldlab.paintera.data.mask.Mask;
 import org.janelia.saalfeldlab.paintera.data.mask.exception.MaskInUse;
@@ -96,7 +97,7 @@ public class FloodFill
 	}
 
 	@SuppressWarnings({"rawtypes", "unchecked"})
-	public void fillAt(final double x, final double y, final long fill)
+	private void fillAt(final double x, final double y, final long fill)
 	{
 		final Source<?>   currentSource = sourceInfo.currentSourceProperty().get();
 		final ViewerState viewerState   = viewer.getState();
@@ -139,9 +140,9 @@ public class FloodFill
 
 		final Type<?> t = source.getDataType();
 
-		if (!(t instanceof RealType<?>) && !(t instanceof LabelMultisetType))
+		if (!(t instanceof LabelMultisetType) && !(t instanceof IntegerType<?>))
 		{
-			LOG.info("Data type is not real or LabelMultisetType type -- will not fill");
+			LOG.info("Data type is not integer or LabelMultisetType type -- will not fill");
 			return;
 		}
 
@@ -220,7 +221,7 @@ public class FloodFill
 		return location;
 	}
 
-	private static <T extends RealType<T>> void fill(
+	private static <T extends IntegerType<T>> void fill(
 			final MaskedSource<T, ?> source,
 			final int time,
 			final int level,
@@ -237,9 +238,13 @@ public class FloodFill
 		final Mask<UnsignedLongType> mask = source.generateMask(maskInfo, FOREGROUND_CHECK);
 		final AccessBoxRandomAccessible<UnsignedLongType> accessTracker = new AccessBoxRandomAccessible<>(Views
 				.extendValue(mask.mask, new UnsignedLongType(1)));
+
+		final RandomAccessibleInterval<T> input = source.getDataSource(time, level);
+		final T extension = Util.getTypeFromInterval(input).createVariable();
+		extension.setInteger(Label.OUTSIDE);
 		final Thread t = new Thread(() -> {
 			net.imglib2.algorithm.fill.FloodFill.fill(
-					source.getDataSource(time, level),
+					Views.extendValue(source.getDataSource(time, level), extension),
 					accessTracker,
 					seed,
 					new UnsignedLongType(1),

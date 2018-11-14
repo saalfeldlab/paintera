@@ -10,26 +10,33 @@ import net.imglib2.FinalInterval;
 import net.imglib2.Interval;
 import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.cache.img.CachedCellImg;
+import net.imglib2.converter.Converters;
 import net.imglib2.img.array.ArrayImg;
+import net.imglib2.img.array.ArrayImgFactory;
 import net.imglib2.img.cell.CellGrid;
 import net.imglib2.realtransform.Scale3D;
+import net.imglib2.type.NativeType;
 import net.imglib2.type.label.Label;
 import net.imglib2.type.label.LabelMultisetType;
 import net.imglib2.type.label.LabelMultisetType.Entry;
 import net.imglib2.type.label.LabelMultisetTypeDownscaler;
 import net.imglib2.type.label.LabelUtils;
 import net.imglib2.type.label.VolatileLabelMultisetArray;
+import net.imglib2.type.numeric.IntegerType;
 import net.imglib2.type.numeric.integer.UnsignedLongType;
 import net.imglib2.util.Intervals;
 import net.imglib2.util.Pair;
+import net.imglib2.util.Util;
 import net.imglib2.view.IntervalView;
 import net.imglib2.view.Views;
 import org.janelia.saalfeldlab.labels.blocks.LabelBlockLookup;
+import org.janelia.saalfeldlab.labels.downsample.WinnerTakesAll;
 import org.janelia.saalfeldlab.n5.ByteArrayDataBlock;
 import org.janelia.saalfeldlab.n5.DatasetAttributes;
 import org.janelia.saalfeldlab.n5.LongArrayDataBlock;
 import org.janelia.saalfeldlab.n5.N5Reader;
 import org.janelia.saalfeldlab.n5.N5Writer;
+import org.janelia.saalfeldlab.n5.imglib2.N5Utils;
 import org.janelia.saalfeldlab.paintera.data.mask.persist.PersistCanvas;
 import org.janelia.saalfeldlab.paintera.data.mask.persist.UnableToPersistCanvas;
 import org.janelia.saalfeldlab.paintera.data.mask.persist.UnableToUpdateLabelBlockLookup;
@@ -61,12 +68,20 @@ public class CommitCanvasN5 implements PersistCanvas
 
 	private final boolean isMultiscale;
 
+	private final boolean isLabelMultiset;
+
 	public CommitCanvasN5(final N5Writer n5, final String dataset) throws IOException {
 		super();
 		this.n5 = n5;
 		this.dataset = dataset;
 		this.isPainteraDataset = N5Helpers.isPainteraDataset(this.n5, this.dataset);
-		this.isMultiscale = N5Helpers.isMultiScale(this.n5, this.isPainteraDataset ? this.dataset + "/data" : this.dataset);
+		final String volumetricDataGroup = this.isPainteraDataset ? this.dataset + "/data" : this.dataset;
+		this.isMultiscale = N5Helpers.isMultiScale(this.n5, volumetricDataGroup);
+		this.isLabelMultiset = N5Helpers.getBooleanAttribute(
+				this.n5,
+				N5Helpers.highestResolutionDataset(n5, volumetricDataGroup, this.isMultiscale),
+				N5Helpers.IS_LABEL_MULTISET_KEY,
+				false);
 	}
 
 	public final N5Writer n5()
@@ -198,13 +213,12 @@ public class CommitCanvasN5 implements PersistCanvas
 
 			final DatasetSpec highestResolutionDataset = DatasetSpec.of(n5, N5Helpers.highestResolutionDataset(n5, dataset));
 
-			checkLabelMultisetTypeOrFail(n5, highestResolutionDataset.dataset);
+			if (this.isLabelMultiset)
+				checkLabelMultisetTypeOrFail(n5, highestResolutionDataset.dataset);
 
 			checkGridsCompatibleOrFail(canvasGrid, highestResolutionDataset.grid);
 
 			final BlockSpec highestResolutionBlockSpec = new BlockSpec(highestResolutionDataset.grid);
-
-			final RandomAccessibleInterval<LabelMultisetType> highestResolutionData = LabelUtils.openVolatile(n5, highestResolutionDataset.dataset);
 
 			LOG.debug("Persisting canvas with grid={} into background with grid={}", canvasGrid, highestResolutionDataset.grid);
 
@@ -212,20 +226,16 @@ public class CommitCanvasN5 implements PersistCanvas
 			final TLongObjectHashMap<BlockDiff> blockDiffsAtHighestLevel = new TLongObjectHashMap<>();
 			blockDiffs.add(blockDiffsAtHighestLevel);
 
-			for (final long blockId : blocks)
-			{
-				highestResolutionBlockSpec.fromLinearIndex(blockId);
-				final IntervalView<Pair<LabelMultisetType, UnsignedLongType>> backgroundWithCanvas = Views.interval(Views.pair(highestResolutionData, canvas), highestResolutionBlockSpec.asInterval());
-				final int numElements = (int) Intervals.numElements(backgroundWithCanvas);
-				final byte[]             byteData  = LabelUtils.serializeLabelMultisetTypes(new BackgroundCanvasIterable(Views.flatIterable(backgroundWithCanvas)), numElements);
-				final ByteArrayDataBlock dataBlock = new ByteArrayDataBlock(Intervals.dimensionsAsIntArray(backgroundWithCanvas), highestResolutionBlockSpec.pos, byteData);
-				n5.writeBlock(highestResolutionDataset.dataset, highestResolutionDataset.attributes, dataBlock);
-				blockDiffsAtHighestLevel.put(blockId, createBlockDiffFromCanvas(backgroundWithCanvas));
+			if (this.isLabelMultiset)
+				writeBlocksLabelMultisetType(canvas, blocks, highestResolutionDataset, highestResolutionBlockSpec, blockDiffsAtHighestLevel);
+			else {
+				writeBlocksLabelIntegerType(canvas, blocks, highestResolutionDataset, highestResolutionBlockSpec, blockDiffsAtHighestLevel);
 			}
 
 			if (isMultiscale)
 			{
 				final String[] scaleDatasets = N5Helpers.listAndSortScaleDatasets(n5, dataset);
+
 				for (int level = 1; level < scaleDatasets.length; ++level)
 				{
 
@@ -245,8 +255,6 @@ public class CommitCanvasN5 implements PersistCanvas
 							targetDownsamplingFactors).toArray();
                     LOG.debug("Affected blocks at higher level: {}", affectedBlocks);
 
-					final CachedCellImg<LabelMultisetType, VolatileLabelMultisetArray> previousData = LabelUtils.openVolatile(n5, previousDataset.dataset);
-
 					final Scale3D targetToPrevious = new Scale3D(relativeDownsamplingFactors);
 
 					final int targetMaxNumEntries = N5Helpers.getIntegerAttribute(n5, targetDataset.dataset, N5Helpers.MAX_NUM_ENTRIES_KEY, -1);
@@ -257,44 +265,29 @@ public class CommitCanvasN5 implements PersistCanvas
 
 					final BlockSpec blockSpec = new BlockSpec(targetDataset.grid);
 
-					for (final long targetBlock : affectedBlocks)
-					{
-						blockSpec.fromLinearIndex(targetBlock);
-						final double[] blockMinDouble = ArrayMath.asDoubleArray3(blockSpec.min);
-						final double[] blockMaxDouble = ArrayMath.asDoubleArray3(ArrayMath.add3(blockSpec.max, 1));
-						targetToPrevious.apply(blockMinDouble, blockMinDouble);
-						targetToPrevious.apply(blockMaxDouble, blockMaxDouble);
-
-						LOG.debug("level={}: blockMinDouble={} blockMaxDouble={}", level, blockMinDouble, blockMaxDouble);
-
-						final long[] blockMin = ArrayMath.minOf3(ArrayMath.asLong3(ArrayMath.floor3(blockMinDouble, blockMinDouble)), previousDataset.dimensions);
-						final long[] blockMax = ArrayMath.minOf3(ArrayMath.asLong3(ArrayMath.ceil3(blockMaxDouble, blockMaxDouble)), previousDataset.dimensions);
-						final int[] size = Intervals.dimensionsAsIntArray(new FinalInterval(blockSpec.min, blockSpec.max));
-
-						final long[] previousRelevantIntervalMin = blockMin.clone();
-						final long[] previousRelevantIntervalMax = ArrayMath.add3(blockMax, -1);
-
-						ArrayMath.divide3(blockMin, previousDataset.blockSize, blockMin);
-						ArrayMath.divide3(blockMax, previousDataset.blockSize, blockMax);
-						ArrayMath.add3(blockMax, -1, blockMax);
-						ArrayMath.minOf3(blockMax, blockMin, blockMax);
-
-						LOG.trace("Reading old access at position {} and size {}. ({} {})", blockSpec.pos, size, blockSpec.min, blockSpec.max);
-						VolatileLabelMultisetArray oldAccess = LabelUtils.fromBytes(
-								(byte[]) n5.readBlock(targetDataset.dataset, targetDataset.attributes, blockSpec.pos).getData(),
-								(int) Intervals.numElements(size));
-
-						VolatileLabelMultisetArray newAccess = downsampleVolatileLabelMultisetArrayAndSerialize(
+					if (this.isLabelMultiset)
+						downsampleAndWriteBlocksLabelMultisetType(
+								affectedBlocks,
 								n5,
-								targetDataset.dataset,
-								targetDataset.attributes,
-								Views.interval(previousData, previousRelevantIntervalMin, previousRelevantIntervalMax),
+								previousDataset,
+								targetDataset,
+								blockSpec,
+								targetToPrevious,
 								relativeFactors,
 								targetMaxNumEntries,
-								size,
-								blockSpec.pos);
-						blockDiffsAt.put(targetBlock, createBlockDiff(oldAccess, newAccess, (int) Intervals.numElements(size)));
-					}
+								level,
+								blockDiffsAt);
+					else
+						downsampleAndWriteBlocksIntegerType(
+								affectedBlocks,
+								n5,
+								previousDataset,
+								targetDataset,
+								blockSpec,
+								targetToPrevious,
+								relativeFactors,
+								level,
+								blockDiffsAt);
 
 				}
 
@@ -425,6 +418,29 @@ public class CommitCanvasN5 implements PersistCanvas
 		return updatedAccess;
 	}
 
+	private static <I extends IntegerType<I> & NativeType<I>> BlockDiff downsampleIntegerTypeAndSerialize(
+			final N5Writer n5,
+			final String dataset,
+			final DatasetAttributes attributes,
+			final RandomAccessibleInterval<I> data,
+			final int[] relativeFactors,
+			final int[] size,
+			final Interval blockInterval,
+			final long[] blockPosition
+	) throws IOException {
+		final I i = Util.getTypeFromInterval(data).createVariable();
+		i.setInteger(Label.OUTSIDE);
+		final RandomAccessibleInterval<I> input = Views.isZeroMin(data) ? data : Views.zeroMin(data);
+		final RandomAccessibleInterval<I> output = new ArrayImgFactory<>(i).create(size);
+		WinnerTakesAll.downsample(input, output, relativeFactors);
+
+		final RandomAccessibleInterval<I> previousContents = Views.offsetInterval(N5Utils.<I>open(n5, dataset), blockInterval);
+		final BlockDiff blockDiff = createBlockDiffInteger(previousContents, output);
+
+		N5Utils.saveBlock(output, n5, dataset, attributes, blockPosition);
+		return blockDiff;
+	}
+
 	private static BlockDiff createBlockDiffFromCanvas(final Iterable<Pair<LabelMultisetType, UnsignedLongType>> backgroundWithCanvas)
 	{
 		return createBlockDiffFromCanvas(backgroundWithCanvas, new BlockDiff());
@@ -453,6 +469,34 @@ public class CommitCanvasN5 implements PersistCanvas
 					final long id = entry.getElement().id();
 					blockDiff.addToOldUniqueLabels(id);
 				}
+				blockDiff.addToNewUniqueLabels(newLabel);
+			}
+		}
+		return blockDiff;
+	}
+
+	private static <T extends IntegerType<T>> BlockDiff createBlockDiffFromCanvasIntegerType(final Iterable<Pair<T, UnsignedLongType>> backgroundWithCanvas)
+	{
+		return createBlockDiffFromCanvasIntegerType(backgroundWithCanvas, new BlockDiff());
+	}
+
+	private static <T extends IntegerType<T>> BlockDiff createBlockDiffFromCanvasIntegerType(
+			final Iterable<Pair<T, UnsignedLongType>> backgroundWithCanvas,
+			final BlockDiff blockDiff)
+	{
+		for (final Pair<T, UnsignedLongType> p : backgroundWithCanvas)
+		{
+			final long newLabel = p.getB().getIntegerLong();
+			if (newLabel == Label.INVALID)
+			{
+				final long id = p.getA().getIntegerLong();
+				blockDiff.addToOldUniqueLabels(id);
+				blockDiff.addToNewUniqueLabels(id);
+			}
+			else
+			{
+				final long id = p.getA().getIntegerLong();
+				blockDiff.addToOldUniqueLabels(id);
 				blockDiff.addToNewUniqueLabels(newLabel);
 			}
 		}
@@ -497,6 +541,34 @@ public class CommitCanvasN5 implements PersistCanvas
 		return blockDiff;
 	}
 
+	private static <I extends IntegerType<I>> BlockDiff createBlockDiffInteger(
+			final RandomAccessibleInterval<I> oldAccess,
+			final RandomAccessibleInterval<I> newAccess)
+	{
+		return createBlockDiffInteger(oldAccess, newAccess, new BlockDiff());
+	}
+
+	private static <I extends IntegerType<I>> BlockDiff createBlockDiffInteger(
+			final RandomAccessibleInterval<I> oldAccess,
+			final RandomAccessibleInterval<I> newAccess,
+			final BlockDiff blockDiff)
+	{
+		return createBlockDiffInteger(Views.flatIterable(oldAccess), Views.flatIterable(newAccess), blockDiff);
+	}
+
+	private static <I extends IntegerType<I>> BlockDiff createBlockDiffInteger(
+			final Iterable<I> oldLabels,
+			final Iterable<I> newLabels,
+			final BlockDiff blockDiff)
+	{
+		for (final Iterator<I> oldIterator = oldLabels.iterator(), newIterator = newLabels.iterator(); oldIterator.hasNext();)
+		{
+			blockDiff.addToOldUniqueLabels(oldIterator.next().getIntegerLong());
+			blockDiff.addToNewUniqueLabels(newIterator.next().getIntegerLong());
+		}
+		return blockDiff;
+	}
+
 	private static <T> T computeIfAbsent(TLongObjectMap<T> map, long key, Supplier<T> fallback)
 	{
 		T t = map.get(key);
@@ -506,6 +578,157 @@ public class CommitCanvasN5 implements PersistCanvas
 			map.put(key, t);
 		}
 		return t;
+	}
+
+	private static void writeBlocksLabelMultisetType(
+			final RandomAccessibleInterval<UnsignedLongType> canvas,
+			final long[] blocks,
+			final DatasetSpec datasetSpec,
+			final BlockSpec blockSpec,
+			TLongObjectHashMap<BlockDiff> blockDiff) throws IOException {
+		final RandomAccessibleInterval<LabelMultisetType> highestResolutionData = LabelUtils.openVolatile(datasetSpec.container, datasetSpec.dataset);
+		for (final long blockId : blocks) {
+			blockSpec.fromLinearIndex(blockId);
+			final IntervalView<Pair<LabelMultisetType, UnsignedLongType>> backgroundWithCanvas = Views.interval(Views.pair(highestResolutionData, canvas), blockSpec.asInterval());
+			final int numElements = (int) Intervals.numElements(backgroundWithCanvas);
+			final byte[] byteData = LabelUtils.serializeLabelMultisetTypes(new BackgroundCanvasIterable(Views.flatIterable(backgroundWithCanvas)), numElements);
+			final ByteArrayDataBlock dataBlock = new ByteArrayDataBlock(Intervals.dimensionsAsIntArray(backgroundWithCanvas), blockSpec.pos, byteData);
+			datasetSpec.container.writeBlock(datasetSpec.dataset, datasetSpec.attributes, dataBlock);
+			blockDiff.put(blockId, createBlockDiffFromCanvas(backgroundWithCanvas));
+		}
+	}
+
+	// TODO the integer type implementation does not need to iterate over all pixels per block but could intersect with bounding box first
+	private static <I extends IntegerType<I> & NativeType<I>> void writeBlocksLabelIntegerType(
+			final RandomAccessibleInterval<UnsignedLongType> canvas,
+			final long[] blocks,
+			final DatasetSpec datasetSpec,
+			final BlockSpec blockSpec,
+			final TLongObjectHashMap<BlockDiff> blockDiff) throws IOException {
+		final RandomAccessibleInterval<I> highestResolutionData = N5Utils.open(datasetSpec.container, datasetSpec.dataset);
+		final I i = Util.getTypeFromInterval(highestResolutionData).createVariable();
+		for (final long blockId : blocks) {
+			blockSpec.fromLinearIndex(blockId);
+			final RandomAccessibleInterval<Pair<I, UnsignedLongType>> backgroundWithCanvas = Views.interval(Views.pair(highestResolutionData, canvas), blockSpec.asInterval());
+			final RandomAccessibleInterval<I> mergedData = Converters.convert(backgroundWithCanvas, (s, t) -> pickFirstIfSecondIsInvalid(s.getA(), s.getB(), t), i.createVariable());
+			N5Utils.saveBlock(mergedData, datasetSpec.container, datasetSpec.dataset, datasetSpec.attributes, blockSpec.pos);
+			blockDiff.put(blockId, createBlockDiffFromCanvasIntegerType(Views.iterable(backgroundWithCanvas)));
+		}
+	}
+
+	private static void downsampleAndWriteBlocksLabelMultisetType(
+			final long[] affectedBlocks,
+			final N5Writer n5,
+			final DatasetSpec previousDataset,
+			final DatasetSpec targetDataset,
+			final BlockSpec blockSpec,
+			final Scale3D targetToPrevious,
+			final int[] relativeFactors,
+			final int targetMaxNumEntries,
+			final int level,
+			final TLongObjectHashMap<BlockDiff> blockDiffsAt
+			) throws IOException {
+
+		final CachedCellImg<LabelMultisetType, VolatileLabelMultisetArray> previousData = LabelUtils.openVolatile(n5, previousDataset.dataset);
+
+		for (final long targetBlock : affectedBlocks)
+		{
+			blockSpec.fromLinearIndex(targetBlock);
+			final double[] blockMinDouble = ArrayMath.asDoubleArray3(blockSpec.min);
+			final double[] blockMaxDouble = ArrayMath.asDoubleArray3(ArrayMath.add3(blockSpec.max, 1));
+			targetToPrevious.apply(blockMinDouble, blockMinDouble);
+			targetToPrevious.apply(blockMaxDouble, blockMaxDouble);
+
+			LOG.debug("level={}: blockMinDouble={} blockMaxDouble={}", level, blockMinDouble, blockMaxDouble);
+
+			final long[] blockMin = ArrayMath.minOf3(ArrayMath.asLong3(ArrayMath.floor3(blockMinDouble, blockMinDouble)), previousDataset.dimensions);
+			final long[] blockMax = ArrayMath.minOf3(ArrayMath.asLong3(ArrayMath.ceil3(blockMaxDouble, blockMaxDouble)), previousDataset.dimensions);
+			final int[] size = Intervals.dimensionsAsIntArray(new FinalInterval(blockSpec.min, blockSpec.max));
+
+			final long[] previousRelevantIntervalMin = blockMin.clone();
+			final long[] previousRelevantIntervalMax = ArrayMath.add3(blockMax, -1);
+
+			ArrayMath.divide3(blockMin, previousDataset.blockSize, blockMin);
+			ArrayMath.divide3(blockMax, previousDataset.blockSize, blockMax);
+			ArrayMath.add3(blockMax, -1, blockMax);
+			ArrayMath.minOf3(blockMax, blockMin, blockMax);
+
+			LOG.trace("Reading old access at position {} and size {}. ({} {})", blockSpec.pos, size, blockSpec.min, blockSpec.max);
+			VolatileLabelMultisetArray oldAccess = LabelUtils.fromBytes(
+					(byte[]) n5.readBlock(targetDataset.dataset, targetDataset.attributes, blockSpec.pos).getData(),
+					(int) Intervals.numElements(size));
+
+			VolatileLabelMultisetArray newAccess = downsampleVolatileLabelMultisetArrayAndSerialize(
+					n5,
+					targetDataset.dataset,
+					targetDataset.attributes,
+					Views.interval(previousData, previousRelevantIntervalMin, previousRelevantIntervalMax),
+					relativeFactors,
+					targetMaxNumEntries,
+					size,
+					blockSpec.pos);
+			blockDiffsAt.put(targetBlock, createBlockDiff(oldAccess, newAccess, (int) Intervals.numElements(size)));
+		}
+	}
+
+	private static <I extends IntegerType<I> & NativeType<I>> void downsampleAndWriteBlocksIntegerType(
+			final long[] affectedBlocks,
+			final N5Writer n5,
+			final DatasetSpec previousDataset,
+			final DatasetSpec targetDataset,
+			final BlockSpec blockSpec,
+			final Scale3D targetToPrevious,
+			final int[] relativeFactors,
+			final int level,
+			final TLongObjectHashMap<BlockDiff> blockDiffsAt
+	) throws IOException {
+
+		final RandomAccessibleInterval<I> previousData = N5Utils.open(n5, previousDataset.dataset);
+
+		for (final long targetBlock : affectedBlocks)
+		{
+			blockSpec.fromLinearIndex(targetBlock);
+			final double[] blockMinDouble = ArrayMath.asDoubleArray3(blockSpec.min);
+			final double[] blockMaxDouble = ArrayMath.asDoubleArray3(ArrayMath.add3(blockSpec.max, 1));
+			targetToPrevious.apply(blockMinDouble, blockMinDouble);
+			targetToPrevious.apply(blockMaxDouble, blockMaxDouble);
+
+			LOG.debug("level={}: blockMinDouble={} blockMaxDouble={}", level, blockMinDouble, blockMaxDouble);
+
+			final long[] blockMin = ArrayMath.minOf3(ArrayMath.asLong3(ArrayMath.floor3(blockMinDouble, blockMinDouble)), previousDataset.dimensions);
+			final long[] blockMax = ArrayMath.minOf3(ArrayMath.asLong3(ArrayMath.ceil3(blockMaxDouble, blockMaxDouble)), previousDataset.dimensions);
+			final Interval targetInterval = new FinalInterval(blockSpec.min, blockSpec.max);
+			final int[] size = Intervals.dimensionsAsIntArray(targetInterval);
+
+			final long[] previousRelevantIntervalMin = blockMin.clone();
+			final long[] previousRelevantIntervalMax = ArrayMath.add3(blockMax, -1);
+
+			ArrayMath.divide3(blockMin, previousDataset.blockSize, blockMin);
+			ArrayMath.divide3(blockMax, previousDataset.blockSize, blockMax);
+			ArrayMath.add3(blockMax, -1, blockMax);
+			ArrayMath.minOf3(blockMax, blockMin, blockMax);
+
+			LOG.trace("Reading old access at position {} and size {}. ({} {})", blockSpec.pos, size, blockSpec.min, blockSpec.max);
+
+			final BlockDiff blockDiff = downsampleIntegerTypeAndSerialize(
+					n5,
+					targetDataset.dataset,
+					targetDataset.attributes,
+					Views.interval(previousData, previousRelevantIntervalMin, previousRelevantIntervalMax),
+					relativeFactors,
+					size,
+					targetInterval,
+					blockSpec.pos);
+			blockDiffsAt.put(targetBlock, blockDiff);
+		}
+	}
+
+	private static <I extends IntegerType<I>, C extends IntegerType<C>> void pickFirstIfSecondIsInvalid(I s1, C s2, I t) {
+		final long val = s2.getIntegerLong();
+		if (val == Label.INVALID)
+			t.set(s1);
+		else
+			t.setInteger(val);
 	}
 
 }

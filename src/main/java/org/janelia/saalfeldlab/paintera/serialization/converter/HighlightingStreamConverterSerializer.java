@@ -69,10 +69,12 @@ public class HighlightingStreamConverterSerializer implements PainteraSerializat
 
 			@SuppressWarnings("unchecked") final Class<? extends HighlightingStreamConverter<?>> converterClass =
 					(Class<? extends HighlightingStreamConverter<?>>) Class.forName(map.get(TYPE_KEY).getAsString());
+			LOG.debug("Converter class is {}", converterClass);
 			final HighlightingStreamConverter<?> converter = converterClass.getConstructor(
 					AbstractHighlightingARGBStream.class).newInstance(stream);
 			Optional.ofNullable(map.get(SEED_KEY)).map(JsonElement::getAsLong).ifPresent(converter.seedProperty()
 					::set);
+			LOG.debug("Returning converter {}", converter);
 			return converter;
 		} catch (InstantiationException
 				| IllegalAccessException

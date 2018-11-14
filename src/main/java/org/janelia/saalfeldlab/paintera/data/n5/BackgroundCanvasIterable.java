@@ -30,6 +30,7 @@ public class BackgroundCanvasIterable implements Iterable<LabelMultisetType> {
 		this.backgroundAndCanvas = backgroundAndCanvas;
 	}
 
+	@Override
 	public Iterator<LabelMultisetType> iterator() {
 		return new Iterator<LabelMultisetType>() {
 

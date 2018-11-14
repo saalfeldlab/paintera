@@ -174,6 +174,7 @@ public class LabelSourceStateDeserializer<C extends HighlightingStreamConverter<
 				arguments.meshWorkersExecutors
 		);
 
+		LOG.debug("Creating state with converter {}", converter);
 		final LabelSourceState state = new LabelSourceState(
 				source,
 				converter,

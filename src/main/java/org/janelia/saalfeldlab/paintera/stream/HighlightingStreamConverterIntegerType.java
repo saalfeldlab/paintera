@@ -1,39 +1,29 @@
 package org.janelia.saalfeldlab.paintera.stream;
 
-import java.util.function.ToLongFunction;
-
+import net.imglib2.Volatile;
 import net.imglib2.type.numeric.ARGBType;
 import net.imglib2.type.numeric.IntegerType;
-import net.imglib2.type.numeric.RealType;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-public class HighlightingStreamConverterIntegerType<I extends RealType<I>> extends HighlightingStreamConverter<I>
+import java.lang.invoke.MethodHandles;
+
+public class HighlightingStreamConverterIntegerType<I extends IntegerType<I>, V extends Volatile<I>> extends HighlightingStreamConverter<V>
 {
 
-	private final ToLongFunction<I> toLong;
+	private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
-	public HighlightingStreamConverterIntegerType(final AbstractHighlightingARGBStream stream, final ToLongFunction<I>
-			toLong)
+	public HighlightingStreamConverterIntegerType(final AbstractHighlightingARGBStream stream)
 	{
 		super(stream);
-		this.toLong = toLong;
+		LOG.debug("Created {} from stream {}", this.getClass(), stream);
 	}
 
 	@Override
-	public void convert(final I input, final ARGBType output)
+	public void convert(final V input, final ARGBType output)
 	{
-		output.set(stream.argb(toLong.applyAsLong(input)));
-	}
-
-	public static <I extends IntegerType<I>> HighlightingStreamConverterIntegerType<I> forInteger(
-			final AbstractHighlightingARGBStream stream)
-	{
-		return new HighlightingStreamConverterIntegerType<>(stream, I::getIntegerLong);
-	}
-
-	public static <I extends RealType<I>> HighlightingStreamConverterIntegerType<I> forRealType(
-			final AbstractHighlightingARGBStream stream)
-	{
-		return new HighlightingStreamConverterIntegerType<>(stream, t -> (long) t.getRealDouble());
+		output.set(stream.argb(input.get().getIntegerLong()));
+//		LOG.trace("Converted input {} to output {}", input, output);
 	}
 
 }
