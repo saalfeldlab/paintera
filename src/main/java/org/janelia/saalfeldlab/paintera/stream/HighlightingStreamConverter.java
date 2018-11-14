@@ -16,6 +16,7 @@ import javafx.beans.property.SimpleLongProperty;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableMap;
 import javafx.scene.paint.Color;
+import net.imglib2.Volatile;
 import net.imglib2.converter.Converter;
 import net.imglib2.type.label.LabelMultisetType;
 import net.imglib2.type.label.VolatileLabelMultisetType;
@@ -126,20 +127,12 @@ public abstract class HighlightingStreamConverter<T>
 			final AbstractHighlightingARGBStream stream,
 			final T t)
 	{
-		if (t instanceof IntegerType<?>) {
-			return (org.janelia.saalfeldlab.paintera.stream.HighlightingStreamConverter<T>)
-					HighlightingStreamConverterIntegerType.forInteger(
-					stream);
+		LOG.debug("Getting {} for type {}", HighlightingStreamConverter.class.getSimpleName(), t);
+		if (t instanceof VolatileLabelMultisetType) {
+			return (HighlightingStreamConverter<T>) new HighlightingStreamConverterLabelMultisetType(stream);
 		}
-		if (t instanceof RealType<?>) {
-			return (org.janelia.saalfeldlab.paintera.stream.HighlightingStreamConverter<T>)
-					HighlightingStreamConverterIntegerType.forRealType(
-					stream);
-		}
-		if (t instanceof LabelMultisetType || t instanceof VolatileLabelMultisetType) {
-			return (org.janelia.saalfeldlab.paintera.stream.HighlightingStreamConverter<T>) new
-					HighlightingStreamConverterLabelMultisetType(
-					stream);
+		if (t instanceof Volatile<?> && ((Volatile<?>)t).get() instanceof IntegerType<?>) {
+			return (HighlightingStreamConverter<T>) new HighlightingStreamConverterIntegerType(stream);
 		}
 
 		return null;

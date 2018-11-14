@@ -334,7 +334,7 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 
 		return new LabelSourceState<>(
 				dataSource,
-				new HighlightingStreamConverterIntegerType<>(stream, toLong),
+				new HighlightingStreamConverterIntegerType<>(stream),
 				new ARGBCompositeAlphaYCbCr(),
 				name,
 				assignment,

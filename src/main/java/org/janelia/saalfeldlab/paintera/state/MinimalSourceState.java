@@ -1,5 +1,6 @@
 package org.janelia.saalfeldlab.paintera.state;
 
+import java.lang.invoke.MethodHandles;
 import java.util.Arrays;
 
 import bdv.viewer.Interpolation;
@@ -15,10 +16,14 @@ import net.imglib2.type.numeric.ARGBType;
 import org.janelia.saalfeldlab.paintera.composition.Composite;
 import org.janelia.saalfeldlab.paintera.data.DataSource;
 import org.janelia.saalfeldlab.paintera.data.axisorder.AxisOrder;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class MinimalSourceState<D, T, S extends DataSource<D, T>, C extends Converter<T, ARGBType>>
 		implements SourceState<D, T>
 {
+
+	private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
 	private final S dataSource;
 
@@ -46,6 +51,13 @@ public class MinimalSourceState<D, T, S extends DataSource<D, T>, C extends Conv
 			final SourceState<?, ?>... dependsOn)
 	{
 		super();
+		LOG.debug(
+				"Creating minimal source state with dataSource={} converter={} composite={} name={} dependsOn={}",
+				dataSource,
+				converter,
+				composite,
+				name,
+				dependsOn);
 		this.dataSource = dataSource;
 		this.converter = converter;
 		this.composite = new SimpleObjectProperty<>(composite);

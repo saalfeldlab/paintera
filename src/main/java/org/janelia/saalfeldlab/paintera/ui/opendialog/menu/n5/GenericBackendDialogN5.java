@@ -471,6 +471,7 @@ public class GenericBackendDialogN5
 		}
 		else
 		{
+			LOG.debug("Getting scalar data source");
 			source = (DataSource<D, T>) N5Data.openScalarAsSource(
 					reader,
 					dataset,
