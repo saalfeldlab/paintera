@@ -26,8 +26,11 @@ import org.janelia.saalfeldlab.paintera.stream.HighlightingStreamConverter;
 import org.janelia.saalfeldlab.paintera.stream.ModalGoldenAngleSaturatedHighlightingARGBStream;
 import org.janelia.saalfeldlab.util.MakeUnchecked;
 import org.janelia.saalfeldlab.util.n5.N5Helpers;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.lang.invoke.MethodHandles;
 import java.util.Optional;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
@@ -35,6 +38,8 @@ import java.util.stream.IntStream;
 
 public class CreateDatasetHandler
 {
+
+	private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
 	public static void createAndAddNewLabelDataset(
 			final PainteraBaseView pbv,
@@ -82,10 +87,9 @@ public class CreateDatasetHandler
 					canvasDirUpdater.get(),
 					canvasDirUpdater,
 					commitCanvas,
-					pbv.getMeshWorkerExecutorService()
-			                                                                                        );
+					pbv.getMeshWorkerExecutorService());
 
-			final IdService                      idService      = N5Helpers.idService(meta.writer(), group);
+			final IdService                      idService      = N5Helpers.idService(meta.writer(), group, 1);
 			final SelectedIds                    selectedIds    = new SelectedIds();
 			final FragmentSegmentAssignmentState assignment     = N5Helpers.assignments(meta.writer(), group);
 			final LockedSegmentsOnlyLocal        lockedSegments = new LockedSegmentsOnlyLocal(locked -> {});
@@ -127,6 +131,7 @@ public class CreateDatasetHandler
 					selectedIds,
 					meshManager);
 
+			LOG.warn("Adding label state {}", state);
 			pbv.addLabelSource(state);
 		}
 	}

@@ -589,7 +589,7 @@ public class Paintera extends Application
 	public static interface GetN5IDService
 	{
 
-		public IdService getIdService(final N5Writer writer, final String dataset) throws IOException;
+		public IdService getIdService(final N5Writer writer, final String dataset) throws IOException, N5Helpers.MaxIDNotSpecified;
 
 	}
 
