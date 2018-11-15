@@ -39,6 +39,7 @@ import org.janelia.saalfeldlab.paintera.data.mask.Mask;
 import org.janelia.saalfeldlab.paintera.data.mask.exception.MaskInUse;
 import org.janelia.saalfeldlab.paintera.data.mask.MaskInfo;
 import org.janelia.saalfeldlab.paintera.data.mask.MaskedSource;
+import org.janelia.saalfeldlab.paintera.state.HasMaskForLabel;
 import org.janelia.saalfeldlab.paintera.state.LabelSourceState;
 import org.janelia.saalfeldlab.paintera.state.SourceInfo;
 import org.janelia.saalfeldlab.paintera.state.SourceState;
@@ -109,15 +110,15 @@ public class FloodFill
 
 		final SourceState<?, ?> currentSourceState = sourceInfo.getState(currentSource);
 
-		if (!(currentSourceState instanceof LabelSourceState<?, ?>))
+		if (!(currentSourceState instanceof HasMaskForLabel<?>))
 		{
-			LOG.info("Selected source is not a label source -- will not fill");
+			LOG.info("Selected source cannot provide mask for label -- will not fill");
 			return;
 		}
 
-		final LabelSourceState<?, ?> state = (LabelSourceState<?, ?>) currentSourceState;
+		final HasMaskForLabel<?> hasMaskForLabel = (HasMaskForLabel<?>) currentSourceState;
 
-		if (!state.isVisibleProperty().get())
+		if (!currentSourceState.isVisibleProperty().get())
 		{
 			LOG.info("Selected source is not visible -- will not fill");
 			return;
@@ -129,7 +130,7 @@ public class FloodFill
 			return;
 		}
 
-		final LongFunction<?> maskForLabel = state.maskForLabel();
+		final LongFunction<?> maskForLabel = hasMaskForLabel.maskForLabel();
 		if (maskForLabel == null)
 		{
 			LOG.info("Cannot generate boolean mask for this source -- will not fill");

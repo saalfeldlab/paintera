@@ -6,8 +6,10 @@ import org.janelia.saalfeldlab.paintera.meshes.MeshManager;
 public interface HasMeshes<T>
 {
 
-	public MeshManager<Long, T> meshManager();
+	MeshManager<Long, T> meshManager();
 
-	public ManagedMeshSettings managedMeshSettings();
+	ManagedMeshSettings managedMeshSettings();
+
+	void refreshMeshes();
 
 }

@@ -127,7 +127,7 @@ public class LabelSourceStateDeserializer<C extends HighlightingStreamConverter<
 				.map(el -> (long[]) context.deserialize(el, long[].class))
 				.orElseGet(() -> new long[] {});
 		final JsonObject assignmentMap = map.get(ASSIGNMENT_KEY).getAsJsonObject();
-		final IdService  idService     = N5Helpers.idService(writer, dataset);
+		final IdService  idService     = getIdService(writer, dataset);
 		final FragmentSegmentAssignmentState assignment = N5Helpers.assignments(
 				writer,
 				dataset
@@ -196,6 +196,20 @@ public class LabelSourceStateDeserializer<C extends HighlightingStreamConverter<
 			state.managedMeshSettings().set(meshSettings);
 		}
 		return state;
+
+	}
+
+	private static IdService getIdService(final N5Writer writer, final String dataset) throws IOException {
+		try {
+			return N5Helpers.idService(writer, dataset);
+		}
+		catch (final N5Helpers.MaxIDNotSpecified e) {
+			LOG.warn("Max id was not specified -- will not use an id service. " +
+					"If that is not the intended behavior, please check the attributes of data set {}",
+					dataset,
+					e);
+			return new IdService.IdServiceNotProvided();
+		}
 
 	}
 

@@ -3,6 +3,7 @@ package org.janelia.saalfeldlab.paintera.control;
 import java.util.Optional;
 import java.util.function.Supplier;
 
+import org.janelia.saalfeldlab.paintera.state.HasMeshes;
 import org.janelia.saalfeldlab.paintera.state.LabelSourceState;
 import org.janelia.saalfeldlab.paintera.state.SourceState;
 
@@ -21,14 +22,14 @@ public class CurrentSourceRefreshMeshes
 	{
 		Optional
 				.ofNullable(currentState.get())
-				.filter(state -> state instanceof LabelSourceState<?, ?>)
-				.map(state -> (LabelSourceState<?, ?>) state)
+				.filter(state -> state instanceof HasMeshes<?>)
+				.map(state -> (HasMeshes<?>) state)
 				.ifPresent(this::refresh);
 	}
 
-	private void refresh(final LabelSourceState<?, ?> state)
+	private void refresh(final HasMeshes<?> hasMeshes)
 	{
-		state.refreshMeshes();
+		hasMeshes.refreshMeshes();
 	}
 
 }

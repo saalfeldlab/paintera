@@ -59,6 +59,7 @@ import org.janelia.saalfeldlab.paintera.meshes.InterruptibleFunction;
 import org.janelia.saalfeldlab.paintera.meshes.MeshManagerWithAssignmentForSegments;
 import org.janelia.saalfeldlab.paintera.serialization.GsonHelpers;
 import org.janelia.saalfeldlab.paintera.serialization.Properties;
+import org.janelia.saalfeldlab.paintera.state.HasSelectedIds;
 import org.janelia.saalfeldlab.paintera.state.LabelSourceState;
 import org.janelia.saalfeldlab.paintera.state.RawSourceState;
 import org.janelia.saalfeldlab.paintera.state.SourceState;
@@ -262,8 +263,8 @@ public class Paintera extends Application
 				.trackSources()
 				.stream()
 				.map(properties.sourceInfo::getState)
-				.filter(state -> state instanceof LabelSourceState<?, ?>)
-				.map(state -> (LabelSourceState<?, ?>) state)
+				.filter(state -> state instanceof HasSelectedIds)
+				.map(state -> (HasSelectedIds) state)
 				.forEach(state -> {
 					final long[] selIds = state.selectedIds().getActiveIds();
 					final long   lastId = state.selectedIds().getLastSelection();
@@ -588,7 +589,7 @@ public class Paintera extends Application
 	public static interface GetN5IDService
 	{
 
-		public IdService getIdService(final N5Writer writer, final String dataset) throws IOException;
+		public IdService getIdService(final N5Writer writer, final String dataset) throws IOException, N5Helpers.MaxIDNotSpecified;
 
 	}
 

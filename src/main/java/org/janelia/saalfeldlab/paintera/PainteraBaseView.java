@@ -60,6 +60,11 @@ import org.janelia.saalfeldlab.paintera.data.axisorder.AxisOrderNotSupported;
 import org.janelia.saalfeldlab.paintera.data.mask.MaskedSource;
 import org.janelia.saalfeldlab.paintera.state.ChannelSourceState;
 import org.janelia.saalfeldlab.paintera.state.GlobalTransformManager;
+import org.janelia.saalfeldlab.paintera.state.HasFragmentSegmentAssignments;
+import org.janelia.saalfeldlab.paintera.state.HasHighlightingStreamConverter;
+import org.janelia.saalfeldlab.paintera.state.HasLockedSegments;
+import org.janelia.saalfeldlab.paintera.state.HasMeshes;
+import org.janelia.saalfeldlab.paintera.state.HasSelectedIds;
 import org.janelia.saalfeldlab.paintera.state.LabelSourceState;
 import org.janelia.saalfeldlab.paintera.state.RawSourceState;
 import org.janelia.saalfeldlab.paintera.state.SourceInfo;
@@ -234,21 +239,43 @@ public class PainteraBaseView
 	@SuppressWarnings("unchecked")
 	public <D, T> void addState(final SourceState<D, T> state)
 	{
-		if (state instanceof LabelSourceState<?, ?>)
+		addGenericState(state);
+
+		if (state instanceof HasHighlightingStreamConverter<?>)
 		{
-			addLabelSource((LabelSourceState) state);
+			final AbstractHighlightingARGBStream stream = ((HasHighlightingStreamConverter<?>) state).highlightingStreamConverter().getStream();
+			stream.addListener(obs -> orthogonalViews().requestRepaint());
 		}
-		else if (state instanceof RawSourceState<?, ?>)
-		{
-			addRawSource((RawSourceState) state);
+
+		if (state instanceof HasFragmentSegmentAssignments)
+			orthogonalViews().applyToAll(vp -> ((HasFragmentSegmentAssignments)state).assignment().addListener(obs -> vp.requestRepaint()));
+		if (state instanceof HasSelectedIds)
+			orthogonalViews().applyToAll(vp -> ((HasSelectedIds)state).selectedIds().addListener(obs -> vp.requestRepaint()));
+		if (state instanceof HasLockedSegments)
+			orthogonalViews().applyToAll(vp -> ((HasLockedSegments)state).lockedSegments().addListener(obs -> vp.requestRepaint()));
+
+		if (state instanceof HasMeshes)
+			((HasMeshes)state).meshManager().areMeshesEnabledProperty().bind(viewer3D.isMeshesEnabledProperty());
+
+
+		if (state.converter() instanceof ARGBColorConverter<?>) {
+			ARGBColorConverter<?> conv = (ARGBColorConverter<?>) state.converter();
+			conv.colorProperty().addListener((obs, oldv, newv) -> orthogonalViews().requestRepaint());
+			conv.minProperty().addListener((obs, oldv, newv) -> orthogonalViews().requestRepaint());
+			conv.maxProperty().addListener((obs, oldv, newv) -> orthogonalViews().requestRepaint());
+			conv.alphaProperty().addListener((obs, oldv, newv) -> orthogonalViews().requestRepaint());
 		}
-		else if (state instanceof ChannelSourceState<?, ?, ?, ?>)
-		{
-			addChannelSource((ChannelSourceState<?, ?, ?, ?>) state);
-		}
-		else
-		{
-			addGenericState(state);
+
+
+		if (state.converter() instanceof ARGBCompositeColorConverter<?, ?, ?>) {
+			final ARGBCompositeColorConverter<?, ?, ?> conv = (ARGBCompositeColorConverter<?, ?, ?>) state.converter();
+			for (int channel = 0; channel < conv.numChannels(); ++channel) {
+				conv.colorProperty(channel).addListener((obs, oldv, newv) -> orthogonalViews().requestRepaint());
+				conv.minProperty(channel).addListener((obs, oldv, newv) -> orthogonalViews().requestRepaint());
+				conv.maxProperty(channel).addListener((obs, oldv, newv) -> orthogonalViews().requestRepaint());
+				conv.channelAlphaProperty(channel).addListener((obs, oldv, newv) -> orthogonalViews().requestRepaint());
+			}
+			conv.alphaProperty().addListener((obs, oldv, newv) -> orthogonalViews().requestRepaint());
 		}
 
 	}
@@ -325,13 +352,8 @@ public class PainteraBaseView
 	 */
 	public <T extends RealType<T>, U extends RealType<U>> void addRawSource(final RawSourceState<T, U> state)
 	{
-		addGenericState(state);
 		LOG.debug("Adding raw state={}", state);
-		final ARGBColorConverter<U> conv      = state.converter();
-		conv.colorProperty().addListener((obs, oldv, newv) -> orthogonalViews().requestRepaint());
-		conv.minProperty().addListener((obs, oldv, newv) -> orthogonalViews().requestRepaint());
-		conv.maxProperty().addListener((obs, oldv, newv) -> orthogonalViews().requestRepaint());
-		conv.alphaProperty().addListener((obs, oldv, newv) -> orthogonalViews().requestRepaint());
+		addState(state);
 	}
 
 
@@ -413,22 +435,8 @@ public class PainteraBaseView
 	 */
 	public <D extends IntegerType<D>, T extends Type<T>> void addLabelSource(final LabelSourceState<D, T> state)
 	{
-
-		addGenericState(state);
-
 		LOG.debug("Adding label state={}", state);
-		final Converter<T, ARGBType> converter = state.converter();
-		if (converter instanceof HighlightingStreamConverter<?>)
-		{
-			final AbstractHighlightingARGBStream stream = ((HighlightingStreamConverter<?>) converter).getStream();
-			stream.addListener(obs -> orthogonalViews().requestRepaint());
-		}
-
-		orthogonalViews().applyToAll(vp -> state.assignment().addListener(obs -> vp.requestRepaint()));
-		orthogonalViews().applyToAll(vp -> state.selectedIds().addListener(obs -> vp.requestRepaint()));
-		orthogonalViews().applyToAll(vp -> state.lockedSegments().addListener(obs -> vp.requestRepaint()));
-
-		state.meshManager().areMeshesEnabledProperty().bind(viewer3D.isMeshesEnabledProperty());
+		addState(state);
 	}
 
 	/**
@@ -458,16 +466,8 @@ public class PainteraBaseView
 			V extends Volatile<CT>> void addChannelSource(
 			final ChannelSourceState<D, T, CT, V> state)
 	{
-		addGenericState(state);
 		LOG.debug("Adding channel state={}", state);
-		final ARGBCompositeColorConverter<T, CT, V> conv = state.converter();
-		for (int channel = 0; channel < conv.numChannels(); ++channel) {
-			conv.colorProperty(channel).addListener((obs, oldv, newv) -> orthogonalViews().requestRepaint());
-			conv.minProperty(channel).addListener((obs, oldv, newv) -> orthogonalViews().requestRepaint());
-			conv.maxProperty(channel).addListener((obs, oldv, newv) -> orthogonalViews().requestRepaint());
-			conv.channelAlphaProperty(channel).addListener((obs, oldv, newv) -> orthogonalViews().requestRepaint());
-		}
-		conv.alphaProperty().addListener((obs, oldv, newv) -> orthogonalViews().requestRepaint());
+		addState(state);
 		LOG.debug("Added channel state {}", state.nameProperty().get());
 	}
 

@@ -84,6 +84,29 @@ public interface IdService
 		return new Dummy();
 	}
 
+	class IdServiceNotProvided implements IdService {
+
+		@Override
+		public void invalidate(long id) {
+			throw new UnsupportedOperationException(String.format("%s does not support any operation at all!", this.getClass().getName()));
+		}
+
+		@Override
+		public long next() {
+			throw new UnsupportedOperationException(String.format("%s does not support any operation at all!", this.getClass().getName()));
+		}
+
+		@Override
+		public long[] next(int n) {
+			throw new UnsupportedOperationException(String.format("%s does not support any operation at all!", this.getClass().getName()));
+		}
+
+		@Override
+		public boolean isInvalidated(long id) {
+			throw new UnsupportedOperationException(String.format("%s does not support any operation at all!", this.getClass().getName()));
+		}
+	}
+
 	public static class Dummy implements IdService
 	{
 

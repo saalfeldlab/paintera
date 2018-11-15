@@ -35,6 +35,7 @@ import org.janelia.saalfeldlab.paintera.control.paint.RestrictPainting;
 import org.janelia.saalfeldlab.paintera.control.paint.SelectNextId;
 import org.janelia.saalfeldlab.paintera.control.selection.SelectedIds;
 import org.janelia.saalfeldlab.paintera.state.GlobalTransformManager;
+import org.janelia.saalfeldlab.paintera.state.HasSelectedIds;
 import org.janelia.saalfeldlab.paintera.state.LabelSourceState;
 import org.janelia.saalfeldlab.paintera.state.SourceInfo;
 import org.janelia.saalfeldlab.paintera.state.SourceState;
@@ -281,8 +282,8 @@ public class Paint implements ToOnEnterOnExit
 
 	public SelectedIds selectedIdsFromState(final SourceState<?, ?> state)
 	{
-		return state instanceof LabelSourceState<?, ?>
-		       ? ((LabelSourceState<?, ?>) state).selectedIds()
+		return state instanceof HasSelectedIds
+		       ? ((HasSelectedIds) state).selectedIds()
 		       : null;
 	}
 

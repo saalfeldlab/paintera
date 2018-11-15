@@ -37,6 +37,7 @@ import org.janelia.saalfeldlab.paintera.data.n5.N5FSMeta;
 import org.janelia.saalfeldlab.paintera.data.n5.N5HDF5Meta;
 import org.janelia.saalfeldlab.paintera.data.n5.N5Meta;
 import org.janelia.saalfeldlab.paintera.data.n5.ReflectionException;
+import org.janelia.saalfeldlab.paintera.exception.PainteraException;
 import org.janelia.saalfeldlab.paintera.id.IdService;
 import org.janelia.saalfeldlab.paintera.id.N5IdService;
 import org.janelia.saalfeldlab.util.MakeUnchecked;
@@ -383,7 +384,7 @@ public class N5Helpers
 					}
 					if (isMipmapGroup)
 					{
-						LOG.debug(
+						LOG.warn(
 								"Found multi-scale group without {} tag. Implicit multi-scale detection will be " +
 										"removed in the future. Please add \"{}\":{} to attributes.json.",
 								MULTI_SCALE_KEY,
@@ -405,7 +406,7 @@ public class N5Helpers
 					{
 						final String groupPathName = pathName + "/" + group;
 						final int    numThreads    = counter.incrementAndGet();
-						LOG.debug("entering {}, {} threads created", groupPathName, numThreads);
+						LOG.trace("entering {}, {} threads created", groupPathName, numThreads);
 						exec.submit(() -> discoverSubdirectories(n5, groupPathName, datasets, exec, counter));
 					}
 				}
@@ -415,7 +416,7 @@ public class N5Helpers
 			LOG.debug(e.toString(), e);
 		}
 		final int numThreads = counter.decrementAndGet();
-		LOG.debug("leaving {}, {} threads remaining", pathName, numThreads);
+		LOG.trace("leaving {}, {} threads remaining", pathName, numThreads);
 	}
 
 
@@ -539,6 +540,38 @@ public class N5Helpers
 	}
 
 	/**
+	 * Helper exception class, only intented to be used in {@link #idService(N5Writer, String)} if {@code maxId} is not specified.
+	 */
+	public static class MaxIDNotSpecified extends PainteraException {
+		private MaxIDNotSpecified(final String message) {super(message);}
+	}
+
+	/**
+	 * Get id-service for n5 {@code container} and {@code dataset}.
+	 * Requires write access on the attributes of {@code dataset} and attribute {@code "maxId": <maxId>} in {@code dataset}.
+	 * @param n5 container
+	 * @param dataset dataset
+	 * @param maxIdFallback Use this if maxId attribute is not specified in {@code dataset}.
+	 * @return {@link N5IdService}
+	 * @throws IOException If no attribute {@code "maxId": <maxId>} in {@code dataset} or any n5 operation throws.
+	 */
+	public static IdService idService(final N5Writer n5, final String dataset, final long maxIdFallback) throws IOException
+	{
+		try {
+			return idService(n5, dataset);
+		}
+		catch (final MaxIDNotSpecified e) {
+			n5.setAttribute(dataset, "maxId", maxIdFallback);
+			try {
+				return idService(n5, dataset);
+			}
+			catch (final MaxIDNotSpecified e2) {
+				throw new IOException(e2);
+			}
+		}
+	}
+
+	/**
 	 * Get id-service for n5 {@code container} and {@code dataset}.
 	 * Requires write access on the attributes of {@code dataset} and attribute {@code "maxId": <maxId>} in {@code dataset}.
 	 * @param n5 container
@@ -546,15 +579,14 @@ public class N5Helpers
 	 * @return {@link N5IdService}
 	 * @throws IOException If no attribute {@code "maxId": <maxId>} in {@code dataset} or any n5 operation throws.
 	 */
-	public static IdService idService(final N5Writer n5, final String dataset) throws IOException
+	public static IdService idService(final N5Writer n5, final String dataset) throws MaxIDNotSpecified, IOException
 	{
 
 		LOG.debug("Requesting id service for {}:{}", n5, dataset);
 		final Long maxId = n5.getAttribute(dataset, "maxId", Long.class);
 		LOG.debug("Found maxId={}", maxId);
-		if (maxId == null) { throw new IOException("maxId not specified in attributes.json"); }
+		if (maxId == null) { throw new MaxIDNotSpecified("maxId not specified in attributes.json"); }
 		return new N5IdService(n5, dataset, maxId);
-
 	}
 
 	/**

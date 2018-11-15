@@ -58,7 +58,13 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 		MinimalSourceState<D, T, DataSource<D, T>, HighlightingStreamConverter<T>>
 		implements
 		HasMeshes<TLongHashSet>,
-		HasMeshCache<TLongHashSet>
+		HasMeshCache<TLongHashSet>,
+		HasIdService,
+		HasSelectedIds,
+		HasHighlightingStreamConverter<T>,
+		HasMaskForLabel<D>,
+		HasFragmentSegmentAssignments,
+		HasLockedSegments
 {
 
 	private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
@@ -155,6 +161,7 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 //		this.clearBlockCaches.run();
 	}
 
+	@Override
 	public void refreshMeshes()
 	{
 		this.invalidateAll();
@@ -163,6 +170,11 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 		this.selectedIds.deactivateAll();
 		this.selectedIds.activate(selection);
 		this.selectedIds.activateAlso(lastSelection);
+	}
+
+	@Override
+	public HighlightingStreamConverter<T> highlightingStreamConverter() {
+		return converter();
 	}
 
 	public static <D extends IntegerType<D> & NativeType<D>, T extends Volatile<D> & IntegerType<T>>

@@ -21,10 +21,13 @@ import net.imglib2.RealPositionable;
 import net.imglib2.algorithm.neighborhood.DiamondShape;
 import net.imglib2.algorithm.neighborhood.Neighborhood;
 import net.imglib2.algorithm.neighborhood.Shape;
+import net.imglib2.converter.Converter;
 import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.type.Type;
 import net.imglib2.type.label.Label;
 import net.imglib2.type.label.LabelMultisetType;
+import net.imglib2.type.logic.BoolType;
+import net.imglib2.type.numeric.IntegerType;
 import net.imglib2.type.numeric.RealType;
 import net.imglib2.type.numeric.integer.UnsignedLongType;
 import net.imglib2.util.AccessBoxRandomAccessible;
@@ -34,6 +37,7 @@ import org.janelia.saalfeldlab.paintera.data.mask.Mask;
 import org.janelia.saalfeldlab.paintera.data.mask.exception.MaskInUse;
 import org.janelia.saalfeldlab.paintera.data.mask.MaskInfo;
 import org.janelia.saalfeldlab.paintera.data.mask.MaskedSource;
+import org.janelia.saalfeldlab.paintera.state.HasMaskForLabel;
 import org.janelia.saalfeldlab.paintera.state.LabelSourceState;
 import org.janelia.saalfeldlab.paintera.state.SourceInfo;
 import org.janelia.saalfeldlab.paintera.state.SourceState;
@@ -90,12 +94,13 @@ public class RestrictPainting
 
 		final SourceState<?, ?> currentSourceState = sourceInfo.getState(currentSource);
 
-		if (!(currentSourceState instanceof LabelSourceState<?, ?>))
+		if (!(currentSourceState instanceof HasMaskForLabel<?>))
 		{
-			LOG.info("Not a label source -- will not restrict");
+			LOG.info("Selected source cannot provide mask for label -- will not fill");
 			return;
 		}
-		final LabelSourceState<?, ?> state = (LabelSourceState<?, ?>) currentSourceState;
+
+		final HasMaskForLabel<?> hasMaskForLabel = (HasMaskForLabel<?>) currentSourceState;
 
 		if (!currentSourceState.isVisibleProperty().get())
 		{
@@ -109,7 +114,7 @@ public class RestrictPainting
 			return;
 		}
 
-		final LongFunction<?> maskGenerator = state.maskForLabel();
+		LongFunction<? extends Converter<?, BoolType>> maskGenerator = hasMaskForLabel.maskForLabel();
 		if (maskGenerator == null)
 		{
 			LOG.info("Cannot generate boolean mask for this source -- will not fill");
@@ -120,7 +125,7 @@ public class RestrictPainting
 
 		final Type<?> t = source.getDataType();
 
-		if (!(t instanceof RealType<?>) && !(t instanceof LabelMultisetType))
+		if (!(t instanceof LabelMultisetType) && !(t instanceof IntegerType<?>))
 		{
 			LOG.info("Data type is not integer type or LabelMultisetType -- will not fill");
 			return;

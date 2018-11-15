@@ -6,6 +6,8 @@ import java.util.function.BiConsumer;
 import bdv.viewer.Source;
 import org.janelia.saalfeldlab.paintera.control.selection.SelectedIds;
 import org.janelia.saalfeldlab.paintera.id.IdService;
+import org.janelia.saalfeldlab.paintera.state.HasIdService;
+import org.janelia.saalfeldlab.paintera.state.HasSelectedIds;
 import org.janelia.saalfeldlab.paintera.state.LabelSourceState;
 import org.janelia.saalfeldlab.paintera.state.SourceInfo;
 import org.janelia.saalfeldlab.paintera.state.SourceState;
@@ -48,28 +50,33 @@ public class SelectNextId
 
 		final SourceState<?, ?> currentSourceState = sourceInfo.getState(currentSource);
 
-		if (!(currentSourceState instanceof LabelSourceState<?, ?>))
+		if (!(currentSourceState instanceof HasIdService))
 		{
-			LOG.info("Not a label source -- cannot request id.");
+			LOG.info("State does not have an IdService -- cannot request id.");
 			return;
 		}
-		final LabelSourceState<?, ?> state = (LabelSourceState<?, ?>) currentSourceState;
 
 		// TODO should we create ids also for invisible sources?
-		if (!state.isVisibleProperty().get())
+		if (!currentSourceState.isVisibleProperty().get())
 		{
 			LOG.info("Source {} is not visible -- cannot create new id.", currentSource);
 			return;
 		}
 
-		final IdService idService = state.idService();
-		if (idService == null)
+		final IdService idService = ((HasIdService)currentSourceState).idService();
+		if (idService == null || idService instanceof IdService.IdServiceNotProvided)
 		{
 			LOG.info("Source {} does not provide id-service -- cannot create new id.", currentSource);
 			return;
 		}
 
-		final SelectedIds selectedIds = state.selectedIds();
+		if (!(currentSourceState instanceof HasSelectedIds))
+		{
+			LOG.info("State does not have SelectedIds -- cannot request id");
+			return;
+		}
+
+		final SelectedIds selectedIds = ((HasSelectedIds)currentSourceState).selectedIds();
 		action.accept(selectedIds, idService);
 	}
 

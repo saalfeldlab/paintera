@@ -50,14 +50,12 @@ public class N5DataSourceDeserializer implements JsonDeserializer<N5DataSource<?
 		{
 			LOG.debug("Deserializing from {}", el);
 			final String            clazz     = el.getAsJsonObject().get(META_CLASS_KEY).getAsString();
-			final N5Meta            meta      = (N5Meta) context.deserialize(
+			final N5Meta            meta      = context.deserialize(
 					el.getAsJsonObject().get(META_KEY),
-					Class.forName(clazz)
-			                                                                );
+					Class.forName(clazz));
 			final AffineTransform3D transform = context.deserialize(
 					el.getAsJsonObject().get(TRANSFORM_KEY),
-					AffineTransform3D.class
-			                                                       );
+					AffineTransform3D.class);
 
 			LOG.debug("Deserialized transform: {}", transform);
 			return new N5DataSource<>(meta, transform, globalCache, "", priority);

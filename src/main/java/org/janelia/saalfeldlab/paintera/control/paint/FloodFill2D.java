@@ -38,6 +38,7 @@ import org.janelia.saalfeldlab.paintera.data.mask.Mask;
 import org.janelia.saalfeldlab.paintera.data.mask.exception.MaskInUse;
 import org.janelia.saalfeldlab.paintera.data.mask.MaskInfo;
 import org.janelia.saalfeldlab.paintera.data.mask.MaskedSource;
+import org.janelia.saalfeldlab.paintera.state.HasMaskForLabel;
 import org.janelia.saalfeldlab.paintera.state.LabelSourceState;
 import org.janelia.saalfeldlab.paintera.state.SourceInfo;
 import org.janelia.saalfeldlab.paintera.state.SourceState;
@@ -111,15 +112,15 @@ public class FloodFill2D
 				.getState(
 				currentSource);
 
-		if (!(currentSourceState instanceof LabelSourceState<?, ?>))
+		if (!(currentSourceState instanceof HasMaskForLabel<?>))
 		{
-			LOG.info("Selected source is not a label source -- will not fill");
+			LOG.info("Selected source cannot provide mask for label -- will not fill");
 			return;
 		}
 
-		final LabelSourceState<T, ?> state = (LabelSourceState<T, ?>) currentSourceState;
+		final HasMaskForLabel<T> hasMaskForLabel = (HasMaskForLabel<T>) currentSourceState;
 
-		if (!state.isVisibleProperty().get())
+		if (!currentSourceState.isVisibleProperty().get())
 		{
 			LOG.info("Selected source is not visible -- will not fill");
 			return;
@@ -131,7 +132,7 @@ public class FloodFill2D
 			return;
 		}
 
-		final LongFunction<Converter<T, BoolType>> maskForLabel = state.maskForLabel();
+		final LongFunction<Converter<T, BoolType>> maskForLabel = hasMaskForLabel.maskForLabel();
 		if (maskForLabel == null)
 		{
 			LOG.info("Cannot generate boolean mask for this source -- will not fill");
@@ -142,9 +143,9 @@ public class FloodFill2D
 
 		final T t = source.getDataType();
 
-		if (!(t instanceof RealType<?>) && !(t instanceof LabelMultisetType))
+		if (t == null)
 		{
-			LOG.debug("Data type is not real or LabelMultisetType type -- will not fill");
+			LOG.debug("Data type is null -- will not fill");
 			return;
 		}
 
