@@ -450,7 +450,6 @@ public class GenericBackendDialogN5
 		t.setDaemon(true);
 		t.start();
 		final Alert alert = PainteraAlerts.alert(Alert.AlertType.CONFIRMATION, true);
-		alert.setWidth(500);
 		alert.setHeaderText("Finding max id...");
 		final BooleanBinding stillRuning = Bindings.createBooleanBinding(() -> completedTasks.get() < blocks.size(), completedTasks);
 		alert.getDialogPane().lookupButton(ButtonType.OK).disableProperty().bind(stillRuning);
