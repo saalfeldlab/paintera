@@ -252,6 +252,7 @@ public class GenericBackendDialogN5
 					}
 				});
 				directoryTraversalThreads.add(t);
+				t.setDaemon(true);
 				t.start();
 			}
 		});
