@@ -383,7 +383,7 @@ public class N5Helpers
 					}
 					if (isMipmapGroup)
 					{
-						LOG.debug(
+						LOG.warn(
 								"Found multi-scale group without {} tag. Implicit multi-scale detection will be " +
 										"removed in the future. Please add \"{}\":{} to attributes.json.",
 								MULTI_SCALE_KEY,
@@ -405,7 +405,7 @@ public class N5Helpers
 					{
 						final String groupPathName = pathName + "/" + group;
 						final int    numThreads    = counter.incrementAndGet();
-						LOG.debug("entering {}, {} threads created", groupPathName, numThreads);
+						LOG.trace("entering {}, {} threads created", groupPathName, numThreads);
 						exec.submit(() -> discoverSubdirectories(n5, groupPathName, datasets, exec, counter));
 					}
 				}
@@ -415,7 +415,7 @@ public class N5Helpers
 			LOG.debug(e.toString(), e);
 		}
 		final int numThreads = counter.decrementAndGet();
-		LOG.debug("leaving {}, {} threads remaining", pathName, numThreads);
+		LOG.trace("leaving {}, {} threads remaining", pathName, numThreads);
 	}
 
 
