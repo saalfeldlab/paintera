@@ -30,13 +30,20 @@ import net.imglib2.view.IntervalView;
 import net.imglib2.view.Views;
 import org.janelia.saalfeldlab.fx.event.InstallAndRemove;
 import org.janelia.saalfeldlab.fx.event.MouseClickFX;
+import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignment;
 import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignmentState;
 import org.janelia.saalfeldlab.paintera.control.assignment.action.AssignmentAction;
 import org.janelia.saalfeldlab.paintera.control.assignment.action.Detach;
 import org.janelia.saalfeldlab.paintera.control.assignment.action.Merge;
+import org.janelia.saalfeldlab.paintera.control.lock.LockedSegments;
 import org.janelia.saalfeldlab.paintera.control.lock.LockedSegmentsState;
 import org.janelia.saalfeldlab.paintera.control.selection.SelectedIds;
 import org.janelia.saalfeldlab.paintera.data.DataSource;
+import org.janelia.saalfeldlab.paintera.id.IdService;
+import org.janelia.saalfeldlab.paintera.state.HasFragmentSegmentAssignments;
+import org.janelia.saalfeldlab.paintera.state.HasIdService;
+import org.janelia.saalfeldlab.paintera.state.HasLockedSegments;
+import org.janelia.saalfeldlab.paintera.state.HasSelectedIds;
 import org.janelia.saalfeldlab.paintera.state.LabelSourceState;
 import org.janelia.saalfeldlab.paintera.state.SourceInfo;
 import org.janelia.saalfeldlab.paintera.state.SourceState;
@@ -95,16 +102,15 @@ public class IdSelector
 
 	public void toggleLock()
 	{
-		final SourceState<?, ?> currentState = sourceInfo.currentState().get();
-		if (currentState != null && currentState instanceof LabelSourceState<?, ?>)
+		final SourceState<?, ?> state = sourceInfo.currentState().get();
+		if (state instanceof HasSelectedIds && state instanceof HasFragmentSegmentAssignments && state instanceof HasLockedSegments)
 		{
-			final LabelSourceState<?, ?> state         = (LabelSourceState<?, ?>) currentState;
-			final long                   lastSelection = state.selectedIds().getLastSelection();
+			final long                   lastSelection = ((HasSelectedIds)state).selectedIds().getLastSelection();
 
 			if (!Label.regular(lastSelection)) { return; }
 
-			final long                segment = state.assignment().getSegment(lastSelection);
-			final LockedSegmentsState lock    = state.lockedSegments();
+			final long                segment = ((HasFragmentSegmentAssignments)state).assignment().getSegment(lastSelection);
+			final LockedSegments lock         = ((HasLockedSegments)state).lockedSegments();
 			if (lock.isLocked(segment))
 			{
 				lock.unlock(segment);
@@ -128,14 +134,12 @@ public class IdSelector
 			{
 				@SuppressWarnings("unchecked") final DataSource<I, ?> dataSource = (DataSource<I, ?>) source;
 				final SourceState<?, ?> currentSourceState = sourceInfo.getState(source);
-				if (!(currentSourceState instanceof LabelSourceState<?, ?>))
+				if (!(currentSourceState instanceof HasSelectedIds))
 				{
-					LOG.info("Not a label source -- cannot select  id.");
+					LOG.info("Current source {} cannot select  id.", currentSourceState);
 					return;
 				}
-				@SuppressWarnings("unchecked") final LabelSourceState<I, ?> state = (LabelSourceState<I, ?>)
-						currentSourceState;
-				final Optional<SelectedIds> selectedIds = Optional.ofNullable(state.selectedIds());
+				final Optional<SelectedIds> selectedIds = Optional.ofNullable(((HasSelectedIds)currentSourceState).selectedIds());
 				if (selectedIds.isPresent())
 				{
 					synchronized (viewer)
@@ -219,25 +223,21 @@ public class IdSelector
 			if (source instanceof DataSource<?, ?>)
 			{
 				@SuppressWarnings("unchecked") final DataSource<I, ?> dataSource = (DataSource<I, ?>) source;
-				final SourceState<?, ?> currentSourceState = sourceInfo.getState(source);
-				if (!(currentSourceState instanceof LabelSourceState<?, ?>))
+				final SourceState<?, ?> state = sourceInfo.getState(source);
+				if (!(state instanceof HasSelectedIds) || !(state instanceof HasFragmentSegmentAssignments) || !(state instanceof HasIdService))
 				{
-					LOG.info("Not a label source -- cannot select  id.");
+					LOG.info("Current source {} does not have selected ids or fragment-semgent-assignment or id service -- cannot merge ids.");
 					return;
 				}
-				@SuppressWarnings("unchecked") final LabelSourceState<I, ?> state = (LabelSourceState<I, ?>)
-						currentSourceState;
-				final Optional<SelectedIds>                    selectedIds        = Optional.ofNullable(state
-						.selectedIds());
-				final Optional<FragmentSegmentAssignmentState> assignmentOptional = Optional.ofNullable(state
-						.assignment());
-				if (selectedIds.isPresent() && assignmentOptional.isPresent())
+				final SelectedIds               selectedIds = ((HasSelectedIds)state).selectedIds();
+				final FragmentSegmentAssignment assignments = ((HasFragmentSegmentAssignments)state).assignment();
+				final IdService                 idService   = ((HasIdService)state).idService();
+				if (selectedIds != null && assignments != null && idService != null && !(idService instanceof IdService.IdServiceNotProvided))
 				{
 					synchronized (viewer)
 					{
-						final FragmentSegmentAssignmentState assignments = assignmentOptional.get();
 
-						final long lastSelection = selectedIds.get().getLastSelection();
+						final long lastSelection = selectedIds.getLastSelection();
 
 						if (lastSelection == Label.INVALID) { return; }
 
@@ -268,7 +268,7 @@ public class IdSelector
 						final Optional<Merge> action = assignments.getMergeAction(
 								id,
 								lastSelection,
-								state.idService()::next
+								idService::next
 						                                                         );
 						action.ifPresent(assignments::apply);
 					}
@@ -289,26 +289,21 @@ public class IdSelector
 			if (source instanceof DataSource<?, ?>)
 			{
 				@SuppressWarnings("unchecked") final DataSource<I, ?> dataSource = (DataSource<I, ?>) source;
-				final SourceState<?, ?> currentSourceState = sourceInfo.getState(source);
-				if (!(currentSourceState instanceof LabelSourceState<?, ?>))
+				final SourceState<?, ?> state = sourceInfo.getState(source);
+				if (!(state instanceof HasSelectedIds) || !(state instanceof HasFragmentSegmentAssignments) || !(state instanceof HasIdService))
 				{
-					LOG.info("Not a label source -- cannot select  id.");
+					LOG.info("Current source {} does not have selected ids or fragment-semgent-assignment or id service -- cannot merge ids.");
 					return;
 				}
-				@SuppressWarnings("unchecked") final LabelSourceState<I, ?> state = (LabelSourceState<I, ?>)
-						currentSourceState;
-				final Optional<SelectedIds>                    selectedIds        = Optional.ofNullable(state
-						.selectedIds());
-				final Optional<FragmentSegmentAssignmentState> assignmentOptional = Optional.ofNullable(state
-						.assignment());
-				if (selectedIds.isPresent() && assignmentOptional.isPresent())
+				final SelectedIds               selectedIds = ((HasSelectedIds)state).selectedIds();
+				final FragmentSegmentAssignment assignments = ((HasFragmentSegmentAssignments)state).assignment();
+				final IdService                 idService   = ((HasIdService)state).idService();
+				if (selectedIds != null && assignments != null && idService != null && !(idService instanceof IdService.IdServiceNotProvided))
 				{
 					synchronized (viewer)
 					{
 
-						final FragmentSegmentAssignmentState assignment = assignmentOptional.get();
-
-						final long lastSelection = selectedIds.get().getLastSelection();
+						final long lastSelection = selectedIds.getLastSelection();
 
 						if (lastSelection == Label.INVALID) { return; }
 
@@ -334,8 +329,8 @@ public class IdSelector
 						final I    val = access.get();
 						final long id  = val.getIntegerLong();
 
-						final Optional<Detach> detach = assignment.getDetachAction(id, lastSelection);
-						detach.ifPresent(assignment::apply);
+						final Optional<Detach> detach = assignments.getDetachAction(id, lastSelection);
+						detach.ifPresent(assignments::apply);
 
 					}
 				}
@@ -356,30 +351,24 @@ public class IdSelector
 				return;
 			}
 			final Source<?> source = optionalSource.get();
-			if (source instanceof DataSource<?, ?> && sourceInfo.getState(source) instanceof LabelSourceState<?, ?>)
+			if (source instanceof DataSource<?, ?>)
 			{
 				@SuppressWarnings("unchecked") final DataSource<I, ?> dataSource = (DataSource<I, ?>) source;
-				final SourceState<?, ?> currentSourceState = sourceInfo.getState(source);
-				if (!(currentSourceState instanceof LabelSourceState<?, ?>))
+				final SourceState<?, ?> state = sourceInfo.getState(source);
+				if (!(state instanceof HasSelectedIds) || !(state instanceof HasFragmentSegmentAssignments) || !(state instanceof HasIdService))
 				{
-					LOG.info("Not a label source -- cannot select  id.");
+					LOG.info("Current source {} does not have selected ids or fragment-semgent-assignment or id service -- cannot merge ids.");
 					return;
 				}
-				@SuppressWarnings("unchecked") final LabelSourceState<I, ?> state = (LabelSourceState<I, ?>)
-						currentSourceState;
-				final Optional<SelectedIds>                    selectedIds        = Optional.ofNullable(state
-						.selectedIds());
-				final Optional<FragmentSegmentAssignmentState> assignmentOptional = Optional.ofNullable(state
-						.assignment());
-				if (selectedIds.isPresent() && assignmentOptional.isPresent())
+				final SelectedIds               selectedIds = ((HasSelectedIds)state).selectedIds();
+				final FragmentSegmentAssignment assignments = ((HasFragmentSegmentAssignments)state).assignment();
+				final IdService                 idService   = ((HasIdService)state).idService();
+				if (selectedIds != null && assignments != null && idService != null && !(idService instanceof IdService.IdServiceNotProvided))
 				{
 					synchronized (viewer)
 					{
-						final FragmentSegmentAssignmentState assignment = assignmentOptional.get();
-
-						final long[] activeFragments = selectedIds.get().getActiveIds();
-						final long[] activeSegments  = Arrays.stream(activeFragments).map(id -> assignment.getSegment
-								(id)).toArray();
+						final long[] activeFragments = selectedIds.getActiveIds();
+						final long[] activeSegments  = Arrays.stream(activeFragments).map(assignments::getSegment).toArray();
 
 						if (activeSegments.length > 1)
 						{
@@ -414,7 +403,7 @@ public class IdSelector
 						viewer.displayToGlobalCoordinates(access);
 						final I            val                 = access.get();
 						final long         selectedFragment    = val.getIntegerLong();
-						final long         selectedSegment     = assignment.getSegment(selectedFragment);
+						final long         selectedSegment     = assignments.getSegment(selectedFragment);
 						final TLongHashSet selectedSegmentsSet = new TLongHashSet(new long[] {selectedSegment});
 						final TLongHashSet visibleFragmentsSet = new TLongHashSet();
 
@@ -426,22 +415,12 @@ public class IdSelector
 									viewer,
 									obj -> visibleFragmentsSet.add(obj.getIntegerLong())
 							                      );
-							final long[]                     visibleFragments            = visibleFragmentsSet
-									.toArray();
-							final long[]                     fragmentsInActiveSegment    = Arrays.stream(
-									visibleFragments).filter(frag -> selectedSegmentsSet.contains(assignment
-									.getSegment(
-									frag))).toArray();
-							final long[]                     fragmentsNotInActiveSegment = Arrays.stream(
-									visibleFragments).filter(frag -> !selectedSegmentsSet.contains(assignment
-									.getSegment(
-									frag))).toArray();
-							final Optional<AssignmentAction> action                      = assignment
-									.getConfirmGroupingAction(
-									fragmentsInActiveSegment,
-									fragmentsNotInActiveSegment
-							                                                                                                  );
-							action.ifPresent(assignment::apply);
+							final long[] visibleFragments            = visibleFragmentsSet.toArray();
+							final long[] fragmentsInActiveSegment    = Arrays.stream(visibleFragments).filter(frag -> selectedSegmentsSet.contains(assignments.getSegment(frag))).toArray();
+							final long[] fragmentsNotInActiveSegment = Arrays.stream(visibleFragments).filter(frag -> !selectedSegmentsSet.contains(assignments.getSegment(frag))).toArray();
+
+							final Optional<AssignmentAction> action = assignments.getConfirmGroupingAction(fragmentsInActiveSegment, fragmentsNotInActiveSegment);
+							action.ifPresent(assignments::apply);
 						}
 
 						else
@@ -456,17 +435,16 @@ public class IdSelector
 							                                                                     ));
 							visitEveryDisplayPixel(dataSource, viewer, obj -> {
 								final long         frag  = obj.getIntegerLong();
-								final TLongHashSet frags = fragmentsBySegment.get(assignment.getSegment(frag));
+								final TLongHashSet frags = fragmentsBySegment.get(assignments.getSegment(frag));
 								if (frags != null)
 								{
 									frags.add(frag);
 								}
 							});
-							final Optional<AssignmentAction> action = assignment.getConfirmTwoSegmentsAction(
+							final Optional<AssignmentAction> action = assignments.getConfirmTwoSegmentsAction(
 									fragmentsBySegment.get(relevantSegments[0]).toArray(),
-									fragmentsBySegment.get(relevantSegments[1]).toArray()
-							                                                                                );
-							action.ifPresent(assignment::apply);
+									fragmentsBySegment.get(relevantSegments[1]).toArray());
+							action.ifPresent(assignments::apply);
 						}
 
 					}

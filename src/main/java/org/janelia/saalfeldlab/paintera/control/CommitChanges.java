@@ -11,6 +11,7 @@ import java.util.function.Function;
 import org.janelia.saalfeldlab.paintera.control.assignment.UnableToPersist;
 import org.janelia.saalfeldlab.paintera.data.mask.exception.CannotPersist;
 import org.janelia.saalfeldlab.paintera.data.mask.MaskedSource;
+import org.janelia.saalfeldlab.paintera.state.HasFragmentSegmentAssignments;
 import org.janelia.saalfeldlab.paintera.state.LabelSourceState;
 import org.janelia.saalfeldlab.paintera.state.SourceState;
 import org.slf4j.Logger;
@@ -51,18 +52,21 @@ public class CommitChanges
 			final Optional<Set<Commitable>> filteredCommitableOptions) throws CannotPersist, UnableToPersist
 	{
 		LOG.debug("Commiting for state {}", currentState);
-		if (currentState == null || !(currentState instanceof LabelSourceState<?, ?>))
-		{
-			LOG.debug("Invalid current state (null or not {}): {}", LabelSourceState.class, currentState);
-			return;
-		}
-		final LabelSourceState<?, ?> state             = (LabelSourceState<?, ?>) currentState;
-		final boolean                isMasked          = state.getDataSource() instanceof MaskedSource<?, ?>;
+		final boolean                isMasked          = currentState.getDataSource() instanceof MaskedSource<?, ?>;
+		final boolean                hasAssignments    = currentState instanceof HasFragmentSegmentAssignments;
 		final Set<Commitable>        commitableOptions = filteredCommitableOptions.orElseGet(Commitable::asSet);
+
 		if (!isMasked)
-		{
 			commitableOptions.remove(Commitable.CANVAS);
+
+		if (!hasAssignments)
+			commitableOptions.remove(Commitable.FRAGMENT_SEGMENT_ASSIGNMENTS);
+
+		if (commitableOptions.size() == 0)
+		{
+			LOG.debug("Nothing to commit for source {}", currentState);
 		}
+
 
 		final Optional<Set<Commitable>> commitables = getCommitablesToCommit.apply(commitableOptions);
 
@@ -78,17 +82,18 @@ public class CommitChanges
 			switch (commitable)
 			{
 				case CANVAS:
-					if (isMasked)
-					{
+					if (isMasked) {
 						// TODO Should this be handled here instead of throwing
 						// exception?
-						((MaskedSource<?, ?>) state.getDataSource()).persistCanvas();
+						((MaskedSource<?, ?>) currentState.getDataSource()).persistCanvas();
 					}
 					break;
 				case FRAGMENT_SEGMENT_ASSIGNMENTS:
 				{
-					state.assignment().persist();
-					break;
+					if (hasAssignments) {
+						((HasFragmentSegmentAssignments)currentState).assignment().persist();
+						break;
+					}
 				}
 			}
 

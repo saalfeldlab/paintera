@@ -17,8 +17,10 @@ import net.imglib2.converter.Converter;
 import net.imglib2.type.numeric.ARGBType;
 import org.janelia.saalfeldlab.fx.event.KeyTracker;
 import org.janelia.saalfeldlab.fx.ortho.OnEnterOnExit;
+import org.janelia.saalfeldlab.paintera.state.HasHighlightingStreamConverter;
 import org.janelia.saalfeldlab.paintera.state.LabelSourceState;
 import org.janelia.saalfeldlab.paintera.state.SourceInfo;
+import org.janelia.saalfeldlab.paintera.state.SourceState;
 import org.janelia.saalfeldlab.paintera.stream.AbstractHighlightingARGBStream;
 import org.janelia.saalfeldlab.paintera.stream.HighlightingStreamConverter;
 
@@ -45,46 +47,38 @@ public class ARGBStreamSeedSetter
 			{
 				final EventHandler<KeyEvent> handler = event -> {
 					final Source<?> source = sourceInfo.currentSourceProperty().get();
-					if (source != null && sourceInfo.getState(source).isVisibleProperty().get() && sourceInfo.getState(
-							source) instanceof LabelSourceState<?, ?>)
-					{
-						final LabelSourceState<?, ?> state     = (LabelSourceState<?, ?>) sourceInfo.getState(source);
-						final Converter<?, ARGBType> converter = state.getSourceAndConverter().getConverter();
-						final Optional<AbstractHighlightingARGBStream> currentStream = Optional.ofNullable(
-								converter instanceof HighlightingStreamConverter<?>
-								? ((HighlightingStreamConverter<?>) converter).getStream()
-								: null);
+					if (source != null) {
+						final SourceState<?, ?> state = sourceInfo.getState(source);
+						if (state.isVisibleProperty().get() && state instanceof HasHighlightingStreamConverter<?>) {
+							final HighlightingStreamConverter<?> converter = ((HasHighlightingStreamConverter<?>)state).highlightingStreamConverter();
+							final Optional<AbstractHighlightingARGBStream> currentStream = Optional.ofNullable(converter.getStream());
 
-						if (keyTracker.areOnlyTheseKeysDown(KeyCode.C))
-						{
-							changeStream(currentStream, seed -> seed + 1, sourceInfo, source);
-							event.consume();
-						}
-						else if (keyTracker.areOnlyTheseKeysDown(KeyCode.C, KeyCode.SHIFT))
-						{
-							changeStream(currentStream, seed -> seed - 1, sourceInfo, source);
-							event.consume();
-						}
-						else if (keyTracker.areOnlyTheseKeysDown(KeyCode.C, KeyCode.SHIFT, KeyCode.CONTROL))
-						{
-							final LongUnaryOperator op = seed -> {
-								final Spinner<Integer> spinner = new Spinner<>(
-										Integer.MIN_VALUE,
-										Integer.MAX_VALUE,
-										(int) seed
-								);
-								final Dialog<Long>     dialog  = new Dialog<>();
-								dialog.getDialogPane().getButtonTypes().addAll(ButtonType.CANCEL, ButtonType.OK);
-								dialog.setHeaderText("Select seed for ARGB stream");
-								dialog.getDialogPane().setContent(spinner);
-								dialog.setResultConverter(param -> param.equals(ButtonType.OK)
-								                                   ? (long) spinner.getValue()
-								                                   : seed);
-								final long newSeed = dialog.showAndWait().orElse(seed);
-								return newSeed;
-							};
-							changeStream(currentStream, op, sourceInfo, source);
-							event.consume();
+							if (keyTracker.areOnlyTheseKeysDown(KeyCode.C)) {
+								changeStream(currentStream, seed -> seed + 1, sourceInfo, source);
+								event.consume();
+							} else if (keyTracker.areOnlyTheseKeysDown(KeyCode.C, KeyCode.SHIFT)) {
+								changeStream(currentStream, seed -> seed - 1, sourceInfo, source);
+								event.consume();
+							} else if (keyTracker.areOnlyTheseKeysDown(KeyCode.C, KeyCode.SHIFT, KeyCode.CONTROL)) {
+								final LongUnaryOperator op = seed -> {
+									final Spinner<Integer> spinner = new Spinner<>(
+											Integer.MIN_VALUE,
+											Integer.MAX_VALUE,
+											(int) seed
+									);
+									final Dialog<Long> dialog = new Dialog<>();
+									dialog.getDialogPane().getButtonTypes().addAll(ButtonType.CANCEL, ButtonType.OK);
+									dialog.setHeaderText("Select seed for ARGB stream");
+									dialog.getDialogPane().setContent(spinner);
+									dialog.setResultConverter(param -> param.equals(ButtonType.OK)
+											? (long) spinner.getValue()
+											: seed);
+									final long newSeed = dialog.showAndWait().orElse(seed);
+									return newSeed;
+								};
+								changeStream(currentStream, op, sourceInfo, source);
+								event.consume();
+							}
 						}
 					}
 				};

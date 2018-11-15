@@ -247,23 +247,15 @@ public class SourceInfo
 		}
 
 		this.states.remove(source);
-		if (state != null && state instanceof LabelSourceState<?, ?>)
+		if (state instanceof HasMeshes)
 		{
-			((LabelSourceState<?, ?>) state).meshManager().removeAllMeshes();
+			((HasMeshes) state).meshManager().removeAllMeshes();
 		}
 		this.sources.remove(source);
 		this.currentSource.set(this.sources.size() == 0 ? null : this.sources.get(Math.max(currentSourceIndex - 1,
 				0)));
 		this.composites.remove(source);
 		this.removedSources.add(source);
-	}
-
-	public synchronized Optional<FragmentSegmentAssignmentState> assignment(final Source<?> source)
-	{
-		final SourceState<?, ?> state = states.get(source);
-		return state instanceof LabelSourceState<?, ?>
-		       ? Optional.of(((LabelSourceState<?, ?>) state).assignment())
-		       : Optional.empty();
 	}
 
 	public SourceState<?, ?> getState(final Source<?> source)
