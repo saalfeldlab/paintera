@@ -5,13 +5,21 @@ import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.beans.property.StringProperty;
 import javafx.event.Event;
+import javafx.scene.control.Alert;
+import javafx.scene.control.Label;
+import javafx.scene.control.TextArea;
 import javafx.scene.control.TextField;
+import javafx.scene.layout.HBox;
+import javafx.scene.layout.Priority;
+import javafx.scene.layout.VBox;
 import javafx.stage.DirectoryChooser;
+import org.janelia.saalfeldlab.fx.Labels;
 import org.janelia.saalfeldlab.fx.ui.Exceptions;
 import org.janelia.saalfeldlab.fx.ui.ObjectField;
 import org.janelia.saalfeldlab.n5.N5FSReader;
 import org.janelia.saalfeldlab.n5.N5FSWriter;
 import org.janelia.saalfeldlab.n5.N5Writer;
+import org.janelia.saalfeldlab.paintera.ui.PainteraAlerts;
 import org.janelia.saalfeldlab.util.MakeUnchecked;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -69,11 +77,28 @@ public class FileSystem {
 
 			LOG.debug("Updating root to {} (was {})", updatedRoot, container.get());
 
+			try {
+				if (updatedRoot != null && !isN5Container(updatedRoot.getAbsolutePath())) {
+					final Alert alert = PainteraAlerts.alert(Alert.AlertType.INFORMATION);
+					alert.setHeaderText("Selected directory is not a valid N5 container.");
+					final TextArea ta = new TextArea("The selected directory \n\n" + updatedRoot.getAbsolutePath() + "\n\n" +
+							"A valid N5 container is a directory that contains a file attributes.json with a key \"n5\".");
+					ta.setEditable(false);
+					ta.setWrapText(true);
+					alert.getDialogPane().setContent(ta);
+					alert.show();
+				}
+			}
+			catch (final IOException e) {
+				LOG.error("Failed to notify about invalid N5 container: {}", updatedRoot.getAbsolutePath(), e);
+			}
+
 			if (updatedRoot != null && updatedRoot.exists() && updatedRoot.isDirectory()) {
 				// set null first to make sure that container will be invalidated even if directory is the same
 				container.set(null);
 				container.set(updatedRoot.getAbsolutePath());
 			}
+
 		};
 		GenericBackendDialogN5 d = new GenericBackendDialogN5(containerTextField, onClick, "N5", writerSupplier, propagationExecutor);
 		final String path = container.get();
@@ -86,12 +111,18 @@ public class FileSystem {
 	 * @param pathToDirectory Path to directory that could be N5 container.
 	 */
 	private void updateWriterSupplier(final String pathToDirectory) throws IOException {
-		if (pathToDirectory != null &&  new File(pathToDirectory).isDirectory() && new N5FSReader(pathToDirectory).getAttributes("/").containsKey("n5")) {
+		if (isN5Container(pathToDirectory)) {
 			LOG.debug("Path {} is a valid N5 container.", pathToDirectory);
 			writerSupplier.set(MakeUnchecked.supplier(() -> new N5FSWriter(pathToDirectory)));
 		} else {
 			LOG.debug("Path {} is not a valid N5 container.", pathToDirectory);
 			writerSupplier.set(() -> null);
 		}
+	}
+
+	private static boolean isN5Container(final String pathToDirectory) throws IOException {
+		return pathToDirectory != null
+				&&  new File(pathToDirectory).isDirectory()
+				&& new N5FSReader(pathToDirectory).getAttributes("/").containsKey("n5");
 	}
 }
