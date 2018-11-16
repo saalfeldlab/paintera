@@ -41,8 +41,8 @@ public class N5DataSource<D extends NativeType<D>, T extends Volatile<D> & Nativ
 				globalCache,
 				name,
 				priority,
-				interpolation(meta.reader(), meta.dataset()),
-				interpolation(meta.reader(), meta.dataset())
+				interpolation(meta.writer(), meta.dataset()),
+				interpolation(meta.writer(), meta.dataset())
 		    );
 	}
 
@@ -56,7 +56,7 @@ public class N5DataSource<D extends NativeType<D>, T extends Volatile<D> & Nativ
 			final Function<Interpolation, InterpolatorFactory<T, RandomAccessible<T>>> interpolation) throws
 			IOException {
 		super(
-				RandomAccessibleIntervalDataSource.asDataWithInvalidate((ImagesWithInvalidate<D, T>[])getData(meta.reader(), meta.dataset(), transform, globalCache, priority)),
+				RandomAccessibleIntervalDataSource.asDataWithInvalidate((ImagesWithInvalidate<D, T>[])getData(meta.writer(), meta.dataset(), transform, globalCache, priority)),
 				dataInterpolation,
 				interpolation,
 				name
