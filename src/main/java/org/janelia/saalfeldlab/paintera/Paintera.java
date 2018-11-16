@@ -548,7 +548,8 @@ public class Paintera extends Application
 						lockedSegments,
 						idService,
 						selectedIds,
-						meshManager);
+						meshManager,
+						lookup);
 				pbv.addLabelSource(state);
 			} catch (final Exception e)
 			{

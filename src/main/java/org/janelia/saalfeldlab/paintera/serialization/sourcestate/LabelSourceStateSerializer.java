@@ -2,6 +2,7 @@ package org.janelia.saalfeldlab.paintera.serialization.sourcestate;
 
 import java.lang.invoke.MethodHandles;
 import java.lang.reflect.Type;
+import java.util.Optional;
 import java.util.function.Predicate;
 
 import com.google.gson.JsonArray;
@@ -35,6 +36,8 @@ public class LabelSourceStateSerializer
 
 	public static final String LABEL_BLOCK_MAPPING_KEY = "labelBlockMapping";
 
+	public static final String LOCKED_SEGMENTS_KEY = "lockedSegments";
+
 	public static final String TYPE_KEY = "type";
 
 	public static final String DATA_KEY = "data";
@@ -61,11 +64,19 @@ public class LabelSourceStateSerializer
 		final Predicate<Long> isManaged   = id -> managedMeshSettings.isManagedProperty(id).get();
 		managedMeshSettings.keepOnlyMatching(isSelected.and(isManaged.negate()));
 		map.add(MANAGED_MESH_SETTINGS_KEY, context.serialize(managedMeshSettings));
+		map.add(LABEL_BLOCK_MAPPING_KEY, serializeWithClassInfo(state.labelBlockLookup(), context));
 		return map;
 	}
 
 	@Override
 	public Class<LabelSourceState<?, ?>> getTargetClass() {
 		return (Class<LabelSourceState<?, ?>>) (Class<?>) LabelSourceState.class;
+	}
+
+	private static <T> JsonObject serializeWithClassInfo(final T t, final JsonSerializationContext context) {
+		JsonObject map = new JsonObject();
+		map.addProperty(TYPE_KEY, t.getClass().getName());
+		map.add(DATA_KEY, context.serialize(t));
+		return map;
 	}
 }

@@ -4,10 +4,14 @@ import bdv.viewer.Interpolation;
 import bdv.viewer.Source;
 import net.imglib2.RandomAccessibleInterval;
 import net.imglib2.RealRandomAccessible;
+import net.imglib2.img.cell.AbstractCellImg;
+import net.imglib2.img.cell.CellGrid;
 import net.imglib2.realtransform.AffineTransform3D;
+import net.imglib2.util.Intervals;
 import org.janelia.saalfeldlab.paintera.cache.InvalidateAll;
 
 import java.util.Arrays;
+import java.util.stream.IntStream;
 
 /**
  * {@link Source} that includes a type {@code D} representation that is used for data processing (in contrast to
@@ -55,5 +59,21 @@ public interface DataSource<D, T> extends Source<T>, InvalidateAll
 		final double[] targetScale = getScale(source, t, targetLevel);
 		Arrays.setAll(targetScale, d -> targetScale[d] / scale[d]);
 		return targetScale;
+	}
+
+	default CellGrid[] getGrids() {
+		return IntStream
+				.range(0, getNumMipmapLevels())
+				.mapToObj(this::getGrid)
+				.toArray(CellGrid[]::new);
+	}
+
+	default CellGrid getGrid(int level) {
+		final RandomAccessibleInterval<D> s = getDataSource(0, level);
+
+		if (s instanceof AbstractCellImg<?, ?, ?, ?>)
+			return ((AbstractCellImg<?, ?, ?, ?>)s).getCellGrid();
+
+		return new CellGrid(Intervals.dimensionsAsLongArray(s), Intervals.dimensionsAsIntArray(s));
 	}
 }

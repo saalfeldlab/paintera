@@ -8,6 +8,7 @@ import net.imglib2.type.label.LabelMultisetType;
 import net.imglib2.type.label.VolatileLabelMultisetType;
 import org.janelia.saalfeldlab.labels.blocks.LabelBlockLookup;
 import org.janelia.saalfeldlab.n5.N5FSReader;
+import org.janelia.saalfeldlab.n5.N5Reader;
 import org.janelia.saalfeldlab.paintera.PainteraBaseView;
 import org.janelia.saalfeldlab.paintera.composition.ARGBCompositeAlphaYCbCr;
 import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignmentState;
@@ -18,6 +19,7 @@ import org.janelia.saalfeldlab.paintera.data.mask.Masks;
 import org.janelia.saalfeldlab.paintera.data.n5.CommitCanvasN5;
 import org.janelia.saalfeldlab.paintera.data.n5.N5DataSource;
 import org.janelia.saalfeldlab.paintera.data.n5.N5FSMeta;
+import org.janelia.saalfeldlab.paintera.data.n5.N5Meta;
 import org.janelia.saalfeldlab.paintera.id.IdService;
 import org.janelia.saalfeldlab.paintera.meshes.InterruptibleFunction;
 import org.janelia.saalfeldlab.paintera.meshes.MeshManagerWithAssignmentForSegments;
@@ -25,6 +27,7 @@ import org.janelia.saalfeldlab.paintera.state.LabelSourceState;
 import org.janelia.saalfeldlab.paintera.stream.HighlightingStreamConverter;
 import org.janelia.saalfeldlab.paintera.stream.ModalGoldenAngleSaturatedHighlightingARGBStream;
 import org.janelia.saalfeldlab.util.MakeUnchecked;
+import org.janelia.saalfeldlab.util.grids.LabelBlockLookupNoBlocks;
 import org.janelia.saalfeldlab.util.n5.N5Helpers;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -94,7 +97,7 @@ public class CreateDatasetHandler
 			final FragmentSegmentAssignmentState assignment     = N5Helpers.assignments(meta.writer(), group);
 			final LockedSegmentsOnlyLocal        lockedSegments = new LockedSegmentsOnlyLocal(locked -> {});
 
-			final LabelBlockLookup lookup = N5Helpers.getLabelBlockLookup(meta.reader(), meta.dataset());
+			final LabelBlockLookup lookup = getLookup(meta.reader(), meta.dataset());
 			InterruptibleFunction<Long, Interval[]>[] blockLoaders = IntStream
 					.range(0, maskedSource.getNumMipmapLevels())
 					.mapToObj(level -> InterruptibleFunction.fromFunction( MakeUnchecked.function((MakeUnchecked.CheckedFunction<Long, Interval[]>) id -> lookup.read(level, id))))
@@ -129,10 +132,20 @@ public class CreateDatasetHandler
 					lockedSegments,
 					idService,
 					selectedIds,
-					meshManager);
+					meshManager,
+					lookup);
 
 			LOG.warn("Adding label state {}", state);
 			pbv.addLabelSource(state);
+		}
+	}
+
+	private static LabelBlockLookup getLookup(final N5Reader reader, final String dataset) throws IOException {
+		try {
+			return N5Helpers.getLabelBlockLookup(reader, dataset);
+		} catch (N5Helpers.NotAPainteraDataset e) {
+			LOG.error("Error while creating label-block-lookup", e);
+			return new LabelBlockLookupNoBlocks();
 		}
 	}
 }

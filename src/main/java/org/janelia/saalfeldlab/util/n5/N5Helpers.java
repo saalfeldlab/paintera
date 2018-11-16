@@ -839,6 +839,19 @@ public class N5Helpers
 		return Paths.get(group).getFileName().toString();
 	}
 
+	public static class NotAPainteraDataset extends PainteraException {
+
+		public final N5Reader container;
+
+		public final String group;
+
+		private NotAPainteraDataset(final N5Reader container, final String group) {
+			super(String.format("Group %s in container %s is not a Paintera dataset.", group, container));
+			this.container = container;
+			this.group = group;
+		}
+	}
+
 	/**
 	 *
 	 * @param reader container
@@ -846,7 +859,7 @@ public class N5Helpers
 	 * @return unsupported lookup if {@code is not a paintera dataset}, {@link LabelBlockLookup} otherwise.
 	 * @throws IOException if any n5 operation throws {@link IOException}
 	 */
-	public static LabelBlockLookup getLabelBlockLookup(N5Reader reader, String group) throws IOException
+	public static LabelBlockLookup getLabelBlockLookup(N5Reader reader, String group) throws IOException, NotAPainteraDataset
 	{
 		// TODO fix this, we don't always want to return file-based lookup!!!
 		try {
@@ -865,44 +878,11 @@ public class N5Helpers
 				LOG.debug("Got lookup type: {}", lookup.getClass());
 				return lookup;
 			} else
-				return new LabelBlockLookupNotSupportedForNonPainteraDataset();
+				throw new NotAPainteraDataset(reader, group);
 		}
 		catch (final ReflectionException e)
 		{
 			throw new IOException(e);
-		}
-	}
-
-	@LabelBlockLookup.LookupType("UNSUPPORTED")
-	private static class LabelBlockLookupNotSupportedForNonPainteraDataset implements LabelBlockLookup
-	{
-
-		private LabelBlockLookupNotSupportedForNonPainteraDataset()
-		{
-			LOG.info("3D meshes not supported for non Paintera dataset!");
-		}
-
-		@NotNull
-		@Override
-		public Interval[] read( int level, long id )
-		{
-			LOG.debug("Reading blocks not supported for non-paintera dataset -- returning empty array");
-			return new Interval[ 0 ];
-		}
-
-		@Override
-		public void write( int level, long id, Interval... intervals )
-		{
-			LOG.debug("Saving blocks not supported for non-paintera dataset");
-		}
-
-		// This is here because annotation interfaces cannot have members in kotlin (currently)
-		// https://stackoverflow.com/questions/49661899/java-annotation-implementation-to-kotlin
-		@NotNull
-		@Override
-		public String getType()
-		{
-			return "UNSUPPORTED";
 		}
 	}
 

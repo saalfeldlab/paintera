@@ -12,10 +12,19 @@ import java.util.stream.IntStream;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonDeserializationContext;
 import com.google.gson.JsonObject;
+import com.google.gson.JsonSerializationContext;
+import javafx.scene.control.Alert;
+import javafx.scene.control.ButtonType;
+import javafx.scene.control.TextArea;
 import net.imglib2.Interval;
+import net.imglib2.img.cell.CellGrid;
 import net.imglib2.type.numeric.ARGBType;
 import org.janelia.saalfeldlab.labels.blocks.LabelBlockLookup;
+import org.janelia.saalfeldlab.n5.N5Reader;
 import org.janelia.saalfeldlab.n5.N5Writer;
+import org.janelia.saalfeldlab.paintera.ui.PainteraAlerts;
+import org.janelia.saalfeldlab.util.grids.LabelBlockLookupAllBlocks;
+import org.janelia.saalfeldlab.util.grids.LabelBlockLookupNoBlocks;
 import org.janelia.saalfeldlab.util.n5.N5Helpers;
 import org.janelia.saalfeldlab.paintera.composition.Composite;
 import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignmentState;
@@ -48,15 +57,11 @@ public class LabelSourceStateDeserializer<C extends HighlightingStreamConverter<
 
 	private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
-	public static final String SELECTED_IDS_KEY = "selectedIds";
+	public static final String SELECTED_IDS_KEY = LabelSourceStateSerializer.SELECTED_IDS_KEY;
 
-	public static final String ASSIGNMENT_KEY = "assignment";
+	public static final String ASSIGNMENT_KEY = LabelSourceStateSerializer.ASSIGNMENT_KEY;
 
-	public static final String FRAGMENTS_KEY = "fragments";
-
-	public static final String SEGMENTS_KEY = "segments";
-
-	public static final String LOCKED_SEGMENTS_KEY = "lockedSegments";
+	public static final String LOCKED_SEGMENTS_KEY = LabelSourceStateSerializer.LOCKED_SEGMENTS_KEY;
 
 	private final Arguments arguments;
 
@@ -156,7 +161,10 @@ public class LabelSourceStateDeserializer<C extends HighlightingStreamConverter<
 		final AbstractHighlightingARGBStream stream = converter.getStream();
 		stream.setHighlightsAndAssignmentAndLockedSegments(selectedIds, assignment, lockedSegments);
 
-		LabelBlockLookup lookup = N5Helpers.getLabelBlockLookup(writer, dataset);
+		LabelBlockLookup lookup = map.has(LabelSourceStateSerializer.LABEL_BLOCK_MAPPING_KEY)
+				? deserializeFromClassInfo(map.getAsJsonObject(LabelSourceStateSerializer.LABEL_BLOCK_MAPPING_KEY), context)
+				: getLabelBlockLookupFromN5IfPossible(isMaskedSource ? ((MaskedSource<?, ?>)source).underlyingSource() : source);
+
 		InterruptibleFunction<Long, Interval[]>[] blockLoaders = IntStream
 				.range(0, source.getNumMipmapLevels())
 				.mapToObj(level -> InterruptibleFunction.fromFunction( MakeUnchecked.function((MakeUnchecked.CheckedFunction<Long, Interval[]>) id -> lookup.read(level, id))))
@@ -184,7 +192,8 @@ public class LabelSourceStateDeserializer<C extends HighlightingStreamConverter<
 				lockedSegments,
 				idService,
 				selectedIds,
-				meshManager
+				meshManager,
+				lookup
 		);
 
 		if (map.has(LabelSourceStateSerializer.MANAGED_MESH_SETTINGS_KEY))
@@ -211,6 +220,26 @@ public class LabelSourceStateDeserializer<C extends HighlightingStreamConverter<
 			return new IdService.IdServiceNotProvided();
 		}
 
+	}
+
+	private static <T> T deserializeFromClassInfo(final JsonObject map, final JsonDeserializationContext context) throws ClassNotFoundException {
+
+		final Class<T> clazz = (Class<T>) Class.forName(map.get(LabelSourceStateSerializer.TYPE_KEY).getAsString());
+		return context.deserialize(map.get(LabelSourceStateSerializer.DATA_KEY), clazz);
+	}
+
+	private static LabelBlockLookup getLabelBlockLookupFromN5IfPossible(final DataSource<?, ?> source) throws IOException {
+		return source instanceof N5DataSource<?, ?>
+				? getLabelBlockLookupFromN5((N5DataSource<?, ?>) source)
+				: PainteraAlerts.getLabelBlockLookupFromDataSource(source);
+	}
+
+	private static LabelBlockLookup getLabelBlockLookupFromN5(final N5DataSource<?, ?> source) throws IOException {
+		try {
+			return N5Helpers.getLabelBlockLookup(source.writer(), source.dataset());
+		} catch (N5Helpers.NotAPainteraDataset e) {
+			return PainteraAlerts.getLabelBlockLookupFromDataSource(source);
+		}
 	}
 
 }

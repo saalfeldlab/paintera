@@ -40,6 +40,7 @@ import net.imglib2.algorithm.util.Grids;
 import net.imglib2.cache.img.CachedCellImg;
 import net.imglib2.converter.ARGBColorConverter.InvertingImp1;
 import net.imglib2.converter.ARGBCompositeColorConverter;
+import net.imglib2.img.cell.CellGrid;
 import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.type.NativeType;
 import net.imglib2.type.label.LabelUtils;
@@ -74,6 +75,7 @@ import org.janelia.saalfeldlab.paintera.data.mask.persist.PersistCanvas;
 import org.janelia.saalfeldlab.paintera.data.n5.CommitCanvasN5;
 import org.janelia.saalfeldlab.paintera.data.n5.N5ChannelDataSource;
 import org.janelia.saalfeldlab.paintera.data.n5.N5Meta;
+import org.janelia.saalfeldlab.paintera.data.n5.ReflectionException;
 import org.janelia.saalfeldlab.paintera.data.n5.VolatileWithSet;
 import org.janelia.saalfeldlab.paintera.id.IdService;
 import org.janelia.saalfeldlab.paintera.id.N5IdService;
@@ -89,6 +91,8 @@ import org.janelia.saalfeldlab.paintera.ui.opendialog.DatasetInfo;
 import org.janelia.saalfeldlab.paintera.ui.opendialog.meta.ChannelInformation;
 import org.janelia.saalfeldlab.util.MakeUnchecked;
 import org.janelia.saalfeldlab.util.NamedThreadFactory;
+import org.janelia.saalfeldlab.util.grids.LabelBlockLookupAllBlocks;
+import org.janelia.saalfeldlab.util.grids.LabelBlockLookupNoBlocks;
 import org.janelia.saalfeldlab.util.n5.N5Data;
 import org.janelia.saalfeldlab.util.n5.N5Helpers;
 import org.janelia.saalfeldlab.util.n5.N5Types;
@@ -598,8 +602,7 @@ public class GenericBackendDialogN5 implements Closeable
 			final Group meshesGroup,
 			final ExecutorService manager,
 			final ExecutorService workers,
-			final String projectDirectory) throws Exception
-	{
+			final String projectDirectory) throws IOException, ReflectionException {
 		final N5Writer          reader     = n5.get();
 		final String            dataset    = this.dataset.get();
 		final double[]          resolution = asPrimitiveArray(resolution());
@@ -652,7 +655,7 @@ public class GenericBackendDialogN5 implements Closeable
 		);
 		final HighlightingStreamConverter<T> converter = HighlightingStreamConverter.forType(stream, masked.getType());
 
-		final LabelBlockLookup lookup = N5Helpers.getLabelBlockLookup(n5.get(), dataset);
+		final LabelBlockLookup lookup =  getLabelBlockLookup(n5.get(), dataset, source);
 
 		IntFunction<InterruptibleFunction<Long, Interval[]>> loaderForLevelFactory = level -> InterruptibleFunction.fromFunction(
 				MakeUnchecked.function(
@@ -685,7 +688,8 @@ public class GenericBackendDialogN5 implements Closeable
 				lockedSegments,
 				idService,
 				selectedIds,
-				meshManager);
+				meshManager,
+				lookup);
 	}
 
 	public boolean isLabelType() throws Exception
@@ -797,5 +801,13 @@ public class GenericBackendDialogN5 implements Closeable
 	public void close() {
 		LOG.debug("Closing {}", this.getClass().getName());
 		cancelDiscovery();
+	}
+
+	private static LabelBlockLookup getLabelBlockLookup(final N5Reader reader, final String dataset, final DataSource<?, ?> fallBack) throws IOException {
+		try {
+			return N5Helpers.getLabelBlockLookup(reader, dataset);
+		} catch (N5Helpers.NotAPainteraDataset e) {
+			return PainteraAlerts.getLabelBlockLookupFromDataSource(fallBack);
+		}
 	}
 }
