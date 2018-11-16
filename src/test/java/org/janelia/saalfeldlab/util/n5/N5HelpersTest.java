@@ -109,7 +109,7 @@ public class N5HelpersTest {
 		writer.createDataset(group + "/s2", attrs);
 		writer.createGroup("some_group");
 		writer.createDataset("some_group/two", attrs);
-		final List<String> groups = N5Helpers.discoverDatasets(writer, () -> {});
+		final List<String> groups = N5Helpers.discoverDatasets(writer, () -> true);
 		Collections.sort(groups);
 		LOG.debug("Got groups {}", groups);
 		Assert.assertEquals(Arrays.asList("/group", "/some_group/two"), groups);

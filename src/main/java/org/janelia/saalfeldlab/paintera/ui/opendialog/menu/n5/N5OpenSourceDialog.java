@@ -81,8 +81,7 @@ public class N5OpenSourceDialog extends Dialog<GenericBackendDialogN5> implement
 		@Override
 		public BiConsumer<PainteraBaseView, String> onAction() {
 			return (pbv, projectDirectory) -> {
-				try {
-					GenericBackendDialogN5 dialog = fs.backendDialog(pbv.getPropagationQueue());
+				try (final GenericBackendDialogN5 dialog = fs.backendDialog(pbv.getPropagationQueue())) {
 					N5OpenSourceDialog osDialog = new N5OpenSourceDialog(pbv, dialog);
 					dialog.getChannelInformation().bindTo(osDialog.metaPanel.channelInformation());
 					osDialog.setHeaderFromBackendType("N5");
@@ -106,8 +105,7 @@ public class N5OpenSourceDialog extends Dialog<GenericBackendDialogN5> implement
 		@Override
 		public BiConsumer<PainteraBaseView, String> onAction() {
 			return (pbv, projectDirectory) -> {
-				try {
-					GenericBackendDialogN5 dialog = hdf5.backendDialog(pbv.getPropagationQueue());
+				try (final GenericBackendDialogN5 dialog = hdf5.backendDialog(pbv.getPropagationQueue())) {
 					N5OpenSourceDialog osDialog = new N5OpenSourceDialog(pbv, dialog);
 					dialog.getChannelInformation().bindTo(osDialog.metaPanel.channelInformation());
 					osDialog.setHeaderFromBackendType("HDF5");
@@ -131,14 +129,15 @@ public class N5OpenSourceDialog extends Dialog<GenericBackendDialogN5> implement
 			return (pbv, projectDirectory) -> {
 				try {
 					final GoogleCloud googleCloud = new GoogleCloud();
-					final GenericBackendDialogN5 dialog = googleCloud.backendDialog(pbv.getPropagationQueue());
-					final N5OpenSourceDialog osDialog = new N5OpenSourceDialog(pbv, dialog);
-					dialog.getChannelInformation().bindTo(osDialog.metaPanel.channelInformation());
-					osDialog.setHeaderFromBackendType("Google Cloud");
-					Optional<GenericBackendDialogN5> backend = osDialog.showAndWait();
-					if (backend == null || !backend.isPresent())
-						return;
-					N5OpenSourceDialog.addSource(osDialog.getName(), osDialog.getType(), dialog, pbv, projectDirectory);
+					try (final GenericBackendDialogN5 dialog = googleCloud.backendDialog(pbv.getPropagationQueue())) {
+						final N5OpenSourceDialog osDialog = new N5OpenSourceDialog(pbv, dialog);
+						dialog.getChannelInformation().bindTo(osDialog.metaPanel.channelInformation());
+						osDialog.setHeaderFromBackendType("Google Cloud");
+						Optional<GenericBackendDialogN5> backend = osDialog.showAndWait();
+						if (backend == null || !backend.isPresent())
+							return;
+						N5OpenSourceDialog.addSource(osDialog.getName(), osDialog.getType(), dialog, pbv, projectDirectory);
+					}
 				} catch (Exception e1) {
 					LOG.debug("Unable to open google cloud dataset", e1);
 					Exceptions.exceptionAlert(Paintera.NAME, "Unable to open Google Cloud data set", e1).show();

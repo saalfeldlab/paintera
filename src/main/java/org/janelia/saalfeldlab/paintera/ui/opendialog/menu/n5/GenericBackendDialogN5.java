@@ -95,6 +95,7 @@ import org.janelia.saalfeldlab.util.n5.N5Types;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.Closeable;
 import java.io.IOException;
 import java.lang.invoke.MethodHandles;
 import java.nio.file.Paths;
@@ -114,7 +115,7 @@ import java.util.function.LongConsumer;
 import java.util.function.Supplier;
 import java.util.stream.IntStream;
 
-public class GenericBackendDialogN5
+public class GenericBackendDialogN5 implements Closeable
 {
 
 	private static final String EMPTY_STRING = "";
@@ -138,7 +139,9 @@ public class GenericBackendDialogN5
 
 	private final StringProperty dataset = new SimpleStringProperty();
 
-	private final ArrayList<Thread> directoryTraversalThreads = new ArrayList<>();
+	private final ArrayList<Thread> discoveryThreads = new ArrayList<>();
+
+	private final ArrayList<BooleanProperty> discoveryIsActive = new ArrayList<>();
 
 	private final SimpleBooleanProperty isTraversingDirectories = new SimpleBooleanProperty();
 
@@ -223,21 +226,18 @@ public class GenericBackendDialogN5
 			}
 
 			LOG.debug("Updating dataset choices!");
-			synchronized (directoryTraversalThreads)
+			synchronized (discoveryIsActive)
 			{
 				this.isTraversingDirectories.set(false);
-				directoryTraversalThreads.forEach(Thread::interrupt);
-				directoryTraversalThreads.clear();
-				final Thread t = new Thread(() -> {
+				cancelDiscovery();
+				final BooleanProperty keepLooking = new SimpleBooleanProperty(true);
+				final Thread discoveryThread = new Thread(() -> {
 					this.isTraversingDirectories.set(true);
 					final AtomicBoolean discardDatasetList = new AtomicBoolean(false);
 					try
 					{
-						final List<String> datasets = N5Helpers.discoverDatasets(
-								newv,
-								() -> discardDatasetList.set(true)
-						                                                        );
-						if (!Thread.currentThread().isInterrupted() && !discardDatasetList.get())
+						final List<String> datasets = N5Helpers.discoverDatasets(newv, keepLooking::get);
+						if (!Thread.currentThread().isInterrupted() && !discardDatasetList.get() && keepLooking.get())
 						{
 							LOG.debug("Found these datasets: {}", datasets);
 							InvokeOnJavaFXApplicationThread.invoke(() -> datasetChoices.setAll(datasets));
@@ -251,9 +251,9 @@ public class GenericBackendDialogN5
 						this.isTraversingDirectories.set(false);
 					}
 				});
-				directoryTraversalThreads.add(t);
-				t.setDaemon(true);
-				t.start();
+				discoveryIsActive.add(keepLooking);
+				discoveryThread.setDaemon(true);
+				discoveryThread.start();
 			}
 		});
 		dataset.addListener((obs, oldv, newv) -> Optional.ofNullable(newv).filter(v -> v.length() > 0).ifPresent(v ->
@@ -261,15 +261,20 @@ public class GenericBackendDialogN5
 				v,
 				this.datasetInfo)));
 
-		this.isN5Valid.addListener((obs, oldv, newv) -> {
-			synchronized (directoryTraversalThreads)
-			{
-				directoryTraversalThreads.forEach(Thread::interrupt);
-				directoryTraversalThreads.clear();
-			}
-		});
+		this.isN5Valid.addListener((obs, oldv, newv) -> cancelDiscovery());
 
 		dataset.set("");
+	}
+
+	public void cancelDiscovery() {
+		LOG.debug("Canceling discovery.");
+		synchronized (discoveryIsActive) {
+			discoveryIsActive.forEach(a -> a.set(false));
+			discoveryIsActive.clear();
+			discoveryThreads.forEach(Thread::interrupt);
+			discoveryThreads.clear();
+
+		}
 	}
 
 	public ObservableObjectValue<DatasetAttributes> datsetAttributesProperty()
@@ -786,5 +791,11 @@ public class GenericBackendDialogN5
 				: String.format(pattern, base, channelMin, channelMax);
 		LOG.debug("Name={}", name);
 		return name;
+	}
+
+	@Override
+	public void close() {
+		LOG.debug("Closing {}", this.getClass().getName());
+		cancelDiscovery();
 	}
 }

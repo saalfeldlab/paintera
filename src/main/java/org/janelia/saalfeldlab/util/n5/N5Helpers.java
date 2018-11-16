@@ -56,9 +56,12 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.BooleanSupplier;
 import java.util.function.Supplier;
 import java.util.regex.Pattern;
 
@@ -306,10 +309,10 @@ public class N5Helpers
 	 *   - multi-sclae group
 	 *   - paintera dataset
 	 * @param n5 container
-	 * @param onInterruption run this action when interrupted
+	 * @param keepLooking discover datasets while while {@code keepLooking.get() == true}
 	 * @return List of all contained datasets (paths wrt to the root of the container)
 	 */
-	public static List<String> discoverDatasets(final N5Reader n5, final Runnable onInterruption)
+	public static List<String> discoverDatasets(final N5Reader n5, final BooleanSupplier keepLooking)
 	{
 		final List<String> datasets = new ArrayList<>();
 		final ExecutorService exec = Executors.newFixedThreadPool(
@@ -317,19 +320,26 @@ public class N5Helpers
 				new NamedThreadFactory("dataset-discovery-%d", true)
 		                                                         );
 		final AtomicInteger counter = new AtomicInteger(1);
-		exec.submit(() -> discoverSubdirectories(n5, "", datasets, exec, counter));
-		while (counter.get() > 0 && !Thread.currentThread().isInterrupted())
-		{
-			try
-			{
-				Thread.sleep(20);
-			} catch (final InterruptedException e)
-			{
-				exec.shutdownNow();
-				onInterruption.run();
+		Future<?> f = exec.submit(() -> discoverSubdirectories(n5, "", datasets, exec, counter, keepLooking));
+		while (true) {
+			try {
+				synchronized (counter) {
+					counter.wait();
+					final int count = counter.get();
+					LOG.debug("Current discovery task count is {}", count);
+					if (counter.get() <= 0) {
+						LOG.debug("Finished all discovery tasks.");
+						break;
+					}
+				}
+			} catch (InterruptedException e) {
+				LOG.debug("Was interrupted -- will stop dataset discovery.");
+				Thread.currentThread().interrupt();
+				break;
 			}
 		}
-		exec.shutdown();
+		LOG.debug("Shutting down discovery ExecutorService.");
+		exec.shutdownNow();
 		Collections.sort(datasets);
 		return datasets;
 	}
@@ -339,10 +349,17 @@ public class N5Helpers
 			final String pathName,
 			final Collection<String> datasets,
 			final ExecutorService exec,
-			final AtomicInteger counter)
+			final AtomicInteger counter,
+			final BooleanSupplier keepLooking)
 	{
+
+		LOG.trace("Discovering subdirectory {}", pathName);
+
 		try
 		{
+			if (!keepLooking.getAsBoolean() || Thread.currentThread().isInterrupted())
+				return;
+
 			if (isPainteraDataset(n5, pathName))
 			{
 				synchronized (datasets)
@@ -397,17 +414,19 @@ public class N5Helpers
 				{
 					synchronized (datasets)
 					{
+						LOG.debug("Adding dataset {}", pathName);
 						datasets.add(pathName);
 					}
 				}
 				else
 				{
-					for (final String group : groups)
-					{
-						final String groupPathName = pathName + "/" + group;
-						final int    numThreads    = counter.incrementAndGet();
-						LOG.trace("entering {}, {} threads created", groupPathName, numThreads);
-						exec.submit(() -> discoverSubdirectories(n5, groupPathName, datasets, exec, counter));
+					if (keepLooking.getAsBoolean() && !Thread.currentThread().isInterrupted()) {
+						for (final String group : groups) {
+							final String groupPathName = pathName + "/" + group;
+							final int numThreads = counter.incrementAndGet();
+							LOG.debug("Entering {}, {} tasks created", groupPathName, numThreads);
+							exec.submit(() -> discoverSubdirectories(n5, groupPathName, datasets, exec, counter, keepLooking));
+						}
 					}
 				}
 			}
@@ -415,8 +434,13 @@ public class N5Helpers
 		{
 			LOG.debug(e.toString(), e);
 		}
-		final int numThreads = counter.decrementAndGet();
-		LOG.trace("leaving {}, {} threads remaining", pathName, numThreads);
+		finally {
+			synchronized(counter) {
+				final int numThreads = counter.decrementAndGet();
+				counter.notifyAll();
+				LOG.debug("Leaving {}, {} tasks remaining", pathName, numThreads);
+			}
+		}
 	}
 
 
