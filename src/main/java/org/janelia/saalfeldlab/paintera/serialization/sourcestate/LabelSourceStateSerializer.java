@@ -15,6 +15,7 @@ import org.janelia.saalfeldlab.paintera.control.selection.SelectedSegments;
 import org.janelia.saalfeldlab.paintera.meshes.InterruptibleFunction;
 import org.janelia.saalfeldlab.paintera.meshes.ManagedMeshSettings;
 import org.janelia.saalfeldlab.paintera.serialization.PainteraSerialization;
+import org.janelia.saalfeldlab.paintera.serialization.SerializationHelpers;
 import org.janelia.saalfeldlab.paintera.state.LabelSourceState;
 import org.scijava.plugin.Plugin;
 import org.slf4j.Logger;
@@ -48,7 +49,7 @@ public class LabelSourceStateSerializer
 	{
 		final JsonObject map = super.serialize(state, type, context);
 		map.add(SELECTED_IDS_KEY, context.serialize(state.selectedIds(), state.selectedIds().getClass()));
-		map.add(ASSIGNMENT_KEY, context.serialize(state.assignment()));
+		map.add(ASSIGNMENT_KEY, SerializationHelpers.serializeWithClassInfo(state.assignment(), context));
 		map.add(
 				LabelSourceStateDeserializer.LOCKED_SEGMENTS_KEY,
 				context.serialize(((LockedSegmentsOnlyLocal) state.lockedSegments()).lockedSegmentsCopy())

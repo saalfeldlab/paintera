@@ -12,19 +12,14 @@ import java.util.stream.IntStream;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonDeserializationContext;
 import com.google.gson.JsonObject;
-import com.google.gson.JsonSerializationContext;
-import javafx.scene.control.Alert;
-import javafx.scene.control.ButtonType;
-import javafx.scene.control.TextArea;
+import com.google.gson.JsonParseException;
 import net.imglib2.Interval;
-import net.imglib2.img.cell.CellGrid;
 import net.imglib2.type.numeric.ARGBType;
 import org.janelia.saalfeldlab.labels.blocks.LabelBlockLookup;
-import org.janelia.saalfeldlab.n5.N5Reader;
 import org.janelia.saalfeldlab.n5.N5Writer;
+import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignment;
+import org.janelia.saalfeldlab.paintera.serialization.SerializationHelpers;
 import org.janelia.saalfeldlab.paintera.ui.PainteraAlerts;
-import org.janelia.saalfeldlab.util.grids.LabelBlockLookupAllBlocks;
-import org.janelia.saalfeldlab.util.grids.LabelBlockLookupNoBlocks;
 import org.janelia.saalfeldlab.util.n5.N5Helpers;
 import org.janelia.saalfeldlab.paintera.composition.Composite;
 import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignmentState;
@@ -39,7 +34,7 @@ import org.janelia.saalfeldlab.paintera.id.IdService;
 import org.janelia.saalfeldlab.paintera.meshes.InterruptibleFunction;
 import org.janelia.saalfeldlab.paintera.meshes.ManagedMeshSettings;
 import org.janelia.saalfeldlab.paintera.meshes.MeshManagerWithAssignmentForSegments;
-import org.janelia.saalfeldlab.paintera.serialization.FragmentSegmentAssignmentOnlyLocalSerializer;
+import org.janelia.saalfeldlab.paintera.serialization.assignments.FragmentSegmentAssignmentOnlyLocalSerializer;
 import org.janelia.saalfeldlab.paintera.serialization.StatefulSerializer;
 import org.janelia.saalfeldlab.paintera.serialization.StatefulSerializer.Arguments;
 import org.janelia.saalfeldlab.paintera.state.LabelSourceState;
@@ -133,27 +128,7 @@ public class LabelSourceStateDeserializer<C extends HighlightingStreamConverter<
 				.orElseGet(() -> new long[] {});
 		final JsonObject assignmentMap = map.get(ASSIGNMENT_KEY).getAsJsonObject();
 		final IdService  idService     = getIdService(writer, dataset);
-		final FragmentSegmentAssignmentState assignment = N5Helpers.assignments(
-				writer,
-				dataset
-		                                                                       );
-
-		if (assignmentMap != null && assignmentMap.has(FragmentSegmentAssignmentOnlyLocalSerializer.ACTIONS_KEY))
-		{
-			final JsonArray              serializedActions = assignmentMap.get(
-					FragmentSegmentAssignmentOnlyLocalSerializer.ACTIONS_KEY).getAsJsonArray();
-			final List<AssignmentAction> actions           = new ArrayList<>();
-			for (int i = 0; i < serializedActions.size(); ++i)
-			{
-				final JsonObject            entry  = serializedActions.get(i).getAsJsonObject();
-				final AssignmentAction.Type type   = context.deserialize(entry.get(
-						FragmentSegmentAssignmentOnlyLocalSerializer.TYPE_KEY), AssignmentAction.Type.class);
-				final AssignmentAction      action = context.deserialize(entry.get(
-						FragmentSegmentAssignmentOnlyLocalSerializer.DATA_KEY), type.getClassForType());
-				actions.add(action);
-			}
-			assignment.apply(actions);
-		}
+		final FragmentSegmentAssignmentState assignment = tryDeserializeOrFallBackToN5(assignmentMap, context, source);
 
 		final LockedSegmentsOnlyLocal lockedSegments = new LockedSegmentsOnlyLocal(locked -> {
 		}, locallyLockedSegments);
@@ -239,6 +214,50 @@ public class LabelSourceStateDeserializer<C extends HighlightingStreamConverter<
 			return N5Helpers.getLabelBlockLookup(source.writer(), source.dataset());
 		} catch (N5Helpers.NotAPainteraDataset e) {
 			return PainteraAlerts.getLabelBlockLookupFromDataSource(source);
+		}
+	}
+
+	private static FragmentSegmentAssignmentState tryDeserializeOrFallBackToN5(
+			final JsonObject assignmentMap,
+			final JsonDeserializationContext context,
+			final DataSource<?, ?> source
+	) throws ClassNotFoundException {
+		try {
+			LOG.debug("Deserializing {} from {}", FragmentSegmentAssignmentState.class.getName(), assignmentMap);
+			return SerializationHelpers.deserializeFromClassInfo(assignmentMap, context);
+		} catch (final FragmentSegmentAssignmentOnlyLocalSerializer.NoPersisterFound | NullPointerException e) {
+			LOG.debug("Caught exception when trying to deserialize assignment", e);
+			LOG.warn("Trying to load fragment-segment-assignment with legacy loader, assuming the underlying persister is N5. " +
+					"If successfully loaded, this will not be necessary anymore after you save the project.");
+			final boolean isMaskedSource = source instanceof MaskedSource<?, ?>;
+			final N5DataSource<?, ?> n5Source = (N5DataSource) (isMaskedSource
+					? ((MaskedSource<?, ?>) source).underlyingSource()
+					: source);
+
+			try {
+				final FragmentSegmentAssignmentState assignment = N5Helpers.assignments(n5Source.writer(), n5Source.dataset());
+
+				if (assignmentMap != null && assignmentMap.has(FragmentSegmentAssignmentOnlyLocalSerializer.ACTIONS_KEY)) {
+					final JsonArray serializedActions = assignmentMap.get(
+							FragmentSegmentAssignmentOnlyLocalSerializer.ACTIONS_KEY).getAsJsonArray();
+					final List<AssignmentAction> actions = new ArrayList<>();
+					for (int i = 0; i < serializedActions.size(); ++i) {
+						final JsonObject entry = serializedActions.get(i).getAsJsonObject();
+						final AssignmentAction.Type type = context.deserialize(entry.get(
+								FragmentSegmentAssignmentOnlyLocalSerializer.TYPE_KEY), AssignmentAction.Type.class);
+						final AssignmentAction action = context.deserialize(entry.get(
+								FragmentSegmentAssignmentOnlyLocalSerializer.DATA_KEY), type.getClassForType());
+						actions.add(action);
+					}
+					assignment.apply(actions);
+				}
+				LOG.warn("Successfully loaded fragment-segment-assignment with legacy loader, assuming the underlying persister is N5. " +
+						"This will not be necessary anymore after you save the project.");
+				return assignment;
+			}
+			catch (IOException ioEx) {
+				throw new JsonParseException(ioEx);
+			}
 		}
 	}
 

@@ -77,6 +77,10 @@ public class FragmentSegmentAssignmentOnlyLocal extends FragmentSegmentAssignmen
 		resetLut();
 	}
 
+	public Persister getPersister() {
+		return this.persister;
+	}
+
 	@Override
 	public synchronized void persist() throws UnableToPersist
 	{
