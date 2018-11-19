@@ -490,39 +490,7 @@ public class N5Helpers
 		}
 
 		final String dataset = group + "/" + PAINTERA_FRAGMENT_SEGMENT_ASSIGNMENT_DATASTE;
-
-		final Persister persister = (keys, values) -> {
-			// TODO how to handle zero length assignments?
-			if (keys.length == 0)
-			{
-				throw new UnableToPersist("Zero length data, will not persist fragment-segment-assignment.");
-			}
-			try
-			{
-				final DatasetAttributes attrs = new DatasetAttributes(
-						new long[] {keys.length, 2},
-						new int[] {keys.length, 1},
-						DataType.UINT64,
-						new GzipCompression()
-				);
-				writer.createDataset(dataset, attrs);
-				final DataBlock<long[]> keyBlock = new LongArrayDataBlock(
-						new int[] {keys.length, 1},
-						new long[] {0, 0},
-						keys
-				);
-				final DataBlock<long[]> valueBlock = new LongArrayDataBlock(
-						new int[] {values.length, 1},
-						new long[] {0, 1},
-						values
-				);
-				writer.writeBlock(dataset, attrs, keyBlock);
-				writer.writeBlock(dataset, attrs, valueBlock);
-			} catch (final Exception e)
-			{
-				throw new UnableToPersist(e);
-			}
-		};
+		final Persister persister = new N5FragmentSegmentAssignmentPersister(writer, dataset);
 
 		final Supplier<TLongLongMap> initialLutSupplier = MakeUnchecked.supplier(() -> {
 			final long[] keys;
@@ -537,20 +505,20 @@ public class N5Helpers
 				LOG.debug("Found {} assignments", numEntries);
 				final RandomAccessibleInterval<UnsignedLongType> data = N5Utils.open(writer, dataset);
 
-				final Cursor<UnsignedLongType> keysCursor = Views.flatIterable(Views.hyperSlice(data, 1, 0L)).cursor();
-				for (int i = 0; keysCursor.hasNext(); ++i)
-				{
-					keys[i] = keysCursor.next().get();
-				}
+				if (numEntries > 0) {
+					final Cursor<UnsignedLongType> keysCursor = Views.flatIterable(Views.hyperSlice(data, 1, 0L)).cursor();
+					for (int i = 0; keysCursor.hasNext(); ++i) {
+						keys[i] = keysCursor.next().get();
+					}
 
-				final Cursor<UnsignedLongType> valuesCursor = Views.flatIterable(Views.hyperSlice(
-						data,
-						1,
-						1L
-				                                                                                 )).cursor();
-				for (int i = 0; valuesCursor.hasNext(); ++i)
-				{
-					values[i] = valuesCursor.next().get();
+					final Cursor<UnsignedLongType> valuesCursor = Views.flatIterable(Views.hyperSlice(
+							data,
+							1,
+							1L
+					)).cursor();
+					for (int i = 0; valuesCursor.hasNext(); ++i) {
+						values[i] = valuesCursor.next().get();
+					}
 				}
 			}
 			else
