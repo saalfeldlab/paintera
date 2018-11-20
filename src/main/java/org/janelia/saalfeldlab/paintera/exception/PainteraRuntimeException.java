@@ -1,28 +1,28 @@
 package org.janelia.saalfeldlab.paintera.exception;
 
-public abstract class PainteraRuntimeException extends RuntimeException {
+public class PainteraRuntimeException extends RuntimeException {
 
-	protected PainteraRuntimeException()
+	public PainteraRuntimeException()
 	{
 		super();
 	}
 
-	protected PainteraRuntimeException(String message)
+	public PainteraRuntimeException(String message)
 	{
 		super(message);
 	}
 
-	protected PainteraRuntimeException(String message, Throwable cause)
+	public PainteraRuntimeException(String message, Throwable cause)
 	{
 		super(message, cause);
 	}
 
-	protected PainteraRuntimeException(String message, Throwable cause, boolean enableSuppression, boolean writableStackTrace)
+	public PainteraRuntimeException(String message, Throwable cause, boolean enableSuppression, boolean writableStackTrace)
 	{
 		super(message, cause, enableSuppression, writableStackTrace);
 	}
 
-	protected PainteraRuntimeException(Throwable cause)
+	public PainteraRuntimeException(Throwable cause)
 	{
 		super(cause);
 	}
