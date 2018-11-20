@@ -64,7 +64,7 @@ public class FragmentSegmentAssignmentOnlyLocalSerializer implements PainteraSer
 	@Override
 	public FragmentSegmentAssignmentOnlyLocal deserialize(JsonElement jsonElement, Type clazz, JsonDeserializationContext context) throws JsonParseException {
 
-		LOG.warn("Deserializing from {}", jsonElement);
+		LOG.debug("Deserializing from {}", jsonElement);
 		try {
 
 			if (!(jsonElement instanceof JsonObject) || !jsonElement.getAsJsonObject().has(PERSISTER_KEY))

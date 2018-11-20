@@ -39,6 +39,8 @@ public class LabelSourceStateSerializer
 
 	public static final String LOCKED_SEGMENTS_KEY = "lockedSegments";
 
+	public static final String ID_SERVICE_KEY = "idService";
+
 	public static final String TYPE_KEY = "type";
 
 	public static final String DATA_KEY = "data";
@@ -52,8 +54,7 @@ public class LabelSourceStateSerializer
 		map.add(ASSIGNMENT_KEY, SerializationHelpers.serializeWithClassInfo(state.assignment(), context));
 		map.add(
 				LabelSourceStateDeserializer.LOCKED_SEGMENTS_KEY,
-				context.serialize(((LockedSegmentsOnlyLocal) state.lockedSegments()).lockedSegmentsCopy())
-		       );
+				context.serialize(((LockedSegmentsOnlyLocal) state.lockedSegments()).lockedSegmentsCopy()));
 		final ManagedMeshSettings managedMeshSettings = new ManagedMeshSettings(state.managedMeshSettings()
 				.getGlobalSettings());
 		managedMeshSettings.set(state.managedMeshSettings());
@@ -66,6 +67,8 @@ public class LabelSourceStateSerializer
 		managedMeshSettings.keepOnlyMatching(isSelected.and(isManaged.negate()));
 		map.add(MANAGED_MESH_SETTINGS_KEY, context.serialize(managedMeshSettings));
 		map.add(LABEL_BLOCK_MAPPING_KEY, serializeWithClassInfo(state.labelBlockLookup(), context));
+		LOG.debug("Serializing IdService");
+		map.add(ID_SERVICE_KEY, serializeWithClassInfo(state.idService(), context));
 		return map;
 	}
 
