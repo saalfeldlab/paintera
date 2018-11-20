@@ -10,6 +10,7 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonSerializationContext;
 import gnu.trove.set.hash.TLongHashSet;
 import net.imglib2.Interval;
+import org.janelia.saalfeldlab.labels.blocks.LabelBlockLookup;
 import org.janelia.saalfeldlab.paintera.control.lock.LockedSegmentsOnlyLocal;
 import org.janelia.saalfeldlab.paintera.control.selection.SelectedSegments;
 import org.janelia.saalfeldlab.paintera.meshes.InterruptibleFunction;
@@ -49,6 +50,7 @@ public class LabelSourceStateSerializer
 	public JsonObject serialize(final LabelSourceState<?, ?> state, final Type type, final JsonSerializationContext
 			context)
 	{
+		LOG.debug("Serializing state {}", state);
 		final JsonObject map = super.serialize(state, type, context);
 		map.add(SELECTED_IDS_KEY, context.serialize(state.selectedIds(), state.selectedIds().getClass()));
 		map.add(ASSIGNMENT_KEY, SerializationHelpers.serializeWithClassInfo(state.assignment(), context));
@@ -66,8 +68,9 @@ public class LabelSourceStateSerializer
 		final Predicate<Long> isManaged   = id -> managedMeshSettings.isManagedProperty(id).get();
 		managedMeshSettings.keepOnlyMatching(isSelected.and(isManaged.negate()));
 		map.add(MANAGED_MESH_SETTINGS_KEY, context.serialize(managedMeshSettings));
-		map.add(LABEL_BLOCK_MAPPING_KEY, serializeWithClassInfo(state.labelBlockLookup(), context));
-		LOG.debug("Serializing IdService");
+		LOG.debug("Serializing label block lookup: {}", state.labelBlockLookup());
+		map.add(LABEL_BLOCK_MAPPING_KEY, context.serialize(state.labelBlockLookup(), LabelBlockLookup.class));
+		LOG.debug("Serializing IdService {}", state.idService());
 		map.add(ID_SERVICE_KEY, serializeWithClassInfo(state.idService(), context));
 		return map;
 	}

@@ -119,8 +119,9 @@ public class LabelSourceStateDeserializer<C extends HighlightingStreamConverter<
 		final AbstractHighlightingARGBStream stream = converter.getStream();
 		stream.setHighlightsAndAssignmentAndLockedSegments(selectedIds, assignment, lockedSegments);
 
+		LOG.debug("Deserializing lookup from map {} with key {}", map, LabelSourceStateSerializer.LABEL_BLOCK_MAPPING_KEY);
 		LabelBlockLookup lookup = map.has(LabelSourceStateSerializer.LABEL_BLOCK_MAPPING_KEY)
-				? deserializeFromClassInfo(map.getAsJsonObject(LabelSourceStateSerializer.LABEL_BLOCK_MAPPING_KEY), context)
+				? context.deserialize(map.get(LabelSourceStateSerializer.LABEL_BLOCK_MAPPING_KEY), LabelBlockLookup.class)
 				: getLabelBlockLookupFromN5IfPossible(isMaskedSource ? ((MaskedSource<?, ?>)source).underlyingSource() : source);
 
 		InterruptibleFunction<Long, Interval[]>[] blockLoaders = IntStream
