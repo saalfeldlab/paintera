@@ -41,18 +41,11 @@ sudo apt install openjfx
 
 ## Compile
 
-run:
-
+To compile and install the Paintera jar into your local maven repository, run
 ```shell
 mvn clean install
 ```
-
-or, to generate a "fat jar" with all dependencies added, run:
-
-```shell
-mvn -Pfat clean package
-```
-This will include `org.slf4j:slf4j-simple` as `slf4j` binding.
+Note that the fat jar profile is not supported anymore.
 
 ## Install
 ```bash
@@ -81,10 +74,15 @@ For example, to replace `org.slf4j:slf4j-simple` with `ch.qos.logback:logback-cl
 PAINTERA_SLF4J_BINDING=ch.qos.logback:logback-classic paintera
 ```
 
-You can also run a [compiled fat jar](https://github.com/saalfeldlab/paintera/#compile)
+To run a current *SNAPSHOT* version or your own modified Paintera, use [jgo](https://github.com/scijava/jgo) to run your [locally compiled jar](https://github.com/saalfeldlab/paintera/#compile)
 ```shell
-java <java-opts> -jar target/paintera-0.1.2-SNAPSHOT-shaded.jar
+jgo [JGO ARG...] [JVM ARG...] org.janelia.saalfeldlab:paintera:0.8.2-SNAPSHOT
 ```
+or with logger bindings:
+```shell
+jgo [JGO ARG...] [JVM ARG...] org.janelia.saalfeldlab:paintera:0.8.2-SNAPSHOT+org.slf4j:slf4j-simple:1.7.25
+```
+
 We recommend these Java options:
 
 |Option| Description|
