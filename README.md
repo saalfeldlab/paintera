@@ -49,7 +49,7 @@ Note that the fat jar profile is not supported anymore.
 
 ## Install
 ```bash
-conda install -c hanslovsky paintera
+conda install -c conda-forge -c hanslovsky paintera
 ```
 
 ## Run
