@@ -120,18 +120,15 @@ public class PainteraBaseView
 
 	private final ExecutorService generalPurposeExecutorService = Executors.newFixedThreadPool(
 			3,
-			new NamedThreadFactory("paintera-thread-%d")
-	                                                                                          );
+			new NamedThreadFactory("paintera-thread-%d", true));
 
 	private final ExecutorService meshManagerExecutorService = Executors.newFixedThreadPool(
 			3,
-			new NamedThreadFactory("paintera-mesh-manager-%d")
-	                                                                                       );
+			new NamedThreadFactory("paintera-mesh-manager-%d", true));
 
 	private final ExecutorService meshWorkerExecutorService = Executors.newFixedThreadPool(
 			10,
-			new NamedThreadFactory("paintera-mesh-worker-%d")
-	                                                                                      );
+			new NamedThreadFactory("paintera-mesh-worker-%d", true));
 
 	private final ExecutorService paintQueue = Executors.newFixedThreadPool(1);
 

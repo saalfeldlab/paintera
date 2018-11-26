@@ -91,8 +91,7 @@ public class PainteraShowContainer extends Application {
 		for (String container : clArgs.n5Containers) {
 			final N5Reader n5 = N5Helpers.n5Reader(container, 64, 64, 64);
 			final N5Reader n5WithChannel = N5Helpers.n5Reader(container, 64, 64, 64, 3);
-			List<String> datasets = N5Helpers.discoverDatasets(n5, () -> {
-			});
+			List<String> datasets = N5Helpers.discoverDatasets(n5, () -> true);
 			for (String dataset : datasets) {
 				LOG.debug("Inspecting dataset {} in container {}", dataset, container);
 				final int nDim = getNumDimensions(n5, dataset);

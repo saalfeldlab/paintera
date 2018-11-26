@@ -22,6 +22,7 @@ import net.imglib2.type.numeric.RealType;
 import net.imglib2.util.Intervals;
 import net.imglib2.util.Util;
 import net.imglib2.view.Views;
+import org.janelia.saalfeldlab.labels.blocks.LabelBlockLookup;
 import org.janelia.saalfeldlab.paintera.PainteraBaseView;
 import org.janelia.saalfeldlab.paintera.cache.InvalidateAll;
 import org.janelia.saalfeldlab.paintera.cache.global.GlobalCache;
@@ -44,12 +45,15 @@ import org.janelia.saalfeldlab.paintera.meshes.MeshManagerWithAssignmentForSegme
 import org.janelia.saalfeldlab.paintera.stream.HighlightingStreamConverter;
 import org.janelia.saalfeldlab.paintera.stream.HighlightingStreamConverterIntegerType;
 import org.janelia.saalfeldlab.paintera.stream.ModalGoldenAngleSaturatedHighlightingARGBStream;
+import org.janelia.saalfeldlab.util.MakeUnchecked;
+import org.janelia.saalfeldlab.util.grids.LabelBlockLookupNoBlocks;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.lang.invoke.MethodHandles;
 import java.util.Arrays;
 import java.util.concurrent.ExecutorService;
+import java.util.function.Function;
 import java.util.function.LongFunction;
 import java.util.function.ToLongFunction;
 
@@ -82,6 +86,8 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 
 	private final LockedSegmentsState lockedSegments;
 
+	private final LabelBlockLookup labelBlockLookup;
+
 	public LabelSourceState(
 			final DataSource<D, T> dataSource,
 			final HighlightingStreamConverter<T> converter,
@@ -91,7 +97,8 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 			final LockedSegmentsState lockedSegments,
 			final IdService idService,
 			final SelectedIds selectedIds,
-			final MeshManager<Long, TLongHashSet> meshManager)
+			final MeshManager<Long, TLongHashSet> meshManager,
+			final LabelBlockLookup labelBlockLookup)
 	{
 		super(dataSource, converter, composite, name);
 		final D d = dataSource.getDataType();
@@ -101,9 +108,14 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 		this.selectedIds = selectedIds;
 		this.idService = idService;
 		this.meshManager = meshManager;
+		this.labelBlockLookup = labelBlockLookup;
 		assignment.addListener(obs -> stain());
 		selectedIds.addListener(obs -> stain());
 		lockedSegments.addListener(obs -> stain());
+	}
+
+	public LabelBlockLookup labelBlockLookup() {
+		return this.labelBlockLookup;
 	}
 
 	public LongFunction<Converter<D, BoolType>> maskForLabel()
@@ -229,6 +241,7 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 				InterruptibleFunction[] {
 				InterruptibleFunction.fromFunction(id -> intervals)
 		};
+		final LabelBlockLookup labelBlockLookup = new LabelBlockLookupNoBlocks();
 		return simpleSourceFromSingleRAI(
 				data,
 				resolution,
@@ -237,12 +250,11 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 				axisOrder,
 				maxId,
 				name,
-				backgroundBlockCaches,
+				labelBlockLookup,
 				globalCache,
 				meshesGroup,
 				meshManagerExecutors,
-				meshWorkersExecutors
-		                                );
+				meshWorkersExecutors);
 	}
 
 	public static <D extends IntegerType<D> & NativeType<D>, T extends Volatile<D> & IntegerType<T>>
@@ -253,12 +265,12 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 			final AxisOrder axisOrder,
 			final long maxId,
 			final String name,
-			final InterruptibleFunction<Long, Interval[]>[] backgroundBlockCaches,
+			final LabelBlockLookup labelBlockLookup,
 			final GlobalCache globalCache,
 			final Group meshesGroup,
 			final ExecutorService meshManagerExecutors,
 			final ExecutorService meshWorkersExecutors) {
-		return simpleSourceFromSingleRAI(data, resolution, offset, () -> {}, axisOrder, maxId, name, backgroundBlockCaches, globalCache, meshesGroup, meshManagerExecutors, meshWorkersExecutors);
+		return simpleSourceFromSingleRAI(data, resolution, offset, () -> {}, axisOrder, maxId, name, labelBlockLookup, globalCache, meshesGroup, meshManagerExecutors, meshWorkersExecutors);
 	}
 
 	public static <D extends IntegerType<D> & NativeType<D>, T extends Volatile<D> & IntegerType<T>>
@@ -270,7 +282,7 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 			final AxisOrder axisOrder,
 			final long maxId,
 			final String name,
-			final InterruptibleFunction<Long, Interval[]>[] backgroundBlockCaches,
+			final LabelBlockLookup labelBlockLookup,
 			final GlobalCache globalCache,
 			final Group meshesGroup,
 			final ExecutorService meshManagerExecutors,
@@ -286,7 +298,7 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 					axisOrder,
 					maxId,
 					name,
-					backgroundBlockCaches,
+					labelBlockLookup,
 					globalCache,
 					meshesGroup,
 					meshManagerExecutors,
@@ -333,7 +345,10 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 			return val;
 		};
 
-		MeshManagerWithAssignmentForSegments meshManager = MeshManagerWithAssignmentForSegments.fromBlockLookup(
+		final Function<Long, Interval[]> f = MakeUnchecked.function(id -> labelBlockLookup.read(0, id));
+		final InterruptibleFunction<Long, Interval[]>[] backgroundBlockCaches = InterruptibleFunction.fromFunction(new Function[]{f});
+
+		final MeshManagerWithAssignmentForSegments meshManager = MeshManagerWithAssignmentForSegments.fromBlockLookup(
 				dataSource,
 				selectedIds,
 				assignment,
@@ -353,7 +368,8 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 				lockedSegments,
 				new LocalIdService(maxId),
 				selectedIds,
-				meshManager
+				meshManager,
+				labelBlockLookup
 		);
 	}
 

@@ -22,6 +22,14 @@ public class N5IdService implements IdService
 		this.next = next;
 	}
 
+	public N5Writer getWriter() {
+		return n5;
+	}
+
+	public String getDataset() {
+		return dataset;
+	}
+
 	@Override
 	public synchronized void invalidate(final long id)
 	{

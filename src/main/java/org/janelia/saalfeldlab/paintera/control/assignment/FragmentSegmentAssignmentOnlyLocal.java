@@ -77,6 +77,10 @@ public class FragmentSegmentAssignmentOnlyLocal extends FragmentSegmentAssignmen
 		resetLut();
 	}
 
+	public Persister getPersister() {
+		return this.persister;
+	}
+
 	@Override
 	public synchronized void persist() throws UnableToPersist
 	{
@@ -89,7 +93,7 @@ public class FragmentSegmentAssignmentOnlyLocal extends FragmentSegmentAssignmen
 		try
 		{
 			// TODO Should we reset the LUT first to make sure that all previous
-			// changes were loaded?
+			// TODO changes were loaded?
 			LOG.debug("Persisting assignment {}", this.fragmentToSegmentMap);
 			LOG.debug("Committing actions {}", this.actions);
 			this.persister.persist(this.fragmentToSegmentMap.keys(), this.fragmentToSegmentMap.values());
@@ -138,18 +142,22 @@ public class FragmentSegmentAssignmentOnlyLocal extends FragmentSegmentAssignmen
 		final long fragmentFrom = detach.fragmentFrom;
 
 		this.fragmentToSegmentMap.remove(fragmentId);
+		LOG.debug("Removed {} from {}", fragmentId, this.fragmentToSegmentMap);
 
 		LOG.debug("Removing fragment={} from segment={}", fragmentId, segmentFrom);
 		final TLongHashSet fragments = this.segmentToFragmentsMap.get(segmentFrom);
 		if (fragments != null)
 		{
 			fragments.remove(fragmentId);
+			LOG.debug("Removed {} from {}", fragmentId, fragments);
 			if (fragments.size() == 1)
 			{
 				this.fragmentToSegmentMap.remove(fragmentFrom);
 				this.segmentToFragmentsMap.remove(segmentFrom);
 			}
 		}
+		LOG.debug("Fragment-to-segment map after detach: {}", this.fragmentToSegmentMap);
+		LOG.debug("Segment-to-fragment map after detach: {}", this.segmentToFragmentsMap);
 	}
 
 	private void mergeFragmentsImpl(final Merge merge)

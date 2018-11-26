@@ -56,9 +56,12 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.BooleanSupplier;
 import java.util.function.Supplier;
 import java.util.regex.Pattern;
 
@@ -306,10 +309,10 @@ public class N5Helpers
 	 *   - multi-sclae group
 	 *   - paintera dataset
 	 * @param n5 container
-	 * @param onInterruption run this action when interrupted
+	 * @param keepLooking discover datasets while while {@code keepLooking.get() == true}
 	 * @return List of all contained datasets (paths wrt to the root of the container)
 	 */
-	public static List<String> discoverDatasets(final N5Reader n5, final Runnable onInterruption)
+	public static List<String> discoverDatasets(final N5Reader n5, final BooleanSupplier keepLooking)
 	{
 		final List<String> datasets = new ArrayList<>();
 		final ExecutorService exec = Executors.newFixedThreadPool(
@@ -317,19 +320,26 @@ public class N5Helpers
 				new NamedThreadFactory("dataset-discovery-%d", true)
 		                                                         );
 		final AtomicInteger counter = new AtomicInteger(1);
-		exec.submit(() -> discoverSubdirectories(n5, "", datasets, exec, counter));
-		while (counter.get() > 0 && !Thread.currentThread().isInterrupted())
-		{
-			try
-			{
-				Thread.sleep(20);
-			} catch (final InterruptedException e)
-			{
-				exec.shutdownNow();
-				onInterruption.run();
+		Future<?> f = exec.submit(() -> discoverSubdirectories(n5, "", datasets, exec, counter, keepLooking));
+		while (true) {
+			try {
+				synchronized (counter) {
+					counter.wait();
+					final int count = counter.get();
+					LOG.debug("Current discovery task count is {}", count);
+					if (counter.get() <= 0) {
+						LOG.debug("Finished all discovery tasks.");
+						break;
+					}
+				}
+			} catch (InterruptedException e) {
+				LOG.debug("Was interrupted -- will stop dataset discovery.");
+				Thread.currentThread().interrupt();
+				break;
 			}
 		}
-		exec.shutdown();
+		LOG.debug("Shutting down discovery ExecutorService.");
+		exec.shutdownNow();
 		Collections.sort(datasets);
 		return datasets;
 	}
@@ -339,10 +349,17 @@ public class N5Helpers
 			final String pathName,
 			final Collection<String> datasets,
 			final ExecutorService exec,
-			final AtomicInteger counter)
+			final AtomicInteger counter,
+			final BooleanSupplier keepLooking)
 	{
+
+		LOG.trace("Discovering subdirectory {}", pathName);
+
 		try
 		{
+			if (!keepLooking.getAsBoolean() || Thread.currentThread().isInterrupted())
+				return;
+
 			if (isPainteraDataset(n5, pathName))
 			{
 				synchronized (datasets)
@@ -386,10 +403,11 @@ public class N5Helpers
 					{
 						LOG.warn(
 								"Found multi-scale group without {} tag. Implicit multi-scale detection will be " +
-										"removed in the future. Please add \"{}\":{} to attributes.json.",
+										"removed in the future. Please add \"{}\":{} to attributes.json in group `{}'.",
 								MULTI_SCALE_KEY,
 								MULTI_SCALE_KEY,
-								true
+								true,
+								pathName
 						        );
 					}
 				}
@@ -397,17 +415,19 @@ public class N5Helpers
 				{
 					synchronized (datasets)
 					{
+						LOG.debug("Adding dataset {}", pathName);
 						datasets.add(pathName);
 					}
 				}
 				else
 				{
-					for (final String group : groups)
-					{
-						final String groupPathName = pathName + "/" + group;
-						final int    numThreads    = counter.incrementAndGet();
-						LOG.trace("entering {}, {} threads created", groupPathName, numThreads);
-						exec.submit(() -> discoverSubdirectories(n5, groupPathName, datasets, exec, counter));
+					if (keepLooking.getAsBoolean() && !Thread.currentThread().isInterrupted()) {
+						for (final String group : groups) {
+							final String groupPathName = pathName + "/" + group;
+							final int numThreads = counter.incrementAndGet();
+							LOG.debug("Entering {}, {} tasks created", groupPathName, numThreads);
+							exec.submit(() -> discoverSubdirectories(n5, groupPathName, datasets, exec, counter, keepLooking));
+						}
 					}
 				}
 			}
@@ -415,8 +435,13 @@ public class N5Helpers
 		{
 			LOG.debug(e.toString(), e);
 		}
-		final int numThreads = counter.decrementAndGet();
-		LOG.trace("leaving {}, {} threads remaining", pathName, numThreads);
+		finally {
+			synchronized(counter) {
+				final int numThreads = counter.decrementAndGet();
+				counter.notifyAll();
+				LOG.debug("Leaving {}, {} tasks remaining", pathName, numThreads);
+			}
+		}
 	}
 
 
@@ -465,39 +490,7 @@ public class N5Helpers
 		}
 
 		final String dataset = group + "/" + PAINTERA_FRAGMENT_SEGMENT_ASSIGNMENT_DATASTE;
-
-		final Persister persister = (keys, values) -> {
-			// TODO how to handle zero length assignments?
-			if (keys.length == 0)
-			{
-				throw new UnableToPersist("Zero length data, will not persist fragment-segment-assignment.");
-			}
-			try
-			{
-				final DatasetAttributes attrs = new DatasetAttributes(
-						new long[] {keys.length, 2},
-						new int[] {keys.length, 1},
-						DataType.UINT64,
-						new GzipCompression()
-				);
-				writer.createDataset(dataset, attrs);
-				final DataBlock<long[]> keyBlock = new LongArrayDataBlock(
-						new int[] {keys.length, 1},
-						new long[] {0, 0},
-						keys
-				);
-				final DataBlock<long[]> valueBlock = new LongArrayDataBlock(
-						new int[] {values.length, 1},
-						new long[] {0, 1},
-						values
-				);
-				writer.writeBlock(dataset, attrs, keyBlock);
-				writer.writeBlock(dataset, attrs, valueBlock);
-			} catch (final Exception e)
-			{
-				throw new UnableToPersist(e);
-			}
-		};
+		final Persister persister = new N5FragmentSegmentAssignmentPersister(writer, dataset);
 
 		final Supplier<TLongLongMap> initialLutSupplier = MakeUnchecked.supplier(() -> {
 			final long[] keys;
@@ -512,20 +505,20 @@ public class N5Helpers
 				LOG.debug("Found {} assignments", numEntries);
 				final RandomAccessibleInterval<UnsignedLongType> data = N5Utils.open(writer, dataset);
 
-				final Cursor<UnsignedLongType> keysCursor = Views.flatIterable(Views.hyperSlice(data, 1, 0L)).cursor();
-				for (int i = 0; keysCursor.hasNext(); ++i)
-				{
-					keys[i] = keysCursor.next().get();
-				}
+				if (numEntries > 0) {
+					final Cursor<UnsignedLongType> keysCursor = Views.flatIterable(Views.hyperSlice(data, 1, 0L)).cursor();
+					for (int i = 0; keysCursor.hasNext(); ++i) {
+						keys[i] = keysCursor.next().get();
+					}
 
-				final Cursor<UnsignedLongType> valuesCursor = Views.flatIterable(Views.hyperSlice(
-						data,
-						1,
-						1L
-				                                                                                 )).cursor();
-				for (int i = 0; valuesCursor.hasNext(); ++i)
-				{
-					values[i] = valuesCursor.next().get();
+					final Cursor<UnsignedLongType> valuesCursor = Views.flatIterable(Views.hyperSlice(
+							data,
+							1,
+							1L
+					)).cursor();
+					for (int i = 0; valuesCursor.hasNext(); ++i) {
+						values[i] = valuesCursor.next().get();
+					}
 				}
 			}
 			else
@@ -814,6 +807,19 @@ public class N5Helpers
 		return Paths.get(group).getFileName().toString();
 	}
 
+	public static class NotAPainteraDataset extends PainteraException {
+
+		public final N5Reader container;
+
+		public final String group;
+
+		private NotAPainteraDataset(final N5Reader container, final String group) {
+			super(String.format("Group %s in container %s is not a Paintera dataset.", group, container));
+			this.container = container;
+			this.group = group;
+		}
+	}
+
 	/**
 	 *
 	 * @param reader container
@@ -821,7 +827,7 @@ public class N5Helpers
 	 * @return unsupported lookup if {@code is not a paintera dataset}, {@link LabelBlockLookup} otherwise.
 	 * @throws IOException if any n5 operation throws {@link IOException}
 	 */
-	public static LabelBlockLookup getLabelBlockLookup(N5Reader reader, String group) throws IOException
+	public static LabelBlockLookup getLabelBlockLookup(N5Reader reader, String group) throws IOException, NotAPainteraDataset
 	{
 		// TODO fix this, we don't always want to return file-based lookup!!!
 		try {
@@ -840,44 +846,11 @@ public class N5Helpers
 				LOG.debug("Got lookup type: {}", lookup.getClass());
 				return lookup;
 			} else
-				return new LabelBlockLookupNotSupportedForNonPainteraDataset();
+				throw new NotAPainteraDataset(reader, group);
 		}
 		catch (final ReflectionException e)
 		{
 			throw new IOException(e);
-		}
-	}
-
-	@LabelBlockLookup.LookupType("UNSUPPORTED")
-	private static class LabelBlockLookupNotSupportedForNonPainteraDataset implements LabelBlockLookup
-	{
-
-		private LabelBlockLookupNotSupportedForNonPainteraDataset()
-		{
-			LOG.info("3D meshes not supported for non Paintera dataset!");
-		}
-
-		@NotNull
-		@Override
-		public Interval[] read( int level, long id )
-		{
-			LOG.debug("Reading blocks not supported for non-paintera dataset -- returning empty array");
-			return new Interval[ 0 ];
-		}
-
-		@Override
-		public void write( int level, long id, Interval... intervals )
-		{
-			LOG.debug("Saving blocks not supported for non-paintera dataset");
-		}
-
-		// This is here because annotation interfaces cannot have members in kotlin (currently)
-		// https://stackoverflow.com/questions/49661899/java-annotation-implementation-to-kotlin
-		@NotNull
-		@Override
-		public String getType()
-		{
-			return "UNSUPPORTED";
 		}
 	}
 
