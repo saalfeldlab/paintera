@@ -89,8 +89,8 @@ public class PainteraShowContainer extends Application {
 		List<N5Meta> labelDatasets = new ArrayList<>();
 
 		for (String container : clArgs.n5Containers) {
-			final N5Reader n5 = N5Helpers.n5Reader(container, 64, 64, 64);
-			final N5Reader n5WithChannel = N5Helpers.n5Reader(container, 64, 64, 64, 3);
+			final N5Reader n5 = N5Helpers.n5Writer(container, 64, 64, 64);
+			final N5Reader n5WithChannel = N5Helpers.n5Writer(container, 64, 64, 64, 3);
 			List<String> datasets = N5Helpers.discoverDatasets(n5, () -> true);
 			for (String dataset : datasets) {
 				LOG.debug("Inspecting dataset {} in container {}", dataset, container);
@@ -182,18 +182,18 @@ public class PainteraShowContainer extends Application {
 	) throws IOException, ReflectionException, AxisOrderNotSupported {
 		LOG.info("Adding raw source {}", rawMeta);
 		DataSource<T, V> source = N5Data.openRawAsSource(
-				rawMeta.reader(),
+				rawMeta.writer(),
 				rawMeta.dataset(),
-				N5Helpers.getTransform(rawMeta.reader(), rawMeta.dataset(), revertArrayAttributes),
+				N5Helpers.getTransform(rawMeta.writer(), rawMeta.dataset(), revertArrayAttributes),
 				viewer.getGlobalCache(),
 				viewer.getGlobalCache().getNumPriorities() - 1,
 				rawMeta.dataset());
 		ARGBColorConverter.Imp0<V> conv = new ARGBColorConverter.Imp0<>();
 		RawSourceState<T, V> state = new RawSourceState<>(source, conv, new CompositeCopy<>(), source.getName());
 
-		Set<String> attrs = rawMeta.reader().listAttributes(rawMeta.dataset()).keySet();
+		Set<String> attrs = rawMeta.writer().listAttributes(rawMeta.dataset()).keySet();
 		if (attrs.contains(VALUE_RANGE_KEY)) {
-			final double[] valueRange = rawMeta.reader().getAttribute(rawMeta.dataset(), VALUE_RANGE_KEY, double[].class);
+			final double[] valueRange = rawMeta.writer().getAttribute(rawMeta.dataset(), VALUE_RANGE_KEY, double[].class);
 			conv.minProperty().set(valueRange[0]);
 			conv.maxProperty().set(valueRange[1]);
 		} else {
@@ -232,7 +232,7 @@ public class PainteraShowContainer extends Application {
 
 			N5ChannelDataSource<T, V> source = N5ChannelDataSource.zeroExtended(
 					meta,
-					N5Helpers.getTransform(meta.reader(), meta.dataset(), revertArrayAttributes),
+					N5Helpers.getTransform(meta.writer(), meta.dataset(), revertArrayAttributes),
 					viewer.getGlobalCache(),
 					cmin == 0 && cmax == channelMax ? meta.dataset() : String.format("%s-channels-[%d,%d]", meta.dataset(), cmin, cmax)	,
 					viewer.getGlobalCache().getNumPriorities() - 1,
@@ -249,9 +249,9 @@ public class PainteraShowContainer extends Application {
 					source.getName());
 
 
-			Set<String> attrs = meta.reader().listAttributes(meta.dataset()).keySet();
+			Set<String> attrs = meta.writer().listAttributes(meta.dataset()).keySet();
 			if (attrs.contains(VALUE_RANGE_KEY)) {
-				final double[] valueRange = meta.reader().getAttribute(meta.dataset(), VALUE_RANGE_KEY, double[].class);
+				final double[] valueRange = meta.writer().getAttribute(meta.dataset(), VALUE_RANGE_KEY, double[].class);
 				final double min = valueRange[0];
 				final double max = valueRange[1];
 				IntStream.range(0, conv.numChannels()).mapToObj(conv::minProperty).forEach(p -> p.set(min));
