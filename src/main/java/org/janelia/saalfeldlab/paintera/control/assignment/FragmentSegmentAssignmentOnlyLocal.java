@@ -117,7 +117,7 @@ public class FragmentSegmentAssignmentOnlyLocal extends FragmentSegmentAssignmen
 		{
 			id = segmentId;
 		}
-		LOG.debug("Returning {} for fragment {}: ", id, fragmentId);
+		LOG.trace("Returning {} for fragment {}: ", id, fragmentId);
 		return id;
 	}
 
