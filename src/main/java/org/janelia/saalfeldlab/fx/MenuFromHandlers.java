@@ -149,12 +149,11 @@ public class MenuFromHandlers {
 	{
 		PlatformImpl.startup(() -> {});
 
-		ContextMenu menu = new MenuFromHandlers(Arrays.asList(
-				new Pair<>("bla>3>4", e -> System.out.println("bla 3 4")),
-				new Pair<>("bla>3", e -> System.out.println("bla 3")),
-				new Pair<>("tl", e -> System.out.println("top level"))
-		)).asContextMenu("MENU");
+		Pair<String, Consumer<ActionEvent>> h1 = new Pair<>("bla>3>4", e -> System.out.println("bla 3 4"));
+		Pair<String, Consumer<ActionEvent>> h2 = new Pair<>("bla>3", e -> System.out.println("bla 3"));
+		Pair<String, Consumer<ActionEvent>> h3 = new Pair<>("tl", e -> System.out.println("top level"));
 
+		ContextMenu menu = new MenuFromHandlers(Arrays.asList(h1, h2, h3)).asContextMenu("MENU");
 
 		Platform.runLater(() -> {
 			Stage stage = new Stage();
