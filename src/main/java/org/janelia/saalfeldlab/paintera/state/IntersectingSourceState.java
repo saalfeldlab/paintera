@@ -62,6 +62,7 @@ import java.lang.invoke.MethodHandles;
 import java.util.Arrays;
 import java.util.Optional;
 import java.util.concurrent.ExecutorService;
+import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.stream.Stream;
 
@@ -132,7 +133,7 @@ public class IntersectingSourceState
 				new SimpleIntegerProperty(),
 				manager,
 				workers,
-				TLongHashSet::toArray,
+				(Function<TLongHashSet, long[]>)TLongHashSet::toArray,
 				hs -> hs
 		);
 		final ObjectBinding<Color> colorProperty = Bindings.createObjectBinding(
