@@ -144,30 +144,4 @@ public class MenuFromHandlers {
 		}
 
 	}
-
-	public static void main(String[] args)
-	{
-		PlatformImpl.startup(() -> {});
-
-		ContextMenu menu = new MenuFromHandlers(Arrays.asList(
-				new Pair<>("bla>3>4", e -> System.out.println("bla 3 4")),
-				new Pair<>("bla>3", e -> System.out.println("bla 3")),
-				new Pair<>("tl", e -> System.out.println("top level"))
-		)).asContextMenu("MENU");
-
-
-		Platform.runLater(() -> {
-			Stage stage = new Stage();
-			StackPane root = new StackPane();
-			root.addEventHandler(MouseEvent.MOUSE_PRESSED, e -> menu.show(root, e.getScreenX(), e.getScreenY()));
-			Scene scene = new Scene(root, 800, 600);
-			stage.setScene(scene);
-			stage.show();
-		});
-
-
-	}
-
-
-
 }
