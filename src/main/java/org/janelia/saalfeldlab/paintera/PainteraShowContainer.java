@@ -96,7 +96,9 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.function.IntFunction;
 import java.util.function.LongConsumer;
+import java.util.function.Predicate;
 import java.util.function.Supplier;
+import java.util.regex.Pattern;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
@@ -146,11 +148,19 @@ public class PainteraShowContainer extends Application {
 
 		List<N5Meta> labelDatasets = new ArrayList<>();
 
+		final Predicate<String> datasetCheck = clArgs.useDataset();
+
 		for (String container : clArgs.n5Containers) {
 			final N5Reader n5 = N5Helpers.n5Writer(container, 64, 64, 64);
 			final N5Reader n5WithChannel = N5Helpers.n5Writer(container, 64, 64, 64, 3);
 			List<String> datasets = N5Helpers.discoverDatasets(n5, () -> true);
-			for (String dataset : datasets) {
+			for (final String dataset : datasets) {
+
+				if (!datasetCheck.test(dataset)) {
+					LOG.info("Ignoring dataset {} in container {} based on command line arguments.", dataset, container);
+					continue;
+				}
+
 				LOG.debug("Inspecting dataset {} in container {}", dataset, container);
 				final int nDim = getNumDimensions(n5, dataset);
 				if (nDim < 3 || nDim > 4) {
@@ -224,6 +234,20 @@ public class PainteraShowContainer extends Application {
 				"This option accepts multiple values separated by space, e.g. --channels 0,3,6 1,4,7")
 		List<long[]> channels = null;
 
+		@CommandLine.Option(names = {"--exclude"}, paramLabel = "EXCLUDE", arity = "1..*", description = "" +
+				"Exclude any data set that matches any of EXCLUDE regex patterns.")
+		String[] exclude = null;
+
+		@CommandLine.Option(names = {"--include"}, paramLabel = "INCLUDE", arity = "1..*", description = "" +
+				"Include any data set that matches any of INCLUDE regex patterns. " +
+				"Takes precedence over EXCLUDE.")
+		String[] include = null;
+
+		@CommandLine.Option(names = {"--only-explicitly-included"}, description = "" +
+				"When this option is set, use only data sets that were explicitly included via INCLUDE. " +
+				"Equivalent to --exclude '.*'")
+		Boolean onlyExplicitlyIncluded = false;
+
 		public static final class ChannelListConverter implements CommandLine.ITypeConverter<long[]> {
 
 			private final String splitString;
@@ -241,6 +265,46 @@ public class PainteraShowContainer extends Application {
 				return Stream.of(s.split(this.splitString)).mapToLong(Long::parseLong).toArray();
 			}
 		}
+
+		public Predicate<String> isIncluded() {
+			LOG.debug("Creating include pattern matcher for patterns {}", (Object) this.include);
+			if (this.include == null)
+				return s -> false;
+			Pattern[] patterns = Stream.of(this.include).map(Pattern::compile).toArray(Pattern[]::new);
+			return s -> {
+				for (final Pattern p : patterns)
+					if (p.matcher(s).matches())
+						return true;
+				return false;
+			};
+		}
+
+		public Predicate<String> isExcluded() {
+			LOG.debug("Creating exclude pattern matcher for patterns {}", (Object) this.exclude);
+			if (this.exclude == null)
+				return s -> false;
+			Pattern[] patterns = Stream.of(this.exclude).map(Pattern::compile).toArray(Pattern[]::new);
+			return s -> {
+				for (final Pattern p : patterns)
+					if (p.matcher(s).matches()) {
+						LOG.debug("Excluded: Pattern {} matched {}", p, s);
+						return true;
+					}
+				return false;
+			};
+		}
+
+		public Predicate<String> isOnlyExplicitlyIncluded() {
+			return s -> {
+				LOG.debug("Is only explicitly included? {}", onlyExplicitlyIncluded);
+				return onlyExplicitlyIncluded;
+			};
+		}
+
+		public Predicate<String> useDataset() {
+			return isIncluded().or((isExcluded().or(isOnlyExplicitlyIncluded())).negate());
+		}
+
 	}
 
 	/* *************************************************** */
@@ -641,7 +705,7 @@ public class PainteraShowContainer extends Application {
 		completedTasks.addListener((obs, oldv, newv) -> InvokeOnJavaFXApplicationThread.invoke(() -> alert.setHeaderText(newv.intValue() < blocks.size() ? "Finding max id: " + maxId.getValue() : "Found max id: " + maxId.getValue())));
 		final Optional<ButtonType> bt = alert.showAndWait();
 		if (bt.isPresent() && ButtonType.OK.equals(bt.get())) {
-			LOG.warn("Setting max id to {}", maxId.get());
+			LOG.info("Setting max id to {}", maxId.get());
 			maxIdTarget.accept(maxId.get());
 		} else {
 			wasCanceled.set(true);
