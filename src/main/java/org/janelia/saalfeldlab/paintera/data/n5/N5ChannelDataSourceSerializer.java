@@ -27,11 +27,8 @@ public class N5ChannelDataSourceSerializer implements PainteraSerialization.Pain
 
 	public static final String CHANNEL_DIMENSION_KEY = "channelDimension";
 
-	public static final String CHANNEL_MIN_KEY = "channelMin";
+	public static final String CHANNELS_KEY = "channels";
 
-	public static final String CHANNEL_MAX_KEY = "channelMin";
-
-	public static final String REVERT_CHANNEL_AXIS_KEY = "revertChannelOrder";
 
 	@Override
 	public JsonElement serialize(
@@ -46,9 +43,7 @@ public class N5ChannelDataSourceSerializer implements PainteraSerialization.Pain
 		s.getSourceTransform(0, 0, transform);
 		map.add(TRANSFORM_KEY, context.serialize(transform));
 		map.addProperty(CHANNEL_DIMENSION_KEY, s.getChannelDimension());
-		map.addProperty(CHANNEL_MIN_KEY, s.getChannelMin());
-		map.addProperty(CHANNEL_MAX_KEY, s.getChannelMax());
-		map.addProperty(REVERT_CHANNEL_AXIS_KEY, s.doesRevertChannelOrder());
+		map.add(CHANNELS_KEY, context.serialize(s.getChannels()));
 		return map;
 	}
 

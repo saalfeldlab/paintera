@@ -42,9 +42,12 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.lang.invoke.MethodHandles;
+import java.util.Arrays;
 import java.util.function.Function;
 import java.util.function.IntFunction;
+import java.util.stream.Collectors;
 import java.util.stream.IntStream;
+import java.util.stream.LongStream;
 import java.util.stream.Stream;
 
 public class N5ChannelDataSource<
@@ -62,11 +65,9 @@ public class N5ChannelDataSource<
 	private final int channelDimension;
 
 	@Expose
-	private final long channelMin;
+	private final long[] channels;
 
 	@Expose
-	private final long channelMax;
-
 	private final AffineTransform3D[] transforms;
 
 	private final long numChannels;
@@ -95,8 +96,6 @@ public class N5ChannelDataSource<
 		target.setValid(isValid);
 	};
 
-	private final boolean revertChannelOrder;
-
 	/**
 	 *
 	 * @param meta
@@ -107,9 +106,7 @@ public class N5ChannelDataSource<
 	 * @param name
 	 * @param priority
 	 * @param channelDimension
-	 * @param channelMin
-	 * @param channelMax
-	 * @param revertChannelOrder
+	 * @param channels
 	 * @throws IOException
 	 * @throws DataTypeNotSupported
 	 */
@@ -122,9 +119,7 @@ public class N5ChannelDataSource<
 			final String name,
 			final int priority,
 			final int channelDimension,
-			final long channelMin,
-			final long channelMax,
-			final boolean revertChannelOrder) throws
+			final long[] channels) throws
 			IOException, DataTypeNotSupported {
 
 		final ImagesWithInvalidate<D, T>[] data = getData(
@@ -140,21 +135,35 @@ public class N5ChannelDataSource<
 		this.transforms = dataWithInvalidate.transforms;
 		this.invaldiateAll = dataWithInvalidate.invalidateAll;
 
-		this.channelMin = Math.max(channelMin, dataWithInvalidate.data[0].min(channelDimension));
-		this.channelMax = Math.min(channelMax, dataWithInvalidate.data[0].max(channelDimension));
-		this.numChannels = this.channelMax - this.channelMin + 1;
+		this.channels = channels == null ? range((int) dataWithInvalidate.data[0].dimension(channelDimension)) : channels;
+		this.numChannels = this.channels.length;
 
 		this.intervals = dataWithInvalidate.data;
 		extension.setValid(true);
-		this.data = collapseDimension(dataWithInvalidate.data, this.channelDimension, dataExtension, this.channelMin, this.channelMax, revertChannelOrder);
-		this.viewerData = collapseDimension(dataWithInvalidate.viewData, this.channelDimension, extension, this.channelMin, this.channelMax, revertChannelOrder);
+		this.data = collapseDimension(dataWithInvalidate.data, this.channelDimension, this.channels, dataExtension);
+		this.viewerData = collapseDimension(dataWithInvalidate.viewData, this.channelDimension, this.channels, extension);
 
 		this.interpolation = ipol -> new NearestNeighborInterpolatorFactory<>();
 		this.viewerInterpolation = ipol -> Interpolation.NLINEAR.equals(ipol) ? new NLinearInterpolatorFactory<>() : new NearestNeighborInterpolatorFactory<>();
 
-		this.revertChannelOrder = revertChannelOrder;
-
 		LOG.debug("Channel dimension {} has {} channels", channelDimension, numChannels);
+	}
+
+	public long[] getChannels() {
+		return this.channels.clone();
+	}
+
+	public static <
+			D extends NativeType<D> & RealType<D>,
+			T extends AbstractVolatileRealType<D, T> & NativeType<T>> N5ChannelDataSource<D, T> zeroExtended(
+			final N5Meta meta,
+			final AffineTransform3D transform,
+			final GlobalCache globalCache,
+			final String name,
+			final int priority,
+			final int channelDimension) throws IOException, DataTypeNotSupported {
+
+		return zeroExtended(meta, transform, globalCache, name, priority, channelDimension, null);
 	}
 
 	public static <
@@ -184,7 +193,38 @@ public class N5ChannelDataSource<
 		d.setZero();
 		t.setZero();
 		t.setValid(true);
-		return new N5ChannelDataSource<>(meta, transform, globalCache, d, t, name, priority, channelDimension, channelMin, channelMax, revertChannelOrder);
+		final long min = Math.min(Math.max(channelMin, 0), numChannels - 1);
+		final long max = Math.min(Math.max(channelMax, 0), numChannels - 1);
+		final long[] channels = getChannels(min, max, revertChannelOrder);
+		return new N5ChannelDataSource<>(meta, transform, globalCache, d, t, name, priority, channelDimension, channels);
+	}
+
+	public static <
+			D extends NativeType<D> & RealType<D>,
+			T extends AbstractVolatileRealType<D, T> & NativeType<T>> N5ChannelDataSource<D, T> zeroExtended(
+			final N5Meta meta,
+			final AffineTransform3D transform,
+			final GlobalCache globalCache,
+			final String name,
+			final int priority,
+			final int channelDimension,
+			final long[] channels) throws IOException, DataTypeNotSupported {
+
+		final ImagesWithInvalidate<D, T>[] data = getData(
+				meta.reader(),
+				meta.dataset(),
+				transform,
+				globalCache,
+				priority);
+		D d = Util.getTypeFromInterval(data[0].data).createVariable();
+		T t = Util.getTypeFromInterval(data[0].vdata).createVariable();
+		long numChannels = data[0].data.dimension(channelDimension);
+
+		LOG.debug("Channel dimension {} has {} channels", channelDimension, numChannels);
+		d.setZero();
+		t.setZero();
+		t.setValid(true);
+		return new N5ChannelDataSource<>(meta, transform, globalCache, d, t, name, priority, channelDimension, channels);
 	}
 
 	public N5Meta meta()
@@ -202,24 +242,9 @@ public class N5ChannelDataSource<
 		return meta.writer();
 	}
 
-	public long getChannelMin()
-	{
-		return this.channelMin;
-	}
-
-	public long getChannelMax()
-	{
-		return this.channelMax;
-	}
-
 	public int getChannelDimension()
 	{
 		return this.channelDimension;
-	}
-
-	public boolean doesRevertChannelOrder()
-	{
-		return this.revertChannelOrder;
 	}
 
 	public String dataset()
@@ -381,22 +406,18 @@ public class N5ChannelDataSource<
 	private static <T extends RealType<T>> RandomAccessible<RealComposite<T>>[] collapseDimension(
 			final RandomAccessibleInterval<T>[] rais,
 			final int dimension,
-			final T extension,
-			final long channelMin,
-			final long channelMax,
-			final boolean revertChannelOrder
+			final long[] channels,
+			final T extension
 	)
 	{
-		return Stream.of(rais).map(rai -> collapseDimension(rai, dimension, extension, channelMin, channelMax, revertChannelOrder)).toArray(RandomAccessible[]::new);
+		return Stream.of(rais).map(rai -> collapseDimension(rai, dimension, channels, extension)).toArray(RandomAccessible[]::new);
 	}
 
 	private static <T extends RealType<T>> RandomAccessible<RealComposite<T>>  collapseDimension(
 			final RandomAccessibleInterval<T> rai,
 			final int dimension,
-			final T extension,
-			final long channelMin,
-			final long channelMax,
-			final boolean revertChannelOrder
+			final long[] channels,
+			final T extension
 	)
 	{
 		final int lastDim = rai.numDimensions() - 1;
@@ -405,24 +426,40 @@ public class N5ChannelDataSource<
 		long[] min = Intervals.minAsLongArray(rai);
 		long[] max = Intervals.maxAsLongArray(rai);
 
-		assert channelMin <= channelMax;
-		assert min[dimension] <= channelMin;
-		assert max[dimension] >= channelMax;
+		assert LongStream.of(channels).filter(c -> c > max[dimension] && c < min[dimension]).count() == 0;
 
-		min[dimension] = channelMin;
-		max[dimension] = channelMax;
+		final RandomAccessibleInterval<T> relevantRai = isFullRange(channels, numChannels)
+				? rai
+				: Views.stack(LongStream.of(channels).mapToObj(channel -> Views.hyperSlice(rai, dimension, channel)).collect(Collectors.toList()));
 
-		Views.invertAxis(rai, dimension);
-		RandomAccessibleInterval<T> orderCorrected = revertChannelOrder
-				? Views.translate(Views.invertAxis(rai, dimension), IntStream.range(0, rai.numDimensions()).mapToLong(dim -> dim == dimension ? rai.max(dim) : 0).toArray())
-				: rai;
-
-		RandomAccessibleInterval<T> relevantRai = min[dimension] > orderCorrected.min(dimension) || max[dimension] < orderCorrected.max(dimension)
-				? Views.offsetInterval(orderCorrected, new FinalInterval(min, max))
-				: orderCorrected;
-
-		final RandomAccessible<T> ra = Views.extendValue(lastDim == dimension ? relevantRai : Views.moveAxis(relevantRai, dimension, lastDim), extension);
+		final RandomAccessible<T> ra = Views.extendValue(lastDim == dimension
+				? relevantRai
+				: Views.moveAxis(relevantRai, dimension, lastDim), extension);
 		return Views.collapseReal(ra, numChannels);
+	}
+
+	private static long[] getChannels(final long min, final long max, boolean revertChannelOrder) {
+		if (revertChannelOrder)
+			return LongStream.rangeClosed(-max, -min).map(v -> -v).toArray();
+		else
+			return LongStream.rangeClosed(min, max).toArray();
+	}
+
+	private static boolean isFullRange(final long[] channels, final int dim) {
+		if (channels.length != dim)
+			return false;
+
+		for (int n = 0; n < dim; ++n)
+			if (channels[n] != n)
+				return false;
+
+		return true;
+	}
+
+	private static long[] range(final int stop) {
+		long[] range = new long[stop];
+		Arrays.setAll(range, d -> d);
+		return range;
 	}
 
 	@Override
