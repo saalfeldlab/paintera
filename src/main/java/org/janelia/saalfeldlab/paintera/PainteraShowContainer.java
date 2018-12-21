@@ -206,7 +206,10 @@ public class PainteraShowContainer extends Application {
 		@CommandLine.Option(names = {"--channel-axis"})
 		Integer channelAxis = 3;
 
-		@CommandLine.Option(names = {"--limit-number-of-channels"})
+		@CommandLine.Option(names = {"--limit-number-of-channels"}, paramLabel = "NUM_CHANNELS", description = "" +
+				"If specified and larger than 0, " +
+				"divide any channel sources into multiple channel sources with at max NUM_CHANNELS channels. " +
+				"Ignored if `--channels' option is specified.")
 		Integer maxNumChannels = -1;
 
 		@CommandLine.Option(names = {"--width"})
@@ -215,7 +218,10 @@ public class PainteraShowContainer extends Application {
 		@CommandLine.Option(names = {"--height"})
 		Integer height = 900;
 
-		@CommandLine.Option(names = {"--channels"}, arity = "1..*", converter = ChannelListConverter.class)
+		@CommandLine.Option(names = {"--channels"}, paramLabel = "CHANNELS", arity = "1..*", converter = ChannelListConverter.class, description = "" +
+				"For each channel data source, display CHANNELS as separate channel source. " +
+				"CHANNELS is a comma-separated list of integers. " +
+				"This option accepts multiple values separated by space, e.g. --channels 0,3,6 1,4,7")
 		List<long[]> channels = null;
 
 		public static final class ChannelListConverter implements CommandLine.ITypeConverter<long[]> {
