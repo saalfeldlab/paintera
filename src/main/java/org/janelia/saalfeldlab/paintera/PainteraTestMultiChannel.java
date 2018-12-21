@@ -44,7 +44,7 @@ public class PainteraTestMultiChannel extends Application {
 		final String prediction = "volumes/affinities/prediction";
 		final String loss = "volumes/loss_gradient";
 		N5HDF5Meta meta = new N5HDF5Meta(path, dataset, new int[] {64, 64, 64, 3}, true);
-		final AffineTransform3D transform = N5Helpers.getTransform(meta.reader(), meta.dataset(), true);
+		final AffineTransform3D transform = N5Helpers.getTransform(meta.writer(), meta.dataset(), true);
 		final PainteraBaseView.DefaultPainteraBaseView viewer = PainteraBaseView.defaultView();
 
 		N5ChannelDataSource<FloatType, VolatileFloatType> source = N5ChannelDataSource.zeroExtended(
@@ -60,7 +60,7 @@ public class PainteraTestMultiChannel extends Application {
 
 		N5ChannelDataSource<FloatType, VolatileFloatType> predictionSource = N5ChannelDataSource.zeroExtended(
 				new N5HDF5Meta(path, prediction, new int[] {64, 64, 64, 3}, true),
-				N5Helpers.getTransform(meta.reader(), prediction, true),
+				N5Helpers.getTransform(meta.writer(), prediction, true),
 				viewer.baseView.getGlobalCache(),
 				"prediction",
 				0,
@@ -74,9 +74,9 @@ public class PainteraTestMultiChannel extends Application {
 
 
 		DataSource<FloatType, VolatileFloatType> rawSource = N5Data.openRawAsSource(
-				meta.reader(),
+				meta.writer(),
 				raw,
-				N5Helpers.getTransform(meta.reader(), raw, true),
+				N5Helpers.getTransform(meta.writer(), raw, true),
 				viewer.baseView.getGlobalCache(),
 				0,
 				"raw");

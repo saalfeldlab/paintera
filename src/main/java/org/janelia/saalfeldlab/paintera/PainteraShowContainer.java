@@ -84,6 +84,8 @@ import picocli.CommandLine;
 import java.io.IOException;
 import java.lang.invoke.MethodHandles;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -96,6 +98,7 @@ import java.util.function.IntFunction;
 import java.util.function.LongConsumer;
 import java.util.function.Supplier;
 import java.util.stream.IntStream;
+import java.util.stream.Stream;
 
 public class PainteraShowContainer extends Application {
 
@@ -171,7 +174,10 @@ public class PainteraShowContainer extends Application {
 		}
 
 		for (N5Meta channelMeta : channelDatasets) {
-			addChannelSource(viewer.baseView, channelMeta, clArgs.revertArrayAttributes, clArgs.channelAxis, clArgs.maxNumChannels);
+			if (clArgs.channels == null)
+				addChannelSource(viewer.baseView, channelMeta, clArgs.revertArrayAttributes, clArgs.channelAxis, clArgs.maxNumChannels);
+			else
+				addChannelSource(viewer.baseView, channelMeta, clArgs.revertArrayAttributes, clArgs.channelAxis, clArgs.channels);
 		}
 
 		for (final N5Meta labelMeta : labelDatasets) {
@@ -208,6 +214,27 @@ public class PainteraShowContainer extends Application {
 
 		@CommandLine.Option(names = {"--height"})
 		Integer height = 900;
+
+		@CommandLine.Option(names = {"--channels"}, arity = "1..*", converter = ChannelListConverter.class)
+		List<long[]> channels = null;
+
+		public static final class ChannelListConverter implements CommandLine.ITypeConverter<long[]> {
+
+			private final String splitString;
+
+			public ChannelListConverter() {
+				this(",");
+			}
+
+			public ChannelListConverter(String splitString) {
+				this.splitString = splitString;
+			}
+
+			@Override
+			public long[] convert(String s) throws Exception {
+				return Stream.of(s.split(this.splitString)).mapToLong(Long::parseLong).toArray();
+			}
+		}
 	}
 
 	/* *************************************************** */
@@ -406,6 +433,60 @@ public class PainteraShowContainer extends Application {
 					cmin,
 					cmax,
 					false);
+			ARGBCompositeColorConverter<V, RealComposite<V>, VolatileWithSet<RealComposite<V>>> conv = ARGBCompositeColorConverter.imp0((int) source.numChannels());
+
+			ChannelSourceState<T, V, RealComposite<V>, VolatileWithSet<RealComposite<V>>> state = new ChannelSourceState<>(
+					source,
+					conv,
+					new ARGBCompositeAlphaAdd(),
+					source.getName());
+
+
+			Set<String> attrs = meta.writer().listAttributes(meta.dataset()).keySet();
+			if (attrs.contains(VALUE_RANGE_KEY)) {
+				final double[] valueRange = meta.writer().getAttribute(meta.dataset(), VALUE_RANGE_KEY, double[].class);
+				final double min = valueRange[0];
+				final double max = valueRange[1];
+				IntStream.range(0, conv.numChannels()).mapToObj(conv::minProperty).forEach(p -> p.set(min));
+				IntStream.range(0, conv.numChannels()).mapToObj(conv::maxProperty).forEach(p -> p.set(max));
+			} else {
+				T t = source.getDataType().get(0);
+				if (t instanceof IntegerType<?>) {
+					for (int channel = 0; channel < conv.numChannels(); ++channel) {
+						conv.minProperty(channel).set(t.getMinValue());
+						conv.maxProperty(channel).set(t.getMaxValue());
+					}
+				} else {
+					for (int channel = 0; channel < conv.numChannels(); ++channel) {
+						conv.minProperty(channel).set(0.0);
+						conv.maxProperty(channel).set(1.0);
+					}
+				}
+			}
+			viewer.addState(state);
+		}
+	}
+
+	private static <T extends RealType<T> & NativeType<T>, V extends AbstractVolatileRealType<T, V> & NativeType<V>> void addChannelSource(
+			final PainteraBaseView viewer,
+			final N5Meta meta,
+			final boolean revertArrayAttributes,
+			final int channelDimension,
+			final Collection<? extends long[]> channelLists
+	) throws IOException, DataTypeNotSupported {
+
+		LOG.info("Adding channel source {}", meta);
+
+		for (long[] channels : channelLists) {
+
+			N5ChannelDataSource<T, V> source = N5ChannelDataSource.zeroExtended(
+					meta,
+					N5Helpers.getTransform(meta.writer(), meta.dataset(), revertArrayAttributes),
+					viewer.getGlobalCache(),
+					String.format("%s-channels-%s", meta.dataset(), Arrays.toString(channels)),
+					viewer.getGlobalCache().getNumPriorities() - 1,
+					channelDimension,
+					channels);
 			ARGBCompositeColorConverter<V, RealComposite<V>, VolatileWithSet<RealComposite<V>>> conv = ARGBCompositeColorConverter.imp0((int) source.numChannels());
 
 			ChannelSourceState<T, V, RealComposite<V>, VolatileWithSet<RealComposite<V>>> state = new ChannelSourceState<>(

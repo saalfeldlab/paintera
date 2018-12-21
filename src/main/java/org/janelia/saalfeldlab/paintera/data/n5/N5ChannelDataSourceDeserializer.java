@@ -63,11 +63,9 @@ public class N5ChannelDataSourceDeserializer implements JsonDeserializer<N5Chann
 
 			JsonObject obj = el.getAsJsonObject();
 			final int channelDimension = obj.get(N5ChannelDataSourceSerializer.CHANNEL_DIMENSION_KEY).getAsInt();
-			final long channelMin = Optional.ofNullable(obj.get(N5ChannelDataSourceSerializer.CHANNEL_MIN_KEY)).map(JsonElement::getAsLong).orElse(Long.MIN_VALUE);
-			final long channelMax = Optional.ofNullable(obj.get(N5ChannelDataSourceSerializer.CHANNEL_MAX_KEY)).map(JsonElement::getAsLong).orElse(Long.MAX_VALUE);
-			final boolean revertChannelOrder = Optional.ofNullable(obj.get(N5ChannelDataSourceSerializer.REVERT_CHANNEL_AXIS_KEY)).map(JsonElement::getAsBoolean).orElse(false);
+			final long[] channels = Optional.ofNullable(obj.get(N5ChannelDataSourceSerializer.CHANNELS_KEY)).map(e -> (long[]) context.deserialize(e, long[].class)).orElse(null);
 			LOG.debug("Deserialized transform: {}", transform);
-			return N5ChannelDataSource.zeroExtended(meta, transform, globalCache, "", priority, channelDimension, channelMin, channelMax, revertChannelOrder);
+			return N5ChannelDataSource.zeroExtended(meta, transform, globalCache, "", priority, channelDimension, channels);
 		} catch (IOException | ClassNotFoundException | DataTypeNotSupported e)
 		{
 			throw new JsonParseException(e);
