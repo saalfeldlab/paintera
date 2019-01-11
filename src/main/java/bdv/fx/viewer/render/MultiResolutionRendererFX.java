@@ -112,7 +112,6 @@ public class MultiResolutionRendererFX extends MultiResolutionRendererGeneric<Bu
 
 	}
 
-	@SuppressWarnings("unchecked")
 	public MultiResolutionRendererFX(
 			final TransformAwareRenderTargetGeneric<BufferExposingWritableImage> display,
 			final PainterThread painterThread,
@@ -123,7 +122,8 @@ public class MultiResolutionRendererFX extends MultiResolutionRendererGeneric<Bu
 			final ExecutorService renderingExecutorService,
 			final boolean useVolatileIfAvailable,
 			final AccumulateProjectorFactory<ARGBType> accumulateProjectorFactory,
-			final CacheControl cacheControl)
+			final CacheControl cacheControl,
+			final int[] padding)
 	{
 		super(
 				display,
@@ -136,6 +136,7 @@ public class MultiResolutionRendererFX extends MultiResolutionRendererGeneric<Bu
 				useVolatileIfAvailable,
 				accumulateProjectorFactory,
 				cacheControl,
+				padding,
 				BufferExposingWritableImage::asArrayImg,
 				new MakeWritableImage(),
 				img -> (int) img.getWidth(),

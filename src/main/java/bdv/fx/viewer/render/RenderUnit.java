@@ -28,7 +28,7 @@ import java.util.function.Supplier;
 import java.util.stream.LongStream;
 
 /**
- * Render sreen as tiles instead of single image.
+ * Render screen as tiles instead of single image.
  */
 public class RenderUnit {
 
@@ -39,6 +39,8 @@ public class RenderUnit {
 	private final int[] blockSize = {250, 250};
 
 	private final long[] dimensions = {1, 1};
+
+	private final int[] padding = {1, 1};
 
 	private double[] screenScales = ScreenScalesConfig.defaultScreenScalesCopy();
 
@@ -258,8 +260,6 @@ public class RenderUnit {
 		final int[] cellDims = new int[2];
 		for (int index = 0; index < renderers.length; ++index) {
 			this.grid.getCellGridPositionFlat(index, cellPos);
-			min[0] = this.grid.getCellMin(0, cellPos[0]);
-			min[1] = this.grid.getCellMin(1, cellPos[1]);
 			this.grid.getCellDimensions(cellPos, min, cellDims);
 			Arrays.setAll(max, d -> min[d] + cellDims[d] - 1);
 			final TransformAwareBufferedImageOverlayRendererFX renderTarget = new TransformAwareBufferedImageOverlayRendererFX();
@@ -275,7 +275,8 @@ public class RenderUnit {
 					renderingExecutorService,
 					true,
 					accumulateProjectorFactory,
-					cacheControl
+					cacheControl,
+					padding
 			);
 			LOG.trace("Creating new renderer for block ({}) ({})", min, max);
 			renderTarget.setCanvasSize(cellDims[0], cellDims[1]);
@@ -292,7 +293,7 @@ public class RenderUnit {
 
 	public synchronized ImagePropertyGrid getImagePropertyGrid()
 	{
-		return new ImagePropertyGrid(images, grid);
+		return new ImagePropertyGrid(images, grid, padding);
 	}
 
 	private class Paintable implements PainterThread.Paintable
@@ -369,9 +370,12 @@ public class RenderUnit {
 
 		private final CellGrid grid;
 
-		private ImagePropertyGrid(final ObjectProperty<Image>[] images, final CellGrid grid) {
+		private final int[] padding;
+
+		private ImagePropertyGrid(final ObjectProperty<Image>[] images, final CellGrid grid, final int[] padding) {
 			this.images = images;
 			this.grid = grid;
+			this.padding = padding;
 		}
 
 		/**
@@ -400,6 +404,15 @@ public class RenderUnit {
 		public int numTiles()
 		{
 			return images.length;
+		}
+
+		/**
+		 *
+		 * @return padding value by which the rendered images are extended on each side
+		 */
+		public int[] getPadding()
+		{
+			return padding;
 		}
 	}
 
