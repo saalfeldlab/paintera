@@ -227,6 +227,7 @@ public class ViewerPanelFX
 				options.getAccumulateProjectorFactory(),
 				cacheControl,
 				options.getTargetRenderNanos(),
+				options.getNumRenderingThreads(),
 				renderingExecutorService);
 
 		this.renderingModeController = new RenderingModeController(renderUnit);

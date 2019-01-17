@@ -34,8 +34,6 @@ public class RenderUnit {
 
 	private static Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
-	private static final int NUM_RENDERING_THREADS = 1;
-
 	private final int[] blockSize = {Integer.MAX_VALUE, Integer.MAX_VALUE};
 
 	private final long[] dimensions = {1, 1};
@@ -69,6 +67,8 @@ public class RenderUnit {
 
 	private final long targetRenderNanos;
 
+	private final int numRenderingThreads;
+
 	private final ExecutorService renderingExecutorService;
 
 	private final List<Runnable> updateListeners = new ArrayList<>();
@@ -83,6 +83,7 @@ public class RenderUnit {
 			final AccumulateProjectorFactory<ARGBType> accumulateProjectorFactory,
 			final CacheControl cacheControl,
 			final long targetRenderNanos,
+			final int numRenderingThreads,
 			final ExecutorService renderingExecutorService) {
 		this.threadGroup = threadGroup;
 		this.viewerState = viewerState;
@@ -91,6 +92,7 @@ public class RenderUnit {
 		this.accumulateProjectorFactory = accumulateProjectorFactory;
 		this.cacheControl = cacheControl;
 		this.targetRenderNanos = targetRenderNanos;
+		this.numRenderingThreads = numRenderingThreads;
 		this.renderingExecutorService = renderingExecutorService;
 		update();
 	}
@@ -237,7 +239,6 @@ public class RenderUnit {
 
 	private synchronized void update()
 	{
-
 		for (PainterThread p : painterThreads) {
 			if (p == null)
 				continue;
@@ -252,7 +253,9 @@ public class RenderUnit {
 
 		this.grid = new CellGrid(adjustedDimensions, blockSize);
 
-		int numBlocks = (int) LongStream.of(this.grid.getGridDimensions()).reduce(1, (l1, l2) -> l1 * l2);
+		final int numBlocks = (int) LongStream.of(this.grid.getGridDimensions()).reduce(1, (l1, l2) -> l1 * l2);
+		final int numRenderingThreadsPerBlock = Math.max(numRenderingThreads / numBlocks, 1);
+
 		renderers = new MultiResolutionRendererFX[numBlocks];
 		renderedImages = new ObjectProperty[numBlocks];
 		renderTargets = new TransformAwareBufferedImageOverlayRendererFX[numBlocks];
@@ -276,7 +279,7 @@ public class RenderUnit {
 					this.screenScales,
 					targetRenderNanos,
 					true,
-					NUM_RENDERING_THREADS,
+					numRenderingThreadsPerBlock,
 					renderingExecutorService,
 					true,
 					accumulateProjectorFactory,
