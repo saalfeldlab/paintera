@@ -48,6 +48,7 @@ import javafx.collections.ObservableList;
 import javafx.scene.Node;
 import javafx.scene.image.Image;
 import javafx.scene.layout.StackPane;
+import javafx.scene.paint.Color;
 import net.imglib2.Point;
 import net.imglib2.Positionable;
 import net.imglib2.RealLocalizable;
@@ -68,7 +69,6 @@ import net.imglib2.view.Views;
 import org.janelia.saalfeldlab.paintera.data.axisorder.AxisOrder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
 import java.lang.invoke.MethodHandles;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -585,7 +585,10 @@ public class ViewerPanelFX
 
 			final ReadOnlyObjectProperty<Image> image = grid.imagePropertyAt(i);
 			image.addListener((obs, oldv, newv) -> {
-				if (newv != null) {
+				if (newv == null) {
+					canvasPane.getCanvas().getGraphicsContext2D().setFill(Color.BLACK);
+					canvasPane.getCanvas().getGraphicsContext2D().fillRect(cellMin[0], cellMin[1], cellDims[0], cellDims[1]);
+				} else {
 					final int[] padding = imageDisplayGrid.get().getPadding();
 					canvasPane.getCanvas().getGraphicsContext2D().drawImage(
 						newv, // src
