@@ -83,6 +83,7 @@ import picocli.CommandLine;
 
 import java.io.IOException;
 import java.lang.invoke.MethodHandles;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -484,7 +485,11 @@ public class PainteraShowContainer extends Application {
 
 		LOG.info("Adding channel source {}", meta);
 
-		DatasetAttributes datasetAttributes = meta.datasetAttributes();
+		DatasetAttributes datasetAttributes = N5Helpers.isPainteraDataset(meta.writer(), meta.dataset())
+				? meta.writer().getDatasetAttributes(Paths.get(meta.dataset(), "data", "s0").toString())
+				: N5Helpers.isMultiScale(meta.writer(), meta.dataset())
+					? meta.writer().getDatasetAttributes(N5Helpers.getFinestLevel(meta.writer(), meta.dataset()))
+					: meta.datasetAttributes();
 		long channelDim = datasetAttributes.getDimensions()[channelDimension];
 		long channelMax = channelDim - 1;
 		long numChannels = maxNumChannels <= 0 ? channelDim : maxNumChannels;
