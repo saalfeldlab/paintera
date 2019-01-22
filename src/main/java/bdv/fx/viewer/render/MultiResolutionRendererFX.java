@@ -123,7 +123,8 @@ public class MultiResolutionRendererFX extends MultiResolutionRendererGeneric<Bu
 			final boolean useVolatileIfAvailable,
 			final AccumulateProjectorFactory<ARGBType> accumulateProjectorFactory,
 			final CacheControl cacheControl,
-			final int[] padding)
+			final int[] padding,
+			final int[] fullDisplayImageSize)
 	{
 		super(
 				display,
@@ -137,6 +138,7 @@ public class MultiResolutionRendererFX extends MultiResolutionRendererGeneric<Bu
 				accumulateProjectorFactory,
 				cacheControl,
 				padding,
+				fullDisplayImageSize,
 				BufferExposingWritableImage::asArrayImg,
 				new MakeWritableImage(),
 				img -> (int) img.getWidth(),

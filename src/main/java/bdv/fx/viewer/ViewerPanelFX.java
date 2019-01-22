@@ -577,6 +577,9 @@ public class ViewerPanelFX
 
 		final CellGrid cellGrid = grid.getGrid();
 		final long[] gridPos = new long[2];
+		final int[] fullCellDims = new int[2];
+		cellGrid.cellDimensions(fullCellDims);
+
 		for (int i = 0; i < grid.numTiles(); ++i) {
 			final long[] cellMin = new long[2];
 			final int[] cellDims = new int[2];
@@ -587,7 +590,7 @@ public class ViewerPanelFX
 			image.addListener((obs, oldv, newv) -> {
 				if (newv == null) {
 					canvasPane.getCanvas().getGraphicsContext2D().setFill(Color.BLACK);
-					canvasPane.getCanvas().getGraphicsContext2D().fillRect(cellMin[0], cellMin[1], cellDims[0], cellDims[1]);
+					canvasPane.getCanvas().getGraphicsContext2D().fillRect(cellMin[0], cellMin[1], fullCellDims[0], fullCellDims[1]);
 				} else {
 					final int[] padding = imageDisplayGrid.get().getPadding();
 					canvasPane.getCanvas().getGraphicsContext2D().drawImage(
@@ -595,7 +598,7 @@ public class ViewerPanelFX
 						padding[0], padding[1], // src X, Y
 						newv.getWidth() - 2 * padding[0], newv.getHeight() - 2 * padding[1], // src width, height
 						cellMin[0], cellMin[1], // dst X, Y
-						cellDims[0], cellDims[1] // dst width, height
+						fullCellDims[0], fullCellDims[1] // dst width, height
 					);
 				}
 			});

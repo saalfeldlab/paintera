@@ -249,6 +249,8 @@ public class MultiResolutionRendererGeneric<T>
 
 	private final int[] padding;
 
+	private final int[] fullDisplayImageSize;
+
 	/**
 	 * @param display
 	 * 		The canvas that will display the images we render.
@@ -277,6 +279,8 @@ public class MultiResolutionRendererGeneric<T>
 	 * 		the cache controls IO budgeting and fetcher queue.
 	 * @param padding
 	 * 		specifies by how many pixels the rendered images are extended on each side to enable seamless interpolation
+	 * @param fullDisplayImageSize
+	 * 		dimensions of the full displayed image. Needed to properly compute scale factors when rendering low resolution data
 	 */
 	MultiResolutionRendererGeneric(
 			final TransformAwareRenderTargetGeneric<T> display,
@@ -290,6 +294,7 @@ public class MultiResolutionRendererGeneric<T>
 			final AccumulateProjectorFactory<ARGBType> accumulateProjectorFactory,
 			final CacheControl cacheControl,
 			final int[] padding,
+			final int[] fullDisplayImageSize,
 			final Function<T, ArrayImg<ARGBType, ? extends IntAccess>> wrapAsArrayImg,
 			final ImageGenerator<T> makeImage,
 			final ToIntFunction<T> width,
@@ -325,6 +330,7 @@ public class MultiResolutionRendererGeneric<T>
 		previousTimepoint = -1;
 
 		this.padding = padding;
+		this.fullDisplayImageSize = fullDisplayImageSize;
 	}
 
 	/**
@@ -347,8 +353,8 @@ public class MultiResolutionRendererGeneric<T>
 			for (int i = 0; i < screenScales.length; ++i)
 			{
 				final double screenToViewerScale = screenScales[i];
-				final int    w                   = Math.max((int) (screenToViewerScale * componentW), 1);
-				final int    h                   = Math.max((int) (screenToViewerScale * componentH), 1);
+				final int w = Math.max((int) (screenToViewerScale * componentW), 1);
+				final int h = Math.max((int) (screenToViewerScale * componentH), 1);
 				final int paddedW = w + 2 * padding[0];
 				final int paddedH = h + 2 * padding[1];
 				if (doubleBuffered)
@@ -371,9 +377,11 @@ public class MultiResolutionRendererGeneric<T>
 					bufferedImages.get(i).set(0, screenImages.get(i).get(0));
 					// getBufferedImage.apply( screenImages[ i ][ 0 ] );
 				}
-				final AffineTransform3D scale  = new AffineTransform3D();
-				final double            xScale = (double) w / componentW;
-				final double            yScale = (double) h / componentH;
+				final AffineTransform3D scale = new AffineTransform3D();
+				final int scaledFullDisplayImageW = Math.max((int) (screenToViewerScale * fullDisplayImageSize[0]), 1);
+				final int scaledFullDisplayImageH = Math.max((int) (screenToViewerScale * fullDisplayImageSize[1]), 1);
+				final double xScale = (double) scaledFullDisplayImageW / fullDisplayImageSize[0];
+				final double yScale = (double) scaledFullDisplayImageH / fullDisplayImageSize[1];
 				scale.set(xScale, 0, 0);
 				scale.set(yScale, 1, 1);
 				scale.set(0.5 * xScale - 0.5 + padding[0], 0, 3);

@@ -245,10 +245,6 @@ public class RenderUnit {
 			p.interrupt();
 		}
 
-		// Adjust the dimensions to be a greater or equal multiple of the block size
-		// to make sure that the border images have the same scaling coefficients
-		Arrays.setAll(dimensions, d -> (int) Math.ceil((double) dimensions[d] / blockSize[d]) * blockSize[d]);
-
 		this.grid = new CellGrid(dimensions, blockSize);
 
 		int numBlocks = (int) LongStream.of(this.grid.getGridDimensions()).reduce(1, (l1, l2) -> l1 * l2);
@@ -280,7 +276,8 @@ public class RenderUnit {
 					true,
 					accumulateProjectorFactory,
 					cacheControl,
-					padding
+					padding,
+					blockSize
 			);
 			LOG.trace("Creating new renderer for block ({}) ({})", min, max);
 			renderTarget.setCanvasSize(cellDims[0], cellDims[1]);
