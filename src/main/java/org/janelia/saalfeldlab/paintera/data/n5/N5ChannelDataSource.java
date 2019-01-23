@@ -43,6 +43,7 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.lang.invoke.MethodHandles;
 import java.util.Arrays;
+import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.IntFunction;
 import java.util.stream.Collectors;
@@ -154,20 +155,36 @@ public class N5ChannelDataSource<
 	}
 
 	public static <
-			D extends NativeType<D> & RealType<D>,
-			T extends AbstractVolatileRealType<D, T> & NativeType<T>> N5ChannelDataSource<D, T> zeroExtended(
+			D extends RealType<D> & NativeType<D>,
+			T extends AbstractVolatileRealType<D, T> & NativeType<T>> N5ChannelDataSource<D, T> valueExtended(
 			final N5Meta meta,
 			final AffineTransform3D transform,
 			final GlobalCache globalCache,
 			final String name,
 			final int priority,
-			final int channelDimension) throws IOException, DataTypeNotSupported {
+			final int channelDimension,
+			final long channelMin,
+			final long channelMax,
+			final boolean revertChannelOrder,
+			final double value) throws IOException, DataTypeNotSupported {
 
-		return zeroExtended(meta, transform, globalCache, name, priority, channelDimension, null);
+		return extended(
+				meta,
+				transform,
+				globalCache,
+				name,
+				priority,
+				channelDimension,
+				channelMin,
+				channelMax,
+				revertChannelOrder,
+				d -> d.setReal(value),
+				t -> t.setReal(value)
+		);
 	}
 
 	public static <
-			D extends NativeType<D> & RealType<D>,
+			D extends RealType<D> & NativeType<D>,
 			T extends AbstractVolatileRealType<D, T> & NativeType<T>> N5ChannelDataSource<D, T> zeroExtended(
 			final N5Meta meta,
 			final AffineTransform3D transform,
@@ -179,6 +196,36 @@ public class N5ChannelDataSource<
 			final long channelMax,
 			final boolean revertChannelOrder) throws IOException, DataTypeNotSupported {
 
+		return extended(
+				meta,
+				transform,
+				globalCache,
+				name,
+				priority,
+				channelDimension,
+				channelMin,
+				channelMax,
+				revertChannelOrder,
+				RealType::setZero,
+				RealType::setZero
+		);
+	}
+
+	public static <
+			D extends NativeType<D> & RealType<D>,
+			T extends AbstractVolatileRealType<D, T> & NativeType<T>> N5ChannelDataSource<D, T> extended(
+			final N5Meta meta,
+			final AffineTransform3D transform,
+			final GlobalCache globalCache,
+			final String name,
+			final int priority,
+			final int channelDimension,
+			final long channelMin,
+			final long channelMax,
+			final boolean revertChannelOrder,
+			final Consumer<D> extendData,
+			final Consumer<T> extendViewer) throws IOException, DataTypeNotSupported {
+
 		final ImagesWithInvalidate<D, T>[] data = getData(
 				meta.reader(),
 				meta.dataset(),
@@ -190,8 +237,8 @@ public class N5ChannelDataSource<
 		long numChannels = data[0].data.dimension(channelDimension);
 
 		LOG.debug("Channel dimension {} has {} channels", channelDimension, numChannels);
-		d.setZero();
-		t.setZero();
+		extendData.accept(d);
+		extendViewer.accept(t);
 		t.setValid(true);
 		final long min = Math.min(Math.max(channelMin, 0), numChannels - 1);
 		final long max = Math.min(Math.max(channelMax, 0), numChannels - 1);
@@ -200,7 +247,31 @@ public class N5ChannelDataSource<
 	}
 
 	public static <
-			D extends NativeType<D> & RealType<D>,
+			D extends RealType<D> & NativeType<D>,
+			T extends AbstractVolatileRealType<D, T> & NativeType<T>> N5ChannelDataSource<D, T> valueExtended(
+			final N5Meta meta,
+			final AffineTransform3D transform,
+			final GlobalCache globalCache,
+			final String name,
+			final int priority,
+			final int channelDimension,
+			final long[] channels,
+			final double extension) throws IOException, DataTypeNotSupported {
+
+		return extended(
+				meta, transform,
+				globalCache,
+				name,
+				priority,
+				channelDimension,
+				channels,
+				d -> d.setReal(extension),
+				t -> t.setReal(extension)
+		);
+	}
+
+	public static <
+			D extends RealType<D> & NativeType<D>,
 			T extends AbstractVolatileRealType<D, T> & NativeType<T>> N5ChannelDataSource<D, T> zeroExtended(
 			final N5Meta meta,
 			final AffineTransform3D transform,
@@ -210,6 +281,31 @@ public class N5ChannelDataSource<
 			final int channelDimension,
 			final long[] channels) throws IOException, DataTypeNotSupported {
 
+		return extended(
+				meta, transform,
+				globalCache,
+				name,
+				priority,
+				channelDimension,
+				channels,
+				RealType::setZero,
+				RealType::setZero
+		);
+	}
+
+	public static <
+			D extends NativeType<D> & RealType<D>,
+			T extends AbstractVolatileRealType<D, T> & NativeType<T>> N5ChannelDataSource<D, T> extended(
+			final N5Meta meta,
+			final AffineTransform3D transform,
+			final GlobalCache globalCache,
+			final String name,
+			final int priority,
+			final int channelDimension,
+			final long[] channels,
+			final Consumer<D> extendData,
+			final Consumer<T> extendViewer) throws IOException, DataTypeNotSupported {
+
 		final ImagesWithInvalidate<D, T>[] data = getData(
 				meta.reader(),
 				meta.dataset(),
@@ -221,8 +317,8 @@ public class N5ChannelDataSource<
 		long numChannels = data[0].data.dimension(channelDimension);
 
 		LOG.debug("Channel dimension {} has {} channels", channelDimension, numChannels);
-		d.setZero();
-		t.setZero();
+		extendData.accept(d);
+		extendViewer.accept(t);
 		t.setValid(true);
 		return new N5ChannelDataSource<>(meta, transform, globalCache, d, t, name, priority, channelDimension, channels);
 	}

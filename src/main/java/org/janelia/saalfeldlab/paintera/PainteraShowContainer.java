@@ -498,7 +498,7 @@ public class PainteraShowContainer extends Application {
 
 			final long cmax = Math.min(cmin + numChannels, datasetAttributes.getDimensions()[channelDimension]) - 1;
 
-			N5ChannelDataSource<T, V> source = N5ChannelDataSource.zeroExtended(
+			N5ChannelDataSource<T, V> source = N5ChannelDataSource.valueExtended(
 					meta,
 					N5Helpers.getTransform(meta.writer(), meta.dataset(), revertArrayAttributes),
 					viewer.getGlobalCache(),
@@ -507,7 +507,8 @@ public class PainteraShowContainer extends Application {
 					channelDimension,
 					cmin,
 					cmax,
-					false);
+					false,
+					Double.NaN);
 			ARGBCompositeColorConverter<V, RealComposite<V>, VolatileWithSet<RealComposite<V>>> conv = ARGBCompositeColorConverter.imp0((int) source.numChannels());
 
 			ChannelSourceState<T, V, RealComposite<V>, VolatileWithSet<RealComposite<V>>> state = new ChannelSourceState<>(
@@ -554,14 +555,15 @@ public class PainteraShowContainer extends Application {
 
 		for (long[] channels : channelLists) {
 
-			N5ChannelDataSource<T, V> source = N5ChannelDataSource.zeroExtended(
+			N5ChannelDataSource<T, V> source = N5ChannelDataSource.valueExtended(
 					meta,
 					N5Helpers.getTransform(meta.writer(), meta.dataset(), revertArrayAttributes),
 					viewer.getGlobalCache(),
 					String.format("%s-channels-%s", meta.dataset(), Arrays.toString(channels)),
 					viewer.getGlobalCache().getNumPriorities() - 1,
 					channelDimension,
-					channels);
+					channels,
+					Double.NaN);
 			ARGBCompositeColorConverter<V, RealComposite<V>, VolatileWithSet<RealComposite<V>>> conv = ARGBCompositeColorConverter.imp0((int) source.numChannels());
 
 			ChannelSourceState<T, V, RealComposite<V>, VolatileWithSet<RealComposite<V>>> state = new ChannelSourceState<>(

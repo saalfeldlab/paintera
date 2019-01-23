@@ -540,7 +540,7 @@ public class GenericBackendDialogN5 implements Closeable
 			String sourceName = channelMin <= 0 && channelMax >= numChannels - 1
 					? name
 					: getChannelSourceName(name, channelMin, channelMax, numChannels, revertChannels);
-			final N5ChannelDataSource<T, V> source = N5ChannelDataSource.zeroExtended(
+			final N5ChannelDataSource<T, V> source = N5ChannelDataSource.valueExtended(
 					meta,
 					transform,
 					globalCache,
@@ -549,7 +549,8 @@ public class GenericBackendDialogN5 implements Closeable
 					axisOrder.get().channelIndex(),
 					channelMin,
 					channelMax,
-					revertChannels
+					revertChannels,
+					Double.NaN
 			);
 
 			ARGBCompositeColorConverter<V, RealComposite<V>, VolatileWithSet<RealComposite<V>>> converter =
