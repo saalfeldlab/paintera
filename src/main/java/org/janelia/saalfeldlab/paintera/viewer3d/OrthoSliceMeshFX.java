@@ -1,15 +1,18 @@
 package org.janelia.saalfeldlab.paintera.viewer3d;
 
 import java.lang.invoke.MethodHandles;
+import java.util.Arrays;
 
 import javafx.scene.shape.ObservableFaceArray;
 import javafx.scene.shape.TriangleMesh;
 import javafx.scene.shape.VertexFormat;
+import net.imglib2.RealInterval;
 import net.imglib2.RealLocalizable;
 import net.imglib2.RealPoint;
 import net.imglib2.RealPositionable;
 import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.realtransform.RealTransform;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -22,17 +25,21 @@ public class OrthoSliceMeshFX extends TriangleMesh
 			0, 1, 2, 0, 2, 3
 	};
 
+	final int[] meshSize = new int[2];
 	final float[] texCoordMin = new float[2], texCoordMax = new float[2];
 	final float[] texCoords = new float[2 * 4];
 
-	public OrthoSliceMeshFX(
-		final RealLocalizable bottomLeft,
-		final RealLocalizable bottomRight,
-		final RealLocalizable topRight,
-		final RealLocalizable topLeft,
-		final AffineTransform3D pointTransform)
+	public OrthoSliceMeshFX(final RealInterval interval, final AffineTransform3D pointTransform)
 	{
-		setVertices(bottomLeft, bottomRight, topRight, topLeft, pointTransform);
+		Arrays.setAll(meshSize, d -> (int) Math.round(interval.realMax(d) - interval.realMin(d)));
+
+		setVertices(
+			new RealPoint(interval.realMin(0), interval.realMin(1)),
+			new RealPoint(interval.realMax(0), interval.realMin(1)),
+			new RealPoint(interval.realMax(0), interval.realMax(1)),
+			new RealPoint(interval.realMin(0), interval.realMax(1)),
+			pointTransform
+		);
 
 		setNormals(pointTransform);
 
@@ -45,12 +52,17 @@ public class OrthoSliceMeshFX extends TriangleMesh
 		setVertexFormat(VertexFormat.POINT_NORMAL_TEXCOORD);
 	}
 
-	public void updateTexCoords(final int[] paddedTextureSize, final int[] padding) {
+	public void updateTexCoords(final int[] paddedTextureSize, final int[] padding, final double screenScale) {
 
+		// When rendering at very low screen scales, the rendered data may overhang the border (incomplete) meshes.
+		// In this case, compute the coordinate where the texture should be truncated to ensure proper scaling factors.
 		for (int d = 0; d < 2; ++d) {
-			final float coord = (float) padding[d] / paddedTextureSize[d];
-			texCoordMin[d] = coord;
-			texCoordMax[d] = 1.f - coord;
+			final int unpaddedTextureSize = paddedTextureSize[d] - 2 * padding[d];
+			final int upscaledTextureSize = (int) Math.max((int) unpaddedTextureSize / screenScale, meshSize[d]);
+			final float meshSizeToUpscaledTextureSizeRatio = (float) meshSize[d] / upscaledTextureSize;
+			final float unpaddedTextureCoord = (float) padding[d] / paddedTextureSize[d];
+			texCoordMin[d] = unpaddedTextureCoord;
+			texCoordMax[d] = unpaddedTextureCoord + meshSizeToUpscaledTextureSizeRatio * (1.0f - 2 * unpaddedTextureCoord);
 		}
 
 		texCoords[0] = texCoordMin[0]; texCoords[1] = texCoordMin[1];

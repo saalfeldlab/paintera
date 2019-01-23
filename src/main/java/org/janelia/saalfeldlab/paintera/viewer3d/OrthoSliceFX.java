@@ -9,13 +9,12 @@ import javafx.collections.FXCollections;
 import javafx.collections.ListChangeListener;
 import javafx.collections.ObservableList;
 import javafx.scene.Group;
-import javafx.scene.image.Image;
 import javafx.scene.paint.Color;
 import javafx.scene.paint.PhongMaterial;
 import javafx.scene.shape.CullFace;
 import javafx.scene.shape.MeshView;
 import javafx.scene.transform.Affine;
-import net.imglib2.RealPoint;
+import net.imglib2.FinalInterval;
 import net.imglib2.img.cell.CellGrid;
 import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.util.Intervals;
@@ -95,10 +94,7 @@ public class OrthoSliceFX
 				Arrays.setAll(max, d -> min[d] + dims[d]);
 
 				final OrthoSliceMeshFX mesh = new OrthoSliceMeshFX(
-					new RealPoint(min[0], min[1]),
-					new RealPoint(max[0], min[1]),
-					new RealPoint(max[0], max[1]),
-					new RealPoint(min[0], max[1]),
+					new FinalInterval(min, max),
 					new AffineTransform3D()
 				);
 
@@ -115,7 +111,7 @@ public class OrthoSliceFX
 					if (newvIm != null) {
 						paddedTextureSize[0] = (int) newvIm.getImage().getWidth();
 						paddedTextureSize[1] = (int) newvIm.getImage().getHeight();
-						mesh.updateTexCoords(paddedTextureSize, padding);
+						mesh.updateTexCoords(paddedTextureSize, padding, newvIm.getScreenScale());
 						material.setSelfIlluminationMap(newvIm.getImage());
 					}
 				});
