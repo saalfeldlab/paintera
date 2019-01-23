@@ -80,7 +80,7 @@ public class CommitCanvasN5 implements PersistCanvas
 		this.isMultiscale = N5Helpers.isMultiScale(this.n5, volumetricDataGroup);
 		this.isLabelMultiset = N5Helpers.getBooleanAttribute(
 				this.n5,
-				N5Helpers.highestResolutionDataset(n5, volumetricDataGroup, this.isMultiscale),
+				this.isMultiscale ? N5Helpers.getFinestLevelJoinWithGroup(n5, volumetricDataGroup) : volumetricDataGroup,
 				N5Helpers.IS_LABEL_MULTISET_KEY,
 				false);
 	}
@@ -212,7 +212,7 @@ public class CommitCanvasN5 implements PersistCanvas
 
 			final CellGrid canvasGrid = canvas.getCellGrid();
 
-			final DatasetSpec highestResolutionDataset = DatasetSpec.of(n5, N5Helpers.highestResolutionDataset(n5, dataset));
+			final DatasetSpec highestResolutionDataset = DatasetSpec.of(n5, this.isMultiscale ? N5Helpers.getFinestLevelJoinWithGroup(n5, dataset) : dataset);
 
 			if (this.isLabelMultiset)
 				checkLabelMultisetTypeOrFail(n5, highestResolutionDataset.dataset);

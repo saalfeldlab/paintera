@@ -15,7 +15,7 @@ import java.nio.file.Path;
 
 public class N5TestUtil {
 
-	static N5Writer fileSystemWriterAtTmpDir() throws IOException {
+	public static N5Writer fileSystemWriterAtTmpDir() throws IOException {
 		final Path tmp = Files.createTempDirectory(null);
 		final File dir = tmp.toFile();
 		dir.deleteOnExit();

@@ -61,6 +61,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.BiFunction;
 import java.util.function.BooleanSupplier;
 import java.util.function.Supplier;
 import java.util.regex.Pattern;
@@ -212,7 +213,7 @@ public class N5Helpers
 	{
 		LOG.debug("Getting data type for group/dataset {}", group);
 		if (isPainteraDataset(n5, group)) { return getDatasetAttributes(n5, group + "/" + PAINTERA_DATA_DATASET); }
-		if (isMultiScale(n5, group)) { return getDatasetAttributes(n5, getFinestLevel(n5, group)); }
+		if (isMultiScale(n5, group)) { return getDatasetAttributes(n5, String.join("/", getFinestLevelJoinWithGroup(n5, group))); }
 		return n5.getDatasetAttributes(group);
 	}
 
@@ -586,7 +587,7 @@ public class N5Helpers
 	 *
 	 * @param n5 container
 	 * @param group scale group
-	 * @return {@code "group/s0"} if {@code "s0" is the finest scale level}
+	 * @return {@code "s0"} if {@code "s0"} is the finest scale level
 	 * @throws IOException if any n5 operation throws {@link IOException}
 	 */
 	public static String getFinestLevel(
@@ -595,14 +596,44 @@ public class N5Helpers
 	{
 		LOG.debug("Getting finest level for dataset {}", group);
 		final String[] scaleDirs = listAndSortScaleDatasets(n5, group);
-		return Paths.get(group, scaleDirs[0]).toString();
+		return scaleDirs[0];
 	}
 
 	/**
 	 *
 	 * @param n5 container
 	 * @param group scale group
-	 * @return {@code "group/sN"} if {@code "sN" is the coarsest scale level}
+	 * @return {@code String.format("%s/%s", group, "s0")} if {@code "s0"} is the finest scale level
+	 * @throws IOException if any n5 operation throws {@link IOException}
+	 */
+	public static String getFinestLevelJoinWithGroup(
+			final N5Reader n5,
+			final String group) throws IOException
+	{
+		return getFinestLevelJoinWithGroup(n5, group, (g, d) -> String.format("%s/%s", g, d));
+	}
+
+	/**
+	 *
+	 * @param n5 container
+	 * @param group scale group
+	 * @param joiner join group and finest scale level
+	 * @return {@code joiner.apply(group, "s0")} if {@code "s0"} is the finest scale level
+	 * @throws IOException if any n5 operation throws {@link IOException}
+	 */
+	public static String getFinestLevelJoinWithGroup(
+			final N5Reader n5,
+			final String group,
+			final BiFunction<String, String, String> joiner) throws IOException
+	{
+		return joiner.apply(group, getFinestLevel(n5, group));
+	}
+
+	/**
+	 *
+	 * @param n5 container
+	 * @param group scale group
+	 * @return {@code "sN"} if {@code "sN" is the coarsest scale level}
 	 * @throws IOException if any n5 operation throws {@link IOException}
 	 */
 	public static String getCoarsestLevel(
@@ -610,7 +641,37 @@ public class N5Helpers
 			final String group) throws IOException
 	{
 		final String[] scaleDirs = listAndSortScaleDatasets(n5, group);
-		return Paths.get(group, scaleDirs[scaleDirs.length - 1]).toString();
+		return scaleDirs[scaleDirs.length - 1];
+	}
+
+	/**
+	 *
+	 * @param n5 container
+	 * @param group scale group
+	 * @return {@code String.format("%s/%s", group, "sN")} if {@code "sN"} is the coarsest scale level
+	 * @throws IOException if any n5 operation throws {@link IOException}
+	 */
+	public static String getCoarsestLevelJoinWithGroup(
+			final N5Reader n5,
+			final String group) throws IOException
+	{
+		return getCoarsestLevelJoinWithGroup(n5, group, (g, d) -> String.format("%s/%s", g, d));
+	}
+
+	/**
+	 *
+	 * @param n5 container
+	 * @param group scale group
+	 * @param joiner join group and finest scale level
+	 * @return {@code joiner.apply(group, "s0")} if {@code "s0"} is the coarsest scale level
+	 * @throws IOException if any n5 operation throws {@link IOException}
+	 */
+	public static String getCoarsestLevelJoinWithGroup(
+			final N5Reader n5,
+			final String group,
+			final BiFunction<String, String, String> joiner) throws IOException
+	{
+		return joiner.apply(group, getCoarsestLevel(n5, group));
 	}
 
 	/**
@@ -886,30 +947,6 @@ public class N5Helpers
 	{
 		return isPainteraDataset
 				? group + "/" + N5Helpers.PAINTERA_DATA_DATASET
-				: group;
-	}
-
-	/**
-	 *
-	 * @param n5 container
-	 * @param group  multi-scale group
-	 * @return {@code group} if {@code group} is n5 dataset, {@code group/s0} if {@code group} is multi-scale
-	 */
-	public static String highestResolutionDataset(final N5Reader n5, final String group) throws IOException {
-		return highestResolutionDataset(n5, group, N5Helpers.isMultiScale(n5, group));
-	}
-
-
-	/**
-	 *
-	 * @param n5 container
-	 * @param group  multi-scale group
-	 * @param isMultiscale set to true if {@code group} is multi-scale
-	 * @return {@code group} if {@code group} is n5 dataset, {@code group/s0} if {@code isMultiscale} is {@code true}
-	 */
-	public static String highestResolutionDataset(final N5Reader n5, final String group, final boolean isMultiscale) throws IOException {
-		return isMultiscale
-				? Paths.get(group, N5Helpers.listAndSortScaleDatasets(n5, group)[0]).toString()
 				: group;
 	}
 

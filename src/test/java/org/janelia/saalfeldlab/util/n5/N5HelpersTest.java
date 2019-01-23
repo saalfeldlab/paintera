@@ -76,25 +76,8 @@ public class N5HelpersTest {
 
 		Assert.assertEquals(Arrays.asList("s0", "s1", "s2"), Arrays.asList(listAndSortScaleDatasets(writer, group)));
 
-		Assert.assertEquals("group/s0", N5Helpers.getFinestLevel(writer, group));
-		Assert.assertEquals("group/s2", N5Helpers.getCoarsestLevel(writer, group));
-	}
-
-	@Test
-	public void testHighestResolutionDataset() throws IOException {
-		final N5Writer writer = N5TestUtil.fileSystemWriterAtTmpDir();
-		final String group = "group";
-		writer.createGroup(group);
-		writer.setAttribute(group, N5Helpers.MULTI_SCALE_KEY, true);
-		final DatasetAttributes attrs = new DatasetAttributes(new long[]{1}, new int[]{1}, DataType.UINT8, new RawCompression());
-		writer.createDataset(group + "/s0", attrs);
-		writer.createDataset(group + "/s1", attrs);
-		writer.createDataset(group + "/s2", attrs);
-
-		Assert.assertEquals(group, N5Helpers.highestResolutionDataset(writer, group, false));
-		Assert.assertEquals(group + "/s0", N5Helpers.highestResolutionDataset(writer, group, true));
-		Assert.assertEquals(group + "/s0", N5Helpers.highestResolutionDataset(writer, group));
-
+		Assert.assertEquals("group/s0", String.join("/", N5Helpers.getFinestLevelJoinWithGroup(writer, group)));
+		Assert.assertEquals("group/s2", String.join("/", N5Helpers.getCoarsestLevelJoinWithGroup(writer, group)));
 	}
 
 	@Test
