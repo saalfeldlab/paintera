@@ -230,6 +230,11 @@ public class RenderUnit {
 	public synchronized void setScreenScales(final double[] screenScales)
 	{
 		this.screenScales = screenScales.clone();
+
+		// compute min possible screen scale that 1px rendered data can represent when upscaled to the size of the full cell
+		final double minPossibleScreenScale = Math.max(1. / blockSize[0], 1. / blockSize[1]);
+		Arrays.setAll(this.screenScales, i -> Math.max(this.screenScales[i], minPossibleScreenScale));
+
 		for (int index = 0; index < renderers.length; ++index)
 			if (renderers[index] != null)
 				renderers[index].setScreenScales(this.screenScales);
