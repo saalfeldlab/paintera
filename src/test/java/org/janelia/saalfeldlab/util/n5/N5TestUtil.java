@@ -20,11 +20,11 @@ public class N5TestUtil {
 
 	private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
-	public static N5Writer fileSystemWriterAtTmpDir() throws IOException {
+	public static N5FSWriter fileSystemWriterAtTmpDir() throws IOException {
 		return fileSystemWriterAtTmpDir(true);
 	}
 
-	public static N5Writer fileSystemWriterAtTmpDir(final boolean deleteOnExit) throws IOException {
+	public static N5FSWriter fileSystemWriterAtTmpDir(final boolean deleteOnExit) throws IOException {
 		final Path tmp = Files.createTempDirectory(null);
 
 		LOG.debug("Creating temporary N5Writer at {} (delete on exit? {})", tmp, deleteOnExit);
