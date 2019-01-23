@@ -1,6 +1,7 @@
 package org.janelia.saalfeldlab.paintera.viewer3d;
 
 import bdv.fx.viewer.ViewerPanelFX;
+import bdv.fx.viewer.render.RenderUnit;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.ReadOnlyObjectProperty;
 import javafx.beans.property.SimpleBooleanProperty;
@@ -18,6 +19,7 @@ import net.imglib2.RealPoint;
 import net.imglib2.img.cell.CellGrid;
 import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.util.Intervals;
+
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread;
 
 import java.util.ArrayList;
@@ -108,13 +110,13 @@ public class OrthoSliceFX
 				material.setSpecularColor(Color.BLACK);
 
 				final int[] paddedTextureSize = new int[2];
-				final ReadOnlyObjectProperty<Image> display = newv.imagePropertyAt(meshIndex);
-				display.addListener((obsIm, oldvIm, newvIm) -> {
+				final ReadOnlyObjectProperty<RenderUnit.RenderedImage> renderedImageProperty = newv.renderedImagePropertyAt(meshIndex);
+				renderedImageProperty.addListener((obsIm, oldvIm, newvIm) -> {
 					if (newvIm != null) {
-						paddedTextureSize[0] = (int) newvIm.getWidth();
-						paddedTextureSize[1] = (int) newvIm.getHeight();
+						paddedTextureSize[0] = (int) newvIm.getImage().getWidth();
+						paddedTextureSize[1] = (int) newvIm.getImage().getHeight();
 						mesh.updateTexCoords(paddedTextureSize, padding);
-						material.setSelfIlluminationMap(newvIm);
+						material.setSelfIlluminationMap(newvIm.getImage());
 					}
 				});
 				newMeshViews.add(mv);

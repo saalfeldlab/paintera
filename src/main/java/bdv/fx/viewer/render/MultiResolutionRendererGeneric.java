@@ -436,8 +436,10 @@ public class MultiResolutionRendererGeneric<T>
 
 	/**
 	 * Render image at the {@link #requestedScreenScaleIndex requested screen scale}.
+	 *
+	 * @return screen scale index in the {@link #screenScales} array that was used to render the image, or -1 if the rendering was not completed
 	 */
-	public boolean paint(
+	public int paint(
 			final List<SourceAndConverter<?>> sources,
 			final Function<Source<?>, AxisOrder> axisOrders,
 			final int timepoint,
@@ -446,7 +448,7 @@ public class MultiResolutionRendererGeneric<T>
 			final Object synchronizationLock)
 	{
 		if (display.getWidth() <= 0 || display.getHeight() <= 0)
-			return false;
+			return -1;
 
 		final boolean resized = checkResize();
 
@@ -460,8 +462,12 @@ public class MultiResolutionRendererGeneric<T>
 
 		final boolean createProjector;
 
+		final int renderedScreenScaleIndex;
+
 		synchronized (this)
 		{
+			renderedScreenScaleIndex = requestedScreenScaleIndex;
+
 			// Rendering may be cancelled unless we are rendering at coarsest
 			// screen scale and coarsest mipmap level.
 			renderingMayBeCancelled = requestedScreenScaleIndex < maxScreenScaleIndex;
@@ -556,7 +562,7 @@ public class MultiResolutionRendererGeneric<T>
 			}
 		}
 
-		return success;
+		return success ? renderedScreenScaleIndex : -1;
 	}
 
 	/**

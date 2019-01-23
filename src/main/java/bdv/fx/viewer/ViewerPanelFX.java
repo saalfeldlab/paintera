@@ -71,6 +71,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import java.lang.invoke.MethodHandles;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
@@ -577,28 +578,36 @@ public class ViewerPanelFX
 
 		final CellGrid cellGrid = grid.getGrid();
 		final long[] gridPos = new long[2];
-		final int[] fullCellDims = new int[2];
-		cellGrid.cellDimensions(fullCellDims);
-
 		for (int i = 0; i < grid.numTiles(); ++i) {
 			final long[] cellMin = new long[2];
-			final int[] cellDims = new int[2];
+			final int[] cellDims = new int[2], upscaledCellDims = new int[2];
 			cellGrid.getCellGridPositionFlat(i, gridPos);
 			cellGrid.getCellDimensions(gridPos, cellMin, cellDims);
 
-			final ReadOnlyObjectProperty<Image> image = grid.imagePropertyAt(i);
-			image.addListener((obs, oldv, newv) -> {
+			final int[] imageSize = new int[2], unpaddedImageSize = new int[2];
+			final ReadOnlyObjectProperty<RenderUnit.RenderedImage> renderedImageProperty = grid.renderedImagePropertyAt(i);
+			renderedImageProperty.addListener((obs, oldv, newv) -> {
 				if (newv == null) {
 					canvasPane.getCanvas().getGraphicsContext2D().setFill(Color.BLACK);
-					canvasPane.getCanvas().getGraphicsContext2D().fillRect(cellMin[0], cellMin[1], fullCellDims[0], fullCellDims[1]);
+					canvasPane.getCanvas().getGraphicsContext2D().fillRect(cellMin[0], cellMin[1], cellDims[0], cellDims[1]);
 				} else {
+					imageSize[0] = (int) newv.getImage().getWidth();
+					imageSize[1] = (int) newv.getImage().getHeight();
+
 					final int[] padding = imageDisplayGrid.get().getPadding();
+					Arrays.setAll(unpaddedImageSize, d -> imageSize[d] - 2 * padding[d]);
+
+					// When rendering at very low screen scales, the rendered data may need to be upscaled and drawn past the canvas boundaries for incomplete border tiles. 
+					// Based on the screen scale used for rendering, compute the expected dimensions of the upscaled cell
+					// to ensure that the scaling in the border tiles is consistent with the rest of the tiles.
+					Arrays.setAll(upscaledCellDims, d -> Math.max((int) (unpaddedImageSize[d] / newv.getScreenScale()), cellDims[d]));
+
 					canvasPane.getCanvas().getGraphicsContext2D().drawImage(
-						newv, // src
+						newv.getImage(), // src
 						padding[0], padding[1], // src X, Y
-						newv.getWidth() - 2 * padding[0], newv.getHeight() - 2 * padding[1], // src width, height
+						unpaddedImageSize[0], unpaddedImageSize[1], // src width, height
 						cellMin[0], cellMin[1], // dst X, Y
-						fullCellDims[0], fullCellDims[1] // dst width, height
+						upscaledCellDims[0], upscaledCellDims[1] // dst width, height
 					);
 				}
 			});

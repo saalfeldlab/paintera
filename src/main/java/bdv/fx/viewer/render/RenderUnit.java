@@ -49,7 +49,7 @@ public class RenderUnit {
 	private MultiResolutionRendererFX[] renderers = new MultiResolutionRendererFX[0];
 
 	@SuppressWarnings("unchecked")
-	private ObjectProperty<Image>[] images = new ObjectProperty[0];
+	private ObjectProperty<RenderedImage>[] renderedImages = new ObjectProperty[0];
 
 	private PainterThread[] painterThreads = new PainterThread[0];
 
@@ -249,7 +249,7 @@ public class RenderUnit {
 
 		int numBlocks = (int) LongStream.of(this.grid.getGridDimensions()).reduce(1, (l1, l2) -> l1 * l2);
 		renderers = new MultiResolutionRendererFX[numBlocks];
-		images = new ObjectProperty[numBlocks];
+		renderedImages = new ObjectProperty[numBlocks];
 		renderTargets = new TransformAwareBufferedImageOverlayRendererFX[numBlocks];
 		painterThreads = new PainterThread[numBlocks];
 		offsets = new long[numBlocks][];
@@ -282,7 +282,7 @@ public class RenderUnit {
 			LOG.trace("Creating new renderer for block ({}) ({})", min, max);
 			renderTarget.setCanvasSize(cellDims[0], cellDims[1]);
 			renderers[index] = renderer;
-			images[index] = new SimpleObjectProperty<>(null);
+			renderedImages[index] = new SimpleObjectProperty<>(null);
 			renderTargets[index] = renderTarget;
 			painterThreads[index] = painterThread;
 			offsets[index] = min.clone();
@@ -294,7 +294,7 @@ public class RenderUnit {
 
 	public synchronized ImagePropertyGrid getImagePropertyGrid()
 	{
-		return new ImagePropertyGrid(images, grid, padding);
+		return new ImagePropertyGrid(renderedImages, grid, padding);
 	}
 
 	private class Paintable implements PainterThread.Paintable
@@ -309,7 +309,7 @@ public class RenderUnit {
 		@Override
 		public void paint() {
 			MultiResolutionRendererFX renderer;
-			ObjectProperty<Image> image;
+			ObjectProperty<RenderedImage> renderedImage;
 			TransformAwareBufferedImageOverlayRendererFX renderTarget;
 			long[] offset;
 			ViewerState viewerState = null;
@@ -317,22 +317,22 @@ public class RenderUnit {
 			synchronized (RenderUnit.this)
 			{
 				renderer = index < renderers.length ? renderers[index] : null;
-				image = index < images.length ? images[index] : null;
+				renderedImage = index < renderedImages.length ? renderedImages[index] : null;
 				renderTarget = index < renderTargets.length ? renderTargets[index] : null;
 				offset = index < offsets.length ? offsets[index] : null;
-				if (renderer != null && image != null && renderTarget != null && offset != null) {
+				if (renderer != null && renderedImage != null && renderTarget != null && offset != null) {
 					viewerState = RenderUnit.this.viewerState.get().copy();
 					sacs.addAll(viewerState.getSources());
 				}
 			}
-			if (renderer == null || image == null || renderTarget == null || offset == null)
+			if (renderer == null || renderedImage == null || renderTarget == null || offset == null)
 				return;
 
 			final AffineTransform3D viewerTransform = new AffineTransform3D();
 			viewerState.getViewerTransform(viewerTransform);
 			viewerTransform.translate(-offset[0], -offset[1], 0);
 
-			renderer.paint(
+			final int renderedScreenScaleIndex = renderer.paint(
 					sacs,
 					axisOrder,
 					viewerState.timepointProperty().get(),
@@ -341,7 +341,16 @@ public class RenderUnit {
 					null
 			);
 
-			renderTarget.drawOverlays(image::set);
+			if (renderedScreenScaleIndex != -1)
+			{
+				final Double renderedScreenScale;
+				synchronized (RenderUnit.this)
+				{
+					renderedScreenScale = renderedScreenScaleIndex >= 0 && renderedScreenScaleIndex < screenScales.length ? screenScales[renderedScreenScaleIndex] : null;
+				}
+				if (renderedScreenScale != null)
+					renderTarget.drawOverlays(img -> renderedImage.set(img != null ? new RenderedImage(img, renderedScreenScale) : null));
+			}
 		}
 	}
 
@@ -363,18 +372,40 @@ public class RenderUnit {
 	}
 
 	/**
+	 * Utility class to represent rendering results that contains a rendered image and a screen scale used for rendering.
+	 */
+	public static class RenderedImage
+	{
+		private final Image image;
+		private final double screenScale;
+
+		public RenderedImage(final Image image, final double screenScale) {
+			this.image = image;
+			this.screenScale = screenScale;
+		}
+
+		public Image getImage() {
+			return image;
+		}
+
+		public double getScreenScale() {
+			return screenScale;
+		}
+	}
+
+	/**
 	 * Utility class to access images via linear index.
 	 */
 	public static class ImagePropertyGrid
 	{
-		private final ObjectProperty<Image>[] images;
+		private final ObjectProperty<RenderedImage>[] renderedImages;
 
 		private final CellGrid grid;
 
 		private final int[] padding;
 
-		private ImagePropertyGrid(final ObjectProperty<Image>[] images, final CellGrid grid, final int[] padding) {
-			this.images = images;
+		private ImagePropertyGrid(final ObjectProperty<RenderedImage>[] renderedImages, final CellGrid grid, final int[] padding) {
+			this.renderedImages = renderedImages;
 			this.grid = grid;
 			this.padding = padding;
 		}
@@ -393,9 +424,9 @@ public class RenderUnit {
 		 * @param linearGridIndex linear index wrt to {@link #getGrid()}.
 		 * @return {@link ReadOnlyObjectProperty} at {@code linearGridIndex}
 		 */
-		public ReadOnlyObjectProperty<Image> imagePropertyAt(final int linearGridIndex)
+		public ReadOnlyObjectProperty<RenderedImage> renderedImagePropertyAt(final int linearGridIndex)
 		{
-			return images[linearGridIndex];
+			return renderedImages[linearGridIndex];
 		}
 
 		/**
@@ -404,7 +435,7 @@ public class RenderUnit {
 		 */
 		public int numTiles()
 		{
-			return images.length;
+			return renderedImages.length;
 		}
 
 		/**
