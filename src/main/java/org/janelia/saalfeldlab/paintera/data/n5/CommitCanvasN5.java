@@ -32,6 +32,7 @@ import net.imglib2.view.Views;
 import org.janelia.saalfeldlab.labels.blocks.LabelBlockLookup;
 import org.janelia.saalfeldlab.labels.downsample.WinnerTakesAll;
 import org.janelia.saalfeldlab.n5.ByteArrayDataBlock;
+import org.janelia.saalfeldlab.n5.DataBlock;
 import org.janelia.saalfeldlab.n5.DatasetAttributes;
 import org.janelia.saalfeldlab.n5.LongArrayDataBlock;
 import org.janelia.saalfeldlab.n5.N5Reader;
@@ -542,6 +543,31 @@ public class CommitCanvasN5 implements PersistCanvas
 		return blockDiff;
 	}
 
+	private static BlockDiff createBlockDiffOldDoesNotExist(
+			final VolatileLabelMultisetArray access,
+			final int numElements
+	) {
+		return createBlockDiffOldDoesNotExist(access, numElements, new BlockDiff());
+	}
+
+	private static BlockDiff createBlockDiffOldDoesNotExist(
+			final VolatileLabelMultisetArray access,
+			final int numElements,
+			final BlockDiff blockDiff
+	) {
+		ArrayImg<LabelMultisetType, VolatileLabelMultisetArray> img = new ArrayImg<>(access, new long[]{numElements}, new LabelMultisetType().getEntitiesPerPixel());
+		img.setLinkedType(new LabelMultisetType(img));
+		return createBlockDiffOldDoesNotExist(img, blockDiff);
+	}
+
+	private static BlockDiff createBlockDiffOldDoesNotExist(
+			final Iterable<LabelMultisetType> labels,
+			final BlockDiff blockDiff
+	) {
+		labels.forEach(lmt -> lmt.entrySet().forEach(e -> blockDiff.addToNewUniqueLabels(e.getElement().id())));
+		return blockDiff;
+	}
+
 	private static <I extends IntegerType<I>> BlockDiff createBlockDiffInteger(
 			final RandomAccessibleInterval<I> oldAccess,
 			final RandomAccessibleInterval<I> newAccess)
@@ -655,9 +681,12 @@ public class CommitCanvasN5 implements PersistCanvas
 			ArrayMath.minOf3(blockMax, blockMin, blockMax);
 
 			LOG.trace("Reading old access at position {} and size {}. ({} {})", blockSpec.pos, size, blockSpec.min, blockSpec.max);
-			VolatileLabelMultisetArray oldAccess = LabelUtils.fromBytes(
-					(byte[]) n5.readBlock(targetDataset.dataset, targetDataset.attributes, blockSpec.pos).getData(),
-					(int) Intervals.numElements(size));
+			final DataBlock<?> block = n5.readBlock(targetDataset.dataset, targetDataset.attributes, blockSpec.pos);
+			VolatileLabelMultisetArray oldAccess = block != null && block.getData() instanceof byte[]
+					? LabelUtils.fromBytes(
+						(byte[]) block.getData(),
+						(int) Intervals.numElements(size))
+					: null;
 
 			VolatileLabelMultisetArray newAccess = downsampleVolatileLabelMultisetArrayAndSerialize(
 					n5,
@@ -668,7 +697,12 @@ public class CommitCanvasN5 implements PersistCanvas
 					targetMaxNumEntries,
 					size,
 					blockSpec.pos);
-			blockDiffsAt.put(targetBlock, createBlockDiff(oldAccess, newAccess, (int) Intervals.numElements(size)));
+			final int numElements = (int) Intervals.numElements(size);
+			blockDiffsAt.put(
+					targetBlock,
+					oldAccess == null
+							? createBlockDiffOldDoesNotExist(newAccess, numElements)
+							: createBlockDiff(oldAccess, newAccess, numElements));
 		}
 	}
 
