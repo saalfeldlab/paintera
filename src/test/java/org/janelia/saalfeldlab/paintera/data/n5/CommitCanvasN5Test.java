@@ -58,14 +58,16 @@ public class CommitCanvasN5Test {
 	private static final Map<String, Object> PAINTERA_DATA_ATTRIBUTE = Collections.unmodifiableMap(Stream.of(1).collect(Collectors.toMap(o -> "type", o -> "label")));
 
 	private static boolean isInvalid(final UnsignedLongType pixel) {
-		return INVALID.valueEquals(pixel);
+		final boolean isInvalid = INVALID.valueEquals(pixel);
+		LOG.trace("{} is invalid? {}", pixel, isInvalid);
+		return isInvalid;
 	}
 
 	@Test
 	public void testCommit() throws IOException, UnableToPersistCanvas {
 
-		final long[] dims = new long[] {2,3,4};
-		final int[] blockSize = new int[] {1, 2, 2};
+		final long[] dims = new long[] {20, 30, 40};
+		final int[] blockSize = new int[] {5, 7, 9};
 		final CellGrid grid = new CellGrid(dims, blockSize);
 		final CellLoader<UnsignedLongType> loader = img -> img.forEach(UnsignedLongType::setOne);
 		final ReadOnlyCachedCellImgFactory factory = new ReadOnlyCachedCellImgFactory(ReadOnlyCachedCellImgOptions.options().cellDimensions(blockSize));
@@ -73,13 +75,26 @@ public class CommitCanvasN5Test {
 		final Random rng = new Random(100);
 		canvas.forEach(px -> px.setInteger(rng.nextDouble() > 0.5 ? rng.nextInt(50) : Label.INVALID));
 
-		final N5Writer container = N5TestUtil.fileSystemWriterAtTmpDir();
+		final N5Writer container = N5TestUtil.fileSystemWriterAtTmpDir(!LOG.isDebugEnabled());
+		LOG.debug("Created temporary N5 container {}", container);
 		testLabelMultisetSingleScale(container, "single-scale-label-multisets", canvas);
 		testLabelMultisetMultiScale(container, "multi-scale-label-multisets", canvas);
 		testLabelMultisetPaintera(container, "paintera-label-multisets", canvas);
 		testUnsignedLongTypeSingleScale(container, "single-scale-uint64", canvas);
 		testUnsignedLongTypeMultiScale(container, "multi-scale-uint64", canvas);
 		testUnsignedLongTypePaintera(container, "paintera-uint64", canvas);
+	}
+
+	private static void assertMultisetType(final UnsignedLongType c, final LabelMultisetType l) {
+		Assert.assertEquals(1, l.entrySet().size());
+		final LabelMultisetType.Entry<Label> entry = l.entrySet().iterator().next();
+		Assert.assertEquals(1, entry.getCount());
+		final boolean isInvalid = isInvalid(c);
+		if (isInvalid) {
+			Assert.assertEquals(0, l.getIntegerLong());
+		} else {
+			Assert.assertEquals(c.getIntegerLong(), entry.getElement().id());
+		}
 	}
 
 	private static void testUnsignedLongTypeSingleScale(
@@ -99,13 +114,13 @@ public class CommitCanvasN5Test {
 			final N5Writer container,
 			final String dataset,
 			final CachedCellImg<UnsignedLongType, ?> canvas) throws IOException, UnableToPersistCanvas {
-		CommitCanvasN5Test.<LabelMultisetType>testSingleScale(
+		CommitCanvasN5Test.testSingleScale(
 				container,
 				dataset,
 				DataType.UINT8,
 				canvas,
 				ThrowingBiFunction.unchecked(LabelUtils::openVolatile),
-				(c, l) -> Assert.assertEquals(isInvalid(c) ? 0 : c.getIntegerLong(), l.getIntegerLong()),
+				CommitCanvasN5Test::assertMultisetType,
 				MULTISET_ATTRIBUTE);
 	}
 
@@ -126,13 +141,13 @@ public class CommitCanvasN5Test {
 			final N5Writer container,
 			final String dataset,
 			final CachedCellImg<UnsignedLongType, ?> canvas) throws IOException, UnableToPersistCanvas {
-		CommitCanvasN5Test.<LabelMultisetType>testMultiScale(
+		CommitCanvasN5Test.testMultiScale(
 				container,
 				dataset,
 				DataType.UINT8,
 				canvas,
 				ThrowingBiFunction.unchecked(LabelUtils::openVolatile),
-				(c, l) -> Assert.assertEquals(isInvalid(c) ? 0 : c.getIntegerLong(), l.getIntegerLong()),
+				CommitCanvasN5Test::assertMultisetType,
 				MULTISET_ATTRIBUTE);
 	}
 
@@ -153,13 +168,13 @@ public class CommitCanvasN5Test {
 			final N5Writer container,
 			final String dataset,
 			final CachedCellImg<UnsignedLongType, ?> canvas) throws IOException, UnableToPersistCanvas {
-		CommitCanvasN5Test.<LabelMultisetType>testPainteraData(
+		CommitCanvasN5Test.testPainteraData(
 				container,
 				dataset,
 				DataType.UINT8,
 				canvas,
 				ThrowingBiFunction.unchecked(LabelUtils::openVolatile),
-				(c, l) -> Assert.assertEquals(isInvalid(c) ? 0 : c.getIntegerLong(), l.getIntegerLong()),
+				CommitCanvasN5Test::assertMultisetType,
 				MULTISET_ATTRIBUTE);
 	}
 
@@ -172,7 +187,7 @@ public class CommitCanvasN5Test {
 			final BiConsumer<UnsignedLongType, T> asserts,
 			final int[]... scaleFactors
 	) throws IOException, UnableToPersistCanvas {
-		testPainteraData(container, dataset, dataType, canvas, openLabels, asserts, new HashMap<>());
+		testPainteraData(container, dataset, dataType, canvas, openLabels, asserts, new HashMap<>(), scaleFactors);
 	}
 
 	private static <T> void testPainteraData(
@@ -280,7 +295,7 @@ public class CommitCanvasN5Test {
 		Assert.assertArrayEquals(Intervals.dimensionsAsLongArray(canvas), Intervals.dimensionsAsLongArray(labels));
 
 		for (final Pair<UnsignedLongType, T> pair : Views.interval(Views.pair(canvas, labels), labels)) {
-			LOG.debug("Comparing canvas {} and background {}", pair.getA(), pair.getB());
+			LOG.trace("Comparing canvas {} and background {}", pair.getA(), pair.getB());
 			asserts.accept(pair.getA(), pair.getB());
 		}
 	}
