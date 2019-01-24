@@ -50,7 +50,6 @@ import org.janelia.saalfeldlab.paintera.control.assignment.UnableToPersist;
 import org.janelia.saalfeldlab.paintera.control.lock.LockedSegmentsOnlyLocal;
 import org.janelia.saalfeldlab.paintera.control.selection.SelectedIds;
 import org.janelia.saalfeldlab.paintera.data.DataSource;
-import org.janelia.saalfeldlab.paintera.data.axisorder.AxisOrder;
 import org.janelia.saalfeldlab.paintera.data.mask.exception.CannotPersist;
 import org.janelia.saalfeldlab.paintera.data.mask.Masks;
 import org.janelia.saalfeldlab.paintera.data.n5.CommitCanvasN5;
@@ -66,12 +65,13 @@ import org.janelia.saalfeldlab.paintera.state.SourceState;
 import org.janelia.saalfeldlab.paintera.stream.HighlightingStreamConverter;
 import org.janelia.saalfeldlab.paintera.stream.ModalGoldenAngleSaturatedHighlightingARGBStream;
 import org.janelia.saalfeldlab.paintera.viewer3d.Viewer3DFX;
-import org.janelia.saalfeldlab.util.MakeUnchecked;
 import org.janelia.saalfeldlab.util.n5.N5Data;
 import org.janelia.saalfeldlab.util.n5.N5Helpers;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import picocli.CommandLine;
+import pl.touk.throwing.ThrowingFunction;
+import pl.touk.throwing.ThrowingSupplier;
 
 public class Paintera extends Application
 {
@@ -149,7 +149,7 @@ public class Paintera extends Application
 
 		final String projectDir = Optional
 				.ofNullable(painteraArgs.project())
-				.orElseGet(MakeUnchecked.supplier(() -> new ProjectDirectoryNotSpecifiedDialog(painteraArgs
+				.orElseGet(ThrowingSupplier.unchecked(() -> new ProjectDirectoryNotSpecifiedDialog(painteraArgs
 						.defaultToTempDirectory())
 						.showDialog(
 								"No project directory specified on command line. You can specify a project directory " +
@@ -200,7 +200,7 @@ public class Paintera extends Application
 		final Map<Integer, SourceState<?, ?>> indexToState = new HashMap<>();
 
 		final Properties properties = loadedProperties
-				.map(MakeUnchecked.function(lp -> Properties.fromSerializedProperties(
+				.map(ThrowingFunction.unchecked(lp -> Properties.fromSerializedProperties(
 						lp,
 						baseView,
 						true,
@@ -526,7 +526,7 @@ public class Paintera extends Application
 				final LabelBlockLookup lookup = N5Helpers.getLabelBlockLookup(n5, dataset);
 				InterruptibleFunction<Long, Interval[]>[] blockLoaders = IntStream
 						.range(0, maskedSource.getNumMipmapLevels())
-						.mapToObj(level -> InterruptibleFunction.fromFunction( MakeUnchecked.function( (MakeUnchecked.CheckedFunction<Long, Interval[]>) id -> lookup.read(level, id))))
+						.mapToObj(level -> InterruptibleFunction.fromFunction( ThrowingFunction.unchecked( (ThrowingFunction<Long, Interval[], Exception>) id -> lookup.read(level, id))))
 						.toArray(InterruptibleFunction[]::new);
 				final MeshManagerWithAssignmentForSegments meshManager = MeshManagerWithAssignmentForSegments.fromBlockLookup(
 						maskedSource,

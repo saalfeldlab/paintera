@@ -6,23 +6,17 @@ import javafx.beans.property.SimpleStringProperty;
 import javafx.beans.property.StringProperty;
 import javafx.event.Event;
 import javafx.scene.control.Alert;
-import javafx.scene.control.Label;
 import javafx.scene.control.TextArea;
 import javafx.scene.control.TextField;
-import javafx.scene.layout.HBox;
-import javafx.scene.layout.Priority;
-import javafx.scene.layout.VBox;
 import javafx.stage.DirectoryChooser;
-import org.janelia.saalfeldlab.fx.Labels;
-import org.janelia.saalfeldlab.fx.ui.Exceptions;
 import org.janelia.saalfeldlab.fx.ui.ObjectField;
 import org.janelia.saalfeldlab.n5.N5FSReader;
 import org.janelia.saalfeldlab.n5.N5FSWriter;
 import org.janelia.saalfeldlab.n5.N5Writer;
 import org.janelia.saalfeldlab.paintera.ui.PainteraAlerts;
-import org.janelia.saalfeldlab.util.MakeUnchecked;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import pl.touk.throwing.ThrowingSupplier;
 
 import java.io.File;
 import java.io.IOException;
@@ -40,9 +34,9 @@ public class FileSystem {
 
 	private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
-	private final StringProperty container = new SimpleStringProperty(MakeUnchecked.supplier(Paths.get(USER_HOME)::toRealPath).get().toString());
+	private final StringProperty container = new SimpleStringProperty(ThrowingSupplier.unchecked(Paths.get(USER_HOME)::toRealPath).get().toString());
 
-	private final ObjectProperty<Supplier<N5Writer>> writerSupplier = new SimpleObjectProperty<>(MakeUnchecked.supplier(() -> null));
+	private final ObjectProperty<Supplier<N5Writer>> writerSupplier = new SimpleObjectProperty<>(() -> null);
 
 	{
 		container.addListener((obs, oldv, newv) -> {
@@ -113,7 +107,7 @@ public class FileSystem {
 	private void updateWriterSupplier(final String pathToDirectory) throws IOException {
 		if (isN5Container(pathToDirectory)) {
 			LOG.debug("Path {} is a valid N5 container.", pathToDirectory);
-			writerSupplier.set(MakeUnchecked.supplier(() -> new N5FSWriter(pathToDirectory)));
+			writerSupplier.set(ThrowingSupplier.unchecked(() -> new N5FSWriter(pathToDirectory)));
 		} else {
 			LOG.debug("Path {} is not a valid N5 container.", pathToDirectory);
 			writerSupplier.set(() -> null);

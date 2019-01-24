@@ -13,9 +13,9 @@ import net.imglib2.img.array.ArrayImgs;
 import net.imglib2.img.basictypeaccess.IntAccess;
 import net.imglib2.img.basictypeaccess.array.IntArray;
 import net.imglib2.type.numeric.ARGBType;
-import org.janelia.saalfeldlab.util.MakeUnchecked;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import pl.touk.throwing.ThrowingRunnable;
 
 public class BufferExposingWritableImage extends WritableImage
 {
@@ -58,7 +58,7 @@ public class BufferExposingWritableImage extends WritableImage
 		this.serial = com.sun.prism.Image.class.getDeclaredField("serial");
 		this.serial.setAccessible(true);
 
-		this.callPixelsDirty = MakeUnchecked.runnable(() -> {
+		this.callPixelsDirty = ThrowingRunnable.unchecked(() -> {
 			final int[] serial = (int[]) this.serial.get(prismImage);
 			serial[0]++;
 			this.pixelsDirty.invoke(this);

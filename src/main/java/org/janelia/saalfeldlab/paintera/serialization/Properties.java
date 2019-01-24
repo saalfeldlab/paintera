@@ -24,11 +24,10 @@ import org.janelia.saalfeldlab.paintera.config.Viewer3DConfig;
 import org.janelia.saalfeldlab.paintera.serialization.StatefulSerializer.Arguments;
 import org.janelia.saalfeldlab.paintera.state.SourceInfo;
 import org.janelia.saalfeldlab.paintera.state.SourceState;
-import org.janelia.saalfeldlab.util.MakeUnchecked;
-import org.janelia.saalfeldlab.util.MakeUnchecked.CheckedConsumer;
 import org.scijava.InstantiableException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import pl.touk.throwing.ThrowingConsumer;
 
 public class Properties implements TransformListener<AffineTransform3D>
 {
@@ -212,7 +211,7 @@ public class Properties implements TransformListener<AffineTransform3D>
 
 		Optional
 				.ofNullable(serializedProperties.get(SOURCES_KEY))
-				.ifPresent(MakeUnchecked.unchecked((CheckedConsumer<JsonElement>) element -> SourceInfoSerializer
+				.ifPresent(ThrowingConsumer.unchecked(element -> SourceInfoSerializer
 						.populate(
 						viewer::addState,
 						properties.sourceInfo.currentSourceIndexProperty()::set,

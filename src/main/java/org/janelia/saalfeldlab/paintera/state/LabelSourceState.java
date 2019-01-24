@@ -23,7 +23,6 @@ import net.imglib2.util.Intervals;
 import net.imglib2.util.Util;
 import net.imglib2.view.Views;
 import org.janelia.saalfeldlab.labels.blocks.LabelBlockLookup;
-import org.janelia.saalfeldlab.paintera.PainteraBaseView;
 import org.janelia.saalfeldlab.paintera.cache.InvalidateAll;
 import org.janelia.saalfeldlab.paintera.cache.global.GlobalCache;
 import org.janelia.saalfeldlab.paintera.composition.ARGBCompositeAlphaYCbCr;
@@ -45,10 +44,10 @@ import org.janelia.saalfeldlab.paintera.meshes.MeshManagerWithAssignmentForSegme
 import org.janelia.saalfeldlab.paintera.stream.HighlightingStreamConverter;
 import org.janelia.saalfeldlab.paintera.stream.HighlightingStreamConverterIntegerType;
 import org.janelia.saalfeldlab.paintera.stream.ModalGoldenAngleSaturatedHighlightingARGBStream;
-import org.janelia.saalfeldlab.util.MakeUnchecked;
 import org.janelia.saalfeldlab.util.grids.LabelBlockLookupNoBlocks;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import pl.touk.throwing.ThrowingFunction;
 
 import java.lang.invoke.MethodHandles;
 import java.util.Arrays;
@@ -345,7 +344,7 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 			return val;
 		};
 
-		final Function<Long, Interval[]> f = MakeUnchecked.function(id -> labelBlockLookup.read(0, id));
+		final Function<Long, Interval[]> f = ThrowingFunction.unchecked(id -> labelBlockLookup.read(0, id));
 		final InterruptibleFunction<Long, Interval[]>[] backgroundBlockCaches = InterruptibleFunction.fromFunction(new Function[]{f});
 
 		final MeshManagerWithAssignmentForSegments meshManager = MeshManagerWithAssignmentForSegments.fromBlockLookup(

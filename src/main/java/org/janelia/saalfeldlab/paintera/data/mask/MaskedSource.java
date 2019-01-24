@@ -74,9 +74,9 @@ import org.janelia.saalfeldlab.paintera.data.mask.persist.UnableToPersistCanvas;
 import org.janelia.saalfeldlab.paintera.data.mask.persist.UnableToUpdateLabelBlockLookup;
 import org.janelia.saalfeldlab.paintera.data.n5.BlockSpec;
 import org.janelia.saalfeldlab.paintera.ui.PainteraAlerts;
-import org.janelia.saalfeldlab.util.MakeUnchecked;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import pl.touk.throwing.ThrowingRunnable;
 
 import java.lang.invoke.MethodHandles;
 import java.nio.file.Path;
@@ -340,7 +340,7 @@ public class MaskedSource<D extends Type<D>, T extends Type<T>> implements DataS
 						LOG.debug("Will show dialog? {}", this,isApplyingMask);
 						if(this.isApplyingMask) isApplyingDialog.showAndWait();
 				};
-				new Thread(MakeUnchecked.runnable(() -> {
+				new Thread(ThrowingRunnable.unchecked(() -> {
 					Thread.sleep(1000);
 					InvokeOnJavaFXApplicationThread.invoke(dialogHandler);
 				})).start();

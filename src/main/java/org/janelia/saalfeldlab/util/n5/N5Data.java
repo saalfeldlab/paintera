@@ -39,10 +39,12 @@ import org.janelia.saalfeldlab.paintera.data.n5.N5DataSource;
 import org.janelia.saalfeldlab.paintera.data.n5.N5Meta;
 import org.janelia.saalfeldlab.paintera.data.n5.ReflectionException;
 import org.janelia.saalfeldlab.paintera.ui.opendialog.VolatileHelpers;
-import org.janelia.saalfeldlab.util.MakeUnchecked;
 import org.janelia.saalfeldlab.util.NamedThreadFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import pl.touk.throwing.ThrowingConsumer;
+import pl.touk.throwing.ThrowingRunnable;
+import pl.touk.throwing.ThrowingSupplier;
 
 import java.io.IOException;
 import java.lang.invoke.MethodHandles;
@@ -367,7 +369,7 @@ public class N5Data {
 		for (int scale = 0; scale < scaleDatasets.length; ++scale)
 		{
 			final int fScale = scale;
-			futures.add(es.submit(MakeUnchecked.supplier(() -> {
+			futures.add(es.submit(ThrowingSupplier.unchecked(() -> {
 				LOG.debug("Populating scale level {}", fScale);
 				final String scaleDataset = Paths.get(dataset, scaleDatasets[fScale]).toString();
 				imagesWithInvalidate[fScale] = openRaw(reader, scaleDataset, transform.copy(), globalCache, priority);
@@ -381,7 +383,7 @@ public class N5Data {
 				return true;
 			})::get));
 		}
-		futures.forEach(MakeUnchecked.unchecked(Future::get));
+		futures.forEach(ThrowingConsumer.unchecked(Future::get));
 		es.shutdown();
 		return imagesWithInvalidate;
 	}
@@ -613,7 +615,7 @@ public class N5Data {
 		for (int scale = 0; scale < scaleDatasets.length; ++scale)
 		{
 			final int fScale = scale;
-			futures.add(es.submit(MakeUnchecked.supplier(() -> {
+			futures.add(es.submit(ThrowingSupplier.unchecked(() -> {
 				LOG.debug("Populating scale level {}", fScale);
 				final String scaleDataset = Paths.get(dataset, scaleDatasets[fScale]).toString();
 				imagesWithInvalidate[fScale] = openLabelMultiset(reader, scaleDataset, transform.copy(), globalCache, priority);
@@ -627,7 +629,7 @@ public class N5Data {
 				return true;
 			})::get));
 		}
-		futures.forEach(MakeUnchecked.unchecked(Future::get));
+		futures.forEach(ThrowingConsumer.unchecked(Future::get));
 		es.shutdown();
 		return imagesWithInvalidate;
 	}
