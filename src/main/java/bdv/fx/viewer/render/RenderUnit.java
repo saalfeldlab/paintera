@@ -247,7 +247,7 @@ public class RenderUnit {
 
 		// Adjust the dimensions to be a greater or equal multiple of the block size
 		// to make sure that the border images have the same scaling coefficients
-		Arrays.setAll(dimensions, d -> (int) Math.ceil((double) dimensions[d] / blockSize[d]) * blockSize[d]);
+		Arrays.setAll(dimensions, d -> dimensions[d] > blockSize[d] ? (int) Math.ceil((double) dimensions[d] / blockSize[d]) * blockSize[d] : dimensions[d]);
 
 		this.grid = new CellGrid(dimensions, blockSize);
 
