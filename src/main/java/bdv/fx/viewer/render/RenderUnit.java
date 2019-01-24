@@ -36,7 +36,7 @@ public class RenderUnit {
 
 	private static final int NUM_RENDERING_THREADS = 1;
 
-	private final int[] blockSize = {250, 250};
+	private final int[] blockSize = {Integer.MAX_VALUE, Integer.MAX_VALUE};
 
 	private final long[] dimensions = {1, 1};
 
@@ -112,7 +112,7 @@ public class RenderUnit {
 	 * Set size of total screen to be rendered
 	 *
 	 * @param dimX width of screen
-	 * @param dimY heighto f screen
+	 * @param dimY height of screen
 	 */
 	public void setDimensions(final long dimX, final long dimY)
 	{

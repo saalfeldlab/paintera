@@ -31,6 +31,8 @@ package bdv.fx.viewer;
 
 import bdv.cache.CacheControl;
 import bdv.fx.viewer.render.RenderUnit;
+import bdv.fx.viewer.render.RenderingModeController;
+import bdv.fx.viewer.render.RenderingModeController.RenderingMode;
 import bdv.viewer.Interpolation;
 import bdv.viewer.RequestRepaint;
 import bdv.viewer.Source;
@@ -115,6 +117,8 @@ public class ViewerPanelFX
 	private final MouseCoordinateTracker mouseTracker = new MouseCoordinateTracker();
 
 	private final ObjectProperty<RenderUnit.ImagePropertyGrid> imageDisplayGrid = new SimpleObjectProperty<>(null);
+
+	private final RenderingModeController renderingModeController;
 
 	public ViewerPanelFX(
 			final List<SourceAndConverter<?>> sources,
@@ -233,6 +237,8 @@ public class ViewerPanelFX
 		setWidth(options.getWidth());
 		setHeight(options.getHeight());
 		setAllSources(sources);
+
+		this.renderingModeController = new RenderingModeController(renderUnit);
 	}
 
 	/**
@@ -389,6 +395,7 @@ public class ViewerPanelFX
 		state.setViewerTransform(transform);
 		for (final TransformListener<AffineTransform3D> l : transformListeners)
 			l.transformChanged(viewerTransform);
+		renderingModeController.transformChanged(transform);
 		requestRepaint();
 	}
 
