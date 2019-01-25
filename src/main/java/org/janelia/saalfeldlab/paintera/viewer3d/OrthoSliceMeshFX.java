@@ -45,12 +45,12 @@ public class OrthoSliceMeshFX extends TriangleMesh
 		setVertexFormat(VertexFormat.POINT_NORMAL_TEXCOORD);
 	}
 
-	public void updateTexCoords(final int[] paddedTextureSize, final int[] padding) {
+	public void updateTexCoords(final int[] paddedTextureSize, final int[] padding, final double[] meshSizeToTextureSizeRatio) {
 
 		for (int d = 0; d < 2; ++d) {
-			final float coord = (float) padding[d] / paddedTextureSize[d];
-			texCoordMin[d] = coord;
-			texCoordMax[d] = 1.f - coord;
+			final float unpaddedTextureCoord = (float) padding[d] / paddedTextureSize[d];
+			texCoordMin[d] = unpaddedTextureCoord;
+			texCoordMax[d] = unpaddedTextureCoord + (float) meshSizeToTextureSizeRatio[d] * (1.0f - 2 * unpaddedTextureCoord);
 		}
 
 		texCoords[0] = texCoordMin[0]; texCoords[1] = texCoordMin[1];

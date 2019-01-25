@@ -247,9 +247,10 @@ public class RenderUnit {
 
 		// Adjust the dimensions to be a greater or equal multiple of the block size
 		// to make sure that the border images have the same scaling coefficients
-		Arrays.setAll(dimensions, d -> dimensions[d] > blockSize[d] ? (int) Math.ceil((double) dimensions[d] / blockSize[d]) * blockSize[d] : dimensions[d]);
+		final long[] adjustedDimensions = new long[dimensions.length];
+		Arrays.setAll(adjustedDimensions, d -> dimensions[d] > blockSize[d] ? (int) Math.ceil((double) dimensions[d] / blockSize[d]) * blockSize[d] : dimensions[d]);
 
-		this.grid = new CellGrid(dimensions, blockSize);
+		this.grid = new CellGrid(adjustedDimensions, blockSize);
 
 		int numBlocks = (int) LongStream.of(this.grid.getGridDimensions()).reduce(1, (l1, l2) -> l1 * l2);
 		renderers = new MultiResolutionRendererFX[numBlocks];
@@ -297,7 +298,7 @@ public class RenderUnit {
 
 	public synchronized ImagePropertyGrid getImagePropertyGrid()
 	{
-		return new ImagePropertyGrid(images, grid, padding);
+		return new ImagePropertyGrid(images, grid, dimensions, padding);
 	}
 
 	private class Paintable implements PainterThread.Paintable
@@ -374,11 +375,14 @@ public class RenderUnit {
 
 		private final CellGrid grid;
 
+		private long[] dimensions;
+
 		private final int[] padding;
 
-		private ImagePropertyGrid(final ObjectProperty<Image>[] images, final CellGrid grid, final int[] padding) {
+		private ImagePropertyGrid(final ObjectProperty<Image>[] images, final CellGrid grid, final long[] dimensions, final int[] padding) {
 			this.images = images;
 			this.grid = grid;
+			this.dimensions = dimensions;
 			this.padding = padding;
 		}
 
@@ -408,6 +412,15 @@ public class RenderUnit {
 		public int numTiles()
 		{
 			return images.length;
+		}
+
+		/**
+		 *
+		 * @return dimensions of the displayed image (may be smaller than the grid size)
+		 */
+		public long[] getDimensions()
+		{
+			return dimensions;
 		}
 
 		/**

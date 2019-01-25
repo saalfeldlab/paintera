@@ -79,6 +79,7 @@ public class OrthoSliceFX
 			if (newv == null)
 				return;
 			final CellGrid grid = newv.getGrid();
+			final long[] dimensions = newv.getDimensions();
 			final int[] padding = newv.getPadding();
 			final int numMeshes = (int) Intervals.numElements(grid.getGridDimensions());
 			final long[] gridPos = new long[2];
@@ -90,7 +91,7 @@ public class OrthoSliceFX
 			{
 				grid.getCellGridPositionFlat(meshIndex, gridPos);
 				grid.getCellDimensions(gridPos, min, dims);
-				Arrays.setAll(max, d -> min[d] + dims[d]);
+				Arrays.setAll(max, d -> Math.min(min[d] + dims[d], dimensions[d]));
 
 				final OrthoSliceMeshFX mesh = new OrthoSliceMeshFX(
 					new RealPoint(min[0], min[1]),
@@ -107,13 +108,15 @@ public class OrthoSliceFX
 				material.setDiffuseColor(Color.BLACK);
 				material.setSpecularColor(Color.BLACK);
 
+				final double[] meshSizeToTextureSizeRatio = new double[2];
+				Arrays.setAll(meshSizeToTextureSizeRatio, d -> (double) (max[d] - min[d]) / dims[d]);
 				final int[] paddedTextureSize = new int[2];
 				final ReadOnlyObjectProperty<Image> display = newv.imagePropertyAt(meshIndex);
 				display.addListener((obsIm, oldvIm, newvIm) -> {
 					if (newvIm != null) {
 						paddedTextureSize[0] = (int) newvIm.getWidth();
 						paddedTextureSize[1] = (int) newvIm.getHeight();
-						mesh.updateTexCoords(paddedTextureSize, padding);
+						mesh.updateTexCoords(paddedTextureSize, padding, meshSizeToTextureSizeRatio);
 						material.setSelfIlluminationMap(newvIm);
 					}
 				});
