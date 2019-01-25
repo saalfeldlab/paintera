@@ -1,6 +1,10 @@
 package org.janelia.saalfeldlab.util.n5;
 
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
 import net.imglib2.img.cell.CellGrid;
+import org.janelia.saalfeldlab.n5.Compression;
+import org.janelia.saalfeldlab.n5.CompressionAdapter;
 import org.janelia.saalfeldlab.n5.DataType;
 import org.janelia.saalfeldlab.n5.DatasetAttributes;
 import org.janelia.saalfeldlab.n5.GzipCompression;
@@ -16,12 +20,16 @@ import java.lang.invoke.MethodHandles;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import static org.janelia.saalfeldlab.util.n5.N5Helpers.listAndSortScaleDatasets;
 
 public class N5HelpersTest {
 
 	private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
+
+	private static final Gson gsonWithCompression = new GsonBuilder().registerTypeHierarchyAdapter(Compression.class, CompressionAdapter.getJsonAdapter()).create();
 
 	@Test
 	public void testAsCellGrid()
@@ -41,7 +49,7 @@ public class N5HelpersTest {
 	}
 
 	@Test public void testIsMultiscale() throws IOException {
-		final N5Writer writer = N5TestUtil.fileSystemWriterAtTmpDir();
+		final N5Writer writer = N5TestUtil.fileSystemWriterAtTmpDir(!LOG.isDebugEnabled());
 		final String group = "group";
 		writer.createGroup(group);
 
@@ -65,7 +73,7 @@ public class N5HelpersTest {
 
 	@Test
 	public void testListAndSortScaleDatasets() throws IOException {
-		final N5Writer writer = N5TestUtil.fileSystemWriterAtTmpDir();
+		final N5Writer writer = N5TestUtil.fileSystemWriterAtTmpDir(!LOG.isDebugEnabled());
 		final String group = "group";
 		writer.createGroup(group);
 		writer.setAttribute(group, N5Helpers.MULTI_SCALE_KEY, true);
@@ -76,30 +84,13 @@ public class N5HelpersTest {
 
 		Assert.assertEquals(Arrays.asList("s0", "s1", "s2"), Arrays.asList(listAndSortScaleDatasets(writer, group)));
 
-		Assert.assertEquals("group/s0", N5Helpers.getFinestLevel(writer, group));
-		Assert.assertEquals("group/s2", N5Helpers.getCoarsestLevel(writer, group));
-	}
-
-	@Test
-	public void testHighestResolutionDataset() throws IOException {
-		final N5Writer writer = N5TestUtil.fileSystemWriterAtTmpDir();
-		final String group = "group";
-		writer.createGroup(group);
-		writer.setAttribute(group, N5Helpers.MULTI_SCALE_KEY, true);
-		final DatasetAttributes attrs = new DatasetAttributes(new long[]{1}, new int[]{1}, DataType.UINT8, new RawCompression());
-		writer.createDataset(group + "/s0", attrs);
-		writer.createDataset(group + "/s1", attrs);
-		writer.createDataset(group + "/s2", attrs);
-
-		Assert.assertEquals(group, N5Helpers.highestResolutionDataset(writer, group, false));
-		Assert.assertEquals(group + "/s0", N5Helpers.highestResolutionDataset(writer, group, true));
-		Assert.assertEquals(group + "/s0", N5Helpers.highestResolutionDataset(writer, group));
-
+		Assert.assertEquals("group/s0", String.join("/", N5Helpers.getFinestLevelJoinWithGroup(writer, group)));
+		Assert.assertEquals("group/s2", String.join("/", N5Helpers.getCoarsestLevelJoinWithGroup(writer, group)));
 	}
 
 	@Test
 	public void testDiscoverDatasets() throws IOException {
-		final N5Writer writer = N5TestUtil.fileSystemWriterAtTmpDir();
+		final N5Writer writer = N5TestUtil.fileSystemWriterAtTmpDir(!LOG.isDebugEnabled());
 		final String group = "group";
 		writer.createGroup(group);
 		writer.setAttribute(group, N5Helpers.MULTI_SCALE_KEY, true);
@@ -114,6 +105,51 @@ public class N5HelpersTest {
 		LOG.debug("Got groups {}", groups);
 		Assert.assertEquals(Arrays.asList("/group", "/some_group/two"), groups);
 
+	}
+
+	@Test
+	public void testGetDatasetAttributes() throws IOException {
+		final N5Writer writer = N5TestUtil.fileSystemWriterAtTmpDir(!LOG.isDebugEnabled());
+		final DatasetAttributes attributes = new DatasetAttributes(new long[] {1}, new int[] {1}, DataType.UINT8, new GzipCompression());
+
+		// single scale
+		final String dataset = "dataset";
+		writer.createDataset(dataset, attributes);
+		assertEquals(attributes, N5Helpers.getDatasetAttributes(writer, dataset));
+
+		// multi scale
+		final String group = "group";
+		writer.createGroup(group);
+		writer.createDataset("group/s0", attributes);
+		assertEquals(attributes, N5Helpers.getDatasetAttributes(writer, group));
+
+		writer.setAttribute(group, N5Helpers.MULTI_SCALE_KEY, true);
+		assertEquals(attributes, N5Helpers.getDatasetAttributes(writer, group));
+
+		// paintera data
+		final String painteraData = "paintera-data";
+		final String data = painteraData + "/data";
+		writer.createDataset(data + "/s0", attributes);
+		writer.createGroup(painteraData);
+		writer.createGroup(data);
+		writer.setAttribute(data, N5Helpers.MULTI_SCALE_KEY, true);
+
+		Assert.assertNull(N5Helpers.getDatasetAttributes(writer, painteraData));
+		assertEquals(attributes, N5Helpers.getDatasetAttributes(writer, data));
+
+		writer.setAttribute(painteraData, N5Helpers.PAINTERA_DATA_KEY, Stream.of(1).collect(Collectors.toMap(o -> "type", o -> "raw")));
+		assertEquals(attributes, N5Helpers.getDatasetAttributes(writer, painteraData));
+
+	}
+
+	private static void assertEquals(final DatasetAttributes expected, final DatasetAttributes actual) {
+		Assert.assertEquals(expected.getNumDimensions(), actual.getNumDimensions());
+		Assert.assertArrayEquals(expected.getDimensions(), actual.getDimensions());
+		Assert.assertArrayEquals(expected.getBlockSize(), actual.getBlockSize());
+		Assert.assertEquals(expected.getDataType(), actual.getDataType());
+		Assert.assertEquals(expected.getCompression().getClass(), actual.getCompression().getClass());
+		Assert.assertEquals(expected.getCompression().getType(), actual.getCompression().getType());
+		Assert.assertEquals(gsonWithCompression.toJson(expected.getCompression()), gsonWithCompression.toJson(actual.getCompression()));
 	}
 
 }

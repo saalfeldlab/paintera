@@ -7,21 +7,34 @@ import org.janelia.saalfeldlab.n5.N5FSWriter;
 import org.janelia.saalfeldlab.n5.N5Writer;
 import org.janelia.saalfeldlab.n5.RawCompression;
 import org.janelia.saalfeldlab.util.MakeUnchecked;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.io.IOException;
+import java.lang.invoke.MethodHandles;
 import java.nio.file.Files;
 import java.nio.file.Path;
 
 public class N5TestUtil {
 
-	static N5Writer fileSystemWriterAtTmpDir() throws IOException {
+	private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
+
+	public static N5FSWriter fileSystemWriterAtTmpDir() throws IOException {
+		return fileSystemWriterAtTmpDir(true);
+	}
+
+	public static N5FSWriter fileSystemWriterAtTmpDir(final boolean deleteOnExit) throws IOException {
 		final Path tmp = Files.createTempDirectory(null);
+
+		LOG.debug("Creating temporary N5Writer at {} (delete on exit? {})", tmp, deleteOnExit);
+
 		final File dir = tmp.toFile();
-		dir.deleteOnExit();
-		Runtime.getRuntime().addShutdownHook(new Thread(MakeUnchecked.runnable(() -> FileUtils.deleteDirectory(dir))));
-		final N5FSWriter writer = new N5FSWriter(tmp.toAbsolutePath().toString());
-		return writer;
+		if (deleteOnExit) {
+			dir.deleteOnExit();
+			Runtime.getRuntime().addShutdownHook(new Thread(MakeUnchecked.runnable(() -> FileUtils.deleteDirectory(dir))));
+		}
+		return new N5FSWriter(tmp.toAbsolutePath().toString());
 	}
 
 	static DatasetAttributes defaultAttributes()

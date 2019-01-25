@@ -63,7 +63,7 @@ public class N5Types {
 	throws IOException
 	{
 		return isMultiscale
-		 	? isLabelMultisetType(n5, N5Helpers.getFinestLevel(n5, group))
+			? isLabelMultisetType(n5, N5Helpers.getFinestLevelJoinWithGroup(n5, group))
 			: Optional.ofNullable(n5.getAttribute(group, N5Helpers.IS_LABEL_MULTISET_KEY, Boolean.class)).orElse(false);
 	}
 
@@ -140,7 +140,7 @@ public class N5Types {
 	{
 		LOG.debug("Getting data type for group/dataset {}", group);
 		if (N5Helpers.isPainteraDataset(n5, group)) { return getDataType(n5, group + "/" + N5Helpers.PAINTERA_DATA_DATASET); }
-		if (N5Helpers.isMultiScale(n5, group)) { return getDataType(n5, N5Helpers.getFinestLevel(n5, group)); }
+		if (N5Helpers.isMultiScale(n5, group)) { return getDataType(n5, N5Helpers.getFinestLevelJoinWithGroup(n5, group)); }
 		return n5.getDatasetAttributes(group).getDataType();
 	}
 

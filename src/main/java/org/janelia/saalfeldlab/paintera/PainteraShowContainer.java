@@ -488,7 +488,7 @@ public class PainteraShowContainer extends Application {
 		DatasetAttributes datasetAttributes = N5Helpers.isPainteraDataset(meta.writer(), meta.dataset())
 				? meta.writer().getDatasetAttributes(Paths.get(meta.dataset(), "data", "s0").toString())
 				: N5Helpers.isMultiScale(meta.writer(), meta.dataset())
-					? meta.writer().getDatasetAttributes(N5Helpers.getFinestLevel(meta.writer(), meta.dataset()))
+					? meta.writer().getDatasetAttributes(N5Helpers.getFinestLevelJoinWithGroup(meta.writer(), meta.dataset()))
 					: meta.datasetAttributes();
 		long channelDim = datasetAttributes.getDimensions()[channelDimension];
 		long channelMax = channelDim - 1;
@@ -640,13 +640,16 @@ public class PainteraShowContainer extends Application {
 
 	private static <I extends IntegerType<I> & NativeType<I>> void findMaxId(
 			final N5Reader reader,
-			String dataset,
+			String group,
 			final LongConsumer maxIdTarget
 	) throws IOException {
 		final int numProcessors = Runtime.getRuntime().availableProcessors();
 		final ExecutorService es = Executors.newFixedThreadPool(numProcessors, new NamedThreadFactory("max-id-discovery-%d", true));
-		dataset = N5Helpers.isPainteraDataset(reader, dataset) ? dataset + "/data" : dataset;
-		dataset = N5Helpers.isMultiScale(reader, dataset) ? N5Helpers.getFinestLevel(reader, dataset) : dataset;
+		final String dataset = N5Helpers.isPainteraDataset(reader, group)
+				? group + "/data/s0"
+				: N5Helpers.isMultiScale(reader, group)
+					? N5Helpers.getFinestLevelJoinWithGroup(reader, group)
+					: group;
 		final boolean isLabelMultiset = N5Helpers.getBooleanAttribute(reader, dataset, N5Helpers.IS_LABEL_MULTISET_KEY, false);
 		final CachedCellImg<I, ?> img = isLabelMultiset ? (CachedCellImg<I, ?>) (CachedCellImg) LabelUtils.openVolatile(reader, dataset) : (CachedCellImg<I, ?>) N5Utils.open(reader, dataset);
 		final int[] blockSize = new  int[img.numDimensions()];
