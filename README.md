@@ -92,18 +92,44 @@ We recommend these Java options:
 
 #### Display help message and command line parameters
 ```shell
-$ java -jar target/paintera-0.1.1-SNAPSHOT-shaded.jar --help
-Usage: Paintera [-h] [--height=HEIGHT] [--width=WIDTH]
-                [--label-source=LABEL_SOURCE]... [--raw-source=RAW_SOURCE]...
-      --height=HEIGHT   Initial height of viewer. Defaults to 600.
-      --label-source=LABEL_SOURCE
-                        Open label source at start-up. Has to be [file://]
-                          /path/to/<n5-or-hdf5>:path/to/dataset
-      --raw-source=RAW_SOURCE
-                        Open raw source at start-up. Has to be [file://]
-                          /path/to/<n5-or-hdf5>:path/to/dataset
-      --width=WIDTH     Initial width of viewer. Defaults to 800.
-  -h, --help            Display this help message.
+$ paintera --help
+Usage: Paintera [-h] [--default-to-temp-directory] [--print-error-codes]
+                [--version] [--height=HEIGHT]
+                [--highest-screen-scale=HIGHEST_SCREEN_SCALE]
+                [--num-screen-scales=NUM_SCREEN_SCALES]
+                [--screen-scale-factor=SCREEN_SCALE_FACTOR] [--width=WIDTH]
+                [--screen-scales=SCREEN_SCALES[,SCREEN_SCALES...]...]...
+                [PROJECT]
+      [PROJECT]             Optional project N5 root (N5 or FileSystem).
+      --default-to-temp-directory
+                            Default to temporary directory instead of showing dialog
+                              when PROJECT is not specified.
+      --height=HEIGHT       Initial height of viewer. Defaults to 600. Overrides
+                              height stored in project.
+      --highest-screen-scale=HIGHEST_SCREEN_SCALE
+                            Highest screen scale, restricted to the interval (0,1],
+                              defaults to 1. If no scale option is specified, scales
+                              default to [1.0, 0.5, 0.25, 0.125, 0.0625].
+      --num-screen-scales=NUM_SCREEN_SCALES
+                            Number of screen scales, defaults to 3. If no scale
+                              option is specified, scales default to [1.0, 0.5,
+                              0.25, 0.125, 0.0625].
+      --print-error-codes   List all error codes and exit.
+      --screen-scale-factor=SCREEN_SCALE_FACTOR
+                            Scalar value from the open interval (0,1) that defines
+                              how screen scales diminish in each dimension. Defaults
+                              to 0.5. If no scale option is specified, scales
+                              default to [1.0, 0.5, 0.25, 0.125, 0.0625].
+      --screen-scales=SCREEN_SCALES[,SCREEN_SCALES...]...
+                            Explicitly set screen scales. Must be strictly
+                              monotonically decreasing values in from the interval
+                              (0,1]. Overrides all other screen scale options. If no
+                              scale option is specified, scales default to [1.0,
+                              0.5, 0.25, 0.125, 0.0625].
+      --version             Print version string and exit
+      --width=WIDTH         Initial width of viewer. Defaults to 800. Overrides
+                              width stored in project.
+  -h, --help                Display this help message.
 ```
 
 ## Usage
