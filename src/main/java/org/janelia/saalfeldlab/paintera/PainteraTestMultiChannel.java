@@ -47,7 +47,7 @@ public class PainteraTestMultiChannel extends Application {
 		final AffineTransform3D transform = N5Helpers.getTransform(meta.writer(), meta.dataset(), true);
 		final PainteraBaseView.DefaultPainteraBaseView viewer = PainteraBaseView.defaultView();
 
-		N5ChannelDataSource<FloatType, VolatileFloatType> source = N5ChannelDataSource.zeroExtended(
+		N5ChannelDataSource<FloatType, VolatileFloatType> source = N5ChannelDataSource.valueExtended(
 				meta,
 				transform,
 				viewer.baseView.getGlobalCache(),
@@ -56,9 +56,10 @@ public class PainteraTestMultiChannel extends Application {
 				3,
 				0,
 				2,
-				false);
+				false,
+				Double.NaN);
 
-		N5ChannelDataSource<FloatType, VolatileFloatType> predictionSource = N5ChannelDataSource.zeroExtended(
+		N5ChannelDataSource<FloatType, VolatileFloatType> predictionSource = N5ChannelDataSource.valueExtended(
 				new N5HDF5Meta(path, prediction, new int[] {64, 64, 64, 3}, true),
 				N5Helpers.getTransform(meta.writer(), prediction, true),
 				viewer.baseView.getGlobalCache(),
@@ -67,7 +68,8 @@ public class PainteraTestMultiChannel extends Application {
 				3,
 				0,
 				2,
-				false);
+				false,
+				Double.NaN);
 
 		final long numChannels = source.numChannels();
 		LOG.info("num channels: {}", numChannels);
