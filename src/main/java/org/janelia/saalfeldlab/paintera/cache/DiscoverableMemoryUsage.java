@@ -1,6 +1,5 @@
 package org.janelia.saalfeldlab.paintera.cache;
 
-import org.janelia.saalfeldlab.util.MakeUnchecked;
 import org.scijava.Context;
 import org.scijava.InstantiableException;
 import org.scijava.plugin.PluginInfo;
@@ -8,6 +7,7 @@ import org.scijava.plugin.PluginService;
 import org.scijava.plugin.SciJavaPlugin;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import pl.touk.throwing.ThrowingSupplier;
 
 import java.lang.invoke.MethodHandles;
 import java.util.ArrayList;
@@ -19,7 +19,7 @@ public interface DiscoverableMemoryUsage<V> extends ToLongFunction<V>, SciJavaPl
 
 	Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
-	List<DiscoverableMemoryUsage> DISCOVERED_MEMORY_USAGE = Collections.unmodifiableList(MakeUnchecked.supplier(DiscoverableMemoryUsage::discoverAll).get());
+	List<DiscoverableMemoryUsage> DISCOVERED_MEMORY_USAGE = Collections.unmodifiableList(ThrowingSupplier.unchecked(DiscoverableMemoryUsage::discoverAll).get());
 
 	boolean isApplicable(Object object);
 

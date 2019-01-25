@@ -9,6 +9,8 @@ import org.janelia.saalfeldlab.n5.RawCompression;
 import org.janelia.saalfeldlab.util.MakeUnchecked;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import pl.touk.throwing.ThrowingFunction;
+import pl.touk.throwing.ThrowingRunnable;
 
 import java.io.File;
 import java.io.IOException;
@@ -32,7 +34,7 @@ public class N5TestUtil {
 		final File dir = tmp.toFile();
 		if (deleteOnExit) {
 			dir.deleteOnExit();
-			Runtime.getRuntime().addShutdownHook(new Thread(MakeUnchecked.runnable(() -> FileUtils.deleteDirectory(dir))));
+			Runtime.getRuntime().addShutdownHook(new Thread(ThrowingRunnable.unchecked(() -> FileUtils.deleteDirectory(dir))));
 		}
 		return new N5FSWriter(tmp.toAbsolutePath().toString());
 	}

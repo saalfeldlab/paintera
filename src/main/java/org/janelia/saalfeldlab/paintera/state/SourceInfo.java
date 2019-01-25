@@ -1,12 +1,5 @@
 package org.janelia.saalfeldlab.paintera.state;
 
-import java.lang.invoke.MethodHandles;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Optional;
-import java.util.stream.Collectors;
-
 import bdv.viewer.Source;
 import bdv.viewer.SourceAndConverter;
 import javafx.beans.InvalidationListener;
@@ -32,12 +25,17 @@ import net.imglib2.type.Type;
 import net.imglib2.type.numeric.ARGBType;
 import net.imglib2.type.numeric.RealType;
 import org.janelia.saalfeldlab.paintera.composition.Composite;
-import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignmentState;
 import org.janelia.saalfeldlab.paintera.data.DataSource;
-import org.janelia.saalfeldlab.util.MakeUnchecked;
-import org.janelia.saalfeldlab.util.MakeUnchecked.CheckedConsumer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import pl.touk.throwing.ThrowingConsumer;
+
+import java.lang.invoke.MethodHandles;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Optional;
+import java.util.stream.Collectors;
 
 public class SourceInfo
 {
@@ -197,10 +195,7 @@ public class SourceInfo
 
 	public synchronized void removeAllSources()
 	{
-		new ArrayList<>(this.sources).forEach(MakeUnchecked.unchecked((CheckedConsumer<Source<?>>) s -> removeSource(
-				s,
-				true
-		                                                                                                            )));
+		new ArrayList<>(this.sources).forEach(ThrowingConsumer.unchecked(s -> removeSource(s, true)));
 	}
 
 	public synchronized <T> void removeSource(final Source<T> source) throws HasDependents

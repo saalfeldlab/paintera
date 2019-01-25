@@ -7,26 +7,19 @@ import javafx.beans.binding.BooleanBinding;
 import javafx.beans.binding.StringBinding;
 import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.SimpleObjectProperty;
-import javafx.beans.property.SimpleStringProperty;
-import javafx.beans.property.StringProperty;
 import javafx.beans.value.ObservableValue;
 import javafx.event.Event;
 import javafx.scene.control.Label;
-import javafx.scene.control.TextField;
 import javafx.scene.layout.GridPane;
-import javafx.stage.FileChooser;
 import net.imglib2.util.Pair;
-import org.janelia.saalfeldlab.fx.ui.ObjectField;
 import org.janelia.saalfeldlab.n5.N5Writer;
 import org.janelia.saalfeldlab.n5.googlecloud.N5GoogleCloudStorageWriter;
-import org.janelia.saalfeldlab.n5.hdf5.N5HDF5Writer;
 import org.janelia.saalfeldlab.paintera.ui.opendialog.googlecloud.GoogleCloudBrowseHandler;
 import org.janelia.saalfeldlab.paintera.ui.opendialog.googlecloud.StorageAndBucket;
-import org.janelia.saalfeldlab.util.MakeUnchecked;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import pl.touk.throwing.ThrowingSupplier;
 
-import java.io.File;
 import java.lang.invoke.MethodHandles;
 import java.util.Optional;
 import java.util.concurrent.ExecutorService;
@@ -51,7 +44,7 @@ public class GoogleCloud {
 
 	private final ObservableValue<Supplier<N5Writer>> writerSupplier = Bindings.createObjectBinding(
 			() -> isValid.get()
-					? MakeUnchecked.supplier(() -> new N5GoogleCloudStorageWriter(
+					? ThrowingSupplier.unchecked(() -> new N5GoogleCloudStorageWriter(
 							storage.get(),
 							bucket.get().getName()))
 					: (Supplier<N5Writer>) () -> null,

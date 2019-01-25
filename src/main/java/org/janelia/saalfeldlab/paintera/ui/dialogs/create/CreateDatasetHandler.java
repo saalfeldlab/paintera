@@ -26,11 +26,11 @@ import org.janelia.saalfeldlab.paintera.meshes.MeshManagerWithAssignmentForSegme
 import org.janelia.saalfeldlab.paintera.state.LabelSourceState;
 import org.janelia.saalfeldlab.paintera.stream.HighlightingStreamConverter;
 import org.janelia.saalfeldlab.paintera.stream.ModalGoldenAngleSaturatedHighlightingARGBStream;
-import org.janelia.saalfeldlab.util.MakeUnchecked;
 import org.janelia.saalfeldlab.util.grids.LabelBlockLookupNoBlocks;
 import org.janelia.saalfeldlab.util.n5.N5Helpers;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import pl.touk.throwing.ThrowingFunction;
 
 import java.io.IOException;
 import java.lang.invoke.MethodHandles;
@@ -100,7 +100,7 @@ public class CreateDatasetHandler
 			final LabelBlockLookup lookup = getLookup(meta.reader(), meta.dataset());
 			InterruptibleFunction<Long, Interval[]>[] blockLoaders = IntStream
 					.range(0, maskedSource.getNumMipmapLevels())
-					.mapToObj(level -> InterruptibleFunction.fromFunction( MakeUnchecked.function((MakeUnchecked.CheckedFunction<Long, Interval[]>) id -> lookup.read(level, id))))
+					.mapToObj(level -> InterruptibleFunction.fromFunction( ThrowingFunction.unchecked((ThrowingFunction<Long, Interval[], Exception>) id -> lookup.read(level, id))))
 					.toArray(InterruptibleFunction[]::new );
 
 

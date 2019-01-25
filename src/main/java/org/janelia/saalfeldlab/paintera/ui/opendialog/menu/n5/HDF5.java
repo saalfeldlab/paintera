@@ -10,9 +10,9 @@ import javafx.stage.FileChooser;
 import org.janelia.saalfeldlab.fx.ui.ObjectField;
 import org.janelia.saalfeldlab.n5.N5Writer;
 import org.janelia.saalfeldlab.n5.hdf5.N5HDF5Writer;
-import org.janelia.saalfeldlab.util.MakeUnchecked;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import pl.touk.throwing.ThrowingSupplier;
 
 import java.io.File;
 import java.lang.invoke.MethodHandles;
@@ -31,11 +31,11 @@ public class HDF5 {
 
 	private final StringProperty container = new SimpleStringProperty(USER_HOME);
 
-	private final ObjectProperty<Supplier<N5Writer>> writerSupplier = new SimpleObjectProperty<>(MakeUnchecked.supplier(() -> null));
+	private final ObjectProperty<Supplier<N5Writer>> writerSupplier = new SimpleObjectProperty<>(() -> null);
 
 	{
 		container.addListener((obs, oldv, newv) -> {
-			writerSupplier.set(MakeUnchecked.supplier(() -> new N5HDF5Writer(newv, 64, 64, 64)));
+			writerSupplier.set(ThrowingSupplier.unchecked(() -> new N5HDF5Writer(newv, 64, 64, 64)));
 		});
 	}
 
@@ -67,7 +67,7 @@ public class HDF5 {
 		GenericBackendDialogN5 d = new GenericBackendDialogN5(containerTextField, onClick, "N5", writerSupplier, propagationExecutor);
 		final String path = container.get();
 		if (path != null && new File(path).isFile())
-			writerSupplier.set(MakeUnchecked.supplier(() -> new N5HDF5Writer(path, 64, 64, 64)));
+			writerSupplier.set(ThrowingSupplier.unchecked(() -> new N5HDF5Writer(path, 64, 64, 64)));
 		return d;
 	}
 }

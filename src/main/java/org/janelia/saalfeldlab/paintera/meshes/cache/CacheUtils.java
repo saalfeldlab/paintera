@@ -33,9 +33,9 @@ import org.janelia.saalfeldlab.paintera.meshes.InterruptibleFunction;
 import org.janelia.saalfeldlab.paintera.meshes.InterruptibleFunctionAndCache;
 import org.janelia.saalfeldlab.paintera.meshes.ShapeKey;
 import org.janelia.saalfeldlab.util.HashWrapper;
-import org.janelia.saalfeldlab.util.MakeUnchecked;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import pl.touk.throwing.ThrowingFunction;
 
 public class CacheUtils
 {
@@ -529,7 +529,7 @@ public class CacheUtils
 	public static <T, R> InterruptibleFunction<T, R> fromCache(final Cache<T, R> cache, final Interruptible<T>
 			interruptible)
 	{
-		return InterruptibleFunction.fromFunctionAndInterruptible(MakeUnchecked.function(cache::get), interruptible);
+		return InterruptibleFunction.fromFunctionAndInterruptible(ThrowingFunction.unchecked(cache::get), interruptible);
 	}
 
 }
