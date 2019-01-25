@@ -41,8 +41,6 @@ sudo apt install openjfx
 
 ## Compile
 
-**Note**: The tests currently fail on Windows ([#183](https://github.com/saalfeldlab/paintera/issues/183)). Please add the `-DskipTests` to maven to skip the tests. The Paintera core developers have very limited access to Windows computers, so contributions that fix [#183](https://github.com/saalfeldlab/paintera/issues/183) are very welcome.
-
 To compile and install the Paintera jar into your local maven repository, run
 ```shell
 mvn clean install
