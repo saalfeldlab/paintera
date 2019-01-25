@@ -314,11 +314,16 @@ public class PainteraShowContainer extends Application {
 	/* *************************************************** */
 
 	private static boolean isLabelData(N5Reader reader, String group) throws IOException {
+
 		if (N5Helpers.isPainteraDataset(reader, group)) {
 			JsonObject painteraInfo = reader.getAttribute(group, N5Helpers.PAINTERA_DATA_KEY, JsonObject.class);
 			LOG.debug("Got paintera info {} for group {}", painteraInfo, group);
 			return painteraInfo.get("type").getAsString().equals("label");
 		}
+
+		if (N5Helpers.isMultiScale(reader, group))
+			return N5Types.isLabelMultisetType(reader, group) || isLabelData(reader, N5Helpers.getFinestLevelJoinWithGroup(reader, group));
+
 		return N5Types.isLabelMultisetType(reader, group) || reader.getDatasetAttributes(group).getDataType().equals(DataType.UINT64);
 	}
 
