@@ -104,7 +104,9 @@ public class N5Helpers
 	 */
 	public static boolean isPainteraDataset(final N5Reader n5, final String group) throws IOException
 	{
-		return n5.exists(group) && n5.listAttributes(group).containsKey(PAINTERA_DATA_KEY);
+		final boolean isPainteraDataset =  n5.exists(group) && n5.listAttributes(group).containsKey(PAINTERA_DATA_KEY);
+		LOG.debug("Is {}/{} Paintera dataset? {}", n5, group, isPainteraDataset);
+		return isPainteraDataset;
 	}
 
 	/**
