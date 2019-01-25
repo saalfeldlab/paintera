@@ -1,15 +1,5 @@
 package org.janelia.saalfeldlab.paintera;
 
-import java.io.File;
-import java.io.IOException;
-import java.lang.invoke.MethodHandles;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Optional;
-import java.util.function.Supplier;
-import java.util.regex.Pattern;
-import java.util.stream.IntStream;
-
 import bdv.viewer.ViewerOptions;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
@@ -20,26 +10,13 @@ import javafx.scene.input.KeyCode;
 import javafx.scene.input.MouseEvent;
 import javafx.stage.Stage;
 import javafx.stage.WindowEvent;
-import net.imglib2.Interval;
-import net.imglib2.Volatile;
-import net.imglib2.converter.ARGBColorConverter;
-import net.imglib2.realtransform.AffineTransform3D;
-import net.imglib2.type.NativeType;
-import net.imglib2.type.numeric.ARGBType;
-import net.imglib2.type.numeric.IntegerType;
-import net.imglib2.type.numeric.RealType;
 import org.janelia.saalfeldlab.fx.event.EventFX;
 import org.janelia.saalfeldlab.fx.event.KeyTracker;
 import org.janelia.saalfeldlab.fx.event.MouseTracker;
 import org.janelia.saalfeldlab.fx.ortho.GridConstraintsManager;
 import org.janelia.saalfeldlab.fx.ortho.OrthogonalViews;
-import org.janelia.saalfeldlab.labels.blocks.LabelBlockLookup;
-import org.janelia.saalfeldlab.n5.N5Reader;
 import org.janelia.saalfeldlab.n5.N5Writer;
 import org.janelia.saalfeldlab.paintera.SaveProject.ProjectUndefined;
-import org.janelia.saalfeldlab.paintera.composition.ARGBCompositeAlphaYCbCr;
-import org.janelia.saalfeldlab.paintera.composition.Composite;
-import org.janelia.saalfeldlab.paintera.composition.CompositeCopy;
 import org.janelia.saalfeldlab.paintera.config.CoordinateConfigNode;
 import org.janelia.saalfeldlab.paintera.config.NavigationConfigNode;
 import org.janelia.saalfeldlab.paintera.config.OrthoSliceConfig;
@@ -47,31 +24,26 @@ import org.janelia.saalfeldlab.paintera.config.ScreenScalesConfig;
 import org.janelia.saalfeldlab.paintera.control.CommitChanges;
 import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignmentState;
 import org.janelia.saalfeldlab.paintera.control.assignment.UnableToPersist;
-import org.janelia.saalfeldlab.paintera.control.lock.LockedSegmentsOnlyLocal;
-import org.janelia.saalfeldlab.paintera.control.selection.SelectedIds;
-import org.janelia.saalfeldlab.paintera.data.DataSource;
 import org.janelia.saalfeldlab.paintera.data.mask.exception.CannotPersist;
-import org.janelia.saalfeldlab.paintera.data.mask.Masks;
-import org.janelia.saalfeldlab.paintera.data.n5.CommitCanvasN5;
 import org.janelia.saalfeldlab.paintera.id.IdService;
-import org.janelia.saalfeldlab.paintera.meshes.InterruptibleFunction;
-import org.janelia.saalfeldlab.paintera.meshes.MeshManagerWithAssignmentForSegments;
 import org.janelia.saalfeldlab.paintera.serialization.GsonHelpers;
 import org.janelia.saalfeldlab.paintera.serialization.Properties;
 import org.janelia.saalfeldlab.paintera.state.HasSelectedIds;
-import org.janelia.saalfeldlab.paintera.state.LabelSourceState;
-import org.janelia.saalfeldlab.paintera.state.RawSourceState;
 import org.janelia.saalfeldlab.paintera.state.SourceState;
-import org.janelia.saalfeldlab.paintera.stream.HighlightingStreamConverter;
-import org.janelia.saalfeldlab.paintera.stream.ModalGoldenAngleSaturatedHighlightingARGBStream;
 import org.janelia.saalfeldlab.paintera.viewer3d.Viewer3DFX;
-import org.janelia.saalfeldlab.util.n5.N5Data;
 import org.janelia.saalfeldlab.util.n5.N5Helpers;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import picocli.CommandLine;
 import pl.touk.throwing.ThrowingFunction;
 import pl.touk.throwing.ThrowingSupplier;
+
+import java.io.File;
+import java.io.IOException;
+import java.lang.invoke.MethodHandles;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Optional;
 
 public class Paintera extends Application
 {
@@ -274,18 +246,6 @@ public class Paintera extends Application
 				});
 		properties.clean();
 
-		LOG.debug("Adding {} raw sources: {}", painteraArgs.rawSources().length, painteraArgs.rawSources());
-		for (final String source : painteraArgs.rawSources())
-		{
-			addRawFromString(baseView, source);
-		}
-
-		LOG.debug("Adding {} label sources: {}", painteraArgs.labelSources().length, painteraArgs.labelSources());
-		for (final String source : painteraArgs.labelSources())
-		{
-			addLabelFromString(baseView, source, projectDir);
-		}
-
 		properties.windowProperties.widthProperty.set(painteraArgs.width(properties.windowProperties.widthProperty.get
 				()));
 		properties.windowProperties.heightProperty.set(painteraArgs.height(properties.windowProperties.heightProperty
@@ -375,195 +335,12 @@ public class Paintera extends Application
 		view.grid().getBottomRight().setFocusTraversable(isTraversable);
 	}
 
-	public static Optional<? extends DataSource<?, ?>> addRawFromStringNoGenerics(
-			final PainteraBaseView pbv,
-			final String identifier,
-			final Composite<ARGBType, ARGBType> composite) throws UnableToAddSource
-	{
-		return addRawFromString(pbv, identifier, composite);
-	}
-
-	private static <D extends NativeType<D> & RealType<D>, T extends Volatile<D> & NativeType<T> & RealType<T>>
-	Optional<DataSource<D, T>> addRawFromString(
-			final PainteraBaseView pbv,
-			final String identifier) throws UnableToAddSource
-	{
-		return addRawFromString(pbv, identifier, new CompositeCopy<>());
-	}
-
-	private static <D extends NativeType<D> & RealType<D>, T extends Volatile<D> & NativeType<T> & RealType<T>>
-	Optional<DataSource<D, T>> addRawFromString(
-			final PainteraBaseView pbv,
-			final String identifier,
-			final Composite<ARGBType, ARGBType> composite) throws UnableToAddSource
-	{
-		if (!Pattern.matches("^[a-z]+://.+", identifier))
-		{
-			return addRawFromString(pbv, "file://" + identifier, composite);
-		}
-
-		if (Pattern.matches("^file://.+", identifier))
-		{
-			try
-			{
-				final String[] split   = identifier.replaceFirst("file://", "").split(":");
-				final N5Reader reader  = N5Helpers.n5Reader(split[0], 64, 64, 64);
-				final String   dataset = split[1];
-				final String   name    = N5Helpers.lastSegmentOfDatasetPath(dataset);
-
-				final DataSource<D, T> source = N5Data.openRawAsSource(
-						reader,
-						dataset,
-						N5Helpers.getTransform(reader, dataset),
-						pbv.getGlobalCache(),
-						0,
-						name
-				                                                         );
-
-				final RawSourceState<D, T> state = new RawSourceState<>(
-						source,
-						new ARGBColorConverter.Imp1<>(),
-						composite,
-						name
-				);
-
-				pbv.addRawSource(state);
-				return Optional.of(state.getDataSource());
-			} catch (final Exception e)
-			{
-				throw e instanceof UnableToAddSource ? (UnableToAddSource) e : new UnableToAddSource(e);
-			}
-		}
-
-		LOG.debug("Unable to generate raw source from {}", identifier);
-		return Optional.empty();
-	}
-
-	public static void addLabelFromStringNoGenerics(
-			final PainteraBaseView pbv,
-			final String identifier,
-			final String projectDirectory,
-			final GetAssignment assignmentGenerator,
-			GetN5IDService idServiceGenerator) throws UnableToAddSource
-	{
-		addLabelFromString(pbv, identifier, projectDirectory, assignmentGenerator, idServiceGenerator);
-	}
-
-	private static <D extends NativeType<D> & IntegerType<D>, T extends Volatile<D> & NativeType<T>> void
-	addLabelFromString(
-			final PainteraBaseView pbv,
-			final String identifier,
-			final String projectDirectory) throws UnableToAddSource
-	{
-		addLabelFromString(pbv, identifier, projectDirectory, N5Helpers::assignments, N5Helpers::idService);
-	}
-
-	private static <D extends NativeType<D> & IntegerType<D>, T extends Volatile<D> & NativeType<T>> void
-	addLabelFromString(
-			final PainteraBaseView pbv,
-			final String identifier,
-			final String projectDirectory,
-			final GetAssignment assignmentGenerator,
-			final GetN5IDService idServiceGenerator) throws UnableToAddSource
-	{
-		if (!Pattern.matches("^[a-z]+://.+", identifier))
-		{
-			addLabelFromString(
-					pbv,
-					"file://" + identifier,
-					projectDirectory,
-					assignmentGenerator,
-					idServiceGenerator);
-			return;
-		}
-
-		if (Pattern.matches("^file://.+", identifier))
-		{
-			try
-			{
-				final String[] split   = identifier.replaceFirst("file://", "").split(":");
-				final N5Writer n5      = N5Helpers.n5Writer(split[0], 64, 64, 64);
-				final String   dataset = split[1];
-				LOG.debug("Adding label dataset={} dataset={}", split[0], dataset);
-				final double[]                       resolution     = N5Helpers.getResolution(n5, dataset);
-				final double[]                       offset         = N5Helpers.getOffset(n5, dataset);
-				final AffineTransform3D              transform      = N5Helpers.fromResolutionAndOffset(
-						resolution,
-						offset
-				                                                                                       );
-				final Supplier<String>               nextCanvasDir  = Masks.canvasTmpDirDirectorySupplier(
-						projectDirectory);
-				final String                         name           = N5Helpers.lastSegmentOfDatasetPath(dataset);
-				final SelectedIds                    selectedIds    = new SelectedIds();
-				final IdService                      idService      = idServiceGenerator.getIdService(n5, dataset);
-				final FragmentSegmentAssignmentState assignment     = assignmentGenerator.getAssignment(n5, dataset);
-				final LockedSegmentsOnlyLocal        lockedSegments = new LockedSegmentsOnlyLocal(locked -> {
-				});
-				final ModalGoldenAngleSaturatedHighlightingARGBStream stream = new
-						ModalGoldenAngleSaturatedHighlightingARGBStream(
-						selectedIds,
-						assignment,
-						lockedSegments
-				);
-				final DataSource<D, T> dataSource = N5Data.openAsLabelSource(
-						n5,
-						dataset,
-						transform,
-						pbv.getGlobalCache(),
-						0,
-						name
-				                                                               );
-
-				final DataSource<D, T> maskedSource = Masks.mask(
-						dataSource,
-						nextCanvasDir.get(),
-						nextCanvasDir,
-						new CommitCanvasN5(n5, dataset),
-						pbv.getPropagationQueue()
-				                                                );
-
-
-				final LabelBlockLookup lookup = N5Helpers.getLabelBlockLookup(n5, dataset);
-				InterruptibleFunction<Long, Interval[]>[] blockLoaders = IntStream
-						.range(0, maskedSource.getNumMipmapLevels())
-						.mapToObj(level -> InterruptibleFunction.fromFunction( ThrowingFunction.unchecked( (ThrowingFunction<Long, Interval[], Exception>) id -> lookup.read(level, id))))
-						.toArray(InterruptibleFunction[]::new);
-				final MeshManagerWithAssignmentForSegments meshManager = MeshManagerWithAssignmentForSegments.fromBlockLookup(
-						maskedSource,
-						selectedIds,
-						assignment,
-						stream,
-						pbv.viewer3D().meshesGroup(),
-						blockLoaders,
-						pbv.getGlobalCache()::createNewCache,
-						pbv.getMeshManagerExecutorService(),
-						pbv.getMeshWorkerExecutorService());
-
-				final LabelSourceState<D, T> state = new LabelSourceState<>(
-						maskedSource,
-						HighlightingStreamConverter.forType(stream, dataSource.getType()),
-						new ARGBCompositeAlphaYCbCr(),
-						name,
-						assignment,
-						lockedSegments,
-						idService,
-						selectedIds,
-						meshManager,
-						lookup);
-				pbv.addLabelSource(state);
-			} catch (final Exception e)
-			{
-				throw e instanceof UnableToAddSource ? (UnableToAddSource) e : new UnableToAddSource(e);
-			}
-		}
-	}
-
-	public static Optional<JsonObject> loadPropertiesIfPresent(final String root)
+	private static Optional<JsonObject> loadPropertiesIfPresent(final String root)
 	{
 		return loadPropertiesIfPresent(root, new GsonBuilder());
 	}
 
-	public static Optional<JsonObject> loadPropertiesIfPresent(final String root, final GsonBuilder builder)
+	private static Optional<JsonObject> loadPropertiesIfPresent(final String root, final GsonBuilder builder)
 	{
 		try
 		{
@@ -577,21 +354,6 @@ public class Paintera extends Application
 		{
 			return Optional.empty();
 		}
-	}
-
-	public static interface GetAssignment
-	{
-
-		public FragmentSegmentAssignmentState getAssignment(final N5Writer writer, final String dataset)
-		throws IOException;
-
-	}
-
-	public static interface GetN5IDService
-	{
-
-		public IdService getIdService(final N5Writer writer, final String dataset) throws IOException, N5Helpers.MaxIDNotSpecified;
-
 	}
 
 }
