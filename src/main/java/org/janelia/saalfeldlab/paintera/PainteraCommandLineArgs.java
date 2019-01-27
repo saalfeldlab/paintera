@@ -34,14 +34,6 @@ public class PainteraCommandLineArgs implements Callable<Boolean>
 	@Option(names = {"-h", "--help"}, usageHelp = true, description = "Display this help message.")
 	private boolean helpRequested;
 
-	@Option(names = {"--raw-source"}, paramLabel = "RAW_SOURCE", required = false, description = "Open raw source at " +
-			"start-up. Has to be [file://]/path/to/<n5-or-hdf5>:path/to/dataset")
-	private String[] rawSources;
-
-	@Option(names = {"--label-source"}, paramLabel = "LABEL_SOURCE", required = false, description = "Open label " +
-			"source at start-up. Has to be [file://]/path/to/<n5-or-hdf5>:path/to/dataset")
-	private String[] labelSources;
-
 	@Option(names = "--num-screen-scales", paramLabel = "NUM_SCREEN_SCALES", required = false, description = "Number " +
 			"of screen scales, defaults to 3. If no scale option is specified, scales default to [1.0, 0.5, 0.25, 0.125, 0.0625].")
 	private Integer numScreenScales;
@@ -82,8 +74,6 @@ public class PainteraCommandLineArgs implements Callable<Boolean>
 	{
 		width = width <= 0 ? -1 : width;
 		height = height <= 0 ? -1 : height;
-		rawSources = rawSources == null ? new String[] {} : rawSources;
-		labelSources = labelSources == null ? new String[] {} : labelSources;
 
 		screenScalesProvided = screenScales != null || numScreenScales != null || highestScreenScale != null || screenScaleFactor != null;
 
@@ -130,16 +120,6 @@ public class PainteraCommandLineArgs implements Callable<Boolean>
 	public int height(final int defaultHeight)
 	{
 		return height <= 0 ? defaultHeight : height;
-	}
-
-	public String[] rawSources()
-	{
-		return rawSources.clone();
-	}
-
-	public String[] labelSources()
-	{
-		return labelSources.clone();
 	}
 
 	public String project()
