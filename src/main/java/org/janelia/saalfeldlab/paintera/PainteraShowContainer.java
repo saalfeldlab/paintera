@@ -88,6 +88,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.Callable;
@@ -108,6 +109,10 @@ public class PainteraShowContainer extends Application {
 	private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
 	private static final String VALUE_RANGE_KEY = "value_range";
+
+	private static final String MIN_KEY = "min";
+
+	private static final String MAX_KEY = "max";
 
 	@Override
 	public void start(Stage primaryStage) throws Exception {
@@ -356,20 +361,30 @@ public class PainteraShowContainer extends Application {
 		RawSourceState<T, V> state = new RawSourceState<>(source, conv, new CompositeCopy<>(), source.getName());
 
 		Set<String> attrs = rawMeta.writer().listAttributes(rawMeta.dataset()).keySet();
+
+		final T t = source.getDataType();
+		if (t instanceof IntegerType<?>) {
+			conv.minProperty().set(t.getMinValue());
+			conv.maxProperty().set(t.getMaxValue());
+		} else {
+			LOG.debug("Setting range to [0.0, 1.0] for {}", rawMeta);
+			conv.minProperty().set(0.0);
+			conv.maxProperty().set(1.0);
+		}
+
+		if (attrs.contains(MIN_KEY)) {
+			conv.minProperty().set(rawMeta.writer().getAttribute(rawMeta.dataset(), MIN_KEY, double.class));
+		}
+
+		if (attrs.contains(MAX_KEY)) {
+			conv.maxProperty().set(rawMeta.writer().getAttribute(rawMeta.dataset(), MAX_KEY, double.class));
+		}
+
 		if (attrs.contains(VALUE_RANGE_KEY)) {
+			LOG.warn("Using deprecated attribute {}", VALUE_RANGE_KEY);
 			final double[] valueRange = rawMeta.writer().getAttribute(rawMeta.dataset(), VALUE_RANGE_KEY, double[].class);
 			conv.minProperty().set(valueRange[0]);
 			conv.maxProperty().set(valueRange[1]);
-		} else {
-			final T t = source.getDataType();
-			if (t instanceof IntegerType<?>) {
-				conv.minProperty().set(t.getMinValue());
-				conv.maxProperty().set(t.getMaxValue());
-			} else {
-				LOG.debug("Setting range to [0.0, 1.0] for {}", rawMeta);
-				conv.minProperty().set(0.0);
-				conv.maxProperty().set(1.0);
-			}
 		}
 
 		viewer.addState(state);
@@ -522,27 +537,52 @@ public class PainteraShowContainer extends Application {
 					new ARGBCompositeAlphaAdd(),
 					source.getName());
 
+			T t = source.getDataType().get(0);
+			if (t instanceof IntegerType<?>) {
+				for (int channel = 0; channel < conv.numChannels(); ++channel) {
+					conv.minProperty(channel).set(t.getMinValue());
+					conv.maxProperty(channel).set(t.getMaxValue());
+				}
+			} else {
+				for (int channel = 0; channel < conv.numChannels(); ++channel) {
+					conv.minProperty(channel).set(0.0);
+					conv.maxProperty(channel).set(1.0);
+				}
+			}
 
-			Set<String> attrs = meta.writer().listAttributes(meta.dataset()).keySet();
-			if (attrs.contains(VALUE_RANGE_KEY)) {
+			Map<String, Class<?>> attrs = meta.writer().listAttributes(meta.dataset());
+
+			final int cminf = (int) cmin;
+
+			if (attrs.containsKey(MIN_KEY)) {
+				Object min = meta.writer().getAttribute(meta.dataset(), MIN_KEY, attrs.get(MIN_KEY));
+
+				if (min instanceof Double)
+					IntStream.range(0, conv.numChannels()).mapToObj(conv::minProperty).forEach(p -> p.set((Double)min));
+
+				else if (min instanceof double[]) {
+					IntStream.range(0, conv.numChannels()).forEach(c -> conv.minProperty(c).set(((double[])min)[cminf + c]));
+				}
+			}
+
+			if (attrs.containsKey(MAX_KEY)) {
+				Object max = meta.writer().getAttribute(meta.dataset(), MAX_KEY, attrs.get(MAX_KEY));
+
+				if (max instanceof Double)
+					IntStream.range(0, conv.numChannels()).mapToObj(conv::maxProperty).forEach(p -> p.set((Double)max));
+
+				else if (max instanceof double[]) {
+					IntStream.range(0, conv.numChannels()).forEach(c -> conv.maxProperty(c).set(((double[])max)[cminf + c]));
+				}
+			}
+
+			if (attrs.containsKey(VALUE_RANGE_KEY)) {
+				LOG.warn("Using deprecated attribute {}", VALUE_RANGE_KEY);
 				final double[] valueRange = meta.writer().getAttribute(meta.dataset(), VALUE_RANGE_KEY, double[].class);
 				final double min = valueRange[0];
 				final double max = valueRange[1];
 				IntStream.range(0, conv.numChannels()).mapToObj(conv::minProperty).forEach(p -> p.set(min));
 				IntStream.range(0, conv.numChannels()).mapToObj(conv::maxProperty).forEach(p -> p.set(max));
-			} else {
-				T t = source.getDataType().get(0);
-				if (t instanceof IntegerType<?>) {
-					for (int channel = 0; channel < conv.numChannels(); ++channel) {
-						conv.minProperty(channel).set(t.getMinValue());
-						conv.maxProperty(channel).set(t.getMaxValue());
-					}
-				} else {
-					for (int channel = 0; channel < conv.numChannels(); ++channel) {
-						conv.minProperty(channel).set(0.0);
-						conv.maxProperty(channel).set(1.0);
-					}
-				}
 			}
 			viewer.addState(state);
 		}
@@ -578,8 +618,30 @@ public class PainteraShowContainer extends Application {
 					source.getName());
 
 
-			Set<String> attrs = meta.writer().listAttributes(meta.dataset()).keySet();
-			if (attrs.contains(VALUE_RANGE_KEY)) {
+			Map<String, Class<?>> attrs = meta.writer().listAttributes(meta.dataset());
+
+			if (attrs.containsKey(MIN_KEY)) {
+				Object min = meta.writer().getAttribute(meta.dataset(), MIN_KEY, attrs.get(MIN_KEY));
+
+				if (min instanceof Double)
+					IntStream.range(0, conv.numChannels()).mapToObj(conv::minProperty).forEach(p -> p.set((Double)min));
+
+				else if (min instanceof double[]) {
+					IntStream.range(0, conv.numChannels()).forEach(c -> conv.minProperty(c).set(((double[])min)[(int) channels[c]]));
+				}
+			}
+
+			if (attrs.containsKey(MAX_KEY)) {
+				Object max = meta.writer().getAttribute(meta.dataset(), MAX_KEY, attrs.get(MAX_KEY));
+
+				if (max instanceof Double)
+					IntStream.range(0, conv.numChannels()).mapToObj(conv::maxProperty).forEach(p -> p.set((Double)max));
+
+				else if (max instanceof double[]) {
+					IntStream.range(0, conv.numChannels()).forEach(c -> conv.maxProperty(c).set(((double[])max)[(int) channels[c]]));
+				}
+			}
+			if (attrs.containsKey(VALUE_RANGE_KEY)) {
 				final double[] valueRange = meta.writer().getAttribute(meta.dataset(), VALUE_RANGE_KEY, double[].class);
 				final double min = valueRange[0];
 				final double max = valueRange[1];
