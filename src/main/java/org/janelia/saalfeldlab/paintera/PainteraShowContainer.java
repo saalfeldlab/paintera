@@ -202,6 +202,7 @@ public class PainteraShowContainer extends Application {
 
 
 		final Scene scene = new Scene(viewer.paneWithStatus.getPane(), clArgs.width, clArgs.height);
+		viewer.paneWithStatus.screenScalesConfigNode().screenScalesProperty().addListener((obs, oldv, newv) -> viewer.baseView.orthogonalViews().setScreenScales(newv.getScalesCopy()));
 		viewer.keyTracker.installInto(scene);
 		primaryStage.setScene(scene);
 		primaryStage.show();
