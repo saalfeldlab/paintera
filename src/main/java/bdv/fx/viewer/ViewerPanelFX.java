@@ -394,7 +394,7 @@ public class ViewerPanelFX
 		state.setViewerTransform(transform);
 		for (final TransformListener<AffineTransform3D> l : transformListeners)
 			l.transformChanged(viewerTransform);
-		renderingModeController.transformChanged(transform);
+		renderingModeController.transformChanged();
 		requestRepaint();
 	}
 
@@ -556,6 +556,11 @@ public class ViewerPanelFX
 	public OverlayPane<?> getDisplay()
 	{
 		return this.overlayPane;
+	}
+
+	public RenderingModeController getRenderingModeController()
+	{
+		return renderingModeController;
 	}
 
 	/**

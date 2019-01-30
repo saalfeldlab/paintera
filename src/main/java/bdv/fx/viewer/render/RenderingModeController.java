@@ -9,10 +9,7 @@ import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import net.imglib2.realtransform.AffineTransform3D;
-import net.imglib2.ui.TransformListener;
-
-public class RenderingModeController implements TransformListener<AffineTransform3D> {
+public class RenderingModeController {
 
 	private static Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
@@ -58,14 +55,26 @@ public class RenderingModeController implements TransformListener<AffineTransfor
 		}
 	}
 
-	@Override
-	public void transformChanged(final AffineTransform3D transform)
+	public void transformChanged()
 	{
 		if (modeSwitchTimerTask != null)
 			modeSwitchTimerTask.cancel();
 
 		lastTransformChangedTime = System.currentTimeMillis();
 		InvokeOnJavaFXApplicationThread.invoke(() -> setMode(RenderingMode.SINGLE_TILE));
+	}
+
+	public void paintingStarted()
+	{
+		if (mode == RenderingMode.SINGLE_TILE) {
+			if (modeSwitchTimerTask != null)
+				modeSwitchTimerTask.cancel();
+
+			InvokeOnJavaFXApplicationThread.invoke(() -> {
+				setMode(RenderingMode.MULTI_TILE);
+				renderUnit.requestRepaint();
+			});
+		}
 	}
 
 	public void receivedRenderedImage(final int screenScaleIndex)

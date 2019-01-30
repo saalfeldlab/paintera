@@ -171,6 +171,7 @@ public class PaintClickOrDrag implements InstallAndRemove<Node> {
 					this.fillLabel = 1;
 					this.interval = null;
 					this.paintIntoThis = source;
+					viewer.getRenderingModeController().paintingStarted();
 					position.update(event);
 					paint(position.x, position.y);
 				}
