@@ -585,11 +585,8 @@ public class ViewerPanelFX
 
 			final ReadOnlyObjectProperty<Image> image = grid.imagePropertyAt(i);
 			image.addListener((obs, oldv, newv) -> {
-				if (newv == null) {
-					canvasPane.getCanvas().getGraphicsContext2D().setFill(Color.BLACK);
-					canvasPane.getCanvas().getGraphicsContext2D().fillRect(cellMin[0], cellMin[1], cellDims[0], cellDims[1]);
-				} else {
-					final int[] padding = imageDisplayGrid.get().getPadding();
+				if (newv != null) {
+					final int[] padding = grid.getPadding();
 					canvasPane.getCanvas().getGraphicsContext2D().drawImage(
 						newv, // src
 						padding[0], padding[1], // src X, Y
