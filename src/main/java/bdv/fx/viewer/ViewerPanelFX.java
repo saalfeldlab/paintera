@@ -228,18 +228,16 @@ public class ViewerPanelFX
 				cacheControl,
 				options.getTargetRenderNanos(),
 				renderingExecutorService);
-		this.renderUnit.addUpdateListener(() ->
-		{
-			this.imageDisplayGrid.set(renderUnit.getImagePropertyGrid());
-		});
-		this.imageDisplayGrid.addListener((obs, oldv, newv) -> {synchronized(renderUnit) {setImageListeners(canvasPane.getCanvas(), newv);}});
+
+		this.renderingModeController = new RenderingModeController(renderUnit);
+
+		this.renderUnit.addUpdateListener(() -> {this.imageDisplayGrid.set(renderUnit.getImagePropertyGrid());});
+		this.imageDisplayGrid.addListener((obs, oldv, newv) -> {synchronized(renderUnit) {setImageListeners(canvasPane.getCanvas(), newv, renderingModeController);}});
 		this.widthProperty().addListener((obs, oldv, newv) -> this.renderUnit.setDimensions((long)getWidth(), (long)getHeight()));
 		this.heightProperty().addListener((obs, oldv, newv) -> this.renderUnit.setDimensions((long)getWidth(), (long)getHeight()));
 		setWidth(options.getWidth());
 		setHeight(options.getHeight());
 		setAllSources(sources);
-
-		this.renderingModeController = new RenderingModeController(renderUnit);
 	}
 
 	/**
@@ -577,7 +575,7 @@ public class ViewerPanelFX
 		return range;
 	}
 
-	private static void setImageListeners(final Canvas canvas, final RenderUnit.ImagePropertyGrid grid)
+	private static void setImageListeners(final Canvas canvas, final RenderUnit.ImagePropertyGrid grid, final RenderingModeController renderingModeController)
 	{
 		if (grid == null)
 			return;
@@ -590,14 +588,15 @@ public class ViewerPanelFX
 			cellGrid.getCellGridPositionFlat(i, gridPos);
 			cellGrid.getCellDimensions(gridPos, cellMin, cellDims);
 
-			final ReadOnlyObjectProperty<Image> image = grid.imagePropertyAt(i);
-			image.addListener((obs, oldv, newv) -> {
-				if (newv != null) {
+			final ReadOnlyObjectProperty<RenderUnit.RenderedImage> renderedImage = grid.renderedImagePropertyAt(i);
+			renderedImage.addListener((obs, oldv, newv) -> {
+				if (newv != null && newv.getImage() != null) {
+					renderingModeController.receivedRenderedImage(newv.getScreenScaleIndex());
 					final int[] padding = grid.getPadding();
 					canvas.getGraphicsContext2D().drawImage(
-						newv, // src
+						newv.getImage(), // src
 						padding[0], padding[1], // src X, Y
-						newv.getWidth() - 2 * padding[0], newv.getHeight() - 2 * padding[1], // src width, height
+						newv.getImage().getWidth() - 2 * padding[0], newv.getImage().getHeight() - 2 * padding[1], // src width, height
 						cellMin[0], cellMin[1], // dst X, Y
 						cellDims[0], cellDims[1] // dst width, height
 					);

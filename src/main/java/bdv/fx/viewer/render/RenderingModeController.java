@@ -21,12 +21,13 @@ public class RenderingModeController implements TransformListener<AffineTransfor
 		SINGLE_TILE
 	}
 
-	private static final int[] DEFAULT_TILE_SIZE = {250, 250};
+	private static final int[] DEFAULT_TILE_SIZE = {100, 100};
+	private static final long MODE_SWITCH_DELAY = 100;
 
 	private final RenderUnit renderUnit;
 	private RenderingMode mode;
 
-	private final int modeSwitchDelay = 250;
+	private long lastTransformChangedTime;
 	private final Timer modeSwitchTimer;
 	private TimerTask modeSwitchTimerTask;
 
@@ -44,6 +45,7 @@ public class RenderingModeController implements TransformListener<AffineTransfor
 
 		this.mode = mode;
 		LOG.debug("Switching rendering mode to " + mode);
+
 		switch (mode) {
 		case MULTI_TILE:
 			this.renderUnit.setBlockSize(DEFAULT_TILE_SIZE[0], DEFAULT_TILE_SIZE[1]);
@@ -57,21 +59,30 @@ public class RenderingModeController implements TransformListener<AffineTransfor
 	}
 
 	@Override
-	public void transformChanged(AffineTransform3D transform)
+	public void transformChanged(final AffineTransform3D transform)
 	{
-		InvokeOnJavaFXApplicationThread.invoke(() -> setMode(RenderingMode.SINGLE_TILE));
-
 		if (modeSwitchTimerTask != null)
 			modeSwitchTimerTask.cancel();
 
-		modeSwitchTimerTask = new TimerTask() {
+		lastTransformChangedTime = System.currentTimeMillis();
+		InvokeOnJavaFXApplicationThread.invoke(() -> setMode(RenderingMode.SINGLE_TILE));
+	}
 
-			@Override
-			public void run() {
+	public void receivedRenderedImage(final int screenScaleIndex)
+	{
+		if (mode == RenderingMode.SINGLE_TILE && screenScaleIndex == 0) {
+			final long currentTime = System.currentTimeMillis();
+			if (currentTime - lastTransformChangedTime >= MODE_SWITCH_DELAY) {
 				InvokeOnJavaFXApplicationThread.invoke(() -> setMode(RenderingMode.MULTI_TILE));
+			} else {
+				modeSwitchTimerTask = new TimerTask() {
+					@Override
+					public void run() {
+						InvokeOnJavaFXApplicationThread.invoke(() -> setMode(RenderingMode.MULTI_TILE));
+					}
+				};
+				modeSwitchTimer.schedule(modeSwitchTimerTask, MODE_SWITCH_DELAY - Math.max(currentTime - lastTransformChangedTime, 0));
 			}
-		};
-
-		modeSwitchTimer.schedule(modeSwitchTimerTask, modeSwitchDelay);
+		}
 	}
 }

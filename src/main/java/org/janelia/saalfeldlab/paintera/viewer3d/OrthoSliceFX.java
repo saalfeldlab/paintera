@@ -1,6 +1,7 @@
 package org.janelia.saalfeldlab.paintera.viewer3d;
 
 import bdv.fx.viewer.ViewerPanelFX;
+import bdv.fx.viewer.render.RenderUnit;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.ReadOnlyObjectProperty;
 import javafx.beans.property.SimpleBooleanProperty;
@@ -111,13 +112,13 @@ public class OrthoSliceFX
 				final double[] meshSizeToTextureSizeRatio = new double[2];
 				Arrays.setAll(meshSizeToTextureSizeRatio, d -> (double) (max[d] - min[d]) / dims[d]);
 				final int[] paddedTextureSize = new int[2];
-				final ReadOnlyObjectProperty<Image> display = newv.imagePropertyAt(meshIndex);
-				display.addListener((obsIm, oldvIm, newvIm) -> {
-					if (newvIm != null) {
-						paddedTextureSize[0] = (int) newvIm.getWidth();
-						paddedTextureSize[1] = (int) newvIm.getHeight();
+				final ReadOnlyObjectProperty<RenderUnit.RenderedImage> renderedImage = newv.renderedImagePropertyAt(meshIndex);
+				renderedImage.addListener((obsIm, oldvIm, newvIm) -> {
+					if (newvIm != null && newvIm.getImage() != null) {
+						paddedTextureSize[0] = (int) newvIm.getImage().getWidth();
+						paddedTextureSize[1] = (int) newvIm.getImage().getHeight();
 						mesh.updateTexCoords(paddedTextureSize, padding, meshSizeToTextureSizeRatio);
-						material.setSelfIlluminationMap(newvIm);
+						material.setSelfIlluminationMap(newvIm.getImage());
 					}
 				});
 				newMeshViews.add(mv);
