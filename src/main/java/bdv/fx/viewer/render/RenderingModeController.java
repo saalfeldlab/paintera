@@ -5,6 +5,7 @@ import java.util.Timer;
 import java.util.TimerTask;
 
 import org.apache.commons.lang.NotImplementedException;
+import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -36,7 +37,7 @@ public class RenderingModeController implements TransformListener<AffineTransfor
 		setMode(RenderingMode.MULTI_TILE);
 	}
 
-	public void setMode(final RenderingMode mode)
+	private void setMode(final RenderingMode mode)
 	{
 		if (mode == this.mode)
 			return;
@@ -58,7 +59,7 @@ public class RenderingModeController implements TransformListener<AffineTransfor
 	@Override
 	public void transformChanged(AffineTransform3D transform)
 	{
-		setMode(RenderingMode.SINGLE_TILE);
+		InvokeOnJavaFXApplicationThread.invoke(() -> setMode(RenderingMode.SINGLE_TILE));
 
 		if (modeSwitchTimerTask != null)
 			modeSwitchTimerTask.cancel();
@@ -67,7 +68,7 @@ public class RenderingModeController implements TransformListener<AffineTransfor
 
 			@Override
 			public void run() {
-				setMode(RenderingMode.MULTI_TILE);
+				InvokeOnJavaFXApplicationThread.invoke(() -> setMode(RenderingMode.MULTI_TILE));
 			}
 		};
 

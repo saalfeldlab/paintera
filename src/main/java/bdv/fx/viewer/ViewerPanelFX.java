@@ -48,6 +48,7 @@ import javafx.collections.FXCollections;
 import javafx.collections.ListChangeListener;
 import javafx.collections.ObservableList;
 import javafx.scene.Node;
+import javafx.scene.canvas.Canvas;
 import javafx.scene.image.Image;
 import javafx.scene.layout.StackPane;
 import javafx.scene.paint.Color;
@@ -99,9 +100,9 @@ public class ViewerPanelFX
 
 	private final RenderUnit renderUnit;
 
-	private final SingleChildStackPane display = new SingleChildStackPane(1, 1);
+	private final CanvasPane canvasPane = new CanvasPane(1, 1);
 
-	private final OverlayPane overlayPane = new OverlayPane();
+	private final OverlayPane<?> overlayPane = new OverlayPane<>();
 
 	private final ViewerState state;
 	private final AffineTransform3D viewerTransform;
@@ -201,7 +202,7 @@ public class ViewerPanelFX
 			final Function<Source<?>, Interpolation> interpolation)
 	{
 		super();
-		super.getChildren().setAll(display, overlayPane);
+		super.getChildren().setAll(canvasPane, overlayPane);
 		this.renderingExecutorService = Executors.newFixedThreadPool(optional.values.getNumRenderingThreads(), new RenderThreadFactory());
 		options = optional.values;
 
@@ -231,7 +232,7 @@ public class ViewerPanelFX
 		{
 			this.imageDisplayGrid.set(renderUnit.getImagePropertyGrid());
 		});
-		this.imageDisplayGrid.addListener((obs, oldv, newv) -> {synchronized(renderUnit) {this.display.setChild(makeCanvas(newv));}});
+		this.imageDisplayGrid.addListener((obs, oldv, newv) -> {synchronized(renderUnit) {setImageListeners(canvasPane.getCanvas(), newv);}});
 		this.widthProperty().addListener((obs, oldv, newv) -> this.renderUnit.setDimensions((long)getWidth(), (long)getHeight()));
 		this.heightProperty().addListener((obs, oldv, newv) -> this.renderUnit.setDimensions((long)getWidth(), (long)getHeight()));
 		setWidth(options.getWidth());
@@ -554,7 +555,7 @@ public class ViewerPanelFX
 	 *
 	 * @return {@link OverlayPane} used for drawing overlays without re-rendering 2D cross-sections
 	 */
-	public OverlayPane getDisplay()
+	public OverlayPane<?> getDisplay()
 	{
 		return this.overlayPane;
 	}
@@ -576,11 +577,10 @@ public class ViewerPanelFX
 		return range;
 	}
 
-	private CanvasPane makeCanvas(final RenderUnit.ImagePropertyGrid grid)
+	private static void setImageListeners(final Canvas canvas, final RenderUnit.ImagePropertyGrid grid)
 	{
-		final CanvasPane canvasPane = new CanvasPane(1, 1);
 		if (grid == null)
-			return canvasPane;
+			return;
 
 		final CellGrid cellGrid = grid.getGrid();
 		final long[] gridPos = new long[2];
@@ -594,7 +594,7 @@ public class ViewerPanelFX
 			image.addListener((obs, oldv, newv) -> {
 				if (newv != null) {
 					final int[] padding = grid.getPadding();
-					canvasPane.getCanvas().getGraphicsContext2D().drawImage(
+					canvas.getGraphicsContext2D().drawImage(
 						newv, // src
 						padding[0], padding[1], // src X, Y
 						newv.getWidth() - 2 * padding[0], newv.getHeight() - 2 * padding[1], // src width, height
@@ -604,7 +604,6 @@ public class ViewerPanelFX
 				}
 			});
 		}
-		return canvasPane;
 	}
 
 }
