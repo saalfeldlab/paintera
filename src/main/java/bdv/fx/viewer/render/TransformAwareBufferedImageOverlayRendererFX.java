@@ -48,6 +48,8 @@ public class TransformAwareBufferedImageOverlayRendererFX
 
 	private static Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
+	private static final int FULL_OPACITY = 0xff << 24;
+
 	protected AffineTransform3D pendingTransform;
 
 	protected AffineTransform3D paintedTransform;
@@ -115,7 +117,7 @@ public class TransformAwareBufferedImageOverlayRendererFX
 				 * https://docs.oracle.com/javase/8/javafx/api/javafx/scene/effect/BlendMode.html
 				 */
 				for (final ARGBType px : sourceImage.asArrayImg())
-					px.set(px.get() | (0xff << 24));
+					px.set(px.get() | FULL_OPACITY);
 
 				sourceImage.setPixelsDirty();
 				g.accept(sourceImage);
