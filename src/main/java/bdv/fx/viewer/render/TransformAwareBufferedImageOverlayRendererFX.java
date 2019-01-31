@@ -35,6 +35,7 @@ import java.util.function.Consumer;
 
 import javafx.scene.image.Image;
 import net.imglib2.realtransform.AffineTransform3D;
+import net.imglib2.type.numeric.ARGBType;
 import net.imglib2.ui.TransformListener;
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread;
 import org.slf4j.Logger;
@@ -46,6 +47,8 @@ public class TransformAwareBufferedImageOverlayRendererFX
 {
 
 	private static Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
+
+	private static final int FULL_OPACITY = 0xff << 24;
 
 	protected AffineTransform3D pendingTransform;
 
@@ -99,6 +102,23 @@ public class TransformAwareBufferedImageOverlayRendererFX
 
 				LOG.trace("Setting image to {}", sourceImage);
 				g.accept(null);
+
+				/*
+				 * NOTE: need to make the final image fully opaque to ensure that it is properly drawn on the screen later on.
+				 * It is only necessary because existing BlendMode options in JavaFX always perform some kind of blending with old contents of the displayed component.
+				 *
+				 * Ideally, we would use BlendMode.SRC if it was available (that would overwrite the destination with the source regardless of alpha).
+				 * See discussion about possibility of adding this mode in the future versions and more information here:
+				 *
+				 * https://bugs.openjdk.java.net/browse/JDK-8092156
+				 *
+				 * https://books.google.com/books?id=UxM2iXiFqbMC&pg=PA97&lpg=PA97&dq=Porter-Duff+%22source+over+destination%22&source=bl&ots=hYj5U2X5Lk&sig=ACfU3U095X67T4FghqCpgYrAhEWbNtd_xQ&hl=en&sa=X&ved=2ahUKEwjyg4rRufXfAhXvuFkKHfK8BysQ6AEwAnoECAcQAQ#v=snippet&q=%22overwrites%20the%20destination%20with%20the%20source%2C%20regardless%20of%20alpha%22&f=false
+				 *
+				 * https://docs.oracle.com/javase/8/javafx/api/javafx/scene/effect/BlendMode.html
+				 */
+				for (final ARGBType px : sourceImage.asArrayImg())
+					px.set(px.get() | FULL_OPACITY);
+
 				sourceImage.setPixelsDirty();
 				g.accept(sourceImage);
 				// TODO add countdown latch to wait for setImage to return

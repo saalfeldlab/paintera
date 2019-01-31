@@ -2,7 +2,6 @@ package org.janelia.saalfeldlab.paintera.viewer3d;
 
 import java.lang.invoke.MethodHandles;
 
-import javafx.collections.ObservableFloatArray;
 import javafx.scene.shape.ObservableFaceArray;
 import javafx.scene.shape.TriangleMesh;
 import javafx.scene.shape.VertexFormat;
@@ -23,27 +22,46 @@ public class OrthoSliceMeshFX extends TriangleMesh
 			0, 1, 2, 0, 2, 3
 	};
 
-	private static final float[] texcoords = {
-			0.0f, 0.0f,
-			1.0f, 0.0f,
-			1.0f, 1.0f,
-			0.0f, 1.0f
-	};
+	final float[] texCoordMin = new float[2], texCoordMax = new float[2];
+	final float[] texCoords = new float[2 * 4];
 
-	public OrthoSliceMeshFX(final RealLocalizable bottomLeft, final RealLocalizable bottomRight, final RealLocalizable
-			topRight, final RealLocalizable topLeft, final AffineTransform3D pointTransform)
+	public OrthoSliceMeshFX(
+		final RealLocalizable bottomLeft,
+		final RealLocalizable bottomRight,
+		final RealLocalizable topRight,
+		final RealLocalizable topLeft,
+		final AffineTransform3D pointTransform)
 	{
-		super();
-		getTexCoords().addAll(texcoords);
-		this.update(bottomLeft, bottomRight, topRight, topLeft, pointTransform);
+		setVertices(bottomLeft, bottomRight, topRight, topLeft, pointTransform);
+
+		setNormals(pointTransform);
+
+		getTexCoords().setAll(texCoords); // initialize tex coords
+
 		final ObservableFaceArray faceIndices = getFaces();
 		for (final int i : indices)
 			faceIndices.addAll(i, i, i);
-		setVertexFormat(VertexFormat.POINT_NORMAL_TEXCOORD);
 
+		setVertexFormat(VertexFormat.POINT_NORMAL_TEXCOORD);
 	}
 
-	public void update(
+	public void updateTexCoords(final int[] paddedTextureSize, final int[] padding, final double[] meshSizeToTextureSizeRatio) {
+
+		for (int d = 0; d < 2; ++d) {
+			final float unpaddedTextureCoord = (float) padding[d] / paddedTextureSize[d];
+			texCoordMin[d] = unpaddedTextureCoord;
+			texCoordMax[d] = unpaddedTextureCoord + (float) meshSizeToTextureSizeRatio[d] * (1.0f - 2 * unpaddedTextureCoord);
+		}
+
+		texCoords[0] = texCoordMin[0]; texCoords[1] = texCoordMin[1];
+		texCoords[2] = texCoordMax[0]; texCoords[3] = texCoordMin[1];
+		texCoords[4] = texCoordMax[0]; texCoords[5] = texCoordMax[1];
+		texCoords[6] = texCoordMin[0]; texCoords[7] = texCoordMax[1];
+
+		getTexCoords().setAll(texCoords);
+	}
+
+	private void setVertices(
 			final RealLocalizable bottomLeft,
 			final RealLocalizable bottomRight,
 			final RealLocalizable topRight,
@@ -51,14 +69,9 @@ public class OrthoSliceMeshFX extends TriangleMesh
 			final AffineTransform3D pointTransform)
 	{
 		final RealPoint p = new RealPoint(3);
-
 		final double offset = 0.0;
 
-		final ObservableFloatArray vertices = getPoints();
-		final ObservableFloatArray normals  = getNormals();
-
 		final float[] vertex = new float[3];
-
 		final float[] vertexBuffer = new float[3 * 4];
 
 		transformPoint(bottomLeft, p, pointTransform, offset);
@@ -77,6 +90,11 @@ public class OrthoSliceMeshFX extends TriangleMesh
 		p.localize(vertex);
 		System.arraycopy(vertex, 0, vertexBuffer, 9, 3);
 
+		getPoints().setAll(vertexBuffer);
+	}
+
+	private void setNormals(final AffineTransform3D pointTransform)
+	{
 		final float[] normal = new float[] {0.0f, 0.0f, 1.0f};
 		pointTransform.apply(normal, normal);
 		final float norm = normal[0] * normal[0] + normal[1] * normal[1] + normal[2] * normal[2];
@@ -88,10 +106,8 @@ public class OrthoSliceMeshFX extends TriangleMesh
 		System.arraycopy(normal, 0, normalBuffer, 3, 3);
 		System.arraycopy(normal, 0, normalBuffer, 6, 3);
 		System.arraycopy(normal, 0, normalBuffer, 9, 3);
-		vertices.clear();
-		normals.clear();
-		vertices.addAll(vertexBuffer);
-		normals.addAll(normalBuffer);
+
+		getNormals().setAll(normalBuffer);
 	}
 
 	private static <T extends RealPositionable & RealLocalizable> void transformPoint(

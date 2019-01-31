@@ -47,8 +47,8 @@ import javafx.collections.ListChangeListener;
 import javafx.collections.ObservableList;
 import javafx.scene.Node;
 import javafx.scene.image.Image;
-import javafx.scene.layout.GridPane;
 import javafx.scene.layout.StackPane;
+import javafx.scene.paint.Color;
 import net.imglib2.Point;
 import net.imglib2.Positionable;
 import net.imglib2.RealLocalizable;
@@ -65,10 +65,10 @@ import net.imglib2.type.numeric.integer.IntType;
 import net.imglib2.ui.TransformListener;
 import net.imglib2.util.Intervals;
 import net.imglib2.view.Views;
+
 import org.janelia.saalfeldlab.paintera.data.axisorder.AxisOrder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
 import java.lang.invoke.MethodHandles;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -102,7 +102,6 @@ public class ViewerPanelFX
 	private final OverlayPane overlayPane = new OverlayPane();
 
 	private final ViewerState state;
-
 	private final AffineTransform3D viewerTransform;
 
 	private ThreadGroup threadGroup;
@@ -228,7 +227,7 @@ public class ViewerPanelFX
 		{
 			this.imageDisplayGrid.set(renderUnit.getImagePropertyGrid());
 		});
-		this.imageDisplayGrid.addListener((obs, oldv, newv) -> {synchronized(renderUnit){this.display.setChild(makeGrid(newv));}});
+		this.imageDisplayGrid.addListener((obs, oldv, newv) -> {synchronized(renderUnit) {this.display.setChild(makeCanvas(newv));}});
 		this.widthProperty().addListener((obs, oldv, newv) -> this.renderUnit.setDimensions((long)getWidth(), (long)getHeight()));
 		this.heightProperty().addListener((obs, oldv, newv) -> this.renderUnit.setDimensions((long)getWidth(), (long)getHeight()));
 		setWidth(options.getWidth());
@@ -570,32 +569,35 @@ public class ViewerPanelFX
 		return range;
 	}
 
-	private static GridPane makeGrid(final RenderUnit.ImagePropertyGrid grid)
+	private CanvasPane makeCanvas(final RenderUnit.ImagePropertyGrid grid)
 	{
-		final GridPane pane = new GridPane();
-
+		final CanvasPane canvasPane = new CanvasPane(1, 1);
 		if (grid == null)
-			return pane;
+			return canvasPane;
 
 		final CellGrid cellGrid = grid.getGrid();
-		pane.setMinWidth(1);
-		pane.setMinHeight(1);
-		pane.setPrefWidth(cellGrid.getImgDimensions()[0]);
-		pane.setPrefHeight(cellGrid.getImgDimensions()[0]);
 		final long[] gridPos = new long[2];
-		final long[] cellMin = new long[2];
-		final int[] cellDims = new int[2];
-		final int numTiles = grid.numTiles();
-		for (int i = 0; i < numTiles; ++i) {
+		for (int i = 0; i < grid.numTiles(); ++i) {
+			final long[] cellMin = new long[2];
+			final int[] cellDims = new int[2];
 			cellGrid.getCellGridPositionFlat(i, gridPos);
 			cellGrid.getCellDimensions(gridPos, cellMin, cellDims);
+
 			final ReadOnlyObjectProperty<Image> image = grid.imagePropertyAt(i);
-			final ImagePane imagePane = new ImagePane(cellDims[0], cellDims[1]);
-			imagePane.imageProperty().bind(image);
-			LOG.debug("Putting render block {} into cell at position {}", i, gridPos);
-			pane.add(imagePane, (int) gridPos[0], (int) gridPos[1]);
+			image.addListener((obs, oldv, newv) -> {
+				if (newv != null) {
+					final int[] padding = grid.getPadding();
+					canvasPane.getCanvas().getGraphicsContext2D().drawImage(
+						newv, // src
+						padding[0], padding[1], // src X, Y
+						newv.getWidth() - 2 * padding[0], newv.getHeight() - 2 * padding[1], // src width, height
+						cellMin[0], cellMin[1], // dst X, Y
+						cellDims[0], cellDims[1] // dst width, height
+					);
+				}
+			});
 		}
-		return pane;
+		return canvasPane;
 	}
 
 }

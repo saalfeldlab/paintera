@@ -21,6 +21,7 @@ import net.imglib2.util.Intervals;
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 public class OrthoSliceFX
@@ -78,6 +79,8 @@ public class OrthoSliceFX
 			if (newv == null)
 				return;
 			final CellGrid grid = newv.getGrid();
+			final long[] dimensions = newv.getDimensions();
+			final int[] padding = newv.getPadding();
 			final int numMeshes = (int) Intervals.numElements(grid.getGridDimensions());
 			final long[] gridPos = new long[2];
 			final long[] min = new long[2];
@@ -87,11 +90,8 @@ public class OrthoSliceFX
 			for (int meshIndex = 0; meshIndex < numMeshes; ++meshIndex)
 			{
 				grid.getCellGridPositionFlat(meshIndex, gridPos);
-				min[0] = grid.getCellMin(0, gridPos[0]);
-				min[1] = grid.getCellMin(1, gridPos[1]);
 				grid.getCellDimensions(gridPos, min, dims);
-				max[0] = min[0] + dims[0] - 1;
-				max[1] = min[1] + dims[1] - 1;
+				Arrays.setAll(max, d -> Math.min(min[d] + dims[d], dimensions[d]));
 
 				final OrthoSliceMeshFX mesh = new OrthoSliceMeshFX(
 					new RealPoint(min[0], min[1]),
@@ -100,16 +100,25 @@ public class OrthoSliceFX
 					new RealPoint(min[0], max[1]),
 					new AffineTransform3D()
 				);
+
 				final MeshView mv = new MeshView(mesh);
 				final PhongMaterial material = new PhongMaterial();
 				mv.setCullFace(CullFace.NONE);
 				mv.setMaterial(material);
 				material.setDiffuseColor(Color.BLACK);
 				material.setSpecularColor(Color.BLACK);
+
+				final double[] meshSizeToTextureSizeRatio = new double[2];
+				Arrays.setAll(meshSizeToTextureSizeRatio, d -> (double) (max[d] - min[d]) / dims[d]);
+				final int[] paddedTextureSize = new int[2];
 				final ReadOnlyObjectProperty<Image> display = newv.imagePropertyAt(meshIndex);
 				display.addListener((obsIm, oldvIm, newvIm) -> {
-					if (newvIm != null)
-						InvokeOnJavaFXApplicationThread.invoke(() -> material.setSelfIlluminationMap(newvIm));
+					if (newvIm != null) {
+						paddedTextureSize[0] = (int) newvIm.getWidth();
+						paddedTextureSize[1] = (int) newvIm.getHeight();
+						mesh.updateTexCoords(paddedTextureSize, padding, meshSizeToTextureSizeRatio);
+						material.setSelfIlluminationMap(newvIm);
+					}
 				});
 				newMeshViews.add(mv);
 			}

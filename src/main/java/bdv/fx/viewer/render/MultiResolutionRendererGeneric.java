@@ -247,6 +247,8 @@ public class MultiResolutionRendererGeneric<T>
 
 	private final ImageGenerator<T> makeImage;
 
+	private final int[] padding;
+
 	/**
 	 * @param display
 	 * 		The canvas that will display the images we render.
@@ -273,8 +275,9 @@ public class MultiResolutionRendererGeneric<T>
 	 * 		can be used to customize how sources are combined.
 	 * @param cacheControl
 	 * 		the cache controls IO budgeting and fetcher queue.
+	 * @param padding
+	 * 		specifies by how many pixels the rendered images are extended on each side to enable seamless interpolation
 	 */
-	@SuppressWarnings("unchecked")
 	MultiResolutionRendererGeneric(
 			final TransformAwareRenderTargetGeneric<T> display,
 			final PainterThread painterThread,
@@ -286,6 +289,7 @@ public class MultiResolutionRendererGeneric<T>
 			final boolean useVolatileIfAvailable,
 			final AccumulateProjectorFactory<ARGBType> accumulateProjectorFactory,
 			final CacheControl cacheControl,
+			final int[] padding,
 			final Function<T, ArrayImg<ARGBType, ? extends IntAccess>> wrapAsArrayImg,
 			final ImageGenerator<T> makeImage,
 			final ToIntFunction<T> width,
@@ -319,6 +323,8 @@ public class MultiResolutionRendererGeneric<T>
 		this.cacheControl = cacheControl;
 		newFrameRequest = false;
 		previousTimepoint = -1;
+
+		this.padding = padding;
 	}
 
 	/**
@@ -332,8 +338,8 @@ public class MultiResolutionRendererGeneric<T>
 		final int componentW = display.getWidth();
 		final int componentH = display.getHeight();
 		if (screenImages.get(0).get(0) == null
-				|| width.applyAsInt(screenImages.get(0).get(0)) != (int)(componentW * screenScales[0])
-				|| height.applyAsInt(screenImages.get(0).get(0)) != (int)(componentH * screenScales[0]))
+				|| width .applyAsInt(screenImages.get(0).get(0)) != Math.max((int) (componentW * screenScales[0]), 1) + 2 * padding[0]
+				|| height.applyAsInt(screenImages.get(0).get(0)) != Math.max((int) (componentH * screenScales[0]), 1) + 2 * padding[1])
 		{
 			renderIdQueue.clear();
 			renderIdQueue.addAll(Arrays.asList(0, 1, 2));
@@ -343,21 +349,25 @@ public class MultiResolutionRendererGeneric<T>
 				final double screenToViewerScale = screenScales[i];
 				final int    w                   = Math.max((int) (screenToViewerScale * componentW), 1);
 				final int    h                   = Math.max((int) (screenToViewerScale * componentH), 1);
+				final int paddedW = w + 2 * padding[0];
+				final int paddedH = h + 2 * padding[1];
 				if (doubleBuffered)
+				{
 					for (int b = 0; b < 3; ++b)
 					{
 						// reuse storage arrays of level 0 (highest resolution)
 						screenImages.get(i).set(b, i == 0
-						                     ? makeImage.create(w, h)
-						                     : makeImage.create(w, h, screenImages.get(0).get(b)));
+						                     ? makeImage.create(paddedW, paddedH)
+						                     : makeImage.create(paddedW, paddedH, screenImages.get(0).get(b)));
 						final T bi = screenImages.get(i).get(b);
 						// getBufferedImage.apply( screenImages[ i ][ b ] );
 						bufferedImages.get(i).set(b, bi);
 						bufferedImageToRenderId.put(bi, b);
 					}
+				}
 				else
 				{
-					screenImages.get(i).set(0, makeImage.create(w, h));
+					screenImages.get(i).set(0, makeImage.create(paddedW, paddedH));
 					bufferedImages.get(i).set(0, screenImages.get(i).get(0));
 					// getBufferedImage.apply( screenImages[ i ][ 0 ] );
 				}
@@ -366,8 +376,8 @@ public class MultiResolutionRendererGeneric<T>
 				final double            yScale = (double) h / componentH;
 				scale.set(xScale, 0, 0);
 				scale.set(yScale, 1, 1);
-				scale.set(0.5 * xScale - 0.5, 0, 3);
-				scale.set(0.5 * yScale - 0.5, 1, 3);
+				scale.set(0.5 * xScale - 0.5 + padding[0], 0, 3);
+				scale.set(0.5 * yScale - 0.5 + padding[1], 1, 3);
 				screenScaleTransforms[i] = scale;
 			}
 
