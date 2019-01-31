@@ -37,6 +37,7 @@ public class RenderingModeController {
 
 	private void setMode(final RenderingMode mode)
 	{
+		resetTimerTask();
 		if (mode == this.mode)
 			return;
 
@@ -57,19 +58,15 @@ public class RenderingModeController {
 
 	public void transformChanged()
 	{
-		if (modeSwitchTimerTask != null)
-			modeSwitchTimerTask.cancel();
-
+		resetTimerTask();
 		lastTransformChangedTime = System.currentTimeMillis();
 		InvokeOnJavaFXApplicationThread.invoke(() -> setMode(RenderingMode.SINGLE_TILE));
 	}
 
 	public void paintingStarted()
 	{
+		resetTimerTask();
 		if (mode == RenderingMode.SINGLE_TILE) {
-			if (modeSwitchTimerTask != null)
-				modeSwitchTimerTask.cancel();
-
 			InvokeOnJavaFXApplicationThread.invoke(() -> {
 				setMode(RenderingMode.MULTI_TILE);
 				renderUnit.requestRepaint();
@@ -92,6 +89,14 @@ public class RenderingModeController {
 				};
 				modeSwitchTimer.schedule(modeSwitchTimerTask, MODE_SWITCH_DELAY - Math.max(currentTime - lastTransformChangedTime, 0));
 			}
+		}
+	}
+
+	private void resetTimerTask()
+	{
+		if (modeSwitchTimerTask != null) {
+			modeSwitchTimerTask.cancel();
+			modeSwitchTimerTask = null;
 		}
 	}
 }
