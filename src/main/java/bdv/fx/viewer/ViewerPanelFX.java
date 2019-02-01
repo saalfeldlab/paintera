@@ -32,7 +32,6 @@ package bdv.fx.viewer;
 import bdv.cache.CacheControl;
 import bdv.fx.viewer.render.RenderUnit;
 import bdv.fx.viewer.render.RenderingModeController;
-import bdv.fx.viewer.render.RenderingModeController.RenderingMode;
 import bdv.viewer.Interpolation;
 import bdv.viewer.RequestRepaint;
 import bdv.viewer.Source;
@@ -49,9 +48,7 @@ import javafx.collections.ListChangeListener;
 import javafx.collections.ObservableList;
 import javafx.scene.Node;
 import javafx.scene.canvas.Canvas;
-import javafx.scene.image.Image;
 import javafx.scene.layout.StackPane;
-import javafx.scene.paint.Color;
 import net.imglib2.Point;
 import net.imglib2.Positionable;
 import net.imglib2.RealLocalizable;
@@ -119,7 +116,7 @@ public class ViewerPanelFX
 
 	private final ObjectProperty<RenderUnit.ImagePropertyGrid> imageDisplayGrid = new SimpleObjectProperty<>(null);
 
-	private final RenderingModeController renderingModeController;
+	private RenderingModeController renderingModeController;
 
 	public ViewerPanelFX(
 			final List<SourceAndConverter<?>> sources,
@@ -228,7 +225,8 @@ public class ViewerPanelFX
 				cacheControl,
 				options.getTargetRenderNanos(),
 				options.getNumRenderingThreads(),
-				renderingExecutorService);
+				renderingExecutorService,
+				() -> renderingModeController.getCurrentTag());
 
 		this.renderingModeController = new RenderingModeController(renderUnit);
 
@@ -581,7 +579,7 @@ public class ViewerPanelFX
 		return range;
 	}
 
-	private static void setImageListeners(final Canvas canvas, final RenderUnit.ImagePropertyGrid grid, final RenderingModeController renderingModeController)
+	private void setImageListeners(final Canvas canvas, final RenderUnit.ImagePropertyGrid grid, final RenderingModeController renderingModeController)
 	{
 		if (grid == null)
 			return;
@@ -597,18 +595,20 @@ public class ViewerPanelFX
 			final ReadOnlyObjectProperty<RenderUnit.RenderedImage> renderedImage = grid.renderedImagePropertyAt(i);
 			renderedImage.addListener((obs, oldv, newv) -> {
 				if (newv != null && newv.getImage() != null) {
-					renderingModeController.receivedRenderedImage(newv.getScreenScaleIndex());
-					final int[] padding = grid.getPadding();
-					canvas.getGraphicsContext2D().drawImage(
-						newv.getImage(), // src
-						padding[0], padding[1], // src X, Y
-						newv.getImage().getWidth() - 2 * padding[0], newv.getImage().getHeight() - 2 * padding[1], // src width, height
-						cellMin[0], cellMin[1], // dst X, Y
-						cellDims[0], cellDims[1] // dst width, height
-					);
+				    System.out.println("tag: " + newv.getTag());
+					if (renderingModeController.validateTag(newv.getTag())) {
+						final int[] padding = grid.getPadding();
+						canvas.getGraphicsContext2D().drawImage(
+							newv.getImage(), // src
+							padding[0], padding[1], // src X, Y
+							newv.getImage().getWidth() - 2 * padding[0], newv.getImage().getHeight() - 2 * padding[1], // src width, height
+							cellMin[0], cellMin[1], // dst X, Y
+							cellDims[0], cellDims[1] // dst width, height
+						);
+					}
+					renderingModeController.receivedRenderedImage(newv.getTag());
 				}
 			});
 		}
 	}
-
 }

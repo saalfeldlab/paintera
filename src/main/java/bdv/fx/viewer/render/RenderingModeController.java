@@ -1,8 +1,7 @@
 package bdv.fx.viewer.render;
 
 import java.lang.invoke.MethodHandles;
-import java.util.Timer;
-import java.util.TimerTask;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.commons.lang.NotImplementedException;
 import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread;
@@ -13,36 +12,33 @@ public class RenderingModeController {
 
 	private static Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
-	public static enum RenderingMode {
+	private static enum RenderingMode {
 		MULTI_TILE,
 		SINGLE_TILE
 	}
 
-	private static final int[] DEFAULT_TILE_SIZE = {100, 100};
-	private static final long MODE_SWITCH_DELAY = 100;
+	private static final int[] DEFAULT_TILE_SIZE = {200, 200};
 
 	private final RenderUnit renderUnit;
 	private RenderingMode mode;
+	private boolean isPainting;
 
-	private long lastTransformChangedTime;
-	private final Timer modeSwitchTimer;
-	private TimerTask modeSwitchTimerTask;
+	private final AtomicInteger currentTag = new AtomicInteger();
+	private int lastReceivedTag;
 
 	public RenderingModeController(final RenderUnit renderUnit)
 	{
 		this.renderUnit = renderUnit;
-		this.modeSwitchTimer = new Timer(true);
 		setMode(RenderingMode.MULTI_TILE);
 	}
 
 	private void setMode(final RenderingMode mode)
 	{
-		resetTimerTask();
 		if (mode == this.mode)
 			return;
 
 		this.mode = mode;
-		LOG.debug("Switching rendering mode to " + mode);
+		System.out.println("Switching rendering mode to " + mode);
 
 		switch (mode) {
 		case MULTI_TILE:
@@ -56,47 +52,52 @@ public class RenderingModeController {
 		}
 	}
 
+	public int getCurrentTag()
+	{
+		return currentTag.get();
+	}
+
+	public boolean validateTag(final int tag)
+	{
+		return !isPainting || tag == currentTag.get();
+	}
+
 	public void transformChanged()
 	{
-		resetTimerTask();
-		lastTransformChangedTime = System.currentTimeMillis();
-		InvokeOnJavaFXApplicationThread.invoke(() -> setMode(RenderingMode.SINGLE_TILE));
+		currentTag.incrementAndGet();
+		if (mode != RenderingMode.SINGLE_TILE) {
+			System.out.println("Navigation has been initiated");
+			InvokeOnJavaFXApplicationThread.invoke(() -> setMode(RenderingMode.SINGLE_TILE));
+		}
 	}
 
 	public void paintingStarted()
 	{
-		resetTimerTask();
-		if (mode == RenderingMode.SINGLE_TILE) {
+		isPainting = true;
+		final int tag = currentTag.getAndIncrement();
+		if (mode != RenderingMode.MULTI_TILE) {
+			final boolean needRepaint = lastReceivedTag != tag;
+			if (needRepaint)
+				System.out.println("=========== Have not received rendered image yet after last transform ===========");
+			System.out.println("Painting has been initiated");
 			InvokeOnJavaFXApplicationThread.invoke(() -> {
 				setMode(RenderingMode.MULTI_TILE);
-				renderUnit.requestRepaint();
+				if (needRepaint)
+					renderUnit.requestRepaint();
 			});
 		}
 	}
 
-	public void receivedRenderedImage(final int screenScaleIndex)
+	public void paintingFinished()
 	{
-		if (mode == RenderingMode.SINGLE_TILE && screenScaleIndex == 0) {
-			final long currentTime = System.currentTimeMillis();
-			if (currentTime - lastTransformChangedTime >= MODE_SWITCH_DELAY) {
-				InvokeOnJavaFXApplicationThread.invoke(() -> setMode(RenderingMode.MULTI_TILE));
-			} else {
-				modeSwitchTimerTask = new TimerTask() {
-					@Override
-					public void run() {
-						InvokeOnJavaFXApplicationThread.invoke(() -> setMode(RenderingMode.MULTI_TILE));
-					}
-				};
-				modeSwitchTimer.schedule(modeSwitchTimerTask, MODE_SWITCH_DELAY - Math.max(currentTime - lastTransformChangedTime, 0));
-			}
-		}
+		System.out.println("Painting has been stopped");
+		isPainting = false;
+		currentTag.incrementAndGet();
+//		InvokeOnJavaFXApplicationThread.invoke(() -> setMode(RenderingMode.SINGLE_TILE));
 	}
 
-	private void resetTimerTask()
+	public void receivedRenderedImage(final int tag)
 	{
-		if (modeSwitchTimerTask != null) {
-			modeSwitchTimerTask.cancel();
-			modeSwitchTimerTask = null;
-		}
+		lastReceivedTag = tag;
 	}
 }

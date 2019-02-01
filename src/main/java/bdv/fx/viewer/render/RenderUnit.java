@@ -24,6 +24,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.function.Function;
+import java.util.function.IntSupplier;
 import java.util.function.Supplier;
 import java.util.stream.LongStream;
 
@@ -75,6 +76,8 @@ public class RenderUnit {
 
 	private long[][] offsets = new long[0][];
 
+	private final IntSupplier renderedImageTagSupplier;
+
 	public RenderUnit(
 			final ThreadGroup threadGroup,
 			final Supplier<ViewerState> viewerState,
@@ -84,7 +87,8 @@ public class RenderUnit {
 			final CacheControl cacheControl,
 			final long targetRenderNanos,
 			final int numRenderingThreads,
-			final ExecutorService renderingExecutorService) {
+			final ExecutorService renderingExecutorService,
+			final IntSupplier renderedImageTagSupplier) {
 		this.threadGroup = threadGroup;
 		this.viewerState = viewerState;
 		this.axisOrder = axisOrder;
@@ -94,6 +98,7 @@ public class RenderUnit {
 		this.targetRenderNanos = targetRenderNanos;
 		this.numRenderingThreads = numRenderingThreads;
 		this.renderingExecutorService = renderingExecutorService;
+		this.renderedImageTagSupplier = renderedImageTagSupplier;
 		update();
 	}
 
@@ -306,8 +311,7 @@ public class RenderUnit {
 
 	private class Paintable implements PainterThread.Paintable
 	{
-
-		final int index;
+		private final int index;
 
 		private Paintable(int index) {
 			this.index = index;
@@ -315,12 +319,14 @@ public class RenderUnit {
 
 		@Override
 		public void paint() {
+
 			MultiResolutionRendererFX renderer;
 			ObjectProperty<RenderedImage> renderedImage;
 			TransformAwareBufferedImageOverlayRendererFX renderTarget;
 			long[] offset;
 			ViewerState viewerState = null;
 			final List<SourceAndConverter<?>> sacs = new ArrayList<>();
+			final Integer renderedImageTag;
 			synchronized (RenderUnit.this)
 			{
 				renderer = index < renderers.length ? renderers[index] : null;
@@ -329,7 +335,10 @@ public class RenderUnit {
 				offset = index < offsets.length ? offsets[index] : null;
 				if (renderer != null && renderedImage != null && renderTarget != null && offset != null) {
 					viewerState = RenderUnit.this.viewerState.get().copy();
+					renderedImageTag = renderedImageTagSupplier.getAsInt();
 					sacs.addAll(viewerState.getSources());
+				} else {
+					renderedImageTag = null;
 				}
 			}
 			if (renderer == null || renderedImage == null || renderTarget == null || offset == null)
@@ -339,16 +348,16 @@ public class RenderUnit {
 			viewerState.getViewerTransform(viewerTransform);
 			viewerTransform.translate(-offset[0], -offset[1], 0);
 
-			final int renderedScreenScaleIndex = renderer.paint(
-					sacs,
-					axisOrder,
-					viewerState.timepointProperty().get(),
-					viewerTransform,
-					interpolation,
-					null
+			renderer.paint(
+				sacs,
+				axisOrder,
+				viewerState.timepointProperty().get(),
+				viewerTransform,
+				interpolation,
+				null
 			);
 
-			renderTarget.drawOverlays(img -> renderedImage.set(new RenderedImage(img, renderedScreenScaleIndex)));
+			renderTarget.drawOverlays(img -> renderedImage.set(new RenderedImage(img, 0, renderedImageTag)));
 		}
 	}
 
@@ -376,10 +385,12 @@ public class RenderUnit {
 	{
 		private final Image image;
 		private final int screenScaleIndex;
+		private final Integer tag;
 
-		public RenderedImage(final Image image, final int screenScaleIndex) {
+		public RenderedImage(final Image image, final int screenScaleIndex, final Integer tag) {
 			this.image = image;
 			this.screenScaleIndex = screenScaleIndex;
+			this.tag = tag;
 		}
 
 		public Image getImage() {
@@ -388,6 +399,10 @@ public class RenderUnit {
 
 		public int getScreenScaleIndex() {
 			return screenScaleIndex;
+		}
+
+		public Integer getTag() {
+			return tag;
 		}
 	}
 

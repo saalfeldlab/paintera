@@ -242,13 +242,14 @@ public class PaintClickOrDrag implements InstallAndRemove<Node> {
 						LOG.debug("Not currently painting -- will not do anything");
 						return;
 					}
-					
+
 					if (this.paintIntoThis == null )
 					{
 						LOG.debug("No current source available -- will not do anything");
 						return;
 					}
 
+					viewer.getRenderingModeController().paintingFinished();
 					try {
 						this.paintIntoThis.applyMask(this.mask, this.interval, FOREGROUND_CHECK);
 					} catch (final Exception e) {

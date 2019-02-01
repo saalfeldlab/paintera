@@ -428,10 +428,8 @@ public class MultiResolutionRendererGeneric<T>
 
 	/**
 	 * Render image at the {@link #requestedScreenScaleIndex requested screen scale}.
-	 *
-	 * @return index of the screen scale used for rendering this image, or -1 if the rendering was not completed
 	 */
-	public int paint(
+	public boolean paint(
 			final List<SourceAndConverter<?>> sources,
 			final Function<Source<?>, AxisOrder> axisOrders,
 			final int timepoint,
@@ -440,7 +438,7 @@ public class MultiResolutionRendererGeneric<T>
 			final Object synchronizationLock)
 	{
 		if (display.getWidth() <= 0 || display.getHeight() <= 0)
-			return -1;
+			return false;
 
 		final boolean resized = checkResize();
 
@@ -537,6 +535,7 @@ public class MultiResolutionRendererGeneric<T>
 					requestRepaint(currentScreenScaleIndex - 1);
 				else if (!p.isValid())
 				{
+				    System.out.println("NOT VALID");
 					try
 					{
 						Thread.sleep(1);
@@ -548,9 +547,9 @@ public class MultiResolutionRendererGeneric<T>
 					requestRepaint(currentScreenScaleIndex);
 				}
 			}
-
-			return success ? currentScreenScaleIndex : -1;
 		}
+
+		return success;
 	}
 
 	/**
