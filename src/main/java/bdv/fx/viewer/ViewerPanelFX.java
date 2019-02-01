@@ -390,21 +390,24 @@ public class ViewerPanelFX
 	public synchronized void transformChanged(final AffineTransform3D transform)
 	{
 		viewerTransform.set(transform);
-		state.setViewerTransform(transform);
+		synchronized (state)
+		{
+		    state.setViewerTransform(transform);
+		    renderingModeController.transformChanged();
+		}
 		for (final TransformListener<AffineTransform3D> l : transformListeners)
 			l.transformChanged(viewerTransform);
-		renderingModeController.transformChanged();
 		requestRepaint();
 	}
 
 	/**
-	 * Get a copy of the current {@link ViewerState}.
+	 * Get the current {@link ViewerState}.
 	 *
-	 * @return a copy of the current {@link ViewerState}.
+	 * @return the current {@link ViewerState}.
 	 */
 	public ViewerState getState()
 	{
-		return state.copy();
+		return state;
 	}
 
 	/**

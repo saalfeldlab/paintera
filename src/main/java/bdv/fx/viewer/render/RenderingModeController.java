@@ -21,10 +21,10 @@ public class RenderingModeController {
 
 	private final RenderUnit renderUnit;
 	private RenderingMode mode;
-	private boolean isPainting;
 
 	private final AtomicInteger currentTag = new AtomicInteger();
 	private int lastReceivedTag;
+	private int lastModeSwitchTag;
 
 	public RenderingModeController(final RenderUnit renderUnit)
 	{
@@ -38,6 +38,7 @@ public class RenderingModeController {
 			return;
 
 		this.mode = mode;
+		lastModeSwitchTag = currentTag.get();
 		System.out.println("Switching rendering mode to " + mode);
 
 		switch (mode) {
@@ -59,12 +60,12 @@ public class RenderingModeController {
 
 	public boolean validateTag(final int tag)
 	{
-		return !isPainting || tag == currentTag.get();
+		return tag >= lastModeSwitchTag;
 	}
 
 	public void transformChanged()
 	{
-		currentTag.incrementAndGet();
+		currentTag.getAndIncrement();
 		if (mode != RenderingMode.SINGLE_TILE) {
 			System.out.println("Navigation has been initiated");
 			InvokeOnJavaFXApplicationThread.invoke(() -> setMode(RenderingMode.SINGLE_TILE));
@@ -73,7 +74,6 @@ public class RenderingModeController {
 
 	public void paintingStarted()
 	{
-		isPainting = true;
 		final int tag = currentTag.getAndIncrement();
 		if (mode != RenderingMode.MULTI_TILE) {
 			final boolean needRepaint = lastReceivedTag != tag;
@@ -91,9 +91,7 @@ public class RenderingModeController {
 	public void paintingFinished()
 	{
 		System.out.println("Painting has been stopped");
-		isPainting = false;
 		currentTag.incrementAndGet();
-//		InvokeOnJavaFXApplicationThread.invoke(() -> setMode(RenderingMode.SINGLE_TILE));
 	}
 
 	public void receivedRenderedImage(final int tag)

@@ -324,34 +324,39 @@ public class RenderUnit {
 			ObjectProperty<RenderedImage> renderedImage;
 			TransformAwareBufferedImageOverlayRendererFX renderTarget;
 			long[] offset;
-			ViewerState viewerState = null;
 			final List<SourceAndConverter<?>> sacs = new ArrayList<>();
-			final Integer renderedImageTag;
+			final AffineTransform3D viewerTransform = new AffineTransform3D();
+			final int timepoint;
+			final int renderedImageTag;
 			synchronized (RenderUnit.this)
 			{
 				renderer = index < renderers.length ? renderers[index] : null;
 				renderedImage = index < renderedImages.length ? renderedImages[index] : null;
 				renderTarget = index < renderTargets.length ? renderTargets[index] : null;
 				offset = index < offsets.length ? offsets[index] : null;
-				if (renderer != null && renderedImage != null && renderTarget != null && offset != null) {
-					viewerState = RenderUnit.this.viewerState.get().copy();
-					renderedImageTag = renderedImageTagSupplier.getAsInt();
+				if (renderer != null && renderedImage != null && renderTarget != null && offset != null)
+				{
+					final ViewerState viewerState = RenderUnit.this.viewerState.get();
+					synchronized (viewerState)
+					{
+						viewerState.getViewerTransform(viewerTransform);
+						timepoint = viewerState.timepointProperty().get();
+						renderedImageTag = renderedImageTagSupplier.getAsInt();
+					}
 					sacs.addAll(viewerState.getSources());
-				} else {
-					renderedImageTag = null;
+				}
+				else
+				{
+					return;
 				}
 			}
-			if (renderer == null || renderedImage == null || renderTarget == null || offset == null)
-				return;
 
-			final AffineTransform3D viewerTransform = new AffineTransform3D();
-			viewerState.getViewerTransform(viewerTransform);
 			viewerTransform.translate(-offset[0], -offset[1], 0);
 
 			renderer.paint(
 				sacs,
 				axisOrder,
-				viewerState.timepointProperty().get(),
+				timepoint,
 				viewerTransform,
 				interpolation,
 				null
@@ -385,9 +390,9 @@ public class RenderUnit {
 	{
 		private final Image image;
 		private final int screenScaleIndex;
-		private final Integer tag;
+		private final int tag;
 
-		public RenderedImage(final Image image, final int screenScaleIndex, final Integer tag) {
+		public RenderedImage(final Image image, final int screenScaleIndex, final int tag) {
 			this.image = image;
 			this.screenScaleIndex = screenScaleIndex;
 			this.tag = tag;
@@ -401,7 +406,7 @@ public class RenderUnit {
 			return screenScaleIndex;
 		}
 
-		public Integer getTag() {
+		public int getTag() {
 			return tag;
 		}
 	}
