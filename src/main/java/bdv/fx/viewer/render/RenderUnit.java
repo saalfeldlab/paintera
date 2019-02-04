@@ -10,9 +10,12 @@ import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.ReadOnlyObjectProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.scene.image.Image;
+import net.imglib2.FinalInterval;
+import net.imglib2.Interval;
 import net.imglib2.img.cell.CellGrid;
 import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.type.numeric.ARGBType;
+import net.imglib2.util.Intervals;
 import org.janelia.saalfeldlab.paintera.config.ScreenScalesConfig;
 import org.janelia.saalfeldlab.paintera.data.axisorder.AxisOrder;
 import org.slf4j.Logger;
@@ -198,10 +201,10 @@ public class RenderUnit {
 	 * @param min top left corner of interval
 	 * @param max bottom right corner of interval
 	 */
-	public synchronized void requestRepaint(final int screenScaleIndex, final long[] min, final long[] max)
-	{
+	public synchronized void requestRepaint(final int screenScaleIndex, final long[] min, final long[] max) {
 
-		long[] relevantBlocks = org.janelia.saalfeldlab.util.grids.Grids.getIntersectingBlocks(min, max, this.grid);
+		final long[] relevantBlocks = getRelevantBlocks(min, max, this.grid);
+
 		for (final long b : relevantBlocks)
 			renderers[(int)b].requestRepaint(screenScaleIndex);
 	}
@@ -212,12 +215,27 @@ public class RenderUnit {
 	 * @param min top left corner of interval
 	 * @param max bottom right corner of interval
 	 */
-	public synchronized void requestRepaint(final long[] min, final long[] max)
-	{
+	public synchronized void requestRepaint(final long[] min, final long[] max) {
 
-		long[] relevantBlocks = org.janelia.saalfeldlab.util.grids.Grids.getIntersectingBlocks(min, max, this.grid);
+		final long[] relevantBlocks = getRelevantBlocks(min, max, this.grid);
+
 		for (final long b : relevantBlocks)
 			renderers[(int)b].requestRepaint();
+	}
+
+	private static long[] getRelevantBlocks(final long[] min, final long[] max, final CellGrid grid) {
+
+		final Interval relevantInterval = Intervals.intersect(new FinalInterval(min, max), new FinalInterval(grid.getImgDimensions()));
+
+		if (Intervals.isEmpty(relevantInterval)) {
+			LOG.info("Intersected interval of ({} {}) and {} is empty", min, max, grid);
+			return new long[] {};
+		}
+
+		return org.janelia.saalfeldlab.util.grids.Grids.getIntersectingBlocks(
+				Intervals.minAsLongArray(relevantInterval),
+				Intervals.maxAsLongArray(relevantInterval),
+				grid);
 	}
 
 	/**
