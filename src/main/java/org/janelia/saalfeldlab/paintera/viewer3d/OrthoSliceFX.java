@@ -2,6 +2,7 @@ package org.janelia.saalfeldlab.paintera.viewer3d;
 
 import bdv.fx.viewer.ViewerPanelFX;
 import bdv.fx.viewer.render.RenderUnit;
+import bdv.fx.viewer.render.RenderingModeController.RenderingMode;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.ReadOnlyObjectProperty;
 import javafx.beans.property.SimpleBooleanProperty;
@@ -32,6 +33,8 @@ public class OrthoSliceFX
 	private final ViewerPanelFX viewer;
 
 	private final Group meshesGroup = new Group();
+
+	private boolean initializeMeshesWithCurrentTexture = false;
 
 	private final ObservableList<MeshView> meshViews = FXCollections.observableArrayList();
 	{
@@ -76,6 +79,15 @@ public class OrthoSliceFX
 		});
 
 		this.viewer.imageDisplayGridProperty().addListener((obs, oldv, newv) -> {
+
+			final Image currentTextureImage;
+			if (this.initializeMeshesWithCurrentTexture) {
+				assert this.meshViews.size() == 1;
+				currentTextureImage = ((PhongMaterial) meshViews.get(0).getMaterial()).getSelfIlluminationMap();
+			} else {
+				currentTextureImage = null;
+			}
+
 			this.meshViews.clear();
 			if (newv == null)
 				return;
@@ -122,8 +134,27 @@ public class OrthoSliceFX
 					}
 				});
 				newMeshViews.add(mv);
+
+				if (this.initializeMeshesWithCurrentTexture) {
+					assert currentTextureImage != null;
+					final int[] currentTextureImageSize = new int[] {(int) Math.round(currentTextureImage.getWidth()), (int) Math.round(currentTextureImage.getHeight())};
+					final float[] texCoordMin = new float[2], texCoordMax = new float[2];
+					for (int d = 0; d < 2; ++d) {
+						texCoordMin[d] = (((float) min[d] / dimensions[d]) * (currentTextureImageSize[d] - 2 * padding[d]) + padding[d]) / (float) currentTextureImageSize[d];
+						texCoordMax[d] = (((float) max[d] / dimensions[d]) * (currentTextureImageSize[d] - 2 * padding[d]) + padding[d]) / (float) currentTextureImageSize[d];
+					}
+					mesh.updateTexCoords(texCoordMin, texCoordMax);
+					material.setSelfIlluminationMap(currentTextureImage);
+				}
 			}
+			this.initializeMeshesWithCurrentTexture = false;
 			this.meshViews.setAll(newMeshViews);
+		});
+
+		this.viewer.getRenderingModeController().getModeProperty().addListener((obs, oldv, newv) -> {
+			if (newv == RenderingMode.MULTI_TILE) {
+				initializeMeshesWithCurrentTexture = true;
+			}
 		});
 	}
 

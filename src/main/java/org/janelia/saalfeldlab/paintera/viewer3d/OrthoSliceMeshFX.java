@@ -36,7 +36,7 @@ public class OrthoSliceMeshFX extends TriangleMesh
 
 		setNormals(pointTransform);
 
-		getTexCoords().setAll(texCoords); // initialize tex coords
+		updateTexCoords(); // initialize tex coords
 
 		final ObservableFaceArray faceIndices = getFaces();
 		for (final int i : indices)
@@ -52,6 +52,17 @@ public class OrthoSliceMeshFX extends TriangleMesh
 			texCoordMin[d] = unpaddedTextureCoord;
 			texCoordMax[d] = unpaddedTextureCoord + (float) meshSizeToTextureSizeRatio[d] * (1.0f - 2 * unpaddedTextureCoord);
 		}
+		updateTexCoords();
+	}
+
+	public void updateTexCoords(final float[] min, final float[] max) {
+
+		texCoordMin[0] = min[0]; texCoordMin[1] = min[1];
+		texCoordMax[0] = max[0]; texCoordMax[1] = max[1];
+		updateTexCoords();
+	}
+
+	private void updateTexCoords() {
 
 		texCoords[0] = texCoordMin[0]; texCoords[1] = texCoordMin[1];
 		texCoords[2] = texCoordMax[0]; texCoords[3] = texCoordMin[1];

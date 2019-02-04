@@ -8,11 +8,14 @@ import org.janelia.saalfeldlab.fx.util.InvokeOnJavaFXApplicationThread;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javafx.beans.property.ObjectProperty;
+import javafx.beans.property.SimpleObjectProperty;
+
 public class RenderingModeController {
 
 	private static Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
-	private static enum RenderingMode {
+	public static enum RenderingMode {
 		MULTI_TILE,
 		SINGLE_TILE
 	}
@@ -20,7 +23,7 @@ public class RenderingModeController {
 	private static final int[] DEFAULT_TILE_SIZE = {200, 200};
 
 	private final RenderUnit renderUnit;
-	private RenderingMode mode;
+	private final ObjectProperty<RenderingMode> modeProperty = new SimpleObjectProperty<>();
 
 	private final AtomicInteger currentTag = new AtomicInteger();
 	private int lastReceivedTag;
@@ -32,12 +35,17 @@ public class RenderingModeController {
 		setMode(RenderingMode.MULTI_TILE);
 	}
 
+	public ObjectProperty<RenderingMode> getModeProperty()
+	{
+		return modeProperty;
+	}
+
 	private void setMode(final RenderingMode mode)
 	{
-		if (mode == this.mode)
+		if (mode == modeProperty.get())
 			return;
 
-		this.mode = mode;
+		modeProperty.set(mode);
 		lastModeSwitchTag = currentTag.get();
 		System.out.println("Switching rendering mode to " + mode);
 
@@ -66,7 +74,7 @@ public class RenderingModeController {
 	public void transformChanged()
 	{
 		currentTag.getAndIncrement();
-		if (mode != RenderingMode.SINGLE_TILE) {
+		if (modeProperty.get() != RenderingMode.SINGLE_TILE) {
 			System.out.println("Navigation has been initiated");
 			InvokeOnJavaFXApplicationThread.invoke(() -> setMode(RenderingMode.SINGLE_TILE));
 		}
@@ -75,7 +83,7 @@ public class RenderingModeController {
 	public void paintingStarted()
 	{
 		final int tag = currentTag.getAndIncrement();
-		if (mode != RenderingMode.MULTI_TILE) {
+		if (modeProperty.get() != RenderingMode.MULTI_TILE) {
 			final boolean needRepaint = lastReceivedTag != tag;
 			if (needRepaint)
 				System.out.println("=========== Have not received rendered image yet after last transform ===========");
