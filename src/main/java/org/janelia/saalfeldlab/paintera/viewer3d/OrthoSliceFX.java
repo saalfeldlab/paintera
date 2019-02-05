@@ -174,7 +174,7 @@ public class OrthoSliceFX
 			final int[] paddedTextureSize = new int[2];
 			final ReadOnlyObjectProperty<RenderUnit.RenderedImage> renderedImage = this.imagePropertyGrid.renderedImagePropertyAt(meshIndex);
 			renderedImage.addListener((obsIm, oldvIm, newvIm) -> {
-				if (newvIm != null && newvIm.getImage() != null) {
+				if (newvIm != null && newvIm.getImage() != null && this.viewer.getRenderingModeController().validateTag(newvIm.getTag())) {
 					paddedTextureSize[0] = (int) newvIm.getImage().getWidth();
 					paddedTextureSize[1] = (int) newvIm.getImage().getHeight();
 					mesh.updateTexCoords(paddedTextureSize, padding, meshSizeToTextureSizeRatio);
