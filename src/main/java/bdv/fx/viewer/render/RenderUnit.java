@@ -362,7 +362,7 @@ public class RenderUnit {
 				null
 			);
 
-			renderTarget.drawOverlays(img -> renderedImage.set(new RenderedImage(img, 0, renderedImageTag)));
+			renderTarget.drawOverlays(img -> renderedImage.set(new RenderedImage(img, renderedImageTag)));
 		}
 	}
 
@@ -384,26 +384,20 @@ public class RenderUnit {
 	}
 
 	/**
-	 * Utility class to represent rendering results that contains a rendered image and an index of the screen scale used for rendering.
+	 * Utility class to represent rendering results that contains a rendered image and an assigned tag.
 	 */
 	public static class RenderedImage
 	{
 		private final Image image;
-		private final int screenScaleIndex;
 		private final int tag;
 
-		public RenderedImage(final Image image, final int screenScaleIndex, final int tag) {
+		public RenderedImage(final Image image, final int tag) {
 			this.image = image;
-			this.screenScaleIndex = screenScaleIndex;
 			this.tag = tag;
 		}
 
 		public Image getImage() {
 			return image;
-		}
-
-		public int getScreenScaleIndex() {
-			return screenScaleIndex;
 		}
 
 		public int getTag() {
