@@ -34,7 +34,9 @@ public class OrthoSliceFX
 
 	private final Group meshesGroup = new Group();
 
+	private RenderUnit.ImagePropertyGrid imagePropertyGrid = null;
 	private boolean initializeMeshesWithCurrentTexture = false;
+	private boolean postponeMeshesInitialization = false;
 
 	private final ObservableList<MeshView> meshViews = FXCollections.observableArrayList();
 	{
@@ -79,83 +81,120 @@ public class OrthoSliceFX
 		});
 
 		this.viewer.imageDisplayGridProperty().addListener((obs, oldv, newv) -> {
+			this.imagePropertyGrid = newv;
+			initializeMeshes();
+		});
 
+		this.viewer.getRenderingModeController().getModeProperty().addListener((obs, oldv, newv) -> {
+			if (newv == RenderingMode.MULTI_TILE) {
+				this.initializeMeshesWithCurrentTexture = true;
+			} else {
+				this.postponeMeshesInitialization = true;
+			}
+		});
+	}
+
+	private void initializeMeshes()
+	{
+		if (this.postponeMeshesInitialization)
+		{
+			if (this.imagePropertyGrid == null)
+				return;
+			System.err.println("Postpone meshes initialization");
+			final CellGrid grid = this.imagePropertyGrid.getGrid();
+			final int numMeshes = (int) Intervals.numElements(grid.getGridDimensions());
+			assert numMeshes == 1;
+			for (int meshIndex = 0; meshIndex < numMeshes; ++meshIndex)
+			{
+				final ReadOnlyObjectProperty<RenderUnit.RenderedImage> renderedImage = this.imagePropertyGrid.renderedImagePropertyAt(meshIndex);
+				renderedImage.addListener((obsIm, oldvIm, newvIm) -> {
+					if (newvIm != null && newvIm.getImage() != null) {
+						if (this.postponeMeshesInitialization) {
+							this.postponeMeshesInitialization = false;
+							System.err.println("Got rendered image, now actually initialize the meshes");
+							initializeMeshes(newvIm.getImage());
+						}
+					}
+				});
+			}
+		}
+		else
+		{
 			final Image currentTextureImage;
 			if (this.initializeMeshesWithCurrentTexture) {
+				this.initializeMeshesWithCurrentTexture = false;
 				assert this.meshViews.size() == 1;
 				currentTextureImage = ((PhongMaterial) meshViews.get(0).getMaterial()).getSelfIlluminationMap();
 			} else {
 				currentTextureImage = null;
 			}
+			initializeMeshes(currentTextureImage);
+		}
+	}
 
-			this.meshViews.clear();
-			if (newv == null)
-				return;
-			final CellGrid grid = newv.getGrid();
-			final long[] dimensions = newv.getDimensions();
-			final int[] padding = newv.getPadding();
-			final int numMeshes = (int) Intervals.numElements(grid.getGridDimensions());
-			final long[] gridPos = new long[2];
-			final long[] min = new long[2];
-			final long[] max = new long[2];
-			final int[] dims = new int[2];
-			final List<MeshView> newMeshViews = new ArrayList<>();
-			for (int meshIndex = 0; meshIndex < numMeshes; ++meshIndex)
-			{
-				grid.getCellGridPositionFlat(meshIndex, gridPos);
-				grid.getCellDimensions(gridPos, min, dims);
-				Arrays.setAll(max, d -> Math.min(min[d] + dims[d], dimensions[d]));
+	private void initializeMeshes(final Image textureImage)
+	{
+		this.meshViews.clear();
+		if (this.imagePropertyGrid == null)
+			return;
 
-				final OrthoSliceMeshFX mesh = new OrthoSliceMeshFX(
-					new RealPoint(min[0], min[1]),
-					new RealPoint(max[0], min[1]),
-					new RealPoint(max[0], max[1]),
-					new RealPoint(min[0], max[1]),
-					new AffineTransform3D()
-				);
+		final CellGrid grid = this.imagePropertyGrid.getGrid();
+		final long[] dimensions = this.imagePropertyGrid.getDimensions();
+		final int[] padding = this.imagePropertyGrid.getPadding();
+		final int numMeshes = (int) Intervals.numElements(grid.getGridDimensions());
+		final long[] gridPos = new long[2];
+		final long[] min = new long[2];
+		final long[] max = new long[2];
+		final int[] dims = new int[2];
+		final List<MeshView> newMeshViews = new ArrayList<>();
+		for (int meshIndex = 0; meshIndex < numMeshes; ++meshIndex)
+		{
+			grid.getCellGridPositionFlat(meshIndex, gridPos);
+			grid.getCellDimensions(gridPos, min, dims);
+			Arrays.setAll(max, d -> Math.min(min[d] + dims[d], dimensions[d]));
 
-				final MeshView mv = new MeshView(mesh);
-				final PhongMaterial material = new PhongMaterial();
-				mv.setCullFace(CullFace.NONE);
-				mv.setMaterial(material);
-				material.setDiffuseColor(Color.BLACK);
-				material.setSpecularColor(Color.BLACK);
+			final OrthoSliceMeshFX mesh = new OrthoSliceMeshFX(
+				new RealPoint(min[0], min[1]),
+				new RealPoint(max[0], min[1]),
+				new RealPoint(max[0], max[1]),
+				new RealPoint(min[0], max[1]),
+				new AffineTransform3D()
+			);
 
-				final double[] meshSizeToTextureSizeRatio = new double[2];
-				Arrays.setAll(meshSizeToTextureSizeRatio, d -> (double) (max[d] - min[d]) / dims[d]);
-				final int[] paddedTextureSize = new int[2];
-				final ReadOnlyObjectProperty<RenderUnit.RenderedImage> renderedImage = newv.renderedImagePropertyAt(meshIndex);
-				renderedImage.addListener((obsIm, oldvIm, newvIm) -> {
-					if (newvIm != null && newvIm.getImage() != null) {
-						paddedTextureSize[0] = (int) newvIm.getImage().getWidth();
-						paddedTextureSize[1] = (int) newvIm.getImage().getHeight();
-						mesh.updateTexCoords(paddedTextureSize, padding, meshSizeToTextureSizeRatio);
-						material.setSelfIlluminationMap(newvIm.getImage());
-					}
-				});
-				newMeshViews.add(mv);
+			final MeshView mv = new MeshView(mesh);
+			final PhongMaterial material = new PhongMaterial();
+			mv.setCullFace(CullFace.NONE);
+			mv.setMaterial(material);
+			material.setDiffuseColor(Color.BLACK);
+			material.setSpecularColor(Color.BLACK);
 
-				if (this.initializeMeshesWithCurrentTexture) {
-					assert currentTextureImage != null;
-					final int[] currentTextureImageSize = new int[] {(int) Math.round(currentTextureImage.getWidth()), (int) Math.round(currentTextureImage.getHeight())};
-					final float[] texCoordMin = new float[2], texCoordMax = new float[2];
-					for (int d = 0; d < 2; ++d) {
-						texCoordMin[d] = (((float) min[d] / dimensions[d]) * (currentTextureImageSize[d] - 2 * padding[d]) + padding[d]) / (float) currentTextureImageSize[d];
-						texCoordMax[d] = (((float) max[d] / dimensions[d]) * (currentTextureImageSize[d] - 2 * padding[d]) + padding[d]) / (float) currentTextureImageSize[d];
-					}
-					mesh.updateTexCoords(texCoordMin, texCoordMax);
-					material.setSelfIlluminationMap(currentTextureImage);
+			final double[] meshSizeToTextureSizeRatio = new double[2];
+			Arrays.setAll(meshSizeToTextureSizeRatio, d -> (double) (max[d] - min[d]) / dims[d]);
+			final int[] paddedTextureSize = new int[2];
+			final ReadOnlyObjectProperty<RenderUnit.RenderedImage> renderedImage = this.imagePropertyGrid.renderedImagePropertyAt(meshIndex);
+			renderedImage.addListener((obsIm, oldvIm, newvIm) -> {
+				if (newvIm != null && newvIm.getImage() != null) {
+					paddedTextureSize[0] = (int) newvIm.getImage().getWidth();
+					paddedTextureSize[1] = (int) newvIm.getImage().getHeight();
+					mesh.updateTexCoords(paddedTextureSize, padding, meshSizeToTextureSizeRatio);
+					material.setSelfIlluminationMap(newvIm.getImage());
 				}
-			}
-			this.initializeMeshesWithCurrentTexture = false;
-			this.meshViews.setAll(newMeshViews);
-		});
+			});
+			newMeshViews.add(mv);
 
-		this.viewer.getRenderingModeController().getModeProperty().addListener((obs, oldv, newv) -> {
-			if (newv == RenderingMode.MULTI_TILE) {
-				initializeMeshesWithCurrentTexture = true;
+			if (textureImage != null) {
+				final int[] currentTextureImageSize = new int[] {(int) Math.round(textureImage.getWidth()), (int) Math.round(textureImage.getHeight())};
+				final float[] texCoordMin = new float[2], texCoordMax = new float[2];
+				for (int d = 0; d < 2; ++d) {
+					texCoordMin[d] = (((float) min[d] / dimensions[d]) * (currentTextureImageSize[d] - 2 * padding[d]) + padding[d]) / (float) currentTextureImageSize[d];
+					texCoordMax[d] = (((float) max[d] / dimensions[d]) * (currentTextureImageSize[d] - 2 * padding[d]) + padding[d]) / (float) currentTextureImageSize[d];
+				}
+				mesh.updateTexCoords(texCoordMin, texCoordMax);
+				material.setSelfIlluminationMap(textureImage);
 			}
-		});
+		}
+
+		this.meshViews.setAll(newMeshViews);
 	}
 
 	public Group getScene()
