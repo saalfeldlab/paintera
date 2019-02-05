@@ -229,7 +229,9 @@ public class LabelSourceStateDeserializer<C extends HighlightingStreamConverter<
 		try {
 			LOG.debug("Deserializing {} from {}", FragmentSegmentAssignmentState.class.getName(), assignmentMap);
 			return SerializationHelpers.deserializeFromClassInfo(assignmentMap, context);
-		} catch (final FragmentSegmentAssignmentOnlyLocalSerializer.NoPersisterFound | NullPointerException e) {
+		} catch (final FragmentSegmentAssignmentOnlyLocalSerializer.NoPersisterFound
+				| FragmentSegmentAssignmentOnlyLocalSerializer.NoInitialLutFound
+				| NullPointerException e) {
 			LOG.debug("Caught exception when trying to deserialize assignment", e);
 			LOG.warn("Trying to load fragment-segment-assignment with legacy loader, assuming the underlying persister is N5. " +
 					"If successfully loaded, this will not be necessary anymore after you save the project.");

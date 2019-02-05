@@ -1,30 +1,27 @@
 package org.janelia.saalfeldlab.paintera.serialization.assignments;
 
-import java.lang.invoke.MethodHandles;
-import java.lang.reflect.Type;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.function.Supplier;
-import java.util.stream.Collectors;
-
 import com.google.gson.JsonArray;
 import com.google.gson.JsonDeserializationContext;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParseException;
 import com.google.gson.JsonSerializationContext;
-import com.google.gson.JsonSerializer;
 import gnu.trove.map.TLongLongMap;
 import javafx.util.Pair;
 import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignmentOnlyLocal;
-import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignmentState;
 import org.janelia.saalfeldlab.paintera.control.assignment.action.AssignmentAction;
 import org.janelia.saalfeldlab.paintera.serialization.PainteraSerialization;
 import org.janelia.saalfeldlab.paintera.serialization.SerializationHelpers;
-import org.janelia.saalfeldlab.util.n5.N5Helpers;
 import org.scijava.plugin.Plugin;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.lang.invoke.MethodHandles;
+import java.lang.reflect.Type;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.function.Supplier;
+import java.util.stream.Collectors;
 
 @Plugin(type = PainteraSerialization.PainteraAdapter.class)
 public class FragmentSegmentAssignmentOnlyLocalSerializer implements PainteraSerialization.PainteraAdapter<FragmentSegmentAssignmentOnlyLocal>
@@ -72,14 +69,18 @@ public class FragmentSegmentAssignmentOnlyLocalSerializer implements PainteraSer
 		LOG.debug("Deserializing from {}", jsonElement);
 		try {
 
-			if (!(jsonElement instanceof JsonObject) || !jsonElement.getAsJsonObject().has(PERSISTER_KEY))
-				throw new NoPersisterFound(jsonElement);
-
+			if (!(jsonElement instanceof JsonObject))
+				throw new JsonParseException(String.format("Expected instanceof %s but got %s", JsonObject.class, jsonElement));
 			final JsonObject map = jsonElement.getAsJsonObject();
+
+			if (!map.has(PERSISTER_KEY))
+				throw new NoPersisterFound(map);
+
+			if (!map.has(INITIAL_LUT_KEY))
+				throw new NoInitialLutFound(map);
+
 			final FragmentSegmentAssignmentOnlyLocal.Persister persister = SerializationHelpers.deserializeFromClassInfo(map.get(PERSISTER_KEY).getAsJsonObject(), context);
-			final FragmentSegmentAssignmentOnlyLocal assignment = map.has(INITIAL_LUT_KEY)
-					? new FragmentSegmentAssignmentOnlyLocal(tryDeserializeInitialLutSupplier(map.getAsJsonObject(INITIAL_LUT_KEY), context), persister)
-					: new FragmentSegmentAssignmentOnlyLocal(persister);
+			final FragmentSegmentAssignmentOnlyLocal assignment = new FragmentSegmentAssignmentOnlyLocal(tryDeserializeInitialLutSupplier(map.getAsJsonObject(INITIAL_LUT_KEY), context), persister);
 
 			if (map.has(ACTIONS_KEY)) {
 				final JsonArray serializedActions = map.get(FragmentSegmentAssignmentOnlyLocalSerializer.ACTIONS_KEY).getAsJsonArray();
@@ -106,10 +107,25 @@ public class FragmentSegmentAssignmentOnlyLocalSerializer implements PainteraSer
 
 	public static class NoPersisterFound extends JsonParseException {
 
-		private final JsonElement el;
+		private final JsonObject el;
 
-		public NoPersisterFound(final JsonElement el) {
-			super("No Persister found in JsonElement " + (el == null ? null : el.getAsString()));
+		public NoPersisterFound(final JsonObject el) {
+			super(String.format("No Persister found for key %s in JsonObject %s", PERSISTER_KEY, el));
+			this.el = el;
+		}
+
+		public JsonElement getJsonElement() {
+			return el == null ? null : el.deepCopy();
+		}
+
+	}
+
+	public static class NoInitialLutFound extends JsonParseException {
+
+		private final JsonObject el;
+
+		public NoInitialLutFound(final JsonObject el) {
+			super(String.format("No initial lut found for key %s in JsonObject %s", INITIAL_LUT_KEY, el));
 			this.el = el;
 		}
 
@@ -126,9 +142,7 @@ public class FragmentSegmentAssignmentOnlyLocalSerializer implements PainteraSer
 			return SerializationHelpers.deserializeFromClassInfo(map, context);
 		} catch (ClassNotFoundException e)
 		{
-			LOG.debug("Unable to deserialize initial lut supplier", e);
-			LOG.error("Unable to deserialize initial lut supplier from {} -- use empty lut supplier instead.");
-			return FragmentSegmentAssignmentOnlyLocal.NO_INITIAL_LUT_AVAILABLE;
+			throw new JsonParseException("Unable to deserialize initial lut supplier", e);
 		}
 	}
 }
