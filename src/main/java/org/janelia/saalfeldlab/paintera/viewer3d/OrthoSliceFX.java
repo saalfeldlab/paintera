@@ -85,10 +85,13 @@ public class OrthoSliceFX
 			initializeMeshes();
 		});
 
+		// This listener keeps track of rendering mode changes, which allows to make the transition completely unnoticeable
 		this.viewer.getRenderingModeController().getModeProperty().addListener((obs, oldv, newv) -> {
 			if (newv == RenderingMode.MULTI_TILE) {
+				// Switch from single tile to multi tile, the current texture image will be used to initialize textures for the new meshes
 				this.initializeMeshesWithCurrentTexture = true;
-			} else {
+			} else if (newv == RenderingMode.SINGLE_TILE ) {
+				// Switch from multi tile to single tile, initialization will be postponed until first rendered frame is received
 				this.postponeMeshesInitialization = true;
 			}
 		});
@@ -100,7 +103,6 @@ public class OrthoSliceFX
 		{
 			if (this.imagePropertyGrid == null)
 				return;
-			System.err.println("Postpone meshes initialization");
 			final CellGrid grid = this.imagePropertyGrid.getGrid();
 			final int numMeshes = (int) Intervals.numElements(grid.getGridDimensions());
 			assert numMeshes == 1;
@@ -111,7 +113,6 @@ public class OrthoSliceFX
 					if (newvIm != null && newvIm.getImage() != null) {
 						if (this.postponeMeshesInitialization) {
 							this.postponeMeshesInitialization = false;
-							System.err.println("Got rendered image, now actually initialize the meshes");
 							initializeMeshes(newvIm.getImage());
 						}
 					}
@@ -183,6 +184,8 @@ public class OrthoSliceFX
 			newMeshViews.add(mv);
 
 			if (textureImage != null) {
+				// Use the current single-tile texture image to initialize texture for the new (smaller) meshes.
+				// Texture coordinates are computed for each mesh to crop the corresponding region from the texture image.
 				final int[] currentTextureImageSize = new int[] {(int) Math.round(textureImage.getWidth()), (int) Math.round(textureImage.getHeight())};
 				final float[] texCoordMin = new float[2], texCoordMax = new float[2];
 				for (int d = 0; d < 2; ++d) {

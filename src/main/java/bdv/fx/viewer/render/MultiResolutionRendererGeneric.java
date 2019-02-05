@@ -535,7 +535,6 @@ public class MultiResolutionRendererGeneric<T>
 					requestRepaint(currentScreenScaleIndex - 1);
 				else if (!p.isValid())
 				{
-				    System.out.println("NOT VALID");
 					try
 					{
 						Thread.sleep(1);

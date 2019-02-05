@@ -47,7 +47,7 @@ public class RenderingModeController {
 
 		modeProperty.set(mode);
 		lastModeSwitchTag = currentTag.get();
-		System.out.println("Switching rendering mode to " + mode);
+		LOG.debug("Switching rendering mode to " + mode);
 
 		switch (mode) {
 		case MULTI_TILE:
@@ -75,7 +75,7 @@ public class RenderingModeController {
 	{
 		currentTag.getAndIncrement();
 		if (modeProperty.get() != RenderingMode.SINGLE_TILE) {
-			System.out.println("Navigation has been initiated");
+			LOG.debug("Navigation has been initiated");
 			InvokeOnJavaFXApplicationThread.invoke(() -> setMode(RenderingMode.SINGLE_TILE));
 		}
 	}
@@ -85,9 +85,7 @@ public class RenderingModeController {
 		final int tag = currentTag.getAndIncrement();
 		if (modeProperty.get() != RenderingMode.MULTI_TILE) {
 			final boolean needRepaint = lastReceivedTag != tag;
-			if (needRepaint)
-				System.out.println("=========== Have not received rendered image yet after last transform ===========");
-			System.out.println("Painting has been initiated");
+			LOG.debug("Painting has been initiated, needRepaint={}", needRepaint);
 			InvokeOnJavaFXApplicationThread.invoke(() -> {
 				setMode(RenderingMode.MULTI_TILE);
 				if (needRepaint)
@@ -98,8 +96,8 @@ public class RenderingModeController {
 
 	public void paintingFinished()
 	{
-		System.out.println("Painting has been stopped");
-		currentTag.incrementAndGet();
+		LOG.debug("Painting has been stopped");
+		currentTag.getAndIncrement();
 	}
 
 	public void receivedRenderedImage(final int tag)

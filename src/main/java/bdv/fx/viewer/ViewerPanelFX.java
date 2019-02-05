@@ -598,7 +598,6 @@ public class ViewerPanelFX
 			final ReadOnlyObjectProperty<RenderUnit.RenderedImage> renderedImage = grid.renderedImagePropertyAt(i);
 			renderedImage.addListener((obs, oldv, newv) -> {
 				if (newv != null && newv.getImage() != null) {
-				    System.out.println("tag: " + newv.getTag());
 					if (renderingModeController.validateTag(newv.getTag())) {
 						final int[] padding = grid.getPadding();
 						canvas.getGraphicsContext2D().drawImage(
