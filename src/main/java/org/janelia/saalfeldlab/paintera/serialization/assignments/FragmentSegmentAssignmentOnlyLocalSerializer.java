@@ -4,6 +4,7 @@ import java.lang.invoke.MethodHandles;
 import java.lang.reflect.Type;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
 import com.google.gson.JsonArray;
@@ -13,6 +14,7 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonParseException;
 import com.google.gson.JsonSerializationContext;
 import com.google.gson.JsonSerializer;
+import gnu.trove.map.TLongLongMap;
 import javafx.util.Pair;
 import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignmentOnlyLocal;
 import org.janelia.saalfeldlab.paintera.control.assignment.FragmentSegmentAssignmentState;
@@ -38,6 +40,8 @@ public class FragmentSegmentAssignmentOnlyLocalSerializer implements PainteraSer
 
 	public static final String PERSISTER_KEY = "persister";
 
+	public static final String INITIAL_LUT_KEY = "initialLut";
+
 	@Override
 	public JsonElement serialize(
 			final FragmentSegmentAssignmentOnlyLocal src,
@@ -58,6 +62,7 @@ public class FragmentSegmentAssignmentOnlyLocalSerializer implements PainteraSer
 		final JsonObject map = new JsonObject();
 		map.add(ACTIONS_KEY, context.serialize(serializedActions));
 		map.add(PERSISTER_KEY, SerializationHelpers.serializeWithClassInfo(src.getPersister(), context));
+		map.add(INITIAL_LUT_KEY, SerializationHelpers.serializeWithClassInfo(src.getInitialLutSupplier(), context));
 		return map;
 	}
 
@@ -72,7 +77,9 @@ public class FragmentSegmentAssignmentOnlyLocalSerializer implements PainteraSer
 
 			final JsonObject map = jsonElement.getAsJsonObject();
 			final FragmentSegmentAssignmentOnlyLocal.Persister persister = SerializationHelpers.deserializeFromClassInfo(map.get(PERSISTER_KEY).getAsJsonObject(), context);
-			final FragmentSegmentAssignmentOnlyLocal assignment = new FragmentSegmentAssignmentOnlyLocal(persister);
+			final FragmentSegmentAssignmentOnlyLocal assignment = map.has(INITIAL_LUT_KEY)
+					? new FragmentSegmentAssignmentOnlyLocal(tryDeserializeInitialLutSupplier(map.getAsJsonObject(INITIAL_LUT_KEY), context), persister)
+					: new FragmentSegmentAssignmentOnlyLocal(persister);
 
 			if (map.has(ACTIONS_KEY)) {
 				final JsonArray serializedActions = map.get(FragmentSegmentAssignmentOnlyLocalSerializer.ACTIONS_KEY).getAsJsonArray();
@@ -110,5 +117,18 @@ public class FragmentSegmentAssignmentOnlyLocalSerializer implements PainteraSer
 			return el == null ? null : el.deepCopy();
 		}
 
+	}
+
+	private static Supplier<TLongLongMap> tryDeserializeInitialLutSupplier(
+			final JsonObject map,
+			final JsonDeserializationContext context) {
+		try {
+			return SerializationHelpers.deserializeFromClassInfo(map, context);
+		} catch (ClassNotFoundException e)
+		{
+			LOG.debug("Unable to deserialize initial lut supplier", e);
+			LOG.error("Unable to deserialize initial lut supplier from {} -- use empty lut supplier instead.");
+			return FragmentSegmentAssignmentOnlyLocal.NO_INITIAL_LUT_AVAILABLE;
+		}
 	}
 }

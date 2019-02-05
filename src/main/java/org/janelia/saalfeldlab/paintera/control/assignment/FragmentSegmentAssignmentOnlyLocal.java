@@ -6,6 +6,7 @@ import java.util.Optional;
 import java.util.function.LongSupplier;
 import java.util.function.Supplier;
 
+import com.google.gson.annotations.Expose;
 import gnu.trove.impl.Constants;
 import gnu.trove.iterator.TLongLongIterator;
 import gnu.trove.map.TLongLongMap;
@@ -31,12 +32,37 @@ public class FragmentSegmentAssignmentOnlyLocal extends FragmentSegmentAssignmen
 	public static class DoesNotPersist implements Persister
 	{
 
+		@Expose
+		private final String persistError;
+
+		public DoesNotPersist() {
+			this("Cannot persist at all!");
+		}
+
+		public DoesNotPersist(final String persistError) {
+			this.persistError = persistError;
+		}
+
 		@Override
 		public void persist(final long[] keys, final long[] values) throws UnableToPersist
 		{
-			throw new UnableToPersist("Cannot persist at all!");
+			throw new UnableToPersist(this.persistError);
 		}
 
+	}
+
+	public static class NoInitialLutAvailable implements Supplier<TLongLongMap> {
+
+		@Override
+		public TLongLongMap get() {
+			return new TLongLongHashMap();
+		}
+	}
+
+	public static Supplier<TLongLongMap> NO_INITIAL_LUT_AVAILABLE = new NoInitialLutAvailable();
+
+	public static Persister doesNotPersist(final String persistError) {
+		return new DoesNotPersist(persistError);
 	}
 
 	private static final Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
@@ -60,7 +86,7 @@ public class FragmentSegmentAssignmentOnlyLocal extends FragmentSegmentAssignmen
 
 	public FragmentSegmentAssignmentOnlyLocal(final Persister persister)
 	{
-		this(() -> new TLongLongHashMap(), persister);
+		this(NO_INITIAL_LUT_AVAILABLE, persister);
 	}
 
 	public FragmentSegmentAssignmentOnlyLocal(
@@ -79,6 +105,10 @@ public class FragmentSegmentAssignmentOnlyLocal extends FragmentSegmentAssignmen
 
 	public Persister getPersister() {
 		return this.persister;
+	}
+
+	public Supplier<TLongLongMap> getInitialLutSupplier() {
+		return this.initialLut;
 	}
 
 	@Override
