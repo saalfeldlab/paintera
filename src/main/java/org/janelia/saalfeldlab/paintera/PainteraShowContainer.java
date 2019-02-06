@@ -330,7 +330,14 @@ public class PainteraShowContainer extends Application {
 		if (N5Helpers.isMultiScale(reader, group))
 			return N5Types.isLabelMultisetType(reader, group) || isLabelData(reader, N5Helpers.getFinestLevelJoinWithGroup(reader, group));
 
-		return N5Types.isLabelMultisetType(reader, group) || reader.getDatasetAttributes(group).getDataType().equals(DataType.UINT64);
+		if (N5Types.isLabelMultisetType(reader, group))
+			return true;
+
+		switch (reader.getDatasetAttributes(group).getDataType()) {
+			case UINT64:
+			case INT64: return true;
+			default: return false;
+		}
 	}
 
 	private static int getNumDimensions(N5Reader n5, String dataset) throws IOException {
