@@ -475,57 +475,24 @@ public class N5Helpers
 
 		if (!isPainteraDataset(writer, group))
 		{
+			final String persistError = "Persisting assignments not supported for non Paintera group/dataset " + group;
 			return new FragmentSegmentAssignmentOnlyLocal(
-					TLongLongHashMap::new,
-					(ks, vs) -> {
-						throw new UnableToPersist("Persisting assignments not supported for non Paintera " +
-								"group/dataset" +
-								" " + group);
-					}
-			);
+					FragmentSegmentAssignmentOnlyLocal.NO_INITIAL_LUT_AVAILABLE,
+					FragmentSegmentAssignmentOnlyLocal.doesNotPersist(persistError));
 		}
 
 		final String dataset = group + "/" + PAINTERA_FRAGMENT_SEGMENT_ASSIGNMENT_DATASTE;
-		final Persister persister = new N5FragmentSegmentAssignmentPersister(writer, dataset);
 
-		final Supplier<TLongLongMap> initialLutSupplier = ThrowingSupplier.unchecked(() -> {
-			final long[] keys;
-			final long[] values;
-			LOG.debug("Found fragment segment assingment dataset {}? {}", dataset, writer.datasetExists(dataset));
-			if (writer.datasetExists(dataset))
-			{
-				final DatasetAttributes attrs      = writer.getDatasetAttributes(dataset);
-				final int               numEntries = (int) attrs.getDimensions()[0];
-				keys = new long[numEntries];
-				values = new long[numEntries];
-				LOG.debug("Found {} assignments", numEntries);
-				final RandomAccessibleInterval<UnsignedLongType> data = N5Utils.open(writer, dataset);
-
-				if (numEntries > 0) {
-					final Cursor<UnsignedLongType> keysCursor = Views.flatIterable(Views.hyperSlice(data, 1, 0L)).cursor();
-					for (int i = 0; keysCursor.hasNext(); ++i) {
-						keys[i] = keysCursor.next().get();
-					}
-
-					final Cursor<UnsignedLongType> valuesCursor = Views.flatIterable(Views.hyperSlice(
-							data,
-							1,
-							1L
-					)).cursor();
-					for (int i = 0; valuesCursor.hasNext(); ++i) {
-						values[i] = valuesCursor.next().get();
-					}
-				}
-			}
-			else
-			{
-				keys = new long[] {};
-				values = new long[] {};
-			}
-			return new TLongLongHashMap(keys, values);
-		});
-
-		return new FragmentSegmentAssignmentOnlyLocal(initialLutSupplier, persister);
+		try {
+			return new FragmentSegmentAssignmentOnlyLocal(
+					new N5FragmentSegmentAssignmentInitialLut(writer, dataset),
+					new N5FragmentSegmentAssignmentPersister(writer, dataset));
+		} catch (ReflectionException e) {
+			LOG.debug("Unable to create initial lut supplier", e);
+			return new FragmentSegmentAssignmentOnlyLocal(
+					FragmentSegmentAssignmentOnlyLocal.NO_INITIAL_LUT_AVAILABLE,
+					new N5FragmentSegmentAssignmentPersister(writer, dataset));
+		}
 	}
 
 	/**

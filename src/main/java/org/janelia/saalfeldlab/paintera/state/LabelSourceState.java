@@ -327,10 +327,8 @@ public class LabelSourceState<D extends IntegerType<D>, T>
 		);
 
 		final SelectedIds                        selectedIds    = new SelectedIds();
-		final FragmentSegmentAssignmentOnlyLocal assignment     = new FragmentSegmentAssignmentOnlyLocal(new
-				FragmentSegmentAssignmentOnlyLocal.DoesNotPersist());
-		final LockedSegmentsOnlyLocal            lockedSegments = new LockedSegmentsOnlyLocal(seg -> {
-		});
+		final FragmentSegmentAssignmentOnlyLocal assignment     = new FragmentSegmentAssignmentOnlyLocal(new FragmentSegmentAssignmentOnlyLocal.DoesNotPersist());
+		final LockedSegmentsOnlyLocal            lockedSegments = new LockedSegmentsOnlyLocal(seg -> {});
 		final ModalGoldenAngleSaturatedHighlightingARGBStream stream = new
 				ModalGoldenAngleSaturatedHighlightingARGBStream(
 				selectedIds,
