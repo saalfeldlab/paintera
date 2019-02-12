@@ -145,13 +145,15 @@ public class IdSelector
 					synchronized (viewer)
 					{
 						final AffineTransform3D affine      = new AffineTransform3D();
+						final int level;
 						final ViewerState       viewerState = viewer.getState();
-						viewerState.getViewerTransform(affine);
-						final AffineTransform3D screenScaleTransforms = new AffineTransform3D();
-						final int               level                 = viewerState.getBestMipMapLevel(
-								screenScaleTransforms,
-								getIndexOf(dataSource, viewerState)
-						                                                                              );
+						synchronized (viewerState)
+						{
+							viewerState.getViewerTransform(affine);
+							final AffineTransform3D screenScaleTransforms = new AffineTransform3D();
+							level = viewerState.getBestMipMapLevel(screenScaleTransforms, getIndexOf(dataSource, viewerState));
+						}
+
 						dataSource.getSourceTransform(0, level, affine);
 						final RealTransformRealRandomAccessible<I, InverseRealTransform>.RealTransformRealRandomAccess
 								access = RealViews.transformReal(
@@ -242,12 +244,14 @@ public class IdSelector
 						if (lastSelection == Label.INVALID) { return; }
 
 						final AffineTransform3D viewerTransform = new AffineTransform3D();
+						final int level;
 						final ViewerState       viewerState     = viewer.getState();
-						viewerState.getViewerTransform(viewerTransform);
-						final int               level  = viewerState.getBestMipMapLevel(
-								viewerTransform,
-								getIndexOf(source, viewerState)
-						                                                               );
+						synchronized (viewerState)
+						{
+							viewerState.getViewerTransform(viewerTransform);
+							level = viewerState.getBestMipMapLevel(viewerTransform, getIndexOf(source, viewerState));
+						}
+
 						final AffineTransform3D affine = new AffineTransform3D();
 						dataSource.getSourceTransform(0, level, affine);
 						final RealRandomAccess<I> access = RealViews.transformReal(
@@ -308,12 +312,14 @@ public class IdSelector
 						if (lastSelection == Label.INVALID) { return; }
 
 						final AffineTransform3D viewerTransform = new AffineTransform3D();
+						final int level;
 						final ViewerState       viewerState     = viewer.getState();
-						viewerState.getViewerTransform(viewerTransform);
-						final int               level  = viewerState.getBestMipMapLevel(
-								viewerTransform,
-								getIndexOf(source, viewerState)
-						                                                               );
+						synchronized (viewerState)
+						{
+							viewerState.getViewerTransform(viewerTransform);
+							level = viewerState.getBestMipMapLevel(viewerTransform, getIndexOf(source, viewerState));
+						}
+
 						final AffineTransform3D affine = new AffineTransform3D();
 						dataSource.getSourceTransform(0, level, affine);
 						final RealTransformRealRandomAccessible<I, InverseRealTransform> transformedSource = RealViews
@@ -383,12 +389,14 @@ public class IdSelector
 						}
 
 						final AffineTransform3D viewerTransform = new AffineTransform3D();
+						final int level;
 						final ViewerState       viewerState     = viewer.getState();
-						viewerState.getViewerTransform(viewerTransform);
-						final int               level  = viewerState.getBestMipMapLevel(
-								viewerTransform,
-								getIndexOf(source, viewerState)
-						                                                               );
+						synchronized (viewerState)
+						{
+							viewerState.getViewerTransform(viewerTransform);
+							level = viewerState.getBestMipMapLevel(viewerTransform, getIndexOf(source, viewerState));
+						}
+
 						final AffineTransform3D affine = new AffineTransform3D();
 						dataSource.getSourceTransform(0, level, affine);
 						final RealTransformRealRandomAccessible<I, InverseRealTransform> transformedSource = RealViews
@@ -476,8 +484,13 @@ public class IdSelector
 		final AffineTransform3D viewerTransform = new AffineTransform3D();
 		final AffineTransform3D sourceTransform = new AffineTransform3D();
 		final ViewerState       state           = viewer.getState();
-		state.getViewerTransform(viewerTransform);
-		final int level = state.getBestMipMapLevel(viewerTransform, getIndexOf(dataSource, state));
+		final int level;
+		synchronized (state)
+		{
+			state.getViewerTransform(viewerTransform);
+			level = state.getBestMipMapLevel(viewerTransform, getIndexOf(dataSource, state));
+		}
+
 		dataSource.getSourceTransform(0, level, sourceTransform);
 
 		final RealRandomAccessible<I>                                    interpolatedSource = dataSource.getInterpolatedDataSource(

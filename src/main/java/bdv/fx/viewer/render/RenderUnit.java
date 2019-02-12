@@ -27,6 +27,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.function.Function;
+import java.util.function.IntSupplier;
 import java.util.function.Supplier;
 import java.util.stream.LongStream;
 
@@ -37,9 +38,7 @@ public class RenderUnit {
 
 	private static Logger LOG = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
-	private static final int NUM_RENDERING_THREADS = 1;
-
-	private final int[] blockSize = {250, 250};
+	private final int[] blockSize = {Integer.MAX_VALUE, Integer.MAX_VALUE};
 
 	private final long[] dimensions = {1, 1};
 
@@ -52,7 +51,7 @@ public class RenderUnit {
 	private MultiResolutionRendererFX[] renderers = new MultiResolutionRendererFX[0];
 
 	@SuppressWarnings("unchecked")
-	private ObjectProperty<Image>[] images = new ObjectProperty[0];
+	private ObjectProperty<RenderedImage>[] renderedImages = new ObjectProperty[0];
 
 	private PainterThread[] painterThreads = new PainterThread[0];
 
@@ -72,11 +71,15 @@ public class RenderUnit {
 
 	private final long targetRenderNanos;
 
+	private final int numRenderingThreads;
+
 	private final ExecutorService renderingExecutorService;
 
 	private final List<Runnable> updateListeners = new ArrayList<>();
 
 	private long[][] offsets = new long[0][];
+
+	private final IntSupplier renderedImageTagSupplier;
 
 	public RenderUnit(
 			final ThreadGroup threadGroup,
@@ -86,7 +89,9 @@ public class RenderUnit {
 			final AccumulateProjectorFactory<ARGBType> accumulateProjectorFactory,
 			final CacheControl cacheControl,
 			final long targetRenderNanos,
-			final ExecutorService renderingExecutorService) {
+			final int numRenderingThreads,
+			final ExecutorService renderingExecutorService,
+			final IntSupplier renderedImageTagSupplier) {
 		this.threadGroup = threadGroup;
 		this.viewerState = viewerState;
 		this.axisOrder = axisOrder;
@@ -94,7 +99,9 @@ public class RenderUnit {
 		this.accumulateProjectorFactory = accumulateProjectorFactory;
 		this.cacheControl = cacheControl;
 		this.targetRenderNanos = targetRenderNanos;
+		this.numRenderingThreads = numRenderingThreads;
 		this.renderingExecutorService = renderingExecutorService;
+		this.renderedImageTagSupplier = renderedImageTagSupplier;
 		update();
 	}
 
@@ -115,7 +122,7 @@ public class RenderUnit {
 	 * Set size of total screen to be rendered
 	 *
 	 * @param dimX width of screen
-	 * @param dimY heighto f screen
+	 * @param dimY height of screen
 	 */
 	public void setDimensions(final long dimX, final long dimY)
 	{
@@ -255,7 +262,6 @@ public class RenderUnit {
 
 	private synchronized void update()
 	{
-
 		for (PainterThread p : painterThreads) {
 			if (p == null)
 				continue;
@@ -270,9 +276,11 @@ public class RenderUnit {
 
 		this.grid = new CellGrid(adjustedDimensions, blockSize);
 
-		int numBlocks = (int) LongStream.of(this.grid.getGridDimensions()).reduce(1, (l1, l2) -> l1 * l2);
+		final int numBlocks = (int) LongStream.of(this.grid.getGridDimensions()).reduce(1, (l1, l2) -> l1 * l2);
+		final int numRenderingThreadsPerBlock = Math.max(numRenderingThreads / numBlocks, 1);
+
 		renderers = new MultiResolutionRendererFX[numBlocks];
-		images = new ObjectProperty[numBlocks];
+		renderedImages = new ObjectProperty[numBlocks];
 		renderTargets = new TransformAwareBufferedImageOverlayRendererFX[numBlocks];
 		painterThreads = new PainterThread[numBlocks];
 		offsets = new long[numBlocks][];
@@ -294,7 +302,7 @@ public class RenderUnit {
 					this.screenScales,
 					targetRenderNanos,
 					true,
-					NUM_RENDERING_THREADS,
+					numRenderingThreadsPerBlock,
 					renderingExecutorService,
 					true,
 					accumulateProjectorFactory,
@@ -304,7 +312,7 @@ public class RenderUnit {
 			LOG.trace("Creating new renderer for block ({}) ({})", min, max);
 			renderTarget.setCanvasSize(cellDims[0], cellDims[1]);
 			renderers[index] = renderer;
-			images[index] = new SimpleObjectProperty<>(null);
+			renderedImages[index] = new SimpleObjectProperty<>(null);
 			renderTargets[index] = renderTarget;
 			painterThreads[index] = painterThread;
 			offsets[index] = min.clone();
@@ -316,13 +324,12 @@ public class RenderUnit {
 
 	public synchronized ImagePropertyGrid getImagePropertyGrid()
 	{
-		return new ImagePropertyGrid(images, grid, dimensions, padding);
+		return new ImagePropertyGrid(renderedImages, grid, dimensions, padding);
 	}
 
 	private class Paintable implements PainterThread.Paintable
 	{
-
-		final int index;
+		private final int index;
 
 		private Paintable(int index) {
 			this.index = index;
@@ -330,40 +337,50 @@ public class RenderUnit {
 
 		@Override
 		public void paint() {
+
 			MultiResolutionRendererFX renderer;
-			ObjectProperty<Image> image;
+			ObjectProperty<RenderedImage> renderedImage;
 			TransformAwareBufferedImageOverlayRendererFX renderTarget;
 			long[] offset;
-			ViewerState viewerState = null;
 			final List<SourceAndConverter<?>> sacs = new ArrayList<>();
+			final AffineTransform3D viewerTransform = new AffineTransform3D();
+			final int timepoint;
+			final int renderedImageTag;
 			synchronized (RenderUnit.this)
 			{
 				renderer = index < renderers.length ? renderers[index] : null;
-				image = index < images.length ? images[index] : null;
+				renderedImage = index < renderedImages.length ? renderedImages[index] : null;
 				renderTarget = index < renderTargets.length ? renderTargets[index] : null;
 				offset = index < offsets.length ? offsets[index] : null;
-				if (renderer != null && image != null && renderTarget != null && offset != null) {
-					viewerState = RenderUnit.this.viewerState.get().copy();
+				if (renderer != null && renderedImage != null && renderTarget != null && offset != null)
+				{
+					final ViewerState viewerState = RenderUnit.this.viewerState.get();
+					synchronized (viewerState)
+					{
+						viewerState.getViewerTransform(viewerTransform);
+						timepoint = viewerState.timepointProperty().get();
+						renderedImageTag = renderedImageTagSupplier.getAsInt();
+					}
 					sacs.addAll(viewerState.getSources());
 				}
+				else
+				{
+					return;
+				}
 			}
-			if (renderer == null || image == null || renderTarget == null || offset == null)
-				return;
 
-			final AffineTransform3D viewerTransform = new AffineTransform3D();
-			viewerState.getViewerTransform(viewerTransform);
 			viewerTransform.translate(-offset[0], -offset[1], 0);
 
-			renderer.paint(
-					sacs,
-					axisOrder,
-					viewerState.timepointProperty().get(),
-					viewerTransform,
-					interpolation,
-					null
+			final int renderedScreenScaleIndex = renderer.paint(
+				sacs,
+				axisOrder,
+				timepoint,
+				viewerTransform,
+				interpolation,
+				null
 			);
 
-			renderTarget.drawOverlays(image::set);
+			renderTarget.drawOverlays(img -> renderedImage.set(new RenderedImage(img, renderedImageTag, renderedScreenScaleIndex)));
 		}
 	}
 
@@ -385,11 +402,39 @@ public class RenderUnit {
 	}
 
 	/**
+	 * Utility class to represent rendering results that contains a rendered image, an assigned tag, and an index of the screen scale used for rendering.
+	 */
+	public static class RenderedImage
+	{
+		private final Image image;
+		private final int tag;
+		private final int screenScaleIndex;
+
+		public RenderedImage(final Image image, final int tag, final int screenScaleIndex) {
+			this.image = image;
+			this.tag = tag;
+			this.screenScaleIndex = screenScaleIndex;
+		}
+
+		public Image getImage() {
+			return image;
+		}
+
+		public int getTag() {
+			return tag;
+		}
+
+		public int getScreenScaleIndex() {
+			return screenScaleIndex;
+		}
+	}
+
+	/**
 	 * Utility class to access images via linear index.
 	 */
 	public static class ImagePropertyGrid
 	{
-		private final ObjectProperty<Image>[] images;
+		private final ObjectProperty<RenderedImage>[] renderedImages;
 
 		private final CellGrid grid;
 
@@ -397,8 +442,8 @@ public class RenderUnit {
 
 		private final int[] padding;
 
-		private ImagePropertyGrid(final ObjectProperty<Image>[] images, final CellGrid grid, final long[] dimensions, final int[] padding) {
-			this.images = images;
+		private ImagePropertyGrid(final ObjectProperty<RenderedImage>[] renderedImages, final CellGrid grid, final long[] dimensions, final int[] padding) {
+			this.renderedImages = renderedImages;
 			this.grid = grid;
 			this.dimensions = dimensions;
 			this.padding = padding;
@@ -418,9 +463,9 @@ public class RenderUnit {
 		 * @param linearGridIndex linear index wrt to {@link #getGrid()}.
 		 * @return {@link ReadOnlyObjectProperty} at {@code linearGridIndex}
 		 */
-		public ReadOnlyObjectProperty<Image> imagePropertyAt(final int linearGridIndex)
+		public ReadOnlyObjectProperty<RenderedImage> renderedImagePropertyAt(final int linearGridIndex)
 		{
-			return images[linearGridIndex];
+			return renderedImages[linearGridIndex];
 		}
 
 		/**
@@ -429,7 +474,7 @@ public class RenderUnit {
 		 */
 		public int numTiles()
 		{
-			return images.length;
+			return renderedImages.length;
 		}
 
 		/**

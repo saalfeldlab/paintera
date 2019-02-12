@@ -38,12 +38,12 @@ public class ViewerState
 			SourceAndConverter::getSpimSource
 	                                                                               );
 
-	protected void setViewerTransform(final AffineTransform3D to)
+	protected synchronized void setViewerTransform(final AffineTransform3D to)
 	{
 		this.viewerTransform.set(to);
 	}
 
-	public void getViewerTransform(final AffineTransform3D to)
+	public synchronized void getViewerTransform(final AffineTransform3D to)
 	{
 		to.set(this.viewerTransform);
 	}
@@ -83,7 +83,7 @@ public class ViewerState
 		this.axisOrder = axisOrder;
 	}
 
-	public ViewerState copy()
+	public synchronized ViewerState copy()
 	{
 		final ViewerState state = new ViewerState(this.axisOrder);
 		state.viewerTransform.set(viewerTransform);

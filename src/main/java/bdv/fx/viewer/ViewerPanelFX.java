@@ -31,6 +31,7 @@ package bdv.fx.viewer;
 
 import bdv.cache.CacheControl;
 import bdv.fx.viewer.render.RenderUnit;
+import bdv.fx.viewer.render.RenderingModeController;
 import bdv.viewer.Interpolation;
 import bdv.viewer.RequestRepaint;
 import bdv.viewer.Source;
@@ -46,9 +47,8 @@ import javafx.collections.FXCollections;
 import javafx.collections.ListChangeListener;
 import javafx.collections.ObservableList;
 import javafx.scene.Node;
-import javafx.scene.image.Image;
+import javafx.scene.canvas.Canvas;
 import javafx.scene.layout.StackPane;
-import javafx.scene.paint.Color;
 import net.imglib2.Point;
 import net.imglib2.Positionable;
 import net.imglib2.RealLocalizable;
@@ -97,9 +97,9 @@ public class ViewerPanelFX
 
 	private final RenderUnit renderUnit;
 
-	private final SingleChildStackPane display = new SingleChildStackPane(1, 1);
+	private final CanvasPane canvasPane = new CanvasPane(1, 1);
 
-	private final OverlayPane overlayPane = new OverlayPane();
+	private final OverlayPane<?> overlayPane = new OverlayPane<>();
 
 	private final ViewerState state;
 	private final AffineTransform3D viewerTransform;
@@ -115,6 +115,8 @@ public class ViewerPanelFX
 	private final MouseCoordinateTracker mouseTracker = new MouseCoordinateTracker();
 
 	private final ObjectProperty<RenderUnit.ImagePropertyGrid> imageDisplayGrid = new SimpleObjectProperty<>(null);
+
+	private RenderingModeController renderingModeController;
 
 	public ViewerPanelFX(
 			final List<SourceAndConverter<?>> sources,
@@ -197,7 +199,7 @@ public class ViewerPanelFX
 			final Function<Source<?>, Interpolation> interpolation)
 	{
 		super();
-		super.getChildren().setAll(display, overlayPane);
+		super.getChildren().setAll(canvasPane, overlayPane);
 		this.renderingExecutorService = Executors.newFixedThreadPool(optional.values.getNumRenderingThreads(), new RenderThreadFactory());
 		options = optional.values;
 
@@ -222,12 +224,14 @@ public class ViewerPanelFX
 				options.getAccumulateProjectorFactory(),
 				cacheControl,
 				options.getTargetRenderNanos(),
-				renderingExecutorService);
-		this.renderUnit.addUpdateListener(() ->
-		{
-			this.imageDisplayGrid.set(renderUnit.getImagePropertyGrid());
-		});
-		this.imageDisplayGrid.addListener((obs, oldv, newv) -> {synchronized(renderUnit) {this.display.setChild(makeCanvas(newv));}});
+				options.getNumRenderingThreads(),
+				renderingExecutorService,
+				() -> renderingModeController.getCurrentTag());
+
+		this.renderingModeController = new RenderingModeController(renderUnit);
+
+		this.renderUnit.addUpdateListener(() -> {this.imageDisplayGrid.set(renderUnit.getImagePropertyGrid());});
+		this.imageDisplayGrid.addListener((obs, oldv, newv) -> {synchronized(renderUnit) {setImageListeners(canvasPane.getCanvas(), newv, renderingModeController);}});
 		this.widthProperty().addListener((obs, oldv, newv) -> this.renderUnit.setDimensions((long)getWidth(), (long)getHeight()));
 		this.heightProperty().addListener((obs, oldv, newv) -> this.renderUnit.setDimensions((long)getWidth(), (long)getHeight()));
 		setWidth(options.getWidth());
@@ -386,20 +390,24 @@ public class ViewerPanelFX
 	public synchronized void transformChanged(final AffineTransform3D transform)
 	{
 		viewerTransform.set(transform);
-		state.setViewerTransform(transform);
+		synchronized (state)
+		{
+		    state.setViewerTransform(transform);
+		    renderingModeController.transformChanged();
+		}
 		for (final TransformListener<AffineTransform3D> l : transformListeners)
 			l.transformChanged(viewerTransform);
 		requestRepaint();
 	}
 
 	/**
-	 * Get a copy of the current {@link ViewerState}.
+	 * Get the current {@link ViewerState}.
 	 *
-	 * @return a copy of the current {@link ViewerState}.
+	 * @return the current {@link ViewerState}.
 	 */
 	public ViewerState getState()
 	{
-		return state.copy();
+		return state;
 	}
 
 	/**
@@ -547,9 +555,14 @@ public class ViewerPanelFX
 	 *
 	 * @return {@link OverlayPane} used for drawing overlays without re-rendering 2D cross-sections
 	 */
-	public OverlayPane getDisplay()
+	public OverlayPane<?> getDisplay()
 	{
 		return this.overlayPane;
+	}
+
+	public RenderingModeController getRenderingModeController()
+	{
+		return renderingModeController;
 	}
 
 	/**
@@ -569,11 +582,10 @@ public class ViewerPanelFX
 		return range;
 	}
 
-	private CanvasPane makeCanvas(final RenderUnit.ImagePropertyGrid grid)
+	private void setImageListeners(final Canvas canvas, final RenderUnit.ImagePropertyGrid grid, final RenderingModeController renderingModeController)
 	{
-		final CanvasPane canvasPane = new CanvasPane(1, 1);
 		if (grid == null)
-			return canvasPane;
+			return;
 
 		final CellGrid cellGrid = grid.getGrid();
 		final long[] gridPos = new long[2];
@@ -583,21 +595,22 @@ public class ViewerPanelFX
 			cellGrid.getCellGridPositionFlat(i, gridPos);
 			cellGrid.getCellDimensions(gridPos, cellMin, cellDims);
 
-			final ReadOnlyObjectProperty<Image> image = grid.imagePropertyAt(i);
-			image.addListener((obs, oldv, newv) -> {
-				if (newv != null) {
-					final int[] padding = grid.getPadding();
-					canvasPane.getCanvas().getGraphicsContext2D().drawImage(
-						newv, // src
-						padding[0], padding[1], // src X, Y
-						newv.getWidth() - 2 * padding[0], newv.getHeight() - 2 * padding[1], // src width, height
-						cellMin[0], cellMin[1], // dst X, Y
-						cellDims[0], cellDims[1] // dst width, height
-					);
+			final ReadOnlyObjectProperty<RenderUnit.RenderedImage> renderedImage = grid.renderedImagePropertyAt(i);
+			renderedImage.addListener((obs, oldv, newv) -> {
+				if (newv != null && newv.getImage() != null) {
+					if (renderingModeController.validateTag(newv.getTag())) {
+						final int[] padding = grid.getPadding();
+						canvas.getGraphicsContext2D().drawImage(
+							newv.getImage(), // src
+							padding[0], padding[1], // src X, Y
+							newv.getImage().getWidth() - 2 * padding[0], newv.getImage().getHeight() - 2 * padding[1], // src width, height
+							cellMin[0], cellMin[1], // dst X, Y
+							cellDims[0], cellDims[1] // dst width, height
+						);
+					}
+					renderingModeController.receivedRenderedImage(newv.getTag(), newv.getScreenScaleIndex());
 				}
 			});
 		}
-		return canvasPane;
 	}
-
 }

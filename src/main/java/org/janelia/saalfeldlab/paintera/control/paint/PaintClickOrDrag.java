@@ -157,9 +157,13 @@ public class PaintClickOrDrag implements InstallAndRemove<Node> {
 					final MaskedSource<?, ?> source = (MaskedSource<?, ?>) currentSource;
 					final ViewerState state = viewer.getState();
 					final AffineTransform3D viewerTransform = new AffineTransform3D();
-					state.getViewerTransform(viewerTransform);
 					final AffineTransform3D screenScaleTransform = new AffineTransform3D();
-					final int               level                = state.getBestMipMapLevel(screenScaleTransform, currentSource);
+					final int level;
+					synchronized (state)
+					{
+						state.getViewerTransform(viewerTransform);
+						level = state.getBestMipMapLevel(screenScaleTransform, currentSource);
+					}
 					source.getSourceTransform(0, level, labelToGlobalTransform);
 					this.labelToViewerTransform.set(viewerTransform.copy().concatenate(labelToGlobalTransform));
 					this.globalToViewerTransform.set(viewerTransform);
@@ -171,6 +175,7 @@ public class PaintClickOrDrag implements InstallAndRemove<Node> {
 					this.fillLabel = 1;
 					this.interval = null;
 					this.paintIntoThis = source;
+					viewer.getRenderingModeController().paintingStarted();
 					position.update(event);
 					paint(position.x, position.y);
 				}
@@ -241,13 +246,14 @@ public class PaintClickOrDrag implements InstallAndRemove<Node> {
 						LOG.debug("Not currently painting -- will not do anything");
 						return;
 					}
-					
+
 					if (this.paintIntoThis == null )
 					{
 						LOG.debug("No current source available -- will not do anything");
 						return;
 					}
 
+					viewer.getRenderingModeController().paintingFinished();
 					try {
 						this.paintIntoThis.applyMask(this.mask, this.interval, FOREGROUND_CHECK);
 					} catch (final Exception e) {
