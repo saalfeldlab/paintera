@@ -608,7 +608,7 @@ public class ViewerPanelFX
 							cellDims[0], cellDims[1] // dst width, height
 						);
 					}
-					renderingModeController.receivedRenderedImage(newv.getTag());
+					renderingModeController.receivedRenderedImage(newv.getTag(), newv.getScreenScaleIndex());
 				}
 			});
 		}

@@ -26,8 +26,9 @@ public class RenderingModeController {
 	private final ObjectProperty<RenderingMode> modeProperty = new SimpleObjectProperty<>();
 
 	private final AtomicInteger currentTag = new AtomicInteger();
-	private int lastReceivedTag;
-	private int lastModeSwitchTag;
+	private int lastReceivedTag, lastModeSwitchTag;
+	private int highestRenderedScreenScaleIndex = -1;
+	private boolean needRepaintAfterPainting;
 
 	public RenderingModeController(final RenderUnit renderUnit)
 	{
@@ -84,11 +85,12 @@ public class RenderingModeController {
 	{
 		final int tag = currentTag.getAndIncrement();
 		if (modeProperty.get() != RenderingMode.MULTI_TILE) {
-			final boolean needRepaint = lastReceivedTag != tag;
-			LOG.debug("Painting has been initiated, needRepaint={}", needRepaint);
+			final boolean needRepaintAfterModeSwitch = lastReceivedTag != tag;
+			needRepaintAfterPainting = !needRepaintAfterModeSwitch && highestRenderedScreenScaleIndex != 0;
+			LOG.debug("Painting has been initiated, needRepaintAfterModeSwitch={}, needRepaintAfterPainting={}", needRepaintAfterModeSwitch, needRepaintAfterPainting);
 			InvokeOnJavaFXApplicationThread.invoke(() -> {
 				setMode(RenderingMode.MULTI_TILE);
-				if (needRepaint)
+				if (needRepaintAfterModeSwitch)
 					renderUnit.requestRepaint();
 			});
 		}
@@ -98,10 +100,19 @@ public class RenderingModeController {
 	{
 		LOG.debug("Painting has been stopped");
 		currentTag.getAndIncrement();
+		if (needRepaintAfterPainting) {
+		    renderUnit.requestRepaint();
+		    needRepaintAfterPainting = false;
+		}
 	}
 
-	public void receivedRenderedImage(final int tag)
+	public void receivedRenderedImage(final int tag, final int screenScaleIndex)
 	{
+		if (lastReceivedTag == tag) {
+		    highestRenderedScreenScaleIndex = highestRenderedScreenScaleIndex == -1 ? screenScaleIndex : Math.min(screenScaleIndex, highestRenderedScreenScaleIndex);
+		} else {
+		    highestRenderedScreenScaleIndex = screenScaleIndex;
+		}
 		lastReceivedTag = tag;
 	}
 }
