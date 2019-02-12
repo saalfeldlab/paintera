@@ -101,7 +101,7 @@ public class RenderingModeController {
 		LOG.debug("Painting has been stopped");
 		currentTag.getAndIncrement();
 		if (needRepaintAfterPainting) {
-		    renderUnit.requestRepaint();
+		    renderUnit.requestRepaint(0);
 		    needRepaintAfterPainting = false;
 		}
 	}
