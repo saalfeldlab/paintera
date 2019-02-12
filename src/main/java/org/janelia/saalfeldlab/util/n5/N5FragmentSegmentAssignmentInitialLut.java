@@ -57,7 +57,7 @@ public class N5FragmentSegmentAssignmentInitialLut implements Supplier<TLongLong
 			return new TLongLongHashMap(keys, values);
 		} catch (IOException e) {
 			LOG.debug("Exception while trying to return initial lut from N5", e);
-			LOG.error("Unable to read initial lut from {} -- returning empty map", meta, e);
+			LOG.info("Unable to read initial lut from {} -- returning empty map", meta);
 			return new TLongLongHashMap();
 		}
 	}
